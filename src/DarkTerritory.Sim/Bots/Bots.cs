@@ -290,6 +290,7 @@ public sealed class RoofWalkerBot(int seed, ColdTuning? cold = null, StopHand? j
 
     ConductorBot? _relief;
     bool _sawDriver;
+    bool _cameForward;
 
     /// <summary>
     /// The relief driver (note 399, <see cref="ReliefDriver"/>): a driver heard, and now none alive on the calls, and nobody
@@ -320,11 +321,16 @@ public sealed class RoofWalkerBot(int seed, ColdTuning? cold = null, StopHand? j
         {
             if (calls.Relief == Me)
                 calls.Relief = null;
-            // Back out of the cab it came forward to, or off the engine's roof.
-            if (self.Parent != 0)
+            // Back out of the cab it came forward to, or off the engine's roof: only a walker that came forward for it (one
+            // up there with the forward gun's powder, note 377, is about something else).
+            if (self.Parent != 0 || !_cameForward)
+            {
+                _cameForward &= self.Parent == 0;
                 return null;
+            }
             return self.Surface == Surface.Roof ? ReliefDriver.OffTheEngine(self, train) : KitRun.BackToTheTrain(self, train);
         }
+        _cameForward = true;
         if (calls.Relief != Me)
         {
             // Someone living's gone already: theirs.
@@ -927,7 +933,7 @@ public sealed class RoofWalkerBot(int seed, ColdTuning? cold = null, StopHand? j
         Func<int, bool> firing = gun => _shots.Firing(gun, tick, guns.FeedWhileFiring);
         if (PowderCarry.Carrier(world, all, guns, Calls is { } calls ? calls.IsFeeder : null, firing) != Me)
             // Left up on the engine's roof by a run to its gun: back down onto the train (the legs' walk keeps off the engine).
-            return Stand(PowderRun.OffTheEngine(self, train));
+            return Stand(ReliefDriver.OffTheEngine(self, train));
         if (PowderCarry.Wanting(world, all.Select(c => c.State), guns, firing) is { } wanted)
             _feedGun = wanted;
         if (_feedGun < 0 || _feedGun >= train.Vehicles.Count || !train.Vehicles[_feedGun].HasGun || train.Vehicles[_feedGun].Taken)

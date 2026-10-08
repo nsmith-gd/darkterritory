@@ -17,6 +17,8 @@ public class GunPowderTests
     static readonly GunTuning G = Tuning.Combat.Guns;
     static readonly PlayerTuning P = Tuning.Player;
 
+    static readonly Enemies.EnemyTuning Quiet = Tuning.Enemies with { Director = Tuning.Enemies.Director with { GraceMinSeconds = 1e9, GraceMaxSeconds = 1e9 } };
+
     static int Rear(Night n) => n.Train.Dynamics.Consist.Vehicles[^1].Id;
 
     /// <summary>Inside the guard van, at its powder locker.</summary>
@@ -242,8 +244,8 @@ public class GunPowderTests
     public void AWalkerCarriesTheEngineGunsPowderTheLengthOfTheTrain()
     {
         // The forward gun's share is in the guard van's locker too: a walk back along the roofs, down and up, and forward to
-        // the cab roof, with the charge.
-        var n = new Night(4, 12);
+        // the cab roof, with the charge. (The director quiet: it's the walk that's tested, not what comes at it on the way.)
+        var n = new Night(4, 12, enemies: Quiet);
         var mount = Guns.Mount(n.Train, 0)!.Value;
         var seat = PlayerMotor.SpawnOnRoof(n.Train, 0, mount.Position.Z - mount.Facing.Z * 0.8, P) with { Yaw = 0 };
         var (fired, steps, charges) = String(n, 0, seat, every: 12);

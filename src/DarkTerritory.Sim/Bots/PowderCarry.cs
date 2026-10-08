@@ -142,32 +142,6 @@ public sealed class PowderRun(GunTuning guns)
     /// <summary>m: a walker stands this far to the side of the gun's pivot to fill it (within the gun's reach, off the seat).</summary>
     const double Beside = 0.7;
 
-    /// <summary>
-    /// Along the car's roof to its front end on the centreline, facing forward, and a running jump onto the engine's hood when
-    /// it's one to make (<see cref="WarmUp.CanJumpGap"/>); squared up at the end until it is.
-    /// </summary>
-    static PlayerIntent OntoTheEngine(in PlayerState self, TrainOnLine train)
-    {
-        double l = train.Frames[self.Parent].Shape.HalfLength;
-        double turn = Math.IEEERemainder(0 - self.Yaw, 2 * Math.PI);
-        bool aligned = Math.Abs(turn) < 0.1;
-        var intent = new PlayerIntent
-        {
-            LookYaw = (float)Math.Clamp(turn * 0.3, -0.2, 0.2),
-            MoveZ = aligned ? 1 : 0,
-            MoveX = aligned ? (float)Math.Clamp(-self.Position.X * 0.8, -1, 1) : 0,
-            Buttons = PlayerButtons.Run,
-        };
-        if (self.Position.Z < -l + 0.45 && aligned)
-        {
-            if (WarmUp.CanJumpGap(self, train, null, 0))
-                intent.Buttons |= PlayerButtons.Jump;
-            else
-                intent.MoveZ = 0;
-        }
-        return intent;
-    }
-
     /// <summary>One tick of the run to <paramref name="gunCar"/>'s gun; null when the legs walk it, or there's no locker to go to.</summary>
     public PlayerIntent? Go(in PlayerState self, World world, int me, int gunCar, bool beside, uint tick, Action<int> head)
     {
@@ -238,7 +212,7 @@ public sealed class PowderRun(GunTuning guns)
             if (self.Surface == Surface.Roof && train.VehicleAhead(self.Parent) == gunCar && gunCar == 0)
             {
                 Step = "onto the engine";
-                return OntoTheEngine(self, train);
+                return ReliefDriver.OntoTheEngine(self, train);
             }
             if (self.Surface == Surface.Roof)
                 head(train.Dynamics.Consist.IndexOf(gunCar) < train.Dynamics.Consist.IndexOf(self.Parent) ? -1 : 1);
@@ -271,7 +245,7 @@ public sealed class PowderRun(GunTuning guns)
             var (step, there) = WarmUp.Steer(self, top, self.Yaw);
             return there ? new PlayerIntent { Actions = PlayerActions.Ladder } : step;
         }
-        if (self.Surface == Surface.Roof && self.Parent == 0 && OffTheEngine(self, train) is { } off)
+        if (self.Surface == Surface.Roof && self.Parent == 0 && ReliefDriver.OffTheEngine(self, train) is { } off)
         {
             Step = "off the engine";
             return off;
@@ -281,39 +255,5 @@ public sealed class PowderRun(GunTuning guns)
         Step = "along";
         Along = true;
         return null;
-    }
-
-    /// <summary>
-    /// Off the engine's hood roof, back onto the train (note 377: a walker that brought the forward gun its powder): round the
-    /// stack (it stands up through the hood on the centreline near its back), then back along the centreline and a running
-    /// jump down onto car 1's roof. Null with no car behind the engine.
-    /// </summary>
-    public static PlayerIntent? OffTheEngine(in PlayerState self, TrainOnLine train)
-    {
-        int behind = train.VehicleBehind(0);
-        if (behind <= 0 || self.Parent != 0 || self.Surface != Surface.Roof)
-            return null;
-        var plan = EnginePlan.Of(train.Dynamics.Tuning.Geometry);
-        double edge = plan.Half - CarShape.BoilerToEnd;
-        // Short of the stack, and on the centreline: out to its side first, then past it.
-        if (self.Position.Z < plan.StackZ + 0.55)
-            return WarmUp.Steer(self, new Double3(Beside, 0, plan.StackZ + 0.95), Math.PI).Step;
-        double turn = Math.IEEERemainder(Math.PI - self.Yaw, 2 * Math.PI);
-        bool aligned = Math.Abs(turn) < 0.1;
-        var intent = new PlayerIntent
-        {
-            LookYaw = (float)Math.Clamp(turn * 0.3, -0.2, 0.2),
-            MoveZ = aligned ? 1 : 0,
-            MoveX = aligned ? (float)Math.Clamp(self.Position.X * 0.8, -1, 1) : 0,
-            Buttons = PlayerButtons.Run,
-        };
-        if (self.Position.Z > edge - 0.45 && aligned)
-        {
-            if (WarmUp.CanJumpGap(self, train, null, behind))
-                intent.Buttons |= PlayerButtons.Jump;
-            else
-                intent.MoveZ = 0;
-        }
-        return intent;
     }
 }
