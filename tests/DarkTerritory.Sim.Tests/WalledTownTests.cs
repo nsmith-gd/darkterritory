@@ -77,8 +77,9 @@ public class WalledTownTests
                 double near = Math.Min(Math.Min(st.At(x.S0), st.At(x.S1)), st.At((x.S0 + x.S1) / 2)), far = Math.Max(Math.Max(st.At(x.S0), st.At(x.S1)), st.At((x.S0 + x.S1) / 2));
                 Assert.False(x.D1 > near - st.Width / 2 && x.D0 < far + st.Width / 2 && x.S1 > st.S0 && x.S0 < st.S1, $"house {x.Id} in the street at {st.D:0}");
             }
+            // Where the lane is across the house's depth (it runs crooked: note 353).
             foreach (var lane in b?.Lanes ?? [])
-                Assert.False(x.S1 > lane.S - lane.Width / 2 && x.S0 < lane.S + lane.Width / 2, $"house {x.Id} in the lane at {lane.S:0}");
+                Assert.False(lane.Span(x.D0, x.D1) is var (lo, hi) && x.S1 > lo && x.S0 < hi, $"house {x.Id} in the lane at {lane.S:0}");
             Assert.False(Math.Sign(x.D0) == sq.Side && x.S1 > sq.S0 && x.S0 < sq.S1 && Math.Min(Math.Abs(x.D0), Math.Abs(x.D1)) < Math.Abs(sq.WallD),
                 $"house {x.Id} in the square");
         }
@@ -130,21 +131,59 @@ public class WalledTownTests
         var b = town.Plan.Bounds!;
         var lane = b.Lanes[b.Lanes.Count / 2];
         var train = world.Train;
-        // From beside the line, down the lane's middle at a run, out past the last street, for a minute (at a walk, the
-        // 180 m out to the wall is a minute and a quarter).
+        // From beside the line, down the lane's middle at a run (it turns at each street: note 353), out past the last
+        // street, for a minute (at a walk, the 180 m out to the wall is a minute and a quarter).
         var from = town.World(lane.S, 4.5);
         var s = PlayerMotor.SpawnOnGround(from, train.Line, lane.S, P);
-        var dir = town.Direction(lane.S, 0, 1);
-        s.Yaw = Math.Atan2(-dir.X, -dir.Z);
-        double furthest = 0;
+        double furthest = 0, along = lane.S;
         for (int i = 0; i < 60 * SimConstants.TickRate; i++)
         {
+            // Where they are across the line, and so where the lane's middle is a few steps on.
+            train.Line.Nearest(s.Position, ref along);
+            double d = Double3.Dot(s.Position - town.World(along, 0), town.Direction(along, 0, 1));
+            var aim = town.World(lane.At(d + 6), d + 6) - s.Position;
+            s.Yaw = Math.Atan2(-aim.X, -aim.Z);
             PlayerMotor.Step(ref s, new PlayerIntent { MoveZ = 1, Buttons = PlayerButtons.Run }, train, P, Tuning.Train, SimConstants.TickSeconds);
-            furthest = Math.Max(furthest, Double3.Dot(s.Position - town.World(lane.S, 0), dir));
+            furthest = Math.Max(furthest, d);
         }
         double outer = b.Streets.Max(st => st.D);
         Assert.True(furthest > outer, $"got {furthest:0.0} m out down the lane; the outermost street is {outer:0.0} m out");
         Assert.True(furthest < b.Right, $"walked {furthest:0.0} m out, through the wall at {b.Right:0.0}");
+    }
+
+    [Theory]
+    [InlineData("frontier:7", 3000)]
+    [InlineData("local:3", 1200)]
+    public void ALaneRunsCrookedButNeverIntoTheSquareTheGreenOrTheNextLane(string spec, int people)
+    {
+        // Note 353 (the director, 8 Oct: "Towns dont feel like they have a natural layout to them"): a lane turns where
+        // it meets each street, so the crossings don't line up down the town.
+        var (_, town) = Night(spec, people);
+        var plan = town.Plan;
+        var b = plan.Bounds!;
+        var wt = Towns.Tuning.Walled;
+        Assert.All(b.Lanes, lane => Assert.Contains(lane.Kinks!, k => Math.Abs(k.S - lane.S) >= wt.LaneJog[0] - 1e-6));
+        // No two lanes meet, anywhere across the town.
+        var lanes = b.Lanes.OrderBy(l => l.S).ToList();
+        for (int i = 1; i < lanes.Count; i++)
+            for (double d = -b.Left; d <= b.Right; d += 1)
+                Assert.True(lanes[i].At(d) - lanes[i - 1].At(d) > 2 * wt.LaneWidth, $"lanes at {lanes[i - 1].S:0} and {lanes[i].S:0} meet {d:0} m out");
+        // Nor runs into the square (its buildings back onto where its far wall was) or across the green.
+        var sq = plan.Square;
+        double reach = plan.Green is { } g ? g.Far : Math.Abs(sq.WallD);
+        foreach (var lane in b.Lanes)
+        {
+            var (lo, hi) = lane.Span(0, sq.Side * reach);
+            Assert.False(hi > sq.S0 && lo < sq.S1, $"the lane at {lane.S:0} runs into the square ({lo:0}..{hi:0} along the line)");
+        }
+        // The yards beside it are fenced along it (a board fence down the lot's side), a lane between fences.
+        Assert.Contains(plan.Houses, h => h.Yard.Any(y => y.Kind == YardKind.Boards && y.V1 - y.V0 > y.U1 - y.U0));
+        // And it's still open down its middle from the line to the outermost street: nothing solid on it.
+        double outer = b.Streets.Max(st => Math.Abs(st.D));
+        foreach (var lane in b.Lanes)
+            foreach (int sd in new[] { -1, 1 })
+                for (double d = 6; d < outer; d += 2)
+                    Assert.True(town.Free(town.World(lane.At(sd * d), sd * d)), $"something solid in the lane at {lane.S:0}, {sd * d:0} m out");
     }
 
     [Fact]

@@ -74,7 +74,16 @@ public sealed record RunLog(int Run, string Route, RunEnd End, double Net, int C
 
 /// <summary>One car's condition, to put it back as it was.</summary>
 /// <param name="Cargo">What it's carrying (T68): a save from before cargo types reads as none.</param>
-public sealed record CarState(int Id, double Load, double Integrity, double CargoIntegrity, int Ammo, CargoKind Cargo = CargoKind.None);
+/// <param name="Eaten">How much of its shell the Car Hugger has eaten (A.3: "gone, not dented"), so a resumed night doesn't
+/// give it back (note 481). A save from before reads as none.</param>
+public sealed record CarState(int Id, double Load, double Integrity, double CargoIntegrity, int Ammo, CargoKind Cargo = CargoKind.None, double Eaten = 0);
+
+/// <summary>
+/// A rake as the save found it (note 481): its vehicles front to back, the track its front is on and how far along. The
+/// engine's is the train going on, a switchyard's cars it picked up ahead of it; any other is cars cut off it, or a yard's
+/// still standing, where they were left.
+/// </summary>
+public sealed record RakeSave(int[] Vehicles, int Path, double Distance, bool Handbrake, bool Locked);
 
 /// <summary>
 /// Spec E "autosave per POI, on successful departure": enough of a night to start it again from the facility the
@@ -88,6 +97,13 @@ public sealed record RunCheckpoint(string Route, int Facility, double Seconds, d
     /// that wasn't generated.
     /// </summary>
     public byte[]? Plan { get; init; }
+
+    /// <summary>
+    /// The train as it left, rake by rake (spec E "rolls back to last POI autosave"; note 481): a car cut loose or rolled away
+    /// before the save stays where it was left, and a switchyard's cars picked up are still ahead of the engine. Null for an
+    /// older save, which rebuilds the train from its own cars.
+    /// </summary>
+    public RakeSave[]? Rakes { get; init; }
 }
 
 /// <summary>What a host owns between nights (spec E: the host owns the campaign). Saved as text, one file a slot.</summary>

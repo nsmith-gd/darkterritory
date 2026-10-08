@@ -2365,7 +2365,7 @@
    }
   ],
   "takes": 3,
-  "sha": "f779e3f5155da943"
+  "sha": "655a03379dc98a5f"
  },
  "crew-coupling/knuckle-release": {
   "cue": "crew-coupling.knuckle-release",
@@ -2373,8 +2373,8 @@
   "picked": "first",
   "candidates": [
    {
-    "label": "The coupler knuckle swinging open as the cars part",
-    "key": "knuckle",
+    "label": "The coupler knuckle swinging open as the cars part: a cast-steel clank that rings",
+    "key": "clank",
     "sources": [
      "kenney_impact-sounds:impactPlate_heavy_000",
      "kenney_impact-sounds:impactPlate_heavy_001",
@@ -2390,13 +2390,15 @@
      "kenney_impact-sounds:impactMining_001",
      "kenney_impact-sounds:impactMining_002",
      "kenney_impact-sounds:impactMining_003",
-     "kenney_impact-sounds:impactMining_004"
+     "kenney_impact-sounds:impactMining_004",
+     "sfx_100_v2:metal_02",
+     "sfx_100_v2:metal_06"
     ],
     "licence": "CC0"
    }
   ],
   "takes": 3,
-  "sha": "e046fb081ef0949e"
+  "sha": "f98d65b110166668"
  },
  "crew-coupling/pin-drop": {
   "cue": "crew-coupling.pin-drop",
@@ -9335,6 +9337,21 @@
   "takes": 2,
   "sha": "e138a2ed8dee80a6"
  },
+ "cs-grumbler/heal": {
+  "cue": "cs-grumbler.heal",
+  "surface": null,
+  "picked": "first",
+  "candidates": [
+   {
+    "label": "The Grumbler healing: wet sucks as the stuff of it is drawn back in, tissue ticking, a throb, his muttering",
+    "key": "knit",
+    "sources": [],
+    "licence": "CC0"
+   }
+  ],
+  "takes": 2,
+  "sha": "9757f2723cc5dbc9"
+ },
  "cs-grumbler/hit": {
   "cue": "cs-grumbler.hit",
   "surface": null,
@@ -9408,6 +9425,32 @@
   ],
   "takes": 4,
   "sha": "70284ac84df1ed98"
+ },
+ "cs-hounds/climb": {
+  "cue": "cs-hounds.climb",
+  "surface": null,
+  "picked": "first",
+  "candidates": [
+   {
+    "label": "A hound climbing out at an open door: claws scrabbling up the car's side, a heave, its weight onto the roof",
+    "key": "scrabble",
+    "sources": [
+     "kenney_impact-sounds:footstep_wood_000",
+     "kenney_impact-sounds:footstep_wood_001",
+     "kenney_impact-sounds:footstep_wood_002",
+     "kenney_impact-sounds:footstep_wood_003",
+     "kenney_impact-sounds:footstep_wood_004",
+     "kenney_impact-sounds:impactTin_medium_000",
+     "kenney_impact-sounds:impactTin_medium_001",
+     "kenney_impact-sounds:impactTin_medium_002",
+     "kenney_impact-sounds:impactTin_medium_003",
+     "kenney_impact-sounds:impactTin_medium_004"
+    ],
+    "licence": "CC0"
+   }
+  ],
+  "takes": 3,
+  "sha": "a822434c86c487aa"
  },
  "cs-hounds/leap": {
   "cue": "cs-hounds.leap",
@@ -9545,6 +9588,42 @@
   ],
   "takes": 4,
   "sha": "3ef3f9b37d45fb41"
+ },
+ "cs-hounds/sniff": {
+  "cue": "cs-hounds.sniff",
+  "surface": null,
+  "picked": "first",
+  "candidates": [
+   {
+    "label": "A hound stopped to sniff: quick hard sniffs in runs, a snort out, a rumble in its chest, embers in its hide",
+    "key": "nose",
+    "sources": [],
+    "licence": "CC0"
+   }
+  ],
+  "takes": 2,
+  "sha": "6fd0218fc04f7a0f"
+ },
+ "cs-hounds/spring": {
+  "cue": "cs-hounds.spring",
+  "surface": null,
+  "picked": "first",
+  "candidates": [
+   {
+    "label": "A hound springing off a roof: both hind feet driving off the tin, the sheet popping, a huff, its body through the air",
+    "key": "tin",
+    "sources": [
+     "kenney_impact-sounds:impactTin_medium_000",
+     "kenney_impact-sounds:impactTin_medium_001",
+     "kenney_impact-sounds:impactTin_medium_002",
+     "kenney_impact-sounds:impactTin_medium_003",
+     "kenney_impact-sounds:impactTin_medium_004"
+    ],
+    "licence": "CC0"
+   }
+  ],
+  "takes": 3,
+  "sha": "7dc6a040832a7590"
  },
  "cs-hounds/yelp": {
   "cue": "cs-hounds.yelp",
@@ -10289,6 +10368,53 @@
   "takes": 1,
   "sha": "ec9f5fddbd1da047"
  },
+ "cs-track-doll/rattle": {
+  "cue": "cs-track-doll.rattle",
+  "surface": null,
+  "picked": "first",
+  "candidates": [
+   {
+    "label": "Her small hand shaking the brake handle without turning it: quick brass squeaks, the detent clicking, her fingertips",
+    "key": "brass",
+    "sources": [
+     "sfx_100_v2:door_02",
+     "sfx_100_v2:door_04",
+     "sfx_100_v2:door_05",
+     "kenney_rpg-audio:metalLatch",
+     "sfx_100_v2:glass_04",
+     "sfx_100_v2:glass_06"
+    ],
+    "licence": "CC0"
+   }
+  ],
+  "takes": 3,
+  "sha": "34cb7caec605ef13"
+ },
+ "cs-track-doll/restless": {
+  "cue": "cs-track-doll.restless",
+  "surface": null,
+  "picked": "first",
+  "candidates": [
+   {
+    "label": "The doll restless: porcelain heels drumming on the woodwork, a tuneless hum through her teeth, her head turning",
+    "key": "heels",
+    "sources": [
+     "kenney_impact-sounds:impactWood_light_000",
+     "kenney_impact-sounds:impactWood_light_001",
+     "kenney_impact-sounds:impactWood_light_002",
+     "kenney_impact-sounds:impactWood_light_003",
+     "kenney_impact-sounds:impactWood_light_004",
+     "sfx_100_v2:glass_04",
+     "sfx_100_v2:glass_06",
+     "kenney_rpg-audio:creak3",
+     "kenney_rpg-audio:creak3"
+    ],
+    "licence": "CC0"
+   }
+  ],
+  "takes": 4,
+  "sha": "b58fc7759ac2a52a"
+ },
  "cs-track-doll/take-toy": {
   "cue": "cs-track-doll.take-toy",
   "surface": null,
@@ -10461,6 +10587,47 @@
   "takes": 1,
   "sha": "16bf15dea60a8bf9"
  },
+ "place-breach/board": {
+  "cue": "place-breach.board",
+  "surface": null,
+  "picked": "first",
+  "candidates": [
+   {
+    "label": "A board torn off a barricade: its last nails shrieking out, the board wrenched free and clattering down",
+    "key": "torn",
+    "sources": [
+     "sfx_100_v2:misc_34",
+     "sfx_100_v2:misc_35",
+     "kenney_impact-sounds:impactWood_heavy_000",
+     "kenney_impact-sounds:impactWood_heavy_001",
+     "kenney_impact-sounds:impactWood_heavy_002",
+     "kenney_impact-sounds:impactWood_heavy_003",
+     "kenney_impact-sounds:impactWood_heavy_004",
+     "kenney_impact-sounds:impactPlank_medium_000",
+     "kenney_impact-sounds:impactPlank_medium_001",
+     "kenney_impact-sounds:impactPlank_medium_002",
+     "kenney_impact-sounds:impactPlank_medium_003",
+     "kenney_impact-sounds:impactPlank_medium_004",
+     "sfx_100_v2:wood_hit_01",
+     "sfx_100_v2:wood_hit_02",
+     "kenney_impact-sounds:impactPlate_heavy_000",
+     "kenney_impact-sounds:impactPlate_heavy_001",
+     "kenney_impact-sounds:impactPlate_heavy_002",
+     "kenney_impact-sounds:impactPlate_heavy_003",
+     "kenney_impact-sounds:impactPlate_heavy_004",
+     "kenney_impact-sounds:impactMetal_heavy_000",
+     "kenney_impact-sounds:impactMetal_heavy_001",
+     "kenney_impact-sounds:impactMetal_heavy_002",
+     "kenney_impact-sounds:impactMetal_heavy_003",
+     "kenney_impact-sounds:impactMetal_heavy_004",
+     "sfx_100_v2:metal_hit_01"
+    ],
+    "licence": "CC0"
+   }
+  ],
+  "takes": 3,
+  "sha": "4e1cca89eef53d65"
+ },
  "place-breach/pick": {
   "cue": "place-breach.pick",
   "surface": null,
@@ -10518,8 +10685,8 @@
   "picked": "first",
   "candidates": [
    {
-    "label": "A barricade pried: a crowbar levering boards, nails shrieking out of the wood, boards creaking and cracking",
-    "key": "bar",
+    "label": "One heave on the bar: a board flexing out on its nails, the nails squealing, the wood creaking and splitting",
+    "key": "heave",
     "sources": [
      "sfx_100_v2:misc_35",
      "kenney_rpg-audio:chop",
@@ -10538,8 +10705,8 @@
     "licence": "CC0"
    }
   ],
-  "takes": 1,
-  "sha": "cd915a2602a82f8d"
+  "takes": 4,
+  "sha": "a762f8d23d0cfa59"
  },
  "place-breach/pry-give": {
   "cue": "place-breach.pry-give",
@@ -10588,8 +10755,8 @@
   "picked": "first",
   "candidates": [
    {
-    "label": "A lock smashed: three seconds of sledge blows on a padlock and hasp, the door booming, the last blow tearing it out",
-    "key": "sledge",
+    "label": "One sledge blow on a padlock and hasp: steel on steel, the plank door booming, the lock jumping on its staple",
+    "key": "blow",
     "sources": [
      "kenney_impact-sounds:impactPlate_heavy_000",
      "kenney_impact-sounds:impactPlate_heavy_001",
@@ -10631,8 +10798,60 @@
     "licence": "CC0"
    }
   ],
-  "takes": 4,
-  "sha": "f33117110b95d4b9"
+  "takes": 5,
+  "sha": "1e74a2cae33bddbe"
+ },
+ "place-breach/smash-give": {
+  "cue": "place-breach.smash-give",
+  "surface": null,
+  "picked": "first",
+  "candidates": [
+   {
+    "label": "The last blow: the hasp torn out of the splintering wood and the lock clattering down",
+    "key": "tear",
+    "sources": [
+     "kenney_impact-sounds:impactPlate_heavy_000",
+     "kenney_impact-sounds:impactPlate_heavy_001",
+     "kenney_impact-sounds:impactPlate_heavy_002",
+     "kenney_impact-sounds:impactPlate_heavy_003",
+     "kenney_impact-sounds:impactPlate_heavy_004",
+     "kenney_impact-sounds:impactMetal_heavy_000",
+     "kenney_impact-sounds:impactMetal_heavy_001",
+     "kenney_impact-sounds:impactMetal_heavy_002",
+     "kenney_impact-sounds:impactMetal_heavy_003",
+     "kenney_impact-sounds:impactMetal_heavy_004",
+     "sfx_100_v2:metal_hit_01",
+     "kenney_impact-sounds:impactWood_heavy_000",
+     "kenney_impact-sounds:impactWood_heavy_001",
+     "kenney_impact-sounds:impactWood_heavy_002",
+     "kenney_impact-sounds:impactWood_heavy_003",
+     "kenney_impact-sounds:impactWood_heavy_004",
+     "kenney_impact-sounds:impactPlank_medium_000",
+     "kenney_impact-sounds:impactPlank_medium_001",
+     "kenney_impact-sounds:impactPlank_medium_002",
+     "kenney_impact-sounds:impactPlank_medium_003",
+     "kenney_impact-sounds:impactPlank_medium_004",
+     "sfx_100_v2:wood_hit_01",
+     "sfx_100_v2:wood_hit_02",
+     "kenney_impact-sounds:impactMetal_light_000",
+     "kenney_impact-sounds:impactMetal_light_001",
+     "kenney_impact-sounds:impactMetal_light_002",
+     "kenney_impact-sounds:impactMetal_light_003",
+     "kenney_impact-sounds:impactMetal_light_004",
+     "kenney_impact-sounds:impactMetal_medium_000",
+     "kenney_impact-sounds:impactMetal_medium_001",
+     "kenney_impact-sounds:impactMetal_medium_002",
+     "kenney_impact-sounds:impactMetal_medium_003",
+     "kenney_impact-sounds:impactMetal_medium_004",
+     "sfx_100_v2:metal_01",
+     "sfx_100_v2:metal_02",
+     "sfx_100_v2:metal_06"
+    ],
+    "licence": "CC0"
+   }
+  ],
+  "takes": 2,
+  "sha": "2e14772af0167742"
  },
  "place-chemical/drip": {
   "cue": "place-chemical.drip",
