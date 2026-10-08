@@ -801,6 +801,19 @@ public static class Staging
         return new Crewmate(LoneId, at, Math.Atan2(-facing.X, -facing.Z), true, Act: Art.CrewPose.HeldMouth);
     }
 
+    /// <summary>A friend hauling the swallowed one back out (<c>--hugger swallow --rescue</c>; note 378): a step behind them inside
+    /// the car, facing the mouth, at the rescue CrewActs gives for the Car Hugger's hold.</summary>
+    public static Crewmate SwallowRescuer(TrainOnLine train)
+    {
+        var rear = train.Frames[train.Dynamics.Consist.Vehicles[^1].Id];
+        double floor = train.Dynamics.Tuning.Geometry.Interior?.FloorHeight ?? 1.1;
+        // Off to the swallowed one's left (the swallow view's camera looks past them both), turned to them.
+        var at = rear.ToWorld(new Double3(-0.5, floor, rear.Shape.HalfLength - 2.1));
+        var facing = rear.DirToWorld(new Double3(0.7, 0, 0.7).Normalized);
+        return new Crewmate(2, at, Math.Atan2(-facing.X, -facing.Z), true,
+            Act: Art.CrewActs.RescueOf(Art.CrewActs.HeldPose(EnemyKind.CarHugger), below: false));
+    }
+
     /// <summary>The one the staged Passenger is dragging (<c>--passenger drag</c>): down on the floor at its feet, where the sim has them.</summary>
     public static Crewmate Dragged(TrainOnLine train)
     {
