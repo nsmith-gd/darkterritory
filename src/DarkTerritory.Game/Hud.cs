@@ -669,24 +669,8 @@ public static partial class Hud
         float y = height * 0.28f;
         // Note 285: an alarm's headline is big only when it's urgent (a rupture counting, a grab, the rail coming off); what
         // to do about it is in fine print under it, keys as keycaps. The run's end keeps the HUD's own size.
-        void Big(string text, Vector4 colour, bool urgent = true)
-        {
-            int scale = urgent ? 2 : 1;
-            o.TextCentred(width / 2f, y, text, colour, scale: scale);
-            y += scale * line + 2;
-        }
-        void Small(string text, Vector4 colour, bool fine = true)
-        {
-            if (!fine)
-            {
-                o.TextCentred(width / 2f, y, text, colour);
-                y += line;
-                return;
-            }
-            float k = Fine;
-            UiStyle.Keyed(o, Overlay.Snap((width - UiStyle.MeasureKeyed(o, text, k)) / 2, k), y + 2 * k, text, colour, k);
-            y += (line + 4) * k;
-        }
+        void Big(string text, Vector4 colour, bool urgent = true) => y = Headline(o, width, y, text, colour, urgent);
+        void Small(string text, Vector4 colour, bool fine = true) => y = UnderHeadline(o, width, y, text, colour, fine ? Fine : 1, fine);
         if (s.Link is { Waiting: { } waiting })
         {
             Big("WAITING", Amber, urgent: false);
@@ -846,12 +830,78 @@ public static partial class Hud
         // buffers coming up too fast to stop under the speed that goes through them, urgent, as a bend's warning is.
         else if (DeadEndLines(s) is { } dead)
         {
-            Big(dead.Head, dead.Urgent ? (world.Tick / 6 % 2 == 0 ? Red : Amber) : Amber);
+            Big(dead.Head, dead.Urgent ? (world.Tick / 6 % 2 == 0 ? Red : Amber) : Amber, dead.Urgent);
             Small(dead.Line, Ink);
         }
         // T113: the Choir's long telegraph, said plainly once it's well along, and what to do about it.
         if (p.Alive && world.Combat is not null && !world.Choir.Present && world.Choir.Build > 0.25)
             Small("THE CHOIR IS GATHERING", world.Tick / 15 % 2 == 0 ? Red : Amber);
+    }
+
+    /// <summary>How far in from the frame's sides an alarm's rows keep, in canvas pixels (the corner's own margin).</summary>
+    public const float AlarmMargin = 6;
+
+    /// <summary>
+    /// An alarm's headline (note 285: at twice the HUD's size only when it's urgent), centred, from <paramref name="y"/> down;
+    /// the y under it. It wraps where it would leave the frame (note 441: at 150% TEXT SIZE the canvas is 320 wide and TOO
+    /// FAST FOR THE BEND AHEAD, 27 letters at twice the size, ran off both sides).
+    /// </summary>
+    public static float Headline(Overlay o, int width, float y, string text, Vector4 colour, bool urgent = true)
+    {
+        int scale = urgent ? 2 : 1, line = o.Font.LineHeight;
+        foreach (string row in HeadlineRows(o, width, text, urgent))
+        {
+            o.TextCentred(width / 2f, y, row, colour, scale: scale);
+            y += scale * line;
+        }
+        return y + 2;
+    }
+
+    /// <summary>
+    /// <see cref="Headline"/>'s rows: whole where it fits, else as few as fit, balanced (TOO FAST FOR / THE BEND AHEAD, not a
+    /// word left on its own): the narrowest width that takes no more of them.
+    /// </summary>
+    public static List<string> HeadlineRows(Overlay o, int width, string text, bool urgent)
+    {
+        float room = (width - 2 * AlarmMargin) / (urgent ? 2 : 1);
+        var rows = UiStyle.Wrap(o, text, room).ToList();
+        if (rows.Count <= 1)
+            return rows;
+        float lo = o.Font.Measure(text) / rows.Count, hi = room;
+        while (hi - lo > 1)
+        {
+            float mid = (lo + hi) / 2;
+            if (UiStyle.Wrap(o, text, mid).Count() <= rows.Count)
+                hi = mid;
+            else
+                lo = mid;
+        }
+        return [.. UiStyle.Wrap(o, text, hi)];
+    }
+
+    /// <summary>
+    /// What's under an alarm's headline, centred, from <paramref name="y"/> down; the y under it. In fine print
+    /// (<paramref name="k"/>, the HUD's <c>Fine</c>) with keys as keycaps, or at the HUD's own size (the run's end). A line too
+    /// wide wraps (note 441), between its actions where it has them, never through a keycap.
+    /// </summary>
+    public static float UnderHeadline(Overlay o, int width, float y, string text, Vector4 colour, float k, bool fine = true)
+    {
+        int line = o.Font.LineHeight;
+        if (!fine)
+        {
+            foreach (string row in UiStyle.Wrap(o, text, width - 2 * AlarmMargin))
+            {
+                o.TextCentred(width / 2f, y, row, colour);
+                y += line;
+            }
+            return y;
+        }
+        foreach (string row in Fitted(o, text, width - 2 * AlarmMargin, k))
+        {
+            UiStyle.Keyed(o, Overlay.Snap((width - UiStyle.MeasureKeyed(o, row, k)) / 2, k), y + 2 * k, row, colour, k);
+            y += (line + 4) * k;
+        }
+        return y;
     }
 
     /// <summary>
@@ -894,31 +944,64 @@ public static partial class Hud
 
     /// <summary>
     /// A row as it fits: whole, or onto the next where it's too wide (a long cause of death, or who you're watching and the
-    /// keys to change it, at 150% TEXT SIZE on a 720p window; note 408). A row of actions breaks between them, never inside
-    /// one, so a key stays with what it does; plain words wrap.
+    /// keys to change it, at 150% TEXT SIZE on a 720p window; note 408). A row of actions breaks between them, so a key stays
+    /// with what it does; an action or a line too wide on its own wraps by its words, a keycap kept whole (note 441).
     /// </summary>
-    static IEnumerable<string> Fitted(Overlay o, string text, float width, float k)
+    public static IEnumerable<string> Fitted(Overlay o, string text, float width, float k)
     {
         if (UiStyle.MeasureKeyed(o, text, k) <= width)
             return [text];
-        var parts = text.Split("   ");
-        if (parts.Length == 1)
-            return UiStyle.Wrap(o, text, width / k);
         var rows = new List<string>();
         string row = "";
-        foreach (var part in parts)
+        foreach (var part in text.Split("   "))
         {
             string wider = row.Length == 0 ? part : row + "   " + part;
+            if (UiStyle.MeasureKeyed(o, wider, k) <= width)
+            {
+                row = wider;
+                continue;
+            }
+            if (row.Length > 0)
+                rows.Add(row);
+            if (UiStyle.MeasureKeyed(o, part, k) <= width)
+            {
+                row = part;
+                continue;
+            }
+            var wrapped = (part.Contains('[') ? WrapKeyed(o, part, width, k) : UiStyle.Wrap(o, part, width / k)).ToList();
+            rows.AddRange(wrapped[..^1]);
+            row = wrapped[^1];
+        }
+        rows.Add(row);
+        return rows;
+    }
+
+    /// <summary>
+    /// <paramref name="text"/> wrapped by its words to <paramref name="width"/> as it's drawn, keycaps and all; a keycap with a
+    /// space in it ("[LEFT CTRL]", what <see cref="Bound"/> makes of the vent) is one word.
+    /// </summary>
+    static IEnumerable<string> WrapKeyed(Overlay o, string text, float width, float k)
+    {
+        var words = new List<string>();
+        foreach (var w in text.Split(' ', StringSplitOptions.RemoveEmptyEntries))
+            if (words.Count > 0 && words[^1].LastIndexOf('[') > words[^1].LastIndexOf(']'))
+                words[^1] += " " + w;
+            else
+                words.Add(w);
+        string row = "";
+        foreach (var word in words)
+        {
+            string wider = row.Length == 0 ? word : row + " " + word;
             if (row.Length > 0 && UiStyle.MeasureKeyed(o, wider, k) > width)
             {
-                rows.Add(row);
-                row = part;
+                yield return row;
+                row = word;
             }
             else
                 row = wider;
         }
-        rows.Add(row);
-        return rows;
+        if (row.Length > 0)
+            yield return row;
     }
 
     static ((string Text, Vector4 Colour) Head, List<(string Text, Vector4 Colour)> Rows) DeadCardRows(IPlaySession s)
@@ -1348,20 +1431,42 @@ public static partial class Hud
             return;
         int scale = Math.Max(1, height / 360);
         float lh = (o.Font.Height + 4) * scale, w = width * 0.56f;
-        int keep = Math.Min(shown, 4);
-        float x = (width - w) / 2, y = 34 * scale, h = lh * (keep + 1) + 8 * scale;
+        var rows = RadioRows(o, (w - 12 * scale) / scale, lines, shown, typed);
+        float x = (width - w) / 2, y = 34 * scale, h = lh * (rows.Count + 1) + 8 * scale;
         UiStyle.Plate(o, x, y, w, h, UiStyle.Brass, 0.9f);
         o.Text(x + 6 * scale, y + 4 * scale, "RADIO: THE YARD", Dim, scale);
         float ly = y + 4 * scale + lh;
-        int chars = Math.Max(12, (int)((w - 12 * scale) / (o.Font.Measure("M", scale) + scale)));
-        for (int i = shown - keep; i < shown; i++)
+        foreach (var (row, reading) in rows)
         {
-            string line = lines[i].ToUpperInvariant();
-            if (i == shown - 1)
-                line = line[..(int)Math.Round(line.Length * typed)];
-            o.Text(x + 6 * scale, ly, line.Length > chars ? line[..chars] : line, i == shown - 1 ? Ink : Dim, scale);
+            o.Text(x + 6 * scale, ly, row, reading ? Ink : Dim, scale);
             ly += lh;
         }
+    }
+
+    /// <summary>How many rows the radio card keeps: the newest, the older ones scrolled off the top.</summary>
+    public const int RadioRowsKept = 4;
+
+    /// <summary>
+    /// The radio card's rows (note 178): the lines read so far, each wrapped to the card's <paramref name="width"/> (note 441:
+    /// they were cut at its edge, mid-word, "YARD TO CONSIST. MANIFEST F" at 150% TEXT SIZE and the tally's costs at 100%),
+    /// the one being read typed out as far as it's got, its rows still to come blank so the card doesn't grow under it; the
+    /// last <see cref="RadioRowsKept"/>. Each with whether it's the line being read.
+    /// </summary>
+    public static List<(string Text, bool Reading)> RadioRows(Overlay o, float width, IReadOnlyList<string> lines, int shown, double typed)
+    {
+        var rows = new List<(string, bool)>();
+        for (int i = Math.Max(0, shown - RadioRowsKept); i < shown; i++)
+        {
+            string line = lines[i].ToUpperInvariant();
+            bool reading = i == shown - 1;
+            int left = reading ? (int)Math.Round(line.Length * typed) : line.Length;
+            foreach (string row in UiStyle.Wrap(o, line, width))
+            {
+                rows.Add((row[..Math.Clamp(left, 0, row.Length)], reading));
+                left -= row.Length + 1;
+            }
+        }
+        return rows.Count > RadioRowsKept ? rows[^RadioRowsKept..] : rows;
     }
 
     /// <summary>
