@@ -260,6 +260,9 @@ public sealed partial class WorldArt
         }
     }
 
+    /// <summary>A walled town's streets and lanes are laid in strips this long.</summary>
+    const double TownChunk = 20;
+
     /// <summary>
     /// A walled town's streets and lanes (queue #74, note 335): their beaten surface along each street and across each lane,
     /// and lamp posts down them, lit near you, so you can find your way round in the dark.
@@ -268,7 +271,7 @@ public sealed partial class WorldArt
     {
         if (town.Plan.Bounds is not { } b)
             return;
-        const double chunk = 20;
+        const double chunk = TownChunk;
         var post = Piece("square-lamppost", () => SquareKit.LampPost(_look));
         foreach (var st in b.Streets)
         {
@@ -302,17 +305,27 @@ public sealed partial class WorldArt
         foreach (var lane in b.Lanes)
         {
             var piece = Piece($"town-lane-{lane.Width:0.0}", () => TownGround(_look, (float)chunk, (float)lane.Width, "ground_mud"));
-            for (double d = lane.D0; d < lane.D1; d += chunk)
+            foreach (double mid in LaneMids(lane, chunk))
             {
-                double mid = Math.Min(d + chunk / 2, lane.D1 - chunk / 2);
-                // Not over the line and its bed.
-                if (Math.Abs(mid) < chunk / 2 + 4)
-                    continue;
                 var at = town.World(lane.S, mid);
                 if ((at - eye).Length > 320)
                     continue;
                 mesh.Instances.Add(new MeshInstance(piece, Place(line, eye, at, lane.S, 0, 1)));
             }
+        }
+    }
+
+    /// <summary>
+    /// The middles of a lane's strips of beaten ground, <paramref name="chunk"/> long across the line, leaving out the
+    /// line and its bed (<see cref="Streets"/> draws them; what's underfoot reads them, <see cref="TownWay"/>).
+    /// </summary>
+    static IEnumerable<double> LaneMids(TownLane lane, double chunk)
+    {
+        for (double d = lane.D0; d < lane.D1; d += chunk)
+        {
+            double mid = Math.Min(d + chunk / 2, lane.D1 - chunk / 2);
+            if (Math.Abs(mid) >= chunk / 2 + 4)
+                yield return mid;
         }
     }
 

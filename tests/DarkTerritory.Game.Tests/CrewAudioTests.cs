@@ -725,6 +725,39 @@ public class CrewAudioTests
     }
 
     [Fact]
+    public void AWalledTownsStreetsAreItsStonesUnderfootAndItsLanesItsMud()
+    {
+        // Note 354 (the director, 8 Oct 2026: "a super weird squishy footstep sound when I walk on the stones in the town"): a
+        // walled town's streets are drawn in beaten stones and its lanes in mud (WorldArt.Streets), and underfoot they were
+        // the land under them, its grass or the shore's red mud. A town of 3000, as World.EnableTown stands it.
+        var towns = Sim.Towns.TownContent.Load(Content)!;
+        towns = towns with { Tuning = towns.Tuning with { Population = [3000, 3000] } };
+        var route = Sim.LineGen.Routes.Generate(Content, "frontier:7", 6);
+        double gate = route.GateOr(RouteTuning.Load(Content).YardLength);
+        var world = new World(new TrainOnLine(new TrainDynamics(Consist.Uniform(T, 6, 1)), route.Build(), gate - 8), C);
+        world.EnableRun(DataFile.Load<Sim.Run.RunTuning>(Path.Combine(Content, Sim.Run.RunTuning.File)), route, gate, authority: true);
+        world.EnableTown(towns, route, gate, []);
+        var town = world.Town!;
+        var bounds = town.Plan.Bounds!;
+        var line = world.Train.Line;
+        string Under(double s, double d)
+        {
+            double hint = s;
+            var p = town.World(s, d);
+            return Footing.Ground(world, p with { Y = line.Conditions!.Ground(p) }, ref hint);
+        }
+        Assert.NotEmpty(bounds.Streets);
+        foreach (var st in bounds.Streets)
+            foreach (double s in new[] { st.S0 + 2, (st.S0 + st.S1) / 2, st.S1 - 2 })
+                Assert.Equal("ballast", Under(s, st.D));
+        var lane = bounds.Lanes[0];
+        Assert.Equal("mud", Under(lane.S, lane.D0 + 10));
+        // Off them, the land: what the streets were heard as.
+        var first = bounds.Streets[0];
+        Assert.NotEqual("ballast", Under((first.S0 + first.S1) / 2, first.D + Math.Sign(first.D) * (first.Width / 2 + 3)));
+    }
+
+    [Fact]
     public void ABotCrewIsHeardOverTheNetworkAsTheAppHearsIt()
     {
         // A night with a bot crew, each a client over loopback, heard as the app hears it: the client world, the crew from
