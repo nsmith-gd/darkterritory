@@ -129,6 +129,7 @@ public sealed partial class WorldArt
                     continue;
                 k.Reseed(b.Variant * 7.1f + (float)(b.S * 0.13));
                 Building(k, line, route, f, stop, i, eye, valleyDepth);
+                YardLeavings(mesh, line, route, f, stop, i, eye, valleyDepth);
             }
             if (stop.Halt is { } halt && f.Start + halt.S >= from && f.Start + halt.S < to)
                 Halt(k, line, f, halt, stop.HaltLength, eye);
