@@ -13,6 +13,9 @@ namespace DarkTerritory.Game;
 /// <summary>What the front end asks the game to start.</summary>
 public abstract record Launch
 {
+    /// <summary>As the console's log may say it: without a password (note 450).</summary>
+    public virtual Launch Redacted() => this;
+
     /// <summary>
     /// A night on a generated route (null: a hand-made <see cref="Line"/>, or a <see cref="RouteFile"/> saved from the
     /// editor), alone or hosted for friends (UDP, and a Steam lobby if Steam's up).
@@ -27,11 +30,26 @@ public abstract record Launch
         public bool Public { get; init; } = true;
         /// <summary>Hosting: what the lobby browser calls it (null: the host's name's run).</summary>
         public string? LobbyName { get; init; }
+        /// <summary>Hosting a private run: its password (note 450). Null: an open run.</summary>
+        public string? Password { get; init; }
+        /// <summary>Hosting: who the run is for (note 450), said in its listing.</summary>
+        public RunMood Mood { get; init; }
+        public override Launch Redacted() => Password is null ? this : this with { Password = "***" };
     }
     /// <summary>Someone else's night, at an address (host[:port]).</summary>
-    public sealed record Join(string Address) : Launch;
+    public sealed record Join(string Address) : Launch
+    {
+        /// <summary>A private run's password (note 450), as typed; null for none.</summary>
+        public string? Password { get; init; }
+        public override Launch Redacted() => Password is null ? this : this with { Password = "***" };
+    }
     /// <summary>A friend's Steam lobby (an invite accepted, or "Join Game").</summary>
-    public sealed record JoinLobby(LobbyId Lobby) : Launch;
+    public sealed record JoinLobby(LobbyId Lobby) : Launch
+    {
+        /// <summary>A private run's password (note 450), as typed; null for none (a friend of the host's needs none).</summary>
+        public string? Password { get; init; }
+        public override Launch Redacted() => Password is null ? this : this with { Password = "***" };
+    }
     /// <summary>
     /// A campaign night (spec E, F): the slot, and the contract off its board; or, with <paramref name="Resume"/>, the
     /// night already under way, from its last autosave.
@@ -65,7 +83,7 @@ public abstract record Launch
 public sealed record NightMenu(bool Hosting = true, int Others = 0, bool Campaign = false, bool Invites = false, string? JoinAt = null, bool Over = false,
     bool Yard = false);
 
-public enum Screen { Title, Slots, Fortress, Upgrades, QuickNight, Join, Settings, Controls, Host, Stores, Credits, Night, Leave, Profile, DeleteCrew, Mods, Crashed }
+public enum Screen { Title, Slots, Fortress, Upgrades, QuickNight, Join, Settings, Controls, Host, Stores, Credits, Night, Leave, Profile, DeleteCrew, Mods, Crashed, Password }
 
 /// <summary>A mod laid over the game (note 323), as the MODS screen lists it: the app's scan of what's installed.</summary>
 public sealed record InstalledMod(string Name, string Version, string? Description);
@@ -78,7 +96,7 @@ public sealed record MenuItem(string Label, string? Detail = null, bool Enabled 
 /// The front end's text fields (note 264, the director's notes on build 1121: "when I go to name of lobby, it just starts
 /// automatically typing"). None takes typing on being chosen: Enter or a click starts editing, Enter or Esc ends it.
 /// </summary>
-public enum TextField { LobbyName, Address, PlayerName, CrewName }
+public enum TextField { LobbyName, Address, PlayerName, CrewName, LobbyPassword, JoinPassword }
 
 /// <summary>Where a pointer is over the front end (note 264): an item, and on a value's row, its arrows (−1, +1) or the row (0).</summary>
 public readonly record struct MenuHit(int Item, int Step = 0);
@@ -194,6 +212,48 @@ public sealed class FrontEnd
     public IReadOnlyList<string> MicDevices { get; init; } = [];
     /// <summary>The address typed so far on the join screen.</summary>
     public string Address { get; private set; } = "";
+
+    /// <summary>
+    /// Note 450: the private run being joined, while its password's asked for (<see cref="Screen.Password"/>): what to start
+    /// once it's typed, and the run's name to say whose it is.
+    /// </summary>
+    (Launch Join, string Name)? _locked;
+    /// <summary>The password typed so far for <see cref="_locked"/>.</summary>
+    public string JoinPassword { get; private set; } = "";
+
+    /// <summary>
+    /// Asks for a private run's password (note 450): picking a locked row on JOIN, or a join the host turned away WRONG
+    /// PASSWORD (<paramref name="why"/>, said over it). Typing starts at once: it's all the page is for.
+    /// </summary>
+    public void AskPassword(Launch join, string name, string? why = null)
+    {
+        _locked = (join, name);
+        JoinPassword = join switch
+        {
+            Launch.Join { Password: { } p } => p,
+            Launch.JoinLobby { Password: { } p } => p,
+            _ => "",
+        };
+        Show(Screen.Password);
+        Editing = TextField.JoinPassword;
+        Message = why?.ToUpperInvariant();
+    }
+
+    /// <summary>The run asked for, with the password as typed.</summary>
+    Launch? WithPassword()
+    {
+        if (_locked is not { } locked || JoinPassword.Trim().Length == 0)
+            return null;
+        return locked.Join switch
+        {
+            Launch.Join j => j with { Password = JoinPassword.Trim() },
+            Launch.JoinLobby l => l with { Password = JoinPassword.Trim() },
+            var other => other,
+        };
+    }
+
+    /// <summary>A password's longest (note 450): a few words read out over voice.</summary>
+    public const int MaxPassword = 24;
     /// <summary>Waiting for the key to bind this control to (T80): the app hands the next one pressed to <see cref="Bind"/>.</summary>
     public Control? Capturing { get; private set; }
 
@@ -298,6 +358,7 @@ public sealed class FrontEnd
             Screen.Upgrades or Screen.Stores or Screen.DeleteCrew => Screen.Fortress,
             Screen.Fortress => Screen.Slots,
             Screen.Controls => Screen.Settings,
+            Screen.Password => Screen.Join,
             Screen.Title => Screen.Title,
             Screen.Leave or Screen.Settings when Night is not null => Screen.Night,
             _ => Screen.Title,
@@ -307,6 +368,12 @@ public sealed class FrontEnd
     /// <summary>Acts on the selected item: a new screen, a purchase, or something for the app to start.</summary>
     public Launch? Select()
     {
+        // Note 450: Enter on the password page, typed, is the join: there's nothing else to do there.
+        if (Editing == TextField.JoinPassword && WithPassword() is { } joining)
+        {
+            EndEdit();
+            return joining;
+        }
         // Enter ends typing in a field (note 264): it doesn't also choose what's selected.
         if (Editing is not null)
         {
@@ -350,6 +417,8 @@ public sealed class FrontEnd
         TextField.PlayerName => Settings.PlayerName,
         TextField.CrewName => Open?.Name ?? "",
         TextField.Address => Address,
+        TextField.LobbyPassword => Settings.LobbyPassword,
+        TextField.JoinPassword => JoinPassword,
         _ => NamingLobby ? LobbyName : "",
     };
 
@@ -373,6 +442,20 @@ public sealed class FrontEnd
                     name += c;
             _blankName = false;
             Change(Settings with { LobbyName = name });
+            return;
+        }
+        // Note 450: a password, as the lobby's name is typed (upper case: it doesn't count, so it's shown as it'll be said).
+        if (Editing is TextField.LobbyPassword or TextField.JoinPassword)
+        {
+            string typed = Editing == TextField.LobbyPassword ? Settings.LobbyPassword : JoinPassword;
+            foreach (char c in text.ToUpperInvariant())
+                if ((char.IsLetterOrDigit(c) || c is ' ' or '\'' or '.' or '-' or '!' or '?') && typed.Length < MaxPassword && c < 0x7f)
+                    typed += c;
+            typed = typed.TrimStart();
+            if (Editing == TextField.LobbyPassword)
+                Change(Settings with { LobbyPassword = typed });
+            else
+                JoinPassword = typed;
             return;
         }
         if (Editing == TextField.CrewName && Open is { } crew)
@@ -421,6 +504,16 @@ public sealed class FrontEnd
             string name = LobbyName[..^1];
             _blankName = name.Trim().Length == 0;
             Change(Settings with { LobbyName = _blankName ? "" : name });
+            return;
+        }
+        if (Editing == TextField.LobbyPassword && Settings.LobbyPassword.Length > 0)
+        {
+            Change(Settings with { LobbyPassword = Settings.LobbyPassword[..^1] });
+            return;
+        }
+        if (Editing == TextField.JoinPassword && JoinPassword.Length > 0)
+        {
+            JoinPassword = JoinPassword[..^1];
             return;
         }
         if (Editing == TextField.CrewName && Open is { Name.Length: > 0 } crew)
@@ -835,26 +928,61 @@ public sealed class FrontEnd
         Screen.Host =>
         [
             .. NightOptions(),
-            // The user's playtest: "I can join it if its public. If it's a private lobby its not listed."
+            // Note 450 (the director, 8 Oct 2026: "Private matches should be password gated"): both are listed, a private run
+            // with a lock; the director's answer, "Listed with a lock". Its password's typed below.
             new(new($"VISIBILITY: {(Settings.PublicLobby ? "PUBLIC" : "PRIVATE")}", Settings.PublicLobby
-                    ? "Listed: anyone on your network, or on Steam, finds it on their join screen."
-                    : "Not listed: friends join by Steam invite, or type your address."),
+                    ? "Listed: anyone on your network, or on Steam, finds it on their join screen and joins."
+                    : "Listed with a lock: a joiner needs the password. Your Steam friends don't."),
                 Toggle(s => s with { PublicLobby = !s.PublicLobby }), _ => Change(Settings with { PublicLobby = !Settings.PublicLobby })),
+            .. Settings.PublicLobby ? (Entry[])[] :
+            [
+                new Entry(new($"PASSWORD: {Settings.LobbyPassword}{(Editing == TextField.LobbyPassword ? "_" : "")}",
+                    Editing == TextField.LobbyPassword ? "Type it; Enter or Esc when it's done. Upper or lower case, it's the same."
+                        : Settings.LobbyPassword.Trim().Length == 0 ? "Enter to type one: a private run needs a password." : "Enter to change it: tell your crew."),
+                    Field: TextField.LobbyPassword),
+            ],
+            MoodEntry("Said beside your run on the list, so players looking for the same find it first."),
             new(new($"{NameLabel}{LobbyName}{(NamingLobby ? "_" : "")}", NamingLobby ? "Type the name; Enter or Esc when it's done." : "Enter to rename it: what the join screen calls it."),
                 Field: TextField.LobbyName),
-            new(new("OPEN THE LOBBY", "You wait in the yard with the train; you drive out when everyone's in."),
-                () => new Launch.Night(RouteSpec(_tiers[_tier], _seed), _cars, Host: true) { Bots = _bots, Public = Settings.PublicLobby, LobbyName = LobbyName.Trim() is { Length: > 0 } named ? named : DefaultLobbyName }),
+            new(new("OPEN THE LOBBY", PasswordMissing ? "Type a password first: a private run needs one." : "You wait in the yard with the train; you drive out when everyone's in.",
+                    !PasswordMissing),
+                () => new Launch.Night(RouteSpec(_tiers[_tier], _seed), _cars, Host: true)
+                {
+                    Bots = _bots,
+                    Public = true,
+                    LobbyName = LobbyName.Trim() is { Length: > 0 } named ? named : DefaultLobbyName,
+                    Password = Settings.PublicLobby ? null : Settings.LobbyPassword.Trim(),
+                    Mood = Settings.Mood,
+                }),
             BackTo(Screen.Title),
+        ],
+        Screen.Password =>
+        [
+            new(new($"PASSWORD: {new string('*', JoinPassword.Length)}{(Editing == TextField.JoinPassword ? "_" : "")}",
+                Editing == TextField.JoinPassword ? "Type it, then Enter to join. Esc when it's done." : "Enter to type it: ask the host."),
+                Field: TextField.JoinPassword),
+            new(new("JOIN", null, JoinPassword.Trim().Length > 0), WithPassword),
+            BackTo(Screen.Join),
         ],
         Screen.Join =>
         [
-            new(new(Row("LOBBY", "CREW", "TIER", "PING"), null, false)),
-            .. Games.Select(g => new Entry(new(Row(g.Name.ToUpperInvariant(), g.Max > 0 ? $"{g.Aboard}/{g.Max}" : $"{g.Aboard}",
-                    Enum.TryParse<RouteTier>(g.Tier, out var t) ? Name(t) : "-", g.PingMs is { } ms ? $"{ms:0} MS" : "--")
-                    + (g.Protocol != Protocol ? "  OTHER VERSION" : g.Full ? "  FULL" : ""),
-                    g.Where, g.Protocol == Protocol && !g.Full),
-                () => g.Join)),
-            .. Games.Count == 0 ? [new Entry(new("  NO PUBLIC GAMES YET", "When someone opens a public lobby, it shows here.", false))] : (Entry[])[],
+            new(new(Row("LOBBY", "CREW", "TIER", "MOOD", "PING"), null, false)),
+            .. ListedGame.Sort(Games, Settings.Mood).Select(g => new Entry(new(Row((g.Locked ? $"{BitmapFont.Lock} " : "") + g.Name.ToUpperInvariant(), g.Max > 0 ? $"{g.Aboard}/{g.Max}" : $"{g.Aboard}",
+                    // What can't be joined says why where its tier would be (the row's width is the frame's).
+                    g.Protocol != Protocol ? "OTHER VERSION" : g.Full ? "FULL" : Enum.TryParse<RouteTier>(g.Tier, out var t) ? Name(t) : "-",
+                    Moods.Tag(g.Mood), g.PingMs is { } ms ? $"{ms:0} MS" : "-- MS"),
+                    g.Locked ? $"Private: the host's password to join. {g.Where}" : g.Where, g.Protocol == Protocol && !g.Full),
+                () =>
+                {
+                    if (!g.Locked)
+                        return g.Join;
+                    AskPassword(g.Join, g.Name);
+                    return null;
+                })),
+            .. Games.Count == 0 ? [new Entry(new("  NO GAMES YET", "When someone opens a lobby, it shows here.", false))] : (Entry[])[],
+            // Note 450: what you're looking for puts those runs first, each nearest first. Under the list, so the nearest
+            // run is still what's chosen as the screen opens.
+            MoodEntry("Runs of your mood first on the list, nearest first. Your runs are listed with it too."),
             new(new("REFRESH", "Look again, and ping everyone afresh."), () => { _refresh = true; Message = "Looking..."; return null; }),
             new(new($"ADDRESS: {Address}{(Editing == TextField.Address ? "_" : "")}", Editing == TextField.Address
                     ? "Type it, and the host's port if it isn't the usual one (host:port); Enter or Esc when it's done."
@@ -978,9 +1106,20 @@ public sealed class FrontEnd
         _ => [],
     };
 
-    /// <summary>The join screen's columns: the font's fixed-width, so spaces line them up under the header.</summary>
-    static string Row(string name, string crew, string tier, string ping) =>
-        $"{(name.Length > MaxLobbyName ? name[..MaxLobbyName] : name),-25}{crew,-7}{tier,-16}{ping,6}";
+    /// <summary>
+    /// The join screen's columns: the font's fixed-width, so spaces line them up under the header. A private run's name
+    /// starts with the font's padlock (note 450); the ping always has a figure, "--" till it's measured.
+    /// </summary>
+    static string Row(string name, string crew, string tier, string mood, string ping) =>
+        $"{(name.Length > MaxLobbyName + 1 ? name[..(MaxLobbyName + 1)] : name),-26}{crew,-6}{tier,-15}{mood,-8}{ping,6}";
+
+    /// <summary>A private run with no password yet: it can't be opened (note 450).</summary>
+    bool PasswordMissing => !Settings.PublicLobby && Settings.LobbyPassword.Trim().Length == 0;
+
+    /// <summary>MOOD (note 450): one setting, the host's run and what a joiner's looking for.</summary>
+    Entry MoodEntry(string detail) =>
+        new(new($"MOOD: {Moods.Label(Settings.Mood)}", detail), Toggle(s => s with { Mood = Moods.Step(s.Mood, 1) }),
+            by => Change(Settings with { Mood = Moods.Step(Settings.Mood, by) }));
 
     int MaxCars => _edition.MaxCars > 0 ? Math.Min(_edition.MaxCars, _campaign.MaxCars) : _campaign.MaxCars;
 
@@ -1326,6 +1465,7 @@ public sealed class FrontEnd
             Screen.Upgrades => "UPGRADES",
             Screen.QuickNight => "QUICK NIGHT",
             Screen.Join => "JOIN",
+            Screen.Password when _locked is { } locked => $"{locked.Name.ToUpperInvariant()} IS PRIVATE",
             Screen.Host => "HOST",
             Screen.Settings => "SETTINGS",
             Screen.Controls => "CONTROLS",
@@ -1424,6 +1564,8 @@ public sealed class FrontEnd
         if (Message is { } m)
             o.Text(x, y, m.ToUpperInvariant(), Amber);
         string hints = Capturing is not null ? "PRESS THE KEY   [ESC] KEEP IT"
+            // Note 450: on the password page Enter joins.
+            : Editing == TextField.JoinPassword ? "TYPE   [ENTER] JOIN   [ESC] DONE"
             : Editing is not null ? "TYPE   [ENTER] DONE   [ESC] DONE"
             // The in-night menu's own pages have nothing to change (note 292); Escape on the first is back to the night.
             : Screen == Screen.Night ? "[UP/DOWN] OR MOUSE   [ENTER] OR CLICK   [ESC] RESUME"

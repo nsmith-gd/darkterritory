@@ -78,7 +78,7 @@ public class LobbyBrowserTests
         Assert.Equal((2, 2, true), (full.Aboard, full.Max, full.Full));
         Assert.True(host.Link!.Value.Full);
 
-        var e = Assert.Throws<IOException>(() => NetPlaySession.Join(Content, new IPEndPoint(IPAddress.Loopback, host.Port), () => host.Step(default)));
+        var e = Assert.Throws<JoinRefusedException>(() => NetPlaySession.Join(Content, new IPEndPoint(IPAddress.Loopback, host.Port), () => host.Step(default)));
         Assert.Equal("CREW FULL (2/2)", e.Message);
         Assert.Equal(1, host.Host!.Refusals);
 
@@ -119,7 +119,7 @@ public class LobbyBrowserTests
             Browse(browser, _ => false, me, host);
             Assert.Empty(browser.Games);
         }
-        var e = Assert.Throws<IOException>(() => NetPlaySession.JoinLobby(Content, bob, id, () => host.Step(default)));
+        var e = Assert.Throws<JoinRefusedException>(() => NetPlaySession.JoinLobby(Content, bob, id, () => host.Step(default)));
         Assert.Equal("CREW FULL (2/2)", e.Message);
 
         // The bot quits (as a joiner's game does when it's left): its place is given up, not held.
@@ -165,5 +165,78 @@ public class LobbyBrowserTests
         Assert.Equal("Frontier", game.Tier);
         Assert.Contains("hosted by alice", game.Where);
         Assert.Equal(LobbyVisibility.FriendsOnly, shut.Lobby!.Visibility);
+    }
+
+    /// <summary>Steps a host until a joiner's aboard, or a second's gone.</summary>
+    static void Board(NetPlaySession host, NetPlaySession joiner)
+    {
+        for (int t = 0; t < SimConstants.TickRate && !joiner.Client.Connected; t++)
+        {
+            host.Step(default);
+            joiner.Step(default);
+        }
+    }
+
+    [Fact]
+    public void APrivateRunOnThePlatformIsListedLockedAndLetsInThePasswordOrAFriend()
+    {
+        // Note 450 (the director, 8 Oct 2026: "Private matches should be password gated"; listed with a lock): on the fake
+        // Steam, a private run is in the search with its lock and its mood; a stranger without the password is turned away
+        // WRONG PASSWORD and takes no place; with it, they're aboard; the host's friend needs none.
+        var cloud = new FakeOnline();
+        var alice = cloud.SignIn("alice", (12, 16));
+        var bob = cloud.SignIn("bob");
+        var carol = cloud.SignIn("carol");
+        var me = cloud.SignIn("me");
+        cloud.Befriend(alice, carol);
+        using var host = NetPlaySession.HostGame(Content, Night, port: null, online: alice, listed: true, lobbyName: "NIGHT OWLS",
+            password: "lantern", mood: RunMood.Laughs);
+        Assert.True(host.Locked);
+        using (var browser = new LobbyBrowser(lan: null, me))
+        {
+            Browse(browser, games => games.Count > 0, me, host);
+            var game = Assert.Single(browser.Games);
+            Assert.Equal(("NIGHT OWLS", true, RunMood.Laughs, 20.0), (game.Name, game.Locked, game.Mood, game.PingMs));
+        }
+        var id = host.Lobby!.Id;
+        // The words themselves are nowhere in the lobby's values, where anyone searching can read them.
+        Assert.DoesNotContain(new[] { NetPlaySession.NameKey, NetPlaySession.LockedKey, NetPlaySession.MoodKey, NetPlaySession.RunKey },
+            k => alice.LobbyData(id, k).Contains("LANTERN", StringComparison.OrdinalIgnoreCase));
+
+        var e = Assert.Throws<JoinRefusedException>(() => NetPlaySession.JoinLobby(Content, bob, id, () => host.Step(default)));
+        Assert.Equal(("WRONG PASSWORD", Sim.Net.RefusalReason.Password), (e.Message, e.Refusal.Reason));
+        Assert.Equal(1, host.Host!.WrongPasswords);
+        Assert.Equal(1, host.Host.Occupied);
+        e = Assert.Throws<JoinRefusedException>(() => NetPlaySession.JoinLobby(Content, bob, id, () => host.Step(default), password: "candle"));
+        Assert.Equal(2, host.Host.WrongPasswords);
+
+        using var withIt = NetPlaySession.JoinLobby(Content, bob, id, () => host.Step(default), password: "Lantern");
+        Board(host, withIt);
+        Assert.True(withIt.Client.Connected);
+        using var friend = NetPlaySession.JoinLobby(Content, carol, id, () => host.Step(default));
+        Board(host, friend);
+        Assert.True(friend.Client.Connected);
+        Assert.Equal(3, host.Host.Occupied);
+        Assert.Equal(2, host.Host.WrongPasswords);
+    }
+
+    [Fact]
+    public void APrivateRunOnTheNetworkIsListedLockedAndAskedForItsPassword()
+    {
+        // Note 450 on the local network: the beacon says locked and the mood; a joiner by address needs the password too
+        // (nobody there is anyone's friend).
+        const int port = 27473;
+        using var browser = new LobbyBrowser(new LanBrowser(port), online: null);
+        using var host = NetPlaySession.HostGame(Content, Night, port: 0, listed: true, lobbyName: "NIGHT OWLS", beacon: new LanBeacon(port, [IPAddress.Loopback]),
+            password: "lantern", mood: RunMood.Competitive);
+        Browse(browser, games => games is [{ PingMs: not null }], null, host);
+        var game = Assert.Single(browser.Games);
+        Assert.Equal((true, RunMood.Competitive), (game.Locked, game.Mood));
+        var at = new IPEndPoint(IPAddress.Loopback, host.Port);
+        var e = Assert.Throws<JoinRefusedException>(() => NetPlaySession.Join(Content, at, () => host.Step(default)));
+        Assert.Equal("WRONG PASSWORD", e.Message);
+        using var joiner = NetPlaySession.Join(Content, at, () => host.Step(default), password: "LANTERN");
+        Board(host, joiner);
+        Assert.True(joiner.Client.Connected);
     }
 }

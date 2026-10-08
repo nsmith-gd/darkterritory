@@ -990,6 +990,14 @@ Authoritative host-client, validated in prototype.
 
 **Proximity voice is a hard dependency.** No voice, no game.
 
+### 33.1 Finding a game *(the director's decision, 2026-10-08; ARCHITECTURE §8 note 450)*
+
+One player's machine hosts (a listen server, like *Lethal Company* and *PEAK*). Friends find the run on the JOIN list, by Steam invite, or by address.
+
+- **Public and private.** A public run is listed for anyone to join. A private run is listed too, with a lock, and needs its password. The host's Steam friends get in without it, as an invite would let them.
+- **Every row shows its ping.** "--" until it's measured.
+- **The run's mood.** One setting, on the host and join screens alike: **Here for Laughs** (sociable, not super competitive), **Feeling Competitive** (out for the longest runs you can make), or either. A host's run is listed with it. Joining, runs of your mood come first, nearest first.
+
 ## 34. Agent verification harness
 
 Embodied in-engine agents play the game headlessly. A fixed roster makes this an exhaustive problem rather than an open-ended one.
