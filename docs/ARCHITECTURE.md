@@ -4900,6 +4900,7 @@ Terrain sculpting tools, a node-graph material editor, a general-purpose visual 
         - some floor in every room is got to;
         - no two pieces of furniture stand in each other.
       `YouWalkInAtTheDoorAndTheFindsAreInside` still has every find got to. Seen by lantern in `dt screenshot --route frontier:7 --at 10190 --lantern --fov 80`: `--cam 10208.4,72.6,1.6 --target 10212.0,75.0,1.3` is Maddox's house 1, from its door to the back room's doorway, and `--cam 10211.1,74.2,1.6 --target 10213.5,76.5,1.0` is in its doorway.
+    - **Boarded windows** (`TownKit.BoardedWindows`). Every village house is open now, and an open house was a plaster box with a doorway, where the modelled shut houses had windows (GDD §30's dead settlements; the Wiki's "windows boarded over with raw planks"). Each run of its outside wall with no door has one or two windows, as fit with about a metre of wall either side, spread along it. Each is a pale trim frame and sill round a black pane, three raw planks nailed across it, ragged and off level by the house's variant, and the planks' backs on the inside face. Art only: the wall is as solid behind them as anywhere. Seen at Maddox from the street (`dt screenshot --route frontier:7 --at 10190 --lantern --cam 10196,40,2.5 --target 10222,62,1.5 --fov 75`) against the same view on main, which has blank walls.
     - **Not yet:**
         - A stair: ground floor only.
         - Doors that shut: done (note 401).
