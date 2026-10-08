@@ -31,7 +31,12 @@ public interface IWorldBot : IBot
 /// </summary>
 public sealed class GunnerBot(GunTuning guns, ChoirTuning? choir = null, int seed = 1, ColdTuning? cold = null, StopHand? job = null) : IWorldBot
 {
-    public string Name => "gunner";
+    public string Name => Forward ? "forward-gunner" : "gunner";
+    /// <summary>
+    /// The engine's forward gun's (note 414), not the guard van's: it goes forward over the cars onto the engine's hood and
+    /// takes that gun's seat, for the lane ahead (note 405), the Track Doll and the Switchman.
+    /// </summary>
+    public bool Forward { get; init; }
     public int WarmUps => _legs.WarmUps;
     /// <summary>Its part when the train stops to work a facility (a small crew needs the gunner on the winch too).</summary>
     public StopHand? Job => _legs.Job;
@@ -116,9 +121,17 @@ public sealed class GunnerBot(GunTuning guns, ChoirTuning? choir = null, int see
         // the guard van's rear platform to club it off (the legs do that), or with no platform to get at it from, up the
         // train, clear of its mouth, and let it take the car.
         bool rearHeld = world.ActiveEnemies.Any(e => e is CarHugger { Latched: true } h && h.Attached == world.Train.Dynamics.Consist.Vehicles[^1].Id);
+        // The forward gunner (note 414) leaves the Car Hugger to the guard van's.
+        rearHeld &= !Forward;
         if (houndsAboard || rearHeld || Guns.MannedGun(self, world.Train, guns) is not { } gun)
         {
-            if (rearHeld)
+            if (Forward && !houndsAboard && ToTheForwardGun(self, world.Train) is { } going)
+                return going;
+            if (Forward && houndsAboard && ReliefDriver.OffTheEngine(self, world.Train) is { } down)
+                return down; // off the hood to the pack fight with the rest
+            if (Forward && !houndsAboard)
+                _legs.Head(-1);
+            else if (rearHeld)
                 _legs.Head(-1);
             else if (!houndsAboard)
                 _legs.Head(+1);
@@ -168,6 +181,43 @@ public sealed class GunnerBot(GunTuning guns, ChoirTuning? choir = null, int see
         while (a > Math.PI) a -= 2 * Math.PI;
         while (a < -Math.PI) a += 2 * Math.PI;
         return a;
+    }
+
+    /// <summary>
+    /// The forward gunner's way to its seat (note 414): from car 1's roof the running jump onto the engine's hood, round the
+    /// stack as the relief driver goes (note 399), and forward along the cab's roof to the seat behind the gun; from the cab,
+    /// up its roof hatch ladder (the gun's). Null anywhere else (its legs take it forward along the roofs), or with no gun on
+    /// the engine.
+    /// </summary>
+    static PlayerIntent? ToTheForwardGun(in PlayerState self, TrainOnLine train)
+    {
+        int engine = train.Dynamics.Consist.Vehicles[0].Id;
+        if (!train.Vehicles[engine].HasGun || Guns.Mount(train, engine) is not { } mount || mount.Facing.Z >= 0)
+            return null;
+        var shape = train.Frames[engine].Shape;
+        if (self.Parent == engine && self.Surface == Surface.Roof)
+        {
+            var plan = EnginePlan.Of(train.Dynamics.Tuning.Geometry);
+            // Behind the stack, which stands up through the hood on the centreline: by it on one side first.
+            if (self.Position.Z > plan.StackZ - 0.6)
+                return WarmUp.Steer(self, new Double3(ReliefDriver.Beside, 0, plan.StackZ - 0.9), 0).Step;
+            return WarmUp.Steer(self, new Double3(mount.Position.X, 0, mount.Position.Z + 0.7), 0).Step;
+        }
+        if (self.Parent == engine && PlayerMotor.InCab(self, train) && shape.Cab is { } cab)
+        {
+            foreach (var l in shape.Ladders)
+                if (cab.Contains(l.Foot + new Double3(0, 0.2, 0)))
+                {
+                    var (step, there) = WarmUp.Steer(self, l.Foot with { Y = self.Position.Y }, self.Yaw);
+                    return there ? new PlayerIntent { Actions = PlayerActions.Ladder } : step;
+                }
+            return null;
+        }
+        if (self.Parent == engine && self.Surface == Surface.Ladder)
+            return new PlayerIntent { MoveZ = 1, Buttons = PlayerButtons.Use };
+        if (self.Parent > 0 && self.Surface == Surface.Roof && train.VehicleAhead(self.Parent) == engine)
+            return ReliefDriver.OntoTheEngine(self, train);
+        return null;
     }
 
     int _gunCar = -1;

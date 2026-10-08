@@ -878,10 +878,12 @@ public sealed class World
                     v => v >= 0 && v < Train.Vehicles.Count && Train.Vehicles[v].HasGun && Sim.Combat.Guns.Mount(Train, v) is { } mount
                         ? (mount.Position, Sim.Combat.Guns.FacingYaw(mount) + Train.Vehicles[v].Gun.Traverse) : null,
                     v => v >= 0 && v < Train.Frames.Count ? [.. Train.Frames[v].Shape.DoorList.Select(d => d.Box)] : []);
+                // App. E.3's extras (note 373): the stowed dead and the loose things aboard go into the wreck too.
+                Film = Film with { Extras = FilmExtras(Film) };
                 // App. E.2 step 1 (the director's decision of 5 Oct 2026): nobody dies on the derail tick. The film's own
                 // physics, recorded now, says when each of the crew takes the hit that kills them; they die then, as it lands
                 // in their own first person (FilmTuning.DeathDelay), and every client's first person ends on its own.
-                _recording = WreckFilm.Record(WreckTuning, Film, FilmGround(Film));
+                _recording = WreckFilm.Record(WreckTuning, Film, FilmGround(Film), FilmWater());
                 _filmRecorded = Film;
                 _derailTick = Tick;
                 _doomedAt.Clear();
@@ -948,6 +950,30 @@ public sealed class World
 
     /// <summary>What's left of an intent once the wreck has you (<see cref="Wrecked"/>): the skip vote.</summary>
     public static PlayerIntent WreckedIntent(in PlayerIntent i) => new() { Actions = i.Actions & PlayerActions.Skip };
+
+    /// <summary>The water's surface over a point for the film (note 373: bodies float in it), as the guns find it.</summary>
+    Func<double, double, double?> FilmWater() => (x, z) => Sim.Combat.Guns.Water(Train, new Ballast.Double3(x, 0, z));
+
+    /// <summary>
+    /// App. E.3's extras (note 373): every loose thing aboard a car at the derail tick (the stowed dead, crates, loot, the
+    /// extinguishers; not what's in someone's hands, shut in a locker, or being carried off), in the world at its car's
+    /// velocity there, within the film's body budget (those nearest the crew).
+    /// </summary>
+    List<FilmExtra> FilmExtras(FilmStart start)
+    {
+        var cars = start.Cars.ToDictionary(c => c.Vehicle);
+        var all = new List<FilmExtra>();
+        foreach (var b in Bodies.All)
+        {
+            if (b.Parent < 0 || b.Parent >= Train.Frames.Count || b.Carrier >= 0 || b.Stowed || b.TakenBy >= 0 || !cars.TryGetValue(b.Parent, out var car))
+                continue;
+            var f = Train.Frames[b.Parent];
+            Ballast.Double3[] joints = b.Kind == Physics.BodyKind.Ragdoll ? [.. b.Pbd.Particles.Select(p => f.ToWorld(p.Position))] : [f.ToWorld(b.Centre)];
+            var at = joints.Length > 2 ? joints[2] : joints[0];
+            all.Add(new FilmExtra(b.Kind, joints, car.Velocity + Ballast.Double3.Cross(car.Spin, at - car.Origin), b.Parent, b.Owner, b.Cargo));
+        }
+        return WreckFilm.Budget(all, [.. start.Players.Select(p => p.Position)], WreckTuning.Film);
+    }
 
     Func<double, double, double> FilmGround(FilmStart start) => (x, z) =>
     {
@@ -1036,7 +1062,7 @@ public sealed class World
             return null;
         // The host recorded it on the derail tick (for the deaths); a client records the same from the start it's sent.
         var recorded = _recording;
-        return WreckFilm.Shoot(WreckTuning, start, FilmGround(start), ReferenceEquals(start, _filmRecorded) ? recorded : null);
+        return WreckFilm.Shoot(WreckTuning, start, FilmGround(start), ReferenceEquals(start, _filmRecorded) ? recorded : null, FilmWater());
     }
 
     /// <summary>
@@ -1558,6 +1584,9 @@ public sealed class World
             StepEnemies(ctx);
         Pace();
         Tick++;
+        // The town's people go about their rounds on the night's clock (note 353).
+        if (Town is { } town)
+            town.Clock = Tick * SimConstants.TickSeconds;
         if (Authority)
             RefreshTargets();
     }

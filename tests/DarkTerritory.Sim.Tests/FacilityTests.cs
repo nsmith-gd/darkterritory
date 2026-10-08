@@ -53,11 +53,11 @@ public class FacilityTests
         }
 
         /// <summary>Stopped down a facility of this kind's spur, as above.</summary>
-        public Stop(FacilityKind kind) : this(With(kind))
+        public Stop(FacilityKind kind, FacilityTuning? tuning = null) : this(With(kind), tuning)
         {
         }
 
-        Stop((Route.Route Route, RouteFeature Facility) at)
+        Stop((Route.Route Route, RouteFeature Facility) at, FacilityTuning? tuning = null)
         {
             var (route, f) = at;
             var line = route.Build();
@@ -68,7 +68,7 @@ public class FacilityTests
             train.Restore(state with { Rakes = [state.Rakes[0] with { Path = spur.Index }] });
             World = new World(train, Tuning.Combat);
             World.EnableBodies();
-            World.EnableRun(Tuning.Run, route, 600, authority: true, F);
+            World.EnableRun(Tuning.Run, route, 600, authority: true, tuning ?? F);
             Step(0.2, []);
             Assert.Equal(RunPhase.AtFacility, World.Run!.Phase);
             Site = World.Run.CurrentSite!;

@@ -36,10 +36,14 @@ public class CaptionsTests
     [InlineData("tell-gannet-bank.scream")]
     [InlineData("lamp-gutter")]
     [InlineData("state-coupling-loose.knock")]
+    [InlineData("crew-house-door.shut")]
+    [InlineData("crew-house-door.open")]
+    [InlineData("cs-choir.bang-door.wood")]
     public void TheTellsAndCallsSinceCaptionsAreCaptioned(string sound)
     {
         // Note 391: the signs as they play since note 342, the Moose's and the Gannet's tells (notes 334, 384), and the jobs
-        // that call for a hand (notes 346, 356, 385) are heard by name, so a reader is told them too.
+        // that call for a hand (notes 346, 356, 385) are heard by name, so a reader is told them too; and the house doors and
+        // the Choir beating on a door (note 409).
         Assert.NotNull(new Captions(File).CaptionOf(sound));
     }
 
