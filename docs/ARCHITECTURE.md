@@ -5525,15 +5525,13 @@ Terrain sculpting tools, a node-graph material editor, a general-purpose visual 
     - **Pinned:**
         - `WorldSoundTests.InsideAStopsBuildingTheListenerIsInItsRoomAndUnderfootIsTheFloorItsDrawnWith`: a shed is the shed on concrete; a Holdout's room is a room on boards; an open house is a room on boards; the line beside them is neither.
         - `MixTests.EverySpaceSoundsLikeItself`: the room between the cab and a car, the shed between a facility's yard and a tunnel.
-    - **Not yet:** the outside quieter through a room's walls. Occlusion goes by the train's spaces (`PlayerMotor.Space`), and a stop's building isn't one.
+    - **Not yet:** the outside quieter through a room's walls (done since, note 396).
 394. **The wreck yard's heaps as wrecked cars (queue #131, C1; GDD §18 "pull cargo off derailed trains. Unstable, unlit", note 187; the art checklist's `wreck-yard`).** The heaps the crew work at a wreck yard (found by a lamp, their salvage pulled out, groaning and then shifting on whoever's by them) were still the greybox's: a flat rust-coloured box, a grey slab for a roof and eight grey blocks for wheels. The wreck yard is on most nights, so these were among the most-seen greybox shapes left. `SceneArt.Wreckage` now draws each heap as a car of the train, wrecked:
     - **The body** is the train's own car (the first car in the frames without a cab or a gun, as `TrainKit.Car` draws it, empty), in the planked or the steel livery by turns. It wears the derailment's wrecked damage (`DamageKit.Car` at state 2, so torn plate and a breach), its scar mask full, its paint tinted to rust and dirt, and its lamps out. The trucks it was built with are up in the air.
     - **Where it lies** is the sim's heap, in the greybox's own frame: along the track's heading where it lies, turned by the heap's yaw, rolled onto its side a little further each shift, and shuddering while it groans, with its dust. The body's middle is where the greybox box's middle was, so its side is on the ground as before.
     - **The greybox draws it** when the train has no such car (`Wreckage` returns false).
     - **`dt screenshot --site --facility wreckYard --heap n`:** up close to the nth heap, at a crewman's eye 9 m off it on the track's side.
     - **Verified:** `WreckageArtTests` covers two things. Every heap of frontier:1's wreck yard is a body and its damage, on its side (its up within 0.35 of level) and lying where the sim has it; shifted twice, it's over further. With no car to draw it as, the greybox draws it. Also run: the Game suite. Looked at: the yard from the engine at the buffer stop, three heaps up close at dawn, and one by a lantern at night, before and after.
-    - **Not yet:** the outside quieter through a room's walls (done since, note 396).
-
 396. **The outside through a room's walls (AU1, queue #133; note 392's "not yet").** Since note 392, a stop's shed or small room had its own space. What was outside it still came through as if there were no walls, because `Sound.Walls` (note 248) only knows the train's cars.
     - **How:** `GameAudio.SpaceOf` now hands back the building the ear is in (`EarRoom`: which building, where it stands, the line's way there). `HearWalls` puts its walls between the ear and every voice outside its footprint (`EarRoom.Holds`, the footprint test Footing uses, with the line taken as straight over a building's length).
         - A shed's or the hero's bays stand open: `walls.json` `shedWall`, 0.35 of a wall.
@@ -5638,3 +5636,23 @@ Terrain sculpting tools, a node-graph material editor, a general-purpose visual 
         - Walkers feeding: the gun stood dry 14.1, 9.8 and 15.4 s. Walkers filled every rack (7, 5, 7), and the gunner never left its seat. 21, 19 and 22 rounds.
         - `feedAt` -1 (the gunner fetching its own, note 374): dry 49.8, 49.9 and 86.5 s. The gunner filled all 3 racks itself, up out of its seat each time. 23, 23 and 24 rounds.
         - Both: no deaths, 5.4–5.5 km, 2 cars lost.
+
+398. **The set pieces modelled (queue #135, C1; ROADMAP M5, the demo slice: "set pieces still greybox"; GDD §18, notes 185 and 368; the art checklist's `grain-elevator`, `slaughterhouse`, `chemical-works`, `mine-head`).** The facilities' working modules were still the greybox's flat boxes and rods. That covered the elevator's loading bin on four sticks, the slaughterhouse's ring of rails with box cattle in it, the chemical works' hose post, and the steam lift's ore bin. They're modelled now (`tools/models/recipes/facility_pieces.py`), and `SceneArt.SetPieces` draws them where the sim lays them. Each turns as `GreyboxScene.SetPieces` turned its boxes, and moves as the sim says; the greybox is the fallback when a model isn't there.
+    - **The models (Blender +X along the track, +Y across, each at its module's origin):**
+        - `spout_bin` (592 triangles): a riveted steel hopper on a braced timber trestle astride the track. It's braced along each side and never across, so the train goes under. It has a roof, a ladder, a sight glass on the lever's side, and the slide gate and spout down to just over a car's roof, with its sock.
+        - `lift_works` (364): the ore bin on its legs over the track, with its chute and gate and an ore gauge on the track side. The open iron trough comes down from the headframe's tip on two trestles, and the skip's guides run up the headframe's face, all where the sim's numbers put them (`lift.frameLateral` 16, `chuteHeight` 4.6).
+        - `ore_skip` (48).
+        - `hose_stand` (472): a riser on a concrete plinth with its flanges, a valve wheel and the gauge's brass housing on the track side, the gooseneck the hose couples to, a drip tray and an ACID plate.
+        - `lever_handle` (52): a set piece's hand lever.
+        - The pen and the ramp are the existing `cattle_pen` and `cattle_ramp`.
+    - **What moves, from the sim:**
+        - **The elevator:** the grain left (`Site.Bin`) shows in the sight glass, and its lever (`SpoutLever`) is up and ready or pulled down while it pours, with the pour.
+        - **The lift:** the ore left (`Ore`) shows in its gauge, and the skip (`Wind`) rides 0.9 + 9.8 m up the guides as far as it's wound. Its lever is down while it winds, with ore down the chute as a skip tips.
+        - **The hose stand:** its gauge's face goes from green to red with `Pressure`, brighter while it leaks. The hose hangs off the coupling, or runs over to the filler on the car it's coupled to (`HoseCar`) as a ten-piece sag, tarred and banded yellow. There's the leak's cloud.
+        - **The pen:** eight panels of pen fence round the sim's pen (`PenRadius` 4: an octagon of 3.06 m sides, which is the panel's span), open toward the track where the ramp leaves. The ramp is stretched to the sim's run and rise. The herd milling in the pen is the livestock cars' sheep, playing their idle, shuffle and startle clips (startled when `Stirred`), and the one being driven up the ramp shuffles up it (`Herd`).
+    - **`dt screenshot --site --facility <kind> --close`:** the set pieces' site cameras at half the distance.
+    - **Verified:**
+        - `SetPieceArtTests` covers each set piece. The elevator's bin stands on the ground under the sim's spout mouth, and its lever's handle rises when ready and falls while pouring. The lift's works stand under its chute, and its skip climbs 7.8 m when wound to 0.8. The hose stand is at the sim's stand. The pen is seven panels at its edge plus the ramp.
+        - `dt art check`: every piece is well under the large prop's 8,000.
+        - The Game suite.
+        - Looked at: each of the four from its site camera and close, at dawn, before and after.
