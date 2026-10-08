@@ -76,6 +76,25 @@ public sealed record Settings
     /// <see cref="HudTuning.Standard"/> and <see cref="HudTuning.Colourblind"/>).
     /// </summary>
     public HudColours Colours { get; init; } = HudColours.Standard;
+    /// <summary>
+    /// Note 350: a tip on the loading screen, and for a new player's first nights the core controls on a card in the yard
+    /// (content/ui/tips.json). Off, neither.
+    /// </summary>
+    public bool FirstNights { get; init; } = true;
+    /// <summary>
+    /// Note 349: the sounds worth hearing named as they're heard, and where ("[TIPTOEING, BEHIND]"; content/ui/captions.json).
+    /// Off by default: the game is made to be listened to, and the caption says only what a hearing player hears.
+    /// </summary>
+    public bool Captions { get; init; }
+
+    /// <summary>
+    /// Note 383: HOLD KEYS, HOLD or TOGGLE. With TOGGLE a press of one of <see cref="Toggleable"/> latches it on and another
+    /// lets go (<see cref="HoldLatch"/>). Use stays a hold either way: its taps and its holds mean different things.
+    /// </summary>
+    public bool ToggleHolds { get; init; }
+
+    /// <summary>The holds HOLD KEYS can make toggles: run, the brake, talk, the radio and the crew roster.</summary>
+    public static readonly Control[] Toggleable = [Control.Run, Control.Brake, Control.Talk, Control.Radio, Control.Roster];
 
     /// <summary>The outfit as the wire has it (note 298): none for −1 or anything off the end.</summary>
     public byte OutfitByte(int outfits) => Outfit >= 0 && Outfit < outfits ? (byte)Outfit : Sim.Net.Messages.NoOutfit;
@@ -195,14 +214,14 @@ public sealed record Settings
         && VoiceVolume == other.VoiceVolume && MicDevice == other.MicDevice && MicLevel == other.MicLevel
         && VrTurn == other.VrTurn && VrVignette == other.VrVignette && MouseSpeed == other.MouseSpeed
         && InvertMouse == other.InvertMouse && FieldOfView == other.FieldOfView && CameraShake == other.CameraShake && Outfit == other.Outfit
-        && TextSize == other.TextSize && Colours == other.Colours
+        && TextSize == other.TextSize && Colours == other.Colours && FirstNights == other.FirstNights && Captions == other.Captions && ToggleHolds == other.ToggleHolds
         && Fullscreen == other.Fullscreen && VSync == other.VSync && Resolution == other.Resolution && RenderScale == other.RenderScale
         && PlayerName == other.PlayerName && PublicLobby == other.PublicLobby && LobbyName == other.LobbyName
         && Keys.Count == other.Keys.Count && Keys.All(k => other.Keys.GetValueOrDefault(k.Key) == k.Value);
 
     public override int GetHashCode() => HashCode.Combine(Mute, PushToTalk, Hud, VrTurn, VrVignette, MouseSpeed, Keys.Count,
         HashCode.Combine(Fullscreen, VSync, Resolution, RenderScale, PublicLobby, LobbyName, HashCode.Combine(MasterVolume, EffectsVolume, MusicVolume, VoiceVolume, MicDevice, MicLevel),
-            HashCode.Combine(InvertMouse, FieldOfView, CameraShake, Outfit, ControlHints, TextSize, Colours)));
+            HashCode.Combine(InvertMouse, FieldOfView, CameraShake, Outfit, ControlHints, TextSize, Colours, HashCode.Combine(FirstNights, Captions, ToggleHolds))));
 
     /// <summary>The field of view the eyes are drawn at (note 297): the setting if it's one on offer, else 75.</summary>
     public float EyeFov => (float)(FieldsOfView.Contains(FieldOfView) ? FieldOfView : 75);

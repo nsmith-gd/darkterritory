@@ -226,6 +226,12 @@ public sealed class TrainOnLine
     /// cranes). Asked the same on host and client, from replicated state.
     /// </summary>
     public Func<int, bool>? HatchBlocked { get; set; }
+    /// <summary>
+    /// The engine's forward lamp, smashed (note 301, slice 2): the seconds of glass work left before it can be lit again
+    /// (<see cref="World.LampOutSeconds"/>), and the wrench's work on it. The world's, lent to the crew's hands.
+    /// </summary>
+    public Func<double>? LampOut { get; set; }
+    public Action<double>? MendLamp { get; set; }
     /// <summary>How much of the grip sanding has brought back on greased rail, 0 to 1 (App. A.2).</summary>
     public double Sand { get; set; }
     /// <summary>

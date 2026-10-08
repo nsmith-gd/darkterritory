@@ -300,7 +300,9 @@ public static class Staging
         Crewmate At(byte id, double x, double z, double yaw, Double3 hand = default, Double3 other = default)
         {
             var s = Sim.Player.PlayerMotor.SpawnOnRoof(train, 2, z, player, x) with { Yaw = yaw };
-            return new Crewmate(id, Sim.Player.PlayerMotor.WorldPosition(s, train), Sim.Player.PlayerMotor.WorldYaw(s, train), true, hand, other);
+            // In car 2's frame, as a live crewmate is (so a strained car has them stumbling: --strain, note 375).
+            return new Crewmate(id, Sim.Player.PlayerMotor.WorldPosition(s, train), Sim.Player.PlayerMotor.WorldYaw(s, train), true, hand, other,
+                Car: s.Parent, Local: s.Position);
         }
         return
         [
@@ -359,7 +361,7 @@ public static class Staging
     {
         var player = DataFile.Load<Sim.Player.PlayerTuning>(Path.Combine(content, Sim.Player.PlayerTuning.File));
         var crew = new List<Crewmate>();
-        int i = 0, swings = 0;
+        int i = 0, swings = 0, jumps = 0;
         foreach (var name in acts)
         {
             var act = Enum.Parse<Art.CrewPose>(name.Replace("_", ""), ignoreCase: true);
@@ -372,7 +374,14 @@ public static class Staging
                 tool = (swings % 3) switch { 0 => Sim.Player.Tool.Shovel, 1 => Sim.Player.Tool.Crowbar, _ => Sim.Player.Tool.Wrench };
                 swing = 0.12 + 0.18 * swings++;
             }
-            crew.Add(new Crewmate((byte)(20 + i), Sim.Player.PlayerMotor.WorldPosition(s, train), Sim.Player.PlayerMotor.WorldYaw(s, train), true,
+            // A jump (note 375): each further into the leap than the last, and up off the roof.
+            var feet = Sim.Player.PlayerMotor.WorldPosition(s, train);
+            if (act == Art.CrewPose.Jump)
+            {
+                swing = 0.12 + 0.2 * jumps++;
+                feet += new Double3(0, 0.15 + 0.3 * Math.Min(jumps, 2), 0);
+            }
+            crew.Add(new Crewmate((byte)(20 + i), feet, Sim.Player.PlayerMotor.WorldYaw(s, train), true,
                 Act: act, Holding: tool, Lamp: act is Art.CrewPose.Lantern or Art.CrewPose.LanternWalk, Survivor: survivor, Phase: swing));
             i++;
         }
@@ -790,6 +799,19 @@ public static class Staging
         var at = rear.ToWorld(new Double3(0.3, floor, rear.Shape.HalfLength - 1.4));
         var facing = rear.DirToWorld(new Double3(0, 0, 1));
         return new Crewmate(LoneId, at, Math.Atan2(-facing.X, -facing.Z), true, Act: Art.CrewPose.HeldMouth);
+    }
+
+    /// <summary>A friend hauling the swallowed one back out (<c>--hugger swallow --rescue</c>; note 378): a step behind them inside
+    /// the car, facing the mouth, at the rescue CrewActs gives for the Car Hugger's hold.</summary>
+    public static Crewmate SwallowRescuer(TrainOnLine train)
+    {
+        var rear = train.Frames[train.Dynamics.Consist.Vehicles[^1].Id];
+        double floor = train.Dynamics.Tuning.Geometry.Interior?.FloorHeight ?? 1.1;
+        // Off to the swallowed one's left (the swallow view's camera looks past them both), turned to them.
+        var at = rear.ToWorld(new Double3(-0.5, floor, rear.Shape.HalfLength - 2.1));
+        var facing = rear.DirToWorld(new Double3(0.7, 0, 0.7).Normalized);
+        return new Crewmate(2, at, Math.Atan2(-facing.X, -facing.Z), true,
+            Act: Art.CrewActs.RescueOf(Art.CrewActs.HeldPose(EnemyKind.CarHugger), below: false));
     }
 
     /// <summary>The one the staged Passenger is dragging (<c>--passenger drag</c>): down on the floor at its feet, where the sim has them.</summary>

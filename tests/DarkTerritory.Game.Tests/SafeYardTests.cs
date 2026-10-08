@@ -90,29 +90,22 @@ public class SafeYardTests
     }
 
     [Fact]
-    public void LeftBehindTheTrainYouAreStillToldWhereTheKitIs()
+    public void WithTheWrenchARupturedNightHasNoKitToLoseOrLookFor()
     {
-        // Build 1121: the kit aboard, the director off the train and far behind it, the boiler ruptured: "the train has none".
-        // A machine is only sent the bodies within its interest radius; the host's reckoning of the kit now rides the run record.
+        // Note 301: the wrench is the repair tool and the kit's gone. Build 1121's bug (a far-off machine told "the train has
+        // none") was the kit's: now there's none aboard, nothing lost, and a ruptured night left far behind isn't stranded.
         using var host = NetPlaySession.HostGame(Content, new SessionSetup(Route: "frontier:7", Cars: 4, Enemies: false), port: 0);
         var h = host.Host!;
-        h.InterestRadius = 520;
         var train = h.Train;
-        var kit = Assert.Single(h.World.Bodies.All, b => b.Kind == BodyKind.RepairKit);
-        int car = train.Dynamics.Consist.IndexOf(kit.Parent);
-        Assert.True(car > 0);
-        // Out through the gate and stopped (the run under way, as the director's was), then a kilometre back down the line.
+        Assert.DoesNotContain(h.World.Bodies.All, b => b.Kind == BodyKind.RepairKit);
         train.Dynamics.Restore(h.World.Run!.YardLength + 200, 0, 1);
         for (int t = 0; t < SimConstants.TickRate; t++)
             host.Step(default);
         Assert.Equal(RunPhase.Underway, h.World.Run.Phase);
-        var back = train.Frames[train.Frames.Count - 1].ToWorld(new Double3(4, 0, 1_000));
-        h.SetPlayerState(h.Players.First().Id, new PlayerState { Parent = PlayerState.World, Position = back, Surface = Surface.Ground, Health = P.Health });
         train.Boiler.Ruptured = true;
-        for (int t = 0; t < SimConstants.TickRate * 2; t++)
+        for (int t = 0; t < SimConstants.TickRate * 3; t++)
             host.Step(default);
-        Assert.DoesNotContain(host.World.Bodies.All, b => b.Kind == BodyKind.RepairKit);
-        Assert.Equal(KitPlace.Lying, host.World.Run!.Kit.Place);
-        Assert.Equal($"REPAIR KIT: CAR {car}", Hud.RepairKitWhere(host.World, host.PlayerId));
+        Assert.False(h.World.Run.Kit.Lost);
+        Assert.False(h.World.Run.Over);
     }
 }

@@ -177,4 +177,23 @@ public static class UiStyle
         o.Text(x + pad * 2, y + pad, title, Enamel, scale, shadow: false);
         return h;
     }
+
+    /// <summary><paramref name="text"/> in lines no wider than <paramref name="width"/>, broken between words.</summary>
+    public static IEnumerable<string> Wrap(Overlay o, string text, float width)
+    {
+        string line = "";
+        foreach (var word in text.Split(' ', StringSplitOptions.RemoveEmptyEntries))
+        {
+            string wider = line.Length == 0 ? word : line + " " + word;
+            if (line.Length > 0 && o.Font.Measure(wider) > width)
+            {
+                yield return line;
+                line = word;
+            }
+            else
+                line = wider;
+        }
+        if (line.Length > 0)
+            yield return line;
+    }
 }

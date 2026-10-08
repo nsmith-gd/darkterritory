@@ -819,7 +819,10 @@ public sealed class TerrainField
     }
 
     /// <summary>The water planes (§12.4) near a point: the level of the one it's in, or null.</summary>
-    public double? WaterAt(double x, double z)
+    public double? WaterAt(double x, double z) => WaterAt(x, z, null);
+
+    /// <summary><see cref="WaterAt(double, double)"/> where the land's <paramref name="height"/> there is already known (the lineside's, note 371).</summary>
+    public double? WaterAt(double x, double z, double? height)
     {
         foreach (var w in _plan.Water)
         {
@@ -831,10 +834,10 @@ public sealed class TerrainField
                 continue;
             if (w.Type is "river" or "tidal" && Math.Abs(near.S - (w.S0 + w.S1) / 2) > w.WidthM / 2 + (w.S1 - w.S0) / 2)
                 continue;
-            if (Height(x, z) < w.LevelM)
+            if ((height ??= Height(x, z)) < w.LevelM)
                 return w.LevelM;
         }
-        if (WaterNear(x, z, 0) is { } water && Height(x, z) < water.Level)
+        if (WaterNear(x, z, 0) is { } water && (height ??= Height(x, z)) < water.Level)
             return water.Level;
         return null;
     }

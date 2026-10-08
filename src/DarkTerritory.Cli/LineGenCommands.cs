@@ -14,6 +14,7 @@ static class LineGenCommands
         "bench" => Bench(content, args),
         "transect" => Transect(content, args),
         "water" => Water(content, args),
+        "lineside" => LinesideReport(content, args),
         "sky" => Sky(content, args),
         "prints" => Prints(content, args),
         "debug" => LineGenerator.Debug(LineGenContent.Load(content), Parameters(args), (int)Opt(args, "--attempt", 0)).ToList(),
@@ -34,8 +35,69 @@ static class LineGenCommands
             var line = route.Build();
             using var plan = System.Text.Json.JsonDocument.Parse(route.Plan!.ToJson());
             var parts = plan.RootElement.EnumerateObject().ToDictionary(p => p.Name, p => Streams.Hash(p.Value.GetRawText()).ToString("x16"));
-            return new { route = spec, plan = route.Plan!.Fingerprint(), terrain = new PlanConditions(route.Plan!, line).Terrain.Print(), parts };
+            return new { route = spec, plan = route.Plan!.Fingerprint(), terrain = new PlanConditions(route.Plan!, line).Terrain.Print(), lineside = LinesidePrint(content, route, line), parts };
         }).ToList();
+    }
+
+    /// <summary>The night's lineside (note 371) as every machine stands it.</summary>
+    static DarkTerritory.Sim.Run.LinesideProps? LinesideOf(Route route, DarkTerritory.Sim.Rail.RailLine line) => DarkTerritory.Sim.Run.LinesideProps.Of(route, line);
+
+    /// <summary>A checksum of the lineside's trees, boulders and poles (note 371): they're walls, so a machine that stood them differently would predict wrong.</summary>
+    static string LinesidePrint(string content, Route route, DarkTerritory.Sim.Rail.RailLine line)
+    {
+        if (LinesideOf(route, line) is not { } side)
+            return "";
+        var text = new System.Text.StringBuilder();
+        foreach (var p in side.Props(0, line.Length))
+            text.Append(CultureInfo.InvariantCulture, $"{(int)p.Kind} {p.Along:R} {p.Lateral:R} {p.Height:R} {p.Size:R} {p.Sink:R} {p.Species} {p.Dead} {p.Seed};");
+        return Streams.Hash(text.ToString()).ToString("x16");
+    }
+
+    /// <summary>
+    /// `dt linegen lineside --route r`: what the Sim stands beside a generated line (note 371), by kind and biome, how many
+    /// are within reach of the track, and what building them and their walls costs a machine at the run's start.
+    /// </summary>
+    static object LinesideReport(string content, string[] args)
+    {
+        var route = Routes.Generate(content, Str(args, "--route", "frontier:7"), (int)Opt(args, "--cars", 6));
+        var line = route.Build();
+        var clock = Stopwatch.StartNew();
+        var side = LinesideOf(route, line) ?? throw new InvalidOperationException("a hand-laid line has no generated lineside");
+        var forts = DarkTerritory.Sim.Run.Fortresses.Of(route, line, LineGenContent.Cached(content).Route.YardLength, 400);
+        double solidReach = Opt(args, "--reach", new DarkTerritory.Sim.Run.WallTuning().LinesideReachM);
+        var props = side.Props(0, line.Length).ToList();
+        long propsMs = clock.ElapsedMilliseconds;
+        var timed = new Dictionary<string, long>();
+        foreach (double reach in new[] { 0.0, 20, 40, 60 })
+        {
+            clock.Restart();
+            int n = side.Props(0, line.Length, reach).Count();
+            timed[$"{reach:0}m ({n})"] = clock.ElapsedMilliseconds;
+        }
+        clock.Restart();
+        var walls = side.Walls(forts, solidReach).ToList();
+        long wallsMs = clock.ElapsedMilliseconds;
+        clock.Restart();
+        DarkTerritory.Sim.Run.StopWalls.Of(walls);
+        long indexMs = clock.ElapsedMilliseconds;
+        double km = line.Length / 1000;
+        return new
+        {
+            route = route.Plan!.Route.Id,
+            km = Math.Round(km, 2),
+            propsMs,
+            solidReach,
+            solids = walls.Count,
+            wallsMs,
+            indexMs,
+            reachMs = timed,
+            print = LinesidePrint(content, route, line),
+            kinds = props.GroupBy(p => p.Kind.ToString()).ToDictionary(g => g.Key, g => g.Count()),
+            withinTwentyM = props.GroupBy(p => p.Kind.ToString()).ToDictionary(g => g.Key, g => g.Count(p => Math.Abs(p.Lateral) <= 20)),
+            treesPerKmByBiome = props.Where(p => p.Kind == DarkTerritory.Sim.Run.LinesideKind.Tree).GroupBy(p => DarkTerritory.Game.Art.WorldArt.BiomeAt(route, p.Along) ?? "?")
+                .ToDictionary(g => g.Key, g => g.Count()),
+            species = props.Where(p => p.Kind == DarkTerritory.Sim.Run.LinesideKind.Tree).GroupBy(p => p.Dead ? "dead" : p.Species).ToDictionary(g => g.Key, g => g.Count()),
+        };
     }
 
     static string Str(string[] args, string name, string fallback)

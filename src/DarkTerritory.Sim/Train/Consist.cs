@@ -20,7 +20,13 @@ public struct GunState
     public double Z;
     /// <summary>Which way it faces along the train: −1 forward (the engine's), +1 back (the guard van's).</summary>
     public sbyte Facing;
+    /// <summary>The gun's rounds for the night, at it and in the powder lockers (combat.json <c>ammo</c>).</summary>
     public int Ammo;
+    /// <summary>
+    /// Of <see cref="Ammo"/>, the rounds in its ready rack at the gun (note 374, orchestrator.md §5.1 U4; combat.json
+    /// <c>rack</c>): what it fires. The rest are down in the powder lockers, carried up a charge at a time (<see cref="Combat.Guns"/>).
+    /// </summary>
+    public int Rack;
     /// <summary>Ticks until it can fire again.</summary>
     public int Cooldown;
     /// <summary>GDD §23: "Gun jams: someone repairs it by hand, under fire."</summary>

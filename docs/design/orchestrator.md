@@ -124,6 +124,8 @@ table.
 
 ## 4. Pacing targets
 
+**P1 and P3 are judged by `dt balance` (note 379)**, advisory until the director sets them; the first reading at crew 4 was P1 31 s and P3 77 % engaged.
+
 What a night on the line should feel like, measured by the harness's pacing trace (`dt harness`, `dt balance`; the
 director's spawn log and note 270's beats). First pass; each is a `balance.json` check once it's built.
 
@@ -210,13 +212,13 @@ Outside the director's budget and caps, like the left-behind's hunts (note 273):
 running fast gets it. `fromSpeed` is the director's packs' own top speed (19 m/s). Under it they can board, and outrunning
 them is still their counter (App. F.1, Decided; note 286); the run is what answers a train run faster than that, the
 top-speed strategy App. F.1 left open. One gunner bot at the guard gun answers a run of two with 7 rounds, both killed on
-the line (`HoundRunTests`). A bot crew hauls at cruise (14 m/s), so a harness night never draws one. Nothing in the grace, the forts, the final approach, or while the train's at a stop.
+the line (`HoundRunTests`). A bot crew hauls at cruise (14 m/s), and the boards hold any driver to the line speed (18 m/s on Frontier), so a hauling night never draws one; `dt harness --express` (note 376) runs hot, and its first night drew a run that the gunner answered with 3 rounds, none aboard. Nothing in the grace, the forts, the final approach, or while the train's at a stop.
 
 ### 6.2 Next, in order
 
 1. **The live crew multiplier and per-player caps** (§3.2 1, 3, 5): **built (note 336, queue #75).**
-2. **Powder to the guns** (U4): the rack, the magazine and the carry. It makes the guns a two-person job in a wave.
-3. **Hot boxes and loose couplings** (U1, U2): the upkeep that gets walkers onto the train. **Built: the hot box (note 331, queue #71), the lamp (U3; note 346, queue #83) and the loose coupling (note 356, queue #93).**
+2. **Powder to the guns** (U4): the rack, the magazine and the carry. It makes the guns a two-person job in a wave. **Built (note 374, queue #111).**
+3. **Hot boxes and loose couplings** (U1, U2): the upkeep that gets walkers onto the train. **Built: the hot box (note 331, queue #71), the lamp (U3; note 346, queue #83), the loose coupling (note 356, queue #93) and powder to the guns (U4; note 374, queue #111).**
 4. **Slack and posts** (§3.1, §3.2 2, 4): the census and who's next. **Built (note 345, queue #82).**
 5. **Climbers at speed** (S2): only if the director wants it over note 286's grip; tuning and a sweep.
 6. **The kites** (S3): a new creature, after the director's yes.

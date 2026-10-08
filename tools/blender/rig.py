@@ -562,15 +562,19 @@ class Kit:
         # The game mesh's triangles after build (`densify`), or None to keep the kit's own: a script sets it to take the
         # mesh up toward GDD §27's budget for its class.
         self.target_tris = None
-        # Parts to fuse into one skin after build (`fuse`): [(name, parts, voxel, faces, cut)].
+        # Parts to fuse into one skin after build (`fuse`): [(name, parts, voxel, faces, cut, lose, settle, relax, quads)].
         self.fusions = []
 
-    def fuse(self, name, parts, voxel=0.004, faces=3000, cut=None, lose=0.015):
+    def fuse(self, name, parts, voxel=0.004, faces=3000, cut=None, lose=0.015, settle=None, relax=3, quads=True):
         """After build, `parts` become one continuous skin called `name` (see `fuse`): for a creature whose limbs grow
         out of its body rather than bolt on. `cut(point) -> bool` opens the skin again where the parts were open on
         purpose (a mouth): the faces whose centres it's true for are taken out. `lose`: how much of the union QuadriFlow's
-        skin may leave off it (a crease smoothed over) before the collapse is used instead."""
-        self.fusions.append((name, list(parts), voxel, faces, cut, lose))
+        skin may leave off it (a crease smoothed over) before the collapse is used instead. `settle(points Nx3 numpy) ->
+        Nx3` moves the dense union's vertices before the retopology (onto a smooth-blended field, tools/blender/ribbit.py).
+        `relax`: how many passes of smoothing the union gets before it's remeshed (more rounds the creases where the parts
+        meet into fillets: muscle flowing into muscle). `quads=False` goes straight to the collapse (a hard, faceted thing:
+        slag, horn), which spends its triangles where the form turns rather than evenly."""
+        self.fusions.append((name, list(parts), voxel, faces, cut, lose, settle, relax, quads))
 
     def part(self, name, **kw):
         p = Part(self, name, **kw)
@@ -628,14 +632,14 @@ class Kit:
                     g.add([i], wt, "REPLACE")
             mod = ob.modifiers.new("Armature", "ARMATURE")
             mod.object = rig
-        for name, parts, voxel, faces, cut, lose in self.fusions:
-            fuse(self, name, parts, voxel, faces, cut, lose)
+        for name, parts, voxel, faces, cut, lose, settle, relax, quads in self.fusions:
+            fuse(self, name, parts, voxel, faces, cut, lose, settle, relax, quads)
         if self.target_tris:
             densify(self, self.target_tris)
         return self
 
 
-def fuse(kit, name, parts, voxel, faces, cut=None, lose=0.015):
+def fuse(kit, name, parts, voxel, faces, cut=None, lose=0.015, settle=None, relax=3, quads=True):
     """One skin from several built parts (a Look Review ask: the kit's limbs were tubes pushed into a body, a seam and
     often a gap at every hip and shoulder). The crew body's way (tools/blender/crewbody.py), for any creature:
       1. the parts' union, voxel-remeshed at `voxel` m: the solids flow into one another, a haunch into a flank, a
@@ -687,13 +691,25 @@ def fuse(kit, name, parts, voxel, faces, cut=None, lose=0.015):
     me.update()
     skin = bpy.data.objects.new(name, me)
     bpy.context.scene.collection.objects.link(skin)
+    # (A second fuse in one script: the first one's removed parts can linger in the view layer as None until it updates.)
+    bpy.context.view_layer.update()
     for o in bpy.context.view_layer.objects:
-        o.select_set(False)
+        if o is not None:
+            o.select_set(False)
     bpy.context.view_layer.objects.active = skin
     skin.select_set(True)
     me.remesh_voxel_size = voxel
     me.remesh_voxel_adaptivity = 0.0
     bpy.ops.object.voxel_remesh()
+    if settle is not None:
+        # Each vertex moved onto the script's own surface (a smooth-blended field: the creases where the parts meet
+        # filled in as flesh would), then remeshed again so wherever two sides met in the move it's one surface.
+        import numpy as np
+        co = np.empty(len(skin.data.vertices) * 3, np.float32)
+        skin.data.vertices.foreach_get("co", co)
+        skin.data.vertices.foreach_set("co", np.asarray(settle(co.reshape(-1, 3)), np.float32).ravel())
+        skin.data.update()
+        bpy.ops.object.voxel_remesh()
     # Only the outer surfaces: a cavity the union closed over is a shell of its own, facing in (a negative volume).
     bm = bmesh.new()
     bm.from_mesh(skin.data)
@@ -722,7 +738,7 @@ def fuse(kit, name, parts, voxel, faces, cut=None, lose=0.015):
     bm.to_mesh(skin.data)
     bm.free()
     mod = skin.modifiers.new("relax", "SMOOTH")
-    mod.factor, mod.iterations = 0.5, 3
+    mod.factor, mod.iterations = 0.5, relax
     bpy.ops.object.modifier_apply(modifier=mod.name)
     # QuadriFlow refuses a mesh with any edge under 0.1 mm a side, which the remesh and the relax leave where two
     # surfaces just touch.
@@ -752,7 +768,7 @@ def fuse(kit, name, parts, voxel, faces, cut=None, lose=0.015):
     before = len(dense.polygons)
     lost = None
     # (QuadriFlow's result isn't the same run to run, a good one or a ruin from the same union: a few tries.)
-    for seed in range(4) if ready else ():
+    for seed in range(4) if ready and quads else ():
         skin.data = dense.copy()
         bpy.ops.object.quadriflow_remesh(target_faces=faces, use_mesh_symmetry=True, use_preserve_sharp=False,
                                          use_preserve_boundary=cut is not None, smooth_normals=False, seed=seed)
@@ -765,7 +781,7 @@ def fuse(kit, name, parts, voxel, faces, cut=None, lose=0.015):
         if lost <= lose:
             break
     if lost is None or lost > lose:
-        why = "not manifold" if not ready else "it failed" if lost is None else f"it lost {lost:.1%} of the form"
+        why = "asked not to" if not quads else "not manifold" if not ready else "it failed" if lost is None else f"it lost {lost:.1%} of the form"
         print(f"[dt] fuse {name}: no QuadriFlow ({why}), collapsing instead")
         skin.data = dense
         mod = skin.modifiers.new("dt_dec", "DECIMATE")

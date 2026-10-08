@@ -12,6 +12,8 @@ namespace DarkTerritory.Sim.Net;
 public sealed record HarnessOptions
 {
     public int Bots { get; init; } = 8;
+    /// <summary>The driver runs hot at this speed and takes no stops (note 376, <see cref="Bots.ConductorBot.Express"/>); null as usual.</summary>
+    public double? Express { get; init; }
     public int Cars { get; init; } = 10;
     public double Seconds { get; init; } = 120;
     public int Seed { get; init; } = 1;
@@ -33,6 +35,11 @@ public sealed record HarnessOptions
     /// with the gunner lending a hand), the bots stop at the winch facilities and load (T32).
     /// </summary>
     public Run.FacilityTuning? Facilities { get; init; }
+    /// <summary>
+    /// The stops' loot (loot.json), as the game has it: the yards' crates, the villages' finds in their open houses, toys and
+    /// kits. Null, none, as the harness's nights have always been (note 326's bots that search the village only go with it).
+    /// </summary>
+    public Stops.LootTuning? Loot { get; init; }
     /// <summary>
     /// With it (and a run), the dead come back through the route's Holdouts (GDD App. D): a walker or the gunner breaches
     /// one lit with the train standing (T96), or the driver with neither of them left (note 259).
@@ -140,6 +147,8 @@ public sealed record HarnessReport(int Ticks, double Seconds, string Link, doubl
 {
     /// <summary>What got through on the crew's voice, with <see cref="HarnessOptions.Voice"/> (note 186).</summary>
     public VoiceReport? Voice { get; init; }
+    /// <summary>The jobs the train made as it ran (orchestrator.md §5.1), and how many got away from the crew; null without them.</summary>
+    public UpkeepReport? Upkeep { get; init; }
     /// <summary>With <see cref="HarnessOptions.DropRejoin"/>: how the bot that dropped came back (note 253).</summary>
     public RejoinReport? Rejoin { get; init; }
     /// <summary>The crew cap (note 254): the cap, the places taken at the end, and the bots turned away and what they were told.</summary>
@@ -215,6 +224,12 @@ public sealed record ThreatReport(double Budget, double Spent, IReadOnlyDictiona
 }
 
 /// <summary>
+/// The night's upkeep (orchestrator.md §5.1): hot boxes come and caught (note 331), lamps guttering and gone out (note 346),
+/// couplings come loose and parted (note 356), and the guns' racks filled from the powder locker (note 374).
+/// </summary>
+public sealed record UpkeepReport(int HotBoxes, int Caught, int Lamps, int WentOut, int Couplings, int Parted, int RacksFilled);
+
+/// <summary>
 /// The crew afoot off the train (note 327): crew-seconds out, the signs shown them (and how many from a site at the stop), by
 /// kind; the director's spawns made while anyone was out, of all its spawns; the threats that telegraphed then, of all.
 /// </summary>
@@ -277,7 +292,7 @@ public static class Harness
         host.World.EnableBodies();
         host.World.Stock();
         if (o.Run is { } rt && o.Route is { } route)
-            host.World.EnableRun(rt, route, o.YardLength, authority: true, o.Facilities);
+            host.World.EnableRun(rt, route, o.YardLength, authority: true, o.Facilities, o.Loot);
         if (o.Holdouts is { } ht && o.Run is not null && o.Route is { } hroute)
             host.World.EnableHoldouts(ht, hroute);
         if (o.Sight is { } sight && o.Route is { } sightRoute)
@@ -307,7 +322,7 @@ public static class Harness
             var transport = new CountingTransport(ClientTransport(i));
             // Past the cap (note 254) the crew is the crew of the cap, its parts as ever; the rest are spare hands with no part
             // at a stop, turned away at the door.
-            IBot bot = BotCrew.Make(i, crewSize, i < crewSize ? calls : null, o.Combat, playerTuning, o.Seed);
+            IBot bot = BotCrew.Make(i, crewSize, i < crewSize ? calls : null, o.Combat, playerTuning, o.Seed, o.Express);
             var session = new ClientSession(transport, NewTrain(line, trainTuning, o, boiler), trainTuning, playerTuning, o.Combat);
             // The enemies' tuning, as a joiner loads it: prediction drags with the Weight as the host does (T59), and the bots
             // read their counters from it (the Gaunt's view, the Passenger's reach).
@@ -315,7 +330,7 @@ public static class Harness
                 session.World.EnableEnemies(cet, o.Route, (ulong)o.Seed, crewSize, authority: false);
             // Clients see the night as players do: the phase, and each site's winch (mirrored from the host).
             if (o.Run is { } crt && o.Route is { } croute)
-                session.World.EnableRun(crt, croute, o.YardLength, authority: false, o.Facilities);
+                session.World.EnableRun(crt, croute, o.YardLength, authority: false, o.Facilities, o.Loot);
             if (o.Holdouts is { } h && o.Run is not null && o.Route is { } hr)
                 session.World.EnableHoldouts(h, hr);
             if (o.Sight is { } csight && o.Route is { } lroute)
@@ -568,6 +583,8 @@ public static class Harness
         string link = o.Network is { } n ? n.Name : o.Udp ? "udp localhost" : $"{o.Link.LatencySeconds * 1000:0}ms ±{o.Link.JitterSeconds * 1000:0} loss {o.Link.LossRate:P0}";
         var pacing = Pace(quiet, lastQuiet, beats, outTicks, quietTicks, beatKinds);
         pacing = pacing with { LongestQuietEnded = lastQuiet > 0 && lastQuiet >= quiet.DefaultIfEmpty(0).Max() ? $"{seconds:0}s, the night's end" : longestEnded, LongQuiets = longQuiets };
+        var upkeep = host.World.Upkeep is null ? null : new UpkeepReport(host.World.HotBoxCount.Came, host.World.HotBoxCount.Caught,
+            host.World.GutterCount.Came, host.World.GutterCount.WentOut, host.World.LooseCount.Came, host.World.LooseCount.Parted, host.World.RacksFilled);
         return new HarnessReport(ticks, seconds, link,
             Math.Round(host.Train.Dynamics.Distance, 1), Math.Round(host.Train.Dynamics.Speed, 2),
             Math.Round(host.Train.Boiler.Pressure, 1), Math.Round(host.Train.Boiler.Tender), host.LastSnapshotBytes,
@@ -578,6 +595,7 @@ public static class Harness
             clients.Select(c => c.Bot).OfType<ConductorBot>().FirstOrDefault()?.Stops?.Log,
             pacing)
         {
+            Upkeep = upkeep,
             Voice = calls?.Voice?.Report(),
             Crew = crewCap,
             Rejoin = o.DropRejoin is { } back && back.Bot >= 0 && back.Bot < clients.Count ? Rejoined(host, clients, back.Bot, droppedAs, dropTick, redialTick, backTick) : null,

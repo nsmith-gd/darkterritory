@@ -70,4 +70,32 @@ public class BalanceTests
     }
 
     static BalanceCheck Check(BalanceReport r, string name) => Assert.Single(r.Checks, c => c.Name == name);
+
+    [Fact]
+    public void ThePacingTargetsAreReportedAndAdvisoryTheyNeverFailTheSweep()
+    {
+        // Note 379 (orchestrator.md §4): P1, nobody slack past the press for long; P3, something engaged for 45-60 % of the night.
+        var busy = Night(2, true, 1) with { SlackOver = 10, QuietShare = 0.5 };
+        var idle = Night(8, true, 9) with { SlackOver = 120, QuietShare = 0.8 };
+        var report = Balance.Judge([busy, idle], T);
+        var p1 = Assert.Single(report.Checks, c => c.Name.StartsWith("P1"));
+        var p3 = Assert.Single(report.Checks, c => c.Name.StartsWith("P3"));
+        Assert.False(p1.Pass);
+        Assert.Contains("120", p1.Detail);
+        Assert.False(p3.Pass); // 35 % engaged on average
+        Assert.True(p1.Advisory && p3.Advisory);
+        Assert.True(report.Pass, "advisory checks don't fail the sweep");
+        // Within the targets, both pass; set them in earnest (advisory off) and a miss fails it.
+        Assert.All(Balance.Judge([busy, busy], T).Checks.Where(c => c.Name.StartsWith('P')), c => Assert.True(c.Pass, c.Detail));
+        var strict = T with { Pacing = new PacingTargets { Advisory = false } };
+        Assert.False(Balance.Judge([busy, idle], strict).Pass);
+    }
+
+    [Fact]
+    public void ACrewOfOneHasNoPacingTargets()
+    {
+        // The census doesn't steer a crew of one (note 345): its nights aren't judged by P1 and P3.
+        var report = Balance.Judge([Night(1, true, 1) with { SlackOver = 500, QuietShare = 0.9 }], T);
+        Assert.DoesNotContain(report.Checks, c => c.Name.StartsWith('P'));
+    }
 }

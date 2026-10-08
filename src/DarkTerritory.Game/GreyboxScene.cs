@@ -414,6 +414,8 @@ public sealed class GreyboxScene
             Look.Art.Effects.Train(mesh, frames, eye, Time, Controls, FireGlow, Emergency, Venting && !Ruptured, SafetyValve && !Ruptured,
                 frames.Count == 0 ? default : Art.Bite.For(Look.Tuning.Bite, frames[^1].Shape, Vehicles is { } fleet && frames[^1].Index < fleet.Count ? fleet[frames[^1].Index] : null, frames[^1].Index),
                 whistle: !Ruptured && (CordPulled || Enemies?.Any(e => e is Sim.Enemies.Whistler { Whistling: true } && !e.Gone) == true), dead: Ruptured, lamp: LampLit);
+            // (And the crew on a straining car stumble: SceneArt.Crewmate, drawn after.)
+            Look.Art.BendStrain = BendStrain;
             if (BendStrain is { } bends)
                 Look.Art.Effects.Flanges(mesh, frames, eye, Time, bends);
             if (Ruptured && frames.Count > 0)
@@ -1870,7 +1872,7 @@ public sealed class GreyboxScene
         {
             if (s.ActionProgress <= 0 || !Repairs.WrenchInHand(s) || Repairs.At(s, train) is not (var kind and not BreakKind.None))
                 continue;
-            int car = kind == BreakKind.Rupture ? 0 : s.Parent;
+            int car = kind is BreakKind.Rupture or BreakKind.Lamp ? 0 : s.Parent;
             for (int i = 0; i < breaks.Count; i++)
                 if (breaks[i].Kind == kind && breaks[i].Vehicle == car)
                     (at ??= []).Add(i);
