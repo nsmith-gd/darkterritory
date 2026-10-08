@@ -5683,3 +5683,21 @@ Terrain sculpting tools, a node-graph material editor, a general-purpose visual 
         - Where `FootPath` finds no way, it uses `WalkTo` too, and doesn't search again for 3 s (`WayTo`). Beside the train the foot path's margins (a car's steps, the coupling gaps) can leave no way between the cars and the trees where a crewmate fits. With the first fix alone, a lone driver back from cutting a hound pack's car loose (note 343) found no way to the cab from 150 m back. It headed straight at the cars and stood against them, searching again every tick (seed 5).
         - The walkers' breaches (`Heed.Holdouts`) go through the same `Breach`, so they walk the same way.
     - **Verified.** `HoldoutTests.ALoneDriverGoesRoundTheTreesToALockupFarOffTheLineAndBackToTheCab`: a lone driver breaches a facility's lockup more than 100 m off the line and is back in the cab and away. Without the fix it frees them but never gets back to the cab.
+    - **The sweep** (frontier:7, 4 bots, enemies, upkeep, 2700 s; main at 05a96b0 against this branch merged with it). Km reached, and where the driver ended:
+
+      | Seed | Main | With note 406 |
+      |---|---|---|
+      | 1 | 19.4, on the ground at km 19.4's lockup | 21.7, in the cab, standing for km 21.7's Holdout at the end |
+      | 2 | 13.3, on the ground at km 13.3's lockup | 25.5, delivered |
+      | 3 | 18.9, running | 21.7, in the cab, standing for km 21.7's Holdout at the end |
+      | 4 | 12.9, running | 24.9, running |
+      | 5 | 21.7, in the cab, standing | 21.7, running (cut a pack's car loose alone at km 16.5 and back in 93 s) |
+      | 6 | 25.5, delivered | 21.7, in the cab, standing for km 21.7's Holdout at the end |
+      | 7 | 17.2, running | 18.7, running |
+      | 8 | 13.3, on the ground at km 13.3's lockup | 21.7, in the cab, standing for km 21.7's Holdout at the end |
+      | 9 | 13.9, running | 25.5, delivered |
+
+      - The mean is 17.4 km on main and 22.6 km with the fix, with 1 and 2 nights delivered.
+      - On main, a far lockup's breach took 169–174 s (the give-up) or the rest of the night, 7 times in 9 nights. With the fix: 47 s at km 19.4 and 65–66 s at km 13.3, every time.
+      - Seed 6 delivered on main and stands at km 21.7 with the fix. Its night went another way: its crew met Holdouts it never stopped for on main. Single nights diverge after any change, so the table compares where they end, not each night alike.
+    - **Not yet:** nobody stands guard at the train while the driver's out: a Holdout 180 m off leaves the cab empty for a minute and more. `ToARoofLadder` (the climb back aboard to cut a car loose) still walks by `WalkTo`.
