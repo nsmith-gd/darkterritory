@@ -28,6 +28,7 @@ public sealed record EnemyTuning(
     public CreatureSitesTuning Sites { get; init; } = new();
     public GrumblerTuning Grumbler { get; init; } = new();
     public ChoirSwarmV11 Choir { get; init; } = new();
+    public MooseTuning Moose { get; init; } = new();
     /// <summary>The damage model (GDD App. F.1, the director's decision of 6 Oct 2026; note 272): no creature's hit is chip.</summary>
     public DamageModelTuning Damage { get; init; } = new();
     /// <summary>
@@ -805,6 +806,58 @@ public sealed record HoundRunTuning
 /// A dead bot, a crewmate like any other, casts its vote <paramref name="BotSeconds"/> after it's offered (note 202).
 /// </summary>
 public sealed record VoteTuning(double PerVote = 1.2, double Cap = 1.5, int Options = 3, double BotSeconds = 6);
+
+/// <summary>The Moose (GDD §21, App. A.6, B.6; ARCHITECTURE §8 note 339). Field docs live in enemies.json.</summary>
+public sealed record MooseTuning
+{
+    public double CrowdAt { get; init; } = 20;
+    public double CrowdPerSecond { get; init; } = 25;
+    public double CloseAt { get; init; } = 12;
+    public double ClosePerSecond { get; init; } = 70;
+    public double HearVoice { get; init; } = 15;
+    public int TalkingAbove { get; init; } = 40;
+    public double VoicePerSecond { get; init; } = 40;
+    public double TrainPassAt { get; init; } = 25;
+    public double TrainPass { get; init; } = 25;
+    public double CalmPerSecond { get; init; } = 15;
+    public double ListenAt { get; init; } = 20;
+    public double WarnAt { get; init; } = 50;
+    public double[] SquareUpAt { get; init; } = [12, 30];
+    public double SquareUpSeconds { get; init; } = 2.5;
+    public double HuntSpeed { get; init; } = 4.5;
+    public double ChargeSpeed { get; init; } = 11;
+    public double Overrun { get; init; } = 8;
+    public double WheelSeconds { get; init; } = 2.5;
+    public double RackSpan { get; init; } = 3.2;
+    public double HitReach { get; init; } = 0.5;
+    public double SnagSeconds { get; init; } = 4;
+    public int BlockedCharges { get; init; } = 3;
+    public int ChargeDamage { get; init; } = 60;
+    public double GrabBelowHealth { get; init; } = 40;
+    public double PinSeconds { get; init; } = 12;
+    public double SightRange { get; init; } = 60;
+    public double SearchSpeed { get; init; } = 2.5;
+    public double SearchSeconds { get; init; } = 25;
+    public double LeashRadius { get; init; } = 80;
+    public double LostAtCar { get; init; } = 5;
+    public double RamEvery { get; init; } = 3;
+    public double RamSeconds { get; init; } = 15;
+    public double TrackClearance { get; init; } = 3.2;
+    public double MovingClearance { get; init; } = 6;
+    public double GoneBeyond { get; init; } = 600;
+    public double[] GroundAt { get; init; } = [30, 60];
+    public int MinCrew { get; init; } = 1;
+    public double PerGroundWeight { get; init; } = 0.5;
+    public Dictionary<string, double> TierWeights { get; init; } = new() { ["local"] = 1, ["frontier"] = 1.5, ["deadLines"] = 2, ["deepTerritory"] = 2.5 };
+    public Dictionary<string, double> Lineside { get; init; } = new() { ["local"] = 2, ["frontier"] = 3, ["deadLines"] = 4, ["deepTerritory"] = 5 };
+    public double[] LinesideOut { get; init; } = [8, 22];
+    public double LinesideAhead { get; init; } = 300;
+    public Dictionary<string, double> BiomeWeights { get; init; } = new();
+
+    /// <summary>A tier's weight in a table keyed by its camel-cased name (1 where it isn't listed).</summary>
+    public static double ByTier(IReadOnlyDictionary<string, double> table, Route.RouteTier tier) =>
+        table.GetValueOrDefault(char.ToLowerInvariant(tier.ToString()[0]) + tier.ToString()[1..], 1);
+}
 
 /// <summary>Where the outside creatures start: their sites in the stops' layouts (level-design H.2; note 309). Field docs in enemies.json.</summary>
 public sealed record CreatureSitesTuning
