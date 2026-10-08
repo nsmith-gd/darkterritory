@@ -105,6 +105,11 @@ CUES = {
         O("stow", "Back into the hotbar", need="Not in the game yet: there's no hotbar (an extinguisher is carried or dropped) in the sim, so nothing plays this. Ready for when there is."),
         O("drop", "Dropped, or thrown and landing: a steel cylinder hitting", mats=DROP,
           cand={"wood": K("impactWood_heavy"), "grate": K("impactMetal_heavy")}),
+        # On the fire (queue #205, note 469; the director, 8 Oct: holding it on a fire "doesnt feel like its doing anything"):
+        # where the jet meets the flames, a patch of the fire going out, and the whole fire out.
+        L("on-fire", "The jet on burning boards: the water flashing to steam, the flames beaten down"),
+        O("cell-out", "A patch of the fire put out: the flames collapsing in a hissing gasp", vars=3),
+        O("fire-out", "The fire out: a long sigh of steam, the boards dripping and ticking as they cool", vars=2),
     ],
     "crew-melee": [
         *[c for tool in ("shovel", "wrench", "crowbar") for c in (
