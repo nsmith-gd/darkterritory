@@ -80,7 +80,7 @@ public sealed class GreyboxScene
         if ((at - eye).Length >= 60)
             return;
         var (drift, flicker) = Look is null ? (Vector3.Zero, 1f) : (Art.SceneArt.FlameDrift(Time, id), Art.SceneArt.Flicker(Time, id));
-        var light = new PointLight(V(at, eye) + drift, Palette.LampAmber * 1.8f * flicker, 7f);
+        var light = new PointLight(V(at, eye) + drift, Palette.LampAmber * Interiors.HandLamp * flicker, Interiors.HandLampRange);
         if (mesh.ShadowLight is { } nearer && nearer.Position.LengthSquared() <= light.Position.LengthSquared())
             mesh.PointLights.Add(light);
         else
@@ -3066,7 +3066,11 @@ public sealed class GreyboxScene
     /// An open house in the world: its frame's origin on its floor, its axes, its parts, its light, and how high its walls
     /// stand over that floor (an open barn's or shed's eaves, note 462).
     /// </summary>
-    sealed record OpenHouse(Double3 Origin, Double3 X, Double3 Y, IReadOnlyList<Sim.Stops.FootprintPart> Parts, Double3? Light, bool Lamp, int Id, float Height = 3.0f);
+    sealed record OpenHouse(Double3 Origin, Double3 X, Double3 Y, IReadOnlyList<Sim.Stops.FootprintPart> Parts, Double3? Light, bool Lamp, int Id, float Height = 3.0f, bool Shed = false);
+
+    /// <summary>The light indoors (note 475): the look's, or the old numbers for the greybox.</summary>
+    InteriorTuning Interiors => Look?.Tuning.Atmosphere.Interiors ?? DefaultInteriors;
+    static readonly InteriorTuning DefaultInteriors = new();
 
     (Sim.Route.Route Route, RailLine Line, List<OpenHouse> Houses)? _openHouses;
 
@@ -3105,7 +3109,7 @@ public sealed class GreyboxScene
                         if (lengths.Count == 0)
                             continue;
                         houses.Add(new OpenHouse(origin, (On(1, 0) - origin).Normalized, (On(0, 1) - origin).Normalized, lengths, null, false,
-                            (int)(f.Start * 7 + i), yard ? Art.WorldArt.YardShedHeight(b) : Art.WorldArt.OpenShedHeight(b.Kind)));
+                            (int)(f.Start * 7 + i), yard ? Art.WorldArt.YardShedHeight(b) : Art.WorldArt.OpenShedHeight(b.Kind), Shed: true));
                         continue;
                     }
                     if (!b.Open || !Sim.Run.StopWalls.Walled(stop, i))
@@ -3137,10 +3141,32 @@ public sealed class GreyboxScene
             // The shader's frame has up = back x right.
             if (Vector3.Cross(back, right).Y < 0)
                 back = -back;
+            var lit = Interiors;
             foreach (var part in h.Parts)
             {
-                var centre = h.Origin + h.X * part.X + h.Y * part.Y + Double3.Up * (wallHeight / 2);
-                mesh.Rooms.Add(new Room(V(centre, eye), right, Vector3.UnitY, back, new Vector3((float)part.Length / 2, wallHeight / 2, (float)part.Width / 2)));
+                // From under its floor (the shader fades a room out over its last 15 cm: a box that began at the boards
+                // left them outside, moonlit blue; note 475) to its eaves.
+                const float Under = 0.3f;
+                var centre = h.Origin + h.X * part.X + h.Y * part.Y + Double3.Up * ((wallHeight - Under) / 2);
+                mesh.Rooms.Add(new Room(V(centre, eye), right, Vector3.UnitY, back, new Vector3((float)part.Length / 2, (wallHeight + Under) / 2, (float)part.Width / 2)));
+                // A barn's, a shed's or a yard shed length's hurricane lantern turned low, hung from a beam in its middle
+                // (note 475: the director's "functional"), steady and dim: enough to see the stacks, the loft, the bench by.
+                // A long yard shed has one each shedLanternSpacing along it.
+                if (h.Shed && lit.ShedLantern > 0)
+                {
+                    int lanterns = Math.Max(1, (int)Math.Round(part.Length / Math.Max(1, lit.ShedLanternSpacing)));
+                    for (int k = 0; k < lanterns; k++)
+                    {
+                        double along = part.X + part.Length * ((k + 0.5) / lanterns - 0.5);
+                        var hung = h.Origin + h.X * along + h.Y * part.Y + Double3.Up * Math.Min(wallHeight - 0.5, lit.ShedLanternHeight);
+                        if ((hung - eye).Length > Near)
+                            continue;
+                        double s = Time * 2.3 + h.Id * 1.3 + along;
+                        float sway = (float)(0.93 + 0.05 * Math.Sin(s) + 0.02 * Math.Sin(s * 3.7));
+                        mesh.PointLights.Add(new PointLight(V(hung, eye), Palette.LampAmber * lit.ShedLantern * sway, lit.ShedLanternRange));
+                        mesh.Billboard(V(hung, eye), 0.3f * sway, 0, new Vector4(Palette.LampAmber * 0.45f * sway, 1), -1, FxBlend.Additive);
+                    }
+                }
             }
             // The Gaunt's house has no light: its dark is the tell (TownKit.HouseLight).
             if (h.Light is not { } light)
@@ -3148,7 +3174,7 @@ public sealed class GreyboxScene
             // Dim and warm, a candle's guttering more than a lamp's.
             double t = Time * (h.Lamp ? 3 : 9) + h.Id * 1.7;
             float gutter = (float)(0.8 + 0.12 * Math.Sin(t) + 0.08 * Math.Sin(t * 2.9 + 0.7) * Math.Sin(t * 0.37));
-            mesh.PointLights.Add(new PointLight(V(light, eye), Palette.LampAmber * (h.Lamp ? 0.8f : 0.9f) * gutter, h.Lamp ? 6.5f : 5.5f));
+            mesh.PointLights.Add(new PointLight(V(light, eye), Palette.LampAmber * (h.Lamp ? lit.Lamp : lit.Candle) * gutter, h.Lamp ? lit.LampRange : lit.CandleRange));
             // The flame's own small halo, so the light reads as coming from it.
             mesh.Billboard(V(light, eye), (h.Lamp ? 0.35f : 0.22f) * gutter, 0, new Vector4(Palette.LampAmber * 0.45f * gutter, 1), -1, FxBlend.Additive);
         }
