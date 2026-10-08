@@ -107,4 +107,26 @@ public class HotBoxTests
         var p = PlayerMotor.SpawnOnRoof(w.Train, 2, T.Geometry.CarLength / 2 - 1.5, Tuning.Player);
         Assert.Null(HotBoxes.Within(p, w.Train, H));
     }
+
+    [Fact]
+    public void AWalkerGoesDownIntoTheGapAndGreasesAHotBox()
+    {
+        // A crew of three out on the line (the driver, the gunner, one walker), and car 4's box comes on 20 s in: the walker
+        // goes along the roofs to it, down the end ladder into the gap behind car 4, and greases it before it drags.
+        double? cameAt = null, greasedAt = null;
+        var report = CrewOfTwoTests.Night("frontier:7", 6, 90, null, start: 2500, bots: 3,
+            upkeep: new UpkeepTuning { HotBox = H with { FirstAfterMetres = 1e9 } },
+            each: w =>
+            {
+                if (cameAt is null && w.ElapsedSeconds >= 20)
+                {
+                    w.Train.Vehicles[4].HotBox = Dt;
+                    cameAt = w.ElapsedSeconds;
+                }
+                else if (cameAt is not null && greasedAt is null && w.Train.Vehicles[4].HotBox == 0)
+                    greasedAt = w.ElapsedSeconds;
+            });
+        Assert.NotNull(cameAt);
+        Assert.True(greasedAt is { } at && at - cameAt < H.DragAfter, $"came at {cameAt:0} s, greased at {greasedAt?.ToString("0") ?? "never"} ({report.Deaths} died)");
+    }
 }

@@ -149,8 +149,9 @@ Status: **open**, **claimed**, **in review** (a PR is up), **done** (merged).
 | 76 | **The armoured train (the director, 7 Oct, with a marked-up shot and a reference image: "cut open on both sides so players can walk straight to the cab ... I dont like the boiler being rounded, lets make it squared up a bit and feel more armoured ... make all the train feel armoured ... a boxier cooler looking train front. A full redesign with armoured cars too"):** the cab's back corners opened from the running boards (sim and art), the boiler cased square in riveted plate, a boxier faceted front with a slatted plough, then the cars in armour. **Overlaps:** C1 (the cab's inside, `TrainKit`); the sim's `CarShape` for the opening | E1 | `claude/friendly-heisenberg-z67r2v` | 338 | claimed |
 | 79 | **Signs off the train heard (note 327's hook):** a sound for each creature's sign shown a crewmate afoot (`sign.<kind>`: the Ribbits, the Soot Children, the Whistler, the Grumbler; the Gaunt and the Followers kept to their eyes unless the director wants otherwise): something moving out there, quieter than and never like its tell; a checklist line, candidates, installed. **Overlaps:** D1.1's `GameAudio.Watched` already plays them by name; nothing to change there | AU1 | `au1-signs` | 342 | claimed |
 
-The GDD artifact (claude.ai/artifact/PrfaZjyZb1rWcWWuiPm1Dx) was republished from main's docs/design/gdd.md on 7 Oct at
-17:33 UTC (D1, main at 8ebf15e, version 12); whoever lands a gdd.md change republishes it (A1 when it's about).
+The GDD artifact (claude.ai/artifact/PrfaZjyZb1rWcWWuiPm1Dx) was republished from main's docs/design/gdd.md on 8 Oct at
+00:20 UTC (D1, main at e345c64, version 18), with G1's open #247 (the Moose) merged on top, as the live page already
+carried it; whoever lands a gdd.md change republishes it (A1 when it's about).
 
 ## ARCHITECTURE §8 note numbers
 
