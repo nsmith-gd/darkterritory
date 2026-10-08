@@ -2,8 +2,10 @@ using Ballast;
 using Ballast.Audio;
 using DarkTerritory.Sim;
 using DarkTerritory.Sim.Player;
+using DarkTerritory.Sim.Rail;
 using DarkTerritory.Sim.Route;
 using DarkTerritory.Sim.Run;
+using DarkTerritory.Sim.Stops;
 
 namespace DarkTerritory.Game.Sound;
 
@@ -79,6 +81,25 @@ public sealed partial class GameAudio
     }
 
     /// <summary>
+    /// The space inside the stop's building <paramref name="ear"/> is in, if it can be walked into (queue #129, note 392;
+    /// C1's note 387 drew them walk-in): "shed" for a yard's sheds and its hero (iron halls, their bays open), "room" for
+    /// the rest (a Holdout's signal box, lamp room, pump house, prison van or lockup; an open house). Null outside them,
+    /// and on one's roof.
+    /// </summary>
+    public static string? RoomOf(Route route, RailLine line, Double3 ear, double along)
+    {
+        var main = line.Sample(Math.Clamp(along, 0, line.Length));
+        double lateral = Double3.Dot(ear - main.Position, Double3.Cross(main.Tangent, Double3.Up).Normalized);
+        if (Art.WorldArt.BuildingAt(route, along, lateral) is not { Open: true } b || ear.Y - main.Position.Y > RoomHeight)
+            return null;
+        return b.Stop.Buildings[b.Index].Kind is BuildingKind.Shed or BuildingKind.Hero or BuildingKind.GoodsShed or BuildingKind.Barn
+            or BuildingKind.Powerhouse ? "shed" : "room";
+    }
+
+    /// <summary>How far over the rail a listener can be and still be in a building (its roof's at most this).</summary>
+    const double RoomHeight = 8;
+
+    /// <summary>
     /// Which space a listener at <paramref name="ear"/> is in. Inside a car's walls is "car" (doors open or shut: it's
     /// still a wooden box around you), even in a tunnel. In a tunnel's bore (the route's, on the main line) is "tunnel":
     /// the cab is open-backed, so the bore swallows it too. Then the engine's cab, "cab"; along a facility's yard,
@@ -111,6 +132,9 @@ public sealed partial class GameAudio
             // Down the mine spur (note 250): the adit closing in, the outside gone.
             if (world.Run is { } run && run.Underground(new PlayerState { Parent = PlayerState.World, Position = ear, LineHint = hint }, train))
                 return "mine";
+            // In a stop's building you can walk into (queue #129, note 392): a shed's iron hall, or a small room.
+            if (!cab && RoomOf(route, train.Line, ear, along) is { } room)
+                return room;
             if (!cab && off <= FacilityReach && route.Features.Any(f => f.Kind == FeatureKind.Facility && f.Contains(along)))
                 return "facility";
         }

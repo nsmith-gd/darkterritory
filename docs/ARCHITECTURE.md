@@ -5483,3 +5483,20 @@ Terrain sculpting tools, a node-graph material editor, a general-purpose visual 
     - **Kept silent:** the Moose listening and the Gannet hanging over a walker have nothing, since silence is their tell. The fallback sign captions stay, because the creatures' own movement still plays where there's no sign sound, and when they're on you.
     - **Not captioned:** the `tell-*` files of the older roster (`tell-hounds.howl-far` and the rest). The game plays those by their game names (`hound-howl`, `tippy-tiptoe`), which F1 captioned.
     - **Pinned:** `CaptionsTests.TheTellsAndCallsSinceCaptionsAreCaptioned` (14 sounds). F1's rules hold: every caption is a sound that plays, and none names a creature.
+
+392. **Inside the stop's buildings heard as rooms (AU1, queue #129; C1's note 387 drew the sheds, the hero and the Holdouts walk-in on note 279's shells; note 326's open houses).** Walking into a building at a stop changed nothing you heard. `GameAudio.SpaceOf` still said "outside" (or "facility"), so a goods shed's iron hall and a signal box's locking room rang like the open night. Rain fell "outside" on you under a roof. Underfoot, every building was "concrete", the old note that the art drew no floor in there.
+    - **The rooms** (`content/audio/spaces.json`):
+        - `shed`, for a yard's sheds and its hero (and a goods shed, barn or powerhouse, should one open): an iron-roofed hall 20–40 m long on concrete, its bays open. Its walls answer in 18–100 ms, then a 1.5 s tail, brightish off the iron, with nothing shut out.
+        - `room`, for the rest that can be walked into (a Holdout's signal box, lamp room, pump house, prison van or lockup; an open house): brick or boards 3–6 m across, a 0.45 s tail, darker than the cab.
+        - `GameAudio.RoomOf` picks one when the ear is in a building's footprint (`WorldArt.BuildingAt`, the same test Footing uses), the building can be walked into (`StopWalls.Shelled`, or open and walled), and the ear is under 8 m over the rail. It is checked after a car, a tunnel and the mine, and before a facility's yard: inside a facility's shed is the shed's sound.
+    - **Rain under a roof** is the roof's (`world-rain.rain-roof`), as in a car.
+    - **The floors** (`WorldArt.Floor`):
+        - a Holdout's signal box, lamp room and pump house are boards a step up (`wood_floor`, now heard as wood);
+        - the prison van is plate (`paint_oxide`: grate);
+        - an open house is its boards (`wood_grey`);
+        - a shed, the hero and anything shut stay concrete.
+    - **The tells**: `dt audio render --space shed` costs the default chaos about 1 dB of each tell's margin over the bed against the open night (the tail blurs the bed a little, as a facility's yard does). `--space room` costs a few tenths. In both, the margins stay where the open night's are, near zero for the weakest.
+    - **Pinned:**
+        - `WorldSoundTests.InsideAStopsBuildingTheListenerIsInItsRoomAndUnderfootIsTheFloorItsDrawnWith`: a shed is the shed on concrete; a Holdout's room is a room on boards; an open house is a room on boards; the line beside them is neither.
+        - `MixTests.EverySpaceSoundsLikeItself`: the room between the cab and a car, the shed between a facility's yard and a tunnel.
+    - **Not yet:** the outside quieter through a room's walls. Occlusion goes by the train's spaces (`PlayerMotor.Space`), and a stop's building isn't one.
