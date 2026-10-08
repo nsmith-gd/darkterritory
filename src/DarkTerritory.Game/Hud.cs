@@ -33,9 +33,11 @@ public static partial class Hud
 {
     static readonly Vector4 Ink = new(0.88f, 0.84f, 0.74f, 1);
     static readonly Vector4 Dim = new(0.60f, 0.58f, 0.53f, 1);
-    static readonly Vector4 Amber = new(1.00f, 0.70f, 0.30f, 1);
-    static readonly Vector4 Red = new(0.95f, 0.26f, 0.18f, 1);
-    static readonly Vector4 Green = new(0.55f, 0.82f, 0.45f, 1);
+    // The colours that mean something (note 348): hud.json's, the player's COLOURS choosing the palette.
+    static HudPalette Palette => Keys.Colours == HudColours.Colourblind ? Tuning.Colourblind : Tuning.Standard;
+    static Vector4 Amber => Palette.WarnColour;
+    static Vector4 Red => Palette.DangerColour;
+    static Vector4 Green => Palette.GoodColour;
     static readonly Vector4 Track = new(0.25f, 0.24f, 0.22f, 0.9f);
 
     /// <param name="crosshair">The aiming cross at the middle. Not on a headset's panel (T36): it lags the head, which
