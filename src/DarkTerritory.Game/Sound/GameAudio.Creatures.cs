@@ -153,6 +153,10 @@ public sealed partial class GameAudio
                 // Bludgeoned from the rear platform (it heals between blows: only a real drop is a blow).
                 if (struck)
                     Cue("cs-car-hugger.hit", at, occ);
+                // Note 310: the crew pull the swallowed crewmate back out. Eaten or pulled free, its grab ends the same way on
+                // the wire (back to grinding on the car), so it's the one it held still alive that says they got out.
+                if (was.Phase == SpinePhase.Grab && e.Phase != SpinePhase.Grab && Crewmate(was.Holding) is { Health: > 0 })
+                    Cue("cs-car-hugger.spit-out", at, occ);
                 BreakAway(world.Train, e.Attached, was, at);
                 break;
             case Whistler:
@@ -201,14 +205,19 @@ public sealed partial class GameAudio
                 // are heard from the crew's records (Mauled).
                 if (grabbed)
                     Cue("cs-gaunt.blow", Victim(world.Train, e.Holding, 1.2) ?? at, occ);
+                Pained("cs-gaunt.hit", e, at, occ, struck);
                 break;
             case Follower:
                 // App. A.6: its nest being beaten in, for as long as the blows keep coming (the swing is 0.8 s).
                 if (e.Phase == SpinePhase.Punish && _time - was.HitAt <= 1.2)
                     Hold("cs-followers.nest-smash", e.Id, at, occ);
+                // A blow on its nest is the nest's (above); one on the creature itself, off a back, is its own.
+                else
+                    Pained("cs-followers.hit", e, at, occ, struck);
                 break;
             case SootChildren soot:
                 SootSounds(soot, was, at, occ, grabbed);
+                Pained("cs-soot-children.hit", e, at, occ, struck);
                 break;
             case Passenger:
                 PassengerSounds(e, was, at, occ);
@@ -220,14 +229,28 @@ public sealed partial class GameAudio
                     Cue("cs-switchman.flicker", Lamp(world, sw.Branch, at), Occlusion(PlayerMotor.Outside));
                     was.Next = _time + 0.25 + 0.55 * _creatureRng.Next();
                 }
+                Pained("cs-switchman.hit", e, at, occ, struck);
                 break;
             case Grumbler g:
                 GrumblerSounds(g, was, at, occ);
+                // The blow that turns it feral is heard as it turning (GrumblerSounds); one before that, or after, is a hurt.
+                if (!(g.Feral && was.Extra2 <= 0.5))
+                    Pained("cs-grumbler.hit", e, at, occ, struck);
                 break;
             case Moose m:
                 MooseSounds(world, m, was, at, occ);
                 break;
         }
+    }
+
+    /// <summary>
+    /// A ball or a blow landing on a creature and not killing it (note 290: the gun hits what it's laid on now, and per-creature
+    /// pain is the audio chat's). One that kills it is its death, when its record goes (Vanished).
+    /// </summary>
+    void Pained(string cue, Enemy e, Double3 at, float occ, bool struck)
+    {
+        if (struck && e.Health > 0)
+            Cue(cue, at, occ);
     }
 
     // ---- The kinds ------------------------------------------------------------------------------------------------------

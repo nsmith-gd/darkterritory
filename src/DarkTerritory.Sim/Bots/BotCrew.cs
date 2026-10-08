@@ -35,14 +35,14 @@ public sealed class BotCrew(CrewCalls? calls) : IDisposable
 
     /// <summary>
     /// The bot for crew place <paramref name="i"/> of <paramref name="count"/>: the driver first (first aboard takes the
-    /// cab), a fireman beside it in a crew big enough (T75), the gunner second when there are guns, walkers the rest, each
-    /// with its part at a stop (the walkers first: a shunter, the winch pair, then crates).
+    /// cab, and runs it alone: note 280, the director's "the whole cab being operable by one person"), the gunner second
+    /// when there are guns, labourers the rest, each with its part at a stop (a shunter, the winch pair, then crates). The
+    /// crew is the driver, gunners and labourers; there's no fireman (T75's went with note 280).
     /// </summary>
     public static IBot Make(int i, int count, CrewCalls? calls, CombatTuning? combat, PlayerTuning player, int seed)
     {
         bool gunner = combat is not null;
-        int fireman = count >= Harness.FiremanFrom ? count - 1 : -1;
-        var hands = Enumerable.Range(1, Math.Max(0, count - 1)).Where(h => h != fireman).OrderBy(h => h == 1 && gunner ? 1 : 0).ToList();
+        var hands = Enumerable.Range(1, Math.Max(0, count - 1)).OrderBy(h => h == 1 && gunner ? 1 : 0).ToList();
         StopJob job = hands.IndexOf(i) switch
         {
             0 => StopJob.Shunter,
@@ -52,7 +52,6 @@ public sealed class BotCrew(CrewCalls? calls) : IDisposable
         };
         StopHand? hand = calls is null ? null : new StopHand(job, calls, i, player.Cold);
         return i == 0 ? new ConductorBot(calls, i)
-            : i == fireman ? new ConductorBot(calls, i) { Fireman = true }
             : i == 1 && combat is { } c ? new GunnerBot(c.Guns, c.Choir, seed * 1000 + i, player.Cold, hand)
             : new RoofWalkerBot(seed * 1000 + i, player.Cold, hand);
     }

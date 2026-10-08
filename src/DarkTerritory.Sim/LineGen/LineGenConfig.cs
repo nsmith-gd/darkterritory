@@ -102,6 +102,8 @@ public sealed record TierColumn
     public double[] Bends { get; init; } = [];
     /// <summary>Note 278: the speeds (m/s) a hard bend derails at, [min, max]; its radius v² / aDerail, never under minRadius.</summary>
     public double[] BendDerail { get; init; } = [];
+    /// <summary>Note 359: the chance a hard bend is laid as an S-bend, two hard turns either way held as one.</summary>
+    public double SBends { get; init; }
 }
 
 /// <summary>§3.3 budget curve: zone shares and the reserved stretches.</summary>

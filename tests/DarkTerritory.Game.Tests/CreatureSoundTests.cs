@@ -96,6 +96,57 @@ public class CreatureSoundTests
     }
 
     [Fact]
+    public void TheCarHuggerIsHeardSpittingOutACrewmatePulledFreeButNotOneEaten()
+    {
+        // Note 310: the crew pull a swallowed crewmate back out of its mouth. Eaten or pulled free, its grab ends the same
+        // way on the wire (back to grinding on the car), so it's the one it held still alive that's heard getting out.
+        using var scene = new Scene(5, "cs-car-hugger.swallow", "cs-car-hugger.hit", "cs-car-hugger.spit-out");
+        int rear = scene.Rear;
+        var mouth = new Double3(0, 1, scene.Train.Frames[rear].Shape.HalfLength + 0.4);
+        CarHugger Hugger(SpinePhase phase, double seconds) =>
+            Record(new CarHugger(46), phase, seconds, 12, rear, mouth, holding: phase == SpinePhase.Grab ? 1 : -1, window: 10);
+        scene.Audio.CrewStates = [(1, new PlayerState { Parent = rear, Health = Player.Health })];
+        scene.Tick(Hugger(SpinePhase.Commit, 4));
+        Assert.Equal(["cs-car-hugger.swallow"], scene.Tick(Hugger(SpinePhase.Grab, 0)));
+        Assert.Equal(["cs-car-hugger.spit-out"], scene.Tick(Hugger(SpinePhase.Telegraph, 0)));
+        Assert.Empty(scene.Tick(Hugger(SpinePhase.Telegraph, 0.03)));
+        // Swallowed again, and eaten this time: nobody comes out.
+        Assert.Equal(["cs-car-hugger.swallow"], scene.Tick(Hugger(SpinePhase.Grab, 0)));
+        scene.Audio.CrewStates = [(1, new PlayerState { Parent = rear, Health = 0, Death = DeathCause.Eaten })];
+        Assert.Empty(scene.Tick(Hugger(SpinePhase.Telegraph, 0)));
+    }
+
+    [Fact]
+    public void ABallOrABlowThatDoesntKillACreatureIsItsOwnHurt()
+    {
+        // Note 290: the gun hits what it's laid on, and per-creature pain is the audio chat's (note 322). Health dropping on
+        // a record still there is a hurt (a killing blow takes the record, and that's its death: Vanished).
+        using var scene = new Scene(1, "cs-gaunt.hit", "cs-switchman.hit", "cs-soot-children.hit", "cs-followers.hit",
+            "cs-grumbler.hit", "cs-grumbler.feral");
+        double s = scene.Train.Dynamics.Distance - 40;
+        var shape = scene.Train.Frames[2].Shape;
+        var inside = new Double3(0, shape.Interior!.Value.Min.Y, 0);
+        (Func<double, double, Enemy> Make, string Hurt)[] kinds =
+        [
+            ((h, x) => Record(new Gaunt(60), SpinePhase.Telegraph, 1, h, -1, default, s, 12), "cs-gaunt.hit"),
+            ((h, x) => Record(new Switchman(61), SpinePhase.Telegraph, 1, h, -1, default, s, 6), "cs-switchman.hit"),
+            ((h, x) => Record(new SootChildren(62), SpinePhase.Telegraph, 1, h, -1, default, s, 9), "cs-soot-children.hit"),
+            ((h, x) => Record(new Follower(63), SpinePhase.Telegraph, 1, h, -1, default, s, 7), "cs-followers.hit"),
+            ((h, x) => Record(new Grumbler(64), SpinePhase.Telegraph, 1, h, 2, inside, extra2: x), "cs-grumbler.hit"),
+        ];
+        foreach (var (make, hurt) in kinds)
+        {
+            Assert.DoesNotContain(hurt, scene.Tick(make(10, 0)));
+            Assert.Equal([hurt], scene.Tick(make(7, 0)));
+            Assert.Empty(scene.Tick(make(7, 0)));
+            Assert.DoesNotContain(hurt, scene.Tick());
+        }
+        // The blow that turns the Grumbler feral is heard as it turning, not as a hurt too.
+        scene.Tick(Record(new Grumbler(65), SpinePhase.Telegraph, 1, 10, 2, inside));
+        Assert.Equal(["cs-grumbler.feral"], scene.Tick(Record(new Grumbler(65), SpinePhase.Telegraph, 1, 7, 2, inside, extra2: 1)));
+    }
+
+    [Fact]
     public void TheWhistlerRunsWithItsVictimThenNestsAndIsHeardDying()
     {
         using var scene = new Scene(3, "cs-whistler.snatch", "cs-whistler.run~", "cs-whistler.nest~", "cs-whistler.hit", "cs-whistler.death");

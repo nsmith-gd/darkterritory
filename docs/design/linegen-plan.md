@@ -251,7 +251,7 @@ All pieces live in `setpieces.json` with tier gates, parameter ranges, cost and 
 | **Brass Field** | 1.0 | Growth across the rail for 50–200 m | Lineside growth ramps up over the approach | 1 | `brass` |
 | **Momentum Bank** | 1.3 | Level run-up, then a short grade above g_main | Length ≤ 0.7 × the length the consist can carry momentum over | 4 | `climb`, `momentum` |
 | **Dead Settlement** | 0 | Abandoned halt or dead town (§11.3) | 300–900 m | 0 | `dead_settlement`, `landmark` |
-| **Hard Bend** | 0 | Straight, one curve of 40–90°, straight | Radius from the tier's derailing speeds (`bendDerail`), never under its minimum; laid only by the tier's count (`bends`), never by the budget. Where its stretch is full, cut into a connector or laid on a climb or descent (ARCHITECTURE §8 note 278; level-design.md Part B) | 2 | `curve_tight`, `pre_curve` |
+| **Hard Bend** | 0 | Straight, one curve of 40–90°, straight; or an S-bend: two turns of 30–50° either way, 20–50 m of straight between | Radius from the tier's derailing speeds (`bendDerail`), never under its minimum; laid only by the tier's count (`bends`), never by the budget. Where its stretch is full, cut into a connector or laid on a climb or descent (ARCHITECTURE §8 note 278; level-design.md Part B). An S-bend by the tier's `sBends` chance, held as one limit over both turns: one board, one demand (note 359) | 2 | `curve_tight`, `pre_curve` |
 
 **Terrain-gated enemy requirements are geometry rules, not spawn rules.** The Weight cannot spawn on grades, so Causeways and River Crossing approaches are level. The Ferryman needs a long clear straight, so Open Plains produce `straight_long`. The Gaunt watches tunnel exits, so every tunnel emits `tunnel_exit`.
 
