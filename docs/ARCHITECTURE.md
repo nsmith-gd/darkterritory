@@ -6049,6 +6049,16 @@ Terrain sculpting tools, a node-graph material editor, a general-purpose visual 
         - The far treeline cards are near-black silhouettes, which read as cut-outs seen close (the texture's art).
         - The tar ponds' pitch stands still.
 
+416. **The report's lines inked by what they cost (F1, UI/UX 3; queue #152; note 190's not-yet: "the HUD's report draws the new lines in the dim ink of a GRAB nobody died of").** The run's end drew a death in ink, a rescue in green, the derailment or Stranded in amber, and every other line dim. So a car the Car Hugger finished, a car fire the Fire Flies set, a Followers' nest, a Grumbler craned aboard, a Stoker's runaway, the Switchman's points and a ruptured boiler read as faintly as a grab somebody was pulled out of.
+    - **The inks** (`Hud.ReportInk`, from `ReportRank`), in COLOURS' palette:
+        - a death in the report's own ink;
+        - what the crew did well (a rescue, a creature killed together) in good;
+        - what the night took (its end, a car, a fire, a nest, something craned aboard, a runaway, the points, the boiler, the doll or the Sleepers struck) in warning;
+        - the rest (a grab nobody died of, the dead's vote, a punish that held nobody, what drew the first threat) dim.
+    - **What's kept.** The report kept the lines that came first and counted the rest ("... and 9 more lines"), so a long night lost its ending: the derailment, the cars lost. When they don't all fit, `ReportKept` keeps the night's end first, then the deaths, what it took, what went well and the rest, earlier before later within a rank. They're still drawn in the order they happened, with the rest counted after them. A line too tall for what's left is passed over for a shorter one.
+    - `Staging.Report` (`dt screenshot --hud --route frontier:7 --throttle 0 --report derailed`) has a car fire and a creature killed together beside its deaths, so the shot shows each ink. Its derailment line, cut before, is kept.
+    - **Verified.** `ReportInkTests`: every kind's ink in both palettes (a death brighter than the faint lines and none of the palette's); all lines kept when they fit; with room for five of ten, the end, the death, the car, the rescue and the first grab, in order; with room for two, the end and the death; a line too tall passed over. `TextSizeTests`' report fit at every size, and the shot, looked at in both palettes.
+
 418. **The flank lanes (queue #154, D1; [orchestrator.md](design/orchestrator.md) §5.3 6: "lanes on the flanks from the open country's sides").** After the lane ahead (note 405), the run's runners still came only along the line.
    - **What comes.** Of a run's pairs, every `run.flankEvery`-th (3; the third of each run, where the lane ahead's is the second) comes in from the open country instead, to a train whose last car has its gun.
      - Open country: the line's biome is one of `flankBiomes` (all but the forests, `blackForest` and `forestEdge`), and the land is open `flankOut` m out (`LateralRoom`: not a tunnel's bore or a bridge's deck).

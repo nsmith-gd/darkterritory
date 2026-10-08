@@ -1110,6 +1110,56 @@ public static partial class Hud
     /// won't fit says how many more. Each automatic bookmark's still sits at the right of the line it belongs to, and the
     /// dead's own bookmarks have a row of their own under the lines, each with its time and whom it was following.
     /// </summary>
+    /// <summary>
+    /// A report line's ink, by what it cost the crew (note 416; note 190's not-yet, where every line but a death, a rescue and
+    /// the night's end was as dim as a grab somebody was pulled out of). A death in the report's own ink; what the crew did
+    /// well (a rescue, a creature killed together) good; what the night took (the end, a car, a fire, a nest, something
+    /// craned or let aboard, a runaway, the points, the boiler, the doll struck) a warning; the rest (a grab nobody died of,
+    /// the dead's vote, a punish that held nobody, what brought the first threat) dim. COLOURS' palette.
+    /// </summary>
+    public static Vector4 ReportInk(IncidentKind kind) => ReportRank(kind) switch
+    {
+        1 => Ink,
+        3 => Green,
+        0 or 2 => Amber,
+        _ => Dim,
+    };
+
+    /// <summary>
+    /// What a report line is kept for when they don't all fit (note 416), lowest first: the night's end, a death, what the
+    /// night took, what went well, the rest.
+    /// </summary>
+    public static int ReportRank(IncidentKind kind) => kind switch
+    {
+        IncidentKind.Derailed or IncidentKind.Stranded => 0,
+        IncidentKind.Death => 1,
+        IncidentKind.CarLost or IncidentKind.Fire or IncidentKind.Nest or IncidentKind.Aboard or IncidentKind.Runaway or IncidentKind.Points
+            or IncidentKind.Rupture or IncidentKind.Struck => 2,
+        IncidentKind.Rescue or IncidentKind.Slain => 3,
+        _ => 4,
+    };
+
+    /// <summary>
+    /// Which of the report's lines are drawn (note 416), in the order they happened: all of them if they fit in
+    /// <paramref name="room"/>; otherwise as many as fit beside the "... and n more" line, the lowest <see cref="ReportRank"/>
+    /// first, earlier before later within a rank.
+    /// </summary>
+    public static List<int> ReportKept(IReadOnlyList<(float Height, int Rank)> lines, float room, float line)
+    {
+        if (lines.Sum(l => l.Height) <= room)
+            return [.. Enumerable.Range(0, lines.Count)];
+        var kept = new List<int>();
+        float used = 0;
+        foreach (int i in Enumerable.Range(0, lines.Count).OrderBy(i => lines[i].Rank).ThenBy(i => i))
+            if (used + lines[i].Height <= room - line)
+            {
+                kept.Add(i);
+                used += lines[i].Height;
+            }
+        kept.Sort();
+        return kept;
+    }
+
     public static void IncidentReport(Overlay o, int width, int height, float top, RunReport r, int line, IReadOnlyDictionary<int, Still>? stills = null)
     {
         using var plate = UiStyle.OnPlate(o);
@@ -1118,10 +1168,10 @@ public static partial class Hud
         int chars = Math.Max(20, (int)((w - 16) / glyph));
         var marks = r.Bookmarks.ToDictionary(b => b.Id);
         // Each line a block: its wrapped rows, and the thumbnails at its right (narrowing the text beside them).
-        var blocks = new List<(List<(string Text, Vector4 Colour)> Rows, List<Bookmark> Marks, float Height)>();
+        var blocks = new List<(List<(string Text, Vector4 Colour)> Rows, List<Bookmark> Marks, float Height, int Rank)>();
         foreach (var l in r.Lines)
         {
-            var colour = l.Kind switch { IncidentKind.Death => Ink, IncidentKind.Rescue => Green, IncidentKind.Derailed or IncidentKind.Stranded => Amber, _ => Dim };
+            var colour = ReportInk(l.Kind);
             string text = l.Who.Length > 0 ? $"{l.Who.ToUpperInvariant()}: {l.Text}" : l.Text;
             var shown = l.Marks.Where(marks.ContainsKey).Select(id => marks[id]).ToList();
             int perRow = Math.Max(1, (int)((w * 0.45f) / (ThumbWidth + 3)));
@@ -1135,10 +1185,10 @@ public static partial class Hud
                 rows.Add((first ? part : "    " + part, colour));
                 first = false;
             }
-            blocks.Add((rows, shown, Math.Max(rows.Count * line, thumbRows * (ThumbHeight + 2))));
+            blocks.Add((rows, shown, Math.Max(rows.Count * line, thumbRows * (ThumbHeight + 2)), ReportRank(l.Kind)));
         }
         if (r.Lines.Count == 0)
-            blocks.Add(([("Nothing to report.", Dim)], [], line));
+            blocks.Add(([("Nothing to report.", Dim)], [], line, 0));
         var money = new List<string> { $"Gross {r.Gross:0}" };
         if (r.CrewLossFees > 0)
             money.Add($"crew-loss fees {r.CrewLossFees:0}");
@@ -1157,17 +1207,18 @@ public static partial class Hud
         float manualH = manual.Count == 0 ? 0 : line + ((manual.Count + across - 1) / across) * (ManualHeight + 4);
         // What fits: the heading, as many lines as there's room for (the rest counted), the dead's row, the money.
         float room = height - top - 8 - (1 + sum.Count) * line - manualH;
-        float used = 0;
-        int keep = 0;
-        while (keep < blocks.Count && used + blocks[keep].Height <= room - (keep + 1 < blocks.Count ? line : 0))
-            used += blocks[keep++].Height;
-        int more = blocks.Skip(keep).Sum(b => b.Rows.Count);
+        // Note 416: when they don't all fit, what matters most is kept (the night's end, then the deaths, then what it took,
+        // what went well, the rest), still in the order it happened, and the rest counted: a long night kept its first lines
+        // and lost its ending (the derailment, the cars lost) to "... and 9 more lines".
+        var kept = ReportKept([.. blocks.Select(b => (b.Height, b.Rank))], room, line);
+        float used = kept.Sum(i => blocks[i].Height);
+        int more = blocks.Where((_, i) => !kept.Contains(i)).Sum(b => b.Rows.Count);
         float total = line + used + (more > 0 ? line : 0) + manualH + sum.Count * line;
         UiStyle.Plate(o, x - 4, top - 4, w + 8, total + 8);
         float y = top;
         o.Text(x + 4, y, "INCIDENT REPORT", Amber);
         y += line;
-        foreach (var (rows, shown, h) in blocks.Take(keep))
+        foreach (var (rows, shown, h, _) in kept.Select(i => blocks[i]))
         {
             float ty = y;
             foreach (var (text, colour) in rows)
