@@ -1764,6 +1764,9 @@ public static partial class Hud
             return world.Run.SearchProgress(spot) is > 0 and < 1 and var searched
                 ? $"SEARCHING THE {SpotName(spot.Container.Kind)} ({searched * 100:0}%)"
                 : $"SEARCH THE {SpotName(spot.Container.Kind)} : HOLD [E]";
+        // An open house's door (note 401), empty-handed, as the hands and the search leave it.
+        if (world.Bodies.CarriedBy(s.PlayerId) is null && world.DoorInReach(p) is { } door)
+            return train.Walls!.Shut(door.Key) ? "OPEN THE DOOR : HOLD [E]" : "SHUT THE DOOR : HOLD [E]";
         if (world.Run?.LeverInReach(p, train, hand) == true)
             return "CHUTE LEVER : HOLD [E]";
         // GDD §18's set pieces (note 185). How full the car under the spout is is what you read to let go.
