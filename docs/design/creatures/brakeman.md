@@ -137,7 +137,7 @@ waiting for.
   other end, each wound car adding drag; a crewmate unwinds one; it flees a lone chaser and blows don't land; out of sight
   it drops and comes up elsewhere; two on both sides corner it and blows land; the lash never kills; the drag stalls a
   train on a climb; deterministic on the client.
-- `BotsAnswerTheSixTests` (the bots, note 487): a roof bot unwinds wound cars at their wheels and never winds the rake's
+- `BotsAnswerTheSixTests` (the bots, note 489): a roof bot unwinds wound cars at their wheels and never winds the rake's
   handbrakes on; a lone bot keeps unwinding and never chases him; two roof bots hold the train's ends, close from both
   sides, corner him and kill him.
 

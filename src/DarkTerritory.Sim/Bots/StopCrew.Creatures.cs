@@ -6,7 +6,7 @@ namespace DarkTerritory.Sim.Bots;
 public sealed partial class StopHand
 {
     /// <summary>
-    /// Note 487: down off a standing train to a point on the ground, and on foot to within <paramref name="within"/> of it
+    /// Note 489: down off a standing train to a point on the ground, and on foot to within <paramref name="within"/> of it
     /// (flat), for what the six creatures of 8 Oct ask of a crew there (a body to stand over, a beaver to club, a wreck to
     /// clear, a Knotter or a Hotbox to get at): out of the cab or a car by its side door, up off a ladder and off a roof's or
     /// a gap's edge on the side the point is, as a stop's hands get down (<see cref="GetDown"/>, <see cref="OffTheCar"/>);

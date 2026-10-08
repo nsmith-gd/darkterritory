@@ -103,7 +103,7 @@ NEVER     it never attacks anyone; it never pushes a body or a lamp
 - `FreightBeetleTests`: still with no one near; pushes the nearest load straight away from the nearest player; the push
   turns when the nearest player changes (two players steer it into a car door from a platform, and the crate's loaded);
   off a platform's edge the crate falls; blows drive it off and kill it; it never harms anyone; deterministic.
-- `BotsAnswerTheSixTests` (the bots, note 487): a bot on foot within 15 m clubs it off its load. The stop's crate hands
+- `BotsAnswerTheSixTests` (the bots, note 489): a bot on foot within 15 m clubs it off its load. The stop's crate hands
   leave the crate it has.
 
 ## 11. Decisions taken overnight (G1's calls, for the director)
