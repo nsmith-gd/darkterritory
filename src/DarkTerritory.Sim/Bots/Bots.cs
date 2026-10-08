@@ -130,7 +130,12 @@ public sealed class GunnerBot(GunTuning guns, ChoirTuning? choir = null, int see
         bool rearHeld = world.ActiveEnemies.Any(e => e is CarHugger { Latched: true } h && h.Attached == world.Train.Dynamics.Consist.Vehicles[^1].Id);
         // The forward gunner (note 414) leaves the Car Hugger to the guard van's.
         rearHeld &= !Forward;
-        if (houndsAboard || rearHeld || Guns.MannedGun(self, world.Train, guns) is not { } gun)
+        // The forward gunner's is the engine's gun (note 414), not whichever it's standing by: warmed up in the guard van, it
+        // sat down at the guard gun beside its own gunner, and the lane ahead went unwatched (note 447).
+        var manned = Guns.MannedGun(self, world.Train, guns);
+        if (Forward && manned is { } m && m != world.Train.Dynamics.Consist.Vehicles[0].Id)
+            manned = null;
+        if (houndsAboard || rearHeld || manned is not { } gun)
         {
             if (Forward && !houndsAboard && ToTheForwardGun(self, world.Train) is { } going)
                 return going;
@@ -164,9 +169,13 @@ public sealed class GunnerBot(GunTuning guns, ChoirTuning? choir = null, int see
         var mount = Guns.Mount(world.Train, gun)!.Value;
         var muzzle = frame.ToWorld(mount.Position);
         // What the gun answers (GDD §21), and anything holding a crewmate: a ball frees them as a friend's blow would (note 290).
-        var target = world.ActiveEnemies.Where(e => e.Exposed && (e.GunAnswers || e.Phase == SpinePhase.Grab) && world.Enemies is not null)
+        // Note 447: only what this gun can be laid on (its arc, its pitch), and not the Gannet riding the smoke unless it has
+        // someone pinned (hitting it makes the gunner its mark, and overhead it's out of the gun's reach): on a hot night the
+        // Gannet circling 100 m up was always nearer than the hounds coming in at 200, and both guns sat laid at it.
+        var target = world.ActiveEnemies.Where(e => e.Exposed && (e.GunAnswers || e.Phase == SpinePhase.Grab) && world.Enemies is not null
+                && (e is not Gannet || e.Phase == SpinePhase.Grab))
             .Select(e => (e, offset: e.AimPoint(world.Train, world.Enemies!) - muzzle))
-            .Where(x => x.offset.Length <= guns.Range)
+            .Where(x => x.offset.Length <= guns.Range && Guns.CheckAim(mount, frame.DirToLocal(x.offset).Normalized, guns) == AimResult.Ok)
             .OrderBy(x => x.offset.Length).FirstOrDefault();
         // Note 447: laid on the lane before there's a shot (a hound coming in, out past the range; or straight along its
         // facing, a little down), so the carriage isn't standing at the end of its arc when one comes in. Idle, the view drifted

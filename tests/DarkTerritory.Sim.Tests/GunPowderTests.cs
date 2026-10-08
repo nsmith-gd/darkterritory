@@ -172,6 +172,21 @@ public class GunPowderTests
     }
 
     [Fact]
+    public void TheForwardGunnerDoesntTakeTheGuardGun()
+    {
+        // Note 447: warmed up in the guard van, the forward gunner sat down at the guard gun beside its own gunner, and the
+        // lane ahead went unwatched. Its gun is the engine's: up out of the guard gun's seat and forward along the roofs.
+        var n = new Night(4, 12);
+        int van = Rear(n);
+        n.Crew[1] = AtTheGun(n);
+        var gunner = new GunnerBot(G) { Me = 1, Forward = true };
+        n.Run(4, id => gunner.Decide(n.Crew[id], n.World, n.World.Tick, out _));
+        var s = n.Crew[1];
+        Assert.False(s.Has(PlayerFlags.Seated) && Guns.MannedGun(s, n.Train, G) == van, "seated at the guard gun");
+        Assert.True(s.Parent != van || s.Position.Z < Guns.Mount(n.Train, van)!.Value.Position.Z - 2, $"still at the guard gun: {s.Surface} on {s.Parent} at z {s.Position.Z:0.0}");
+    }
+
+    [Fact]
     public void TheGuardGunnerDucksDownTheHatchUnderATrussDraggerAndIsBackAtTheGun()
     {
         // Note 448 (note 442's "not yet"): a seated gunner is on its car's roof, and a truss Dragger drops on whoever's on the
