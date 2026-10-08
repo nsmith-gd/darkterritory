@@ -6809,7 +6809,6 @@ Terrain sculpting tools, a node-graph material editor, a general-purpose visual 
     - **Not yet:** the talk card's pace by nerve; rounds that read the matrix (the restless at the gate, the mender in the lamp garden); a household's members disagreeing.
     - **Verified:** `TownFolkTests`. Everyone has a personality, the same every time. Customs and jobs lean their people as the tuning says. Every temperament turns up, and none is most of a town. Surnames are their heritage's, households share one, and an after-name is from its stocks. A strong temperament's byname is its own, and 15–50% have a byname. A fort's name leads its people. The close never say the custom, and the open say the most. The town tests stay green: three lines at most, no repeats, every word in the font.
 
-<<<<<<< HEAD
 487. **The Grumbler's healing seen (queue #224, E1; the art checklist's `grumbler-anim` "still to do": "a tell for its healing"; GDD App. A.8 "It heals if only one player has hit it in the last few seconds: no one player can kill it", "Rule: gang up or leave it alone").** A lone crewmate's blow takes a sixth of a Grumbler's health (`grumbler.health` 6), and at `regenPerSecond` 1.5 it's back in under a second. Nothing showed it, so the rule couldn't be learned by watching: a player hit it and nothing happened.
     - **When:** a Grumbler's health is replicated, so every machine sees it climb as the host does. `GreyboxScene.Healing` keeps each one's health as last seen, the most it's been, and when it last rose. While it's rising (and for 0.35 s after, a snapshot's gap) the scene draws it healing, harder the further it's down from its most.
     - **What:** `Effects.Knit` draws what a blow knocked out of it drawn back in:
@@ -6822,7 +6821,7 @@ Terrain sculpting tools, a node-graph material editor, a general-purpose visual 
         - Healing draws its effects round it; a gang's blows and a whole Grumbler draw none.
         - Nearly beaten, it knits harder than scratched.
     - **Not yet:** a sound for it (AU1's, if wanted); the girders "still to do" is untouched.
-=======
+
 476. **The link's corner in note 285's form, and `--radio tally` without a route (B3, queue #212; found sweeping main's prompts after notes 441 and 459).**
     - **The corner.** With the link lost, the HUD's top-right corner said "[F5] RECONNECT", and "CREW FULL (8/8): [F5] TRY AGAIN" when turned away. That's key first. The ballot's menu keys aside (note 285 kept them), it was the only line in play not in note 285's ACTION : [KEY] form, and it sat right over the centre's alarm saying the same thing as RECONNECT : [F5]. It now says it as the alarm does: RECONNECT : [F5], and CREW FULL (8/8)   TRY AGAIN : [F5] (`Hud.LinkLine`).
     - **The staged report.** `dt screenshot --radio tally` on the default test loop crashed on a null: its staged report (`Staging.Report`) needs a night's run, and the test loop has none. It now says so: "give it a --route (e.g. --route frontier:7)".
@@ -6853,4 +6852,3 @@ Terrain sculpting tools, a node-graph material editor, a general-purpose visual 
         - rolled back, one release;
         - a bad clamp, one derail and no second release;
         - the wrench heard at it, and once back on.
->>>>>>> origin/main
