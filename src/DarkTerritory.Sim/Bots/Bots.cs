@@ -104,8 +104,11 @@ public sealed class GunnerBot(GunTuning guns, ChoirTuning? choir = null, int see
         if (_legs.Fetching(self, world))
             return _legs.Decide(self, world, tick, out aimed);
         // Nobody holds a gun through the cold (spec B.2): off it and indoors until warm, then back. Nor through a stop
-        // they have a part in.
-        if (_legs.Warming(self) || _legs.Work(self, world) is not null)
+        // they have a part in. Note 447: but seated with a run coming in on the ground, it keeps the gun until it's over, the
+        // cold well short of what kills (a guard gunner went in to get warm as a run's first pair howled, and all six boarded).
+        bool holdOut = cold is { } ct && self.Has(PlayerFlags.Seated) && self.Cold < ct.DeathSeconds * ColdHoldOut
+            && world.ActiveEnemies.Any(e => e is CinderHound { Gone: false } h && h.Attached < 0 && h.Phase is SpinePhase.Telegraph or SpinePhase.Commit);
+        if (!holdOut && _legs.Warming(self) || _legs.Work(self, world) is not null)
             return _legs.Decide(self, world, tick, out aimed);
         // The look-out in a crew of two (note 222): off the gun to look, only while the gun can spare it (nothing at the back
         // for it to shoot), and back to it once there's nothing left to look at from here.
@@ -130,6 +133,9 @@ public sealed class GunnerBot(GunTuning guns, ChoirTuning? choir = null, int see
         bool rearHeld = world.ActiveEnemies.Any(e => e is CarHugger { Latched: true } h && h.Attached == world.Train.Dynamics.Consist.Vehicles[^1].Id);
         // The forward gunner (note 414) leaves the Car Hugger to the guard van's.
         rearHeld &= !Forward;
+        // Note 447: and once the gun's been pushed off the held car onto the one ahead (T103), it's that gun's gunner again:
+        // the rear held sent it up the train to car 1 and back, the saved gun unmanned through a hound run.
+        rearHeld &= world.Train.Vehicles[world.Train.Dynamics.Consist.Vehicles[^1].Id].HasGun;
         // The forward gunner's is the engine's gun (note 414), not whichever it's standing by: warmed up in the guard van, it
         // sat down at the guard gun beside its own gunner, and the lane ahead went unwatched (note 447).
         var manned = Guns.MannedGun(self, world.Train, guns);
@@ -194,6 +200,9 @@ public sealed class GunnerBot(GunTuning guns, ChoirTuning? choir = null, int see
             intent.Buttons = PlayerButtons.Fire;
         return intent;
     }
+
+    /// <summary>How far toward the cold that kills (of cold.json's deathSeconds) a seated gunner holds its gun through a run.</summary>
+    const double ColdHoldOut = 0.75;
 
     int _duckCar = -1;
     /// <summary>Down the gun's hatch ladder out of a truss Dragger's way (note 448), for the harness's trace and tests.</summary>
