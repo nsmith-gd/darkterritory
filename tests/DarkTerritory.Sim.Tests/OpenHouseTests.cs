@@ -78,6 +78,68 @@ public class OpenHouseTests
             $"{spec}: {open} open houses ({composite} of parts, {pairs} pairs), {inside} finds inside, {furniture} cupboards and cabinets");
     }
 
+    [Theory]
+    [InlineData("frontier:7")]
+    [InlineData("deadLines:2")]
+    [InlineData("local:3")]
+    [InlineData("deepTerritory:2")]
+    public void TheBiggerHousesHaveABackRoomThroughADoorway(string spec)
+    {
+        // An L's wing and a long plain house's far end are rooms of their own (note 326's rooms): a wall between, stood
+        // solid, with a doorway in it that's kept clear; you get into every room; the furniture never stands in another piece.
+        var route = Routes.Generate(Content, spec, 6);
+        var line = route.Build();
+        var walls = StopWalls.Of(route, line);
+        int ls = 0, plain = 0, one = 0;
+        foreach (var f in route.Features.Where(f => f.Stop is not null))
+        {
+            var stop = f.Stop!;
+            for (int i = 0; i < stop.Buildings.Count; i++)
+            {
+                var b = stop.Buildings[i];
+                if (!b.Open || !StopWalls.Walled(stop, i))
+                    continue;
+                int index = i;
+                var kept = stop.Containers.Where(c => c.Building == index).ToList();
+                var pieces = StopWalls.Furniture(b, kept).ToList();
+                for (int p = 0; p < pieces.Count; p++)
+                    for (int q = p + 1; q < pieces.Count; q++)
+                        Assert.False(Math.Abs(pieces[p].X - pieces[q].X) < pieces[p].HalfX + pieces[q].HalfX && Math.Abs(pieces[p].Y - pieces[q].Y) < pieces[p].HalfY + pieces[q].HalfY,
+                            $"{spec} at {f.Start:0}: house {i}'s {pieces[p].Kind} and {pieces[q].Kind} stand in each other ({b.Shape})");
+                if (StopWalls.Partition(b) is not { } w)
+                {
+                    // Only a long plain house or an L is cut into rooms.
+                    Assert.False(b.Shape == HouseShape.L || b.Shape is HouseShape.Rect or HouseShape.Square && b.Length >= StopWalls.RoomsFrom, $"house {i} ({b.Shape}, {b.Length:0.0} m) is one room");
+                    one++;
+                    continue;
+                }
+                ls += b.Shape == HouseShape.L ? 1 : 0;
+                plain += b.Shape == HouseShape.L ? 0 : 1;
+                var walk = Reach(walls, line, f, b);
+                // Through the doorway, both sides.
+                foreach (var (a, c) in StopWalls.InnerDoorways(b))
+                    Assert.True(walk.Reached(a.X, a.Y) && walk.Reached(c.X, c.Y), $"{spec} at {f.Start:0}: house {i}'s inner doorway is shut ({b.Shape})");
+                // The wall's solid away from its doorway.
+                var o = Run.Run.StopWorld(line, f, StopWalls.InHouse(b, 0, 0));
+                foreach (double along in new[] { (w.A + w.Door - StopWalls.DoorWidth / 2) / 2, (w.Door + StopWalls.DoorWidth / 2 + w.B) / 2 })
+                {
+                    var (x, y) = w.Point(along);
+                    Assert.True(Blocked(walls, Run.Run.StopWorld(line, f, StopWalls.InHouse(b, x, y))), $"{spec} at {f.Start:0}: house {i}'s inner wall isn't there ({b.Shape})");
+                }
+                // Every room's floor is got to (somewhere in each of its cells).
+                foreach (var (x0, y0, x1, y1) in StopWalls.Outline(b).Cells)
+                {
+                    bool any = false;
+                    for (double x = x0 + 0.5; x < x1 - 0.4 && !any; x += 0.2)
+                        for (double y = y0 + 0.5; y < y1 - 0.4 && !any; y += 0.2)
+                            any = walk.Reached(x, y);
+                    Assert.True(any, $"{spec} at {f.Start:0}: house {i} ({b.Shape}) has a room nobody gets into");
+                }
+            }
+        }
+        Assert.True(ls > 0 && plain > 0 && one > 0, $"{spec}: {ls} Ls and {plain} plain houses with a back room, {one} of one room");
+    }
+
     [Fact]
     public void EveryOpenHouseIsRansackedTheSameOnEveryMachine()
     {
