@@ -5537,7 +5537,8 @@ Terrain sculpting tools, a node-graph material editor, a general-purpose visual 
         - **Out of a side doorway** (frontier:6). The gunner, in car 2 at 1 hp, went across to shut a side door left open at 20 m/s and walked on through it. `HoldOn` now stops any move outward from a side doorway (0.35 m inside the car's side) at speed. The shut spot is 0.5 m in, so it still shuts.
     - **Measured** (ten nights, crew of 4, 40 crewmates in all):
         - **Before:** 3 derailed; 4 dead (2 Drift, 1 Burned, 1 JumpedAtSpeed); 17 of 40 home; 111 km run.
-        - **After:** AFTER3_LINE
+        - **After:** none derailed; 8 dead (4 Burned, 2 Mauled, 2 Drift; none JumpedAtSpeed); 29 of 40 home; 152 km run. Nobody left on the ballast at speed for more than a few seconds but one walker at the night's very end (frontier:5).
+        - **Left for next:** the burns. Cars set alight on a hot run (hot boxes left past `fireAfter`, the Stoker) burn whoever is warming in them; D1's hot box walkers and `Heed.HotBox` are theirs.
         - The derailed nights ended at about 3 km, before most of what kills a walker arrived, so their low death count hides 12 crewmates lost with the train; crewmates home is the fair count. The ten nights diverge from the first change on (a different walker in a different place), so night-by-night pairs are chaotic: read the totals.
     - **Not changed, found:**
         - The Dragger edge: walkers already keep to the roof's centreline (`grab` 1.5 m against a half-width of about 1.65), so at speed they stay out of reach unless a job's out there. Nothing to change.
