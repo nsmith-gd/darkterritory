@@ -13,6 +13,50 @@ namespace DarkTerritory.Game.Art;
 /// </summary>
 public sealed partial class WorldArt
 {
+    /// <summary>
+    /// A walled town's green and what its people have put up (note 353): the grass and paths and their lamps, the statue's
+    /// plinth, the wall of names, the bandstand, the lamp gardens, the trees, the flag, the laws' board, the day painted on
+    /// the walls; each drawn where it is, near enough the view (the green's across the street, the murals at the back wall).
+    /// </summary>
+    public void Civic(MeshBuilder mesh, RailLine line, Double3 eye, Town town, double from, double to)
+    {
+        var plan = town.Plan;
+        int side = plan.Square.Side;
+        foreach (var f in plan.Fixtures)
+        {
+            if (f.House >= 0 || !CivicKit.Draws(f.Kind) || f.S < from - 20 || f.S > to + 20)
+                continue;
+            var m = Place(line, eye, town.World(f.S, f.D), f.S, f.FaceS, f.FaceD);
+            int variant = CivicKit.Variant(f.Kind, f.Name);
+            mesh.Instances.Add(new MeshInstance(Piece($"civic-{f.Kind}-{variant}", () => CivicKit.Piece(_look, f.Kind, variant)), m));
+            if (f.Kind == "garden")
+                foreach (var lamp in CivicKit.GardenLamps())
+                    mesh.PointLights.Add(new PointLight(Vector3.Transform(lamp, m), Palette.LampAmber * 1.4f, 6));
+            if (f.Kind == "tree" && variant == 1)
+                mesh.PointLights.Add(new PointLight(Vector3.Transform(new Vector3(0, 3.0f, 0), m), Palette.LampAmber * 0.9f, 6));
+            if (f.Kind is "mural" or "memorial")
+                mesh.PointLights.Add(new PointLight(Vector3.Transform(new Vector3(0, 3.2f, -3.5f), m), Palette.LampAmber * 1.3f, 11));
+        }
+        // A walled town's green across the street (note 353): its grass and paths, lamps at its corners and its middle.
+        if (plan.Green is { } green && green.S1 > from - 20 && green.S0 < to + 20)
+        {
+            double gs = (green.S0 + green.S1) / 2, gd = side * (green.Near + green.Far) / 2;
+            float length = (float)(green.S1 - green.S0), depth = (float)(green.Far - green.Near);
+            var ground = Piece($"civic-green-{length:0}x{depth:0}", () => CivicKit.Green(_look, length, depth));
+            mesh.Instances.Add(new MeshInstance(ground, Place(line, eye, town.World(gs, gd), gs, 0, -side)));
+            var lamp = Piece("square-lamppost", () => SquareKit.LampPost(_look));
+            foreach (var (ls, ld) in new[] { (green.S0 + 1.5, green.Near + 1.2), (green.S1 - 1.5, green.Near + 1.2), (gs, (green.Near + green.Far) / 2 + 1.5),
+                (green.S0 + 1.5, green.Far - 1.2), (green.S1 - 1.5, green.Far - 1.2) })
+            {
+                var lm = Place(line, eye, town.World(ls, side * ld), ls, 0, -side);
+                mesh.Instances.Add(new MeshInstance(lamp, lm));
+                var flame = Vector3.Transform(SquareKit.LampTop, lm);
+                mesh.PointLights.Add(new PointLight(flame, Palette.LampAmber * 2.0f, 14));
+                mesh.Billboard(flame, 0.9f, 0, new Vector4(Palette.LampAmber * 0.6f, 1), -1, FxBlend.Additive);
+            }
+        }
+    }
+
     /// <summary>Draws a town's square within [<paramref name="from"/>, <paramref name="to"/>] along the line.</summary>
     public void Square(MeshBuilder mesh, RailLine line, Double3 eye, Town town, double from, double to)
     {
@@ -55,9 +99,12 @@ public sealed partial class WorldArt
         {
             if (f.House >= 0)
                 continue;
+            // The green's and the walls' pieces are drawn with the green (Civic), wherever they are.
+            if (CivicKit.Draws(f.Kind))
+                continue;
+            var m = Place(line, eye, town.World(f.S, f.D), f.S, f.FaceS, f.FaceD);
             int count = f.Kind switch { "board" => notices, "line" => (int)(sq.S1 - sq.S0 - 8), _ => 0 };
             var piece = Piece($"square-{f.Kind}-{count}", () => SquareKit.Fixture(_look, f.Kind, count));
-            var m = Place(line, eye, town.World(f.S, f.D), f.S, f.FaceS, f.FaceD);
             mesh.Instances.Add(new MeshInstance(piece, m));
             // The banked fire glows; the shuttered lamps leak a little round their shutters.
             if (f.Kind == "brazier")
@@ -153,6 +200,65 @@ public sealed partial class WorldArt
     TownPlan? _housesOf;
     Dictionary<string, (MeshAsset Mesh, long Used)> _housePieces = [];
     long _houseFrame;
+
+    /// <summary>
+    /// Where wood smoke rises in a town (App. F.3, the director: the fortresses feel static): the chimneys of the houses
+    /// lived in (and stood open) within <paramref name="reach"/> of you, relative to the eye. Nobody's fire in a house
+    /// nobody lives in.
+    /// </summary>
+    public IEnumerable<Vector3> Chimneys(RailLine line, Double3 eye, Town town, double reach)
+    {
+        foreach (var h in town.Plan.Houses)
+        {
+            if (h.Kind is not (HouseKind.Lived or HouseKind.Open))
+                continue;
+            var at = town.World(h.S, h.D);
+            if ((at - eye).Length > reach)
+                continue;
+            var m = Place(line, eye, at, h.S, 0, -h.Side);
+            foreach (var top in MaritimeKit.ChimneyTops(h))
+                yield return Vector3.Transform(top, m);
+        }
+    }
+
+    /// <summary>
+    /// The watch on a town's wall (App. F.3: the fortresses feel static): a guard with a lantern walking each stretch of
+    /// wall between two towers, or most of them, up and back at a walk with a pause at each end, out of reach on the
+    /// wall's walk. A walled town's side walls (note 335), or the yard's two (T124). Where each is now, by the clock: the
+    /// feet, the way they face, and which of the crew's looks.
+    /// </summary>
+    public static IEnumerable<(Double3 Feet, Double3 Facing, int Variant)> Watch(Town town, double gate, double time)
+    {
+        var plan = town.Plan;
+        var walls = plan.Bounds is { } b
+            ? new[] { (-b.Left, b.Rear), (b.Right, b.Rear) }.Select(w => (D: w.Item1, From: w.Item2, To: b.Gate))
+            : new[] { (-Sim.Run.Fortresses.WallOut, 0.0), (Sim.Run.Fortresses.WallOut, 0.0) }.Select(w => (D: w.Item1, From: w.Item2, To: gate));
+        int n = 0;
+        foreach (var (d, from, to) in walls)
+            for (double s0 = from + 6; s0 + 30 < to - 6; s0 += Sim.Run.Fortresses.TowerEvery)
+            {
+                n++;
+                double s1 = Math.Min(s0 + Sim.Run.Fortresses.TowerEvery - 12, to - 6);
+                // Not every stretch has its man (one in four's empty), and not on a yard wall the square steps back from.
+                if (n % 4 == 3 || plan.Bounds is null && Math.Sign(d) == plan.Square.Side && s1 > plan.Square.S0 && s0 < plan.Square.S1)
+                    continue;
+                double len = s1 - s0, speed = 0.9 + n % 3 * 0.12, pause = 4 + n % 5;
+                // Up the stretch, a pause, back, a pause: a round of 2 (len / speed + pause) seconds, each on its own phase.
+                double round = 2 * (len / speed + pause), t = (time + n * 37.3) % round;
+                double along, dir;
+                if (t < len / speed)
+                    (along, dir) = (t * speed, 1);
+                else if (t < len / speed + pause)
+                    (along, dir) = (len, 1);
+                else if (t < 2 * len / speed + pause)
+                    (along, dir) = (len - (t - len / speed - pause) * speed, -1);
+                else
+                    (along, dir) = (0, -1);
+                // On the walk's inner half, behind the parapet.
+                double s = s0 + along;
+                yield return (town.World(s, d - Math.Sign(d) * Sim.Run.Fortresses.WallHalf / 2, Sim.Run.Fortresses.WallWalk), town.Direction(s, dir, 0), n % 7 + 1);
+            }
+    }
 
     /// <summary>How long a block of houses is along the line (m), for drawing it as one mesh past the near houses.</summary>
     const double Block = 60;
@@ -279,21 +385,23 @@ public sealed partial class WorldArt
             for (double s = st.S0; s < st.S1; s += chunk)
             {
                 double mid = Math.Min(s + chunk / 2, st.S1 - chunk / 2);
-                var at = town.World(mid, st.D);
+                var at = town.World(mid, st.At(mid));
                 if ((at - eye).Length > 320)
                     continue;
-                mesh.Instances.Add(new MeshInstance(piece, Place(line, eye, at, mid, 1, 0)));
+                // Turned along the street where it bends (note 353), a little longer so the pieces meet.
+                double slope = (st.At(mid + 1) - st.At(mid - 1)) / 2;
+                mesh.Instances.Add(new MeshInstance(piece, Matrix4x4.CreateScale(1, 1, (float)Math.Sqrt(1 + slope * slope) * 1.04f) * Place(line, eye, at, mid, 1, slope)));
             }
             // A lamp post every 45 m, the street's side away from the line, alternating.
             int n = 0;
             for (double s = st.S0 + 12; s < st.S1; s += 45, n++)
             {
-                double d = st.D + Math.Sign(st.D) * (n % 2 == 0 ? 1 : -1) * (st.Width / 2 + 0.6);
+                double d = st.At(s) + Math.Sign(st.D) * (n % 2 == 0 ? 1 : -1) * (st.Width / 2 + 0.6);
                 var at = town.World(s, d);
                 double far = (at - eye).Length;
                 if (far > 260)
                     continue;
-                var m = Place(line, eye, at, s, 0, -Math.Sign(d - st.D));
+                var m = Place(line, eye, at, s, 0, -Math.Sign(d - st.At(s)));
                 mesh.Instances.Add(new MeshInstance(post, m));
                 if (far > 120)
                     continue;

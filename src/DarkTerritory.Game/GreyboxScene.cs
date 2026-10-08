@@ -311,10 +311,10 @@ public sealed class GreyboxScene
                         Winch(mesh, site, eye);
                     // GDD §18's set pieces (note 185): the elevator's spout, the slaughterhouse's pen and ramp, the works' hose.
                     if (site is not null && (site.Has(Sim.Run.ModuleKind.Spout) || site.Has(Sim.Run.ModuleKind.Ramp) || site.Has(Sim.Run.ModuleKind.Hose)
-                        || site.Has(Sim.Run.ModuleKind.Lift))
-                        && (site.Track.Sample(site.Mid).Position - eye).Length < DrawDistance + 120
-                        && Look?.Art.SetPieces(mesh, site, frames, eye, Time) != true)
-                        SetPieces(mesh, site, frames, eye, Time);
+                        || site.Has(Sim.Run.ModuleKind.Lift) || site.Has(Sim.Run.ModuleKind.Conveyor))
+                        && (site.Track.Sample(site.Mid).Position - eye).Length < DrawDistance + 120)
+                        // The art pass's models where it has them (#135); the conveyor line (note 400) is the greybox's either way.
+                        SetPieces(mesh, site, frames, eye, Time, artDrawn: Look?.Art.SetPieces(mesh, site, frames, eye, Time) == true);
                     // The wreck yard's heaps (note 187): the last train's cars on their sides, groaning when they're going to go;
                     // drawn as the train's own cars, wrecked, where the art pass has them (note 394).
                     if (site is { Heaps.Count: > 0 } && (site.Heaps[0].Centre - eye).Length < DrawDistance + 120
@@ -2347,19 +2347,35 @@ public sealed class GreyboxScene
     /// <param name="drab">How much darker than the crew they're dressed (a town's people, near and talked to, are lighter).</param>
     /// <param name="pose">How they're standing (a town's people, note 281): "idle", "seated" (at a table, in a chair),
     /// "crouch" (at the range), "lantern" (out in the street with a lamp, lit).</param>
-    void Folk(MeshBuilder mesh, Double3 eye, Double3 feet, Double3 facing, int variant, float drab = 0.45f, string pose = "idle")
+    /// <param name="gear">A town's person (note 353): what they breathe through (<see cref="Sim.Towns.TownGear"/>), worn on the
+    /// survivors' bare-headed figure, never the crew's masked one; null for note 107's folk in the crew's own.</param>
+    /// <param name="home">At home in an open house: some have the mask down on the chest.</param>
+    /// <param name="lamp">A town's person carrying a lit hand lamp (out in the street at night).</param>
+    void Folk(MeshBuilder mesh, Double3 eye, Double3 feet, Double3 facing, int variant, float drab = 0.45f, string pose = "idle",
+        string? gear = null, bool home = false, int who = 0, bool lamp = false)
     {
-        var back = -ToF(facing);
-        var right = Vector3.Cross(Vector3.UnitY, back);
-        var m = Art.CreatureArt.Basis(V(feet, eye), right, Vector3.UnitY, back);
         drab += variant % 3 * 0.05f;
-        string clip = pose switch { "seated" => "gunner", "crouch" => "crouch_idle", "lantern" => "lantern", _ => "idle" };
+        string clip = gear is null
+            ? pose switch { "seated" => "gunner", "crouch" => "crouch_idle", "lantern" => "lantern", "walk" => "lantern_walk", _ => "idle" }
+            : Art.TownsfolkKit.Clip(pose, lamp, who);
         var creatures = Look!.Art.Creatures;
-        if (!creatures.Draw(mesh, "crew", clip, Time + variant * 0.73, true, m, variant, seed: variant * 13,
-            adjust: (_, l) => l with { Colour = l.Colour * new Vector3(drab, drab * 0.95f, drab * 0.9f) }))
-            return;
+        string figure = "crew";
+        Matrix4x4 m;
+        // A town's people are the survivors' figure, bare-headed, with what they breathe through (note 353), set down on
+        // their feet (the director's 8 Oct shots: a resident crouched in the air by the range).
+        if (gear is not null && Look.Art.Townsfolk.Person(creatures, mesh, V(feet, eye), ToF(facing), clip, pose == "seated", gear, home, variant, who,
+            Time + variant * 0.73, drab) is { } drawn)
+            (figure, m) = drawn;
+        else
+        {
+            var back = -ToF(facing);
+            m = Art.CreatureArt.Basis(V(feet, eye), Vector3.Cross(Vector3.UnitY, back), Vector3.UnitY, back);
+            if (!creatures.Draw(mesh, "crew", clip, Time + variant * 0.73, true, m, variant, seed: variant * 13,
+                adjust: (_, l) => l with { Colour = l.Colour * new Vector3(drab, drab * 0.95f, drab * 0.9f) }))
+                return;
+        }
         // The street's lamp-carriers: the hand lamp hung from the fist, burning.
-        if (pose == "lantern" && Art.PropArt.Of(Look).Get("hand_lantern") is { } lamp && creatures.Hang(mesh, lamp, m))
+        if ((gear is null ? pose is "lantern" or "walk" : lamp) && Art.PropArt.Of(Look).Get("hand_lantern") is { } lantern && creatures.Hang(mesh, lantern, m, figure))
         {
             var flame = creatures.LastHanging;
             mesh.PointLights.Add(new PointLight(flame, Palette.LampAmber * 1.2f, 6));
@@ -2378,17 +2394,50 @@ public sealed class GreyboxScene
             if (town is not null)
             {
                 Look.Art.World.Square(mesh, line, eye, town, from, to);
+                Look.Art.World.Civic(mesh, line, eye, town, from, to);
                 Look.Art.World.Houses(mesh, line, eye, town, from, to);
                 Look.Art.World.Streets(mesh, line, eye, town, from, to);
+                // A town that's lived in (App. F.3, the director: the fortresses feel static): smoke from its chimneys, and
+                // its watch walking the wall with their lanterns.
+                foreach (var top in Look.Art.World.Chimneys(line, eye, town, 160))
+                    Look.Art.Effects.Chimney(mesh, top, Time, (int)(top.X * 7 + top.Z * 13));
+                foreach (var (feet, facing, variant) in Art.WorldArt.Watch(town, gateAt, Time))
+                    if ((feet - eye).Length < 260)
+                        Folk(mesh, eye, feet, facing, variant, drab: 0.6f, "walk", gear: "respirator", who: variant, lamp: true);
+                // The statue on the green (note 353): the survivors' figure, frozen in its pose on the plinth, cast in bronze or
+                // cut in stone; the Lamplighter's lamp lit.
+                foreach (var f in town.Plan.Fixtures.Where(f => f.Kind == "statue"))
+                {
+                    var at = town.World(f.S, f.D, Art.CivicKit.PlinthTop);
+                    if ((at - eye).Length > 160)
+                        continue;
+                    var (clip, scale, away, stone) = Art.CivicKit.StatueClip(Art.CivicKit.Variant(f.Kind, f.Name));
+                    var face = ToF(town.Direction(f.S, f.FaceS, f.FaceD)) * (away ? -1 : 1);
+                    var back = -face * scale;
+                    var right = Vector3.Cross(Vector3.UnitY, -face) * scale;
+                    var m = Art.CreatureArt.Basis(V(at, eye), right, Vector3.UnitY * scale, back);
+                    var cast = stone ? new Vector3(0.42f, 0.41f, 0.38f) : new Vector3(0.24f, 0.18f, 0.1f);
+                    Look.Art.Creatures.Draw(mesh, "survivor_prisoner", clip, 0, false, m, 0,
+                        adjust: (_, l) => l with { Layer = -1, Colour = cast, Emissive = 0, Shine = stone ? 0.05f : 0.75f, Wear = 0.6f });
+                    if (clip == "lantern" && Art.PropArt.Of(Look).Get("hand_lantern") is { } held && Look.Art.Creatures.Hang(mesh, held, m, "survivor_prisoner"))
+                        mesh.PointLights.Add(new PointLight(Look.Art.Creatures.LastHanging, Palette.LampAmber * 1.4f, 8));
+                }
                 foreach (var p in town.Plan.People)
                 {
-                    var feet = town.Feet(p);
+                    // Where they are on their round now (note 353): walking between stops, or at one doing what's done there.
+                    var now = town.Now(p);
+                    var feet = now.Feet;
                     if ((feet - eye).Length > 160)
                         continue;
                     bool talking = TownFacing is { } f && f.Person == p.Id;
-                    var facing = talking && new Double3(TownFacing!.Value.Toward.X - feet.X, 0, TownFacing.Value.Toward.Z - feet.Z) is { Length: > 0.1 } toward
-                        ? toward.Normalized : town.Direction(p.S, p.FaceS, p.FaceD);
-                    Folk(mesh, eye, feet, facing, p.Look % 7 + 1, drab: 0.72f, p.Pose);
+                    // Whoever sits or crouches at their work stays put when you talk to them: turned to you, they'd swing
+                    // off their chair or out from the range (the director, 8 Oct: "some of the animation positions are off").
+                    bool settled = now.Act is "seated" or "crouch" or "mend";
+                    var facing = talking && !settled && new Double3(TownFacing!.Value.Toward.X - feet.X, 0, TownFacing.Value.Toward.Z - feet.Z) is { Length: > 0.1 } toward
+                        ? toward.Normalized : now.Facing;
+                    // Held to talk mid-stride, they stand.
+                    string act = talking && now.Walking ? "idle" : now.Act;
+                    Folk(mesh, eye, feet, facing, p.Look % 7 + 1, drab: 0.72f, act, p.Gear, home: p.House >= 0, who: p.Id, lamp: p.Pose == "lantern");
                     // Whoever you're talking to has the lamplight on their face, so you can see who it is (most stand with
                     // a lit door or a fire at their back).
                     if (talking)
@@ -2463,7 +2512,8 @@ public sealed class GreyboxScene
     /// the ramp as far as it's been driven) and the ramp to the car; the chemical works' hose stand, its gauge reading the
     /// pressure, the hose to the car it's on, and the leak's cloud.
     /// </summary>
-    static void SetPieces(MeshBuilder mesh, Sim.Run.Site site, IReadOnlyList<CarFrame> frames, Double3 eye, double time)
+    /// <param name="artDrawn">The art pass drew the site's modelled set pieces (#135): only what it doesn't model here.</param>
+    static void SetPieces(MeshBuilder mesh, Sim.Run.Site site, IReadOnlyList<CarFrame> frames, Double3 eye, double time, bool artDrawn = false)
     {
         static (Vector3 Along, Vector3 Across) Axes(Double3 from, Double3 to)
         {
@@ -2481,7 +2531,7 @@ public sealed class GreyboxScene
             mesh.Box(V((a + b) * 0.5, eye), dir, Vector3.Cross(side, dir), side, new Vector3((float)d.Length * 0.5f, r, r), colour);
         }
         var grain = new Vector3(0.72f, 0.6f, 0.36f);
-        if (site.Has(Sim.Run.ModuleKind.Spout))
+        if (!artDrawn && site.Has(Sim.Run.ModuleKind.Spout))
         {
             // The bin up on four legs astride the track, the spout's pipe down to just over a car's roof.
             var mouth = site.Spout;
@@ -2510,7 +2560,7 @@ public sealed class GreyboxScene
                     mesh.Box(V(p, eye), along, Vector3.UnitY, across, new Vector3(0.12f, 0.2f, 0.12f), grain * (i % 2 == 0 ? 1f : 0.8f));
                 }
         }
-        if (site.Has(Sim.Run.ModuleKind.Lift))
+        if (!artDrawn && site.Has(Sim.Run.ModuleKind.Lift))
         {
             // The mine head's steam lift (note 368): the ore bin on its legs astride the track, fed down a sloping trough from the
             // headframe (the art's, where it has one), the skip riding up the frame's track-side face as far as it's wound, ore
@@ -2550,7 +2600,75 @@ public sealed class GreyboxScene
                     mesh.Box(V(p, eye), along, Vector3.UnitY, across, new Vector3(0.16f, 0.16f, 0.16f), i % 2 == 0 ? Palette.Charcoal : Palette.IronGrey * 0.7f);
                 }
         }
-        if (site.Has(Sim.Run.ModuleKind.Ramp))
+        if (site.Has(Sim.Run.ModuleKind.Conveyor))
+        {
+            // The grain elevator's conveyor line (note 400): its belt low on trestles from the drive house at the elevator's end
+            // to the knee beside the track, the riser up from there to its head over the track on a frame astride it, the
+            // drive house with its starter and a lamp (green running, red stopped), grain riding the belt while it carries, and
+            // a jam a heap spilled off the belt where it is, the grain behind it stood still.
+            var tail = site.ConveyorTail;
+            var knee = site.ConveyorKnee;
+            var head = site.ConveyorHead;
+            var (along, across) = Axes(knee, tail);
+            var a = ToD(along);
+            var x = ToD(across);
+            var run = knee - tail;
+            double length = run.Length;
+            var dir = run * (1 / Math.Max(1e-6, length));
+            var side = ToD(Vector3.Normalize(Vector3.Cross(ToF(dir), Vector3.UnitY)));
+            // The belt and its rails.
+            Rod(tail, knee, 0.24f, Palette.SootBlack * 1.4f);
+            foreach (int j in new[] { -1, 1 })
+                Rod(tail + side * (j * 0.32) + Double3.Up * 0.12, knee + side * (j * 0.32) + Double3.Up * 0.12, 0.04f, Palette.IronGrey);
+            // Trestles every 3 m: a leg each side down to the ground.
+            for (double d = 0; d <= length + 1e-6; d += 3)
+            {
+                var top = tail + dir * d;
+                foreach (int j in new[] { -1, 1 })
+                    Rod(top + side * (j * 0.36) - Double3.Up * 1.3, top + side * (j * 0.36), 0.05f, Palette.DeepBrown);
+            }
+            // The riser up to the head, and the frame astride the track it hangs from, its chute down over a car's roof.
+            Rod(knee, head + Double3.Up * 0.3, 0.26f, Palette.SootBlack * 1.4f);
+            var foot = head with { Y = knee.Y - 1.0 };
+            foreach (int i in new[] { -1, 1 })
+                foreach (int j in new[] { -1, 1 })
+                    Rod(foot + a * (i * 1.4) + x * (j * 2.6) - Double3.Up * 0.3, head + Double3.Up * 0.9 + a * (i * 1.2) + x * (j * 2.2), 0.09f, Palette.DeepBrown);
+            mesh.Box(V(head + Double3.Up * 0.9, eye), along, Vector3.UnitY, across, new Vector3(1.5f, 0.12f, 2.5f), Palette.RustRed);
+            Rod(head + Double3.Up * 0.6, head - Double3.Up * 0.4, 0.22f, Palette.TarnishedBrass);
+            // The drive house past the tail, its starter and its lamp.
+            var house = tail + (tail - knee with { Y = tail.Y }) * (2.5 / Math.Max(1e-6, length)) + Double3.Up * (1.4 - 1.0);
+            mesh.Box(V(house, eye), ToF(dir), Vector3.UnitY, ToF(side), new Vector3(1.6f, 1.4f, 1.4f), Palette.IronGrey * 0.9f);
+            mesh.Box(V(house + Double3.Up * 1.5, eye), ToF(dir), Vector3.UnitY, ToF(side), new Vector3(1.8f, 0.1f, 1.6f), Palette.RustRed);
+            var lamp = house + Double3.Up * 1.1 - dir * 1.62;
+            mesh.Box(V(lamp, eye), ToF(dir), Vector3.UnitY, ToF(side), new Vector3(0.05f, 0.12f, 0.12f), site.Running && site.Jam < 0 ? Palette.SignalGreen : Palette.SignalRed);
+            var starter = site.ConveyorStarter;
+            Rod(starter - Double3.Up * 0.9, starter, 0.06f, Palette.IronGrey);
+            Rod(starter, starter + Double3.Up * (site.Running ? -0.15 : 0.35) + side * 0.4, 0.04f, Palette.HazardYellow);
+            // Grain on the belt: riding toward the head while it carries; stood still behind a jam, a heap spilled at it.
+            double jam = site.Jam >= 0 ? site.Jam : 1;
+            for (int i = 0; i < 24; i++)
+            {
+                double u = (i + (site.Carrying ? time * 1.2 % 1 : 0)) / 24.0;
+                if (u > jam || !site.Running && site.Jam < 0)
+                    continue;
+                var p = tail + dir * (u * length) + Double3.Up * 0.16 + side * (0.12 * Math.Sin(i * 2.1));
+                mesh.Box(V(p, eye), ToF(dir), Vector3.UnitY, ToF(side), new Vector3(0.18f, 0.06f, 0.14f), grain * (i % 2 == 0 ? 1f : 0.85f));
+            }
+            if (site.Jam >= 0)
+            {
+                var at = site.JamAt;
+                mesh.Box(V(at + Double3.Up * 0.3, eye), ToF(dir), Vector3.UnitY, ToF(side), new Vector3(0.45f, 0.3f, 0.5f), grain * 0.9f);
+                mesh.Box(V(at - Double3.Up * 0.85 + side * 0.4, eye), ToF(dir), Vector3.UnitY, ToF(side), new Vector3(0.6f, 0.15f, 0.5f), grain * 0.75f);
+            }
+            if (site.Carrying)
+                for (int i = 0; i < 12; i++)
+                {
+                    double fall = (time * 6 + i * 0.37) % 2.0;
+                    var p = head - Double3.Up * (0.4 + fall) + a * (0.15 * Math.Sin(i * 2.3)) + x * (0.15 * Math.Cos(i * 1.7));
+                    mesh.Box(V(p, eye), along, Vector3.UnitY, across, new Vector3(0.12f, 0.2f, 0.12f), grain * (i % 2 == 0 ? 1f : 0.8f));
+                }
+        }
+        if (!artDrawn && site.Has(Sim.Run.ModuleKind.Ramp))
         {
             // The pen's rails round the herd, the ramp up from it to a car's doorway, the head still penned.
             var pen = site.Pen;
@@ -2603,7 +2721,7 @@ public sealed class GreyboxScene
                 Beast(on, DMath.Atan2(d.X, d.Z), site.Head);
             }
         }
-        if (site.Has(Sim.Run.ModuleKind.Hose))
+        if (!artDrawn && site.Has(Sim.Run.ModuleKind.Hose))
         {
             // The stand: a post and its valve wheel, a gauge going from green to red with the pressure, the hose.
             var stand = site.HoseStand;

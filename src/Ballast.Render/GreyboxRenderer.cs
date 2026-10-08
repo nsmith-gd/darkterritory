@@ -36,7 +36,8 @@ unsafe struct FrameData
     public Vector4 Dawn;
     /// <summary>xyz the wind (m/s, world axes), w how gusty.</summary>
     public Vector4 Wind;
-    public fixed float SwayOf[256];
+    /// <summary>Per layer, how it moves (<see cref="GreyboxRenderer.Motion"/>): 1 bends in the wind, 2 is water, else 0.</summary>
+    public fixed float MotionOf[256];
     /// <summary>The right eye's, when one pass draws both (<see cref="GreyboxRenderer.Views"/> 2; Shaders/view.glsl).</summary>
     public Matrix4x4 ViewProj1;
     public Matrix4x4 InvViewProj1;
@@ -141,7 +142,7 @@ public sealed unsafe class GreyboxRenderer : IDisposable
     /// <summary>A hero slot at or over this is in the big arrays (scene.frag's heroSlot).</summary>
     const int BigHero = 64;
     // Which layers bend in the wind: the foliage's cards and boughs (by name, *_card and *_bough).
-    bool[] _sway = [];
+    float[] _motion = [];
     RenderAssets? _assets;
 
     VkBuffer _vertices;
@@ -469,6 +470,16 @@ public sealed unsafe class GreyboxRenderer : IDisposable
     }
 
     /// <summary>
+    /// How a layer moves, by its name (the frame's per-layer table; Shaders/frame.glsl <c>motionOf</c>): 1 for the
+    /// foliage's cards and boughs, which bend in the wind from their root (scene.vert); 2 for water, whose ripples and
+    /// swell run with the wind and its current (scene.frag; ARCHITECTURE §8 note 424); 0 for everything that stands still.
+    /// </summary>
+    public static float Motion(string layer) =>
+        layer.EndsWith("_card", StringComparison.Ordinal) || layer.EndsWith("_bough", StringComparison.Ordinal) ? 1
+        : layer.StartsWith("water_", StringComparison.Ordinal) ? 2
+        : 0;
+
+    /// <summary>
     /// The hero layers (authored larger than the arrays' size: the baked atlases of what's seen closest) again at up to
     /// <see cref="RenderAssets.HeroSize"/>, in arrays of their own; <see cref="_heroSlot"/> says which layer is where. With
     /// none, one flat layer each, so the bindings are always there.
@@ -480,7 +491,7 @@ public sealed unsafe class GreyboxRenderer : IDisposable
         var heroes = new List<MaterialLayer>();
         var bigs = new List<MaterialLayer>();
         _heroSlot = new int[assets.Layers.Count];
-        _sway = [.. assets.Layers.Select(l => l.Name.EndsWith("_card", StringComparison.Ordinal) || l.Name.EndsWith("_bough", StringComparison.Ordinal))];
+        _motion = [.. assets.Layers.Select(l => Motion(l.Name))];
         for (int i = 0; i < assets.Layers.Count; i++)
         {
             var l = assets.Layers[i];
@@ -828,7 +839,7 @@ public sealed unsafe class GreyboxRenderer : IDisposable
         f->Dawn = new Vector4(lighting.DawnGlow, lighting.Dawn);
         f->Wind = new Vector4(lighting.Wind, lighting.Gusts);
         for (int i = 0; i < 256; i++)
-            f->SwayOf[i] = i < _sway.Length && _sway[i] ? 1 : 0;
+            f->MotionOf[i] = i < _motion.Length ? _motion[i] : 0;
     }
 
     // Each view's view-projection this frame (the culling's, and the frame constants').
