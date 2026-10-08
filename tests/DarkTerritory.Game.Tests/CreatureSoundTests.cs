@@ -433,6 +433,102 @@ public class CreatureSoundTests
     }
 
     [Fact]
+    public void TheGannetCallsOverheadFallsSilentOverAWalkerWhistlesDownBanksScreamingAndPecksOnItsBeat()
+    {
+        // Note 384 (queue #121), off its record (note 340): its GannetMode in Height, its pecks on the spine's grab clock.
+        string[] calls = ["tell-gannet-calls.call", "tell-gannet-calls.wings"];
+        using var scene = new Scene(1, [.. calls, "tell-gannet-fold.crack", "tell-gannet-fold.whistle", "tell-gannet-bank.scream",
+            "tell-gannet-bank.wingbeats~", "cs-gannet-strike.stab", "cs-gannet-strike.thunk", "cs-gannet-strike.thrash~", "cs-gannet-strike.tear",
+            "cs-gannet-strike.land", "cs-gannet-strike.windup", "cs-gannet-strike.peck", "cs-gannet-strike.driven", "cs-gannet-strike.hit",
+            "cs-gannet-strike.death"]);
+        var t = DataFile.Load<EnemyTuning>(Path.Combine(Content, EnemyTuning.File)).Gannet;
+        var roof = new Double3(0, scene.Train.Frames[1].Shape.RoofHeight, 2);
+        var up = roof + new Double3(8, 25, 0);
+        Gannet G(GannetMode mode, Double3 local, SpinePhase phase = SpinePhase.Dormant, double seconds = 1, double health = 12, int holding = -1) =>
+            Record(new Gannet(9), phase, seconds, health, 1, local, height: (double)mode, extra: -1, extra2: -1, holding: holding,
+                window: holding >= 0 ? t.Pecks * t.PeckEvery : 0);
+        int Ticks(double s) => (int)Math.Round(s * SimConstants.TickRate);
+        const double dt = SimConstants.TickSeconds;
+        var walker = new PlayerState { Parent = 1, Position = roof, Health = Player.Health };
+        scene.Audio.CrewStates = [(1, walker)];
+        var heard = new List<string>();
+        void Run(double seconds, Func<double, Gannet> g)
+        {
+            for (int i = 0; i < Ticks(seconds); i++)
+                heard.AddRange(scene.Tick(g(i * dt)));
+        }
+
+        // Soaring over the train: its calls and wingbeats, now and then.
+        Run(20, _ => G(GannetMode.Soar, up));
+        Assert.Contains("tell-gannet-calls.call", heard);
+        Assert.All(heard, h => Assert.Contains(h, calls));
+        // Hanging over a walker: nothing (the calls stop: the silence is the tell).
+        heard.Clear();
+        Run(t.HangSeconds, s => G(GannetMode.Hang, roof + new Double3(0, 20, 0), SpinePhase.Alert, s));
+        Assert.Empty(heard);
+        // The fold: the wings' crack and the whistle down its line, once.
+        Run(t.FoldSeconds, s => G(GannetMode.Fold, roof + new Double3(0, 20 * (1 - s / t.FoldSeconds), 0), SpinePhase.Telegraph, s));
+        Assert.Equal(["tell-gannet-fold.crack", "tell-gannet-fold.whistle"], heard);
+        // A miss: the thunk, thrashing while it's stuck, and the tear free as the art's begins.
+        heard.Clear();
+        Run(t.StuckSeconds, s => G(GannetMode.Stuck, roof, SpinePhase.Commit, s));
+        Assert.Equal(["cs-gannet-strike.thunk", "cs-gannet-strike.thrash", "cs-gannet-strike.tear"], heard);
+        Run(3, _ => G(GannetMode.Climb, up));
+        // Another dive, and this one lands: the stab, as it climbs out with the walker hurt under it.
+        heard.Clear();
+        Run(t.FoldSeconds, s => G(GannetMode.Fold, roof + new Double3(0, 20 * (1 - s / t.FoldSeconds), 0), SpinePhase.Telegraph, s));
+        scene.Audio.CrewStates = [(1, walker with { Health = Player.Health - (int)t.StabDamage })];
+        Run(dt, _ => G(GannetMode.Climb, roof + new Double3(0, 0.5, 0)));
+        Assert.Equal(["tell-gannet-fold.crack", "tell-gannet-fold.whistle", "cs-gannet-strike.stab"], heard);
+        // The bank for its mark: the scream, and the wingbeats held as it comes.
+        heard.Clear();
+        Run(t.BankSeconds, s => G(GannetMode.Bank, up, SpinePhase.Telegraph, s));
+        Assert.Equal(["tell-gannet-bank.scream", "tell-gannet-bank.wingbeats"], heard);
+        Assert.True(scene.Playing("tell-gannet-bank.wingbeats"));
+        // The pin: its weight landing, then each peck's wind-up and blow on the beat, four of them.
+        heard.Clear();
+        Run(t.Pecks * t.PeckEvery - 0.05, s => G(GannetMode.Pin, roof, SpinePhase.Grab, s, holding: 1));
+        Assert.False(scene.Playing("tell-gannet-bank.wingbeats"));
+        Assert.Equal(["cs-gannet-strike.land", .. Enumerable.Repeat<string[]>(["cs-gannet-strike.windup", "cs-gannet-strike.peck"], t.Pecks).SelectMany(p => p)], heard);
+        // Driven off with its victim alive: a screech as it lurches up. A blow on it after, a hurt.
+        heard.Clear();
+        Run(dt, _ => G(GannetMode.Climb, roof + new Double3(0, 2, 0)));
+        Run(dt, _ => G(GannetMode.Climb, roof + new Double3(0, 3, 0), health: 11));
+        Assert.Equal(["cs-gannet-strike.driven", "cs-gannet-strike.hit"], heard);
+        // Shot dead in the air over the car: its crash when it's fallen to the roof, not before.
+        scene.Audio.CrewStates = [];
+        Run(dt, _ => G(GannetMode.Soar, up, health: 1));
+        heard.Clear();
+        heard.AddRange(scene.Tick());
+        Assert.Empty(heard);
+        for (int i = 0; i < Ticks(3); i++)
+            heard.AddRange(scene.Tick());
+        Assert.Equal(["cs-gannet-strike.death"], heard);
+    }
+
+    [Fact]
+    public void TheGannetsFoldWhistlesUpItsOwnBandNotTheTrainWhistlesAndItsCallsSitInTheirs()
+    {
+        // Spec A.4's Gannet row (note 384; the design's §10: "dt audio render for the fold's whistle against the Whistler's"):
+        // the fold is a whistle of air at 2-5 kHz rising to the strike, where the train's whistle (the Whistler's tell) is
+        // 200-800 Hz and steady; its calls overhead are 1-3 kHz.
+        var (report, mix) = AudioBench.RenderSound(Content, "tell-gannet-fold.whistle");
+        Assert.Null(report.Error);
+        double own = Meter.BandDb(mix, 2000, 5000), whistle = Meter.BandDb(mix, 200, 800);
+        Assert.True(own > whistle + 20, $"{own:0.0} dB at 2-5 kHz, {whistle:0.0} dB in the train whistle's 200-800 Hz");
+        int half = mix.Length / 4 * 2;
+        var first = mix.AsSpan(0, half);
+        var second = mix.AsSpan(half);
+        static double Tilt(ReadOnlySpan<float> x) => Meter.BandDb(x, 3500, 5000) - Meter.BandDb(x, 2000, 3500);
+        Assert.True(Tilt(second) > Tilt(first) + 3, $"not rising: {Tilt(first):0.0} dB then {Tilt(second):0.0} dB top over bottom");
+        Assert.True(Meter.BandDb(second, 2000, 5000) > Meter.BandDb(first, 2000, 5000) + 6, "no crescendo to the strike");
+        var (called, calls) = AudioBench.RenderSound(Content, "tell-gannet-calls.call");
+        Assert.Null(called.Error);
+        double band = Meter.BandDb(calls, 1000, 3000), below = Meter.BandDb(calls, 80, 1000), above = Meter.BandDb(calls, 3000, 12000);
+        Assert.True(band > below + 6 && band > above + 6, $"its calls {band:0.0} dB at 1-3 kHz, {below:0.0} under, {above:0.0} over");
+    }
+
+    [Fact]
     public void ASignShownAfootIsHeardOnceAsItsOwnSoundAndTheGauntsIsItsEyesAlone()
     {
         // Note 342 (queue #79): a sign shown a crewmate afoot (note 327, World.Watcher) is heard once as it starts, from where

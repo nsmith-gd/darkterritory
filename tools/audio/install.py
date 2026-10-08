@@ -192,7 +192,9 @@ def candidates(line, cue, stored):
 FIRST_CHOICE = {"crew-mishaps.tunnel-bonk": "coconut", "bed-wheel-rail.flange": "sing", "state-derail.flange-scream": "shriek",
                 "crew-noisy-toys.drummer": "tin", "ui-stranded-outro.lamp-out": "gutter",
                 # Note 322: the chuff already beats, so the starved engine's struggle under it is the beatless one.
-                "state-starved.labour": "drag"}
+                "state-starved.labour": "drag",
+                # Note 384: the croak's voice is a tenth of a second (the roar it's cut from has no more); the squawk's is a cry.
+                "cs-gannet-strike.hit": "squawk"}
 
 
 def pick(cands, mat, line_level, cue_name=None):
