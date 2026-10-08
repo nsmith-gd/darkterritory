@@ -24,6 +24,9 @@ layout(set = 0, binding = 0) uniform Frame {
     vec4 motionOf[128]; // per layer (4 a vec4): 1 bends in the wind (foliage cards and boughs), 2 water (note 424), else 0
     mat4 viewProj1;    // the right eye's, when one pass draws both (multiview: view.glsl)
     mat4 invViewProj1;
+    vec4 handPos;      // the shadowed hand lamp (MeshBuilder.ShadowLight): xyz camera-relative, w = range (0: none)
+    vec4 handColour;   // rgb, a = 1 when its cube shadow is drawn
+    mat4 handViewProj[6]; // its cube's faces (+X, -X, +Y, -Y, +Z, -Z), one layer each of handShadow
 } frame;
 
 // This invocation's eye's view (the only one, drawing a single view).

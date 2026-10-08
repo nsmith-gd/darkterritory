@@ -848,7 +848,18 @@ public sealed class RoofWalkerBot(int seed, ColdTuning? cold = null, StopHand? j
     /// coming: the same warning a player gets, from the same route and train, lamp or no lamp. It was a posted tunnel within
     /// 40 s, its board read, so in the dark a walker learned of the mouth 10 m short.
     /// </summary>
-    public static bool RoofWarned(World world) => world.Lineside?.Warning(world.Train) is not null;
+    public static bool RoofWarned(World world) => world.Lineside?.Warning(world.Train) is not null || TrussScrape(world);
+
+    /// <summary>
+    /// Note 442 (note 435's "not yet"): a Dragger on a through-truss's top chord scrapes on the steel above (its Telegraph,
+    /// draggers.drop.tellSeconds before the engine's under it) and drops onto whoever's on the roof of the car passing under.
+    /// The counter is to be off the roofs over the span, so the scrape is a roof warning like a tunnel's mouth: off the roof,
+    /// into a car or the gap, until the train's through and it's quiet. Heard, as a player hears it: the scrape is the cue,
+    /// not where it sits. The only Dragger with no car under it is one on a chord (on a client too, which isn't told it's
+    /// perched).
+    /// </summary>
+    public static bool TrussScrape(World world) =>
+        world.ActiveEnemies.Any(e => e is Dragger { Attached: < 0, Phase: SpinePhase.Telegraph });
 
     public PlayerIntent Decide(in PlayerState self, World world, uint tick, out PlayerState aimed) =>
         HoldOn(self, world.Train, Decided(self, world, tick, out aimed));

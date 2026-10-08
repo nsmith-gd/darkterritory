@@ -70,6 +70,27 @@ public sealed class GreyboxScene
     public int LampsOut { get; set; }
 
     /// <summary>Car <paramref name="index"/>'s lamps are out (its vehicle's LampLit), so it's drawn dark inside and out.</summary>
+    /// <summary>
+    /// A hand lamp's light (GDD §31), lying or carried. With the art pass it's a flame: it flickers and shivers a little in
+    /// its glass (Art.SceneArt.Flicker, FlameDrift), as its glow does; the greybox's is steady. The one nearest the eye
+    /// casts shadows, which swing as it swings (MeshBuilder.ShadowLight); the rest light unshadowed.
+    /// </summary>
+    void HandLamp(MeshBuilder mesh, Double3 at, Double3 eye, int id)
+    {
+        if ((at - eye).Length >= 60)
+            return;
+        var (drift, flicker) = Look is null ? (Vector3.Zero, 1f) : (Art.SceneArt.FlameDrift(Time, id), Art.SceneArt.Flicker(Time, id));
+        var light = new PointLight(V(at, eye) + drift, Palette.LampAmber * 1.8f * flicker, 7f);
+        if (mesh.ShadowLight is { } nearer && nearer.Position.LengthSquared() <= light.Position.LengthSquared())
+            mesh.PointLights.Add(light);
+        else
+        {
+            if (mesh.ShadowLight is { } farther)
+                mesh.PointLights.Add(farther);
+            mesh.ShadowLight = light;
+        }
+    }
+
     bool CarDark(int index) => Vehicles is { } fleet && index < fleet.Count && (!fleet[index].LampLit || Sputtered(fleet[index], index));
 
     /// <summary>
@@ -377,11 +398,16 @@ public sealed class GreyboxScene
         }
         // Practical lights first, so everything built after is lit by them: each car's lamps, the firebox,
         // and any hand lamp lying about or being carried.
+        // (Carried, where it swings in the carrier's fist: Art.SceneArt.LampInHand.)
         if (Bodies is not null)
             foreach (var b in Bodies.Where(b => b.Kind == Sim.Physics.BodyKind.Lamp))
-                // (Carried, where it swings in the carrier's fist: Art.SceneArt.LampInHand.)
-                if (((b.Carrier >= 0 ? Look?.Art.LampInHand(b.Carrier, Time) : null) ?? BodyWorld(b, frames, b.Centre)) is { } at && (at - eye).Length < 60)
-                    mesh.PointLights.Add(new PointLight(V(at, eye), Palette.LampAmber * 1.8f, 7f));
+                if (((b.Carrier >= 0 ? Look?.Art.LampInHand(b.Carrier, Time) : null) ?? BodyWorld(b, frames, b.Centre)) is { } at)
+                    HandLamp(mesh, at, eye, b.Carrier >= 0 ? b.Carrier : b.Id);
+        // (A staged crewmate's, dt screenshot --act lantern, has no body: its light is where the art hung it.)
+        if (Crew is not null && Look is not null)
+            foreach (var c in Crew.Where(c => c.Lamp && Bodies?.Any(b => b.Kind == Sim.Physics.BodyKind.Lamp && b.Carrier == c.Id) != true))
+                if (Look.Art.LampInHand(c.Id, Time) is { } at)
+                    HandLamp(mesh, at, eye, c.Id);
         if (Lights is not null)
             foreach (var (at, colour, radius) in Lights)
                 mesh.PointLights.Add(new PointLight(V(at, eye), colour, radius));
