@@ -35,6 +35,7 @@ public class AuditTests
     [InlineData(EnemyKind.Dragger)]
     [InlineData(EnemyKind.Whistler)]
     [InlineData(EnemyKind.SootChildren)]
+    [InlineData(EnemyKind.Knotter)]
     public void WithFriendsWhoOnlyWatchTheGrabRunsItsCourse(EnemyKind kind)
     {
         // The control: the same rig with the friends standing by. The check isn't passed by the rig, only by the rescue.
