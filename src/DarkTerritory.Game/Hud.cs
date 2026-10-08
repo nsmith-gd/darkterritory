@@ -926,8 +926,7 @@ public static partial class Hud
         var rows = new List<(string Text, Vector4 Colour)> { (DeathLine(p.Death), Ink) };
         // App. D.10: the dead watch the living, through their eyes. Networked only: alone, there's nobody.
         if (s.Watching >= 0)
-            rows.Add(($"WATCHING CREW {s.Watching}   NEXT : [{Controls.KeyLabel(Keys.KeyFor(Control.Fire))}] OR [{Controls.KeyLabel(Keys.KeyFor(Control.Right))}]   " +
-                $"BACK : [{Controls.KeyLabel(Keys.KeyFor(Control.Left))}]", Ink));
+            rows.Add((Bound($"WATCHING CREW {s.Watching}   NEXT : [LMB] OR [D]   BACK : [A]"), Ink));
         else if (s.Link is not null && world.Run is not { Over: true })
             rows.Add(("NOBODY LEFT ALIVE TO WATCH", Dim));
         // D.10's Bookmark (D.12): a still of what you're watching, for the run-end screen; how many are left, and the last.
@@ -939,7 +938,7 @@ public static partial class Hud
             if (mine.Count > 0 && run.Seconds - mine[^1].Seconds < 3)
                 rows.Add(($"BOOKMARKED AT {Clock(mine[^1].Seconds)}", Green));
             else if (left > 0)
-                rows.Add(($"BOOKMARK : [{Controls.KeyLabel(Keys.KeyFor(Control.Bookmark))}] ({left} LEFT)", Dim));
+                rows.Add((Bound($"BOOKMARK : [P] ({left} LEFT)"), Dim));
         }
         // GDD App. D: the way back is a Holdout at the next halt or yard, if the crew stops for you.
         if (world.Holdouts is { } holdouts)
@@ -1111,6 +1110,56 @@ public static partial class Hud
     /// won't fit says how many more. Each automatic bookmark's still sits at the right of the line it belongs to, and the
     /// dead's own bookmarks have a row of their own under the lines, each with its time and whom it was following.
     /// </summary>
+    /// <summary>
+    /// A report line's ink, by what it cost the crew (note 416; note 190's not-yet, where every line but a death, a rescue and
+    /// the night's end was as dim as a grab somebody was pulled out of). A death in the report's own ink; what the crew did
+    /// well (a rescue, a creature killed together) good; what the night took (the end, a car, a fire, a nest, something
+    /// craned or let aboard, a runaway, the points, the boiler, the doll struck) a warning; the rest (a grab nobody died of,
+    /// the dead's vote, a punish that held nobody, what brought the first threat) dim. COLOURS' palette.
+    /// </summary>
+    public static Vector4 ReportInk(IncidentKind kind) => ReportRank(kind) switch
+    {
+        1 => Ink,
+        3 => Green,
+        0 or 2 => Amber,
+        _ => Dim,
+    };
+
+    /// <summary>
+    /// What a report line is kept for when they don't all fit (note 416), lowest first: the night's end, a death, what the
+    /// night took, what went well, the rest.
+    /// </summary>
+    public static int ReportRank(IncidentKind kind) => kind switch
+    {
+        IncidentKind.Derailed or IncidentKind.Stranded => 0,
+        IncidentKind.Death => 1,
+        IncidentKind.CarLost or IncidentKind.Fire or IncidentKind.Nest or IncidentKind.Aboard or IncidentKind.Runaway or IncidentKind.Points
+            or IncidentKind.Rupture or IncidentKind.Struck => 2,
+        IncidentKind.Rescue or IncidentKind.Slain => 3,
+        _ => 4,
+    };
+
+    /// <summary>
+    /// Which of the report's lines are drawn (note 416), in the order they happened: all of them if they fit in
+    /// <paramref name="room"/>; otherwise as many as fit beside the "... and n more" line, the lowest <see cref="ReportRank"/>
+    /// first, earlier before later within a rank.
+    /// </summary>
+    public static List<int> ReportKept(IReadOnlyList<(float Height, int Rank)> lines, float room, float line)
+    {
+        if (lines.Sum(l => l.Height) <= room)
+            return [.. Enumerable.Range(0, lines.Count)];
+        var kept = new List<int>();
+        float used = 0;
+        foreach (int i in Enumerable.Range(0, lines.Count).OrderBy(i => lines[i].Rank).ThenBy(i => i))
+            if (used + lines[i].Height <= room - line)
+            {
+                kept.Add(i);
+                used += lines[i].Height;
+            }
+        kept.Sort();
+        return kept;
+    }
+
     public static void IncidentReport(Overlay o, int width, int height, float top, RunReport r, int line, IReadOnlyDictionary<int, Still>? stills = null)
     {
         using var plate = UiStyle.OnPlate(o);
@@ -1119,10 +1168,10 @@ public static partial class Hud
         int chars = Math.Max(20, (int)((w - 16) / glyph));
         var marks = r.Bookmarks.ToDictionary(b => b.Id);
         // Each line a block: its wrapped rows, and the thumbnails at its right (narrowing the text beside them).
-        var blocks = new List<(List<(string Text, Vector4 Colour)> Rows, List<Bookmark> Marks, float Height)>();
+        var blocks = new List<(List<(string Text, Vector4 Colour)> Rows, List<Bookmark> Marks, float Height, int Rank)>();
         foreach (var l in r.Lines)
         {
-            var colour = l.Kind switch { IncidentKind.Death => Ink, IncidentKind.Rescue => Green, IncidentKind.Derailed or IncidentKind.Stranded => Amber, _ => Dim };
+            var colour = ReportInk(l.Kind);
             string text = l.Who.Length > 0 ? $"{l.Who.ToUpperInvariant()}: {l.Text}" : l.Text;
             var shown = l.Marks.Where(marks.ContainsKey).Select(id => marks[id]).ToList();
             int perRow = Math.Max(1, (int)((w * 0.45f) / (ThumbWidth + 3)));
@@ -1136,10 +1185,10 @@ public static partial class Hud
                 rows.Add((first ? part : "    " + part, colour));
                 first = false;
             }
-            blocks.Add((rows, shown, Math.Max(rows.Count * line, thumbRows * (ThumbHeight + 2))));
+            blocks.Add((rows, shown, Math.Max(rows.Count * line, thumbRows * (ThumbHeight + 2)), ReportRank(l.Kind)));
         }
         if (r.Lines.Count == 0)
-            blocks.Add(([("Nothing to report.", Dim)], [], line));
+            blocks.Add(([("Nothing to report.", Dim)], [], line, 0));
         var money = new List<string> { $"Gross {r.Gross:0}" };
         if (r.CrewLossFees > 0)
             money.Add($"crew-loss fees {r.CrewLossFees:0}");
@@ -1158,17 +1207,18 @@ public static partial class Hud
         float manualH = manual.Count == 0 ? 0 : line + ((manual.Count + across - 1) / across) * (ManualHeight + 4);
         // What fits: the heading, as many lines as there's room for (the rest counted), the dead's row, the money.
         float room = height - top - 8 - (1 + sum.Count) * line - manualH;
-        float used = 0;
-        int keep = 0;
-        while (keep < blocks.Count && used + blocks[keep].Height <= room - (keep + 1 < blocks.Count ? line : 0))
-            used += blocks[keep++].Height;
-        int more = blocks.Skip(keep).Sum(b => b.Rows.Count);
+        // Note 416: when they don't all fit, what matters most is kept (the night's end, then the deaths, then what it took,
+        // what went well, the rest), still in the order it happened, and the rest counted: a long night kept its first lines
+        // and lost its ending (the derailment, the cars lost) to "... and 9 more lines".
+        var kept = ReportKept([.. blocks.Select(b => (b.Height, b.Rank))], room, line);
+        float used = kept.Sum(i => blocks[i].Height);
+        int more = blocks.Where((_, i) => !kept.Contains(i)).Sum(b => b.Rows.Count);
         float total = line + used + (more > 0 ? line : 0) + manualH + sum.Count * line;
         UiStyle.Plate(o, x - 4, top - 4, w + 8, total + 8);
         float y = top;
         o.Text(x + 4, y, "INCIDENT REPORT", Amber);
         y += line;
-        foreach (var (rows, shown, h) in blocks.Take(keep))
+        foreach (var (rows, shown, h, _) in kept.Select(i => blocks[i]))
         {
             float ty = y;
             foreach (var (text, colour) in rows)
@@ -1607,25 +1657,32 @@ public static partial class Hud
         }
     }
 
-    /// <summary>A prompt written with the default keys ([E], [RMB], [T]) as the player has them bound.</summary>
+    /// <summary>
+    /// A prompt written with the default keys ([E], [RMB], [K]) as the player has them bound (T80's CONTROLS; note 426): every
+    /// key the HUD names is written as its control's default and said as the player's own, so a rebind can't leave one saying
+    /// the wrong key. Labels that aren't a control's default are left as written: the menus' and the vote's (they can't be
+    /// bound), [F5], the hotbar's numbers.
+    /// </summary>
     public static string Bound(string prompt) =>
         // One pass, so a key bound where another default was isn't replaced twice (Use on F, the ladder's default).
-        System.Text.RegularExpressions.Regex.Replace(prompt, @"\[(E|RMB|T|Z|F|R|B|X|L|H|I|VENT|SPACE)\]", m => $"[{Controls.KeyLabel(Keys.KeyFor(m.Groups[1].Value switch
-        {
-            "E" => Control.Use,
-            "SPACE" => Control.Jump,
-            "X" => Control.Reverser,
-            "L" => Control.Lamp,
-            "H" => Control.Whistle,
-            "I" => Control.Supplies,
-            "VENT" => Control.Vent,
-            "RMB" => Control.Throw,
-            "T" => Control.Radio,
-            "Z" => Control.Uncouple,
-            "F" => Control.Ladder,
-            "R" => Control.RegulatorOpen,
-            _ => Control.Brake,
-        }))}]");
+        System.Text.RegularExpressions.Regex.Replace(prompt, @"\[([A-Z0-9 ]+)\]", m => m.Groups[1].Value == "WASD" ? $"[{Walk()}]"
+            : ByDefault.TryGetValue(m.Groups[1].Value, out var c) ? $"[{Controls.KeyLabel(Keys.KeyFor(c))}]" : m.Value);
+
+    /// <summary>
+    /// Each control by the label of its default key ([E] is Use, [Y] the regulator closing, [K] the car lamp), built from
+    /// <see cref="Controls.Defaults"/> so a control added there is bound here too; and the HUD's short names for the keys
+    /// whose own label is long: the mouse buttons and the vent's left Ctrl.
+    /// </summary>
+    static readonly IReadOnlyDictionary<string, Control> ByDefault = new Dictionary<string, Control>(
+        Controls.Defaults.Select(d => KeyValuePair.Create(Controls.KeyLabel(d.Value), d.Key))
+            .Concat([KeyValuePair.Create("LMB", Control.Fire), KeyValuePair.Create("RMB", Control.Throw), KeyValuePair.Create("VENT", Control.Vent)]));
+
+    /// <summary>[WASD], the four walking keys as the player has them: one keycap where each is a letter (ZQSD), else one each.</summary>
+    static string Walk()
+    {
+        var keys = new[] { Control.Forward, Control.Left, Control.Back, Control.Right }.Select(c => Controls.KeyLabel(Keys.KeyFor(c))).ToArray();
+        return keys.All(k => k.Length == 1) ? string.Concat(keys) : string.Join("/", keys);
+    }
 
     /// <summary>
     /// A healing find in your hands that you could use now (GDD App. F.1's rare healing loot; note 272): hurt, with nothing
@@ -1915,11 +1972,11 @@ public static partial class Hud
         // Note 346: a guttering lamp, in the car, trimmed with the lamp key.
         if (p.Parent > 0 && p.Parent < train.Frames.Count && train.Vehicles[p.Parent] is { LampLit: true, Gutter: > 0 } && PlayerMotor.Indoors(p, train)
             && train.Frames[p.Parent].Shape.Interior is not null)
-            return $"TRIM THE LAMP : [{Controls.KeyLabel(Keys.KeyFor(Control.CarLamp))}]";
+            return "TRIM THE LAMP : [K]";
         // Note 266 (build 1121: "the lights are completely off"): in a car whose lamp is out (a Climber came in through it).
         if (p.Parent > 0 && p.Parent < train.Frames.Count && !train.Vehicles[p.Parent].LampLit && PlayerMotor.Indoors(p, train)
             && train.Frames[p.Parent].Shape.Interior is not null)
-            return $"LIGHT THE LAMP : [{Controls.KeyLabel(Keys.KeyFor(Control.CarLamp))}]";
+            return "LIGHT THE LAMP : [K]";
         // Along the conveyor's belt with nothing else to do (note 400; spec D.3: "someone has to roam"): where the jam is, or that
         // it's stalled.
         if (world.Run is { FacilityTuning.Conveyor: { } line } run && run.BeltNear(p, train) is { } beltSite)

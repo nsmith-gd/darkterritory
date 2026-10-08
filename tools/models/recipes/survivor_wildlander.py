@@ -46,7 +46,8 @@ def grade(base, atlas, face):
     # Sooted all over, and the face blacked.
     soot = np.array([0.02, 0.018, 0.016], np.float32)
     out = out * 0.75 + soot * 0.25
-    out = np.where(face[..., None], out * 0.6 + soot * 0.4, out)
+    # The face blacked: soot worked into it from the fire, only the eyes' whites and a lip's edge spared (note 407).
+    out = np.where(face[..., None], out * 0.32 + soot * 0.68, out)
     return out
 
 
@@ -65,6 +66,12 @@ DRESS = {
 }
 SHAPES = {k: shaggy for k in ("crew_atlas.coat", "crew_atlas.sleeve")}
 
+
+def ruff(p, n):
+    """The fur left on at the collar and the shoulders (note 407), standing off the coat's game mesh itself in ragged
+    tufts so its silhouette is shaggy, not only its shading."""
+    return 0.03 * fur(p) * np.clip(cook.noise_np(p, 65, 18) * 0.8 + 0.35, 0, 1)
+
 crewfigure.build("survivor_wildlander", crewfigure.Style(
-    dress=DRESS, shapes=SHAPES, masks={"patches": patches, "coat": coat}, grade=grade, preview="WILDLANDER_PREVIEW",
+    dress=DRESS, shapes=SHAPES, masks={"patches": patches, "coat": coat}, grade=grade, preview="WILDLANDER_PREVIEW", low_shapes={"coat": ruff},
     figure="bare", hats=False, what="a freed wildlander in patched hides and furs, modelled over tools/blender/crew.py"))
