@@ -68,7 +68,35 @@ public sealed partial class WorldArt
         public string BiomeAt(double s) => BiomeOf(Plan, s);
 
         public BiomeDef? Biome(double s) => Plan.Rules.Biomes.GetValueOrDefault(BiomeAt(s));
+
+        /// <summary>
+        /// Where a lake wants the land finer than the line's own columns (note 424): the stretch of the main line it lies
+        /// beside and its laterals, its shore and its rim's bank with them. Out there the columns are 30-50 m apart, wider
+        /// than many a lake's shore is long, so the land couldn't follow its shoreline and the water's edge stood over it.
+        /// </summary>
+        public IReadOnlyList<LakeBand> LakeBands => _lakeBands ??= [.. Plan.Lakes.Select(Band).OfType<LakeBand>()];
+        LakeBand[]? _lakeBands;
+
+        LakeBand? Band(PlanLake lake)
+        {
+            var rules = Plan.Rules.Terrain.Lakes;
+            double reach = lake.RadiusM * lake.Stretch * (1 + lake.Wobble) + rules.RimCrestM + 10;
+            double s0 = double.MaxValue, s1 = double.MinValue, l0 = double.MaxValue, l1 = double.MinValue;
+            for (int i = 0; i < 36; i++)
+            {
+                double a = i * Math.Tau / 36, x = lake.X + Math.Cos(a) * reach, z = lake.Z + Math.Sin(a) * reach;
+                var near = Terrain.Nearby(x, z, reach + 400).Where(q => q.Edge == Main).ToList();
+                if (near.Count == 0)
+                    continue;
+                var q = near[0];
+                (s0, s1, l0, l1) = (Math.Min(s0, q.S), Math.Max(s1, q.S), Math.Min(l0, q.Lateral), Math.Max(l1, q.Lateral));
+            }
+            return s0 > s1 ? null : new LakeBand(s0 - 10, s1 + 10, (float)l0, (float)l1);
+        }
     }
+
+    /// <summary>A stretch of the main line (s) and laterals across it where a lake wants the land finer (<see cref="PlanScene.LakeBands"/>).</summary>
+    readonly record struct LakeBand(double S0, double S1, float Lat0, float Lat1);
 
     /// <summary>A plan's biome at a main-line distance (§13.1).</summary>
     static string BiomeOf(LinePlan plan, double s)
@@ -210,10 +238,13 @@ public sealed partial class WorldArt
     }
 
     /// <summary>How steep the land is at one vertex of a row across the line: rise over run to its neighbours.</summary>
-    static float SlopeAt(Vector3[] row, int i)
+    static float SlopeAt(Vector3[] row, int i) => SlopeAt(row, Math.Max(0, i - 1), Math.Min(row.Length - 1, i + 1));
+
+    /// <summary>The slope across a row between two of its columns.</summary>
+    static float SlopeAt(Vector3[] row, int before, int after)
     {
-        var a = row[Math.Max(0, i - 1)];
-        var b = row[Math.Min(row.Length - 1, i + 1)];
+        var a = row[before];
+        var b = row[after];
         float run = MathF.Sqrt((b.X - a.X) * (b.X - a.X) + (b.Z - a.Z) * (b.Z - a.Z));
         return run < 1e-3f ? 0 : MathF.Abs(b.Y - a.Y) / run;
     }
@@ -503,35 +534,8 @@ public sealed partial class WorldArt
             }
             // Its homesteads, poles and cars are the sim's (note 389): drawn with the rest of the lineside, above.
         }
-        // The shore's surf (maritime-rules.md §3): a broken pale line where the swell breaks on the Atlantic's rocks. Its
-        // sheds, wharves, lighthouses, ledges and boulders are the sim's (note 389), drawn with the rest of the lineside.
-        foreach (var sh in p.Plan.Shores.Where(x => x.Kind == ShoreKind.Sea && x.S1 > from && x.S0 < to))
-        {
-            for (double s = Math.Max(sh.S0 + 60, Math.Ceiling(from / 20) * 20); s < Math.Min(sh.S1 - 60, to); s += 20)
-            {
-                if (!Clear(s))
-                    continue;
-                var foam = new Kit(_look, mesh) { SurfaceOrigin = new Vector3(W(eye.X), W(eye.Y), W(eye.Z)), Baked = 0 };
-                foam.Use("plaster_ruin", new Vector3(0.8f), 0.9f, 0.3f, tile: 2);
-                foam.Tint = new Vector3(1.5f, 1.55f, 1.6f);
-                for (double f = s; f < s + 20; f += 2.5)
-                {
-                    if (Noise((float)(f * 0.11), sh.Side * 3.1f) < 0.45f)
-                        continue;
-                    Vector3 Surf(double at, double out_)
-                    {
-                        var t = line.Sample(Math.Clamp(at, 0, line.Length));
-                        var r = Double3.Cross(t.Tangent, Double3.Up).Normalized * sh.Side;
-                        return (new Double3(t.Position.X, sh.LevelM + 0.06, t.Position.Z) + r * (p.Terrain.ShoreEdge(sh, at) + out_)).RelativeTo(eye);
-                    }
-                    var q0 = Surf(f, 0.5);
-                    var q1 = Surf(f, 2.2);
-                    var q2 = Surf(f + 2.3, 2.4);
-                    var q3 = Surf(f + 2.3, 0.4);
-                    foam.Quad(q0, q1, q2, q3, new Vector2(q0.X, q0.Z), new Vector2(q1.X, q1.Z), new Vector2(q2.X, q2.Z), new Vector2(q3.X, q3.Z), twoSided: true);
-                }
-            }
-        }
+        // The shore's surf is the water's own lap now (scene.frag, note 424). Its sheds, wharves, lighthouses, ledges and
+        // boulders are the sim's (note 389), drawn with the rest of the lineside.
         // What people left, and what the ice left (biomes.json props): the sim's too (note 389), drawn with the rest above.
     }
 
@@ -1041,174 +1045,7 @@ public sealed partial class WorldArt
         return k.Build($"brass-{variant}");
     }
 
-    // ------------------------------------------------------------------ water
-
-    /// <summary>§12.4's water: a river's flat surface where it runs under its bridge, a marsh's standing water off the bed.</summary>
-    void Water(MeshBuilder mesh, PlanScene p, Double3 eye, float drawDistance)
-    {
-        var k = new Kit(_look, mesh) { SurfaceOrigin = new Vector3(W(eye.X), W(eye.Y), W(eye.Z)), Baked = 0 };
-        k.Use(_look?.Layer("water_dark") >= 0 ? "water_dark" : "tar", new Vector3(0.05f, 0.06f, 0.07f), 0.05f, 0.9f, tile: 29);
-        k.Tint = new Vector3(0.35f, 0.4f, 0.45f);
-        // The water's colour (maritime-rules.md §2-5): the upland lakes and rivers tea-dark with tannin, the sea slate,
-        // Fundy's tidal water red-brown with the mud it carries.
-        var peat = new Vector3(1.2f, 0.95f, 0.7f);
-        var slate = new Vector3(0.85f, 1.0f, 1.1f);
-        var mud = new Vector3(2.2f, 1.3f, 0.9f);
-        foreach (var w in p.Plan.Water)
-        {
-            var line = p.EdgeLine(w.Edge);
-            var mid = line.Sample(Math.Clamp((w.S0 + w.S1) / 2, 0, line.Length));
-            if ((mid.Position - eye).Length > drawDistance + 150)
-                continue;
-            // The tar ponds (biomes.json contaminatedMarsh, GDD §30): not water. Black pitch, glossy as a mirror,
-            // an oil film's colours on it and its slow bubbles: a marsh you'd not wade.
-            bool tar = w.Type == "contaminatedMarsh" || p.BiomeAt((w.S0 + w.S1) / 2) == "contaminatedMarsh";
-            if (tar)
-                k.Use(_look?.Layer("tar") >= 0 ? "tar" : "water_dark", new Vector3(0.02f, 0.02f, 0.02f), PitchWear, 0.55f, tile: 9).Shade(0.3f);
-            else
-                k.Tint = w.Type == "tidal" ? mud : w.Type == "river" ? peat : new Vector3(0.9f, 0.95f, 0.9f);
-            bool river = w.Type is "river" or "tidal";
-            // A river runs across under the span and on down its valley either way into the far land (note 138); a marsh
-            // lies beside the bed.
-            double reach = river ? 1200 : 90, inner = river ? -1200 : 5;
-            for (double s = w.S0; s < w.S1; s += 10)
-            {
-                double s1 = Math.Min(s + 10, w.S1);
-                var a = line.Sample(s);
-                var b = line.Sample(s1);
-                var ra = Double3.Cross(a.Tangent, Double3.Up).Normalized;
-                var rb = Double3.Cross(b.Tangent, Double3.Up).Normalized;
-                foreach (int side in river ? new[] { 1 } : new[] { -1, 1 })
-                {
-                    Vector3 P(TrackSample t, Double3 r, double l) => (new Double3(t.Position.X, w.LevelM, t.Position.Z) + r * (side * l)).RelativeTo(eye);
-                    var q0 = P(a, ra, inner);
-                    var q1 = P(a, ra, reach);
-                    var q2 = P(b, rb, reach);
-                    var q3 = P(b, rb, inner);
-                    k.Quad(q0, q1, q2, q3, new Vector2(q0.X, q0.Z), new Vector2(q1.X, q1.Z), new Vector2(q2.X, q2.Z), new Vector2(q3.X, q3.Z), twoSided: true);
-                    if (tar)
-                        TarFilm(k, a, ra, side, w.LevelM, s, eye);
-                }
-            }
-            if (tar)
-                k.Use(_look?.Layer("water_dark") >= 0 ? "water_dark" : "tar", new Vector3(0.05f, 0.06f, 0.07f), 0.05f, 0.9f, tile: 29);
-        }
-        // Lakes: a disc a little past the shore at the water's level; the land's own shore hides what's outside it.
-        k.Tint = peat;
-        foreach (var lake in p.Plan.Lakes)
-        {
-            var c = new Double3(lake.X, lake.LevelM, lake.Z);
-            double reach = lake.RadiusM * lake.Stretch * (1 + lake.Wobble);
-            if ((c - eye).Length > drawDistance + reach)
-                continue;
-            const int n = 40;
-            var centre = c.RelativeTo(eye);
-            // A lake in the tar ponds' country is one of them: pitch, not peat water.
-            var near = p.Terrain.Nearby(lake.X, lake.Z, 700).Where(q => q.Edge == 0).OrderBy(q => Math.Abs(q.Lateral)).FirstOrDefault();
-            bool tar = p.BiomeAt(near.S) == "contaminatedMarsh";
-            if (tar)
-                k.Use(_look?.Layer("tar") >= 0 ? "tar" : "water_dark", new Vector3(0.02f, 0.02f, 0.02f), PitchWear, 0.55f, tile: 9).Shade(0.3f);
-            Vector3 Rim(int i)
-            {
-                double a = i * Math.Tau / n, u = Math.Cos(a) * lake.RadiusM * lake.Stretch, v = Math.Sin(a) * lake.RadiusM;
-                double grow = 1 + lake.Wobble * 1.1 + 0.08;
-                return new Double3(lake.X + (u * lake.Cos - v * lake.Sin) * grow, lake.LevelM, lake.Z + (u * lake.Sin + v * lake.Cos) * grow).RelativeTo(eye);
-            }
-            for (int i = 0; i < n; i++)
-            {
-                var a = Rim(i);
-                var b = Rim(i + 1);
-                k.Quad(centre, a, b, centre, new Vector2(centre.X, centre.Z), new Vector2(a.X, a.Z), new Vector2(b.X, b.Z), new Vector2(centre.X, centre.Z), twoSided: true);
-            }
-            if (tar)
-            {
-                var sheen = k.Tint;
-                var rng = new Random(lake.Id.GetHashCode(StringComparison.Ordinal) & 0xffff);
-                for (int i = 0; i < 6; i++)
-                {
-                    double a = rng.NextDouble() * Math.Tau, d = Math.Sqrt(rng.NextDouble()) * lake.RadiusM * 0.8;
-                    var at = new Double3(lake.X + Math.Cos(a) * d, lake.LevelM, lake.Z + Math.Sin(a) * d);
-                    TarSpot(k, at, rng, eye);
-                }
-                k.Tint = sheen;
-                k.Use(_look?.Layer("water_dark") >= 0 ? "water_dark" : "tar", new Vector3(0.05f, 0.06f, 0.07f), 0.05f, 0.9f, tile: 29);
-                k.Tint = peat;
-            }
-        }
-        // Shores: the sea from just inside the water's edge out into the fog, along the shore and past its tapered ends.
-        foreach (var sh in p.Plan.Shores)
-        {
-            var line = p.EdgeLine(sh.Edge);
-            double taper = p.Plan.Rules.Terrain.Shore.TaperM;
-            var tint = sh.Kind == ShoreKind.Sea ? slate : sh.Kind == ShoreKind.River ? peat : mud;
-            k.Tint = tint;
-            // Where it runs through the tar ponds' country the shore's water is pitch out into the fog, filmed and blistered.
-            bool pitch = false;
-            void Pitch(double s)
-            {
-                bool tar = p.BiomeAt(Math.Clamp(s, 0, line.Length)) == "contaminatedMarsh";
-                if (tar == pitch)
-                    return;
-                pitch = tar;
-                if (tar)
-                    k.Use(_look?.Layer("tar") >= 0 ? "tar" : "water_dark", new Vector3(0.02f, 0.02f, 0.02f), PitchWear, 0.55f, tile: 9).Shade(0.3f);
-                else
-                {
-                    k.Use(_look?.Layer("water_dark") >= 0 ? "water_dark" : "tar", new Vector3(0.05f, 0.06f, 0.07f), 0.05f, 0.9f, tile: 29);
-                    k.Tint = tint;
-                }
-            }
-            if (sh.Kind == ShoreKind.River)
-            {
-                // A river: a ribbon between its banks, falling with the rail, along its meander.
-                for (double s = sh.S0 - taper * 0.5; s < sh.S1 + taper * 0.5; s += 10)
-                {
-                    double s1 = Math.Min(s + 10, sh.S1 + taper * 0.5);
-                    var a = line.Sample(Math.Clamp(s, 0, line.Length));
-                    var b = line.Sample(Math.Clamp(s1, 0, line.Length));
-                    if ((a.Position - eye).Length > drawDistance + 200)
-                        continue;
-                    var ra = Double3.Cross(a.Tangent, Double3.Up).Normalized * sh.Side;
-                    var rb = Double3.Cross(b.Tangent, Double3.Up).Normalized * sh.Side;
-                    double da = p.Terrain.ShoreEdge(sh, s), db = p.Terrain.ShoreEdge(sh, s1);
-                    Vector3 R(TrackSample t, Double3 r, double l) => (new Double3(t.Position.X, t.Position.Y - sh.LevelM, t.Position.Z) + r * l).RelativeTo(eye);
-                    var q0 = R(a, ra, da - 4);
-                    var q1 = R(a, ra, da + sh.FlatM + 4);
-                    var q2 = R(b, rb, db + sh.FlatM + 4);
-                    var q3 = R(b, rb, db - 4);
-                    Pitch(s);
-                    k.Quad(q0, q1, q2, q3, new Vector2(q0.X, q0.Z), new Vector2(q1.X, q1.Z), new Vector2(q2.X, q2.Z), new Vector2(q3.X, q3.Z), twoSided: true);
-                }
-                continue;
-            }
-            for (double s = sh.S0 - taper; s < sh.S1 + taper; s += 20)
-            {
-                double s1 = Math.Min(s + 20, sh.S1 + taper);
-                var a = line.Sample(Math.Clamp(s, 0, line.Length));
-                var b = line.Sample(Math.Clamp(s1, 0, line.Length));
-                if ((a.Position - eye).Length > drawDistance + 1500)
-                    continue;
-                var ra = Double3.Cross(a.Tangent, Double3.Up).Normalized * sh.Side;
-                var rb = Double3.Cross(b.Tangent, Double3.Up).Normalized * sh.Side;
-                double inner = Math.Max(sh.NearM * 0.5, 12);
-                Vector3 P(TrackSample t, Double3 r, double l) => (new Double3(t.Position.X, sh.LevelM, t.Position.Z) + r * l).RelativeTo(eye);
-                Pitch(s);
-                if (pitch && (a.Position - eye).Length < drawDistance)
-                    for (int i = 0; i < 2; i++)
-                        TarFilm(k, a, ra, 1, sh.LevelM, s + i * 10, eye);
-                foreach (var (l0, l1) in new[] { (inner, 300.0), (300.0, 1500.0) })
-                {
-                    var q0 = P(a, ra, l0);
-                    var q1 = P(a, ra, l1);
-                    var q2 = P(b, rb, l1);
-                    var q3 = P(b, rb, l0);
-                    k.Quad(q0, q1, q2, q3, new Vector2(q0.X, q0.Z), new Vector2(q1.X, q1.Z), new Vector2(q2.X, q2.Z), new Vector2(q3.X, q3.Z), twoSided: true);
-                }
-            }
-            if (pitch)
-                k.Use(_look?.Layer("water_dark") >= 0 ? "water_dark" : "tar", new Vector3(0.05f, 0.06f, 0.07f), 0.05f, 0.9f, tile: 29);
-        }
-    }
+    // ------------------------------------------------------------------ water (WorldArt.Water.cs)
 
     /// <summary>Tar's wear: the band below 0.015 scene.frag reads as pitch, which no frost rimes.</summary>
     const float PitchWear = 0.01f;
