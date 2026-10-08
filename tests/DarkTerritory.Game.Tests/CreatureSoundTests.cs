@@ -147,6 +147,47 @@ public class CreatureSoundTests
     }
 
     [Fact]
+    public void AGrumblerIsHeardHealingALoneBlowLouderTheFurtherDownItIs()
+    {
+        // App. A.8 ("heals if only one player has hit it"; note 494, E1's #224 shows it): its health climbing back after a
+        // lone blow (enemies.json grumbler: 6, at 1.5 a second) is its healing, held, louder the further down it is; back
+        // at full, it stops. A gang's blows, which it doesn't heal, are never heard healing.
+        using var scene = new Scene(1, "cs-grumbler.hit", "cs-grumbler.heal~");
+        var shape = scene.Train.Frames[2].Shape;
+        var inside = new Double3(0, shape.Interior!.Value.Min.Y, 0);
+        Grumbler At(double health) => Record(new Grumbler(66), SpinePhase.Telegraph, 1, health, 2, inside);
+        float? Level() => scene.Audio.Mixer.Voices.FirstOrDefault(v => v.Name == "cs-grumbler.heal" && !v.Stopped)?.Volume;
+        scene.Tick(At(6));
+        Assert.Equal(["cs-grumbler.hit"], scene.Tick(At(2)));
+        Assert.False(scene.Playing("cs-grumbler.heal"));
+        double health = 2;
+        var heard = new List<string>();
+        float? deep = null, shallow = null;
+        while (health < 6)
+        {
+            health = Math.Min(6, health + 1.5 * SimConstants.TickSeconds);
+            heard.AddRange(scene.Tick(At(health)));
+            Assert.True(scene.Playing("cs-grumbler.heal"));
+            if (health < 2.5)
+                deep ??= Level();
+            if (health > 5.5)
+                shallow ??= Level();
+        }
+        Assert.Equal(1, heard.Count(h => h == "cs-grumbler.heal"));
+        Assert.True(deep > shallow, $"healing from 2 of 6 at {deep}, from 5.5 at {shallow}");
+        for (int i = 0; i < 30; i++)
+            scene.Tick(At(6));
+        Assert.False(scene.Playing("cs-grumbler.heal"));
+        // Ganged: knocked down and it stays down. Nothing heals.
+        heard.Clear();
+        for (double h = 6; h > 0.5; h -= 1.5)
+            for (int i = 0; i < 15; i++)
+                heard.AddRange(scene.Tick(At(h)));
+        Assert.DoesNotContain("cs-grumbler.heal", heard);
+        Assert.False(scene.Playing("cs-grumbler.heal"));
+    }
+
+    [Fact]
     public void TheWhistlerRunsWithItsVictimThenNestsAndIsHeardDying()
     {
         using var scene = new Scene(3, "cs-whistler.snatch", "cs-whistler.run~", "cs-whistler.nest~", "cs-whistler.hit", "cs-whistler.death");
