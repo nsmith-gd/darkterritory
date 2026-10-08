@@ -9,13 +9,18 @@ director to overrule. Numbers are a first pass in the roster's units (player hea
 
 **As built** (`dt screenshot --view hotboxbug|hotboxout`, `--hotboxbug knock|glow|seized|unfolded|snap|prised`; `dt art
 clip hotbox <clip>`): tools/blender/hotbox.py, its colour and its belly's glow baked by tools/models/recipes/hotbox.py; drawn
-by Art/CreatureArt.Train.cs. The swollen segmented belly, the head and the legs' roots are one fused skin; the domed,
-lumped, shingled plates, the legs and the mandibles over it. In its truck it's rolled on its side, its back out, the belly
-dull while it knocks (once a wheel turn), bright and smoking while it glows, white-hot seized (the seized car's wheel
-dragging in sparks); at a stand it unfolds out onto the ballast, snaps on the sim's beat, and prised, flips out and runs.
+by Art/CreatureArt.Train.cs. Three masses: a low broad dome of shingled plates (purple-brown, lumped and crusted, each
+plate's back edge curled into a lip, ridges curling back over the front shield) wider than the body and overhanging it
+all round; under its rim the swollen segmented belly, glowing, seen as bands between the rim and the ground; and eight
+thick black legs a side splayed out from under the rim all round, each with a long hooked claw in the ground. The belly,
+the head and the legs' roots are one fused skin; the plates, legs and mandibles are hard parts over it. 7,786 triangles,
+45 bones. In its truck it's rolled on its side, its back out, the belly dull while it knocks (once a wheel turn), bright
+and smoking while it glows, white-hot seized (the seized car's wheel dragging in sparks); at a stand it unfolds half out
+onto the ballast (its glow lighting its legs from under the dome), snaps on the sim's beat, and prised, flips out and
+runs.
 
-![Glowing in its truck](hotbox-glow.png)
-![Out on the ballast at a stand](hotbox-out.png)
+![Glowing, half out of its truck onto the ballast](hotbox-glow.png)
+![Glowing in its truck, between the wheels](hotbox-truck.png)
 ![A close look](hotbox-closeup.png)
 
 > **Something in the running gear is eating the grease. Listen for the knock, find the wheel, stop the train.**

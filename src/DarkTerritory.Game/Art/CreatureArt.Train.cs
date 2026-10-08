@@ -348,7 +348,8 @@ public sealed partial class CreatureArt
         // Its heat lights the wheels and the ballast round it; glowing and seized it smokes there, the hot box's own smoke
         // (Effects.HotBoxSmoke), laid back by the train's going.
         var (r, u, b) = Basis(model);
-        var at3 = placed.Translation + r * 0.12f;
+        // (In its truck, at the axle box; out of it, down under its dome on the ballast, where it lights its own legs.)
+        var at3 = mode is HotboxMode.Unfolded or HotboxMode.Prised ? placed.Translation + r * 0.3f - u * 0.35f : placed.Translation + r * 0.12f;
         mesh.PointLights.Add(new PointLight(at3, Palette.FurnaceOrange * (0.35f + 0.35f * glow), 1.6f + 0.7f * glow));
         if (mode is HotboxMode.Glow or HotboxMode.Seized)
             _fx.HotBoxSmoke(mesh, at3 + u * 0.15f, u, b, mode == HotboxMode.Seized ? 1f : 0.6f, TrainSpeed, t, 367 + (int)seed);

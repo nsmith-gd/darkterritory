@@ -179,7 +179,7 @@ public static partial class Staging
             "knotter" => Camera.LookAt(frame.ToWorld(new Double3(1.3, roof + 1.5, l + gap + 0.2)), frame.ToWorld(new Double3(g.PlateX, g.CouplerHeight, l + gap * 0.5)), 52),
             "knotterslip" => Camera.LookAt(frame.ToWorld(new Double3(w + 2.2, 2.3, l + gap * 0.5 + 1.9)), frame.ToWorld(new Double3(g.PlateX, g.CouplerHeight + 0.2, l + gap * 0.4)), 58),
             "hotboxbug" => Camera.LookAt(frame.ToWorld(new Double3(w + 2.4, 0.9, truck + 2.6)), frame.ToWorld(new Double3(w - t.Inboard, t.AxleHeight, truck)), 50),
-            _ => Camera.LookAt(frame.ToWorld(new Double3(w + 1.5, 0.35, truck - 1.0)), frame.ToWorld(new Double3(w - 0.1, -0.1, truck - 0.15)), 55),
+            _ => Camera.LookAt(frame.ToWorld(new Double3(w + 1.9, 0.35, truck - 1.0)), frame.ToWorld(new Double3(w - 0.1, -0.15, truck - 0.3)), 45),
         };
     }
 }

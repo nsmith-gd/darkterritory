@@ -54,8 +54,8 @@ def ridged(p, seed, scale):
 
 def casting(p, n):
     # A rough casting: ridges running over it, pitted all over, blistered with flash.
-    d = 0.003 * (ridged(p, 3711, 9.0) ** 4) - 0.0022 * smooth01(0.55, 0.85, cook.noise_np(p, 3712, 45.0) * 0.5 + 0.5)
-    d += 0.0016 * smooth01(0.7, 0.95, cook.noise_np(p, 3713, 16.0) * 0.5 + 0.5)
+    d = 0.005 * (ridged(p, 3711, 9.0) ** 4) - 0.004 * smooth01(0.55, 0.85, cook.noise_np(p, 3712, 60.0) * 0.5 + 0.5)
+    d += 0.003 * smooth01(0.6, 0.95, cook.noise_np(p, 3713, 16.0) * 0.5 + 0.5) + 0.0015 * cook.noise_np(p, 3715, 30.0)
     return d + fine(p, 0.0004, 220, 3714)
 
 
@@ -93,15 +93,16 @@ rough = np.full((S, S), 0.5, np.float32)
 emit = np.zeros((S, S, 3), np.float32)
 up = N[..., 2]
 
-# The plates: scorched purple-brown and black, heat-blued in streaks, the ridges rubbed to a rusty orange, the seams black
-# with soot and grease.
+# The plates: scorched purple-brown, crusted black in patches, heat-blued here and there, the raised lumps rubbed paler,
+# the pits and seams black with soot and grease.
 plate = t.is_("hotbox_plate")
-base[plate] = np.array((0.15, 0.085, 0.11), np.float32) * (0.75 + 0.5 * t.noise(3741, 5.0))[plate][:, None]
-base = paint(base, (0.035, 0.022, 0.03), plate * smooth01(0.35, 0.8, t.noise(3742, 7.0) * 0.5 + 0.5) * 0.7)
-base = paint(base, (0.06, 0.06, 0.12), plate * smooth01(0.6, 0.9, t.noise(3743, 3.0) * 0.5 + 0.5) * 0.45)
+base[plate] = np.array((0.095, 0.05, 0.065), np.float32) * (0.75 + 0.5 * t.noise(3741, 5.0))[plate][:, None]
+base = paint(base, (0.03, 0.02, 0.026), plate * smooth01(0.4, 0.8, t.noise(3742, 14.0) * 0.5 + 0.5) * 0.75)
+base = paint(base, (0.06, 0.06, 0.12), plate * smooth01(0.65, 0.9, t.noise(3743, 3.0) * 0.5 + 0.5) * 0.35)
 rid = t.field(lambda q: ridged(q, 3711, 9.0) ** 4)
-base = paint(base, (0.26, 0.15, 0.13), plate * smooth01(0.4, 0.95, rid) * 0.55)
-base = paint(base, (0.16, 0.1, 0.12), plate * smooth01(0.7, 0.95, t.noise(3713, 16.0) * 0.5 + 0.5) * 0.4)
+base = paint(base, (0.22, 0.13, 0.12), plate * smooth01(0.6, 0.95, rid) * 0.2)
+base = paint(base, (0.2, 0.12, 0.1), plate * smooth01(0.6, 0.95, t.noise(3713, 16.0) * 0.5 + 0.5) * 0.4)
+base = paint(base, (0.02, 0.012, 0.015), plate * smooth01(0.6, 0.85, t.noise(3712, 60.0) * 0.5 + 0.5) * 0.5)
 rough[plate] = 0.55
 # The abdomen: glossy, a deep red-orange under its stretched skin, darker in its creases and underneath; its glow brightest
 # in the middle of each segment.

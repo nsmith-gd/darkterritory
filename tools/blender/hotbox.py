@@ -1,17 +1,20 @@
 """HOTBOX (GDD §21 structural, App. A.4 · vibration; docs/design/creatures/hotbox.md §3; ARCHITECTURE §8 note 367): an
 axle parasite that feeds on the train's heat.
 
-A horseshoe crab's carapace (a low dome of overlapping armour plates, scorched purple-brown and black, ridged and pitted
-like a casting), a centipede's many legs down both sides ending in hooked black claws, and between and under the plates a
-heat-swollen abdomen: segmented, glossy, lit orange-red from inside, the brightest thing on it. Greasy machinery in its
-make: plates like brake shoes, joints like rivets. A short blunt head under the front plate with mandibles. About 1.1 m
-long and 0.4 m high: folded into a truck, its plates read as part of the bogie until it glows.
+Three masses. On top, a horseshoe crab's carapace: low, broad and domed, wider than the body under it, its rim flared
+out level and overhanging it all round; overlapping armour plates (scorched purple-brown and black, lumped, ridged and
+pitted like a casting, each one's back edge curled into a lip over the next). Under the rim, between it and the ground, a
+heat-swollen abdomen seen as fat glossy bands, segmented and pinched, lit orange-red from inside: the glow is under the
+dome, not on it. And all round the edge, splayed out from under the rim, eight thick black jointed legs a side, each
+ending in a long hooked claw down in the ground. A short blunt head under the front plate with mandibles. Greasy
+machinery in its make: plates like brake shoes, joints like rivets. The carapace about 1.1 m long and the whole 0.4 m
+high: folded into a truck, its plates read as part of the bogie until it glows.
 
 How it's made (the Look Review: organic, not boxes; the Gannet's and the Ribbit's way, notes 340, 362): the soft body is one
 skin (tools/blender/flesh.py): the abdomen's swollen segments, pinched between, the head and its mouthparts' roots, and
 each leg's root, smooth-blended into one surface and QuadriFlowed. Over it, hard: the carapace's plates (each a thick
-domed shell, its rim knobbed, its keel ridged, the front shield a horseshoe with two pits for eyes), the legs (three joints
-each, black, a hooked claw at the end), the mandibles. The abdomen's glow is an emission map (tools/models/recipes/hotbox.py
+shell on one dome, its rim ragged, its back edge lipped, the front shield a horseshoe with ridges curling back over it), the
+legs (two joints each and a claw, black), the mandibles. The abdomen's glow is an emission map (tools/models/recipes/hotbox.py
 bakes it), scaled by the engine by what it's doing. Its colour is baked into one atlas by that recipe; built alone (this
 script), it wears the shared tiling textures.
 
@@ -127,7 +130,7 @@ def skeleton():
 sk = skeleton()
 sk.build()
 kit = rig.Kit(sk, "hotbox")
-SKIN_FACES = 1300
+SKIN_FACES = 1150
 
 # Built alone, each region wears the shared tiling texture its name starts with; baked (tools/models/recipes/hotbox.py),
 # the names say what to paint: the scorched plates, the glowing belly, the black legs and claws, the head's chitin.
@@ -186,7 +189,7 @@ for side, sx in (("r", 1), ("l", -1)):
 plates = kit.part("plates")
 
 
-def shell(part, y0, y1, thick, mat, bone, nu, nv, lift=0.05, exposed_from=0.4, seed=0):
+def shell(part, y0, y1, thick, mat, bone, nu, nv, lift=0.05, exposed_from=0.4, seed=0, swirls=False):
     """One plate of the dome from y0 (its front) to y1 (its back), across the whole width there: its outer face lumped
     where it's seen (past `exposed_from` along it: in front of that it's under the plate before), its back edge lifted
     `lift` proud of the dome so it overlaps the next; its underside and its edge hard."""
@@ -199,8 +202,8 @@ def shell(part, y0, y1, thick, mat, bone, nu, nv, lift=0.05, exposed_from=0.4, s
         seen = smooth01(exposed_from, exposed_from + 0.25, u) if exposed_from > 0 else 1.0
         rho = min(1.0, abs(v))
         # Its own lumps and ridges where it's seen: raised whorls like overlapping smaller plates, sunk pits between.
-        ridge = (1 - abs(noise3(Vector((x * 6, y * 6, seed * 1.3)), 3672, 1.0))) ** 3
-        z += seen * (0.026 * ridge + 0.012 * noise3(Vector((x * 11, y * 11, seed)), 3673, 1.0)) * (1 - rho ** 4)
+        ridge = (1 - abs(noise3(Vector((x * 8, y * 8, seed * 1.3)), 3672, 1.0))) ** 4
+        z += seen * (0.045 * ridge + 0.014 * noise3(Vector((x * 11, y * 11, seed)), 3673, 1.0)) * (1 - rho ** 4)
         # Its rim turned down a little at the very edge, so it overhangs.
         z -= 0.015 * smooth01(0.82, 1.0, rho) ** 2
         if inner:
@@ -224,14 +227,25 @@ def shell(part, y0, y1, thick, mat, bone, nu, nv, lift=0.05, exposed_from=0.4, s
         q = [outer[a[0]][a[1]], outer[b[0]][b[1]], inner[b[0]][b[1]], inner[a[0]][a[1]]]
         part.face(q, [uvs_at(part.v[k]) for k in q], mat, False, outward=c)
 
+    def ridge(pts, r):
+        n = len(pts)
+        radii = [r * (0.75 + 0.5 * h01(i, seed, 5)) * (0.4 if i in (0, n - 1) else 1.0) for i in range(n)]
+        part.tube(pts, radii, 4, mat, bone, ref=(0, 0, 1), smooth=False)
+    # Its back edge curled over into a thick lip (where it lies over the next it stands proud of it, as a scale's does).
+    ridge([at(1.0, v) + Vector((0, 0.004 if y1 > y0 else -0.004, 0.004)) for v in [-0.9 + 1.8 * i / 11 for i in range(12)]], 0.013)
+    if swirls:
+        # Raised ridges curling back from the front over each side, as if smaller plates had grown over it.
+        for sv in (1, -1):
+            ridge([at(u, sv * (0.1 + 0.6 * u ** 0.8)) + Vector((0, 0, 0.004)) for u in [0.1 + 0.78 * i / 9 for i in range(10)]], 0.012)
+
 
 # The front shield: the horseshoe front of the dome, over the head (the mandibles showing under its front edge).
-shell(plates, YC + HALF_L - 0.005, -0.04, 0.024, PLATE, "shield", nu=12, nv=17, lift=0.05, exposed_from=0.0, seed=1)
+shell(plates, YC + HALF_L - 0.005, -0.04, 0.024, PLATE, "shield", nu=12, nv=17, lift=0.065, exposed_from=0.0, seed=1, swirls=True)
 # Four plates behind it, each tucked under the one before, the last the dome's back.
 for k in range(4):
     y0 = PLATE_Y[k]
     y1 = max(y0 - PLATE_LEN, YC - HALF_L + 0.005)
-    shell(plates, y0, y1, 0.022, PLATE, f"plate_{k + 1}", nu=7, nv=15, lift=0.05 if k < 3 else 0.0, seed=2 + k)
+    shell(plates, y0, y1, 0.022, PLATE, f"plate_{k + 1}", nu=7, nv=15, lift=0.065 if k < 3 else 0.0, seed=2 + k)
 
 # ----------------------------------------------------------------------------------------------------------------
 # The legs: eight pairs splayed out from under the rim all round it, black, thick, jointed: a thigh out and up to a knee
