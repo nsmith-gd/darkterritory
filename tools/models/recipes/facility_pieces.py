@@ -16,6 +16,11 @@ so each kind reads by its shape from the line:
     tallest thing for miles, with its own lit window; at the foot the receiving shed and its dark doorway; and the
     loading spout swung down from the gallery to 2.5 m off the track, its sock hanging. Its origin is on the ground at
     the silos' middle, 15 m off the line (StructureKit.Facility).
+  * slaughterhouse (note 393): the killing hall, 44 m along the line and 14 deep, soot-black brick on a stone plinth,
+    piers every 4.4 m, its windows small and high and barred (one lit: something lives here), a clerestory along its
+    slate ridge; two cattle doors at the front either side of the high door the dressing rail comes out of, the rail
+    on an A-frame out over the yard with its hooks hanging; behind, the boiler house, its chimney and a water tank on
+    its tower. Its origin is on the ground at the hall's middle, 22 m off the line, where the kit's hall stood.
 
 Axes (Blender): +Z up, the model's front (-Y, the engine's +Z) toward the line.
 """
@@ -47,6 +52,10 @@ def materials():
         "concrete": make.lib("concrete_stain", 0.25, tint=(0.82, 0.82, 0.8), rough=0.9),
         "streak": make.flat("streak", (0.035, 0.034, 0.03), rough=0.85),
         "clad": make.lib("corrugated_iron", 0.5, tint=(0.62, 0.6, 0.58), rough=0.55, metal=0.3),
+        "stone": make.lib("stone_block", 0.8, tint=(0.62, 0.62, 0.6), rough=0.85),
+        "slate": make.lib("roof_slate", 0.6, tint=(0.8, 0.8, 0.82), rough=0.6),
+        "dark": make.flat("dark", (0.012, 0.011, 0.01), rough=0.9),
+        "gore": make.flat("gore", (0.09, 0.025, 0.018), rough=0.35),
     }
 
 
@@ -331,6 +340,109 @@ def grain_elevator(m):
     return p, []
 
 
+def _prism(p, verts, faces, material, name):
+    """A piece built from its own faces (a gable's triangle), in the high set and, plain, in the game mesh."""
+    mesh = bpy.data.meshes.new(name)
+    mesh.from_pydata(verts, [], faces)
+    mesh.materials.append(material)
+    o = bpy.data.objects.new(name, mesh)
+    bpy.context.scene.collection.objects.link(o)
+    p.append(o)
+    low = o.copy()
+    low.data = mesh.copy()
+    low.name = name + "_low"
+    bpy.context.scene.collection.objects.link(low)
+    make.LOW.append(low)
+
+
+def slaughterhouse(m):
+    p = []
+    L, D, H = 22.0, 7.0, 9.0  # half its length along the line (X), half its depth (Y), the eaves over the ground
+    # The hall: on its stone plinth, brick to a corbelled cornice; a pier at each corner and every 4.4 m between.
+    p.append(make.box((0, 0, 0.35), (L + 0.12, D + 0.12, 0.65), m["stone"], bevel=0.02, name="plinth"))
+    p.append(make.box((0, 0, (1.0 + H) / 2), (L, D, (H - 1.0) / 2), m["brick"], bevel=0.02, name="walls"))
+    p.append(make.box((0, 0, H + 0.2), (L + 0.22, D + 0.22, 0.2), m["brick"], bevel=0.02, name="cornice"))
+    for sx in (-1, 1):
+        for sy in (-1, 1):
+            p.append(make.box((sx * L, sy * D, (1.0 + H) / 2), (0.4, 0.4, (H - 1.0) / 2 + 0.05), m["brick"], bevel=0.02, name="corner"))
+    xs = [-L + 4.4 * k for k in range(1, 10)]
+    for x in xs:
+        for sy in (-1, 1):
+            p.append(make.box((x, sy * (D + 0.12), (1.0 + H) / 2), (0.3, 0.12, (H - 1.0) / 2), m["brick"], bevel=0.01, name="pier", low=False))
+    # The windows: small and high between the piers, barred; the dark of a broken one; one lit.
+    for k, x in enumerate([-L + 2.2 + 4.4 * k for k in range(10)]):
+        for sy in (-1, 1):
+            if sy < 0 and abs(x) < 1.5:
+                continue
+            state = "lit" if (sy, k) == (-1, 2) else "dark" if (k * 7 + (sy > 0)) % 5 == 0 else "glass"
+            y = sy * (D + 0.01)
+            p.append(make.box((x, y, 7.3), (0.45, 0.02, 0.7), m[state], bevel=0, name="window", low=False))
+            p.append(make.box((x, sy * (D + 0.04), 6.55), (0.6, 0.05, 0.06), m["stone"], bevel=0.005, name="sill", low=False))
+            for bx in (-0.3, -0.1, 0.1, 0.3):
+                p.append(make.box((x + bx, sy * (D + 0.05), 7.3), (0.012, 0.012, 0.72), m["rust"], bevel=0, name="bar", low=False))
+            # Rust and soot run down the brick from the sill.
+            p.append(make.box((x + 0.1 * ((k % 3) - 1), sy * (D + 0.015), 5.2), (0.12 + 0.05 * (k % 2), 0.01, 1.3), m["streak"], bevel=0,
+                              name="streak", low=False))
+    # The front (toward the line, -Y): a cattle door each side, their leaves hung open, and between them the high door
+    # the dressing rail comes out of, its iron canopy over it and the dark run down the brick under it.
+    for x in (-10.5, 10.5):
+        p.append(make.box((x, -D - 0.02, 2.75), (1.6, 0.04, 1.75), m["dark"], bevel=0, name="doorway"))
+        p.append(make.box((x, -D - 0.08, 4.62), (1.9, 0.08, 0.12), m["steel"], bevel=0.01, name="lintel"))
+        for side in (-1, 1):
+            hinge = Vector((x + side * 1.6, -D - 0.05, 2.75))
+            leaf = Matrix.Rotation(side * -2.0, 4, "Z")
+            centre = hinge + (leaf.to_3x3() @ Vector((-side * 0.8, 0, 0)))
+            p.append(make.box(centre, (0.8, 0.05, 1.7), m["timber"], bevel=0.01, name="leaf", rot=leaf))
+    p.append(make.box((0, -D - 0.02, 4.3), (1.1, 0.04, 1.4), m["dark"], bevel=0, name="rail_door"))
+    p.append(make.box((0, -D - 0.6, 6.15), (1.6, 0.6, 0.05), m["roof"], bevel=0.01, name="canopy", rot=Matrix.Rotation(0.18, 4, "X")))
+    p.append(make.box((0, -D - 0.015, 1.9), (0.5, 0.01, 1.0), m["gore"], bevel=0, name="run", low=False))
+    p.append(make.box((0.3, -D - 0.016, 2.6), (0.16, 0.01, 0.9), m["gore"], bevel=0, name="run", low=False))
+    # The dressing rail: an iron beam out from the door over the yard on an A-frame, its hooks hanging on their chains.
+    rail_z, out = 4.9, -11.5
+    p.append(make.box((0, (-D + out) / 2, rail_z), (0.06, (out + D) / -2, 0.11), m["steel"], bevel=0.005, name="rail"))
+    for side in (-1, 1):
+        p.append(make.cyl((side * 1.3, out + 0.5, 0), (0, out + 0.5, rail_z + 0.3), 0.07, m["rust"], n=8, bevel=0, name="aframe", low=4))
+    p.append(make.cyl((-0.9, out + 0.5, 1.6), (0.9, out + 0.5, 1.6), 0.05, m["rust"], n=8, bevel=0, name="aframe_tie", low=4))
+    for k in range(5):
+        y = -D - 0.9 - k * 0.8
+        drop = 0.5 + 0.35 * ((k * 3) % 4) / 3
+        p.append(make.cyl((0, y, rail_z - 0.1), (0, y, rail_z - drop), 0.012, m["rust"], n=6, bevel=0, name="chain", low=3))
+        p.append(make.torus((0, y, rail_z - drop - 0.09), (1, 0, 0), 0.08, 0.014, m["steel"], n=10, m=4, name="hook", low=(8, 3)))
+    # The roof: slate both slopes to the ridge, its gables in brick, and a clerestory along the ridge.
+    rise = 3.2
+    pitch = math.atan2(rise, D + 0.22)
+    run = math.hypot(D + 0.6, (D + 0.6) * math.tan(pitch))
+    for sy in (-1, 1):
+        R = Matrix.Rotation(-sy * pitch, 4, "X")
+        centre = Vector((0, sy * (D + 0.6) / 2, H + 0.4 + rise * (0.6 / (D + 0.6)) * -0.5 + rise / 2))
+        p.append(make.box(centre, (L + 0.5, run / 2, 0.08), m["slate"], bevel=0.01, name="roof", rot=R))
+    for sx in (-1, 1):
+        x = sx * (L + 0.05)
+        v = [(x, -D - 0.2, H + 0.4), (x, D + 0.2, H + 0.4), (x, 0, H + 0.4 + rise)]
+        _prism(p, v, [(0, 1, 2) if sx > 0 else (0, 2, 1)], m["brick"], "gable")
+    C0, C1 = H + 0.4 + rise - 1.4, H + 0.4 + rise + 1.3
+    p.append(make.box((0, 0, (C0 + C1) / 2), (L - 5, 1.6, (C1 - C0) / 2), m["clad"], bevel=0.02, name="clerestory"))
+    p.append(make.box((0, 0, C1 + 0.06), (L - 4.8, 1.95, 0.06), m["slate"], bevel=0.01, name="clerestory_roof"))
+    for k in range(int((2 * L - 10) / 1.2)):
+        x = -L + 5.6 + k * 1.2
+        for sy in (-1, 1):
+            p.append(make.box((x, sy * 1.62, C1 - 0.6), (0.45, 0.02, 0.4), m["dark"], bevel=0, name="louvre", low=False))
+    # Behind: the boiler house, its flue into the hall, its chimney; and a water tank on its tower.
+    p.append(make.box((12.0, D + 3.4, 2.6), (4.0, 3.4, 2.6), m["brick"], bevel=0.02, name="boiler_house"))
+    p.append(make.box((12.0, D + 3.4, 5.35), (4.3, 3.7, 0.12), m["roof"], bevel=0.01, name="boiler_roof", rot=Matrix.Rotation(-0.1, 4, "X")))
+    p.append(make.cyl((15.0, D + 4.5, 0), (15.0, D + 4.5, 27.0), 1.1, m["brick"], n=12, bevel=0.01, name="chimney", r1=0.7, low=8))
+    p.append(make.cyl((15.0, D + 4.5, 26.4), (15.0, D + 4.5, 27.2), 0.85, m["brick"], n=12, bevel=0.01, name="chimney_cap", low=8))
+    p.append(make.cyl((9.0, D + 1.0, 4.0), (9.0, D - 0.2, 4.0), 0.3, m["rust"], n=10, bevel=0, name="flue", low=6))
+    tx, ty = -15.0, D + 3.5
+    for sx in (-1, 1):
+        for sy in (-1, 1):
+            p.append(make.cyl((tx + sx * 1.5, ty + sy * 1.5, 0), (tx + sx * 1.2, ty + sy * 1.2, 13.0), 0.1, m["rust"], n=6, bevel=0, name="tank_leg", low=4))
+    p.append(make.cyl((tx, ty, 13.0), (tx, ty, 15.6), 1.7, m["rust"], n=24, bevel=0.02, name="tank", low=10))
+    p.append(make.cyl((tx, ty, 15.6), (tx, ty, 16.1), 1.75, m["roof"], n=24, bevel=0.01, name="tank_lid", r1=0.2, low=10))
+    p.append(make.cyl((tx + 1.0, ty - 1.0, 13.0), (tx + 1.0, ty - 1.0, 1.0), 0.08, m["rust"], n=8, bevel=0, name="tank_main", low=4))
+    return p, []
+
+
 PIECES = {
     "headframe": lambda: build("headframe", headframe, "the mine head's headframe", budget=3500),
     "chem_tank": lambda: build("chem_tank", chem_tank, "a chemical works' storage tank", budget=2500),
@@ -342,6 +454,8 @@ PIECES = {
     "water_tower": lambda: build("water_tower", water_tower, "a water tower", budget=2000),
     # (Its layer at 1024, a hero's: some 4500 m² of concrete and iron would get 13 cm a texel at the props' 512.)
     "grain_elevator": lambda: build("grain_elevator", grain_elevator, "the grain elevator", size=2048, budget=3000, layer=1024),
+    # (Its layer at 1024 too: some 2,000 m² of brick, slate and iron.)
+    "slaughterhouse": lambda: build("slaughterhouse", slaughterhouse, "the slaughterhouse's killing hall", size=2048, budget=3000, layer=1024),
 }
 # tools/models/build.sh builds them all; `blender -b --python facility_pieces.py -- grain_elevator` just the one.
 want = set(cook.args()) or set(PIECES)

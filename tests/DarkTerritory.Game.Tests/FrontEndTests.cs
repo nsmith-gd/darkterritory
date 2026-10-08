@@ -7,6 +7,8 @@ using DarkTerritory.Sim.Run;
 namespace DarkTerritory.Game.Tests;
 
 /// <summary>The front door and the fortress screen (T30): what each choice does, and that it's all saved.</summary>
+// Hud.Keys is the HUD's settings, static: the tests that set it don't run beside the one that compares two builds (note 390).
+[Collection("Hud.Keys")]
 public sealed class FrontEndTests : IDisposable
 {
     static readonly string Content = DataFile.FindContentRoot();
