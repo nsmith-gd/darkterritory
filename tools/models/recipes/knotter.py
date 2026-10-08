@@ -119,15 +119,22 @@ leg = t.is_("knotter_leg")
 base[leg] = (0.56, 0.53, 0.47)
 base = paint(base, (0.18, 0.15, 0.13), leg * smooth01(-0.05, -0.12, P[..., 2]))
 rough[leg] = 0.3
-# The claws: grey, banded at the joints, darkening to black horn at the tips.
+# The claws: grey-white like the rope at their roots, darkening down their length to black horn at the tips (by how near
+# each texel is to its claw's own tip: some curl back along the lay, so not by how far along the lay it is), the knuckle
+# rings a shade darker.
+TIPS = np.array([tuple(v) for v in g["TIPS"]], np.float32)
+claws_part = t.part("claws")
+tip_near = np.full((S, S), 9.0, np.float32)
+idx = np.nonzero(claws_part)
+for tip in TIPS:
+    tip_near[idx] = np.minimum(tip_near[idx], np.linalg.norm(P[idx] - tip, axis=-1))
+base[claws_part] = np.array((0.46, 0.44, 0.4), np.float32) * (0.9 + 0.15 * t.noise(3685, 20.0))[claws_part][:, None]
+base = paint(base, (0.2, 0.19, 0.17), claws_part * smooth01(0.24, 0.1, tip_near) * 0.8)
+base = paint(base, (0.015, 0.013, 0.012), claws_part * smooth01(0.11, 0.05, tip_near))
 claw = t.is_("knotter_claw")
-base[claw] = (0.07, 0.065, 0.06)
-tip_d = np.abs(P[..., 1])
-base = paint(base, (0.012, 0.011, 0.01), claw * smooth01(END + 0.12, END + 0.2, tip_d))
-rough[claw] = 0.25
-claws_part = t.part("claws") & ~claw
-base = paint(base, (0.36, 0.34, 0.31), claws_part * 0.5)
-base = paint(base, (0.12, 0.11, 0.1), claws_part * smooth01(END + 0.08, END + 0.2, tip_d))
+base = paint(base, (0.012, 0.011, 0.01), claw * 0.85)
+rough[claws_part] = 0.3
+rough[claw] = 0.2
 base = np.clip(base, 0, 1)
 ao = atlas.maps["AO"][..., 0]
 base = base * (0.3 + 0.7 * ao)[..., None]
