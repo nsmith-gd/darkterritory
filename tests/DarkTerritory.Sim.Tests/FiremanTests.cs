@@ -109,4 +109,45 @@ public class FiremanTests
             Assert.True((s.Position - cabBox.Centre).Length > Tuning.Enemies.Climbers.Reach);
         }
     }
+
+    [Fact]
+    public void TheHeadlampTheClimberSmashedWaitsTillItsGone()
+    {
+        // Note 301's smashed headlamp is the wrench's, mended from the middle of the cab: with the Climber that smashed it
+        // still in there, the driver keeps to its corner, not across the cab into its reach (a harness night's driver was
+        // taken at km 3 doing it, and the train stood the rest of the night).
+        var cab = new Cab();
+        var cabBox = cab.Train.Frames[0].Shape.Cab!.Value;
+        cab.World.SmashLamp(Tuning.Enemies.Climbers.LampOutSeconds);
+        var climber = cab.World.AddEnemy(id => new Climber(id));
+        climber.Restore(SpinePhase.Commit, 0, Tuning.Enemies.Climbers.Health, 0, cabBox.Centre, 0, 0, 0, -1, 1);
+        // While it's in the cab (it may move on into car 1 after a while), the glass waits.
+        for (int t = 0; t < 20 && climber.Inside && climber.Attached == 0; t++)
+        {
+            cab.Run(1);
+            if (climber.Inside && climber.Attached == 0)
+                Assert.True(Repairs.LampSmashed(cab.Train), $"mended at {t + 1} s with the Climber in the cab");
+        }
+        Assert.True(cab.DriverState.Alive);
+        Assert.Equal(P.Health, cab.DriverState.Health);
+        Assert.True((cab.DriverState.Position - cabBox.Centre).Length > Tuning.Enemies.Climbers.Reach);
+    }
+
+    [Fact]
+    public void TheHeadlampsMendedFromTheFloorNotTheVentsCorner()
+    {
+        // The corner the driver keeps to while a Climber's in the cab is by the vent: Use there is the vent's. With the
+        // Climber gone and the glass to mend, a harness night's driver held the vent open from there with the wrench, the
+        // lamp never mended and the boiler drained to nothing. It steps to the floor behind the fire first.
+        var cab = new Cab(boiler: true);
+        cab.FiremanState = cab.FiremanState with { Death = DeathCause.Climbed, Health = 0 };
+        var box = cab.Train.Frames[0].Shape.Cab!.Value;
+        cab.DriverState.Position = new Ballast.Double3(box.Max.X - 0.4, cab.DriverState.Position.Y, box.Min.Z + 0.9);
+        cab.World.SmashLamp(Tuning.Enemies.Climbers.LampOutSeconds);
+        double pressure = cab.Train.Boiler.Pressure;
+        cab.Run(25);
+        Assert.False(Repairs.LampSmashed(cab.Train));
+        Assert.False(cab.Train.Boiler.Venting);
+        Assert.True(cab.Train.Boiler.Pressure > pressure - 10, $"pressure {pressure:0} to {cab.Train.Boiler.Pressure:0}");
+    }
 }

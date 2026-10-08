@@ -247,7 +247,8 @@ public static class TownKit
         var corners = new List<(double, double)>();
         for (int k = 0; k < o.Runs.Count; k++)
         {
-            if (o.Doors.Contains(k))
+            // (Not by the inner wall's faces: their ends are its doorway. The outside's runs end at it, so its corners are had.)
+            if (o.Doors.Contains(k) || o.Runs[k].Inner)
                 continue;
             var r = o.Runs[k];
             var (nx, ny) = (-r.Normal.X, -r.Normal.Y);
@@ -341,6 +342,23 @@ public static class TownKit
             }
         else if (fx != 0)
             Box(fx * (hx - t / 2), 0, t / 2, door, Lintel, H);
+        // And over the way through to the back room.
+        if (outline?.Partition is { } inner)
+        {
+            var (dx, dy) = inner.Doorway;
+            if (inner.AlongX)
+                Box(dx, dy, door, t / 2, Lintel, H);
+            else
+                Box(dx, dy, t / 2, door, Lintel, H);
+            // Across a plain house it goes up into the gable under the ridge, so the back room's its own in the dark too.
+            if (b.Parts.Count <= 1 && !inner.AlongX)
+            {
+                float px = (float)inner.At, w = (float)b.Width, ridge = H + w * 0.42f;
+                var (l, top, r) = (K(px, -w / 2, H), K(px, 0, ridge), K(px, w / 2, H));
+                k.Tri(l, top, r, new(-w / 2, -H), new(0, -ridge), new(w / 2, -H));
+                k.Tri(r, top, l, new(w / 2, -H), new(0, -ridge), new(-w / 2, -H));
+            }
+        }
         else
             Box(0, fy * (hy - t / 2), door, t / 2, Lintel, H);
 

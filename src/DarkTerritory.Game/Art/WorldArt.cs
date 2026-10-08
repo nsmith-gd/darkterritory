@@ -379,6 +379,14 @@ public sealed partial class WorldArt(Look look)
     /// <summary>A walled departure town's extent (queue #74, note 335): nothing wild grows inside its wall.</summary>
     public Sim.Towns.TownBounds? TownBounds { get; set; }
 
+    /// <summary>
+    /// The fortresses as the sim stands them (<see cref="Sim.Run.Fortresses.Of"/>: the home yard to its gate, the terminus
+    /// from its gate, the town's square and walled extent), for the lineside the sim deals (note 371): nothing of it stands inside.
+    /// </summary>
+    IReadOnlyList<Sim.Run.Fort> Forts(RailLine line) => Walls is { } w
+        ? [new Sim.Run.Fort(0, w.YardEnd, w.YardEnd, true, true, TownSquare, TownBounds), new Sim.Run.Fort(w.HomeGate, line.Length, w.HomeGate, false, true)]
+        : [];
+
     /// <summary>Inside a fortress's walls (<see cref="Walls"/>, which stand 14.8 m out, or a walled town's), with a little room.</summary>
     bool InsideWalls(double along, double offset) =>
         Walls is { } w && Math.Abs(offset) < 16.5 && (along < w.YardEnd + 2 || along > w.HomeGate - 2)
@@ -408,19 +416,22 @@ public sealed partial class WorldArt(Look look)
             return Matrix4x4.CreateScale(scale) * Matrix4x4.CreateRotationY(yaw) * m;
         }
 
-        // Telegraph poles and their wires, sagging between them.
+        // Telegraph poles and their wires, sagging between them. On a generated line where the sim stands them (note 371):
+        // off a stop's sidings and roads, a branch's ground and the water, as they're solid.
+        var lineside = route is null ? null : Sim.Run.LinesideProps.Of(route, line);
+        bool Poled(double s) => lineside?.Pole(s) ?? Clear(s);
         var wire = new Kit(_look, mesh);
         wire.Use("rust_heavy", Palette.SootBlack, 0.2f, 0.2f, tile: 1);
         wire.Shade(0.35f);
         wire.Baked = 0;
         // The wires come in from the last pole before this stretch, if there is one.
         double first = Math.Ceiling(from / 50) * 50;
-        Vector3[]? lastTops = first - 50 >= 0 && Clear(first - 50)
+        Vector3[]? lastTops = first - 50 >= 0 && Poled(first - 50)
             ? WorldKit.Insulators.Select(i => Vector3.Transform(i, Place(first - 50, 4.5, 0, 1))).ToArray()
             : null;
         for (double s = first; s < to; s += 50)
         {
-            if (!Clear(s))
+            if (!Poled(s))
             {
                 lastTops = null;
                 continue;
@@ -467,11 +478,19 @@ public sealed partial class WorldArt(Look look)
                 float g = Gorge(route, along);
                 if (g > 0.3f && Math.Abs(offset) < 45)
                     continue;
+                // Its form and lean (note 395), from a stream of its own so the stands are where they were.
+                var shape = new Random(unchecked(seed * 668265263 ^ (int)(along * 7) ^ (int)(offset * 13) * 374761393));
+                double pick = shape.NextDouble();
+                var form = pick < 0.07 ? NovaKit.TreeForm.Flagged : pick < 0.2 ? NovaKit.TreeForm.Broken : pick < 0.28 ? NovaKit.TreeForm.Forked : NovaKit.TreeForm.Plain;
+                float lean = shape.NextDouble() < 1 / 6.0 ? (float)(4 + 6 * shape.NextDouble()) * MathF.PI / 180 : 0, toward = (float)(shape.NextDouble() * MathF.Tau);
                 // Near the line, the modelled spruce; out in the fog, where it's a silhouette, the crossed cards.
                 var piece = dead ? Piece($"dead-{variant % 2}", () => WorldKit.DeadTree(_look, variant % 2, 10))
-                    : Math.Abs(offset) < NearTrees ? Piece($"pine-{variant}", () => WorldKit.Pine(_look, variant, 12))
+                    : Math.Abs(offset) < NearTrees ? Piece($"pine-{variant}-{form}", () => WorldKit.Pine(_look, variant, 12, form))
                     : Piece($"pinecard-{variant}", () => WorldKit.PineCard(_look, variant, 12));
-                mesh.Append(piece, Place(along, offset, yaw, (dead ? 0.8f : 1) * height / (dead ? 10 : 12), 0.15f), new Vector3(0.85f + 0.3f * (float)rng.NextDouble()));
+                var at = Place(along, offset, yaw, (dead ? 0.8f : 1) * height / (dead ? 10 : 12), 0.15f);
+                if (lean > 0 && !dead)
+                    at = Matrix4x4.CreateRotationZ(lean) * Matrix4x4.CreateRotationY(toward) * at;
+                mesh.Append(piece, at, new Vector3(0.85f + 0.3f * (float)rng.NextDouble()));
             }
         }
 

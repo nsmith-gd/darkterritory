@@ -12,12 +12,36 @@ namespace DarkTerritory.Game.Tests;
 /// written over the hotbar as they're heard, what each is and where, at the gain the mixer heard it at. What a sound is, never
 /// which creature makes it: a reader learns what tiptoeing means as a listener does.
 /// </summary>
+// Hud.Keys is the HUD's settings, static: the tests that set it don't run beside the one that compares two builds (note 390).
+[Collection("Hud.Keys")]
 public class CaptionsTests
 {
     static readonly string Content = DataFile.FindContentRoot();
     static readonly Captions.Data File = Captions.Load(Content);
 
     static readonly Listener North = Listener.At(Double3.Zero, 0);
+
+    [Theory]
+    [InlineData("sign.ribbits")]
+    [InlineData("sign.sootChildren")]
+    [InlineData("sign.whistler")]
+    [InlineData("sign.grumbler")]
+    [InlineData("tell-moose-grazing.chew")]
+    [InlineData("tell-moose-warning.grunt")]
+    [InlineData("tell-moose-square-up.stamp")]
+    [InlineData("tell-moose-charge.hooves")]
+    [InlineData("cs-moose-ram.boom")]
+    [InlineData("tell-gannet-calls.call")]
+    [InlineData("tell-gannet-fold.whistle")]
+    [InlineData("tell-gannet-bank.scream")]
+    [InlineData("lamp-gutter")]
+    [InlineData("state-coupling-loose.knock")]
+    public void TheTellsAndCallsSinceCaptionsAreCaptioned(string sound)
+    {
+        // Note 391: the signs as they play since note 342, the Moose's and the Gannet's tells (notes 334, 384), and the jobs
+        // that call for a hand (notes 346, 356, 385) are heard by name, so a reader is told them too.
+        Assert.NotNull(new Captions(File).CaptionOf(sound));
+    }
 
     [Fact]
     public void EveryCaptionIsASoundThatPlays()

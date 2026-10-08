@@ -22,7 +22,7 @@ dotnet run --project src/DarkTerritory.Cli -- audio render --listener all   # sp
 dotnet run --project src/DarkTerritory.Cli -- screenshot --view roof   # 1280x720 PNG to out/shots/; then Read it to look
 dotnet run --project src/DarkTerritory.Cli -- art show engine          # a kit piece on a turntable; `art check` = every piece vs its triangle budget
 dotnet run --project src/DarkTerritory.Cli -- art clip car_hugger feed   # a creature's clip as a lit contact sheet (--frames n --at x,y,z --dist --yaw)
-dotnet run --project src/DarkTerritory.Cli -- playthrough --route frontier:7 --minutes 20 [--bots 4] [--insist whistler,choir]   # a real night with enemies (solo, or a bot crew working the stops), every encounter photographed as it happens -> out/playthrough (note 200)
+dotnet run --project src/DarkTerritory.Cli -- playthrough --route frontier:7 --minutes 20 [--bots 4] [--insist whistler,choir] [--loot]   # a real night with enemies (solo, or a bot crew working the stops; --loot: the stops' finds, which bots search the villages for, note 326), every encounter photographed as it happens -> out/playthrough (note 200)
 dotnet run --project src/DarkTerritory.Cli -- afoot --route frontier:7 [--seconds 300]   # a crewmate walks a stop's village, the night on: the signs they're shown, spawns and encounters, director.afoot on vs off (note 327)
 dotnet run --project src/DarkTerritory.Cli -- film [--crew 8] [--fps 24] [--speed 20] [--route frontier:7] [--cars 6]   # the whole derailment (first person, replay, the film's cut, the cause card) as the app plays it: frames, the mixer's WAV, an MP4 and a contact sheet -> out/film (ffmpeg: `pip install imageio-ffmpeg`; note 251)
 dotnet run --project src/DarkTerritory.Cli -- art reel [--only gaunt,sheep] [--clips a,b]   # every clip of every model, framed on its own movement: strips + reel.json in out/reel/ (the Look Review's animations)
@@ -34,6 +34,7 @@ python3 tools/models/fetch.py && tools/models/build.sh                # sourced 
 dotnet run --project src/DarkTerritory.Cli -- perf [--only pc|vr] [--views roof,cab]   # frame cost vs tuning/perf.json (90 fps PC, 72 fps VR): CPU phases, GPU passes, counts
 dotnet run --project src/DarkTerritory.Cli -- harness --bots 8 --seconds 300 [--express 21]   # host + bots over lossy loopback; netcode report (--express: a driver that runs hot and takes no stops, note 376)
 dotnet run --project src/DarkTerritory.Cli -- mods pack tools/mods/example      # mods are Thunderstore packages: check one and zip it; `dt mods` lists what's installed
+dotnet run --project src/DarkTerritory.Cli -- credits --write   # after a model, sound pack or library comes in: the credits from the content's provenance, THIRD-PARTY-NOTICES.txt rewritten (note 390)
 dotnet run --project src/DarkTerritory.Cli -- linegen generate --route frontier:7 --cars 6   # a night's line plan + map and profile PNGs; `linegen sweep` for pass rates; `linegen water` its lakes and shores
 XDG_RUNTIME_DIR=/tmp xvfb-run -a dotnet run --project src/DarkTerritory.App -- --route frontier:7 --throttle 1 --quit-after 30 --capture out/shots/app.png   # real window path, headless (--route skips the front end)
 ```

@@ -7,6 +7,8 @@ using DarkTerritory.Sim.Run;
 namespace DarkTerritory.Game.Tests;
 
 /// <summary>The front door and the fortress screen (T30): what each choice does, and that it's all saved.</summary>
+// Hud.Keys is the HUD's settings, static: the tests that set it don't run beside the one that compares two builds (note 390).
+[Collection("Hud.Keys")]
 public sealed class FrontEndTests : IDisposable
 {
     static readonly string Content = DataFile.FindContentRoot();
@@ -47,8 +49,11 @@ public sealed class FrontEndTests : IDisposable
         m.Music = music;
         Choose(m, "CREDITS");
         Assert.Equal(Screen.Credits, m.Screen);
-        Assert.Equal(music.Length + 1, m.Items.Count);
-        foreach (var (t, item) in music.Zip(m.Items))
+        // Under the opera's heading (greyed: the selection starts on the first track), then BACK; no other credits loaded.
+        Assert.Equal(music.Length + 2, m.Items.Count);
+        Assert.False(m.Items[0].Enabled);
+        Assert.Equal(1, m.Selected);
+        foreach (var (t, item) in music.Zip(m.Items.Skip(1)))
         {
             Assert.Contains(t.Work, item.Label);
             Assert.Contains(t.Composer, item.Label);
