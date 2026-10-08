@@ -604,7 +604,15 @@ public static class StructureKit
                 {
                     // Long brick sheds with sawtooth roofs, a tall stack, and the dim glow of a furnace nobody tends. Where the
                     // greybox's block was, 14-30 m out: the yard between it and the spur is the gantry crane's (its far leg
-                    // and the castings' stack stand at 7.5-9 m, facilities.json "crane").
+                    // and the castings' stack stand at 7.5-9 m, facilities.json "crane"). The modelled casting shed where it's
+                    // built (facility_pieces foundry_shed, note 420): its north lights, the furnace's light in its windows
+                    // (an emissive layer), a great doorway at each end of its front so one faces the crane's yard from either
+                    // side of the spur, the cupola through its roof and the stack behind.
+                    if (k.Look is { } built && PropArt.Of(built).Get("foundry_shed") is not null)
+                    {
+                        Piece(k, "foundry_shed", s * 22, 0, Facing(s));
+                        break;
+                    }
                     float x0 = s * 22 - 8, x1 = s * 22 + 8;
                     var (a, b) = (MathF.Min(x0, x1), MathF.Max(x0, x1));
                     k.Use("brick_soot", Palette.RustRed, 0.9f, 0.1f, tile: 1.2f);

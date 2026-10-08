@@ -3543,8 +3543,8 @@
   "picked": "first",
   "candidates": [
    {
-    "label": "Push-off into a jump: boots on a car's tin roof",
-    "key": "boots",
+    "label": "Push-off into a jump: boots on a car's tin roof: the sheet buckling and rattling",
+    "key": "tin",
     "sources": [
      "kenney_impact-sounds:impactPlate_light_000",
      "kenney_impact-sounds:impactPlate_light_001",
@@ -3571,7 +3571,7 @@
    }
   ],
   "takes": 3,
-  "sha": "e6ddd03fe786f0ee"
+  "sha": "d9ee419cf61a6c6f"
  },
  "crew-footsteps/jump/wood": {
   "cue": "crew-footsteps.jump",
@@ -3882,8 +3882,8 @@
   "picked": "first",
   "candidates": [
    {
-    "label": "Landing from a jump or drop: boots on a car's tin roof",
-    "key": "boots",
+    "label": "Landing from a jump or drop: boots on a car's tin roof: the sheet buckling and rattling",
+    "key": "tin",
     "sources": [
      "kenney_impact-sounds:impactPlate_light_000",
      "kenney_impact-sounds:impactPlate_light_001",
@@ -3910,7 +3910,7 @@
    }
   ],
   "takes": 3,
-  "sha": "b32c67d7ba5ce6b1"
+  "sha": "349b5b2d61388c85"
  },
  "crew-footsteps/land/wood": {
   "cue": "crew-footsteps.land",
@@ -4221,8 +4221,8 @@
   "picked": "first",
   "candidates": [
    {
-    "label": "Running: boots on a car's tin roof",
-    "key": "boots",
+    "label": "Running: boots on a car's tin roof: the sheet buckling and rattling",
+    "key": "tin",
     "sources": [
      "kenney_impact-sounds:impactPlate_light_000",
      "kenney_impact-sounds:impactPlate_light_001",
@@ -4249,7 +4249,7 @@
    }
   ],
   "takes": 6,
-  "sha": "35b279aa360d5bb1"
+  "sha": "6ab60fe9a83fbfbc"
  },
  "crew-footsteps/run/wood": {
   "cue": "crew-footsteps.run",
@@ -4560,8 +4560,8 @@
   "picked": "first",
   "candidates": [
    {
-    "label": "Turning or stopping short: boots on a car's tin roof",
-    "key": "boots",
+    "label": "Turning or stopping short: boots on a car's tin roof: the sheet buckling and rattling",
+    "key": "tin",
     "sources": [
      "kenney_impact-sounds:impactPlate_light_000",
      "kenney_impact-sounds:impactPlate_light_001",
@@ -4588,7 +4588,7 @@
    }
   ],
   "takes": 3,
-  "sha": "5c0fd491cc3281cd"
+  "sha": "a5965c13ce8416c0"
  },
  "crew-footsteps/scuff/wood": {
   "cue": "crew-footsteps.scuff",
@@ -4899,8 +4899,8 @@
   "picked": "first",
   "candidates": [
    {
-    "label": "Walking: boots on a car's tin roof",
-    "key": "boots",
+    "label": "Walking: boots on a car's tin roof: the sheet buckling and rattling",
+    "key": "tin",
     "sources": [
      "kenney_impact-sounds:impactPlate_light_000",
      "kenney_impact-sounds:impactPlate_light_001",
@@ -4927,7 +4927,7 @@
    }
   ],
   "takes": 6,
-  "sha": "8f1b4e451422032c"
+  "sha": "3e38882989e91899"
  },
  "crew-footsteps/walk/wood": {
   "cue": "crew-footsteps.walk",
@@ -7623,6 +7623,247 @@
   ],
   "takes": 1,
   "sha": "eeaad2ea31217034"
+ },
+ "crew-search/bench": {
+  "cue": "crew-search.bench",
+  "surface": null,
+  "picked": "first",
+  "candidates": [
+   {
+    "label": "A workbench gone through: tools rattled and set aside, a drawer of nails, a vice's handle",
+    "key": "tools",
+    "sources": [
+     "kenney_impact-sounds:impactMetal_light_000",
+     "kenney_impact-sounds:impactMetal_light_001",
+     "kenney_impact-sounds:impactMetal_light_002",
+     "kenney_impact-sounds:impactMetal_light_003",
+     "kenney_impact-sounds:impactMetal_light_004",
+     "kenney_rpg-audio:metalClick",
+     "sfx_100_v2:misc_09",
+     "kenney_impact-sounds:impactWood_medium_000",
+     "kenney_impact-sounds:impactWood_medium_001",
+     "kenney_impact-sounds:impactWood_medium_002",
+     "kenney_impact-sounds:impactWood_medium_003",
+     "kenney_impact-sounds:impactWood_medium_004",
+     "kenney_rpg-audio:handleCoins",
+     "kenney_rpg-audio:handleCoins2"
+    ],
+    "licence": "CC0"
+   }
+  ],
+  "takes": 3,
+  "sha": "fbcdb30077cf69ea"
+ },
+ "crew-search/boards": {
+  "cue": "crew-search.boards",
+  "surface": null,
+  "picked": "first",
+  "candidates": [
+   {
+    "label": "Floorboards prised up: the bar's bite, the board groaning, the nails squealing out, laid aside",
+    "key": "prise",
+    "sources": [
+     "kenney_rpg-audio:metalClick",
+     "sfx_100_v2:misc_01",
+     "sfx_100_v2:misc_09",
+     "kenney_impact-sounds:impactWood_light_000",
+     "kenney_impact-sounds:impactWood_light_001",
+     "kenney_impact-sounds:impactWood_light_002",
+     "kenney_impact-sounds:impactWood_light_003",
+     "kenney_impact-sounds:impactWood_light_004",
+     "kenney_impact-sounds:impactWood_medium_000",
+     "kenney_impact-sounds:impactWood_medium_001",
+     "kenney_impact-sounds:impactWood_medium_002",
+     "kenney_impact-sounds:impactWood_medium_003",
+     "kenney_impact-sounds:impactWood_medium_004",
+     "kenney_impact-sounds:impactPlank_medium_000",
+     "kenney_impact-sounds:impactPlank_medium_001",
+     "kenney_impact-sounds:impactPlank_medium_002",
+     "kenney_impact-sounds:impactPlank_medium_003",
+     "kenney_impact-sounds:impactPlank_medium_004"
+    ],
+    "licence": "CC0"
+   }
+  ],
+  "takes": 3,
+  "sha": "dcdaebd354f21d28"
+ },
+ "crew-search/cabinet": {
+  "cue": "crew-search.cabinet",
+  "surface": null,
+  "picked": "first",
+  "candidates": [
+   {
+    "label": "A cabinet gone through: a drawer pulled on its runner, oddments rattled, shoved back; another",
+    "key": "drawers",
+    "sources": [
+     "kenney_rpg-audio:handleCoins",
+     "kenney_rpg-audio:handleCoins2",
+     "kenney_rpg-audio:metalClick",
+     "sfx_100_v2:misc_01",
+     "sfx_100_v2:misc_09",
+     "kenney_rpg-audio:bookPlace1",
+     "kenney_rpg-audio:bookPlace2",
+     "kenney_rpg-audio:bookClose",
+     "kenney_impact-sounds:impactWood_light_000",
+     "kenney_impact-sounds:impactWood_light_001",
+     "kenney_impact-sounds:impactWood_light_002",
+     "kenney_impact-sounds:impactWood_light_003",
+     "kenney_impact-sounds:impactWood_light_004",
+     "kenney_rpg-audio:cloth1",
+     "kenney_rpg-audio:cloth2",
+     "kenney_rpg-audio:cloth3",
+     "kenney_rpg-audio:cloth4"
+    ],
+    "licence": "CC0"
+   }
+  ],
+  "takes": 3,
+  "sha": "35d95ff4d2c71523"
+ },
+ "crew-search/cellar": {
+  "cue": "crew-search.cellar",
+  "surface": null,
+  "picked": "first",
+  "candidates": [
+   {
+    "label": "A cellar gone through: the hatch lifted and laid back, the steps down, crates shifted in the stone below",
+    "key": "hatch",
+    "sources": [
+     "kenney_rpg-audio:creak1",
+     "kenney_rpg-audio:creak2",
+     "kenney_rpg-audio:creak3",
+     "kenney_impact-sounds:impactPlank_medium_000",
+     "kenney_impact-sounds:impactPlank_medium_001",
+     "kenney_impact-sounds:impactPlank_medium_002",
+     "kenney_impact-sounds:impactPlank_medium_003",
+     "kenney_impact-sounds:impactPlank_medium_004",
+     "kenney_impact-sounds:footstep_wood_000",
+     "kenney_impact-sounds:footstep_wood_001",
+     "kenney_impact-sounds:footstep_wood_002",
+     "kenney_impact-sounds:footstep_wood_003",
+     "kenney_impact-sounds:footstep_wood_004",
+     "kenney_impact-sounds:impactWood_heavy_000",
+     "kenney_impact-sounds:impactWood_heavy_001",
+     "kenney_impact-sounds:impactWood_heavy_002",
+     "kenney_impact-sounds:impactWood_heavy_003",
+     "kenney_impact-sounds:impactWood_heavy_004",
+     "kenney_impact-sounds:impactGlass_light_000",
+     "kenney_impact-sounds:impactGlass_light_001",
+     "kenney_impact-sounds:impactGlass_light_002",
+     "kenney_impact-sounds:impactGlass_light_003",
+     "kenney_impact-sounds:impactGlass_light_004",
+     "kenney_rpg-audio:cloth1",
+     "kenney_rpg-audio:cloth2",
+     "kenney_rpg-audio:cloth3",
+     "kenney_rpg-audio:cloth4"
+    ],
+    "licence": "CC0"
+   }
+  ],
+  "takes": 3,
+  "sha": "41bfd18bae8e0ad3"
+ },
+ "crew-search/cupboard": {
+  "cue": "crew-search.cupboard",
+  "surface": null,
+  "picked": "first",
+  "candidates": [
+   {
+    "label": "A cupboard gone through: its door pulled open, jars and crockery knocked about, a tin, cloth",
+    "key": "crockery",
+    "sources": [
+     "kenney_rpg-audio:creak1",
+     "kenney_rpg-audio:creak2",
+     "kenney_rpg-audio:creak3",
+     "kenney_impact-sounds:impactGlass_light_000",
+     "kenney_impact-sounds:impactGlass_light_001",
+     "kenney_impact-sounds:impactGlass_light_002",
+     "kenney_impact-sounds:impactGlass_light_003",
+     "kenney_impact-sounds:impactGlass_light_004",
+     "sfx_100_v2:glass_01",
+     "sfx_100_v2:glass_04",
+     "sfx_100_v2:glass_06",
+     "kenney_impact-sounds:impactTin_medium_000",
+     "kenney_impact-sounds:impactTin_medium_001",
+     "kenney_impact-sounds:impactTin_medium_002",
+     "kenney_impact-sounds:impactTin_medium_003",
+     "kenney_impact-sounds:impactTin_medium_004",
+     "kenney_rpg-audio:cloth1",
+     "kenney_rpg-audio:cloth2",
+     "kenney_rpg-audio:cloth3",
+     "kenney_rpg-audio:cloth4",
+     "kenney_rpg-audio:bookPlace1",
+     "kenney_rpg-audio:bookPlace2",
+     "kenney_rpg-audio:bookClose"
+    ],
+    "licence": "CC0"
+   }
+  ],
+  "takes": 3,
+  "sha": "7f2608b5feeee5a3"
+ },
+ "crew-search/found": {
+  "cue": "crew-search.found",
+  "surface": null,
+  "picked": "first",
+  "candidates": [
+   {
+    "label": "The spot gone through: the find lifted out and set down where it was kept",
+    "key": "find",
+    "sources": [
+     "kenney_rpg-audio:cloth1",
+     "kenney_rpg-audio:cloth2",
+     "kenney_rpg-audio:cloth3",
+     "kenney_rpg-audio:cloth4",
+     "kenney_impact-sounds:impactWood_medium_000",
+     "kenney_impact-sounds:impactWood_medium_001",
+     "kenney_impact-sounds:impactWood_medium_002",
+     "kenney_impact-sounds:impactWood_medium_003",
+     "kenney_impact-sounds:impactWood_medium_004",
+     "kenney_impact-sounds:impactTin_medium_000",
+     "kenney_impact-sounds:impactTin_medium_001",
+     "kenney_impact-sounds:impactTin_medium_002",
+     "kenney_impact-sounds:impactTin_medium_003",
+     "kenney_impact-sounds:impactTin_medium_004",
+     "kenney_rpg-audio:handleSmallLeather",
+     "kenney_rpg-audio:handleSmallLeather2",
+     "kenney_rpg-audio:dropLeather"
+    ],
+    "licence": "CC0"
+   }
+  ],
+  "takes": 3,
+  "sha": "2a9d7a3963f36845"
+ },
+ "crew-search/hayloft": {
+  "cue": "crew-search.hayloft",
+  "surface": null,
+  "picked": "first",
+  "candidates": [
+   {
+    "label": "A hayloft gone through: up the ladder's rungs, hay shoved about, a tin of lamp oil knocked",
+    "key": "ladder",
+    "sources": [
+     "kenney_impact-sounds:impactWood_medium_000",
+     "kenney_impact-sounds:impactWood_medium_001",
+     "kenney_impact-sounds:impactWood_medium_002",
+     "kenney_impact-sounds:impactWood_medium_003",
+     "kenney_impact-sounds:impactWood_medium_004",
+     "kenney_rpg-audio:cloth1",
+     "kenney_rpg-audio:cloth3",
+     "sfx_100_v2:misc_02",
+     "kenney_impact-sounds:impactTin_medium_000",
+     "kenney_impact-sounds:impactTin_medium_001",
+     "kenney_impact-sounds:impactTin_medium_002",
+     "kenney_impact-sounds:impactTin_medium_003",
+     "kenney_impact-sounds:impactTin_medium_004"
+    ],
+    "licence": "CC0"
+   }
+  ],
+  "takes": 3,
+  "sha": "bbb0ee3a6417902a"
  },
  "crew-shovel/knock": {
   "cue": "crew-shovel.knock",
@@ -11101,6 +11342,115 @@
   ],
   "takes": 1,
   "sha": "801c41fe26413275"
+ },
+ "place-town/clock": {
+  "cue": "place-town.clock",
+  "surface": null,
+  "picked": "first",
+  "candidates": [
+   {
+    "label": "A clock ticking in a house: a longcase's slow tick-tock in its wooden case",
+    "key": "case",
+    "sources": [
+     "kenney_rpg-audio:metalClick",
+     "sfx_100_v2:misc_01",
+     "kenney_impact-sounds:impactWood_light_000",
+     "kenney_impact-sounds:impactWood_light_001",
+     "kenney_impact-sounds:impactWood_light_002",
+     "kenney_impact-sounds:impactWood_light_003",
+     "kenney_impact-sounds:impactWood_light_004"
+    ],
+    "licence": "CC0"
+   }
+  ],
+  "takes": 1,
+  "sha": "7a9ece34440bc0a2"
+ },
+ "place-town/cough": {
+  "cue": "place-town.cough",
+  "surface": null,
+  "picked": "first",
+  "candidates": [
+   {
+    "label": "A townsperson coughing into their mask: a dry cough, a fit of two or three, a wet one",
+    "key": "mask",
+    "sources": [],
+    "licence": "CC0"
+   }
+  ],
+  "takes": 3,
+  "sha": "03b646f1dad1cb38"
+ },
+ "place-town/fire": {
+  "cue": "place-town.fire",
+  "surface": null,
+  "picked": "first",
+  "candidates": [
+   {
+    "label": "A fire barrel: wood burning in an oil drum, flames lapping out of its mouth, the drum ticking",
+    "key": "drum",
+    "sources": [
+     "kenney_impact-sounds:impactTin_medium_000",
+     "kenney_impact-sounds:impactTin_medium_001",
+     "kenney_impact-sounds:impactTin_medium_002",
+     "kenney_impact-sounds:impactTin_medium_003",
+     "kenney_impact-sounds:impactTin_medium_004",
+     "kenney_rpg-audio:metalClick",
+     "sfx_100_v2:misc_01"
+    ],
+    "licence": "CC0"
+   }
+  ],
+  "takes": 1,
+  "sha": "7476d6fe21017138"
+ },
+ "place-town/murmur": {
+  "cue": "place-town.murmur",
+  "surface": null,
+  "picked": "first",
+  "candidates": [
+   {
+    "label": "Townsfolk talking low among themselves through their masks: three or four voices, no words",
+    "key": "masks",
+    "sources": [],
+    "licence": "CC0"
+   }
+  ],
+  "takes": 1,
+  "sha": "cf9990b58a61fb18"
+ },
+ "place-town/radio": {
+  "cue": "place-town.radio",
+  "surface": null,
+  "picked": "first",
+  "candidates": [
+   {
+    "label": "A wireless left on in a house: static, and a far station fading in and out",
+    "key": "wireless",
+    "sources": [],
+    "licence": "CC0"
+   }
+  ],
+  "takes": 1,
+  "sha": "1d49cbf70194ef54"
+ },
+ "place-town/range": {
+  "cue": "place-town.range",
+  "surface": null,
+  "picked": "first",
+  "candidates": [
+   {
+    "label": "A kitchen range lit: the fire shut in cast iron, its draught murmuring, the iron ticking, a kettle",
+    "key": "stove",
+    "sources": [
+     "kenney_rpg-audio:metalClick",
+     "sfx_100_v2:misc_01"
+    ],
+    "licence": "CC0"
+   }
+  ],
+  "takes": 1,
+  "sha": "4b6e526ea68d7cda"
  },
  "place-villages/dead-town": {
   "cue": "place-villages.dead-town",

@@ -5759,6 +5759,102 @@ Terrain sculpting tools, a node-graph material editor, a general-purpose visual 
     - **Pinned:**
         - `WorldSoundTests.AVillageHouseDoorIsHeardShutAndOpenedInTheDoorwayAndTheChoirBeatsOnItWhenItsShutUp`. A door shut from the street is heard once, at `DoorSound`, clear. Opened and shut again from inside, the ear is in the house's space, the space is "room", and nothing stands between the ear and the door. Shut up in the house while the Choir besieges, 2–5 beats in 3 s on its door, with nothing between.
         - `CaptionsTests`' theory names the three captions.
+412. **Searching the open houses heard (AU1, queue #148; note 326's hiding spots).** A crewmate going through an open house's cupboard, cabinet, cellar or boards (`Run.SearchAct`: Use held for loot.json `search.seconds`) did it in silence, and the find came out in silence. A crewmate across the street had no way of knowing a house was being gone through, and a searcher heard nothing of their own hands.
+    - **How:** `GameAudio.HouseSearch` holds each kind's sound where the spot keeps its things (`HidingSpot.Kept`). Cupboards and cabinets play at shelf and drawer height; a cellar's hatch and the boards play at the floor.
+        - The sound plays while the spot's replicated search is under way (`Run.SearchProgress`: the host's furthest hand on it, or the progress a client was sent). Every crewmate hears it, and it's cut when the hands come off.
+        - Each kind's sound runs about as long as its search: a cupboard 2.5 s, a cabinet 2, a cellar 4, the boards 5. A held one-shot that ends early starts again.
+        - `crew-search.found` plays once as the spot is gone through, when it turns `Searched`.
+    - **Occlusion:** a sound in a village house is in that house's space while the house is shut up (`StopWalls.ShutIn`, note 401). An ear shut in there with it hears it clear; an ear shut in a car or another house hears it through the walls.
+    - **The sounds** (`tools/audio/recipes/house_search.py`): eight candidates on the Audio Checklist's new `crew-search` line, built from the packs' real handling.
+        - The cupboard, `crockery` (installed): its door pulled open, then jars and crockery knocked about, a tin, cloth, a box shoved along.
+        - The cupboard, `pantry`: the same door, with no glass.
+        - The cabinet: drawers pulled on dry wooden runners and their oddments rattled. There's no drawer in the packs, so the runner is stick-slip friction.
+        - The cellar: the hatch heaved up and laid back, two steps creaking down, and crates shifted and a bottle knocked in the stone hole below, which has its own small, dark stone room.
+        - The boards: a bar's bite into the wood, the deal groaning, the nails squealing out (iron stick-slip, since there's no nail drawn in the packs), the board cracking free and laid aside, board after board.
+        - The find: set down on the boards.
+        - A barn's hayloft (up its ladder, hay shoved about, a tin knocked) and a shed's workbench (tools rattled, a drawer of nails, the vice). These are ready for B4's #153 (note 417), which makes them searchable; they play once loot.json's `search.seconds` has their kinds.
+    - **Not yet:**
+        - Heard from the street, a search inside a house that isn't shut up comes through no walls (note 396's not-yet).
+        - The search isn't captioned. It's a crewmate's work, not a threat or a call, like the car doors.
+    - **Pinned:** `WorldSoundTests.AnOpenHousesHidingSpotIsHeardWhileItsSearchedAndItsFindOnceWhenItsGoneThrough`, on a client night's spots of each kind (at least 3): held where the spot keeps its things while under way, cut when the hands come off, and the find heard once when the spot's gone through.
+
+420. **The foundry's buildings modelled (queue #156, C1; the art checklist's `foundry`; GDD §18 "overhead crane run from a gantry", §30 "oversized, partially abandoned, barely operable, dimly lit"; notes 381, 393 and 410 did the other facilities).** The foundry was the last facility whose buildings were all the structure kit's: a long brick box, flat sawtooth quads for a roof, glowing window panels and a cone of a stack. Now it is `foundry_shed` (928 triangles, a 1024 layer), set by `StructureKit.Facility` where the kit's sheds stood, 22 m out. The kit is kept as the fallback.
+    - **The shed:**
+        - 80 m of soot-black brick on a stone plinth, pilastered every 8 m.
+        - Its roof is ten north-light teeth, each a slate slope rising to an iron-glazed face. Panes are out and the furnace's light shows in some. One tooth's slope has fallen in.
+        - Tall arched windows run down both sides, most of the front's lit orange. Their glazing bars are thicker than the other buildings' (`_arched`'s `bar`), since 13 cm texels lose 3 cm bars.
+        - A great doorway stands at each end of its front, its iron leaf slid half across one, the furnace's glow low on the floor inside. With one at each end, one faces the crane's yard whichever side of the spur the shed is turned to.
+        - The cupola furnace rises through its roof on a charging stage, its door glowing, and the 40 m stack stands behind.
+    - **The glow:**
+        - A modelled piece's windows had no light of their own. The baked game mesh has no emission, so a "lit" window was only a bright colour, dark at night.
+        - Now a recipe can hand `build` a third thing, a `_Glow`: the regions of its windows the furnace lights, brightest at their foot.
+        - `cook.bake_down` bakes it as a mask, and `_emission` links an image of the glow's colour there to the low mesh's Emission Color. `cook.bake_layers` writes that as the layer's emissive (spec B) and flags it (`dt_glow`), as the Gannet's sacs were done.
+        - The shed's windows glow in the dark as the kit's panels did, and `Kit.Append` keeps the layer when the piece is merged into the facility.
+    - **Verified:**
+        - `FacilityBuildingArtTests.TheFoundrysCastingShedIsTheModelAndAFurnaceLightsItsWindows`: the model's material glows, and from either side it stands there with its stack.
+        - `LookTests.AFacilitysBuildingsLeaveItsYardToItsModules` still holds: it starts 13.9 m out, past the crane's 9.
+        - `dt art check`: 928 of the large prop's 8,000.
+        - The Game suite.
+        - Looked at: from the building camera, closer, at night, from the air and from the crane, before and after, and on the turntable.
+415. **The walled town heard (AU1, queue #151; the towns since note 335, B2's notes 353 and 335; the director's notes of 8 Oct, towns that are lived in).** The departure town was silent apart from the fortress's loop and the night: fire barrels and braziers burning in its square, ranges lit in its lived-in houses, a clock or a wireless kept by a household for the town's custom, its people standing about. None of them made a sound.
+    - **How:** `GameAudio.TownSounds` (`GameAudio.Town.cs`) reads `World.Town`'s plan, which is the same on every machine. Every quarter second it looks round for what's near the ear (`TownLook`). It holds each thing where it is:
+        - The square's fire barrels and braziers within 40 m (`place-town.fire`, the nearest 4), at the fire's mouth.
+        - A house's range, clock or wireless (`place-town.range`, `.clock`, `.radio`, the nearest 3), where it stands.
+        - The townsfolk out of doors within 30 m (`place-town.murmur`), at the middle of them, at a level that grows with how many there are (full at 4). Now and then one of them coughs (`place-town.cough`), more often the more there are: about once a minute for one person.
+        - A townsperson's position is `Town.Feet`. On main, that's their post. Once B2's #389 lands, it's where their round has taken them, with no change here.
+    - **The houses' walls:** `GameAudio.TownHouseAt` finds which town house a point stands in (the house's main block, in its own frame).
+        - A house's thing is clear to an ear inside that house, and heard through its walls (`TownWall`, 0.6) from anywhere else.
+        - From inside a house, the square's fires and people come through its walls the same way.
+        - Shut doors and windows let through less than a stop's broken-open room (`roomWall`, note 396).
+    - **The sounds** (`tools/audio/recipes/town.py`): eight candidates on the Audio Checklist's new `place-town` line. The installed pick is first in each pair (`install.py` `FIRST_CHOICE`; ranges in `CUE_DEF`).
+        - Fire, `drum`: an oil drum's wood fire, with the drum's steel ticking as it heats.
+        - Fire, `coals`: a brazier's coal bed, glowing more than flaming.
+        - Range: the fire heard through cast iron, the draught through the door's vents, and a kettle just on the simmer.
+        - Clock: a longcase clock's tick-tock, exactly a second apart across the loop's seam.
+        - Wireless: world_voice's weak-signal static, with a far station swelling up and away, too far for words.
+        - Murmur, `masks`: four voices talking low on shut vowels through a breathing mask's rubber cup. Synth glottis and tract, with pauses between phrases, so it never resolves into words.
+        - Murmur, `close`: two people nearer, their breath rasping through respirator filters.
+        - Cough: mostly air, with a short rough voiced edge, through the mask.
+    - **Not yet:**
+        - Townsfolk footsteps on their rounds, which wait on #389's `TownPose.Walking`.
+        - A townsperson saying anything when spoken to: their lines are text.
+        - The bandstand, the watch on the wall and the green (#389).
+        - A town house's interior as a "room" space: its reverb is the open night's.
+    - **Pinned:** `WorldSoundTests.TheWalledTownIsHeardItsFiresItsRoomsAndItsPeople`, on a town of 3000 as `World.EnableTown` stands it:
+        - Beside a fire barrel, its fire plays at the barrel with nothing between.
+        - In a lived-in house's kitchen its range is clear; from the street in front of the house it comes through the walls.
+        - Among the townsfolk, their murmur plays, and a cough comes within 90 s.
+        - 3 km away, none of it plays.
+
+373. **The film's extras and water (A1, queue #110; App. E.3: "Extras: bodies of the already-dead stowed in cars, crates, loot and extinguishers aboard all join the wreck. They never get their own shot"; "Water: bodies get buoyancy and drag and float face down. Cars sink"; "Body budget: up to 8 player ragdolls, 8 extra ragdolls, 20 cars and 40 loose items. Past that, the loose items furthest from any player freeze in place"; E.7: "it's the second time their owner has died tonight").** Until now the film had the crew, the cars and what the crew were carrying (note 370). Everything else aboard vanished on the derail tick and was gone while the wreck played, and a body that went into a lake lay on its bed.
+    - **What goes in** (`World.FilmExtras`): every body whose parent is a car in the wreck at the derail tick: the stowed dead, crates, cargo, loot, the extinguishers and the guard van's stores. Not what's in someone's hands (that's note 370's load), what's shut in a locker, or what something is carrying off. Each is in the world as it lay, at its car's velocity there (the car's spin included). It goes into the film's start (`FilmStart.Extras`), which clients are sent, so every machine records the same wreck.
+    - **In the wreck** (`WreckFilm.Record`): the dead go in as limp ragdolls from the start (`Corpse`: no muscle, no hits counted, no death, no shot). They pile with the crew, go out through doorways and drop out past the sim radius, as the crew do. The things are loose balls on their own seeded spin, as a thrown load is (`Load.Loose`, each on its own stream, so the crew's film changes only where they hit something). Recorded in each frame (`FilmFrame.Dead`, `Items`) and drawn by `DerailSequence.FilmBodies`, the dead in their owner's look.
+    - **The budget** (`WreckFilm.Budget`, wreck.json `film.extraDolls` 8, `extraItems` 40): the dead and the things nearest any of the crew are simulated. The rest "freeze in place" (`FilmExtra.Rides`): not simulated, they stay where they were in their car and go wherever it goes (`WreckFilm.Riding`). Frozen in the world's air while their car rolled away would read as a bug; in its car it's still a stowed crate in a tumbling car. Readings: the spec's "furthest from any player" for the things applies to the dead past 8 too, and the distance is measured on the derail tick.
+    - **Water** (`Float`, wreck.json `film.buoyancy` 1.3, `waterDrag` 3): each joint below the surface over its body's middle (`Guns.Water`, the same surface the guns find) is pushed up at 1.3 g and slowed by 3 a second, so a body or a thing that goes in comes up and floats at the surface. "Face down" isn't modelled: a limp ragdoll floats how it lands. Cars sink: nothing is added to the wreck's boxes, which already go to the bed.
+    - **Protocol 40:** the film's start carries its extras.
+    - **Verified:** `FilmExtrasTests` (3). The stowed dead and what's aboard go into the wreck and go with it, with no shot of their own; the crew's shots and deaths are unchanged; a client shooting the film from the start it's sent records the same. The budget simulates those nearest the crew, and the rest ride their car through its tumble exactly. A body and a crate dropped over a pond come up and float at its surface, and the car is the same wet or dry. `dt screenshot --film 0.5 --extras --at-extra`: one of the crew already dead, lying on car 2's roof as the film starts (`--extras` lays one there and three crates in car 2).
+419. **The car floors and roofs underfoot (AU1, queue #155; AU1's audit of the installed sets, after note 354's cobbles).** AU1 measured every installed set's centroid, peak and how alike its takes are (scratchpad tooling, not shipped). The steps the crew hears most, boots on a car's plank floor and on its tin roof, came out centred at 300-390 Hz, with a slow 100-250 Hz wobble on each step. That's the character the director heard as the town stones' "squish".
+    - **The roof:** the old roof step was the car's hollow over everything: the panel's 84-310 Hz boom at full level under every contact. `crew_feet.on_tin` builds the sheet first:
+        - Kenney's light plate, barely pitched and choked under the boot.
+        - A short oil-can pop as it buckles.
+        - The loose sheet rattling on its nails.
+        - The tin's ring, kept short.
+        - The car's hollow under it, at a third of the level and choked at 50 ms.
+        - A sole scuffed on it flexes the sheet (a soft buckle and rattle) and barely sounds the hollow.
+        - A landing's weight is a short thump, not a boom.
+        - The result is installed for walk, run, jump, land and scuff (`install.py` `SURFACE_CHOICE`). Over 1 kHz is now level with 100-500 Hz; it was 8 dB under.
+    - **The floor:** the car's boards are what the director likes (build 1121, App. F.1: "footsteps on the ground sound wrong; on wood and grates they're good"), so they stay as installed. A rebuild, `crew_feet.on_planks`, is on the checklist beside them for the director to compare, and isn't installed:
+        - The heel's crack.
+        - The board's dry knock: broad modes at 0.5-1.7 kHz, gone in 30 ms.
+        - The joists' 15 ms thump.
+        - A board creaking now and then off the toe.
+        - The rebuild's centroid is 750-810 Hz; the installed boots' is 300-350 Hz.
+    - Both are built as surfaces of their own (`planks`, `tin`) and registered as new keys on the wood and roof cues (`_register_alternates`), so each old candidate stays beside its new one.
+    - **Not yet:** the audit's other flags.
+        - The landings, the drops and a few hits peak over 0 dBFS once decoded from Opus. The engine mixes in float, so nothing clips before the master, but `install.py` could leave a decibel of headroom.
+        - Some sets' takes are near-copies by spectrum, though not by ear.
+    - **Pinned:** `CrewAudioTests.BootsOnTheRoofsTinAreTheSheetNotABoom` (walk, run, land): as much over 1 kHz as at 100-500 Hz, within 3 dB, as note 354 asks of stone.
+
 
 353. **Towns that are lived in: townsfolk with their own breathing gear, a round for everyone, a green and the things a walled-in people put up (queue #90, B2; the director, 8 Oct 2026, with two shots of an open house: "We need townsfolk models who wear some sort of respirator mask or oxygen mask or other breathing apparatuses to indicate the air is foul. Note some of the animation positions are off. Towns dont feel like they have a natural layout to them. There needs to be a behaviour loop for all the NPCs, its weird that so many of them are just standing around doing nothing. These towns need layouts, parks, signs of governance, signs of culture, statues, things that tell the story of a people walled in for fear of the outside world and what becomes of those who rarely leave the walls. They'd be trying to find ways of making the world feel tolerable.").** Renumbered from #89 and 352, which A1's #294 landed first.
     - **The poses were off.**

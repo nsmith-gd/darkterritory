@@ -41,6 +41,9 @@ so each kind reads by its shape from the line:
     sliding door, the outside stair, two guyed stacks and the lead-clad acid tower, and the pipe bridges out over the
     tanks onto the rack; pipe_rack, a 12 m bay of the rack on its portal, its pipes flanged bay to bay, a valve, torn
     lagging; pipe_rack_end, the last bay, its pipes turned down into the ground.
+  * foundry_shed (note 420): the casting shed, 80 m of soot-black brick under ten north-light teeth, tall arched windows
+    lit by the furnace (`_Glow`: a mask baked to the layer's emissive), a great doorway at each end of its front, the
+    cupola through its roof, the 40 m stack behind.
 
 Axes (Blender): +Z up, the model's front (-Y, the engine's +Z) toward the line.
 """
@@ -50,6 +53,7 @@ import sys
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 import bpy  # noqa: E402
+import numpy as np  # noqa: E402
 from mathutils import Matrix, Vector  # noqa: E402
 
 import cook  # noqa: E402
@@ -83,17 +87,40 @@ def materials():
         "burnt": make.lib("ground_red_clay", 0.4, tint=(0.42, 0.3, 0.26), rough=0.95),
         "acid": make.flat("acid", (0.1, 0.095, 0.035), rough=0.35),
         "lead": make.lib("iron_plate", 0.6, tint=(0.5, 0.52, 0.55), rough=0.65, metal=0.3),
+        "glow": make.flat("glow", (1.0, 0.42, 0.12), rough=0.5),
     }
 
 
 def build(name, fn, what, size=1024, budget=4000, layer=None, reach=0.008, cage=0.003):
+    """A recipe's parts baked down onto its game mesh and finished. A recipe may hand back a third thing, its `_Glow`:
+    where its furnace light shows, baked as a mask and lit in the glow's colour (the layer's emissive)."""
     cook.reset()
     make.LOW.clear()
     make.USED.clear()
     make._mats.clear()
-    parts, extra = fn(materials())
-    low = cook.bake_down(parts, name + "_low", budget, colour=None, size=size, cage=cage, reach=reach, low=list(make.LOW))[0]
+    made = fn(materials())
+    parts, extra = made[0], made[1]
+    glow = made[2] if len(made) > 2 else None
+    kw, caught = {}, {}
+    if glow is not None:
+        kw = {"masks": {"glow": glow}, "paint": lambda base, ao, baked: (caught.update(baked), base)[1]}
+    low = cook.bake_down(parts, name + "_low", budget, colour=None, size=size, cage=cage, reach=reach, low=list(make.LOW), **kw)[0]
+    if glow is not None:
+        _emission(low, caught["glow"], glow.colour, size)
     cook.finish(name, [low] + extra, budget=budget + 200, grime=0.6, made=make.provenance("facility_pieces", what), size=layer)
+
+
+def _emission(low, mask, colour, size):
+    """The game mesh's material lit where `mask` is: its Emission Color an image of the glow's colour there, which
+    cook.bake_layers reads into the layer's emissive mask (as the Gannet's sacs, tools/models/recipes/gannet.py)."""
+    img = bpy.data.images.new(low.name + "_emit", size, size, alpha=True)
+    rgba = np.ones((size, size, 4), np.float32)
+    rgba[..., :3] = np.clip(mask, 0, 1)[..., None] * np.array(colour, np.float32)
+    img.pixels.foreach_set(rgba[::-1].ravel())
+    nt = low.data.materials[0].node_tree
+    tex = nt.nodes.new("ShaderNodeTexImage")
+    tex.image = img
+    nt.links.new(tex.outputs["Color"], nt.nodes["Principled BSDF"].inputs["Emission Color"])
 
 
 def _beam(a, b, w, material, name):
@@ -636,11 +663,12 @@ def _span(along, out, a, u, o):
     return (abs(v.x), abs(v.y), abs(v.z))
 
 
-def _arched(p, m, foot, along, out, w, z0, z1, state="glass"):
+def _arched(p, m, foot, along, out, w, z0, z1, state="glass", bar=0.016):
     """A tall round-arched window in a brick wall: its glass (or the dark of it broken, or lit), the cast-iron glazing
     bars, a stone sill and the arch's brick voussoirs over it with their keystone (all baked onto the wall). `foot` is
     on the wall's face under its middle; `along` and `out` the wall's run and its outward normal, along the axes; `w`
-    its half-width, z0..z1 its straight sides, the arch's crown at z1 + w."""
+    its half-width, z0..z1 its straight sides, the arch's crown at z1 + w; `bar` the glazing bars' half-width (thicker on a
+    big building, whose texels are coarser)."""
     foot, along, out = Vector(foot), Vector(along), Vector(out)
     up = Vector((0, 0, 1))
     zc = (z0 + z1) / 2
@@ -650,11 +678,11 @@ def _arched(p, m, foot, along, out, w, z0, z1, state="glass"):
         for k in (-1, 1):
             u = k * w / 3
             top = z1 + math.sqrt(w * w - u * u)
-            p.append(make.box(foot + along * u + out * 0.045 + up * (z0 + top) / 2, _span(along, out, 0.016, (top - z0) / 2, 0.012),
+            p.append(make.box(foot + along * u + out * 0.045 + up * (z0 + top) / 2, _span(along, out, bar, (top - z0) / 2, 0.012),
                               m["rust"], bevel=0, name="bar", low=False))
         z = z0 + 0.6
         while z < z1 + 0.01:
-            p.append(make.box(foot + out * 0.045 + up * z, _span(along, out, w, 0.016, 0.012), m["rust"], bevel=0, name="bar", low=False))
+            p.append(make.box(foot + out * 0.045 + up * z, _span(along, out, w, bar, 0.012), m["rust"], bevel=0, name="bar", low=False))
             z += 0.6
     p.append(make.box(foot + out * 0.09 + up * (z0 - 0.08), _span(along, out, w + 0.16, 0.07, 0.1), m["stone"], bevel=0.01, name="sill", low=False))
     for k in range(9):
@@ -1056,6 +1084,157 @@ def pipe_rack(m, end=False):
     return p, []
 
 
+class _Glow:
+    """Where a piece's furnace light shows through it: the glass of the windows it lights, as regions of the high mesh
+    (bake_down's masks are per vertex). An arched window is its square part and the half-disc over it, brightest at its
+    foot where the furnace is, half that at its crown; a box is a box, fading upward if `fade`."""
+
+    def __init__(self, colour=(1.0, 0.42, 0.12)):
+        self.arches, self.boxes, self.colour = [], [], colour
+
+    def arch(self, foot, along, out, w, z0, z1):
+        self.arches.append((Vector(foot), Vector(along), Vector(out), w, z0, z1))
+
+    def box(self, centre, half, fade=False):
+        self.boxes.append((Vector(centre), Vector(half), fade))
+
+    def __call__(self, co):
+        out = np.zeros(len(co), np.float32)
+        for foot, along, outn, w, z0, z1 in self.arches:
+            d = co - np.array(foot, np.float32)
+            u, o, z = d @ np.array(along, np.float32), d @ np.array(outn, np.float32), co[:, 2]
+            face = (o > -0.015) & (o < 0.031)
+            square = (np.abs(u) <= w + 0.01) & (z >= z0 - 0.01) & (z <= z1)
+            dome = (z > z1) & (np.hypot(u, z - z1) <= w + 0.01)
+            lit = face & (square | dome)
+            out[lit] = 1 - 0.5 * np.clip((z[lit] - z0) / (z1 + w - z0), 0, 1)
+        for c, h, fade in self.boxes:
+            inside = np.all(np.abs(co - np.array(c, np.float32)) <= np.array(h, np.float32) + 0.01, axis=1)
+            up = np.clip((co[inside, 2] - (c.z - h.z)) / (2 * h.z), 0, 1)
+            out[inside] = 1 - 0.8 * up if fade else 1
+        return out
+
+
+def foundry_shed(m):
+    """The foundry's casting shed (GDD §18: the gantry crane; §30): 80 m along the line and 16 deep, soot-black brick on
+    a stone plinth, pilastered every 8 m; its roof ten north-light teeth, slate rising to a glazed face each, panes out
+    and the furnace's light in some; tall arched windows down both sides, most of the front's lit orange by a furnace
+    nobody tends (the glow mask, `_Glow`); a great doorway at each end of the front, its iron leaf slid half across, for
+    the castings out to the crane's yard (one end or the other faces it, as the shed is turned to either side of the
+    spur); the cupola furnace up through the roof, its charging door glowing; the 40 m stack behind. Its origin is on the
+    ground at its middle, 22 m off the line, where the kit's sheds stood."""
+    p = []
+    glow = _Glow()
+    L, D, H, TOOTH, RISE = 40.0, 8.0, 11.0, 8.0, 4.0
+    p.append(make.box((0, 0, 0.3), (L + 0.12, D + 0.12, 0.6), m["stone"], bevel=0.02, name="plinth"))
+    p.append(make.box((0, 0, (0.9 + H) / 2), (L, D, (H - 0.9) / 2), m["brick"], bevel=0.02, name="walls"))
+    teeth = int(2 * L / TOOTH)
+    for sy in (-1, 1):
+        for k in range(teeth + 1):
+            x = -L + k * TOOTH
+            p.append(make.box((x, sy * (D + 0.1), (0.9 + H) / 2), (0.35, 0.14, (H - 0.9) / 2 + 0.02), m["brick"], bevel=0.01,
+                              name="pilaster", low=k in (0, teeth)))
+        p.append(make.box((0, sy * (D + 0.14), H - 0.2), (L + 0.2, 0.14, 0.2), m["brick"], bevel=0.01, name="cornice"))
+    for sx in (-1, 1):
+        for y in (-4.0, 0.0, 4.0):
+            p.append(make.box((sx * (L + 0.1), y, (0.9 + H) / 2), (0.14, 0.35, (H - 0.9) / 2), m["brick"], bevel=0.01, name="pilaster", low=False))
+    # The windows: an arched one in each bay down both sides (none where the great doorways are), most of the front's
+    # lit by the furnace, the back's dark, a few out.
+    doors = (-21.0, 21.0)
+    for sy in (-1, 1):
+        for k in range(teeth):
+            x = -L + TOOTH * (k + 0.5)
+            if sy < 0 and any(abs(x - d) < 4.5 for d in doors):
+                continue
+            if sy < 0:
+                state = "dark" if k in (1, 8) else "glass" if k == 4 else "glow"
+            else:
+                state = "glow" if k in (3, 6) else "dark" if k % 3 == 1 else "glass"
+            foot, along, out = (x, sy * D, 0), (1, 0, 0), (0, sy, 0)
+            _arched(p, m, foot, along, out, 1.1, 2.6, 7.4, state, bar=0.05)
+            if state == "glow":
+                glow.arch(foot, along, out, 1.1, 2.6, 7.4)
+    # The great doorways: arched, 5 m across, dark inside but for the furnace's glow low in the dark; the iron leaf slid
+    # half across one, the other standing open.
+    for i, x in enumerate(doors):
+        p.append(make.box((x, -D - 0.02, 3.2), (2.5, 0.04, 3.2), m["dark"], bevel=0, name="doorway"))
+        p.append(make.cyl((x, -D - 0.02 + 0.02, 6.4), (x, -D - 0.06, 6.4), 2.5, m["dark"], n=20, bevel=0, name="door_arch", low=0))
+        p.append(make.box((x, -D - 0.075, 0.9), (1.8, 0.01, 0.6), m["glow"], bevel=0, name="door_glow", low=False))
+        glow.box((x, -D - 0.075, 0.9), (1.8, 0.01, 0.6), fade=True)
+        for k in range(11):
+            a = math.pi * k / 10
+            radial = Vector((math.cos(a), 0, math.sin(a)))
+            tangent = Vector((-math.sin(a), 0, math.cos(a)))
+            key = k == 5
+            p.append(make.box(Vector((x, -D - 0.05, 6.4)) + radial * (2.5 + (0.3 if key else 0.22)), (0.16 if key else 0.11, 0.3 if key else 0.22, 0.05),
+                              m["stone" if key else "brick"], bevel=0.008, name="voussoir", rot=_basis(tangent, radial), low=False))
+        p.append(make.box((x, -D - 0.2, 6.75), (3.4, 0.06, 0.09), m["steel"], bevel=0.005, name="door_rail"))
+        if i == 0:
+            p.append(make.box((x + 1.2, -D - 0.16, 3.3), (1.4, 0.05, 3.25), m["rust"], bevel=0.01, name="door_leaf"))
+        else:
+            p.append(make.box((x + 4.0, -D - 0.16, 3.3), (1.4, 0.05, 3.25), m["rust"], bevel=0.01, name="door_leaf"))
+    # The end walls' gables of the saw: the brick up under the first tooth's slope and the last's glazed face.
+    for k in range(teeth):
+        x0 = -L + k * TOOTH
+        for sy in (-1, 1):
+            _prism(p, [(x0, sy * D, H), (x0 + TOOTH, sy * D, H), (x0 + TOOTH, sy * D, H + RISE)], [(0, 1, 2) if sy < 0 else (0, 2, 1)], m["brick"], "saw")
+    # The roof: each tooth's slate slope rising to the next, its north light dropping back, glazed in iron, panes out;
+    # the furnace's glow in some; one tooth's slope fallen in.
+    slope = math.atan2(RISE, TOOTH)
+    run = math.hypot(TOOTH, RISE)
+    for k in range(teeth):
+        x0 = -L + k * TOOTH
+        centre = Vector((x0 + TOOTH / 2, 0, H + RISE / 2 + 0.09))
+        p.append(make.box(centre, (run / 2 + 0.12, D + 0.4, 0.07), m["slate"], bevel=0.01, name="slope", rot=Matrix.Rotation(-slope, 4, "Y")))
+        if k == 6:
+            p.append(make.box(centre + Vector((0.6, 2.0, 0.08)), (1.8, 2.4, 0.01), m["dark"], bevel=0, name="fallen_in", low=False,
+                              rot=Matrix.Rotation(-slope, 4, "Y")))
+        fx = x0 + TOOTH
+        p.append(make.box((fx, 0, H + RISE / 2), (0.03, D, RISE / 2), m["glass"], bevel=0, name="north_light"))
+        for y in [-D + 1.0 * j for j in range(17)]:
+            p.append(make.box((fx + 0.075, y, H + RISE / 2), (0.012, 0.03, RISE / 2), m["rust"], bevel=0, name="glazing", low=False))
+        for z in (H + 0.05, H + 1.35, H + 2.65, H + RISE - 0.05):
+            p.append(make.box((fx + 0.075, 0, z), (0.012, D, 0.03), m["rust"], bevel=0, name="glazing", low=False))
+        for j in range(5):
+            y = -D + 1.5 + 3.1 * j + (k % 3) * 0.6
+            z = H + 0.7 + 1.3 * ((k + j) % 3)
+            state = "glow" if (k + j) % 7 == 3 else "dark" if (k * 3 + j) % 4 == 0 else None
+            if state:
+                p.append(make.box((fx + 0.035, y, z), (0.01, 0.48, 0.6), m[state], bevel=0, name="pane", low=False))
+                if state == "glow":
+                    glow.box((fx + 0.035, y, z), (0.01, 0.48, 0.6))
+    # The cupola furnace up through the roof at the +X end: riveted iron, its spark-arrester hat on struts, a charging
+    # stage round it with its rail and ladder, the charging door glowing.
+    cx, cy = 28.0, 2.0
+    p.append(make.cyl((cx, cy, H), (cx, cy, 22.0), 1.5, m["rust"], n=20, bevel=0.01, name="cupola", low=10))
+    for z in (16.0, 18.5, 21.0):
+        p.append(make.torus((cx, cy, z), (0, 0, 1), 1.51, 0.03, m["steel"], n=40, m=4, name="cupola_band", low=False))
+    p.append(make.cyl((cx, cy, 22.6), (cx, cy, 24.0), 2.0, m["rust"], n=20, bevel=0.01, name="hat", r1=0.35, low=10))
+    for k in range(4):
+        a = math.pi / 4 + k * math.pi / 2
+        p.append(make.cyl((cx + math.cos(a) * 1.3, cy + math.sin(a) * 1.3, 21.9), (cx + math.cos(a) * 1.7, cy + math.sin(a) * 1.7, 22.7),
+                          0.05, m["steel"], n=6, bevel=0, name="strut", low=4))
+    p.append(make.cyl((cx, cy, 16.9), (cx, cy, 17.1), 3.0, m["steel"], n=20, bevel=0.005, name="stage", low=10))
+    for k in range(12):
+        a = k * math.pi / 6
+        p.append(make.cyl((cx + math.cos(a) * 2.9, cy + math.sin(a) * 2.9, 17.1), (cx + math.cos(a) * 2.9, cy + math.sin(a) * 2.9, 18.1),
+                          0.03, m["steel"], n=6, bevel=0, name="stage_post", low=4))
+    p.append(make.torus((cx, cy, 18.1), (0, 0, 1), 2.9, 0.03, m["steel"], n=40, m=4, name="stage_rail", low=(16, 3)))
+    p.append(make.box((cx, cy - 1.5, 17.8), (0.45, 0.05, 0.45), m["glow"], bevel=0, name="charging_door", low=False))
+    glow.box((cx, cy - 1.5, 17.8), (0.45, 0.05, 0.45))
+    # The stack behind it: brick on a stone base, banded, corbelled at its lip and sooted.
+    sx, sy, top = 14.0, D + 4.5, 40.0
+    p.append(make.box((sx, sy, 2.0), (2.1, 2.1, 2.3), m["stone"], bevel=0.03, name="stack_base"))
+    p.append(make.cyl((sx, sy, 4.2), (sx, sy, top), 1.9, m["brick"], n=20, bevel=0.01, name="stack", r1=1.2, low=10))
+    p.append(make.cyl((sx, sy, top - 0.8), (sx, sy, top + 0.5), 1.4, m["brick"], n=20, bevel=0.01, name="stack_cap", r1=1.35, low=10))
+    p.append(make.cyl((sx, sy, top - 0.6), (sx, sy, top + 0.52), 1.22, m["streak"], n=20, bevel=0, name="soot", r1=1.38, low=0))
+    for z in (10.0, 17.0, 24.0, 31.0, 36.0):
+        r = 1.9 - (1.9 - 1.2) * (z - 4.2) / (top - 4.2)
+        p.append(make.torus((sx, sy, z), (0, 0, 1), r + 0.01, 0.04, m["rust"], n=40, m=4, name="band", low=False))
+    p.append(make.cyl((sx, D + 0.1, 3.0), (sx, sy - 2.0, 3.0), 0.7, m["brick"], n=12, bevel=0, name="flue", low=6))
+    return p, [], glow
+
+
 PIECES = {
     "headframe": lambda: build("headframe", headframe, "the mine head's headframe", budget=3500),
     "chem_tank": lambda: build("chem_tank", chem_tank, "a chemical works' storage tank", budget=2500),
@@ -1085,6 +1264,9 @@ PIECES = {
     "pipe_rack": lambda: build("pipe_rack", pipe_rack, "a bay of the chemical works' pipe rack", size=512, budget=1200),
     "pipe_rack_end": lambda: build("pipe_rack_end", lambda m: pipe_rack(m, end=True), "the pipe rack's last bay, its pipes turned down",
                                    size=512, budget=1200),
+    # (Note 420's: some 5,500 m² of brick, slate and glass at a hero's layer, like the elevator's; its windows lit.)
+    "foundry_shed": lambda: build("foundry_shed", foundry_shed, "the foundry's casting shed, its cupola and stack", size=2048, budget=4500,
+                                  layer=1024),
 }
 # tools/models/build.sh builds them all; `blender -b --python facility_pieces.py -- grain_elevator` just the one.
 want = set(cook.args()) or set(PIECES)

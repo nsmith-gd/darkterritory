@@ -7,8 +7,9 @@ using DarkTerritory.Sim.Run;
 namespace DarkTerritory.Game.Tests;
 
 /// <summary>
-/// ARCHITECTURE §8 note 410: the mine head's and the chemical works' buildings modelled (facility_pieces winding_house,
-/// spoil_heap, chem_works, pipe_rack) and laid out round what the sim does there.
+/// ARCHITECTURE §8 notes 410 and 420: the mine head's, the chemical works' and the foundry's buildings modelled
+/// (facility_pieces winding_house, spoil_heap, chem_works, pipe_rack, foundry_shed) and laid out round what the sim does
+/// there.
 /// </summary>
 public class FacilityBuildingArtTests
 {
@@ -60,6 +61,20 @@ public class FacilityBuildingArtTests
                 Assert.True(pipes.Any(p => Math.Abs(p - joint) < 0.7f), $"side {side}: no pipe at {joint} m");
             // The last bay's turned down short of 24.
             Assert.True(pipes.Max() is > 22.5f and < 24.5f, $"side {side}: the rack ends at {pipes.Max():0.0} m");
+        }
+    }
+    [Fact]
+    public void TheFoundrysCastingShedIsTheModelAndAFurnaceLightsItsWindows()
+    {
+        // Its windows glow at night as the kit's lit panels did (GDD §30 "dimly lit"): the bake's emissive mask, which the
+        // cook flags on the layer's material (dt_glow).
+        var model = Ballast.Assets.ModelLoader.Load(Path.Combine(Content, "art/models/props/foundry_shed.glb"));
+        Assert.Contains(model.Materials, m => m.Glow >= 1);
+        // And it's what stands there from either side: the stack behind it 40 m up, past the crane's yard.
+        foreach (int side in new[] { -1, 1 })
+        {
+            var piece = StructureKit.Facility(Look, FacilityKind.Foundry, side);
+            Assert.True(piece.Vertices.Max(v => v.Position.Y) > 39, $"side {side}: no stack");
         }
     }
 }
