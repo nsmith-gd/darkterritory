@@ -279,7 +279,8 @@ public sealed partial class WorldArt
                     // An open house (note 326): its walls, its door and what's inside, as the sim stands them.
                     if (b.Open)
                     {
-                        k.With(frame, () => TownKit.OpenHouse(k, b, stop.Containers.Where(c => c.Building == index)));
+                        k.With(frame, () => TownKit.OpenHouse(k, b, stop.Containers.Where(c => c.Building == index),
+                            Sim.Run.StopWalls.ClutterOf(stop, index), Sim.Run.StopWalls.Nest(stop, index)));
                         break;
                     }
                     // The layout's footprint parts are (x along its axis, y across); the kit's frame has its axis on −Z.
