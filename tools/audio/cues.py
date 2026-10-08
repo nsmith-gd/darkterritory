@@ -534,6 +534,14 @@ CUES = {
         O("shift", "Wreckage shifting", vars=3),
         L("cargo-pull", "Cargo dragged out of a wreck"),
     ],
+    # The capstan winch wherever it stands (spec D.2, T43; queue #204, note 468): the foundry's, the mine head's, the
+    # depot's and the wreck yard's (whose cargo dragged out of a wreck is place-wreck's).
+    "place-winch": [
+        L("capstan", "The capstan turning: the pawl over its ratchet, the cranks, the rope winding on"),
+        L("drag", "A sled of cargo hauled in over the ground"),
+        O("stall", "Out of rhythm: the drum snatched to a stop, the pawl catching", vars=3),
+        O("in", "A sled hauled in to its stop by the track", vars=2),
+    ],
     "place-slaughterhouse": [
         L("inside", "Inside the slaughterhouse"),
         O("hook-chain", "Hooks and chains moving", vars=3),

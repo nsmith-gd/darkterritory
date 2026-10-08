@@ -6692,3 +6692,21 @@ Terrain sculpting tools, a node-graph material editor, a general-purpose visual 
     - **Verified:**
         - Looked at, before and after: a prison car's lock on the blow, its sparks falling, late in the breach, and picked; a lockup's on the blow; a shelter's barricade early, mid-heave and late.
         - The Game suite.
+468. **The capstan winch heard wherever it stands (AU1, queue #204; spec D.2 "Capstan winch: two players hand-crank in rhythm to drag cargo from distance. 2 mandatory. Desync stalls"; T43).** A winch stands at the foundry, the mine head, the military depot and the wreck yard (facilities.json `kinds`). Only the wreck yard's was heard, and only its cargo dragged out of a wreck (`place-wreck.cargo-pull`). Nowhere was the capstan heard turning, its sled coming in over the ground, or D.2's desync stall.
+    - **How** (`GameAudio.WinchSounds`, from `PlaceSite` for every site with a winch; off the site's replicated record: `Turning`, `OutOfRhythm`, `Progress`, `SledsLeft`):
+        - **The drum:** `place-winch.capstan` at the drum while it's cranked in rhythm (`Turning`).
+        - **The stall:** `place-winch.stall` once as the cranks fall out of rhythm (`OutOfRhythm`, D.2's desync).
+        - **The sled:** away from a wreck yard, `place-winch.drag` at the sled (`Site.Sled`) while it's hauled in, and `place-winch.in` once at its stop by the track when it's brought in (`SledsLeft` down). At a wreck yard the sled comes out of a wreck, and that's still place-wreck's: its cargo dragged out, the wreckage shifting as each comes in.
+        - Heard within 60 m of the drum (`WinchReach`). The edges are read wherever the ear is, so nothing plays late.
+        - **Caption:** the stall ("A WINCH JARRING TO A STOP").
+    - **The sounds** (`tools/audio/recipes/winch.py`): four candidates on the Audio Checklist's new `place-winch` line, all installed. Built from the packs' real iron, wood and stones; the rope and the grinding are the kits' models.
+        - `capstan`, `drum`: the drum at half a turn a second, its pawl over a twelve-tooth ratchet (the packs' real ratchet, pitched down), the cranks creaking in their bushes once a turn, the rope winding on, the frame groaning. 8 s exact cycle, four turns.
+        - `drag`, `skids`: iron-shod skids grinding over gravel and earth, heaving forward as each crank comes over, stones crunching, the load knocking, the rope humming.
+        - `stall`, `snatch`: the pawl catching hard on a tooth, a crank jarring, the rope twanging taut, the frame knocking.
+        - `in`, `stop`: the sled's nose bumping the stop timber, the load settling, the rope going slack with a slap.
+    - **Not yet:** a keyboard's crank and a headset's hand are heard alike (the drum is the drum). One crank turned alone, with nobody on the other, is silent: the drum doesn't turn (D.2: 2 mandatory).
+    - **Pinned:** `WorldSoundTests.ACapstanWinchIsHeardTurningHaulingStallingAndBringingItsSledIn`, at a foundry on a client night, off the mirrored record:
+        - in rhythm, the drum and the sled;
+        - out of rhythm, one stall, and the drum and the sled still;
+        - a sled in, one stop where it stops;
+        - from 400 m off, nothing.
