@@ -276,8 +276,44 @@ public sealed partial class WorldArt(Look look)
             for (int c = 0; c + 1 < left.Length; c++)
             {
                 float l0 = LateralAt(c), l1 = LateralAt(c + 1), lat = (l0 + l1) / 2;
-                if (portal && MathF.Abs(l0) < 10.5f && MathF.Abs(l1) < 10.5f)
+                if (portal && MathF.Min(MathF.Abs(l0), MathF.Abs(l1)) < StructureKit.PortalHalf)
+                {
+                    // The face stands to its coping; above it, the ground climbs from the coping onto the hill: a cap from
+                    // the coping back to the hill's edge, and a headwall up from the coping to the cap where the cutting
+                    // beside the face stands higher. Left out (as it was across the face), the slot between was open to
+                    // the sky behind (note 433: 5-7 m of it over every portal).
+                    var outside = boreLeft ? right : left;
+                    // (A little under the coping and in past the face's edge: two meshes that only meet edge to edge show
+                    // pinholes of sky along the seam.)
+                    const float Lap = 0.15f, Inset = 0.25f;
+                    float coping = (float)(line.Sample(boreLeft ? s1 : s).Position.Y - eye.Y) + StructureKit.PortalTop - Lap;
+                    Vector3 Capped(Vector3[] row, int i) => ReferenceEquals(row, outside) ? row[i] with { Y = MathF.Max(row[i].Y, coping) } : row[i];
+                    int rock = _look.Layer("rock_cliff");
+                    float rockTile = rock >= 0 && _look.Textures[rock].TileMetres is { } rt ? rt : 2;
+                    Corner Face(float l, double at) => new(Vector3.One * GroundShade(l, at), 1);
+                    Quad(mesh, Capped(left, c), Capped(left, c + 1), Capped(right, c + 1), Capped(right, c), Face(l0, s), Face(l1, s), Face(l1, s1), Face(l0, s1),
+                        origin, _look.Layer("ground_forest"), rock, rockTile);
+                    var o0 = Capped(outside, c);
+                    var o1 = Capped(outside, c + 1);
+                    if (o0.Y > coping + 0.01f || o1.Y > coping + 0.01f)
+                        Quad(mesh, o0 with { Y = coping }, o1 with { Y = coping }, o1, o0, Face(l0, s), Face(l1, s), Face(l1, s), Face(l0, s), origin,
+                            _look.Layer("ground_forest"), rock, rockTile);
+                    // Past the face's edge, where the cutting beside it is lower than the coping: a flank from the cutting's
+                    // own ground up to the cap's edge, or the face's top corner is open at its side.
+                    float in0 = MathF.Abs(l0), in1 = MathF.Abs(l1), edge = StructureKit.PortalHalf - Inset;
+                    if ((in0 < edge) != (in1 < edge))
+                    {
+                        float t = (edge - in0) / (in1 - in0);
+                        var groundAt = Vector3.Lerp(outside[c], outside[c + 1], t);
+                        var capAt = Vector3.Lerp(o0, o1, t);
+                        var (gOut, cOut) = in1 > in0 ? (outside[c + 1], o1) : (outside[c], o0);
+                        float lOut = in1 > in0 ? l1 : l0;
+                        if (cOut.Y > gOut.Y + 0.01f || capAt.Y > groundAt.Y + 0.01f)
+                            Quad(mesh, groundAt, gOut, cOut, capAt, Face(lOut, s), Face(lOut, s), Face(lOut, s), Face(lOut, s), origin,
+                                _look.Layer("ground_forest"), rock, rockTile);
+                    }
                     continue;
+                }
                 var (a, b, band) = GroundLayers(lat);
                 bool bridge = (gorgeLeft > 0.5f || gorgeRight > 0.5f) && MathF.Abs(lat) < 3.7f;
                 if (hill && MathF.Abs(lat) < 12)
