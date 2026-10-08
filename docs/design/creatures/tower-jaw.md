@@ -120,3 +120,37 @@ NEVER     a bridge; it never boards the train
 2. **Every tier**, faster gnawing at harder tiers; more beside water.
 3. **The wreckage is cleared by hand** (Use held, 30 crew-seconds), and blocks the track until then.
 4. **It bites but never kills**; driven off, it comes back to finish the job.
+
+## 12. As built (art and presentation, G1.6, 8 Oct 2026)
+
+![Gnawing the coaling tower's leg on the line's side, the tower leaning over the line](tower-jaw-gnaw.png)
+![The tower down across the line: the stumps, the timbers over the rails, the bunker beyond](tower-jaw-fall.png)
+![Close: the hump, the black spines with the embers in their cracks, the splinters, the incisors](tower-jaw-closeup.png)
+![Its threat: reared, the incisors bared, the tail up to slap](tower-jaw-threat.png)
+
+- **Model** (`tools/blender/tower_jaw.py`, SK_TowerJaw, 26 bones): one fused skin from the rump through the barrel of
+  the chest, the hump of the shoulders standing over the head, the thick neck, the blunt head (cheeks, square wet
+  muzzle, flews, black nose, small ears), the bear's forelegs down to broad shovel paws, the folded hind legs on webbed
+  feet and the tail's root out to its flat paddle. Over it: some 540 wet fur clumps slicked into spikes (combed back and
+  down the way the fur lies, hanging under the belly), 80 timber splinters driven in at all angles, a ridge of black
+  splintered spines from the nape to the rump (tallest over the hump), two iron-dark chisel incisors as long as a
+  forearm (chipped), plank claws, small black eyes. **15,382 triangles** (distance copy 6,139), about 1.6 m at the hump
+  and 2.2 m to the spines' tips.
+- **Colour** (`tools/models/recipes/tower_jaw.py`, one 2048 atlas): dark brown soaked fur with lighter clump tips and black
+  hollows, charred round the spines' roots; the spines black char split by cracks that glow ember-red (an emission map);
+  the incisors iron-dark with rust run down them and bare metal at their chipped ends; dark wet muzzle and paws, a black
+  glistening nose; a dark scaled tail; weathered splinters pale where they snapped; old dark timber claws.
+- **Clips**: gnaw (side-on, the head turned to the post and wrenching, the jaw working; chips fly), turn (head up,
+  listening), threat (reared, incisors bared, the tail raised and slammed flat), lunge, retreat (a humping lope), hit,
+  death. `dt art clearance --only tower_jaw`: clean.
+- **In the game**: the sim keeps it at its jaws (`gnawAt` off the leg), so its body's drawn `TowerJawBack` (0.85 m) back
+  of that. Threat starts with the turn; Lunge plays once then the threat. **The structure**: the coaling tower now stands
+  on three stilts a side, its near middle one at `towerLegOut` (now 3.5 m, the drawn stilt; was 2.6) is the one it gnaws.
+  From `leanFrom` gnawed the tower leans over the line about its near feet, more as it goes (up to about 9°), shuddering
+  its last few percent (`CreatureArt.TowerLean`); in Wreck the standing tower is hidden and the creature is drawn as the
+  wreck across the line at its spout (`StructureKit.CoalingTowerFallen`); once cleared (the creature gone) the scene keeps
+  it down with its heap dragged off the rails. Cues: the chiselling, its threat, driven off, the tower down.
+  `dt screenshot --view towerjaw` / `towerjawfall` (or `--towerjaw gnaw|lean|threat|lunge|away|wreck`, on a generated
+  night with a coaling tower, frontier:3 unless `--route` says).
+- **Not yet**: the loading crane's gantry doesn't lean or fall (the crane's `Wrecked` only stops it); the cleared state is
+  the scene's memory, so a client joining after the clearing sees the tower standing.

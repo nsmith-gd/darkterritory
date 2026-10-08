@@ -110,3 +110,24 @@ NEVER     it never attacks anyone; it never pushes a body or a lamp
    when the facilities have them.
 2. **Harmless**; killable (6 blows) and driven off its load by 3 in 10 s.
 3. **Every tier**; one at a stop with loose freight.
+
+## 12. As built (art and presentation, G1.6, 8 Oct 2026)
+
+![Shoving a crate of freight up the line, shovel down](freight-beetle-push.png)
+![Close: the bands of the back, the hood, the shovel's bright edge, the plated forelimbs](freight-beetle-closeup.png)
+
+- **Model** (`tools/blender/freight_beetle.py`, SK_Beetle, 32 bones): the soft body under the shell (abdomen, thorax,
+  belly segments, the legs' roots, the wrinkled neck and the heavy head with its cheeks, lips and chin) is one fused
+  skin. Over it, rigid: five broad bands of the dome, each a thick curved plate swelling in its middle and lapped over
+  the next (a woodlouse's), with a low keel along the top; the hood over the head; the shovel, a flat wedge from the
+  head's top down to an edge 1.12 m ahead (where the sim's crate is: `headAt`); huge segmented, ringed and shielded
+  forelimbs wider than the head, four thinner legs behind with hooked feet; glossy eyes in the cheeks, two palps and two
+  short feelers working. **13,646 triangles** (distance copy 5,530), 2.45 m long, 1.48 m to the top of its back.
+- **Colour** (`tools/models/recipes/freight_beetle.py`, one 2048 atlas): the bands painted like old freight (buff and
+  ochre bands, an orange stripe run down them, grey primer patches, a scorch across the rear, chipped to dark iron at the
+  edges and scraped across, grimed); the hood scuffed grey-brown; the shovel dark oily iron with its edge scraped bright;
+  the hide grey-brown and wrinkled; red wet flesh between the plates; grey-beige legs, mud low down; black claws.
+- **Clips**: idle, walk (a tripod gait), brace, push, turn, startle (reared back off its load), hit, death (over on its
+  back, the legs curling). `dt art clearance --only freight_beetle`: clean.
+- **In the game**: it faces its heading and plays the clip for its `BeetleMode` (walking that isn't getting anywhere is
+  the turn on the spot). Cue: its brace. `dt screenshot --view beetle` (or `--beetle idle|walk|brace|push|startle`).

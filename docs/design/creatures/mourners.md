@@ -115,3 +115,27 @@ HOME      the body in a car of the train (or the train leaving) → they keen, a
 2. **They never harm the living** (the brief: "they ignore the living").
 3. **A blow kills one** and scatters the rest; they come back until they're all dead or the body's home.
 4. **The body's lost at 120 m** from the track: its refund and the kit it carried with it.
+
+## 12. As built (art and presentation, G1.6, 8 Oct 2026)
+
+![Two of them hauling a crewmate's body off from the line, a third hanging back](mourners-drag.png)
+![Waiting their chance round a body by the line](mourners-wait.png)
+![Close: the hump of the shoulders, the veiled head low between them, the hooked fingers](mourners-closeup.png)
+
+- **Model** (`tools/blender/mourner.py`, SK_Mourner, 37 bones): one continuous skin from the feet to the brow (smooth
+  volumes settled onto their blended field, `tools/blender/flesh.py`, then `rig.fuse`'s QuadriFlow): a small pelvis,
+  the starved waist, the ribs' cage leant back over it, the great hump of the shoulders and bunched upper arms, thin
+  knobbed legs, the small skull pushed forward low between the shoulders, the brow, and the veil: a curtain of the face's
+  own loose skin hanging over the eyes with a few ragged rags off its hem (they sway on the veil bone). Over it: three
+  two-boned hooked fingers and a thumb a hand, twice the palm's length, the nails curled under; three clawed toes; wet
+  black glints of eyes at the veil's edges. **6,298 triangles** (distance copy 2,518), stooped to 1.0 m.
+- **Colour** (`tools/models/recipes/mourner.py`, one 2048 atlas): ash-pale, dry, crazed like old clay (the cracks baked
+  into the normal map and darkened, a pale lifted rim along each), grey dust on whatever faces up, bruised grey-violet
+  at the joints, grimed lower down and along the fingers; the veil darker and sallow; the nails dark horn.
+- **Clips**: wait (rocking, the head snapping round in holds), creep, startle (a jump back, arms flung up), drag (both
+  hands hooked at the sim's hold, `holdAt` / `holdHeight`, leant back, heels dug in, hauling in lurches), scatter, hit,
+  death (over backward, knees up, hands curled). `dt art clearance --only mourner`: clean.
+- **In the game** (`CreatureArt.Outside.cs`): each one faces its heading and plays the clip for its `MournerMode`
+  (Come and Leave scatter; Wait shifts to a creep when it's moving in its ring; Startle jumps back then waits), each its
+  own size and time by its id. The dragged body is the sim's (`Bodies.TakeAlong`). Cues: the group's lead's coming and
+  its taking the body. `dt screenshot --view mourners` (or `--mourners drag|wait|creep|startle`).

@@ -129,12 +129,12 @@ public static partial class Staging
     /// (at the headlamp's edge).</summary>
     public static Double3 BeetleCrate(TrainOnLine train) => Lineside(train, 18, -4.2);
 
-    /// <summary>The <c>beetle</c> view: off the line's left, three-quarters on to it from in front as it shoves the crate.</summary>
+    /// <summary>The <c>beetle</c> view: off the line's left, side on to it and a little in front as it shoves the crate up the line.</summary>
     public static Camera BeetleCamera(TrainOnLine train)
     {
         var crate = BeetleCrate(train);
-        var eye = Lineside(train, 22.5, -8.4) + Double3.Up * 1.6;
-        return Camera.LookAt(eye, crate + (Lineside(train, 15.5, -4.2) - crate) * 0.6 + Double3.Up * 0.55, 52);
+        var eye = Lineside(train, 19.6, -9.6) + Double3.Up * 1.5;
+        return Camera.LookAt(eye, crate + (Lineside(train, 15.5, -4.2) - crate) * 0.55 + Double3.Up * 0.6, 50);
     }
 
     /// <summary>
