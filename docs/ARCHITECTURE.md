@@ -6165,6 +6165,10 @@ Terrain sculpting tools, a node-graph material editor, a general-purpose visual 
      - Frontier:7's run-fast train finds one on Stroud Bridge's chord, put there within 500 m of it.
    - **Bot nights.** `dt harness --route frontier:7 --bots 4 --enemies --upkeep --express 21 --seconds 900`, seeds 1-3, after: a truss Dragger on every night. One grabbed a walker (seed 2) and was hauled off; the others met empty roofs. Deaths 1, 0 and 3 against main's 2, 0 and 2. Seed 3's three were hounds Mauling, nothing to do with the truss.
    - **Not yet.** Bots off the roofs at a truss's scrape (they heed a tunnel's mouth, T81, not this).
+467. **The extinguisher puts a cell out in a second (queue #203, D1; the director, 8 Oct 2026, on the test build: "Holding fire extinguisher on fire still doesnt feel like its doing anything. should be 1s per grid to put out."; note 267's grid).** The cell aimed at cooled at `carFire.sprayPerSecond` 0.35 heat a second against its own growth, so a cell at full blaze took three seconds and more to go out, the cells round it a third of that: held on a fire, nothing seemed to happen.
+   - **Now** `sprayPerSecond` is 1.0: a cell at full blaze aimed at is out after a second of spray (under `outBelow`, and wet for `dampSeconds` so it doesn't catch again from round it), and the cells round it cool at `sprayShare` (0.4) of that. Its charge (`chargeSeconds`, 15 s) is about fifteen cells, so a fire caught early is one extinguisher and a car well alight is still more than one.
+   - **Test.** `CarFireTests.ASecondOfSprayPutsOutTheCellItsAimedAt`: the car ablaze at 0.97, a floor cell aimed at for a second is out, the rest still alight. At 0.35 it fails. The other fire classes (CarFire, PackFire, Fireman) 29/29.
+
 454. **The bots and the Gannet (queue #190, D1; note 340's "not yet": "the bots don't stop on a fold, or keep from hitting it").** The Gannet hangs over someone walking a roof, then folds onto where they'll be 1.6 s on; its rule is "when it folds, break your stride". The bots walked on through the hang and the fold and were stabbed.
    - **Stopped dead** (`Heed.Gannet`, in every crew bot's heed chain, `BotCrew`). A bot on a roof that a Gannet is hanging or folding over (its mode and its prey, as every client has them) drops its movement, run and jump. Whoever stops walking is let be (`Gannet.Hang`: a second still and it climbs away), so the fold never comes; it walks on once it's gone.
    - **Holding fire** on a Gannet nobody's pinned is the gunner's half (`GunnerBot`, D1.3's #183, PR #501): a ball makes the gunner its mark, and the seat is out in the open.
@@ -6432,6 +6436,51 @@ Terrain sculpting tools, a node-graph material editor, a general-purpose visual 
     - **Still no light of its own**, by design (the Wiki's "no candle, bring a lamp"): a barn's dark is the difference from a house's guttering candle. The renderer's 16 rooms nearest the eye are kept (`FrameData.MaxRooms`), so a shed beside a village of houses still has its own.
     - **Verified:** `HouseInteriorArtTests.AnOpenBarnOrShedIsARoomWithNoLightOfItsOwn` (frontier:7: standing in each open barn or shed, a Room holds the eye and no light stands inside its walls; it fails without the change). `dt screenshot --route frontier:7 --barn 0` from the door, `--back` and `--back --lantern` before and after: the moonlit blue wash inside is gone, the lantern's warm pool on the boards is the only light, the outside is unchanged. HouseInteriorArtTests, StopShellArtTests, StopArtTests, PerfBudgetTests and ScreenshotTests pass.
     - **Not yet:** ~~a yard's walk-in sheds and its hero (note 387) are still outside to the renderer, though they're walls with a door too~~ (rooms since note 465).
+
+458. **Nothing blinks out in sight of the crew (D1.2 for D1, queue #194; D1's #187, note 451: a scattered Cinder Hound was Gone the tick it broke off and vanished where it stood).** Every path to `SpinePhase.Gone` was audited, and the ones a crewmate could be watching are fixed in the scene, never in the Sim. The sim keeps letting go of a creature the tick it's done with it; the scene that saw it last frame draws it going.
+    - **How the scene already covered some:**
+        - `Deaths`: a `HitConfirm` with `Killed` (World.Confirm's `Killed: e.Gone`, after a melee `Struck` or a cannon `Hit`), for the kinds that `Falls`.
+        - `Leaving`: the Choir.
+        - `Vanishing`: the Track Doll.
+        - `Riding`: the Car Hugger whose car is adrift.
+        - `Fleeing`: a Cinder Hound on the line (note 451).
+        - Nearly every `BreakOff` → `Gone` pair runs in one tick (0 s). Only the Passenger (2.5 s, then a walk), the Stoker (8 s back to the tender) and the Gaunt (a walk out to 30 m) have a BreakOff the client sees.
+    - **The audit.** In sight and not covered, worst first. "Retreat" marks the ones this change covers:
+
+        | Who | Site (`Sim/Enemies`) | What | Now |
+        |---|---|---|---|
+        | Whistler | Flank.cs:301 | found in its gap by two crew within 2.5 m: "flees" | Retreat |
+        | Climber | Flank.cs:639 | outnumbered or held at the gap, last try | Retreat |
+        | Car Hugger | Enemy.cs:359 | clubbed to death from the rear platform (`Falls` excludes it) | **not yet** |
+        | Stoker | Interior.cs:112, 223 | back into the tender's coal; clubbed while boarding | **not yet** |
+        | Passenger | Corrupted.cs:147, 67 | unmasked, off the back; lingered among the crew | Retreat |
+        | Climber | Flank.cs:557 | gave up pacing a fast train | Retreat |
+        | any | World.cs:1836 | dismissed as the train rolls into a fort | Retreat (for the kinds below) |
+        | Ribbit | Outside.cs:133 | the pack, having eaten | Retreat |
+        | Cinder Hound aboard | Rear.cs:294, 95 | after its kill; its car cut loose | Retreat |
+        | Fire Flies | Interior.cs:421, 439 | the swarm round a lamp, the train pulling away | **not yet** |
+        | Gaunt | Outside.cs:376 | going with its loot, 30 m out | Retreat |
+        | Switchman | Corrupted.cs:341, 388 | the points thrown back by hand; 20 s after the derail | Retreat |
+        | Car Fire | Incidents.cs:196 | flames gone from a car cut loose | **not yet** |
+        | after a kill | Flank.cs:424, 738; Interior.cs:362; Outside.cs:764; Corrupted.cs:183 | off the body, a friend arriving | Retreat |
+
+        - **Not in sight:** outrun or left behind far off (Rear.cs:112, Flank.cs:544, Moose.cs:97), lingering hidden (Flank.cs:100, 264, Interior.cs:274), the Switchman's bad branch (Corrupted.cs:312, 326), the Drift and Sleepers (no body), a fire burnt out.
+        - **Drawn wrongly (a death fall when nothing died):** the Gannet giving up (Gannet.cs:347), a Whistler rescued by a blow (Flank.cs:431), a Climber's last try knocked off by a ball (Flank.cs:772). Each rides the "killed" `HitConfirm`. Left with the second batch.
+    - **Retreating** (`GreyboxScene.Retreating`, `Art.CreatureArt.Retreat`). Gone from the sim between frames, not killed, of a kind with a retreat:
+        - The scene keeps a copy (`Enemy.Blank`, the snapshot's factory, now public).
+        - It's drawn loose where it was last seen, in its break-off: down off the train under gravity, falling behind as the train it was going with runs on, and out from the line on its own side at the kind's speed, turned away. Then it's lost in the dark.
+        - Speeds and times by kind: Climber 5 m/s for 3 s, Whistler 8 for 2, Ribbit 4 for 3, Gaunt 1.5 for 6 (on past its 30 m), Switchman 4 for 3, Tippy Toesie 5 for 2.5, Soot Child 3 for 3, Passenger 3 for 3, Follower 4 for 3, a hound aboard 6 for 3.
+        - Existing clips only: each is its own break-off pose (the Climber's is its pacing scuttle). New ones for E1, if wanted: a Climber's drop and run, a Whistler's dart.
+    - **Staging:** `dt screenshot --threats [--gaunt angry] --view <v> --retreat kind:s [--speed v]`. Looked at: the Ribbit pack (`--view pack --retreat ribbit:1.5`, three toads backs turned, out across the field), the Gaunt (`--gaunt angry --view gaunt --retreat gaunt:3`, walking off), a Climber at the gap (`--view gapside --retreat climber:0.35`, down on the ballast, scuttling out).
+    - **Not yet (the second batch):**
+        - The Car Hugger clubbed to death: a fall off the car's end.
+        - The Stoker: back into the coal, or out of the firebox door.
+        - The Fire Flies: a swarm scattering.
+        - A fire on a car cut loose: `Riding`'s car, burning.
+        - The three drawn as deaths when nothing died.
+    - **Verified:**
+        - `CreatureArtTests.OneLetGoOfInSightIsSeenGoingOffIntoTheDarkThenIsGone` (Climber, Whistler, hound aboard, Ribbit, Gaunt, Switchman): drawn where it was; a second on, out from the line and further from the eye; gone after its time.
+        - `AClimberTheSimLetsGoOfIsSeenGoingAndOneKilledFallsInstead`: gone between frames, a "retreated" beat; killed by a blow, a "killed" beat and the fall, not both.
 465. **A yard's walk-in sheds and its strongroom are rooms (B4, queue #201; note 462's "not yet"; note 387's shells; GDD §28, §31).** A yard's crate sheds and its hero stand as walls with a door (note 387) and are walked into for their crates, but the renderer took their insides for the outside: the moon and the sky on the floor among the stacks and on the clerestory panels.
     - **The room** (`GreyboxScene.HouseInteriors`, beside note 462's open sheds): each roofed length of a yard shed or the hero (`StopWalls.Roofed`, the sim's own) is a `Room` from the frame to its eaves (`WorldArt.YardShedHeight`, the height it's drawn at: a shed 6.5 m and 0.8 a variant, the hero 10 and 1 a variant). Not one a Holdout's in: that's the Holdout's shell.
     - **A gantry's cut stays the open air:** where a yard gantry works a shed's bays (note 279) the cut through it is not roofed, so it's no room; the castings there lie under the sky, lit as the yard is.
