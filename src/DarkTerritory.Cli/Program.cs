@@ -443,7 +443,13 @@ object FacilityWorkDrill(FacilityKind kind, string[] args)
         found = i >= 0 ? (generated, i) : null;
     }
     else
-        found = DarkTerritory.Sim.Bots.FacilityWork.Find(routeTuning, kind);
+    {
+        // The stop's modules (note 449): the night's draw, or --modules a,b,c pinned, or --all-modules its kind's whole list.
+        IReadOnlyList<DarkTerritory.Sim.Run.ModuleKind>? pinned = Str(args, "--modules", "") is { Length: > 0 } named
+            ? [.. named.Split(',').Select(n => Enum.Parse<DarkTerritory.Sim.Run.ModuleKind>(n.Trim(), ignoreCase: true))]
+            : args.Contains("--all-modules") ? facilities.ModulesOf(kind) : null;
+        found = DarkTerritory.Sim.Bots.FacilityWork.Find(routeTuning, kind, modules: pinned);
+    }
     if (found is not { } at)
         return new { error = $"no route with a {kind} down a spur" };
     var r = DarkTerritory.Sim.Bots.FacilityWork.Run(at.Route, at.Facility, train, player, boiler, run, facilities, routeTuning.Junctions, cars,
@@ -452,7 +458,7 @@ object FacilityWorkDrill(FacilityKind kind, string[] args)
     {
         route = at.Route.Name,
         facility = r.Facility,
-        modules = facilities.ModulesOf(kind).Select(m => m.ToString()),
+        modules = r.Modules.Select(m => m.ToString()),
         departed = r.Departed,
         seconds = r.Seconds,
         legs = r.Legs,

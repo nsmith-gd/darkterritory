@@ -2799,7 +2799,9 @@ public sealed class ConductorBot(CrewCalls? calls = null, int member = 0) : IWor
         if (train.BoilerTuning is { SteamDrive: true } fb && train.Dynamics.BrakeEfficiency < FadedBrake && !standing)
             fireTo = Math.Min(fireTo, Boiler.PressureFor(fb, Math.Max(0, _cruise - fb.DriveSpeedBand), train.Dynamics.Tuning.MaxSpeed));
         // Only with the shovel to hand (note 275): the one off the rack, or in its own kit. Out with a crewmate, it's theirs to fire.
-        if (train.BoilerTuning is { } bt && train.Boiler.Tender >= 1 && PlayerMotor.InCab(self, train) && CrewActions.HasShovel(self, train)
+        // Anywhere on the engine's deck, not only in the cab (note 463): drawn back along the hood by something, it walks back
+        // to the fire when the fire wants it, where it stood in the corridor all night with the tender full.
+        if (train.BoilerTuning is { } bt && train.Boiler.Tender >= 1 && self.Parent == 0 && self.Surface == Surface.Deck && CrewActions.HasShovel(self, train)
             && (!standing && train.Boiler.Pressure < fireTo || standing && train.Boiler.Pressure < StandingPressure
                 // Never a low fire (the Stoker, App. A.5); with steam driving and the pressure well over what's wanted, only
                 // just clear of low, or the surplus is speed.
