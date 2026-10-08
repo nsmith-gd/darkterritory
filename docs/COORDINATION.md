@@ -234,6 +234,9 @@ renumbered from 268), 277 (C1's art checklist L1s), 278 (B1's bends), 279 (B1's 
 
 | Item | PR | Note |
 |---|---|---|
+| The relief driver: a walker takes the controls from a dead driver, and comes forward into the cab to club a Climber with the driver (queue #134) | [#397](https://github.com/nsmith-gd/darkterritory/pull/397) | 399 |
+| #299's regressions: the driver kept from the Climber, and the headlamp mended from the floor, not the vent's corner (queue #39) | [#387](https://github.com/nsmith-gd/darkterritory/pull/387), [#393](https://github.com/nsmith-gd/darkterritory/pull/393) | 301 |
+| Wrenches are the repair tool, slice 2: the engine, the headlamp, the radio, the lock, Stranded; the kit goes (queue #39) | [#299](https://github.com/nsmith-gd/darkterritory/pull/299) | 301 |
 | The outside through a room's walls: in a stop's shed or small room, what's outside heard through its walls | [#384](https://github.com/nsmith-gd/darkterritory/pull/384) | 396 |
 | Inside the stop's buildings heard as rooms: a shed's iron hall, a small room, the rain on the roof, boarded floors heard as wood | [#377](https://github.com/nsmith-gd/darkterritory/pull/377) | 392 |
 | Captions for the sounds since CAPTIONS: the signs as they play now, the Moose's and the Gannet's tells, a lamp sputtering, a coupling knocking | [#371](https://github.com/nsmith-gd/darkterritory/pull/371) | 391 |
