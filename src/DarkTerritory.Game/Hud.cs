@@ -1016,7 +1016,8 @@ public static partial class Hud
         if (r.Recovery > 0)
             money.Add($"recovery {r.Recovery:0}");
         money.Add($"running costs {r.CoalCost + r.AmmoCost + r.RepairCost:0}");
-        string sum = $"{string.Join(", ", money)}. Net {r.Net:0} scrip.";
+        // Wrapped as the lines are (note 347): at a bigger TEXT SIZE it's wider than the plate.
+        var sum = Wrap($"{string.Join(", ", money)}. Net {r.Net:0} scrip.", chars).ToList();
         // The dead's own (D.12 "manual"), a row of stills across, each with when and whom they were following.
         var manual = r.Bookmarks.Where(b => b.Kind == BookmarkKind.Manual).ToList();
         // Each a still with its time and whom it followed at its right.
@@ -1024,13 +1025,13 @@ public static partial class Hud
         int across = Math.Max(1, (int)((w - 8) / cell));
         float manualH = manual.Count == 0 ? 0 : line + ((manual.Count + across - 1) / across) * (ManualHeight + 4);
         // What fits: the heading, as many lines as there's room for (the rest counted), the dead's row, the money.
-        float room = height - top - 8 - 2 * line - manualH;
+        float room = height - top - 8 - (1 + sum.Count) * line - manualH;
         float used = 0;
         int keep = 0;
         while (keep < blocks.Count && used + blocks[keep].Height <= room - (keep + 1 < blocks.Count ? line : 0))
             used += blocks[keep++].Height;
         int more = blocks.Skip(keep).Sum(b => b.Rows.Count);
-        float total = line + used + (more > 0 ? line : 0) + manualH + line;
+        float total = line + used + (more > 0 ? line : 0) + manualH + sum.Count * line;
         UiStyle.Plate(o, x - 4, top - 4, w + 8, total + 8);
         float y = top;
         o.Text(x + 4, y, "INCIDENT REPORT", Amber);
@@ -1072,7 +1073,11 @@ public static partial class Hud
             }
             y += manualH - line;
         }
-        o.Text(x + 4, y, sum, Ink);
+        foreach (var row in sum)
+        {
+            o.Text(x + 4, y, row, Ink);
+            y += line;
+        }
     }
 
     /// <summary>Run seconds as the report's timestamp: "1:04:12" over an hour, else "12:04".</summary>
