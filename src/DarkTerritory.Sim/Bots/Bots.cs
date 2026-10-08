@@ -850,6 +850,39 @@ public sealed class RoofWalkerBot(int seed, ColdTuning? cold = null, StopHand? j
     }
 
     /// <summary>
+    /// Out of the engine from its deck (the cab, or the hood's corridors beside the boiler). Since the armoured train (note 338)
+    /// the cab is at the front with the boiler cased behind it and plated across its back: the way out is the corridor down the
+    /// boiler's left side (the side the footplate onto the coupler plate is), to the deck behind the smokebox, then out onto
+    /// the plate, where the walker's way out of any gap takes it up the engine's end ladder onto the hood's roof. Walking
+    /// straight back from the cab, a walker stood against the plating all night (a 45-minute bot night, 8 Oct). Null with
+    /// no cab (an old engine's open footplate, walked off as ever).
+    /// </summary>
+    static PlayerIntent? OutOfTheEngine(in PlayerState self, TrainOnLine train)
+    {
+        var shape = train.Frames[0].Shape;
+        if (shape.Cab is null)
+            return null;
+        var g = train.Dynamics.Tuning.Geometry;
+        var plan = EnginePlan.Of(g);
+        double w = g.RoofWidth / 2, boiler = g.Engine.BoilerHalfWidth;
+        double corridor = -(boiler + (w - 0.1 - boiler) / 2);
+        double hoodBack = plan.Half - CarShape.BoilerToEnd;
+        var at = self.Position;
+        if (at.Z < hoodBack)
+        {
+            // Over to the corridor's mouth first, inside the cab; then down it.
+            if (Math.Abs(at.X - corridor) > 0.25 && at.Z < plan.CabBack - 0.2)
+                return WarmUp.Steer(self, new Double3(corridor, at.Y, plan.CabBack - 0.6), Math.PI).Step;
+            return WarmUp.Steer(self, new Double3(corridor, at.Y, hoodBack + 0.8), Math.PI).Step;
+        }
+        // Behind the smokebox: out along the footplate (T90's, beside the coupler plate), then sideways down onto the plate.
+        double onFootplate = plan.Half + g.CouplingGap * 0.3;
+        if (at.Z < onFootplate - 0.25)
+            return WarmUp.Steer(self, new Double3(g.PlateX - g.CouplerWidth / 2 - 0.3, at.Y, onFootplate), Math.PI).Step;
+        return WarmUp.Steer(self, new Double3(g.PlateX, at.Y, onFootplate), Math.PI).Step;
+    }
+
+    /// <summary>
     /// The nearest hot axle box (note 331, <see cref="HotBoxes"/>) or loose coupling (note 356, <see cref="Couplings"/>; with
     /// a wrench to take to it) nobody's at yet: both are in the gap behind their car. Along the roofs to its car, to the roof's
     /// back end over the ladder down into the gap behind it, down it, and Use held until it's done (the box and the pin are in
@@ -1040,6 +1073,9 @@ public sealed class RoofWalkerBot(int seed, ColdTuning? cold = null, StopHand? j
         // On a car's floor (in from the cold, or knocked in): out through the nearer door, then up the end ladder.
         if (self.Surface == Surface.Deck && self.Parent > 0 && _warm is not null && _warm.Leave(self, train) is { } leaving)
             return leaving;
+        // On the engine's deck (in the cab, or beside the boiler): out the back of the engine and up onto the roofs.
+        if (self.Surface == Surface.Deck && self.Parent == 0 && OutOfTheEngine(self, train) is { } leavingEngine)
+            return leavingEngine;
         // Mid-climb: keep going up.
         if (self.Surface == Surface.Ladder)
             return new PlayerIntent { MoveZ = 1, Buttons = PlayerButtons.Use };
@@ -1088,8 +1124,10 @@ public sealed class RoofWalkerBot(int seed, ColdTuning? cold = null, StopHand? j
             Buttons = PlayerButtons.Run,
         };
 
-        // Jump the gap at the car end we're heading for, if there's a car beyond it.
-        bool nearEnd = _direction < 0 ? z < -halfLength + 0.45 : z > halfLength - 0.45;
+        // Jump the gap at the car end we're heading for, if there's a car beyond it. The armoured engine's roof (the hood's,
+        // note 338) stops short of its end, over the smokebox: jumped from there.
+        double roofBack = self.Parent == 0 && frame.Shape.Cab is not null ? EnginePlan.Of(train.Dynamics.Tuning.Geometry).Half - CarShape.BoilerToEnd : halfLength;
+        bool nearEnd = _direction < 0 ? z < -halfLength + 0.45 : z > roofBack - 0.45;
         int beyond = _direction < 0 ? train.VehicleAhead(self.Parent) : train.VehicleBehind(self.Parent);
         bool carBeyond = beyond > 0;
         if (nearEnd && carBeyond && aligned)
