@@ -36,6 +36,8 @@ What each is for (CrewActs, from the sim's state; GDD/spec where the act is):
   take_down, hang_up  the extinguisher lifted off its bracket into the hands, and hung back on it (App. C.5)
   hurry               running under stress: hunched, arms pumping (GDD §31)
   stagger             a blow taken: rocked back a step, and back (App. C.2)
+  shuffle             a freed prisoner's walk (App. D.8, note 407): short dragging steps, hunched, the hands kept together in front
+                      as if the irons were still on
   jump                off the roof on a jump: the spring, then the leap tucked, arms reaching for the far roof (note 375)
   stumble             on a car straining on a bend: thrown one way and the other, arms out, a foot stepped wide (note 375)
   throw, chute, spout a ground switch lever heaved over; the coaling chute's lever hauled down; a spout swung round (C.6, D.3)
@@ -816,6 +818,29 @@ stagger.key(4, hands(STAG, (0.34, 0.2, 1.5), (-0.4, 0.1, 1.42), fist=False), "LI
 stagger.key(10, hands(over(STAG, spine_02=(6, 0, -3), head=(-6, 0, 4)), (0.3, 0.24, 1.2), (-0.34, 0.16, 1.15), fist=False))
 stagger.key(20, STAND)
 clips.append(stagger)
+
+# --- shuffle: a freed prisoner's walk (App. D.8, the checklist's survivor-prisoner; note 407). Years in irons: short,
+# flat, dragging steps that barely clear the ground, hunched over them, the head down, the hands held together low in
+# front where the cuffs kept them, the shoulders rounded in; it nods a little with each step.
+def shuffle_upper(f, side):
+    nod = 3 if side == "r" else -3
+    body = over(STAND, pelvis__loc=(0, 0, -0.04), spine_01=(-16, 0, 0), spine_02=(-16, 0, nod * 0.5), spine_03=(-12, 0, 0), neck=(30, 0, 0),
+                head=(12 + abs(nod), 0, -nod), clavicle_r=(0, 2, 14), clavicle_l=(0, 2, -14))
+    return hands(body, (0.07, 0.34, 0.9 + 0.01 * nod), (-0.07, 0.35, 0.9 - 0.01 * nod), grip=60)
+
+
+def shuffle_legs(f, pose):
+    # The feet barely lifted: the passing knee's bend and the toe-off halved, the knees kept soft.
+    for k in ("calf_r", "calf_l"):
+        x = pose.get(k, (0, 0, 0))
+        pose[k] = (max(x[0] * 0.5, -40) - 6, x[1], x[2])
+    for k in ("foot_r", "foot_l"):
+        x = pose.get(k, (0, 0, 0))
+        pose[k] = (x[0] * 0.4, x[1], x[2])
+    return pose
+
+
+clips.append(walking("shuffle", shuffle_upper, cycle=40, short=0.42, tweak=shuffle_legs))
 
 # --- jump: off the roof on a jump, between cars (the checklist's crew-gap: "a jump between roofs"; note 375). Played once
 # from the spring (CrewActs: rising), held over the top (SceneArt) until they're falling or down. The push off the back
