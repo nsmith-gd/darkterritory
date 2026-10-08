@@ -677,7 +677,7 @@ CUES = {
         O("disperse", "Leaving once quiet holds", vars=2),
     ],
     "cs-hounds": [
-        O("paw", "One paw fall (fired at the gallop's tempo)", vars=6, mats=["ground", "grate", "roof"]),
+        O("paw", "One paw fall (fired at the gallop's tempo; aboard, at its walk: note 478)", vars=6, mats=["ground", "grate", "roof", "wood"]),
         O("leap", "The leap onto the rear car", vars=2),
         O("snarl", "A snarl", vars=4),
         O("bite", "A bite", vars=4),

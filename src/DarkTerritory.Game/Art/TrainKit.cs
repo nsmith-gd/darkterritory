@@ -1524,6 +1524,46 @@ public static class TrainKit
         return (MathF.Min(a, b), MathF.Max(a, b), deck + 1.15f, (float)roof.Min.Y - BandHeight - 0.02f);
     }
 
+    /// <summary>
+    /// A pane of the cab's glass (note 485), in the engine's frame: its corner, the edge across it (<see cref="U"/>) and the
+    /// edge up it (<see cref="V"/>); <see cref="In"/>, its normal into the cab. The windows are open frames in the kit (the
+    /// glass itself isn't drawn), so this is where the frost lies and a breath fogs it.
+    /// </summary>
+    public readonly record struct Pane(Vector3 Corner, Vector3 U, Vector3 V, Vector3 In)
+    {
+        public Vector3 Centre => Corner + (U + V) / 2;
+    }
+
+    /// <summary>
+    /// The cab's panes (note 485): the two front windows either side of the middle post, and each side's slit in its three
+    /// bays between the posts (CabShell).
+    /// </summary>
+    public static IEnumerable<Pane> CabPanes(CarShape shape)
+    {
+        if (shape.Cab is not { } cab)
+            yield break;
+        float cabFront = (float)cab.Min.Z, w = (float)shape.HalfWidth;
+        float deck = (float)shape.Solids.First(s => s.Part == PartKind.Boiler).Box.Min.Y;
+        float z = cabFront + 0.06f;
+        foreach (int side in new[] { -1, 1 })
+        {
+            var win = FrontWindow(shape, side);
+            yield return new Pane(new Vector3(win.X0, win.Y0, z), new Vector3(win.X1 - win.X0, 0, 0), new Vector3(0, win.Y1 - win.Y0, 0), Vector3.UnitZ);
+        }
+        var doorFront = shape.Solids.Where(s => s.Part == PartKind.CabWall && s.Box.Min.Y > deck + 1.5).Select(s => (float)s.Box.Min.Z)
+            .DefaultIfEmpty((float)cab.Max.Z - 1.05f).Min();
+        float z0 = cabFront + 0.15f, span = doorFront - 0.02f - z0;
+        foreach (int side in new[] { -1, 1 })
+            for (int bay = 0; bay < 3; bay++)
+            {
+                // Between the posts' straps (0.06 m either side of each post).
+                float a = z0 + span * bay / 3 + (bay > 0 ? 0.06f : 0), b = z0 + span * (bay + 1) / 3 - (bay < 2 ? 0.06f : 0);
+                float x = side * (w - 0.02f);
+                yield return new Pane(new Vector3(x, deck + SlitBottom, side > 0 ? b : a), new Vector3(0, 0, side > 0 ? a - b : b - a),
+                    new Vector3(0, SlitTop - SlitBottom, 0), new Vector3(-side, 0, 0));
+            }
+    }
+
     /// <summary>How tall the run map's plate over the front windows is (m).</summary>
     const float MapHeight = 0.32f;
 
