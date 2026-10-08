@@ -912,6 +912,12 @@ public sealed class Director
     readonly SortedDictionary<int, int> _flankRunners = [];
     public int FlankRunners(int pack) => _flankRunners.GetValueOrDefault(pack);
 
+    /// <summary>How many of tonight's flank pairs came in abeam the engine's gun, for the forward gun (note 443).</summary>
+    public int FlankEnginePairs => _flankEngineSent;
+    int _flankEngineSent;
+    readonly SortedDictionary<int, int> _flankEngineRunners = [];
+    public int FlankEngineRunners(int pack) => _flankEngineRunners.GetValueOrDefault(pack);
+
     /// <summary>
     /// Whether the country's open abeam the train at <paramref name="along"/> (note 418): the line's biome one of the flank
     /// lanes' (any, with no plan), and room that far out (no tunnel's bore or bridge's deck).
@@ -933,6 +939,20 @@ public sealed class Director
     /// <summary>Whether the engine's rake carries a gun laid forward (the engine's own): the lane ahead's (note 405).</summary>
     static bool ForwardGun(TrainOnLine train) =>
         train.Dynamics.Consist.Vehicles.Any(v => train.Vehicles[v.Id].Gun is { Mounted: true, Facing: < 0 });
+
+    /// <summary>
+    /// Where along the line the engine's rake's gun laid forward stands (note 443): abeam it is the flank the forward gun has.
+    /// Null without one.
+    /// </summary>
+    public static double? ForwardGunAlong(TrainOnLine train)
+    {
+        var consist = train.Dynamics.Consist;
+        for (int i = 0; i < consist.Vehicles.Count; i++)
+            if (train.Vehicles[consist.Vehicles[i].Id].Gun is { Mounted: true, Facing: < 0 } g)
+                // The car's centre, then its gun's place on it (local −Z is forward, up the line).
+                return train.Dynamics.Distance - consist.OffsetOf(i) - train.Frames[consist.Vehicles[i].Id].Shape.HalfLength - g.Z;
+        return null;
+    }
 
     /// <summary>Every hound run sent tonight (note 328).</summary>
     public List<HoundRun> HoundRuns { get; } = new();
@@ -1024,8 +1044,14 @@ public sealed class Director
             bool ahead = rt.AheadEvery > 0 && _pairsSent % rt.AheadEvery == Math.Min(1, rt.AheadEvery - 1) && ForwardGun(w.Train);
             // The flank lanes (note 418): every flankEvery-th pair (the last of each), from the open country abeam the guard van's
             // gun: a gun traverses only so far round from its facing (traverseDegrees), so abeam its own car is the flank it has.
-            double abeam = w.Train.Dynamics.RearDistance + rt.FlankAbeam;
-            bool flank = !ahead && rt.FlankEvery > 0 && _pairsSent % rt.FlankEvery == rt.FlankEvery - 1 && RearGun(w.Train) && Open(w, rt, abeam);
+            // Every flankEngineEvery-th flank pair of the night (the second of each two) comes abeam the engine's gun instead
+            // (note 443): the forward gun traverses as far round from ahead as the guard van's does from astern, so abeam the
+            // engine is its flank, as abeam the guard van is the guard gun's. A train with no gun laid back has only that one.
+            double? forward = rt.FlankEngineEvery > 0 ? ForwardGunAlong(w.Train) : null;
+            bool rearGun = RearGun(w.Train);
+            bool toEngine = forward is not null && (!rearGun || _flankSent % rt.FlankEngineEvery == rt.FlankEngineEvery - 1);
+            double abeam = toEngine ? forward!.Value : w.Train.Dynamics.RearDistance + rt.FlankAbeam;
+            bool flank = !ahead && rt.FlankEvery > 0 && _pairsSent % rt.FlankEvery == rt.FlankEvery - 1 && (toEngine || rearGun) && Open(w, rt, abeam);
             for (int i = 0; i < n; i++)
             {
                 int k = i;
@@ -1055,6 +1081,11 @@ public sealed class Director
             {
                 _flankSent++;
                 _flankRunners[_runPack] = FlankRunners(_runPack) + n;
+                if (toEngine)
+                {
+                    _flankEngineSent++;
+                    _flankEngineRunners[_runPack] = FlankEngineRunners(_runPack) + n;
+                }
             }
             _runnersLeft -= n;
             _pairsSent++;

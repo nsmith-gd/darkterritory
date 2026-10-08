@@ -127,11 +127,14 @@ public static class CrewActs
     /// A driver's hands where the levers are (GDD §12): one on the regulator, at its notch, and one on the brake valve; or,
     /// whistling, one up on the cord's handle (<see cref="TrainKit.WhistleCord"/>, hauled down). From the feet, facing frame.
     /// </summary>
-    static (Double3, Double3)? AtTheControls(World world, IReadOnlyList<CarFrame> frames, Double3 feet, double yaw, bool whistling)
+    static (Double3, Double3)? AtTheControls(World world, IReadOnlyList<CarFrame> frames, Double3 feet, double yaw, bool whistling) =>
+        AtTheControls(world.Controls, frames, feet, yaw, whistling);
+
+    /// <summary>The same, for the controls as given (a staged driver: Staging.Driver).</summary>
+    public static (Double3, Double3)? AtTheControls(TrainControls c, IReadOnlyList<CarFrame> frames, Double3 feet, double yaw, bool whistling)
     {
         if (frames.Count == 0 || frames[0].Shape.Levers is not { } levers)
             return null;
-        var c = world.Controls;
         Double3 Local(Double3 inCab)
         {
             var d = frames[0].ToWorld(inCab) - feet;

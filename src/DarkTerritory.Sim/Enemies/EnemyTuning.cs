@@ -856,6 +856,11 @@ public sealed record HoundRunTuning
     public double FlankOut { get; init; } = 70;
     public double FlankAbeam { get; init; } = 4;
     public double FlankSpeed { get; init; } = 6;
+    /// <summary>
+    /// Of the night's flank pairs, every this many (the last of each) comes abeam the engine's gun instead, for the forward
+    /// gun (note 443; 0: never, 1: every one). To a train with a gun laid forward; with no gun laid back, all of them.
+    /// </summary>
+    public int FlankEngineEvery { get; init; } = 2;
     /// <summary>The open country (linegen biomes.json's few-treed ones).</summary>
     public string[] FlankBiomes { get; init; } = [];
 }

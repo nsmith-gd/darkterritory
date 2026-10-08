@@ -787,6 +787,50 @@ public class StopCrewTests
     }
 
     [Fact]
+    public void TwoHandsFetchAHeavyCrateFromTheYardTogether()
+    {
+        // Note 440 (note 403's "not yet"; level-design P8, the strongroom's crate at the yard's far end): with the light crates
+        // in, a hand goes round the sheds to a heavy crate lying elsewhere in the yard (here the hero's, across the spur, its
+        // door away from the line) and takes the end its way home leaves by; another comes round for the other end, and the
+        // two carry it home round the hero and the train, and into a car. Whoever's beaten to the other end walks back round.
+        var few = F with
+        {
+            Crates = F.Crates with { Count = [2, 2], Heavy = F.Crates.Heavy with { Count = [0, 0] } },
+            Crew = F.Crew with { VillageShare = 0 },
+        };
+        var night = new Night(cars: 8, walkers: 3, crateHands: true, ids: true, loot: true, facilities: few, modules: ModuleKind.Crates);
+        var train = night.Train;
+        var run = night.World.Run!;
+        var hands = night.Bots.OfType<RoofWalkerBot>().Select(b => b.Job).OfType<StopHand>().Where(h => h.Job == StopJob.Crates).ToList();
+        var fetched = new HashSet<int>();
+        var doing = new List<string>();
+        int heavyInYard = 0;
+        night.Until(() => run.Departures > 0, 2400, () =>
+        {
+            heavyInYard = Math.Max(heavyInYard, night.World.Bodies.All.Count(b => b.Kind == Physics.BodyKind.Heavy && b.Parent == PlayerState.World));
+            foreach (var h in hands)
+            {
+                if (h.Doing.Length > 0 && !doing.Contains(h.Doing))
+                    doing.Add(h.Doing);
+                if (h.PlayerId is { } id && h.Fetching && night.World.Bodies.CarriedBy(id) is { Kind: Physics.BodyKind.Heavy, Lifted: true } crate)
+                    fetched.Add(crate.Id);
+            }
+        });
+        // Stowed: settled into a car's load (the body's gone), or lying in a car.
+        var stowed = fetched.Where(id => night.World.Bodies.All.FirstOrDefault(b => b.Id == id) is null or { Parent: > 0, Carrier: < 0 }).ToList();
+        string trace = $"heavy crates in the yard {heavyInYard}, fetched {fetched.Count}, stowed {stowed.Count}; the hands were {string.Join(", ", doing)}";
+        string where = string.Join(", ", night.Crew.Select((c, i) => $"{i}: {c.Surface} on {c.Parent}"));
+        Assert.True(run.Departures > 0, $"never left: driver {night.Driver.Stops!.Doing}; hands {string.Join(", ", hands.Select(h => h.Doing))}; crew {where}; {trace}");
+        Assert.True(heavyInYard > 0, trace);
+        Assert.True(stowed.Count > 0 && stowed.Count == fetched.Count, trace);
+        Assert.Contains("to lend a hand in the yard", doing);
+        Assert.Contains("carrying the back end", doing);
+        Assert.All(night.Crew, c => Assert.True(c.Alive, $"died of {c.Death}; crew {where}"));
+        Assert.All(night.Crew, c => Assert.NotEqual(Surface.Ground, c.Surface));
+        Assert.Equal(1, train.TrainRakes);
+    }
+
+    [Fact]
     public void TwoHandsCarryTheHeavyCratesInTogether()
     {
         // As above, but the hands know who they are: the light crates in, then the heavy ones between two (T45).
