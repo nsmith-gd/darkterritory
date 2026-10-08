@@ -434,13 +434,15 @@ public static partial class Hud
             o.TextRight(right, 5, $"PING {ping:0} MS", colour, k);
     }
 
-    /// <summary>An open house's hiding spot as the prompt says it (note 326).</summary>
+    /// <summary>An open house's hiding spot as the prompt says it (note 326), or an open barn's or shed's (note 417).</summary>
     static string SpotName(DarkTerritory.Sim.Stops.ContainerKind kind) => kind switch
     {
         DarkTerritory.Sim.Stops.ContainerKind.Cupboard => "CUPBOARD",
         DarkTerritory.Sim.Stops.ContainerKind.Cabinet => "CABINET",
         DarkTerritory.Sim.Stops.ContainerKind.Cellar => "CELLAR",
         DarkTerritory.Sim.Stops.ContainerKind.UnderFloor => "LOOSE BOARDS",
+        DarkTerritory.Sim.Stops.ContainerKind.Hayloft => "HAYLOFT",
+        DarkTerritory.Sim.Stops.ContainerKind.Bench => "WORKBENCH",
         _ => "PLACE",
     };
 
