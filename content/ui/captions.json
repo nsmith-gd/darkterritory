@@ -67,6 +67,11 @@
     "crew-house-door.shut": "A DOOR SLAMMING SHUT",
     "crew-house-door.open": "A DOOR CREAKING OPEN",
     "cs-choir.bang-door": "BANGING ON THE DOOR",
+    // A Holdout breached (D.7: the smash "loud as a cannon", the pry "loud as machinery"; note 497): each blow, each heave,
+    // each board off, heard from far off.
+    "place-breach.smash": "A SLEDGE ON IRON",
+    "place-breach.pry": "WOOD CREAKING, NAILS SQUEALING",
+    "place-breach.board": "A BOARD TORN AWAY",
     // A truss's Dragger (note 444): its weight landing on the roof of a car with someone on it, before its grab; with
     // nobody up there, its fall onto the track behind.
     "cs-draggers.drop": "SOMETHING HEAVY LANDING ON THE ROOF",

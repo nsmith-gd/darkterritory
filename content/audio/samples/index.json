@@ -10461,6 +10461,47 @@
   "takes": 1,
   "sha": "16bf15dea60a8bf9"
  },
+ "place-breach/board": {
+  "cue": "place-breach.board",
+  "surface": null,
+  "picked": "first",
+  "candidates": [
+   {
+    "label": "A board torn off a barricade: its last nails shrieking out, the board wrenched free and clattering down",
+    "key": "torn",
+    "sources": [
+     "sfx_100_v2:misc_34",
+     "sfx_100_v2:misc_35",
+     "kenney_impact-sounds:impactWood_heavy_000",
+     "kenney_impact-sounds:impactWood_heavy_001",
+     "kenney_impact-sounds:impactWood_heavy_002",
+     "kenney_impact-sounds:impactWood_heavy_003",
+     "kenney_impact-sounds:impactWood_heavy_004",
+     "kenney_impact-sounds:impactPlank_medium_000",
+     "kenney_impact-sounds:impactPlank_medium_001",
+     "kenney_impact-sounds:impactPlank_medium_002",
+     "kenney_impact-sounds:impactPlank_medium_003",
+     "kenney_impact-sounds:impactPlank_medium_004",
+     "sfx_100_v2:wood_hit_01",
+     "sfx_100_v2:wood_hit_02",
+     "kenney_impact-sounds:impactPlate_heavy_000",
+     "kenney_impact-sounds:impactPlate_heavy_001",
+     "kenney_impact-sounds:impactPlate_heavy_002",
+     "kenney_impact-sounds:impactPlate_heavy_003",
+     "kenney_impact-sounds:impactPlate_heavy_004",
+     "kenney_impact-sounds:impactMetal_heavy_000",
+     "kenney_impact-sounds:impactMetal_heavy_001",
+     "kenney_impact-sounds:impactMetal_heavy_002",
+     "kenney_impact-sounds:impactMetal_heavy_003",
+     "kenney_impact-sounds:impactMetal_heavy_004",
+     "sfx_100_v2:metal_hit_01"
+    ],
+    "licence": "CC0"
+   }
+  ],
+  "takes": 3,
+  "sha": "4e1cca89eef53d65"
+ },
  "place-breach/pick": {
   "cue": "place-breach.pick",
   "surface": null,
@@ -10518,8 +10559,8 @@
   "picked": "first",
   "candidates": [
    {
-    "label": "A barricade pried: a crowbar levering boards, nails shrieking out of the wood, boards creaking and cracking",
-    "key": "bar",
+    "label": "One heave on the bar: a board flexing out on its nails, the nails squealing, the wood creaking and splitting",
+    "key": "heave",
     "sources": [
      "sfx_100_v2:misc_35",
      "kenney_rpg-audio:chop",
@@ -10538,8 +10579,8 @@
     "licence": "CC0"
    }
   ],
-  "takes": 1,
-  "sha": "cd915a2602a82f8d"
+  "takes": 4,
+  "sha": "a762f8d23d0cfa59"
  },
  "place-breach/pry-give": {
   "cue": "place-breach.pry-give",
@@ -10588,8 +10629,8 @@
   "picked": "first",
   "candidates": [
    {
-    "label": "A lock smashed: three seconds of sledge blows on a padlock and hasp, the door booming, the last blow tearing it out",
-    "key": "sledge",
+    "label": "One sledge blow on a padlock and hasp: steel on steel, the plank door booming, the lock jumping on its staple",
+    "key": "blow",
     "sources": [
      "kenney_impact-sounds:impactPlate_heavy_000",
      "kenney_impact-sounds:impactPlate_heavy_001",
@@ -10631,8 +10672,60 @@
     "licence": "CC0"
    }
   ],
-  "takes": 4,
-  "sha": "f33117110b95d4b9"
+  "takes": 5,
+  "sha": "1e74a2cae33bddbe"
+ },
+ "place-breach/smash-give": {
+  "cue": "place-breach.smash-give",
+  "surface": null,
+  "picked": "first",
+  "candidates": [
+   {
+    "label": "The last blow: the hasp torn out of the splintering wood and the lock clattering down",
+    "key": "tear",
+    "sources": [
+     "kenney_impact-sounds:impactPlate_heavy_000",
+     "kenney_impact-sounds:impactPlate_heavy_001",
+     "kenney_impact-sounds:impactPlate_heavy_002",
+     "kenney_impact-sounds:impactPlate_heavy_003",
+     "kenney_impact-sounds:impactPlate_heavy_004",
+     "kenney_impact-sounds:impactMetal_heavy_000",
+     "kenney_impact-sounds:impactMetal_heavy_001",
+     "kenney_impact-sounds:impactMetal_heavy_002",
+     "kenney_impact-sounds:impactMetal_heavy_003",
+     "kenney_impact-sounds:impactMetal_heavy_004",
+     "sfx_100_v2:metal_hit_01",
+     "kenney_impact-sounds:impactWood_heavy_000",
+     "kenney_impact-sounds:impactWood_heavy_001",
+     "kenney_impact-sounds:impactWood_heavy_002",
+     "kenney_impact-sounds:impactWood_heavy_003",
+     "kenney_impact-sounds:impactWood_heavy_004",
+     "kenney_impact-sounds:impactPlank_medium_000",
+     "kenney_impact-sounds:impactPlank_medium_001",
+     "kenney_impact-sounds:impactPlank_medium_002",
+     "kenney_impact-sounds:impactPlank_medium_003",
+     "kenney_impact-sounds:impactPlank_medium_004",
+     "sfx_100_v2:wood_hit_01",
+     "sfx_100_v2:wood_hit_02",
+     "kenney_impact-sounds:impactMetal_light_000",
+     "kenney_impact-sounds:impactMetal_light_001",
+     "kenney_impact-sounds:impactMetal_light_002",
+     "kenney_impact-sounds:impactMetal_light_003",
+     "kenney_impact-sounds:impactMetal_light_004",
+     "kenney_impact-sounds:impactMetal_medium_000",
+     "kenney_impact-sounds:impactMetal_medium_001",
+     "kenney_impact-sounds:impactMetal_medium_002",
+     "kenney_impact-sounds:impactMetal_medium_003",
+     "kenney_impact-sounds:impactMetal_medium_004",
+     "sfx_100_v2:metal_01",
+     "sfx_100_v2:metal_02",
+     "sfx_100_v2:metal_06"
+    ],
+    "licence": "CC0"
+   }
+  ],
+  "takes": 2,
+  "sha": "2e14772af0167742"
  },
  "place-chemical/drip": {
   "cue": "place-chemical.drip",
