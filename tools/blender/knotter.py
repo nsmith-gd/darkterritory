@@ -45,12 +45,38 @@ rig.reset()
 SPAN = 5.0
 SEGMENTS = 33
 END = 2.4                   # its knots' centres either side of the middle (m along it)
-REACH = 2.7                 # its claws' tips
+REACH = 2.8                 # its longest claws' tips, about
 RADIUS = 0.104              # the lay's outside, over the strands' ridges
 LAY_R, STRAND_R = 0.054, 0.05
 PITCH = 0.42                # one turn of the lay (m)
 WHIP = [-1.6, -0.55, 0.55, 1.6]  # the whipping's bands, along it
-CLAWS = 10                  # each knot's clawed fingers
+CLAWS = 10                  # each end's claws
+JOINTS = 4                  # each claw's segments
+
+
+def _h(*k):
+    return 0.5 + 0.5 * noise3(Vector((k[0] * 1.37 + 0.11, k[1] * 2.11 + 0.37, k[2] * 0.71 + 0.53)), 3651, 1.0)
+
+
+def claw_spec(end, k):
+    """Claw k of an end: its joints from root to tip. An arthropod's claw, not a finger: long (0.25-0.4 m), in four
+    segments, each turned further over than the last into a hook; splayed out from the strands' ends at its own angle and
+    length, a ring of them round the end, two of each end's curling back along the lay."""
+    sy = 1 if end == "f" else -1
+    a = 2 * math.pi * k / CLAWS + 0.3 + 0.35 * (_h(k, sy, 1) - 0.5)
+    back = k % 5 == 2
+    length = 0.2 + 0.06 * _h(k, sy, 2) if back else 0.26 + 0.14 * _h(k, sy, 3)
+    phi = math.radians(110 + 25 * _h(k, sy, 4) if back else 34 + 46 * _h(k, sy, 5))
+    bend = math.radians(20 + 16 * _h(k, sy, 6))
+    ax = Vector((0, sy, 0))
+    rad = Vector((math.sin(a), 0, math.cos(a)))
+    tan = ax.cross(rad).normalized()
+    lean = 0.5 * (_h(k, sy, 8) - 0.5)
+    pts = [rad * 0.068 + Vector((0, sy * (END - 0.04 + 0.06 * _h(k, sy, 7)), 0))]
+    for i in range(JOINTS):
+        th = phi - i * bend
+        pts.append(pts[-1] + (ax * math.cos(th) + rad * math.sin(th) + tan * lean).normalized() * (length / JOINTS))
+    return pts
 
 
 def skeleton():
@@ -63,12 +89,9 @@ def skeleton():
         y0 = sy * END
         b.append(Bone(f"knot_{end}", f"seg_{seg:02d}", (0, y0, 0), (0, y0 + sy * 0.12, 0)))
         for k in range(CLAWS):
-            # Clustered round the knot's face, short, pointing out of it as a fist's knuckles do.
-            a = 2 * math.pi * k / CLAWS + 0.3
-            r = 0.1 if k % 2 else 0.065
-            root = Vector((math.sin(a) * r, y0 + sy * (0.1 if k % 2 else 0.13), math.cos(a) * r))
-            tip = root + Vector((math.sin(a) * 0.035, sy * 0.07, math.cos(a) * 0.035))
-            b.append(Bone(f"claw_{end}{k}", f"knot_{end}", tuple(root), tuple(tip)))
+            # Each claw turns at its root (it splays and clamps there), along its first segment.
+            pts = claw_spec(end, k)
+            b.append(Bone(f"claw_{end}{k}", f"knot_{end}", tuple(pts[0]), tuple(pts[1])))
     return Skeleton("SK_Knotter", b)
 
 
@@ -135,13 +158,18 @@ body = kit.part("body")
 F = fl.Flesh(body, "knotter flesh")
 
 
-KNOT_TWIST = 1.3            # the extra turns the strands take round each knot, wrung tight into the fist
+UNLAY = 0.26                # how far back from each end's claws the strands start to part
+
+
+def unlay01(y):
+    """0 along the lay, rising to 1 at its end: the strands parting and thinning into the claws' roots."""
+    t = min(1.0, max(0.0, (abs(y) - (END - UNLAY)) / UNLAY))
+    return t * t * (3 - 2 * t)
 
 
 def twist(y):
-    """The strands' extra turn at y: none along the lay, wrung round tighter and tighter into each knot."""
-    t = min(1.0, max(0.0, (abs(y) - (END - 0.2)) / 0.3))
-    return math.copysign(2 * math.pi * KNOT_TWIST * t * t * (3 - 2 * t), y)
+    """The strands' turn backing off as they unlay (a rope's end coming undone)."""
+    return -math.copysign(0.6 * unlay01(y), y)
 
 
 def strand_at(y, k):
@@ -152,19 +180,20 @@ def strand_at(y, k):
 
 # The lay as a solid (for the union, the materials and the weights): a tube whose section is the three strands' outline,
 # turning with them.
-KNOT_LEN = END + 0.1         # the lay runs on into each knot, swelling into it
+KNOT_LEN = END + 0.02        # the strands' ends, among the claws' roots
 
 
-def swell(y):
-    """How much fatter the lay is at y: at each end it bunches up into the knot, the strands thrown round in a fist."""
-    return 1 + 0.9 * math.exp(-((abs(y) - END) / 0.09) ** 2)
+def spread(y):
+    """How far the strands have parted at y (their centres' radius, times LAY_R) and how thin they've grown."""
+    u = unlay01(y)
+    return 1 + 0.5 * u, 1 - 0.6 * u
 
 
 rings, cents = [], []
 n_around = 30
 for i in range(int(2 * KNOT_LEN / 0.03) + 1):
     y = KNOT_LEN - i * 0.03
-    s = swell(y)
+    s, thin = spread(y)
     ring = []
     for j in range(n_around):
         th = 2 * math.pi * j / n_around
@@ -176,8 +205,8 @@ for i in range(int(2 * KNOT_LEN / 0.03) + 1):
             dx, dz = math.cos(th), math.sin(th)
             proj = cx * dx + cz * dz
             perp2 = (cx * cx + cz * cz) - proj * proj
-            if perp2 < (STRAND_R * s) ** 2:
-                r = max(r, proj + math.sqrt((STRAND_R * s) ** 2 - perp2))
+            if perp2 < (STRAND_R * thin) ** 2:
+                r = max(r, proj + math.sqrt((STRAND_R * thin) ** 2 - perp2))
         ring.append(Vector((math.cos(th) * r, y, math.sin(th) * r)))
     rings.append(ring)
     cents.append(Vector((0, y, 0)))
@@ -190,16 +219,17 @@ def lay(P):
     """The three strands' field (each a helix's tube, measured across the lay: its section there an ellipse), their grooves
     blended over only a few millimetres; and none of it past its knots."""
     y = P[:, 1]
-    s = 1 + 0.9 * np.exp(-((np.abs(y) - END) / 0.09) ** 2)
+    u = np.clip((np.abs(y) - (END - UNLAY)) / UNLAY, 0.0, 1.0)
+    u = u * u * (3 - 2 * u)
+    s, thin = 1 + 0.5 * u, 1 - 0.6 * u
     d = None
     for k in range(3):
-        tw = np.clip((np.abs(y) - (END - 0.2)) / 0.3, 0.0, 1.0)
-        a = 2 * np.pi * y / PITCH + 2 * np.pi * k / 3 + np.sign(y) * 2 * np.pi * KNOT_TWIST * tw * tw * (3 - 2 * tw)
+        a = 2 * np.pi * y / PITCH + 2 * np.pi * k / 3 - np.sign(y) * 0.6 * u
         cx, cz = np.cos(a) * LAY_R * s, np.sin(a) * LAY_R * s
-        dk = np.hypot(P[:, 0] - cx, P[:, 2] - cz) * COS_ALPHA - STRAND_R * s * COS_ALPHA
+        dk = np.hypot(P[:, 0] - cx, P[:, 2] - cz) * COS_ALPHA - STRAND_R * thin * COS_ALPHA
         d = dk if d is None else fl._smin(d, dk, 0.006)
-    # (Rounded off at the knot's face, the strands' ends turned in.)
-    return -fl._smin(-d, KNOT_LEN - np.abs(y), 0.04)
+    # (Their ends rounded off among the claws' roots.)
+    return -fl._smin(-d, KNOT_LEN - np.abs(y), 0.03)
 
 
 F.ops.append((lay, 0, False))
@@ -208,20 +238,15 @@ for wy in WHIP:
     ring = [Vector((math.cos(a) * 0.086, wy, math.sin(a) * 0.086)) for a in [2 * math.pi * j / 14 for j in range(15)]]
     F.limb(ring, [0.036] * 15, 0.01, WHIPPING, along, sides=8, ref=(0, 1, 0))
     F.limb([Vector((0, wy - 0.04, 0)), Vector((0, wy + 0.04, 0))], [0.11, 0.11], 0.012, WHIPPING, along, sides=18, ref=(0, 0, 1))
-# The knots: each end's strands turned back on themselves into a fist (three lobes over a core), the claws' roots
-# swelling out of it toward the sill they grip.
+# Each end: the parted strands' ends running out into the claws' roots, each root a short tapering stalk of the same flesh
+# (no palm, no bulb: the claws come straight off the unlaid strands).
 for end, sy in (("f", 1), ("b", -1)):
-    c = Vector((0, sy * END, 0))
-    # A small core under the swollen strands, so the fist is solid where they part.
-    F.blob(c + Vector((0, sy * 0.03, 0)), (0.1, 0.07, 0.1), 0.02, FLESH, end_w(end), around=16, rings=8, fmat=under)
-    # A strand's end looped back round over the fist (the knot's turn), laid as the rest is.
-    loop = [c + Vector((math.cos(t) * 0.17, -sy * (0.0 + 0.07 * math.sin(t * 0.5) ** 2), math.sin(t) * 0.17)) for t in
-            [2 * math.pi * j / 12 for j in range(13)]]
-    F.limb(loop, [0.042] * 13, 0.02, FLESH, end_w(end), sides=10, ref=(0, 1, 0))
     for k in range(CLAWS):
-        cb = sk[f"claw_{end}{k}"]
-        F.limb([c.lerp(cb.head, 0.4), cb.head, cb.head.lerp(cb.tail, 0.4)], [0.036, 0.03, 0.026], 0.02, FLESH,
-               (lambda p, end=end, k=k: {f"knot_{end}": 0.6, f"claw_{end}{k}": 0.4}), sides=10, ref=(0, 1, 0))
+        pts = claw_spec(end, k)
+        rad = Vector((pts[0].x, 0, pts[0].z)).normalized()
+        start = rad * 0.045 + Vector((0, sy * (END - 0.13), 0))
+        F.limb([start, pts[0], pts[0].lerp(pts[1], 0.45)], [0.026, 0.019, 0.016], 0.015, FLESH,
+               (lambda p, end=end, k=k: {f"knot_{end}": 0.55, f"claw_{end}{k}": 0.45}), sides=8, ref=(0, 1, 0))
 
 # ----------------------------------------------------------------------------------------------------------------
 # The legs: two rows along its underside, a pair every 0.13 m, small and pale, jointed, hooked at the tip, curled under.
@@ -244,28 +269,37 @@ while y > -END + 0.2:
     y -= 0.13
     k += 1
 
-# The claws' fingers: short and thick, three joints, each knuckled, bent in toward the knot's axis as a fist's are,
-# hooked over at the tip into horn; grey, darker to the tip.
+# The claws: long, thin to medium, in four segments, each swollen a little between its knuckles and ringed at each joint,
+# turned over into a hook; the last segment black horn to a sharp tip. Grey-white like the rope, darkening to the tips.
 claws = kit.part("claws", smooth=False)
 TIPS = []
+CLAW_R = [0.015, 0.0135, 0.012, 0.0105, 0.0015]
 for end, sy in (("f", 1), ("b", -1)):
     for k in range(CLAWS):
-        cb = sk[f"claw_{end}{k}"]
-        h, t = cb.head, cb.tail
-        radial = Vector((h.x, 0, h.z)).normalized()
-        ax = Vector((0, sy, 0))
-        long_ = 1.0 if k % 2 else 0.8
-        j1 = t
-        j2 = j1 + (ax * 0.055 + radial * 0.012) * long_
-        j3 = j2 + (ax * 0.035 - radial * 0.03) * long_
-        tip = j3 + (ax * 0.005 - radial * 0.05) * long_
-        TIPS.append(tip)
-        claws.tube([h.lerp(t, 0.3), j1, j1.lerp(j2, 0.5) + radial * 0.006, j2, j2.lerp(j3, 0.5) + radial * 0.005, j3],
-                   [0.027, 0.025, 0.022, 0.021, 0.019, 0.018], 7, FLESH, f"claw_{end}{k}", ref=(radial.x, radial.y, radial.z), smooth=True)
-        for j, r in ((j1, 0.03), (j2, 0.026), (j3, 0.022)):
-            claws.blob(j, (r, r, r), 7, 4, FLESH, f"claw_{end}{k}", smooth=True)
-        claws.tube([j3, j3.lerp(tip, 0.5) + ax * 0.01 - radial * 0.004, tip], [(0.018, 0.016), (0.011, 0.01), 0.002], 6, CLAW,
-                   f"claw_{end}{k}", ref=(radial.x, radial.y, radial.z), cap1="point")
+        pts = claw_spec(end, k)
+        bone = f"claw_{end}{k}"
+        TIPS.append(pts[-1])
+        rad = Vector((pts[0].x, 0, pts[0].z)).normalized()
+        ref = (rad.x, rad.y, rad.z)
+        # The three grey segments, each bulging a little between its joints.
+        path, radii = [], []
+        for i in range(JOINTS - 1):
+            a, b = pts[i], pts[i + 1]
+            path += [a, a.lerp(b, 0.5)]
+            radii += [CLAW_R[i], CLAW_R[i] * 1.12]
+        path.append(pts[JOINTS - 1])
+        radii.append(CLAW_R[JOINTS - 1])
+        claws.tube(path, radii, 6, FLESH, bone, ref=ref, smooth=True)
+        # The knuckles: a hard ring round each joint.
+        for i in range(1, JOINTS):
+            d = (pts[i + 1] - pts[i - 1]).normalized()
+            r = CLAW_R[i] * 1.4
+            claws.tube([pts[i] - d * 0.007, pts[i] + d * 0.007], [r, r], 6, FLESH, bone, ref=ref, cap0=True, cap1=True, smooth=False)
+        # The last segment: black horn, hooked over to a point.
+        a, b = pts[JOINTS - 1], pts[JOINTS]
+        hook = (b - pts[JOINTS - 2]).normalized() * 0.008
+        claws.tube([a, a.lerp(b, 0.5) + hook, b], [CLAW_R[JOINTS - 1], CLAW_R[JOINTS - 1] * 0.6, CLAW_R[JOINTS]], 6, CLAW, bone, ref=ref,
+                   cap1="point")
 
 # ----------------------------------------------------------------------------------------------------------------
 # Clips. At rest it lies straight; CreatureArt lays the segments along the gap. Here each segment's own movement: offsets
@@ -294,8 +328,9 @@ def claws_pose(open_, end="fb", shake=0.0, t=0.0):
     p = {}
     for e in end:
         for k in range(CLAWS):
-            a = 2 * math.pi * k / CLAWS + 0.3
-            ang = (-30 + 70 * open_ + shake * 25 * math.sin(2 * math.pi * t * 2 + k * 1.7))
+            root = claw_spec(e, k)[0]
+            a = math.atan2(root.x, root.z)
+            ang = (-14 + 36 * open_ + shake * 15 * math.sin(2 * math.pi * t * 2 + k * 1.7))
             # Turned about the axis square to its own radial direction: out (open) or in over the sill (clamped).
             ax = Vector((math.cos(a), 0, -math.sin(a)))
             p[f"claw_{e}{k}"] = rig.Quaternion(ax, math.radians(ang) * (1 if e == "f" else -1))
