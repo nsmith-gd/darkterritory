@@ -83,7 +83,7 @@ public class HudTests
         {
             var p = PlayerMotor.SpawnInCab(train, s.PlayerTuning);
             var thing = train.Frames[0].Shape.Interactables.First(i => i.Kind == kind).Position;
-            // On the cab's side of it (cab forward, note 276: the firebox is in the back wall, the cab ahead of it).
+            // On the cab's side of it (note 280: the firebox at the front, the cab behind it).
             double into = Math.Sign(train.Frames[0].Shape.Cab!.Value.Centre.Z - thing.Z);
             p.Position = thing with { Y = p.Position.Y, Z = thing.Z + 0.4 * into };
             return p;
@@ -121,13 +121,13 @@ public class HudTests
         // [E]", and not that it's loud: that's learned); the vent's one key is in the corner with the brake's, and held, the
         // prompt says it's venting.
         var s = new PrototypeSession(Content, "test-loop", 4);
-        // (Cab forward, note 276: the cord at the driver's end, the firebox at the fireman's; each read where it's worked.)
+        // (Note 280: the cord in the driver's front corner, the firebox at the front beside it; each read where it's worked.)
         var shape = s.Train.Frames[0].Shape;
         var firebox = shape.Interactables.First(i => i.Kind == InteractableKind.Firebox);
         var cord = shape.Interactables.First(i => i.Kind == InteractableKind.Whistle);
         s.Player = LookingAt(s, cord.Position + new Double3(-0.3, 0, 0.4), InteractableKind.Whistle);
         Assert.Equal("PULL CORD : [E]", Hud.Prompt(s));
-        s.Player = LookingAt(s, firebox.Position + new Double3(0.35, 0, -0.45), InteractableKind.Firebox);
+        s.Player = LookingAt(s, firebox.Position + new Double3(0.15, 0, 0.45), InteractableKind.Firebox);
         Assert.Equal("SHOVEL COAL : HOLD [E]", Hud.Prompt(s));
         s.Player = PlayerMotor.SpawnInCab(s.Train, s.PlayerTuning);
         var (head, lines) = Hud.Hints(s);
@@ -283,12 +283,12 @@ public class HudTests
             Yaw = bay.Facing * Math.PI / 2,
         };
         Assert.False(s.Train.Vehicles[car].LockerOpen(bay.Index));
-        Assert.Equal("THE FITTER'S LOCKER: THE REPAIR KIT   OPEN : [E]", Hud.Prompt(s));
+        Assert.Equal("LOCKER 8: THE REPAIR KIT   OPEN : [E]", Hud.Prompt(s));
         s.Train.Vehicles[car].ToggleLocker(bay.Index);
         Assert.Equal("TAKE THE REPAIR KIT : [E]   SHUT : HOLD [E]", Hud.Prompt(s));
-        var lamp = Assert.Single(Lockers.Contents(s.World.Bodies, car, s.Train.Frames[car].Shape.Lockers.First(b => b.Name == "DRIVER").Index));
+        var lamp = Assert.Single(Lockers.Contents(s.World.Bodies, car, s.Train.Frames[car].Shape.Lockers.First(b => b.Name == "1").Index));
         Assert.Equal(DarkTerritory.Sim.Physics.BodyKind.Lamp, lamp.Kind);
-        Assert.Equal("THE LAMP", Hud.Holding(s.World, car, s.Train.Frames[car].Shape.Lockers.First(b => b.Name == "DRIVER").Index));
+        Assert.Equal("THE LAMP", Hud.Holding(s.World, car, s.Train.Frames[car].Shape.Lockers.First(b => b.Name == "1").Index));
     }
 
     [Fact]
@@ -298,7 +298,7 @@ public class HudTests
         var s = new PrototypeSession(Content, "test-loop", 4);
         var rows = Hud.SuppliesLines(s.World, ((IPlaySession)s).PlayerId);
         Assert.Equal(["COAL", "REPAIR KIT", "EXTINGUISHERS", "CARGO", "STORES"], rows.Select(r => r.Item).Take(5));
-        Assert.Equal("THE FITTER'S LOCKER, CAR 1", rows.Single(r => r.Item == "REPAIR KIT").Value);
+        Assert.Equal("LOCKER 8, CAR 1", rows.Single(r => r.Item == "REPAIR KIT").Value);
         Assert.Contains("TOYS", rows.Single(r => r.Item == "STORES").Value);
         var hud = new Overlay();
         Hud.Supplies(hud, 480, 270, s);
