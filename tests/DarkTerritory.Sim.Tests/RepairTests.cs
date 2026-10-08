@@ -126,4 +126,33 @@ public class RepairTests
         Assert.Null(c.SpareKit);
         Assert.NotNull(Campaign.Campaign.BuySpareKit(c, new Campaign.CampaignState { Scrip = 10_000 }).Refused);
     }
+    [Fact]
+    public void TheEngineBatteredByWhatItRanIntoIsMendedFromItsRunningBoard()
+    {
+        // Slice 2: what the engine runs into (the Sleepers, the line's debris) dents the front; it's mended at the boiler's
+        // left flank, from the running board, not from the cab.
+        var world = World();
+        var train = world.Train;
+        train.Vehicles[0].Integrity = 0.5;
+        Assert.True(Repairs.Dented(train, 0));
+        var dent = Repairs.DentAt(train, 0)!.Value;
+        var callout = Assert.Single(RepairCallouts.Of(train));
+        Assert.Equal((BreakKind.Dent, 0, dent), (callout.Kind, callout.Vehicle, callout.At));
+        var board = new PlayerState
+        {
+            Parent = 0,
+            Surface = Surface.Deck,
+            Position = new Double3(dent.X - 0.35, dent.Y - 0.9, dent.Z),
+            Health = P.Health,
+            Kit = P.StartingKit,
+            HeldSlot = 1,
+        };
+        Assert.False(PlayerMotor.InCab(board, train));
+        Assert.Equal(BreakKind.Dent, Repairs.At(board, train));
+        Hold(world, ref board, 2);
+        Assert.Equal(0.5 + 2 * T.Repair.IntegrityPerSecond, train.Vehicles[0].Integrity, 2);
+        // From the cab, nothing.
+        var cab = PlayerMotor.SpawnInCab(train, P) with { HeldSlot = 1 };
+        Assert.Equal(BreakKind.None, Repairs.At(cab, train));
+    }
 }

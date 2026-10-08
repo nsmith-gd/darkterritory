@@ -31,6 +31,10 @@ public static class Views
             // Inside the car, at its front end, looking back down the aisle past the cargo.
             // Note 301: a battered car's dent on its left wall and a breach in its rear end wall, their callouts (with
             // --integrity and --breached).
+            // Slice 2: the engine's dent on its boiler's left flank, from out beside the running board (with --integrity).
+            "mendengine" => Repairs.DentAt(train, 0) is { } ed
+                ? Camera.LookAt(engine.ToWorld(ed + new Double3(-3.2, 0.9, 2.6)), engine.ToWorld(ed), 60)
+                : Camera.LookAt(engine.ToWorld(new Double3(-4, 2.5, 3)), engine.ToWorld(new Double3(0, 2, 0)), 60),
             "mend" => Camera.LookAt(target.ToWorld(new Double3(0.4, Floor(train) + 1.65, -0.5)), target.ToWorld(new Double3(-1.0, Floor(train) + 1.1, target.Shape.HalfLength * 0.62)), 70),
             "inside" => Camera.LookAt(target.ToWorld(new Double3(-0.5, Floor(train) + 1.65, -target.Shape.HalfLength + 0.6)), target.ToWorld(new Double3(0, Floor(train) + 1.3, 2)), 70),
             // From inside the car behind, through both open end doors at this car's rear doorway (note 110: who comes through).
