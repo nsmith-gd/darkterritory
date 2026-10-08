@@ -53,7 +53,8 @@ public static class Protocol
     // 38: the vehicle record carries how long the coupling behind it has worked loose (note 356), after the lamp.
     // 39: the vehicle record carries its gun's ready rack (note 374), after the loose coupling.
     // 40: the film's start carries its extras, the stowed dead and the loose things aboard that go into the wreck (note 373).
-    public const int Version = 40;
+    // 41: the run record's sites carry the conveyor line's grain, its drive and jam, and its start and clear held (note 400).
+    public const int Version = 41;
 }
 
 public enum MessageType : byte
