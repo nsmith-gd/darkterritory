@@ -1408,16 +1408,19 @@ static object Screenshot(TrainTuning t, string content, string[] args)
     // --shed n [--inside | --bay]: the night's nth yard shed or hero (note 387's walk-in shells), from 7 m out before its first bay
     // door and off to one side, looking in through it; --inside, from by its back wall at a crewman's eye, out through it.
     // --barn n: the same for the nth open barn, outbuilding or goods shed (note 417), its hayloft or workbench at its back;
-    // --back, from just in at its door at the back wall; --find, close to where its first find is kept.
+    // --back, from just in at its door at the back wall; --find, close to where its first find is kept. --roost: of the open
+    // barns or sheds (with a find or not) or the yard sheds, the ones the Gaunt sleeps in (note 488), dark.
     bool barns = Opt(args, "--barn", -1) >= 0;
     if (Opt(args, barns ? "--barn" : "--shed", -1) is var shedAt and >= 0 && generated is not null)
     {
         var walls = DataFile.Load<DarkTerritory.Sim.Run.RunTuning>(Path.Combine(content, DarkTerritory.Sim.Run.RunTuning.File)).Walls;
         var sheds = generated.Features.Where(f => f.Stop is not null)
             .SelectMany(f => f.Stop!.Buildings.Select((b, i) => (Feature: f, Building: b, Index: i)))
-            .Where(x => (barns ? DarkTerritory.Sim.Run.StopWalls.OpenShed(x.Building) && x.Feature.Stop!.Containers.Any(c => c.Building == x.Index)
+            .Where(x => (barns ? DarkTerritory.Sim.Run.StopWalls.OpenShed(x.Building)
+                    && (args.Contains("--roost") || x.Feature.Stop!.Containers.Any(c => c.Building == x.Index))
                     : x.Building.Kind is BuildingKind.Shed or BuildingKind.Hero)
-                && DarkTerritory.Sim.Run.StopWalls.Doors(x.Feature.Stop!, x.Index, walls).Any()).ToList();
+                && DarkTerritory.Sim.Run.StopWalls.Doors(x.Feature.Stop!, x.Index, walls).Any()
+                && (!args.Contains("--roost") || DarkTerritory.Sim.Run.StopWalls.Nest(x.Feature.Stop!, x.Index) is not null)).ToList();
         if (sheds.Count == 0)
             return Print(new { error = $"{Str(args, "--route", "")} has no {(barns ? "open barns or sheds with a find" : "yard sheds")}" });
         var (f, b, i) = sheds[(int)shedAt % sheds.Count];
