@@ -238,12 +238,11 @@ rough = np.full((S, S), 0.8, np.float32)
 # The coat and the trousers: soot-black wool in a patchwork of rust-brown rot (the reference's mottle: squares of it, as if
 # patched and patched again and rotted through), greasy at the cuffs and the front, darker and frayed toward the hem.
 cloth = is_("brakeman_coat", "brakeman_collar", "brakeman_trouser", "brakeman_cap")
-q = np.floor(P * 38.0 + 1.2 * noise(3701, 4.0)[..., None])
-patch = (np.sin(q[..., 0] * 12.9898 + q[..., 1] * 78.233 + q[..., 2] * 37.719) * 43758.5453) % 1.0
 mottle = smooth01(0.35, 0.75, noise(3702, 5.0) * 0.5 + 0.5)
 base[cloth] = np.array((0.032, 0.027, 0.024), np.float32)
-base = paint(base, (0.12, 0.06, 0.034), cloth * (patch > 0.6) * (0.3 + 0.5 * mottle))
-base = paint(base, (0.07, 0.056, 0.042), cloth * (patch < 0.15) * 0.6)
+rot = smooth01(0.58, 0.72, noise(3701, 7.0) * 0.5 + 0.5 + 0.25 * noise(3706, 25.0))
+base = paint(base, (0.11, 0.055, 0.032), cloth * rot * (0.45 + 0.4 * mottle))
+base = paint(base, (0.06, 0.05, 0.04), cloth * smooth01(0.62, 0.75, noise(3707, 5.0) * 0.5 + 0.5) * 0.5)
 base = paint(base, (0.2, 0.1, 0.05), cloth * smooth01(0.82, 0.95, noise(3703, 18.0) * 0.5 + 0.5) * 0.6)
 base *= (0.85 + 0.3 * noise(3704, 60.0))[..., None] * cloth[..., None] + (~cloth)[..., None]
 hem = smooth01(HEM + 0.25, HEM - 0.05, P[..., 2]) * is_("brakeman_coat")
@@ -265,27 +264,27 @@ rough[peak] = 0.25
 # The face and the bare arm: dead grey, blotched brown and bruised purple, the veins dark; darker round the sunk eyes and in
 # the hollows of the cheeks; the lips bloodless.
 skin = is_("brakeman_skin")
-base[skin] = np.array((0.3, 0.285, 0.255), np.float32) * (0.9 + 0.2 * noise(3721, 8.0))[skin][:, None]
+base[skin] = np.array((0.32, 0.29, 0.25), np.float32) * (0.9 + 0.2 * noise(3721, 8.0))[skin][:, None]
 base = paint(base, (0.15, 0.115, 0.085), skin * smooth01(0.2, 0.7, noise(3722, 14.0) * 0.5 + 0.5) * 0.6)
 base = paint(base, (0.17, 0.1, 0.11), skin * smooth01(0.72, 0.92, noise(3723, 7.0) * 0.5 + 0.5) * 0.35)
 base = paint(base, (0.08, 0.06, 0.07), skin * smooth01(0.9, 0.97, field(lambda p: 1 - np.abs(cook.noise_np(p, 3724, 22.0)))) * 0.7)
 for e in EYES.values():
     r = np.linalg.norm(P - e, axis=-1)
-    base = paint(base, (0.05, 0.035, 0.035), smooth01(0.045, 0.014, r) * skin * 0.85)
+    base = paint(base, (0.05, 0.035, 0.035), smooth01(0.04, 0.014, r) * skin * 0.6)
 for sx in (1, -1):
     cheek = np.linalg.norm((P - (HC + np.array((sx * 0.052, 0.08, -0.046), np.float32))) / np.array((0.03, 0.03, 0.035), np.float32), axis=-1)
-    base = paint(base, (0.09, 0.075, 0.07), skin * smooth01(1.2, 0.3, cheek) * 0.6)
+    base = paint(base, (0.09, 0.075, 0.07), skin * smooth01(1.2, 0.3, cheek) * 0.35)
 lip = is_("brakeman_lip")
 base[lip] = (0.17, 0.12, 0.12)
 rough[skin | lip] = 0.5
 # The moustache and the hair: dirty grey-white, yellowed with smoke, dark at the roots.
 hair = is_("brakeman_hair")
-base[hair] = np.array((0.2, 0.19, 0.17), np.float32) * (0.7 + 0.6 * noise(3731, 90.0))[hair][:, None]
+base[hair] = np.array((0.33, 0.31, 0.28), np.float32) * (0.85 + 0.3 * noise(3731, 90.0))[hair][:, None]
 base = paint(base, (0.22, 0.17, 0.1), hair * 0.25)
 rough[hair] = 0.7
 # The eyes: yellowed, bloodshot to the rim, a small dark pupil, looking out under the brow.
 eye = is_("brakeman_eye")
-base[eye] = (0.38, 0.33, 0.2)
+base[eye] = (0.26, 0.22, 0.13)
 for s, e in EYES.items():
     rel = P - e
     dist = np.linalg.norm(rel, axis=-1)
@@ -316,7 +315,7 @@ base = paint(base, (0.05, 0.025, 0.018), is_("brakeman_chain") * 0.45)
 rough[metal] = 0.75
 # The brass: the lamp, the badge, the buttons, the buckle; tarnished brown, green in the creases, rubbed bright on the high spots.
 brass = is_("brakeman_brass")
-base[brass] = np.array((0.3, 0.2, 0.07), np.float32) * (0.85 + 0.3 * noise(3761, 25.0))[brass][:, None]
+base[brass] = np.array((0.2, 0.13, 0.05), np.float32) * (0.85 + 0.3 * noise(3761, 25.0))[brass][:, None]
 base = paint(base, (0.07, 0.11, 0.07), brass * smooth01(0.55, 0.85, noise(3762, 30.0) * 0.5 + 0.5) * 0.6)
 rough[brass] = 0.4
 # The claws: black horn, a brown sheen, worn pale at the tips.

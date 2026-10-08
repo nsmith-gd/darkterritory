@@ -161,8 +161,12 @@ def shell(part, y0, y1, half, top, rim, thick, mat, bone, nu=9, nv=13, horseshoe
         # The rim's lip, turned up a little at the very edge.
         z += 0.012 * smooth01(0.82, 1.0, abs(v))
         z += keel * bell(v / 0.12)
-        # Its rim knobbed and ragged, like a casting's flash.
-        z += 0.008 * noise3(Vector((x * 9, y * 9, 0.3)), 3670, 1.0)
+        # Lumped like a rough casting (bosses, sunk places), its rim knobbed and ragged with flash; each plate's back edge
+        # lifted a little proud of the next, shingled.
+        z += 0.022 * noise3(Vector((x * 5, y * 5, 0.3)), 3669, 1.0) * crown
+        z += 0.01 * noise3(Vector((x * 14, y * 14, 0.7)), 3670, 1.0)
+        if not horseshoe:
+            z += 0.02 * u * u
         if inner:
             z -= thick
         return Vector((x, y, z))
@@ -207,10 +211,12 @@ for side, sx in (("r", 1), ("l", -1)):
     for k, y in enumerate(LEG_Y):
         a, b = f"leg_{side}{k + 1}_a", f"leg_{side}{k + 1}_b"
         hip, knee, foot = sk[a].head, sk[a].tail, sk[b].tail
-        legs.tube([hip, hip.lerp(knee, 0.5) + Vector((0, 0, 0.012)), knee], [0.026, 0.022, 0.019], 6, LEG, a, ref=(0, 1, 0), cap0=True)
-        legs.blob(knee, (0.022, 0.022, 0.022), 6, 4, LEG, a)
-        shin = [knee, knee.lerp(foot, 0.45) + Vector((sx * 0.012, 0, 0)), foot + Vector((0, 0, 0.03))]
-        legs.tube(shin, [0.018, 0.015, 0.011], 6, LEG, b, ref=(0, 1, 0))
+        # (Thick at the thigh, a spur at the knee, the shin bowed out and hooked: a crab's leg as much as a centipede's.)
+        legs.tube([hip, hip.lerp(knee, 0.5) + Vector((0, 0, 0.018)), knee], [0.034, 0.03, 0.024], 6, LEG, a, ref=(0, 1, 0), cap0=True)
+        legs.blob(knee, (0.028, 0.026, 0.026), 6, 4, LEG, a)
+        legs.tube([knee, knee + Vector((sx * 0.02, -0.01, 0.045))], [0.012, 0.002], 4, CLAW, a, ref=(0, 1, 0), cap1="point", smooth=False)
+        shin = [knee, knee.lerp(foot, 0.45) + Vector((sx * 0.03, 0, 0.01)), foot + Vector((0, 0, 0.03))]
+        legs.tube(shin, [0.022, 0.018, 0.012], 6, LEG, b, ref=(0, 1, 0))
         # The claw: hooked in under it.
         c0 = foot + Vector((0, 0, 0.03))
         tip = foot + Vector((-sx * 0.035, 0.012, -0.002))

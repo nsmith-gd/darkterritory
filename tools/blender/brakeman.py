@@ -417,9 +417,9 @@ for s, sx in (("r", 1), ("l", -1)):
 eyes = kit.part("eyes")
 EYES = {}
 for s, sx in (("r", 1), ("l", -1)):
-    e = HC + Vector((sx * 0.03, 0.084, 0.01))
+    e = HC + Vector((sx * 0.03, 0.079, 0.01))
     EYES[s] = e
-    eyes.blob(e, (0.0125, 0.011, 0.0105), 8, 6, EYE, "head")
+    eyes.blob(e, (0.0115, 0.0105, 0.0095), 8, 6, EYE, "head")
 
 # ----------------------------------------------------------------------------------------------------------------
 # The hard parts: iron, chain and brass, flat-shaded over the skin.

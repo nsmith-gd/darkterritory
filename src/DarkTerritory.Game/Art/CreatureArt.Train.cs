@@ -103,6 +103,8 @@ public sealed partial class CreatureArt
     // The Knotter (tools/blender/knotter.py): its knots' centres either side of its middle at rest (m), and how long it is
     // coiled under the coupling before it's forced the cars apart (m: the U it hangs in, coming up out from under).
     public const float KnotterEnd = 2.4f, KnotterCoiled = 3.6f;
+    /// <summary>How far in from each end of the gap its knots lie (m): its claws reach on from them over the cars' end sills.</summary>
+    public const float KnotterInset = 0.35f;
     // Its clamp onto the sills at the start of the force, and its slip under a foot at the start of the coil (clip lengths).
     public const double KnotterClampSeconds = 0.6, KnotterSlipSeconds = 0.5;
     // How it coils round whoever slipped: its radius (m), its turns, and from their feet how high it climbs them.
@@ -136,9 +138,9 @@ public sealed partial class CreatureArt
     /// </summary>
     public static float KnotterLength(KnotterMode mode, float span) => mode switch
     {
-        KnotterMode.Creep or KnotterMode.Force => MathF.Max(span - 0.2f, KnotterCoiled),
-        KnotterMode.Slack => (span - 0.2f) * 1.06f,
-        _ => span - 0.2f,
+        KnotterMode.Creep or KnotterMode.Force => MathF.Max(span - 2 * KnotterInset, KnotterCoiled),
+        KnotterMode.Slack => (span - 2 * KnotterInset) * 1.06f,
+        _ => span - 2 * KnotterInset,
     };
 
     /// <summary>
@@ -149,7 +151,7 @@ public sealed partial class CreatureArt
     /// </summary>
     public static List<Vector3> KnotterCurve(KnotterMode mode, float span, float length, Vector3? victim)
     {
-        float h = MathF.Max(0.3f, span / 2 - 0.1f);
+        float h = MathF.Max(0.3f, span / 2 - KnotterInset);
         var a = new Vector3(0, 0, -h);
         var b = new Vector3(0, 0, h);
         var pts = new List<Vector3>();
@@ -274,7 +276,7 @@ public sealed partial class CreatureArt
         (KnotterSpan, _knotterVictim) = (null, null);
         var (clip, at, loop) = KnotterClip(mode, since);
         // Killed, it unlays where it hung, gone slack (its death's own twisting kept).
-        float length = _dying ? (span - 0.2f) * 1.1f : KnotterLength(mode, span);
+        float length = _dying ? (span - 2 * KnotterInset) * 1.1f : KnotterLength(mode, span);
         var curve = KnotterCurve(_dying && mode == KnotterMode.Coil ? KnotterMode.Slack : mode, span, length, victim);
         return Draw(mesh, "knotter", clip, at, loop, model, e => LayAlong(e, curve), seed: 365);
     }

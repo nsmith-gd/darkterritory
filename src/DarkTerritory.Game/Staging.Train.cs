@@ -146,7 +146,7 @@ public static partial class Staging
             bug.Restore(phase, seconds, t.Health, car, bug.Local, train.Dynamics.Distance, 1, (double)mode, heat, 0);
             threats.Add(bug);
             if (mode is HotboxMode.Unfolded or HotboxMode.Prised)
-                people.Add(Standing(ChaserId, shape.HalfWidth + 0.75, l - t.BogieInset + 0.9, -2.3, Sim.Player.Tool.Crowbar, Art.CrewPose.Pry, 0));
+                people.Add(Standing(ChaserId, shape.HalfWidth + 0.7, l - t.BogieInset + 1.5, 0.6, Sim.Player.Tool.Crowbar, Art.CrewPose.Pry, 0));
         }
         return (threats, people);
     }
@@ -170,11 +170,11 @@ public static partial class Staging
         return view switch
         {
             "brakeman" => Camera.LookAt(frame.ToWorld(new Double3(1.1, roof + 1.55, wheel.Z - 3.0)), frame.ToWorld(new Double3(-0.1, roof + 0.55, wheel.Z)), 55),
-            "brakemancorner" => Camera.LookAt(frame.ToWorld(new Double3(0.9, roof + 1.75, -1.0 + 5.6)), frame.ToWorld(new Double3(-0.1, roof + 0.85, -1.0)), 55),
-            "knotter" => Camera.LookAt(frame.ToWorld(new Double3(1.2, roof + 1.6, l + gap + 0.5)), frame.ToWorld(new Double3(g.PlateX, g.CouplerHeight - 0.1, l + gap * 0.45)), 64),
+            "brakemancorner" => Camera.LookAt(frame.ToWorld(new Double3(1.4, roof + 1.7, -1.0 + 4.6)), frame.ToWorld(new Double3(-0.1, roof + 0.9, -1.0)), 55),
+            "knotter" => Camera.LookAt(frame.ToWorld(new Double3(1.3, roof + 1.5, l + gap + 0.2)), frame.ToWorld(new Double3(g.PlateX, g.CouplerHeight, l + gap * 0.5)), 52),
             "knotterslip" => Camera.LookAt(frame.ToWorld(new Double3(w + 2.2, 2.3, l + gap * 0.5 + 1.9)), frame.ToWorld(new Double3(g.PlateX, g.CouplerHeight + 0.2, l + gap * 0.4)), 58),
             "hotboxbug" => Camera.LookAt(frame.ToWorld(new Double3(w + 2.4, 0.9, truck + 2.6)), frame.ToWorld(new Double3(w - t.Inboard, t.AxleHeight, truck)), 50),
-            _ => Camera.LookAt(frame.ToWorld(new Double3(w + 2.0, 0.7, truck + 2.0)), frame.ToWorld(new Double3(w + 0.1, 0.0, truck)), 55),
+            _ => Camera.LookAt(frame.ToWorld(new Double3(w + 1.9, 0.75, truck - 1.9)), frame.ToWorld(new Double3(w + 0.1, -0.05, truck + 0.1)), 55),
         };
     }
 }

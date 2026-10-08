@@ -100,7 +100,7 @@ base[plate] = np.array((0.075, 0.04, 0.055), np.float32) * (0.75 + 0.5 * t.noise
 base = paint(base, (0.02, 0.016, 0.02), plate * smooth01(0.3, 0.75, t.noise(3742, 7.0) * 0.5 + 0.5) * 0.7)
 base = paint(base, (0.06, 0.06, 0.12), plate * smooth01(0.6, 0.9, t.noise(3743, 3.0) * 0.5 + 0.5) * 0.45)
 rid = t.field(lambda q: ridged(q, 3711, 9.0) ** 4)
-base = paint(base, (0.3, 0.13, 0.06), plate * smooth01(0.5, 0.9, rid) * 0.6)
+base = paint(base, (0.13, 0.065, 0.04), plate * smooth01(0.4, 0.95, rid) * 0.45)
 base = paint(base, (0.16, 0.1, 0.12), plate * smooth01(0.7, 0.95, t.noise(3713, 16.0) * 0.5 + 0.5) * 0.4)
 rough[plate] = 0.55
 # The abdomen: glossy, a deep red-orange under its stretched skin, darker in its creases and underneath; its glow brightest
