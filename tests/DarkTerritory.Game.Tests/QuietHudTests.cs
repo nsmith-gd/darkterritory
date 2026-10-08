@@ -109,6 +109,20 @@ public class QuietHudTests
     }
 
     [Fact]
+    public void TheLinksCornerSaysWhatToDoAsTheAlarmDoes()
+    {
+        // Note 476: under NO LINK, the action and its key (note 285's form), as the alarm in the middle says it, never key first.
+        var lost = new LinkInfo("JOINED", null, 2, null, true);
+        Assert.Null(Hud.LinkLine(lost with { Lost = false }));
+        Assert.Equal("RECONNECTING: TRY 2 OF 5", Hud.LinkLine(lost with { Attempt = 2, Attempts = 5 }));
+        Assert.Equal("RECONNECT : [F5]", Hud.LinkLine(lost with { CanReconnect = true }));
+        Assert.Equal("CREW FULL (8/8)   TRY AGAIN : [F5]", Hud.LinkLine(lost with { Refused = "CREW FULL (8/8)" }));
+        Assert.Null(Hud.LinkLine(lost));
+        foreach (var line in new[] { lost with { CanReconnect = true }, lost with { Refused = "WRONG PASSWORD" } }.Select(Hud.LinkLine))
+            Assert.DoesNotMatch(@"^\[|\]\s+[A-Z]", line!);
+    }
+
+    [Fact]
     public void APlaceComingUpIsNamedForAWhileAndTheRouteCardHasTheRest()
     {
         var route = Sim.LineGen.Routes.Generate(Content, "frontier:7", 4);
