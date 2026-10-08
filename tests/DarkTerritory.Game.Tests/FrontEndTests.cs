@@ -30,6 +30,8 @@ public sealed class FrontEndTests : IDisposable
     {
         int i = m.Items.ToList().FindIndex(x => !x.Heading && x.Label.StartsWith(label, StringComparison.Ordinal));
         Assert.True(i >= 0, $"no '{label}' on {m.Screen}: {string.Join(" | ", m.Items.Select(x => x.Label))}");
+        // The keys pass over a greyed row, so waiting to land on one would never end.
+        Assert.True(m.Items[i].Enabled, $"'{label}' is greyed on {m.Screen}");
         while (m.Selected != i)
             m.Down();
     }
@@ -308,14 +310,17 @@ public sealed class FrontEndTests : IDisposable
     [Fact]
     public void TheHostChoosesPublicOrPrivateAndItsRemembered()
     {
-        // The user's playtest: "I can join it if its public. If it's a private lobby its not listed."
+        // The user's playtest: "I can join it if its public." Note 450: a private run is listed with a lock, behind its password.
         var m = Menu();
         Choose(m, "HOST");
         Assert.Contains("VISIBILITY: PUBLIC", m.Items.Select(i => i.Label));
         Pick(m, "VISIBILITY");
         m.Right();
         Assert.Equal("VISIBILITY: PRIVATE", m.Items[m.Selected].Label);
-        Assert.False(Assert.IsType<Launch.Night>(Choose(m, "OPEN THE LOBBY")).Public);
+        Choose(m, "PASSWORD");
+        m.Type("owls");
+        m.Select();
+        Assert.Equal("OWLS", Assert.IsType<Launch.Night>(Choose(m, "OPEN THE LOBBY")).Password);
         // Saved: the next start of the game has it so.
         var again = Menu();
         Choose(again, "HOST");
