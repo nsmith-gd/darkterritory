@@ -2200,7 +2200,7 @@ Agents can't tell whether it's funny, but they can tell whether everyone was on 
 - Turning on the spot shouldn't make a sound; only walking should. *Open.*
 - Footsteps on the ground sound wrong; on wood and grates they're good. *Open.*
 - The boiler over-pressure sound is good (§23, Boiler rupture). *Keep.*
-- The gun's traverse sound is bad. *Open.*
+- The gun's traverse sound is bad. *Done (note 329, #252; again in App. F.3): the lay is a low motor hum with a slow, deep gear clunk.*
 - The train is near-silent on the rail: no rolling sound to reinforce speed. *In progress (T127).*
 - There's no audible stress before a derailment (A.1: whole-train events carry their own telegraph). *In progress (T127).*
 - The Choir was heard behind the train (A.7). *Noted.*
