@@ -677,9 +677,14 @@ public static class StructureKit
                 }
             case FacilityKind.Slaughterhouse:
                 {
-                    // The killing hall, long and windowless, and in front of it the pens and the ramp the cattle came
-                    // up out of the cars by.
-                    WorksHouse(k, s * 22, 0, 14, 44, 9, "brick_soot");
+                    // The killing hall, and in front of it the pens and the ramp the cattle came up out of the cars by. The
+                    // modelled hall where it's built (facility_pieces slaughterhouse, note 393): soot-black brick, its
+                    // windows small and high, a clerestory, the dressing rail out over the yard, the boiler house and its
+                    // chimney behind; without it, the kit's long windowless works box.
+                    if (k.Look is { } built && PropArt.Of(built).Get("slaughterhouse") is not null)
+                        Piece(k, "slaughterhouse", s * 22, 0, Facing(s));
+                    else
+                        WorksHouse(k, s * 22, 0, 14, 44, 9, "brick_soot");
                     for (float x = 8; x <= 14; x += 3)
                         for (float z = -18; z <= -3; z += 3)
                             Piece(k, "cattle_pen", s * x, z + 1.5f, MathF.PI / 2);
