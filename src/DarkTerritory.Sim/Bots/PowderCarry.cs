@@ -22,7 +22,9 @@ public static class PowderCarry
     /// The gun that wants powder brought to it: a crewmate seated at it, its rack at <see cref="GunTuning.FeedAt"/> or fewer,
     /// and powder in the lockers. Of several, the emptier, then the nearer the engine. Null with none.
     /// </summary>
-    public static int? Wanting(World world, IEnumerable<PlayerState> crew, GunTuning t)
+    /// <param name="firing">Whether a gun's in action (a shot in the last <see cref="GunTuning.FeedWhileFiring"/> s, as the
+    /// bot asking has seen it: <see cref="ShotWatch"/>); without it, none is.</param>
+    public static int? Wanting(World world, IEnumerable<PlayerState> crew, GunTuning t, Func<int, bool>? firing = null)
     {
         var train = world.Train;
         if (t.Rack <= 0 || t.FeedAt < 0 || Guns.Stowed(train, t) <= 0)
@@ -34,7 +36,9 @@ public static class PowderCarry
             if (!s.Alive || !s.Has(PlayerFlags.Seated) || Guns.MannedGun(s, train, t) is not { } gun)
                 continue;
             int ready = Guns.Ready(train.Vehicles[gun].Gun, t), at = train.Dynamics.Consist.IndexOf(gun);
-            if (ready > (gun == LockerCar(train) ? t.FeedAt : t.FeedAtFar) || at < 0 || (ready, at).CompareTo((bestReady, bestAt)) >= 0)
+            // In action, any round short; otherwise low (feedAt; feedAtFar further off).
+            int low = firing?.Invoke(gun) == true ? t.Rack - 1 : gun == LockerCar(train) ? t.FeedAt : t.FeedAtFar;
+            if (ready > low || at < 0 || (ready, at).CompareTo((bestReady, bestAt)) >= 0)
                 continue;
             (best, bestReady, bestAt) = (gun, ready, at);
         }
@@ -46,31 +50,32 @@ public static class PowderCarry
     /// lowest id among the bots (<paramref name="isBot"/>; all of them without it) alive and free to go (out on the roofs, or at the locker) and not in a gun's
     /// seat. Null with nobody to go, or nothing wanted.
     /// </summary>
-    public static int? Carrier(World world, IReadOnlyList<(int Id, PlayerState State)> crew, GunTuning t, Func<int, bool>? isBot = null)
+    public static int? Carrier(World world, IReadOnlyList<(int Id, PlayerState State)> crew, GunTuning t, Func<int, bool>? isBot = null,
+        Func<int, bool>? firing = null)
     {
         if (t.Rack <= 0 || t.FeedAt < 0)
             return null;
         foreach (var (id, s) in crew.OrderBy(c => c.Id))
             if (s.Alive && world.Bodies.CarriedBy(id) is { Kind: Physics.BodyKind.Powder })
                 return id;
-        if (Wanting(world, crew.Select(c => c.State), t) is null)
+        if (Wanting(world, crew.Select(c => c.State), t, firing) is null)
             return null;
         int locker = LockerCar(world.Train);
         foreach (var (id, s) in crew.OrderBy(c => c.Id))
-            if (s.Alive && Free(s, world.Train, locker) && !s.Has(PlayerFlags.Seated) && !s.Has(PlayerFlags.Held) && (isBot?.Invoke(id) ?? true)
+            if (s.Alive && (isBot?.Invoke(id) ?? Free(s, world.Train, locker)) && !s.Has(PlayerFlags.Seated) && !s.Has(PlayerFlags.Held)
                 && world.Bodies.CarriedBy(id) is null)
                 return id;
         return null;
     }
 
     /// <summary>
-    /// Free to go, as anyone can see it: out on the roofs (on a coupler plate, in a car or down by the line, it's about
+    /// Free to go, as anyone can see it: out on the roofs or jumping between them (on a coupler plate, in a car or down by the line, it's about
     /// something else: warming up, a hot box, a fire), or already at the locker (in the guard van, or on its hatch ladder).
     /// </summary>
     static bool Free(in PlayerState s, Train.TrainOnLine train, int locker)
     {
-        if (s.Surface == Surface.Roof)
-            return true;
+        if (s.Surface is Surface.Roof or Surface.Air)
+            return true; // (in the air: between two roofs, mid-jump)
         return s.Parent == locker && locker > 0 && (s.Surface == Surface.Ladder || PlayerMotor.Indoors(s, train));
     }
 
@@ -90,6 +95,34 @@ public static class PowderCarry
 }
 
 /// <summary>
+/// When a bot last saw each gun fire, by its own tick (note 377: a gun in action wants its powder kept coming). A gun's
+/// <c>LastShotTick</c> is the host's world tick, which a client's world doesn't keep; a change in it is a shot.
+/// </summary>
+public sealed class ShotWatch
+{
+    readonly Dictionary<int, (uint Shot, uint Seen)> _seen = [];
+
+    /// <summary>Once a tick: any gun whose last shot changed fired just now.</summary>
+    public void See(TrainOnLine train, uint tick)
+    {
+        foreach (var v in train.Dynamics.Consist.Vehicles)
+        {
+            if (!v.HasGun)
+                continue;
+            uint shot = v.Gun.LastShotTick;
+            if (!_seen.TryGetValue(v.Id, out var was))
+                _seen[v.Id] = (shot, shot > 0 ? tick : 0);
+            else if (shot != was.Shot)
+                _seen[v.Id] = (shot, tick);
+        }
+    }
+
+    /// <summary>The gun on <paramref name="vehicle"/> fired within the last <paramref name="seconds"/> s.</summary>
+    public bool Firing(int vehicle, uint tick, double seconds) =>
+        _seen.TryGetValue(vehicle, out var s) && s.Seen > 0 && tick - s.Seen < seconds * SimConstants.TickRate;
+}
+
+/// <summary>
 /// A powder run (note 374; note 377 for a walker's): up onto the roofs, along them to the guard van, down its hatch ladder,
 /// along its room to the powder locker in the front corner, a charge into the hands, back up the ladder, along the roofs to the
 /// gun, and Use held there until the rack's full. A gunner stands behind its gun, where its seat is; a walker beside it, so
@@ -103,6 +136,8 @@ public sealed class PowderRun(GunTuning guns)
 
     /// <summary>Along the roofs: the legs walk it, the way <c>head</c> was given.</summary>
     public bool Along { get; private set; }
+
+    uint? _heldAt;
 
     /// <summary>m: a walker stands this far to the side of the gun's pivot to fill it (within the gun's reach, off the seat).</summary>
     const double Beside = 0.7;
@@ -139,7 +174,13 @@ public sealed class PowderRun(GunTuning guns)
         Step = null;
         Along = false;
         var train = world.Train;
+        // A charge just taken is in hand, whatever the client's view says a snapshot or two before the host's word reaches it:
+        // gone back for another, a press with it in hand would put it down.
         bool carrying = world.Bodies.CarriedBy(me) is { Kind: Physics.BodyKind.Powder };
+        if (carrying)
+            _heldAt = tick;
+        else if (_heldAt is { } held && tick - held < KitRun.TapEvery * 2)
+            carrying = Guns.AtLocker(self, train, guns) is null;
         int lockerCar = PowderCarry.LockerCar(train);
         if (lockerCar < 0)
             return null;
@@ -207,9 +248,10 @@ public sealed class PowderRun(GunTuning guns)
         }
         if (Guns.AtLocker(self, train, guns) is not null)
         {
-            // A press, let go, and pressed again: the hands take a charge on the press.
+            // A tap every KitRun.TapEvery ticks (the press is the edge the host counts): a charge on the tap, and the client
+            // hears it's in hand a snapshot later; tapping again meanwhile would put it straight back.
             Step = "take";
-            return tick % 2 == 0 ? new PlayerIntent { Buttons = PlayerButtons.Use } : default;
+            return tick % KitRun.TapEvery == 0 ? new PlayerIntent { Buttons = PlayerButtons.Use } : default;
         }
         if (inside)
         {

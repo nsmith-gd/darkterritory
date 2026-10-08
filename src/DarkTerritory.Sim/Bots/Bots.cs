@@ -40,6 +40,8 @@ public sealed class GunnerBot(GunTuning guns, ChoirTuning? choir = null, int see
     readonly RoofWalkerBot _legs = new(seed, cold, job) { Feeds = false }; // its own powder run is the gunner's (note 374), not a walker's (note 377)
     /// <summary>Its own player id (its legs need it for what's in its hands).</summary>
     public int Me { get => _legs.Me; set => _legs.Me = value; }
+    /// <summary>The crew's calls (note 377: who brings the powder), passed to its legs.</summary>
+    public CrewCalls? Calls { get => _legs.Calls; set => _legs.Calls = value; }
     /// <summary>The rest of the crew as its client sees them (its legs need them to know whether the kit's theirs to bring).</summary>
     public IReadOnlyList<(int Id, PlayerState State)> Crew { get => _legs.Crew; set => _legs.Crew = value; }
     /// <summary>What it's doing about the repair kit, or null.</summary>
@@ -168,6 +170,8 @@ public sealed class GunnerBot(GunTuning guns, ChoirTuning? choir = null, int see
     int _gunCar = -1;
     bool _powderAlong;
     PowderRun? _powderRun;
+    uint? _dryAt;
+    readonly ShotWatch _shots = new();
     /// <summary>Where it's got to on a powder run (note 374), or null (for tests and the harness's trace).</summary>
     public string? PowderStep { get; private set; }
 
@@ -190,7 +194,22 @@ public sealed class GunnerBot(GunTuning guns, ChoirTuning? choir = null, int see
         bool carrying = world.Bodies.CarriedBy(Me) is { Kind: Physics.BodyKind.Powder };
         if (gunCar < 0 || !carrying && (Guns.Ready(train.Vehicles[gunCar].Gun, guns) > 0 || Guns.Stowed(train, guns) <= 0
             || PowderCarry.Brought(world, Crew, Me)))
+        {
+            _dryAt = null;
             return null;
+        }
+        // Note 377: a walker on its way with it (whoever every bot works out is to go), so it keeps its seat, for a while:
+        // up out of it, the gun's unmanned and the walker stands down.
+        if (!carrying && self.Has(PlayerFlags.Seated))
+        {
+            _dryAt ??= tick;
+            List<(int Id, PlayerState State)> all = [(Me, self), .. Crew.Where(c => c.Id != Me)];
+            _shots.See(train, tick);
+            if (tick - _dryAt.Value < guns.GunnerWaits * SimConstants.TickRate
+                && PowderCarry.Carrier(world, all, guns, Calls is { } calls ? calls.IsFeeder : null,
+                    gun => _shots.Firing(gun, tick, guns.FeedWhileFiring)) is { } walker && walker != Me)
+                return null;
+        }
         _powderRun ??= new PowderRun(guns);
         var intent = _powderRun.Go(self, world, Me, gunCar, beside: false, tick, _legs.Head);
         PowderStep = _powderRun.Step;
@@ -341,7 +360,7 @@ public sealed class RoofWalkerBot(int seed, ColdTuning? cold = null, StopHand? j
         var train = world.Train;
         // Otherwise a bag on a crane ahead, its board read: into a car with a side door that side, and the hook out.
         // Not with the Choir about: the hook goes out through an open side door.
-        _drop = tend && catches && !choir && _trouble is null ? NextDrop(world) : null;
+        _drop = tend && catches && !_feedRun && !choir && _trouble is null ? NextDrop(world) : null;
         _catchCar = _drop is { } d ? CatchCar(train, d, self.Parent) : null;
         _warm.Into = _trouble?.Attached ?? _catchCar;
         if (_trouble is { } trouble)
@@ -694,6 +713,12 @@ public sealed class RoofWalkerBot(int seed, ColdTuning? cold = null, StopHand? j
         if (!_looked)
             Look(world, self);
         _looked = false;
+        // Note 377: free to bring a gun its powder (nothing on but, at most, a mail bag to catch: the gun's first), and said
+        // so for the crew, who work out who goes from it (PowderCarry.Carrier).
+        // Already on a run, its way out of a car (the warm-up's way out) is the run's.
+        bool free = Feeds && self.Alive && _trouble is null && _warm is not { Shelter: true } && !(_warm?.Chilled(self) ?? false)
+            && !(_warm is { Active: true } && _catchCar is null && !_feedRun);
+        Calls?.CanFeed(Me, free);
         // The look-out on an insisted night (note 212): a Dragger to meet keeps it out on the roofs, not in for a bag.
         if (Errand is { KeepOut: true } && _trouble is null && _warm is not null)
         {
@@ -709,7 +734,8 @@ public sealed class RoofWalkerBot(int seed, ColdTuning? cold = null, StopHand? j
         if (Work(self, world) is { } working)
             return working;
         // A manned gun's rack low (note 377): down to the guard van's locker for a charge, and up to fill it from beside it.
-        if (_warm is not { Active: true } && Feed(self, world, tick) is { } feeding)
+        _feedRun = false;
+        if ((free || world.Bodies.CarriedBy(Me) is { Kind: Physics.BodyKind.Powder }) && Feed(self, world, tick) is { } feeding)
             return feeding;
         if (_feeding?.Along == true)
             return Decide(self, world.Train, tick);
@@ -770,6 +796,8 @@ public sealed class RoofWalkerBot(int seed, ColdTuning? cold = null, StopHand? j
 
     PowderRun? _feeding;
     int _feedGun = -1;
+    readonly ShotWatch _shots = new();
+    bool _feedRun;
 
     /// <summary>Not bringing powder this tick: the run's put by, and this is the intent.</summary>
     PlayerIntent? Stand(PlayerIntent? intent)
@@ -792,10 +820,12 @@ public sealed class RoofWalkerBot(int seed, ColdTuning? cold = null, StopHand? j
         if (!Feeds || Me < 0 || !self.Alive || world.Combat?.Guns is not { Rack: > 0 } guns)
             return Stand(null);
         List<(int Id, PlayerState State)> all = [(Me, self), .. Crew.Where(c => c.Id != Me)];
-        if (PowderCarry.Carrier(world, all, guns, Calls is { } calls ? id => id == Me || calls.IsFeeder(id) : null) != Me)
+        _shots.See(world.Train, tick);
+        Func<int, bool> firing = gun => _shots.Firing(gun, tick, guns.FeedWhileFiring);
+        if (PowderCarry.Carrier(world, all, guns, Calls is { } calls ? calls.IsFeeder : null, firing) != Me)
             // Left up on the engine's roof by a run to its gun: back down onto the train (the legs' walk keeps off the engine).
             return Stand(PowderRun.OffTheEngine(self, train));
-        if (PowderCarry.Wanting(world, all.Select(c => c.State), guns) is { } wanted)
+        if (PowderCarry.Wanting(world, all.Select(c => c.State), guns, firing) is { } wanted)
             _feedGun = wanted;
         if (_feedGun < 0 || _feedGun >= train.Vehicles.Count || !train.Vehicles[_feedGun].HasGun || train.Vehicles[_feedGun].Taken)
             return Stand(null);
@@ -803,6 +833,15 @@ public sealed class RoofWalkerBot(int seed, ColdTuning? cold = null, StopHand? j
         if (Guns.MannedGun(self, train, guns) == _feedGun && Guns.Ready(train.Vehicles[_feedGun].Gun, guns) >= guns.Rack)
             return Stand(null);
         _feeding ??= new PowderRun(guns);
+        // Its own: a bag it was waiting in a car to catch is left (Look takes no catches while it's on a run).
+        _feedRun = true;
+        if (_warm is { Active: true } && _catchCar is not null)
+        {
+            (_drop, _catchCar) = (null, null);
+            _warm.Into = null;
+            _warm.Indoors = null;
+            _warm.Abandon();
+        }
         return _feeding.Go(self, world, Me, _feedGun, beside: true, tick, Head);
     }
 
@@ -2353,8 +2392,10 @@ public sealed class WarmUp(ColdTuning cold, double goInAt = 0.6)
     /// <summary>Times it's been in and got warm.</summary>
     public int Done { get; private set; }
 
-    public bool Wants(in PlayerState s) => Shelter || Into is not null ||
-        s.Cold >= cold.OnsetSeconds * goInAt;
+    public bool Wants(in PlayerState s) => Shelter || Into is not null || Chilled(s);
+
+    /// <summary>Cold enough to go in for it (not for a tunnel or a job in there).</summary>
+    public bool Chilled(in PlayerState s) => s.Cold >= cold.OnsetSeconds * goInAt;
 
     /// <summary>
     /// Off the roofs and indoors, cold or not, for as long as it's set (a tunnel's mouth ahead, sight.json): the same way

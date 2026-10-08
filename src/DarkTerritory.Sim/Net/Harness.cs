@@ -143,7 +143,7 @@ public sealed record HarnessReport(int Ticks, double Seconds, string Link, doubl
 {
     /// <summary>
     /// With <see cref="HarnessOptions.Upkeep"/> and the guns' racks (note 377): rounds fired, the racks filled and who carried
-    /// each charge up (by bot), and the seconds a manned gun stood with its rack dry while there was powder below.
+    /// each charge up (by bot), and the seconds a gun that's fired stood with its rack dry while there was powder below.
     /// </summary>
     public UpkeepReport? Upkeep { get; init; }
     /// <summary>What got through on the crew's voice, with <see cref="HarnessOptions.Voice"/> (note 186).</summary>
@@ -419,10 +419,10 @@ public static class Harness
                 }
             }
             rounds += host.World.Shots.Count;
-            // A manned gun stood dry with powder below (note 377): its gunner seated, nothing in the rack.
+            // A gun that's been in action stood dry with powder below (note 377): nothing in the rack, whether its gunner's
+            // waiting in the seat or gone for powder.
             if (host.World.Combat?.Guns is { Rack: > 0 } rg && Combat.Guns.Stowed(host.Train, rg) > 0
-                && host.Players.Any(p => p.State.Alive && p.State.Has(PlayerFlags.Seated) && Combat.Guns.MannedGun(p.State, host.Train, rg) is { } g
-                    && Combat.Guns.Ready(host.Train.Vehicles[g].Gun, rg) <= 0))
+                && host.Train.Dynamics.Consist.Vehicles.Any(v => v.HasGun && !v.Taken && v.Gun.LastShotTick > 0 && Combat.Guns.Ready(v.Gun, rg) <= 0))
                 dryTicks++;
             beats += host.World.Beats.Count;
             foreach (var b in host.World.Beats)

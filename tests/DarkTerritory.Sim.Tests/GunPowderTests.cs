@@ -173,7 +173,6 @@ public class GunPowderTests
         n.Crew[1] = gunnerAt;
         n.Crew[2] = PlayerMotor.SpawnOnRoof(n.Train, 2, 0, P);
         var calls = new CrewCalls();
-        calls.Feeder(2);
         var gunner = asCrew ? (GunnerBot)BotCrew.Make(1, 4, calls, Tuning.Combat, P, 1) : new GunnerBot(G);
         gunner.Me = 1;
         var walker = asCrew ? (RoofWalkerBot)BotCrew.Make(2, 4, calls, Tuning.Combat, P, 1) : new RoofWalkerBot(7);
@@ -267,7 +266,7 @@ public class GunPowderTests
         n.Train.Vehicles[van].Gun.Rack = G.FeedAt;
         Assert.Equal(van, PowderCarry.Wanting(n.World, crew.Select(c => c.Item2), G));
         Assert.Equal(2, PowderCarry.Carrier(n.World, crew, G));
-        Assert.Equal(3, PowderCarry.Carrier(n.World, crew, G, id => id != 2));
+        Assert.Equal(3, PowderCarry.Carrier(n.World, crew, G, id => id == 3));
         // Walker 3 with a charge in hand: it's the one, whoever's lower.
         n.World.Bodies.SpawnCrate(n.Train, 2, new Double3(0, 0, 0), BodyKind.Powder).Carrier = 3;
         Assert.Equal(3, PowderCarry.Carrier(n.World, crew, G));

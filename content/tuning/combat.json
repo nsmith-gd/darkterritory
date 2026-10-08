@@ -60,7 +60,13 @@
     "feedAt": 2,
     // feedAt for a gun on another car than the locker's (the engine's forward gun): the walk's the train's length each way,
     // a minute on four cars, so a walker goes after its first shot.
-    "feedAtFar": 5
+    "feedAtFar": 5,
+    // A gunner bot whose rack runs dry with a walker on the way keeps its seat this long (s) before going for its own:
+    // up out of the seat, the gun's unmanned and the walker stands down. Long enough for the walk from the front of the train.
+    "gunnerWaits": 30,
+    // A gun that's fired in the last this many seconds is in action: any round short of a full rack sends the walker for a
+    // charge, to stand by at the gun with it (a ten-car train's walk to the guard van is about a minute; a wave isn't).
+    "feedWhileFiring": 20
   },
   // T121 playtest ("all creatures need hit confirm feedback"): a blow or a ball that lands on a creature, and where a ball
   // came down, are kept in the replicated world this long (s), so every client sees the flinch, hears the thud and the

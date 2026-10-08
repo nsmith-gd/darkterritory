@@ -281,12 +281,21 @@ public sealed partial class CrewCalls
     /// <summary>Whether this player is one of the bots (said so), not someone playing.</summary>
     public bool IsBot(int playerId) => _bots.Contains(playerId);
 
-    // Note 377: the walkers who'd bring a gun its powder (not the gunner, nor the driver).
+    // Note 377: the walkers free to bring a gun its powder right now (not the gunner, nor the driver).
     readonly SortedSet<int> _feeders = [];
 
-    /// <summary>A walker says it's one to bring the guns their powder (note 377, <see cref="PowderCarry"/>).</summary>
-    public void Feeder(int playerId) => _feeders.Add(playerId);
-    /// <summary>Whether this player said it's one to bring the guns their powder.</summary>
+    /// <summary>
+    /// A walker says, each tick, whether it's free to bring the guns their powder (note 377, <see cref="PowderCarry"/>): not
+    /// in for the cold, a tunnel or the Choir, nor at trouble in a car. Instant, like the claims: it's who goes where.
+    /// </summary>
+    public void CanFeed(int playerId, bool can)
+    {
+        if (can)
+            _feeders.Add(playerId);
+        else
+            _feeders.Remove(playerId);
+    }
+    /// <summary>Whether this player said it's free to bring the guns their powder.</summary>
     public bool IsFeeder(int playerId) => _feeders.Contains(playerId);
 
     /// <summary>

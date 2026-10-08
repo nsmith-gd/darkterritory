@@ -58,6 +58,16 @@ public sealed record GunTuning(double RoundsPerSecond, double Range, double Trav
     /// </summary>
     public int FeedAtFar { get; init; } = 5;
     /// <summary>
+    /// A gunner bot whose rack's run dry keeps its seat this long (s) for the walker bringing a charge (note 377), then goes
+    /// for its own: up out of the seat, the gun's unmanned and no walker's sent to it.
+    /// </summary>
+    public double GunnerWaits { get; init; } = 30;
+    /// <summary>
+    /// A gun that's fired in the last this many seconds is in action (note 377): any round short of a full rack sends a walker
+    /// for a charge, to stand by at the gun with it, so a wave doesn't wait on a walk the train's length.
+    /// </summary>
+    public double FeedWhileFiring { get; init; } = 20;
+    /// <summary>
     /// GDD §23 "gun jams: someone repairs it by hand, under fire" (note 183): the chance a shot fouls the bore, times
     /// <see cref="FoulWetFactor"/> on wet rail (rain); then <see cref="ClearSeconds"/> of Use held at the gun clears it.
     /// </summary>
