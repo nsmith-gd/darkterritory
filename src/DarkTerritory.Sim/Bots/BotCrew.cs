@@ -54,6 +54,9 @@ public sealed class BotCrew(CrewCalls? calls) : IDisposable
         StopHand? hand = calls is null ? null : new StopHand(job, calls, i, player.Cold);
         return i == 0 ? express is { } fast ? new ConductorBot(calls, i) { CruiseSpeed = fast, Express = true } : new ConductorBot(calls, i)
             : i == 1 && combat is { } c ? new GunnerBot(c.Guns, c.Choir, seed * 1000 + i, player.Cold, hand)
+            // The engine's forward gun's (note 414), in a crew big enough: its last place.
+            : i == count - 1 && combat is { Guns.ForwardGunnerFrom: > 0 } f && count >= f.Guns.ForwardGunnerFrom
+                ? new GunnerBot(f.Guns, f.Choir, seed * 1000 + i, player.Cold, hand) { Forward = true }
             : new RoofWalkerBot(seed * 1000 + i, player.Cold, hand);
     }
 
@@ -72,9 +75,15 @@ public sealed class BotCrew(CrewCalls? calls) : IDisposable
         if (((bot as GunnerBot)?.Job ?? (bot as RoofWalkerBot)?.Job) is { } part)
             part.PlayerId = session.PlayerId;
         if (bot is RoofWalkerBot rw)
+        {
             rw.Me = session.PlayerId ?? -1;
+            rw.Calls = calls; // the powder's carrier (note 377), the relief driver's claim (note 399)
+        }
         else if (bot is GunnerBot gb)
+        {
             gb.Me = session.PlayerId ?? -1;
+            gb.Calls = calls;
+        }
         // Note 258: it says it's a bot, so the driver can tell the crew playing from the bots.
         if (session.PlayerId is { } bid)
             calls?.Bot(bid);

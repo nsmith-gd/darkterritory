@@ -42,6 +42,8 @@ public abstract record Launch
     public sealed record Invite : Launch;
     /// <summary>The in-night menu's LEAVE, confirmed (note 292): out of the night and back to the menus.</summary>
     public sealed record Leave : Launch;
+    /// <summary>A folder shown in the system's file browser (note 411: where the crash reports are). The menu stays up.</summary>
+    public sealed record OpenFolder(string Path) : Launch;
 }
 
 /// <summary>
@@ -58,13 +60,14 @@ public abstract record Launch
 public sealed record NightMenu(bool Hosting = true, int Others = 0, bool Campaign = false, bool Invites = false, string? JoinAt = null, bool Over = false,
     bool Yard = false);
 
-public enum Screen { Title, Slots, Fortress, Upgrades, QuickNight, Join, Settings, Controls, Host, Stores, Credits, Night, Leave, Profile, DeleteCrew, Mods }
+public enum Screen { Title, Slots, Fortress, Upgrades, QuickNight, Join, Settings, Controls, Host, Stores, Credits, Night, Leave, Profile, DeleteCrew, Mods, Crashed }
 
 /// <summary>A mod laid over the game (note 323), as the MODS screen lists it: the app's scan of what's installed.</summary>
 public sealed record InstalledMod(string Name, string Version, string? Description);
 
 /// <param name="Detail">A line about the selected item, under the list.</param>
-public sealed record MenuItem(string Label, string? Detail = null, bool Enabled = true);
+/// <summary>A row of a menu. A <paramref name="Heading"/> (note 386) names the rows under it: never selected, never clicked.</summary>
+public sealed record MenuItem(string Label, string? Detail = null, bool Enabled = true, bool Heading = false);
 
 /// <summary>
 /// The front end's text fields (note 264, the director's notes on build 1121: "when I go to name of lobby, it just starts
@@ -137,6 +140,11 @@ public sealed class FrontEnd
     /// 194): the manifest's tracks, which the app loads from content/audio/music. Empty, the screen says there's none.
     /// </summary>
     public IReadOnlyList<MusicTrack> Music { get; set; } = [];
+    /// <summary>
+    /// Everyone else whose work is in the game, after the opera (note 390): the models, the sounds and voices, the textures,
+    /// the type and the code, as the app reads them from the content's provenance (<see cref="Credits.Load"/>).
+    /// </summary>
+    public IReadOnlyList<Credits.Section> CreditSections { get; set; } = [];
 
     /// <summary>
     /// The MODS screen's (note 323; note 53's "not yet": "an in-game mods screen"): the mods installed, in the order they're
@@ -153,6 +161,12 @@ public sealed class FrontEnd
     public PlayerProfile.Data Profile { get; set; } = new();
     /// <summary>Where the nights' bookmark stills are kept (note 203), said on the PROFILE page; null, nowhere to say.</summary>
     public string? StillsFolder { get; set; }
+
+    /// <summary>
+    /// Note 411: crash reports written since the player last put the notice away (<see cref="CrashReports.Unseen"/>). The app
+    /// opens on <see cref="Screen.Crashed"/> while there are; OK or Escape puts it away for good.
+    /// </summary>
+    public CrashNotice? Crash { get; set; }
     /// <summary>Who's playing, for the lobby's default name when the settings have none (the app sets it: the Steam name, or the system's).</summary>
     public string DefaultPlayerName { get; set; } = Environment.UserName;
     /// <summary>The lobby's name as the host screen has it: the one set, or "&lt;PLAYER NAME&gt;'S RUN".</summary>
@@ -266,6 +280,12 @@ public sealed class FrontEnd
         if (Night is not null && Screen == Screen.Night)
         {
             CloseNight();
+            return;
+        }
+        // The crash notice (note 411): Escape is its OK.
+        if (Screen == Screen.Crashed)
+        {
+            PutCrashAway();
             return;
         }
         Show(Screen switch
@@ -414,6 +434,8 @@ public sealed class FrontEnd
             screen = Screen.Title;
         if (screen is Screen.DeleteCrew && Open is null)
             screen = Screen.Slots;
+        if (screen is Screen.Crashed && Crash is null)
+            screen = Screen.Title;
         _blankName = false;
         Editing = null;
         Screen = screen;
@@ -545,6 +567,29 @@ public sealed class FrontEnd
                 return null;
             }, Sound: UiCue.Delete),
         ];
+    }
+
+    /// <summary>
+    /// The crash notice (note 411): OK first and lit, so the Enter that's pressed on arriving puts it away; where the report
+    /// is, said under both, since the console that said it was never seen.
+    /// </summary>
+    List<Entry> CrashEntries(CrashNotice c)
+    {
+        string where = $"Its report is {c.Newest}{(c.Count > 1 ? $", the newest of {c.Count}" : "")}. Send it in with a few words on what you were doing.";
+        return
+        [
+            new(new("OK", where), () => { PutCrashAway(); return null; }, Back: true),
+            new(new("OPEN THE REPORTS", where), () => new Launch.OpenFolder(c.Directory)),
+        ];
+    }
+
+    /// <summary>The crash notice put away: its reports aren't said again, and the title's up.</summary>
+    void PutCrashAway()
+    {
+        if (Crash is { } c)
+            CrashReports.MarkSeen(c);
+        Crash = null;
+        Show(Screen.Title);
     }
 
     static string DefaultCrewName(int slot) => $"Crew {slot}";
@@ -764,7 +809,7 @@ public sealed class FrontEnd
             new(new("SETTINGS"), () => { Show(Screen.Settings); return null; }),
             new(new("PROFILE", "What your crews have commended you for."), () => { Show(Screen.Profile); return null; }),
             .. InstalledMods.Count + ModProblems.Count > 0 ? [new Entry(new("MODS", ModsLine()), Go(Screen.Mods))] : (Entry[])[],
-            new(new("CREDITS", "The music, and who played it."), () => { Show(Screen.Credits); return null; }),
+            new(new("CREDITS", "Whose work is in the game: the opera, the models, the sounds, the code."), () => { Show(Screen.Credits); return null; }),
             new(new("QUIT"), () => new Launch.Quit()),
         ],
         Screen.Slots => [.. _saves.List().Select(x => SlotEntry(x.Slot, x.State)), BackTo(Screen.Title)],
@@ -809,11 +854,15 @@ public sealed class FrontEnd
         ],
         Screen.Settings =>
         [
+            // Note 386: in sections, a heading over each (never selected), so TEXT SIZE isn't found past the microphone.
+            Heading("YOU"),
             // Note 267: the name the crew and the report know you by, typed here (empty: your Steam or system name). Not in a
             // night (note 292): the crew have it already, from when you joined.
             .. Night is not null ? (Entry[])[] : [new Entry(new($"PLAYER NAME: {(Editing == TextField.PlayerName ? Settings.PlayerName + "_" : Settings.PlayerName is { Length: > 0 } me ? me.ToUpperInvariant() : DefaultPlayerName.ToUpperInvariant())}",
                 Editing == TextField.PlayerName ? "Type your name; Enter or Esc when it's done. Erased, it's your Steam or system name."
                     : "Enter to type the name the crew and the report know you by."), Field: TextField.PlayerName)],
+            OutfitEntry(Night is null ? "Left and right to change: what the crew see you in." : "Tried on in the yard; past the gate, from the next night."),
+            Heading("SOUND AND VOICE"),
             new(new($"SOUND: {(Settings.Mute ? "OFF" : "ON")}"), Toggle(s => s with { Mute = !s.Mute }), _ => Change(Settings with { Mute = !Settings.Mute })),
             new(new($"VOICE: {(Settings.PushToTalk ? $"PUSH TO TALK ({(Settings.ToggleHolds ? "TAP" : "HOLD")} {Controls.KeyLabel(Settings.KeyFor(Control.Talk))})" : "OPEN MIC")}"), Toggle(s => s with { PushToTalk = !s.PushToTalk }), _ => Change(Settings with { PushToTalk = !Settings.PushToTalk })),
             // The audio checklist's mix-settings: the volumes, the microphone and its level.
@@ -825,39 +874,19 @@ public sealed class FrontEnd
                 Toggle(s => s with { MicDevice = NextMic(s.MicDevice, 1) }), by => Change(Settings with { MicDevice = NextMic(Settings.MicDevice, by) })),
             new(new($"MIC LEVEL: {Settings.MicLevel * 100:0}%", "Left and right to change: up if the crew can't hear you."), null,
                 by => Change(Settings with { MicLevel = Math.Clamp(Math.Round(Settings.MicLevel + by * 0.1, 1), 0, 3) })),
+            Heading("SCREEN"),
             new(new($"HUD: {(Settings.Hud ? "ON" : "OFF")}", "F1 in the game as well."), Toggle(s => s with { Hud = !s.Hud }), _ => Change(Settings with { Hud = !Settings.Hud })),
             new(new($"CONTROL HINTS: {(Settings.ControlHints ? "ON" : "OFF")}", "The keys in the corner for what you're holding or driving."),
                 Toggle(s => s with { ControlHints = !s.ControlHints }), _ => Change(Settings with { ControlHints = !Settings.ControlHints })),
-            // Note 348: the HUD's colours that mean something, told apart without red against green.
-            new(new($"COLOURS: {(Settings.Colours == HudColours.Colourblind ? "COLOURBLIND" : "STANDARD")}",
-                Settings.Colours == HudColours.Colourblind ? "The HUD's good in blue, warnings in yellow, danger in red." : "The HUD's good in green, warnings in amber, danger in red."),
-                Toggle(s => s with { Colours = s.Colours == HudColours.Colourblind ? HudColours.Standard : HudColours.Colourblind }),
-                _ => Change(Settings with { Colours = Settings.Colours == HudColours.Colourblind ? HudColours.Standard : HudColours.Colourblind })),
-            // Note 349: what's heard, named, and where.
-            new(new($"CAPTIONS: {(Settings.Captions ? "ON" : "OFF")}", "The sounds worth hearing named as you hear them, and where they are."),
-                Toggle(s => s with { Captions = !s.Captions }), _ => Change(Settings with { Captions = !Settings.Captions })),
-            // Note 383: holds as toggles.
-            new(new($"HOLD KEYS: {(Settings.ToggleHolds ? "TOGGLE" : "HOLD")}", Settings.ToggleHolds
-                    ? "Run, the brake, talk, the radio and the crew: press once for on, again for off."
-                    : "Run, the brake, talk, the radio and the crew: held down. TOGGLE makes each a press for on and off."),
-                Toggle(s => s with { ToggleHolds = !s.ToggleHolds }), _ => Change(Settings with { ToggleHolds = !Settings.ToggleHolds })),
-            // Note 350: a new player's first nights.
-            new(new($"FIRST NIGHTS: {(Settings.FirstNights ? "ON" : "OFF")}", "Tips while a night's built, and the controls in the yard for your first nights."),
-                Toggle(s => s with { FirstNights = !s.FirstNights }), _ => Change(Settings with { FirstNights = !Settings.FirstNights })),
-            // Note 347: the print, bigger; the HUD's and these menus' alike, at once.
-            new(new($"TEXT SIZE: {Settings.TextScale * 100:0}%",
-                "Left and right to change: the HUD's print and the menus', bigger."),
-                Toggle(s => s with { TextSize = Settings.Cycle(Settings.TextSizes, s.TextSize, 1) }),
-                by => Change(Settings with { TextSize = Settings.Cycle(Settings.TextSizes, Settings.TextSize, by) })),
-            // The headset's comfort is set as a night starts: not in a night's menu (note 292), which is the window's.
-            .. Night is not null ? (Entry[])[] :
-            [
-                new Entry(new($"VR TURNING: {(Settings.VrTurn == VrTurn.Snap ? "SNAP" : "SMOOTH")}"), Toggle(s => s with { VrTurn = s.VrTurn == VrTurn.Snap ? VrTurn.Smooth : VrTurn.Snap }),
-                    _ => Change(Settings with { VrTurn = Settings.VrTurn == VrTurn.Snap ? VrTurn.Smooth : VrTurn.Snap })),
-                new Entry(new($"VR COMFORT VIGNETTE: {(Settings.VrVignette ? "ON" : "OFF")}"), Toggle(s => s with { VrVignette = !s.VrVignette }), _ => Change(Settings with { VrVignette = !Settings.VrVignette })),
-            ],
+            // T83: the display.
+            new(new($"DISPLAY: {(Settings.Fullscreen ? "FULLSCREEN" : "WINDOWED")}"), Toggle(s => s with { Fullscreen = !s.Fullscreen }), _ => Change(Settings with { Fullscreen = !Settings.Fullscreen })),
+            new(new($"RESOLUTION: {Settings.Resolution}", "Left and right to change."), Toggle(s => s with { Resolution = Settings.Cycle(Settings.Resolutions, s.Resolution, 1) }),
+                by => Change(Settings with { Resolution = Settings.Cycle(Settings.Resolutions, Settings.Resolution, by) })),
+            new(new($"RENDER SCALE: {Settings.RenderScale * 100:0}%", "Draws the scene smaller and scales it up: faster, softer."), Toggle(s => s with { RenderScale = Settings.Cycle(Settings.RenderScales, s.RenderScale, 1) }),
+                by => Change(Settings with { RenderScale = Settings.Cycle(Settings.RenderScales, Settings.RenderScale, by) })),
+            new(new($"VSYNC: {(Settings.VSync ? "ON" : "OFF")}"), Toggle(s => s with { VSync = !s.VSync }), _ => Change(Settings with { VSync = !Settings.VSync })),
+            Heading("CONTROLS AND COMFORT"),
             new(new($"MOUSE SPEED: {Settings.MouseSpeed:0.0}", "Left and right to change."), null, by => Change(Settings with { MouseSpeed = Math.Clamp(Math.Round(Settings.MouseSpeed + by * 0.1, 1), 0.2, 3) })),
-            OutfitEntry(Night is null ? "Left and right to change: what the crew see you in." : "Tried on in the yard; past the gate, from the next night."),
             // Note 297: comfort.
             new(new($"INVERT MOUSE: {(Settings.InvertMouse ? "ON" : "OFF")}", "On, pushing the mouse away looks down."), Toggle(s => s with { InvertMouse = !s.InvertMouse }),
                 _ => Change(Settings with { InvertMouse = !Settings.InvertMouse })),
@@ -867,22 +896,49 @@ public sealed class FrontEnd
             new(new($"CAMERA SHAKE: {(Settings.CameraShake <= 0 ? "OFF" : $"{Settings.CameraShake * 100:0}%")}", "The boiler's shake and a straining car's judder, in your eyes."),
                 Toggle(s => s with { CameraShake = Settings.Cycle(Settings.CameraShakes, s.CameraShake, 1) }),
                 by => Change(Settings with { CameraShake = Math.Clamp(Math.Round(Settings.CameraShake + by * 0.25, 2), 0, 1) })),
-            // T83: the display.
-            new(new($"DISPLAY: {(Settings.Fullscreen ? "FULLSCREEN" : "WINDOWED")}"), Toggle(s => s with { Fullscreen = !s.Fullscreen }), _ => Change(Settings with { Fullscreen = !Settings.Fullscreen })),
-            new(new($"RESOLUTION: {Settings.Resolution}", "Left and right to change."), Toggle(s => s with { Resolution = Settings.Cycle(Settings.Resolutions, s.Resolution, 1) }),
-                by => Change(Settings with { Resolution = Settings.Cycle(Settings.Resolutions, Settings.Resolution, by) })),
-            new(new($"RENDER SCALE: {Settings.RenderScale * 100:0}%", "Draws the scene smaller and scales it up: faster, softer."), Toggle(s => s with { RenderScale = Settings.Cycle(Settings.RenderScales, s.RenderScale, 1) }),
-                by => Change(Settings with { RenderScale = Settings.Cycle(Settings.RenderScales, Settings.RenderScale, by) })),
-            new(new($"VSYNC: {(Settings.VSync ? "ON" : "OFF")}"), Toggle(s => s with { VSync = !s.VSync }), _ => Change(Settings with { VSync = !Settings.VSync })),
+            // The headset's comfort is set as a night starts: not in a night's menu (note 292), which is the window's.
+            .. Night is not null ? (Entry[])[] :
+            [
+                new Entry(new($"VR TURNING: {(Settings.VrTurn == VrTurn.Snap ? "SNAP" : "SMOOTH")}"), Toggle(s => s with { VrTurn = s.VrTurn == VrTurn.Snap ? VrTurn.Smooth : VrTurn.Snap }),
+                    _ => Change(Settings with { VrTurn = Settings.VrTurn == VrTurn.Snap ? VrTurn.Smooth : VrTurn.Snap })),
+                new Entry(new($"VR COMFORT VIGNETTE: {(Settings.VrVignette ? "ON" : "OFF")}"), Toggle(s => s with { VrVignette = !s.VrVignette }), _ => Change(Settings with { VrVignette = !Settings.VrVignette })),
+            ],
             new(new("CONTROLS", "Rebind the keys."), Go(Screen.Controls)),
+            Heading("ACCESSIBILITY"),
+            // Note 347: the print, bigger; the HUD's and these menus' alike, at once.
+            new(new($"TEXT SIZE: {Settings.TextScale * 100:0}%",
+                "Left and right to change: the HUD's print and the menus', bigger."),
+                Toggle(s => s with { TextSize = Settings.Cycle(Settings.TextSizes, s.TextSize, 1) }),
+                by => Change(Settings with { TextSize = Settings.Cycle(Settings.TextSizes, Settings.TextSize, by) })),
+            // Note 348: the HUD's colours that mean something, told apart without red against green.
+            new(new($"COLOURS: {(Settings.Colours == HudColours.Colourblind ? "COLOURBLIND" : "STANDARD")}",
+                Settings.Colours == HudColours.Colourblind ? "The HUD's good in blue, warnings in yellow, danger in red." : "The HUD's good in green, warnings in amber, danger in red."),
+                Toggle(s => s with { Colours = s.Colours == HudColours.Colourblind ? HudColours.Standard : HudColours.Colourblind }),
+                _ => Change(Settings with { Colours = Settings.Colours == HudColours.Colourblind ? HudColours.Standard : HudColours.Colourblind })),
+            // Note 349: what's heard, named, and where.
+            new(new($"CAPTIONS: {(Settings.Captions ? "ON" : "OFF")}", "The sounds worth hearing named as you hear them, and where they are."),
+                Toggle(s => s with { Captions = !s.Captions }), _ => Change(Settings with { Captions = !Settings.Captions })),
+            // Note 404: a band behind the print in play, as a subtitle's.
+            new(new($"TEXT BACKING: {(Settings.TextBacking ? "ON" : "OFF")}", "A dark band behind the HUD's print and the captions, to read them over a bright night."),
+                Toggle(s => s with { TextBacking = !s.TextBacking }), _ => Change(Settings with { TextBacking = !Settings.TextBacking })),
+            // Note 383: holds as toggles.
+            new(new($"HOLD KEYS: {(Settings.ToggleHolds ? "TOGGLE" : "HOLD")}", Settings.ToggleHolds
+                    ? "Run, the brake, talk, the radio and the crew: press once for on, again for off."
+                    : "Run, the brake, talk, the radio and the crew: held down. TOGGLE makes each a press for on and off."),
+                Toggle(s => s with { ToggleHolds = !s.ToggleHolds }), _ => Change(Settings with { ToggleHolds = !Settings.ToggleHolds })),
+            // Note 350: a new player's first nights.
+            new(new($"FIRST NIGHTS: {(Settings.FirstNights ? "ON" : "OFF")}", "Tips while a night's built, and the controls in the yard for your first nights."),
+                Toggle(s => s with { FirstNights = !s.FirstNights }), _ => Change(Settings with { FirstNights = !Settings.FirstNights })),
             BackTo(Night is null ? Screen.Title : Screen.Night),
         ],
-        // A row a track (its work and composer), its performers, licence and source drawn under it (DrawCredits).
+        // A heading a section (greyed: the selection steps over it), then a row a credit with its licence and source under
+        // it (DrawCredits): the opera's tracks first (E.6), then everyone else's (note 390).
         // The badges and their tally are drawn over the list (DrawProfile): BACK is all there is to choose.
         Screen.Profile => [BackTo(Screen.Title)],
         Screen.Night when Night is { } n => NightEntries(n),
         Screen.Leave when Night is { } n => LeaveEntries(n, Go(Screen.Night)),
         Screen.DeleteCrew when Open is { } s => DeleteEntries(s),
+        Screen.Crashed when Crash is { } c => CrashEntries(c),
         // Note 323: a row a mod, its description under it; what couldn't load, why. Nothing here changes them: they're laid
         // over as the game starts, from its folders or a mod manager's profile (note 53).
         Screen.Mods =>
@@ -894,7 +950,11 @@ public sealed class FrontEnd
         ],
         Screen.Credits =>
         [
-            .. Music.Select(t => new Entry(new($"{t.Work} - {t.Composer}, {t.Year}", CreditLine(t)))),
+            new(new("THE OPERA", Music.Count == 0 ? "No music in this build." : Credits.OperaLine, Enabled: false)),
+            .. Music.Select(t => new Entry(new($"{t.Work} - {t.Composer}, {t.Year}", Credits.TrackLine(t)))),
+            .. CreditSections.Where(s => s.Lines.Count > 0).SelectMany(s => (Entry[])[
+                new(new(s.Name, s.Blurb, Enabled: false)),
+                .. s.Lines.Select(l => new Entry(new(l.Title, l.Detail)))]),
             new(new("BACK"), Go(Screen.Title)),
         ],
         Screen.Controls =>
@@ -915,6 +975,9 @@ public sealed class FrontEnd
     int MaxCars => _edition.MaxCars > 0 ? Math.Min(_edition.MaxCars, _campaign.MaxCars) : _campaign.MaxCars;
 
     Func<Launch?> Go(Screen screen) => () => { Show(screen); return null; };
+
+    /// <summary>A section's heading (note 386): greyed so the keys pass over it, drawn as a heading.</summary>
+    static Entry Heading(string label) => new(new(label, null, Enabled: false, Heading: true));
 
     Entry BackTo(Screen screen) => new(new("BACK"), Go(screen), Back: true);
 
@@ -1096,36 +1159,36 @@ public sealed class FrontEnd
 
     const string CreditHints = "[UP/DOWN] SCROLL   [ESC] BACK";
 
-    /// <summary>A track's performers, licence and where it came from: a recording's Commons page, or the script that made it.</summary>
-    static string CreditLine(MusicTrack t) =>
-        $"{t.Performers}. {t.Licence}. {(t.Recorded ? t.Source.Replace("https://", "") : "Made by " + Path.GetFileName(t.Source))}";
-
     /// <summary>
-    /// The credits (E.6: CC0 asks for none, the screen lists every performer anyway): each track two lines, its work,
-    /// composer and year, then its performers, licence and source, scrolled to keep the selection in view.
+    /// The credits (E.6: CC0 asks for none, the screen lists every performer anyway; note 390, everyone else whose work is in
+    /// the game): each credit two lines, whose and what, then its licence and source, under its section's heading; scrolled
+    /// to keep the selection in view.
     /// </summary>
     void DrawCredits(Overlay o, float x, float y, int width, int height)
     {
-        // Wrapped at a bigger TEXT SIZE (note 347).
-        foreach (var row in UiStyle.Wrap(o, "COMPOSITIONS IN THE PUBLIC DOMAIN. RECORDINGS DEDICATED CC0 1.0.", width - x - 8))
-        {
-            o.Text(x, y, row, Faint);
-            y += 10;
-        }
-        y += 6;
         var items = Items;
-        // Room under the list for the selected track's line in full, over two rows.
-        int rows = Math.Max(1, (int)((height - y - 44) / 20));
+        // Room under the list for the selected credit's line in full, over three rows at the least.
+        int rows = Math.Max(1, (int)((height - y - 48) / 20));
         int first = First(rows, items.Count);
+        // A section's first credit brings its heading into view with it.
+        if (first > 0 && first == Selected && !items[first - 1].Enabled)
+            _scroll = first = first - 1;
         int shown = Math.Min(rows, items.Count - first);
         float w = width - x - 8;
         int chars = (int)((w - 8) / o.Font.Advance);
         UiStyle.Plate(o, x - 8, y - 6, w + 4, shown * 20 + 6);
-        if (Music.Count == 0)
-            o.Text(x, y + shown * 20 - 4, "NO MUSIC IN THIS BUILD.", Faint);
         for (int i = first; i < first + shown; i++)
         {
             bool on = i == Selected;
+            if (!items[i].Enabled)
+            {
+                // A heading: its name, and its line in faint print.
+                o.Text(x, y, Fit(items[i].Label, chars), Ink);
+                if (items[i].Detail is { } blurb)
+                    o.Text(x, y + 9, Fit(blurb, chars), Faint);
+                y += 20;
+                continue;
+            }
             _hits.Add((new MenuHit(i), x - 4, y - 1, w - 4, 19));
             if (on)
                 o.Rect(x - 4, y - 1, w - 4, items[i].Detail is null ? 9 : 19, UiStyle.Lit with { W = 0.14f });
@@ -1134,14 +1197,17 @@ public sealed class FrontEnd
                 o.Text(x, y + 9, Fit("    " + line, chars), Dim);
             y += 20;
         }
-        // The selected track's performers, licence and source, whole (a long Commons title or ensemble name is cut above).
-        if (Selected < items.Count && items[Selected].Detail is { } full && full.Length + 4 > chars)
+        // The selected credit whole (a long attribution, Commons title or ensemble name is cut above), wrapped.
+        if (Selected < items.Count && items[Selected] is { Enabled: true } sel && (sel.Label.Length + 2 > chars || sel.Detail is { } d && d.Length + 4 > chars))
         {
             y += 6;
-            string text = full.ToUpperInvariant();
-            o.Text(x, y, text[..Math.Min(chars, text.Length)], Ink);
-            if (text.Length > chars)
-                o.Text(x, y + 9, Fit(text[chars..], chars), Ink);
+            // A word longer than the row (a Commons address) is broken across rows rather than cut.
+            var whole = UiStyle.Wrap(o, $"{sel.Label}. {sel.Detail}".ToUpperInvariant(), w - 8)
+                .SelectMany(r => r.Chunk(Math.Max(1, chars)).Select(c => new string(c))).ToList();
+            // As many rows as fit above the hints' keycaps; the last says so if there's more.
+            int fit = Math.Min(whole.Count, Math.Max(1, (int)((height - 22 - y) / 9) + 1));
+            for (int i = 0; i < fit; i++)
+                o.Text(x, y + i * 9, Fit(i == fit - 1 && whole.Count > fit ? whole[i] + " ..." : whole[i], chars), Ink);
         }
     }
 
@@ -1244,6 +1310,7 @@ public sealed class FrontEnd
             Screen.Leave => Night is { Hosting: true, Others: > 0 } ? "END THE NIGHT?" : "LEAVE THE NIGHT?",
             Screen.Slots => "CAMPAIGN",
             Screen.DeleteCrew when Open is { } s => $"DELETE {CrewName(s).ToUpperInvariant()}?",
+            Screen.Crashed => "DARK TERRITORY STOPPED LAST TIME",
             Screen.Fortress or Screen.Upgrades or Screen.Stores when Open is { } s =>
                 $"{CrewName(s).ToUpperInvariant()}: {s.Cars} CARS, {s.Scrip:0} SCRIP, NIGHT {s.Runs + 1}, {Name(Campaign.TierFor(_campaign, s.Cars))}",
             Screen.Upgrades => "UPGRADES",
@@ -1252,7 +1319,7 @@ public sealed class FrontEnd
             Screen.Host => "HOST",
             Screen.Settings => "SETTINGS",
             Screen.Controls => "CONTROLS",
-            Screen.Credits => "CREDITS: THE OPERA AT A DERAILMENT (GDD E.6)",
+            Screen.Credits => "CREDITS",
             Screen.Mods => ModsOff ? "MODS: OFF, STARTED WITH --NO-MODS" : "MODS, IN THE ORDER THEY'RE LAID OVER THE GAME",
             Screen.Profile => $"PROFILE: {(Settings.PlayerName is { Length: > 0 } me ? me : DefaultPlayerName).ToUpperInvariant()}",
             _ => "A CO-OP NIGHT ON THE LAST RAILWAY",
@@ -1305,6 +1372,17 @@ public sealed class FrontEnd
             Chevron(o, x - 8 + plate / 2, y + shown * 10 + 1, down: true, Ink);
         for (int i = first; i < first + shown; i++)
         {
+            // A section's heading (note 386): dim, flush left, a rule out to the plate's edge; nothing to point at.
+            if (items[i].Heading)
+            {
+                string title = Clip(o, items[i].Label, plate - 24);
+                o.Text(x, y, title, Dim);
+                float rule = x + o.Font.Measure(title) + 4;
+                if (x - 8 + plate - 6 > rule)
+                    o.Rect(rule, y + 3, x - 8 + plate - 6 - rule, 1, Faint);
+                y += 10;
+                continue;
+            }
             bool on = i == Selected;
             _hits.Add((new MenuHit(i), x - 4, y - 1, plate - 8, 10));
             // The selection: a brass-lit bar under it, as a lamp on a lever frame's plate.

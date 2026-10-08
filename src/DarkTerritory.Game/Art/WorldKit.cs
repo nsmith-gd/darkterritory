@@ -17,8 +17,12 @@ public static class WorldKit
     /// mass. Alternate boughs roll either way about their length so none is ever seen edge-on. About 2000 triangles; the
     /// lineside keeps <see cref="PineCard"/> for the far field. <paramref name="variant"/> turns the whorls and jitters the boughs so a stand isn't one tree repeated.
     /// </summary>
-    public static MeshAsset Pine(Look? look, int variant, float height) =>
-        Boughs(look, variant, height, reach: 0.34f, whorls: 18, core: "pine_card", tint: null, club: false, name: $"pine-{variant}-{height:0}");
+    public static MeshAsset Pine(Look? look, int variant, float height) => Pine(look, variant, height, NovaKit.TreeForm.Plain);
+
+    /// <summary>The same in a <paramref name="form"/> (note 395).</summary>
+    public static MeshAsset Pine(Look? look, int variant, float height, NovaKit.TreeForm form) =>
+        Boughs(look, variant, height, reach: 0.34f, whorls: 18, core: "pine_card", tint: null, club: false,
+            name: form == NovaKit.TreeForm.Plain ? $"pine-{variant}-{height:0}" : $"pine-{variant}-{height:0}-{form}", form);
 
     /// <summary>
     /// A black spruce near the line (maritime-rules.md §5: narrow, ragged, clubbed), modelled as <see cref="Pine"/> is: short
@@ -26,27 +30,66 @@ public static class WorldKit
     /// above as a column of separate clumps (the 5 October audit, the chase camera), and a club of dense growth at the top.
     /// Bluer and darker than the pines, like the far field's cards (NovaKit.Conifer).
     /// </summary>
-    public static MeshAsset Spruce(Look? look, int variant, float height) =>
-        Boughs(look, variant, height, reach: 0.15f, whorls: 24, core: look?.Layer("spruce_card") >= 0 ? "spruce_card" : "pine_card",
-            tint: new Vector3(0.75f, 0.85f, 0.85f), club: true, name: $"spruce3d-{variant}-{height:0}");
+    public static MeshAsset Spruce(Look? look, int variant, float height) => Spruce(look, variant, height, NovaKit.TreeForm.Plain);
 
-    static MeshAsset Boughs(Look? look, int variant, float height, float reach, int whorls, string core, Vector3? tint, bool club, string name)
+    /// <summary>The same in a <paramref name="form"/> (note 395: flagged by the wind, its top snapped off, forked).</summary>
+    public static MeshAsset Spruce(Look? look, int variant, float height, NovaKit.TreeForm form) =>
+        Boughs(look, variant, height, reach: 0.15f, whorls: 24, core: look?.Layer("spruce_card") >= 0 ? "spruce_card" : "pine_card",
+            tint: new Vector3(0.75f, 0.85f, 0.85f), club: true,
+            name: form == NovaKit.TreeForm.Plain ? $"spruce3d-{variant}-{height:0}" : $"spruce3d-{variant}-{height:0}-{form}", form);
+
+    static MeshAsset Boughs(Look? look, int variant, float height, float reach, int whorls, string core, Vector3? tint, bool club, string name,
+        NovaKit.TreeForm form = NovaKit.TreeForm.Plain)
     {
         var k = new Kit(look, 200 + variant);
+        // Its form (note 395): where a broken one snapped, and a forked one split; flagged, which way the wind left it (+X).
+        float snap = form == NovaKit.TreeForm.Broken ? 0.6f + 0.08f * (variant % 3) : 2, split = form == NovaKit.TreeForm.Forked ? 0.45f : 2;
+        bool flagged = form == NovaKit.TreeForm.Flagged;
+        var fork = new Vector3(height * 0.06f, 0, 0);
         k.Use("pine_bark", Palette.DeepBrown, 0.6f, 0, tile: 1.5f);
         // (The trunk stops in the leader: it never shows above it as a bare stick.)
-        k.Cylinder(Vector3.Zero, new Vector3(0, height * 0.88f, 0), height * 0.015f, 7, caps: false, radiusB: height * 0.004f);
+        if (split < 1)
+        {
+            k.Cylinder(Vector3.Zero, new Vector3(0, height * split, 0), height * 0.015f, 7, caps: false, radiusB: height * 0.011f);
+            foreach (int side in new[] { -1, 1 })
+                k.Cylinder(new Vector3(0, height * split * 0.98f, 0), fork * side + new Vector3(0, height * 0.86f, 0), height * 0.01f, 6, caps: false, radiusB: height * 0.004f);
+        }
+        else
+            k.Cylinder(Vector3.Zero, new Vector3(0, height * MathF.Min(0.88f, snap), 0), height * 0.015f, 7, caps: false,
+                radiusB: snap < 1 ? height * 0.008f : height * 0.004f);
+        if (snap < 1)
+        {
+            // The break: grey splinters up out of the snapped trunk.
+            k.Use("wood_grey", Palette.BlueGrey, 0.9f, 0.05f, tile: 1);
+            for (int i = 0; i < 3; i++)
+            {
+                float a = i * 2.1f + variant;
+                k.Rod(new Vector3(0, height * snap - 0.05f, 0), new Vector3(MathF.Sin(a) * 0.07f, height * snap + 0.3f + 0.12f * i, MathF.Cos(a) * 0.07f), 0.035f, 3);
+            }
+        }
+        if (flagged)
+        {
+            // The lower trunk bare but for dead stubs.
+            k.Use("wood_grey", Palette.BlueGrey, 0.9f, 0.05f, tile: 1);
+            for (int i = 0; i < 6; i++)
+            {
+                float y = height * (0.12f + 0.05f * i), a = i * 2.4f + variant, l = height * 0.05f;
+                k.Rod(new Vector3(0, y, 0), new Vector3(MathF.Sin(a) * l, y - l * 0.3f, MathF.Cos(a) * l), 0.018f, 3);
+            }
+        }
         // A slim core of the far field's crossed cards inside the boughs: from above, or with the sky behind, the gaps
         // between the whorls are foliage, not a stack of separate discs (the 5 October audit, the chase camera).
         k.Use(core, Palette.PineDark, 0.3f, 0, tile: 1);
         k.Baked = 0;
         if (tint is { } t)
             k.Tint = t;
-        for (int i = 0; i < 2; i++)
+        for (int i = 0; i < 2 && split > 1; i++)
         {
             float a = variant * 0.7f + i * MathF.PI / 2;
-            k.Panel(new Vector3(0, height * 0.52f, 0), new Vector3(MathF.Sin(a), 0, MathF.Cos(a)), Vector3.UnitY, height * Math.Min(0.3f, reach * 1.6f), height * 0.86f,
-                Vector2.Zero, Vector2.One, twoSided: true);
+            // (Cropped to the snap on a broken one, and the flagged one's core is over to its lee.)
+            float top = MathF.Min(0.95f, snap), bottom = flagged ? 0.4f : 0.09f;
+            k.Panel(new Vector3(flagged ? height * 0.05f : 0, height * (top + bottom) / 2, 0), new Vector3(MathF.Sin(a), 0, MathF.Cos(a)), Vector3.UnitY,
+                height * Math.Min(0.3f, reach * 1.6f), height * (top - bottom), new Vector2(0, 1 - (top - bottom) / 0.86f), Vector2.One, twoSided: true);
         }
         k.Use("pine_bough", Palette.PineDark, 0.3f, 0, tile: 1);
         k.Baked = 0;
@@ -54,11 +97,11 @@ public static class WorldKit
             k.Tint = t2;
         float Jit(int i, float scale) => (Frac(MathF.Sin(i * 12.9898f + variant * 78.233f) * 43758.5f) - 0.5f) * scale;
         int n = 0;
-        void Bough(float y, float length, float droop, float a)
+        void Bough(float y, float length, float droop, float a, Vector3 centre = default)
         {
             var dir = new Vector3(MathF.Sin(a), 0, MathF.Cos(a));
             float l = length * (0.85f + Jit(n + 90, 0.3f));
-            var p0 = new Vector3(0, y, 0) + dir * height * 0.012f;
+            var p0 = centre + new Vector3(0, y, 0) + dir * height * 0.012f;
             var p1 = p0 + dir * l * 0.55f + Vector3.UnitY * l * 0.06f;
             var p2 = p1 + Vector3.Normalize(dir - Vector3.UnitY * droop) * l * 0.47f;
             // The card's width, rolled about the bough (alternately), so from the side it still has breadth.
@@ -78,9 +121,29 @@ public static class WorldKit
             float length = height * reach * MathF.Pow(1 - f, 0.75f) + height * 0.05f;
             int count = f > 0.85f ? 5 : 9;
             float turn = variant * 0.9f + w * 0.73f;
+            // Broken, nothing over the snap; flagged, nothing low and only the lee's; forked, each leader its own whorl.
+            if (y > height * snap - 0.2f || flagged && f < 0.3f)
+                continue;
+            if (y > height * split)
+            {
+                foreach (int side in new[] { -1, 1 })
+                {
+                    var c = fork * side * ((y / height - split) / (0.86f - split));
+                    for (int b = 0; b < count - 3; b++, n++)
+                        Bough(y, length * 0.7f, 0.3f + 0.35f * (1 - f), turn + side + b * MathF.Tau / (count - 3) + Jit(n + 50, 0.5f), c);
+                }
+                continue;
+            }
             for (int b = 0; b < count; b++, n++)
-                Bough(y, length, 0.3f + 0.35f * (1 - f), turn + b * MathF.Tau / count + Jit(n + 50, 0.5f));
+            {
+                float a = turn + b * MathF.Tau / count + Jit(n + 50, 0.5f);
+                if (flagged && MathF.Sin(a) < -0.25f)
+                    continue;
+                Bough(y, flagged ? length * (1.1f + 0.4f * MathF.Max(0, MathF.Sin(a))) : length, 0.3f + 0.35f * (1 - f), a);
+            }
         }
+        if (snap < 1 || split < 1)
+            return k.Build(name);
         // Black spruce's club: a knot of short dense boughs at the very top, stood out round the leader.
         if (club)
             for (int b = 0; b < 10; b++, n++)

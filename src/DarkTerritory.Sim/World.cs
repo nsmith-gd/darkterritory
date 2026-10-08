@@ -752,6 +752,42 @@ public sealed class World
     /// <summary>Note 279: the stops' buildings' walls by their doors, kept for the town's rebuild of the walls.</summary>
     Sim.Run.WallTuning? _walls;
 
+    // Host: who's holding Use at which house door, how long, and whether this hold has already worked it (note 401).
+    readonly Dictionary<int, (int Key, double Held, bool Done)> _atDoor = [];
+
+    /// <summary>
+    /// The door an open house's doorway has that a crewmate could work (note 401): on foot, alive, within run.json
+    /// <c>walls.houseDoorReachM</c> of its doorway, with no hiding spot in reach (that's the search's). Alike on host and client,
+    /// for the HUD.
+    /// </summary>
+    public Sim.Run.HouseDoor? DoorInReach(in PlayerState s)
+    {
+        if (!s.Alive || s.Parent != PlayerState.World || Train.Walls is not { HouseDoors.Count: > 0 } walls || Run?.SpotInReach(s, Train) is not null)
+            return null;
+        return walls.DoorInReach(PlayerMotor.WorldPosition(s, Train), (_walls ?? new Sim.Run.WallTuning()).HouseDoorReachM);
+    }
+
+    /// <summary>
+    /// Host: a crewmate's hands on a house door this tick. Use held <c>walls.houseDoorSeconds</c> shuts an open one or opens a
+    /// shut one, once a hold; let go and hold again to work it again. As a car's door is worked (CrewActions).
+    /// </summary>
+    void DoorAct(in PlayerState s, in PlayerIntent intent, int playerId, bool emptyHanded)
+    {
+        if (!emptyHanded || !intent.Has(PlayerButtons.Use) || intent.MoveZ > 0.5 || DoorInReach(s) is not { } door)
+        {
+            _atDoor.Remove(playerId);
+            return;
+        }
+        var (key, held, done) = _atDoor.TryGetValue(playerId, out var was) && was.Key == door.Key ? was : (door.Key, 0.0, false);
+        held += SimConstants.TickSeconds;
+        if (!done && held >= (_walls ?? new Sim.Run.WallTuning()).HouseDoorSeconds - 1e-9)
+        {
+            Train.Walls!.SetShut(key, !Train.Walls.Shut(key));
+            done = true;
+        }
+        _atDoor[playerId] = (key, held, done);
+    }
+
     /// <summary>The night's fortresses (<see cref="Sim.Run.Fortresses.Of"/>; T124), the departure one's town square on it once there's a town.</summary>
     public IReadOnlyList<Sim.Run.Fort>? Forts { get; private set; }
 
@@ -842,10 +878,12 @@ public sealed class World
                     v => v >= 0 && v < Train.Vehicles.Count && Train.Vehicles[v].HasGun && Sim.Combat.Guns.Mount(Train, v) is { } mount
                         ? (mount.Position, Sim.Combat.Guns.FacingYaw(mount) + Train.Vehicles[v].Gun.Traverse) : null,
                     v => v >= 0 && v < Train.Frames.Count ? [.. Train.Frames[v].Shape.DoorList.Select(d => d.Box)] : []);
+                // App. E.3's extras (note 373): the stowed dead and the loose things aboard go into the wreck too.
+                Film = Film with { Extras = FilmExtras(Film) };
                 // App. E.2 step 1 (the director's decision of 5 Oct 2026): nobody dies on the derail tick. The film's own
                 // physics, recorded now, says when each of the crew takes the hit that kills them; they die then, as it lands
                 // in their own first person (FilmTuning.DeathDelay), and every client's first person ends on its own.
-                _recording = WreckFilm.Record(WreckTuning, Film, FilmGround(Film));
+                _recording = WreckFilm.Record(WreckTuning, Film, FilmGround(Film), FilmWater());
                 _filmRecorded = Film;
                 _derailTick = Tick;
                 _doomedAt.Clear();
@@ -913,6 +951,30 @@ public sealed class World
     /// <summary>What's left of an intent once the wreck has you (<see cref="Wrecked"/>): the skip vote.</summary>
     public static PlayerIntent WreckedIntent(in PlayerIntent i) => new() { Actions = i.Actions & PlayerActions.Skip };
 
+    /// <summary>The water's surface over a point for the film (note 373: bodies float in it), as the guns find it.</summary>
+    Func<double, double, double?> FilmWater() => (x, z) => Sim.Combat.Guns.Water(Train, new Ballast.Double3(x, 0, z));
+
+    /// <summary>
+    /// App. E.3's extras (note 373): every loose thing aboard a car at the derail tick (the stowed dead, crates, loot, the
+    /// extinguishers; not what's in someone's hands, shut in a locker, or being carried off), in the world at its car's
+    /// velocity there, within the film's body budget (those nearest the crew).
+    /// </summary>
+    List<FilmExtra> FilmExtras(FilmStart start)
+    {
+        var cars = start.Cars.ToDictionary(c => c.Vehicle);
+        var all = new List<FilmExtra>();
+        foreach (var b in Bodies.All)
+        {
+            if (b.Parent < 0 || b.Parent >= Train.Frames.Count || b.Carrier >= 0 || b.Stowed || b.TakenBy >= 0 || !cars.TryGetValue(b.Parent, out var car))
+                continue;
+            var f = Train.Frames[b.Parent];
+            Ballast.Double3[] joints = b.Kind == Physics.BodyKind.Ragdoll ? [.. b.Pbd.Particles.Select(p => f.ToWorld(p.Position))] : [f.ToWorld(b.Centre)];
+            var at = joints.Length > 2 ? joints[2] : joints[0];
+            all.Add(new FilmExtra(b.Kind, joints, car.Velocity + Ballast.Double3.Cross(car.Spin, at - car.Origin), b.Parent, b.Owner, b.Cargo));
+        }
+        return WreckFilm.Budget(all, [.. start.Players.Select(p => p.Position)], WreckTuning.Film);
+    }
+
     Func<double, double, double> FilmGround(FilmStart start) => (x, z) =>
     {
         double hint = start.Along;
@@ -970,11 +1032,14 @@ public sealed class World
         {
             Bodies.Remove(charge);
             RacksFilled++;
+            RacksFilledBy[playerId] = RacksFilledBy.GetValueOrDefault(playerId) + 1;
         }
         else
             charge.MendTicks = 0;
     }
 
+    /// <summary>Host: the racks filled so far (note 377, the harness's upkeep report), by who carried the charge up.</summary>
+    public SortedDictionary<int, int> RacksFilledBy { get; } = [];
     /// <summary>Host: the night's loose couplings so far (note 356): how many worked loose, and how many parted.</summary>
     public (int Came, int Parted) LooseCount => _couplings is { } c ? (c.Came, c.Parted) : (0, 0);
     /// <summary>Host: the night's guttering lamps so far (note 346): how many started, and how many went out.</summary>
@@ -997,7 +1062,7 @@ public sealed class World
             return null;
         // The host recorded it on the derail tick (for the deaths); a client records the same from the start it's sent.
         var recorded = _recording;
-        return WreckFilm.Shoot(WreckTuning, start, FilmGround(start), ReferenceEquals(start, _filmRecorded) ? recorded : null);
+        return WreckFilm.Shoot(WreckTuning, start, FilmGround(start), ReferenceEquals(start, _filmRecorded) ? recorded : null, FilmWater());
     }
 
     /// <summary>
@@ -1052,6 +1117,9 @@ public sealed class World
         // Searching an open house's hiding spot (note 326), empty-handed, with a Use the hands didn't take.
         if (Authority && Run is { } searching)
             searching.SearchAct(s, intent, playerId, this, emptyHanded: !handsTookIt && Bodies.CarriedBy(playerId) is null);
+        // An open house's door (note 401), empty-handed, with a Use neither the hands nor a hiding spot took.
+        if (Authority)
+            DoorAct(s, intent, playerId, emptyHanded: !handsTookIt && Bodies.CarriedBy(playerId) is null);
         // A healing find used up in the hands this tick (GDD App. F.1; note 272): its health back, up to full.
         if (Authority && Bodies.TakeDose(playerId) is > 0 and var dose && s.Alive)
             s.Health = Math.Min(Bodies.FullHealth, s.Health + dose);
