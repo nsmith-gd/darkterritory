@@ -754,6 +754,19 @@ public sealed record OrchestratorTuning
     public bool LiveCrew { get; init; } = true;
     public double EngagedPerActive { get; init; } = 0.75;
     public double PerPlayer { get; init; } = 1;
+    // The census (note 345; orchestrator.md §3.1, §3.2 items 2 and 4).
+    public bool Census { get; init; } = true;
+    public int MinCrew { get; init; } = 2;
+    public double OnRadius { get; init; } = 20;
+    public double DrivingAbove { get; init; } = 0.5;
+    public double SlackWeight { get; init; } = 2;
+    public double EmptyPostWeight { get; init; } = 0.5;
+    public string[] EmptyPostExempt { get; init; } = ["trackDoll"];
+    public double MinSlack { get; init; } = 30;
+    public double SlackPress { get; init; } = 150;
+    public double SlackPerSecond { get; init; } = 0.05;
+    public bool PerTarget { get; init; } = true;
+    public Dictionary<string, string[]> Answers { get; init; } = new();
 }
 
 /// <summary>
