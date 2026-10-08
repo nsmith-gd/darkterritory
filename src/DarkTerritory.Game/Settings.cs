@@ -63,6 +63,11 @@ public sealed record Settings
     /// with the cap or helmet and scarf that go with it), or −1 for your player id's. Sent as you join; tried on in the yard.
     /// </summary>
     public int Outfit { get; init; } = -1;
+    /// <summary>
+    /// Note 347: how big the HUD's and the menus' print is, one of <see cref="TextSizes"/>. The overlay's canvas is drawn smaller
+    /// and scaled up to the window (<see cref="Canvas"/>), so everything on it grows together and keeps its layout.
+    /// </summary>
+    public double TextSize { get; init; } = 1;
 
     /// <summary>The outfit as the wire has it (note 298): none for −1 or anything off the end.</summary>
     public byte OutfitByte(int outfits) => Outfit >= 0 && Outfit < outfits ? (byte)Outfit : Sim.Net.Messages.NoOutfit;
@@ -83,6 +88,23 @@ public sealed record Settings
     public static readonly double[] FieldsOfView = [60, 65, 70, 75, 80, 85, 90];
     /// <summary>The camera shake on offer (note 297): off, a quarter, half, three quarters, all of it.</summary>
     public static readonly double[] CameraShakes = [0, 0.25, 0.5, 0.75, 1];
+    /// <summary>The text sizes on offer (note 347): 100%, 125% and 150%, whole steps of the canvas's pixel at 1080p (4, 5, 6).</summary>
+    public static readonly double[] TextSizes = [1, 1.25, 1.5];
+    /// <summary>The overlay's canvas at 100% (the HUD's and the menus' own size; note 57's 720p shows each of its pixels as 2.66).</summary>
+    public const int CanvasWidth = 480, CanvasHeight = 270;
+
+    /// <summary>The overlay's canvas for <see cref="TextSize"/> (note 347): smaller, so the same print is bigger on the screen.</summary>
+    public (int Width, int Height) Canvas
+    {
+        get
+        {
+            return ((int)Math.Round(CanvasWidth / TextScale), (int)Math.Round(CanvasHeight / TextScale));
+        }
+    }
+
+    /// <summary>The text size the print is drawn at: the setting if it's one on offer, else 100%.</summary>
+    public double TextScale => TextSizes.Contains(TextSize) ? TextSize : 1;
+
     /// <summary>The render scales on offer.</summary>
     public static readonly double[] RenderScales = [0.5, 0.75, 1];
 
@@ -165,13 +187,14 @@ public sealed record Settings
         && VoiceVolume == other.VoiceVolume && MicDevice == other.MicDevice && MicLevel == other.MicLevel
         && VrTurn == other.VrTurn && VrVignette == other.VrVignette && MouseSpeed == other.MouseSpeed
         && InvertMouse == other.InvertMouse && FieldOfView == other.FieldOfView && CameraShake == other.CameraShake && Outfit == other.Outfit
+        && TextSize == other.TextSize
         && Fullscreen == other.Fullscreen && VSync == other.VSync && Resolution == other.Resolution && RenderScale == other.RenderScale
         && PlayerName == other.PlayerName && PublicLobby == other.PublicLobby && LobbyName == other.LobbyName
         && Keys.Count == other.Keys.Count && Keys.All(k => other.Keys.GetValueOrDefault(k.Key) == k.Value);
 
     public override int GetHashCode() => HashCode.Combine(Mute, PushToTalk, Hud, VrTurn, VrVignette, MouseSpeed, Keys.Count,
         HashCode.Combine(Fullscreen, VSync, Resolution, RenderScale, PublicLobby, LobbyName, HashCode.Combine(MasterVolume, EffectsVolume, MusicVolume, VoiceVolume, MicDevice, MicLevel),
-            HashCode.Combine(InvertMouse, FieldOfView, CameraShake, Outfit, ControlHints)));
+            HashCode.Combine(InvertMouse, FieldOfView, CameraShake, Outfit, ControlHints, TextSize)));
 
     /// <summary>The field of view the eyes are drawn at (note 297): the setting if it's one on offer, else 75.</summary>
     public float EyeFov => (float)(FieldsOfView.Contains(FieldOfView) ? FieldOfView : 75);

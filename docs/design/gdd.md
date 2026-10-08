@@ -902,6 +902,12 @@ Silhouette legibility is not an aesthetic preference here. It is a coordination 
 
 The timings are in `content/tuning/hud.json`; the engineering is in ARCHITECTURE §8 note 285.
 
+### Accessibility
+
+*The director, 8 Oct 2026, on the list of what's next for the UI: a text size, a colourblind-safe palette, captions, a light first-night onboarding and a polish pass in the real window: "these are all quite important".* Each is a setting, and none of them tells a player what an action will do: the rules above still hold.
+
+- **TEXT SIZE** (100%, 125%, 150%): the HUD's print and the menus', bigger. The whole overlay is drawn on a smaller canvas and stretched over the window, so everything on it grows together. A long line wraps or is cut short where it would leave the frame (ARCHITECTURE §8 note 347).
+
 ### The screenshot test
 
 If a screenshot reads as *a rough, low-poly industrial horror game where a steam train full of desperate workers is crossing a diseased frontier at night, and the darkness itself feels operationally dangerous* — it is on target.

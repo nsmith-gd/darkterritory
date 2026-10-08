@@ -1909,12 +1909,16 @@ static object MenuShot(TrainTuning t, string content, string[] args)
     new GreyboxScene { Time = 0.37, Look = look }.Build(mesh, standing, view.Position);
     var light = Views.Lighting(standing, look);
     using var gpu = new GpuContext("dt screenshot");
-    using var renderer = new GreyboxRenderer(gpu, 480, 270);
+    // --text-size s (note 347): the menus on the smaller canvas TEXT SIZE draws them on, stretched over 1080p as the app does.
+    var canvas = args.Contains("--text-size") ? new Settings { TextSize = Opt(args, "--text-size", 1) }.Canvas : (480, 270);
+    bool sized = args.Contains("--text-size");
+    using var renderer = sized ? new GreyboxRenderer(gpu, 1920, 1080) { OverlaySize = new System.Numerics.Vector2(canvas.Item1, canvas.Item2) }
+        : new GreyboxRenderer(gpu, 480, 270);
     look?.Dress(renderer);
     var overlay = new Overlay();
-    menu.Draw(overlay, renderer.Width, renderer.Height);
+    menu.Draw(overlay, canvas.Item1, canvas.Item2);
     string output = Str(args, "--out", $"out/shots/menu-{screen.ToString().ToLowerInvariant()}.png");
-    PngWriter.Write(output, renderer.Render(mesh, view, light, light.FogColor, overlay), renderer.Width, renderer.Height, (int)Opt(args, "--scale", 2));
+    PngWriter.Write(output, renderer.Render(mesh, view, light, light.FogColor, overlay), renderer.Width, renderer.Height, sized ? 1 : (int)Opt(args, "--scale", 2));
     return new { path = Path.GetFullPath(output), screen = screen.ToString(), items = menu.Items.Select(i => i.Label) };
 }
 
@@ -2161,6 +2165,11 @@ static object HudShot(string content, string[] args)
         talkNow = 30;
     }
     int width = (int)Opt(args, "--width", 480), height = (int)Opt(args, "--height", 270), scale = (int)Opt(args, "--scale", 2);
+    // --text-size s (note 347): the HUD on TEXT SIZE's smaller canvas, at 1080p (each canvas pixel 4, 5 or 6 of the screen's).
+    if (args.Contains("--text-size"))
+        ((width, height), scale) = (new Settings { TextSize = Opt(args, "--text-size", 1) }.Canvas, 0);
+    if (scale == 0)
+        scale = 1080 / height;
     string output = Str(args, "--out", "out/shots/hud.png");
     // --report [derailed]: the night over, and its incident report as the run-end screen shows it (GDD v1.4 App. D.12).
     if (args.Contains("--report") && session.World.Run is { } over)
