@@ -338,7 +338,8 @@ public sealed class GreyboxScene
                         || site.Has(Sim.Run.ModuleKind.Lift) || site.Has(Sim.Run.ModuleKind.Conveyor))
                         && (site.Track.Sample(site.Mid).Position - eye).Length < DrawDistance + 120)
                         // The art pass's models where it has them (#135); the conveyor line (note 400) is the greybox's either way.
-                        SetPieces(mesh, site, frames, eye, Time, artDrawn: Look?.Art.SetPieces(mesh, site, frames, eye, Time) == true);
+                        SetPieces(mesh, site, frames, eye, Time, artDrawn: Look?.Art.SetPieces(mesh, site, frames, eye, Time) == true,
+                            conveyorDrawn: site.Has(Sim.Run.ModuleKind.Conveyor) && Look?.Art.Conveyor(mesh, site, eye, Time) == true);
                     // The wreck yard's heaps (note 187): the last train's cars on their sides, groaning when they're going to go;
                     // drawn as the train's own cars, wrecked, where the art pass has them (note 394).
                     if (site is { Heaps.Count: > 0 } && (site.Heaps[0].Centre - eye).Length < DrawDistance + 120
@@ -2605,7 +2606,9 @@ public sealed class GreyboxScene
     /// pressure, the hose to the car it's on, and the leak's cloud.
     /// </summary>
     /// <param name="artDrawn">The art pass drew the site's modelled set pieces (#135): only what it doesn't model here.</param>
-    static void SetPieces(MeshBuilder mesh, Sim.Run.Site site, IReadOnlyList<CarFrame> frames, Double3 eye, double time, bool artDrawn = false)
+    /// <param name="conveyorDrawn">The art pass drew the conveyor line (note 430).</param>
+    static void SetPieces(MeshBuilder mesh, Sim.Run.Site site, IReadOnlyList<CarFrame> frames, Double3 eye, double time, bool artDrawn = false,
+        bool conveyorDrawn = false)
     {
         static (Vector3 Along, Vector3 Across) Axes(Double3 from, Double3 to)
         {
@@ -2692,7 +2695,7 @@ public sealed class GreyboxScene
                     mesh.Box(V(p, eye), along, Vector3.UnitY, across, new Vector3(0.16f, 0.16f, 0.16f), i % 2 == 0 ? Palette.Charcoal : Palette.IronGrey * 0.7f);
                 }
         }
-        if (site.Has(Sim.Run.ModuleKind.Conveyor))
+        if (!conveyorDrawn && site.Has(Sim.Run.ModuleKind.Conveyor))
         {
             // The grain elevator's conveyor line (note 400): its belt low on trestles from the drive house at the elevator's end
             // to the knee beside the track, the riser up from there to its head over the track on a frame astride it, the
