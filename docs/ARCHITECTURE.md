@@ -7037,3 +7037,13 @@ Terrain sculpting tools, a node-graph material editor, a general-purpose visual 
         - restless, 20 s, three to five times;
         - at the controls at stage 2, restless: let back, her rattle, nudged up again, and never the crew's brake handle.
     - `RestlessAtTheRegulatorTheTrackDollRattlesTheBrakeHandleItHasntTakenYet` still pins the fallback.
+501. **The coupler's knuckle heard opening, a clank not a thud (AU1, queue #238; the weak-sounds audit).** `crew-coupling.knuckle-release` plays where a car is cut loose (`GameAudio.Crew`). Its recipe describes "the heavy cast-steel knuckle swinging open on its pin (a heavy iron clank, pitched well down, choked)", but the iron hit was pitched down 8 semitones and choked under a mining hit's sub, with the lock's rattle at -16 dB. The installed takes were a low thud: they centred at 127-136 Hz, with little over 1 kHz after the first 0.1 s, and the cut's own moment was lost under the wheels.
+    - **The sound** (`tools/audio/recipes/crew_train.py`, `knuckle-release`, `clank`, 3 takes): rebuilt as a clank, installed in place, its hook unchanged.
+        - a short squeal of steel on its pin as it swings;
+        - the clank as it fetches up against its stop: the packs' heavy plate and metal hits pitched only 2-3.5 semitones down, barely choked, so the iron rings;
+        - the knuckle's own cast ring, a bar's inharmonic modes at a few hundred hertz, choked after a few hundredths of a second ("cast iron clanks, it doesn't sing");
+        - its lock rattling loose and the lifted pin clinking on its chain;
+        - the slack's low knock through the frame, a beat after and quieter than before.
+    - **Measured:** the takes now centre at 590-830 Hz.
+    - **Neither the cue nor its hook changed**, so `CrewAudioTests` (the cut heard) stand. `AudioTests` pass over the installed takes.
+    - The old `knuckle` candidate had no verdict.
