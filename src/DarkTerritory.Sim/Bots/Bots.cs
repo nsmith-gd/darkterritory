@@ -136,6 +136,10 @@ public sealed class GunnerBot(GunTuning guns, ChoirTuning? choir = null, int see
         // Note 447: and once the gun's been pushed off the held car onto the one ahead (T103), it's that gun's gunner again:
         // the rear held sent it up the train to car 1 and back, the saved gun unmanned through a hound run.
         rearHeld &= world.Train.Vehicles[world.Train.Dynamics.Consist.Vehicles[^1].Id].HasGun;
+        // With a run coming in, a held car's gun is still the gun for the hounds behind until the car's gone: the Car Hugger
+        // eats it from the back over minutes, and a save that didn't take sent the gunner up to car 1, ten cars from its gun
+        // when the next pairs howled.
+        rearHeld &= !coming;
         // The forward gunner's is the engine's gun (note 414), not whichever it's standing by: warmed up in the guard van, it
         // sat down at the guard gun beside its own gunner, and the lane ahead went unwatched (note 447).
         var manned = Guns.MannedGun(self, world.Train, guns);
@@ -150,7 +154,13 @@ public sealed class GunnerBot(GunTuning guns, ChoirTuning? choir = null, int see
             if (Forward && !houndsAboard)
                 _legs.Head(-1);
             else if (rearHeld)
+            {
+                // Clear of its mouth on the car ahead, and no further: the gun's a step back when the hounds come.
+                int held = world.Train.Dynamics.Consist.Vehicles[^1].Id;
+                if (self.Parent == world.Train.VehicleAhead(held) && self.Surface == Surface.Roof)
+                    return new PlayerIntent();
                 _legs.Head(-1);
+            }
             else if (!houndsAboard)
                 _legs.Head(+1);
             // On a car, on a ladder (the engine's too), or down on the ballast after a stop: the walker's way about, and
