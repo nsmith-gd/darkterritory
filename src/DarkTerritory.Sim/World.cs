@@ -927,6 +927,9 @@ public sealed class World
     HotBoxes? _hotBoxes;
     Gutters? _gutters;
     Couplings? _couplings;
+    /// <summary>Host: the guns' racks filled from the powder locker tonight (note 374), for the harness.</summary>
+    public int RacksFilled { get; private set; }
+
     /// <summary>The gun this player's at whose ready rack wants powder from the lockers (note 374), or null.</summary>
     int? Charging(in PlayerState s, GunTuning t) =>
         Guns.MannedGun(s, Train, t) is { } g && Guns.Ready(Train.Vehicles[g].Gun, t) < t.Rack && Guns.Stowed(Train, t) > 0 ? g : null;
@@ -947,7 +950,10 @@ public sealed class World
         if (++charge.MendTicks * SimConstants.TickSeconds < t.ChargeSeconds)
             return;
         if (Guns.Fill(Train, gun, t) > 0)
+        {
             Bodies.Remove(charge);
+            RacksFilled++;
+        }
         else
             charge.MendTicks = 0;
     }
