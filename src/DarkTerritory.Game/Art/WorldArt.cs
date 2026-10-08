@@ -283,7 +283,10 @@ public sealed partial class WorldArt(Look look)
                     // beside the face stands higher. Left out (as it was across the face), the slot between was open to
                     // the sky behind (note 433: 5-7 m of it over every portal).
                     var outside = boreLeft ? right : left;
-                    float coping = (float)(line.Sample(boreLeft ? s1 : s).Position.Y - eye.Y) + StructureKit.PortalTop;
+                    // (A little under the coping and in past the face's edge: two meshes that only meet edge to edge show
+                    // pinholes of sky along the seam.)
+                    const float Lap = 0.15f, Inset = 0.25f;
+                    float coping = (float)(line.Sample(boreLeft ? s1 : s).Position.Y - eye.Y) + StructureKit.PortalTop - Lap;
                     Vector3 Capped(Vector3[] row, int i) => ReferenceEquals(row, outside) ? row[i] with { Y = MathF.Max(row[i].Y, coping) } : row[i];
                     int rock = _look.Layer("rock_cliff");
                     float rockTile = rock >= 0 && _look.Textures[rock].TileMetres is { } rt ? rt : 2;
@@ -297,10 +300,10 @@ public sealed partial class WorldArt(Look look)
                             _look.Layer("ground_forest"), rock, rockTile);
                     // Past the face's edge, where the cutting beside it is lower than the coping: a flank from the cutting's
                     // own ground up to the cap's edge, or the face's top corner is open at its side.
-                    float in0 = MathF.Abs(l0), in1 = MathF.Abs(l1);
-                    if ((in0 < StructureKit.PortalHalf) != (in1 < StructureKit.PortalHalf))
+                    float in0 = MathF.Abs(l0), in1 = MathF.Abs(l1), edge = StructureKit.PortalHalf - Inset;
+                    if ((in0 < edge) != (in1 < edge))
                     {
-                        float t = (StructureKit.PortalHalf - in0) / (in1 - in0);
+                        float t = (edge - in0) / (in1 - in0);
                         var groundAt = Vector3.Lerp(outside[c], outside[c + 1], t);
                         var capAt = Vector3.Lerp(o0, o1, t);
                         var (gOut, cOut) = in1 > in0 ? (outside[c + 1], o1) : (outside[c], o0);
