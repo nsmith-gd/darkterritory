@@ -1016,6 +1016,16 @@ public sealed partial class SceneArt(Look look)
         var soot = charred > 0 ? Vector3.Lerp(Vector3.One, CharTint, charred) : default;
         // Under emergency lighting the headlamp and tail lamp have no power.
         mesh.Instances.Add(new MeshInstance(body, m, lamps, Tint: soot, Scar: scar, Bite: cut, BiteFloor: floor));
+        // The engine's dressing (note 338: its plough, housings, pipes and grilles), over it and casting no shadow.
+        if (engine)
+        {
+            mesh.Instances.Add(new MeshInstance(Piece($"engine-dress:{ShapeKey(shape)}", () => TrainKit.EngineDress(Look, shape)), m, lamps, Tint: soot,
+                Scar: scar, Shadowless: true));
+            // A lamp in each corridor under the hood (note 338), lit with the train's lamps, close enough to matter.
+            if ((frame.Origin - eye).Length < 60 && lamps > 0.5f)
+                foreach (var lamp in TrainKit.CorridorLamps(shape))
+                    mesh.PointLights.Add(new PointLight(Vector3.Transform(lamp, m), new Vector3(1.0f, 0.62f, 0.32f) * 0.55f, 4.5f));
+        }
         // Its couplers, each end's shut or cut (TrainKit.CouplerEnds): the knuckle open on a car that's been let go.
         if (PropArt.Of(Look).Get("coupler_knuckle") is { } shut && (frame.Origin - eye).Length < 160)
         {
@@ -1163,6 +1173,8 @@ public sealed partial class SceneArt(Look look)
                 barrelM = Matrix4x4.CreateRotationX(elevation) * carriageM;
                 mesh.Instances.Add(new MeshInstance(cannon.Mount, gunM));
                 mesh.Instances.Add(new MeshInstance(cannon.Carriage, carriageM));
+                // Its shield, turning with it (note 338).
+                mesh.Instances.Add(new MeshInstance(Piece("gun-shield", () => TrainKit.GunShield(Look)), carriageM, Shadowless: true));
                 mesh.Instances.Add(new MeshInstance(cannon.Barrel, barrelM));
                 if (vehicle is null || vehicle.Gun.ReloadNeeded <= 0)
                     mesh.Instances.Add(new MeshInstance(cannon.Chamber, Matrix4x4.CreateTranslation(TrainKit.CannonChamber) * barrelM));

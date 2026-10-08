@@ -39,7 +39,9 @@ public static class ArtCatalog
         var list = new List<CatalogEntry>
         {
             new("engine", EngineCar, () => TrainKit.Engine(look, engine, 0)),
+            new("engine-dress", LargeProp, () => TrainKit.EngineDress(look, engine)),
             new("gun", GunMount, () => TrainKit.Gun(look)),
+            new("gun-shield", SmallProp, () => TrainKit.GunShield(look)),
         };
         foreach (var livery in Enum.GetValues<TrainKit.Livery>())
             list.Add(new($"car-{livery.ToString().ToLowerInvariant()}", Car, () => TrainKit.Car(look, cargo, livery, 0)));

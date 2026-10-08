@@ -126,8 +126,8 @@ public sealed partial class Effects(Look look)
         // (cab forward, note 276: it stands on the boiler just behind the cab).
         if (whistle && shape.Cab is not null)
         {
-            var boiler = shape.Solids.First(s => s.Part == PartKind.Boiler).Box;
-            var at = engine.ToWorld(new Double3(0.35, boiler.Max.Y + 0.45, TrainKit.WhistleZ(shape))).RelativeTo(eye);
+            // (On the hood's roof, note 338.)
+            var at = engine.ToWorld(new Double3(0.35, shape.Bounds.Max.Y + 0.45, TrainKit.WhistleZ(shape))).RelativeTo(eye);
             for (int k = 0; k < 22; k++)
             {
                 float h = Hash(k * 4.43f);
@@ -141,8 +141,7 @@ public sealed partial class Effects(Look look)
         // The safety valve lifting: straight up off the boiler behind the cab.
         if (safety && shape.Cab is not null)
         {
-            var boiler = shape.Solids.First(s => s.Part == PartKind.Boiler).Box;
-            var at = engine.ToWorld(new Double3(0, boiler.Max.Y + 0.35, TrainKit.SafetyValveZ(shape))).RelativeTo(eye);
+            var at = engine.ToWorld(new Double3(0, shape.Bounds.Max.Y + 0.35, TrainKit.SafetyValveZ(shape))).RelativeTo(eye);
             for (int k = 0; k < 18; k++)
             {
                 float h = Hash(k * 2.17f);

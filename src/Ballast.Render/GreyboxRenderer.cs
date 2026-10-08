@@ -154,7 +154,7 @@ public sealed unsafe class GreyboxRenderer : IDisposable
     readonly List<(WeakReference<MeshAsset> Asset, GpuMesh Mesh)> _allMeshes = new();
     int _prepares;
     // The kit's instances this frame, each with its bounding sphere placed (camera-relative) for culling.
-    readonly List<(GpuMesh Mesh, DrawConstants Draw, Vector4 Sphere)> _draws = new();
+    readonly List<(GpuMesh Mesh, DrawConstants Draw, Vector4 Sphere, bool Shadowless)> _draws = new();
     readonly List<PointLight> _lights = new();
     readonly List<Room> _rooms = new();
 
@@ -650,7 +650,7 @@ public sealed unsafe class GreyboxRenderer : IDisposable
                 var m = instance.Model;
                 float scale = MathF.Sqrt(MathF.Max(new Vector3(m.M11, m.M12, m.M13).LengthSquared(),
                     MathF.Max(new Vector3(m.M21, m.M22, m.M23).LengthSquared(), new Vector3(m.M31, m.M32, m.M33).LengthSquared())));
-                _draws.Add((gpuMesh, draw, new Vector4(Vector3.Transform(centre, m), radius * scale)));
+                _draws.Add((gpuMesh, draw, new Vector4(Vector3.Transform(centre, m), radius * scale), instance.Shadowless));
             }
         }
         CopyStaged();
@@ -929,7 +929,7 @@ public sealed unsafe class GreyboxRenderer : IDisposable
                     var set = _sceneSet;
                     Api.vkCmdBindDescriptorSets(cmd, VkPipelineBindPoint.Graphics, _sceneLayout, 0, 1, &set, 0, null);
                     Api.vkCmdBindPipeline(cmd, VkPipelineBindPoint.Graphics, _shadowPipeline);
-                    lampDrawn = DrawGeometry(cmd, _shadowSkinPipeline, [_frameMapped->LampViewProj]);
+                    lampDrawn = DrawGeometry(cmd, _shadowSkinPipeline, [_frameMapped->LampViewProj], shadow: true);
                 }
                 Api.vkCmdEndRendering(cmd);
             }
@@ -958,7 +958,7 @@ public sealed unsafe class GreyboxRenderer : IDisposable
                     var set = _sceneSet;
                     Api.vkCmdBindDescriptorSets(cmd, VkPipelineBindPoint.Graphics, _sceneLayout, 0, 1, &set, 0, null);
                     Api.vkCmdBindPipeline(cmd, VkPipelineBindPoint.Graphics, _moonShadowPipeline);
-                    moonDrawn = DrawGeometry(cmd, _moonShadowSkinPipeline, [_frameMapped->MoonViewProj]);
+                    moonDrawn = DrawGeometry(cmd, _moonShadowSkinPipeline, [_frameMapped->MoonViewProj], shadow: true);
                 }
                 Api.vkCmdEndRendering(cmd);
             }
@@ -1081,7 +1081,7 @@ public sealed unsafe class GreyboxRenderer : IDisposable
     /// <paramref name="skinned"/>, the same pass's skinning twin (it stays bound after). Returns what it drew.
     /// </summary>
     /// <param name="views">The pass's views (one, or both eyes'): instances wholly outside all of them aren't drawn.</param>
-    (int Triangles, int Draws) DrawGeometry(VkCommandBuffer cmd, VkPipeline skinned, ReadOnlySpan<Matrix4x4> views)
+    (int Triangles, int Draws) DrawGeometry(VkCommandBuffer cmd, VkPipeline skinned, ReadOnlySpan<Matrix4x4> views, bool shadow = false)
     {
         Span<Vector4> planes = stackalloc Vector4[6 * views.Length];
         for (int v = 0; v < views.Length; v++)
@@ -1096,8 +1096,10 @@ public sealed unsafe class GreyboxRenderer : IDisposable
             Api.vkCmdBindVertexBuffers(cmd, 0, 1, &vb, &offset);
             Api.vkCmdDraw(cmd, (uint)_vertexCount, 1, 0, 0);
         }
-        foreach (var (mesh, draw, sphere) in _draws)
+        foreach (var (mesh, draw, sphere, shadowless) in _draws)
         {
+            if (shadow && shadowless)
+                continue;
             bool seen = false;
             for (int v = 0; v < views.Length && !seen; v++)
                 seen = Visible(planes.Slice(v * 6, 6), sphere);
