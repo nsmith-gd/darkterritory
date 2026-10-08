@@ -682,7 +682,7 @@ public static partial class Hud
             {
                 // GDD v1.4 §23.2: nobody died of it, and nobody much cares.
                 Big("STRANDED", Amber);
-                Small(EngineeringKit.Line(r.KitLoss), Ink, fine: false);
+                Small(EngineeringKit.Line(r.KitLoss, Repairs.ByWrench(world.Train)), Ink, fine: false);
                 Small($"RECOVERY AT FIRST LIGHT. RECOVERY IS CHARGEABLE: {r.Recovery:0} SCRIP", Dim, fine: false);
             }
             else
