@@ -943,10 +943,15 @@ public class StopCrewTests
     }
 
     [Fact]
-    public void AtTheGrainElevatorTheDriverWalksEachCarUnderTheSpoutWhileTheShunterPours()
+    public void AtTheGrainElevatorTheConveyorFillsTheCarsItReachesAndTheSpoutTheRest()
     {
+        // GDD §18's spout (note 185) and the conveyor line a car ahead of it (queue #136, note 400). The conveyor first: the
+        // driver walks the cars it reaches under its head while the shunter starts it at the drive house and roams its belt for
+        // the jams (spec D.2 "1 + 1 roaming", done by one); then the spout fills the rest, the shunter on its lever.
         var r = Work(FacilityKind.GrainElevator);
         LeftWellAndWhole(r);
+        Assert.Contains("Conveying", r.Legs);
+        Assert.Contains("starting the belt", r.Doing);
         Assert.Contains("Spouting", r.Legs);
         Assert.Contains("pouring", r.Doing);
         // Every car that went down the spur (the engine and four) came back full of grain; the rest weren't touched.
@@ -955,7 +960,25 @@ public class StopCrewTests
         Assert.All(spurCars, c => Assert.Equal(CargoKind.Food, c.Cargo));
         // Let go as each filled: at most a tick or two's overflow, nothing that strains a car beyond the stop's own knocks.
         Assert.All(spurCars, c => Assert.True(c.Integrity > 0.95, $"integrity {c.Integrity}"));
-        Assert.Equal(F.Spout.Bin - spurCars.Count * (1 - Tuning.Run.DepartureLoad), r.Bin, 1);
+        // The conveyor reaches the first three (the car under the spout's and those ahead of it); the spout the fourth.
+        double fill = 1 - Tuning.Run.DepartureLoad;
+        Assert.Equal(F.Conveyor.Grain - 3 * fill, r.Grain, 1);
+        Assert.Equal(F.Spout.Bin - fill, r.Bin, 1);
+    }
+
+    [Fact]
+    public void AJammedBeltIsClearedAndAStalledOneStartedAgainByTheShunter()
+    {
+        // The conveyor's jams (spec D.2: "jams every 30–60s; unattended jam stops the line"): with the cars run in empty, it
+        // carries long enough to jam, and the shunter roaming its belt clears each one; the line still fills what it reaches.
+        var (route, facility) = FacilityWork.Find(Tuning.Route, FacilityKind.GrainElevator)!.Value;
+        var r = FacilityWork.Run(route, facility, T, P, Tuning.Boiler, Tuning.Run with { DepartureLoad = 0 }, F, Tuning.Route.Junctions,
+            cars: 8, hands: 2, seconds: 1500, yardLength: Tuning.Route.YardLength);
+        LeftWellAndWhole(r);
+        Assert.True(r.Jams >= 1, "it never jammed");
+        Assert.Contains("clearing the jam", r.Doing);
+        Assert.Equal(0, r.Grain, 2);
+        Assert.All(r.Loads.Take(3), c => Assert.Equal(1, c.Load, 3));
     }
 
     [Fact]

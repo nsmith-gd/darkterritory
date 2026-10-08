@@ -554,7 +554,14 @@ public static class StructureKit
         {
             case FacilityKind.CoalingTower:
                 {
-                    // A concrete bunker up on timber stilts, its chute arm reaching over the track.
+                    // A concrete bunker up on timber stilts, its chute arm reaching over the track. The modelled tower where
+                    // it's built (facility_pieces coaling_tower, note 422): its braced trestle, the bunker, the hopper and the
+                    // chute hung from its jib, its mouth where GreyboxScene.Chute pours, the stop's lamp on its chain.
+                    if (k.Look is { } built && PropArt.Of(built).Get("coaling_tower") is not null)
+                    {
+                        Piece(k, "coaling_tower", s * 7, 0, Facing(s));
+                        break;
+                    }
                     float x = s * 7;
                     k.Use("wood_grey", Palette.DeepBrown, 0.9f, 0, tile: 1.5f);
                     foreach (float dx in new[] { -3.5f, 3.5f })

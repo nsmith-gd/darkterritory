@@ -7,9 +7,9 @@ using DarkTerritory.Sim.Run;
 namespace DarkTerritory.Game.Tests;
 
 /// <summary>
-/// ARCHITECTURE §8 notes 410 and 420: the mine head's, the chemical works' and the foundry's buildings modelled
-/// (facility_pieces winding_house, spoil_heap, chem_works, pipe_rack, foundry_shed) and laid out round what the sim does
-/// there.
+/// ARCHITECTURE §8 notes 410, 420 and 422: the mine head's, the chemical works', the foundry's and the coaling tower's
+/// buildings modelled (facility_pieces winding_house, spoil_heap, chem_works, pipe_rack, foundry_shed, coaling_tower) and
+/// laid out round what the sim does there.
 /// </summary>
 public class FacilityBuildingArtTests
 {
@@ -76,5 +76,25 @@ public class FacilityBuildingArtTests
             var piece = StructureKit.Facility(Look, FacilityKind.Foundry, side);
             Assert.True(piece.Vertices.Max(v => v.Position.Y) > 39, $"side {side}: no stack");
         }
+    }
+
+    [Fact]
+    public void TheCoalingTowersChuteHangsWhereTheSimPoursAndClearOfItsLever()
+    {
+        // GreyboxScene.Chute pours from 8.8 m up, 0.4 off the track on the tower's side, over the spout (Run.ChuteAt); the
+        // lever stands 6 m along. The tower's frame is the feature's middle (on the main line, not pushed out).
+        var night = Sim.LineGen.Routes.Generate(Content, "deepTerritory:8", 6);
+        var line = night.Build();
+        var run = new Run(DataFile.Load<RunTuning>(Path.Combine(Content, RunTuning.File)), night);
+        var tower = night.Of(FeatureKind.Facility).First(f => f.Facility == FacilityKind.CoalingTower);
+        var (_, lever) = run.ChuteAt(tower, line);
+        var foot = line.Sample((tower.Start + tower.End) / 2);
+        var right = Double3.Cross(foot.Tangent, Double3.Up).Normalized;
+        var d = lever - foot.Position;
+        var leverAt = new Vector3((float)Double3.Dot(d, right), (float)d.Y, (float)-Double3.Dot(d, foot.Tangent));
+        var piece = StructureKit.Facility(Look, FacilityKind.CoalingTower, tower.Side);
+        Assert.Contains(piece.Vertices, v => Math.Abs(v.Position.X * tower.Side - 0.4f) < 0.45f && v.Position.Y is > 8.3f and < 9.4f
+            && Math.Abs(v.Position.Z) < 0.7f);
+        Assert.DoesNotContain(piece.Vertices, v => Vector3.Distance(v.Position, leverAt) < 0.6f);
     }
 }
