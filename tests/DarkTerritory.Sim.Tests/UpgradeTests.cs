@@ -115,16 +115,15 @@ public class UpgradeTests
             var firebox = world.Train.Frames[0].Shape.Interactables.First(i => i.Kind == InteractableKind.Firebox).Position;
             var s = PlayerMotor.SpawnInCab(world.Train, P);
             s.Position = s.Position with { X = firebox.X + 0.15, Z = firebox.Z + 0.45 }; // behind the fire door (note 280: at the cab's front)
-            var kit = world.Bodies.All.Single(b => b.Kind == BodyKind.RepairKit);
-            kit.Carrier = 1;
+            // The wrench in hand (note 301: it mends the boiler; the upgrade's speed is its).
+            s.HeldSlot = 1;
+            Assert.Equal(Tool.Wrench, Kit.Held(s));
             for (int i = 0; i < seconds * SimConstants.TickRate; i++)
             {
                 world.BeginTick();
                 world.CrewAct(ref s, new PlayerIntent { Buttons = PlayerButtons.Use }, 1);
                 world.Step(new TrainControls { Reverser = 1, Brake = 1 });
             }
-            // Never used up: still in hand (so "charges" is read as speed, note 196).
-            Assert.Equal(1, kit.Carrier);
             return !world.Train.Boiler.Ruptured;
         }
         double quick = With("repairKit").Boiler.RepairSeconds;

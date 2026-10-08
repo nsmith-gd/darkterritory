@@ -39,7 +39,9 @@ public static class ArtCatalog
         var list = new List<CatalogEntry>
         {
             new("engine", EngineCar, () => TrainKit.Engine(look, engine, 0)),
+            new("engine-dress", LargeProp, () => TrainKit.EngineDress(look, engine)),
             new("gun", GunMount, () => TrainKit.Gun(look)),
+            new("gun-shield", SmallProp, () => TrainKit.GunShield(look)),
         };
         foreach (var livery in Enum.GetValues<TrainKit.Livery>())
             list.Add(new($"car-{livery.ToString().ToLowerInvariant()}", Car, () => TrainKit.Car(look, cargo, livery, 0)));
@@ -126,6 +128,30 @@ public static class ArtCatalog
         list.Add(new("stop-shed", LargeProp, () => { var k = new Kit(look, 1400); StructureKit.Shed(k, 12, 30, 7, "wood_grey", 1); return k.Build("stop-shed"); }));
         list.Add(new("stop-hero", LargeProp, () => { var k = new Kit(look, 1401); StructureKit.Shed(k, 12, 22, 11, "brick_soot", 1); return k.Build("stop-hero"); }));
         list.Add(new("loot", SmallProp, () => PropKit.Loot(look, 0.15f)));
+        // The village finds, each its own (FindKit; the director, 8 Oct).
+        foreach (var item in new[] { "tinnedFood", "treats", "candles", "medicine", "bandages", "morphine", "preserves", "lampOil",
+                     "tools", "valuableTools", "pocketWatch", "lampParts", "rope" })
+            list.Add(new($"find-{item}", SmallProp, () => FindKit.Find(look, item, 0.15f)));
+        // What the railway left beside its line (note 325, WorldArt.Leavings): every variant the leavings deal.
+        for (int v = 0; v < 3; v++)
+        {
+            int variant = v;
+            list.Add(new($"junk-ties-{v}", SmallProp, () => JunkKit.Ties(look, variant)));
+            list.Add(new($"junk-drums-{v}", SmallProp, () => JunkKit.Drums(look, variant)));
+        }
+        for (int v = 0; v < 2; v++)
+        {
+            int variant = v;
+            list.Add(new($"junk-rails-{v}", SmallProp, () => JunkKit.Rails(look, variant)));
+            list.Add(new($"junk-milepost-{v}", SmallProp, () => JunkKit.Milepost(look, variant)));
+            list.Add(new($"junk-hut-{v}", MediumProp, () => JunkKit.Hut(look, variant)));
+            list.Add(new($"junk-coal-{v}", SmallProp, () => JunkKit.Coal(look, variant)));
+            list.Add(new($"junk-camp-{v}", SmallProp, () => JunkKit.Camp(look, variant)));
+            list.Add(new($"junk-grave-{v}", SmallProp, () => JunkKit.Grave(look, variant)));
+        }
+        list.Add(new("junk-reel", SmallProp, () => JunkKit.Reel(look)));
+        list.Add(new("junk-wheelset", SmallProp, () => JunkKit.Wheelset(look)));
+        list.Add(new("junk-trolley", SmallProp, () => JunkKit.Trolley(look)));
         // The sourced props (tools/models): each budgeted as what it stands in for.
         if (look is not null)
         {

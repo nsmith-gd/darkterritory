@@ -61,8 +61,9 @@ sealed partial class LineBuilder
             }
             if (s1 - s0 < sr.MinM)
                 continue;
-            // The seaward side: the one no branch or facility spur leaves by here.
-            var sides = _edges.Values.Where(e => e.Role != EdgeRole.Main && e.Toe > s0 - 400 && e.Toe < s1 + 400).Select(e => e.Side).Distinct().ToList();
+            // The seaward side: the one no branch or facility spur leaves by here, nor an alternate runs beside the line on
+            // (from its toe to its rejoin: frontier:7's alt1 left 2 km short of its shore and ran out across the flats).
+            var sides = _edges.Values.Where(e => e.Role != EdgeRole.Main && e.Toe < s1 + 400 && (e.Rejoin ?? e.Toe) > s0 - 400).Select(e => e.Side).Distinct().ToList();
             int side = rng.Chance(0.5) ? 1 : -1;
             if (sides.Count == 2)
                 continue;

@@ -1,17 +1,23 @@
-// Player action (tier 4, T121): a ball into water. A hollow plunge and the column of spray it throws, falling back.
+// The cue's takes from the audio checklist, kept or the first candidate under review
+// (crew-cannon-impact/water), in place of its synth definition
+// (tools/audio/synth-defs/cannon-splash.json), keeping its tier, range and level. Written by
+// tools/audio/install.py; edit the cue or that file, not this one.
 {
-  "tier": 4, "duration": 1.8, "maxInstances": 4, "minDistance": 5, "maxDistance": 400, "rolloff": 0.9,
-  "crush": { "bits": 8, "rate": 16000 },
-  "layers": [
-    { "source": "impulse", "frequency": 1, "gain": 1.6,
-      "filters": [{ "type": "bandPass", "frequency": 210, "q": 2.5 }],
-      "envelope": [[0, 1], [0.4, 0]] },
-    { "source": "noise", "gain": 0.9,
-      "filters": [{ "type": "lowPass", "frequency": 1800 }],
-      "envelope": [[0, 0.3], [0.08, 1], [0.5, 0.5], [1.4, 0]] },
-    { "source": "noise", "gain": 0.4, "delay": 0.45,
-      "filters": [{ "type": "bandPass", "frequency": 3200, "q": 1.2 }],
-      "tremolo": { "rate": 18, "depth": 0.8, "jitter": 0.7 },
-      "envelope": [[0, 0], [0.1, 1], [1.2, 0]] }
-  ]
+ "tier": 4,
+ "maxInstances": 4,
+ "minDistance": 5,
+ "maxDistance": 400,
+ "rolloff": 0.9,
+ "crush": {
+  "bits": 8,
+  "rate": 16000
+ },
+ "layers": [
+  {
+   "source": "sample",
+   "sample": "crew-cannon-impact/water",
+   "gain": 1
+  }
+ ],
+ "gainDb": -4
 }

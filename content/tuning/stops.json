@@ -39,6 +39,11 @@
 
   // Villages (P4, P11, P20).
   "village": {
+    // GDD App. F.3 (the director, 7 Oct: "the villages don't have explorable interiors ... things that we can search
+    // through in order to find things"; ARCHITECTURE §8 note 326): every village house stands open, a door in the face
+    // toward the line (each of a pair's cottages its own), its finds inside; the L and cross houses one floor, their parts
+    // open into each other. Off, they're shut, their finds put out on the step.
+    "openHouses": true,
     "yawJitter": 0.44,
     "roadReach": 18,
     "houseGap": 2.5,

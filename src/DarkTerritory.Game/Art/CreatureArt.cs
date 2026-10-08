@@ -108,9 +108,8 @@ public sealed class CreatureArt
     // Set by Enemy(e, prey) for the one draw it makes, as _biteGrip.
     Prey? _prey;
 
-    // A Ribbit's tongue goes to its catch's chest (a crewmate's 1.8 m, tools/blender/crew.py), this high, this thick at the
-    // root (m), sagging this much of its length.
-    const float RibbitTongueAt = 1.15f, RibbitTongueThick = 0.035f, RibbitTongueSag = 0.06f;
+    // A Ribbit's tongue goes to its catch's chest (a crewmate's 1.8 m, tools/blender/crew.py), this high (m).
+    const float RibbitTongueAt = 1.15f;
 
     // The cold about a Choir ghost: a faint light, the colour of its skin, so they're seen at night but never glow (§26).
     const float ChoirCold = 0.25f;
@@ -136,24 +135,55 @@ public sealed class CreatureArt
     const float RibbitScale = 1.4f;
 
     /// <summary>
-    /// The tongue, out from the mouth <paramref name="a"/> to its catch at <paramref name="b"/> (camera-relative): wet,
-    /// dark red, thinning to its tip, sagging a little, and twitching taut as it reels (GDD App. A.6 TONGUE).
+    /// The Ribbit's own tongue (tools/blender/ribbit.py: <c>tongue_01</c> its length, <c>tongue_02</c> the club at its end),
+    /// out of its mouth to its catch's chest at <paramref name="target"/> (model space; GDD App. A.6 TONGUE): turned on its
+    /// root to point at them, then stretched along itself until the club's on them, the club carried out unstretched. With
+    /// nobody to reach (<paramref name="target"/> null), it's drawn back in to the length it lies in the mouth.
     /// </summary>
-    void Tongue(MeshBuilder mesh, Vector3 a, Vector3 b, float t)
+    static void Lash(Entry e, Vector3? target)
     {
-        var k = new Kit(Look, mesh);
-        k.Use("flesh", new Vector3(0.22f, 0.05f, 0.05f), 0.2f, 0.85f);
-        const int n = 8;
-        float len = Vector3.Distance(a, b);
-        float sag = RibbitTongueSag * len * (0.7f + 0.3f * MathF.Sin(t * 9));
-        Vector3 At(float u) => Vector3.Lerp(a, b, u) - Vector3.UnitY * (sag * 4 * u * (1 - u));
-        for (int i = 0; i < n; i++)
+        var sk = e.Model.Skeleton;
+        int root = sk.IndexOf("tongue_01"), club = sk.IndexOf("tongue_02");
+        if (root < 0 || club < 0)
+            return;
+        var pose = e.Pose;
+        if (target is { } aim)
+            Skinner.Aim(e.Model, pose, root, club, aim);
+        var head = pose.World[root].Translation;
+        var along = pose.World[club].Translation - head;
+        float now = along.Length();
+        if (now < 1e-5f)
+            return;
+        var d = along / now;
+        // Its length at rest: the club's head from the root's in the bind pose.
+        float rest = Vector3.Distance(Inverse(sk.InverseBind[club]).Translation, Inverse(sk.InverseBind[root]).Translation);
+        float want = target is { } t ? Vector3.Distance(head, t) : rest;
+        float k = want / now;
+        // Stretch along d about the root: x -> x + (k-1)(x-head).d d (row vectors, so x * M).
+        float s = k - 1;
+        var outer = Matrix4x4.Identity + new Matrix4x4(s * d.X * d.X, s * d.X * d.Y, s * d.X * d.Z, 0, s * d.Y * d.X, s * d.Y * d.Y,
+            s * d.Y * d.Z, 0, s * d.Z * d.X, s * d.Z * d.Y, s * d.Z * d.Z, 0, 0, 0, 0, 0);
+        var stretch = Matrix4x4.CreateTranslation(-head) * outer * Matrix4x4.CreateTranslation(head);
+        var carry = Matrix4x4.CreateTranslation(along * (k - 1));
+        for (int b = 0; b < sk.Count; b++)
         {
-            float u0 = i / (float)n, u1 = (i + 1) / (float)n;
-            k.Cylinder(At(u0), At(u1), RibbitTongueThick * (1 - 0.55f * u0), 8, caps: false, radiusB: RibbitTongueThick * (1 - 0.55f * u1));
+            if (b == root)
+                pose.World[b] *= stretch;
+            else if (Below(sk, b, club))
+                pose.World[b] *= carry;
+            else
+                continue;
+            pose.Skin[b] = sk.InverseBind[b] * pose.World[b];
         }
-        // Its tip spread over them, a pad.
-        k.Cylinder(b - Vector3.Normalize(b - a) * 0.02f, b + Vector3.Normalize(b - a) * 0.02f, RibbitTongueThick * 1.4f, 8);
+
+        static Matrix4x4 Inverse(Matrix4x4 m) => Matrix4x4.Invert(m, out var i) ? i : Matrix4x4.Identity;
+        static bool Below(Skeleton sk, int b, int ancestor)
+        {
+            for (; b >= 0; b = sk.Parents[b])
+                if (b == ancestor)
+                    return true;
+            return false;
+        }
     }
     Room _room;
 
@@ -179,6 +209,9 @@ public sealed class CreatureArt
 
     // The Stoker's own fire, in its mouth and its splits: the sick green of a fire with it in (GreyboxScene.FireColour).
     static readonly Vector3 StokerFire = new(0.35f, 0.6f, 0.22f);
+    // A Cinder Hound's own light (note 337): its cracks' ember, redder than a firebox, and how far it reaches.
+    static readonly Vector3 HoundEmber = new Vector3(1.0f, 0.38f, 0.12f) * 2.4f;
+    const float HoundLightRange = 4.2f;
 
     const float Going = 0.4f, GauntLeanPerAnger = 0.25f, GauntLean = 0.32f, GauntTilt = 0.6f;
 
@@ -199,6 +232,18 @@ public sealed class CreatureArt
     static readonly Vector3 SwitchLeverPivot = new(0.34f, 0.32f, -0.3f);
 
     const int FireFlyMost = 22;
+    // T131 (the director, build 1121: "what were the bubbles?"): the wings' smouldering rims, lit all round against the
+    // lamp, drew each moth as a hollow orange ring: a bubble. The rims go to the charred paper (unlit), and the burning tail
+    // carries the light instead, shedding FireFlySparks sparks of FireFlyEmber behind each on the wing.
+    const int FireFlySparks = 3;
+    static readonly Vector3 FireFlyEmber = new(1.0f, 0.55f, 0.18f);
+
+    static MaterialLook FireFlyLook(ModelMaterial m, MaterialLook l) => m.Name switch
+    {
+        _ when m.Name.Contains("firefly_rim") => l with { Emissive = 0, Colour = new Vector3(0.13f, 0.11f, 0.1f) },
+        _ when m.Name.StartsWith("ember_core") => l with { Emissive = Math.Max(l.Emissive, 1) * 1.6f },
+        _ => l,
+    };
     const float FireFlySwarmFills = 20, FireFlyGlass = 0.085f, FireFlyGlassBelow = 0.07f, FireFlyGlassAbove = 0.08f, FireFlyOrbit = 0.45f;
 
     /// <summary>
@@ -682,15 +727,32 @@ public sealed class CreatureArt
         if (inHand is not null && OneHanded(pose))
             mesh.Append(inHand, ToolGrip * Skinner.Socket(m.Model, m.Pose, "hand_r_weapon", model));
         if (hanging is not null)
-        {
-            var fist = Skinner.Socket(m.Model, m.Pose, "hand_r_weapon", model).Translation;
-            var up = Vector3.Normalize(new Vector3(model.M21, model.M22, model.M23));
-            var hung = model with { M41 = 0, M42 = 0, M43 = 0, M44 = 1 };
-            hung.Translation = fist - up * LanternRing;
-            mesh.Append(hanging, hung);
-            LastHanging = fist - up * (LanternRing - LanternFlame);
-        }
+            Hung(mesh, m, hanging, model);
         return true;
+    }
+
+    /// <summary>
+    /// Hangs <paramref name="hanging"/> from the right fist of the figure last drawn as <paramref name="figure"/> by
+    /// <see cref="Draw(MeshBuilder, string, string, double, bool, in Matrix4x4, int, float, float, Func{ModelMaterial, MaterialLook, MaterialLook}?)"/>
+    /// at <paramref name="model"/>, as <see cref="Crewmate"/>'s hanging does (a town's lamp-carriers, note 281); its flame
+    /// is then <see cref="LastHanging"/>. False when that figure isn't built.
+    /// </summary>
+    public bool Hang(MeshBuilder mesh, MeshAsset hanging, in Matrix4x4 model, string figure = "crew")
+    {
+        if (!_models.TryGetValue(figure, out var m))
+            return false;
+        Hung(mesh, m, hanging, model);
+        return true;
+    }
+
+    void Hung(MeshBuilder mesh, Entry m, MeshAsset hanging, in Matrix4x4 model)
+    {
+        var fist = Skinner.Socket(m.Model, m.Pose, "hand_r_weapon", model).Translation;
+        var up = Vector3.Normalize(new Vector3(model.M21, model.M22, model.M23));
+        var hung = model with { M41 = 0, M42 = 0, M43 = 0, M44 = 1 };
+        hung.Translation = fist - up * LanternRing;
+        mesh.Append(hanging, hung);
+        LastHanging = fist - up * (LanternRing - LanternFlame);
     }
 
     /// <summary>The hand lamp's ring and flame over its foot (tools/models/recipes/hand_lantern.py's sockets, 0.36 m tall).</summary>
@@ -1277,7 +1339,16 @@ public sealed class CreatureArt
                     }
                     else
                         clip = phase is SpinePhase.Telegraph or SpinePhase.Commit or SpinePhase.BreakOff ? "run" : "prowl";
-                    return Draw(mesh, "cinder_hound", clip, ct, loop, model, glow: glow, seed: (float)extra);
+                    if (!Draw(mesh, "cinder_hound", clip, ct, loop, model, glow: glow, seed: (float)extra))
+                        return false;
+                    // A light of its own (note 209's "not yet", note 337): its cracks' heat, under the keel, lighting its legs
+                    // and a pool of the ground it runs over orange. At night, in the rear lamp or past it, a pack reads as
+                    // the pools moving behind the train, each a hound, before their shapes do. (Not on itself: the light's
+                    // inside its hide's normals, so its char stays black and its cracks are what glow on it.)
+                    float flick = 0.85f + 0.15f * (float)Math.Sin(t * 13.0 + extra * 2.1 + Math.Sin(t * 4.7) * 1.5);
+                    var keel = BoneAt("cinder_hound", "belly", model) - Basis(model).Up * 0.16f;
+                    mesh.PointLights.Add(new PointLight(keel, HoundEmber * (glow * flick), HoundLightRange));
+                    return true;
                 }
             case EnemyKind.Sleepers:
                 {
@@ -1757,22 +1828,20 @@ public sealed class CreatureArt
                         case SpinePhase.Commit or SpinePhase.Grab or SpinePhase.Punish:
                             {
                                 // With its catch frozen (GRAB), the leader creeps in on them low, the tongue still out (the sim's
-                                // quarter-speed hop), and close to, it's on them, devouring (the tongue's in them, not drawn).
+                                // quarter-speed hop), and close to, it's on them, devouring (the tongue's in them, its own clip's).
+                                // The tongue is the model's own, aimed at their chest and stretched to it (Lash).
                                 float near = prey is { } q ? new Vector2(q.Feet.X - model.Translation.X, q.Feet.Z - model.Translation.Z).Length() : float.MaxValue;
                                 string clip = RibbitClip(phase, near);
-                                Vector3? mouth = null;
-                                var at = model;
-                                void Mouth(Entry e)
+                                Vector3? chest = null;
+                                if (prey is { } p && Matrix4x4.Invert(model, out var toModel))
+                                    chest = Vector3.Transform(p.Feet + Vector3.UnitY * RibbitTongueAt, toModel);
+                                void Reach(Entry e)
                                 {
-                                    int jaw = e.Model.Skeleton.IndexOf("tongue_02");
-                                    if (jaw >= 0)
-                                        mouth = Vector3.Transform(e.Pose.World[jaw].Translation, at);
+                                    if (clip != "devour")
+                                        Lash(e, chest);
                                 }
-                                bool drawn = Draw(mesh, "ribbit", clip, t, true, at, Mouth, seed: (float)extra2)
-                                    || (clip = "tongue") == "tongue" && Draw(mesh, "ribbit", "tongue", t, true, at, Mouth, seed: (float)extra2);
-                                if (drawn && clip != "devour" && mouth is { } a && prey is { } p)
-                                    Tongue(mesh, a, p.Feet + Vector3.UnitY * RibbitTongueAt, (float)t);
-                                return drawn;
+                                return Draw(mesh, "ribbit", clip, t, true, model, Reach, seed: (float)extra2)
+                                    || (clip = "tongue") == "tongue" && Draw(mesh, "ribbit", "tongue", t, true, model, Reach, seed: (float)extra2);
                             }
                         default:
                             return Draw(mesh, "ribbit", hunting && phase == SpinePhase.Dormant ? "hop" : "sit", t, true, model, seed: (float)extra2);
@@ -1936,12 +2005,23 @@ public sealed class CreatureArt
                 fwd = v.LengthSquared() > 1e-10f ? Vector3.Normalize(v) : r;
                 up = Vector3.Normalize(u - fwd * Vector3.Dot(u, fwd));
                 clip = "flutter";
+                // T131 (the director: "what were the bubbles?"): the sparks it sheds off its burning tail, a short trail
+                // behind it on its loop, falling and dimming, so a swarm on the wing reads as embers round the lamp.
+                mesh.Emissive = 1;
+                for (int j = 1; j <= FireFlySparks; j++)
+                {
+                    double back = j * 0.07;
+                    var spark = Where(t - back) - u * (float)(0.05 * back * j);
+                    float fade = 1 - (j - 1f) / FireFlySparks;
+                    mesh.Box(spark, r, u, b, new Vector3(0.005f * fade + 0.002f), FireFlyEmber * (0.6f + 0.8f * fade) * (0.8f + 0.2f * MathF.Sin((float)t * 17 + i + j)));
+                }
+                mesh.Emissive = 0;
             }
             // The model faces -Z with its back +Y: its rows are where X, Y and Z go.
             var z = -fwd;
             var x = Vector3.Cross(up, z);
             var m = new Matrix4x4(x.X, x.Y, x.Z, 0, up.X, up.Y, up.Z, 0, z.X, z.Y, z.Z, 0, at.X, at.Y, at.Z, 1);
-            Draw(mesh, "fire_fly", clip, t + k * 7.3, true, Matrix4x4.CreateScale(size) * m, seed: i + (float)seed);
+            Draw(mesh, "fire_fly", clip, t + k * 7.3, true, Matrix4x4.CreateScale(size) * m, seed: i + (float)seed, adjust: FireFlyLook);
         }
         // The lamp's light through them: brighter, and redder, the more there are.
         float flick = 0.85f + 0.15f * MathF.Sin((float)t * 13 + 1.7f) * MathF.Sin((float)t * 5.3f);

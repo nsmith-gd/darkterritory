@@ -189,36 +189,38 @@ public class DraggerTests
     }
 
     [Fact]
-    public void TheDirectorWakesThemOnlyWithSomeoneOnTheRoofs()
+    public void TheDirectorPutsThemUnderTheCarsOnlyOnASlowTrainAndTheyWaitForSomeoneOnTheRoofs()
     {
+        // Boarding-first (GDD App. F.1, note 286): "slowing opens the doors". At speed none get on, whoever's up top; slow,
+        // they get under the cars with nobody up, and lie there till someone walks a roof over one.
         var train = new TrainOnLine(new TrainDynamics(Consist.Uniform(Tuning.Train, 5, 1)), Line, 2_000);
         var world = new World(train, Tuning.Combat);
         // Only Draggers on offer: a director allowed to spend on nothing else.
         var d = Tuning.Enemies.Director;
         var t = Tuning.Enemies with
         {
-            Director = d with { GraceMinSeconds = 0, GraceMaxSeconds = 0, Pressure = Tuning.Eager, CooldownSeconds = [1, 1], Costs = d.Costs.ToDictionary(c => c.Key, c => c.Key == "draggers" ? c.Value : 1e9) },
+            Director = d with { GraceMinSeconds = 0, GraceMaxSeconds = 0, Pressure = Tuning.Eager, Draw = Tuning.Unheld, CooldownSeconds = [1, 1], Costs = d.Costs.ToDictionary(c => c.Key, c => c.Key == "draggers" ? c.Value : 1e9) },
         };
         world.EnableEnemies(t, route: null, 1, crew: 2, authority: true);
-        var inside = new PlayerState { Parent = 0, Position = train.Frames[0].Shape.Cab!.Value.Centre, Surface = Surface.Deck, Health = 100 };
-        void Run(PlayerState s, double seconds)
+        void Run(PlayerState s, double seconds, double speed)
         {
             for (int i = 0; i < seconds * SimConstants.TickRate; i++)
             {
-                train.Dynamics.Velocity = 14;
+                train.Dynamics.Velocity = speed;
                 world.BeginTick();
                 world.CrewAct(ref s, default, 1);
                 world.Step(new TrainControls { Reverser = 1 });
             }
         }
-        Run(inside, 120);
-        Assert.DoesNotContain(world.ActiveEnemies, e => e.Kind == EnemyKind.Dragger);
         var up = PlayerMotor.SpawnOnRoof(train, 3, 0, Tuning.Player);
-        Run(up, 120);
-        var woken = world.ActiveEnemies.Where(e => e.Kind == EnemyKind.Dragger).ToList();
-        Assert.NotEmpty(woken);
-        Assert.All(woken, e => Assert.Equal(3, e.Attached));
-        Assert.InRange(woken.Count, 1, D.MaxAttached);
+        Run(up, 120, D.BoardBelow + 6);
+        Assert.DoesNotContain(world.ActiveEnemies, e => e.Kind == EnemyKind.Dragger);
+        var inside = new PlayerState { Parent = 0, Position = train.Frames[0].Shape.Cab!.Value.Centre, Surface = Surface.Deck, Health = 100 };
+        Run(inside, 120, D.BoardBelow - 4);
+        var waiting = world.ActiveEnemies.Where(e => e.Kind == EnemyKind.Dragger).ToList();
+        Assert.NotEmpty(waiting);
+        Assert.InRange(waiting.Count, 1, D.MaxAttached);
+        Assert.All(waiting, e => Assert.Equal(SpinePhase.Dormant, e.Phase));
     }
 
     [Fact]

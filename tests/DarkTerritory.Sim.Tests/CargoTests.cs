@@ -98,6 +98,7 @@ public class CargoTests
                 GraceMinSeconds = 0,
                 GraceMaxSeconds = 0,
                 Pressure = Tuning.Eager,
+                Draw = Tuning.Unheld,
                 CooldownSeconds = [1, 1],
                 SaveFor = [],
                 Costs = d.Costs.ToDictionary(c => c.Key, c => c.Key is "cinderHounds" or "trackDoll" ? 1 : 1e9)
@@ -279,11 +280,13 @@ public class CargoTests
         Assert.NotEqual(hips, body.Pbd.Particles[2].Position);
         Assert.False(n.World.Bodies.Handle(n.Crew[1] with { Position = gaunt.Local }, new PlayerIntent { Buttons = PlayerButtons.Use }, 1, n.Train)
             && body.Carrier == 1);
-        // Run down and killed on its way out: it drops the body where it is.
+        // Run down and killed on its way out: it drops the body where it is. Note 288: killed by the crew together, two
+        // swinging while one of them talks to it (a lone player's blows don't wear it down).
         gaunt.Health = 0.01;
         var near = gaunt.Attached == car ? gaunt.Local : n.Train.Frames[car].ToLocal(gaunt.Local);
         n.Crew[1] = n.Crew[1] with { Parent = car, Position = near with { Y = room.Min.Y } + new Double3(0, 0, 1.2), Yaw = 0 };
-        n.Run(0.5, _ => new PlayerIntent { Actions = PlayerActions.Swing });
+        n.Crew[2] = n.Crew[1] with { Position = near with { Y = room.Min.Y } + new Double3(0, 0, -1.2), Yaw = Math.PI };
+        n.Run(1.0, id => new PlayerIntent { Actions = PlayerActions.Swing, Voice = id == 1 ? (byte)120 : (byte)0 });
         Assert.True(gaunt.Gone, $"{gaunt.Phase} at {gaunt.Local}, crew at {n.Crew[1].Position}");
         Assert.Contains(body, n.World.Bodies.All);
         Assert.Equal(-1, body.TakenBy);
@@ -304,7 +307,7 @@ public class CargoTests
         Assert.Equal(RouteTier.Frontier, world.Director!.Gate(world, RouteTier.DeadLines));
         // Over a run of draws, the director weighs every option up by 1.4 alike: the share of each kind sent doesn't move,
         // only the total weight. Same seeds, comet or goods: the same first creature.
-        var t = Tuning.Enemies with { Director = Tuning.Enemies.Director with { GraceMinSeconds = 0, GraceMaxSeconds = 0, Pressure = Tuning.Eager, CooldownSeconds = [1, 1], SaveFor = [] } };
+        var t = Tuning.Enemies with { Director = Tuning.Enemies.Director with { GraceMinSeconds = 0, GraceMaxSeconds = 0, Pressure = Tuning.Eager, Draw = Tuning.Unheld, CooldownSeconds = [1, 1], SaveFor = [] } };
         for (ulong seed = 1; seed <= 6; seed++)
         {
             var g = Night(12, CargoKind.Goods, seed: seed, enemies: t);

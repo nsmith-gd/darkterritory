@@ -74,6 +74,11 @@ public sealed record StopBuilding(BuildingKind Kind, StopZone Zone, double S, do
     public IReadOnlyList<int> Tracks { get; init; } = [];
     /// <summary>A house at the end of a stub road: better odds, furthest from the engine (P11).</summary>
     public bool Outlier { get; init; }
+    /// <summary>
+    /// A house you can walk into and search (GDD App. F.3; ARCHITECTURE §8 note 326): its walls stand with a door in the
+    /// face toward the line, and its finds are inside where they'd be kept, not put out on the step.
+    /// </summary>
+    public bool Open { get; init; }
     [JsonIgnore] public Pt Centre => new(S, D);
 }
 

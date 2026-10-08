@@ -1,0 +1,35 @@
+// Critical train state (tier 3, GDD §18-19 "military depot: best payout, worst cargo"; notes 182, 185): a powder keg or a
+// powder car going up (World.Blast, nobody's shot). Not a cannonball's crack: a slow, enormous whump that pushes the air,
+// the roar of the powder burning through, the car's planks and iron coming apart in it, and wreckage raining down for
+// seconds after. Heard a long way (the Choir hears it too), and different enough from a ball's impact that nobody mistakes
+// one for the other.
+{
+  "tier": 3, "duration": 4.5, "maxInstances": 3, "minDistance": 8, "maxDistance": 900, "rolloff": 0.75,
+  "crush": { "bits": 8, "rate": 16000 },
+  "layers": [
+    // The whump: a sub thump that pushes, sliding down.
+    { "source": "sine", "frequency": 42, "gain": 1.3, "pitchEnvelope": [[0, 1.6], [0.25, 0.9], [1.4, 0.6]], "envelope": [[0, 0], [0.02, 1], [0.5, 0.6], [1.6, 0]] },
+    { "source": "impulse", "frequency": 1, "gain": 2.8,
+      "filters": [{ "type": "lowPass", "frequency": 120, "q": 0.8 }],
+      "envelope": [[0, 1], [0.8, 0.4], [2.2, 0]] },
+    // The powder burning through: a bright roar at once, darkening as it burns down (two bands crossfaded).
+    { "source": "noise", "gain": 1.1, "delay": 0.04,
+      "filters": [{ "type": "lowPass", "frequency": 2600, "q": 0.7 }],
+      "tremolo": { "rate": 7, "depth": 0.35, "jitter": 0.7 },
+      "envelope": [[0, 0], [0.08, 1], [0.6, 0.25], [1.3, 0]] },
+    { "source": "noise", "gain": 1.0, "delay": 0.1,
+      "filters": [{ "type": "lowPass", "frequency": 450, "q": 0.7 }],
+      "tremolo": { "rate": 5, "depth": 0.4, "jitter": 0.8 },
+      "envelope": [[0, 0], [0.3, 0.7], [1.1, 0.8], [3.2, 0]] },
+    // Planks and iron coming apart in it.
+    { "source": "noise", "gain": 0.8, "delay": 0.06,
+      "filters": [{ "type": "bandPass", "frequency": 1700, "q": 1.1 }],
+      "tremolo": { "rate": 23, "depth": 0.9, "jitter": 0.8 },
+      "envelope": [[0, 1], [0.25, 0.5], [0.7, 0]] },
+    // Wreckage raining down after: irregular patters, thinning out.
+    { "source": "noise", "gain": 0.4, "delay": 0.9,
+      "filters": [{ "type": "bandPass", "frequency": 2900, "q": 1.6 }],
+      "tremolo": { "rate": 11, "depth": 1, "duty": 0.25, "jitter": 0.9 },
+      "envelope": [[0, 0], [0.2, 1], [1.6, 0.4], [3.4, 0]] }
+  ]
+}

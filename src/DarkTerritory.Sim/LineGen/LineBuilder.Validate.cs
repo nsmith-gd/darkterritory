@@ -256,12 +256,20 @@ sealed partial class LineBuilder
         bool needCoal = planned > v.CoalingEnduranceShare * _l.TenderEnduranceS;
         Check("coaling", !needCoal || _facilities.Any(f => f.Kind == FacilityKind.CoalingTower), $"{planned / 60:0} min planned, tender lasts {_l.TenderEnduranceS / 60:0}");
 
+        // Hard bends (note 278): the night has the tier's least count of bends that derail the train under its top speed,
+        // so there's always somewhere a driver who isn't watching the map comes off.
+        var hard = HardBendSpans(_line!).Where(b => b.S0 > _gate).ToList();
+        int leastBends = (int)Math.Floor(_l.Bends[0]);
+        Check("hard bends", hard.Count >= leastBends, $"{hard.Count} against the tier's {leastBends}");
+
         // Quotas (§15.3).
         var missing = Quotas();
         Check("quotas", missing.Count == 0, string.Join(", ", missing));
 
-        // Separation was held when each edge was laid; its failures were dropped or retried.
+        // Separation was held when each edge was laid; its failures were dropped or retried. So were crossings (note 278).
         Check("separation", true);
+        var crossings = Crossings();
+        Check("crossings", crossings.Count == 0, string.Join("; ", crossings));
 
         // Walkability: a ledge's drop side stays walkable within 40 m (§12.6).
         var steep = new List<string>();
@@ -290,6 +298,70 @@ sealed partial class LineBuilder
     }
 
     readonly Dictionary<string, bool> _knownGradesPassable = new();
+
+    /// <summary>
+    /// Note 278: each alternate or dead line that crosses to the main line's other side away from its own turnouts: two
+    /// tracks across each other where the generator laid no bridge. Each is refused when it's laid (<see cref="CrossesMain"/>),
+    /// so this finds none; it's the check that says so.
+    /// </summary>
+    List<string> Crossings()
+    {
+        var found = new List<string>();
+        foreach (var e in _edges.Values.Where(e => e.Role is EdgeRole.Alternate or EdgeRole.DeadLine).OrderBy(e => e.Branch))
+            if (CrossesMain(e) is { } why)
+                found.Add(why);
+        return found;
+    }
+
+    /// <summary>
+    /// Whether a branch crosses to the main line's other side away from its own turnouts (more than 2 m over, within 100 m
+    /// of it). The separation check lets track be within 2 km of a junction two edges share, so it doesn't see this.
+    /// </summary>
+    string? CrossesMain(EdgeDraft e)
+    {
+        if (!_traces.TryGetValue("main", out var main) || !_traces.TryGetValue(e.Id, out var tr) || e.Side == 0)
+            return null;
+        const double Cell = 50, Reach = 100, Turnout = 200;
+        var m = main.Trace;
+        if (_mainGrid is null || _mainGridOf != m)
+        {
+            _mainGrid = [];
+            _mainGridOf = m;
+            for (int i = 0; i < m.Count; i++)
+            {
+                var key = ((long)Math.Floor(m[i].X / Cell), (long)Math.Floor(m[i].Z / Cell));
+                if (!_mainGrid.TryGetValue(key, out var list))
+                    _mainGrid[key] = list = [];
+                list.Add(i);
+            }
+        }
+        double length = tr.Trace[^1].S;
+        foreach (var (s, x, z) in tr.Trace)
+        {
+            if (s < Turnout || e.Role == EdgeRole.Alternate && s > length - Turnout)
+                continue;
+            int best = -1;
+            double bestD = Reach * Reach;
+            long cx = (long)Math.Floor(x / Cell), cz = (long)Math.Floor(z / Cell);
+            for (long i = cx - 2; i <= cx + 2; i++)
+                for (long j = cz - 2; j <= cz + 2; j++)
+                    if (_mainGrid.TryGetValue((i, j), out var list))
+                        foreach (int k in list)
+                            if ((m[k].X - x) * (m[k].X - x) + (m[k].Z - z) * (m[k].Z - z) is var d2 && d2 < bestD)
+                                (best, bestD) = (k, d2);
+            if (best < 0 || best + 1 >= m.Count)
+                continue;
+            // Right of the main line's way there: (−tz, tx).
+            double tx = m[best + 1].X - m[best].X, tz = m[best + 1].Z - m[best].Z, n = Math.Sqrt(tx * tx + tz * tz);
+            double lateral = ((x - m[best].X) * -tz + (z - m[best].Z) * tx) / Math.Max(1e-9, n);
+            if (lateral * e.Side < -2)
+                return $"{e.Id} crosses the main line {s:0} m along it, at km {Km(m[best].S):0.0}";
+        }
+        return null;
+    }
+
+    Dictionary<(long, long), List<int>>? _mainGrid;
+    List<(double S, double X, double Z)>? _mainGridOf;
 
     List<string> Quotas()
     {
@@ -342,6 +414,10 @@ sealed partial class LineBuilder
             if (Math.Abs(_line!.Sample(s).Curvature) > 1e-9)
                 tight = Math.Min(tight, 1 / Math.Abs(_line.Sample(s).Curvature));
         _metrics["minRadius"] = Math.Round(Math.Min(tight, 99999));
+        _metrics["crossings"] = Crossings().Count;
+        var bends = HardBendSpans(_line!).Where(b => b.S0 > _gate).ToList();
+        _metrics["hardBends"] = bends.Count;
+        _metrics["hardBendSlowestMs"] = bends.Count == 0 ? 0 : Math.Round(Math.Sqrt(_t.Curves.ADerail * bends.Min(b => b.R)), 1);
         _metrics["tunnelM"] = Math.Round(_structures.Where(s => s.Type == StructureType.Tunnel).Sum(s => s.S1 - s.S0));
         _metrics["bridgeM"] = Math.Round(_structures.Where(s => s.Type is StructureType.Trestle or StructureType.Viaduct or StructureType.Girder or StructureType.Truss).Sum(s => s.S1 - s.S0));
         _metrics["junctions"] = 2 * _alts.Count + _deads.Count;
