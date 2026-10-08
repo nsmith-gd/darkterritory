@@ -106,6 +106,7 @@ public sealed partial class GameAudio
     {
         public byte Doors;
         public bool Lamp;
+        public double Gutter;
         public readonly double[] RollUntil = new double[8];
     }
 
@@ -689,7 +690,7 @@ public sealed partial class GameAudio
             var shape = frame.Shape;
             if (!_crewCars.TryGetValue(v.Id, out var car))
             {
-                _crewCars[v.Id] = new CrewCar { Doors = v.DoorsOpen, Lamp = v.LampLit };
+                _crewCars[v.Id] = new CrewCar { Doors = v.DoorsOpen, Lamp = v.LampLit, Gutter = v.Gutter };
                 continue;
             }
             int changed = v.DoorsOpen ^ car.Doors;
@@ -749,6 +750,14 @@ public sealed partial class GameAudio
                 Hold("lamp-gutter", v.Id, frame.ToWorld(local), OccludedAt(train, v.Id, local))?
                     .Params.Set("gutter", Math.Clamp(v.Gutter / (train.Gutter?.OutAfter ?? 45), 0, 1));
             }
+            // Trimmed (note 358): the guttering stopped with the lamp still lit, the wick wound up and the flame steadying.
+            // Gone out instead, it's the lamp going off, above.
+            if (car.Gutter > 0 && v.Gutter <= 0 && v.LampLit && shape.Interior is { } trimmed)
+            {
+                var local = new Double3(0, trimmed.Max.Y - 0.2, trimmed.Centre.Z);
+                Cue("crew-upkeep.trim", frame.ToWorld(local), OccludedAt(train, v.Id, local));
+            }
+            car.Gutter = v.Gutter;
         }
     }
 
