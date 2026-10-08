@@ -6301,3 +6301,39 @@ Terrain sculpting tools, a node-graph material editor, a general-purpose visual 
         - The Game suite.
         - Looked at: along the run stopped, carrying and jammed; at the head; at the drive house running and stopped; before and after, and on the turntable.
 
+
+461. **The switchyard's goods shed and the military depot's huts, wire and magazine modelled (queue #197, C1; the art checklist's `switchyard` and `military-depot`; GDD §18 "the switchyard: six sidings of scattered cars", "the military depot: gunpowder and shot. Best payout, worst cargo", §30 "oversized, partially abandoned, barely operable, dimly lit").** The switchyard's goods shed was the structure kit's flat works box. The depot's huts were flat half-round prisms behind a line of rods for wire. They are now modelled in facility_pieces.py and placed by `StructureKit.Facility` where the kit's stood; the kit is kept as the fallback.
+    - **`goods_shed`** (690 triangles, a 1024 layer like the other big buildings):
+        - 30 m of weatherboarded shed on a brick plinth under slate;
+        - its loading dock along the front at a car's floor, under a corrugated canopy on iron brackets;
+        - three sliding doors: one open on the dark, one half across, one shut and barred;
+        - a hand crane at the dock's end, crates and sacks left on it, GOODS on a board over the middle door;
+        - the office at its end, its lamp still lit (`_Glow`, the foundry's mask).
+    - **`nissen_hut`** (158):
+        - a corrugated half-round 9 m across, its sheets lapped in rings, rusting, a few gone;
+        - boarded end walls, the door behind a sandbag blast wall, windows (one boarded), the stovepipe.
+        - Three stand where the kit's did, along the line.
+    - **`wire_fence`** (128): a 6 m panel of angle-iron pickets cranked toward the line, barbed wire between them, one strand let go and hanging.
+        - The panels run 60 m along the depot's front.
+        - The gate by the watchtower is 12 m wide, where the sim stacks the depot's crates (facilities.json "crates": the stack 3 m out at −10 to −13, the heavy ones at −4). The kit's rods had stood on the stack.
+    - **`powder_magazine`** (196): a squat brick house under a concrete vault, half buried behind its earth traverse on three sides.
+        - Its red steel door is stencilled DANGER EXPLOSIVES, behind a blast wall; vents low in its walls, the lightning conductor's mast and the red flag.
+        - It stands behind the huts, 31 m out.
+    - **Two recipe helpers:**
+        - `_vault`, a barrel vault's shell (the hut, the magazine's roof);
+        - `_solid`, a convex piece from its own faces, each turned outward (the traverse's banks).
+    - **Pinned:**
+        - `FacilityBuildingArtTests.TheMilitaryDepotsHutsWireAndMagazineStandOffItsCratesAndTheWinchsRun`, from either side of the spur:
+            - nothing within 0.9 m of a crate, and nothing on the sleds' run;
+            - the wire there and open at the gate.
+        - `TheSwitchyardsGoodsShedIsTheModelClearOfItsTracksAndItsOfficeLampIsLit`:
+            - the lamp is the bake's emissive mask;
+            - nothing above 0.3 m within 2.5 m of a yard track or the spur, on four nights' switchyards.
+    - **Verified:**
+        - `dt art check`: every piece well under the large prop's 8,000.
+        - `dt credits --write`: unchanged.
+        - Looked at before and after:
+            - the depot from the air, along its wire, at a hut, and its magazine from the air;
+            - the switchyard from the air, at its shed in dawn light and at night;
+            - each piece on the turntable.
+        - Two bake faults caught by looking: the vault wound inward (the hut had no shell), and the blast wall's game mesh around its bags (the bake missed them: a black box at the gate).
