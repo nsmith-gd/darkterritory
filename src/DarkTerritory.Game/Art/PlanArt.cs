@@ -242,14 +242,14 @@ public sealed partial class WorldArt
         bool Free(double s, double lateral) => !onBranch(s, lateral) && !p.InClearing(s, lateral) && PlanClear(route, line, s, lateral);
         // Near the line (within the chase camera's and a roof's reach), the spruce is modelled like the pine; out in the fog,
         // the crossed cards.
-        MeshAsset Tree(string kind, int v, bool near) => kind switch
+        MeshAsset Tree(string kind, int v, bool near, NovaKit.TreeForm form) => kind switch
         {
-            "fir" => Piece($"fir-{v}", () => NovaKit.Conifer(_look, v, 12, 0.46f)),
+            "fir" => Piece($"fir-{v}-{form}", () => NovaKit.Conifer(_look, v, 12, 0.46f, form)),
             "birch" => Piece($"birch-{v % 3}", () => NovaKit.Birch(_look, v % 3)),
             "pine" => Piece($"pine-{v}", () => WorldKit.Pine(_look, v, 12)),
-            "tamarack" => Piece($"tamarack-{v}", () => NovaKit.Conifer(_look, v, 12, 0.26f)),
-            _ when near => Piece($"spruce3d-{v}", () => WorldKit.Spruce(_look, v, 12)),
-            _ => Piece($"spruce-{v}", () => NovaKit.Conifer(_look, v, 12, 0.3f)),
+            "tamarack" => Piece($"tamarack-{v}-{form}", () => NovaKit.Conifer(_look, v, 12, 0.26f, form)),
+            _ when near => Piece($"spruce3d-{v}-{form}", () => WorldKit.Spruce(_look, v, 12, form)),
+            _ => Piece($"spruce-{v}-{form}", () => NovaKit.Conifer(_look, v, 12, 0.3f, form)),
         };
 
         // The trees, boulders and the rest beside the line are the sim's (notes 371, 389): it deals them from the night's
@@ -318,13 +318,18 @@ public sealed partial class WorldArt
             bool dead = prop.Dead, corrupted = prop.Corrupted;
             string kind = prop.Species;
             var (m, _) = Place(along, offset, yaw, height / 12, 0.15f);
+            // Its form and lean (note 395), from a stream of its own off its art seed, so the draws below are as they were.
+            var (form, lean) = Form(prop.Seed, p.Biome(along));
             MeshAsset piece = dead
                 ? rng.Next(2) == 0 ? Piece($"ghost-{variant}", () => NovaKit.GhostSpruce(_look, variant)) : Piece($"dead-{variant % 2}", () => WorldKit.DeadTree(_look, variant % 2, 10))
-                : Tree(kind, variant, Math.Abs(offset) < NearSpruce);
+                : Tree(kind, variant, Math.Abs(offset) < NearSpruce, form);
             if (dead)
                 (m, _) = Place(along, offset, yaw, height / (piece.Name.StartsWith("ghost") ? 8 + variant * 2.5f : 10) * 0.9f, 0.15f);
             if (kind == "birch" && !dead)
                 (m, _) = Place(along, offset, yaw, height / 11, 0.1f);
+            // Leant, about its foot (where the Sim's wall stands): a few degrees, any way.
+            if (lean.Angle > 0)
+                m = Matrix4x4.CreateRotationZ(lean.Angle) * Matrix4x4.CreateRotationY(lean.Toward) * m;
             // Tamarack goes gold in the fall, before its needles drop (the bog's one colour).
             var tint = kind == "tamarack" && !dead ? new Vector3(1.55f, 1.2f, 0.55f) * (0.85f + 0.3f * (float)rng.NextDouble()) : new Vector3(0.8f + 0.3f * (float)rng.NextDouble());
             // The corruption's trees (GDD §30): charred black and sweating, the brass breaking out through the bark up
@@ -371,6 +376,33 @@ public sealed partial class WorldArt
                         float th = stunted ? 6 + (float)rng.NextDouble() * 4 : 13 + (float)rng.NextDouble() * 6;
                         mesh.Append(Piece($"treeline-{tv}-{th:0}", () => NovaKit.Treeline(_look, tv, 26, th)), m, new Vector3(0.8f + 0.25f * (float)rng.NextDouble()));
                     }
+        }
+        // The forest floor (note 395): deadfall, stumps and juniper under the stands; juniper and red blueberry on the
+        // barrens and the burns. Low and passable, the art's alone, as the tufts and the alder are.
+        for (double s = Math.Ceiling(from / 12) * 12; s < to; s += 12)
+        {
+            if (!Clear(s) || p.Biome(s) is not { } def)
+                continue;
+            bool barrens = def.Verge == "barrens", woods = def.TreeDensity >= 0.3;
+            if (!barrens && !woods)
+                continue;
+            var rng = new Random(unchecked(seed * 48271 ^ (int)(s / 12) * 69621));
+            int count = barrens ? 2 + rng.Next(2) : 1 + rng.Next(2);
+            for (int i = 0; i < count; i++)
+            {
+                double offset = (rng.Next(2) == 0 ? -1 : 1) * (FloorNear + rng.NextDouble() * (barrens ? 40 : 30)), along = s + rng.NextDouble() * 12;
+                double pick = rng.NextDouble();
+                var kind = barrens
+                    ? pick < 0.45 ? NovaKit.FloorKind.Juniper : pick < 0.9 ? NovaKit.FloorKind.Blueberry : NovaKit.FloorKind.Stump
+                    : pick < 0.4 ? NovaKit.FloorKind.Deadfall : pick < 0.7 ? NovaKit.FloorKind.Stump : NovaKit.FloorKind.Juniper;
+                int v = rng.Next(3);
+                float yaw = (float)rng.NextDouble() * 6.28f, scale = 0.85f + 0.3f * (float)rng.NextDouble();
+                if (!Free(along, offset))
+                    continue;
+                var (m, slope) = Place(along, offset, yaw, scale, kind == NovaKit.FloorKind.Deadfall ? 0.12f : 0.04f);
+                if (slope < 0.7f)
+                    mesh.Append(Piece($"floor-{kind}-{v}", () => NovaKit.Floor(_look, kind, v)), m, new Vector3(0.8f + 0.3f * (float)rng.NextDouble()));
+            }
         }
         // Low growth along the verge: dead grass, the bog's reeds thick out to its water, the barrens' heath and lichen.
         for (double s = Math.Ceiling(from / 3) * 3; s < to; s += 3)
@@ -753,6 +785,26 @@ public sealed partial class WorldArt
 
     // How far off the line the spruce is modelled (WorldKit.Spruce), not crossed cards: as WorldArt's NearTrees for its pines.
     const double NearSpruce = 40;
+
+    /// <summary>How far out from the line the forest floor's pieces start (m): past the walk beside the train.</summary>
+    const double FloorNear = 7;
+
+    /// <summary>
+    /// A tree's form and lean (note 395), from a stream of its own off its art seed (LinesideProp.Seed): mostly plain; on the
+    /// barrens and the coast often flagged by the wind; now and then broken-topped or forked; one in six leant 4–10°.
+    /// </summary>
+    static (NovaKit.TreeForm Form, (float Angle, float Toward) Lean) Form(uint seed, Sim.LineGen.BiomeDef? biome)
+    {
+        var rng = new Random(unchecked((int)(seed * 2654435761u) ^ 0x5f3759df));
+        bool windy = biome is { Verge: "barrens" } || biome?.Shore > 0.2;
+        double pick = rng.NextDouble();
+        var form = pick < (windy ? 0.4 : 0.07) ? NovaKit.TreeForm.Flagged
+            : pick < (windy ? 0.52 : 0.2) ? NovaKit.TreeForm.Broken
+            : pick < (windy ? 0.58 : 0.28) ? NovaKit.TreeForm.Forked
+            : NovaKit.TreeForm.Plain;
+        float lean = rng.NextDouble() < 1 / 6.0 ? (float)(4 + 6 * rng.NextDouble()) * MathF.PI / 180 : 0;
+        return (form, (lean, (float)(rng.NextDouble() * MathF.Tau)));
+    }
     // The causeway's bank, along: a stretch at a time.
     const double BankStep = 5;
     // (WorldArt's ground laterals from the bed's shoulder out: the pitching lies on the same facets the land's mesh has.)
