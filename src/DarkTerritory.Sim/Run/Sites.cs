@@ -20,6 +20,8 @@ public sealed record FacilityTuning(CrateTuning Crates, WinchTuning Winch, Dicti
     public LiftTuning Lift { get; init; } = new();
     /// <summary>The grain elevator's conveyor line (spec D.2; queue #136, note 400).</summary>
     public ConveyorTuning Conveyor { get; init; } = new();
+    /// <summary>The mine head's tipple (spec D.2; queue #159, note 423).</summary>
+    public TippleTuning Tipple { get; init; } = new();
     /// <summary>GDD §18's switchyard and wreck yard (WP15b, note 187): the yard's standing cars, and the wreck to salvage.</summary>
     public RakesTuning Rakes { get; init; } = new();
     public DerelictsTuning Derelicts { get; init; } = new();
@@ -200,6 +202,32 @@ public sealed record ConveyorTuning
     public double NearBelt { get; init; } = 25;
 }
 
+/// <summary>
+/// The mine head's tipple (spec D.2: "Clamp the car, rotate it to load. 1 crew. Bad clamp derails the car on the spur"; queue
+/// #159, note 423). Field docs in facilities.json.
+/// </summary>
+public sealed record TippleTuning
+{
+    public double Back { get; init; } = 84;
+    public double BinLateral { get; init; } = 7;
+    public double BinHeight { get; init; } = 6;
+    public double LeverAlong { get; init; } = 3.5;
+    public double LeverLateral { get; init; } = 3.6;
+    public double LeverReach { get; init; } = 1.3;
+    public double Tolerance { get; init; } = 1.2;
+    public double GoodClamp { get; init; } = 0.6;
+    public double ClampSeconds { get; init; } = 1.5;
+    public double RollSeconds { get; init; } = 6;
+    public double BackSeconds { get; init; } = 3;
+    public double PerRoll { get; init; } = 0.5;
+    public double Ore { get; init; } = 3;
+    public double BadAt { get; init; } = 0.3;
+    public double Spill { get; init; } = 0.5;
+    public double DerailDamage { get; init; } = 0.2;
+    public double RerailSeconds { get; init; } = 20;
+    public double RerailReach { get; init; } = 2.5;
+}
+
 /// <summary>The slaughterhouse's livestock ramp (GDD §18; spec D.2 livestock ramp). Field docs in facilities.json.</summary>
 public sealed record RampTuning
 {
@@ -353,10 +381,22 @@ public readonly record struct SiteState(bool Stocked, double Progress, int Sleds
     public double JamFor { get; init; }
     public double Start { get; init; }
     public double Clear { get; init; }
+    /// <summary>
+    /// The tipple's (note 423): the ore left in its bin, the car clamped in the cradle (−1 none) and whether the clamp is good,
+    /// how far over it's rolled (0..1) and whether it's rolling back, how far through clamping someone is (s held), and how
+    /// far a car off its rails at it is put back (s of wrench work).
+    /// </summary>
+    public double TippleOre { get; init; }
+    public int Clamped { get; init; } = -1;
+    public bool GoodClamp { get; init; }
+    public double Roll { get; init; }
+    public bool RollingBack { get; init; }
+    public double Clamp { get; init; }
+    public double Rerail { get; init; }
 }
 
 /// <summary>Spec D.2 loading modules built so far.</summary>
-public enum ModuleKind : byte { Crates, Winch, Crane, Spout, Ramp, Hose, Rakes, Wreck, Lift, Conveyor }
+public enum ModuleKind : byte { Crates, Winch, Crane, Spout, Ramp, Hose, Rakes, Wreck, Lift, Conveyor, Tipple }
 
 /// <summary>
 /// One facility's loading modules and where they stand, laid out beside its track from the route (so every machine
@@ -448,6 +488,18 @@ public sealed class Site
             ConveyorTail = At(ConveyorAlong - mid + c.Run, c.TailLateral, c.BeltHeight);
             ConveyorStarter = At(ConveyorAlong - mid + c.Run + c.StarterAlong, c.StarterLateral, 0.9);
             Grain = c.Grain;
+        }
+        if (Has(ModuleKind.Tipple))
+        {
+            // The cradle on the track at the toe end of the standing cars (laid from the buffer stop, as the spout is), the ore
+            // bin out on the site's side with its chute over where a car rolled toward it would take it, the lever on from it.
+            var tp = t.Tipple;
+            double back = Math.Min(tp.Back, Math.Max(0, (room ?? track.Length - mid) - 4));
+            TippleAlong = room is null ? mid : Math.Max(0, track.Length - back);
+            Cradle = At(TippleAlong - mid, 0);
+            TippleBin = At(TippleAlong - mid, tp.BinLateral, tp.BinHeight);
+            TippleLever = At(TippleAlong - mid + tp.LeverAlong, tp.LeverLateral, 0.9);
+            TippleOre = tp.Ore;
         }
         if (Has(ModuleKind.Ramp))
         {
@@ -545,6 +597,27 @@ public sealed class Site
     /// <summary>Where the jam is: on the low run, from the tail to the knee.</summary>
     public Double3 JamAt => Double3.Lerp(ConveyorTail, ConveyorKnee, Math.Clamp(Jam, 0, 1));
 
+    /// <summary>
+    /// The tipple (note 423): its cradle on the track and how far along the track it is, the ore bin's chute out on the site's
+    /// side, its lever; the ore left in the bin.
+    /// </summary>
+    public Double3 Cradle { get; }
+    public double TippleAlong { get; }
+    public Double3 TippleBin { get; }
+    public Double3 TippleLever { get; }
+    public double TippleOre { get; internal set; }
+    /// <summary>The car clamped in the cradle (−1 none), and whether it was clamped true (a bad clamp derails it on the roll).</summary>
+    public int Clamped { get; internal set; } = -1;
+    public bool GoodClamp { get; internal set; }
+    /// <summary>How far over the cradle has rolled its car (0..1), and whether it's on its way back.</summary>
+    public double Roll { get; internal set; }
+    public bool RollingBack { get; internal set; }
+    /// <summary>Seconds someone's held the lever to clamp; seconds of wrench work on a car off its rails here.</summary>
+    public double Clamp { get; internal set; }
+    public double Rerail { get; internal set; }
+    /// <summary>Who's on the tipple's lever this tick (−1 nobody), and how many have a wrench to a car off its rails here. Host only.</summary>
+    internal int Tippler = -1, Rerailers;
+
     /// <summary>The ramp's top by the cars, the pen out beyond it, the head penned at the start and left.</summary>
     public Double3 RampTop { get; }
     public Double3 Pen { get; }
@@ -613,6 +686,12 @@ public sealed class Site
             yield return LiftChute;
             yield return Headframe;
             yield return LiftLever;
+        }
+        if (Has(ModuleKind.Tipple))
+        {
+            yield return Cradle;
+            yield return TippleBin with { Y = Cradle.Y };
+            yield return TippleLever;
         }
         if (Has(ModuleKind.Conveyor))
         {
@@ -742,6 +821,13 @@ public sealed class Site
         JamFor = JamFor,
         Start = Start,
         Clear = Clear,
+        TippleOre = TippleOre,
+        Clamped = Clamped,
+        GoodClamp = GoodClamp,
+        Roll = Roll,
+        RollingBack = RollingBack,
+        Clamp = Clamp,
+        Rerail = Rerail,
     };
 
     /// <summary>Client side: adopts the host's state.</summary>
@@ -773,5 +859,12 @@ public sealed class Site
         JamFor = s.JamFor;
         Start = s.Start;
         Clear = s.Clear;
+        TippleOre = s.TippleOre;
+        Clamped = s.Clamped;
+        GoodClamp = s.GoodClamp;
+        Roll = s.Roll;
+        RollingBack = s.RollingBack;
+        Clamp = s.Clamp;
+        Rerail = s.Rerail;
     }
 }

@@ -136,6 +136,45 @@ public sealed partial class Run
         return null;
     }
 
+    /// <summary>The cargo car (in any rake) whose middle stands in the tipple's cradle, within its tolerance; null if none.</summary>
+    public Vehicle? CarInCradle(TrainOnLine train, Site site) =>
+        _facilityTuning is not { } t || !site.Has(ModuleKind.Tipple) ? null
+        : train.Vehicles.Where(v => v.Kind == VehicleKind.Cargo && v.Id < train.Frames.Count && Flat(train.Frames[v.Id].Origin - site.Cradle) <= t.Tipple.Tolerance)
+            .OrderBy(v => Flat(train.Frames[v.Id].Origin - site.Cradle)).FirstOrDefault();
+
+    /// <summary>How far a car's middle stands off the tipple's cradle (m, flat): a clamp shut past <see cref="TippleTuning.GoodClamp"/> is a bad one.</summary>
+    public static double OffCradle(TrainOnLine train, Site site, Vehicle car) => Flat(train.Frames[car.Id].Origin - site.Cradle);
+
+    /// <summary>A car off its rails at the tipple (note 423), if there is one: the one the bad clamp derailed.</summary>
+    public Vehicle? OffRailsAt(TrainOnLine train, Site site) =>
+        _facilityTuning is not { } t || !site.Has(ModuleKind.Tipple) ? null
+        : train.Vehicles.FirstOrDefault(v => v.OffRails && v.Id < train.Frames.Count && Flat(train.Frames[v.Id].Origin - site.Cradle) <= t.Tipple.Tolerance * 3);
+
+    /// <summary>A tipple with ore in its bin, within reach of its lever (on foot).</summary>
+    public Site? TippleLeverInReach(in PlayerState s, TrainOnLine train, HandTuning? hand = null)
+    {
+        if (Over || !s.Alive || s.Parent != PlayerState.World || _facilityTuning is not { } t)
+            return null;
+        var at = PlayerMotor.WorldPosition(s, train);
+        foreach (var site in _sites)
+            if (site is { TippleOre: > 0 } && site.Has(ModuleKind.Tipple)
+                && PlayerMotor.Grips(s, train, hand, site.TippleLever, (at - site.TippleLever).Length <= t.Tipple.LeverReach))
+                return site;
+        return null;
+    }
+
+    /// <summary>On foot within reach of a car off its rails at a tipple (note 423): where a wrench puts it back.</summary>
+    public (Site Site, Vehicle Car)? OffRailsInReach(in PlayerState s, TrainOnLine train)
+    {
+        if (Over || !s.Alive || s.Parent != PlayerState.World || _facilityTuning is not { } t)
+            return null;
+        var at = PlayerMotor.WorldPosition(s, train);
+        foreach (var site in _sites)
+            if (site is not null && site.Has(ModuleKind.Tipple) && OffRailsAt(train, site) is { } car && Flat(at - train.Frames[car.Id].Origin) <= t.Tipple.RerailReach)
+                return (site, car);
+        return null;
+    }
+
     /// <summary>In the pen of a herd with head left in it (on foot): where you drive them from.</summary>
     public Site? InPen(in PlayerState s, TrainOnLine train)
     {
@@ -188,6 +227,11 @@ public sealed partial class Run
             lift.Winder = playerId;
         if (use && StarterInReach(s, train, hand) is { } drive && (drive.Starter < 0 || playerId < drive.Starter))
             drive.Starter = playerId;
+        if (use && TippleLeverInReach(s, train, hand) is { } tipple && (tipple.Tippler < 0 || playerId < tipple.Tippler))
+            tipple.Tippler = playerId;
+        // A wrench to a car off its rails at the tipple (note 423): each at it puts it back that much faster.
+        if (use && Repairs.WrenchInHand(s) && OffRailsInReach(s, train) is { } derailed)
+            derailed.Site.Rerailers++;
         if (use && JamInReach(s, train) is { } jammed && (jammed.Clearer < 0 || playerId < jammed.Clearer))
             jammed.Clearer = playerId;
         if (use && InPen(s, train) is { } pen)
@@ -283,6 +327,8 @@ public sealed partial class Run
                 Lift(train, site, t.Lift, cargo);
             if (site.Has(ModuleKind.Conveyor))
                 Convey(world, site, t, cargo, dt);
+            if (site.Has(ModuleKind.Tipple))
+                Tipple(train, site, t.Tipple, cargo, dt);
             if (site.Has(ModuleKind.Ramp))
                 Drive(train, site, t.Ramp, cargo, dt);
             if (site.Has(ModuleKind.Hose))
@@ -435,6 +481,105 @@ public sealed partial class Run
             site.Jams++;
             site.NextJam = -1;
         }
+    }
+
+    /// <summary>
+    /// The tipple (spec D.2: "Clamp the car, rotate it to load. 1 crew. Bad clamp derails the car on the spur"; note 423). With
+    /// the train standing and a car with room in the cradle, someone holding the lever clamps it; held on, the cradle rolls it
+    /// over toward the bin and the chute tips a share of a car-load in at the top, then it rolls back by itself and lets go. A
+    /// clamp shut on a car stood off the cradle's middle is a bad one: rolled, the car comes off its rails in the cradle, and so
+    /// does a clamped car the train moves. Off its rails it holds its rake fast till a wrench puts it back.
+    /// </summary>
+    void Tipple(TrainOnLine train, Site site, TippleTuning tp, CargoKind cargo, double dt)
+    {
+        int tippler = site.Tippler, rerailers = site.Rerailers;
+        site.Tippler = -1;
+        site.Rerailers = 0;
+        if (OffRailsAt(train, site) is { } off)
+        {
+            // The wrench work keeps (presses add up, as at any break); done, it's back on its rails.
+            site.Rerail += dt * rerailers;
+            if (site.Rerail >= tp.RerailSeconds)
+            {
+                off.OffRails = false;
+                site.Rerail = 0;
+            }
+            return;
+        }
+        site.Rerail = 0;
+        if (site.Clamped < 0)
+        {
+            var inCradle = CarInCradle(train, site);
+            bool clamping = !Over && tippler >= 0 && inCradle is { OffRails: false } && inCradle.Load < 1 - 1e-6 && site.TippleOre > 1e-9
+                && Math.Abs(train.RakeOf(inCradle.Id).Velocity) < 0.05;
+            site.Clamp = clamping ? site.Clamp + dt : 0;
+            if (clamping && site.Clamp >= tp.ClampSeconds)
+            {
+                site.Clamped = inCradle!.Id;
+                site.GoodClamp = OffCradle(train, site, inCradle) <= tp.GoodClamp;
+                site.Clamp = 0;
+                site.Roll = 0;
+                site.RollingBack = false;
+            }
+            return;
+        }
+        var car = site.Clamped < train.Vehicles.Count ? train.Vehicles[site.Clamped] : null;
+        if (car is null)
+        {
+            Unclamp(site);
+            return;
+        }
+        // The train moving with a car clamped takes it off its rails at once, as a bad clamp's roll does.
+        if (Math.Abs(train.RakeOf(car.Id).Velocity) >= 0.05 || OffCradle(train, site, car) > tp.Tolerance)
+        {
+            Derail(site, car, tp);
+            return;
+        }
+        if (site.RollingBack)
+        {
+            site.Roll -= dt / tp.BackSeconds;
+            if (site.Roll <= 0)
+                Unclamp(site);
+            return;
+        }
+        if (Over || tippler < 0)
+            return; // the cradle holds where it is
+        site.Roll = Math.Min(1, site.Roll + dt / tp.RollSeconds);
+        if (!site.GoodClamp && site.Roll >= tp.BadAt)
+        {
+            Derail(site, car, tp);
+            return;
+        }
+        if (site.Roll < 1)
+            return;
+        // Over at the top: the chute tips the ore in, and what the car can't take goes on the ballast.
+        double tip = Math.Min(tp.PerRoll, site.TippleOre);
+        site.TippleOre = Math.Max(0, site.TippleOre - tip);
+        double taken = Math.Min(tip, Math.Max(0, 1 - car.Load));
+        if (taken > 0)
+        {
+            car.Load += taken;
+            car.Cargo = cargo;
+        }
+        site.RollingBack = true;
+    }
+
+    static void Unclamp(Site site)
+    {
+        site.Clamped = -1;
+        site.Roll = 0;
+        site.RollingBack = false;
+        site.Clamp = 0;
+    }
+
+    /// <summary>A bad clamp (note 423): the car comes off its rails in the cradle, spilling some of its load and knocked about.</summary>
+    static void Derail(Site site, Vehicle car, TippleTuning tp)
+    {
+        car.OffRails = true;
+        car.Load = Math.Max(0, car.Load - tp.Spill);
+        car.Integrity = Math.Max(0, car.Integrity - tp.DerailDamage);
+        site.Rerail = 0;
+        Unclamp(site);
     }
 
     /// <summary>Seconds of carrying till a conveyor's next jam (spec D.2 "every 30–60s"), from the night's seed and the jam's count.</summary>

@@ -111,6 +111,37 @@
     "bin": 3.0,
     "overfillDamagePerLoad": 0.6
   },
+  // The mine head's tipple (spec D.2: "Clamp the car, rotate it to load. 1 crew. Bad clamp derails the car on the spur"; ARCHITECTURE
+  // §8 note 423). A cradle on the spur "back" from the buffer stop (or as far back as the standing track allows), at the toe end of
+  // where the cars stand, with the ore bin "binLateral" out on the site's side, its chute "binHeight" up, and the lever "leverAlong"
+  // on from the cradle and "leverLateral" out, worked within "leverReach". A cargo car whose middle stands within "tolerance" of
+  // the cradle is in it. Held "clampSeconds" at the lever with the train standing, the cradle clamps it: within "goodClamp" of
+  // the cradle's middle, a good clamp; further off, a bad one (the car was stood carelessly). Held on, the cradle rolls the car
+  // over toward the bin over "rollSeconds", and at the top the chute tips "perRoll" of a car-load in (out of "ore"); then it rolls
+  // back by itself over "backSeconds" and lets go. A bad clamp gives "badAt" of the way over: the car comes off its rails in the
+  // cradle, spilling "spill" of a car-load and taking "derailDamage" off its integrity, and it holds its rake fast (nothing pulls
+  // it) until someone with a wrench in hand holds Use within "rerailReach" of it for "rerailSeconds" (two at it, twice as fast).
+  // The train moving with a car clamped is a bad clamp at once. The roll is machinery, and loud.
+  "tipple": {
+    "back": 84,
+    "binLateral": 7,
+    "binHeight": 6,
+    "leverAlong": 3.5,
+    "leverLateral": 3.6,
+    "leverReach": 1.3,
+    "tolerance": 1.2,
+    "goodClamp": 0.6,
+    "clampSeconds": 1.5,
+    "rollSeconds": 6,
+    "backSeconds": 3,
+    "perRoll": 0.5,
+    "ore": 3.0,
+    "badAt": 0.3,
+    "spill": 0.5,
+    "derailDamage": 0.2,
+    "rerailSeconds": 20,
+    "rerailReach": 2.5
+  },
   // The mine head's steam lift (spec D.2: "requires the locomotive coupled nearby and venting pressure to power it. 2 crew. Ties
   // loading directly to the boiler; you're at zero pressure while it runs"; the Wiki's Loading table; ARCHITECTURE §8 note 368).
   // A headframe over its shaft "frameLateral" out on the site's side, "along" from the layout point (where the mine head's
@@ -329,7 +360,9 @@
     "slaughterhouse": ["ramp", "crates"],
     "wreckYard": ["wreck", "winch"],
     // The mine head's steam lift (note 368) beside its winch: two 2-person modules (spec D.3, "someone is alone somewhere").
-    "mineHead": ["lift", "winch", "crates"],
+    // And its tipple (note 423) at the toe end of the standing cars: four modules (spec D.1's most), the lift and the winch two
+    // crew each, the tipple one.
+    "mineHead": ["lift", "tipple", "winch", "crates"],
     "chemicalWorks": ["hose", "crates"],
     "militaryDepot": ["crates", "winch"]
   },
