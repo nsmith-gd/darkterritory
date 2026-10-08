@@ -6657,3 +6657,59 @@ Terrain sculpting tools, a node-graph material editor, a general-purpose visual 
         - `free`, `slap`: the belt jerking free with a slap, the idlers spinning up, the heap sliding off down the belt.
     - **Not yet:** the drive's speed on Low power (note 400: half rate) isn't heard; the engine runs as it does on Live. The head's gate shutting over a full car isn't heard either: the pour just stops.
     - **Pinned:** `WorldSoundTests.TheConveyorIsHeardStartedRunningJammedClearedAndStalled`, on a client night at a grain elevator, off the mirrored record. It checks the starter cranking while it's held; one catch and the running engine after; the belt and the pour while it carries; one jam where it is, with the drive labouring in place of running free; the hands at it; one free where the jam was, the engine running again; and a jam left, one stall and nothing of the line playing after.
+
+    - **Not yet:** a yard's walk-in sheds and its hero (note 387) are still outside to the renderer, though they're walls with a door too.
+469. **The extinguisher heard on the fire (AU1, queue #205; the director, 8 Oct 2026: "Holding fire extinguisher on fire still doesnt feel like its doing anything"; D1's note 467: the cell aimed at is out in a second; App. F.1 "the extinguisher puts out the cell you aim at").** The extinguisher's jet was heard, and the fire's crackle, but nothing where the two met: the jet on a burning cell made no sound of its own, and a cell knocked out went out silently. Held on a fire, it sounded as it did held on bare boards. D1's note 467 made the fire go a cell a second; this makes that heard.
+    - **How** (`GameAudio.FireDoused`, after the carried things' sounds; off the fire's replicated cells, `CarFire.Heat`, and the sprayer's aim, so every machine hears it):
+        - **The jet on the fire:** each carried extinguisher that's spraying reports its carrier (`_jets`). If the carrier's in a car with a fire, the cell their jet's on is found as the host's `CarFire.Spraying` finds it (`FireGrid.Hit` from the eye along the look, `sprayReach`). While that cell burns, `crew-extinguisher.on-fire` is held at its centre, louder the hotter it is.
+        - **A cell out:** a cell alight as last heard and out now, with a jet on its car within the last second, plays `crew-extinguisher.cell-out` at its centre, two at most a tick. A cell burnt out with no jet on it is the fire's own, and goes quietly.
+        - **The fire out:** the fire goes the tick its last cell does (`CarFire.Out`). A fire that was alight as last heard and is gone, with a jet on its car within the last second, plays `crew-extinguisher.fire-out` where its heart was. Burnt out, or the car lost, it goes as the fire does.
+        - Walled by the car the fire's in, as the rest of what's in a car is (`Occlusion`).
+        - **Captions:** water hissing on the flames, flames hissing out, the fire out.
+    - **The sounds** (`tools/audio/recipes/douse.py`): three candidates on the Audio Checklist's `crew-extinguisher` line, all installed. Modelled: the packs have no water on fire.
+        - `on-fire`, `steam`: the water flashing to steam on the boards (a dense sizzle of tiny bursts, a fry in the low kilohertz), a rush of steam surging with the stream, the flames' roar beaten down and guttering under it, water spitting off the hot wood. 6 s exact cycle.
+        - `cell-out`, `gasp`: a soft whump as the flames' roar is cut, a hissing gasp of steam that swells and dies inside a second, a last sizzle, an ember ticking.
+        - `fire-out`, `cooling`: a long sigh of steam off the wet boards, water dripping and running off the char, the boards ticking and creaking as they cool.
+    - **Not yet:** the fire's own crackle doesn't change with the spray beyond its size going down (`Extra`). Smoke and steam aren't seen rising where the jet lands (the scene's, not audio's).
+    - **Pinned:** `CrewAudioTests.TheExtinguishersJetIsHeardOnTheFireItsCellsGoingOutAndTheFireOut`, on a client's fire (its cells as the wire has them, enemies.json's tuning):
+        - a cell burning out with no jet on it is quiet;
+        - the jet on a burning cell is heard at that cell;
+        - knocked out under the jet, one cell-out there, and the jet on a dead cell sizzles on nothing;
+        - on to the last cell and the fire gone, one fire-out.
+
+464. **A Holdout's breach seen at its lock and its barricade (queue #200, C1; the art checklist's `breach-states` "next", "the boards' splinters, and the hasp jumping as it's struck", and `crew-breach` "next", "the lock's own reaction (the hasp jumping) and the barricade's boards giving"; App. D.7).** While a Holdout was breached, its way in was drawn shut, as if nobody were at it: the padlock still, the barricade whole, until suddenly it was open. Now `WorldArt.Entrance` draws the breach under way from the sim's own replicated progress (`Holdout.Progress` over its `Breach` seconds), so a client sees what the host does. The beats are those of the crew's clips (crew_clips.py, 30 fps), on the scene's clock, which is the clips' own:
+    - **A lock smashed** (a prison car's padlock, a lockup gate's): it hangs from its hasp's staple (`Lock`).
+        - At each blow of the smash, which lands 0.3 s into each 0.8 s loop, it jumps out on the hasp and swings back.
+        - A flash at its face, then a dozen spark streaks splayed out and falling, gone in a third of a second (`Sparks`: emissive kit rods, so no effect atlas is needed).
+        - It hangs lower and more twisted on the bent staple the further the breach is.
+    - **A lock picked** with the repair kit (quiet): it turns a little this way and that, the pick and the tension wrench in its keyhole. No sparks.
+    - **A barricade pried:** its five boards come away one at a time, a fifth of the breach each, in the order a bar gets at them: the one at the chest first (the pry clip's bite), then above, below, the top, the bottom.
+        - A board pried lies on the ground before the doorway, where `PriedOff` lays them.
+        - The one being worked stands out from the jamb at its free end, further as its share goes on, sprung out on each heave (0.47 to 0.73 s into each 1.33 s), its nails drawn with it.
+        - It splinters as the heave comes on (`Splinters`).
+    - **`dt screenshot --breaching f [--quiet] --holdout n [--close | --lock h] --scene-time s`:** every Holdout breached f of the way, and the camera close at its barricade or at arm's length from its lock. `--scene-time` picks the moment in the beats.
+    - **Pinned:** `BreachArtTests`.
+        - A struck lock sparks on the blow, not between blows, and never while shut or picked.
+        - It hangs lower late in the breach than early.
+        - A barricade has fewer boards up and more down as the pry goes on.
+    - **Verified:**
+        - Looked at, before and after: a prison car's lock on the blow, its sparks falling, late in the breach, and picked; a lockup's on the blow; a shelter's barricade early, mid-heave and late.
+        - The Game suite.
+468. **The capstan winch heard wherever it stands (AU1, queue #204; spec D.2 "Capstan winch: two players hand-crank in rhythm to drag cargo from distance. 2 mandatory. Desync stalls"; T43).** A winch stands at the foundry, the mine head, the military depot and the wreck yard (facilities.json `kinds`). Only the wreck yard's was heard, and only its cargo dragged out of a wreck (`place-wreck.cargo-pull`). Nowhere was the capstan heard turning, its sled coming in over the ground, or D.2's desync stall.
+    - **How** (`GameAudio.WinchSounds`, from `PlaceSite` for every site with a winch; off the site's replicated record: `Turning`, `OutOfRhythm`, `Progress`, `SledsLeft`):
+        - **The drum:** `place-winch.capstan` at the drum while it's cranked in rhythm (`Turning`).
+        - **The stall:** `place-winch.stall` once as the cranks fall out of rhythm (`OutOfRhythm`, D.2's desync).
+        - **The sled:** away from a wreck yard, `place-winch.drag` at the sled (`Site.Sled`) while it's hauled in, and `place-winch.in` once at its stop by the track when it's brought in (`SledsLeft` down). At a wreck yard the sled comes out of a wreck, and that's still place-wreck's: its cargo dragged out, the wreckage shifting as each comes in.
+        - Heard within 60 m of the drum (`WinchReach`). The edges are read wherever the ear is, so nothing plays late.
+        - **Caption:** the stall ("A WINCH JARRING TO A STOP").
+    - **The sounds** (`tools/audio/recipes/winch.py`): four candidates on the Audio Checklist's new `place-winch` line, all installed. Built from the packs' real iron, wood and stones; the rope and the grinding are the kits' models.
+        - `capstan`, `drum`: the drum at half a turn a second, its pawl over a twelve-tooth ratchet (the packs' real ratchet, pitched down), the cranks creaking in their bushes once a turn, the rope winding on, the frame groaning. 8 s exact cycle, four turns.
+        - `drag`, `skids`: iron-shod skids grinding over gravel and earth, heaving forward as each crank comes over, stones crunching, the load knocking, the rope humming.
+        - `stall`, `snatch`: the pawl catching hard on a tooth, a crank jarring, the rope twanging taut, the frame knocking.
+        - `in`, `stop`: the sled's nose bumping the stop timber, the load settling, the rope going slack with a slap.
+    - **Not yet:** a keyboard's crank and a headset's hand are heard alike (the drum is the drum). One crank turned alone, with nobody on the other, is silent: the drum doesn't turn (D.2: 2 mandatory).
+    - **Pinned:** `WorldSoundTests.ACapstanWinchIsHeardTurningHaulingStallingAndBringingItsSledIn`, at a foundry on a client night, off the mirrored record:
+        - in rhythm, the drum and the sled;
+        - out of rhythm, one stall, and the drum and the sled still;
+        - a sled in, one stop where it stops;
+        - from 400 m off, nothing.

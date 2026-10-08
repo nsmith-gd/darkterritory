@@ -2864,6 +2864,27 @@
   "takes": 3,
   "sha": "d93dced829c8d138"
  },
+ "crew-extinguisher/cell-out": {
+  "cue": "crew-extinguisher.cell-out",
+  "surface": null,
+  "picked": "first",
+  "candidates": [
+   {
+    "label": "A patch of the fire put out: the flames collapsing with a soft whump and a hissing gasp of steam, an ember ticking",
+    "key": "gasp",
+    "sources": [
+     "kenney_impact-sounds:impactWood_light_000",
+     "kenney_impact-sounds:impactWood_light_001",
+     "kenney_impact-sounds:impactWood_light_002",
+     "kenney_impact-sounds:impactWood_light_003",
+     "kenney_impact-sounds:impactWood_light_004"
+    ],
+    "licence": "CC0"
+   }
+  ],
+  "takes": 3,
+  "sha": "0dc3a14f3266dfa7"
+ },
  "crew-extinguisher/drop/concrete": {
   "cue": "crew-extinguisher.drop",
   "surface": "concrete",
@@ -2945,7 +2966,7 @@
    }
   ],
   "takes": 3,
-  "sha": "d12df2f7b54b43e4"
+  "sha": "b50e5b00eab8d29f"
  },
  "crew-extinguisher/drop/wood": {
   "cue": "crew-extinguisher.drop",
@@ -3017,6 +3038,27 @@
   "takes": 3,
   "sha": "ee4e17db8579ddfa"
  },
+ "crew-extinguisher/fire-out": {
+  "cue": "crew-extinguisher.fire-out",
+  "surface": null,
+  "picked": "first",
+  "candidates": [
+   {
+    "label": "The fire out: a long sigh of steam off the boards, water dripping off the char, the boards ticking as they cool",
+    "key": "cooling",
+    "sources": [
+     "kenney_impact-sounds:impactWood_light_000",
+     "kenney_impact-sounds:impactWood_light_001",
+     "kenney_impact-sounds:impactWood_light_002",
+     "kenney_impact-sounds:impactWood_light_003",
+     "kenney_impact-sounds:impactWood_light_004"
+    ],
+    "licence": "CC0"
+   }
+  ],
+  "takes": 2,
+  "sha": "cd17ae235390f977"
+ },
  "crew-extinguisher/grab-mount": {
   "cue": "crew-extinguisher.grab-mount",
   "surface": null,
@@ -3038,6 +3080,21 @@
   ],
   "takes": 3,
   "sha": "8b6f61090b412b51"
+ },
+ "crew-extinguisher/on-fire": {
+  "cue": "crew-extinguisher.on-fire",
+  "surface": null,
+  "picked": "first",
+  "candidates": [
+   {
+    "label": "The jet on the flames: the water flashing to steam, a sizzle and a rush of hiss, the fire's roar beaten down",
+    "key": "steam",
+    "sources": [],
+    "licence": "CC0"
+   }
+  ],
+  "takes": 2,
+  "sha": "57d1ab1556365c47"
  },
  "crew-extinguisher/return-mount": {
   "cue": "crew-extinguisher.return-mount",
@@ -11933,6 +11990,103 @@
   ],
   "takes": 3,
   "sha": "f400ded8c1209711"
+ },
+ "place-winch/capstan": {
+  "cue": "place-winch.capstan",
+  "surface": null,
+  "picked": "first",
+  "candidates": [
+   {
+    "label": "The capstan turning: the pawl clicking over its ratchet, the cranks creaking once a turn, the rope winding on",
+    "key": "drum",
+    "sources": [
+     "sfx_100_v2:misc_20",
+     "kenney_impact-sounds:impactMetal_medium_000",
+     "kenney_impact-sounds:impactMetal_medium_001",
+     "kenney_impact-sounds:impactMetal_medium_002",
+     "kenney_impact-sounds:impactMetal_medium_003",
+     "kenney_impact-sounds:impactMetal_medium_004"
+    ],
+    "licence": "CC0"
+   }
+  ],
+  "takes": 1,
+  "sha": "fe7fbbacb75b0270"
+ },
+ "place-winch/drag": {
+  "cue": "place-winch.drag",
+  "surface": null,
+  "picked": "first",
+  "candidates": [
+   {
+    "label": "The sled hauled in: its skids grinding over the gravel in heaves, stones crunching, the load rattling, the rope taut",
+    "key": "skids",
+    "sources": [
+     "sfx_100_v2:stones_01",
+     "sfx_100_v2:stones_02",
+     "sfx_100_v2:stones_03",
+     "kenney_impact-sounds:impactWood_heavy_000",
+     "kenney_impact-sounds:impactWood_heavy_001",
+     "kenney_impact-sounds:impactWood_heavy_002",
+     "kenney_impact-sounds:impactWood_heavy_003",
+     "kenney_impact-sounds:impactWood_heavy_004"
+    ],
+    "licence": "CC0"
+   }
+  ],
+  "takes": 2,
+  "sha": "7a27bd97ffca6845"
+ },
+ "place-winch/in": {
+  "cue": "place-winch.in",
+  "surface": null,
+  "picked": "first",
+  "candidates": [
+   {
+    "label": "A sled hauled in: its nose bumping the stop timber, the load settling with a shift, the rope going slack",
+    "key": "stop",
+    "sources": [
+     "kenney_impact-sounds:impactWood_heavy_000",
+     "kenney_impact-sounds:impactWood_heavy_001",
+     "kenney_impact-sounds:impactWood_heavy_002",
+     "kenney_impact-sounds:impactWood_heavy_003",
+     "kenney_impact-sounds:impactWood_heavy_004",
+     "sfx_100_v2:stones_01",
+     "sfx_100_v2:stones_02",
+     "sfx_100_v2:stones_03"
+    ],
+    "licence": "CC0"
+   }
+  ],
+  "takes": 2,
+  "sha": "7edbb72272d8aeae"
+ },
+ "place-winch/stall": {
+  "cue": "place-winch.stall",
+  "surface": null,
+  "picked": "first",
+  "candidates": [
+   {
+    "label": "Out of rhythm: the drum snatched to a stop, the pawl catching hard, the rope twanging, a crank jarring",
+    "key": "snatch",
+    "sources": [
+     "sfx_100_v2:misc_20",
+     "kenney_impact-sounds:impactMetal_heavy_000",
+     "kenney_impact-sounds:impactMetal_heavy_001",
+     "kenney_impact-sounds:impactMetal_heavy_002",
+     "kenney_impact-sounds:impactMetal_heavy_003",
+     "kenney_impact-sounds:impactMetal_heavy_004",
+     "kenney_impact-sounds:impactWood_heavy_000",
+     "kenney_impact-sounds:impactWood_heavy_001",
+     "kenney_impact-sounds:impactWood_heavy_002",
+     "kenney_impact-sounds:impactWood_heavy_003",
+     "kenney_impact-sounds:impactWood_heavy_004"
+    ],
+    "licence": "CC0"
+   }
+  ],
+  "takes": 3,
+  "sha": "cbb674e2d1e1b898"
  },
  "place-wreck/cargo-pull": {
   "cue": "place-wreck.cargo-pull",
