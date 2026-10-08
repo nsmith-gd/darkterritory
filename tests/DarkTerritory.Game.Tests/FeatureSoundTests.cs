@@ -52,12 +52,14 @@ public class FeatureSoundTests
         Body? find = null;
         for (ulong seed = 1; find is null; seed++)
         {
+            Assert.True(seed <= 40, "no healing find on 40 nights' stops");
             var route = RouteGenerator.Generate(RouteTuning.Load(Content), RouteTier.Frontier, seed);
             world = new World(new TrainOnLine(new TrainDynamics(Consist.Uniform(T, 4, 0)), route.Build(), 3_000, B), C);
             world.EnableBodies();
             world.EnableRun(DataFile.Load<RunTuning>(Path.Combine(Content, RunTuning.File)), route, route.GateOr(600), authority: true, loot: L);
+            // Searched too: a village's finds are in its open houses' cupboards and cellars (note 326).
             for (int k = 0; k < world.Run!.Stops.Count; k++)
-                world.Run.Stock(world.Bodies, k);
+                world.Run.Stock(world.Bodies, k, searched: true);
             find = world.Bodies.All.FirstOrDefault(b => b.Kind == BodyKind.Loot && world.Run.HealOf(b) > 0);
         }
         string item = world!.Run!.FindOf(find!)!.Value.Item;
