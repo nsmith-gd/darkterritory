@@ -53,6 +53,9 @@ static class PerfCommands
                     .Select(_ => new GreyboxRenderer(gpu, target.Width, target.Height, moonShadowSize: target.Eyes > 1 ? 1024 : 2048)).ToList();
             for (int e = 1; e < eyes.Count; e++)
                 eyes[e].ShadowsFrom = eyes[0];
+            // (A headset's hand lamp unshadowed, as VrView has it.)
+            foreach (var eye in eyes)
+                eye.HandShadows = target.Eyes == 1 || VrView.HandShadows;
             var all = eyes;
             foreach (var r in all)
                 look?.Dress(r);

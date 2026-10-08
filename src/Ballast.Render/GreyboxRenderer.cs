@@ -399,6 +399,12 @@ public sealed unsafe class GreyboxRenderer : IDisposable
     public int Views { get; }
 
     /// <summary>
+    /// Whether <see cref="MeshBuilder.ShadowLight"/> casts shadows here (its cube drawn, a pass a face); unshadowed, it lights
+    /// as a practical light. A headset's is off (the game's VrView): its frame hasn't the triangles to spare.
+    /// </summary>
+    public bool HandShadows { get; set; } = true;
+
+    /// <summary>
     /// The rendered frame. After <see cref="Record"/> it is in TransferSrcOptimal layout. With <see cref="Views"/> 2 it's
     /// an array image, the left eye in layer 0 and the right in layer 1.
     /// </summary>
@@ -851,7 +857,7 @@ public sealed unsafe class GreyboxRenderer : IDisposable
         f->LampViewProj = LampViewProjection(camera, lighting);
         _moonOn = lighting.MoonStrength > 0.01f && lighting.MoonDirection.Y > 0.05f && !Post.Ps2;
         f->MoonViewProj = MoonViewProjection(camera, lighting, (float)Width / Height);
-        _handOn = _hand is { Range: > 0.5f };
+        _handOn = HandShadows && _hand is { Range: > 0.5f };
         if (_hand is { } hand)
             HandFaces(hand, _handFaces);
         // Sampling another's shadow maps: its views, exactly as it drew them.

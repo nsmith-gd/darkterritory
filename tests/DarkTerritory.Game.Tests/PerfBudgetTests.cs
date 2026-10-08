@@ -48,6 +48,9 @@ public class PerfBudgetTests
             var eyes = Enumerable.Range(0, target.Eyes).Select(_ => new GreyboxRenderer(gpu, w, h, moonShadowSize: target.Eyes > 1 ? 1024 : 2048)).ToList();
             for (int e = 1; e < eyes.Count; e++)
                 eyes[e].ShadowsFrom = eyes[0];
+            // (A headset's hand lamp unshadowed, as VrView has it: note 436.)
+            foreach (var eye in eyes)
+                eye.HandShadows = target.Eyes == 1 || VrView.HandShadows;
             try
             {
                 foreach (var view in Views.Names)
