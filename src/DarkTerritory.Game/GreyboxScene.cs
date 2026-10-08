@@ -113,6 +113,9 @@ public sealed class GreyboxScene
     public double Time { get; set; }
     /// <summary>Vehicle state for doors (open or shut). Without it every door is drawn shut.</summary>
     public IReadOnlyList<Vehicle>? Vehicles { get; set; }
+    /// <summary>The hot boxes' tuning (note 331), for where a hot one smokes and how near it is to catching; null, the file's defaults.</summary>
+    public Sim.Train.HotBoxTuning? HotBoxTuning { get; set; }
+    static readonly Sim.Train.HotBoxTuning DefaultHotBox = new();
     /// <summary>Loose bodies: crates, lamps, the dead.</summary>
     public IReadOnlyList<Sim.Physics.Body>? Bodies { get; set; }
     /// <summary>
@@ -181,6 +184,12 @@ public sealed class GreyboxScene
     /// seized, not turning, sliding on the rail in sparks.
     /// </summary>
     public bool Ruptured { get; set; }
+    /// <summary>
+    /// The breaks the crew can mend, each called out where it is (note 301: <see cref="RepairCallouts.Of"/>), and which of them
+    /// (by index) someone's wrench is at now. Null, none.
+    /// </summary>
+    public IReadOnlyList<BreakCallout>? Breaks { get; set; }
+    public IReadOnlySet<int>? Mending { get; set; }
     /// <summary>Each car's strain on a bend taken too fast and its outer rail (BendStrain.PerCar): flange sparks off it.</summary>
     public IReadOnlyList<(float Stress, int Outer)>? BendStrain { get; set; }
     /// <summary>The cylinders seized and the train still dragging down to coasting speed (boiler.json ruptureCoastBelow).</summary>
@@ -391,6 +400,14 @@ public sealed class GreyboxScene
             }
             else
                 _rupturedAt = null;
+            // Every break to mend, called out (note 301), with a small hot light so the glow reads on the wall round it.
+            if (Breaks is { Count: > 0 } breaks)
+            {
+                Look.Art.Effects.Repairs(mesh, frames, eye, Time, breaks, Mending);
+                foreach (var b in breaks)
+                    if (frames.FirstOrDefault(f => f.Index == b.Vehicle) is { Shape: not null } bf && (bf.Origin - eye).Length < 60)
+                        mesh.PointLights.Add(new PointLight(V(bf.ToWorld(b.At), eye), Palette.LampAmber * (2.2f + 0.8f * (float)Math.Sin(Time * 6.9)), 4f));
+            }
             // Derailed (GDD §14): timed from the frame the scene first saw it (presentation only; the sim just stops the train).
             if (Derailed)
             {
@@ -1616,6 +1633,22 @@ public sealed class GreyboxScene
 
     static Vector3 V(Double3 p, Double3 eye) => p.RelativeTo(eye);
 
+    /// <summary>Which of <paramref name="breaks"/> someone's wrench is at now (note 301): its callout showers sparks off each strike.</summary>
+    public static HashSet<int>? MendingAt(IReadOnlyList<BreakCallout> breaks, IEnumerable<Sim.Player.PlayerState> crew, TrainOnLine train)
+    {
+        HashSet<int>? at = null;
+        foreach (var s in crew)
+        {
+            if (s.ActionProgress <= 0 || !Repairs.WrenchInHand(s) || Repairs.At(s, train) is not (var kind and not BreakKind.None))
+                continue;
+            int car = kind == BreakKind.Rupture ? 0 : s.Parent;
+            for (int i = 0; i < breaks.Count; i++)
+                if (breaks[i].Kind == kind && breaks[i].Vehicle == car)
+                    (at ??= []).Add(i);
+        }
+        return at;
+    }
+
     /// <summary>
     /// A car the film cuts away (E.4 O2) keeps its floor: someone tumbling inside it is seen lying in a car with its shell
     /// lifted off, not on the track under nothing (note 251's "a cutaway that keeps the floor").
@@ -2589,6 +2622,16 @@ public sealed class GreyboxScene
             ? 1u << kitBay.Index : 0;
         if (Look is not null && burnt is { } fire)
             Look.Art.Effects.CarSmoke(mesh, o, right, up, back, shape, fire, (float)_speed, Time, frame.Index);
+        // A hot axle box (note 331): smoke off its rear bogie, on both sides (a box on each rail).
+        if (Look is not null && vehicle is { HotBox: > 0 } hotCar)
+        {
+            var hb = HotBoxTuning ?? DefaultHotBox;
+            var box = Sim.Train.HotBoxes.Box(frame.Shape, hb);
+            float heat = (float)Math.Clamp(hotCar.HotBox / hb.FireAfter, 0, 1);
+            foreach (int side in (ReadOnlySpan<int>)[1, -1])
+                Look.Art.Effects.HotBoxSmoke(mesh, o + right * (float)(box.X * side) + up * (float)box.Y + back * (float)box.Z, up, back, heat,
+                    (float)_speed, Time, frame.Index * 2 + (side > 0 ? 1 : 0));
+        }
         bool utility = Utility?.Invoke(frame.Index) == true || vehicle is { Kind: VehicleKind.Utility };
         // A lived-in car's stove smoking through its pipe: a utility car's, and the guard van's (TrainKit).
         if (Look is not null && frame.Shape.Interior is { } inside && frame.Shape.Cab is null && (utility || frame.Shape.Gun is not null))

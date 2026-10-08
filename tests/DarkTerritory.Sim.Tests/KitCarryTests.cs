@@ -16,9 +16,11 @@ public class KitCarryTests
 {
     static readonly RailLine Line = new(new LineDefinition("t", [new TrackSegment(50_000)]));
 
-    static World Stocked()
+    /// <summary>A stocked train where the kit mends the boiler (note 301's <c>repair.wrench</c> off; on, nobody brings it).</summary>
+    static World Stocked(bool wrench = false)
     {
-        var world = new World(new TrainOnLine(new TrainDynamics(Consist.Uniform(Tuning.Train, 6, 1)), Line, 1_000));
+        var t = Tuning.Train with { Repair = Tuning.Train.Repair with { Wrench = wrench } };
+        var world = new World(new TrainOnLine(new TrainDynamics(Consist.Uniform(t, 6, 1)), Line, 1_000));
         world.EnableBodies();
         world.Stock();
         return world;
@@ -72,6 +74,10 @@ public class KitCarryTests
         // Brought as far as car 1, the cab fetches it the rest of the way.
         KitTo(world, 1);
         Assert.Null(KitCarry.Lying(world));
+        // Note 301: where the wrench mends the boiler, the kit's nobody's to bring.
+        var wrenched = Stocked(wrench: true);
+        KitTo(wrenched, 4);
+        Assert.Null(KitCarry.Lying(wrenched));
     }
 
     [Fact]
