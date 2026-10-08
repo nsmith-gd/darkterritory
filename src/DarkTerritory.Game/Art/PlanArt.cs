@@ -194,18 +194,11 @@ public sealed partial class WorldArt
         return Stand(t.Position + r * lateral, cover);
     }
 
-    /// <summary>A biome's stand cover (its tree density as a share of the land under forest).</summary>
-    static float Cover(BiomeDef def) => def.TreeDensity <= 0 ? 0 : Math.Clamp((float)def.TreeDensity * 0.85f + 0.08f, 0.04f, 0.92f);
+    /// <summary>A biome's stand cover (its tree density as a share of the land under forest; the sim's, note 371).</summary>
+    static float Cover(BiomeDef def) => (float)Sim.Run.LinesideProps.Cover(def);
 
-    /// <summary><see cref="Stand(RailLine, double, double, float)"/> at a world point.</summary>
-    static float Stand(Double3 w, float cover)
-    {
-        float x = (float)(w.X % 8192), z = (float)(w.Z % 8192);
-        float n = Noise(x * 0.0065f + 11.7f, z * 0.0065f - 3.3f) * 0.7f + Noise(x * 0.028f - 7.1f, z * 0.028f + 1.9f) * 0.3f;
-        // The noise sits about its middle (two value noises), so the threshold is set there: about cover of the land.
-        float edge = 0.5f + (0.5f - cover) * 0.45f;
-        return SmoothStep(edge - 0.012f, edge + 0.012f, n);
-    }
+    /// <summary><see cref="Stand(RailLine, double, double, float)"/> at a world point: the sim's stands (note 371), where its trees are.</summary>
+    static float Stand(Double3 w, float cover) => (float)Sim.Run.LinesideProps.Stand(w, cover);
 
     /// <summary>The land's tint at a world point: broad light and dark swathes, a little warmer and cooler, over the tiles.</summary>
     static Vector3 Macro(Vector3 world)
@@ -259,89 +252,73 @@ public sealed partial class WorldArt
             _ => Piece($"spruce-{v}", () => NovaKit.Conifer(_look, v, 12, 0.3f)),
         };
 
+        // The trees and boulders are the sim's (note 371): it deals them from the night's seed, alike on every machine, and
+        // stands them as walls, so what's drawn here is what's walked into. What's only seen of each (its tint, a ghost or a
+        // dead spruce) is drawn from its own seed.
+        var lineside = Sim.Run.LinesideProps.Of(route, line);
+        var forts = Forts(line);
+        foreach (var prop in lineside?.Props(from, to) ?? [])
+        {
+            if (prop.Kind == Sim.Run.LinesideKind.Pole || Sim.Run.LinesideProps.InsideAFort(forts, prop.Along, prop.Lateral))
+                continue;
+            var rng = new Random(unchecked((int)prop.Seed));
+            double along = prop.Along, offset = prop.Lateral;
+            float yaw = (float)prop.Yaw;
+            int variant = prop.Variant;
+            if (prop.Kind == Sim.Run.LinesideKind.Rock)
+            {
+                mesh.Append(Piece($"rock-{variant}", () => WorldKit.Rock(_look, variant, 1)), Place(along, offset, yaw, (float)prop.Size, (float)prop.Sink).M);
+                continue;
+            }
+            float height = (float)prop.Height;
+            bool dead = prop.Dead, corrupted = prop.Corrupted;
+            string kind = prop.Species;
+            var (m, _) = Place(along, offset, yaw, height / 12, 0.15f);
+            MeshAsset piece = dead
+                ? rng.Next(2) == 0 ? Piece($"ghost-{variant}", () => NovaKit.GhostSpruce(_look, variant)) : Piece($"dead-{variant % 2}", () => WorldKit.DeadTree(_look, variant % 2, 10))
+                : Tree(kind, variant, Math.Abs(offset) < NearSpruce);
+            if (dead)
+                (m, _) = Place(along, offset, yaw, height / (piece.Name.StartsWith("ghost") ? 8 + variant * 2.5f : 10) * 0.9f, 0.15f);
+            if (kind == "birch" && !dead)
+                (m, _) = Place(along, offset, yaw, height / 11, 0.1f);
+            // Tamarack goes gold in the fall, before its needles drop (the bog's one colour).
+            var tint = kind == "tamarack" && !dead ? new Vector3(1.55f, 1.2f, 0.55f) * (0.85f + 0.3f * (float)rng.NextDouble()) : new Vector3(0.8f + 0.3f * (float)rng.NextDouble());
+            // The corruption's trees (GDD §30): charred black and sweating, the brass breaking out through the bark up
+            // the trunk as well as heaped at the foot.
+            if (corrupted)
+                tint = new Vector3(0.32f, 0.24f, 0.2f);
+            mesh.Append(piece, m, tint);
+            if (corrupted)
+            {
+                // Brighter than a brass field's growths, a sick glow in them: what the eye should catch in the dead wood.
+                var brass = Piece($"growth-{variant % 3}", () => BrassCluster(_look, variant % 3, glow: 0.4f));
+                var glint = new Vector3(1.6f, 1.35f, 0.8f);
+                mesh.Append(brass, Place(along + 0.6, offset, yaw, 2.6f, 0.05f).M, glint);
+                var trunk = Place(along, offset, yaw, 1, 0.05f).M;
+                for (int b = 0; b < 3; b++)
+                {
+                    float up = height * (0.2f + 0.22f * b), turn = yaw + b * 2.1f;
+                    mesh.Append(brass, Matrix4x4.CreateScale(2.2f - 0.4f * b) * Matrix4x4.CreateRotationZ(1.2f) * Matrix4x4.CreateRotationY(turn)
+                        * Matrix4x4.CreateTranslation(0, up, 0) * trunk, glint);
+                }
+            }
+        }
         for (double s = Math.Ceiling(from / 12) * 12; s < to; s += 12)
         {
             if (!Clear(s) || p.Biome(s) is not { } def)
                 continue;
             var rng = new Random(unchecked(seed * 73856093 ^ (int)(s / 12) * 19349663));
-            // The forest comes in stands (maritime-rules.md §5, "the spruce wall"): world-space patches with hard
-            // edges, as much of the land as the biome's density says, planted solid; out of them only the odd tree.
-            // The line runs through them with the alder between: that's the Maritime view, not trees dotted on heath.
             float cover = Cover(def);
-            bool dense = def.TreeDensity >= 0.8;
-            double near = def.TreeDensity >= 1.2 ? 6 : dense ? 7 : 9;
-            int count = def.TreeDensity <= 0 ? 0 : 50;
-            double floraTotal = def.Flora.Values.Sum();
-            for (int k = 0; k < count; k++)
-            {
-                double side = rng.Next(2) == 0 ? -1 : 1;
-                double offset = side * (near + Math.Pow(rng.NextDouble(), 0.8) * (90 - near));
-                double along = s + rng.NextDouble() * 12;
-                float standing = Stand(line, along, offset, cover);
-                if (rng.NextDouble() > (standing > 0.5f ? 1 : 0.035))
-                    continue;
-                bool dead = rng.NextDouble() < def.DeadTrees;
-                bool corrupted = dead && def.Trees.Contains("corrupted") && rng.NextDouble() < 0.35;
-                int variant = rng.Next(4);
-                float yaw = (float)rng.NextDouble() * MathF.Tau;
-                // Which kind, by the biome's flora weights.
-                string kind = "spruce";
-                double pick = rng.NextDouble() * floraTotal;
-                foreach (var (name, w) in def.Flora)
-                    if ((pick -= w) < 0)
-                    {
-                        kind = name;
-                        break;
-                    }
-                // Stunted on the barrens and the highland (krummholz), tall in the forest.
-                float height = def.Verge == "barrens" ? 3 + (float)rng.NextDouble() * 5 : (dead ? 7 : 11) + (float)rng.NextDouble() * (dense ? 11 : 8);
-                // White pine stands out over the spruce (maritime-rules.md §5: to 35 m over a 20-30 m canopy), even on the barrens.
-                if (kind == "pine" && !dead)
-                    height = (def.Verge == "barrens" ? 9 : 20) + (float)rng.NextDouble() * 9;
-                if (!Free(along, offset))
-                    continue;
-                var (m, slope) = Place(along, offset, yaw, height / 12, 0.15f);
-                if (slope > 1.1f)
-                    continue; // nothing grows on the crag
-                MeshAsset piece = dead
-                    ? rng.Next(2) == 0 ? Piece($"ghost-{variant}", () => NovaKit.GhostSpruce(_look, variant)) : Piece($"dead-{variant % 2}", () => WorldKit.DeadTree(_look, variant % 2, 10))
-                    : Tree(kind, variant, Math.Abs(offset) < NearSpruce);
-                if (dead)
-                    (m, _) = Place(along, offset, yaw, height / (piece.Name.StartsWith("ghost") ? 8 + variant * 2.5f : 10) * 0.9f, 0.15f);
-                if (kind == "birch" && !dead)
-                    (m, _) = Place(along, offset, yaw, height / 11, 0.1f);
-                // Tamarack goes gold in the fall, before its needles drop (the bog's one colour).
-                var tint = kind == "tamarack" && !dead ? new Vector3(1.55f, 1.2f, 0.55f) * (0.85f + 0.3f * (float)rng.NextDouble()) : new Vector3(0.8f + 0.3f * (float)rng.NextDouble());
-                // The corruption's trees (GDD §30): charred black and sweating, the brass breaking out through the bark up
-                // the trunk as well as heaped at the foot.
-                if (corrupted)
-                    tint = new Vector3(0.32f, 0.24f, 0.2f);
-                mesh.Append(piece, m, tint);
-                if (corrupted)
-                {
-                    // Brighter than a brass field's growths, a sick glow in them: what the eye should catch in the dead wood.
-                    var brass = Piece($"growth-{variant % 3}", () => BrassCluster(_look, variant % 3, glow: 0.4f));
-                    var glint = new Vector3(1.6f, 1.35f, 0.8f);
-                    mesh.Append(brass, Place(along + 0.6, offset, yaw, 2.6f, 0.05f).M, glint);
-                    var trunk = Place(along, offset, yaw, 1, 0.05f).M;
-                    for (int b = 0; b < 3; b++)
-                    {
-                        float up = height * (0.2f + 0.22f * b), turn = yaw + b * 2.1f;
-                        mesh.Append(brass, Matrix4x4.CreateScale(2.2f - 0.4f * b) * Matrix4x4.CreateRotationZ(1.2f) * Matrix4x4.CreateRotationY(turn)
-                            * Matrix4x4.CreateTranslation(0, up, 0) * trunk, glint);
-                    }
-                }
-            }
             // The stand's mass behind the single trees: walls of packed spires where a stand runs on out from the
             // line, one at its near edge's depth and one deep in it, so the forest has a body and a serrated top.
             // (On the barrens and the coast the stands are stunted: the wind-cut white spruce of the headlands.)
             bool stunted = def.Verge == "barrens";
             if (def.TreeDensity >= 0.3 && s % 24 < 12)
-                foreach (int side in new[] { -1, 1 })
+                foreach (int sideOf in new[] { -1, 1 })
                     foreach (double depth in new[] { 55 + rng.NextDouble() * 30, 125 + rng.NextDouble() * 40 })
                     {
-                        double lateral = side * depth, along = s + rng.NextDouble() * 4;
-                        if (Stand(line, along, lateral, cover) < 0.5f || Stand(line, along, lateral + side * 20, cover) < 0.5f || !Free(along, lateral))
+                        double lateral = sideOf * depth, along = s + rng.NextDouble() * 4;
+                        if (Stand(line, along, lateral, cover) < 0.5f || Stand(line, along, lateral + sideOf * 20, cover) < 0.5f || !Free(along, lateral))
                             continue;
                         var (m, slope) = Place(along, lateral, (float)(rng.NextDouble() - 0.5) * 0.25f, 1, 0.5f);
                         if (slope > 0.9f)
@@ -350,20 +327,6 @@ public sealed partial class WorldArt
                         float th = stunted ? 6 + (float)rng.NextDouble() * 4 : 13 + (float)rng.NextDouble() * 6;
                         mesh.Append(Piece($"treeline-{tv}-{th:0}", () => NovaKit.Treeline(_look, tv, 26, th)), m, new Vector3(0.8f + 0.25f * (float)rng.NextDouble()));
                     }
-            // Boulders where the land is rough, bigger and more of them the rougher it is, sunk into the slope.
-            for (int k = 0; k < (int)(def.Rocks + rng.NextDouble()); k++)
-            {
-                double offset = (rng.Next(2) == 0 ? -1 : 1) * (6 + rng.NextDouble() * 80);
-                double along = s + rng.NextDouble() * 12;
-                if (!Free(along, offset))
-                    continue;
-                int v = rng.Next(3);
-                float size = 0.8f + (float)rng.NextDouble() * (float)(1.2 + def.NoiseScale * 1.6);
-                var (_, slope) = Place(along, offset, 0, 1, 0);
-                size *= slope > 0.6f ? 1.6f : 1;
-                var (m, _) = Place(along, offset, (float)rng.NextDouble() * 6.28f, size, size * (0.3f + 1.1f * Math.Min(slope, 1.5f)));
-                mesh.Append(Piece($"rock-{v}", () => WorldKit.Rock(_look, v, 1)), m);
-            }
         }
         // Low growth along the verge: dead grass, the bog's reeds thick out to its water, the barrens' heath and lichen.
         for (double s = Math.Ceiling(from / 3) * 3; s < to; s += 3)

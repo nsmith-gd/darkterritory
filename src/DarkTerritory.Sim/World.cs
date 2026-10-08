@@ -688,7 +688,7 @@ public sealed class World
         Bookmarks.Tuning = tuning.Bookmarks;
         Forts = Sim.Run.Fortresses.Of(route, Train.Line, yardLength, tuning.TerminusZone);
         _walls = tuning.Walls;
-        Train.Walls = Sim.Run.StopWalls.Of(route, Train.Line, Forts, _walls);
+        Train.Walls = LinesideToo(Sim.Run.StopWalls.Of(route, Train.Line, Forts, _walls), route);
         if (facilities is not null)
         {
             Run.EnableSites(facilities, Train.Line);
@@ -707,6 +707,17 @@ public sealed class World
         }
         Train.Walls = ClearSiteWork(Train.Walls);
         Authority |= authority;
+    }
+
+    /// <summary>
+    /// Note 371: a generated line's trees, boulders and telegraph poles stand beside the stops' walls, out to
+    /// run.json <c>walls.linesideReachM</c> from the line, none inside a fort (<see cref="Sim.Run.LinesideProps"/>).
+    /// </summary>
+    Sim.Run.StopWalls LinesideToo(Sim.Run.StopWalls walls, Route.Route route)
+    {
+        if (Sim.Run.LinesideProps.Of(route, Train.Line) is { } side && _walls is { LinesideReachM: > 0 } t)
+            walls.Add(side.Walls(Forts ?? [], t.LinesideReachM));
+        return walls;
     }
 
     /// <summary>Note 279: the stops' walls less where a facility's modules are worked (<see cref="Sim.Run.Site.WorkPoints"/>), its yard cranes too.</summary>
@@ -734,7 +745,7 @@ public sealed class World
         // The departure fortress is the town's: its walls stand back round the square (note 281), so they're built again.
         if (Forts is { Count: > 0 } forts)
             Forts = [forts[0] with { Square = plan.Square, Bounds = plan.Bounds }, .. forts.Skip(1)];
-        Train.Walls = ClearSiteWork(Sim.Run.StopWalls.Of(route, Train.Line, Forts, _walls));
+        Train.Walls = ClearSiteWork(LinesideToo(Sim.Run.StopWalls.Of(route, Train.Line, Forts, _walls), route));
         Train.Walls.Add(Town.Walls);
     }
 

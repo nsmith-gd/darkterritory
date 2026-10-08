@@ -94,8 +94,10 @@ public static class Footing
         "ground_grass" or "ground_heath" => "grass",
         "ground_needles" or "ground_forest" => "dirt",
         "cobbles" or "rock_cliff" or "granite_lichen" or "stone_block" => "cobbles",
-        "wood_sleeper" or "wood_grey" or "planks" => "wood",
+        "wood_sleeper" or "wood_grey" or "wood_floor" or "planks" => "wood",
         "concrete" => "concrete",
+        // The prison van's plate (note 387): a Holdout's floor (WorldArt.Floor).
+        "paint_oxide" => "grate",
         _ => "ground",
     };
 
