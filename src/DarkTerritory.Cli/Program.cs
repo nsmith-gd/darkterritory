@@ -1405,6 +1405,19 @@ static object Screenshot(TrainTuning t, string content, string[] args)
     // --whistler carry|nest: the one it's carrying off, or has at its nest, as well as anyone else staged (App. A.4; Staging.Carried).
     if (Str(args, "--whistler", "") is "carry" or "nest" && scene.Enemies?.OfType<DarkTerritory.Sim.Enemies.Whistler>().FirstOrDefault() is { Holding: >= 0 } carrying)
         scene.Crew = [.. scene.Crew ?? [], Staging.Carried(carrying)];
+    // --moose graze|listen|warn|squareup|charge|wheel|snag|search|pin: the staged Moose (note 339; Staging.Moose) off the
+    // engine's left up the line, with --threats or alone; riled, at crewmate 4 out in front of the engine. The moose view
+    // stages it warning unless told otherwise, moosecharge charging.
+    if (Str(args, "--moose", view switch { "moose" => "warn", "moosecharge" => "charge", "moosepin" => "pin", _ => "" }) is { Length: > 0 } mooseMode)
+    {
+        scene.Enemies = Staging.Moose(scene.Enemies is List<DarkTerritory.Sim.Enemies.Enemy> others ? others : [], train, mooseMode);
+        if (mooseMode is not ("graze" or "listen" or "warn"))
+            scene.Crew = [.. (scene.Crew ?? []).Where(c => c.Id != Staging.LoneId), Staging.MooseCrewmate(train, mooseMode)];
+        // How fast it's going (GreyboxScene's pace, for its gait): a charge's, a search's walk.
+        var mooseTuning = DataFile.Load<DarkTerritory.Sim.Enemies.EnemyTuning>(Path.Combine(content, DarkTerritory.Sim.Enemies.EnemyTuning.File)).Moose;
+        float moosePace = mooseMode switch { "charge" => (float)mooseTuning.ChargeSpeed, "search" => (float)mooseTuning.SearchSpeed, _ => 0 };
+        scene.StagedPaces = new Dictionary<int, float>(scene.StagedPaces ?? new Dictionary<int, float>()) { [Staging.MooseId] = moosePace };
+    }
     // --gaunt leave|leavein: the body it's carrying off, under it (App. A.6; Staging.GauntLoad).
     if (Str(args, "--gaunt", "") is "leave" or "leavein" && scene.Enemies?.OfType<DarkTerritory.Sim.Enemies.Gaunt>().FirstOrDefault() is { } leaving)
         scene.Bodies = Staging.GauntLoad(train, content, leaving).All;

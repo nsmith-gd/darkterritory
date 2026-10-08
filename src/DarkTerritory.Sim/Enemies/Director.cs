@@ -1036,7 +1036,9 @@ public sealed class Director
     public static bool Engaged(Enemy e) => !e.Gone && !e.Hazard
         && (e.Phase is SpinePhase.Alert or SpinePhase.Telegraph or SpinePhase.Commit or SpinePhase.Grab or SpinePhase.Punish
             // Dormant but on the move is pressure too (a Climber pacing the train); only what lies in wait isn't.
-            || e.Phase == SpinePhase.Dormant && e.Kind is not (EnemyKind.Dragger or EnemyKind.Whistler or EnemyKind.CarHugger or EnemyKind.Gaunt or EnemyKind.TippyToesie));
+            || e.Phase == SpinePhase.Dormant && e.Kind is not (EnemyKind.Dragger or EnemyKind.Whistler or EnemyKind.CarHugger or EnemyKind.Gaunt or EnemyKind.TippyToesie
+                // A grazing Moose (note 339) only waits to be bothered.
+                or EnemyKind.Moose));
 
     /// <summary>
     /// App. B.1's hard caps, on what's engaged: two at a time in the flank, the interior and outside (the middle is
@@ -1086,6 +1088,7 @@ public sealed class Director
                 EnemyKind.FireFlies => new FireFlies(0),
                 EnemyKind.Ribbit => new Ribbit(0, 0),
                 EnemyKind.Grumbler => new Grumbler(0),
+                EnemyKind.Moose => new Moose(0),
                 _ => new ChoirGhost(0),
             };
             d[kind] = (e.Zone, e.Sense, e.Want);
