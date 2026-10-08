@@ -310,8 +310,10 @@ public sealed class GreyboxScene
                         || site.Has(Sim.Run.ModuleKind.Lift))
                         && (site.Track.Sample(site.Mid).Position - eye).Length < DrawDistance + 120)
                         SetPieces(mesh, site, frames, eye, Time);
-                    // The wreck yard's heaps (note 187): the last train's cars on their sides, groaning when they're going to go.
-                    if (site is { Heaps.Count: > 0 } && (site.Heaps[0].Centre - eye).Length < DrawDistance + 120)
+                    // The wreck yard's heaps (note 187): the last train's cars on their sides, groaning when they're going to go;
+                    // drawn as the train's own cars, wrecked, where the art pass has them (note 394).
+                    if (site is { Heaps.Count: > 0 } && (site.Heaps[0].Centre - eye).Length < DrawDistance + 120
+                        && Look?.Art.Wreckage(mesh, site, frames, eye, Time, DrawDistance) != true)
                         Wreckage(mesh, site, eye, Time);
                     // Its own gantry and the yard's (level-design P18: one over each craned loading face).
                     foreach (var crane in site?.Cranes ?? [])
@@ -1872,7 +1874,7 @@ public sealed class GreyboxScene
         {
             if (s.ActionProgress <= 0 || !Repairs.WrenchInHand(s) || Repairs.At(s, train) is not (var kind and not BreakKind.None))
                 continue;
-            int car = kind == BreakKind.Rupture ? 0 : s.Parent;
+            int car = kind is BreakKind.Rupture or BreakKind.Lamp ? 0 : s.Parent;
             for (int i = 0; i < breaks.Count; i++)
                 if (breaks[i].Kind == kind && breaks[i].Vehicle == car)
                     (at ??= []).Add(i);

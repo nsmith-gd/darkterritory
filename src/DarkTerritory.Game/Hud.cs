@@ -321,9 +321,13 @@ public static partial class Hud
         var lines = SuppliesLines(s.World, s.PlayerId);
         const string title = "SUPPLIES ABOARD";
         string close = Bound("CLOSE : [I]");
-        float k = Fine, pad = PanelPad * k;
-        float col = lines.Max(l => o.Measure(l.Item, k)) + 12 * k;
-        float content = Math.Max(o.Measure(title, k) + 12 * k + UiStyle.MeasureKeyed(o, close, k), col + lines.Max(l => o.Measure(l.Value, k)));
+        float k = Fine;
+        float Col(float k) => lines.Max(l => o.Measure(l.Item, k)) + 12 * k;
+        float Content(float k) => Math.Max(o.Measure(title, k) + 12 * k + UiStyle.MeasureKeyed(o, close, k), Col(k) + lines.Max(l => o.Measure(l.Value, k)));
+        // Too wide for the frame at the whole step up (TEXT SIZE on a small window, note 351): the half step, as at 1080p.
+        if (k > 0.5f && Content(k) + 2 * PanelPad * k > width - 8)
+            k = 0.5f;
+        float pad = PanelPad * k, col = Col(k), content = Content(k);
         var (x, y, w) = Panel(o, width, height, title, content, lines.Count, Amber, k);
         UiStyle.Keyed(o, Overlay.Snap(x + w - pad - UiStyle.MeasureKeyed(o, close, k), k), y - (o.Font.LineHeight + 4) * k, close, Dim, k);
         foreach (var (item, value, warn) in lines)
@@ -345,7 +349,9 @@ public static partial class Hud
         if (train.BoilerTuning is { } bt)
             rows.Add(("COAL", $"{train.Boiler.Tender:0} IN THE TENDER, FIRE {train.Boiler.Firebox:0.0}", train.Boiler.Tender < 40 || train.Boiler.LowFire(bt)));
         int kits = Count(BodyKind.RepairKit);
-        rows.Add(("REPAIR KIT", KitWhere(world, playerId) + (kits > 1 ? $" (+{kits - 1} SPARE)" : ""), kits == 0));
+        // Note 301: where the wrench is the repair tool, there's no kit to keep track of.
+        if (!Repairs.ByWrench(train))
+            rows.Add(("REPAIR KIT", KitWhere(world, playerId) + (kits > 1 ? $" (+{kits - 1} SPARE)" : ""), kits == 0));
         rows.Add(("EXTINGUISHERS", $"{Count(BodyKind.Extinguisher)} ABOARD", Count(BodyKind.Extinguisher) == 0));
         var cargo = consist.Vehicles.Where(v => v.Kind == VehicleKind.Cargo).ToList();
         rows.Add(("CARGO", $"{cargo.Count(v => v.Load > 0.01)} OF {cargo.Count} CARS LOADED, {cargo.Sum(v => v.Load):0.0} LOADS; {Count(BodyKind.Crate) + Count(BodyKind.Cargo)} CRATES", false));
@@ -570,8 +576,9 @@ public static partial class Hud
     }
 
     /// <summary>
-    /// At a Holdout with someone in it (GDD App. D.7): break them out, or, with the repair kit in hand at a lock, open it
-    /// quietly (at a barricade the kit's no help: it's pried, and the kit stays in hand). Null away from one.
+    /// At a Holdout with someone in it (GDD App. D.7): break them out, or, with the repair kit in hand at a lock (the wrench,
+    /// where it's the repair tool: note 301), open it quietly (at a barricade the kit's no help: it's pried, and the kit stays
+    /// in hand). Null away from one.
     /// </summary>
     static string? HoldoutPrompt(Sim.World world, in PlayerState p, TrainOnLine train, bool kit)
     {
@@ -721,7 +728,7 @@ public static partial class Hud
             {
                 // GDD v1.4 §23.2: nobody died of it, and nobody much cares.
                 Big("STRANDED", Amber);
-                Small(EngineeringKit.Line(r.KitLoss), Ink, fine: false);
+                Small(EngineeringKit.Line(r.KitLoss, Repairs.ByWrench(world.Train)), Ink, fine: false);
                 Small($"RECOVERY AT FIRST LIGHT. RECOVERY IS CHARGEABLE: {r.Recovery:0} SCRIP", Dim, fine: false);
             }
             else
@@ -772,10 +779,14 @@ public static partial class Hud
             {
                 Big("BOILER RUPTURED", Red);
                 // GDD v1.4 §23.2: where the repair kit is decides the night; lost to the Territory, it's over once she stops.
-                if (world.Run?.Kit.Lost == true)
-                    Small("THE REPAIR KIT IS GONE", Red);
-                else
-                    Small(RepairKitWhere(world, s.PlayerId), Ink);
+                // (Note 301: where the wrench mends it, there's no kit to look for; the fire door's callout shows where.)
+                if (!Repairs.ByWrench(world.Train))
+                {
+                    if (world.Run?.Kit.Lost == true)
+                        Small("THE REPAIR KIT IS GONE", Red);
+                    else
+                        Small(RepairKitWhere(world, s.PlayerId), Ink);
+                }
             }
             else if (b.AtMaxSeconds > 0)
             {
@@ -1483,9 +1494,14 @@ public static partial class Hud
     /// The prompt's print (App. F.1 on the prompts, "they're good but they are too big ... so they take up less space"):
     /// fine print a hand's breadth under the crosshair, where the eye already is, on a thin strip of iron rather than a
     /// riveted plate. Half the HUD's own wherever that still gives each of the font's pixels two of the screen's (1080p and
-    /// up); in half steps bigger below that, so it's never mush.
+    /// up); in half steps bigger below that, so it's never mush. TEXT SIZE asks as many more of the screen's (note 351: on a
+    /// 720p window 150%'s smaller canvas had dropped it the half step, smaller than at 100%).
     /// </summary>
-    public static float PromptScaleAt(float pixels) => Math.Clamp(MathF.Ceiling(2 * 2 / MathF.Max(1, pixels)) / 2, 0.5f, 1);
+    public static float PromptScaleAt(float pixels) => PromptScaleAt(pixels, (float)Keys.TextScale);
+
+    /// <summary><see cref="PromptScaleAt(float)"/> at a TEXT SIZE's scale.</summary>
+    public static float PromptScaleAt(float pixels, float textScale) =>
+        Math.Clamp(MathF.Ceiling(2 * 2 * textScale / MathF.Max(1, pixels)) / 2, 0.5f, 1);
 
     static float _promptScale = 0.5f;
 
@@ -1573,15 +1589,24 @@ public static partial class Hud
         var at = Repairs.At(p, train, hand);
         if (at == BreakKind.None)
             return null;
-        string what = at switch { BreakKind.Breach => "THE CAR'S BREACHED", BreakKind.Rupture => "BOILER RUPTURED", _ => "THE CAR'S BATTERED" };
+        string what = at switch
+        {
+            BreakKind.Breach => "THE CAR'S BREACHED",
+            BreakKind.Rupture => "BOILER RUPTURED",
+            BreakKind.Lamp => "THE HEADLAMP'S SMASHED",
+            _ => "THE CAR'S BATTERED",
+        };
         if (!Repairs.WrenchInHand(p))
             return Repairs.WrenchKey(p) is var key and > 0 ? $"{what}   WRENCH : [{key}]" : $"{what}   NO WRENCH";
         double done = at switch
         {
             BreakKind.Breach => p.ActionProgress / train.Dynamics.Tuning.Breach.BoardSeconds,
             BreakKind.Rupture => train.BoilerTuning is { } bt ? p.ActionProgress / bt.RepairSeconds : 0,
-            _ => p.Parent > 0 && p.Parent < train.Vehicles.Count ? train.Vehicles[p.Parent].Integrity / Math.Max(1e-6, Repairs.Mendable(train.Vehicles[p.Parent])) : 0,
+            _ => p.Parent >= 0 && p.Parent < train.Vehicles.Count ? train.Vehicles[p.Parent].Integrity / Math.Max(1e-6, Repairs.Mendable(train.Vehicles[p.Parent])) : 0,
         };
+        // The lamp's glass has no fixed length to show a share of (lamp armour halves it): the hold, and the work going on.
+        if (at == BreakKind.Lamp)
+            return p.ActionProgress > 0 ? "MENDING THE HEADLAMP" : "MEND THE HEADLAMP : HOLD [E]";
         string verb = at switch { BreakKind.Breach => "BOARD IT UP", BreakKind.Rupture => "MEND THE BOILER", _ => "MEND THE CAR" };
         return Hold(verb, done);
     }
@@ -1617,12 +1642,13 @@ public static partial class Hud
             return locker;
         // Note 200: the kit in hand at a broken radio (your own, or one lying in reach): held, it's mended; a tap still puts the
         // kit down.
-        if (world.Bodies.CarriedBy(s.PlayerId) is { Kind: BodyKind.RepairKit } && world.Bodies.MendableRadio(p, train, world.Hand, s.PlayerId) is { } radio)
+        // Note 301: the wrench in empty hands, where it's the repair tool (and a tap puts nothing down).
+        if (Bodies.Mends(p, train, world.Bodies.CarriedBy(s.PlayerId)) && world.Bodies.MendableRadio(p, train, world.Hand, s.PlayerId) is { } radio)
         {
             double mend = train.Dynamics.Tuning.Kit.RadioMendSeconds;
             string whose = radio.Carrier == s.PlayerId ? "YOUR RADIO" : "THE RADIO";
             return radio.MendTicks > 0 ? $"MENDING {whose} ({radio.MendTicks * Sim.SimConstants.TickSeconds / mend * 100:0}%)"
-                : $"MEND {whose} : HOLD [E]   PUT DOWN : [E]";
+                : Repairs.ByWrench(train) ? $"MEND {whose} : HOLD [E]" : $"MEND {whose} : HOLD [E]   PUT DOWN : [E]";
         }
         // Carried, Use puts it down: nothing else in reach is offered. What it is, and how to be rid of it, is the corner's;
         // here only a healing find's use under way (note 272, in note 285's form).
@@ -1678,7 +1704,7 @@ public static partial class Hud
                 return "PULL CORD : [E]";
             // A ruptured boiler (T109): mended here with the repair kit in hand, and only so (the kit's prompt is above).
             case InteractableKind.Firebox when PlayerMotor.InCab(p, train) && train.Boiler.Ruptured:
-                return $"BOILER RUPTURED   {RepairKitWhere(world, s.PlayerId)}";
+                return Repairs.ByWrench(train) ? "BOILER RUPTURED" : $"BOILER RUPTURED   {RepairKitWhere(world, s.PlayerId)}";
             // Note 275: coal goes on with the shovel, and there's the one (in note 285's form: a short state, nothing foretold).
             case InteractableKind.Firebox when PlayerMotor.InCab(p, train) && !CrewActions.HasShovel(p, train):
                 return Kit.Has(p.Kit, Tool.Shovel) || train.Boiler.ShovelOut ? "THE SHOVEL IS OUT" : "HANDS FULL";
@@ -1771,7 +1797,8 @@ public static partial class Hud
         if (world.Run is { } powered && powered.PowerhouseInReach(p, train) && powered.CurrentSite is { } ps)
             return ps.Restart > 0 ? $"RESTARTING THE GENERATOR ({ps.Restart / powered.PowerTuning.RestartSeconds * 100:0}%)"
                 : "RESTART THE GENERATOR : HOLD [E]";
-        if (HoldoutPrompt(world, p, train, kit: false) is { } breach)
+        // Note 301: the wrench in empty hands opens a lock quietly, as the kit did.
+        if (HoldoutPrompt(world, p, train, kit: Repairs.ByWrench(train) && Repairs.WrenchInHand(p) && world.Bodies.CarriedBy(s.PlayerId) is null) is { } breach)
             return breach;
         // The crane (T48): at its controls, or at its hook on the ground.
         if (world.Run?.CurrentSite?.CraneNear(PlayerMotor.WorldPosition(p, train)) is { } crane)

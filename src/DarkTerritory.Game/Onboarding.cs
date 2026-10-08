@@ -36,12 +36,14 @@ public static class Onboarding
     public static IReadOnlyList<string> Card(Settings keys)
     {
         string K(Control c) => $"[{Controls.KeyLabel(keys.KeyFor(c))}]";
+        // HOLD KEYS on TOGGLE (note 383): those are a press, not a hold.
+        string Hold(Control c) => keys.ToggleHolds && HoldLatch.Latches(c) ? "" : "HOLD ";
         return
         [
             $"MOVE : {K(Control.Forward)}{K(Control.Left)}{K(Control.Back)}{K(Control.Right)}   RUN : {K(Control.Run)}   JUMP : {K(Control.Jump)}",
             $"USE : {K(Control.Use)}   SWING : {K(Control.Swing)}   LADDER : {K(Control.Ladder)}",
-            $"TALK : HOLD {K(Control.Talk)}   RADIO : HOLD {K(Control.Radio)}",
-            $"CREW : HOLD {K(Control.Roster)}   ROUTE CARD : {K(Control.RouteCard)}   SUPPLIES : {K(Control.Supplies)}",
+            $"TALK : {Hold(Control.Talk)}{K(Control.Talk)}   RADIO : {Hold(Control.Radio)}{K(Control.Radio)}",
+            $"CREW : {Hold(Control.Roster)}{K(Control.Roster)}   ROUTE CARD : {K(Control.RouteCard)}   SUPPLIES : {K(Control.Supplies)}",
             "MENU : [ESC]",
         ];
     }
@@ -60,10 +62,31 @@ public static class Onboarding
         o.Text(x, y, "YOUR FIRST NIGHTS", heading with { W = heading.W * fade }, k);
         y += row + 2 * k;
         foreach (var r in rows)
+            // A row wider than the frame (TEXT SIZE on a small window, note 351) breaks between its controls.
+            foreach (var line in Fit(o, r, width - 2 * x, k))
+            {
+                UiStyle.Keyed(o, x, y, line, ink with { W = ink.W * fade }, k);
+                y += row;
+            }
+    }
+
+    /// <summary>A card row as lines no wider than <paramref name="width"/>, broken only between its controls ("   ").</summary>
+    static IEnumerable<string> Fit(Overlay o, string row, float width, float k)
+    {
+        string line = "";
+        foreach (var part in row.Split("   "))
         {
-            UiStyle.Keyed(o, x, y, r, ink with { W = ink.W * fade }, k);
-            y += row;
+            string wider = line.Length == 0 ? part : line + "   " + part;
+            if (line.Length > 0 && UiStyle.MeasureKeyed(o, wider, k) > width)
+            {
+                yield return line;
+                line = part;
+            }
+            else
+                line = wider;
         }
+        if (line.Length > 0)
+            yield return line;
     }
 
     /// <summary>The loading screen (the app's, while the night is built): what's being done, the line under it, and the night's tip.</summary>

@@ -51,7 +51,10 @@ public class StopArtTests
         var mesh = new MeshBuilder();
         art.Lineside(mesh, line, night, eye, yard.Start - 250, yard.End + 250, 7, 18);
         var tall = mesh.Vertices.ToArray().Where(v => v.Position.Y > 2.5f).Select(v => v.Position).ToList();
-        foreach (var b in yard.Stop!.Buildings.Where(b => b.Kind != BuildingKind.Well))
+        // (Not a shed a gantry's cut runs the length of: no roofed length is left of it, so the sim stands no walls there
+        // and the art draws only the cut's floor, note 387.)
+        bool cutAway(int i) => yard.Stop!.Buildings[i].Kind is BuildingKind.Shed or BuildingKind.Hero && !Sim.Run.StopWalls.Roofed(yard.Stop, i).Any();
+        foreach (var b in yard.Stop!.Buildings.Where((b, i) => b.Kind != BuildingKind.Well && !cutAway(i)))
         {
             // Walls up over its footprint: the trees are kept off it, so what stands there is the building.
             var at = Sim.Run.Run.StopWorld(line, yard, b.Centre).RelativeTo(eye);

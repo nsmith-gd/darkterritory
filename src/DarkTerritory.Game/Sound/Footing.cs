@@ -80,7 +80,7 @@ public static class Footing
 
     /// <summary>The ground at a world point, as a surface material.</summary>
     public static string Ground(World world, Double3 at, ref double hint) =>
-        OfTexture(WorldArt.GroundTexture(world.Train.Line, world.Route ?? world.Run?.Route, at, ref hint));
+        OfTexture(WorldArt.GroundTexture(world.Train.Line, world.Route ?? world.Run?.Route, at, ref hint, world.Town));
 
     /// <summary>
     /// A ground texture as it sounds underfoot (hooks-map §1): loose stone, mud and bog, grass and heath, the forest's floor,
@@ -94,8 +94,10 @@ public static class Footing
         "ground_grass" or "ground_heath" => "grass",
         "ground_needles" or "ground_forest" => "dirt",
         "cobbles" or "rock_cliff" or "granite_lichen" or "stone_block" => "cobbles",
-        "wood_sleeper" or "wood_grey" or "planks" => "wood",
+        "wood_sleeper" or "wood_grey" or "wood_floor" or "planks" => "wood",
         "concrete" => "concrete",
+        // The prison van's plate (note 387): a Holdout's floor (WorldArt.Floor).
+        "paint_oxide" => "grate",
         _ => "ground",
     };
 
