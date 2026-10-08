@@ -13,6 +13,8 @@ namespace DarkTerritory.Game.Tests;
 /// ... I like the way Repo and Lethal Company do their UI/UX designs"): only the crosshair and your hands are always there,
 /// and everything else comes up when it matters and goes when it doesn't.
 /// </summary>
+// Hud.Keys is the HUD's settings, static: the tests that set it don't run beside the one that compares two builds (note 390).
+[Collection("Hud.Keys")]
 public class QuietHudTests
 {
     static readonly string Content = DataFile.FindContentRoot();

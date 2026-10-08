@@ -752,6 +752,42 @@ public sealed class World
     /// <summary>Note 279: the stops' buildings' walls by their doors, kept for the town's rebuild of the walls.</summary>
     Sim.Run.WallTuning? _walls;
 
+    // Host: who's holding Use at which house door, how long, and whether this hold has already worked it (note 401).
+    readonly Dictionary<int, (int Key, double Held, bool Done)> _atDoor = [];
+
+    /// <summary>
+    /// The door an open house's doorway has that a crewmate could work (note 401): on foot, alive, within run.json
+    /// <c>walls.houseDoorReachM</c> of its doorway, with no hiding spot in reach (that's the search's). Alike on host and client,
+    /// for the HUD.
+    /// </summary>
+    public Sim.Run.HouseDoor? DoorInReach(in PlayerState s)
+    {
+        if (!s.Alive || s.Parent != PlayerState.World || Train.Walls is not { HouseDoors.Count: > 0 } walls || Run?.SpotInReach(s, Train) is not null)
+            return null;
+        return walls.DoorInReach(PlayerMotor.WorldPosition(s, Train), (_walls ?? new Sim.Run.WallTuning()).HouseDoorReachM);
+    }
+
+    /// <summary>
+    /// Host: a crewmate's hands on a house door this tick. Use held <c>walls.houseDoorSeconds</c> shuts an open one or opens a
+    /// shut one, once a hold; let go and hold again to work it again. As a car's door is worked (CrewActions).
+    /// </summary>
+    void DoorAct(in PlayerState s, in PlayerIntent intent, int playerId, bool emptyHanded)
+    {
+        if (!emptyHanded || !intent.Has(PlayerButtons.Use) || intent.MoveZ > 0.5 || DoorInReach(s) is not { } door)
+        {
+            _atDoor.Remove(playerId);
+            return;
+        }
+        var (key, held, done) = _atDoor.TryGetValue(playerId, out var was) && was.Key == door.Key ? was : (door.Key, 0.0, false);
+        held += SimConstants.TickSeconds;
+        if (!done && held >= (_walls ?? new Sim.Run.WallTuning()).HouseDoorSeconds - 1e-9)
+        {
+            Train.Walls!.SetShut(key, !Train.Walls.Shut(key));
+            done = true;
+        }
+        _atDoor[playerId] = (key, held, done);
+    }
+
     /// <summary>The night's fortresses (<see cref="Sim.Run.Fortresses.Of"/>; T124), the departure one's town square on it once there's a town.</summary>
     public IReadOnlyList<Sim.Run.Fort>? Forts { get; private set; }
 
@@ -1052,6 +1088,9 @@ public sealed class World
         // Searching an open house's hiding spot (note 326), empty-handed, with a Use the hands didn't take.
         if (Authority && Run is { } searching)
             searching.SearchAct(s, intent, playerId, this, emptyHanded: !handsTookIt && Bodies.CarriedBy(playerId) is null);
+        // An open house's door (note 401), empty-handed, with a Use neither the hands nor a hiding spot took.
+        if (Authority)
+            DoorAct(s, intent, playerId, emptyHanded: !handsTookIt && Bodies.CarriedBy(playerId) is null);
         // A healing find used up in the hands this tick (GDD App. F.1; note 272): its health back, up to full.
         if (Authority && Bodies.TakeDose(playerId) is > 0 and var dose && s.Alive)
             s.Health = Math.Min(Bodies.FullHealth, s.Health + dose);
