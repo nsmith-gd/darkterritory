@@ -44,7 +44,8 @@ public readonly record struct SurfaceMaterial(float Wear, float Shine, int Layer
 /// </summary>
 public sealed record SurfaceStyle(float TexelsPerMetre, float Baked, Func<Vector3, SurfaceMaterial> Material);
 
-/// <summary>A practical light (a car's lamp, the firebox, a hand lantern). Lit per pixel, unshadowed.</summary>
+/// <summary>A practical light (a car's lamp, the firebox, a hand lantern). Lit per pixel, unshadowed (but for
+/// <see cref="MeshBuilder.ShadowLight"/>).</summary>
 /// <param name="Position">In the same (camera-relative) space as the geometry.</param>
 public readonly record struct PointLight(Vector3 Position, Vector3 Colour, float Range);
 
@@ -150,6 +151,13 @@ public sealed class MeshBuilder
 
     /// <summary>The practical lights this frame. Cleared with the mesh.</summary>
     public List<PointLight> PointLights { get; } = new();
+
+    /// <summary>
+    /// The one practical light that casts shadows (a hand lamp near the eye, GDD §31: its shadows swing as it swings): lit
+    /// like <see cref="PointLights"/> (not also in them), and shadowed through a cube map of its own round it, out to its
+    /// range. Unshadowed where the device can't draw the cube in one pass (<see cref="GreyboxRenderer.HandShadows"/>).
+    /// </summary>
+    public PointLight? ShadowLight { get; set; }
 
     /// <summary>Enclosed spaces this frame (up to 16 are lit as such, the nearest). Cleared with the mesh.</summary>
     public List<Room> Rooms { get; } = new();
@@ -271,6 +279,7 @@ public sealed class MeshBuilder
     {
         _vertices.Clear();
         PointLights.Clear();
+        ShadowLight = null;
         Instances.Clear();
         Bones.Clear();
         Rooms.Clear();
