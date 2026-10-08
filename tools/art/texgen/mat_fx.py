@@ -244,3 +244,44 @@ def fx_flash(ctx):
     D, A, E = sheet(frames, 2, C, colour)
     return ctx.out(D, np.zeros_like(A), np.zeros_like(A), emissive=E, alpha=A, tiling=False, factor=2,
                    frames=[2, 2], blend="additive", procedural="ragged jet star round a hot core", grain=0.0, chroma_block=1)
+
+
+@texture("fx_frost", "fx", tile=0.3)
+def fx_frost(ctx):
+    """Frost on glass (GDD §22, §26 "frost on windows"; note 485), tiling: fern fronds of ice, a stem with feathered
+    branches off it at sixty degrees and finer ones off those, laid over a fine sugary rime. Alpha is the ice: the panes
+    (SceneArt.CabGlass) lay it over the glass most thickly at the frame and thinning inward, so the fronds reach in out
+    of a rimed edge, and the cold decides how far."""
+    from . import draw
+    rng = ctx.rng("frost")
+    W = core.WORK
+    lines, widths, values = [], [], []
+
+    def frond(x, y, a, length, width, depth):
+        steps = max(3, int(length / 10))
+        pts = draw.wander_line(rng, x, y, a, length, steps, curl=0.06)
+        lines.append(pts)
+        widths.append(width)
+        values.append(0.55 + 0.4 * rng.random())
+        if depth == 0:
+            return
+        # Branches both sides, alternately, at sixty degrees, shorter towards the tip.
+        for i in range(1, len(pts) - 1):
+            t = i / (len(pts) - 1)
+            for side in (-1, 1):
+                if rng.random() < 0.75:
+                    bx, by = pts[i]
+                    frond(bx, by, a + side * np.pi / 3 + rng.normal(0, 0.1), length * (0.38 * (1 - t) + 0.08) * rng.uniform(0.7, 1.2),
+                          max(1.0, width * 0.6), depth - 1)
+
+    for _ in range(64):
+        frond(rng.uniform(0, W), rng.uniform(0, W), rng.uniform(-np.pi, np.pi), rng.uniform(70, 190), 2.0, 2)
+    fronds = draw.strokes((W, W), lines, widths, values, wrap=True, supersample=2)
+    # The rime: a fine sugar of single grains, thicker in drifts, never blotches.
+    rime = noise.fbm01(rng, (W, W), 40, octaves=3)
+    sugar = (rng.random((W, W)) < 0.12 + 0.3 * rime).astype(np.float32)
+    grains = sugar * (0.3 + 0.3 * rime) + saturate((rime - 0.3) * 2) * 0.18
+    a = saturate(np.maximum(fronds, grains))
+    d = lerp(hexc("#9AA8B4"), hexc("#E6EEF4"), saturate(fronds * 1.2 + rime * 0.2))
+    return ctx.out(d, np.zeros_like(a), np.zeros_like(a), alpha=posterise(a, 16), tiling=True, factor=2,
+                   procedural="branching fern fronds over sugary rime, wrapped", grain=0.02, chroma_block=1)
