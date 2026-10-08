@@ -459,6 +459,57 @@ public class WorldSoundTests
     }
 
     [Fact]
+    public void AStopsBuildingsWallsAreBetweenAnEarOutsideItAndASoundInIt()
+    {
+        // Note 428 (note 396's not-yets): a sound in a Holdout's room comes out through its walls to an ear on the line, and to
+        // one in the shed through the room's (more than the shed's own); one at the room's face on the ear's side is at its
+        // door and heard out of it. The night's own air, played at the ear, is behind the room's walls once the ear's in it.
+        var walls = DataFile.Load<WallsTuning>(Path.Combine(Content, WallsTuning.File));
+        static bool Boarded(Sim.Stops.BuildingKind k) =>
+            k is Sim.Stops.BuildingKind.SignalBox or Sim.Stops.BuildingKind.LampRoom or Sim.Stops.BuildingKind.WaterTower;
+        var (world, f) = Night(f => f.Stop is { } st && st.Holdouts.Any(h => Boarded(st.Buildings[h.Building].Kind))
+            && st.Buildings.Any(b => b.Kind is Sim.Stops.BuildingKind.Shed or Sim.Stops.BuildingKind.Hero), from: -200);
+        var stop = f.Stop!;
+        var line = world.Train.Line;
+        Double3 At(Sim.Stops.StopBuilding b) => Run.StopWorld(line, f, new Sim.Stops.Pt(b.S, b.D), 1.6);
+        var room = stop.Buildings[stop.Holdouts.First(h => Boarded(stop.Buildings[h.Building].Kind)).Building];
+        var shed = stop.Buildings.Where(b => b.Kind is Sim.Stops.BuildingKind.Shed or Sim.Stops.BuildingKind.Hero)
+            .MinBy(b => (At(b) - At(room)).Length)!;
+        Assert.True((At(shed) - At(room)).Length < 120, $"the shed's {(At(shed) - At(room)).Length:0} m from the room");
+        var onTheLine = Run.StopWorld(line, f, new Sim.Stops.Pt(room.S, 0), 1.6);
+        // The room's face toward the line, walked out to from its middle.
+        var footprint = GameAudio.RoomAt(world.Run!.Route, line, At(room), f.Start + room.S)!.Value;
+        var toLine = new Double3(onTheLine.X - At(room).X, 0, onTheLine.Z - At(room).Z).Normalized;
+        var face = At(room);
+        while (footprint.Holds(face + toLine * 0.05))
+            face += toLine * 0.05;
+        Assert.True((face - At(room)).Length > 1.5);
+        var audio = new GameAudio(Content);
+        Held(audio, "in-the-room", "at-its-door", "out-on-the-line", "world-night.night");
+        var ears = new Ears(audio, world);
+        var inside = audio.Mixer.Play("in-the-room", face - toLine * 1.2)!;
+        var door = audio.Mixer.Play("at-its-door", face - toLine * 0.2)!;
+        var outside = audio.Mixer.Play("out-on-the-line", onTheLine + new Double3(0, 0, 3))!;
+        ears.Tick(onTheLine, SimConstants.TickRate / 2);
+        Assert.DoesNotContain(audio.Space, new[] { "room", "shed" });
+        Assert.Equal((float)walls.RoomWall, inside.Walls, 3);
+        Assert.Equal(0, door.Walls);
+        Assert.Equal(0, outside.Walls);
+        var night = audio.Mixer.Voices.Single(v => v.Name == "world-night.night" && !v.Finished);
+        Assert.Equal(0, Math.Max(night.Occlusion, night.Walls));
+        // From the shed, the room's walls and the shed's: the room's, the more.
+        ears.Tick(At(shed), SimConstants.TickRate / 2);
+        Assert.Equal("shed", audio.Space);
+        Assert.Equal((float)walls.RoomWall, inside.Walls, 3);
+        Assert.Equal((float)walls.ShedWall, night.Occlusion, 3);
+        // In the room with it: clear, and the night's air behind the room's walls.
+        ears.Tick(At(room), SimConstants.TickRate / 2);
+        Assert.Equal("room", audio.Space);
+        Assert.Equal(0, inside.Walls);
+        Assert.Equal((float)walls.RoomWall, night.Occlusion, 3);
+    }
+
+    [Fact]
     public void TheWalledTownIsHeardItsFiresItsRoomsAndItsPeople()
     {
         // Note 415: the departure town's fires held where they burn, a lived-in house's range clear inside it and through its
