@@ -235,8 +235,27 @@ public sealed partial class GameAudio
             // not the car around you here). A shed's bays stand open; a room has its one door.
             if (room is { } r && !r.Holds(v.Position))
                 walls = Math.Max(walls, (float)(r.Shed ? tuning.ShedWall : tuning.RoomWall));
+            // And what's in one the ear isn't in comes out through its walls (note 428): a crewmate going through a house's
+            // cupboard heard from the street, boots in a shed from the yard. Not the train's bed: the train's never in one.
+            if (v.Def.Tier != 5)
+                foreach (var other in _roomsNear)
+                    if (!ReferenceEquals(other.Building, room?.Building) && other.ShutsIn(v.Position, ear, tuning.RoomEdge))
+                    {
+                        walls = Math.Max(walls, (float)(other.Shed ? tuning.ShedWall : tuning.RoomWall));
+                        break;
+                    }
             v.Walls = walls;
         }
+    }
+
+    /// <summary>
+    /// The night's own air, played at the ear (the night, the gale and its gusts, a dead town's quiet; note 428): behind the
+    /// walls of the stop's room or shed the ear's in, as anything else outside it is. Out of one, nothing.
+    /// </summary>
+    float AirWalls()
+    {
+        var tuning = _walls?.Value ?? DefaultWalls;
+        return _earRoom is { } r ? (float)(r.Shed ? tuning.ShedWall : tuning.RoomWall) : 0;
     }
 
     readonly Dictionary<int, SoundInstance> _toys = [];
