@@ -59,8 +59,9 @@ public class PerfBudgetTests
                     {
                         eye.Render(mesh, camera, light, light.FogColor);
                         var s = eye.Stats;
-                        triangles += s.Triangles + s.LampTriangles + s.MoonTriangles;
-                        draws = Math.Max(draws, Math.Max(s.Draws, Math.Max(s.LampDraws, s.MoonDraws)));
+                        // (The hand lamp's cube draws what it draws once a face.)
+                        triangles += s.Triangles + s.LampTriangles + s.MoonTriangles + s.HandTriangles * 6;
+                        draws = Math.Max(draws, Math.Max(Math.Max(s.Draws, s.HandDraws), Math.Max(s.LampDraws, s.MoonDraws)));
                     }
                     TestContext.Current.TestOutputHelper?.WriteLine($"{target.Fps} fps {view}: {triangles} triangles, {draws} draws at most in a pass");
                     Assert.True(triangles <= Tuning.MaxFrameTriangles, $"{target.Fps} fps, {view}: {triangles} triangles a frame (at most {Tuning.MaxFrameTriangles})");

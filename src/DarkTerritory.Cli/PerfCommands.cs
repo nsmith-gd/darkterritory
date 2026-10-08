@@ -106,10 +106,10 @@ static class PerfCommands
                             submitted += clock.Elapsed.TotalMilliseconds - inRecord;
                             recorded += inRecord;
                             stats = r.Stats;
-                            // A multiview pass's triangles go through the GPU once an eye.
-                            triangles += stats.Triangles * stats.Views + stats.LampTriangles + stats.MoonTriangles;
-                            draws += stats.Draws + stats.LampDraws + stats.MoonDraws;
-                            maxDraws = Math.Max(maxDraws, Math.Max(stats.Draws, Math.Max(stats.LampDraws, stats.MoonDraws)));
+                            // A multiview pass's triangles go through the GPU once an eye (the hand lamp's cube: once a face).
+                            triangles += stats.Triangles * stats.Views + stats.LampTriangles + stats.MoonTriangles + stats.HandTriangles * 6;
+                            draws += stats.Draws + stats.LampDraws + stats.MoonDraws + stats.HandDraws;
+                            maxDraws = Math.Max(maxDraws, Math.Max(Math.Max(stats.Draws, stats.HandDraws), Math.Max(stats.LampDraws, stats.MoonDraws)));
                             if (f >= 0)
                                 foreach (var (pass, ms) in r.PassTimes())
                                 {
@@ -141,6 +141,7 @@ static class PerfCommands
                         sceneTriangles = stats.Triangles,
                         lampTriangles = stats.LampTriangles,
                         moonTriangles = stats.MoonTriangles,
+                        handTriangles = stats.HandTriangles,
                         lights = stats.Lights,
                         soupTriangles = mesh.Count / 3,
                         instances = mesh.Instances.Count,
