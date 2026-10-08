@@ -50,7 +50,9 @@ public static class Protocol
     // 35: the vehicle record carries how long its axle box has run hot (note 331), before the char cells.
     // 36: the vehicle record carries how long its lamp has guttered (note 346), after the hot box.
     // 37: the run record's sites carry the steam lift's ore left, its skip's wind and whether it's winding (note 368).
-    public const int Version = 37;
+    // 38: the vehicle record carries how long the coupling behind it has worked loose (note 356), after the lamp.
+    // 39: the vehicle record carries its gun's ready rack (note 374), after the loose coupling.
+    public const int Version = 39;
 }
 
 public enum MessageType : byte

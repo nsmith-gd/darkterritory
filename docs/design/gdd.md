@@ -14,7 +14,7 @@ Interactive version, with the roster explorer and director tools: [claude.ai/art
 - **One night length for every tier:** 24 km and dawn at 51 minutes. A deeper tier is denser, not longer (§11).
 - **The director runs on pressure.** Quiet, loudness, cargo and the night's depth build it; the grace is 20–90 s, picked per night; the night's first threat answers something a crewmate did, and the report names it (B.1).
 - **The orchestrator** (outlined): threats planned against the players active now. Built so far: the budget from the crew alive, and a cap on threats at once by it (B.1, orchestrator.md).
-- **Something to do between stops.** The hound run, a stream of Cinder Hounds a fast train draws for the guns to answer one at a time; and the first upkeep jobs: the hot box, an axle box running dry that's greased from the gap or the ground before it slows the train and catches, and a car's lamp guttering, trimmed inside before it goes out (B.3, F.3).
+- **Something to do between stops.** The hound run, a stream of Cinder Hounds a fast train draws for the guns to answer one at a time; and the first upkeep jobs: the hot box, an axle box running dry that's greased from the gap or the ground before it slows the train and catches, a car's lamp guttering, trimmed inside before it goes out, a coupling working loose, knocking in its gap until the wrench tightens it or the rake parts behind it, and powder to the guns: a gun's ready rack of six, refilled by a charge carried up from the guard van's powder locker (B.3, C.3, F.3).
 - **Off the train, a presence of threat.** The crew on foot are watched from the lamp's edge, and outdoor creatures come sooner while anyone's out (B.1, F.3).
 - **Driven off, or killed together.** A creature is driven off by its rule; a coordinated team can kill the Grumbler, the Gaunt, the Passenger, Climbers and the Choir's ghosts (F.1).
 - **Damage, Lethal Company style:** a few big hits, never chip damage, rare healing finds, an edge flash (F.1; systems spec B.2).
@@ -38,6 +38,9 @@ Interactive version, with the roster explorer and director tools: [claude.ai/art
 - **Jumping off** is lethal above 16.5 m/s, matching the systems spec in the repo (§23).
 - **Run budgets match the build** (B.1): 90, 150, 230 and 330 by tier, about twice v1.1's, to pay for the paced director the build runs.
 - Touches §12, §23, §23.1, B.1, C.9, D.2, D.4, D.7, D.12, E.9 and E.12.
+
+**Director's decisions of 2026-10-07: the Gannet (queue #78; ARCHITECTURE §8 note 340; design `docs/design/creatures/gannet.md`).**
+- **A nineteenth enemy, the Gannet:** App. F.1's "fast, flying class" (the orchestrator's S3). One enormous corrupted seabird that rides a fast train, the inverse of the roster: everything else boards a slow train, and it comes only to one run at 18 m/s or more. It hangs over a walker on the roofs and dives beak-first; break your stride after it folds and it misses, its beak stuck in the planks; hold your line and it stabs. Hit it and it comes down on you, pins you under a foot and pecks four times while your friends beat it off. A team can kill it, and its head is a trophy worth a good deal. A slow train, a tunnel or a still roof and it peels off. Every tier, weighted (§21, A.4, A.9, B.1, B.4).
 
 **Director's decisions of 2026-10-07: the Moose (queue #77; ARCHITECTURE §8 note 339; design `docs/design/creatures/moose.md`).**
 - **An eighteenth enemy, the Moose:** a hyper-aggressive, territorial bull moose, too big to get on the train. It grazes beside the line and at the stops and leaves be whoever leaves it be. Crowd it, talk near it or hit it and it charges in straight lines; the bullfight (dodge it, pass it with a blow, lose it round the buildings, quietly) is the heart of it. It rams the car you hide in for a while (only a ram), gives up when it can't find you or you're far enough off, and the train pulling away ends it. Nothing kills it. It's in every tier, more the harder the tier, and it is never on the rail (§21, A.6, A.9, B.1, B.6).
@@ -137,34 +140,45 @@ This makes every town dependent on freight. One settlement produces coal. Anothe
 
 No town is self-sufficient. **The railway is what makes civilization possible.**
 
-### 3.1 Fortress towns *(the director's direction of 2026-10-06 and 2026-10-07, App. F.1 T133; built for review, ARCHITECTURE §8 note 281)*
+### 3.1 Fortress towns *(the director's direction of 2026-10-06 and 2026-10-07, App. F.1 T133; built for review, ARCHITECTURE §8 notes 281 and 323)*
 
 The towns are where the world is built. They tell the story of what happened and how people survived, by inference: a line from somebody at their table, a little posted on a board, never a speech.
 
-**Maritime towns, walled.** They are towns of Maritime Canada (Nova Scotia, New Brunswick, the Island) with walls round them: twenty to three hundred and fifty people, fewer than lived there before. Every town has lost people and every culture is marked by it. The plaque at the way in says how many live there now and how many did.
+**Maritime towns, walled.** They are towns of Maritime Canada (Nova Scotia, New Brunswick, the Island) with walls round them: twenty to three thousand people, most of them small, fewer than lived there before. Every town has lost people and every culture is marked by it. The plaque at the way in says how many live there now and how many did.
+
+**The wall goes round the town** (the director, 7 Oct). A hamlet's houses fit down the yard's street, and its fortress is the yard's two walls. A bigger town (most of them, past about 165 people) has streets beside the line, a pair at a time, as many as it needs and up to five a side, each with a row of houses either side, fronts to the street. Lanes cross from the line to the streets every hundred metres or so, never through the square. The fortress wall goes round all of it: down both sides past the last street's back gardens, across the front from the gatehouse, and across the back where the line's way out is shut. Towers stand at the corners and along the sides. It is all the fort: nothing comes in over the streets, and nobody out at the furthest is left behind. The crew can walk the town while the train stands: down a lane, along a street of painted houses with lamps at their doors, and back to the train.
 
 **A town is its custom.** The Corruption exaggerates whatever lets a thing survive (§2), and the towns did the same. Each one got through one bad winter by doing one thing, kept doing it, and did it harder until it was the town's custom. Every custom is the human answer to one creature's rule, said sideways: the crew hear the custom, and the rule is theirs to work out. In a hush town nobody sings, not even at a burying, and the bell's clapper is bound in felt (the Choir). In a pairs town nobody sleeps or waits alone (Tippy Toesie). In an offerings town the children have no toys, because the toys go on a shelf by the gate (the Track Doll). The towns name the creatures in their own words, never the game's. A custom only ever answers a creature the edition fields. Fourteen customs are written (content/world/towns.json), one for each of the demo's five and the Choir among them.
 
 **Each town is different from the last.** It is made from the night's seed: the line's fortress name, its custom (never the one the crew left last night), one or two smaller habits (they wear their dead's coats; every clock stopped at the same minute; the foghorn sounded for the ones still out), and what it makes (a pit town, a growing town, a foundry town).
 
-**The square** is where the walls step back, beside the engine as the night starts. It holds:
+**The square** is where the walls step back, beside the engine as the night starts (in a walled town it opens between its buildings onto the first street). It holds:
 - the custom's own building in a Maritime form: a white clapboard church with a steeple over its door, a one-room school with its belfry, a car shed, a hall;
 - the clerk's office and the stores, lit;
 - the custom's centrepiece in the middle: the felted bell, the waiting post, the tally board with one mark too many;
 - a notice board, a plaque at the way in, market stalls shut for the night, benches, fire barrels and lamps.
 
-**The houses.** Down the yard's street from the square, both sides, fronts to the line:
+**The houses.** Down the yard's street from the square, both sides, fronts to the line, and in a walled town down its streets, the lived-in ones nearest the square and the lost at the edges:
 - the households' houses, nearest the square. Painted clapboard (barn red, ochre, slate blue, sage, white) with white trim on a fieldstone foundation, in the Maritime forms: a storey and a half with a gable over the door, a saltbox, a gambrel, a two-storey house with a Lunenburg bump. A lamp burns by every lived-in door, and lamplight shows in some windows (none where the custom keeps them dark). A knock is answered through the door, or not.
-- a few houses standing open with their household at home, explorable: a kitchen with its range, table and dresser, a parlour with the boxed stair and its shut door, the household's own thing (the laid place, the letters, the ankle bell, the cradle). Two to four of them are at home, at the range, at the table, in the chair, at the window.
+- a few houses standing open with their household at home, explorable (two to six, more in a bigger town): a kitchen with its range, table and dresser, a parlour with the boxed stair and its shut door, the household's own thing (the laid place, the letters, the ankle bell, the cradle). Two to four of them are at home, at the range, at the table, in the chair, at the window.
 - then the houses of the people the town has lost: boarded, burnt to the sills, or left open on the dark. Each has something to say when you look at it.
 
-*The director is finding references for the houses; this is the first pass at them.*
+**Every house its own** (the director's photographs, 7 Oct). Each house is drawn from many independent choices, so no two in a town match:
+- gable to the street or eaves;
+- one to two and a half storeys;
+- a gable, saltbox, gambrel or hip roof;
+- dormers, a Lunenburg bump or the Island's centre gable;
+- a side wing, and a hood or an enclosed porch at the door;
+- grey cedar shingle or painted clapboard, in teal, butter yellow, periwinkle, barn red, maroon, ochre or white;
+- white or coloured trim, a bright door, shutters, Victorian brackets.
+
+Each town has a character too: a fishing cove of shingled gable-fronts, an old town of painted bumps, a loyalist row on the water, a farm town of capes and ells, a company town of one double house in many paints, or a town of all sorts.
 
 **People.** Text only, no voices, as many as the town is big:
 - the gatekeeper says the town's law first;
 - the keeper of the custom's building and the folk round the centrepiece talk about the custom;
 - the clerk, the fitter, the lampman and the rest talk about their work;
-- a few are out in the street with a lamp;
+- a few are out in the street with a lamp (a town of thousands is mostly shut in at night: its lit windows say so);
 - the households at home tell their own story: the empty chair kept for somebody, the child who walks in their sleep, the letters to a town that stopped answering.
 
 Use talks to someone, and Use again hears their next line. They turn to face you. Nobody can be talked to through a wall.
@@ -178,7 +192,7 @@ Use talks to someone, and Use again hears their next line. They turn to face you
 **Everything is solid and safe.** The square, the houses (an open one through its doors), their furniture and the people stand where they're drawn, and the fortress's walls step back round the square. The yard is a safe space until the gate (§9).
 
 **Not yet** (for the next passes):
-- the houses to the director's references;
+- fish sheds, fences, granite and lobster traps between the houses;
 - buying, upgrading and turning loot into scrip in the town itself, not the menu;
 - the terminus as a town of its own, and the town you arrive at becoming the one you leave from;
 - townspeople who move about, and faces of their own (they wear the crew's model);
@@ -314,6 +328,8 @@ You aren't picking a difficulty level. You're travelling farther from civilizati
 
 ### Fluidity
 
+**The wrench is the repair tool** (the director, 7 Oct, App. F.3; note 301, which supersedes the kit paragraphs below where they disagree). Everyone carries one beside the crowbar. With it in hand, Use at a break mends it, Sea of Thieves style: the burst boiler at its fire door (§23), a breach at its hole, a car battered by what it ran into at its dent, the engine at its boiler (from the running board), the smashed headlamp (from the cab's front windows; it no longer comes back by itself), a broken radio, and a Holdout's lock opened quietly (D.7). A fouled gun, a hot box and a car fire are dealt with as before (the director, 8 Oct). A few presses do it as well as one long hold, and every break is called out where it is with an amber glow and sparks. The engineering kit is gone: none rides in locker 8, none is found at the stops, and the fortress sells none.
+
 **The engineering kit is an item, not a station.** It's a carried kit, kept in locker 8 in car one, a walk back from the footplate. The engineer is whoever picked it up. There is no post to be stuck at — there's a kit somebody grabbed, and when they die on the roofs it's lying in car four and someone has to go and get it. It mends a ruptured boiler (§23), and nothing else can; the wrench in the cab is just a tool to swing. Locker 8's empty shelf shows whether the kit is home.
 
 **The crew lockers.** Along car one's left wall, ahead of its side door, stands a row of twelve tall iron lockers, numbered 1 to 12 on their enamel plates (no role names: the director, 7 Oct 2026). Hold Use at one to open or shut its door; tap Use to put what's in your hands on a shelf, or take the top thing off one. Each has two shelves and takes anything hand-sized: a lamp, a radio, a toy, a find, an extinguisher, the kit. What's in a locker stays put through any stop or curve, and a shut locker keeps it from the Gaunt. A locker in a car the Territory takes is lost with the car. The kit starts in **locker 8**.
@@ -441,7 +457,7 @@ Every enemy must pass at least four of the six, including 1 and 3. This is the f
 
 The learnability rules from v1.0 — the rule fits in six words, one death teaches it, the telegraph always comes first — now live in the fairness contract (Appendix A.1).
 
-## 21. Roster — 18 enemies
+## 21. Roster — 19 enemies
 
 Demo ships with **five**: Track Doll, Car Hugger, Whistler, Tippy Toesie and Ribbits, with the Choir running underneath as the ambient system. If the Foundry is one of the two demo facilities, the Grumbler replaces the Ribbits.
 
@@ -482,6 +498,11 @@ A grabbed player hangs over the side for a few seconds. Someone has to pull them
 Blows your own whistle, then hides in a coupling gap.
 > **RULE: check the gaps after the whistle.**
 Only strikes when the train is stopped. It carries its victim off to a nest, and the crew chases or leaves them.
+
+**THE GANNET** · *over a fast train, in open country* *(the director's decisions, 2026-10-07)*
+A seabird the size of a cart circling in your smoke, lit orange by your own fire. It hunts whatever moves on the roofs.
+> **RULE: when it folds, break your stride.**
+It hangs over a walker, folds and drops beak-first at where you'll be. Stop dead or step aside after the fold and it misses, its beak buried in the planks a while; hold your line and it stabs. Hit it back and it comes down for you: it pins you under one foot and pecks at your head, four pecks, while your friends beat it off. It can be killed by a team, and its head is worth a good deal. Slow the train, take a tunnel, or keep still and it can't stay. Anyone inside a car or the cab is safe.
 
 ### INTERIOR — already aboard
 
@@ -640,14 +661,14 @@ Overfire past the safety valve and pressure pins at 100. Hold it there for 20s a
 |---|---|
 | **Rupture** | A burst loud enough to carry. Pressure and fire drop to zero, and the cylinders seize |
 | **Slowdown** | The seized engine drags the train down at 1.5 m/s² until it's below 4 m/s, then it coasts. Grades still apply, so it can roll on downhill and stall short of a summit |
-| **Repair** | In the cab, the engineering kit held at the firebox for **25s**. Interrupted, it starts over |
+| **Repair** | In the cab, the wrench worked at the fire door for **25s** (note 301; once, the engineering kit held there). Presses add up while you stay at it |
 | **Restart** | The boiler is whole but cold and empty. Coal, fire, then pressure back to the working band: 40s at three cars, over three minutes at twenty |
 
 Nobody dies. The cost is the clock, a stopped train with everything that means (the Whistler, a haunting Track Doll at the cab controls, Cinder Hounds closing), and whatever you have to do to get the kit back to the firebox.
 
 ### 23.2 Stranded, unable to repair
 
-*With the wrench as the repair tool (ARCHITECTURE §8 note 301), the director, 8 Oct 2026: "If every crew member drops their wrench off the train then leaves them behind and then the train breaks down they could be stranded."* **A ruptured boiler with no wrench left to mend it ends the night:** every crewmate's wrench and the cab's rack wrench gone, dropped off the train and left behind, in a car cut loose or taken, or on a body carried off. Queue #39's second slice (D1.3) moves this section's rules from the kit to the wrench; until it lands, the build strands nobody, and what follows is the kit's rule as it was.
+*With the wrench as the repair tool (ARCHITECTURE §8 note 301), the director, 8 Oct 2026: "If every crew member drops their wrench off the train then leaves them behind and then the train breaks down they could be stranded."* **A ruptured boiler with no wrench left to mend it ends the night:** every crewmate's wrench and the cab's rack wrench gone, dropped off the train and left behind, in a car cut loose or taken, or on a body carried off. Queue #39's second slice (D1.3) moved this section's rules from the kit to the wrench; what follows is the kit's rule as it was, and still is with `repair.wrench` off.
 
 **A ruptured boiler with the engineering kit lost ends the night.** Nothing else mends a boiler. With spares (§12), it takes losing **every** kit the crew has. A kit found at a stop counts once someone has picked it up.
 
@@ -915,6 +936,8 @@ The timings are in `content/tuning/hud.json`; the engineering is in ARCHITECTURE
 
 - **TEXT SIZE** (100%, 125%, 150%): the HUD's print and the menus', bigger. The whole overlay is drawn on a smaller canvas and stretched over the window, so everything on it grows together. A long line wraps or is cut short where it would leave the frame (ARCHITECTURE §8 note 347).
 - **COLOURS** (standard, colourblind): what the HUD's colours mean (good, a warning, danger) told apart without red against green: blue, yellow and red. Measured as a protanope, deuteranope and tritanope sees them, every pair stays clearly apart (ARCHITECTURE §8 note 348).
+- **CAPTIONS** (off by default): the sounds worth hearing written as they're heard, and where: "[TIPTOEING, ABOVE]". A caption says what a sound is, as someone hearing it would say it, never which creature makes it or what to do about it, so a player who reads learns the same as one who listens. What's silent by design stays silent (ARCHITECTURE §8 note 349).
+- **FIRST NIGHTS** (on by default): a tip on the loading screen, and for a player's first three nights the core controls on a card in the yard, in their own keys. The tips are the shape of a night and the crew's habits ("Roll call is shouted. Count the crew before the train moves."), never a creature's rule (ARCHITECTURE §8 note 350).
 
 ### The screenshot test
 
@@ -1154,6 +1177,30 @@ COUNTER   check the gaps after a whistle; move in pairs at stops
 ```
 **Never grabs from a moving train.** Every rescue is a chase on foot, which makes every stop more dangerous.
 
+### THE GANNET · sight *(the director's decisions, 2026-10-07; note 340)*
+```
+GATHER    the train over 18 m/s for 30 s, out of a tunnel → it arrives
+          └ TELEGRAPH (presence): calls overhead; a pale, orange-lit shape circling in the smoke
+SOAR      holding station 20–35 m over a car, riding its plume and wake
+SPOT      someone walking a roof (over 0.8 m/s on it, not seated) → it hangs over them, head down
+          └ TELEGRAPH: the calls stop; it hangs still over one walker (2 s)
+FOLD      wings back, sacs swollen, the whistle of air; its line locks on where they'll be in 1.6 s
+          └ TELEGRAPH: 1.6 s from fold to strike
+STRIKE    ├ the walker broke stride (stopped, or 0.9 m off its line) → MISS: stuck in the planks 4 s
+          └ the walker held their line → STAB: a heavy hit (35), and it climbs for another pass (every 8–12 s)
+MARK      anyone hits it (a blow while it's stuck, a gun round in the air) → that one is its mark
+BANK      its next pass is for its mark: round and in low, screaming
+          └ TELEGRAPH: 2.5 s; its mark can get inside a car or the cab
+SWOOP     lands on its mark (a roof, or the ground within 200 m) → GRAB: pinned under one foot
+PECK      4 pecks, 3 s apart, each with a wind-up you can see; the victim can talk
+          └ interrupt: 3 blows from friends in the pin → it lets go and climbs; the last to hit it is its mark
+PUNISH    the fourth peck
+GIVE UP   hurt below 4 of its 12 health → it leaves for the run; killed, its head is a trophy (1.5 car-loads)
+BREAK OFF the train under 12 m/s for 6 s, a tunnel, or 60 s with nobody walking the roofs and its mark inside
+          → it peels off; back after 3 minutes if the train runs fast again
+```
+**The inverse of the roster.** Everything else boards a slow train (App. F.1, "slowing opens the doors"); it comes only to a fast one, riding the train's lift as seabirds ride a ship's: the fastest train sheds the Cinder Hounds and gathers the Gannet. **Only the pin kills, and it only pins someone who hit it**: left alone it's a dodgeable stab; fighting it is the crew's choice, and the hitter is the bait. **It never goes inside**: any car or the cab is shelter. Numbers in enemies.json `gannet`; the design and its reasons in `docs/design/creatures/gannet.md`.
+
 ---
 
 ## A.5 Interior
@@ -1383,7 +1430,7 @@ COUNTER   gang up and kill it, or leave it alone;
 
 Enemies are not rolled independently. A **pressure director** spends a budget across the run, which is what allows deliberate contradiction stacking instead of random pile-ups.
 
-**The orchestrator** (*proposed, 7 Oct 2026*; App. F.3): a layer over the director that plans threats against the players currently active, where each is and what each is doing, and the threats and upkeep that fill the run between stops. The outline is [orchestrator.md](orchestrator.md) (ARCHITECTURE §8 note 328).
+**The orchestrator** (*proposed, 7 Oct 2026*; App. F.3): a layer over the director that plans threats against the players currently active, where each is and what each is doing, and the threats and upkeep that fill the run between stops. The outline is [orchestrator.md](orchestrator.md) (ARCHITECTURE §8 note 328). *Built so far (7–8 Oct 2026):* the live crew and its caps (note 336). The census of posts and slack (note 345) reads each crewmate's post (the cab, a gun, the roofs, inside a car, the ground) and the seconds on the run between stops since they last had anything to answer. The director's pick favours what the slackest crewmate's post answers, idle crewmates press it, and no player gets a second threat while the first is on them. A crew of one is as it was. The hound run (note 328) is also built.
 
 ### Budget
 
@@ -1436,7 +1483,7 @@ Past the **threshold** the director spends: on what its weights, wants, pairs, g
 |---|---|
 | **2** | Followers, Draggers, Fire Flies, The Switchman |
 | **3** | Track Doll, Cinder Hounds, Climbers, Whistler, Stoker, Ribbits, The Moose |
-| **4** | Car Hugger, Tippy Toesie, The Gaunt, Soot Children, Grumbler |
+| **4** | Car Hugger, Tippy Toesie, The Gaunt, Soot Children, Grumbler, The Gannet |
 | **5** | The Passenger |
 | **—** | The Choir (not spawned; triggered by the loudness meter) |
 
@@ -1446,7 +1493,7 @@ The director tags each enemy with the player want it attacks, and aims for a tar
 
 | Tag | Target share | Enemies |
 |---|---|---|
-| **Kill** | 40% | Cinder Hounds, Draggers, Whistler, Stoker, Tippy Toesie, Ribbits, The Choir |
+| **Kill** | 40% | Cinder Hounds, Draggers, Whistler, Stoker, Tippy Toesie, Ribbits, The Choir, The Gannet |
 | **Split** | 25% | Track Doll, Climbers, The Gaunt, The Moose |
 | **Trust** | 20% | Followers, Soot Children, The Passenger |
 | **Cargo** | 15% | Car Hugger, Fire Flies, The Switchman, Grumbler |
@@ -1496,6 +1543,9 @@ The director draws pairs from a **conflict table** rather than spawning independ
 | Ribbits + The Moose | Never be outnumbered vs. whoever the moose chases ends up alone |
 | Whistler + The Moose | The coupling gaps hide you from the moose and hold the Whistler |
 | The Moose + facility loading | The loading needs everyone vs. someone has to keep the moose busy, and quiet |
+| Cinder Hounds + The Gannet | Outrun the hounds by running fast vs. a fast train brings the Gannet |
+| Draggers + The Gannet | Walk the centreline vs. step aside when it folds, toward the edge the Draggers hold |
+| The Choir + The Gannet | The gun is the quick answer vs. every ball feeds the meter, and marks the gunner |
 
 At least one pair per run on Frontier and above. Two on Deep Territory.
 
@@ -1529,6 +1579,7 @@ At least one pair per run on Frontier and above. Two on Deep Territory.
 | **Climbers** | Alongside at track level, mounts at a coupling gap | **≥2 coupling gaps** · minimum speed threshold | Weight scales directly with gap count — the length curve made literal |
 | **Draggers** | Pre-attached beneath car edges at generation or facility departure | Train length ≥2 | Dormant until a player is on the roofs |
 | **Whistler** | Hides in a coupling gap; boards at any stop | Train length ≥2 | Weight up on routes with more planned stops |
+| **The Gannet** | Over the train, after 30 s at 18 m/s or more, out of a tunnel | **Every tier** · train length ≥2 · once a run (it peels off and comes back on its own) | ×1 Local, ×1.5 Frontier, ×2 Dead Lines, ×2.5 Deep Territory; ×3 Atlantic shore and Fundy, ×1.5 barrens, bog and dead towns, ×0.3 black forest; up per player on the roofs |
 
 ---
 
@@ -1608,7 +1659,7 @@ Comet material is the high-risk contract: it is the best freight payout and it m
 | **Tier progression** | Deep territory is meaningfully harder than Local at matched crew and length |
 | **Vote bounds** | Dead-vote weighting never exceeds ×1.5, keeps want-tag shares, and never bypasses a gate, cap or once-per-run limit |
 
-Spawn tuning is the single largest use of the agent harness. Eighteen enemies against four tiers, seven crew sizes and a variable consist length is a space no human tester can cover — but it can be swept exhaustively overnight.
+Spawn tuning is the single largest use of the agent harness. Nineteen enemies against four tiers, seven crew sizes and a variable consist length is a space no human tester can cover — but it can be swept exhaustively overnight.
 
 ---
 
@@ -1620,7 +1671,7 @@ The roster depends on nine systems. Each is shared by several enemies, so each i
 
 1. **The GRAB rescue state.** Part of the shared skeleton (A.1): a held player, a timer (8–20s), an interrupt that ends in BREAK OFF, and a hook for voice effects. **A held player can talk at full clarity** unless the enemy applies a voice effect (C.8). Their commentary is the point of the window: it's the call for help, and it's the joke.
 2. **Melee.** The core verb. The tools already on the train are the weapons: shovel, wrench, crowbar. The boiler player's shovel doubling as the crew's best club is intended tension. Server-authoritative hits with lag compensation.
-3. **Cannons.** Bullets and guns are rare in this world; crude cannons and crude gunpowder are not. Each mounted cannon has a full manual reload (powder, ball, ram, fire), so every shot is a timed decision. Powder and shot are stocked at departure.
+3. **Cannons.** Bullets and guns are rare in this world; crude cannons and crude gunpowder are not. Each mounted cannon has a full manual reload (powder, ball, ram, fire), so every shot is a timed decision. Powder and shot are stocked at departure. *A gun fires what's in its ready rack, six rounds; the rest of the night's powder is in the guard van's powder locker, the engine gun's share too, and comes up a charge at a time, carried by hand to the gun (ARCHITECTURE §8 note 374; [orchestrator.md](orchestrator.md) §5.1 U4). In a wave a gun is a two-person job: a gunner, and someone bringing the powder.*
 4. **Hand-carried loot.** Small items players carry alongside car-level freight: toys (for the Track Doll), crates (the Grumbler), salvage, and a rescued child. Carrying runs at 2.8 m/s with no climbing, per the systems spec. **Some toys are noisy** (a squeaker, a music box, a wind-up drummer). They emit sound while carried or jostled and feed the loudness meter in the carrier's name (C.7). They are worth more than quiet toys, and the Track Doll likes them just as much.
 5. **Fire and firefighting.** Fire grows and jumps couplings. Every car has a wall-mounted extinguisher that players grab, use and put back. Each holds limited charge and recharges slowly on its mount. Bigger fires need more extinguishers at once.
 6. **Group counting.** Players within 8m of each other count as a group — the full-clarity voice radius. Used by Ribbits and Climbers.
@@ -1794,7 +1845,7 @@ Breaching is a hold-to-interact action by a living crew member, using the tools 
 |---|---|---|---|
 | Smash lock | Any melee tool: shovel, wrench, crowbar | 3s | **Counts toward crew loudness** at cannon level for its duration |
 | Pry barricade | Any melee tool | 6s | **Counts toward crew loudness** at machinery level for its duration |
-| Open lock | Engineering kit in hand | 6s | None |
+| Open lock | The wrench in hand (note 301; once, the engineering kit) | 6s | None |
 
 Breach noise counts because it is the living's action. A crew that smashes a lock while already loud can bring the Choir.
 
@@ -2229,11 +2280,11 @@ Agents can't tell whether it's funny, but they can tell whether everyone was on 
 - A couple of playtests ago, running hot the whole time and never stopping, two Car Huggers came. More threats that can board the train at speed, to give players things to do. *First piece done (note 328): the hound run. A train run faster than the hounds' own 19 m/s for 2.4 km (sooner with the boiler hot) draws a stream of Cinder Hounds faster than it is, so a hot train can't outrun them: 2 runners solo, up to 6 at crew 8, in pairs on alternating flanks. Missed, they board the rear car at any speed. More at-speed boarders are proposed in [orchestrator.md](orchestrator.md) §5.2.*
 
 **Pacing on the train**
-- Point A to point B is still relatively boring. The director is open to ideas: activities on the train, things players do to maintain the train while it runs; threats attacking the train tower-defense style, to give the gunners something to do. *Tower defence, first piece done (note 328): the guns answer the hound run one hound at a time. A ball landing near a runner scatters it, and one good shot between a pair takes both. Upkeep while the train runs ([orchestrator.md](orchestrator.md) §5.1), first job in (queue #71, note 331): the hot box, an axle box running dry as the train runs, a squeal then smoke at a car's rear bogie, greased from the gap behind it or the ground beside; left alone it drags the train off its top speed, then the car catches fire. The second is in (queue #83, note 346): a car's lamp guttering, trimmed with the lamp key inside; left alone it goes out and the car is dark.*
+- Point A to point B is still relatively boring. The director is open to ideas: activities on the train, things players do to maintain the train while it runs; threats attacking the train tower-defense style, to give the gunners something to do. *Tower defence, first piece done (note 328): the guns answer the hound run one hound at a time. A ball landing near a runner scatters it, and one good shot between a pair takes both. Upkeep while the train runs ([orchestrator.md](orchestrator.md) §5.1), first job in (queue #71, note 331): the hot box, an axle box running dry as the train runs, a squeal then smoke at a car's rear bogie, greased from the gap behind it or the ground beside; left alone it drags the train off its top speed, then the car catches fire. The second is in (queue #83, note 346): a car's lamp guttering, trimmed with the lamp key inside; left alone it goes out and the car is dark. The third is in (queue #93, note 356): a coupling working loose, knocking in its gap and called out like a break, more often on bends; the wrench in the gap tightens it; left alone the pin drops and the rake parts behind it. The fourth is in (queue #111, note 374): powder to the guns, a gun's ready rack of six refilled by a charge carried up from the guard van's powder locker, so a gun in a wave is a gunner and a walker.*
 - A threat orchestrator that takes into account how many players are in the game and orchestrates threats to the number currently active. A design outline first; it can go to a different chat. *Outlined (queue #67, note 328): [the threat orchestrator, and the run between stops](orchestrator.md): the orchestrator over the director (who's active, at which post, and how long since each had something to answer), upkeep while the train runs, threats that board at speed, waves at the guns, pacing targets, what changes in the director, and five questions for the director.*
 
 **Repairs**
-- The wrench doesn't repair things Sea of Thieves style yet. Wanted as soon as possible. *Done (note 301): everyone carries a wrench; in hand, Use at a break mends it, a few presses or a hold (the burst boiler, a breach, a battered car's dent), and every break is called out with an amber glow and sparks. The repair kit's other uses go in a second slice.*
+- The wrench doesn't repair things Sea of Thieves style yet. Wanted as soon as possible. *Done (note 301): everyone carries a wrench; in hand, Use at a break mends it, a few presses or a hold (the burst boiler, a breach, a battered car's dent), and every break is called out with an amber glow and sparks. Second slice: the wrench also mends the engine, a smashed headlamp and a broken radio, and opens a Holdout's lock quietly; the kit is gone (not stowed, found or sold).*
 
 **Audio**
 - A weird high, repeated sound when the cannon turns. Get rid of it, or make it a lot lower and slower. *Done (note 329): the gun's lay is now a low motor hum with a slow, deep gear clunk (2–5 a second under 420 Hz, where it ticked 6–28 a second at 1.8–3.1 kHz).*
@@ -2255,8 +2306,8 @@ Agents can't tell whether it's funny, but they can tell whether everyone was on 
 - Footsteps on the ground sound wrong; on wood and grates they're good. *Open.*
 - The boiler over-pressure sound is good (§23, Boiler rupture). *Keep.*
 - The gun's traverse sound is bad. *Done (note 329, #252; again in App. F.3): the lay is a low motor hum with a slow, deep gear clunk.*
-- The train is near-silent on the rail: no rolling sound to reinforce speed. *In progress (T127).*
-- There's no audible stress before a derailment (A.1: whole-train events carry their own telegraph). *In progress (T127).*
+- The train is near-silent on the rail: no rolling sound to reinforce speed. *Done (T127): the wheels' roll under each car near you, a roar with speed and the rail joints' click-clack (`bed-wheel-rail`).*
+- There's no audible stress before a derailment (A.1: whole-train events carry their own telegraph). *Done (T127, note 266): on a bend past its board the flanges squeal, then the derail scream climbs in pitch to the edge, with the frames creaking and the cab's bell.*
 - The Choir was heard behind the train (A.7). *Noted.*
 
 **Cab**
@@ -2351,7 +2402,8 @@ Further decisions (the director, 6 Oct 2026):
 - *Every culture is somewhat traumatised* by the events of the world.
 - *Towns of 20 to 350 people.*
 - Later the same day, with photographs of Maritime houses (a Cape Breton cedar-shingled studio with a gable window and blue barn shutters; Peggy's Cove, painted houses on the granite above the fish sheds and the wharf; a Lunenburg house in periwinkle clapboard with coral trim and a bump; Shelburne's waterfront row in red, blue, ochre and weathered shingle under a church cupola; Blue Rocks' shingled fish shacks on cribwork): *"Village houses should feel like these, they should have lots of variations so it doesn't feel like the same 10 assets recycled across towns over and over again."*
-- *"Towns can go up to 3000, and fortresses aren't just some straight line around the railroad: they should surround towns. Towns should be explorable. This is our big worldbuilding work that makes it feel interesting and exciting to go around."* (Queue #74, walled towns, note 335.)
+- *"Towns can go up to 3000, and fortresses aren't just some straight line around the railroad: they should surround towns. Towns should be explorable. This is our big worldbuilding work that makes it feel interesting and exciting to go around."* (Queue #74, walled towns, note 335; *built for review: "The wall goes round the town" above.*)
+- The director, 8 Oct, with two shots of an open house's residents: *"We need townsfolk models who wear some sort of respirator mask or oxygen mask or other breathing apparatuses to indicate the air is foul. Note some of the animation positions are off. Towns don't feel like they have a natural layout to them. There needs to be a behaviour loop for all the NPCs, it's weird that so many of them are just standing around doing nothing. These towns need layouts, parks, signs of governance, signs of culture, statues, things that tell the story of a people walled in for fear of the outside world and what becomes of those who rarely leave the walls. They'd be trying to find ways of making the world feel tolerable."* (Queue #90, note 353: claimed, B2.)
 
 **Decided** (the director, 6 Oct 2026, later the same day):
 - **The Track Doll escalates if ignored.** She's no problem at first: she haunts, plays with and admires things in the car. Left alone, she moves on to the controls, and in the end she can let a standing train off its brake. It's a consequence of the crew's inattention and of not getting her off the train, never sudden. *Done (note 268).*

@@ -178,55 +178,61 @@ public sealed partial class WorldArt
     /// <param name="square">The town's square (note 281): the walls on its side step back round it (<see cref="Square"/>
     /// draws those), and the town's houses are its own (<see cref="Houses"/>), not note 107's village.</param>
     public void Fortress(MeshBuilder mesh, RailLine line, Double3 eye, double from, double to, double start, double end, double gateAt, bool platform, bool lit = true,
-        double time = 0, TownSquare? square = null)
+        double time = 0, TownSquare? square = null, TownBounds? bounds = null)
     {
         double a = Math.Max(start, from), b = Math.Min(end, to);
         if (a >= b)
             return;
-        foreach (int side in new[] { -1, 1 })
+        // A walled town's wall goes round it (queue #74, note 335); the gatehouse and the platform are the yard's still.
+        if (bounds is not null)
+            TownWall(mesh, line, eye, bounds, from, to, lit);
+        else
         {
-            var wall = Piece($"wall-{side}", () => StructureKit.Wall(_look, side));
-            if (square is { } sq && sq.Side == side)
+            foreach (int side in new[] { -1, 1 })
             {
-                // Up to the square and on from it, on the same bay grid (the last piece past the gate as the other side's).
-                WallRun(mesh, line, eye, wall, start, sq.S0, side * WallOut, from, to);
-                WallRun(mesh, line, eye, wall, sq.S1, Math.Ceiling(end / Fortresses.WallBay) * Fortresses.WallBay, side * WallOut, from, to);
-            }
-            else
-                for (double s = Math.Floor(a / Fortresses.WallBay) * Fortresses.WallBay; s < b; s += Fortresses.WallBay)
+                var wall = Piece($"wall-{side}", () => StructureKit.Wall(_look, side));
+                if (square is { } sq && sq.Side == side)
                 {
+                    // Up to the square and on from it, on the same bay grid (the last piece past the gate as the other side's).
+                    WallRun(mesh, line, eye, wall, start, sq.S0, side * WallOut, from, to);
+                    WallRun(mesh, line, eye, wall, sq.S1, Math.Ceiling(end / Fortresses.WallBay) * Fortresses.WallBay, side * WallOut, from, to);
+                }
+                else
+                    for (double s = Math.Floor(a / Fortresses.WallBay) * Fortresses.WallBay; s < b; s += Fortresses.WallBay)
+                    {
+                        var t = line.Sample(s);
+                        var r = Double3.Cross(t.Tangent, Double3.Up).Normalized;
+                        mesh.Instances.Add(new MeshInstance(wall, Basis(t.Tangent, t.Position + r * (side * WallOut), eye, 0)));
+                    }
+                var tower = Piece($"tower-{side}", () => StructureKit.Tower(_look, side));
+                for (double s = Math.Ceiling(a / Fortresses.TowerEvery) * Fortresses.TowerEvery; s < b; s += Fortresses.TowerEvery)
+                {
+                    if (Fortresses.InTheSquare(square, s, side, 3))
+                        continue;
                     var t = line.Sample(s);
                     var r = Double3.Cross(t.Tangent, Double3.Up).Normalized;
-                    mesh.Instances.Add(new MeshInstance(wall, Basis(t.Tangent, t.Position + r * (side * WallOut), eye, 0)));
-                }
-            var tower = Piece($"tower-{side}", () => StructureKit.Tower(_look, side));
-            for (double s = Math.Ceiling(a / Fortresses.TowerEvery) * Fortresses.TowerEvery; s < b; s += Fortresses.TowerEvery)
-            {
-                if (Fortresses.InTheSquare(square, s, side, 3))
-                    continue;
-                var t = line.Sample(s);
-                var r = Double3.Cross(t.Tangent, Double3.Up).Normalized;
-                var at = t.Position + r * (side * WallOut);
-                mesh.Instances.Add(new MeshInstance(tower, Basis(t.Tangent, at, eye, 0)));
-                // The tower's lamp over the line, a lit pool on the tracks below it.
-                var lamp = (at + r * (-side * 2.2) + Double3.Up * 14.1).RelativeTo(eye);
-                if (!lit)
-                    continue;
-                mesh.PointLights.Add(new PointLight(lamp, Palette.LampAmber * 1.4f, 16));
-                mesh.Billboard(lamp, 2.2f, 0, new Vector4(Palette.LampAmber * 0.6f, 1), -1, FxBlend.Additive);
-                // Every other tower a searchlight on its outer face (the checklist's fortress: its searchlights): a hard
-                // cold beam sweeping slowly over the ground outside the walls, each tower's on its own beat.
-                if (((int)(s / 120) + (side > 0 ? 1 : 0)) % 2 == 0)
-                {
-                    var lens = (at + r * (side * 1.6) + Double3.Up * 15.2).RelativeTo(eye);
-                    float phase = (float)(s * 0.013) + side;
-                    float sweep = 0.9f * MathF.Sin((float)time * 0.22f + phase);
-                    var outward = new Vector3((float)(r.X * side), 0, (float)(r.Z * side));
-                    var along = Vector3.Normalize(new Vector3((float)t.Tangent.X, 0, (float)t.Tangent.Z));
-                    var dir = Vector3.Normalize(outward * MathF.Cos(sweep) + along * MathF.Sin(sweep) - Vector3.UnitY * 0.2f);
-                    Effects.Beam(mesh, lens, dir, 5.5f, 110, new Vector3(0.55f, 0.6f, 0.7f) * 0.2f);
-                    mesh.Billboard(lens, 1.3f, 0, new Vector4(0.9f, 0.95f, 1.0f, 1), -1, FxBlend.Additive);
-                    mesh.Billboard(lens, 4.5f, 0, new Vector4(0.3f, 0.33f, 0.4f, 1), -1, FxBlend.Additive);
+                    var at = t.Position + r * (side * WallOut);
+                    mesh.Instances.Add(new MeshInstance(tower, Basis(t.Tangent, at, eye, 0)));
+                    // The tower's lamp over the line, a lit pool on the tracks below it.
+                    var lamp = (at + r * (-side * 2.2) + Double3.Up * 14.1).RelativeTo(eye);
+                    if (!lit)
+                        continue;
+                    mesh.PointLights.Add(new PointLight(lamp, Palette.LampAmber * 1.4f, 16));
+                    mesh.Billboard(lamp, 2.2f, 0, new Vector4(Palette.LampAmber * 0.6f, 1), -1, FxBlend.Additive);
+                    // Every other tower a searchlight on its outer face (the checklist's fortress: its searchlights): a hard
+                    // cold beam sweeping slowly over the ground outside the walls, each tower's on its own beat.
+                    if (((int)(s / 120) + (side > 0 ? 1 : 0)) % 2 == 0)
+                    {
+                        var lens = (at + r * (side * 1.6) + Double3.Up * 15.2).RelativeTo(eye);
+                        float phase = (float)(s * 0.013) + side;
+                        float sweep = 0.9f * MathF.Sin((float)time * 0.22f + phase);
+                        var outward = new Vector3((float)(r.X * side), 0, (float)(r.Z * side));
+                        var along = Vector3.Normalize(new Vector3((float)t.Tangent.X, 0, (float)t.Tangent.Z));
+                        var dir = Vector3.Normalize(outward * MathF.Cos(sweep) + along * MathF.Sin(sweep) - Vector3.UnitY * 0.2f);
+                        Effects.Beam(mesh, lens, dir, 5.5f, 110, new Vector3(0.55f, 0.6f, 0.7f) * 0.2f);
+                        mesh.Billboard(lens, 1.3f, 0, new Vector4(0.9f, 0.95f, 1.0f, 1), -1, FxBlend.Additive);
+                        mesh.Billboard(lens, 4.5f, 0, new Vector4(0.3f, 0.33f, 0.4f, 1), -1, FxBlend.Additive);
+                    }
                 }
             }
         }

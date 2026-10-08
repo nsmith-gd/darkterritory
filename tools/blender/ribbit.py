@@ -7,19 +7,34 @@ veined pink, hanging down its back. Two bulging eyes gone milky, set high, that 
 of its head, and in it a row of flat human teeth. Under its jaw the throat sac: the tell, swelling huge and pale as the
 pack lines up. Small human hands on its front legs; long rabbit feet behind.
 
+How it's made (the Look Review: organic, not primitives; the Gannet's way, note 340): the body, the haunches folded
+along its flanks, the legs and the long feet, the arms and the palms of the hands, the neck, the skull with its eye
+mounds, lids, glands and rolled lip, the roots of the ears and the throat's sac are one skin. Each is a smooth volume (an
+ellipsoid, a tapering limb) that's both a solid for rig.fuse's union and a term in a signed-distance field, blended
+into what's there with its own softness (`Flesh`): the union's voxels are settled onto that field, so the haunch swells
+out of the flank and the sac out of the throat with the crease filled as flesh fills it, before QuadriFlow lays the
+game mesh's quads over it (smooth-shaded). The jaw is a second skin the same way (it opens). Over them, kept apart
+because they're finer than the skin's quads: the eyes, the teeth, the tongue, the ears' bare blades (cupped, their
+roots sunk in the skin's), the fingers and the toes. Its colour (and the warts, wrinkles and veins too fine for the
+mesh) is baked into one atlas by tools/models/recipes/ribbit.py; built alone (this script), it wears the shared tiling
+textures.
+
 Its own rig (SK_Ribbit): root, pelvis, spine, chest, neck, head, jaw, throat (the sac, scaled), tongue (two bones),
 ears (two bones each, they droop and swing), front legs (upperarm, lowerarm, hand), hind legs (thigh, calf, foot, toe).
-Sat (its rest pose), facing +Y (the engine's -Z). The tongue's long shot is drawn by the engine (CreatureArt), from the
-mouth to whoever it's got. Clips (GDD §31: still, then too fast): sit (dead still but for the throat; the ears twitch),
-hop (a leap and a sit, 1 s: the sim's half-second bursts), swell (the telegraph: up tall, the sac swelling and
+Sat (its rest pose), facing +Y (the engine's -Z). The tongue's long shot is drawn by the engine (CreatureArt.Lash), from
+the mouth to whoever it's got. Clips (GDD §31: still, then too fast): sit (dead still but for the throat; the ears
+twitch), hop (a leap and a sit, 1 s: the sim's half-second bursts), swell (the telegraph: up tall, the sac swelling and
 pulsing), tongue (mouth gaping, braced, reeling in), creep (the leader in low on its frozen catch, the tongue still out),
 devour (reared up against them, forelegs on them, the head wrenching, the jaw snapping), hit.
 
-    tools/models/build.sh ribbit        # this, its high copy and the bake -> content/art/models/ribbit.glb
+    tools/models/build.sh ribbit        # this, with its colour baked -> content/art/models/ribbit.glb (and .lod1.glb)
+    (or, with no Blender: pip install "bpy<5" into a Python 3.11 venv, then python tools/models/recipes/ribbit.py)
 """
 import math
 import os
 import sys
+
+import numpy as np
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 import rig  # noqa: E402
@@ -67,6 +82,8 @@ def ribbit_skeleton():
 sk = ribbit_skeleton()
 sk.build()
 kit = rig.Kit(sk, "ribbit")
+# The skin's and the jaw's quads (QuadriFlow lands a little under).
+SKIN_FACES, JAW_FACES = 2780, 340
 
 
 def H(name):
@@ -77,14 +94,16 @@ def T(name):
     return sk[name].tail.copy()
 
 
-SKIN = Mat("skin.ribbit", hexc("#8d807c"), shine=0.6)
-BELLY = Mat("skin.ribbit_belly", hexc("#a4958f"), shine=0.6)
-EAR = Mat("skin.ribbit_ear", hexc("#a69088"), shine=0.4)
+# Built alone, each region wears the shared tiling texture its name starts with; baked (tools/models/recipes/ribbit.py),
+# the names say what to paint and how to sculpt it: the warted back, the paler loose belly, the veined ears.
+SKIN = Mat("skin.ribbit", hexc("#9a918c"), shine=0.6)
+BELLY = Mat("skin.ribbit_belly", hexc("#b4a9a2"), shine=0.6)
+EAR = Mat("skin.ribbit_ear", hexc("#b09490"), shine=0.5)
 EYE = Mat("glass_dirty.ribbit_eye", hexc("#c8c6bc"), shine=0.95)
-GUM = Mat("flesh.ribbit_gum", hexc("#5a3434"), shine=0.5)
+GUM = Mat("flesh.ribbit_gum", hexc("#5a3434"), shine=0.6)
 TEETH = Mat("skin.ribbit_teeth", hexc("#c2b89c"), shine=0.4)
 TONGUE = Mat("flesh.ribbit_tongue", hexc("#8a4a4c"), shine=0.9)
-MOUTH = Mat("tar.ribbit_mouth", hexc("#1a0a0a"), shine=0.8)
+NAIL = Mat("skin.ribbit_nail", hexc("#a89a84"), shine=0.5)
 
 
 def bell(x):
@@ -96,204 +115,450 @@ def smooth01(a, b, x):
     return t * t * (3 - 2 * t)
 
 
+def h01(*k):
+    """A fixed hash in 0..1 (no RNG: rebuilds are identical)."""
+    return 0.5 + 0.5 * noise3(Vector((k[0] * 1.37 + 0.11, (k[1] if len(k) > 1 else 0) * 2.11 + 0.37, (k[2] if len(k) > 2 else 0) * 0.71 + 0.53)), 291, 1.0)
+
+
 # ----------------------------------------------------------------------------------------------------------------
-# The body: a squat sack of a toad, wide and low at the rump where the haunches are, the back warted, the belly hanging.
-body = kit.part("body")
-SPINE = along("y", [(-0.46, "pelvis"), (-0.3, "pelvis"), (-0.1, "spine_01"), (0.1, "chest"), (0.26, "chest"),
-                    (0.34, "neck"), (0.42, "head")])
+# Flesh: smooth volumes that are a part's solids and a signed-distance field's terms at once.
+
+def _smin(a, b, k):
+    """The polynomial smooth minimum: the union of two volumes with the crease between them filled over `k` metres."""
+    if k <= 0:
+        return np.minimum(a, b)
+    h = np.clip(0.5 + 0.5 * (b - a) / k, 0.0, 1.0)
+    return b * (1 - h) + a * h - k * h * (1 - h)
 
 
-def body_weights(p):
-    w = SPINE(p)
-    # The haunches go with the thighs.
-    if p.y < -0.05 and p.z < 0.42 and abs(p.x) > 0.12:
-        k = smooth01(0.12, 0.26, abs(p.x)) * smooth01(-0.05, -0.2, p.y) * 0.8
-        s = "r" if p.x > 0 else "l"
-        w = {b: v * (1 - k) for b, v in w.items()}
-        w[f"thigh_{s}"] = w.get(f"thigh_{s}", 0) + k
+def _ellipsoid(c, r, R=None):
+    c, r = np.array(c, np.float64), np.array(r, np.float64)
+    M = None if R is None else np.array([[R[i][j] for j in range(3)] for i in range(3)], np.float64)
+
+    def f(P):
+        q = P - c
+        if M is not None:
+            q = q @ M
+        k0 = np.linalg.norm(q / r, axis=1)
+        k1 = np.linalg.norm(q / (r * r), axis=1)
+        return k0 * (k0 - 1) / np.maximum(k1, 1e-9)
+    return f
+
+
+def _round_cone(a, b, r1, r2):
+    """A limb's length between two joints, tapering from r1 to r2 (rounded at both ends)."""
+    a, b = np.array(a, np.float64), np.array(b, np.float64)
+    ba = b - a
+    l2 = float(ba @ ba)
+    rr = r1 - r2
+    a2 = l2 - rr * rr
+    il2 = 1.0 / l2
+
+    def f(P):
+        pa = P - a
+        y = pa @ ba
+        z = y - l2
+        x2 = np.sum((pa * l2 - np.outer(y, ba)) ** 2, axis=1)
+        y2 = y * y * l2
+        z2 = z * z * l2
+        k = math.copysign(1.0, rr) * rr * rr * x2 if rr != 0 else np.zeros_like(x2)
+        mid = (np.sqrt(np.maximum(x2 * a2 * il2, 0)) + y * rr) * il2 - r1
+        end = np.where(np.sign(z) * a2 * z2 > k, np.sqrt(x2 + z2) * il2 - r2, mid)
+        return np.where(np.sign(y) * a2 * y2 < k, np.sqrt(x2 + y2) * il2 - r1, end)
+    return f
+
+
+class Flesh:
+    """A skin's volumes: each `blob`/`limb` both models a solid in `part` (rig.fuse's union, and where the skin's
+    materials and bone weights come from) and adds a term to the field, smooth-blended over its `k` metres into what's
+    there already; `carve` takes a volume out softly (a nostril, the mouth's roof). `settle` moves points onto the
+    field's surface (rig.fuse: the union's voxels, before the retopology)."""
+
+    def __init__(self, part):
+        self.part = part
+        self.ops = []
+
+    def __call__(self, P):
+        d = None
+        for fn, k, cut in self.ops:
+            v = fn(P)
+            if d is None:
+                d = v if not cut else -v
+            elif cut:
+                d = -_smin(-d, v, k)
+            else:
+                d = _smin(d, v, k)
+        return d
+
+    def blob(self, c, r, k, mat, bones, rot=None, around=18, rings=10, fmat=None):
+        R = None if rot is None else rot.to_3x3()
+        self.part.blob(Vector(c), r, around, rings, mat, bones, rot=rot, fmat=fmat)
+        self.ops.append((_ellipsoid(c, r, R), k, False))
+
+    def limb(self, points, radii, k, mat, bones, sides=14, ref=(1, 0, 0), fmat=None):
+        pts = [Vector(p) for p in points]
+        self.part.tube(pts, radii, sides, mat, bones, ref=ref, cap0="point", cap1="point", fmat=fmat)
+        cones = [_round_cone(tuple(a), tuple(b), ra, rb) for a, b, ra, rb in zip(pts, pts[1:], radii, radii[1:])]
+        self.ops.append((lambda P, cones=cones: np.min([f(P) for f in cones], axis=0), k, False))
+
+    def carve(self, c, r, k, rot=None):
+        self.ops.append((_ellipsoid(c, r, None if rot is None else rot.to_3x3()), k, True))
+
+    def surface(self, origin, direction, reach=0.5):
+        """Where a ray from `origin` (inside) along `direction` leaves the flesh so far."""
+        o, d = np.array(origin, np.float64), np.array(direction, np.float64)
+        d /= np.linalg.norm(d)
+        lo, hi = 0.0, reach
+        for _ in range(40):
+            mid = (lo + hi) / 2
+            if self(o[None, :] + d[None, :] * mid)[0] < 0:
+                lo = mid
+            else:
+                hi = mid
+        return Vector(tuple(o + d * lo))
+
+    def settle(self, P, steps=8):
+        P = np.asarray(P, np.float64).copy()
+        e = 0.0008
+        for _ in range(steps):
+            d = self(P)
+            g = np.stack([(self(P + np.array(a) * e) - self(P - np.array(a) * e)) / (2 * e)
+                          for a in ((1, 0, 0), (0, 1, 0), (0, 0, 1))], axis=1)
+            step = (d / np.maximum((g * g).sum(axis=1), 0.05))[:, None] * g
+            n = np.linalg.norm(step, axis=1)
+            P -= step * np.minimum(1.0, 0.015 / np.maximum(n, 1e-9))[:, None]
+        print(f"[dt] ribbit flesh: {len(P)} points settled, worst {np.abs(self(P)).max() * 1000:.2f} mm off")
+        return P
+
+
+def norm(w):
+    w = {b: v for b, v in w.items() if v > 0.02}
     t = sum(w.values())
     return {b: v / t for b, v in w.items()}
 
 
-def warts(i, j, ang, p):
-    """Starved under loose skin: the spine's knuckles in a ridge down the back, the hips' bones standing either side of
-    it, ribs, lumps and warts; under it all, the belly's skin hanging slack."""
-    p = Vector(p)
-    top = smooth01(0.3, 0.55, p.z)
-    n = noise3(p * 9.0, 7, 1.0)
-    out = Vector((p.x, 0, p.z - 0.33)).normalized() if abs(p.x) + abs(p.z - 0.33) > 1e-6 else Vector((0, 0, 1))
-    d = 0.014 * top * max(0.0, n - 0.1) + 0.02 * noise3(p * 3.0, 11, 1.0)
-    d += 0.03 * bell(p.x / 0.05) * top * (0.6 + 0.4 * max(0.0, math.sin(p.y * 70)))       # the spine's ridge
-    d += 0.035 * bell((abs(p.x) - 0.12) / 0.05) * bell((p.y + 0.3) / 0.07) * top            # the hips' bones
-    d -= 0.018 * bell((abs(p.x) - 0.24) / 0.08) * top * smooth01(-0.25, 0.0, p.y) * max(0.0, math.sin(p.y * 45)) ** 2  # between the ribs
-    belly = smooth01(0.24, 0.08, p.z)
-    p = p + out * d
-    p.z -= 0.06 * belly * bell(p.x / 0.22) * bell((p.y + 0.05) / 0.25)                    # the slack belly
-    return p
+def mix(a, b, k):
+    """Weights `a` going over to `b` by k (0..1)."""
+    out = {n: v * (1 - k) for n, v in a.items()}
+    for n, v in b.items():
+        out[n] = out.get(n, 0) + v * k
+    return norm(out)
 
 
-SECS = [(-0.47, 0.04, 0.36, 0.3, 0.9), (-0.43, 0.15, 0.47, 0.16), (-0.32, 0.23, 0.52, 0.1), (-0.14, 0.25, 0.55, 0.1),
-        (0.04, 0.25, 0.59, 0.12), (0.18, 0.24, 0.63, 0.2), (0.3, 0.22, 0.66, 0.3), (0.4, 0.19, 0.67, 0.4)]
-body.sections(SECS, 22, SKIN, body_weights, axis="y", sq=0.75, shape=warts,
-              fmat=lambda pts, n: BELLY if sum(q.z for q in pts) / len(pts) < 0.2 else SKIN)
-# The haunches: a rabbit's, big and bunched over folded hind legs.
-for s, sx in (("r", 1), ("l", -1)):
-    body.blob(Vector((sx * 0.2, -0.18, 0.3)), (0.09, 0.17, 0.13), 10, 7, SKIN, f"thigh_{s}",
-              shape=lambda i, j, a, th, p: Vector(p) + Vector((0, 0, 0.015 * noise3(Vector(p) * 8, 3, 1.0))))
+def chain(joints, bones, soft=0.035):
+    """Weights along a limb: each point its nearest length's bone, blended half and half at a joint over `soft` metres."""
+    joints = [Vector(j) for j in joints]
+
+    def fn(p):
+        p = Vector(p)
+        best, bi, bt = 1e9, 0, 0.0
+        for i, (a, b) in enumerate(zip(joints, joints[1:])):
+            ab = b - a
+            t = max(0.0, min(1.0, (p - a).dot(ab) / ab.length_squared))
+            d = (a + ab * t - p).length
+            if d < best:
+                best, bi, bt = d, i, t
+        L = (joints[bi + 1] - joints[bi]).length
+        w = {bones[bi]: 1.0}
+        if bi > 0 and bt * L < soft:
+            w = mix(w, {bones[bi - 1]: 1.0}, 0.5 * (1 - bt * L / soft))
+        if bi < len(bones) - 1 and (1 - bt) * L < soft:
+            w = mix(w, {bones[bi + 1]: 1.0}, 0.5 * (1 - (1 - bt) * L / soft))
+        return norm(w)
+    return fn
+
+
+def R(rx=0.0, ry=0.0, rz=0.0):
+    return rig.rot(rx, ry, rz).to_matrix()
 
 
 # ----------------------------------------------------------------------------------------------------------------
-# The head: a toad's, a broad flat wedge, the mouth a slit right across it under a rolled lip with a row of human teeth
-# in it; the eyes up on top, bulging out of their mounds, milky; the glands swollen behind them; the throat's sac under
-# the jaw; the long bare ears. The skin of it is one surface (`skull`, fused by rig.fuse): the eye mounds, the glands,
-# the lip and the ears' roots grow out of the skull; the jaw (it opens), the mouth, the eyes and the sac stay `head`.
-head = kit.part("head")
-skull = kit.part("skull")
-HC = Vector((0, 0.49, 0.645))
-# (along y, half width, top, bottom): from the neck to the blunt snout, seen from above a rounded spade.
-SKULL = [(0.36, 0.15, 0.7, 0.6), (0.4, 0.175, 0.716, 0.603), (0.46, 0.186, 0.722, 0.605), (0.52, 0.181, 0.714, 0.607),
-         (0.58, 0.166, 0.697, 0.608), (0.63, 0.136, 0.677, 0.61), (0.66, 0.092, 0.657, 0.612), (0.674, 0.03, 0.642, 0.618)]
+# The skin: one surface from the rump to the snout (rig.fuse, settled on `flesh`).
+body = kit.part("body")
+flesh = Flesh(body)
+SPINE = along("y", [(-0.46, "pelvis"), (-0.3, "pelvis"), (-0.1, "spine_01"), (0.1, "chest"), (0.26, "chest"),
+                    (0.34, "neck"), (0.42, "head")])
 
 
-def brow(i, j, ang, p):
+def trunk_w(p):
+    """Along the spine; the haunches' tops go with the thighs, the shoulders with the arms, the head's underside back
+    by the gape with the jaw."""
     p = Vector(p)
-    # A ridge over each eye running back to the glands; the snout's top a little dished between the nostrils.
-    p.z += 0.008 * bell((abs(p.x) - 0.1) / 0.03) * bell((p.y - 0.5) / 0.08) * (p.z > 0.68)
-    p.z -= 0.004 * bell(p.x / 0.03) * bell((p.y - 0.63) / 0.03)
-    return p
+    w = SPINE(p)
+    s = "r" if p.x > 0 else "l"
+    ax = abs(p.x)
+    if p.y < 0.06 and ax > 0.1 and p.z < 0.46:
+        k = smooth01(0.1, 0.2, ax) * smooth01(0.06, -0.08, p.y) * smooth01(0.46, 0.36, p.z) * 0.75
+        w = mix(w, {f"thigh_{s}": 1.0}, k)
+    if 0.12 < p.y < 0.36 and ax > 0.1 and p.z < 0.5:
+        k = smooth01(0.1, 0.18, ax) * bell((p.y - 0.23) / 0.08) * smooth01(0.5, 0.4, p.z) * 0.5
+        w = mix(w, {f"upperarm_{s}": 1.0}, k)
+    return w
 
 
-skull.sections(SKULL, 24, SKIN, "head", sq=0.72, shape=brow, cap0=True, cap1=True)
+def head_w(p):
+    p = Vector(p)
+    w = trunk_w(p)
+    if p.y > 0.38 and p.z < 0.6:
+        # (Below the lip's line by the gape the cheeks go a little with the jaw: the mouth's corner stretches open.)
+        w = mix(w, {"jaw": 1.0}, 0.5 * smooth01(0.6, 0.57, p.z) * smooth01(0.38, 0.44, p.y))
+    return w
 
 
-def lip_path(scale=1.0, inset=0.0, z=0.614):
-    """The mouth's line round the skull's underside, back on the left to the snout and back on the right."""
-    side = [(hw * scale - inset, y - inset * 0.5) for y, hw, _, _ in SKULL[1:-1]]
-    return ([Vector((-x, y, z)) for x, y in reversed(side)] + [Vector((0, SKULL[-1][0] - 0.004 - inset, z))]
-            + [Vector((x, y, z)) for x, y in side])
+def under(pts, n):
+    """The belly's skin where the body faces down (smoother, paler, loose); the warted skin over the rest."""
+    c = sum(pts, Vector()) / len(pts)
+    return BELLY if n.z < -0.35 or (n.z < 0.1 and c.z < 0.3 and abs(c.x) < 0.14) else SKIN
 
 
-# The upper lip, rolled and heavy, overhanging the gums.
-LIP = lip_path(0.985, 0.0, 0.613)
-skull.tube(LIP, [(0.016, 0.013)] * len(LIP), 8, SKIN, "head", ref=(0, 0, 1))
-# The eyes' mounds, the glands behind them (a toad's paratoids, swollen and pitted), the nostrils.
+# The trunk: a rabbit's hunch, as wide as a toad's: the round rump low over the haunches, the back rising over the loins
+# to the shoulders' hump and the thick short neck, the belly slung under it all.
+flesh.blob((0, -0.31, 0.34), (0.19, 0.17, 0.17), 0, SKIN, trunk_w, fmat=under)                  # the rump
+flesh.blob((0, -0.1, 0.375), (0.205, 0.2, 0.165), 0.08, SKIN, trunk_w, fmat=under)              # the loins
+flesh.blob((0, 0.14, 0.42), (0.2, 0.17, 0.15), 0.08, SKIN, trunk_w, fmat=under)                 # the chest
+flesh.blob((0, 0.17, 0.515), (0.15, 0.14, 0.075), 0.06, SKIN, trunk_w, fmat=under)              # the shoulders' hump
+flesh.blob((0, 0.33, 0.55), (0.165, 0.1, 0.1), 0.07, SKIN, trunk_w, fmat=under)                 # the neck
+# The belly: loose, slung low between the legs, a fold where it hangs off the chest and the flanks.
+flesh.blob((0, 0.01, 0.245), (0.165, 0.2, 0.085), 0.035, BELLY, trunk_w)
+flesh.blob((0, 0.2, 0.3), (0.14, 0.09, 0.07), 0.04, BELLY, trunk_w)
+# Starved under the loose skin: the hip bones standing either side of the rump, the shoulder blades, and the spine's
+# knuckles in a ridge down the back (each sat on the back where it is).
+for sx in (1, -1):
+    flesh.blob((sx * 0.105, -0.29, 0.49), (0.038, 0.055, 0.03), 0.025, SKIN, trunk_w)
+    flesh.blob((sx * 0.115, 0.12, 0.545), (0.05, 0.085, 0.028), 0.03, SKIN, trunk_w, rot=R(rz=-sx * 12))
+for k in range(12):
+    y = -0.44 + k * 0.064
+    top = flesh.surface((0, y, 0.3), (0, 0, 1))
+    flesh.blob(top - Vector((0, 0, 0.012)), (0.022, 0.024, 0.02), 0.014, SKIN, trunk_w, around=10, rings=6)
+# The loose skin of the neck in folds across the nape.
+for y, z, w in ((0.27, 0.625, 0.12), (0.33, 0.66, 0.13)):
+    top = flesh.surface((0, y, 0.45), (0, -0.25, 1))
+    flesh.blob(top - Vector((0, 0, 0.012)), (w, 0.018, 0.016), 0.02, SKIN, trunk_w, around=14, rings=6)
+
+def thigh_w(p, s):
+    return chain([H(f"thigh_{s}") + Vector((0, -0.08, 0.06)), H(f"calf_{s}")], [f"thigh_{s}"])(p)
+
+
+# The haunches: a rabbit's, big and bunched along its flanks over the folded hind legs; the knee forward under the
+# belly, the shin folded back under the thigh to the heel, and the long hare's foot flat on the ground in front of it.
+for s, sx in (("r", 1), ("l", -1)):
+    thigh = chain([H(f"thigh_{s}") + Vector((0, -0.08, 0.06)), H(f"calf_{s}"), H(f"foot_{s}"), H(f"toe_{s}"), T(f"toe_{s}")],
+                  [f"thigh_{s}", f"calf_{s}", f"foot_{s}", f"toe_{s}"], soft=0.05)
+    flesh.blob((sx * 0.215, -0.16, 0.295), (0.105, 0.205, 0.14), 0.05, SKIN, lambda p, s=s: mix(thigh_w(p, s), trunk_w(p), smooth01(0.36, 0.45, p[2]) * 0.6),
+               rot=R(rx=-14, rz=-sx * 6), around=22, rings=12, fmat=under)
+    flesh.blob((sx * 0.25, 0.015, 0.215), (0.062, 0.062, 0.062), 0.03, SKIN, thigh, fmat=under)                       # the knee
+    flesh.limb([(sx * 0.262, 0.0, 0.2), (sx * 0.264, -0.16, 0.13), (sx * 0.264, -0.3, 0.08)], [0.055, 0.05, 0.04], 0.03, SKIN, thigh)
+    flesh.blob((sx * 0.262, -0.315, 0.062), (0.04, 0.05, 0.05), 0.02, SKIN, thigh)                                    # the heel
+    flesh.blob((sx * 0.262, -0.125, 0.034), (0.047, 0.215, 0.034), 0.03, BELLY, thigh, around=16, rings=8,
+               fmat=lambda pts, n: BELLY if n.z < 0.3 else SKIN)                                                         # the foot
+    flesh.blob((sx * 0.262, 0.075, 0.022), (0.05, 0.06, 0.022), 0.02, BELLY, thigh, around=14, rings=6,
+               fmat=lambda pts, n: BELLY if n.z < 0.3 else SKIN)                                                         # its ball
+
+
+
+# The front legs: a crawling man's arms out of a toad's shoulders, the elbows out, the forearms down to small human
+# hands flat on the ground; the palms are the skin's, the fingers their own (`paws`).
+PALMS = {}
+for s, sx in (("r", 1), ("l", -1)):
+    sh, el, wr, tip = H(f"upperarm_{s}"), H(f"lowerarm_{s}"), H(f"hand_{s}"), T(f"hand_{s}")
+    arm = chain([sh, el, wr, tip], [f"upperarm_{s}", f"lowerarm_{s}", f"hand_{s}"], soft=0.04)
+    flesh.blob((sx * 0.175, 0.23, 0.405), (0.07, 0.085, 0.095), 0.05, SKIN, lambda p, arm=arm: mix(arm(p), trunk_w(p), smooth01(0.38, 0.48, p[2]) * 0.7),
+               fmat=under)                                                                                               # the shoulder
+    flesh.limb([sh + Vector((-sx * 0.02, 0, 0.01)), sh.lerp(el, 0.5), el], [0.062, 0.052, 0.044], 0.035, SKIN, arm)
+    flesh.blob(el + Vector((sx * 0.01, -0.012, 0.002)), (0.04, 0.04, 0.042), 0.015, SKIN, arm, around=12, rings=8)  # the elbow
+    flesh.limb([el, el.lerp(wr, 0.35), wr], [0.044, 0.04, 0.026], 0.015, SKIN, arm,
+               fmat=lambda pts, n: BELLY if n.y < -0.4 else SKIN)
+    palm = wr.lerp(tip, 0.45) + Vector((0, 0, 0.002))
+    PALMS[s] = palm
+    flesh.blob(palm, (0.04, 0.05, 0.018), 0.022, BELLY, arm, around=14, rings=6,
+               fmat=lambda pts, n: BELLY if n.z < 0.2 else SKIN)
+
+# ----------------------------------------------------------------------------------------------------------------
+# The head: a toad's, broad and flat, a spade seen from above; the eyes up on top in their mounds under heavy lids, the
+# glands swollen behind them, the cheeks heavy, a rolled lip right round the mouth; the roof of the mouth vaulted
+# inside it. (The jaw is a skin of its own: it opens.)
+HC = Vector((0, 0.47, 0.612))
+flesh.blob((0, 0.47, 0.655), (0.182, 0.15, 0.07), 0.06, SKIN, head_w, around=22, rings=12)           # the skull
+flesh.blob((0, 0.575, 0.645), (0.155, 0.1, 0.056), 0.05, SKIN, head_w, around=20, rings=10)         # the snout
+flesh.blob((0, 0.645, 0.637), (0.095, 0.042, 0.037), 0.03, SKIN, head_w)                             # its blunt end
+# The upper jaw: the head's broadest at the mouth, overhanging the lower all round (a toad's).
+flesh.blob((0, 0.5, 0.626), (0.178, 0.165, 0.034), 0.03, SKIN, head_w, around=22, rings=8)
+for sx in (1, -1):
+    flesh.blob((sx * 0.155, 0.43, 0.618), (0.052, 0.085, 0.046), 0.04, SKIN, head_w)                 # the jowls
+# The upper lip, rolled and heavy, overhanging the jaw: its line found on the skull at the mouth's height.
+LIP = [flesh.surface(HC, (math.sin(math.radians(a)), math.cos(math.radians(a)), 0)) for a in range(-108, 109, 12)]
+LIP = [p - (p - HC).normalized() * 0.006 for p in LIP]
+flesh.limb(LIP, [0.012] + [0.016] * (len(LIP) - 2) + [0.012], 0.012, SKIN, head_w, sides=10, ref=(0, 0, 1))
+# The roof of the mouth, vaulted up inside the lip (it shows when the jaw drops).
+flesh.carve((0, 0.49, 0.582), (0.15, 0.15, 0.032), 0.012)
 EYES = {}
 for s, sx in (("r", 1), ("l", -1)):
-    mound = Vector((sx * 0.112, 0.505, 0.712))
-    skull.blob(mound, (0.066, 0.066, 0.05), 14, 8, SKIN, "head")
-    skull.blob(Vector((sx * 0.135, 0.41, 0.71)), (0.05, 0.075, 0.032), 12, 7, SKIN, "head", rot=rig.rot(rz=sx * 14).to_matrix().to_4x4())
-    skull.blob(Vector((sx * 0.032, 0.652, 0.662)), (0.014, 0.012, 0.01), 8, 5, SKIN, "head")
-    e = Vector((sx * 0.126, 0.52, 0.744))
+    flesh.blob((sx * 0.114, 0.5, 0.71), (0.066, 0.066, 0.05), 0.03, SKIN, head_w)                  # the eye's mound
+    e = Vector((sx * 0.127, 0.515, 0.744))
     EYES[s] = e
-    head.blob(e, (0.036, 0.036, 0.033), 16, 10, EYE, "head")
-    # A heavy lid over the top and back of it: the eye's never all there.
-    skull.blob(e + Vector((sx * -0.004, -0.012, 0.017)), (0.041, 0.037, 0.02), 12, 6, SKIN, "head")
-# The lower jaw: a wide heavy scoop under the head, hinged at the back, the chin deeper, as broad as the lip over it
-# and rolled at its rim (a Look Review ask: the old one was a thin tray under a ring of lip). Its own skin (`jaw`,
-# fused): it opens.
-jaw = kit.part("jaw")
-JAW = [(0.37, 0.15, 0.607, 0.55), (0.44, 0.18, 0.605, 0.535), (0.52, 0.182, 0.603, 0.528), (0.59, 0.166, 0.603, 0.533),
-       (0.64, 0.13, 0.604, 0.546), (0.665, 0.08, 0.605, 0.568), (0.676, 0.025, 0.606, 0.592)]
-jaw.sections(JAW, 22, BELLY, "jaw", sq=0.78, cap0=True, cap1=True,
-             fmat=lambda pts, n: SKIN if sum(q.x * q.x for q in pts) / len(pts) > 0.012 else BELLY)
-LOWLIP = lip_path(0.97, 0.006, 0.596)
-jaw.tube(LOWLIP, [(0.012, 0.008)] * len(LOWLIP), 8, SKIN, "jaw", ref=(0, 0, 1))
-# The gums just inside the lip, the mouth's dark line under them; the teeth: flat, square, human, a row round the jaw.
-GUMLINE = lip_path(0.93, 0.012, 0.606)
-head.tube(GUMLINE, [0.008] * len(GUMLINE), 6, GUM, "head", ref=(0, 0, 1))
-head.tube(lip_path(0.92, 0.01, 0.6), [0.007] * len(GUMLINE), 5, MOUTH, "jaw", ref=(0, 0, 1))
-TEETH_AT = []
-ROW = lip_path(0.935, 0.008, 0.6)
-for k in range(18):
-    t = 1 + k * (len(ROW) - 3) / 17
-    i0 = int(t)
-    c = ROW[i0].lerp(ROW[i0 + 1], t - i0)
-    TEETH_AT.append(c)
-    d = (ROW[i0 + 1] - ROW[i0]).normalized()
-    out = Vector((d.y, -d.x, 0)) * (1 if c.x >= 0 else -1)
-    # Human teeth, but wrong: crooked, uneven, a few gone.
-    if k in (3, 12):
-        continue
-    w = (0.011 if abs(c.x) < 0.09 else 0.008) * (0.8 + 0.4 * (0.5 + 0.5 * math.sin(k * 2.7)))
-    tilt = Vector((0.004 * math.sin(k * 1.9), 0.003 * math.cos(k * 2.3), 0))
-    long_ = 0.013 + 0.006 * (0.5 + 0.5 * math.sin(k * 3.1))
-    head.tube([c + Vector((0, 0, 0.009)), c - Vector((0, 0, long_)) + tilt], [(w, 0.006), (w * 0.85, 0.005)], 4, TEETH, "head",
-              ref=(out.x, out.y, 0))
-# The throat's sac, under the jaw: loose skin hanging in folds that swells (the throat bone's scale, about its top
-# under the chin) into a pale veined balloon bigger than the head (the Look Review: "the swell needs to be much bigger").
-THROAT = Vector((0, 0.47, 0.535))
+    # Heavy lids, the upper over the eye's top and back (it's never all there), a lower one under it.
+    flesh.blob(e + Vector((-sx * 0.004, -0.01, 0.021)), (0.047, 0.044, 0.022), 0.012, SKIN, head_w, around=14, rings=7)
+    flesh.blob(e + Vector((sx * 0.004, 0.006, -0.02)), (0.045, 0.042, 0.017), 0.012, SKIN, head_w, around=14, rings=7)
+    # A toad's glands behind the eyes, swollen and pitted, running back onto the neck.
+    flesh.blob((sx * 0.138, 0.395, 0.703), (0.052, 0.085, 0.036), 0.025, SKIN, head_w, rot=R(rz=sx * 14))
+    # The nostrils' rims at the snout's end, and the nostrils.
+    flesh.blob((sx * 0.032, 0.656, 0.664), (0.016, 0.014, 0.011), 0.012, SKIN, head_w, around=10, rings=6)
+    flesh.carve((sx * 0.033, 0.664, 0.669), (0.008, 0.007, 0.007), 0.004)
+
+# The ears' roots: thick fleshy stalks grown off the back of the skull (the bare blades grow on out of them, `ears`).
+EAR_ROOT = {}
+for s, sx in (("r", 1), ("l", -1)):
+    e0, e1 = H(f"ear_{s}_01"), T(f"ear_{s}_01")
+    a, b = e0 + Vector((-sx * 0.02, 0.035, -0.022)), e0.lerp(e1, 0.42)
+    EAR_ROOT[s] = (a, b)
+    flesh.limb([a, e0.lerp(e1, 0.12), b], [0.042, 0.036, 0.026], 0.03, EAR, lambda p, s=s, e0=e0, e1=e1: mix(
+        {"head": 1.0}, {f"ear_{s}_01": 1.0}, smooth01(0.0, 0.3, (Vector(p) - e0).dot((e1 - e0).normalized()) / (e1 - e0).length)),
+        sides=12, fmat=lambda pts, n: SKIN if n.z > 0.5 else EAR)
+
+# The throat's sac: under the jaw, loose skin in folds (the bake's), grown out of the throat into the chest. It goes with
+# the throat bone (about its top under the chin it swells into a pale veined balloon bigger than the head), the skin
+# behind it stretching back to the chest's.
+THROAT = Vector((0, 0.47, 0.527))
 
 
-def sac_folds(i, j, a, th, p):
+def sac_w(p):
     p = Vector(p)
-    # Slack: creased across, sagging lowest at the front; stretched, the folds open out.
-    p.z += 0.007 * math.sin(p.y * 90 + 1.5 * math.sin(p.x * 30)) * smooth01(0.56, 0.5, p.z)
-    p.z -= 0.012 * smooth01(0.42, 0.56, p.y) * smooth01(0.55, 0.49, p.z)
-    return p
+    k = smooth01(0.38, 0.47, p.y) * smooth01(0.42, 0.5, p.z)
+    return mix(trunk_w(p), {"throat": 1.0}, k)
 
 
-head.blob(THROAT, (0.105, 0.1, 0.058), 18, 10, BELLY, "throat", shape=sac_folds)
+flesh.blob(THROAT, (0.118, 0.108, 0.062), 0.04, BELLY, sac_w, around=20, rings=10)
+flesh.blob(THROAT + Vector((0, -0.03, -0.035)), (0.1, 0.075, 0.045), 0.04, BELLY, sac_w)
+
+# Warts: the big ones raised in the skin itself (the small, in their hundreds, are the bake's), down the back, the
+# haunches and the head's top, none on the belly.
+WARTS = []
+for k in range(26):
+    a = h01(k, 1) * 2 * math.pi
+    y = -0.42 + 0.84 * h01(k, 2)
+    up = Vector((0.75 * math.sin(a * 0.5 + 0.4), 0, 1)).normalized()
+    for sx in (1, -1):
+        o = Vector((0, y, 0.33))
+        d = Vector((sx * up.x, 0, up.z))
+        p = flesh.surface(o, d, 0.4)
+        if p.z < 0.38:
+            continue
+        r = 0.011 + 0.01 * h01(k, 3)
+        WARTS.append(p)
+        flesh.blob(p - d * r * 0.45, (r, r * 1.1, r * 0.8), 0.008, SKIN, trunk_w, around=8, rings=5)
+for sx in (1, -1):
+    for k in range(5):
+        p = flesh.surface((sx * 0.2, -0.2 + 0.07 * k, 0.3), (sx * 0.4, 0.1 * (h01(k, 7) - 0.5), 1), 0.3)
+        r = 0.012 + 0.008 * h01(k, 8, sx)
+        flesh.blob(p - Vector((0, 0, r * 0.4)), (r, r * 1.1, r * 0.8), 0.008, SKIN, trunk_w, around=8, rings=5)
+
+# ----------------------------------------------------------------------------------------------------------------
+# The jaw: a wide heavy scoop under the head, hinged at the back, its rim a rolled lip tucked in under the upper one,
+# the floor of the mouth hollowed for the tongue to lie in. Its own skin (rig.fuse): it opens.
+jaw = kit.part("jaw")
+jflesh = Flesh(jaw)
+
+
+def jaw_mat(pts, n):
+    c = sum(pts, Vector()) / len(pts)
+    return GUM if n.z > 0.6 and c.z > 0.582 and (c - HC).xy.length < 0.13 else BELLY if n.z < -0.4 else SKIN
+
+
+jflesh.blob((0, 0.505, 0.57), (0.158, 0.145, 0.031), 0, SKIN, "jaw", around=22, rings=10, fmat=jaw_mat)
+jflesh.blob((0, 0.6, 0.572), (0.1, 0.055, 0.029), 0.03, SKIN, "jaw", fmat=jaw_mat)                    # the chin
+for sx in (1, -1):
+    jflesh.blob((sx * 0.13, 0.41, 0.583), (0.038, 0.062, 0.027), 0.03, SKIN, "jaw", fmat=jaw_mat)       # the hinge
+JC = Vector((0, 0.47, 0.592))
+LOWLIP = [jflesh.surface(JC, (math.sin(math.radians(a)), math.cos(math.radians(a)), 0)) for a in range(-102, 103, 12)]
+LOWLIP = [p - (p - JC).normalized() * 0.012 for p in LOWLIP]
+jflesh.limb(LOWLIP, [0.008] + [0.01] * (len(LOWLIP) - 2) + [0.008], 0.01, SKIN, "jaw", sides=8, ref=(0, 0, 1))
+jflesh.carve((0, 0.49, 0.614), (0.122, 0.12, 0.021), 0.012)                                           # the mouth's floor
+
+# ----------------------------------------------------------------------------------------------------------------
+# What's finer than the skin: the eyes, the teeth, the tongue (`head`); the ears' blades; the fingers and the toes.
+head = kit.part("head")
+for s, e in EYES.items():
+    head.blob(e, (0.04, 0.04, 0.037), 12, 8, EYE, "head")
+# The teeth: flat, square, human, a row round each jaw just inside the lips; wrong: crooked, uneven, a few gone.
+TEETH_AT = []
+
+
+def tooth_row(lip, centre, n, inset, top, long_, bone, skip, seed):
+    for k in range(n):
+        if k in skip:
+            continue
+        t = 0.5 + k * (len(lip) - 2) / (n - 1)
+        i0 = min(int(t), len(lip) - 2)
+        c = lip[i0].lerp(lip[i0 + 1], t - i0)
+        c = c - (c - centre).normalized() * inset
+        d = (lip[i0 + 1] - lip[i0]).normalized()
+        out = Vector((d.y, -d.x, 0)) * (1 if c.x >= 0 else -1)
+        front = bell(c.x / 0.09)
+        w = (0.0075 + 0.0035 * front) * (0.8 + 0.4 * h01(k, seed))
+        tilt = Vector((0.003 * (h01(k, seed + 1) - 0.5), 0.003 * (h01(k, seed + 2) - 0.5), 0))
+        L = long_ * (0.8 + 0.4 * h01(k, seed + 3)) * (0.75 + 0.25 * front)
+        base = Vector((c.x, c.y, top))
+        tipz = top + (L if top < centre.z else -L)
+        TEETH_AT.append(base)
+        head.tube([base, Vector((c.x, c.y, tipz)) + tilt], [(w, 0.0055), (w * 0.9, 0.005)], 4, TEETH, bone,
+                  ref=(out.x, out.y, 0), cap1=True)
+
+
+tooth_row(LIP, HC, 16, 0.017, 0.612, 0.02, "head", (4, 11), 10)
+tooth_row(LOWLIP, JC, 14, 0.008, 0.584, 0.014, "jaw", (2, 9, 12), 20)
 # The tongue: a toad's, broad and flat and wet, a groove down its middle, lying in the mouth's floor; at its end the
 # sticky club it catches with, swollen and puckered. Out, tongue_01 is scaled along its length (the club scaled back):
 # the tongue shoots out as thick as it lay (clips `tongue`, `creep`; in the game CreatureArt stretches it to its catch).
 t0, t1 = H("tongue_01"), T("tongue_01")
-TPTS = [t0 + Vector((0, 0.004, -0.004))] + [t0.lerp(t1, k / 7) for k in range(1, 8)]
-head.tube(TPTS, [(0.03, 0.011), (0.036, 0.012), (0.038, 0.012), (0.036, 0.011), (0.033, 0.01), (0.03, 0.009), (0.027, 0.009),
-                 (0.026, 0.009)], 10, TONGUE, "tongue_01", ref=(0, 0, 1),
+TPTS = [t0 + Vector((0, 0.004, -0.004))] + [t0.lerp(t1, k / 6) for k in range(1, 7)]
+head.tube(TPTS, [(0.03, 0.011), (0.036, 0.012), (0.038, 0.012), (0.036, 0.011), (0.032, 0.01), (0.028, 0.009), (0.026, 0.009)],
+          10, TONGUE, "tongue_01", ref=(0, 0, 1),
           shape=lambda i, j, a, p, fr: Vector(p) - fr[1] * (0.004 * bell(math.sin(a) / 0.25) * (math.cos(a) > 0)))
-head.blob(T("tongue_01") + Vector((0, 0.022, 0.002)), (0.04, 0.034, 0.022), 12, 8, TONGUE, "tongue_02",
-          shape=lambda i, j, a, th, p: Vector(p) * 1.0 + Vector((0, 0, 0.003 * math.sin(a * 5) * math.sin(th * 4))))
-# The ears: a rabbit's, long and bare, cupped along their length, hanging down its back. Sheets too thin for the skin's
-# remesh (`ears`, their own part), their roots sunk deep in the skull's.
+head.blob(T("tongue_01") + Vector((0, 0.022, 0.002)), (0.04, 0.034, 0.022), 12, 7, TONGUE, "tongue_02",
+          shape=lambda i, j, a, th, p: Vector(p) + Vector((0, 0, 0.003 * math.sin(a * 5) * math.sin(th * 4))))
+
+# The ears: a rabbit's, long and bare, cupped along their length, hanging down its back and sides: thin blades grown on
+# out of the skin's stalks (their roots sunk in them), thick at the root and thin as a leaf at the end.
 ears = kit.part("ears")
 for s, sx in (("r", 1), ("l", -1)):
     e0, e1, e2 = H(f"ear_{s}_01"), H(f"ear_{s}_02"), T(f"ear_{s}_02")
-    # (The root sunk in the skull behind the gland and thick there, so the ear grows out of the head (Look Review: "geometry
-    # that doesn't seem attached"); then the thin blade.)
-    pts = [e0 + Vector((-sx * 0.02, 0.05, -0.035)), e0 + Vector((0, 0.015, -0.012)), e0.lerp(e1, 0.5), e1, e1.lerp(e2, 0.35),
-           e1.lerp(e2, 0.7), e2]
-    cup = [0.0, 0.004, 0.014, 0.022, 0.02, 0.014, 0.0]
-    ears.tube(pts, [(0.045, 0.034), (0.04, 0.02), (0.046, 0.01), (0.054, 0.008), (0.052, 0.008), (0.04, 0.007), (0.012, 0.005)],
-               12, EAR, lambda p, s=s, e1=e1: {f"ear_{s}_01": 1.0} if p.y > e1.y + 0.02 else {f"ear_{s}_02": 1.0},
-               ref=(sx, 0, 0.3), cap1="point",
-               shape=lambda i, j, a, p, fr, cup=cup: Vector(p) + fr[1] * (cup[i] * math.sin(a) ** 2))
-
-
-# ----------------------------------------------------------------------------------------------------------------
-# Legs: the front thin with small human hands, four fingers and a thumb; the hind a rabbit's, folded under, long feet.
-legs = kit.part("legs")
-paws = kit.part("paws")    # the hands and the long feet: fine, kept out of the fused skin
+    a, b = EAR_ROOT[s]
+    bend = Vector((sx * 0.025, -0.01, 0))
+    pts = [a.lerp(b, 0.45), b, e1 + Vector((sx * 0.006, 0.01, 0.0)), e1.lerp(e2, 0.25) + bend, e1.lerp(e2, 0.5) + bend * 1.4,
+           e1.lerp(e2, 0.72) + bend, e1.lerp(e2, 0.88) + bend * 0.4, e2 + Vector((0, -0.01, -0.012))]
+    half = [(0.03, 0.024), (0.036, 0.016), (0.046, 0.01), (0.054, 0.0085), (0.056, 0.008), (0.05, 0.0075), (0.036, 0.007), (0.01, 0.005)]
+    cup = [0.0, 0.004, 0.012, 0.02, 0.022, 0.018, 0.01, 0.0]
+    ears.tube(pts, half, 12, EAR, lambda p, s=s, e1=e1: mix({f"ear_{s}_01": 1.0}, {f"ear_{s}_02": 1.0}, smooth01(e1.y + 0.03, e1.y - 0.03, p.y)),
+              ref=[(sx, 0, 0.35)] * 3 + [(sx, 0.15, 0.25)] * 5, cap1="point",
+              shape=lambda i, j, a, p, fr, cup=cup: Vector(p) + fr[1] * (cup[i] * math.sin(a) ** 2))
+# Small human hands: four long fingers with their knuckles, the thumb turned in, the nails cracked; the hare's toes.
+paws = kit.part("paws")
+TIPS = []
 for s, sx in (("r", 1), ("l", -1)):
-    sh, el, wr, tip = H(f"upperarm_{s}"), H(f"lowerarm_{s}"), H(f"hand_{s}"), T(f"hand_{s}")
-    # (The forearm runs on into the hand's heel and the wrist is thick, so the hand is grown on, not a disc stuck on a
-    # stick: the Look Review.)
-    legs.tube([sh, sh.lerp(el, 0.5), el, el.lerp(wr, 0.5), wr, wr.lerp(tip, 0.3)], [0.064, 0.052, 0.042, 0.036, 0.032, 0.028],
-              10, SKIN, lambda p, el=el, wr=wr, s=s: {f"upperarm_{s}": 1.0} if p.z > el.z + 0.02
-              else {f"lowerarm_{s}": 1.0} if p.z > wr.z + 0.012 else {f"hand_{s}": 1.0}, ref=(1, 0, 0))
-    # A small human hand, flat on the ground: the palm, four long fingers with their knuckles, the thumb turned in.
-    paws.blob(wr.lerp(tip, 0.42) + Vector((0, 0, 0.004)), (0.036, 0.044, 0.017), 10, 6, BELLY, f"hand_{s}")
+    palm, wr, tip = PALMS[s], H(f"hand_{s}"), T(f"hand_{s}")
     for f in range(5):
         thumb = f == 4
-        a = math.radians(-sx * 62 if thumb else (f - 1.5) * 15)
-        base = wr.lerp(tip, 0.36 if thumb else 0.66) + Vector((math.sin(a) * (0.03 if thumb else 0.022), 0, 0.002))
-        d = Vector((math.sin(a), math.cos(a), -0.05)).normalized()
-        n = (0.04 if thumb else 0.062) * (1 if thumb else 0.82 + 0.18 * (1 - abs(f - 1.5) / 1.5))
-        kn = base + d * n * 0.45 + Vector((0, 0, 0.006))
-        paws.tube([base - d * 0.012, base, kn, base + d * n - Vector((0, 0, 0.012))], [0.011, 0.0095, 0.0085, 0.0055], 6, BELLY,
-                  f"hand_{s}", ref=(0, 0, 1), cap1="point")
-    hp, kn, an, bl, toe = H(f"thigh_{s}"), H(f"calf_{s}"), H(f"foot_{s}"), H(f"toe_{s}"), T(f"toe_{s}")
-    # The haunch: a rabbit's thigh folded along its flank, heavy, the hop's spring in it.
-    legs.tube([hp + Vector((0, -0.04, 0.03)), hp.lerp(kn, 0.45), kn], [(0.1, 0.12), (0.09, 0.1), 0.055], 12, SKIN, f"thigh_{s}", ref=(1, 0, 0))
-    legs.tube([kn, kn.lerp(an, 0.5), an], [0.058, 0.048, 0.042], 8, SKIN, f"calf_{s}", ref=(1, 0, 0))
-    # The long foot, a hare's: a heel that's a lump of bone, thick through the sole, and toes, grown into the leg (the
-    # skin's): no more a ski laid by the leg (the Look Review). Under the haunch, the toes out in front of it.
-    legs.tube([an + Vector((0, -0.03, 0.01)), an, an.lerp(bl, 0.45), bl], [(0.044, 0.042), (0.046, 0.036), (0.042, 0.026), (0.038, 0.02)],
-              10, SKIN, lambda p, bl=bl, s=s: {f"foot_{s}": 1.0} if p.y < bl.y - 0.03 else {f"toe_{s}": 1.0}, ref=(0, 0, 1))
+        a = math.radians(-sx * 58 if thumb else (f - 1.5) * 14)
+        base = palm + Vector((math.sin(a) * (0.03 if thumb else 0.024), 0.02 if not thumb else -0.008, 0.002))
+        d = Vector((math.sin(a), math.cos(a), -0.08)).normalized()
+        n = (0.042 if thumb else 0.06) * (1 if thumb else 0.82 + 0.18 * (1 - abs(f - 1.5) / 1.5))
+        k1 = base + d * n * 0.42 + Vector((0, 0, 0.007))
+        end = base + d * n
+        end.z = max(0.006, end.z - 0.008)
+        TIPS.append(end)
+        paws.tube([base - d * 0.014, base, k1, base + d * n * 0.75 + Vector((0, 0, 0.003)), end],
+                  [0.0115, 0.0105, 0.0092, 0.0078, 0.0058], 5, BELLY, f"hand_{s}", ref=(0, 0, 1), cap1="point",
+                  fmat=lambda pts, nn, end=end: NAIL if (sum(pts, Vector()) / len(pts) - end).length < 0.013 and nn.z > 0.2 else BELLY)
+    ball = Vector((sx * 0.262, 0.075, 0.022))
     for k in range(4):
-        dx = (k - 1.5) * 0.017
-        a0 = bl + Vector((dx, -0.01, -0.002))
-        legs.tube([a0, a0 + Vector((dx * 0.4, 0.06, -0.003)), a0 + Vector((dx * 0.6, 0.1 - 0.012 * abs(k - 1.5), -0.012))],
-                  [0.017, 0.015, 0.011], 6, BELLY, f"toe_{s}", ref=(0, 0, 1), cap1=True)
+        dx = (k - 1.5) * 0.019
+        a0 = ball + Vector((dx, 0.0, 0.0))
+        L = 0.075 - 0.012 * abs(k - 1.5)
+        end = a0 + Vector((dx * 0.5, L, -0.012))
+        TIPS.append(end)
+        paws.tube([a0 - Vector((0, 0.02, 0)), a0 + Vector((dx * 0.25, L * 0.5, 0.004)), end], [0.016, 0.0135, 0.008], 5, BELLY,
+                  f"toe_{s}", ref=(0, 0, 1), cap1="point",
+                  fmat=lambda pts, nn, end=end: NAIL if (sum(pts, Vector()) / len(pts) - end).length < 0.016 and nn.z > 0.2 else BELLY)
 
 
 # ----------------------------------------------------------------------------------------------------------------
@@ -404,14 +669,17 @@ hit.key(2, {"pelvis": (-10, 0, 14), "chest": (-6, 0, 10), "head": (-10, 0, 20), 
 hit.key(8, {"pelvis": (4, 0, -4)}, "LINEAR")
 hit.key(12, {}, "CONSTANT")
 
-# One skin, the haunches and the legs grown out of the body rather than pushed into it (rig.fuse); then up toward
-# GDD §27's budget (a beast's, 2-8k): rig.densify rounds the head's forms out (Look Review asks).
-# (The skull fused into the body too, the Look Review: the head sat on the neck with a crease all round it.)
-# (QuadriFlow smooths the groove under the upper lip over at this density, ~2% of the union: kept, for its even quads.)
-kit.fuse("body", ["body", "legs", "skull"], voxel=0.003, faces=2450, lose=0.03)
-kit.fuse("jaw", ["jaw"], voxel=0.0025, faces=550)
-kit.target_tris = 7600
+
+# One skin from the rump to the snout, the legs, the hands' palms, the ears' roots and the sac grown out of it (rig.fuse,
+# settled on the flesh's smooth-blended field, then QuadriFlow); the jaw a second skin the same way. Toward GDD §27's
+# budget for a beast (CreatureArtTests: 2-8k), the skin given most of it.
+kit.fuse("body", ["body"], voxel=0.003, faces=SKIN_FACES, lose=0.03, settle=flesh.settle)
+kit.fuse("jaw", ["jaw"], voxel=0.0025, faces=JAW_FACES, lose=0.03, settle=jflesh.settle)
 kit.build()
 rig.bake(sk, [sit, hop, swell, tongue, creep, devour, hit])
-print("[dt] ribbit", {p.name: p.tris() for p in kit.parts}, "total", kit.tris(), "bones", len(sk.bones))
-rig.export(rig.args()[0] if rig.args() else "ribbit.glb", kit)
+print("[dt] ribbit", {p.name: p.tris() for p in kit.parts}, "bones", len(sk.bones))
+out = rig.args()[0] if rig.args() else "ribbit.glb"
+rig.export(out, kit)
+# A distance copy (CreatureArtTests: two fifths or so). (Not when the recipe runs this to bake over it: it exports both.)
+if __name__ != "overbake_source":
+    rig.export_lod(out.replace(".glb", ".lod1.glb"), kit, 0.4)

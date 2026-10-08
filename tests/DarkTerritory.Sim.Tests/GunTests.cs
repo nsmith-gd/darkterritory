@@ -287,6 +287,8 @@ public class GunTests
         var s = AtGun(w, 0);
         for (int i = 0; i < 30 && !w.Choir.Present; i++)
         {
+            // Its rack kept fed (note 374): a walker bringing the powder up as it goes.
+            w.Train.Vehicles[0].Gun.Rack = C.Guns.Rack;
             Hold(w, ref s, Fire, 0.2);
             Hold(w, ref s, Reload, ReloadSeconds);
         }

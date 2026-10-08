@@ -63,9 +63,10 @@
     { "id": "gunCooling", "name": "Gun cooling", "size": "small", "costShare": 0.2, "effect": { "foul": 0.5 } },
     { "id": "ammunitionCapacity", "name": "Ammunition capacity", "size": "small", "costShare": 0.2, "effect": { "ammo": 1.5 } },
     // F.3 "repair kit charges". A kit is never used up (it mends the boiler and opens a lock and is still in hand), so a
-    // charge has nothing to count; read as a better-stocked kit that works faster: a ruptured boiler is mended in 15 s,
-    // not 25 (note 196). Losing every kit is still Stranded (GDD v1.4).
-    { "id": "repairKit", "name": "Repair kit charges", "size": "small", "costShare": 0.15, "effect": { "repair": 0.6 } },
+    // charge has nothing to count; read as better tools that work faster: a ruptured boiler is mended in 15 s, not 25
+    // (note 196). Note 301: the wrench is the repair tool now, so it's the crew's wrenches that are better (the id is kept,
+    // so saves that bought it still have it).
+    { "id": "repairKit", "name": "Fitter's wrenches", "size": "small", "costShare": 0.15, "effect": { "repair": 0.6 } },
     { "id": "tenderCapacity", "name": "Tender capacity", "size": "small", "costShare": 0.25, "effect": { "tender": 1.25 } },
     // A coupling-up knock at 1.5 m/s (the most that couples, couplings.coupleMaxSpeed) does no damage; and the Passenger
     // takes half again as long unhooking the caboose: 6 s, two more to kill it in.
@@ -91,11 +92,10 @@
     // F.3 "uncouple under load": cutting a working train's coupling takes no longer than a slack one (6 s to 3 s).
     { "id": "reinforcedCouplings", "name": "Reinforced couplings", "size": "major", "costShare": 1.8, "effect": { "underLoad": 0.5 } }
   ],
-  // GDD v1.4 App. E.12 question 4, answered: the fortress sells spare repair kits. Each starts the night in a crew locker
-  // beside the train's own (train.json kit.lockers); one lost in the night is gone, and a kit found at a stop and brought
-  // home is kept as a spare. About a small upgrade's price at the start (0.25 of a fourth car): losing the only kit ends a
-  // ruptured night (§23.2), and a crew that's lost one will pay that not to again. The lockers hold this many spares.
-  "spareKit": { "cost": 325, "most": 3 },
+  // GDD v1.4 App. E.12 question 4 had the fortress sell spare repair kits ("spareKit": { "cost": 325, "most": 3 }: each
+  // started the night in a crew locker, and losing every kit stranded a ruptured night, §23.2). Note 301 (queue #39, the
+  // director, 7 Oct): the wrench everyone carries is the repair tool, and the kit's gone (train.json repair.wrench), so the
+  // stores sell none. A save's spares are kept in its file but no longer stowed.
   // The yardstick for `dt campaign sim`: a crew that buys a car as soon as it can also afford upgrades worth
   // smallShare of it (F.3 "one or two small upgrades per car purchase"), a major worth majorShare every majorEvery
   // cars, loses lossFraction of its cargo on an average night (F.1 "expected loss"), and pays F.1's 15% running

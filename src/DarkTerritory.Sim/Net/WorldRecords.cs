@@ -84,6 +84,10 @@ public static class WorldRecords
                     Q(v.HotBox, Fine),
                     // How long its lamp has guttered (note 346): it flickers on every client.
                     Q(v.Gutter, Fine),
+                    // How long the coupling behind it has worked loose (note 356): it knocks, and it's called out, on every client.
+                    Q(v.Loose, Fine),
+                    // Its gun's ready rack (note 374): what it can fire before powder comes up from the lockers.
+                    v.Gun.Rack,
                     // How charred its fire cells are (note 267: every client draws the burnt boards).
                     .. CarFire.Pack([.. v.Char.Select(c => c / (double)((1 << CarFire.Bits) - 1))])]));
         list.Add(new WireRecord(WireRecord.MakeKey(RecordKind.World, 0),
@@ -335,12 +339,13 @@ public static class WorldRecords
                             Facing = f.Length > 14 ? (sbyte)f[14] : (sbyte)0,
                             Traverse = f.Length > 16 ? D(f[16], Fine) : 0,
                             Elevation = f.Length > 17 ? D(f[17], Fine) : 0,
+                            Rack = f.Length > 26 ? (int)f[26] : 0,
                         }, f.Length > 7 ? (byte)f[7] : (byte)0,
                         f.Length > 8 ? (CargoKind)f[8] : CargoKind.None, f.Length <= 9 || f[9] != 0, f.Length > 15 ? D(f[15], Fine) : 0,
                         f.Length > 18 ? (uint)f[18] : 0,
                         f.Length > 22 && f[19] != 0, f.Length > 22 ? new Double3(D(f[20], Pos), D(f[21], Pos), D(f[22], Pos)) : default,
-                        [.. CarFire.Unpack(f, 25).Select(c => (byte)Math.Round(c * ((1 << CarFire.Bits) - 1)))],
-                        f.Length > 23 ? D(f[23], Fine) : 0, f.Length > 24 ? D(f[24], Fine) : 0));
+                        [.. CarFire.Unpack(f, 27).Select(c => (byte)Math.Round(c * ((1 << CarFire.Bits) - 1)))],
+                        f.Length > 23 ? D(f[23], Fine) : 0, f.Length > 24 ? D(f[24], Fine) : 0, f.Length > 25 ? D(f[25], Fine) : 0));
                     break;
                 case RecordKind.World:
                     world.Choir = new ChoirState
@@ -541,6 +546,7 @@ public static class WorldRecords
             EnemyKind.Ribbit => new Ribbit(r.Id, 0),
             EnemyKind.Grumbler => new Grumbler(r.Id),
             EnemyKind.Moose => new Moose(r.Id),
+            EnemyKind.Gannet => new Gannet(r.Id),
             _ => new ChoirGhost(r.Id),
         };
 
