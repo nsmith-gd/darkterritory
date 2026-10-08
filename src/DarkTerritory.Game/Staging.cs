@@ -982,6 +982,48 @@ public static class Staging
 
     public const int MooseId = 311;
 
+    /// <summary>The staged Dave's id (note 483).</summary>
+    public const int DaveId = 333;
+
+    /// <summary>
+    /// Dave (note 483; <c>dt screenshot --dave paint|warn|grab</c>): at his easel 18 m up the line from the engine's front and
+    /// 12 m off its left, facing out away from the line. Warned (his telegraph), he's turned to crewmate 4 behind him, who's
+    /// struck him four times; holding them (his grab), they're stood held in front of him.
+    /// </summary>
+    public static List<Enemy> Dave(List<Enemy> threats, TrainOnLine train, string mode)
+    {
+        if (mode.Length == 0)
+            return threats;
+        threats.RemoveAll(e => e is Sim.Enemies.Dave);
+        var phase = mode switch
+        {
+            "paint" => SpinePhase.Dormant,
+            "warn" => SpinePhase.Telegraph,
+            "grab" => SpinePhase.Grab,
+            _ => throw new ArgumentException($"--dave {mode}: paint, warn or grab"),
+        };
+        var at = DaveAt(train);
+        var outward = (Lineside(train, 18, -20) - at) with { Y = 0 };
+        double yaw = Math.Atan2(-outward.X, -outward.Z);
+        var dave = new Sim.Enemies.Dave(DaveId);
+        dave.Restore(phase, 1, 1, Enemy.Loose, at, train.Dynamics.Distance + 18, yaw, 0, mode == "paint" ? 0 : 4, mode == "paint" ? -1 : LoneId,
+            holding: phase == SpinePhase.Grab ? LoneId : -1);
+        threats.Add(dave);
+        return threats;
+    }
+
+    public static Double3 DaveAt(TrainOnLine train) => Lineside(train, 18, -12);
+
+    /// <summary>Crewmate 4 behind Dave (<c>--dave warn</c>), the line at their back; held, in front of him, facing him.</summary>
+    public static Crewmate DaveCrewmate(TrainOnLine train, string mode)
+    {
+        var dave = DaveAt(train);
+        var outward = ((Lineside(train, 18, -20) - dave) with { Y = 0 }).Normalized;
+        var at = mode == "grab" ? OnGround(train, dave + outward * 0.55) : OnGround(train, dave - outward * 1.6 + new Double3(outward.Z, 0, -outward.X) * 0.5);
+        var toward = dave - at;
+        return new Crewmate(LoneId, at, Math.Atan2(-toward.X, -toward.Z), true, Act: mode == "grab" ? Art.CrewPose.HeldFrozen : null, Holding: Sim.Player.Tool.Shovel);
+    }
+
     /// <summary>
     /// Where the staged Moose stands and its heading (a player's yaw): grazing, listening or warning, 22 m up the line from
     /// the engine's front and 4.6 m off its left (in the headlamp's cone, clear of the track's clearance), three-quarters on

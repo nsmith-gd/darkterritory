@@ -1,0 +1,48 @@
+// The figures you might meet out in the Territory (GDD §3.2; ARCHITECTURE §8 note 483): people who aren't the towns' and
+// aren't creatures. The numbers (how often, where, how many blows) are in tuning/enemies.json; this file is only words,
+// read by Game/FigureTalk. Text is written in sentence case and drawn in the HUD's capitals, in its letters (ASCII and
+// àâçéèêëîïôùûü); keep a line under ~150 characters.
+{
+  // How close you come to talk, how far off the centre of your view, how far you walk off before the card closes, and how
+  // far off you still hear him answer a blow. Typed at "typePerSecond", left up "lingerSeconds" once said.
+  "reach": { "talk": 3.2, "lookDegrees": 22, "closeBeyond": 6, "hearBeyond": 30 },
+  "typePerSecond": 40,
+  "lingerSeconds": 6,
+
+  // DAVE (the director, 8 Oct 2026: "His name is Dave (just Dave) and he's a wandering painter ... painting beautiful
+  // landscapes of the natural world as it used to be. He always says hopeful things and is kind with players"; our Tom
+  // Bombadil, named for the director's father, a painter). No beard, a bit tubby, glasses, sandals, and a different good hat
+  // and waistcoat most nights: "extremely fashionable ... a true artist". He never says where he's from, why nothing touches
+  // him, or how he breathes the air. He's merry, plain and kind, and he talks about the light.
+  "dave": {
+    "name": "Dave",
+    "title": "a painter",
+    "lines": [
+      "Evening! Mind the wet paint. There. That's how the light lay on the hay at four o'clock. Do you remember it?",
+      "They're out there, I know. Some nights they come and sit by me and watch me work. Never a cross word between us.",
+      "You look tired, friend. The world's still lovely under all this. It's only resting.",
+      "I paint what it was, so we'll know it when it comes back.",
+      "Every morning's a morning somewhere. I've a feeling you'll see one.",
+      "Where am I from? Oh, here and there. Mostly there. It was lovely there.",
+      "Keep each other close. That's the whole trick of it. Always was.",
+      "That's the bay in June. You can have it, if you can get it home dry.",
+      "Don't hurry. The dark's in a hurry. You needn't be.",
+      "The dark's not the opposite of light, you know. It's only light that hasn't got here yet.",
+      "I did a sky on a wall in one of the forts, once. They seemed to like it. I hope they're keeping it clean.",
+      "Hum something, if you like. No? Well. I'll hum for the both of us.",
+      "Like the waistcoat? Found it in a trunk in a house nobody needed any more. It needed somebody.",
+      "A fellow ought to have a good hat. The end of the world's no excuse for a bad one.",
+      "Sandals, yes. My feet like to know where they are.",
+      "Go on, then. They'll be wanting you on the train. I'll be about."
+    ],
+    // What he says to a blow, by how many times this one has struck him; at the last but one he sets his brush down and
+    // turns to them (his telegraph). The last is his to say as he takes them by the neck.
+    "blows": [
+      "Easy, now. You'll muddy the sky.",
+      "Ah. That's twice. We all have our bad nights, friend.",
+      "Three times. I'd stop there, if I were you. I'm asking kindly.",
+      "That's four. ... I've set my brush down. Think on it."
+    ],
+    "last": "You should be nicer in a dark world."
+  }
+}

@@ -161,7 +161,13 @@ public static partial class TownGenerator
         if (homes.Bounds is { } walls)
         {
             // The day, painted on the inside of the back wall at the ends of the first streets, where you see it down them.
-            var murals = Take(w.Civic.GetValueOrDefault("mural") ?? [], 2, Rng("civic.murals"));
+            // Dave's (signed "D.)"; note 483) only on some towns' walls, one at most (towns.json daveMural).
+            var all = w.Civic.GetValueOrDefault("mural") ?? [];
+            bool daves(TownText m) => m.Title.Contains("D.)", StringComparison.Ordinal);
+            var murals = Take([.. all.Where(m => !daves(m))], 2, Rng("civic.murals"));
+            var drng = Rng("civic.dave");
+            if (murals.Count > 0 && drng.Chance(t.DaveMural) && all.Where(daves).ToList() is { Count: > 0 } his)
+                murals[drng.Chance(0.5) ? 0 : murals.Count - 1] = drng.Pick(his);
             for (int i = 0; i < murals.Count && i < walls.Streets.Count; i++)
                 Fix("mural", murals[i].Title, murals[i].Text, walls.Rear + Run.Fortresses.WallHalf + 0.05, walls.Streets[i].At(walls.Rear), 1, 0);
         }

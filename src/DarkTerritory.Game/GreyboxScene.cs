@@ -606,6 +606,9 @@ public sealed class GreyboxScene
                         if (Look?.Art.Creatures is { } flock)
                             flock.GannetWas = before;
                     }
+                    // Dave at his easel (note 483): his own figure and things, not a creature's.
+                    if (e is Sim.Enemies.Dave dave && Look is not null && Painter(mesh, eye, dave))
+                        continue;
                     DrawEnemy(mesh, line, frames, e, eye, from, to, Look?.Art.Creatures, bite, prey, room,
                         e.Kind is EnemyKind.Gaunt or EnemyKind.Grumbler or EnemyKind.Moose ? Pace(e) : 0, Flinch(e), HitAge(e),
                         modeSeconds: modeSeconds);
@@ -2600,6 +2603,49 @@ public sealed class GreyboxScene
     /// survivors' bare-headed figure, never the crew's masked one; null for note 107's folk in the crew's own.</param>
     /// <param name="home">At home in an open house: some have the mask down on the chest.</param>
     /// <param name="lamp">A town's person carrying a lit hand lamp (out in the street at night).</param>
+    /// <summary>
+    /// Dave (note 483): the survivors' figure in full colour, in tonight's hat and waistcoat, his glasses and sandals, at his easel with its lantern
+    /// lit. At his canvas he faces it, his brush arm out; turned on whoever's had their last warning (his telegraph) he faces
+    /// them, still; holding them he faces them with his hands out. False when his figure isn't built (the greybox draws him).
+    /// </summary>
+    bool Painter(MeshBuilder mesh, Double3 eye, Sim.Enemies.Dave dave)
+    {
+        var creatures = Look!.Art.Creatures;
+        var kit = Look.Art.Dave;
+        if (creatures.Get(Art.DaveKit.Figure) is null)
+            return false;
+        var feet = V(dave.Local, eye);
+        var easelFacing = new Vector3((float)-Math.Sin(dave.Yaw), 0, (float)-Math.Cos(dave.Yaw));
+        var easelBack = -easelFacing;
+        var easel = Art.CreatureArt.Basis(feet, Vector3.Cross(Vector3.UnitY, easelBack), Vector3.UnitY, easelBack);
+        mesh.Append(kit.Easel(dave.Id), easel);
+        var flame = Vector3.Transform(Art.DaveKit.Flame, easel);
+        mesh.PointLights.Add(new PointLight(flame, Palette.LampAmber * 1.5f, 11));
+        mesh.Billboard(flame, 0.5f, 0, new Vector4(Palette.LampAmber * 0.7f, 1), -1, FxBlend.Additive);
+        // Who he's turned to: the one he holds, else the last to strike him while he's turned (his telegraph).
+        int on = dave.Holding >= 0 ? dave.Holding : dave.Phase == SpinePhase.Telegraph ? dave.Striker : -1;
+        var facing = easelFacing;
+        if (on >= 0 && Crew?.FirstOrDefault(c => c.Id == on) is { } them)
+        {
+            var to = ToF(them.Feet - dave.Local) with { Y = 0 };
+            if (to.LengthSquared() > 1e-4f)
+                facing = Vector3.Normalize(to);
+        }
+        var back = -facing;
+        var m = Art.CreatureArt.Basis(feet, Vector3.Cross(Vector3.UnitY, back), Vector3.UnitY, back);
+        if (!creatures.Draw(mesh, Art.DaveKit.Figure, Art.DaveKit.Clip(dave.Phase), Time * 0.6, true, m, 2, seed: 47,
+            adjust: (mat, l) => l with { Colour = l.Colour * new Vector3(1.05f, 0.98f, 0.9f), Emissive = 0 }))
+            return false;
+        // Tonight's hat and waistcoat (the night's: Art.DaveKit.Outfit), his glasses, his sandals.
+        var (hat, vest) = Art.DaveKit.Outfit(dave.LineDistance);
+        creatures.Wear(mesh, kit.Hat(hat), "head", m, Art.DaveKit.Figure);
+        creatures.Wear(mesh, kit.Glasses, "head", m, Art.DaveKit.Figure);
+        creatures.Wear(mesh, kit.Vest(vest), "spine_02", m, Art.DaveKit.Figure);
+        creatures.Wear(mesh, kit.Sandal(true), "foot_l", m, Art.DaveKit.Figure);
+        creatures.Wear(mesh, kit.Sandal(false), "foot_r", m, Art.DaveKit.Figure);
+        return true;
+    }
+
     void Folk(MeshBuilder mesh, Double3 eye, Double3 feet, Double3 facing, int variant, float drab = 0.45f, string pose = "idle",
         string? gear = null, bool home = false, int who = 0, bool lamp = false)
     {

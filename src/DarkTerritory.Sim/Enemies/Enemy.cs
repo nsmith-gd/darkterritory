@@ -15,7 +15,9 @@ public enum EnemyKind : byte
     // The Moose (GDD §21, the director's decisions of 7 Oct 2026; note 339).
     Moose = 31,
     // The Gannet (GDD §21, the director's decisions of 7 Oct 2026; note 340).
-    Gannet = 32
+    Gannet = 32,
+    // Dave, the wandering painter (GDD §3.2, the director, 8 Oct 2026; note 483): not a creature, and nobody's quarry.
+    Dave = 33
 }
 
 /// <summary>
@@ -59,6 +61,8 @@ public abstract class Enemy
     public virtual bool Hazard => false;
     /// <summary>The want it attacks (App. B.1), for the director's budget shares.</summary>
     public virtual Want Want => Want.Kill;
+    /// <summary>What the clerk calls it in the incident report ("the Gaunt"; Dave is just Dave).</summary>
+    public virtual string Called => "the " + Run.IncidentLog.Spoken(Kind.ToString());
 
     public SpinePhase Phase { get; private set; } = SpinePhase.Dormant;
     public double PhaseSeconds { get; private set; }
@@ -207,6 +211,7 @@ public abstract class Enemy
         EnemyKind.Grumbler => new Grumbler(id),
         EnemyKind.Moose => new Moose(id),
         EnemyKind.Gannet => new Gannet(id),
+        EnemyKind.Dave => new Dave(id),
         _ => new ChoirGhost(id),
     };
 
@@ -290,7 +295,7 @@ public abstract class Enemy
         // App. A.9: every GRAB start writes an attribution record (and, with D.12's bookmarks, a still).
         if (ctx.World.Run is not null && ctx.Crew.FirstOrDefault(c => c.Player.Id == victim) is { Player.State: var held })
         {
-            string what = $"Grabbed by the {Run.IncidentLog.Spoken(Kind.ToString())}";
+            string what = $"Grabbed by {Called}";
             ctx.World.Attribution.Add(Run.IncidentLog.Grab(ctx.World, victim, held, what));
             ctx.World.Bookmarks.Grab(ctx.World, victim, what, CrewOf(ctx));
         }
@@ -343,7 +348,7 @@ public abstract class Enemy
     {
         var at = WorldPosition(ctx.Train);
         var (actor, action) = Run.IncidentLog.Nearest(ctx.World, at, CrewOf(ctx));
-        return Run.IncidentLog.Event(ctx.World, Run.IncidentKind.Punished, $"Punished by the {Run.IncidentLog.Spoken(Kind.ToString())}", actor, action, at);
+        return Run.IncidentLog.Event(ctx.World, Run.IncidentKind.Punished, $"Punished by {Called}", actor, action, at);
     }
 
     /// <summary>The rescue window ran out (App. A.1 PUNISH): what it does to its victim. The default is death.</summary>
@@ -441,7 +446,7 @@ public abstract class Enemy
         uint ticks = (uint)Math.Round(ctx.Tuning.CoordinatedKill.WindowSeconds * SimConstants.TickRate);
         var gang = _blows.Where(h => ctx.Tick - h.Tick <= ticks).Select(h => h.By).Distinct().ToList();
         string names = string.Join(", ", gang.Select(id => Run.IncidentLog.NameOf(ctx.World, id)));
-        ctx.World.Attribution.Add(Run.IncidentLog.Event(ctx.World, Run.IncidentKind.Slain, $"Killed the {Run.IncidentLog.Spoken(Kind.ToString())} together",
+        ctx.World.Attribution.Add(Run.IncidentLog.Event(ctx.World, Run.IncidentKind.Slain, $"Killed {Called} together",
             gang.Count > 0 ? gang[0] : -1, gang.Count > 0 ? $"By {names}." : "", WorldPosition(ctx.Train)));
     }
 

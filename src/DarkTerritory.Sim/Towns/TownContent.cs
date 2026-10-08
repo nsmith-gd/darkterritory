@@ -27,6 +27,8 @@ public sealed record TownTuning
     public required int[] Ring { get; init; }
     public required int[] LinesPerPerson { get; init; }
     public double ScrapShare { get; init; }
+    /// <summary>The share of walled towns with one of Dave's murals on a wall (note 483).</summary>
+    public double DaveMural { get; init; }
     public required int[] Quirks { get; init; }
     public required int[] Notices { get; init; }
     public required int[] LooseNotes { get; init; }

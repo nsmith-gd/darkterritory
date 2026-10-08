@@ -386,6 +386,8 @@ public sealed class CreatureArt
     readonly float _texels;
 
     /// <param name="contentRoot">The content folder; by default the one <paramref name="look"/>'s textures came from.</param>
+    DaveKit? _dave;
+
     public CreatureArt(Look look, string? contentRoot = null)
     {
         Look = look;
@@ -2064,6 +2066,22 @@ public sealed class CreatureArt
                             _fx.ChoirCold(mesh, Vector3.Transform(new Vector3(0, 1.15f, 0), at), t, clip == "swoop", 71 + (float)extra2 * 13);
                     }
                     return drawn;
+                }
+            case EnemyKind.Dave when _models.ContainsKey(DaveKit.Figure):
+                {
+                    // DAVE (note 483): his figure in a hat, waistcoat, glasses and sandals, at his easel (GreyboxScene.Painter
+                    // draws him so in the world, turned to whoever he's warned; here, as he is in this phase).
+                    _dave ??= new DaveKit(Look);
+                    var (hat, vest) = DaveKit.Outfit(extra2 * 1000);
+                    if (!Draw(mesh, DaveKit.Figure, DaveKit.Clip(phase), t, true, model, 2, seed: 47))
+                        return false;
+                    mesh.Append(_dave.Easel(0), model);
+                    Wear(mesh, _dave.Hat(hat), "head", model, DaveKit.Figure);
+                    Wear(mesh, _dave.Glasses, "head", model, DaveKit.Figure);
+                    Wear(mesh, _dave.Vest(vest), "spine_02", model, DaveKit.Figure);
+                    Wear(mesh, _dave.Sandal(true), "foot_l", model, DaveKit.Figure);
+                    Wear(mesh, _dave.Sandal(false), "foot_r", model, DaveKit.Figure);
+                    return true;
                 }
             case EnemyKind.Moose when _models.ContainsKey("moose"):
                 {

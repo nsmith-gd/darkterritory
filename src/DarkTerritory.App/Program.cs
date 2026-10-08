@@ -79,6 +79,8 @@ string Arg(string name, string fallback)
 // A mod manager's profile (Thunderstore, T78) comes in as --mods-dir.
 args = Mods.TakeArgs(args);
 var content = Mods.Mount(DataFile.FindContentRoot(Environment.CurrentDirectory), enabled: !args.Contains("--no-mods"));
+// The figures out in the Territory and their words (note 483): Dave.
+FigureTalk.Words = FigureWords.Load(content);
 // The art pass's surfaces (T39); --greybox draws flat colour instead.
 var look = args.Contains("--greybox") ? null : Look.Load(content);
 var connectLobby = LaunchArgs.ConnectLobby(args);
@@ -792,6 +794,8 @@ CampaignState? Play(IPlaySession session, CampaignState? campaign)
     // Talking and reading in the fortress town (note 281): on this machine alone. A press the town took isn't sent to the
     // host while the key's still down (nothing in a town changes the night; a lamp at somebody's feet stays where it is).
     var townTalk = new TownTalk();
+    // Dave's words and his card (note 483): on this machine, as a town's are.
+    var figureTalk = new FigureTalk();
     bool useKept = false;
     double pendingYaw = 0, pendingPitch = 0;
     int pendingNotch = 0;
@@ -994,6 +998,9 @@ CampaignState? Play(IPlaySession session, CampaignState? campaign)
         // Dead (App. D.10), a bookmark of whom you're watching (D.12): sent on the press, as intent.
         pendingBookmark |= Hit(Control.Bookmark) && !session.Player.Alive;
         if (Hit(Control.Use) && session.World.Town is { } town && townTalk.Use(town, Hud.TownTarget(session), now))
+            useKept = true;
+        else if (Hit(Control.Use) && Hud.Prompt(session) is { } atDave && FigureTalk.Target(session) is { } dave && atDave == FigureTalk.Prompt(dave)
+            && figureTalk.Use(dave, now))
             useKept = true;
         if (!Held(Control.Use))
             useKept = false;
@@ -1266,6 +1273,8 @@ CampaignState? Play(IPlaySession session, CampaignState? campaign)
             : new OwnView((float)camera.Yaw, (float)camera.Pitch, act, me.Velocity.X * me.Velocity.X + me.Velocity.Z * me.Velocity.Z > 0.16,
                 swing, session.World.OutfitOf(session.PlayerId), Kit.Held(me));
         scene.Time = now;
+        // Dave's card (note 483): closes as you walk off, and opens on what he says to a blow near you.
+        figureTalk.Step(session.World, PlayerMotor.WorldPosition(me, session.Train) + Double3.Up * session.Train.Dynamics.Tuning.Pick.EyeHeight, now);
         // The town's card closes once you've walked off; whoever you're talking to turns to you.
         if (session.World.Town is { } here)
         {
@@ -1365,7 +1374,7 @@ CampaignState? Play(IPlaySession session, CampaignState? campaign)
             captions.Clear();
         if (showHud)
         {
-            Hud.Build(overlay, UiWidth, UiHeight, session, stills: stills.Stills, pixels: (float)renderer.Height / UiHeight, talk: townTalk, now: now,
+            Hud.Build(overlay, UiWidth, UiHeight, session, stills: stills.Stills, pixels: (float)renderer.Height / UiHeight, talk: townTalk, figures: figureTalk, now: now,
                 // The first nights' card gives way to a panel opened over it (note 351: it showed through the supplies).
                 firstNight: firstNight && !Held(Control.Roster) && !showSupplies && cardPage < 0 && !showPlan,
                 captions: frontEnd.Settings.Captions ? captions.Lines() : null);
@@ -1406,7 +1415,7 @@ CampaignState? Play(IPlaySession session, CampaignState? campaign)
         VrPanelContent? onPanel = null;
         if (vr is not null && showHud)
         {
-            Hud.Build(vrOverlay, 480, 270, session, crosshair: false, stills: stills.Stills, pixels: 2, talk: townTalk, now: now);
+            Hud.Build(vrOverlay, 480, 270, session, crosshair: false, stills: stills.Stills, pixels: 2, talk: townTalk, figures: figureTalk, now: now);
             if (session.World.Run?.Over == true)
                 vrOverlay.TextCentred(240, 248, campaign is not null ? "A: BACK TO THE FORTRESS" : "A: BACK", new Vector4(1, 0.7f, 0.3f, 1));
             onPanel = new VrPanelContent(vrHud!, vrOverlay, 480, 270);

@@ -1239,6 +1239,7 @@ public sealed class Director
                 EnemyKind.Grumbler => new Grumbler(0),
                 EnemyKind.Moose => new Moose(0),
                 EnemyKind.Gannet => new Gannet(0),
+                EnemyKind.Dave => new Dave(0),
                 _ => new ChoirGhost(0),
             };
             d[kind] = (e.Zone, e.Sense, e.Want);

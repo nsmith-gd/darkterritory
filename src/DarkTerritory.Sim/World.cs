@@ -1816,6 +1816,13 @@ public sealed class World
                 _driftMarsh = marsh.Start;
                 SpawnDrift(t);
             }
+            // Dave at his easel, some nights (note 483): the route's, not the director's; put down once the stops stand.
+            if (!_daveLooked && Route is { } dr && Train.Walls is not null)
+            {
+                _daveLooked = true;
+                if (Sim.Enemies.Dave.Site(this, dr, t.Dave) is { } dave)
+                    _enemies.Add(Sim.Enemies.Dave.At(_nextEnemyId++, dave.At, dave.Along, dave.Yaw, t.Dave));
+            }
             // The lineside moose (note 339): grazing beside the line ahead, as the line's own; they cost the director nothing.
             if (Insist is null && d.Allows(EnemyKind.Moose) && Route is { } route && Train.Dynamics.Speed > 3 && !TrainInFort)
                 LinesideMoose(t.Moose, route);
@@ -1904,6 +1911,8 @@ public sealed class World
     /// <see cref="MooseTuning.LinesideAhead"/> ahead (never within the track's clearance), one about at a time. Their own
     /// dice from the route's seed, so they never move the director's.
     /// </summary>
+    bool _daveLooked;
+
     void LinesideMoose(MooseTuning t, Route.Route route)
     {
         double front = Train.Dynamics.Distance;

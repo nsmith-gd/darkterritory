@@ -56,7 +56,8 @@ public static partial class Hud
     /// the yard shows the core controls.</param>
     public static void Build(Overlay o, int width, int height, IPlaySession s, bool crosshair = true,
         IReadOnlyList<(string To, UiStyle.Commendation What, string From)>? commendations = null, IReadOnlyDictionary<int, Still>? stills = null,
-        float pixels = 4, TownTalk? talk = null, double now = 0, bool firstNight = false, IReadOnlyList<string>? captions = null)
+        float pixels = 4, TownTalk? talk = null, double now = 0, bool firstNight = false, IReadOnlyList<string>? captions = null,
+        FigureTalk? figures = null)
     {
         _promptScale = PromptScaleAt(pixels);
         _commendations = commendations;
@@ -66,7 +67,7 @@ public static partial class Hud
         o.Backing = Keys.TextBacking ? new Vector4(0, 0, 0, (float)Math.Clamp(Tuning.TextBacking, 0, 1)) : default;
         try
         {
-            Draw(o, width, height, s, crosshair, talk, now, firstNight, captions);
+            Draw(o, width, height, s, crosshair, talk, now, firstNight, captions, figures);
         }
         finally
         {
@@ -75,7 +76,7 @@ public static partial class Hud
     }
 
     static void Draw(Overlay o, int width, int height, IPlaySession s, bool crosshair, TownTalk? talk, double now,
-        bool firstNight, IReadOnlyList<string>? captions)
+        bool firstNight, IReadOnlyList<string>? captions, FigureTalk? figures = null)
     {
         int line = o.Font.LineHeight;
         var p = s.Player;
@@ -116,10 +117,14 @@ public static partial class Hud
         // A fortress town's card (note 281): what somebody's saying to you, or the paper you're reading. While it's open its
         // own foot says what Use does next, so the town's prompt under the crosshair stands down.
         var townCard = !over && talk is not null && s.World.Town is { } town ? talk.Card(town, now) : null;
+        // Dave's card (note 483): what he's saying to you, or to a blow you were near enough to hear.
+        bool figureCard = false;
+        if (townCard is null && !over && figures?.Card(now) is { } said)
+            (townCard, figureCard) = (said, true);
         if (townCard is not null)
             TownCardOn(o, width, height, townCard, line);
         string? prompt = over ? null : Prompt(s);
-        if (prompt is not null && !(townCard is not null && TownTarget(s) is not null))
+        if (prompt is not null && !(townCard is not null && (figureCard ? FigureTalk.Target(s) is not null : TownTarget(s) is not null)))
             PromptPlate(o, width, height, Bound(prompt));
         if (p.Alive && !over)
         {
@@ -1703,6 +1708,8 @@ public static partial class Hud
         DeathCause.Uncoupled => "TAKEN WITH THE CABOOSE. THE PASSENGER CUT IT LOOSE",
         DeathCause.Trampled => "TRAMPLED BY THE MOOSE. YOU GOT TOO CLOSE, OR TOO LOUD",
         DeathCause.Pecked => "PECKED TO DEATH BY THE GANNET. YOU HIT IT, OR SOMEONE DID",
+        // Dave's last words to them (note 483): the director's own.
+        DeathCause.Dave => "YOU SHOULD BE NICER IN A DARK WORLD.",
         DeathCause.None => "",
         _ => cause.ToString().ToUpperInvariant(),
     };
@@ -1986,6 +1993,9 @@ public static partial class Hud
         // A switch stand's lever (queue #94, note 357): Use is the lever's there, so it's offered before what's lying by it.
         if (SwitchPrompt(world, p, train, hand) is { } atStand)
             return atStand;
+        // Dave (note 483): a word with him, before anything lying at his feet.
+        if (FigureTalk.Target(s) is { } dave)
+            return FigureTalk.Prompt(dave);
         // A fortress town (note 281): somebody to talk to, a paper to read, a thing to look at. Before what's lying in reach,
         // so a lamp at somebody's feet doesn't take the press meant for them.
         if (world.Town is { } town && town.Target(p, train.Dynamics.Tuning.Pick.EyeHeight) is { } there)

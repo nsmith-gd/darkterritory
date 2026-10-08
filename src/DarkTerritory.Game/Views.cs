@@ -105,6 +105,12 @@ public static class Views
             // (Not one of Names.) A crewmate's eye on the ground beside the stopped engine's front, out at the staged Moose 15 m
             // off up the line in the headlamp's spill (Staging.Moose: graze, listen, warn).
             "moose" => MooseCamera(train),
+            // (Not one of Names.) Dave (note 483): over his shoulder at his canvas, close; from the engine's front as the crew
+            // would first see him, 30 m off in the dark with his lantern; and side on to him with crewmate 4 (--dave warn, grab).
+            "dave" => DaveCamera(train, 0),
+            "davefar" => DaveCamera(train, 1),
+            "davewarn" => DaveCamera(train, 2),
+            "daveface" => DaveCamera(train, 3),
             // Over crewmate 4's shoulder out in front of the engine, at the staged Moose squaring up to them, coming at them,
             // or on them (Staging.Moose: squareup, charge, pin...).
             "moosecharge" => MooseChargeCamera(train),
@@ -342,6 +348,20 @@ public static class Views
 
     // A crewmate's eye, over the ground they stand on (m).
     const double EyeHeight = 1.65;
+
+    static Camera DaveCamera(TrainOnLine train, int shot)
+    {
+        var dave = Staging.DaveAt(train);
+        var outward = ((Staging.Lineside(train, 18, -20) - dave) with { Y = 0 }).Normalized;
+        var across = new Double3(outward.Z, 0, -outward.X);
+        return shot switch
+        {
+            0 => Camera.LookAt(dave - outward * 1.7 + across * 0.9 + Double3.Up * 1.75, dave + outward * 0.8 + Double3.Up * 1.25, 55),
+            1 => Camera.LookAt(Staging.Lineside(train, 2, -2.2) + Double3.Up * EyeHeight, dave + Double3.Up * 1.3, 50),
+            3 => Camera.LookAt(dave + outward * 1.1 + across * 1.1 + Double3.Up * 1.65, dave + Double3.Up * 1.45, 40),
+            _ => Camera.LookAt(dave + across * 3.6 - outward * 0.4 + Double3.Up * 1.6, dave + Double3.Up * 1.2 - outward * 0.3, 55),
+        };
+    }
 
     static Camera MooseCamera(TrainOnLine train)
     {
