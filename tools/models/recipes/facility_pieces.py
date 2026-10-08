@@ -44,6 +44,9 @@ so each kind reads by its shape from the line:
   * foundry_shed (note 420): the casting shed, 80 m of soot-black brick under ten north-light teeth, tall arched windows
     lit by the furnace (`_Glow`: a mask baked to the layer's emissive), a great doorway at each end of its front, the
     cupola through its roof, the 40 m stack behind.
+  * coaling_tower (note 422): the coaling stage's concrete bunker on its braced timber trestle, the steel hopper and the
+    chute out over the track hung from its jib, its mouth where the sim's chute pours (CHUTE_MOUTH), ladders, the stop's
+    lamp on its chain, coal spilled round its feet.
 
 Axes (Blender): +Z up, the model's front (-Y, the engine's +Z) toward the line.
 """
@@ -88,6 +91,7 @@ def materials():
         "acid": make.flat("acid", (0.1, 0.095, 0.035), rough=0.35),
         "lead": make.lib("iron_plate", 0.6, tint=(0.5, 0.52, 0.55), rough=0.65, metal=0.3),
         "glow": make.flat("glow", (1.0, 0.42, 0.12), rough=0.5),
+        "coal": make.lib("coal", 0.5, tint=(0.5, 0.5, 0.52), rough=0.55),
     }
 
 
@@ -1235,6 +1239,115 @@ def foundry_shed(m):
     return p, [], glow
 
 
+# The coaling tower where StructureKit stands it (CoalingTower): 7 m off the line, sunk 0.3 like the others. The sim's
+# chute pours from 0.4 m off the track, 8.8 up (GreyboxScene.Chute), so its mouth is 6.6 m in front of the tower's middle
+# and 9.1 over its ground.
+CHUTE_MOUTH = (0.0, -6.6, 9.1)
+
+
+def coaling_tower(m):
+    """The coaling stage's tower (GDD §18: "gravity chute: fast, deafening, fills whether you're ready or not"): a
+    concrete bunker 10 m tall on a braced timber trestle 12 m up, a steel hopper under it and the chute out over the
+    track from its gate, hung on chains from a jib, its mouth where the sim's chute pours; an iron roof, a ladder up the
+    trestle and on up the bunker, the stop's lamp on its chain from the front girt, coal spilled round the feet. Its
+    origin is on the ground at the trestle's middle, 7 m off the line."""
+    p = []
+    X, Y, TOP = 4.5, 3.5, 12.0           # the posts' feet, half along and half across; the trestle's height
+    XT, YT = 4.0, 3.1                    # their tops, battered in
+
+    def post(sx, sy, z):
+        t = z / TOP
+        return Vector((sx * (X + (XT - X) * t), sy * (Y + (YT - Y) * t), z))
+    for sx in (-1, 1):
+        for sy in (-1, 1):
+            p.append(_beam(post(sx, sy, 0), post(sx, sy, TOP), 0.42, m["grey"], "post"))
+            p.append(make.box((sx * X, sy * Y, 0.15), (0.55, 0.55, 0.45), m["concrete"], bevel=0.02, name="footing"))
+    levels = (3.2, 6.4, 9.6, TOP - 0.2)
+    for z in levels:
+        for sx in (-1, 1):
+            p.append(_beam(post(sx, -1, z), post(sx, 1, z), 0.24, m["grey"], "girt"))
+        for sy in (-1, 1):
+            p.append(_beam(post(-1, sy, z), post(1, sy, z), 0.24, m["grey"], "girt"))
+    # X-braced between the girts on every face, iron straps and bolts at the joints (baked on).
+    for z0, z1 in zip((0.4,) + levels[:-1], levels):
+        for sx in (-1, 1):
+            p.append(_beam(post(sx, -1, z0), post(sx, 1, z1), 0.16, m["grey"], "brace"))
+            p.append(_beam(post(sx, 1, z0), post(sx, -1, z1), 0.16, m["grey"], "brace"))
+        for sy in (-1, 1):
+            p.append(_beam(post(-1, sy, z0), post(1, sy, z1), 0.16, m["grey"], "brace"))
+            p.append(_beam(post(1, sy, z0), post(-1, sy, z1), 0.16, m["grey"], "brace"))
+        for sx in (-1, 1):
+            for sy in (-1, 1):
+                c = post(sx, sy, z1)
+                p.append(make.box(c + Vector((0, sy * 0.22, 0)), (0.24, 0.015, 0.14), m["rust"], bevel=0.005, name="strap", low=False))
+    # The cap: two great beams across under the bunker.
+    for sx in (-1, 1):
+        p.append(make.box((sx * 2.6, 0, TOP + 0.1), (0.3, YT + 0.7, 0.3), m["grey"], bevel=0.01, name="cap"))
+    # The bunker: board-marked concrete, its pours banded, stained down from its seams and black round its foot; COAL
+    # painted across its front long ago; an iron roof.
+    B0, B1, BX, BY = TOP + 0.4, 22.0, 5.5, 4.0
+    p.append(make.box((0, 0, (B0 + B1) / 2), (BX, BY, (B1 - B0) / 2), m["concrete"], bevel=0.03, name="bunker"))
+    for z in (B0 + 1.4 * k for k in range(1, 7)):
+        for sy in (-1, 1):
+            p.append(make.box((0, sy * (BY + 0.012), z), (BX, 0.01, 0.025), m["streak"], bevel=0, name="pour", low=False))
+        for sx in (-1, 1):
+            p.append(make.box((sx * (BX + 0.012), 0, z), (0.01, BY, 0.025), m["streak"], bevel=0, name="pour", low=False))
+    for k, x in enumerate((-4.6, -2.9, -0.7, 1.8, 3.9)):
+        h = 1.6 + 0.9 * (k % 3)
+        for sy in (-1, 1):
+            p.append(make.box((x + 0.3 * sy, sy * (BY + 0.015), B1 - h / 2 - 0.1), (0.12 + 0.05 * (k % 2), 0.01, h / 2), m["streak"], bevel=0, name="streak", low=False))
+    p.append(make.box((0, -BY - 0.015, B0 + 0.6), (BX, 0.01, 0.6), m["dark"], bevel=0, name="coal_black", low=False))
+    p.append(make.box((0, -BY - 0.02, B0 + 5.4), (3.0, 0.01, 0.85), m["paint"], bevel=0, name="sign", low=False))
+    p.append(make.stencil("COAL", (0, -BY - 0.035, B0 + 5.4), (0, -1, 0), (0, 0, 1), 1.3, m["dark"], name="coal"))
+    pitch = math.atan2(0.9, BY + 0.4)
+    _pitched(p, m, BX, BY, B1 + 0.95, BY + 0.4, pitch, m["roof"])
+    for sx in (-1, 1):
+        _prism(p, [(sx * BX, -BY, B1), (sx * BX, BY, B1), (sx * BX, 0, B1 + 0.9)], [(0, 1, 2) if sx > 0 else (0, 2, 1)], m["concrete"], "bunker_gable")
+    # The hopper: steel plate from the bunker's floor down to its gate on the line side, and the chute from the gate
+    # out over the track, a trough falling to its mouth with the lip turned down.
+    gx, gy, gz = 0.0, -1.5, 10.7
+    top = [(-3.4, -3.0), (3.4, -3.0), (3.4, 3.0), (-3.4, 3.0)]
+    bot = [(-0.7, gy - 0.6), (0.7, gy - 0.6), (0.7, gy + 0.6), (-0.7, gy + 0.6)]
+    verts = [(x, y, B0) for x, y in top] + [(x, y, gz) for x, y in bot]
+    faces = [(0, 4, 5, 1), (1, 5, 6, 2), (2, 6, 7, 3), (3, 7, 4, 0), (4, 7, 6, 5)]
+    _prism(p, verts, faces, m["rust"], "hopper")
+    p.append(make.box((gx, gy, gz - 0.2), (0.8, 0.7, 0.2), m["steel"], bevel=0.01, name="gate"))
+    mx, my, mz = CHUTE_MOUTH
+    a = Vector((gx, gy - 0.4, gz - 0.25))
+    b = Vector((mx, my - 0.25, mz + 0.2))
+    d = b - a
+    tilt = Matrix.Rotation(math.atan2(-d.z, -d.y), 4, "X")
+    mid = (a + b) / 2
+    run = d.length
+    p.append(make.box(mid, (0.55, run / 2, 0.03), m["steel"], bevel=0.005, name="chute_floor", rot=tilt))
+    for sx in (-1, 1):
+        p.append(make.box(mid + Vector((sx * 0.55, 0, 0.2)), (0.03, run / 2, 0.24), m["rust"], bevel=0.005, name="chute_side", rot=tilt))
+    p.append(make.box((mx, my - 0.05, mz - 0.05), (0.55, 0.03, 0.35), m["steel"], bevel=0.005, name="lip", rot=Matrix.Rotation(-0.5, 4, "X")))
+    p.append(make.box(mid + Vector((0, 0, 0.04)), (0.45, run / 2 - 0.2, 0.01), m["dark"], bevel=0, name="coal_worn", low=False, rot=tilt))
+    # Its jib: two beams out from the hopper's front over the track, hung from the bunker's wall by tension rods, a
+    # sheave across their ends and the chains down to the chute's mouth.
+    jz = TOP + 0.15
+    for sx in (-1, 1):
+        p.append(_beam(Vector((sx * 0.6, -3.0, jz)), Vector((sx * 0.6, my - 0.3, jz)), 0.22, m["rust"], "jib"))
+        p.append(make.cyl((sx * 0.6, -BY - 0.05, 17.5), (sx * 0.6, my - 0.2, jz + 0.12), 0.03, m["steel"], n=6, bevel=0, name="tie", low=4))
+        p.append(make.box((sx * 0.6, -BY - 0.06, 17.5), (0.12, 0.04, 0.12), m["steel"], bevel=0.005, name="tie_plate", low=False))
+        p.append(make.cyl((sx * 0.45, my, jz - 0.05), (sx * 0.45, my, mz + 0.25), 0.02, m["rust"], n=5, bevel=0, name="chain", low=3))
+    p.append(make.cyl((-0.7, my - 0.3, jz + 0.3), (0.7, my - 0.3, jz + 0.3), 0.25, m["rust"], n=14, bevel=0, name="sheave", low=8))
+    # Ladders: up the back of the trestle to the cap, on up the bunker to its roof.
+    _ladder(p, m, 2.0, post(1, 1, 6).y + 0.32, 0.3, TOP + 0.4)
+    _ladder(p, m, 2.0, BY + 0.3, TOP + 0.4, B1 + 0.6)
+    # The stop's lamp hangs where GreyboxScene lights it, 4 m off the line 5 m up: on a chain from the front girt.
+    p.append(make.cyl((0, post(0, -1, 6.4).y, 6.3), (0, -3.0, 5.35), 0.015, m["rust"], n=5, bevel=0, name="lamp_chain", low=3))
+    p.append(make.box((0, -3.0, 5.25), (0.12, 0.12, 0.12), m["rust"], bevel=0.01, name="lamp_cage"))
+    # Coal spilled round the feet: a low heap, lumps.
+    p.append(make.cyl((2.6, 1.6, 0.0), (2.6, 1.6, 0.9), 2.6, m["coal"], n=16, bevel=0.02, name="spill", r1=0.4, low=8))
+    for k in range(9):
+        ang = k * 2.4
+        x, y = 2.6 + math.cos(ang) * (2.7 + 0.4 * (k % 3)), 1.6 + math.sin(ang) * (2.6 + 0.3 * (k % 2))
+        p.append(make.box((x, y, 0.12), (0.16, 0.12, 0.1), m["coal"], bevel=0.03, name="lump", rot=Matrix.Rotation(k * 0.7, 4, "Z"), low=False))
+    return p, []
+
+
 PIECES = {
     "headframe": lambda: build("headframe", headframe, "the mine head's headframe", budget=3500),
     "chem_tank": lambda: build("chem_tank", chem_tank, "a chemical works' storage tank", budget=2500),
@@ -1267,6 +1380,7 @@ PIECES = {
     # (Note 420's: some 5,500 m² of brick, slate and glass at a hero's layer, like the elevator's; its windows lit.)
     "foundry_shed": lambda: build("foundry_shed", foundry_shed, "the foundry's casting shed, its cupola and stack", size=2048, budget=4500,
                                   layer=1024),
+    "coaling_tower": lambda: build("coaling_tower", coaling_tower, "the coaling stage's tower, its bunker and chute", budget=2500),
 }
 # tools/models/build.sh builds them all; `blender -b --python facility_pieces.py -- grain_elevator` just the one.
 want = set(cook.args()) or set(PIECES)
