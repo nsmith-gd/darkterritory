@@ -1659,6 +1659,9 @@ public sealed class World
                 _driftMarsh = marsh.Start;
                 SpawnDrift(t);
             }
+            // The lineside moose (note 339): grazing beside the line ahead, as the line's own; they cost the director nothing.
+            if (Insist is null && d.Allows(EnemyKind.Moose) && Route is { } route && Train.Dynamics.Speed > 3 && !TrainInFort)
+                LinesideMoose(t.Moose, route);
             // T128 (note 273): whoever the train's left behind has a pressure of their own, and the hunts that come of it.
             d.Abandoned(this, _enemies);
             // Note 328: a train run fast draws the hound run, the guns' wave.
@@ -1729,6 +1732,44 @@ public sealed class World
     readonly Dictionary<int, Ballast.Double3> _carries = new();
     /// <summary>The marsh (its start) the Drift last came up over: once a marsh.</summary>
     double _driftMarsh = double.NaN;
+
+    double _mooseNext = double.NaN;
+    Ballast.Pcg32 _mooseDice;
+
+    /// <summary>
+    /// GDD App. B.6, the director's decision of 7 Oct 2026 (note 339): "you can see it standing beside the rail sometimes".
+    /// <see cref="MooseTuning.Lineside"/> per 10 km by tier, fewer where the biome has fewer, put down beside the line
+    /// <see cref="MooseTuning.LinesideAhead"/> ahead (never within the track's clearance), one about at a time. Their own
+    /// dice from the route's seed, so they never move the director's.
+    /// </summary>
+    void LinesideMoose(MooseTuning t, Route.Route route)
+    {
+        double front = Train.Dynamics.Distance;
+        if (double.IsNaN(_mooseNext))
+        {
+            _mooseDice = new Ballast.Pcg32(route.Seed, 0x4D_4F4F_5345UL);
+            _mooseNext = front + Gap();
+        }
+        if (front < _mooseNext)
+            return;
+        _mooseNext = front + Gap();
+        double along = front + t.LinesideAhead;
+        if (_enemies.Any(e => !e.Gone && e.Kind == EnemyKind.Moose) || along >= Train.Line.PathLength(Train.Dynamics.Path) - 50)
+            return;
+        var at = Train.Line.Sample(Train.Dynamics.Path, along);
+        var right = Ballast.Double3.Cross(at.Tangent, Ballast.Double3.Up).Normalized;
+        double side = _mooseDice.Chance(0.5) ? 1 : -1;
+        var spot = at.Position + right * (side * _mooseDice.Range(t.LinesideOut[0], t.LinesideOut[1]));
+        double yaw = _mooseDice.Range(-Math.PI, Math.PI);
+        if (Moose.Place(this, t, spot, along) is { } put)
+            _enemies.Add(Moose.Grazing(_nextEnemyId++, put, along, yaw));
+
+        double Gap()
+        {
+            double per10 = MooseTuning.ByTier(t.Lineside, route.Tier) * Moose.BiomeWeight(this, t, front);
+            return per10 <= 0 ? 1000 : 10000 / per10 * _mooseDice.Range(0.5, 1.5);
+        }
+    }
 
     /// <summary>The marsh's mass, over one of the cars (the ground's coming up alongside and over the whole train).</summary>
     void SpawnDrift(EnemyTuning t)
