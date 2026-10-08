@@ -178,6 +178,9 @@ public static class Views
             // (Not one of Names.) From a cargo car's right-hand side doorway, down at its steps (the director, 8 Oct: "an
             // awkward step"): the landing outside the door and the treads up to it from the front.
             "sidedoor" => SideDoorCamera(train, car),
+            // (Not one of Names.) Off a car's right side at a crewman's eye on the ballast, a few metres out, its side door
+            // ahead (the comet's green out of its seams, note 482).
+            "carside" => CarSideCamera(train, car),
             // (Not one of Names.) Coming down the engine's rear ladder to the coupler plate onto car 1, looking down at it.
             "rearstep" => RearStepCamera(train),
             // (Not one of Names.) Low off the side behind the engine's half of a cut train (dt screenshot --cut n), at the
@@ -321,6 +324,13 @@ public static class Views
         var foot = engine.Shape.Ladders.Where(x => x.Foot.Z > 0 && Math.Abs(x.Inward.Z) > 0).Select(x => x.Foot).DefaultIfEmpty(new Double3(0.6, 0, l)).MinBy(f => f.Y);
         // Up the ladder at a hand's height over the deck, looking down and across at the footplate and the plate.
         return Camera.LookAt(engine.ToWorld(new Double3(foot.X + 0.1, 2.9, l + 0.3)), engine.ToWorld(new Double3(foot.X - 1.6, 1.1, l + gap * 0.4)), 75);
+    }
+
+    static Camera CarSideCamera(TrainOnLine train, int car)
+    {
+        var at = train.Frames[Math.Clamp(car, 0, train.Frames.Count - 1)];
+        double w = at.Shape.HalfWidth;
+        return Camera.LookAt(at.ToWorld(new Double3(w + 5.5, 1.7, 3.5)), at.ToWorld(new Double3(w, 1.9, -0.5)), 60);
     }
 
     static Camera SideDoorCamera(TrainOnLine train, int car)
