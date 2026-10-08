@@ -109,4 +109,23 @@ public class FiremanTests
             Assert.True((s.Position - cabBox.Centre).Length > Tuning.Enemies.Climbers.Reach);
         }
     }
+
+    [Fact]
+    public void TheHeadlampTheClimberSmashedWaitsTillItsGone()
+    {
+        // Note 301's smashed headlamp is the wrench's, mended from the middle of the cab: with the Climber that smashed it
+        // still in there, the driver keeps to its corner, not across the cab into its reach (a harness night's driver was
+        // taken at km 3 doing it, and the train stood the rest of the night).
+        var cab = new Cab();
+        var cabBox = cab.Train.Frames[0].Shape.Cab!.Value;
+        cab.World.SmashLamp(Tuning.Enemies.Climbers.LampOutSeconds);
+        var climber = cab.World.AddEnemy(id => new Climber(id));
+        climber.Restore(SpinePhase.Commit, 0, Tuning.Enemies.Climbers.Health, 0, cabBox.Centre, 0, 0, 0, -1, 1);
+        cab.Run(20);
+        Assert.True(climber.Inside);
+        Assert.True(Repairs.LampSmashed(cab.Train));
+        Assert.True(cab.DriverState.Alive);
+        Assert.Equal(P.Health, cab.DriverState.Health);
+        Assert.True((cab.DriverState.Position - cabBox.Centre).Length > Tuning.Enemies.Climbers.Reach);
+    }
 }

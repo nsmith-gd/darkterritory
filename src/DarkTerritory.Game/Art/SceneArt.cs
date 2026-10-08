@@ -277,8 +277,8 @@ public sealed partial class SceneArt(Look look)
     public IReadOnlyList<(float Stress, int Outer)>? BendStrain { get; set; }
 
     // How strained a car is before the crew on it stumble: past halfway to derailing, where the eye's judder is plain
-    // (BendStrain.Offset starts at 0.2) and the flanges' haze comes on.
-    const float StumbleAt = 0.5f;
+    // (BendStrain.Offset starts at 0.2) and the flanges' haze comes on. GameAudio's scuffs go by it too.
+    internal const float StumbleAt = 0.5f;
 
     // How long a jump's leap is held from its start (s): over the top, until they're falling or down (crew_clips.py's jump).
     const double JumpHoldSeconds = 0.75;
