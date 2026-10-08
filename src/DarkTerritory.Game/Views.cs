@@ -146,6 +146,18 @@ public static class Views
             // The boiler's left flank, where it tears when it ruptures (TrainKit.RuptureSeam; dt screenshot --ruptured).
             "rupture" => Camera.LookAt(engine.ToWorld(new Double3(-14, 2.4, -engineHalf + 1)), engine.ToWorld(new Double3(-0.7, 3.0, 0.5)), 60),
             "engine" => Camera.LookAt(engine.ToWorld(new Double3(8.5, 3.2, -engineHalf - 6)), engine.ToWorld(new Double3(0, 2.2, 1)), 55),
+            // (Not one of Names.) From over car 1's front end, a crewmate's eye up on the roofs, forward along the hood to the
+            // whistle on it: its valve lever pulled down by its rod from the cab while a crewmate blows it (note 445).
+            "whistlepull" => Camera.LookAt(engine.ToWorld(new Double3(1.4, engine.Shape.Bounds.Max.Y + 1.3, Art.TrainKit.WhistleZ(engine.Shape) + 5.5)),
+                engine.ToWorld(new Double3(0.3, engine.Shape.Bounds.Max.Y + 0.3, Art.TrainKit.WhistleZ(engine.Shape))), 45),
+            // (Not one of Names.) Close on the whistle's lever and its rod forward along the roof (note 445).
+            "whistlelever" => Camera.LookAt(engine.ToWorld(new Double3(1.5, engine.Shape.Bounds.Max.Y + 0.8, Art.TrainKit.WhistleZ(engine.Shape) + 1.4)),
+                engine.ToWorld(new Double3(0.4, engine.Shape.Bounds.Max.Y + 0.4, Art.TrainKit.WhistleZ(engine.Shape) - 0.6)), 50),
+            // (Not one of Names.) In the cab's front corner on the driver's side, back at the driver, the brake and the reverser
+            // (dt screenshot --driver [--reverser s], note 445): the hand on the reverser as it's thrown.
+            "driverside" => engine.Shape.Levers is { } driverLevers
+                ? Camera.LookAt(engine.ToWorld(driverLevers.Reverser + new Double3(0.1, 0.95, -0.75)), engine.ToWorld(driverLevers.Reverser + new Double3(-0.35, 0.05, 0.3)), 70)
+                : Camera.LookAt(engine.ToWorld(new Double3(0, 2.5, 0)), engine.ToWorld(new Double3(0, 2.5, -1)), 60),
             // The engine's front (note 311): low off its front quarter, the prow, the brow and the eye; and square off its
             // left side, the cab's run into the boiler.
             // (Not one of Names.) Close on the headlamp from up the line, a little off its axis: the Stella Maris in its cage (note 338).
@@ -181,6 +193,9 @@ public static class Views
             // (Not one of Names.) From the engine's forward gun's seat, down the line ahead in the headlamp: the lane ahead
             // (note 405; dt screenshot --run-ahead --view lane).
             "lane" => LaneCamera(train),
+            // (Not one of Names.) From the forward gun's seat, out abeam the engine: its flank lane (note 443; dt screenshot
+            // --run-flank --view laneside).
+            "laneside" => LaneCamera(train, side: true),
             // (Not one of Names.) Down the aisle of the first cargo car at the face of its load, where the staged fire
             // burns (dt screenshot --threats --view fire: Staging.Threats' car fire, Effects.CarFire).
             "fire" => FireCamera(train),
@@ -438,7 +453,7 @@ public static class Views
         return Camera.LookAt(At(48, -9, 3.2), At(4, 1, 1.6), 60);
     }
 
-    static Camera LaneCamera(TrainOnLine train)
+    static Camera LaneCamera(TrainOnLine train, bool side = false)
     {
         int v = Enumerable.Range(0, train.Vehicles.Count).FirstOrDefault(i => train.Vehicles[i].Gun is { Mounted: true, Facing: < 0 }, -1);
         if (v < 0 || Sim.Combat.Guns.Mount(train, v) is not { } mount)
@@ -447,6 +462,13 @@ public static class Views
         var p = mount.Position;
         var seat = Art.TrainKit.CannonSeat;
         var eye = new Double3(p.X, p.Y + seat.Y + 0.78, p.Z + seat.Z);
+        if (side)
+        {
+            // Abeam, a little back toward the first car, where the lane runs in.
+            var from = f.ToWorld(eye + new Double3(0, 0.9, 0));
+            var t = train.Line.Sample(train.Dynamics.Path, train.Dynamics.Distance - 14);
+            return Camera.LookAt(from, t.Position + Double3.Cross(t.Tangent, Double3.Up).Normalized * 30 + Double3.Up * 0.4, 70);
+        }
         var ahead = train.Line.Sample(train.Dynamics.Path, train.Dynamics.Distance + 95).Position;
         return Camera.LookAt(f.ToWorld(eye + new Double3(0, 0.9, 0)), ahead + Double3.Up * 0.6, 20);
     }

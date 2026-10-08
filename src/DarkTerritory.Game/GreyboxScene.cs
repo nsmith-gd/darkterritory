@@ -833,10 +833,14 @@ public sealed class GreyboxScene
     readonly List<(Enemy Was, uint Tick, int Toy)> _vanished = new();
     // The Car Huggers cut loose with their cars since (with the tick): the sim's done with one once its car is off the train.
     readonly Dictionary<int, (Enemy Body, uint Tick)> _riding = new();
+    // The Cinder Hounds on the line scattered by a ball or driven off since (with the tick, and how fast they were running
+    // along the line then): the sim has one gone the tick it breaks off.
+    readonly Dictionary<int, (Enemy Body, uint Tick, double Speed)> _fleeing = new();
     readonly List<(string Beat, Enemy Body)> _newBeats = new();
 
     /// <summary>What began in the last <see cref="Remember"/>, each as it was last seen: "killed", "dispersed" (a Choir
-    /// ghost), "cut-loose" (a Car Hugger, its car off the train), "vanished" (a Track Doll). For dt playthrough's shots.</summary>
+    /// ghost), "cut-loose" (a Car Hugger, its car off the train), "vanished" (a Track Doll), "scattered" (a Cinder Hound
+    /// off the line). For dt playthrough's shots.</summary>
     public IReadOnlyList<(string Beat, Enemy Body)> NewBeats => _newBeats;
 
     /// <summary>
@@ -853,6 +857,7 @@ public sealed class GreyboxScene
         Leaving(mesh, line, frames, eye, from, to);
         Vanishing(mesh, line, frames, eye, from, to);
         Riding(mesh, line, frames, eye, from, to);
+        Fleeing(mesh, line, frames, eye, from, to);
         if (_dying.Count == 0)
             return;
         var fx = Look?.Art.Effects;
@@ -909,6 +914,15 @@ public sealed class GreyboxScene
             {
                 _riding[id] = (was, (uint)Tick);
                 _newBeats.Add(("cut-loose", was));
+            }
+        // A Cinder Hound running the line gone and not killed (note 451): scattered by a ball landing near it (note 328), driven
+        // off by the guns (A.3) or left behind. The sim's done with it that tick; it's seen running off.
+        foreach (var (id, was) in _seen)
+            if (was.Kind == EnemyKind.CinderHound && was.Attached == -1 && !_dying.ContainsKey(id) && !_fleeing.ContainsKey(id)
+                && Enemies?.Any(e => e.Id == id && !e.Gone) != true)
+            {
+                _fleeing[id] = (was, (uint)Tick, Math.Max(0, _speed));
+                _newBeats.Add(("scattered", was));
             }
         _seen.Clear();
         foreach (var e in Enemies ?? [])
@@ -1023,6 +1037,52 @@ public sealed class GreyboxScene
             DrawEnemy(mesh, line, frames, hugger, eye, from, to, Look?.Art.Creatures, bite);
         }
     }
+
+    /// <summary>
+    /// A Cinder Hound scattered (note 451; the guns' effect on creatures, note 290): a ball landing near a runner sends it off
+    /// (note 328), and fire drives a pack off (A.3), and the sim has it gone that tick. It doesn't blink out where it stood:
+    /// it runs on, slowing (so the train draws away from it), and peels off the line on its own side, turned the way it's
+    /// going, out into the dark with its embers going out (<see cref="Art.CreatureArt.HoundRunOffSeconds"/>).
+    /// </summary>
+    void Fleeing(MeshBuilder mesh, RailLine line, IReadOnlyList<CarFrame> frames, Double3 eye, double from, double to)
+    {
+        foreach (var (id, (body, tick, speed)) in _fleeing.ToArray())
+        {
+            double age = (Tick - tick) * Sim.SimConstants.TickSeconds;
+            if (age > Art.CreatureArt.HoundRunOffSeconds || age < 0 || _seen.ContainsKey(id))
+            {
+                _fleeing.Remove(id);
+                continue;
+            }
+            var (along, lateral, turn) = RunOff(body, speed, age);
+            var hound = new Sim.Enemies.CinderHound(id, (int)body.Extra);
+            hound.Restore(SpinePhase.BreakOff, age, body.Health, -1, body.Local, along, lateral, body.Height, body.Extra, body.Extra2);
+            DrawEnemy(mesh, line, frames, hound, eye, from, to, Look?.Art.Creatures, flinch: (Vector3.Zero, Quaternion.CreateFromAxisAngle(Vector3.UnitY, turn)));
+        }
+    }
+
+    // A scattered hound running off: how hard it pulls up along the line (m/s²) and how fast it goes out across it (m/s).
+    const double RunOffSlowing = 7, RunOffOut = 6;
+
+    /// <summary>
+    /// Where a hound scattered <paramref name="age"/> s ago is (along the line, and off it), and its turn off the line (about
+    /// +Y, from facing along it): it was running at <paramref name="speed"/>, pulls up along the line at
+    /// <see cref="RunOffSlowing"/> and goes out on its own side at <see cref="RunOffOut"/>, facing the way it's going.
+    /// </summary>
+    internal static (double Along, double Lateral, float Turn) RunOff(Enemy was, double speed, double age)
+    {
+        double stop = speed / RunOffSlowing, run = Math.Min(age, stop);
+        double along = was.LineDistance + speed * run - 0.5 * RunOffSlowing * run * run;
+        double side = was.Lateral >= 0 ? 1 : -1;
+        double lateral = was.Lateral + side * RunOffOut * age;
+        // Facing its way over the ground: a positive turn about +Y swings a heading along the line to its left, so its side is −.
+        double going = Math.Atan2(RunOffOut, Math.Max(0, speed - RunOffSlowing * age));
+        return (along, lateral, (float)(-side * going));
+    }
+
+    /// <summary>Staged (<c>dt screenshot --scattered s</c>): the Cinder Hound <paramref name="e"/> scattered at
+    /// <paramref name="tick"/>, running at <paramref name="speed"/> (it's not in <see cref="Enemies"/> any more).</summary>
+    public void Scattered(Enemy e, uint tick, double speed) => _fleeing[e.Id] = (e, tick, speed);
 
     /// <summary>Whether <paramref name="car"/> is off the engine's train: a coupling's cut somewhere between it and the engine
     /// (<see cref="Cut"/>, a car's front end open where the car ahead of it is in another rake).</summary>
@@ -3577,7 +3637,7 @@ public sealed class GreyboxScene
                 fx.Furnace(mesh, bed, across, ToF(frame.Up), toCab, FireGlow, FireColour(1), Time, SinceShovel);
             }
             // The vent valve and the driver's levers: modelled by the art pass where it has them (SceneArt.CabControls).
-            bool modelled = Look?.Art.CabControls(mesh, frame, eye, Controls, WrenchRacked, CordPulled, ShovelRacked) == true;
+            bool modelled = Look?.Art.CabControls(mesh, frame, eye, Controls, WrenchRacked, CordPulled, ShovelRacked, Time) == true;
             foreach (var i in shape.Interactables.Where(i => i.Kind == InteractableKind.Vent && !modelled))
                 draw(Box.FromCentre(i.Position + new Double3(0, 1.1, 0), new Double3(0.12, 0.12, 0.04)), Palette.TarnishedBrass);
             // The driver's levers, their handles where the controls have them (T29): a headset player takes hold of
