@@ -70,10 +70,10 @@ public class AuditTests
     [Fact]
     public void EveryPairAndTripleOfTheRoster()
     {
-        Assert.Equal(19, Combinations.Roster.Count);
-        Assert.Equal(19 * 18 / 2, Combinations.Of(Combinations.Roster, 2).Count);
+        Assert.Equal(20, Combinations.Roster.Count);
+        Assert.Equal(20 * 19 / 2, Combinations.Of(Combinations.Roster, 2).Count);
         var triples = Combinations.Of(Combinations.Roster, 3);
-        Assert.Equal(19 * 18 * 17 / 6, triples.Count);
+        Assert.Equal(20 * 19 * 18 / 6, triples.Count);
         Assert.Equal(triples.Count, triples.Select(t => string.Join("+", t)).Distinct().Count());
         // A sample is the same sample every time, and a sample of the whole.
         var a = Combinations.Of(Combinations.Roster, 3, sample: 40, seed: 5);

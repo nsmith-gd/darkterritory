@@ -543,6 +543,7 @@ public static class WorldRecords
             EnemyKind.Moose => new Moose(r.Id),
             EnemyKind.Gannet => new Gannet(r.Id),
             EnemyKind.Mourners => new Mourner(r.Id),
+            EnemyKind.FreightBeetle => new FreightBeetle(r.Id),
             _ => new ChoirGhost(r.Id),
         };
 

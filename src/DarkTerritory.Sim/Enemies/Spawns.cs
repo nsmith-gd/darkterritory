@@ -345,6 +345,33 @@ public static class Spawns
             }
             return false;
         }),
+        // B.6 · The Freight Beetle (note 366): at a facility the train's stopped at, among its loose freight; every tier, more
+        // the harder; one at a stop.
+        new(EnemyKind.FreightBeetle, c =>
+        {
+            var t = c.Tuning.FreightBeetle;
+            if (!c.Stopped || !c.AtFacility || !c.None(EnemyKind.FreightBeetle) || FreightBeetle.Freight(c.World, t).Count == 0)
+                return null;
+            return MooseTuning.ByTier(t.TierWeights, c.Tier);
+        }, c =>
+        {
+            var t = c.Tuning.FreightBeetle;
+            var freight = FreightBeetle.Freight(c.World, t);
+            if (freight.Count == 0)
+                return false;
+            // Settled beside one of the loads, on the side away from the train.
+            var load = freight[(int)c.Director.NextRange(0, freight.Count - 1e-9)];
+            var at = load.Centre;
+            double hint = c.Front;
+            var (path, d) = c.Train.Line.Nearest(at, ref hint);
+            var away = (at - c.Train.Line.Sample(path, d).Position) with { Y = 0 };
+            away = away.Length > 1e-3 ? away.Normalized : new Double3(1, 0, 0);
+            var spot = at + away * 2.5;
+            spot = spot with { Y = PlayerMotor.GroundAt(spot, c.Train.Line, ref hint) };
+            double yaw = DMath.Atan2(away.X, away.Z);
+            c.Add(i => FreightBeetle.At(i, spot, hint, yaw, t));
+            return true;
+        }),
         // B.4 · The Gannet (note 340; the orchestrator's S3): over a train run fast a while in open country (not a tunnel), a
         // train of two or more; every tier, more the harder; by the line's biome; up per walker on the roofs. Once a run:
         // it peels off and comes back on its own, until it's killed or gives up.

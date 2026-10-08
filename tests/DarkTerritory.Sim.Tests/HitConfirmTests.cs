@@ -125,7 +125,7 @@ public class HitConfirmTests
     [
         EnemyKind.CinderHound, EnemyKind.Switchman, EnemyKind.SootChildren, EnemyKind.Dragger, EnemyKind.Stoker, EnemyKind.Climber,
         EnemyKind.Gaunt, EnemyKind.Passenger, EnemyKind.Follower, EnemyKind.TrackDoll, EnemyKind.CarHugger, EnemyKind.Whistler,
-        EnemyKind.TippyToesie, EnemyKind.FireFlies, EnemyKind.Ribbit, EnemyKind.Grumbler, EnemyKind.Choir, EnemyKind.Moose, EnemyKind.Gannet, EnemyKind.Mourners,
+        EnemyKind.TippyToesie, EnemyKind.FireFlies, EnemyKind.Ribbit, EnemyKind.Grumbler, EnemyKind.Choir, EnemyKind.Moose, EnemyKind.Gannet, EnemyKind.Mourners, EnemyKind.FreightBeetle,
     ];
 
     static Enemy Make(EnemyKind kind, int id) => kind switch
@@ -150,6 +150,7 @@ public class HitConfirmTests
         EnemyKind.Moose => new Moose(id),
         EnemyKind.Gannet => new Gannet(id),
         EnemyKind.Mourners => new Mourner(id),
+        EnemyKind.FreightBeetle => new FreightBeetle(id),
         _ => throw new ArgumentException($"{kind} isn't a creature"),
     };
 

@@ -129,7 +129,9 @@
     // Its breast and sacs, and the head over them (note 340): standing on a roof 2.3 m tall; in the air, about where it flies.
     "gannet": [[1.0, 0.7], [0.6, 1.6]],
     // Child-high, hunched over (note 362).
-    "mourners": [[0.35, 0.45], [0.3, 0.9]]
+    "mourners": [[0.35, 0.45], [0.3, 0.9]],
+    // Its plated back, a handcart's bulk (note 366).
+    "freightBeetle": [[0.75, 0.7], [0.6, 0.7]]
   },
   "gauntAsleep": 0.35,
 
@@ -207,7 +209,7 @@
   "solidity": {
     "climbM": 2.5, "airClearM": 0.2,
     "kinds": { "ribbit": "ground", "gaunt": "ground", "grumbler": "ground", "choir": "air", "whistler": "none", "follower": "none", "sootChildren": "none",
-      "mourners": "ground" }
+      "mourners": "ground", "freightBeetle": "ground" }
   },
 
   // TIPPY TOESIE · absence · interior (App. A.5, B.5). Picks a player idle (moving under idleBelow m/s) for idleSeconds with
@@ -362,6 +364,22 @@
     "arriveAt": 40, "comeSeconds": 6, "waitAt": 10, "shy": 6, "startleTo": 12, "dropWithin": 3, "takeReach": 0.9,
     "creep": 1.4, "approach": 3, "drag": 1.6, "scatter": 4, "holdAt": 0.7, "holdHeight": 0.5,
     "returnAfter": 4, "scatterOnDeath": 6, "lostAt": 120, "leaveSeconds": 30, "health": 1
+  },
+
+  // THE FREIGHT BEETLE · sight · outside (GDD §21, App. A.6, B.6; the director's brief of 8 Oct 2026; ARCHITECTURE §8 note
+  // 366; docs/design/creatures/freight-beetle.md). A big pushing beetle at a facility. A player within notice m and it takes
+  // the loose freight nearest it (a crate, cargo or heavy crate on the ground, within freightReach m), gets behind it (walk
+  // m/s) and braces (the telegraph, the reaction window), then pushes it DIRECTLY AWAY FROM THE NEAREST PLAYER, at push m/s
+  // (a heavy crate pushHeavy), its push turning toward that way at turnDegrees a second: two players steer it. The crate's
+  // own physics carries it (off an edge it falls; at rest in a car it's loaded). A player within startleWithin m of its head
+  // (headAt m in front of it) and it rears back startleSeconds. driveOffBlows blows inside driveOffSeconds drive it off its
+  // load for awaySeconds; health in blows. It never attacks. Spawns (B.6): stopped at a facility with loose freight within
+  // facilityReach m of the train, every tier, tierWeights; one at a stop.
+  "freightBeetle": {
+    "notice": 25, "freightReach": 30, "headAt": 1.1, "pushReach": 0.35, "walk": 2, "push": 1.2, "pushHeavy": 0.8, "turnDegrees": 90,
+    "startleWithin": 1.5, "startleSeconds": 2, "driveOffBlows": 3, "driveOffSeconds": 10, "awaySeconds": 30, "health": 6,
+    "facilityReach": 80,
+    "tierWeights": { "local": 1, "frontier": 1.25, "deadLines": 1.5, "deepTerritory": 1.5 }
   },
 
   // THE SWITCHMAN · vibration · corrupted (App. A.8, B.8). At a junction ahead[0]-[1] m out; seen at revealAt m. It throws
@@ -743,7 +761,7 @@
     // App. B.1 v1.1's cost table (the Choir costs nothing: it isn't spawned; hazards are level content).
     "costs": { "followers": 2, "draggers": 2, "fireFlies": 2, "switchman": 2, "trackDoll": 3, "cinderHounds": 3, "climbers": 3,
       "whistler": 3, "stoker": 3, "ribbits": 3, "carHugger": 4, "tippyToesie": 4, "gaunt": 4, "sootChildren": 4, "grumbler": 4,
-      "passenger": 5, "moose": 3, "gannet": 4 },
+      "passenger": 5, "moose": 3, "gannet": 4, "freightBeetle": 1 },
     // App. B.3/B.8 weights.
     "houndsLivestockWeight": 2.5,
     "houndsHotBoilerWeight": 1.5,
@@ -781,6 +799,10 @@
       ["cinderHounds", "gannet"],
       ["draggers", "gannet"],
       ["choir", "gannet"],
+      // The Freight Beetle (note 366): load fast vs. it pushes the freight off; steer it to the car vs. the crane's castings
+      // overhead.
+      ["freightBeetle", "facilityLoading"],
+      ["grumbler", "freightBeetle"],
       ["choir", "cinderHounds"],
       ["choir", "gaunt"],
       ["fireFlies", "trackDoll"],

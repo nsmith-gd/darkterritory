@@ -31,6 +31,7 @@ public sealed record EnemyTuning(
     public MooseTuning Moose { get; init; } = new();
     public GannetTuning Gannet { get; init; } = new();
     public MournersTuning Mourners { get; init; } = new();
+    public FreightBeetleTuning FreightBeetle { get; init; } = new();
     /// <summary>The damage model (GDD App. F.1, the director's decision of 6 Oct 2026; note 272): no creature's hit is chip.</summary>
     public DamageModelTuning Damage { get; init; } = new();
     /// <summary>
@@ -951,4 +952,25 @@ public sealed record MournersTuning
     /// <summary>How many come, by tier (3 where the tier isn't listed).</summary>
     public int CountFor(Route.RouteTier tier) =>
         Count.GetValueOrDefault(char.ToLowerInvariant(tier.ToString()[0]) + tier.ToString()[1..], 3);
+}
+
+/// <summary>The Freight Beetle (GDD §21, App. A.6, B.6; ARCHITECTURE §8 note 366). Field docs live in enemies.json.</summary>
+public sealed record FreightBeetleTuning
+{
+    public double Notice { get; init; } = 25;
+    public double FreightReach { get; init; } = 30;
+    public double HeadAt { get; init; } = 1.1;
+    public double PushReach { get; init; } = 0.35;
+    public double Walk { get; init; } = 2;
+    public double Push { get; init; } = 1.2;
+    public double PushHeavy { get; init; } = 0.8;
+    public double TurnDegrees { get; init; } = 90;
+    public double StartleWithin { get; init; } = 1.5;
+    public double StartleSeconds { get; init; } = 2;
+    public int DriveOffBlows { get; init; } = 3;
+    public double DriveOffSeconds { get; init; } = 10;
+    public double AwaySeconds { get; init; } = 30;
+    public double Health { get; init; } = 6;
+    public double FacilityReach { get; init; } = 80;
+    public Dictionary<string, double> TierWeights { get; init; } = new() { ["local"] = 1, ["frontier"] = 1.25, ["deadLines"] = 1.5, ["deepTerritory"] = 1.5 };
 }

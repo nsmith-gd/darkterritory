@@ -17,7 +17,9 @@ public enum EnemyKind : byte
     // The Gannet (GDD §21, the director's decisions of 7 Oct 2026; note 340).
     Gannet = 32,
     // The Mourners (GDD §21, the director's brief of 8 Oct 2026; note 362).
-    Mourners = 33
+    Mourners = 33,
+    // The Freight Beetle (GDD §21, the director's brief of 8 Oct 2026; note 366).
+    FreightBeetle = 37
 }
 
 /// <summary>
