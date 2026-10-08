@@ -68,6 +68,8 @@ public sealed partial class GameAudio
         _earHint = _outsideClock = _engineFrontWas = double.NaN;
         _engineSpeedWas = _nextFar = _tenderAtPour = _rammedAgain = 0;
         _outsidePrimed = _radioWas = false;
+        _waterNear.Clear();
+        _waterLookAt = double.NegativeInfinity;
         _spoutAt = default;
         _places = null;
     }
@@ -111,6 +113,7 @@ public sealed partial class GameAudio
             WorldTunnels(train, places, ear, front, tunnel, dt, primed);
             WorldBridges(train, places, ear, dt);
             WorldWeather(world, train, places, ear, earMain, tunnel, underground, dt);
+            WaterSounds(places, ear, earMain, tunnel, underground);
             WorldBrass(train, places, primed);
             PlaceThreshold(run, train, places, front, primed);
             PlaceWorks(world, run, train, places, ear, underground, dt, primed);

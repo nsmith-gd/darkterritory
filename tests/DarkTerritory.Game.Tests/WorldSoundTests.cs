@@ -407,6 +407,57 @@ public class WorldSoundTests
         Assert.Equal(0, outside.Walls);
     }
 
+    [Theory]
+    [InlineData("deadLines:2", "world-water.surf", "sea")]
+    [InlineData("deadLines:2", "world-water.river", "river")]
+    [InlineData("frontier:7", "world-water.tide", "fundy")]
+    [InlineData("frontier:7", "world-water.river", "tidal")]
+    [InlineData("frontier:3", "world-water.lake", "lake")]
+    public void TheLinesWaterIsHeardWhereItsWaterIs(string id, string cue, string kind)
+    {
+        // Note 429: each kind of the plan's water, by an ear beside it, held on its water (the terrain has water there, of
+        // that kind); and nothing of it a kilometre up.
+        var route = Sim.LineGen.Routes.Generate(Content, id, 4);
+        double gate = route.GateOr(RouteTuning.Load(Content).YardLength);
+        var world = new World(new TrainOnLine(new TrainDynamics(Consist.Uniform(Trains, 4, 1)), route.Build(), gate, Boilers));
+        world.EnableRun(Runs, route, gate, authority: false);
+        var plan = world.TrackPlan ?? route.Plan!;
+        var line = world.Train.Line;
+        var terrain = ((line.Conditions is Sim.Net.HazardConditions h ? h.Inner : line.Conditions) as Sim.LineGen.PlanConditions)!.Terrain;
+        Double3 OnLine(double s) => line.Sample(s).Position + Double3.Up * 1.6;
+        Double3 ear;
+        if (kind == "lake")
+        {
+            // 15 m out from a lake's shore, on the land.
+            var lake = plan.Lakes.First(l => !l.Crossed);
+            double r = 0;
+            while (Sim.LineGen.TerrainField.LakeMetric(lake, lake.X + r, lake.Z) < 1)
+                r += 0.5;
+            double x = lake.X + r + 15;
+            ear = new Double3(x, terrain.Height(x, lake.Z) + 1.6, lake.Z);
+        }
+        else if (kind == "tidal")
+        {
+            var river = plan.Water.First(w => w.Type == "tidal");
+            ear = OnLine((river.S0 + river.S1) / 2);
+        }
+        else
+        {
+            var shore = plan.Shores.First(s => s.Kind.ToString().Equals(kind, StringComparison.OrdinalIgnoreCase));
+            ear = OnLine((shore.S0 + shore.S1) / 2);
+        }
+        var audio = new GameAudio(Content);
+        Held(audio, cue);
+        var ears = new Ears(audio, world);
+        ears.Tick(ear, SimConstants.TickRate / 2);
+        var voice = audio.Mixer.Voices.Single(v => v.Name == cue && !v.Finished);
+        var p = voice.Position;
+        Assert.True(terrain.WaterAt(p.X, p.Z) is not null || terrain.WaterNear(p.X, p.Z, 3)?.Kind == kind,
+            $"{cue} at ({p.X:0}, {p.Y:0}, {p.Z:0}), {(p - ear).Length:0} m from the ear, isn't on {kind} water");
+        ears.Tick(ear + Double3.Up * 1000, SimConstants.TickRate / 2);
+        Assert.False(Playing(audio, cue));
+    }
+
     [Fact]
     public void AStopsBuildingsWallsAreBetweenAnEarOutsideItAndASoundInIt()
     {

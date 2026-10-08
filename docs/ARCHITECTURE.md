@@ -6164,3 +6164,22 @@ Terrain sculpting tools, a node-graph material editor, a general-purpose visual 
      - Frontier:7's run-fast train finds one on Stroud Bridge's chord, put there within 500 m of it.
    - **Bot nights.** `dt harness --route frontier:7 --bots 4 --enemies --upkeep --express 21 --seconds 900`, seeds 1-3, after: a truss Dragger on every night. One grabbed a walker (seed 2) and was hauled off; the others met empty roofs. Deaths 1, 0 and 3 against main's 2, 0 and 2. Seed 3's three were hounds Mauling, nothing to do with the truss.
    - **Not yet.** Bots off the roofs at a truss's scrape (they heed a tunnel's mouth, T81, not this).
+429. **The water heard (AU1, queue #165; the line plan's water, maritime-rules.md §2-5; B1's #160 makes it move on screen).** No water anywhere made a sound. A river ran under its span and beside the line up its valley, a lake lay beside the line, the Atlantic's surf broke on its rock and shingle and Fundy's tide came in over the red mud, all in silence.
+    - **How** (`GameAudio.Water`): every 0.25 s the nearest water of each kind to the ear is looked up from the plan and the line's terrain (`PlanConditions.Terrain`), the same on every machine, and each is held where its water is:
+        - **A river** (`world-water.river`): one under its span (`LinePlan.Water`, a river or a tidal one, on the main line) where its course crosses the line, as near the ear as 25 m either side of the line. Or one up its valley beside the line (a `River` shore), mid-stream at its level under the rail. Heard within 120 m.
+        - **A lake** (`world-water.lake`): at the shore nearest the ear, the way out from its middle scaled by the ear's `LakeMetric` (1 on the shore), or under the ear on a causeway across it. Heard within 50 m, louder with the night's wind.
+        - **The sea** (`world-water.surf`): at its waterline (`TerrainField.ShoreEdge`) level with the ear's place along the line, or at the shore's end. Heard within 400 m, louder with the wind.
+        - **Fundy** (`world-water.tide`): out on the flats, half their width beyond the shore's edge. Heard within 250 m.
+        - Nothing in a tunnel or down the mine. Shut in a car or a house, through its walls.
+    - **The sounds** (`tools/audio/recipes/water.py`): six candidates on the Audio Checklist's new `world-water` line, the first of each installed. Every loop is built exactly periodic.
+        - The river, `run` (installed): broad water over stones. Its wash surges slowly, it gurgles where it folds over a rock (knots of big Minnaert bubbles), and its surface fizzes.
+        - The river, `deep`: the packs' moving water slowed and darkened, with fewer and lower gurgles.
+        - The lake, `lap`: a wavelet every 2-5 s sloshing on the stones, a plop or two, the water sucking back between them.
+        - The sea, `shingle` (installed): a wave every 9 s. The swell rises, the break comes down heavy, the wash hisses up, and the shingle is dragged rattling back, with the sea's low roar under it.
+        - The sea, `rock`: the ria coast's ledges, a boom in the gullies and the water pouring back off the rock, with no shingle.
+        - Fundy, `flats`: the tide's wash far out, and the red mud close by seeping, popping and ticking, with its channels trickling.
+    - **Not yet:**
+        - A marsh's standing water (`LinePlan.Water`'s marshes) and a dyke's fields are silent.
+        - Water on a branch's edge isn't heard; the plan's main line carries nearly all of it.
+        - The rocky coast's surf is a candidate. Every sea shore takes the shingle's, until the plan says which coast is rock.
+    - **Pinned:** `WorldSoundTests.TheLinesWaterIsHeardWhereItsWaterIs` covers each kind, on a night that has it: deadLines:2's sea and river valley, frontier:7's Fundy flats and tidal river, and frontier:3's lakes. By an ear beside it, the sound is held on water the terrain says is that kind, and nothing of it is heard a kilometre up.
