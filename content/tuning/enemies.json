@@ -409,7 +409,7 @@
   // a second a second at refSpeed m/s (in proportion to the speed): knocking (once a turn of a wheelDiameter m wheel) for
   // knockSeconds, then glowing and smoking glowSeconds, then the axle's seized: the train's held to seizedTopSpeed m/s (over
   // it a drag of seizedHold times what the engine can pull) while the car's in it. Never fire, never a derailment. Stood
-  // under stoodBelow m/s for exposeAfter s it half unfolds (a blow lands; health in blows; it bites snapDamage at anyone
+  // under stoodBelow m/s for exposeAfter s it half unfolds (a blow lands; health in blows; it bites snapDamage (the damage model's least hit, note 272) at anyone
   // within snapReach every snapEvery s, never a kill); Use held priseSeconds within priseReach with a crowbar or a wrench
   // prises it out (it scuttles off over scuttleSeconds). Moving again it folds back. A seized axle stays seized once it's
   // out: a wrench held repairSeconds within repairReach of one of the car's trucks frees it (or cut the car). Spawns (B.3):
@@ -417,7 +417,7 @@
   "hotbox": {
     "boardAbove": 10, "refSpeed": 18, "knockSeconds": 90, "glowSeconds": 90, "wheelDiameter": 0.9,
     "seizedTopSpeed": 7, "seizedHold": 1.5, "stoodBelow": 0.3, "exposeAfter": 2, "health": 6,
-    "priseSeconds": 4, "priseReach": 1.8, "scuttleSeconds": 3, "snapReach": 1.2, "snapDamage": 25, "snapEvery": 3,
+    "priseSeconds": 4, "priseReach": 1.8, "scuttleSeconds": 3, "snapReach": 1.2, "snapDamage": 30, "snapEvery": 3,
     "repairSeconds": 10, "repairReach": 2.2, "bogieInset": 1.6, "inboard": 0.35, "axleHeight": 0.5,
     "tierWeights": { "local": 1, "frontier": 1.25, "deadLines": 1.5, "deepTerritory": 1.75 }
   },
