@@ -462,13 +462,15 @@ public sealed partial class SceneArt(Look look)
     // The whistle's lever (note 445): how far off it's seen (it's small, but it's the one thing that tells the Whistler's
     // whistle from a crewmate's), and how quickly it swings to and from the pull.
     const double WhistleLeverSeen = 160, WhistlePullSeconds = 0.15;
-    bool _pulled;
+    bool _pulled, _pullSeen;
     double _pulledSince = double.NegativeInfinity;
 
-    /// <summary>How far the whistle's lever is pulled down (0..1), easing to where the cord has it.</summary>
+    /// <summary>How far the whistle's lever is pulled down (0..1), easing to where the cord has it (where it's first seen, there).</summary>
     double Pull(bool pulled, double time)
     {
-        if (pulled != _pulled)
+        if (!_pullSeen)
+            (_pulled, _pullSeen) = (pulled, true);
+        else if (pulled != _pulled)
             (_pulled, _pulledSince) = (pulled, time);
         double p = Smooth((time - _pulledSince) / WhistlePullSeconds);
         return pulled ? p : 1 - p;

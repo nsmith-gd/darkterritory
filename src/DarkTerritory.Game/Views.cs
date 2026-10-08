@@ -148,8 +148,16 @@ public static class Views
             "engine" => Camera.LookAt(engine.ToWorld(new Double3(8.5, 3.2, -engineHalf - 6)), engine.ToWorld(new Double3(0, 2.2, 1)), 55),
             // (Not one of Names.) From over car 1's front end, a crewmate's eye up on the roofs, forward along the hood to the
             // whistle on it: its valve lever pulled down by its rod from the cab while a crewmate blows it (note 445).
-            "whistlepull" => Camera.LookAt(engine.ToWorld(new Double3(1.2, engine.Shape.Bounds.Max.Y + 0.6, Art.TrainKit.WhistleZ(engine.Shape) + 1.6)),
+            "whistlepull" => Camera.LookAt(engine.ToWorld(new Double3(1.4, engine.Shape.Bounds.Max.Y + 1.3, Art.TrainKit.WhistleZ(engine.Shape) + 5.5)),
                 engine.ToWorld(new Double3(0.3, engine.Shape.Bounds.Max.Y + 0.3, Art.TrainKit.WhistleZ(engine.Shape))), 45),
+            // (Not one of Names.) Close on the whistle's lever and its rod forward along the roof (note 445).
+            "whistlelever" => Camera.LookAt(engine.ToWorld(new Double3(1.5, engine.Shape.Bounds.Max.Y + 0.8, Art.TrainKit.WhistleZ(engine.Shape) + 1.4)),
+                engine.ToWorld(new Double3(0.4, engine.Shape.Bounds.Max.Y + 0.4, Art.TrainKit.WhistleZ(engine.Shape) - 0.6)), 50),
+            // (Not one of Names.) In the cab behind the driver's right shoulder, down at the brake and the reverser (dt
+            // screenshot --driver [--reverser s], note 445): the hand on the reverser as it's thrown.
+            "driverside" => engine.Shape.Levers is { } driverLevers
+                ? Camera.LookAt(engine.ToWorld(driverLevers.Reverser + new Double3(0.15, 1.15, 1.6)), engine.ToWorld(driverLevers.Reverser + new Double3(-0.2, 0.1, -0.2)), 60)
+                : Camera.LookAt(engine.ToWorld(new Double3(0, 2.5, 0)), engine.ToWorld(new Double3(0, 2.5, -1)), 60),
             // The engine's front (note 311): low off its front quarter, the prow, the brow and the eye; and square off its
             // left side, the cab's run into the boiler.
             // (Not one of Names.) Close on the headlamp from up the line, a little off its axis: the Stella Maris in its cage (note 338).
