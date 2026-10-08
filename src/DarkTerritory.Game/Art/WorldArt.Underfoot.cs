@@ -19,10 +19,10 @@ public sealed partial class WorldArt
     /// steep or in patches, and its shore by the water; a bridge's deck, a bore's floor; a stop's roads, its halt's
     /// platform and its level crossing's boards; a generated line's country roads and crossings. Where two textures
     /// blend, the one that shows more. Inside a stop building's footprint (the art draws no floor in there) it's
-    /// "concrete". <paramref name="hint"/> is a main-line distance near the point (a player's line hint), refined as
-    /// <see cref="RailLine.Nearest"/> refines it.
+    /// "concrete". In a walled town, its streets and lanes (<see cref="TownWay"/>). <paramref name="hint"/> is a main-line
+    /// distance near the point (a player's line hint), refined as <see cref="RailLine.Nearest"/> refines it.
     /// </summary>
-    public static string GroundTexture(RailLine line, Route? route, Double3 world, ref double hint)
+    public static string GroundTexture(RailLine line, Route? route, Double3 world, ref double hint, Sim.Towns.Town? town = null)
     {
         var (path, along) = line.Nearest(world, ref hint);
         double s = hint;
@@ -36,6 +36,8 @@ public sealed partial class WorldArt
 
         if (route is not null && Built(route, s, lateralMain) is { } built)
             return built;
+        if (TownWay(town, s, lateralMain) is { } way)
+            return way;
         // A bridge's deck (Bridge: a timber trestle where it's weak, a masonry viaduct's ballasted top where it's sound); down
         // off it, the gorge's floor.
         if (Gorge(route, s) > 0.5f && a < 3.7f)
@@ -65,6 +67,24 @@ public sealed partial class WorldArt
         float steep = SmoothStep(0.65f, 1.3f, (float)Math.Sqrt(dx * dx + dz * dz));
         float patch = Patches(new Vector3(W(world.X), W(world.Y), W(world.Z))) * SmoothStep(9, 20, a);
         return MathF.Max(steep, patch) < 0.5f ? ground : second;
+    }
+
+    /// <summary>
+    /// A walled town's way at <paramref name="s"/> along the main line, <paramref name="lateral"/> across, as <see cref="Streets"/>
+    /// draws it (queue #74, note 335): a street's beaten stones, a lane's mud; null off them. The director walked the stones
+    /// and heard the grass under them (note 354: "a super weird squishy footstep sound when I walk on the stones in the town").
+    /// </summary>
+    public static string? TownWay(Sim.Towns.Town? town, double s, double lateral)
+    {
+        if (town?.Plan.Bounds is not { } b || !b.Holds(s, lateral))
+            return null;
+        foreach (var st in b.Streets)
+            if (s >= st.S0 && s <= st.S1 && Math.Abs(lateral - st.D) <= st.Width / 2)
+                return "ballast";
+        foreach (var lane in b.Lanes)
+            if (Math.Abs(s - lane.S) <= lane.Width / 2 && LaneMids(lane, TownChunk).Any(mid => Math.Abs(lateral - mid) <= TownChunk / 2))
+                return "ground_mud";
+        return null;
     }
 
     /// <summary>What's been built on the ground at <paramref name="s"/> along the main line, <paramref name="lateral"/> across, if anything.</summary>
