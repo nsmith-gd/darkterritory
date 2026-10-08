@@ -115,6 +115,7 @@ public sealed partial class GameAudio
             PlaceWorks(world, run, train, places, ear, underground, dt, primed);
         }
         HoldoutCalls(world, _places, primed);
+        HouseDoors(world, primed);
         WorldDebris(world, train, front);
         WorldLivestock(train, ear);
         _engineFrontWas = engine.Distance;
@@ -681,6 +682,32 @@ public sealed partial class GameAudio
         if (Sometimes(0.04, dt))
             Cue("place-wreck.shift", wreck + new Double3((OutsideOdds() * 2 - 1) * 8, 1, (OutsideOdds() * 2 - 1) * 8), outside, (float)(0.5 + 0.5 * OutsideOdds()));
     }
+
+    /// <summary>
+    /// The village houses' doors (B4's note 401; queue #145, note 409): a door shut or opened where it hangs, from the sim's
+    /// state (host and client alike: the doors shut replicate), so everyone hears a crewmate work one. Played just inside
+    /// the doorway (<see cref="DoorSound"/>): from inside the house it's in the room with the ear, from the street it's at
+    /// the door, never behind its own walls; from a shut car or another house shut up, through those. What's shut on the
+    /// first update is old news.
+    /// </summary>
+    void HouseDoors(World world, bool primed)
+    {
+        if (world.Train.Walls is not { HouseDoors.Count: > 0 } walls)
+            return;
+        foreach (var d in walls.HouseDoors)
+            if (Flipped("crew-house-door", d.Key, walls.Shut(d.Key), primed) is not 0 and var flip)
+                Cue(flip > 0 ? "crew-house-door.shut" : "crew-house-door.open", DoorSound(d), DoorOcclusion(d));
+    }
+
+    /// <summary>
+    /// Where a house door is heard (note 409): its leaf, a hand's height up, half a metre in from the doorway's outside edge
+    /// (<see cref="HouseDoor.At"/>), so the door is in the house's footprint (<see cref="EarRoom.Holds"/>) and a room's
+    /// walls don't stand between it and an ear inside.
+    /// </summary>
+    public static Double3 DoorSound(HouseDoor d) => d.At - d.Out * 0.5 + Double3.Up * 1.1;
+
+    /// <summary>A house door is part of its house's space and of the outside both: muffled only to an ear shut in somewhere else.</summary>
+    float DoorOcclusion(HouseDoor d) => _space == PlayerMotor.HouseSpace(d.House) ? 0 : Occlusion(PlayerMotor.Outside);
 
     /// <summary>
     /// The Holdouts (GDD App. D.7): a lock smashed again and again while it's breached, or a barricade pried and giving
