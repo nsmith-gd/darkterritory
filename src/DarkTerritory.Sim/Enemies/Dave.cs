@@ -145,7 +145,7 @@ public sealed class Dave(int id) : Enemy(id)
             // Facing out, away from the line, at what he paints.
             var line = train.Line.Sample(hint);
             var right = Double3.Cross(line.Tangent, Double3.Up).Normalized * side;
-            return (spot, hint, Math.Atan2(-right.X, -right.Z));
+            return (spot, hint, DMath.Atan2(-right.X, -right.Z));
         }
         return null;
     }
