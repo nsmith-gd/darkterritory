@@ -195,7 +195,11 @@
       // A crossed lake's neck taken on a low timber trestle instead of a fill, the water on under it (maritime-rules §4;
       // ARCHITECTURE §8 note 317): this share of them, each from its own dice; the span is the water plus trestleAbutmentM
       // either end, no longer than trestleMaxM, and no nearer than trestleClearM to another structure.
-      "trestleChance": 0.4, "trestleAbutmentM": 6, "trestleMaxM": 240, "trestleClearM": 50 },
+      "trestleChance": 0.4, "trestleAbutmentM": 6, "trestleMaxM": 240, "trestleClearM": 50,
+      // A lake's rim (ARCHITECTURE §8 note 424): where the land round it lies lower than its water, a bank holds it in (a
+      // moraine's dam): the ground just past its shore stands at least rimM over the water for rimCrestM, then falls away at
+      // rimSlope to the land. So no lake's water stands over its own shore.
+      "rimM": 0.6, "rimCrestM": 10, "rimSlope": 0.25 },
     // A shore along the line: its edge nearM out plus coves up to coveM deeper every coveWavelengthM (the Atlantic's
     // drowned coast); a beach up from the water, a cliff where the rail stands over cliffAboveM above it (Fundy's
     // sandstone, 30 m at Joggins); Fundy's mudflats flatM wide at low water (a 12-16 m tide leaves kilometres); drowned
