@@ -1284,10 +1284,26 @@ public static class Staging
     /// in front of the engine in the headlamp's beam: the furthest still howling off to the flank, the next coming in, the
     /// nearest crossing the line.
     /// </remarks>
-    public static List<Enemy> Run(TrainOnLine train, bool ahead = false)
+    public static List<Enemy> Run(TrainOnLine train, bool ahead = false, bool flank = false)
     {
         double rear = train.Dynamics.RearDistance;
         var runners = new List<Enemy>();
+        // The flank lanes (note 418; dt screenshot --run-flank --view run): three pairs coming in from the open country abeam
+        // the guard van, the furthest still howling out there, the nearest at the car's side.
+        if (flank)
+        {
+            (double Out, SpinePhase Phase)[] lane = [(9, SpinePhase.Commit), (30, SpinePhase.Commit), (62, SpinePhase.Telegraph)];
+            int f = 60;
+            foreach (var (o, phase) in lane)
+                for (int k = 0; k < 2; k++)
+                {
+                    var hound = new CinderHound(f, 60) { Runner = true, Flank = true };
+                    hound.Restore(phase, 1.5 + k * 0.4, 3, -1, default, rear + 4 - k * 3, -(o + k * 3), 0.6, 60, 0);
+                    runners.Add(hound);
+                    f++;
+                }
+            return runners;
+        }
         if (ahead)
         {
             double front = train.Dynamics.Distance;

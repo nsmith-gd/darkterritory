@@ -906,6 +906,30 @@ public sealed class Director
     /// <summary>How many of a run's runners came from ahead (note 405).</summary>
     public int AheadRunners(int pack) => _aheadRunners.GetValueOrDefault(pack);
 
+    /// <summary>How many of tonight's runs' pairs came in from the flanks (note 418), and of a run's runners.</summary>
+    public int FlankPairs => _flankSent;
+    int _flankSent;
+    readonly SortedDictionary<int, int> _flankRunners = [];
+    public int FlankRunners(int pack) => _flankRunners.GetValueOrDefault(pack);
+
+    /// <summary>
+    /// Whether the country's open abeam the train at <paramref name="along"/> (note 418): the line's biome one of the flank
+    /// lanes' (any, with no plan), and room that far out (no tunnel's bore or bridge's deck).
+    /// </summary>
+    bool Open(World w, HoundRunTuning rt, double along)
+    {
+        if (w.Train.Line.Conditions is { } land && land.LateralRoom(w.Train.Dynamics.Path, along) < rt.FlankOut)
+            return false;
+        if (_route?.Plan?.Biomes is not { Count: > 0 } biomes)
+            return true;
+        var here = biomes.FirstOrDefault(b => b.Edge == "main" && b.S0 <= along && along < b.S1) ?? biomes[^1];
+        return rt.FlankBiomes.Contains(here.Biome);
+    }
+
+    /// <summary>Whether the engine's rake's last car carries a gun laid back (the guard van's): the flank lanes' (note 418).</summary>
+    static bool RearGun(TrainOnLine train) =>
+        train.Vehicles[train.Dynamics.Consist.Vehicles[^1].Id].Gun is { Mounted: true, Facing: > 0 };
+
     /// <summary>Whether the engine's rake carries a gun laid forward (the engine's own): the lane ahead's (note 405).</summary>
     static bool ForwardGun(TrainOnLine train) =>
         train.Dynamics.Consist.Vehicles.Any(v => train.Vehicles[v.Id].Gun is { Mounted: true, Facing: < 0 });
@@ -998,17 +1022,25 @@ public sealed class Director
             int n = Math.Min(2, _runnersLeft);
             // The lane ahead (note 405): every aheadEvery-th pair from the second on (1: every pair), for a forward gun, from in front.
             bool ahead = rt.AheadEvery > 0 && _pairsSent % rt.AheadEvery == Math.Min(1, rt.AheadEvery - 1) && ForwardGun(w.Train);
+            // The flank lanes (note 418): every flankEvery-th pair (the last of each), from the open country abeam the guard van's
+            // gun: a gun traverses only so far round from its facing (traverseDegrees), so abeam its own car is the flank it has.
+            double abeam = w.Train.Dynamics.RearDistance + rt.FlankAbeam;
+            bool flank = !ahead && rt.FlankEvery > 0 && _pairsSent % rt.FlankEvery == rt.FlankEvery - 1 && RearGun(w.Train) && Open(w, rt, abeam);
             for (int i = 0; i < n; i++)
             {
                 int k = i;
                 double lateral = ahead
                     ? side * (k == 0 ? rt.AheadLateral[0] : rt.AheadLateral[1]) + _runRng.Range(-0.5, 0.5)
+                    : flank ? side * (rt.FlankOut + k * 3) + _runRng.Range(-0.5, 0.5)
                     : side * (k == 0 ? rt.Lateral[0] : rt.Lateral[1]) + _runRng.Range(-0.5, 0.5);
                 w.AddEnemy(id => new CinderHound(id, _runPack)
                 {
                     Runner = true,
                     Ahead = ahead,
-                    LineDistance = ahead ? w.Train.Dynamics.Distance + rt.AheadMetres + k * 3 : w.Train.Dynamics.RearDistance - rt.SpawnBehind - k * 3,
+                    Flank = flank,
+                    LineDistance = ahead ? w.Train.Dynamics.Distance + rt.AheadMetres + k * 3
+                        : flank ? abeam - k * 3
+                        : w.Train.Dynamics.RearDistance - rt.SpawnBehind - k * 3,
                     Lateral = lateral,
                     Height = 0.6,
                     Health = h.Health,
@@ -1018,6 +1050,11 @@ public sealed class Director
             {
                 _aheadSent++;
                 _aheadRunners[_runPack] = AheadRunners(_runPack) + n;
+            }
+            if (flank)
+            {
+                _flankSent++;
+                _flankRunners[_runPack] = FlankRunners(_runPack) + n;
             }
             _runnersLeft -= n;
             _pairsSent++;
