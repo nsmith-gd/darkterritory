@@ -6912,3 +6912,29 @@ Terrain sculpting tools, a node-graph material editor, a general-purpose visual 
     - **Verified:**
         - Looked at down the line (trackside), in the coupling gap (gapside), and off a car's side with its doors shut and open.
         - The Game suite.
+
+496. **The nearest hand puts out the Fire Flies' lamp at a stop, whatever its part (queue #233, D1.3 for D1; D1's data: 4-bot full nights losing cars to fires).** On `dt harness --route frontier:7 --bots 4 --enemies --upkeep --seconds 2700`, seeds 1–3, Fire Flies came to a lit car lamp at Talbot Foundry every night, while the train stood held on the main short of the points. Nobody went to the lamp, and the car caught 20 s later (App. A.5). The fire spread car to car from there. By the time the train left the Foundry, 5 or 6 cars were alight and the crew were down to 1–15 hp, one of them burned dead on seeds 1 and 3.
+    - **Why nobody went:** at a stop only a crate hand (or a hand with no part) took trouble in a car, and the winch pair only took a fire already alight with the train at the end of the spur. A crew of four has no crate hand: its parts are the shunter and the winch pair (the gunner is one of them). Held on the main, they were cutting the train, at the switch, or boarding the cab to ride in.
+    - **D1's questions:**
+      - *Do the bots answer the flies by their counter?* Only a walker on its own rounds did (`Look`'s trouble); never a hand with a part at a stop. They do now.
+      - *Do they put the fire out with the extinguisher?* Yes, once they're in. Seed 3 shows it: the fire the flies lit was out within about 8 s of a hand reaching it, while still smoke.
+      - *Is the cut chosen too early?* On current main the cuts at the Foundry are the stop's own (the train's longer than the spur, `StopPlan.CutBehind`), not a fire cut. The burned cars were the ones cut off to wait on the main, or the ones beside the spur once the fire spread. None of the losses came from a cut chosen for a fire.
+    - **Now** (`StopHand.TakesLamp`, `CrewCalls.ClaimLamp`):
+      - The flies' lamp is the nearest hand's, whatever its part (never the driver's). The claim goes to the nearest the tick the flies come and stays with that hand while it's going. When nearer hands could take it from them as they passed on their own parts, the lamp changed hands back and forth at car 1's ladder until the car caught.
+      - The fire the flies light is the same hand's while it's smoke (App. C.5: it burns nobody yet, and an extinguisher puts it out a cell a second), and stays theirs once they're fighting it. The guard van was 75 m back along the ballast, which takes more than the flies' 20 s, and its fire was put out before it took hold.
+      - With the train held on the main, `IntoTrouble` takes the hand in by the car's side door from the ground, as at the end of the spur. A car with no side door (the guard van, a crew car) is reached along the ballast to its own side ladder, up it, and in from its roof the walker's way. Along the roofs from the cab, the gunner had been three cars short of the guard van when it caught.
+      - The gunner follows its walker legs to the lamp (`RoofWalkerBot.ToLamp`).
+    - **Measured** (seeds 1/2/3, current main → now):
+
+      | | Main | Now |
+      |---|---|---|
+      | Cars the Fire Flies set alight that took hold | 2/1/1 | 0/0/0 |
+      | Cars alight by the time the train leaves the Foundry | 5/6/6 | 0/0/0 |
+      | Burned deaths | 1/1/1 | 0/0/0 |
+      | Deaths, all causes | 3/3/3 | 2/3/4 |
+      | Cars lost by the night's end | 4/7/7 | 4/7/4 |
+      | Cargo delivered | 2.01/0.30/0.44 | 3.6/0.17/0.08 |
+
+      The night's end is decided elsewhere now. The fires that still take hold are Cinder Hound packs aboard later in the night (D1.2's #221), and the cars lost are rakes left behind at Voss Grain Elevator. The deaths are hounds, the cold, Ribbits, Tippy Toesie and a Dragger. No tuning changed.
+    - **Test:** `CarFireTests.AtAStopTheNearestHandPutsTheFireFliesLampOutWhateverItsPart` (frontier:7, 10 cars, 4 bots, seed 2, 520 s): no car the flies came to is alight. Without the change, car 2 is.
+    - **Not yet:** the hands who fight a fire that's already alight burn hard. On main's seed 1, the winch pair were 10 s at car 1's extinguisher without reaching it, and went from 99 to 14 hp. That is next to D1.2's #232 (hurt walkers going into a burning car).
