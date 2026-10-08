@@ -1635,11 +1635,11 @@ public sealed partial class StopHand(StopJob job, CrewCalls calls, int member, C
         if (Pair is StopJob.Winch0 or StopJob.Winch1 && p.Site.Crane is { } crane && (calls.PairNow || crane.Hooked is not null)
             && (CraneTarget(crane, train) is not null || crane.Hooked is not null))
             return Pair == StopJob.Winch0 ? Operate(self, world, p, crane) : RigCasting(self, world, p, crane);
-        if (_atControls)
+        if (_atControls || self.Has(PlayerFlags.Operating))
         {
-            // Done at the crane: let go of the controls (and so step down) before anything else.
+            // Done at the crane: the press that lets go of the controls (and so steps down) before anything else.
             _atControls = false;
-            return new PlayerIntent();
+            return self.Has(PlayerFlags.Operating) ? new PlayerIntent { Actions = PlayerActions.Seat } : new PlayerIntent();
         }
         // GDD §18's set pieces (note 185): the pair drive the herd up the ramp; the first of them minds the hose.
         if (Pair is StopJob.Winch0 or StopJob.Winch1 && calls.PairNow && !calls.Leaving && p.HerdLeft(world))
@@ -1674,10 +1674,10 @@ public sealed partial class StopHand(StopJob job, CrewCalls calls, int member, C
             return new PlayerIntent();
         if (Pair is StopJob.Winch0 or StopJob.Winch1 && plan.Site.Crane is { } crane && (CraneTarget(crane, train) is not null || crane.Hooked is not null))
             return Pair == StopJob.Winch0 ? Operate(self, world, plan, crane) : RigCasting(self, world, plan, crane);
-        if (_atControls)
+        if (_atControls || self.Has(PlayerFlags.Operating))
         {
             _atControls = false;
-            return new PlayerIntent();
+            return self.Has(PlayerFlags.Operating) ? new PlayerIntent { Actions = PlayerActions.Seat } : new PlayerIntent();
         }
         if (Pair is StopJob.Winch0 or StopJob.Winch1 && plan.HerdLeft(world))
             return Herd(self, world, plan);
@@ -1764,8 +1764,9 @@ public sealed partial class StopHand(StopJob job, CrewCalls calls, int member, C
     }
 
     /// <summary>
-    /// At the crane's controls (spec D.2): down on the stand's side, to the stand, and holding Use there, the stick drives
-    /// the crane. Hook down over the next casting and held there while it's rigged; up high, over a car with room, down onto
+    /// At the crane's controls (spec D.2): down on the stand's side, to the stand, and the press there that takes the controls
+    /// (Use's, sent as <see cref="PlayerActions.Seat"/>, only while it hasn't got them: a second would let them go); the stick
+    /// drives the crane. Hook down over the next casting and held there while it's rigged; up high, over a car with room, down onto
     /// its roof, and let go (only ever when it's set down: a load let go of high kills).
     /// </summary>
     PlayerIntent? Operate(in PlayerState self, World world, StopPlan p, Crane c)
@@ -1786,7 +1787,7 @@ public sealed partial class StopHand(StopJob job, CrewCalls calls, int member, C
             _atControls = true;
         }
         Doing = "at the crane";
-        var drive = new PlayerIntent { Buttons = PlayerButtons.Use };
+        var drive = new PlayerIntent { Actions = self.Has(PlayerFlags.Operating) ? PlayerActions.None : PlayerActions.Seat };
         var t = c.Tuning;
         if (c.Hooked is null)
         {

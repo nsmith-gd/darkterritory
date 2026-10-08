@@ -1003,6 +1003,11 @@ CampaignState? Play(IPlaySession session, CampaignState? campaign)
             && DarkTerritory.Sim.Combat.Guns.MannedGun(session.Player, session.Train, gc.Guns) is { } atGun && session.Train.Vehicles[atGun].Gun.ReloadNeeded <= 0
             && !Held(Control.Forward) && !Held(Control.Back) && !Held(Control.Left) && !Held(Control.Right))
             pendingSeat = true;
+        // The crane's controls (T48): Use pressed at its stand takes them, and pressed again lets them go (the director, 8 Oct:
+        // "enter with E and exit with E, it shouldn't be a hold function"), the same press as the gun's seat (Crane.Operates).
+        if (Hit(Control.Use) && (session.Player.Has(PlayerFlags.Operating)
+            || session.World.Run?.CurrentSite?.Cranes.Any(c => c.AtStand(session.Player, session.Train)) == true))
+            pendingSeat = true;
         // The hotbar (T108): a number key picks its slot, the wheel steps through the tools (not while they're the ballot's).
         for (var k = Key.D1; k < Key.D1 + Kit.Slots; k++)
             if (Pressed(k) && net is not { Voting: true })
@@ -1076,11 +1081,10 @@ CampaignState? Play(IPlaySession session, CampaignState? campaign)
             if (Held(Control.Use) && !useKept) buttons |= PlayerButtons.Use;
             if (Held(Control.Fire)) buttons |= PlayerButtons.Fire;
             if (Held(Control.Throw)) buttons |= PlayerButtons.Throw;
-            if (proto is null)
-            {
-                if (Held(Control.Brake)) buttons |= PlayerButtons.Brake;
-                if (pendingReverser) buttons |= PlayerButtons.Reverser;
-            }
+            // The brake key is the crane's hook down as well (Crane.Drive), so it's in the intent alone too: there the
+            // session's cab also takes it straight off the key (BrakeHeld), and the cab's own brake is the same either way.
+            if (Held(Control.Brake)) buttons |= PlayerButtons.Brake;
+            if (proto is null && pendingReverser) buttons |= PlayerButtons.Reverser;
             var intent = new PlayerIntent
             {
                 MoveX = (Held(Control.Right) ? 1 : 0) - (Held(Control.Left) ? 1 : 0),
