@@ -146,10 +146,11 @@ public class SearchTests
             {
                 Assert.True(ahead.Length > 0.3, $"{h.Container.Kind}'s find is in it");
                 Assert.True(Double3.Dot(ahead.Normalized, h.Facing) > 0.999, $"{h.Container.Kind}'s find isn't in front of it");
-                // Its back to a wall: a step behind it is out of the room.
-                Assert.False(Inside(world, run, h, b, h.Kept - h.Facing * 0.5) && Inside(world, run, h, b, h.Kept - h.Facing * 0.7)
-                    && !world.Train.Walls!.Near(h.Kept - h.Facing * 0.5).Any(w => Math.Abs(w.ToLocal(h.Kept - h.Facing * 0.5).X) <= w.HalfLength
-                        && Math.Abs(w.ToLocal(h.Kept - h.Facing * 0.5).Z) <= w.HalfWidth), $"{h.Container.Kind} stands out from its wall");
+                // Its back to a wall: within half a metre behind it is a wall, or out of the house (an inner wall has the
+                // next room just behind it).
+                bool Walled(Double3 p) => !Inside(world, run, h, b, p)
+                    || world.Train.Walls!.Near(p).Any(w => Math.Abs(w.ToLocal(p).X) <= w.HalfLength && Math.Abs(w.ToLocal(p).Z) <= w.HalfWidth);
+                Assert.True(Enumerable.Range(5, 6).Any(k => Walled(h.Kept - h.Facing * (k * 0.05))), $"{h.Container.Kind} stands out from its wall");
             }
             else
                 Assert.True(ahead.Length < 1e-6, $"a {h.Container.Kind}'s find lies on it");
