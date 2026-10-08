@@ -20,6 +20,8 @@ public class HotWalkerTests
     {
         var n = new Night(6, speed: 8);
         int rear = n.Train.Dynamics.Consist.Vehicles[^1].Id, ahead = n.Train.VehicleAhead(rear);
+        // The pack's ground runs a car ahead of the car it's on (note 472): the cut's ahead of that, and both cars go.
+        int kept = n.Train.VehicleAhead(ahead);
         var hugger = n.World.AddEnemy(id => CarHugger.Lurking(id, n.Train.Dynamics.RearDistance + 1, 1, Tuning.Enemies.CarHugger));
         n.Run(0.5);
         Assert.True(hugger.Latched);
@@ -42,7 +44,7 @@ public class HotWalkerTests
         var s = n.Crew[1];
         Assert.True(s.Alive, $"died of {s.Death}");
         Assert.True(n.Train.Dynamics.Consist.Vehicles.Count < cars, $"never cut it: walker on {s.Parent} {s.Surface}");
-        Assert.Equal(ahead, n.Train.Dynamics.Consist.Vehicles[^1].Id);
+        Assert.Equal(kept, n.Train.Dynamics.Consist.Vehicles[^1].Id);
         n.Run(1);
         Assert.All(pack, h => Assert.True(h.Gone));
     }

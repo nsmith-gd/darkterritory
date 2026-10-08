@@ -432,6 +432,12 @@ CUE_DEF = {
     "world-water.tide": {"minDistance": 10, "maxDistance": 250, "rolloff": 0.7},
     # Note 444: a truss Dragger's fall into the ballast, heard from the train drawing away from it.
     "cs-draggers.fall": {"minDistance": 4, "maxDistance": 150, "rolloff": 0.8},
+    # The capstan winch (note 468): the drum and its stall heard across the yard from the cranks (GameAudio.WinchReach),
+    # the sled out along its 40 m haul; the stall is the crew's to put right (tier 4, as their actions are).
+    "place-winch.capstan": {"minDistance": 2, "maxDistance": 60, "rolloff": 1.0},
+    "place-winch.drag": {"minDistance": 2, "maxDistance": 60, "rolloff": 1.0},
+    "place-winch.stall": {"tier": 4, "minDistance": 2, "maxDistance": 60, "rolloff": 1.0},
+    "place-winch.in": {"minDistance": 2, "maxDistance": 60, "rolloff": 1.0},
     # The conveyor line (note 466): its drive is machinery heard across the yard, started loudly (note 400); starting it,
     # its jam and the drive labouring under one, and clearing it are the crew's work (tier 4, as their actions are); the
     # engine running, the belt and the grain off its head are the yard's (tier 6), heard beside them.
@@ -445,6 +451,16 @@ CUE_DEF = {
     "place-conveyor.jam": {"tier": 4, "minDistance": 2, "maxDistance": 60, "rolloff": 1.0},
     "place-conveyor.clearing": {"tier": 4, "minDistance": 1, "maxDistance": 25, "rolloff": 1.0},
     "place-conveyor.free": {"tier": 4, "minDistance": 2, "maxDistance": 50, "rolloff": 1.0},
+    # The tipple (note 480): the crew's work at it (tier 4, as the line's), the roll loud machinery heard across the yard, a
+    # car off its rails train state that holds the train (tier 3, as the alarms are).
+    "place-tipple.clamping": {"minDistance": 1.5, "maxDistance": 40, "rolloff": 1.0},
+    "place-tipple.clamp": {"minDistance": 2, "maxDistance": 80, "rolloff": 1.0},
+    "place-tipple.roll": {"minDistance": 4, "maxDistance": 200, "rolloff": 0.8},
+    "place-tipple.pour": {"minDistance": 4, "maxDistance": 150, "rolloff": 0.8},
+    "place-tipple.release": {"minDistance": 2, "maxDistance": 80, "rolloff": 1.0},
+    "place-tipple.derail": {"tier": 3, "minDistance": 4, "maxDistance": 250, "rolloff": 0.8},
+    "place-tipple.rerail": {"minDistance": 1, "maxDistance": 40, "rolloff": 1.0},
+    "place-tipple.rerailed": {"minDistance": 2, "maxDistance": 80, "rolloff": 1.0},
 }
 
 

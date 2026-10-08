@@ -110,6 +110,25 @@
     "ambient": 0.1,
     "lampColour": [1.0, 0.74, 0.42],
     "lampIntensity": 3.2,
+    // The light indoors (the director, 8 Oct: "it feels almost impossible to see anything ... we do need interior lighting
+    // to be functional"; §28 "inside = warm, human, temporary safety"; note 475). Inside a room (a car, an open house, an
+    // open barn or shed, a yard's shed) the moon is kept out: "fill" is what lights a corner no lamp reaches, lamplight off
+    // the boards (it was the night's ambient times a warm tint, about 0.055, which left a room black). A house's candle and
+    // lamp, and the hand lamp, reach across a room; each open barn or shed and each roofed length of a yard shed has a
+    // hurricane lantern turned low, hung "shedLanternHeight" over its floor on a beam. The Gaunt's house stays dark: its dark is the tell.
+    "interiors": {
+      "fill": [0.16, 0.12, 0.08],
+      "candle": 2.0,
+      "candleRange": 9,
+      "lamp": 2.0,
+      "lampRange": 10,
+      "handLamp": 2.2,
+      "handLampRange": 10,
+      "shedLantern": 1.1,
+      "shedLanternRange": 10,
+      "shedLanternHeight": 3.2,
+      "shedLanternSpacing": 10
+    },
     // The dawn (GDD §21, the run's race to it): over the last leadSeconds of the dawn clock the night goes over to a low
     // grey light coming up in the east, the fog paling, the dark pockets filling. The fog stays (it's the line's).
     "dawn": {
@@ -127,7 +146,16 @@
     "cold": {
       "frostFrom": 0.35,
       "frostFull": 0.85,
-      "breathFrom": 0.15
+      "breathFrom": 0.15,
+      // On the cab's glass (§22, §26 "frost on windows"; note 485): the frost creeps in from each pane's frame as the
+      // frost comes on, this far at its full (m), never near the middle of the driver's view; and whoever's face is
+      // within fogReach of a pane fogs it on each breath out, the fog going as they breathe in.
+      "paneReach": 0.16,
+      "paneColour": [0.5, 0.57, 0.64],
+      "paneDensity": 0.9,
+      "fogReach": 0.7,
+      "fogColour": [0.42, 0.45, 0.48],
+      "fogDensity": 0.8
     },
     // The Choir's cold, coming before it (App. A.7's arrival beat): from halfway through its gathering the night goes over
     // to these as it nears, all of it once it's here. The air paler and colder, the moon bluer, a rime of frost on the

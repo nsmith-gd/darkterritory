@@ -105,6 +105,11 @@ CUES = {
         O("stow", "Back into the hotbar", need="Not in the game yet: there's no hotbar (an extinguisher is carried or dropped) in the sim, so nothing plays this. Ready for when there is."),
         O("drop", "Dropped, or thrown and landing: a steel cylinder hitting", mats=DROP,
           cand={"wood": K("impactWood_heavy"), "grate": K("impactMetal_heavy")}),
+        # On the fire (queue #205, note 469; the director, 8 Oct: holding it on a fire "doesnt feel like its doing anything"):
+        # where the jet meets the flames, a patch of the fire going out, and the whole fire out.
+        L("on-fire", "The jet on burning boards: the water flashing to steam, the flames beaten down"),
+        O("cell-out", "A patch of the fire put out: the flames collapsing in a hissing gasp", vars=3),
+        O("fire-out", "The fire out: a long sigh of steam, the boards dripping and ticking as they cool", vars=2),
     ],
     "crew-melee": [
         *[c for tool in ("shovel", "wrench", "crowbar") for c in (
@@ -529,6 +534,14 @@ CUES = {
         O("shift", "Wreckage shifting", vars=3),
         L("cargo-pull", "Cargo dragged out of a wreck"),
     ],
+    # The capstan winch wherever it stands (spec D.2, T43; queue #204, note 468): the foundry's, the mine head's, the
+    # depot's and the wreck yard's (whose cargo dragged out of a wreck is place-wreck's).
+    "place-winch": [
+        L("capstan", "The capstan turning: the pawl over its ratchet, the cranks, the rope winding on"),
+        L("drag", "A sled of cargo hauled in over the ground"),
+        O("stall", "Out of rhythm: the drum snatched to a stop, the pawl catching", vars=3),
+        O("in", "A sled hauled in to its stop by the track", vars=2),
+    ],
     "place-slaughterhouse": [
         L("inside", "Inside the slaughterhouse"),
         O("hook-chain", "Hooks and chains moving", vars=3),
@@ -583,6 +596,18 @@ CUES = {
         O("jam", "The belt jamming: grain heaping, the belt bunching onto the stringer", vars=3),
         L("clearing", "Clearing a jam by hand: grain dug out, the belt hauled at"),
         O("free", "The jam cleared: the belt jerking free and running on", vars=3),
+    ],
+    # The tipple at the mine head (A1's #458, note 423; queue #216, note 480): a car clamped in its cradle, rolled over to the
+    # ore bin's chute and back; a bad clamp throws it off its rails, and the wrench puts it back.
+    "place-tipple": [
+        L("clamping", "The clamp wound down while the lever's held"),
+        O("clamp", "Clamped: the beam and platen biting on the car", vars=3),
+        L("roll", "The cradle rolling the car over (and back)"),
+        O("pour", "At the top: ore down the bin's chute into the car", vars=2),
+        O("release", "Rolled back and let go", vars=2),
+        O("derail", "A bad clamp: the car off its rails in the cradle", vars=2),
+        L("rerail", "Putting it back on its rails with the wrench"),
+        O("rerailed", "Back on its rails", vars=2),
     ],
     "place-chemical": [
         L("leak", "A leak hissing in the works"),
@@ -652,7 +677,7 @@ CUES = {
         O("disperse", "Leaving once quiet holds", vars=2),
     ],
     "cs-hounds": [
-        O("paw", "One paw fall (fired at the gallop's tempo)", vars=6, mats=["ground", "grate", "roof"]),
+        O("paw", "One paw fall (fired at the gallop's tempo; aboard, at its walk: note 478)", vars=6, mats=["ground", "grate", "roof", "wood"]),
         O("leap", "The leap onto the rear car", vars=2),
         O("snarl", "A snarl", vars=4),
         O("bite", "A bite", vars=4),

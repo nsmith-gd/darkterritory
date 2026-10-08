@@ -444,8 +444,8 @@ void main() {
 
     vec3 v = normalize(-vPos);
     vec3 moonDir = normalize(frame.moon.xyz);
-    // Indoors the fill is low and warm (lamplight off the boards), and the moon doesn't get in.
-    vec3 light = frame.moon.w * mix(mix(GROUND_BOUNCE, SKY_FILL, n.y * 0.5 + 0.5), vec3(0.55, 0.42, 0.3), inside);
+    // Indoors the fill is the room's own, low and warm (lamplight off the boards: frame.indoor), and the moon doesn't get in.
+    vec3 light = mix(frame.moon.w * mix(GROUND_BOUNCE, SKY_FILL, n.y * 0.5 + 0.5), frame.indoor.rgb, inside);
     float moonLit = night * moonShadowAt(vPos, n);
     light += frame.moonColour.rgb * frame.moonColour.a * max(dot(n, moonDir), 0.0) * moonLit;
 
