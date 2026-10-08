@@ -5819,3 +5819,24 @@ Terrain sculpting tools, a node-graph material editor, a general-purpose visual 
     - **Water** (`Float`, wreck.json `film.buoyancy` 1.3, `waterDrag` 3): each joint below the surface over its body's middle (`Guns.Water`, the same surface the guns find) is pushed up at 1.3 g and slowed by 3 a second, so a body or a thing that goes in comes up and floats at the surface. "Face down" isn't modelled: a limp ragdoll floats how it lands. Cars sink: nothing is added to the wreck's boxes, which already go to the bed.
     - **Protocol 40:** the film's start carries its extras.
     - **Verified:** `FilmExtrasTests` (3). The stowed dead and what's aboard go into the wreck and go with it, with no shot of their own; the crew's shots and deaths are unchanged; a client shooting the film from the start it's sent records the same. The budget simulates those nearest the crew, and the rest ride their car through its tumble exactly. A body and a crate dropped over a pond come up and float at its surface, and the car is the same wet or dry. `dt screenshot --film 0.5 --extras --at-extra`: one of the crew already dead, lying on car 2's roof as the film starts (`--extras` lays one there and three crates in car 2).
+419. **The car floors and roofs underfoot (AU1, queue #155; AU1's audit of the installed sets, after note 354's cobbles).** AU1 measured every installed set's centroid, peak and how alike its takes are (scratchpad tooling, not shipped). The steps the crew hears most, boots on a car's plank floor and on its tin roof, came out centred at 300-390 Hz, with a slow 100-250 Hz wobble on each step. That's the character the director heard as the town stones' "squish".
+    - **The roof:** the old roof step was the car's hollow over everything: the panel's 84-310 Hz boom at full level under every contact. `crew_feet.on_tin` builds the sheet first:
+        - Kenney's light plate, barely pitched and choked under the boot.
+        - A short oil-can pop as it buckles.
+        - The loose sheet rattling on its nails.
+        - The tin's ring, kept short.
+        - The car's hollow under it, at a third of the level and choked at 50 ms.
+        - A sole scuffed on it flexes the sheet (a soft buckle and rattle) and barely sounds the hollow.
+        - A landing's weight is a short thump, not a boom.
+        - The result is installed for walk, run, jump, land and scuff (`install.py` `SURFACE_CHOICE`). Over 1 kHz is now level with 100-500 Hz; it was 8 dB under.
+    - **The floor:** the car's boards are what the director likes (build 1121, App. F.1: "footsteps on the ground sound wrong; on wood and grates they're good"), so they stay as installed. A rebuild, `crew_feet.on_planks`, is on the checklist beside them for the director to compare, and isn't installed:
+        - The heel's crack.
+        - The board's dry knock: broad modes at 0.5-1.7 kHz, gone in 30 ms.
+        - The joists' 15 ms thump.
+        - A board creaking now and then off the toe.
+        - The rebuild's centroid is 750-810 Hz; the installed boots' is 300-350 Hz.
+    - Both are built as surfaces of their own (`planks`, `tin`) and registered as new keys on the wood and roof cues (`_register_alternates`), so each old candidate stays beside its new one.
+    - **Not yet:** the audit's other flags.
+        - The landings, the drops and a few hits peak over 0 dBFS once decoded from Opus. The engine mixes in float, so nothing clips before the master, but `install.py` could leave a decibel of headroom.
+        - Some sets' takes are near-copies by spectrum, though not by ear.
+    - **Pinned:** `CrewAudioTests.BootsOnTheRoofsTinAreTheSheetNotABoom` (walk, run, land): as much over 1 kHz as at 100-500 Hz, within 3 dB, as note 354 asks of stone.
