@@ -8290,6 +8290,223 @@
   "takes": 3,
   "sha": "5c5612499b2f28ff"
  },
+ "cs-moose-ram/boom": {
+  "cue": "cs-moose-ram.boom",
+  "surface": null,
+  "picked": "first",
+  "candidates": [
+   {
+    "label": "A deep iron boom through the whole car, heard from inside: the side's plates ringing on, the floor shuddering",
+    "key": "hull",
+    "sources": [
+     "kenney_impact-sounds:impactPlate_heavy_000",
+     "kenney_impact-sounds:impactPlate_heavy_001",
+     "kenney_impact-sounds:impactPlate_heavy_002",
+     "kenney_impact-sounds:impactPlate_heavy_003",
+     "kenney_impact-sounds:impactPlate_heavy_004",
+     "sfx_100_v2:metal_hit_01",
+     "kenney_impact-sounds:impactMetal_medium_000",
+     "kenney_impact-sounds:impactMetal_medium_001",
+     "kenney_impact-sounds:impactMetal_medium_002",
+     "kenney_impact-sounds:impactMetal_medium_003",
+     "kenney_impact-sounds:impactMetal_medium_004",
+     "sfx_100_v2:stones_01",
+     "sfx_100_v2:stones_02",
+     "sfx_100_v2:stones_03",
+     "kenney_rpg-audio:metalLatch",
+     "kenney_rpg-audio:metalClick"
+    ],
+    "licence": "CC0"
+   }
+  ],
+  "takes": 4,
+  "sha": "79b1e467b226bd89"
+ },
+ "cs-moose-ram/scrape": {
+  "cue": "cs-moose-ram.scrape",
+  "surface": null,
+  "picked": "first",
+  "candidates": [
+   {
+    "label": "The rack dragged along the car's iron side, heard from inside: stone grinding on plate, rivets bumping slowly past",
+    "key": "drag",
+    "sources": [
+     "kenney_impact-sounds:impactPlate_heavy_000",
+     "kenney_impact-sounds:impactPlate_heavy_001",
+     "kenney_impact-sounds:impactPlate_heavy_002",
+     "kenney_impact-sounds:impactPlate_heavy_003",
+     "kenney_impact-sounds:impactPlate_heavy_004",
+     "kenney_impact-sounds:impactMetal_medium_000",
+     "kenney_impact-sounds:impactMetal_medium_001",
+     "kenney_impact-sounds:impactMetal_medium_002",
+     "kenney_impact-sounds:impactMetal_medium_003",
+     "kenney_impact-sounds:impactMetal_medium_004",
+     "sfx_100_v2:stones_01",
+     "sfx_100_v2:stones_02",
+     "sfx_100_v2:stones_03"
+    ],
+    "licence": "CC0"
+   }
+  ],
+  "takes": 3,
+  "sha": "91c421f505ed6ff1"
+ },
+ "cs-moose-search/breath": {
+  "cue": "cs-moose-search.breath",
+  "surface": null,
+  "picked": "first",
+  "candidates": [
+   {
+    "label": "The same close breathing made from real breath: gasps and sighs dropped over an octave to a moose's lungs",
+    "key": "lungs",
+    "sources": [
+     "sfx_100_v2:misc_05",
+     "sfx_100_v2:misc_25",
+     "kenney_rpg-audio:handleSmallLeather"
+    ],
+    "licence": "CC0"
+   }
+  ],
+  "takes": 1,
+  "sha": "6c90f5cc6c98ac56"
+ },
+ "cs-moose-search/knock": {
+  "cue": "cs-moose-search.knock",
+  "surface": null,
+  "picked": "first",
+  "candidates": [
+   {
+    "label": "The rack knocking on a brick wall: stone-hard tines in a ragged flam, the brick's dead weight, mortar crumbling",
+    "key": "brick",
+    "sources": [
+     "sfx_100_v2:stones_01",
+     "sfx_100_v2:stones_02",
+     "sfx_100_v2:stones_03",
+     "kenney_impact-sounds:impactMining_000",
+     "kenney_impact-sounds:impactMining_001",
+     "kenney_impact-sounds:impactMining_002",
+     "kenney_impact-sounds:impactMining_003",
+     "kenney_impact-sounds:impactMining_004",
+     "kenney_impact-sounds:footstep_concrete_000",
+     "kenney_impact-sounds:footstep_concrete_001",
+     "kenney_impact-sounds:footstep_concrete_002",
+     "kenney_impact-sounds:footstep_concrete_003",
+     "kenney_impact-sounds:footstep_concrete_004"
+    ],
+    "licence": "CC0"
+   }
+  ],
+  "takes": 4,
+  "sha": "1638962c5554e8ad"
+ },
+ "cs-moose-snag/bellow": {
+  "cue": "cs-moose-snag.bellow",
+  "surface": null,
+  "picked": "first",
+  "candidates": [
+   {
+    "label": "The rage in heaves, like a bray: a bellow forced out, a rough groan dragged back in, then one long bellow",
+    "key": "heaves",
+    "sources": [],
+    "licence": "CC0"
+   }
+  ],
+  "takes": 3,
+  "sha": "425389940bc328e8"
+ },
+ "cs-moose-snag/grind": {
+  "cue": "cs-moose-snag.grind",
+  "surface": null,
+  "picked": "first",
+  "candidates": [
+   {
+    "label": "The rack hauled against the jam in uneven yanks: stone grinding on timber and an iron strap, grit crumbling",
+    "key": "haul",
+    "sources": [
+     "sfx_100_v2:stones_01",
+     "sfx_100_v2:stones_02",
+     "sfx_100_v2:stones_03",
+     "sfx_100_v2:metal_hit_01",
+     "kenney_impact-sounds:footstep_grass_000",
+     "kenney_impact-sounds:footstep_grass_001",
+     "kenney_impact-sounds:footstep_grass_002",
+     "kenney_impact-sounds:footstep_grass_003",
+     "kenney_impact-sounds:footstep_grass_004"
+    ],
+    "licence": "CC0"
+   }
+  ],
+  "takes": 1,
+  "sha": "965432b946ffa09d"
+ },
+ "cs-moose-snag/groan": {
+  "cue": "cs-moose-snag.groan",
+  "surface": null,
+  "picked": "first",
+  "candidates": [
+   {
+    "label": "A fence post or frame straining: big timbers slipping against each other, catching and quickening into a groan",
+    "key": "strain",
+    "sources": [
+     "kenney_impact-sounds:impactWood_heavy_000",
+     "kenney_impact-sounds:impactWood_heavy_001",
+     "kenney_impact-sounds:impactWood_heavy_002",
+     "kenney_impact-sounds:impactWood_heavy_003",
+     "kenney_impact-sounds:impactWood_heavy_004",
+     "kenney_impact-sounds:impactPlank_medium_000",
+     "kenney_impact-sounds:impactPlank_medium_001",
+     "kenney_impact-sounds:impactPlank_medium_002",
+     "kenney_impact-sounds:impactPlank_medium_003",
+     "kenney_impact-sounds:impactPlank_medium_004",
+     "sfx_100_v2:wood_hit_01",
+     "sfx_100_v2:wood_hit_02"
+    ],
+    "licence": "CC0"
+   }
+  ],
+  "takes": 3,
+  "sha": "cbaa086b0adce903"
+ },
+ "cs-moose-train-pass/bellow": {
+  "cue": "cs-moose-train-pass.bellow",
+  "surface": null,
+  "picked": "first",
+  "candidates": [
+   {
+    "label": "A rut challenge bellowed after the train: a long hollow moan swelling and wavering, carrying, the head tossed after",
+    "key": "call",
+    "sources": [],
+    "licence": "CC0"
+   }
+  ],
+  "takes": 3,
+  "sha": "3fc8a45a54c66468"
+ },
+ "cs-moose-train-pass/thrash": {
+  "cue": "cs-moose-train-pass.thrash",
+  "surface": null,
+  "picked": "first",
+  "candidates": [
+   {
+    "label": "The rack thrashed through the verge brush and hooves stamped into the turf, beside the line",
+    "key": "verge",
+    "sources": [
+     "sfx_100_v2:switch_01",
+     "sfx_100_v2:switch_02",
+     "kenney_impact-sounds:footstep_grass_000",
+     "kenney_impact-sounds:footstep_grass_001",
+     "kenney_impact-sounds:footstep_grass_002",
+     "kenney_impact-sounds:footstep_grass_003",
+     "kenney_impact-sounds:footstep_grass_004",
+     "sfx_100_v2:misc_34",
+     "sfx_100_v2:misc_35"
+    ],
+    "licence": "CC0"
+   }
+  ],
+  "takes": 3,
+  "sha": "707d4c53d67cc94d"
+ },
  "cs-passenger/drag/wood": {
   "cue": "cs-passenger.drag",
   "surface": "wood",
@@ -10803,6 +11020,240 @@
   ],
   "takes": 2,
   "sha": "a31e92f3bc7deec6"
+ },
+ "tell-moose-charge/brush": {
+  "cue": "tell-moose-charge.brush",
+  "surface": null,
+  "picked": "first",
+  "candidates": [
+   {
+    "label": "Brush and saplings breaking as it comes through: leaves thrashing, twigs snapping, a trunk cracking",
+    "key": "through",
+    "sources": [
+     "sfx_100_v2:misc_35",
+     "sfx_100_v2:misc_34",
+     "kenney_rpg-audio:clothBelt2"
+    ],
+    "licence": "CC0"
+   }
+  ],
+  "takes": 3,
+  "sha": "0e8f94ae516e03a0"
+ },
+ "tell-moose-charge/hooves": {
+  "cue": "tell-moose-charge.hooves",
+  "surface": null,
+  "picked": "first",
+  "candidates": [
+   {
+    "label": "A heavy four-beat gallop of split hooves at a charge, two on the ballast shoulder and two on the verge",
+    "key": "gallop",
+    "sources": [
+     "kenney_impact-sounds:impactPlank_medium_000",
+     "kenney_impact-sounds:impactPlank_medium_001",
+     "kenney_impact-sounds:impactPlank_medium_002",
+     "kenney_impact-sounds:impactPlank_medium_003",
+     "kenney_impact-sounds:impactPlank_medium_004",
+     "kenney_impact-sounds:footstep_snow_000",
+     "kenney_impact-sounds:footstep_snow_001",
+     "kenney_impact-sounds:footstep_snow_002",
+     "kenney_impact-sounds:footstep_snow_003",
+     "kenney_impact-sounds:footstep_snow_004"
+    ],
+    "licence": "CC0"
+   }
+  ],
+  "takes": 1,
+  "sha": "4befd994530e83a1"
+ },
+ "tell-moose-charge/wheeze": {
+  "cue": "tell-moose-charge.wheeze",
+  "surface": null,
+  "picked": "first",
+  "candidates": [
+   {
+    "label": "Its laboured breath at a run, locked to the gallop: a grunt out as it lands, a wheezing whistle in",
+    "key": "stride",
+    "sources": [],
+    "licence": "CC0"
+   }
+  ],
+  "takes": 1,
+  "sha": "13d3d740389a73ab"
+ },
+ "tell-moose-grazing/browse": {
+  "cue": "tell-moose-grazing.browse",
+  "surface": null,
+  "picked": "first",
+  "candidates": [
+   {
+    "label": "A bite of browse torn off: willow leaves stripped down a stem, a sapling wrenched till it cracks, sedge pulled from the bog",
+    "key": "tear",
+    "sources": [
+     "sfx_100_v2:misc_35"
+    ],
+    "licence": "CC0"
+   }
+  ],
+  "takes": 3,
+  "sha": "4463c61168dc9da7"
+ },
+ "tell-moose-grazing/chew": {
+  "cue": "tell-moose-grazing.chew",
+  "surface": null,
+  "picked": "first",
+  "candidates": [
+   {
+    "label": "Chewing the cud: big molars grinding fibre at a slow steady 1.2 a second, a swallow and the cud coming back up",
+    "key": "cud",
+    "sources": [],
+    "licence": "CC0"
+   }
+  ],
+  "takes": 1,
+  "sha": "bd01eb8930a0d169"
+ },
+ "tell-moose-grazing/creak": {
+  "cue": "tell-moose-grazing.creak",
+  "surface": null,
+  "picked": "first",
+  "candidates": [
+   {
+    "label": "A tick sac's wet rubbery creak as the hide shifts: taut membranes rubbing, the blood inside sloshing",
+    "key": "sac",
+    "sources": [
+     "kenney_rpg-audio:handleSmallLeather"
+    ],
+    "licence": "CC0"
+   }
+  ],
+  "takes": 4,
+  "sha": "dd74d61dc81fbdb3"
+ },
+ "tell-moose-grazing/grunt": {
+  "cue": "tell-moose-grazing.grunt",
+  "surface": null,
+  "picked": "first",
+  "candidates": [
+   {
+    "label": "The occasional low content grunt: mouth shut, a hum through the long nose, a soft breath out after",
+    "key": "content",
+    "sources": [],
+    "licence": "CC0"
+   }
+  ],
+  "takes": 3,
+  "sha": "2d0190a6a5327ff9"
+ },
+ "tell-moose-square-up/snort": {
+  "cue": "tell-moose-square-up.snort",
+  "surface": null,
+  "picked": "first",
+  "candidates": [
+   {
+    "label": "A heavy snort: air blasted out through big nostrils, their folds fluttering, wet in it",
+    "key": "blow",
+    "sources": [
+     "sfx_100_v2:misc_05"
+    ],
+    "licence": "CC0"
+   }
+  ],
+  "takes": 3,
+  "sha": "d9a419a83540fc8e"
+ },
+ "tell-moose-square-up/stamp": {
+  "cue": "tell-moose-square-up.stamp",
+  "surface": null,
+  "picked": "first",
+  "candidates": [
+   {
+    "label": "One heavy hoof stamp: split toes cracking down, the earth taking a tonne, the ground answering (gravel, turf, peat, ballast)",
+    "key": "hoof",
+    "sources": [
+     "kenney_impact-sounds:impactPlank_medium_000",
+     "kenney_impact-sounds:impactPlank_medium_001",
+     "kenney_impact-sounds:impactPlank_medium_002",
+     "kenney_impact-sounds:impactPlank_medium_003",
+     "kenney_impact-sounds:impactPlank_medium_004",
+     "kenney_impact-sounds:footstep_snow_000",
+     "kenney_impact-sounds:footstep_snow_001",
+     "kenney_impact-sounds:footstep_snow_002",
+     "kenney_impact-sounds:footstep_snow_003",
+     "kenney_impact-sounds:footstep_snow_004",
+     "sfx_100_v2:stones_01",
+     "sfx_100_v2:stones_02",
+     "sfx_100_v2:stones_03"
+    ],
+    "licence": "CC0"
+   }
+  ],
+  "takes": 4,
+  "sha": "10dab031c6b25694"
+ },
+ "tell-moose-warning/clack": {
+  "cue": "tell-moose-warning.clack",
+  "surface": null,
+  "picked": "first",
+  "candidates": [
+   {
+    "label": "Teeth clacking: big molars snapped together in a short run that slows, a lick of the lips between",
+    "key": "molars",
+    "sources": [
+     "kenney_rpg-audio:chop"
+    ],
+    "licence": "CC0"
+   }
+  ],
+  "takes": 4,
+  "sha": "22a0513429c77c6c"
+ },
+ "tell-moose-warning/grunt": {
+  "cue": "tell-moose-warning.grunt",
+  "surface": null,
+  "picked": "first",
+  "candidates": [
+   {
+    "label": "The cough kitbashed: a real roar dropped an octave and a half and chopped short over a hollow plank knock",
+    "key": "chop",
+    "sources": [
+     "sfx_100_v2:misc_24",
+     "sfx_100_v2:misc_25",
+     "kenney_impact-sounds:impactPlank_medium_000",
+     "kenney_impact-sounds:impactPlank_medium_001",
+     "kenney_impact-sounds:impactPlank_medium_002",
+     "kenney_impact-sounds:impactPlank_medium_003",
+     "kenney_impact-sounds:impactPlank_medium_004"
+    ],
+    "licence": "CC0"
+   }
+  ],
+  "takes": 3,
+  "sha": "3246aba2c7051e1b"
+ },
+ "tell-moose-warning/hoof-drag": {
+  "cue": "tell-moose-warning.hoof-drag",
+  "surface": null,
+  "picked": "first",
+  "candidates": [
+   {
+    "label": "A split hoof raked back through the ground like a bull pawing it, the clods thrown behind",
+    "key": "paw",
+    "sources": [
+     "kenney_impact-sounds:footstep_snow_000",
+     "kenney_impact-sounds:footstep_snow_001",
+     "kenney_impact-sounds:footstep_snow_002",
+     "kenney_impact-sounds:footstep_snow_003",
+     "kenney_impact-sounds:footstep_snow_004",
+     "sfx_100_v2:stones_01",
+     "sfx_100_v2:stones_02",
+     "sfx_100_v2:stones_03"
+    ],
+    "licence": "CC0"
+   }
+  ],
+  "takes": 3,
+  "sha": "95cdce8e4cf1982e"
  },
  "tell-ribbits/swell": {
   "cue": "tell-ribbits.swell",
