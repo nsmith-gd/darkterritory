@@ -1558,6 +1558,14 @@ static object Screenshot(TrainTuning t, string content, string[] args)
     }
     if (searched is not null)
         scene.Bodies = [.. scene.Bodies ?? [], .. searched.All];
+    // The village houses' doors (note 401), hanging open; --doors-shut: every one shut.
+    if (generated is not null)
+    {
+        scene.Walls = DarkTerritory.Sim.Run.StopWalls.Of(generated, line);
+        if (args.Contains("--doors-shut"))
+            foreach (var d in scene.Walls.HouseDoors)
+                scene.Walls.SetShut(d.Key, true);
+    }
     scene.Wreck = train.Wreck;
     // --impact ground|water|structure|train|creature|doll [--impact-at ahead,lateral] [--impact-age s] (T121): a cannonball
     // come down there that long ago (its burst, debris, smoke, scorch or splash, and the light of it); "doll" on the staged
@@ -2153,8 +2161,13 @@ static object MenuShot(TrainTuning t, string content, string[] args)
         : new GreyboxRenderer(gpu, 480, 270);
     look?.Dress(renderer);
     var overlay = new Overlay();
-    menu.Draw(overlay, canvas.Item1, canvas.Item2);
-    string output = Str(args, "--out", $"out/shots/menu-{screen.ToString().ToLowerInvariant()}.png");
+    // --loading [n] (note 386): the loading screen the app shows while a night's built, with a first night's tip (the n-th).
+    if (args.Contains("--loading"))
+        DarkTerritory.Game.Onboarding.DrawLoading(overlay, canvas.Item1, canvas.Item2, "BUILDING THE NIGHT...", "THE LINE, THE LAND, THE CREW",
+            DarkTerritory.Game.Onboarding.Tip(DarkTerritory.Game.Onboarding.Load(content), new Settings(), (int)Opt(args, "--loading", 0)));
+    else
+        menu.Draw(overlay, canvas.Item1, canvas.Item2);
+    string output = Str(args, "--out", args.Contains("--loading") ? "out/shots/menu-loading.png" : $"out/shots/menu-{screen.ToString().ToLowerInvariant()}.png");
     PngWriter.Write(output, renderer.Render(mesh, view, light, light.FogColor, overlay), renderer.Width, renderer.Height, sized ? 1 : (int)Opt(args, "--scale", 2));
     return new { path = Path.GetFullPath(output), screen = screen.ToString(), items = menu.Items.Select(i => i.Label) };
 }

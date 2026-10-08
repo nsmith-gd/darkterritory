@@ -69,7 +69,7 @@ public sealed class EditionTests : IDisposable
         var tier = m.Items.First(i => i.Label.StartsWith("TIER", StringComparison.Ordinal));
         Assert.Equal("TIER: FRONTIER", tier.Label);
         Assert.False(tier.Enabled);
-        int cars = m.Items.ToList().FindIndex(i => i.Label.StartsWith("CARS", StringComparison.Ordinal));
+        int cars = m.Items.ToList().FindIndex(i => !i.Heading && i.Label.StartsWith("CARS", StringComparison.Ordinal));
         while (m.Selected != cars)
             m.Down();
         for (int i = 0; i < 30; i++)

@@ -122,7 +122,7 @@ public sealed class TextSizeTests : IDisposable
             DataFile.Load<RunTuning>(Path.Combine(Content, RunTuning.File)), new SaveSlots(Path.Combine(_dir, "saves"), 3),
             Path.Combine(_dir, "settings.json"), () => 42);
         m.Show(Screen.Settings);
-        int at = m.Items.ToList().FindIndex(i => i.Label.StartsWith("TEXT SIZE", StringComparison.Ordinal));
+        int at = m.Items.ToList().FindIndex(i => !i.Heading && i.Label.StartsWith("TEXT SIZE", StringComparison.Ordinal));
         Assert.True(at >= 0);
         while (m.Selected != at)
             m.Down();
