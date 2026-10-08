@@ -1503,7 +1503,10 @@ public static partial class Hud
     public static float PromptScaleAt(float pixels, float textScale) =>
         Math.Clamp(MathF.Ceiling(2 * 2 * textScale / MathF.Max(1, pixels)) / 2, 0.5f, 1);
 
-    static float _promptScale = 0.5f;
+    // Per thread: each Build sets it for its own canvas, and the tests build HUDs on parallel threads at their own sizes; one
+    // build's scale landing in another's moved its print (note 390, CaptionsTests on Windows CI). 0 until this thread builds one.
+    [ThreadStatic]
+    static float _promptScale;
 
     /// <summary>How far under the screen's middle (the crosshair) the prompt's strip sits, in canvas pixels.</summary>
     public const float PromptDrop = 16;
@@ -1511,7 +1514,7 @@ public static partial class Hud
     /// <summary>The prompt, small, under the crosshair; a hold under way ("... (40%)") as a bar along its foot.</summary>
     static void PromptPlate(Overlay o, int width, int height, string prompt)
     {
-        float k = _promptScale;
+        float k = Fine;
         float w = UiStyle.MeasureKeyed(o, prompt, k) + 8 * k, h = (o.Font.LineHeight + 6) * k;
         float px = MathF.Round((width - w) / 2), py = MathF.Round(height / 2f + PromptDrop);
         o.Rect(px, py, w, h, UiStyle.Iron with { W = 0.55f });

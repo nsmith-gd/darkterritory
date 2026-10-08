@@ -33,6 +33,9 @@ return args switch
     ["mods", "pack", var package, ..] => PrintPack(package, Str(args, "--out", "out/mods")),
     // dt mods: the mods found, in load order, what can't be loaded and why, and what each does to which file (T49, T78).
     ["mods", ..] => Print(ModsReport(baseContent)),
+    // dt credits [--notices | --write]: everyone whose work is in the game, from the base content's provenance (note 390);
+    // --notices prints THIRD-PARTY-NOTICES.txt, --write rewrites it in content/credits. A mod credits its own.
+    ["credits", ..] => CreditsCommands.Run(baseContent, args),
     // dt edition bake <name> --into <dir>: the base content with an edition (editions/<name>) baked in, as the demo build
     // ships it (T79). dt [--edition demo] edition: what the content in use is.
     ["edition", "bake", var name, ..] => Print(new { edition = name, content = Path.GetFullPath(Mods.Bake(baseContent, name, Str(args, "--into", $"out/editions/{name}"))) }),
@@ -2187,6 +2190,7 @@ static (DarkTerritory.Game.FrontEnd Menu, DarkTerritory.Game.Screen Screen) Demo
     };
     menu.StillsFolder = "C:/Users/Nick/AppData/Local/DarkTerritory/bookmarks";
     menu.Music = DarkTerritory.Sim.Music.MusicManifest.Load(content).Tracks;
+    menu.CreditSections = DarkTerritory.Game.Credits.Load(content);
     // The join screen's list, as a crowded evening has it: games on the network (pings as measured) and public lobbies off
     // a platform search (the fake's, its pings estimated from where each host is).
     if (screen == DarkTerritory.Game.Screen.Join)
@@ -2871,6 +2875,7 @@ static int Usage()
     Console.Error.WriteLine("""
         usage: dt <command>        (mods in ./mods and the user's app data are laid over content/; --no-mods for the base game)
           mods                                     the mods found, their load order, and what each does to which file
+          credits [--notices | --write]            everyone whose work is in the game (note 390); --write rewrites the notices
           train table                              spec table (B.4–B.6) as produced by current tuning
           train stop <cars> [--from v] [--load l] [--grade g]
           train climb <cars> <grade%> [--from v] [--load l]

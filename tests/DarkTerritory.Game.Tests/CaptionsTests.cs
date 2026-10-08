@@ -12,6 +12,8 @@ namespace DarkTerritory.Game.Tests;
 /// written over the hotbar as they're heard, what each is and where, at the gain the mixer heard it at. What a sound is, never
 /// which creature makes it: a reader learns what tiptoeing means as a listener does.
 /// </summary>
+// Hud.Keys is the HUD's settings, static: the tests that set it don't run beside the one that compares two builds (note 390).
+[Collection("Hud.Keys")]
 public class CaptionsTests
 {
     static readonly string Content = DataFile.FindContentRoot();
