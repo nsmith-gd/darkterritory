@@ -12,6 +12,8 @@ namespace DarkTerritory.Sim.Net;
 public sealed record HarnessOptions
 {
     public int Bots { get; init; } = 8;
+    /// <summary>The driver runs hot at this speed and takes no stops (note 376, <see cref="Bots.ConductorBot.Express"/>); null as usual.</summary>
+    public double? Express { get; init; }
     public int Cars { get; init; } = 10;
     public double Seconds { get; init; } = 120;
     public int Seed { get; init; } = 1;
@@ -307,7 +309,7 @@ public static class Harness
             var transport = new CountingTransport(ClientTransport(i));
             // Past the cap (note 254) the crew is the crew of the cap, its parts as ever; the rest are spare hands with no part
             // at a stop, turned away at the door.
-            IBot bot = BotCrew.Make(i, crewSize, i < crewSize ? calls : null, o.Combat, playerTuning, o.Seed);
+            IBot bot = BotCrew.Make(i, crewSize, i < crewSize ? calls : null, o.Combat, playerTuning, o.Seed, o.Express);
             var session = new ClientSession(transport, NewTrain(line, trainTuning, o, boiler), trainTuning, playerTuning, o.Combat);
             // The enemies' tuning, as a joiner loads it: prediction drags with the Weight as the host does (T59), and the bots
             // read their counters from it (the Gaunt's view, the Passenger's reach).
