@@ -251,7 +251,7 @@ public static class CrewActs
             if (world.Run is { } run && run.LeverInReach(s, train))
                 return CrewPose.Chute;
         }
-        if (world.Run is { } r && r.SpoutLeverInReach(s, train) is not null)
+        if (world.Run is { } r && (r.SpoutLeverInReach(s, train) is not null || r.LiftLeverInReach(s, train) is not null))
             return CrewPose.Spout;
         if (s.Parent == PlayerState.World || s.Parent >= train.Frames.Count)
             return null;
