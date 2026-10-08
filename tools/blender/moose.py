@@ -57,8 +57,8 @@ def head_at(u, x=0.0, v=0.0):
 
 
 # The back's top line (y, z): the croup, the loins, then up over the withers into the hump, and down the neck to the poll.
-TOPLINE = [(-1.24, 1.92), (-1.18, 1.98), (-1.06, 2.02), (-0.9, 2.04), (-0.72, 2.08), (-0.5, 2.08), (-0.25, 2.12), (0.0, 2.19),
-           (0.22, 2.3), (0.42, 2.45), (0.6, 2.57), (0.76, 2.58), (0.9, 2.5), (1.04, 2.39), (1.18, 2.3), (1.3, 2.26)]
+TOPLINE = [(-1.24, 1.92), (-1.18, 1.98), (-1.04, 2.03), (-0.88, 2.05), (-0.7, 2.07), (-0.48, 2.09), (-0.24, 2.13), (0.0, 2.2),
+           (0.22, 2.31), (0.42, 2.43), (0.58, 2.5), (0.74, 2.49), (0.88, 2.42), (1.04, 2.33), (1.18, 2.28), (1.3, 2.25)]
 
 
 def interp(table, x):
@@ -91,8 +91,8 @@ def skeleton():
         Bone("neck_02", "neck_01", (0, 1.02, 2.27), (0, 1.32, 2.14)),
         Bone("head", "neck_02", (0, 1.32, 2.14), (0, 1.97, 1.47)),
         Bone("jaw", "head", tuple(head_at(0.12, 0, -0.12)), tuple(head_at(0.76, 0, -0.17))),
-        Bone("bell_01", "neck_02", (0, 1.22, 1.74), (0, 1.25, 1.46)),
-        Bone("bell_02", "bell_01", (0, 1.25, 1.46), (0, 1.27, 1.12)),
+        Bone("bell_01", "neck_02", (0, 1.18, 1.72), (0, 1.21, 1.44)),
+        Bone("bell_02", "bell_01", (0, 1.21, 1.44), (0, 1.23, 1.18)),
         Bone("ridge_01", "spine_01", *ridge(-0.15, -0.62)),
         Bone("ridge_02", "spine_02", *ridge(0.36, -0.15)),
         Bone("ridge_03", "chest", *ridge(0.98, 0.38)),
@@ -100,7 +100,7 @@ def skeleton():
     ]
     for side, sx in (("r", 1), ("l", -1)):
         b += [
-            Bone(f"ear_{side}", "head", (sx * 0.11, 1.29, 2.22), (sx * 0.47, 1.14, 2.36)),
+            Bone(f"ear_{side}", "head", (sx * 0.12, 1.33, 2.25), (sx * 0.47, 1.25, 2.47)),
             Bone(f"rack_{side}", "head", (sx * 0.14, 1.46, 2.26), (sx * 0.95, 1.46, 2.6)),
             Bone(f"velvet_{side}", f"rack_{side}", (sx * 1.0, 1.4, 2.62), (sx * 1.0, 1.4, 2.2)),
             Bone(f"scapula_{side}", "chest", (sx * 0.2, 0.62, 2.22), (sx * 0.28, 0.84, 1.62)),
@@ -267,11 +267,11 @@ body = kit.part("body")
 
 # The trunk, rump to chest: (y, half width over the middle, under it, top, bottom). Narrow hips, the barrel deep and
 # slab-sided, the brisket low, and the withers rising into the hump over the shoulders. (A ghost moose: lean.)
-TRUNK = [(-1.26, 0.07, 0.06, 1.9, 1.8, 1.0), (-1.2, 0.15, 0.12, 1.96, 1.64), (-1.06, 0.22, 0.19, 2.02, 1.52),
-         (-0.9, 0.27, 0.25, 2.04, 1.48), (-0.72, 0.31, 0.31, 2.08, 1.44), (-0.5, 0.34, 0.37, 2.08, 1.38),
-         (-0.25, 0.38, 0.44, 2.12, 1.3), (0.0, 0.41, 0.46, 2.19, 1.25), (0.22, 0.42, 0.45, 2.3, 1.22),
-         (0.42, 0.42, 0.42, 2.45, 1.22), (0.6, 0.4, 0.37, 2.57, 1.27), (0.76, 0.36, 0.31, 2.58, 1.36),
-         (0.9, 0.3, 0.26, 2.5, 1.48), (1.0, 0.24, 0.22, 2.43, 1.6, 0.95)]
+TRUNK = [(-1.24, 0.08, 0.07, 1.92, 1.8, 1.0), (-1.18, 0.18, 0.16, 1.98, 1.58), (-1.04, 0.27, 0.27, 2.03, 1.42),
+         (-0.88, 0.34, 0.33, 2.05, 1.42), (-0.7, 0.4, 0.38, 2.07, 1.4), (-0.48, 0.47, 0.46, 2.09, 1.32),
+         (-0.24, 0.54, 0.58, 2.13, 1.17), (0.0, 0.59, 0.69, 2.2, 1.04), (0.22, 0.61, 0.68, 2.31, 1.02),
+         (0.42, 0.6, 0.62, 2.43, 1.03), (0.58, 0.57, 0.54, 2.5, 1.09), (0.74, 0.52, 0.45, 2.49, 1.2),
+         (0.88, 0.44, 0.36, 2.42, 1.36), (1.0, 0.34, 0.29, 2.35, 1.52, 0.95)]
 TRUNK_AT = path_frame([(0, -1.3, 0), (0, 1.1, 0)])
 
 
@@ -289,7 +289,7 @@ def hide(k, j, a, p):
     q = Vector(p)
     side = abs(q.x)
     # Hip points (tuber coxae) and the shoulder blades' spines: knobs under the skin.
-    for y0, z0, x0, r, k_ in ((-0.72, 2.06, 0.27, 0.16, 0.05), (0.52, 2.3, 0.3, 0.2, 0.025), (-1.08, 1.94, 0.15, 0.12, 0.03)):
+    for y0, z0, x0, r, k_ in ((-0.72, 2.05, 0.33, 0.16, 0.05), (0.52, 2.32, 0.45, 0.22, 0.03), (-1.08, 1.94, 0.17, 0.12, 0.03)):
         d = math.sqrt((q.y - y0) ** 2 + (q.z - z0) ** 2 + (side - x0) ** 2)
         if d < r:
             q += Vector((math.copysign(1, q.x) * 0.6, 0, 0.8)) * (k_ * (1 - d / r) ** 2)
@@ -307,9 +307,9 @@ def hide(k, j, a, p):
 sweep(body, TRUNK_AT, finer(trunk_secs(), 3), 32, HIDE, trunk, shape=hide, cap0=True, cap1=True)
 
 # The neck: short and deep, up out of the chest under the hump, forward and down into the back of the skull.
-NECK_AT = path_frame([(0, 0.66, 1.92), (0, 0.92, 1.96), (0, 1.12, 1.99), (0, 1.3, 2.0), (0, 1.4, 2.02)])
-NECK = [(0.0, 0.34, 0.31, 0.6, -0.62), (0.3, 0.31, 0.29, 0.42, -0.52), (0.55, 0.27, 0.26, 0.33, -0.42), (0.78, 0.22, 0.22, 0.26, -0.3),
-        (0.92, 0.18, 0.18, 0.2, -0.23), (1.0, 0.14, 0.15, 0.14, -0.16)]
+NECK_AT = path_frame([(0, 0.62, 1.88), (0, 0.9, 1.91), (0, 1.1, 1.95), (0, 1.28, 1.99), (0, 1.4, 2.02)])
+NECK = [(0.0, 0.47, 0.44, 0.6, -0.74), (0.3, 0.41, 0.4, 0.5, -0.62), (0.55, 0.33, 0.33, 0.39, -0.5), (0.78, 0.26, 0.27, 0.29, -0.36),
+        (0.92, 0.21, 0.22, 0.22, -0.27), (1.0, 0.16, 0.17, 0.15, -0.18)]
 neck_w = along("y", [(0.72, "chest"), (0.86, "neck_01"), (1.04, "neck_01"), (1.18, "neck_02"), (1.32, "neck_02"), (1.42, "head")])
 
 
@@ -332,7 +332,8 @@ HEAD = [(-0.08, 0.07, 0.07, 0.07, -0.1, 1.0), (-0.02, 0.13, 0.14, 0.13, -0.17), 
         (0.895, 0.035, 0.04, 0.015, -0.19, 1.0)]
 
 
-HEAD = [(s[0] * 1.08, s[1] * 1.06, s[2] * 1.06, s[3] * 1.06, s[4] * 1.06) + tuple(s[5:]) for s in HEAD]
+HEAD = [(s[0] * 1.15, s[1] * 1.2 * (1 + 0.12 * max(0.0, s[0] - 0.55) / 0.35), s[2] * 1.2 * (1 + 0.12 * max(0.0, s[0] - 0.55) / 0.35),
+         s[3] * 1.2, s[4] * 1.2) + tuple(s[5:6]) + tuple(x * 1.2 for x in s[6:]) for s in HEAD]
 
 
 def head_u(p):
@@ -348,7 +349,7 @@ def skull(k, j, a, p):
     muzzle; small lumps."""
     q = Vector(p)
     u, v, x = head_u(q), head_v(q), q.x
-    for (u0, v0, x0, r, h) in ((0.16, 0.08, 0.15, 0.07, 0.022), (0.05, -0.08, 0.15, 0.12, 0.018), (0.72, 0.0, 0.12, 0.07, 0.02)):
+    for (u0, v0, x0, r, h) in ((0.18, 0.1, 0.18, 0.08, 0.026), (0.06, -0.1, 0.18, 0.14, 0.022), (0.83, 0.0, 0.15, 0.09, 0.026)):
         d = math.sqrt((u - u0) ** 2 + (v - v0) ** 2 + (abs(x) - x0) ** 2)
         if d < r:
             q += Vector((math.copysign(1, x), 0, 0)) * (h * (1 - d / r) ** 2)
@@ -358,9 +359,9 @@ def skull(k, j, a, p):
 def head_mat(pts, n):
     c = sum(pts, Vector()) / len(pts)
     u, v = head_u(c), head_v(c)
-    if u > 0.42 and v < -0.06 and abs(c.x) < 0.07:
+    if u > 0.48 and v < -0.07 and abs(c.x) < 0.085:
         return MOUTH
-    return MUZZLE if u > 0.55 else HIDE
+    return MUZZLE if u > 0.63 else HIDE
 
 
 sweep(body, head_at, finer(HEAD, 2), 28, HIDE, "head", shape=skull, cap0=True, cap1=True, fmat=head_mat)
@@ -371,7 +372,7 @@ JAW = [(0.02, 0.12, 0.125, -0.04, -0.2), (0.12, 0.115, 0.115, -0.07, -0.25), (0.
        (0.72, 0.045, 0.043, -0.155, -0.205), (0.765, 0.02, 0.02, -0.162, -0.19, 1.0)]
 
 
-JAW = [(s[0] * 1.08, s[1] * 1.06, s[2] * 1.06, s[3] * 1.06, s[4] * 1.06) + tuple(s[5:]) for s in JAW]
+JAW = [(s[0] * 1.15, s[1] * 1.2, s[2] * 1.2, s[3] * 1.2, s[4] * 1.2) + tuple(s[5:]) for s in JAW]
 
 
 def jaw_w(p):
@@ -382,17 +383,17 @@ def jaw_w(p):
 
 def jaw_mat(pts, n):
     c = sum(pts, Vector()) / len(pts)
-    if head_u(c) > 0.32 and n.dot(OVER) > 0.55:
+    if head_u(c) > 0.37 and n.dot(OVER) > 0.55:
         return MOUTH
-    return MUZZLE if head_u(c) > 0.5 else HIDE
+    return MUZZLE if head_u(c) > 0.57 else HIDE
 
 
 sweep(body, head_at, finer(JAW, 2), 20, HIDE, jaw_w, cap0=True, cap1=True, fmat=jaw_mat)
 
 # The bell: the dewlap swollen into a long sac, hanging off the throat, a bulb at its foot; it swings as it walks.
-BELL = [(0, 1.2, 1.74), (0, 1.22, 1.6), (0, 1.24, 1.48), (0, 1.255, 1.38), (0, 1.265, 1.29), (0, 1.27, 1.21), (0, 1.27, 1.15)]
-bell_w = along("z", [(1.12, "bell_02"), (1.4, "bell_02"), (1.52, "bell_01"), (1.7, "bell_01"), (1.8, "neck_02")])
-body.tube(BELL, [(0.06, 0.15), (0.05, 0.125), (0.052, 0.11), (0.062, 0.105), (0.072, 0.1), (0.062, 0.085), (0.025, 0.03)], 14, HIDE, bell_w,
+BELL = [(0, 1.18, 1.74), (0, 1.2, 1.62), (0, 1.22, 1.52), (0, 1.235, 1.43), (0, 1.245, 1.35), (0, 1.25, 1.27), (0, 1.25, 1.2)]
+bell_w = along("z", [(1.12, "bell_02"), (1.38, "bell_02"), (1.5, "bell_01"), (1.66, "bell_01"), (1.78, "neck_02")])
+body.tube(BELL, [(0.09, 0.2), (0.072, 0.155), (0.068, 0.13), (0.076, 0.12), (0.084, 0.11), (0.07, 0.095), (0.03, 0.04)], 14, HIDE, bell_w,
           ref=(0, 1, 0), cap1=True, shape=lambda i, j, a, p, fr: p + fr[0] * (0.008 * noise3(p, 31, 14.0)))
 
 # The tail: a stub.
@@ -438,10 +439,10 @@ for sx in (-1, 1):
     front = along("z", [(0.08, "finger_{s}"), (0.17, "hand_{s}"), (0.22, "hand_{s}"), (0.6, "hand_{s}"), (0.72, "lowerarm_{s}"),
                         (1.18, "lowerarm_{s}"), (1.36, "upperarm_{s}"), (1.56, "upperarm_{s}"), (1.78, "scapula_{s}")])
     fw = lambda p, f=front, s=s: {k.format(s=s): v for k, v in f(p).items()}  # noqa: E731
-    body.tube([(x * 0.85, 0.68, 1.98), (x, 0.8, 1.66), (x * 1.02, 0.74, 1.36), (x, 0.73, 1.12), (x, 0.745, 0.9), (x, 0.755, 0.74),
+    body.tube([(x * 1.15, 0.68, 1.96), (x * 1.22, 0.8, 1.62), (x * 1.1, 0.73, 1.32), (x * 1.02, 0.73, 1.1), (x, 0.745, 0.9), (x, 0.755, 0.75),
                (x, 0.76, 0.66), (x, 0.765, 0.56), (x, 0.775, 0.38), (x, 0.79, 0.22), (x, 0.8, 0.16), (x, 0.825, 0.09)],
-              [(0.16, 0.27), (0.15, 0.22), (0.125, 0.17), (0.105, 0.135), (0.074, 0.092), (0.058, 0.07), (0.068, 0.084), (0.052, 0.062),
-               (0.045, 0.056), (0.05, 0.062), (0.055, 0.064), (0.05, 0.058)], LEG_SIDES, HIDE, fw, ref=(0, 1, 0),
+              [(0.23, 0.35), (0.21, 0.31), (0.165, 0.23), (0.135, 0.17), (0.1, 0.125), (0.08, 0.095), (0.092, 0.108), (0.068, 0.08),
+               (0.061, 0.072), (0.064, 0.078), (0.07, 0.08), (0.062, 0.07)], LEG_SIDES, HIDE, fw, ref=(0, 1, 0),
               fmat=lambda pts, n: LEGS if sum(p.z for p in pts) / len(pts) < 1.0 else HIDE,
               shape=leg_shape([(1.0, 1, 0.025, 0.12), (1.3, -1, 0.05, 0.07), (0.66, 1, 0.012, 0.04), (0.17, -1, 0.012, 0.03)]))
     rear = along("z", [(0.08, "toe_{s}"), (0.17, "foot_{s}"), (0.22, "foot_{s}"), (0.7, "foot_{s}"), (0.86, "calf_{s}"),
@@ -449,11 +450,11 @@ for sx in (-1, 1):
     rw = lambda p, f=rear, s=s: {k.format(s=s): v for k, v in f(p).items()}  # noqa: E731
     xr = sx * 0.27
     # The haunch: a long teardrop of muscle from the croup down into the gaskin, its back the hamstring's curve.
-    body.tube([(xr * 0.7, -0.86, 2.02), (xr * 0.95, -0.88, 1.74), (xr * 0.98, -0.74, 1.46), (xr, -0.66, 1.22), (xr, -0.78, 1.02),
+    body.tube([(xr * 0.85, -0.86, 2.0), (xr * 1.18, -0.88, 1.72), (xr * 1.14, -0.74, 1.46), (xr * 1.04, -0.66, 1.22), (xr, -0.78, 1.02),
                (xr, -0.9, 0.86), (xr, -0.93, 0.8), (xr, -0.925, 0.7), (xr, -0.9, 0.46), (xr, -0.875, 0.26), (xr, -0.86, 0.16),
                (xr, -0.835, 0.09)],
-              [(0.15, 0.26), (0.17, 0.31), (0.15, 0.25), (0.12, 0.17), (0.09, 0.13), (0.07, 0.1), (0.072, 0.11), (0.056, 0.075),
-               (0.047, 0.06), (0.046, 0.056), (0.055, 0.064), (0.05, 0.058)], LEG_SIDES, HIDE, rw, ref=(0, 1, 0),
+              [(0.21, 0.31), (0.25, 0.37), (0.215, 0.31), (0.155, 0.215), (0.115, 0.16), (0.088, 0.128), (0.094, 0.138), (0.07, 0.092),
+               (0.061, 0.073), (0.06, 0.07), (0.07, 0.08), (0.062, 0.07)], LEG_SIDES, HIDE, rw, ref=(0, 1, 0),
               fmat=lambda pts, n: LEGS if sum(p.z for p in pts) / len(pts) < 1.05 else HIDE,
               shape=leg_shape([(1.45, -1, 0.04, 0.16), (0.82, -1, 0.03, 0.05), (1.4, 1, 0.03, 0.08), (0.17, -1, 0.012, 0.03)]))
 
@@ -467,8 +468,8 @@ for sx in (-1, 1):
             yaw = k * 0.12
             fwd = Vector((math.sin(yaw), math.cos(yaw), 0))
             rings = []
-            for t, (half, high) in zip((0.0, 0.3, 0.62, 0.88, 1.0), ((0.034, 0.1), (0.036, 0.09), (0.03, 0.072), (0.018, 0.045), (0.004, 0.022))):
-                c = Vector((x0 + k * 0.037, y0 - 0.07, 0)) + fwd * (0.17 * t)
+            for t, (half, high) in zip((0.0, 0.3, 0.62, 0.88, 1.0), ((0.042, 0.11), (0.044, 0.1), (0.037, 0.08), (0.022, 0.05), (0.005, 0.024))):
+                c = Vector((x0 + k * 0.046, y0 - 0.08, 0)) + fwd * (0.19 * t)
                 ring = []
                 for j in range(6):
                     a = 2 * math.pi * j / 6
@@ -489,8 +490,8 @@ for sx in (-1, 1):
 ears = kit.part("ears")
 for sx in (-1, 1):
     s = "r" if sx > 0 else "l"
-    root = Vector((sx * 0.09, 1.3, 2.2))
-    d = Vector((sx * 0.82, -0.38, 0.32)).normalized()
+    root = Vector((sx * 0.1, 1.33, 2.23))
+    d = Vector((sx * 0.8, -0.2, 0.52)).normalized()
     fwd = Vector((0, 1, 0))
     n = (fwd - d * fwd.dot(d)).normalized()       # the cup's opening (forward)
     w_side = d.cross(n).normalized() * sx          # across the ear
@@ -519,7 +520,7 @@ for sx in (-1, 1):
 # --- the eyes: small, dark, wet, under the brow -------------------------------------------------------------------------------
 eyes = kit.part("eyes")
 for sx in (-1, 1):
-    c = head_at(0.165, sx * 0.158, 0.045)
+    c = head_at(0.19, sx * 0.192, 0.055)
     R = rig.Matrix.Rotation(sx * math.pi / 2, 4, "Y") @ rig.Matrix.Rotation(-0.35, 4, "X")
     eyes.blob(tuple(c), (0.03, 0.022, 0.018), 10, 4, EYE, "head", rot=R, smooth=True)
 
@@ -555,9 +556,14 @@ def neck_surface(u, a):
     return p, n
 
 
-def sac(part, c, r, bones, mat=SAC, seed=0):
-    """One sac: a lumpy, drooping ball, stretched shiny."""
+def sac(part, c, r, bones, mat=SAC, seed=0, n=None):
+    """One sac: a lumpy, drooping ball, stretched shiny; given the skin's way out `n`, a flattened one swollen in the hide."""
     c = Vector(c)
+    if n is not None:
+        R = Vector((0, 0, 1)).rotation_difference(Vector(n)).to_matrix().to_4x4()
+        part.blob(tuple(c), (r, r * 0.85, r * 0.42), 6, 3, mat, bones, smooth=True, rot=R,
+                  shape=lambda i, j, a, th, p: p + (p - c) * 0.1 * noise3(p, 81 + seed, 40.0))
+        return
     part.blob(tuple(c), (r, r * 0.94, r * 0.88), 5, 3, mat, bones, smooth=True,
               shape=lambda i, j, a, th, p: p + (p - c) * 0.1 * noise3(p, 81 + seed, 50.0) - Vector((0, 0, 0.18 * r * max(0.0, (c - p).z / r))))
 
@@ -565,29 +571,29 @@ def sac(part, c, r, bones, mat=SAC, seed=0):
 GOLDEN = math.pi * (3 - math.sqrt(5))
 
 
-def cluster(surface, y, a, count, spread, side, k, big=0.036, bones=trunk):
+def cluster(surface, y, a, count, spread, side, k, big=0.05, bones=trunk):
     """Packed like a bunch of grapes out from a middle (plum-sized there, grapes round the edge)."""
     for i in range(count):
         d = spread * math.sqrt((i + 0.3) / count)
         ang = i * GOLDEN + 2.0 * h01(k, side)
         p, n = surface(y + d * math.cos(ang), side * (a + d * math.sin(ang) * 2.2))
-        r = 0.016 + big * (1 - i / count) * (0.55 + 0.45 * h01(k * 3 + i, side + 9))
-        sac(sacs, p + n * r * 0.45, r, bones, SAC if h01(i, k + side) > 0.3 else SAC_OLD, seed=k)
+        r = 0.022 + big * (1 - i / count) * (0.55 + 0.45 * h01(k * 3 + i, side + 9))
+        sac(sacs, p + n * r * 0.12, r, bones, SAC if h01(i, k + side) > 0.3 else SAC_OLD, seed=k, n=n)
 
 
 # Clusters thickest on the hump and the shoulders, the flanks behind the ribs and the rump; few on the belly. (y, round from
 # the top, how many, how far they spread.)
-CLUSTERS = [(-1.0, 1.05, 6, 0.1), (-0.66, 1.25, 7, 0.11), (-0.42, 0.75, 4, 0.08), (-0.12, 1.25, 6, 0.1), (0.3, 0.9, 6, 0.1),
-            (0.5, 1.45, 7, 0.11), (0.66, 0.65, 6, 0.1), (0.82, 1.15, 5, 0.09)]
+CLUSTERS = [(-0.95, 1.05, 4, 0.12), (-0.6, 1.3, 5, 0.14), (-0.1, 1.2, 4, 0.12), (0.3, 0.9, 4, 0.12), (0.52, 1.45, 5, 0.14),
+            (0.72, 0.7, 4, 0.12)]
 for side in (1, -1):
     for k, (y, a, n, spread) in enumerate(CLUSTERS):
         # (Not mirror images: each side its own.)
         y = y + 0.1 * (h01(k, side) - 0.5)
         a = a + 0.25 * (h01(k + 40, side) - 0.5)
-        n = max(4, n + int(3 * (h01(k + 80, side) - 0.5)))
+        n = max(3, n + int(3 * (h01(k + 80, side) - 0.5)))
         cluster(trunk_surface, y, a, n, spread, side, k + (0 if side > 0 else 50))
     # Up the neck under the hump and on the throat.
-    for k, (u, a, n, spread) in enumerate(((0.35, 1.0, 6, 0.08), (0.7, 0.7, 4, 0.06))):
+    for k, (u, a, n, spread) in enumerate(((0.35, 1.0, 4, 0.1), (0.7, 0.7, 3, 0.08))):
         cluster(neck_surface, u, a, n, spread * 0.6, side, 100 + k + (0 if side > 0 else 50), big=0.022, bones=lambda p: neck_w(p))
 # The ridge down the spine: two staggered rows on the crest, lying back along it (they stand up when it warns).
 for row in range(2):
@@ -612,13 +618,13 @@ def palm_point(sx, s, t):
     high, its front edge low over the brow), cups toward its face, and its outer rim curls in; the rim is scalloped
     between the tines."""
     c = 2 * t - 1
-    w = 0.07 + 0.4 * smoothstep(0.0, 1.0, s) ** 0.8
+    w = 0.07 + 0.36 * smoothstep(0.0, 1.0, s) ** 0.8
     s_rim = s * (1 - 0.06 * s ** 4 * (0.5 - 0.5 * math.cos(2 * math.pi * 4 * t)))
-    th = math.radians(15 + 37 * smoothstep(0.0, 0.6, s))
+    th = math.radians(14 + 24 * smoothstep(0.0, 0.6, s))
     face = Vector((0, math.sin(th), math.cos(th)))
     x = sx * (0.4 + 0.95 * s_rim)
     y = 1.42 - 0.14 * s * s + c * w * math.cos(th)
-    z = 2.27 + 0.3 * s + 0.08 * s * s - c * w * math.sin(th)
+    z = 2.31 + 0.08 * s + 0.25 * s ** 2.2 - c * w * math.sin(th)
     p = Vector((x, y, z)) + face * (0.12 * s * c * c + 0.1 * s ** 3)
     p.z += 0.03 * noise3(p, 91, 3.5) * s
     return p
@@ -872,8 +878,11 @@ def bell_hangs(p, swing=0.0):
     tip = sum(p.get(b, (0, 0, 0))[0] for b in ("neck_01", "neck_02", "chest", "spine_02", "spine_01", "pelvis"))
     out = dict(p)
     # (Tucked, the head would sweep into it: it swings back out of the way under the throat.)
-    out["bell_01"] = (-tip * 0.6 + 0.8 * min(0.0, p.get("head", (0, 0, 0))[0] if not isinstance(p.get("head"), rig.Quaternion) else 0) + swing, 0, 0)
-    out["bell_02"] = (swing * 0.6, 0, 0)
+    out["bell_01"] = (-tip * 0.6 + 0.6 * min(0.0, p.get("head", (0, 0, 0))[0] if not isinstance(p.get("head"), rig.Quaternion) else 0) + swing, 0, 0)
+    # (Its bulb folded back under the throat as the head tucks down onto it, a sac bent double.)
+    tuck = min(0.0, p.get("head", (0, 0, 0))[0]) if not isinstance(p.get("head"), rig.Quaternion) else -26.0
+    # (Tucked hard, it can't swing forward: the head's in the way.)
+    out["bell_02"] = ((swing if tuck > -20 else min(swing, 0.0)) * 0.6 + 1.4 * tuck, 0, 0)
     return out
 
 
@@ -904,8 +913,8 @@ graze = Clip("graze")
 for f in range(0, 120, 6):
     k = f / 120
     chew = 1 if (f // 6) % 2 else 0
-    er = 30 * math.sin(2 * math.pi * k * 3) if (f // 24) % 2 == 0 else -20
-    el = -25 * math.sin(2 * math.pi * k * 2 + 1) if (f // 30) % 2 == 1 else 15
+    er = 20 * math.sin(2 * math.pi * k * 3) if (f // 24) % 2 == 0 else -12
+    el = -16 * math.sin(2 * math.pi * k * 2 + 1) if (f // 30) % 2 == 1 else 10
     pulse = 1.0 + 0.06 * math.sin(2 * math.pi * k * 2)
     sway = math.sin(2 * math.pi * k)
     p = over(GRAZE, jaw=(-4 * chew, 0, 2 * chew), head=(26 + 2 * sway, 0, 4 * sway),
@@ -1040,13 +1049,13 @@ square.key(75, bell_hangs(over(LEVEL, root__loc=(0, -0.04, -0.1))))
 # extends over the fore pair (right, left) reaching out ahead; then the gathered flight, every leg folded under it, the back
 # rounded. The spine flexes through it and the hump heaves, the ridge up, the bell flung about; the head and the rack held
 # level and dead steady on the line however the body pitches (the neck takes it up).
-GALLOP_FRONT = {"scapula": [(0, 10), (0.22, 0), (0.42, -14), (0.6, -4), (0.85, 12), (1, 10)],
-                "upperarm": [(0, 34), (0.22, 6), (0.42, -38), (0.6, -20), (0.85, 40), (1, 34)],
-                "lowerarm": [(0, 2), (0.22, 0), (0.42, 6), (0.6, 74), (0.85, 26), (1, 2)],
-                "hand": [(0, 4), (0.22, -6), (0.42, -46), (0.6, -96), (0.85, -14), (1, 4)]}
-GALLOP_REAR = {"thigh": [(0, 34), (0.22, 4), (0.42, -38), (0.6, -16), (0.85, 40), (1, 34)],
-               "calf": [(0, -26), (0.22, -8), (0.42, 22), (0.6, -40), (0.85, -50), (1, -26)],
-               "foot": [(0, 26), (0.22, 10), (0.42, 22), (0.6, 70), (0.85, 44), (1, 26)]}
+GALLOP_FRONT = {"scapula": [(0, 8), (0.22, 0), (0.42, -10), (0.6, -5), (0.85, 10), (1, 8)],
+                "upperarm": [(0, 26), (0.22, 2), (0.42, -30), (0.6, -16), (0.85, 30), (1, 26)],
+                "lowerarm": [(0, 2), (0.22, 0), (0.42, 4), (0.6, 56), (0.85, 20), (1, 2)],
+                "hand": [(0, 4), (0.22, -6), (0.42, -40), (0.6, -76), (0.85, -10), (1, 4)]}
+GALLOP_REAR = {"thigh": [(0, 26), (0.22, 2), (0.42, -46), (0.6, -20), (0.85, 30), (1, 26)],
+               "calf": [(0, -24), (0.22, -6), (0.42, 28), (0.6, -36), (0.85, -46), (1, -24)],
+               "foot": [(0, 24), (0.22, 8), (0.42, 16), (0.6, 64), (0.85, 40), (1, 24)]}
 gallop = legs(GALLOP_FRONT, GALLOP_REAR, {"rear_l": 0.0, "rear_r": -0.1, "front_r": -0.4, "front_l": -0.5})
 CHARGE_BODY = over(LEVEL, root__loc=(0, 0, 0.0))
 HEAD_LEVEL = rig.world_rotation(sk, LEVEL, "head")
@@ -1056,14 +1065,15 @@ for f in range(0, 16, 2):
     p = dict(CHARGE_BODY)
     p.update(gallop(t))
     # (The hind legs swung a little wide, outside the forelegs: they reach past them at the gallop.)
-    p["thigh_r"], p["thigh_l"] = (p["thigh_r"][0], -6, 0), (p["thigh_l"][0], 6, 0)
+    p["thigh_r"], p["thigh_l"] = (p["thigh_r"][0], -9, 0), (p["thigh_l"][0], 9, 0)
     # Gathered (the back rounded, the hind end under) at the flight, after the forelegs leave; extended as the hinds drive.
     gather = math.cos(2 * math.pi * (t - 0.8))
     heave = math.sin(2 * math.pi * (t - 0.15))
     p.update({"root@loc": (0, 0, 0.12 * math.sin(2 * math.pi * (t - 0.6)) - 0.04),
-              "pelvis": (-2 - 7 * gather, 0, 0), "spine_01": (4 * gather, 0, 0), "spine_02": (-3 + 3 * gather, 0, 0),
-              "chest": (-6 + 4 * heave, 0, 0), "scapula_r": (p["scapula_r"][0], 0, 0), "scapula_l": (p["scapula_l"][0], 0, 0),
-              "neck_01": (-16 - 6 * heave, 0, 0), "neck_02": (-10 - 3 * heave, 0, 0),
+              # (Pitched forward over its shoulders the whole stride, the front driving low, never rearing.)
+              "pelvis": (-7 - 3 * gather, 0, 0), "spine_01": (3 * gather, 0, 0), "spine_02": (-3 + 2 * gather, 0, 0),
+              "chest": (-7 + 3 * heave, 0, 0), "scapula_r": (p["scapula_r"][0], 0, 0), "scapula_l": (p["scapula_l"][0], 0, 0),
+              "neck_01": (-20 - 4 * heave, 0, 0), "neck_02": (-12 - 2 * heave, 0, 0),
               "jaw": (-7, 0, 0), "tail_01": (-30 + 8 * gather, 0, 0),
               "velvet_r": (30 * heave, 0, 10), "velvet_l": (28 * math.sin(2 * math.pi * t + 0.5), 0, -10)})
     p["head"] = held_world(p, "head", HEAD_LEVEL)
@@ -1073,8 +1083,8 @@ charge.close(16)
 # Overrun (2.5 s, once): the skid, its hind end under it and the forelegs braced, ploughing; then it wheels round on its
 # haunches, stamping, head tossing.
 SKID = over(LEVEL, root__loc=(0, 0.05, -0.18), pelvis=(-10, 0, 0), spine_01=(4, 0, 0), chest=(6, 0, 0), neck_01=(4, 0, 0), head=(-14, 0, 0))
-SKID.update(mirror({"upperarm_r": (-34, 0, 0), "lowerarm_r": (6, 0, 0), "hand_r": (10, 0, 0), "thigh_r": (44, 0, 0), "calf_r": (-46, 0, 0),
-                    "foot_r": (40, 0, 0), "ear_r": (0, -12, -42)}))
+SKID.update(mirror({"upperarm_r": (-34, 0, 0), "lowerarm_r": (6, 0, 0), "hand_r": (10, 0, 0), "thigh_r": (32, 0, 0), "calf_r": (-34, 0, 0),
+                    "foot_r": (30, 0, 0), "ear_r": (0, -12, -42)}))
 overrun = Clip("overrun", loop=False)
 c0 = dict(charge.keys[0][1])
 c0["head"] = (-26, 0, 0)
@@ -1112,11 +1122,11 @@ snag.close(36)
 ram = Clip("ram")
 ram.key(0, bell_hangs(LEVEL))
 ram.key(18, bell_hangs(over(LEVEL, root__loc=(0, -0.3, -0.06), head=(-28, 0, 0), neck_01=(-10, 0, 0), spine_01=(3, 0, 0), pelvis=(-4, 0, 0))))
-ram.key(26, bell_hangs(over(LEVEL, root__loc=(0, 0.35, -0.12), head=(-40, 0, 0), neck_01=(-20, 0, 0), chest=(-10, 0, 0), spine_02=(-5, 0, 0),
+ram.key(26, bell_hangs(over(LEVEL, root__loc=(0, 0.35, -0.12), head=(-32, 0, 0), neck_01=(-20, 0, 0), chest=(-10, 0, 0), spine_02=(-5, 0, 0),
                             thigh_r=(-20, 0, 0), thigh_l=(-24, 0, 0), calf_r=(10, 0, 0), calf_l=(14, 0, 0)), -20), "LINEAR")
-ram.key(28, bell_hangs(over(LEVEL, root__loc=(0, 0.28, -0.12), head=(-36, 0, 0), neck_01=(-18, 0, 0), chest=(-8, 0, 0)), 6), "CONSTANT")
-ram.key(40, bell_hangs(over(LEVEL, root__loc=(0, 0.3, -0.12), head=(-38, 8, 10), neck_01=(-18, 0, 6), jaw=(-9, 0, 0), spine_02=(-3, 0, -3)), 10))
-ram.key(52, bell_hangs(over(LEVEL, root__loc=(0, 0.3, -0.12), head=(-38, -8, -10), neck_01=(-18, 0, -6), spine_02=(-3, 0, 3)), -10))
+ram.key(28, bell_hangs(over(LEVEL, root__loc=(0, 0.28, -0.12), head=(-30, 0, 0), neck_01=(-18, 0, 0), chest=(-8, 0, 0)), 6), "CONSTANT")
+ram.key(40, bell_hangs(over(LEVEL, root__loc=(0, 0.3, -0.12), head=(-30, 3, 3), neck_01=(-18, 0, 8), jaw=(-9, 0, 0), spine_02=(-3, 0, -3)), 10))
+ram.key(52, bell_hangs(over(LEVEL, root__loc=(0, 0.3, -0.12), head=(-30, -3, -3), neck_01=(-18, 0, -8), spine_02=(-3, 0, 3)), -10))
 ram.key(66, bell_hangs(over(LEVEL, root__loc=(0, 0.0, -0.08))))
 ram.close(90)
 

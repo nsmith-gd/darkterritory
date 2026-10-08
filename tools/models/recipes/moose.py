@@ -227,14 +227,14 @@ legs = smooth01(1.15, 0.55, Z) * (~on_head)
 base = paint(base, (0.05, 0.045, 0.04), legs * 0.85)
 base = paint(base, (0.012, 0.011, 0.01), smooth01(0.4, 0.16, Z) * 0.9)
 # The muzzle dark grey-brown, darkest round the lips; the nostrils black slashes; the eye ringed dark.
-muzzle = on_head * smooth01(0.42, 0.62, hu)
+muzzle = on_head * smooth01(0.48, 0.71, hu)
 base = paint(base, (0.065, 0.055, 0.05), muzzle * 0.85)
-lips = on_head * smooth01(0.6, 0.75, hu) * smooth01(-0.02, -0.12, hv)
+lips = on_head * smooth01(0.69, 0.86, hu) * smooth01(-0.02, -0.14, hv)
 base = paint(base, (0.025, 0.02, 0.02), lips * 0.8)
 for sx in (-1, 1):
-    nos = ((hu - 0.86) / 0.05) ** 2 + ((hv + 0.02 - 0.25 * (hu - 0.86)) / 0.022) ** 2 + ((X - sx * 0.075) / 0.06) ** 2
+    nos = ((hu - 0.98) / 0.06) ** 2 + ((hv + 0.02 - 0.25 * (hu - 0.98)) / 0.026) ** 2 + ((X - sx * 0.09) / 0.07) ** 2
     base = paint(base, (0.008, 0.006, 0.006), smooth01(1.3, 0.7, nos) * on_head)
-    eye = ((hu - 0.178) / 0.06) ** 2 + ((hv - 0.05) / 0.045) ** 2 + ((X - sx * 0.17) / 0.06) ** 2
+    eye = ((hu - 0.205) / 0.07) ** 2 + ((hv - 0.06) / 0.05) ** 2 + ((X - sx * 0.2) / 0.07) ** 2
     base = paint(base, (0.03, 0.025, 0.022), smooth01(1.4, 0.6, eye) * on_head)
 mouth = is_("moose_mouth")
 base[mouth] = (0.05, 0.012, 0.01)
