@@ -30,6 +30,8 @@ public sealed record FacilityWorkReport(string Facility, bool Departed, double S
     /// <summary>The tipple's (note 423): the ore left in its bin, and the cars off their rails when the drill ended.</summary>
     public double TippleOre { get; init; }
     public int OffRails { get; init; }
+    /// <summary>The stop's modules, as drawn (note 449).</summary>
+    public IReadOnlyList<ModuleKind> Modules { get; init; } = [];
     /// <summary>Every stop the driver made (a switchyard's pick-ups are stops of their own).</summary>
     public IReadOnlyList<StopRecord> Stops { get; init; } = [];
 }
@@ -123,6 +125,7 @@ public static class FacilityWork
             Jams = site.JamCount,
             TippleOre = Math.Round(site.TippleOre, 3),
             OffRails = train.Vehicles.Count(v => v.OffRails),
+            Modules = site.Modules,
             Stops = driver.Stops?.Log ?? [],
         };
     }
@@ -132,7 +135,8 @@ public static class FacilityWork
     /// frontier night's first live facility down a spur, made that kind (any spur facility's track and layout will do, and
     /// the deeper tiers' kinds don't come up on a frontier night).
     /// </summary>
-    public static (Route.Route Route, int Facility)? Find(RouteTuning tuning, FacilityKind kind, int seeds = 200)
+    /// <param name="modules">The stop's modules, as a route's own (T44): pinned past the night's draw (note 449). Null: the draw's.</param>
+    public static (Route.Route Route, int Facility)? Find(RouteTuning tuning, FacilityKind kind, int seeds = 200, IReadOnlyList<ModuleKind>? modules = null)
     {
         for (ulong seed = 1; seed < (ulong)seeds; seed++)
         {
@@ -142,7 +146,7 @@ public static class FacilityWork
                 && (f.Stop?.Power ?? Stops.PowerState.Live) == Stops.PowerState.Live && route.Branches.Any(b => b.Kind == BranchKind.Spur && f.Contains(b.Toe)));
             if (i < 0)
                 continue;
-            features[i] = features[i] with { Facility = kind };
+            features[i] = features[i] with { Facility = kind, Modules = modules is null ? null : [.. modules.Select(m => m.ToString())] };
             var made = route with { Features = features };
             return (made, made.Of(FeatureKind.Facility).ToList().IndexOf(features[i]));
         }

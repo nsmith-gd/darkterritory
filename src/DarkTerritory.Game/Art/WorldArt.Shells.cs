@@ -146,6 +146,12 @@ public sealed partial class WorldArt
         }
     }
 
+    /// <summary>How high an open barn's, outbuilding's or goods shed's walls stand (m, to the eaves): what it's drawn at, and its Room (note 462).</summary>
+    public static float OpenShedHeight(BuildingKind kind) => kind switch { BuildingKind.Barn => 6.5f, BuildingKind.GoodsShed => 7f, _ => 4.6f };
+
+    /// <summary>How high a yard's shed or its hero (the strongroom) stands (m, to the eaves): what it's drawn at, and its Room (note 465).</summary>
+    public static float YardShedHeight(StopBuilding b) => b.Kind == BuildingKind.Hero ? 10 + b.Variant : 6.5f + b.Variant * 0.8f;
+
     /// <summary>
     /// An open barn, outbuilding or goods shed (note 417): the yard sheds' walk-in shell (no chain hoists: it's a farm's or
     /// a goods agent's, not a works'), and what its finds are kept in, where the sim keeps them (<see cref="StopWalls.ShedKept"/>):

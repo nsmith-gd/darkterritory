@@ -355,7 +355,8 @@
     "shelterReach": 60,
     "shelterOverTrain": 2
   },
-  // Which modules each facility offers (spec D.1: 2–4 per POI once the roster is built; the coaling tower is its chute).
+  // Which modules each facility offers (spec D.1: 2–4 per POI once the roster is built; the coaling tower is its chute). The
+  // first is the kind's signature, the one every stop of it has; with "draw" on, the rest are drawn per stop (note 449).
   "kinds": {
     // The conveyor line (note 400) behind the spout: two modules (spec D.1), the spout's lever and the belt's roaming.
     "grainElevator": ["spout", "conveyor"],
@@ -369,6 +370,20 @@
     "mineHead": ["lift", "tipple", "winch", "crates"],
     "chemicalWorks": ["hose", "crates"],
     "militaryDepot": ["crates", "winch"]
+  },
+  // Each stop's own modules (spec D.1: "POIs are procedurally assembled from a module grammar, so no two facilities operate
+  // identically", "2–4 loading modules"; ARCHITECTURE §8 note 449). With "enabled", a stop has its kind's signature (the first
+  // in "kinds") and each of the rest of its kind's list and its "extras" with "chance", from the night's seed and the stop's
+  // place in the night: filled up to the fewest of "count" and cut to the most, in that order (the kind's own first). Off,
+  // every stop has its kind's whole list. A route's own modules (dt edit, T44) are kept either way.
+  "draw": { "enabled": true, "chance": 0.6, "count": [2, 4] },
+  // What a kind can draw beyond its own list, laid out clear of what it already has (note 449): a winch beside the switchyard's
+  // crates and the slaughterhouse's pen, crates beside the wreck yard's heaps. Not the grain elevator (the stack and the sled
+  // run would stand on its conveyor's belt) or the chemical works (the capstan beside the hose stand).
+  "extras": {
+    "switchyard": ["winch"],
+    "slaughterhouse": ["winch"],
+    "wreckYard": ["crates"]
   },
   // What each facility puts in a car (GDD §18-19; App. B.8's modifiers go by it). A car takes the cargo of the last one that
   // loaded it. Not listed: goods.

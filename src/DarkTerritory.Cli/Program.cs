@@ -443,7 +443,13 @@ object FacilityWorkDrill(FacilityKind kind, string[] args)
         found = i >= 0 ? (generated, i) : null;
     }
     else
-        found = DarkTerritory.Sim.Bots.FacilityWork.Find(routeTuning, kind);
+    {
+        // The stop's modules (note 449): the night's draw, or --modules a,b,c pinned, or --all-modules its kind's whole list.
+        IReadOnlyList<DarkTerritory.Sim.Run.ModuleKind>? pinned = Str(args, "--modules", "") is { Length: > 0 } named
+            ? [.. named.Split(',').Select(n => Enum.Parse<DarkTerritory.Sim.Run.ModuleKind>(n.Trim(), ignoreCase: true))]
+            : args.Contains("--all-modules") ? facilities.ModulesOf(kind) : null;
+        found = DarkTerritory.Sim.Bots.FacilityWork.Find(routeTuning, kind, modules: pinned);
+    }
     if (found is not { } at)
         return new { error = $"no route with a {kind} down a spur" };
     // --empty: the cars run in empty (run.json departureLoad 0); --no-crates: none on the platform, so the machinery fills them.
@@ -457,7 +463,7 @@ object FacilityWorkDrill(FacilityKind kind, string[] args)
     {
         route = at.Route.Name,
         facility = r.Facility,
-        modules = facilities.ModulesOf(kind).Select(m => m.ToString()),
+        modules = r.Modules.Select(m => m.ToString()),
         departed = r.Departed,
         seconds = r.Seconds,
         legs = r.Legs,
@@ -1732,6 +1738,19 @@ static object Screenshot(TrainTuning t, string content, string[] args)
             scene.Scattered(hound, Staging.StrikeTick, Opt(args, "--speed", 21));
         }
         scene.Tick = Staging.StrikeTick + (long)Math.Round(Opt(args, "--scattered", 1) * SimConstants.TickRate);
+    }
+    // --retreat kind:s (with a view that stages that kind): the staged ones let go of s seconds ago, going with the train at
+    // --speed (0), down off it and away into the dark (note 458, GreyboxScene.Retreating).
+    if (Str(args, "--retreat", "") is { Length: > 0 } retreat && scene.Enemies is List<DarkTerritory.Sim.Enemies.Enemy> letGo)
+    {
+        var parts = retreat.Split(':');
+        var going = Enum.Parse<DarkTerritory.Sim.Enemies.EnemyKind>(parts[0], ignoreCase: true);
+        foreach (var e in letGo.Where(e => e.Kind == going && !e.Gone).ToList())
+        {
+            letGo.Remove(e);
+            scene.Retreated(e, Staging.StrikeTick, Opt(args, "--speed", 0));
+        }
+        scene.Tick = Staging.StrikeTick + (long)Math.Round((parts.Length > 1 ? double.Parse(parts[1], System.Globalization.CultureInfo.InvariantCulture) : 1) * SimConstants.TickRate);
     }
     // --dispersing s (with --threats): the staged Choir driven off s seconds ago, its ghosts going (GreyboxScene.Leaving).
     if (args.Contains("--dispersing") && scene.Enemies is List<DarkTerritory.Sim.Enemies.Enemy> swarm)

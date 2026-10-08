@@ -191,7 +191,8 @@ public sealed partial class Run
         _facilityTuning = t;
         _sites = [.. _facilities.Select((f, i) =>
         {
-            var modules = t.ModulesOf(f);
+            // Each stop's own, drawn from its kind's (spec D.1, note 449): the host and every client draw the same from the seed.
+            var modules = t.ModulesFor(f, _route.Seed, i);
             if (modules.Count == 0)
                 return null;
             int span = Math.Max(0, t.Crates.Count[1] - t.Crates.Count[0]);

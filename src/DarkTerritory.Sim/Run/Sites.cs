@@ -32,6 +32,45 @@ public sealed record FacilityTuning(CrateTuning Crates, WinchTuning Winch, Dicti
     /// <summary>On a spur, the modules are laid out from this far back from its buffer stop (beside the first cars).</summary>
     public double SpurLayout { get; init; } = 45;
 
+    /// <summary>
+    /// Each stop's own modules (spec D.1: "POIs are procedurally assembled from a module grammar, so no two facilities operate
+    /// identically"; queue #185, note 449): drawn per stop from its kind's (<see cref="ModulesFor"/>). Off, every facility has
+    /// all its kind's, as before.
+    /// </summary>
+    public ModuleDrawTuning Draw { get; init; } = new();
+
+    /// <summary>The modules a kind can draw beyond its own list (note 449): only drawn, never part of the full set.</summary>
+    public Dictionary<string, string[]> Extras { get; init; } = new();
+
+    /// <summary>
+    /// This stop's modules (note 449): a facility the route gives its own (T44) has those; otherwise, with the draw on, its
+    /// kind's first module (its signature: the spout, the crane, the lift) and the rest of its kind's list and its extras each
+    /// with <see cref="ModuleDrawTuning.Chance"/>, from the night's seed and the facility's place in the night, filled up to
+    /// the fewest and cut to the most in that order (the kind's own first); with it off, all its kind's.
+    /// </summary>
+    public IReadOnlyList<ModuleKind> ModulesFor(RouteFeature facility, ulong seed, int index)
+    {
+        var all = ModulesOf(facility);
+        if (!Draw.Enabled || facility.Modules is not null || facility.Facility is not { } kind || all.Count == 0)
+            return all;
+        var offered = all.Skip(1).Concat(Names(Extras, kind).Where(m => !all.Contains(m))).ToList();
+        var rng = new Pcg32(seed ^ 0x4D4F44554C4553UL, (ulong)index * 2 + 1);
+        var drawn = new bool[offered.Count];
+        for (int i = 0; i < offered.Count; i++)
+            drawn[i] = rng.NextDouble() < Draw.Chance;
+        for (int i = 0; i < offered.Count && 1 + drawn.Count(d => d) < Draw.Count[0]; i++)
+            drawn[i] = true;
+        var modules = new List<ModuleKind> { all[0] };
+        for (int i = 0; i < offered.Count && modules.Count < Draw.Count[^1]; i++)
+            if (drawn[i])
+                modules.Add(offered[i]);
+        return modules;
+    }
+
+    static IEnumerable<ModuleKind> Names(Dictionary<string, string[]> byKind, FacilityKind kind) =>
+        byKind.TryGetValue(char.ToLowerInvariant(kind.ToString()[0]) + kind.ToString()[1..], out var names)
+            ? names.Select(n => Enum.Parse<ModuleKind>(n, ignoreCase: true)) : [];
+
     /// <summary>A facility's modules: its own, if the route gives it some (T44), else its kind's.</summary>
     public IReadOnlyList<ModuleKind> ModulesOf(RouteFeature facility) =>
         facility.Modules is { } own ? [.. own.Select(n => Enum.Parse<ModuleKind>(n, ignoreCase: true))]
@@ -51,6 +90,14 @@ public sealed record FacilityTuning(CrateTuning Crates, WinchTuning Winch, Dicti
             ? [.. names.Select(n => Enum.Parse<ModuleKind>(n, ignoreCase: true))]
             : [];
     }
+}
+
+/// <summary>Each stop's own modules (spec D.1; queue #185, note 449). Field docs in facilities.json.</summary>
+public sealed record ModuleDrawTuning
+{
+    public bool Enabled { get; init; }
+    public double Chance { get; init; } = 0.6;
+    public int[] Count { get; init; } = [2, 4];
 }
 
 public sealed record CrateTuning(int[] Count, double LoadPerCrate, double SettleSeconds, double Lateral, double Along)

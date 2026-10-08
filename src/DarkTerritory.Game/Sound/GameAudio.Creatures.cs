@@ -938,7 +938,7 @@ public sealed partial class GameAudio
             {
                 int house = -2 - space; // PlayerMotor.HouseSpace, undone
                 if (train.Walls?.HouseDoors.Where(d => d.House == house).ToList() is { Count: > 0 } doors)
-                    Cue("cs-choir.bang-door", "wood", DoorSound(doors[(int)(_creatureRng.Next() * doors.Count) % doors.Count]), Occlusion(space));
+                    AtADoor(Cue("cs-choir.bang-door", "wood", DoorSound(doors[(int)(_creatureRng.Next() * doors.Count) % doors.Count]), Occlusion(space)));
                 continue;
             }
             var frame = train.Frames[space];

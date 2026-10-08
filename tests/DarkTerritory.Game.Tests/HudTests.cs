@@ -442,7 +442,9 @@ public class HudTests
     {
         // Queue #159 (note 423): at the lever, how far the car in the cradle stands off its mark before the clamp (spec D.3: "a
         // sloppy clamp costs you"), the roll once it's clamped; beside a car off its rails, the wrench that puts it back.
-        var (route, facility) = DarkTerritory.Sim.Bots.FacilityWork.Find(DarkTerritory.Sim.Route.RouteTuning.Load(Content), DarkTerritory.Sim.Route.FacilityKind.MineHead)!.Value;
+        var (route, facility) = DarkTerritory.Sim.Bots.FacilityWork.Find(DarkTerritory.Sim.Route.RouteTuning.Load(Content), DarkTerritory.Sim.Route.FacilityKind.MineHead,
+            // Its whole list: the night's draw (note 449) may have left the tipple out of this one.
+            modules: DataFile.Load<FacilityTuning>(Path.Combine(Content, FacilityTuning.File)).ModulesOf(DarkTerritory.Sim.Route.FacilityKind.MineHead))!.Value;
         var s = new PrototypeSession(Content, route, 4, enemies: false);
         var site = s.World.Run!.Sites[facility]!;
         var t = s.World.Run.FacilityTuning!.Tipple;

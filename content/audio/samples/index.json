@@ -11484,6 +11484,81 @@
   "takes": 1,
   "sha": "7476d6fe21017138"
  },
+ "place-town/gear-oxygen": {
+  "cue": "place-town.gear-oxygen",
+  "surface": null,
+  "picked": "first",
+  "candidates": [
+   {
+    "label": "Breathing in an oxygen cup: the gas hissing thin and steady, the breath hollow in the cup",
+    "key": "cup",
+    "sources": [],
+    "licence": "CC0"
+   }
+  ],
+  "takes": 1,
+  "sha": "022fff4a393ceef6"
+ },
+ "place-town/gear-rebreather": {
+  "cue": "place-town.gear-rebreather",
+  "surface": null,
+  "picked": "first",
+  "candidates": [
+   {
+    "label": "Breathing on a mine-rescue rebreather: the mouthpiece's valves clicking, the rubber bag crinkling",
+    "key": "bag",
+    "sources": [],
+    "licence": "CC0"
+   }
+  ],
+  "takes": 1,
+  "sha": "d3f2801723ccf5d7"
+ },
+ "place-town/gear-respirator": {
+  "cue": "place-town.gear-respirator",
+  "surface": null,
+  "picked": "first",
+  "candidates": [
+   {
+    "label": "Breathing through a rubber respirator: drawn through its filters, the valve flapping out",
+    "key": "valves",
+    "sources": [],
+    "licence": "CC0"
+   }
+  ],
+  "takes": 1,
+  "sha": "34dfffec7e4bd39e"
+ },
+ "place-town/gear-wrap": {
+  "cue": "place-town.gear-wrap",
+  "surface": null,
+  "picked": "first",
+  "candidates": [
+   {
+    "label": "Breathing through a wool wrap with a tin can sewn in: thick and muffled, the can ringing hollow",
+    "key": "can",
+    "sources": [],
+    "licence": "CC0"
+   }
+  ],
+  "takes": 1,
+  "sha": "e1a21b84973bd64e"
+ },
+ "place-town/lantern": {
+  "cue": "place-town.lantern",
+  "surface": null,
+  "picked": "first",
+  "candidates": [
+   {
+    "label": "The watch's lantern swinging as they walk: the bail squeaking in its ears, the glass ticking",
+    "key": "bail",
+    "sources": [],
+    "licence": "CC0"
+   }
+  ],
+  "takes": 1,
+  "sha": "21ddd3861847a79f"
+ },
  "place-town/murmur": {
   "cue": "place-town.murmur",
   "surface": null,
