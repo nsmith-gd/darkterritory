@@ -23,6 +23,7 @@ public class LineGenConfigTests
         ["signage.json"] = typeof(SignageFile),
         ["names.json"] = typeof(NamesFile),
         ["fallback_seeds.json"] = typeof(FallbackSeedsFile),
+        ["footprints.json"] = typeof(FootprintsFile),
     };
 
     [Fact]

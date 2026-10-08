@@ -360,7 +360,7 @@ Some are S-bends (note 359; tiers.json `sBends`, the chance a hard bend is one):
 
 # PART L — THE LINESIDE
 
-What stands beside a generated line between the stops, and what of it you walk into (ARCHITECTURE §8 note 371; GDD App. F.1, "the world is solid").
+What stands beside a generated line between the stops, and what of it you walk into (ARCHITECTURE §8 notes 371 and 389; GDD App. F.1, "the world is solid").
 
 ## L.1 Rules for the generator
 - **The forest comes in stands** (maritime-rules.md §5, "the spruce wall"). Patches are laid in world space, so they don't follow the line round, and have hard edges: a cut, an old field's line, a bog's shore. They cover as much of the land as the biome's tree density says. Outside them there's only the odd tree.
@@ -368,21 +368,24 @@ What stands beside a generated line between the stops, and what of it you walk i
 - **Boulders** are scattered by the biome's roughness, bigger and sunk deeper on a slope.
 - **A telegraph pole** stands every 50 m, 4.5 m right of the line.
 - **Kept off the line's own ground:** a branch's ground on its side; every stop's buildings, roads, tracks and yard throat; an alternate's track; a road's bed and shoulders; and water. Trees and boulders also keep off each stop's whole cleared zone and the inside of a fort: its square, and a walled town's whole extent behind its wall. The poles run on through a fort.
-- **The night's own.** Everything is dealt from the night's seed, one stream per 12 m slot, the same on every machine.
+- **The country road's** (maritime-rules.md §2.2): a pole leaning on its far side every 45 m. Now and then a homestead faces it: the house set back 12–22 m, its woodpile, a barn behind it, and a fence along the front. Now and then a car stands where it stopped on the verge.
+- **The shore's** (§6, §3): two or three fish sheds on stilts at a cove's head, with a wharf run out from them, and a lighthouse out on a headland. The Atlantic adds its granite ledges and weed-black rocks at the tide line, and every shore has boulders along its edge or across a river's bed.
+- **The biome's props by the 150 m block** (biomes.json `props`): its chance, how far out and how many. They are houses, barns, a church, a burying ground, fish sheds, ruins, chimneys, tanks and headframes; erratics and outcrops; stone walls along the line with gaps where they've fallen; an old field grown in with spruce; and an orchard's dead apple trees. A building wants its ground clear as the woods do, and a block either way along.
+- **The night's own.** Everything is dealt from the night's seed, the same on every machine. The woods get a stream per 12 m slot, the road per 45 m cell, the shore per 20 m cell, and each biome prop its own stream in its block.
 
 ## L.2 Solid
 - **Out to 40 m from the line** (run.json `walls.linesideReachM`), each tree is a wall at its trunk, each boulder at its lump (one sunk under a step is walked over), and each pole at its foot.
+- **Each kit piece stands on its footprint**, measured off its own mesh (content/linegen/footprints.json): a house, barn, shed, car, woodpile, ruin, chimney, lighthouse or length of stone wall as the box round it; a church as its nave and tower; a tank round; a headframe on its four legs and its stay, so the ground between them is open; a road's pole or fence post at its foot. A burying ground and a wharf are walked through.
 - **What meets them:** the crew, what's loose at a stop or running beside the train, the Moose's charge, the Whistler's run, cannon balls and bodies.
 - **Past 40 m** the woods are only seen. The stops' ground is cleared further out than that anyway.
 
 ## L.3 Not yet
-- **The rest of the lineside's furniture:**
-  - the road's poles, fences and homesteads;
-  - the biomes' erratics, outcrops, stone walls, orchards and buildings;
-  - the shores' rocks, ledges and sheds;
+- **What's still only seen:**
   - the branches' trees;
-  - the railway's leavings beside the line;
+  - the railway's leavings beside the line (E1's);
+  - a burying ground's stones and fence, and a wharf's deck (it wants a floor to walk out on);
   - a hand-laid line's trees.
+- **A building is its box,** so a porch or a shed's stacked traps fill their corner of it.
 - **The alder, reeds and tufts** stay passable.
 
 ---

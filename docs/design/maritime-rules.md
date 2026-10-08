@@ -41,7 +41,8 @@ What the Maritime railways did, and what the generator now does with it.
   - `lakesPerKm` per biome: barrens 1.4, black forest 1.0, forest edge 0.8, highland 0.8, bog 0.8, coast 0.5.
   - Each lake is an ellipse lying along the ice's flow (the drumlins' `flowDeg`), stretched 1.3-2.6× and wobbled.
   - Its water is 2.2 m under the lowest rail near it, 3.5 m deep, with a shingle shore rising at `shoreSlope`.
-  - Its surface is tannin-dark `water_dark`: near black, glossy, wind ripples in the normal map.
+  - Where the land round it lies lower than its water, a bank holds the water in: at least `rimM` (0.6 m) over it for `rimCrestM` (10 m) past the shore, then falling away at `rimSlope` (ARCHITECTURE §8 note 424).
+  - Its surface is tannin-dark `water_dark`: near black and glossy, drawn to its own shoreline. It ripples and swells in the night's wind and laps at its waterline (note 424).
   - A lake is kept inside the corridor the terrain models, never over another track, a pad, or another lake.
 - **Granite (§3).** This was already there: the knobs landform, `granite_lichen` on the steep, erratics and outcrops.
 - **Red mud and the tide out (§4).**

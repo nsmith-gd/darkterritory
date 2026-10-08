@@ -905,11 +905,12 @@ public sealed partial class GameAudio
             _bangs.Clear();
             return;
         }
+        // A village house shut up is such a space too (note 401's "behind a closed door"; note 409): they beat on its door.
         var shut = new SortedSet<int>();
-        if (_space >= 0)
+        if (_space != PlayerMotor.Outside)
             shut.Add(_space);
         foreach (var (_, s) in CrewStates)
-            if (s.Alive && PlayerMotor.Space(s, train) is >= 0 and var space)
+            if (s.Alive && PlayerMotor.Space(s, train) is not PlayerMotor.Outside and var space)
                 shut.Add(space);
         foreach (int space in shut)
         {
@@ -918,6 +919,13 @@ public sealed partial class GameAudio
             if (_bangs.TryGetValue(space, out double next) && _time < next)
                 continue;
             _bangs[space] = _time + 0.6 + 1.6 * _creatureRng.Next();
+            if (space < 0)
+            {
+                int house = -2 - space; // PlayerMotor.HouseSpace, undone
+                if (train.Walls?.HouseDoors.Where(d => d.House == house).ToList() is { Count: > 0 } doors)
+                    Cue("cs-choir.bang-door", "wood", DoorSound(doors[(int)(_creatureRng.Next() * doors.Count) % doors.Count]), Occlusion(space));
+                continue;
+            }
             var frame = train.Frames[space];
             if (space == 0 && frame.Shape.Cab is { } cab)
             {

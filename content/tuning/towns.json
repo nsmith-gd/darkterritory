@@ -39,8 +39,13 @@
   // gate. The wall stands "margin" past the last row's backs, down both sides, across the front from the gatehouse and
   // across the back "rear" m along from the yard's start (behind it). Linegen levels the ground for it (tiers.json
   // fortress padM). A town whose houses fit the line's street keeps the yard's walls (note 274).
+  // The streets bend (note 353; the director, 8 Oct: "Towns dont feel like they have a natural layout to them"): each
+  // side's swing out and back on one wave "bendWavelength" m long, the first street "bendBase" m and each further out
+  // "bendStep" m more (the rows between them keep their room) up to "bendMax",
+  // straight within "bendClear" m of the square's ends; a house stands "setbackJitter" m further back than the setback.
   "walled": { "first": 34.5, "every": 30, "width": 6, "setback": 3.5, "lot": [13, 17], "laneEvery": [90, 130], "laneWidth": 8,
-    "from": 22, "toGate": 22, "margin": 7, "rear": -8, "maxStreets": 5 },
+    "from": 22, "toGate": 22, "margin": 7, "rear": -8, "maxStreets": 5,
+    "bendBase": 3.0, "bendStep": 0.6, "bendMax": 5.4, "bendWavelength": [220, 320], "bendClear": 30, "setbackJitter": [0, 1.2] },
 
   // The square (GDD §3.1): where the walls step back on the side away from the platform (side -1, left of the way out)
   // for the town's heart, beside the engine as the night starts (run.json departShortOfGateM). fromGate: where it runs
@@ -68,5 +73,12 @@
   "reach": { "talk": 2.6, "read": 2.0, "lookDegrees": 28, "closeBeyond": 4.0 },
   // A line types out at this many characters a second (the radio card's pace), and stays this long once it's out.
   "typePerSecond": 45,
-  "lingerSeconds": 6
+  "lingerSeconds": 6,
+
+  // Their rounds (ARCHITECTURE §8 note 353; the director, 8 Oct 2026: "There needs to be a behaviour loop for all the
+  // NPCs, its weird that so many of them are just standing around doing nothing"): out of doors, everyone's day is
+  // "slots" of "slot" seconds, their own post and somewhere about the square in turn (a bench, a fire barrel, the board,
+  // a stall, the centrepiece, a neighbour), a pacer "pace" m either way of their post; at home, a household goes round
+  // its rooms' places, "homeSlot" seconds at each. They walk between at "walk" m/s, and stop for whoever talks to them.
+  "rounds": { "slot": 45, "slots": 4, "homeSlot": 38, "walk": 1.2, "pace": 3.5, "street": [10, 24] }
 }

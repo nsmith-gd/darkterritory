@@ -69,19 +69,62 @@ public static class Staging
         var hall = plan.Buildings.First(b => b.Kind == "hall");
         // A walled town (queue #74): from over the gate looking back over its roofs, down its first street, and from
         // outside the gate as the train leaves, its front wall either side of the gatehouse.
-        if (plan.Bounds is { } wall && where is "over" or "lane" or "outside")
+        if (plan.Bounds is { } wall && where is "over" or "lane" or "outside" or "watch" or "bend")
         {
             var st = wall.Streets.OrderBy(x => Math.Abs(x.D)).ThenBy(x => x.D).First();
             return where switch
             {
                 "over" => Ballast.Render.Camera.LookAt(town.World(wall.Gate + 40, 0, 70), town.World(wall.Gate - 260, 0, 0), 70),
                 "outside" => Ballast.Render.Camera.LookAt(town.World(wall.Gate + 90, wall.Right * 0.35, 4), town.World(wall.Gate, -wall.Left * 0.3, 6), 75),
+                // Below the wall, inside it, up at one of the watch on its walk (from a street, the houses' roofs hide it).
+                "watch" when Art.WorldArt.Watch(town, wall.Gate, 0.37).Select(g => g.Feet).OrderBy(f => (f - town.World(mid, wall.Right)).Length).ToList() is { Count: > 0 } guards
+                    => guards[0] is var g && town.Direction(mid, 1, 0) is var along && town.Direction(mid, 0, 1) is var across
+                        ? Ballast.Render.Camera.LookAt(g - Double3.Up * (Sim.Run.Fortresses.WallWalk - 1.7) - across * (Math.Sign(across.X * (g - town.World(mid, 0)).X + across.Z * (g - town.World(mid, 0)).Z) * 6) + along * 34, g + Double3.Up * 1.1, 40) : default,
+                // Down the second street, far from the square, where it bends (note 353).
+                "bend" when wall.Streets.Where(x => Math.Sign(x.D) == side).OrderBy(x => Math.Abs(x.D)).Skip(1).FirstOrDefault() is { } far
+                    => Ballast.Render.Camera.LookAt(town.World(sq.S0 - 160, far.At(sq.S0 - 160), 2.2), town.World(sq.S0 - 260, far.At(sq.S0 - 260), 1.4), 70),
                 _ => Ballast.Render.Camera.LookAt(town.World(mid + 30, st.D, 1.7), town.World(mid - 40, st.D, 1.6), 72),
             };
         }
+        // A walled town's green and its walls (note 353): over the green from the square's side of the street, at its statue,
+        // its wall of names, and down the first street to the day painted on the back wall.
+        if (plan.Green is { } green && where is "green" or "statue" or "memorial" or "mural" or "garden")
+        {
+            double gs = (green.S0 + green.S1) / 2, near = side * green.Near, far = side * green.Far, gd = (near + far) / 2;
+            var statue = plan.Fixtures.FirstOrDefault(f => f.Kind == "statue");
+            var names = plan.Fixtures.FirstOrDefault(f => f.Kind == "memorial");
+            var mural = plan.Fixtures.FirstOrDefault(f => f.Kind == "mural");
+            var garden = plan.Fixtures.FirstOrDefault(f => f.Kind == "garden");
+            return where switch
+            {
+                "statue" when statue is not null => Ballast.Render.Camera.LookAt(town.World(statue.S - 3.5, statue.D - side * 4.5, 1.7), town.World(statue.S, statue.D, 2.6), 60),
+                "memorial" when names is not null => Ballast.Render.Camera.LookAt(town.World(names.S - 3, names.D - side * 5, 1.7), town.World(names.S, names.D, 1.2), 65),
+                "garden" when garden is not null => Ballast.Render.Camera.LookAt(town.World(garden.S - 3, garden.D - side * 3.5, 1.8), town.World(garden.S, garden.D, 0.5), 65),
+                "mural" when mural is not null => Ballast.Render.Camera.LookAt(town.World(mural.S + 26, mural.D + side * 1.5, 1.7), town.World(mural.S, mural.D, 2.6), 60),
+                _ => Ballast.Render.Camera.LookAt(town.World(green.S0 - 6, near - side * 2, 4.5), town.World(gs + 6, gd, 0.5), 72),
+            };
+        }
+        // A walled town's yards (note 335): behind a house with things in its yard, and out on a street at a picket fence.
+        if (where is "yard" or "fence" or "yardtop")
+        {
+            var pick = where == "yard"
+                ? plan.Houses.Where(h => h.Yard.Count(y => y.Kind is not (Sim.Towns.YardKind.Picket or Sim.Towns.YardKind.Boards)) >= 2).OrderByDescending(h => h.Yard.Count).FirstOrDefault()
+                : plan.Houses.FirstOrDefault(h => h.Yard.Any(y => y.Kind == Sim.Towns.YardKind.Picket) && h.Kind == Sim.Towns.HouseKind.Lived);
+            if (pick is not null)
+            {
+                Double3 At(double u, double v, double up) => pick.Rail(u, v) is var (s, d) ? town.World(s, d, up) : default;
+                double back = pick.Yard.Where(y => y.Kind is not (Sim.Towns.YardKind.Picket or Sim.Towns.YardKind.Boards)).Select(y => y.V1).DefaultIfEmpty(pick.Depth + 3).Max();
+                return where switch
+                {
+                    "yard" => Ballast.Render.Camera.LookAt(At(-pick.Width / 2 - 1.5, pick.Depth + 0.6, 2.4), At(1.5, back - 0.6, 0.6), 78),
+                    "yardtop" => Ballast.Render.Camera.LookAt(At(pick.Width / 2 + 3, back + 5, 6), At(-1, pick.Depth + 1.2, 0.3), 72),
+                    _ => Ballast.Render.Camera.LookAt(At(9, -6.5, 1.7), At(-1, -2.5, 1.0), 72),
+                };
+            }
+        }
         // The houses (note 281): the first open one, its front, its kitchen from the door, its parlour through the partition.
         var home = plan.Houses.FirstOrDefault(h => h.Layout is not null) ?? plan.Houses.FirstOrDefault();
-        if (home is not null && where is "houses" or "house" or "kitchen" or "parlour")
+        if (home is not null && where is "houses" or "house" or "kitchen" or "parlour" or "sitter" or "range" or "armchair")
         {
             var l = home.Layout;
             int k = l?.Kitchen ?? 1;
@@ -93,6 +136,11 @@ public static class Staging
                 "houses" => Ballast.Render.Camera.LookAt(town.World(home.S + 12, home.Side * 4.2, 1.8), town.World(home.S - 26, home.Side * 9.5, 2.8), 70),
                 "house" => Ballast.Render.Camera.LookAt(At(du + 5.5, -3.6, 1.7), At(0, 0, 2.7), 75),
                 "kitchen" => Ballast.Render.Camera.LookAt(At(du - k * 0.1, 0.35, 1.65), At(k * w / 2, home.Depth - 0.6, 0.9), 75),
+                // The household's poses close to (note 353): whoever's at the table from the side, at the range from behind
+                // their shoulder, in the parlour's chair from the partition.
+                "sitter" => Ballast.Render.Camera.LookAt(At(k * 0.35, Sim.Towns.HouseLayout.TableV(home.Depth) + 0.6, 1.25), At(k * w / 4, Sim.Towns.HouseLayout.TableV(home.Depth) + 0.6, 0.65), 70),
+                "range" => Ballast.Render.Camera.LookAt(At(k * (w / 2 - 0.35), home.Depth - 3.2, 1.3), At(k * (w / 2 - 1.0), home.Depth - 1.1, 0.45), 70),
+                "armchair" => Ballast.Render.Camera.LookAt(At(-k * 0.35, home.Depth * 0.4 - 0.4, 1.25), At(-k * w / 4, home.Depth * 0.4, 0.65), 70),
                 _ => Ballast.Render.Camera.LookAt(At(k * 1.0, pv - 0.4, 1.65), At(-k * w / 2, pv + 0.9, 1.1), 75),
             };
         }
@@ -1195,6 +1243,9 @@ public static class Staging
         marks.Punish(world, 46, "CarHugger", 2, Sim.Player.PlayerMotor.WorldPosition(roof, train), crew);
         log.Add(Sim.Run.IncidentLog.Death(world, 2, roof with { Death = Sim.Player.DeathCause.Eaten }, null, crew));
         log.Add(new Sim.Run.Incident(Sim.Run.IncidentKind.Rescue, 900, 2, "Freed from the Holdout", "at Hollin Halt", 0, "Broken out by {actor}."));
+        // Note 416: a line of each ink, what the night took and what the crew did well beside the deaths.
+        log.Add(new Sim.Run.Incident(Sim.Run.IncidentKind.Fire, 940, -1, "Fire Flies set car 3 alight", "at km 11", 3, "Lamp lit by {actor}."));
+        log.Add(new Sim.Run.Incident(Sim.Run.IncidentKind.Slain, 980, -1, "Killed the Gaunt together", "beside car 2 at km 12", 0, "By Dave, Dunmore."));
         At(1012);
         log.Add(Sim.Run.IncidentLog.Death(world, 3, line with { Death = Sim.Player.DeathCause.Cold }, null, crew));
         At(1104);
@@ -1284,10 +1335,26 @@ public static class Staging
     /// in front of the engine in the headlamp's beam: the furthest still howling off to the flank, the next coming in, the
     /// nearest crossing the line.
     /// </remarks>
-    public static List<Enemy> Run(TrainOnLine train, bool ahead = false)
+    public static List<Enemy> Run(TrainOnLine train, bool ahead = false, bool flank = false)
     {
         double rear = train.Dynamics.RearDistance;
         var runners = new List<Enemy>();
+        // The flank lanes (note 418; dt screenshot --run-flank --view run): three pairs coming in from the open country abeam
+        // the guard van, the furthest still howling out there, the nearest at the car's side.
+        if (flank)
+        {
+            (double Out, SpinePhase Phase)[] lane = [(9, SpinePhase.Commit), (30, SpinePhase.Commit), (62, SpinePhase.Telegraph)];
+            int f = 60;
+            foreach (var (o, phase) in lane)
+                for (int k = 0; k < 2; k++)
+                {
+                    var hound = new CinderHound(f, 60) { Runner = true, Flank = true };
+                    hound.Restore(phase, 1.5 + k * 0.4, 3, -1, default, rear + 4 - k * 3, -(o + k * 3), 0.6, 60, 0);
+                    runners.Add(hound);
+                    f++;
+                }
+            return runners;
+        }
         if (ahead)
         {
             double front = train.Dynamics.Distance;

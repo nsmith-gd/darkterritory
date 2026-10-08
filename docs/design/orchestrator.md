@@ -199,7 +199,11 @@ walkers and riders, which is what gives everyone something to answer at once.
    ahead and 12-16 m out to a flank, the pair howls in the lamp, then runs in to meet the train, across the line to its
    far side, and leaps aboard the first car behind the engine as it comes alongside. The forward gun has about seven
    seconds on them at 21 m/s (its range, 220 m, in to the stack's mask). A crew of four or more meets one pair ahead in
-   each run. Not built: lanes on the flanks from the open country's sides, and other runners than hounds, each by its own rule.
+   each run. **The flank lanes are built too (note 418, queue #154):** every third pair comes in from the open country
+   (not the forests) abeam the guard van's gun, 70 m out, keeping pace, and in to the car alongside. A gun traverses only
+   100° either side of its facing, so abeam its own car is the flank it has; abeam the middle of the train, neither gun
+   reaches, and that stays the walkers'. A crew of eight meets a pair behind, one ahead and one from the flank in each run.
+   Not built: other runners than hounds, each by its own rule.
 
 ## 6. The first piece, and what's next
 
@@ -226,7 +230,8 @@ the line (`HoundRunTests`). A bot crew hauls at cruise (14 m/s), and the boards 
 4. **Slack and posts** (§3.1, §3.2 2, 4): the census and who's next. **Built (note 345, queue #82).**
 5. **Climbers at speed** (S2): only if the director wants it over note 286's grip; tuning and a sweep.
 6. **The kites** (S3): a new creature, after the director's yes.
-7. **The lane ahead** (§5.3 6), for the forward gun: **built (note 405, queue #141).**
+7. **The lane ahead** (§5.3 6), for the forward gun: **built (note 405, queue #141).** A bot crew of six or more puts its last place on the forward gun (note 414, queue #150).
+8. **The flank lanes** (§5.3 6), for the guard van's gun: **built (note 418, queue #154).**
 
 ## 7. What changes in the existing director
 

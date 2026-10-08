@@ -117,7 +117,7 @@ public class HudTests
         // At the controls looking at nothing (note 285): nothing at the crosshair; driving them is the corner's.
         s.Player = PlayerMotor.SpawnInCab(train, s.PlayerTuning);
         Assert.Null(Hud.Prompt(s));
-        Assert.Equal(s.Train.BoilerTuning?.SteamDrive == true ? "RELEASE BRAKE : [R]" : "REGULATOR : [R/F]", Hud.Hints(s).Lines[0]);
+        Assert.Equal(s.Train.BoilerTuning?.SteamDrive == true ? "RELEASE BRAKE : [R]" : "REGULATOR UP : [R]", Hud.Hints(s).Lines[0]);
         s.Player = s.Player with { Health = 0, Death = DeathCause.Cold };
         Assert.Null(Hud.Prompt(s));
         Assert.Null(Hud.Hints(s).Head);
@@ -404,6 +404,37 @@ public class HudTests
         s.Player = PlayerMotor.SpawnInCab(s.Train, s.PlayerTuning);
         s.Train.Boiler.Vented = true;
         Assert.Equal("STEAM TO THE LIFT", Hud.Prompt(s));
+    }
+
+    [Fact]
+    public void AtTheConveyorThePromptsSayStartItClearTheJamAndWhereTheJamIs()
+    {
+        // Queue #136 (note 400): the drive house's starter, a jam beside you, and along the belt where the jam is or that it's
+        // stalled (spec D.3: "someone has to roam").
+        var (route, facility) = DarkTerritory.Sim.Bots.FacilityWork.Find(DarkTerritory.Sim.Route.RouteTuning.Load(Content), DarkTerritory.Sim.Route.FacilityKind.GrainElevator)!.Value;
+        var s = new PrototypeSession(Content, route, 4, enemies: false);
+        var site = s.World.Run!.Sites[facility]!;
+        var c = s.World.Run.FacilityTuning!.Conveyor;
+        PlayerState At(Double3 p) => PlayerMotor.SpawnOnGround(p, s.Train.Line, site.MainDistance, s.PlayerTuning);
+        s.Player = At(site.ConveyorStarter - Double3.Up * 0.9);
+        Assert.Equal("START THE BELT : HOLD [E]", Hud.Prompt(s));
+        site.Mirror(site.State with { Start = c.StartSeconds / 2 });
+        Assert.Equal("STARTING THE BELT (50%)", Hud.Prompt(s));
+        // Running and jammed halfway along its low run: beside the jam, clearing it.
+        site.Mirror(site.State with { Start = 0, Running = true, Jam = 0.5 });
+        var toTrack = ((site.ConveyorKnee - site.ConveyorTail) with { Y = 0 }).Normalized;
+        var across = new Double3(-toTrack.Z, 0, toTrack.X);
+        s.Player = At(site.JamAt - Double3.Up * c.BeltHeight + across * 0.6);
+        Assert.Equal("BELT JAMMED : HOLD [E]", Hud.Prompt(s));
+        site.Mirror(site.State with { Clear = c.ClearSeconds / 2 });
+        Assert.Equal("CLEARING THE JAM (50%)", Hud.Prompt(s));
+        // Down at the knee, out of reach of it: how far off it is.
+        s.Player = At(site.ConveyorKnee - Double3.Up * c.BeltHeight);
+        double away = ((site.JamAt - PlayerMotor.WorldPosition(s.Player, s.Train)) with { Y = 0 }).Length;
+        Assert.Equal($"THE BELT'S JAMMED, {away:0} M AWAY", Hud.Prompt(s));
+        // Stalled with grain still to carry: back to the drive house.
+        site.Mirror(site.State with { Running = false, Jam = -1, Clear = 0, Grain = c.Grain - 0.5 });
+        Assert.Equal("THE BELT'S STALLED : START IT AT THE DRIVE HOUSE", Hud.Prompt(s));
     }
 
     [Fact]

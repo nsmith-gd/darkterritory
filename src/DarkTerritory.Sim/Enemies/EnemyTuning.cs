@@ -823,6 +823,21 @@ public sealed record HoundRunTuning
     /// <summary>Running in to meet the train (m/s, against it), across the line to this far out on the other side (m).</summary>
     public double AheadSpeed { get; init; } = 3;
     public double AheadCross { get; init; } = 3;
+    /// <summary>
+    /// The flank lanes (note 418, orchestrator.md §5.3 6): every this many pairs, the last of them comes in from the open country
+    /// abeam the guard van's gun (0: none; 1: every pair), to a train whose last car has its gun. Only where the line's biome is one of <see cref="FlankBiomes"/>
+    /// (any, on a line with no plan) and the land's open <see cref="FlankOut"/> m out (not a tunnel's bore or a bridge's deck).
+    /// </summary>
+    public int FlankEvery { get; init; } = 3;
+    /// <summary>
+    /// How far out to the side a flank pair is put down (m), how far ahead of the train's rear end (abeam the guard van's gun,
+    /// the flank its arc has), and how fast it runs in across the open ground (m/s, keeping pace).
+    /// </summary>
+    public double FlankOut { get; init; } = 70;
+    public double FlankAbeam { get; init; } = 4;
+    public double FlankSpeed { get; init; } = 6;
+    /// <summary>The open country (linegen biomes.json's few-treed ones).</summary>
+    public string[] FlankBiomes { get; init; } = [];
 }
 
 /// <summary>
