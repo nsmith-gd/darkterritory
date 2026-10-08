@@ -571,8 +571,10 @@ public sealed partial class GameAudio
             }
         }
 
-        // Near their buildings: the slaughterhouse inside (and its hooks and chains), the chemical works leaking and dripping.
-        foreach (var (kind, at) in places.Works.Where(w => w.Kind is FacilityKind.Slaughterhouse or FacilityKind.ChemicalWorks).OrderBy(w => (w.At - ear).Length).Take(1))
+        // Near their buildings: the slaughterhouse inside (and its hooks and chains), the chemical works leaking and dripping,
+        // the foundry's furnace burning in its casting shed with nobody to tend it (note 425).
+        foreach (var (kind, at) in places.Works.Where(w => w.Kind is FacilityKind.Slaughterhouse or FacilityKind.ChemicalWorks or FacilityKind.Foundry)
+            .OrderBy(w => (w.At - ear).Length).Take(1))
         {
             double far = (at - ear).Length;
             if (kind == FacilityKind.Slaughterhouse && far < 70)
@@ -580,6 +582,13 @@ public sealed partial class GameAudio
                 HoldLevel("place-slaughterhouse.inside", 0, at + Double3.Up * 2, 0.5f, 1);
                 if (Sometimes(0.15, dt))
                     Cue("place-slaughterhouse.hook-chain", at + Double3.Up * 3, 0.5f, (float)(0.5 + 0.5 * OutsideOdds()));
+            }
+            if (kind == FacilityKind.Foundry && far < 90)
+            {
+                // The cupola up through the shed's roof (C1's note 420), and now and then its charge slumping in the shaft.
+                HoldLevel("place-foundry.furnace", 0, at + Double3.Up * 6, outside, 1);
+                if (Sometimes(1 / 40.0, dt))
+                    Cue("place-foundry.slump", at + Double3.Up * 9, outside, (float)(0.7 + 0.3 * OutsideOdds()));
             }
             if (kind == FacilityKind.ChemicalWorks && far < 90)
             {

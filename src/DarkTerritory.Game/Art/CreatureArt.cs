@@ -762,6 +762,51 @@ public sealed class CreatureArt
         return true;
     }
 
+    /// <summary>
+    /// Appends <paramref name="piece"/>, made in the figure's bind pose (model space), riding <paramref name="bone"/> of the
+    /// figure last drawn as <paramref name="figure"/> at <paramref name="model"/>: a townsperson's mask on their head, their
+    /// bottle on their back (note 353). False when that figure or bone isn't built.
+    /// </summary>
+    public bool Wear(MeshBuilder mesh, MeshAsset piece, string bone, in Matrix4x4 model, string figure = "crew")
+    {
+        if (!_models.TryGetValue(figure, out var m) || m.Model.Skeleton.IndexOf(bone) is var b && b < 0)
+            return false;
+        mesh.Append(piece, m.Pose.Skin[b] * model);
+        return true;
+    }
+
+    /// <summary>Where <paramref name="bind"/> (a point of the figure's bind pose, carried by <paramref name="bone"/>) is on the
+    /// figure last drawn as <paramref name="figure"/> at <paramref name="model"/>: a hose's ends, one on the head and one on the back.</summary>
+    public Vector3 Posed(string bone, Vector3 bind, in Matrix4x4 model, string figure = "crew") =>
+        _models.TryGetValue(figure, out var m) && m.Model.Skeleton.IndexOf(bone) is var b && b >= 0
+            ? Vector3.Transform(bind, m.Pose.Skin[b] * model) : Vector3.Transform(bind, model);
+
+    readonly Dictionary<(string, string), float> _feetOver = [];
+
+    /// <summary>
+    /// How far a clip's feet stand off the floor at its start (m, the lowest foot or ball joint over <see cref="Planted"/>):
+    /// what a figure set down on its feet is lowered by. crew_clips.py plants most clips' feet on the floor, but not
+    /// crouch_idle's, which is drawn ~0.5 m up (a town's resident crouched at the range, note 353).
+    /// </summary>
+    public float FeetOver(string name, string clip)
+    {
+        if (_feetOver.TryGetValue((name, clip), out float over))
+            return over;
+        if (_models.TryGetValue(name, out var m) && m.Model.Clips.TryGetValue(clip, out var c))
+        {
+            _skinner.Evaluate(m.Model, c, 0, true, m.Pose);
+            float low = float.MaxValue;
+            foreach (string bone in (string[])["foot_l", "foot_r", "ball_l", "ball_r"])
+                if (m.Model.Skeleton.IndexOf(bone) is var b && b >= 0)
+                    low = Math.Min(low, m.Pose.World[b].Translation.Y);
+            over = low < float.MaxValue ? Math.Max(0, low - Planted) : 0;
+        }
+        return _feetOver[(name, clip)] = over;
+    }
+
+    /// <summary>The ball joints' height over the floor standing (the idle's: the sole under them).</summary>
+    const float Planted = 0.03f;
+
     void Hung(MeshBuilder mesh, Entry m, MeshAsset hanging, in Matrix4x4 model)
     {
         var fist = Skinner.Socket(m.Model, m.Pose, "hand_r_weapon", model).Translation;

@@ -174,6 +174,27 @@ The towns are where the world is built. They tell the story of what happened and
 
 Each town has a character too: a fishing cove of shingled gable-fronts, an old town of painted bumps, a loyalist row on the water, a farm town of capes and ells, a company town of one double house in many paints, or a town of all sorts.
 
+**Every house has its yard.** On a street, a picket fence along the front with its gate at the door; a board fence at the back; and behind the house what a yard keeps: the woodpile under a sheet of roofing, a shed, the privy, lobster traps, a dory turned over on its blocks, a rain barrel, the washing pegged out and left out after dark. A cove's yards are traps and dories, a farm town's woodpiles and sheds, a company row's the same fence and privy at every house. You go in by the gate, and the fences stop you.
+
+**A town that's lived in.** Smoke rises from the chimneys of the houses people live in, and the watch walk the wall with their lanterns, up and back between the towers all night.
+
+**The air is foul, and they have masks of their own** (the director, 8 Oct; queue #90, note 353). Townsfolk are never in the crew's mask. They breathe through what their town has: a rubber half-mask with two filter cans, an amber oxygen cup on a hose from a green bottle slung on the back, a mine-rescue rebreather with its bag on the chest, or a wool wrap with a tin can sewn into it. A company town issues one mask to everyone; a fishing cove makes its own. At home, half of them have the mask hung on the chest. Out of doors they wear sou'westers, toques, flat caps and headscarves.
+
+**Everyone has a round.** Nobody stands about all night:
+- Out of doors, the square's people leave their posts in turn: to sit on a bench, warm their hands at a fire barrel, read the board or the laws, see to a stall, mend at a crate, stand a while at the centrepiece or the wall of names, or have a word with somebody at their post.
+- The gate's people pace the gate. The lamp-carriers walk their street to a neighbour's door. The lampman walks the line.
+- At home, a household goes round its rooms (the range, the table, the parlour chair, the window, the stair, the door) and through the partition's doorway, never two in one place.
+- Whoever you talk to stops for you, and goes on after.
+
+**What a walled-in people put up to make it bearable.** A walled town has a green across the street from its square: grass, gravel paths, lamps, and on it:
+- a statue (the Founder with his palm out, the Lamplighter with a real lamp in her stone one, a child looking up at where the sun would be, a railwayman turned to face away from the gate);
+- the wall of names of those who went out, with a row of blank slates already mounted;
+- a bandstand with a sky painted under its roof;
+- gardens grown under lamps (and one of tin flowers, watered anyway);
+- tin trees with painted leaves, and the old elm hung with paper ones.
+
+The council's laws are posted by the clerk's door, and the town's flag flies in the square. On the inside of the back wall, at the end of each first street, someone has painted the day: a sunrise over the sea, a window open on a field, a sky that runs from morning to evening along the wall. Its people say what living inside has made of them, always sideways.
+
 **People.** Text only, no voices, as many as the town is big:
 - the gatekeeper says the town's law first;
 - the keeper of the custom's building and the folk round the centrepiece talk about the custom;
@@ -2273,7 +2294,7 @@ Agents can't tell whether it's funny, but they can tell whether everyone was on 
 - Heat and pressure both fell and the train held its top speed. *Done (note 319, #243): an engine short of steam holds the train back below the working band (`boiler.json` `starvedDecel`).*
 
 **Towns and world building**
-- Still waiting on the towns from the world-building chat: the fortresses feel static and lame, with not enough world building in them. *In progress (B2, queue #10 and #74, #194; walled towns of up to 3000 next).*
+- Still waiting on the towns from the world-building chat: the fortresses feel static and lame, with not enough world building in them. *In progress (B2): queue #10 landed in #194; queue #74, walled towns of up to 3000, in #267; queue #90 next: townsfolk in their own breathing gear, a round for everyone, a green with its statue, its names and its gardens, the laws posted, the day painted on the walls.*
 - The world's set dressing repeats: "the same three things over and over again". More art assets to dress the world. *Open (queue #64, note 325, E1).*
 
 **Level design**
@@ -2408,7 +2429,7 @@ Further decisions (the director, 6 Oct 2026):
 - *Towns of 20 to 350 people.*
 - Later the same day, with photographs of Maritime houses (a Cape Breton cedar-shingled studio with a gable window and blue barn shutters; Peggy's Cove, painted houses on the granite above the fish sheds and the wharf; a Lunenburg house in periwinkle clapboard with coral trim and a bump; Shelburne's waterfront row in red, blue, ochre and weathered shingle under a church cupola; Blue Rocks' shingled fish shacks on cribwork): *"Village houses should feel like these, they should have lots of variations so it doesn't feel like the same 10 assets recycled across towns over and over again."*
 - *"Towns can go up to 3000, and fortresses aren't just some straight line around the railroad: they should surround towns. Towns should be explorable. This is our big worldbuilding work that makes it feel interesting and exciting to go around."* (Queue #74, walled towns, note 335; *built for review: "The wall goes round the town" above.*)
-- The director, 8 Oct, with two shots of an open house's residents: *"We need townsfolk models who wear some sort of respirator mask or oxygen mask or other breathing apparatuses to indicate the air is foul. Note some of the animation positions are off. Towns don't feel like they have a natural layout to them. There needs to be a behaviour loop for all the NPCs, it's weird that so many of them are just standing around doing nothing. These towns need layouts, parks, signs of governance, signs of culture, statues, things that tell the story of a people walled in for fear of the outside world and what becomes of those who rarely leave the walls. They'd be trying to find ways of making the world feel tolerable."* (Queue #90, note 353: claimed, B2.)
+- The director, 8 Oct, with two shots of an open house's residents: *"We need townsfolk models who wear some sort of respirator mask or oxygen mask or other breathing apparatuses to indicate the air is foul. Note some of the animation positions are off. Towns don't feel like they have a natural layout to them. There needs to be a behaviour loop for all the NPCs, it's weird that so many of them are just standing around doing nothing. These towns need layouts, parks, signs of governance, signs of culture, statues, things that tell the story of a people walled in for fear of the outside world and what becomes of those who rarely leave the walls. They'd be trying to find ways of making the world feel tolerable."* (Queue #90, note 353; *built for review: "The air is foul", "Everyone has a round" and "What a walled-in people put up" above.*)
 
 **Decided** (the director, 6 Oct 2026, later the same day):
 - **The Track Doll escalates if ignored.** She's no problem at first: she haunts, plays with and admires things in the car. Left alone, she moves on to the controls, and in the end she can let a standing train off its brake. It's a consequence of the crew's inattention and of not getting her off the train, never sudden. *Done (note 268).*

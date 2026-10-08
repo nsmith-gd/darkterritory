@@ -2347,19 +2347,35 @@ public sealed class GreyboxScene
     /// <param name="drab">How much darker than the crew they're dressed (a town's people, near and talked to, are lighter).</param>
     /// <param name="pose">How they're standing (a town's people, note 281): "idle", "seated" (at a table, in a chair),
     /// "crouch" (at the range), "lantern" (out in the street with a lamp, lit).</param>
-    void Folk(MeshBuilder mesh, Double3 eye, Double3 feet, Double3 facing, int variant, float drab = 0.45f, string pose = "idle")
+    /// <param name="gear">A town's person (note 353): what they breathe through (<see cref="Sim.Towns.TownGear"/>), worn on the
+    /// survivors' bare-headed figure, never the crew's masked one; null for note 107's folk in the crew's own.</param>
+    /// <param name="home">At home in an open house: some have the mask down on the chest.</param>
+    /// <param name="lamp">A town's person carrying a lit hand lamp (out in the street at night).</param>
+    void Folk(MeshBuilder mesh, Double3 eye, Double3 feet, Double3 facing, int variant, float drab = 0.45f, string pose = "idle",
+        string? gear = null, bool home = false, int who = 0, bool lamp = false)
     {
-        var back = -ToF(facing);
-        var right = Vector3.Cross(Vector3.UnitY, back);
-        var m = Art.CreatureArt.Basis(V(feet, eye), right, Vector3.UnitY, back);
         drab += variant % 3 * 0.05f;
-        string clip = pose switch { "seated" => "gunner", "crouch" => "crouch_idle", "lantern" => "lantern", _ => "idle" };
+        string clip = gear is null
+            ? pose switch { "seated" => "gunner", "crouch" => "crouch_idle", "lantern" => "lantern", "walk" => "lantern_walk", _ => "idle" }
+            : Art.TownsfolkKit.Clip(pose, lamp, who);
         var creatures = Look!.Art.Creatures;
-        if (!creatures.Draw(mesh, "crew", clip, Time + variant * 0.73, true, m, variant, seed: variant * 13,
-            adjust: (_, l) => l with { Colour = l.Colour * new Vector3(drab, drab * 0.95f, drab * 0.9f) }))
-            return;
+        string figure = "crew";
+        Matrix4x4 m;
+        // A town's people are the survivors' figure, bare-headed, with what they breathe through (note 353), set down on
+        // their feet (the director's 8 Oct shots: a resident crouched in the air by the range).
+        if (gear is not null && Look.Art.Townsfolk.Person(creatures, mesh, V(feet, eye), ToF(facing), clip, pose == "seated", gear, home, variant, who,
+            Time + variant * 0.73, drab) is { } drawn)
+            (figure, m) = drawn;
+        else
+        {
+            var back = -ToF(facing);
+            m = Art.CreatureArt.Basis(V(feet, eye), Vector3.Cross(Vector3.UnitY, back), Vector3.UnitY, back);
+            if (!creatures.Draw(mesh, "crew", clip, Time + variant * 0.73, true, m, variant, seed: variant * 13,
+                adjust: (_, l) => l with { Colour = l.Colour * new Vector3(drab, drab * 0.95f, drab * 0.9f) }))
+                return;
+        }
         // The street's lamp-carriers: the hand lamp hung from the fist, burning.
-        if (pose == "lantern" && Art.PropArt.Of(Look).Get("hand_lantern") is { } lamp && creatures.Hang(mesh, lamp, m))
+        if ((gear is null ? pose is "lantern" or "walk" : lamp) && Art.PropArt.Of(Look).Get("hand_lantern") is { } lantern && creatures.Hang(mesh, lantern, m, figure))
         {
             var flame = creatures.LastHanging;
             mesh.PointLights.Add(new PointLight(flame, Palette.LampAmber * 1.2f, 6));
@@ -2378,17 +2394,50 @@ public sealed class GreyboxScene
             if (town is not null)
             {
                 Look.Art.World.Square(mesh, line, eye, town, from, to);
+                Look.Art.World.Civic(mesh, line, eye, town, from, to);
                 Look.Art.World.Houses(mesh, line, eye, town, from, to);
                 Look.Art.World.Streets(mesh, line, eye, town, from, to);
+                // A town that's lived in (App. F.3, the director: the fortresses feel static): smoke from its chimneys, and
+                // its watch walking the wall with their lanterns.
+                foreach (var top in Look.Art.World.Chimneys(line, eye, town, 160))
+                    Look.Art.Effects.Chimney(mesh, top, Time, (int)(top.X * 7 + top.Z * 13));
+                foreach (var (feet, facing, variant) in Art.WorldArt.Watch(town, gateAt, Time))
+                    if ((feet - eye).Length < 260)
+                        Folk(mesh, eye, feet, facing, variant, drab: 0.6f, "walk", gear: "respirator", who: variant, lamp: true);
+                // The statue on the green (note 353): the survivors' figure, frozen in its pose on the plinth, cast in bronze or
+                // cut in stone; the Lamplighter's lamp lit.
+                foreach (var f in town.Plan.Fixtures.Where(f => f.Kind == "statue"))
+                {
+                    var at = town.World(f.S, f.D, Art.CivicKit.PlinthTop);
+                    if ((at - eye).Length > 160)
+                        continue;
+                    var (clip, scale, away, stone) = Art.CivicKit.StatueClip(Art.CivicKit.Variant(f.Kind, f.Name));
+                    var face = ToF(town.Direction(f.S, f.FaceS, f.FaceD)) * (away ? -1 : 1);
+                    var back = -face * scale;
+                    var right = Vector3.Cross(Vector3.UnitY, -face) * scale;
+                    var m = Art.CreatureArt.Basis(V(at, eye), right, Vector3.UnitY * scale, back);
+                    var cast = stone ? new Vector3(0.42f, 0.41f, 0.38f) : new Vector3(0.24f, 0.18f, 0.1f);
+                    Look.Art.Creatures.Draw(mesh, "survivor_prisoner", clip, 0, false, m, 0,
+                        adjust: (_, l) => l with { Layer = -1, Colour = cast, Emissive = 0, Shine = stone ? 0.05f : 0.75f, Wear = 0.6f });
+                    if (clip == "lantern" && Art.PropArt.Of(Look).Get("hand_lantern") is { } held && Look.Art.Creatures.Hang(mesh, held, m, "survivor_prisoner"))
+                        mesh.PointLights.Add(new PointLight(Look.Art.Creatures.LastHanging, Palette.LampAmber * 1.4f, 8));
+                }
                 foreach (var p in town.Plan.People)
                 {
-                    var feet = town.Feet(p);
+                    // Where they are on their round now (note 353): walking between stops, or at one doing what's done there.
+                    var now = town.Now(p);
+                    var feet = now.Feet;
                     if ((feet - eye).Length > 160)
                         continue;
                     bool talking = TownFacing is { } f && f.Person == p.Id;
-                    var facing = talking && new Double3(TownFacing!.Value.Toward.X - feet.X, 0, TownFacing.Value.Toward.Z - feet.Z) is { Length: > 0.1 } toward
-                        ? toward.Normalized : town.Direction(p.S, p.FaceS, p.FaceD);
-                    Folk(mesh, eye, feet, facing, p.Look % 7 + 1, drab: 0.72f, p.Pose);
+                    // Whoever sits or crouches at their work stays put when you talk to them: turned to you, they'd swing
+                    // off their chair or out from the range (the director, 8 Oct: "some of the animation positions are off").
+                    bool settled = now.Act is "seated" or "crouch" or "mend";
+                    var facing = talking && !settled && new Double3(TownFacing!.Value.Toward.X - feet.X, 0, TownFacing.Value.Toward.Z - feet.Z) is { Length: > 0.1 } toward
+                        ? toward.Normalized : now.Facing;
+                    // Held to talk mid-stride, they stand.
+                    string act = talking && now.Walking ? "idle" : now.Act;
+                    Folk(mesh, eye, feet, facing, p.Look % 7 + 1, drab: 0.72f, act, p.Gear, home: p.House >= 0, who: p.Id, lamp: p.Pose == "lantern");
                     // Whoever you're talking to has the lamplight on their face, so you can see who it is (most stand with
                     // a lit door or a fire at their back).
                     if (talking)
