@@ -26,6 +26,22 @@ public class AudioTests
     }
 
     [Fact]
+    public void NoInstalledTakeClipsOnceItsDecoded()
+    {
+        // Note 421 (queue #157): the engine decodes a take to 16-bit (OggOpus.Decode), and takes levelled with their peaks at
+        // full scale overshot through the codec, clipping their transients (about 80 sets, up to +1.8 dB). Each is put
+        // through with headroom and its level put back in the header's output gain, which a clip's Scale carries.
+        var clipped = new List<string>();
+        foreach (var file in Directory.EnumerateFiles(Path.Combine(Content, "audio", "samples"), "*.opus", SearchOption.AllDirectories))
+        {
+            var pcm = OggOpus.Decode(File.ReadAllBytes(file), out _);
+            if (pcm.Length > 0 && pcm.Max(v => Math.Abs((int)v)) >= 32700)
+                clipped.Add(Path.GetRelativePath(Content, file));
+        }
+        Assert.True(clipped.Count == 0, $"{clipped.Count} takes at 16-bit full scale: {string.Join(", ", clipped.Take(12))}");
+    }
+
+    [Fact]
     public void ABendTakenTooFastIsHeardBuildingInOrderFromTheCab()
     {
         // Note 265 (the director on build 1121: "telegraph using sound design that the train is going under stress"): run

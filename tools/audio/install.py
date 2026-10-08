@@ -19,6 +19,7 @@ import hashlib
 import json
 import os
 import shutil
+import struct
 import subprocess
 import sys
 
@@ -101,13 +102,61 @@ SEQUENCES = {"audio/cs-ribbits--hops.mp3": (0.06, -26), "audio/cs-passenger--boo
              "audio/cs-climbers--roof.mp3": (0.08, -30)}
 
 
-def encode(x, path):
-    """A take as Ogg Opus. Byte-identical for identical audio, so rebuilds don't churn the repo."""
-    os.makedirs(os.path.dirname(path), exist_ok=True)
-    raw = np.clip(x, -1, 1).astype(np.float32).tobytes()
+# Note 421 (queue #157): the engine decodes a take to 16-bit (Ballast.Audio.OggOpus), and a take levelled with its peaks at
+# full scale can overshoot through the codec (up to ~2 dB), so its transients were clipped. A take that would is put through
+# the codec HEADROOM_DB under full scale instead, and the Opus header's output gain (which the engine applies, in float,
+# after decoding) puts its level back: nothing clips, nothing's quieter. Every other take is encoded as it always was.
+HEADROOM_DB = -3.0
+# How near full scale a decoded take may come (16-bit saturates at 1.0).
+DECODED_PEAK = 0.995
+
+
+def _ogg_crc_table():
+    table = []
+    for i in range(256):
+        r = i << 24
+        for _ in range(8):
+            r = ((r << 1) ^ 0x04C11DB7) if r & 0x80000000 else r << 1
+        table.append(r & 0xFFFFFFFF)
+    return table
+
+
+OGG_CRC = _ogg_crc_table()
+
+
+def set_output_gain(path, gain_db):
+    """Write an Ogg Opus file's header output gain (OpusHead's Q7.8 dB at byte 16) and its first page's CRC again."""
+    b = bytearray(open(path, "rb").read())
+    segments = b[26]
+    head = 27 + segments
+    assert b[:4] == b"OggS" and b[head:head + 8] == b"OpusHead", path
+    struct.pack_into("<h", b, head + 16, int(round(gain_db * 256)))
+    b[22:26] = bytes(4)
+    crc = 0
+    for byte in bytes(b[:head + sum(b[27:head])]):
+        crc = ((crc << 8) ^ OGG_CRC[((crc >> 24) ^ byte) & 0xFF]) & 0xFFFFFFFF
+    struct.pack_into("<I", b, 22, crc)
+    open(path, "wb").write(bytes(b))
+
+
+def _opus(x, path):
     subprocess.run(["ffmpeg", "-v", "error", "-y", "-f", "f32le", "-ar", str(dsp.SR), "-ac", "1", "-i", "-",
                     "-c:a", "libopus", "-b:a", f"{OPUS_KBPS}k", "-application", "audio", "-map_metadata", "-1",
-                    "-fflags", "+bitexact", "-flags:a", "+bitexact", path], input=raw, check=True)
+                    "-fflags", "+bitexact", "-flags:a", "+bitexact", path], input=x.astype(np.float32).tobytes(), check=True)
+
+
+def encode(x, path):
+    """A take as Ogg Opus. Byte-identical for identical audio, so rebuilds don't churn the repo. One that would clip once
+    decoded goes through with headroom and its level put back in the header (HEADROOM_DB)."""
+    os.makedirs(os.path.dirname(path), exist_ok=True)
+    x = np.clip(x, -1, 1).astype(np.float32)
+    _opus(x, path)
+    if len(x) == 0 or float(np.max(np.abs(dsp.load(path)))) < DECODED_PEAK:
+        return
+    peak = float(np.max(np.abs(x)))
+    under = 10 ** (HEADROOM_DB / 20)
+    _opus(x * (under / peak), path)
+    set_output_gain(path, 20 * np.log10(peak / under))
 
 
 def split_events(x, n, gap=0.12, db=-38):

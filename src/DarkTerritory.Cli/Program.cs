@@ -459,6 +459,9 @@ object FacilityWorkDrill(FacilityKind kind, string[] args)
         bin = r.Bin,
         head = r.Head,
         hoseOn = r.HoseCar >= 0,
+        // The conveyor line's (note 400): the grain left for it, and how often it jammed.
+        grain = r.Grain,
+        jams = r.Jams,
         leaking = r.Leaking,
         rakes = r.Rakes,
         switchBack = r.SwitchBack,
@@ -928,6 +931,12 @@ static object Screenshot(TrainTuning t, string content, string[] args)
                     Pressure = x == site ? leak ? 1 : 0.6 : 0, Leak = x == site && leak ? 10 : 0,
                     Ore = x?.Ore ?? 0, Winding = x == site && x.Has(DarkTerritory.Sim.Run.ModuleKind.Lift) && args.Contains("--lifting"),
                     Wind = x == site && x.Has(DarkTerritory.Sim.Run.ModuleKind.Lift) ? Opt(args, "--wind", 0.6) : 0,
+                    // The conveyor line (note 400): --conveying runs it into the car under its head, --jam f jams it f of the way
+                    // along its low run from the tail.
+                    Grain = x?.Grain ?? 0,
+                    Running = x == site && x.Has(DarkTerritory.Sim.Run.ModuleKind.Conveyor) && (args.Contains("--conveying") || args.Contains("--jam")),
+                    Carrying = x == site && x.Has(DarkTerritory.Sim.Run.ModuleKind.Conveyor) && args.Contains("--conveying") && !args.Contains("--jam"),
+                    Jam = x == site && x.Has(DarkTerritory.Sim.Run.ModuleKind.Conveyor) ? Opt(args, "--jam", -1) : -1,
                 })]);
         }
     }
@@ -1067,6 +1076,16 @@ static object Screenshot(TrainTuning t, string content, string[] args)
         }
         camera = Camera.LookAt(At(cam), At(Str(args, "--target", cam)), (float)Opt(args, "--fov", 65));
     }
+    // --tower (with --coaling): the coaling tower from across the track, along it a way, up at its chute where it pours
+    // (note 422); --tower side: from out past the tower on its own side, the trestle and the bunker.
+    if (tower is not null && run is not null && args.Contains("--coaling") && args.Contains("--tower"))
+    {
+        var foot = line.Sample(run.ChuteAt(tower, line).SpoutAlong);
+        var right = Double3.Cross(foot.Tangent, Double3.Up).Normalized * tower.Side;
+        camera = Str(args, "--tower", "") == "side"
+            ? Camera.LookAt(foot.Position + right * 26 + foot.Tangent * 18 + Double3.Up * 2.5, foot.Position + right * 6 + Double3.Up * 9, 62)
+            : Camera.LookAt(foot.Position - right * 9 + foot.Tangent * 14 + Double3.Up * 3.5, foot.Position + right * 2 + Double3.Up * 8.5, 62);
+    }
     if (structure is not null && Str(args, "--cam", "") is not { Length: > 0 } && !args.Contains("--view"))
     {
         // A bridge from down in its valley, a third of the way along, up at the span and the train on it; anything else
@@ -1175,6 +1194,14 @@ static object Screenshot(TrainTuning t, string content, string[] args)
                     var across = Double3.Cross(toward, Double3.Up);
                     camera = Camera.LookAt(heap + toward * 9 + across * 4 + Double3.Up * 1.7, heap + Double3.Up * 1.2, 70);
                 }
+            }
+            // --belt: the grain elevator's conveyor line (note 400), from behind its drive house down the belt's low run to the knee,
+            // the riser and its head over the car.
+            else if (site.Has(DarkTerritory.Sim.Run.ModuleKind.Conveyor) && args.Contains("--belt"))
+            {
+                var back = ((site.ConveyorTail - site.ConveyorKnee) with { Y = 0 }).Normalized;
+                var right = Double3.Cross(back, Double3.Up);
+                camera = Camera.LookAt(site.ConveyorTail + back * 2 + right * 6 + Double3.Up * 4.5, Double3.Lerp(site.ConveyorTail, site.ConveyorKnee, 0.75), 70);
             }
             else if (site.Has(DarkTerritory.Sim.Run.ModuleKind.Spout))
             {
