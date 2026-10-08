@@ -2237,8 +2237,20 @@ static object HudShot(string content, string[] args)
     if (args.Contains("--hurt"))
         Hud.StagedHurt = Array.IndexOf(args, "--hurt") is var hu && hu + 1 < args.Length
             && double.TryParse(args[hu + 1], System.Globalization.CultureInfo.InvariantCulture, out double hurt) ? hurt : 0.6;
+    // --captions (note 349): CAPTIONS on, with what's staged heard round the player (the captions' own wording and order).
+    IReadOnlyList<string>? captioned = null;
+    if (args.Contains("--captions"))
+    {
+        var captions = new Captions(Captions.Load(content));
+        var ears = Ballast.Audio.Listener.At(Double3.Zero, 0);
+        captions.Update([new("hotbox", new Double3(0, -1, 30), 0.2f)], ears, 0);
+        captions.Update([new("child-call", new Double3(-40, 0, 5), 0.1f)], ears, 0.5);
+        captions.Update([new("tippy-tiptoe.roof", new Double3(0, 6, 1), 0.3f)], ears, 1);
+        captioned = captions.Lines();
+    }
+    // --first-night (note 350): one of a new player's first nights, the controls' card up in the yard.
     // --commend: the night's commendations shown under its report (App. D.12; awarding them isn't in the game yet).
-    Hud.Build(hud, width, height, session, pixels: scale, commendations: args.Contains("--commend")
+    Hud.Build(hud, width, height, session, pixels: scale, firstNight: args.Contains("--first-night"), captions: captioned, commendations: args.Contains("--commend")
         ? [("Dave", UiStyle.Commendation.CameBackForMe, "Okafor"), ("Priya", UiStyle.Commendation.KeptTheFire, "Dave"),
             ("Okafor", UiStyle.Commendation.HeldTheSwitch, "Priya"), ("Dunmore", UiStyle.Commendation.LastOneStanding, "Dave")]
         : null, stills: stills.Stills, talk: talk, now: talkNow);

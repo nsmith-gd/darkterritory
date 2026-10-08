@@ -51,9 +51,12 @@ public static partial class Hud
     /// canvas's): the prompt's fine print is as small as stays crisp at that (<see cref="PromptScaleAt"/>).</param>
     /// <param name="talk">This machine's talking and reading in a fortress town (note 281), and <paramref name="now"/> the
     /// app's seconds, for its card.</param>
+    /// <param name="captions">CAPTIONS (note 349): what's heard now and where, <see cref="Captions.Lines"/>; null with it off.</param>
+    /// <param name="firstNight">One of this player's first nights with FIRST NIGHTS on (note 350, <see cref="Onboarding.FirstNight"/>):
+    /// the yard shows the core controls.</param>
     public static void Build(Overlay o, int width, int height, IPlaySession s, bool crosshair = true,
         IReadOnlyList<(string To, UiStyle.Commendation What, string From)>? commendations = null, IReadOnlyDictionary<int, Still>? stills = null,
-        float pixels = 4, TownTalk? talk = null, double now = 0)
+        float pixels = 4, TownTalk? talk = null, double now = 0, bool firstNight = false, IReadOnlyList<string>? captions = null)
     {
         _promptScale = PromptScaleAt(pixels);
         _commendations = commendations;
@@ -87,9 +90,14 @@ public static partial class Hud
             Situation(o, s);
         }
         Alerts(o, width, height, s, line);
+        if (captions is { Count: > 0 } && !over)
+            CaptionsOn(o, height, captions);
         // (Not while the link is lost: who's aboard is stale, and the reconnecting message has the screen.)
         if (s.Link is { Lost: false } lobby && s.World.Run is { Phase: Sim.Run.RunPhase.Yard })
             Lobby(o, s, lobby, line);
+        // A new player's first nights (note 350): the core controls on a card in the yard, gone once the train's out.
+        if (firstNight && !over && p.Alive && s.World.Run is { Phase: Sim.Run.RunPhase.Yard })
+            Onboarding.DrawCard(o, width, height, Keys, Fine, 1, Dim, Amber);
         // A fortress town's card (note 281): what somebody's saying to you, or the paper you're reading. While it's open its
         // own foot says what Use does next, so the town's prompt under the crosshair stands down.
         var townCard = !over && talk is not null && s.World.Town is { } town ? talk.Card(town, now) : null;
@@ -1371,6 +1379,21 @@ public static partial class Hud
         DeathCause.None => "",
         _ => cause.ToString().ToUpperInvariant(),
     };
+
+    /// <summary>
+    /// CAPTIONS (note 349): the sounds heard now, the newest lowest, in fine print at the bottom left, where nothing else is
+    /// (the hotbar's middle has the tool's name and the noise meter over it; the right, the corner's keys). No plate: note 285.
+    /// </summary>
+    static void CaptionsOn(Overlay o, int height, IReadOnlyList<string> lines)
+    {
+        float k = Fine, row = (o.Font.LineHeight + 4) * k;
+        float y = MathF.Round(height - 8 - lines.Count * row);
+        foreach (var l in lines)
+        {
+            o.Text(8, y, l, Ink, k);
+            y += row;
+        }
+    }
 
     /// <summary>The player's keys (T80), for the prompts: the app sets them from the settings.</summary>
     public static Settings Keys { get; set; } = new();
