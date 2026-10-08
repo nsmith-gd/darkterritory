@@ -153,6 +153,8 @@ public sealed class Vehicle(int id, VehicleKind kind, double load)
     public bool Breached { get; set; }
     /// <summary>Seconds its rear axle box has run hot (note 331, <see cref="HotBoxes"/>); 0 running cool.</summary>
     public double HotBox { get; set; }
+    /// <summary>Seconds its lamp has been guttering (note 346, <see cref="Gutters"/>); 0 burning steady.</summary>
+    public double Gutter { get; set; }
     /// <summary>Where the hole is (car frame): what's boarded up (<see cref="Breaches"/>).</summary>
     public Double3 BreachAt { get; set; }
 

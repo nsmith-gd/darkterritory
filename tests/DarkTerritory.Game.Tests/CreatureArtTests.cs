@@ -76,6 +76,10 @@ public class CreatureArtTests
         ["fire_fly"] = new(600, 1500, 10, 20, ["flutter", "settle"], []),
         // A character's (App. A.8), SK_Human at a man's height: it passes for crew, so it's dressed as one.
         ["passenger"] = new(3000, 9000, 20, 60, ["stand", "walk", "drag", "pin"], ["hit"]),
+        // A large monster (GDD §27: 8-16k; docs/design/creatures/moose.md §3), on its own quadruped rig (SK_Moose: the rack a bone
+        // a side, the velvet, the sac ridge, the bell); every clip the brief asks for.
+        ["moose"] = new(8000, 16000, 30, 55, ["graze", "listen", "warn", "walk", "strut", "search", "trot", "charge", "snag", "ram", "pin", "trainPass"],
+            ["squareUp", "overrun", "hit"]),
     };
 
     public static TheoryData<string> Models() => [.. CreatureArt.Names];
@@ -125,6 +129,12 @@ public class CreatureArtTests
         var hound = Get("cinder_hound");
         Assert.InRange(hound.Max.Z - hound.Min.Z, 1.25f, 1.9f); // nose to tail's root and beyond
         Assert.True(hound.Min.Z < -0.5f, "the hound's head is forward (−Z)");
+        // The Moose (moose.md §3): 2.4 m at the shoulder, about 3.4 m to the top of its rack, and the rack 3.2 m across, the
+        // widest thing in the roster; its head forward (−Z).
+        var moose = Get("moose");
+        Assert.InRange(Height(moose), 3.2f, 3.5f);
+        Assert.InRange(moose.Max.X - moose.Min.X, 3.1f, 3.35f);
+        Assert.True(moose.Min.Z < -1.5f, "the moose's head is forward (−Z)");
         var sleeper = Get("sleeper");
         Assert.InRange(sleeper.Max.X - sleeper.Min.X, 2.5f, 3.1f);
         Assert.InRange(Height(sleeper), 0.2f, 0.45f);
@@ -456,6 +466,66 @@ public class CreatureArtTests
         Assert.InRange(rear.Shape.HalfLength - local.Z, 0.2, 1.6);
     }
 
+    /// <summary>
+    /// The Moose (note 339, docs/design/creatures/moose.md): no HUD shows its meter, its ears and its posture do. Grazing, it
+    /// browses; past listenAt its head's up (listen), past warnAt the ears are flat and the ridge up (warn). Riled, it goes as
+    /// fast as it's going (a walk, a trot), squares up, charges, skids round, jams its rack, rams, pins; and none of it puts
+    /// a part of it through another (its rack is its own two bones, fitted as capsules from its mesh).
+    /// </summary>
+    [Fact]
+    public void TheMooseShowsItsTemperAndStaysOutOfItself()
+    {
+        var t = Art.MooseTuning;
+        string Clip(MooseMode mode, double aggro = 100, double pace = 0) => CreatureArt.MooseClip(mode, aggro, (float)pace, 1, 1, t).Clip;
+        Assert.Equal("graze", Clip(MooseMode.Graze, 0));
+        Assert.Equal("graze", Clip(MooseMode.Graze, t.ListenAt - 1));
+        Assert.Equal("listen", Clip(MooseMode.Graze, t.ListenAt));
+        Assert.Equal("warn", Clip(MooseMode.Graze, t.WarnAt));
+        // A train going by, a rival: it tosses its head after it.
+        Assert.Equal("trainPass", CreatureArt.MooseClip(MooseMode.Graze, 0, 0, 1, 1, t, trainPassing: true).Clip);
+        Assert.Equal("trot", Clip(MooseMode.Hunt, pace: t.HuntSpeed));
+        Assert.Equal("walk", Clip(MooseMode.Hunt, pace: t.SearchSpeed));
+        Assert.Equal("warn", Clip(MooseMode.Hunt));
+        Assert.Equal("search", Clip(MooseMode.Search, pace: t.SearchSpeed));
+        Assert.Equal("strut", Clip(MooseMode.Home, 0, t.SearchSpeed));
+        Assert.Equal("ram", Clip(MooseMode.Ram));
+        Assert.Equal(("squareUp", 1.7, false), CreatureArt.MooseClip(MooseMode.SquareUp, 100, 0, 3, 1.7, t));
+        Assert.Equal(("overrun", 0.4, false), CreatureArt.MooseClip(MooseMode.Wheel, 100, 0, 3, 0.4, t));
+        Assert.Equal("charge", Clip(MooseMode.Charge, pace: t.ChargeSpeed));
+        Assert.Equal("snag", Clip(MooseMode.Snag));
+        Assert.Equal("pin", Clip(MooseMode.Pin));
+        // A ram's clip is one ram: the sim's ramEvery.
+        Assert.Equal(t.RamEvery, Get("moose").Clip("ram")!.Duration, 2);
+        var model = Get("moose");
+        foreach (var mode in Enum.GetValues<MooseMode>())
+            foreach (double pace in new[] { 0, t.SearchSpeed, t.HuntSpeed })
+                foreach (double aggro in new[] { 0, t.ListenAt, t.WarnAt })
+                    Assert.Contains(CreatureArt.MooseClip(mode, aggro, (float)pace, 0, 0, t).Clip, model.ClipNames);
+        var through = Clearance.Mesh(model).Where(o => o.Depth > Clearance.Touching).ToList();
+        Assert.True(through.Count == 0, string.Join("; ", through.Select(o => $"{o.Clip} {o.Pair} {o.Depth:0.000} at {o.At:0.00} s")));
+    }
+
+    [Fact]
+    public void TheOneTheMoosePinsIsUnderItsRack()
+    {
+        // GreyboxScene: the sim holds them where it ran them down; the scene stands the Moose over them (MoosePinReach back,
+        // facing them) and lays them on their back with their head toward it (CreatureArt.Pins, held_pinned).
+        var tuning = DataFile.Load<Sim.Train.TrainTuning>(Path.Combine(Content, Sim.Train.TrainTuning.File));
+        var line = Sim.Rail.RailLine.Load(Path.Combine(Content, "lines", "test-loop.json"));
+        var train = new Sim.Train.TrainOnLine(new Sim.Train.TrainDynamics(Sim.Train.Consist.Uniform(tuning, 6, 1)), line, 1200);
+        var threats = Staging.Moose([], train, "pin");
+        var pinned = Staging.MooseCrewmate(train, "pin");
+        var eye = pinned.Feet + new Double3(4, 1.6, 1);
+        var scene = new GreyboxScene { Look = Look, Time = 0.37, Enemies = threats, Crew = [pinned with { Act = null }] };
+        var mesh = new MeshBuilder();
+        scene.Build(mesh, train, eye);
+        Assert.True(Look.Art.Creatures!.Pins.TryGetValue(pinned.Id, out var pin));
+        var moose = (Moose)threats.Single();
+        var to = new Vector3((float)(pinned.Feet.X - moose.Local.X), 0, (float)(pinned.Feet.Z - moose.Local.Z));
+        Assert.True(Vector3.Dot(Vector3.Normalize(to), pin.Forward) > 0.99f, "laid facing away from it, their head toward it");
+        Assert.Equal(CrewPose.HeldPinned, CrewActs.HeldPose(EnemyKind.Moose));
+    }
+
     [Fact]
     public void TheTippyToesiePulledOffRecoilsWhereItWasThenScuttles()
     {
@@ -750,6 +820,7 @@ public class CreatureArtTests
         "follower" => (Vector3.Zero, 0.3f),
         "climber" => (Vector3.Zero, 1.9f),
         "fire_fly" => (Vector3.Zero, 0.16f),
+        "moose" => (Vector3.Zero, 3.4f),
         _ => (Vector3.Zero, 1.9f),
     };
 

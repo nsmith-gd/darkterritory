@@ -841,6 +841,93 @@ public static class Staging
         return threats;
     }
 
+    /// <summary>
+    /// The staged Moose (<c>dt screenshot --moose</c>; note 339, docs/design/creatures/moose.md), on the ground off the
+    /// stopped engine's left ahead of it, where its headlamp reaches (beside the line, never on it: well outside the track's
+    /// clearance). Its ears and posture are its meter: <c>graze</c> unbothered, <c>listen</c> its head up (aggro past
+    /// listenAt), <c>warn</c> ears flat and the sac ridge up (past warnAt); riled at crewmate 4 (<see cref="MooseCrewmate"/>,
+    /// out on the ground in front of the engine), <c>squareup</c> the rack levelled at them, <c>charge</c> coming at them,
+    /// <c>wheel</c> skidding past, <c>snag</c> its rack jammed, <c>search</c> casting about, <c>pin</c> them under the rack.
+    /// The <c>moose</c> view is a crewmate's eye beside the engine; <c>moosecharge</c> over crewmate 4's shoulder.
+    /// </summary>
+    public static List<Enemy> Moose(List<Enemy> threats, TrainOnLine train, string mode)
+    {
+        if (mode.Length == 0)
+            return threats;
+        threats.RemoveAll(e => e is Sim.Enemies.Moose);
+        var (phase, doing, aggro, seconds) = mode switch
+        {
+            "graze" => (SpinePhase.Dormant, MooseMode.Graze, 0.0, 2.0),
+            "listen" => (SpinePhase.Alert, MooseMode.Graze, 35.0, 1.2),
+            "warn" => (SpinePhase.Alert, MooseMode.Graze, 75.0, 1.45),
+            "squareup" => (SpinePhase.Telegraph, MooseMode.SquareUp, 100.0, 1.95),
+            "charge" => (SpinePhase.Commit, MooseMode.Charge, 100.0, 0.42),
+            "wheel" => (SpinePhase.Commit, MooseMode.Wheel, 100.0, 1.05),
+            "snag" => (SpinePhase.Commit, MooseMode.Snag, 100.0, 0.55),
+            "search" => (SpinePhase.Alert, MooseMode.Search, 100.0, 4.0),
+            "pin" => (SpinePhase.Grab, MooseMode.Pin, 100.0, 1.6),
+            _ => throw new ArgumentException($"--moose {mode}: graze, listen, warn, squareup, charge, wheel, snag, search or pin"),
+        };
+        var (at, yaw) = MooseAt(train, mode);
+        var moose = new Sim.Enemies.Moose(MooseId);
+        bool riled = aggro >= 100;
+        moose.Restore(phase, seconds, 1, Enemy.Loose, at, train.Dynamics.Distance, yaw, (double)doing, riled ? LoneId : -1, aggro,
+            holding: phase == SpinePhase.Grab ? LoneId : -1);
+        threats.Add(moose);
+        return threats;
+    }
+
+    public const int MooseId = 311;
+
+    /// <summary>
+    /// Where the staged Moose stands and its heading (a player's yaw): grazing, listening or warning, 22 m up the line from
+    /// the engine's front and 4.6 m off its left (in the headlamp's cone, clear of the track's clearance), three-quarters on
+    /// to the crewmate whose eye the <c>moose</c> view is (<see cref="MooseWatcher"/>); riled, 10 m beyond crewmate 4 and
+    /// coming straight at them (pinning, stood over them).
+    /// </summary>
+    public static (Double3 At, double Yaw) MooseAt(TrainOnLine train, string mode)
+    {
+        bool riled = mode is not ("graze" or "listen" or "warn" or "");
+        var at = riled ? Lineside(train, 19, -4.6) : Lineside(train, 22, -4.6);
+        var toward = (riled ? MooseCrewmate(train, mode).Feet : MooseWatcher(train)) - at;
+        double yaw = Math.Atan2(-toward.X, -toward.Z);
+        // Grazing it's side on to them, browsing; listening and warning its head's come round to them.
+        yaw += mode switch { "graze" => 1.2, "listen" or "warn" => 0.6, "wheel" => 2.3, "search" => 0.9, _ => 0 };
+        if (mode == "pin")
+            at = OnGround(train, MooseCrewmate(train, mode).Feet - new Double3(-Math.Sin(yaw), 0, -Math.Cos(yaw)) * Art.CreatureArt.MoosePinReach);
+        return (at, yaw);
+    }
+
+    /// <summary>The crewmate the <c>moose</c> view looks out of: on the ground out off the line's left ahead of the engine,
+    /// 15 m from the Moose, across the headlamp's beam from it (so it's seen side-lit, the engine and its lamp beyond).</summary>
+    public static Double3 MooseWatcher(TrainOnLine train) => Lineside(train, 30, -15);
+
+    /// <summary>
+    /// Crewmate 4 out on the ground in front of the engine off the line's left (the staged Moose riled at them, <c>--moose</c>
+    /// squareup and on), facing it; pinned, on their back under its rack (held_pinned).
+    /// </summary>
+    public static Crewmate MooseCrewmate(TrainOnLine train, string mode)
+    {
+        var at = Lineside(train, 9, -3.8);
+        var toward = Lineside(train, 19, -4.6) - at;
+        return new Crewmate(LoneId, at, Math.Atan2(-toward.X, -toward.Z), true, Act: mode == "pin" ? Art.CrewPose.HeldPinned : null);
+    }
+
+    /// <summary>A point on the ground <paramref name="ahead"/> m up the line from the engine's front and <paramref name="lateral"/>
+    /// m off it (its right +), wherever the line bends.</summary>
+    public static Double3 Lineside(TrainOnLine train, double ahead, double lateral)
+    {
+        var t = train.Line.Sample(train.Dynamics.Distance + ahead);
+        var right = Double3.Cross(t.Tangent, Double3.Up).Normalized;
+        return OnGround(train, t.Position + right * lateral);
+    }
+
+    static Double3 OnGround(TrainOnLine train, Double3 at)
+    {
+        double hint = train.Dynamics.Distance;
+        return at with { Y = Sim.Player.PlayerMotor.GroundAt(at, train.Line, ref hint) };
+    }
+
     // How far off the second car's side the staged Grumbler is (m): in front of crewmate 4, a lunge from them.
     const double GrumblerOut = 3.3;
 
