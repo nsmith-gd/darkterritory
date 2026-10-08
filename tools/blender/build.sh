@@ -18,9 +18,10 @@ if [ ${#models[@]} -eq 0 ]; then
   # cinder_hound.py, weight.py, track_doll.py, car_hugger.py and dragger.py by tools/models/recipes (their high copies
   # baked onto these game meshes, tools/models/overbake.py); the Hollow, the Switchman, the Sleepers, the Clinger and
   # the Soot children are sourced scans: tools/models/recipes. crew_clips is the crew's actions, merged into crew.glb on load.
-  # The sheep and the Moose are these scripts' own meshes, on the shared tiling textures. The Gannet is built from gannet.py
-  # by tools/models/recipes/gannet.py (its colour baked into an atlas, and a distance copy, gannet.lod1.glb).
-  models=(crew_clips sheep moose)
+  # The sheep is this script's own mesh, on the shared tiling textures. The Gannet and the Moose are built from gannet.py
+  # and moose.py by tools/models/recipes/gannet.py and moose.py (each colour baked into an atlas, and a distance copy,
+  # <name>.lod1.glb).
+  models=(crew_clips sheep)
 fi
 mkdir -p "$out"
 for m in "${models[@]}"; do

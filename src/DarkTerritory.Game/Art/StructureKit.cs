@@ -576,7 +576,14 @@ public static class StructureKit
                 }
             case FacilityKind.GrainElevator:
                 {
-                    // Three silos and a headhouse over them: the tallest thing for miles.
+                    // The modelled elevator where it's built (facility_pieces grain_elevator, note 381): four slip-formed
+                    // silos, the bin-floor gallery and the leg house over them, the tallest thing for miles; its spout
+                    // swung down to 2.5 m off the track. Without it, the kit's own: three silos and a headhouse.
+                    if (k.Look is { } built && PropArt.Of(built).Get("grain_elevator") is not null)
+                    {
+                        Piece(k, "grain_elevator", s * 15, 0, Facing(s));
+                        break;
+                    }
                     float x = s * 15;
                     k.Use("concrete_stain", Palette.BlueGrey, 0.9f, 0.1f, tile: 3);
                     for (int i = 0; i < 3; i++)
