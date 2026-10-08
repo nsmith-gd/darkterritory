@@ -27,6 +27,9 @@ public sealed class World
         Combat = combat;
         // A roof hatch isn't shut down onto a casting the crane has hanging in it (T99).
         train.HatchBlocked = car => Run?.CurrentSite?.Cranes.Any(c => c.InHatch(train, car)) == true;
+        // Note 301: a smashed lamp's glass is the wrench's work (repair.lampMendRate seconds of it to each second worked).
+        train.LampOut = () => Derailed ? 0 : LampOutSeconds; // derailed, the night's over: nothing to call out
+        train.MendLamp = dt => LampOutSeconds = Math.Max(0, LampOutSeconds - dt * train.Dynamics.Tuning.Repair.LampMendRate);
         Choir = ChoirState.Quiet;
         if (combat is not null)
             Guns.Arm(train, combat.Guns);
@@ -500,7 +503,8 @@ public sealed class World
             return;
         var shape = Train.Frames[car].Shape;
         var kit = Train.Dynamics.Tuning.Kit;
-        int kits = kit.RepairKits + kit.SpareKits;
+        // Note 301: where the wrench is the repair tool, the kit's gone: none rides in locker 8.
+        int kits = Repairs.ByWrench(Train) ? 0 : kit.RepairKits + kit.SpareKits;
         int first = Math.Max(0, shape.KitLocker);
         // From the kit's locker on down the row, then round from the front.
         var order = Enumerable.Range(0, shape.Lockers.Count).Select(i => (first + i) % shape.Lockers.Count).ToList();
@@ -694,7 +698,9 @@ public sealed class World
         }
         if (loot is not null)
         {
-            Run.EnableLoot(loot, Train.Line, facilities);
+            // Note 301: where the wrench is the repair tool, the kit's gone, and none turns up at the stops either. (Kits are
+            // rolled on their own stream, so the rest of a stop's loot is the same.)
+            Run.EnableLoot(Repairs.ByWrench(Train) ? loot with { RepairKitChance = 0 } : loot, Train.Line, facilities);
             // GDD App. F.1's rare healing loot (note 272): which finds heal, and how long one takes to use.
             Bodies.Heals = Run.HealOf;
             Bodies.HealSeconds = loot.Healing?.UseSeconds ?? Bodies.HealSeconds;
@@ -1012,8 +1018,10 @@ public sealed class World
         // The repair kit in hand at a Holdout's door is opening it (GDD App. D.7), and at a ruptured boiler's firebox mending
         // it (T109): not being put down.
         bool kit = Authority && Bodies.CarriedBy(playerId) is { Kind: Physics.BodyKind.RepairKit };
+        // Note 301: where the wrench is the repair tool, it's the wrench in hand that opens a lock quietly, as the kit did.
+        bool picks = Repairs.ByWrench(Train) ? Authority && Repairs.WrenchInHand(s) && Bodies.CarriedBy(playerId) is null : kit;
         // Smash and pry are a melee tool's (D.7; note 275): with empty hands only the kit opens a lock.
-        bool breaching = Authority && Holdouts?.CrewAct(s, intent, playerId, Train, kit, Player.Kit.Held(s) != Player.Tool.None) == true;
+        bool breaching = Authority && Holdouts?.CrewAct(s, intent, playerId, Train, picks, Player.Kit.Held(s) != Player.Tool.None) == true;
         // Powder to the guns (note 374): a charge in hand at a gun whose rack wants it is being loaded, not put down; empty
         // hands at a powder locker with powder in it take a charge.
         var gunTuning = Combat?.Guns;
@@ -1400,7 +1408,9 @@ public sealed class World
         if (Authority && Train.Boiler.ShovelOut && _actors.Count > 0 && !_actors.Any(a => Player.Kit.Has(a.State.Kit, Player.Tool.Shovel))
             && !Bodies.All.Any(b => b.HasTool(Player.Tool.Shovel)))
             Train.Boiler.ShovelOut = false;
-        LampOutSeconds = Math.Max(0, LampOutSeconds - SimConstants.TickSeconds);
+        // Note 301: where the wrench is the repair tool, the glass goes in only when someone mends it (Repairs.Lamp).
+        if (!Repairs.ByWrench(Train))
+            LampOutSeconds = Math.Max(0, LampOutSeconds - SimConstants.TickSeconds);
         if (_relight && LampOutSeconds <= 0 && Authority && !Derailed && Train.Dynamics.Tuning.Kit.RelightSmashedLamp)
         {
             _relight = false;
