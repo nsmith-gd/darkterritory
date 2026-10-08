@@ -112,9 +112,72 @@ public static class DamageKit
                     var (w, at) = Spot(0.3f);
                     Flap(k, w, at, rng);
                 }
+                CrackedLamp(k, shape, rng);
+                BentBoard(k, shape, rng);
             }
         }
         return k.Build($"engine-damage-{state}");
+    }
+
+    /// <summary>
+    /// Wrecked, the headlamp's glass is cracked (note 360; the checklist's "next" for the engine's damage): a star of dark
+    /// cracks from a strike off its centre and a shard gone, over the lens while it still burns (the lamp out is
+    /// SceneArt.HeadlampOut's), so the train's eye reads hurt, not shut.
+    /// </summary>
+    static void CrackedLamp(Kit k, CarShape shape, Random rng)
+    {
+        // Struck in one of the open wedges between the saltire's bars (TrainKit.Saltire), where it shows.
+        float wedge = rng.Next(4) * MathF.PI / 2;
+        var strike = new Vector3(MathF.Cos(wedge) * 0.17f, TrainKit.HeadlampY + MathF.Sin(wedge) * 0.17f, (float)-shape.HalfLength - 0.075f);
+        k.Use("paint_black", Palette.SootBlack, 0.3f, 0.6f).Shade(0.1f);
+        for (int i = 0; i < 7; i++)
+        {
+            float a = i * MathF.Tau / 7 + (float)rng.NextDouble() * 0.5f;
+            float len = 0.16f + 0.14f * (float)rng.NextDouble();
+            var bend = strike + new Vector3(MathF.Cos(a), MathF.Sin(a), 0) * len * 0.55f + new Vector3(MathF.Sin(a), -MathF.Cos(a), 0) * 0.025f;
+            var tip = strike + new Vector3(MathF.Cos(a + 0.12f), MathF.Sin(a + 0.12f), 0) * len;
+            k.Rod(strike, bend, 0.009f, 4);
+            k.Rod(bend, tip, 0.006f, 4);
+        }
+        // A ring of crazing round the strike, and a shard out of it: black where the glass is gone.
+        for (int i = 0; i < 7; i++)
+        {
+            float a0 = i * MathF.Tau / 7, a1 = (i + 1) * MathF.Tau / 7;
+            k.Rod(strike + new Vector3(MathF.Cos(a0), MathF.Sin(a0), 0) * 0.06f, strike + new Vector3(MathF.Cos(a1), MathF.Sin(a1), 0) * 0.07f, 0.007f, 4);
+        }
+        var n = -Vector3.UnitZ;
+        Face(k, strike + new Vector3(0, 0, -0.002f), strike + new Vector3(0.1f, 0.04f, -0.002f), strike + new Vector3(0.04f, 0.11f, -0.002f), n);
+    }
+
+    /// <summary>
+    /// Wrecked, a length of one running board is bent down (note 360): its outer half torn off its brackets and hanging
+    /// at a slant over the wheels, the gap it left black.
+    /// </summary>
+    static void BentBoard(Kit k, CarShape shape, Random rng)
+    {
+        var boards = shape.Solids.Where(x => x.Part == PartKind.RunningBoard && x.Box.Max.Z - x.Box.Min.Z > 4).Select(x => x.Box).ToArray();
+        if (boards.Length == 0)
+            return;
+        var b = boards[rng.Next(boards.Length)];
+        int side = b.Centre.X >= 0 ? 1 : -1;
+        float len = 1.1f + 0.5f * (float)rng.NextDouble();
+        float z0 = Lerp((float)b.Min.Z + 1, (float)b.Max.Z - 1 - len, (float)rng.NextDouble()), z1 = z0 + len;
+        float top = (float)b.Max.Y, inner = (float)(side > 0 ? b.Min.X : b.Max.X), outer = (float)(side > 0 ? b.Max.X : b.Min.X);
+        float mid = (inner + outer) / 2;
+        // The gap: the board's outer half gone, black over where it lay.
+        k.Use("paint_black", Palette.SootBlack, 0.3f, 0).Shade(0.08f);
+        k.Box(new Vector3(MathF.Min(mid, outer) - 0.01f, top - 0.005f, z0), new Vector3(MathF.Max(mid, outer) + 0.01f, top + 0.012f, z1), Kit.Faces.PosY);
+        // The torn half, hinged at the middle and bent down 35–60°, twisted along its length; its torn edge rusted.
+        float drop = (35 + 25 * (float)rng.NextDouble()) * MathF.PI / 180, twist = 0.08f * ((float)rng.NextDouble() - 0.5f);
+        float reach = MathF.Abs(outer - mid);
+        var down0 = new Vector3(side * MathF.Cos(drop), -MathF.Sin(drop), 0) * reach;
+        var down1 = new Vector3(side * MathF.Cos(drop + twist * 4), -MathF.Sin(drop + twist * 4), 0) * reach;
+        var a = new Vector3(mid, top, z0 + 0.04f);
+        var c = new Vector3(mid, top, z1 - 0.04f);
+        k.Use("iron_plate", Palette.IronGrey, 0.9f, 0.3f).Shade(0.6f);
+        k.Quad(a, c, c + down1, a + down0, twoSided: true);
+        k.Use("rust_heavy", Palette.RustRed, 0.7f, 0.2f);
+        k.Rod(a + down0, c + down1, 0.02f, 4);
     }
 
     /// <summary>
@@ -133,6 +196,10 @@ public static class DamageKit
             int side = rng.Next(2) * 2 - 1;
             float z = Lerp((float)b.Min.Z + 0.6f, (float)b.Max.Z - 0.6f, (float)rng.NextDouble());
             float x = (float)(side > 0 ? b.Max.X : b.Min.X) * 0.82f, y = (float)(b.Max.Y - (b.Max.Y - b.Min.Y) * 0.2);
+            // Under the armoured hood (note 338) the seam's steam finds the hood's plate seams (note 360): it comes out of
+            // the hood's side, above the feed pipe.
+            if (TrainKit.HoodFace(shape, side, z) is { } hood)
+                (x, y) = (side * (hood.X + 0.06f), hood.Deck + 1.9f);
             yield return (new Vector3(x, y, z), Vector3.Normalize(new Vector3(side, 0.55f, 0)));
         }
     }
