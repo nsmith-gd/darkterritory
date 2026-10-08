@@ -154,8 +154,9 @@
   // yard's powerhouse has to be restarted before it'll start. Every "jamEvery" seconds of carrying (drawn from the night's
   // seed) the belt jams somewhere along its low run ("jamFrom".."jamTo" of the way from the tail to the knee) and carries
   // nothing; held within "clearReach" of the jam (on the ground beside it) for "clearSeconds", it's free. A jam left
-  // "stallSeconds" stalls the drive, and it's back to the drive house to start it again. The machinery's loud while it runs
-  // (combat.json machineryLoudness), as the other machinery is.
+  // "stallSeconds" stalls the drive, and it's back to the drive house to start it again. Within "nearBelt" of its low run the
+  // HUD says how far off a jam is, or that it's stalled. The machinery's loud while it runs (combat.json machineryLoudness), as
+  // the other machinery is.
   "conveyor": {
     "ahead": 15.5,
     "back": 64.5,
@@ -177,7 +178,8 @@
     "jamTo": 1.0,
     "clearReach": 1.6,
     "clearSeconds": 2.5,
-    "stallSeconds": 20
+    "stallSeconds": 20,
+    "nearBelt": 25
   },
   // The slaughterhouse's livestock ramp (spec D.2: "herd animals up a ramp into a stock car. 2–3 crew. Constant noise. Raises
   // Choir floor while active"). The ramp's top is "rampLateral" out from the track at "along"; the pen "penLateral" out,

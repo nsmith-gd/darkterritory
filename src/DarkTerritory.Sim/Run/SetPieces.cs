@@ -118,6 +118,24 @@ public sealed partial class Run
         return null;
     }
 
+    /// <summary>On foot within <see cref="ConveyorTuning.NearBelt"/> of a conveyor's low run (where its jams are): the HUD's "where".</summary>
+    public Site? BeltNear(in PlayerState s, TrainOnLine train)
+    {
+        if (Over || !s.Alive || s.Parent != PlayerState.World || _facilityTuning is not { } t)
+            return null;
+        var at = PlayerMotor.WorldPosition(s, train);
+        foreach (var site in _sites)
+        {
+            if (site is null || !site.Has(ModuleKind.Conveyor))
+                continue;
+            var run = (site.ConveyorKnee - site.ConveyorTail) with { Y = 0 };
+            double u = Math.Clamp(Double3.Dot((at - site.ConveyorTail) with { Y = 0 }, run) / Math.Max(1e-9, Double3.Dot(run, run)), 0, 1);
+            if (Flat(at - Double3.Lerp(site.ConveyorTail, site.ConveyorKnee, u)) <= t.Conveyor.NearBelt)
+                return site;
+        }
+        return null;
+    }
+
     /// <summary>In the pen of a herd with head left in it (on foot): where you drive them from.</summary>
     public Site? InPen(in PlayerState s, TrainOnLine train)
     {

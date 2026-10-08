@@ -187,6 +187,7 @@ public sealed record ConveyorTuning
     public double ClearReach { get; init; } = 1.6;
     public double ClearSeconds { get; init; } = 2.5;
     public double StallSeconds { get; init; } = 20;
+    public double NearBelt { get; init; } = 25;
 }
 
 /// <summary>The slaughterhouse's livestock ramp (GDD §18; spec D.2 livestock ramp). Field docs in facilities.json.</summary>
