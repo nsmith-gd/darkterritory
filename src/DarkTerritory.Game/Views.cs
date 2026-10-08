@@ -105,6 +105,10 @@ public static class Views
             // (Staging.Gannet): up at it soaring in the engine's smoke; diving at the walker ahead; its beak in the planks;
             // stood on someone, mantled.
             "gannet" or "gannetfold" or "gannetstuck" or "gannetpin" => GannetCamera(train, name),
+            // (Not one of Names.) The train's own (Staging.Trainfolk): the Brakeman winding a wheel on the second car's roof, and
+            // cornered there; the Knotter taut across the gap behind it at speed from the next car's roof, and coiled round
+            // someone; Hotbox glowing in its truck from beside the car, and out on the ballast at a stand.
+            "brakeman" or "brakemancorner" or "knotter" or "knotterslip" or "hotboxbug" or "hotboxout" => Staging.TrainfolkCamera(train, name),
             // (Not one of Names.) Across the line, close, side on to crewmate 4 pinned under its rack (--moose pin).
             "moosepin" => Camera.LookAt(Staging.Lineside(train, 7, 1.6) + Double3.Up * EyeHeight,
                 Staging.MooseCrewmate(train, "pin").Feet + (Staging.MooseAt(train, "pin").At - Staging.MooseCrewmate(train, "pin").Feet) * 0.4 + Double3.Up * 0.9, 55),

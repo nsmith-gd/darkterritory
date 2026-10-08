@@ -14,7 +14,7 @@ namespace DarkTerritory.Game;
 /// relative to the camera (floating origin), so a train 40 km down the line renders as precisely
 /// as one at the yard.
 /// </summary>
-public sealed class GreyboxScene
+public sealed partial class GreyboxScene
 {
     public float DrawDistance { get; init; } = 400;
     public int Seed { get; init; } = 7;
@@ -537,6 +537,9 @@ public sealed class GreyboxScene
                     // A Moose pinning someone stands over them (note 339): the one it holds.
                     if (e.Kind is EnemyKind.Moose or EnemyKind.Gannet && e.Holding >= 0)
                         after = Crew?.FirstOrDefault(c => c.Id == e.Holding);
+                    // A Knotter coils round whoever slipped (note 365).
+                    if (e.Kind == EnemyKind.Knotter && e.Holding >= 0)
+                        after = Crew?.FirstOrDefault(c => c.Id == e.Holding);
                     Art.CreatureArt.Prey? prey = leaving && GauntHeading(e, frames) is { } going
                         ? new(V(going, eye), Vector3.Zero)
                         : after is { } victim
@@ -559,6 +562,9 @@ public sealed class GreyboxScene
                         if (Look?.Art.Creatures is { } flock)
                             flock.GannetWas = before;
                     }
+                    // The train's own: their clips by their mode's time and what came before (notes 364, 365, 367).
+                    if (e.Kind is EnemyKind.Brakeman or EnemyKind.Knotter or EnemyKind.Hotbox)
+                        modeSeconds = Trainfolk(e, frames, Look?.Art.Creatures);
                     DrawEnemy(mesh, line, frames, e, eye, from, to, Look?.Art.Creatures, bite, prey, room,
                         e.Kind is EnemyKind.Gaunt or EnemyKind.Grumbler or EnemyKind.Moose ? Pace(e) : 0, Flinch(e), HitAge(e),
                         modeSeconds: modeSeconds);
@@ -832,6 +838,9 @@ public sealed class GreyboxScene
             var fallen = body;
             if (body is Sim.Enemies.Gannet g)
                 (roll, fallen) = (0, Falling(g, frames, age));
+            // So have the train's own (their death clips: pitched off the roof, unlaid, over on its back).
+            if (body.Kind is EnemyKind.Brakeman or EnemyKind.Knotter or EnemyKind.Hotbox)
+                roll = 0;
             DrawEnemy(mesh, line, frames, fallen, eye, from, to, Look?.Art.Creatures, flinch: (push, Quaternion.Identity), hitAge: age, dying: true, roll: roll);
             if (fx is not null && BodyAt(fallen, line, frames) is var at && (at - eye).Length < DrawDistance)
                 fx.Crumble(mesh, V(at, eye), (float)age, id);
@@ -1689,6 +1698,9 @@ public sealed class GreyboxScene
             return;
         switch (e.Kind)
         {
+            case EnemyKind.Brakeman or EnemyKind.Knotter or EnemyKind.Hotbox:
+                TrainfolkBoxes(e, Draw);
+                break;
             case EnemyKind.Gannet:
                 {
                     // A pale cross 7 m across with a spear for a head (note 340): wings spread flying, a dart diving, the
@@ -2970,6 +2982,8 @@ public sealed class GreyboxScene
                 Look.Art.Effects.HotBoxSmoke(mesh, o + right * (float)(box.X * side) + up * (float)box.Y + back * (float)box.Z, up, back, heat,
                     (float)_speed, Time, frame.Index * 2 + (side > 0 ? 1 : 0));
         }
+        // A wound brake's shoes and a seized axle's dragged wheel (notes 364, 367).
+        TrainCar(mesh, frame, vehicle, eye);
         bool utility = Utility?.Invoke(frame.Index) == true || vehicle is { Kind: VehicleKind.Utility };
         // A lived-in car's stove smoking through its pipe: a utility car's, and the guard van's (TrainKit).
         if (Look is not null && frame.Shape.Interior is { } inside && frame.Shape.Cab is null && (utility || frame.Shape.Gun is not null))

@@ -1026,6 +1026,14 @@ static object Screenshot(TrainTuning t, string content, string[] args)
         train.Dynamics.Velocity = Opt(args, "--speed", 20);
         train.RefreshFrames();
     }
+    // --brakeman walk|wind|flee|cornered|lash|climb|drop, --knotter creep|force|taut|slack|coil, --hotboxbug knock|glow|seized|
+    // unfolded|snap|prised: the train's own (notes 364, 365, 367; Staging.Trainfolk) on, behind and under the second car; the
+    // train as they leave it (the cars behind the Brakeman wound on, the gap forced, the axle seized) at --speed or theirs. The
+    // views stage the Brakeman winding and cornered, the Knotter taut and coiled, Hotbox glowing and out, unless told.
+    string brakemanMode = Str(args, "--brakeman", view switch { "brakeman" => "wind", "brakemancorner" => "cornered", _ => "" });
+    string knotterMode = Str(args, "--knotter", view switch { "knotter" => "taut", "knotterslip" => "coil", _ => "" });
+    string hotboxBug = Str(args, "--hotboxbug", view switch { "hotboxbug" => "glow", "hotboxout" => "unfolded", _ => "" });
+    Staging.TrainfolkTrain(train, brakemanMode, knotterMode, hotboxBug, Opt(args, "--speed", -1));
     // --wreck s: off the rails at --speed (22) and that many seconds into the wreck (T117), seen by the cinematic camera.
     if (Opt(args, "--wreck", -1) is var wreckAt and >= 0)
     {
@@ -1454,6 +1462,14 @@ static object Screenshot(TrainTuning t, string content, string[] args)
         scene.Enemies = Staging.Gannet(scene.Enemies is List<DarkTerritory.Sim.Enemies.Enemy> others ? others : [], train, gannetMode);
         scene.Crew = [.. (scene.Crew ?? []).Where(c => c.Id is not (Staging.LoneId or Staging.GannetRescuerId)), Staging.GannetWalker(train, gannetMode),
             .. Staging.GannetRescuer(train, gannetMode) is { } rescuer ? [rescuer] : Array.Empty<Crewmate>()];
+    }
+    if (brakemanMode.Length + knotterMode.Length + hotboxBug.Length > 0)
+    {
+        (scene.Enemies, scene.Crew) = Staging.Trainfolk(scene.Enemies is List<DarkTerritory.Sim.Enemies.Enemy> others ? others : [], scene.Crew ?? [], train,
+            brakemanMode, knotterMode, hotboxBug);
+        // (Over the side from his walk: what he was doing before he went, for his drop.)
+        if (brakemanMode == "drop")
+            scene.StagedBefore = new() { [Staging.BrakemanId] = (int)DarkTerritory.Sim.Enemies.BrakemanMode.Walk };
     }
     // --gaunt leave|leavein: the body it's carrying off, under it (App. A.6; Staging.GauntLoad).
     if (Str(args, "--gaunt", "") is "leave" or "leavein" && scene.Enemies?.OfType<DarkTerritory.Sim.Enemies.Gaunt>().FirstOrDefault() is { } leaving)

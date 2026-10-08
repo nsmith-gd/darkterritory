@@ -1785,8 +1785,10 @@ public static class TrainKit
     /// A walk-in car (cargo or guard van): the body over the sim's walls and roof slab, its outside finished by livery,
     /// its inside lined in dark boards with carlines under the roof, the underframe and trucks beneath, couplers, the
     /// side and end ladders, the roof walk and brake wheel; the cargo stacked as crates, the side-door steps as timber.
+    /// <paramref name="wheel"/> false leaves the brake wheel off (the scene draws it, turned as the car's brake is wound:
+    /// <see cref="BrakeWheelPiece"/>).
     /// </summary>
-    public static MeshAsset Car(Look? look, CarShape shape, Livery livery, int variant, bool load = true)
+    public static MeshAsset Car(Look? look, CarShape shape, Livery livery, int variant, bool load = true, bool wheel = true)
     {
         var k = new Kit(look, 7 + variant * 3 + (int)livery);
         var interior = shape.Interior!.Value;
@@ -1938,7 +1940,7 @@ public static class TrainKit
             for (int i = 1; i < bays; i++)
                 Prop(k, "roof_seam", Matrix4x4.CreateScale(w / 1.5f, 1, 1) * Kit.At(0, h, -l + 0.2f + bay * i));
         // The brake wheel on its staff at the rear of the walk.
-        foreach (var brake in shape.Interactables.Where(i => i.Kind == InteractableKind.Handbrake))
+        foreach (var brake in shape.Interactables.Where(i => i.Kind == InteractableKind.Handbrake && wheel))
             BrakeWheel(k, F(brake.Position));
 
         // Floor and underframe.
@@ -2066,6 +2068,9 @@ public static class TrainKit
     {
         foreach (var solid in shape.Solids.Where(s => s.Part == PartKind.Coupler))
         {
+            // A Knotter's back across the gap where the plate was (CarShape.Knotted, note 365): it's drawn, not a plate.
+            if (solid.Box.Max.X - solid.Box.Min.X <= CarShape.KnotWidth + 1e-3)
+                continue;
             var (min, max) = (F(solid.Box.Min), F(solid.Box.Max));
             k.Use("steel_grate", Palette.IronGrey, 0.8f, 0.4f, tile: 0.8f);
             k.Box(min with { Y = max.Y - 0.03f }, max, Kit.Faces.PosY | Kit.Faces.NegY);
@@ -2074,6 +2079,41 @@ public static class TrainKit
                 k.Box(new Vector3(x, min.Y, min.Z), new Vector3(x + 0.04f, max.Y - 0.03f, max.Z));
         }
     }
+
+    /// <summary>
+    /// A car's brake wheel on its staff, at its foot on the roof (the scene's, turned by its winding: SceneArt.Car), with the
+    /// crank's knob up off its rim so how far it's turned shows.
+    /// </summary>
+    public static MeshAsset BrakeWheelPiece(Look? look)
+    {
+        var k = new Kit(look, 41);
+        BrakeWheel(k, Vector3.Zero);
+        k.Use("rust_heavy", Palette.IronGrey, 0.8f, 0.4f);
+        var knob = new Vector3(BrakeWheelRadius, 0.47f, 0);
+        k.Rod(knob, knob + new Vector3(0, 0.1f, 0), 0.014f, 6);
+        k.Use("paint_black", Palette.SootBlack, 0.7f, 0.2f);
+        k.Rod(knob + new Vector3(0, 0.06f, 0), knob + new Vector3(0, 0.13f, 0), 0.022f, 6);
+        return k.Build("brake-wheel");
+    }
+
+    /// <summary>A wound brake's chain (the Brakeman's, note 364), taken up round its staff's foot in tight turns.</summary>
+    public static MeshAsset WoundChain(Look? look)
+    {
+        var k = new Kit(look, 43);
+        k.Use("rust_heavy", Palette.RustRed * 0.8f, 0.8f, 0.35f);
+        const int turns = 5, per = 8;
+        for (int i = 0; i < turns * per; i++)
+        {
+            float a0 = i * MathF.Tau / per, a1 = (i + 1) * MathF.Tau / per;
+            float y0 = 0.04f + i * 0.012f, y1 = 0.04f + (i + 1) * 0.012f;
+            k.Rod(new Vector3(MathF.Cos(a0) * 0.045f, y0, MathF.Sin(a0) * 0.045f), new Vector3(MathF.Cos(a1) * 0.045f, y1, MathF.Sin(a1) * 0.045f), 0.012f, 5);
+        }
+        return k.Build("brake-wound");
+    }
+
+    /// <summary>How far a wound brake's wheel has been turned from where it stands off (radians: its last part-turn; note 364).</summary>
+    public const float WoundTurn = 2.4f;
+    const float BrakeWheelRadius = 0.26f;
 
     static void BrakeWheel(Kit k, Vector3 at)
     {
