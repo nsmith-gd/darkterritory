@@ -20,6 +20,8 @@ public enum EnemyKind : byte
     Mourners = 33,
     // The Brakeman (GDD §21, the director's brief of 8 Oct 2026; note 364).
     Brakeman = 35,
+    // The Knotter (GDD §21, the director's brief of 8 Oct 2026; note 365).
+    Knotter = 36,
     // The Freight Beetle (GDD §21, the director's brief of 8 Oct 2026; note 366).
     FreightBeetle = 37,
     // Hotbox (GDD §21, the director's brief of 8 Oct 2026; note 367).

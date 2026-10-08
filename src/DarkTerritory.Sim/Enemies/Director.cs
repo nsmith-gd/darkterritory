@@ -1100,6 +1100,7 @@ public sealed class Director
                 EnemyKind.FreightBeetle => new FreightBeetle(0),
                 EnemyKind.Brakeman => new Brakeman(0),
                 EnemyKind.Hotbox => new Hotbox(0),
+                EnemyKind.Knotter => new Knotter(0),
                 _ => new ChoirGhost(0),
             };
             d[kind] = (e.Zone, e.Sense, e.Want);

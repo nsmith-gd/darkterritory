@@ -162,6 +162,11 @@ public sealed class Vehicle(int id, VehicleKind kind, double load)
     /// <c>handbrakeDecel</c> of its mass), until a crewmate unwinds it at its wheel.
     /// </summary>
     public bool Wound { get; set; }
+    /// <summary>
+    /// Metres the Knotter has forced the coupling behind it apart (note 365), past the coupling's own gap: its body is the
+    /// coupling, and the cars behind ride that much further back. 0, a coupling as any.
+    /// </summary>
+    public double Knot { get; set; }
     /// <summary>An axle seized by Hotbox (note 367): the car drags badly (the train held to enemies.json <c>hotbox.seizedTopSpeed</c>) until it's repaired or cut.</summary>
     public bool Seized { get; set; }
     /// <summary>Where the hole is (car frame): what's boarded up (<see cref="Breaches"/>).</summary>
@@ -346,7 +351,7 @@ public sealed class Consist
     {
         double d = 0;
         for (int i = 0; i < index; i++)
-            d += _vehicles[i].Length(Tuning) + Tuning.Geometry.CouplingGap;
+            d += _vehicles[i].Length(Tuning) + Tuning.Geometry.CouplingGap + _vehicles[i].Knot;
         return d;
     }
 
@@ -358,5 +363,7 @@ public sealed class Consist
     public static double LoadedMassTonnes(TrainTuning t, int cars) => t.Mass.EngineTonnes + cars * t.Mass.LoadedCarTonnes;
 
     /// <summary>Front face of the first vehicle to rear face of the last, couplings included (spec B.4).</summary>
-    public double LengthMetres => _vehicles.Sum(v => v.Length(Tuning)) + Math.Max(0, _vehicles.Count - 1) * Tuning.Geometry.CouplingGap;
+    public double LengthMetres => _vehicles.Sum(v => v.Length(Tuning)) + Math.Max(0, _vehicles.Count - 1) * Tuning.Geometry.CouplingGap
+        // A Knotter's gap (note 365) inside the rake.
+        + _vehicles.Take(Math.Max(0, _vehicles.Count - 1)).Sum(v => v.Knot);
 }

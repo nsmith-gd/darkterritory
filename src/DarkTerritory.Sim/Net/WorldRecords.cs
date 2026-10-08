@@ -88,6 +88,8 @@ public static class WorldRecords
                     Q(v.Loose, Fine),
                     // Its handbrake wound on by the Brakeman (note 364), an axle seized by Hotbox (note 367): drag every client feels.
                     (v.Wound ? 1 : 0) | (v.Seized ? 2 : 0),
+                    // How far a Knotter's forced the coupling behind it apart (note 365): every client lays the cars out so.
+                    Q(v.Knot, Fine),
                     // How charred its fire cells are (note 267: every client draws the burnt boards).
                     .. CarFire.Pack([.. v.Char.Select(c => c / (double)((1 << CarFire.Bits) - 1))])]));
         list.Add(new WireRecord(WireRecord.MakeKey(RecordKind.World, 0),
@@ -343,9 +345,9 @@ public static class WorldRecords
                         f.Length > 8 ? (CargoKind)f[8] : CargoKind.None, f.Length <= 9 || f[9] != 0, f.Length > 15 ? D(f[15], Fine) : 0,
                         f.Length > 18 ? (uint)f[18] : 0,
                         f.Length > 22 && f[19] != 0, f.Length > 22 ? new Double3(D(f[20], Pos), D(f[21], Pos), D(f[22], Pos)) : default,
-                        [.. CarFire.Unpack(f, 27).Select(c => (byte)Math.Round(c * ((1 << CarFire.Bits) - 1)))],
+                        [.. CarFire.Unpack(f, 28).Select(c => (byte)Math.Round(c * ((1 << CarFire.Bits) - 1)))],
                         f.Length > 23 ? D(f[23], Fine) : 0, f.Length > 24 ? D(f[24], Fine) : 0, f.Length > 25 ? D(f[25], Fine) : 0,
-                        f.Length > 26 && (f[26] & 1) != 0, f.Length > 26 && (f[26] & 2) != 0));
+                        f.Length > 26 && (f[26] & 1) != 0, f.Length > 26 && (f[26] & 2) != 0, f.Length > 27 ? D(f[27], Fine) : 0));
                     break;
                 case RecordKind.World:
                     world.Choir = new ChoirState
@@ -551,6 +553,7 @@ public static class WorldRecords
             EnemyKind.FreightBeetle => new FreightBeetle(r.Id),
             EnemyKind.Brakeman => new Brakeman(r.Id),
             EnemyKind.Hotbox => new Hotbox(r.Id),
+            EnemyKind.Knotter => new Knotter(r.Id),
             _ => new ChoirGhost(r.Id),
         };
 

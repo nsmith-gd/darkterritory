@@ -134,7 +134,9 @@
     "freightBeetle": [[0.75, 0.7], [0.6, 0.7]],
     // A stooped man (note 364); Hotbox half out of its truck, low (note 367).
     "brakeman": [[0.4, 0.5], [0.4, 1.1], [0.3, 1.55]],
-    "hotbox": [[0.45, 0.2]]
+    "hotbox": [[0.45, 0.2]],
+    // Its body across the gap, low (note 365).
+    "knotter": [[0.35, 0]]
   },
   "gauntAsleep": 0.35,
 
@@ -420,6 +422,21 @@
     "priseSeconds": 4, "priseReach": 1.8, "scuttleSeconds": 3, "snapReach": 1.2, "snapDamage": 25, "snapEvery": 3,
     "repairSeconds": 10, "repairReach": 2.2, "bogieInset": 1.6, "inboard": 0.35, "axleHeight": 0.5,
     "tierWeights": { "local": 1, "frontier": 1.25, "deadLines": 1.5, "deepTerritory": 1.75 }
+  },
+
+  // THE KNOTTER · vibration · structural (GDD §21, App. A.3, B.3; the director's brief of 8 Oct 2026; ARCHITECTURE §8 note
+  // 365; docs/design/creatures/knotter.md). A rope-bodied parasite that becomes a coupling. Over boardAbove m/s, a train of
+  // minCars or more, it comes up into a coupling of the engine's rake that nobody's at (never the engine's own): creepSeconds
+  // of creaking at the gap (cut the coupling now and it drops off), then it forces the cars apart over forceSeconds till the
+  // gap is gap m (a roof jump carries about 2.8). Taut over slackBelow m/s: blows don't land, and whoever's on its back at
+  // over slipAbove m/s slips slipPerSecond a second (a hash of the tick and who): it coils round them (the grab) for
+  // coilSeconds, a friend's hand or blow frees them, else they're pulled under. Slack at a stand: its back is safe and blows
+  // land (health in blows); killed, the cars stand uncoupled where it held them. Spawns (B.3): every tier, tierWeights; one
+  // at a time.
+  "knotter": {
+    "boardAbove": 8, "minCars": 3, "creepSeconds": 4, "gap": 5, "forceSeconds": 6, "slackBelow": 0.3,
+    "slipAbove": 2, "slipPerSecond": 0.45, "coilSeconds": 1.5, "health": 8,
+    "tierWeights": { "local": 1, "frontier": 1.5, "deadLines": 2, "deepTerritory": 2.5 }
   },
 
   // THE SWITCHMAN · vibration · corrupted (App. A.8, B.8). At a junction ahead[0]-[1] m out; seen at revealAt m. It throws
@@ -830,7 +847,7 @@
     // App. B.1 v1.1's cost table (the Choir costs nothing: it isn't spawned; hazards are level content).
     "costs": { "followers": 2, "draggers": 2, "fireFlies": 2, "switchman": 2, "trackDoll": 3, "cinderHounds": 3, "climbers": 3,
       "whistler": 3, "stoker": 3, "ribbits": 3, "carHugger": 4, "tippyToesie": 4, "gaunt": 4, "sootChildren": 4, "grumbler": 4,
-      "passenger": 5, "moose": 3, "gannet": 4, "freightBeetle": 1, "brakeman": 3, "hotbox": 2 },
+      "passenger": 5, "moose": 3, "gannet": 4, "freightBeetle": 1, "brakeman": 3, "hotbox": 2, "knotter": 3 },
     // App. B.3/B.8 weights.
     "houndsLivestockWeight": 2.5,
     "houndsHotBoilerWeight": 1.5,
@@ -879,6 +896,10 @@
       ["cinderHounds", "brakeman"],
       // Hotbox (note 367): run fast for the hounds vs. stop to pull it before it seizes.
       ["cinderHounds", "hotbox"],
+      // The Knotter (note 365): never stop with the pack behind vs. it's killed only at a stand; cut the Car Hugger's car vs.
+      // the coupling you'd cut across is the Knotter.
+      ["cinderHounds", "knotter"],
+      ["carHugger", "knotter"],
       ["choir", "cinderHounds"],
       ["choir", "gaunt"],
       ["fireFlies", "trackDoll"],

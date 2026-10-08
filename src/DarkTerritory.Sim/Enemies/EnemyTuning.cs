@@ -34,6 +34,7 @@ public sealed record EnemyTuning(
     public FreightBeetleTuning FreightBeetle { get; init; } = new();
     public BrakemanTuning Brakeman { get; init; } = new();
     public HotboxTuning Hotbox { get; init; } = new();
+    public KnotterTuning Knotter { get; init; } = new();
     /// <summary>The damage model (GDD App. F.1, the director's decision of 6 Oct 2026; note 272): no creature's hit is chip.</summary>
     public DamageModelTuning Damage { get; init; } = new();
     /// <summary>
@@ -1040,4 +1041,20 @@ public sealed record HotboxTuning
     public double Inboard { get; init; } = 0.35;
     public double AxleHeight { get; init; } = 0.5;
     public Dictionary<string, double> TierWeights { get; init; } = new() { ["local"] = 1, ["frontier"] = 1.25, ["deadLines"] = 1.5, ["deepTerritory"] = 1.75 };
+}
+
+/// <summary>The Knotter (GDD §21, App. A.3, B.3; ARCHITECTURE §8 note 365). Field docs live in enemies.json.</summary>
+public sealed record KnotterTuning
+{
+    public double BoardAbove { get; init; } = 8;
+    public int MinCars { get; init; } = 3;
+    public double CreepSeconds { get; init; } = 4;
+    public double Gap { get; init; } = 5;
+    public double ForceSeconds { get; init; } = 6;
+    public double SlackBelow { get; init; } = 0.3;
+    public double SlipAbove { get; init; } = 2;
+    public double SlipPerSecond { get; init; } = 0.45;
+    public double CoilSeconds { get; init; } = 1.5;
+    public double Health { get; init; } = 8;
+    public Dictionary<string, double> TierWeights { get; init; } = new() { ["local"] = 1, ["frontier"] = 1.5, ["deadLines"] = 2, ["deepTerritory"] = 2.5 };
 }

@@ -409,6 +409,24 @@ public static class Spawns
             c.Add(i => Hotbox.In(i, c.Train, car, rear, side, c.Tuning.Hotbox));
             return true;
         }),
+        // B.3 · The Knotter (note 365): into a coupling of the engine's rake at speed, one nobody's at; every tier, more the
+        // harder; one at a time.
+        new(EnemyKind.Knotter, c =>
+        {
+            var t = c.Tuning.Knotter;
+            if (c.Train.Dynamics.Speed < t.BoardAbove || c.Train.Dynamics.Consist.CarCount < t.MinCars || !c.None(EnemyKind.Knotter)
+                || c.World.TrainInFort || Knotter.Joints(c.Train, c.Living).Count == 0)
+                return null;
+            return MooseTuning.ByTier(t.TierWeights, c.Tier);
+        }, c =>
+        {
+            var joints = Knotter.Joints(c.Train, c.Living);
+            if (joints.Count == 0)
+                return false;
+            int car = joints[(int)c.Director.NextRange(0, joints.Count - 1e-9)];
+            c.Add(i => Knotter.Into(i, c.Train, car, c.Tuning.Knotter));
+            return true;
+        }),
         // B.4 · The Gannet (note 340; the orchestrator's S3): over a train run fast a while in open country (not a tunnel), a
         // train of two or more; every tier, more the harder; by the line's biome; up per walker on the roofs. Once a run:
         // it peels off and comes back on its own, until it's killed or gives up.

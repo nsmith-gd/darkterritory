@@ -125,7 +125,7 @@ public class HitConfirmTests
     [
         EnemyKind.CinderHound, EnemyKind.Switchman, EnemyKind.SootChildren, EnemyKind.Dragger, EnemyKind.Stoker, EnemyKind.Climber,
         EnemyKind.Gaunt, EnemyKind.Passenger, EnemyKind.Follower, EnemyKind.TrackDoll, EnemyKind.CarHugger, EnemyKind.Whistler,
-        EnemyKind.TippyToesie, EnemyKind.FireFlies, EnemyKind.Ribbit, EnemyKind.Grumbler, EnemyKind.Choir, EnemyKind.Moose, EnemyKind.Gannet, EnemyKind.Mourners, EnemyKind.FreightBeetle, EnemyKind.Brakeman, EnemyKind.Hotbox,
+        EnemyKind.TippyToesie, EnemyKind.FireFlies, EnemyKind.Ribbit, EnemyKind.Grumbler, EnemyKind.Choir, EnemyKind.Moose, EnemyKind.Gannet, EnemyKind.Mourners, EnemyKind.FreightBeetle, EnemyKind.Brakeman, EnemyKind.Hotbox, EnemyKind.Knotter,
     ];
 
     static Enemy Make(EnemyKind kind, int id) => kind switch
@@ -153,6 +153,7 @@ public class HitConfirmTests
         EnemyKind.FreightBeetle => new FreightBeetle(id),
         EnemyKind.Brakeman => new Brakeman(id),
         EnemyKind.Hotbox => new Hotbox(id),
+        EnemyKind.Knotter => new Knotter(id),
         _ => throw new ArgumentException($"{kind} isn't a creature"),
     };
 
@@ -173,6 +174,7 @@ public class HitConfirmTests
         EnemyKind.Gannet => (double)gannet,
         EnemyKind.Hotbox => (double)HotboxMode.Unfolded,
         EnemyKind.Brakeman => (double)BrakemanMode.Cornered,
+        EnemyKind.Knotter => (double)KnotterMode.Slack,
         _ => 0,
     };
 
