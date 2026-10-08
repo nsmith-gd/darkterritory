@@ -171,7 +171,7 @@ top-speed strategy; none comes to a train under `minSpeed` (they're the run's, n
 | S1 | **The hound run**: Cinder Hounds coming in a stream, faster than the train | The rear car's end, from the line behind, at any speed | Howls behind, the pack's eyes in the dark | The guns, one ball per hound (a ball landing near scatters it) | **Built (§6.1)** |
 | S2 | **Climbers at speed**: on Dead Lines+, let a pack that has paced a fast train long enough get a grip anyway (note 286 holds them to under 14 m/s, by the boarding-first decisions) | A coupling gap (B.4) | Pacing alongside, scrabbling | A walker in the gap, or a gun on the gap | Tuning, if the director wants it |
 | S3 | **The kites** (new, App. F.1's "fast, flying class") | The roofs, only above 18 m/s, in open country | A shriek overhead, a shadow across the lamp | Lamps lit on the roofs (they won't land in light), or a walker with a tool. The gun can't elevate to them (`maxPitchDegrees` 45) unless one's on a roof | New creature: art, clips, a rule |
-| S4 | **Draggers off a bridge** (B.4 variant) | Dropping onto the roofs from an overbridge or a tunnel mouth | A scraping above as the bridge comes up | Nobody on the roofs under a bridge, or knocked off with a tool | Rule change |
+| S4 | **Draggers off a bridge** (B.4 variant) | Dropping onto the roofs from a through-truss's top chord (not a tunnel mouth: the mouth already takes anyone standing on a roof) | A scraping on the steel above as the truss comes up | Nobody on the roofs under a truss; the one it has hauled back up, as from any Dragger | **Built (note 435)** |
 | S5 | **The Car Hugger** (exists) | The rear car as it passes low ground | Grinding | Cut the car, or club it | Unchanged |
 
 ### 5.3 Waves at the guns (tower defence)
@@ -199,7 +199,11 @@ walkers and riders, which is what gives everyone something to answer at once.
    ahead and 12-16 m out to a flank, the pair howls in the lamp, then runs in to meet the train, across the line to its
    far side, and leaps aboard the first car behind the engine as it comes alongside. The forward gun has about seven
    seconds on them at 21 m/s (its range, 220 m, in to the stack's mask). A crew of four or more meets one pair ahead in
-   each run. Not built: lanes on the flanks from the open country's sides, and other runners than hounds, each by its own rule.
+   each run. **The flank lanes are built too (note 418, queue #154):** every third pair comes in from the open country
+   (not the forests) abeam the guard van's gun, 70 m out, keeping pace, and in to the car alongside. A gun traverses only
+   100° either side of its facing, so abeam its own car is the flank it has; abeam the middle of the train, neither gun
+   reaches, and that stays the walkers'. A crew of eight meets a pair behind, one ahead and one from the flank in each run.
+   Not built: other runners than hounds, each by its own rule.
 
 ## 6. The first piece, and what's next
 
@@ -227,6 +231,7 @@ the line (`HoundRunTests`). A bot crew hauls at cruise (14 m/s), and the boards 
 5. **Climbers at speed** (S2): only if the director wants it over note 286's grip; tuning and a sweep.
 6. **The kites** (S3): a new creature, after the director's yes.
 7. **The lane ahead** (§5.3 6), for the forward gun: **built (note 405, queue #141).** A bot crew of six or more puts its last place on the forward gun (note 414, queue #150).
+8. **The flank lanes** (§5.3 6), for the guard van's gun: **built (note 418, queue #154).**
 
 ## 7. What changes in the existing director
 

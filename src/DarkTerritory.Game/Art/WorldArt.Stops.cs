@@ -173,6 +173,23 @@ public sealed partial class WorldArt
                     });
                     break;
                 }
+            case BuildingKind.Barn or BuildingKind.Outbuilding or BuildingKind.GoodsShed when Sim.Run.StopWalls.OpenShed(b) && Sim.Run.StopWalls.Shelled(stop, index)
+                && stop.Holdouts.All(h => h.Building != index):
+                // Open (note 417): walked into by its wide door, its hayloft or workbench inside.
+                {
+                    // The ground climbs away from the line (the valley's sides): its floor is laid over the highest of it under
+                    // the footprint, so the far side's earth doesn't come up through it.
+                    float centre = Ground(route, along, (float)b.D, valleyDepth), rise = 0;
+                    foreach (double cx in new[] { -0.5, 0.5 })
+                        foreach (double cy in new[] { -0.5, 0.5 })
+                        {
+                            var p = Sim.Run.StopWalls.InHouse(b, cx * b.Length, cy * b.Width);
+                            rise = MathF.Max(rise, Ground(route, f.Start + p.S, (float)p.D, valleyDepth) - centre);
+                        }
+                    k.With(frame, () => OpenShed(k, stop, index, b.Kind switch { BuildingKind.Barn => 6.5f, BuildingKind.GoodsShed => 7f, _ => 4.6f },
+                        b.Kind == BuildingKind.Outbuilding && b.Variant == 1 || b.Kind == BuildingKind.GoodsShed && b.Variant == 1 ? "rust_heavy" : "wood_grey", rise));
+                }
+                break;
             case BuildingKind.Barn:
                 k.With(frame, () => StructureKit.Shed(k, width, length, 6.5f, "wood_grey", b.Variant % 2 == 0 ? 1 : -1));
                 break;

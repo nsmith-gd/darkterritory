@@ -416,7 +416,8 @@ public class LinesideTests
     public void AWalkerOnTheLastCarWithTheCarAheadAlightStillGetsInForATunnel()
     {
         // The 100-night rerun: on the last car (no plate behind it) with a fire in the car ahead, the walker's only way in
-        // was a troubled car, so it stayed on the roof and the mouth took it. A fire's a chance; the roof isn't.
+        // was a troubled car, so it stayed on the roof and the mouth took it. Off the roof it goes (down to the plate, note
+        // 380's AWalkerShelteringByACarAlightWaitsOnThePlateNotInside).
         var train = new TrainOnLine(new TrainDynamics(Consist.Uniform(T, 6, 1)), Tunnel().Build(), 400);
         int last = train.Vehicles.Count - 1;
         var self = PlayerMotor.SpawnOnRoof(train, last, 3, P);
@@ -425,6 +426,34 @@ public class LinesideTests
         warm.Shelter = true;
         Assert.NotNull(warm.Decide(self, train));
         Assert.True(warm.Active);
+    }
+
+    [Fact]
+    public void AWalkerShelteringByACarAlightWaitsOnThePlateNotInside()
+    {
+        // Note 380: a frontier:3 hot run held the roof warning for whole stretches (the express driver takes bends over their
+        // boards), and a walker with every way in alight went in for shelter anyway, into car 10 burning, and died there. The
+        // plate's under the roof line: down onto it, wait there while the warning holds, and back up after.
+        var train = new TrainOnLine(new TrainDynamics(Consist.Uniform(T, 6, 1)), Tunnel().Build(), 400);
+        int last = train.Vehicles.Count - 1;
+        var self = PlayerMotor.SpawnOnRoof(train, last, 3, P);
+        // The last car and the car ahead both alight: every way in is troubled.
+        var warm = new WarmUp(P.Cold) { Troubled = car => car >= last - 1, Shelter = true };
+        bool inside = false;
+        for (int tick = 0; tick < 40 * SimConstants.TickRate; tick++)
+        {
+            var intent = warm.Decide(self, train) ?? new PlayerIntent();
+            PlayerMotor.Step(ref self, intent, train, P, T, SimConstants.TickSeconds);
+            inside |= self.Surface == Surface.Deck;
+        }
+        Assert.True(self.Alive);
+        Assert.False(inside, "in a burning car for shelter");
+        Assert.Equal(Surface.Coupler, self.Surface);
+        Assert.True(warm.Active, warm.Doing);
+        // The warning down: it's done with the plate.
+        warm.Shelter = false;
+        Assert.Null(warm.Decide(self, train));
+        Assert.False(warm.Active);
     }
 }
 

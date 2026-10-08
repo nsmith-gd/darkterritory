@@ -142,9 +142,9 @@ public class StopGeneratorTests
             var shed = Assert.Single(town.Buildings, b => b.Kind == BuildingKind.GoodsShed);
             Assert.True(Math.Abs(shed.D) > Math.Abs(d) && Math.Sign(shed.D) == Math.Sign(d));
             Assert.All(town.Containers.Where(c => c.Building == town.Buildings.ToList().IndexOf(shed)), c => Assert.True(c.Kind == ContainerKind.Bench && Math.Abs(c.At.D) >= tt.Buffer));
-            // All of it stands as walls (StopWalls), and none of it at a halt.
+            // All of it stands as walls (StopWalls), the goods shed open to walk into (note 417), and none of it at a halt.
             Assert.All(Enumerable.Range(0, town.Buildings.Count).Where(i => town.Buildings[i].Kind is BuildingKind.Station or BuildingKind.GoodsShed or BuildingKind.Derelict),
-                i => Assert.True(StopWalls.Walled(town, i)));
+                i => Assert.True(town.Buildings[i].Kind == BuildingKind.GoodsShed ? StopWalls.Shelled(town, i) && StopWalls.OpenShed(town.Buildings[i]) : StopWalls.Walled(town, i)));
             var plain = StopGenerator.Generate(S, tier, seed, StopKind.Village, cx);
             Assert.DoesNotContain(plain.Buildings, b => b.Kind is BuildingKind.Station or BuildingKind.GoodsShed or BuildingKind.Derelict);
             Assert.Empty(plain.Sidings);
