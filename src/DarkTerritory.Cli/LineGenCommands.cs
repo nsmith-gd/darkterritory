@@ -40,7 +40,7 @@ static class LineGenCommands
     }
 
     /// <summary>The night's lineside (note 371) as every machine stands it.</summary>
-    static DarkTerritory.Sim.Run.Lineside? LinesideOf(Route route, DarkTerritory.Sim.Rail.RailLine line) => DarkTerritory.Sim.Run.Lineside.Of(route, line);
+    static DarkTerritory.Sim.Run.LinesideProps? LinesideOf(Route route, DarkTerritory.Sim.Rail.RailLine line) => DarkTerritory.Sim.Run.LinesideProps.Of(route, line);
 
     /// <summary>A checksum of the lineside's trees, boulders and poles (note 371): they're walls, so a machine that stood them differently would predict wrong.</summary>
     static string LinesidePrint(string content, Route route, DarkTerritory.Sim.Rail.RailLine line)

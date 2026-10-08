@@ -26,7 +26,7 @@ public readonly record struct LinesideProp(LinesideKind Kind, double Along, doub
     /// </summary>
     public double Radius => Kind switch
     {
-        LinesideKind.Pole => Lineside.PoleRadius,
+        LinesideKind.Pole => LinesideProps.PoleRadius,
         LinesideKind.Rock => Size * 0.9,
         _ when Dead => Math.Clamp(Height * 0.014, 0.1, 0.3),
         _ => Math.Clamp(Height * Species switch { "pine" => 0.015, "birch" => 0.012, _ => 0.018 }, 0.08, 0.45),
@@ -43,7 +43,7 @@ public readonly record struct LinesideProp(LinesideKind Kind, double Along, doub
 /// in world-space stands as dense as the biome grows it, the odd tree out of them, none on a crag, boulders where the land
 /// is rough, a pole every 50 m on the right; none on a stop's ground, a branch's, a road's, in water or inside a fort.
 /// </summary>
-public sealed class Lineside
+public sealed class LinesideProps
 {
     /// <summary>The slots trees and boulders are dealt in along the line (m), and how far out the forest runs.</summary>
     public const double SlotM = 12, ForestOutM = 90;
@@ -65,7 +65,7 @@ public sealed class Lineside
     readonly int _main;
     readonly (double S0, double S1)[] _wet;
 
-    Lineside(Route.Route route, RailLine line, TerrainField terrain)
+    LinesideProps(Route.Route route, RailLine line, TerrainField terrain)
     {
         _route = route;
         _line = line;
@@ -89,18 +89,18 @@ public sealed class Lineside
         _wet = [.. _plan.Water.Select(w => Span(w.Edge, w.S0, w.S1, w.WidthM)), .. _plan.Shores.Select(sh => Span(sh.Edge, sh.S0, sh.S1, 0))];
     }
 
-    static readonly System.Runtime.CompilerServices.ConditionalWeakTable<Route.Route, Lineside> Built = new();
+    static readonly System.Runtime.CompilerServices.ConditionalWeakTable<Route.Route, LinesideProps> Built = new();
 
     /// <summary>
     /// A generated line's lineside, or null for a hand-laid one (whose lineside is the art's alone). One per route: it's a
     /// pure function of the route, so the art and the sim (and a test's many nights on one route) share what's been dealt.
     /// </summary>
-    public static Lineside? Of(Route.Route route, RailLine line)
+    public static LinesideProps? Of(Route.Route route, RailLine line)
     {
         if (route.Plan is null || line.Conditions is not PlanConditions { Terrain: { } terrain })
             return null;
         lock (Built)
-            return Built.GetValue(route, r => new Lineside(r, line, terrain));
+            return Built.GetValue(route, r => new LinesideProps(r, line, terrain));
     }
 
     /// <summary>The biome's stand cover: its tree density as a share of the land under forest.</summary>

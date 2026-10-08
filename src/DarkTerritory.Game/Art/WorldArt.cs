@@ -414,7 +414,7 @@ public sealed partial class WorldArt(Look look)
 
         // Telegraph poles and their wires, sagging between them. On a generated line where the sim stands them (note 371):
         // off a stop's sidings and roads, a branch's ground and the water, as they're solid.
-        var lineside = route is null ? null : Sim.Run.Lineside.Of(route, line);
+        var lineside = route is null ? null : Sim.Run.LinesideProps.Of(route, line);
         bool Poled(double s) => lineside?.Pole(s) ?? Clear(s);
         var wire = new Kit(_look, mesh);
         wire.Use("rust_heavy", Palette.SootBlack, 0.2f, 0.2f, tile: 1);

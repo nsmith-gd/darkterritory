@@ -34,7 +34,7 @@
   // their four walls). A
   // Holdout stands as its walls with a door personDoorM wide where the crew breaches it: its occupant comes back inside it
   // (GDD App. D.14) and walks out of the door. linesideReachM (note 371): how far out from a generated line its trees,
-  // boulders and telegraph poles stand solid (Lineside): where the crew and what hunts them go between the stops, whose
+  // boulders and telegraph poles stand solid (LinesideProps): where the crew and what hunts them go between the stops, whose
   // ground is cleared further out. Past it the woods are the art's alone, as all of them were.
   "walls": { "wallM": 0.3, "bayDoorM": 4, "personDoorM": 1.2, "wellTopM": 0.85, "topM": 9, "linesideReachM": 40 },
   // GDD §9 (note 178): the yard dispatcher's manifest at the gate and the clerk's tally at the terminus, a line every

@@ -19,7 +19,7 @@ public sealed partial class WorldArt
     /// <summary>How far past a stop's zone its levelled ground eases back into the hills.</summary>
     const double FlatEase = 60;
     /// <summary>The clearance mask's cell (m): trees stay out of any cell a building, road or track comes near.</summary>
-    const double ClearCell = Sim.Run.Lineside.ClearCell;
+    const double ClearCell = Sim.Run.LinesideProps.ClearCell;
 
     /// <summary>How levelled the ground is at <paramref name="s"/>: 1 across a stop's zone, easing out past its ends.</summary>
     public static float Flat(Route? route, double s)
@@ -52,7 +52,7 @@ public sealed partial class WorldArt
     }
 
     /// <summary>The cells of every stop's ground (the sim's, note 371: what its lineside keeps off too).</summary>
-    static HashSet<(long, long)> Clearance(Route route) => Sim.Run.Lineside.StopGround(route);
+    static HashSet<(long, long)> Clearance(Route route) => Sim.Run.LinesideProps.StopGround(route);
 
     /// <summary>
     /// Every stop building whose centre is in [<paramref name="from"/>, <paramref name="to"/>), each road stretch that

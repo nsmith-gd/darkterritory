@@ -195,10 +195,10 @@ public sealed partial class WorldArt
     }
 
     /// <summary>A biome's stand cover (its tree density as a share of the land under forest; the sim's, note 371).</summary>
-    static float Cover(BiomeDef def) => (float)Sim.Run.Lineside.Cover(def);
+    static float Cover(BiomeDef def) => (float)Sim.Run.LinesideProps.Cover(def);
 
     /// <summary><see cref="Stand(RailLine, double, double, float)"/> at a world point: the sim's stands (note 371), where its trees are.</summary>
-    static float Stand(Double3 w, float cover) => (float)Sim.Run.Lineside.Stand(w, cover);
+    static float Stand(Double3 w, float cover) => (float)Sim.Run.LinesideProps.Stand(w, cover);
 
     /// <summary>The land's tint at a world point: broad light and dark swathes, a little warmer and cooler, over the tiles.</summary>
     static Vector3 Macro(Vector3 world)
@@ -255,11 +255,11 @@ public sealed partial class WorldArt
         // The trees and boulders are the sim's (note 371): it deals them from the night's seed, alike on every machine, and
         // stands them as walls, so what's drawn here is what's walked into. What's only seen of each (its tint, a ghost or a
         // dead spruce) is drawn from its own seed.
-        var lineside = Sim.Run.Lineside.Of(route, line);
+        var lineside = Sim.Run.LinesideProps.Of(route, line);
         var forts = Forts(line);
         foreach (var prop in lineside?.Props(from, to) ?? [])
         {
-            if (prop.Kind == Sim.Run.LinesideKind.Pole || Sim.Run.Lineside.InsideAFort(forts, prop.Along, prop.Lateral))
+            if (prop.Kind == Sim.Run.LinesideKind.Pole || Sim.Run.LinesideProps.InsideAFort(forts, prop.Along, prop.Lateral))
                 continue;
             var rng = new Random(unchecked((int)prop.Seed));
             double along = prop.Along, offset = prop.Lateral;

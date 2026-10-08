@@ -705,11 +705,11 @@ public sealed class World
 
     /// <summary>
     /// Note 371: a generated line's trees, boulders and telegraph poles stand beside the stops' walls, out to
-    /// run.json <c>walls.linesideReachM</c> from the line, none inside a fort (<see cref="Sim.Run.Lineside"/>).
+    /// run.json <c>walls.linesideReachM</c> from the line, none inside a fort (<see cref="Sim.Run.LinesideProps"/>).
     /// </summary>
     Sim.Run.StopWalls LinesideToo(Sim.Run.StopWalls walls, Route.Route route)
     {
-        if (Sim.Run.Lineside.Of(route, Train.Line) is { } side && _walls is { LinesideReachM: > 0 } t)
+        if (Sim.Run.LinesideProps.Of(route, Train.Line) is { } side && _walls is { LinesideReachM: > 0 } t)
             walls.Add(side.Walls(Forts ?? [], t.LinesideReachM));
         return walls;
     }
