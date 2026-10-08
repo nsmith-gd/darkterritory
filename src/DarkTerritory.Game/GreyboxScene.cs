@@ -611,6 +611,12 @@ public sealed class GreyboxScene
                     DrawEnemy(mesh, line, frames, e, eye, from, to, Look?.Art.Creatures, bite, prey, room,
                         e.Kind is EnemyKind.Gaunt or EnemyKind.Grumbler or EnemyKind.Moose ? Pace(e) : 0, Flinch(e), HitAge(e),
                         modeSeconds: modeSeconds);
+                    // A Grumbler healing (App. A.8, note 487): what a lone crewmate's blow knocked out of it drawn back in.
+                    if (e.Kind == EnemyKind.Grumbler && Healing(e) is > 0 and var healing && Look?.Art.Effects is { } knit)
+                    {
+                        var feet = EnemyWorld(e, frames);
+                        knit.Knit(mesh, V(feet, eye) + Vector3.UnitY * GrumblerMiddle, V(feet, eye), healing, Time, e.Id);
+                    }
                 }
         Deaths(mesh, line, frames, eye, from, to);
         Lap(mesh, "enemies");
@@ -1308,6 +1314,43 @@ public sealed class GreyboxScene
         float sink = Math.Clamp((age - (float)Art.Effects.DeathSeconds * 0.55f) / ((float)Art.Effects.DeathSeconds * 0.4f), 0, 1);
         return (flat * (0.25f * over) - Vector3.UnitY * (0.45f * sink), 1.35f * over + 1e-4f);
     }
+
+    // Each Grumbler's health as last seen, the most it's been, and when it last rose (note 487).
+    readonly Dictionary<int, (double Health, double Top, double RoseAt)> _healing = new();
+
+    /// <summary>How high over its feet the middle of a Grumbler is, down on all fours (m).</summary>
+    const float GrumblerMiddle = 0.45f;
+
+    /// <summary>How long after its health last rose a Grumbler's still seen healing (s): a snapshot's gap and more.</summary>
+    const double HealingFor = 0.35;
+
+    /// <summary>Staged (<c>dt screenshot --grumbler heal</c>): every Grumbler short of its health seen healing, in a still.</summary>
+    public bool StagedHealing { get; set; }
+
+    /// <summary>
+    /// How hard <paramref name="e"/> is healing now (0..1; note 487): while its health is rising (it's replicated, so a client
+    /// sees it climb as the host does), more the further it's down from the most it's been. A Grumbler heals unless two or
+    /// more of the crew have hit it lately (App. A.8): this is that, seen.
+    /// </summary>
+    float Healing(Enemy e)
+    {
+        if (StagedHealing)
+            return e.Health < StagedHealingFull ? (float)Math.Clamp(0.35 + 1.3 * (1 - e.Health / StagedHealingFull), 0, 1) : 0;
+        var (health, top, roseAt) = _healing.TryGetValue(e.Id, out var m) && Valid(m.RoseAt) ? m : (e.Health, e.Health, double.NegativeInfinity);
+        top = Math.Max(top, e.Health);
+        if (e.Health > health + 1e-4)
+            roseAt = Time;
+        _healing[e.Id] = (e.Health, top, roseAt);
+        double since = Time - roseAt;
+        return since < 0 || since > HealingFor || top <= 0 ? 0
+            : (float)(Math.Clamp(0.35 + 1.3 * (1 - e.Health / top), 0, 1) * (1 - since / HealingFor * 0.5));
+
+        // (A clock that's gone back is a new scene: start again.)
+        bool Valid(double at) => at <= Time;
+    }
+
+    /// <summary>A staged Grumbler's full health (enemies.json grumbler.health), for how far down it's drawn healing.</summary>
+    public double StagedHealingFull { get; set; } = 6;
 
     /// <summary>Seconds since a blow or a ball last landed on <paramref name="e"/>, or −1 when none has in the last second.</summary>
     double HitAge(Enemy e)

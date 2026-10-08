@@ -700,8 +700,8 @@ public static class Staging
     /// <summary>
     /// The staged Grumbler (<c>dt screenshot --grumbler</c>), in front of crewmate 4 off the train's left (the Ribbits and
     /// the Gaunt put away): <c>gnaw</c> at a crate (App. A.8 TELEGRAPH), <c>rear</c> hit and feral, reared up at them,
-    /// <c>bite</c> on them, <c>maul</c> on them beaten down (GRAB). The <c>grumbler</c> view looks over their shoulder down
-    /// at it.
+    /// <c>bite</c> on them, <c>maul</c> on them beaten down (GRAB), <c>heal</c> reared up and healing a lone crewmate's blows
+    /// (note 487). The <c>grumbler</c> view looks over their shoulder down at it.
     /// </summary>
     public static List<Enemy> Grumbler(List<Enemy> threats, TrainOnLine train, string mode)
     {
@@ -716,9 +716,11 @@ public static class Staging
             "rear" => (SpinePhase.Telegraph, 1),
             "bite" => (SpinePhase.Commit, 1),
             "maul" => (SpinePhase.Grab, 1),
-            _ => throw new ArgumentException($"--grumbler {mode}: gnaw, rear, bite or maul"),
+            "heal" => (SpinePhase.Telegraph, 1),
+            _ => throw new ArgumentException($"--grumbler {mode}: gnaw, rear, bite, maul or heal"),
         };
-        g.Restore(phase, 0.6, g.Health, Enemy.Loose, before, 0, 0, 0, -1, feral);
+        // heal: reared up, a lone crewmate's blows on it, healing them (note 487: GreyboxScene.StagedHealing draws it).
+        g.Restore(phase, 0.6, mode == "heal" ? g.Health * 0.4 : g.Health, Enemy.Loose, before, 0, 0, 0, -1, feral);
         return threats;
     }
 

@@ -6810,3 +6810,16 @@ Terrain sculpting tools, a node-graph material editor, a general-purpose visual 
     - **`dt town`** shows each person's mind and the town's peoples; **`dt town sweep`** shows each custom's mean traits, temperament shares and bynamed share. At 200 seeds every custom has its own mix: the Passenger's 31% faithful and 16% watchers, the Gaunt's 26% talkers, the Track Doll's 29% mourners, the Tippy Toesie's the most comforters. About a third have a byname. Doubters are 1–5% everywhere, since these towns keep their customs harder every year.
     - **Not yet:** the talk card's pace by nerve; rounds that read the matrix (the restless at the gate, the mender in the lamp garden); a household's members disagreeing.
     - **Verified:** `TownFolkTests`. Everyone has a personality, the same every time. Customs and jobs lean their people as the tuning says. Every temperament turns up, and none is most of a town. Surnames are their heritage's, households share one, and an after-name is from its stocks. A strong temperament's byname is its own, and 15–50% have a byname. A fort's name leads its people. The close never say the custom, and the open say the most. The town tests stay green: three lines at most, no repeats, every word in the font.
+
+487. **The Grumbler's healing seen (queue #224, E1; the art checklist's `grumbler-anim` "still to do": "a tell for its healing"; GDD App. A.8 "It heals if only one player has hit it in the last few seconds: no one player can kill it", "Rule: gang up or leave it alone").** A lone crewmate's blow takes a sixth of a Grumbler's health (`grumbler.health` 6), and at `regenPerSecond` 1.5 it's back in under a second. Nothing showed it, so the rule couldn't be learned by watching: a player hit it and nothing happened.
+    - **When:** a Grumbler's health is replicated, so every machine sees it climb as the host does. `GreyboxScene.Healing` keeps each one's health as last seen, the most it's been, and when it last rose. While it's rising (and for 0.35 s after, a snapshot's gap) the scene draws it healing, harder the further it's down from its most.
+    - **What:** `Effects.Knit` draws what a blow knocked out of it drawn back in:
+        - Drops of its own dark blood (`Ichor`'s colour) rise off the ground round it in arcs, each with a short trail, and run back into the body. The spot each leaves fades as it goes.
+        - A dull red throb goes through it on each heave.
+        - Wet glints come and go on its skin, and a faint vapour rises off its back.
+    - **What it doesn't do:** a gang's blows, which it doesn't heal, show none. Nor does a Grumbler whole and steady. Presentation only: the sim's rule is as it was.
+    - **Headless:** `dt screenshot --threats --crew --grumbler heal --view grumbler` stages it reared up at a lone crewmate, at 0.4 of its health, healing (`GreyboxScene.StagedHealing`); `--grumbler rear` is the same without. `--scene-time` steps through it.
+    - **Verified:** `GrumblerHealingTests`:
+        - Healing draws its effects round it; a gang's blows and a whole Grumbler draw none.
+        - Nearly beaten, it knits harder than scratched.
+    - **Not yet:** a sound for it (AU1's, if wanted); the girders "still to do" is untouched.
