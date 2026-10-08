@@ -52,9 +52,10 @@ public sealed class Director
         string key = char.ToLowerInvariant(tier.ToString()[0]) + tier.ToString()[1..];
         double baseBudget = tuning.BaseBudget.GetValueOrDefault(key, 70);
         double lengthMultiplier = 1 + tuning.LengthPerCarBeyondThird * Math.Max(0, cars - 3);
-        double crewMultiplier = Math.Min(tuning.CrewCap, tuning.CrewBase + tuning.CrewPerPlayer * crew);
-        Budget = baseBudget * lengthMultiplier * crewMultiplier;
+        _budgetBeforeCrew = baseBudget * lengthMultiplier;
         Crew = crew;
+        Active = crew;
+        _startCrew = crew;
         // The night's quiet spell (design decision 2026-10): somewhere in the range, from the seed alone (its own stream, so
         // the director's draws are untouched), and shorter on the harder tiers.
         double u = new Pcg32(seed, 0x6EACE).NextDouble() * tuning.Pressure.GraceTierScale.GetValueOrDefault(key, 1);
@@ -76,7 +77,45 @@ public sealed class Director
     /// <summary>What built it in the last second the director thought.</summary>
     public PressureTerms Terms { get; private set; }
 
-    public double Budget { get; }
+    readonly double _budgetBeforeCrew;
+    readonly int _startCrew;
+
+    /// <summary>
+    /// App. B.1's run budget: base × length × crew multiplier. With <see cref="OrchestratorTuning.LiveCrew"/> (note 336;
+    /// orchestrator.md §3.2 1) the crew is <see cref="Active"/>, the crew alive now, so a crew that's lost players spends like
+    /// the smaller crew it is; off, the crew the night started with (App. B.1 as written).
+    /// </summary>
+    public double Budget => _budgetBeforeCrew * Math.Min(_t.CrewCap, _t.CrewBase + _t.CrewPerPlayer * (_t.Orchestrator.LiveCrew ? Active : _startCrew));
+
+    /// <summary>
+    /// The crew active now (note 336; orchestrator.md §3.1 1): alive in the night, as of the director's last second. Until
+    /// anyone's been seen, the crew the night was planned for.
+    /// </summary>
+    public int Active { get; private set; }
+
+    /// <summary>The live census (note 336): the crew alive this second; none seen leaves it as it was.</summary>
+    public void Census(World world)
+    {
+        if (world.CrewThisTick.Count > 0)
+            Active = world.CrewThisTick.Count(c => c.State.Alive);
+    }
+
+    /// <summary>
+    /// The most threats engaged at once (App. B.1's hard caps; note 336, orchestrator.md §3.2 3, 5): the flat 4 (crew ≤ 4) or
+    /// 6, and, with the orchestrator on, no more than ceil(active × engagedPerActive) nor perPlayer a player active, and at
+    /// least one while anyone is: a crew of one meets one thing at a time, a crew of two two.
+    /// </summary>
+    public int EngagedCap
+    {
+        get
+        {
+            var o = _t.Orchestrator;
+            if (!o.On)
+                return MaxConcurrent;
+            int byCrew = Math.Min((int)Math.Ceiling(Active * o.EngagedPerActive - 1e-9), (int)Math.Floor(Active * o.PerPlayer + 1e-9));
+            return Math.Min(MaxConcurrent, Math.Max(1, byCrew));
+        }
+    }
     public double Spent => _spent;
     /// <summary>
     /// The crew its gates go by (the crew-size threats' <c>minCrew</c>): the expected crew at the start, then whoever's
@@ -289,8 +328,9 @@ public sealed class Director
             return Held("building");
         if (_cooldown > 0 && !due)
             return Held("cooldown");
+        // The hound run's runners count: they're engaged with the crew like anything else (note 336).
         int total = active.Count(Engaged);
-        if (total >= MaxConcurrent)
+        if (total >= EngagedCap)
             return Held("at the cap");
         double available = Allowance(s) - _spent;
         var options = new List<(EnemyKind Kind, double Weight)>();
@@ -630,29 +670,30 @@ public sealed class Director
         // The sites of what lives here, in reach of them, of what the night could send: the nearest.
         // Each kind's nearest site in reach; one kind drawn from them, so a village with a warren, a roost and a child's call
         // shows all three in time, not only the nearest over and over.
-        var near = new List<(Double3 At, EnemyKind Kind, double D)>();
+        var near = new List<(Double3 At, EnemyKind Kind, double D, double Radius)>();
         foreach (var lair in Enum.GetValues<Stops.LairKind>())
         {
             var kind = Lives(lair);
             if (!Allows(kind))
                 continue;
-            (Double3 At, double D)? nearest = null;
-            foreach (var (at, _) in CreatureSites.Of(world, lair, world.Enemies?.Sites.Around ?? 300))
+            (Double3 At, double D, double Radius)? nearest = null;
+            foreach (var (at, radius) in CreatureSites.Of(world, lair, world.Enemies?.Sites.Around ?? 300))
             {
                 double d = ((at - from) with { Y = 0 }).Length;
                 if (d < a.SignReach && (nearest is null || d < nearest.Value.D))
-                    nearest = (at, d);
+                    nearest = (at, d, radius);
             }
             if (nearest is { } n)
-                near.Add((n.At, kind, n.D));
+                near.Add((n.At, kind, n.D, n.Radius));
         }
         (Double3 At, EnemyKind Kind)? site = null;
-        double best = a.SignReach;
+        double best = a.SignReach, edge = 0;
         if (near.Count > 0)
         {
             var pick = near[(int)Math.Min(near.Count - 1, _signRng.NextDouble() * near.Count)];
             site = (pick.At, pick.Kind);
             best = pick.D;
+            edge = pick.Radius;
         }
         Double3 toward;
         EnemyKind what;
@@ -674,8 +715,9 @@ public sealed class Director
         if (toward.Length < 1e-3)
             toward = new Double3(1, 0, 0);
         double turn = _signRng.Range(-a.SignSpread, a.SignSpread);
-        // At the lamp's edge, or at the site itself if that's nearer.
-        double out_ = Math.Min(_signRng.Range(a.SignOut[0], a.SignOut[1]), site is null ? double.MaxValue : Math.Max(a.SignOut[0] * 0.5, best));
+        // At the lamp's edge, or at the site's edge if that's nearer: outside a roost or a warren, never in it (a Gaunt's roost is
+        // a house the art draws whether or not the sim walls it).
+        double out_ = Math.Min(_signRng.Range(a.SignOut[0], a.SignOut[1]), site is null ? double.MaxValue : best - edge - 1);
         // Seen, not through a wall: the bearing drawn, then others across the spread, the first with a clear line out that far
         // past the stop's walls; with none, the drawn one, as far as its first wall (something at the corner of a house).
         Double3 spot = default;
@@ -683,7 +725,7 @@ public sealed class Director
         foreach (double deg in new[] { turn, 0, -a.SignSpread, a.SignSpread, -a.SignSpread / 2, a.SignSpread / 2 })
         {
             var dir = Turned(toward.Normalized, deg * Math.PI / 180);
-            double clear = Clear(train.Walls, from, dir, out_);
+            double clear = Clear(world, from, dir, out_);
             if (clear > clearest)
                 (spot, clearest) = (from + dir * clear, clear);
             if (clear >= out_)
@@ -704,22 +746,55 @@ public sealed class Director
     static Double3 Turned(Double3 d, double rad) =>
         new(d.X * DMath.Cos(rad) - d.Z * DMath.Sin(rad), 0, d.X * DMath.Sin(rad) + d.Z * DMath.Cos(rad));
 
-    /// <summary>How far out along <paramref name="dir"/> from <paramref name="from"/> is clear of the stop's walls, to <paramref name="out_"/> (a metre short of the first wall).</summary>
-    static double Clear(Run.StopWalls? walls, Double3 from, Double3 dir, double out_)
+    /// <summary>
+    /// How far out along <paramref name="dir"/> from <paramref name="from"/> is clear, to <paramref name="out_"/>: a metre short of
+    /// the first of the stop's walls, or of a building's footprint (an open house's door gap isn't a way through it, and the art
+    /// draws buildings the sim doesn't wall).
+    /// </summary>
+    static double Clear(World world, Double3 from, Double3 dir, double out_)
     {
-        if (walls is null)
-            return out_;
+        var walls = world.Train.Walls;
         for (double d = 1; d <= out_; d += 1)
         {
             var p = from + dir * d + Double3.Up * 1;
-            foreach (var w in walls.Near(p))
-            {
-                var l = w.ToLocal(p);
-                if (Math.Abs(l.X) <= w.HalfLength + 0.3 && Math.Abs(l.Z) <= w.HalfWidth + 0.3 && l.Y >= w.Bottom && l.Y <= w.Top)
-                    return Math.Max(1, d - 1);
-            }
+            if (walls is not null)
+                foreach (var w in walls.Near(p))
+                {
+                    var l = w.ToLocal(p);
+                    if (Math.Abs(l.X) <= w.HalfLength + 0.3 && Math.Abs(l.Z) <= w.HalfWidth + 0.3 && l.Y >= w.Bottom && l.Y <= w.Top)
+                        return Math.Max(1, d - 1);
+                }
+            if (d >= 2 && InBuilding(world, p))
+                return Math.Max(1, d - 1);
         }
         return out_;
+    }
+
+    /// <summary>Whether a world point is inside the footprint of a stop's building (in the stop's rail frame, S along and D out).</summary>
+    static bool InBuilding(World world, Double3 p)
+    {
+        if (world.Route is not { } route)
+            return false;
+        var line = world.Train.Line;
+        double h = world.Train.Dynamics.Distance;
+        line.Nearest(p, ref h);
+        foreach (var f in route.Features)
+        {
+            if (f.Stop is not { } stop || h < f.Start - 50 || h > f.End + 50)
+                continue;
+            var r = line.Sample(f.Start + (h - f.Start));
+            var right = Double3.Cross(r.Tangent, Double3.Up).Normalized;
+            double ps = h - f.Start, pd = Double3.Dot(p - r.Position, right);
+            foreach (var b in stop.Buildings)
+            {
+                double c = DMath.Cos(b.Yaw), sn = DMath.Sin(b.Yaw), ds = ps - b.S, dd = pd - b.D;
+                // Axis u = (cos, sin), across v = (−sin, cos), in (S, D), as StopWalls.Doorstep has it.
+                double x = ds * c + dd * sn, y = -ds * sn + dd * c;
+                if (Math.Abs(x) <= b.Length / 2 + 0.5 && Math.Abs(y) <= b.Width / 2 + 0.5)
+                    return true;
+            }
+        }
+        return false;
     }
 
     /// <summary>A creature met on foot off the train (note 327): the outside zone's, or one that lives at the stops' sites.</summary>
@@ -817,10 +892,13 @@ public sealed class Director
         }
         if (_runPack >= 0 && active.Any(e => e is CinderHound { Runner: true, Gone: false } h && h.Pack == _runPack))
             return; // one run at a time: the count starts once the last runner's dealt with
+        // The run is one threat to the crew's caps (note 336): with the crew already at its cap, it waits (the count banked),
+        // so a crew of one never meets a run and the director's threat at once.
+        bool atCap = _t.Orchestrator.On && active.Count(Engaged) >= EngagedCap;
         if (speed >= r.FromSpeed)
             _runMetres += speed;
         bool hot = train.BoilerTuning is { } b && train.Boiler.Pressure > b.WorkingBandMax;
-        if (_runMetres < r.AfterMetres * (hot ? r.HotShorter : 1))
+        if (_runMetres < r.AfterMetres * (hot ? r.HotShorter : 1) || atCap)
             return;
         int alive = Math.Max(1, world.CrewThisTick.Count(c => c.State.Alive));
         int size = Math.Clamp((int)Math.Round(r.Base + r.PerActive * alive, MidpointRounding.AwayFromZero), r.Size[0], r.Size[1]);
@@ -889,7 +967,9 @@ public sealed class Director
     public static bool Engaged(Enemy e) => !e.Gone && !e.Hazard
         && (e.Phase is SpinePhase.Alert or SpinePhase.Telegraph or SpinePhase.Commit or SpinePhase.Grab or SpinePhase.Punish
             // Dormant but on the move is pressure too (a Climber pacing the train); only what lies in wait isn't.
-            || e.Phase == SpinePhase.Dormant && e.Kind is not (EnemyKind.Dragger or EnemyKind.Whistler or EnemyKind.CarHugger or EnemyKind.Gaunt or EnemyKind.TippyToesie));
+            || e.Phase == SpinePhase.Dormant && e.Kind is not (EnemyKind.Dragger or EnemyKind.Whistler or EnemyKind.CarHugger or EnemyKind.Gaunt or EnemyKind.TippyToesie
+                // A grazing Moose (note 339) only waits to be bothered.
+                or EnemyKind.Moose));
 
     /// <summary>
     /// App. B.1's hard caps, on what's engaged: two at a time in the flank, the interior and outside (the middle is
@@ -939,6 +1019,7 @@ public sealed class Director
                 EnemyKind.FireFlies => new FireFlies(0),
                 EnemyKind.Ribbit => new Ribbit(0, 0),
                 EnemyKind.Grumbler => new Grumbler(0),
+                EnemyKind.Moose => new Moose(0),
                 _ => new ChoirGhost(0),
             };
             d[kind] = (e.Zone, e.Sense, e.Want);

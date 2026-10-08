@@ -607,6 +607,9 @@ public sealed class TerrainField
     /// <summary>
     /// Flattened pads (§12.1 "pad"): the fortress, the facilities, the settlements, blended in over 30 m. A box pad (a stop's
     /// ground) ends square at its zone's ends and leaves the rail's formation its own, since the line past a stop may climb.
+    /// So does a long pad laid along the line (a halt's or a town's, the fortress's, the terminus's): its 30 m blend past the
+    /// end held the ballast at the halt's level where the line had already started down (frontier:3's Mile 13 Halt, 8 cm
+    /// over the rail 20 m on).
     /// </summary>
     double Pads(double x, double z, double height, double formation, double formationW)
     {
@@ -633,7 +636,7 @@ public sealed class TerrainField
             if (d >= p.RadiusM + 30)
                 continue;
             double w = 1 - Smooth(p.RadiusM, p.RadiusM + 30, d);
-            if (p.Box && !double.IsNaN(formation))
+            if ((p.Box || p.HalfLengthM > 0) && !double.IsNaN(formation))
                 w *= 1 - formationW;
             height = height * (1 - w) + p.ElevM * w;
         }
@@ -694,7 +697,7 @@ public sealed class TerrainField
             foreach (var st in e.Structures)
                 if (n.S >= st.S0 && n.S <= st.S1)
                 {
-                    double width = st.Type == StructureType.Tunnel ? 4.5 : 2.6;
+                    double width = st.Type == StructureType.Tunnel ? 4.5 : _r.DeckHalfM;
                     // Inside the bore or on the deck (not up on the hill above it).
                     if (Math.Abs(n.Lateral) <= width && p.Y < n.Rail + 6)
                         return n.Rail;
@@ -702,6 +705,55 @@ public sealed class TerrainField
         }
         return Height(p.X, p.Z);
     }
+
+    /// <summary>
+    /// The world is solid (note 279): someone or something of <paramref name="radius"/> down in a tunnel's bore is held
+    /// inside its lining, not walked through it (and then stood on the hill 18 m over it, the old way). Elsewhere, as is.
+    /// </summary>
+    public Double3 Confine(Double3 p, double radius)
+    {
+        foreach (var n in Nearby(p.X, p.Z, _r.BoreHalfM + 2))
+        {
+            var e = _edges[n.Edge];
+            foreach (var st in e.Structures)
+            {
+                if (st.Type != StructureType.Tunnel || n.S < st.S0 || n.S > st.S1 || p.Y > n.Rail + _r.BoreCrownM || p.Y < n.Rail - 2)
+                    continue;
+                double room = Math.Max(0, _r.BoreHalfM - radius);
+                if (Math.Abs(n.Lateral) <= room)
+                    return p;
+                var t = e.Line.Sample(n.S);
+                double rx = -t.Tangent.Z, rz = t.Tangent.X, norm = Math.Max(1e-9, Math.Sqrt(rx * rx + rz * rz));
+                double by = Math.Sign(n.Lateral) * room - n.Lateral;
+                return new Double3(p.X + rx / norm * by, p.Y, p.Z + rz / norm * by);
+            }
+        }
+        return p;
+    }
+
+    /// <summary>
+    /// Note 279: how far either side of the rail something running beside the train can be at <paramref name="s"/> on an
+    /// edge (by its index): inside the bore in a tunnel, on the deck on a bridge (each less besideClearM), anywhere elsewhere.
+    /// </summary>
+    public double LateralRoom(int edge, double s)
+    {
+        foreach (var st in _edges[edge].Structures)
+            if (s >= st.S0 && s <= st.S1)
+                switch (st.Type)
+                {
+                    case StructureType.Tunnel:
+                        return Math.Max(0, _r.BoreHalfM - _r.BesideClearM);
+                    case StructureType.Trestle or StructureType.Girder or StructureType.Truss or StructureType.Viaduct:
+                        return Math.Max(0, _r.DeckHalfM - _r.BesideClearM);
+                }
+        return double.PositiveInfinity;
+    }
+
+    /// <summary>An edge's index in this field, by its plan id (−1 if none).</summary>
+    public int EdgeIndex(string id) => Array.FindIndex(_edges, e => e.Id == id);
+
+    /// <summary>Note 279: the formation's half-width beside the rail (it stays at rail height, §12.2).</summary>
+    public double ShoulderM => _r.ShoulderM;
 
     // ------------------------------------------------------------------ tiles
 

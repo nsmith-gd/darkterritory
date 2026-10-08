@@ -75,8 +75,9 @@ sealed partial class LineBuilder
         var pad = new SideIntent(IntentType.Pad, 0);
         if (item.Type is "fortress" or "pad" or "holding" or "stand" or "departure" or "home" or "arrival" or "turnout" or "spur")
             return (pad, pad);
-        var top = item.All().FirstOrDefault(i => i.Kind is "tunnel" or "blindThroat" or "ledge" or "trestle" or "river" or "causeway") ?? item;
-        switch (top.Kind)
+        var top = item.All().FirstOrDefault(i => i.Kind is "tunnel" or "blindThroat" or "ledge" or "bend" or "trestle" or "river" or "causeway") ?? item;
+        // A climb or descent laid round a hill carries a hard bend's land (note 278).
+        switch (top.Params.ContainsKey("hardBend") ? "bend" : top.Kind)
         {
             case "blindThroat":
                 {
@@ -90,6 +91,15 @@ sealed partial class LineBuilder
                     var drop = new SideIntent(IntentType.LedgeDrop, -top.Params.GetValueOrDefault("dropM", 35));
                     bool leftTurn = top.Prims.Sum(p => p.Deflection) > 0;
                     return leftTurn ? (up, drop) : (drop, up);
+                }
+            case "bend":
+                {
+                    // Note 278: the land says why the line bends: a hill it goes round on the inside (which also hides the
+                    // way out of it), and the fall it would go off into on the outside.
+                    var spur = new SideIntent(IntentType.LedgeUp, top.Params.GetValueOrDefault("spurM", 12));
+                    var fall = new SideIntent(IntentType.Embankment, -top.Params.GetValueOrDefault("fallM", 3));
+                    bool leftTurn = top.Prims.Sum(p => p.Deflection) > 0;
+                    return leftTurn ? (spur, fall) : (fall, spur);
                 }
             case "tunnel":
                 return (new SideIntent(IntentType.Mountain, _t.Terrain.TunnelCoverM), new SideIntent(IntentType.Mountain, _t.Terrain.TunnelCoverM));

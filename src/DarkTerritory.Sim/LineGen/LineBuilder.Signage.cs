@@ -72,8 +72,10 @@ sealed partial class LineBuilder
                 if (start < 0)
                     continue;
                 double posted = Math.Floor(Math.Sqrt(c.APost * minR));
-                // A lower limit already over it has its own board (a demand's).
-                if (!_limits.Any(l => l.Edge == e.Id && l.Source == LimitSource.Curve && l.S0 <= start + 5 && l.S1 >= start && l.VMs <= posted + 1e-6))
+                // A lower limit already over it has its own board (a demand's). Not when a lower restriction before it took
+                // the demand (a blind bend, the hill on its inside): that's told as R, or only on Form 19.
+                if (!_limits.Any(l => l.Edge == e.Id && l.Source == LimitSource.Curve && l.S0 <= start + 5 && l.S1 >= start && l.VMs <= posted + 1e-6
+                        && _demands.Any(d => d.Edge == e.Id && d.Type is DemandType.Curve or DemandType.WeakBridge or DemandType.Brass && Math.Abs(l.S0 - d.SReq) < 1)))
                     Sign("speedBoard", e.Id, start - _t.Authority.BoardBeforeM, Kmh(posted), true, posted, null, ref rng);
                 start = -1;
                 minR = double.MaxValue;

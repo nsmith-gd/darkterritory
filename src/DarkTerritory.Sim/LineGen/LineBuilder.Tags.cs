@@ -107,12 +107,53 @@ sealed partial class LineBuilder
         {
             if (item.Kind is "climb" or "summit" or "momentum" or "descent" or "drop")
                 Tag("pre_grade", e.Id, item.S0 - pre[1], item.S0 - pre[0]);
-            if (item.Kind is "drop" or "blindThroat" or "ledge")
+            if (item.Kind is "drop" or "blindThroat" or "ledge" || item.Params.ContainsKey("hardBend"))
             {
-                double curve = item.Kind == "drop" ? item.S1 - item.Prims.Where(p => p.K0 != 0 || p.K1 != 0).Sum(p => p.Length) : item.S0;
+                double curve = item.Kind == "drop" ? item.S1 - item.Prims.Where(p => p.K0 != 0 || p.K1 != 0).Sum(p => p.Length)
+                    // A hard bend's straight run-in, then the bend.
+                    : item.Params.ContainsKey("hardBend") ? item.S0 + item.Prims.TakeWhile(p => p.K0 == 0 && p.K1 == 0).Sum(p => p.Length)
+                    : item.S0;
                 Tag("pre_curve", e.Id, curve - pre[1], curve - pre[0]);
             }
         }
+        // curve_tight (note 278): wherever the track bends hard enough to derail the train under its top speed, the
+        // places a train has to slow for ("slowing opens the doors", GDD App. F, 6 Oct 2026).
+        foreach (var (b0, b1, _) in HardBendSpans(line))
+            Tag("curve_tight", e.Id, b0, b1);
+    }
+
+    /// <summary>
+    /// Note 278: every stretch of <paramref name="line"/> that derails the train under its top speed (√(a_derail R) below
+    /// curves.boardDerailBelow), as one span per bend, with its tightest radius. Transitions count from where they get
+    /// that tight.
+    /// </summary>
+    List<(double S0, double S1, double R)> HardBendSpans(RailLine line)
+    {
+        var c = _t.Curves;
+        var spans = new List<(double S0, double S1, double R)>();
+        double start = -1, least = double.MaxValue;
+        for (double s = 0; s <= line.Length + 5; s += 5)
+        {
+            double k = s <= line.Length ? Math.Abs(line.Sample(s).Curvature) : 0;
+            bool hard = k > 1e-9 && Math.Sqrt(c.ADerail / k) < c.BoardDerailBelow;
+            if (hard)
+            {
+                if (start < 0)
+                    start = s;
+                least = Math.Min(least, 1 / k);
+            }
+            else if (start >= 0)
+            {
+                // Two stretches nearly touching (a dip in the curvature) are one bend.
+                if (spans.Count > 0 && start - spans[^1].S1 < 30)
+                    spans[^1] = (spans[^1].S0, s, Math.Min(spans[^1].R, least));
+                else
+                    spans.Add((start, s, least));
+                start = -1;
+                least = double.MaxValue;
+            }
+        }
+        return spans;
     }
 
     bool HasTag(string tag, string edge, double s) => _tags.Any(t => t.Tag == tag && t.Edge == edge && s >= t.S0 && s <= t.S1);

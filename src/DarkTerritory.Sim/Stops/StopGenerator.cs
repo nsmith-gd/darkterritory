@@ -296,6 +296,9 @@ public static partial class StopGenerator
             // Blocked sidings (D.2), from their own seed, so a stop's track and buildings are what they were without them.
             if (cx.Facility != FacilityKind.Switchyard)
                 BlockSidings(g, new Dice(StopSeed.Of(s, StopSeed.Blocked)), t, tt);
+            // Something to load beside every yard track, on the tiers that say so (the director, 8 Oct; note 352).
+            if (tt.EveryTrack)
+                StockEveryTrack(g, t);
         }
 
         // Last, from their own seeds: the Holdouts (App. D.4) and where the outside creatures live (B.6, B.8).

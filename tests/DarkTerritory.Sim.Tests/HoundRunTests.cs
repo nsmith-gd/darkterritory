@@ -17,10 +17,23 @@ public class HoundRunTests
     static readonly HoundRunTuning R = Tuning.Enemies.Director.Run;
     static readonly PlayerTuning P = Tuning.Player;
 
+    /// <summary>
+    /// The director spending nothing of its own (its pressure never reaches its threshold, no first draw): the run alone, so
+    /// the live crew's cap (note 336) doesn't hold it behind the director's threats.
+    /// </summary>
+    internal static readonly EnemyTuning Quiet = E with
+    {
+        Director = E.Director with
+        {
+            Pressure = E.Director.Pressure with { Threshold = 1e9, PressAt = 2e9, Max = 3e9 },
+            Draw = E.Director.Draw with { Enabled = false },
+        },
+    };
+
     /// <summary>A night at <paramref name="speed"/> with <paramref name="crew"/> in the cab, run until its first hound run (or <paramref name="seconds"/>).</summary>
     static Night FirstRun(int crew, double speed = 21, double seconds = 300)
     {
-        var n = new Night(4, speed);
+        var n = new Night(4, speed, enemies: Quiet);
         for (int i = 0; i < crew; i++)
             n.Crew[i] = PlayerMotor.SpawnInCab(n.Train, P);
         for (int s = 0; s < seconds && n.World.Director!.HoundRuns.Count == 0; s++)
@@ -122,7 +135,7 @@ public class HoundRunTests
     public void TheGunnerAtTheGuardGunAnswersTheRun()
     {
         // The gunners' wave (App. F.3): the gunner bot at the guard van's gun, a run of two coming up behind a 21 m/s train.
-        var e = E with { Director = E.Director with { Run = R with { AfterMetres = 200 } } };
+        var e = Quiet with { Director = Quiet.Director with { Run = R with { AfterMetres = 200 } } };
         var n = new Night(4, 21, enemies: e);
         int rear = n.Train.Dynamics.Consist.Vehicles[^1].Id;
         var mount = Guns.Mount(n.Train, rear)!.Value;
@@ -145,7 +158,7 @@ public class HoundRunTests
     {
         // Run most of the way to a run, slow under stopSpeed for a second, and the count's gone: it takes the whole
         // afterMetres again.
-        var n = new Night(4, 21);
+        var n = new Night(4, 21, enemies: Quiet);
         n.Crew[0] = PlayerMotor.SpawnInCab(n.Train, P);
         var d = n.World.Director!;
         n.Run(d.Grace + 1);

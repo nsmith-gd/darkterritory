@@ -422,7 +422,12 @@ public sealed class Bodies
     /// Use is working what's carried, not putting it down: the repair kit at a Holdout's lock (App. D.7) or a ruptured
     /// boiler's firebox (T109). The press isn't taken, so the work goes on from this tick, the same on a predicting client.
     /// </param>
-    public bool Handle(in PlayerState s, in PlayerIntent intent, int playerId, TrainOnLine train, HandTuning? hand = null, bool keep = false)
+    /// <param name="lever">
+    /// At a switch's lever, a stand's or the cab's thrower's (queue #94, note 357): Use is the lever's, so what's carried stays
+    /// carried and nothing lying by it is picked up. Throw still lets go.
+    /// </param>
+    public bool Handle(in PlayerState s, in PlayerIntent intent, int playerId, TrainOnLine train, HandTuning? hand = null, bool keep = false,
+        bool lever = false)
     {
         bool use = intent.Has(PlayerButtons.Use), thrown = intent.Has(PlayerButtons.Throw);
         bool usePressed = use && !_useWas.GetValueOrDefault(playerId);
@@ -439,7 +444,7 @@ public sealed class Bodies
                 Release(worn, s, train, 0);
             return false;
         }
-        if (carried is not null && keep && !throwPressed)
+        if (carried is not null && (keep || lever) && !throwPressed)
             return false;
         // At a locker's door (note 173), Use is the locker's: tapped, what's in your hands goes on a shelf (or the top thing
         // comes off one); held, CrewActions works the door. So the hands wait for the release to know which it was, and
@@ -482,7 +487,7 @@ public sealed class Bodies
             Release(worn, s, train, 0);
             return false;
         }
-        if (!usePressed || carried is not null || intent.MoveZ > 0.5 || CrewActions.NearestInteractable(s, train, hand) is not null)
+        if (!usePressed || carried is not null || lever || intent.MoveZ > 0.5 || CrewActions.NearestInteractable(s, train, hand) is not null)
             return false;
         if (InReach(s, train, hand, wearingRadio: worn is not null, playerId) is not { } nearest)
             return false;
@@ -959,6 +964,13 @@ public sealed class Bodies
                 bestDepth = depth;
                 touchedCar = -2; // the world's, as the ground is
             }
+        // Note 279: down in a tunnel, its lining.
+        if (train.Line.Conditions is { } land && land.Confine(world, r) is var held && (held - world).Length is var into and > 1e-9 && into > bestDepth)
+        {
+            best = new Contact(held, (held - world) * (1 / into));
+            bestDepth = into;
+            touchedCar = -2;
+        }
         double hint = b.LineHint;
         double ground = PlayerMotor.GroundAt(world, train.Line, ref hint) + r;
         b.LineHint = hint;

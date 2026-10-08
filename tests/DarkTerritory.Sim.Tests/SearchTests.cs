@@ -128,16 +128,43 @@ public class SearchTests
         }
     }
 
-    /// <summary>Whether a world point stands within a building's footprint.</summary>
+    [Fact]
+    public void WhatsKeptStandsInTheHouseFacingTheRoomWithItsFindInFront()
+    {
+        // StopWalls.Kept: where the art stands the cupboard or cabinet (and draws it opened once searched), and the hatch and
+        // boards: in the house, facing into the room, with a cupboard's or cabinet's find out in front of it.
+        var world = Night(authority: true);
+        var run = world.Run!;
+        foreach (var h in run.HidingSpots)
+        {
+            var b = run.Stops[h.Stop].Stop!.Buildings[h.Container.Building];
+            Assert.True(Inside(world, run, h, b, h.Kept), $"{h.Container.Kind} in house {h.Container.Building} stands outside it");
+            Assert.Equal(1, h.Facing.Length, 6);
+            Assert.Equal(0, h.Facing.Y);
+            var ahead = (h.At - h.Kept) with { Y = 0 };
+            if (h.Container.Kind is ContainerKind.Cupboard or ContainerKind.Cabinet)
+            {
+                Assert.True(ahead.Length > 0.3, $"{h.Container.Kind}'s find is in it");
+                Assert.True(Double3.Dot(ahead.Normalized, h.Facing) > 0.999, $"{h.Container.Kind}'s find isn't in front of it");
+                // Its back to a wall: a step behind it is out of the room.
+                Assert.False(Inside(world, run, h, b, h.Kept - h.Facing * 0.5) && Inside(world, run, h, b, h.Kept - h.Facing * 0.7)
+                    && !world.Train.Walls!.Near(h.Kept - h.Facing * 0.5).Any(w => Math.Abs(w.ToLocal(h.Kept - h.Facing * 0.5).X) <= w.HalfLength
+                        && Math.Abs(w.ToLocal(h.Kept - h.Facing * 0.5).Z) <= w.HalfWidth), $"{h.Container.Kind} stands out from its wall");
+            }
+            else
+                Assert.True(ahead.Length < 1e-6, $"a {h.Container.Kind}'s find lies on it");
+        }
+    }
+
+    /// <summary>Whether a world point stands within a building's footprint (its parts: an L's notch is outside it).</summary>
     static bool Inside(World world, Run.Run run, HidingSpot h, StopBuilding b, Double3 p)
     {
         var f = run.Stops[h.Stop];
-        var centre = Run.Run.StopWorld(world.Train.Line, f, b.Centre);
-        var ahead = Run.Run.StopWorld(world.Train.Line, f, b.Centre + new Pt(Math.Cos(b.Yaw), Math.Sin(b.Yaw)));
-        var axis = ((ahead - centre) with { Y = 0 }).Normalized;
-        var d = (p - centre) with { Y = 0 };
-        double along = d.X * axis.X + d.Z * axis.Z, across = d.X * -axis.Z + d.Z * axis.X;
-        return Math.Abs(along) < b.Length / 2 && Math.Abs(across) < b.Width / 2;
+        var o = Run.Run.StopWorld(world.Train.Line, f, StopWalls.InHouse(b, 0, 0));
+        var ex = (Run.Run.StopWorld(world.Train.Line, f, StopWalls.InHouse(b, 1, 0)) - o) with { Y = 0 };
+        var ey = (Run.Run.StopWorld(world.Train.Line, f, StopWalls.InHouse(b, 0, 1)) - o) with { Y = 0 };
+        var d = (p - o) with { Y = 0 };
+        return StopWalls.InParts(b, Double3.Dot(d, ex), Double3.Dot(d, ey));
     }
 
     [Fact]

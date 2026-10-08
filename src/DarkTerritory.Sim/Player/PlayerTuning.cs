@@ -24,6 +24,9 @@ public sealed record PlayerTuning(
     /// <summary>GDD §22 wind, and spec B.2's "roof run: wind and balance penalty", on a roof's footing (note 201).</summary>
     public WindTuning Wind { get; init; } = new();
 
+    /// <summary>Note 279: the steepest land (rise over run) someone on foot walks up. Docs in player.json.</summary>
+    public double ClimbSlope { get; init; } = 1.25;
+
     /// <summary>T128 (note 273): a roof's edge holds whoever's only walking at it. Field docs live in player.json <c>edge</c>.</summary>
     public EdgeTuning Edge { get; init; } = new();
 

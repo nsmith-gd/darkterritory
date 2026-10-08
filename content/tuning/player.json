@@ -17,8 +17,9 @@
   "jumpHeight": 0.8,
   "health": 100,
   // T108 (GDD §1322: the tools on the train are the weapons): what every crewmate carries from the start of the night, and
-  // after every respawn, slot by slot from 1. Tools: crowbar, shovel, wrench.
-  "kit": ["crowbar"],
+  // after every respawn, slot by slot from 1. Tools: crowbar, shovel, wrench. Note 301: the wrench is the repair tool
+  // (train.json repair), so everyone has one, in slot 2.
+  "kit": ["crowbar", "wrench"],
   // What the bots go by (GDD v1.4 App. D.12: the incident report names everyone): a crew's names, in the order they board.
   "botNames": ["Dunmore", "Okafor", "Reyes", "Halloran", "Petrov", "Achebe", "Lindqvist", "Moreau"],
   "gravity": 9.81,
@@ -86,6 +87,10 @@
   // plate, a platform, the tender: any of it within catchDrop m under the edge). What still takes you off is real: a
   // creature's pull (the Draggers), a bend you were warned of taken too fast (sight.json throwOver), a jump that falls
   // short, and walking off on purpose. windOverLip: true is the old wind, which the lip doesn't hold.
+  // The world is solid (the director, 6 Oct 2026; ARCHITECTURE §8 note 279): on foot on the land, nobody walks up ground
+  // steeper than climbSlope (rise over run; 1.25 is about 51°). A cutting's walls (2:1), a ledge's upslope and a cliff
+  // over the sea stop you; the line plan's walkable ground (§12.6, slope 1 with its noise) never does.
+  "climbSlope": 1.25,
   "edge": {
     "lip": 0.3,
     "stepOffDegrees": 30,

@@ -1,0 +1,26 @@
+# A test build for the director, of any branch, by hand (Actions > Test build > Run workflow, or the API): the game
+# packaged for Windows, no tests (each PR on the branch ran them), as one zip to download from the run's page. Tonight's
+# builds are main with the open PRs merged on top (D1's integration, pushed to its branch), which CI never packages.
+name: Test build
+on:
+  workflow_dispatch:
+    inputs:
+      ref:
+        description: Branch, tag or commit to package
+        default: main
+jobs:
+  package:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ inputs.ref }}
+      - uses: actions/setup-dotnet@v4
+        with:
+          global-json-file: global.json
+      - run: sudo apt-get update -qq && sudo apt-get install -y -qq zip
+      - run: tools/package.sh win-x64
+      - uses: actions/upload-artifact@v4
+        with:
+          name: DarkTerritory-win-x64-test-${{ github.run_number }}
+          path: out/dist/DarkTerritory-win-x64/

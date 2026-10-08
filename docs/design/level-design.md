@@ -127,7 +127,8 @@ A site rolls its loot *by band*, and nothing uncarryable is ever placed beyond c
 **Brief:** loot spawns in sensible locations, but what it is comes from the run's economy. House colours in the sketch are just variety.
 **Why:** placement is level design and contents are balance. Keeping the two separate lets the economy (spec F) be tuned without touching a single layout, and keeps every find believable: medicine in a bathroom cabinet, tools in an outbuilding, a crate in a shed bay under the crane.
 **Rule:** the layout generator places **loot containers** with a *kind* (shed bay, crate stack, cupboard, cellar, under-floor, outbuilding bench). It never places items. At run start the economy turns the run's budget into item rolls and fills containers by kind. A container's kind limits what may go in it; the run's budget decides how much.
-**Open houses (GDD App. F.3; ARCHITECTURE §8 note 326):** the plain houses (a rectangle or a square) stand open, a door in the face toward the line. A find in one lies inside where it was kept: at the foot of a cupboard on the back wall or a cabinet on a side wall, on the cellar's hatch, on a run of prised-up boards. The L, cross and paired houses stay shut, their finds put out on the step. What's kept in an open house isn't there to see until it's been searched: a crewmate stands at the cupboard, cabinet, hatch or boards empty-handed and holds Use for a couple of seconds (a cabinet) to five (the boards), and what it held comes out (loot.json `search`). Whether to split up for the village, work the yard together or take the village together is the crew's call, and the village costs the time it takes to go in. A plain house's spots take one crewmate about ten seconds; a village of them, a few minutes alone and less split up.
+**Every yard line (the director, 8 Oct 2026; ARCHITECTURE §8 note 352):** "Loot should spawn in all yard lines in early game and mid game." On local, frontier and dead-lines yards, every siding has a container beside its loading face (its own crane bay, or a crate stack on its side of a shed it stands beside); a crew that pulls into any line finds something to load. Deep territory is left to its dice (its bigger stock left none bare in 40 yards). And a stop's loot is out before the train is near enough to see it, never appearing once the crew has stopped.
+**Open houses (GDD App. F.3; ARCHITECTURE §8 note 326):** every village house stands open, a door in the face toward the line (each of a pair's cottages has its own; an L or a cross is one floor, its parts open into each other). A find in one lies inside where it was kept: at the foot of a cupboard on the back wall or a cabinet on a side wall, on the cellar's hatch, on a run of prised-up boards. What's kept in an open house isn't there to see until it's been searched: a crewmate stands at the cupboard, cabinet, hatch or boards empty-handed and holds Use for a couple of seconds (a cabinet) to five (the boards), and what it held comes out (loot.json `search`). Whether to split up for the village, work the yard together or take the village together is the crew's call, and the village costs the time it takes to go in. A plain house's spots take one crewmate about ten seconds; a village of them, a few minutes alone and less split up.
 
 ### P13 — The gap is the danger
 **Sketch:** about 20–40 m of open ground between the rail and each district, with no buildings in it.
@@ -314,6 +315,47 @@ Per CLAUDE.md ("make it verifiable headless") the implementation gets `dt site -
 
 ---
 
+# PART B — BENDS WORTH BRAKING FOR
+
+The brief (the director, 6 Oct 2026, GDD App. F): with the Sleepers gone, derailing on a bend is the core fear, and it must always be the driver's mistake: "someone not paying attention to the map". Outrunning what boards fast (the Cinder Hounds) means running fast, so every night has to have bends a fast train comes off: "run up to the curve and brake hard, or deal with them now". Before this, a Frontier night often had none: frontier:7's sharpest bend was 707 m (it holds 26.6 m/s, over the engine's 22), and only 11 of 30 Frontier nights had any bend the train could come off at all (ARCHITECTURE §8 notes 265, 278).
+
+## B.1 What makes a bend worth braking for
+- **It derails under the train's top speed.** The engine on full steam makes 22 m/s (79 km/h). A bend that holds 22 is scenery. One that derails at 17–19 m/s (61–68 km/h) is a bend a train running from something has to brake for, and one a train at cruise takes at its board without a thought.
+- **It's told, every way at once (note 265).** A board at what it takes, floor(√(0.7 R)); the bend in red on the cab map with its figure; the cab's bell when the speed now would derail it; the flanges, creaks and lurch on it. Nobody comes off a bend they weren't told about.
+- **It's seen coming.** Straight track before it, so "how long do I hold full steam?" is a real decision, and the brakes have somewhere to work.
+- **The land says why it bends.** A hill on the inside that the line goes round, which also hides the way out (you can't see round it, which is why the board matters), and a fall on the outside, what you'd go off into. A sharp bend in flat open country reads as arbitrary.
+- **It comes back through the night.** One in each equal share of the line, so the fear recurs; never all in one stretch.
+- **Never two at once.** No two lethal checks within a braking distance (plan §7.3), so a driver who brakes for one can brake for the next.
+
+## B.2 By tier
+`content/linegen/tiers.json` columns `bends` (how many a night carries) and `bendDerail` (the speeds they derail at, m/s). The radius is v² / a_derail, never under the tier's `minRadius`. Every night is 24 km (note 270), so a deeper night's bends come closer together, not more spread out; the counts were cut by one for Dead Lines and Deep when the nights shortened.
+
+| Tier | Bends a night | Derails at | Board | Radius |
+|---|---|---|---|---|
+| Local | 1–2 | 72–76 km/h | 58–61 km/h | 400–450 m (gentle: a bend that teaches the board) |
+| Frontier | 3–4 | 58–68 km/h | 47–54 km/h | 256–361 m |
+| Dead Lines | 3–4 | 54–65 km/h | 43–54 km/h | 225–324 m |
+| Deep Territory | 4–5 (5–6 at its deepest) | 45–61 km/h | 36–50 km/h | 156–289 m |
+
+The Drop, the Blind Throat, the Ledge and curved tunnels still lay their own sharp bends on top of these (a Blind Throat's reverse curve is two).
+
+## B.3 Rules for the generator
+- **The count is the tier's,** rolled on its own stream, whatever else the script rolled.
+- **The hard bend** (`setpieces.json` "hardBend"): one curve of 40–90°, 120–260 m of straight either side (halved where room is short; no bend at all under 60% of the least turn). Not a crunch: like brass it's a demand, and the lethal spacing check keeps it from the next one.
+- **Where:** after everything else is handed out (the quotas, the hazards, the signatures), one in each equal share of the line between the threshold and the home straight, in the stretch with room nearest the share's middle. A share still without one, because its stretches were full, gets one where the line already is: cut into a plain connector, or laid on a climb, descent, summit or roller as the line going round a hill (its grades as they were).
+- **The land:** `LedgeUp` (8–20 m) on the inside, `Embankment` (2–6 m down) on the outside, over the piece. A hill that hides the way out can make the bend blind enough for a restricted zone; its board still stands (a restriction taking the bend's demand doesn't take its board).
+- **By a branch:** within `bendDeadLineClearM` (1500 m) past a dead line's toe, the bend turns away from it. In an alternate's window it turns towards the alternate's side: a line turning one way lies on the far side of its chord, and the alternate bows out on its own side, so the two stay apart. Turned the other way, the main line swung across the alternate's way back in.
+- **No branch crosses the main line.** An alternate or dead line that crosses to the main line's other side, away from its turnouts, is refused when it's laid: retried, then dropped (a dead line in its place if the junction count needs one). The validator's `crossings` check says none got through. Shores keep off the side an alternate runs on, from its toe to its rejoin.
+- **Tags:** `curve_tight` over every stretch that derails the train under its top speed, for the director ("slowing opens the doors": the places a train slows are where things board); `pre_curve` before each.
+- **The validator** fails a night with fewer than the tier's least count (`hard bends`); the metrics report `hardBends` and `hardBendSlowestMs`.
+
+## B.4 Not yet
+- **S-bends.** Two lethal bends this close fail the lethal spacing check; they'd need one demand over both.
+- **Hard bends on alternates and dead lines.** Only the main line carries them; the alternates keep their trade-offs.
+- **Boarding at tight curves.** The `curve_tight` tag is there for the boarding rules (A1.8's queue #22) to read; nothing does yet.
+
+---
+
 # PART H — HOLDOUTS AND THE OUTSIDE CREATURES
 
 GDD v1.2 makes two more things level content, generated with every stop: where the dead come back (Appendix D), and where the creatures that live off the train are (B.6, B.8). Both are placed last, from their own seeds, so they never move anything else in a stop.
@@ -343,6 +385,7 @@ The stop's checks verify all five again on the finished layout. A stop where non
 - **A Soot Child's call (B.6 "near facilities and dead settlements"):** in the open beyond the stop's built edge, where the consist, or the cars waiting on the main line, can see it.
 - **The Grumbler's perch (B.8 "facility cranes"):** every yard gantry.
 - **The Whistler's nest (A.4 "carries its victim off to a nest"):** out on the side of the stop with the least built on it, abreast of where the train stands (within 50 m along the line of its stopping point), so a Whistler snatching from the train's gaps runs there.
+- **The Moose's ground (B.6; the director's decisions of 7 Oct 2026, note 339):** open grazing 30–60 m out from the consist's middle, on whichever side it can stand: on the ground, not in water, clear of the stop's buildings and the cars, and never within the track's clearance (6 m from any track's centre where it's put down, 3.2 m as it moves). Close enough to the crew's walks that they're always aware of it; the buildings and the standing cars are the cover that beats it, and the line is a boundary it won't cross. Its spawn rule places it today (Spawns.cs); queue #48 may move it to a laid-out site.
 
 The layout says where; the director says when. Ribbits come out of the warren nearest the ground crew, the Gaunt sleeps in its roost, a child calls from its call, and a Follower takes only someone standing on its ground (ARCHITECTURE §8 note 309). The Whistler carries its victim to the stop's nest when it can run there (note 314). The Grumbler's perches are placed but not yet read: it comes to a facility's crane on its own rule.
 
@@ -367,7 +410,7 @@ What the game does with these rules today (ARCHITECTURE §8 notes 93–96 have t
 - **P5–P8, the yard:** spur, ladder, fan and split forms. Shed rows stand between the tracks, and the hero stands at the far end, or along a fan's curve.
 - **P9–P12, the village:** blocks, street, crossroads and farmsteads. There are stub roads out to 1–2 outlier houses, and a village always has at least one find on its floor.
 - **A dead town** (the line plan's §11.3) is a village halt with its railway side: a station building behind the platform, and out past the rail buffer a goods siding (its points lifted) with derelict vans on it and a goods shed whose workbench may hold a find (ARCHITECTURE §8 note 302).
-- **P14, the loot:** the layout places containers, and the run's economy fills them when the train first stops there.
+- **P14, the loot:** the layout places containers, and the run's economy fills them. They come out as the train comes up to the stop, 800 m out, before anyone could see them appear (loot.json `stockAhead`; ARCHITECTURE §8 note 352). On the first three tiers every yard track has something to load beside it (stops.json `everyTrack`; the director, 8 Oct 2026).
 - **P15, the score:** the planner is *supply-limited*. Each trip goes to the track with the most loadable loot left, and costs throws, couplings, reversals, blind moves, re-spots, hand cars, carrying, the switchman's walk and a blocked crossing. The village adds its walk and the odds of finding things.
 - **P16, a siding's size:** the cars that fit on its shared loading face, engine included.
 - **D.2's power and grade:** each yard rolls its power by tier and has a powerhouse at its throat. The route lays a grade out of each yard, and the score counts both (a hard pull from 2%).
@@ -388,4 +431,4 @@ The artifact's scores illustrate the rules. The sim is calibrated to its own mea
 ## I.4 Not yet
 - **Trailing points and loops (a north lead).** The train sim measures every position as a distance along the main line up to the points, then along a branch that leaves facing up-line. A switch facing the other way breaks that model for the train, couplings, bots and loading alike, so it's an engine change of its own.
 - **Bots don't scavenge villages yet, or clear a blocked siding.** Their stop crew works a facility's own track and its modules, and a switchyard's standing cars (ARCHITECTURE §8 note 187). They do breach Holdouts (notes 152, 259).
-- **Buildings have no collision, and their interiors aren't modelled.** Finds lie where their container is; a Holdout's occupant comes back at its middle.
+- **Buildings' interiors are a first slice.** Every stop building is solid now (ARCHITECTURE §8 notes 155, 274, 279, 326): a village's plain houses stand open with their finds inside to search (note 326); the other houses, barns and outbuildings, a dead town's station, goods shed and derelicts, the powerhouse, signal boxes, lamp rooms, water towers, lockups, prison cars and wells shut, a find in one put on its step; the sheds and the hero as their walls with the bay door the art draws, so the crates inside are fetched through it; a Holdout as its walls with its door open where it's breached, its occupant coming back inside and walking out. The art still paints the sheds' and Holdouts' doors on closed boxes: walking in through one shows the inside of nothing (an art row for C1).

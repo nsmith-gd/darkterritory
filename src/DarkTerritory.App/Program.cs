@@ -141,7 +141,8 @@ bool fromCommandLine = launch is not null;
 // --internal pins it (captures, perf); otherwise it's the player's resolution at their render scale (T83, Settings).
 bool pinnedInternal = args.Contains("--internal");
 var internalSize = Arg("--internal", "1280x720").Split('x').Select(int.Parse).ToArray();
-const int UiWidth = 480, UiHeight = 270;
+// Note 347: TEXT SIZE draws it smaller (Settings.Canvas), so the same print is bigger in the window.
+int UiWidth = Settings.CanvasWidth, UiHeight = Settings.CanvasHeight;
 double quitAfter = double.Parse(Arg("--quit-after", "0"));
 double derailAt = double.Parse(Arg("--derail-at", "0"), System.Globalization.CultureInfo.InvariantCulture);
 string? capture = Arg("--capture", "") is { Length: > 0 } c ? c : null;
@@ -195,6 +196,12 @@ var shownSettings = startSettings;
 void ApplyDisplay()
 {
     var now = frontEnd.Settings;
+    // Note 347: the text size takes at once, as the canvas the overlay's stretched from. A headset's panel keeps its own.
+    if (vr is null && now.Canvas != (UiWidth, UiHeight))
+    {
+        (UiWidth, UiHeight) = now.Canvas;
+        renderer.OverlaySize = new Vector2(UiWidth, UiHeight);
+    }
     if (vr is not null || now.Fullscreen == shownSettings.Fullscreen && now.Resolution == shownSettings.Resolution
         && now.RenderScale == shownSettings.RenderScale && now.VSync == shownSettings.VSync)
         return;
@@ -642,6 +649,8 @@ CampaignState? Play(IPlaySession session, CampaignState? campaign)
         Holdouts = session.World.Holdouts,
         Town = session.World.Town,
         Vehicles = session.Train.Vehicles,
+        HotBoxTuning = session.Train.HotBoxTuning,
+        Gutter = session.Train.Gutter,
         Handrails = session.Train.Dynamics.Tuning.Composition.Handrails,
         Bodies = session.World.Bodies.All,
         Diverging = session.Train.Diverging,
@@ -1157,6 +1166,9 @@ CampaignState? Play(IPlaySession session, CampaignState? campaign)
         scene.Venting = session.Train.Boiler.Vented;
         scene.SafetyValve = session.Train.Boiler.SafetyValveLifting;
         scene.Ruptured = session.Train.Boiler.Ruptured;
+        // Every break the crew can mend, called out where it is, and the ones a wrench is at (note 301).
+        scene.Breaks = DarkTerritory.Sim.Train.RepairCallouts.Of(session.Train);
+        scene.Mending = scene.Breaks.Count > 0 ? GreyboxScene.MendingAt(scene.Breaks, session.CrewStates(1).Select(c => c.State), session.Train) : null;
         scene.BendStrain = session.Route?.Plan is { } strainPlan ? BendStrain.PerCar(session.Train, strainPlan.Rules) : null;
         scene.DriversLocked = scene.Ruptured && session.Train.BoilerTuning is { } rt && session.Train.Dynamics.Speed > rt.RuptureCoastBelow;
         scene.Controls = session.Controls;
