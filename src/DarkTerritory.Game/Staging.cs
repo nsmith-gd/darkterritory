@@ -1383,6 +1383,18 @@ public static class Staging
         return runners;
     }
 
+    /// <summary>
+    /// A Dragger perched on a through-truss's top chord (note 435; <c>dt screenshot --route frontier:7 --truss --view ahead</c>):
+    /// mid-span on the right, scraping (its limb reaching down off the steel), the train coming up on it.
+    /// </summary>
+    public static List<Enemy> Truss(double along)
+    {
+        var t = new DraggerDropTuning();
+        var dragger = Sim.Enemies.Dragger.OnTruss(60, along, 1, t);
+        dragger.Restore(SpinePhase.Telegraph, 0.6, dragger.Health, -1, default, along, t.Lateral, t.Height, -1, 0);
+        return [dragger];
+    }
+
     public static List<Enemy> Threats(TrainOnLine train, double dollAhead = 22, double? lurkAhead = null)
     {
         var d = train.Dynamics;

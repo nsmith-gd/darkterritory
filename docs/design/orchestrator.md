@@ -171,7 +171,7 @@ top-speed strategy; none comes to a train under `minSpeed` (they're the run's, n
 | S1 | **The hound run**: Cinder Hounds coming in a stream, faster than the train | The rear car's end, from the line behind, at any speed | Howls behind, the pack's eyes in the dark | The guns, one ball per hound (a ball landing near scatters it) | **Built (§6.1)** |
 | S2 | **Climbers at speed**: on Dead Lines+, let a pack that has paced a fast train long enough get a grip anyway (note 286 holds them to under 14 m/s, by the boarding-first decisions) | A coupling gap (B.4) | Pacing alongside, scrabbling | A walker in the gap, or a gun on the gap | Tuning, if the director wants it |
 | S3 | **The kites** (new, App. F.1's "fast, flying class") | The roofs, only above 18 m/s, in open country | A shriek overhead, a shadow across the lamp | Lamps lit on the roofs (they won't land in light), or a walker with a tool. The gun can't elevate to them (`maxPitchDegrees` 45) unless one's on a roof | New creature: art, clips, a rule |
-| S4 | **Draggers off a bridge** (B.4 variant) | Dropping onto the roofs from an overbridge or a tunnel mouth | A scraping above as the bridge comes up | Nobody on the roofs under a bridge, or knocked off with a tool | Rule change |
+| S4 | **Draggers off a bridge** (B.4 variant) | Dropping onto the roofs from a through-truss's top chord (not a tunnel mouth: the mouth already takes anyone standing on a roof) | A scraping on the steel above as the truss comes up | Nobody on the roofs under a truss; the one it has hauled back up, as from any Dragger | **Built (note 435)** |
 | S5 | **The Car Hugger** (exists) | The rear car as it passes low ground | Grinding | Cut the car, or club it | Unchanged |
 
 ### 5.3 Waves at the guns (tower defence)
