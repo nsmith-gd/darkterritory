@@ -5988,3 +5988,23 @@ Terrain sculpting tools, a node-graph material editor, a general-purpose visual 
         - `dt art check`: the yard is 4,814 triangles of the facility's 90,000.
         - The Game suite.
         - Looked at: along the ground among the wrecks, at the shed, and from the air, before and after, and each piece on the turntable.
+
+430. **The conveyor line's art (queue #166, C1; A1's #136, note 400: "the conveyor's greybox only, its art left to C1"; spec D.2, D.3).** The grain elevator's conveyor was the greybox's rods and boxes. Now it is modelled in facility_pieces.py and drawn by `SceneArt.Conveyor` where the sim lays it (`Site.ConveyorTail`, `Knee`, `Head`, `Starter`). The greybox is kept as the fallback (`GreyboxScene.SetPieces`' `conveyorDrawn`).
+    - **The pieces:**
+        - The low run from the tail to the knee is `belt_section`s (380 triangles each): 3 m of troughed belt on its idlers and stringers, its return under, on a timber trestle. They're stretched a little so a whole number fills the run.
+        - `belt_riser` (768): a covered truss gallery from the knee up into the head's hood, tipped up the slope and stretched to the sim's knee and head (`Inclined`).
+        - `belt_head` (452): the gantry astride the track, its deck and rail, the head pulley's hood and the chute down to over a car's roof.
+        - `drive_house` (174): the corrugated hut past the tail, its exhaust, the tail drum at the belt's end and the drive's guard.
+        - `drive_flywheel` (220).
+    - **What moves, from the sim:**
+        - The flywheel turns, and splices crawl along the belt at the grain's speed, while it runs and isn't jammed (`Running`, `Jam`).
+        - The lamp by the drive house's door is green while it runs and red stopped or jammed. The starter (`lever_handle`) is down while it runs.
+        - Grain rides the belt while it carries and falls from the head into the car under it.
+        - A jam is a heap fouled on the belt where the sim has it (`JamAt`), the grain behind it stood still and some spilled off the side.
+    - **`dt screenshot --site --facility grainElevator --belt [head | drive] [--conveying | --jam f]`:** A1's camera along the run, and two new ones. `head` looks from the riser's side up at the gantry; across the track a stop's sheds stand. `drive` is at the drive house from the track's side.
+    - **Verified:**
+        - `SetPieceArtTests.TheConveyorIsTheArtsWhereTheSimLaysItAndTurnsOnlyWhileItRuns` covers the layout and the motion. The head's gantry stands on the track under the sim's head, and the sections fill the run. The flywheel is still while stopped and turns while running. The lamp is red, then green.
+        - `dt art check`: every piece well under the large prop's 8,000.
+        - The Game suite.
+        - Looked at: along the run stopped, carrying and jammed; at the head; at the drive house running and stopped; before and after, and on the turntable.
+

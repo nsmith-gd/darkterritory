@@ -1207,6 +1207,15 @@ static object Screenshot(TrainTuning t, string content, string[] args)
                 var back = ((site.ConveyorTail - site.ConveyorKnee) with { Y = 0 }).Normalized;
                 var right = Double3.Cross(back, Double3.Up);
                 camera = Camera.LookAt(site.ConveyorTail + back * 2 + right * 6 + Double3.Up * 4.5, Double3.Lerp(site.ConveyorTail, site.ConveyorKnee, 0.75), 70);
+                // --belt head: from the riser's side, along the track a way, up at the head's gantry, its chute and the riser
+                // (note 430; across the track a stop's sheds stand); --belt drive: at the drive house from the track's side, its
+                // flywheel and the starter.
+                var toTrack = ((site.ConveyorHead - site.ConveyorKnee) with { Y = 0 }).Normalized;
+                var alongTrack = Double3.Cross(toTrack, Double3.Up);
+                if (Str(args, "--belt", "") == "head")
+                    camera = Camera.LookAt(site.ConveyorKnee + alongTrack * 9 + toTrack * 1.5 + Double3.Up * 0.8, site.ConveyorHead - Double3.Up * 1.0, 68);
+                else if (Str(args, "--belt", "") == "drive")
+                    camera = Camera.LookAt(site.ConveyorTail + back * 6 + toTrack * 5 + Double3.Up * 1.2, site.ConveyorTail + back * 2 + Double3.Up * 0.4, 65);
             }
             else if (site.Has(DarkTerritory.Sim.Run.ModuleKind.Spout))
             {
