@@ -617,6 +617,49 @@ public class CreatureArtTests
         Assert.Empty(Drawn(Effects.DeathSeconds + 0.2));
     }
 
+    [Theory]
+    [InlineData(true)]
+    [InlineData(false)]
+    public void ACarCutLooseBurningBurnsOnAsItRollsAway(bool cut)
+    {
+        // Note 458 (GreyboxScene.Riding): the sim's done with a fire the tick its car's off the train, and its flames went
+        // out the moment the car was cut. Cut loose, it burns on, on the car, as the Car Hugger rides its car away. Not cut,
+        // a fire gone is one put out: nothing's left of it.
+        var tuning = DataFile.Load<Sim.Train.TrainTuning>(Path.Combine(Content, Sim.Train.TrainTuning.File));
+        var line = Sim.Rail.RailLine.Load(Path.Combine(Content, "lines", "test-loop.json"));
+        var train = new Sim.Train.TrainOnLine(new Sim.Train.TrainDynamics(Sim.Train.Consist.Uniform(tuning, 6, 1)), line, 1200);
+        int car = 4;
+        var fire = CarFire.In(24, train, car, 1.5, new CarFireTuning());
+        fire.Restore(SpinePhase.Punish, 5, 1, car, fire.Local, 0, 0, 0, 0.7, 0);
+        var eye = train.Frames[car].ToWorld(new Double3(-6, 3, 0));
+        var staged = new List<Enemy> { fire };
+        var scene = new GreyboxScene { Look = Look, Time = 0.37, Enemies = staged, Tick = Staging.StrikeTick };
+        int Flames(long tick)
+        {
+            scene.Tick = tick;
+            var mesh = new MeshBuilder();
+            scene.Build(mesh, train, eye);
+            return mesh.AdditiveFx.Count;
+        }
+        int burning = Flames(Staging.StrikeTick);
+        staged.Clear();
+        int none = Flames(Staging.StrikeTick + 1000);
+        Assert.True(burning > none, $"burning {burning}, no fire {none}");
+        // Again, the fire there; then its car's cut from the train (its front end open: the car ahead's in another rake),
+        // and the sim's done with it.
+        scene = new GreyboxScene { Look = Look, Time = 0.37, Enemies = staged = [fire], Tick = Staging.StrikeTick };
+        Flames(Staging.StrikeTick);
+        if (cut)
+            Assert.True(train.Uncouple(train.VehicleAhead(car)));
+        staged.Clear();
+        int after = Flames(Staging.StrikeTick + 1);
+        int later = Flames(Staging.StrikeTick + 2 * (long)Sim.SimConstants.TickRate);
+        if (cut)
+            Assert.True(after > none && later > none, $"cut loose: {after}, then {later}, against {none}");
+        else
+            Assert.Equal(none, later);
+    }
+
     [Fact]
     public void TheOneTheCarHuggerSwallowsIsBentIntoItsMouthWhereverTheyWereCaught()
     {
