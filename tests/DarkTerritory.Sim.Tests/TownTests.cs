@@ -207,7 +207,9 @@ public class TownTests
         {
             Assert.True(Math.Abs(p.D) >= 2.5, $"{p.Title} at {p.D:0.0}: in the train's way");
             Assert.True(p.S < gate, $"{p.Title} outside the gate");
-            Assert.True(Math.Abs(p.D) < 14.8 || plan.Square.Holds(p.S, Math.Sign((int)Math.Round(p.D))), $"{p.Title} outside the walls at {p.D:0.0}");
+            // Inside the yard's walls, or a walled town's (queue #74, note 335).
+            Assert.True(plan.Bounds?.Holds(p.S, p.D, 1) ?? (Math.Abs(p.D) < 14.8 || plan.Square.Holds(p.S, Math.Sign((int)Math.Round(p.D)))),
+                $"{p.Title} outside the walls at {p.D:0.0}");
             var feet = town.Feet(p);
             // In no wall but their own (each person stands in a box their own size).
             int inside = train.Walls!.Near(feet).Count(w =>
@@ -285,7 +287,7 @@ public class TownTests
     // The houses and households (the director, 7 Oct 2026; note 281)
 
     [Fact]
-    public void ATownIsTwentyToThreeHundredAndFiftyPeopleInHousesAndHasLostSome()
+    public void ATownIsTwentyToThreeThousandPeopleInHousesAndHasLostSome()
     {
         var t = Towns.Tuning;
         for (int seed = 1; seed <= 60; seed++)
@@ -307,12 +309,17 @@ public class TownTests
             }
             // Nobody lives in a house that isn't open to you (the rest are behind their doors).
             Assert.All(plan.People.Where(p => p.House >= 0), p => Assert.Equal(HouseKind.Open, plan.Houses[p.House].Kind));
-            // The houses stand apart, between the line and the walls.
+            // The houses stand apart, between the line and the walls (a walled town's, or the yard's: WalledTownTests has
+            // the walled town's streets and lanes).
             foreach (var a in plan.Houses)
             {
-                Assert.InRange(Math.Abs(a.D) + a.Depth / 2, 0, Fortresses.WallOut - Fortresses.WallHalf);
+                if (plan.Bounds is { } b0)
+                    Assert.True(b0.Holds(a.S, a.D + a.Side * a.Depth / 2), $"seed {seed}: house {a.Id} past the town's wall");
+                else
+                    Assert.InRange(Math.Abs(a.D) + a.Depth / 2, 0, Fortresses.WallOut - Fortresses.WallHalf);
                 Assert.True(Math.Abs(a.D) - a.Depth / 2 > 3, $"seed {seed}: a house {Math.Abs(a.D) - a.Depth / 2:0.0} m off the line");
-                foreach (var b in plan.Houses.Where(b => b.Id > a.Id && b.Side == a.Side))
+                // Its neighbours in its row.
+                foreach (var b in plan.Houses.Where(b => b.Id > a.Id && Math.Abs(b.D - a.D) < 0.01))
                     Assert.True(Math.Abs(a.S - b.S) >= (a.Width + b.Width) / 2, $"seed {seed}: houses {a.Id} and {b.Id} overlap");
             }
         }
@@ -381,5 +388,44 @@ public class TownTests
         var behind = town.World(bs, bd, 1.65);
         Assert.False(town.Seen(behind, face), "seen through the back wall");
         Assert.NotEqual(new TownTarget(TownTargetKind.Person, who.Id), town.Target(behind, (face - behind).Normalized));
+    }
+
+    [Fact]
+    public void HousesVaryWithinATownAndTownsDifferInCharacter()
+    {
+        // The director (7 Oct, with his photographs): "lots of variations so it doesn't feel like the same 10 assets
+        // recycled across towns". Every character turns up, and within a town no two standing houses look alike (form,
+        // storeys, roof, dormers, siding, paint, wing, porch), but a company town's, which are one house in its own paints.
+        var characters = new HashSet<string>();
+        int towns = 0;
+        for (int seed = 1; seed <= 80; seed++)
+        {
+            var plan = TownGenerator.Generate(Towns, Site(seed));
+            characters.Add(plan.Character);
+            // The houses round the square, where a crew walks (a big town's streets go on past them: it can't be all one
+            // of each, but no stretch of street should look like a row of copies).
+            var standing = plan.Houses.Where(h => h.Kind != HouseKind.Burnt).Take(40).ToList();
+            if (standing.Count < 6)
+                continue;
+            towns++;
+            var looks = standing.Select(h => (h.Design.GableFront, h.Design.Storeys, h.Design.Roof, h.Design.Dormer, h.Design.Shingle,
+                h.Design.Paint, h.Design.Ell != 0, h.Design.Porch)).ToList();
+            if (plan.Character == "company")
+                Assert.Single(looks.Select(l => (l.GableFront, l.Storeys, l.Roof, l.Dormer)).Distinct());
+            else
+                Assert.True(looks.Distinct().Count() >= looks.Count * 0.8, $"seed {seed} ({plan.Character}): {looks.Distinct().Count()} looks among {looks.Count} houses");
+            // What stands of a house stays in its lot and off the line.
+            foreach (var h in plan.Houses)
+                foreach (var (u0, u1, v0, v1, _) in h.Parts())
+                {
+                    // A lot on the line's own street is st.Every long; a walled town's street's, up to walled.lot's most.
+                    double lot = Math.Abs(Math.Abs(h.D) - Towns.Tuning.Houses.Out) < 0.01 ? Towns.Tuning.Houses.Every : Towns.Tuning.Walled.Lot[1];
+                    Assert.True(Math.Max(Math.Abs(u0), Math.Abs(u1)) <= lot / 2 - 0.3, $"seed {seed}: house {h.Id} reaches {Math.Max(Math.Abs(u0), Math.Abs(u1)):0.0} m along");
+                    Assert.True(Math.Abs(h.FrontD) - Math.Max(0, -v0) > 3, $"seed {seed}: house {h.Id}'s porch within 3 m of the line");
+                }
+        }
+        Assert.True(towns > 30, $"{towns} towns with houses enough");
+        foreach (var c in Towns.Looks.Characters.Where(c => c.Id != "mixed"))
+            Assert.Contains(c.Id, characters);
     }
 }

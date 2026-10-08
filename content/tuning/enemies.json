@@ -1,4 +1,4 @@
-// Enemies (GDD v1.1 §21, App. A behaviour, App. B spawn rules, App. C shared systems): the v1.1 roster of sixteen and the
+// Enemies (GDD v1.1 §21, App. A behaviour, App. B spawn rules, App. C shared systems): the v1.1 roster of sixteen, the Moose (note 339) and the
 // Choir, plus two hazards (§22: track debris, formerly the Sleepers; marsh, formerly the Drift). First pass. Speeds in m/s; the GDD's Sleeper thresholds (40 / 20) are km/h, converted here.
 {
   // App. A.1: every telegraph gives at least this long before a commit.
@@ -123,7 +123,9 @@
     "carHugger": [[1.3, 0.6], [1.2, 1.9]],
     "passenger": [[0.4, 0.5], [0.4, 1.15], [0.3, 1.6]],
     "stoker": [[0.45, 0.45], [0.4, 1.1]],
-    "tippyToesie": [[0.4, 0.6], [0.4, 1.4], [0.3, 2.0]]
+    "tippyToesie": [[0.4, 0.6], [0.4, 1.4], [0.3, 2.0]],
+    // The barrel and the hump (note 339); its rack stops nothing, a round in it is a miss.
+    "moose": [[0.9, 1.6], [0.9, 2.1], [0.6, 2.6]]
   },
   "gauntAsleep": 0.35,
 
@@ -269,6 +271,46 @@
   "choir": {
     "ghosts": 4, "health": 6, "seizeSeconds": 12, "flySpeed": 6, "hitBackDamage": 35, "hitBackEvery": 3, "disperseQuietSeconds": 10,
     "around": 12, "drivenOff": true, "hushBreakSeconds": 3
+  },
+
+  // THE MOOSE · movement (trespass), sound · outside (GDD §21, App. A.6, B.6; the director's decisions of 7 Oct 2026;
+  // ARCHITECTURE §8 note 339; docs/design/creatures/moose.md). A hyper-aggressive, territorial moose, too big to get on the
+  // train. Grazing beside a stop, its aggro (0-100) rises crowdPerSecond with anyone on the ground within crowdAt m
+  // (closePerSecond within closeAt), voicePerSecond at full voice (by the Voice byte, over talkingAbove of 255) with anyone
+  // talking within hearVoice m, and by trainPass once as a train goes by within trainPassAt m; a hit fills it. It falls
+  // calmPerSecond with nobody crowding or talking. listenAt (head up, ears turning) and warnAt (ears flat, the sac ridge up)
+  // are its tells. Full, its target is whoever put the most in (whoever hits it, from then on). In sight (sightRange, no
+  // building or car between) it closes at huntSpeed, squares up squareUpSeconds within squareUpAt[1] m (its heading locks
+  // at the end) and charges at chargeSpeed, overrunning overrun m, then wheels round in wheelSeconds. Its body is rackSpan
+  // across: nothing narrower lets it in. A building in the way snags it snagSeconds; a car or the track's clearance pulls it
+  // up; blockedCharges of those without reaching its target and it gives up. A charge through anyone on the ground (within
+  // hitReach of its rack) is a hit of chargeDamage; on someone at or under grabBelowHealth it pins them for pinSeconds, and
+  // a blow from anyone else takes it off them (they're its target then). Out of sight it searches at searchSpeed where it
+  // lost them, searchSeconds; a voice within hearVoice gives anyone away. Lost within lostAtCar m of a car they're aboard,
+  // it rams the car every ramEvery s for ramSeconds (a ram is only a sound and a shudder). It gives up past leashRadius from
+  // its ground, and when the train pulls away. It can't be killed. Never within trackClearance m of a track's centre
+  // (movingClearance while the train moves): it's never on the rail. Gone past goneBeyond m from the train.
+  // Spawns (B.6): at a stop, groundAt m out from the consist's middle; every tier, tierWeights by tier; biomeWeights by the
+  // line's biome (1 unlisted); perGroundWeight more per player on the ground; minCrew (1: a lone player struggles free, the
+  // solo rule, as from every grab). Beside the line on the run, lineside per 10 km by tier (times the biome's weight),
+  // linesideAhead m ahead and linesideOut m out: the line's own, not the director's.
+  "moose": {
+    "crowdAt": 20, "crowdPerSecond": 25, "closeAt": 12, "closePerSecond": 70,
+    "hearVoice": 15, "talkingAbove": 40, "voicePerSecond": 40,
+    "trainPassAt": 25, "trainPass": 25, "calmPerSecond": 15,
+    "listenAt": 20, "warnAt": 50,
+    "squareUpAt": [12, 30], "squareUpSeconds": 2.5, "huntSpeed": 4.5,
+    "chargeSpeed": 11, "overrun": 8, "wheelSeconds": 2.5, "rackSpan": 3.2, "hitReach": 0.5, "snagSeconds": 4, "blockedCharges": 3,
+    "chargeDamage": 60, "grabBelowHealth": 40, "pinSeconds": 12,
+    "sightRange": 60, "searchSpeed": 2.5, "searchSeconds": 25, "leashRadius": 80,
+    "lostAtCar": 5, "ramEvery": 3, "ramSeconds": 15,
+    "trackClearance": 3.2, "movingClearance": 6, "goneBeyond": 600,
+    "groundAt": [30, 60], "minCrew": 1, "perGroundWeight": 0.5,
+    "tierWeights": { "local": 1, "frontier": 1.5, "deadLines": 2, "deepTerritory": 2.5 },
+    "lineside": { "local": 2, "frontier": 3, "deadLines": 4, "deepTerritory": 5 },
+    "linesideOut": [8, 22], "linesideAhead": 300,
+    "biomeWeights": { "marsh": 2, "plains": 1.5, "contaminatedMarsh": 1.5, "coast": 0.5, "blackForest": 1, "forestEdge": 1, "mountain": 1,
+      "deadTown": 0.5, "industrialRuin": 0.3, "slag": 0.3 }
   },
 
   // THE SWITCHMAN · vibration · corrupted (App. A.8, B.8). At a junction ahead[0]-[1] m out; seen at revealAt m. It throws
@@ -650,7 +692,7 @@
     // App. B.1 v1.1's cost table (the Choir costs nothing: it isn't spawned; hazards are level content).
     "costs": { "followers": 2, "draggers": 2, "fireFlies": 2, "switchman": 2, "trackDoll": 3, "cinderHounds": 3, "climbers": 3,
       "whistler": 3, "stoker": 3, "ribbits": 3, "carHugger": 4, "tippyToesie": 4, "gaunt": 4, "sootChildren": 4, "grumbler": 4,
-      "passenger": 5 },
+      "passenger": 5, "moose": 3 },
     // App. B.3/B.8 weights.
     "houndsLivestockWeight": 2.5,
     "houndsHotBoilerWeight": 1.5,
@@ -676,6 +718,13 @@
     // pairs from a conflict table": read as a spawn that would complete a pair with what's there now weighing this much
     // more, and this much more again past halfway on a run short of its pairs.
     "conflicts": [
+      // The Moose (note 339): talk to the Gaunt vs. the moose hears every word; never be outnumbered vs. whoever it chases
+      // ends up alone; the coupling gaps hide you from it and hold the Whistler; the loading needs everyone vs. someone
+      // keeps it busy.
+      ["gaunt", "moose"],
+      ["ribbits", "moose"],
+      ["whistler", "moose"],
+      ["moose", "facilityLoading"],
       ["choir", "cinderHounds"],
       ["choir", "gaunt"],
       ["fireFlies", "trackDoll"],

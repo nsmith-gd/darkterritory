@@ -2884,5 +2884,47 @@
       }
     ],
     "license": "CC0-1.0"
+  },
+  {
+    "name": "shingle_cedar",
+    "diffuse": "shingle_cedar.png",
+    "spec": "shingle_cedar_s.png",
+    "normal": "shingle_cedar_n.png",
+    "size": 512,
+    "tileMetres": 1.0,
+    "tiling": true,
+    "family": "wood",
+    "alphaTest": false,
+    "albedoTarget": 0.13,
+    "sources": [
+      {
+        "generator": "tools/art/textures.py",
+        "what": "courses of cedar shingles: widths, tone, grain, butt shadow, joints, rain, lichen",
+        "author": "Dark Territory",
+        "license": "CC0-1.0"
+      }
+    ],
+    "license": "CC0-1.0"
+  },
+  {
+    "name": "clapboard",
+    "diffuse": "clapboard.png",
+    "spec": "clapboard_s.png",
+    "normal": "clapboard_n.png",
+    "size": 512,
+    "tileMetres": 1.0,
+    "tiling": true,
+    "family": "wood",
+    "alphaTest": false,
+    "albedoTarget": 0.26,
+    "sources": [
+      {
+        "generator": "tools/art/textures.py",
+        "what": "lapped painted boards: lap shadow, butt joints, grain, worn paint, grime",
+        "author": "Dark Territory",
+        "license": "CC0-1.0"
+      }
+    ],
+    "license": "CC0-1.0"
   }
 ]

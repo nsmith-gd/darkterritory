@@ -49,7 +49,9 @@ public static class Protocol
     // 34: the world record carries the dark's answer to a draw (note 287): how long it shows, its cause, who, where.
     // 35: the vehicle record carries how long its axle box has run hot (note 331), before the char cells.
     // 36: the vehicle record carries how long its lamp has guttered (note 346), after the hot box.
-    public const int Version = 36;
+    // 37: the run record's sites carry the steam lift's ore left, its skip's wind and whether it's winding (note 368).
+    // 38: the vehicle record carries how long the coupling behind it has worked loose (note 356), after the lamp.
+    public const int Version = 38;
 }
 
 public enum MessageType : byte

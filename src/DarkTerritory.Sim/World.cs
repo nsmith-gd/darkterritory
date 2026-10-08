@@ -454,15 +454,14 @@ public sealed class World
     public void Stock()
     {
         MountExtinguishers();
-        // The radios (T41, train.json kit): one on the cab floor against its right wall ahead of the right doorway, out of
-        // the reach of a crewmate arriving in the cab, the driver at the controls, the cord, the vent and the fire door (cab
-        // forward, note 276); the rest in the guard van.
+        // The radios (T41, train.json kit): one on the cab floor against its back wall right of the middle, out of the reach
+        // of a crewmate arriving in the cab and of all the work at its front (note 280), and against the plate over the
+        // boiler's end, clear of the corridor in beside it (note 338); the rest in the guard van.
         int radios = Train.Dynamics.Tuning.Kit.Radios;
         if (radios > 0 && Train.Frames[0].Shape.Cab is { } cab)
         {
             Bodies.RadiosCarried = true;
-            double doorFront = EnginePlan.Of(Train.Dynamics.Tuning.Geometry).DoorFront;
-            Bodies.SpawnCrate(Train, 0, new Ballast.Double3(cab.Max.X - 0.4, cab.Min.Y + 0.2, doorFront - 0.8), Physics.BodyKind.Radio);
+            Bodies.SpawnCrate(Train, 0, new Ballast.Double3(0.45, cab.Min.Y + 0.2, cab.Max.Z - 0.4), Physics.BodyKind.Radio);
             radios--;
         }
         StowRepairKits();
@@ -725,10 +724,10 @@ public sealed class World
         if (!content.Tuning.Enabled)
             return;
         var plan = Towns.TownGenerator.Generate(content, Towns.TownSite.Of(route, gate, roster, content, last));
-        Town = new Towns.Town(plan, content.Tuning, Train.Line);
+        Town = new Towns.Town(plan, content.Tuning, Train.Line, content.Looks);
         // The departure fortress is the town's: its walls stand back round the square (note 281), so they're built again.
         if (Forts is { Count: > 0 } forts)
-            Forts = [forts[0] with { Square = plan.Square }, .. forts.Skip(1)];
+            Forts = [forts[0] with { Square = plan.Square, Bounds = plan.Bounds }, .. forts.Skip(1)];
         Train.Walls = ClearSiteWork(Sim.Run.StopWalls.Of(route, Train.Line, Forts, _walls));
         Train.Walls.Add(Town.Walls);
     }
@@ -863,8 +862,11 @@ public sealed class World
                 : Bodies.CarriedBy(id) is not null ? FilmTask.Carrying
                 : PlayerMotor.InCab(s, Train) ? Net.CabControls.CanDrive(s, Train) && Attribution.Driver == id ? FilmTask.Driving : FilmTask.Firing
                 : FilmTask.None;
+            // In their arms, a load goes into the wreck with them (note 370); someone carried isn't one.
+            var load = task == FilmTask.Carrying && Bodies.CarriedBy(id) is { Kind: not (Physics.BodyKind.Ragdoll or Physics.BodyKind.Child) } carried ? carried : null;
             crew.Add(new FilmPlayer(id, Sim.Run.IncidentLog.NameOf(this, id), Sim.Run.IncidentLog.Role(this, s, id),
-                PlayerMotor.WorldPosition(s, Train), PlayerMotor.WorldVelocity(s, Train), PlayerMotor.WorldYaw(s, Train), inside, s.Has(PlayerFlags.Seated), task));
+                PlayerMotor.WorldPosition(s, Train), PlayerMotor.WorldVelocity(s, Train), PlayerMotor.WorldYaw(s, Train), inside, s.Has(PlayerFlags.Seated), task,
+                load?.Kind, load?.Cargo ?? CargoKind.None));
         }
         return crew;
     }
@@ -915,13 +917,18 @@ public sealed class World
             _upkeep = value;
             Train.HotBoxTuning = value?.HotBox is { Enabled: true } hb ? hb : null;
             Train.Gutter = value?.Lamp is { Enabled: true } lt ? lt : null;
+            Train.Loose = value?.Coupling is { Enabled: true } ct ? ct : null;
             _hotBoxes = null;
             _gutters = null;
+            _couplings = null;
         }
     }
     UpkeepTuning? _upkeep;
     HotBoxes? _hotBoxes;
     Gutters? _gutters;
+    Couplings? _couplings;
+    /// <summary>Host: the night's loose couplings so far (note 356): how many worked loose, and how many parted.</summary>
+    public (int Came, int Parted) LooseCount => _couplings is { } c ? (c.Came, c.Parted) : (0, 0);
     /// <summary>Host: the night's guttering lamps so far (note 346): how many started, and how many went out.</summary>
     public (int Came, int WentOut) GutterCount => _gutters is { } g ? (g.Came, g.WentOut) : (0, 0);
     /// <summary>Host: the night's hot boxes so far (note 331): how many came on, and how many caught.</summary>
@@ -976,8 +983,11 @@ public sealed class World
         bool kit = Authority && Bodies.CarriedBy(playerId) is { Kind: Physics.BodyKind.RepairKit };
         // Smash and pry are a melee tool's (D.7; note 275): with empty hands only the kit opens a lock.
         bool breaching = Authority && Holdouts?.CrewAct(s, intent, playerId, Train, kit, Player.Kit.Held(s) != Player.Tool.None) == true;
-        // Hands first: a Use press that picks something up (or puts it down) isn't also working a lever.
-        bool handsTookIt = Authority && Bodies.Handle(s, intent, playerId, Train, Hand, keep: kit && (breaching || CrewActions.AtTheRupture(s, Train, Hand)));
+        // Hands first: a Use press that picks something up (or puts it down) isn't also working a lever. Except at a switch's
+        // lever, which takes Use whatever's in your hands (queue #94, note 357): the lamp you carried out to a stand stays lit
+        // in your hand while you throw it, and a crate lying by it stays down.
+        bool lever = Authority && Switches?.InReach(s, Train, Hand) is not null;
+        bool handsTookIt = Authority && Bodies.Handle(s, intent, playerId, Train, Hand, keep: kit && (breaching || CrewActions.AtTheRupture(s, Train, Hand)), lever: lever);
         if (handsTookIt && Bodies.CarriedBy(playerId) is { Kind: Physics.BodyKind.Ragdoll } lifted)
             Physics.Bodies.TakeTools(ref s, lifted);
         // Searching an open house's hiding spot (note 326), empty-handed, with a Use the hands didn't take.
@@ -1256,7 +1266,11 @@ public sealed class World
         Train.Line.Nearest(world, ref hint);
         double along = hint;
         var rail = Train.Line.Sample(Rail.RailLine.MainPath, along);
-        if (((world - rail.Position) with { Y = 0 }).Length > forts.HalfWidthM)
+        double off = ((world - rail.Position) with { Y = 0 }).Length;
+        // A walled town's fort reaches its wall (queue #74, note 335), past the radius every other fort keeps.
+        if (along <= run.YardLength && Town?.Plan.Bounds is { } walled)
+            return off <= Math.Max(forts.HalfWidthM, Math.Max(walled.Left, walled.Right) + 5);
+        if (off > forts.HalfWidthM)
             return false;
         if (along <= run.YardLength)
             return true;
@@ -1323,6 +1337,12 @@ public sealed class World
             _hotBoxes = new HotBoxes(hbt, (Route?.Seed ?? 0) ^ 0x407B0UL);
         if (Authority && _gutters is null && Train.Gutter is { } gt)
             _gutters = new Gutters(gt, (Route?.Seed ?? 0) ^ 0x6077UL);
+        if (Authority && _couplings is null && Train.Loose is { } ct)
+            _couplings = new Couplings(ct, (Route?.Seed ?? 0) ^ 0xC0091UL);
+        // The couplings (note 356): one loose for each crewmate at most, none in the yard or a fort; one left too long drops
+        // its pin, and the rake parts behind it.
+        if (Authority && !Derailed && _couplings is { } pins)
+            pins.Step(Train, Math.Max(1, _actors.Count(a => a.State.Alive)), SafeYard || TrainInFort);
         // The lamps (note 346): one guttering for each crewmate at most, none in the yard or a fort; one left too long goes out.
         if (Authority && !Derailed && _gutters is { } lamps)
             lamps.Step(Train, Math.Max(1, _actors.Count(a => a.State.Alive)), SafeYard || TrainInFort);
@@ -1656,6 +1676,9 @@ public sealed class World
                 _driftMarsh = marsh.Start;
                 SpawnDrift(t);
             }
+            // The lineside moose (note 339): grazing beside the line ahead, as the line's own; they cost the director nothing.
+            if (Insist is null && d.Allows(EnemyKind.Moose) && Route is { } route && Train.Dynamics.Speed > 3 && !TrainInFort)
+                LinesideMoose(t.Moose, route);
             // T128 (note 273): whoever the train's left behind has a pressure of their own, and the hunts that come of it.
             d.Abandoned(this, _enemies);
             // Note 328: a train run fast draws the hound run, the guns' wave.
@@ -1726,6 +1749,44 @@ public sealed class World
     readonly Dictionary<int, Ballast.Double3> _carries = new();
     /// <summary>The marsh (its start) the Drift last came up over: once a marsh.</summary>
     double _driftMarsh = double.NaN;
+
+    double _mooseNext = double.NaN;
+    Ballast.Pcg32 _mooseDice;
+
+    /// <summary>
+    /// GDD App. B.6, the director's decision of 7 Oct 2026 (note 339): "you can see it standing beside the rail sometimes".
+    /// <see cref="MooseTuning.Lineside"/> per 10 km by tier, fewer where the biome has fewer, put down beside the line
+    /// <see cref="MooseTuning.LinesideAhead"/> ahead (never within the track's clearance), one about at a time. Their own
+    /// dice from the route's seed, so they never move the director's.
+    /// </summary>
+    void LinesideMoose(MooseTuning t, Route.Route route)
+    {
+        double front = Train.Dynamics.Distance;
+        if (double.IsNaN(_mooseNext))
+        {
+            _mooseDice = new Ballast.Pcg32(route.Seed, 0x4D_4F4F_5345UL);
+            _mooseNext = front + Gap();
+        }
+        if (front < _mooseNext)
+            return;
+        _mooseNext = front + Gap();
+        double along = front + t.LinesideAhead;
+        if (_enemies.Any(e => !e.Gone && e.Kind == EnemyKind.Moose) || along >= Train.Line.PathLength(Train.Dynamics.Path) - 50)
+            return;
+        var at = Train.Line.Sample(Train.Dynamics.Path, along);
+        var right = Ballast.Double3.Cross(at.Tangent, Ballast.Double3.Up).Normalized;
+        double side = _mooseDice.Chance(0.5) ? 1 : -1;
+        var spot = at.Position + right * (side * _mooseDice.Range(t.LinesideOut[0], t.LinesideOut[1]));
+        double yaw = _mooseDice.Range(-Math.PI, Math.PI);
+        if (Moose.Place(this, t, spot, along) is { } put)
+            _enemies.Add(Moose.Grazing(_nextEnemyId++, put, along, yaw));
+
+        double Gap()
+        {
+            double per10 = MooseTuning.ByTier(t.Lineside, route.Tier) * Moose.BiomeWeight(this, t, front);
+            return per10 <= 0 ? 1000 : 10000 / per10 * _mooseDice.Range(0.5, 1.5);
+        }
+    }
 
     /// <summary>The marsh's mass, over one of the cars (the ground's coming up alongside and over the whole train).</summary>
     void SpawnDrift(EnemyTuning t)

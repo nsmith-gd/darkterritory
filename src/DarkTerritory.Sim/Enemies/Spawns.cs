@@ -310,6 +310,41 @@ public static class Spawns
             c.Add(i => Gaunt.Asleep(i, at, c.Tuning.Gaunt));
             return true;
         }),
+        // B.6 · The Moose (note 339): grazing beside a stop, in every tier and more the harder; none where one's already
+        // about; by the line's biome; weight up per player on the ground.
+        new(EnemyKind.Moose, c =>
+        {
+            var t = c.Tuning.Moose;
+            if (c.Crew < t.MinCrew || !c.None(EnemyKind.Moose) || !c.Stopped || !(c.AtFacility || c.World.InSettlement))
+                return null;
+            double biome = Moose.BiomeWeight(c.World, t, c.Front);
+            if (biome <= 0)
+                return null;
+            return MooseTuning.ByTier(t.TierWeights, c.Tier) * biome * (1 + t.PerGroundWeight * c.OnGround.Count());
+        }, c =>
+        {
+            var t = c.Tuning.Moose;
+            // Only to a stopped train (an insisted night places it without the weight's gates): it's the stop's.
+            if (!c.Stopped)
+                return false;
+            var mid = c.Train.Line.Sample(c.Train.Dynamics.Path, c.Front - c.Train.Dynamics.Consist.LengthMetres * 0.5);
+            var right = Double3.Cross(mid.Tangent, Double3.Up).Normalized;
+            // Its ground: beside the stop, out from the consist's middle on either side, wherever a moose can stand.
+            for (int i = 0; i < 16; i++)
+            {
+                double side = c.Director.NextRange(0, 1) < 0.5 ? -1 : 1;
+                double along = c.Director.NextRange(-0.8, 0.8);
+                double out_ = c.Director.NextRange(t.GroundAt[0], t.GroundAt[1]);
+                var dir = (right * side + mid.Tangent * along).Normalized;
+                var at = mid.Position + dir * out_;
+                if (Moose.Place(c.World, t, at, c.Front) is not { } spot)
+                    continue;
+                double yaw = c.Director.NextRange(-Math.PI, Math.PI);
+                c.Add(id => Moose.Grazing(id, spot, c.Front, yaw));
+                return true;
+            }
+            return false;
+        }),
         // B.6 · Followers: facility grounds, latching onto a disembarked player (an excursion); weight up per extra on the ground.
         new(EnemyKind.Follower, c =>
         {

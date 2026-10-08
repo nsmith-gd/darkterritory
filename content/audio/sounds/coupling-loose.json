@@ -1,0 +1,17 @@
+// Train fault (tier 5; note 356, orchestrator.md §5.1 U2): a coupling working loose, at its gap. The tell: the pin knocking
+// in its knuckle, iron on iron, slow at first and faster and harder as it works out ("loose": 0 just come loose, 1 about
+// to drop), a dull clank with a ring over it. Held while it's loose; tightened or parted, it stops (parting has the
+// knuckle's release and the hoses).
+{
+  "tier": 5, "loop": true, "maxInstances": 8, "minDistance": 3, "maxDistance": 60,
+  "layers": [
+    // The knock: the pin's body against the knuckle.
+    { "source": "impulse", "frequency": { "param": "loose", "points": [[0, 1.4], [1, 5.5]] },
+      "gain": { "param": "loose", "points": [[0, 2.2], [1, 4.5]] },
+      "filters": [{ "type": "bandPass", "frequency": 340, "q": 3.5 }, { "type": "lowPass", "frequency": 1200 }] },
+    // Its ring: the coupler's iron.
+    { "source": "impulse", "frequency": { "param": "loose", "points": [[0, 1.4], [1, 5.5]] },
+      "gain": { "param": "loose", "points": [[0, 0.5], [1, 1.2]] },
+      "filters": [{ "type": "bandPass", "frequency": 1750, "q": 9 }] }
+  ]
+}
