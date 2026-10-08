@@ -1433,6 +1433,8 @@ static object Screenshot(TrainTuning t, string content, string[] args)
         foreach (int k in run.HidingSpots.Select(h => h.Stop).Distinct())
             run.Stock(searched, k, searched: true);
     }
+    if (look is not null && args.Contains("--reverser"))
+        look.Art.ReverserThrown = Opt(args, "--reverser", 0.4);
     var scene = new GreyboxScene
     {
         // --draw m: how far along the line to build it (an aerial view of a stretch wants more than the cab's 400).
@@ -1471,6 +1473,9 @@ static object Screenshot(TrainTuning t, string content, string[] args)
         Crew = args.Contains("--act") ? Staging.Acts(train, content, Str(args, "--act", "").Split(','),
                 Enum.Parse<DarkTerritory.Game.Art.Survivor>(Str(args, "--survivor", "none"), ignoreCase: true))
             // --vr-body: three headset crewmates on car 2's roof, leaning, crouched and mid-step (T82; views crew, crewside).
+            // --driver: a crewmate at the engine's controls (note 445), on the whistle cord with --whistle; --reverser s: the
+            // reverser thrown s seconds ago (SceneArt.ReverserThrown), the brake hand on it.
+            : args.Contains("--driver") ? [Staging.Driver(train, args.Contains("--whistle"))]
             : args.Contains("--vr-body") ? Staging.Headsets(train, content)
             : args.Contains("--working") ? Staging.Working(train, content)
             : args.Contains("--crew") ? [.. Staging.Crew(train, content), .. args.Contains("--ribbits") || args.Contains("--gaunt") || args.Contains("--grumbler") || args.Contains("--follower") || args.Contains("--soot") ? [Staging.Lone(train)] : Array.Empty<Crewmate>()]
@@ -1680,6 +1685,17 @@ static object Screenshot(TrainTuning t, string content, string[] args)
             scene.Vanished(gone, Staging.StrikeTick, parts.Length > 1 && parts[1] == "toy" ? 1 : -1);
             scene.Tick = Staging.StrikeTick + (long)Math.Round(ago * SimConstants.TickRate);
         }
+    }
+    // --scattered s (with --run, --run-ahead or --run-flank): the staged runners nearest the train scattered by a ball s seconds
+    // ago, at --speed (21 m/s), running off into the dark (note 451, GreyboxScene.Fleeing).
+    if (args.Contains("--scattered") && scene.Enemies is List<DarkTerritory.Sim.Enemies.Enemy> runners)
+    {
+        foreach (var hound in runners.OfType<DarkTerritory.Sim.Enemies.CinderHound>().Where(h => h.Phase == DarkTerritory.Sim.Enemies.SpinePhase.Commit).ToList())
+        {
+            runners.Remove(hound);
+            scene.Scattered(hound, Staging.StrikeTick, Opt(args, "--speed", 21));
+        }
+        scene.Tick = Staging.StrikeTick + (long)Math.Round(Opt(args, "--scattered", 1) * SimConstants.TickRate);
     }
     // --dispersing s (with --threats): the staged Choir driven off s seconds ago, its ghosts going (GreyboxScene.Leaving).
     if (args.Contains("--dispersing") && scene.Enemies is List<DarkTerritory.Sim.Enemies.Enemy> swarm)
