@@ -317,7 +317,7 @@ public static class GrabAudit
                 {
                     // Taut at speed, its gap behind car 2 forced; out on its back, the friends along it either side (note 365:
                     // "broken by a friend at the gap", and its coil's too short for anyone further to come). Whoever slips
-                    // first is the one held; the rest are at the gap (note 489's KnotRescue).
+                    // first is the one held; the rest are at the gap (note 491's KnotRescue).
                     var n = new AuditNight(c, Cars, 12, crew);
                     n.World.AddEnemy(id => Knotter.Into(id, n.Train, 2, e.Knotter));
                     n.Run(e.Knotter.CreepSeconds + e.Knotter.ForceSeconds + 0.5, (_, _) => default);

@@ -140,7 +140,7 @@ and what else comes to a train standing in the dark.
   back when the train moves; killed by blows, prised by a held Use; the snap bites but never kills; greasing doesn't touch
   it; a seized axle stays seized until it's repaired or the car is cut; deterministic on the client.
 - `SpecTableTests.TheHotboxMatches…` pins the numbers.
-- `BotsAnswerTheSixTests` (the bots, note 489): the driver stops once it glows or has seized the axle. A bot gets down
+- `BotsAnswerTheSixTests` (the bots, note 491): the driver stops once it glows or has seized the axle. A bot gets down
   and prises it out from the side (between its bite's reach and the prise's, so it's never bitten), then frees the
   seized axle with the wrench, and the train goes on. The same with a bot crew over the network.
 

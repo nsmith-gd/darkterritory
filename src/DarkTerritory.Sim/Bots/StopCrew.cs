@@ -2589,7 +2589,7 @@ public sealed partial class StopHand(StopJob job, CrewCalls calls, int member, C
 
     /// <summary>
     /// A crate the Freight Beetle has (its load, note 366): it shoves it away from whoever's nearest, so a hand going to take
-    /// it chases it off the platform. Left till it's driven off it (the bots club it: <see cref="Heed.Beetle"/>; note 489).
+    /// it chases it off the platform. Left till it's driven off it (the bots club it: <see cref="Heed.Beetle"/>; note 491).
     /// </summary>
     static bool Pushed(World world, Physics.Body b) =>
         world.ActiveEnemies.Any(e => e is Enemies.FreightBeetle { Gone: false } beetle && beetle.Load == b.Id);
@@ -3001,7 +3001,7 @@ public sealed partial class StopHand(StopJob job, CrewCalls calls, int member, C
         int beyond = direction < 0 ? train.VehicleAhead(self.Parent) : train.VehicleBehind(self.Parent);
         if (!jumpGaps && Math.Abs(direction < 0 ? z + half : z - half) < 0.8
             && (Math.Abs(across) >= g.CouplerWidth / 2 - WarmUp.PlateMargin || Heed.Knotted(train, self.Parent, beyond)))
-            intent.MoveZ = 0; // square up over the plate first (and never down onto a Knotter's back: note 489)
+            intent.MoveZ = 0; // square up over the plate first (and never down onto a Knotter's back: note 491)
         if (jumpGaps && nearEnd && beyond > 0)
         {
             if (WarmUp.CanJumpGap(self, train, null, beyond))

@@ -48,7 +48,7 @@ public sealed class LookErrand(IReadOnlyList<EnemyKind> insisted, LookTuning t)
         foreach (var e in world.ActiveEnemies)
         {
             // Gone unmet (lingered out) isn't met.
-            // Tower Jaw at its post and the Freight Beetle by its freight too (note 489): what comes to the train, or only after
+            // Tower Jaw at its post and the Freight Beetle by its freight too (note 491): what comes to the train, or only after
             // a death (the Mourners, the Brakeman, the Knotter, Hotbox), needs nobody to go and look.
             if (e.Gone || !insisted.Contains(e.Kind) || e.Kind is not (EnemyKind.Gaunt or EnemyKind.Ribbit or EnemyKind.Dragger or EnemyKind.Moose
                     or EnemyKind.TowerJaw or EnemyKind.FreightBeetle))

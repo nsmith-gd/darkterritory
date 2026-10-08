@@ -48,7 +48,7 @@
     // there (not in for a bag) and stands edgeM in from the lip over a Dragger (it reaches draggers.grabRange 1.0 in). Once
     // each, then back to its post. A Moose (note 339) it walks up to mooseM of, inside its crowding, and stands gawking
     // (a curious player who won't give it room). Tower Jaw at its post it walks to towerJawM of, and the Freight Beetle to
-    // beetleM of: inside where the crew's answer takes over (enemies.json crewBots, note 489). DESIGN-TODO: first pass; a
+    // beetleM of: inside where the crew's answer takes over (enemies.json crewBots, note 491). DESIGN-TODO: first pass; a
     // curious player, roughly.
     "look": { "waitSeconds": 12, "seekM": 80, "gauntM": 3, "ribbitM": 5, "mooseM": 10, "towerJawM": 20, "beetleM": 12, "edgeM": 0.6 },
     // §22: "hazards remove your tools. They never change enemy rules." What each set takes away, laid over the line:

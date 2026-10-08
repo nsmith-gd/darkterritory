@@ -36,7 +36,7 @@ public sealed record EnemyTuning(
     public HotboxTuning Hotbox { get; init; } = new();
     public KnotterTuning Knotter { get; init; } = new();
     public TowerJawTuning TowerJaw { get; init; } = new();
-    /// <summary>How the crew bots answer the six creatures of 8 Oct (notes 362–367; note 489). Field docs live in enemies.json.</summary>
+    /// <summary>How the crew bots answer the six creatures of 8 Oct (notes 362–367; note 491). Field docs live in enemies.json.</summary>
     public CrewBotsTuning CrewBots { get; init; } = new();
     /// <summary>The damage model (GDD App. F.1, the director's decision of 6 Oct 2026; note 272): no creature's hit is chip.</summary>
     public DamageModelTuning Damage { get; init; } = new();
@@ -1172,7 +1172,7 @@ public sealed record TowerJawTuning
 }
 
 /// <summary>
-/// The crew bots' answers to the Mourners, Tower Jaw, the Brakeman, the Knotter, the Freight Beetle and Hotbox (note 489):
+/// The crew bots' answers to the Mourners, Tower Jaw, the Brakeman, the Knotter, the Freight Beetle and Hotbox (note 491):
 /// how near is near enough to go, and where to stand. Not the creatures' own numbers. Field docs live in enemies.json.
 /// </summary>
 public sealed record CrewBotsTuning
