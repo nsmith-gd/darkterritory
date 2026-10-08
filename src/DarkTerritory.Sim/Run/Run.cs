@@ -358,21 +358,33 @@ public sealed partial class Run
 
     readonly Dictionary<int, double> _loadSeen = new();
 
+    /// <summary>A facility's crates and heavy crates out on its platform, as its cargo (spec D; note 352 for when).</summary>
+    static void StockSite(World world, FacilityTuning t, Site site)
+    {
+        site.Stocked = true;
+        var cargo = site.Feature.Facility is { } facility ? t.CargoOf(facility) : CargoKind.None;
+        foreach (var at in site.CrateStack)
+            world.Bodies.SpawnCargo(at, site.CrateLineHint, cargo: cargo);
+        foreach (var at in site.HeavyStack)
+            world.Bodies.SpawnCargo(at, site.CrateLineHint, t.Crates.Heavy.Radius, cargo);
+    }
+
     void StepLoading(World world, FacilityTuning t, double dt)
     {
         var train = world.Train;
         world.Bodies.HeavySpan = t.Crates.Heavy.Span;
+        // The facility's crates come out with its stop's loot, before the train's near enough to see them (note 352).
+        if (_loot is { StockAhead: > 0 } loot)
+        {
+            var engine = EngineRake(train);
+            foreach (var s in _sites)
+                if (s is { Stocked: false } && Due(s.Feature, train, engine, loot.StockAhead))
+                    StockSite(world, t, s);
+        }
         if (CurrentSite is { } site)
         {
             if (!site.Stocked && Phase == RunPhase.AtFacility)
-            {
-                site.Stocked = true;
-                var cargo = FacilityFeature?.Facility is { } facility ? t.CargoOf(facility) : CargoKind.None;
-                foreach (var at in site.CrateStack)
-                    world.Bodies.SpawnCargo(at, site.CrateLineHint, cargo: cargo);
-                foreach (var at in site.HeavyStack)
-                    world.Bodies.SpawnCargo(at, site.CrateLineHint, t.Crates.Heavy.Radius, cargo);
-            }
+                StockSite(world, t, site);
             Crank(site, t.Winch, dt);
             Restart(world, site, t.Power, dt);
             _drop = null;
