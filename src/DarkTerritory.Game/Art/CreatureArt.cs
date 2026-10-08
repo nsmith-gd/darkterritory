@@ -136,6 +136,8 @@ public sealed class CreatureArt
 
     /// <summary>How long one of the Choir's ghosts is seen going when the swarm's driven off (GreyboxScene.Leaving).</summary>
     public const double ChoirLeaveSeconds = 3.0;
+    /// <summary>How long a scattered Cinder Hound is seen running off before it's lost in the dark (s; note 451).</summary>
+    public const double HoundRunOffSeconds = 4.0;
 
     // "Giant toad-rabbits" (GDD §21): the model's a big dog's size, drawn this much bigger (its head at a crewmate's waist).
     const float RibbitScale = 1.4f;
@@ -1380,6 +1382,8 @@ public sealed class CreatureArt
                         SpinePhase.Commit when aboard => 1.1f + 0.3f * pulse,
                         SpinePhase.Commit => 1.25f + 0.25f * (float)Math.Sin(t * 5),
                         SpinePhase.Telegraph => 1.05f,
+                        // Scattered, running off (note 451, GreyboxScene.Fleeing): its embers going out as it goes.
+                        SpinePhase.BreakOff => 1.05f * (float)Math.Max(0, 1 - t / HoundRunOffSeconds),
                         _ => 0.75f,
                     };
                     string clip;

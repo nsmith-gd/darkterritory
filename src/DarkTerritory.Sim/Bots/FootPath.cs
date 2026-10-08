@@ -16,6 +16,8 @@ public static class FootPath
     public const double Cell = 0.25;
     /// <summary>How far round the two ends the grid reaches, for a way round what's between them (m).</summary>
     const double Margin = 18;
+    /// <summary>The wider box looked in when there's no way in the first (m): round a long shed from its far side.</summary>
+    const double WideMargin = 60;
     /// <summary>A car's side steps out past its body (m), and half a coupling gap and more (m): the train is one wall.</summary>
     const double StepsOut = 0.8, GapIn = 1.0;
     /// <summary>The longest way it looks for, end to end (m); anything further isn't worth a bot's walk.</summary>
@@ -26,13 +28,21 @@ public static class FootPath
     /// <paramref name="to"/>), or null if there's none within reach. <paramref name="clearance"/> is a crewmate's half-width
     /// (and a little).
     /// </summary>
-    public static List<Double3>? Plan(TrainOnLine train, Double3 from, Double3 to, double clearance = 0.36)
+    /// <remarks>
+    /// Looked for in a box <see cref="Margin"/> round the two ends first, and only if there's no way in that, in one
+    /// <see cref="WideMargin"/> round them (note 440): a yard's hero 45 m long, its door away from the line, is a 74 m way
+    /// round from a hand 17 m off it, out past the tight box's edge.
+    /// </remarks>
+    public static List<Double3>? Plan(TrainOnLine train, Double3 from, Double3 to, double clearance = 0.36) =>
+        Plan(train, from, to, clearance, Margin) ?? Plan(train, from, to, clearance, WideMargin);
+
+    static List<Double3>? Plan(TrainOnLine train, Double3 from, Double3 to, double clearance, double margin)
     {
         if ((Flat(to) - Flat(from)).Length > Longest)
             return null;
-        double x0 = Math.Min(from.X, to.X) - Margin, z0 = Math.Min(from.Z, to.Z) - Margin;
-        int nx = (int)Math.Ceiling((Math.Max(from.X, to.X) + Margin - x0) / Cell) + 1;
-        int nz = (int)Math.Ceiling((Math.Max(from.Z, to.Z) + Margin - z0) / Cell) + 1;
+        double x0 = Math.Min(from.X, to.X) - margin, z0 = Math.Min(from.Z, to.Z) - margin;
+        int nx = (int)Math.Ceiling((Math.Max(from.X, to.X) + margin - x0) / Cell) + 1;
+        int nz = (int)Math.Ceiling((Math.Max(from.Z, to.Z) + margin - z0) / Cell) + 1;
         Double3 At(int i, int k) => new(x0 + i * Cell, 0, z0 + k * Cell);
         // The cars near the box, as their footprints in their own frames.
         var cars = train.Frames.Where(f => Math.Abs(f.Origin.X - (x0 + nx * Cell / 2)) < nx * Cell / 2 + 20
