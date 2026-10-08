@@ -453,13 +453,14 @@ object FacilityWorkDrill(FacilityKind kind, string[] args)
     }
     if (found is not { } at)
         return new { error = $"no route with a {kind} down a spur" };
-    // --empty: the cars run in empty (run.json departureLoad 0); --no-crates: none on the platform, so the machinery fills them.
+    // --empty: the cars run in empty (run.json departureLoad 0); --no-crates: none on the platform, so the machinery fills them;
+    // --stock: the train stocked as a night leaves the fortress (the guard van's hand lamps among it, note 492).
     if (args.Contains("--empty"))
         run = run with { DepartureLoad = 0 };
     if (args.Contains("--no-crates"))
         facilities = facilities with { Crates = facilities.Crates with { Count = [0, 0], Heavy = facilities.Crates.Heavy with { Count = [0, 0] } } };
     var r = DarkTerritory.Sim.Bots.FacilityWork.Run(at.Route, at.Facility, train, player, boiler, run, facilities, routeTuning.Junctions, cars,
-        (int)Opt(args, "--hands", 2), Opt(args, "--seconds", 1500), at.Route.GateOr(routeTuning.YardLength));
+        (int)Opt(args, "--hands", 2), Opt(args, "--seconds", 1500), at.Route.GateOr(routeTuning.YardLength), stock: args.Contains("--stock"));
     return new
     {
         route = at.Route.Name,
@@ -493,6 +494,7 @@ object FacilityWorkDrill(FacilityKind kind, string[] args)
         order = r.Order,
         // The wreck yard's heaps (note 187).
         heaps = r.Heaps.Select(h => new { found = h.Found, unfound = h.Unfound, shifts = h.Shifts, stability = h.Stability }),
+        lampsLeft = r.LampsLeft,
         stops = r.Stops.Select(x => new { x.Kind, x.Seconds }),
     };
 }
