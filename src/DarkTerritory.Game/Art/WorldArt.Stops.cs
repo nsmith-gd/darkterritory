@@ -19,7 +19,7 @@ public sealed partial class WorldArt
     /// <summary>How far past a stop's zone its levelled ground eases back into the hills.</summary>
     const double FlatEase = 60;
     /// <summary>The clearance mask's cell (m): trees stay out of any cell a building, road or track comes near.</summary>
-    const double ClearCell = 6;
+    const double ClearCell = Sim.Run.LinesideProps.ClearCell;
 
     /// <summary>How levelled the ground is at <paramref name="s"/>: 1 across a stop's zone, easing out past its ends.</summary>
     public static float Flat(Route? route, double s)
@@ -51,61 +51,8 @@ public sealed partial class WorldArt
         return _clear.Contains(((long)Math.Floor(along / ClearCell), (long)Math.Floor(offset / ClearCell)));
     }
 
-    /// <summary>
-    /// The cells of every stop's ground: round each building, along each road and track, and the yard's whole throat
-    /// and the facility's own ground beyond its outermost track (where its modules and works stand, Site).
-    /// </summary>
-    static HashSet<(long, long)> Clearance(Route route)
-    {
-        var cells = new HashSet<(long, long)>();
-        void Disc(double s, double d, double r)
-        {
-            for (long i = (long)Math.Floor((s - r) / ClearCell); i <= (long)Math.Floor((s + r) / ClearCell); i++)
-                for (long j = (long)Math.Floor((d - r) / ClearCell); j <= (long)Math.Floor((d + r) / ClearCell); j++)
-                {
-                    double cs = (i + 0.5) * ClearCell, cd = (j + 0.5) * ClearCell;
-                    if (double.Hypot(cs - s, cd - d) <= r + ClearCell * 0.71)
-                        cells.Add((i, j));
-                }
-        }
-        void Line(double start, IReadOnlyList<Pt> points, double r)
-        {
-            for (int i = 0; i + 1 < points.Count; i++)
-            {
-                var a = points[i];
-                var b = points[i + 1];
-                int n = Math.Max(1, (int)Math.Ceiling(Pt.Distance(a, b) / 3));
-                for (int k = 0; k <= n; k++)
-                {
-                    var p = a + (b - a) * ((double)k / n);
-                    Disc(start + p.S, p.D, r);
-                }
-            }
-        }
-        foreach (var f in route.Features)
-        {
-            if (f.Stop is not { } stop)
-                continue;
-            foreach (var b in stop.Buildings)
-                Disc(f.Start + b.S, b.D, double.Hypot(b.Length, b.Width) / 2 + 4);
-            foreach (var road in stop.Roads)
-                Line(f.Start, road.Points, 5);
-            foreach (var track in stop.Tracks)
-                Line(f.Start, track.Path, 8);
-            if (stop.Tracks.Count > 0)
-            {
-                double s0 = stop.Tracks.Min(t => t.Toe) - 10, s1 = stop.Tracks.Max(t => t.FaceEnd.S) + 15;
-                var yard = stop.Tracks.Where(t => !t.Across).ToList();
-                double far = (yard.Count > 0 ? yard.Max(t => t.Offset) : 0) + 45;
-                for (double s = s0; s <= s1; s += ClearCell)
-                    for (double d = 0; d <= far; d += ClearCell)
-                        Disc(f.Start + s, stop.YardSide * d, 0);
-            }
-            if (stop.Halt is { } h)
-                Line(f.Start, [h - new Pt(stop.HaltLength / 2, 0), h + new Pt(stop.HaltLength / 2, 0)], 6);
-        }
-        return cells;
-    }
+    /// <summary>The cells of every stop's ground (the sim's, note 371: what its lineside keeps off too).</summary>
+    static HashSet<(long, long)> Clearance(Route route) => Sim.Run.LinesideProps.StopGround(route);
 
     /// <summary>
     /// Every stop building whose centre is in [<paramref name="from"/>, <paramref name="to"/>), each road stretch that
@@ -171,6 +118,15 @@ public sealed partial class WorldArt
         }
     }
 
+    /// <summary>One of a stop's buildings alone, as <see cref="Stops"/> draws it (for the tests: note 387's doors).</summary>
+    public void StopBuilding(MeshBuilder mesh, RailLine line, Route route, RouteFeature f, int index, Double3 eye, float valleyDepth)
+    {
+        var k = new Kit(_look, mesh) { SurfaceOrigin = new Vector3(W(eye.X), W(eye.Y), W(eye.Z)) };
+        var b = f.Stop!.Buildings[index];
+        k.Reseed(b.Variant * 7.1f + (float)(b.S * 0.13));
+        Building(k, line, route, f, f.Stop, index, eye, valleyDepth);
+    }
+
     /// <summary>
     /// One building, standing on the levelled ground at its footprint: sheds and the hero as works buildings with their
     /// doors to the track they serve (P5, P7); houses one per part of the footprint, each roofed along its longer side
@@ -200,27 +156,19 @@ public sealed partial class WorldArt
                     var gap = CraneBay(stop, index);
                     k.With(frame, () =>
                     {
-                        double a = -b.Length / 2;
-                        foreach (var (g0, g1) in gap is { } g ? new[] { (a, g.From - b.S), (g.To - b.S, b.Length / 2) } : [(a, b.Length / 2)])
-                        {
-                            double lo = Math.Max(g0, a), hi = Math.Min(g1, b.Length / 2);
-                            if (hi - lo < 3)
-                                continue;
-                            k.With(Kit.At(0, 0, (float)-(lo + hi) / 2), () => StructureKit.Shed(k, width, (float)(hi - lo), height, wall, door));
-                        }
+                        // The shed as the sim stands it, its bay doors open to walk in by (note 387).
+                        ShedShell(k, stop, index, height, wall);
                         if (gap is { } open)
                         {
-                            // The cut: its floor, and the shell of the walls, roofless and below the gantry's rails.
-                            double lo = Math.Max(open.From - b.S, a), hi = Math.Min(open.To - b.S, b.Length / 2);
-                            float z0 = (float)-hi, z1 = (float)-lo, back = -door * width / 2, shell = 4.5f;
+                            // The cut: its floor, and the old wall's footing along its back, flush, where the crew walk and
+                            // the gantry's operator stands (the sim leaves it open, note 279).
+                            double a = -b.Length / 2, lo = Math.Max(open.From - b.S, a), hi = Math.Min(open.To - b.S, b.Length / 2);
+                            float z0 = (float)-hi, z1 = (float)-lo, back = -door * width / 2;
                             k.Use("concrete_stain", Palette.BlueGrey, 0.9f, 0.1f, tile: 2.5f);
                             k.Box(new Vector3(-width / 2, -0.4f, z0), new Vector3(width / 2, 0.15f, z1), Kit.Faces.All & ~Kit.Faces.NegY);
-                            k.Use(wall, wall == "brick_soot" ? Palette.RustRed : Palette.DeepBrown, 0.9f, 0.1f, tile: 1.5f);
-                            k.Box(new Vector3(MathF.Min(back, back + door * 0.3f), 0.15f, z0), new Vector3(MathF.Max(back, back + door * 0.3f), shell, z1));
-                            // An end wall where the cut reaches the shed's end (elsewhere the roofed part's gable closes it).
-                            foreach (var (edge, reaches) in new[] { (z0, hi >= b.Length / 2 - 0.01), (z1, lo <= a + 0.01) })
-                                if (reaches)
-                                    k.Box(new Vector3(-width / 2, 0.15f, edge - 0.15f), new Vector3(width / 2, shell * 0.7f, edge + 0.15f));
+                            k.Use("stone_block", Palette.Charcoal, 0.8f, 0.1f, tile: 2.5f);
+                            k.Box(new Vector3(MathF.Min(back, back + door * 0.3f), 0.15f, z0), new Vector3(MathF.Max(back, back + door * 0.3f), 0.2f, z1),
+                                Kit.Faces.All & ~Kit.Faces.NegY);
                         }
                     });
                     break;
@@ -270,7 +218,7 @@ public sealed partial class WorldArt
                     // Which way its door faces in the kit's frame (the building's axis is −Z, across it +X).
                     var (dx, dy) = Local(b, holdout.Door);
                     var facing = Math.Abs(dx) / b.Length > Math.Abs(dy) / b.Width ? new Vector3(0, 0, (float)-Math.Sign(dx)) : new Vector3((float)Math.Sign(dy), 0, 0);
-                    k.With(frame, () => Holdout(k, b, facing));
+                    k.With(frame, () => Holdout(k, stop, index, facing));
                     var lampAt = Sim.Run.Run.StopWorld(line, f, holdout.Lamp, Ground(route, f.Start + holdout.Lamp.S, (float)holdout.Lamp.D, valleyDepth) + LampHeight(b.Kind));
                     k.With(Basis(t.Tangent, lampAt, eye, 0), () => LampFixture(k, (float)LampHeight(b.Kind)));
                 }

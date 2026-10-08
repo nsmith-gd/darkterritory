@@ -1,0 +1,20 @@
+// The steam lift at the mine head: The winding engine on the engine's steam: a small engine's quick beat, the drum turning, the rope. Written by tools/audio/install.py from the audio checklist (first); edit the cue, not this.
+{
+ "tier": 6,
+ "loop": true,
+ "maxInstances": 8,
+ "minDistance": 8,
+ "maxDistance": 300,
+ "rolloff": 0.7,
+ "gainDb": 2,
+ "flat": false,
+ "layers": [
+  {
+   "source": "sample",
+   "sample": "place-mine-lift/winding",
+   "gain": 1,
+   "pitchJitter": 0,
+   "gainJitter": 0
+  }
+ ]
+}

@@ -727,7 +727,9 @@ CampaignState? Play(IPlaySession session, CampaignState? campaign)
     NetPlaySession.PlayerName = settings.PlayerName;
     // The in-night menu (note 292) open this frame: the night goes on, but nothing pressed reaches it.
     bool inMenu = false;
-    bool Held(Control c) => !inMenu && input.Down(keyOf[c]);
+    // HOLD KEYS on TOGGLE (note 383): run, the brake, talk, the radio and the roster latched by a press (once a frame, below).
+    var latch = new HoldLatch { Toggles = settings.ToggleHolds };
+    bool Held(Control c) => !inMenu && latch.Held(c, input.Down(keyOf[c]));
     bool Hit(Control c) => !inMenu && input.Pressed(keyOf[c]);
     bool Pressed(Key k) => !inMenu && input.Pressed(k);
     // The settings as this night last took them up: changed in the menu, they're taken up at once (note 292).
@@ -859,6 +861,10 @@ CampaignState? Play(IPlaySession session, CampaignState? campaign)
             break;
         }
         // In a headset (note 202): the left stick's pushes and its click, once each, for the ballot and the commendations.
+        latch.Toggles = frontEnd.Settings.ToggleHolds;
+        foreach (var c in Settings.Toggleable)
+            if (Hit(c))
+                latch.Press(c);
         var vrPress = vr is null ? VrMenuPress.None : nightKeys.Read(vr.Session.Controllers);
         // GDD v1.4 App. D.12: on the run-end screen, a commendation for a crewmate: the arrows pick who and which, Space gives
         // it; in a headset the stick picks and its click gives.
