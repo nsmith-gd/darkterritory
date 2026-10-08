@@ -60,10 +60,11 @@ public sealed record TownBuilding(string Kind, string Name, double S, double D, 
 /// Somebody in the town: where they stand (feet, <see cref="Up"/> off the ground on a platform), which way they face
 /// (along the line, across it), what they do, and what they say, one line a word with them and round again.
 /// <see cref="Look"/> picks their clothes from the crew's. <see cref="House"/>: the open house they're in, or −1 out of
-/// doors; <see cref="Pose"/> how they are ("idle", "lantern", "seated", "crouch").
+/// doors; <see cref="Pose"/> how they are ("idle", "lantern", "seated", "crouch"). <see cref="Gear"/>: what they breathe
+/// through out of doors (<see cref="TownGear"/>, note 353).
 /// </summary>
 public sealed record Townsperson(int Id, string Name, string Title, string Role, double S, double D, double Up, double FaceS, double FaceD, int Look,
-    IReadOnlyList<string> Lines, int House = -1, string Pose = "idle");
+    IReadOnlyList<string> Lines, int House = -1, string Pose = "idle", string Gear = "respirator");
 
 /// <summary>
 /// A paper to read: a notice on the board (<see cref="OnBoard"/>, read in turn there), or a note left lying about at

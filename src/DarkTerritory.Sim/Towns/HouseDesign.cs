@@ -95,6 +95,39 @@ public sealed record HouseCharacter
     public bool Uniform { get; init; }
     /// <summary>What its yards hold (note 335).</summary>
     public YardOdds Yard { get; init; } = new();
+    /// <summary>What its people breathe through (note 353): each of <see cref="TownGear.Kinds"/>' weight against the rest.</summary>
+    public Dictionary<string, double> Gear { get; init; } = new() { ["respirator"] = 1 };
+}
+
+/// <summary>
+/// What a town's people breathe through out of doors (the director, 8 Oct 2026: "townsfolk models who wear some sort of
+/// respirator mask or oxygen mask or other breathing apparatuses to indicate the air is foul"; note 353). Never the crew's
+/// mask: a rubber half-mask with its two cans ("respirator"), a cup over the nose and mouth on a hose from a bottle on the
+/// back ("oxygen"), a mine-rescue set's mouthpiece and its bag on the chest ("rebreather"), or a wool wrap with a can sewn
+/// into it ("wrap"). Drawn per person from their name, so who they are decides it and nobody else's draw moves it.
+/// </summary>
+public static class TownGear
+{
+    /// <summary>The kinds, in the order a weight's drawn (not the file's).</summary>
+    public static readonly string[] Kinds = ["respirator", "oxygen", "rebreather", "wrap"];
+
+    /// <summary>The kind <paramref name="hash"/> lands on among <paramref name="weights"/> (in <see cref="Kinds"/>' order).</summary>
+    public static string Pick(IReadOnlyDictionary<string, double> weights, ulong hash)
+    {
+        double total = 0;
+        foreach (string k in Kinds)
+            total += weights.TryGetValue(k, out double w) ? Math.Max(0, w) : 0;
+        if (total <= 0)
+            return Kinds[0];
+        double at = (hash >> 11) * (1.0 / (1UL << 53)) * total;
+        foreach (string k in Kinds)
+        {
+            at -= weights.TryGetValue(k, out double w) ? Math.Max(0, w) : 0;
+            if (at < 0)
+                return k;
+        }
+        return Kinds[^1];
+    }
 }
 
 /// <summary>

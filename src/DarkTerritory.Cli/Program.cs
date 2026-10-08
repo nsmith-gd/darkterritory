@@ -56,6 +56,7 @@ return args switch
     // dt art houses [--character cove|lunenburg|shelburne|farm|company|mixed] [--count n] [--seed n] [--kind lived|boarded|empty|burnt]:
     // a lineup of a town character's houses as the towns draw them (note 281), to judge their variety at a glance.
     ["art", "houses", ..] => Print(ArtHouses(content, args)),
+    ["art", "townsfolk", ..] => Print(ArtTownsfolk(content, args)),
     ["art", "show", var piece, ..] => Print(ArtShow(train, content, piece, args)),
     ["art", "clip", var creature, var clip, ..] => Print(ArtClip(content, creature, clip, args)),
     ["art", "reel", ..] => Print(ArtReel(content, args)),
@@ -1893,6 +1894,54 @@ static object ArtHouses(string content, string[] args)
     string output = Str(args, "--out", $"out/shots/art/houses-{id}-{kind.ToString().ToLowerInvariant()}{(args.Contains("--yard") ? "-yard" : "")}{(args.Contains("--back") ? "-back" : "")}.png");
     PngWriter.Write(output, sheet, w * cols, h * rows, 1);
     return new { path = Path.GetFullPath(output), character = character.Id, character.Name, designs };
+}
+
+// A town's people (note 353): each kind of breathing gear out of doors and at home (the mask down), each in its own hat,
+// three-quarters on and lamp-lit; --full the whole figure, --pose idle|lantern|crouch|seated, --yaw degrees round.
+static object ArtTownsfolk(string content, string[] args)
+{
+    var look = DarkTerritory.Game.Look.Load(content);
+    var creatures = look.Art.Creatures;
+    var kit = look.Art.Townsfolk;
+    string pose = Str(args, "--pose", "idle");
+    string clip = pose switch { "seated" => "gunner", "crouch" => "crouch_idle", "lantern" => "lantern", "walk" => "lantern_walk", _ => "idle" };
+    bool full = args.Contains("--full");
+    var gears = DarkTerritory.Sim.Towns.TownGear.Kinds;
+    int cols = gears.Length, rows = 2, w = (int)Opt(args, "--width", 320), h = (int)Opt(args, "--height", full ? 480 : 320);
+    using var gpu = new GpuContext("dt art townsfolk");
+    using var renderer = new GreyboxRenderer(gpu, w, h);
+    look.Dress(renderer);
+    var sheet = new byte[w * cols * h * rows * 4];
+    var drawn = new List<object>();
+    double yaw = Opt(args, "--yaw", 30) * Math.PI / 180;
+    for (int row = 0; row < rows; row++)
+        for (int col = 0; col < cols; col++)
+        {
+            bool home = row == 1;
+            int variant = col + 1, who = col * 2 + row;
+            var target = new Double3(0, full ? 0.95 : 1.55, 0);
+            double dist = full ? 3.0 : 0.95;
+            var eye = target + new Double3(Math.Sin(yaw) * dist, full ? 0.25 : 0.08, -Math.Cos(yaw) * dist);
+            var camera = Camera.LookAt(eye, target, full ? 50 : 40);
+            var mesh = new MeshBuilder { Style = look.Style };
+            var o = -new System.Numerics.Vector3((float)eye.X, (float)eye.Y, (float)eye.Z);
+            var person = kit.Person(creatures, mesh, o, -System.Numerics.Vector3.UnitZ, clip, pose == "seated", gears[col], home, variant, who, 0.4, 0.8f);
+            const float f = 6;
+            mesh.Quad(o + new System.Numerics.Vector3(-f, 0, f), o + new System.Numerics.Vector3(f, 0, f), o + new System.Numerics.Vector3(f, 0, -f), o + new System.Numerics.Vector3(-f, 0, -f), DarkTerritory.Game.Palette.Charcoal * 0.6f);
+            mesh.PointLights.Add(new PointLight(o + new System.Numerics.Vector3((float)Math.Sin(yaw) * 2.2f - 0.8f, 2.3f, -2.0f), DarkTerritory.Game.Palette.LampAmber * 1.6f, 8));
+            mesh.PointLights.Add(new PointLight(o + new System.Numerics.Vector3(1.5f, 2.5f, 2.5f), new System.Numerics.Vector3(0.35f, 0.42f, 0.55f), 9));
+            var light = look.Apply(FrameLighting.Night);
+            light.FogDensity = 0.002f;
+            light.LampRange = 0.01f;
+            var px = renderer.Render(mesh, camera, light, light.FogColor);
+            int ox = col * w, oy = row * h;
+            for (int y = 0; y < h; y++)
+                px.AsSpan(y * w * 4, w * 4).CopyTo(sheet.AsSpan(((oy + y) * w * cols + ox) * 4));
+            drawn.Add(new { gear = gears[col], home, figure = person?.Figure, hat = (variant * 7 + who * 3) % DarkTerritory.Game.Art.TownsfolkKit.Hats });
+        }
+    string output = Str(args, "--out", $"out/shots/art/townsfolk-{pose}{(full ? "-full" : "")}.png");
+    PngWriter.Write(output, sheet, w * cols, h * rows, 1);
+    return new { path = Path.GetFullPath(output), drawn };
 }
 
 // A creature's clip as a contact sheet: --frames stills evenly through it (the last one short of the loop's end, which

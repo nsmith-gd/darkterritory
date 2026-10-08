@@ -17,6 +17,8 @@ public static partial class TownGenerator
         public readonly List<Spot> Residents = [];
         /// <summary>The town's character (houses.json), its houses' designs drawn by it.</summary>
         public string Character = "";
+        /// <summary>What the town breathes through (its character's <see cref="HouseCharacter.Gear"/>).</summary>
+        public IReadOnlyDictionary<string, double> Gear = new Dictionary<string, double> { ["respirator"] = 1 };
         /// <summary>A walled town's extent and streets (queue #74), or null where its houses are the line's street's alone.</summary>
         public TownBounds? Bounds;
         readonly Dictionary<int, (TownHousehold Household, Dictionary<string, string> Vars, Dictionary<string, Queue<string>> Lines)> _open = [];
@@ -170,6 +172,7 @@ public static partial class TownGenerator
         var drng = rngFor("houses.design");
         var character = HouseDesigner.Character(content.Looks, site.Industry, ref drng);
         homes.Character = character.Id;
+        homes.Gear = character.Gear;
         HouseDesign? model = null;
         var knocks = new Deck<string>(w.HouseKnocks, rngFor("houses.knocks"));
         var stories = new Deck<TownHousehold>(w.Households, rngFor("houses.stories"));
