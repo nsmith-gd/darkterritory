@@ -588,9 +588,12 @@ public class WorldSoundTests
             Sim.Stops.ContainerKind.Cupboard => "crew-search.cupboard",
             Sim.Stops.ContainerKind.Cabinet => "crew-search.cabinet",
             Sim.Stops.ContainerKind.Cellar => "crew-search.cellar",
+            // A barn's hayloft and a shed's workbench, searchable since B4's #153 (note 417).
+            Sim.Stops.ContainerKind.Hayloft => "crew-search.hayloft",
+            Sim.Stops.ContainerKind.Bench => "crew-search.bench",
             _ => "crew-search.boards",
         };
-        Held(audio, "crew-search.cupboard", "crew-search.cabinet", "crew-search.cellar", "crew-search.boards");
+        Held(audio, "crew-search.cupboard", "crew-search.cabinet", "crew-search.cellar", "crew-search.boards", "crew-search.hayloft", "crew-search.bench");
         Stand(audio, "crew-search.found");
         bool Sounding(string name) => audio.Mixer.Voices.Any(v => v.Name == name && !v.Finished && !v.Stopped);
         var ears = new Ears(audio, world);
@@ -675,6 +678,16 @@ public class WorldSoundTests
         Assert.True((shut.Position - GameAudio.DoorSound(door)).Length < 1e-6);
         Assert.Equal(0, shut.Occlusion);
         Assert.Equal(0, shut.Walls);
+
+        // And from along the street, off to the door's side (note 428's walls round a house): still the door itself, clear.
+        heard.Clear();
+        walls.MirrorShut([]);
+        var along = street + Double3.Cross(door.Out, Double3.Up).Normalized * 4;
+        Tick(along, 2);
+        walls.MirrorShut([door.Key]);
+        Tick(along, 2);
+        Assert.All(heard, v => Assert.Equal(0, Math.Max(v.Occlusion, v.Walls)));
+        Assert.Equal(["crew-house-door.open", "crew-house-door.shut"], heard.Select(v => v.Name));
 
         // Opened again and shut from inside: in the room with the ear, nothing between them.
         heard.Clear();
