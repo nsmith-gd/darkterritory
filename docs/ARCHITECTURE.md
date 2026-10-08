@@ -5490,6 +5490,23 @@ Terrain sculpting tools, a node-graph material editor, a general-purpose visual 
     - **One layer at 1024** (#118's `cook.finish(size=)`): about 2,000 m² of brick, slate and iron.
     - **StructureKit's `Slaughterhouse` case** sets it where the kit's hall stood (`Piece`), keeping the works box as the fallback; the pens and the ramp are unchanged.
     - **Verified:** `dt art check` (814 triangles against the large prop's 8,000; the whole facility is 2,794 against 90,000), `PropArtTests`, `StopArtTests`, `LookTests`, `StopShellArtTests`. Looked at: the turntable, and frontier:3's slaughterhouse from 50 m down the spur at dawn and at night, and from over its pens, before and after.
+
+392. **Inside the stop's buildings heard as rooms (AU1, queue #129; C1's note 387 drew the sheds, the hero and the Holdouts walk-in on note 279's shells; note 326's open houses).** Walking into a building at a stop changed nothing you heard. `GameAudio.SpaceOf` still said "outside" (or "facility"), so a goods shed's iron hall and a signal box's locking room rang like the open night. Rain fell "outside" on you under a roof. Underfoot, every building was "concrete", the old note that the art drew no floor in there.
+    - **The rooms** (`content/audio/spaces.json`):
+        - `shed`, for a yard's sheds and its hero (and a goods shed, barn or powerhouse, should one open): an iron-roofed hall 20–40 m long on concrete, its bays open. Its walls answer in 18–100 ms, then a 1.5 s tail, brightish off the iron, with nothing shut out.
+        - `room`, for the rest that can be walked into (a Holdout's signal box, lamp room, pump house, prison van or lockup; an open house): brick or boards 3–6 m across, a 0.45 s tail, darker than the cab.
+        - `GameAudio.RoomOf` picks one when the ear is in a building's footprint (`WorldArt.BuildingAt`, the same test Footing uses), the building can be walked into (`StopWalls.Shelled`, or open and walled), and the ear is under 8 m over the rail. It is checked after a car, a tunnel and the mine, and before a facility's yard: inside a facility's shed is the shed's sound.
+    - **Rain under a roof** is the roof's (`world-rain.rain-roof`), as in a car.
+    - **The floors** (`WorldArt.Floor`):
+        - a Holdout's signal box, lamp room and pump house are boards a step up (`wood_floor`, now heard as wood);
+        - the prison van is plate (`paint_oxide`: grate);
+        - an open house is its boards (`wood_grey`);
+        - a shed, the hero and anything shut stay concrete.
+    - **The tells**: `dt audio render --space shed` costs the default chaos about 1 dB of each tell's margin over the bed against the open night (the tail blurs the bed a little, as a facility's yard does). `--space room` costs a few tenths. In both, the margins stay where the open night's are, near zero for the weakest.
+    - **Pinned:**
+        - `WorldSoundTests.InsideAStopsBuildingTheListenerIsInItsRoomAndUnderfootIsTheFloorItsDrawnWith`: a shed is the shed on concrete; a Holdout's room is a room on boards; an open house is a room on boards; the line beside them is neither.
+        - `MixTests.EverySpaceSoundsLikeItself`: the room between the cab and a car, the shed between a facility's yard and a tunnel.
+    - **Not yet:** the outside quieter through a room's walls. Occlusion goes by the train's spaces (`PlayerMotor.Space`), and a stop's building isn't one.
 394. **The wreck yard's heaps as wrecked cars (queue #131, C1; GDD §18 "pull cargo off derailed trains. Unstable, unlit", note 187; the art checklist's `wreck-yard`).** The heaps the crew work at a wreck yard (found by a lamp, their salvage pulled out, groaning and then shifting on whoever's by them) were still the greybox's: a flat rust-coloured box, a grey slab for a roof and eight grey blocks for wheels. The wreck yard is on most nights, so these were among the most-seen greybox shapes left. `SceneArt.Wreckage` now draws each heap as a car of the train, wrecked:
     - **The body** is the train's own car (the first car in the frames without a cab or a gun, as `TrainKit.Car` draws it, empty), in the planked or the steel livery by turns. It wears the derailment's wrecked damage (`DamageKit.Car` at state 2, so torn plate and a breach), its scar mask full, its paint tinted to rust and dirt, and its lamps out. The trucks it was built with are up in the air.
     - **Where it lies** is the sim's heap, in the greybox's own frame: along the track's heading where it lies, turned by the heap's yaw, rolled onto its side a little further each shift, and shuddering while it groans, with its dust. The body's middle is where the greybox box's middle was, so its side is on the ground as before.

@@ -327,6 +327,51 @@ public class WorldSoundTests
     }
 
     [Fact]
+    public void InsideAStopsBuildingTheListenerIsInItsRoomAndUnderfootIsTheFloorItsDrawnWith()
+    {
+        // Queue #129 (note 392): the yard's sheds and the Holdouts drawn walk-in (note 387) and the open houses (note 326) were
+        // the open night inside, and every building's floor concrete.
+        static bool Boarded(Sim.Stops.BuildingKind k) =>
+            k is Sim.Stops.BuildingKind.SignalBox or Sim.Stops.BuildingKind.LampRoom or Sim.Stops.BuildingKind.WaterTower;
+        var (world, f) = Night(f => f.Stop is { } st && st.Holdouts.Any(h => Boarded(st.Buildings[h.Building].Kind))
+            && st.Buildings.Any(b => b.Kind is Sim.Stops.BuildingKind.Shed or Sim.Stops.BuildingKind.Hero), from: -200);
+        var stop = f.Stop!;
+        var line = world.Train.Line;
+        // A point in a building's first part (an open house's outline isn't its middle), in the stop's (S, D).
+        Sim.Stops.Pt In(Sim.Stops.StopBuilding b)
+        {
+            var (x, y) = b.Parts.Count > 0 ? (b.Parts[0].X, b.Parts[0].Y) : (0, 0);
+            double c = Math.Cos(b.Yaw), n = Math.Sin(b.Yaw);
+            return new Sim.Stops.Pt(b.S + x * c - y * n, b.D + x * n + y * c);
+        }
+        string SpaceAt(Sim.Stops.Pt p)
+        {
+            double hint = double.NaN;
+            return GameAudio.SpaceOf(world, Run.StopWorld(line, f, p, 1.6), ref hint);
+        }
+        string FloorAt(Sim.Stops.Pt p)
+        {
+            double hint = f.Start + p.S;
+            return Footing.Ground(world, Run.StopWorld(line, f, p, 0.1), ref hint);
+        }
+        var shed = stop.Buildings.First(b => b.Kind is Sim.Stops.BuildingKind.Shed or Sim.Stops.BuildingKind.Hero);
+        Assert.Equal("shed", SpaceAt(In(shed)));
+        Assert.Equal("concrete", FloorAt(In(shed)));
+        var room = stop.Buildings[stop.Holdouts.First(h => Boarded(stop.Buildings[h.Building].Kind)).Building];
+        Assert.Equal("room", SpaceAt(In(room)));
+        Assert.Equal("wood", FloorAt(In(room)));
+        // Out on the line beside them, the night as before.
+        Assert.DoesNotContain(SpaceAt(new Sim.Stops.Pt(shed.S, 0)), new[] { "shed", "room" });
+        // A village's open house: a room on its boards.
+        static bool Open(Sim.Stops.StopLayout st, int i) => st.Buildings[i].Open && Sim.Run.StopWalls.Walled(st, i);
+        (world, f) = Night(f => f.Stop is { } st && Enumerable.Range(0, st.Buildings.Count).Any(i => Open(st, i)), from: -200);
+        (stop, line) = (f.Stop!, world.Train.Line);
+        var house = stop.Buildings[Enumerable.Range(0, stop.Buildings.Count).First(i => Open(stop, i))];
+        Assert.Equal("room", SpaceAt(In(house)));
+        Assert.Equal("wood", FloorAt(In(house)));
+    }
+
+    [Fact]
     public void AWreckYardHeapGroansForItsWholeWarningThenShifts()
     {
         // GDD §18's wreck yard (note 187): a heap about to shift onto whoever's beside it groans for the 3 s it gives them

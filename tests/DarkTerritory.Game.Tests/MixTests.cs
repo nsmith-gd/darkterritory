@@ -67,7 +67,7 @@ public class MixTests
     public void EverySpaceSoundsLikeItself()
     {
         var spaces = DataFile.Load<SpacesDef>(Path.Combine(Content, SpacesDef.File)).Spaces;
-        Assert.Equal(["cab", "car", "facility", "mine", "outside", "tunnel"], spaces.Keys.Order(StringComparer.Ordinal));
+        Assert.Equal(["cab", "car", "facility", "mine", "outside", "room", "shed", "tunnel"], spaces.Keys.Order(StringComparer.Ordinal));
         // The open night is dry; every enclosed space has a response of its own, the tunnel's the longest by far.
         Assert.Null(spaces["outside"].Reverb);
         double Decay(string s) => spaces[s].Reverb!.Decay;
@@ -75,6 +75,11 @@ public class MixTests
         // The mine's adit (note 250) is narrower than a tunnel: its tail's shorter, its first reflection sooner.
         Assert.True(Decay("facility") < Decay("mine") && Decay("mine") < Decay("tunnel"));
         Assert.True(spaces["mine"].Reverb!.Early![0][0] < spaces["tunnel"].Reverb!.Early![0][0]);
+        // A stop's buildings (note 392): a small room between the cab's steel and a car's planks; a shed's iron hall past the
+        // facility's yard and short of a tunnel, its walls answering later than a room's.
+        Assert.True(Decay("cab") < Decay("room") && Decay("room") < Decay("car"));
+        Assert.True(Decay("facility") < Decay("shed") && Decay("shed") < Decay("tunnel"));
+        Assert.True(spaces["room"].Reverb!.Early![0][0] < spaces["shed"].Reverb!.Early![0][0]);
         foreach (var (name, space) in spaces)
         {
             if (space.Reverb is not { } reverb)
