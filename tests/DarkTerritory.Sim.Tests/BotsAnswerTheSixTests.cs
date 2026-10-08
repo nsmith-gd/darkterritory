@@ -336,4 +336,35 @@ public class BotsAnswerTheSixTests
         Assert.Equal(P.Health, n.Crew[2].Health);
         Assert.True(n.Crew[2].Parent != PlayerState.World);
     }
+
+    [Fact]
+    public void ABotCrewOverTheNetworkStopsForAHotboxPrisesItAndFreesTheAxle()
+    {
+        // The whole crew as a night runs it (each bot a client, over lossy loopback, reading only what's sent): 30 s in, a
+        // Hotbox has seized car 3's axle. The driver stops, a walker gets down and prises it out, the axle's freed, and on
+        // (stood at 39 s, freed at 68, on at 77, when it was written).
+        var t = E.Hotbox;
+        Hotbox? h = null;
+        double? stood = null, freed = null, on = null;
+        CrewOfTwoTests.Night("frontier:7", 6, 110, null, start: 2500, bots: 3, each: w =>
+        {
+            if (h is null && w.ElapsedSeconds >= 30)
+            {
+                h = w.AddEnemy(id => Hotbox.In(id, w.Train, 3, rear: true, 1, t));
+                h.Extra = t.KnockSeconds + t.GlowSeconds + 1;
+            }
+            if (h is null)
+                return;
+            if (stood is null && w.Train.Dynamics.Speed < 0.05)
+                stood = w.ElapsedSeconds;
+            if (stood is not null && freed is null && h.Gone && !w.Train.Vehicles[3].Seized)
+                freed = w.ElapsedSeconds;
+            if (freed is not null && on is null && w.Train.Dynamics.Speed > 4)
+                on = w.ElapsedSeconds;
+        });
+        Assert.NotNull(h);
+        Assert.True(stood is not null, "the driver never stopped");
+        Assert.True(freed is not null, $"never freed: the Hotbox {h!.Mode}, car 3 seized {h.Gone}");
+        Assert.True(on is not null, $"freed at {freed:0} s, never on again");
+    }
 }
