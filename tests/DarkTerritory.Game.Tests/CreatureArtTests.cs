@@ -504,6 +504,7 @@ public class CreatureArtTests
     [InlineData(EnemyKind.Ribbit, "ribbit", false)]
     [InlineData(EnemyKind.Gaunt, "gaunt", false)]
     [InlineData(EnemyKind.Switchman, "switchman", false)]
+    [InlineData(EnemyKind.Gannet, "gannet", true)]
     public void OneLetGoOfInSightIsSeenGoingOffIntoTheDarkThenIsGone(EnemyKind kind, string asset, bool aboard)
     {
         // GreyboxScene.Retreating (note 458): the sim has one gone the tick it's done with it (a Climber outnumbered, a Whistler
@@ -516,7 +517,8 @@ public class CreatureArtTests
         var f = train.Frames[car];
         var e = Enemy.Blank(kind, 90, kind == EnemyKind.Ribbit ? 60 : 0);
         if (aboard)
-            e.Restore(SpinePhase.Commit, 1, 3, car, new Double3(0.3, f.Shape.RoofHeight, 2), 0, 0, 0, 0, 0);
+            // (A Gannet's height is its mode: down in the planks, stuck, where a blow lands.)
+            e.Restore(SpinePhase.Commit, 1, 3, car, new Double3(0.3, f.Shape.RoofHeight, 2), 0, 0, kind == EnemyKind.Gannet ? (double)GannetMode.Stuck : 0, 0, 0);
         else
         {
             var at = f.ToWorld(new Double3(f.Shape.HalfWidth + 4, 0, 0));

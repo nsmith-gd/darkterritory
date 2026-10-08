@@ -1170,11 +1170,17 @@ public sealed class GreyboxScene
             double h = r.Hint;
             double ground = Sim.Player.PlayerMotor.GroundAt(p, line, ref h);
             // Down off whatever it was on (a roof, a car's floor, the gap's plate), as anything dropped falls.
-            double y = Math.Max(ground, r.From.Value.Y - 0.5 * 9.81 * age * age);
+            double y = go.Rise > 0 ? r.From.Value.Y + go.Rise * age : Math.Max(ground, r.From.Value.Y - 0.5 * 9.81 * age * age);
             var copy = Enemy.Blank(r.Body.Kind, id, r.Body.Extra);
-            copy.Restore(SpinePhase.BreakOff, age, r.Body.Health, Enemy.Loose, p with { Y = y }, r.Body.LineDistance, r.Body.Lateral, 0, r.Body.Extra, r.Body.Extra2);
-            // Loose, it's drawn facing the nearest car: turned about, it faces away, the way it's going.
-            DrawEnemy(mesh, line, frames, copy, eye, from, to, Look?.Art.Creatures, flinch: (Vector3.Zero, Quaternion.CreateFromAxisAngle(Vector3.UnitY, MathF.PI)));
+            // The Gannet loose faces its own heading (its Lateral, a player's yaw: −Z at 0): the way it's going, out.
+            bool heads = r.Body.Kind == EnemyKind.Gannet;
+            double lateral = heads ? Math.Atan2(-r.Out.X, -r.Out.Z) : r.Body.Lateral;
+            // (A Gannet's height is its mode: on the wing, soaring off.)
+            double height = heads ? (double)Sim.Enemies.GannetMode.Soar : 0;
+            copy.Restore(SpinePhase.BreakOff, age, r.Body.Health, Enemy.Loose, p with { Y = y }, r.Body.LineDistance, lateral, height, r.Body.Extra, r.Body.Extra2);
+            // The rest, loose, are drawn facing the nearest car: turned about, they face away, the way they're going.
+            DrawEnemy(mesh, line, frames, copy, eye, from, to, Look?.Art.Creatures,
+                flinch: heads ? default : (Vector3.Zero, Quaternion.CreateFromAxisAngle(Vector3.UnitY, MathF.PI)));
         }
     }
 
