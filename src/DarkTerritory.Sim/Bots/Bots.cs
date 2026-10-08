@@ -785,6 +785,8 @@ public sealed class RoofWalkerBot(int seed, ColdTuning? cold = null, StopHand? j
     /// </summary>
     public static PlayerIntent HoldOn(in PlayerState self, TrainOnLine train, PlayerIntent intent)
     {
+        if (self.Surface == Surface.Deck)
+            return InTheDoorway(self, train, intent);
         if (self.Surface != Surface.Ladder || intent.MoveZ >= 0 || self.Parent <= 0 || self.Parent >= train.Frames.Count
             || self.Position.Y > LowestRung || SpeedBands.CanBeCaughtOnFoot(train.Dynamics.Tuning, train.Dynamics.Speed))
             return intent;
@@ -795,6 +797,28 @@ public sealed class RoofWalkerBot(int seed, ColdTuning? cold = null, StopHand? j
         var at = self.Position;
         var on = shape.Ladders.MinBy(l => (l.Foot.X - at.X) * (l.Foot.X - at.X) + (l.Foot.Z - at.Z) * (l.Foot.Z - at.Z));
         return on.Foot.Y > 0 ? intent : intent with { MoveZ = 0 };
+    }
+
+    /// <summary>Out from the car's middle (m) short of its side, a crewmate on its floor is in a side doorway.</summary>
+    const double Doorway = 0.35;
+
+    /// <summary>
+    /// Note 380: never out of a side door with the train going faster than anyone runs. frontier:6's hot run: the gunner,
+    /// in car 2 at 1 hp to warm up, went across to shut the side door someone had left open at 20 m/s, walked on into the
+    /// doorway and out of it, and died of the landing. In the doorway, nothing more outward: in, or stand and shut it.
+    /// </summary>
+    static PlayerIntent InTheDoorway(in PlayerState self, TrainOnLine train, PlayerIntent intent)
+    {
+        if (self.Parent < 0 || self.Parent >= train.Frames.Count || intent.MoveX == 0 && intent.MoveZ == 0
+            || SpeedBands.CanBeCaughtOnFoot(train.Dynamics.Tuning, train.Dynamics.Speed))
+            return intent;
+        double side = train.Frames[self.Parent].Shape.HalfWidth - Doorway;
+        if (Math.Abs(self.Position.X) < side)
+            return intent;
+        // Across the car (+X right), as the motor turns the stick by the look (PlayerMotor's wish direction).
+        double yaw = intent.LookYaw != 0 ? self.Yaw + intent.LookYaw : self.Yaw;
+        double across = Math.Clamp(intent.MoveX, -1, 1) * Math.Cos(yaw) - Math.Clamp(intent.MoveZ, -1, 1) * Math.Sin(yaw);
+        return across * Math.Sign(self.Position.X) > 0.05 ? intent with { MoveX = 0, MoveZ = 0 } : intent;
     }
 
     PlayerIntent Decided(in PlayerState self, World world, uint tick, out PlayerState aimed)

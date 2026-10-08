@@ -64,4 +64,24 @@ public class HotWalkerTests
         Assert.True(s.Alive, $"died of {s.Death}");
         Assert.Equal(holds, s.Surface == Surface.Ladder && s.Parent == car);
     }
+
+    [Theory]
+    [InlineData(15, true)]
+    [InlineData(1, false)]
+    public void WalkingAtAnOpenSideDoorAtSpeedACrewmateStaysIn(double speed, bool stays)
+    {
+        // frontier:6's hot run: the gunner went across car 2 to shut a side door left open at 20 m/s, walked on into the
+        // doorway and out of it, and died of the landing. Faster than anyone runs, nothing more outward from the doorway.
+        var n = new Night(4, speed);
+        int car = 2;
+        var shape = n.Train.Frames[car].Shape;
+        int door = StopHand.SideDoor(shape, 1)!.Value;
+        n.Train.Vehicles[car].ToggleDoor(door);
+        var (at, yaw) = WarmUp.Inside(shape, door);
+        n.Crew[1] = new PlayerState { Parent = car, Position = at with { Y = Tuning.Train.Geometry.Interior!.FloorHeight }, Yaw = yaw, Surface = Surface.Deck, Health = P.Health, LineHint = n.Train.Cars[car].FrontDistance };
+        n.Run(3, id => RoofWalkerBot.HoldOn(n.Crew[id], n.Train, new PlayerIntent { MoveZ = 1 }));
+        var s = n.Crew[1];
+        Assert.True(s.Alive, $"died of {s.Death}");
+        Assert.Equal(stays, s.Parent == car && s.Surface == Surface.Deck);
+    }
 }
