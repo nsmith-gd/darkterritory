@@ -295,27 +295,21 @@
   "picked": "first",
   "candidates": [
    {
-    "label": "One axle over a rail joint: the wheel dropping off one rail end and clacking onto the next",
-    "key": "clack",
+    "label": "One axle over a rail joint: the wheel's tread cracking onto the next rail end, short and hard",
+    "key": "crack",
     "sources": [
      "kenney_impact-sounds:impactMetal_heavy_000",
      "kenney_impact-sounds:impactMetal_heavy_001",
      "kenney_impact-sounds:impactMetal_heavy_002",
      "kenney_impact-sounds:impactMetal_heavy_003",
      "kenney_impact-sounds:impactMetal_heavy_004",
-     "kenney_impact-sounds:impactMetal_medium_001",
-     "kenney_impact-sounds:impactPlate_heavy_004",
-     "kenney_impact-sounds:impactPlate_heavy_002",
-     "kenney_impact-sounds:impactPlate_heavy_000",
-     "kenney_impact-sounds:impactPlate_heavy_001",
-     "kenney_impact-sounds:impactPlate_heavy_003",
-     "kenney_impact-sounds:impactPlate_medium_003"
+     "kenney_impact-sounds:impactMetal_medium_001"
     ],
     "licence": "CC0"
    }
   ],
   "takes": 6,
-  "sha": "57b523c086d97a66"
+  "sha": "a7e3b13ed7e11178"
  },
  "bed-wheel-rail/roll-fast": {
   "cue": "bed-wheel-rail.roll-fast",

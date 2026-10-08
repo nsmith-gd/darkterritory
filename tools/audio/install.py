@@ -249,7 +249,9 @@ FIRST_CHOICE = {"place-town.fire": "drum", "place-town.murmur": "masks",  # note
                 # the headframe's rope, whose tones can read as a whine.
                 "state-coupling-loose.knock": "clank", "place-mine-lift.winding": "engine",
                 # Note 409: the shut's the Choir's rule, so the one that bangs home and drops its latch last; the open's long creak.
-                "crew-house-door.shut": "sag", "crew-house-door.open": "creak"}
+                "crew-house-door.shut": "sag", "crew-house-door.open": "creak",
+                # Note 431: the joint's crack, short and hard under 2 kHz; the old clack and the battered joint candidates.
+                "bed-wheel-rail.joint": "crack"}
 
 
 # A first choice for one surface of a cue (note 419): the car roof's tin rebuilt, the old boots kept beside it. The plank

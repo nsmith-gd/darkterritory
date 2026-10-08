@@ -104,10 +104,20 @@
   "url": "/_blob/a7f7dc8858b84018bbcd5d9969770e9a",
   "sha": "c9b35ffebad9666d"
  },
+ "previews/bed-wheel-rail--joint--battered.mp4": {
+  "id": "e9cf64ffa12f73e79a00f85175cffcac",
+  "url": "/_blob/e9cf64ffa12f73e79a00f85175cffcac",
+  "sha": "4255db1523a47466"
+ },
  "previews/bed-wheel-rail--joint--clack.mp4": {
   "id": "c8732f68f2e7e901db0684c1261f048a",
   "url": "/_blob/c8732f68f2e7e901db0684c1261f048a",
   "sha": "0e9a3f84d82fadfd"
+ },
+ "previews/bed-wheel-rail--joint--crack.mp4": {
+  "id": "d3600feb1d9d9cfa1aae757a9adbb018",
+  "url": "/_blob/d3600feb1d9d9cfa1aae757a9adbb018",
+  "sha": "b089a1169ac78f22"
  },
  "previews/bed-wheel-rail--roll-fast--worn.mp4": {
   "id": "deb62b5ff3f8493e3c0c2e68097944ac",
