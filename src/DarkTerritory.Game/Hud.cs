@@ -33,9 +33,11 @@ public static partial class Hud
 {
     static readonly Vector4 Ink = new(0.88f, 0.84f, 0.74f, 1);
     static readonly Vector4 Dim = new(0.60f, 0.58f, 0.53f, 1);
-    static readonly Vector4 Amber = new(1.00f, 0.70f, 0.30f, 1);
-    static readonly Vector4 Red = new(0.95f, 0.26f, 0.18f, 1);
-    static readonly Vector4 Green = new(0.55f, 0.82f, 0.45f, 1);
+    // The colours that mean something (note 348): hud.json's, the player's COLOURS choosing the palette.
+    static HudPalette Palette => Keys.Colours == HudColours.Colourblind ? Tuning.Colourblind : Tuning.Standard;
+    static Vector4 Amber => Palette.WarnColour;
+    static Vector4 Red => Palette.DangerColour;
+    static Vector4 Green => Palette.GoodColour;
     static readonly Vector4 Track = new(0.25f, 0.24f, 0.22f, 0.9f);
 
     /// <param name="crosshair">The aiming cross at the middle. Not on a headset's panel (T36): it lags the head, which
@@ -1366,6 +1368,7 @@ public static partial class Hud
         DeathCause.Carried => "CARRIED OFF TO THE WHISTLER'S NEST",
         DeathCause.Seized => "SEIZED BY THE CHOIR. YOU WERE OUTSIDE, AND IT WAS LOUD",
         DeathCause.Uncoupled => "TAKEN WITH THE CABOOSE. THE PASSENGER CUT IT LOOSE",
+        DeathCause.Trampled => "TRAMPLED BY THE MOOSE. YOU GOT TOO CLOSE, OR TOO LOUD",
         DeathCause.None => "",
         _ => cause.ToString().ToUpperInvariant(),
     };
@@ -1669,6 +1672,10 @@ public static partial class Hud
             return site.OutOfRhythm ? "OUT OF RHYTHM"
                 : p.Hand != default ? "CRANK : OVER THE TOP, TOWARDS THE TRACK" : "CRANK : HOLD [E]";
         // At the controls, driving them is the corner's (Hints): here, only what you're looking at.
+        // Note 346: a guttering lamp, in the car, trimmed with the lamp key.
+        if (p.Parent > 0 && p.Parent < train.Frames.Count && train.Vehicles[p.Parent] is { LampLit: true, Gutter: > 0 } && PlayerMotor.Indoors(p, train)
+            && train.Frames[p.Parent].Shape.Interior is not null)
+            return $"TRIM THE LAMP : [{Controls.KeyLabel(Keys.KeyFor(Control.CarLamp))}]";
         // Note 266 (build 1121: "the lights are completely off"): in a car whose lamp is out (a Climber came in through it).
         if (p.Parent > 0 && p.Parent < train.Frames.Count && !train.Vehicles[p.Parent].LampLit && PlayerMotor.Indoors(p, train)
             && train.Frames[p.Parent].Shape.Interior is not null)

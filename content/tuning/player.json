@@ -87,6 +87,10 @@
   // plate, a platform, the tender: any of it within catchDrop m under the edge). What still takes you off is real: a
   // creature's pull (the Draggers), a bend you were warned of taken too fast (sight.json throwOver), a jump that falls
   // short, and walking off on purpose. windOverLip: true is the old wind, which the lip doesn't hold.
+  // The world is solid (the director, 6 Oct 2026; ARCHITECTURE §8 note 279): on foot on the land, nobody walks up ground
+  // steeper than climbSlope (rise over run; 1.25 is about 51°). A cutting's walls (2:1), a ledge's upslope and a cliff
+  // over the sea stop you; the line plan's walkable ground (§12.6, slope 1 with its noise) never does.
+  "climbSlope": 1.25,
   "edge": {
     "lip": 0.3,
     "stepOffDegrees": 30,

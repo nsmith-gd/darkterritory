@@ -14,7 +14,7 @@ Interactive version, with the roster explorer and director tools: [claude.ai/art
 - **One night length for every tier:** 24 km and dawn at 51 minutes. A deeper tier is denser, not longer (§11).
 - **The director runs on pressure.** Quiet, loudness, cargo and the night's depth build it; the grace is 20–90 s, picked per night; the night's first threat answers something a crewmate did, and the report names it (B.1).
 - **The orchestrator** (outlined): threats planned against the players active now. Built so far: the budget from the crew alive, and a cap on threats at once by it (B.1, orchestrator.md).
-- **Something to do between stops.** The hound run, a stream of Cinder Hounds a fast train draws for the guns to answer one at a time; and the first upkeep job, the hot box, an axle box running dry that's greased from the gap or the ground before it slows the train and catches (B.3, F.3).
+- **Something to do between stops.** The hound run, a stream of Cinder Hounds a fast train draws for the guns to answer one at a time; and the first upkeep jobs: the hot box, an axle box running dry that's greased from the gap or the ground before it slows the train and catches, and a car's lamp guttering, trimmed inside before it goes out (B.3, F.3).
 - **Off the train, a presence of threat.** The crew on foot are watched from the lamp's edge, and outdoor creatures come sooner while anyone's out (B.1, F.3).
 - **Driven off, or killed together.** A creature is driven off by its rule; a coordinated team can kill the Grumbler, the Gaunt, the Passenger, Climbers and the Choir's ghosts (F.1).
 - **Damage, Lethal Company style:** a few big hits, never chip damage, rare healing finds, an edge flash (F.1; systems spec B.2).
@@ -38,6 +38,9 @@ Interactive version, with the roster explorer and director tools: [claude.ai/art
 - **Jumping off** is lethal above 16.5 m/s, matching the systems spec in the repo (§23).
 - **Run budgets match the build** (B.1): 90, 150, 230 and 330 by tier, about twice v1.1's, to pay for the paced director the build runs.
 - Touches §12, §23, §23.1, B.1, C.9, D.2, D.4, D.7, D.12, E.9 and E.12.
+
+**Director's decisions of 2026-10-07: the Moose (queue #77; ARCHITECTURE §8 note 339; design `docs/design/creatures/moose.md`).**
+- **An eighteenth enemy, the Moose:** a hyper-aggressive, territorial bull moose, too big to get on the train. It grazes beside the line and at the stops and leaves be whoever leaves it be. Crowd it, talk near it or hit it and it charges in straight lines; the bullfight (dodge it, pass it with a blow, lose it round the buildings, quietly) is the heart of it. It rams the car you hide in for a while (only a ram), gives up when it can't find you or you're far enough off, and the train pulling away ends it. Nothing kills it. It's in every tier, more the harder the tier, and it is never on the rail (§21, A.6, A.9, B.1, B.6).
 
 **Director's decisions of 2026-10-06 (build 1121 play-test; ARCHITECTURE §8 note 264).**
 - **One supplies view, toggled on.** "The UI is a little too heavy overall in the game, but we do need a way to track all of the supplies that we have on board." The HUD gets lighter (the cab's gauges are the boiler's read-out), and a single panel, off until it's wanted, lists the supplies aboard: coal, the engineering kit and where it is, extinguishers, cargo and crates, stores (lamps, radios, toys, finds) and powder and shot (§10).
@@ -439,7 +442,7 @@ Every enemy must pass at least four of the six, including 1 and 3. This is the f
 
 The learnability rules from v1.0 — the rule fits in six words, one death teaches it, the telegraph always comes first — now live in the fairness contract (Appendix A.1).
 
-## 21. Roster — 17 enemies
+## 21. Roster — 18 enemies
 
 Demo ships with **five**: Track Doll, Car Hugger, Whistler, Tippy Toesie and Ribbits, with the Choir running underneath as the ambient system. If the Foundry is one of the two demo facilities, the Grumbler replaces the Ribbits.
 
@@ -516,6 +519,11 @@ Every silence makes it angrier, and it hits hard. Kill it together, or let it ta
 A hand-sized parasite that rides on your back. You can't see it; your friends can, if they look.
 > **RULE: check each other's backs.**
 It drops off aboard and nests in your best loot car. Club it off your friend, or find the nest.
+
+**THE MOOSE** · *grazing beside the line and at the stops* *(the director's decisions, 2026-10-07)*
+A moose in a rut that never ended, its rack grown wider than a doorway. Leave it be and it leaves you be.
+> **RULE: give it room, keep it quiet.**
+Crowd it, talk near it, or hit it and it charges, in straight lines it can't turn out of. Dodge it, lead it off, or lose it among the buildings, quietly, until it gives up. Hit it to take its attention off a friend. It never comes aboard: nothing that wide fits through a door, so it rams the car you're in for a while, and only the train pulling away ends that for good. Nothing kills it, and it's never on the rail.
 
 **SOOT CHILDREN** · *outside facilities and dead towns*
 A child calling for help. Half the time it's a real survivor, the most valuable cargo in the game.
@@ -907,6 +915,7 @@ The timings are in `content/tuning/hud.json`; the engineering is in ARCHITECTURE
 *The director, 8 Oct 2026, on the list of what's next for the UI: a text size, a colourblind-safe palette, captions, a light first-night onboarding and a polish pass in the real window: "these are all quite important".* Each is a setting, and none of them tells a player what an action will do: the rules above still hold.
 
 - **TEXT SIZE** (100%, 125%, 150%): the HUD's print and the menus', bigger. The whole overlay is drawn on a smaller canvas and stretched over the window, so everything on it grows together. A long line wraps or is cut short where it would leave the frame (ARCHITECTURE §8 note 347).
+- **COLOURS** (standard, colourblind): what the HUD's colours mean (good, a warning, danger) told apart without red against green: blue, yellow and red. Measured as a protanope, deuteranope and tritanope sees them, every pair stays clearly apart (ARCHITECTURE §8 note 348).
 
 ### The screenshot test
 
@@ -1013,6 +1022,7 @@ Embodied in-engine agents play the game headlessly. A fixed roster makes this an
 11. **Is hand-carried loot a second economy next to freight, or part of it?** A rescued child is both. v1.3 gives some loot a risk of its own, noise while carried (§19, C.4), which pushes it toward a second economy with its own decisions.
 12. ~~**At crew 2, which group-based enemies are still fair?**~~ **Swept (note 305): all of them, played right.** Every grab can be broken by the one other crewmate at crew 2 (`dt audit grabs --crews 2`), Ribbits and Tippy Toesie included. Two were losing crew-2 nights, both to how the bots played them: the Choir took a gunner from a car with its door open (get behind a shut door), and the Car Hugger ate a gunner who went down to club it alone (with nobody but the driver, keep clear and let it take the car). Played so, none loses a crew-2 night. The bots never drew a Ribbit pack or Tippy Toesie at any crew size; people who split up will.
 13. **What counts toward the Choir's loudness threshold, and over what time window?** Too sensitive and the core shouting loop summons it constantly. Whatever the answer, shushing counts: a crew hissing "shut up" at each other is part of the noise, and the Choir takes the loudest contributor (A.7, C.7).
+14. **Does a whisper count near the Moose?** A voice under its `talkingAbove` floor is free, so whispering is the skill; is that the right floor, and does a hissed "shh, moose" count as talking (it does on the Choir, Q13)?
 
 ---
 
@@ -1239,6 +1249,35 @@ COUNTER   bludgeon it off a friend's back (kills it)
 ```
 **The loot is the risk, not the host.** The fix is a friend clubbing you in the back.
 
+### THE MOOSE · movement (trespass), sound *(the director's decisions, 2026-10-07; note 339)*
+```
+GRAZING   beside the line or at its ground by a stop; docile; never on or within 3.2 m of a track
+          └ TELEGRAPH (presence): pale in the lamp, chewing, the sacs creaking
+AGGRO     0–100, rising from anyone on the ground it can see within 20 m (much faster within 12 m),
+          anyone talking within 15 m (faster the louder), a train going by within 25 m (a little, once);
+          a hit fills it. Given room and quiet it falls
+LISTENING aggro 20+ → head up, chewing stops, ears turning to whoever's loudest
+WARNING   aggro 50+ → ears flat, the sac ridge on its spine up, a grunt, a hoof dragged
+          └ TELEGRAPH: back off and hush and it settles
+ENRAGED   aggro 100 → after whoever put the most in; whoever hits it is always the one after that
+SQUARE UP in sight within 30 m: the rack levelled, two stamps
+          └ TELEGRAPH: 2.5 s; its heading locks at the end
+CHARGE    a straight line at 11 m/s (twice a player's run); can't turn; overruns 8 m, wheels round (2.5 s)
+          ├ a building in the way → SNAG: rack jammed 4 s
+          ├ a car, or the track's clearance → pulls up
+          ├ nothing narrower than its 3.2 m rack lets it in: doorways, coupling gaps, the alleys between buildings
+          └ through anyone on the ground → a heavy hit (60)
+GRAB      charges someone already hurt (40 or less) → pins them under the rack; 12 s; they can talk
+          └ interrupt: a friend's blow → it lets go and goes for the friend
+PUNISH    trampled
+SEARCH    out of sight → where it last saw or heard them; a voice within 15 m gives anyone away;
+          25 s without them → gives up
+RAM       lost at a car they're aboard → rams it every 3 s for 15 s (a boom and a shudder, nothing more), gives up
+GIVES UP  also past 80 m from its ground, or after three charges into what it can't get into → walks home and grazes
+TRAIN     the train pulling away ends it
+```
+**The bullfight is the point.** Someone strays too close and it comes for them; they dodge; a friend's blow takes it over and leads it off; they duck down the alleys between the sheds and the cars, and the hard part is going quiet while it searches a few metres away. **Nothing kills it**: blows and rounds only make you its target, so hitting it is a tool, not an attack. **It never boards**, and **it's never on the rail**: the track's clearance is a line it won't cross, so the train can never hit it and it can never stop or derail the train. A moose beside the line takes a passing train for a rival and is already listening if the train stops near it. Numbers in enemies.json `moose`; the design and its reasons in `docs/design/creatures/moose.md`.
+
 ### SOOT CHILDREN · sound
 ```
 CALL      a child's voice calling for help from the dark
@@ -1327,9 +1366,9 @@ COUNTER   gang up and kill it, or leave it alone;
 
 **GRAB and PUNISH are where the comedy lives** (§23.1). Every GRAB start and every PUNISH writes a failure-attribution record (C.9) and an auto-bookmark (D.12), so the run-end screen has both the cause and the picture.
 
-**Voice-system enemies.** The Gaunt reads silence, the Choir reads loudness, Tippy Toesie muffles its victim, Soot Child victims fade, and the Passenger never speaks. All five sit on the voice layer, so it is a gameplay system, not just comms.
+**Voice-system enemies.** The Gaunt reads silence, the Choir reads loudness, the Moose reads *where* a voice is, Tippy Toesie muffles its victim, Soot Child victims fade, and the Passenger never speaks. All six sit on the voice layer, so it is a gameplay system, not just comms.
 
-**Fully preventable enemies.** Track Doll (stop in time), the Choir (hush before commit) and the Stoker (run cool, or catch it on the way in) can each be reduced to zero threat by correct play. A roster where everything is unavoidable stops rewarding mastery.
+**Fully preventable enemies.** Track Doll (stop in time), the Choir (hush before commit), the Stoker (run cool, or catch it on the way in) and the Moose (give it room, keep it quiet) can each be reduced to zero threat by correct play. A roster where everything is unavoidable stops rewarding mastery.
 
 **Cost-only enemies.** The Track Doll and the Switchman's routing throws cost time and control rather than lives. Keep this category small.
 
@@ -1397,7 +1436,7 @@ Past the **threshold** the director spends: on what its weights, wants, pairs, g
 | Cost | Enemies |
 |---|---|
 | **2** | Followers, Draggers, Fire Flies, The Switchman |
-| **3** | Track Doll, Cinder Hounds, Climbers, Whistler, Stoker, Ribbits |
+| **3** | Track Doll, Cinder Hounds, Climbers, Whistler, Stoker, Ribbits, The Moose |
 | **4** | Car Hugger, Tippy Toesie, The Gaunt, Soot Children, Grumbler |
 | **5** | The Passenger |
 | **—** | The Choir (not spawned; triggered by the loudness meter) |
@@ -1409,11 +1448,11 @@ The director tags each enemy with the player want it attacks, and aims for a tar
 | Tag | Target share | Enemies |
 |---|---|---|
 | **Kill** | 40% | Cinder Hounds, Draggers, Whistler, Stoker, Tippy Toesie, Ribbits, The Choir |
-| **Split** | 25% | Track Doll, Climbers, The Gaunt |
+| **Split** | 25% | Track Doll, Climbers, The Gaunt, The Moose |
 | **Trust** | 20% | Followers, Soot Children, The Passenger |
 | **Cargo** | 15% | Car Hugger, Fire Flies, The Switchman, Grumbler |
 
-Split is the thinnest category and the best target for a post-launch addition.
+Split is the thinnest category and the best target for a post-launch addition. The Moose (2026-10-07) is the first.
 
 **Dead vote.** Each dead player gets one vote per run that raises one creature's spawn weight, ×1.2 per vote and capped at ×1.5, applied within that creature's want tag so the target shares hold (Appendix D.11). It never changes budget, gates, caps or pacing.
 
@@ -1454,6 +1493,10 @@ The director draws pairs from a **conflict table** rather than spawning independ
 | Tippy Toesie + Stoker | The boiler player is idle and alone vs. the firebox needs watching |
 | Ribbits + The Switchman | Don't go alone vs. someone must reset the switch |
 | Car Hugger + climbing grade | Kill it or cut the car vs. the speed cap loses the summit |
+| The Gaunt + The Moose | Keep talking to the Gaunt vs. the moose hears every word, and where it came from |
+| Ribbits + The Moose | Never be outnumbered vs. whoever the moose chases ends up alone |
+| Whistler + The Moose | The coupling gaps hide you from the moose and hold the Whistler |
+| The Moose + facility loading | The loading needs everyone vs. someone has to keep the moose busy, and quiet |
 
 At least one pair per run on Frontier and above. Two on Deep Territory.
 
@@ -1510,6 +1553,7 @@ At least one pair per run on Frontier and above. Two on Deep Territory.
 | **The Gaunt** | Asleep in villages and yards | Frontier+ (first pass) · once per run | Weight up on long facility stops |
 | **Followers** | Facility grounds; latches onto a disembarked player | Requires an excursion · any tier | Weight up per additional player on the ground |
 | **Soot Children** | Near facilities and dead settlements | Crew ≥2 | True 50/50 with a real child survivor; a host player's first-ever call is always a real child |
+| **The Moose** | Grazing beside a stop, 30–60 m out; beside the line on the run (2–5 per 10 km by tier, the line's own, costing the director nothing) | **Every tier** · one about at a time · never within the track's clearance | ×1 Local, ×1.5 Frontier, ×2 Dead Lines, ×2.5 Deep Territory; ×2 bog, ×1.5 barrens and tar ponds, less in towns and coal country; up per player on the ground |
 
 ---
 
@@ -1565,7 +1609,7 @@ Comet material is the high-risk contract: it is the best freight payout and it m
 | **Tier progression** | Deep territory is meaningfully harder than Local at matched crew and length |
 | **Vote bounds** | Dead-vote weighting never exceeds ×1.5, keeps want-tag shares, and never bypasses a gate, cap or once-per-run limit |
 
-Spawn tuning is the single largest use of the agent harness. Seventeen enemies against four tiers, seven crew sizes and a variable consist length is a space no human tester can cover — but it can be swept exhaustively overnight.
+Spawn tuning is the single largest use of the agent harness. Eighteen enemies against four tiers, seven crew sizes and a variable consist length is a space no human tester can cover — but it can be swept exhaustively overnight.
 
 ---
 
@@ -2152,6 +2196,15 @@ Agents can't tell whether it's funny, but they can tell whether everyone was on 
 
 *Added October 2026. A running log of the director's play-tests and reviews of a build: what was said (the point, not verbatim), tracked against the design. Newest entry first. Each entry gives the date, the build number and what was played, then the notes grouped by area. Each note carries a status: **open**, **in progress** (with its task), **fixed in PR …**, or **design change → §/note** for a note that changed the design. Praise and observations that need no work are marked **keep** or **noted**. When a review decides something about the design, a **Decided** line names the section it changed, and that section carries the date of the decision; engineering detail goes in the numbered notes of `docs/ARCHITECTURE.md`.*
 
+## F.4 2026-10-08 — main's test builds, the night of 7–8 Oct
+
+**Played:** the director, the night's test builds of main.
+
+**Yards and loot**
+- Pulling into a yard's siding took real work (the switch thrown, the cut eased in), and the siding had no loot; then the loot appeared in the yard after the train had already stopped. Loot should be on every yard line in the early and mid game. *Done (queue #89, ARCHITECTURE §8 note 352): on local, frontier and dead-lines yards every siding has something to load beside its loading face (before, about one yard in thirteen had a bare one); and a stop's loot, and a facility's crates, are out 800 m before the train gets there, so nothing appears in front of the crew.*
+
+**Decided** (the director, 8 Oct 2026): every yard line holds loot on the early and mid tiers, and loot is never seen appearing. Level-design P14 (and stops.json `everyTrack`, loot.json `stockAhead`).
+
 ## F.3 2026-10-07 — main at 8442eee, and the integration test builds
 
 *Numbered F.3 so that "App. F.1" stays the build 1121 review it has always meant; newest first all the same.*
@@ -2174,7 +2227,7 @@ Agents can't tell whether it's funny, but they can tell whether everyone was on 
 - A couple of playtests ago, running hot the whole time and never stopping, two Car Huggers came. More threats that can board the train at speed, to give players things to do. *First piece done (note 328): the hound run. A train run faster than the hounds' own 19 m/s for 2.4 km (sooner with the boiler hot) draws a stream of Cinder Hounds faster than it is, so a hot train can't outrun them: 2 runners solo, up to 6 at crew 8, in pairs on alternating flanks. Missed, they board the rear car at any speed. More at-speed boarders are proposed in [orchestrator.md](orchestrator.md) §5.2.*
 
 **Pacing on the train**
-- Point A to point B is still relatively boring. The director is open to ideas: activities on the train, things players do to maintain the train while it runs; threats attacking the train tower-defense style, to give the gunners something to do. *Tower defence, first piece done (note 328): the guns answer the hound run one hound at a time. A ball landing near a runner scatters it, and one good shot between a pair takes both. Upkeep while the train runs ([orchestrator.md](orchestrator.md) §5.1), first job in (queue #71, note 331): the hot box, an axle box running dry as the train runs, a squeal then smoke at a car's rear bogie, greased from the gap behind it or the ground beside; left alone it drags the train off its top speed, then the car catches fire.*
+- Point A to point B is still relatively boring. The director is open to ideas: activities on the train, things players do to maintain the train while it runs; threats attacking the train tower-defense style, to give the gunners something to do. *Tower defence, first piece done (note 328): the guns answer the hound run one hound at a time. A ball landing near a runner scatters it, and one good shot between a pair takes both. Upkeep while the train runs ([orchestrator.md](orchestrator.md) §5.1), first job in (queue #71, note 331): the hot box, an axle box running dry as the train runs, a squeal then smoke at a car's rear bogie, greased from the gap behind it or the ground beside; left alone it drags the train off its top speed, then the car catches fire. The second is in (queue #83, note 346): a car's lamp guttering, trimmed with the lamp key inside; left alone it goes out and the car is dark.*
 - A threat orchestrator that takes into account how many players are in the game and orchestrates threats to the number currently active. A design outline first; it can go to a different chat. *Outlined (queue #67, note 328): [the threat orchestrator, and the run between stops](orchestrator.md): the orchestrator over the director (who's active, at which post, and how long since each had something to answer), upkeep while the train runs, threats that board at speed, waves at the guns, pacing targets, what changes in the director, and five questions for the director.*
 
 **Repairs**
@@ -2196,10 +2249,10 @@ Agents can't tell whether it's funny, but they can tell whether everyone was on 
 - The lobby name field starts typing as soon as WASD reaches it. It should need Enter or a click. *Done (note 264): it needs Enter or a click.*
 
 **Audio**
-- Turning on the spot shouldn't make a sound; only walking should. *Open.*
+- Turning on the spot shouldn't make a sound; only walking should. *Done (note 355): turning on the spot is silent; stopping short from a run still scuffs.*
 - Footsteps on the ground sound wrong; on wood and grates they're good. *Done (queue #91, note 354), with the director's 8 Oct note on the test build ("a super weird squishy footstep sound when I walk on the stones in the town"): every ground set was a boom or a soft wobble a step (the packs' steps lowpassed, or soft soles). Stone (the streets, the halts, inside the buildings) is now a hard boot's crack and the stone's dead knock; dirt a short dead tup with dry crumbs and needles; grass its swish over a soft tup; ballast a stone heel under the crunch; mud the squelch without the boom. Still to come with B2's walled towns (#267): their streets heard as the stones they're drawn in, where the land under them (grass, or the shore's red mud) plays now.*
 - The boiler over-pressure sound is good (§23, Boiler rupture). *Keep.*
-- The gun's traverse sound is bad. *Open.*
+- The gun's traverse sound is bad. *Done (note 329, #252; again in App. F.3): the lay is a low motor hum with a slow, deep gear clunk.*
 - The train is near-silent on the rail: no rolling sound to reinforce speed. *In progress (T127).*
 - There's no audible stress before a derailment (A.1: whole-train events carry their own telegraph). *In progress (T127).*
 - The Choir was heard behind the train (A.7). *Noted.*
@@ -2268,7 +2321,7 @@ Agents can't tell whether it's funny, but they can tell whether everyone was on 
 - **Benchmark every creature** against how it feels in Lethal Company and R.E.P.O.
 - **The Sleepers go.** "The game is forcing a tactical point of derailment on its own behalf, not against the player's control." A derailment must clearly be the driver's mistake: someone not paying attention to the map. *Done (note 265).*
 - **Cinder Hounds that board stay aboard.** They keep setting the car alight while they eat the supplies, which forces the crew to confront them. *Done (note 269).*
-- **The world is solid.** The carry that clipped straight through the mountain made everything feel like 2D billboards. Creatures, carries and players must respect the terrain and geometry; everything should be interactable.
+- **The world is solid.** The carry that clipped straight through the mountain made everything feel like 2D billboards. Creatures, carries and players must respect the terrain and geometry; everything should be interactable. *Part done (notes 273, 274, 279, 281, 326): the Whistler's carry runs over the ground to a nest clear of hills and buildings; the fortresses and every stop building are solid (the sheds and the Holdouts by their doors); a tunnel's lining holds whoever's in it; nobody walks up a cliff; what runs beside the train runs inside the bore, on the deck and on the land; what's loose in the world is out of the buildings and on the ground. B2's towns have their solid square and houses to walk into (note 281), and B4's open houses their finds to search (note 326). Still open: lineside props, and doors that shut.*
 - **UI.** It's still too heavy overall, but players need a way to track all the supplies on board. *Done (notes 264, 277): a supplies panel on I.*
 - **The fortress and the lobby are safe spaces.** Until the run starts, nothing of consequence happens: no boiler overheating, no threats. Players wait for friends, mess about, or walk away for a cigarette, and resume when they're ready (as in Lethal Company's ship). *Done (note 263).*
 - **Bug:** the guns do nothing. Rounds don't collide where they land and have no visible effect on the monsters. *Done (note 290): every creature in the open has a body a ball stops at, fitted to its model; a ball lands as a heavy blow, answered by the creature's own rule (hurt, a held crewmate freed, a Grumbler turned on the gunner); a hit throws the creature's insides, and a wall keeps the scorch. The Fire Flies and the Choir's ghosts have no body. Whether each can be killed stays with queue #25.*

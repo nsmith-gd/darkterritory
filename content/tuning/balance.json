@@ -46,8 +46,9 @@
     // for what's sent at a crew on foot, then walks to within gauntM of a sleeping Gaunt (it wakes at enemies.json wakeAt 4)
     // or ribbitM of a Ribbit pack (away from the others: outnumbered), if it's within seekM; up on the roofs it stays out
     // there (not in for a bag) and stands edgeM in from the lip over a Dragger (it reaches draggers.grabRange 1.0 in). Once
-    // each, then back to its post. DESIGN-TODO: first pass; a curious player, roughly.
-    "look": { "waitSeconds": 12, "seekM": 80, "gauntM": 3, "ribbitM": 5, "edgeM": 0.6 },
+    // each, then back to its post. A Moose (note 339) it walks up to mooseM of, inside its crowding, and stands gawking
+    // (a curious player who won't give it room). DESIGN-TODO: first pass; a curious player, roughly.
+    "look": { "waitSeconds": 12, "seekM": 80, "gauntM": 3, "ribbitM": 5, "mooseM": 10, "edgeM": 0.6 },
     // §22: "hazards remove your tools. They never change enemy rules." What each set takes away, laid over the line:
     // adhesion (wet rail; 0.75 is the generator's wettest, linegen tiers.json wetBiasAdhesion), coldStep (deep cold, added
     // to the line's), wind (gunfire carries; 1 is Deep Territory's worst night), lampsOut (§23 "lights fail": the forward

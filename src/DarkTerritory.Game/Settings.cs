@@ -3,6 +3,9 @@ using Ballast;
 
 namespace DarkTerritory.Game;
 
+/// <summary>The HUD's palette (note 348).</summary>
+public enum HudColours { Standard, Colourblind }
+
 /// <summary>
 /// A player's settings (roadmap M6 "settings"): sound, voice, the HUD, VR comfort, the mouse, and the display (T83). One small text
 /// file in the user's app data, beside the save slots; the front end's settings screen writes it as you change things.
@@ -68,6 +71,11 @@ public sealed record Settings
     /// and scaled up to the window (<see cref="Canvas"/>), so everything on it grows together and keeps its layout.
     /// </summary>
     public double TextSize { get; init; } = 1;
+    /// <summary>
+    /// Note 348: the HUD's colours that mean something, as drawn or told apart without red against green (hud.json's
+    /// <see cref="HudTuning.Standard"/> and <see cref="HudTuning.Colourblind"/>).
+    /// </summary>
+    public HudColours Colours { get; init; } = HudColours.Standard;
 
     /// <summary>The outfit as the wire has it (note 298): none for −1 or anything off the end.</summary>
     public byte OutfitByte(int outfits) => Outfit >= 0 && Outfit < outfits ? (byte)Outfit : Sim.Net.Messages.NoOutfit;
@@ -187,14 +195,14 @@ public sealed record Settings
         && VoiceVolume == other.VoiceVolume && MicDevice == other.MicDevice && MicLevel == other.MicLevel
         && VrTurn == other.VrTurn && VrVignette == other.VrVignette && MouseSpeed == other.MouseSpeed
         && InvertMouse == other.InvertMouse && FieldOfView == other.FieldOfView && CameraShake == other.CameraShake && Outfit == other.Outfit
-        && TextSize == other.TextSize
+        && TextSize == other.TextSize && Colours == other.Colours
         && Fullscreen == other.Fullscreen && VSync == other.VSync && Resolution == other.Resolution && RenderScale == other.RenderScale
         && PlayerName == other.PlayerName && PublicLobby == other.PublicLobby && LobbyName == other.LobbyName
         && Keys.Count == other.Keys.Count && Keys.All(k => other.Keys.GetValueOrDefault(k.Key) == k.Value);
 
     public override int GetHashCode() => HashCode.Combine(Mute, PushToTalk, Hud, VrTurn, VrVignette, MouseSpeed, Keys.Count,
         HashCode.Combine(Fullscreen, VSync, Resolution, RenderScale, PublicLobby, LobbyName, HashCode.Combine(MasterVolume, EffectsVolume, MusicVolume, VoiceVolume, MicDevice, MicLevel),
-            HashCode.Combine(InvertMouse, FieldOfView, CameraShake, Outfit, ControlHints, TextSize)));
+            HashCode.Combine(InvertMouse, FieldOfView, CameraShake, Outfit, ControlHints, TextSize, Colours)));
 
     /// <summary>The field of view the eyes are drawn at (note 297): the setting if it's one on offer, else 75.</summary>
     public float EyeFov => (float)(FieldsOfView.Contains(FieldOfView) ? FieldOfView : 75);
