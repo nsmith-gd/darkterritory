@@ -127,7 +127,7 @@ public static partial class StopGenerator
                 { Variant = R.Int(0, 3) }).ToList();
                 var shed = new StopBuilding(BuildingKind.GoodsShed, StopZone.Village, s0 + gd.Shed[0] / 2 + R.Range(4, Math.Max(4, length - gd.Shed[0] - cars * (gd.Car[0] + gd.CarGap))),
                     d + gs * (gd.Car[1] / 2 + 3 + gd.Shed[1] / 2), gd.Shed[0], gd.Shed[1], 0)
-                { Variant = R.Int(0, 2) };
+                { Variant = R.Int(0, 2), Open = t.Village.OpenSheds };
                 var siding = new List<Pt> { new(s0, d), new(s1, d) };
                 if (!stock.All(c => g.Fits(c, new Fit(Gap: 0.5, Rail: 4, Road: 1))) || !g.Fits(shed, new Fit(Gap: 1, Rail: 4, Road: 1)) || !g.Clear(siding, 3))
                     continue;
