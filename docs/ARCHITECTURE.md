@@ -5700,3 +5700,20 @@ Terrain sculpting tools, a node-graph material editor, a general-purpose visual 
      - Each night's first run: 3, 2 and 5 boarded before; 0, 0 and 0 after.
      - Rounds fired: 3, 4 and 0 before; 14, 7 and 5 after.
      - Deaths: 5, 1 and 3 before; 4, 0 and 3 after (the rest at speed are #117's). 12.0, 9.6 and 12.0 km before; 12.7, 9.6 and 12.0 after.
+
+418. **The flank lanes (queue #154, D1; [orchestrator.md](design/orchestrator.md) §5.3 6: "lanes on the flanks from the open country's sides").** After the lane ahead (note 405), the run's runners still came only along the line.
+   - **What comes.** Of a run's pairs, every `run.flankEvery`-th (3; the third of each run, where the lane ahead's is the second) comes in from the open country instead, to a train whose last car has its gun.
+     - Open country: the line's biome is one of `flankBiomes` (all but the forests, `blackForest` and `forestEdge`), and the land is open `flankOut` m out (`LateralRoom`: not a tunnel's bore or a bridge's deck).
+     - A crew of eight (a run of 6) meets a pair behind, one ahead and one from the flank in each run.
+   - **Where.** Abeam the guard van's gun (`flankAbeam`, 4 m ahead of the train's rear end), `flankOut` (70) m out. The outline said "both guns, at the edges of their arcs"; they don't reach. A gun traverses 100° either side of its facing, so abeam its own car is the flank it has. Abeam the middle of the train neither gun reaches (the first test's gunner never fired: `OutOfTraverse`). The middle stays the walkers'.
+   - **How.** Keeping pace with the train, they howl, then run in across the open ground at `flankSpeed` (6 m/s). They leap onto the car they come alongside, on their side; it is never the engine (hooded, note 338). That gives the guard van's gun about fifteen seconds from the howl. They are answered as the run's runners are (a ball within `scatter`).
+   - **Counted.** `Director.FlankPairs`, `FlankRunners(pack)`, and `dt harness`'s `houndRuns[].flank`. `dt screenshot --run-flank --view run`: three pairs out in the field abeam the guard van, looked at.
+   - **Tests.** `HoundRunTests`:
+     - The lane on its own (`flankEvery` 1) is put down abeam the rear end, 70 m out. It keeps pace through the howl, then boards a car (not the engine) on its side.
+     - The guard van's gunner scatters or kills a flank pair before it boards.
+     - A crew of eight's run is a pair behind, one ahead and one from the flank.
+   - **Bot nights.** `dt harness --route frontier:7 --bots 8 --enemies --upkeep --express 21 --seconds 900`, seeds 1-3, before and after (frontier:7's runs come at 3-7 km, in the hills):
+     - Before: 10.2, 9.6 and 12.0 km; 6, 2 and 4 deaths; 4, 0 and 4 cars lost; 5, 3 and 0 runners aboard a night.
+     - After: 9.6, 10.2 and 9.6 km; 1, 6 and 0 deaths; 0, 5 and 0 cars lost; 5, 8 and 10 runners aboard a night.
+     - The guard van's one gunner now has the lane behind and the flank at once, so more of a big crew's run gets aboard. That is the walkers' fight, and the tower defence's pressure on a crew of eight.
+   - **Not yet.** Other runners than hounds. A flank pair abeam the engine for the forward gun (the lane ahead is its).
