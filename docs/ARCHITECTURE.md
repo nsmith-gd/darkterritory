@@ -5782,6 +5782,35 @@ Terrain sculpting tools, a node-graph material editor, a general-purpose visual 
         - `dt art check`: 928 of the large prop's 8,000.
         - The Game suite.
         - Looked at: from the building camera, closer, at night, from the air and from the crane, before and after, and on the turntable.
+415. **The walled town heard (AU1, queue #151; the towns since note 335, B2's notes 353 and 335; the director's notes of 8 Oct, towns that are lived in).** The departure town was silent apart from the fortress's loop and the night: fire barrels and braziers burning in its square, ranges lit in its lived-in houses, a clock or a wireless kept by a household for the town's custom, its people standing about. None of them made a sound.
+    - **How:** `GameAudio.TownSounds` (`GameAudio.Town.cs`) reads `World.Town`'s plan, which is the same on every machine. Every quarter second it looks round for what's near the ear (`TownLook`). It holds each thing where it is:
+        - The square's fire barrels and braziers within 40 m (`place-town.fire`, the nearest 4), at the fire's mouth.
+        - A house's range, clock or wireless (`place-town.range`, `.clock`, `.radio`, the nearest 3), where it stands.
+        - The townsfolk out of doors within 30 m (`place-town.murmur`), at the middle of them, at a level that grows with how many there are (full at 4). Now and then one of them coughs (`place-town.cough`), more often the more there are: about once a minute for one person.
+        - A townsperson's position is `Town.Feet`. On main, that's their post. Once B2's #389 lands, it's where their round has taken them, with no change here.
+    - **The houses' walls:** `GameAudio.TownHouseAt` finds which town house a point stands in (the house's main block, in its own frame).
+        - A house's thing is clear to an ear inside that house, and heard through its walls (`TownWall`, 0.6) from anywhere else.
+        - From inside a house, the square's fires and people come through its walls the same way.
+        - Shut doors and windows let through less than a stop's broken-open room (`roomWall`, note 396).
+    - **The sounds** (`tools/audio/recipes/town.py`): eight candidates on the Audio Checklist's new `place-town` line. The installed pick is first in each pair (`install.py` `FIRST_CHOICE`; ranges in `CUE_DEF`).
+        - Fire, `drum`: an oil drum's wood fire, with the drum's steel ticking as it heats.
+        - Fire, `coals`: a brazier's coal bed, glowing more than flaming.
+        - Range: the fire heard through cast iron, the draught through the door's vents, and a kettle just on the simmer.
+        - Clock: a longcase clock's tick-tock, exactly a second apart across the loop's seam.
+        - Wireless: world_voice's weak-signal static, with a far station swelling up and away, too far for words.
+        - Murmur, `masks`: four voices talking low on shut vowels through a breathing mask's rubber cup. Synth glottis and tract, with pauses between phrases, so it never resolves into words.
+        - Murmur, `close`: two people nearer, their breath rasping through respirator filters.
+        - Cough: mostly air, with a short rough voiced edge, through the mask.
+    - **Not yet:**
+        - Townsfolk footsteps on their rounds, which wait on #389's `TownPose.Walking`.
+        - A townsperson saying anything when spoken to: their lines are text.
+        - The bandstand, the watch on the wall and the green (#389).
+        - A town house's interior as a "room" space: its reverb is the open night's.
+    - **Pinned:** `WorldSoundTests.TheWalledTownIsHeardItsFiresItsRoomsAndItsPeople`, on a town of 3000 as `World.EnableTown` stands it:
+        - Beside a fire barrel, its fire plays at the barrel with nothing between.
+        - In a lived-in house's kitchen its range is clear; from the street in front of the house it comes through the walls.
+        - Among the townsfolk, their murmur plays, and a cough comes within 90 s.
+        - 3 km away, none of it plays.
 
 373. **The film's extras and water (A1, queue #110; App. E.3: "Extras: bodies of the already-dead stowed in cars, crates, loot and extinguishers aboard all join the wreck. They never get their own shot"; "Water: bodies get buoyancy and drag and float face down. Cars sink"; "Body budget: up to 8 player ragdolls, 8 extra ragdolls, 20 cars and 40 loose items. Past that, the loose items furthest from any player freeze in place"; E.7: "it's the second time their owner has died tonight").** Until now the film had the crew, the cars and what the crew were carrying (note 370). Everything else aboard vanished on the derail tick and was gone while the wreck played, and a body that went into a lake lay on its bed.
     - **What goes in** (`World.FilmExtras`): every body whose parent is a car in the wreck at the derail tick: the stowed dead, crates, cargo, loot, the extinguishers and the guard van's stores. Not what's in someone's hands (that's note 370's load), what's shut in a locker, or what something is carrying off. Each is in the world as it lay, at its car's velocity there (the car's spin included). It goes into the film's start (`FilmStart.Extras`), which clients are sent, so every machine records the same wreck.
