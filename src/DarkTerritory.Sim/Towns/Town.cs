@@ -316,7 +316,7 @@ public sealed class Town
     }
 
     /// <summary>
-    /// Where a thing is looked at: most of the way up it, but no higher than a head (a works' headframe, the flag: note 447),
+    /// Where a thing is looked at: most of the way up it, but no higher than a head (a works' headframe, the flag: note 353),
     /// so a tall one is read from its foot like anything else.
     /// </summary>
     public Double3 LookAt(TownFixture f) => World(f.S, f.D, Math.Clamp(f.Height * 0.6, 0.3, LookTop));

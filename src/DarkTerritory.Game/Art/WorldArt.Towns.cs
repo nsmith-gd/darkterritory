@@ -58,7 +58,7 @@ public sealed partial class WorldArt
     }
 
     /// <summary>
-    /// A walled town's works (queue #183, note 447): each piece where the plan stands it, a facility's modelled piece
+    /// A walled town's works (queue #90, note 353): each piece where the plan stands it, a facility's modelled piece
     /// (<see cref="WorksKit.Prop"/>) on its fixture's footprint, else the kit's; their lights; the works' cinder ground.
     /// </summary>
     public void Works(MeshBuilder mesh, RailLine line, Double3 eye, Town town, double from, double to)
@@ -89,7 +89,7 @@ public sealed partial class WorldArt
         }
     }
 
-    /// <summary>Where the works' stacks and chimneys smoke (note 447): the foundry's stack, the winding house's chimney.</summary>
+    /// <summary>Where the works' stacks and chimneys smoke (note 353): the foundry's stack, the winding house's chimney.</summary>
     public IEnumerable<Vector3> Stacks(RailLine line, Double3 eye, Town town, double reach)
     {
         if (town.Plan.Works is not { } works)

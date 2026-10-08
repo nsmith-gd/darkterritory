@@ -2428,7 +2428,7 @@ public sealed class GreyboxScene
                 // its watch walking the wall with their lanterns.
                 foreach (var top in Look.Art.World.Chimneys(line, eye, town, 160))
                     Look.Art.Effects.Chimney(mesh, top, Time, (int)(top.X * 7 + top.Z * 13));
-                // And the works' (note 447): the foundry's stack and the winding house's chimney, thicker.
+                // And the works' (note 353): the foundry's stack and the winding house's chimney, thicker.
                 foreach (var top in Look.Art.World.Stacks(line, eye, town, 420))
                     for (int plume = 0; plume < 3; plume++)
                         Look.Art.Effects.Chimney(mesh, top + new Vector3(0, plume * 0.6f, 0), Time + plume * 1.7, (int)(top.X * 7 + top.Z * 13) + plume * 31);

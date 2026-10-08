@@ -802,7 +802,7 @@
     ]
   },
 
-  // A walled town's works by its trade (queue #183, note 447; the industries' keys, then "any"): the pieces in the order
+  // A walled town's works by its trade (queue #90, note 353; the industries' keys, then "any"): the pieces in the order
   // they stand along the line, what each is called and what looking at it tells you. "after": stands that far along the
   // line from the piece before it (the winding house from its headframe: the ropes run between them).
   "works": {

@@ -4,7 +4,7 @@ using Ballast.Render;
 namespace DarkTerritory.Game.Art;
 
 /// <summary>
-/// A walled town's works (queue #183, note 447; GDD §3: "Fortified towns survive behind stone and steel walls ... furnaces,
+/// A walled town's works (queue #90, note 353; GDD §3: "Fortified towns survive behind stone and steel walls ... furnaces,
 /// rail yards and warehouses"): its trade at work inside its wall. Where a facility's piece is modelled (tools/models
 /// facility_pieces: the mine head's headframe, winding house and tip, the grain elevator, the foundry's shed and stack, the
 /// water tower) the works stand it as it is, scaled to the town (<see cref="Prop"/>), its footprint on its fixture's

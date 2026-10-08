@@ -45,7 +45,7 @@ public static partial class TownGenerator
     /// </summary>
     static int Precedence(Spot spot) => spot.Street ? 6 : spot.House >= 0 ? 2 : spot.Role switch
     {
-        // The keeper, and the hands at the works (note 447): the trade's lines are theirs first.
+        // The keeper, and the hands at the works (note 353): the trade's lines are theirs first.
         "keeper" or "hand" => 0,
         "" => 1,
         "gatekeeper" or "guard" => 3,
@@ -161,7 +161,7 @@ public static partial class TownGenerator
         }
         if (homes.Works is { } works)
         {
-            // A walled town's works (note 447; GDD §3: "Fortified towns survive behind stone and steel walls ... furnaces, rail
+            // A walled town's works (note 353; GDD §3: "Fortified towns survive behind stone and steel walls ... furnaces, rail
             // yards and warehouses"): its trade's pieces, then what every town's works have, in order along the line, each
             // that fits between the streets; packed (the winding house its ropes' length from its headframe) and centred.
             var wt = t.Walled;
@@ -269,7 +269,7 @@ public static partial class TownGenerator
             // Out on the street in front of it, clear of an enclosed porch (HouseDesign.VestibuleDepth).
             spots.Add(new("", h.S + (i % 3 - 1) * 1.2, h.FrontD - h.Side * 2.6, 0, -h.Side, 0, Street: true, Pose: "lantern"));
         }
-        // The works' hands (note 447), at work all night: in front of a piece with a door or a mouth to it, one a kind.
+        // The works' hands (note 353), at work all night: in front of a piece with a door or a mouth to it, one a kind.
         if (homes.Works is { } atWork)
             foreach (var f in fixtures.Where(f => atWork.Holds(f.S, f.D) && f.Kind is "headframe" or "winding" or "casting" or "glasshouse"
                 or "elevator" or "warehouse").DistinctBy(f => f.Kind).Take(t.Walled.WorksHands))
@@ -541,7 +541,7 @@ public static class TownFixtures
         "flag" => (0.15, 0.15, 8.0),
         "laws" => (0.9, 0.12, 2.0),
         "mural" => (5.0, 0, 4.0),
-        // A town's works (note 447), its front to the line: the pit's headframe and its winding house, the tip; the elevator,
+        // A town's works (note 353), its front to the line: the pit's headframe and its winding house, the tip; the elevator,
         // a glasshouse, a root cellar; the casting shed and its stack, the slag; coal and pig iron in heaps; the warehouse,
         // the water tower.
         // (Those that are the facilities' modelled pieces are their meshes' footprints as the works draw them, which

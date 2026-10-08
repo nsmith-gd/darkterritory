@@ -8,7 +8,7 @@ using DarkTerritory.Sim.Train;
 namespace DarkTerritory.Sim.Tests;
 
 /// <summary>
-/// A walled town's works (queue #183, ARCHITECTURE §8 note 447; GDD §3: "Fortified towns survive behind stone and steel
+/// A walled town's works (queue #90, ARCHITECTURE §8 note 353; GDD §3: "Fortified towns survive behind stone and steel
 /// walls ... furnaces, rail yards and warehouses. ... One settlement produces coal. Another grows food. Another ...
 /// operates foundries"): its trade at work inside its wall, across the line from its green, solid, each piece to be
 /// looked at, its hands at work there all night.

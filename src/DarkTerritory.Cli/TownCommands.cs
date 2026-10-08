@@ -38,7 +38,7 @@ static class TownCommands
                 streets = b.Streets.Select(x => Math.Round(x.D, 1)).Order(),
                 lanes = b.Lanes.Select(x => Math.Round(x.S - gate, 1)),
             } : null,
-            // Its works (note 447): its trade, where they stand, and each piece along the line from their start.
+            // Its works (note 353): its trade, where they stand, and each piece along the line from their start.
             works = plan.Works is { } wk ? new
             {
                 wk.Trade,

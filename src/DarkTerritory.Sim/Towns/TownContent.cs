@@ -125,7 +125,7 @@ public sealed record WalledTuning
     /// <summary>The most streets a side.</summary>
     public int MaxStreets { get; init; } = 5;
     /// <summary>
-    /// The town's works (queue #183, note 447), across the line from the green: how far before the square's rear end and
+    /// The town's works (queue #90, note 353), across the line from the green: how far before the square's rear end and
     /// past its gate end they run along the line, how far their pieces keep from their streets and the works' ends, and
     /// the room between pieces (m).
     /// </summary>
@@ -133,7 +133,7 @@ public sealed record WalledTuning
     public double WorksPast { get; init; } = 6;
     public double WorksMargin { get; init; } = 1.5;
     public double WorksGap { get; init; } = 3;
-    /// <summary>How many of the town's hands are out at its works at night (note 447).</summary>
+    /// <summary>How many of the town's hands are out at its works at night (note 353).</summary>
     public int WorksHands { get; init; } = 3;
 }
 
@@ -181,7 +181,7 @@ public sealed record TownWriting
     /// <summary>The green's and the walls' pieces by kind (statue, memorial, bandstand, garden, tree, flag, mural): what each is called and what looking at it tells you.</summary>
     public Dictionary<string, TownText[]> Civic { get; init; } = [];
     /// <summary>
-    /// A walled town's works by its trade (queue #183, note 447; the industries' keys, and "any" for what every town's works
+    /// A walled town's works by its trade (queue #90, note 353; the industries' keys, and "any" for what every town's works
     /// have after its own): the pieces in the order they stand along the line, each with what looking at it tells you.
     /// </summary>
     public Dictionary<string, TownWork[]> Works { get; init; } = [];
@@ -205,7 +205,7 @@ public sealed record TownHousehold
 public sealed record TownText(string Title, string Text);
 
 /// <summary>
-/// A piece of a town's works (note 447): its <see cref="Kind"/> (its art and its size, <see cref="TownFixtures.Size"/>), what
+/// A piece of a town's works (note 353): its <see cref="Kind"/> (its art and its size, <see cref="TownFixtures.Size"/>), what
 /// it's called and what looking at it tells you; <see cref="After"/>, where it must stand that far along the line from the
 /// piece before it (the winding house from its headframe, its ropes run between them), else packed after it; and
 /// <see cref="Across"/>, how far from the works' middle it stands toward their far street (negative: toward the line).

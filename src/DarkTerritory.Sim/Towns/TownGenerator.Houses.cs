@@ -23,7 +23,7 @@ public static partial class TownGenerator
         public TownBounds? Bounds;
         /// <summary>A walled town's green, across the first street from the square (note 353).</summary>
         public TownGreen? Green;
-        /// <summary>A walled town's works, across the line from the green (note 447).</summary>
+        /// <summary>A walled town's works, across the line from the green (note 353).</summary>
         public TownWorks? Works;
         readonly Dictionary<int, (TownHousehold Household, Dictionary<string, string> Vars, Dictionary<string, Queue<string>> Lines)> _open = [];
 
@@ -124,7 +124,7 @@ public static partial class TownGenerator
         double Amp(int k) => k <= 0 ? 0 : Math.Min(wt.BendMax, wt.BendBase + wt.BendStep * (k - 1));
         // How far out from straight the k-th street (and its rows) is at s, on side sd (0 for the line's own row).
         double Swing(int sd, int k, double s) => k <= 0 ? 0 : Amp(k) * waves[sd].At(s);
-        // The works' stretch along the line (note 447), across it from the square and its green.
+        // The works' stretch along the line (note 353), across it from the square and its green.
         double worksFrom = Math.Max(s0, square.S0 - wt.WorksBefore), worksTo = Math.Min(s1, square.S1 + wt.WorksPast);
         if (lots.Count < needed)
         {
@@ -144,7 +144,7 @@ public static partial class TownGenerator
             // a lane meets each street it turns a few metres one way or the other, so no two crossings line up and a lane is
             // never a sight-line from the line to the wall. It wanders no more than two turns from where it crosses the line
             // (the next lane is further than that), never into the square, nor across the green beyond it, nor through the
-            // works across the line from them (note 447).
+            // works across the line from them (note 353).
             var jrng0 = rngFor("houses.lanes");
             double wander = 2 * wt.LaneJog[1];
             foreach (double at in laneAt)
@@ -221,7 +221,7 @@ public static partial class TownGenerator
                         bool inSquare = sd == side && mid > square.S0 - 6 && mid < square.S1 + 6 && Math.Abs(d) - depthMax / 2 < Math.Abs(square.WallD) + 3;
                         // The green (note 353): the first street's far row and the next street's near one, across from the square.
                         bool onGreen = sd == side && row is 2 or 3 && mid + lot / 2 > square.S0 + GreenIn && mid - lot / 2 < square.S1 - GreenIn;
-                        // The works (note 447): the same rows on the line's other side, a little past the square's ends.
+                        // The works (note 353): the same rows on the line's other side, a little past the square's ends.
                         onGreen |= sd == -side && row is 2 or 3 && mid + lot / 2 > worksFrom && mid - lot / 2 < worksTo;
                         double back = jrng.Range(wt.SetbackJitter[0], wt.SetbackJitter[1]);
                         if (!lane && !inSquare && !onGreen)

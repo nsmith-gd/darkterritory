@@ -127,7 +127,7 @@ public static class Staging
                 _ => Ballast.Render.Camera.LookAt(town.World(green.S0 - 6, near - side * 2, 4.5), town.World(gs + 6, gd, 0.5), 72),
             };
         }
-        // A walled town's works (note 447): from the first street on their side, and from over the line looking across them.
+        // A walled town's works (note 353): from the first street on their side, and from over the line looking across them.
         if (plan.Works is { } works && where is "works" or "worksover" or "worksend")
         {
             double ws = (works.S0 + works.S1) / 2, wd = works.Side * (works.Near + works.Far) / 2;
@@ -1374,10 +1374,13 @@ public static class Staging
         double rear = train.Dynamics.RearDistance;
         var runners = new List<Enemy>();
         // The flank lanes (note 418; dt screenshot --run-flank --view run): three pairs coming in from the open country abeam
-        // the guard van, the furthest still howling out there, the nearest at the car's side.
+        // the guard van, the furthest still howling out there, the nearest at the car's side. And on the other side (note 443;
+        // --view lane), three abeam the engine's gun, falling back along the engine to the first car behind it as they come in.
         if (flank)
         {
             (double Out, SpinePhase Phase)[] lane = [(9, SpinePhase.Commit), (30, SpinePhase.Commit), (62, SpinePhase.Telegraph)];
+            double gun = Director.ForwardGunAlong(train) ?? train.Dynamics.Distance - 8;
+            double first = train.Dynamics.Distance - train.Dynamics.Consist.OffsetOf(Math.Min(1, train.Dynamics.Consist.Vehicles.Count - 1)) - 1;
             int f = 60;
             foreach (var (o, phase) in lane)
                 for (int k = 0; k < 2; k++)
@@ -1385,6 +1388,11 @@ public static class Staging
                     var hound = new CinderHound(f, 60) { Runner = true, Flank = true };
                     hound.Restore(phase, 1.5 + k * 0.4, 3, -1, default, rear + 4 - k * 3, -(o + k * 3), 0.6, 60, 0);
                     runners.Add(hound);
+                    f++;
+                    double fell = phase == SpinePhase.Telegraph ? 0 : 1 - (o - 2) / 68;
+                    var forward = new CinderHound(f, 60) { Runner = true, Flank = true };
+                    forward.Restore(phase, 1.5 + k * 0.4, 3, -1, default, gun + (first - gun) * fell - k * 3, o + k * 3, 0.6, 60, 0);
+                    runners.Add(forward);
                     f++;
                 }
             return runners;
