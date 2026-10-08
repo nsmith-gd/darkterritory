@@ -37,7 +37,7 @@ public readonly record struct Clutter(ClutterKind Kind, double X, double Y, doub
 /// like the place has been ransacked many times before"; ARCHITECTURE §8 note 326). Each open house's clutter is dealt from the
 /// stop's seed and the house's index on a stream of its own, so the stop is laid as before, and the same on every machine: the
 /// host collides with the solid pieces as a client predicts it. A table, a bed or a dresser stands (or lies) against a wall,
-/// never by a door, a find, what a find is kept in or the Gaunt's nest (two, sometimes three); eight to fourteen chairs knocked over, drawers pulled out and emptied,
+/// never by a door (an inner one too), a find, what a find is kept in or the Gaunt's nest (two, sometimes three); eight to fourteen chairs knocked over, drawers pulled out and emptied,
 /// shelves' planks, rags, papers, broken crockery, a picture off its nail and a bucket lie about the floor between, never on
 /// a find or in a doorway.
 /// </summary>
@@ -90,6 +90,12 @@ public sealed partial class StopWalls
         }
         foreach (var (_, inside) in Doorways(b))
             clear.Add((inside.X, inside.Y, 1.4));
+        // And the way through to the back room, both sides.
+        foreach (var (one, other) in InnerDoorways(b))
+        {
+            clear.Add((one.X, one.Y, 1.0));
+            clear.Add((other.X, other.Y, 1.0));
+        }
         if (Nest(stop, building) is { } nest)
             clear.Add((nest.X, nest.Y, 1.5));
         var boxes = Furniture(b, kept).Select(f => (f.X, f.Y, f.HalfX, f.HalfY)).ToList();
