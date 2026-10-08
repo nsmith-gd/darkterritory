@@ -61,6 +61,11 @@
     "boiler-strain": "THE BOILER SHRIEKING",
     "state-strain.groan": "THE BOILER SHRIEKING",
     "safety-valve": "THE SAFETY VALVE",
-    "state-valve.blow": "THE SAFETY VALVE"
+    "state-valve.blow": "THE SAFETY VALVE",
+    // The village houses' doors (note 409): a door shut is the Choir's rule ("behind a closed door"), so a reader is told
+    // one's shut or opened as a hearing player is; and shut in anywhere while they besiege it, the beating on its door.
+    "crew-house-door.shut": "A DOOR SLAMMING SHUT",
+    "crew-house-door.open": "A DOOR CREAKING OPEN",
+    "cs-choir.bang-door": "BANGING ON THE DOOR"
   }
 }

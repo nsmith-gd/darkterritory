@@ -1130,7 +1130,8 @@ static object Screenshot(TrainTuning t, string content, string[] args)
             // GDD §18's set pieces (note 185), each from out beyond it on its side, along the line a way, looking back at it.
             Double3 Out(Double3 from) => ((from - line.Sample(site.Spur, site.Spur >= 0 ? line.Branches[site.Spur].Toe + site.Mid : site.Mid).Position) with { Y = 0 }).Normalized;
             Double3 Along() => site.Track.Sample(site.Mid).Tangent;
-            // --close: the set pieces' cameras (the spout, the pen, the lift, the hose) half as far out (note 398).
+            // --close: the set pieces' cameras (the spout, the pen, the lift, the hose) half as far out (note 398); --building's
+            // half as far back along the line (note 410).
             double near = args.Contains("--close") ? 0.5 : 1;
             // The switchyard (note 187): across the gap between the engine and the cars it's coupling up to, from the open side.
             var waiting = site.Has(DarkTerritory.Sim.Run.ModuleKind.Rakes) ? train.Rakes.FirstOrDefault(r => r.Path == train.Dynamics.Path && train.Standing(r)) : null;
@@ -1141,9 +1142,14 @@ static object Screenshot(TrainTuning t, string content, string[] args)
             {
                 double outM = args.SkipWhile(a => a != "--building").Skip(1).FirstOrDefault() is { } given
                     && double.TryParse(given, System.Globalization.NumberStyles.Float, System.Globalization.CultureInfo.InvariantCulture, out var m) ? m : 19;
-                var foot = site.Track.Sample(site.Mid - (site.Spur >= 0 ? 25 : 0));
+                // --shift z: centred on the buildings z m along their own frame instead (the mine head's tip at 33, note 410);
+                // that frame's +Z is back along the track.
+                var foot = site.Track.Sample(site.Mid - (site.Spur >= 0 ? 25 : 0) - Opt(args, "--shift", 0));
                 var right = Double3.Cross(foot.Tangent, Double3.Up).Normalized * site.Side;
-                camera = Camera.LookAt(foot.Position + right * 5 + foot.Tangent * 50 + Double3.Up * 1.7, foot.Position + right * outM + Double3.Up * 15, 72);
+                camera = Camera.LookAt(foot.Position + right * 5 + foot.Tangent * 50 * near + Double3.Up * 1.7, foot.Position + right * outM + Double3.Up * 15, 72);
+                // --aerial: the whole site from up over the far side of the track, its buildings and how they lie (note 410).
+                if (args.Contains("--aerial"))
+                    camera = Camera.LookAt(foot.Position - right * 30 + foot.Tangent * 25 + Double3.Up * 55, foot.Position + right * outM + Double3.Up * 2, 70);
             }
             else if (waiting is not null)
             {
@@ -2218,6 +2224,10 @@ static (DarkTerritory.Game.FrontEnd Menu, DarkTerritory.Game.Screen Screen) Demo
         menu.ModProblems = ["Nightjar-LongerNights isn't loaded: it needs Nightjar-SharedCore-1.2.0, which isn't installed"];
         menu.ModsOff = args.Contains("--no-mods");
     }
+    // --menu crashed (note 411): the notice the game opens on after it stopped, two reports since it was last put away.
+    if (screen == DarkTerritory.Game.Screen.Crashed)
+        menu.Crash = new DarkTerritory.Game.CrashNotice("C:/Users/Nick/AppData/Local/DarkTerritory/crashes",
+            "C:/Users/Nick/AppData/Local/DarkTerritory/crashes/crash-20261008-031522.txt", 2);
     if (screen is DarkTerritory.Game.Screen.Fortress or DarkTerritory.Game.Screen.Upgrades or DarkTerritory.Game.Screen.Stores or DarkTerritory.Game.Screen.DeleteCrew)
         menu.ShowFortress((int)Opt(args, "--slot", 1));
     // --menu night|leave (note 292): the in-night menu over a night hosted on the network for --others n (3), or with
