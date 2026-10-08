@@ -34,8 +34,11 @@ public sealed partial class GameAudio
     {
         public bool Breached;
         public Double3 At;
-        public double HotBox;
+        public double HotBox, Loose, NextKnock, TightenedAt = double.NegativeInfinity;
     }
+
+    /// <summary>A loose pin's knocks a second, just come loose and about to drop: D1's synth's pace (note 356).</summary>
+    const double KnockFrom = 1.4, KnockTo = 5.5;
 
     /// <summary>A hot box that goes cool this near its catching (or nearer) caught: its car's fire is the sound, not a greasing.</summary>
     const double CaughtWithin = 1.0;
@@ -49,12 +52,17 @@ public sealed partial class GameAudio
     readonly Dictionary<int, FaultGun> _faultGuns = new();
     readonly Dictionary<int, FaultCar> _faultCars = new();
     readonly Dictionary<int, Boarder> _boarders = new();
+    // The wrench's mends: each car's shell as it was (mendable or not) and when a crewmate was last at its dent; the lamp.
+    readonly Dictionary<int, (bool Mendable, double At)> _mending = new();
+    bool? _lampSmashed;
+    double _lampMendedAt = double.NegativeInfinity;
     bool _ownFireWas;
 
     partial void FaultSounds(World world)
     {
         FoulSounds(world);
         BreachSounds(world);
+        WrenchSounds(world);
     }
 
     partial void EndNightFaults()
@@ -63,6 +71,9 @@ public sealed partial class GameAudio
         _faultCars.Clear();
         _boarders.Clear();
         _ownFireWas = false;
+        _mending.Clear();
+        _lampSmashed = null;
+        _lampMendedAt = double.NegativeInfinity;
     }
 
     /// <summary>
@@ -134,9 +145,10 @@ public sealed partial class GameAudio
             var hole = train.Frames[v.Id].ToWorld(v.BreachAt);
             if (!_faultCars.TryGetValue(v.Id, out var c))
             {
-                _faultCars[v.Id] = new FaultCar { Breached = v.Breached, At = hole, HotBox = v.HotBox };
+                _faultCars[v.Id] = new FaultCar { Breached = v.Breached, At = hole, HotBox = v.HotBox, Loose = v.Loose };
                 continue;
             }
+            LooseSounds(train, v, c, outside);
             if (v.Breached && !c.Breached)
                 Cue("state-breach.breach", hole, outside);
             // Boarded up: the last nail inside a car that's shut again (heard through its walls from another).
@@ -157,6 +169,15 @@ public sealed partial class GameAudio
             foreach (var (id, s) in CrewStates)
                 if (s.ActionProgress > 0 && HotBoxes.Within(s, train, hbt) is { } box && train.Vehicles[box].HotBox > 0)
                     Hold("crew-upkeep.grease", id, train.Frames[box].ToWorld(HotBoxes.Box(train.Frames[box].Shape, hbt)), outside);
+        // Tightening a loose coupling (note 385): the wrench on the pin's nut while a crewmate's hold there goes on.
+        if (train.Loose is { } lt)
+            foreach (var (id, s) in CrewStates)
+                if (s.ActionProgress > 0 && Couplings.Within(s, train, lt) is { } gap && Couplings.Tightens(s, train))
+                {
+                    Hold("crew-upkeep.tighten", id, Pin(train, gap), outside);
+                    if (_faultCars.TryGetValue(gap, out var tightening))
+                        tightening.TightenedAt = _time;
+                }
 
         foreach (var (id, s) in CrewStates)
         {
@@ -190,6 +211,84 @@ public sealed partial class GameAudio
             b.Progress = s.ActionProgress;
         }
     }
+
+    /// <summary>
+    /// A loose coupling (note 356; queue #122, note 385): the pin knocking in its gap, a take a knock, faster and harder as it
+    /// works out (<see cref="KnockFrom"/> to <see cref="KnockTo"/> a second over its <see cref="LooseTuning.PartAfter"/>), or
+    /// D1's synth loop where no knock's installed. Gone tight with a crewmate's wrench on it a moment ago, the pin seated
+    /// home; left to drop, the parting is the knuckle's and the hoses' (CrewCouplings).
+    /// </summary>
+    void LooseSounds(TrainOnLine train, Vehicle v, FaultCar c, float outside)
+    {
+        if (train.Loose is not { } lt)
+            return;
+        if (v.Loose > 0)
+        {
+            double loose = Math.Clamp(v.Loose / lt.PartAfter, 0, 1);
+            if (!HasCue("state-coupling-loose.knock"))
+                Hold("coupling-loose", v.Id, Pin(train, v.Id), outside)?.Params.Set("loose", loose);
+            else if (_time >= c.NextKnock)
+            {
+                if (c.NextKnock > 0)
+                    Cue("state-coupling-loose.knock", Pin(train, v.Id), outside, (float)(0.55 + 0.45 * loose));
+                // A little uneven, as iron working in a knuckle is: never a metronome.
+                c.NextKnock = _time + (0.85 + 0.3 * _creatureRng.Next()) / (KnockFrom + (KnockTo - KnockFrom) * loose);
+            }
+        }
+        else
+            c.NextKnock = 0;
+        if (c.Loose > 0 && v.Loose <= 0 && _time - c.TightenedAt <= FaultHoldGrace + SimConstants.TickSeconds)
+            Cue("crew-upkeep.tightened", Pin(train, v.Id), outside);
+        c.Loose = v.Loose;
+    }
+
+    /// <summary>
+    /// The wrench's other mends (note 301's slice 2; queue #122, note 385), each held while a crewmate's hold there goes on: a
+    /// dent beaten out (a car's wall from inside, the engine's boiler flank from its running board), and the smashed headlamp
+    /// put right from the cab's front windows. Whole again, or lit again, with the wrench at it a moment ago: done.
+    /// </summary>
+    void WrenchSounds(World world)
+    {
+        var train = world.Train;
+        if (!Repairs.ByWrench(train))
+            return;
+        var lamp = train.Frames[0].ToWorld(Repairs.LampAt(train));
+        foreach (var (id, s) in CrewStates)
+        {
+            if (s.ActionProgress <= 0)
+                continue;
+            if (Repairs.Lamp(s, train))
+            {
+                Hold("crew-repair.lamp", id, lamp, Occlusion(0));
+                _lampMendedAt = _time;
+            }
+            else if (Repairs.Dent(s, train, world.Hand) is { } car && Repairs.DentAt(train, car) is { } dent)
+            {
+                // The engine's is out on its running board; a car's is inside it.
+                Hold("crew-repair.dent", id, train.Frames[car].ToWorld(dent), Occlusion(car == 0 ? PlayerMotor.Outside : car));
+                _mending[car] = (true, _time);
+            }
+        }
+        bool smashed = Repairs.LampSmashed(train);
+        if (_lampSmashed == true && !smashed && _time - _lampMendedAt <= FaultHoldGrace + SimConstants.TickSeconds)
+            Cue("crew-repair.done", lamp, Occlusion(0));
+        _lampSmashed = smashed;
+        foreach (var car in _mending.Keys.ToList())
+        {
+            var (was, at) = _mending[car];
+            bool mendable = Repairs.Mendable(train, car);
+            if (was && !mendable && _time - at <= FaultHoldGrace + SimConstants.TickSeconds && Repairs.DentAt(train, car) is { } dent)
+                Cue("crew-repair.done", train.Frames[car].ToWorld(dent), Occlusion(car == 0 ? PlayerMotor.Outside : car));
+            if (mendable)
+                _mending[car] = (true, at);
+            else
+                _mending.Remove(car);
+        }
+    }
+
+    /// <summary>The pin of the coupling behind this car, in the world.</summary>
+    static Double3 Pin(TrainOnLine train, int car) =>
+        train.Frames[car].ToWorld(Couplings.Pin(train.Frames[car].Shape, train.Dynamics.Tuning));
 
     /// <summary>The breached car a listener's ear is inside the walls of, if any: there, the night comes in as on the roof.</summary>
     public static int? BreachedAround(World world, Double3 ear)

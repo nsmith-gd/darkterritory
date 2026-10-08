@@ -20,7 +20,13 @@ public struct GunState
     public double Z;
     /// <summary>Which way it faces along the train: −1 forward (the engine's), +1 back (the guard van's).</summary>
     public sbyte Facing;
+    /// <summary>The gun's rounds for the night, at it and in the powder lockers (combat.json <c>ammo</c>).</summary>
     public int Ammo;
+    /// <summary>
+    /// Of <see cref="Ammo"/>, the rounds in its ready rack at the gun (note 374, orchestrator.md §5.1 U4; combat.json
+    /// <c>rack</c>): what it fires. The rest are down in the powder lockers, carried up a charge at a time (<see cref="Combat.Guns"/>).
+    /// </summary>
+    public int Rack;
     /// <summary>Ticks until it can fire again.</summary>
     public int Cooldown;
     /// <summary>GDD §23: "Gun jams: someone repairs it by hand, under fire."</summary>
@@ -155,6 +161,8 @@ public sealed class Vehicle(int id, VehicleKind kind, double load)
     public double HotBox { get; set; }
     /// <summary>Seconds its lamp has been guttering (note 346, <see cref="Gutters"/>); 0 burning steady.</summary>
     public double Gutter { get; set; }
+    /// <summary>Seconds the coupling behind it has been working loose (note 356, <see cref="Couplings"/>); 0 tight.</summary>
+    public double Loose { get; set; }
     /// <summary>Where the hole is (car frame): what's boarded up (<see cref="Breaches"/>).</summary>
     public Double3 BreachAt { get; set; }
 

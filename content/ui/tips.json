@@ -1,0 +1,24 @@
+// The loading screen's tips, and the first nights' card in the yard (ARCHITECTURE §8 note 350; GDD §32 "Accessibility").
+// The director, 8 Oct 2026, on onboarding: "these are all quite important". GDD §32 still holds: nothing here says what an
+// action will do, or what any one creature wants. These are the shape of a night and the crew's habits, as the wiki and a
+// friend who's played would tell you. OnboardingTests holds them to it: no creature named, no "if you ... then".
+{
+  // How many of this player's nights the yard's card shows for (the profile counts a night once it's over).
+  "firstNights": 3,
+
+  // One at a time under BUILDING THE NIGHT, a new one each night.
+  "tips": [
+    "Every creature gives a warning before it strikes. Listen for it.",
+    "Roll call is shouted. Count the crew before the train moves.",
+    "The route card has the night's line, and where the train is on it.",
+    "Voices carry about twenty-six metres. The radio carries the length of the train.",
+    "Hold the roster key for the crew's names, and who's speaking.",
+    "Most things that kill you hold you first. Your crew has a few seconds.",
+    "A long train is slow to stop. Read the boards ahead.",
+    "The night goes on behind the menu. Nobody waits for you.",
+    "Bodies come home for most of what they cost.",
+    "The fire wants feeding, and the pressure gauge says how hungry it is.",
+    "Your hands say what they can do in the corner of the screen.",
+    "The dead watch through their crew's eyes, and talk among themselves."
+  ]
+}

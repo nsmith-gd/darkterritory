@@ -211,7 +211,8 @@ public sealed partial class GameAudio
 
     /// <summary>
     /// The walls between the ear and each sound (spec A.5, A.7; <see cref="Sound.Walls"/>, note 248), from where both are
-    /// this frame. Not the train's bed (tier 5): that's the car itself, which the space (spaces.json) has. Not a sound a
+    /// this frame, and in a stop's building its walls (note 396). Not the train's bed (tier 5) through the train's walls: that's the
+    /// car itself, which the space (spaces.json) has. Not a sound a
     /// caller put part-way behind something (a shout through a holdout's door): that's its own judgement.
     /// </summary>
     static readonly WallsTuning DefaultWalls = new();
@@ -221,9 +222,21 @@ public sealed partial class GameAudio
         _walls?.Refresh();
         var tuning = _walls?.Value ?? DefaultWalls;
         var ear = Mixer.Listener.Position;
+        var room = _earRoom;
         foreach (var v in Mixer.Voices)
-            v.Walls = v.Def.Flat || v.Def.Tier is 5 or Mixer.MusicTier || v.Occlusion is > 0 and < 1 ? 0
-                : Sound.Walls.Between(world.Train, ear, v.Position, tuning);
+        {
+            if (v.Def.Flat || v.Def.Tier == Mixer.MusicTier || v.Occlusion is > 0 and < 1)
+            {
+                v.Walls = 0;
+                continue;
+            }
+            float walls = v.Def.Tier == 5 ? 0 : Sound.Walls.Between(world.Train, ear, v.Position, tuning);
+            // In a stop's building (note 396): what's outside it comes in through its walls, the train's bed too (that's
+            // not the car around you here). A shed's bays stand open; a room has its one door.
+            if (room is { } r && !r.Holds(v.Position))
+                walls = Math.Max(walls, (float)(r.Shed ? tuning.ShedWall : tuning.RoomWall));
+            v.Walls = walls;
+        }
     }
 
     readonly Dictionary<int, SoundInstance> _toys = [];

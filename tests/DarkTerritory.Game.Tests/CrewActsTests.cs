@@ -2,6 +2,7 @@ using Ballast;
 using DarkTerritory.Game.Art;
 using DarkTerritory.Sim;
 using DarkTerritory.Sim.Combat;
+using DarkTerritory.Sim.Enemies;
 using DarkTerritory.Sim.Player;
 using DarkTerritory.Sim.Rail;
 using DarkTerritory.Sim.Train;
@@ -52,7 +53,9 @@ public class CrewActsTests
         Assert.Equal(CrewPose.Climb, CrewActs.Of(s with { Surface = Surface.Ladder }, 1, w));
         Assert.Equal(CrewPose.Push, CrewActs.Of(s with { Flags = PlayerFlags.Pushing }, 1, w));
         Assert.Equal(CrewPose.Lever, CrewActs.Of(s with { Flags = PlayerFlags.Operating }, 1, w));
-        // In the air: at the top of a jump, nothing; coming down hard, falling.
+        // In the air: going up off a jump, the leap (note 375); over the top, nothing (SceneArt holds the leap); coming down
+        // hard, falling.
+        Assert.Equal(CrewPose.Jump, CrewActs.Of(s with { Surface = Surface.Air, Velocity = new Double3(0, 3, 0) }, 1, w));
         Assert.Null(CrewActs.Of(s with { Surface = Surface.Air, Velocity = new Double3(0, -1, 0) }, 1, w));
         Assert.Equal(CrewPose.Fall, CrewActs.Of(s with { Surface = Surface.Air, Velocity = new Double3(0, -6, 0) }, 1, w));
         // Dead, they're drawn as their body.
@@ -114,6 +117,20 @@ public class CrewActsTests
     }
 
     [Fact]
+    public void TheRescueIsMatchedToWhatHasThem()
+    {
+        // Note 378 (App. A.1's rescue; the checklist's crew-rescue): out of the Car Hugger's mouth, heaved; the Tippy
+        // Toesie's fingers prised off; lifted by the Whistler or the Choir, hauled down; a Dragger's over the edge, hauled
+        // up; the rest, down at the collar. (The clips are CreatureArtTests' crew's.)
+        Assert.Equal(CrewPose.PullMouth, CrewActs.RescueOf(CrewActs.HeldPose(EnemyKind.CarHugger), below: false));
+        Assert.Equal(CrewPose.PryOff, CrewActs.RescueOf(CrewActs.HeldPose(EnemyKind.TippyToesie), below: false));
+        Assert.Equal(CrewPose.HaulDown, CrewActs.RescueOf(CrewActs.HeldPose(EnemyKind.Whistler), below: false));
+        Assert.Equal(CrewPose.HaulDown, CrewActs.RescueOf(CrewActs.HeldPose(EnemyKind.Choir), below: false));
+        Assert.Equal(CrewPose.HaulUp, CrewActs.RescueOf(CrewActs.HeldPose(EnemyKind.Dragger), below: true));
+        Assert.Equal(CrewPose.Haul, CrewActs.RescueOf(CrewActs.HeldPose(EnemyKind.Ribbit), below: false));
+    }
+
+    [Fact]
     public void AtTheGunTheyreSatOnItsSeat()
     {
         var w = World();
@@ -164,6 +181,37 @@ public class CrewActsTests
         // Come to it with nothing: taken down.
         At(2.0, CrewPose.TakeDown);
         Assert.Equal(CrewPose.TakeDown, art.LastPose);
+    }
+
+    [Fact]
+    public void TheLeapIsHeldOverTheTopAndACarStrainingOnABendHasThemStumbling()
+    {
+        // Note 375 (the checklist's crew-gap): a jump's leap is held over the top of it, where the sim says nothing, not
+        // dropped for the walk; then they're stood. On a car straining past halfway to off (BendStrain), they stumble,
+        // stood or crossing the gap, unless their hands are on something; on another car, or a car under the mark, they don't.
+        var art = new SceneArt(Look.Load(Content));
+        var stood = new Crewmate(1, new Double3(0, 0, -5_000), 0, true, Car: 1);
+        void At(double t, CrewPose? act, Crewmate? c = null) => art.Crewmate(new Ballast.Render.MeshBuilder(), (c ?? stood) with { Act = act }, default, t);
+
+        At(0.0, null);
+        At(0.1, CrewPose.Jump);
+        Assert.Equal(CrewPose.Jump, art.LastPose);
+        At(0.5, null);
+        Assert.Equal(CrewPose.Jump, art.LastPose);
+        At(1.2, null);
+        Assert.Equal(CrewPose.Idle, art.LastPose);
+
+        art.BendStrain = [(0, 1), (0.8f, 1), (0.3f, 1)];
+        At(2.0, null);
+        Assert.Equal(CrewPose.Stumble, art.LastPose);
+        At(2.1, CrewPose.Gap);
+        Assert.Equal(CrewPose.Stumble, art.LastPose);
+        At(2.2, CrewPose.Handbrake);
+        Assert.Equal(CrewPose.Handbrake, art.LastPose);
+        At(2.3, null, stood with { Car = 2 });
+        Assert.Equal(CrewPose.Idle, art.LastPose);
+        At(2.4, null, stood with { Car = 0 });
+        Assert.Equal(CrewPose.Idle, art.LastPose);
     }
 
     [Fact]

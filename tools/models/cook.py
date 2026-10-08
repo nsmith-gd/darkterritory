@@ -775,16 +775,17 @@ def share_materials(objs):
                 seen[key] = m
 
 
-def finish(name, objs, budget, grade=None, grime=0.0, family="model", sockets=None, made=()):
+def finish(name, objs, budget, grade=None, grime=0.0, family="model", sockets=None, made=(), size=None):
     """Decimate, bake the layers, index them, rig and export. Prints the one [dt] line build.sh keeps. `made` is the
-    provenance of what was modelled here rather than sourced (tools/models/make.provenance)."""
+    provenance of what was modelled here rather than sourced (tools/models/make.provenance); `size` the layers'
+    resolution where SIZE is too few texels for the piece (a building tens of metres high)."""
     share_materials(objs)
     decimate(objs, budget)
     for o in objs:
         for f in o.data.polygons:
             f.use_smooth = True
     sources = sorted({o.get("dt_source") for o in objs if o.get("dt_source")})
-    layers = bake_layers(name, objs, grade=grade, grime=grime, family=family, source_ids=sources, made=made)
+    layers = bake_layers(name, objs, grade=grade, grime=grime, family=family, source_ids=sources, made=made, size=size)
     _merge_index(name, layers)
     lo, hi = bounds(objs)
     path = rig_and_export(name, objs, sockets)

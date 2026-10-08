@@ -16,7 +16,8 @@ namespace DarkTerritory.Sim.Train;
 /// <item>inside a breached car at the hole, board it up (decided 1 Oct, <see cref="Breaches"/>; with the wrench, note 301);</item>
 /// <item>the wrench in hand at a burst boiler or a battered car's dent, mend it (note 301, <see cref="Repairs"/>);</item>
 /// <item>at a crew locker, open or shut its door (a tap there is the hands': <see cref="Lockers"/>);</item>
-/// <item>at a car's hot axle box, from the coupling gap behind it or the ground beside it, grease it (note 331, <see cref="HotBoxes"/>).</item>
+/// <item>at a car's hot axle box, from the coupling gap behind it or the ground beside it, grease it (note 331, <see cref="HotBoxes"/>);</item>
+/// <item>the wrench in hand at a loose coupling, in its gap, tighten it (note 356, <see cref="Couplings"/>).</item>
 /// </list>
 /// A VR player's reaching hand (T29) picks what's worked by where it is, not where they stand, and shovels by the
 /// stroke: coal onto the shovel at the tender, then into the firebox (<see cref="ShovelByHand"/>).
@@ -53,6 +54,19 @@ public static class CrewActions
                 train.Vehicles[box].HotBox = 0;
             return;
         }
+        // A loose coupling (note 356): the wrench in the gap, Use held, and it's tight. Before the plate's doors: at a loose
+        // pin with the wrench in hand, it's the pin that's worked.
+        if (s.Alive && intent.Has(PlayerButtons.Use) && intent.MoveZ <= 0.5 && train.Loose is { Enabled: true } lt
+            && Couplings.Tightens(s, train) && Couplings.Within(s, train, lt) is { } pin)
+        {
+            s.Flags &= ~PlayerFlags.Shovelful;
+            if (s.ActionProgress >= lt.TightenSeconds)
+                s.ActionProgress = 0;
+            s.ActionProgress += dt;
+            if (s.ActionProgress >= lt.TightenSeconds)
+                train.Vehicles[pin].Loose = 0;
+            return;
+        }
         if (!s.Alive || !intent.Has(PlayerButtons.Use) || intent.MoveZ > 0.5 || s.Parent == PlayerState.World)
         {
             // Let go of the shovel and what's on it is spilled. A mend under way with the wrench is kept while you're at it
@@ -86,6 +100,16 @@ public static class CrewActions
         double before = s.ActionProgress;
         var couplings = train.Dynamics.Tuning.Couplings;
         var near = NearestInteractable(s, train, hand);
+        // The smashed forward lamp from the front of the cab, the wrench in hand (note 301, slice 2): the glass goes in. It's
+        // mended from where the fire and the coal are worked (note 280's cab), so the wrench in hand there is the lamp's, not
+        // the shovel's; a ruptured boiler's fire door is still the rupture's, and the vent still vents.
+        if (Repairs.Lamp(s, train) && near?.Thing.Kind is InteractableKind.Coal or InteractableKind.Firebox or null
+            && !(near?.Thing.Kind == InteractableKind.Firebox && train.Boiler.Ruptured))
+        {
+            s.ActionProgress += dt;
+            train.MendLamp?.Invoke(dt);
+            return;
+        }
         if (Hand(s, hand) && train.BoilerTuning is { } boiler && PlayerMotor.InCab(s, train)
             && near?.Thing.Kind is InteractableKind.Coal or InteractableKind.Firebox or null)
         {

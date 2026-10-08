@@ -80,7 +80,7 @@ public class RejoinTests
         r = new NetReader(w.Written);
         r.U8();
         Assert.Equal(("Dave", 42ul, (byte)5), Messages.ReadHello(ref r));
-        Assert.Equal(38, Protocol.Version);
+        Assert.Equal(40, Protocol.Version);
     }
 
     [Fact]

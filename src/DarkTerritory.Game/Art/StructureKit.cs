@@ -576,7 +576,14 @@ public static class StructureKit
                 }
             case FacilityKind.GrainElevator:
                 {
-                    // Three silos and a headhouse over them: the tallest thing for miles.
+                    // The modelled elevator where it's built (facility_pieces grain_elevator, note 381): four slip-formed
+                    // silos, the bin-floor gallery and the leg house over them, the tallest thing for miles; its spout
+                    // swung down to 2.5 m off the track. Without it, the kit's own: three silos and a headhouse.
+                    if (k.Look is { } built && PropArt.Of(built).Get("grain_elevator") is not null)
+                    {
+                        Piece(k, "grain_elevator", s * 15, 0, Facing(s));
+                        break;
+                    }
                     float x = s * 15;
                     k.Use("concrete_stain", Palette.BlueGrey, 0.9f, 0.1f, tile: 3);
                     for (int i = 0; i < 3; i++)
@@ -670,9 +677,14 @@ public static class StructureKit
                 }
             case FacilityKind.Slaughterhouse:
                 {
-                    // The killing hall, long and windowless, and in front of it the pens and the ramp the cattle came
-                    // up out of the cars by.
-                    WorksHouse(k, s * 22, 0, 14, 44, 9, "brick_soot");
+                    // The killing hall, and in front of it the pens and the ramp the cattle came up out of the cars by. The
+                    // modelled hall where it's built (facility_pieces slaughterhouse, note 393): soot-black brick, its
+                    // windows small and high, a clerestory, the dressing rail out over the yard, the boiler house and its
+                    // chimney behind; without it, the kit's long windowless works box.
+                    if (k.Look is { } built && PropArt.Of(built).Get("slaughterhouse") is not null)
+                        Piece(k, "slaughterhouse", s * 22, 0, Facing(s));
+                    else
+                        WorksHouse(k, s * 22, 0, 14, 44, 9, "brick_soot");
                     for (float x = 8; x <= 14; x += 3)
                         for (float z = -18; z <= -3; z += 3)
                             Piece(k, "cattle_pen", s * x, z + 1.5f, MathF.PI / 2);
@@ -771,8 +783,9 @@ public static class StructureKit
         k.Box(new Vector3(a, -0.5f, z0), new Vector3(b, 0.8f, z1), Kit.Faces.All & ~Kit.Faces.NegY);
         k.Use(wall, wall == "brick_soot" ? Palette.RustRed : Palette.DeepBrown, 0.9f, 0.1f, tile: wall == "brick_soot" ? 1.2f : 1.5f);
         k.Box(new Vector3(a, 0.8f, z0), new Vector3(b, height, z1), Kit.Faces.Sides);
-        foreach (float zz in new[] { z0, z1 })
-            k.Tri(new Vector3(a, height, zz), new Vector3(b, height, zz), new Vector3(mid, height + width * 0.3f, zz), new(a, -height), new(b, -height), new(mid, -height - width * 0.3f));
+        // Both gables facing out (the −Z one was wound inwards, so from outside it wasn't there: note 387).
+        foreach (var (zz, l, r) in new[] { (z0, b, a), (z1, a, b) })
+            k.Tri(new Vector3(l, height, zz), new Vector3(r, height, zz), new Vector3(mid, height + width * 0.3f, zz), new(l, -height), new(r, -height), new(mid, -height - width * 0.3f));
         k.Use("corrugated_iron", Palette.IronGrey, 0.9f, 0.3f, tile: 1.5f);
         k.Quad(new Vector3(a - 0.4f, height - 0.1f, z1 + 0.4f), new Vector3(a - 0.4f, height - 0.1f, z0 - 0.4f), new Vector3(mid, height + width * 0.3f, z0 - 0.4f), new Vector3(mid, height + width * 0.3f, z1 + 0.4f), twoSided: true);
         k.Quad(new Vector3(mid, height + width * 0.3f, z1 + 0.4f), new Vector3(mid, height + width * 0.3f, z0 - 0.4f), new Vector3(b + 0.4f, height - 0.1f, z0 - 0.4f), new Vector3(b + 0.4f, height - 0.1f, z1 + 0.4f), twoSided: true);
