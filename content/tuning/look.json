@@ -146,7 +146,16 @@
     "cold": {
       "frostFrom": 0.35,
       "frostFull": 0.85,
-      "breathFrom": 0.15
+      "breathFrom": 0.15,
+      // On the cab's glass (§22, §26 "frost on windows"; note 485): the frost creeps in from each pane's frame as the
+      // frost comes on, this far at its full (m), never near the middle of the driver's view; and whoever's face is
+      // within fogReach of a pane fogs it on each breath out, the fog going as they breathe in.
+      "paneReach": 0.16,
+      "paneColour": [0.5, 0.57, 0.64],
+      "paneDensity": 0.9,
+      "fogReach": 0.7,
+      "fogColour": [0.42, 0.45, 0.48],
+      "fogDensity": 0.8
     },
     // The Choir's cold, coming before it (App. A.7's arrival beat): from halfway through its gathering the night goes over
     // to these as it nears, all of it once it's here. The air paler and colder, the moon bluer, a rime of frost on the

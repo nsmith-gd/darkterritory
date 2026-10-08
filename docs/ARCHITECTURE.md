@@ -6769,3 +6769,23 @@ Terrain sculpting tools, a node-graph material editor, a general-purpose visual 
         - `HouseInteriorArtTests.AnOpenBarnOrShedIsARoomLitByALanternTurnedLow` checks there's a lantern inside each open barn's walls, under its eaves.
         - Screenshots before and after: `--cottage 0..2`, `--cottage 0 --lantern`, `--barn 0 --back` (with and without `--lantern`), `--barn 0 --find`, `--barn 1 --back`, `--shed 0 --inside`, `--view inside`. Means out of 255: cottages 5.6, 6.0, 5.9 → 10.6, 12.9, 10.7; barn 4.6 → 27; yard shed 6.9 → 12; car 27.6 → 28.6. Walls, furniture, the bench and the floorboards read; the yard shed's lanterns throw warm pools on its floor.
         - LookTests, PerfBudgetTests, ScreenshotTests, StopShellArtTests, HouseInteriorArtTests, VrTests, MultiviewTests, BookmarkStillsTests, DamageTests, CreatureArtTests and WorldSoundTests pass (the frame's constants grew a vec4 at their end).
+
+485. **Frost from the cab windows' edges, and breath on the glass (queue #222, E1; the art checklist's `cold` "next": "frost creeping in from a window's edges, and breath fogging the cab glass"; GDD §22, §26 "frost on windows and metal, breath vapour").** The cold's rime (`FrameLighting.Frost`, scene.frag) lies on whatever faces the sky, but the cab's windows are open frames in the kit with no glass drawn, so a deep night left them as clear as a mild one. Nothing fogged them either: a breath was a puff in the air whether or not a face was at the glass.
+    - **The panes:** `TrainKit.CabPanes` names the cab's glass in the engine's frame: the two front windows either side of the middle post (`FrontWindow`), and each side's slit in its three bays between the posts. Each pane has a corner, two edges and a normal into the cab.
+    - **The frost:** `SceneArt.CabGlass` lays a frost on each pane as an alpha effect, grown in from its frame in a strip round all four edges:
+        - It uses a new tiling texture, `fx_frost` (tools/art/texgen/mat_fx.py): fern fronds of ice, a stem with feathered branches at sixty degrees, over a fine sugar of rime.
+        - The edge is thick and fades to nothing at the front. The edge band is laid twice, the second with the texture turned across the first, so it reads as a crust, not a row of tufts.
+        - It reaches in `paneReach` (0.16 m) at the frost's full, ragged along the front by its own hash. It goes furthest in the corners, up from the sill most and down from the top least.
+        - It never reaches more than `SceneArt.FrostMostOfPane` (0.55) of the way to a pane's middle, so the view ahead stays clear.
+        - It follows the night's frost (`ColdTuning.Frost`), or the Choir's rime as it gathers (`choirCold.rime`), whichever is heavier.
+    - **The fog:** each crewmate whose mouth is within `fogReach` (0.7 m) of a pane and facing it fogs it where their breath meets the glass:
+        - A soft patch with a fainter halo, held inside the pane's frame. It is thicker the nearer the face.
+        - It comes on with their breath out, on `Effects.Breath`'s beat (`SceneArt.BreathOut`). It goes back as they breathe in, but never quite clears while they're still at the glass (`FogStays`, 0.35).
+        - First person (`GreyboxScene.Own`), the eye fogs the glass it's near. The mouths are those of the crew drawn this frame (`SceneArt.Crewmate` records each), so the glass is drawn after the crew.
+    - **Drawn as effects:** nothing in the sim, so no prediction or netcode is touched. Tuning lives in look.json `atmosphere.cold` (`paneReach`, `paneColour`, `paneDensity`, `fogReach`, `fogColour`, `fogDensity`). It is drawn within 60 m.
+    - **Headless:** `dt screenshot --view glass` is a breath from the driver's window looking out through it (`--breathe`: the eye's own breath on it). `--view cab|fireman|prow --cold 0.55|0.9` shows the frost from the footplate and from outside.
+    - **Verified:** `CabGlassTests`:
+        - The panes are the cab's windows and face into it.
+        - The frost creeps in further as it deepens and leaves the middle clear.
+        - A face 0.3 m from the glass fogs it, without spilling off the pane, and one 1.5 m off doesn't.
+        - The fog comes and goes on the breath.
