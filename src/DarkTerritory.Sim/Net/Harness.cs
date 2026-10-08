@@ -224,6 +224,8 @@ public sealed record ThreatReport(double Budget, double Spent, IReadOnlyDictiona
     public IReadOnlyDictionary<int, SlackReport> Slack { get; init; } = new Dictionary<int, SlackReport>();
     /// <summary>The hound runs sent at the fast train (note 328), each with how its runners ended.</summary>
     public IReadOnlyList<HoundRunReport> HoundRuns { get; init; } = [];
+    /// <summary>The fires boarded packs set (note 269), beside the upkeep's hot boxes caught: where the burns come from (note 437).</summary>
+    public int PackFires { get; init; }
 }
 
 /// <summary>
@@ -576,6 +578,7 @@ public static class Harness
                 Rescues = Count(events.Where(e => e.From == SpinePhase.Grab && e.To is SpinePhase.BreakOff or SpinePhase.Gone)),
                 Pressure = new PressureReport(Math.Round(d.Grace, 1), d.Tuning.Pressure.Threshold, PressureEvery, per5Min, pressureTrace),
                 Slack = d.Posts.Stats.ToDictionary(kv => kv.Key, kv => new SlackReport(kv.Value.Max, kv.Value.Over)),
+                PackFires = host.World.PackFires,
                 HoundRuns = [.. d.HoundRuns.Select(r => new HoundRunReport(Math.Round(r.Tick * SimConstants.TickSeconds, 1), Math.Round(r.Distance / 1000, 2), r.Size,
                     r.Active, r.Hot, d.RunOutcome(r.Pack).Scattered, d.RunOutcome(r.Pack).Killed, d.RunOutcome(r.Pack).Boarded, d.AheadRunners(r.Pack), d.FlankRunners(r.Pack)))],
                 Votes = new SortedDictionary<string, int>(d.Votes.GroupBy(v => v.Kind.ToString()).ToDictionary(g => g.Key, g => g.Count()), StringComparer.Ordinal),

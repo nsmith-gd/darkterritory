@@ -262,6 +262,7 @@ public sealed class CinderHound(int id, int pack) : Enemy(id)
         double along = Local.Z;
         // No C.9 record: its table names no actor for a fire the hounds set (the burn's own deaths are recorded as ever).
         ctx.World.AddEnemy(i => CarFire.In(i, train, into, along, ctx.Tuning.CarFire));
+        ctx.World.PackFires++;
     }
 
     /// <summary>A runner killed on the line (note 328: a ball on it) is counted for the run's report.</summary>

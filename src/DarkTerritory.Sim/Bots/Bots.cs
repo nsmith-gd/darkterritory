@@ -484,7 +484,11 @@ public sealed class RoofWalkerBot(int seed, ColdTuning? cold = null, StopHand? j
         var train0 = world.Train;
         // A car that's all but gone up isn't one to walk into: let it burn out.
         // Fire Flies swarming a car's lamp are trouble too (v1.1 App. A.5): in there, the lamp out, before the car catches.
+        // Nor a fire with the pack that lit it still aboard (note 437; note 269: a boarded pack keeps setting its car alight):
+        // inside, fighting it, the walker burns while the pack relights it overhead. The fit go at the pack on the roof instead
+        // (below), and the fire's fought once it's theirs alone.
         _trouble = tend ? world.ActiveEnemies.Where(e => !e.Gone && e.Attached > 0 && (e is Incident && !(e is CarFire && e.Extra > 0.85 && e.Attached != here)
+                && !(false && e is CarFire && Boarded(world, e.Attached))
                 || e is FireFlies && e.Attached < train0.Vehicles.Count && train0.Vehicles[e.Attached].LampLit))
             .OrderBy(e => Covered(e, here) ? 1 : 0).ThenBy(e => e is CarFire ? 0 : 1).ThenBy(e => Math.Abs(e.Attached - here))
             .ThenBy(e => e.Id).FirstOrDefault() : null;
@@ -1377,6 +1381,9 @@ public sealed class RoofWalkerBot(int seed, ColdTuning? cold = null, StopHand? j
     /// ahead of it that isn't the engine (a car right behind the engine is every car). For a walker alive, fit for the pack
     /// fight and aboard; null otherwise.
     /// </summary>
+    /// <summary>A Cinder Hound pack aboard <paramref name="car"/> (note 269's: it stays, eating and setting the car alight).</summary>
+    static bool Boarded(World world, int car) => world.ActiveEnemies.Any(e => e is CinderHound { Gone: false } h && h.Attached == car);
+
     int? HeldAndBoarded(in PlayerState self, World world)
     {
         var train = world.Train;
