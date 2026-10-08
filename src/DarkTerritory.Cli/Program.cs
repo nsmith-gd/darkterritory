@@ -1003,6 +1003,15 @@ static object Screenshot(TrainTuning t, string content, string[] args)
         train.HotBoxTuning = DataFile.Load<UpkeepTuning>(Path.Combine(content, UpkeepTuning.File)).HotBox;
         train.Vehicles[Math.Min(2, train.Vehicles.Count - 1)].HotBox = hotFor;
     }
+    // --gannet soar|circle|hang|fold|dive|stuck|tearfree|climb|bank|swoop|pin|windup|peck: the staged Gannet (note 340;
+    // Staging.Gannet) over the second car's roof, after crewmate 4 walking it; the train running at --speed (20 m/s: it only
+    // rides a fast train), its smoke laid back. The gannet views stage it soaring, diving, stuck and pinning unless told.
+    string gannetMode = Str(args, "--gannet", view switch { "gannet" => "soar", "gannetfold" => "dive", "gannetstuck" => "stuck", "gannetpin" => "pin", _ => "" });
+    if (gannetMode.Length > 0 && !args.Contains("--ruptured") && !args.Contains("--wreck"))
+    {
+        train.Dynamics.Velocity = Opt(args, "--speed", 20);
+        train.RefreshFrames();
+    }
     // --wreck s: off the rails at --speed (22) and that many seconds into the wreck (T117), seen by the cinematic camera.
     if (Opt(args, "--wreck", -1) is var wreckAt and >= 0)
     {
@@ -1417,6 +1426,12 @@ static object Screenshot(TrainTuning t, string content, string[] args)
         var mooseTuning = DataFile.Load<DarkTerritory.Sim.Enemies.EnemyTuning>(Path.Combine(content, DarkTerritory.Sim.Enemies.EnemyTuning.File)).Moose;
         float moosePace = mooseMode switch { "charge" => (float)mooseTuning.ChargeSpeed, "search" => (float)mooseTuning.SearchSpeed, _ => 0 };
         scene.StagedPaces = new Dictionary<int, float>(scene.StagedPaces ?? new Dictionary<int, float>()) { [Staging.MooseId] = moosePace };
+    }
+    if (gannetMode.Length > 0)
+    {
+        scene.Enemies = Staging.Gannet(scene.Enemies is List<DarkTerritory.Sim.Enemies.Enemy> others ? others : [], train, gannetMode);
+        scene.Crew = [.. (scene.Crew ?? []).Where(c => c.Id is not (Staging.LoneId or Staging.GannetRescuerId)), Staging.GannetWalker(train, gannetMode),
+            .. Staging.GannetRescuer(train, gannetMode) is { } rescuer ? [rescuer] : Array.Empty<Crewmate>()];
     }
     // --gaunt leave|leavein: the body it's carrying off, under it (App. A.6; Staging.GauntLoad).
     if (Str(args, "--gaunt", "") is "leave" or "leavein" && scene.Enemies?.OfType<DarkTerritory.Sim.Enemies.Gaunt>().FirstOrDefault() is { } leaving)

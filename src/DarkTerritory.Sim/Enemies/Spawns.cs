@@ -345,6 +345,30 @@ public static class Spawns
             }
             return false;
         }),
+        // B.4 · The Gannet (note 340; the orchestrator's S3): over a train run fast a while in open country (not a tunnel), a
+        // train of two or more; every tier, more the harder; by the line's biome; up per walker on the roofs. Once a run:
+        // it peels off and comes back on its own, until it's killed or gives up.
+        new(EnemyKind.Gannet, c =>
+        {
+            var t = c.Tuning.Gannet;
+            if (!c.Once(EnemyKind.Gannet) || c.Train.Dynamics.Consist.CarCount < t.MinCars || c.Train.Dynamics.Speed < t.ArriveAbove
+                || c.World.FastSeconds < t.ArriveSeconds
+                || c.World.Route?.Features.Any(f => f.Kind == FeatureKind.Tunnel && f.Contains(c.Front)) == true)
+                return null;
+            double biome = c.World.Route?.Plan?.Biomes is { Count: > 0 } biomes
+                ? t.BiomeWeights.GetValueOrDefault((biomes.FirstOrDefault(b => b.Edge == "main" && b.S0 <= c.Front && c.Front < b.S1) ?? biomes[^1]).Biome, 1)
+                : 1;
+            if (biome <= 0)
+                return null;
+            int roofs = c.Living.Count(p => p.State.Surface == Surface.Roof && p.State.Parent >= 0);
+            return MooseTuning.ByTier(t.TierWeights, c.Tier) * biome * (1 + t.PerRoofWeight * roofs);
+        }, c =>
+        {
+            var t = c.Tuning.Gannet;
+            double height = c.Director.NextRange(t.SoarHeight[0], t.SoarHeight[1]);
+            c.Add(i => Gannet.Arriving(i, c.Train, t, height));
+            return true;
+        }),
         // B.6 · Followers: facility grounds, latching onto a disembarked player (an excursion); weight up per extra on the ground.
         new(EnemyKind.Follower, c =>
         {

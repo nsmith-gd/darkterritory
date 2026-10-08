@@ -101,4 +101,19 @@ public class SpecTableTests
         Assert.Equal([1.0, 1.5, 2.0, 2.5], Enum.GetValues<DarkTerritory.Sim.Route.RouteTier>().Select(t => DarkTerritory.Sim.Enemies.MooseTuning.ByTier(m.TierWeights, t)));
         Assert.Equal([2.0, 3.0, 4.0, 5.0], Enum.GetValues<DarkTerritory.Sim.Route.RouteTier>().Select(t => DarkTerritory.Sim.Enemies.MooseTuning.ByTier(m.Lineside, t)));
     }
+
+    /// <summary>Spec B.13, the Gannet (the director's decisions of 7 Oct 2026; note 340).</summary>
+    [Fact]
+    public void TheGannetMatchesB13()
+    {
+        var g = Tuning.Enemies.Gannet;
+        Assert.Equal((18.0, 30.0, 12.0, 6.0, 60.0, 180.0), (g.ArriveAbove, g.ArriveSeconds, g.StallBelow, g.StallSeconds, g.QuietSeconds, g.ReturnSeconds));
+        Assert.Equal([20.0, 35.0], g.SoarHeight);
+        Assert.Equal((0.8, 2.0, 1.6), (g.PreyAbove, g.HangSeconds, g.FoldSeconds));
+        Assert.Equal((0.9, 35, 4.0), (g.StrikeRadius, g.StabDamage, g.StuckSeconds));
+        Assert.Equal([8.0, 12.0], g.DiveEvery);
+        Assert.Equal((2.5, 200.0, 4, 3.0, 3), (g.BankSeconds, g.MarkReach, g.Pecks, g.PeckEvery, g.DriveOffBlows));
+        Assert.Equal((12.0, 4.0), (g.Health, g.GiveUpBelow));
+        Assert.Equal([1.0, 1.5, 2.0, 2.5], Enum.GetValues<DarkTerritory.Sim.Route.RouteTier>().Select(t => DarkTerritory.Sim.Enemies.MooseTuning.ByTier(g.TierWeights, t)));
+    }
 }

@@ -139,6 +139,7 @@ public static class IncidentLog
         DeathCause.Carried => "Carried off to the Whistler's nest",
         DeathCause.Uncoupled => "Taken with the caboose by the Passenger",
         DeathCause.Trampled => "Trampled by the Moose",
+        DeathCause.Pecked => "Pecked to death by the Gannet",
         _ => cause.ToString(),
     };
 

@@ -1,4 +1,4 @@
-// Enemies (GDD v1.1 §21, App. A behaviour, App. B spawn rules, App. C shared systems): the v1.1 roster of sixteen, the Moose (note 339) and the
+// Enemies (GDD v1.1 §21, App. A behaviour, App. B spawn rules, App. C shared systems): the v1.1 roster of sixteen, the Moose (note 339), the Gannet (note 340) and the
 // Choir, plus two hazards (§22: track debris, formerly the Sleepers; marsh, formerly the Drift). First pass. Speeds in m/s; the GDD's Sleeper thresholds (40 / 20) are km/h, converted here.
 {
   // App. A.1: every telegraph gives at least this long before a commit.
@@ -125,7 +125,9 @@
     "stoker": [[0.45, 0.45], [0.4, 1.1]],
     "tippyToesie": [[0.4, 0.6], [0.4, 1.4], [0.3, 2.0]],
     // The barrel and the hump (note 339); its rack stops nothing, a round in it is a miss.
-    "moose": [[0.9, 1.6], [0.9, 2.1], [0.6, 2.6]]
+    "moose": [[0.9, 1.6], [0.9, 2.1], [0.6, 2.6]],
+    // Its breast and sacs, and the head over them (note 340): standing on a roof 2.3 m tall; in the air, about where it flies.
+    "gannet": [[1.0, 0.7], [0.6, 1.6]]
   },
   "gauntAsleep": 0.35,
 
@@ -311,6 +313,32 @@
     "linesideOut": [8, 22], "linesideAhead": 300,
     "biomeWeights": { "marsh": 2, "plains": 1.5, "contaminatedMarsh": 1.5, "coast": 0.5, "blackForest": 1, "forestEdge": 1, "mountain": 1,
       "deadTown": 0.5, "industrialRuin": 0.3, "slag": 0.3 }
+  },
+
+  // THE GANNET · sight · flank (GDD §21, App. A.4, B.4; the director's decisions of 7 Oct 2026; ARCHITECTURE §8 note 340;
+  // docs/design/creatures/gannet.md; the orchestrator's S3). One enormous corrupted seabird that rides a fast train: the
+  // train over arriveAbove m/s for arriveSeconds, out of a tunnel, and it comes, soaring soarRadius m round a car soarHeight
+  // m up at flySpeed. Someone walking a roof (over preyAbove m/s on it, not seated) is its prey: it hangs over them
+  // hangSeconds, then folds: its line locks on where they'll be foldSeconds on, and it strikes there at the end. Within
+  // strikeRadius of the strike, a stab of stabDamage (it can't kill) and up again; nobody there, on the roof: stuck
+  // stuckSeconds (a blow lands only now, or in a pin). A pass every diveEvery s. Whoever hits it (a blow, a ball) is its
+  // mark: when it's next due, it banks round bankSeconds (the telegraph: inside a car or the cab is shelter) and comes down
+  // on them, on a roof or on the ground within markReach, and pecks pecks times, peckEvery s apart, the last their death;
+  // driveOffBlows blows from friends in the pin drive it off (the last of them its mark). health in blows; under
+  // giveUpBelow it leaves for the run; killed, its head is a trophy (loot.json trophies.gannet). Under stallBelow for
+  // stallSeconds, in a tunnel, or quietSeconds with nobody walking the roofs and its mark inside, it peels off, back after
+  // returnSeconds once the train's run fast again. Spawns (B.4): every tier, tierWeights; biomeWeights by the line's biome
+  // (1 unlisted); perRoofWeight more per player on the roofs; minCars. Once a run (it comes back on its own).
+  "gannet": {
+    "arriveAbove": 18, "arriveSeconds": 30, "stallBelow": 12, "stallSeconds": 6, "quietSeconds": 60, "returnSeconds": 180,
+    "soarHeight": [20, 35], "soarRadius": 14, "flySpeed": 12,
+    "preyAbove": 0.8, "hangSeconds": 2, "foldSeconds": 1.6, "diveEvery": [8, 12],
+    "strikeRadius": 0.9, "stabDamage": 35, "stuckSeconds": 4,
+    "bankSeconds": 2.5, "pecks": 4, "peckEvery": 3, "driveOffBlows": 3,
+    "health": 12, "giveUpBelow": 4, "markReach": 200, "minCars": 2, "perRoofWeight": 1,
+    "tierWeights": { "local": 1, "frontier": 1.5, "deadLines": 2, "deepTerritory": 2.5 },
+    "biomeWeights": { "coast": 3, "dykeland": 3, "plains": 1.5, "marsh": 1.5, "contaminatedMarsh": 1.5, "blackForest": 0.3,
+      "forestEdge": 0.5, "mountain": 1, "deadTown": 1.5 }
   },
 
   // THE SWITCHMAN · vibration · corrupted (App. A.8, B.8). At a junction ahead[0]-[1] m out; seen at revealAt m. It throws
@@ -692,7 +720,7 @@
     // App. B.1 v1.1's cost table (the Choir costs nothing: it isn't spawned; hazards are level content).
     "costs": { "followers": 2, "draggers": 2, "fireFlies": 2, "switchman": 2, "trackDoll": 3, "cinderHounds": 3, "climbers": 3,
       "whistler": 3, "stoker": 3, "ribbits": 3, "carHugger": 4, "tippyToesie": 4, "gaunt": 4, "sootChildren": 4, "grumbler": 4,
-      "passenger": 5, "moose": 3 },
+      "passenger": 5, "moose": 3, "gannet": 4 },
     // App. B.3/B.8 weights.
     "houndsLivestockWeight": 2.5,
     "houndsHotBoilerWeight": 1.5,
@@ -725,6 +753,11 @@
       ["ribbits", "moose"],
       ["whistler", "moose"],
       ["moose", "facilityLoading"],
+      // The Gannet (note 340): outrun the hounds by running fast vs. a fast train brings it; walk the centreline (the
+      // Draggers) vs. step aside when it folds; the gun is the quick answer vs. every ball feeds the Choir and marks the gunner.
+      ["cinderHounds", "gannet"],
+      ["draggers", "gannet"],
+      ["choir", "gannet"],
       ["choir", "cinderHounds"],
       ["choir", "gaunt"],
       ["fireFlies", "trackDoll"],
