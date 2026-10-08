@@ -48,9 +48,9 @@ def jaw_skeleton():
         Bone("neck", "chest", (0, 0.6, 1.1), (0, 0.95, 1.0)),
         Bone("head", "neck", (0, 0.95, 1.0), (0, 1.45, 0.92)),
         Bone("jaw", "head", (0, 1.05, 0.84), (0, 1.42, 0.74)),
-        Bone("tail_01", "pelvis", (0, -1.0, 0.62), (0, -1.38, 0.26)),
-        Bone("tail_02", "tail_01", (0, -1.38, 0.26), (0, -1.85, 0.09)),
-        Bone("tail_03", "tail_02", (0, -1.85, 0.09), (0, -2.35, 0.06)),
+        Bone("tail_01", "pelvis", (0, -1.0, 0.62), (0, -1.38, 0.38)),
+        Bone("tail_02", "tail_01", (0, -1.38, 0.38), (0, -1.85, 0.27)),
+        Bone("tail_03", "tail_02", (0, -1.85, 0.27), (0, -2.35, 0.3)),
     ]
     for s, sx in (("r", 1), ("l", -1)):
         b += [
@@ -134,20 +134,22 @@ for sx in (1, -1):
     flesh.blob((sx * 0.36, 0.45, 1.12), (0.26, 0.34, 0.4), 0.12, FUR, trunk_w, rot=R(rx=-10))    # the shoulders
     flesh.blob((sx * 0.34, -0.65, 0.66), (0.22, 0.32, 0.3), 0.1, FUR, trunk_w)                   # the haunches
 # The neck: thick, short, low off the front of the hump.
-flesh.limb([Vector((0, 0.55, 1.12)), Vector((0, 0.8, 1.03)), Vector((0, 1.0, 0.98))], [0.4, 0.34, 0.29], 0.1, FUR, trunk_w, sides=18)
+flesh.limb([Vector((0, 0.55, 1.12)), Vector((0, 0.8, 1.05)), Vector((0, 1.0, 1.0))], [0.42, 0.38, 0.34], 0.1, FUR, trunk_w, sides=18)
 
-# The head: a beaver's, blunt and heavy: the skull broad behind, the cheeks puffed, the muzzle short and square, wet, the
-# black nose on its end; the upper lips' flews hanging either side of the incisors; small round ears.
-flesh.blob((0, 1.1, 0.99), (0.27, 0.3, 0.24), 0.08, FUR, head_w, around=22, rings=12)
+# The head: a beaver's, big and blunt: a broad flat skull, the cheeks puffed out wide, a heavy rounded muzzle, wet, a big
+# black nose on its end; the upper lips' flews hanging either side of the incisors; small round ears and small eyes set
+# high on the skull. (The G1 review: not a nub on the body, a head to match it.)
+flesh.blob((0, 1.1, 1.01), (0.36, 0.38, 0.27), 0.1, FUR, head_w, around=24, rings=12)              # the skull
+flesh.blob((0, 1.02, 1.13), (0.3, 0.28, 0.12), 0.08, FUR, head_w)                                  # its flat crown
 for sx in (1, -1):
-    flesh.blob((sx * 0.17, 1.2, 0.88), (0.15, 0.18, 0.15), 0.06, FUR, head_w)                     # the cheeks
-    flesh.blob((sx * 0.2, 1.0, 1.19), (0.075, 0.045, 0.075), 0.03, FUR, head_w, rot=R(rz=sx * 25))  # the ears
-    flesh.blob((sx * 0.075, 1.47, 0.82), (0.08, 0.075, 0.07), 0.03, MUZZLE, head_w)              # the flews
-flesh.blob((0, 1.37, 0.91), (0.19, 0.17, 0.155), 0.06, MUZZLE, head_w)                           # the muzzle
-flesh.blob((0, 1.52, 0.95), (0.095, 0.05, 0.07), 0.03, NOSE, head_w)                             # the nose
+    flesh.blob((sx * 0.24, 1.24, 0.9), (0.2, 0.22, 0.19), 0.07, FUR, head_w)                       # the cheeks
+    flesh.blob((sx * 0.29, 1.0, 1.25), (0.085, 0.05, 0.085), 0.03, FUR, head_w, rot=R(rz=sx * 25))  # the ears
+    flesh.blob((sx * 0.11, 1.6, 0.82), (0.115, 0.1, 0.1), 0.035, MUZZLE, head_w)                  # the flews
+flesh.blob((0, 1.47, 0.92), (0.27, 0.23, 0.21), 0.07, MUZZLE, head_w)                              # the muzzle
+flesh.blob((0, 1.66, 0.98), (0.14, 0.075, 0.1), 0.035, NOSE, head_w)                               # the nose
 for sx in (1, -1):
-    flesh.carve((sx * 0.04, 1.565, 0.965), (0.022, 0.015, 0.018), 0.01)                          # the nostrils
-flesh.blob((0, 1.3, 0.77), (0.14, 0.15, 0.08), 0.04, MUZZLE, head_w)                             # the chin
+    flesh.carve((sx * 0.06, 1.725, 0.99), (0.032, 0.022, 0.026), 0.012)                            # the nostrils
+flesh.blob((0, 1.4, 0.72), (0.19, 0.2, 0.1), 0.05, MUZZLE, head_w)                                 # the chin
 
 # The front legs: thick as a bear's, the elbows out, down to broad flat shovel paws.
 PAWS = {}
@@ -173,30 +175,32 @@ for s, sx in (("r", 1), ("l", -1)):
     flesh.blob(foot, (0.17, 0.3, 0.05), 0.05, PAW, leg, fmat=lambda pts, n: FUR if n.z > 0.6 else PAW)
 # The tail: its thick furred root, then the paddle, broad and flat and scaled, lying on the ground.
 TAIL_W = chain([Vector((0, -0.95, 0.66)), H("tail_01"), H("tail_02"), H("tail_03"), T("tail_03")], ["pelvis", "tail_01", "tail_02", "tail_03"], soft=0.12)
-flesh.limb([Vector((0, -0.95, 0.66)), Vector((0, -1.2, 0.45)), H("tail_02")], [0.22, 0.15, 0.08], 0.08, FUR, TAIL_W,
+flesh.limb([Vector((0, -0.95, 0.66)), Vector((0, -1.2, 0.5)), H("tail_02")], [0.22, 0.16, 0.09], 0.08, FUR, TAIL_W,
            fmat=lambda pts, n: TAIL if (sum(pts, Vector()) / len(pts)).y < -1.3 else FUR)
-flesh.blob((0, -1.78, 0.09), (0.25, 0.42, 0.045), 0.06, TAIL, TAIL_W, around=24, rings=10)
-flesh.blob((0, -2.12, 0.075), (0.22, 0.28, 0.038), 0.05, TAIL, TAIL_W, around=22, rings=8)
+# (Held up off the ground and its back end tipped up, so its broad scaled top shows from the side.)
+flesh.blob((0, -1.8, 0.27), (0.32, 0.45, 0.055), 0.06, TAIL, TAIL_W, rot=R(rx=-5), around=24, rings=10)
+flesh.blob((0, -2.17, 0.3), (0.29, 0.3, 0.048), 0.05, TAIL, TAIL_W, rot=R(rx=-8), around=22, rings=8)
 
 # ----------------------------------------------------------------------------------------------------------------
 # Over the skin: the incisors, the eyes, the claws (`hard`); the wet fur's spikes, the splinters and the spines (`hide`).
 hard = kit.part("hard")
 EYES = []
 for sx in (1, -1):
-    e = Vector((sx * 0.19, 1.26, 1.05))
+    e = Vector((sx * 0.235, 1.3, 1.13))
     EYES.append(e)
     hard.blob(e, (0.032, 0.03, 0.028), 12, 7, EYE, "head")
 # The incisors: two great chisels out of the upper jaw, curved down and a little back, flat-faced and squared off at
 # their edges, chipped; the lower pair short behind them.
 TEETH = []
 for sx in (1, -1):
-    top = Vector((sx * 0.048, 1.5, 0.86))
-    pts = [top + Vector((0, -0.03, 0.04)), top, top + Vector((0, 0.05, -0.14)), top + Vector((0, 0.055, -0.29)), top + Vector((0, 0.03, -0.43))]
+    # (Broad, flat-faced, side by side, their roots up under the lip and hanging well below it: readable at 10 m.)
+    top = Vector((sx * 0.043, 1.64, 0.86))
+    pts = [top + Vector((0, -0.04, 0.05)), top, top + Vector((0, 0.04, -0.16)), top + Vector((0, 0.045, -0.32)), top + Vector((0, 0.025, -0.48))]
     TEETH.append(pts[-1])
-    hard.tube(pts, [(0.042, 0.03), (0.045, 0.028), (0.044, 0.025), (0.042, 0.022), (0.04, 0.012)], 8, TOOTH, "head",
+    hard.tube(pts, [(0.04, 0.034), (0.04, 0.032), (0.04, 0.03), (0.039, 0.026), (0.038, 0.012)], 8, TOOTH, "head",
               ref=(0, 1, 0), square=0.35, cap0=True, cap1=True,
               shape=lambda i, j, a, p, fr, sx=sx: Vector(p) + (Vector((0, 0, 0.018 * (math.sin(a) * sx > 0.3))) if i == 4 else Vector()))
-    low = Vector((sx * 0.035, 1.42, 0.74))
+    low = Vector((sx * 0.035, 1.53, 0.7))
     hard.tube([low, low + Vector((0, 0.04, -0.06)), low + Vector((0, 0.06, -0.13))], [(0.026, 0.018), (0.025, 0.016), (0.022, 0.008)], 6, TOOTH, "jaw",
               ref=(0, 1, 0), square=0.4, cap0=True, cap1=True)
 # The claws: split planks, flat and squared, splintered at their ends; five a front paw, splayed and laid forward;

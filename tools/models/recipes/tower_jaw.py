@@ -184,12 +184,12 @@ base = paint(base, (0.012, 0.01, 0.009), tail * smooth01(0.04, 0.0, sc) * 0.8)
 rough[tail] = 0.35
 # The incisors: iron-dark, rust running down from their roots in streaks, the chipped edges and the cutting ends bare.
 tooth = is_("tj_tooth")
-base[tooth] = (0.028, 0.026, 0.024)
+base[tooth] = (0.3, 0.11, 0.025)
 streak = smooth01(0.3, 0.8, field(lambda q: cook.noise_np(q * np.array([12.0, 12.0, 1.5], np.float32), 3805, 3.0)) * 0.5 + 0.5)
-base = paint(base, (0.11, 0.04, 0.012), tooth * streak * 0.65)
+base = paint(base, (0.09, 0.035, 0.01), tooth * streak * 0.6)
 tipz = np.min(TEETH[:, 2])
 bare = tooth * np.maximum(smooth01(tipz + 0.04, tipz + 0.005, z), smooth01(0.95, 0.99, field(lambda q: ridged(q, 1341, 40.0))))
-base = paint(base, (0.16, 0.155, 0.15), bare * 0.8)
+base = paint(base, (0.42, 0.3, 0.17), bare * 0.7)
 rough[tooth] = 0.4
 rough = np.where(bare > 0.5, 0.25, rough)
 # The claws: old dark timber, split and paler at their ends.

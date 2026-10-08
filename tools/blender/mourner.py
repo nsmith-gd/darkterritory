@@ -66,7 +66,7 @@ def mourner_skeleton():
         ]
         for i, f in enumerate(FINGERS):
             # Three long fingers off the knuckles, fanned a little, each two bones a hand's length; hooked at rest.
-            dx = (i - 1) * 0.022
+            dx = (i - 1) * 0.03
             k0 = Vector((sx * (0.23 + dx * 0.4) + sx * dx, 0.315, 0.355))
             k1 = k0 + Vector((sx * dx * 0.5, 0.06, -0.085))
             k2 = k1 + Vector((sx * dx * 0.2, -0.035, -0.09))
@@ -154,7 +154,7 @@ for s, sx in (("r", 1), ("l", -1)):
     flesh.limb([el, el.lerp(wr, 0.3), wr], [0.05, 0.048, 0.03], 0.02, SKIN, arm)
     palm = wr.lerp(tip, 0.55)
     PALMS[s] = palm
-    flesh.blob(palm, (0.04, 0.05, 0.02), 0.02, SKIN, arm, rot=R(rx=-40), around=14, rings=6)
+    flesh.blob(palm, (0.034, 0.045, 0.017), 0.02, SKIN, arm, rot=R(rx=-40), around=14, rings=6)
 
 # The legs: thin, the knees knobbed, the shins all bone, the feet long and flat; dug in.
 for s, sx in (("r", 1), ("l", -1)):
@@ -217,7 +217,7 @@ for s, sx in (("r", 1), ("l", -1)):
         bones = chain([a, b, c], [f"finger_{f}_{s}_01", f"finger_{f}_{s}_02"], soft=0.015)
         hook = c + (c - b).normalized() * 0.004 + Vector((0, -0.018, -0.006))
         TIPS.append(hook)
-        fine.tube([a, a.lerp(b, 0.5), b, b.lerp(c, 0.5), c, hook], [0.0125, 0.0115, 0.011, 0.0095, 0.008, 0.004], 6, SKIN, bones,
+        fine.tube([a, a.lerp(b, 0.5), b, b.lerp(c, 0.5), c, hook], [0.0095, 0.0088, 0.0085, 0.0075, 0.0065, 0.003], 6, SKIN, bones,
                   ref=(0, 1, 0), cap0="point",
                   fmat=lambda pts, n, c=c: NAIL if (sum(pts, Vector()) / len(pts) - c).length < 0.016 else SKIN)
         # The nail: a curled hook off the last joint, under.
