@@ -54,7 +54,7 @@ public sealed class CreatureArt
     /// <summary>The models this draws, by file name (content/art/models/&lt;name&gt;.glb).</summary>
     public static readonly string[] Names = ["crew", "cinder_hound", "sleeper", "clinger", "hollow", "switchman", "soot_child", "dragger", "husk", "weight",
         "track_doll", "car_hugger", "tippy_toesie", "whistler", "ribbit", "choir", "gaunt", "grumbler", "stoker", "follower", "climber", "fire_fly", "passenger",
-        "survivor_prisoner", "survivor_wildlander", "sheep"];
+        "survivor_prisoner", "survivor_wildlander", "sheep", "moose"];
 
     /// <summary>
     /// The figure a crewmate plays as (GDD App. D.8): the crew's own, or, freed from a Holdout, its occupant's for the rest
@@ -1927,6 +1927,23 @@ public sealed class CreatureArt
                     }
                     return drawn;
                 }
+            case EnemyKind.Moose when _models.ContainsKey("moose"):
+                {
+                    // THE MOOSE (note 339; tools/blender/moose.py; docs/design/creatures/moose.md §3, §5). Its meter is its
+                    // ears and its posture, never the HUD: grazing, head down; listening (aggro over listenAt), the head up and
+                    // the ears forward; warning (over warnAt), the ears pinned flat and the sac ridge stood up, a hoof dragged.
+                    // Riled it trots after them, squares up (the rack levelled at them, two stamps), charges, skids and wheels
+                    // round, jams its rack in what it can't get through, searches where it lost them, rams the car they're
+                    // in, and pins whoever it ran down under the rack. Its mode is the sim's (Moose.Mode); how long it's
+                    // been at it, GreyboxScene's (its clips start with it).
+                    var mode = _mooseMode ?? MooseModeOf(phase);
+                    double since = _mooseSince >= 0 ? _mooseSince : t;
+                    float pace = _pace;
+                    (_mooseMode, _mooseSince, _pace) = (null, -1, 0);
+                    var (clip, at, loop) = MooseClip(mode, extra2, pace, t, since, MooseTuning, TrainPassing);
+                    TrainPassing = false;
+                    return Draw(mesh, "moose", clip, at, loop, model, seed: 311);
+                }
             case EnemyKind.Choir:
                 {
                     // (No model: the Hollow's figure, child-sized and pale, bobbing in the air with a cold light of its own.)
@@ -2034,11 +2051,14 @@ public sealed class CreatureArt
     /// checklist's hit reacts), except while it has hold of someone.
     /// </summary>
     /// <param name="dying">Killed (GreyboxScene.Deaths): held in its hit pose at the end of it (or, with no hit clip, still).</param>
+    /// <param name="modeSeconds">How long a Moose has been in its <see cref="Sim.Enemies.MooseMode"/> (GreyboxScene keeps it;
+    /// −1: its phase's time): its square-up, its skid and wheel play from when they began.</param>
     public bool Enemy(MeshBuilder mesh, in Matrix4x4 model, Enemy e, Bite bite = default, Prey? prey = null, Room? room = null, float pace = 0,
-        double hitAge = -1, bool dying = false)
+        double hitAge = -1, bool dying = false, double modeSeconds = -1)
     {
         _hit = !dying && e.Phase is SpinePhase.Grab or SpinePhase.Punish ? -1 : hitAge;
         _dying = dying;
+        _mooseSince = modeSeconds;
         try
         {
             return EnemyIn(mesh, model, e, bite, prey, room, pace);
@@ -2047,8 +2067,74 @@ public sealed class CreatureArt
         {
             _hit = -1;
             _dying = false;
+            (_mooseMode, _mooseSince) = (null, -1);
         }
     }
+
+    // Set by Enemy(e) for a Moose's one draw, as _pace: what it's doing and how long it's been at it (s, or −1).
+    Sim.Enemies.MooseMode? _mooseMode;
+    double _mooseSince = -1;
+    Sim.Enemies.MooseTuning? _moose;
+
+    /// <summary>The train's going by the Moose about to be drawn, within its trainPassAt (GreyboxScene sets it for each one):
+    /// grazing, it takes the train for a rival, tossing its head and bellowing after it (moose.py trainPass). Used once.</summary>
+    public bool TrainPassing { get; set; }
+
+    /// <summary>The Moose's tuning, as the content has it (its tells' thresholds, its speeds).</summary>
+    public Sim.Enemies.MooseTuning MooseTuning => _moose ??= DataFile.Load<Sim.Enemies.EnemyTuning>(Path.Combine(ContentRoot, Sim.Enemies.EnemyTuning.File)).Moose;
+
+    /// <summary>A Moose's mode as its phase has it, for a draw without the sim's (a test's, the greybox's): grazing, after
+    /// someone, squaring up, charging, pinning, going home.</summary>
+    public static Sim.Enemies.MooseMode MooseModeOf(SpinePhase phase) => phase switch
+    {
+        SpinePhase.Alert => Sim.Enemies.MooseMode.Hunt,
+        SpinePhase.Telegraph => Sim.Enemies.MooseMode.SquareUp,
+        SpinePhase.Commit => Sim.Enemies.MooseMode.Charge,
+        SpinePhase.Grab or SpinePhase.Punish => Sim.Enemies.MooseMode.Pin,
+        SpinePhase.BreakOff => Sim.Enemies.MooseMode.Home,
+        _ => Sim.Enemies.MooseMode.Graze,
+    };
+
+    /// <summary>
+    /// The clip a Moose plays (tools/blender/moose.py), and how far into it: by its mode, its aggro (grazing: <c>graze</c>,
+    /// then <c>listen</c> over listenAt, <c>warn</c> over warnAt) and how fast it's going (<paramref name="pace"/>, m/s: a
+    /// walk, a trot over halfway from its search pace to its hunting one; stood, it glares or listens); grazing with the train
+    /// going by (<paramref name="trainPassing"/>), short of warning, <c>trainPass</c>. The square-up, the
+    /// skid and the wheel play once from when its mode began (<paramref name="modeSeconds"/>); grazing keeps its phase's time.
+    /// </summary>
+    public static (string Clip, double Time, bool Loop) MooseClip(Sim.Enemies.MooseMode mode, double aggro, float pace, double phaseSeconds,
+        double modeSeconds, Sim.Enemies.MooseTuning t, bool trainPassing = false)
+    {
+        double trotFrom = (t.SearchSpeed + t.HuntSpeed) / 2;
+        string Moving(string stood) => pace > trotFrom ? "trot" : pace > Going ? "walk" : stood;
+        return mode switch
+        {
+            Sim.Enemies.MooseMode.Graze => (trainPassing && aggro < t.WarnAt ? "trainPass" : aggro >= t.WarnAt ? "warn" : aggro >= t.ListenAt ? "listen" : "graze",
+                phaseSeconds, true),
+            Sim.Enemies.MooseMode.Home => (pace > Going ? "strut" : "graze", modeSeconds, true),
+            Sim.Enemies.MooseMode.Hunt => (Moving("warn"), modeSeconds, true),
+            Sim.Enemies.MooseMode.Search => (pace > Going ? "search" : "listen", modeSeconds, true),
+            // Ramming the car they're in: a ram each ramEvery seconds (the clip's length) once it's stood at its side.
+            Sim.Enemies.MooseMode.Ram => (Moving("ram"), modeSeconds, true),
+            Sim.Enemies.MooseMode.SquareUp => ("squareUp", modeSeconds, false),
+            Sim.Enemies.MooseMode.Charge => ("charge", modeSeconds, true),
+            Sim.Enemies.MooseMode.Wheel => ("overrun", modeSeconds, false),
+            Sim.Enemies.MooseMode.Snag => ("snag", modeSeconds, true),
+            _ => ("pin", modeSeconds, true),
+        };
+    }
+
+    /// <summary>How far in front of a pinning Moose the one under its rack has their feet (m, along its heading): on their
+    /// back, their head toward it, the muzzle over their face and the palms either side of their chest (moose.py's pin, its
+    /// muzzle down at the ground 1.4 m out, its knees a metre out; crew_clips.py held_pinned, the head 1.6 m behind the feet).</summary>
+    public const float MoosePinReach = 2.0f;
+
+    /// <summary>
+    /// Who each Moose drawn this frame has pinned (the player's id): where their feet are (camera-relative) and the way
+    /// they're laid (their facing: away from it, so they lie with their head under its rack). GreyboxScene turns them so, and
+    /// clears it each frame with <see cref="Clutches"/>.
+    /// </summary>
+    public Dictionary<int, (Vector3 Feet, Vector3 Forward)> Pins { get; } = new();
 
     // Drawing the dead: no clip runs on (Draw holds the hit clip's last frame, or the clip's first).
     bool _dying;
@@ -2148,9 +2234,11 @@ public sealed class CreatureArt
                     return true;
                 }
             case EnemyKind.Stoker when _models.ContainsKey("stoker") && FireDoorOpen is { } door:
-                // At the open door, looking out of it into the cab: cab forward (note 276), the firebox is in the cab's back
-                // wall, so the cab's ahead of it, the way the model faces (−Z).
-                m = Matrix4x4.CreateTranslation(door) * model;
+                // At the open door, looking out of it into the cab: the firebox stands against the cab's front wall (note
+                // 280), so the cab's behind it (+Z), and the model (facing −Z) is turned round to it. Its peer clip was made
+                // for a door 0.7 m over the floor; this one's lower (TrainKit.FireDoorUp), so it's lifted the difference, its
+                // hands on the floor and its head in the top of the hole.
+                m = Matrix4x4.CreateRotationY(MathF.PI) * Matrix4x4.CreateTranslation(door + new Vector3(0, TrainKit.StokerDoorLift, 0)) * model;
                 break;
             case EnemyKind.Follower when _models.ContainsKey("follower") && prey is { } carrier && e.Phase is SpinePhase.Dormant or SpinePhase.Telegraph:
                 {
@@ -2160,6 +2248,25 @@ public sealed class CreatureArt
                     var f = carrier.Forward;
                     var o = carrier.At(0, FollowerUp, FollowerBack);
                     m = new Matrix4x4(r.X, r.Y, r.Z, 0, -f.X, -f.Y, -f.Z, 0, 0, -1, 0, 0, o.X, o.Y, o.Z, 1);
+                    break;
+                }
+            case EnemyKind.Moose when _models.ContainsKey("moose"):
+                {
+                    // It faces its heading (GreyboxScene turns its basis to the sim's Moose.Yaw), going as fast as it's been
+                    // going. Pinning someone (App. A.6 GRAB), it's stood over them: turned to them where the sim has them, its
+                    // rack on them, and they're laid on their back under it with their head toward it (Pins).
+                    _mooseMode = (e as Sim.Enemies.Moose)?.Mode;
+                    _pace = pace;
+                    if (e.Phase is SpinePhase.Grab or SpinePhase.Punish && e.Holding >= 0 && prey is { } held)
+                    {
+                        var (_, up, _) = Basis(model);
+                        var to = (held.Feet - model.Translation) with { Y = 0 };
+                        var f = to.LengthSquared() > 1e-6f ? Vector3.Normalize(to) : Vector3.Normalize(-Vector3.TransformNormal(Vector3.UnitZ, model) with { Y = 0 });
+                        var right = Vector3.Normalize(Vector3.Cross(up, -f));
+                        var stood = held.Feet - f * MoosePinReach;
+                        m = Basis(stood with { Y = model.Translation.Y }, right, up, -f);
+                        Pins[e.Holding] = (held.Feet, f);
+                    }
                     break;
                 }
             case EnemyKind.Grumbler when _models.ContainsKey("grumbler"):

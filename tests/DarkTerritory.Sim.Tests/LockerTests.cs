@@ -69,7 +69,7 @@ public class LockerTests
         Assert.True(names.Count >= 10);
         Assert.Equal(names.Count, shape.Lockers.Count);
         Assert.Equal(names, shape.Lockers.Select(b => b.Name));
-        Assert.Contains("FITTER", names);
+        Assert.Contains("8", names);
         var room = shape.Interior!.Value;
         var g = Tuning.Train.Geometry;
         foreach (var bay in shape.Lockers)
@@ -95,7 +95,7 @@ public class LockerTests
     {
         var world = Stocked();
         int car = World.RepairKitCar(world.Train)!.Value;
-        var bay = KitCarShape(world).Lockers.First(b => b.Name == "PORTER");
+        var bay = KitCarShape(world).Lockers.First(b => b.Name == "11");
         var s = Facing(world, bay);
         Assert.Equal(InteractableKind.Locker, CrewActions.Nearest(s, world.Train));
         // Note 267: a tap at a shut locker opens it; held, it shuts, and held again it opens.
@@ -143,7 +143,7 @@ public class LockerTests
     {
         var world = Stocked();
         int car = World.RepairKitCar(world.Train)!.Value;
-        var bay = KitCarShape(world).Lockers.First(b => b.Name == "PORTER");
+        var bay = KitCarShape(world).Lockers.First(b => b.Name == "11");
         // Toys are found at the stops now (note 264): two brought aboard.
         var room = KitCarShape(world).Interior!.Value;
         var toys = Enumerable.Range(0, 2).Select(i => world.Bodies.SpawnCrate(world.Train, car, new Double3(room.Centre.X, room.Min.Y + 0.1, room.Centre.Z + i), BodyKind.Toy)).ToList();
@@ -198,8 +198,8 @@ public class LockerTests
             Assert.All(Lockers.Contents(world.Bodies, car, bay.Index), b => Assert.True(b.Claimed));
         }
         // GDD §10: emergency lamps and extinguishers where the crew learn to look for them.
-        Assert.Contains(BodyKind.Lamp, stock["LAMPMAN"]);
-        Assert.Contains(BodyKind.Extinguisher, stock["FIREMAN"]);
+        Assert.Contains(BodyKind.Lamp, stock["7"]);
+        Assert.Contains(BodyKind.Extinguisher, stock["2"]);
     }
 
     [Fact]
@@ -210,7 +210,7 @@ public class LockerTests
         var world = Stocked();
         int car = World.RepairKitCar(world.Train)!.Value;
         var shape = KitCarShape(world);
-        var (a, b) = (shape.Lockers.First(x => x.Name == "PORTER"), shape.Lockers.First(x => x.Name == "YARDMASTER"));
+        var (a, b) = (shape.Lockers.First(x => x.Name == "11"), shape.Lockers.First(x => x.Name == "12"));
         Assert.Equal(1, Math.Abs(a.Index - b.Index));
         var between = (a.Front + b.Front) * 0.5;
         PlayerState Looking(LockerBay bay, double sideways)
@@ -259,7 +259,7 @@ public class LockerTests
         var world = Stocked();
         var kit = world.Bodies.All.Single(b => b.Kind == BodyKind.RepairKit);
         var (car, bay) = World.KitLocker(world.Train)!.Value;
-        Assert.Equal("FITTER", bay.Name);
+        Assert.Equal("8", bay.Name);
         Assert.Equal(car, kit.Parent);
         Assert.Equal(bay.Index, kit.Locker);
         Assert.True(kit.Claimed);
@@ -286,7 +286,7 @@ public class LockerTests
         Assert.Equal(2, kits.Count);
         var shape = KitCarShape(world);
         // The spare on the fitter's other shelf.
-        Assert.All(kits, k => Assert.Equal("FITTER", shape.Lockers[k.Locker].Name));
+        Assert.All(kits, k => Assert.Equal("8", shape.Lockers[k.Locker].Name));
         Assert.Equal([0, 1], kits.Select(k => k.Slot));
         // With more spares than his shelves, the next lockers along take them.
         var many = Stocked(Tuning.Train with { Kit = Tuning.Train.Kit with { SpareKits = 3 } });

@@ -180,11 +180,16 @@ public sealed class PrototypeSession : IPlaySession
     }
 
     readonly List<CarFrame> _renderFrames = new();
+    readonly CarLean _lean = new();
 
-    /// <summary>Vehicle frames between the previous and current tick, for smooth rendering at any frame rate.</summary>
+    /// <summary>
+    /// Vehicle frames between the previous and current tick, for smooth rendering at any frame rate; each car leaning out
+    /// on a bend it's taking too fast (note 370: drawn only).
+    /// </summary>
     public IReadOnlyList<CarFrame> InterpolatedFrames(double alpha)
     {
         Train.FramesAt(alpha, _renderFrames);
+        _lean.Apply(_renderFrames, Train, Route?.Plan?.Rules, (Tick + alpha) * SimConstants.TickSeconds);
         return _renderFrames;
     }
 
@@ -297,6 +302,12 @@ public sealed class PrototypeSession : IPlaySession
         (EnemyKind.Grumbler, SpinePhase.BreakOff) => "the Grumbler's backing off: let it be",
 
         (EnemyKind.Choir, SpinePhase.Grab) => "the ghosts have someone: hush and shut the doors",
+        // The Moose (note 339; docs/design/creatures/moose.md): its ears and its posture are its meter, no HUD; these are
+        // what they say.
+        (EnemyKind.Moose, SpinePhase.Alert) => "a moose's head comes up: give it room, keep it quiet",
+        (EnemyKind.Moose, SpinePhase.Telegraph) => "ears flat, rack down: it's coming, get somewhere narrow",
+        (EnemyKind.Moose, SpinePhase.Grab) => "it's got someone under its rack: hit it to take it off them",
+        (EnemyKind.Moose, SpinePhase.BreakOff) => "the moose wanders off",
         (EnemyKind.CarFire, SpinePhase.Telegraph) => "smoke and a crackle from a car: get the extinguisher (Fire)",
         (EnemyKind.CarFire, SpinePhase.Punish) => "a car's alight: it'll take the next one",
         (EnemyKind.CarFire, SpinePhase.BreakOff) => "the fire's out",
@@ -385,6 +396,9 @@ public sealed class PrototypeSession : IPlaySession
         // GDD §18's set pieces (note 185).
         if (site.Has(ModuleKind.Spout))
             parts.Add(site.Bin <= 0 ? "the elevator's bin is empty" : site.Pouring ? $"spout POURING ({site.Bin:0.0} loads left)" : $"the elevator's bin: {site.Bin:0.0} loads");
+        // The mine head's steam lift (note 368).
+        if (site.Has(ModuleKind.Lift))
+            parts.Add(site.Ore <= 0 ? "the shaft's worked out" : site.Winding ? $"the lift WINDING ({site.Ore:0.0} loads left)" : $"a steam lift: {site.Ore:0.0} loads");
         if (site.Has(ModuleKind.Ramp))
             parts.Add(site.Head == 0 ? "the herd's aboard" : site.Herding ? $"herd going up the ramp ({site.Head} left)" : $"{site.Head} head in the pen");
         if (site.Has(ModuleKind.Hose))

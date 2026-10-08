@@ -298,7 +298,7 @@ public static class Guns
         return null;
     }
 
-    static double? Water(TrainOnLine train, Double3 p) =>
+    internal static double? Water(TrainOnLine train, Double3 p) =>
         (train.Line.Conditions is Net.HazardConditions h ? h.Inner : train.Line.Conditions) is LineGen.PlanConditions plan ? plan.Terrain.WaterAt(p.X, p.Z) : null;
 
     /// <summary>Straight down from a point to what's under it: the ground, or water over it.</summary>

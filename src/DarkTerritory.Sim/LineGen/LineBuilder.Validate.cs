@@ -418,6 +418,7 @@ sealed partial class LineBuilder
         var bends = HardBendSpans(_line!).Where(b => b.S0 > _gate).ToList();
         _metrics["hardBends"] = bends.Count;
         _metrics["hardBendSlowestMs"] = bends.Count == 0 ? 0 : Math.Round(Math.Sqrt(_t.Curves.ADerail * bends.Min(b => b.R)), 1);
+        _metrics["sBends"] = Main.Items.SelectMany(i => i.All()).Count(i => i.Params.ContainsKey("sBend"));
         _metrics["tunnelM"] = Math.Round(_structures.Where(s => s.Type == StructureType.Tunnel).Sum(s => s.S1 - s.S0));
         _metrics["bridgeM"] = Math.Round(_structures.Where(s => s.Type is StructureType.Trestle or StructureType.Viaduct or StructureType.Girder or StructureType.Truss).Sum(s => s.S1 - s.S0));
         _metrics["junctions"] = 2 * _alts.Count + _deads.Count;

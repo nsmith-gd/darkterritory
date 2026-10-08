@@ -113,8 +113,8 @@ public class HandTests
         var s = PlayerMotor.SpawnInCab(train, P);
         var firebox = shape.Interactables.First(i => i.Kind == InteractableKind.Firebox);
         var coal = shape.Interactables.First(i => i.Kind == InteractableKind.Coal);
-        // Each of the two, at waist height, and the fireman between them: each is within an arm's length. (Cab
-        // forward, note 276, the coal's ahead of the fire door and to its left: along the way from one to the other.)
+        // Each of the two, at waist height, and the fireman between them: each is within an arm's length. (Note 280: the
+        // coal's at the bunker's face to the fire door's left, a half step from one to the other.)
         var toFire = (firebox.Position - coal.Position) with { Y = 0 };
         toFire = toFire * (1 / toFire.Length);
         // (Their reaches overlap: the hand over each, a little towards the other.)
@@ -178,9 +178,9 @@ public class HandTests
     public void AKeyboardNeverFindsTheCoalFace()
     {
         var (world, s, _, _) = Footplate();
-        // In front of the bunker, in the coal's reach and out of the fire door's.
+        // Beside the bunker behind the fire door (note 280), in the coal's reach and out of the fire door's.
         var coal = world.Train.Frames[0].Shape.Interactables.First(i => i.Kind == InteractableKind.Coal).Position;
-        s.Position = coal + new Double3(0.4, 0, -0.5);
+        s.Position = coal + new Double3(0, 0, 0.9);
         Assert.Null(CrewActions.Nearest(s, world.Train, H));
         Assert.Equal(InteractableKind.Coal, CrewActions.Nearest(s with { Hand = new Double3(0, 1, 0) }, world.Train, H));
     }

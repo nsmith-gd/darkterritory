@@ -102,6 +102,8 @@ public sealed record TierColumn
     public double[] Bends { get; init; } = [];
     /// <summary>Note 278: the speeds (m/s) a hard bend derails at, [min, max]; its radius v² / aDerail, never under minRadius.</summary>
     public double[] BendDerail { get; init; } = [];
+    /// <summary>Note 359: the chance a hard bend is laid as an S-bend, two hard turns either way held as one.</summary>
+    public double SBends { get; init; }
 }
 
 /// <summary>§3.3 budget curve: zone shares and the reserved stretches.</summary>
@@ -126,10 +128,11 @@ public sealed record DemoSwitches(bool Enabled, RouteTier MaxTier, bool NoWashou
 /// <summary>§3.4.</summary>
 public sealed record ConsistRules(double MainGradeShareOfClimbMax, int MaxCars);
 
-/// <summary>§10: the departure fortress and the threshold.</summary>
+/// <summary>§10: the departure fortress and the threshold. <see cref="PadM"/>: how far either side of the line the yard's
+/// ground is level (the walled town's, queue #74, note 335; 70 when the yard was a corridor between two walls).</summary>
 public sealed record FortressTemplate(double DepartureRoadExtraM, double ThroatM, double InnerGateBeforeM, double TowersFromM, double KillZoneM,
     double LastLightM, double[] DressingTransitionM, double YardSpeed, int[] ThroatSwitches, string[] Identities, double MaxThresholdGrade,
-    double ThresholdMinRadius);
+    double ThresholdMinRadius, double PadM = 70);
 
 /// <summary>§11.4: the terminus and arrival.</summary>
 public sealed record TerminusTemplate(double SkyGlowM, double YardLimitBoardM, double SpawnBanM, double WallsResolveM, double ArrivalYardM,

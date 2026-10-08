@@ -7,7 +7,7 @@ using DarkTerritory.Sim.Towns;
 /// <summary>
 /// `dt town`: a night's departure fortress town (GDD §3.1; ARCHITECTURE §8 note 281) as it's made, without a window: its
 /// custom, people and their lines, papers and fixtures, where each stands. `dt town sweep`: many towns' customs and their
-/// words, checked against what the HUD's cards can show.
+/// words, checked against what the HUD's cards can show, and how many are walled (note 335).
 /// </summary>
 static class TownCommands
 {
@@ -27,7 +27,17 @@ static class TownCommands
             plan.Name,
             plan.Population,
             plan.Former,
+            plan.Character,
             houses = plan.Houses.GroupBy(h => h.Kind).ToDictionary(g => g.Key.ToString(), g => g.Count()),
+            // A walled town (queue #74, note 335): its wall's reach either side, its streets' middles and lanes' places.
+            walled = plan.Bounds is { } b ? new
+            {
+                left = Math.Round(b.Left, 1),
+                right = Math.Round(b.Right, 1),
+                rear = Math.Round(b.Rear, 1),
+                streets = b.Streets.Select(x => Math.Round(x.D, 1)).Order(),
+                lanes = b.Lanes.Select(x => Math.Round(x.S - gate, 1)),
+            } : null,
             open = plan.Houses.Where(h => h.Kind == HouseKind.Open).Select(h => new
             {
                 h.Family,
@@ -55,6 +65,8 @@ static class TownCommands
     {
         var cultures = new SortedDictionary<string, int>(StringComparer.Ordinal);
         int repeats = 0, longestLine = 0, longestPaper = 0, minPeople = int.MaxValue, maxPeople = 0, minPop = int.MaxValue, maxPop = 0, maxHouses = 0;
+        // Walled towns (note 335): how many, the smallest walled and the biggest that isn't, and the most streets a side.
+        int walled = 0, smallestWalled = int.MaxValue, biggestYard = 0, mostStreets = 0;
         string? last = null;
         string[] industries = [.. towns.Writing.Industries.Keys.Order(StringComparer.Ordinal)];
         for (int i = 1; i <= seeds; i++)
@@ -70,9 +82,25 @@ static class TownCommands
             maxPeople = Math.Max(maxPeople, plan.People.Count);
             (minPop, maxPop) = (Math.Min(minPop, plan.Population), Math.Max(maxPop, plan.Population));
             maxHouses = Math.Max(maxHouses, plan.Houses.Count);
+            if (plan.Bounds is { } b)
+                (walled, smallestWalled, mostStreets) = (walled + 1, Math.Min(smallestWalled, plan.Population), Math.Max(mostStreets, b.Streets.Count / 2));
+            else
+                biggestYard = Math.Max(biggestYard, plan.Population);
             longestLine = Math.Max(longestLine, plan.Fixtures.Select(f => f.Text.Length).DefaultIfEmpty(0).Max() > 420 ? 9999 : longestLine);
         }
-        return new { seeds, roster = roster.Length == 0 ? "all" : string.Join(",", roster), cultures, repeatsOfTheLast = repeats, longestLine, longestPaper, people = new[] { minPeople, maxPeople }, population = new[] { minPop, maxPop }, maxHouses };
+        return new
+        {
+            seeds,
+            roster = roster.Length == 0 ? "all" : string.Join(",", roster),
+            cultures,
+            repeatsOfTheLast = repeats,
+            longestLine,
+            longestPaper,
+            people = new[] { minPeople, maxPeople },
+            population = new[] { minPop, maxPop },
+            maxHouses,
+            walled = new { towns = walled, smallest = walled > 0 ? smallestWalled : 0, biggestUnwalled = biggestYard, mostStreetsASide = mostStreets }
+        };
     }
 
     static double Opt(string[] args, string name, double fallback)

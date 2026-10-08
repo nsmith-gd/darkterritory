@@ -128,6 +128,10 @@ public static partial class Hud
     /// <summary>A still frame's flash (<c>dt screenshot --hud --hurt s</c>): at this strength, fresh, whatever the health did.</summary>
     public static double? StagedHurt { get; set; }
 
+    /// <summary>A still frame's commendation picker at the run's end (<c>dt screenshot --report --commend-pick</c>, note 369):
+    /// only a networked night has one of its own (<see cref="IPlaySession.CommendPick"/>).</summary>
+    public static (string To, string What, bool Given)? StagedCommendPick { get; set; }
+
     /// <summary>
     /// How strong the edge flash is now (0 to 1): this machine's player's health fell, by how much, and how long ago (from
     /// the replicated health, so it's what the host applied). Called once a frame, by <see cref="Build"/>.
@@ -360,7 +364,7 @@ public static partial class Hud
             return $"WITH {IncidentLog.NameOf(world, kit.Carrier).ToUpperInvariant()}";
         int car = consist.IndexOf(kit.Parent);
         if (car > 0 && kit.Stowed && kit.Locker < world.Train.Frames[kit.Parent].Shape.Lockers.Count)
-            return $"THE {world.Train.Frames[kit.Parent].Shape.Lockers[kit.Locker].Name}'S LOCKER, CAR {car}";
+            return $"LOCKER {world.Train.Frames[kit.Parent].Shape.Lockers[kit.Locker].Name}, CAR {car}";
         return car > 0 ? $"ON THE FLOOR, CAR {car}" : car == 0 ? "ON THE ENGINE" : "OFF THE TRAIN";
     }
 
@@ -427,6 +431,33 @@ public static partial class Hud
         };
     }
 
+    /// <summary>
+    /// A switch's lever in reach, the cab's powered thrower's (note 196) or a stand's: which way it'll throw, and when it
+    /// won't. Use is the lever's there whatever's in your hands (queue #94, note 357), so it's said before what you carry
+    /// and what's lying by it, as the sim decides it.
+    /// </summary>
+    static string? SwitchPrompt(Sim.World world, in PlayerState p, TrainOnLine train, HandTuning? hand)
+    {
+        if (world.Switches is not { } stands)
+            return null;
+        // Spec F.3's powered switch thrower: the next points ahead, from the cab, slowed for them.
+        if (SwitchStands.CabLever(p, train, hand) is { } lever)
+        {
+            var thrower = train.Dynamics.Tuning.Composition.Thrower;
+            if (lever.Branch is not { } ahead)
+                return "NO POINTS AHEAD";
+            double off = train.Line.Branches[ahead].Toe - train.Line.MainDistance(train.Dynamics.Path, train.Dynamics.Distance);
+            // The thrower's limit is a speed figure, which the director keeps (7 Oct): the lever works under it.
+            return !lever.Slow ? $"POINTS IN {off:0} M: UNDER {thrower.MaxSpeed * 3.6:0} KM/H"
+                : train.PointsOccupied(ahead, stands.Tuning.PointsLength) ? "POINTS HELD"
+                : $"THROW TO {SwitchTo(world, train, ahead)} : HOLD [E]";
+        }
+        // Which way it'll go, and when it won't: the points don't move with a wheel on them.
+        return stands.InReach(p, train, hand) is not { } branch ? null
+            : train.PointsOccupied(branch, stands.Tuning.PointsLength) ? "POINTS HELD"
+            : $"THROW TO {SwitchTo(world, train, branch)} : HOLD [E]";
+    }
+
     /// <summary>What the route card calls a generated line's alternate (its known grades: "high line (alt1)"), if it says.</summary>
     static string? CardName(Sim.World world, int branch)
     {
@@ -459,7 +490,7 @@ public static partial class Hud
         int car = consist.IndexOf(kit.Parent);
         // In its locker (note 173): the crew learn which.
         if (car > 0 && kit.Stowed && kit.Locker < world.Train.Frames[kit.Parent].Shape.Lockers.Count)
-            return $"REPAIR KIT: THE {world.Train.Frames[kit.Parent].Shape.Lockers[kit.Locker].Name}'S LOCKER, CAR {car}";
+            return $"REPAIR KIT: LOCKER {world.Train.Frames[kit.Parent].Shape.Lockers[kit.Locker].Name}, CAR {car}";
         return car > 0 ? $"REPAIR KIT: CAR {car}" : car == 0 ? "REPAIR KIT: ON THE ENGINE" : "REPAIR KIT: OFF THE TRAIN";
     }
 
@@ -509,7 +540,7 @@ public static partial class Hud
         var carried = world.Bodies.CarriedBy(playerId);
         if (carried is not null && !Lockers.Holds(train, carried.Kind))
             return null;
-        string name = $"THE {at.Bay.Name}'S LOCKER";
+        string name = $"LOCKER {at.Bay.Name}";
         bool full = Lockers.FreeSlot(world.Bodies, train, at.Car, at.Bay.Index) < 0;
         // Note 267 ("there needs to be some telegraphing that there's a repair kit inside"): the tag on its door says
         // what's in it, shut or open; a tap opens a shut one, and puts what's in your hands in.
@@ -579,22 +610,22 @@ public static partial class Hud
             y += (line + 2) * k;
         }
         if (s.Player.Alive && Shown(Since(s, m.ColdTick), Tuning.ColdSeconds) is > 0 and var c
-            && ColdLine(s.Player, s.Train, s.PlayerTuning) is { } cold)
+            && ColdLine(s.Player, s.Train) is { } cold)
             o.TextCentred(cx, y + 2, cold, Amber with { W = c }, k);
     }
 
     /// <summary>
     /// The cold step where a player is, in words (note 201), or null on a normal night. Every machine builds the night's
-    /// conditions from its seed, so a client knows it as the host does.
+    /// conditions from its seed, so a client knows it as the host does. Its name only: how much faster it comes on outside
+    /// is learned out in it (note 285's "nothing foretells"; note 369).
     /// </summary>
-    public static string? ColdLine(in PlayerState p, TrainOnLine train, PlayerTuning tuning)
+    public static string? ColdLine(in PlayerState p, TrainOnLine train) => PlayerMotor.ColdStep(p, train) switch
     {
-        int step = PlayerMotor.ColdStep(p, train);
-        if (step <= 0)
-            return null;
-        string name = step switch { 1 => "DEEP COLD", 2 => "BITTER COLD", _ => "KILLING COLD" };
-        return $"{name}: OUTSIDE, IT COMES ON {1 + tuning.Cold.PerColdStep * step:0.##}X FASTER";
-    }
+        <= 0 => null,
+        1 => "DEEP COLD",
+        2 => "BITTER COLD",
+        _ => "KILLING COLD",
+    };
 
     static void Alerts(Overlay o, int width, int height, IPlaySession s, int line)
     {
@@ -695,17 +726,22 @@ public static partial class Hud
             var given = s.World.Commendations;
             if (_commendations is null && given.Count > 0)
                 _commendations = [.. given.Select(c => (IncidentLog.NameOf(s.World, c.To), (UiStyle.Commendation)c.Which, IncidentLog.NameOf(s.World, c.From)))];
-            if (s.CommendPick is { } pick)
+            int above = height;
+            if ((s.CommendPick ?? StagedCommendPick) is { } pick)
             {
-                string text = pick.Given ? $"YOU COMMENDED {pick.To}: {pick.What}"
-                    : Headset ? $"COMMEND [STICK LEFT/RIGHT] {pick.To}   [STICK UP/DOWN] {pick.What}   [CLICK STICK] GIVE"
-                    : $"COMMEND [LEFT/RIGHT] {pick.To}   [UP/DOWN] {pick.What}   [SPACE] GIVE";
-                UiStyle.Keyed(o, MathF.Round((width - UiStyle.MeasureKeyed(o, text)) / 2), height - 12, text, pick.Given ? Green : Amber);
+                // What to do, in fine print with keycaps (note 285), along the foot under the commendations: on two lines
+                // where one won't go, the report and the commendations raised to make room.
+                var picker = CommendLines(o, pick, Headset, width, Fine);
+                float step = (line + 4) * Fine;
+                for (int i = 0; i < picker.Count; i++)
+                    UiStyle.Keyed(o, Overlay.Snap((width - UiStyle.MeasureKeyed(o, picker[i], Fine)) / 2, Fine),
+                        height - 12 - (picker.Count - 1 - i) * step, picker[i], pick.Given ? Green : Amber, Fine);
+                above -= (int)MathF.Ceiling((picker.Count - 1) * step);
             }
             bool awards = _commendations is { Count: > 0 };
-            IncidentReport(o, width, awards ? height - (int)Commendations(o, width, height, _commendations!, draw: false) : height, y + line, r, line, _stills);
+            IncidentReport(o, width, awards ? above - (int)Commendations(o, width, above, _commendations!, draw: false) : above, y + line, r, line, _stills);
             if (awards)
-                Commendations(o, width, height, _commendations!);
+                Commendations(o, width, above, _commendations!);
             return;
         }
         if (!p.Alive)
@@ -1181,6 +1217,49 @@ public static partial class Hud
     }
 
     /// <summary>
+    /// The commendation picker at the run's end (D.12) in note 285's form (note 369): who and what, each with the key
+    /// that changes it, then COMMEND with its key; once given, what you gave.
+    /// </summary>
+    public static string CommendLine((string To, string What, bool Given) pick, bool headset) =>
+        pick.Given ? $"YOU COMMENDED {pick.To}: {pick.What}" : $"{CommendParts(pick, headset).Choice}   {CommendParts(pick, headset).Give}";
+
+    static (string Choice, string Give) CommendParts((string To, string What, bool Given) pick, bool headset) => headset
+        ? ($"{pick.To} : [STICK LEFT/RIGHT]   {pick.What} : [STICK UP/DOWN]", "COMMEND : [CLICK STICK]")
+        : ($"{pick.To} : [LEFT/RIGHT]   {pick.What} : [UP/DOWN]", "COMMEND : [SPACE]");
+
+    /// <summary>
+    /// <see cref="CommendLine"/> as drawn in <paramref name="width"/> at <paramref name="scale"/>: one line where it goes,
+    /// with a name too long for it (twenty letters at 720p) cut short, the name being the one part of it of any length.
+    /// Where not even that goes (a large TEXT SIZE at 720p), the choice over COMMEND. One line keeps the report's room: at
+    /// 720p with a few bookmarks it's down to its last lines already.
+    /// </summary>
+    public static IReadOnlyList<string> CommendLines(Overlay o, (string To, string What, bool Given) pick, bool headset, float width, float scale)
+    {
+        bool Fits(string text) => UiStyle.MeasureKeyed(o, text, scale) <= width - 12;
+        string Cut(Func<string, string> make)
+        {
+            string text = make(pick.To);
+            for (int n = pick.To.Length - 1; n >= 3 && !Fits(text); n--)
+                text = make(pick.To[..n].TrimEnd() + ".");
+            return text;
+        }
+        string one = Cut(to => CommendLine(pick with { To = to }, headset));
+        if (Fits(one) || pick.Given)
+            return [one];
+        return [Cut(to => CommendParts(pick with { To = to }, headset).Choice), CommendParts(pick, headset).Give];
+    }
+
+    /// <summary>
+    /// The skip's line (E.5, E.9), as every other hold (note 285's form, note 369): under the crew's vote, the votes so far
+    /// of the crew's.
+    /// </summary>
+    public static string SkipLine(IPlaySession s)
+    {
+        var (votes, of) = s.World.FilmVotes;
+        return !s.World.WreckTuning.Skip.Own && of > 0 && votes > 0 ? $"SKIP : HOLD [SPACE]   {votes}/{of}" : "SKIP : HOLD [SPACE]";
+    }
+
+    /// <summary>
     /// The skip (E.5, E.9), once it counts: hold the key. Each player's own (note 315), the hold filling under it; under the
     /// crew's vote, the votes so far of the crew's.
     /// </summary>
@@ -1188,8 +1267,7 @@ public static partial class Hud
     {
         if (!s.Skippable)
             return;
-        var (votes, of) = s.World.FilmVotes;
-        string text = !s.World.WreckTuning.Skip.Own && of > 0 && votes > 0 ? $"HOLD [SPACE] TO SKIP   {votes}/{of}" : "HOLD [SPACE] TO SKIP";
+        string text = SkipLine(s);
         float w = UiStyle.MeasureKeyed(o, text), x = width - 12 - w;
         UiStyle.Keyed(o, x, height - 18, text, Dim);
         if (s.SkipHold > 0)
@@ -1368,6 +1446,7 @@ public static partial class Hud
         DeathCause.Carried => "CARRIED OFF TO THE WHISTLER'S NEST",
         DeathCause.Seized => "SEIZED BY THE CHOIR. YOU WERE OUTSIDE, AND IT WAS LOUD",
         DeathCause.Uncoupled => "TAKEN WITH THE CABOOSE. THE PASSENGER CUT IT LOOSE",
+        DeathCause.Trampled => "TRAMPLED BY THE MOOSE. YOU GOT TOO CLOSE, OR TOO LOUD",
         DeathCause.None => "",
         _ => cause.ToString().ToUpperInvariant(),
     };
@@ -1511,7 +1590,7 @@ public static partial class Hud
         // Carried, Use puts it down: nothing else in reach is offered. What it is, and how to be rid of it, is the corner's;
         // here only a healing find's use under way (note 272, in note 285's form).
         if (world.Bodies.CarriedBy(s.PlayerId) is { } inHands)
-            return HealPrompt(s, inHands);
+            return SwitchPrompt(world, p, train, world.Hand) ?? HealPrompt(s, inHands);
         // T112: the gun's seat and its own controls.
         if (world.Combat is { } combat && Guns.MannedGun(p, train, combat.Guns) is { } manned)
         {
@@ -1550,7 +1629,7 @@ public static partial class Hud
                 : "THE COUPLING : LOOK DOWN";
         // Note 267: the vent's feedback while it's held open (its key, or Use at the valve), from the cab: it's working.
         if (PlayerMotor.InCab(p, train) && train.BoilerTuning is not null && train.Boiler.Vented && !train.Boiler.Ruptured)
-            return "VENTING";
+            return world.Run?.CurrentSite is { Winding: true } ? "STEAM TO THE LIFT" : "VENTING";
         switch (near)
         {
             // GDD §12's whistle cord (note 264), looked at (the director, 7 Oct: "PULL CORD : [E]").
@@ -1586,19 +1665,13 @@ public static partial class Hud
                 return "SAND THE RAIL : HOLD [E]";
             case InteractableKind.Door:
                 return "DOOR : [E]";
-            // Spec F.3's powered switch thrower (note 196): the next points ahead, from the cab, slowed for them.
-            case InteractableKind.Points when world.Switches is { } stands && SwitchStands.CabLever(p, train, hand) is { } lever:
-                {
-                    var thrower = train.Dynamics.Tuning.Composition.Thrower;
-                    if (lever.Branch is not { } ahead)
-                        return "NO POINTS AHEAD";
-                    double off = train.Line.Branches[ahead].Toe - train.Line.MainDistance(train.Dynamics.Path, train.Dynamics.Distance);
-                    // The thrower's limit is a speed figure, which the director keeps (7 Oct): the lever works under it.
-                    return !lever.Slow ? $"POINTS IN {off:0} M: UNDER {thrower.MaxSpeed * 3.6:0} KM/H"
-                        : train.PointsOccupied(ahead, stands.Tuning.PointsLength) ? "POINTS HELD"
-                        : $"THROW TO {SwitchTo(world, train, ahead)} : HOLD [E]";
-                }
+            // Spec F.3's powered switch thrower (note 196).
+            case InteractableKind.Points when SwitchPrompt(world, p, train, hand) is { } cabLever:
+                return cabLever;
         }
+        // A switch stand's lever (queue #94, note 357): Use is the lever's there, so it's offered before what's lying by it.
+        if (SwitchPrompt(world, p, train, hand) is { } atStand)
+            return atStand;
         // A fortress town (note 281): somebody to talk to, a paper to read, a thing to look at. Before what's lying in reach,
         // so a lamp at somebody's feet doesn't take the press meant for them.
         if (world.Town is { } town && town.Target(p, train.Dynamics.Tuning.Pick.EyeHeight) is { } there)
@@ -1630,6 +1703,13 @@ public static partial class Hud
             return spout.Pouring ? under is { } filling ? $"POURING   CAR {filling.Load * 100:0}% FULL" : "POURING"
                 : under is { } car ? $"SPOUT : HOLD [E]   CAR {car.Load * 100:0}% FULL" : "NO CAR UNDER THE SPOUT";
         }
+        // The mine head's steam lift (note 368): the car under its chute, and the skip coming up while the engine's steam winds it.
+        if (world.Run?.LiftLeverInReach(p, train, hand) is { } lift)
+        {
+            var under = world.Run.CarUnderChute(train, lift);
+            return lift.Winding ? under is { } filling ? $"WINDING   CAR {filling.Load * 100:0}% FULL" : "WINDING"
+                : under is { } car ? $"LIFT : HOLD [E]   CAR {car.Load * 100:0}% FULL" : "NO CAR UNDER THE CHUTE";
+        }
         if (world.Run?.InPen(p, train) is { } pen)
             return pen.Herding ? $"DRIVING THE HERD ({pen.Head} LEFT)"
                 : world.Run.CarAtRamp(train, pen) is null ? "NO CAR AT THE RAMP" : "DRIVE THE HERD : HOLD [E]";
@@ -1643,12 +1723,6 @@ public static partial class Hud
         // The wreck yard (note 187): a heap in the dark is a heap you can't see into. Its groan is heard, not read.
         if (world.Run?.HeapNear(p, train) is { Found: false, Salvage: > 0, Groan: <= 0 })
             return "TOO DARK TO SEE";
-        if (world.Switches?.InReach(p, train, hand) is { } branch)
-        {
-            // Which way it'll go, and when it won't: the points don't move with a wheel on them.
-            return train.PointsOccupied(branch, world.Switches.Tuning.PointsLength) ? "POINTS HELD"
-                : $"THROW TO {SwitchTo(world, train, branch)} : HOLD [E]";
-        }
         // A yard whose power's down (level-design D.2): restart it at the powerhouse.
         if (world.Run is { } powered && powered.PowerhouseInReach(p, train) && powered.CurrentSite is { } ps)
             return ps.Restart > 0 ? $"RESTARTING THE GENERATOR ({ps.Restart / powered.PowerTuning.RestartSeconds * 100:0}%)"

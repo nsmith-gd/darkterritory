@@ -48,6 +48,40 @@ public sealed class UiSoundTests : IDisposable
     }
 
     [Fact]
+    public void ANameIsTypedAKeyAtATimeAndACrewDeletedIsStamped()
+    {
+        // Note 320's crew names (the player's and the lobby's alike): a key heard for each typing that took, none for one
+        // that didn't; and a crew deleted for good is the stamp, in place of the choice's select (note 322).
+        var heard = new List<string>();
+        var m = Menu(heard);
+        Pick(m, "CAMPAIGN");
+        m.Select();
+        Pick(m, "SLOT 2: EMPTY");
+        m.Select();
+        Pick(m, "NAME");
+        // Not typing into it yet: those keys are the game's.
+        m.Type("wasd");
+        Assert.DoesNotContain(UiCue.Type, heard);
+        m.Select();
+        heard.Clear();
+        m.Type("N");
+        m.Type("!");
+        m.Erase();
+        Assert.Equal([UiCue.Type, UiCue.Type, UiCue.Type], heard);
+        heard.Clear();
+        m.Type("\u0001");
+        Assert.Empty(heard);
+        m.Select();
+        m.ShowFortress(2);
+        Pick(m, "DELETE THIS CREW");
+        m.Select();
+        Pick(m, "DELETE CREW 2N");
+        heard.Clear();
+        m.Select();
+        Assert.Equal([UiCue.Delete], heard);
+    }
+
+    [Fact]
     public void EveryInterfaceSoundIsFlatOnItsTier()
     {
         // tools/audio/install.py writes them so: heard without position, on the interface's tier.

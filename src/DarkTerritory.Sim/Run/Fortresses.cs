@@ -8,9 +8,11 @@ namespace DarkTerritory.Sim.Run;
 /// <see cref="End"/>, its gatehouse over the line at <see cref="Gate"/>, the home fortress's platform behind its gate, and
 /// the lived-in village between the line and the walls while the town still answers (T100; linegen plan §22.4). A town's
 /// fortress (GDD §3.1; note 281) has its <see cref="Square"/>: the wall on that side steps back round it (the town's own
-/// walls), and no tower stands in it; its houses are the town's own (Towns.TownHouse), so the village's aren't stood.
+/// walls), and no tower stands in it; its houses are the town's own (Towns.TownHouse), so the village's aren't stood. A
+/// walled town (queue #74, note 335) has its <see cref="Bounds"/>: the wall goes round the town, the line through its gate.
 /// </summary>
-public readonly record struct Fort(double Start, double End, double Gate, bool Platform, bool Lived, Towns.TownSquare? Square = null);
+public readonly record struct Fort(double Start, double End, double Gate, bool Platform, bool Lived, Towns.TownSquare? Square = null,
+    Towns.TownBounds? Bounds = null);
 
 /// <summary>A lived-in house inside a fortress's walls: its frontage along the line, its depth across, and its ridge.</summary>
 public readonly record struct FortHouse(double Width, double Depth, double Ridge);
@@ -113,34 +115,42 @@ public static class Fortresses
             var at = t.Position + right * across;
             return new Wall(at with { Y = 0 }, tangent, halfLength, halfWidth, t.Position.Y + bottom, t.Position.Y + top);
         }
-        foreach (int side in new[] { -1, 1 })
+        if (fort.Bounds is { } town)
         {
-            // A wall piece runs from where it's set a bay up the line (its kit runs to −Z, which is up the line). On a town's
-            // square's side, the bays stop at the square and start again past it, cut short where it does (WorldArt.WallRun).
-            for (double s = Math.Floor(a / WallBay) * WallBay; s < b; s += WallBay)
+            foreach (var w in Round(town, line))
+                yield return w;
+        }
+        else
+        {
+            foreach (int side in new[] { -1, 1 })
             {
-                if (fort.Square is { } sq && sq.Side == side && s + WallBay > sq.S0 && s < sq.S1)
+                // A wall piece runs from where it's set a bay up the line (its kit runs to −Z, which is up the line). On a town's
+                // square's side, the bays stop at the square and start again past it, cut short where it does (WorldArt.WallRun).
+                for (double s = Math.Floor(a / WallBay) * WallBay; s < b; s += WallBay)
                 {
-                    foreach (var (lo, hi) in new[] { (s, Math.Min(s + WallBay, sq.S0)), (Math.Max(s, sq.S1), s + WallBay) })
-                        if (hi - lo >= 0.05)
-                            yield return At((lo + hi) / 2, side * WallOut, (hi - lo) / 2 + 0.05, WallHalf, -3, WallHeight);
+                    if (fort.Square is { } sq && sq.Side == side && s + WallBay > sq.S0 && s < sq.S1)
+                    {
+                        foreach (var (lo, hi) in new[] { (s, Math.Min(s + WallBay, sq.S0)), (Math.Max(s, sq.S1), s + WallBay) })
+                            if (hi - lo >= 0.05)
+                                yield return At((lo + hi) / 2, side * WallOut, (hi - lo) / 2 + 0.05, WallHalf, -3, WallHeight);
+                        continue;
+                    }
+                    yield return At(s + WallBay / 2, side * WallOut, WallBay / 2 + 0.05, WallHalf, -3, WallHeight);
+                }
+                for (double s = Math.Ceiling(a / TowerEvery) * TowerEvery; s < b; s += TowerEvery)
+                    if (!InTheSquare(fort.Square, s, side, 3))
+                        yield return At(s, side * WallOut, TowerHalf, TowerHalf, -3, TowerHeight);
+                // A town's houses are its own (Towns.Town's walls, note 281), not this village's.
+                if (!fort.Lived || fort.Square is not null)
                     continue;
-                }
-                yield return At(s + WallBay / 2, side * WallOut, WallBay / 2 + 0.05, WallHalf, -3, WallHeight);
+                for (double s = Math.Ceiling(a / HouseEvery) * HouseEvery; s < b; s += HouseEvery)
+                    if (HouseAt(s, side, fort.Start, fort.End, fort.Gate, fort.Platform, fort.Square) is { } v)
+                    {
+                        // Its front to the line: its frontage along it, its depth across.
+                        var house = House(v);
+                        yield return At(s, side * HouseOut, house.Width / 2, house.Depth / 2, -3, house.Ridge);
+                    }
             }
-            for (double s = Math.Ceiling(a / TowerEvery) * TowerEvery; s < b; s += TowerEvery)
-                if (!InTheSquare(fort.Square, s, side, 3))
-                    yield return At(s, side * WallOut, TowerHalf, TowerHalf, -3, TowerHeight);
-            // A town's houses are its own (Towns.Town's walls, note 281), not this village's.
-            if (!fort.Lived || fort.Square is not null)
-                continue;
-            for (double s = Math.Ceiling(a / HouseEvery) * HouseEvery; s < b; s += HouseEvery)
-                if (HouseAt(s, side, fort.Start, fort.End, fort.Gate, fort.Platform, fort.Square) is { } v)
-                {
-                    // Its front to the line: its frontage along it, its depth across.
-                    var house = House(v);
-                    yield return At(s, side * HouseOut, house.Width / 2, house.Depth / 2, -3, house.Ridge);
-                }
         }
         if (fort.Gate >= 0 && fort.Gate <= line.Length)
         {
@@ -150,5 +160,38 @@ public static class Fortresses
             // The arch over the line, clear above anyone on a car's roof.
             yield return At(fort.Gate, 0, GateHalf, GateInner, ArchBottom, ArchTop);
         }
+    }
+
+    /// <summary>
+    /// A walled town's wall (queue #74, note 335): a bay at a time down each side from the rear wall to the gate, the front
+    /// wall out from the gatehouse's towers to each corner, the rear wall across the line behind the yard's start (its gate
+    /// shut), a tower at each corner and every <see cref="TowerEvery"/> down the sides. Each an upright box on the rail's
+    /// height at the yard's start, which is level (linegen's fortress segment) and straight.
+    /// </summary>
+    public static IEnumerable<Wall> Round(Towns.TownBounds town, RailLine line)
+    {
+        var start = line.Sample(0);
+        var tangent = new Double3(start.Tangent.X, 0, start.Tangent.Z).Normalized;
+        var right = Double3.Cross(tangent, Double3.Up).Normalized;
+        double y = start.Position.Y;
+        // A point in the rail frame (the yard is straight, so behind its start too).
+        Double3 P(double s, double d) => (start.Position + tangent * s + right * d) with { Y = 0 };
+        Wall Along(double s0, double s1, double d) => new(P((s0 + s1) / 2, d), tangent, (s1 - s0) / 2 + 0.05, WallHalf, y - 3, y + WallHeight);
+        Wall Across(double s, double d0, double d1) => new(P(s, (d0 + d1) / 2), right, (d1 - d0) / 2 + 0.05, WallHalf, y - 3, y + WallHeight);
+        Wall Tower(double s, double d) => new(P(s, d), tangent, TowerHalf, TowerHalf, y - 3, y + TowerHeight);
+        foreach (var (d, sd) in new[] { (-town.Left, -1), (town.Right, 1) })
+        {
+            for (double s = town.Rear; s < town.Gate; s += WallBay)
+                yield return Along(s, Math.Min(s + WallBay, town.Gate), d);
+            foreach (double s in new[] { town.Rear, town.Gate })
+                yield return Tower(s, d);
+            for (double s = town.Rear + TowerEvery; s < town.Gate - TowerEvery / 2; s += TowerEvery)
+                yield return Tower(s, d);
+            // The front wall from the gatehouse's tower out to the corner.
+            double inner = sd * GateOuter;
+            yield return Across(town.Gate, Math.Min(inner, d), Math.Max(inner, d));
+        }
+        // The rear wall, straight across, the line's way out the back shut.
+        yield return Across(town.Rear, -town.Left, town.Right);
     }
 }

@@ -51,7 +51,9 @@ def main():
         tell = line in TELL_SOUNDS and f'"{TELL_SOUNDS[line][0]}"' in code
         # or composed per tool, $"crew-melee.{ToolName(held)}-swing": the line's name, then the cue's id after its tool
         composed = f'$"{line}.{{' in code
-        hooked = [c for c in live if tell or f'"{line}.{c["id"]}' in code
+        # or by the creature it's about, $"sign.{Director.Key(kind)}" (note 342): the cue ids are the roster's keys
+        by_kind = f'$"{line}.{{Director.Key(' in code
+        hooked = [c for c in live if tell or by_kind or f'"{line}.{c["id"]}' in code
                   # or a synth sound of main's the cue's takes replace (install.py SWAPS), played under its own name
                   or swap(line, c) and f'"{swap(line, c)}"' in code
                   or composed and "-" in c["id"] and f'}}-{c["id"].split("-", 1)[1]}"' in code

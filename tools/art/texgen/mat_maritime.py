@@ -406,3 +406,100 @@ def treeline_card(ctx):
     s = np.full((H, W), 0.04, np.float32)
     g = np.full((H, W), 0.2, np.float32)
     return card_out(ctx, d, alpha, s, g, "packed spires wrapped to tile, solid stand below, rim")
+
+
+# ---------------------------------------------------------------------------------------------------------------------
+# The towns' walls (the director, 7 Oct 2026, with photographs of Cape Breton, Peggy's Cove, Lunenburg, Shelburne and
+# Blue Rocks; ARCHITECTURE §8 note 281). Both are procedural, so they rebuild the same without the CC0 scans, and both
+# are near-neutral: a house's paint (or a shingle's stain) is the kit's tint over them (Art/MaritimeKit.cs).
+
+def _courses(ctx, W, rows, widths, key):
+    """Courses of pieces across the tile: for each pixel, its row, the piece in that row (a per-piece id), how far down
+    the row it is (0 at the top, 1 at the butt) and how far it is from the nearest joint. Each row's joints are offset
+    at random and its pieces' widths drawn from `widths` (px), wrapping round the tile so it repeats seamlessly."""
+    xs, ys = noise.grid(W, W)
+    h = W // rows
+    row = (ys // h).astype(np.int32)
+    down = (ys - row * h) / h
+    rng = ctx.rng(key)
+    piece = np.zeros((W, W), np.int32)
+    joint = np.full((W, W), 1e9, np.float32)
+    pid = 0
+    for r in range(rows):
+        off = rng.uniform(0, W)
+        edges = [off]
+        while edges[-1] < off + W - widths[0]:
+            edges.append(edges[-1] + rng.uniform(*widths))
+        edges[-1] = off + W
+        e = np.array(edges, np.float32)
+        x = (xs[row == r] - off) % W + off
+        k = np.searchsorted(e, x, side="right") - 1
+        piece[row == r] = pid + k
+        joint[row == r] = np.minimum(x - e[k], e[k + 1] - x)
+        pid += len(edges)
+    return row, piece, down, joint, pid
+
+
+@texture("shingle_cedar", "wood", tile=1.0)
+def shingle_cedar(ctx):
+    """Cedar shingles weathered silver: eight courses a metre (a 125 mm exposure), each shingle its own width, tone and
+    grain, the butt of each course throwing a shadow on the one below, thin dark joints, a little lichen and the rain's
+    streaks. Near-neutral grey, so a stain or a coat of paint is the kit's tint over it (Peggy's Cove's teal house)."""
+    W = ctx.W
+    row, piece, down, joint, n = _courses(ctx, W, 8, (36, 120), "courses")
+    tone = ctx.rng("tone").random(n).astype(np.float32)[piece]
+    warm = ctx.rng("warm").random(n).astype(np.float32)[piece]
+    # Grain along the shingle (down it), each shingle's own piece of it.
+    shift = (ctx.rng("shift").random(n).astype(np.float32) * W)[piece]
+    grain = noise.fbm01(ctx.rng("grain"), (W, W), 2.2, octaves=4, stretch=(0.08, 1.0))
+    grain = np.take_along_axis(grain, ((np.arange(W)[None, :] + shift.astype(np.int32)) % W), axis=1)
+    silver, brown = core.hexc("#8C8A84"), core.hexc("#7A6E62")
+    d = lerp(silver, brown, (warm * 0.7)[..., None] * np.ones((1, 1, 3), np.float32))
+    d = d * (0.72 + 0.4 * tone[..., None]) * (0.7 + 0.6 * grain[..., None])
+    # Each shingle a little darker down one side, where it cupped as it dried.
+    cup = (ctx.rng("cup").random(n).astype(np.float32) - 0.5)[piece]
+    d = d * (1 - 0.12 * cup * smoothstep(0, 1, down))[..., None]
+    # Each course thicker toward its butt; the butt's shadow over the top of the course below; dark joints.
+    butt_shadow = smoothstep(0.18, 0.0, down)
+    gapm = smoothstep(2.2, 0.6, joint)
+    height = down * 2.0 - butt_shadow * 1.5 - gapm * 2.0 + grain * 0.6
+    d = d * (1 - 0.55 * butt_shadow)[..., None] * (1 - 0.8 * gapm)[..., None]
+    # Weather: the bottoms of the shingles darker where the rain sits, streaks down from the joints, lichen here and there.
+    d = d * (1 - 0.18 * smoothstep(0.7, 1.0, down))[..., None]
+    s = np.full((W, W), 0.05, np.float32)
+    g = np.full((W, W), 0.12, np.float32)
+    d, s, g, _ = C.soot(ctx.rng("rain"), d, s, g, amount=0.3, scale=40, coverage=0.35, stretch=(0.4, 2.0), colour="#2A2826")
+    lf = noise.fbm01(ctx.rng("lichen"), (W, W), 48, octaves=4)
+    spots = smoothstep(0.8, 0.84, lf) * (1 - gapm)
+    d = lerp(d, core.hexc("#7E8670") * (0.8 + 0.4 * grain[..., None]), spots * 0.3)
+    d = C.light(d, height, strength=3, amount=0.5)
+    return ctx.out(d, s, g, procedural="courses of cedar shingles: widths, tone, grain, butt shadow, joints, rain, lichen")
+
+
+@texture("clapboard", "wood", tile=1.0)
+def clapboard(ctx):
+    """Painted clapboard: eight lapped boards a metre, each lap's shadow under the board above, a butt joint here and
+    there, the grain faint under the paint, and the paint worn through to grey wood along the laps and the weather side.
+    Near-white, so the house's paint is the kit's tint over it."""
+    W = ctx.W
+    row, piece, down, joint, n = _courses(ctx, W, 8, (300, 700), "boards")
+    paint, wood = core.hexc("#D9D7D0"), core.hexc("#8E877C")
+    grain = noise.fbm01(ctx.rng("grain"), (W, W), 3.0, octaves=4, stretch=(1.0, 0.06))
+    tone = ctx.rng("tone").random(n).astype(np.float32)[piece]
+    d = paint * (0.93 + 0.06 * tone[..., None] + 0.04 * grain[..., None])
+    # The lap: a board thin at its top, thickest at its bottom edge, which shades the top of the board under it.
+    lap = smoothstep(0.16, 0.0, down)
+    lip = smoothstep(0.93, 1.0, down)
+    joints = smoothstep(1.6, 0.5, joint)
+    height = down * 1.6 - lap * 1.6 + grain * 0.25 - joints * 1.5
+    d = d * (1 - 0.5 * lap)[..., None] * (1 - 0.15 * lip)[..., None] * (1 - 0.7 * joints)[..., None]
+    # Paint worn through: flakes clustered along the laps and in broad weathered patches.
+    wear = noise.fbm01(ctx.rng("wear"), (W, W), 60, octaves=5, stretch=(1.0, 0.5))
+    flake = smoothstep(0.9, 0.93, wear + 0.08 * lip) * 0.3
+    d = lerp(d, wood * (0.8 + 0.4 * grain[..., None]), flake)
+    height = height - flake * 0.3
+    s = np.full((W, W), 0.08, np.float32) * (1 - flake)
+    g = np.full((W, W), 0.22, np.float32) * (1 - 0.6 * flake)
+    d, s, g, _ = C.soot(ctx.rng("grime"), d, s, g, amount=0.25, scale=50, coverage=0.3, stretch=(0.6, 1.6), colour="#3A3632")
+    d = C.light(d, height, strength=3, amount=0.5)
+    return ctx.out(d, s, g, procedural="lapped painted boards: lap shadow, butt joints, grain, worn paint, grime")

@@ -457,7 +457,6 @@ public static class Harness
             if (t == 30 && !walk)
             {
                 PostGunner(host, clients.Select(c => (c.Session, c.Bot)).ToList());
-                PostFireman(host, clients.Select(c => (c.Session, c.Bot)).ToList());
             }
             // A night started out past the gate (--start, the combination sweep's stagings): everyone after the driver joined
             // the respawn queue (App. D.1: past the gate nobody spawns aboard) and never played; the gunner and fireman were
@@ -651,18 +650,6 @@ public static class Harness
             _ => "",
         };
         return doing.Length > 0 ? $"{bot.Name}[{doing}] {where}" : $"{bot.Name} {where}";
-    }
-
-    /// <summary>The crew size from which one of them rides in the cab as fireman (T75).</summary>
-    public const int FiremanFrom = 6;
-
-    /// <summary>The fireman into the cab beside the driver, on the left (a host-side respawn at their post, as the gunner's).</summary>
-    static void PostFireman(HostSession host, List<(ClientSession Session, IBot Bot)> clients)
-    {
-        var fireman = clients.FirstOrDefault(c => c.Bot is ConductorBot { Fireman: true });
-        if (fireman.Session?.PlayerId is not { } id)
-            return;
-        host.SetPlayerState(id, PlayerMotor.SpawnInCab(host.Train, host.PlayerTuning, -0.8));
     }
 
     /// <summary>Anyone still waiting to board, up onto a roof down the train (cars 1 on, in turn), as a crew boards in the yard.</summary>
