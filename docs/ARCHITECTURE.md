@@ -5308,3 +5308,11 @@ Terrain sculpting tools, a node-graph material editor, a general-purpose visual 
         - Running hot is deadly for the walkers on the roofs: a director's-eye finding, not a bug here.
     - **Verified:** `ExpressTests.TheExpressDriverRunsOverTheBoardsTakesNoStopsAndStaysOnTheRails` (frontier:7, a driver alone, 420 s: the hauling driver keeps under the 18 m/s line speed; the express one passes 20 m/s, never stands once away, goes further, and doesn't derail).
 
+379. **The orchestrator's pacing targets judged (D1.2 for D1, queue #116; [orchestrator.md](design/orchestrator.md) §4: "each is a `balance.json` check once it's built").** `dt balance` reports two of §4's targets on the nights with a crew of two or more (the crews the census steers, note 345), from balance.json `pacing`:
+    - **P1** (`slackOverSeconds`, 30): no crewmate spends more than that many seconds at or past the census's `slackPress` (150 s) in a night. It is read from the harness's `threats.slack` as `BalanceRow.SlackOver`.
+    - **P3** (`engaged`, 45–60 %): something engaged for that share of the night out on the line, as 1 − the harness's pacing `quietShare`; `BalanceRow.QuietShare`.
+    - **Advisory** (`advisory`, true): reported and flagged, never failing the sweep (`BalanceCheck.Advisory`; the report's `pass` is every check passing or advisory), so the nightly soak doesn't turn red on a target the director hasn't set. Off, a miss fails the sweep like the others.
+    - **The first reading** (frontier:1, crew 4, 6 cars, 900 s): P1 31 s (just over); P3 77 % engaged (the night is busier than the outline's target, which was a guess, not a measure). Both flagged, the sweep passing.
+    - **Not yet judged:** P2 and P5 (the guns' targets and the hound runs on a hot night) need express sweeps (note 376's `--express` in `dt balance`); P4 and P7 are App. B.1's cooldown and terminus silence, already in the harness's pacing; P6 (grabs at stops) and P8 (solo, one at a time: `LiveCrewTests`) are tests, not sweeps.
+    - **Verified:** `BalanceTests.ThePacingTargetsAreReportedAndAdvisoryTheyNeverFailTheSweep` (a night slack 120 s past and 35 % engaged: both flagged, the sweep passing; within targets both pass; advisory off, a miss fails it) and `ACrewOfOneHasNoPacingTargets`.
+

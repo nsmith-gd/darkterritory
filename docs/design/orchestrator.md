@@ -124,6 +124,8 @@ table.
 
 ## 4. Pacing targets
 
+**P1 and P3 are judged by `dt balance` (note 379)**, advisory until the director sets them; the first reading at crew 4 was P1 31 s and P3 77 % engaged.
+
 What a night on the line should feel like, measured by the harness's pacing trace (`dt harness`, `dt balance`; the
 director's spawn log and note 270's beats). First pass; each is a `balance.json` check once it's built.
 
