@@ -245,13 +245,14 @@ public sealed class GreyboxScene
     /// <summary>Depth of the valley under a bridge.</summary>
     const double ValleyDepth = 18;
 
-    public void Build(MeshBuilder mesh, TrainOnLine train, Double3 eye)
+    /// <param name="frames">The cars as drawn, when not the train's own (leaning on a bend: CarLean).</param>
+    public void Build(MeshBuilder mesh, TrainOnLine train, Double3 eye, IReadOnlyList<CarFrame>? frames = null)
     {
         Vehicles ??= train.Vehicles;
         Cut = Art.SceneArt.Cuts(train);
         Handrails = train.Dynamics.Tuning.Composition.Handrails;
         SwitchThrower = train.Dynamics.Tuning.Composition.SwitchThrower;
-        Build(mesh, train.Line, train.Frames, train.Dynamics.Distance, eye);
+        Build(mesh, train.Line, frames ?? train.Frames, train.Dynamics.Distance, eye);
     }
 
     /// <param name="frames">Car frames to draw, e.g. interpolated between ticks.</param>
@@ -604,14 +605,71 @@ public sealed class GreyboxScene
     /// What landed (T121), timed from the sim's tick as a gun's muzzle flash is: each cannonball's explosion where it came
     /// down, and each blow or ball's pop and flash on the creature it landed on.
     /// </summary>
+    /// <summary>
+    /// Balls from the train's own guns that came down on it (note 370), kept in the car they struck so the scorch rides on
+    /// with it: the impact's id, the car, where on it (its frame) and the face's way out, and when (this scene's clock).
+    /// </summary>
+    readonly List<(int Id, int Car, Double3 Local, Double3 Out, float Room, double Born)> _trainScorches = [];
+    const int MaxTrainScorches = 32;
+
+    /// <summary>
+    /// The car a ball that landed on the train came down on (its impact replicated in the world's frame, where the car
+    /// was then: carried on by the car's way since), the point on its body's face, that face's way out and how far the face
+    /// runs on round it (so the burn stays on the plate); null if none.
+    /// </summary>
+    static (int Car, Double3 Local, Double3 Out, float Room)? OnTheTrain(in Sim.Combat.CannonImpact i, IReadOnlyList<CarFrame> frames, double since)
+    {
+        (int, Double3, Double3, float)? best = null;
+        double nearest = 1.0;
+        for (int k = 0; k < frames.Count; k++)
+        {
+            var f = frames[k];
+            var local = f.ToLocal(i.At + f.Velocity * since);
+            var s = f.Shape;
+            // How far outside its body (0 inside), and the face it's nearest.
+            double dx = Math.Abs(local.X) - s.HalfWidth, dz = Math.Abs(local.Z) - s.HalfLength, dy = local.Y - s.RoofHeight;
+            double outside = Math.Sqrt(Math.Pow(Math.Max(0, dx), 2) + Math.Pow(Math.Max(0, dz), 2) + Math.Pow(Math.Max(0, dy), 2));
+            if (outside >= nearest || local.Y < -0.5)
+                continue;
+            nearest = outside;
+            // Onto the nearest face: the roof, a side or an end.
+            var (onto, way) = dy > Math.Max(dx, dz) - 0.3
+                ? (local with { Y = s.RoofHeight }, Double3.Up)
+                : dx > dz
+                    ? (local with { X = (local.X < 0 ? -1 : 1) * s.HalfWidth }, new Double3(local.X < 0 ? -1 : 1, 0, 0))
+                    : (local with { Z = (local.Z < 0 ? -1 : 1) * s.HalfLength }, new Double3(0, 0, local.Z < 0 ? -1 : 1));
+            // The body's side runs from just under its floor to the roof; the face's edges bound the burn.
+            double bottom = (s.Interior?.Min.Y ?? 1.0) - 0.15;
+            double room = way.Y > 0.5 ? Math.Min(s.HalfWidth - Math.Abs(onto.X), s.HalfLength - Math.Abs(onto.Z))
+                : Math.Min(Math.Min(s.RoofHeight - onto.Y, onto.Y - bottom), way.X != 0 ? s.HalfLength - Math.Abs(onto.Z) : s.HalfWidth - Math.Abs(onto.X));
+            best = (k, onto + way * 0.03, way, (float)Math.Max(0.15, room));
+        }
+        return best;
+    }
+
     void Strikes(MeshBuilder mesh, Art.Effects fx, RailLine line, double hint, IReadOnlyList<CarFrame> frames, Double3 eye)
     {
         if (Tick < 0)
             return;
+        // The train's scorches, riding with their cars; a car no longer drawn takes its own with it.
+        _trainScorches.RemoveAll(x => x.Car >= frames.Count);
+        foreach (var (id, car, local, way, room, born) in _trainScorches)
+        {
+            var at = frames[car].ToWorld(local);
+            if ((at - eye).Length < DrawDistance)
+                fx.TrainScorch(mesh, V(at, eye), ToF(frames[car].DirToWorld(way)), id, Time - born, room);
+        }
         if (Impacts is not null)
             foreach (var i in Impacts)
             {
                 double age = (Tick - i.Tick) * Sim.SimConstants.TickSeconds;
+                if (i.Surface == Sim.Combat.ImpactSurface.Train && age >= 0 && !_trainScorches.Exists(x => x.Id == i.Id)
+                    && OnTheTrain(i, frames, age) is { } hit)
+                {
+                    _trainScorches.Add((i.Id, hit.Car, hit.Local, hit.Out, hit.Room, Time - age));
+                    if (_trainScorches.Count > MaxTrainScorches)
+                        _trainScorches.RemoveAt(0);
+                }
                 if (age < 0 || age > Art.Effects.ImpactSeconds || (i.At - eye).Length > DrawDistance)
                     continue;
                 // A creature's insides come down on the ground under it (note 290).
