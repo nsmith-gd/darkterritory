@@ -146,6 +146,11 @@ public static class Views
             // The boiler's left flank, where it tears when it ruptures (TrainKit.RuptureSeam; dt screenshot --ruptured).
             "rupture" => Camera.LookAt(engine.ToWorld(new Double3(-14, 2.4, -engineHalf + 1)), engine.ToWorld(new Double3(-0.7, 3.0, 0.5)), 60),
             "engine" => Camera.LookAt(engine.ToWorld(new Double3(8.5, 3.2, -engineHalf - 6)), engine.ToWorld(new Double3(0, 2.2, 1)), 55),
+            // (Not one of Names.) On the cab floor, up at the ladder and the hatch it goes up to (the director, 8 Oct: "ladder
+            // in cab to nowhere").
+            "cabhatch" => engine.Shape.Ladders.FirstOrDefault(d => d.Foot.Y > 0.2 && d.Inward.Z > 0) is { Top: > 0 } hatchLadder
+                ? Camera.LookAt(engine.ToWorld(hatchLadder.Foot + new Double3(1.2, 1.5, -1.3)), engine.ToWorld(hatchLadder.Foot + new Double3(0, 2.7, -0.33)), 70)
+                : Camera.LookAt(engine.ToWorld(new Double3(0, 2.5, 0)), engine.ToWorld(new Double3(0, 2.5, -1)), 60),
             // (Not one of Names.) From over car 1's front end, a crewmate's eye up on the roofs, forward along the hood to the
             // whistle on it: its valve lever pulled down by its rod from the cab while a crewmate blows it (note 445).
             "whistlepull" => Camera.LookAt(engine.ToWorld(new Double3(1.4, engine.Shape.Bounds.Max.Y + 1.3, Art.TrainKit.WhistleZ(engine.Shape) + 5.5)),
@@ -170,6 +175,11 @@ public static class Views
             "prowside" => Camera.LookAt(engine.ToWorld(new Double3(-9, 2.8, -engineHalf + 3.5)), engine.ToWorld(new Double3(0, 2.6, -engineHalf + 4.5)), 55),
             "ahead" => Camera.LookAt(engine.ToWorld(new Double3(1.5, 2.2, -engineHalf - 70)), engine.ToWorld(new Double3(0, 2.2, 0)), 55),
             "gap" => GapCamera(train, car),
+            // (Not one of Names.) From a cargo car's right-hand side doorway, down at its steps (the director, 8 Oct: "an
+            // awkward step"): the landing outside the door and the treads up to it from the front.
+            "sidedoor" => SideDoorCamera(train, car),
+            // (Not one of Names.) Coming down the engine's rear ladder to the coupler plate onto car 1, looking down at it.
+            "rearstep" => RearStepCamera(train),
             // (Not one of Names.) Low off the side behind the engine's half of a cut train (dt screenshot --cut n), at the
             // coupler that was let go: its knuckle swung open, its hose hanging parted (T91).
             "cut" => CutCamera(train),
@@ -302,6 +312,22 @@ public static class Views
         var ahead = train.Frames[Math.Clamp(car, 0, train.Frames.Count - 2)];
         double l = ahead.Shape.HalfLength;
         return Camera.LookAt(ahead.ToWorld(new Double3(0.35, 2.75, l + 1.3)), ahead.ToWorld(new Double3(-0.4, 1.4, l)), 80);
+    }
+
+    static Camera RearStepCamera(TrainOnLine train)
+    {
+        var engine = train.Frames[0];
+        double l = engine.Shape.HalfLength, gap = train.Dynamics.Tuning.Geometry.CouplingGap;
+        var foot = engine.Shape.Ladders.Where(x => x.Foot.Z > 0 && Math.Abs(x.Inward.Z) > 0).Select(x => x.Foot).DefaultIfEmpty(new Double3(0.6, 0, l)).MinBy(f => f.Y);
+        // Up the ladder at a hand's height over the deck, looking down and across at the footplate and the plate.
+        return Camera.LookAt(engine.ToWorld(new Double3(foot.X + 0.1, 2.9, l + 0.3)), engine.ToWorld(new Double3(foot.X - 1.6, 1.1, l + gap * 0.4)), 75);
+    }
+
+    static Camera SideDoorCamera(TrainOnLine train, int car)
+    {
+        var at = train.Frames[Math.Clamp(car, 0, train.Frames.Count - 1)];
+        double w = at.Shape.HalfWidth, floor = Floor(train);
+        return Camera.LookAt(at.ToWorld(new Double3(w + 0.3, floor + 1.65, 0.5)), at.ToWorld(new Double3(w + 0.35, floor - 0.6, -1.3)), 75);
     }
 
     static Camera GapSideCamera(TrainOnLine train, int car)
