@@ -23,7 +23,8 @@ public class KitTests
         foreach (var s in new[] { PlayerMotor.SpawnInCab(train, p), PlayerMotor.SpawnOnRoof(train, 2, 0, p), PlayerMotor.SpawnOnGround(train.Line.Sample(RailLine.MainPath, 480).Position + new Double3(3, 0, 0), train.Line, 480, p) })
         {
             Assert.Equal(Tool.Crowbar, Kit.Held(s));
-            Assert.Equal(Kit.Of([Tool.Crowbar]), s.Kit);
+            // And a wrench beside it (note 301: the repair tool).
+            Assert.Equal(Kit.Of([Tool.Crowbar, Tool.Wrench]), s.Kit);
         }
     }
 

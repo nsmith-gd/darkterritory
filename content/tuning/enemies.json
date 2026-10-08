@@ -565,6 +565,16 @@
       "on": true, "behindM": 150, "perSecond": 0.05, "rampPerSecond": 0.15, "rampSeconds": 60, "perKm": 0.3,
       "threshold": 6, "relief": 6, "pack": [2, 5], "spawnOut": [35, 18], "gauntFrom": 2
     },
+    // The orchestrator's live crew (ARCHITECTURE §8 note 336; docs/design/orchestrator.md §3.2 1, 3 and 5; GDD App. F.3, the
+    // director, 7 Oct 2026: "a threat orchestrator that takes into account how many players are on and then orchestrates
+    // threats based on the number of active players in the game currently"). Not in the spec; first pass. Active is the crew
+    // alive now, counted each second. liveCrew: App. B.1's crew multiplier (crewBase + crewPerPlayer × crew, to crewCap) takes
+    // the crew active now, not the crew the night started with, so a crew that's lost players spends like the smaller crew
+    // it is (the relief valve's alive-share squared still applies on top). on: the engaged cap is the least of App. B.1's flat
+    // cap (maxConcurrentSmallCrew / LargeCrew), ceil(active × engagedPerActive) and perPlayer × active, and at least 1: 1 at
+    // crew 1, 2 at crew 2, 3 at crew 3 and 4, 6 at crew 8. The hound run (below) waits while the crew is at it, so a crew of
+    // one never meets two things at once. The left-behind's hunts and the Stoker stay outside it, as before.
+    "orchestrator": { "on": true, "liveCrew": true, "engagedPerActive": 0.75, "perPlayer": 1 },
     // Note 327 (GDD App. F.3, the director, 7 Oct 2026: "ideally, we want people to be feeling like when they leave, there is
     // this presence of threat at all times"). Not in the spec. A crewmate alive on the ground further than fromTrainM (m) from
     // the train, and not in a fort, is afoot. While anyone is, the night's pressure builds by + perSecond × the share of the

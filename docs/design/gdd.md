@@ -1334,7 +1334,7 @@ RUN BUDGET = base(route tier) × length multiplier × crew multiplier
 These match the build (`director.baseBudget` in `content/tuning/enemies.json`). They are about twice the v1.1 figures, to pay for the build's pressed spawns: after the 100-night playtest the director would not let the line go quiet for long, and under the pressure model (below) a long quiet still presses it to send something.
 
 **Length multiplier:** `1.0 + (0.15 × cars beyond the third)`
-**Crew multiplier:** `0.7 + (0.12 × crew)` — capped at 1.6
+**Crew multiplier:** `0.7 + (0.12 × crew)` — capped at 1.6. *The crew counted is the crew alive now, each second, not the crew the night started with (the orchestrator, 7 Oct 2026, App. F.3; ARCHITECTURE §8 note 336): a crew that has lost players spends like the smaller crew it is.*
 
 Budget is spent across the run against a rising curve, not evenly. Roughly 15% before the first facility, 45% across the middle, 40% in the final approach.
 
@@ -1398,7 +1398,7 @@ Enforced regardless of budget:
 | Concurrent interior threats | 2 |
 | Concurrent outside threats | 2 |
 | Corrupted humans | **1** active at a time |
-| Total concurrent active | 4 at crew ≤4 · 6 at crew ≥6 |
+| Total concurrent active | 4 at crew ≤4 · 6 at crew ≥6 · and never more than ceil(0.75 × the crew alive), one a player: 1 at crew 1, 2 at crew 2, 3 at crews 3–4 (*the orchestrator, 7 Oct 2026*; note 336) |
 | Same tell type, overlapping range | **1** — tells must stay distinguishable |
 
 ### Pacing rules
@@ -2149,7 +2149,7 @@ Agents can't tell whether it's funny, but they can tell whether everyone was on 
 - A threat orchestrator that takes into account how many players are in the game and orchestrates threats to the number currently active. A design outline first; it can go to a different chat. *Outlined (queue #67, note 328): [the threat orchestrator, and the run between stops](orchestrator.md): the orchestrator over the director (who's active, at which post, and how long since each had something to answer), upkeep while the train runs, threats that board at speed, waves at the guns, pacing targets, what changes in the director, and five questions for the director.*
 
 **Repairs**
-- The wrench doesn't repair things Sea of Thieves style yet. Wanted as soon as possible. *Open (queue #39, note 301).*
+- The wrench doesn't repair things Sea of Thieves style yet. Wanted as soon as possible. *Done (note 301): everyone carries a wrench; in hand, Use at a break mends it, a few presses or a hold (the burst boiler, a breach, a battered car's dent), and every break is called out with an amber glow and sparks. The repair kit's other uses go in a second slice.*
 
 **Audio**
 - A weird high, repeated sound when the cannon turns. Get rid of it, or make it a lot lower and slower. *Done (note 329): the gun's lay is now a low motor hum with a slow, deep gear clunk (2–5 a second under 420 Hz, where it ticked 6–28 a second at 1.8–3.1 kHz).*
