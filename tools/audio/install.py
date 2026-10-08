@@ -192,7 +192,10 @@ def candidates(line, cue, stored):
 FIRST_CHOICE = {"crew-mishaps.tunnel-bonk": "coconut", "bed-wheel-rail.flange": "sing", "state-derail.flange-scream": "shriek",
                 "crew-noisy-toys.drummer": "tin", "ui-stranded-outro.lamp-out": "gutter",
                 # Note 322: the chuff already beats, so the starved engine's struggle under it is the beatless one.
-                "state-starved.labour": "drag"}
+                "state-starved.labour": "drag",
+                # Note 385: a real plate's knock first (the casting's is the synth's tone again); the engine house's beat over
+                # the headframe's rope, whose tones can read as a whine.
+                "state-coupling-loose.knock": "clank", "place-mine-lift.winding": "engine"}
 
 
 def pick(cands, mat, line_level, cue_name=None):

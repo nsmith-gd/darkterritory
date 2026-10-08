@@ -223,6 +223,10 @@ CUES = {
         L("grease", "Greasing a hot axle box: the grease gun worked, the grease spitting on hot iron (held while at it)"),
         O("greased", "The box greased: the last of it hissing off as the iron cools", vars=3),
         O("trim", "A guttering lamp trimmed: the wick screwed up a few clicks, the flame catching steady", vars=3),
+        # A coupling working loose (D1's note 356; queue #122, note 385): the wrench on the pin's nut while Use is held, and
+        # the pin seated home.
+        L("tighten", "Tightening a loose coupling: the wrench worked on the pin's nut in the gap (held while at it)"),
+        O("tightened", "The pin seated home: a solid iron clunk, the knocking gone", vars=3),
     ],
     "crew-repair": [
         O("kit-open", "Repair kit opened"),
@@ -231,6 +235,10 @@ CUES = {
         O("hammer", "A nail hammered", vars=6, cand={"_": S("wood_hit_03", "misc_19")}),
         O("done", "The last nail: boarded up (a mechanic confirmation)"),
         O("kit-shut", "Repair kit shut"),
+        # The wrench's other mends (note 301's slice 2; queue #122, note 385): a dent beaten out of a car's wall or the
+        # engine's boiler flank, and the smashed headlamp put right from the cab's front window.
+        L("dent", "A dent beaten out: a hammer on iron plate, dull and heavy, the plate easing (held while at it)"),
+        L("lamp", "The headlamp mended: the wrench on its bracket, glass seated, the lamp's tin ticking (held while at it)"),
     ],
     "crew-cannon-fire": [
         O("ignite", "Linstock to the touch hole (a short flash, no fizz)", vars=2),
@@ -243,6 +251,13 @@ CUES = {
     "crew-cannon-reload": [
         L("powder", "Powder charge pushed down the muzzle, for the 1.5 s hold (stops clean if abandoned)"),
         O("powder-done", "Charge seated"),
+    ],
+    # Powder to the guns (D1's note 374; queue #122, note 385): a charge taken out of the guard van's powder locker, and
+    # the gun's ready rack filled with it while Use is held.
+    "crew-powder": [
+        O("take", "A charge taken from the powder locker: the iron-bound lid, the canvas bag hefted out", vars=3),
+        L("fill", "The ready rack filled: canvas charges pushed into the rack's slots (held while at it)"),
+        O("filled", "The rack full: its bar dropped across", vars=3),
     ],
     "crew-cannon-ball": [
         O("ball-in", "The ball dropped into the muzzle", vars=2),
@@ -377,6 +392,12 @@ CUES = {
         L("sputter", "A car's lamp guttering: the wick spitting, quick and uneven, worse as it goes"),
         L("flutter", "The flame fluttering low and tearing as it starves"),
     ],
+    # A coupling working loose (D1's note 356; queue #122, note 385): the pin knocking in its knuckle, iron on iron. Each
+    # knock is a take, fired faster and harder as it works out (GameAudio paces it off the car's Loose), where D1's synth
+    # was a loop.
+    "state-coupling-loose": [
+        O("knock", "The pin knocking in its knuckle: a dull iron clank with a ring over it", vars=4),
+    ],
     "state-derail": [
         L("flange-scream", "Flanges screaming on a curve taken too fast (the warning)"),
         O("climb", "A wheel climbing the rail", vars=2),
@@ -496,6 +517,12 @@ CUES = {
         O("drip", "Water dripping", vars=4),
         O("timber", "Pit props creaking", vars=3),
     ],
+    # The steam lift at the mine head (A1's note 368; queue #122, note 385): the engine's vented steam winds the skip up the
+    # headframe, and each skip tips its ore down the chute into the car under it.
+    "place-mine-lift": [
+        L("winding", "The winding engine on the engine's steam: a small engine's quick beat, the drum turning, the rope"),
+        O("tip", "A skip tipped: ore roaring down the steel chute into the car", vars=3),
+    ],
     "place-chemical": [
         L("leak", "A leak hissing in the works"),
         O("drip", "Something dripping", vars=3),
@@ -504,6 +531,9 @@ CUES = {
         O("smash", "A lock smashed (3 s of it: loud as a cannon)", vars=4),
         L("pry", "A barricade pried (6 s: loud as machinery)"),
         O("pry-give", "The barricade giving way", vars=2),
+        # A lock opened quietly with the wrench (D.7; note 301's slice 2; queue #122, note 385): it was heard as the smash.
+        L("pick", "A lock worked open with a wrench: the hasp levered, the wards scraping, quiet (held while at it)"),
+        O("pick-give", "The lock giving: a click and the hasp swung free", vars=2),
     ],
     "place-depot": [
         O("powder-blast", "A powder keg or powder car going up: a slow whump, the powder's roar, wreckage raining down", vars=2),
