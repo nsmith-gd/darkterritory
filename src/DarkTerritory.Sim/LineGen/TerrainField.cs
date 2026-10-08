@@ -440,24 +440,35 @@ public sealed class TerrainField
     {
         double rail = n.Rail, a = Math.Abs(n.Lateral), s = n.S;
         // Structures: the hill over a bore, the ravine or river under a span (formation disabled, §12.3).
+        double into = -1;
         foreach (var st in e.Structures)
         {
             if (s < st.S0 - 1 || s > st.S1 + 1)
                 continue;
             if (st.Type == StructureType.Tunnel)
-                return rail + _r.TunnelCoverM + Noise(x, z) * 3 + Math.Min(a, 60) * 0.25;
+            {
+                // From the portal's face in, not a metre short of it: the cutting runs right up to the face (note 433).
+                if (s < st.S0 || s > st.S1)
+                    continue;
+                // How far in from the nearer portal: the hill over a bore is the land the cutting was going up into,
+                // its walls carried on in over the bore as if the cut went that much further out (note 433). It was a
+                // mound of tunnelCoverM whatever the land round it, so a bore through a mountain had a trench 100 m
+                // deep cut over it, open to the sky above its portal.
+                into = Math.Max(0, Math.Min(s - st.S0, st.S1 - s));
+                break;
+            }
             double depth = st.H;
             // The valley's floor, rising at the abutments (fill slopes to the ends).
             double toEnd = Math.Min(s - st.S0, st.S1 - s);
             double floor = Math.Min(depth, 4 + toEnd * 0.9);
             return rail - floor + Noise(x, z) * 1.5;
         }
-        if (a <= _r.ShoulderM)
+        if (into < 0 && a <= _r.ShoulderM)
             return rail;
         var (type, h, up, down, land) = IntentAt(e, s, n.Lateral >= 0);
         double noise = Noise(x, z) * _r.NoiseAmplitudeM * Smooth(_r.ShoulderM, 30, a) * BiomeNoise(type);
         double target = h + noise;
-        double run = a - _r.ShoulderM;
+        double run = Math.Max(0, a - _r.ShoulderM) + Math.Max(0, into);
         double slope = type switch
         {
             IntentType.Cutting => h > 6 ? 2.0 : 1 / 1.5,
@@ -476,7 +487,9 @@ public sealed class TerrainField
             delta = Math.Max(target, -_r.WalkableWithinM * _r.WalkableSlope - (run - _r.WalkableWithinM) * 1.4);
         // Past the corridor, down under the fog.
         double skirt = _r.SkirtDropM * Smooth(_r.CorridorM, _r.CorridorM + 70, a);
-        return rail + delta + Relief(x, z, a, up, down, land) - skirt;
+        double ground = rail + delta + Relief(x, z, into > 0 ? a + into : a, up, down, land) - skirt;
+        // And never less than the bore's cover over it.
+        return into >= 0 ? Math.Max(ground, rail + _r.TunnelCoverM + Noise(x, z) * 3 + Math.Min(a, 60) * 0.25) : ground;
     }
 
     /// <summary>

@@ -545,7 +545,7 @@ Every piece writes a **relief intent** for each side of the track over its chain
 | `ravine` | −15 to −50 m under bridges | Channel under the span, abutment fill slopes to the ends |
 | `river` | −3 to −8 m, water plane | Channel perpendicular to the track, extending to corridor edge |
 | `marsh` | Water level −0.3 m with pools | Causeway formation +1.5 m above water, fill 1:2 |
-| `mountain` | ≥ rail + 18 m over tunnels | Cover over the bore; steep faces at portals |
+| `mountain` | ≥ rail + 18 m over tunnels | Cover over the bore; steep faces at portals. Over a bore the land is the hill the cutting goes into: its walls carried on in over the bore as if the cut went that much further out (metres in from the nearer portal), never under the 18 m cover, from the portal's face in (ARCHITECTURE §8 note 433) |
 | `pad` | Flat at pad elevation | Flattened area for facilities, fortress, junctions, settlements |
 
 Intents are blended over 60 m at piece boundaries so the land never steps.
