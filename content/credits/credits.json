@@ -1,0 +1,57 @@
+// The credits (note 390; GDD App. E.6): everyone whose work is in the game. The models, sounds and voices, textures and type
+// are read from the content's own provenance (art/textures/index.json and index.models.json, audio/samples/index.json),
+// so what ships is what's credited; the opera comes from audio/music/manifest.json. This file holds what those can't say: each
+// section's line, the sound packs' names, the licences (a name, where to read it, its text when one has to ship) and the
+// code the game is built with. THIRD-PARTY-NOTICES.txt beside it is generated from all of it (`dt credits --write`).
+{
+  // Under each section's heading, short enough for a row at 150% TEXT SIZE. Changed work says so: CC BY asks that changes
+  // be indicated.
+  "sections": {
+    "models": "Cut up, recombined and rebaked for the game.",
+    "sounds": "Cut, layered and processed for the game.",
+    "textures": "Graded, tiled and rebaked for the game.",
+    "type": "Lettering in textures; no font file ships.",
+    "code": "The game and its engine are built on these."
+  },
+  // The sound packs by the name a source in audio/samples/index.json gives (the part before ':'). Empty is the game's own
+  // (earlier: a cue's own earlier take, layered into another).
+  "packs": {
+    "earlier": "",
+    "kenney_impact-sounds": "Impact Sounds, by Kenney (kenney.nl)",
+    "kenney_rpg-audio": "RPG Audio, by Kenney (kenney.nl)",
+    "kenney_ui-audio": "UI Audio, by Kenney (kenney.nl)",
+    "sfx_100_v2": "SFX 100, volume 2"
+  },
+  // Every licence a source names, by the name it gives. A test fails a licence in the indexes that isn't here.
+  "licences": {
+    "CC-BY-4.0": { "name": "CC BY 4.0", "url": "https://creativecommons.org/licenses/by/4.0/" },
+    "CC BY 4.0": { "name": "CC BY 4.0", "url": "https://creativecommons.org/licenses/by/4.0/" },
+    "CC-BY-3.0": { "name": "CC BY 3.0", "url": "https://creativecommons.org/licenses/by/3.0/" },
+    "CC0-1.0": { "name": "CC0 1.0", "url": "https://creativecommons.org/publicdomain/zero/1.0/", "free": true },
+    "CC0": { "name": "CC0 1.0", "url": "https://creativecommons.org/publicdomain/zero/1.0/", "free": true },
+    "LicenseRef-ThreeDScans": { "name": "Free to use, no copyright restrictions", "url": "https://threedscans.com/", "free": true },
+    "Bitstream Vera / DejaVu (free) or GNU FreeFont (GPL+font exception)": { "name": "DejaVu (Bitstream Vera) licence, or GNU FreeFont's GPL with its font exception", "url": "https://dejavu-fonts.github.io/License.html", "free": true },
+    "MIT": { "name": "MIT", "url": "https://opensource.org/license/mit", "text": "licences/MIT.txt" },
+    "Apache-2.0": { "name": "Apache 2.0", "url": "https://www.apache.org/licenses/LICENSE-2.0", "text": "licences/Apache-2.0.txt" },
+    "BSD-3-Clause": { "name": "BSD 3-clause (Opus)", "url": "https://opus-codec.org/license/", "text": "licences/Opus-BSD-3-Clause.txt" },
+    "Zlib": { "name": "zlib", "url": "https://www.libsdl.org/license.php", "text": "licences/Zlib.txt" },
+    "Steamworks": { "name": "Steamworks SDK Access Agreement", "url": "https://partner.steamgames.com/documentation/sdk_access_agreement" }
+  },
+  // The code that ships with the game (DarkTerritory.App's packages, and what they carry). `packages` are the NuGet ids;
+  // a test fails a PackageReference in src/ that isn't one of them.
+  "code": [
+    { "name": ".NET", "version": "10", "licence": "MIT", "holder": ".NET Foundation and Contributors", "url": "https://github.com/dotnet/runtime", "note": "The runtime, carried in the build; its own notices are at github.com/dotnet/runtime/blob/main/THIRD-PARTY-NOTICES.TXT." },
+    { "name": "Microsoft.Extensions.DependencyModel", "version": "9.0.9", "licence": "MIT", "holder": "Microsoft Corporation", "url": "https://github.com/dotnet/runtime", "packages": ["Microsoft.Extensions.DependencyModel"] },
+    { "name": "Microsoft.DotNet.PlatformAbstractions", "version": "3.1.6", "licence": "MIT", "holder": "Microsoft Corporation", "url": "https://github.com/dotnet/core-setup", "packages": ["Microsoft.DotNet.PlatformAbstractions"] },
+    { "name": "SDL3-CS", "version": "2026.722.0", "licence": "MIT", "holder": "ppy Pty Ltd", "url": "https://github.com/ppy/SDL3-CS", "packages": ["ppy.SDL3-CS"] },
+    { "name": "SDL 3", "licence": "Zlib", "holder": "Sam Lantinga and the SDL contributors", "url": "https://www.libsdl.org", "note": "Windowing, input and sound; carried by SDL3-CS." },
+    { "name": "Vortice.Vulkan, Vortice.ShaderCompiler", "version": "3.2.3, 1.9.0", "licence": "MIT", "holder": "Amer Koleci and Contributors", "url": "https://github.com/amerkoleci/Vortice.Vulkan", "packages": ["Vortice.Vulkan", "Vortice.ShaderCompiler"] },
+    { "name": "shaderc, glslang and SPIRV-Tools", "licence": "Apache-2.0", "holder": "Google LLC, The Khronos Group and their contributors", "url": "https://github.com/google/shaderc", "note": "The shader compiler, carried by Vortice.ShaderCompiler and Silk.NET.Shaderc.Native.", "packages": ["Silk.NET.Shaderc.Native"] },
+    { "name": "Silk.NET (Core, Maths, OpenXR, OpenXR KHR extensions)", "version": "2.23.0", "licence": "MIT", "holder": ".NET Foundation and Contributors", "url": "https://github.com/dotnet/Silk.NET", "packages": ["Silk.NET.Core", "Silk.NET.Maths", "Silk.NET.OpenXR", "Silk.NET.OpenXR.Extensions.KHR"] },
+    { "name": "OpenXR loader and headers", "version": "1.0.10.2", "licence": "Apache-2.0", "holder": "The Khronos Group Inc.", "url": "https://github.com/KhronosGroup/OpenXR-SDK", "packages": ["OpenXR.Loader", "OpenXR.Headers"] },
+    { "name": "Concentus", "version": "2.2.2", "licence": "BSD-3-Clause", "holder": "Skype Limited, Xiph.Org Foundation, CSIRO, Microsoft Corporation, Jean-Marc Valin, Gregory Maxwell, Mark Borgerding, Timothy B. Terriberry, Logan Stromberg", "url": "https://github.com/lostromb/concentus", "note": "Opus, for the crew's voices.", "packages": ["Concentus"] },
+    { "name": "StbImageSharp", "version": "2.30.16", "licence": "MIT", "holder": "StbImageSharpTeam", "url": "https://github.com/StbSharp/StbImageSharp", "note": "After Sean Barrett's stb_image. Offered as the Unlicense or MIT; taken as MIT.", "packages": ["StbImageSharp"] },
+    { "name": "Steamworks.NET", "version": "2024.8.0", "licence": "MIT", "holder": "Riley Labrecque", "url": "https://github.com/rlabrecque/Steamworks.NET", "packages": ["Steamworks.NET"] },
+    { "name": "Steamworks SDK (steam_api)", "version": "1.60", "licence": "Steamworks", "holder": "Valve Corporation", "url": "https://partner.steamgames.com" }
+  ]
+}

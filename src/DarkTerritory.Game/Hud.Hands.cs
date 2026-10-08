@@ -23,7 +23,7 @@ public static partial class Hud
     public static HudTuning Tuning { get; set; } = new();
 
     /// <summary>Fine print: the HUD's own text at half size where that's still crisp (<see cref="PromptScaleAt"/>).</summary>
-    static float Fine => _promptScale;
+    static float Fine => _promptScale > 0 ? _promptScale : 0.5f;
 
     /// <summary>
     /// What the HUD remembers from frame to frame, to show a thing for a while after it changes: a change of hands, a place

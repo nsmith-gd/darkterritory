@@ -137,6 +137,11 @@ public sealed class FrontEnd
     /// 194): the manifest's tracks, which the app loads from content/audio/music. Empty, the screen says there's none.
     /// </summary>
     public IReadOnlyList<MusicTrack> Music { get; set; } = [];
+    /// <summary>
+    /// Everyone else whose work is in the game, after the opera (note 390): the models, the sounds and voices, the textures,
+    /// the type and the code, as the app reads them from the content's provenance (<see cref="Credits.Load"/>).
+    /// </summary>
+    public IReadOnlyList<Credits.Section> CreditSections { get; set; } = [];
 
     /// <summary>
     /// The MODS screen's (note 323; note 53's "not yet": "an in-game mods screen"): the mods installed, in the order they're
@@ -764,7 +769,7 @@ public sealed class FrontEnd
             new(new("SETTINGS"), () => { Show(Screen.Settings); return null; }),
             new(new("PROFILE", "What your crews have commended you for."), () => { Show(Screen.Profile); return null; }),
             .. InstalledMods.Count + ModProblems.Count > 0 ? [new Entry(new("MODS", ModsLine()), Go(Screen.Mods))] : (Entry[])[],
-            new(new("CREDITS", "The music, and who played it."), () => { Show(Screen.Credits); return null; }),
+            new(new("CREDITS", "Whose work is in the game: the opera, the models, the sounds, the code."), () => { Show(Screen.Credits); return null; }),
             new(new("QUIT"), () => new Launch.Quit()),
         ],
         Screen.Slots => [.. _saves.List().Select(x => SlotEntry(x.Slot, x.State)), BackTo(Screen.Title)],
@@ -877,7 +882,8 @@ public sealed class FrontEnd
             new(new("CONTROLS", "Rebind the keys."), Go(Screen.Controls)),
             BackTo(Night is null ? Screen.Title : Screen.Night),
         ],
-        // A row a track (its work and composer), its performers, licence and source drawn under it (DrawCredits).
+        // A heading a section (greyed: the selection steps over it), then a row a credit with its licence and source under
+        // it (DrawCredits): the opera's tracks first (E.6), then everyone else's (note 390).
         // The badges and their tally are drawn over the list (DrawProfile): BACK is all there is to choose.
         Screen.Profile => [BackTo(Screen.Title)],
         Screen.Night when Night is { } n => NightEntries(n),
@@ -894,7 +900,11 @@ public sealed class FrontEnd
         ],
         Screen.Credits =>
         [
-            .. Music.Select(t => new Entry(new($"{t.Work} - {t.Composer}, {t.Year}", CreditLine(t)))),
+            new(new("THE OPERA", Music.Count == 0 ? "No music in this build." : Credits.OperaLine, Enabled: false)),
+            .. Music.Select(t => new Entry(new($"{t.Work} - {t.Composer}, {t.Year}", Credits.TrackLine(t)))),
+            .. CreditSections.Where(s => s.Lines.Count > 0).SelectMany(s => (Entry[])[
+                new(new(s.Name, s.Blurb, Enabled: false)),
+                .. s.Lines.Select(l => new Entry(new(l.Title, l.Detail)))]),
             new(new("BACK"), Go(Screen.Title)),
         ],
         Screen.Controls =>
@@ -1096,36 +1106,36 @@ public sealed class FrontEnd
 
     const string CreditHints = "[UP/DOWN] SCROLL   [ESC] BACK";
 
-    /// <summary>A track's performers, licence and where it came from: a recording's Commons page, or the script that made it.</summary>
-    static string CreditLine(MusicTrack t) =>
-        $"{t.Performers}. {t.Licence}. {(t.Recorded ? t.Source.Replace("https://", "") : "Made by " + Path.GetFileName(t.Source))}";
-
     /// <summary>
-    /// The credits (E.6: CC0 asks for none, the screen lists every performer anyway): each track two lines, its work,
-    /// composer and year, then its performers, licence and source, scrolled to keep the selection in view.
+    /// The credits (E.6: CC0 asks for none, the screen lists every performer anyway; note 390, everyone else whose work is in
+    /// the game): each credit two lines, whose and what, then its licence and source, under its section's heading; scrolled
+    /// to keep the selection in view.
     /// </summary>
     void DrawCredits(Overlay o, float x, float y, int width, int height)
     {
-        // Wrapped at a bigger TEXT SIZE (note 347).
-        foreach (var row in UiStyle.Wrap(o, "COMPOSITIONS IN THE PUBLIC DOMAIN. RECORDINGS DEDICATED CC0 1.0.", width - x - 8))
-        {
-            o.Text(x, y, row, Faint);
-            y += 10;
-        }
-        y += 6;
         var items = Items;
-        // Room under the list for the selected track's line in full, over two rows.
-        int rows = Math.Max(1, (int)((height - y - 44) / 20));
+        // Room under the list for the selected credit's line in full, over three rows at the least.
+        int rows = Math.Max(1, (int)((height - y - 48) / 20));
         int first = First(rows, items.Count);
+        // A section's first credit brings its heading into view with it.
+        if (first > 0 && first == Selected && !items[first - 1].Enabled)
+            _scroll = first = first - 1;
         int shown = Math.Min(rows, items.Count - first);
         float w = width - x - 8;
         int chars = (int)((w - 8) / o.Font.Advance);
         UiStyle.Plate(o, x - 8, y - 6, w + 4, shown * 20 + 6);
-        if (Music.Count == 0)
-            o.Text(x, y + shown * 20 - 4, "NO MUSIC IN THIS BUILD.", Faint);
         for (int i = first; i < first + shown; i++)
         {
             bool on = i == Selected;
+            if (!items[i].Enabled)
+            {
+                // A heading: its name, and its line in faint print.
+                o.Text(x, y, Fit(items[i].Label, chars), Ink);
+                if (items[i].Detail is { } blurb)
+                    o.Text(x, y + 9, Fit(blurb, chars), Faint);
+                y += 20;
+                continue;
+            }
             _hits.Add((new MenuHit(i), x - 4, y - 1, w - 4, 19));
             if (on)
                 o.Rect(x - 4, y - 1, w - 4, items[i].Detail is null ? 9 : 19, UiStyle.Lit with { W = 0.14f });
@@ -1134,14 +1144,17 @@ public sealed class FrontEnd
                 o.Text(x, y + 9, Fit("    " + line, chars), Dim);
             y += 20;
         }
-        // The selected track's performers, licence and source, whole (a long Commons title or ensemble name is cut above).
-        if (Selected < items.Count && items[Selected].Detail is { } full && full.Length + 4 > chars)
+        // The selected credit whole (a long attribution, Commons title or ensemble name is cut above), wrapped.
+        if (Selected < items.Count && items[Selected] is { Enabled: true } sel && (sel.Label.Length + 2 > chars || sel.Detail is { } d && d.Length + 4 > chars))
         {
             y += 6;
-            string text = full.ToUpperInvariant();
-            o.Text(x, y, text[..Math.Min(chars, text.Length)], Ink);
-            if (text.Length > chars)
-                o.Text(x, y + 9, Fit(text[chars..], chars), Ink);
+            // A word longer than the row (a Commons address) is broken across rows rather than cut.
+            var whole = UiStyle.Wrap(o, $"{sel.Label}. {sel.Detail}".ToUpperInvariant(), w - 8)
+                .SelectMany(r => r.Chunk(Math.Max(1, chars)).Select(c => new string(c))).ToList();
+            // As many rows as fit above the hints' keycaps; the last says so if there's more.
+            int fit = Math.Min(whole.Count, Math.Max(1, (int)((height - 22 - y) / 9) + 1));
+            for (int i = 0; i < fit; i++)
+                o.Text(x, y + i * 9, Fit(i == fit - 1 && whole.Count > fit ? whole[i] + " ..." : whole[i], chars), Ink);
         }
     }
 
@@ -1252,7 +1265,7 @@ public sealed class FrontEnd
             Screen.Host => "HOST",
             Screen.Settings => "SETTINGS",
             Screen.Controls => "CONTROLS",
-            Screen.Credits => "CREDITS: THE OPERA AT A DERAILMENT (GDD E.6)",
+            Screen.Credits => "CREDITS",
             Screen.Mods => ModsOff ? "MODS: OFF, STARTED WITH --NO-MODS" : "MODS, IN THE ORDER THEY'RE LAID OVER THE GAME",
             Screen.Profile => $"PROFILE: {(Settings.PlayerName is { Length: > 0 } me ? me : DefaultPlayerName).ToUpperInvariant()}",
             _ => "A CO-OP NIGHT ON THE LAST RAILWAY",
