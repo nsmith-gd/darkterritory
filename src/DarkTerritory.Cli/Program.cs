@@ -2161,8 +2161,13 @@ static object MenuShot(TrainTuning t, string content, string[] args)
         : new GreyboxRenderer(gpu, 480, 270);
     look?.Dress(renderer);
     var overlay = new Overlay();
-    menu.Draw(overlay, canvas.Item1, canvas.Item2);
-    string output = Str(args, "--out", $"out/shots/menu-{screen.ToString().ToLowerInvariant()}.png");
+    // --loading [n] (note 386): the loading screen the app shows while a night's built, with a first night's tip (the n-th).
+    if (args.Contains("--loading"))
+        DarkTerritory.Game.Onboarding.DrawLoading(overlay, canvas.Item1, canvas.Item2, "BUILDING THE NIGHT...", "THE LINE, THE LAND, THE CREW",
+            DarkTerritory.Game.Onboarding.Tip(DarkTerritory.Game.Onboarding.Load(content), new Settings(), (int)Opt(args, "--loading", 0)));
+    else
+        menu.Draw(overlay, canvas.Item1, canvas.Item2);
+    string output = Str(args, "--out", args.Contains("--loading") ? "out/shots/menu-loading.png" : $"out/shots/menu-{screen.ToString().ToLowerInvariant()}.png");
     PngWriter.Write(output, renderer.Render(mesh, view, light, light.FogColor, overlay), renderer.Width, renderer.Height, sized ? 1 : (int)Opt(args, "--scale", 2));
     return new { path = Path.GetFullPath(output), screen = screen.ToString(), items = menu.Items.Select(i => i.Label) };
 }
