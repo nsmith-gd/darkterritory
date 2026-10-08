@@ -36,6 +36,9 @@ return args switch
     // dt credits [--notices | --write]: everyone whose work is in the game, from the base content's provenance (note 390);
     // --notices prints THIRD-PARTY-NOTICES.txt, --write rewrites it in content/credits. A mod credits its own.
     ["credits", ..] => CreditsCommands.Run(baseContent, args),
+    // dt report [--problem] [--out dir] (note 452): a crash report (or a player's own) as the game writes one, its JSON
+    // twin, and the mail to the studio it opens.
+    ["report", ..] => ReportCommands.Run(content, args),
     // dt edition bake <name> --into <dir>: the base content with an edition (editions/<name>) baked in, as the demo build
     // ships it (T79). dt [--edition demo] edition: what the content in use is.
     ["edition", "bake", var name, ..] => Print(new { edition = name, content = Path.GetFullPath(Mods.Bake(baseContent, name, Str(args, "--into", $"out/editions/{name}"))) }),
@@ -1211,6 +1214,15 @@ static object Screenshot(TrainTuning t, string content, string[] args)
                 var back = ((site.ConveyorTail - site.ConveyorKnee) with { Y = 0 }).Normalized;
                 var right = Double3.Cross(back, Double3.Up);
                 camera = Camera.LookAt(site.ConveyorTail + back * 2 + right * 6 + Double3.Up * 4.5, Double3.Lerp(site.ConveyorTail, site.ConveyorKnee, 0.75), 70);
+                // --belt head: from the riser's side, along the track a way, up at the head's gantry, its chute and the riser
+                // (note 430; across the track a stop's sheds stand); --belt drive: at the drive house from the track's side, its
+                // flywheel and the starter.
+                var toTrack = ((site.ConveyorHead - site.ConveyorKnee) with { Y = 0 }).Normalized;
+                var alongTrack = Double3.Cross(toTrack, Double3.Up);
+                if (Str(args, "--belt", "") == "head")
+                    camera = Camera.LookAt(site.ConveyorKnee + alongTrack * 9 + toTrack * 1.5 + Double3.Up * 0.8, site.ConveyorHead - Double3.Up * 1.0, 68);
+                else if (Str(args, "--belt", "") == "drive")
+                    camera = Camera.LookAt(site.ConveyorTail + back * 6 + toTrack * 5 + Double3.Up * 1.2, site.ConveyorTail + back * 2 + Double3.Up * 0.4, 65);
             }
             else if (site.Has(DarkTerritory.Sim.Run.ModuleKind.Spout))
             {
@@ -1507,6 +1519,8 @@ static object Screenshot(TrainTuning t, string content, string[] args)
         StokerLowFor = args.Contains("--perched") ? Opt(args, "--perched", 10) : -1,
         // --whistle: a crewmate on the cord (the cord hauled down, the whistle's steam).
         CordPulled = args.Contains("--whistle"),
+        // --unseen: the livestock not looking round at the eye and the crew (note 455), for the before.
+        Onlook = !args.Contains("--unseen"),
         // --coal u: that much on the fire, as the HUD's FIRE reads it (T121: the firebox's look follows it, out only at 0).
         FireGlow = args.Contains("--ruptured") ? 0 : args.Contains("--coal") ? GreyboxScene.FireLook(Opt(args, "--coal", 4), DataFile.Load<BoilerTuning>(Path.Combine(content, BoilerTuning.File)).FireboxCapacity) : 0.7f,
         // --spray: an extinguisher on every car fire, from the aisle (with --threats, the staged one: --view fire).
@@ -2384,10 +2398,18 @@ static (DarkTerritory.Game.FrontEnd Menu, DarkTerritory.Game.Screen Screen) Demo
         menu.ModProblems = ["Nightjar-LongerNights isn't loaded: it needs Nightjar-SharedCore-1.2.0, which isn't installed"];
         menu.ModsOff = args.Contains("--no-mods");
     }
-    // --menu crashed (note 411): the notice the game opens on after it stopped, two reports since it was last put away.
+    // Note 452: reports go to the studio, and REPORT A PROBLEM writes one (in the shot's own folder).
+    var reports = new DarkTerritory.Game.CrashReports(Path.Combine(dir, "crashes"));
+    menu.Reports = DarkTerritory.Game.ReportsTuning.Load(content);
+    menu.ProblemReport = () => reports.WriteProblem();
+    // --menu crashed (note 411): the notice the game opens on after it stopped, a real report behind it (note 452's SEND).
     if (screen == DarkTerritory.Game.Screen.Crashed)
-        menu.Crash = new DarkTerritory.Game.CrashNotice("C:/Users/Nick/AppData/Local/DarkTerritory/crashes",
-            "C:/Users/Nick/AppData/Local/DarkTerritory/crashes/crash-20261008-031522.txt", 2);
+    {
+        if (Directory.Exists(reports.Directory))
+            Directory.Delete(reports.Directory, recursive: true);
+        reports.Write(new InvalidOperationException("the boiler burst"), new DateTime(2026, 10, 8, 3, 15, 22));
+        menu.Crash = DarkTerritory.Game.CrashReports.Unseen(reports.Directory);
+    }
     if (screen is DarkTerritory.Game.Screen.Fortress or DarkTerritory.Game.Screen.Upgrades or DarkTerritory.Game.Screen.Stores or DarkTerritory.Game.Screen.DeleteCrew)
         menu.ShowFortress((int)Opt(args, "--slot", 1));
     // --menu night|leave (note 292): the in-night menu over a night hosted on the network for --others n (3), or with

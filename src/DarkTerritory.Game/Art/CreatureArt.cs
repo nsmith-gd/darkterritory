@@ -1126,6 +1126,22 @@ public sealed class CreatureArt
         return m;
     }
 
+    /// <summary>
+    /// A creature drawn on its clip with its head turned over it (note 455: a sheep looking round at whoever's come in):
+    /// <paramref name="yaw"/> (radians, left positive) shared down the neck and head, the head tipped up by
+    /// <paramref name="pitch"/>. For four-legged models with a neck_01, neck_02, head chain (sheep.py).
+    /// </summary>
+    public bool DrawTurned(MeshBuilder mesh, string name, string clip, double time, bool loop, in Matrix4x4 at, float yaw, float pitch, int seed = 0) =>
+        Draw(mesh, name, clip, time, loop, at, m =>
+        {
+            if (MathF.Abs(yaw) + MathF.Abs(pitch) < 1e-3f)
+                return;
+            Bend(m, "head", Matrix4x4.CreateRotationX(pitch));
+            Bend(m, "neck_01", Matrix4x4.CreateRotationY(yaw * 0.4f));
+            Bend(m, "neck_02", Matrix4x4.CreateRotationY(yaw * 0.25f));
+            Bend(m, "head", Matrix4x4.CreateRotationY(yaw * 0.35f));
+        }, seed: seed);
+
     /// <summary>A posed bone and everything hung off it turned by <paramref name="rotation"/> (model space) about the bone's head.</summary>
     static void Bend(Entry m, string bone, in Matrix4x4 rotation)
     {

@@ -1102,6 +1102,20 @@ public sealed class Director
     public int TrussDraggers { get; private set; }
 
     /// <summary>
+    /// The Gannet's passes tonight (note 454, for the bots' heed): how often it hung over a walker, folded on one, and stabbed
+    /// one (a fold that found nobody under the beak is a miss). Host only, as its spine is.
+    /// </summary>
+    public (int Hangs, int Folds, int Stabs) GannetPasses { get; private set; }
+
+    /// <summary>A Gannet hung over a walker (0), folded (1) or stabbed one (2).</summary>
+    public void GannetPass(int what) => GannetPasses = what switch
+    {
+        0 => GannetPasses with { Hangs = GannetPasses.Hangs + 1 },
+        1 => GannetPasses with { Folds = GannetPasses.Folds + 1 },
+        _ => GannetPasses with { Stabs = GannetPasses.Stabs + 1 },
+    };
+
+    /// <summary>
     /// Draggers off a truss (note 435, orchestrator.md §5.2 S4): once a second, each through-truss on the main line coming up
     /// within <see cref="DraggerDropTuning.Ahead"/> m of a train at <see cref="DraggerDropTuning.FromSpeed"/> or more is
     /// rolled for once (<see cref="DraggerDropTuning.Chance"/>), and a Dragger perched on its top chord, mid-span, on a side.

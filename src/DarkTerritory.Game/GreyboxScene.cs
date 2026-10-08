@@ -170,6 +170,9 @@ public sealed class GreyboxScene
     public OwnView? Own { get; set; }
     /// <summary>Other players, drawn as greybox figures.</summary>
     public IReadOnlyList<Crewmate>? Crew { get; set; }
+
+    /// <summary>Whether the livestock look round at the eye and the crew (note 455); off for a still of them not (dt screenshot --unseen).</summary>
+    public bool Onlook { get; set; } = true;
     /// <summary>For a still frame (<c>dt screenshot</c>), how fast staged enemies are going (m/s, by id): one frame can't measure it (Pace).</summary>
     public IReadOnlyDictionary<int, float>? StagedPaces { get; set; }
     /// <summary>How each branch's switch is set (true: for the branch), for its stand's lamp. Unset, all read main.</summary>
@@ -335,7 +338,8 @@ public sealed class GreyboxScene
                         || site.Has(Sim.Run.ModuleKind.Lift) || site.Has(Sim.Run.ModuleKind.Conveyor))
                         && (site.Track.Sample(site.Mid).Position - eye).Length < DrawDistance + 120)
                         // The art pass's models where it has them (#135); the conveyor line (note 400) is the greybox's either way.
-                        SetPieces(mesh, site, frames, eye, Time, artDrawn: Look?.Art.SetPieces(mesh, site, frames, eye, Time) == true);
+                        SetPieces(mesh, site, frames, eye, Time, artDrawn: Look?.Art.SetPieces(mesh, site, frames, eye, Time) == true,
+                            conveyorDrawn: site.Has(Sim.Run.ModuleKind.Conveyor) && Look?.Art.Conveyor(mesh, site, eye, Time) == true);
                     // The wreck yard's heaps (note 187): the last train's cars on their sides, groaning when they're going to go;
                     // drawn as the train's own cars, wrecked, where the art pass has them (note 394).
                     if (site is { Heaps.Count: > 0 } && (site.Heaps[0].Centre - eye).Length < DrawDistance + 120
@@ -438,6 +442,9 @@ public sealed class GreyboxScene
             foreach (var i in frame.Shape.Interactables.Where(i => i.Kind == InteractableKind.Firebox && FireGlow > 0))
                 mesh.PointLights.Add(new PointLight(V(frame.ToWorld(i.Position + new Double3(0, 0.7, 0.3)), eye), FireColour(0.6f + 1.6f * FireGlow), 5f));
         }
+        // Who the livestock look round at (note 455): the eye, and the crew's heads.
+        if (Look is not null)
+            Look.Art.Onlookers = Onlook ? [eye, .. (Crew ?? []).Where(c => c.Alive).Select(c => c.Feet + new Double3(0, 1.5, 0))] : null;
         foreach (var frame in frames)
             if (CutAway?.Contains(frame.Index) != true)
                 Car(mesh, frame, eye);
@@ -2697,7 +2704,9 @@ public sealed class GreyboxScene
     /// pressure, the hose to the car it's on, and the leak's cloud.
     /// </summary>
     /// <param name="artDrawn">The art pass drew the site's modelled set pieces (#135): only what it doesn't model here.</param>
-    static void SetPieces(MeshBuilder mesh, Sim.Run.Site site, IReadOnlyList<CarFrame> frames, Double3 eye, double time, bool artDrawn = false)
+    /// <param name="conveyorDrawn">The art pass drew the conveyor line (note 430).</param>
+    static void SetPieces(MeshBuilder mesh, Sim.Run.Site site, IReadOnlyList<CarFrame> frames, Double3 eye, double time, bool artDrawn = false,
+        bool conveyorDrawn = false)
     {
         static (Vector3 Along, Vector3 Across) Axes(Double3 from, Double3 to)
         {
@@ -2784,7 +2793,7 @@ public sealed class GreyboxScene
                     mesh.Box(V(p, eye), along, Vector3.UnitY, across, new Vector3(0.16f, 0.16f, 0.16f), i % 2 == 0 ? Palette.Charcoal : Palette.IronGrey * 0.7f);
                 }
         }
-        if (site.Has(Sim.Run.ModuleKind.Conveyor))
+        if (!conveyorDrawn && site.Has(Sim.Run.ModuleKind.Conveyor))
         {
             // The grain elevator's conveyor line (note 400): its belt low on trestles from the drive house at the elevator's end
             // to the knee beside the track, the riser up from there to its head over the track on a frame astride it, the
@@ -2938,15 +2947,20 @@ public sealed class GreyboxScene
         }
     }
 
-    /// <summary>An open house in the world: its frame's origin on its floor, its axes, its parts, and its light.</summary>
-    sealed record OpenHouse(Double3 Origin, Double3 X, Double3 Y, IReadOnlyList<Sim.Stops.FootprintPart> Parts, Double3? Light, bool Lamp, int Id);
+    /// <summary>
+    /// An open house in the world: its frame's origin on its floor, its axes, its parts, its light, and how high its walls
+    /// stand over that floor (an open barn's or shed's eaves, note 462).
+    /// </summary>
+    sealed record OpenHouse(Double3 Origin, Double3 X, Double3 Y, IReadOnlyList<Sim.Stops.FootprintPart> Parts, Double3? Light, bool Lamp, int Id, float Height = 3.0f);
 
     (Sim.Route.Route Route, RailLine Line, List<OpenHouse> Houses)? _openHouses;
 
     /// <summary>
     /// Inside the open houses (the director, 8 Oct: "some lighting inside, dim to keep it scary"): each part an enclosed space
     /// (Room), so the moon and the sky stay out, and its one light, a candle guttering or a lamp turned down
-    /// (TownKit.HouseLight), the only light in there but a crewmate's lamp. Only the houses near the eye.
+    /// (TownKit.HouseLight), the only light in there but a crewmate's lamp. An open barn, outbuilding or goods shed (note
+    /// 417) is a Room too, up to its eaves (queue #198, note 462), with no light of its own: bring a lamp. Only the houses near
+    /// the eye.
     /// </summary>
     void HouseInteriors(MeshBuilder mesh, RailLine line, Sim.Route.Route route, Double3 eye)
     {
@@ -2960,6 +2974,17 @@ public sealed class GreyboxScene
                 for (int i = 0; i < stop.Buildings.Count; i++)
                 {
                     var b = stop.Buildings[i];
+                    // An open barn or shed (note 462): its walls from the frame (0.15 m under the ground at its middle, as
+                    // WorldArt stands it) to its eaves, one part, no light. Not one a Holdout's in: that's the Holdout's shell.
+                    if (Sim.Run.StopWalls.OpenShed(b) && Sim.Run.StopWalls.Shelled(stop, i) && stop.Holdouts.All(h => h.Building != i))
+                    {
+                        double frame = Sim.Run.Run.StopWorld(line, f, b.Centre, Art.WorldArt.Ground(route, f.Start + b.S, (float)b.D, (float)ValleyDepth) - 0.15).Y;
+                        Double3 On(double x, double y) => Sim.Run.Run.StopWorld(line, f, Sim.Run.StopWalls.InHouse(b, x, y)) with { Y = frame };
+                        var origin = On(0, 0);
+                        houses.Add(new OpenHouse(origin, (On(1, 0) - origin).Normalized, (On(0, 1) - origin).Normalized,
+                            [new Sim.Stops.FootprintPart(0, 0, b.Length, b.Width)], null, false, (int)(f.Start * 7 + i), Art.WorldArt.OpenShedHeight(b.Kind)));
+                        continue;
+                    }
                     if (!b.Open || !Sim.Run.StopWalls.Walled(stop, i))
                         continue;
                     // Its floor, as the art stands it (WorldArt.Building: the frame 0.15 m under the ground at its middle,
@@ -2978,9 +3003,9 @@ public sealed class GreyboxScene
             _openHouses = cached = (route, line, houses);
         }
         const double Near = 40;
-        const float WallHeight = 3.0f;
         foreach (var h in cached.Houses)
         {
+            float wallHeight = h.Height;
             if ((h.Origin - eye).Length > Near)
                 continue;
             var right = ToF(h.X);
@@ -2990,8 +3015,8 @@ public sealed class GreyboxScene
                 back = -back;
             foreach (var part in h.Parts)
             {
-                var centre = h.Origin + h.X * part.X + h.Y * part.Y + Double3.Up * (WallHeight / 2);
-                mesh.Rooms.Add(new Room(V(centre, eye), right, Vector3.UnitY, back, new Vector3((float)part.Length / 2, WallHeight / 2, (float)part.Width / 2)));
+                var centre = h.Origin + h.X * part.X + h.Y * part.Y + Double3.Up * (wallHeight / 2);
+                mesh.Rooms.Add(new Room(V(centre, eye), right, Vector3.UnitY, back, new Vector3((float)part.Length / 2, wallHeight / 2, (float)part.Width / 2)));
             }
             // The Gaunt's house has no light: its dark is the tell (TownKit.HouseLight).
             if (h.Light is not { } light)
