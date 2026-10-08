@@ -168,6 +168,8 @@ public sealed partial class GreyboxScene
     /// <summary>You as your own eyes see you (X3): your forearms and hands, and the tool in them; null for none (a chase
     /// camera, a headset's own hands, the dead).</summary>
     public OwnView? Own { get; set; }
+    /// <summary>The eye breathes on the glass it's near (note 485): first person, as <see cref="Own"/> is; a still frame's staging.</summary>
+    public bool EyeBreathes { get; set; }
     /// <summary>Other players, drawn as greybox figures.</summary>
     public IReadOnlyList<Crewmate>? Crew { get; set; }
 
@@ -666,6 +668,14 @@ public sealed partial class GreyboxScene
             }
         if (Own is { } own)
             Look?.Art.OwnArms(mesh, own, Time);
+        // The cab's glass in the cold (note 485): its frost, and the fog breathed onto it, after the crew whose mouths it
+        // reads (and the eye's own, first person).
+        if (Look is not null)
+        {
+            float frost = MathF.Max(Look.Tuning.Atmosphere.Cold.Frost(Cold), (Look.Tuning.Atmosphere.ChoirCold?.Rime ?? 0) * ChoirCold(ChoirGathering));
+            foreach (var frame in frames.Where(f => f.Shape.Cab is not null))
+                Look.Art.CabGlass(mesh, frame, eye, frost, Time, Own is not null || EyeBreathes);
+        }
         Lap(mesh, "bodies and crew");
     }
 
@@ -1972,6 +1982,14 @@ public sealed partial class GreyboxScene
             }
             origin = f.ToWorld(local);
             (right, up, back) = (f.Right, f.Up, f.Back);
+            // A hound aboard faces the way the sim has it in its car (note 472): up or down the car, or to a side door. Its
+            // stand-in's head is at −Z, so turned as the art turns its model (CreatureArt), a player's yaw in the car's frame.
+            if (e is Sim.Enemies.CinderHound hound)
+            {
+                double yaw = hound.Facing switch { 1 => Math.PI, 2 => -Math.PI / 2, 3 => Math.PI / 2, _ => 0 };
+                back = f.Right * Math.Sin(yaw) + f.Back * Math.Cos(yaw);
+                right = f.Right * Math.Cos(yaw) - f.Back * Math.Sin(yaw);
+            }
         }
         else if (e.Attached == Enemy.Loose)
         {
