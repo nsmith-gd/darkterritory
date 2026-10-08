@@ -864,6 +864,63 @@ public static partial class Hud
     /// </summary>
     static void DeadCard(Overlay o, int width, int height, IPlaySession s, int line)
     {
+        var (head, card) = DeadCardRows(s);
+        // Note 285: no plate, low in the frame, clear of what they're watching: DEAD, then how and the rest in fine print.
+        float k = Fine, rowH = (line + 4) * k;
+        var rows = card.SelectMany(r => Fitted(o, r.Text, width - 12, k).Select(t => (Text: t, r.Colour))).ToList();
+        float h = 2 * line + 4 + rows.Count * rowH;
+        float y = MathF.Round(Math.Min(height * 0.6f, height - h - 12));
+        o.TextCentred(width / 2f, y, head.Text, head.Colour, scale: 2);
+        y += 2 * line + 4;
+        foreach (var (text, colour) in rows)
+        {
+            UiStyle.Keyed(o, Overlay.Snap((width - UiStyle.MeasureKeyed(o, text, k)) / 2, k), y + 2 * k, text, colour, k);
+            y += rowH;
+        }
+    }
+
+    /// <summary>The dead card's lines as written (<see cref="DeadCard"/>): its headline, then each row in fine print.</summary>
+    public static IReadOnlyList<string> DeadCardLines(IPlaySession s)
+    {
+        var (head, rows) = DeadCardRows(s);
+        return [head.Text, .. rows.Select(r => r.Text)];
+    }
+
+    /// <summary>The dead card's rows as drawn on a canvas <paramref name="width"/> wide at print scale <paramref name="k"/>.</summary>
+    public static IReadOnlyList<string> DeadCardDrawn(Overlay o, IPlaySession s, float width, float k) =>
+        [.. DeadCardRows(s).Rows.SelectMany(r => Fitted(o, r.Text, width - 12, k))];
+
+    /// <summary>
+    /// A row as it fits: whole, or onto the next where it's too wide (a long cause of death, or who you're watching and the
+    /// keys to change it, at 150% TEXT SIZE on a 720p window; note 408). A row of actions breaks between them, never inside
+    /// one, so a key stays with what it does; plain words wrap.
+    /// </summary>
+    static IEnumerable<string> Fitted(Overlay o, string text, float width, float k)
+    {
+        if (UiStyle.MeasureKeyed(o, text, k) <= width)
+            return [text];
+        var parts = text.Split("   ");
+        if (parts.Length == 1)
+            return UiStyle.Wrap(o, text, width / k);
+        var rows = new List<string>();
+        string row = "";
+        foreach (var part in parts)
+        {
+            string wider = row.Length == 0 ? part : row + "   " + part;
+            if (row.Length > 0 && UiStyle.MeasureKeyed(o, wider, k) > width)
+            {
+                rows.Add(row);
+                row = part;
+            }
+            else
+                row = wider;
+        }
+        rows.Add(row);
+        return rows;
+    }
+
+    static ((string Text, Vector4 Colour) Head, List<(string Text, Vector4 Colour)> Rows) DeadCardRows(IPlaySession s)
+    {
         var p = s.Player;
         var world = s.World;
         var rows = new List<(string Text, Vector4 Colour)> { (DeathLine(p.Death), Ink) };
@@ -887,6 +944,15 @@ public static partial class Hud
         // GDD App. D: the way back is a Holdout at the next halt or yard, if the crew stops for you.
         if (world.Holdouts is { } holdouts)
         {
+            // What they can do, offered only where it does something (D.10's "Call Out (when available)"; note 408), in the
+            // player's own keys: a call is heard from a lit Holdout while someone living is within its reach (the host's own
+            // test, D.7), from any of the dead or lobbied; Defer moves them one place back, so with nobody behind it's nothing.
+            bool heard = holdouts.All.Any(h => h.Lit && s.CrewStates(1).Any(c => c.State.Alive
+                && (PlayerMotor.WorldPosition(c.State, s.Train) - h.Inside).Length <= holdouts.Tuning.CallOutRadius));
+            int place = holdouts.Queue.Select((e, i) => (e, i)).FirstOrDefault(x => x.e.PlayerId == s.PlayerId, (default, -1)).i;
+            bool behind = place >= 0 && place < holdouts.Queue.Count - 1;
+            // (A row each: bound, Throw reads [RIGHT MOUSE], and the two together run off a 150% TEXT SIZE canvas at 720p.)
+            string[] acts = [.. new[] { heard ? "CALL OUT : [E]" : null, behind ? "LET SOMEONE ELSE GO FIRST : [RMB]" : null }.OfType<string>().Select(Bound)];
             if (holdouts.All.FirstOrDefault(h => h.Occupant == s.PlayerId && h.Lit) is { } mine)
             {
                 if (mine.State == HoldoutState.Breaching)
@@ -894,16 +960,14 @@ public static partial class Hud
                 else
                 {
                     rows.Add(($"YOU'RE IN THE {HoldoutName(mine)}", Ink));
-                    rows.Add(("CALL OUT : [E]   LET SOMEONE ELSE GO FIRST : [RMB]", Dim));
+                    rows.AddRange(acts.Select(a => (a, Dim)));
                 }
                 // D.7 Live Mic: theirs alone, off by default; on, the rescuer at the door hears what they say to the dead.
-                rows.Add((mine.LiveMic ? "LIVE MIC ON : [SPACE]" : "LIVE MIC OFF : [SPACE]", mine.LiveMic ? Green : Dim));
+                rows.Add((Bound(mine.LiveMic ? "LIVE MIC ON : [SPACE]" : "LIVE MIC OFF : [SPACE]"), mine.LiveMic ? Green : Dim));
             }
+            // (Where the dead wait, and whether the crew stops for them, is learned: note 285.)
             else
-            {
-                // (Where the dead wait, and whether the crew stops for them, is learned: note 285.)
-                rows.Add(("LET SOMEONE ELSE GO FIRST : [RMB]", Dim));
-            }
+                rows.AddRange(acts.Select(a => (a, Dim)));
             // D.11: the creature vote has a plate of its own (BallotPlate, note 202); once cast, the card keeps a line of it.
             if (s.Ballot is { Cast: { } cast })
                 rows.Add(($"YOU CALLED THE {Creature(cast)}", Dim));
@@ -913,17 +977,8 @@ public static partial class Hud
             if (QueueLine(world, holdouts, s.PlayerId) is { } queue)
                 rows.Add((queue, Ink));
         }
-        // Note 285: no plate, low in the frame, clear of what they're watching: DEAD, then how and the rest in fine print.
-        float k = Fine, rowH = (line + 4) * k;
-        float h = 2 * line + 4 + rows.Count * rowH;
-        float y = MathF.Round(Math.Min(height * 0.6f, height - h - 12));
-        o.TextCentred(width / 2f, y, "DEAD", Red, scale: 2);
-        y += 2 * line + 4;
-        foreach (var (text, colour) in rows)
-        {
-            UiStyle.Keyed(o, Overlay.Snap((width - UiStyle.MeasureKeyed(o, text, k)) / 2, k), y + 2 * k, text, colour, k);
-            y += rowH;
-        }
+        // A crewmate joining mid-run waits here too, never having died: lobbied, the dead's card but for the vote (D.10; note 408).
+        return (p.Death == DeathCause.Waiting ? ("JOINING", Amber) : ("DEAD", Red), rows);
     }
 
     /// <summary>A creature as the dead's ballot and cue name it: "CAR HUGGER".</summary>
@@ -1308,7 +1363,8 @@ public static partial class Hud
     {
         if (!s.Skippable)
             return;
-        string text = SkipLine(s);
+        // Held on Jump, wherever it's bound (note 408).
+        string text = Bound(SkipLine(s));
         float w = UiStyle.MeasureKeyed(o, text), x = width - 12 - w;
         UiStyle.Keyed(o, x, height - 18, text, Dim);
         if (s.SkipHold > 0)
@@ -1554,9 +1610,10 @@ public static partial class Hud
     /// <summary>A prompt written with the default keys ([E], [RMB], [T]) as the player has them bound.</summary>
     public static string Bound(string prompt) =>
         // One pass, so a key bound where another default was isn't replaced twice (Use on F, the ladder's default).
-        System.Text.RegularExpressions.Regex.Replace(prompt, @"\[(E|RMB|T|Z|F|R|B|X|L|H|I|VENT)\]", m => $"[{Controls.KeyLabel(Keys.KeyFor(m.Groups[1].Value switch
+        System.Text.RegularExpressions.Regex.Replace(prompt, @"\[(E|RMB|T|Z|F|R|B|X|L|H|I|VENT|SPACE)\]", m => $"[{Controls.KeyLabel(Keys.KeyFor(m.Groups[1].Value switch
         {
             "E" => Control.Use,
+            "SPACE" => Control.Jump,
             "X" => Control.Reverser,
             "L" => Control.Lamp,
             "H" => Control.Whistle,
