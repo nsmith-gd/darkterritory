@@ -53,6 +53,9 @@ return args switch
     ["line", "info", var name, ..] => Print(LineInfo(LoadLine(name), Opt(args, "--every", 100))),
     ["line", "drive", var name, ..] => Print(Drive(train, LoadLine(name), (int)Opt(args, "--cars", 3), Opt(args, "--start", -1), Opt(args, "--from", 0), Opt(args, "--throttle", 1), (int)Opt(args, "--seconds", 120))),
     ["art", "check", ..] => ArtCheck(train, content, args),
+    // dt art houses [--character cove|lunenburg|shelburne|farm|company|mixed] [--count n] [--seed n] [--kind lived|boarded|empty|burnt]:
+    // a lineup of a town character's houses as the towns draw them (note 281), to judge their variety at a glance.
+    ["art", "houses", ..] => Print(ArtHouses(content, args)),
     ["art", "show", var piece, ..] => Print(ArtShow(train, content, piece, args)),
     ["art", "clip", var creature, var clip, ..] => Print(ArtClip(content, creature, clip, args)),
     ["art", "reel", ..] => Print(ArtReel(content, args)),
@@ -935,7 +938,7 @@ static object Screenshot(TrainTuning t, string content, string[] args)
         return Print(new { error = $"no {Str(args, "--structure", "")} on {Str(args, "--route", "")}'s main line", has = generated?.Plan?.Structures.Where(x => x.Edge == "main").Select(x => x.Type.ToString()).Distinct() });
     if (structure is not null)
         at = (structure.S0 + structure.S1) / 2 + t.Geometry.EngineLength + t.Geometry.CarLength;
-    // --town [square|centre|board|hall|gate|street|houses|house|kitchen|parlour]: the departure fortress's town (GDD §3.1;
+    // --town [square|centre|board|hall|gate|street|houses|house|kitchen|parlour|over|lane]: the departure fortress's town (GDD §3.1;
     // note 281), the train at the gate as a night starts, the camera standing in it (square: at the way in from the engine,
     // looking at the centrepiece; houses down its street; house, kitchen, parlour: the first open house, outside and in).
     DarkTerritory.Sim.Towns.Town? town = null;
@@ -948,7 +951,7 @@ static object Screenshot(TrainTuning t, string content, string[] args)
         run ??= new DarkTerritory.Sim.Run.Run(runTuning, generated) { YardLength = gate };
         var roster = DataFile.Load<DarkTerritory.Sim.Enemies.EnemyTuning>(Path.Combine(content, DarkTerritory.Sim.Enemies.EnemyTuning.File)).Director.Roster;
         town = new DarkTerritory.Sim.Towns.Town(DarkTerritory.Sim.Towns.TownGenerator.Generate(towns, DarkTerritory.Sim.Towns.TownSite.Of(generated, gate, roster, towns)),
-            towns.Tuning, line);
+            towns.Tuning, line, towns.Looks);
     }
     var train = new TrainOnLine(new TrainDynamics(consist), line, at);
     if (site is { Spur: >= 0 })
@@ -1718,6 +1721,77 @@ static object ArtShow(TrainTuning t, string content, string name, string[] args)
         @class = entry.Class.Name,
         size = new[] { Math.Round(max.X - min.X, 2), Math.Round(max.Y - min.Y, 2), Math.Round(max.Z - min.Z, 2) }
     };
+}
+
+// A lineup of houses (the director's Maritime references, 7 Oct 2026; note 281): --count houses of one town character
+// drawn as a town draws them (HouseDesigner, MaritimeKit), each in a cell three-quarters on from the street, lamp-lit with
+// a cold fill, so their variety can be judged without walking a street at night.
+static object ArtHouses(string content, string[] args)
+{
+    var look = DarkTerritory.Game.Look.Load(content);
+    var towns = DarkTerritory.Sim.Towns.TownContent.Load(content) ?? throw new InvalidOperationException("this content has no towns");
+    var looks = towns.Looks;
+    string id = Str(args, "--character", "mixed");
+    var character = looks.Characters.FirstOrDefault(c => c.Id == id)
+        ?? throw new ArgumentException($"no character '{id}' (known: {string.Join(", ", looks.Characters.Select(c => c.Id))})");
+    int count = (int)Opt(args, "--count", 12), cols = Math.Min(count, 4), rows = (count + cols - 1) / cols;
+    int w = (int)Opt(args, "--width", 400), h = (int)Opt(args, "--height", 300);
+    var kind = Enum.Parse<DarkTerritory.Sim.Towns.HouseKind>(Str(args, "--kind", "lived"), ignoreCase: true);
+    var st = towns.Tuning.Houses;
+    var rng = new Pcg32((ulong)Opt(args, "--seed", 7));
+    DarkTerritory.Sim.Towns.HouseDesign? model = null;
+    (double Width, double Depth) first = default;
+    using var gpu = new GpuContext("dt art houses");
+    using var renderer = new GreyboxRenderer(gpu, w, h);
+    look.Dress(renderer);
+    var sheet = new byte[w * cols * h * rows * 4];
+    var designs = new List<object>();
+    for (int i = 0; i < count; i++)
+    {
+        bool gable = model?.GableFront ?? rng.Chance(character.GableFront);
+        double width = rng.Range(gable ? st.GableWidth[0] : st.Width[0], gable ? st.GableWidth[1] : st.Width[1]), depth = rng.Range(st.Depth[0], st.Depth[1]);
+        // A company town's houses are one size, the first's (as TownGenerator.Houses has them).
+        if (model is not null && character.Uniform)
+            (width, depth) = (first.Width, first.Depth);
+        var design = model is not null && character.Uniform
+            ? DarkTerritory.Sim.Towns.HouseDesigner.Copy(looks, character, model, null, ref rng)
+            : DarkTerritory.Sim.Towns.HouseDesigner.Draw(looks, character, gable, width, depth, (st.Every - width) / 2 - 0.6, false, null, ref rng);
+        if (character.Uniform)
+            model ??= design;
+        var house = new DarkTerritory.Sim.Towns.TownHouse(i, 0, 0, 1, width, depth, kind, design, "Lineup", "", null);
+        if (i == 0)
+            first = (width, depth);
+        var piece = DarkTerritory.Game.Art.MaritimeKit.House(look, house, looks, null, true);
+        designs.Add(new { i, gable = design.GableFront, design.Storeys, roof = design.Roof.ToString(), dormer = design.Dormer.ToString(), ell = design.Ell != 0, porch = design.Porch.ToString(), siding = design.Shingle ? "shingle" : "clapboard", fancy = design.Fancy, triangles = piece.Triangles });
+        // Three-quarters on from the street (the house fronts −Z), from a little above eye height.
+        var (min, max) = DarkTerritory.Game.Art.ArtCatalog.Bounds(piece);
+        var centre = (min + max) / 2;
+        float radius = (max - min).Length() / 2;
+        double yaw = (i % 2 == 0 ? -1 : 1) * 32 * Math.PI / 180, pitch = 8 * Math.PI / 180, dist = radius / Math.Sin(28 * Math.PI / 180) * 0.82;
+        var target = new Double3(centre.X, centre.Y * 0.85, centre.Z);
+        var eye = target + new Double3(Math.Sin(yaw) * Math.Cos(pitch), Math.Sin(pitch), -Math.Cos(yaw) * Math.Cos(pitch)) * dist;
+        var camera = Camera.LookAt(eye, target, 56);
+        var mesh = new MeshBuilder { Style = look.Style };
+        var at = System.Numerics.Matrix4x4.CreateTranslation(-(float)eye.X, -(float)eye.Y, -(float)eye.Z);
+        mesh.Instances.Add(new MeshInstance(piece, at));
+        var o = -new System.Numerics.Vector3((float)eye.X, (float)eye.Y, (float)eye.Z);
+        float f = radius * 4;
+        mesh.Quad(o + new System.Numerics.Vector3(-f, -0.01f, f), o + new System.Numerics.Vector3(f, -0.01f, f), o + new System.Numerics.Vector3(f, -0.01f, -f), o + new System.Numerics.Vector3(-f, -0.01f, -f), DarkTerritory.Game.Palette.Charcoal * 0.6f);
+        // A lamp out in the street before it, its door lamp, and a cold fill from the sky.
+        mesh.PointLights.Add(new PointLight(o + new System.Numerics.Vector3((float)Math.Sin(yaw) * 5, 3.5f, min.Z - 6), DarkTerritory.Game.Palette.LampAmber * 2.6f, 22));
+        mesh.PointLights.Add(new PointLight(o + DarkTerritory.Game.Art.MaritimeKit.Porch(house, (float)look.Doorway.Height), DarkTerritory.Game.Palette.LampAmber * 1.0f, 7));
+        mesh.PointLights.Add(new PointLight(o + new System.Numerics.Vector3(-(float)Math.Sin(yaw) * 9, 12, min.Z - 3), new System.Numerics.Vector3(0.35f, 0.42f, 0.55f), 40));
+        var light = look.Apply(FrameLighting.Night);
+        light.FogDensity = 0.002f;
+        light.LampRange = 0.01f;
+        var px = renderer.Render(mesh, camera, light, light.FogColor);
+        int ox = i % cols * w, oy = i / cols * h;
+        for (int y = 0; y < h; y++)
+            px.AsSpan(y * w * 4, w * 4).CopyTo(sheet.AsSpan(((oy + y) * w * cols + ox) * 4));
+    }
+    string output = Str(args, "--out", $"out/shots/art/houses-{id}-{kind.ToString().ToLowerInvariant()}.png");
+    PngWriter.Write(output, sheet, w * cols, h * rows, 1);
+    return new { path = Path.GetFullPath(output), character = character.Id, character.Name, designs };
 }
 
 // A creature's clip as a contact sheet: --frames stills evenly through it (the last one short of the loop's end, which
@@ -2723,7 +2797,7 @@ static int Usage()
                      [--route tier:seed --mail s]   at the night's first mail crane, car 2's door by it; s > 0: the bag caught s seconds ago (its snatch, the arms falling)
                      [--route tier:seed --site [--crank | --crane | --facility i|kind [--leak] [--settled]]]   stopped at a facility: crates out, the winch sled part-hauled (spec D); --crank: close on the cranks; --crane: a gantry crane's facility, a casting on the hook; --facility: the route's i-th
              [--route tier:seed --junction i [--diverge] [--through]]   at a switch, set for the branch, run in onto it
-             [--route tier:seed --town [square|centre|board|hall|gate|street|houses|house|kitchen|parlour]]   the departure fortress's town (note 281), standing in it
+             [--route tier:seed --town [square|centre|board|hall|gate|street|houses|house|kitchen|parlour|over|lane]]   the departure fortress's town (note 281), standing in it
           art check                                every kit piece against its triangle budget (exit 1 if any is over)
           art show <piece> [--yaw deg] [--pitch deg] [--zoom k] [--ps2] [--greybox]   a piece on a turntable, to out/shots/art/
           screenshot --menu title|slots|fortress|upgrades|stores|quickNight|host|join|settings|credits|night|leave|profile [--down n] [--saves dir] [--others n] [--joined]

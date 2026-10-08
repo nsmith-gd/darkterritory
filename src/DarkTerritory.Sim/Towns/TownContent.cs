@@ -10,9 +10,17 @@ public sealed record TownTuning
 
     public bool Enabled { get; init; } = true;
     public required int[] Population { get; init; }
+    /// <summary>How the population is drawn across its range: 1 evenly, 2 or 3 for more small towns than big (u to that power).</summary>
+    public int PopulationPower { get; init; } = 1;
     public required int[] Household { get; init; }
     public required double[] Former { get; init; }
     public double Outdoors { get; init; } = 22;
+    /// <summary>The most people out of doors (a big town's street folk), so a town of thousands isn't a crowd.</summary>
+    public int OutdoorsMax { get; init; } = 1000;
+    /// <summary>The most houses of the lost, as a share of the households (a big town that lost two in three leaves the rest as empty lots).</summary>
+    public double LostShare { get; init; } = 100;
+    /// <summary>A walled town's streets (queue #74): see <see cref="WalledTuning"/>.</summary>
+    public WalledTuning Walled { get; init; } = new();
     public required ExplorableTuning Explorable { get; init; }
     public required StreetTuning Houses { get; init; }
     public required SquareTuning Square { get; init; }
@@ -49,10 +57,41 @@ public sealed record StreetTuning
     public double Every { get; init; } = 15;
     public double Out { get; init; } = 10.9;
     public required double[] Width { get; init; }
+    /// <summary>A gable-front house's frontage (narrower: its gable end is to the street).</summary>
+    public double[] GableWidth { get; init; } = [5.4, 7.0];
     public required double[] Depth { get; init; }
     public double FromGate { get; init; } = 30;
     public double Burnt { get; init; }
     public double Open { get; init; }
+}
+
+/// <summary>
+/// A walled town's ground plan (the director, 7 Oct 2026: "fortresses aren't just some straight line around the railroad,
+/// they should surround towns, towns should be explorable"; queue #74, ARCHITECTURE §8 note 335). Past the houses on
+/// the line's own street, more streets run beside the line, each with a row of houses either side, as many as the town
+/// needs; lanes cross between blocks; the wall goes round the lot.
+/// </summary>
+public sealed record WalledTuning
+{
+    /// <summary>The first street's middle from the line, and from one street's middle to the next (m).</summary>
+    public double First { get; init; } = 34.5;
+    public double Every { get; init; } = 30;
+    /// <summary>A street's width, and how far a house's front stands back from its edge (m).</summary>
+    public double Width { get; init; } = 6;
+    public double Setback { get; init; } = 3.5;
+    /// <summary>A lot's frontage along a street, between these (m).</summary>
+    public double[] Lot { get; init; } = [13, 17];
+    /// <summary>A lane across the streets every so often (m), this wide.</summary>
+    public double[] LaneEvery { get; init; } = [90, 130];
+    public double LaneWidth { get; init; } = 8;
+    /// <summary>Where the street rows run along the line: from this far up from the yard's start to this far inside the gate (m).</summary>
+    public double From { get; init; } = 22;
+    public double ToGate { get; init; } = 22;
+    /// <summary>The wall's distance past the last row's backs, and the rear wall's place along the line (m; behind the yard's start).</summary>
+    public double Margin { get; init; } = 7;
+    public double Rear { get; init; } = -8;
+    /// <summary>The most streets a side.</summary>
+    public int MaxStreets { get; init; } = 5;
 }
 
 public sealed record TownReach
@@ -161,6 +200,9 @@ public sealed record TownThread
 /// <summary>Everything a town is made from: its numbers, its words, and linegen's surnames for its people.</summary>
 public sealed record TownContent(TownTuning Tuning, TownWriting Writing, IReadOnlyList<string> Surnames)
 {
+    /// <summary>How the towns' houses look (content/world/houses.json): their palettes and the towns' characters.</summary>
+    public HouseLooks Looks { get; init; } = new();
+
     /// <summary>The content's towns, or null where it has none (a mod that leaves them out, an old content folder).</summary>
     public static TownContent? Load(string content)
     {
@@ -171,6 +213,6 @@ public sealed record TownContent(TownTuning Tuning, TownWriting Writing, IReadOn
         // Its own people's surnames (the province's); else the line's, as the places are named.
         IReadOnlyList<string> surnames = words.Surnames.Length > 0 ? words.Surnames
             : DataFile.Load<NamesFile>(Path.Combine(content, LineGenConfig.Directory, "names.json")).Surnames;
-        return new TownContent(DataFile.Load<TownTuning>(tuning), words, surnames);
+        return new TownContent(DataFile.Load<TownTuning>(tuning), words, surnames) { Looks = HouseLooks.Load(content) };
     }
 }
