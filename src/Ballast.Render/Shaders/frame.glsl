@@ -18,10 +18,10 @@ layout(set = 0, binding = 0) uniform Frame {
     vec4 rooms[48];    // triples: centre + half x, right axis + half y, back axis + half z (up = back x right)
     vec4 counts;       // x = rooms, y = 1 when the moon casts a shadow, z = one texel of its map, w = frost
     mat4 moonViewProj; // camera-relative to the moon's shadow map (orthographic)
-    vec4 heroOf[64];   // per layer (4 a vec4): its slot in the hero arrays, or -1
+    vec4 heroOf[128];  // per layer (4 a vec4; GreyboxRenderer.LayerTable): its slot in the hero arrays, or -1
     vec4 dawn;         // xyz = the glow low on the dawn's horizon, w = how far it's up
     vec4 wind;         // xyz = the wind (m/s, world axes), w = gustiness 0..1
-    vec4 motionOf[64]; // per layer (4 a vec4): 1 bends in the wind (foliage cards and boughs), 2 water (note 424), else 0
+    vec4 motionOf[128]; // per layer (4 a vec4): 1 bends in the wind (foliage cards and boughs), 2 water (note 424), else 0
     mat4 viewProj1;    // the right eye's, when one pass draws both (multiview: view.glsl)
     mat4 invViewProj1;
     vec4 handPos;      // the shadowed hand lamp (MeshBuilder.ShadowLight): xyz camera-relative, w = range (0: none)

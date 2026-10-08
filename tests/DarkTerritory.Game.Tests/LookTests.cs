@@ -113,6 +113,16 @@ public class LookTests
     }
 
     [Fact]
+    public void EveryLayerHasItsPlaceInTheFramesTables()
+    {
+        // A layer past the frame's per-layer tables is drawn, but never at its hero size and never moving: the conveyor's
+        // pieces took the library and the models' atlases past 256, and the Weight's atlas lost its hero slot (note 430).
+        // Each model brings a layer, so when this fails, raise GreyboxRenderer.LayerTable and the shaders' tables with it.
+        int layers = Look.Assets().Layers.Count;
+        Assert.True(layers <= GreyboxRenderer.LayerTable, $"{layers} layers; the frame's tables cover {GreyboxRenderer.LayerTable}");
+    }
+
+    [Fact]
     public void TheGrimeRidesWithTheCar()
     {
         using var gpu = Gpu();
