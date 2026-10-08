@@ -2282,6 +2282,9 @@ Agents can't tell whether it's funny, but they can tell whether everyone was on 
 **The land and the water**
 - Lots of the landscape generation's textures are see-through or missing. The water looks bad: still, with no life or movement to it. *Fixed in PR #441 (queue #160, ARCHITECTURE §8 note 424): the water stays put under the camera and moves, rippling and swelling in the night's wind, its rivers running, the moon's road in it and a lap at its waterline; lakes are drawn to their own shores and held in by a rim where the land is lower; the shore's shingle keeps to its waterline. Found: the water's texture is pinned to the camera, so it slides along with the train, and nothing in it moves; a lake drawn as a disc floats over its rim where the land is lower than its water (on frontier:3, by up to 6.5 m); the shore's ground changes by the land mesh's quad in hard patches; the sea is one flat sheet. Next (queue #169, B1, note 433): `dt holes`, a headless search for the rest, the sky painted where it shows through the land and untextured surfaces flagged, down every tier's nights.*
 
+**Fire**
+- Holding the extinguisher on a fire still doesn't feel like it's doing anything. It should be a second per grid cell to put out. *Done (queue #203, ARCHITECTURE §8 note 467): a cell at full blaze aimed at is out after a second of spray (`carFire.sprayPerSecond` 1.0, was 0.35), the cells round it cooled at 0.4 of that; an extinguisher's charge is about fifteen cells.*
+
 **Decided** (the director, 8 Oct 2026): every yard line holds loot on the early and mid tiers, and loot is never seen appearing. Level-design P14 (and stops.json `everyTrack`, loot.json `stockAhead`).
 
 ## F.3 2026-10-07 — main at 8442eee, and the integration test builds
