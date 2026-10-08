@@ -1064,6 +1064,16 @@ static object Screenshot(TrainTuning t, string content, string[] args)
         }
         camera = Camera.LookAt(At(cam), At(Str(args, "--target", cam)), (float)Opt(args, "--fov", 65));
     }
+    // --tower (with --coaling): the coaling tower from across the track, along it a way, up at its chute where it pours
+    // (note 422); --tower side: from out past the tower on its own side, the trestle and the bunker.
+    if (tower is not null && run is not null && args.Contains("--coaling") && args.Contains("--tower"))
+    {
+        var foot = line.Sample(run.ChuteAt(tower, line).SpoutAlong);
+        var right = Double3.Cross(foot.Tangent, Double3.Up).Normalized * tower.Side;
+        camera = Str(args, "--tower", "") == "side"
+            ? Camera.LookAt(foot.Position + right * 26 + foot.Tangent * 18 + Double3.Up * 2.5, foot.Position + right * 6 + Double3.Up * 9, 62)
+            : Camera.LookAt(foot.Position - right * 9 + foot.Tangent * 14 + Double3.Up * 3.5, foot.Position + right * 2 + Double3.Up * 8.5, 62);
+    }
     if (structure is not null && Str(args, "--cam", "") is not { Length: > 0 } && !args.Contains("--view"))
     {
         // A bridge from down in its valley, a third of the way along, up at the span and the train on it; anything else

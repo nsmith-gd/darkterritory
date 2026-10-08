@@ -5782,3 +5782,18 @@ Terrain sculpting tools, a node-graph material editor, a general-purpose visual 
         - `dt art check`: 928 of the large prop's 8,000.
         - The Game suite.
         - Looked at: from the building camera, closer, at night, from the air and from the crane, before and after, and on the turntable.
+
+422. **The coaling tower modelled (queue #158, C1; the art checklist's `coaling-tower`; GDD §18 "gravity chute: fast, deafening, fills whether you're ready or not", §30; notes 381, 393, 410 and 420 did the other facilities).** The coaling stage's tower was still the structure kit's: four rods for stilts, a box of a bunker, a cylinder of a hopper and a bar for a chute arm. Now it is `coaling_tower` (1,568 triangles), set by `StructureKit.Facility` where the kit's stood, 7 m off the line. The kit is kept as the fallback.
+    - **The tower:**
+        - A timber trestle 12 m up, its posts battered in, girts and X-bracing on every face, iron straps at the joints, on concrete footings.
+        - The concrete bunker on its cap beams, board-marked, its pours banded, streaked down from the top and black round its foot, with COAL painted across its front long ago, under an iron roof.
+        - The steel hopper under it and the chute from its gate out over the track. The chute is a trough falling to its lip, hung by chains from a jib of two beams tied back to the bunker's wall.
+        - Ladders up the trestle's back and on up the bunker. The stop's lamp hangs on a chain from the front girt where GreyboxScene lights it, and coal is spilled round the feet.
+    - **The chute's mouth is where the sim pours** (`CHUTE_MOUTH`): GreyboxScene.Chute's curtain falls from 8.8 m up, 0.4 m off the track over the spout (`Run.ChuteAt`). The lever, 6 m along and 3.2 m out, stands clear of the trestle's footings. The pour and the lever (`SceneArt.ChuteLever`) are unchanged.
+    - **`dt screenshot --coaling --tower [side]`:** the tower framed from the sim's own spout, from across the track up at the chute, or (`side`) from out past it on its own side. A route's plan distances aren't the built line's, so `--cam` can't be aimed at it from the plan. deepTerritory:8 has a coaling stage; the frontier routes don't.
+    - **Verified:**
+        - `FacilityBuildingArtTests.TheCoalingTowersChuteHangsWhereTheSimPoursAndClearOfItsLever`: built from deepTerritory:8's run, the chute's mouth is within reach of the pour's top, and no vertex is near the lever.
+        - `dt art check`: 1,568 of the large prop's 8,000.
+        - The Game suite.
+        - Looked at: from the engine (`--view coaling`), trackside, from the roof, across the track at the chute, from the tower's side and at night, before and after, and on the turntable.
+
