@@ -92,6 +92,30 @@ public sealed partial class WorldArt
         }
     }
 
+    /// <summary>
+    /// The town's lights on the fog over it (note 490; App. D.7's Holdout lamp, seen from its approach board): where a broad
+    /// glow hangs (world, its height over the ground), how broad, its colour and how strong. Over its square; over its
+    /// first streets every so far along on both sides of the line; over a foundry's casting shed, the furnace's orange. A
+    /// town that keeps its windows dark (the "shutters" custom) glows less.
+    /// </summary>
+    public static IEnumerable<(Double3 At, float Size, Vector3 Colour, float Strength)> Glow(Town town)
+    {
+        var plan = town.Plan;
+        var sq = plan.Square;
+        float lit = plan.Culture == "shutters" ? 0.45f : 1;
+        yield return (town.World((sq.S0 + sq.S1) / 2, sq.Side * 14, GlowUp), 130, Palette.LampAmber, lit);
+        if (plan.Bounds is { } b && b.Streets.Count > 0)
+            foreach (var st in b.Streets.GroupBy(x => Math.Sign(x.D)).Select(g => g.OrderBy(x => Math.Abs(x.D)).First()))
+                for (double s = b.Rear + 80; s < b.Gate - 40; s += 170)
+                    if (s < sq.S0 - 40 || s > sq.S1 + 40)
+                        yield return (town.World(s, st.At(s), GlowUp - 6), 105, Palette.LampAmber, 0.55f * lit);
+        foreach (var f in plan.Fixtures.Where(f => f.Kind == "casting"))
+            yield return (town.World(f.S, f.D, GlowUp - 14), 60, Palette.FurnaceOrange, 0.9f);
+    }
+
+    /// <summary>How high over the ground a town's glow hangs (m): well over its wall and its roofs.</summary>
+    const double GlowUp = 38;
+
     /// <summary>Where the works' stacks and chimneys smoke (note 353): the foundry's stack, the winding house's chimney.</summary>
     public IEnumerable<Vector3> Stacks(RailLine line, Double3 eye, Town town, double reach)
     {

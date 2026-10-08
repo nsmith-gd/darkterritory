@@ -2704,6 +2704,13 @@ public sealed class GreyboxScene
                 // its watch walking the wall with their lanterns.
                 foreach (var top in Look.Art.World.Chimneys(line, eye, town, 160))
                     Look.Art.Effects.Chimney(mesh, top, Time, (int)(top.X * 7 + top.Z * 13));
+                // Its lights on the fog over it (note 490): what a crew coming home sees over the wall long before any lamp, and
+                // looks back at as it leaves. Faint from inside, where the lamps themselves are the light.
+                foreach (var (at, size, colour, strength) in Art.WorldArt.Glow(town))
+                {
+                    float far = (float)Math.Clamp(((at - eye).Length - 120) / 500, 0, 1);
+                    mesh.Billboard(V(at, eye), size, 0, new Vector4(colour * strength * (0.06f + 1.2f * far), 1), -1, FxBlend.Additive);
+                }
                 // And the works' (note 353): the foundry's stack and the winding house's chimney, thicker.
                 foreach (var top in Look.Art.World.Stacks(line, eye, town, 420))
                     for (int plume = 0; plume < 3; plume++)
