@@ -172,7 +172,16 @@ public sealed record AuthorityRules(double SleeperSafeMargin, double LampHeightM
 public sealed record TerrainRules(double CorridorM, double TileM, double GridM, double FormationM, double ShoulderM, double BlendM, double NoiseAmplitudeM,
     double[] NoiseWavelengthM, double JunctionPadM, double SkirtDropM, double SampleM, double WalkableSlope, double WalkableWithinM,
     double TunnelCoverM, double RiverWidthM, double ReliefM, double[] ReliefWavelengthM, double ReliefFromM, double ReliefFullM, double ReliefRidged,
-    double ReliefUp, DrumlinRules Drumlins, KnobRules Knobs, PlateauRules Plateau, LakeRules Lakes, ShoreRules Shore, DykeRules Dykes, RiverRules Rivers, RoadRules Roads);
+    double ReliefUp, DrumlinRules Drumlins, KnobRules Knobs, PlateauRules Plateau, LakeRules Lakes, ShoreRules Shore, DykeRules Dykes, RiverRules Rivers, RoadRules Roads)
+{
+    /// <summary>Note 279: a tunnel's bore either side of the rail (StructureKit.TunnelHalf), and its crown over the rail.</summary>
+    public double BoreHalfM { get; init; } = 3.1;
+    public double BoreCrownM { get; init; } = 7.5;
+    /// <summary>Note 279: a bridge's deck either side of the rail.</summary>
+    public double DeckHalfM { get; init; } = 2.6;
+    /// <summary>Note 279: what runs beside a train in a bore or on a deck keeps this inside the lining or the deck's edge.</summary>
+    public double BesideClearM { get; init; } = 0.6;
+}
 
 /// <summary>The Maritimes' landforms (TerrainField.Landform): heights as a share of reliefM, lengths in metres.</summary>
 public sealed record DrumlinRules(double WavelengthM, double Stretch, double FlowDeg, double Height);

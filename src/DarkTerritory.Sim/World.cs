@@ -684,7 +684,8 @@ public sealed class World
         Run = new Run.Run(tuning, route) { YardLength = yardLength };
         Bookmarks.Tuning = tuning.Bookmarks;
         Forts = Sim.Run.Fortresses.Of(route, Train.Line, yardLength, tuning.TerminusZone);
-        Train.Walls = Sim.Run.StopWalls.Of(route, Train.Line, Forts);
+        _walls = tuning.Walls;
+        Train.Walls = Sim.Run.StopWalls.Of(route, Train.Line, Forts, _walls);
         if (facilities is not null)
         {
             Run.EnableSites(facilities, Train.Line);
@@ -699,8 +700,16 @@ public sealed class World
             Bodies.Heals = Run.HealOf;
             Bodies.HealSeconds = loot.Healing?.UseSeconds ?? Bodies.HealSeconds;
         }
+        Train.Walls = ClearSiteWork(Train.Walls);
         Authority |= authority;
     }
+
+    /// <summary>Note 279: the stops' walls less where a facility's modules are worked (<see cref="Sim.Run.Site.WorkPoints"/>), its yard cranes too.</summary>
+    Sim.Run.StopWalls ClearSiteWork(Sim.Run.StopWalls walls) =>
+        Run?.Sites is { Count: > 0 } sites ? walls.Clear(sites.Where(s => s is not null).SelectMany(s => s!.WorkPoints()), SiteWorkReachM) : walls;
+
+    /// <summary>How far round a module's work point a stop's wall gives way: a crewmate's body and reach (m). Not a design number.</summary>
+    const double SiteWorkReachM = 1.5;
 
     /// <summary>
     /// The departure fortress's town (GDD §3.1; note 281): its square, its people and papers, and their walls, built alike
@@ -720,9 +729,12 @@ public sealed class World
         // The departure fortress is the town's: its walls stand back round the square (note 281), so they're built again.
         if (Forts is { Count: > 0 } forts)
             Forts = [forts[0] with { Square = plan.Square }, .. forts.Skip(1)];
-        Train.Walls = Sim.Run.StopWalls.Of(route, Train.Line, Forts);
+        Train.Walls = ClearSiteWork(Sim.Run.StopWalls.Of(route, Train.Line, Forts, _walls));
         Train.Walls.Add(Town.Walls);
     }
+
+    /// <summary>Note 279: the stops' buildings' walls by their doors, kept for the town's rebuild of the walls.</summary>
+    Sim.Run.WallTuning? _walls;
 
     /// <summary>The night's fortresses (<see cref="Sim.Run.Fortresses.Of"/>; T124), the departure one's town square on it once there's a town.</summary>
     public IReadOnlyList<Sim.Run.Fort>? Forts { get; private set; }
@@ -1656,6 +1668,8 @@ public sealed class World
         foreach (var e in _enemies.ToList())
             if (!e.Gone)
                 e.Step(ctx);
+        // The world is solid (note 279): nothing loose in it stands in a building or a tunnel's lining, and what walks is on the land.
+        Sim.Enemies.Solidity.Settle(_enemies, Train, t);
         // GDD §9, T128 (note 273): no creature comes into a fort. One that does (riding the train in, running down a crewmate
         // who got back inside the gate, put down there by a spawn) is driven off: it lets go and is gone.
         if (Run is { Tuning.Forts.Safe: true })
