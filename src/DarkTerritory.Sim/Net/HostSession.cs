@@ -289,15 +289,31 @@ public sealed class HostSession
     public int Refusals { get; private set; }
     public int Leaves { get; private set; }
 
+    /// <summary>
+    /// A private run's password, as its key (note 450, <see cref="Messages.PasswordKey"/>): a new joiner whose Hello doesn't
+    /// carry it is turned away, WRONG PASSWORD. Null: an open run. Host-only, never sim state.
+    /// </summary>
+    public byte[]? PasswordKey { get; set; }
+    /// <summary>
+    /// Who gets into a private run without the password (note 450): the host's friends on the platform it came in on. A held
+    /// place's token always does (they were let in once). Null: nobody.
+    /// </summary>
+    public Func<PeerId, bool>? Trusted { get; set; }
+    /// <summary>Joiners turned away from a private run for the wrong password, or none.</summary>
+    public int WrongPasswords { get; private set; }
+
     /// <summary>Links turned away (note 254), kept open till their Refused has had time to get there, then hung up on.</summary>
     readonly List<(PeerId Peer, uint Until)> _refused = [];
     /// <summary>Links turned away and not yet hung up on.</summary>
     public int TurnedAway => _refused.Count;
 
-    void Refuse(PeerId peer)
+    void Refuse(PeerId peer, RefusalReason why = RefusalReason.CrewFull)
     {
-        Refusals++;
-        Messages.WriteRefused(_writer, new Refusal(RefusalReason.CrewFull, Occupied, Cap));
+        if (why == RefusalReason.Password)
+            WrongPasswords++;
+        else
+            Refusals++;
+        Messages.WriteRefused(_writer, new Refusal(why, Occupied, Cap));
         _transport.Send(peer, _writer.Written, Delivery.ReliableOrdered);
         _refused.Add((peer, Tick + (uint)TicksOf(PlayerTuning.Crew.RefuseLingerSeconds)));
     }
@@ -360,6 +376,7 @@ public sealed class HostSession
         public string Name = "";
         public ulong Token;
         public byte Outfit = Messages.NoOutfit;
+        public byte[]? Key;
     }
 
     readonly List<Greeting> _greeting = [];
@@ -440,6 +457,12 @@ public sealed class HostSession
             // whose place ran out) needs room. The greeting line itself takes no place: a connection that never speaks is
             // never counted, so it can't fill the crew or shut the lobby.
             byte? back = g.Token != 0 ? Return(g.Peer, g.Token) : null;
+            // Note 450: a private run asks a new joiner for its password before it takes a place, so a guess fills nothing.
+            if (back is null && !Admitted(g))
+            {
+                Refuse(g.Peer, RefusalReason.Password);
+                continue;
+            }
             if (back is null && Full)
             {
                 Refuse(g.Peer);
@@ -450,6 +473,12 @@ public sealed class HostSession
             Wear(id, g.Outfit, any: true);
         }
     }
+
+    /// <summary>Note 450: an open run, the private run's password, or someone the host trusts (a friend).</summary>
+    bool Admitted(Greeting g) =>
+        PasswordKey is not { } key
+        || g.Key is { } given && System.Security.Cryptography.CryptographicOperations.FixedTimeEquals(given, key)
+        || Trusted?.Invoke(g.Peer) == true;
 
     /// <summary>
     /// Note 253: a player back with their slot's token. Held for them, they get it back; still live on another connection
@@ -733,12 +762,12 @@ public sealed class HostSession
             {
                 var hr = new NetReader(payload);
                 hr.U8();
-                var (name, token, outfit) = Messages.ReadHello(ref hr);
+                var (name, token, outfit, key) = Messages.ReadHello(ref hr);
                 // Note 253: a joiner's first word, before it's welcomed. It's let in in the order it connected (first aboard
                 // takes the cab), so it waits its turn in the greeting line.
                 if (_greeting.Find(g => g.Peer == peer) is { } greeting)
                 {
-                    (greeting.Said, greeting.Name, greeting.Token, greeting.Outfit) = (true, name, token, outfit);
+                    (greeting.Said, greeting.Name, greeting.Token, greeting.Outfit, greeting.Key) = (true, name, token, outfit, key);
                     return;
                 }
                 int id = _crew.Find(x => x.Peer == peer)?.Id ?? _waiting.Where(w => w.Peer == peer).Select(w => (int)w.Id).DefaultIfEmpty(-1).First();
