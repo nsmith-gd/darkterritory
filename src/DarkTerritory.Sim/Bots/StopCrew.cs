@@ -254,6 +254,8 @@ public sealed partial class CrewCalls
             || site.Has(ModuleKind.Lift) && site.Ore > 0 && Has(StopJob.Shunter)
             // And the conveyor line's drive house and belt (note 400), while the driver walks the cars under its head.
             || site.Has(ModuleKind.Conveyor) && site.Grain > 0 && Has(StopJob.Shunter)
+            // And the tipple's lever (note 423), while the driver stands the cars true in its cradle.
+            || site.Has(ModuleKind.Tipple) && site.TippleOre > 0 && Has(StopJob.Shunter)
             || site.Has(ModuleKind.Ramp) && site.Head > 0 && PairWithPeople
             // The hose wants one (D.2 fluid gantry "1–2"): its own hand, or a spare one (note 261).
             || site.Has(ModuleKind.Hose) && HoseHand
@@ -521,6 +523,31 @@ public sealed record StopPlan(int Facility, Site Site, Branch Spur, double Hold,
         return best;
     }
 
+    /// <summary>
+    /// The tipple's next car (note 423): as the conveyor's, the car with room that comes into its cradle with the engine furthest
+    /// up the spur, and where the engine's front stands for its middle to be on the cradle's. Null when the bin's empty, no car
+    /// left with room reaches it, or the engine's not down the spur.
+    /// </summary>
+    public (int Car, double Front)? TippleTarget(World world)
+    {
+        var rake = world.Train.Dynamics;
+        if (!Site.Has(ModuleKind.Tipple) || Site.TippleOre <= 1e-6 || rake.Path != Spur.Index)
+            return null;
+        double cradle = Spur.Toe + Site.TippleAlong;
+        (int Car, double Front)? best = null;
+        var vehicles = rake.Consist.Vehicles;
+        for (int i = 0; i < vehicles.Count; i++)
+        {
+            var v = vehicles[i];
+            if (v.Kind != VehicleKind.Cargo || v.Load >= 1 - 1e-6 || v.OffRails)
+                continue;
+            double front = cradle + rake.Consist.OffsetOf(i) + v.Length(rake.Consist.Tuning) / 2;
+            if (front <= Spur.End - 1 && (best is null || front > best.Value.Front))
+                best = (v.Id, front);
+        }
+        return best;
+    }
+
     /// <summary>The herd still to go up the ramp, with a car at its top to take them, while the engine's at the end.</summary>
     public bool HerdLeft(World world) => Site.Has(ModuleKind.Ramp) && Site.Head > 0 && AtTheEnd(world.Train)
         && world.Run?.CarAtRamp(world.Train, Site) is not null;
@@ -705,7 +732,7 @@ public sealed record CoalPlan(int Facility, double Spout, double Hold, Double3 L
 /// </summary>
 public sealed class StopDriver(CrewCalls calls)
 {
-    public enum Leg : byte { Cruise, Approach, Held, SpurIn, Loading, BackOut, Clear, Depart, ToCoal, Coaling, ToSwitch, OffDeadLine, SetBack, Forward, Spouting, Lifting, Conveying }
+    public enum Leg : byte { Cruise, Approach, Held, SpurIn, Loading, BackOut, Clear, Depart, ToCoal, Coaling, ToSwitch, OffDeadLine, SetBack, Forward, Spouting, Lifting, Conveying, Tippling }
 
     // Long enough for a crew to do their part at walking pace; past it, the stop is given up rather than the night. (The
     // loading's was 300; cab forward, note 276, the warm a cold hand goes back to is 10 m further from the cars, and a lone
@@ -715,6 +742,13 @@ public sealed class StopDriver(CrewCalls calls)
     const double LiftGiveUp = 480;
     // The conveyor's three car-loads at 25 s a car, a jam every 30-60 s of it, and the walk to each and back to the drive house.
     const double ConveyGiveUp = 420;
+    // The tipple's three car-loads at two rolls a car (11 s each, clamp to let go) and the engine stood true for each car.
+    const double TippleGiveUp = 300;
+    /// <summary>
+    /// How near the engine's front stands to where it puts a car's middle on the tipple's cradle (m): inside facilities.json
+    /// tipple.goodClamp, so the shunter's clamp is a good one.
+    /// </summary>
+    const double TippleTrue = 0.45;
     /// <summary>Seconds a facility stop (or a coaling stop) takes a crew, to leave spare before the dawn.</summary>
     const double StopAllowance = 600, CoalAllowance = 120;
     /// <summary>Seconds a stop's leaving takes (backing out, clearing, the crew aboard): a stop's loading is late past this.</summary>
@@ -1032,6 +1066,12 @@ public sealed class StopDriver(CrewCalls calls)
                         Begin(Leg.Lifting);
                         return Hold(world);
                     }
+                    // And then its tipple (note 423): each car stood true in the cradle, the shunter on its lever.
+                    if (loaded && !late && Waited <= LoadingGiveUp && calls.Has(StopJob.Shunter) && p.TippleTarget(world) is not null)
+                    {
+                        Begin(Leg.Tippling);
+                        return Hold(world);
+                    }
                     // Everyone aboard, or long enough waited for them since the loading was done (not since it began: a stop
                     // given up for the dawn waited out the whole give-up again for a hand still out, T70).
                     if (loaded && _loadedAt < 0)
@@ -1091,6 +1131,32 @@ public sealed class StopDriver(CrewCalls calls)
                         return Hold(world);
                     return Toward(world, front, engine.Distance > front ? -1 : 1, 1.5);
                 }
+            case Leg.Tippling:
+                {
+                    var p = Plan!;
+                    bool late = world.Run is { } tr && tr.DawnIn < Home(world, tr, p.Hold) + LateSpare + AboardGiveUp;
+                    var site = world.Run?.Sites[p.Facility];
+                    var target = p.TippleTarget(world);
+                    calls.Leave(false);
+                    // A car off its rails in the cradle holds the train where it is, late or not, till a wrench puts it back
+                    // (the shunter's); and nothing moves with a car clamped or being clamped: moved, it comes off its rails.
+                    if (site is not null && (world.Run!.OffRailsAt(train, site) is not null || site.Clamped >= 0 || site.Clamp > 0))
+                        return Hold(world);
+                    if (target is null || late || !calls.Has(StopJob.Shunter) || Waited > TippleGiveUp)
+                    {
+                        calls.Leave(true);
+                        if (calls.Riding(OnTheTrain(train)) || Waited > TippleGiveUp + AboardGiveUp)
+                            Begin(Leg.BackOut);
+                        return Hold(world);
+                    }
+                    if (!calls.RidingBut(OnTheTrain(train), StopJob.Shunter) && Waited < AboardGiveUp)
+                        return Hold(world);
+                    // The car stood true in the cradle, slowly: a clamp shut on one stood off its middle derails it on the roll.
+                    double front = target.Value.Front;
+                    if (Math.Abs(engine.Distance - front) < TippleTrue)
+                        return Hold(world);
+                    return Toward(world, front, engine.Distance > front ? -1 : 1, 1.0);
+                }
             case Leg.Lifting:
                 {
                     var p = Plan!;
@@ -1099,6 +1165,13 @@ public sealed class StopDriver(CrewCalls calls)
                     calls.Leave(false);
                     if (target is null || late || !calls.Has(StopJob.Shunter) || Waited > LiftGiveUp)
                     {
+                        // Done: the tipple next if it has a car to fill (the shunter goes from the lift's lever to it by the same
+                        // rule; given up, the lift's still the shunter's, so it's all aboard), else all aboard and back out.
+                        if (target is null && !late && calls.Has(StopJob.Shunter) && p.TippleTarget(world) is not null)
+                        {
+                            Begin(Leg.Tippling);
+                            return Hold(world);
+                        }
                         calls.Leave(true);
                         if (calls.Riding(OnTheTrain(train)) || Waited > LiftGiveUp + AboardGiveUp)
                             Begin(Leg.BackOut);
@@ -1820,6 +1893,12 @@ public sealed partial class StopHand(StopJob job, CrewCalls calls, int member, C
         // Or on the steam lift's (note 368), while there's a car to fill under its chute in the engine's reach.
         if (!back && _reachedEnd && p.LiftTarget(world) is not null && !calls.Leaving)
             return Lift(self, world, p);
+        // A car off its rails at the tipple (note 423) holds the train fast, leaving or not: the wrench to it first. Then the
+        // tipple's lever, while there's a car to fill that comes into its cradle (after the lift's, as the driver works them).
+        if (_reachedEnd && world.Run?.OffRailsAt(train, p.Site) is { } off)
+            return Rerail(self, world, p, off);
+        if (!back && _reachedEnd && p.TippleTarget(world) is not null && !calls.Leaving)
+            return Tipple(self, world, p);
         if (!back)
             return Ride(self, train, p);
         return set ? Throw(self, train, p.Spur) : Aboard(self, p);
@@ -1921,6 +2000,57 @@ public sealed partial class StopHand(StopJob job, CrewCalls calls, int member, C
         bool fill = car is not null && car.Load < 1 - 1e-6 && Math.Abs(train.Dynamics.Velocity) < 0.05;
         Doing = fill ? "winding" : "at the lift";
         return fill ? new PlayerIntent { Buttons = PlayerButtons.Use } : new PlayerIntent();
+    }
+
+    /// <summary>
+    /// On the tipple's lever (note 423; spec D.2 "1 crew"): down on its side, beside it, and holding it while a car with room
+    /// stands still and true in the cradle (never on one stood off its middle: that's the bad clamp that derails it), and on
+    /// through the roll once it's clamped.
+    /// </summary>
+    PlayerIntent? Tipple(in PlayerState self, World world, StopPlan p)
+    {
+        var train = world.Train;
+        var site = p.Site;
+        if (self.Parent != PlayerState.World)
+            return GetDown(self, train, SideOf(train, p, site.TippleLever, self.LineHint));
+        var (along, across) = TrackCoords(train.Line, p.Spur.Index, site.TippleLever, self.LineHint);
+        var stand = TrackPoint(train.Line, p.Spur.Index, along, Math.Sign(across) * (Math.Abs(across) + 0.5));
+        var (step, there) = WalkTo(self, train.Line, p.Spur.Index, stand, null);
+        if (!there && ((self.Position - stand) with { Y = 0 }).Length > 0.35)
+        {
+            Doing = "to the tipple";
+            return step;
+        }
+        var car = world.Run?.CarInCradle(train, site);
+        bool tip = site.Clamped >= 0
+            || car is { OffRails: false } && car.Load < 1 - 1e-6 && Math.Abs(train.Dynamics.Velocity) < 0.05 && world.Run!.StoodTrue(train, site, car);
+        Doing = tip ? "tipping" : "at the tipple";
+        return tip ? new PlayerIntent { Buttons = PlayerButtons.Use } : new PlayerIntent();
+    }
+
+    /// <summary>
+    /// A car off its rails at the tipple (note 423): down beside its middle, on the site's side, the wrench in hand and Use
+    /// held till it's back on.
+    /// </summary>
+    PlayerIntent? Rerail(in PlayerState self, World world, StopPlan p, Vehicle car)
+    {
+        var train = world.Train;
+        var middle = train.Frames[car.Id].Origin;
+        if (self.Parent != PlayerState.World)
+            return GetDown(self, train, SideOf(train, p, p.Site.TippleLever, self.LineHint));
+        var (along, across) = TrackCoords(train.Line, p.Spur.Index, middle, self.LineHint);
+        var (_, side) = TrackCoords(train.Line, p.Spur.Index, p.Site.TippleLever, self.LineHint);
+        var stand = TrackPoint(train.Line, p.Spur.Index, along, across + Math.Sign(side) * 1.6);
+        var (step, there) = WalkTo(self, train.Line, p.Spur.Index, stand, null);
+        if (!there && ((self.Position - stand) with { Y = 0 }).Length > 0.5)
+        {
+            Doing = "to the car off its rails";
+            return step;
+        }
+        if (Repairs.ByWrench(train) && Repairs.WrenchKey(self) is var key and > 0)
+            return new PlayerIntent { Select = key };
+        Doing = "putting the car back on its rails";
+        return new PlayerIntent { Buttons = PlayerButtons.Use };
     }
 
     /// <summary>
@@ -2814,7 +2944,7 @@ public sealed partial class StopHand(StopJob job, CrewCalls calls, int member, C
     }
 
     /// <summary>Along the roofs toward the back (+1) or front (−1), jumping the gaps unless it's to step off into one.</summary>
-    static PlayerIntent AlongRoofs(in PlayerState self, TrainOnLine train, int direction, bool jumpGaps)
+    internal static PlayerIntent AlongRoofs(in PlayerState self, TrainOnLine train, int direction, bool jumpGaps)
     {
         double yaw = direction < 0 ? 0 : Math.PI;
         if (!Aligned(self, yaw))

@@ -17,7 +17,7 @@ public class StopCrewTests
 {
     static readonly TrainTuning T = Tuning.Train;
     static readonly PlayerTuning P = Tuning.Player;
-    static readonly FacilityTuning F = DataFile.Load<FacilityTuning>(Path.Combine(DataFile.FindContentRoot(), FacilityTuning.File));
+    static readonly FacilityTuning F = FacilityTests.F;
     static readonly Stops.LootTuning L = DataFile.Load<Stops.LootTuning>(Path.Combine(DataFile.FindContentRoot(), Stops.LootTuning.File));
 
     /// <summary>
@@ -701,6 +701,65 @@ public class StopCrewTests
     }
 
     [Fact]
+    public void WithTheChoirGatheringAHandInAPairOfCottagesShutsItselfIntoItsOwn()
+    {
+        // Note 453 (note 413's "not yet"): a pair of cottages was one house of two doors, shut up only with both shut, though
+        // there's no way between them; the hands passed them by. Each is a home of its own now: a hand in one with the Choir
+        // gathering shuts its door and is behind it, the other's door open or not; quiet, it opens up and gets on.
+        var night = new Night(cars: 8, walkers: 3, crateHands: true, ids: true, loot: true, modules: ModuleKind.Crates);
+        var train = night.Train;
+        var world = night.World;
+        var run = world.Run!;
+        var walls = train.Walls!;
+        var pairs = walls.HouseDoors.GroupBy(d => (d.Key - 1) >> 2).Where(g => g.Count() == 2).ToList();
+        Assert.NotEmpty(pairs);
+        var hands = night.Bots.OfType<RoofWalkerBot>().Select(b => b.Job).OfType<StopHand>().Where(h => h.Job == StopJob.Crates).ToList();
+        night.Until(() => hands.Any(h => h.Doing.StartsWith("searching the", StringComparison.Ordinal)), 1800);
+        var outThere = hands.First(h => h.Doing.StartsWith("searching the", StringComparison.Ordinal));
+        int me = outThere.PlayerId!.Value - 1;
+        Assert.True(night.Crew[me].Parent == PlayerState.World, "nobody went out to the village");
+        // Into a cottage of the pair nearest it, a stride in from its door: the Choir comes.
+        var here = night.Crew[me].Position;
+        var pair = pairs.OrderBy(g => g.Min(d => (d.At - here).Length)).First().ToList();
+        var (mine, next) = (pair[0], pair[1]);
+        var s = night.Crew[me];
+        s.Position = mine.At - mine.Out * 0.75;
+        s.Velocity = default;
+        night.Crew[me] = s;
+        Assert.Equal(mine.House, walls.HouseAt(s.Position));
+        var allHands = night.Bots.OfType<RoofWalkerBot>().Select(b => b.Job).OfType<StopHand>().ToList();
+        var doing = new List<string>();
+        void Watch()
+        {
+            foreach (var h in allHands)
+                if (h.Doing.Length > 0 && !doing.Contains(h.Doing))
+                    doing.Add(h.Doing);
+        }
+        bool InHers() => PlayerMotor.Space(night.Crew[me], train) == PlayerMotor.HouseSpace(mine.House);
+        night.Until(InHers, 40, () => { world.Choir.Build = 0.8; Watch(); });
+        string trace = $"the hand was {outThere.Sheltering}/{outThere.Doing} in house {walls.HouseAt(night.Crew[me].Position)}; the hands did {string.Join(", ", doing)}";
+        Assert.True(InHers(), $"not shut in its cottage: {trace}");
+        Assert.True(walls.Shut(mine.Key), trace);
+        Assert.Equal(mine.House, outThere.ShelterDoor?.House);
+        // Shut in with the next cottage's door standing open: that's another home.
+        Assert.False(walls.Shut(next.Key), trace);
+        // Waited out behind its door, the driver waiting.
+        night.Until(() => false, 15, () => world.Choir.Build = 0.8);
+        Assert.True(InHers(), $"left the cottage with the Choir about: {outThere.Doing}");
+        Assert.Equal(0, run.Departures);
+        // Quiet: out again, its door open behind it, and on with the night.
+        world.Choir.Build = 0;
+        night.Until(() => run.Departures > 0, 1800, Watch);
+        string where = string.Join(", ", night.Crew.Select((c, i) => $"{i}: {c.Surface} on {c.Parent}"));
+        Assert.True(run.Departures > 0, $"never left: driver {night.Driver.Stops!.Doing}; hands {string.Join(", ", hands.Select(h => h.Doing))}; crew {where}");
+        Assert.False(walls.Shut(mine.Key), "the door was left shut");
+        Assert.Contains("opening the door", doing);
+        Assert.All(night.Crew, c => Assert.True(c.Alive, $"died of {c.Death}; crew {where}"));
+        Assert.All(night.Crew, c => Assert.NotEqual(Surface.Ground, c.Surface));
+        Assert.Equal(1, train.TrainRakes);
+    }
+
+    [Fact]
     public void WithTheChoirGatheringAHandLoadingACarShutsItselfInAndOpensUpAfter()
     {
         // Note 439 (note 413's "not yet"): a crate hand in a cargo car, loading through its open side door, is outside to the
@@ -1086,6 +1145,31 @@ public class StopCrewTests
         var ore = r.Loads.Where(c => c.Cargo == CargoKind.Ore).ToList();
         // The winch's two sleds are a car-load; more than that came up the shaft.
         Assert.True(ore.Sum(c => c.Load) > F.Winch.Sleds * F.Winch.LoadPerSled + 2 * F.Lift.PerSkip, $"ore {string.Join(", ", ore.Select(c => c.Load))}");
+        Assert.All(r.Loads, c => Assert.True(c.Integrity > 0.95, $"integrity {c.Integrity}"));
+    }
+
+    [Fact]
+    public void AtTheMineHeadTheDriverStandsEachCarTrueInTheTippleAndTheShunterTipsIt()
+    {
+        // Queue #159 (note 423). With no crates and a lift with a car-load down its shaft, the winch and the lift fill what they
+        // reach and the tipple the rest: each car stood true in its cradle (a clamp shut on one stood off its middle derails it),
+        // the shunter on its lever through each roll, and nothing moved while a car's clamped.
+        var (route, facility) = FacilityWork.Find(Tuning.Route, FacilityKind.MineHead)!.Value;
+        var tuning = F with
+        {
+            Crates = F.Crates with { Count = [0, 0], Heavy = F.Crates.Heavy with { Count = [0, 0] } },
+            Lift = F.Lift with { Ore = F.Lift.PerSkip * 2 },
+        };
+        var r = FacilityWork.Run(route, facility, T, P, Tuning.Boiler, Tuning.Run with { DepartureLoad = 0 }, tuning, Tuning.Route.Junctions,
+            cars: 8, hands: 2, seconds: 1500, yardLength: Tuning.Route.YardLength);
+        LeftWellAndWhole(r);
+        Assert.Contains("Tippling", r.Legs);
+        Assert.Contains("tipping", r.Doing);
+        Assert.Equal(0, r.OffRails);
+        Assert.True(r.TippleOre <= F.Tipple.Ore - 2 * F.Tipple.PerRoll + 1e-6, $"the tipple's bin still has {r.TippleOre}");
+        var ore = r.Loads.Where(c => c.Cargo == CargoKind.Ore).ToList();
+        Assert.True(ore.Sum(c => c.Load) >= F.Winch.Sleds * F.Winch.LoadPerSled + 2 * F.Lift.PerSkip + 2 * F.Tipple.PerRoll - 1e-6,
+            $"ore {string.Join(", ", ore.Select(c => c.Load))}");
         Assert.All(r.Loads, c => Assert.True(c.Integrity > 0.95, $"integrity {c.Integrity}"));
     }
 

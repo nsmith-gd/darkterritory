@@ -574,7 +574,7 @@ public sealed partial class WorldArt
     {
         if (Scene(route) is not { } p)
             return;
-        BranchLand(mesh, p, eye, drawDistance);
+        BranchLand(mesh, p, route, eye, drawDistance);
         Signs(mesh, p, eye, drawDistance);
         Hazards(mesh, p, eye, drawDistance, time);
         Banks(mesh, p, route, eye, drawDistance);
@@ -596,7 +596,7 @@ public sealed partial class WorldArt
 
     static readonly float[] BranchLateral = [3.7f, 5.5f, 8, 12, 17, 24, 33, 45, 60, 78];
 
-    void BranchLand(MeshBuilder mesh, PlanScene p, Double3 eye, float drawDistance)
+    void BranchLand(MeshBuilder mesh, PlanScene p, Route route, Double3 eye, float drawDistance)
     {
         if (!ReferenceEquals(_branchScene, p))
         {
@@ -616,7 +616,7 @@ public sealed partial class WorldArt
                     continue;
                 }
                 if (!_branchCells.TryGetValue((a.Branch, i), out var cell))
-                    _branchCells[(a.Branch, i)] = cell = BranchCell(p, a.Branch, local, i);
+                    _branchCells[(a.Branch, i)] = cell = BranchCell(p, route, a.Branch, local, i);
                 var at = Matrix4x4.CreateTranslation(cell.Origin.RelativeTo(eye));
                 mesh.Instances.Add(new MeshInstance(cell.Soup, at));
                 foreach (var (piece, m) in cell.Pieces)
@@ -627,9 +627,9 @@ public sealed partial class WorldArt
 
     /// <summary>
     /// One 100 m cell of a branch's land either side of its bed, out to 78 m, where the main line's own land doesn't
-    /// already reach (it runs 300 m out); a stand of trees on it.
+    /// already reach (it runs 300 m out); a stand of pines on it where the sim stands them (LinesideProps.BranchTrees).
     /// </summary>
-    Cell BranchCell(PlanScene p, int branch, RailLine local, long index)
+    Cell BranchCell(PlanScene p, Route route, int branch, RailLine local, long index)
     {
         double a = index * CellLength, b = Math.Min((index + 1) * CellLength, local.Length);
         var origin = local.Sample(a).Position;
@@ -676,23 +676,16 @@ public sealed partial class WorldArt
                 prev = next;
             }
         }
-        // A stand of pines out beyond the verge, fewer where the land is open.
-        var rng = new Random(unchecked(branch * 7919 + (int)index * 104729));
-        for (int k = 0; k < 10; k++)
-        {
-            double s = a + rng.NextDouble() * (b - a);
-            double lateral = (rng.Next(2) == 0 ? -1 : 1) * (12 + rng.NextDouble() * 55);
-            var t = local.Sample(s);
-            var w = t.Position + Double3.Cross(t.Tangent, Double3.Up).Normalized * lateral;
-            if (Covered(w) || p.Terrain.WaterAt(w.X, w.Z) is not null || p.Terrain.Nearby(w.X, w.Z, 12).Any(n => Math.Abs(n.Lateral) < 9))
-                continue;
-            w = w with { Y = p.Terrain.Height(w.X, w.Z) - 0.15 };
-            int variant = rng.Next(4);
-            float height = 7 + (float)rng.NextDouble() * 10;
-            var piece = Piece($"pine-{variant}", () => WorldKit.Pine(_look, variant, 12));
-            var m = Matrix4x4.CreateScale(height / 12) * Matrix4x4.CreateRotationY((float)rng.NextDouble() * MathF.Tau) * Matrix4x4.CreateTranslation(w.RelativeTo(origin));
-            built.Instances.Add(new MeshInstance(piece, m));
-        }
+        // A stand of pines out beyond the verge: the sim's (note 432), so what's seen is what's walked into.
+        if (Sim.Run.LinesideProps.Of(route, p.Line) is { } lineside)
+            foreach (var tree in lineside.BranchTrees(branch, a, b))
+            {
+                var t = local.Sample(tree.Along);
+                var w = (t.Position + Double3.Cross(t.Tangent, Double3.Up).Normalized * tree.Lateral) with { Y = tree.Ground };
+                var piece = Piece($"pine-{tree.Variant}", () => WorldKit.Pine(_look, tree.Variant, 12));
+                var m = Matrix4x4.CreateScale((float)(tree.Height / 12)) * Matrix4x4.CreateRotationY((float)tree.Yaw) * Matrix4x4.CreateTranslation(w.RelativeTo(origin));
+                built.Instances.Add(new MeshInstance(piece, m));
+            }
         return new Cell(MeshAsset.From($"branch-{branch}-{index}", built), [.. built.Instances.Select(x => (x.Asset, x.Model))], [.. built.PointLights], origin);
     }
 

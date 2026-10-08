@@ -292,6 +292,23 @@ public class CarFireTests
     }
 
     [Fact]
+    public void ASecondOfSprayPutsOutTheCellItsAimedAt()
+    {
+        // The director, 8 Oct 2026 (note 467): "Holding fire extinguisher on fire still doesnt feel like its doing anything.
+        // should be 1s per grid to put out." The car well alight round it, a cell at full blaze aimed at for a second is out.
+        var (n, fire, ext, room) = Armed();
+        fire.Ablaze(0.97);
+        var grid = FireGrid.Of(n.Train, 2, Tuning.Enemies.CarFire.CellSize)!;
+        int cell = grid.FloorAt(fire.Local);
+        var at = grid.Centre[cell];
+        n.Crew[1] = Aim(n.Crew[1] with { Position = new Double3(room.Centre.X, room.Min.Y, at.Z - 2) }, at);
+        n.Run(1.0 + SimConstants.TickSeconds, _ => new PlayerIntent { Buttons = PlayerButtons.Fire });
+        Assert.Contains(cell, fire.Sprayed);
+        Assert.Equal(0, fire.Heat[cell]);
+        Assert.False(fire.Gone); // the rest of the car's still alight: one cell a second
+    }
+
+    [Fact]
     public void TheSprayPutsOutTheCellItsAimedAtAndNotTheFireBehindYou()
     {
         // App. F.1 (the director's decision of 6 Oct 2026): "the extinguisher puts out the cell you aim at". Beside the fire,
