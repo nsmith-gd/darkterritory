@@ -37,7 +37,7 @@ SLIT_W = g["SLIT_W"]
 DRESS = {
     "skin.grumbler_face": (lambda: make.flat("grumbler_face", (0.18, 0.18, 0.145), rough=0.55), 3),
     "skin.grumbler_teeth": (lambda: make.flat("grumbler_teeth", (0.3, 0.25, 0.15), rough=0.4), 1),
-    "skin.grumbler": (lambda: make.flat("grumbler_skin", (0.17, 0.17, 0.13), rough=0.6), 2),
+    "skin.grumbler": (lambda: make.flat("grumbler_skin", (0.115, 0.115, 0.09), rough=0.7), 2),
     "glass_dirty.grumbler_eye": (lambda: make.flat("grumbler_eye", (0.42, 0.4, 0.34), rough=0.1), 2),
     "tar.grumbler_mouth": (lambda: make.flat("grumbler_mouth", (0.02, 0.006, 0.005), rough=0.15), 1),
     "tar.grumbler_nail": (lambda: make.flat("grumbler_nail", (0.04, 0.032, 0.022), rough=0.5), 1),
@@ -61,7 +61,9 @@ def ridged(p, seed, scale):
 
 
 def skin_shape(p, n):
-    return 0.0005 * smooth01(0.86, 0.96, ridged(p, 1401, 22.0)) + 0.0004 * cook.noise_np(p, 1402, 30.0) + fine(p, 0.00012, 500, 1403)
+    """Wasted and filthy (note 543): stretched thin over what's under it, so it's wrinkled in the creases and pocked."""
+    return (0.0009 * smooth01(0.86, 0.96, ridged(p, 1401, 22.0)) + 0.0007 * cook.noise_np(p, 1402, 30.0)
+            - 0.0005 * smooth01(0.9, 0.98, ridged(p, 1404, 70.0)) + fine(p, 0.00018, 500, 1403))
 
 
 def cloth(p, n):
@@ -119,10 +121,10 @@ def paint(base, colour, k):
     return base * (1 - k) + np.array(colour, np.float32) * k
 
 
-base = paint(base, (0.07, 0.075, 0.055), mk[..., 0] * 0.45)   # blotches and veins; grime on the cloth
+base = paint(base, (0.05, 0.055, 0.04), mk[..., 0] * 0.6)     # blotches and veins; grime on the cloth
 base = paint(base, (0.16, 0.035, 0.025), mk[..., 1] * 0.85)   # raw round the split
 base = paint(base, (0.02, 0.018, 0.014), mk[..., 2] * 0.5)    # grease and sweat
 
-rough = np.full(base.shape[:2], 0.6, np.float32)
+rough = np.full(base.shape[:2], 0.72, np.float32)
 rough = rough - 0.45 * mk[..., 1]
 atlas.finish(base, kit, arm, made=make.provenance("grumbler", "the Grumbler, modelled over tools/blender/grumbler.py"), rough=rough)

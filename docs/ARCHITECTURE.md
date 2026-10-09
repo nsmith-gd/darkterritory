@@ -7461,6 +7461,15 @@ Terrain sculpting tools, a node-graph material editor, a general-purpose visual 
       - The coupler's knuckle and the axle boxes are below the plate, so reaching down for them is the natural move, and it cuts the train.
       - Not changed: it's the VR controls, so it's a question for the director under COORDINATION's *Waiting on the director*.
 
+542. **Why couplings part with a bot crew aboard (queue #284, D1.3 for D1; from note 533's sweep: parted couplings 22 → 35 cars on frontier:7 seeds 1–18 with #651, "6 at stops").** I logged every pin that dropped on seeds 1–18 (main, with #651), with the train's speed, how long the pin stood loose while the train stood, the crew, and every creature on the cars while it was loose. There were 12 partings.
+    - **None was at a stop's loading.** "Lost at Talbot Foundry" in the report names the stop's area, not the stop's work. Ten parted with the train running (6–14 m/s). Two parted standing, both at the km-10 Holdout stand (44 and 60 s of the 90 standing).
+    - **Every one went with the crew taken up by something else:**
+      - **Fire, 11 of 12.** Car fires were burning near the loose pin, two to five cars alight at once. Trouble in a car comes before a pin for every bot (note 511's order: a loose pin before a lamp or a bag, after trouble).
+      - **A Knotter, 8 of 12.** Its 5 m gap can't be walked, so a pin on its far side is out of reach along the roofs. It's also killed only at a stand.
+      - **The two standing ones.** One stood with cars 4–8 alight. In the other, the only walker left alive was breaching the Holdout.
+    - **Not the bots' order at a stop.** At a stop the stop's part does come before the pin errand, and the pin errand only goes along the roofs. But no parting came from that. A bot that finds itself in reach of a loose pin on the ground already tightens it (`Heed.Coupling`). So nothing in the bots changes here.
+    - **For the director:** the pin's own pace (`upkeep.json` coupling: every ~6 km, three times as often on bends, parting after 90 s) is the same in a fight as on a quiet run. A loose pin also goes on counting down while the train stands. That's under COORDINATION's *Waiting on the director*; no tuning changed.
+
 510. **Captions for the moments: what a creature does and how the train fails (AU1, queue #247; note 349's CAPTIONS, F1's; note 391; GDD §32; the director, 8 Oct: "these are all quite important").** Captions told a reader how a thing is learned: the tells, the signs, the jobs that call for a hand, the doors, the rules heard (note 494's healing). They didn't say when it happens. A car tearing away, someone dragged under the train, a bite, a seizing, the boiler bursting, a derailment, a misfire and the overspeed bell were all heard by a hearing player and never written.
     - **Added** (content/ui/captions.json, by F1's rules: what it is as someone hearing it would say it, never what makes it, never what to do), 55 sounds:
         - **A creature's acts:**
@@ -7520,3 +7529,15 @@ Terrain sculpting tools, a node-graph material editor, a general-purpose visual 
 540. **A host told whose link is bad out on the line (F1, UI/UX 3; queue #282; note 534's "not yet"; spec E "ping visibility is load-bearing").** Note 534 put each crewmate's ping and loss on the host's lobby panel, which is the yard's: once the train was out, a host driving the night didn't know a joiner was dropping a tenth of their inputs until they said so.
     - **Out on the line, the host's top-right corner names them** (`Hud.BadLinks`), where a joiner's own bad ping goes: "PRIYA: 13% LOST" or "SAM: PING 210 MS", in danger ink, by hud.json's `pingWarnMs` and `lossWarn` as a joiner's own line is. Each says whichever of the two is further past its warning; worst first; three at most, then "AND n MORE". Nothing while everyone's fine (note 285: the screen says what's gone wrong, and only that).
     - **Seen:** `dt screenshot --hud --link-quality line` (the hosted yard of note 534 with its 12% sender, drawn as if past the gate). Tests: `QuietHudTests` (said only when someone's bad; named worst first, the rest counted).
+
+543. **The Grumbler's body (queue #285, E1; the art checklist's `grumbler`, GDD App. A.8: "scuttles like a spider over the crane").** Note 119's design holds: a dock labourer face-down like a spider, with the elbows and knees up over its back, rib arms out through its waistcoat, the spine through its shirt, and the face split ear to ear. But close to it was a mannequin. Its limbs (1.9 times a man's arms, 1.2 times his legs) were each one tube of one width, cloth from the shoulder to the elbow and from the hip to the shin, on a box of a torso.
+    - **The cloth torn short:** the sleeves are torn off ragged half way down the upper arm, and the trousers above the knee. The rags hang in folds (`limb`'s `folds`), and their hems drop in tongues.
+    - **The bare limbs, built along their length** (`tools/blender/grumbler.py`, `limb`: each limb resampled to rings every few centimetres, 12-sided):
+        - A bone's knob or a muscle's belly is raised where the surface faces its way at a point along the limb (`bumps`).
+        - The tendons stand in ridges toward the limb's end (`ridges`), and it's wasted unevenly (`lumps`).
+        - On the arms: the muscle shrunk to cords, the elbow's point standing out behind, the two bones' ridge down the forearm, and the wrist's knob.
+        - On the legs: the knee's cap and the bone's ends, the shin's edge, the calf gone to cords, and the ankle's knobs.
+    - **The fingers** are three bones each, swollen at the joints.
+    - **The skin** (`tools/models/recipes/grumbler.py`) is darker, filthier and matte, wrinkled in the creases and pocked.
+    - **Budget:** 8,434 triangles (was 5,618) of the model's 9,000 (`CreatureArtTests`); 34 bones. The clips, the sim and `CreatureArt` are unchanged, and the heal tell (note 487) still reads the body's middle.
+    - **Verified:** `dt screenshot --threats --grumbler rear --view grumbler` and `dt art clip grumbler gnaw --frames 1 --at 0,0.6,0 --dist 2 --yaw 40 --pitch 20` (before and after are in the Look Review round). `CreatureArtTests` and `GrumblerHealingTests` are green.
