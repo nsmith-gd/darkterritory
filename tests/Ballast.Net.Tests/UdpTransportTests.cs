@@ -169,10 +169,13 @@ public class UdpTransportTests
         // At least 0.3 s of keepalives, and on until the smoothed round trip has settled (up to 3 s): a loopback ping is
         // well under a millisecond, but on a CI box whose cores the other test assemblies hold at startup the first few
         // can take tens, and the estimate carries them for a while.
-        bool Settled() => client.T.RoundTrip(PeerId.Host) < 0.05 && host.T.RoundTrip(client.T.LocalId) < 0.05;
+        // What's asserted is that the trip was measured at all (an unmeasured link reads the 100 ms it starts with), not how
+        // fast a busy runner's loopback is: a Windows runner with the other assemblies starting read 63 ms (#644's CI).
+        const double measured = 0.09;
+        bool Settled() => client.T.RoundTrip(PeerId.Host) < measured && host.T.RoundTrip(client.T.LocalId) < measured;
         Until(() => clock.Elapsed.TotalSeconds > 0.3 && (Settled() || clock.Elapsed.TotalSeconds > 3), sleep: false, host, client);
-        Assert.InRange(client.T.RoundTrip(PeerId.Host), 0, 0.05);
-        Assert.InRange(host.T.RoundTrip(client.T.LocalId), 0, 0.05);
+        Assert.InRange(client.T.RoundTrip(PeerId.Host), 0, measured);
+        Assert.InRange(host.T.RoundTrip(client.T.LocalId), 0, measured);
     }
 
     [Fact]
