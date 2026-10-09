@@ -1,5 +1,6 @@
 # A test build for the director, of any branch, by hand (Actions > Test build > Run workflow, or the API): the game
-# packaged for Windows, no tests (each PR on the branch ran them), as one zip to download from the run's page. Tonight's
+# packaged for Windows, no tests (each PR on the branch ran them), as one zip to download from the run's page. It's a
+# developer build (note 514: the developer tools in, "DEV" in the corner) unless `player` is ticked. Tonight's
 # builds are main with the open PRs merged on top (D1's integration, pushed to its branch), which CI never packages.
 name: Test build
 on:
@@ -8,6 +9,10 @@ on:
       ref:
         description: Branch, tag or commit to package
         default: main
+      player:
+        description: A player's build (none of the developer tools) instead of the director's
+        type: boolean
+        default: false
 jobs:
   package:
     runs-on: ubuntu-latest
@@ -19,8 +24,17 @@ jobs:
         with:
           global-json-file: global.json
       - run: sudo apt-get update -qq && sudo apt-get install -y -qq zip
-      - run: tools/package.sh win-x64
+      - name: Package
+        env:
+          PLAYER: ${{ inputs.player }}
+        run: |
+          # A ref from before note 514 has no --dev (and no developer tools to put in): it packages as it always did.
+          if [ "$PLAYER" != true ] && grep -q -- '--dev)' tools/package.sh; then
+            tools/package.sh --dev win-x64 && echo "PACKAGE=out/dist/DarkTerritory-Dev-win-x64" >> "$GITHUB_ENV"
+          else
+            tools/package.sh win-x64 && echo "PACKAGE=out/dist/DarkTerritory-win-x64" >> "$GITHUB_ENV"
+          fi
       - uses: actions/upload-artifact@v4
         with:
           name: DarkTerritory-win-x64-test-${{ github.run_number }}
-          path: out/dist/DarkTerritory-win-x64/
+          path: ${{ env.PACKAGE }}/
