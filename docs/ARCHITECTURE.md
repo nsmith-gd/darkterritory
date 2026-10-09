@@ -7545,3 +7545,14 @@ Terrain sculpting tools, a node-graph material editor, a general-purpose visual 
     - **The real child** is the same child, with its eyes and its hands and feet only dirty (note 407's carry unchanged).
     - **Budget:** 8,828 triangles over both variants, about 6,900 for each variant's own parts, of the model's 9,000 (`CreatureArtTests`); 28 bones. The clips, the sim and `CreatureArt` are unchanged.
     - **Verified:** `dt art clip soot_child call --frames 1 --at 0,0.55,0 --dist 1.1 --yaw 15 --pitch 5 --variant 1|0` (before and after are in the Look Review round). `CreatureArtTests` is green.
+
+548. **The Gaunt's legs as branches (queue #290, E1; the art checklist's `gaunt`, GDD App. A.6: "lonely, spindly"; note 132: "grey bark: asleep, legs laid round it, it's a heap of dead branches").** Note 132's body, skull and ears read, but its legs were dowels of one taper with a ball at every joint, a wooden toy's. Asleep, they made a heap of dowels. Now each bone's length is a dead branch (`tools/blender/gaunt.py`):
+    - **`branch`:**
+        - Each branch is bowed off its line, most in its middle, a different way on every leg.
+        - Its girth swells and pinches along it.
+        - The bark is split in deep fissures running along it, wandering a little; the ridges between them stand.
+        - The cannon is drawn down to a splintered spike.
+    - **`gnarl`:** the joints are lumps of wood grown over, wider one way than the other, their burls standing. They replace the spheres.
+    - **`stub`:** a broken-off twig's stub stands off each thigh and shin, out and away from the body, so the silhouette is a branch's.
+    - **Budget:** 7,046 triangles (was 4,278) of the model's 9,000 (`CreatureArtTests`); 24 bones. The clips (note 505's carry included), the sim and `CreatureArt` are unchanged.
+    - **Verified:** `dt art clip gaunt listen --frames 1 --at 0,1.6,0 --dist 2.6 --yaw 40 --pitch 10`, and `sleep` from above (before and after are in the Look Review round). `CreatureArtTests`, `GauntCarryTests` and `GauntTests` are green.
