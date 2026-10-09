@@ -54,6 +54,10 @@ using CrewActs = DarkTerritory.Game.Art.CrewActs;
 // elsewhere), and the next launch opens on a notice that says where it is (note 411).
 int crashesAt = Array.IndexOf(args, "--crashes");
 var crashes = CrashReports.Install(crashesAt >= 0 && crashesAt + 1 < args.Length ? args[crashesAt + 1] : null);
+#if DEVTOOLS
+// A developer build's tools (note 514): reached only here and under the other DEVTOOLS hooks; a player's build has none of it.
+var dev = DarkTerritory.Dev.DevTools.Start(args);
+#endif
 
 // The system's file browser on a folder (note 411): Explorer, Finder, or whatever xdg-open hands it to; or, given an address
 // (note 434's store page), the browser.
@@ -497,6 +501,9 @@ Launch? MenuLoop()
         var camera = view;
         camera.Yaw += Math.Sin((timer.Elapsed.TotalSeconds - started) * 0.07) * 0.25;
         frontEnd.Draw(overlay, UiWidth, UiHeight);
+#if DEVTOOLS
+        dev.Draw(overlay, UiWidth, UiHeight);
+#endif
         if (vr is null)
         {
             renderer.Prepare(mesh, overlay);
@@ -1417,6 +1424,9 @@ CampaignState? Play(IPlaySession session, CampaignState? campaign)
             overlay.Clear();
             frontEnd.Draw(overlay, UiWidth, UiHeight);
         }
+#if DEVTOOLS
+        dev.Draw(overlay, UiWidth, UiHeight);
+#endif
         if (vr is null)
         {
             renderer.Prepare(mesh, showHud || menuShown ? overlay : null);
