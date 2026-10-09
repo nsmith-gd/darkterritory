@@ -121,6 +121,15 @@ based on notes. When work is assigned to an agent, the agent should mark it in t
   habit, character, trade, thread, household and civic piece (`group`, `order`, `title`, `summary`, `line`), changed in
   the same pass as the content.
 
+## The director's notes from inside the game (W1, 9 Oct 2026; note 516)
+
+- In a dev build (the Test build workflow's), the director makes notes at the moment itself: **F8** types one, **F9** held
+  says one. Each carries its frame, the night's recording and tick, where the director stood and what was near, and tags
+  (`enemy:<Kind>`, `post:<Post>`, `phase:<Phase>`). They land on the repository's `feedback` branch.
+- **Read them at the start of a session:** `dt feedback pull` lists them; `dt feedback show <id>` replays the moment and
+  draws it through the director's eyes. Take the ones that fit your work as you'd take any note: say so in your log and in
+  the PR that answers it, naming the note's id. (The director's inbox, queue #257, will carry their status.)
+
 ## The queue
 
 Status: **open**, **claimed**, **in review** (a PR is up), **done** (merged).

@@ -56,6 +56,16 @@ public sealed class InputState
             _down.Remove(k);
     }
 
+    /// <summary>
+    /// Takes this frame's presses and typing, so nothing read after it sees them: what a box taking the keyboard over the game
+    /// does (a key held down stays down).
+    /// </summary>
+    public void Swallow()
+    {
+        _pressed.Clear();
+        _text.Clear();
+    }
+
     public void EndFrame()
     {
         _pressed.Clear();
