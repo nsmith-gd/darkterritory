@@ -152,15 +152,17 @@ public sealed class HostSession
         // does and as a predicting client assumes.
         // A train that stops on it stands on it (T97: with steam driving, off the brake a standing engine pulls away) until
         // the driver lets it off (a notch up: CabControls.ReleasesBrake).
-        if (_crew.Any(c => CabControls.CanDrive(c.State, Train)) && CabControls.Clears(Controls, Train, _crew.Any(c => CabControls.ReleasesBrake(c.ThisTick, c.State, Train))))
+        HoldTheControls();
+        if (_crew.Any(c => CabControls.CanDrive(c.State, Train)) && CabControls.Clears(Controls, Train, _crew.Any(c => AtTheControls(c) && CabControls.ReleasesBrake(c.ThisTick, c.State, Train))))
             Controls.Brake = 0;
         foreach (var c in _crew)
         {
             // App. C.9 "who was on the throttle": whoever's working the cab's controls, or failing that anyone at them.
-            if (CabControls.CanDrive(c.State, Train) && (c.ThisTick.ThrottleNotch != 0 || c.ThisTick.Has(PlayerButtons.Brake) || World.Attribution.Driver < 0
+            if (AtTheControls(c) && CabControls.CanDrive(c.State, Train) && (c.ThisTick.ThrottleNotch != 0 || c.ThisTick.Has(PlayerButtons.Brake) || World.Attribution.Driver < 0
                 || !_crew.Any(o => o.Id == World.Attribution.Driver && CabControls.CanDrive(o.State, Train))))
                 World.Attribution.Drove(c.Id);
-            CabControls.Apply(ref Controls, c.ThisTick, c.State, Train);
+            if (AtTheControls(c))
+                CabControls.Apply(ref Controls, c.ThisTick, c.State, Train);
             // Lag compensation: check this player's shots against where targets were on their screen.
             uint? view = c.AckedSnapshot > ClientSession.InterpolationTicks ? c.AckedSnapshot - ClientSession.InterpolationTicks : null;
             World.CrewAct(ref c.State, c.ThisTick, c.Id, view);
@@ -454,6 +456,7 @@ public sealed class HostSession
         public ulong Token;
         public byte Outfit = Messages.NoOutfit;
         public byte[]? Key;
+        public bool Bot;
     }
 
     readonly List<Greeting> _greeting = [];
@@ -548,8 +551,45 @@ public sealed class HostSession
             byte id = back ?? Join(g.Peer);
             Name(id, g.Name);
             Wear(id, g.Outfit, any: true);
+            Botness(id, g.Bot);
         }
     }
+
+    /// <summary>Who said in their Hello they're a bot (note 574): they never take the cab's controls off someone playing.</summary>
+    readonly HashSet<int> _bots = [];
+
+    void Botness(int id, bool bot)
+    {
+        if (bot)
+            _bots.Add(id);
+        else
+            _bots.Remove(id);
+    }
+
+    /// <summary>
+    /// Note 574 (the director, 9 Oct 2026, on the short-nights test build: "yes the bot was still fighting me for the
+    /// controls"): the cab's controls are whoever's working them. Someone alive in the cab who works one (the regulator's
+    /// notch, the brake, the reverser) takes them, and while they hold them nobody else's hand on them counts. Someone
+    /// playing takes them off a bot; a bot only takes them up when nobody alive in the cab holds them. Out of the cab or
+    /// dead, the holder lets them go.
+    /// </summary>
+    void HoldTheControls()
+    {
+        var holder = _crew.Find(c => c.Id == World.ControlsHolder);
+        if (holder is null || !CabControls.CanDrive(holder.State, Train))
+            World.HoldControls(-1, false);
+        foreach (var c in _crew)
+        {
+            if (!CabControls.CanDrive(c.State, Train) || !CabControls.Works(c.ThisTick) || c.Id == World.ControlsHolder)
+                continue;
+            bool bot = _bots.Contains(c.Id);
+            if (World.ControlsHolder < 0 || !bot && World.ControlsHolderBot)
+                World.HoldControls(c.Id, bot);
+        }
+    }
+
+    /// <summary>Whether this crewmate's hands on the controls count this tick (note 574).</summary>
+    bool AtTheControls(Crew c) => World.ControlsHolder < 0 || World.ControlsHolder == c.Id;
 
     /// <summary>Note 450: an open run, the private run's password, or someone the host trusts (a friend).</summary>
     bool Admitted(Greeting g) =>
@@ -839,12 +879,12 @@ public sealed class HostSession
             {
                 var hr = new NetReader(payload);
                 hr.U8();
-                var (name, token, outfit, key) = Messages.ReadHello(ref hr);
+                var (name, token, outfit, key, bot) = Messages.ReadHello(ref hr);
                 // Note 253: a joiner's first word, before it's welcomed. It's let in in the order it connected (first aboard
                 // takes the cab), so it waits its turn in the greeting line.
                 if (_greeting.Find(g => g.Peer == peer) is { } greeting)
                 {
-                    (greeting.Said, greeting.Name, greeting.Token, greeting.Outfit, greeting.Key) = (true, name, token, outfit, key);
+                    (greeting.Said, greeting.Name, greeting.Token, greeting.Outfit, greeting.Key, greeting.Bot) = (true, name, token, outfit, key, bot);
                     return;
                 }
                 int id = _crew.Find(x => x.Peer == peer)?.Id ?? _waiting.Where(w => w.Peer == peer).Select(w => (int)w.Id).DefaultIfEmpty(-1).First();
@@ -852,6 +892,7 @@ public sealed class HostSession
                 {
                     Name(id, name);
                     Wear(id, outfit, any: true);
+                    Botness(id, bot);
                 }
             }
             catch (Exception ex) when (ex is EndOfStreamException or InvalidDataException)

@@ -43,6 +43,8 @@ public sealed class ClientSession
 
     /// <summary>The name this player goes by, sent to the host once welcomed (the roster, the report).</summary>
     public string Name { get; set; } = "";
+    /// <summary>A bot's session (note 574): its Hello says so, and it never takes the cab's controls off someone playing.</summary>
+    public bool Bot { get; init; }
 
     /// <summary>The outfit this player comes in (note 298), sent with the name; <see cref="Messages.NoOutfit"/> for their id's.</summary>
     public byte Outfit { get; set; } = Messages.NoOutfit;
@@ -188,7 +190,7 @@ public sealed class ClientSession
         if (_helloSent)
             return;
         _helloSent = true;
-        Messages.WriteHello(_writer, Name, Token, Outfit, PasswordKey);
+        Messages.WriteHello(_writer, Name, Token, Outfit, PasswordKey, Bot);
         _transport.Send(PeerId.Host, _writer.Written, Delivery.ReliableOrdered);
     }
     /// <summary>A private run's password as its key (note 450), said in every Hello; null for an open run.</summary>
@@ -281,9 +283,17 @@ public sealed class ClientSession
         World.BeginTick();
         // The host clears the brake every tick and re-applies whoever is holding it. If we're the one in
         // the cab it's almost certainly us, so do the same; otherwise assume whoever was braking still is.
-        if (CabControls.CanDrive(Predicted, Train) && CabControls.Clears(Controls, Train, CabControls.ReleasesBrake(intent, Predicted, Train)))
+        // Note 574: who holds the controls, as the host has it. Working them, we take them if nobody holds them, or (playing)
+        // off a bot; held by someone else, our hand on them doesn't count.
+        int me = PlayerId ?? 0;
+        if (CabControls.CanDrive(Predicted, Train) && CabControls.Works(intent) && World.ControlsHolder != me
+            && (World.ControlsHolder < 0 || !Bot && World.ControlsHolderBot))
+            World.HoldControls(me, Bot);
+        bool atControls = World.ControlsHolder < 0 || World.ControlsHolder == me;
+        if (atControls && CabControls.CanDrive(Predicted, Train) && CabControls.Clears(Controls, Train, CabControls.ReleasesBrake(intent, Predicted, Train)))
             Controls.Brake = 0;
-        CabControls.Apply(ref Controls, intent, Predicted, Train);
+        if (atControls)
+            CabControls.Apply(ref Controls, intent, Predicted, Train);
         World.CrewAct(ref Predicted, intent, PlayerId ?? 0);
         World.Step(Controls);
         if (!World.Wrecked(Predicted))

@@ -551,7 +551,7 @@ public sealed class NetPlaySession : IPlaySession, IDisposable
             {
                 var (botWorld, _) = botSetup.Build(content);
                 var botTransport = Pumped(UdpTransport.Connect(new IPEndPoint(IPAddress.Loopback, udp.Port), options), playerTuning);
-                var session = new ClientSession(botTransport, botWorld, trainTuning, playerTuning) { Name = playerTuning.BotName(i), PasswordKey = key };
+                var session = new ClientSession(botTransport, botWorld, trainTuning, playerTuning) { Name = playerTuning.BotName(i), PasswordKey = key, Bot = true };
                 crew.Add(session, BotCrew.Make(i, bots, crew.Calls, loadout.Combat, playerTuning, (int)(route?.Seed ?? 1)), botTransport);
                 var joining = System.Diagnostics.Stopwatch.StartNew();
                 while (session.PlayerId is null && joining.Elapsed.TotalSeconds < 5)
