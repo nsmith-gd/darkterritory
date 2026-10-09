@@ -7061,3 +7061,14 @@ Terrain sculpting tools, a node-graph material editor, a general-purpose visual 
       - all six alive, and no lamp left behind.
       - With the cars part full (no `--empty`), the cars fill either way.
     - Protocol unchanged (bots act through intent). Tests: `StopCrewTests.AtTheWreckYardAHandTakesALampOutToTheDarkHeapsAndPutsItBackAboard` (stocked: away whole, every heap found, a lamp put back inside a car and none left in the yard, salvage aboard, nobody under a shift); `AtTheWreckYardTheHandsCarryOutWhatTheHeadlampFindsAndKeepClearWhenItGroans` unchanged (unstocked, no lamp aboard: the headlamp's heaps only).
+
+505. **The Gaunt carries off what it took (queue #242, E1; the art checklist's `gaunt-anim`; GDD App. A.6 "it carries the body out at walking pace, in full view, and the crew can still chase it down before it clears the train").** Leaving with a car's most valuable thing (`Gaunt.Leave`, `Carry`), the sim holds the load under it: `carryHigh` 1.7 m over its feet, aboard `carryLow` 0.55. The Gaunt walked off on its follow and crawl clips, the load (a crewmate's body or a crate) hanging under it, touched by nothing.
+    - **The clips** (tools/blender/gaunt.py): `carry` is the follow's stalk, slower to lift its feet, the body let down under the weight. Its neck loops forward and down and the head turns back, its mouth clamped on the load below its chest. `carry_low` is the same in the crawl's fold aboard, the load dragged under its chest in its mouth.
+    - **No IK for the neck:** `mouth_to` searches the neck's three bends and the head's pitch for where the head's tip (the mouth) goes. It keeps the head and jaw a hand's breadth off the neck's root (clearance). The build prints how near it got: within 3 cm on every key.
+    - **Where it holds:** in front of the load, below the chest (`GRIP_HIGH`, `GRIP_LOW`), where the neck is seen going down to it. The load's middle is under the body, so the mouth's first place, on the load's top, was inside its own torso and nothing showed.
+    - **When:** `CreatureArt.GauntClip` (the Gaunt's pick, now one function) plays them while it's leaving with something (`BreakOff`, its extra a body's id). Talked down, it leaves empty-handed (extra −1) on its follow.
+    - **Headless:** `dt screenshot --threats --crew --gaunt leave --view gauntcarry [--survey]` is side on as it walks off; `--gaunt leavein --view inside` is aboard. `dt art clip gaunt carry|carry_low`.
+    - **Verified:**
+        - `GauntCarryTests`: the jaw down at the load through each loop, nearer it than the empty-handed walk, and the pick.
+        - `CreatureArtTests`' clip list.
+        - `art clearance --only gaunt`: the one overlap is stir's, as before.
