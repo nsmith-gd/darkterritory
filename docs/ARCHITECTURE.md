@@ -7340,6 +7340,35 @@ Terrain sculpting tools, a node-graph material editor, a general-purpose visual 
       - The rear cars' lamps, with every hand at the front: seed 6's guard van, 180 m from the cab at the Foundry's clear-away, was alight before anyone got there.
       - The driver's set-backs for a hand left on the ground: on seed 6, after its switch set-back, it backs a kilometre to the spur's toe for one, and later runs on at 14.5 m/s with all three on the ballast. That one is ConductorBot's (D1).
     - **Test:** `CarFireTests.AtAStopTheNearestHandPutsTheFireFliesLampOutWhateverItsPart` is a theory over seeds 2 and 6 now: no car the flies came to is alight by 520 s.
+
+533. **Two hurt hands on the ballast at Renwick Yard and the driver waiting all night (queue #277, D1.3 for D1; D1.2's trace, frontier:7 seed 6 with #619).** From about 1,846 s the gunner and the last walker stood on the ballast at 1 hp, and the driver waited in the cab for the rest of the night (13.8 km).
+    - **The root cause, a rake lost long ago counted as the train's own.** The crew cut cars 8–10 loose at km 9. `TrainOnLine.TrainRakes` counts every rake that isn't a yard's standing cars, so from then on the stop logic read "the train's split here". The driver made no more stops. The hands' Foundry plan was never over (it's released only with the train back together), so at every stand they rode to the cab by it. At Renwick Yard that meant down off the train and round to the cab's door:
+      - *The wrong side.* `SideOf` measured against the Foundry's spur, kilometres back, and put the hands across the track from where they were.
+      - *Into the engine.* Note 486's `Across` (the train between a hand and where it's going: the foot path round) skipped the engine, so they walked into its side, and stood there till dawn.
+    - **Now:**
+      - The stop logic asks `StopPlan.NearRake`: another rake of this train at this stop, down its spur or within 600 m of its hold. That covers the driver's legs, the coaling stand, the cut, the back-out and the hands' plan release. A rake lost kilometres back is not this stop's.
+      - `SideOf` reads the track the engine's on, and the engine counts in `Across`.
+      - A hand on the ballast with the train standing and no stop's part goes back aboard by the foot path (`StopHand.LeftOnTheBallast`), to the nearest roof ladder of the engine's rake. Its stale plan used to do that by accident. Without the plan, a walker freed from the Holdout at km 10 (seed 13) took the walker's own way, a straight line, into the Holdout's wall for two minutes, and was left to the Ribbits.
+    - **Pinned:** `StopCrewTests.WithCarsLostKilometresBackTheCrewStillWorksTheStop`, with two cars cut loose 2.5 km back (on main the driver sat in Cruise past the stop). And `HoldoutTests.ACrewmateBrokenOutWalksRoundTheHoldoutsWallsAndBackAboard` (on the old code, stuck 2.8 m from the Holdout's inside).
+    - **Measured** (frontier:7, `--bots 4 --enemies --upkeep`, 2,700 s, seeds 1–18; main has #641 in):
+
+      | | Main | Now |
+      |---|---|---|
+      | km | 353.0 | 377.9 |
+      | Delivered | 3 | 3 |
+      | Deaths | 37 | 44 |
+      | Crew lost | 18 | 21 |
+      | Cars lost | 39 | 56 |
+      | Cargo delivered | 73.0 | 62.7 |
+
+      Seed 6 runs 10.9 → 24.2 km. (With #641 in, seed 6 no longer loses the km-9 rake, but its stop is worked again.) The costs are in the longer nights and the stops worked after a lost rake:
+      - Couplings that worked loose and parted: 22 → 35 cars, 6 of them at stops a short-handed crew now works.
+      - Hounds: 8 → 13 deaths.
+      - Hands left behind who froze or were eaten: 9 → 4.
+
+      Single nights are chaotic; the totals are the measure.
+    - **Not yet:** the driver crossing a coupling plate on its way to or from a Holdout or a cut cuts it (Use on a plate standing). "Coupler: Crew 1" loses cars on main too (23 cars on these 18 nights).
+
 510. **Captions for the moments: what a creature does and how the train fails (AU1, queue #247; note 349's CAPTIONS, F1's; note 391; GDD §32; the director, 8 Oct: "these are all quite important").** Captions told a reader how a thing is learned: the tells, the signs, the jobs that call for a hand, the doors, the rules heard (note 494's healing). They didn't say when it happens. A car tearing away, someone dragged under the train, a bite, a seizing, the boiler bursting, a derailment, a misfire and the overspeed bell were all heard by a hearing player and never written.
     - **Added** (content/ui/captions.json, by F1's rules: what it is as someone hearing it would say it, never what makes it, never what to do), 55 sounds:
         - **A creature's acts:**
