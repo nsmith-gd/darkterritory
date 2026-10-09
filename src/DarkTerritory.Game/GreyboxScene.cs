@@ -2697,12 +2697,17 @@ public sealed class GreyboxScene
             {
                 Look.Art.World.Square(mesh, line, eye, town, from, to);
                 Look.Art.World.Civic(mesh, line, eye, town, from, to);
+                Look.Art.World.Works(mesh, line, eye, town, from, to);
                 Look.Art.World.Houses(mesh, line, eye, town, from, to);
                 Look.Art.World.Streets(mesh, line, eye, town, from, to);
                 // A town that's lived in (App. F.3, the director: the fortresses feel static): smoke from its chimneys, and
                 // its watch walking the wall with their lanterns.
                 foreach (var top in Look.Art.World.Chimneys(line, eye, town, 160))
                     Look.Art.Effects.Chimney(mesh, top, Time, (int)(top.X * 7 + top.Z * 13));
+                // And the works' (note 353): the foundry's stack and the winding house's chimney, thicker.
+                foreach (var top in Look.Art.World.Stacks(line, eye, town, 420))
+                    for (int plume = 0; plume < 3; plume++)
+                        Look.Art.Effects.Chimney(mesh, top + new Vector3(0, plume * 0.6f, 0), Time + plume * 1.7, (int)(top.X * 7 + top.Z * 13) + plume * 31);
                 foreach (var (feet, facing, variant) in Art.WorldArt.Watch(town, gateAt, Time))
                     if ((feet - eye).Length < 260)
                         Folk(mesh, eye, feet, facing, variant, drab: 0.6f, "walk", gear: "respirator", who: variant, lamp: true);

@@ -523,7 +523,11 @@ public sealed class NetPlaySession : IPlaySession, IDisposable
         if (online is not null && hostTransport is HostGroup group)
             host.Trusted = peer => group.Route(peer) is (OnlineTransport over, var at) && over.TryGetAddress(at, out var user) && online.IsFriend(user);
         hostWorld.EnableBodies();
-        hostWorld.Stock();
+        // A resumed night's things are where they were (note 500); an older save, or a new night, stocks the train afresh.
+        if (resume?.Aboard is { } aboard)
+            hostWorld.Restock(aboard);
+        else
+            hostWorld.Stock();
         // Spec E: drop-in at POIs only: in the yard, stopped at a facility, or home. Mid-run joiners wait by
         // the train at the facility, "like a pickup".
         if (hostWorld.Run is { } run)
@@ -630,15 +634,27 @@ public sealed class NetPlaySession : IPlaySession, IDisposable
     {
         var train = world.Train;
         return new Sim.Campaign.RunCheckpoint(route, facility, world.Run!.Seconds, train.Dynamics.Distance, train.Boiler.Tender,
-            [.. train.Vehicles.Select(v => new Sim.Campaign.CarState(v.Id, v.Load, v.Integrity, v.CargoIntegrity, v.Gun.Ammo, v.Cargo))],
+            [.. train.Vehicles.Select(v => new Sim.Campaign.CarState(v.Id, v.Load, v.Integrity, v.CargoIntegrity, v.Gun.Ammo, v.Cargo, v.Eaten))],
             world.Holdouts?.Spent ?? [])
-        { Plan = world.TrackPlan?.Compress() };
+        {
+            Plan = world.TrackPlan?.Compress(),
+            Rakes = [.. train.Capture().Rakes.Select(r => new Sim.Campaign.RakeSave(r.Vehicles, r.Path, r.Distance, r.Handbrake, r.FrontCouplerLocked))],
+            Takings = world.Run.Takings,
+            Aboard = world.Authority ? world.Aboard() : null,
+        };
     }
 
-    /// <summary>Puts a night back as it was saved: the cars, the coal, the clock, and the stops already made.</summary>
+    /// <summary>
+    /// Puts a night back as it was saved: the train as it left (note 481: its rakes, a car lost before the save still lost,
+    /// a switchyard's cars picked up still ahead of the engine), the cars, the coal, the clock, the stops already made, and what
+    /// the night had taken and spent (note 500). What was aboard goes back once the bodies are on (<see cref="World.Restock"/>).
+    /// </summary>
     static void Restore(World world, Sim.Campaign.RunCheckpoint c)
     {
         var train = world.Train;
+        // An older save, or one whose cars aren't this night's, keeps the train as built: its own cars, from the save's front.
+        if (c.Rakes is { Length: > 0 } rakes)
+            train.Resume([.. rakes.Select(r => new RakeState(r.Vehicles, r.Distance, 0, 1, r.Handbrake, r.Locked, r.Path))]);
         foreach (var car in c.Cars)
             if (car.Id < train.Vehicles.Count)
             {
@@ -647,12 +663,13 @@ public sealed class NetPlaySession : IPlaySession, IDisposable
                 v.Integrity = car.Integrity;
                 v.CargoIntegrity = car.CargoIntegrity;
                 v.Gun = v.Gun with { Ammo = car.Ammo };
+                v.Eaten = car.Eaten;
                 // An older save has no cargo types: its loaded cars keep the goods they were built with.
                 if (car.Cargo != CargoKind.None)
                     v.Cargo = car.Cargo;
             }
         train.Boiler.Tender = c.Tender;
-        world.Run?.Resume(c.Seconds, c.Facility, c.Tender, c.Cars.Sum(x => x.Ammo));
+        world.Run?.Resume(c.Seconds, c.Facility, c.Tender, c.Cars.Sum(x => x.Ammo), c.Takings, train.Dynamics.Distance);
         world.Holdouts?.Spend(c.SpentHoldouts ?? []);
     }
 

@@ -74,6 +74,14 @@ public sealed record WallTuning(double WallM = 0.3, double BayDoorM = 4, double 
 /// <summary>How a night ends (GDD v1.4 §23): <see cref="Stranded"/> is a ruptured boiler with the engineering kit lost (§23.2).</summary>
 public enum RunEnd : byte { None, Delivered, Derailed, CrewLost, DawnMissed, Stranded }
 
+/// <summary>
+/// What a night's taken and spent so far (note 500), kept by its autosave so a resumed night pays and bills from the start:
+/// the scrip for the finds stowed (<see cref="Run.Scavenged"/>) and the finds themselves, the mail caught
+/// (<see cref="Run.Mail"/>), the coal and rounds it left the fortress with, and the coal it's loaded at towers since.
+/// </summary>
+public sealed record RunTakings(double Scavenged, IReadOnlyList<LootFind> Stowed, double Mail, double TenderAtDeparture, double CoalLoaded,
+    int AmmoAtDeparture);
+
 /// <summary>What a night came to (spec F.1): everything still attached to the locomotive counts.</summary>
 /// <param name="Scavenged">Scrip for village finds stowed aboard (level-design P12), paid with the cargo on delivery and in Gross.</param>
 /// <param name="Deaths">In-run deaths (GDD App. D.9), each charged <paramref name="CrewLossFees"/>' share; <paramref name="BodiesHome"/>
@@ -255,6 +263,12 @@ public sealed partial class Run
     /// <summary>Pay in the mail bags caught so far tonight (sight.json drops): it pays at the terminus with the cargo.</summary>
     public double Mail { get; private set; }
     public void AddSalvage(double scrip) => Mail += scrip;
+
+    /// <summary>
+    /// What the night's taken and spent so far, for the autosave (note 500): the finds stowed, the mail caught, and the coal
+    /// and rounds it left the fortress with and the coal it's loaded since.
+    /// </summary>
+    public RunTakings Takings => new(Scavenged, [.. _stowed], Mail, _tenderAtDeparture, _coalLoaded, _ammoAtDeparture);
 
     public void Step(World world, IReadOnlyCollection<PlayerState> crew, double dt)
     {
@@ -858,14 +872,31 @@ public sealed partial class Run
     /// A night resumed from its autosave (spec E): under way with the clock where it was, and every stop up to the one it
     /// last left already made (their chutes and modules spent), so the train pulls away from the save point again.
     /// </summary>
-    /// <param name="tender">Coal aboard at the save, and <paramref name="ammo"/> rounds: the night's running costs count on from there.</param>
-    public void Resume(double seconds, int departedFacility, double tender, int ammo)
+    /// <param name="tender">Coal aboard at the save, and <paramref name="ammo"/> rounds: with no <paramref name="takings"/> (an older
+    /// save), the night's running costs count on from there.</param>
+    /// <param name="takings">The night's takings and spending before the save (note 500): its finds and mail still pay, and its
+    /// coal and rounds are still on the bill.</param>
+    /// <param name="front">Where the engine's front is: a stop whose zone is behind it isn't stocked with its finds again.</param>
+    public void Resume(double seconds, int departedFacility, double tender, int ammo, RunTakings? takings = null, double front = double.NegativeInfinity)
     {
         Phase = RunPhase.Underway;
         Seconds = seconds;
         Facility = -1;
-        _tenderAtDeparture = tender;
-        _ammoAtDeparture = ammo;
+        _tenderAtDeparture = takings?.TenderAtDeparture ?? tender;
+        _ammoAtDeparture = takings?.AmmoAtDeparture ?? ammo;
+        if (takings is not null)
+        {
+            _coalLoaded = takings.CoalLoaded;
+            Mail = takings.Mail;
+            Scavenged = takings.Scavenged;
+            _stowed.Clear();
+            _stowed.AddRange(takings.Stowed);
+        }
+        // Note 500: the stop just left was still in the stocking's look-ahead, and its finds came out again behind the train,
+        // to be fetched and paid for twice.
+        for (int k = 0; k < _stopLoot.Count; k++)
+            if (_stopLoot[k].Feature.End < front)
+                _stocked[k] = true;
         for (int i = 0; i <= departedFacility && i < _facilities.Count; i++)
         {
             _chuteLeft[i] = 0;
