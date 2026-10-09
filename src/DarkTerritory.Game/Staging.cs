@@ -157,8 +157,10 @@ public static partial class Staging
             }
         }
         // The houses (note 281): the first open one, its front, its kitchen from the door, its parlour through the partition.
-        var home = plan.Houses.FirstOrDefault(h => h.Layout is not null) ?? plan.Houses.FirstOrDefault();
-        if (home is not null && where is "houses" or "house" or "kitchen" or "parlour" or "sitter" or "range" or "armchair")
+        // (party: Nicki's house, note 571, from her door; partyside, from the street.)
+        var home = (where is "party" or "partyside" or "nicki" ? plan.Houses.FirstOrDefault(h => h.Party) : null)
+            ?? plan.Houses.FirstOrDefault(h => h.Layout is not null) ?? plan.Houses.FirstOrDefault();
+        if (home is not null && where is "houses" or "house" or "kitchen" or "parlour" or "sitter" or "range" or "armchair" or "party" or "partyside" or "nicki")
         {
             var l = home.Layout;
             int k = l?.Kitchen ?? 1;
@@ -170,6 +172,11 @@ public static partial class Staging
                 "houses" => Ballast.Render.Camera.LookAt(town.World(home.S + 12, home.Side * 4.2, 1.8), town.World(home.S - 26, home.Side * 9.5, 2.8), 70),
                 "house" => Ballast.Render.Camera.LookAt(At(du + 5.5, -3.6, 1.7), At(0, 0, 2.7), 75),
                 "kitchen" => Ballast.Render.Camera.LookAt(At(du - k * 0.1, 0.35, 1.65), At(k * w / 2, home.Depth - 0.6, 0.9), 75),
+                "party" => Ballast.Render.Camera.LookAt(At(du - k * 0.1, -0.9, 1.65), At(k * w / 4, home.Depth * 0.55, 1.1), 80),
+                "partyside" => Ballast.Render.Camera.LookAt(At(-k * (w / 2 - 0.5), home.Depth - 0.6, 1.7), At(k * 0.5, 0.8, 1.0), 85),
+                // Nicki (note 571) face to face, from just inside her door as she waves you in.
+                "nicki" when plan.People.FirstOrDefault(p => p.Hosting) is { } nicki => Ballast.Render.Camera.LookAt(At(du - k * 0.1, 0.45, 1.66),
+                    town.Now(nicki).Feet + Double3.Up * 1.5, 55),
                 // The household's poses close to (note 353): whoever's at the table from the side, at the range from behind
                 // their shoulder, in the parlour's chair from the partition.
                 "sitter" => Ballast.Render.Camera.LookAt(At(k * 0.35, Sim.Towns.HouseLayout.TableV(home.Depth) + 0.6, 1.25), At(k * w / 4, Sim.Towns.HouseLayout.TableV(home.Depth) + 0.6, 0.65), 70),
@@ -1017,6 +1024,72 @@ public static partial class Staging
     }
 
     public const int MooseId = 311;
+
+    /// <summary>The staged Dave's id (note 570).</summary>
+    public const int DaveId = 333;
+
+    /// <summary>
+    /// Dave (note 570; <c>dt screenshot --dave paint|warn|grab</c>): at his easel 18 m up the line from the engine's front and
+    /// 12 m off its left, facing out away from the line. Warned (his telegraph), he's turned to crewmate 4 behind him, who's
+    /// struck him four times; holding them (his grab), they're stood held in front of him.
+    /// </summary>
+    public static List<Enemy> Dave(List<Enemy> threats, TrainOnLine train, string mode)
+    {
+        if (mode.Length == 0)
+            return threats;
+        threats.RemoveAll(e => e is Sim.Enemies.Dave);
+        var phase = mode switch
+        {
+            "paint" => SpinePhase.Dormant,
+            "warn" => SpinePhase.Telegraph,
+            "grab" => SpinePhase.Grab,
+            _ => throw new ArgumentException($"--dave {mode}: paint, warn or grab"),
+        };
+        var at = DaveAt(train);
+        var outward = (Lineside(train, 18, -20) - at) with { Y = 0 };
+        double yaw = Math.Atan2(-outward.X, -outward.Z);
+        var dave = new Sim.Enemies.Dave(DaveId);
+        dave.Restore(phase, 1, 1, Enemy.Loose, at, train.Dynamics.Distance + 18, yaw, 0, mode == "paint" ? 0 : 4, mode == "paint" ? -1 : LoneId,
+            holding: phase == SpinePhase.Grab ? LoneId : -1);
+        threats.Add(dave);
+        return threats;
+    }
+
+    public static Double3 DaveAt(TrainOnLine train) => Lineside(train, 18, -12);
+
+    /// <summary>The staged Jacob's id (note 572).</summary>
+    public const int JacobId = 334;
+
+    /// <summary>
+    /// Jacob (note 572; <c>dt screenshot --jacob fish|blessed</c>): 14 m off the line's right, 20 m up from the engine's
+    /// front, facing out away from it, rod out (wherever the ground is: the staging's not at water). Blessed, the train's
+    /// glow is on.
+    /// </summary>
+    public static List<Enemy> Jacob(List<Enemy> threats, TrainOnLine train, string mode)
+    {
+        if (mode.Length == 0)
+            return threats;
+        threats.RemoveAll(e => e is Sim.Enemies.Jacob);
+        var at = JacobAt(train);
+        var outward = (Lineside(train, 20, 30) - at) with { Y = 0 };
+        var jacob = Sim.Enemies.Jacob.At(JacobId, at, train.Dynamics.Distance + 20, Math.Atan2(-outward.X, -outward.Z));
+        if (mode == "blessed")
+            jacob.Extra = 1;
+        threats.Add(jacob);
+        return threats;
+    }
+
+    public static Double3 JacobAt(TrainOnLine train) => Lineside(train, 20, 14);
+
+    /// <summary>Crewmate 4 behind Dave (<c>--dave warn</c>), the line at their back; held, in front of him, facing him.</summary>
+    public static Crewmate DaveCrewmate(TrainOnLine train, string mode)
+    {
+        var dave = DaveAt(train);
+        var outward = ((Lineside(train, 18, -20) - dave) with { Y = 0 }).Normalized;
+        var at = mode == "grab" ? OnGround(train, dave + outward * 0.55) : OnGround(train, dave - outward * 1.6 + new Double3(outward.Z, 0, -outward.X) * 0.5);
+        var toward = dave - at;
+        return new Crewmate(LoneId, at, Math.Atan2(-toward.X, -toward.Z), true, Act: mode == "grab" ? Art.CrewPose.HeldFrozen : null, Holding: Sim.Player.Tool.Shovel);
+    }
 
     /// <summary>
     /// Where the staged Moose stands and its heading (a player's yaw): grazing, listening or warning, 22 m up the line from

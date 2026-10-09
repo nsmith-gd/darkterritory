@@ -612,6 +612,12 @@ public sealed partial class GreyboxScene
                         if (Look?.Art.Creatures is { } flock)
                             flock.GannetWas = before;
                     }
+                    // Dave at his easel (note 570): his own figure and things, not a creature's.
+                    if (e is Sim.Enemies.Dave dave && Look is not null && Painter(mesh, eye, dave))
+                        continue;
+                    // Jacob at the water's edge (note 572).
+                    if (e is Sim.Enemies.Jacob jacob && Look is not null && Fisherman(mesh, eye, jacob))
+                        continue;
                     // The Mourners', the Freight Beetle's and Tower Jaw's too (notes 362, 366, 363); Tower Jaw's tower, once
                     // it's down, lies across the line at its spout.
                     bool outside = e.Kind is EnemyKind.Mourners or EnemyKind.FreightBeetle or EnemyKind.TowerJaw;
@@ -630,6 +636,9 @@ public sealed partial class GreyboxScene
                         knit.Knit(mesh, V(feet, eye) + Vector3.UnitY * GrumblerMiddle, V(feet, eye), healing, Time, e.Id);
                     }
                 }
+        // Jacob's blessing over the train as it comes (note 572), wherever he is.
+        if (Enemies?.OfType<Sim.Enemies.Jacob>().FirstOrDefault() is { } blessing)
+            Blessing(mesh, eye, frames, blessing);
         Deaths(mesh, line, frames, eye, from, to);
         Lap(mesh, "enemies");
         if (Bodies is not null)
@@ -2811,6 +2820,133 @@ public sealed partial class GreyboxScene
     /// survivors' bare-headed figure, never the crew's masked one; null for note 107's folk in the crew's own.</param>
     /// <param name="home">At home in an open house: some have the mask down on the chest.</param>
     /// <param name="lamp">A town's person carrying a lit hand lamp (out in the street at night).</param>
+    /// <summary>
+    /// Dave (note 570): the survivors' figure in full colour, in tonight's hat and waistcoat, his glasses and sandals, at his easel with its lantern
+    /// lit. At his canvas he faces it, his brush arm out; turned on whoever's had their last warning (his telegraph) he faces
+    /// them, still; holding them he faces them with his hands out. False when his figure isn't built (the greybox draws him).
+    /// </summary>
+    bool Painter(MeshBuilder mesh, Double3 eye, Sim.Enemies.Dave dave)
+    {
+        var creatures = Look!.Art.Creatures;
+        var kit = Look.Art.Dave;
+        if (creatures.Get(Art.DaveKit.Figure) is null)
+            return false;
+        var feet = V(dave.Local, eye);
+        var easelFacing = new Vector3((float)-Math.Sin(dave.Yaw), 0, (float)-Math.Cos(dave.Yaw));
+        var easelBack = -easelFacing;
+        var easel = Art.CreatureArt.Basis(feet, Vector3.Cross(Vector3.UnitY, easelBack), Vector3.UnitY, easelBack);
+        mesh.Append(kit.Easel(dave.Id), easel);
+        var flame = Vector3.Transform(Art.DaveKit.Flame, easel);
+        mesh.PointLights.Add(new PointLight(flame, Palette.LampAmber * 1.5f, 11));
+        mesh.Billboard(flame, 0.5f, 0, new Vector4(Palette.LampAmber * 0.7f, 1), -1, FxBlend.Additive);
+        // Who he's turned to: the one he holds, else the last to strike him while he's turned (his telegraph).
+        int on = dave.Holding >= 0 ? dave.Holding : dave.Phase == SpinePhase.Telegraph ? dave.Striker : -1;
+        var facing = easelFacing;
+        if (on >= 0 && Crew?.FirstOrDefault(c => c.Id == on) is { } them)
+        {
+            var to = ToF(them.Feet - dave.Local) with { Y = 0 };
+            if (to.LengthSquared() > 1e-4f)
+                facing = Vector3.Normalize(to);
+        }
+        var back = -facing;
+        var m = Art.CreatureArt.Basis(feet, Vector3.Cross(Vector3.UnitY, back), Vector3.UnitY, back);
+        if (!creatures.Draw(mesh, Art.DaveKit.Figure, Art.DaveKit.Clip(dave.Phase), Time * 0.6, true, m, 2, seed: 47,
+            adjust: (mat, l) => l with { Colour = l.Colour * new Vector3(1.05f, 0.98f, 0.9f), Emissive = 0 }))
+            return false;
+        // Tonight's hat and waistcoat (the night's: Art.DaveKit.Outfit), his hair, glasses, hoop, chain and sandals.
+        var (hat, vest) = Art.DaveKit.Outfit(dave.LineDistance);
+        kit.Dress(creatures, mesh, m, hat, vest);
+        return true;
+    }
+
+    /// <summary>
+    /// Nicki (note 571): dressed after the director's photographs (Art.NickiKit), in full colour and no mask, waving you in at
+    /// her door; her top is the town's (the lime tank top or the blush camisole). False when her figure isn't built.
+    /// </summary>
+    bool Hostess(MeshBuilder mesh, Double3 eye, Double3 feet, Double3 facing, string act, int who)
+    {
+        var creatures = Look!.Art.Creatures;
+        if (creatures.Get(Art.NickiKit.Figure) is null || Town is not { } town)
+            return false;
+        string clip = Art.TownsfolkKit.Clip(act, false, who);
+        var back = -Vector3.Normalize(ToF(facing) with { Y = 0 });
+        // The crew's wave turns the body off to its side as the arm goes up: turned back by as much, she waves at the door.
+        if (clip == "wave")
+            back = Vector3.TransformNormal(back, Matrix4x4.CreateRotationY(-1.2f));
+        var m = Art.CreatureArt.Basis(V(feet, eye) - Vector3.UnitY * creatures.FeetOver(Art.NickiKit.Figure, clip), Vector3.Cross(Vector3.UnitY, back), Vector3.UnitY, back);
+        if (!creatures.Draw(mesh, Art.NickiKit.Figure, clip, Time + who * 0.73, true, m, 0, seed: 29,
+            adjust: (mat, l) => l with { Emissive = 0 }))
+            return false;
+        Look.Art.Nicki.Dress(creatures, mesh, m, Art.NickiKit.TopOf(Sim.LineGen.Streams.Mix(0x41C1, "top", town.Plan.Name, 0)));
+        return true;
+    }
+
+    /// <summary>Jacob (note 572): dressed after the director's photographs (Art.JacobKit), rod out over the water, lantern lit.</summary>
+    bool Fisherman(MeshBuilder mesh, Double3 eye, Sim.Enemies.Jacob jacob)
+    {
+        var creatures = Look!.Art.Creatures;
+        if (creatures.Get(Art.JacobKit.Figure) is null)
+            return false;
+        var feet = V(jacob.Local, eye);
+        var facing = new Vector3((float)-Math.Sin(jacob.Yaw), 0, (float)-Math.Cos(jacob.Yaw));
+        var back = -facing;
+        var m = Art.CreatureArt.Basis(feet, Vector3.Cross(Vector3.UnitY, back), Vector3.UnitY, back);
+        mesh.Append(Look.Art.Jacob.Gear, m);
+        var flame = Vector3.Transform(Art.JacobKit.Flame, m);
+        mesh.PointLights.Add(new PointLight(flame, Palette.LampAmber * 1.3f, 9));
+        mesh.Billboard(flame, 0.45f, 0, new Vector4(Palette.LampAmber * 0.6f, 1), -1, FxBlend.Additive);
+        if (!creatures.Draw(mesh, Art.JacobKit.Figure, Art.JacobKit.Clip, Time * 0.3, true, m, 0, seed: 53,
+            adjust: (mat, l) => l with { Emissive = 0 }))
+            return false;
+        Look.Art.Jacob.Dress(creatures, mesh, m);
+        return true;
+    }
+
+    // When this machine first saw Jacob's blessing (the scene's clock), for its glow over the train.
+    double _blessedAt = double.NaN;
+
+    /// <summary>How far into Jacob's blessing to draw it (s), for a still (<c>dt screenshot --view jacobblessed</c>); null as it plays.</summary>
+    public double? BlessingAge { get; set; }
+
+    /// <summary>
+    /// Jacob's blessing over the train (note 572): for a few seconds from when it comes, a pale gold light runs down the
+    /// cars from the engine back and motes rise off every car, then it's gone and the train's as new.
+    /// </summary>
+    void Blessing(MeshBuilder mesh, Double3 eye, IReadOnlyList<CarFrame> frames, Sim.Enemies.Jacob jacob)
+    {
+        if (!jacob.Blessed)
+            return;
+        if (double.IsNaN(_blessedAt))
+            _blessedAt = Time;
+        double age = BlessingAge ?? Time - _blessedAt;
+        const double Seconds = 5;
+        if (age > Seconds)
+            return;
+        var gold = new Vector3(1.0f, 0.9f, 0.55f);
+        for (int i = 0; i < frames.Count; i++)
+        {
+            // Each car lit in turn, the engine first, fading as it passes on.
+            double t = age - i * 0.35;
+            if (t < 0 || t > 2.5)
+                continue;
+            float glow = (float)(Math.Sin(Math.Min(1, t / 2.5) * Math.PI));
+            var f = frames[i];
+            // A light either side of it, washing its sides gold, and one over its roof.
+            foreach (double side in (double[])[-1, 1])
+                mesh.PointLights.Add(new PointLight(V(f.ToWorld(new Double3(side * (f.Shape.HalfWidth + 1.4), 1.8, 0)), eye), gold * (3.5f * glow), 8));
+            mesh.PointLights.Add(new PointLight(V(f.ToWorld(new Double3(0, f.Shape.RoofHeight + 1.2, 0)), eye), gold * (3f * glow), 9));
+            // Motes rising off its sides and roof, out in the open where they're seen.
+            for (int k = 0; k < 14; k++)
+            {
+                double along = (k / 13.0 - 0.5) * 2 * f.Shape.HalfLength * 0.95, rise = (t * 0.8 + k * 0.17) % 2.6;
+                double side = (k % 3 - 1) * (f.Shape.HalfWidth + 0.25);
+                double up = k % 3 == 1 ? f.Shape.RoofHeight + 0.2 + rise : 0.6 + rise * 1.4;
+                var mote = V(f.ToWorld(new Double3(side, up, along)), eye);
+                mesh.Billboard(mote, 0.22f, 0, new Vector4(gold * (1.4f * glow), 1), -1, FxBlend.Additive);
+            }
+        }
+    }
+
     void Folk(MeshBuilder mesh, Double3 eye, Double3 feet, Double3 facing, int variant, float drab = 0.45f, string pose = "idle",
         string? gear = null, bool home = false, int who = 0, bool lamp = false)
     {
@@ -2902,7 +3038,9 @@ public sealed partial class GreyboxScene
                         ? toward.Normalized : now.Facing;
                     // Held to talk mid-stride, they stand.
                     string act = talking && now.Walking ? "idle" : now.Act;
-                    Folk(mesh, eye, feet, facing, p.Look % 7 + 1, drab: 0.72f, act, p.Gear, home: p.House >= 0, who: p.Id, lamp: p.Pose == "lantern");
+                    // Nicki at her party (note 571): her own figure, not the town's drab.
+                    if (!p.Hosting || !Hostess(mesh, eye, feet, facing, act, p.Id))
+                        Folk(mesh, eye, feet, facing, p.Look % 7 + 1, drab: 0.72f, act, p.Gear, home: p.House >= 0, who: p.Id, lamp: p.Pose == "lantern");
                     // Whoever you're talking to has the lamplight on their face, so you can see who it is (most stand with
                     // a lit door or a fire at their back).
                     if (talking)

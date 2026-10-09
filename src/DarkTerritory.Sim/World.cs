@@ -805,6 +805,50 @@ public sealed class World
         Train.Walls.Add(Town.Walls);
     }
 
+    // Host: who's holding Use by Nicki and how long, and who's had their glass tonight (note 571).
+    readonly Dictionary<int, double> _byNicki = [];
+    readonly SortedSet<int> _toasted = [];
+
+    /// <summary>Nicki (note 571), where the town has her party: its host, else null.</summary>
+    public Towns.Townsperson? Nicki => Town?.Plan.People.FirstOrDefault(p => p.Hosting);
+
+    /// <summary>
+    /// Whether Nicki has a glass for <paramref name="s"/> in reach (note 571): on foot, alive, near her, and not had theirs
+    /// tonight. The host knows who has; a client goes by their being over full health, as only the wine puts anyone there.
+    /// </summary>
+    public bool WineInReach(in PlayerState s, int playerId)
+    {
+        if (!s.Alive || s.Parent != PlayerState.World || Town is not { } town || Nicki is not { } nicki
+            || _toasted.Contains(playerId) || s.Health > Bodies.FullHealth)
+            return false;
+        return (PlayerMotor.WorldPosition(s, Train) - town.Feet(nicki)).Length <= town.Tuning.Wine.Reach;
+    }
+
+    /// <summary>
+    /// Host: a crewmate by Nicki holding Use, empty-handed (note 571). Held <c>wine.holdSeconds</c>, they've taken a glass:
+    /// <c>wine.health</c> on top of what they have, once a night. True while it's the wine their Use is on (not her door).
+    /// </summary>
+    bool WineAct(ref PlayerState s, in PlayerIntent intent, int playerId, bool emptyHanded)
+    {
+        if (!emptyHanded || !intent.Has(PlayerButtons.Use) || !WineInReach(s, playerId))
+        {
+            _byNicki.Remove(playerId);
+            return false;
+        }
+        var t = Town!.Tuning.Wine;
+        double held = _byNicki[playerId] = _byNicki.GetValueOrDefault(playerId) + SimConstants.TickSeconds;
+        if (held >= t.HoldSeconds - 1e-9)
+        {
+            _toasted.Add(playerId);
+            _byNicki.Remove(playerId);
+            s.Health += t.Health;
+        }
+        return true;
+    }
+
+    /// <summary>Who's had a glass of Nicki's wine tonight (note 571), by player id; the host's.</summary>
+    public IReadOnlyCollection<int> Toasted => _toasted;
+
     /// <summary>Note 279: the stops' buildings' walls by their doors, kept for the town's rebuild of the walls.</summary>
     Sim.Run.WallTuning? _walls;
 
@@ -827,6 +871,88 @@ public sealed class World
     /// Host: a crewmate's hands on a house door this tick. Use held <c>walls.houseDoorSeconds</c> shuts an open one or opens a
     /// shut one, once a hold; let go and hold again to work it again. As a car's door is worked (CrewActions).
     /// </summary>
+    // Who's been holding Use by Jacob, and how long (note 572).
+    readonly Dictionary<int, double> _byJacob = [];
+
+    /// <summary>
+    /// Host: a crewmate on the ground holding Use within Jacob's reach for <c>jacob.holdSeconds</c> has had their word with
+    /// him, and once a night he mends the train (<see cref="Bless"/>).
+    /// </summary>
+    void JacobAct(in PlayerState s, in PlayerIntent intent, int playerId)
+    {
+        var t = Enemies?.Jacob;
+        var jacob = t is null ? null : _enemies.OfType<Sim.Enemies.Jacob>().FirstOrDefault(j => !j.Gone && !j.Blessed);
+        if (jacob is null || !s.Alive || s.Parent != PlayerState.World || !intent.Has(PlayerButtons.Use)
+            || (PlayerMotor.WorldPosition(s, Train) - jacob.Local).Length > t!.Reach)
+        {
+            _byJacob.Remove(playerId);
+            return;
+        }
+        double held = _byJacob[playerId] = _byJacob.GetValueOrDefault(playerId) + SimConstants.TickSeconds;
+        if (held < t.HoldSeconds - 1e-9)
+            return;
+        jacob.Bless();
+        Bless();
+        _byJacob.Clear();
+    }
+
+    /// <summary>
+    /// Jacob's blessing (note 572; the director: "repair everything instantly, restoring it to brand new condition without
+    /// affecting your loot count"). Every one of the train's own cars as new:
+    /// <list type="bullet">
+    /// <item>its body whole (dents and the Car Hugger's bites), its char gone, any breach closed;</item>
+    /// <item>its axle box cool, its lamp trimmed and lit, its coupling tight;</item>
+    /// <item>its gun cleared and cooled.</item>
+    /// </list>
+    /// The boiler whole and in steam again, its valve free and nothing in its firebox that shouldn't be; the forward lamp
+    /// mended and lit; the brakes fresh; every fire out; every radio aboard working. Untouched: what's loaded and what it's
+    /// worth (its load, cargo and cargo integrity), the finds, the coal in the tender and the powder (supplies, not the
+    /// train's condition), and a car already gone (taken, or cut loose).
+    /// </summary>
+    public void Bless()
+    {
+        if (!Authority)
+            return;
+        var bt = Train.BoilerTuning;
+        foreach (var v in Train.Dynamics.Consist.Vehicles)
+        {
+            if (v.Taken || v.Derelict || v.YardCar)
+                continue;
+            v.Integrity = 1;
+            v.Eaten = 0;
+            v.Char = [];
+            v.Breached = false;
+            v.HotBox = 0;
+            v.Gutter = 0;
+            v.Loose = 0;
+            v.LampLit = true;
+            // And what the creatures of 8 Oct leave broken (notes 364, 367), and a car the tipple threw off its rails (note 423).
+            v.Wound = false;
+            v.Seized = false;
+            v.OffRails = false;
+            if (v.HasGun)
+                v.Gun = v.Gun with { Jammed = false, Cooldown = 0 };
+        }
+        if (bt is not null)
+        {
+            ref var b = ref Train.Boiler;
+            if (b.Ruptured)
+                b.Repair();
+            b.Pressure = Math.Max(b.Pressure, bt.StartPressure);
+            b.Firebox = Math.Max(b.Firebox, bt.StartFirebox);
+            b.SafetyValveJammed = false;
+            b.ExternalHeat = 0;
+        }
+        LampOutSeconds = 0;
+        LampLit = true;
+        Train.Dynamics.Restore(Train.Dynamics.Distance, Train.Dynamics.Velocity, 1);
+        foreach (var e in _enemies)
+            if (e.Kind == EnemyKind.CarFire && !e.Gone)
+                e.Dismiss();
+        foreach (var radio in Bodies.All.Where(b => b.Kind == Physics.BodyKind.Radio))
+            radio.Broken = false;
+    }
+
     void DoorAct(in PlayerState s, in PlayerIntent intent, int playerId, bool emptyHanded)
     {
         if (!emptyHanded || !intent.Has(PlayerButtons.Use) || intent.MoveZ > 0.5 || DoorInReach(s) is not { } door)
@@ -1173,9 +1299,11 @@ public sealed class World
         // Searching an open house's hiding spot (note 326), empty-handed, with a Use the hands didn't take.
         if (Authority && Run is { } searching)
             searching.SearchAct(s, intent, playerId, this, emptyHanded: !handsTookIt && Bodies.CarriedBy(playerId) is null);
-        // An open house's door (note 401), empty-handed, with a Use neither the hands nor a hiding spot took.
-        if (Authority)
+        // Nicki's wine (note 571), then an open house's door (note 401): empty-handed, with a Use neither the hands nor a hiding
+        // spot took. (She waves you in at her door: by her, a held Use is a glass, not the door shut in her face.)
+        if (Authority && !WineAct(ref s, intent, playerId, emptyHanded: !handsTookIt && Bodies.CarriedBy(playerId) is null))
             DoorAct(s, intent, playerId, emptyHanded: !handsTookIt && Bodies.CarriedBy(playerId) is null);
+        JacobAct(s, intent, playerId);
         // A healing find used up in the hands this tick (GDD App. F.1; note 272): its health back, up to full.
         if (Authority && Bodies.TakeDose(playerId) is > 0 and var dose && s.Alive)
             s.Health = Math.Min(Bodies.FullHealth, s.Health + dose);
@@ -1873,6 +2001,16 @@ public sealed class World
                 _driftMarsh = marsh.Start;
                 SpawnDrift(t);
             }
+            // Dave at his easel, some nights (note 570): the route's, not the director's; put down once the stops stand.
+            if (!_daveLooked && Route is { } dr && Train.Walls is not null)
+            {
+                _daveLooked = true;
+                if (Sim.Enemies.Dave.Site(this, dr, t.Dave) is { } dave)
+                    _enemies.Add(Sim.Enemies.Dave.At(_nextEnemyId++, dave.At, dave.Along, dave.Yaw, t.Dave));
+                // And Jacob at a water's edge, very rarely (note 572).
+                if (Sim.Enemies.Jacob.Site(this, dr, t.Jacob) is { } jacob)
+                    _enemies.Add(Sim.Enemies.Jacob.At(_nextEnemyId++, jacob.At, jacob.Along, jacob.Yaw));
+            }
             // The lineside moose (note 339): grazing beside the line ahead, as the line's own; they cost the director nothing.
             if (Insist is null && d.Allows(EnemyKind.Moose) && Route is { } route && Train.Dynamics.Speed > 3 && !TrainInFort)
                 LinesideMoose(t.Moose, route);
@@ -1970,6 +2108,8 @@ public sealed class World
     /// <see cref="MooseTuning.LinesideAhead"/> ahead (never within the track's clearance), one about at a time. Their own
     /// dice from the route's seed, so they never move the director's.
     /// </summary>
+    bool _daveLooked;
+
     void LinesideMoose(MooseTuning t, Route.Route route)
     {
         double front = Train.Dynamics.Distance;

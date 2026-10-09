@@ -142,6 +142,7 @@ public static class IncidentLog
         DeathCause.Uncoupled => "Taken with the caboose by the Passenger",
         DeathCause.Trampled => "Trampled by the Moose",
         DeathCause.Pecked => "Pecked to death by the Gannet",
+        DeathCause.Dave => "Struck Dave once too often",
         _ => cause.ToString(),
     };
 
@@ -223,6 +224,11 @@ public static class IncidentLog
                         : $"{share}% of the noise. Loudest on the line: {{actor}}.";
                     break;
                 }
+            case DeathCause.Dave:
+                // Their own doing (note 570): the five blows were theirs.
+                actor = victim;
+                action = "Struck him five times: {actor}.";
+                break;
             case DeathCause.Stoker:
                 actor = a.Fireman;
                 action = actor >= 0 ? $"Last fired: {{actor}}, {Math.Max(0, Seconds(world) - a.FiredAt):0} s before." : "Nobody had fired it.";

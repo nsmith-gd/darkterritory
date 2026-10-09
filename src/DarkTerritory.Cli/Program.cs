@@ -1787,6 +1787,23 @@ static object Screenshot(TrainTuning t, string content, string[] args)
         float moosePace = mooseMode switch { "charge" => (float)mooseTuning.ChargeSpeed, "search" => (float)mooseTuning.SearchSpeed, _ => 0 };
         scene.StagedPaces = new Dictionary<int, float>(scene.StagedPaces ?? new Dictionary<int, float>()) { [Staging.MooseId] = moosePace };
     }
+    // --jacob fish|blessed (note 572): Jacob with his rod out; blessed, the train's glow (the scene's clock from now).
+    if (Str(args, "--jacob", view switch { "jacob" or "jacobface" => "fish", "jacobblessed" => "blessed", _ => "" }) is { Length: > 0 } jacobMode)
+    {
+        scene.Enemies = Staging.Jacob(scene.Enemies is List<DarkTerritory.Sim.Enemies.Enemy> others ? others : [], train, jacobMode);
+        if (jacobMode == "blessed")
+            scene.BlessingAge = Opt(args, "--age", 1.4);
+    }
+    // --dave paint|warn|grab (note 570): Dave at his easel; warned, turned to crewmate 4 behind him; holding them in front of him.
+    if (Str(args, "--dave", view switch { "dave" or "davefar" or "daveface" => "paint", "davewarn" => "warn", _ => "" }) is { Length: > 0 } daveMode)
+    {
+        scene.Enemies = Staging.Dave(scene.Enemies is List<DarkTerritory.Sim.Enemies.Enemy> others ? others : [], train, daveMode);
+        // --outfit h,v: which of his hats and waistcoats (0-4 each), whatever the night's.
+        if (Str(args, "--outfit", "") is { Length: > 0 } outfit && outfit.Split(',') is [var h, var v])
+            DarkTerritory.Game.Art.DaveKit.Wearing = (int.Parse(h), int.Parse(v));
+        if (daveMode != "paint")
+            scene.Crew = [.. (scene.Crew ?? []).Where(c => c.Id != Staging.LoneId), Staging.DaveCrewmate(train, daveMode)];
+    }
     if (gannetMode.Length > 0)
     {
         scene.Enemies = Staging.Gannet(scene.Enemies is List<DarkTerritory.Sim.Enemies.Enemy> others ? others : [], train, gannetMode);

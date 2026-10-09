@@ -43,6 +43,8 @@ public sealed record TownHouse(int Id, double S, double D, int Side, double Widt
     /// line's own street of a town that's still the yard (no room behind the houses).
     /// </summary>
     public IReadOnlyList<YardThing> Yard { get; init; } = [];
+    /// <summary>Nicki's party is on in it (note 571): its people keep their places, dancing, and it's lit up.</summary>
+    public bool Party { get; init; }
 
     /// <summary>Everything of it that stops you: <see cref="Parts"/>, and its yard's solid things.</summary>
     public IEnumerable<(double U0, double U1, double V0, double V1, double Height)> Solids() =>
@@ -132,7 +134,7 @@ public sealed record HouseLayout(int Kitchen, double DoorU, double PassV, IReadO
         double w = width / 2, k = Kitchen;
         return kind switch
         {
-            "table" or "letters" => (k * width / 4 + 0.2, TableV(depth), 0.8),
+            "table" or "letters" or "wine" => (k * width / 4 + 0.2, TableV(depth), 0.8),
             "anklebell" => (-k * (w - 1.2), depth - 0.5, 0.9),
             "timetable" => (-k * width / 4, Wall + 0.03, 1.6),
             "boots" => (DoorU + k * 0.75, 0.45, 0.1),

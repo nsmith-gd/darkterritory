@@ -192,7 +192,9 @@ public enum DeathCause : byte
     // GDD §21, App. A.6 (note 339): pinned under the Moose's rack and ground into the peat.
     Trampled,
     // GDD §21, App. A.4 (note 340): the Gannet's fourth peck, pinned under its foot.
-    Pecked
+    Pecked,
+    // GDD §3.2 (note 570): struck Dave five times; he took them by the neck.
+    Dave
 }
 
 /// <summary>Conditions a player carries.</summary>

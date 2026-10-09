@@ -161,7 +161,8 @@ public static class TownRounds
         foreach (var group in plan.People.Where(p => p.House >= 0).GroupBy(p => p.House))
         {
             var house = plan.Houses[group.Key];
-            if (house.Layout is not { } layout || layout.Spots.Count < 2)
+            // Nicki's party keeps its places, dancing (note 571).
+            if (house.Layout is not { } layout || layout.Spots.Count < 2 || house.Party)
                 continue;
             var spots = layout.Spots;
             double offset = Streams.Mix(0, "rounds.home", house.Family, house.Id) % 1000 / 1000.0 * t.HomeSlot;

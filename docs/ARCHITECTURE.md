@@ -7728,6 +7728,93 @@ Terrain sculpting tools, a node-graph material editor, a general-purpose visual 
     - **Budget:** 5,452 triangles (was 4,278) of the model's 9,000 (`CreatureArtTests`); 24 bones. The branches' rings and sides are few (8 sides, 7 rings a thigh or shin) because the Gaunt is drawn in the perf views' line-side. That view's VR frame sits at the 1.5M budget (`PerfBudgetTests`): a first cut of 7,046 put it 620 triangles over. The clips (note 505's carry included), the sim and `CreatureArt` are unchanged.
     - **A test's head, read between the forelegs:** `GauntTests.ItsAngerLeansItInAndTipsItsHeadOver` takes as the head everything above chest height within 0.35 m of the foremost point. In the listen pose that took in the forelegs' shins too, a metre out to either side, and the branches' rings outweighed the head's drop. Its selection now keeps to between the forelegs (`|x| < 0.6 m`), as its comment means it to: the head and the ears. The assertions are the same.
     - **Verified:** `dt art clip gaunt listen --frames 1 --at 0,1.6,0 --dist 2.6 --yaw 40 --pitch 10`, and `sleep` from above (before and after are in the Look Review round). `CreatureArtTests`, `GauntCarryTests` and `GauntTests` are green.
+570. **Dave, the wandering painter (P1, queue #300; the director, 8 Oct 2026: "a special NPC that shows up randomly in places. His name is Dave (just Dave) and he's a wandering painter. Creatures are nice to him or leave him alone. You can see him painting beautiful landscapes of the natural world as it used to be. He always says hopeful things and is kind with players. If a player hits Dave 5 times Dave will grab them, say 'You should be nicer in a dark world.' and snap their neck immediately. Dave should have a unique model so he's recognizable from afar. Some towns should have murals on the walls that are recognizably Dave's work"; and: "Dave doesn't have a beard, he's a bit tubby on the belly and has glasses. He's extremely fashionable and wears Birks sandals often. He loves vests and cool hats"; GDD §3.2).**
+    - **What he is in the Sim.** `Sim/Enemies/Dave.cs`, an `Enemy`. That gives him blows (`World.Swing` finds him; `Struck`), replication (`EnemyKind.Dave`, `Far`: every client has him wherever he is) and the one way to kill (Commit → Grab → Punish, the fairness contract).
+        - He's a `Hazard`, so the director never counts, spends on or dismisses him. He isn't `Exposed`: no ball finds him and no gun is laid on him.
+        - Every creature's targets are the crew (`EnemyContext.Crew`), so nothing ever hunts him with no change anywhere else.
+    - **Where.** `Dave.Site`, on `dave.chance` (0.3) of nights, from the route's seed. He stands past one of the stops beyond `pastGate`, on the side away from its village or yard. He's `out` m from the line and `along` m either way of where the train stops, `trackClearance` from any track, `room` from any wall, and never in water or a fort. He faces out, away from the line, at what he paints. He's put down in the first enemy step after the yard, once the stops' walls stand (`World._daveLooked`): the sessions enable enemies and the run in either order.
+    - **The blows.** `_blows`, by crewmate, is host-only like the spine.
+        - The last but one (`blows - 1`) turns him: `Telegraph`.
+        - The next is `_due`. Once the telegraph has run the reaction window he commits and grabs them for `grabSeconds` (0.4), holding them in front of him (`ctx.Carry`). The punish is `DeathCause.Dave`.
+        - Then he's back to his painting (Dormant). A blow while he holds somebody frees nobody. At a crew of one the solo struggle still applies, and leaves them on their last warning.
+        - Replicated: `Extra` is the last striker's blows and `Extra2` the striker, so every client says his answer to that blow (`FigureTalk`).
+    - **The clerk.** `Enemy.Called` ("the Gaunt"; "Dave") names him in the grab's and punish's records. A Dave death's contributing action is the victim's own: "Struck him five times: {actor}." Its line: "Struck Dave once too often"; on the death screen, "YOU SHOULD BE NICER IN A DARK WORLD." Protocol 47 (the kind and the cause).
+    - **Talk** (`Game/FigureTalk.cs`, content/world/figures.json): local, as a town's is (note 281). "DAVE   TALK : [E]" in reach, his card and his next line on Use (the press kept from the host). His answers to blows one to four, and his last words as he grabs, are heard by anyone within `hearBeyond`.
+    - **His look** (`Art/DaveKit.cs`; `GreyboxScene.Painter`, `CreatureArt.Enemy`).
+        - Dressed after the director's photographs of his father: grey hair, clean-shaven, black rectangular glasses, a black hoop in his left ear, a silver chain, a black tee, light jeans, bare feet in sandals (cork and buckled straps).
+        - The figure is the survivors' re-dressed (`Art/Redress.cs`): `survivor_prisoner` with its coat, scarf, satchel and chest lamp left off, and its frame cut by the bone each triangle moves with into face, hands, forearms, sleeves, shirt, trousers and feet, each its own dye (`DaveKit.Clothes`); registered by `CreatureArt` as "dave" on the same rig and clips. Nicki and Jacob are dressed the same way.
+        - One of six hats and one of six waistcoats over a tubby belly: `DaveKit.Outfit`, from where he stands (replicated), so his outfit is the night's. His hair, glasses, hoop and chain are worn on the head and chest (`DaveKit.Dress`).
+        - His easel with a lit lantern (a point light: the warm point you see from the line), his paint box, and a canvas with one of his three landscapes (`DaveKit.Landscape`), signed with a red D.
+        - Built in code: this container has no Blender. A modelled Dave (his own figure, not the survivors') is for the art sessions.
+    - **His murals.** towns.json civic `mural` gains two of his ("… (signed D.)"). `CivicKit.Variant` gives them variants 3–5, and `Mural` paints them with `DaveKit.Landscape` at the wall's size, red D and all. Only on `daveMural` (0.4) of walled towns, one at most, in place of one of theirs (`TownGenerator`).
+    - **Looked at:** `dt screenshot --view dave|davefar|davewarn|daveface [--dave paint|warn|grab] [--outfit h,v]`, and a town's (`--route frontier:2 --town mural`).
+    - **Verified:** `DaveTests`:
+        - four blows are warnings (the fourth turns him), and the fifth is death by `DeathCause.Dave` through the spine (`AssertFair`);
+        - each crewmate's blows are their own: three crewmates at four apiece are all alive;
+        - the director never counts him and nothing hunts him;
+        - some nights he's out past a stop, clear of the track, the same every time.
+      Also `CreatureArtTests` (every phase draws) and the HUD's death lines.
+    - **Not yet:** a modelled figure; his own sounds (a brush, his humming: the audio checklist's); any creature sitting by him (the director's "nice to him").
+
+571. **Nicki's party (P1, queue #301; the director, 8 Oct 2026: "an NPC you can find some times in one of the houses. Her name is Nicki and she's the only house late at night that is partying. She offers you wine and says kind things about people needing to enjoy life more even if its the end of the world"; GDD §3.2).**
+    - **Where** (`TownGenerator.Houses`, on its own stream `houses.party` so every other house is as it was). On `nicki` (0.3) of towns, one of the open houses is Nicki's: `TownHouse.Party`. Its household is the party's words (world/townsfolk.json `party`), not a story off the deck.
+    - **Who** (`PartyAt`):
+        - Nicki at the door's place, pose `wave`, named just Nicki (her personality's given name, no surname).
+        - `nickiGuests` (2–4) guests at the rest of the places. They have the town's names but not the house's surname: they've come from their own houses.
+        - One guest sits at the table if there's a seat; the rest dance.
+    - **What they say.**
+        - Nicki: one `offer` line first (the wine), then two of `host`, nothing else.
+        - Her guests: two of `guests`, and their temperament's line.
+        - Nobody at the party says the custom's lines.
+    - **Their rounds:** none. A party house keeps its places (`TownRounds` skips it), so the dancers dance and Nicki waits at the door.
+    - **The look.**
+        - `TownsfolkKit.Clip` gains `dance` and `wave` (the crew's clips), and everyone dancing or waving has their mask down.
+        - The household's thing is `wine` (`HouseLayout.Place` on the table; `MaritimeKit.Small` draws a bottle and four odd glasses of red).
+        - The house is lit (`WorldArt.Towns.House`): a bright spill from the door that reads down the street, and four warm, rose and blue lamps inside.
+    - **Looked at:** `dt screenshot --route frontier:6 --town party` (from her door) and `--town partyside` (across the room).
+    - **Verified:** `TownFolkTests.SomeTownsHaveNickisPartyInOneHouseAndOnlyOne`:
+        - at most one party a town, on some towns;
+        - Nicki at the door waving, her wine first, her own lines after;
+        - 2–4 guests, dancing, at most one seated;
+        - the wine on the table;
+        - nobody at the party saying the custom.
+      The town tests stay green (Nicki is just Nicki; her guests' surnames are their own).
+    - **Her wine** (the director, 9 Oct: "when Nicki offers wine to the players they should get extra health for the next run if they take it. Don't mention that anywhere in the wiki").
+        - She's only ever in the departure town, which a crew walks before the gate, so "the next run" is the night about to set out (the reading that needs nothing carried in the save).
+        - `World.WineAct`, host-side in `CrewAct`: Use held `wine.holdSeconds` (0.8) within `wine.reach` (2.6 m) of her, empty-handed, adds `wine.health` (25) to their health, over full (`Bodies.FullHealth` still caps the healing finds at full, so the glass is spent as they're hurt). `_toasted` keeps it to one a crewmate a night.
+        - It's tried before the house door's hold (note 401): she waves you in at her door, and a held Use by her is a glass, not the door shut in her face.
+        - `World.WineInReach` is alike on host and client for the prompt: "NICKI   TALK : [E]   A GLASS : HOLD [E]". A client goes by their being over full, which only the wine does. The app sends a Use press at her to the host (a town's word is otherwise kept local).
+        - `Townsperson.Hosting` marks her (`TownGenerator`: the party's `host` part).
+        - **Never in the Wiki.**
+    - **Her look** (`Art/NickiKit.cs`, `GreyboxScene.Hostess`), after the director's photographs of her: the survivors' figure dressed (`Art/Redress.cs`, note 570) and taken in at the shoulders and waist (`NickiKit.Shape`), tanned; shoulder-length wavy strawberry-blonde hair with a fringe; silver drop earrings; tonight's top (`NickiKit.TopOf`, from the town's name: the lime tank top or the blush camisole) fitted over the figure; black trousers; no mask. The crew's `wave` turns the body off to its side, so she's turned back 1.2 rad by as much and waves at the door. `--town nicki` looks at her from inside her door.
+    - **Verified:** `NickiWineTests.AGlassIsHealthOverFullOnceANightAndOnlyByHer` (a tap isn't a glass; held, +25 over full; once a night; not from across the room).
+    - **Not yet:** the party heard (music kept low, laughing, glasses: the audio checklist's); her coloured lamps read only faintly under the house's own fill light; her face is the survivors' scan.
+
+572. **Jacob, the fisherman (P1, queue #302; the director, 8 Oct 2026: "an NPC named Jacob who can be found randomly in the world near water edges, fishing. He's another legendary NPC who if found and talked to will cast magic over the train and repair everything instantly, restoring it to brand new condition without affecting your loot count. He spawns very rarely"; GDD §3.2).**
+    - **What he is in the Sim.** `Sim/Enemies/Jacob.cs`, an `Enemy` as Dave is (note 570): a `Hazard`, `Far`, never struck or `Exposed`. `Extra` is 1 once he's blessed the train (replicated). Protocol 48 (his kind).
+    - **Where** (`Jacob.Site`, from the route's seed, put down with Dave in the first enemy step after the yard).
+        - Only on `jacob.chance` (0.05) of nights.
+        - The main line is sampled every `step` m past `pastGate`, and `out` m to either side, for dry ground with water (`Guns.Water`) `edge` m further out, `trackClearance` from any track, clear of walls and forts.
+        - One of the spots found is his. He faces the water.
+    - **The word** (`World.JacobAct`, host, in `CrewAct`): a crewmate on the ground holding Use within `reach` for `holdSeconds`. Once a night it calls `World.Bless`.
+    - **`World.Bless`.**
+        - Every own car (not taken, derelict or the yard's): `Integrity` 1, `Eaten` 0, `Char` cleared, `Breached` off, `HotBox`/`Gutter`/`Loose` 0, `LampLit`, the Brakeman's wound handbrake unwound and Hotbox's seized axle freed (notes 364, 367), a car the tipple threw back on its rails (note 423), the gun unjammed and cooled. (The Knotter's forced gap is the creature's own, held while it's there: not damage, and left.)
+        - The boiler: repaired if ruptured and brought to at least its starting pressure and firebox; valve unjammed, no external heat.
+        - The forward lamp: `LampOutSeconds` 0, lit. Brakes fresh (`BrakeEfficiency` 1).
+        - Every `CarFire` dismissed, every radio mended.
+        - Untouched, the director's "without affecting your loot count": `Load`, `Cargo`, `CargoIntegrity`, the finds, `Boiler.Tender` (coal) and the guns' `Ammo` and `Rack`. Coal and powder are supplies, not condition, and refilling them would also erase the night's coal and ammo costs in `Run.Tally`. A car already gone stays gone.
+        - Host-only, so a predicting client is corrected by the next snapshot (one tick).
+    - **On clients** (`FigureTalk`, content/world/figures.json `jacob`): "JACOB   TALK : [E]" and his lines. The Use press is not kept from the host (it's what mends the train). His `blessing` line is heard by anyone within `hearBeyond` as it comes, and is his answer after.
+    - **His look** (`Art/JacobKit.cs`; `GreyboxScene.Fisherman`, `CreatureArt.Enemy`), after the director's photographs of him (9 Oct: "with a shorter beard"): the survivors' figure dressed (`Art/Redress.cs`, note 570; registered as "jacob"): the flannel's red over all of him above the waist, dark grey joggers, olive clogs; his short auburn beard and short brown hair grown from the head's own triangles (`Redress`'s `Growth`: the face's triangles in the beard's region copied a few millimetres out from the head's middle, so it lies on the face and moves with it); worn on it (`JacobKit.Dress`) his fitted navy cap on backwards (a structured crown, its seams and button, a flat brim out over his neck), blue mirror wraparound sunglasses, the flannel's check laid on the red shirt (dark red bands across and stripes down), buttoned but for the top with the tee in the V and its collar, and a silver chain with a compass. No mask. his rod out over the water with its line and float, a pail, a lantern on a stake (lit).
+    - **The blessing** (`GreyboxScene.Blessing`): for 5 s from when it's seen, a pale gold light runs down the cars from the engine back, and motes rise off their sides and roofs.
+    - **Looked at:** `dt screenshot --view jacob` and `--view jacobblessed [--age s]`.
+    - **Verified:** `JacobTests`:
+        - a word with him mends every kind of damage and wear and leaves the load, cargo integrity, powder and coal alone;
+        - out of reach, or a tap, does nothing, and only once a night;
+        - where he's found (with the chance at 1, over 16 lines) is dry ground with water in front of him, clear of the track, the same every time;
+        - he's rare.
+    - **Not yet:** his sounds (the reel, the water, the blessing's chime: the audio checklist's); the derailed train (`OffRails` at a tipple, note 423) re-railed by him; a modelled figure.
+
 521. **Coordination as data, first step: the shared docs merge on their own (W1, queue #258).** Every agent appends to the same three places (COORDINATION.md's claims and Done rows, ARCHITECTURE §8's notes, the logs), so nearly every merge from main met a conflict to resolve by hand. Every one of those was the same: keep both sides. On 9 Oct W1's four pull requests met eleven, between them, in a few hours. A pull request in conflict gets no CI run at all, so each one cost a CI cycle as well as the resolution.
     - **`merge=union`** (.gitattributes) for docs/COORDINATION.md, docs/ARCHITECTURE.md and docs/log/*.md: git keeps both sides' lines where they collide. Replayed on #637's real merge with main (both files had conflicted), both merged on their own and only the code conflict was left. It works in every agent's own `git merge origin/main`; GitHub's own merge check may not read it, so a pull request still shows "conflicting" until its agent merges main in.
     - **What union can't see, the check sees** (`tools/coord/check.py`, the Coordination workflow on any pull request touching these docs, docs-only ones included; seconds, no build):
