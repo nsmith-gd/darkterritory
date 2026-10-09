@@ -760,6 +760,8 @@ CampaignState? Play(IPlaySession session, CampaignState? campaign)
     if (voice is not null)
         voice.MicLevel = (float)settings.MicLevel;
     var clock = new FixedStepClock(SimConstants.TickRate);
+    // Note 549: the night's slow frames, to the launch log.
+    var frameWatch = new FrameWatch();
     var locomotion = vr is null ? null : new VrLocomotion(settings.Apply(DataFile.Load<VrTuning>(Path.Combine(content, VrTuning.File))));
     var levers = vr is null ? null : new VrLevers();
     // The HUD in the headset (T36), drawn as for the window but without the aiming cross.
@@ -899,6 +901,7 @@ CampaignState? Play(IPlaySession session, CampaignState? campaign)
     // (At least one frame, whatever --quit-after says: a slow load can outlast it, and --capture draws the last frame.)
     while (!window.CloseRequested && (frames0++ == 0 || !QuitNow()))
     {
+        frameWatch.Begin();
         window.PumpEvents();
         double now = timer.Elapsed.TotalSeconds;
         double dt = now - last;
@@ -1093,6 +1096,7 @@ CampaignState? Play(IPlaySession session, CampaignState? campaign)
             pendingYaw = pendingPitch = 0;
         }
 
+        frameWatch.Mark("input");
         // Note 532: a joiner's clock stretches to a host that's behind; a host's says how much time its frames threw away.
         if (net is not null)
         {
@@ -1189,6 +1193,7 @@ CampaignState? Play(IPlaySession session, CampaignState? campaign)
             if (voice is not null && net is not null)
                 voice.Update(net.Client, session.Crew(session.InterpolatedFrames(1), 1), SimConstants.TickSeconds);
         }
+        frameWatch.Mark($"sim ({ticks} ticks)");
         if (voice is not null && net is not null)
         {
             voice.TalkHeld = Held(Control.Talk);
@@ -1366,7 +1371,9 @@ CampaignState? Play(IPlaySession session, CampaignState? campaign)
         scene.Controls = session.Controls;
         if (!session.World.LampShining)
             lighting.LampRange = 0.01f; // not 0: the shader divides by it
+        frameWatch.Mark("audio, hud");
         scene.Build(mesh, session.Train.Line, frames, session.Train.Dynamics.Distance, camera.Position);
+        frameWatch.Mark("scene");
         // GDD v1.4 App. D.12: a bookmark that's due is drawn from its camera now, off screen, with what this machine has of
         // the world (everyone but whoever's eyes it is), and kept small for the run-end screen. Rare, so a stall's fine.
         if (stills.Due(session, frames, now) is { Count: > 0 } due)
@@ -1439,7 +1446,9 @@ CampaignState? Play(IPlaySession session, CampaignState? campaign)
         if (vr is null)
         {
             renderer.Prepare(mesh, showHud || menuShown ? overlay : null);
+            frameWatch.Mark("hud, upload");
             Present(camera, lighting);
+            frameWatch.Mark("render, present");
         }
         // The body is the flat camera's eye point, turned to where the room faces; the head does the looking.
         VrPanelContent? onPanel = null;
@@ -1478,7 +1487,11 @@ CampaignState? Play(IPlaySession session, CampaignState? campaign)
         }
         input.EndFrame();
         frameCount++;
+        // Note 549: a frame well over the night's run, written down with what it spent and where the night was.
+        if (frameWatch.End(timer.Elapsed.TotalSeconds, () => $"at {session.Train.Dynamics.Distance / 1000:0.00} km, {session.Train.Dynamics.Speed:0.0} m/s, {session.World.Run?.Phase.ToString() ?? "no run"}, {session.World.ActiveEnemies.Count()} enemies") is { } slow)
+            Console.WriteLine(slow);
     }
+    Console.WriteLine($"night's frames: {frameWatch.Summary()}");
 
     // Note 350: a night seen to its end is one of the player's nights.
     if (session.World.Run?.Over == true)
