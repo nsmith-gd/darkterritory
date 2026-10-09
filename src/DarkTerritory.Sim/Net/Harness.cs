@@ -145,6 +145,9 @@ public sealed record HarnessReport(int Ticks, double Seconds, string Link, doubl
     IReadOnlyList<ClientReport> Clients, ThreatReport? Threats = null, Run.RunReport? Run = null, int WarmUps = 0,
     IReadOnlyList<StopRecord>? Stops = null, PacingReport? Pacing = null)
 {
+    /// <summary>Note 549: snapshots the host withheld from thin links, and whether its upload was found wanting.</summary>
+    public int SnapshotsThinned { get; init; }
+    public bool UploadStrained { get; init; }
     /// <summary>What got through on the crew's voice, with <see cref="HarnessOptions.Voice"/> (note 186).</summary>
     public VoiceReport? Voice { get; init; }
     /// <summary>The jobs the train made as it ran (orchestrator.md §5.1), and how many got away from the crew; null without them.</summary>
@@ -632,7 +635,8 @@ public static class Harness
                 c.Transport.Dispose();
             hostTransport.Dispose();
         }
-        string link = o.Network is { } n ? n.Name : o.Udp ? "udp localhost" : $"{o.Link.LatencySeconds * 1000:0}ms ±{o.Link.JitterSeconds * 1000:0} loss {o.Link.LossRate:P0}";
+        string link = o.Network is { } n ? n.Name : o.Udp ? "udp localhost" : $"{o.Link.LatencySeconds * 1000:0}ms ±{o.Link.JitterSeconds * 1000:0} loss {o.Link.LossRate:P0}"
+            + (o.Link.HostUpKbps > 0 ? $" host up {o.Link.HostUpKbps:0} kbit/s" : "") + (o.Link.DownKbps > 0 ? $" down {o.Link.DownKbps:0} kbit/s" : "");
         var pacing = Pace(quiet, lastQuiet, beats, outTicks, quietTicks, beatKinds);
         pacing = pacing with { LongestQuietEnded = lastQuiet > 0 && lastQuiet >= quiet.DefaultIfEmpty(0).Max() ? $"{seconds:0}s, the night's end" : longestEnded, LongQuiets = longQuiets };
         var upkeep = host.World.Upkeep is null ? null : new UpkeepReport(host.World.HotBoxCount.Came, host.World.HotBoxCount.Caught,
@@ -653,6 +657,8 @@ public static class Harness
             clients.Select(c => c.Bot).OfType<ConductorBot>().FirstOrDefault()?.Stops?.Log,
             pacing)
         {
+            SnapshotsThinned = host.SnapshotsThinned,
+            UploadStrained = host.UploadStrained,
             Upkeep = upkeep,
             Voice = calls?.Voice?.Report(),
             Crew = crewCap,

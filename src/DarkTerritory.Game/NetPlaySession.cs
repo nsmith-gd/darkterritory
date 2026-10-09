@@ -493,7 +493,7 @@ public sealed class NetPlaySession : IPlaySession, IDisposable
     /// <param name="tap">Told of the night (note 515): a developer build's recorder. Null for <see cref="Tap"/>'s.</param>
     public static NetPlaySession HostGame(string content, SessionSetup setup, int? port = DefaultPort, int expectedCrew = 4, IOnlineBackend? online = null,
         Sim.Campaign.RunCheckpoint? resume = null, int bots = 0, bool listed = true, string? lobbyName = null, LanBeacon? beacon = null,
-        string? password = null, RunMood mood = RunMood.Either, IHostTap? tap = null)
+        string? password = null, RunMood mood = RunMood.Either, IHostTap? tap = null, DatagramOptions? options = null)
     {
         tap ??= Tap;
         var key = Messages.PasswordKey(password);
@@ -514,8 +514,9 @@ public sealed class NetPlaySession : IPlaySession, IDisposable
         {
             LossWindowTicks = Hud.Tuning.LossWindowTicks,
         };
-        var udp = port is { } p ? UdpTransport.Host(p) : UdpTransport.Host(0, bind: IPAddress.Loopback);
-        ITransport hostTransport = online is null ? udp : new HostGroup(udp, OnlineTransport.Host(online));
+        options ??= LinkOptions(playerTuning);
+        var udp = Pumped(port is { } p ? UdpTransport.Host(p, options) : UdpTransport.Host(0, options, bind: IPAddress.Loopback), playerTuning);
+        ITransport hostTransport = online is null ? udp : new HostGroup(udp, Pumped(OnlineTransport.Host(online, options), playerTuning));
         string tier = setup.Route is { } spec ? Sim.Route.Route.ParseSpec(spec).Tier.ToString() : "";
         string name = lobbyName is { Length: > 0 } n ? n : $"{(Messages.CleanName(PlayerName) is { Length: > 0 } set ? set : online?.NameOf(online.Me) ?? LocalName(null))}'s run";
         var lobby = online is null ? null : Lobby.Host(online, Game, Protocol.Version, cap, listed ? LobbyVisibility.Public : LobbyVisibility.FriendsOnly,
@@ -549,7 +550,7 @@ public sealed class NetPlaySession : IPlaySession, IDisposable
             for (int i = 0; i < bots; i++)
             {
                 var (botWorld, _) = botSetup.Build(content);
-                var botTransport = UdpTransport.Connect(new IPEndPoint(IPAddress.Loopback, udp.Port));
+                var botTransport = Pumped(UdpTransport.Connect(new IPEndPoint(IPAddress.Loopback, udp.Port), options), playerTuning);
                 var session = new ClientSession(botTransport, botWorld, trainTuning, playerTuning) { Name = playerTuning.BotName(i), PasswordKey = key };
                 crew.Add(session, BotCrew.Make(i, bots, crew.Calls, loadout.Combat, playerTuning, (int)(route?.Seed ?? 1)), botTransport);
                 var joining = System.Diagnostics.Stopwatch.StartNew();
@@ -563,7 +564,7 @@ public sealed class NetPlaySession : IPlaySession, IDisposable
             }
         }
         var (clientWorld, _) = setup.Build(content);
-        var clientTransport = UdpTransport.Connect(new IPEndPoint(IPAddress.Loopback, udp.Port));
+        var clientTransport = Pumped(UdpTransport.Connect(new IPEndPoint(IPAddress.Loopback, udp.Port), options), playerTuning);
         var client = new ClientSession(clientTransport, clientWorld, trainTuning, playerTuning) { Name = LocalName(lobby), Outfit = Outfit, PasswordKey = key, SnapshotLoss = new(Hud.Tuning.LossWindowTicks) };
         // The host's own player comes aboard before anyone else can: first aboard takes the cab.
         var clock = System.Diagnostics.Stopwatch.StartNew();
@@ -746,19 +747,40 @@ public sealed class NetPlaySession : IPlaySession, IDisposable
     /// <summary>Connects to a host over UDP and waits (up to the transport's connect timeout) for its Welcome.</summary>
     /// <param name="whileWaiting">Called each time round the wait (a test steps its in-process host here).</param>
     /// <param name="password">A private run's password (note 450), or null.</param>
-    public static NetPlaySession Join(string content, IPEndPoint address, Action? whileWaiting = null, DatagramOptions? options = null, string? password = null) =>
-        Connect(content, UdpTransport.Connect(address, options), address.ToString(), null, whileWaiting, () => UdpTransport.Connect(address, options),
-            Messages.PasswordKey(password));
+    /// <param name="options">The link's knobs (a test's); null, player.json's <c>link</c> (note 532), with the pump running.</param>
+    public static NetPlaySession Join(string content, IPEndPoint address, Action? whileWaiting = null, DatagramOptions? options = null, string? password = null)
+    {
+        var tuning = options is null ? DataFile.Load<PlayerTuning>(Path.Combine(content, PlayerTuning.File)) : null;
+        options ??= LinkOptions(tuning!);
+        return Connect(content, Pumped(UdpTransport.Connect(address, options), tuning), address.ToString(), null, whileWaiting,
+            () => Pumped(UdpTransport.Connect(address, options), tuning), Messages.PasswordKey(password));
+    }
+
+    /// <summary>The app's link knobs, from player.json <c>link</c> (note 532); a test passes its own <see cref="DatagramOptions"/>.</summary>
+    static DatagramOptions LinkOptions(PlayerTuning tuning) =>
+        new() { TimeoutSeconds = tuning.Link.TimeoutSeconds, KeepaliveSeconds = tuning.Link.KeepaliveSeconds };
+
+    /// <summary>Starts the transport's pump (note 532) when it's the app's (a tuning); a test's transport stays on its ticks.</summary>
+    static T Pumped<T>(T transport, PlayerTuning? tuning) where T : ITransport
+    {
+        if (tuning is { Link.PumpMilliseconds: > 0 } && transport is DatagramTransport<EndPoint> udp)
+            udp.StartPump(tuning.Link.PumpMilliseconds);
+        else if (tuning is { Link.PumpMilliseconds: > 0 } && transport is DatagramTransport<UserId> online)
+            online.StartPump(tuning.Link.PumpMilliseconds);
+        return transport;
+    }
 
     /// <summary>Joins a friend's lobby (an invite, "Join Game", <c>+connect_lobby</c>) and connects to its owner.</summary>
     public static NetPlaySession JoinLobby(string content, IOnlineBackend online, LobbyId id, Action? whileWaiting = null, DatagramOptions? options = null,
         string? password = null)
     {
+        var tuning = options is null ? DataFile.Load<PlayerTuning>(Path.Combine(content, PlayerTuning.File)) : null;
+        options ??= LinkOptions(tuning!);
         var lobby = Lobby.Join(online, id, Game, Protocol.Version);
         var clock = System.Diagnostics.Stopwatch.StartNew();
         while (lobby.Status == Lobby.State.Joining)
         {
-            if (clock.Elapsed.TotalSeconds > (options ?? new DatagramOptions()).ConnectSeconds)
+            if (clock.Elapsed.TotalSeconds > options.ConnectSeconds)
             {
                 lobby.Dispose();
                 throw new IOException("the lobby didn't answer");
@@ -777,8 +799,8 @@ public sealed class NetPlaySession : IPlaySession, IDisposable
         }
         try
         {
-            return Connect(content, OnlineTransport.Connect(online, lobby.Owner, options), $"{online.NameOf(lobby.Owner)}'s game", lobby, whileWaiting,
-                () => OnlineTransport.Connect(online, lobby.Owner, options), Messages.PasswordKey(password));
+            return Connect(content, Pumped(OnlineTransport.Connect(online, lobby.Owner, options), tuning), $"{online.NameOf(lobby.Owner)}'s game", lobby, whileWaiting,
+                () => Pumped(OnlineTransport.Connect(online, lobby.Owner, options), tuning), Messages.PasswordKey(password));
         }
         catch
         {
@@ -1187,9 +1209,33 @@ public sealed class NetPlaySession : IPlaySession, IDisposable
 
     public PlayerTuning PlayerTuning => Client.PlayerTuning;
     public int PlayerId => Client.PlayerId ?? 0;
+    /// <summary>
+    /// Note 532: how much longer this machine's ticks should take than a tick, as a multiple: the client's pace to a host
+    /// that's behind (<see cref="ClientSession.Pace"/>). The host's own is always 1: its ticks are the night's clock.
+    /// </summary>
+    public double Pace => Host is null ? Client.Pace : 1;
+
+    double _droppedSeen, _heldBackUntil;
+    /// <summary>
+    /// Note 532: the app says how much real time its clock has had to throw away (<c>FixedStepClock.DroppedSeconds</c>) each
+    /// frame; hosting, any of it in the last link.heldBackSeconds means this machine can't hold the tick rate, and the crew
+    /// pays (<see cref="LinkInfo.HeldBack"/>).
+    /// </summary>
+    public void ClockDropped(double droppedSeconds)
+    {
+        if (droppedSeconds > _droppedSeen + 0.001)
+            _heldBackUntil = _clock.Elapsed.TotalSeconds + Client.PlayerTuning.Link.HeldBackSeconds;
+        _droppedSeen = Math.Max(_droppedSeen, droppedSeconds);
+    }
+    bool HeldBack => Host is not null && _clock.Elapsed.TotalSeconds < _heldBackUntil;
+
     public LinkInfo? Link => new(Role(), Host is null && Client.Connected ? _link.RoundTrip(PeerId.Host) * 1000 : null,
         Aboard, Client.Waiting ? Client.WaitingReason : null, Lost, JoinAt, Listed && Host is not null)
     {
+        HeldBack = HeldBack,
+        Paced = Host is null && Client.Pace > 1,
+        UploadStrained = Host is { UploadStrained: true },
+        UpKbps = Host?.UpKbps ?? 0,
         Locked = Locked && Host is not null,
         Attempt = Reconnecting ? Math.Max(1, Attempt) : 0,
         Attempts = Attempts,
