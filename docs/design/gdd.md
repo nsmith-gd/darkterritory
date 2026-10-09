@@ -39,6 +39,16 @@ Interactive version, with the roster explorer and director tools: [claude.ai/art
 - **Run budgets match the build** (B.1): 90, 150, 230 and 330 by tier, about twice v1.1's, to pay for the paced director the build runs.
 - Touches §12, §23, §23.1, B.1, C.9, D.2, D.4, D.7, D.12, E.9 and E.12.
 
+**The director's brief of 2026-10-08: six creatures (queue #99–#104; ARCHITECTURE §8 notes 362–367; designs in `docs/design/creatures/`).** Built overnight by G1 from the director's descriptions and reference images; every call the brief left open is marked "G1's call" on each creature's page, for the director to overrule.
+- **The Mourners** (outside, absence, Cargo, cost 1): ash-pale scavengers that come only after a crewmate dies, in a nervous group. They never touch the living and drag the body away from the line unless someone stands over it, scatters them or carries it home. 120 m out, the body (its refund and its kit) is gone.
+- **Tower Jaw** (outside, vibration, Cargo, cost 3): a corrupted beaver that gnaws a coaling tower's leg (or the loading crane's gantry) through. Down, the tower's chute is empty and its wreck closes the line until the crew clears it by hand. Never a bridge. Four blows drive it off (it comes back); twelve kill it.
+- **The Brakeman** (a corrupted human, sight, Split, cost 3): winds the cars' handbrakes on car by car toward one end; a wound car's own handbrake drags the train, and on a climb it stalls. One crewmate can chase him off the roofs, and out of sight he comes up elsewhere. Only two closing from both sides corner him, and only then do blows land. Never with a crew of one (G1's reading of "never spawns solo").
+- **The Knotter** (structural, vibration, Split, cost 3): takes a coupling at speed and forces the cars 5 m apart, its body the coupling. Walking its back slips you under the train (a grab a friend can break). Stop, kill it, couple up.
+- **The Freight Beetle** (outside, sight, Cargo, cost 1): at a facility, it pushes a loose crate directly away from the nearest player. Two players can steer it, off a platform or into a car. It never attacks.
+- **Hotbox** (structural, vibration, Cargo, cost 2): an axle parasite in one truck and side of a car. A knock tied to wheel speed, then glow and smoke, then a seized axle that drags the train to 7 m/s; never fire or a derailment. Exposed only at a stand, to kill or prise out; a seized axle is repaired with a wrench, or the car cut.
+- **Every tier, weighted** for all six (G1's call, as the Moose and the Gannet). Bites never kill (App. A.1); the only killer of the six is the Knotter, through its grab.
+- Touches §21, A.6, A.7, A.8, B.1, B.6, B.7 and B.8.
+
 **Director's decisions of 2026-10-07: the Gannet (queue #78; ARCHITECTURE §8 note 340; design `docs/design/creatures/gannet.md`).**
 - **A nineteenth enemy, the Gannet:** App. F.1's "fast, flying class" (the orchestrator's S3). One enormous corrupted seabird that rides a fast train, the inverse of the roster: everything else boards a slow train, and it comes only to one run at 18 m/s or more. It hangs over a walker on the roofs and dives beak-first; break your stride after it folds and it misses, its beak stuck in the planks; hold your line and it stabs. Hit it and it comes down on you, pins you under a foot and pecks four times while your friends beat it off. A team can kill it, and its head is a trophy worth a good deal. A slow train, a tunnel or a still roof and it peels off. Every tier, weighted (§21, A.4, A.9, B.1, B.4).
 
@@ -490,7 +500,7 @@ Every enemy must pass at least four of the six, including 1 and 3. This is the f
 
 The learnability rules from v1.0 — the rule fits in six words, one death teaches it, the telegraph always comes first — now live in the fairness contract (Appendix A.1).
 
-## 21. Roster — 19 enemies
+## 21. Roster — 25 enemies
 
 Demo ships with **five**: Track Doll, Car Hugger, Whistler, Tippy Toesie and Ribbits, with the Choir running underneath as the ambient system. If the Foundry is one of the two demo facilities, the Grumbler replaces the Ribbits.
 
@@ -583,12 +593,37 @@ A child calling for help. Half the time it's a real survivor, the most valuable 
 > **RULE: check the eyes from five metres.**
 Black eyes and blackened hands mean a Soot Child. Get within five metres and it pins you and drinks. Your cries for help get quieter.
 
+**THE MOURNERS** · *wherever a crewmate fell off the train* *(the director's brief, 2026-10-08)*
+A huddle of grey, stooping things with long hooked fingers, picking their way toward your dead.
+> **RULE: stand over your dead, or carry them home.**
+They come only after a death, a nervous group like crows to a carcass. They never touch the living, start back from anyone who comes near, and the moment nobody's over the body two of them drag it straight away from the line. A blow kills one and scatters the rest. A body carried is followed, never taken; one brought home sends them off; one dragged far enough is gone, and its refund and kit with it.
+
+**TOWER JAW** · *at the stops, under the railway's timber* *(the director's brief, 2026-10-08)*
+A beaver as big as a bear, its hide bristling with splinters, gnawing at a tower's legs with iron-dark teeth.
+> **RULE: hear the chewing, find the tower, get it off before it falls.**
+It's at work on a coaling tower's leg (or the loading crane's gantry) when the train comes. The tower leans and groans as it goes. Come near and it rears; come close and it bites. Four blows drive it off, though it comes back to finish; twelve kill it. Ignored, the tower falls across the line: the chute's coal is lost, and the crew must clear the wreck by hand to go on. It never touches a bridge.
+
+**THE FREIGHT BEETLE** · *at the facilities, among the freight* *(the director's brief, 2026-10-08)*
+A beetle the size of a handcart, shovel-headed, its back plated like a crate, shoving a load of freight across the yard.
+> **RULE: it pushes away from whoever's nearest. Stand where you want it not to go.**
+It takes the loose freight nearest it and shoves it directly away from the nearest player: off a platform, out into the dark, or, if two of you steer it, into a car's open door. It never attacks; blows drive it off its load or kill it.
+
 ### STRUCTURAL — attack how you run the train
 
 **THE CHOIR** · *drawn by noise*
 Small flying ghosts that come for a loud crew. Long warning, then the swarm.
 > **RULE: hush, and shut every door.**
 Takes anyone outside, on the roofs, or behind no door, **loudest first**: whoever put the most into the meter during the build. The player shouting at everyone to shut up is usually the one it takes. Killable, barely. Takes one crew member per run at most, then it's gone.
+
+**THE KNOTTER** · *in a coupling, on the move* *(the director's brief, 2026-10-08)*
+A rope of pale flesh with claws at both ends, holding two cars apart.
+> **RULE: don't walk the rope. Stop, kill it, couple up.**
+At speed it crawls into a coupling (the creak is the tell; cut the coupling then and it drops off), forces the cars five metres apart and becomes the coupling. The train still pulls as one, but no jump carries the gap, and the crew is split. Walk its back and you'll very likely slip under the train, unless a friend pulls you up. At a stand it slackens, and it can be killed; the cars stand uncoupled where it held them.
+
+**HOTBOX** · *in a freight car's wheels, on the move* *(the director's brief, 2026-10-08)*
+A low, armoured thing folded into a bogie, its belly swollen with heat between black plates.
+> **RULE: hear the knock, find the wheel, stop to pull it.**
+A knock once a wheel turn from one truck, one side. Then that bearing glows and smokes, then the axle seizes and the car drags the train to a crawl. Grease does nothing. Only at a stand does it half unfold, to be killed or prised out (and it bites). A seized axle stays seized until it's repaired with a wrench, or the car is cut. It never sets a fire or derails you.
 
 ### CORRUPTED HUMANS
 
@@ -618,6 +653,11 @@ Interrupt it and it hunts whoever hit it last. No one player can kill it. Crane 
 ---
 
 # PART SEVEN — WORLD SYSTEMS
+
+**THE BRAKEMAN** · *on the roofs, on the move; never with a crew of one* *(the director's brief, 2026-10-08)*
+A stooped man in a rotted railway coat and cap, his arm grown into rusted chain and a brake wheel.
+> **RULE: chase it alone, catch it together.**
+He climbs up at one end of the train and works toward the other, winding each car's handbrake on: the train slows, and on a climb it stalls. One crewmate can chase him off the roofs (he outruns you, and ducks your blows); out of sight he waits under or in the train and comes up somewhere else to start again. Only two closing on him from both sides corner him, and only cornered can he be hurt. A wound brake is unwound at its wheel.
 
 ## 22. Hazards
 
@@ -1381,6 +1421,58 @@ GRAB      drains blood; every second adds hits needed to kill it
 PUNISH    drained → death
 ```
 
+### THE MOURNERS · absence *(the director's brief, 2026-10-08; note 362)*
+```
+DEATH     a crewmate dies and their body lies off the train (on the ground, or in a car cut loose) → after 15 s a
+          group comes (3 at Local, 4 Frontier, 5 Dead Lines, 6 Deep Territory) out of the dark, 40 m off, on the far
+          side from the line
+          └ TELEGRAPH: the keening; pale shapes at the edge of the light
+GATHER    they edge in and wait, 6 m from any living crewmate (they never touch the living, never harm them)
+          ├ a crewmate comes within 6 m of one → it starts back to 12 m (STARTLE), and edges in again when they go
+          └ no crewmate within 6 m of the body → TWO take it and DRAG
+DRAG      straight away from the nearest track, 1.6 m/s (a walk; a run catches them), the rest flanking
+          ├ a crewmate within 3 m, or a blow on any of them → they drop it and scatter to 12 m; back in 4 s
+          ├ one blow kills one (they're frail); each death scatters the rest for 6 s
+          └ 120 m from the track → the body's GONE (its refund and its kit with it), and they go
+CARRIED   a crewmate picks the body up → they follow at 6 m, waiting for it to be put down
+HOME      the body in a car of the train (or the train leaving) → they keen, and go
+```
+**They never hurt anyone.** Their danger is the money, and what a chase off into the dark leads to.
+
+### TOWER JAW · vibration *(the director's brief, 2026-10-08; note 363)*
+```
+GNAW      at a stop with a wooden or light structure (not a bridge) → it's gnawing one of its supports when the train
+          comes; the structure's strength falls (it comes down in 150 s of gnawing; faster at harder tiers)
+          └ TELEGRAPH: the chiselling; chips; then the creak and the lean (from half gnawed), the groan (the last 5 s)
+NOTICE    a crewmate within 10 m → it turns, rears and slaps its tail (THREAT, 1.5 s)
+          ├ they come within 3 m → LUNGE: a bite (35, never a kill); then back to the post
+          └ they back off → back to gnawing
+HIT       blows: 4 in 15 s DRIVE IT OFF (it lopes away for 120 s, then comes back to the same post, its gnawing kept)
+          12 blows kill it (a gun round is 4)
+COLLAPSE  the support gnawed through → the structure falls across the track beside it or the facility:
+          ├ anyone under it takes a crushing blow (45, never a kill)
+          └ the wreckage BLOCKS that track there (a train that hits it is damaged and stopped, as any collision)
+CLEAR     the crew clears it by hand: Use held at the wreckage, 30 crew-seconds (two do it in 15), or works round it
+          (another track through the yard), or abandons it (the coaling tower's chute, the crane: gone for the night)
+NEVER     a bridge; it never boards the train
+```
+**It never kills** (a bite is a hurt, App. A.1): its danger is the stop it costs, the line it closes and the coal it takes.
+
+### THE FREIGHT BEETLE · sight *(the director's brief, 2026-10-08; note 366)*
+```
+WAIT      at a facility with loose freight, settled beside it; no player within 25 m → still
+PICK      a player within 25 m → it takes the movable load nearest to it (a crate, a cargo crate, a heavy crate)
+          └ TELEGRAPH: it braces behind the load, head down (1 s)
+PUSH      it shoves the load DIRECTLY AWAY FROM THE NEAREST PLAYER (1.2 m/s; a heavy crate 0.8 m/s), walking behind it
+          ├ the nearest player changes → the push turns with them (a 90°/s turn): two players steer it
+          ├ into a car's open door at the floor, from a platform → the load's in the car (loaded, as if carried)
+          ├ off a platform's edge → it falls (a keg may go off, as any)
+          ├ a player within 1.5 m of its head → it rears back (STARTLE) and pushes on after 2 s
+          └ no player within 25 m → it stops, and waits
+HIT       blows: 6 kill it (a gun round is 4); 3 blows in 10 s drive it off its load for 30 s
+NEVER     it never attacks anyone; it never pushes a body or a lamp
+```
+
 ---
 
 ## A.7 Structural
@@ -1402,6 +1494,44 @@ LIMIT     one crew member taken → the Choir is gone for the rest of the run
 **Fully preventable by hushing in time.** Fighting it is possible and almost always a mistake.
 
 **Loudest first is the blame rule.** Among exposed players, the Choir takes whoever contributed most to the meter during BUILD: their voice, a cannon they fired, the whistle they pulled, a squeaker in their hands. It stays fair because loudness is entirely player-controlled, and a player behind a closed door is safe however loud they were. The one shouting at everyone to shut up is usually the one it takes.
+
+### THE KNOTTER · vibration *(the director's brief, 2026-10-08; note 365)*
+```
+CREEP     the train over 8 m/s for 30 s, out of yards and forts → it comes up into a coupling of the engine's rake that
+          nobody's standing at
+          └ TELEGRAPH: the creaking at that coupling, its claws over the plate (4 s); cut the coupling now and it drops
+FORCE     it clamps both cars and forces them apart: the gap opens from 1.5 m to 5 m over 6 s; the coupling plate's gone,
+          its body across the gap instead
+HOLD      the train pulls as one; the gap is 5 m (no jump carries it)
+          ├ a crewmate walks its back → each second on it at speed, a chance to SLIP (45% a second over 2 m/s)
+          │   SLIP → GRAB: it coils round them, dragging them under (1.5 s): a friend's blow on it, or the victim's own
+          │   jump back, frees them → else PUNISH: pulled under the train
+          └ blows on it while the train moves don't land (taut, it shrugs them off)
+STOPPED   the train stands → it slackens (EXPOSED): its back is safe to walk; blows land
+          ├ 8 blows kill it (a gun round is 4) → it unlays, and the cars stand uncoupled where it was (the rear rake's
+          │   handbrakes go on, as any cut at a stand)
+          └ the train moves again → it pulls taut again
+COUPLE    back the engine onto the standing cars (as any coupling) and go on
+```
+**It kills only by the slip**, through the grab (App. A.1): whoever walks its back at speed is gambling, and a friend at the gap can save them.
+
+### HOTBOX · vibration *(the director's brief, 2026-10-08; note 367)*
+```
+BOARD     the train over 10 m/s, out of a fort → it takes a truck (one side) of a car of the engine's rake, never the engine
+KNOCK     a knock once per wheel turn from that truck and side, nothing to see
+          └ TELEGRAPH: the knock (90 s at 18 m/s; faster the faster you run)
+GLOW      the bearing glows and smokes on that side
+          └ TELEGRAPH: glow and smoke (90 s more)
+SEIZE     the axle locks: the car drags badly (top speed 7 m/s while it's in the train), the wheel slides and screams
+          (never fire, never a derailment)
+STOPPED   the train stands for 2 s → it half unfolds out of the truck (EXPOSED): legs out onto the rail and the ballast
+          ├ killed (6 blows; a gun round is 4) → it falls out of the truck, dead
+          ├ prised (Use held 4 s at it, with a crowbar or a wrench) → it drops out and scuttles off for the night
+          └ anyone within 1.2 m of its head → SNAP: a bite (30), every 3 s while they stay (it never kills)
+MOVING    the train moves again before it's out → it folds back in, the heat where it was
+AFTER     a seized axle stays seized once it's out: REPAIR (a wrench, Use held 10 s at the truck) or ABANDON (cut the car)
+```
+**It never kills** (it bites; App. A.1): its danger is the car it costs you, the stop it forces, and what else comes to a train standing in the dark.
 
 ---
 
@@ -1446,6 +1576,28 @@ LOADED    craned aboard with the crates → eats cargo on the train
 COUNTER   gang up and kill it, or leave it alone;
           a spotter checks the crates before every lift
 ```
+
+### THE BRAKEMAN · sight *(the director's brief, 2026-10-08; note 364)*
+```
+ARRIVE    the train moving, a crew of two or more alive → it climbs up the end ladder of the car at one end of the
+          train (the end furthest from the crew), facing the other end
+WORK      walks the roofs toward the other end, car by car; at each car's brake wheel it WINDS it on (4 s)
+          └ TELEGRAPH: the ratchet and the shoes' squeal from that car; the train slowing
+          each car wound adds its handbrake's drag (a wound car's 0.3 m/s² of its mass); a crewmate unwinds one with
+          Use held 1 s at its wheel (as any handbrake)
+FLEE      a crewmate on the roofs within 12 m that it can see → it runs from them along the roofs (5 m/s, faster than
+          a roof run), jumping the gaps
+          ├ out of their sight, or 20 m clear, or at the end of the train → DROP: over the side, gone
+          └ blows on it while it's running: it ducks them (no damage)
+HIDE      under or inside the train, unseen, 30–60 s → it climbs up somewhere else (the car furthest from the crew)
+          and starts again
+CORNERED  crewmates on the roofs on both sides of it, each within 10 m → it can't run: it backs, the chain up
+          ├ TELEGRAPH: the wheeze, the chain raised (1.5 s) → LASH the nearer one (30, never a kill), every 2.5 s
+          ├ blows land now: 4 blows kill it (a gun round is 4) → it pitches off the roof, dead for the night
+          └ one of them steps back out of 10 m → it runs again
+NEVER     with a crew of one; never in a yard or a fort; never inside a car
+```
+**He never kills** (a lash is a hurt; App. A.1). His danger is the train: every car he winds is drag, the drag grows with the train's length, and on a climb it stalls you.
 
 ---
 
@@ -1524,8 +1676,9 @@ Past the **threshold** the director spends: on what its weights, wants, pairs, g
 
 | Cost | Enemies |
 |---|---|
-| **2** | Followers, Draggers, Fire Flies, The Switchman |
-| **3** | Track Doll, Cinder Hounds, Climbers, Whistler, Stoker, Ribbits, The Moose |
+| **1** | The Mourners, The Freight Beetle |
+| **2** | Followers, Draggers, Fire Flies, The Switchman, Hotbox |
+| **3** | Track Doll, Cinder Hounds, Climbers, Whistler, Stoker, Ribbits, The Moose, Tower Jaw, The Brakeman, The Knotter |
 | **4** | Car Hugger, Tippy Toesie, The Gaunt, Soot Children, Grumbler, The Gannet |
 | **5** | The Passenger |
 | **—** | The Choir (not spawned; triggered by the loudness meter) |
@@ -1537,11 +1690,11 @@ The director tags each enemy with the player want it attacks, and aims for a tar
 | Tag | Target share | Enemies |
 |---|---|---|
 | **Kill** | 40% | Cinder Hounds, Draggers, Whistler, Stoker, Tippy Toesie, Ribbits, The Choir, The Gannet |
-| **Split** | 25% | Track Doll, Climbers, The Gaunt, The Moose |
+| **Split** | 25% | Track Doll, Climbers, The Gaunt, The Moose, The Brakeman, The Knotter |
 | **Trust** | 20% | Followers, Soot Children, The Passenger |
-| **Cargo** | 15% | Car Hugger, Fire Flies, The Switchman, Grumbler |
+| **Cargo** | 15% | Car Hugger, Fire Flies, The Switchman, Grumbler, The Mourners, Tower Jaw, The Freight Beetle, Hotbox |
 
-Split is the thinnest category and the best target for a post-launch addition. The Moose (2026-10-07) is the first.
+Split is the thinnest category and the best target for a post-launch addition. The Moose (2026-10-07) is the first; the Brakeman and the Knotter (2026-10-08) follow. The Mourners (Cargo, cost 1) come for the dead and cost the caps nothing: they hunt no one.
 
 **Dead vote.** Each dead player gets one vote per run that raises one creature's spawn weight, ×1.2 per vote and capped at ×1.5, applied within that creature's want tag so the target shares hold (Appendix D.11). It never changes budget, gates, caps or pacing.
 
@@ -1589,6 +1742,16 @@ The director draws pairs from a **conflict table** rather than spawning independ
 | Cinder Hounds + The Gannet | Outrun the hounds by running fast vs. a fast train brings the Gannet |
 | Draggers + The Gannet | Walk the centreline vs. step aside when it folds, toward the edge the Draggers hold |
 | The Choir + The Gannet | The gun is the quick answer vs. every ball feeds the meter, and marks the gunner |
+| The Freight Beetle + facility loading | Load fast vs. it pushes the freight off |
+| Grumbler + The Freight Beetle | Steer it to the car vs. the crane's castings overhead |
+| The Moose + Tower Jaw | Crowd the beaver to drive it off vs. crowding is what the Moose minds |
+| Tower Jaw + facility loading | Load and go vs. the coaling tower's coming down |
+| The Brakeman + The Gannet | Up on the roofs after him vs. walking the roofs is what the Gannet dives at |
+| Draggers + The Brakeman | Run the roofs after him vs. the edges the Draggers hold |
+| Cinder Hounds + The Brakeman | Keep the speed up vs. he's winding the brakes on |
+| Cinder Hounds + Hotbox | Run fast for the hounds vs. stop to pull it before it seizes |
+| Cinder Hounds + The Knotter | Never stop with the pack behind vs. it's killed only at a stand |
+| Car Hugger + The Knotter | Cut the car the Hugger's on vs. the coupling you'd cut across is the Knotter |
 
 At least one pair per run on Frontier and above. Two on Deep Territory.
 
@@ -1647,6 +1810,9 @@ At least one pair per run on Frontier and above. Two on Deep Territory.
 | **Followers** | Facility grounds; latches onto a disembarked player | Requires an excursion · any tier | Weight up per additional player on the ground |
 | **Soot Children** | Near facilities and dead settlements | Crew ≥2 | True 50/50 with a real child survivor; a host player's first-ever call is always a real child |
 | **The Moose** | Grazing beside a stop, 30–60 m out; beside the line on the run (2–5 per 10 km by tier, the line's own, costing the director nothing) | **Every tier** · one about at a time · never within the track's clearance | ×1 Local, ×1.5 Frontier, ×2 Dead Lines, ×2.5 Deep Territory; ×2 bog, ×1.5 barrens and tar ponds, less in towns and coal country; up per player on the ground |
+| **The Mourners** | Beside a crewmate's body off the train, 15 s after the death | **Every tier** (G1's call) · only after a death · one group a body · never in a fort or a car of the train · not the director's (no cost, no cap) | Their number by tier: 3 Local, 4 Frontier, 5 Dead Lines, 6 Deep Territory |
+| **Tower Jaw** | At a facility's coaling tower (or crane gantry), at work as the train comes within 800 m or stands there | **Every tier** (G1's call) · never a bridge · one at a stop · not at a structure already down | ×1 Local, ×1.5 Frontier, ×2 Dead Lines, ×2 Deep Territory |
+| **The Freight Beetle** | Beside a facility's loose freight, the train stopped there | **Every tier** (G1's call) · one at a stop · only with loose freight about | ×1 Local, ×1.25 Frontier, ×1.5 Dead Lines and Deep Territory |
 
 ---
 
@@ -1655,6 +1821,8 @@ At least one pair per run on Frontier and above. Two on Deep Territory.
 | Enemy | Spawn context | Gates | Weighting |
 |---|---|---|---|
 | **The Choir** | **Not spawned.** Triggered when crew loudness is held above threshold | Available all run until it has taken one crew member | Livestock raises baseline loudness · disabled for the rest of the run after its first victim |
+| **The Knotter** | A coupling of the engine's rake at 8 m/s or more, nobody at it, never the engine's own | **Every tier** (G1's call) · train length ≥3 · one at a time · not in a fort | ×1 Local, ×1.5 Frontier, ×2 Dead Lines, ×2.5 Deep Territory |
+| **Hotbox** | A truck of a car of the engine's rake at 10 m/s or more | **Every tier** (G1's call) · one at a time · never the engine · not a car already seized · not in a fort | ×1 Local, ×1.25 Frontier, ×1.5 Dead Lines, ×1.75 Deep Territory |
 
 ---
 
@@ -1665,6 +1833,7 @@ At least one pair per run on Frontier and above. Two on Deep Territory.
 | **The Passenger** | Boards during a facility stop | **Dead lines+ · crew ≥3** (needs a crowd to hide in) · once per run | Weight up if the crew were split across several facility tasks |
 | **The Switchman** | Junction network ahead of the train | Frontier+ · **route must contain ≥3 junctions** | Weight up on routes with dead-line branches available |
 | **Grumbler** | Facilities with a crane and crates (Foundry first) | Any tier (first pass) | ×2 with food crates at the facility |
+| **The Brakeman** | Up the end ladder at the end of a moving train furthest from the crew | **Never with a crew of one** · train length ≥4 · over 3 m/s · not in a fort or a tunnel · one at a time; gone for the night once killed | ×1 Local, ×1.5 Frontier, ×2 Dead Lines, ×2.5 Deep Territory; × cars ÷ 6; ×2 with a climb of 2% or more within 1 km |
 
 Corrupted humans are the rarest category by design. **Maximum one active at a time**, regardless of budget.
 

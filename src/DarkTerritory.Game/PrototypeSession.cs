@@ -104,8 +104,14 @@ public sealed class PrototypeSession : IPlaySession
         World.Step(Controls);
         World.ApplyDamage(id => id == 1 ? Player : null, (_, s) => Player = s, [1]);
         foreach (var e in World.EnemyEvents)
+        {
+            // The Mourners come and take in a group (note 362): their lead speaks for them all.
+            if (e.Kind == EnemyKind.Mourners && World.ActiveEnemies.OfType<Sim.Enemies.Mourner>().FirstOrDefault(m => m.Id == e.EnemyId) is { } one
+                && (int)one.Extra2 != one.Id)
+                continue;
             if (Cue(e, e.Kind == EnemyKind.Gannet ? World.ActiveEnemies.OfType<Sim.Enemies.Gannet>().FirstOrDefault(g => g.Id == e.EnemyId)?.Mode : null) is { } cue)
                 _cues.Add((ElapsedSeconds, cue));
+        }
         foreach (var sign in World.Lineside?.ReadThisTick ?? [])
             _cues.Add((ElapsedSeconds, Board(sign)));
         foreach (var drop in World.Lineside?.CaughtThisTick ?? [])
@@ -328,6 +334,26 @@ public sealed class PrototypeSession : IPlaySession
         (EnemyKind.Gannet, SpinePhase.Telegraph) => "it's folded: break your stride!",
         (EnemyKind.Gannet, SpinePhase.Grab) => "it's got someone under its foot: three blows drive it off",
         (EnemyKind.Gannet, SpinePhase.BreakOff) => "it climbs away",
+        // The Mourners (note 362; docs/design/creatures/mourners.md §5): their coming (the keening, pale shapes by the body)
+        // is the rule's moment; taking the body, its last.
+        (EnemyKind.Mourners, SpinePhase.Telegraph) => "a keening out past the body: pale shapes. Stand over your dead, or carry them home",
+        (EnemyKind.Mourners, SpinePhase.Commit) => "they've got the body: get to it before they drag it off into the dark",
+        // The Freight Beetle (note 366; freight-beetle.md §5): braced behind the freight, then shoving it.
+        (EnemyKind.FreightBeetle, SpinePhase.Telegraph) => "a beetle's braced behind the freight: it pushes away from whoever's nearest",
+        // Tower Jaw (note 363; tower-jaw.md §5): the chiselling, its threat, driven off, the tower down.
+        (EnemyKind.TowerJaw, SpinePhase.Alert) => "chiselling at the coaling tower: something's gnawing its legs",
+        (EnemyKind.TowerJaw, SpinePhase.Telegraph) => "it rears and slaps its tail: four blows drive it off",
+        (EnemyKind.TowerJaw, SpinePhase.BreakOff) => "it lopes off: it'll be back for the tower",
+        (EnemyKind.TowerJaw, SpinePhase.Punish) => "the tower's down across the line: clear it by hand (Use)",
+        // The train's own (notes 364, 365, 367; docs/design/creatures/brakeman.md, knotter.md, hotbox.md §5): the Brakeman runs
+        // from one and turns on two; the Knotter's creak is its tell, its gap the split; Hotbox comes out only at a stand.
+        (EnemyKind.Brakeman, SpinePhase.Alert) => "the brakeman's running from you: get someone at the other end",
+        (EnemyKind.Brakeman, SpinePhase.Telegraph) => "he's cornered, the chain's up: hit him now, from both sides",
+        (EnemyKind.Knotter, SpinePhase.Alert) => "something's creaking at a coupling: cut it now or it's in",
+        (EnemyKind.Knotter, SpinePhase.Telegraph) => "a living rope's holding the cars apart: don't walk it, stop the train",
+        (EnemyKind.Knotter, SpinePhase.Grab) => "it's coiled round someone: pull them up, hit it!",
+        (EnemyKind.Hotbox, SpinePhase.Telegraph) => "it's come out of the truck onto the ballast: kill it or prise it out",
+        (EnemyKind.Hotbox, SpinePhase.BreakOff) => "prised out: it scuttles off into the dark",
         (EnemyKind.CarFire, SpinePhase.Telegraph) => "smoke and a crackle from a car: get the extinguisher (Fire)",
         (EnemyKind.CarFire, SpinePhase.Punish) => "a car's alight: it'll take the next one",
         (EnemyKind.CarFire, SpinePhase.BreakOff) => "the fire's out",
