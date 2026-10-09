@@ -2824,6 +2824,12 @@ public sealed partial class ConductorBot(CrewCalls? calls = null, int member = 0
         bool fading = train.Dynamics.BrakeEfficiency < FadedBrake && train.Boiler.Pressure > still + 2 && train.Dynamics.Speed > allowed - 1;
         bool over = (train.Boiler.Pressure > target + (_ventLeg >= 0 ? 2 : VentOver) && train.Dynamics.Speed > allowed + (_ventLeg >= 0 ? 0 : 1) || fading)
             && calls?.DriverAway != true;
+        // Note 595 (the director's in-game note 2, 9 Oct 2026: the bot venting all the time): with someone playing at the
+        // controls (note 574), the speed and the steam for it are theirs. Venting the gauge down to what the bot reckons the
+        // line allows was fighting their driving from the blow-off, every time they ran faster than it would. Then it vents
+        // only to keep the boiler out of the red (the safety valve held shut, a Stoker's fire).
+        if (world.ControlsHolder >= 0 && world.ControlsHolder != Me && !world.ControlsHolderBot)
+            over = train.Boiler.Pressure > bt.Redline - (_ventLeg >= 0 ? 3 : 0);
         var way = VentWay(train);
         if (_ventLeg < 0)
         {
