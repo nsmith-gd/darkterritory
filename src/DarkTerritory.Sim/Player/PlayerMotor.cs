@@ -194,7 +194,9 @@ public enum DeathCause : byte
     // GDD §21, App. A.4 (note 340): the Gannet's fourth peck, pinned under its foot.
     Pecked,
     // GDD §3.2 (note 570): struck Dave five times; he took them by the neck.
-    Dave
+    Dave,
+    // Note 573: came down from too high (off a bridge's deck, down a bank's drop).
+    Fell
 }
 
 /// <summary>Conditions a player carries.</summary>
@@ -1020,17 +1022,32 @@ public static class PlayerMotor
         if (s.Has(PlayerFlags.OffTheGround))
             horizontal = Math.Max(0, horizontal - p.Run);
         var l = p.Landing;
+        // Note 573: and by the height it came down from (the speed it lands at): whichever knock is the worse.
+        double fell = worldVelocity.Y < 0 ? worldVelocity.Y * worldVelocity.Y / (2 * p.Gravity) : 0;
+        if (l.FallLethalFrom > 0 && fell >= l.FallLethalFrom)
+        {
+            s.Health = 0;
+            s.Death = DeathCause.Fell;
+            return;
+        }
+        int fallKnock = l.FallLethalFrom > l.FallHurtFrom && fell >= l.FallHurtFrom
+            ? (int)Math.Round(l.RollDamage + (p.Health - l.RollDamage) * (fell - l.FallHurtFrom) / (l.FallLethalFrom - l.FallHurtFrom)) : 0;
         double lethal = l.LethalAbove > 0 ? l.LethalAbove : t.SpeedBands.JumpOffLethal;
         if (horizontal > lethal)
         {
             s.Health = 0;
             s.Death = DeathCause.JumpedAtSpeed;
         }
-        else if (horizontal > l.RollAbove)
+        else
         {
-            double k = Math.Clamp((horizontal - l.RollAbove) / Math.Max(1e-6, lethal - l.RollAbove), 0, 1);
-            int damage = (int)Math.Round(l.RollDamage + (Math.Max(l.DamageAtLethal, l.RollDamage) - l.RollDamage) * k);
-            s.Health = Math.Max(1, s.Health - damage);
+            int damage = fallKnock;
+            if (horizontal > l.RollAbove)
+            {
+                double k = Math.Clamp((horizontal - l.RollAbove) / Math.Max(1e-6, lethal - l.RollAbove), 0, 1);
+                damage = Math.Max(damage, (int)Math.Round(l.RollDamage + (Math.Max(l.DamageAtLethal, l.RollDamage) - l.RollDamage) * k));
+            }
+            if (damage > 0)
+                s.Health = Math.Max(1, s.Health - damage);
         }
     }
 

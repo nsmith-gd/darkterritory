@@ -1854,6 +1854,7 @@ public static partial class Hud
         DeathCause.Pecked => "PECKED TO DEATH BY THE GANNET. YOU HIT IT, OR SOMEONE DID",
         // Dave's last words to them (note 570): the director's own.
         DeathCause.Dave => "YOU SHOULD BE NICER IN A DARK WORLD.",
+        DeathCause.Fell => "FELL. IT WAS FURTHER DOWN THAN IT LOOKED",
         DeathCause.None => "",
         _ => cause.ToString().ToUpperInvariant(),
     };

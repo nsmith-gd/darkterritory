@@ -5,9 +5,10 @@ using DarkTerritory.Sim.Rail;
 namespace DarkTerritory.Sim.Tests;
 
 /// <summary>
-/// Note 573 (queue #303, D1's ask after #295's falls audit): spec B.3's landing knock is for leaving the train, at its speed. A
-/// crewmate who runs off the lip of a dip on open ground, or down a bank, isn't knocked for their own run; one who leaves a
-/// moving car is knocked exactly as the table says.
+/// Note 573 (queue #303, D1's ask after #295's falls audit, and the director's off Stroud Bridge): spec B.3's landing knock is
+/// for leaving the train, at its speed. A crewmate who runs off the lip of a dip on open ground, or down a bank, isn't knocked
+/// for their own run; one who leaves a moving car is knocked exactly as the table says; and a fall hurts by its height, an
+/// 8 m drop (the bridge's deck to the river bank) killing.
 /// </summary>
 public class LandingTests
 {
@@ -95,5 +96,47 @@ public class LandingTests
         PlayerMotor.Step(ref roof, new PlayerIntent { Buttons = PlayerButtons.Jump }, n.Train, P, n.Train.Dynamics.Tuning, SimConstants.TickSeconds);
         Assert.Equal(Surface.Air, roof.Surface);
         Assert.False(roof.Has(PlayerFlags.OffTheGround));
+    }
+
+    [Fact]
+    public void EightMetresDownKills()
+    {
+        // The director, off Stroud Bridge's deck (frontier:7's truss, 8 m over the river), lived: by the old knock a straight drop
+        // was nothing at all.
+        var (n, s) = Aloft(0, 8.05, default, offTheGround: false);
+        s = Fall(n, s);
+        Assert.False(s.Alive);
+        Assert.Equal(DeathCause.Fell, s.Death);
+    }
+
+    [Fact]
+    public void SevenMetresDownAllButKills()
+    {
+        var (n, s) = Aloft(0, 7, default, offTheGround: false);
+        s = Fall(n, s);
+        Assert.True(s.Alive);
+        Assert.True(s.Health <= 40, $"{s.Health}");
+    }
+
+    [Fact]
+    public void AStepOffALandingIsNothing()
+    {
+        var (n, s) = Aloft(0, 1.5, new Double3(1, 0, 0), offTheGround: false);
+        s = Fall(n, s);
+        Assert.Equal(P.Health, s.Health);
+    }
+
+    [Theory]
+    [InlineData(3)]
+    [InlineData(10)]
+    public void ALeapOffAMovingTrainsRoofIsTheTableAsEver(double speed)
+    {
+        // A car's roof over the ballast and a jump's apex over that: under the fall knock, so it's B.3's speed table alone.
+        var (n, s) = Aloft(speed, 4.0 + P.JumpHeight, new Double3(0, 0, -speed), offTheGround: false);
+        s = Fall(n, s);
+        var l = P.Landing;
+        double k = Math.Clamp((speed - l.RollAbove) / (l.LethalAbove - l.RollAbove), 0, 1);
+        int knock = (int)Math.Round(l.RollDamage + (Math.Max(l.DamageAtLethal, l.RollDamage) - l.RollDamage) * k);
+        Assert.Equal(P.Health - knock, s.Health);
     }
 }
