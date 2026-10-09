@@ -85,30 +85,36 @@ def head_normal(p):
     return Vector((d.x / HR.x ** 2, d.y / HR.y ** 2, d.z / HR.z ** 2)).normalized()
 
 
-EYE_U, EYE_W = 0.43, 0.12
+# (Note 538: "wrong up close". The eyes set a little too far apart and a little too big for the face, never blinking.)
+EYE_U, EYE_W = 0.47, 0.12
 MOUTH_W = -0.52
 
 
 def face(i, j, a, th, p):
+    """A dead man's face kept too long: the skin drawn tight over the bones, so the skull shows through it. The brow
+    standing over sockets sunk deep, the cheekbones sharp and the cheeks fallen in under them, the temples hollow, the
+    nose pinched thin to its bone with the nostrils drawn back, the mouth pursed in on its stitches, the jaw's line and
+    the chin hard under the skin."""
     p = Vector(p)
     u, v, w = head_units(p)
     front = smooth01(0.1, 0.55, v)
     n = head_normal(p)
     off = 0.0
-    # The brow standing over sockets sunk deep; the cheekbones, and under them the cheeks fallen in.
-    off += 0.008 * front * bell((w - 0.3) / 0.1) * bell(u / 0.7)
+    off += 0.012 * front * bell((w - 0.3) / 0.1) * bell(u / 0.75)
+    off -= 0.004 * front * bell((w - 0.22) / 0.05) * bell(u / 0.12)          # the furrow between the brows
     for eu in (-EYE_U, EYE_U):
-        off -= 0.016 * front * bell(math.hypot((u - eu) / 0.24, (w - EYE_W) / 0.17))
-        off += 0.006 * front * bell(math.hypot((u - eu * 1.25) / 0.2, (w + 0.08) / 0.1))
-        off -= 0.014 * front * bell(math.hypot((u - eu * 1.15) / 0.22, (w + 0.32) / 0.2))
-    # The nose: thin, the bridge high, the tip drooped.
-    off += 0.022 * front * bell(u / 0.11) * bell((w + 0.12) / 0.2) * smooth01(-0.3, 0.1, w + 0.25)
-    # The mouth pursed in on its stitches; the chin, and the jaw's line sharp under the skin.
-    off -= 0.006 * front * bell(math.hypot(u / 0.32, (w - MOUTH_W) / 0.07))
-    off += 0.006 * front * bell(math.hypot(u / 0.3, (w + 0.78) / 0.12))
-    off += 0.004 * bell((w + 0.6) / 0.08) * bell((abs(u) - 0.75) / 0.15)
-    # The temples hollow.
-    off -= 0.006 * bell((abs(u) - 0.85) / 0.12) * bell((w - 0.25) / 0.2) * front
+        off -= 0.027 * front * bell(math.hypot((u - eu) / 0.26, (w - EYE_W) / 0.19))
+        # The cheekbone, sharp, and the hollow under it, deep.
+        off += 0.011 * front * bell(math.hypot((u - eu * 1.22) / 0.2, (w + 0.1) / 0.08))
+        off -= 0.024 * front * bell(math.hypot((u - eu * 1.1) / 0.22, (w + 0.36) / 0.18))
+    # The nose, thin to the bone, the bridge high, the tip drooped; its nostrils drawn back into it.
+    off += 0.026 * front * bell(u / 0.1) * bell((w + 0.12) / 0.2) * smooth01(-0.3, 0.1, w + 0.25)
+    for nx in (-0.075, 0.075):
+        off -= 0.007 * front * bell(math.hypot((u - nx) / 0.05, (w + 0.31) / 0.04))
+    off -= 0.008 * front * bell(math.hypot(u / 0.32, (w - MOUTH_W) / 0.07))
+    off += 0.009 * front * bell(math.hypot(u / 0.3, (w + 0.8) / 0.12))
+    off += 0.007 * bell((w + 0.62) / 0.07) * bell((abs(u) - 0.74) / 0.16)       # the jaw's line
+    off -= 0.013 * bell((abs(u) - 0.86) / 0.12) * bell((w - 0.25) / 0.2) * smooth01(-0.3, 0.3, v)
     return p + n * (off + 0.0015 * noise3(p * 40, 71, 1.0))
 
 
@@ -122,14 +128,22 @@ def on_face(u, w, lift=0.0):
 
 
 head = kit.part("head")
-head.blob(HC, tuple(HR), 22, 18, SKIN, "head", shape=face)
+head.blob(HC, tuple(HR), 34, 28, SKIN, "head", shape=face)
 # The ears, small and flat to the skull.
 for sx in (1, -1):
-    head.blob(HC + Vector((sx * HR.x * 0.96, -0.004, 0.0)), (0.008, 0.02, 0.03), 6, 5, SKIN, "head")
+    # (Shrunk dry against the skull, the rim standing and the bowl hollow.)
+    ec = HC + Vector((sx * HR.x * 0.97, -0.006, 0.0))
+    head.blob(ec, (0.009, 0.021, 0.031), 10, 8, SKIN, "head",
+              shape=lambda i, j, a, th, p, ec=ec, sx=sx: Vector(p) - Vector((sx, 0, 0)) * 0.006 * bell(math.hypot((Vector(p) - ec).y / 0.012, (Vector(p) - ec).z / 0.018)) * (sx * (Vector(p) - ec).x > 0))
 # The eyes: filmed over, white, open and staring, bulged a little out of the sunk sockets.
 for eu in (-EYE_U, EYE_U):
     c, n = on_face(eu, EYE_W, -0.002)
-    head.blob(c, (0.0145, 0.0115, 0.0122), 10, 7, EYE, "head")
+    head.blob(c, (0.0158, 0.0125, 0.0134), 12, 8, EYE, "head")
+    # The lids gone back off them, the lower one sagged away from the eye, its wet red rim showing.
+    lid = [on_face(eu + 0.2 * x, EYE_W - 0.13 - 0.06 * (1 - x * x), 0.003)[0] for x in (-1.0, -0.6, -0.2, 0.2, 0.6, 1.0)]
+    head.tube(lid, [0.002, 0.0035, 0.0042, 0.0042, 0.0035, 0.002], 5, LIPS, "head", ref=(0, 0, 1))
+    top = [on_face(eu + 0.2 * x, EYE_W + 0.15 + 0.03 * (1 - x * x), 0.002)[0] for x in (-1.0, -0.5, 0.0, 0.5, 1.0)]
+    head.tube(top, [0.0015, 0.003, 0.0034, 0.003, 0.0015], 5, SKIN, "head", ref=(0, 0, 1))
 # The mouth: the lips drawn tight together, and the wire through them, seven stitches.
 lips = [on_face(x, MOUTH_W - 0.012 * (x / 0.3) ** 2, 0.001)[0] for x in (-0.3, -0.2, -0.1, 0.0, 0.1, 0.2, 0.3)]
 head.tube(lips, [0.003, 0.0055, 0.0065, 0.0068, 0.0065, 0.0055, 0.003], 6, LIPS, "head", ref=(0, 0, 1))
@@ -228,13 +242,44 @@ for row, x in (("r", 0.07), ("l", -0.07)):
         y = 0.124 + 0.006 * (k > 1)
         coat.blob(Vector((x, y, z)), (0.011, 0.005, 0.011), 8, 4, BRASS, ["spine_01", "spine_02", "spine_03"][min(2, k * 3 // 4)])
 
-# The scarf, wound up high round the throat, its tail hanging down the front inside the collar.
+# The scarf, wound up high round the throat three times, knotted at the side and its two ends hanging down the coat's
+# front, the wool thick and loose, frayed to a fringe (note 538: it was a smooth sleeve and a slab).
 scarf = kit.part("scarf")
-scarf.tube([Vector((0, 0.0, TOP + 0.0)), Vector((0, 0.008, TOP + 0.045)), Vector((0, 0.012, TOP + 0.09)), Vector((0, 0.016, NECK_TOP + 0.02))],
-           [(0.092, 0.088), (0.088, 0.086), (0.082, 0.082), (0.07, 0.072)], 14, SCARF, ["spine_03", "neck", "neck", "head"], ref=(0, 1, 0),
-           shape=lambda i, j, a, p, fr: Vector(p) + (fr[0] * math.sin(a) + fr[1] * math.cos(a)) * 0.009 * math.sin(a * 3 + i * 2))
-scarf.tube([Vector((0.02, 0.07, TOP + 0.04)), Vector((0.03, 0.11, TOP - 0.02)), Vector((0.034, 0.124, TOP - 0.07))], [(0.036, 0.008), (0.036, 0.008), (0.032, 0.007)],
-           6, SCARF, ["neck", "spine_03", "spine_03"], ref=(0, 1, 0), cap1=True)
+
+
+def scarf_bones(p):
+    k = smooth01(TOP + 0.02, TOP + 0.08, p.z)
+    return {n: x for n, x in (("spine_03", 1 - k), ("neck", k)) if x > 1e-4}
+
+
+for k, (z, r, tilt, ph) in enumerate(((TOP + 0.005, 0.088, 0.03, 0.0), (TOP + 0.05, 0.083, -0.04, 1.9), (TOP + 0.092, 0.075, 0.05, 3.7))):
+    ring = []
+    for q in range(20):
+        a = 2 * math.pi * q / 20
+        rr = r * (1 + 0.06 * math.sin(a * 3 + ph))
+        ring.append(Vector((math.sin(a) * rr, 0.012 + math.cos(a) * rr * 0.98, z + tilt * math.sin(a + ph) * 0.4)))
+    scarf.tube(ring, [(0.015, 0.024)] * 20, 8, SCARF, scarf_bones, ref=(0, 0, 1), loop=True,
+               shape=lambda i, j, a, p, fr, k=k: Vector(p) + (fr[0] * math.sin(a) + fr[1] * math.cos(a)) * 0.004 * math.sin(i * 1.7 + k + a * 2))
+KNOT = Vector((0.045, 0.1, TOP + 0.03))
+scarf.blob(KNOT, (0.03, 0.022, 0.026), 10, 8, SCARF, scarf_bones, shape=lambda i, j, a, th, p: Vector(p) + (Vector(p) - KNOT) * 0.25 * noise3(Vector(p) * 40, 75, 1.0))
+
+
+def tail_shape(i, j, a, p, fr):
+    p = Vector(p)
+    # Hanging heavy: rucked across its width in soft folds, twisting a little as it falls; at its end the fringe.
+    across = math.sin(a)
+    p = p + fr[1] * (0.007 * math.sin(across * 5.0 + i * 1.3 + tail_shape.ph) * smooth01(0, 2, i)) + fr[0] * (0.004 * math.cos(across * 3 + i))
+    if i == tail_shape.last:
+        p.z -= 0.014 * abs(math.sin(a * 7)) + 0.006 * abs(math.sin(a * 13))
+    return p
+
+
+for dx, ln, sw, ph in ((0.0, 0.22, -0.01, 0.0), (0.035, 0.16, 0.02, 1.7)):
+    t0 = KNOT + Vector((dx - 0.012, 0.01, -0.018))
+    pts = [t0 + Vector((sw * f * f, 0.026 * f, -ln * f)) for f in (0.0, 0.2, 0.4, 0.6, 0.8, 1.0)]
+    tail_shape.last, tail_shape.ph = len(pts) - 1, ph
+    scarf.tube(pts, [(0.022, 0.008), (0.025, 0.008), (0.027, 0.008), (0.028, 0.0075), (0.029, 0.007), (0.029, 0.0065)], 10, SCARF,
+               ["neck", "spine_03", "spine_03", "spine_03", "spine_02", "spine_02"], ref=(0, 1, 0), shape=tail_shape)
 
 # ----------------------------------------------------------------------------------------------------------------
 # The arms in the coat's sleeves, the cuffs wide; the hands grey, the nails dark; the watch in the left.
