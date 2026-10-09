@@ -189,6 +189,18 @@ public sealed class Bodies
     }
 
     /// <summary>
+    /// A thing put back in a car where it was (a resumed night's, note 500): its middle at <paramref name="centre"/> in the car's
+    /// frame, at rest, sized and lying as it was saved.
+    /// </summary>
+    public Body Put(TrainOnLine train, int car, BodyKind kind, Double3 centre, double radius, double friction, double bounce)
+    {
+        var pbd = new PbdBody([new Particle(centre, 1, radius)]) { Friction = friction, Bounce = bounce };
+        var b = new Body(_nextId++, kind, car, pbd) { LineHint = train.Cars[Math.Max(0, car)].FrontDistance };
+        _bodies.Add(b);
+        return b;
+    }
+
+    /// <summary>
     /// Puts a thing on a locker's first free shelf (ARCHITECTURE §8 note 173): out of whoever's hands, into its car's frame,
     /// lying along the locker (a toolbox's length goes in deep), asleep and out of the physics. False if it's full, or the
     /// thing isn't one that goes in.

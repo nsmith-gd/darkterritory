@@ -182,10 +182,21 @@ public class DatagramTransport<TAddress> : ITransport, IConnectionInfo where TAd
         DatagramsSent++;
     }
 
+    // When this transport was last polled (NaN before the first): see Poll.
+    double _lastPolled = double.NaN;
+
     public void Poll(List<TransportEvent> into)
     {
         ObjectDisposedException.ThrowIf(_disposed, this);
         double now = Now;
+        // A poll long after the last one means this process stood still (a night's scene loading before its first frame, a
+        // debugger): we weren't listening, so that time is nobody's silence, and every link's clock moves on by it. A peer that
+        // really has gone still times out the usual timeout after. The director, 9 Oct: a night with bots began with them all
+        // gone (the host's first poll after a long load found its in-process bots "silent" and dropped them).
+        if (!double.IsNaN(_lastPolled) && now - _lastPolled > Math.Min(2 * _options.KeepaliveSeconds, _options.TimeoutSeconds / 2))
+            foreach (var link in _byPeer.Values)
+                link.LastHeard += now - _lastPolled;
+        _lastPolled = now;
         Receive(now);
         if (!_isHost && !IsConnected && !_gaveUp)
             KeepConnecting(now);

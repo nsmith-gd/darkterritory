@@ -70,6 +70,10 @@ public class LooseCouplingTests
         Assert.Equal(3, w.Train.Dynamics.Consist.Vehicles[^1].Id);
         Assert.Equal(0, w.Train.Vehicles[3].Loose);
         Assert.Equal(1, w.LooseCount.Parted);
+        // Note 511: the report says so of the cars behind ("The coupling worked loose and parted."), nobody's hand on it.
+        Assert.True(w.Attribution.Parted(4));
+        Assert.False(w.Attribution.Parted(3));
+        Assert.Equal(-1, w.Attribution.CouplerPulledBy(4));
     }
 
     static PlayerState InTheGap(TrainOnLine train, int car, bool wrenchInHand) => new()
@@ -156,5 +160,45 @@ public class LooseCouplingTests
             });
         Assert.NotNull(cameAt);
         Assert.True(tightAt is { } at && at - cameAt < L.PartAfter, $"came at {cameAt:0} s, tight at {tightAt?.ToString("0") ?? "never"} ({report.Deaths} died)");
+    }
+
+    [Fact]
+    public void AChilledWalkerGoesToALooseCouplingBeforeGoingInToWarm()
+    {
+        // Note 511: on frontier:7's 4-bot nights the walkers were in the cars, getting warm or waiting for a mail bag, while
+        // a pin worked loose behind them, and 11 of 21 parted, every car behind each lost. A loose coupling comes first: a
+        // walker chilled enough to want warming, the cold not yet hurting, goes along to car 3, down into the gap behind it
+        // and tightens the pin, and only then goes in. Without the call it went into car 2 to warm first.
+        var w = Night(8);
+        w.Upkeep = w.Upkeep! with { Coupling = L with { FirstAfterMetres = 1e9 } };
+        var train = w.Train;
+        const int loose = 3;
+        var bot = new RoofWalkerBot(7, Tuning.Player.Cold);
+        var s = new PlayerState
+        {
+            Parent = 2,
+            Position = new Double3(0, T.Geometry.CarHeight, 0),
+            Surface = Surface.Roof,
+            Health = 100,
+            Cold = Tuning.Player.Cold.OnsetSeconds * 0.8,
+            Kit = Kit.Of([Tool.Shovel, Tool.Wrench]),
+            LineHint = train.Cars[2].FrontDistance,
+        };
+        train.Vehicles[loose].Loose = Dt;
+        double? tight = null;
+        bool wentIn = false;
+        for (uint tick = 0; tick < SimConstants.TickRate * L.PartAfter && tight is null; tick++)
+        {
+            w.BeginTick();
+            var intent = bot.Decide(s, w, tick, out _);
+            w.CrewAct(ref s, intent, 1);
+            w.Step(Forward);
+            PlayerMotor.Step(ref s, intent, train, Tuning.Player, T, Dt, applyLook: false);
+            wentIn |= PlayerMotor.Indoors(s, train);
+            if (train.Vehicles[loose].Loose == 0)
+                tight = tick / (double)SimConstants.TickRate;
+        }
+        Assert.True(tight is not null, $"never tightened: {s.Surface} on {s.Parent} at {s.Position}, cold {s.Cold:0}");
+        Assert.False(wentIn, $"went in to warm before tightening it ({tight:0} s)");
     }
 }

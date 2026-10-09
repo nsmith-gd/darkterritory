@@ -46,7 +46,7 @@ public sealed record StationTuning(double[] Size, double Gap, double[] FromLane,
 public sealed record GoodsYardTuning(double[] Beyond, double[] Length, double Margin, double Reach, int[] Cars, double[] Car, double CarGap, double[] Shed, double Find);
 
 /// <summary>A yard's powerhouse at its throat (level-design P6, D.2). Field docs in stops.json.</summary>
-public sealed record PowerhouseTuning(double[] Size, double[] Throat, double[] Offset);
+public sealed record PowerhouseTuning(double[] Size, double[] Throat, double[] Offset, bool Open = false);
 
 /// <summary>Where Holdouts go (GDD App. D.4, D.13). Field docs in stops.json.</summary>
 public sealed record HoldoutPlacementTuning

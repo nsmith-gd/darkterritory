@@ -1,0 +1,9 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <!-- The game's developer tools (ARCHITECTURE §8 note 514): referenced by dt and, in a developer build, by the app; never in
+       a player's build. -->
+  <ItemGroup>
+    <ProjectReference Include="../Ballast.Dev/Ballast.Dev.csproj" />
+    <ProjectReference Include="../DarkTerritory.Game/DarkTerritory.Game.csproj" />
+    <AssemblyMetadata Include="DevTools" Value="true" />
+  </ItemGroup>
+</Project>

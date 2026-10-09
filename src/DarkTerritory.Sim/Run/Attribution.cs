@@ -35,6 +35,8 @@ public sealed class Attribution
 {
     readonly List<Incident> _log = [];
     readonly Dictionary<int, int> _lampBy = [], _couplerBy = [];
+    // Note 511: the cars a loose coupling's dropped pin parted from the train (note 356), nobody's hand on it.
+    readonly HashSet<int> _parted = [];
 
     public IReadOnlyList<Incident> Log => _log;
 
@@ -65,6 +67,8 @@ public sealed class Attribution
     public void PulledCoupler(int vehicle, int player) => _couplerBy[vehicle] = player;
     public int LampLitBy(int car) => _lampBy.GetValueOrDefault(car, -1);
     public int CouplerPulledBy(int vehicle) => _couplerBy.GetValueOrDefault(vehicle, -1);
+    public void PartedAt(int vehicle) => _parted.Add(vehicle);
+    public bool Parted(int vehicle) => _parted.Contains(vehicle);
 
     public void Add(Incident incident) => _log.Add(incident);
 

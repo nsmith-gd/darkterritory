@@ -253,11 +253,11 @@ public sealed class CinderHound(int id, int pack) : Enemy(id)
     /// Up on the roofs it has whoever's out on the train (a roof, a ladder, a landing, the gap), never anyone inside a car or
     /// the cab under it; dropped into a car at an open door (note 472), whoever's in that car with it.
     /// </summary>
-    bool Reaches(TrainOnLine train, in PlayerState s) =>
+    public bool Reaches(TrainOnLine train, in PlayerState s) =>
         Attached >= 0 && Inside(train) ? s.Parent == Attached && PlayerMotor.Indoors(s, train) : !PlayerMotor.Indoors(s, train);
 
     /// <summary>In its car (dropped in at an open door, note 472), not on its roof.</summary>
-    bool Inside(TrainOnLine train) => train.Frames[Attached].Shape.Interior is not null && Local.Y < train.Frames[Attached].Shape.RoofHeight - 1;
+    public bool Inside(TrainOnLine train) => train.Frames[Attached].Shape.Interior is not null && Local.Y < train.Frames[Attached].Shape.RoofHeight - 1;
 
     // ---- Aboard (note 472) ----
     // What a hound aboard is doing, and which way it faces, is in Lateral (as mode × 4 + facing: replicated as every enemy's

@@ -26,6 +26,9 @@ public static class Onboarding
     public static string? Tip(Data d, Settings settings, int night) =>
         settings.FirstNights && d.Tips.Length > 0 ? d.Tips[((night % d.Tips.Length) + d.Tips.Length) % d.Tips.Length] : null;
 
+    /// <summary>The key that hides the yard's card for the night, and brings it back (note 527): a fixed key, beside F1's HUD.</summary>
+    public const string HideKey = "F4";
+
     /// <summary>Whether the yard's card is up: FIRST NIGHTS on, and fewer of this player's nights over than the file's count.</summary>
     public static bool FirstNight(Data d, Settings settings, int nightsOver) => settings.FirstNights && nightsOver < d.FirstNights;
 
@@ -44,7 +47,8 @@ public static class Onboarding
             $"USE : {K(Control.Use)}   SWING : {K(Control.Swing)}   LADDER : {K(Control.Ladder)}",
             $"TALK : {Hold(Control.Talk)}{K(Control.Talk)}   RADIO : {Hold(Control.Radio)}{K(Control.Radio)}",
             $"CREW : {Hold(Control.Roster)}{K(Control.Roster)}   ROUTE CARD : {K(Control.RouteCard)}   SUPPLIES : {K(Control.Supplies)}",
-            "MENU : [ESC]",
+            // The director, 9 Oct (note 527): "we need a way to close the 'first time controls' overlay".
+            $"MENU : [ESC]   HIDE THIS CARD : [{Controls.KeyLabel(HideKey)}]",
         ];
     }
 
