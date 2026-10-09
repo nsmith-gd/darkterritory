@@ -69,7 +69,7 @@ public sealed class LoopbackNetwork
     readonly Dictionary<PeerId, (double Allowance, double At)> _down = new();
     (double Allowance, double At) _up;
 
-    /// <summary>A capped pipe (note 554): a bucket refilled at the cap, a quarter second deep; a datagram over it is dropped.</summary>
+    /// <summary>A capped pipe (note 557): a bucket refilled at the cap, a quarter second deep; a datagram over it is dropped.</summary>
     bool Fits((double Allowance, double At) bucket, double kbps, int bytes, out (double Allowance, double At) after)
     {
         double perSecond = kbps * 125;
