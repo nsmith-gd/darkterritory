@@ -251,6 +251,10 @@ public sealed record RibbitTuning
     public double SpawnOut { get; init; } = 35;
     public double Health { get; init; } = 2;
     public double PerGroundWeight { get; init; } = 0.5;
+    public double Fan { get; init; } = 80;
+    public double RingOut { get; init; } = 1.05;
+    public double FanFrom { get; init; } = 10;
+    public double Spacing { get; init; } = 1.15;
 }
 
 /// <summary>The Grumbler (v1.1 App. A.8, B.8). Field docs live in enemies.json.</summary>

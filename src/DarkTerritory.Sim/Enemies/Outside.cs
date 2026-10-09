@@ -52,10 +52,11 @@ public sealed class Ribbit(int id, int pack) : Enemy(id)
         }
         var to = (target.World - Local) with { Y = 0 };
         double d = to.Length;
+        var (way, apart) = Place(target.World, members, leader, t);
         switch (Phase)
         {
             case SpinePhase.Dormant:
-                Hop(to, t.HopSpeed);
+                Hop(way, apart, t.HopSpeed, members, t.Spacing);
                 // TONGUE: the pack outnumbers them and the leader's within reach: halt, line up, throats swell.
                 if (leader == this && d <= t.TongueReach)
                     foreach (var m in members)
@@ -73,7 +74,15 @@ public sealed class Ribbit(int id, int pack) : Enemy(id)
                     return;
                 }
                 if (leader == this && PhaseSeconds >= ctx.Tuning.MinReactionSeconds && Enter(ctx, SpinePhase.Commit))
+                {
                     Grab(ctx, who, t.DevourSeconds);
+                    // And the rest of the pack's tongues are out to them too, and in they hop to eat (App. A.6: "their
+                    // tongues freeze the target in place while the pack hops in to eat"; note 558: they'd stayed lined up
+                    // where they swelled).
+                    foreach (var m in members)
+                        if (m != this && m.Phase == SpinePhase.Telegraph)
+                            m.Enter(ctx, SpinePhase.Commit);
+                }
                 return;
             case SpinePhase.Grab:
                 // Friends arriving even the count: the tongue lets go.
@@ -82,11 +91,18 @@ public sealed class Ribbit(int id, int pack) : Enemy(id)
                     Rescued(ctx, -1);
                     return;
                 }
-                Hop(to, t.HopSpeed * 0.25);
+                Hop(way, apart, t.HopSpeed * 0.25, members, t.Spacing);
                 return;
             default:
-                // The pack's slow hop in on a frozen target.
-                Hop(to, leader.Phase == SpinePhase.Grab ? t.HopSpeed * 0.25 : t.HopSpeed);
+                // The pack's slow hop in on a frozen target; let go of (a friend evened the count, they struggled free), the
+                // rest of the pack breaks off with the leader.
+                if (leader != this && Phase == SpinePhase.Commit && leader.Phase is not (SpinePhase.Commit or SpinePhase.Grab or SpinePhase.Punish))
+                {
+                    Enter(ctx, SpinePhase.BreakOff);
+                    Enter(ctx, SpinePhase.Dormant);
+                    return;
+                }
+                Hop(way, apart, leader.Phase == SpinePhase.Grab ? t.HopSpeed * 0.5 : t.HopSpeed, members, t.Spacing);
                 return;
         }
     }
@@ -115,13 +131,78 @@ public sealed class Ribbit(int id, int pack) : Enemy(id)
         Extra = pick ?? -1;
     }
 
-    /// <summary>In bursts: a leap, a sit, averaging <paramref name="average"/>.</summary>
-    void Hop(Double3 to, double average)
+    /// <summary>
+    /// Where this one makes for (note 558; the director, 9 Oct: "they overlapped each other a lot"), and the push off any
+    /// packmate too near. Each hopped straight at the catch and nothing kept them apart, so a pack closed into one heap.
+    /// Now the leader comes straight in and the rest fan out either side of it, <c>fan</c>° a place apart round the catch
+    /// from the side the pack comes from; within <c>fanFrom</c> m of the catch they make for those places,
+    /// <c>ringOut</c> m from it (the leader to the hop's own 0.8); and none comes nearer a packmate than <c>spacing</c>.
+    /// (By ids and positions only, so every client's the same.)
+    /// </summary>
+    (Double3 Way, Double3 Apart) Place(Double3 catchAt, List<Ribbit> members, Ribbit leader, RibbitTuning t)
+    {
+        var to = (catchAt - Local) with { Y = 0 };
+        double d = to.Length;
+        var apart = Double3.Zero;
+        foreach (var m in members)
+        {
+            if (m == this)
+                continue;
+            var off = (Local - m.Local) with { Y = 0 };
+            double s = off.Length;
+            if (s >= t.Spacing)
+                continue;
+            var dir = s > 1e-6 ? off * (1 / s) : new Double3(Id < m.Id ? -1 : 1, 0, 0);
+            apart += dir * ((t.Spacing - s) / t.Spacing);
+        }
+        if (this == leader || d < 1e-6)
+            return (to, apart);
+        // Its place: the leader's in the middle, the rest by id out to either side of it in turn.
+        int rank = members.Count(m => m != leader && m.Id < Id);
+        double side = (rank / 2 + 1) * (rank % 2 == 0 ? 1 : -1);
+        var centre = members.Aggregate(Double3.Zero, (a, m) => a + m.Local) * (1.0 / members.Count);
+        var from = (centre - catchAt) with { Y = 0 };
+        if (from.Length < 1e-6)
+            from = to * -1;
+        double a0 = Math.Atan2(from.X, from.Z) + side * t.Fan * Math.PI / 180;
+        var place = catchAt + new Double3(Math.Sin(a0), 0, Math.Cos(a0)) * t.RingOut;
+        double k = Math.Clamp(1 - (d - t.RingOut) / t.FanFrom, 0, 1);
+        var goal = catchAt + (place - catchAt) * k;
+        return ((goal - Local) with { Y = 0 }, apart);
+    }
+
+    /// <summary>
+    /// In bursts: a leap, a sit, averaging <paramref name="average"/>, along <paramref name="to"/> (the leader stopping 0.8 m
+    /// short of its catch) and
+    /// off any packmate too near (<paramref name="apart"/>, from <see cref="Place"/>); and a leap never lands it nearer a
+    /// packmate than <paramref name="spacing"/> (they leap on alternate half seconds, so one would land on a sitter): it
+    /// slides round it instead.
+    /// </summary>
+    void Hop(Double3 to, Double3 apart, double average, List<Ribbit> members, double spacing)
     {
         bool leaping = (int)(PhaseSeconds * 2 + Id) % 2 == 0;
         double step = (leaping ? 2 * average : 0) * SimConstants.TickSeconds;
-        if (to.Length > 0.9)
-            Local += to.Normalized * Math.Min(step, to.Length - 0.8);
+        if (step <= 0)
+            return;
+        // The leader's way is to the catch, and it stops 0.8 m short (on them); the rest go to their places.
+        double stop = members.MinBy(m => m.Id) == this ? 0.8 : 0.05;
+        var dir = (to.Length > stop + 0.1 ? to.Normalized : Double3.Zero) + apart * 4;
+        if (dir.Length < 1e-6)
+            return;
+        double most = to.Length > stop + 0.1 ? Math.Min(step, to.Length - stop) : step * 0.5;
+        var next = Local + dir.Normalized * Math.Max(0, most);
+        foreach (var m in members)
+        {
+            if (m == this)
+                continue;
+            var off = (next - m.Local) with { Y = 0 };
+            if (off.Length >= spacing)
+                continue;
+            // Out to the spacing from it: so it slides round a packmate in its way instead of landing on it.
+            var dirOut = off.Length > 1e-6 ? off * (1 / off.Length) : new Double3(Id < m.Id ? -1 : 1, 0, 0);
+            next = m.Local + dirOut * spacing + Double3.Up * (next.Y - m.Local.Y);
+        }
+        Local = next;
     }
 
     protected override void Punish(EnemyContext ctx, int victim)
