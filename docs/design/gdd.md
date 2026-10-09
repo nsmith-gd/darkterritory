@@ -644,6 +644,11 @@ Scuttles like a spider over the crane, gnawing food crates.
 > **RULE: gang up or leave it alone.**
 Interrupt it and it hunts whoever hit it last. No one player can kill it. Crane it aboard by mistake and it eats your cargo.
 
+**THE BRAKEMAN** · *on the roofs, on the move; never with a crew of one* *(the director's brief, 2026-10-08)*
+A stooped man in a rotted railway coat and cap, his arm grown into rusted chain and a brake wheel.
+> **RULE: chase it alone, catch it together.**
+He climbs up at one end of the train and works toward the other, winding each car's handbrake on: the train slows, and on a climb it stalls. One crewmate can chase him off the roofs (he outruns you, and ducks your blows); out of sight he waits under or in the train and comes up somewhere else to start again. Only two closing on him from both sides corner him, and only cornered can he be hurt. A wound brake is unwound at its wheel.
+
 ### Retired from v1.0
 
 - **Cut:** The Ferryman, Clingers, Rattle.
@@ -653,11 +658,6 @@ Interrupt it and it hunts whoever hit it last. No one player can kill it. Crane 
 ---
 
 # PART SEVEN — WORLD SYSTEMS
-
-**THE BRAKEMAN** · *on the roofs, on the move; never with a crew of one* *(the director's brief, 2026-10-08)*
-A stooped man in a rotted railway coat and cap, his arm grown into rusted chain and a brake wheel.
-> **RULE: chase it alone, catch it together.**
-He climbs up at one end of the train and works toward the other, winding each car's handbrake on: the train slows, and on a climb it stalls. One crewmate can chase him off the roofs (he outruns you, and ducks your blows); out of sight he waits under or in the train and comes up somewhere else to start again. Only two closing on him from both sides corner him, and only cornered can he be hurt. A wound brake is unwound at its wheel.
 
 ## 22. Hazards
 
