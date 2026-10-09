@@ -3490,11 +3490,19 @@ public sealed partial class GreyboxScene
         }
         var back = -facing;
         var m = Art.CreatureArt.Basis(feet, Vector3.Cross(Vector3.UnitY, back), Vector3.UnitY, back);
+        var (hat, vest) = Art.DaveKit.Outfit(dave.LineDistance);
+        // His own figure (note 491) where it's modelled: at his canvas he paints, brush and palette in hand, the strokes at
+        // the clip's own pace; turned on someone, he's set them down.
+        if (Art.DaveArt.Built(creatures))
+        {
+            var (clip, painting) = Art.DaveArt.Act(dave.Phase);
+            return painting ? Art.DaveArt.Draw(Look, mesh, Art.DaveArt.AtCanvas(m), clip, Time, hat, vest, true)
+                : Art.DaveArt.Draw(Look, mesh, m, clip, Time * 0.6, hat, vest, false);
+        }
         if (!creatures.Draw(mesh, Art.DaveKit.Figure, Art.DaveKit.Clip(dave.Phase), Time * 0.6, true, m, 2, seed: 47,
             adjust: (mat, l) => l with { Colour = l.Colour * new Vector3(1.05f, 0.98f, 0.9f), Emissive = 0 }))
             return false;
         // Tonight's hat and waistcoat (the night's: Art.DaveKit.Outfit), his hair, glasses, hoop, chain and sandals.
-        var (hat, vest) = Art.DaveKit.Outfit(dave.LineDistance);
         kit.Dress(creatures, mesh, m, hat, vest);
         return true;
     }
