@@ -16,7 +16,7 @@ import synth
 from dsp import samples, lp, hp, bp, env, mix
 from recipes import crew_kit as ck
 from recipes.crew_kit import recipe, R, K, DROP
-from recipes.crew_items import hit_of, limbs, FLOOR, FLOOR_HOW, LEATHER, CLOTH, SOFT
+from recipes.crew_items import hit_of, limbs, grating, FLOOR, FLOOR_HOW, LEATHER, CLOTH, SOFT
 from recipes.crew_train import iron
 from recipes.crew_feet import heel, toe, land, BOOTS
 from recipes.kit import snap
@@ -122,7 +122,10 @@ def hurt():
         def fall(rng, k, m=mat):
             knees = [(0, hit_of(SOFT[(k + 2) % 5], 0, 0.2), -6), (0, ck.floor(rng, m, k + 3, 1.0, 0.3), -8),
                      (0.05, hit_of(SOFT[(k + 3) % 5], 0, 0.2), -8), (0.05, ck.floor(rng, m, k + 4, 0.8, 0.3), -10)]
-            return ck.place(knees + [(rng.uniform(0.25, 0.32), limbs(rng, k, m, 1.3), 0)])
+            parts = knees + [(rng.uniform(0.25, 0.32), limbs(rng, k, m, 1.3), 0)]
+            if m == "grate":     # queue #245 (note 508): the knees ring the grating too, lighter than the body after them
+                parts += [(t, x, g - 3) for t, x, g in grating(rng, k + 3, 0.6)]
+            return ck.place(parts)
 
 
 def jump_off():
@@ -159,8 +162,15 @@ def jump_off():
                 spray = ck.grains(rng, 70, 0.6, 700, 5000, q=(3, 9), shape=0.6)
                 parts += [(0.02, spray, -6), (0.05, ck.floor(rng, "ground", k + 1, 2.0, 0.6), -6)]
             else:
-                crash = ck.choke(ck.norm(ck.align(dsp.vari(ck.get(PLATE_H[k]), -3))), 0.05, 0.08)
-                parts += [(0, crash, -4), (0.05, ck.floor(rng, "grate", k + 1, 2.0, 0.7), -8)]
+                # Queue #240 (note 503): the steel was choked inside 0.05 s under the body's thump and it read as earth
+                # (its takes centred at 214-263 Hz, the ballast's 254). The grating crashes and buzzes under the weight
+                # for a good part of a second, its bars chattering, the thin plate ringing on as it settles.
+                crash = ck.choke(ck.norm(ck.align(dsp.vari(ck.get(PLATE_H[k]), -3))), 0.18, 0.14)
+                thin = ck.choke(ck.norm(hp(ck.align(dsp.vari(ck.get(ck.THIN_PLATE[(k + 2) % 5]), -2)), 300)), 0.25, 0.18)
+                buzz = ck.norm(ck.grains(rng, 70, 0.22, 1200, 5500, q=(14, 30), length=(0.004, 0.012), shape=0.35))
+                parts = [(t, x, g - 7 if x is body else g) for t, x, g in parts]
+                parts += [(0, crash, -3), (0.004, thin, 0), (0.008, buzz, -6), (0.05, ck.floor(rng, "grate", k + 1, 2.0, 0.9), -5),
+                          (0.3, ck.floor(rng, "grate", k + 2, 0.6, 0.8), -16)]
             return ck.place(parts)
 
     @recipe(L, "tumble", "ballast", "Rolling over and over on the ballast after the fall, held",
