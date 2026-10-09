@@ -6299,6 +6299,7 @@ Terrain sculpting tools, a node-graph material editor, a general-purpose visual 
         - Warming in a car a pack boards, it stays in for 25 s, no hound gets in, and it isn't bitten indoors.
         - Cold on car 2 with a pack on car 3, it warms up in car 1.
         - Each fails without its half of the change.
+    - **Seed 3 again:** on main as it stands now (the Knotter, #625's rakes and more), the night goes differently. No pack boards, so it doesn't exercise this change (13.86 km). The tests are the evidence here.
 
 528. **A hound bites only who's on its ground (queue #265, D1.2; #221's follow-up, note 484; D1's ask, for the director's counter).** On `harness --route frontier:7 --bots 4 --enemies --upkeep --seconds 2700 --seed 3` with #221, the driver, alone, went to cut a pack loose at the coupling ahead of its ground (note 472's `FrontCar`). A hound patrolling to the ground's front end bit it at the coupling, held it, and mauled it at 1,568 s. The pack rode to dawn: 78 pack fires and 10.19 km.
     - **Now** a hound bites and chases only who's on its ground (`CinderHound.OnGround`, in `Maul`'s choice of prey beside `Reaches`). That's the cars from its `FrontCar` back to the rake's end. On the front car itself it's the roof and the inside; the car's front plate and front end ladder, the gap ahead, are out. Off the train, on a car ahead, or in that gap, a crewmate is out of its reach.
