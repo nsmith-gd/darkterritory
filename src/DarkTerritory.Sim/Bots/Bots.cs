@@ -1294,6 +1294,7 @@ public sealed class RoofWalkerBot(int seed, ColdTuning? cold = null, StopHand? j
             _warm.Packed = car => OnPacksGround(world, car);
             _warm.Troubled = car => world.ActiveEnemies.Any(e => !e.Gone && e.Attached == car && e is CarFire { Phase: SpinePhase.Punish });
             _warm.Ablaze = (car, end) => EndAblaze(world, car, end);
+            _warm.FireOnTheWay = (car, from, end) => FireOnTheWay(world, car, from, end);
             _warm.LeaveOpen = door => door is 0 or 1 && world.Train.Boiler.Ruptured;
             _warm.Passing = (car, door) => AtTheDoor(world.Train, Crew, car, door);
         }
@@ -1808,6 +1809,24 @@ public sealed class RoofWalkerBot(int seed, ColdTuning? cold = null, StopHand? j
             if (fire.Heat[i] >= et.CarFire.BurnFrom && grid.Centre[i].Z * end > from)
                 return true;
         return false;
+    }
+
+    /// <summary>
+    /// Note 553: how much of the car's fire lies between <paramref name="from"/> (along the car) and its end door that way (+1 its
+    /// rear): the heat of every cell on the way, summed. Out the way with less of it.
+    /// </summary>
+    static double FireOnTheWay(World world, int car, double from, int end)
+    {
+        if (world.Enemies is not { } et || car <= 0 || car >= world.Train.Frames.Count
+            || world.ActiveEnemies.OfType<CarFire>().FirstOrDefault(f => !f.Gone && f.Attached == car) is not { Heat.Length: > 0 } fire
+            || FireGrid.Of(world.Train, car, et.CarFire.CellSize) is not { } grid || grid.Count != fire.Heat.Length)
+            return 0;
+        double to = end * world.Train.Frames[car].Shape.HalfLength, lo = Math.Min(from, to), hi = Math.Max(from, to);
+        double sum = 0;
+        for (int i = 0; i < grid.Count; i++)
+            if (grid.Centre[i].Z >= lo - et.CarFire.CellSize / 2 && grid.Centre[i].Z <= hi)
+                sum += fire.Heat[i];
+        return sum;
     }
 
     static bool OnPacksGround(World world, int car)
@@ -3554,7 +3573,7 @@ public sealed class WarmUp(ColdTuning cold, double goInAt = 0.6)
                 {
                     // Note 553: the rake may have changed while it was in here (cars left at a stop, a cut): out the other end if
                     // there's no plate this way now, and if neither end has one, wait in here (it gives up in 25 s).
-                    if (!Way(train, _outEnd) || Ablaze?.Invoke(_car, _outEnd) == true && Ablaze?.Invoke(_car, -_outEnd) != true && Way(train, -_outEnd))
+                    if (!Way(train, _outEnd))
                     {
                         if (!Way(train, -_outEnd))
                             return new PlayerIntent();
@@ -3628,8 +3647,8 @@ public sealed class WarmUp(ColdTuning cold, double goInAt = 0.6)
         bool knot = way > 0 ? train.Vehicles[_car].Knot > 0 : ahead > 0 && train.Vehicles[ahead].Knot > 0;
         bool other = way > 0 ? ahead > 0 && train.Vehicles[ahead].Knot <= 0 : train.Vehicles[_car].Knot <= 0;
         way = knot && other ? -way : way;
-        // Note 553: never out through the end that's alight, if the other isn't: car 1's front door onto the engine's plate too.
-        if (Ablaze?.Invoke(_car, way) == true && Ablaze?.Invoke(_car, -way) != true && Way(train, -way))
+        // Note 553: a car alight, out the way with less of the fire on it (car 1's front door onto the engine's plate too).
+        if (FireOnTheWay is { } fire && Way(train, -way) && fire(_car, self.Position.Z, -way) < fire(_car, self.Position.Z, way))
             return -way;
         // Note 553: never out of an end with nothing beyond it (the last car of a rake, its cars behind left at a stop).
         return Way(train, way) || !Way(train, -way) ? way : -way;
@@ -3637,10 +3656,10 @@ public sealed class WarmUp(ColdTuning cold, double goInAt = 0.6)
 
     /// <summary>
     /// A way out of <see cref="_car"/> by that end (note 553): <see cref="Floor"/>, or car 1's front door onto the engine's plate
-    /// with its rear end alight (the tender's no way back along the train, but the fire's worse).
+    /// with the car alight (the tender's no way back along the train, but the fire's worse).
     /// </summary>
     bool Way(TrainOnLine train, int end) =>
-        Floor(train, _car, end) || end < 0 && train.VehicleAhead(_car) == 0 && Ablaze?.Invoke(_car, 1) == true;
+        Floor(train, _car, end) || end < 0 && train.VehicleAhead(_car) == 0 && Troubled?.Invoke(_car) == true;
 
     /// <summary>
     /// Note 553 (D1's falls audit): whether there's footing beyond that end door of <paramref name="car"/> (+1 its rear): a plate,
@@ -3669,12 +3688,19 @@ public sealed class WarmUp(ColdTuning cold, double goInAt = 0.6)
     /// </summary>
     public Func<int, bool>? Packed { get; set; }
     /// <summary>
-    /// That end of that car (car, end: +1 its rear) alight by its end door (note 553): never in through it, and out by the other.
+    /// That end of that car (car, end: +1 its rear) alight by its end door (note 553): never in through it (the way out is
+    /// <see cref="FireOnTheWay"/>'s).
     /// frontier:7 seed 5's gunner, freed from a Holdout on 80, went into car 1 by its rear door through the half of it ablaze,
     /// stood short of the extinguisher in the other half, and at 35 went back out the way it came, the only way out of car 1 a
     /// warm-up takes (never onto the engine's plate), and burned to death in it. Set by the bot.
     /// </summary>
     public Func<int, int, bool>? Ablaze { get; set; }
+    /// <summary>
+    /// The fire between a place along that car and its end door that way (car, z, end), note 553: the way out is the one with
+    /// less of it. "Never out through the burning end" sent frontier:7 seed 3's walker, 1.7 m from car 9's front door with that
+    /// end alight, 7 m back through the whole fire to the rear one. Set by the bot.
+    /// </summary>
+    public Func<int, double, int, double>? FireOnTheWay { get; set; }
     /// <summary>
     /// A door of the car it's warming in that's to be left open, by its index: the repair kit's way up the train while the
     /// boiler's ruptured (<see cref="KitCarry"/>). The cascade audit's walker in out of the cold in car 3 shut every end door
