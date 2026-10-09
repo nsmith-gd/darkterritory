@@ -145,9 +145,10 @@
     "mourners": [[0.35, 0.45], [0.3, 0.9]],
     // Knee-high, a crate over its head when it carries (note 592).
     "pickers": [[0.3, 0.3]],
-    // The house creatures (notes 583–586): the Lodger and the Householder man-sized; the Hanger up in the roof.
+    // The house creatures (notes 583–586): the Lodger and the Householder man-sized; the Hanger's sac, up in the roof.
     "lodger": [[0.35, 0.5], [0.3, 1.2]],
     "householder": [[0.35, 0.5], [0.3, 1.3]],
+    "hanger": [[0.45, 0]],
     // A bear-sized beaver, its shoulders over its head (note 363).
     "towerJaw": [[0.8, 0.7], [0.6, 1.3]],
     // Its plated back, a handcart's bulk (note 366).
