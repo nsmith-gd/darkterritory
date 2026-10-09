@@ -98,8 +98,9 @@ public class BoardedPackTests
         n.Until(() => pack.All(h => h.Gone), 300);
         Assert.True(pack.All(h => h.Gone), $"driver {n.Self.Surface} on {n.Self.Parent}, health {n.Self.Health}; cutting {n.Driver.CuttingAlone}; path {string.Join(" ", n.Path.Take(40))}");
         Assert.True(n.Train.Dynamics.Consist.IndexOf(rear) < 0, "the pack's car is cut loose");
-        // The engine and the two cars ahead of the pack's ground (note 472: the car it boarded and the one ahead it patrols to).
-        Assert.Equal(3, n.Train.Dynamics.Consist.Vehicles.Count);
+        // The pack's ground (note 472: the car it boarded and the one ahead it patrols to) and a car ahead of that, the cutter's
+        // clearance from a hound at the ground's end (note 528), go; the engine and the car behind it stay.
+        Assert.Equal(2, n.Train.Dynamics.Consist.Vehicles.Count);
         Assert.True(n.Self.Alive, $"died of {n.Self.Death}");
         // Back up into the cab, and away without it.
         n.Until(() => n.Train.Dynamics.Speed > 3, 120);
@@ -160,6 +161,25 @@ public class BoardedPackTests
         }
         n.Until(() => pack.All(h => h.Gone), 300);
         Assert.True(pack.All(h => h.Gone), $"driver {n.Self.Surface} on {n.Self.Parent}; cutting {n.Driver.CuttingAlone}");
+        Assert.True(n.Train.Dynamics.Consist.IndexOf(rear) < 0, "the pack's car is cut loose");
+    }
+
+    [Theory]
+    [InlineData(6)]
+    [InlineData(8)]
+    public void TheDriverCuttingAPackLooseAloneStaysOutOfItsReach(int cars)
+    {
+        // Note 528 (D1's frontier:7 seed 3, a crew of four): the driver went alone to cut the pack loose at the coupler right
+        // ahead of its ground (CinderHound.FrontCar), where a hound standing at the ground's end reached it: held, mauled, and
+        // the pack rode to dawn. A car further forward, the whole car between them: never bitten, and the pack's gone.
+        var n = new Lone(cars, speed: 12);
+        int rear = n.Train.Dynamics.Consist.Vehicles[^1].Id;
+        var pack = n.Pack(n.Train.Dynamics.Consist.Vehicles.Count - 1, 4);
+        int least = P.Health;
+        n.Until(() => { least = Math.Min(least, n.Self.Health); return pack.All(h => h.Gone) && PlayerMotor.InCab(n.Self, n.Train); }, 400);
+        Assert.True(pack.All(h => h.Gone), $"driver {n.Self.Surface} on {n.Self.Parent}; cutting {n.Driver.CuttingAlone}; {string.Join(" ", n.Path)}");
+        Assert.True(n.Self.Alive, $"died of {n.Self.Death}");
+        Assert.Equal(P.Health, least);
         Assert.True(n.Train.Dynamics.Consist.IndexOf(rear) < 0, "the pack's car is cut loose");
     }
 }

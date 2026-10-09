@@ -2031,7 +2031,12 @@ public sealed class ConductorBot(CrewCalls? calls = null, int member = 0) : IWor
         if (ReadyToLeave(self, world, minded: false) is { } readying)
             return readying;
         _outToCut = true;
-        _cutCar = front;
+        // Note 528: a car further forward than the pack's ground, so the whole of that car is between the driver at the
+        // coupling and a hound standing at its ground's end (it bites at 4 m, and stands there facing whoever it chases). At
+        // the ground's own front coupling, D1's frontier:7 seed 3's driver was held and mauled there. It costs a car; not the
+        // car right behind the engine (that gap's the cab's), so with no car to spare it's the ground's own front, as before.
+        int clear = train.VehicleAhead(front);
+        _cutCar = clear >= 0 && consist.IndexOf(clear) > 1 ? clear : front;
         return hold;
     }
 
