@@ -1050,9 +1050,9 @@ public sealed class World
             // clients are sent the poses. Thrown outward off the curve it was on, if it was on one.
             if (Train.Wreck is null)
             {
-                double k = Train.Line.Sample(Train.Dynamics.Distance).Curvature;
                 ulong seed = (ulong)Tick * 0x9E3779B97F4A7C15UL ^ (Route?.Seed ?? 0);
-                Train.Wreck = Wreck.Begin(WreckTuning, Train, Ground, seed, first: Train.Dynamics.Consist.Vehicles[0].Id, outward: k > 1e-6 ? -1 : k < -1e-6 ? 1 : 0);
+                int first = Train.Dynamics.Consist.Vehicles[0].Id;
+                Train.Wreck = Wreck.Begin(WreckTuning, Train, Ground, seed, first, outward: OffTheBend(first));
                 // E.2 step 2: the crew as they were this tick, alive, and the wreck as it began, for the film. (Only what
                 // simulates the train derails it; a client's wreck is a puppet of the host's, and its film is sent.)
                 Film = WreckFilm.StartOf(Train.Wreck, FilmCrew(), Sim.Run.IncidentLog.CauseCard(this), DerailSpeed, Train.Dynamics.Distance,
@@ -1080,6 +1080,28 @@ public sealed class World
             v.LampLit = false;
         foreach (var rake in Train.Rakes)
             rake.Velocity = 0;
+    }
+
+    /// <summary>
+    /// Which way the first car off is thrown, +1 to its own right: to the outside of the sharpest bend under the train, the
+    /// way its momentum carries it (note 578; the director, 9 Oct 2026: "we took a bend too fast and it derailed inwards").
+    /// A positive curvature turns the line left (<see cref="Rail.TrackSegment.Radius"/>), so its outside is the line's right.
+    /// Measured on the train's own path (a branch's bends are its own) and at each car, not the engine's front alone, which
+    /// may already be off the bend onto the straight beyond it. 0 off any bend: the wreck picks a side.
+    /// </summary>
+    int OffTheBend(int first)
+    {
+        var rake = Train.Dynamics;
+        Rail.TrackSample sharpest = default;
+        foreach (var car in Train.Cars)
+            if (rake.Consist.IndexOf(car.Index) >= 0
+                && Train.Line.Sample(rake.Path, car.FrontDistance - car.Length / 2) is var t && Math.Abs(t.Curvature) > Math.Abs(sharpest.Curvature))
+                sharpest = t;
+        if (Math.Abs(sharpest.Curvature) < 1e-6 || first < 0 || first >= Train.Frames.Count)
+            return 0;
+        var lineRight = Double3.Cross(sharpest.Tangent, Double3.Up);
+        var outside = lineRight * Math.Sign(sharpest.Curvature);
+        return Double3.Dot(Train.Frames[first].Right, outside) >= 0 ? 1 : -1;
     }
 
     /// <summary>
