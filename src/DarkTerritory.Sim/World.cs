@@ -1370,6 +1370,9 @@ public sealed class World
         if (Combat is { } c && Guns.TryFire(s, intent, Train, c.Guns, ref Choir, c.Choir, targets, Tick, playerId) is { } shot)
         {
             Shots.Add(shot);
+            // A good shot at a switch stand throws it (note 593), the host's say as a hand on it is.
+            if (Authority && Switches?.Shot(shot, Train) is { } struck)
+                SwitchThrows.Add(struck);
             // The round's burst, in the gunner's name: it lifts the meter by roundLoudness, which the window takes to fall away.
             if (Authority)
                 CreditChoir(playerId, c.Choir.RoundLoudness * c.Choir.WindowSeconds);

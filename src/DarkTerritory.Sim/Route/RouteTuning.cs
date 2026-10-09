@@ -45,6 +45,8 @@ public sealed record JunctionTuning
     public double LeverReach { get; init; } = 2.2;
     /// <summary>Seconds of holding Use to throw it over.</summary>
     public double ThrowSeconds { get; init; } = 1.5;
+    /// <summary>A cannonball passing this close to a stand's lever throws it over (note 593); 0, a ball never does.</summary>
+    public double ShotReach { get; init; } = 0.6;
     /// <summary>The points won't move with a wheel within this of the toe.</summary>
     public double PointsLength { get; init; } = 12;
 
