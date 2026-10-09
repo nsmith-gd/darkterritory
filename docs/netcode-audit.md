@@ -192,7 +192,7 @@ driving out of the yard.
 
 ### Gap 4. Joining mid-game by invite relaunches the game (an agent; small)
 
-*Done as note 550 (N2, queue #272): the friend's lobby is the next launch, in-process.*
+*Done as note 551 (N2, queue #272): the friend's lobby is the next launch, in-process.*
 
 Note 24: an invite accepted while playing ends the game and restarts the process with `+connect_lobby`. The outcome
 matches Lethal Company (you leave the game you're in), but a relaunch costs the renderer's startup and loses the menu.
@@ -201,7 +201,7 @@ outside.
 
 ### Gap 5. Nothing adapts to a weak host or a weak client (an agent; medium)
 
-*Done as note 552 (N2, queue #273): the client reports its loss, a thin link is sent every other snapshot, the crew are sent
+*Done as note 553 (N2, queue #273): the client reports its loss, a thin link is sent every other snapshot, the crew are sent
 in a rotating order, and the host is told when its upload can't carry them; the interest radius was left alone (the tells).*
 
 At the budget (§2.5), a host on a thin uplink hurts everyone and a client on a thin downlink hurts themselves, and
@@ -227,7 +227,7 @@ connection per guess; nothing lists a crew's record distance beside a competitiv
 
 ### Gap 8. The two-machine test is by hand (an agent; small)
 
-*Done as note 551 (N2, queue #276): `tools/net/two-machines.sh`, first in the nightly soak.*
+*Done as note 552 (N2, queue #276): `tools/net/two-machines.sh`, first in the nightly soak.*
 
 Note 450's two Linux network namespaces joined by a veth pair (two real app windows, one hosting, one joining over the
 wire, the beacon heard, the password refused and then accepted) was run by hand. Put it in the nightly soak as a Linux

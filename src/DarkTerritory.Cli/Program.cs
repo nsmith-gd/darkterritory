@@ -180,7 +180,7 @@ object RunHarness(string[] args)
         Cars = (int)Opt(args, "--cars", 10),
         Seconds = Opt(args, "--seconds", 120),
         Seed = (int)Opt(args, "--seed", 1),
-        // --host-up-kbps, --down-kbps (note 552): what the host's upload, and each client's downlink, can carry; 0 for no cap.
+        // --host-up-kbps, --down-kbps (note 553): what the host's upload, and each client's downlink, can carry; 0 for no cap.
         Link = new Ballast.Net.LinkConditions(Opt(args, "--latency", 0.09), Opt(args, "--jitter", 0.02), Opt(args, "--loss", 0.03))
         {
             HostUpKbps = Opt(args, "--host-up-kbps", 0),
@@ -2684,7 +2684,7 @@ static object HudShot(string content, string[] args)
     // --lost (note 253): a joiner whose link has just gone, seen as it sees it: lost, and on its first try at getting back.
     // --lost --refused (note 254): back too late to a full crew, turned away: CREW FULL (2/2). --crew-full: the host at its cap.
     // --held-back (note 532): the host's own frames can't hold the tick rate (its clock has just dropped time), and its panel says so.
-    // --upload-strained (note 552): the host's upload drops a quarter of everything it sends, two joiners report it, and its panel says so.
+    // --upload-strained (note 553): the host's upload drops a quarter of everything it sends, two joiners report it, and its panel says so.
     // --link-quality [host|joiner] (note 534): a hosted night in the yard with two joiners over loopback, one of them losing
     // 12% of what it sends, seen by the host (each crewmate's link on the lobby panel) or by the first joiner (its own).
     // --link-quality line (note 540): the host's view as if out on the line, its corner naming the struggling joiner.
@@ -3152,7 +3152,7 @@ static SpectatedNight HeldBack(string content, string route, int cars)
 
 static SpectatedNight UploadStrained(string content, string route, int cars)
 {
-    // The host's own sends lose one in four (note 552): every joiner reports a thin downlink, which only its upload explains.
+    // The host's own sends lose one in four (note 553): every joiner reports a thin downlink, which only its upload explains.
     var host = NetPlaySession.HostGame(content, new SessionSetup(Route: route, Cars: cars, Enemies: false), port: 0,
         options: new Ballast.Net.DatagramOptions { SimulatedLoss = 0.25, Seed = 7 });
     var at = new System.Net.IPEndPoint(System.Net.IPAddress.Loopback, host.Port);

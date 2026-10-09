@@ -182,4 +182,21 @@ public class BoardedPackTests
         Assert.Equal(P.Health, least);
         Assert.True(n.Train.Dynamics.Consist.IndexOf(rear) < 0, "the pack's car is cut loose");
     }
+
+    [Fact]
+    public void ALoneDriverDoesntGoOutToCutThePackPastAKnottersGap()
+    {
+        // Note 547 (D1.3's frontier:7 seed 3): the last alive, the driver went along the roofs to cut a pack loose, came to a
+        // Knotter's gap on the way (never jumped, note 365), and stood on that roof 20 minutes till it froze. With a knot on the
+        // way it stays at the controls and drives on.
+        var n = new Lone(cars: 6, speed: 12);
+        var consist = n.Train.Dynamics.Consist;
+        consist.Vehicles[2].Knot = 1.0; // the gap behind car 2
+        n.Pack(consist.Vehicles.Count - 1, 3);
+        bool left = false;
+        n.Until(() => { left |= !PlayerMotor.InCab(n.Self, n.Train); return false; }, 150);
+        Assert.False(left, $"went out: {string.Join(" ", n.Path)}");
+        Assert.False(n.Driver.CuttingAlone);
+        Assert.True(n.Train.Dynamics.Speed > 3, $"standing at {n.Train.Dynamics.Speed:0.0} m/s");
+    }
 }
