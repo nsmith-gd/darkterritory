@@ -7292,3 +7292,47 @@ Terrain sculpting tools, a node-graph material editor, a general-purpose visual 
     - **Measured** (frontier:7, 10 cars, 8 bots, enemies): on the rough link 64.3 kbit/s down a client, 291-byte snapshots, the worst correction 0.37 m once, no deaths; on real UDP sockets and the fake lobby 57 kbit/s and 0.1 mm; a drop at 120 s and a redial at 135 s back in 0.23 s as the same player; on 200 ms ±50 with 10 % loss a third of the snapshots lost or stale and the worst correction 8 cm. The down rate is at §6.2's 64 kbit/s budget (note 23 measured 52); the host's upload with seven remote crewmates is about 450 kbit/s before voice, and nothing adapts to a thin uplink.
     - **The gaps, as queue items #269–#276:** the real Steam evening (#269); the network pump off the frame loop, a 20 s play timeout, the ping from the pump, a slow host slowing the night (#270; D1's #268 has the stall that dropped the bots); the link's quality shown (loss, relay or direct, the host's upload) (#271); an invite accepted while playing joining in-process instead of relaunching (#272); a weak client sent at 15 Hz and a weak host warned (#273); players off Steam have no relay: Steam-only online at launch, or EOS P2P as the third carrier, the director's call (#274); note 450's "not yet" (#275); the two-namespace app test into the nightly soak (#276).
     - **Not gaps:** no host migration (none of the three; spec E); the game's own reliability over Steam's (note 24); the 1,200-byte limit (SDR's MTU); the token in the clear over UDP; relay always, never direct; Steam only when launched by Steam.
+
+
+526. **Note 496's lamp claim, where it missed (queue #263, D1.3 for D1; found on #625's sweep, frontier:7 seed 6).** With note 496 in, seed 6's Fire Flies still set car 1 and car 5 alight at Talbot Foundry, and three hands burned in car 1.
+    - **Why the lamp claim missed it:**
+      - *The first, not the nearest.* Each hand's client sees the flies a tick or two apart. Under note 496, the claim went to the nearest hand on the tick they came, so in practice to the first client to see them: the shunter at the switch, 22 s off on the ballast, while a walker stood in the cab beside car 1. Now a nearer hand (by a metre or more) can take the claim in its first second, and after that it stays with the holder, as before (`CrewCalls.ClaimLamp`).
+      - *The doorway.* The hand reached car 1 while its fire was still smoke, and stood in the side doorway for the rest of it. The room's box (`PlayerMotor.Indoors`) stops at the wall's inner face. Inside it, the trouble's work (`Tend`) walked the hand toward the extinguisher on a slant into the door's jamb, out of the box. Outside it, the way in (`StopHand.IntoTrouble`) walked it back to the middle. It went back and forth every second or so. And a lamp's press counts only in the room, so presses from the doorway did nothing. Now the doorway is the car's floor for the trouble's work (`RoofWalkerBot.InTheCar`), and `Fight` steps straight in from it (note 437's step), into the room where the press counts. Car 1's lamp is out 4 s after the hand gets there.
+      - *The flies only while the train stands.* Sent along the roofs for car 5's flies as the train went into the spur, a hand stood where it was on car 2's roof (nothing gets off a moving train, `GetDown`), and a Dragger pulled it off. Pulling away breaks the flies off by itself (App. A.5), so their claim stands only while the train stands. The fire they lit is still claimed while it's smoke, as before. A hand caught on a moving roof steps out to its centreline (App. A.4).
+    - **Tried, and left out:** a run along the ballast for the lamp. At a walk, the gunner took 75 s from the cab to the guard van. With the run in, seeds 1–9 lost 46 cars against 19 without it, and delivered 21.0 car-loads against 36.9.
+    - **Measured** (seeds 1–9, main → now; main has D1.2's #619 in):
+
+      | | Main | Now |
+      |---|---|---|
+      | Deaths | 28 | 18 |
+      | Burned | 5 | 4 |
+      | Nights the crew's lost | 2 | 0 |
+      | Delivered | 0 | 1 |
+      | km | 168.7 | 179.7 |
+      | Cars lost | 20 | 19 |
+      | Cargo delivered | 38.5 | 36.9 |
+
+      Seed by seed it's noisy: a hand's errand moves the night's timing, and what comes later comes differently. On seed 6, car 1 is saved and the deaths are 5 → 2.
+    - **Not yet:**
+      - The rear cars' lamps, with every hand at the front: seed 6's guard van, 180 m from the cab at the Foundry's clear-away, was alight before anyone got there.
+      - The driver's set-backs for a hand left on the ground: on seed 6, after its switch set-back, it backs a kilometre to the spur's toe for one, and later runs on at 14.5 m/s with all three on the ballast. That one is ConductorBot's (D1).
+    - **Test:** `CarFireTests.AtAStopTheNearestHandPutsTheFireFliesLampOutWhateverItsPart` is a theory over seeds 2 and 6 now: no car the flies came to is alight by 520 s.
+510. **Captions for the moments: what a creature does and how the train fails (AU1, queue #247; note 349's CAPTIONS, F1's; note 391; GDD §32; the director, 8 Oct: "these are all quite important").** Captions told a reader how a thing is learned: the tells, the signs, the jobs that call for a hand, the doors, the rules heard (note 494's healing). They didn't say when it happens. A car tearing away, someone dragged under the train, a bite, a seizing, the boiler bursting, a derailment, a misfire and the overspeed bell were all heard by a hearing player and never written.
+    - **Added** (content/ui/captions.json, by F1's rules: what it is as someone hearing it would say it, never what makes it, never what to do), 55 sounds:
+        - **A creature's acts:**
+            - the car torn away and a body slid out of the mouth;
+            - claws on the edge, boots scrabbling, a body dragged under the train, someone hauled back up;
+            - a stab into a body, a beak in the roof, wings beating, planks splintering, a crash across the roof;
+            - a hard cracking strike; snarling, jaws snapping shut, a yelp, something heavy landing on the boards;
+            - a wet lash, tearing and hissing; breathing turning to a rattle, a huge cry close, wet suckling;
+            - the fire breathing, flame roaring out; a lamp flickering, a lever heaved over; kicking and struggling;
+            - broken whistling running off; something bursting; bellows;
+            - slats splitting and gnawing; bells swelling into song, a voice closing over you, the singing fading; the hatch prised open.
+        - **The train's warnings and failures:**
+            - the bell twice, the roof irons rattling, cords slapping the roof;
+            - wheels shrieking on the bend, a wheel screeching up the rail, a car going over, cars crashing together, a car hitting the ground;
+            - the boiler bursting; the engine knocking; steam from a leak, small and large;
+            - the brakes whining and slipping; the engine wheezing short of steam; a rivet pinging; the safety valve lifting;
+            - a dead click at the gun; iron wrenched open.
+    - **Left silent:** what plays the crew's own sounds by design (the Passenger's steps and uncoupling, the doll's levers), whose silence is the tell. Also left out are takes kept from the first pass whose content isn't written down: the Whistler's snatch and nest, the Car Hugger's swallow, Tippy Toesie's grab and flee; they get words when they're redone.
+    - **Pinned:** `CaptionsTests.TheMomentsAreCaptioned`, twelve of them by name (a variant by its line's, `state-derail.impact.ground`). F1's tests hold: every caption is a sound that plays, none names a creature, all in capitals.
