@@ -7532,6 +7532,53 @@ Terrain sculpting tools, a node-graph material editor, a general-purpose visual 
     - **Budget:** 8,434 triangles (was 5,618) of the model's 9,000 (`CreatureArtTests`); 34 bones. The clips, the sim and `CreatureArt` are unchanged, and the heal tell (note 487) still reads the body's middle.
     - **Verified:** `dt screenshot --threats --grumbler rear --view grumbler` and `dt art clip grumbler gnaw --frames 1 --at 0,0.6,0 --dist 2 --yaw 40 --pitch 20` (before and after are in the Look Review round). `CreatureArtTests` and `GrumblerHealingTests` are green.
 
+545. **Where a bot night's distance goes (queue #287, D1.3 for D1; D1.3's bot report, #671: frontier:7, 4 bots, `--enemies --upkeep`, 2,700 s, seeds 1–9 went 211 → 140 km and 2 → 0 delivered from 2db2f342, the director's 2:30 pm build of 8 Oct, to a2ffa44b).** A per-second log of each night split the time into moving, moving with brakes wound, and standing, by what it stood for.
+    - **Main, seeds 1–18** (48,313 s):
+        - moving: 16,966 s
+        - moving with brakes wound: 7,636 s
+        - standing at stops: 7,427 s
+        - standing for the Knotter: 5,629 s
+        - standing with the brake on otherwise (crew left behind, Holdouts, all aboard): 3,864 s
+        - standing with the driver out of the cab: 2,884 s
+        - slow, 0.5–3 m/s: 1,975 s
+        - standing for a Hotbox or its axle: 406 s
+    - **The Brakeman's drag costs little.** Moving, the train averages 11.8 m/s with nothing wound, 11.4–12.4 with one to four cars wound and 10.4–10.8 with five or more. Some car is wound about 950 s a night, 3.8 cars on average when any are.
+    - **The Knotter's stands.** Most Knotters die in 30–45 s. On seeds 3, 4, 5, 8 and 9 one stayed 670–2,270 s.
+    - **Seed 8's cause, a bot bug in `Heed.Brakeman`.**
+        - The Brakeman was already dead. `Unwind` sent every roof bot for a wound car's wheel across the Knotter's gap, which `ToAlong` never crosses, so all three stood at its edge.
+        - `Heed.Brakeman` runs after `Heed.Knotter` (BotCrew.Think), so it overrode "go down and kill it slack".
+        - The driver stood its `standGiveUp` (240 s) and went on with the Knotter aboard, splitting the crew all night.
+    - **Now:**
+        - `Heed.Brakeman` never closes on him, and never heads for a wheel, across a Knotter's gap (`Reachable`: no `Knotted` gap between the cars).
+        - At a stand with a Knotter slack, a bot that can get down is left to `Heed.Knotter`.
+    - **The driver's hole it showed.** A Knotter killed while the stop driver had the train left the cars behind its gap on the line. On seed 8 it forced its gap as the driver stood for the Switchman's points, and nine cars were lost.
+        - `ConductorBot.ForTheSix` now tracks the joint whatever leg it's in. Once the Knotter has gone from a stand, and the cars stand its gap behind with nothing aboard them, it backs onto them and puts the reverser forward again.
+        - Only on the switch legs and in Cruise. At a facility the stop's plan takes those cars as its cut and couples back onto them in BackOut; coupled up under its Held, it stood all night with the points set.
+        - "Killed" is read from what replicates: a client's copy of a Knotter is dropped, never ended.
+        - The driver's own cut (note 343), a pack's, the Car Hugger's or a fire's is never undone.
+    - **Measured** (main → this, seeds 1–18):
+        - km: 301.1 → 318.0 (seeds 1–9: 140.4 → 154.9)
+        - standing for the Knotter: 5,629 → 2,075 s
+        - driver out of the cab: 2,884 → 1,541 s
+        - froze: 13 → 7
+    - **The cost: the hounds get their chance.** Hound runs come with sustained speed, and main's long stands kept them off. Over seeds 1–18:
+        - packs boarded: 14 → 31
+        - mauled: 9 → 20
+        - deaths: 48 → 56
+        - crew lost: 23 → 32
+        - cars lost: 62 → 85 (cuts 21 → 69 cars, the pack fight's own cut, note 484)
+        - cargo: 37.2 → 29.7 car-loads
+        - no night delivers either way
+    - **What's left of 211 → 140 is the creatures' own numbers and the Foundry** (for the director, COORDINATION's *Waiting on the director*):
+        - 4.7 Knotters a night, each a stand of about 40 s and a 5 m gap;
+        - the Brakeman aboard about 920 s a night;
+        - Fire Flies' fires at Talbot Foundry on 7 of 9 nights in both builds (7 → 15 fires; note 496).
+    - **Tests:**
+        - `BotsAnswerTheSixTests.ARoofBotNeverHeadsForAWheelAcrossAKnottersGap` and `AtTheKnottersStandTheBotsKillItBeforeAnyWheelBeyondIt`.
+        - `StopCrewTests.AKnotterKilledWhileTheDriverStandsForThePointsIsCoupledUpAfter`: a dead-line night with the creatures on, the walkers heeding the Knotter.
+        - Each fails on main.
+    - **Not this item:** D1.2's #289 (note 547). There the frozen walkers' warm-up was drafted into the Brakeman's pincer, which is `BotCrew`'s order, not the unwind.
+
 546. **The Soot Child close to (queue #288, E1; the art checklist's `soot-children`, GDD App. A.6: "a child calling for help: black eyes, blackened hands and feet, readable from five metres").** Note 125's model is one child with two variants (the real one, 0, and the Soot Child, 1), which is the lure. Close to, it read as a costume, not a child gone wrong:
     - a white egg of a face with two dots;
     - a helmet of hair over a clean band of brow;
