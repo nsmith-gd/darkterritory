@@ -1396,7 +1396,10 @@ public sealed class World
     /// <summary>A blow or a ball landed on <paramref name="e"/> (T121): the record every client's flinch, thud and marker come from.</summary>
     void Confirm(Enemy e, int by, HitSource source, Ballast.Double3 at, Ballast.Double3 from)
     {
-        Hits.Add(new HitConfirm(_nextFx, Tick, e.Id, e.Kind, by, source, at, from, e.Gone));
+        // Killed is dead (note 458, D1): a blow that has one give up and go (the Gannet below its giveUpBelow, a Whistler
+        // dropping who it carried, a Climber's last try knocked off by a ball) leaves it gone but alive. No kill confirm for
+        // that (the sound, the HUD's red mark), and the scene sees it go rather than fall (GreyboxScene.Retreating).
+        Hits.Add(new HitConfirm(_nextFx, Tick, e.Id, e.Kind, by, source, at, from, e.Gone && e.Health <= 0));
         _nextFx = _nextFx % 0xFFFFFF + 1;
     }
 
