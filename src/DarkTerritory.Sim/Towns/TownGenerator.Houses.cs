@@ -415,7 +415,8 @@ public static partial class TownGenerator
             {
                 var spot = order[k];
                 var (ps, pd) = house.Rail(spot.U, spot.V);
-                var (fs, fd) = house.Facing(spot.FaceU, spot.FaceV);
+                // Nicki faces her door (the street beyond it), waving you in; her guests as their spots have them.
+                var (fs, fd) = k == 0 ? house.Facing(layout.DoorU - spot.U, -1.5 - spot.V) : house.Facing(spot.FaceU, spot.FaceV);
                 // One sat at the table with the wine; everyone else up dancing.
                 bool sat = spot.Pose == "seated" && order.Take(k).All(x => x.Pose != "seated");
                 string pose = k == 0 ? "wave" : sat ? "seated" : "dance";

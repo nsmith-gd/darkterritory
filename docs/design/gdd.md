@@ -264,6 +264,8 @@ A very few people live outside the walls and aren't anybody's prey. They are rar
 - **Who's there.** Nicki (just Nicki) is at the door, waving you in. Two to four guests from the town's other houses are dancing, and one sits at the table with the wine. Everyone's mask is down.
 - **What she says.** The first thing is always the wine ("Here, there's wine. Real wine, from before. I was saving it for nobody, so it's yours."). Then two of hers, kind and a little defiant: the end of the world is no reason to stop living in it. Her guests say what a night at Nicki's is. Nobody at the party talks about the custom tonight.
 - **The wine** is on the table: a bottle from a vineyard that isn't there any more, and a row of odd glasses poured and waiting, one marked YOURS.
+- **A glass** (the director, 9 Oct: "when Nicki offers wine to the players they should get extra health for the next run if they take it. Don't mention that anywhere in the wiki"). Hold Use by her ("NICKI   TALK : [E]   A GLASS : HOLD [E]") and you've taken one: 25 health over full (tuning/towns.json `wine`) for the night that's about to set out, since she's only ever in the departure town. One a crewmate a night. Nothing on the screen says what it did. **Never in the Wiki.**
+- **What she looks like** (after the director's photographs of her). Shoulder-length strawberry-blonde hair, wavy, with a fringe; a tan; silver drop earrings; a lime tank top or a blush-pink camisole (the town's night has one), black trousers. No mask: it's her party.
 
 **Jacob, the fisherman** comes next.
 

@@ -424,6 +424,7 @@ public sealed partial class CreatureArt
             };
         }
         Dress(DaveKit.Figure, DaveKit.Clothes);
+        Dress(NickiKit.Figure, NickiKit.Clothes, NickiKit.Shape);
     }
 
     public Look Look { get; }

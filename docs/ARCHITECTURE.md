@@ -7665,4 +7665,13 @@ Terrain sculpting tools, a node-graph material editor, a general-purpose visual 
         - the wine on the table;
         - nobody at the party saying the custom.
       The town tests stay green (Nicki is just Nicki; her guests' surnames are their own).
-    - **Not yet:** the party heard (music kept low, laughing, glasses: the audio checklist's); a drink that does something; her coloured lamps read only faintly under the house's own fill light.
+    - **Her wine** (the director, 9 Oct: "when Nicki offers wine to the players they should get extra health for the next run if they take it. Don't mention that anywhere in the wiki").
+        - She's only ever in the departure town, which a crew walks before the gate, so "the next run" is the night about to set out (the reading that needs nothing carried in the save).
+        - `World.WineAct`, host-side in `CrewAct`: Use held `wine.holdSeconds` (0.8) within `wine.reach` (2.6 m) of her, empty-handed, adds `wine.health` (25) to their health, over full (`Bodies.FullHealth` still caps the healing finds at full, so the glass is spent as they're hurt). `_toasted` keeps it to one a crewmate a night.
+        - It's tried before the house door's hold (note 401): she waves you in at her door, and a held Use by her is a glass, not the door shut in her face.
+        - `World.WineInReach` is alike on host and client for the prompt: "NICKI   TALK : [E]   A GLASS : HOLD [E]". A client goes by their being over full, which only the wine does. The app sends a Use press at her to the host (a town's word is otherwise kept local).
+        - `Townsperson.Hosting` marks her (`TownGenerator`: the party's `host` part).
+        - **Never in the Wiki.**
+    - **Her look** (`Art/NickiKit.cs`, `GreyboxScene.Hostess`), after the director's photographs of her: the survivors' figure dressed (`Art/Redress.cs`, note 526) and taken in at the shoulders and waist (`NickiKit.Shape`), tanned; shoulder-length wavy strawberry-blonde hair with a fringe; silver drop earrings; tonight's top (`NickiKit.TopOf`, from the town's name: the lime tank top or the blush camisole) fitted over the figure; black trousers; no mask. The crew's `wave` turns the body off to its side, so she's turned back 1.2 rad by as much and waves at the door. `--town nicki` looks at her from inside her door.
+    - **Verified:** `NickiWineTests.AGlassIsHealthOverFullOnceANightAndOnlyByHer` (a tap isn't a glass; held, +25 over full; once a night; not from across the room).
+    - **Not yet:** the party heard (music kept low, laughing, glasses: the audio checklist's); her coloured lamps read only faintly under the house's own fill light; her face is the survivors' scan.

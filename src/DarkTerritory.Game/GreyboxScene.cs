@@ -2853,6 +2853,28 @@ public sealed partial class GreyboxScene
         return true;
     }
 
+    /// <summary>
+    /// Nicki (note 527): dressed after the director's photographs (Art.NickiKit), in full colour and no mask, waving you in at
+    /// her door; her top is the town's (the lime tank top or the blush camisole). False when her figure isn't built.
+    /// </summary>
+    bool Hostess(MeshBuilder mesh, Double3 eye, Double3 feet, Double3 facing, string act, int who)
+    {
+        var creatures = Look!.Art.Creatures;
+        if (creatures.Get(Art.NickiKit.Figure) is null || Town is not { } town)
+            return false;
+        string clip = Art.TownsfolkKit.Clip(act, false, who);
+        var back = -Vector3.Normalize(ToF(facing) with { Y = 0 });
+        // The crew's wave turns the body off to its side as the arm goes up: turned back by as much, she waves at the door.
+        if (clip == "wave")
+            back = Vector3.TransformNormal(back, Matrix4x4.CreateRotationY(-1.2f));
+        var m = Art.CreatureArt.Basis(V(feet, eye) - Vector3.UnitY * creatures.FeetOver(Art.NickiKit.Figure, clip), Vector3.Cross(Vector3.UnitY, back), Vector3.UnitY, back);
+        if (!creatures.Draw(mesh, Art.NickiKit.Figure, clip, Time + who * 0.73, true, m, 0, seed: 29,
+            adjust: (mat, l) => l with { Emissive = 0 }))
+            return false;
+        Look.Art.Nicki.Dress(creatures, mesh, m, Art.NickiKit.TopOf(Sim.LineGen.Streams.Mix(0x41C1, "top", town.Plan.Name, 0)));
+        return true;
+    }
+
     void Folk(MeshBuilder mesh, Double3 eye, Double3 feet, Double3 facing, int variant, float drab = 0.45f, string pose = "idle",
         string? gear = null, bool home = false, int who = 0, bool lamp = false)
     {
@@ -2944,7 +2966,9 @@ public sealed partial class GreyboxScene
                         ? toward.Normalized : now.Facing;
                     // Held to talk mid-stride, they stand.
                     string act = talking && now.Walking ? "idle" : now.Act;
-                    Folk(mesh, eye, feet, facing, p.Look % 7 + 1, drab: 0.72f, act, p.Gear, home: p.House >= 0, who: p.Id, lamp: p.Pose == "lantern");
+                    // Nicki at her party (note 527): her own figure, not the town's drab.
+                    if (!p.Hosting || !Hostess(mesh, eye, feet, facing, act, p.Id))
+                        Folk(mesh, eye, feet, facing, p.Look % 7 + 1, drab: 0.72f, act, p.Gear, home: p.House >= 0, who: p.Id, lamp: p.Pose == "lantern");
                     // Whoever you're talking to has the lamplight on their face, so you can see who it is (most stand with
                     // a lit door or a fire at their back).
                     if (talking)
