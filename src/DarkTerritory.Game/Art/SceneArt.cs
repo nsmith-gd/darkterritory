@@ -24,7 +24,7 @@ public sealed partial class SceneArt(Look look)
 
     /// <summary>A town's people's breathing gear and hats (note 353).</summary>
     public TownsfolkKit Townsfolk { get; } = new(look);
-    /// <summary>Dave's things: his hats and waistcoats, glasses and sandals, his easel and canvas (note 526).</summary>
+    /// <summary>Dave's things: his hats and waistcoats, glasses and sandals, his easel and canvas (note 528).</summary>
     public DaveKit Dave { get; } = new(look);
 
     CreatureArt? _creatures;
@@ -65,6 +65,7 @@ public sealed partial class SceneArt(Look look)
             CrewPose.Shoulder => speed < 0.4f ? CrewPose.Shoulder : CrewPose.ShoulderWalk,
             CrewPose.Cradle => speed < 0.4f ? CrewPose.Cradle : CrewPose.CradleWalk,
             CrewPose.Lantern => speed < 0.4f ? CrewPose.Lantern : CrewPose.LanternWalk,
+            CrewPose.Toolbox => speed < 0.4f ? CrewPose.Toolbox : CrewPose.ToolboxWalk,
             // Across the plate, short careful steps; stood on it, balancing (GDD §32).
             CrewPose.Gap => speed < 0.4f ? CrewPose.Gap : CrewPose.GapStep,
             { } act => act,
@@ -99,7 +100,7 @@ public sealed partial class SceneArt(Look look)
         if (_crewHealth.TryGetValue(c.Id, out int was) && c.Health < was && c.Alive)
             _staggered[c.Id] = time;
         _crewHealth[c.Id] = c.Health;
-        bool free = c.Act is null or CrewPose.Carry or CrewPose.Lantern;
+        bool free = c.Act is null or CrewPose.Carry or CrewPose.Lantern or CrewPose.Toolbox;
         if (free && _staggered.TryGetValue(c.Id, out double hit) && time - hit < StaggerSeconds)
             pose = CrewPose.Stagger;
         // At the firehole as its door moves: the one who swung it (whoever's stood there; the sim doesn't say who).
@@ -159,8 +160,14 @@ public sealed partial class SceneArt(Look look)
                 rightHand = ToF(r);
         }
         var lamp = c.Lamp ? PropArt.Of(Look).Get("hand_lantern") : null;
+        // The repair kit by its handle (note 513): drawn in the fist, not where the sim holds it (Body skips it).
+        var kit = pose is CrewPose.Toolbox or CrewPose.ToolboxWalk ? PropArt.Of(Look).Get("repair_kit") : null;
         bool drawn = Creatures.Crewmate(mesh, m, pose, clipTime, c.Variant, left, rightHand, ToF(Arms.Pole(-1)), ToF(Arms.Pole(1)), ToolProp(c.Holding),
-            hanging: lamp, figure: CreatureArt.FigureOf(c.Survivor), body: HeadsetBody(c, pose, time));
+            hanging: lamp, figure: CreatureArt.FigureOf(c.Survivor), body: HeadsetBody(c, pose, time), carried: kit);
+        if (drawn && kit is not null)
+            _kitHands[c.Id] = time;
+        else
+            _kitHands.Remove(c.Id);
         // Their breath in the cold (GDD §26): out on the beat of their breathing, a puff of vapour from the mouth that
         // goes out the way they face and rises, gone in a second and a half; harder breathing (running, hauling) quicker.
         bool hard = pose is CrewPose.Run or CrewPose.Haul or CrewPose.HaulUp or CrewPose.Shovel or CrewPose.Smash or CrewPose.Pry;
@@ -391,6 +398,11 @@ public sealed partial class SceneArt(Look look)
         _lampHands.TryGetValue(carrier, out var h) && time - h.Time < 0.5 ? h.At : null;
 
     readonly Dictionary<byte, (CrewPose Pose, double Time)> _crewActSince = new();
+
+    /// <summary>Whether crewmate <paramref name="carrier"/> was drawn with the repair kit in their fist (note 513) this half second.</summary>
+    public bool KitInHand(int carrier, double time) => _kitHands.TryGetValue(carrier, out var at) && time - at < 0.5;
+
+    readonly Dictionary<int, double> _kitHands = new();
 
     /// <summary>The crew whose extinguisher is at work on a fire this frame (GreyboxScene: a fire going down with it in reach).</summary>
     public IReadOnlySet<int>? Spraying { get; set; }
@@ -676,8 +688,11 @@ public sealed partial class SceneArt(Look look)
             return true;
         if (b.Kind == Sim.Physics.BodyKind.Ragdoll)
             return Corpse(mesh, frames, b, eye, onCar, time);
-        // A hand lamp someone's carrying is drawn in their fist (Crewmate), not where the sim holds it.
+        // A hand lamp someone's carrying is drawn in their fist (Crewmate), not where the sim holds it; so is the repair kit,
+        // by its handle (note 513).
         if (b.Kind == Sim.Physics.BodyKind.Lamp && b.Carrier >= 0 && LampInHand(b.Carrier, time) is not null)
+            return true;
+        if (b.Kind == Sim.Physics.BodyKind.RepairKit && b.Carrier >= 0 && KitCarriers?.Contains(b.Carrier) == true && Creatures.Get("crew") is not null)
             return true;
         var local = b.Pbd.Particles[0].Position;
         var at = onCar ? frames[b.Parent].ToWorld(local) : local;
@@ -903,6 +918,10 @@ public sealed partial class SceneArt(Look look)
 
     /// <summary>Whose bodies died by fire (the Stoker, a burning car, powder going up): drawn charred, still smouldering.</summary>
     public IReadOnlySet<int>? Burned { get; set; }
+
+    /// <summary>The crew carrying the repair kit by its handle this frame (note 513: GreyboxScene, from their acts): it's drawn in
+    /// their fist (Crewmate), so Body leaves it out.</summary>
+    public IReadOnlySet<int>? KitCarriers { get; set; }
 
     /// <summary>A ragdoll as the crew model lying as its joints lie; false (the greybox's bones) if the model isn't there.</summary>
     bool Corpse(MeshBuilder mesh, IReadOnlyList<CarFrame> frames, Sim.Physics.Body b, Double3 eye, bool onCar, double time)

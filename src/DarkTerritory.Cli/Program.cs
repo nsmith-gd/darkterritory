@@ -154,6 +154,10 @@ object RunHarness(string[] args)
             // And what's out there: each enemy, what it's doing, and where (its car, or along the line).
             string enemies = string.Join(" ", world.ActiveEnemies.Where(e => e.Kind != DarkTerritory.Sim.Enemies.EnemyKind.Sleepers)
                 .Select(e => $"{e.Kind}:{e.Phase}@{(e.Attached >= 0 ? $"car{e.Attached}" : $"{e.LineDistance:0}")}"));
+            // And the loose couplings (note 356), by the car whose rear gap each is in.
+            string loose = string.Join(" ", world.Train.Dynamics.Consist.Vehicles.Where(v => v.Loose > 0).Select(v => $"Loose@car{v.Id}"));
+            if (loose.Length > 0)
+                enemies = enemies.Length > 0 ? $"{enemies} {loose}" : loose;
             string now = string.Join(" | ", crew.Select(c => Harness.Describe(c.Bot, c.State))) + (enemies.Length > 0 ? $"  || {enemies}" : "");
             if (now != lastTrace)
             {
@@ -1693,7 +1697,7 @@ static object Screenshot(TrainTuning t, string content, string[] args)
         float moosePace = mooseMode switch { "charge" => (float)mooseTuning.ChargeSpeed, "search" => (float)mooseTuning.SearchSpeed, _ => 0 };
         scene.StagedPaces = new Dictionary<int, float>(scene.StagedPaces ?? new Dictionary<int, float>()) { [Staging.MooseId] = moosePace };
     }
-    // --dave paint|warn|grab (note 526): Dave at his easel; warned, turned to crewmate 4 behind him; holding them in front of him.
+    // --dave paint|warn|grab (note 528): Dave at his easel; warned, turned to crewmate 4 behind him; holding them in front of him.
     if (Str(args, "--dave", view switch { "dave" or "davefar" or "daveface" => "paint", "davewarn" => "warn", _ => "" }) is { Length: > 0 } daveMode)
     {
         scene.Enemies = Staging.Dave(scene.Enemies is List<DarkTerritory.Sim.Enemies.Enemy> others ? others : [], train, daveMode);

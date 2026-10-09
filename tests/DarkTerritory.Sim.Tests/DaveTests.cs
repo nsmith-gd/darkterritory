@@ -6,7 +6,7 @@ using DarkTerritory.Sim.Player;
 namespace DarkTerritory.Sim.Tests;
 
 /// <summary>
-/// Dave, the wandering painter (GDD §3.2; the director, 8 Oct 2026; ARCHITECTURE §8 note 526). Some nights he's at his easel
+/// Dave, the wandering painter (GDD §3.2; the director, 8 Oct 2026; ARCHITECTURE §8 note 528). Some nights he's at his easel
 /// out past a stop; nothing hurts him and the director never counts him; a crewmate's first four blows are his warnings
 /// (the last of them turns him: his telegraph) and the fifth is their death, by the spine like every kill; each crewmate's
 /// blows are their own.

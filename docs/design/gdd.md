@@ -231,11 +231,11 @@ Use talks to someone, and Use again hears their next line. They turn to face you
 - things everyone hears when one person does them (ringing the bell);
 - notes found out along the line.
 
-### 3.2 The figures out there *(the director, 8 Oct 2026; ARCHITECTURE §8 note 526)*
+### 3.2 The figures out there *(the director, 8 Oct 2026; ARCHITECTURE §8 note 528)*
 
 A very few people live outside the walls and aren't anybody's prey. They are rare, they are kind, and nobody knows what they are. The crew meet them by luck and talk to them as they talk to townsfolk (text only, a Use press). Each is the night's, made from the route's seed.
 
-**Dave, the wandering painter** (note 526; the director: "a special NPC that shows up randomly in places. His name is Dave (just Dave) and he's a wandering painter"; our Tom Bombadil, named for the director's father, who paints).
+**Dave, the wandering painter** (note 528; the director: "a special NPC that shows up randomly in places. His name is Dave (just Dave) and he's a wandering painter"; our Tom Bombadil, named for the director's father, who paints).
 - **Where he is.** On about three nights in ten he's out past one of the line's stops, at his easel on open ground away from the village and the yard. His lantern hangs from the easel's top, lit: from the line he's a warm point and the silhouette of a good hat (enemies.json `dave`).
 - **What he looks like** (after the director's photographs of his father). Grey hair, clean-shaven, black rectangular glasses, a small black hoop in his left ear and a silver chain, a black tee and light jeans, bare feet in sandals, a bit tubby. He's extremely fashionable: one of his cool hats (the wide straw, a beret, a fedora with a feather, his black felt, a panama, a ball cap with a bright patch) and one of his waistcoats (mustard corduroy, plum velvet, tartan, teal brocade, a patchwork of his paints, black leather with silver snaps). The pairing changes most nights, so a crew who meets him twice rarely sees him dressed the same. He wears no mask, and nobody knows how he breathes the air.
 - **What he does.** He paints the natural world as it used to be: a valley in June, the sea and a lighthouse at noon, a lake under hills in October. Every canvas is signed with a small red D.

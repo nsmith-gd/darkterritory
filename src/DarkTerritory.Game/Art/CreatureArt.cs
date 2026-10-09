@@ -22,6 +22,8 @@ public enum CrewPose
     Cradle, CradleWalk,
     // The firehole's door hauled open or shut (GDD §12).
     FireDoor,
+    // The repair kit by its handle at the side, stood and walking (note 513).
+    Toolbox, ToolboxWalk,
     // Held, one per GRAB (App. A.1): by a Dragger, a Car Hugger, the Whistler, Tippy Toesie, Ribbits, a Soot Child, the Choir, the Passenger.
     HeldHang, HeldMouth, HeldCarried, HeldCover, HeldFrozen, HeldPinned, HeldSeized, HeldDragged,
     // At the cannon's breech from the seat (note 137): played by the reload's progress, not a clock.
@@ -141,22 +143,24 @@ public sealed class CreatureArt
 
     /// <summary>
     /// How the ones the sim lets go of in sight are seen going (GreyboxScene.Retreating, note 458): off the train or the
-    /// ground they stood on, out from the line at <c>Out</c> m/s, facing away, for <c>Seconds</c>; then lost in the dark.
+    /// ground they stood on, out from the line at <c>Out</c> m/s, facing away, for <c>Seconds</c>; then lost in the dark. What
+    /// flies lifts at <c>Rise</c> m/s instead of falling.
     /// Null: one that isn't drawn going this way (killed ones fall, the Choir disperses, the Track Doll flickers, the Car
     /// Hugger rides its car away, a hound on the line runs off; the rest aren't seen go, or have no body to see).
     /// </summary>
-    public static (double Out, double Seconds)? Retreat(EnemyKind kind) => kind switch
+    public static (double Out, double Seconds, double Rise)? Retreat(EnemyKind kind) => kind switch
     {
-        EnemyKind.Climber => (5.0, 3.0),        // outnumbered, held off, or given up on a fast train: down off it and away
-        EnemyKind.Whistler => (8.0, 2.0),       // found in its gap (A.4: "flees"): gone fast, low, into the field
-        EnemyKind.Ribbit => (4.0, 3.0),         // the pack's eaten: off in hops
-        EnemyKind.Gaunt => (1.5, 6.0),          // its loot taken or talked down: on walking, out past its 30 m
-        EnemyKind.Switchman => (4.0, 3.0),      // the points thrown back, or the train gone by: off from the lever
-        EnemyKind.TippyToesie => (5.0, 2.5),
-        EnemyKind.SootChildren => (3.0, 3.0),
-        EnemyKind.Passenger => (3.0, 3.0),      // unmasked, off the back of the train
-        EnemyKind.Follower => (4.0, 3.0),
-        EnemyKind.CinderHound => (6.0, 3.0),    // one aboard (its car cut, or its kill made): over the side and away
+        EnemyKind.Gannet => (7.0, 3.0, 3.0), // struck into giving up (note 458): it flies off for the run, up and away
+        EnemyKind.Climber => (5.0, 3.0, 0),        // outnumbered, held off, or given up on a fast train: down off it and away
+        EnemyKind.Whistler => (8.0, 2.0, 0),       // found in its gap (A.4: "flees"): gone fast, low, into the field
+        EnemyKind.Ribbit => (4.0, 3.0, 0),         // the pack's eaten: off in hops
+        EnemyKind.Gaunt => (1.5, 6.0, 0),          // its loot taken or talked down: on walking, out past its 30 m
+        EnemyKind.Switchman => (4.0, 3.0, 0),      // the points thrown back, or the train gone by: off from the lever
+        EnemyKind.TippyToesie => (5.0, 2.5, 0),
+        EnemyKind.SootChildren => (3.0, 3.0, 0),
+        EnemyKind.Passenger => (3.0, 3.0, 0),      // unmasked, off the back of the train
+        EnemyKind.Follower => (4.0, 3.0, 0),
+        EnemyKind.CinderHound => (6.0, 3.0, 0),    // one aboard (its car cut, or its kill made): over the side and away
         _ => null,
     };
 
@@ -681,6 +685,8 @@ public sealed class CreatureArt
         CrewPose.Extinguish => "extinguish",
         CrewPose.Lantern => "lantern",
         CrewPose.LanternWalk => "lantern_walk",
+        CrewPose.Toolbox => "toolbox",
+        CrewPose.ToolboxWalk => "toolbox_walk",
         CrewPose.Haul => "haul",
         CrewPose.HaulUp => "haul_up",
         CrewPose.GapStep => "gap_step",
@@ -740,7 +746,7 @@ public sealed class CreatureArt
     /// the hands are reached for from where the shoulders have gone.</param>
     public bool Crewmate(MeshBuilder mesh, in Matrix4x4 model, CrewPose pose, double time, int variant,
         Vector3? left = null, Vector3? right = null, Vector3 leftPole = default, Vector3 rightPole = default, MeshAsset? inHand = null,
-        MeshAsset? hanging = null, string figure = "crew", VrBodyPose? body = null)
+        MeshAsset? hanging = null, string figure = "crew", VrBodyPose? body = null, MeshAsset? carried = null)
     {
         if (!_models.ContainsKey(figure))
             figure = "crew";
@@ -755,6 +761,7 @@ public sealed class CreatureArt
             clip = clip.StartsWith("held_", StringComparison.Ordinal) && has.Model.Clips.ContainsKey("held") ? "held"
                 : clip == "hurry" && has.Model.Clips.ContainsKey("run") ? "run" : clip == "reload" && has.Model.Clips.ContainsKey("gunner") ? "gunner"
                 : clip == "spray" && has.Model.Clips.ContainsKey("extinguish") ? "extinguish" : clip == "hang_up" && has.Model.Clips.ContainsKey("take_down") ? "take_down"
+                : clip is "toolbox" or "toolbox_walk" && has.Model.Clips.ContainsKey("carry") ? clip == "toolbox" ? "carry" : "carry_walk"
                 // An emote with no clip of its own (note 298): the dance steps on the spot, the wave and the point stand.
                 : clip is "dance" or "shuffle" && has.Model.Clips.ContainsKey("walk") ? "walk" : "idle";
         // ... and the arms are posed over it (EmoteArms).
@@ -790,8 +797,45 @@ public sealed class CreatureArt
             mesh.Append(inHand, ToolGrip * Skinner.Socket(m.Model, m.Pose, "hand_r_weapon", model));
         if (hanging is not null)
             Hung(mesh, m, hanging, model);
+        if (carried is not null)
+            Handled(mesh, m, carried, model);
         return true;
     }
+
+    /// <summary>
+    /// <paramref name="carried"/> by its handle in the right fist (the repair kit, note 513): its origin at its foot and its
+    /// handle at its top, hung upright under the fist whatever the wrist does, turned with the body. Where it hangs is
+    /// <see cref="LastCarried"/>.
+    /// </summary>
+    void Handled(MeshBuilder mesh, Entry m, MeshAsset carried, in Matrix4x4 model)
+    {
+        var fist = Skinner.Socket(m.Model, m.Pose, "hand_r_weapon", model).Translation;
+        var up = Vector3.Normalize(new Vector3(model.M21, model.M22, model.M23));
+        // Its length along the way they walk (the kit's is across its X), so it swings by the leg, not into it.
+        var at = Matrix4x4.CreateRotationY(MathF.PI / 2) * (model with { M41 = 0, M42 = 0, M43 = 0, M44 = 1 });
+        at.Translation = fist - up * (HandleOf(carried) - HandleIn);
+        mesh.Append(carried, at);
+        LastCarried = at.Translation;
+    }
+
+    /// <summary>How far down into the fist a handle sits (m): the grip closes round it, not over it.</summary>
+    const float HandleIn = 0.03f;
+
+    /// <summary>A carried thing's handle over its foot: its top (m, cached by the asset).</summary>
+    static float HandleOf(MeshAsset a)
+    {
+        lock (Handles)
+        {
+            if (!Handles.TryGetValue(a, out float h))
+                Handles[a] = h = a.Vertices.Length == 0 ? 0 : a.Vertices.Max(v => v.Position.Y);
+            return h;
+        }
+    }
+
+    static readonly Dictionary<MeshAsset, float> Handles = new(ReferenceEqualityComparer.Instance);
+
+    /// <summary>Where the last thing carried by its handle was set down under the fist (its foot, the draw's space).</summary>
+    public Vector3 LastCarried { get; private set; }
 
     /// <summary>
     /// Hangs <paramref name="hanging"/> from the right fist of the figure last drawn as <paramref name="figure"/> by
@@ -2092,7 +2136,7 @@ public sealed class CreatureArt
                 }
             case EnemyKind.Dave when _models.ContainsKey(DaveKit.Figure):
                 {
-                    // DAVE (note 526): his figure in a hat, waistcoat, glasses and sandals, at his easel (GreyboxScene.Painter
+                    // DAVE (note 528): his figure in a hat, waistcoat, glasses and sandals, at his easel (GreyboxScene.Painter
                     // draws him so in the world, turned to whoever he's warned; here, as he is in this phase).
                     _dave ??= new DaveKit(Look);
                     var (hat, vest) = DaveKit.Outfit(extra2 * 1000);

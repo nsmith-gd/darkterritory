@@ -1,4 +1,4 @@
-// The figures you might meet out in the Territory (GDD §3.2; ARCHITECTURE §8 note 526): people who aren't the towns' and
+// The figures you might meet out in the Territory (GDD §3.2; ARCHITECTURE §8 note 528): people who aren't the towns' and
 // aren't creatures. The numbers (how often, where, how many blows) are in tuning/enemies.json; this file is only words,
 // read by Game/FigureTalk. Text is written in sentence case and drawn in the HUD's capitals, in its letters (ASCII and
 // àâçéèêëîïôùûü); keep a line under ~150 characters.

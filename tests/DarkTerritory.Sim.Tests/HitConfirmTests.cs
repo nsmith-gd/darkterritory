@@ -156,7 +156,7 @@ public class HitConfirmTests
     public void TheCreatureListIsTheWholeRosterBarTheHazardsAndFire()
     {
         // A kind added to the roster has to come here too, with a way to be struck.
-        // (Dave isn't a creature: DaveTests strikes him, note 526.)
+        // (Dave isn't a creature: DaveTests strikes him, note 528.)
         var all = Enum.GetValues<EnemyKind>().Except([EnemyKind.Sleepers, EnemyKind.Drift, EnemyKind.CarFire, EnemyKind.Dave]);
         Assert.Equal(all.OrderBy(k => k), Creatures.OrderBy(k => k));
     }
@@ -210,6 +210,57 @@ public class HitConfirmTests
         var mirrored = Assert.Single(client.Hits);
         Assert.Equal((hit.Id, hit.Tick, hit.EnemyId, hit.Kind, hit.By, hit.Source, hit.Killed), (mirrored.Id, mirrored.Tick, mirrored.EnemyId, mirrored.Kind, mirrored.By, mirrored.Source, mirrored.Killed));
         Assert.InRange((mirrored.At - hit.At).Length, 0, 1e-3);
+    }
+
+    [Fact]
+    public void AGannetStruckIntoGivingUpIsntConfirmedKilled()
+    {
+        // Note 458 (D1): under giveUpBelow, it leaves for the run (Gannet.Struck): gone, not dead. No kill confirm (its sound,
+        // the HUD's red mark), and the scene has it fly off rather than fall.
+        var (n, e) = Staged(EnemyKind.Gannet);
+        e.Restore(e.Phase, e.PhaseSeconds, E.Gannet.GiveUpBelow + 0.5, e.Attached, e.Local, e.LineDistance, e.Lateral, e.Height, e.Extra, e.Extra2);
+        n.Run(1.0 / SimConstants.TickRate, id => new PlayerIntent { Actions = PlayerActions.Swing });
+        var hit = Assert.Single(n.World.Hits);
+        Assert.True(e.Gone && e.Health > 0, $"gone {e.Gone} at {e.Health}");
+        Assert.False(hit.Killed);
+    }
+
+    [Fact]
+    public void AGannetStruckDeadIsConfirmedKilled()
+    {
+        var (n, e) = Staged(EnemyKind.Gannet);
+        e.Restore(e.Phase, e.PhaseSeconds, 0.5, e.Attached, e.Local, e.LineDistance, e.Lateral, e.Height, e.Extra, e.Extra2);
+        n.Run(1.0 / SimConstants.TickRate, id => new PlayerIntent { Actions = PlayerActions.Swing });
+        Assert.True(Assert.Single(n.World.Hits).Killed);
+    }
+
+    [Fact]
+    public void AWhistlerClubbedOffWhoItCarriesIsntConfirmedKilled()
+    {
+        // Note 458: a friend's blow on the Whistler carrying someone off (App. A.4) drops them, and it runs: gone, not dead.
+        var (n, e) = Staged(EnemyKind.Whistler);
+        n.Crew[2] = PlayerMotor.SpawnOnRoof(n.Train, 2, 2, P);
+        e.Restore(SpinePhase.Grab, 0.5, 5, e.Attached, e.Local, e.LineDistance, e.Lateral, e.Height, e.Extra, e.Extra2, holding: 2);
+        n.Run(1.0 / SimConstants.TickRate, id => id == 1 ? new PlayerIntent { Actions = PlayerActions.Swing } : default);
+        var hit = Assert.Single(n.World.Hits);
+        Assert.True(e.Gone && e.Health > 0, $"gone {e.Gone} at {e.Health}");
+        Assert.False(hit.Killed);
+    }
+
+    [Fact]
+    public void AClimberKnockedOffOnItsLastTryIsGoneButNotDead()
+    {
+        // Note 458: a ball that doesn't kill it knocks it off (Climber.Hit, note 288), and with no gap left to try it's gone for
+        // the night, alive: World.Confirm's Killed is dead only, so no kill confirm for it. (A one-gap train: none left.)
+        var n = new Night(2, speed: 0);
+        int car = n.Train.Dynamics.Consist.Vehicles[^1].Id;
+        Assert.Single(Climber.Gaps(n.Train));
+        var climber = n.World.AddEnemy(id => new Climber(id));
+        climber.Restore(SpinePhase.Commit, 1, 3, car, new Double3(0, n.Train.Frames[car].Shape.RoofHeight, 0), 0, 0, 0, Climber.Gaps(n.Train)[0], 1);
+        Assert.True(climber.Exposed);
+        var ctx = new EnemyContext { Tuning = E, World = n.World };
+        climber.Hit(ctx, 1, 1);
+        Assert.True(climber.Gone && climber.Health > 0, $"gone {climber.Gone} at {climber.Health}");
     }
 
     public static TheoryData<EnemyKind> CreatureKinds() => [.. Creatures];

@@ -609,7 +609,7 @@ public sealed class GreyboxScene
                         if (Look?.Art.Creatures is { } flock)
                             flock.GannetWas = before;
                     }
-                    // Dave at his easel (note 526): his own figure and things, not a creature's.
+                    // Dave at his easel (note 528): his own figure and things, not a creature's.
                     if (e is Sim.Enemies.Dave dave && Look is not null && Painter(mesh, eye, dave))
                         continue;
                     DrawEnemy(mesh, line, frames, e, eye, from, to, Look?.Art.Creatures, bite, prey, room,
@@ -629,8 +629,12 @@ public sealed class GreyboxScene
             // Heavy crates only come from a facility's site, so its size is there (facilities.json "heavy").
             double heavyHalf = Run?.Sites.FirstOrDefault(x => x is not null)?.HeavyRadius ?? 0.5;
             if (Look is not null)
+            {
                 Look.Art.Burned = Crew?.Where(c => c.Death is Sim.Player.DeathCause.Burned or Sim.Player.DeathCause.Stoker
                     or Sim.Player.DeathCause.Exploded or Sim.Player.DeathCause.Keg).Select(c => (int)c.Id).ToHashSet();
+                // Who has the repair kit by its handle (note 513): it's drawn in their fist with them, below, not here.
+                Look.Art.KitCarriers = Crew?.Where(c => c.Alive && c.Act == Art.CrewPose.Toolbox).Select(c => (int)c.Id).ToHashSet();
+            }
             foreach (var b in Bodies)
             {
                 // In your own hands, drawn at them for the frame (the mirror's own pose is back before anything reads it).
@@ -1190,11 +1194,17 @@ public sealed class GreyboxScene
             double h = r.Hint;
             double ground = Sim.Player.PlayerMotor.GroundAt(p, line, ref h);
             // Down off whatever it was on (a roof, a car's floor, the gap's plate), as anything dropped falls.
-            double y = Math.Max(ground, r.From.Value.Y - 0.5 * 9.81 * age * age);
+            double y = go.Rise > 0 ? r.From.Value.Y + go.Rise * age : Math.Max(ground, r.From.Value.Y - 0.5 * 9.81 * age * age);
             var copy = Enemy.Blank(r.Body.Kind, id, r.Body.Extra);
-            copy.Restore(SpinePhase.BreakOff, age, r.Body.Health, Enemy.Loose, p with { Y = y }, r.Body.LineDistance, r.Body.Lateral, 0, r.Body.Extra, r.Body.Extra2);
-            // Loose, it's drawn facing the nearest car: turned about, it faces away, the way it's going.
-            DrawEnemy(mesh, line, frames, copy, eye, from, to, Look?.Art.Creatures, flinch: (Vector3.Zero, Quaternion.CreateFromAxisAngle(Vector3.UnitY, MathF.PI)));
+            // The Gannet loose faces its own heading (its Lateral, a player's yaw: −Z at 0): the way it's going, out.
+            bool heads = r.Body.Kind == EnemyKind.Gannet;
+            double lateral = heads ? Math.Atan2(-r.Out.X, -r.Out.Z) : r.Body.Lateral;
+            // (A Gannet's height is its mode: on the wing, soaring off.)
+            double height = heads ? (double)Sim.Enemies.GannetMode.Soar : 0;
+            copy.Restore(SpinePhase.BreakOff, age, r.Body.Health, Enemy.Loose, p with { Y = y }, r.Body.LineDistance, lateral, height, r.Body.Extra, r.Body.Extra2);
+            // The rest, loose, are drawn facing the nearest car: turned about, they face away, the way they're going.
+            DrawEnemy(mesh, line, frames, copy, eye, from, to, Look?.Art.Creatures,
+                flinch: heads ? default : (Vector3.Zero, Quaternion.CreateFromAxisAngle(Vector3.UnitY, MathF.PI)));
         }
     }
 
@@ -2658,7 +2668,7 @@ public sealed class GreyboxScene
     /// <param name="home">At home in an open house: some have the mask down on the chest.</param>
     /// <param name="lamp">A town's person carrying a lit hand lamp (out in the street at night).</param>
     /// <summary>
-    /// Dave (note 526): the survivors' figure in full colour, in tonight's hat and waistcoat, his glasses and sandals, at his easel with its lantern
+    /// Dave (note 528): the survivors' figure in full colour, in tonight's hat and waistcoat, his glasses and sandals, at his easel with its lantern
     /// lit. At his canvas he faces it, his brush arm out; turned on whoever's had their last warning (his telegraph) he faces
     /// them, still; holding them he faces them with his hands out. False when his figure isn't built (the greybox draws him).
     /// </summary>
