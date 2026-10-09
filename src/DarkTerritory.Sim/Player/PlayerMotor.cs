@@ -1079,8 +1079,8 @@ public static class PlayerMotor
         if (y >= top)
         {
             // Over the top onto whatever the ladder serves, just inside the edge: the highest footing at the top rung, not
-            // whatever's overhead (the cab steps come up under the cab roof).
-            var onto = s.Position + inward * (p.Radius + 0.45);
+            // whatever's overhead (the cab steps come up under the cab roof), and across the board the cab steps hang off.
+            var onto = s.Position + inward * (p.Radius + 0.45 + ladder.Over);
             var surface = frame.Shape.TopAt(onto.X, onto.Z, top + 0.05);
             s.Position = onto with { Y = surface?.Top ?? top };
             s.Surface = ToSurface(surface?.Kind ?? SurfaceKind.Roof);

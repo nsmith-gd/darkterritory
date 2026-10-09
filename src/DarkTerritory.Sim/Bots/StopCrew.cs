@@ -3057,7 +3057,7 @@ public sealed partial class StopHand(StopJob job, CrewCalls calls, int member, C
         if (self.Parent == 0 && self.Surface == Surface.Ladder)
             return new PlayerIntent { MoveZ = 1, Buttons = PlayerButtons.Use };
         var engine = train.Frames[0];
-        var foot = engine.ToWorld(new Double3(side * (engine.Shape.Bounds.Max.X + 0.5), 0, CabDoorZ(train)));
+        var foot = engine.ToWorld(new Double3(side * (CabStepsOut(train) + 0.05), 0, CabDoorZ(train)));
         var inward = engine.DirToWorld(new Double3(-side, 0, 0));
         var (step, there) = OnFoot(self, train, train.Dynamics.Path, foot, DMath.Atan2(-inward.X, -inward.Z));
         return there ? new PlayerIntent { MoveZ = 1, Buttons = PlayerButtons.Use } : step;
@@ -3142,6 +3142,23 @@ public sealed partial class StopHand(StopJob job, CrewCalls calls, int member, C
         return (plan.DoorFront + plan.CabBack - 0.15) / 2;
     }
 
+    /// <summary>The stick, at most, stepping off the engine's running board: a shuffle, so the drop is all but straight down.</summary>
+    const float Shuffle = 0.1f;
+
+    /// <summary>
+    /// How far out from the engine's middle its cab steps hang (m): off the running board's outer edge (note 559). Their foot
+    /// on the ground is here, and the board's edge a hand inside it.
+    /// </summary>
+    static double CabStepsOut(TrainOnLine train)
+    {
+        var shape = train.Frames[0].Shape;
+        double reach = shape.HalfWidth + 0.15;
+        foreach (var l in shape.Ladders)
+            if (l.Foot.Y < 0.2 && Math.Abs(l.Inward.X) > 0.9)
+                reach = Math.Max(reach, Math.Abs(l.Foot.X));
+        return reach;
+    }
+
     /// <summary>
     /// Off the train onto the ballast on one side (+1 right): out through the cab's doorway and off its step, or off the
     /// edge of a roof or the coupler plate, slowly enough to land without a roll (the train is standing).
@@ -3169,7 +3186,14 @@ public sealed partial class StopHand(StopJob job, CrewCalls calls, int member, C
             var bunker = EnginePlan.Of(train.Dynamics.Tuning.Geometry).Bunker;
             if (side < 0 && PlayerMotor.InCab(self, train) && Math.Abs(self.Position.Z - door) > 0.25)
                 return Edge(self, new Double3(bunker.Max.X + 0.4, self.Position.Y, door), facing);
-            return Edge(self, new Double3(side * (train.Frames[0].Shape.Bounds.Max.X + 1), self.Position.Y, door), facing);
+            // Out across the running board in front of the doorway (note 559) and off its edge, the last of it at a shuffle so
+            // the drop's straight down: on a bridge the deck's no wider than 2.6 m from the track (note 552), the board's edge
+            // is 2.35, and stepped off at a stroll a hand landed 2.75 out, walked back along the train out there, and went
+            // off the deck of frontier:7's Stroud Bridge.
+            double edge = CabStepsOut(train) - 0.15;
+            var off = Edge(self, new Double3(side * (edge + 0.3), self.Position.Y, door), facing);
+            return Math.Abs(self.Position.X) < edge - 0.3 ? off
+                : off with { MoveX = Math.Clamp(off.MoveX, -Shuffle, Shuffle), MoveZ = Math.Clamp(off.MoveZ, -Shuffle, Shuffle) };
         }
         if (self.Surface is Surface.Roof or Surface.Coupler && self.Parent >= 0)
         {
