@@ -110,12 +110,16 @@ public class UdpTransportTests
         using var _ = host.T;
         using var __ = client.T;
         Thread.Sleep(800);
-        // The bots step before the host on the first frame (NetPlaySession.Step), so a client hears the stand first.
-        for (int i = 0; i < 20; i++)
+        // The bots step before the host on the first frame (NetPlaySession.Step), so a client hears the stand first. Polled for
+        // half the timeout by the clock, not a count of sleeps: on Windows twenty 5 ms sleeps are twenty 15.6 ms timer ticks,
+        // 0.31 s, past the 0.3 s timeout, and the next keepalive isn't due till a second after the last (main's Windows job
+        // failed here on every PR).
+        var after = Stopwatch.StartNew();
+        while (after.Elapsed.TotalSeconds < 0.15)
         {
             client.Poll();
             host.Poll();
-            Thread.Sleep(5);
+            Thread.Sleep(1);
         }
         Assert.DoesNotContain(host.Events, e => e.Kind == TransportEventKind.Disconnected);
         Assert.DoesNotContain(client.Events, e => e.Kind == TransportEventKind.Disconnected);
