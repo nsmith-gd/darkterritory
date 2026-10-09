@@ -6276,6 +6276,7 @@ Terrain sculpting tools, a node-graph material editor, a general-purpose visual 
           | 3 | 15.77 → 18.37 | 0 → 1 | 0 → 0 | 11.3 s 4:4/0/0/0 → 152.8 s 4:3/0/1/0, 177 s 2:0/0/1/1 |
 
           Mixed: 38.2 → 41.3 km, deaths 8 → 9. Each pack's hounds are all accounted for (none left aboard but the last, still riding when the night ended). Seed 2's shorter night (D1.3's question: 7 rounds and 9.64 km against 22 and 15.8 before #190 and #507) comes from earlier in it. By 300 s every walker is under 32 health and cold, and at 340 s two of them (and the gunner) go down car 10's end ladder into the car while it's alight and burn there, untagged (not warm-up, not fire-fighting). A pack sat on cars 1 and 2 meanwhile, too near the engine to cut. That's for its own item. (#232, note 495: they were on the powder run.) And on the branch the night stands from 463–566 s at 9,642 m: the Switchman's points were thrown under the train at 6,800 m, and the express driver never backs off a dead line (#249, note 512). #221 only changes which seeds the Switchman catches the train on (CutAlone held the train 26 s), so seed 2's km on the branch is capped by that, not by the pack.
+          - **The baseline with everything in** (#232, #249, #265, #279, #281, #289): note 544.
           - **With #249** (note 512, the express driver backing off the dead line; D1's ask). Main → #221 + #249:
 
             | Seed | km | Deaths | Pack fires |
@@ -6290,6 +6291,26 @@ Terrain sculpting tools, a node-graph material editor, a general-purpose visual 
         - `BoardedPackTests`: with only a hurt crewmate, and with a fit one down off the train or idle on it, the driver cuts the pack loose (the last after 90 s, not before).
         - Each fails on the old bots.
 
+544. **A fresh bot baseline for the pack and fire work (queue #286, D1.2 for D1; note 484's tables carried on).** On main at e26d8d7, with #221 (the pack fight and the cut, note 484), #232 (the guard van, 495), #249 (the express off a dead line, 512), #265 (the hound's ground, 528), #279 (warming clear of the pack, 537), #281 (the fire-fighters, 539), #289 (the roofs' cold, 547) and D1.3's #287 in:
+    - **Four bots** (`harness --route frontier:7 --bots 4 --enemies --upkeep --seconds 2700`, seeds 1–9):
+
+      | build | km | deaths | cold | mauled | burned | devoured | dragged | pack fires |
+      |---|---|---|---|---|---|---|---|---|
+      | main ae86d80 (before #287 and #289) | 128.0 | 14 | 5 | 5 | 0 | 3 | 1 | 475 |
+      | main e26d8d7 | 159.4 | 12 | 0 | 10 | 1 | 1 | 0 | 72 |
+
+      By seed (km, e26d8d7): 13.4, 17.8, 21.0, 21.1, 14.2, 19.4, 18.5, 20.8, 13.2. None reaches Grieve (25.48 km) in the 2,700 s. What kills now is the pack: 10 of the 12. D1.3's report (#671, main a2ffa44b, before most of these) had 140.4 km and 25 deaths, 10 of them cold.
+    - **Eight bots, express** (`--bots 8 --enemies --express 21 --seconds 900`, seeds 1–3; note 484's earlier rows):
+
+      | build | km | deaths | pack fires |
+      |---|---|---|---|
+      | before #221 | 38.2 | 8 | 2 |
+      | #221 + #249 | 44.6 | 5 | 5 |
+      | main e26d8d7 | 43.5 | 4 (mauled 2, burned 1, climbed 1) | 11 |
+
+      Packs (seconds aboard, hounds killed/cut/off/aboard): seed 1, 140 s 5/0/1/0. Seed 2: 219 s 0/0/2/0, 51 s 5/0/1/0, and one of 4 still aboard at the end. Seed 3: 6 s 2/0/0/0, 54 s 0/5/0/0.
+    - **Where to look next:** the hounds' maulings on the 4-bot nights: three crewmates mauled on each of seeds 4 and 8.
+
 547. **Crew freezing on the train's roofs (queue #289, D1.2 for D1; D1.3's nine-night report, #671: froze 3 → 10, nine of them "Froze, left behind on the roof of car N … 8 m from the train").** `dt harness --route frontier:7 --bots 4 --enemies --upkeep --seconds 2700`. On seeds 8 and 3 every death was traced, by tagging each return in the bots' decisions and each `Heed` that changed the intent after them in `BotCrew`. Three causes:
     - **The Brakeman drafted a warming crewmate.** Seed 8: the gunner on car 3's roof was in "warm:ToEnd" for 240 s and froze facing the wrong way. Every tick `Heed.Brakeman`, run after the bot's own decision, put it in his pincer (or on a wound wheel) over its warm-up, so it never turned for the door. Now `BotCrew.HeedBrakeman` leaves out a crewmate whose warm-up is under way; the warm crew are the pincer. D1.3's #287 (in `Heed.Brakeman`, separately) also keeps the pincer and unwind off the far side of a Knotter's gap.
     - **The driver went out to cut a pack loose past a Knotter's gap.** Seed 3: the last alive, it went back along the roofs towards the cut (`CutAlone`, notes 343 and 484). At car 4 it met a Knotter's gap, which is never jumped (note 365), and stood on that roof for 20 minutes until it froze. Now the driver doesn't go out with a knotted gap between the cab and the cut (`KnotOnTheWay`), and goes back if one comes while it's out.
@@ -6300,14 +6321,7 @@ Terrain sculpting tools, a node-graph material editor, a general-purpose visual 
         - `BoardedPackTests.ALoneDriverDoesntGoOutToCutThePackPastAKnottersGap`.
         - `AttributionTests`: freezing on the train's roof isn't "left behind"; freezing just beside the train is, at 0 to 4 m.
         - Each fails on the old code.
-    - **Measured** (seeds 1–9, 4 bots, 2,700 s; main at ae86d80, with #279 and #281, → this):
-
-      | | km | deaths | cold | burned | mauled | devoured | dragged |
-      |---|---|---|---|---|---|---|---|
-      | main | 128.0 | 14 | 5 | 0 | 5 | 3 | 1 |
-      | #289 | 131.8 | 8 | 3 | 3 | 1 | 0 | 1 |
-
-      Of the 3 cold deaths, 1 is on the train: seed 6's walker, at a stand, fighting car 3's fire (the Fire Flies relighting it) for over 1,000 s with its doors open. The other 2 are left behind, beside the train. These nights part early, so seed by seed they're noisy. Seeds 2 and 8 stand short (5.8 and 5.6 km against main's 14.0 and 12.8). On seed 8 that's from 883 s, on a spur, every crewmate in the cab, Tower Jaw 85 m ahead: none of this note's three changes is in it, and it's told to D1.
+    - **Measured** (seeds 1–9, 4 bots, 2,700 s). Corrected (note 544): the figures first given here (128.0 → 131.8 km, deaths 14 → 8) compared builds that differed by more than #289, since the #289 runs were built before #281 merged. Like for like, main at ae86d80 → main at e26d8d7 (#289, and D1.3's #287 for the Brakeman and the Knotter, which landed between): 128.0 → 159.4 km, deaths 14 → 12, cold 5 → 0, pack fires 475 → 72; the deaths now are the hounds' (mauled 5 → 10). Seed 8, which stood on a spur on the earlier build (told to D1), runs to 20.8 km.
     - **Not yet:** a crewmate fighting a car's fire at a stand while the cold builds (seed 6). The fire's work keeps the doors open, and nothing weighs the cold against it.
 
 539. **Fire-fighters don't walk into a car that's well alight (queue #281, D1.2; note 495's not-yet, D1.3's frontier:7 4-bot seed 1 on main before #613).** The winch pair went into car 1 to fight its fire when it was already well alight. They walked at the extinguisher through it for 10 s without reaching it, and burned from 99 to 14 before `TooHurt` sent them out. `FireSenseTests` has a walker on car 2's roof and car 3 alight, and it showed four holes:
@@ -7183,6 +7197,14 @@ Terrain sculpting tools, a node-graph material editor, a general-purpose visual 
         - restless, 20 s, three to five times;
         - at the controls at stage 2, restless: let back, her rattle, nudged up again, and never the crew's brake handle.
     - `RestlessAtTheRegulatorTheTrackDollRattlesTheBrakeHandleItHasntTakenYet` still pins the fallback.
+550. **A train run down a facility's spur outside a stop (queue #292, D1; D1.2's find on #289: frontier:7, 4 bots, seed 8 on #289's build).** `dt harness --route frontier:7 --bots 4 --enemies --upkeep --seconds 2700 --seed 8 --trace`. The train stood at 5,616 m from 883 s till dawn, the crew in the cab, 5.6 km made.
+   - **What happened.** The driver held for the Foundry at 5,426 m (445 s). The shunter was kept off the switch stand (the walkers stood "getting down" off car 3's roof for minutes), so after 240 s with nobody throwing it the driver gave the stop up (Clear, Depart, Cruise), and stood for the crew to come aboard. The shunter still had the stop: its own "that stop's over" waits for the train to be 20 m past the hold, and the train was still standing there. So it went on to the stand and threw the points, and the train pulled away down the spur (831 s) to its buffer (883 s). Cruising, the driver only backed off a dead line (`SwitchPlan.DownOne`), so it stood there all night.
+   - **Now**, two parts:
+     - The driver giving a stop up at Held calls it (`CrewCalls.Leave`, as it calls the loading done). A shunter that hasn't taken the train in yet throws nothing then, and sets the points back if they'd gone over as it was called; then it goes to the cab.
+     - A facility's spur set for it outside a stop is a switch set wrong, as a dead line's is (`SwitchPlan`): its lamp seen from the cab, the driver stops short and the shunter sets it back; already down it, the driver backs out past the points and has them set back. An alternate route is the line going on and is left alone.
+   - **Verified.** `StopCrewTests.AStopCalledOffBeforeTheShunterGetsToThePointsIsNotThrownAfter` (the shunter kept on the ballast till the stop's given up; the points are never thrown) and `DownAFacilitysSpurOutsideAStopItBacksOutAndHasThePointsSetBack`: both fail without the fix. Sim 1533/1533. 4-bot nights with the fix: seed 8 as on main (20.8 km, 5 deaths); seed 3 21.0 km, no deaths.
+   - On main (after #281), seed 8 never stands there: the night's dice differ, and it makes 20.8 km. The bug is the same on any seed that has a shunter late to the stand.
+
 549. **The slow frames written down (queue #291, D1; the director, 9 Oct 2026, of main's build: "an extreme borderline unplayable performance drop that kept recurring throughout gameplay").** The cloud's software renderer can't show what a real GPU does. `dt perf`'s line views and the app's frame rate in the yard and pulling out matched the director's 2:30 pm build of 8 Oct. So the director's own machine writes it down.
    - **`FrameWatch`** (DarkTerritory.Game) times each frame of a night in its parts: input, the sim's ticks (with their count), audio and HUD, the scene's build, the HUD and upload, render and present.
    - A frame of 100 ms or more and 4 times the median of the last 120 prints one line, at most one a second, to the console. The console is teed into the launch log, `%LOCALAPPDATA%/DarkTerritory/logs/latest.log` (note 452). The line says what the frame spent, the garbage collector's collections and what was allocated, and where the night was (km, speed, phase, enemies). The night's end prints the count and the worst.
