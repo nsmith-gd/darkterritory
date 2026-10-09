@@ -6198,6 +6198,14 @@ Terrain sculpting tools, a node-graph material editor, a general-purpose visual 
      - Frontier:7's run-fast train finds one on Stroud Bridge's chord, put there within 500 m of it.
    - **Bot nights.** `dt harness --route frontier:7 --bots 4 --enemies --upkeep --express 21 --seconds 900`, seeds 1-3, after: a truss Dragger on every night. One grabbed a walker (seed 2) and was hauled off; the others met empty roofs. Deaths 1, 0 and 3 against main's 2, 0 and 2. Seed 3's three were hounds Mauling, nothing to do with the truss.
    - **Not yet.** Bots off the roofs at a truss's scrape (they heed a tunnel's mouth, T81, not this).
+512. **The express driver backs off a dead line (queue #249, D1.2; found on #221's measurements, note 484; D1 asked why seed 2 stood).** `harness --route frontier:7 --bots 8 --enemies --express 21 --seed 2`, with #221's bots: at 289.8 s the Switchman threw its points under the train at 6,800 m. The express driver (note 376) skipped the whole stop driver (`if (Stops is { } stops && !Express)`), and so missed the dead-line recovery too: `SwitchPlan.DownOne`, then `OffDeadLine`, `SetBack`, `Forward`. It cruised down the dead line, and `Drive` braked for its end (`remaining < stopping`) at 9,642 m. There it stood, in Cruise, for the rest of the night. Found by tagging every return in `ConductorBot.Decide` in a replay. The trace's `p` is the path the train is on, and it went from -1 to 1 at the points. Without #221 the timing differed and the train slipped past them, so main can stand the same way on any express night the Switchman catches.
+    - **Now** the express driver runs the stop driver when it's down a dead line, or on any leg of its way back off one, and skips it otherwise. It still takes no stops, but backs off as any driver does: stand, back out past the points, have the switch set back (by the driver itself if nobody else goes), and run on.
+    - **Measured** (seed 2, with #221 and #232's guard-van fix): down the dead line at 289.8 s, off it by 363.9 s, and on to 12.93 km (9.64 before), deaths 2 → 1.
+    - **Tests:**
+        - `StopCrewTests.AnExpressSentDownADeadLineComesBackOffItAndRunsOn` (D1's ask): the switch set for a dead line ahead of an express train. It runs down it, comes back off it and goes on down the main line, the switch set back and no derailment.
+        - `DownADeadLineItBacksOutAndGoesOn` gains an express case.
+        - Both fail on the old driver: "stuck: driver Cruise at 2871".
+
 495. **Nobody goes into a burning guard van for powder (queue #232, D1.2; found on #221's hot runs, note 484).** On `harness --route frontier:7 --bots 8 --enemies --express 21 --seconds 900 --seed 2`, at 340 s, a walker (26 health) and then the guard gunner (30 health) went down car 10's hatch ladder into the guard van while it burned, and burned there. The trace showed no task tag for either. A replay that tagged each of the walker's decisions found them on note 377's powder run (`RoofWalkerBot.Feed`; the gunner's own run is note 374's): the guard gun's rack was dry, and the charges are in the van's locker. Nothing on the run looked at the van.
     - **Now** `PowderRun.Go` won't go for a charge in a van that's alight (`PowderRun.Alight`: a `CarFire` on it with any cell burning, from its replicated heat, so a client's bot sees what the host's does). The step reads "van alight". Caught in the van when it catches, the bot goes back to the hatch ladder and up. With a charge already in hand it carries on to the gun. The gun waits meanwhile: putting the fire out is the fire-fighters' job (note 267), not the powder run's.
     - **Measured** (seed 2, with #221): deaths 5 → 2, Burned 3 → 0, pack fires 4 → 2. The 5-hound pack's 110 s aboard dropped to 34 s (3 killed, 2 off), with the crew alive to fight it. The night still ends at 9.64 km either way: from 463 s the train stands in Cruise at 9,642 m, on the grade, with a Dragger on car 1. That's for its own item.
@@ -6218,6 +6226,15 @@ Terrain sculpting tools, a node-graph material editor, a general-purpose visual 
           | 3 | 15.77 → 18.37 | 0 → 1 | 0 → 0 | 11.3 s 4:4/0/0/0 → 152.8 s 4:3/0/1/0, 177 s 2:0/0/1/1 |
 
           Mixed: 38.2 → 41.3 km, deaths 8 → 9. Each pack's hounds are all accounted for (none left aboard but the last, still riding when the night ended). Seed 2's shorter night (D1.3's question: 7 rounds and 9.64 km against 22 and 15.8 before #190 and #507) comes from earlier in it. By 300 s every walker is under 32 health and cold, and at 340 s two of them (and the gunner) go down car 10's end ladder into the car while it's alight and burn there, untagged (not warm-up, not fire-fighting). A pack sat on cars 1 and 2 meanwhile, too near the engine to cut. That's for its own item. (#232, note 495: they were on the powder run.) And on the branch the night stands from 463–566 s at 9,642 m: the Switchman's points were thrown under the train at 6,800 m, and the express driver never backs off a dead line (#249, note 512). #221 only changes which seeds the Switchman catches the train on (CutAlone held the train 26 s), so seed 2's km on the branch is capped by that, not by the pack.
+          - **With #249** (note 512, the express driver backing off the dead line; D1's ask). Main → #221 + #249:
+
+            | Seed | km | Deaths | Pack fires |
+            |---|---|---|---|
+            | 1 | 10.34 → 13.3 | 3 → 3 | 0 → 3 |
+            | 2 | 12.13 → 12.96 | 5 → 1 | 2 → 2 |
+            | 3 | 15.77 → 18.37 | 0 → 1 | 0 → 0 |
+
+            In all: 38.2 → 44.6 km and deaths 8 → 5. Pack fires rose 2 → 5 (seed 1's first pack took 94 s to kill, against 15 s); with three seeds that is as likely chance as cause. On seed 2 the train goes down the dead line at 289.8 s and is back off it by 364 s.
     - **Tests:**
         - `PackFightTests`: a walker swings at a hound on the roof, but not at one inside the car under it or mid-leap.
         - `BoardedPackTests`: with only a hurt crewmate, and with a fit one down off the train or idle on it, the driver cuts the pack loose (the last after 90 s, not before).
