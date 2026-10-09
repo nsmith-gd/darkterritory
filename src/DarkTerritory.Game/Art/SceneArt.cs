@@ -113,7 +113,9 @@ public sealed partial class SceneArt(Look look)
             _crewActSince[c.Id] = since = (pose, time);
         double clipTime = pose switch
         {
-            CrewPose.GetUp or CrewPose.TakeDown or CrewPose.HangUp => time - since.Time,
+            // (A staged getting up says how far into it they are: dt screenshot --cameback, note 529.)
+            CrewPose.GetUp => c.Phase > 0 ? c.Phase : time - since.Time,
+            CrewPose.TakeDown or CrewPose.HangUp => time - since.Time,
             CrewPose.Stagger => time - _staggered.GetValueOrDefault(c.Id, since.Time),
             CrewPose.FireDoor => FireDoorSince >= 0 ? FireDoorSince : time - since.Time,
             // A staged swing (dt screenshot --act swing) says how far into it they are; a played one, from its blow.
