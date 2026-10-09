@@ -48,7 +48,7 @@ public static partial class TownGenerator
         }
 
         /// <summary>What a household member is called on their card: their part in the house.</summary>
-        /// <summary>Nicki's party's words, while there's one (note 527).</summary>
+        /// <summary>Nicki's party's words, while there's one (note 529).</summary>
         public FolkParty? Party;
 
         public string Title(int house, string part) => part switch
@@ -304,7 +304,7 @@ public static partial class TownGenerator
         var knocks = new Deck<string>(w.HouseKnocks, rngFor("houses.knocks"));
         var stories = new Deck<TownHousehold>(w.Households, rngFor("houses.stories"));
         // The families by the town's mix of peoples (note 474), or any of the province's.
-        // Nicki's party (note 527): some towns, one of the open houses, on its own stream so the rest are as they were.
+        // Nicki's party (note 529): some towns, one of the open houses, on its own stream so the rest are as they were.
         var prng = rngFor("houses.party");
         int partyAt = folk?.Writing.Party is { } party && prng.Chance(t.Nicki) && open > 0 ? prng.RangeInclusive(0, open - 1) : -1;
         if (partyAt >= 0)

@@ -300,7 +300,7 @@ public static partial class TownGenerator
         foreach (var spot in spots)
         {
             string role = spot.Role.Length > 0 ? spot.Role : spot.House >= 0 ? "home" : rrng.Pick(Folk);
-            // Nicki's guests have come from their own houses (note 527); Nicki is just Nicki.
+            // Nicki's guests have come from their own houses (note 529); Nicki is just Nicki.
             bool partying = spot.Part is "host" or "guest";
             string? family = spot.House >= 0 && !partying ? homes.Houses[spot.House].Family : null;
             if (folk is null)
@@ -375,7 +375,7 @@ public static partial class TownGenerator
             if (spot.House >= 0)
             {
                 // Their household's story, in their own part, then the custom.
-                // Nicki: the wine first, then two of hers, and nothing else (note 527).
+                // Nicki: the wine first, then two of hers, and nothing else (note 529).
                 if (spot.Part == "host")
                 {
                     lines.AddRange(homes.Story(spot.House, "offer").Take(1));

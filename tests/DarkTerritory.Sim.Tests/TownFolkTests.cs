@@ -88,7 +88,7 @@ public class TownFolkTests
             {
                 var m = p.Personality!;
                 people++;
-                // Nicki is just Nicki (note 527).
+                // Nicki is just Nicki (note 529).
                 if (p.House >= 0 && plan.Houses[p.House].Party && m.Surname.Length == 0)
                 {
                     Assert.Equal(Folk.Writing.Party!.Name, p.Name);

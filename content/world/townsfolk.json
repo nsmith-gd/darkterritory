@@ -230,7 +230,7 @@
 
   // NICKI'S PARTY (the director, 8 Oct 2026: "an NPC you can find some times in one of the houses. Her name is Nicki and
   // she's the only house late at night that is partying. She offers you wine and says kind things about people needing to
-  // enjoy life more even if its the end of the world"; GDD §3.2, note 527). Some towns (tuning/towns.json "nicki"), one open
+  // enjoy life more even if its the end of the world"; GDD §3.2, note 529). Some towns (tuning/towns.json "nicki"), one open
   // house is lit up with a party: Nicki (just Nicki) at the door with a glass for you, her guests dancing. She's warm and
   // glad and a little defiant: the dark isn't a reason to stop living. Never the town's custom: she keeps it, she just
   // doesn't let it keep her. "offer" is what she says first; "host" the rest; "guests" her guests'.
