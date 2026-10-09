@@ -419,10 +419,24 @@ public sealed class CreatureArt
                     ? new Entry(lod, [.. lod.Materials.Select(m => Resolve(m, wear))]) : null,
             };
         }
+        Dress(DaveKit.Figure, DaveKit.Clothes);
     }
 
     public Look Look { get; }
     public string ContentRoot { get; }
+
+    /// <summary>
+    /// The figures met out in the Territory (GDD §3.2), dressed from the survivors' (<see cref="Redress"/>): on its rig and
+    /// clips, with no file of their own. Called once the files are loaded.
+    /// </summary>
+    void Dress(string name, IReadOnlyDictionary<Cloth, Dye> clothes, Func<Vector3, string, Vector3>? shape = null)
+    {
+        if (!_models.TryGetValue("survivor_prisoner", out var figure))
+            return;
+        var model = Redress.Of(figure.Model, name, clothes, shape);
+        float wear = WearOf.GetValueOrDefault("survivor_prisoner", 0.5f);
+        _models[name] = new Entry(model, [.. model.Materials.Select(m => Resolve(m, wear))]);
+    }
 
     /// <summary>A model's distance copy (tools/models overbake `lod`), its joints renumbered by name to the full model's so
     /// the full model's pose skins it; null when there's none or a bone of it isn't the full model's.</summary>
@@ -2076,11 +2090,7 @@ public sealed class CreatureArt
                     if (!Draw(mesh, DaveKit.Figure, DaveKit.Clip(phase), t, true, model, 2, seed: 47))
                         return false;
                     mesh.Append(_dave.Easel(0), model);
-                    Wear(mesh, _dave.Hat(hat), "head", model, DaveKit.Figure);
-                    Wear(mesh, _dave.Glasses, "head", model, DaveKit.Figure);
-                    Wear(mesh, _dave.Vest(vest), "spine_02", model, DaveKit.Figure);
-                    Wear(mesh, _dave.Sandal(true), "foot_l", model, DaveKit.Figure);
-                    Wear(mesh, _dave.Sandal(false), "foot_r", model, DaveKit.Figure);
+                    _dave.Dress(this, mesh, model, hat, vest);
                     return true;
                 }
             case EnemyKind.Moose when _models.ContainsKey("moose"):

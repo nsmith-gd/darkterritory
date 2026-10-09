@@ -2646,13 +2646,9 @@ public sealed class GreyboxScene
         if (!creatures.Draw(mesh, Art.DaveKit.Figure, Art.DaveKit.Clip(dave.Phase), Time * 0.6, true, m, 2, seed: 47,
             adjust: (mat, l) => l with { Colour = l.Colour * new Vector3(1.05f, 0.98f, 0.9f), Emissive = 0 }))
             return false;
-        // Tonight's hat and waistcoat (the night's: Art.DaveKit.Outfit), his glasses, his sandals.
+        // Tonight's hat and waistcoat (the night's: Art.DaveKit.Outfit), his hair, glasses, hoop, chain and sandals.
         var (hat, vest) = Art.DaveKit.Outfit(dave.LineDistance);
-        creatures.Wear(mesh, kit.Hat(hat), "head", m, Art.DaveKit.Figure);
-        creatures.Wear(mesh, kit.Glasses, "head", m, Art.DaveKit.Figure);
-        creatures.Wear(mesh, kit.Vest(vest), "spine_02", m, Art.DaveKit.Figure);
-        creatures.Wear(mesh, kit.Sandal(true), "foot_l", m, Art.DaveKit.Figure);
-        creatures.Wear(mesh, kit.Sandal(false), "foot_r", m, Art.DaveKit.Figure);
+        kit.Dress(creatures, mesh, m, hat, vest);
         return true;
     }
 
