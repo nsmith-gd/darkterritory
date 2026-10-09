@@ -65,7 +65,9 @@ public static class Protocol
     //     snapshot carries a flags byte after the queued count, bit 0 saying it's one of every other (note 557).
     // 47: Dave (note 570): an enemy kind of his own, and a death cause.
     // 48: Jacob (note 572): an enemy kind of his own.
-    public const int Version = 48;
+    // 49: the controls belong to whoever's working them (note 574): the Hello carries a flags byte after the outfit (bit 0, a
+    //     bot), and the controls record carries who holds them and whether that's a bot.
+    public const int Version = 49;
 }
 
 public enum MessageType : byte
@@ -142,7 +144,7 @@ public readonly record struct Refusal(RefusalReason Reason, int Crew, int Cap)
 }
 
 /// <summary>A joiner's first word (note 253): who, the slot it's coming back to, its outfit, and a private run's key (note 450).</summary>
-public readonly record struct Hello(string Name, ulong Token, byte Outfit, byte[]? Key);
+public readonly record struct Hello(string Name, ulong Token, byte Outfit, byte[]? Key, bool Bot = false);
 
 public readonly record struct InputFrame(uint Sequence, PlayerIntent Intent);
 
@@ -367,13 +369,15 @@ public static class Messages
     /// <param name="token">The token from this player's last Welcome, coming back after a drop; 0 for a new joiner (note 253).</param>
     /// <param name="outfit">The outfit they come in (note 298), or <see cref="NoOutfit"/>.</param>
     /// <param name="key">A private run's password as <see cref="PasswordKey"/> makes it (note 450), or null for none.</param>
-    public static void WriteHello(NetWriter w, string name, ulong token = 0, byte outfit = NoOutfit, byte[]? key = null)
+    /// <param name="bot">A bot crewmate (note 574): it never takes the cab's controls off someone playing.</param>
+    public static void WriteHello(NetWriter w, string name, ulong token = 0, byte outfit = NoOutfit, byte[]? key = null, bool bot = false)
     {
         w.Reset();
         w.U8((byte)MessageType.Hello);
         w.Str(CleanName(name));
         w.U64(token);
         w.U8(outfit);
+        w.U8((byte)(bot ? 1 : 0));
         if (key is { Length: KeyLength })
             w.Bytes(key);
     }
@@ -387,7 +391,8 @@ public static class Messages
         string name = CleanName(r.Str());
         ulong token = r.Remaining >= 8 ? r.U64() : 0;
         byte outfit = r.Remaining >= 1 ? r.U8() : NoOutfit;
-        return new(name, token, outfit, r.Remaining >= KeyLength ? r.Rest()[..KeyLength].ToArray() : null);
+        byte flags = r.Remaining >= 1 ? r.U8() : (byte)0;
+        return new(name, token, outfit, r.Remaining >= KeyLength ? r.Rest()[..KeyLength].ToArray() : null, (flags & 1) != 0);
     }
 
     /// <summary>A password's key: SHA-256's length.</summary>
