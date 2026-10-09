@@ -2032,6 +2032,18 @@ static object Screenshot(TrainTuning t, string content, string[] args)
         DarkTerritory.Game.TippleTilt.Apply(tilted, train, run);
         leaned = tilted;
     }
+    // --held (note 580): the staged grab (a creature whose Holding is a staged crewmate: --hugger swallow, --moose pin,
+    // --gannet pin, --whistler carry, --knotter coil ...) as the held one's own camera has it in the game, HeldShot's framing.
+    if (args.Contains("--held") && scene.Enemies?.FirstOrDefault(e => e.Holding >= 0) is { } holder
+        && scene.Crew?.FirstOrDefault(c => c.Id == holder.Holding) is { } victim)
+    {
+        var inside = train.Frames.FirstOrDefault(f => f.Shape.Interior is { } room && room.Contains(f.ToLocal(victim.Feet + Double3.Up * 0.5)));
+        double heldHint = train.Dynamics.Distance;
+        var eyesThere = Camera.LookAt(victim.Feet + Double3.Up * Eyes.Height, victim.Feet + Double3.Up * Eyes.Height
+            + new Double3(-Math.Sin(victim.Yaw), 0, -Math.Cos(victim.Yaw)), 75);
+        camera = HeldShot.Frame(victim.Feet, holder.WorldPosition(train), eyesThere, inside, HeldShot.Size(holder.Kind),
+            (x, z) => PlayerMotor.GroundAt(new Double3(x, 0, z), train.Line, ref heldHint));
+    }
     scene.Build(mesh, train, camera.Position, leaned);
     // How long a frame's scene takes to build on the CPU, warm (the first build cooks the kit's pieces).
     var buildClock = Stopwatch.StartNew();
