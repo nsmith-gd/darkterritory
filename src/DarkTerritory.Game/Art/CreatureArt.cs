@@ -1386,6 +1386,21 @@ public sealed class CreatureArt
     // The enemies
 
     /// <summary>
+    /// The Gaunt's clip (tools/blender/gaunt.py) by what it's doing: asleep, stirring, striking (aboard, from the squat),
+    /// going (above <see cref="Going"/>) or stood listening, aboard folded <paramref name="low"/>; and leaving with what it
+    /// took (App. A.6, note 505; <paramref name="extra"/> the body's id, −1 empty-handed) the load under it in its mouth.
+    /// </summary>
+    public static string GauntClip(SpinePhase phase, double extra, float pace, bool low) => phase switch
+    {
+        SpinePhase.BreakOff when extra >= 0 => low ? "carry_low" : "carry",
+        SpinePhase.Dormant => "sleep",
+        SpinePhase.Alert => "stir",
+        SpinePhase.Commit or SpinePhase.Grab or SpinePhase.Punish => low ? "smash" : "attack",
+        _ when pace > Going => low ? "crawl" : "follow",
+        _ => low ? "squat" : "listen",
+    };
+
+    /// <summary>
     /// An enemy at its basis (GreyboxScene.DrawEnemy's o, r, u, b), its clip chosen by kind and spine phase.
     /// <list type="bullet">
     /// <item>Cinder hound: feet at the origin (on the ballast, or the roof when boarded: no extra lift). Dormant and alert
@@ -1712,14 +1727,7 @@ public sealed class CreatureArt
                     _pace = 0;
                     bool low = room.Indoors || room.Doorway;
                     float anger = Math.Clamp((float)extra2 * GauntLeanPerAnger, 0, 1);
-                    string clip = phase switch
-                    {
-                        SpinePhase.Dormant => "sleep",
-                        SpinePhase.Alert => "stir",
-                        SpinePhase.Commit or SpinePhase.Grab or SpinePhase.Punish => low ? "smash" : "attack",
-                        _ when pace > Going => low ? "crawl" : "follow",
-                        _ => low ? "squat" : "listen",
-                    };
+                    string clip = GauntClip(phase, extra, pace, low);
                     Action<Entry>? lean = anger > 0 && clip is "listen" or "squat" ? m => LeanIn(m, anger) : null;
                     // (Stirring it comes up once and stays up, watching.)
                     return Draw(mesh, "gaunt", clip, t, clip != "stir", model, lean, seed: 47);
