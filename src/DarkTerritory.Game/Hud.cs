@@ -253,6 +253,12 @@ public static partial class Hud
         }
         else if (hosting)
             lines.Add(("A PRIVATE NIGHT: NOBODY ELSE CAN JOIN", Dim));
+        // Note 532: a host whose frames can't hold the tick rate holds everyone's night to its pace; a joiner whose host is
+        // behind has its own clock stretched to match.
+        if (link.HeldBack)
+            lines.Add((HeldBackLine, Red));
+        else if (link.Paced)
+            lines.Add((PacedLine, Amber));
         lines.Add((hosting ? "EVERYONE IN? DRIVE OUT OF THE YARD" : "THE HOST DRIVES OUT WHEN EVERYONE'S IN", Ink));
         foreach (var (text, colour) in lines)
         {
@@ -416,12 +422,21 @@ public static partial class Hud
         : link.Refused is { } refused ? $"{refused}   TRY AGAIN : [F5]"
         : link.CanReconnect ? "RECONNECT : [F5]" : null;
 
+    /// <summary>Note 532: said on the host's lobby panel, and in the corner out on the line, while its clock drops time.</summary>
+    public const string HeldBackLine = "YOUR MACHINE IS HOLDING THE CREW BACK";
+    /// <summary>Note 532: a joiner's, while its clock is stretched to a host that's behind.</summary>
+    public const string PacedLine = "THE HOST'S BEHIND: THE NIGHT RUNS AT ITS PACE";
+
     static void Link(Overlay o, int width, IPlaySession s)
     {
         if (s.Link is not { } link)
             return;
         float k = Fine, right = width - 6;
         int line = o.Font.LineHeight;
+        bool yard = s.World.Run is null or { Phase: Sim.Run.RunPhase.Yard };
+        // Note 532: out on the line (the yard's panel has it), under the corner's ping or where it would be.
+        if (!yard && !link.Lost && (link.HeldBack || link.Paced))
+            o.TextRight(right, 5 + line + 2 * k, link.HeldBack ? HeldBackLine : PacedLine, link.HeldBack ? Red : Amber, k);
         if (link.Lost)
         {
             o.TextRight(right, 5, "NO LINK", Red, 1);
@@ -432,7 +447,7 @@ public static partial class Hud
         if (link.PingMs is not { } ping)
             return;
         var colour = ping < 80 ? Green : ping < Tuning.PingWarnMs ? Amber : Red;
-        if (s.World.Run is null or { Phase: Sim.Run.RunPhase.Yard })
+        if (yard)
         {
             // Just the milliseconds at the big size: "PING 100 MS" ran into the route strip at 1280 wide (the 4 Oct rehearsal).
             o.TextRight(right, 5, $"{ping:0} MS", colour, scale: 2);

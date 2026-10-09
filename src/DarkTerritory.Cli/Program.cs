@@ -2610,10 +2610,12 @@ static object HudShot(string content, string[] args)
     // --joining (D.10, note 408): the watcher a crewmate who joined mid-run and waits in the queue, lobbied, never having died.
     // --lost (note 253): a joiner whose link has just gone, seen as it sees it: lost, and on its first try at getting back.
     // --lost --refused (note 254): back too late to a full crew, turned away: CREW FULL (2/2). --crew-full: the host at its cap.
+    // --held-back (note 532): the host's own frames can't hold the tick rate (its clock has just dropped time), and its panel says so.
     using var spectated = args.Contains("--spectating") ? Spectating(content, Str(args, "--route", "frontier:7"), cars, args.Contains("--vote") || args.Contains("--ballot"),
             args.Contains("--joining") ? DeathCause.Waiting : DeathCause.Mauled)
         : args.Contains("--lost") ? LostLink(content, Str(args, "--route", "frontier:7"), cars, refused: args.Contains("--refused"))
-        : args.Contains("--crew-full") ? CrewFull(content, Str(args, "--route", "frontier:7"), cars) : null;
+        : args.Contains("--crew-full") ? CrewFull(content, Str(args, "--route", "frontier:7"), cars)
+        : args.Contains("--held-back") ? HeldBack(content, Str(args, "--route", "frontier:7"), cars) : null;
     IPlaySession session;
     if (spectated is { } pair)
     {
@@ -3049,6 +3051,23 @@ static SpectatedNight CrewFull(string content, string route, int cars)
         Thread.Sleep(1);
     }
     // Shown as the host: the "watcher" is the host's own session.
+    return new SpectatedNight(joiner, host);
+}
+
+static SpectatedNight HeldBack(string content, string route, int cars)
+{
+    var host = NetPlaySession.HostGame(content, new SessionSetup(Route: route, Cars: cars, Enemies: false), port: 0);
+    var joiner = NetPlaySession.Join(content, new System.Net.IPEndPoint(System.Net.IPAddress.Loopback, host.Port), () => host.Step(default));
+    for (int t = 0; t < SimConstants.TickRate; t++)
+    {
+        host.Step(default);
+        joiner.Step(default);
+        Thread.Sleep(1);
+    }
+    // As the app's loop would say it after a frame the clock couldn't simulate whole (note 532); held long enough for the
+    // renderer to start and draw it.
+    host.Client.PlayerTuning = host.Client.PlayerTuning with { Link = host.Client.PlayerTuning.Link with { HeldBackSeconds = 600 } };
+    host.ClockDropped(0.5);
     return new SpectatedNight(joiner, host);
 }
 

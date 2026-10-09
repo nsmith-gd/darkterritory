@@ -85,6 +85,42 @@ public class NetcodeTests
     }
 
     [Fact]
+    public void AClientPacesItselfToAHostThatsBehind()
+    {
+        // Note 532: a host whose frames can't hold 30 Hz used to throw the oldest of a client's queued inputs away (rubber
+        // banding on the host's frame rate). Now the snapshot says how many it's holding, and the client stretches its own clock
+        // until the host has caught up: the night runs at the host's pace for everyone.
+        var (net, host, clients) = Session(1);
+        var c = clients[0];
+        Run(net, host, clients, 30, _ => default);
+        Assert.True(c.Connected);
+        Assert.Equal(1, c.Pace);
+        Assert.InRange(c.HostQueued, 0, 2);
+        // The host steps on two ticks in three; the client on every one. Its queue on the host grows, past link.paceQueued
+        // for link.paceSeconds, and the client's pace goes up.
+        for (int t = 0; t < 60; t++)
+        {
+            net.Advance(SimConstants.TickSeconds);
+            if (t % 3 != 2)
+                host.Step();
+            c.Step(default);
+        }
+        Assert.True(c.HostQueued > P.Link.PaceQueued, $"host holds {c.HostQueued}");
+        Assert.Equal(1 + P.Link.PaceSlow, c.Pace);
+        // The host catches up (the app would be stepping the client more slowly meanwhile; here it just stops sending for a
+        // while, as a stretched clock sends fewer inputs a second): the queue drains, and the pace is a tick again.
+        for (int t = 0; t < 30; t++)
+        {
+            net.Advance(SimConstants.TickSeconds);
+            host.Step();
+            if (t % 3 == 0)
+                c.Step(default);
+        }
+        Assert.InRange(c.HostQueued, 0, 1);
+        Assert.Equal(1, c.Pace);
+    }
+
+    [Fact]
     public void OnlySomeoneOnTheEngineCanDrive()
     {
         var (net, host, clients) = Session(2);

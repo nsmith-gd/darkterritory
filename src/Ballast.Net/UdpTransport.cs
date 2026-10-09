@@ -90,6 +90,19 @@ public sealed class UdpTransport : DatagramTransport<EndPoint>
             return false;
         }
 
+        /// <summary>The pump's wait (note 532): on the socket itself, so a datagram wakes it at once.</summary>
+        public void Wait(int milliseconds)
+        {
+            try
+            {
+                socket.Poll(milliseconds * 1000, SelectMode.SelectRead);
+            }
+            catch (Exception e) when (e is SocketException or ObjectDisposedException)
+            {
+                Thread.Sleep(milliseconds);
+            }
+        }
+
         public void Dispose() => socket.Dispose();
     }
 }

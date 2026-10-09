@@ -57,7 +57,9 @@ public static class Protocol
     // 42: the run record's sites carry the tipple (its ore, clamp, roll and a re-railing), and the vehicle record whether it's off
     //     its rails, before the char cells (note 423).
     // 43: the Hello carries the private run's password, as its key (note 450), and a Refused can say WRONG PASSWORD.
-    public const int Version = 43;
+    // 44: the snapshot says how many of the client's inputs the host holds beyond the one it applied, so the client paces
+    //     itself to a host that's behind (note 532).
+    public const int Version = 44;
 }
 
 public enum MessageType : byte
@@ -257,13 +259,16 @@ public static class Messages
     }
 
     /// <summary>Snapshot: tick, the input it acknowledges, the tick it's a delta against (0 = full), then the records.</summary>
-    public static void WriteSnapshot(NetWriter w, uint tick, uint ackedInput, uint baselineTick, IReadOnlyList<WireRecord> records, IReadOnlyList<WireRecord>? baseline)
+    /// <param name="queued">Inputs from this client the host still holds beyond the one it applied (note 532; at most 255).</param>
+    public static void WriteSnapshot(NetWriter w, uint tick, uint ackedInput, uint baselineTick, IReadOnlyList<WireRecord> records, IReadOnlyList<WireRecord>? baseline,
+        int queued = 0)
     {
         w.Reset();
         w.U8((byte)MessageType.Snapshot);
         w.U32(tick);
         w.U32(ackedInput);
         w.U32(baselineTick);
+        w.U8((byte)Math.Clamp(queued, 0, 255));
         WorldRecords.WriteDelta(w, records, baseline);
     }
 

@@ -159,6 +159,10 @@ public readonly record struct LinkInfo(string Role, double? PingMs, int Aboard, 
     public string? Refused { get; init; }
     /// <summary>Hosting a private run (note 450): listed with a lock, joined with its password.</summary>
     public bool Locked { get; init; }
+    /// <summary>Hosting, and this machine's frames can't hold the tick rate (note 532): the crew's night runs at its pace.</summary>
+    public bool HeldBack { get; init; }
+    /// <summary>Joined, and this client's clock is stretched to a host that's behind (note 532).</summary>
+    public bool Paced { get; init; }
 }
 
 /// <summary>First-person eye from a player's state, interpolated in their own frame so riding a car at speed is smooth.</summary>

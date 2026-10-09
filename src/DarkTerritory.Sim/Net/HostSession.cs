@@ -964,7 +964,7 @@ public sealed class HostSession
             var baseline = baseTick > 0 ? c.Sent.GetValueOrDefault(baseTick) : null;
             if (baseline is null)
                 baseTick = 0;
-            Messages.WriteSnapshot(_writer, Tick, c.LastApplied, baseTick, mine, baseline);
+            Messages.WriteSnapshot(_writer, Tick, c.LastApplied, baseTick, mine, baseline, c.Pending.Count);
             if (_writer.Length > MaxSnapshotBytes)
             {
                 mine = Budget(mine, baseline, c, baseTick);
@@ -1017,7 +1017,7 @@ public sealed class HostSession
         {
             bool had = sent.TryGetValue(r.Key, out var was);
             sent[r.Key] = r;
-            Messages.WriteSnapshot(_writer, Tick, c.LastApplied, baseTick, [.. sent.Values], baseline);
+            Messages.WriteSnapshot(_writer, Tick, c.LastApplied, baseTick, [.. sent.Values], baseline, c.Pending.Count);
             if (_writer.Length <= MaxSnapshotBytes)
                 continue;
             // That one didn't fit: back to what the client has, and the rest wait for the next snapshot.
@@ -1028,7 +1028,7 @@ public sealed class HostSession
             break;
         }
         var list = sent.Values.ToList();
-        Messages.WriteSnapshot(_writer, Tick, c.LastApplied, baseTick, list, baseline);
+        Messages.WriteSnapshot(_writer, Tick, c.LastApplied, baseTick, list, baseline, c.Pending.Count);
         return list;
     }
 

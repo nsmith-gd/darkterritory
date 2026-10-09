@@ -1093,6 +1093,12 @@ CampaignState? Play(IPlaySession session, CampaignState? campaign)
             pendingYaw = pendingPitch = 0;
         }
 
+        // Note 532: a joiner's clock stretches to a host that's behind; a host's says how much time its frames threw away.
+        if (net is not null)
+        {
+            clock.Stretch = net.Pace;
+            net.ClockDropped(clock.DroppedSeconds);
+        }
         int ticks = clock.Advance(dt);
         for (int i = 0; i < ticks; i++)
         {

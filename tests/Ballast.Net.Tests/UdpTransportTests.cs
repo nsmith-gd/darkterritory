@@ -172,6 +172,40 @@ public class UdpTransportTests
     }
 
     [Fact]
+    public void APumpedLinkOutlivesAFrozenFrameLoopAndMeasuresItsOwnPing()
+    {
+        // Note 532: the app's transports are kept by a thread of their own, so a frame loop that stands still longer than the
+        // timeout (a village loading, the film compiling) neither drops its peers nor is dropped by them, and the round trip is
+        // the link's, not the frames'.
+        var quick = Fast with { TimeoutSeconds = 0.3, KeepaliveSeconds = 0.02 };
+        var (host, client) = Pair(quick, quick);
+        using var _ = host.T;
+        using var __ = client.T;
+        host.T.StartPump(2);
+        client.T.StartPump(2);
+        Assert.True(host.T.Pumped && client.T.Pumped);
+        // Nobody polls for three timeouts: the pumps ping and answer throughout.
+        Thread.Sleep(900);
+        host.Poll();
+        client.Poll();
+        Assert.DoesNotContain(host.Events, e => e.Kind == TransportEventKind.Disconnected);
+        Assert.DoesNotContain(client.Events, e => e.Kind == TransportEventKind.Disconnected);
+        Assert.True(client.T.IsConnected);
+        // The pings went on while the loop stood still: a measured, loopback-sized round trip, not a 900 ms one.
+        Assert.InRange(client.T.RoundTrip(PeerId.Host), 0, 0.1);
+        // And the link still carries: a reliable message across, both ways, read on the next polls.
+        var peer = host.Events.Single(e => e.Kind == TransportEventKind.Connected).Peer;
+        client.T.Send(PeerId.Host, [7], Delivery.ReliableOrdered);
+        host.T.Send(peer, [8], Delivery.ReliableOrdered);
+        Until(() => host.Data.Any(d => d.Payload![0] == 7) && client.Data.Any(d => d.Payload![0] == 8), host, client);
+        // A peer that really stops (its pump too) is still dropped in the usual time.
+        client.T.Dispose();
+        var clock = Stopwatch.StartNew();
+        Until(() => host.Events.Any(e => e.Kind == TransportEventKind.Disconnected), host);
+        Assert.True(clock.Elapsed.TotalSeconds < 2);
+    }
+
+    [Fact]
     public void OversizedMessagesAreRefused()
     {
         var (host, client) = Pair();

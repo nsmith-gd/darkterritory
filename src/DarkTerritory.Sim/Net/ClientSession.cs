@@ -200,6 +200,37 @@ public sealed class ClientSession
     public TrainControls Controls;
 
     /// <summary>Distance between what we predicted for an input and what the host computed for it.</summary>
+    /// <summary>
+    /// Note 532: how many of this client's inputs the host was holding beyond the one it applied, as of the newest snapshot.
+    /// One or two is a link's jitter; more and more means the host can't keep up (or this clock runs fast), and the host
+    /// will throw the oldest away.
+    /// </summary>
+    public int HostQueued { get; private set; }
+
+    /// <summary>
+    /// Note 532: how much longer this client's ticks should take, as a multiple of the tick: 1, or 1 + link.paceSlow while
+    /// the host has been holding more than link.paceQueued of its inputs for link.paceSeconds, until the host's caught up.
+    /// The app stretches its clock by it; the sim never reads it, so prediction is untouched.
+    /// </summary>
+    public double Pace { get; private set; } = 1;
+    int _queuedTicks;
+
+    void StepPace()
+    {
+        var t = PlayerTuning.Link;
+        if (!Connected)
+        {
+            Pace = 1;
+            _queuedTicks = 0;
+            return;
+        }
+        _queuedTicks = HostQueued > t.PaceQueued ? _queuedTicks + 1 : 0;
+        if (_queuedTicks * SimConstants.TickSeconds >= t.PaceSeconds)
+            Pace = 1 + t.PaceSlow;
+        else if (HostQueued <= 1)
+            Pace = 1;
+    }
+
     public double LastCorrection { get; private set; }
     public double MaxCorrection { get; private set; }
     public int Corrections { get; private set; }
@@ -219,6 +250,7 @@ public sealed class ClientSession
         if (Left)
             return;
         Receive();
+        StepPace();
         if (!Connected)
             return;
 
@@ -366,8 +398,10 @@ public sealed class ClientSession
                     }
                 case MessageType.Snapshot:
                     uint tick = r.U32(), acked = r.U32(), baseTick = r.U32();
+                    byte queued = r.U8();
                     if (tick <= _newestSnapshotTick || _decoded.ContainsKey(tick))
                         continue;
+                    HostQueued = queued;
                     var baseline = baseTick == 0 ? null : _decoded.GetValueOrDefault(baseTick);
                     if (baseTick != 0 && baseline is null)
                         continue; // we no longer have what it's relative to; the next one will be

@@ -169,6 +169,9 @@ The first of those is already in hand: the director saw it on main's build ("I t
 all dead when we spawned in"), and D1 holds it as queue #268 (a transport that wasn't polled through a stall doesn't
 count the stall as its peers' silence). The rest is this gap.
 
+*Done as note 532 (N2, queue #270): the pump thread, player.json `link`, the ping from the pump, the client's pace to a host
+that's behind, and the host told.*
+
 Lethal Company has the same coupling (Unity's main thread), with Steam's own 10 s timeout, and its players know "the
 host's PC is the server". Dark Territory can do better cheaply: pump keepalives, acks and resends from a timer thread
 (the sim keeps reading received datagrams on its tick; the transport's queues become thread-safe), raise the play
