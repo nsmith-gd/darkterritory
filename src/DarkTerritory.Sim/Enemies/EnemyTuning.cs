@@ -31,6 +31,7 @@ public sealed record EnemyTuning(
     public MooseTuning Moose { get; init; } = new();
     public GannetTuning Gannet { get; init; } = new();
     public MournersTuning Mourners { get; init; } = new();
+    public PickersTuning Pickers { get; init; } = new();
     public FreightBeetleTuning FreightBeetle { get; init; } = new();
     public BrakemanTuning Brakeman { get; init; } = new();
     public HotboxTuning Hotbox { get; init; } = new();
@@ -1050,6 +1051,40 @@ public sealed record MournersTuning
     /// <summary>How many come, by tier (3 where the tier isn't listed).</summary>
     public int CountFor(Route.RouteTier tier) =>
         Count.GetValueOrDefault(char.ToLowerInvariant(tier.ToString()[0]) + tier.ToString()[1..], 3);
+}
+
+/// <summary>The Pickers (GDD §21, App. A.6, B.6; ARCHITECTURE §8 note 574). Field docs live in enemies.json.</summary>
+public sealed record PickersTuning
+{
+    public bool Enabled { get; init; } = true;
+    public double After { get; init; } = 20;
+    public Dictionary<string, int> Count { get; init; } = new() { ["local"] = 3, ["frontier"] = 4, ["deadLines"] = 6, ["deepTerritory"] = 8 };
+    public int PerTwoCrew { get; init; } = 1;
+    public double FacilityReach { get; init; } = 80;
+    public int Drains { get; init; } = 3;
+    public double DrainOff { get; init; } = 0.6;
+    public double EmergeSeconds { get; init; } = 0.8;
+    public double DownSeconds { get; init; } = 3;
+    public double GuardWithin { get; init; } = 4;
+    public double ShyWithin { get; init; } = 3;
+    public double Run { get; init; } = 4.8;
+    public double Carry { get; init; } = 2.6;
+    public double CarryHeavy { get; init; } = 1.6;
+    public double TakeReach { get; init; } = 0.9;
+    public double HoldHeight { get; init; } = 1.0;
+    public double HeaveBeside { get; init; } = 0.9;
+    public double AtDrain { get; init; } = 0.8;
+    public double BiteWithin { get; init; } = 1.2;
+    public int Bite { get; init; } = 8;
+    public double BiteEvery { get; init; } = 2;
+    public double ScatterWithin { get; init; } = 10;
+    public double ScatterSeconds { get; init; } = 6;
+    public double Health { get; init; } = 1;
+
+    /// <summary>How many come to a crew of <paramref name="crew"/> at a stop of <paramref name="tier"/>: the tier's count, and
+    /// <c>perTwoCrew</c> more for every two of the crew past two (3 where the tier isn't listed).</summary>
+    public int CountFor(Route.RouteTier tier, int crew) =>
+        Count.GetValueOrDefault(char.ToLowerInvariant(tier.ToString()[0]) + tier.ToString()[1..], 3) + Math.Max(0, crew - 2) / 2 * PerTwoCrew;
 }
 
 /// <summary>The Freight Beetle (GDD §21, App. A.6, B.6; ARCHITECTURE §8 note 366). Field docs live in enemies.json.</summary>

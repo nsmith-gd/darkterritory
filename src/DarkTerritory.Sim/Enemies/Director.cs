@@ -1185,6 +1185,8 @@ public sealed class Director
         && e is not Gannet { Mode: GannetMode.Away }
         // The Mourners (note 362) hunt nobody: they come for the dead, and cost the caps nothing.
         && e.Kind != EnemyKind.Mourners
+        // Nor the Pickers (note 574): the stop's own, after its loot, and they cost the caps nothing.
+        && e.Kind != EnemyKind.Pickers
         // Nor a Brakeman out of sight under the train (note 364), waiting to come up again.
         && e is not Brakeman { Mode: BrakemanMode.Hidden }
         && (e.Phase is SpinePhase.Alert or SpinePhase.Telegraph or SpinePhase.Commit or SpinePhase.Grab or SpinePhase.Punish
@@ -1251,6 +1253,7 @@ public sealed class Director
                 EnemyKind.Knotter => new Knotter(0),
                 EnemyKind.Dave => new Dave(0),
                 EnemyKind.Jacob => new Jacob(0),
+                EnemyKind.Pickers => new Picker(0),
                 _ => new ChoirGhost(0),
             };
             d[kind] = (e.Zone, e.Sense, e.Want);

@@ -143,6 +143,8 @@
     "gannet": [[1.0, 0.7], [0.6, 1.6]],
     // Child-high, hunched over (note 362).
     "mourners": [[0.35, 0.45], [0.3, 0.9]],
+    // Knee-high, a crate over its head when it carries (note 574).
+    "pickers": [[0.3, 0.3]],
     // A bear-sized beaver, its shoulders over its head (note 363).
     "towerJaw": [[0.8, 0.7], [0.6, 1.3]],
     // Its plated back, a handcart's bulk (note 366).
@@ -229,7 +231,7 @@
   "solidity": {
     "climbM": 2.5, "airClearM": 0.2,
     "kinds": { "ribbit": "ground", "gaunt": "ground", "grumbler": "ground", "choir": "air", "whistler": "none", "follower": "none", "sootChildren": "none",
-      "mourners": "ground", "freightBeetle": "ground", "towerJaw": "ground" }
+      "mourners": "ground", "freightBeetle": "ground", "towerJaw": "ground", "pickers": "ground" }
   },
 
   // TIPPY TOESIE · absence · interior (App. A.5, B.5). Picks a player idle (moving under idleBelow m/s) for idleSeconds with
@@ -384,6 +386,28 @@
     "arriveAt": 40, "comeSeconds": 6, "waitAt": 10, "shy": 6, "startleTo": 12, "dropWithin": 3, "takeReach": 0.9,
     "creep": 1.4, "approach": 3, "drag": 1.6, "scatter": 4, "holdAt": 0.7, "holdHeight": 0.5,
     "returnAfter": 4, "scatterOnDeath": 6, "lostAt": 120, "leaveSeconds": 30, "health": 1
+  },
+
+  // THE PICKERS · sight · outside (GDD §21, App. A.6, B.6; the director's pick to prototype, 9 Oct 2026; ARCHITECTURE §8
+  // note 574; docs/design/creatures/pickers.md). Knee-high scavengers in a yard's drains. "after" s once the train stands at a
+  // facility with loose crates within facilityReach m, a group comes up out of the drains at the foot of the yard's sheds (up
+  // to "drains" of them, drainOff m out from a shed's wall on the track's side), "count" by tier and perTwoCrew more for
+  // every two of the crew past two, one drain to each in turn, each a moment coming up (emergeSeconds). Each runs (run m/s) for
+  // the nearest loose crate on the ground nobody's guarding (a living crewmate within guardWithin m) and no other Picker has (a
+  // heavy crate takes two), takes it up (within takeReach) over its head (holdHeight m up) and carries it to its drain (carry
+  // m/s; a heavy crate carryHeavy m/s, with a second heaveBeside m beside), and down it goes with it within atDrain m: the
+  // crate's gone, and it comes up again downSeconds later. Unladen, it keeps shyWithin m off anyone. Laden, a crewmate within
+  // biteWithin m is bitten (bite, never a kill; once in biteEvery s) and it drops the crate and scatters. A blow kills one
+  // (health in blows), and every one within scatterWithin m drops what it has and runs to its drain for scatterSeconds. The
+  // train started away from the stop, they all go down their drains. Not the director's: they cost it nothing, and come to
+  // every yard stop with loose crates ("enabled" off: never).
+  "pickers": {
+    "enabled": true, "after": 20,
+    "count": { "local": 3, "frontier": 4, "deadLines": 6, "deepTerritory": 8 }, "perTwoCrew": 1,
+    "facilityReach": 80, "drains": 3, "drainOff": 0.6, "emergeSeconds": 0.8, "downSeconds": 3,
+    "guardWithin": 4, "shyWithin": 3, "run": 4.8, "carry": 2.6, "carryHeavy": 1.6, "takeReach": 0.9, "holdHeight": 1.0,
+    "heaveBeside": 0.9, "atDrain": 0.8, "biteWithin": 1.2, "bite": 8, "biteEvery": 2,
+    "scatterWithin": 10, "scatterSeconds": 6, "health": 1
   },
 
   // TOWER JAW · vibration · outside (GDD §21, App. A.6, B.6; the director's brief of 8 Oct 2026; ARCHITECTURE §8 note 363;
