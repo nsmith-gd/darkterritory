@@ -116,8 +116,9 @@ static class ReplayCommands
         if (Str(args, "--shot", "") is { Length: > 0 } png)
         {
             using var shooter = new WorldShot(content, world.Route, (int)Opt(args, "--width", 1280), (int)Opt(args, "--height", 720));
-            var camera = WorldShot.Camera(Str(args, "--view", "chase"), world, crew, (int)Opt(args, "--car", 2));
-            shooter.Save(png, shooter.Render(world, crew, camera));
+            string view = Str(args, "--view", "chase");
+            var camera = WorldShot.Camera(view, world, crew, (int)Opt(args, "--car", 2));
+            shooter.Save(png, shooter.Render(world, crew, camera, WorldShot.EyeOf(view)));
             shot = Path.GetFullPath(png);
         }
         var (_, commit) = Report.Build();

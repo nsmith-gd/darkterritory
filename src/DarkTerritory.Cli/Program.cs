@@ -43,6 +43,8 @@ return args switch
     ["build", ..] => BuildCommands.Run(args),
     // dt replay <file> [--to t] [--shot f --view v] | record | list: a recorded night played again, checked tick by tick (note 515).
     ["replay", ..] => ReplayCommands.Run(content, args),
+    // dt feedback pull | list | show <id> | make: the director's notes from inside the game, and their moments (note 516).
+    ["feedback", ..] => FeedbackCommands.Run(content, args),
     // dt edition bake <name> --into <dir>: the base content with an edition (editions/<name>) baked in, as the demo build
     // ships it (T79). dt [--edition demo] edition: what the content in use is.
     ["edition", "bake", var name, ..] => Print(new { edition = name, content = Path.GetFullPath(Mods.Bake(baseContent, name, Str(args, "--into", $"out/editions/{name}"))) }),
@@ -3366,6 +3368,7 @@ static int Usage()
           credits [--notices | --write]            everyone whose work is in the game (note 390); --write rewrites the notices
           build check <folder> [--dev]             a built game has none of the developer tools in it (note 514); --dev: it has them
           replay <file> [--to t] [--shot f --view v]   a recorded night played again, checked tick by tick (note 515); record, list
+          feedback pull | list | show <id> | make  the director's notes from inside the game (F8, F9) and their moments replayed (note 516)
           train table                              spec table (B.4–B.6) as produced by current tuning
           train stop <cars> [--from v] [--load l] [--grade g]
           train climb <cars> <grade%> [--from v] [--load l]

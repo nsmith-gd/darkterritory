@@ -16,10 +16,34 @@ public sealed class RecordingTransport(ITransport inner, TransportLogWriter log,
 {
     TransportLog.Digest _sent;
     bool _polled;
-    long _spent;
+    long _spent, _step;
+    // Each step's cost in whole microseconds, the last bucket everything from a millisecond up: the median a step costs,
+    // which a garbage collection or a busy machine's preemption doesn't move the way it moves the mean.
+    readonly int[] _steps = new int[1001];
+    int _stepCount;
 
     /// <summary>Time spent recording (copying, digesting, writing records) over the night so far: what it costs the frame.</summary>
     public TimeSpan Spent => System.Diagnostics.Stopwatch.GetElapsedTime(0, _spent);
+
+    /// <summary>What recording cost the median step (from one poll to the next), in microseconds; 0 before the second poll.</summary>
+    public double MedianStepMicros
+    {
+        get
+        {
+            int seen = 0;
+            for (int us = 0; us < _steps.Length; us++)
+                if ((seen += _steps[us]) * 2 >= _stepCount && _stepCount > 0)
+                    return us;
+            return 0;
+        }
+    }
+
+    void Spend(long since)
+    {
+        long d = System.Diagnostics.Stopwatch.GetTimestamp() - since;
+        _spent += d;
+        _step += d;
+    }
 
     public ITransport Inner => inner;
     public TransportLogWriter Log => log;
@@ -34,23 +58,30 @@ public sealed class RecordingTransport(ITransport inner, TransportLogWriter log,
         long t = System.Diagnostics.Stopwatch.GetTimestamp();
         if (digested is null || digested(payload))
             _sent.Add(to, delivery, payload);
-        _spent += System.Diagnostics.Stopwatch.GetTimestamp() - t;
+        Spend(t);
         inner.Send(to, payload, delivery);
     }
 
     public void Poll(List<TransportEvent> into)
     {
         long t = System.Diagnostics.Stopwatch.GetTimestamp();
+        if (_polled)
+        {
+            // The step since the last poll is whole: its sends and that poll's writing.
+            _steps[Math.Min(_steps.Length - 1, (int)(_step * 1_000_000 / System.Diagnostics.Stopwatch.Frequency))]++;
+            _stepCount++;
+        }
+        _step = 0;
         CloseStep();
         BeforePoll?.Invoke();
-        _spent += System.Diagnostics.Stopwatch.GetTimestamp() - t;
+        Spend(t);
         int from = into.Count;
         inner.Poll(into);
         t = System.Diagnostics.Stopwatch.GetTimestamp();
         log.Polled(into, from, scrub);
         _sent = TransportLog.Digest.Start();
         _polled = true;
-        _spent += System.Diagnostics.Stopwatch.GetTimestamp() - t;
+        Spend(t);
     }
 
     /// <summary>The last step's sends, written as its digest. Done by the next poll, and by whoever closes the log.</summary>
