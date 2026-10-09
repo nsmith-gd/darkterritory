@@ -1650,7 +1650,8 @@ public static partial class Hud
     /// town's (note 281). The app keeps that press from the host (nothing in a town changes the night).
     /// </summary>
     public static TownTarget? TownTarget(IPlaySession s) =>
-        s.World.Town is { } town && town.Target(s.Player, s.Train.Dynamics.Tuning.Pick.EyeHeight) is { } t && Prompt(s) == TownTalk.Prompt(town, t) ? t : null;
+        s.World.Town is { } town && town.Target(s.Player, s.Train.Dynamics.Tuning.Pick.EyeHeight) is { } t
+        && Prompt(s) == TownTalk.Prompt(town, t, s.World.WineInReach(s.Player, s.PlayerId)) ? t : null;
 
     /// <summary>
     /// A town card (note 281): a person's line on a plate over the prompt, their name and work above it; a paper as a
@@ -2111,7 +2112,7 @@ public static partial class Hud
         // A fortress town (note 281): somebody to talk to, a paper to read, a thing to look at. Before what's lying in reach,
         // so a lamp at somebody's feet doesn't take the press meant for them.
         if (world.Town is { } town && town.Target(p, train.Dynamics.Tuning.Pick.EyeHeight) is { } there)
-            return TownTalk.Prompt(town, there);
+            return TownTalk.Prompt(town, there, world.WineInReach(p, s.PlayerId));
         // The powder locker (note 374): a charge for a gun's rack, while there's any.
         if (world.Combat is { } powder && Guns.AtLocker(p, train, powder.Guns) is not null)
             return Guns.Stowed(train, powder.Guns) > 0 ? $"TAKE A CHARGE : [E]   {Guns.Stowed(train, powder.Guns)} ROUNDS" : "THE POWDER LOCKER'S EMPTY";

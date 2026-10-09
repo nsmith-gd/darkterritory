@@ -32,6 +32,8 @@ public sealed record TownTuning
     /// <summary>The share of towns with Nicki's party in an open house, and how many guests she has (note 488).</summary>
     public double Nicki { get; init; }
     public int[] NickiGuests { get; init; } = [2, 4];
+    /// <summary>Nicki's wine (note 488): taken by holding Use by her, a glass a crewmate a night.</summary>
+    public NickiWine Wine { get; init; } = new();
     public required int[] Quirks { get; init; }
     public required int[] Notices { get; init; }
     public required int[] LooseNotes { get; init; }
@@ -289,4 +291,18 @@ public sealed record TownContent(TownTuning Tuning, TownWriting Writing, IReadOn
             surnames = [.. surnames.Concat(folk.Surnames).Distinct(StringComparer.Ordinal)];
         return new TownContent(DataFile.Load<TownTuning>(tuning), words, surnames) { Looks = HouseLooks.Load(content), Folk = folk };
     }
+}
+
+/// <summary>
+/// tuning/towns.json <c>wine</c> (note 488; the director, 9 Oct: "when Nicki offers wine to the players they should get extra
+/// health for the next run if they take it"). She's only ever in the departure town, before the night sets out, so the run
+/// it's for is the one about to start: <see cref="Health"/> over full, until it's knocked off them like any other.
+/// </summary>
+public sealed record NickiWine
+{
+    /// <summary>How close to her (m), and how long Use is held by her to take a glass (s).</summary>
+    public double Reach { get; init; } = 2.6;
+    public double HoldSeconds { get; init; } = 0.8;
+    /// <summary>The health it's worth, on top of whatever they have.</summary>
+    public int Health { get; init; } = 25;
 }

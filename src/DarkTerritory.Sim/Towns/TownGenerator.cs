@@ -421,7 +421,8 @@ public static partial class TownGenerator
             string title = spot.House >= 0 ? homes.Title(spot.House, spot.Part)
                 : role == "hand" ? industry?.Hand ?? "townsman" : w.Roles.TryGetValue(role, out var rt) ? rt.Title : role;
             townsfolk.Add(new Townsperson(i, name, fill.In(title, name, spot.House >= 0 ? homes.Vars(spot.House) : null), role, spot.S, spot.D, spot.Up, spot.FaceS, spot.FaceD,
-                (int)(Streams.Mix(seed, "look", name) % 8), said[i], spot.House, spot.Pose, TownGear.Pick(homes.Gear, Streams.Mix(seed, "gear", name)), mind));
+                (int)(Streams.Mix(seed, "look", name) % 8), said[i], spot.House, spot.Pose, TownGear.Pick(homes.Gear, Streams.Mix(seed, "gear", name)), mind)
+            { Hosting = spot.Part == "host" });
         }
 
         // The plaque: the town, when it was walled, how many live here and how many did.

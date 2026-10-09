@@ -805,6 +805,50 @@ public sealed class World
         Train.Walls.Add(Town.Walls);
     }
 
+    // Host: who's holding Use by Nicki and how long, and who's had their glass tonight (note 488).
+    readonly Dictionary<int, double> _byNicki = [];
+    readonly SortedSet<int> _toasted = [];
+
+    /// <summary>Nicki (note 488), where the town has her party: its host, else null.</summary>
+    public Towns.Townsperson? Nicki => Town?.Plan.People.FirstOrDefault(p => p.Hosting);
+
+    /// <summary>
+    /// Whether Nicki has a glass for <paramref name="s"/> in reach (note 488): on foot, alive, near her, and not had theirs
+    /// tonight. The host knows who has; a client goes by their being over full health, as only the wine puts anyone there.
+    /// </summary>
+    public bool WineInReach(in PlayerState s, int playerId)
+    {
+        if (!s.Alive || s.Parent != PlayerState.World || Town is not { } town || Nicki is not { } nicki
+            || _toasted.Contains(playerId) || s.Health > Bodies.FullHealth)
+            return false;
+        return (PlayerMotor.WorldPosition(s, Train) - town.Feet(nicki)).Length <= town.Tuning.Wine.Reach;
+    }
+
+    /// <summary>
+    /// Host: a crewmate by Nicki holding Use, empty-handed (note 488). Held <c>wine.holdSeconds</c>, they've taken a glass:
+    /// <c>wine.health</c> on top of what they have, once a night. True while it's the wine their Use is on (not her door).
+    /// </summary>
+    bool WineAct(ref PlayerState s, in PlayerIntent intent, int playerId, bool emptyHanded)
+    {
+        if (!emptyHanded || !intent.Has(PlayerButtons.Use) || !WineInReach(s, playerId))
+        {
+            _byNicki.Remove(playerId);
+            return false;
+        }
+        var t = Town!.Tuning.Wine;
+        double held = _byNicki[playerId] = _byNicki.GetValueOrDefault(playerId) + SimConstants.TickSeconds;
+        if (held >= t.HoldSeconds - 1e-9)
+        {
+            _toasted.Add(playerId);
+            _byNicki.Remove(playerId);
+            s.Health += t.Health;
+        }
+        return true;
+    }
+
+    /// <summary>Who's had a glass of Nicki's wine tonight (note 488), by player id; the host's.</summary>
+    public IReadOnlyCollection<int> Toasted => _toasted;
+
     /// <summary>Note 279: the stops' buildings' walls by their doors, kept for the town's rebuild of the walls.</summary>
     Sim.Run.WallTuning? _walls;
 
@@ -1173,8 +1217,9 @@ public sealed class World
         // Searching an open house's hiding spot (note 326), empty-handed, with a Use the hands didn't take.
         if (Authority && Run is { } searching)
             searching.SearchAct(s, intent, playerId, this, emptyHanded: !handsTookIt && Bodies.CarriedBy(playerId) is null);
-        // An open house's door (note 401), empty-handed, with a Use neither the hands nor a hiding spot took.
-        if (Authority)
+        // Nicki's wine (note 488), then an open house's door (note 401): empty-handed, with a Use neither the hands nor a hiding
+        // spot took. (She waves you in at her door: by her, a held Use is a glass, not the door shut in her face.)
+        if (Authority && !WineAct(ref s, intent, playerId, emptyHanded: !handsTookIt && Bodies.CarriedBy(playerId) is null))
             DoorAct(s, intent, playerId, emptyHanded: !handsTookIt && Bodies.CarriedBy(playerId) is null);
         // A healing find used up in the hands this tick (GDD App. F.1; note 272): its health back, up to full.
         if (Authority && Bodies.TakeDose(playerId) is > 0 and var dose && s.Alive)
