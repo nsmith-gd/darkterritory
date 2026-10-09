@@ -6990,6 +6990,42 @@ Terrain sculpting tools, a node-graph material editor, a general-purpose visual 
         - down at a door, one spring and four paws on the boards, none on the tin;
         - out again, one climb and no paws, spring or snarl;
         - stopped, the sniffing held and no snarl; moving on, it stops.
+490. **Towns, a third pass: nothing ruled straight, a small town's green, the town seen from outside, a fishing town's yards, the guns on the towers (queue #227, B2; the World Building board's open lines; the director, 8 Oct: "Towns dont feel like they have a natural layout to them ... These towns need layouts, parks, signs of governance, signs of culture"; GDD §3 "watchtowers, artillery").**
+    - **Off true** (`TownHouse.Turn`, `Body`, `BodyFacing`, `Extent`; towns.json `walled.turn`, `turnChance`, `crescent`):
+        - three in four of the shut houses on a walled town's streets stand 1–4° off true, either way;
+        - the row across the green's far street turns to the green's middle: none at the middle, up to 16° at its ends, a crescent round it;
+        - the turn is in the body, about the house's middle. Its block, wing and porch walls are turned (`Town.Box`'s `turn`: a wall's axis off the line's), and so is its door. The yard keeps to the square lot, so fences still line up with the neighbours' and the street;
+        - each turn is halved, up to four times, until the body keeps 0.4 m inside the lot's sides, 1.2 m off its street's edge and 1 m short of its back line (never worse than it stood square). Otherwise it stands square;
+        - an open house (its rooms are its walls) and the line's own row (the railway laid it out) stand square;
+        - the yard is laid out behind the turned body's furthest corner;
+        - `dt town` reports how many houses stand off true, and the crescent row's turns.
+    - **The art:** the house's body is built turned inside its mesh (`MaritimeKit.Turned`: the Sim's turn in the rail frame is a rotation of −Turn about Y in the kit's frame). The mesh is still placed square to its lot (`WorldArt.HouseAt`), so the yard drawn with it stays square. The door lamp and the chimney smoke go with the body. This holds for far houses and street blocks too.
+    - **A small town's green** (towns.json `square.greenAlong`, `greenOut`):
+        - in the square's rear end, 5–17 m along and 7–17 m out, clear of the clerk's office, the stall and the first bench;
+        - its pieces: a tin tree in the far corner, the lamp garden by the way in, and a bench facing it;
+        - two lamps at its corners nearest the line, and the square's lamp post that stood there left out.
+    - **Seen from outside** (`WorldArt.Glow`): a walled town's lights on the fog over it, as a Holdout's lamp is seen from its approach board (App. D.7). Additive light keeps 30% of itself through any fog, so these glows read from far off:
+        - a broad glow 38 m over the square;
+        - fainter ones over the first streets every 170 m on both sides of the line;
+        - the furnace's orange over a foundry's casting shed;
+        - a town that keeps its windows dark (the "shutters" custom) glows less;
+        - each glow is faint from inside the town (6%), where the lamps themselves are the light, and grows with distance.
+      From outside, nothing in the town clears its wall (the church's steeple tops out near 17.7 m, under the wall's line from the gate's view), so the glow is what says a town is there.
+    - **A fishing town's yards** (`YardKind.Loft`, `Flake`; houses.json characters' `yard.things`):
+        - a net loft: a shed with a loft over it, a dark loft door under a hoist beam, nets over a pole along its side toward the lot's middle;
+        - a fish flake: a knee-high rack of grey spruce boughs on posts, a few dried fish left on one in three, none on the rest;
+        - the cove keeps both (2 each), the town on the water one each, the mixed town an odd flake;
+        - they're last in the yard's list, so a character that keeps neither rolls its yards as before.
+    - **The guns on the towers:** note 335's addition, in this PR.
+    - **Verified:**
+        - `WalledTownTests.HousesStandOffTrueAndTheRowAcrossTheGreenTurnsToIt`: more than a third of the shut street houses are turned, and open houses and the line's row aren't. The crescent row faces the green's middle, one past the plain turns. Every turned body's corners are walled by its own walls only, off every street. Its yard things are outside its turned body;
+        - `TownTurnArtTests`: a turned house's body corners as the art draws them are within 2 cm of its walls, and its yard as drawn is square to its lot;
+        - `TownsfolkTests`: a small town's green in its square, its tree, garden and bench on it and lookable, nothing else of the square on it;
+        - looked at: local:5 from over a lane and frontier:3's green from over its square in survey light; frontier:7's small green at night and in survey light; local:5 from outside its gate and down a street at night; a cove's (local:1) net loft and fish flake (`dt screenshot --town greenover|loft|flake`).
+    - **Not yet:**
+        - goods sheds and a rail yard along the platform (C1's goods shed, #197, to place when it's modelled);
+        - the arrival fortress made a town;
+        - the works heard (AU1's).
 497. **The breach's blows and boards heard on their beats (AU1, queue #234; C1's #200, note 464: "AU1: the strikes' and the boards' sounds are theirs"; App. D.7).** Since #200 a lock jumps on its hasp at each blow of the crew's smash clip (a blow every 0.8 s, frame 9 of 24), and a barricade's board flexes out at each heave of the pry clip (every 1.33 s) and comes off at each fifth of the breach. Both are on the scene's clock, the crew's clips' own. The sound didn't follow either:
     - **The smash:** each of its takes was three seconds of blows, and it was played again every 0.45-0.7 s at random while the lock was worked. That's a din of six or more sequences over one another, never on the lock's jumps.
     - **The pry:** a held loop with heaves of its own.
@@ -7019,7 +7055,7 @@ Terrain sculpting tools, a node-graph material editor, a general-purpose visual 
     - **Resuming** (`NetPlaySession.Restore`): `TrainOnLine.Resume` puts the rakes back as they were, every one at rest, and nothing slides on the first frame (each rake's previous distance is where it is). It shares `Restore`'s rebuild, the one a client's snapshot uses, so the engine's rake object stays the train's. A joiner's world builds its own cars and then takes the host's rakes like any snapshot.
     - **An older save,** with no rakes, resumes as it did: the train from its own cars. So does one whose rakes aren't this train's: `Resume` checks every vehicle is in exactly one rake, the engine in one, on a track the line has, and changes nothing otherwise. The save carries its line (linegen plan §17.4), so a yard's standing cars take the same ids on resume.
     - **Readings:** every rake comes back at rest, the engine's too, as it always did (the night restarts stopped where it was saved). A cut rake left rolling at the save is stopped where it was.
-    - **Not yet:** what was stowed in the cars by hand (crates, loot, bodies, the kit) isn't in the save, which builds the night's items afresh; nor are the crew's places.
+    - **Not yet:** ~~what was stowed in the cars by hand (crates, loot, bodies, the kit) isn't in the save, which builds the night's items afresh~~ (done in note 500, but for the dead); nor are the crew's places.
     - Protocol unchanged (the save is the host's file; clients take the rakes from snapshots as ever). Tests: `ResumeTests` (the rakes back as they left: picked-up cars ahead of the engine and not standing, a cut car where it was left with its handbrake on, at rest, and the train running on; a save that isn't this train's changes nothing: a car missing, a car twice, a car past the train, a track the line hasn't, no rakes). `CampaignSessionTests.AResumedNightKeepsTheTrainAsItLeft` (at the coaling tower on frontier:10, a yard's derelicts put ahead of the engine, the last car cut off and a bite out of car one; the autosave on leaving keeps all three, the resumed host has them, its own client agrees, and an older save without rakes resumes the old way). `CampaignSessionTests.ThreeSlotsOfText` round-trips the rakes and the eaten shell through a save slot.
 499. **The Track Doll's restlessness heard (AU1, queue #236; note 268's "not yet": "the doll has no recorded 'restless' sound of her own (the faster giggle and the crew's brake handle stand in)"; GDD App. F.1).** For `warnSeconds` (30) before each of her stages she's restless (`TrackDoll.Restless`, the half in her replicated escalation): left alone too long, about to get worse. Her giggle came twice as often and that was all. Restless at stage 2, she rattled the brake handle with the crew's own lever sound.
     - **How** (`GameAudio.DollSounds`, off the mirrored record):
@@ -7089,39 +7125,38 @@ Terrain sculpting tools, a node-graph material editor, a general-purpose visual 
         - `OpenHouseTests.YouWalkInAtTheDoorAndTheFindsAreInside` now counts the station among the open buildings.
         - `StopGeneratorTests.ADeadTownHasItsStationAndAGoodsYardOfDerelictStock` holds the station open with nothing kept in it, every invariant passing. The full Sim tests pass (1396), as do StopShellArtTests, HouseInteriorArtTests and InteriorLightTests.
         - Screenshots of frontier:7's first station: from the platform, the lantern's light through the door under the canopy; from its door, the counter, the till and the ticket rack against the back wall, the floor and walls readable.
-490. **Towns, a third pass: nothing ruled straight, a small town's green, the town seen from outside, a fishing town's yards, the guns on the towers (queue #227, B2; the World Building board's open lines; the director, 8 Oct: "Towns dont feel like they have a natural layout to them ... These towns need layouts, parks, signs of governance, signs of culture"; GDD §3 "watchtowers, artillery").**
-    - **Off true** (`TownHouse.Turn`, `Body`, `BodyFacing`, `Extent`; towns.json `walled.turn`, `turnChance`, `crescent`):
-        - three in four of the shut houses on a walled town's streets stand 1–4° off true, either way;
-        - the row across the green's far street turns to the green's middle: none at the middle, up to 16° at its ends, a crescent round it;
-        - the turn is in the body, about the house's middle. Its block, wing and porch walls are turned (`Town.Box`'s `turn`: a wall's axis off the line's), and so is its door. The yard keeps to the square lot, so fences still line up with the neighbours' and the street;
-        - each turn is halved, up to four times, until the body keeps 0.4 m inside the lot's sides, 1.2 m off its street's edge and 1 m short of its back line (never worse than it stood square). Otherwise it stands square;
-        - an open house (its rooms are its walls) and the line's own row (the railway laid it out) stand square;
-        - the yard is laid out behind the turned body's furthest corner;
-        - `dt town` reports how many houses stand off true, and the crescent row's turns.
-    - **The art:** the house's body is built turned inside its mesh (`MaritimeKit.Turned`: the Sim's turn in the rail frame is a rotation of −Turn about Y in the kit's frame). The mesh is still placed square to its lot (`WorldArt.HouseAt`), so the yard drawn with it stays square. The door lamp and the chimney smoke go with the body. This holds for far houses and street blocks too.
-    - **A small town's green** (towns.json `square.greenAlong`, `greenOut`):
-        - in the square's rear end, 5–17 m along and 7–17 m out, clear of the clerk's office, the stall and the first bench;
-        - its pieces: a tin tree in the far corner, the lamp garden by the way in, and a bench facing it;
-        - two lamps at its corners nearest the line, and the square's lamp post that stood there left out.
-    - **Seen from outside** (`WorldArt.Glow`): a walled town's lights on the fog over it, as a Holdout's lamp is seen from its approach board (App. D.7). Additive light keeps 30% of itself through any fog, so these glows read from far off:
-        - a broad glow 38 m over the square;
-        - fainter ones over the first streets every 170 m on both sides of the line;
-        - the furnace's orange over a foundry's casting shed;
-        - a town that keeps its windows dark (the "shutters" custom) glows less;
-        - each glow is faint from inside the town (6%), where the lamps themselves are the light, and grows with distance.
-      From outside, nothing in the town clears its wall (the church's steeple tops out near 17.7 m, under the wall's line from the gate's view), so the glow is what says a town is there.
-    - **A fishing town's yards** (`YardKind.Loft`, `Flake`; houses.json characters' `yard.things`):
-        - a net loft: a shed with a loft over it, a dark loft door under a hoist beam, nets over a pole along its side toward the lot's middle;
-        - a fish flake: a knee-high rack of grey spruce boughs on posts, a few dried fish left on one in three, none on the rest;
-        - the cove keeps both (2 each), the town on the water one each, the mixed town an odd flake;
-        - they're last in the yard's list, so a character that keeps neither rolls its yards as before.
-    - **The guns on the towers:** note 335's addition, in this PR.
-    - **Verified:**
-        - `WalledTownTests.HousesStandOffTrueAndTheRowAcrossTheGreenTurnsToIt`: more than a third of the shut street houses are turned, and open houses and the line's row aren't. The crescent row faces the green's middle, one past the plain turns. Every turned body's corners are walled by its own walls only, off every street. Its yard things are outside its turned body;
-        - `TownTurnArtTests`: a turned house's body corners as the art draws them are within 2 cm of its walls, and its yard as drawn is square to its lot;
-        - `TownsfolkTests`: a small town's green in its square, its tree, garden and bench on it and lookable, nothing else of the square on it;
-        - looked at: local:5 from over a lane and frontier:3's green from over its square in survey light; frontier:7's small green at night and in survey light; local:5 from outside its gate and down a street at night; a cove's (local:1) net loft and fish flake (`dt screenshot --town greenover|loft|flake`).
-    - **Not yet:**
-        - goods sheds and a rail yard along the platform (C1's goods shed, #197, to place when it's modelled);
-        - the arrival fortress made a town;
-        - the works heard (AU1's).
+
+500. **A resumed night keeps what it earned and what's aboard (A1, queue #237; note 481's "not yet"; spec E "Crash: Session lost. Campaign rolls back to last POI autosave").**
+    - **What was wrong:** the autosave kept the train (note 481), but a resumed night started its tally over and built its things afresh.
+      - **Takings lost:**
+        - the village finds already stowed (their pay, `Run.Scavenged`, and the finds, `Run.Stowed`);
+        - the mail caught (`Run.Mail`).
+      - **The bill started again at the save:** the coal and rounds spent before it were off the bill, and the coal loaded at towers forgotten.
+      - **Everything aboard was stocked afresh (`World.Stock`):**
+        - a rescued child and a find not yet settled were gone;
+        - a lamp lost was back;
+        - the kit was back in its locker wherever the crew had put it;
+        - each extinguisher was full.
+      - **The stop just left was stocked again.** It was still in the stocking's look-ahead (`loot.json` `stockAhead`, 800 m), so its crates and finds came out again behind the train, there to be fetched and paid for twice.
+    - **The save keeps the takings** (`RunCheckpoint.Takings`, a `RunTakings` from `Run.Takings`): the finds stowed and their pay, the mail, the coal and rounds the night left the fortress with, and the coal it's loaded since. `Run.Resume` takes them back, so the pay and the bill go on from where they were.
+    - **The save keeps what's aboard** (`RunCheckpoint.Aboard`, a `ThingAboard` each, from `World.Aboard`). That's every thing in a car of the train, the engine's cab too: on a floor, a roof or a locker's shelf, or in a crewmate's hands there. Each keeps:
+      - its kind and car, where its middle is in that car's frame, its size and how it lies;
+      - its locker and shelf;
+      - what's its own: a crate's cargo, which find it is, an extinguisher's mount and charge, a toy's noise, a radio broken, whether it's the crew's.
+    - **Resuming:** `World.Restock` puts each back where it was in place of `World.Stock`. What was on a shelf goes back on the same locker's shelves in its order (`Bodies.Stow`). The radios and the kit count as `Stock` leaves them (`Bodies.RadiosCarried`, `World.KitStocked`, for §23.2's kit rules).
+    - **No double stocking:** `Run.Resume` marks every stop whose zone is behind the engine's front as stocked.
+    - **An older save,** with neither, resumes as before: the tally from the save and the train stocked afresh.
+    - **Readings:**
+      - **Not the dead.** A body isn't saved: the crew's places aren't (note 481), and a resumed night's crew are all back, so their bodies, the fee and the refund would count a death twice.
+      - **Not what's on the ground.** It's left behind as the train leaves.
+      - **A thing in a crewmate's hands** is put back where it was in their car, and comes to rest there.
+    - Protocol unchanged (the save is the host's file; clients take the bodies from snapshots).
+    - **Tests:** `CampaignSessionTests.AResumedNightKeepsWhatItEarnedAndWhatsAboard`. Before the autosave at frontier:10's coaling tower:
+      - a Gannet's head is stowed (paid), a mail bag caught, coal burned;
+      - a lamp is taken off a crew locker's shelf and left on a car's floor;
+      - a child is aboard, another lamp lost, an extinguisher spent to 0.4.
+      - **The resumed night has all of it:** the takings and the bill, the lamp where it lay, the child, one lamp fewer, the extinguisher at 0.4, and the lockers' shelves as they were.
+    - **Three more cases:**
+      - saved just past the wreck yard (still in the look-ahead), its stop isn't stocked again (it was, without the fix);
+      - an older save counts from the save and stocks afresh;
+      - `ThreeSlotsOfText` round-trips the takings and the things aboard through a save slot.

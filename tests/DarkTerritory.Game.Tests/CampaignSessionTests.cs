@@ -30,6 +30,9 @@ public class CampaignSessionTests
                 Checkpoint = new RunCheckpoint("local:5", 0, 600, 9000, 300, [new CarState(1, 0.75, 1, 1, 200, Eaten: 0.25)], [1])
                 {
                     Rakes = [new RakeSave([4, 0, 1, 2], -1, 9000, false, false), new RakeSave([3], -1, 8700, true, true)],
+                    Takings = new RunTakings(310, [new Sim.Stops.LootFind(7, "medicine", 310)], 120, 900, 150, 48),
+                    Aboard = [new ThingAboard(Sim.Physics.BodyKind.RepairKit, 1, new Double3(-0.4, 1.3, -2.5), 0.1, 0.2, 0.1, Locker: 8, Slot: 1),
+                        new ThingAboard(Sim.Physics.BodyKind.Toy, 4, new Double3(0.6, 1.4, 3), 0.15, 0.2, 0.1, Noise: Sim.Physics.ToyNoise.MusicBox)],
                 },
             };
             saves.Save(s);
@@ -41,6 +44,12 @@ public class CampaignSessionTests
             // The rakes as they were (note 481), each front to back.
             Assert.Equal(s.Checkpoint.Rakes!.Select(r => (string.Join(",", r.Vehicles), r.Path, r.Distance, r.Handbrake, r.Locked)),
                 back.Checkpoint.Rakes!.Select(r => (string.Join(",", r.Vehicles), r.Path, r.Distance, r.Handbrake, r.Locked)));
+            // What the night had taken and spent, and what was aboard (note 500).
+            Assert.Equal(s.Checkpoint.Takings!.Scavenged, back.Checkpoint.Takings!.Scavenged);
+            Assert.Equal(s.Checkpoint.Takings.Stowed, back.Checkpoint.Takings.Stowed);
+            Assert.Equal((s.Checkpoint.Takings.Mail, s.Checkpoint.Takings.TenderAtDeparture, s.Checkpoint.Takings.CoalLoaded, s.Checkpoint.Takings.AmmoAtDeparture),
+                (back.Checkpoint.Takings.Mail, back.Checkpoint.Takings.TenderAtDeparture, back.Checkpoint.Takings.CoalLoaded, back.Checkpoint.Takings.AmmoAtDeparture));
+            Assert.Equal(s.Checkpoint.Aboard, back.Checkpoint.Aboard);
             Assert.Contains("\"name\": \"Night Crew\"", File.ReadAllText(saves.PathOf(2)));
             Assert.Throws<ArgumentOutOfRangeException>(() => saves.PathOf(4));
         }
@@ -205,5 +214,107 @@ public class CampaignSessionTests
         // An older save (no rakes) builds the train from its own cars, as before.
         using var older = NetPlaySession.HostGame(Content, new SessionSetup(Route: spec, Cars: 4, Enemies: false), port: 0, resume: saved with { Rakes = null });
         Assert.Equal(Enumerable.Range(0, 5), older.Host!.Train.Dynamics.Consist.Vehicles.Select(v => v.Id));
+    }
+
+    [Fact]
+    public void AResumedNightKeepsWhatItEarnedAndWhatsAboard()
+    {
+        // Queue #237, ARCHITECTURE §8 note 500 (spec E "rolls back to last POI autosave"). Before the save at the coaling tower:
+        // a Gannet's head stowed aboard (paid), a mail bag caught, coal burned since the night left; a thing taken off a crew
+        // locker's shelf and left on a car's floor, a rescued child aboard, a lamp lost, an extinguisher half spent.
+        const string spec = "frontier:10";
+        var route = Sim.LineGen.Routes.Generate(Content, spec, 4);
+        var facility = route.Of(FeatureKind.Facility).First(f => f.Facility == FacilityKind.CoalingTower);
+        var setup = new SessionSetup(Route: spec, Cars: 4, Enemies: false) { Start = facility.End - 20 };
+        Sim.Campaign.RunCheckpoint saved;
+        int lamps, shelved;
+        bool kitStocked;
+        Sim.Physics.BodyKind taken;
+        Ballast.Double3 kitAt;
+        using (var night = NetPlaySession.HostGame(Content, setup, port: 0))
+        {
+            var world = night.Host!.World;
+            var train = world.Train;
+            var run = world.Run!;
+            for (int i = 0; i < 10; i++)
+                night.Step(default);
+            var room = train.Frames[2].Shape.Interior!.Value;
+            var head = world.Bodies.SpawnCrate(train, 2, new Ballast.Double3(0.3, room.Min.Y, 1.5), Sim.Physics.BodyKind.Loot);
+            head.Owner = Sim.Run.Run.TrophyOwner(Sim.Enemies.EnemyKind.Gannet);
+            for (int i = 0; i < 2 * DarkTerritory.Sim.SimConstants.TickRate; i++)
+                night.Step(default);
+            Assert.True(run.Scavenged > 0, "the Gannet's head was never stowed");
+            run.AddSalvage(120);
+            train.Boiler.Tender -= 40;
+            var kit = world.Bodies.All.First(b => b.Stowed);
+            taken = kit.Kind;
+            shelved = world.Bodies.All.Count(b => b.Stowed);
+            kit.Locker = -1;
+            kit.Parent = 2;
+            kitAt = new Ballast.Double3(-0.4, room.Min.Y + kit.Pbd.Particles[0].Radius, -1.5);
+            kit.Pbd.Particles[0].Position = kit.Pbd.Particles[0].Previous = kitAt;
+            kit.Pbd.Wake();
+            world.Bodies.SpawnCrate(train, 2, new Ballast.Double3(0, room.Min.Y, 0), Sim.Physics.BodyKind.Child);
+            world.Bodies.Remove(world.Bodies.All.First(b => b.Kind == Sim.Physics.BodyKind.Lamp && b != kit && !b.Stowed));
+            lamps = world.Bodies.All.Count(b => b.Kind == Sim.Physics.BodyKind.Lamp);
+            world.Bodies.All.First(b => b.Kind == Sim.Physics.BodyKind.Extinguisher && b.Home == 1).Charge = 0.4;
+            for (int i = 0; i < 10 * DarkTerritory.Sim.SimConstants.TickRate && night.Checkpoints == 0; i++)
+            {
+                train.Dynamics.Velocity = 3;
+                night.Step(default);
+            }
+            Assert.Equal(1, night.Checkpoints);
+            saved = night.Checkpoint!;
+            Assert.Equal(run.Scavenged, saved.Takings!.Scavenged);
+            Assert.Equal(120, saved.Takings.Mail, 6);
+            Assert.True(saved.Takings.TenderAtDeparture > saved.Tender + 39, $"left with {saved.Takings.TenderAtDeparture}, saved at {saved.Tender}");
+        }
+
+        using (var resumed = NetPlaySession.HostGame(Content, new SessionSetup(Route: spec, Cars: 4, Enemies: false), port: 0, resume: saved))
+        {
+            var world = resumed.Host!.World;
+            var run = world.Run!;
+            // The night's takings and spending go on: the head still pays, the mail too, and the coal burned before the save is
+            // still on the bill.
+            Assert.Equal(saved.Takings!.Scavenged, run.Scavenged);
+            Assert.Equal(saved.Takings.Stowed, run.Stowed);
+            Assert.Equal(120, run.Mail, 6);
+            Assert.Equal(saved.Takings.TenderAtDeparture, run.Takings.TenderAtDeparture);
+            // What was aboard is where it was: the thing off the shelf on the car's floor, not back in its locker; the child
+            // aboard; the lamp lost stays lost; the extinguisher as spent as it was; the lockers' shelves as they were.
+            var kit = Assert.Single(world.Bodies.All, b => b.Kind == taken && b.Parent == 2 && !b.Stowed);
+            var lay = Assert.Single(saved.Aboard!, t => t.Kind == taken && t.Car == 2 && t.Locker < 0);
+            Assert.True((kit.Pbd.Particles[0].Position - lay.At).Length < 0.01, $"the {taken}'s at {kit.Pbd.Particles[0].Position}, saved at {lay.At}");
+            Assert.True((lay.At - kitAt).Length < 1, $"it was put down at {kitAt}, and saved at {lay.At}");
+            Assert.Equal(shelved - 1, world.Bodies.All.Count(b => b.Stowed));
+            Assert.Single(world.Bodies.All, b => b.Kind == Sim.Physics.BodyKind.Child && b.Parent == 2);
+            Assert.Equal(lamps, world.Bodies.All.Count(b => b.Kind == Sim.Physics.BodyKind.Lamp));
+            Assert.Equal(0.4, world.Bodies.All.Single(b => b.Kind == Sim.Physics.BodyKind.Extinguisher && b.Home == 1).Charge, 2);
+            static string Shelves(IEnumerable<(Sim.Physics.BodyKind Kind, int Car, int Locker, int Slot)> things) =>
+                string.Join(";", things.Where(t => t.Locker >= 0).OrderBy(t => t.Car).ThenBy(t => t.Locker).ThenBy(t => t.Slot));
+            Assert.Equal(Shelves(saved.Aboard!.Select(t => (t.Kind, t.Car, t.Locker, t.Slot))),
+                Shelves(world.Bodies.All.Select(b => (b.Kind, b.Parent, b.Locker, b.Slot))));
+            kitStocked = world.KitStocked;
+        }
+
+        // Saved just past a stop with a yard (the wreck yard down its spur, frontier:10's first): it's still in the stocking's
+        // look-ahead, but it isn't stocked again. Its crates and finds were left there, and the ones stowed are paid for.
+        var wreck = route.Of(FeatureKind.Facility).First(f => f.Facility == FacilityKind.WreckYard);
+        using (var past = NetPlaySession.HostGame(Content, new SessionSetup(Route: spec, Cars: 4, Enemies: false), port: 0,
+            resume: saved with { Facility = 0, Front = wreck.End + 30, Rakes = null }))
+        {
+            for (int i = 0; i < 2 * DarkTerritory.Sim.SimConstants.TickRate; i++)
+                past.Step(default);
+            Assert.DoesNotContain(past.Host!.World.Bodies.All, b => b.Parent == Sim.Player.PlayerState.World);
+        }
+
+        // An older save, with neither, counts from the save and stocks the train afresh: the shelves full again. The kit
+        // counts as stocked (GDD §23.2) as it did on the resumed night.
+        using var older = NetPlaySession.HostGame(Content, new SessionSetup(Route: spec, Cars: 4, Enemies: false), port: 0,
+            resume: saved with { Takings = null, Aboard = null });
+        Assert.Equal(0, older.Host!.World.Run!.Scavenged);
+        Assert.Equal(shelved, older.Host.World.Bodies.All.Count(b => b.Stowed));
+        Assert.Equal(older.Host.World.KitStocked, kitStocked);
+        Assert.Equal(lamps + 1, older.Host.World.Bodies.All.Count(b => b.Kind == Sim.Physics.BodyKind.Lamp));
     }
 }
