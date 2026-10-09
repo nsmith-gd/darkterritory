@@ -213,6 +213,8 @@ for s, sx in (("r", 1), ("l", -1)):
         head.tube(pts, [0.011, 0.008, 0.003], 5, KNOT, f"ear_{s}", ref=(0, 1, 0))
 
 # --- the legs: dead branches, gnarled at the joints, ending in spikes -----------------------------------------
+# (Their rings and sides are few: the Gaunt is drawn in the perf views' line-side, whose VR frame sits at the 1.5M
+# triangle budget, tuning/perf.json, PerfBudgetTests.)
 # (Note 548: they were dowels of one taper with a ball at every joint, a wooden toy's. Asleep it's to be a heap of dead
 # branches, note 132, so each bone's length is a branch: bent and uneven along it, the bark split in fissures, the joints
 # gnarled lumps grown over, a broken-off twig's stub here and there, the cannons drawn down to a splintered spike.)
@@ -254,7 +256,7 @@ def gnarl(c, size, bones, seed):
         q = Vector(p) - c
         k = 1 + 0.32 * noise3(Vector(p), seed, 24.0) + 0.18 * max(0.0, math.sin(aa * 3 + th * 2 + seed)) ** 3
         return c + q * k
-    legs.blob(c, size, 12, 9, KNOT, bones, shape=jag)
+    legs.blob(c, size, 10, 7, KNOT, bones, shape=jag)
 
 
 def stub(a, d, ln, r, bone, seed):
@@ -268,11 +270,11 @@ for s, sx in (("r", 1), ("l", -1)):
     for n, leg in enumerate(LEGS):
         seed = n * 2 + (s == "l") + 1
         th, sh, ca = f"thigh_{leg}{s}", f"shin_{leg}{s}", f"cannon_{leg}{s}"
-        branch(H(th) + (H(th) - T(th)).normalized() * 0.05, T(th), 0.072, 0.046, th, seed, rings=10, bend=0.05)
+        branch(H(th) + (H(th) - T(th)).normalized() * 0.05, T(th), 0.072, 0.046, th, seed, rings=7, sides=8, bend=0.05)
         gnarl(T(th), (0.072, 0.064, 0.082), {th: 0.5, sh: 0.5}, 96 + seed)
-        branch(H(sh), T(sh), 0.047, 0.029, sh, seed + 10, rings=10, bend=-0.045)
+        branch(H(sh), T(sh), 0.047, 0.029, sh, seed + 10, rings=7, sides=8, bend=-0.045)
         gnarl(T(sh), (0.048, 0.044, 0.056), {sh: 0.5, ca: 0.5}, 106 + seed)
-        branch(H(ca), T(ca), 0.029, 0.006, ca, seed + 20, rings=9, sides=8, bend=0.03, splinter=True,
+        branch(H(ca), T(ca), 0.029, 0.006, ca, seed + 20, rings=6, sides=6, bend=0.03, splinter=True,
                fmat=lambda pts, nn: SPIKE if sum(pts, Vector()).z / len(pts) < 0.14 else BARK)
         # A twig's stub or two off the thigh and the shin, pointing out and up, away from the body, and back (a forward
         # one stands out ahead among the head's: GauntTests reads the head as what's foremost).
