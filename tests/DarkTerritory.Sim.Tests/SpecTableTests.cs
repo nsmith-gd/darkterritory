@@ -116,4 +116,63 @@ public class SpecTableTests
         Assert.Equal((12.0, 4.0), (g.Health, g.GiveUpBelow));
         Assert.Equal([1.0, 1.5, 2.0, 2.5], Enum.GetValues<DarkTerritory.Sim.Route.RouteTier>().Select(t => DarkTerritory.Sim.Enemies.MooseTuning.ByTier(g.TierWeights, t)));
     }
+
+    static double[] Tiers(Dictionary<string, double> table) =>
+        [.. Enum.GetValues<DarkTerritory.Sim.Route.RouteTier>().Select(t => DarkTerritory.Sim.Enemies.MooseTuning.ByTier(table, t))];
+
+    [Fact]
+    public void TheMournersMatchB14()
+    {
+        var m = Tuning.Enemies.Mourners;
+        Assert.Equal([3, 4, 5, 6], Enum.GetValues<DarkTerritory.Sim.Route.RouteTier>().Select(m.CountFor));
+        Assert.Equal((15.0, 40.0, 6.0, 12.0, 4.0), (m.After, m.ArriveAt, m.Shy, m.StartleTo, m.ReturnAfter));
+        Assert.Equal((1.6, 3.0, 6.0, 1.0, 120.0), (m.Drag, m.DropWithin, m.ScatterOnDeath, m.Health, m.LostAt));
+    }
+
+    [Fact]
+    public void TowerJawMatchesB15()
+    {
+        var j = Tuning.Enemies.TowerJaw;
+        Assert.Equal([150.0, 120.0, 100.0, 90.0], Enum.GetValues<DarkTerritory.Sim.Route.RouteTier>().Select(j.GnawFor));
+        Assert.Equal((0.2, 10.0, 1.5, 3.0, 35), (j.StartGnawed, j.Notice, j.ThreatSeconds, j.LungeWithin, j.Bite));
+        Assert.Equal((4, 15.0, 120.0, 12.0), (j.DriveOffBlows, j.DriveOffSeconds, j.AwaySeconds, j.Health));
+        Assert.Equal((3.5, 45, 3.0, 30.0, 4.0), (j.CrushRadius, j.Crush, j.WreckHalf, j.ClearCrewSeconds, j.ClearReach));
+    }
+
+    [Fact]
+    public void TheBrakemanMatchesB16()
+    {
+        var b = Tuning.Enemies.Brakeman;
+        Assert.Equal((2, 4, 3.0), (b.MinCrew, b.MinCars, b.MovingAbove));
+        Assert.Equal((2.5, 4.0, 12.0, 5.0, 20.0), (b.Walk, b.WindSeconds, b.Spook, b.Flee, b.Lose));
+        Assert.Equal([30.0, 60.0], b.Hide);
+        Assert.Equal((10.0, 4.0, 2.5, 30), (b.CornerSpan, b.Health, b.LashEvery, b.LashDamage));
+        Assert.Equal([1.0, 1.5, 2.0, 2.5], Tiers(b.TierWeights));
+        Assert.Equal((6.0, 2.0, 1000.0, 2.0), (b.PerCarsWeight, b.ClimbWeight, b.ClimbAhead, b.ClimbPercent));
+    }
+
+    [Fact]
+    public void TheKnotterMatchesB17()
+    {
+        var k = Tuning.Enemies.Knotter;
+        Assert.Equal((3, 8.0, 4.0, 5.0, 6.0), (k.MinCars, k.BoardAbove, k.CreepSeconds, k.Gap, k.ForceSeconds));
+        Assert.Equal((0.45, 2.0, 1.5, 8.0), (k.SlipPerSecond, k.SlipAbove, k.CoilSeconds, k.Health));
+    }
+
+    [Fact]
+    public void TheFreightBeetleMatchesB18()
+    {
+        var f = Tuning.Enemies.FreightBeetle;
+        Assert.Equal((25.0, 1.2, 0.8, 90.0), (f.Notice, f.Push, f.PushHeavy, f.TurnDegrees));
+        Assert.Equal((1.5, 2.0, 6.0, 3, 10.0, 30.0), (f.StartleWithin, f.StartleSeconds, f.Health, f.DriveOffBlows, f.DriveOffSeconds, f.AwaySeconds));
+    }
+
+    [Fact]
+    public void HotboxMatchesB19()
+    {
+        var h = Tuning.Enemies.Hotbox;
+        Assert.Equal((10.0, 18.0, 90.0, 90.0), (h.BoardAbove, h.RefSpeed, h.KnockSeconds, h.GlowSeconds));
+        Assert.Equal((7.0, 10.0, 2.0, 6.0, 4.0), (h.SeizedTopSpeed, h.RepairSeconds, h.ExposeAfter, h.Health, h.PriseSeconds));
+        Assert.Equal((30, 3.0), (h.SnapDamage, h.SnapEvery));
+    }
 }

@@ -53,6 +53,10 @@ public sealed class UdpTransport : DatagramTransport<EndPoint>
 
     sealed class Carrier(Socket socket) : IDatagramCarrier<EndPoint>
     {
+        // Straight to the address: nothing in between to relay it.
+        static readonly CarrierLink Direct = new("", Relayed: false);
+        public CarrierLink? Describe(EndPoint peer) => Direct;
+
         public void Send(EndPoint to, ReadOnlySpan<byte> datagram)
         {
             try

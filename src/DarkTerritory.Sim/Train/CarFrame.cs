@@ -256,6 +256,22 @@ public sealed record CarShape(Box Bounds, IReadOnlyList<Solid> Solids, IReadOnly
             SurfaceKind.Coupler, PartKind.Coupler)
         : null;
 
+    /// <summary>
+    /// A car whose coupling behind is a Knotter (note 365): its plate gone, its body across the wider gap instead: a rope's
+    /// width (<see cref="KnotWidth"/>) on the plate's line, from the car's end to the next car's, the same height.
+    /// </summary>
+    public static CarShape Knotted(CarShape shape, GeometryTuning g, double knot)
+    {
+        double l = shape.HalfLength;
+        var solids = shape.Solids.Where(s => s.Part != PartKind.Coupler).ToList();
+        solids.Add(new Solid(new Box(new Double3(g.PlateX - KnotWidth / 2, g.CouplerHeight - 0.1, l), new Double3(g.PlateX + KnotWidth / 2, g.CouplerHeight, l + g.CouplingGap + knot)),
+            SurfaceKind.Coupler, PartKind.Coupler));
+        return shape with { Solids = solids };
+    }
+
+    /// <summary>The Knotter's back, as a foot finds it (note 365).</summary>
+    public const double KnotWidth = 0.4;
+
     static CarShape Car(GeometryTuning g, bool hasCarBehind) =>
         g.Interior is { } i ? Shell(g, i, hasCarBehind, cargo: true) : SolidCar(g, hasCarBehind);
 

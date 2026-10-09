@@ -125,7 +125,7 @@ public class HitConfirmTests
     [
         EnemyKind.CinderHound, EnemyKind.Switchman, EnemyKind.SootChildren, EnemyKind.Dragger, EnemyKind.Stoker, EnemyKind.Climber,
         EnemyKind.Gaunt, EnemyKind.Passenger, EnemyKind.Follower, EnemyKind.TrackDoll, EnemyKind.CarHugger, EnemyKind.Whistler,
-        EnemyKind.TippyToesie, EnemyKind.FireFlies, EnemyKind.Ribbit, EnemyKind.Grumbler, EnemyKind.Choir, EnemyKind.Moose, EnemyKind.Gannet,
+        EnemyKind.TippyToesie, EnemyKind.FireFlies, EnemyKind.Ribbit, EnemyKind.Grumbler, EnemyKind.Choir, EnemyKind.Moose, EnemyKind.Gannet, EnemyKind.Mourners, EnemyKind.TowerJaw, EnemyKind.FreightBeetle, EnemyKind.Brakeman, EnemyKind.Hotbox, EnemyKind.Knotter,
     ];
 
     static Enemy Make(EnemyKind kind, int id) => kind switch
@@ -149,6 +149,12 @@ public class HitConfirmTests
         EnemyKind.Choir => new ChoirGhost(id),
         EnemyKind.Moose => new Moose(id),
         EnemyKind.Gannet => new Gannet(id),
+        EnemyKind.Mourners => new Mourner(id),
+        EnemyKind.TowerJaw => new TowerJaw(id),
+        EnemyKind.FreightBeetle => new FreightBeetle(id),
+        EnemyKind.Brakeman => new Brakeman(id),
+        EnemyKind.Hotbox => new Hotbox(id),
+        EnemyKind.Knotter => new Knotter(id),
         _ => throw new ArgumentException($"{kind} isn't a creature"),
     };
 
@@ -159,6 +165,19 @@ public class HitConfirmTests
         var all = Enum.GetValues<EnemyKind>().Except([EnemyKind.Sleepers, EnemyKind.Drift, EnemyKind.CarFire]);
         Assert.Equal(all.OrderBy(k => k), Creatures.OrderBy(k => k));
     }
+
+    /// <summary>
+    /// The height a creature's staged at, for those whose height is their mode: a Gannet <paramref name="gannet"/>, Hotbox half
+    /// out of its truck, the Brakeman cornered (where each can be struck).
+    /// </summary>
+    static double Stance(EnemyKind kind, GannetMode gannet) => kind switch
+    {
+        EnemyKind.Gannet => (double)gannet,
+        EnemyKind.Hotbox => (double)HotboxMode.Unfolded,
+        EnemyKind.Brakeman => (double)BrakemanMode.Cornered,
+        EnemyKind.Knotter => (double)KnotterMode.Slack,
+        _ => 0,
+    };
 
     /// <summary>
     /// A creature where a blow can land on it (App. C.2): on car 2's roof, a pace and a half in front of a crewmate there,
@@ -184,7 +203,7 @@ public class HitConfirmTests
         {
             var made = Make(kind, id);
             // (A Gannet's height is its mode: down in the planks, stuck, where a blow can land.)
-            made.Restore(phase, 0.5, 5, car, s.Position + new Double3(0, 0, -1.5), 0, 0, kind == EnemyKind.Gannet ? (double)GannetMode.Stuck : 0, extra, extra2);
+            made.Restore(phase, 0.5, 5, car, s.Position + new Double3(0, 0, -1.5), 0, 0, Stance(kind, GannetMode.Stuck), extra, extra2);
             return made;
         });
         return (n, e);
@@ -322,7 +341,7 @@ public class HitConfirmTests
         {
             var made = Make(kind, id);
             // (A Gannet's height is its mode: in the air, soaring.)
-            made.Restore(phase, 0.5, health, -1, default, n.Train.Dynamics.Distance + 64, 0, kind == EnemyKind.Gannet ? (double)GannetMode.Soar : 0, extra, extra2);
+            made.Restore(phase, 0.5, health, -1, default, n.Train.Dynamics.Distance + 64, 0, Stance(kind, GannetMode.Soar), extra, extra2);
             return made;
         });
     }

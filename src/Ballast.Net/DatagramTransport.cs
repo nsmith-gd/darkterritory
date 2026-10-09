@@ -34,7 +34,19 @@ public interface IDatagramCarrier<TAddress> : IDisposable where TAddress : notnu
     /// <paramref name="milliseconds"/> have passed. A socket waits on itself; a carrier that can't just sleeps.
     /// </summary>
     void Wait(int milliseconds) => Thread.Sleep(milliseconds);
+    /// <summary>
+    /// How the carrier reaches a peer, as far as it knows (netcode-audit.md gap 3): relayed or direct, and a platform's own
+    /// ping and quality. Null when it can't say (no session yet).
+    /// </summary>
+    CarrierLink? Describe(TAddress peer) => null;
 }
+
+/// <summary>How a carrier reaches a peer (netcode-audit.md gap 3; spec E "ping visibility is load-bearing").</summary>
+/// <param name="Network">Whose network carries it ("Steam"), or empty for the internet itself (UDP).</param>
+/// <param name="Relayed">Through the network's relays rather than straight to the peer.</param>
+/// <param name="PingMs">The network's own round trip, when it measures one.</param>
+/// <param name="Quality">The network's own share of packets arriving (1 = none lost), when it measures one.</param>
+public sealed record CarrierLink(string Network, bool Relayed, int? PingMs = null, float? Quality = null);
 
 /// <summary>What a transport knows about its connections.</summary>
 public interface IConnectionInfo
@@ -43,6 +55,8 @@ public interface IConnectionInfo
     bool IsConnected { get; }
     /// <summary>Round-trip estimate to a peer, seconds.</summary>
     double RoundTrip(PeerId peer);
+    /// <summary>How a peer is reached (<see cref="IDatagramCarrier{TAddress}.Describe"/>); null when nobody can say.</summary>
+    CarrierLink? Via(PeerId peer) => null;
 }
 
 /// <summary>
@@ -127,6 +141,10 @@ public class DatagramTransport<TAddress> : ITransport, IConnectionInfo where TAd
     public double RoundTrip(PeerId peer)
     {
         lock (_sync) return _byPeer.TryGetValue(peer, out var l) ? l.Rtt : 0;
+    }
+    public CarrierLink? Via(PeerId peer)
+    {
+        lock (_sync) return _byPeer.TryGetValue(peer, out var l) ? _carrier.Describe(l.Address) : null;
     }
     /// <summary>The carrier address of a connected peer (its endpoint, or its platform user id).</summary>
     public bool TryGetAddress(PeerId peer, [MaybeNullWhen(false)] out TAddress address)

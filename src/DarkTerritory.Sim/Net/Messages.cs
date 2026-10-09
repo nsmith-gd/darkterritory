@@ -57,9 +57,10 @@ public static class Protocol
     // 42: the run record's sites carry the tipple (its ore, clamp, roll and a re-railing), and the vehicle record whether it's off
     //     its rails, before the char cells (note 423).
     // 43: the Hello carries the private run's password, as its key (note 450), and a Refused can say WRONG PASSWORD.
-    // 44: the snapshot says how many of the client's inputs the host holds beyond the one it applied, so the client paces
+    // 44: the vehicle record carries the Brakeman's wound handbrake and Hotbox's seized axle (notes 364, 367), after the tipple's off-rails (protocol 42); and a Knotter's gap (note 365).
+    // 45: the snapshot says how many of the client's inputs the host holds beyond the one it applied, so the client paces
     //     itself to a host that's behind (note 532).
-    public const int Version = 44;
+    public const int Version = 45;
 }
 
 public enum MessageType : byte
