@@ -41,6 +41,9 @@ public class CreatureArtTests
         // The freed survivors (App. D.8): the crew figure redressed, on its rig, with the crew's actions merged on load.
         ["survivor_prisoner"] = new(2500, 9000, 20, 60, ["idle", "walk", "run", "climb", "shovel", "crouch_idle", "carry", "lever"], ["dead"]),
         ["survivor_wildlander"] = new(2500, 9000, 20, 60, ["idle", "walk", "run", "climb", "shovel", "crouch_idle", "carry", "lever"], ["dead"]),
+        // Dave (note 491): the crew figure in his own clothes, each waistcoat a variant; a hero's budget (GDD §27's 10k), seen
+        // close when he's talked to. His painting, his turn and his grab among the crew's actions.
+        ["dave"] = new(2500, 10000, 20, 60, ["idle", "walk", "paint", "push", "point"], ["dead"]),
         // Livestock (GDD §19): a prop's budget, packed a dozen to a car; its own small quadruped rig.
         ["sheep"] = new(600, 3000, 12, 30, ["idle", "shuffle", "bleat"], ["startle"]),
         // SK_Quad: 40-55 bones.

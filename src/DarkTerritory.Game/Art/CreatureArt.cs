@@ -60,7 +60,7 @@ public sealed class CreatureArt
     /// <summary>The models this draws, by file name (content/art/models/&lt;name&gt;.glb).</summary>
     public static readonly string[] Names = ["crew", "cinder_hound", "sleeper", "clinger", "hollow", "switchman", "soot_child", "dragger", "husk", "weight",
         "track_doll", "car_hugger", "tippy_toesie", "whistler", "ribbit", "choir", "gaunt", "grumbler", "stoker", "follower", "climber", "fire_fly", "passenger",
-        "survivor_prisoner", "survivor_wildlander", "sheep", "moose", "gannet"];
+        "survivor_prisoner", "survivor_wildlander", "sheep", "moose", "gannet", DaveArt.Figure];
 
     /// <summary>
     /// The figure a crewmate plays as (GDD App. D.8): the crew's own, or, freed from a Holdout, its occupant's for the rest
@@ -406,9 +406,9 @@ public sealed class CreatureArt
             var extra = Path.Combine(ContentRoot, Folder, name + "_clips.glb");
             if (File.Exists(extra))
                 model = ModelLoader.WithClips(model, ModelLoader.Load(extra), replace: true);
-            // The survivors are the crew figure redressed: the crew's actions are theirs too.
+            // The survivors and Dave are the crew figure redressed: the crew's actions are theirs too (his painting's there).
             var crewClips = Path.Combine(ContentRoot, Folder, "crew_clips.glb");
-            if (name.StartsWith("survivor_", StringComparison.Ordinal) && File.Exists(crewClips))
+            if ((name.StartsWith("survivor_", StringComparison.Ordinal) || name == DaveArt.Figure) && File.Exists(crewClips))
                 model = ModelLoader.WithClips(model, ModelLoader.Load(crewClips), replace: true);
             float wear = WearOf.GetValueOrDefault(name, 0.5f);
             _models[name] = new Entry(model, [.. model.Materials.Select(m => Resolve(m, wear))])

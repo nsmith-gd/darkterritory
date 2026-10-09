@@ -6866,3 +6866,36 @@ Terrain sculpting tools, a node-graph material editor, a general-purpose visual 
     - **Verified:**
         - Looked at down the line (trackside), in the coupling gap (gapside), and off a car's side with its doors shut and open.
         - The Game suite.
+
+491. **Dave modelled (queue #228, C1; the art checklist's `dave` "for the art sessions: a modelled Dave (his own figure, not the survivors'), a painting clip with a brush, his hats and waistcoats modelled"; P1's #569; the director, 8 Oct: "Dave should have a unique model so he's recognizable from afar ... a bit tubby on the belly and has glasses ... wears Birks sandals ... loves vests and cool hats").** P1's Dave was built in code: the survivors' figure, still in the prisoner's coat, with a code-built hat, waistcoat, glasses and sandals over it. Now he has his own figure, his things are modelled, and he has a painting clip.
+    - **His figure** (`tools/models/recipes/dave.py`, `content/art/models/dave.glb`, about 9,000 triangles drawn, one 2048 atlas): the crew's figure built the crew's way (`tools/blender/crewbody.py`'s solids, union, retopology and weights), in his own clothes (`tools/blender/davebody.py`, crew.py's `DT_CREW=dave`).
+        - A cream linen shirt over a belly about 5 cm before the chest's line. It's open at the throat, its collar turned down, its placket buttoned, and its sleeves rolled to a fat cuff past the elbow.
+        - Bare forearms and hands. Brown cord trousers turned up above bare ankles, and a belt under the belly.
+        - Sandals: a cork footbed on a dark tread, the bare foot and its toes on it, and two broad straps across, each with a brass buckle outside.
+        - Lee Perry-Smith's scan for his face, clean-shaven, bare-headed. Round wire spectacles are modelled on the scan's own face: the rims pushed 6 mm clear of the brow and cheeks, a bridge over the nose, the arms laid along the head to the ears.
+        - Paint on him, baked: flecks down the shirt's front and its right cuff, on his fingers, and on his trousers' knees.
+    - **His waistcoats are the figure's variants**, in DaveKit's order: mustard corduroy, plum velvet, a green tartan, teal brocade, and a patchwork of his paints.
+        - Each is cut from the body's own dense surface where a waistcoat covers it: the V to the top button, points at the hem, the armholes.
+        - Each is let out 6 mm over the shirt and hangs off the belly, its front coming in no faster than a quarter of the drop.
+        - Each is weighted as the body under it is, so it moves with him and nothing shows through it.
+        - Each has a satin back, its buttons, two welt pockets and a breast one, a watch chain across the belly and a cinch behind. The cloth is a mask the bake carries into the grade: cord's wales, velvet's nap, the tartan's sett, the brocade's medallions in gold, the patches in his paints.
+    - **The crew's pipeline, opted into:** `crewfigure.Style` gains `baked`, `shells`, `buttons`, `laces`, `grime`, `size`, `detail` and `reshape`, a callable `mask` for face kit of a figure's own, and `place_scan`. `crewbody.build` takes another figure's blocking and shells. Every default is what the crew, the husk and the survivors had, so their builds are unchanged.
+    - **His hats** (`tools/models/recipes/dave_kit.py`, props `dave_hat_0`..`4`), in DaveKit's order:
+        - a wide straw sun hat in coiled braid with a red ribbon and bow;
+        - a plum felt beret pulled down over his right ear;
+        - a grey fedora, creased and pinched, its brim snapped down at the front, a black band and a pheasant's feather;
+        - a faded denim bucket hat in six stitched panels with brass eyelets;
+        - a cream panama with a black band.
+        - Each is modelled round the scan where it sits on him: pushed out from the head, or up over its crown, to at least 9 mm off it. The game's head is the scan collapsed to 2,000 triangles, which can stand a millimetre or two proud of it, and a hat's game mesh is flat between its rings. Each is worn on the head bone (`CreatureArt.Wear`).
+    - **Painting** (`crew_clips.py` `paint`, 4 s): the canvas stands where DaveKit's easel puts it, its face 0.737 m ahead of his feet.
+        - The brush (`dave_brush`, in the right fist) is put by the clip so its tip is on the canvas: three dabs at a spot, then a long stroke across.
+        - Then to the palette (`dave_palette`, under the left hand, held palm up at the waist) to work the paint round, then a step back to look past the canvas at the view, and in again.
+        - The arm is reached for the wrist, then the hand is turned until the tip lands, to within millimetres.
+    - **Drawn** by `Art/DaveArt.cs`: the figure in the night's waistcoat (its variant), the night's hat on its head, and at the canvas the brush and palette in his hands. DaveKit's code figure stays the fallback. Wiring it into P1's `GreyboxScene.Painter` waits on #569; until then it's seen through `dt art clip dave <clip> --hat h --vest v` (the paint clip with a board where the canvas stands) and `dt art reel --only dave`.
+    - **Verified:**
+        - `DaveArtTests`:
+            - five waistcoats, one a variant;
+            - the brush on the canvas at each dab and stroke, off it between them, and in the paint on the palette;
+            - every hat round his head: its top over his crown and its brim down round it, and no vertex of the head (or his spectacles) through it, by rays out from the head's middle. It caught the beret's and the bucket hat's bands sitting on the spectacles' rims, and the panama's crease dipping onto his crown.
+        - `CreatureArtTests` with a hero's budget (10k).
+        - Looked at the figure, the five outfits, the face and spectacles, the sandals, and the paint clip.

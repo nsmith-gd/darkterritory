@@ -48,6 +48,7 @@ What each is for (CrewActs, from the sim's state; GDD/spec where the act is):
   reload              the cannon's reload from the seat: powder, ram, prime (note 137)
   fp_hold, fp_walk    first person (X3): the tool held up in view, the eye at EYE (CreatureArt.OwnArms puts it at the camera)
   fp_swing            first person: the blow, as long as the melee's recovery (enemies.json melee.swingSeconds, 0.8 s)
+  paint               Dave at his easel (note 491): dabs and a stroke at the canvas, the brush to the palette, a step back to look
   wave, point, dance  the yard's emotes (GDD §9, note 298's wheel): a wave over the shoulder, a point straight ahead at the
                       shoulder's height, a workman's jig (queue #44, note 306)
 In place, 30 fps, like crew.py's; the root never travels (the sim moves the crewmate).
@@ -60,6 +61,7 @@ import sys
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 import rig  # noqa: E402
+from mathutils import Quaternion  # noqa: E402
 from rig import Clip, Mat, Vector, hexc, mirror, over, swap  # noqa: E402
 
 rig.reset()
@@ -1266,8 +1268,124 @@ for f in range(0, 120, 3):
 dance.close(120)
 clips.append(dance)
 
+# --- paint: Dave at his easel (GDD §3.2, ARCHITECTURE §8 note 491) ---------------------------------------------------
+# Four seconds, looped from wherever (DaveArt plays it under him at his canvas). The canvas stands where DaveKit's easel
+# puts it: its painted face 0.737 m ahead of his feet, 1.0-1.62 m up, 0.84 m across. The brush (dave_kit's dave_brush,
+# along hand_r_weapon's +Y, its tip BRUSH_TIP on from the grip) dabbed at a spot three times, then a long stroke across;
+# back to the palette (dave_palette, under the left palm, the hand held palm up at the waist) to work the paint round;
+# and a step back to look past the canvas at what he's painting, then in again. The weight on the back foot, the left
+# forward; the eyes on the brush.
+CANVAS_Y = 0.737
+BRUSH_TIP = 0.235
+GRIP = sk["hand_r_weapon"].head
+
+
+def posed_at(pose, bone, p):
+    """Where a point of the bind pose, carried by `bone`, is in `pose` (armature space)."""
+    head = rig.pose_points(sk, pose, [(bone, "head")])[0]
+    return head + rig.world_rotation(sk, pose, bone).to_matrix() @ (Vector(p) - sk[bone].head)
+
+
+def planted(pose):
+    """The pose dropped (or lifted) so its lowest foot's on the floor, as the bake's planter will: the brush's aim is
+    taken after it."""
+    low = min(q.z for q in rig.pose_points(sk, pose, [(b, w) for b in ("foot_l", "foot_r", "ball_l", "ball_r") for w in ("head", "tail")]))
+    loc = pose.get("pelvis@loc", (0, 0, 0))
+    return over(pose, pelvis__loc=(loc[0], loc[1], loc[2] + 0.03 - low))
+
+
+def brush_on(pose, tip):
+    """The right arm and wrist set so the brush's tip is at `tip`, the brush pointing in at it from the shoulder's
+    side (a painter's long brush, held well back): the wrist reached for, then the hand turned until the tip's there
+    (the wrist moved by what's left, and again)."""
+    tip = Vector(tip)
+    shoulder = rig.pose_points(sk, pose, [("upperarm_r", "head")])[0]
+    d = (tip - (shoulder + Vector((0.05, 0.1, -0.2)))).normalized()
+    reach_of = GRIP + Vector((0, BRUSH_TIP, 0)) - sk["hand_r"].head
+    wrist = tip - d * (BRUSH_TIP + 0.08)
+    best_p = pose
+    for _ in range(4):
+        p = arm_to(pose, "r", tuple(wrist), grip=70, elbow=(0.42, 0.05, 1.12))
+        head = rig.pose_points(sk, p, [("hand_r", "head")])[0]
+        Wp = rig.world_rotation(sk, p, "lowerarm_r")
+
+        def cost(r):
+            R = Wp @ rig.rot(*r)
+            now = head + R @ reach_of
+            return (now - tip).length + 0.04 * (1 - (R @ Vector((0, 1, 0))).dot(d))
+
+        best = min(((rx, ry, rz) for rx in range(-120, 121, 12) for ry in range(-60, 61, 12) for rz in range(-96, 97, 12)), key=cost)
+        for step in (4, 1, 0.25):
+            best = min(((best[0] + i * step, best[1] + j * step, best[2] + k * step) for i in (-3, -2, -1, 0, 1, 2, 3)
+                        for j in (-3, -2, -1, 0, 1, 2, 3) for k in (-3, -2, -1, 0, 1, 2, 3)), key=cost)
+        p["hand_r"] = best
+        best_p = p
+        now = head + (Wp @ rig.rot(*best)) @ reach_of
+        if (now - tip).length < 0.004:
+            break
+        wrist = wrist + (tip - now)
+    best_p["fingers_r"], best_p["thumb_r"] = (0, 62, 0), (0, 28, 0)
+    return best_p
+
+
+# The palette: the left forearm across the waist, the hand palm up under it, fingers out to the left.
+PALETTE_WRIST = (-0.2, 0.3, 1.06)
+
+
+def palette_hold(pose):
+    p = arm_to(pose, "l", PALETTE_WRIST, grip=20, elbow=(0.36, -0.05, 1.08))
+    # Palm up and the fingers forward and out: the bind's palm-down hand rolled over about its length, then turned.
+    q = Quaternion((0, 0, 1), math.radians(-55)) @ Quaternion((1, 0, 0), math.radians(180))
+    p["hand_l"] = rig.world_rotation(sk, p, "lowerarm_l").inverted() @ q
+    p["fingers_l"], p["thumb_l"] = (0, -18, 0), (0, -10, 0)
+    return p
+
+
+PAINT_BODY = over(STAND, pelvis=(0, 0, 6), spine_01=(-4, 0, -2), spine_02=(-6, 0, -3), spine_03=(-5, 0, -2),
+                  thigh_l=(14, 0, -4), calf_l=(-6, 0, 0), foot_l=(-6, 0, 2), thigh_r=(-8, 0, 8), calf_r=(-4, 0, 0), foot_r=(10, 0, -12))
+LOOK = (-1.2, 9.0, 1.7)            # past the canvas's left edge: the view he's painting
+SPOT = Vector((0.06, CANVAS_Y, 1.4))
+
+
+def paint_key(tip, lean=0.0, look=None, back=0.0):
+    """A key: the body leant in by `lean` (0..1) or back by `back`, the palette held, the brush's tip at `tip` (or
+    tip(pose), a point on the palette as it's held), the eyes on the tip (or on `look`)."""
+    body = over(PAINT_BODY, spine_01=(-4 - 4 * lean + 5 * back, 0, -2), spine_02=(-6 - 5 * lean + 4 * back, 0, -3),
+                pelvis__loc=(0, 0.03 * lean - 0.05 * back, 0))
+    body = palette_hold(planted(body))
+    tip = tip(body) if callable(tip) else Vector(tip)
+    body = look_at(body, look if look is not None else tuple(tip), share=0.4)
+    return brush_on(body, tip)
+
+
+PALETTE_FACE = 1.414    # dave_palette's painted face in the bind pose: under the palm-down hand, its far side
+
+
+def palette_tip(pose, u=0.0, v=0.0):
+    """A point in the palette's mixing (dave_palette, held against the left palm), as the hold has it."""
+    return posed_at(pose, "hand_l", (-0.85 - u, 0.0 + v, PALETTE_FACE))
+
+
+paint = Clip("paint")
+for f, tip, kw in ((0, SPOT + Vector((0, -0.06, 0.01)), dict(lean=0.6)),
+                   (6, SPOT, dict(lean=1.0)), (10, SPOT + Vector((0.004, -0.03, 0.004)), dict(lean=0.9)),
+                   (14, SPOT + Vector((0.022, 0, -0.016)), dict(lean=1.0)), (18, SPOT + Vector((0.024, -0.03, -0.01)), dict(lean=0.9)),
+                   (22, SPOT + Vector((0.038, 0, 0.008)), dict(lean=1.0)), (27, SPOT + Vector((-0.14, -0.05, -0.1)), dict(lean=0.8)),
+                   (31, SPOT + Vector((-0.17, 0, -0.12)), dict(lean=1.0)), (45, SPOT + Vector((0.12, 0, -0.15)), dict(lean=1.0)),
+                   (51, SPOT + Vector((0.12, -0.12, -0.12)), dict(lean=0.5))):
+    paint.key(f, paint_key(tip, **kw), "LINEAR" if f in (31, 45) else "BEZIER")
+# To the palette, working the paint in two small circles, back up.
+for f, (u, v) in ((63, (0.0, 0.0)), (68, (0.02, 0.015)), (73, (0.0, 0.03)), (78, (-0.02, 0.015)), (83, (0.0, 0.0))):
+    paint.key(f, paint_key(lambda pose, u=u, v=v: palette_tip(pose, u, v), lean=0.3))
+# A step back to look past the canvas at the world, the brush lowered; then in again.
+paint.key(94, paint_key(SPOT + Vector((0.1, -0.32, -0.22)), back=1.0, look=LOOK))
+paint.key(106, paint_key(SPOT + Vector((0.1, -0.3, -0.2)), back=1.0, look=at(LOOK, dx=0.6, dz=0.3)))
+paint.key(114, paint_key(SPOT + Vector((0.02, -0.12, 0.0)), lean=0.4))
+paint.close(120)
+clips.append(paint)
+
 kit.build()
-rig.bake(sk, clips, plant=rig.feet_planter(sk, clips={"wave", "point", "dance", "carry", "carry_walk", "drag", "drag_fwd", "shovel", "door", "handbrake", "hatch",
+rig.bake(sk, clips, plant=rig.feet_planter(sk, clips={"wave", "point", "dance", "paint", "carry", "carry_walk", "drag", "drag_fwd", "shovel", "door", "handbrake", "hatch",
                                                         "uncouple", "vent", "lever", "push", "swing", "mend",
                                                         "gap", "extinguish", "spray", "lantern", "lantern_walk", "haul",
                                                         "haul_up", "drive", "whistle", "smash", "pry", "pick", "take_down", "hang_up",

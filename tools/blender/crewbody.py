@@ -349,9 +349,11 @@ def skin(o, weights, rig):
 
 # ----------------------------------------------------------------------------------------------------------------
 
-def build(g):
+def build(g, blocks=blocking, shells=coat_shells):
     """The frame (the game mesh), its dense high copy (`g["FRAME_HIGH"]`, not a part), and the coat's shells, from
-    crew.py's globals (its materials and weight functions). Runs after kit.build(), so the kit's materials exist."""
+    crew.py's globals (its materials and weight functions). Runs after kit.build(), so the kit's materials exist.
+    `blocks` and `shells` are another figure's blocking and its shells' maker in the same terms (Dave's in a shirt and
+    waistcoat, tools/blender/davebody.py)."""
     sk = g["sk"]
     arm = sk.rig
     rig = g["rig"]
@@ -364,7 +366,7 @@ def build(g):
     # 1. Blocking, each solid its own mesh for the union and for telling the faces' materials after.
     solids = []
     bm_all = bmesh.new()
-    for key, fn in blocking():
+    for key, fn in blocks():
         bm = bmesh.new()
         fn(bm)
         bmesh.ops.recalc_face_normals(bm, faces=bm.faces)
@@ -423,7 +425,7 @@ def build(g):
 
     # 4. Weights, and the coat's shells.
     skin(frame, frame_weights(g), arm)
-    coat = coat_shells(g)
+    coat = shells(g)
     skin(coat, g["coat_weights"], arm)
     high.hide_render = True
     high["dt_scrap"] = True

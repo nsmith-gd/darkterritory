@@ -2202,6 +2202,20 @@ static object ArtClip(string content, string name, string clip, string[] args)
             art.Crewmate(mesh, placed, pose, pose is DarkTerritory.Game.Art.CrewPose.Swing or DarkTerritory.Game.Art.CrewPose.GetUp
                     or DarkTerritory.Game.Art.CrewPose.TakeDown ? time : time - ((int)Opt(args, "--variant", 0) & 7) * 0.41, (int)Opt(args, "--variant", 0),
                 inHand: DarkTerritory.Game.Art.PropArt.Of(look).Get(tool));
+        else if (name == DarkTerritory.Game.Art.DaveArt.Figure)
+        {
+            // Dave (note 491) in his hat and waistcoat (--hat h --vest v: DaveKit's order), his brush and palette in his hands at
+            // his canvas, a board where the easel stands it (the brush's tip on its face).
+            bool painting = clip == DarkTerritory.Game.Art.DaveArt.Painting;
+            DarkTerritory.Game.Art.DaveArt.Draw(look, mesh, placed, clip, time, (int)Opt(args, "--hat", 0), (int)Opt(args, "--vest", 0), painting);
+            if (painting)
+            {
+                float cw = DarkTerritory.Game.Art.DaveArt.CanvasHalfWidth, cz = -DarkTerritory.Game.Art.DaveArt.CanvasOut;
+                float c0 = DarkTerritory.Game.Art.DaveArt.CanvasFoot, c1 = DarkTerritory.Game.Art.DaveArt.CanvasTop;
+                mesh.Quad(new System.Numerics.Vector3(-cw, c0, cz) - e, new System.Numerics.Vector3(cw, c0, cz) - e,
+                    new System.Numerics.Vector3(cw, c1, cz) - e, new System.Numerics.Vector3(-cw, c1, cz) - e, DarkTerritory.Game.Palette.BoardEnamel);
+            }
+        }
         else
             art.Draw(mesh, name, clip, time, loop, placed, (int)Opt(args, "--variant", 0));
         var light = look.Apply(FrameLighting.Night);
@@ -2241,10 +2255,11 @@ static object ArtReel(string content, string[] args)
     {
         if (cut.Contains(name) || only is not null && !only.Contains(name) || art.Get(name) is not { } model)
             continue;
-        bool survivor = name.StartsWith("survivor_", StringComparison.Ordinal);
+        bool survivor = name.StartsWith("survivor_", StringComparison.Ordinal), dave = name == DarkTerritory.Game.Art.DaveArt.Figure;
         foreach (var clipName in model.Clips.Keys.Order())
         {
-            if (survivor && clipName is not ("idle" or "walk") || clipsOnly is not null && !clipsOnly.Contains(clipName))
+            if (survivor && clipName is not ("idle" or "walk") || dave && clipName is not ("idle" or "walk" or DarkTerritory.Game.Art.DaveArt.Painting)
+                || clipsOnly is not null && !clipsOnly.Contains(clipName))
                 continue;
             // The crew's acts are drawn as the game draws them, with what's in their hands: the reload's powder, rammer and
             // pick, the hand lamp hung from the fist, the bar or the wrench (CreatureArt.Crewmate; a Look Review note).
@@ -2352,6 +2367,9 @@ static object ArtReel(string content, string[] args)
                     var hand = art.Joints(name, clipName, time, loop).ElementAt(handL);
                     mesh.Append(extinguisher, System.Numerics.Matrix4x4.CreateTranslation(hand - new System.Numerics.Vector3(0, extTop - 0.02f, 0) - e));
                 }
+                else if (dave)
+                    DarkTerritory.Game.Art.DaveArt.Draw(look, mesh, System.Numerics.Matrix4x4.CreateTranslation(-e), clipName, time, 0, 0,
+                        clipName == DarkTerritory.Game.Art.DaveArt.Painting);
                 else
                     art.Draw(mesh, name, clipName, time, loop, System.Numerics.Matrix4x4.CreateTranslation(-e));
                 var light = look.Apply(FrameLighting.Night);
