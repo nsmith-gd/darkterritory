@@ -368,6 +368,21 @@ public sealed class Look
     /// <summary>A night's own far horizon in place of the look's band (a generated line's, <see cref="Art.PlanSky"/>); null for the look's.</summary>
     public Image? Sky { get; set; }
 
+    // Every look loaded in a process shares the textures it decodes (about a gigabyte and a quarter of them, note 367): the
+    // tests load a look a class, and each one's own copy, kept for the run, took the Linux CI runner past its memory. A
+    // file that changes on disk (a hot reload, a rebuilt atlas) is read again; nothing writes into a decoded image.
+    static readonly System.Collections.Concurrent.ConcurrentDictionary<string, (DateTime At, long Length, Image Image)> DecodedFiles = new();
+
+    static Image Decoded(string path)
+    {
+        var file = new FileInfo(path);
+        if (DecodedFiles.TryGetValue(path, out var had) && had.At == file.LastWriteTimeUtc && had.Length == file.Length)
+            return had.Image;
+        var image = ImageFile.Load(path);
+        DecodedFiles[path] = (file.LastWriteTimeUtc, file.Length, image);
+        return image;
+    }
+
     /// <summary>Everything the renderer needs: the material maps, the backdrop, the grade and the post settings.</summary>
     public RenderAssets Assets()
     {
@@ -380,7 +395,7 @@ public sealed class Look
                 // materials expect it, rather than stopping the game.
                 static Image Read(string path, Image fallback)
                 {
-                    try { return ImageFile.Load(path); }
+                    try { return Decoded(path); }
                     catch (Exception e) when (e is InvalidOperationException or IOException)
                     {
                         Console.Error.WriteLine($"look: {Path.GetFileName(path)} unreadable ({e.Message}); drawing it flat");
