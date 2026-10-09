@@ -6228,7 +6228,7 @@ Terrain sculpting tools, a node-graph material editor, a general-purpose visual 
             | 2 | 12.13 → 12.96 | 5 → 1 | 2 → 2 |
             | 3 | 15.77 → 18.37 | 0 → 1 | 0 → 0 |
 
-            In all: 38.2 → 44.6 km and deaths 8 → 5. Pack fires rose 2 → 5, the price of fighting the patrolling pack rather than leaving it. On seed 2 the train goes down the dead line at 289.8 s and is back off it by 364 s.
+            In all: 38.2 → 44.6 km and deaths 8 → 5. Pack fires rose 2 → 5 (seed 1's first pack took 94 s to kill, against 15 s); with three seeds that is as likely chance as cause. On seed 2 the train goes down the dead line at 289.8 s and is back off it by 364 s.
     - **Tests:**
         - `PackFightTests`: a walker swings at a hound on the roof, but not at one inside the car under it or mid-leap.
         - `BoardedPackTests`: with only a hurt crewmate, and with a fit one down off the train or idle on it, the driver cuts the pack loose (the last after 90 s, not before).
