@@ -2676,10 +2676,13 @@ static object HudShot(string content, string[] args)
     // --joining (D.10, note 408): the watcher a crewmate who joined mid-run and waits in the queue, lobbied, never having died.
     // --lost (note 253): a joiner whose link has just gone, seen as it sees it: lost, and on its first try at getting back.
     // --lost --refused (note 254): back too late to a full crew, turned away: CREW FULL (2/2). --crew-full: the host at its cap.
+    // --link-quality [host|joiner] (note 534): a hosted night in the yard with two joiners over loopback, one of them losing
+    // 12% of what it sends, seen by the host (each crewmate's link on the lobby panel) or by the first joiner (its own).
     using var spectated = args.Contains("--spectating") ? Spectating(content, Str(args, "--route", "frontier:7"), cars, args.Contains("--vote") || args.Contains("--ballot"),
             args.Contains("--joining") ? DeathCause.Waiting : DeathCause.Mauled)
         : args.Contains("--lost") ? LostLink(content, Str(args, "--route", "frontier:7"), cars, refused: args.Contains("--refused"))
-        : args.Contains("--crew-full") ? CrewFull(content, Str(args, "--route", "frontier:7"), cars) : null;
+        : args.Contains("--crew-full") ? CrewFull(content, Str(args, "--route", "frontier:7"), cars)
+        : args.Contains("--link-quality") ? LinkQuality(content, Str(args, "--route", "frontier:7"), cars, joiner: Str(args, "--link-quality", "host") == "joiner") : null;
     IPlaySession session;
     if (spectated is { } pair)
     {
@@ -3116,6 +3119,24 @@ static SpectatedNight CrewFull(string content, string route, int cars)
     }
     // Shown as the host: the "watcher" is the host's own session.
     return new SpectatedNight(joiner, host);
+}
+
+static SpectatedNight LinkQuality(string content, string route, int cars, bool joiner)
+{
+    var host = NetPlaySession.HostGame(content, new SessionSetup(Route: route, Cars: cars, Enemies: false), port: 0);
+    var at = new System.Net.IPEndPoint(System.Net.IPAddress.Loopback, host.Port);
+    var good = NetPlaySession.Join(content, at, () => host.Step(default));
+    // The second's sends go missing one in eight, seeded, so its line on the host's panel reads as a struggling link's.
+    var poor = NetPlaySession.Join(content, at, () => { host.Step(default); good.Step(default); }, new Ballast.Net.DatagramOptions { SimulatedLoss = 0.12, Seed = 7 });
+    // The loss window's worth (hud.json lossWindowSeconds), so the shares are over the whole of it.
+    for (int t = 0; t < Hud.Tuning.LossWindowTicks + SimConstants.TickRate; t++)
+    {
+        host.Step(default);
+        good.Step(default);
+        poor.Step(default);
+        Thread.Sleep(1);
+    }
+    return joiner ? new SpectatedNight(host, good) : new SpectatedNight(good, host);
 }
 
 static SpectatedNight Spectating(string content, string route, int cars, bool enemies = false, DeathCause how = DeathCause.Mauled)
