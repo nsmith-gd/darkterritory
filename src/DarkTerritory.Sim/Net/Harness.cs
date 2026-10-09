@@ -359,7 +359,7 @@ public static class Harness
             // Past the cap (note 254) the crew is the crew of the cap, its parts as ever; the rest are spare hands with no part
             // at a stop, turned away at the door.
             IBot bot = BotCrew.Make(i, crewSize, i < crewSize ? calls : null, o.Combat, playerTuning, o.Seed, o.Express);
-            var session = new ClientSession(transport, NewTrain(line, trainTuning, o, boiler), trainTuning, playerTuning, o.Combat);
+            var session = new ClientSession(transport, NewTrain(line, trainTuning, o, boiler), trainTuning, playerTuning, o.Combat) { Bot = true };
             // The enemies' tuning, as a joiner loads it: prediction drags with the Weight as the host does (T59), and the bots
             // read their counters from it (the Gaunt's view, the Passenger's reach).
             if (enemyTuning is { } cet)
