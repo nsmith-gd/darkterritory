@@ -1049,6 +1049,25 @@ public class StopCrewTests
         Assert.All(night.Crew, c => Assert.NotEqual(Surface.Ground, c.Surface));
     }
 
+    [Fact]
+    public void AnExpressSentDownADeadLineComesBackOffItAndRunsOn()
+    {
+        // Note 512: the Switchman's points thrown ahead of the express driver (note 376). It stops for no switch lamp, so it
+        // takes the dead line at speed; there it stands, backs out past the points, has them set back, and runs on down the
+        // main line. It used to brake for the buffers and stand there all night.
+        var night = new Night(cars: 8, deadLine: true, express: true);
+        var train = night.Train;
+        var toe = train.Line.Branches[night.Branch].Toe;
+        night.World.SetSwitch(night.Branch, true);
+        bool down = false;
+        night.Until(() => (down |= train.Dynamics.Path == night.Branch) && train.OnMain && train.Dynamics.Distance > toe + 150, 900);
+        Assert.True(down, "never went down the dead line");
+        Assert.True(train.OnMain && train.Dynamics.Distance > toe + 150, $"stuck: driver {night.Driver.Stops!.Doing} at {train.Dynamics.Distance:0} on {train.Dynamics.Path}");
+        Assert.False(train.Diverging(night.Branch));
+        Assert.False(night.World.Derailed, night.World.DerailCause);
+        Assert.Equal(StopDriver.Leg.Cruise, night.Driver.Stops!.Doing);
+    }
+
     /// <summary>A shunter who says it's the shunter and never comes (on the guard van's roof).</summary>
     sealed class Idle(IWorldBot bot) : IWorldBot
     {
