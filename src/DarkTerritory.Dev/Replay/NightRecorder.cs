@@ -98,12 +98,19 @@ public sealed class NightRecorder(string directory, bool voice = false, int keep
     /// <summary>Told each recording's path as it starts (the crash reports name it: a crash in a night can be replayed to).</summary>
     public Action<string>? Started { get; set; }
 
+    /// <summary>Told each recording's path once it's closed and whole (the notes made in it go up with it, note 516).</summary>
+    public event Action<string>? Closed;
+
     /// <summary>The night being recorded, if one is (or the last one, once it's closed).</summary>
     public string? Current { get; private set; }
 
     /// <summary>What recording the night being (or last) recorded has cost the frame so far, and over how many polls.</summary>
     public (TimeSpan Spent, long Polls, long RawBytes) Cost => _transport is { } t ? (t.Spent, t.Log.Polls, t.Log.RawBytes) : _last;
     (TimeSpan, long, long) _last;
+
+    /// <summary>What recording cost the median step of that night, in microseconds (<see cref="RecordingTransport.MedianStepMicros"/>).</summary>
+    public double MedianStepMicros => _transport?.MedianStepMicros ?? _lastMedian;
+    double _lastMedian;
 
     RecordingTransport? _transport;
     HostSession? _host;
@@ -174,14 +181,14 @@ public sealed class NightRecorder(string directory, bool voice = false, int keep
     }
 
     /// <summary>
-    /// Writes a note into the night being recorded, at the tick it's at (the feedback key's marker, note 516). The fields are
-    /// the caller's; <c>kind</c> and <c>tick</c> are added.
+    /// Writes a note into the night being recorded (the feedback key's mark, note 516): at the tick it's at, unless the fields
+    /// give one (a note kept a little after the moment it was begun at). The fields are the caller's; <c>kind</c> is added.
     /// </summary>
     public bool Mark(string kind, JsonObject fields)
     {
         if (_transport is not { } t || _host is not { } h)
             return false;
-        fields["tick"] = h.Tick;
+        fields["tick"] ??= h.Tick;
         t.Log.Note(Note(kind, fields));
         return true;
     }
@@ -221,8 +228,11 @@ public sealed class NightRecorder(string directory, bool voice = false, int keep
         };
         t.Log.Close(end.ToJsonString(NightHeader.Compact));
         _last = (t.Spent, t.Log.Polls, t.Log.RawBytes);
+        _lastMedian = t.MedianStepMicros;
         _transport = null;
         _host = null;
+        if (Current is { } closed)
+            Closed?.Invoke(closed);
     }
 
     /// <summary>Keeps the newest <c>keep</c> recordings; older ones go (a night's tens of megabytes at most).</summary>
