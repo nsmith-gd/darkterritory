@@ -308,16 +308,20 @@ public sealed partial class CrewCalls
             _breach.Remove(h);
     }
 
-    // Note 496: who's going to the lamp the Fire Flies are on (App. A.5), the nearest hand the tick they came, as for a
-    // Holdout; and theirs after that, while they're going. Taken from them as nearer hands came by on their own parts, the
+    // Note 496: who's going to the lamp the Fire Flies are on (App. A.5), the nearest hand in the first second they're there
+    // (note 526), as for a Holdout; and theirs after that, while they're going. Taken from them as nearer hands came by on their own parts, the
     // lamp changed hands back and forth at car 1's ladder until the car caught.
     readonly Dictionary<int, (int Member, double Distance, uint Tick)> _lamp = new();
 
     /// <summary>A hand wanting to put out the lamp of the car the Fire Flies are on, from this far: true if it's theirs.</summary>
     public bool ClaimLamp(int car, int member, double distance, uint tick)
     {
-        if (!_lamp.TryGetValue(car, out var c) || !Alive(c.Member) || c.Tick == tick && distance < c.Distance)
+        // Note 526: each hand's client sees the flies a tick or two apart, so for its first second the claim is the nearest's;
+        // to the first to see them, the shunter at the switch took it from a walker in the cab beside car 1, and was 22 s getting there.
+        if (!_lamp.TryGetValue(car, out var c) || !Alive(c.Member))
             _lamp[car] = (member, distance, tick);
+        else if (c.Member != member && tick - c.Tick <= SimConstants.TickRate && distance < c.Distance - 1)
+            _lamp[car] = (member, distance, c.Tick);
         return _lamp[car].Member == member;
     }
 
@@ -1537,7 +1541,10 @@ public sealed partial class StopHand(StopJob job, CrewCalls calls, int member, C
     {
         var train = world.Train;
         int car = trouble.Attached;
-        bool flies = trouble is Enemies.FireFlies || trouble is Enemies.CarFire { Phase: Enemies.SpinePhase.Dormant or Enemies.SpinePhase.Telegraph };
+        // The flies only while the train stands (note 526): pulling away breaks them off by itself (App. A.5), and a hand sent
+        // along the roofs for them as the train went in under it was dragged off car 2's roof (seed 6).
+        bool flies = trouble is Enemies.FireFlies && Math.Abs(train.Dynamics.Velocity) < 0.05
+            || trouble is Enemies.CarFire { Phase: Enemies.SpinePhase.Dormant or Enemies.SpinePhase.Telegraph };
         // At a stop only (its plan taken): between them, the walkers' own rounds see to it, and a gunner's gun comes first.
         if (job == StopJob.Driver || _plan is null || !self.Alive || car <= 0 || car >= train.Frames.Count
             || !flies && !(trouble is Enemies.CarFire && calls.LampHand(car) == member))
@@ -3064,12 +3071,19 @@ public sealed partial class StopHand(StopJob job, CrewCalls calls, int member, C
     /// Off the train onto the ballast on one side (+1 right): out through the cab's doorway and off its step, or off the
     /// edge of a roof or the coupler plate, slowly enough to land without a roll (the train is standing).
     /// </summary>
+    /// <summary>Within this of the roof's middle (m) is on its centreline (App. A.4: about 1.4 m wide).</summary>
+    const double CentreLine = 0.4;
+
     PlayerIntent? GetDown(in PlayerState self, TrainOnLine train, int side)
     {
         double facing = side > 0 ? -Math.PI / 2 : Math.PI / 2;
-        // Never off anything that's moving.
+        // Never off anything that's moving. On a roof, out to its centreline meanwhile (note 526; App. A.4: "walk the
+        // centreline"): sent along the roofs at a stop for the Fire Flies' lamp, the train going in under it, a hand stood
+        // where it was on car 2's roof and a Dragger pulled it off (frontier:7, seed 6).
         if (self.Parent >= 0 && Math.Abs(train.RakeOf(self.Parent).Velocity) > 0.05)
-            return new PlayerIntent();
+            return self.Surface == Surface.Roof && Math.Abs(self.Position.X) > CentreLine
+                ? new PlayerIntent { MoveX = (float)(-Math.Sign(self.Position.X) * DMath.Cos(self.Yaw)), MoveZ = (float)(Math.Sign(self.Position.X) * DMath.Sin(self.Yaw)) }
+                : new PlayerIntent();
         // In the cab or on the engine's deck by its doorway.
         if (self.Parent == 0 && self.Surface == Surface.Deck)
         {
