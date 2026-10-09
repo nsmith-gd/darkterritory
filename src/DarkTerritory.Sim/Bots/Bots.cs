@@ -2384,9 +2384,10 @@ public sealed partial class ConductorBot(CrewCalls? calls = null, int member = 0
 
     /// <summary>
     /// The director, 9 Oct 2026: "if a player goes to the cab to drive the bot in there should find another task to do or
-    /// position to take and shouldnt interfere with the player driving." Someone playing has taken the driver's stand: the
+    /// position to take and shouldnt interfere with the player driving", then "yes the bot was still fighting me for the
+    /// controls". Someone playing holds the cab's controls (the host's to say, <see cref="World.ControlsHolder"/>, note 574): the
     /// bot leaves them the cab (with steam driving the fire is the speed too, T97, so not even the shovel) and goes out to
-    /// work the train as a walker does, until the stand's been empty a while.
+    /// work the train as a walker does, and comes back to drive the moment nobody playing holds them.
     /// </summary>
     public bool HandedOver { get; private set; }
 
@@ -2398,46 +2399,15 @@ public sealed partial class ConductorBot(CrewCalls? calls = null, int member = 0
 
     RoofWalkerBot? _legs;
     bool _backToTheCab;
-    double _atTheStand, _standEmpty;
-    /// <summary>Within this of the brake valve (m, on the floor's plane) someone's at the driver's stand.</summary>
-    const double StandM = 1.0;
-    /// <summary>At the stand this long (s), they've taken it: not passing through the cab, nor a walk to the fire.</summary>
-    const double TakenAfter = 2;
-    /// <summary>With nobody playing at the stand this long (s), the controls are the bot's again.</summary>
-    const double TakeBackAfter = 30;
 
-    /// <summary>Whether someone playing is at the driver's stand: in the cab, by the brake valve.</summary>
-    bool PlayerAtTheStand(TrainOnLine train)
-    {
-        if (Players is null || train.Frames[0].Shape.Levers is not { } levers)
-            return false;
-        foreach (var p in Players)
-            if (p.Alive && PlayerMotor.InCab(p, train) && (p.Position - levers.Brake) with { Y = 0 } is var d && d.Length <= StandM)
-                return true;
-        return false;
-    }
-
-    /// <summary>Taken over (see <see cref="HandedOver"/>): theirs while they're at the stand, and <see cref="TakeBackAfter"/> after.</summary>
+    /// <summary>Whether someone playing holds the controls (note 574): it hands over until they don't.</summary>
     bool TakenOver(in PlayerState self, World world)
     {
-        if (calls is null || Express || Fireman && !_driving || !self.Alive)
-            return HandedOver = false;
-        bool there = PlayerAtTheStand(world.Train);
-        if (HandedOver)
-        {
-            _standEmpty = there ? 0 : _standEmpty + SimConstants.TickSeconds;
-            if (_standEmpty < TakeBackAfter)
-                return true;
-            HandedOver = false;
+        bool theirs = calls is not null && !Express && (!Fireman || _driving) && self.Alive
+            && world.ControlsHolder >= 0 && world.ControlsHolder != Me && !world.ControlsHolderBot;
+        if (HandedOver && !theirs)
             _backToTheCab = true;
-            _atTheStand = 0;
-            return false;
-        }
-        _atTheStand = there ? _atTheStand + SimConstants.TickSeconds : 0;
-        if (_atTheStand < TakenAfter)
-            return false;
-        _standEmpty = 0;
-        return HandedOver = true;
+        return HandedOver = theirs;
     }
 
     public PlayerIntent Decide(in PlayerState self, World world, uint tick, out PlayerState aimed)

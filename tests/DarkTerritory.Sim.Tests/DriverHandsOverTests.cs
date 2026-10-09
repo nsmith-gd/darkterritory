@@ -76,31 +76,23 @@ public class DriverHandsOverTests
         }
     }
 
-    /// <summary>Puts the player at the driver's stand, by the brake valve.</summary>
-    static void AtTheStand(Cab c)
-    {
-        var levers = c.Train.Frames[0].Shape.Levers!.Value;
-        c.Player.Position = new Double3(levers.Brake.X, c.Player.Position.Y, levers.Brake.Z + 0.4);
-        Assert.True(PlayerMotor.InCab(c.Player, c.Train));
-    }
+    /// <summary>The host's word that the player holds the controls (as a snapshot brings it, note 574).</summary>
+    static void TheyHoldThem(Cab c) => c.World.HoldControls(7, bot: false);
 
     [Fact]
-    public void APlayerAtTheDriversStandHasTheControlsAndTheBotGoesOutToWork()
+    public void SomeonePlayingWithTheControlsHasThemAndTheBotGoesOutToWork()
     {
         var c = new Cab();
         c.Run(60);
         Assert.False(c.Driver.HandedOver);
         Assert.True(c.Train.Dynamics.Speed > 5, $"the bot never drove off: {c.Train.Dynamics.Speed:0.0} m/s");
-        AtTheStand(c);
-        c.Run(3);
-        Assert.True(c.Driver.HandedOver, "the bot never saw a player had taken the stand");
+        TheyHoldThem(c);
+        c.Run(1);
+        Assert.True(c.Driver.HandedOver);
         Assert.False(c.Driver.Driving);
-        // The player brakes and lets off: nothing from the bot on the controls meanwhile, and it's out of the cab.
         bool touched = false;
         for (int s = 0; s < 60 * SimConstants.TickRate; s++)
         {
-            if (s % 90 == 0)
-                c.PlayerHands = new PlayerIntent { Buttons = PlayerButtons.Brake };
             c.Run(1.0 / SimConstants.TickRate);
             touched |= c.BotIntent.ThrottleNotch != 0 || c.BotIntent.Has(PlayerButtons.Brake) || c.BotIntent.Has(PlayerButtons.Reverser);
         }
@@ -110,9 +102,9 @@ public class DriverHandsOverTests
     }
 
     [Fact]
-    public void SomeoneWarmingUpInTheCabIsntDriving()
+    public void SomeoneInTheCabWhoDoesntTouchTheControlsIsntDriving()
     {
-        // In the cab, but not at the stand (by the fire, warming): the bot drives on.
+        // In the cab (warming up, say), but nobody's taken the controls: the bot drives on.
         var c = new Cab();
         c.Run(120);
         Assert.False(c.Driver.HandedOver);
@@ -120,17 +112,25 @@ public class DriverHandsOverTests
     }
 
     [Fact]
-    public void WithNobodyAtTheStandAWhileTheBotComesBackAndDrives()
+    public void AnotherBotWithTheControlsIsNoHandover()
     {
         var c = new Cab();
+        c.Run(30);
+        c.World.HoldControls(7, bot: true);
+        c.Run(5);
+        Assert.False(c.Driver.HandedOver);
+    }
+
+    [Fact]
+    public void TheMomentNobodyHasTheControlsTheBotComesBackAndDrives()
+    {
+        // Note 16 of the director's notes: they jumped off at speed, and no bot went back to the cab.
+        var c = new Cab();
         c.Run(60);
-        AtTheStand(c);
+        TheyHoldThem(c);
         c.Run(20);
-        Assert.True(c.Driver.HandedOver);
         Assert.False(PlayerMotor.InCab(c.Bot, c.Train));
-        c.PlayerAboard = false;
-        c.Run(25);
-        Assert.True(c.Driver.HandedOver, "back too soon");
+        c.World.HoldControls(-1, false);
         bool back = false;
         for (int s = 0; s < 120 && !back; s++)
         {
