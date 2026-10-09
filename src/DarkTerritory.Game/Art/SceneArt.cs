@@ -24,7 +24,7 @@ public sealed partial class SceneArt(Look look)
 
     /// <summary>A town's people's breathing gear and hats (note 353).</summary>
     public TownsfolkKit Townsfolk { get; } = new(look);
-    /// <summary>Dave's things: his hats and waistcoats, glasses and sandals, his easel and canvas (note 487).</summary>
+    /// <summary>Dave's things: his hats and waistcoats, glasses and sandals, his easel and canvas (note 526).</summary>
     public DaveKit Dave { get; } = new(look);
 
     CreatureArt? _creatures;
@@ -316,6 +316,51 @@ public sealed partial class SceneArt(Look look)
 
     /// <summary>The comet material's light (GDD §19): a sick, unnatural green, nothing like a lamp's.</summary>
     static readonly Vector3 CometGlow = new(0.35f, 0.95f, 0.45f);
+
+    /// <summary>
+    /// Where a comet-loaded car's green leaks out of it (the checklist's comet "next"), in the car's frame: the seams round
+    /// each of its doors that's shut (its end doors and its side doors, on the wall's outer face, the leaf's edges against
+    /// the opening) and round its roof hatch while it's shut, each as a line from A to B on the face whose normal it is.
+    /// </summary>
+    /// <summary>A repeatable 0..1 for a length of a comet's seam (how far its gap's warped open).</summary>
+    static float SeamHash(int i)
+    {
+        uint x = (uint)i * 2654435761u;
+        x ^= x >> 15;
+        x *= 0x2c1b3c6d;
+        x ^= x >> 12;
+        return (x & 0xffff) / 65535f;
+    }
+
+    public static IEnumerable<(Vector3 A, Vector3 B, Vector3 Normal)> CometSeams(CarShape shape, int doorsOpen)
+    {
+        foreach (var door in shape.DoorList)
+        {
+            if ((doorsOpen & (1 << door.Index)) != 0)
+                continue;
+            var (min, max) = (ToF(door.Box.Min), ToF(door.Box.Max));
+            bool side = max.Z - min.Z > max.X - min.X;
+            // The wall's outer face: its outside x for a side door, its outside z for an end door, a hair proud.
+            var n = side ? new Vector3(min.X < 0 ? -1 : 1, 0, 0) : new Vector3(0, 0, min.Z < 0 ? -1 : 1);
+            float face = side ? (min.X < 0 ? min.X : max.X) : (min.Z < 0 ? min.Z : max.Z);
+            Vector3 P(float u, float y) => side ? new Vector3(face + n.X * 0.012f, y, u) : new Vector3(u, y, face + n.Z * 0.012f);
+            float u0 = side ? min.Z : min.X, u1 = side ? max.Z : max.X;
+            yield return (P(u0, min.Y), P(u0, max.Y), n);
+            yield return (P(u1, min.Y), P(u1, max.Y), n);
+            yield return (P(u0, max.Y), P(u1, max.Y), n);
+            yield return (P(u0, min.Y + 0.01f), P(u1, min.Y + 0.01f), n);
+        }
+        if ((doorsOpen & (1 << CarShape.HatchBit)) == 0)
+            foreach (var hatch in shape.Solids.Where(s => s.Part == PartKind.Hatch))
+            {
+                var (min, max) = (ToF(hatch.Box.Min), ToF(hatch.Box.Max));
+                float y = max.Y + 0.012f;
+                yield return (new Vector3(min.X, y, min.Z), new Vector3(max.X, y, min.Z), Vector3.UnitY);
+                yield return (new Vector3(min.X, y, max.Z), new Vector3(max.X, y, max.Z), Vector3.UnitY);
+                yield return (new Vector3(min.X, y, min.Z), new Vector3(min.X, y, max.Z), Vector3.UnitY);
+                yield return (new Vector3(max.X, y, min.Z), new Vector3(max.X, y, max.Z), Vector3.UnitY);
+            }
+    }
 
     /// <summary>
     /// The couplers that have been cut (T91): each vehicle end (its id × 2, + 1 for the rear) with nothing coupled to it
@@ -1289,6 +1334,54 @@ public sealed partial class SceneArt(Look look)
                     var at = top.RelativeTo(eye);
                     mesh.PointLights.Add(new PointLight(at, CometGlow * 1.4f * breath, 7f));
                     mesh.Billboard(at, 1.1f * breath, 0, new Vector4(CometGlow * 0.35f * breath, 1), -1, FxBlend.Additive);
+                }
+                // Out of the car's seams (the checklist's comet "next": "the green leaking out of the car's seams at night"):
+                // a thin line of it round every shut door and the roof hatch, breathing with the rest; out of a door
+                // left open, a wash of it in the opening.
+                // Not a lit tube: each seam in short lengths, some sealed dark where the leaf sits tight, the rest bright
+                // and wide by how far the gap there has warped open (the same on every frame: hashed by where it is).
+                mesh.Emissive = 1;
+                int seam = 0;
+                foreach (var (a, b, normal) in CometSeams(shape, vehicle.DoorsOpen))
+                {
+                    var wa = Vector3.Transform(a, m);
+                    var wb = Vector3.Transform(b, m);
+                    var along = wb - wa;
+                    float length = along.Length();
+                    if (length < 1e-3f)
+                        continue;
+                    along /= length;
+                    var n = Vector3.Normalize(Vector3.TransformNormal(normal, m));
+                    var across = Vector3.Cross(n, along);
+                    int pieces = Math.Max(1, (int)(length / 0.22f));
+                    for (int i = 0; i < pieces; i++)
+                    {
+                        float h = SeamHash(frame.Index * 131 + seam * 17 + i), gap = h < 0.25f ? 0 : (h - 0.25f) / 0.75f;
+                        if (gap <= 0)
+                            continue;
+                        var p = wa + along * (length * (i + 0.5f) / pieces);
+                        mesh.Box(p, along, across, n, new Vector3(length / pieces / 2 * 0.92f, 0.004f + 0.009f * gap, 0.01f),
+                            CometGlow * (0.15f + 0.45f * gap) * (0.7f + 0.3f * breath));
+                    }
+                    seam++;
+                }
+                mesh.Emissive = 0;
+                foreach (var door in shape.DoorList)
+                {
+                    bool sideDoor = door.Box.Max.Z - door.Box.Min.Z > door.Box.Max.X - door.Box.Min.X;
+                    if (vehicle.DoorOpen(door.Index))
+                    {
+                        // Open: a wash of it in the opening.
+                        var c = frame.ToWorld(door.Box.Centre).RelativeTo(eye);
+                        mesh.Billboard(c, 1.6f * breath, 0, new Vector4(CometGlow * 0.22f * breath, 1), -1, FxBlend.Additive);
+                    }
+                    if (sideDoor && (frame.Origin - eye).Length < 60)
+                    {
+                        // Out at the foot of a side door, open or shut, a little of it on the step and the ballast.
+                        double x = door.Box.Min.X < 0 ? door.Box.Min.X - 0.4 : door.Box.Max.X + 0.4;
+                        var foot = frame.ToWorld(new Double3(x, door.Box.Min.Y + 0.2, door.Box.Centre.Z)).RelativeTo(eye);
+                        mesh.PointLights.Add(new PointLight(foot, CometGlow * (vehicle.DoorOpen(door.Index) ? 0.9f : 0.3f) * breath, 3f));
+                    }
                 }
             }
         }

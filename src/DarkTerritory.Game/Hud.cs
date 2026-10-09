@@ -117,7 +117,7 @@ public static partial class Hud
         // A fortress town's card (note 281): what somebody's saying to you, or the paper you're reading. While it's open its
         // own foot says what Use does next, so the town's prompt under the crosshair stands down.
         var townCard = !over && talk is not null && s.World.Town is { } town ? talk.Card(town, now) : null;
-        // Dave's card (note 487): what he's saying to you, or to a blow you were near enough to hear.
+        // Dave's card (note 526): what he's saying to you, or to a blow you were near enough to hear.
         bool figureCard = false;
         if (townCard is null && !over && figures?.Card(now) is { } said)
             (townCard, figureCard) = (said, true);
@@ -252,7 +252,8 @@ public static partial class Hud
             lines.Add(($"CREW FULL ({link.Places}/{link.Cap}): NOBODY ELSE CAN JOIN", Red));
         else if (link.JoinAt is { } at)
         {
-            lines.Add((link.Listed ? "FRIENDS: JOIN, YOUR GAME'S LISTED" : "A PRIVATE LOBBY: FRIENDS JOIN BY INVITE", Dim));
+            // Note 450: a private run's listed too, behind its password; the host's Steam friends get in without it.
+            lines.Add((link.Locked ? "PRIVATE: LISTED WITH A LOCK, JOINED WITH THE PASSWORD" : link.Listed ? "FRIENDS: JOIN, YOUR GAME'S LISTED" : "A PRIVATE LOBBY: FRIENDS JOIN BY INVITE", Dim));
             lines.Add(($"  (OR THEY TYPE {at})", Dim));
         }
         else if (hosting)
@@ -409,6 +410,17 @@ public static partial class Hud
     /// lobby"); out on the line only once it's bad (hud.json <c>pingWarnMs</c>) or gone, and then what's being done about it.
     /// The host has no ping to show; the crew's count and roles are the roster's (Q).
     /// </summary>
+    /// <summary>
+    /// The link's line under NO LINK in the top-right corner, or null. Note 253: a joiner whose link went tries to get back, and
+    /// says how it's going; out of tries, F5 tries again. Note 254: turned away on the way back (the place ran out, and the
+    /// crew's full). Note 476: in note 285's form, ACTION : [KEY], as the alarm in the middle says it (it was "[F5] RECONNECT").
+    /// </summary>
+    public static string? LinkLine(LinkInfo link) =>
+        !link.Lost ? null
+        : link.Attempt > 0 ? $"RECONNECTING: TRY {link.Attempt} OF {link.Attempts}"
+        : link.Refused is { } refused ? $"{refused}   TRY AGAIN : [F5]"
+        : link.CanReconnect ? "RECONNECT : [F5]" : null;
+
     static void Link(Overlay o, int width, IPlaySession s)
     {
         if (s.Link is not { } link)
@@ -418,11 +430,7 @@ public static partial class Hud
         if (link.Lost)
         {
             o.TextRight(right, 5, "NO LINK", Red, 1);
-            // Note 253: a joiner whose link went tries to get back, and says how it's going; out of tries, F5 tries again.
-            // Note 254: turned away on the way back (the place ran out, and the crew's full).
-            string? how = link.Attempt > 0 ? $"RECONNECTING: TRY {link.Attempt} OF {link.Attempts}"
-                : link.Refused is { } refused ? $"{refused}: [F5] TRY AGAIN" : link.CanReconnect ? "[F5] RECONNECT" : null;
-            if (how is not null)
+            if (LinkLine(link) is { } how)
                 UiStyle.Keyed(o, Overlay.Snap(right - UiStyle.MeasureKeyed(o, how, k), k), 5 + line + 2 * k, how, link.Attempt > 0 ? Amber : Red, k);
             return;
         }
@@ -1708,7 +1716,7 @@ public static partial class Hud
         DeathCause.Uncoupled => "TAKEN WITH THE CABOOSE. THE PASSENGER CUT IT LOOSE",
         DeathCause.Trampled => "TRAMPLED BY THE MOOSE. YOU GOT TOO CLOSE, OR TOO LOUD",
         DeathCause.Pecked => "PECKED TO DEATH BY THE GANNET. YOU HIT IT, OR SOMEONE DID",
-        // Dave's last words to them (note 487): the director's own.
+        // Dave's last words to them (note 526): the director's own.
         DeathCause.Dave => "YOU SHOULD BE NICER IN A DARK WORLD.",
         DeathCause.None => "",
         _ => cause.ToString().ToUpperInvariant(),
@@ -1993,7 +2001,7 @@ public static partial class Hud
         // A switch stand's lever (queue #94, note 357): Use is the lever's there, so it's offered before what's lying by it.
         if (SwitchPrompt(world, p, train, hand) is { } atStand)
             return atStand;
-        // Dave (note 487): a word with him, before anything lying at his feet.
+        // Dave (note 526): a word with him, before anything lying at his feet.
         if (FigureTalk.Target(s) is { } dave)
             return FigureTalk.Prompt(dave);
         // A fortress town (note 281): somebody to talk to, a paper to read, a thing to look at. Before what's lying in reach,
@@ -2102,8 +2110,9 @@ public static partial class Hud
             // At its controls, they're the corner's (Hints).
             if (p.Has(PlayerFlags.Operating))
                 return null;
-            if (p.Parent == PlayerState.World && ((PlayerMotor.WorldPosition(p, train) - crane.Controls) with { Y = 0 }).Length <= crane.Tuning.ControlsReach)
-                return "THE CRANE : HOLD [E]";
+            // A press takes the controls, and the next lets them go (Crane.Operates; the director, 8 Oct).
+            if (crane.AtStand(p, train))
+                return "THE CRANE : [E]";
             if (p.Parent == PlayerState.World && crane.Riggable(PlayerMotor.WorldPosition(p, train)) is not null)
                 return crane.Rigging > 0 ? $"RIGGING ({crane.Rigging * 100:0}%)" : "RIG THE CASTING : HOLD [E]";
         }

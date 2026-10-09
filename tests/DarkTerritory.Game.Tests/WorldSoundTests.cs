@@ -383,13 +383,91 @@ public class WorldSoundTests
     }
 
     [Fact]
+    public void TheTippleIsHeardClampingRollingTippingAndDerailingABadClamp()
+    {
+        // The mine head's tipple (A1's note 423; queue #216, note 480), off its site's record and the car's OffRails as a
+        // client has them: the clamp wound down while held and biting once; the cradle rolling while it moves; the ore at the
+        // top once; rolled back and let go once; a bad clamp's derailment once (no release with it), the wrench at it, and
+        // the car back on its rails once.
+        var (world, mine) = Night(f => f.Facility == FacilityKind.MineHead, from: 20);
+        var audio = new GameAudio(Content);
+        Stand(audio, "place-tipple.clamp", "place-tipple.pour", "place-tipple.release", "place-tipple.derail", "place-tipple.rerailed");
+        Held(audio, "place-tipple.clamping", "place-tipple.roll", "place-tipple.rerail");
+        var run = world.Run!;
+        var facilities = DataFile.Load<FacilityTuning>(Path.Combine(Content, FacilityTuning.File));
+        run.EnableSites(facilities with { Draw = facilities.Draw with { Enabled = false } }, world.Train.Line);
+        int index = run.Route.Of(FeatureKind.Facility).ToList().IndexOf(mine);
+        var site = run.Sites[index]!;
+        Assert.True(site.Has(ModuleKind.Tipple));
+        double[] left = new double[run.FacilityCount];
+        double seconds = 900;
+        // The car in the cradle: the one the test derails, stood on the cradle's mark.
+        var car = world.Train.Vehicles.First(v => v.Kind == VehicleKind.Cargo);
+        void Set(int clamped = -1, double roll = 0, bool back = false, double clamp = 0, double rerail = 0) =>
+            run.Mirror(RunPhase.AtFacility, RunEnd.None, seconds++, index, false, left, [.. run.Sites.Select(x => x != site
+                ? new SiteState(true, 0, x?.SledsLeft ?? 0, false, false, 0) { Bin = x?.Bin ?? 0 }
+                : new SiteState(true, 0, site.SledsLeft, false, false, 0) { TippleOre = 2, Clamped = clamped, GoodClamp = true, Roll = roll,
+                    RollingBack = back, Clamp = clamp, Rerail = rerail })]);
+        var ears = new Ears(audio, world);
+        bool Playing(string cue) => WorldSoundTests.Playing(audio, cue);
+        int Count(string cue) => ears.Started.Count(v => v.Name == cue);
+        var ear = site.TippleLever + new Double3(0, 0.8, 0);
+        Set();
+        ears.Tick(ear, 5);
+        // The lever held: the clamp wound down; then clamped, once.
+        Set(clamp: 0.7);
+        ears.Tick(ear, 5);
+        Assert.True(Playing("place-tipple.clamping"));
+        Set(clamped: car.Id);
+        ears.Tick(ear, 5);
+        Assert.Equal(1, Count("place-tipple.clamp"));
+        Assert.False(Playing("place-tipple.clamping"));
+        // Rolling over: heard while it moves, still while it's held still; the ore at the top, once.
+        for (int i = 1; i <= 20; i++)
+        {
+            Set(clamped: car.Id, roll: i / 20.0);
+            ears.Tick(ear, 3);
+        }
+        Assert.True(Playing("place-tipple.roll"));
+        Assert.Equal(1, Count("place-tipple.pour"));
+        Set(clamped: car.Id, roll: 1);
+        ears.Tick(ear, SimConstants.TickRate);
+        Assert.False(Playing("place-tipple.roll"));
+        // Back by itself and let go: once.
+        Set(clamped: car.Id, roll: 0.5, back: true);
+        ears.Tick(ear, 3);
+        Assert.True(Playing("place-tipple.roll"));
+        Set();
+        ears.Tick(ear, 5);
+        Assert.Equal(1, Count("place-tipple.release"));
+        // A bad clamp: off its rails (its clamp let go with it, not a release), the wrench at it, back on, once each.
+        Set(clamped: car.Id, roll: 0.3);
+        ears.Tick(ear, 5);
+        car.OffRails = true;
+        Set();
+        ears.Tick(ear, 5);
+        Assert.Equal(1, Count("place-tipple.derail"));
+        Assert.Equal(1, Count("place-tipple.release"));
+        Set(rerail: 5);
+        ears.Tick(ear, 3);
+        Set(rerail: 6);
+        ears.Tick(ear, 3);
+        Assert.True(Playing("place-tipple.rerail"));
+        car.OffRails = false;
+        Set();
+        ears.Tick(ear, 5);
+        Assert.Equal(1, Count("place-tipple.rerailed"));
+        Assert.Equal(1, Count("place-tipple.derail"));
+    }
+
+    [Fact]
     public void ALockWorkedOpenWithTheWrenchIsQuietAndOneSmashedIsSmashed()
     {
         // D.7 (note 301's slice 2; queue #122, note 385): the wrench at a lock opens it quietly (Holdout.Quiet, replicated), and
         // it was heard as the smash, "loud as a cannon".
         var (world, site) = Night(f => f.Stop is { } stop && stop.Holdouts.Any(x => x.Kind != Sim.Stops.HoldoutKind.Shelter), from: -200);
         var audio = new GameAudio(Content);
-        Stand(audio, "place-breach.smash", "place-breach.pick-give");
+        Stand(audio, "place-breach.smash", "place-breach.smash-give", "place-breach.pick-give");
         Held(audio, "place-breach.pick");
         var h = world.Holdouts!.All.First(x => x.Site == site && x.Lockable);
         var ears = new Ears(audio, world);
@@ -421,6 +499,63 @@ public class WorldSoundTests
         world.Holdouts.Mirror(h.Index, HoldoutState.Freed, 1, 0);
         ears.Tick(ear, SimConstants.TickRate);
         Assert.Single(ears.Started, v => v.Name == "place-breach.pick-give");
+        Assert.Single(ears.Started, v => v.Name == "place-breach.smash-give");
+    }
+
+    [Fact]
+    public void ABreachIsHeardOnTheCrewsBeatsEachBlowEachHeaveAndEachBoardOff()
+    {
+        // Note 497 (C1's #200, note 464): the lock jumps at each blow of the crew's smash clip (a blow every 0.8 s, frame 9
+        // of 24, on the scene's clock) and each blow is heard as it lands, one at a time; it gives with the last. A
+        // barricade's board flexes out at each heave of the pry clip (every 1.33 s) and comes off at each fifth of the
+        // breach; each heave and each board is heard, and the barricade giving way.
+        var (world, site) = Night(f => f.Stop is { } stop && stop.Holdouts.Any(x => x.Kind != Sim.Stops.HoldoutKind.Shelter)
+            && stop.Holdouts.Any(x => x.Kind == Sim.Stops.HoldoutKind.Shelter), from: -200);
+        var audio = new GameAudio(Content);
+        Stand(audio, "place-breach.smash", "place-breach.smash-give", "place-breach.pry", "place-breach.board", "place-breach.pry-give");
+        var ears = new Ears(audio, world);
+        double clock = 100;
+        List<(string Name, double At)> Breach(Holdout h, double seconds, bool freed = true)
+        {
+            var heard = new List<(string, double)>();
+            var ear = h.Door + new Double3(1, 1.6, 0);
+            double progress = 0;
+            for (int i = 0; i < seconds * SimConstants.TickRate; i++)
+            {
+                clock += SimConstants.TickSeconds;
+                audio.SceneClock = clock;
+                world.Holdouts!.Mirror(h.Index, HoldoutState.Breaching, 1, progress += SimConstants.TickSeconds);
+                int before = ears.Started.Count;
+                ears.Tick(ear);
+                heard.AddRange(ears.Started.Skip(before).Select(v => (v.Name, clock)));
+            }
+            if (freed)
+            {
+                world.Holdouts!.Mirror(h.Index, HoldoutState.Freed, 1, 0);
+                int before = ears.Started.Count;
+                ears.Tick(ear, 5);
+                heard.AddRange(ears.Started.Skip(before).Select(v => (v.Name, clock)));
+            }
+            return heard;
+        }
+        // The lock: 3 s of blows (holdouts.json smash), each on the clip's beat; then the last tearing it out.
+        var lockup = world.Holdouts!.All.First(x => x.Site == site && x.Lockable && x.Layout.Kind != Sim.Stops.HoldoutKind.Shelter);
+        var smashed = Breach(lockup, 3);
+        var blows = smashed.Where(x => x.Name == "place-breach.smash").Select(x => x.At).ToList();
+        Assert.InRange(blows.Count, 3, 4);
+        Assert.All(blows, t => Assert.InRange(((t - 9 / 30.0) % 0.8 + 0.8) % 0.8, 0, SimConstants.TickSeconds + 1e-9));
+        Assert.Equal(1, smashed.Count(x => x.Name == "place-breach.smash-give"));
+        Assert.DoesNotContain(smashed, x => x.Name is "place-breach.pry" or "place-breach.board");
+        // The barricade: 6 s of heaves (holdouts.json pry), one each 1.33 s at the clip's haul; four boards off as it goes,
+        // the fifth with the barricade giving way.
+        var shelter = world.Holdouts!.All.First(x => x.Site == site && x.Layout.Kind == Sim.Stops.HoldoutKind.Shelter);
+        var pried = Breach(shelter, 6);
+        var heaves = pried.Where(x => x.Name == "place-breach.pry").Select(x => x.At).ToList();
+        Assert.InRange(heaves.Count, 4, 5);
+        Assert.All(heaves, t => Assert.InRange((t % (40 / 30.0) + 40 / 30.0) % (40 / 30.0), 0, SimConstants.TickSeconds + 1e-9));
+        Assert.Equal(4, pried.Count(x => x.Name == "place-breach.board"));
+        Assert.Equal(1, pried.Count(x => x.Name == "place-breach.pry-give"));
+        Assert.DoesNotContain(pried, x => x.Name is "place-breach.smash" or "place-breach.smash-give");
     }
 
     [Fact]

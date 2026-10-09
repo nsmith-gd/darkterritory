@@ -56,8 +56,9 @@ public static class Protocol
     // 41: the run record's sites carry the conveyor line's grain, its drive and jam, and its start and clear held (note 400).
     // 42: the run record's sites carry the tipple (its ore, clamp, roll and a re-railing), and the vehicle record whether it's off
     //     its rails, before the char cells (note 423).
-    // 43: Dave (note 487): an enemy kind of his own, and a death cause.
-    public const int Version = 43;
+    // 43: the Hello carries the private run's password, as its key (note 450), and a Refused can say WRONG PASSWORD.
+    // 44: Dave (note 526): an enemy kind of his own, and a death cause.
+    public const int Version = 44;
 }
 
 public enum MessageType : byte
@@ -117,6 +118,8 @@ public enum RefusalReason : byte
 {
     /// <summary>The crew's at player.json crew.cap: aboard, dead, waiting at a stop, or a dropped player's place held.</summary>
     CrewFull = 1,
+    /// <summary>A private run (note 450), and the Hello's password wasn't its own (or there was none).</summary>
+    Password = 2,
 }
 
 /// <summary>A host's refusal as the joiner reads it: why, and the crew against the cap at the time.</summary>
@@ -126,9 +129,13 @@ public readonly record struct Refusal(RefusalReason Reason, int Crew, int Cap)
     public override string ToString() => Reason switch
     {
         RefusalReason.CrewFull => $"CREW FULL ({Crew}/{Cap})",
+        RefusalReason.Password => "WRONG PASSWORD",
         _ => $"TURNED AWAY ({Reason})",
     };
 }
+
+/// <summary>A joiner's first word (note 253): who, the slot it's coming back to, its outfit, and a private run's key (note 450).</summary>
+public readonly record struct Hello(string Name, ulong Token, byte Outfit, byte[]? Key);
 
 public readonly record struct InputFrame(uint Sequence, PlayerIntent Intent);
 
@@ -339,21 +346,42 @@ public static class Messages
 
     /// <param name="token">The token from this player's last Welcome, coming back after a drop; 0 for a new joiner (note 253).</param>
     /// <param name="outfit">The outfit they come in (note 298), or <see cref="NoOutfit"/>.</param>
-    public static void WriteHello(NetWriter w, string name, ulong token = 0, byte outfit = NoOutfit)
+    /// <param name="key">A private run's password as <see cref="PasswordKey"/> makes it (note 450), or null for none.</param>
+    public static void WriteHello(NetWriter w, string name, ulong token = 0, byte outfit = NoOutfit, byte[]? key = null)
     {
         w.Reset();
         w.U8((byte)MessageType.Hello);
         w.Str(CleanName(name));
         w.U64(token);
         w.U8(outfit);
+        if (key is { Length: KeyLength })
+            w.Bytes(key);
     }
 
-    /// <summary>Reads a Hello after its type byte: the name, the token (0 when it has none) and the outfit (note 298).</summary>
-    public static (string Name, ulong Token, byte Outfit) ReadHello(ref NetReader r)
+    /// <summary>
+    /// Reads a Hello after its type byte: the name, the token (0 when it has none), the outfit (note 298) and the password's
+    /// key (note 450; null when there's none).
+    /// </summary>
+    public static Hello ReadHello(ref NetReader r)
     {
         string name = CleanName(r.Str());
         ulong token = r.Remaining >= 8 ? r.U64() : 0;
-        return (name, token, r.Remaining >= 1 ? r.U8() : NoOutfit);
+        byte outfit = r.Remaining >= 1 ? r.U8() : NoOutfit;
+        return new(name, token, outfit, r.Remaining >= KeyLength ? r.Rest()[..KeyLength].ToArray() : null);
+    }
+
+    /// <summary>A password's key: SHA-256's length.</summary>
+    public const int KeyLength = 32;
+
+    /// <summary>
+    /// A private run's password as the Hello carries it (note 450): hashed, so the words someone typed (and may use
+    /// elsewhere) aren't on the wire or in the host's memory, only what opens this run. Case and the spaces around it don't
+    /// count, so a password read out over voice is typed the same. Null for no password.
+    /// </summary>
+    public static byte[]? PasswordKey(string? password)
+    {
+        string p = (password ?? "").Trim().ToUpperInvariant();
+        return p.Length == 0 ? null : System.Security.Cryptography.SHA256.HashData(System.Text.Encoding.UTF8.GetBytes("dark-territory/run-password\n" + p));
     }
 
     /// <summary>Everyone's outfit (note 298), by id.</summary>

@@ -147,7 +147,14 @@ public sealed partial class WorldArt
     }
 
     /// <summary>How high an open barn's, outbuilding's or goods shed's walls stand (m, to the eaves): what it's drawn at, and its Room (note 462).</summary>
-    public static float OpenShedHeight(BuildingKind kind) => kind switch { BuildingKind.Barn => 6.5f, BuildingKind.GoodsShed => 7f, _ => 4.6f };
+    public static float OpenShedHeight(BuildingKind kind) => kind switch
+    {
+        BuildingKind.Barn => 6.5f,
+        BuildingKind.GoodsShed => 7f,
+        BuildingKind.Station => 5.2f,
+        BuildingKind.Powerhouse => 5.5f,
+        _ => 4.6f,
+    };
 
     /// <summary>How high a yard's shed or its hero (the strongroom) stands (m, to the eaves): what it's drawn at, and its Room (note 465).</summary>
     public static float YardShedHeight(StopBuilding b) => b.Kind == BuildingKind.Hero ? 10 + b.Variant : 6.5f + b.Variant * 0.8f;
@@ -156,7 +163,8 @@ public sealed partial class WorldArt
     /// An open barn, outbuilding or goods shed (note 417): the yard sheds' walk-in shell (no chain hoists: it's a farm's or
     /// a goods agent's, not a works'), and what its finds are kept in, where the sim keeps them (<see cref="StopWalls.ShedKept"/>):
     /// a barn's hayloft over the back of it with its ladder leant on the edge, or a workbench against the back wall with
-    /// its vice, its tools and a rack over it. The bench is the sim's solid box (<see cref="StopWalls.Benches"/>).
+    /// its vice, its tools and a rack over it. The bench is the sim's solid box (<see cref="StopWalls.Benches"/>). The Gaunt's
+    /// nest on its boards if it roosts here (note 488).
     /// </summary>
     /// <param name="rise">How far the ground under its footprint climbs over the ground at its middle (m): its boards are laid over it.</param>
     void OpenShed(Kit k, StopLayout stop, int index, float height, string wall, float rise)
@@ -235,6 +243,77 @@ public sealed partial class WorldArt
                     k.Rod(InKit(x + tx, Back(0.07), up + 1.95f), InKit(x + tx, Back(0.07), up + 1.55f), 0.015f);
             }
         }
+        if (b.Kind == BuildingKind.Station)
+        {
+            // A station's booking office (note 493): a panelled counter the sim's box (a bench's, where a first find
+            // would be kept), its top at a ticket window's height, a brass till on it, and the ticket rack's pigeonholes
+            // on the wall behind it. Long since rifled (nothing's kept inside the rail buffer, P13): the till's drawer
+            // hangs out of the counter's front, and its tickets lie strewn on the boards.
+            var (x, _, _, _) = StopWalls.ShedKept(b, 0);
+            double y = Back(StopWalls.BenchDepth), hw = StopWalls.BenchWidth, hd = StopWalls.BenchDepth;
+            k.Use("wood_grey", Palette.DeepBrown, 0.85f, 0, tile: 1.1f);
+            BoxIn(k, x, y, hw, hd, floor, up + 1.0f);
+            k.Use("wood_sleeper", Palette.DeepBrown, 0.8f, 0, tile: 1.1f);
+            BoxIn(k, x, y, hw + 0.04, hd + 0.04, up + 1.0f, up + 1.06f);
+            // The front's panels, stood proud of it.
+            for (double px = -hw + 0.3; px < hw - 0.1; px += 0.6)
+                BoxIn(k, x + px, y + door * (hd + 0.01), 0.24, 0.01, up + 0.15f, up + 0.85f);
+            // The till: a brass box, its keys' slope at the front, the drawer's face under the top.
+            k.Use("rust_heavy", new Vector3(0.45f, 0.32f, 0.12f), 0.5f, 0.7f);
+            BoxIn(k, x - 0.3, y, 0.2, 0.17, up + 1.06f, up + 1.3f);
+            BoxIn(k, x - 0.3, y + door * 0.12, 0.2, 0.08, up + 1.06f, up + 1.18f);
+            k.Use("wood_sleeper", Palette.DeepBrown, 0.8f, 0, tile: 1.1f);
+            BoxIn(k, x - 0.3, y + door * (hd + 0.01), 0.25, 0.005, up + 0.82f, up + 0.94f);
+            BoxIn(k, x - 0.3, y + door * (hd + 0.16), 0.25, 0.14, up + 0.83f, up + 0.93f);
+            k.Use("wood_grey", new Vector3(0.62f, 0.55f, 0.38f), 0.9f, 0);
+            for (int i = 0; i < 6; i++)
+                BoxIn(k, x - 0.7 + i * 0.27, y + door * (hd + 0.35 + (i % 3) * 0.22), 0.05, 0.03, floor, floor + 0.004f);
+            // The ticket rack: a grid of pigeonholes on the wall over the counter, a few tickets still in it.
+            k.Use("wood_grey", Palette.DeepBrown, 0.9f, 0, tile: 1.2f);
+            BoxIn(k, x, Back(0.08), hw - 0.1, 0.08, up + 1.5f, up + 1.52f);
+            BoxIn(k, x, Back(0.08), hw - 0.1, 0.08, up + 2.1f, up + 2.12f);
+            for (double px = -hw + 0.1; px <= hw - 0.1 + 1e-6; px += (hw - 0.1) / 3)
+                BoxIn(k, x + px, Back(0.08), 0.01, 0.08, up + 1.5f, up + 2.12f);
+            BoxIn(k, x, Back(0.08), hw - 0.1, 0.08, up + 1.8f, up + 1.82f);
+            k.Use("wood_grey", new Vector3(0.62f, 0.55f, 0.38f), 0.9f, 0);
+            foreach (double tx in new[] { -0.55, -0.1, 0.4 })
+                BoxIn(k, x + tx, Back(0.1), 0.06, 0.06, up + 1.52f, up + 1.62f);
+        }
+        if (b.Kind == BuildingKind.Powerhouse)
+        {
+            // A powerhouse's switchboard (note 509, the sim's box at ShedKept 0): a slate panel on an iron frame against the
+            // back wall, its knife switches and two dials, where the power's restarted. Across from it (ShedKept 1, the
+            // sim's other box) the engine: a bed, its cylinder, a flywheel standing up out of a pit, and the dynamo it
+            // belts, under the stack.
+            var (sx, _, _, _) = StopWalls.ShedKept(b, 0);
+            double y = Back(StopWalls.BenchDepth), hw = StopWalls.BenchWidth, hd = StopWalls.BenchDepth;
+            k.Use("rust_heavy", Palette.IronGrey, 0.85f, 0.5f);
+            foreach (double fx in new[] { -hw + 0.05, hw - 0.05 })
+                BoxIn(k, sx + fx, y, 0.05, hd, floor, up + 2.2f);
+            BoxIn(k, sx, y, hw, hd, floor, up + 0.5f);
+            k.Use("stone_block", new Vector3(0.12f, 0.13f, 0.14f), 0.4f, 0.1f, tile: 2);
+            BoxIn(k, sx, Back(0.12), hw - 0.08, 0.04, up + 0.6f, up + 2.1f);
+            k.Use("rust_heavy", new Vector3(0.45f, 0.32f, 0.12f), 0.5f, 0.7f);
+            for (int i = 0; i < 4; i++)
+            {
+                double kx = sx - hw + 0.35 + i * (2 * hw - 0.7) / 3;
+                BoxIn(k, kx, Back(0.2), 0.03, 0.06, up + 1.15f, up + 1.45f);
+                k.Rod(InKit(kx, Back(0.2), up + 1.45f), InKit(kx, Back(0.38), up + 1.62f), 0.02f);
+            }
+            foreach (double dx in new[] { -0.4, 0.4 })
+                k.Cylinder(InKit(sx + dx, Back(0.16), up + 1.8f), InKit(sx + dx, Back(0.2), up + 1.8f), 0.13f, 12);
+            var (ex, _, _, _) = StopWalls.ShedKept(b, 1);
+            k.Use("rust_heavy", Palette.IronGrey, 0.85f, 0.5f);
+            BoxIn(k, ex, y, hw, hd, floor, up + 0.35f);
+            k.Cylinder(InKit(ex - hw + 0.15, y, up + 0.75f), InKit(ex - 0.1, y, up + 0.75f), 0.3f, 12);
+            k.Cylinder(InKit(ex + 0.35, y - door * 0.05, up + 0.8f), InKit(ex + 0.35, y + door * 0.12, up + 0.8f), 0.75f, 16);
+            k.Use("rust_heavy", new Vector3(0.3f, 0.2f, 0.1f), 0.6f, 0.6f);
+            k.Cylinder(InKit(ex + hw - 0.3, y, up + 0.35f), InKit(ex + hw - 0.3, y, up + 0.95f), 0.25f, 12);
+        }
+        // The Gaunt's nest, if it roosts here (note 488): on the boards where it sleeps, under no lantern
+        // (GreyboxScene.HouseInteriors), as in a house (TownKit.OpenHouse).
+        if (StopWalls.Nest(stop, index) is { } n)
+            k.With(Matrix4x4.CreateTranslation(InKit(n.X, n.Y, floor)), () => RansackKit.Nest(k, b.Variant));
     }
 
     /// <summary>The top of a barn's hayloft floor (m over the shed's floor): over a head, under the eaves.</summary>

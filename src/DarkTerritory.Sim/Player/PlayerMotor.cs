@@ -52,7 +52,11 @@ public enum PlayerActions : byte
     Ladder = 16,
     /// <summary>On the wire only: this intent carries a hotbar choice (<see cref="PlayerIntent.Select"/>, <see cref="PlayerIntent.Cycle"/>).</summary>
     Tool = 32,
-    /// <summary>Sit at the gun you're at (T112): sent on the press. Sitting only, so a repeated intent is harmless; Jump gets up.</summary>
+    /// <summary>
+    /// Sit at the gun you're at (T112): sent on the press. Sitting only, so a repeated intent is harmless; Jump gets up. At
+    /// the crane's stand the same press takes the controls, and the next lets them go (<see cref="Run.Crane.Operates"/>): the
+    /// host never repeats it for a lost intent.
+    /// </summary>
     Seat = 64,
     /// <summary>
     /// The dead's key (the last free bit, so two names for one context each; note 176, note 177). <see cref="Bookmark"/>: while
@@ -189,7 +193,7 @@ public enum DeathCause : byte
     Trampled,
     // GDD §21, App. A.4 (note 340): the Gannet's fourth peck, pinned under its foot.
     Pecked,
-    // GDD §3.2 (note 487): struck Dave five times; he took them by the neck.
+    // GDD §3.2 (note 526): struck Dave five times; he took them by the neck.
     Dave
 }
 

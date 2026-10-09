@@ -36,6 +36,8 @@ using CrewActs = DarkTerritory.Game.Art.CrewActs;
 // Options: --route tier:seed | --route-file name (saved from dt edit) [--no-enemies] | --line name, --cars n --internal WxH --throttle 0..1 --quit-after seconds --capture file.png --derail-at seconds --mute --greybox (flat colour, no art pass)
 // Multiplayer (UDP, direct IP / LAN): --host [port] hosts the same options for others to join; --join address[:port] joins one.
 //   A hosted run is public (on the LAN beacon, and a public Steam lobby) unless --private (invite and address only).
+//   --password words makes it a private run, listed with a lock (note 450): joiners need the words (--join … --password
+//   words), the host's Steam friends don't. --mood laughs|competitive says who it's for.
 // Steam: --steam hosts a lobby as well (F2 opens the invite dialog; friends can also "Join Game" from the
 //   friends list). Accepting an invite starts the game with +connect_lobby <id>, or --join-lobby <id> by hand.
 //   Needs steam_api64.dll next to the game (external/steam/README.md); --no-steam to not even try.
@@ -79,7 +81,7 @@ string Arg(string name, string fallback)
 // A mod manager's profile (Thunderstore, T78) comes in as --mods-dir.
 args = Mods.TakeArgs(args);
 var content = Mods.Mount(DataFile.FindContentRoot(Environment.CurrentDirectory), enabled: !args.Contains("--no-mods"));
-// The figures out in the Territory and their words (note 487): Dave.
+// The figures out in the Territory and their words (note 526): Dave.
 FigureTalk.Words = FigureWords.Load(content);
 // The art pass's surfaces (T39); --greybox draws flat colour instead.
 var look = args.Contains("--greybox") ? null : Look.Load(content);
@@ -156,10 +158,11 @@ Launch? LaunchFromArgs()
 {
     int cars = int.Parse(Arg("--cars", "6"));
     int? port = !args.Contains("--host") ? null : int.TryParse(Arg("--host", ""), out var p) ? p : NetPlaySession.DefaultPort;
+    string? password = Arg("--password", "") is { Length: > 0 } pw ? pw : null;
     if (connectLobby is { } lobby)
-        return new Launch.JoinLobby(lobby);
+        return new Launch.JoinLobby(lobby) { Password = password };
     if (args.Contains("--join"))
-        return new Launch.Join(Arg("--join", "127.0.0.1"));
+        return new Launch.Join(Arg("--join", "127.0.0.1")) { Password = password };
     var edition = EditionTuning.Load(content);
     if (Arg("--campaign", "") is { Length: > 0 } slot && edition.Campaign)
         return new Launch.CampaignNight(int.Parse(slot), int.Parse(Arg("--contract", "0")), args.Contains("--resume"), port is not null);
@@ -178,7 +181,9 @@ Launch? LaunchFromArgs()
             Line = Arg("--line", "test-loop"),
             RouteFile = routeFile,
             Bots = int.TryParse(Arg("--bots", "0"), out var b) ? b : 0,
-            Public = !args.Contains("--private"),
+            Public = !args.Contains("--private") || password is not null,
+            Password = password,
+            Mood = Moods.Parse(Arg("--mood", "")),
         };
     return null;
 }
@@ -538,7 +543,7 @@ static string Doing(Launch chosen) => chosen switch
     {
         case Launch.JoinLobby lobby when steam is not null:
             Console.WriteLine($"joining lobby {lobby.Lobby} on Steam…");
-            return (NetPlaySession.JoinLobby(content, steam, lobby.Lobby), null);
+            return (NetPlaySession.JoinLobby(content, steam, lobby.Lobby, password: lobby.Password), null);
         case Launch.Join join:
             {
                 string target = join.Address;
@@ -548,7 +553,7 @@ static string Doing(Launch chosen) => chosen switch
                 if (endpoint.Port == 0)
                     endpoint.Port = NetPlaySession.DefaultPort;
                 Console.WriteLine($"joining {endpoint}…");
-                return (NetPlaySession.Join(content, endpoint), null);
+                return (NetPlaySession.Join(content, endpoint, password: join.Password), null);
             }
         case Launch.CampaignNight night:
             {
@@ -576,8 +581,10 @@ static string Doing(Launch chosen) => chosen switch
                     LastTown = campaign.LastTown,
                 };
                 Console.WriteLine($"campaign slot {night.Slot} ({campaign.Name}): {campaign.Cars} cars, {campaign.Scrip:0} scrip, tonight {contract.Route} carrying {Cargoes.Name(contract.Cargo)} at {contract.PerCar:0} a car{(resume is not null ? $", resuming after facility {resume.Facility}" : "")}");
+                // Note 450: private, behind the host screen's password (listed with a lock); with none typed, unlisted as before.
+                string? password = frontEnd.Settings.PublicLobby ? null : frontEnd.Settings.LobbyPassword.Trim() is { Length: > 0 } pw ? pw : null;
                 return (NetPlaySession.HostGame(content, setup, port, online: night.Host ? steam : null, resume: resume,
-                    listed: frontEnd.Settings.PublicLobby, lobbyName: frontEnd.LobbyName), campaign);
+                    listed: frontEnd.Settings.PublicLobby || password is not null, lobbyName: frontEnd.LobbyName, password: password, mood: frontEnd.Settings.Mood), campaign);
             }
         // From the menu always the real night (T110: with no bots too, it's the same game alone); the bare prototype is the
         // command line's, for a route or line on its own.
@@ -593,13 +600,13 @@ static string Doing(Launch chosen) => chosen switch
                     FirstChildReal = profile.FirstChildReal,
                 };
                 var session = NetPlaySession.HostGame(content, setup, port, online: hosted.Host ? steam : null, bots: hosted.Bots,
-                    listed: hosted.Public, lobbyName: hosted.LobbyName);
+                    listed: hosted.Public, lobbyName: hosted.LobbyName, password: hosted.Password, mood: hosted.Mood);
                 if (hosted.Bots > 0)
                     Console.WriteLine($"a crew of {hosted.Bots} bot{(hosted.Bots == 1 ? "" : "s")} aboard");
                 if (port is not null)
                     Console.WriteLine($"hosting on UDP port {session.Port}: others join with --join <this machine's address>:{session.Port}");
                 if (steam is not null && hosted.Host)
-                    Console.WriteLine($"hosting a {(hosted.Public ? "public" : "friends-only")} Steam lobby, \"{session.LobbyName}\", as {steam.NameOf(steam.Me)}: F2 to invite");
+                    Console.WriteLine($"hosting a {(session.Locked ? "private (password)" : hosted.Public ? "public" : "friends-only")} Steam lobby, \"{session.LobbyName}\", as {steam.NameOf(steam.Me)}: F2 to invite");
                 return (session, null);
             }
         case Launch.Night { RouteFile: { } file } alone:
@@ -710,9 +717,13 @@ return 0;
         return null;
     if (task.Exception?.GetBaseException() is { } failed)
     {
-        Console.WriteLine($"couldn't start {chosen}: {failed}");
-        frontEnd.Failed(chosen is Launch.Join or Launch.JoinLobby ? Screen.Join : Screen.Title,
-            failed is IOException or System.Net.Sockets.SocketException ? failed.Message : $"couldn't start: {failed.Message}");
+        Console.WriteLine($"couldn't start {chosen.Redacted()}: {failed}");
+        // Note 450: a private run's host said the password wasn't its own: asked for again, over why.
+        if (failed is JoinRefusedException { Refusal.Reason: DarkTerritory.Sim.Net.RefusalReason.Password })
+            frontEnd.AskPassword(chosen, chosen is Launch.Join j ? j.Address : "the run", failed.Message);
+        else
+            frontEnd.Failed(chosen is Launch.Join or Launch.JoinLobby ? Screen.Join : Screen.Title,
+                failed is IOException or System.Net.Sockets.SocketException ? failed.Message : $"couldn't start: {failed.Message}");
         return null;
     }
     return task.Result;
@@ -794,7 +805,7 @@ CampaignState? Play(IPlaySession session, CampaignState? campaign)
     // Talking and reading in the fortress town (note 281): on this machine alone. A press the town took isn't sent to the
     // host while the key's still down (nothing in a town changes the night; a lamp at somebody's feet stays where it is).
     var townTalk = new TownTalk();
-    // Dave's words and his card (note 487): on this machine, as a town's are.
+    // Dave's words and his card (note 526): on this machine, as a town's are.
     var figureTalk = new FigureTalk();
     bool useKept = false;
     double pendingYaw = 0, pendingPitch = 0;
@@ -1010,6 +1021,11 @@ CampaignState? Play(IPlaySession session, CampaignState? campaign)
             && DarkTerritory.Sim.Combat.Guns.MannedGun(session.Player, session.Train, gc.Guns) is { } atGun && session.Train.Vehicles[atGun].Gun.ReloadNeeded <= 0
             && !Held(Control.Forward) && !Held(Control.Back) && !Held(Control.Left) && !Held(Control.Right))
             pendingSeat = true;
+        // The crane's controls (T48): Use pressed at its stand takes them, and pressed again lets them go (the director, 8 Oct:
+        // "enter with E and exit with E, it shouldn't be a hold function"), the same press as the gun's seat (Crane.Operates).
+        if (Hit(Control.Use) && (session.Player.Has(PlayerFlags.Operating)
+            || session.World.Run?.CurrentSite?.Cranes.Any(c => c.AtStand(session.Player, session.Train)) == true))
+            pendingSeat = true;
         // The hotbar (T108): a number key picks its slot, the wheel steps through the tools (not while they're the ballot's).
         for (var k = Key.D1; k < Key.D1 + Kit.Slots; k++)
             if (Pressed(k) && net is not { Voting: true })
@@ -1083,11 +1099,10 @@ CampaignState? Play(IPlaySession session, CampaignState? campaign)
             if (Held(Control.Use) && !useKept) buttons |= PlayerButtons.Use;
             if (Held(Control.Fire)) buttons |= PlayerButtons.Fire;
             if (Held(Control.Throw)) buttons |= PlayerButtons.Throw;
-            if (proto is null)
-            {
-                if (Held(Control.Brake)) buttons |= PlayerButtons.Brake;
-                if (pendingReverser) buttons |= PlayerButtons.Reverser;
-            }
+            // The brake key is the crane's hook down as well (Crane.Drive), so it's in the intent alone too: there the
+            // session's cab also takes it straight off the key (BrakeHeld), and the cab's own brake is the same either way.
+            if (Held(Control.Brake)) buttons |= PlayerButtons.Brake;
+            if (proto is null && pendingReverser) buttons |= PlayerButtons.Reverser;
             var intent = new PlayerIntent
             {
                 MoveX = (Held(Control.Right) ? 1 : 0) - (Held(Control.Left) ? 1 : 0),
@@ -1155,6 +1170,8 @@ CampaignState? Play(IPlaySession session, CampaignState? campaign)
             sound.CrewStates = GameAudio.CrewOf(session);
             sound.OwnId = session.PlayerId;
             sound.OwnIntent = intent;
+            // The crew's clips' clock, the scene's: the breach's blows land as the lock jumps (note 497).
+            sound.SceneClock = now;
             sound.Update(session.World, session.Controls, Listener.At(camera.Position, camera.Yaw), exposed, SimConstants.TickSeconds,
                 PlayerMotor.Space(ears, session.Train));
             // Your own interface sounds (your hold, the night's end, the queue while dead), whoever you're watching.
@@ -1273,7 +1290,7 @@ CampaignState? Play(IPlaySession session, CampaignState? campaign)
             : new OwnView((float)camera.Yaw, (float)camera.Pitch, act, me.Velocity.X * me.Velocity.X + me.Velocity.Z * me.Velocity.Z > 0.16,
                 swing, session.World.OutfitOf(session.PlayerId), Kit.Held(me));
         scene.Time = now;
-        // Dave's card (note 487): closes as you walk off, and opens on what he says to a blow near you.
+        // Dave's card (note 526): closes as you walk off, and opens on what he says to a blow near you.
         figureTalk.Step(session.World, PlayerMotor.WorldPosition(me, session.Train) + Double3.Up * session.Train.Dynamics.Tuning.Pick.EyeHeight, now);
         // The town's card closes once you've walked off; whoever you're talking to turns to you.
         if (session.World.Town is { } here)

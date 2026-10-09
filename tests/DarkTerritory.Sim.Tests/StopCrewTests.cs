@@ -1074,11 +1074,12 @@ public class StopCrewTests
 
     // GDD §18's set pieces (WP15, ARCHITECTURE §8 note 185): a bot crew works each, through intent alone.
 
-    static FacilityWorkReport Work(FacilityKind kind)
+    /// <param name="stock">The train stocked as a night leaves the fortress (the guard van's lamp, car 1's lockers: note 492).</param>
+    static FacilityWorkReport Work(FacilityKind kind, bool stock = false)
     {
         var (route, facility) = FacilityWork.Find(Tuning.Route, kind)!.Value;
         return FacilityWork.Run(route, facility, T, P, Tuning.Boiler, Tuning.Run, F, Tuning.Route.Junctions, cars: 8, hands: 2, seconds: 1200,
-            yardLength: Tuning.Route.YardLength);
+            yardLength: Tuning.Route.YardLength, stock: stock);
     }
 
     static void LeftWellAndWhole(FacilityWorkReport r)
@@ -1233,9 +1234,25 @@ public class StopCrewTests
         LeftWellAndWhole(r);
         Assert.Contains("picking one up", r.Doing);
         Assert.Contains(r.Loads, c => c.Cargo == CargoKind.Salvage);
-        // The headlamp found some, not all: the rest wait for a lamp (bots carry none).
+        // The headlamp found some, not all: the rest wait for a lamp (an unstocked train has none aboard to take out).
         Assert.Contains(r.Heaps, h => h.Found);
         Assert.Contains(r.Heaps, h => !h.Found && h.Unfound > 0);
+        Assert.DoesNotContain(r.Deaths, d => d.Contains(nameof(DeathCause.Wreckage)));
+    }
+
+    [Fact]
+    public void AtTheWreckYardAHandTakesALampOutToTheDarkHeapsAndPutsItBackAboard()
+    {
+        // Note 492: stocked as a night leaves the fortress, one hand takes a lamp from the train (car 1's lockers, the guard
+        // van's floor) out to the heaps the headlamp doesn't reach, so every heap's salvage comes out, and puts it back in a car
+        // after: none left in the yard. Nobody's under a heap when it shifts.
+        var r = Work(FacilityKind.WreckYard, stock: true);
+        LeftWellAndWhole(r);
+        Assert.Contains("taking a lamp to the wreck", r.Doing);
+        Assert.Contains("putting the lamp down inside", r.Doing);
+        Assert.All(r.Heaps, h => Assert.True(h.Found && h.Unfound == 0, $"a heap still dark: {string.Join(", ", r.Heaps)}"));
+        Assert.Equal(0, r.LampsLeft);
+        Assert.Contains(r.Loads, c => c.Cargo == CargoKind.Salvage);
         Assert.DoesNotContain(r.Deaths, d => d.Contains(nameof(DeathCause.Wreckage)));
     }
 }

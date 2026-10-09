@@ -81,6 +81,8 @@ public sealed partial class CrewCalls
     /// <summary>Whether this member is among the first <paramref name="n"/> alive with that part (by member number).</summary>
     public bool AmongFirst(int member, StopJob job, int n) =>
         _crew.Where(c => c.Value.Alive && c.Value.Job == job).Select(c => c.Key).Take(n).Contains(member);
+    /// <summary>Whether anyone alive is on <paramref name="job"/>.</summary>
+    public bool AnyOn(StopJob job) => _crew.Values.Any(c => c.Alive && c.Job == job);
     // Note 261: the stop worked by the crew that's there. Spec D.2's "Crew" column counts people at a module, whoever they
     // are: the shunter's free once the train's in, the driver can get down (facilities.json crew.driverWorks), and people
     // playing are hands as much as bots are (crew.peopleAreHands).
@@ -304,6 +306,29 @@ public sealed partial class CrewCalls
     {
         foreach (var h in _breach.Where(b => b.Value.Member == member).Select(b => b.Key).ToList())
             _breach.Remove(h);
+    }
+
+    // Note 496: who's going to the lamp the Fire Flies are on (App. A.5), the nearest hand the tick they came, as for a
+    // Holdout; and theirs after that, while they're going. Taken from them as nearer hands came by on their own parts, the
+    // lamp changed hands back and forth at car 1's ladder until the car caught.
+    readonly Dictionary<int, (int Member, double Distance, uint Tick)> _lamp = new();
+
+    /// <summary>A hand wanting to put out the lamp of the car the Fire Flies are on, from this far: true if it's theirs.</summary>
+    public bool ClaimLamp(int car, int member, double distance, uint tick)
+    {
+        if (!_lamp.TryGetValue(car, out var c) || !Alive(c.Member) || c.Tick == tick && distance < c.Distance)
+            _lamp[car] = (member, distance, tick);
+        return _lamp[car].Member == member;
+    }
+
+    /// <summary>The hand going to this car's swarmed lamp (or the fire the flies lit), or null.</summary>
+    public int? LampHand(int car) => _lamp.TryGetValue(car, out var c) && Alive(c.Member) ? c.Member : null;
+
+    /// <summary>This hand isn't going to any swarmed lamp (any more).</summary>
+    public void DropLamp(int member)
+    {
+        foreach (var car in _lamp.Where(b => b.Value.Member == member).Select(b => b.Key).ToList())
+            _lamp.Remove(car);
     }
 
     /// <summary>Someone's on their way to (or at) a Holdout's door: the driver waits for them (T96).</summary>
@@ -1486,6 +1511,34 @@ public sealed partial class StopHand(StopJob job, CrewCalls calls, int member, C
     /// </summary>
     public bool TakesTrouble => job != StopJob.Crates || calls.AmongFirst(member, StopJob.Crates, TroubleHands);
 
+    /// <summary>
+    /// Note 496: Fire Flies on a car's lamp at a stop (App. A.5: about 20 s on it and the car's alight) are every hand's,
+    /// whatever its part: putting the lamp out is one press, and the car's lost if nobody does. Only the nearest goes (the
+    /// rest keep at their parts). A crew of four has no crate hand, its parts are the shunter and the winch pair, and the
+    /// lamps the flies came to were never put out: frontier:7's Talbot Foundry lost a car to them on every seed, held on the
+    /// main with its hands cutting the train and boarding the cab. Too far to get there in time (the guard van, 75 m back
+    /// along the ballast), the fire they light is the same hand's: in its first seconds it's smoke and burns nobody
+    /// (App. C.5), an extinguisher puts it out a cell a second, and the one who went for the lamp sees it through.
+    /// </summary>
+    public bool TakesLamp(in PlayerState self, World world, Enemies.Enemy trouble)
+    {
+        var train = world.Train;
+        int car = trouble.Attached;
+        bool flies = trouble is Enemies.FireFlies || trouble is Enemies.CarFire { Phase: Enemies.SpinePhase.Dormant or Enemies.SpinePhase.Telegraph };
+        // At a stop only (its plan taken): between them, the walkers' own rounds see to it, and a gunner's gun comes first.
+        if (job == StopJob.Driver || _plan is null || !self.Alive || car <= 0 || car >= train.Frames.Count
+            || !flies && !(trouble is Enemies.CarFire && calls.LampHand(car) == member))
+        {
+            calls.DropLamp(member);
+            return false;
+        }
+        double distance = (PlayerMotor.WorldPosition(self, train) - train.Frames[car].ToWorld(Double3.Zero)).Length;
+        return calls.ClaimLamp(car, member, distance, world.Tick);
+    }
+
+    /// <summary>Not going to a swarmed lamp.</summary>
+    public void NoLamp() => calls.DropLamp(member);
+
     /// <summary>Crate hands to a stop's trouble in a car at most: enough to beat it, and the rest keep loading.</summary>
     public const int TroubleHands = 2;
 
@@ -1496,16 +1549,35 @@ public sealed partial class StopHand(StopJob job, CrewCalls calls, int member, C
     /// its roof for the whole of the loading (the 100-night rerun's frontier:7 Foundry). Null when that's not the way:
     /// between stops, in the car already (the walker works it from the aisle), or the car has no door this side.
     /// </summary>
-    public PlayerIntent? IntoTrouble(in PlayerState self, World world, int car)
+    /// <param name="held">Note 496: or on the main short of the points, the train standing (the Fire Flies' lamp: they come
+    /// only to a stopped train, and a hand on the roofs from the cab was five cars short of it when the car caught).</param>
+    public PlayerIntent? IntoTrouble(in PlayerState self, World world, int car, bool held = false)
     {
         var train = world.Train;
-        if (_plan is not { } p || !_reachedEnd || !p.AtTheEnd(train) || car <= 0 || car >= train.Frames.Count || !self.Alive)
+        if (_plan is not { } p || car <= 0 || car >= train.Frames.Count || !self.Alive
+            || !(held && Math.Abs(train.Dynamics.Velocity) < 0.05) && (!_reachedEnd || !p.AtTheEnd(train)))
             return null;
         int side = p.Site.Side;
         var frame = train.Frames[car];
         var shape = frame.Shape;
         var layout = train.Dynamics.Tuning.Geometry.Interior;
-        if (layout is null || SideDoor(shape, side) is not { } door || self.Surface is Surface.Air or Surface.Ladder)
+        if (layout is null || self.Surface is Surface.Air)
+            return null;
+        // Note 496: a car with no side door this side (the guard van, a crew car) for the Fire Flies' lamp, the train held:
+        // along the ballast to its own side ladder and up, and in from its roof the walker's way (by its end door). Along
+        // the roofs from the cab, the gunner was three cars short of the guard van when the flies set it alight.
+        if (SideDoor(shape, side) is not { } door)
+        {
+            if (!held || self.Parent == car && self.Surface == Surface.Roof)
+                return null;
+            Doing = "to the trouble";
+            if (self.Surface == Surface.Ladder)
+                return self.Parent == car ? new PlayerIntent { MoveZ = 1, Buttons = PlayerButtons.Use } : null;
+            if (self.Parent != PlayerState.World)
+                return self.Surface == Surface.Roof ? null : GetDown(self, train, side);
+            return ToARoofLadder(self, train, car);
+        }
+        if (self.Surface is Surface.Ladder)
             return null;
         bool open = train.Vehicles[car].DoorOpen(door);
         double w = shape.Bounds.Max.X, sd = layout.SideDoorWidth / 2;
@@ -1635,11 +1707,11 @@ public sealed partial class StopHand(StopJob job, CrewCalls calls, int member, C
         if (Pair is StopJob.Winch0 or StopJob.Winch1 && p.Site.Crane is { } crane && (calls.PairNow || crane.Hooked is not null)
             && (CraneTarget(crane, train) is not null || crane.Hooked is not null))
             return Pair == StopJob.Winch0 ? Operate(self, world, p, crane) : RigCasting(self, world, p, crane);
-        if (_atControls)
+        if (_atControls || self.Has(PlayerFlags.Operating))
         {
-            // Done at the crane: let go of the controls (and so step down) before anything else.
+            // Done at the crane: the press that lets go of the controls (and so steps down) before anything else.
             _atControls = false;
-            return new PlayerIntent();
+            return self.Has(PlayerFlags.Operating) ? new PlayerIntent { Actions = PlayerActions.Seat } : new PlayerIntent();
         }
         // GDD §18's set pieces (note 185): the pair drive the herd up the ramp; the first of them minds the hose.
         if (Pair is StopJob.Winch0 or StopJob.Winch1 && calls.PairNow && !calls.Leaving && p.HerdLeft(world))
@@ -1674,10 +1746,10 @@ public sealed partial class StopHand(StopJob job, CrewCalls calls, int member, C
             return new PlayerIntent();
         if (Pair is StopJob.Winch0 or StopJob.Winch1 && plan.Site.Crane is { } crane && (CraneTarget(crane, train) is not null || crane.Hooked is not null))
             return Pair == StopJob.Winch0 ? Operate(self, world, plan, crane) : RigCasting(self, world, plan, crane);
-        if (_atControls)
+        if (_atControls || self.Has(PlayerFlags.Operating))
         {
             _atControls = false;
-            return new PlayerIntent();
+            return self.Has(PlayerFlags.Operating) ? new PlayerIntent { Actions = PlayerActions.Seat } : new PlayerIntent();
         }
         if (Pair is StopJob.Winch0 or StopJob.Winch1 && plan.HerdLeft(world))
             return Herd(self, world, plan);
@@ -1764,8 +1836,9 @@ public sealed partial class StopHand(StopJob job, CrewCalls calls, int member, C
     }
 
     /// <summary>
-    /// At the crane's controls (spec D.2): down on the stand's side, to the stand, and holding Use there, the stick drives
-    /// the crane. Hook down over the next casting and held there while it's rigged; up high, over a car with room, down onto
+    /// At the crane's controls (spec D.2): down on the stand's side, to the stand, and the press there that takes the controls
+    /// (Use's, sent as <see cref="PlayerActions.Seat"/>, only while it hasn't got them: a second would let them go); the stick
+    /// drives the crane. Hook down over the next casting and held there while it's rigged; up high, over a car with room, down onto
     /// its roof, and let go (only ever when it's set down: a load let go of high kills).
     /// </summary>
     PlayerIntent? Operate(in PlayerState self, World world, StopPlan p, Crane c)
@@ -1786,7 +1859,7 @@ public sealed partial class StopHand(StopJob job, CrewCalls calls, int member, C
             _atControls = true;
         }
         Doing = "at the crane";
-        var drive = new PlayerIntent { Buttons = PlayerButtons.Use };
+        var drive = new PlayerIntent { Actions = self.Has(PlayerFlags.Operating) ? PlayerActions.None : PlayerActions.Seat };
         var t = c.Tuning;
         if (c.Hooked is null)
         {
@@ -1946,9 +2019,12 @@ public sealed partial class StopHand(StopJob job, CrewCalls calls, int member, C
         var handle = p.Site.Handles[Pair == StopJob.Winch0 ? 0 : 1];
         var (along, across) = TrackCoords(train.Line, p.Spur.Index, handle, self.LineHint);
         var stand = TrackPoint(train.Line, p.Spur.Index, along, Math.Sign(across) * (Math.Abs(across) - 0.4));
-        var (step, there) = WalkTo(self, train.Line, p.Spur.Index, stand, null);
+        var (step, there) = OnFoot(self, train, p.Spur.Index, stand, null);
         if (!there)
+        {
+            Doing = "to the winch";
             return step;
+        }
         Doing = "cranking";
         return new PlayerIntent { Buttons = PlayerButtons.Use };
     }
@@ -2280,6 +2356,7 @@ public sealed partial class StopHand(StopJob job, CrewCalls calls, int member, C
         if (!p.AtTheEnd(train))
         {
             _car = -1;
+            EndLampRun();
             return heavy ? Press() : Done(self, world, p);
         }
         // Heavy crates (T45): holding an end, wait for a hand; at the back end of one, follow it in; someone holding one
@@ -2304,6 +2381,9 @@ public sealed partial class StopHand(StopJob job, CrewCalls calls, int member, C
         // A find from the village in our arms (note 326): back round the houses to a car first.
         if (mine is { Kind: Physics.BodyKind.Loot } && FindHome(self, world, p) is { } home)
             return home;
+        // The wreck yard's dark heaps (note 492): one hand brings a lamp out to them, and on to the next as each is found.
+        if (!heavy && _setDown is null && WreckLamp(self, world, p, mine) is { } lit)
+            return lit;
         // Nothing more to carry: the village's houses, if there's time and a share of hands for it (note 326); else the doors
         // shut behind us (an open car is a cold one), and aboard.
         // The site's crates in: the rest of the yard's, on foot (note 403); then the village.
@@ -2315,6 +2395,9 @@ public sealed partial class StopHand(StopJob job, CrewCalls calls, int member, C
         if (!heavy && _setDown is null && (!p.CratesToLoad(world, calls.HeavyHands) || calls.Leaving))
         {
             calls.CarryingTo(member, -1);
+            // The lamp we set down out at the wreck (note 492): up again first, and aboard with it.
+            if (LampAboard(self, world, p) is { } lamp)
+                return lamp;
             return OpenSideDoor(world, p, calls, member, self) is { } car ? ShutUp(self, world, p, car) : Done(self, world, p);
         }
         if (!heavy && _setDown is null || _car < 0)
@@ -2711,13 +2794,15 @@ public sealed partial class StopHand(StopJob job, CrewCalls calls, int member, C
     /// On foot to the nearest side ladder that reaches a roof, round the train (<see cref="WalkTo"/>: out past the side-door
     /// steps, which a walk straight along the car's side goes up), and at its foot, take hold (<see cref="RoofWalkerBot.Board"/>).
     /// </summary>
-    PlayerIntent ToARoofLadder(in PlayerState self, TrainOnLine train)
+    /// <param name="only">Only that car's ladders (note 496: up onto the roof of a car with no side door, for its lamp).</param>
+    PlayerIntent ToARoofLadder(in PlayerState self, TrainOnLine train, int? only = null)
     {
         Double3? best = null;
         double bestD = double.MaxValue;
         foreach (var frame in train.Frames)
         {
-            if (frame.Index == 0 || train.StandingCar(frame.Index) || train.Dynamics.Consist.IndexOf(frame.Index) < 0)
+            if (frame.Index == 0 || train.StandingCar(frame.Index) || train.Dynamics.Consist.IndexOf(frame.Index) < 0
+                || only is { } o && frame.Index != o)
                 continue;
             foreach (var ladder in frame.Shape.Ladders)
             {
@@ -2899,9 +2984,31 @@ public sealed partial class StopHand(StopJob job, CrewCalls calls, int member, C
     (PlayerIntent Step, bool There) OnFoot(in PlayerState self, TrainOnLine train, int path, Double3 target, double? yaw)
     {
         var here = PlayerMotor.WorldPosition(self, train);
-        if (self.Parent == PlayerState.World && (Flat(target) - Flat(here)).Length > ByFootPath && WayTo(train, here, target))
+        if (self.Parent == PlayerState.World && ((Flat(target) - Flat(here)).Length > ByFootPath || Across(train, path, here, target, self.LineHint))
+            && WayTo(train, here, target))
             return (Follow(self, train, target), false);
         return WalkTo(self, train.Line, path, target, yaw);
+    }
+
+    /// <summary>
+    /// Note 486: <paramref name="target"/> is across the track from <paramref name="here"/> with the train standing between:
+    /// <see cref="WalkTo"/> keeps to its own side of the track and steps across it at the end, straight into the cars. A
+    /// 2-bot crew's shunter, lent to the winch on the far side of the spur, walked into car 3's side (and up its steps, and
+    /// off) for the six minutes the driver cranked alone. The way round is the foot path's.
+    /// </summary>
+    static bool Across(TrainOnLine train, int path, Double3 here, Double3 target, double hint)
+    {
+        var (a, x) = TrackCoords(train.Line, path, here, hint);
+        var (ta, tx) = TrackCoords(train.Line, path, target, hint);
+        if (Math.Sign(x) == Math.Sign(tx) || Math.Abs(x) < 0.5 || Math.Abs(tx) < 0.5)
+            return false;
+        // The train between them: a car on this path within the stretch from here to there.
+        double lo = Math.Min(a, ta) - 2, hi = Math.Max(a, ta) + 2;
+        foreach (var f in train.Frames)
+            if (f.Index > 0 && train.Line.Nearest(f.Origin, ref hint) is var (_, along) && along >= lo - f.Shape.HalfLength && along <= hi + f.Shape.HalfLength
+                && Math.Abs(TrackCoords(train.Line, path, f.Origin, hint).Across) < 1)
+                return true;
+        return false;
     }
 
     /// <summary>A way to <paramref name="goal"/> by <see cref="FootPath"/>, kept or planned; false when there's none, and it

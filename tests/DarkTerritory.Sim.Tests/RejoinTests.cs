@@ -74,13 +74,19 @@ public class RejoinTests
         Messages.WriteHello(w, "Dave", 42);
         r = new NetReader(w.Written);
         r.U8();
-        Assert.Equal(("Dave", 42ul, Messages.NoOutfit), Messages.ReadHello(ref r));
+        Assert.Equal(new Hello("Dave", 42ul, Messages.NoOutfit, null), Messages.ReadHello(ref r));
         // Note 298: and the outfit they come in.
         Messages.WriteHello(w, "Dave", 42, outfit: 5);
         r = new NetReader(w.Written);
         r.U8();
-        Assert.Equal(("Dave", 42ul, (byte)5), Messages.ReadHello(ref r));
-        Assert.Equal(43, Protocol.Version);
+        Assert.Equal(new Hello("Dave", 42ul, (byte)5, null), Messages.ReadHello(ref r));
+        // Note 450: and a private run's password, as its key.
+        var key = Messages.PasswordKey("lantern");
+        Messages.WriteHello(w, "Dave", 0, outfit: 5, key: key);
+        r = new NetReader(w.Written);
+        r.U8();
+        Assert.Equal(key, Messages.ReadHello(ref r).Key);
+        Assert.Equal(44, Protocol.Version);
     }
 
     [Fact]

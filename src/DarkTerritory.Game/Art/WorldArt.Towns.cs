@@ -57,6 +57,58 @@ public sealed partial class WorldArt
         }
     }
 
+    /// <summary>
+    /// A walled town's works (queue #90, note 353): each piece where the plan stands it, a facility's modelled piece
+    /// (<see cref="WorksKit.Prop"/>) on its fixture's footprint, else the kit's; their lights; the works' cinder ground.
+    /// </summary>
+    public void Works(MeshBuilder mesh, RailLine line, Double3 eye, Town town, double from, double to)
+    {
+        var plan = town.Plan;
+        if (plan.Works is not { } works || works.S1 < from - 60 || works.S0 > to + 60)
+            return;
+        foreach (var f in plan.Fixtures)
+        {
+            if (f.House >= 0 || !WorksKit.Draws(f.Kind) || !works.Holds(f.S, f.D, 1))
+                continue;
+            var at = town.World(f.S, f.D);
+            if ((at - eye).Length > 420)
+                continue;
+            var front = Place(line, eye, at, f.S, f.FaceS, f.FaceD);
+            if (WorksKit.Prop(f.Kind) is { } prop && _props.Get(prop.Name) is { } model)
+            {
+                // Its front along the line (the pit's pair, the ropes between them) or to the line; centred by its footprint.
+                var m = prop.Along ? Place(line, eye, at, f.S, 1, 0) : front;
+                var (middle, _) = prop.Centred ? WorksKit.Footprint(model) : (Vector3.Zero, Vector3.Zero);
+                mesh.Instances.Add(new MeshInstance(model, Matrix4x4.CreateTranslation(-middle) * Matrix4x4.CreateScale(prop.Scale)
+                    * Matrix4x4.CreateTranslation(0, -0.3f, 0) * m));
+            }
+            else
+                mesh.Instances.Add(new MeshInstance(Piece($"works-{f.Kind}", () => WorksKit.Piece(_look, f.Kind)), front));
+            foreach (var (lamp, colour, range) in WorksKit.Lights(f.Kind))
+                mesh.PointLights.Add(new PointLight(Vector3.Transform(lamp, front), colour, range));
+        }
+    }
+
+    /// <summary>Where the works' stacks and chimneys smoke (note 353): the foundry's stack, the winding house's chimney.</summary>
+    public IEnumerable<Vector3> Stacks(RailLine line, Double3 eye, Town town, double reach)
+    {
+        if (town.Plan.Works is not { } works)
+            yield break;
+        foreach (var f in town.Plan.Fixtures)
+        {
+            if (!works.Holds(f.S, f.D, 1) || f.Kind is not ("casting" or "winding") || WorksKit.Prop(f.Kind) is not { } prop
+                || _props.Get(prop.Name) is not { } model)
+                continue;
+            var at = town.World(f.S, f.D);
+            if ((at - eye).Length > reach)
+                continue;
+            var m = prop.Along ? Place(line, eye, at, f.S, 1, 0) : Place(line, eye, at, f.S, f.FaceS, f.FaceD);
+            var (middle, _) = WorksKit.Footprint(model);
+            var top = WorksKit.StackTop(model);
+            yield return Vector3.Transform(Vector3.Transform(top - middle, Matrix4x4.CreateScale(prop.Scale)) + new Vector3(0, -0.3f, 0), m);
+        }
+    }
+
     /// <summary>Draws a town's square within [<paramref name="from"/>, <paramref name="to"/>] along the line.</summary>
     public void Square(MeshBuilder mesh, RailLine line, Double3 eye, Town town, double from, double to)
     {
@@ -87,8 +139,11 @@ public sealed partial class WorldArt
         foreach (var b in plan.Buildings)
         {
             var piece = Piece($"square-{b.Kind}-{b.Style}-{b.Length:0}x{b.Depth:0}", () => SquareKit.Building(_look, b.Kind, (float)b.Length, (float)b.Depth, b.Style));
-            var m = Place(line, eye, town.World(b.S, b.D), b.S, 0, -side);
+            // Its front to the line, from whichever side it stands (the quiet house is on the far side from the square).
+            var m = Place(line, eye, town.World(b.S, b.D), b.S, 0, -Math.Sign(b.D));
             mesh.Instances.Add(new MeshInstance(piece, m));
+            if (b.Kind == "quiet")
+                continue;
             var lamp = Vector3.Transform(SquareKit.Lamp((float)b.Depth, b.Kind == "hall"), m);
             mesh.PointLights.Add(new PointLight(lamp, Palette.LampAmber * 1.3f, 9));
             mesh.Billboard(lamp, 0.8f, 0, new Vector4(Palette.LampAmber * 0.6f, 1), -1, FxBlend.Additive);
@@ -100,7 +155,7 @@ public sealed partial class WorldArt
             if (f.House >= 0)
                 continue;
             // The green's and the walls' pieces are drawn with the green (Civic), wherever they are.
-            if (CivicKit.Draws(f.Kind))
+            if (CivicKit.Draws(f.Kind) || WorksKit.Draws(f.Kind))
                 continue;
             var m = Place(line, eye, town.World(f.S, f.D), f.S, f.FaceS, f.FaceD);
             int count = f.Kind switch { "board" => notices, "line" => (int)(sq.S1 - sq.S0 - 8), _ => 0 };
@@ -413,27 +468,52 @@ public sealed partial class WorldArt
         foreach (var lane in b.Lanes)
         {
             var piece = Piece($"town-lane-{lane.Width:0.0}", () => TownGround(_look, (float)chunk, (float)lane.Width, "ground_mud"));
-            foreach (double mid in LaneMids(lane, chunk))
+            foreach (var (d, length, slope) in LaneStrips(lane, chunk))
             {
-                var at = town.World(lane.S, mid);
+                double s = lane.At(d);
+                var at = town.World(s, d);
                 if ((at - eye).Length > 320)
                     continue;
-                mesh.Instances.Add(new MeshInstance(piece, Place(line, eye, at, lane.S, 0, 1)));
+                // Turned along the lane where it runs at an angle (note 353), cut to its stretch, a little long so they meet.
+                mesh.Instances.Add(new MeshInstance(piece, Matrix4x4.CreateScale(1, 1, (float)(length / chunk) * 1.04f) * Place(line, eye, at, s, slope, 1)));
             }
+            // Where it turns, a square of it, so the corner isn't a notch.
+            foreach (var (kd, _) in lane.Kinks ?? [])
+                if (Math.Abs(kd) >= LaneBed + lane.Width / 2 && kd > lane.D0 && kd < lane.D1)
+                {
+                    double ks = lane.At(kd), slope = (lane.At(kd + 1) - lane.At(kd - 1)) / 2;
+                    var at = town.World(ks, kd);
+                    if ((at - eye).Length <= 320)
+                        mesh.Instances.Add(new MeshInstance(piece, Matrix4x4.CreateScale(1, 1, (float)(lane.Width / chunk)) * Place(line, eye, at, ks, slope, 1)));
+                }
         }
     }
 
+    /// <summary>How far either side of the line a lane leaves the line and its bed to the line's own ground (m).</summary>
+    const double LaneBed = 4;
+
     /// <summary>
-    /// The middles of a lane's strips of beaten ground, <paramref name="chunk"/> long across the line, leaving out the
-    /// line and its bed (<see cref="Streets"/> draws them; what's underfoot reads them, <see cref="TownWay"/>).
+    /// A lane's strips of beaten ground, each at most <paramref name="chunk"/> long: where its middle is across the line
+    /// (it's at <see cref="TownLane.At"/> along it), how long it is along the lane, and the lane's slope there (along the line
+    /// per metre across it). Each straight stretch between its turns is cut into equal strips, leaving out the line and
+    /// its bed (<see cref="Streets"/> draws them; what's underfoot reads them, <see cref="TownWay"/>).
     /// </summary>
-    static IEnumerable<double> LaneMids(TownLane lane, double chunk)
+    static IEnumerable<(double D, double Length, double Slope)> LaneStrips(TownLane lane, double chunk)
     {
-        for (double d = lane.D0; d < lane.D1; d += chunk)
+        var cuts = new List<double> { lane.D0, -LaneBed, LaneBed, lane.D1 };
+        foreach (var (kd, _) in lane.Kinks ?? [])
+            if (kd > lane.D0 && kd < lane.D1 && Math.Abs(kd) > LaneBed)
+                cuts.Add(kd);
+        cuts.Sort();
+        for (int i = 1; i < cuts.Count; i++)
         {
-            double mid = Math.Min(d + chunk / 2, lane.D1 - chunk / 2);
-            if (Math.Abs(mid) >= chunk / 2 + 4)
-                yield return mid;
+            double a = cuts[i - 1], b = cuts[i];
+            if (b - a < 1e-6 || a >= -LaneBed && b <= LaneBed)
+                continue;
+            double slope = (lane.At(b) - lane.At(a)) / (b - a), along = (b - a) * Math.Sqrt(1 + slope * slope);
+            int n = Math.Max(1, (int)Math.Ceiling(along / chunk - 1e-6));
+            for (int j = 0; j < n; j++)
+                yield return (a + (j + 0.5) * (b - a) / n, along / n, slope);
         }
     }
 

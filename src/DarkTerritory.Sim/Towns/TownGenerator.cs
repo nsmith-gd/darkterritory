@@ -32,6 +32,8 @@ public static partial class TownGenerator
     // it tends (a door, the board, the engine), clear of the thing itself.
     const double DoorStep = 1.4, BoardOut = 6.5, BoardReader = 1.3, BesideTrack = 3.4, Ring = 1.8, GateIn = 9, GateOut = 4.5;
     const double PlatformD = 7.0, PlatformTop = 0.25;
+    /// <summary>The quiet house: how far inside the gate, and how far out from the line on the far side (m).</summary>
+    const double QuietIn = 15, QuietOut = 21;
 
     /// <summary>The roles any townsperson without a place may have ("hand": works at what the town makes).</summary>
     static readonly string[] Folk = ["widow", "driver", "cook", "guard", "hand"];
@@ -43,7 +45,8 @@ public static partial class TownGenerator
     /// </summary>
     static int Precedence(Spot spot) => spot.Street ? 6 : spot.House >= 0 ? 2 : spot.Role switch
     {
-        "keeper" => 0,
+        // The keeper, and the hands at the works (note 353): the trade's lines are theirs first.
+        "keeper" or "hand" => 0,
         "" => 1,
         "gatekeeper" or "guard" => 3,
         _ => 4,
@@ -158,10 +161,75 @@ public static partial class TownGenerator
             foreach (double along in (double[])[-6, 6])
                 Fix("bench", "a bench", "", gs + along, gd - side * 3.5, 0, -side);
         }
+        if (homes.Works is { } works)
+        {
+            // A walled town's works (note 353; GDD §3: "Fortified towns survive behind stone and steel walls ... furnaces, rail
+            // yards and warehouses"): its trade's pieces, then what every town's works have, in order along the line, each
+            // that fits between the streets; packed (the winding house its ropes' length from its headframe) and centred.
+            var wt = t.Walled;
+            TownWork[] pieces = [.. w.Works.GetValueOrDefault(works.Trade) ?? [], .. w.Works.GetValueOrDefault("any") ?? []];
+            double near = works.Near + wt.WorksMargin, far = works.Far - wt.WorksMargin, room = works.S1 - works.S0 - 2 * wt.WorksMargin;
+            // A piece and those that stand by it (After) go together or not at all: a headframe has its winding house.
+            var groups = new List<List<TownWork>>();
+            foreach (var piece in pieces)
+                if (piece.After > 0 && groups.Count > 0)
+                    groups[^1].Add(piece);
+                else
+                    groups.Add([piece]);
+            var laid = new List<(TownWork Piece, double At)>();
+            double end = 0;
+            foreach (var group in groups)
+            {
+                // Where each stands from the group's first, and how far the group reaches either side of that.
+                var offsets = new List<double> { 0 };
+                for (int k = 1; k < group.Count; k++)
+                    offsets.Add(offsets[^1] + group[k].After);
+                double lo = 0, hi = 0;
+                bool fits = true;
+                for (int k = 0; k < group.Count; k++)
+                {
+                    var (hs, hd, _) = TownFixtures.Size(group[k].Kind);
+                    fits &= Math.Abs(group[k].Across) + hd <= (far - near) / 2;
+                    (lo, hi) = (Math.Min(lo, offsets[k] - hs), Math.Max(hi, offsets[k] + hs));
+                }
+                double first = (laid.Count == 0 ? 0 : end + wt.WorksGap) - lo;
+                if (!fits || first + hi > room)
+                    continue;
+                for (int k = 0; k < group.Count; k++)
+                    laid.Add((group[k], first + offsets[k]));
+                end = first + hi;
+            }
+            double from = works.S0 + wt.WorksMargin + (room - end) / 2, middle = (near + far) / 2;
+            foreach (var (piece, at) in laid)
+                Fix(piece.Kind, piece.Title.Replace("{town}", site.Name), piece.Text.Replace("{town}", site.Name), from + at,
+                    works.Side * (middle + piece.Across), 0, -works.Side);
+        }
+        if (homes.Bounds is not null)
+        {
+            // A walled town's clerk keeps the council's house (note 353): its cupola and clock over the square.
+            buildings[0] = buildings[0] with { Name = "the council house", Style = "council", Knock = Knock("council") is { Length: > 0 } council ? council : buildings[0].Knock };
+            // The quiet house by the gate, where whoever comes in from outside sleeps the first night (the laws say so),
+            // on the line's other side from the square, short of the first streets' ends.
+            if (Knock("quiet") is { Length: > 0 } quiet)
+                buildings.Add(new TownBuilding("quiet", "the quiet house", site.Gate - QuietIn, -side * QuietOut, 6, 5, quiet));
+        }
+        else
+        {
+            // A small town keeps its dead and its day on the square's far wall, in the gaps between its buildings.
+            double far = Math.Abs(square.WallD) - Run.Fortresses.WallHalf;
+            double gap0 = buildings[0].S + buildings[0].Length / 2, gap1 = buildings[1].S - buildings[1].Length / 2;
+            double gap2 = buildings[1].S + buildings[1].Length / 2, gap3 = buildings[2].S - buildings[2].Length / 2;
+            var mural = Take(w.Civic.GetValueOrDefault("mural") ?? [], 1, Rng("civic.murals"));
+            if (mural.Count > 0 && gap1 - gap0 >= 2 * TownFixtures.Size("mural").HalfS + 1)
+                Fix("mural", mural[0].Title, mural[0].Text, (gap0 + gap1) / 2, side * (far - 0.05), 0, -side);
+            var (_, nd, _) = TownFixtures.Size("memorial");
+            if (Civic("memorial") is { } dead && gap3 - gap2 >= 2 * TownFixtures.Size("memorial").HalfS + 1)
+                Fix("memorial", dead.Title, dead.Text, (gap2 + gap3) / 2, side * (far - nd - 0.05), 0, -side);
+        }
         if (homes.Bounds is { } walls)
         {
             // The day, painted on the inside of the back wall at the ends of the first streets, where you see it down them.
-            // Dave's (signed "D.)"; note 487) only on some towns' walls, one at most (towns.json daveMural).
+            // Dave's (signed "D.)"; note 526) only on some towns' walls, one at most (towns.json daveMural).
             var all = w.Civic.GetValueOrDefault("mural") ?? [];
             bool daves(TownText m) => m.Title.Contains("D.)", StringComparison.Ordinal);
             var murals = Take([.. all.Where(m => !daves(m))], 2, Rng("civic.murals"));
@@ -209,6 +277,11 @@ public static partial class TownGenerator
             // Out on the street in front of it, clear of an enclosed porch (HouseDesign.VestibuleDepth).
             spots.Add(new("", h.S + (i % 3 - 1) * 1.2, h.FrontD - h.Side * 2.6, 0, -h.Side, 0, Street: true, Pose: "lantern"));
         }
+        // The works' hands (note 353), at work all night: in front of a piece with a door or a mouth to it, one a kind.
+        if (homes.Works is { } atWork)
+            foreach (var f in fixtures.Where(f => atWork.Holds(f.S, f.D) && f.Kind is "headframe" or "winding" or "casting" or "glasshouse"
+                or "elevator" or "warehouse").DistinctBy(f => f.Kind).Take(t.Walled.WorksHands))
+                spots.Add(new("hand", f.S, f.D + f.FaceD * (f.SolidD + 1.2), -f.FaceS, -f.FaceD, 0));
 
         // Who they are: a name each, a household's sharing its surname.
         var names = new HashSet<string>();
@@ -386,7 +459,7 @@ public static partial class TownGenerator
 
         return new TownPlan(site.Name, population, former, culture.Id, culture.Creature, culture.Law.Replace("{town}", site.Name), culture.Hall,
             industry?.Name ?? site.Industry, [.. quirks.Select(q => q.Id)], square, buildings, homes.Houses, townsfolk, papers, fixtures, homes.Character, homes.Bounds,
-            homes.Green);
+            homes.Green, homes.Works);
     }
 
     static List<T> Take<T>(IReadOnlyList<T> from, int count, Pcg32 rng) where T : class
@@ -509,6 +582,24 @@ public static class TownFixtures
         "flag" => (0.15, 0.15, 8.0),
         "laws" => (0.9, 0.12, 2.0),
         "mural" => (5.0, 0, 4.0),
+        // A town's works (note 353), its front to the line: the pit's headframe and its winding house, the tip; the elevator,
+        // a glasshouse, a root cellar; the casting shed and its stack, the slag; coal and pig iron in heaps; the warehouse,
+        // the water tower.
+        // (Those that are the facilities' modelled pieces are their meshes' footprints as the works draw them, which
+        // TownWorksArtTests holds them to: the headframe's legs, half as big again; the winding house with its boiler house
+        // and chimney behind; the tip at 0.55; the elevator at 0.8; the foundry's shed and stack at 0.6.)
+        "headframe" => (2.8, 3.4, 29),
+        "winding" => (13.0, 8.0, 14.5),
+        "tip" => (12.7, 9.8, 8.0),
+        "elevator" => (14.4, 7.0, 34),
+        "glasshouse" => (3.6, 8.0, 3.9),
+        "cellar" => (2.6, 3.2, 2.2),
+        "casting" => (24.2, 6.9, 9),
+        "slag" => (6.0, 4.5, 4.0),
+        "coal" => (4.2, 3.0, 2.6),
+        "pigs" => (2.2, 1.2, 1.1),
+        "warehouse" => (5.5, 7.5, 7.5),
+        "watertower" => (2.2, 3.2, 10.2),
         // In the houses (their furniture is the layout's): only the cradle stands on its own feet.
         "cradle" => (0.45, 0.3, 0.7),
         "table" or "letters" or "anklebell" or "timetable" or "boots" or "boards" or "suitcase" or "radio" or "clock"
