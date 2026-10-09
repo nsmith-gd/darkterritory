@@ -1532,7 +1532,7 @@
    }
   ],
   "takes": 3,
-  "sha": "297d567205309b57"
+  "sha": "b86538692f576a21"
  },
  "crew-carry/crate-land/ground": {
   "cue": "crew-carry.crate-land",
@@ -1630,7 +1630,7 @@
    }
   ],
   "takes": 3,
-  "sha": "1b92bedb1c4f3d6d"
+  "sha": "7b4266d46d972d3b"
  },
  "crew-carry/crate-set/grate": {
   "cue": "crew-carry.crate-set",
@@ -2365,7 +2365,7 @@
    }
   ],
   "takes": 3,
-  "sha": "f779e3f5155da943"
+  "sha": "655a03379dc98a5f"
  },
  "crew-coupling/knuckle-release": {
   "cue": "crew-coupling.knuckle-release",
@@ -2373,8 +2373,8 @@
   "picked": "first",
   "candidates": [
    {
-    "label": "The coupler knuckle swinging open as the cars part",
-    "key": "knuckle",
+    "label": "The coupler knuckle swinging open as the cars part: a cast-steel clank that rings",
+    "key": "clank",
     "sources": [
      "kenney_impact-sounds:impactPlate_heavy_000",
      "kenney_impact-sounds:impactPlate_heavy_001",
@@ -2390,13 +2390,15 @@
      "kenney_impact-sounds:impactMining_001",
      "kenney_impact-sounds:impactMining_002",
      "kenney_impact-sounds:impactMining_003",
-     "kenney_impact-sounds:impactMining_004"
+     "kenney_impact-sounds:impactMining_004",
+     "sfx_100_v2:metal_02",
+     "sfx_100_v2:metal_06"
     ],
     "licence": "CC0"
    }
   ],
   "takes": 3,
-  "sha": "e046fb081ef0949e"
+  "sha": "f98d65b110166668"
  },
  "crew-coupling/pin-drop": {
   "cue": "crew-coupling.pin-drop",
@@ -5374,7 +5376,7 @@
    }
   ],
   "takes": 3,
-  "sha": "cf7286a5582e5216"
+  "sha": "367da0bff186445c"
  },
  "crew-jump-off/impact/ground": {
   "cue": "crew-jump-off.impact",
@@ -5406,7 +5408,7 @@
    }
   ],
   "takes": 3,
-  "sha": "4baea049f01627d9"
+  "sha": "3d8906a4c923d738"
  },
  "crew-jump-off/rush": {
   "cue": "crew-jump-off.rush",
@@ -10365,6 +10367,53 @@
   ],
   "takes": 1,
   "sha": "ec9f5fddbd1da047"
+ },
+ "cs-track-doll/rattle": {
+  "cue": "cs-track-doll.rattle",
+  "surface": null,
+  "picked": "first",
+  "candidates": [
+   {
+    "label": "Her small hand shaking the brake handle without turning it: quick brass squeaks, the detent clicking, her fingertips",
+    "key": "brass",
+    "sources": [
+     "sfx_100_v2:door_02",
+     "sfx_100_v2:door_04",
+     "sfx_100_v2:door_05",
+     "kenney_rpg-audio:metalLatch",
+     "sfx_100_v2:glass_04",
+     "sfx_100_v2:glass_06"
+    ],
+    "licence": "CC0"
+   }
+  ],
+  "takes": 3,
+  "sha": "34cb7caec605ef13"
+ },
+ "cs-track-doll/restless": {
+  "cue": "cs-track-doll.restless",
+  "surface": null,
+  "picked": "first",
+  "candidates": [
+   {
+    "label": "The doll restless: porcelain heels drumming on the woodwork, a tuneless hum through her teeth, her head turning",
+    "key": "heels",
+    "sources": [
+     "kenney_impact-sounds:impactWood_light_000",
+     "kenney_impact-sounds:impactWood_light_001",
+     "kenney_impact-sounds:impactWood_light_002",
+     "kenney_impact-sounds:impactWood_light_003",
+     "kenney_impact-sounds:impactWood_light_004",
+     "sfx_100_v2:glass_04",
+     "sfx_100_v2:glass_06",
+     "kenney_rpg-audio:creak3",
+     "kenney_rpg-audio:creak3"
+    ],
+    "licence": "CC0"
+   }
+  ],
+  "takes": 4,
+  "sha": "b58fc7759ac2a52a"
  },
  "cs-track-doll/take-toy": {
   "cue": "cs-track-doll.take-toy",

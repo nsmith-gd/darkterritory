@@ -446,6 +446,36 @@ public class CreatureSoundTests
     }
 
     [Fact]
+    public void RestlessTheTrackDollIsHeardOfHerOwnAndRattlesTheBrakeWithHerOwnHand()
+    {
+        // Note 499 (note 268's "not yet": "the doll has no recorded 'restless' sound of her own (the faster giggle and the
+        // crew's brake handle stand in)"): restless (her escalation's half, the next stage coming), now and then her own,
+        // in a car or at the controls; not restless, never. At stage 2 she rattles the brake with her own hand, not the
+        // crew's lever, on the beat she'll take it.
+        using var scene = new Scene(2, "cs-track-doll.restless", "cs-track-doll.rattle", "crew-cab-controls.regulator-notch",
+            "crew-cab-controls.brake-handle");
+        var floor = new Double3(0, scene.Train.Frames[2].Shape.Interior!.Value.Min.Y, 0);
+        var cab = scene.Train.Frames[0].Shape.Cab!.Value;
+        List<string> Heard(int car, Double3 local, double escalation, double from, double to)
+        {
+            var heard = new List<string>();
+            for (double t = from; t < to; t += SimConstants.TickSeconds)
+                heard.AddRange(scene.Tick(Record(new TrackDoll(27), SpinePhase.Punish, t, 2, car, local, extra2: escalation)));
+            return heard;
+        }
+        // Haunting a car at stage 1, 20 s: not restless, nothing of hers; restless, 20 s: her own every 4-8 s.
+        Assert.DoesNotContain("cs-track-doll.restless", Heard(2, floor, -1, 0, 20));
+        Assert.InRange(Heard(2, floor, -1.5, 20, 40).Count(h => h == "cs-track-doll.restless"), 3, 5);
+        // At the controls at stage 2, a while; then restless: let back at 3 s, her rattle at 6, nudged up again at 9; never
+        // the crew's brake handle.
+        Heard(0, cab.Centre with { Y = cab.Min.Y }, 2, 2.5, 9.5);
+        var heard = Heard(0, cab.Centre with { Y = cab.Min.Y }, 2.5, 2.5, 9.5);
+        Assert.Equal(["crew-cab-controls.regulator-notch", "cs-track-doll.rattle", "crew-cab-controls.regulator-notch"],
+            heard.Where(h => h != "cs-track-doll.restless"));
+        Assert.DoesNotContain("crew-cab-controls.brake-handle", heard);
+    }
+
+    [Fact]
     public void RibbitsLandOnTheirHopClockAndTheLeadersTongueFeedsUntilLetGo()
     {
         using var scene = new Scene(2, "cs-ribbits.hop-land.ground", "cs-ribbits.tongue", "cs-ribbits.feed~", "cs-ribbits.hit");
