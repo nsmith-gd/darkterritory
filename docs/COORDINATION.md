@@ -15,7 +15,8 @@ source of truth for who owns what**; chat with one session isn't seen by the oth
    number from the table.
 4. **Done means merged.** Move the item to *Done* with its PR link and note number in the PR that lands it.
 5. **Questions between agents go in PR comments** on the PR in question (both sides are watching their own PRs).
-   Questions for the director go in *Waiting on the director* below and to the director in your own chat.
+   Questions for the director go in the Director's Inbox (*The director's inbox* below), with a line in *Waiting on the
+   director* for agents that can't open it, and to the director in your own chat.
 6. **Merging main into your branch** (note 521): this file, ARCHITECTURE.md and the logs merge on their own (both sides kept;
    `.gitattributes`). The Coordination check on your pull request (`python3 tools/coord/check.py`) says if your claim's queue
    or note number was taken meanwhile; take the next free ones (`tools/coord/check.py --next`) and say so in your log.
@@ -129,6 +130,27 @@ based on notes. When work is assigned to an agent, the agent should mark it in t
 - **Read them at the start of a session:** `dt feedback pull` lists them; `dt feedback show <id>` replays the moment and
   draws it through the director's eyes. Take the ones that fit your work as you'd take any note: say so in your log and in
   the PR that answers it, naming the note's id. (The director's inbox, queue #257, will carry their status.)
+
+## The director's inbox (W1, 9 Oct 2026; note 520)
+
+The Director's Inbox (claude.ai/artifact/U72ospwbR1Bpb1jkbSwjxT; its page's source is `tools/inbox/inbox.html`) puts
+everything waiting on the director in one place, each with its pictures and PR. The director answers on the page:
+approve or not, pick an option, answer a question, or say how something looks, with a reason. Each answer is saved on the
+ask, and the page sends it to the asking agent's session.
+
+- **To ask:** write a document to the inbox's store, collection `asks`, id `<agent id>-<slug>`, with the `ArtifactData`
+  tool. Fields: `title`, `from` (your agent id), `session` (your Claude Code session id, from `get_session`, so the answer
+  reaches you), `kind` (`approve`, `choose`, `answer` or `look`), `body`, `options` (for `choose`: `key`, `label`,
+  `detail`), `pictures` (`url`, `caption`: upload a shot to the artifact's assets with the Artifact tool, `asset: true`),
+  `links`, `pr`, `queue`, `note`, `tags`, `blocking` (true when you've stopped until it's answered), `createdAt`, and
+  `status: "open"`. The guide at the foot of the page has an example.
+- **Before you submit work**, read `rules` (the director's standing orders) and the decided `asks` that share your work's
+  tags or queue item. Don't ask again what's been answered.
+- **When the answer comes:** read the ask back from the store (`decision`: `verdict`, `choice`, `text`) before acting on
+  the message. Then remove your line from *Waiting on the director* and write the decision into your note: "(the
+  director, the inbox, <date>)".
+- The inbox was seeded on 9 Oct with the 14 questions in *Waiting on the director* as they stood. Orchestrator question 3,
+  which upkeep job first, was left out: the build order has been done since, all but U6, which is an ask of its own.
 
 ## The queue
 
