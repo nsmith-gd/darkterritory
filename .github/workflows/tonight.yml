@@ -5,12 +5,15 @@
 # D1 made these by hand (an integration branch, then the Test build workflow); this makes one every night. The integration
 # is force-pushed to `tonight`, so anyone can build it again, or bisect it.
 #
-# 09:37 UTC is 5:37 am in the director's EDT: after the night's merges (the agents work through it), done before their
-# morning. Any other time: Actions > Tonight's build > Run workflow.
+# Every night at 7:30 pm Montreal time (the director, 9 Oct 2026, in the inbox). A schedule is in UTC and Montreal moves its
+# clocks, so there are two: 23:30 UTC is 7:30 pm in summer (EDT) and 00:30 UTC in winter (EST). The clock job lets through
+# only the one that's 7 pm in Montreal, so it runs once a night all year. Any other time: Actions > Tonight's build > Run
+# workflow.
 name: Tonight's build
 on:
   schedule:
-    - cron: '37 9 * * *'
+    - cron: '30 23 * * *'
+    - cron: '30 0 * * *'
   workflow_dispatch:
 permissions:
   contents: write
@@ -21,7 +24,23 @@ concurrency:
   group: tonight
   cancel-in-progress: false
 jobs:
+  clock:
+    runs-on: ubuntu-latest
+    outputs:
+      go: ${{ steps.montreal.outputs.go }}
+    steps:
+      - id: montreal
+        env:
+          EVENT: ${{ github.event_name }}
+        run: |
+          # By hand, always; on the schedule, only the run that lands in Montreal's 7 pm hour.
+          hour=$(TZ=America/Toronto date +%H)
+          if [ "$EVENT" != schedule ] || [ "$hour" = 19 ]; then go=true; else go=false; fi
+          echo "Montreal: $(TZ=America/Toronto date '+%H:%M %Z'); go=$go"
+          echo "go=$go" >> "$GITHUB_OUTPUT"
   tonight:
+    needs: clock
+    if: needs.clock.outputs.go == 'true'
     runs-on: ubuntu-latest
     timeout-minutes: 90
     env:

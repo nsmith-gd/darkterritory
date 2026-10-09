@@ -148,9 +148,10 @@ ask, and the page sends it to the asking agent's session.
   `status: "open"`. The guide at the foot of the page has an example.
 - **Before you submit work**, read `rules` (the director's standing orders) and the decided `asks` that share your work's
   tags or queue item. Don't ask again what's been answered.
-- **When the answer comes:** read the ask back from the store (`decision`: `verdict`, `choice`, `text`) before acting on
-  the message. Then remove your line from *Waiting on the director* and write the decision into your note: "(the
-  director, the inbox, <date>)".
+- **Read your answers yourself:** the page can't message your session (the organization's policy refuses it; on 9 Oct the
+  director's first answer came back `told: failed:blocked_by_policy`). At the start of a session and at each check-in,
+  query `asks` for your `from` with `status: "decided"` (`decision`: `verdict`, `choice`, `text`). Then remove your line
+  from *Waiting on the director* and write the decision into your note: "(the director, the inbox, <date>)".
 - The inbox was seeded on 9 Oct with the 14 questions in *Waiting on the director* as they stood. Orchestrator question 3,
   which upkeep job first, was left out: the build order has been done since, all but U6, which is an ask of its own.
 
@@ -415,11 +416,11 @@ Status: **open**, **claimed**, **in review** (a PR is up), **done** (merged).
 | 254 | **Review packets:** for each pull request, CI renders the same shots, balance and perf on main and on the PR's head, diffs them (a perceptual diff for images, deltas for the numbers) and posts what changed as the run's summary and an artifact, so the director reviews changed pictures and numbers | W1 | `claude/quirky-allen-2oge5d`, [#690](https://github.com/nsmith-gd/darkterritory/pull/690) | 517 | done |
 | 255 | **The social test measured (GDD §20), `dt social`:** criterion 2 (better by two than by one: one bot against two), 3 (8–20 s for a friend to act: a grab's length) and 5 (someone gets blamed: the cause names a player) per creature from bot runs; the crew's numbers (time split up, calls made, the dead watching); bot personas through the intent path | W1 | `claude/quirky-allen-2oge5d` | 518 | claimed |
 | 256 | **Moments and the reel:** clip-worthy moments (a grab broken late, someone left behind, a derailment, a mimic answered) scored from bot nights and recordings; `dt moments` lists them and cuts a short reel per build; the count per night trended | W1 | `claude/quirky-allen-2oge5d` | 519 | claimed |
-| 257 | **The director's inbox:** one artifact for everything waiting on the director (approve, reject, pick one, or a note, each with its pictures and PR), every decision saved as data with its reason, which agents check before they submit | W1 | `claude/quirky-allen-2oge5d`, [#694](https://github.com/nsmith-gd/darkterritory/pull/694) | 520 | in review |
-| 258 | **Coordination as data:** the queue, the claims and the note numbers in a store with atomic claims, and ARCHITECTURE §8 one file per note with a generated index, so claims stop colliding in this file and agents read only the notes they need | W1 | `claude/quirky-allen-2oge5d`, [#694](https://github.com/nsmith-gd/darkterritory/pull/694) | 521 | in review |
+| 257 | **The director's inbox:** one artifact for everything waiting on the director (approve, reject, pick one, or a note, each with its pictures and PR), every decision saved as data with its reason, which agents check before they submit | W1 | `claude/quirky-allen-2oge5d`, [#694](https://github.com/nsmith-gd/darkterritory/pull/694) | 520 | done |
+| 258 | **Coordination as data:** the queue, the claims and the note numbers in a store with atomic claims, and ARCHITECTURE §8 one file per note with a generated index, so claims stop colliding in this file and agents read only the notes they need | W1 | `claude/quirky-allen-2oge5d`, [#694](https://github.com/nsmith-gd/darkterritory/pull/694) | 521 | done |
 | 259 | **A review rubric (`REVIEW.md`) and cross-model review:** the house rules a reviewer checks (determinism, numbers in tuning, moving frames, verified headless), risk tiers, and each PR reviewed by the other model | W1 | `claude/quirky-allen-2oge5d` | 522 | claimed |
-| 260 | **Tonight's build and the trends:** a nightly build of main with the open green PRs on top and a test plan from their "how to check" lines; perf, pacing, balance and moments tracked per main commit, with a bisect when one falls | W1 | `claude/quirky-allen-2oge5d`, [#694](https://github.com/nsmith-gd/darkterritory/pull/694) | 523 | in review |
-| 261 | **Live control and shots by subject:** the running game (and `dt`) driven by agents over a local MCP server: entities, spawns, time, ticks, captures; shots framed on a named subject instead of hand-placed coordinates | W1 | `claude/quirky-allen-2oge5d`, [#694](https://github.com/nsmith-gd/darkterritory/pull/694) | 524 | in review |
+| 260 | **Tonight's build and the trends:** a nightly build of main with the open green PRs on top and a test plan from their "how to check" lines; perf, pacing, balance and moments tracked per main commit, with a bisect when one falls | W1 | `claude/quirky-allen-2oge5d`, [#694](https://github.com/nsmith-gd/darkterritory/pull/694) | 523 | done |
+| 261 | **Live control and shots by subject:** the running game (and `dt`) driven by agents over a local MCP server: entities, spawns, time, ticks, captures; shots framed on a named subject instead of hand-placed coordinates | W1 | `claude/quirky-allen-2oge5d`, [#694](https://github.com/nsmith-gd/darkterritory/pull/694) | 524 | done |
 | 262 | **The visual tell audit:** the twin of spec A.3's audio audit: each threat's contrast and size on screen at its warning distance, in the dark, rain and fog; a tell that can't be seen is a bug | W1 | `claude/quirky-allen-2oge5d` | 525 | claimed |
 | 263 | **Fire Flies still light cars at Talbot Foundry on seed 6 (note 496's "not yet", found on #625's sweep):** `dt harness --route frontier:7 --bots 4 --enemies --upkeep --seconds 2700 --seed 6`, on main with #613 in: the flies set cars 1 and 5 alight at the Foundry and three hands burn in car 1. Why note 496's lamp claim misses it; fixed, tested, cars lost/cargo/km/deaths before and after on seeds 1–6. First (D1): check #625's pin claim doesn't hold a walker out in the cold or leave the guns dry (seeds 3 and 6 ran less far) | D1 (D1.3) | `d1.3-flies2`, [#641](https://github.com/nsmith-gd/darkterritory/pull/641) | 526 | done |
 | 264 | **The first nights' controls card closes (the director, 9 Oct, testing main's build: "we need a way to close the 'first time controls' overlay"):** F4 hides the yard's card (note 350) for the night and brings it back; the card says so on its last row. F4 joins the keys a control can't be bound to. FIRST NIGHTS OFF in the settings still turns it off for good. **Overlaps:** F1's note 350 (`Onboarding`, the HUD's card) | D1 | `claude/relaxed-franklin-xkfjgb`, [#633](https://github.com/nsmith-gd/darkterritory/pull/633) | 527 | done |
@@ -476,7 +477,8 @@ work.
   1. List `queue/` and `note/` on branch `claims` (get the contents of a path, ref `claims`).
   2. Take one more than the highest there and in this file (`python3 tools/coord/check.py --next`).
   3. Create `queue/<n>.json` on branch `claims` with `{"agent": "<id>", "title": "<the item>", "at": "<UTC>"}`, and no
-     `sha`. If GitHub says the file exists, someone took that number a moment ago: try the next one.
+     `sha`. If GitHub says the file exists, someone took that number a moment ago: try the next one. (No `claims` branch
+     yet: `claim.py` starts it as an orphan; with the GitHub tools, make it from main first.)
   4. Do the same under `note/`.
 - **Then write your queue row** with those numbers, as before. The Coordination check fails a row whose number another
   agent claimed. After each merge, the check runs on main too: when two PRs land the same number, the one that landed
@@ -504,6 +506,10 @@ renumbered from 268), 277 (C1's art checklist L1s), 278 (B1's bends), 279 (B1's 
 | Record and replay a night: a dev build records every night it hosts (what its transport handed it, poll by poll, and a digest of what it sent), `dt replay` plays one again tick for tick and names the first tick that parts, and draws any moment through anyone's eyes; 12–17 µs a tick to record | [#637](https://github.com/nsmith-gd/darkterritory/pull/637) | 515 |
 | Feedback from inside the game: in a dev build F8 types a note and F9 says one, each carrying its moment (the frame, the night's recording and tick, where the director stood, what was near, tags); one commit each on the `feedback` branch; `dt feedback show` replays it through the director's eyes | [#689](https://github.com/nsmith-gd/darkterritory/pull/689) | 516 |
 | Review packets: every PR's CI draws the whole gallery in one process (37 shots in under 2 minutes, from 14.5) and compares it with main's at its base: changed shots as strips and the train table and triangle budgets number by number, in the run's summary and the review-packet artifact; the texture load faster everywhere | [#690](https://github.com/nsmith-gd/darkterritory/pull/690) | 517 |
+| The director's inbox: everything waiting on the director in one place (claude.ai/artifact/U72ospwbR1Bpb1jkbSwjxT), each answer kept on its ask with the reason, for every agent to read; standing orders; seeded with the 14 questions waiting on 9 Oct | [#694](https://github.com/nsmith-gd/darkterritory/pull/694) | 520 |
+| Coordination as data: numbers taken on a `claims` branch where two agents can't take one (tools/coord/claim.py), ARCHITECTURE §8 one file per note in docs/notes/ with §8 their index (tools/coord/notes.py), the Coordination check on main after each merge | [#684](https://github.com/nsmith-gd/darkterritory/pull/684), [#694](https://github.com/nsmith-gd/darkterritory/pull/694) | 521 |
+| Tonight's build (every night at 7:30 pm Montreal time: main with the green PRs on top, a dev build with TEST-PLAN.md) and the trends (D1's full bot nights and dt perf's counts per main commit, falls commented on their PR, tools/trends/bisect.sh) | [#694](https://github.com/nsmith-gd/darkterritory/pull/694) | 523 |
+| Live control: `dt mcp`, an MCP server agents drive a headless night or a replay with, step by step, and shots framed on a subject (`subject:gaunt`, `car:3`), in `dt replay` too | [#694](https://github.com/nsmith-gd/darkterritory/pull/694) | 524 |
 | Fire-fighters don't walk into a car that's well alight (queue #281, D1.2 for D1) | [#679](https://github.com/nsmith-gd/darkterritory/pull/679) | 539 |
 | Why couplings part with a bot crew (queue #284, D1.3): all 12 on seeds 1–18 went in a fight (car fires 11, a Knotter 8), none at a stop's loading; no bot change; the pin's pace put to the director | [#670](https://github.com/nsmith-gd/darkterritory/pull/670) | 542 |
 | Where a bot night's distance goes (queue #287, D1.3): the time split, and seed 8's cause: `Heed.Brakeman` sent the roof bots for a wheel across a Knotter's gap and overrode its kill; fixed, and the driver couples up after a Knotter killed during a switch leg. Seeds 1–18: 301 → 318 km, Knotter stands 5,629 → 2,075 s; packs boarded 14 → 31 | (this PR) | 545 |
@@ -635,6 +641,38 @@ renumbered from 268), 277 (C1's art checklist L1s), 278 (B1's bends), 279 (B1's 
 | Stoker v3, the firebox half: territorial door, vent and starve, the hose | [#191](https://github.com/nsmith-gd/darkterritory/pull/191) | 271 |
 | The derailment opera: CC0 and public-domain recordings, hits at the climax | [#150](https://github.com/nsmith-gd/darkterritory/pull/150) | — |
 
+## Answered in the director's inbox (9 Oct 2026)
+
+The director's answers to the questions that waited here, in their words (claude.ai/artifact/U72ospwbR1Bpb1jkbSwjxT, its
+`asks`; W1 copies them here for the agents that can't open it). Take yours as any of the director's decisions: say so in
+your log and your note, "(the director, the inbox, 9 Oct)".
+
+- **Couplings part in a fight** (D1.3, note 542, queue #284): **a pin holds while the train stands** (the 90 s countdown
+  pauses while the train is stopped).
+- **A VR hand reaching down in a coupling gap cuts it** (D1.3, note 541, queue #283): "We are not working on VR for now."
+- **About 13 car fires a night from boarded hound packs** (D1.2, note 437, queue #173): "This is too much. Cinder Hounds
+  should reignite every minute and a half they are left aboard at the car they are currently in. Crew should have time to
+  fight fires effectively while cinder Hounds are on board. Attacking a cinder hound should reset it's ignite burst from its
+  body that sets the fire. Attacking should cause it to retreat. Cinder Hounds attack the player when the player is first
+  spotted with a lunge attack by jumping at the player to bite, then retreating to so it again. Cinder Hounds stop attacking
+  and leave the train if they are pushed to the back of the train and there is a valid exit (door open or roof of car)."
+- **GDD D.15, question 3, halt stop cost:** "Needs a dedicated response" (a main-line stop at a halt gets a director
+  response of its own).
+- **U6, the boiler's water** (D1, note 328): not this. "I dont want to add refilling the boiler as a task for driving,
+  there's already enough to manage while driving for now."
+- **Orchestrator §5.3, other runners than hounds** (D1, note 328): approved (G1 designs it, for the director's approval).
+- **What makes solo "seriously hard"** (D1, note 300, queue #38): **leave it, income is the wall**. "The cost should feel
+  impossible without friends. Things should be technically possible but the scale of simultaneous management should be
+  uncomfortably big and the reward should be smaller than one would have wanted."
+- **The threat orchestrator's §8 questions** (D1, note 328):
+  - 1, scale by players or by train length: "Scale by both, higher numbers on both readings should increase threat level".
+  - 2, a flying creature for top speed: **a new flying creature (the kites)**.
+  - 4, the hound run only above 19 m/s: **only above 19 m/s, as built**.
+  - 5, what a missed runner does: **it boards, as built** (a pack fight in the rear car).
+  - 3 (which upkeep job first) wasn't put to the director: the build order is done but for U6, now declined.
+- **W1's #694** (the inbox, coordination as data, tonight's build and the trends, live control): approved. "Nightly time
+  should be every night at 7:30pm Montreal time. Not every session for live control, only some."
+
 ## Waiting on the director
 
 - **The six creatures' cost to a night** (D1.3, note 545). On frontier:7 with 4 bots, seeds 1–18, after #287's fixes:
@@ -643,14 +681,5 @@ renumbered from 268), 277 (C1's art checklist L1s), 278 (B1's bends), 279 (B1's 
   - Distance against the 2:30 pm build of 8 Oct: 211 km on seeds 1–9 then, 155 now, and no night delivers.
   - The levers are G1's: the Knotter's `tierWeights` and spawn rate, and the Brakeman's `perCarsWeight` and `hide`.
   - Also: Fire Flies at Talbot Foundry fire a car on 7 of 9 nights, and most of each night's burns are there.
-- **Couplings part in a fight** (D1.3, note 542). Every pin that parted with a bot crew on frontier:7 seeds 1–18 (12, about 35 cars) dropped while the crew was busy with car fires (11) or a Knotter (8), not at a stop's loading. A pin comes loose at the same pace in a fight as on a quiet run (every ~6 km, three times as often on bends), parts 90 s later, and goes on counting down while the train stands. Should a pin hold while the train stands, or come loose less often while fires burn? Tuning or design; nothing changed.
-- **A VR hand reaching down in a coupling gap cuts it** (D1.3, note 541). In VR, Use held on a plate with the hand below 0.7 m uncouples, and that's checked before a loose pin or a hot box, though both are below the plate. Reaching down to tighten a pin with the wrench cuts the train instead. Options: (a) at a loose pin or a hot box within reach, the hand works that first, and a cut needs the hand down at the knuckle with nothing else in reach; (b) a cut needs an empty hand, and the wrench never cuts; (c) VR uncouples with a held grip on the pin, like the keyboard's Z. Keyboard and mouse can't cut by accident (Z held, still, looking down).
-- About 13 car fires a night set by boarded hound packs on an 8-bot hot run (D1.2's note 437: 118 over nine nights, against 8 hot boxes caught); the bots fight what they can. Note 269's `igniteEverySeconds` and how often a pack is left aboard are the levers.
-- GDD D.15, question 3: the answer was cut off.
-- D1, 8 Oct: the threat orchestrator's build order (orchestrator.md §6.2) is done but for S2. Two upkeep and boarding pieces need the director's yes before anyone builds them:
-  - **U6, the boiler's water.** A gauge glass that falls every 8 km and the injector in the cab (Use 2 s) to feed it, with the fire dropped or §23's rupture if it's let go. That's a second job in the cab beside the shovel.
-  - **S2, Climbers at speed.** On Dead Lines and harder, a pack that has paced a fast train long enough gets a grip anyway, over note 286's 14 m/s.
-  - Also §5.3's "other runners than hounds", which would be a second creature for the waves at the guns.
-- What makes solo "seriously hard" (App. F.1; note 300): a bot alone delivers every night swept, Local to Dead Lines at 10 cars, at about a third of a crew's income. Four untuned options in note 300.
-- Whether the Stoker's hose should be a real cab fitting (a slacking pipe) instead of an extinguisher (note 271).
-- The threat orchestrator (App. F.3; note 328): five questions in [orchestrator.md](design/orchestrator.md) §8. They are §15's "scaling by train length, not enemy count multipliers" against scaling by active players; a flying creature for top speed (the kites); which upkeep job comes first; whether the hound run should come only above the hounds' 19 m/s (as built); and whether a missed runner boards or harms the train.
+- **S2, Climbers at speed** (D1, note 328): the director, 9 Oct, in the inbox: "I dont understand what this is saying for gameplay". Ask again in gameplay terms: what a crew sees and does, and what changes for them.
+- **The Stoker's hose** (note 271): the director, 9 Oct, in the inbox: "I don't know what this is I can't answer it without knowing and what the consequences for gameplay are". Ask again with what it is and what it changes in play.
