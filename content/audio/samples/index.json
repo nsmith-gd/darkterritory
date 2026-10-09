@@ -1532,7 +1532,7 @@
    }
   ],
   "takes": 3,
-  "sha": "297d567205309b57"
+  "sha": "b86538692f576a21"
  },
  "crew-carry/crate-land/ground": {
   "cue": "crew-carry.crate-land",
@@ -1630,7 +1630,7 @@
    }
   ],
   "takes": 3,
-  "sha": "1b92bedb1c4f3d6d"
+  "sha": "7b4266d46d972d3b"
  },
  "crew-carry/crate-set/grate": {
   "cue": "crew-carry.crate-set",
@@ -5376,7 +5376,7 @@
    }
   ],
   "takes": 3,
-  "sha": "cf7286a5582e5216"
+  "sha": "367da0bff186445c"
  },
  "crew-jump-off/impact/ground": {
   "cue": "crew-jump-off.impact",
@@ -5408,7 +5408,7 @@
    }
   ],
   "takes": 3,
-  "sha": "4baea049f01627d9"
+  "sha": "3d8906a4c923d738"
  },
  "crew-jump-off/rush": {
   "cue": "crew-jump-off.rush",

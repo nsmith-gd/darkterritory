@@ -1412,15 +1412,17 @@ static object Screenshot(TrainTuning t, string content, string[] args)
     // door and off to one side, looking in through it; --inside, from by its back wall at a crewman's eye, out through it.
     // --barn n: the same for the nth open barn, outbuilding or goods shed (note 417), its hayloft or workbench at its back;
     // --back, from just in at its door at the back wall; --find, close to where its first find is kept. --roost: of the open
-    // barns or sheds (with a find or not) or the yard sheds, the ones the Gaunt sleeps in (note 488), dark.
-    bool barns = Opt(args, "--barn", -1) >= 0;
-    if (Opt(args, barns ? "--barn" : "--shed", -1) is var shedAt and >= 0 && generated is not null)
+    // barns or sheds (with a find or not) or the yard sheds, the ones the Gaunt sleeps in (note 488), dark. --station n: a
+    // dead town's nth station, open (note 493), framed as a barn.
+    bool stations = Opt(args, "--station", -1) >= 0, barns = stations || Opt(args, "--barn", -1) >= 0;
+    if (Opt(args, stations ? "--station" : barns ? "--barn" : "--shed", -1) is var shedAt and >= 0 && generated is not null)
     {
         var walls = DataFile.Load<DarkTerritory.Sim.Run.RunTuning>(Path.Combine(content, DarkTerritory.Sim.Run.RunTuning.File)).Walls;
         var sheds = generated.Features.Where(f => f.Stop is not null)
             .SelectMany(f => f.Stop!.Buildings.Select((b, i) => (Feature: f, Building: b, Index: i)))
             .Where(x => (barns ? DarkTerritory.Sim.Run.StopWalls.OpenShed(x.Building)
-                    && (args.Contains("--roost") || x.Feature.Stop!.Containers.Any(c => c.Building == x.Index))
+                    && (stations ? x.Building.Kind == BuildingKind.Station
+                        : args.Contains("--roost") || x.Feature.Stop!.Containers.Any(c => c.Building == x.Index))
                     : x.Building.Kind is BuildingKind.Shed or BuildingKind.Hero)
                 && DarkTerritory.Sim.Run.StopWalls.Doors(x.Feature.Stop!, x.Index, walls).Any()
                 && (!args.Contains("--roost") || DarkTerritory.Sim.Run.StopWalls.Nest(x.Feature.Stop!, x.Index) is not null)).ToList();

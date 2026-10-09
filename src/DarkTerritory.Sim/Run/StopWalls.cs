@@ -90,10 +90,12 @@ public sealed partial class StopWalls
         || OpenShed(stop.Buildings[building]);
 
     /// <summary>
-    /// A barn, an outbuilding or a dead town's goods shed standing open (note 417, stops.json <c>village.openSheds</c>): its
-    /// walls with a wide door toward the line, its hayloft's or workbench's find inside to search, as a yard's shed is walked.
+    /// A barn, an outbuilding or a dead town's goods shed standing open (note 417, stops.json <c>village.openSheds</c>), or a
+    /// dead town's station (note 493, <c>deadTown.station.open</c>): its walls with a wide door toward the line, its
+    /// hayloft's or workbench's find inside to search, as a yard's shed is walked (a station's booking office long since
+    /// rifled: nothing's kept inside the rail buffer, P13).
     /// </summary>
-    public static bool OpenShed(StopBuilding b) => b.Open && b.Kind is BuildingKind.Barn or BuildingKind.Outbuilding or BuildingKind.GoodsShed;
+    public static bool OpenShed(StopBuilding b) => b.Open && b.Kind is BuildingKind.Barn or BuildingKind.Outbuilding or BuildingKind.GoodsShed or BuildingKind.Station;
 
     /// <summary>
     /// Where a find in a walled building is put out (the houses are shut, with no way in to search): on its step, a
@@ -450,7 +452,8 @@ public sealed partial class StopWalls
 
     /// <summary>
     /// An open shed's workbenches (note 417), as boxes in its own frame (middles and half sizes): one against the back wall
-    /// for each of its finds kept on one. Solid, as a house's cupboards are; a hayloft's ladder is against the wall, not in the way.
+    /// for each of its finds kept on one; and an open station's booking-office counter, a bench's size where a first find
+    /// would be kept (note 493). Solid, as a house's cupboards are; a hayloft's ladder is against the wall, not in the way.
     /// </summary>
     public static IEnumerable<(double X, double Y, double HalfX, double HalfY)> Benches(StopLayout stop, int building)
     {
@@ -460,6 +463,11 @@ public sealed partial class StopWalls
         foreach (var c in stop.Containers.Where(c => c.Building == building && c.Kind == ContainerKind.Bench))
         {
             var (x, y, _, _) = ShedKept(b, c.Index);
+            yield return (x, y, BenchWidth, BenchDepth);
+        }
+        if (b.Kind == BuildingKind.Station)
+        {
+            var (x, y, _, _) = ShedKept(b, 0);
             yield return (x, y, BenchWidth, BenchDepth);
         }
     }
