@@ -917,6 +917,10 @@ public sealed class NetPlaySession : IPlaySession, IDisposable
                 Checkpoints++;
             }
         }
+        // Come back (App. D.8, note 529): alive again where a Holdout put you, the moment the camera cuts in on.
+        if (!_previous.Alive && Client.Predicted.Alive
+            && World.Holdouts?.All.FirstOrDefault(h => h.State == Sim.Run.HoldoutState.Freed && h.Occupant == PlayerId) is { } freed)
+            _cameBack = (freed.Inside, freed.Door, Tick);
         _previous = Client.Predicted;
         // Hosting, this machine's own player is the host whose vote alone skips the film (E.5).
         if (Host is { HostPlayer: < 0 } host && Client.PlayerId is { } me)
@@ -978,10 +982,24 @@ public sealed class NetPlaySession : IPlaySession, IDisposable
         return _frames;
     }
 
-    public Camera EyeCamera(IReadOnlyList<CarFrame> frames, double alpha, double pendingYaw, double pendingPitch) =>
-        Watching >= 0 && Client.TryGetRemote((byte)Watching, alpha, out var s)
-            ? Eyes.Operator(s, World) ?? Eyes.From(s, s, frames, alpha, 0, 0)
-            : Eyes.Operator(Player, World) ?? Eyes.From(Player, _previous, frames, alpha, pendingYaw, pendingPitch);
+    public Camera EyeCamera(IReadOnlyList<CarFrame> frames, double alpha, double pendingYaw, double pendingPitch)
+    {
+        if (Watching >= 0 && Client.TryGetRemote((byte)Watching, alpha, out var s))
+            return Eyes.Operator(s, World) ?? Eyes.From(s, s, frames, alpha, 0, 0);
+        var eyes = Eyes.Operator(Player, World) ?? Eyes.From(Player, _previous, frames, alpha, pendingYaw, pendingPitch);
+        // Just come back: the shot of you getting up, then your eyes coming up with you (note 529).
+        return _cameBack is { } back && Eyes.CameBack(back.Inside, back.Door, CameBackSeconds(back.Tick, alpha), eyes) is { } shot ? shot : eyes;
+    }
+
+    // When you last came back inside a Holdout (note 529): its inside and door, and the tick.
+    (Double3 Inside, Double3 Door, long Tick)? _cameBack;
+
+    double CameBackSeconds(long tick, double alpha) => (Tick - tick + alpha) * SimConstants.TickSeconds;
+
+    public Crewmate? CameBackFigure(IReadOnlyList<CarFrame> frames, double alpha) =>
+        _cameBack is { } back && CameBackSeconds(back.Tick, alpha) is >= 0 and < Eyes.CutIn && Player.Alive
+            ? Art.CrewActs.Crewmate((byte)PlayerId, Player, World, frames, [Player]) with { Act = Art.CrewPose.GetUp }
+            : null;
 
     /// <summary>
     /// Dead, or waiting to board, you watch the living crew through their eyes (GDD App. D.10): whoever's first when you
