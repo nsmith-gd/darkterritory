@@ -2041,6 +2041,64 @@ public sealed partial class ConductorBot(CrewCalls? calls = null, int member = 0
         return false;
     }
 
+    /// <summary>
+    /// The ground beside the line further down than this below its rail (m) is no walk: off a bridge's deck, the river bank
+    /// 8 m under it. Everywhere else frontier:7's ground beside the track is within half a metre of the rail (note 552).
+    /// </summary>
+    const double NoGroundBelow = 1.0;
+
+    /// <summary>How far out from the track a walk beside the train goes (m): <see cref="StopHand"/>'s walk keeps 2.6 m off it, its foot path further.</summary>
+    const double AfootOut = 2.8;
+
+    /// <summary>
+    /// Note 552 (D1.2's frontier:7 seed 4): whether there's ground to walk on beside the train on one side or the other, from
+    /// <paramref name="from"/> forward to the engine's cab. On Stroud Bridge there isn't: its deck reaches 2.6 m from the
+    /// track, the cars and their steps fill it, and a lone driver back from cutting a pack loose stepped off it.
+    /// </summary>
+    static bool AfootToTheCab(TrainOnLine train, Double3 from)
+    {
+        var line = train.Line;
+        int path = train.Dynamics.Path;
+        double hint = train.Dynamics.Distance;
+        var (_, here) = line.Nearest(from, ref hint);
+        double cab = train.Dynamics.Distance;
+        foreach (int side in (int[])[1, -1])
+        {
+            bool ground = true;
+            for (double s = Math.Min(here, cab); s <= Math.Max(here, cab) && ground; s += 2)
+            {
+                var t = line.Sample(path, s);
+                var right = Double3.Cross(t.Tangent, Double3.Up).Normalized;
+                double h = s;
+                ground = PlayerMotor.GroundAt(t.Position + right * (side * AfootOut), line, ref h) >= t.Position.Y - NoGroundBelow;
+            }
+            if (ground)
+                return true;
+        }
+        return false;
+    }
+
+    RoofWalkerBot? _roofLegs;
+    bool _byRoofs;
+
+    /// <summary>
+    /// Forward along the roofs to the engine and down into its cab by the hatch, the relief driver's way (note 399): up out
+    /// of a coupling gap by the end ladder first. Null once there's nothing more the roofs can do (in the cab, or on the
+    /// engine's running boards a step from it).
+    /// </summary>
+    PlayerIntent? ByTheRoofs(in PlayerState self, TrainOnLine train, uint tick)
+    {
+        if (Math.Abs(train.Dynamics.Velocity) > 0.05)
+            return new PlayerIntent();
+        if (ReliefDriver.ToTheCab(self, train, out bool forward) is { } going)
+            return going;
+        if (!forward)
+            return null;
+        _roofLegs ??= new RoofWalkerBot(member);
+        _roofLegs.Head(-1);
+        return _roofLegs.Decide(self, train, tick);
+    }
+
     PlayerIntent? CutAlone(in PlayerState self, World world, uint tick)
     {
         var train = world.Train;
@@ -2070,6 +2128,13 @@ public sealed partial class ConductorBot(CrewCalls? calls = null, int member = 0
                     && consist.IndexOf(h.Attached) >= consist.IndexOf(_cutCar))
                 && _aloneHand.CutLoose(self, world, train.VehicleAhead(_cutCar)) is { } cutting)
                 return cutting with { Buttons = cutting.Buttons | PlayerButtons.Brake, ThrottleNotch = -4 };
+            // No ground to walk back on beside the train (a bridge's deck is no wider than the cars): up onto it by the
+            // nearest ladder if it's down in the gap it cut, and by the roofs, as the relief driver goes (note 552). Once
+            // going that way, on that way: on the engine's hood, down its hatch.
+            _byRoofs |= self.Parent != 0 && !PlayerMotor.InCab(self, train) && !AfootToTheCab(train, PlayerMotor.WorldPosition(self, train));
+            if (_byRoofs && ByTheRoofs(self, train, tick) is { } over)
+                return over with { Buttons = over.Buttons | PlayerButtons.Brake, ThrottleNotch = -4 };
+            _byRoofs = false;
             if (_aloneHand.SetBackAlone(self, world, null) is { } back)
                 return back with { Buttons = back.Buttons | PlayerButtons.Brake, ThrottleNotch = -4 };
             _outToCut = false;

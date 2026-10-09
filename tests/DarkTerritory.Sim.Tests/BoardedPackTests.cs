@@ -31,9 +31,9 @@ public class BoardedPackTests
         public readonly List<string> Path = [];
         uint _tick;
 
-        public Lone(int cars, double speed)
+        public Lone(int cars, double speed, RailLine? line = null, double front = 2_000)
         {
-            var train = new TrainOnLine(new TrainDynamics(Consist.Uniform(T, cars, 1)), new RailLine(new LineDefinition("t", [new TrackSegment(20_000)])), 2_000, Tuning.Boiler);
+            var train = new TrainOnLine(new TrainDynamics(Consist.Uniform(T, cars, 1)), line ?? new RailLine(new LineDefinition("t", [new TrackSegment(20_000)])), front, Tuning.Boiler);
             train.Dynamics.Velocity = speed;
             World = new World(train, Tuning.Combat);
             World.EnableBodies();
@@ -58,10 +58,11 @@ public class BoardedPackTests
             return pack;
         }
 
-        public void Until(Func<bool> done, double seconds)
+        public void Until(Func<bool> done, double seconds, Action? each = null)
         {
             for (int t = 0; t < seconds * SimConstants.TickRate && !done(); t++)
             {
+                each?.Invoke();
                 World.BeginTick();
                 if (CabControls.CanDrive(Self, Train) && CabControls.Clears(_controls, Train, false))
                     _controls.Brake = 0;
@@ -106,6 +107,36 @@ public class BoardedPackTests
         Assert.True(PlayerMotor.InCab(n.Self, n.Train), $"{n.Self.Surface} on {n.Self.Parent}");
         Assert.True(n.Train.Dynamics.Speed > 3);
         Assert.False(n.Driver.CuttingAlone);
+    }
+
+    [Fact]
+    public void ALoneDriverCuttingOnABridgeGoesBackToTheCabByTheRoofs()
+    {
+        // Note 552 (D1.2's frontier:7 seed 4): the train stood with its cars on Stroud Bridge, the truss over the river. The
+        // driver cut the pack loose and got down beside the train to walk back to the cab, but the deck is no wider than the
+        // cars (2.6 m from the track): it stepped off it, fell 8 m to the river bank, and the train stood there all night.
+        var route = LineGen.Routes.Generate(DataFile.FindContentRoot(), "frontier:7", 8);
+        var line = route.Build();
+        var bridge = route.Plan!.Structures.Single(st => st.Name == "Stroud Bridge");
+        var n = new Lone(cars: 8, speed: 0, line, front: bridge.S1 + 20);
+        int rear = n.Train.Dynamics.Consist.Vehicles[^1].Id;
+        Assert.InRange(n.Train.Cars[rear].FrontDistance, bridge.S0, bridge.S1);
+        var pack = n.Pack(n.Train.Dynamics.Consist.Vehicles.Count - 1, 3);
+        double lowest = double.MaxValue;
+        bool back = false;
+        n.Until(() => (back = pack.All(h => h.Gone) && PlayerMotor.InCab(n.Self, n.Train)) && n.Train.Dynamics.Speed > 3, 600, () =>
+        {
+            if (n.Self.Parent == PlayerState.World)
+            {
+                double hint = n.Self.LineHint;
+                var (path, along) = line.Nearest(n.Self.Position, ref hint);
+                lowest = Math.Min(lowest, n.Self.Position.Y - line.Sample(path, along).Position.Y);
+            }
+        });
+        Assert.True(n.Self.Alive, $"died of {n.Self.Death}");
+        Assert.True(lowest > -1.5, $"down {-lowest:0.0} m below the rail; path {string.Join(" ", n.Path.Take(60))}");
+        Assert.True(pack.All(h => h.Gone));
+        Assert.True(back && n.Train.Dynamics.Speed > 3, $"driver {n.Self.Surface} on {n.Self.Parent}; path {string.Join(" ", n.Path.Take(60))}");
     }
 
     [Fact]
