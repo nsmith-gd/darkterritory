@@ -16,7 +16,7 @@ import synth
 from dsp import samples, lp, hp, bp, env, mix
 from recipes import crew_kit as ck
 from recipes.crew_kit import recipe, R, K, DROP
-from recipes.crew_items import hit_of, limbs, FLOOR, FLOOR_HOW, LEATHER, CLOTH, SOFT
+from recipes.crew_items import hit_of, limbs, grating, FLOOR, FLOOR_HOW, LEATHER, CLOTH, SOFT
 from recipes.crew_train import iron
 from recipes.crew_feet import heel, toe, land, BOOTS
 from recipes.kit import snap
@@ -122,7 +122,10 @@ def hurt():
         def fall(rng, k, m=mat):
             knees = [(0, hit_of(SOFT[(k + 2) % 5], 0, 0.2), -6), (0, ck.floor(rng, m, k + 3, 1.0, 0.3), -8),
                      (0.05, hit_of(SOFT[(k + 3) % 5], 0, 0.2), -8), (0.05, ck.floor(rng, m, k + 4, 0.8, 0.3), -10)]
-            return ck.place(knees + [(rng.uniform(0.25, 0.32), limbs(rng, k, m, 1.3), 0)])
+            parts = knees + [(rng.uniform(0.25, 0.32), limbs(rng, k, m, 1.3), 0)]
+            if m == "grate":     # queue #245 (note 508): the knees ring the grating too, lighter than the body after them
+                parts += [(t, x, g - 3) for t, x, g in grating(rng, k + 3, 0.6)]
+            return ck.place(parts)
 
 
 def jump_off():

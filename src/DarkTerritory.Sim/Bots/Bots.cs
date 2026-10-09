@@ -118,7 +118,7 @@ public sealed class GunnerBot(GunTuning guns, ChoirTuning? choir = null, int see
         // cold well short of what kills (a guard gunner went in to get warm as a run's first pair howled, and all six boarded).
         bool holdOut = cold is { } ct && self.Has(PlayerFlags.Seated) && self.Cold < ct.DeathSeconds * ColdHoldOut
             && world.ActiveEnemies.Any(e => e is CinderHound { Gone: false } h && h.Attached < 0 && h.Phase is SpinePhase.Telegraph or SpinePhase.Commit);
-        if (!holdOut && _legs.Warming(self) || _legs.Work(self, world) is not null)
+        if (!holdOut && _legs.Warming(self) || _legs.Work(self, world) is not null || _legs.ToLamp)
             return _legs.Decide(self, world, tick, out aimed);
         // The look-out in a crew of two (note 222): off the gun to look, only while the gun can spare it (nothing at the back
         // for it to shoot), and back to it once there's nothing left to look at from here.
@@ -657,6 +657,9 @@ public sealed class RoofWalkerBot(int seed, ColdTuning? cold = null, StopHand? j
 
     uint _workedTick = uint.MaxValue;
     PlayerIntent? _work;
+
+    /// <summary>Note 496: at a stop, it's the hand going to the Fire Flies' lamp (by its side door, or its own way along the roofs).</summary>
+    public bool ToLamp { get; private set; }
     bool _looked;
 
     /// <summary>The gunner has read the line for its legs this tick already (it knows whether it's at the gun).</summary>
@@ -673,22 +676,28 @@ public sealed class RoofWalkerBot(int seed, ColdTuning? cold = null, StopHand? j
         // holding the shunter's part, and the driver wait at the switch all night for it.
         if (job is not null && !self.Alive)
         {
+            job.NoLamp();
             job.Decide(self, world);
             return null;
         }
         job?.Warming(self, _warm is { Active: true });
+        // Note 496: the Fire Flies' lamp (and the fire they light) is the nearest hand's, whatever its part.
+        bool lamp = job is not null && _trouble is { } spark && job.TakesLamp(self, world, spark);
+        if (!lamp)
+            job?.NoLamp();
+        ToLamp = lamp;
         if (job is null || _warm is { Active: true })
             return null;
         // Trouble in a car beats carrying crates: a crate hand (or one with no part) goes to it, and so does the winch pair
         // for a fire that's alight or a load that's loose (the loading waits; the car doesn't).
-        if (_trouble is { } trouble && (job.Job is StopJob.Crates or StopJob.None && job.TakesTrouble
+        if (_trouble is { } trouble && (lamp || job.Job is StopJob.Crates or StopJob.None && job.TakesTrouble
                 || job.Job is StopJob.Winch0 or StopJob.Winch1 && trouble is CarFire { Phase: SpinePhase.Punish }))
         {
             // In there: work it from the aisle. Short of it at a stop: in by its side door from the ground (the stop's
             // hands are down there anyway); otherwise the walker's way, along the roofs.
             if (self.Parent == trouble.Attached && PlayerMotor.Indoors(self, world.Train))
                 return Tend(self, trouble, world, Me);
-            return job.IntoTrouble(self, world, trouble.Attached);
+            return job.IntoTrouble(self, world, trouble.Attached, held: lamp);
         }
         if (_workedTick != world.Tick)
         {
