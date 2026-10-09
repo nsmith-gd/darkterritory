@@ -843,7 +843,8 @@ public sealed class Site
 
     /// <summary>
     /// The yard's power (level-design D.2): live, low (the cranes at half speed) or dead (not at all) until someone's
-    /// restarted it at the powerhouse door, <see cref="Powerhouse"/>; <see cref="Restart"/> is the seconds held so far.
+    /// restarted it at the powerhouse door, or an open powerhouse's switchboard inside (note 509), <see cref="Powerhouse"/>;
+    /// <see cref="Restart"/> is the seconds held so far.
     /// </summary>
     public Stops.PowerState Power { get; internal set; }
     public Double3? Powerhouse { get; internal set; }

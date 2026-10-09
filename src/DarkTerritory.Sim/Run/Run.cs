@@ -216,13 +216,16 @@ public sealed partial class Run
             double centre = (f.Start + f.End) / 2;
             return new Site(i, f, modules, t, line, centre, side, centre, crates, heavy: heavy, head: head, salvage: salvage);
         })];
-        // A generated yard's power and its powerhouse (level-design D.2), the door on the face towards the main line.
+        // A generated yard's power and its powerhouse (level-design D.2), the door on the face towards the main line; an
+        // open one's switchboard inside (note 509).
         foreach (var site in _sites)
             if (site?.Feature.Stop is { HasYard: true } stop)
             {
                 site.Power = stop.Power;
                 if (stop.Powerhouse >= 0 && stop.Buildings[stop.Powerhouse] is var ph)
-                    site.Powerhouse = StopWorld(line, site.Feature, StopGenerator.DoorOf(ph, new Pt(ph.S, 0)));
+                    site.Powerhouse = StopWorld(line, site.Feature, StopWalls.OpenShed(ph)
+                        ? Plan.World(ph, StopWalls.Switchboard(ph).X, StopWalls.Switchboard(ph).Y)
+                        : StopGenerator.DoorOf(ph, new Pt(ph.S, 0)));
             }
     }
 
@@ -463,7 +466,7 @@ public sealed partial class Run
 
     public PowerTuning PowerTuning => _facilityTuning?.Power ?? new();
 
-    /// <summary>At a yard whose power's down, within reach of its powerhouse door (on foot).</summary>
+    /// <summary>At a yard whose power's down, within reach of its powerhouse door, or an open one's switchboard (on foot; note 509).</summary>
     public bool PowerhouseInReach(in PlayerState s, TrainOnLine train) =>
         CurrentSite is { Power: not PowerState.Live, Powerhouse: { } door } && s.Alive && s.Parent == PlayerState.World
         && ((PlayerMotor.WorldPosition(s, train) - door) with { Y = 0 }).Length <= (_facilityTuning?.Power.Reach ?? 2);
