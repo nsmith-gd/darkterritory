@@ -7336,3 +7336,20 @@ Terrain sculpting tools, a node-graph material editor, a general-purpose visual 
             - a dead click at the gun; iron wrenched open.
     - **Left silent:** what plays the crew's own sounds by design (the Passenger's steps and uncoupling, the doll's levers), whose silence is the tell. Also left out are takes kept from the first pass whose content isn't written down: the Whistler's snatch and nest, the Car Hugger's swallow, Tippy Toesie's grab and flee; they get words when they're redone.
     - **Pinned:** `CaptionsTests.TheMomentsAreCaptioned`, twelve of them by name (a variant by its line's, `state-derail.impact.ground`). F1's tests hold: every caption is a sound that plays, none names a creature, all in capitals.
+
+536. **The Stoker's char close to (queue #278, E1; the art checklist's `stoker`, its audit of 5 Oct: "the arm it reaches out into the cab with is a smooth featureless tube, and the head is smooth as a helmet close to; neither reads as char at the door").** Note 120's model is only seen within a metre or two, at the open firebox door, so the close look is the whole look. Before, it was round 8-sided tubes and an egg, with a few glowing faces where a 14-per-metre noise crossed a threshold. Now it reads as a fireman burnt to charcoal:
+    - **Burnt wood's alligatoring** (`tools/blender/stoker.py`, `cells`): the skin is split into blocks 3-4 cm across (a jittered grid's cells, `CELL` 30 per metre).
+        - Each block is domed, and sunk at its edges into a crack (`char_off`, displaced in the game mesh itself, so the outline is lumpy too).
+        - The faces on a block's edge are the fire showing through (`ember_crack`, on its own glowing layer, as before). A few cracks are left dead black, so it isn't a grid of light.
+    - **The high copy uses the same cells** (`tools/models/recipes/stoker.py`, the same hash, scale and seed): each crack is cut narrow and deep, and each block is crazed finer still.
+        - The bake's normals land on the game mesh's own blocks.
+        - The atlas paints ash grey on the blocks' tops and black in the cracks, and the char is matte (roughness 0.93, less in the cracks). Before, the fire's green light slid off it like oilcloth.
+    - **The arms** are kindling-thin: the upper arm is wasted to the bone, the elbow's point stands behind, the forearm is a flat slat with its bones' ridge and tendons, and the wrist has a knob. They're also burnt unevenly along their length (`sinew`'s bumps and lumps, on 14-sided tubes ringed every few centimetres).
+        - The back of each hand has tendons to the knuckles, and the knuckles stand.
+        - Each finger is three bones, swollen at its joints and wasted between, ending in a burnt point.
+    - **The head** has a skull's shape under the char: the cranium is broad over sunken temples, and the jaw is narrow under the cheekbones.
+        - A heavy brow sits over deep sockets, and the cheeks are hollow. The fire in the mouth is bigger behind the bare teeth.
+        - The crown is split front to back on the fire (`fissure`).
+    - **The neck** shows its two cords and the windpipe.
+    - **Budget:** 4,858 triangles (was 2,308) of the creature budget's 5,000 (`CreatureArtTests`); 28 bones. The legs, never seen in the fire, have the fewest rings. The clips are unchanged.
+    - **Verified:** `dt screenshot --threats --stoker reach --view firebox` and `--stoker peer` (before and after are in the Look Review round). `CreatureArtTests` and the Game suite are green.
