@@ -680,13 +680,14 @@ public sealed class RoofWalkerBot(int seed, ColdTuning? cold = null, StopHand? j
             job.Decide(self, world);
             return null;
         }
-        job?.Warming(self, _warm is { Active: true });
+        job?.Warming(self, _warm is { Active: true } || Hunted);
         // Note 496: the Fire Flies' lamp (and the fire they light) is the nearest hand's, whatever its part.
         bool lamp = job is not null && _trouble is { } spark && job.TakesLamp(self, world, spark);
         if (!lamp)
             job?.NoLamp();
         ToLamp = lamp;
-        if (job is null || _warm is { Active: true })
+        // Note 551: too hurt for a pack that's about, its part waits: in, off the pack's ground, first.
+        if (job is null || _warm is { Active: true } || Hunted)
             return null;
         // Trouble in a car beats carrying crates: a crate hand (or one with no part) goes to it, and so does the winch pair
         // for a fire that's alight or a load that's loose (the loading waits; the car doesn't).
@@ -723,8 +724,9 @@ public sealed class RoofWalkerBot(int seed, ColdTuning? cold = null, StopHand? j
         // the fire it was working was half the crew, every night the Choir came).
         // Not in the safe yard or a fort, where it never comes (and a crew still to board would go nowhere).
         bool choir = !world.SafeYard && !world.TrainInFort && (world.Choir.Present || world.Choir.Build >= ChoirShelterAt);
-        _warm.Shelter = !safe && RoofWarned(world) || choir;
-        _warm.ShutFirst = choir;
+        Hunted = Hiding(world, self);
+        _warm.Shelter = !safe && RoofWarned(world) || choir || Hunted;
+        _warm.ShutFirst = choir || Hunted;
         // Trouble inside a car: in to it, and work it from the aisle, unless it's too much for us (hurt, get out).
         // The nearest to us, so a crew splits up over them; a fire first (it spreads), then a load (it's on a clock).
         int here = self.Parent;
@@ -814,6 +816,20 @@ public sealed class RoofWalkerBot(int seed, ColdTuning? cold = null, StopHand? j
             }
         return car is { } c && (calls?.ClaimPin(c, me, nearest, world.Tick) ?? true);
     }
+
+    /// <summary>
+    /// Too hurt to fight a hound pack (<see cref="Heed.PackFightHealth"/>: a bite is 45) with one running at the train or aboard
+    /// it: indoors, behind shut doors, in a car off the pack's ground (<see cref="WarmUp.Barred"/>), where none can reach it (a
+    /// hound up on the roofs has only whoever's out on the train, note 471, and drops in only at an open door, note 472).
+    /// Note 551: on main's 4-bot nights (frontier:7, seeds 1–9) every mauling of a crewmate under 55 was one out on the roofs
+    /// with the pack coming: a walker on 19 paced back to the last car, where they board; three on 1, 5 and 12 stood on car 1's
+    /// roof while five came up onto it; at a stop a hand on 23 walked along the roofs into them for its job.
+    /// </summary>
+    public bool Hunted { get; private set; }
+
+    static bool Hiding(World world, in PlayerState self) =>
+        self.Alive && self.Health < Heed.PackFightHealth && world.ActiveEnemies.Any(e => e is CinderHound { Gone: false } h
+            && h.Phase is SpinePhase.Telegraph or SpinePhase.Commit or SpinePhase.Grab or SpinePhase.Punish);
 
     /// <summary>The nearest car of the engine's rake whose lamp is guttering (note 346) with no crewmate inside it, or null.</summary>
     int? GutterCar(World world, int here)
