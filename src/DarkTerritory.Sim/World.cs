@@ -2017,7 +2017,7 @@ public sealed class World
             // The Mourners (note 362): a crewmate's body left lying off the train brings a group for it, the director's or not.
             if (t.Mourners.Enabled)
                 _mourning.Step(this, t.Mourners, Route?.Tier ?? Sim.Route.RouteTier.Local, ref _nextEnemyId, _enemies, 1);
-            // The Pickers (note 574): a train standing at a yard with loose crates brings a group up out of its drains.
+            // The Pickers (note 592): a train standing at a yard with loose crates brings a group up out of its drains.
             if (t.Pickers.Enabled && d.Allows(EnemyKind.Pickers))
                 _picking.Step(this, t.Pickers, Route?.Tier ?? Sim.Route.RouteTier.Local, ctx.Crew.Count, ref _nextEnemyId, _enemies, 1);
             // The house creatures (notes 583–586): what lives in the stops' open houses, put in as the train comes up to them.
@@ -2102,7 +2102,7 @@ public sealed class World
     readonly Sim.Enemies.Mourning _mourning = new();
     readonly Sim.Enemies.Picking _picking = new();
     readonly Sim.Enemies.Dwelling _dwelling = new();
-    /// <summary>Crates the Pickers carried down their drains (note 574): the stops' loot the less.</summary>
+    /// <summary>Crates the Pickers carried down their drains (note 592): the stops' loot the less.</summary>
     public int PickersTook { get; set; }
     /// <summary>Structures Tower Jaw brought down tonight, and their wrecks the crew cleared (note 363).</summary>
     public int TowersDown { get; set; }

@@ -1058,7 +1058,7 @@ public sealed record MournersTuning
         Count.GetValueOrDefault(char.ToLowerInvariant(tier.ToString()[0]) + tier.ToString()[1..], 3);
 }
 
-/// <summary>The Pickers (GDD §21, App. A.6, B.6; ARCHITECTURE §8 note 574). Field docs live in enemies.json.</summary>
+/// <summary>The Pickers (GDD §21, App. A.6, B.6; ARCHITECTURE §8 note 592). Field docs live in enemies.json.</summary>
 public sealed record PickersTuning
 {
     public bool Enabled { get; init; } = true;

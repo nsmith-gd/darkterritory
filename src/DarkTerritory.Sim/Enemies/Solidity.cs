@@ -55,7 +55,7 @@ public static class Solidity
 
     /// <summary>
     /// Where a creature of <paramref name="kind"/> on the ground at <paramref name="p"/> would be put by <see cref="Settle"/>:
-    /// out of the stops' walls and on the land. A place it's sent to (the Pickers' drains, note 574) is one it can reach.
+    /// out of the stops' walls and on the land. A place it's sent to (the Pickers' drains, note 592) is one it can reach.
     /// </summary>
     public static Double3 Clear(TrainOnLine train, EnemyTuning t, EnemyKind kind, Double3 p)
     {

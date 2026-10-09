@@ -1,7 +1,7 @@
 # THE PICKERS — they take the yard's loot if you don't get there first
 
 *Creature design, G1 (enemy design), 9 Oct 2026. **Status: the director's pick to prototype (9 Oct 2026), from G1's
-proposal of new house and yard creatures (queue #315, ARCHITECTURE §8 note 574).** Every call the director's answer left
+proposal of new house and yard creatures (queue #315, ARCHITECTURE §8 note 592).** Every call the director's answer left
 open is taken below and marked **(G1's call)**. Numbers are a first pass in the roster's units (player health 100, run
 5.5 m/s, a crowbar blow = 1).*
 

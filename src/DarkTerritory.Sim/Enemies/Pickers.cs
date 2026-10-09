@@ -9,7 +9,7 @@ namespace DarkTerritory.Sim.Enemies;
 public enum PickerMode : byte { Emerge, Scuttle, Wait, Carry, Heave, Bite, Scatter, Down }
 
 /// <summary>
-/// THE PICKERS · sight · outside (GDD §21, App. A.6, B.6; ARCHITECTURE §8 note 574; the director's pick to prototype, 9 Oct
+/// THE PICKERS · sight · outside (GDD §21, App. A.6, B.6; ARCHITECTURE §8 note 592; the director's pick to prototype, 9 Oct
 /// 2026: "other stuff that is more frequently active in the yard"; docs/design/creatures/pickers.md). Knee-high scavengers
 /// that live in a yard's drains. A while after a train comes to a stand at the yard they come up out of the drains at the
 /// foot of the sheds and race the crew for the loose crates on the ground: each takes the nearest one nobody's standing by
@@ -295,7 +295,7 @@ public sealed class Picker(int id) : Enemy(id)
 }
 
 /// <summary>
-/// Where the Pickers come from (note 574): a train standing at a facility with loose crates brings a group up out of the
+/// Where the Pickers come from (note 592): a train standing at a facility with loose crates brings a group up out of the
 /// yard's drains <c>after</c> seconds, one group to a stop; the train started away sends them down again. On the host, once
 /// a second. Not the director's: they cost it nothing.
 /// </summary>

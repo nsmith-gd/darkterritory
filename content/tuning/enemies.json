@@ -143,7 +143,7 @@
     "gannet": [[1.0, 0.7], [0.6, 1.6]],
     // Child-high, hunched over (note 362).
     "mourners": [[0.35, 0.45], [0.3, 0.9]],
-    // Knee-high, a crate over its head when it carries (note 574).
+    // Knee-high, a crate over its head when it carries (note 592).
     "pickers": [[0.3, 0.3]],
     // The house creatures (notes 583–586): the Lodger and the Householder man-sized; the Hanger up in the roof.
     "lodger": [[0.35, 0.5], [0.3, 1.2]],
@@ -392,7 +392,7 @@
   },
 
   // THE PICKERS · sight · outside (GDD §21, App. A.6, B.6; the director's pick to prototype, 9 Oct 2026; ARCHITECTURE §8
-  // note 574; docs/design/creatures/pickers.md). Knee-high scavengers in a yard's drains. "after" s once the train stands at a
+  // note 592; docs/design/creatures/pickers.md). Knee-high scavengers in a yard's drains. "after" s once the train stands at a
   // facility with loose crates within facilityReach m, a group comes up out of the drains at the foot of the yard's sheds (up
   // to "drains" of them, drainOff m out from a shed's wall on the track's side), "count" by tier and perTwoCrew more for
   // every two of the crew past two, one drain to each in turn, each a moment coming up (emergeSeconds). Each runs (run m/s) for

@@ -748,9 +748,9 @@ written here instead is moved out by `tools/coord/notes.py split`; the Coordinat
 - [570. Dave, the wandering painter (P1, queue #300; the director, 8 Oct 2026: "a special NPC that shows up randomly in places. His name is Dave…](notes/570.md)
 - [571. Nicki's party (P1, queue #301; the director, 8 Oct 2026: "an NPC you can find some times in one of the houses. Her name is Nicki and she's…](notes/571.md)
 - [572. Jacob, the fisherman (P1, queue #302; the director, 8 Oct 2026: "an NPC named Jacob who can be found randomly in the world near water…](notes/572.md)
-- [574. The Pickers: scavengers that race the crew for a yard's loot (G1, queue #315; the director, 9 Oct 2026: "other stuff that is more…](notes/574.md)
 - [583. The Lodger, and what lives in the village houses (G1, queue #316; the director, 9 Oct 2026: "Every time I go into a house, it should feel…](notes/583.md)
 - [584. The Householder: pay for what you take (G1, queue #317; the director, 9 Oct 2026: "The householder is very good"; design…](notes/584.md)
 - [585. The Hollow House: the house is the creature (G1, queue #318; the director, 9 Oct 2026: "start maybe rumbling the ground underneath as a…](notes/585.md)
 - [586. The Hanger: don't touch the strands (G1, queue #319; the director, 9 Oct 2026: "if you touch a strand that's hanging, it grabs you. It's a…](notes/586.md)
+- [592. The Pickers: scavengers that race the crew for a yard's loot (G1, queue #315; the director, 9 Oct 2026: "other stuff that is more…](notes/592.md)
 <!-- end of the notes index -->

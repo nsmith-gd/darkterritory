@@ -6,7 +6,7 @@ using DarkTerritory.Sim.Player;
 namespace DarkTerritory.Sim.Tests;
 
 /// <summary>
-/// The Pickers (GDD §21, App. A.6, B.6; the director's pick to prototype, 9 Oct 2026; ARCHITECTURE §8 note 574). Rule: get
+/// The Pickers (GDD §21, App. A.6, B.6; the director's pick to prototype, 9 Oct 2026; ARCHITECTURE §8 note 592). Rule: get
 /// there first. Each takes the nearest crate nobody's standing by and carries it down its drain; a guarded crate is never
 /// taken; a heavy crate takes two; come right up to one carrying and it bites (never a kill) and drops it; a blow kills one
 /// and scatters the rest near it; the train going sends them down.
