@@ -1,14 +1,18 @@
 using Ballast;
 using DarkTerritory.Sim.Bots;
+using DarkTerritory.Sim.Enemies;
 using DarkTerritory.Sim.Net;
 using DarkTerritory.Sim.Player;
 using DarkTerritory.Sim.Rail;
+using DarkTerritory.Sim.Run;
 
 namespace DarkTerritory.Sim.Tests;
 
 /// <summary>
 /// Note 553 (queue #295, D1's falls audit after #294): the harness keeps every fall of a night, a crewmate come down out of the
-/// air onto the ground well under the rails or hurt by the landing, and not the ordinary step down off the train at a stand.
+/// air onto the ground well under the rails or hurt by the landing, and not the ordinary step down off the train at a stand;
+/// and the falls (and the death) the audit found the bots' doing, each pinned: out of a car only where there's footing, in off
+/// a side door's landing first, the Marsh's dead not written down as fallen, and out of a car away from its burning end.
 /// </summary>
 public class FallWatchTests
 {
@@ -123,5 +127,43 @@ public class FallWatchTests
         }
         var e = n.Crew[1];
         Assert.True(inside, $"never in: {e.Surface}@{e.Parent} ({e.Position.X:0.00},{e.Position.Y:0.00},{e.Position.Z:0.00}), walls {walls.Min.X:0.00}..{walls.Max.X:0.00}, door z {side.Box.Min.Z:0.0}..{side.Box.Max.Z:0.0}, {bot.WarmUpStep}");
+    }
+
+    [Fact]
+    public void TheMarshsDeadAreNotWrittenDownAsFallen()
+    {
+        // The Marsh (GDD v1.1 §22, the code's Drift) eats at whoever moves in it: its record said "Fell from the moving train".
+        Assert.Equal("Taken by the Marsh", IncidentLog.What(DeathCause.Drift));
+        Assert.DoesNotContain("Fell", IncidentLog.What(DeathCause.Drift));
+    }
+
+    [Fact]
+    public void OutOfCar1AwayFromItsBurningRearNotThroughIt()
+    {
+        // frontier:7 seed 5: the gunner, short of car 1's extinguisher in its front half with the rear half ablaze, went out the
+        // way it came, through the blaze (car 1's only way out a warm-up took), and burned to death. Out by the front door now,
+        // onto the engine's plate.
+        var n = new Night(5, speed: 0);
+        var rearZ = n.Train.Frames[1].Shape.HalfLength - 2;
+        n.World.AddEnemy(id => CarFire.In(id, n.Train, 1, rearZ, Tuning.Enemies.CarFire).Ablaze(0.97, 3.5));
+        n.Run(SimConstants.TickSeconds);
+        var bot = new RoofWalkerBot(3, P.Cold) { Me = 1 };
+        double aisle = n.Train.Dynamics.Tuning.Geometry.Interior!.DoorX;
+        n.Crew[1] = new PlayerState { Parent = 1, Surface = Surface.Deck, Position = new Double3(aisle, 1.1, -3), Health = 40, LineHint = n.Train.Cars[1].FrontDistance };
+        var steps = new List<string>();
+        double furthest = double.MinValue;
+        for (int i = 0; i < 30 * 4 && n.Crew[1].Parent == 1 && n.Crew[1].Alive; i++)
+        {
+            n.Run(0.25, id => id == 1 ? bot.Decide(n.Crew[1], n.World, n.World.Tick, out _) : default);
+            if (bot.WarmUpStep is { } w && (steps.Count == 0 || steps[^1] != w)) steps.Add(w);
+            if (n.Crew[1].Parent == 1)
+                furthest = Math.Max(furthest, n.Crew[1].Position.Z);
+        }
+        var s = n.Crew[1];
+        string where = $"{string.Join(" > ", steps)}; {s.Surface}@{s.Parent}, health {s.Health}, furthest back {furthest:0.0}";
+        Assert.True(s.Alive, where);
+        Assert.Equal(0, s.Parent);
+        Assert.True(furthest < 0, where);
+        Assert.True(s.Health >= 35, where);
     }
 }
