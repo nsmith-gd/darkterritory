@@ -31,6 +31,9 @@ public interface IWorldBot : IBot
 /// </summary>
 public sealed class GunnerBot(GunTuning guns, ChoirTuning? choir = null, int seed = 1, ColdTuning? cold = null, StopHand? job = null) : IWorldBot
 {
+    /// <summary>Too hurt for a hound pack that's about (note 551, its legs' <see cref="RoofWalkerBot.Hunted"/>).</summary>
+    public bool Hunted => _legs.Hunted;
+
     public string Name => Forward ? "forward-gunner" : "gunner";
     /// <summary>
     /// The engine's forward gun's (note 414), not the guard van's: it goes forward over the cars onto the engine's hood and
@@ -137,6 +140,10 @@ public sealed class GunnerBot(GunTuning guns, ChoirTuning? choir = null, int see
         // their guns, and the next six came in unanswered and all boarded).
         bool coming = world.ActiveEnemies.Any(e => e is CinderHound { Gone: false } h && h.Attached < 0 && h.Phase is SpinePhase.Telegraph or SpinePhase.Commit);
         bool houndsAboard = !coming && world.ActiveEnemies.Any(e => e.Kind == EnemyKind.CinderHound && e.Attached >= 0);
+        // Note 551: too hurt for the pack fight with some of it aboard, not to the fight, nor staying at the gun on its ground:
+        // the cab (the legs' way). With all of it still running in it keeps the gun: a ball each is how it's least hurt.
+        if (_legs.Hunted && world.ActiveEnemies.Any(e => e.Kind == EnemyKind.CinderHound && !e.Gone && e.Attached >= 0))
+            return _legs.Decide(self, world, tick, out aimed);
         // The Car Hugger on the rear car (v1.1 App. A.3): the gun's no answer to it (it's below the arc). Off the gun: down to
         // the guard van's rear platform to club it off (the legs do that), or with no platform to get at it from, up the
         // train, clear of its mouth, and let it take the car.
@@ -724,14 +731,16 @@ public sealed class RoofWalkerBot(int seed, ColdTuning? cold = null, StopHand? j
         // the fire it was working was half the crew, every night the Choir came).
         // Not in the safe yard or a fort, where it never comes (and a crew still to board would go nowhere).
         bool choir = !world.SafeYard && !world.TrainInFort && (world.Choir.Present || world.Choir.Build >= ChoirShelterAt);
+        // Note 551: too hurt for a pack that's about, and in a car: in it stays, its doors shut (on the roofs, it's the cab's way).
         Hunted = Hiding(world, self);
-        _warm.Shelter = !safe && RoofWarned(world) || choir || Hunted;
-        _warm.ShutFirst = choir || Hunted;
+        bool hiding = Hunted && self.Parent > 0 && PlayerMotor.Indoors(self, world.Train);
+        _warm.Shelter = !safe && RoofWarned(world) || choir || hiding;
+        _warm.ShutFirst = choir || hiding;
         // Trouble inside a car: in to it, and work it from the aisle, unless it's too much for us (hurt, get out).
         // The nearest to us, so a crew splits up over them; a fire first (it spreads), then a load (it's on a clock).
         int here = self.Parent;
         // Too hurt to take it on (health doesn't come back out here): leave it to someone else.
-        tend &= self.Health >= TooHurt;
+        tend &= self.Health >= TooHurt && !Hunted;
         var train0 = world.Train;
         // A car that's all but gone up isn't one to walk into: let it burn out.
         // Fire Flies swarming a car's lamp are trouble too (v1.1 App. A.5): in there, the lamp out, before the car catches.
@@ -819,13 +828,34 @@ public sealed class RoofWalkerBot(int seed, ColdTuning? cold = null, StopHand? j
 
     /// <summary>
     /// Too hurt to fight a hound pack (<see cref="Heed.PackFightHealth"/>: a bite is 45) with one running at the train or aboard
-    /// it: indoors, behind shut doors, in a car off the pack's ground (<see cref="WarmUp.Barred"/>), where none can reach it (a
-    /// hound up on the roofs has only whoever's out on the train, note 471, and drops in only at an open door, note 472).
-    /// Note 551: on main's 4-bot nights (frontier:7, seeds 1–9) every mauling of a crewmate under 55 was one out on the roofs
-    /// with the pack coming: a walker on 19 paced back to the last car, where they board; three on 1, 5 and 12 stood on car 1's
-    /// roof while five came up onto it; at a stop a hand on 23 walked along the roofs into them for its job.
+    /// it (note 551): forward along the roofs to the cab and in, where none can reach it (a hound up on the roofs has only
+    /// whoever's out on the train, note 471, and never boards the engine's hood, note 338); in a car already, it stays in with
+    /// the doors shut (one drops in only at an open door, note 472). No errands meanwhile, and its part in a stop waits.
+    /// On main's 4-bot nights (frontier:7, seeds 1–9) the crew too hurt for the pack were mauled out on the roofs: a walker on 19
+    /// paced back to the last car, where a run from behind boards; three on 1, 5 and 12 stood on car 1's roof as five came up
+    /// onto it; at stops, hands on 23 and 27 walked along the roofs into them for their jobs. Sheltered in the car it was on
+    /// instead, a walker in the last cars was in the car the pack boarded and set alight, and burned.
     /// </summary>
     public bool Hunted { get; private set; }
+
+    /// <summary>Hunted (note 551): the way to the cab, standing in it once there; null in a car, on the ground, or mid warm-up.</summary>
+    PlayerIntent? ToCover(in PlayerState self, TrainOnLine train, uint tick)
+    {
+        if (!Hunted || !self.Alive || self.Parent < 0 || self.Parent >= train.Frames.Count || _warm is { Active: true })
+            return null;
+        if (PlayerMotor.InCab(self, train))
+            return new PlayerIntent();
+        if (self.Parent > 0 && self.Surface == Surface.Deck)
+            return null;
+        if (self.Has(PlayerFlags.Seated))
+            return new PlayerIntent { Buttons = PlayerButtons.Jump }; // up out of a gun's seat first
+        if (ReliefDriver.ToTheCab(self, train, out bool forward) is { } going)
+            return going;
+        if (!forward)
+            return null;
+        Head(-1);
+        return Decide(self, train, tick);
+    }
 
     static bool Hiding(World world, in PlayerState self) =>
         self.Alive && self.Health < Heed.PackFightHealth && world.ActiveEnemies.Any(e => e is CinderHound { Gone: false } h
@@ -1286,6 +1316,11 @@ public sealed class RoofWalkerBot(int seed, ColdTuning? cold = null, StopHand? j
         if (!_looked)
             Look(world, self);
         _looked = false;
+        if (ToCover(self, world.Train, tick) is { } covering)
+        {
+            Calls?.CanFeed(Me, false);
+            return covering;
+        }
         // Note 377: free to bring a gun its powder (nothing on but, at most, a mail bag to catch: the gun's first), and said
         // so for the crew, who work out who goes from it (PowderCarry.Carrier).
         // Already on a run, its way out of a car (the warm-up's way out) is the run's.

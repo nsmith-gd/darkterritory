@@ -8,8 +8,8 @@ namespace DarkTerritory.Sim.Tests;
 
 /// <summary>
 /// Note 551 (queue #293, D1's ask on #286): on main's 4-bot nights every mauling of a crewmate too hurt to fight the pack
-/// (under <see cref="Heed.PackFightHealth"/>) was one out on the roofs with the pack about. Hurt, it gets in off the roofs, in
-/// a car off the pack's ground, behind shut doors, where no hound reaches it.
+/// (under <see cref="Heed.PackFightHealth"/>) was one out on the roofs with the pack about. Hurt, it goes forward into the cab,
+/// where no hound reaches it; in a car already, it stays in with the doors shut.
 /// </summary>
 public class HuntedTests
 {
@@ -50,17 +50,38 @@ public class HuntedTests
     }
 
     [Fact]
-    public void TooHurtToFightThePackItGetsInOffItsGround()
+    public void TooHurtToFightThePackItGoesForwardIntoTheCab()
     {
-        var (n, bot, ground, steps) = Walk(19, 40);
+        var (n, bot, ground, steps) = Walk(19, 60);
         var s = n.Crew[1];
-        string where = $"{string.Join(" > ", steps)}; {s.Surface} on {s.Parent}, health {s.Health}, pack's ground from consist {ground}";
+        string where = $"{string.Join(" > ", steps)}; {s.Surface} on {s.Parent} at z {s.Position.Z:0.0}, health {s.Health}, pack's ground from consist {ground}";
         Assert.True(bot.Hunted, where);
-        Assert.True(PlayerMotor.Indoors(s, n.Train), where);
-        Assert.True(n.Train.Dynamics.Consist.IndexOf(s.Parent) < ground, where);
-        Assert.Equal("Warm/shelter", bot.WarmUpStep);
+        Assert.True(PlayerMotor.InCab(s, n.Train), where);
         Assert.Equal(19, s.Health);
-        Assert.Equal(0, n.Train.Vehicles[s.Parent].DoorsOpen & ~(1 << CarShape.HatchBit));
+    }
+
+    [Fact]
+    public void TooHurtAndInACarItStaysInWithTheDoorsShut()
+    {
+        // Warming in car 1 (ahead of the pack's ground) as the pack comes: in it stays, warm or not, its doors shut.
+        var n = new Night(4, 6, enemies: HoundRunTests.Quiet);
+        n.Crew[0] = PlayerMotor.SpawnInCab(n.Train, P);
+        var cars = n.Train.Dynamics.Consist.Vehicles;
+        var bot = new RoofWalkerBot(7, P.Cold) { Me = 1 };
+        n.Crew[1] = PlayerMotor.SpawnOnRoof(n.Train, cars[1].Id, 2, P) with { Cold = P.Cold.OnsetSeconds * 0.9, Health = 30 };
+        for (int i = 0; i < 60 * 4 && bot.WarmUpStep is not "Warm/cold"; i++)
+            n.Run(0.25, id => id == 1 ? bot.Decide(n.Crew[1], n.World, n.World.Tick, out _) : default);
+        Assert.Equal("Warm/cold", bot.WarmUpStep);
+        int car = n.Crew[1].Parent;
+        PackOn(n, cars[4].Id, 3);
+        for (int i = 0; i < 30 * 4; i++)
+            n.Run(0.25, id => id == 1 ? bot.Decide(n.Crew[1], n.World, n.World.Tick, out _) : default);
+        var s = n.Crew[1];
+        Assert.True(bot.Hunted);
+        Assert.True(PlayerMotor.Indoors(s, n.Train) && s.Parent == car, $"{bot.WarmUpStep}; {s.Surface} on {s.Parent}");
+        Assert.Equal("Warm/shelter", bot.WarmUpStep);
+        Assert.Equal(0, n.Train.Vehicles[car].DoorsOpen & ~(1 << CarShape.HatchBit));
+        Assert.Equal(30, s.Health);
     }
 
     [Fact]
