@@ -1076,6 +1076,9 @@ public sealed class NetPlaySession : IPlaySession, IDisposable
 
     double CameBackSeconds(long tick, double alpha) => (Tick - tick + alpha) * SimConstants.TickSeconds;
 
+    public Crewmate? Self(IReadOnlyList<CarFrame> frames, double alpha) =>
+        Player.Alive && Watching < 0 ? Art.CrewActs.Crewmate((byte)PlayerId, Player, World, frames, [Player]) : null;
+
     public Crewmate? CameBackFigure(IReadOnlyList<CarFrame> frames, double alpha) =>
         _cameBack is { } back && CameBackSeconds(back.Tick, alpha) is >= 0 and < Eyes.CutIn && Player.Alive
             ? Art.CrewActs.Crewmate((byte)PlayerId, Player, World, frames, [Player]) with { Act = Art.CrewPose.GetUp }

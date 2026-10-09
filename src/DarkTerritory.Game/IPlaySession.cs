@@ -125,6 +125,11 @@ public interface IPlaySession
     /// <see cref="Eyes.CameBack"/>); null otherwise (your own figure isn't drawn round your eyes).
     /// </summary>
     Crewmate? CameBackFigure(IReadOnlyList<CarFrame> frames, double alpha) => null;
+    /// <summary>
+    /// You, where you are this frame: not drawn round your own eyes, but who a creature after you faces and reaches for
+    /// (note 558, <see cref="GreyboxScene.Self"/>); null when there's nobody (dead, watching someone else).
+    /// </summary>
+    Crewmate? Self(IReadOnlyList<CarFrame> frames, double alpha) => null;
     PlayerTuning PlayerTuning { get; }
     /// <summary>This machine's player id in the world (bodies record who carries them).</summary>
     int PlayerId => 1;

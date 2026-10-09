@@ -172,6 +172,35 @@ public sealed partial class GreyboxScene
     public bool EyeBreathes { get; set; }
     /// <summary>Other players, drawn as greybox figures.</summary>
     public IReadOnlyList<Crewmate>? Crew { get; set; }
+    /// <summary>
+    /// You, in first person: not drawn, but who a creature after you faces and reaches for (note 558; the director met a
+    /// Ribbit pack that hopped at them askew with no tongue to be seen: <see cref="Crew"/> is only the others).
+    /// </summary>
+    public Crewmate? Self { get; set; }
+
+    /// <summary>
+    /// The crewmate <paramref name="id"/>, among the others or you, or null. (Not <c>Crew?.FirstOrDefault</c>: a
+    /// <see cref="Crewmate"/> is a struct, so a miss was a crewmate at the world's origin, and a creature after you
+    /// faced and reached for that: note 558.)
+    /// </summary>
+    Crewmate? Whom(long id)
+    {
+        if (Crew is { } crew)
+            foreach (var c in crew)
+                if (c.Id == id)
+                    return c;
+        return Self is { } me && me.Id == id ? me : null;
+    }
+
+    /// <summary>The others and you (<see cref="Self"/>), for a creature going for whichever of you is nearest.</summary>
+    IEnumerable<Crewmate> Everyone()
+    {
+        if (Crew is { } crew)
+            foreach (var c in crew)
+                yield return c;
+        if (Self is { } me)
+            yield return me;
+    }
 
     /// <summary>Whether the livestock look round at the eye and the crew (note 455); off for a still of them not (dt screenshot --unseen).</summary>
     public bool Onlook { get; set; } = true;
@@ -579,17 +608,17 @@ public sealed partial class GreyboxScene
                     // (A Gaunt leaving, its extra is what it's carrying off, not who woke it: it faces where it's going.)
                     bool leaving = e.Kind == EnemyKind.Gaunt && e.Phase == SpinePhase.BreakOff;
                     var after = !leaving && e.Kind is EnemyKind.TippyToesie or EnemyKind.Ribbit or EnemyKind.Choir or EnemyKind.Gaunt or EnemyKind.Follower && e.Extra >= 0
-                        ? Crew?.FirstOrDefault(c => c.Id == (int)e.Extra)
+                        ? Whom((long)e.Extra)
                         : (e.Kind == EnemyKind.Grumbler && e.Phase >= SpinePhase.Commit || e.Kind == EnemyKind.SootChildren && e.Phase is SpinePhase.Grab or SpinePhase.Punish)
-                            && Crew is { } crew && crew.Any(c => c.Alive)
-                            ? crew.Where(c => c.Alive).MinBy(c => (c.Feet - EnemyWorld(e, frames)).Length)
+                            && Everyone().Any(c => c.Alive)
+                            ? Everyone().Where(c => c.Alive).MinBy(c => (c.Feet - EnemyWorld(e, frames)).Length)
                             : null;
                     // A Moose pinning someone stands over them (note 339): the one it holds.
                     if (e.Kind is EnemyKind.Moose or EnemyKind.Gannet && e.Holding >= 0)
-                        after = Crew?.FirstOrDefault(c => c.Id == e.Holding);
+                        after = Whom(e.Holding);
                     // A Knotter coils round whoever slipped (note 365).
                     if (e.Kind == EnemyKind.Knotter && e.Holding >= 0)
-                        after = Crew?.FirstOrDefault(c => c.Id == e.Holding);
+                        after = Whom(e.Holding);
                     Art.CreatureArt.Prey? prey = leaving && GauntHeading(e, frames) is { } going
                         ? new(V(going, eye), Vector3.Zero)
                         : after is { } victim
@@ -2842,7 +2871,7 @@ public sealed partial class GreyboxScene
         // Who he's turned to: the one he holds, else the last to strike him while he's turned (his telegraph).
         int on = dave.Holding >= 0 ? dave.Holding : dave.Phase == SpinePhase.Telegraph ? dave.Striker : -1;
         var facing = easelFacing;
-        if (on >= 0 && Crew?.FirstOrDefault(c => c.Id == on) is { } them)
+        if (on >= 0 && Whom(on) is { } them)
         {
             var to = ToF(them.Feet - dave.Local) with { Y = 0 };
             if (to.LengthSquared() > 1e-4f)
