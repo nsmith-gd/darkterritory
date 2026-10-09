@@ -1101,6 +1101,61 @@ public class StopCrewTests
         Assert.Equal(StopDriver.Leg.Cruise, night.Driver.Stops!.Doing);
     }
 
+    /// <summary>A hand kept standing on the ballast while <paramref name="off"/> holds (something in its way), thinking all the while.</summary>
+    sealed class KeptOff(IWorldBot bot, Func<bool> off) : IWorldBot
+    {
+        public string Name => bot.Name;
+        public PlayerIntent Decide(in PlayerState self, TrainOnLine train, uint tick) => default;
+        public PlayerIntent Decide(in PlayerState self, World world, uint tick, out PlayerState aimed)
+        {
+            var intent = bot.Decide(self, world, tick, out aimed);
+            return self.Parent == PlayerState.World && off() ? new PlayerIntent() : intent;
+        }
+    }
+
+    [Fact]
+    public void AStopCalledOffBeforeTheShunterGetsToThePointsIsNotThrownAfter()
+    {
+        // Note 550 (frontier:7, 4 bots, seed 8): the shunter was kept off the Foundry's switch stand until the driver gave the
+        // stop up (nobody had thrown it in 240 s). The shunter still had the stop, got to the stand and threw the points, and
+        // the train ran down the spur to its buffer and stood there all night.
+        var night = new Night(cars: 4, walkers: 0, hands: 1);
+        var train = night.Train;
+        var spur = train.Line.Branches.First(b => b.Kind == BranchKind.Spur && night.Site.Feature.Contains(b.Toe));
+        night.Bots[1] = new KeptOff(night.Bots[1], () => night.Driver.Stops!.Doing is StopDriver.Leg.Approach or StopDriver.Leg.Held);
+        bool down = false, thrown = false, given = false;
+        night.Until(() => given && train.OnMain && train.Dynamics.Distance > spur.Toe + 150, 900, () =>
+        {
+            down |= night.Crew[1].Parent == PlayerState.World;
+            thrown |= train.Diverging(spur.Index);
+            given |= night.Driver.Stops!.Doing == StopDriver.Leg.Clear;
+        });
+        Assert.True(down && given, $"never stood the shunter on the ballast and gave the stop up (down {down}, given {given})");
+        Assert.False(thrown, "the points thrown for a stop the driver had called off");
+        Assert.True(train.OnMain && train.Dynamics.Distance > spur.Toe + 150, $"stuck: driver {night.Driver.Stops!.Doing} at {train.Dynamics.Distance:0} on {train.Dynamics.Path}");
+        Assert.All(night.Crew, c => Assert.NotEqual(Surface.Ground, c.Surface));
+    }
+
+    [Fact]
+    public void DownAFacilitysSpurOutsideAStopItBacksOutAndHasThePointsSetBack()
+    {
+        // Note 550: whatever put it there, a train down a facility's spur with no stop to work there backs out past the points
+        // and has them set back for the main line, as off a dead line (it ran to the buffer and stood there all night).
+        var night = new Night(cars: 4, walkers: 0, hands: 1);
+        var train = night.Train;
+        var spur = train.Line.Branches.First(b => b.Kind == BranchKind.Spur && night.Site.Feature.Contains(b.Toe));
+        night.World.SetSwitch(spur.Index, true);
+        var state = train.Capture();
+        train.Restore(state with { Rakes = [state.Rakes[0] with { Path = spur.Index, Distance = spur.Toe + 120, Velocity = 0 }] });
+        night.Until(() => night.Driver.Stops!.Log.Any(r => r.Kind == "SwitchSetBack"), 900);
+        string where = string.Join(", ", night.Crew.Select((c, i) => $"{i}: {c.Surface} on {c.Parent}"));
+
+        Assert.True(night.Driver.Stops!.Log.Any(r => r.Kind == "SwitchSetBack"), $"stuck: driver {night.Driver.Stops!.Doing} at {train.Dynamics.Distance:0} on {train.Dynamics.Path}; crew {where}");
+        Assert.True(train.OnMain);
+        Assert.False(train.Diverging(spur.Index));
+        Assert.All(night.Crew, c => Assert.True(c.Alive));
+    }
+
     /// <summary>A walker that heeds the Knotter as a bot's crew has it (BotCrew.Think: <see cref="Heed.Knotter"/>), its id its place in the crew.</summary>
     sealed class Heeding(IWorldBot bot, int id) : IWorldBot
     {

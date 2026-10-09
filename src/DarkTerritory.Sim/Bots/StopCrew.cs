@@ -729,7 +729,9 @@ public sealed record StopRecord(int Facility, string Kind, double Seconds, int S
 /// <summary>
 /// A dead line's switch set against the train (App. A.7, the Switchman's work): its lamp reads wrong from the cab. The
 /// crew stops short of its points and someone sets it back on the ground; if the train's already down the dead line, it
-/// backs out first.
+/// backs out first. A facility's spur set for it outside a stop is the same (note 550: frontier:7's seed 8, a shunter
+/// threw the Foundry's points after the driver had given the stop up, and the train ran down the spur to its buffer and
+/// stood there all night).
 /// </summary>
 /// <param name="Hold">Where the engine's front stands to wait: two metres short of the points' reach.</param>
 public sealed record SwitchPlan(Branch Branch, double Hold)
@@ -737,22 +739,28 @@ public sealed record SwitchPlan(Branch Branch, double Hold)
     /// <summary>How far ahead a switch stand's lamp reads from the cab.</summary>
     const double LampSeen = 1200;
 
-    /// <summary>The nearest dead line ahead whose switch is set for it, in sight of the cab.</summary>
+    /// <summary>
+    /// A branch the train only goes down to work a stop, or never: a dead line or a facility's spur (an alternate route
+    /// is the line going on).
+    /// </summary>
+    static bool Off(Branch b) => b.Kind is BranchKind.DeadLine or BranchKind.Spur;
+
+    /// <summary>The nearest dead line or spur ahead whose switch is set for it, in sight of the cab.</summary>
     public static SwitchPlan? Ahead(World world)
     {
         var train = world.Train;
         double front = train.Dynamics.Distance, points = world.Switches?.Tuning.PointsLength ?? 12;
-        return train.Line.Branches.Where(b => b.Kind == BranchKind.DeadLine && train.Diverging(b.Index)
+        return train.Line.Branches.Where(b => Off(b) && train.Diverging(b.Index)
                 && b.Toe - points - 2 >= front - 3 && b.Toe - front <= LampSeen)
             .OrderBy(b => b.Toe).Select(b => new SwitchPlan(b, b.Toe - points - 2)).FirstOrDefault();
     }
 
-    /// <summary>The engine's down a dead line past its points: it took a switch set wrong.</summary>
+    /// <summary>The engine's down a dead line or a spur past its points: it took a switch set wrong.</summary>
     public static SwitchPlan? DownOne(World world)
     {
         var train = world.Train;
         int path = train.Dynamics.Path;
-        if (path < 0 || path >= train.Line.Branches.Count || train.Line.Branches[path] is not { Kind: BranchKind.DeadLine } b
+        if (path < 0 || path >= train.Line.Branches.Count || train.Line.Branches[path] is not { } b || !Off(b)
             || train.Dynamics.Distance <= b.Toe)
             return null;
         return new SwitchPlan(b, b.Toe - (world.Switches?.Tuning.PointsLength ?? 12) - 2);
@@ -1094,7 +1102,9 @@ public sealed class StopDriver(CrewCalls calls)
                     bool canThrow = calls.Has(StopJob.Shunter) || calls.DriverHand && cut;
                     if (!set && (!canThrow || Waited > HeldGiveUp))
                     {
-                        // Nobody to throw it: couple back up if the rest were cut off, and go.
+                        // Nobody to throw it: couple back up if the rest were cut off, and go. Called off, so a shunter
+                        // still on its way to the stand throws nothing (note 550).
+                        calls.Leave(true);
                         Begin(p.NearRake(train) is not null ? Leg.BackOut : Leg.Clear);
                         return Hold(world);
                     }
@@ -2015,6 +2025,10 @@ public sealed partial class StopHand(StopJob job, CrewCalls calls, int member, C
         bool set = train.Diverging(p.Spur.Index);
         if (!_wentIn)
         {
+            // The driver's called the stop off before the train went in (note 550): nothing thrown, and the points put back
+            // if they'd gone over as it did.
+            if (calls.Leaving)
+                return set ? Throw(self, train, p.Spur) : Ride(self, train, p);
             if (!set && p.CutBehind >= 0 && p.NearRake(train) is null)
                 return Cut(self, train, p);
             return set ? Ride(self, train, p) : Throw(self, train, p.Spur);
