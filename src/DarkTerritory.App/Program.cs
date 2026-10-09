@@ -1262,6 +1262,9 @@ CampaignState? Play(IPlaySession session, CampaignState? campaign)
         // Behind a crewmate's eyes (App. D.10), their own figure isn't drawn round the camera.
         if (session.Watching >= 0 && !chase)
             scene.Crew = [.. (scene.Crew ?? []).Where(c => c.Id != session.Watching)];
+        // Just come back inside a Holdout, you're seen getting up while the camera's on you (note 529).
+        if (session.CameBackFigure(frames, clock.Alpha) is { } risen && !chase && !cinematic)
+            scene.Crew = [.. scene.Crew ?? [], risen];
         // What you carry is drawn at your hands as you see them this frame, not where the last tick left it (T92).
         var carry = session.World.Bodies.Hands;
         var eyeForward = new Double3(-Math.Sin(camera.Yaw), 0, -Math.Cos(camera.Yaw));

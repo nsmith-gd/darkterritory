@@ -1362,6 +1362,7 @@ static object Screenshot(TrainTuning t, string content, string[] args)
     }
     // --lit: every Holdout on the route occupied, its lamp burning (GDD App. D.7), as if the dead were waiting at each.
     DarkTerritory.Sim.Run.Holdouts? holdouts = null;
+    Crewmate? cameBack = null; // --cameback s: who's getting up in the Holdout (note 529)
     // --freed: every Holdout broken open and its occupant out (D.7, D.8): the door swung wide, the lock smashed off (or, every
     // other one, picked with the repair kit), the barricade pried down. --holdout n: the camera before the nth one's door.
     // --breaching f: every Holdout being broken into, f of the way (note 464): its lock jumping and sparking on the smash's blows
@@ -1403,6 +1404,18 @@ static object Screenshot(TrainTuning t, string content, string[] args)
             // --inside: through its broken-open door, from just in, at the room (note 387; --lantern for a hand lamp).
             if (args.Contains("--inside"))
                 camera = Camera.LookAt(h.Door - outward * 2.0 + across * 0.3 + Double3.Up * 1.65, h.Inside - outward * 2.5 + Double3.Up * 1.0, 80);
+            // --cameback s (with --freed): come back inside it, s seconds into getting up (note 529): the shot of you getting up
+            // from in by its door, then your eyes as they come up with you (Eyes.CameBack).
+            if (args.Contains("--cameback"))
+            {
+                double since = Opt(args, "--cameback", 0.4);
+                double yaw = Math.Atan2(-outward.X, -outward.Z);
+                // (Seen from in by the door; once it's cut into their eyes, they're the eye, as the app has you: not drawn.)
+                if (since < Eyes.CutIn)
+                    cameBack = new Crewmate(1, h.Inside, yaw, true, Act: DarkTerritory.Game.Art.CrewPose.GetUp, Phase: Math.Max(1e-3, since));
+                var eyes = new Camera { Position = h.Inside + Double3.Up * Eyes.Height, Yaw = yaw, Pitch = -0.1, FovYDegrees = 75, Near = 0.05f, Far = 2000 };
+                camera = Eyes.CameBack(h.Inside, h.Door, since, eyes) ?? eyes;
+            }
             // --approach m: instead from the cab's height on the line that far short of it (App. D.7: seen from the 1 km board).
             if (args.Contains("--approach"))
             {
@@ -1647,6 +1660,8 @@ static object Screenshot(TrainTuning t, string content, string[] args)
                 own == "none" ? Tool.None : Enum.Parse<Tool>(own, true))
             : null,
     };
+    if (cameBack is { } risen)
+        scene.Crew = [.. scene.Crew ?? [], risen];
     // Note 301's callouts, every break the crew can mend: --breached i[,j,...] those cars' end walls eaten through (dents are
     // --integrity's, the boiler --ruptured's); --mending a wrench at each, its strikes' sparks.
     if (Str(args, "--breached", "") is { Length: > 0 } holes)
