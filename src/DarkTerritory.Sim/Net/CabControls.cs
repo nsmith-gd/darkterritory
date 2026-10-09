@@ -26,6 +26,10 @@ public static class CabControls
     public static bool ReleasesBrake(in PlayerIntent intent, in PlayerState state, TrainOnLine train) =>
         intent.ThrottleNotch > 0 && CanDrive(state, train);
 
+    /// <summary>Whether this intent works the cab's controls: a notch of the regulator, the brake, the reverser (note 574).</summary>
+    public static bool Works(in PlayerIntent intent) =>
+        intent.ThrottleNotch != 0 || intent.Has(PlayerButtons.Brake) || intent.Has(PlayerButtons.Reverser);
+
     /// <summary>Applies one player's cab input. The host clears the brake each tick before applying everyone.</summary>
     public static void Apply(ref TrainControls controls, in PlayerIntent intent, in PlayerState state, TrainOnLine train)
     {
