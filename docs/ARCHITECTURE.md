@@ -7302,3 +7302,22 @@ Terrain sculpting tools, a node-graph material editor, a general-purpose visual 
       - The rear cars' lamps, with every hand at the front: seed 6's guard van, 180 m from the cab at the Foundry's clear-away, was alight before anyone got there.
       - The driver's set-backs for a hand left on the ground: on seed 6, after its switch set-back, it backs a kilometre to the spur's toe for one, and later runs on at 14.5 m/s with all three on the ballast. That one is ConductorBot's (D1).
     - **Test:** `CarFireTests.AtAStopTheNearestHandPutsTheFireFliesLampOutWhateverItsPart` is a theory over seeds 2 and 6 now: no car the flies came to is alight by 520 s.
+510. **Captions for the moments: what a creature does and how the train fails (AU1, queue #247; note 349's CAPTIONS, F1's; note 391; GDD §32; the director, 8 Oct: "these are all quite important").** Captions told a reader how a thing is learned: the tells, the signs, the jobs that call for a hand, the doors, the rules heard (note 494's healing). They didn't say when it happens. A car tearing away, someone dragged under the train, a bite, a seizing, the boiler bursting, a derailment, a misfire and the overspeed bell were all heard by a hearing player and never written.
+    - **Added** (content/ui/captions.json, by F1's rules: what it is as someone hearing it would say it, never what makes it, never what to do), 55 sounds:
+        - **A creature's acts:**
+            - the car torn away and a body slid out of the mouth;
+            - claws on the edge, boots scrabbling, a body dragged under the train, someone hauled back up;
+            - a stab into a body, a beak in the roof, wings beating, planks splintering, a crash across the roof;
+            - a hard cracking strike; snarling, jaws snapping shut, a yelp, something heavy landing on the boards;
+            - a wet lash, tearing and hissing; breathing turning to a rattle, a huge cry close, wet suckling;
+            - the fire breathing, flame roaring out; a lamp flickering, a lever heaved over; kicking and struggling;
+            - broken whistling running off; something bursting; bellows;
+            - slats splitting and gnawing; bells swelling into song, a voice closing over you, the singing fading; the hatch prised open.
+        - **The train's warnings and failures:**
+            - the bell twice, the roof irons rattling, cords slapping the roof;
+            - wheels shrieking on the bend, a wheel screeching up the rail, a car going over, cars crashing together, a car hitting the ground;
+            - the boiler bursting; the engine knocking; steam from a leak, small and large;
+            - the brakes whining and slipping; the engine wheezing short of steam; a rivet pinging; the safety valve lifting;
+            - a dead click at the gun; iron wrenched open.
+    - **Left silent:** what plays the crew's own sounds by design (the Passenger's steps and uncoupling, the doll's levers), whose silence is the tell. Also left out are takes kept from the first pass whose content isn't written down: the Whistler's snatch and nest, the Car Hugger's swallow, Tippy Toesie's grab and flee; they get words when they're redone.
+    - **Pinned:** `CaptionsTests.TheMomentsAreCaptioned`, twelve of them by name (a variant by its line's, `state-derail.impact.ground`). F1's tests hold: every caption is a sound that plays, none names a creature, all in capitals.
