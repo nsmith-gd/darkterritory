@@ -6931,10 +6931,11 @@ Terrain sculpting tools, a node-graph material editor, a general-purpose visual 
       | Cars the Fire Flies set alight that took hold | 2/1/1 | 0/0/0 |
       | Cars alight by the time the train leaves the Foundry | 5/6/6 | 0/0/0 |
       | Burned deaths | 1/1/1 | 0/0/0 |
-      | Deaths, all causes | 3/3/3 | 2/3/4 |
+      | Deaths, all causes | 3/3/3 | 3/3/4 |
       | Cars lost by the night's end | 4/7/7 | 4/7/4 |
-      | Cargo delivered | 2.01/0.30/0.44 | 3.6/0.17/0.08 |
+      | Cargo delivered | 2.01/0.30/0.44 | 4.24/0.17/0.08 |
 
-      The night's end is decided elsewhere now. The fires that still take hold are Cinder Hound packs aboard later in the night (D1.2's #221), and the cars lost are rakes left behind at Voss Grain Elevator. The deaths are hounds, the cold, Ribbits, Tippy Toesie and a Dragger. No tuning changed.
+      The night's end is decided elsewhere now. Seed 1's flies came twice more (the switch set-back at km 6.8, and car 5 as it pulled away): the walkers' own rounds put the first out in its smoke, and the second broke off. The fires that still take hold are all Cinder Hound packs aboard later in the night (D1.2's #221), and the cars lost are rakes left behind at Voss Grain Elevator. The deaths are hounds, the cold, Ribbits, Tippy Toesie and a Dragger. No tuning changed.
+    - **Only at a stop:** the claim needs the hand's stop plan. Between stops the walkers' own rounds see to the flies, and a gunner's gun comes first.
     - **Test:** `CarFireTests.AtAStopTheNearestHandPutsTheFireFliesLampOutWhateverItsPart` (frontier:7, 10 cars, 4 bots, seed 2, 520 s): no car the flies came to is alight. Without the change, car 2 is.
     - **Not yet:** the hands who fight a fire that's already alight burn hard. On main's seed 1, the winch pair were 10 s at car 1's extinguisher without reaching it, and went from 99 to 14 hp. That is next to D1.2's #232 (hurt walkers going into a burning car).
