@@ -236,6 +236,8 @@ public sealed partial class GreyboxScene
     /// (by index) someone's wrench is at now. Null, none.
     /// </summary>
     public IReadOnlyList<BreakCallout>? Breaks { get; set; }
+    /// <summary>The cars and engine battered and let go, working themselves apart (note 576: <see cref="Sim.Train.Failing.Of"/>). Null, none.</summary>
+    public IReadOnlyList<FailingCar>? Failings { get; set; }
     public IReadOnlySet<int>? Mending { get; set; }
     /// <summary>Each car's strain on a bend taken too fast and its outer rail (BendStrain.PerCar): flange sparks off it.</summary>
     public IReadOnlyList<(float Stress, int Outer)>? BendStrain { get; set; }
@@ -481,6 +483,9 @@ public sealed partial class GreyboxScene
                     if (frames.FirstOrDefault(f => f.Index == b.Vehicle) is { Shape: not null } bf && (bf.Origin - eye).Length < 60)
                         mesh.PointLights.Add(new PointLight(V(bf.ToWorld(b.At), eye), Palette.LampAmber * (2.2f + 0.8f * (float)Math.Sin(Time * 6.9)), 4f));
             }
+            // What's coming off the cars and engine let go (note 576), seen from anywhere along the train.
+            if (Failings is { Count: > 0 } failings)
+                Look.Art.Effects.Failing(mesh, frames, eye, Time, failings);
             // Derailed (GDD §14): timed from the frame the scene first saw it (presentation only; the sim just stops the train).
             if (Derailed)
             {

@@ -1661,6 +1661,9 @@ public sealed class World
             foreach (var v in Train.Rakes.Where(r => r != Train.Dynamics).SelectMany(r => r.Consist.Vehicles))
                 if (Attribution.CouplerPulledBy(v.Id) < 0)
                     Attribution.PartedAt(v.Id);
+        // A car battered and let go comes apart (note 576): its freight spilled, off its rails, the train parted ahead of it.
+        if (Authority && !Derailed && Failing.Apart(Train) is var apart and >= 0)
+            Attribution.CameApart(apart);
         // The lamps (note 346): one guttering for each crewmate at most, none in the yard or a fort; one left too long goes out.
         if (Authority && !Derailed && _gutters is { } lamps)
             lamps.Step(Train, Math.Max(1, _actors.Count(a => a.State.Alive)), SafeYard || TrainInFort);
