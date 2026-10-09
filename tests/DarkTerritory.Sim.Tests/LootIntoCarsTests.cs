@@ -146,8 +146,11 @@ public class LootIntoCarsTests
         // Inside, at the shut side door, facing it.
         var s = new PlayerState
         {
-            Parent = f.Index, Position = new Double3(door.Box.Max.X + 0.45, 1.1, door.Box.Centre.Z), Yaw = Math.PI / 2,
-            Surface = Surface.Deck, Health = Tuning.Player.Health,
+            Parent = f.Index,
+            Position = new Double3(door.Box.Max.X + 0.45, 1.1, door.Box.Centre.Z),
+            Yaw = Math.PI / 2,
+            Surface = Surface.Deck,
+            Health = Tuning.Player.Health,
         };
         Assert.Equal(InteractableKind.Door, CrewActions.NearestInteractable(s, train)?.Thing.Kind);
         var body = Carried(world, model, s);
