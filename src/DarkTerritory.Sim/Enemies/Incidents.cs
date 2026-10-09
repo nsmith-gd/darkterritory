@@ -204,7 +204,7 @@ public sealed class CarFire(int id) : Incident(id)
         int hit = grid.Hit(eye, look, t.SprayReach);
         if (hit >= 0 && hit < Heat.Length && Heat[hit] > 0)
             return hit;
-        double best = Math.Cos(t.SprayConeDeg * Math.PI / 180), length = look.Length;
+        double best = DMath.Cos(t.SprayConeDeg * Math.PI / 180), length = look.Length;
         int cell = -1;
         for (int i = 0; i < grid.Count && i < Heat.Length; i++)
         {
