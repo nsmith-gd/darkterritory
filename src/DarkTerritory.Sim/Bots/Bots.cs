@@ -1791,7 +1791,7 @@ public sealed class RoofWalkerBot(int seed, ColdTuning? cold = null, StopHand? j
     /// bites on), so out on its roof is out among them, and in it a hound may drop in at an open side door (note 472).
     /// </summary>
     /// <summary>How far in from a car's end (m) its fire counts as at that end's door (note 553).</summary>
-    const double EndReach = 3;
+    const double EndReach = 2;
 
     /// <summary>
     /// Note 553: that end of the car (+1 its rear), by its end door, alight: a cell within <see cref="EndReach"/> of it at the fire's
@@ -3392,7 +3392,10 @@ public sealed class WarmUp(ColdTuning cold, double goInAt = 0.6)
         // Note 553: in its car, but out on a side door's landing beyond the walls: straight in through the doorway first. The
         // walk to an end door from there went along the car's outside, off the landing's end: deepTerritory:2's gunner, in to
         // shut car 4's doors at 10 m/s, walked off car 4's landing and then car 5's, 45 and 35 lost.
+        // At a stand a step off a landing is a step down (and a stop's hands work the crates from them: StopCrewTests); it's the
+        // moving train's (faster than anyone catches on foot) that's a fall.
         if (_step is Step.Shut or Step.Warm or Step.Reopen or Step.Out && self.Parent == _car && self.Surface == Surface.Deck
+            && !SpeedBands.CanBeCaughtOnFoot(train.Dynamics.Tuning, train.Dynamics.Speed)
             && train.Frames[_car].Shape is { Interior: { } walls } inShape && (self.Position.X < walls.Min.X || self.Position.X > walls.Max.X))
         {
             // Along the landing to the doorway's span first (the steps reach past it), then straight in.

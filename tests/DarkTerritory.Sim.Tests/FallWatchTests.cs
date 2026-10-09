@@ -105,8 +105,9 @@ public class FallWatchTests
     public void ColdOnASideDoorsLandingItStepsInBeforeItGoesAnywhere()
     {
         // deepTerritory:2's gunner, in a car to shut its doors and warm up, stood out on a side door's landing beyond the walls (its
-        // side door shut), and the walk to the open end door went along the car's outside and off the landing's end. In first.
-        var n = new Night(4, 6, enemies: HoundRunTests.Quiet);
+        // side door shut), and the walk to the open end door went along the car's outside and off the landing's end at 10 m/s.
+        // In first (at a stand, a step off it is only a step down).
+        var n = new Night(4, 10, enemies: HoundRunTests.Quiet);
         n.Crew[0] = PlayerMotor.SpawnInCab(n.Train, P);
         int car = n.Train.Dynamics.Consist.Vehicles[2].Id;
         var shape = n.Train.Frames[car].Shape;
