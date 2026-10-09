@@ -54,7 +54,7 @@ public enum CrewPose
 /// greybox instead. Clips play at 30 fps, stepped (no blending between frames): the era's look (GDD §25). Nothing here
 /// reads a clock or a random number: the pose is a pure function of what's passed in.
 /// </remarks>
-public sealed class CreatureArt
+public sealed partial class CreatureArt
 {
     public const string Folder = "art/models";
     /// <summary>The Drift's mat, drawn from a car's roof: past this half-width (m) it's on the ground, this far down.</summary>
@@ -62,7 +62,7 @@ public sealed class CreatureArt
     /// <summary>The models this draws, by file name (content/art/models/&lt;name&gt;.glb).</summary>
     public static readonly string[] Names = ["crew", "cinder_hound", "sleeper", "clinger", "hollow", "switchman", "soot_child", "dragger", "husk", "weight",
         "track_doll", "car_hugger", "tippy_toesie", "whistler", "ribbit", "choir", "gaunt", "grumbler", "stoker", "follower", "climber", "fire_fly", "passenger",
-        "survivor_prisoner", "survivor_wildlander", "sheep", "moose", "gannet"];
+        "survivor_prisoner", "survivor_wildlander", "sheep", "moose", "gannet", "mourner", "freight_beetle", "tower_jaw", "brakeman", "knotter", "hotbox"];
 
     /// <summary>
     /// The figure a crewmate plays as (GDD App. D.8): the crew's own, or, freed from a Holdout, its occupant's for the rest
@@ -1491,6 +1491,10 @@ public sealed class CreatureArt
                 Vector3.Normalize(Vector3.TransformNormal(Vector3.UnitY, model)), Vector3.Normalize(Vector3.TransformNormal(Vector3.UnitZ, model)),
                 kind, phase, t, extra, health, _fx, Math.Clamp(extra2 / Math.Max(1e-6, _carFire.SpreadSeconds), 0, 1));
         }
+        // The Mourners, the Freight Beetle and Tower Jaw (notes 362, 363, 366), and the roster's newest still to be modelled
+        // (CreatureArt.Outside.cs).
+        if (Outside(mesh, model, kind, phase, t, extra, extra2) is { } outside)
+            return outside;
         float pulse = (float)(0.5 + 0.5 * Math.Sin(t * 9));
         switch (kind)
         {
@@ -2192,6 +2196,14 @@ public sealed class CreatureArt
                     }
                     return drawn;
                 }
+            // The train's own (notes 364, 365, 367; CreatureArt.Train): the Brakeman on the roofs, the Knotter across a
+            // coupling, Hotbox in a truck.
+            case EnemyKind.Brakeman when _models.ContainsKey("brakeman"):
+                return Brakeman(mesh, model, phase, t);
+            case EnemyKind.Knotter when _models.ContainsKey("knotter"):
+                return Knotter(mesh, model, phase, t);
+            case EnemyKind.Hotbox when _models.ContainsKey("hotbox"):
+                return Hotbox(mesh, model, phase, t, extra2);
             case EnemyKind.Choir:
                 {
                     // (No model: the Hollow's figure, child-sized and pale, bobbing in the air with a cold light of its own.)
@@ -2310,6 +2322,8 @@ public sealed class CreatureArt
         _dying = dying;
         _mooseSince = modeSeconds;
         _gannetSince = modeSeconds;
+        _outsideSince = modeSeconds;
+        _trainSince = modeSeconds;
         try
         {
             return EnemyIn(mesh, model, e, bite, prey, room, pace);
@@ -2318,9 +2332,11 @@ public sealed class CreatureArt
         {
             _hit = -1;
             _dying = false;
+            ForgetOutside();
             (_mooseMode, _mooseSince) = (null, -1);
             (_gannetMode, _gannetWas, _gannetSince) = (null, null, -1);
             GannetWas = null;
+            ForgetTrainfolk();
         }
     }
 
@@ -2749,6 +2765,10 @@ public sealed class CreatureArt
                     _prey = p;
                     break;
                 }
+            case EnemyKind.Brakeman or EnemyKind.Knotter or EnemyKind.Hotbox:
+                // The train's own (CreatureArt.Train): its mode, and where and which way it's drawn.
+                m = Trainfolk(e, model, prey);
+                break;
             case EnemyKind.CarHugger when bite.Any:
                 m = Matrix4x4.CreateTranslation(0, 0, -bite.Advance) * model;
                 _biteGrip = bite.Grip;
@@ -2773,6 +2793,10 @@ public sealed class CreatureArt
                 // Face back down the line at the train, turned in towards the track.
                 m = Matrix4x4.CreateRotationY(MathF.PI - Math.Sign(e.Lateral) * 0.6f) * model;
                 break;
+            case EnemyKind.Mourners or EnemyKind.FreightBeetle or EnemyKind.TowerJaw:
+                // What it's doing (the sim's mode) and how fast it's going (CreatureArt.Outside.cs).
+                m = OutsideIn(e, model, pace);
+                break;
             case EnemyKind.CinderHound when e is Sim.Enemies.CinderHound { Attached: >= 0 } hound:
                 // Aboard (note 472): turned the way the sim has it facing in its car (up or down the car, or to a side door),
                 // and doing what it's doing there, E1's clips (#213, note 477).
@@ -2782,7 +2806,7 @@ public sealed class CreatureArt
         }
         _clutch = null;
         bool drawn = Enemy(mesh, m, e.Kind, e.Phase, e.PhaseSeconds, e.Extra, e.Health, aboard: e.Attached >= 0,
-            extra2: e.Kind == EnemyKind.Sleepers ? e.Id : e.Extra2);
+            extra2: e.Kind is EnemyKind.Sleepers or EnemyKind.Mourners ? e.Id : e.Extra2);
         _houndAboard = default;
         if (_clutch is { } clutch && e.Holding >= 0)
             Clutches[e.Holding] = clutch;

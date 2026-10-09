@@ -30,6 +30,8 @@ public sealed class HostSession
         public bool Bookmarking;
         public PlayerState State;
         public int MissedInputs;
+        /// <summary>This client's inputs getting through, by the newest each datagram carries (netcode-audit.md gap 3).</summary>
+        public LinkLoss InputLoss = new(10 * SimConstants.TickRate);
         /// <summary>What this client was sent at each tick: its own delta baselines, since interest differs per client.</summary>
         public readonly Dictionary<uint, List<WireRecord>> Sent = new();
     }
@@ -85,6 +87,26 @@ public sealed class HostSession
 
     public IEnumerable<PlayerSnapshot> Players => _crew.Select(c => new PlayerSnapshot(c.Id, c.State));
     public int MissedInputs(byte id) => _crew.First(c => c.Id == id).MissedInputs;
+
+    /// <summary>
+    /// Each crewmate's link as the host sees it (netcode-audit.md gap 3), for the lobby panel: their peer (for the round trip
+    /// and the route, the transport's) and the share of their inputs lost or stale over the window.
+    /// </summary>
+    public IReadOnlyList<(byte Id, PeerId Peer, double? InputLoss)> Links =>
+        [.. _crew.Select(c => (c.Id, c.Peer, c.InputLoss.Settled))];
+
+    /// <summary>The window the crew's input loss is counted over, in ticks (hud.json <c>lossWindowSeconds</c>).</summary>
+    public int LossWindowTicks
+    {
+        get => _lossWindow;
+        set
+        {
+            _lossWindow = value;
+            foreach (var c in _crew)
+                c.InputLoss = new(value);
+        }
+    }
+    int _lossWindow = 10 * SimConstants.TickRate;
 
     /// <summary>Starts the night's threats: the director, the route's Sleepers, the Hollow's watch (host authority).</summary>
     public void EnableEnemies(Enemies.EnemyTuning tuning, Route.Route? route, ulong seed, int expectedCrew)
@@ -496,7 +518,7 @@ public sealed class HostSession
                 Admit(seat.Id, peer);
                 return seat.Id;
             }
-            var c = new Crew(seat.Id, peer) { LastApplied = seat.LastApplied, MissedInputs = seat.MissedInputs };
+            var c = new Crew(seat.Id, peer) { LastApplied = seat.LastApplied, MissedInputs = seat.MissedInputs, InputLoss = new(_lossWindow) };
             if (Back(seat) is { } state)
             {
                 state.Placed = (byte)(seat.State.Placed + 1);
@@ -588,7 +610,7 @@ public sealed class HostSession
 
     void Board(byte id, PeerId peer)
     {
-        var c = new Crew(id, peer);
+        var c = new Crew(id, peer) { InputLoss = new(_lossWindow) };
         // First aboard takes the cab; everyone else spreads down the train.
         int car = 1 + (_crew.Count - 1) % Math.Max(1, Train.OwnVehicles - 1);
         c.State = BoardAt is { } at && _crew.Count > 0 ? at(_crew.Count)
@@ -805,6 +827,8 @@ public sealed class HostSession
             _frames.Clear();
             Messages.ReadInput(ref r, _frames, out uint ackedSnapshot);
             c.AckedSnapshot = Math.Max(c.AckedSnapshot, ackedSnapshot);
+            if (_frames.Count > 0)
+                c.InputLoss.Heard(_frames[^1].Sequence);
             foreach (var f in _frames)
                 if (f.Sequence > c.LastApplied)
                     c.Pending.TryAdd(f.Sequence, Sanitise(f.Intent));

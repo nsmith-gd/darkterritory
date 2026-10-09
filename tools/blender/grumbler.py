@@ -251,8 +251,10 @@ def hand(at, along, bone, fingers, n, size, sx):
         base = tip + Vector((0, spread, 0))
         dirn = (along + Vector((0, spread * 1.5, 0))).normalized()
         ln = 0.15 * size * (0.85 + 0.15 * (1 - abs(f - (n - 1) / 2) / max(1, (n - 1) / 2)))
-        pts = [base, base + dirn * ln * 0.4, base + dirn * ln * 0.75, base + dirn * ln]
-        limbs.tube(pts, [0.01 * size, 0.009 * size, 0.008 * size, 0.005 * size], 5, SKIN,
+        # Three bones, swollen at each joint and wasted between (note 543).
+        ts = (0.0, 0.2, 0.4, 0.5, 0.64, 0.76, 0.88, 1.0)
+        pts = [base + dirn * ln * t for t in ts]
+        limbs.tube(pts, [r * size for r in (0.0105, 0.0078, 0.0095, 0.0078, 0.0065, 0.0078, 0.006, 0.0045)], 6, SKIN,
                    lambda p, base=base, ln=ln: {bone: 1.0} if (p - base).length < ln * 0.1 else {fingers: 1.0}, ref=(0, 0, 1))
         limbs.tube([pts[-1] - dirn * 0.012, pts[-1] + dirn * 0.012 - Vector((0, 0, 0.006))], [(0.006, 0.003), (0.002, 0.002)], 4, NAIL, fingers,
                    ref=(0, 0, 1), cap1="point")
@@ -266,17 +268,61 @@ def sinew(i, j, a, p, fr):
     return Vector(p) + out * (0.004 * ridge * min(1.0, i / 2) + 0.0015 * noise3(Vector(p) * 40, 151, 1.0))
 
 
+def along(points, radii, per):
+    """`points` and `radii` with `per` more rings between each pair (note 543: a limb's shape needs rings along it)."""
+    pts, rr = [], []
+    rs = [r if isinstance(r, tuple) else (r, r) for r in radii]
+    for (p0, r0), (p1, r1) in zip(zip(points, rs), zip(points[1:], rs[1:])):
+        for k in range(per + 1):
+            f = k / (per + 1)
+            pts.append(p0.lerp(p1, f))
+            rr.append((r0[0] + (r1[0] - r0[0]) * f, r0[1] + (r1[1] - r0[1]) * f))
+    return pts + [points[-1]], rr + [rs[-1]]
+
+
+def limb(points, radii, per, sides, mat, bones, ref, bumps=(), folds=0.0, bunch=(), lumps=0.0, ridges=0.0, seed=0):
+    """A limb as it is, not a tube of one width (note 543, the art checklist's grumbler: "a mannequin"): `bumps`
+    [(t, direction, metres, along, power)] raise a bone's knob or a muscle's belly where the surface faces `direction`
+    at t (0..1 along it); `ridges` the tendons standing round it, more toward its end; `lumps` it wasted unevenly. In
+    cloth, `folds` hang in it, and at each t in `bunch` it's rucked up in rings (a sleeve's crook, a trouser's knee)."""
+    pts, rr = along(points, radii, per)
+    last = len(pts) - 1
+
+    def shape(i, j, a, p, fr):
+        p = Vector(p)
+        o = fr[0] * math.sin(a) + fr[1] * math.cos(a)
+        t = i / last
+        off = lumps * noise3(p * 24, 152 + seed, 1.0)
+        for t0, d, amt, wt, pw in bumps:
+            off += amt * bell((t - t0) / wt) * max(0.0, o.dot(Vector(d).normalized())) ** pw
+        off += ridges * max(0.0, math.cos(a * 4 + 0.6)) ** 3 * smooth01(0.1, 0.6, t)
+        off += folds * math.sin(a * 5 + t * 11 + seed) * (0.6 + 0.4 * math.sin(t * 17 + a * 2))
+        for tb in bunch:
+            off += 0.006 * bell((t - tb) / 0.09) * (0.5 + 0.5 * math.sin(a * 7 + seed))
+        return p + o * off
+    return limbs.tube(pts, rr, sides, mat, bones, ref=ref, shape=shape)
+
+
 for s, sx in (("r", 1), ("l", -1)):
     ua, la, hd = f"upperarm_{s}", f"lowerarm_{s}", f"hand_{s}"
     sh, e, wr = H(ua), H(la), H(hd)
     w = jointed(sh, e, wr, ua, la)
-    limbs.tube([sh + Vector((sx * 0.02, 0, 0)), sh.lerp(e, 0.5), e - Vector((sx * 0.03, 0, 0))], [0.048, 0.04, 0.042], 10, SHIRT, w, ref=(0, 0, 1))
-    limbs.tube([e - Vector((sx * 0.04, 0, 0)), e + Vector((sx * 0.02, 0, 0))], [0.05, 0.048], 10, SHIRT, w, ref=(0, 0, 1))   # the roll
+    # (The T-pose's arm runs out along x: the back of the forearm up (+z), the elbow's point behind (-y).) The sleeve torn
+    # off ragged half way down the upper arm (note 543: a sleeve to the elbow made the whole long limb one cloth tube), and
+    # under it the arm wasted to the bone: the muscle shrunk to cords along it, the elbow's point standing out behind.
+    sm = sh.lerp(e, 0.42)
+    limb([sh + Vector((sx * 0.02, 0, 0)), sh.lerp(e, 0.22), sm], [0.052, 0.047, 0.047], 2, 12, SHIRT, w, (0, 0, 1), folds=0.004, seed=1 if sx > 0 else 2)
+    limbs.tube([sm - Vector((sx * 0.01, 0, 0)), sm + Vector((sx * 0.03, 0, 0))], [0.047, 0.045], 12, SHIRT, w, ref=(0, 0, 1),
+               shape=lambda i, j, a, p, fr, sx=sx: Vector(p) + Vector((sx * 0.035 * max(0.0, math.sin(j * 2.3 + 1)) ** 2 * (i == 1), 0, 0)))
+    limb([sh.lerp(e, 0.3), sh.lerp(e, 0.6), e.lerp(sh, 0.04), e], [0.03, 0.025, 0.028, 0.03], 3, 12, SKIN, w, (0, 0, 1), ridges=0.004,
+         bumps=[(0.55, (0, 0, 1), 0.008, 0.2, 3), (0.5, (0, -1, 0), 0.007, 0.25, 4), (1.0, (0, -1, 0), 0.042, 0.09, 2), (0.95, (0, 0, -1), 0.008, 0.08, 2)],
+         lumps=0.004, seed=3)
     # The forearm a labourer's gone stringy: the muscle's belly up by the elbow, wasting to cords toward a knobbed wrist,
-    # the tendons standing in ridges along it.
-    limbs.tube([e, e.lerp(wr, 0.15), e.lerp(wr, 0.38), e.lerp(wr, 0.75), wr], [(0.036, 0.032), (0.043, 0.035), (0.033, 0.027), (0.022, 0.018), (0.026, 0.019)],
-               10, SKIN, w, ref=(0, 0, 1), shape=sinew)
-    limbs.blob(e - Vector((0, 0, 0.004)), (0.026, 0.03, 0.026), 7, 4, SKIN, la)
+    # the tendons standing in ridges along it, the two bones' ridge down its back.
+    limb([e, e.lerp(wr, 0.15), e.lerp(wr, 0.38), e.lerp(wr, 0.75), wr], [(0.034, 0.03), (0.04, 0.033), (0.03, 0.025), (0.019, 0.016), (0.023, 0.017)],
+         2, 12, SKIN, w, (0, 0, 1), ridges=0.006, lumps=0.004,
+         bumps=[(0.0, (0, -1, 0), 0.022, 0.07, 2), (0.25, (0, 0, 1), 0.007, 0.16, 2), (0.6, (0, -0.4, 1), 0.004, 0.25, 6),
+                (0.97, (0, -0.3, 1), 0.009, 0.05, 3), (0.95, (0, 1, 0), 0.004, 0.05, 3)], seed=4)
     hand(wr, Vector((sx, 0, 0)), hd, f"fingers_{s}", 4, 1.15, sx)
     th0, th1 = H(f"thumb_{s}"), T(f"thumb_{s}")
     limbs.tube([th0, th0.lerp(th1, 0.6), th1 + (th1 - th0) * 0.8], [0.013, 0.011, 0.006], 6, SKIN, f"thumb_{s}", ref=(0, 0, 1), cap1="point")
@@ -294,14 +340,20 @@ for s, sx in (("r", 1), ("l", -1)):
     hp, kn, an, bl = H(f"thigh_{s}"), H(f"calf_{s}"), H(f"foot_{s}"), H(f"ball_{s}")
     toe = T(f"ball_{s}")
     w = jointed(hp, kn, an, f"thigh_{s}", f"calf_{s}")
-    limbs.tube([hp + Vector((0, 0, 0.04)), hp.lerp(kn, 0.5), kn, kn.lerp(an, 0.35)], [0.075, 0.062, (0.056, 0.058), 0.05], 10, TROUSERS, w, ref=(0, 1, 0))
-    # Torn off ragged at the shin; the shin and the foot bare.
-    rag = kn.lerp(an, 0.35)
-    limbs.tube([rag + Vector((0, 0, 0.01)), rag - Vector((0, 0, 0.03))], [0.052, (0.05, 0.05)], 10, TROUSERS, w, ref=(0, 1, 0),
-               shape=lambda i, j, a, p, fr: Vector(p) - Vector((0, 0, 0.03 * max(0.0, math.sin(j * 2.1)) * (i == 1))))
-    limbs.tube([kn.lerp(an, 0.3), kn.lerp(an, 0.5), kn.lerp(an, 0.8), an + Vector((0, 0, 0.02))], [(0.044, 0.04), (0.038, 0.032), (0.026, 0.022), (0.028, 0.022)],
-               10, SKIN, w, ref=(0, 1, 0), shape=sinew)
-    limbs.blob(kn + Vector((0, 0.02, 0)), (0.04, 0.04, 0.042), 8, 5, TROUSERS, {f"thigh_{s}": 0.4, f"calf_{s}": 0.6})
+    # The trousers torn off above the knee (note 543), and the knee bare: the cap and the bone's ends standing, the thigh
+    # under the rag gone to cords.
+    tm = hp.lerp(kn, 0.5)
+    limb([hp + Vector((0, 0, 0.04)), hp.lerp(kn, 0.25), tm], [0.075, 0.064, 0.062], 2, 12, TROUSERS, w, (0, 1, 0), folds=0.004, seed=5 if sx > 0 else 6)
+    limbs.tube([tm + Vector((0, 0, 0.012)), tm - Vector((0, 0, 0.035))], [0.062, (0.06, 0.06)], 12, TROUSERS, w, ref=(0, 1, 0),
+               shape=lambda i, j, a, p, fr: Vector(p) - Vector((0, 0, 0.04 * max(0.0, math.sin(j * 2.1)) ** 2 * (i == 1))))
+    limb([hp.lerp(kn, 0.4), hp.lerp(kn, 0.75), kn, kn.lerp(an, 0.32)], [0.045, 0.04, (0.044, 0.046), 0.036], 3, 12, SKIN, w, (0, 1, 0), ridges=0.003,
+         lumps=0.002, bumps=[(0.62, (0, 1, 0), 0.026, 0.09, 2), (0.6, (1, 0.3, 0), 0.01, 0.1, 3), (0.6, (-1, 0.3, 0), 0.01, 0.1, 3),
+                             (0.3, (0, 1, 0), 0.006, 0.2, 4)], seed=8)
+    # The shin bare, wasted to the bone: its edge standing down the front, the calf gone to cords, the ankle's knobs.
+    limb([kn.lerp(an, 0.3), kn.lerp(an, 0.5), kn.lerp(an, 0.8), an + Vector((0, 0, 0.02))], [(0.042, 0.038), (0.034, 0.03), (0.024, 0.02), (0.027, 0.021)],
+         2, 12, SKIN, w, (0, 1, 0), ridges=0.005, lumps=0.004,
+         bumps=[(0.5, (0, 1, 0), 0.007, 0.35, 8), (0.25, (0, -1, 0), 0.006, 0.18, 2), (0.97, (1, 0, 0), 0.008, 0.06, 4), (0.97, (-1, 0, 0), 0.008, 0.06, 4)],
+         seed=7)
     limbs.blob(an, (0.03, 0.034, 0.03), 8, 4, SKIN, f"foot_{s}")
     limbs.tube([an - Vector((0, 0.05, 0)), an.lerp(bl, 0.5), bl], [(0.036, 0.026), (0.046, 0.02), (0.052, 0.017)], 8, SKIN, f"foot_{s}", ref=(0, 0, 1),
                cap0=True)

@@ -115,7 +115,9 @@ public sealed partial class SceneArt(Look look)
             _crewActSince[c.Id] = since = (pose, time);
         double clipTime = pose switch
         {
-            CrewPose.GetUp or CrewPose.TakeDown or CrewPose.HangUp => time - since.Time,
+            // (A staged getting up says how far into it they are: dt screenshot --cameback, note 529.)
+            CrewPose.GetUp => c.Phase > 0 ? c.Phase : time - since.Time,
+            CrewPose.TakeDown or CrewPose.HangUp => time - since.Time,
             CrewPose.Stagger => time - _staggered.GetValueOrDefault(c.Id, since.Time),
             CrewPose.FireDoor => FireDoorSince >= 0 ? FireDoorSince : time - since.Time,
             // A staged swing (dt screenshot --act swing) says how far into it they are; a played one, from its blow.
@@ -639,7 +641,9 @@ public sealed partial class SceneArt(Look look)
     }
 
     static string ShapeKey(CarShape s) =>
-        $"{s.HalfWidth:0.###}x{s.HalfLength:0.###}x{s.RoofHeight:0.###}:{s.Solids.Count}:{s.Solids.Any(x => x.Part == PartKind.Coupler)}";
+        $"{s.HalfWidth:0.###}x{s.HalfLength:0.###}x{s.RoofHeight:0.###}:{s.Solids.Count}:{s.Solids.Any(x => x.Part == PartKind.Coupler)}" +
+        // (A Knotter's back where the plate was, CarShape.Knotted: no plate drawn.)
+        (s.Solids.Any(x => x.Part == PartKind.Coupler && x.Box.Max.X - x.Box.Min.X <= CarShape.KnotWidth + 1e-3) ? ":knot" : "");
 
     /// <summary>
     /// A loose body that isn't a ragdoll (crates, freight, a lamp, a radio) as its prop, turned by its yaw in its parent's
@@ -1281,7 +1285,7 @@ public sealed partial class SceneArt(Look look)
         // The engine's drivers and rods are drawn apart, turning (Gear), where their modelled parts are there to turn.
         bool turning = engine && GearParts is not null;
         var body = Piece(loadApart ? key + ":empty" : turning ? key + ":turning" : key,
-            () => engine ? TrainKit.Engine(Look, shape, 0, gear: !turning) : TrainKit.Car(Look, shape, livery, variant, load: !loadApart));
+            () => engine ? TrainKit.Engine(Look, shape, 0, gear: !turning) : TrainKit.Car(Look, shape, livery, variant, load: !loadApart, wheel: false));
         // Wear and tear off the car's integrity (look.json "damage"): the scar mask over the body and doors, seeded by
         // the car so its scars stay where they are, and past the first state the torn plate the mask can't draw.
         // What a Car Hugger ate of it (App. A.3 FEED) is gone, not battered: the scars and torn plate are the rest of the loss.
@@ -1329,6 +1333,18 @@ public sealed partial class SceneArt(Look look)
                 mesh.Instances.Add(new MeshInstance(props.Get("coupler_jaw")!, jaw * at * m, emergency ? 0.06f : 1, Scar: scar));
             }
         }
+        // Its brake wheel on its staff (TrainKit.BrakeWheelPiece), turned as far as its brake's wound: wound on by the Brakeman
+        // (note 364), turned round and its chain taken up round the staff's foot.
+        if (!engine && (frame.Origin - eye).Length < 160)
+            foreach (var brake in shape.Interactables.Where(i => i.Kind == InteractableKind.Handbrake))
+            {
+                bool wound = vehicle is { Wound: true };
+                var foot = Matrix4x4.CreateTranslation((float)brake.Position.X, (float)brake.Position.Y, (float)brake.Position.Z) * m;
+                mesh.Instances.Add(new MeshInstance(Piece("brake-wheel", () => TrainKit.BrakeWheelPiece(Look)),
+                    Matrix4x4.CreateRotationY(wound ? TrainKit.WoundTurn : 0) * foot, emergency ? 0.06f : 1, Scar: scar));
+                if (wound)
+                    mesh.Instances.Add(new MeshInstance(Piece("brake-wound", () => TrainKit.WoundChain(Look)), foot, emergency ? 0.06f : 1, Scar: scar));
+            }
         // Its number, the vehicle's id (the cars counted back from the engine as they left; a car keeps its number when
         // the ones ahead of it are cut away), worn and eaten with the body.
         // A utility car (GDD §10): fitted out for the crew where a load would go (TrainKit.UtilityFit).

@@ -30,6 +30,14 @@ public sealed record EnemyTuning(
     public ChoirSwarmV11 Choir { get; init; } = new();
     public MooseTuning Moose { get; init; } = new();
     public GannetTuning Gannet { get; init; } = new();
+    public MournersTuning Mourners { get; init; } = new();
+    public FreightBeetleTuning FreightBeetle { get; init; } = new();
+    public BrakemanTuning Brakeman { get; init; } = new();
+    public HotboxTuning Hotbox { get; init; } = new();
+    public KnotterTuning Knotter { get; init; } = new();
+    public TowerJawTuning TowerJaw { get; init; } = new();
+    /// <summary>How the crew bots answer the six creatures of 8 Oct (notes 362–367; note 367). Field docs live in enemies.json.</summary>
+    public CrewBotsTuning CrewBots { get; init; } = new();
     /// <summary>Dave, the wandering painter (note 550).</summary>
     public DaveTuning Dave { get; init; } = new();
     /// <summary>The damage model (GDD App. F.1, the director's decision of 6 Oct 2026; note 272): no creature's hit is chip.</summary>
@@ -1010,4 +1018,176 @@ public sealed record GannetTuning
     public double PerRoofWeight { get; init; } = 1;
     public Dictionary<string, double> TierWeights { get; init; } = new() { ["local"] = 1, ["frontier"] = 1.5, ["deadLines"] = 2, ["deepTerritory"] = 2.5 };
     public Dictionary<string, double> BiomeWeights { get; init; } = new();
+}
+
+/// <summary>The Mourners (GDD §21, App. A.6, B.6; ARCHITECTURE §8 note 362). Field docs live in enemies.json.</summary>
+public sealed record MournersTuning
+{
+    public bool Enabled { get; init; } = true;
+    public double After { get; init; } = 15;
+    public Dictionary<string, int> Count { get; init; } = new() { ["local"] = 3, ["frontier"] = 4, ["deadLines"] = 5, ["deepTerritory"] = 6 };
+    public double ArriveAt { get; init; } = 40;
+    public double ComeSeconds { get; init; } = 6;
+    public double WaitAt { get; init; } = 10;
+    public double Shy { get; init; } = 6;
+    public double StartleTo { get; init; } = 12;
+    public double DropWithin { get; init; } = 3;
+    public double TakeReach { get; init; } = 0.9;
+    public double Creep { get; init; } = 1.4;
+    public double Approach { get; init; } = 3;
+    public double Drag { get; init; } = 1.6;
+    public double Scatter { get; init; } = 4;
+    public double HoldAt { get; init; } = 0.7;
+    public double HoldHeight { get; init; } = 0.5;
+    public double ReturnAfter { get; init; } = 4;
+    public double ScatterOnDeath { get; init; } = 6;
+    public double LostAt { get; init; } = 120;
+    public double LeaveSeconds { get; init; } = 30;
+    public double Health { get; init; } = 1;
+
+    /// <summary>How many come, by tier (3 where the tier isn't listed).</summary>
+    public int CountFor(Route.RouteTier tier) =>
+        Count.GetValueOrDefault(char.ToLowerInvariant(tier.ToString()[0]) + tier.ToString()[1..], 3);
+}
+
+/// <summary>The Freight Beetle (GDD §21, App. A.6, B.6; ARCHITECTURE §8 note 366). Field docs live in enemies.json.</summary>
+public sealed record FreightBeetleTuning
+{
+    public double Notice { get; init; } = 25;
+    public double FreightReach { get; init; } = 30;
+    public double HeadAt { get; init; } = 1.1;
+    public double PushReach { get; init; } = 0.35;
+    public double Walk { get; init; } = 2;
+    public double Push { get; init; } = 1.2;
+    public double PushHeavy { get; init; } = 0.8;
+    public double TurnDegrees { get; init; } = 90;
+    public double StartleWithin { get; init; } = 1.5;
+    public double StartleSeconds { get; init; } = 2;
+    public int DriveOffBlows { get; init; } = 3;
+    public double DriveOffSeconds { get; init; } = 10;
+    public double AwaySeconds { get; init; } = 30;
+    public double Health { get; init; } = 6;
+    public double FacilityReach { get; init; } = 80;
+    public Dictionary<string, double> TierWeights { get; init; } = new() { ["local"] = 1, ["frontier"] = 1.25, ["deadLines"] = 1.5, ["deepTerritory"] = 1.5 };
+}
+
+/// <summary>The Brakeman (GDD §21, App. A.8, B.8; ARCHITECTURE §8 note 364). Field docs live in enemies.json.</summary>
+public sealed record BrakemanTuning
+{
+    public int MinCrew { get; init; } = 2;
+    public int MinCars { get; init; } = 4;
+    public double MovingAbove { get; init; } = 3;
+    public double ClimbSeconds { get; init; } = 2;
+    public double Walk { get; init; } = 2.5;
+    public double Flee { get; init; } = 5;
+    public double WindSeconds { get; init; } = 4;
+    public double Spook { get; init; } = 12;
+    public double Lose { get; init; } = 20;
+    public double[] Hide { get; init; } = [30, 60];
+    public double CornerSpan { get; init; } = 10;
+    public double LashEvery { get; init; } = 2.5;
+    public double LashReach { get; init; } = 2.5;
+    public int LashDamage { get; init; } = 30;
+    public double Health { get; init; } = 4;
+    public double PerCarsWeight { get; init; } = 6;
+    public double ClimbWeight { get; init; } = 2;
+    public double ClimbAhead { get; init; } = 1000;
+    public double ClimbPercent { get; init; } = 2;
+    public Dictionary<string, double> TierWeights { get; init; } = new() { ["local"] = 1, ["frontier"] = 1.5, ["deadLines"] = 2, ["deepTerritory"] = 2.5 };
+}
+
+/// <summary>Hotbox (GDD §21, App. A.3, B.3; ARCHITECTURE §8 note 367). Field docs live in enemies.json.</summary>
+public sealed record HotboxTuning
+{
+    public double BoardAbove { get; init; } = 10;
+    public double RefSpeed { get; init; } = 18;
+    public double KnockSeconds { get; init; } = 90;
+    public double GlowSeconds { get; init; } = 90;
+    public double WheelDiameter { get; init; } = 0.9;
+    public double SeizedTopSpeed { get; init; } = 7;
+    public double SeizedHold { get; init; } = 1.5;
+    public double StoodBelow { get; init; } = 0.3;
+    public double ExposeAfter { get; init; } = 2;
+    public double Health { get; init; } = 6;
+    public double PriseSeconds { get; init; } = 4;
+    public double PriseReach { get; init; } = 1.8;
+    public double ScuttleSeconds { get; init; } = 3;
+    public double SnapReach { get; init; } = 1.2;
+    public int SnapDamage { get; init; } = 30;
+    public double SnapEvery { get; init; } = 3;
+    public double RepairSeconds { get; init; } = 10;
+    public double RepairReach { get; init; } = 2.2;
+    public double BogieInset { get; init; } = 1.6;
+    public double Inboard { get; init; } = 0.35;
+    public double AxleHeight { get; init; } = 0.5;
+    public Dictionary<string, double> TierWeights { get; init; } = new() { ["local"] = 1, ["frontier"] = 1.25, ["deadLines"] = 1.5, ["deepTerritory"] = 1.75 };
+}
+
+/// <summary>The Knotter (GDD §21, App. A.3, B.3; ARCHITECTURE §8 note 365). Field docs live in enemies.json.</summary>
+public sealed record KnotterTuning
+{
+    public double BoardAbove { get; init; } = 8;
+    public int MinCars { get; init; } = 3;
+    public double CreepSeconds { get; init; } = 4;
+    public double Gap { get; init; } = 5;
+    public double ForceSeconds { get; init; } = 6;
+    public double SlackBelow { get; init; } = 0.3;
+    public double SlipAbove { get; init; } = 2;
+    public double SlipPerSecond { get; init; } = 0.45;
+    public double CoilSeconds { get; init; } = 1.5;
+    public double Health { get; init; } = 8;
+    public Dictionary<string, double> TierWeights { get; init; } = new() { ["local"] = 1, ["frontier"] = 1.5, ["deadLines"] = 2, ["deepTerritory"] = 2.5 };
+}
+
+/// <summary>Tower Jaw (GDD §21, App. A.6, B.6; ARCHITECTURE §8 note 363). Field docs live in enemies.json.</summary>
+public sealed record TowerJawTuning
+{
+    public Dictionary<string, double> GnawSeconds { get; init; } = new() { ["local"] = 150, ["frontier"] = 120, ["deadLines"] = 100, ["deepTerritory"] = 90 };
+    public double StartGnawed { get; init; } = 0.2;
+    public double ApproachReach { get; init; } = 800;
+    public double TowerLegOut { get; init; } = 3.5;
+    public double GnawAt { get; init; } = 0.9;
+    public double LeanFrom { get; init; } = 0.5;
+    public double GroanSeconds { get; init; } = 5;
+    public double Notice { get; init; } = 10;
+    public double LungeWithin { get; init; } = 3;
+    public double ThreatSeconds { get; init; } = 1.5;
+    public int Bite { get; init; } = 35;
+    public int DriveOffBlows { get; init; } = 4;
+    public double DriveOffSeconds { get; init; } = 15;
+    public double AwaySeconds { get; init; } = 120;
+    public double AwayTo { get; init; } = 40;
+    public double Lope { get; init; } = 4;
+    public double Health { get; init; } = 12;
+    public int Crush { get; init; } = 45;
+    public double CrushRadius { get; init; } = 3.5;
+    public double ClearCrewSeconds { get; init; } = 30;
+    public double ClearReach { get; init; } = 4;
+    public double WreckHalf { get; init; } = 3;
+    public double SafeSpeed { get; init; } = 1;
+    public double DamagePerSpeed { get; init; } = 0.06;
+    public Dictionary<string, double> TierWeights { get; init; } = new() { ["local"] = 1, ["frontier"] = 1.5, ["deadLines"] = 2, ["deepTerritory"] = 2 };
+
+    /// <summary>Seconds to gnaw through, by tier (120 where the tier isn't listed).</summary>
+    public double GnawFor(Route.RouteTier tier) =>
+        GnawSeconds.GetValueOrDefault(char.ToLowerInvariant(tier.ToString()[0]) + tier.ToString()[1..], 120);
+}
+
+/// <summary>
+/// The crew bots' answers to the Mourners, Tower Jaw, the Brakeman, the Knotter, the Freight Beetle and Hotbox (note 367):
+/// how near is near enough to go, and where to stand. Not the creatures' own numbers. Field docs live in enemies.json.
+/// </summary>
+public sealed record CrewBotsTuning
+{
+    public double MournersWithin { get; init; } = 30;
+    public double MournersLeash { get; init; } = 20;
+    public double TowerJawWithin { get; init; } = 25;
+    public double TowerJawClearFrom { get; init; } = 0.9;
+    public double TowerJawClearBy { get; init; } = 2.5;
+    public double WreckWithin { get; init; } = 250;
+    public double WreckStopShort { get; init; } = 15;
+    public double WreckHoldWithin { get; init; } = 60;
+    public double BeetleWithin { get; init; } = 15;
+    public double BrakemanStandOff { get; init; } = 1.5;
+    public double StandGiveUp { get; init; } = 240;
 }

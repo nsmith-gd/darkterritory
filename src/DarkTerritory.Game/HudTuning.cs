@@ -21,6 +21,14 @@ public sealed record HudTuning
     public double DawnClockSeconds { get; init; } = 600;
     /// <summary>The ping (ms) at which it's shown out on the line (spec E: always in the lobby).</summary>
     public double PingWarnMs { get; init; } = 150;
+    /// <summary>The window (s) the link's loss is counted over (note 534).</summary>
+    public double LossWindowSeconds { get; init; } = 10;
+    /// <summary>Loss (0..1) under which the link's fine.</summary>
+    public double LossGood { get; init; } = 0.02;
+    /// <summary>Loss (0..1) at which the link's bad: danger ink, and shown out on the line.</summary>
+    public double LossWarn { get; init; } = 0.08;
+    /// <summary>The loss window in sim ticks.</summary>
+    public int LossWindowTicks => Math.Max(1, (int)Math.Round(LossWindowSeconds * Sim.SimConstants.TickRate));
     /// <summary>The crew's loudness, as a share of the Choir's threshold, at which the noise meter shows.</summary>
     public double NoiseShowAt { get; init; } = 0.5;
     /// <summary>The HUD's colours that mean something (note 348), as the game was drawn.</summary>

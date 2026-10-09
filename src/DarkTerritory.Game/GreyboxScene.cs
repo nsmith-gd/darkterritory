@@ -14,7 +14,7 @@ namespace DarkTerritory.Game;
 /// relative to the camera (floating origin), so a train 40 km down the line renders as precisely
 /// as one at the yard.
 /// </summary>
-public sealed class GreyboxScene
+public sealed partial class GreyboxScene
 {
     public float DrawDistance { get; init; } = 400;
     public int Seed { get; init; } = 7;
@@ -587,6 +587,9 @@ public sealed class GreyboxScene
                     // A Moose pinning someone stands over them (note 339): the one it holds.
                     if (e.Kind is EnemyKind.Moose or EnemyKind.Gannet && e.Holding >= 0)
                         after = Crew?.FirstOrDefault(c => c.Id == e.Holding);
+                    // A Knotter coils round whoever slipped (note 365).
+                    if (e.Kind == EnemyKind.Knotter && e.Holding >= 0)
+                        after = Crew?.FirstOrDefault(c => c.Id == e.Holding);
                     Art.CreatureArt.Prey? prey = leaving && GauntHeading(e, frames) is { } going
                         ? new(V(going, eye), Vector3.Zero)
                         : after is { } victim
@@ -612,9 +615,17 @@ public sealed class GreyboxScene
                     // Dave at his easel (note 550): his own figure and things, not a creature's.
                     if (e is Sim.Enemies.Dave dave && Look is not null && Painter(mesh, eye, dave))
                         continue;
+                    // The Mourners', the Freight Beetle's and Tower Jaw's too (notes 362, 366, 363); Tower Jaw's tower, once
+                    // it's down, lies across the line at its spout.
+                    bool outside = e.Kind is EnemyKind.Mourners or EnemyKind.FreightBeetle or EnemyKind.TowerJaw;
+                    if (outside)
+                        modeSeconds = ModeSince(e);
+                    // The train's own: their clips by their mode's time and what came before (notes 364, 365, 367).
+                    if (e.Kind is EnemyKind.Brakeman or EnemyKind.Knotter or EnemyKind.Hotbox)
+                        modeSeconds = Trainfolk(e, frames, Look?.Art.Creatures);
                     DrawEnemy(mesh, line, frames, e, eye, from, to, Look?.Art.Creatures, bite, prey, room,
-                        e.Kind is EnemyKind.Gaunt or EnemyKind.Grumbler or EnemyKind.Moose ? Pace(e) : 0, Flinch(e), HitAge(e),
-                        modeSeconds: modeSeconds);
+                        e.Kind is EnemyKind.Gaunt or EnemyKind.Grumbler or EnemyKind.Moose || outside ? Pace(e) : 0, Flinch(e), HitAge(e),
+                        modeSeconds: modeSeconds, place: e is Sim.Enemies.TowerJaw { Mode: Sim.Enemies.TowerJawMode.Wreck } ? TowerPlace(line, e.Local) : null);
                     // A Grumbler healing (App. A.8, note 487): what a lone crewmate's blow knocked out of it drawn back in.
                     if (e.Kind == EnemyKind.Grumbler && Healing(e) is > 0 and var healing && Look?.Art.Effects is { } knit)
                     {
@@ -941,6 +952,9 @@ public sealed class GreyboxScene
             var fallen = was;
             if (was is Sim.Enemies.Gannet g)
                 (roll, fallen) = (0, Falling(g, frames, age));
+            // So have the train's own (their death clips: pitched off the roof, unlaid, over on its back).
+            if (body.Kind is EnemyKind.Brakeman or EnemyKind.Knotter or EnemyKind.Hotbox)
+                roll = 0;
             DrawEnemy(mesh, line, frames, fallen, eye, from, to, Look?.Art.Creatures, flinch: (push, Quaternion.Identity), hitAge: age, dying: true, roll: roll);
             if (fx is not null && BodyAt(fallen, line, frames) is var at && (at - eye).Length < DrawDistance)
                 fx.Crumble(mesh, V(at, eye), (float)age, id);
@@ -1786,6 +1800,91 @@ public sealed class GreyboxScene
         return Time - was.Since;
     }
 
+    // What each of the Mourners, the Freight Beetle and Tower Jaw was doing when last drawn (its mode, in its Height), since
+    // when (scene time).
+    readonly Dictionary<int, (int Mode, double Since)> _outsideModes = new();
+
+    /// <summary>
+    /// How long a Mourner, the Freight Beetle or Tower Jaw has been at what it's doing (its mode, s; notes 362, 366, 363), for
+    /// its clips to start with it (a startle, the beetle rearing, the beaver's turn into its threat and its lunge). As
+    /// <see cref="MooseSince"/>: first seen, its phase's time stands in.
+    /// </summary>
+    double ModeSince(Enemy e)
+    {
+        int mode = (int)e.Height;
+        if (!_outsideModes.TryGetValue(e.Id, out var was) || Time < was.Since)
+            _outsideModes[e.Id] = was = (mode, Time - e.PhaseSeconds);
+        else if (was.Mode != mode)
+            _outsideModes[e.Id] = was = (mode, Time);
+        return Time - was.Since;
+    }
+
+    /// <summary>
+    /// Where a coaling tower Tower Jaw's brought down lies (note 363): on the line at the spout nearest <paramref name="at"/>,
+    /// its +X out to the side the tower stood on (StructureKit.CoalingTowerFallen's frame). Null without the night's run.
+    /// </summary>
+    (Double3 Origin, Double3 Right)? TowerPlace(RailLine line, Double3 at)
+    {
+        if (Run is not { } run || TowerAt(line, at) is not { } f)
+            return null;
+        var t = line.Sample(run.ChuteAt(f, line).SpoutAlong);
+        var right = Double3.Cross(t.Tangent, Double3.Up).Normalized * (f.Side < 0 ? -1 : 1);
+        return (t.Position, right);
+    }
+
+    /// <summary>The night's coaling tower nearest <paramref name="at"/> (within 60 m), if any.</summary>
+    RouteFeature? TowerAt(RailLine line, Double3 at)
+    {
+        if (Run is not { } run)
+            return null;
+        RouteFeature? best = null;
+        double near = 60;
+        foreach (var f in run.Facilities)
+        {
+            if (f.Facility != FacilityKind.CoalingTower)
+                continue;
+            double d = (line.Sample((f.Start + f.End) / 2).Position - at).Length;
+            if (d < near)
+                (best, near) = (f, d);
+        }
+        return best;
+    }
+
+    // Coaling towers Tower Jaw's brought down this night, by facility, and whether the wreck's been cleared off the line
+    // (its creature gone): the scene remembers what the wire's done with.
+    readonly Dictionary<int, bool> _towersDown = new();
+
+    /// <summary>
+    /// A coaling tower's state for its drawing (note 363): leaning as far as the Tower Jaw gnawing it has got (any of the
+    /// enemies near it: its facility isn't on the wire), or down (its wreck the creature's draw), or down and cleared.
+    /// </summary>
+    (float Lean, Art.TowerDown Down) TowerState(RailLine line, RouteFeature f)
+    {
+        if (Run is not { } run)
+            return (0, Art.TowerDown.Standing);
+        int index = -1;
+        for (int i = 0; i < run.Facilities.Count; i++)
+            if (ReferenceEquals(run.Facilities[i], f))
+                index = i;
+        var jaw = Enemies?.OfType<Sim.Enemies.TowerJaw>().Where(j => !j.Gone && (j.FacilityIndex == index
+                || j.FacilityIndex < 0 && TowerAt(line, j.Local) is { } near && ReferenceEquals(near, f)))
+            .FirstOrDefault();
+        if (jaw is { Mode: Sim.Enemies.TowerJawMode.Wreck })
+        {
+            _towersDown[index] = false;
+            return (0, Art.TowerDown.Fallen);
+        }
+        if (_towersDown.ContainsKey(index))
+        {
+            _towersDown[index] = true;
+            return (0, Art.TowerDown.Cleared);
+        }
+        if (jaw is null)
+            return (0, Art.TowerDown.Standing);
+        var tune = Look?.Art.Creatures.TowerJawTuning ?? new Sim.Enemies.TowerJawTuning();
+        return (Art.CreatureArt.TowerLean(jaw.Gnawed, tune, Time), Art.TowerDown.Standing);
+    }
+
     // What each Gannet was doing when last drawn, since when (scene time), and what it was doing before that.
     readonly Dictionary<int, (Sim.Enemies.GannetMode Mode, double Since, Sim.Enemies.GannetMode? Before)> _gannetModes = new();
 
@@ -1890,14 +1989,23 @@ public sealed class GreyboxScene
     /// </summary>
     static void DrawEnemy(MeshBuilder mesh, RailLine line, IReadOnlyList<CarFrame> frames, Enemy e, Double3 eye, double from, double to, Art.CreatureArt? creatures = null,
         Art.Bite bite = default, Art.CreatureArt.Prey? prey = null, Art.CreatureArt.Room? room = null, float pace = 0,
-        (Vector3 Push, Quaternion Tip) flinch = default, double hitAge = -1, bool dying = false, float roll = 0, double modeSeconds = -1)
+        (Vector3 Push, Quaternion Tip) flinch = default, double hitAge = -1, bool dying = false, float roll = 0, double modeSeconds = -1,
+        (Double3 Origin, Double3 Right)? place = null)
     {
         // A basis for the enemy: its car's, or the line's at its distance.
         Double3 origin, right, up = Double3.Up, back;
-        if (e.Kind is EnemyKind.Moose or EnemyKind.Gannet && e.Attached == Enemy.Loose)
+        if (place is { } placed)
+        {
+            // Put where it lies (Tower Jaw's tower across the line, note 363): +X its way out.
+            origin = placed.Origin;
+            right = placed.Right;
+            back = Double3.Cross(right, Double3.Up).Normalized;
+        }
+        else if (e.Kind is EnemyKind.Moose or EnemyKind.Gannet or EnemyKind.Mourners or EnemyKind.FreightBeetle or EnemyKind.TowerJaw && e.Attached == Enemy.Loose)
         {
             // The Moose goes its own way (note 339): it faces its heading (Moose.Yaw, a player's yaw: −Z at 0), not the train.
-            // So does a Gannet down on someone on the ground (note 340).
+            // So does a Gannet down on someone on the ground (note 340), and the Mourners, the Freight Beetle and Tower Jaw
+            // (their Lateral; notes 362, 366, 363).
             origin = e.Local;
             back = new Double3(Math.Sin(e.Lateral), 0, Math.Cos(e.Lateral));
             right = Double3.Cross(Double3.Up, back).Normalized;
@@ -2010,6 +2118,45 @@ public sealed class GreyboxScene
             return;
         switch (e.Kind)
         {
+            case EnemyKind.Mourners:
+                {
+                    // A small grey hunch with heavy shoulders and long arms down to the ground (note 362); leant back, the arms
+                    // out in front, dragging.
+                    bool hauling = e is Sim.Enemies.Mourner { Mode: Sim.Enemies.MournerMode.Drag };
+                    Draw(0, 0.3, 0, 0.08, 0.3, 0.08, Palette.BoardEnamel * 0.6f);
+                    Draw(0, 0.75, hauling ? 0.08 : 0, 0.22, 0.17, 0.14, Palette.BoardEnamel * 0.7f);
+                    Draw(0, 0.88, -0.1, 0.07, 0.07, 0.07, Palette.BoardEnamel * 0.55f);
+                    foreach (double x in new[] { -0.24, 0.24 })
+                        Draw(x, hauling ? 0.55 : 0.45, hauling ? -0.4 : -0.1, 0.05, hauling ? 0.05 : 0.3, hauling ? 0.3 : 0.05, Palette.BoardEnamel * 0.6f);
+                    break;
+                }
+            case EnemyKind.FreightBeetle:
+                {
+                    // A domed back like a painted crate, the shovel out in front, six legs (note 366).
+                    Draw(0, 0.85, 0.25, 0.7, 0.5, 0.95, Palette.TarnishedBrass);
+                    Draw(0, 0.55, -1.0, 0.36, 0.06, 0.15, Palette.IronGrey);
+                    foreach (double x in new[] { -0.85, 0.85 })
+                        foreach (double z in new[] { -0.8, 0.0, 0.8 })
+                            Draw(x, 0.3, z, 0.06, 0.3, 0.06, Palette.DeepBrown);
+                    break;
+                }
+            case EnemyKind.TowerJaw when e is Sim.Enemies.TowerJaw { Mode: Sim.Enemies.TowerJawMode.Wreck }:
+                // Its tower down across the line (note 363): a heap of timber over the rails.
+                Draw(0, 0.6, 0, 6, 0.6, 2.5, Palette.DeepBrown);
+                break;
+            case EnemyKind.TowerJaw:
+                {
+                    // A dark hump bigger than a man with a ridge of spines, and two long teeth (note 363).
+                    Draw(0, 0.9, 1.0, 0.55, 0.65, 1.0, Palette.DeepBrown * 0.6f);
+                    Draw(0, 1.7, 1.0, 0.1, 0.3, 0.8, Palette.SootBlack);
+                    Draw(0, 0.8, -0.6, 0.3, 0.25, 0.3, Palette.DeepBrown * 0.5f);
+                    foreach (double x in new[] { -0.05, 0.05 })
+                        Draw(x, 0.45, -0.85, 0.03, 0.2, 0.02, Palette.IronGrey);
+                    break;
+                }
+            case EnemyKind.Brakeman or EnemyKind.Knotter or EnemyKind.Hotbox:
+                TrainfolkBoxes(e, Draw);
+                break;
             case EnemyKind.Gannet:
                 {
                     // A pale cross 7 m across with a spear for a head (note 340): wings spread flying, a dart diving, the
@@ -3566,17 +3713,24 @@ public sealed class GreyboxScene
     }
 
     /// <summary>Placeholder silhouettes until facility modules exist: oversized, dark, one working lamp (GDD §30).</summary>
-    void Facility(MeshBuilder mesh, RailLine line, Double3 eye, RouteFeature f) =>
-        FacilityBuildings(mesh, line, eye, f.Facility, (f.Start + f.End) / 2, f.Side, push: 0);
+    void Facility(MeshBuilder mesh, RailLine line, Double3 eye, RouteFeature f)
+    {
+        // A coaling tower Tower Jaw's at leans as it's gnawed, and once it's down isn't standing (note 363).
+        var (lean, down) = f.Facility == FacilityKind.CoalingTower ? TowerState(line, f) : (0, Art.TowerDown.Standing);
+        FacilityBuildings(mesh, line, eye, f.Facility, (f.Start + f.End) / 2, f.Side, push: 0, lean, down);
+    }
 
     /// <summary>A facility's buildings beside a track (the main line, or its spur), centred along it at <paramref name="mid"/>.</summary>
-    void FacilityBuildings(MeshBuilder mesh, RailLine line, Double3 eye, FacilityKind? kind, double mid, double side, double push)
+    void FacilityBuildings(MeshBuilder mesh, RailLine line, Double3 eye, FacilityKind? kind, double mid, double side, double push, float lean = 0,
+        Art.TowerDown down = Art.TowerDown.Standing)
     {
         if (Look is not null)
         {
-            Look.Art.World.Facility(mesh, line, eye, kind, mid, side, push);
+            Look.Art.World.Facility(mesh, line, eye, kind, mid, side, push, lean, down);
             return;
         }
+        if (down != Art.TowerDown.Standing)
+            return;
         side = side == 0 ? 1 : side;
         double Out(double lateral) => side * (lateral + push);
         switch (kind)
@@ -3635,6 +3789,8 @@ public sealed class GreyboxScene
                 Look.Art.Effects.HotBoxSmoke(mesh, o + right * (float)(box.X * side) + up * (float)box.Y + back * (float)box.Z, up, back, heat,
                     (float)_speed, Time, frame.Index * 2 + (side > 0 ? 1 : 0));
         }
+        // A wound brake's shoes and a seized axle's dragged wheel (notes 364, 367).
+        TrainCar(mesh, frame, vehicle, eye);
         bool utility = Utility?.Invoke(frame.Index) == true || vehicle is { Kind: VehicleKind.Utility };
         // A lived-in car's stove smoking through its pipe: a utility car's, and the guard van's (TrainKit).
         if (Look is not null && frame.Shape.Interior is { } inside && frame.Shape.Cab is null && (utility || frame.Shape.Gun is not null))

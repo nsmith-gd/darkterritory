@@ -16,8 +16,20 @@ public enum EnemyKind : byte
     Moose = 31,
     // The Gannet (GDD §21, the director's decisions of 7 Oct 2026; note 340).
     Gannet = 32,
+    // The Mourners (GDD §21, the director's brief of 8 Oct 2026; note 362).
+    Mourners = 33,
+    // Tower Jaw (GDD §21, the director's brief of 8 Oct 2026; note 363).
+    TowerJaw = 34,
+    // The Brakeman (GDD §21, the director's brief of 8 Oct 2026; note 364).
+    Brakeman = 35,
+    // The Knotter (GDD §21, the director's brief of 8 Oct 2026; note 365).
+    Knotter = 36,
+    // The Freight Beetle (GDD §21, the director's brief of 8 Oct 2026; note 366).
+    FreightBeetle = 37,
+    // Hotbox (GDD §21, the director's brief of 8 Oct 2026; note 367).
+    Hotbox = 38,
     // Dave, the wandering painter (GDD §3.2, the director, 8 Oct 2026; note 550): not a creature, and nobody's quarry.
-    Dave = 33
+    Dave = 39
 }
 
 /// <summary>
@@ -211,6 +223,12 @@ public abstract class Enemy
         EnemyKind.Grumbler => new Grumbler(id),
         EnemyKind.Moose => new Moose(id),
         EnemyKind.Gannet => new Gannet(id),
+        EnemyKind.Mourners => new Mourner(id),
+        EnemyKind.TowerJaw => new TowerJaw(id),
+        EnemyKind.FreightBeetle => new FreightBeetle(id),
+        EnemyKind.Brakeman => new Brakeman(id),
+        EnemyKind.Hotbox => new Hotbox(id),
+        EnemyKind.Knotter => new Knotter(id),
         EnemyKind.Dave => new Dave(id),
         _ => new ChoirGhost(id),
     };

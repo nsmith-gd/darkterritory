@@ -99,8 +99,11 @@ public class StopCrewTests
         /// <param name="ids">Each hand knows its own player id (as the harness tells them), so they take heavy crates (T45).</param>
         /// <param name="hands">Of the shunter and the winch pair, how many there are (note 261: a crew of two is the driver and a shunter).</param>
         /// <param name="facilities">The facilities' tuning, if not the game's (note 261's crew flags).</param>
+        /// <param name="lost">That many more cars behind, cut loose where it starts and left there (note 533).</param>
+        /// <param name="from">How far short of the spur's points it starts.</param>
         public Night(int cars, int walkers = 1, bool winchPair = true, bool crateHands = false, bool coaling = false, bool deadLine = false,
-            bool ids = false, int hands = 3, FacilityTuning? facilities = null, bool loot = false, params ModuleKind[] modules)
+            bool ids = false, int hands = 3, FacilityTuning? facilities = null, bool loot = false, bool express = false, int lost = 0,
+            double from = 600, params ModuleKind[] modules)
         {
             // A crew that searches the village (note 326) needs a stop with one: open houses with something kept in them.
             Func<RouteFeature, bool>? village = loot
@@ -109,7 +112,9 @@ public class StopCrewTests
             var (route, facility, toe) = deadLine ? DeadLine() : coaling ? CoalingTower() : StopWith(village, modules.Length > 0 ? modules : [ModuleKind.Winch]);
             Calls = new CrewCalls();
             var calls = Calls;
-            var train = new TrainOnLine(new TrainDynamics(Consist.Uniform(T, cars, Tuning.Run.DepartureLoad)), route.Build(), toe - 600, Tuning.Boiler);
+            var train = new TrainOnLine(new TrainDynamics(Consist.Uniform(T, cars + lost, Tuning.Run.DepartureLoad)), route.Build(), toe - from, Tuning.Boiler);
+            if (lost > 0)
+                train.Uncouple(train.Vehicles[cars - 1].Id);
             World = new World(train);
             World.EnableBodies();
             World.EnableSwitches(Tuning.Route.Junctions);
@@ -119,7 +124,8 @@ public class StopCrewTests
                 train.Walls = StopWalls.Of(route, train.Line);
             Site = deadLine ? null! : World.Run!.Sites[facility]!;
             Branch = deadLine ? facility : -1;
-            Driver = new ConductorBot(calls, 0);
+            // Note 512: the harness's express driver (note 376) runs hot and takes no stops, but backs off a dead line as any does.
+            Driver = express ? new ConductorBot(calls, 0) { CruiseSpeed = 21, Express = true } : new ConductorBot(calls, 0);
             Add(Driver, PlayerMotor.SpawnInCab(train, P));
             if (hands >= 1)
                 Add(new RoofWalkerBot(11, P.Cold, new StopHand(StopJob.Shunter, calls, 1, P.Cold)), PlayerMotor.SpawnOnRoof(train, 1, 0, P));
@@ -353,6 +359,29 @@ public class StopCrewTests
         Assert.All(night.Crew, c => Assert.NotEqual(Surface.Ground, c.Surface));
         var record = Assert.Single(night.Driver.Stops!.Log);
         Assert.Equal(F.Winch.Sleds, record.SledsHauled);
+    }
+
+    [Fact]
+    public void WithCarsLostKilometresBackTheCrewStillWorksTheStop()
+    {
+        // Note 533 (frontier:7 seed 6): cars cut loose at km 9 counted as the train's own all night. The driver made no stop after,
+        // and the hands kept the Foundry's plan, so at Renwick Yard two hurt hands walked for the cab by that plan's spur and
+        // stood against the engine's side till dawn, the driver waiting on them. A rake far behind isn't at this stop.
+        var night = new Night(cars: 8, lost: 2, from: 2500);
+        var train = night.Train;
+        var run = night.World.Run!;
+        Assert.Equal(2, train.TrainRakes);
+        night.Until(() => run.Departures > 0, 1200);
+        string where = string.Join(", ", night.Crew.Select((c, i) => $"{i}: {c.Surface} on {c.Parent} cold {c.Cold:0}"));
+
+        Assert.True(run.Departures > 0, $"never left the stop: driver {night.Driver.Stops!.Doing}; crew {where}");
+        Assert.Equal(night.Site.Index, run.Departed);
+        Assert.Equal(0, night.Site.SledsLeft);
+        // The lost cars are still where they were left; the train went on without them, everyone aboard.
+        Assert.Equal(2, train.TrainRakes);
+        Assert.False(train.Diverging(night.Site.Spur));
+        Assert.All(night.Crew, c => Assert.True(c.Alive, $"died of {c.Death}; crew {where}"));
+        Assert.All(night.Crew, c => Assert.NotEqual(Surface.Ground, c.Surface));
     }
 
     [Fact]
@@ -1025,11 +1054,15 @@ public class StopCrewTests
         Assert.All(night.Crew, c => Assert.NotEqual(Surface.Ground, c.Surface));
     }
 
-    [Fact]
-    public void DownADeadLineItBacksOutAndGoesOn()
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public void DownADeadLineItBacksOutAndGoesOn(bool express)
     {
-        // Taken: stop on the dead line, back out past the points, set the switch back, and go on down the main line.
-        var night = new Night(cars: 8, deadLine: true);
+        // Taken: stop on the dead line, back out past the points, set the switch back, and go on down the main line. The
+        // express driver too (note 512): it takes no stops, and it ran to the dead line's buffer and stood there all night
+        // (8-bot frontier:7 seed 2, the Switchman's points thrown under it at 6,800 m).
+        var night = new Night(cars: 8, deadLine: true, express: express);
         var train = night.Train;
         var toe = train.Line.Branches[night.Branch].Toe;
         night.World.SetSwitch(night.Branch, true);
@@ -1042,6 +1075,25 @@ public class StopCrewTests
         Assert.False(train.Diverging(night.Branch));
         Assert.All(night.Crew, c => Assert.True(c.Alive));
         Assert.All(night.Crew, c => Assert.NotEqual(Surface.Ground, c.Surface));
+    }
+
+    [Fact]
+    public void AnExpressSentDownADeadLineComesBackOffItAndRunsOn()
+    {
+        // Note 512: the Switchman's points thrown ahead of the express driver (note 376). It stops for no switch lamp, so it
+        // takes the dead line at speed; there it stands, backs out past the points, has them set back, and runs on down the
+        // main line. It used to brake for the buffers and stand there all night.
+        var night = new Night(cars: 8, deadLine: true, express: true);
+        var train = night.Train;
+        var toe = train.Line.Branches[night.Branch].Toe;
+        night.World.SetSwitch(night.Branch, true);
+        bool down = false;
+        night.Until(() => (down |= train.Dynamics.Path == night.Branch) && train.OnMain && train.Dynamics.Distance > toe + 150, 900);
+        Assert.True(down, "never went down the dead line");
+        Assert.True(train.OnMain && train.Dynamics.Distance > toe + 150, $"stuck: driver {night.Driver.Stops!.Doing} at {train.Dynamics.Distance:0} on {train.Dynamics.Path}");
+        Assert.False(train.Diverging(night.Branch));
+        Assert.False(night.World.Derailed, night.World.DerailCause);
+        Assert.Equal(StopDriver.Leg.Cruise, night.Driver.Stops!.Doing);
     }
 
     /// <summary>A shunter who says it's the shunter and never comes (on the guard van's roof).</summary>

@@ -75,6 +75,8 @@ public sealed class FakeOnline
         public string Name => name;
         public bool IsFriend(UserId user) => cloud._friends.Contains((me, user));
         public IDatagramCarrier<UserId> Carrier => this;
+        // As Steam's datagrams go, through the platform's relays (netcode-audit.md gap 3).
+        public CarrierLink? Describe(UserId peer) => new(Platform, Relayed: true);
 
         public void Poll(List<OnlineEvent> into)
         {
