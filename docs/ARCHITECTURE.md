@@ -6276,6 +6276,7 @@ Terrain sculpting tools, a node-graph material editor, a general-purpose visual 
           | 3 | 15.77 → 18.37 | 0 → 1 | 0 → 0 | 11.3 s 4:4/0/0/0 → 152.8 s 4:3/0/1/0, 177 s 2:0/0/1/1 |
 
           Mixed: 38.2 → 41.3 km, deaths 8 → 9. Each pack's hounds are all accounted for (none left aboard but the last, still riding when the night ended). Seed 2's shorter night (D1.3's question: 7 rounds and 9.64 km against 22 and 15.8 before #190 and #507) comes from earlier in it. By 300 s every walker is under 32 health and cold, and at 340 s two of them (and the gunner) go down car 10's end ladder into the car while it's alight and burn there, untagged (not warm-up, not fire-fighting). A pack sat on cars 1 and 2 meanwhile, too near the engine to cut. That's for its own item. (#232, note 495: they were on the powder run.) And on the branch the night stands from 463–566 s at 9,642 m: the Switchman's points were thrown under the train at 6,800 m, and the express driver never backs off a dead line (#249, note 512). #221 only changes which seeds the Switchman catches the train on (CutAlone held the train 26 s), so seed 2's km on the branch is capped by that, not by the pack.
+          - **The baseline with everything in** (#232, #249, #265, #279, #281, #289): note 544.
           - **With #249** (note 512, the express driver backing off the dead line; D1's ask). Main → #221 + #249:
 
             | Seed | km | Deaths | Pack fires |
@@ -6290,6 +6291,26 @@ Terrain sculpting tools, a node-graph material editor, a general-purpose visual 
         - `BoardedPackTests`: with only a hurt crewmate, and with a fit one down off the train or idle on it, the driver cuts the pack loose (the last after 90 s, not before).
         - Each fails on the old bots.
 
+544. **A fresh bot baseline for the pack and fire work (queue #286, D1.2 for D1; note 484's tables carried on).** On main at e26d8d7, with #221 (the pack fight and the cut, note 484), #232 (the guard van, 495), #249 (the express off a dead line, 512), #265 (the hound's ground, 528), #279 (warming clear of the pack, 537), #281 (the fire-fighters, 539), #289 (the roofs' cold, 547) and D1.3's #287 in:
+    - **Four bots** (`harness --route frontier:7 --bots 4 --enemies --upkeep --seconds 2700`, seeds 1–9):
+
+      | build | km | deaths | cold | mauled | burned | devoured | dragged | pack fires |
+      |---|---|---|---|---|---|---|---|---|
+      | main ae86d80 (before #287 and #289) | 128.0 | 14 | 5 | 5 | 0 | 3 | 1 | 475 |
+      | main e26d8d7 | 159.4 | 12 | 0 | 10 | 1 | 1 | 0 | 72 |
+
+      By seed (km, e26d8d7): 13.4, 17.8, 21.0, 21.1, 14.2, 19.4, 18.5, 20.8, 13.2. None reaches Grieve (25.48 km) in the 2,700 s. What kills now is the pack: 10 of the 12. D1.3's report (#671, main a2ffa44b, before most of these) had 140.4 km and 25 deaths, 10 of them cold.
+    - **Eight bots, express** (`--bots 8 --enemies --express 21 --seconds 900`, seeds 1–3; note 484's earlier rows):
+
+      | build | km | deaths | pack fires |
+      |---|---|---|---|
+      | before #221 | 38.2 | 8 | 2 |
+      | #221 + #249 | 44.6 | 5 | 5 |
+      | main e26d8d7 | 43.5 | 4 (mauled 2, burned 1, climbed 1) | 11 |
+
+      Packs (seconds aboard, hounds killed/cut/off/aboard): seed 1, 140 s 5/0/1/0. Seed 2: 219 s 0/0/2/0, 51 s 5/0/1/0, and one of 4 still aboard at the end. Seed 3: 6 s 2/0/0/0, 54 s 0/5/0/0.
+    - **Where to look next:** the hounds' maulings on the 4-bot nights: three crewmates mauled on each of seeds 4 and 8.
+
 547. **Crew freezing on the train's roofs (queue #289, D1.2 for D1; D1.3's nine-night report, #671: froze 3 → 10, nine of them "Froze, left behind on the roof of car N … 8 m from the train").** `dt harness --route frontier:7 --bots 4 --enemies --upkeep --seconds 2700`. On seeds 8 and 3 every death was traced, by tagging each return in the bots' decisions and each `Heed` that changed the intent after them in `BotCrew`. Three causes:
     - **The Brakeman drafted a warming crewmate.** Seed 8: the gunner on car 3's roof was in "warm:ToEnd" for 240 s and froze facing the wrong way. Every tick `Heed.Brakeman`, run after the bot's own decision, put it in his pincer (or on a wound wheel) over its warm-up, so it never turned for the door. Now `BotCrew.HeedBrakeman` leaves out a crewmate whose warm-up is under way; the warm crew are the pincer. D1.3's #287 (in `Heed.Brakeman`, separately) also keeps the pincer and unwind off the far side of a Knotter's gap.
     - **The driver went out to cut a pack loose past a Knotter's gap.** Seed 3: the last alive, it went back along the roofs towards the cut (`CutAlone`, notes 343 and 484). At car 4 it met a Knotter's gap, which is never jumped (note 365), and stood on that roof for 20 minutes until it froze. Now the driver doesn't go out with a knotted gap between the cab and the cut (`KnotOnTheWay`), and goes back if one comes while it's out.
@@ -6300,14 +6321,7 @@ Terrain sculpting tools, a node-graph material editor, a general-purpose visual 
         - `BoardedPackTests.ALoneDriverDoesntGoOutToCutThePackPastAKnottersGap`.
         - `AttributionTests`: freezing on the train's roof isn't "left behind"; freezing just beside the train is, at 0 to 4 m.
         - Each fails on the old code.
-    - **Measured** (seeds 1–9, 4 bots, 2,700 s; main at ae86d80, with #279 and #281, → this):
-
-      | | km | deaths | cold | burned | mauled | devoured | dragged |
-      |---|---|---|---|---|---|---|---|
-      | main | 128.0 | 14 | 5 | 0 | 5 | 3 | 1 |
-      | #289 | 131.8 | 8 | 3 | 3 | 1 | 0 | 1 |
-
-      Of the 3 cold deaths, 1 is on the train: seed 6's walker, at a stand, fighting car 3's fire (the Fire Flies relighting it) for over 1,000 s with its doors open. The other 2 are left behind, beside the train. These nights part early, so seed by seed they're noisy. Seeds 2 and 8 stand short (5.8 and 5.6 km against main's 14.0 and 12.8). On seed 8 that's from 883 s, on a spur, every crewmate in the cab, Tower Jaw 85 m ahead: none of this note's three changes is in it, and it's told to D1.
+    - **Measured** (seeds 1–9, 4 bots, 2,700 s). Corrected (note 544): the figures first given here (128.0 → 131.8 km, deaths 14 → 8) compared builds that differed by more than #289, since the #289 runs were built before #281 merged. Like for like, main at ae86d80 → main at e26d8d7 (#289, and D1.3's #287 for the Brakeman and the Knotter, which landed between): 128.0 → 159.4 km, deaths 14 → 12, cold 5 → 0, pack fires 475 → 72; the deaths now are the hounds' (mauled 5 → 10). Seed 8, which stood on a spur on the earlier build (told to D1), runs to 20.8 km.
     - **Not yet:** a crewmate fighting a car's fire at a stand while the cold builds (seed 6). The fire's work keeps the doors open, and nothing weighs the cold against it.
 
 539. **Fire-fighters don't walk into a car that's well alight (queue #281, D1.2; note 495's not-yet, D1.3's frontier:7 4-bot seed 1 on main before #613).** The winch pair went into car 1 to fight its fire when it was already well alight. They walked at the extinguisher through it for 10 s without reaching it, and burned from 99 to 14 before `TooHurt` sent them out. `FireSenseTests` has a walker on car 2's roof and car 3 alight, and it showed four holes:
@@ -7183,12 +7197,65 @@ Terrain sculpting tools, a node-graph material editor, a general-purpose visual 
         - restless, 20 s, three to five times;
         - at the controls at stage 2, restless: let back, her rattle, nudged up again, and never the crew's brake handle.
     - `RestlessAtTheRegulatorTheTrackDollRattlesTheBrakeHandleItHasntTakenYet` still pins the fallback.
+552. **The lone driver off a bridge's deck (queue #294, D1; D1.2's find on #293: frontier:7, 4 bots, seed 4).** The train stood at about 8.3 km with its cars on Stroud Bridge, the iron truss 8 m over the river (7,946–8,294 m). Nobody fit to fight the pack aboard, the driver went out and cut its car loose (note 343). Then, back for the cab on the ground beside the train, it stepped off the deck and fell 8 m to the bank. It couldn't get back up, and the train stood there the rest of the night, the fire out, the driver frozen.
+   - **Why.** A bridge's deck reaches `deckHalfM` (2.6 m) from the track. The walk beside the train keeps 2.6 m off it (`StopHand.WalkTo`), and the foot path's free squares start past a car's body, steps and clearance, about 2.7 m. So there's no walk beside a train standing on a bridge. Everywhere else on frontier:7 the ground 2.8–3.5 m from the track is within half a metre of the rail; on the bridge it's 7–9 m under it (3.5–6 at its ends).
+   - **Now** the lone driver on its way back to the cab looks for ground beside the train from where it is to the cab, on one side or the other (`ConductorBot.AfootToTheCab`: sampled every 2 m, 2.8 m out, no more than 1 m under the rail). With none, it goes by the roofs, the relief driver's way (note 399): up by the nearest ladder if it's dropped into the gap it cut, forward along the roofs, a jump onto the engine's hood and down the hatch into the cab. Once going that way it keeps on it.
+   - **Verified.** `BoardedPackTests.ALoneDriverCuttingOnABridgeGoesBackToTheCabByTheRoofs`: frontier:7's own line, the train standing with its engine 20 m past the bridge and the pack aboard its last car on the deck. Without the fix the driver falls 8.5 m; with it, it's back in the cab and away. The other nine lone-driver tests hold; Sim 1534/1534. D1.2's #293 branch (53a36ab0) with this change: seed 4 makes 25.3 km with no deaths, against the stand at 8,309 m till dawn. On main, seeds 1–4 are the same night with and without it (none sends the driver out on the bridge).
+   - **Not yet.** Only the lone driver's way back is changed. Any other walk beside a train standing on a bridge (a stop's hand, a switch set back alone, a walker off the roofs) has the same narrow deck, and nothing checks it. None has been seen; the relief driver already goes by the roofs.
+
+550. **A train run down a facility's spur outside a stop (queue #292, D1; D1.2's find on #289: frontier:7, 4 bots, seed 8 on #289's build).** `dt harness --route frontier:7 --bots 4 --enemies --upkeep --seconds 2700 --seed 8 --trace`. The train stood at 5,616 m from 883 s till dawn, the crew in the cab, 5.6 km made.
+   - **What happened.** The driver held for the Foundry at 5,426 m (445 s). The shunter was kept off the switch stand (the walkers stood "getting down" off car 3's roof for minutes), so after 240 s with nobody throwing it the driver gave the stop up (Clear, Depart, Cruise), and stood for the crew to come aboard. The shunter still had the stop: its own "that stop's over" waits for the train to be 20 m past the hold, and the train was still standing there. So it went on to the stand and threw the points, and the train pulled away down the spur (831 s) to its buffer (883 s). Cruising, the driver only backed off a dead line (`SwitchPlan.DownOne`), so it stood there all night.
+   - **Now**, two parts:
+     - The driver giving a stop up at Held calls it (`CrewCalls.Leave`, as it calls the loading done). A shunter that hasn't taken the train in yet throws nothing then, and sets the points back if they'd gone over as it was called; then it goes to the cab.
+     - A facility's spur set for it outside a stop is a switch set wrong, as a dead line's is (`SwitchPlan`): its lamp seen from the cab, the driver stops short and the shunter sets it back; already down it, the driver backs out past the points and has them set back. An alternate route is the line going on and is left alone.
+   - **Verified.** `StopCrewTests.AStopCalledOffBeforeTheShunterGetsToThePointsIsNotThrownAfter` (the shunter kept on the ballast till the stop's given up; the points are never thrown) and `DownAFacilitysSpurOutsideAStopItBacksOutAndHasThePointsSetBack`: both fail without the fix. Sim 1533/1533. 4-bot nights with the fix: seed 8 as on main (20.8 km, 5 deaths); seed 3 21.0 km, no deaths.
+   - On main (after #281), seed 8 never stands there: the night's dice differ, and it makes 20.8 km. The bug is the same on any seed that has a shunter late to the stand.
+
+551. **The mauled deaths: too hurt for the pack, into cover (queue #293, D1.2 for D1; note 544's baseline: mauled 5 → 10 dead at dawn on frontier:7's 4-bot seeds 1–9).** `dt harness --route frontier:7 --bots 4 --enemies --upkeep --seconds 2700`, seeds 1–9, Release builds. Two counts are given below: crew dead at dawn (the report's `deaths`, as note 544 counts) and every death in the run's log. The second also counts a crewmate who died, was freed from a Holdout and died again.
+   - **Traced.** On main e26d8d7 the log has 17 maulings, every one by Cinder Hounds. Most victims were under `Heed.PackFightHealth` (55, a bite is 45), out on the roofs with the pack coming in on the ground or already aboard. Nothing in the bots kept a hurt crewmate off the roofs until the pack was aboard, and even then only the walk's direction changed:
+     - a walker on 19 patrolled back along the roofs to the last car, where a run from behind boards (seed 7);
+     - three on 1, 5 and 12 stood on car 1's roof as five came up onto it (seed 4);
+     - at stops, hands on 23 and 27 walked along the roofs into the pack for their part in the stop (seeds 6 and 8);
+     - a walker on 19 manning the guard gun in its gunner's place (note 456) stayed at it on the pack's car (seed 2).
+     - The rest were crewmates fit for the fight (50–100) who lost it to five hounds. That is the pack's own numbers (bite, reach, how many board), so it goes to G1 and the director's list, not to tuning: listed under *Not changed*.
+   - **First try, dropped.** Shelter in the car it's on, as for a tunnel (`WarmUp.Shelter`). A walker in the last cars was then in the car the pack boarded and set alight, and burned (seed 1: two). A run from behind boards the last car, a run ahead car 1, a flank run whichever car it comes alongside (note 418), so no car is sure to be off its ground before it boards.
+   - **Now (`RoofWalkerBot.Hunted`, `GunnerBot.Hunted`):** under 55 with a hound running in or aboard:
+     - On the roofs, forward along them, onto the engine's hood and down its hatch into the cab (`ReliefDriver.ToTheCab`, note 399's way), and it stands there till they're gone. The cab is indoors to a hound (note 471: up on the roofs it has only whoever's out on the train) and no hound boards the engine (note 338).
+     - In a car already, it stays in with the doors shut (`WarmUp.Shelter` with `ShutFirst`, only once inside). A hound drops in only at an open door (note 472), and a fire still drives it out (note 539).
+     - No errands meanwhile: no trouble, bag or lamp in a car, and its part in a stop waits (the stop doesn't wait on it: `CrewCalls.Warming`). In `BotCrew` the errand heeds are skipped for it: Holdouts, the six of note 367, and `Heed.Rescue`. On seed 3 two hands on 4 and 11 in the cab were taken down out of it at a stand by a stop's errand, and up car 1's ladder into the pack on its roof.
+     - A hurt gunner keeps its gun while all of a run is still on the ground (a ball each is how it's least hurt), and goes for the cab once any of it is aboard.
+   - **Measured** (main 62d7a195 → this branch, seeds 1–9, 4 bots, 2,700 s):
+
+     | | main | #293 |
+     |---|---|---|
+     | km | 156.7 | 139.0 |
+     | dead at dawn | 12 | 4 |
+     | deaths in the log | 22 | 9 |
+     | mauled | 14 | 1 |
+     | burned / devoured / cold / dragged | 2 / 4 / 1 / 1 | 2 / 3 / 2 / 1 |
+
+     - Per seed, km: main 13.44, 17.75, 21.02, 21.11, 14.19, 19.41, 8.18, 20.78, 20.79; #293 10.91, 19.40, 18.32, 8.31, 14.19, 22.62, 8.17, 19.41, 17.64.
+     - Seed 4's 12.8 km (and its one death, the driver's cold) is a bug the change uncovered rather than caused, and is #294's (note 552), not this note's. Before, its three hurt crew died on car 1's roof. Now they're alive in the cab, nobody's fit, and the driver cuts the pack loose alone (note 484). It cut from car 7's plate standing on Stroud Bridge at 8.3 km, went down beside the line to walk back to the cab, fell 8 m off the deck's edge, and the train stood till dawn. With D1's #294 (the lone driver's way back by the roofs where there's no ground to walk) on this branch, seed 4 makes 25.25 km with no deaths. Counted that way, the nine seeds come to about 155.9 km against main's 156.7, with 8 deaths in the log against 22.
+     - The other eight seeds lose 4.9 km in all: hurt crew sit a pack out in the cab rather than work a stop.
+     - The one mauling left is a walker on 80 going at the pack on the last cars (seed 8): the fight's, above.
+   - **Verified.** `HuntedTests`:
+     - a walker on 19, a pack on car 4, goes from car 2's roof into the cab untouched;
+     - one on 30 warming in car 1 as the pack comes stays in, the doors shut;
+     - one at full health stays out for the fight (note 484).
+     - With `Hunted` held false, the first two fail.
+   - **Not changed (for G1 and the director):** of main 62d7a195's 14 maulings, 11 were crew under 55, and 3 were fit crew losing to the pack:
+     - seed 2: a walker on 80 warming in car 2, one dropped in at a door;
+     - seed 6: a walker at full health out of car 7 onto the roofs among them on car 9;
+     - seed 8: a gunner on 80 on car 1's roof.
+     - With five hounds aboard, a bite of 45 and "several bludgeons" each (App. A.3), a crewmate on 80 is two bites from dead, and a crew of 4 rarely has two fit to fight together. That's the pack's numbers, G1's.
+
 549. **The slow frames written down (queue #291, D1; the director, 9 Oct 2026, of main's build: "an extreme borderline unplayable performance drop that kept recurring throughout gameplay").** The cloud's software renderer can't show what a real GPU does. `dt perf`'s line views and the app's frame rate in the yard and pulling out matched the director's 2:30 pm build of 8 Oct. So the director's own machine writes it down.
    - **`FrameWatch`** (DarkTerritory.Game) times each frame of a night in its parts: input, the sim's ticks (with their count), audio and HUD, the scene's build, the HUD and upload, render and present.
    - A frame of 100 ms or more and 4 times the median of the last 120 prints one line, at most one a second, to the console. The console is teed into the launch log, `%LOCALAPPDATA%/DarkTerritory/logs/latest.log` (note 452). The line says what the frame spent, the garbage collector's collections and what was allocated, and where the night was (km, speed, phase, enemies). The night's end prints the count and the worst.
    - **Seen here:** the night's first frame spent 5.3 s building the scene, allocating 886 MB with a full collection. That's the stall note 531's bots timed out through. Every later frame is the software renderer's own 1.4 s.
    - **Verified.** `FrameWatchTests`: a slow frame is written with its parts and where, quick ones aren't; a crawl is a line a second, every slow frame counted; the threshold. The app with `--route frontier:7 --throttle 1` writes the lines.
    - **The likely fixes are others'.** B2's #595 (#215) cooks the line off the frame (a 120 ms hitch every 100 m), and N2's #644 (#270) moves the host's network off the frame loop.
+   - **Not the sim.** The harness timed in Release on main at 5880702 (`harness --route frontier:7 --bots 4 --enemies --upkeep --seconds 1500 --seed 1`, each tick's parts timed by hand, not committed): the host's tick 0.36 ms on average (median 0.27, 99.9th percentile 4.2), the four bot clients' prediction and thinking together 2.0 ms (8.2). Against a 33 ms tick nothing recurs; a handful of single ticks reached 25–57 ms, the JIT's or a collection's, once each. So a crawl is the scene, its upload and the GPU (B2's #595), or the machine; the director's log says which. In Debug the same night took about 15 times as long: run long harness nights in Release.
 
 531. **Bots gone at the start of a night (queue #268, D1; the director, 9 Oct 2026, testing main's build: "I tried to play with bots and they were all dead when we spawned in").** Reproduced headless: the app, `--route frontier:7 --bots 3`.
    - **What happened.** The bots joined (ids 1-3; `NetPlaySession.Start` steps the host and each bot until it's in). Then the night's scene loaded before the first frame, about 40 s on the software renderer here, with nothing polled: not the host, not the bots. On the first frame `BotCrew.Step` runs before the host's step. Each bot's transport polled first, found nothing from the host for 40 s (over `DatagramOptions.TimeoutSeconds`, 8), and dropped the link, so the bots were gone from the crew before anyone saw them. A friend already connected when the host stood that long would have been dropped the same way.
@@ -7747,3 +7814,51 @@ Terrain sculpting tools, a node-graph material editor, a general-purpose visual 
         - where he's found (with the chance at 1, over 16 lines) is dry ground with water in front of him, clear of the track, the same every time;
         - he's rare.
     - **Not yet:** his sounds (the reel, the water, the blessing's chime: the audio checklist's); the derailed train (`OffRails` at a tipple, note 423) re-railed by him; a modelled figure.
+
+521. **Coordination as data, first step: the shared docs merge on their own (W1, queue #258).** Every agent appends to the same three places (COORDINATION.md's claims and Done rows, ARCHITECTURE §8's notes, the logs), so nearly every merge from main met a conflict to resolve by hand. Every one of those was the same: keep both sides. On 9 Oct W1's four pull requests met eleven, between them, in a few hours. A pull request in conflict gets no CI run at all, so each one cost a CI cycle as well as the resolution.
+    - **`merge=union`** (.gitattributes) for docs/COORDINATION.md, docs/ARCHITECTURE.md and docs/log/*.md: git keeps both sides' lines where they collide. Replayed on #637's real merge with main (both files had conflicted), both merged on their own and only the code conflict was left. It works in every agent's own `git merge origin/main`; GitHub's own merge check may not read it, so a pull request still shows "conflicting" until its agent merges main in.
+    - **What union can't see, the check sees** (`tools/coord/check.py`, the Coordination workflow on any pull request touching these docs, docs-only ones included; seconds, no build):
+        - two items with one queue number;
+        - two §8 notes with one number;
+        - more than one "The next free number is" line (two claims merged together);
+        - a queue row outside the queue table (a merge that put a row after the table's end).
+      Only what's new against the base fails, so the collisions already on main (queue #143, #166, #167, #178) block nobody. `--next` prints the next free queue and note numbers, as the docs say.
+    - **What changes for agents** (COORDINATION.md's rules): merging main into a branch no longer stops at the docs. When the check fails, renumber your claim to what `--next` says.
+    - **Not yet (the rest of #258):** numbers are still taken by editing one file, so two agents can still take the same one. The check now catches it on the pull request instead of after the merge. An atomic claim (a store with `if_version`, or one file per item) is the next step, if collisions stay common.
+    - **Verified:** the check against main's docs: clean with `--base`, and without it the four old collisions are named. On the replayed merge: no conflict markers in either doc, and the check passes. In a scratch repository: two branches each adding row #2 and taking the same next-free line merge cleanly, and the check names both problems.
+516. **Feedback from inside the game (W1, queue #253; the director is one person giving feedback on everything).** The director's notes reached agents as prose, typed after the fact, about a moment nobody else could see. In a dev build, a note is made in the game at the moment itself, with everything an agent needs to take it without asking.
+    - **The keys:** **F8** types a note (Enter keeps it, Escape drops it); **F9** held says one, and letting go keeps it (up to 90 s). `F8 NOTE · F9 SAY` sits small under the corner's DEV mark. While a note's being typed the night goes on, but the keys are the note's: `InputState.Swallow` (Ballast.Platform) takes the frame's presses before the night reads them, so Escape drops the note rather than opening the menu, and the game's controls are held off as the menu holds them. While F9 is held the microphone is the note's: nothing's sent to the crew, and nothing's loud to the Choir. Four hooks in the app, all under `#if DEVTOOLS`: the keys, the controls held off, the mic loop, and the frame.
+    - **The moment is fixed at the press** (`FeedbackNote.Of`): the frame about to be shown (one extra render, once, HUD and all, before the note's box is drawn on it), the host's tick, and the night's recording (note 515), with a mark in it at that tick once the note's kept. With it: where the director stood (post, surface, car, world position, health), the threats within 300 m (kind, phase, distance), the crew at their posts by the census, the run's phase, km and speed, and the session's status line. Tags say whose it might be: `enemy:<Kind>` within 60 m, `post:<Post>`, `phase:<Phase>`, `dead`, `wreck`. And the replay command that shows it: `dt replay recordings/<night> --to <tick> --shot … --view eye:<id>`.
+    - **The bundle** (`FeedbackBundle`, the app data's `feedback/<id>/`): `note.json`, `frame.png`, `voice.wav` (16-bit mono), and `report.txt`/`report.json`, the crash report's header and the game's last lines (`CrashReports.Take`, note 452, as F1 suggested on #628), so a note says what a problem report says. It's written off the frame's thread.
+    - **Sent where every agent can take it** (`FeedbackUpload`), when the director's machine has a token: `DT_FEEDBACK_TOKEN`, or the app data's `feedback-token.txt` (a fine-grained token, Contents read and write on the repository; `DT_FEEDBACK_REPO` for another repository). Each note is one commit on the repository's `feedback` branch through GitHub's Git Data API (blobs, a tree, a commit, the ref moved on), so its files land together or not at all. The branch is its own history (its first commit has no parent; it never touches main): `notes/<id>/…` and `recordings/<night>.dtrec`. If the branch moved meanwhile (another note), it reads the branch again and goes on top (422, up to four tries). A night with notes in it sends its recording whole when it's over. Without a token, the notes stay in the app data, and the director can hand the folder over.
+    - **`dt feedback`:** `pull` fetches the branch and unpacks it into `out/feedback/` (`notes/`, `recordings/`), then lists it; `list` shows the notes newest first (what was said, when into the night, the tags); `show <id>` replays the note's recording to its tick and draws it through the director's eyes (`out/shots/<id>-replay.png`), beside the `frame.png` they saw; `make --text "…"` makes a note headless in a recorded bot night, the whole path without a window.
+    - **`WorldShot` and `eye:N`:** the crewmate whose eyes a shot is from is left out of the scene, as the app never draws your own body in your view.
+    - **Not yet:**
+        - Spoken notes have no transcript: an agent reads the text of a typed note, but only the WAV of a spoken one. A transcription step (on the director's machine, or an Action over the branch) is the next piece.
+        - A note made while joined to someone else's night has no recording (the host has it), so it carries only its frame and context.
+        - The spoken path is untested here: there's no microphone in the container. Its WAV and bundle are tested.
+    - **Verified:**
+        - `FeedbackTests` (3):
+            - a note made at twelve seconds into a recorded bot night carries its recording and tick, the crew, the director's post and phase tags, and its replay command; its bundle reads back; the recording plays to the note's tick with no divergence, and its mark is there at that tick;
+            - against an in-memory GitHub, the first note's commit has no parent or base tree and makes the branch; the next goes on top and, refused once (the branch had moved), reads the branch again and lands;
+            - the WAV's header and samples.
+        - By hand on the real window (Xvfb, `xdotool` keys, a bot night from `--route frontier:7 --bots 2`): F8, typed text, Enter kept the note; F8, text, Escape dropped it and didn't open the menu; a third was kept. Each bundle held the text, the frame, the report and the night's recording name; the app's recording replayed with no divergence over 889 ticks, its marks at the kept notes' ticks.
+        - `dt feedback make` then `show`: the replay's frame through the director's eyes is pixel for pixel the frame saved with the note.
+
+517. **Review packets: what a pull request changed, in pictures and numbers (W1, queue #254; the director reviews everything, alone).** The CI's screenshots were checked only for not crashing, and nothing compared them, so the director had to find a change's effect by playing. Now every pull request's CI draws the whole gallery and compares it with main's at the PR's base, and the run says what changed.
+    - **The gallery is one file** (`tools/review/gallery.txt`: 37 shots, each line a `dt screenshot`'s arguments), plus `tools/review/gallery.sh` (the batch, the linegen map and profile, the art turntables, and `numbers.json`: the train table and every kit piece against its triangle budget). Main's CI runs it on every merge, as its own gallery step did, and keeps `out/shots` as the screenshots artifact. A pull request's CI now runs it too, in place of the six one-of-each-kind shots.
+    - **Affordable because it's batched:**
+        - `dt screenshot --batch <file>` draws every line in one process with one dressed renderer (`ShotRig`). The look's 270 material layers are decoded and uploaded once, and each shot after the first only swaps the night's sky (`GreyboxRenderer.LoadBackdrop`, `Look.DressSky`) and resets the post settings.
+        - Measured here (Release, 4 cores): 13 s for the first shot, then 2.6 s each; the 37 in 85–106 s. Before, each shot was a process of its own at about 23 s on CI (main's gallery step took 14.5 minutes).
+        - A batch is byte for byte the same batch again. Against each shot drawn on its own it's within the packet's tolerance: the reused look's art caches leave a level or two in a few pixels. `--check` holds that.
+    - **The texture load is faster everywhere** (the app's start too, not just `dt`): `GpuTexture.MipChain` finds each output pixel's four texels once rather than per channel; `GpuTexture.MipChains` builds a texture array's layers side by side, one to a core; `Look.Assets` decodes the textures side by side. The same bytes as before (`ReviewPacketTests` holds the new chain to the old loop, and the layers in parallel to one at a time). A screenshot went from 31 s to 15.5 s here (Debug, 4 cores), and the PNG is byte-identical.
+    - **The comparison** (`dt review diff <before> <after>`, `ImageDiff` in Ballast.Dev):
+        - A pixel has changed when a channel moved by more than 8 levels in 255. A shot is `same`, `noise` (under 0.05 % of the frame) or `changed`.
+        - A changed shot gets a strip (before, after with the change's box outlined, and the change in magenta over a dimmed after) and is listed with its share, mean, max and box, most changed first.
+        - Shots only on one side are listed as new or gone. `numbers.json` is compared number by number, its lists keyed by name.
+        - A shot that changes on its own every run is listed apart (`tools/review/volatile.txt`): `hud-spectating.png` is one, because it stages a real host and joiner over UDP.
+    - **The packet** (`tools/review/packet.sh`, CI on pull requests): it takes main's screenshots artifact from the push run at the PR's base, or the nearest commit before it whose run has finished (saying how many commits back, since their changes show too), and diffs. `review.md` goes on the run's summary page, and `out/review` is the run's `review-packet` artifact. There are no PR comments, so no agent watching a PR is woken by one. The PR's agent downloads the packet and puts the changed strips where the director looks (the Look Review, the inbox of queue #257).
+    - **Verified:**
+        - `ReviewPacketTests` (7): the mip chain is the old one's bytes at four sizes (square, odd, a column, a strip); the layers side by side are the layers one at a time; a diff finds a 10x6 block gone dark (its box, its share, its max) under noise it ignores, and marks it on the strip; a shot of another size is all changed.
+        - By hand: the gallery batched twice is byte for byte the same, but for `hud-spectating.png`, which differs between two runs of its own. Against all 37 drawn one at a time: none changed, three within noise.
+        - With look.json's exposure nudged from 1.0 to 1.25, three shots came out changed (51–60 % of the frame), with strips (looked at), and then look.json was put back.

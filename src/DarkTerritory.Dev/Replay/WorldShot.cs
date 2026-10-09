@@ -49,8 +49,14 @@ public sealed class WorldShot : IDisposable
         return Views.Get(view, world.Train, car);
     }
 
-    /// <summary>The world as the scene draws it from <paramref name="camera"/>: RGBA, <see cref="Width"/> by <see cref="Height"/>.</summary>
-    public byte[] Render(World world, IReadOnlyList<PlayerSnapshot> crew, Camera camera)
+    /// <summary>The crewmate whose eyes a view is (<c>eye:N</c>), or null: their own body isn't drawn, as the app draws you.</summary>
+    public static byte? EyeOf(string view) => view.StartsWith("eye:", StringComparison.Ordinal) && byte.TryParse(view[4..], out byte id) ? id : null;
+
+    /// <summary>
+    /// The world as the scene draws it from <paramref name="camera"/>: RGBA, <see cref="Width"/> by <see cref="Height"/>.
+    /// <paramref name="hide"/>: the crewmate whose eyes these are, left out (the app never draws your own body in your view).
+    /// </summary>
+    public byte[] Render(World world, IReadOnlyList<PlayerSnapshot> crew, Camera camera, byte? hide = null)
     {
         var train = world.Train;
         double seconds = world.Tick * SimConstants.TickSeconds;
@@ -95,7 +101,7 @@ public sealed class WorldShot : IDisposable
         s.LampLit = world.LampShining;
         s.Cut = SceneArt.Cuts(train);
         var states = crew.Select(c => c.State).ToList();
-        s.Crew = [.. crew.Select(c => CrewActs.Crewmate(c.Id, c.State, world, train.Frames, states))];
+        s.Crew = [.. crew.Where(c => c.Id != hide).Select(c => CrewActs.Crewmate(c.Id, c.State, world, train.Frames, states))];
         s.Build(_mesh, train, camera.Position);
         _overlay.Clear();
         return _renderer.Render(_mesh, camera, lighting, lighting.FogColor, _overlay);

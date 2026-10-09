@@ -15,6 +15,10 @@ on:
 concurrency:
   group: ci-${{ github.event.pull_request.number || github.run_id }}
   cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+# The review packet reads main's runs and downloads their gallery (actions: read); nothing here writes to the repository.
+permissions:
+  contents: read
+  actions: read
 jobs:
   build-test:
     strategy:
@@ -44,63 +48,24 @@ jobs:
       - run: dotnet test --solution Ballast.slnx -c Release --no-build
       - run: dotnet run --project src/DarkTerritory.Cli -c Release --no-build -- train table
       - run: dotnet run --project src/DarkTerritory.Cli -c Release --no-build -- art check
-      # The gallery checks nothing but that each render doesn't crash (ScreenshotTests asserts the five views have a scene),
-      # and each shot is a fresh process that pays the renderer's startup. So a pull request renders one shot per kind,
-      # enough to catch a broken path, and main renders the whole gallery once per merge, kept as the screenshots artifact.
-      - name: Screenshots, one of each kind
-        if: runner.os == 'Linux' && github.event_name == 'pull_request'
-        run: |
-          dotnet run --project src/DarkTerritory.Cli -c Release --no-build -- screenshot --view roof --crew --out out/shots/crew-arms.png
-          dotnet run --project src/DarkTerritory.Cli -c Release --no-build -- screenshot --threats --cam 1058,5,2.5 --target 1090,0,2 --fov 55 --out out/shots/threats-rear.png
-          dotnet run --project src/DarkTerritory.Cli -c Release --no-build -- screenshot --hud --route frontier:7 --out out/shots/hud.png
-          dotnet run --project src/DarkTerritory.Cli -c Release --no-build -- screenshot --route deadLines:8 --site --out out/shots/site-winch.png
-          dotnet run --project src/DarkTerritory.Cli -c Release --no-build -- linegen generate --route frontier:7 --cars 6 --map out/shots/lg-map.png --profile out/shots/lg-profile.png
-          dotnet run --project src/DarkTerritory.Cli -c Release --no-build -- art show engine --out out/shots/art-engine.png
+      # The gallery (tools/review/gallery.txt), drawn in one process with one dressed renderer (note 517: the look's layers
+      # load once, so a shot after the first is seconds, not the half-minute a process of its own took). Main keeps it on
+      # every merge as the screenshots artifact, with the numbers a change can move (numbers.json). A pull request draws it
+      # too and compares it with main's at its base: the review packet, its summary on the run's page and its strips in the
+      # review-packet artifact for the PR's agent to show the director (tools/review/packet.sh).
       - name: Screenshots, the whole gallery
-        if: runner.os == 'Linux' && github.event_name != 'pull_request'
-        run: |
-          for v in trackside roof cab chase ahead; do
-            dotnet run --project src/DarkTerritory.Cli -c Release --no-build -- screenshot --view $v --out out/shots/$v.png
-          done
-          dotnet run --project src/DarkTerritory.Cli -c Release --no-build -- screenshot --view cab --throttle 0.75 --out out/shots/cab-levers.png
-          dotnet run --project src/DarkTerritory.Cli -c Release --no-build -- screenshot --threats --cam 1058,5,2.5 --target 1090,0,2 --fov 55 --out out/shots/threats-rear.png
-          dotnet run --project src/DarkTerritory.Cli -c Release --no-build -- screenshot --threats --cam 1184,6,3.4 --target 1185,0,2.6 --fov 55 --out out/shots/threats-cab.png
-          dotnet run --project src/DarkTerritory.Cli -c Release --no-build -- screenshot --threats --cam 1150,-22,2.5 --target 1180,-7,0.3 --fov 70 --out out/shots/threats-soot.png
-          dotnet run --project src/DarkTerritory.Cli -c Release --no-build -- screenshot --threats --cam 1166,-3.6,5.4 --target 1176,-1.4,4.0 --fov 60 --out out/shots/threats-dragger.png
-          dotnet run --project src/DarkTerritory.Cli -c Release --no-build -- screenshot --threats --cam 1218,7,2.0 --target 1209,3.2,1.9 --fov 45 --out out/shots/threats-lamplighter.png
-          dotnet run --project src/DarkTerritory.Cli -c Release --no-build -- screenshot --threats --cam 1262,2.5,2.4 --target 1295,0.3,1.8 --fov 45 --out out/shots/threats-ferryman.png
-          dotnet run --project src/DarkTerritory.Cli -c Release --no-build -- screenshot --threats --cam 1132,5,5.2 --target 1150,1.2,3.2 --fov 55 --out out/shots/threats-climbers.png
-          dotnet run --project src/DarkTerritory.Cli -c Release --no-build -- screenshot --threats --cam 1080,2.8,1.4 --target 1088,0,0.6 --fov 55 --out out/shots/threats-weight.png
-          dotnet run --project src/DarkTerritory.Cli -c Release --no-build -- screenshot --threats --cam 1139,1.2,6.0 --target 1131,0.3,6.0 --fov 55 --out out/shots/threats-gaunt.png
-          dotnet run --project src/DarkTerritory.Cli -c Release --no-build -- screenshot --view roof --crew --out out/shots/crew-arms.png
-          dotnet run --project src/DarkTerritory.Cli -c Release --no-build -- screenshot --cars 4 --cam 1122,-0.4,2.8 --target 1130,0.4,2.0 --fov 75 --out out/shots/inside-guard.png
-          dotnet run --project src/DarkTerritory.Cli -c Release --no-build -- screenshot --cars 4 --cam 1122,-0.4,2.8 --target 1130,0.4,2.0 --fov 75 --emergency --out out/shots/inside-guard-emergency.png
-          dotnet run --project src/DarkTerritory.Cli -c Release --no-build -- screenshot --hud --route frontier:7 --out out/shots/hud.png
-          dotnet run --project src/DarkTerritory.Cli -c Release --no-build -- screenshot --hud --spectating --out out/shots/hud-spectating.png
-          dotnet run --project src/DarkTerritory.Cli -c Release --no-build -- screenshot --route deadLines:8 --site --out out/shots/site-winch.png
-          dotnet run --project src/DarkTerritory.Cli -c Release --no-build -- screenshot --route deadLines:8 --site --crank --out out/shots/site-crank.png
-          dotnet run --project src/DarkTerritory.Cli -c Release --no-build -- screenshot --route deadLines:8 --site --crane --out out/shots/site-crane.png
-          dotnet run --project src/DarkTerritory.Cli -c Release --no-build -- screenshot --route frontier:7 --site --out out/shots/site-crates.png
-          dotnet run --project src/DarkTerritory.Cli -c Release --no-build -- screenshot --route deadLines:1 --coaling --cam 19464,7,5 --target 19480,-0.5,5 --fov 60 --out out/shots/coaling.png
-          dotnet run --project src/DarkTerritory.Cli -c Release --no-build -- screenshot --bodies --cam 1146,2.5,6 --target 1141,0,4.1 --fov 60 --out out/shots/bodies.png
-          # The art pass (ARCHITECTURE §8 note 48): the set pieces, and kit pieces on the turntable.
-          dotnet run --project src/DarkTerritory.Cli -c Release --no-build -- screenshot --route frontier:7 --at 7600 --cam 7860,-45,-3 --target 7900,0,-2 --fov 75 --out out/shots/viaduct.png
-          dotnet run --project src/DarkTerritory.Cli -c Release --no-build -- screenshot --route deadLines:1 --at 14000 --cam 14100,1.5,3 --target 14224,0,3 --fov 65 --out out/shots/tunnel.png
-          # Generated lines (docs/design/linegen-plan.md): boards, brass, a halt, a cutting, a washout, a trestle over its ravine.
-          dotnet run --project src/DarkTerritory.Cli -c Release --no-build -- screenshot --route frontier:7 --at 3300 --cam 3496,1.5,2.4 --target 3510,3.2,1.8 --fov 50 --out out/shots/lg-sign.png
-          dotnet run --project src/DarkTerritory.Cli -c Release --no-build -- screenshot --route frontier:7 --at 11300 --cam 11430,2,3 --target 11480,0,0.3 --fov 60 --out out/shots/lg-brass.png
-          dotnet run --project src/DarkTerritory.Cli -c Release --no-build -- screenshot --route frontier:7 --at 9700 --cam 9790,-8,3 --target 9830,2,1.5 --fov 65 --out out/shots/lg-halt.png
-          dotnet run --project src/DarkTerritory.Cli -c Release --no-build -- screenshot --route deadLines:1 --at 16700 --cam 16900,2,3 --target 17000,0,3 --fov 70 --out out/shots/lg-cutting.png
-          dotnet run --project src/DarkTerritory.Cli -c Release --no-build -- screenshot --route deadLines:1 --at 23000 --cam 23100,2,3 --target 23164,0,-0.5 --fov 60 --out out/shots/lg-washout.png
-          dotnet run --project src/DarkTerritory.Cli -c Release --no-build -- screenshot --route deadLines:1 --at 7800 --cam 8000,-60,-20 --target 8000,0,-10 --fov 70 --out out/shots/lg-trestle.png
-          dotnet run --project src/DarkTerritory.Cli -c Release --no-build -- screenshot --route deadLines:1 --junction 4 --diverge --through --view chase --out out/shots/lg-alternate.png
-          dotnet run --project src/DarkTerritory.Cli -c Release --no-build -- linegen generate --route frontier:7 --cars 6 --map out/shots/lg-map.png --profile out/shots/lg-profile.png
-          dotnet run --project src/DarkTerritory.Cli -c Release --no-build -- screenshot --route frontier:7 --at 330 --cam 250,7,2.2 --target 330,5,2.5 --fov 65 --out out/shots/station.png
-          # Wear and tear (look.json "damage"): the cars from sound at the front to wrecked at the back.
-          dotnet run --project src/DarkTerritory.Cli -c Release --no-build -- screenshot --integrity 0.3,1,0.8,0.55,0.3,0.1 --cam 1126,-5.5,2.4 --target 1116,0,2.0 --fov 55 --out out/shots/damage.png
-          for p in engine car-steel guard portal viaduct-bay car-wrecked; do
-            dotnet run --project src/DarkTerritory.Cli -c Release --no-build -- art show $p --out out/shots/art-$p.png
-          done
+        if: runner.os == 'Linux'
+        run: tools/review/gallery.sh
+      - name: The review packet (what this pull request changed in the gallery and the numbers)
+        if: runner.os == 'Linux' && github.event_name == 'pull_request'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: tools/review/packet.sh ${{ github.event.pull_request.base.sha }}
+      - uses: actions/upload-artifact@v4
+        if: runner.os == 'Linux' && github.event_name == 'pull_request'
+        with:
+          name: review-packet
+          path: out/review/
       - name: VR session end to end (Monado's simulated headset)
         if: runner.os == 'Linux'
         run: |

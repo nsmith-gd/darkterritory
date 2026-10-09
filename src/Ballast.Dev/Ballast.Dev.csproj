@@ -2,6 +2,7 @@
   <!-- The engine's developer tools (ARCHITECTURE §8 note 514): never in a player's build. -->
   <ItemGroup>
     <ProjectReference Include="../Ballast.Net/Ballast.Net.csproj" />
+    <ProjectReference Include="../Ballast.Render/Ballast.Render.csproj" />
     <AssemblyMetadata Include="DevTools" Value="true" />
   </ItemGroup>
 </Project>

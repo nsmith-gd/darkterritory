@@ -365,6 +365,12 @@ public sealed class Look
     /// <summary>Loads the look's textures, backdrop, grade and post settings into a renderer.</summary>
     public void Dress(GreyboxRenderer renderer) => renderer.Load(Sky is { } sky ? (_assets ??= Assets()) with { Backdrop = sky } : _assets ??= Assets());
 
+    /// <summary>
+    /// Only <see cref="Sky"/> taken up, on a renderer this look has already dressed (note 517: a batch of screenshots over
+    /// many nights): the far horizon replaced, the material layers left as they are.
+    /// </summary>
+    public void DressSky(GreyboxRenderer renderer) => renderer.LoadBackdrop(Sky ?? (_assets ??= Assets()).Backdrop);
+
     /// <summary>A night's own far horizon in place of the look's band (a generated line's, <see cref="Art.PlanSky"/>); null for the look's.</summary>
     public Image? Sky { get; set; }
 
@@ -389,26 +395,37 @@ public sealed class Look
         var layers = new List<MaterialLayer>();
         Image? backdrop = null;
         if (TextureRoot is not null)
-            foreach (var t in Textures)
+        {
+            // A texture that won't read (half-written, corrupt) becomes flat grey, keeping every layer where the
+            // materials expect it, rather than stopping the game.
+            static Image Read(string path, Image fallback)
             {
-                // A texture that won't read (half-written, corrupt) becomes flat grey, keeping every layer where the
-                // materials expect it, rather than stopping the game.
-                static Image Read(string path, Image fallback)
+                try { return Decoded(path); }
+                catch (Exception e) when (e is InvalidOperationException or IOException)
                 {
-                    try { return Decoded(path); }
-                    catch (Exception e) when (e is InvalidOperationException or IOException)
-                    {
-                        Console.Error.WriteLine($"look: {Path.GetFileName(path)} unreadable ({e.Message}); drawing it flat");
-                        return fallback;
-                    }
+                    Console.Error.WriteLine($"look: {Path.GetFileName(path)} unreadable ({e.Message}); drawing it flat");
+                    return fallback;
                 }
-                var diffuse = Read(Path.Combine(TextureRoot, t.Diffuse), Image.Solid(4, 80, 80, 80));
-                var spec = t.Spec is { } s && System.IO.File.Exists(Path.Combine(TextureRoot, s)) ? Read(Path.Combine(TextureRoot, s), Image.Solid(4, 20, 60, 0)) : Image.Solid(4, 20, 60, 0);
-                var normal = t.Normal is { } n && System.IO.File.Exists(Path.Combine(TextureRoot, n)) ? Read(Path.Combine(TextureRoot, n), Image.Solid(4, 128, 128, 255)) : null;
-                layers.Add(new MaterialLayer(t.Name, diffuse, spec, t.AlphaTest, normal));
-                if (t.Family == "sky")
-                    backdrop = diffuse;
             }
+            // Each texture's maps decoded side by side, one texture to a core (note 517), then laid out in the look's order.
+            var textures = Textures.ToList();
+            var read = new MaterialLayer[textures.Count];
+            string root = TextureRoot;
+            Parallel.For(0, textures.Count, i =>
+            {
+                var t = textures[i];
+                var diffuse = Read(Path.Combine(root, t.Diffuse), Image.Solid(4, 80, 80, 80));
+                var spec = t.Spec is { } s && System.IO.File.Exists(Path.Combine(root, s)) ? Read(Path.Combine(root, s), Image.Solid(4, 20, 60, 0)) : Image.Solid(4, 20, 60, 0);
+                var normal = t.Normal is { } n && System.IO.File.Exists(Path.Combine(root, n)) ? Read(Path.Combine(root, n), Image.Solid(4, 128, 128, 255)) : null;
+                read[i] = new MaterialLayer(t.Name, diffuse, spec, t.AlphaTest, normal);
+            });
+            for (int i = 0; i < textures.Count; i++)
+            {
+                layers.Add(read[i]);
+                if (textures[i].Family == "sky")
+                    backdrop = read[i].Diffuse;
+            }
+        }
         return new RenderAssets { LayerSize = Tuning.LayerSize, HeroSize = Tuning.HeroLayerSize, BigHeroSize = Tuning.BigHeroLayerSize, Layers = layers, Backdrop = backdrop, Lut = Tuning.Grade.Bake(), Post = Tuning.Post };
     }
 

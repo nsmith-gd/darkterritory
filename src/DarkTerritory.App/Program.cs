@@ -915,6 +915,12 @@ CampaignState? Play(IPlaySession session, CampaignState? campaign)
         // before, a second Escape left the night at once, a host's for the whole crew. In a headset the window's mirror
         // keeps the old way (VR's on the backburner): Escape frees the mouse, and again leaves.
         inMenu = frontEnd.Night is not null;
+#if DEVTOOLS
+        // The director's notes from inside the night (note 516): F8 types one, F9 held says one. While one's typed, the keys
+        // are the note's (Escape drops it rather than opening the menu).
+        if (vr is null && !inMenu)
+            dev.Notes?.Keys(window, input, session, net?.Host, now);
+#endif
         if (vr is not null)
         {
             if (input.Pressed(Key.Escape))
@@ -973,6 +979,11 @@ CampaignState? Play(IPlaySession session, CampaignState? campaign)
                 window.CaptureOnClick = true;
             }
         }
+#if DEVTOOLS
+        // A note being typed takes the keys from the night, as the menu does (note 516).
+        if (dev.Notes is { Typing: true })
+            inMenu = true;
+#endif
         // The night's over: Enter goes back (to the fortress, for a campaign night).
         if (session.World.Run?.Over == true && Pressed(Key.Enter))
         {
@@ -1208,6 +1219,11 @@ CampaignState? Play(IPlaySession session, CampaignState? campaign)
             double loud = 0;
             for (int n; mic is not null && (n = mic.Read(micSamples)) > 0;)
             {
+#if DEVTOOLS
+                // F9 held (note 516): a note for the studio, not the crew: not sent, and not loud to the Choir.
+                if (dev.Notes?.Hears(micSamples.AsSpan(0, n)) == true)
+                    continue;
+#endif
                 voice.Capture(micSamples.AsSpan(0, n), net.Client);
                 double sum = 0;
                 for (int k = 0; k < n; k++)
@@ -1447,6 +1463,9 @@ CampaignState? Play(IPlaySession session, CampaignState? campaign)
             frontEnd.Draw(overlay, UiWidth, UiHeight);
         }
 #if DEVTOOLS
+        // A note just begun (note 516): the frame of the moment, as it's about to be shown, before the note's own box is on it.
+        if (vr is null)
+            dev.Notes?.Frame(() => renderer.Render(mesh, camera, lighting, lighting.FogColor, showHud || menuShown ? overlay : null), renderer.Width, renderer.Height);
         dev.Draw(overlay, UiWidth, UiHeight);
 #endif
         if (vr is null)

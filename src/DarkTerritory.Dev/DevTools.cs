@@ -13,7 +13,8 @@ public sealed class DevTools
 {
     /// <param name="args">The app's command line: <c>--no-dev-mark</c> hides the corner's mark (for footage); <c>--no-record</c>
     /// records no nights; <c>--record-voice</c> keeps the crew's voices in them; <c>--recordings dir</c> keeps them there.</param>
-    /// <param name="crashes">The app's crash reports: a crash names the night's recording, to replay up to it.</param>
+    /// <param name="crashes">The app's crash reports: a crash names the night's recording, to replay up to it; a note carries
+    /// the report's header (note 516). <c>--feedback dir</c> keeps the notes there; <c>--no-notes</c> turns F8 and F9 off.</param>
     public static DevTools Start(string[] args, CrashReports? crashes = null) => new(args, crashes);
 
     DevTools(string[] args, CrashReports? crashes)
@@ -32,7 +33,23 @@ public sealed class DevTools
             // A window closed mid-night ends the process without the night's end: the recording's closed then.
             AppDomain.CurrentDomain.ProcessExit += (_, _) => Recorder.Finish();
         }
+        // The director's notes from inside the night (note 516), sent on when this machine has a token for it.
+        if (!args.Contains("--no-notes"))
+        {
+            int at = Array.IndexOf(args, "--feedback");
+            Notes = new Feedback.FeedbackNotes(at >= 0 && at + 1 < args.Length ? args[at + 1] : Feedback.FeedbackBundle.DefaultDirectory,
+                Recorder, crashes, Feedback.FeedbackUpload.FromEnvironment());
+            if (Recorder is not null)
+                Recorder.Closed += Notes.NightOver;
+            // What's still being written or sent gets a moment at the exit (after the recording's closed, above).
+            AppDomain.CurrentDomain.ProcessExit += (_, _) => Notes.Settle();
+        }
     }
+
+    /// <summary>The director's notes from inside the night (note 516), or null with <c>--no-notes</c>.</summary>
+    public Feedback.FeedbackNotes? Notes { get; }
+
+    readonly System.Diagnostics.Stopwatch _clock = System.Diagnostics.Stopwatch.StartNew();
 
     /// <summary>Records every night this machine hosts (note 515), or null with <c>--no-record</c>.</summary>
     public Replay.NightRecorder? Recorder { get; }
@@ -50,5 +67,6 @@ public sealed class DevTools
     {
         if (Marked)
             overlay.TextRight(width - 3, 3, Label, MarkColour);
+        Notes?.Draw(overlay, width, height, _clock.Elapsed.TotalSeconds);
     }
 }
