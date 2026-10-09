@@ -54,6 +54,24 @@ public sealed partial class StopWalls
     /// </summary>
     public static int DoorKey(int feature, int building, int doorway) => (feature << 12 | building << 2 | doorway) + 1;
 
+    /// <summary>
+    /// An open house as the creatures that live in houses see it (G1's house creatures, notes 583–586): its index (as
+    /// <see cref="HouseAt"/> gives it), its stop's place in the route's features and its building there (from its first
+    /// door's key), its plan, its frame in the world (origin, axis, across; level) and its doors' keys.
+    /// </summary>
+    public readonly record struct OpenHouse(int Index, int Feature, int Building, StopBuilding B, Double3 Origin, Double3 Ex, Double3 Ey, IReadOnlyList<int> Doors)
+    {
+        /// <summary>A point in the house's own plan (metres along and across it from its middle), in the world, on its floor.</summary>
+        public Double3 World(double x, double y) => Origin + Ex * x + Ey * y;
+    }
+
+    /// <summary>Every open house, in index order (alike on every machine).</summary>
+    public IEnumerable<OpenHouse> OpenHouses => _houses.Select((h, i) => new OpenHouse(i, h.Doors.Length > 0 ? (h.Doors[0] - 1) >> 12 : -1,
+        h.Doors.Length > 0 ? ((h.Doors[0] - 1) >> 2) & 0x3FF : -1, h.B, h.Origin, h.Ex, h.Ey, h.Doors));
+
+    /// <summary>Whether a world point stands inside open house <paramref name="house"/>.</summary>
+    public bool InHouse(int house, Double3 p) => house >= 0 && house < _houses.Count && _houses[house].Holds(p);
+
     /// <summary>Every open house's door.</summary>
     public IReadOnlyList<HouseDoor> HouseDoors => _doors;
 

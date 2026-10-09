@@ -1254,6 +1254,10 @@ public sealed class Director
                 EnemyKind.Dave => new Dave(0),
                 EnemyKind.Jacob => new Jacob(0),
                 EnemyKind.Pickers => new Picker(0),
+                EnemyKind.Lodger => new Lodger(0),
+                EnemyKind.Householder => new Householder(0),
+                EnemyKind.HollowHouse => new HollowHouse(0),
+                EnemyKind.Hanger => new Hanger(0),
                 _ => new ChoirGhost(0),
             };
             d[kind] = (e.Zone, e.Sense, e.Want);
