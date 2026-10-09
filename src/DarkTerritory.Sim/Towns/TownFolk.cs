@@ -121,12 +121,12 @@ public sealed record TownFolkWriting
     public Dictionary<string, string[]> RoleBynames { get; init; } = [];
     public Dictionary<string, string[]> TradeBynames { get; init; } = [];
     public Dictionary<string, FolkTemperament> Temperaments { get; init; } = [];
-    /// <summary>Nicki's party (note 529); null without it.</summary>
+    /// <summary>Nicki's party (note 551); null without it.</summary>
     public FolkParty? Party { get; init; }
 }
 
 /// <summary>
-/// Nicki's party (world/townsfolk.json <c>party</c>; note 529): her name and her card's titles, what she says first (the
+/// Nicki's party (world/townsfolk.json <c>party</c>; note 551): her name and her card's titles, what she says first (the
 /// wine), the rest of what she says, her guests' lines, and the wine on the table.
 /// </summary>
 public sealed record FolkParty

@@ -5,7 +5,7 @@ namespace DarkTerritory.Game.Art;
 
 /// <summary>
 /// Nicki (the director, 8 Oct 2026: "an NPC you can find some times in one of the houses. Her name is Nicki and she's the only
-/// house late at night that is partying"; GDD §3.2; ARCHITECTURE §8 note 529), dressed after the director's photographs of
+/// house late at night that is partying"; GDD §3.2; ARCHITECTURE §8 note 551), dressed after the director's photographs of
 /// her: shoulder-length strawberry-blonde hair, wavy, with a fringe; a tan; dangling silver earrings; a tank top (a lime green
 /// one, or a blush-pink camisole) and black trousers. The survivors' figure (<see cref="Redress"/>: no coat, no scarf, no
 /// lamp) a little narrower at the shoulders and the waist, in her own things, and no mask: it's her party.

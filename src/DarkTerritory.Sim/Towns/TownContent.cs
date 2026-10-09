@@ -29,10 +29,10 @@ public sealed record TownTuning
     public double ScrapShare { get; init; }
     /// <summary>The share of walled towns with one of Dave's murals on a wall (note 570).</summary>
     public double DaveMural { get; init; }
-    /// <summary>The share of towns with Nicki's party in an open house, and how many guests she has (note 529).</summary>
+    /// <summary>The share of towns with Nicki's party in an open house, and how many guests she has (note 551).</summary>
     public double Nicki { get; init; }
     public int[] NickiGuests { get; init; } = [2, 4];
-    /// <summary>Nicki's wine (note 529): taken by holding Use by her, a glass a crewmate a night.</summary>
+    /// <summary>Nicki's wine (note 551): taken by holding Use by her, a glass a crewmate a night.</summary>
     public NickiWine Wine { get; init; } = new();
     public required int[] Quirks { get; init; }
     public required int[] Notices { get; init; }
@@ -294,7 +294,7 @@ public sealed record TownContent(TownTuning Tuning, TownWriting Writing, IReadOn
 }
 
 /// <summary>
-/// tuning/towns.json <c>wine</c> (note 529; the director, 9 Oct: "when Nicki offers wine to the players they should get extra
+/// tuning/towns.json <c>wine</c> (note 551; the director, 9 Oct: "when Nicki offers wine to the players they should get extra
 /// health for the next run if they take it"). She's only ever in the departure town, before the night sets out, so the run
 /// it's for is the one about to start: <see cref="Health"/> over full, until it's knocked off them like any other.
 /// </summary>

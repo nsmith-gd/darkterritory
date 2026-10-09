@@ -1018,7 +1018,7 @@ CampaignState? Play(IPlaySession session, CampaignState? campaign)
         // Dead (App. D.10), a bookmark of whom you're watching (D.12): sent on the press, as intent.
         pendingBookmark |= Hit(Control.Bookmark) && !session.Player.Alive;
         // A word in town is this machine's alone, so the press is kept from the host; but by Nicki, held, it's a glass of her
-        // wine (note 529), which is the host's to pour.
+        // wine (note 551), which is the host's to pour.
         if (Hit(Control.Use) && session.World.Town is { } town && Hud.TownTarget(session) is var spoken && townTalk.Use(town, spoken, now))
             useKept = spoken is not { Kind: DarkTerritory.Sim.Towns.TownTargetKind.Person } hosting || !town.Plan.People[hosting.Index].Hosting;
         else if (Hit(Control.Use) && Hud.Prompt(session) is { } atDave && FigureTalk.Target(session) is { } dave && atDave == FigureTalk.Prompt(dave)

@@ -157,7 +157,7 @@ public static partial class Staging
             }
         }
         // The houses (note 281): the first open one, its front, its kitchen from the door, its parlour through the partition.
-        // (party: Nicki's house, note 529, from her door; partyside, from the street.)
+        // (party: Nicki's house, note 551, from her door; partyside, from the street.)
         var home = (where is "party" or "partyside" or "nicki" ? plan.Houses.FirstOrDefault(h => h.Party) : null)
             ?? plan.Houses.FirstOrDefault(h => h.Layout is not null) ?? plan.Houses.FirstOrDefault();
         if (home is not null && where is "houses" or "house" or "kitchen" or "parlour" or "sitter" or "range" or "armchair" or "party" or "partyside" or "nicki")
@@ -174,7 +174,7 @@ public static partial class Staging
                 "kitchen" => Ballast.Render.Camera.LookAt(At(du - k * 0.1, 0.35, 1.65), At(k * w / 2, home.Depth - 0.6, 0.9), 75),
                 "party" => Ballast.Render.Camera.LookAt(At(du - k * 0.1, -0.9, 1.65), At(k * w / 4, home.Depth * 0.55, 1.1), 80),
                 "partyside" => Ballast.Render.Camera.LookAt(At(-k * (w / 2 - 0.5), home.Depth - 0.6, 1.7), At(k * 0.5, 0.8, 1.0), 85),
-                // Nicki (note 529) face to face, from just inside her door as she waves you in.
+                // Nicki (note 551) face to face, from just inside her door as she waves you in.
                 "nicki" when plan.People.FirstOrDefault(p => p.Hosting) is { } nicki => Ballast.Render.Camera.LookAt(At(du - k * 0.1, 0.45, 1.66),
                     town.Now(nicki).Feet + Double3.Up * 1.5, 55),
                 // The household's poses close to (note 353): whoever's at the table from the side, at the range from behind

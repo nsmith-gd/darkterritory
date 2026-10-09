@@ -2854,7 +2854,7 @@ public sealed partial class GreyboxScene
     }
 
     /// <summary>
-    /// Nicki (note 529): dressed after the director's photographs (Art.NickiKit), in full colour and no mask, waving you in at
+    /// Nicki (note 551): dressed after the director's photographs (Art.NickiKit), in full colour and no mask, waving you in at
     /// her door; her top is the town's (the lime tank top or the blush camisole). False when her figure isn't built.
     /// </summary>
     bool Hostess(MeshBuilder mesh, Double3 eye, Double3 feet, Double3 facing, string act, int who)
@@ -2966,7 +2966,7 @@ public sealed partial class GreyboxScene
                         ? toward.Normalized : now.Facing;
                     // Held to talk mid-stride, they stand.
                     string act = talking && now.Walking ? "idle" : now.Act;
-                    // Nicki at her party (note 529): her own figure, not the town's drab.
+                    // Nicki at her party (note 551): her own figure, not the town's drab.
                     if (!p.Hosting || !Hostess(mesh, eye, feet, facing, act, p.Id))
                         Folk(mesh, eye, feet, facing, p.Look % 7 + 1, drab: 0.72f, act, p.Gear, home: p.House >= 0, who: p.Id, lamp: p.Pose == "lantern");
                     // Whoever you're talking to has the lamplight on their face, so you can see who it is (most stand with

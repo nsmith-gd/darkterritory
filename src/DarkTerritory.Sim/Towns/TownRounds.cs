@@ -161,7 +161,7 @@ public static class TownRounds
         foreach (var group in plan.People.Where(p => p.House >= 0).GroupBy(p => p.House))
         {
             var house = plan.Houses[group.Key];
-            // Nicki's party keeps its places, dancing (note 529).
+            // Nicki's party keeps its places, dancing (note 551).
             if (house.Layout is not { } layout || layout.Spots.Count < 2 || house.Party)
                 continue;
             var spots = layout.Spots;
