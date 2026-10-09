@@ -7211,6 +7211,44 @@ Terrain sculpting tools, a node-graph material editor, a general-purpose visual 
    - **Verified.** `StopCrewTests.AStopCalledOffBeforeTheShunterGetsToThePointsIsNotThrownAfter` (the shunter kept on the ballast till the stop's given up; the points are never thrown) and `DownAFacilitysSpurOutsideAStopItBacksOutAndHasThePointsSetBack`: both fail without the fix. Sim 1533/1533. 4-bot nights with the fix: seed 8 as on main (20.8 km, 5 deaths); seed 3 21.0 km, no deaths.
    - On main (after #281), seed 8 never stands there: the night's dice differ, and it makes 20.8 km. The bug is the same on any seed that has a shunter late to the stand.
 
+551. **The mauled deaths: too hurt for the pack, into cover (queue #293, D1.2 for D1; note 544's baseline: mauled 5 → 10 dead at dawn on frontier:7's 4-bot seeds 1–9).** `dt harness --route frontier:7 --bots 4 --enemies --upkeep --seconds 2700`, seeds 1–9, Release builds. Two counts are given below: crew dead at dawn (the report's `deaths`, as note 544 counts) and every death in the run's log. The second also counts a crewmate who died, was freed from a Holdout and died again.
+   - **Traced.** On main e26d8d7 the log has 17 maulings, every one by Cinder Hounds. Most victims were under `Heed.PackFightHealth` (55, a bite is 45), out on the roofs with the pack coming in on the ground or already aboard. Nothing in the bots kept a hurt crewmate off the roofs until the pack was aboard, and even then only the walk's direction changed:
+     - a walker on 19 patrolled back along the roofs to the last car, where a run from behind boards (seed 7);
+     - three on 1, 5 and 12 stood on car 1's roof as five came up onto it (seed 4);
+     - at stops, hands on 23 and 27 walked along the roofs into the pack for their part in the stop (seeds 6 and 8);
+     - a walker on 19 manning the guard gun in its gunner's place (note 456) stayed at it on the pack's car (seed 2).
+     - The rest were crewmates fit for the fight (50–100) who lost it to five hounds. That is the pack's own numbers (bite, reach, how many board), so it goes to G1 and the director's list, not to tuning: listed under *Not changed*.
+   - **First try, dropped.** Shelter in the car it's on, as for a tunnel (`WarmUp.Shelter`). A walker in the last cars was then in the car the pack boarded and set alight, and burned (seed 1: two). A run from behind boards the last car, a run ahead car 1, a flank run whichever car it comes alongside (note 418), so no car is sure to be off its ground before it boards.
+   - **Now (`RoofWalkerBot.Hunted`, `GunnerBot.Hunted`):** under 55 with a hound running in or aboard:
+     - On the roofs, forward along them, onto the engine's hood and down its hatch into the cab (`ReliefDriver.ToTheCab`, note 399's way), and it stands there till they're gone. The cab is indoors to a hound (note 471: up on the roofs it has only whoever's out on the train) and no hound boards the engine (note 338).
+     - In a car already, it stays in with the doors shut (`WarmUp.Shelter` with `ShutFirst`, only once inside). A hound drops in only at an open door (note 472), and a fire still drives it out (note 539).
+     - No errands meanwhile: no trouble, bag or lamp in a car, and its part in a stop waits (the stop doesn't wait on it: `CrewCalls.Warming`). In `BotCrew` the errand heeds are skipped for it: Holdouts, the six of note 367, and `Heed.Rescue`. On seed 3 two hands on 4 and 11 in the cab were taken down out of it at a stand by a stop's errand, and up car 1's ladder into the pack on its roof.
+     - A hurt gunner keeps its gun while all of a run is still on the ground (a ball each is how it's least hurt), and goes for the cab once any of it is aboard.
+   - **Measured** (main 62d7a195 → this branch, seeds 1–9, 4 bots, 2,700 s):
+
+     | | main | #293 |
+     |---|---|---|
+     | km | 156.7 | 139.0 |
+     | dead at dawn | 12 | 4 |
+     | deaths in the log | 22 | 9 |
+     | mauled | 14 | 1 |
+     | burned / devoured / cold / dragged | 2 / 4 / 1 / 1 | 2 / 3 / 2 / 1 |
+
+     - Per seed, km: main 13.44, 17.75, 21.02, 21.11, 14.19, 19.41, 8.18, 20.78, 20.79; #293 10.91, 19.40, 18.32, 8.31, 14.19, 22.62, 8.17, 19.41, 17.64.
+     - Seed 4's 12.8 km (and its one death, the driver's cold) is a bug the change uncovered rather than caused, and is #294's (note 552), not this note's. Before, its three hurt crew died on car 1's roof. Now they're alive in the cab, nobody's fit, and the driver cuts the pack loose alone (note 484). It cut from car 7's plate standing on Stroud Bridge at 8.3 km, went down beside the line to walk back to the cab, fell 8 m off the deck's edge, and the train stood till dawn. With D1's #294 (the lone driver's way back by the roofs where there's no ground to walk) on this branch, seed 4 makes 25.25 km with no deaths. Counted that way, the nine seeds come to about 155.9 km against main's 156.7, with 8 deaths in the log against 22.
+     - The other eight seeds lose 4.9 km in all: hurt crew sit a pack out in the cab rather than work a stop.
+     - The one mauling left is a walker on 80 going at the pack on the last cars (seed 8): the fight's, above.
+   - **Verified.** `HuntedTests`:
+     - a walker on 19, a pack on car 4, goes from car 2's roof into the cab untouched;
+     - one on 30 warming in car 1 as the pack comes stays in, the doors shut;
+     - one at full health stays out for the fight (note 484).
+     - With `Hunted` held false, the first two fail.
+   - **Not changed (for G1 and the director):** of main 62d7a195's 14 maulings, 11 were crew under 55, and 3 were fit crew losing to the pack:
+     - seed 2: a walker on 80 warming in car 2, one dropped in at a door;
+     - seed 6: a walker at full health out of car 7 onto the roofs among them on car 9;
+     - seed 8: a gunner on 80 on car 1's roof.
+     - With five hounds aboard, a bite of 45 and "several bludgeons" each (App. A.3), a crewmate on 80 is two bites from dead, and a crew of 4 rarely has two fit to fight together. That's the pack's numbers, G1's.
+
 549. **The slow frames written down (queue #291, D1; the director, 9 Oct 2026, of main's build: "an extreme borderline unplayable performance drop that kept recurring throughout gameplay").** The cloud's software renderer can't show what a real GPU does. `dt perf`'s line views and the app's frame rate in the yard and pulling out matched the director's 2:30 pm build of 8 Oct. So the director's own machine writes it down.
    - **`FrameWatch`** (DarkTerritory.Game) times each frame of a night in its parts: input, the sim's ticks (with their count), audio and HUD, the scene's build, the HUD and upload, render and present.
    - A frame of 100 ms or more and 4 times the median of the last 120 prints one line, at most one a second, to the console. The console is teed into the launch log, `%LOCALAPPDATA%/DarkTerritory/logs/latest.log` (note 452). The line says what the frame spent, the garbage collector's collections and what was allocated, and where the night was (km, speed, phase, enemies). The night's end prints the count and the worst.
