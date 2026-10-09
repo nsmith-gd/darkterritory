@@ -122,10 +122,11 @@ public class HouseInteriorArtTests
                 new GreyboxScene { Look = look, Route = route, Time = 0.37 }.Build(mesh, train, eye);
                 // (Camera-relative: the eye's at the origin.)
                 Assert.Contains(mesh.Rooms, r => Inside(r, Vector3.Zero));
-                // Its lantern: a light inside its walls, under its eaves. The Gaunt's has none.
+                // Its lantern: a light inside its walls, under its eaves. The Gaunt's has none, and nor has a powerhouse, lit by
+                // its power instead (note 509; with no run here, it's dark).
                 bool Lantern(PointLight l) => StopWalls.InParts(b, Along(l.Position), Across(l.Position))
                     && l.Position.Y > -1.6f && l.Position.Y < WorldArt.OpenShedHeight(b.Kind) - 1.6f;
-                if (StopWalls.Nest(stop, i) is null)
+                if (StopWalls.Nest(stop, i) is null && b.Kind != BuildingKind.Powerhouse)
                 {
                     Assert.Contains(mesh.PointLights, Lantern);
                     seen++;

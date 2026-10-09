@@ -65,7 +65,7 @@ public class CreatureArtTests
         // A swarm's (App. A.7): several at once, so light; SK_Human at a child's size, the legs hidden in its strips.
         ["choir"] = new(1000, 3000, 20, 60, ["drift", "swoop", "seize", "besiege"], ["hit"]),
         // A character (App. A.6), SK_Human stretched to near three metres: down on its arms and squatted aboard (note 118).
-        ["gaunt"] = new(3000, 9000, 20, 60, ["sleep", "follow", "listen", "attack", "crawl", "squat", "smash"], ["stir", "hit"]),
+        ["gaunt"] = new(3000, 9000, 20, 60, ["sleep", "follow", "listen", "attack", "crawl", "squat", "smash", "carry", "carry_low"], ["stir", "hit"]),
         // A character's (App. A.8), SK_Human with a jaw and a second pair of arms out of its ribs: down like a spider.
         ["grumbler"] = new(3000, 9000, 30, 60, ["gnaw", "scuttle", "bite", "maul"], ["hit"]),
         // A character's (App. A.5), SK_Human shrunk with a jaw: only ever seen at the firebox door, so light.

@@ -1413,15 +1413,19 @@ static object Screenshot(TrainTuning t, string content, string[] args)
     // --barn n: the same for the nth open barn, outbuilding or goods shed (note 417), its hayloft or workbench at its back;
     // --back, from just in at its door at the back wall; --find, close to where its first find is kept. --roost: of the open
     // barns or sheds (with a find or not) or the yard sheds, the ones the Gaunt sleeps in (note 488), dark. --station n: a
-    // dead town's nth station, open (note 493), framed as a barn.
-    bool stations = Opt(args, "--station", -1) >= 0, barns = stations || Opt(args, "--barn", -1) >= 0;
-    if (Opt(args, stations ? "--station" : barns ? "--barn" : "--shed", -1) is var shedAt and >= 0 && generated is not null)
+    // dead town's nth station, open (note 493), framed as a barn. --powerhouse n [--power live|low|dead]: a yard's nth
+    // powerhouse, open (note 509), of the yards with that power (its lamp lit inside only while it's live).
+    BuildingKind? only = Opt(args, "--station", -1) >= 0 ? BuildingKind.Station : Opt(args, "--powerhouse", -1) >= 0 ? BuildingKind.Powerhouse : null;
+    bool barns = only is not null || Opt(args, "--barn", -1) >= 0;
+    if (Opt(args, only == BuildingKind.Station ? "--station" : only == BuildingKind.Powerhouse ? "--powerhouse" : barns ? "--barn" : "--shed", -1) is var shedAt and >= 0
+        && generated is not null)
     {
         var walls = DataFile.Load<DarkTerritory.Sim.Run.RunTuning>(Path.Combine(content, DarkTerritory.Sim.Run.RunTuning.File)).Walls;
         var sheds = generated.Features.Where(f => f.Stop is not null)
             .SelectMany(f => f.Stop!.Buildings.Select((b, i) => (Feature: f, Building: b, Index: i)))
             .Where(x => (barns ? DarkTerritory.Sim.Run.StopWalls.OpenShed(x.Building)
-                    && (stations ? x.Building.Kind == BuildingKind.Station
+                    && (only is { } kind ? x.Building.Kind == kind
+                        && (!args.Contains("--power") || x.Feature.Stop!.Power.ToString().Equals(Str(args, "--power", ""), StringComparison.OrdinalIgnoreCase))
                         : args.Contains("--roost") || x.Feature.Stop!.Containers.Any(c => c.Building == x.Index))
                     : x.Building.Kind is BuildingKind.Shed or BuildingKind.Hero)
                 && DarkTerritory.Sim.Run.StopWalls.Doors(x.Feature.Stop!, x.Index, walls).Any()
@@ -1508,6 +1512,12 @@ static object Screenshot(TrainTuning t, string content, string[] args)
     var shouldered = args.Contains("--shouldered") ? Staging.Shouldered(train, content, Str(args, "--shouldered", "") == "walk")
         : args.Contains("--cradled") ? Staging.Shouldered(train, content, Str(args, "--cradled", "") == "walk", child: true)
         : ((DarkTerritory.Sim.Physics.Bodies Bodies, Crewmate Carrier)?)null;
+    // --powerhouse (note 509): the yards' power as the run has it, so a live powerhouse's lamp burns.
+    if (Opt(args, "--powerhouse", -1) >= 0 && generated is not null)
+    {
+        run ??= new DarkTerritory.Sim.Run.Run(DataFile.Load<DarkTerritory.Sim.Run.RunTuning>(Path.Combine(content, DarkTerritory.Sim.Run.RunTuning.File)), generated);
+        run.EnableSites(DataFile.Load<DarkTerritory.Sim.Run.FacilityTuning>(Path.Combine(content, DarkTerritory.Sim.Run.FacilityTuning.File)), line);
+    }
     // --searched (note 326): every open house's hiding spots searched, opened up, with what they kept out on the floor.
     DarkTerritory.Sim.Physics.Bodies? searched = null;
     if (args.Contains("--searched") && generated is not null)
