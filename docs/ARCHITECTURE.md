@@ -7427,7 +7427,18 @@ Terrain sculpting tools, a node-graph material editor, a general-purpose visual 
       - Hands left behind who froze or were eaten: 9 → 4.
 
       Single nights are chaotic; the totals are the measure.
-    - **Not yet:** the driver crossing a coupling plate on its way to or from a Holdout or a cut cuts it (Use on a plate standing). "Coupler: Crew 1" loses cars on main too (23 cars on these 18 nights).
+    - **Corrected by note 541:** the "Coupler: Crew 1" cuts this note listed as a driver crossing a plate by mistake are the driver's deliberate cuts of a boarded hound pack's car (note 343, note 484).
+
+541. **What cuts the couplings, and a VR hand that cuts one by mistake (queue #283, D1.3 for D1; from note 533's sweep).** Note 533 put "Coupler: Crew 1" (23 cars on main's 18 nights of frontier:7) down to the bot driver crossing a coupling plate by mistake on its way to or from a Holdout. That was wrong.
+    - **Every bot cut is meant.** A bot cuts only through `StopHand.CutAt`, the one place a bot's intent carries Uncouple. Tagging each caller and logging every cut over seeds 1–18 showed two kinds:
+      - The driver's cuts were all `ConductorBot.CutAlone` (note 343). Each was at a stand, with two to five Cinder Hounds on the cars cut away, after the pack had gone unfought for `Heed.PackUnfoughtSeconds` or with nobody fit to fight it (note 484). That's App. A.3's own counter: "cut the coupling just ahead of the pack's ground".
+      - The shunter's cuts were the stop's own (`StopHand.Cut`), at the Foundry's hold.
+      - Nothing crosses a plate and cuts it by accident: a cut needs Uncouple held, standing still on the plate and looking down (`CrewActions.Uncoupling`). No bot passes through that state on its way past. So nothing changes here. Whether a pack's cars are worth cutting is a balance question for the hounds, not a bot bug.
+    - **A player on keyboard and mouse can't cut by accident either.** Use at a door, a pin or a hot box from the plate never cuts. Uncouple is its own key (Z), held while standing still and looking down.
+    - **A VR player can.** With a hand reported, a cut is Use held on the plate with the hand below 0.7 m (`CrewActions.ReachedDown`), and `CrewActions.Apply` checks that before a loose pin or a hot box.
+      - Checked: on a standing train with the wrench out and Use held at a loose pin, a hand at 0.4 m or 0.65 m cut the coupling. A hand at 0.9 m tightened the pin.
+      - The coupler's knuckle and the axle boxes are below the plate, so reaching down for them is the natural move, and it cuts the train.
+      - Not changed: it's the VR controls, so it's a question for the director under COORDINATION's *Waiting on the director*.
 
 510. **Captions for the moments: what a creature does and how the train fails (AU1, queue #247; note 349's CAPTIONS, F1's; note 391; GDD §32; the director, 8 Oct: "these are all quite important").** Captions told a reader how a thing is learned: the tells, the signs, the jobs that call for a hand, the doors, the rules heard (note 494's healing). They didn't say when it happens. A car tearing away, someone dragged under the train, a bite, a seizing, the boiler bursting, a derailment, a misfire and the overspeed bell were all heard by a hearing player and never written.
     - **Added** (content/ui/captions.json, by F1's rules: what it is as someone hearing it would say it, never what makes it, never what to do), 55 sounds:
