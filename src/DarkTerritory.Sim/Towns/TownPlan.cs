@@ -155,7 +155,7 @@ public sealed record TownBuilding(string Kind, string Name, double S, double D, 
 public sealed record Townsperson(int Id, string Name, string Title, string Role, double S, double D, double Up, double FaceS, double FaceD, int Look,
     IReadOnlyList<string> Lines, int House = -1, string Pose = "idle", string Gear = "respirator", TownPersonality? Personality = null)
 {
-    /// <summary>Nicki, the host of the party (note 551): the one with the wine.</summary>
+    /// <summary>Nicki, the host of the party (note 571): the one with the wine.</summary>
     public bool Hosting { get; init; }
 }
 

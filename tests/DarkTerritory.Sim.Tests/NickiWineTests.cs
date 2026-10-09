@@ -10,7 +10,7 @@ namespace DarkTerritory.Sim.Tests;
 
 /// <summary>
 /// Nicki's wine (the director, 9 Oct 2026: "when Nicki offers wine to the players they should get extra health for the next run
-/// if they take it"; ARCHITECTURE §8 note 551). Use held by her, empty-handed, is a glass: tuning/towns.json <c>wine.health</c>
+/// if they take it"; ARCHITECTURE §8 note 571). Use held by her, empty-handed, is a glass: tuning/towns.json <c>wine.health</c>
 /// over full for the night that's about to set out, once a night; the host's to pour.
 /// </summary>
 public class NickiWineTests

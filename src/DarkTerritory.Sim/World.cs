@@ -805,15 +805,15 @@ public sealed class World
         Train.Walls.Add(Town.Walls);
     }
 
-    // Host: who's holding Use by Nicki and how long, and who's had their glass tonight (note 551).
+    // Host: who's holding Use by Nicki and how long, and who's had their glass tonight (note 571).
     readonly Dictionary<int, double> _byNicki = [];
     readonly SortedSet<int> _toasted = [];
 
-    /// <summary>Nicki (note 551), where the town has her party: its host, else null.</summary>
+    /// <summary>Nicki (note 571), where the town has her party: its host, else null.</summary>
     public Towns.Townsperson? Nicki => Town?.Plan.People.FirstOrDefault(p => p.Hosting);
 
     /// <summary>
-    /// Whether Nicki has a glass for <paramref name="s"/> in reach (note 551): on foot, alive, near her, and not had theirs
+    /// Whether Nicki has a glass for <paramref name="s"/> in reach (note 571): on foot, alive, near her, and not had theirs
     /// tonight. The host knows who has; a client goes by their being over full health, as only the wine puts anyone there.
     /// </summary>
     public bool WineInReach(in PlayerState s, int playerId)
@@ -825,7 +825,7 @@ public sealed class World
     }
 
     /// <summary>
-    /// Host: a crewmate by Nicki holding Use, empty-handed (note 551). Held <c>wine.holdSeconds</c>, they've taken a glass:
+    /// Host: a crewmate by Nicki holding Use, empty-handed (note 571). Held <c>wine.holdSeconds</c>, they've taken a glass:
     /// <c>wine.health</c> on top of what they have, once a night. True while it's the wine their Use is on (not her door).
     /// </summary>
     bool WineAct(ref PlayerState s, in PlayerIntent intent, int playerId, bool emptyHanded)
@@ -846,7 +846,7 @@ public sealed class World
         return true;
     }
 
-    /// <summary>Who's had a glass of Nicki's wine tonight (note 551), by player id; the host's.</summary>
+    /// <summary>Who's had a glass of Nicki's wine tonight (note 571), by player id; the host's.</summary>
     public IReadOnlyCollection<int> Toasted => _toasted;
 
     /// <summary>Note 279: the stops' buildings' walls by their doors, kept for the town's rebuild of the walls.</summary>
@@ -1217,7 +1217,7 @@ public sealed class World
         // Searching an open house's hiding spot (note 326), empty-handed, with a Use the hands didn't take.
         if (Authority && Run is { } searching)
             searching.SearchAct(s, intent, playerId, this, emptyHanded: !handsTookIt && Bodies.CarriedBy(playerId) is null);
-        // Nicki's wine (note 551), then an open house's door (note 401): empty-handed, with a Use neither the hands nor a hiding
+        // Nicki's wine (note 571), then an open house's door (note 401): empty-handed, with a Use neither the hands nor a hiding
         // spot took. (She waves you in at her door: by her, a held Use is a glass, not the door shut in her face.)
         if (Authority && !WineAct(ref s, intent, playerId, emptyHanded: !handsTookIt && Bodies.CarriedBy(playerId) is null))
             DoorAct(s, intent, playerId, emptyHanded: !handsTookIt && Bodies.CarriedBy(playerId) is null);
