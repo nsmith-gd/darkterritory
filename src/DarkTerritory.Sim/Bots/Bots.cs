@@ -2030,6 +2030,17 @@ public sealed partial class ConductorBot(CrewCalls? calls = null, int member = 0
     /// Uncouple; and back up into the cab, where it drives on without that car. Not a car right behind the engine: the gap
     /// there is the cab's own, and cutting it is every car. Null when it isn't going (or is back).
     /// </summary>
+    /// <summary>A Knotter's gap (note 365, <see cref="Heed.Knotted"/>) between the engine's first car and the gap ahead of <paramref name="cut"/>: the roofs' way there is barred.</summary>
+    static bool KnotOnTheWay(TrainOnLine train, int cut)
+    {
+        var consist = train.Dynamics.Consist;
+        int to = consist.IndexOf(cut);
+        for (int i = 1; i + 1 < to; i++)
+            if (Heed.Knotted(train, consist.Vehicles[i].Id, consist.Vehicles[i + 1].Id))
+                return true;
+        return false;
+    }
+
     PlayerIntent? CutAlone(in PlayerState self, World world, uint tick)
     {
         var train = world.Train;
@@ -2047,6 +2058,11 @@ public sealed partial class ConductorBot(CrewCalls? calls = null, int member = 0
                 front = hf;
         var hold = new PlayerIntent { Buttons = PlayerButtons.Brake, ThrottleNotch = -4 };
         _aloneHand ??= new StopHand(StopJob.None, calls, member);
+        // Note 547: a Knotter's gap on the way along the roofs to the cut is never jumped (note 365), so there's no getting
+        // there: D1.3's frontier:7 seed 3's driver, the last alive, stood on car 4's roof at its knot for 20 minutes and froze.
+        // Out already, back to the cab.
+        if (_outToCut && _cutCar >= 0 && KnotOnTheWay(train, _cutCar))
+            _cutCar = -1;
         if (_outToCut)
         {
             // Still on the train with the hounds aboard: on to the cut. Done (or they're gone): back up into the cab.
@@ -2074,6 +2090,8 @@ public sealed partial class ConductorBot(CrewCalls? calls = null, int member = 0
         bool unfought = _packSince > 0 && (tick - _packSince) * SimConstants.TickSeconds >= Heed.PackUnfoughtSeconds;
         if (front < 0 || !unfought && Crewmates?.Any(c => c.Alive && c.Health >= Heed.PackFightHealth && c.Parent != PlayerState.World) == true
             || !PlayerMotor.InCab(self, train))
+            return null;
+        if (KnotOnTheWay(train, front))
             return null;
         if (train.Dynamics.Speed > 0.05)
             return hold;

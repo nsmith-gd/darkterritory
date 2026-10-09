@@ -6290,6 +6290,26 @@ Terrain sculpting tools, a node-graph material editor, a general-purpose visual 
         - `BoardedPackTests`: with only a hurt crewmate, and with a fit one down off the train or idle on it, the driver cuts the pack loose (the last after 90 s, not before).
         - Each fails on the old bots.
 
+547. **Crew freezing on the train's roofs (queue #289, D1.2 for D1; D1.3's nine-night report, #671: froze 3 → 10, nine of them "Froze, left behind on the roof of car N … 8 m from the train").** `dt harness --route frontier:7 --bots 4 --enemies --upkeep --seconds 2700`. On seeds 8 and 3 every death was traced, by tagging each return in the bots' decisions and each `Heed` that changed the intent after them in `BotCrew`. Three causes:
+    - **The Brakeman drafted a warming crewmate.** Seed 8: the gunner on car 3's roof was in "warm:ToEnd" for 240 s and froze facing the wrong way. Every tick `Heed.Brakeman`, run after the bot's own decision, put it in his pincer (or on a wound wheel) over its warm-up, so it never turned for the door. Now `BotCrew.HeedBrakeman` leaves out a crewmate whose warm-up is under way; the warm crew are the pincer. D1.3's #287 (in `Heed.Brakeman`, separately) also keeps the pincer and unwind off the far side of a Knotter's gap.
+    - **The driver went out to cut a pack loose past a Knotter's gap.** Seed 3: the last alive, it went back along the roofs towards the cut (`CutAlone`, notes 343 and 484). At car 4 it met a Knotter's gap, which is never jumped (note 365), and stood on that roof for 20 minutes until it froze. Now the driver doesn't go out with a knotted gap between the cab and the cut (`KnotOnTheWay`), and goes back if one comes while it's out.
+    - **The log said "left behind" for any cold death.** `IncidentLog.What(Cold)` read "Froze, left behind" wherever the crewmate died. The distance was to the nearest car's middle, so anyone on a roof read 5 to 8 m "from the train". Now a death aboard (on a car or the engine in the rake) reads "Froze on the train", with the nearest crewmate as the actor like any death aboard. Left behind, the distance is to the train's nearest end.
+    - **Ruled out:** `WarmUp.Plan` already bars a Knotter's gap (`Barred` reads `Vehicle.Knot`). #279's pack-ground bar wasn't involved on these seeds.
+    - **Tests:**
+        - `RoofFreezeTests`: a cold gunner at its gun goes in to warm. With the Brakeman about and a crewmate to pair with, a cold walker still goes in; without the gate it's walked up and down the roofs and never does.
+        - `BoardedPackTests.ALoneDriverDoesntGoOutToCutThePackPastAKnottersGap`.
+        - `AttributionTests`: freezing on the train's roof isn't "left behind"; freezing just beside the train is, at 0 to 4 m.
+        - Each fails on the old code.
+    - **Measured** (seeds 1–9, 4 bots, 2,700 s; main at ae86d80, with #279 and #281, → this):
+
+      | | km | deaths | cold | burned | mauled | devoured | dragged |
+      |---|---|---|---|---|---|---|---|
+      | main | 128.0 | 14 | 5 | 0 | 5 | 3 | 1 |
+      | #289 | 131.8 | 8 | 3 | 3 | 1 | 0 | 1 |
+
+      Of the 3 cold deaths, 1 is on the train: seed 6's walker, at a stand, fighting car 3's fire (the Fire Flies relighting it) for over 1,000 s with its doors open. The other 2 are left behind, beside the train. These nights part early, so seed by seed they're noisy. Seeds 2 and 8 stand short (5.8 and 5.6 km against main's 14.0 and 12.8). On seed 8 that's from 883 s, on a spur, every crewmate in the cab, Tower Jaw 85 m ahead: none of this note's three changes is in it, and it's told to D1.
+    - **Not yet:** a crewmate fighting a car's fire at a stand while the cold builds (seed 6). The fire's work keeps the doors open, and nothing weighs the cold against it.
+
 539. **Fire-fighters don't walk into a car that's well alight (queue #281, D1.2; note 495's not-yet, D1.3's frontier:7 4-bot seed 1 on main before #613).** The winch pair went into car 1 to fight its fire when it was already well alight. They walked at the extinguisher through it for 10 s without reaching it, and burned from 99 to 14 before `TooHurt` sent them out. `FireSenseTests` has a walker on car 2's roof and car 3 alight, and it showed four holes:
     - **Its own car.** A fire well alight (`Extra`, its cells' mean heat, over 0.85) was left alone only on another car. A walker that had walked onto the burning car's roof counted it as its own and went in: at full blaze it died there. "Its own" is now the car it's in.
     - **The way out.** Too hurt to fight it, the walker stopped tending, and the warm-up's Shut step shut it in with the fire. On a 3 m fire at full blaze it burned to 13, D1.3's case to the point. In a car alight with nothing to do there (too hurt, nothing in reach, or in for the cold), it now goes out, not shut in.

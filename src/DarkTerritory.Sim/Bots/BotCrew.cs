@@ -122,7 +122,7 @@ public sealed class BotCrew(CrewCalls? calls) : IDisposable
             intent = Heed.TowerJaw(intent, session.Predicted, session.World, me, hand);
             intent = Heed.Knotter(intent, session.Predicted, session.World, me, hand);
             intent = Heed.Hotbox(intent, session.Predicted, session.World, me, hand, others);
-            intent = Heed.Brakeman(intent, session.Predicted, session.World, me, others, calls);
+            intent = HeedBrakeman(bot, intent, session.Predicted, session.World, me, others, calls);
         }
         // Note 463: not the driver at the controls of a moving train. Gone back along the hood for a walker grabbed on the
         // engine's roof (out of reach from inside it), the driver never came back, and the fire went out under it.
@@ -158,4 +158,15 @@ public sealed class BotCrew(CrewCalls? calls) : IDisposable
         intent.Select = (byte)(me % ballot.Options.Count + 1);
         return intent;
     }
+
+    /// <summary>
+    /// The Brakeman's pincer and unwind (<see cref="Heed.Brakeman"/>), for a crewmate not on its way in out of the cold (note 547:
+    /// the warm-up's its legs then). Drafted every tick, frontier:7 seed 8's gunner never turned for the door, and froze on car
+    /// 3's roof after 240 s of it.
+    /// </summary>
+    public static PlayerIntent HeedBrakeman(IBot bot, PlayerIntent intent, in PlayerState self, World world, int me,
+        IReadOnlyList<(int Id, PlayerState State)> others, CrewCalls? calls) =>
+        (bot as RoofWalkerBot)?.WarmUpStep is null or "Off" && (bot as GunnerBot)?.WarmUpStep is null or "Off"
+            ? Heed.Brakeman(intent, self, world, me, others, calls)
+            : intent;
 }
