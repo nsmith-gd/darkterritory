@@ -431,7 +431,8 @@ public sealed class CreatureArt
     /// </summary>
     void Dress(string name, IReadOnlyDictionary<Cloth, Dye> clothes, Func<Vector3, string, Vector3>? shape = null)
     {
-        if (!_models.TryGetValue("survivor_prisoner", out var figure))
+        // A figure modelled for them (content/art/models/<name>.glb, the art sessions') is theirs: the dressed one is the fallback.
+        if (_models.ContainsKey(name) || !_models.TryGetValue("survivor_prisoner", out var figure))
             return;
         var model = Redress.Of(figure.Model, name, clothes, shape);
         float wear = WearOf.GetValueOrDefault("survivor_prisoner", 0.5f);
