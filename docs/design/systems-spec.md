@@ -286,7 +286,7 @@ At three cars, the boiler is a periodic chore someone fits around other work. **
 |---|---|
 | Fire rate | 3/s |
 | Effective range | 220m (T121: the forward gun covers the Track Doll from the 200 m it shows in the lamp; cab forward since note 276, nothing of the engine masks the rail: the driver sees it from 8 m past the plough) |
-| Traverse | 200° |
+| Traverse | 200°; **the engine's forward gun 360°** (the director's in-game notes, 9 Oct 2026; note 594): it turns the full circle, the short way round past its back, and the dead zone and the train's own body still keep it from firing back down the train |
 | **Dead zone** | **20° each side along the train's own body** |
 | Ammunition | 200 rounds/gun, resupply at POI |
 | Choir aggro | +1.5 per round fired, decay 45s |

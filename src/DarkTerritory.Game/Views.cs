@@ -240,6 +240,8 @@ public static class Views
             // (Not one of Names.) Sat in the cannon's seat (note 137), the gunner's eye over the breech, along the barrel;
             // and off its side, close, the whole of it.
             "cannon" => CannonCamera(train, side: false),
+            // (Not one of Names.) The engine's forward gun from its seat (note 594): what the gunner sees ahead of the train.
+            "cannonfront" => CannonCamera(train, side: false, engine: true),
             // From the rear gun's seat, back down the line at the staged hound run (note 328, --run).
             "run" => RunCamera(train),
             "cannonside" => CannonCamera(train, side: true),
@@ -563,9 +565,9 @@ public static class Views
         return Camera.LookAt(f.ToWorld(eye + new Double3(0, 0.9, 0)), ahead + Double3.Up * 0.6, 20);
     }
 
-    static Camera CannonCamera(TrainOnLine train, bool side)
+    static Camera CannonCamera(TrainOnLine train, bool side, bool engine = false)
     {
-        int v = Enumerable.Range(0, train.Vehicles.Count).LastOrDefault(i => train.Vehicles[i].HasGun, -1);
+        int v = engine ? 0 : Enumerable.Range(0, train.Vehicles.Count).LastOrDefault(i => train.Vehicles[i].HasGun, -1);
         if (v < 0 || Sim.Combat.Guns.Mount(train, v) is not { } mount)
             return GunCamera(train);
         var f = train.Frames[v];
@@ -573,7 +575,8 @@ public static class Views
         double dir = mount.Facing.Z;             // the barrel's way along the car (−1: towards the engine)
         var seat = Art.TrainKit.CannonSeat;
         // The seat is behind the breech: back along the car from the pivot, its height under it.
-        var eye = new Double3(p.X, p.Y + seat.Y + 0.78, p.Z - dir * seat.Z);
+        // The seated eye (Eyes.Seated over the roof the seat stands on; note 594: over the shield, not through its slot).
+        var eye = new Double3(p.X, p.Y - 0.9 + Eyes.Seated, p.Z - dir * seat.Z);
         return side
             ? Camera.LookAt(f.ToWorld(new Double3(p.X + 2.2, p.Y + 0.6, p.Z + dir * 0.4)), f.ToWorld(new Double3(p.X, p.Y - 0.25, p.Z + dir * 0.1)), 50)
             : Camera.LookAt(f.ToWorld(eye), f.ToWorld(new Double3(p.X, p.Y + 0.1, p.Z + dir * 12)), 65);

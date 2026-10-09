@@ -141,16 +141,43 @@ public class GunTests
     public void AimingPastTheTraverseStopsTheGun()
     {
         var w = World();
-        // T112: seated, the view itself is held at the traverse's stop, and the gun is laid there and no further.
-        var s = AtGun(w, 0);
-        s.Yaw = 120 * Math.PI / 180;
+        // T112: seated, the view itself is held at the traverse's stop, and the gun is laid there and no further. The guard
+        // van's gun, facing back down the line: the forward gun turns all the way round (note 594).
+        int van = GuardCar(w);
+        var s = AtGun(w, van);
+        s.Yaw = Math.PI + 120 * Math.PI / 180;
         Hold(w, ref s, default, 3);
         double stop = C.Guns.TraverseDegrees / 2;
-        Assert.Equal(stop, s.Yaw * 180 / Math.PI, 6);
-        Assert.Equal(stop, w.Train.Vehicles[0].Gun.Traverse * 180 / Math.PI, 6);
+        Assert.Equal(180 + stop, s.Yaw * 180 / Math.PI, 6);
+        Assert.Equal(stop, w.Train.Vehicles[van].Gun.Traverse * 180 / Math.PI, 6);
+        var shot = Hold(w, ref s, Fire, 0.2).Single();
+        var local = w.Train.Frames[van].DirToLocal(shot.Direction);
+        Assert.Equal(stop - 180, Math.Atan2(-local.X, -local.Z) * 180 / Math.PI, 3);
+    }
+
+    [Fact]
+    public void TheForwardGunTurnsAllTheWayRoundTheShortWay()
+    {
+        // Note 594 (the director's in-game notes, 9 Oct 2026): the engine's forward gun turns the full circle. Laid round to
+        // its right past its side to 170°, then the view taken on round past its back to 190° (−170°): the carriage goes on
+        // the short way, 20°, not back the long way round through the front.
+        Assert.Equal(360, C.Guns.ForwardTraverseDegrees);
+        var w = World();
+        var s = AtGun(w, 0);
+        s.Yaw = 170 * Math.PI / 180;
+        Hold(w, ref s, default, 170 / C.Guns.TraverseDegreesPerSecond + 0.3);
+        Assert.Equal(170, w.Train.Vehicles[0].Gun.Traverse * 180 / Math.PI, 6);
+        s.Yaw = 190 * Math.PI / 180;
+        Hold(w, ref s, default, 20 / C.Guns.TraverseDegreesPerSecond + 0.1);
+        Assert.Equal(-170, w.Train.Vehicles[0].Gun.Traverse * 180 / Math.PI, 6);
+        // And it fires anywhere off the train's own line: square off its left, at 270°.
+        s.Yaw = 270 * Math.PI / 180;
+        Hold(w, ref s, default, 3);
         var shot = Hold(w, ref s, Fire, 0.2).Single();
         var local = w.Train.Frames[0].DirToLocal(shot.Direction);
-        Assert.Equal(stop, Math.Atan2(-local.X, -local.Z) * 180 / Math.PI, 3);
+        Assert.Equal(-90, Math.Atan2(-local.X, -local.Z) * 180 / Math.PI, 3);
+        // Straight back down its own train is the dead zone (spec B.7), whatever the traverse.
+        Assert.Equal(AimResult.DeadZone, Guns.CheckAim(Guns.Mount(w.Train, 0)!.Value, new Double3(0.05, 0, 1).Normalized, C.Guns));
     }
 
     [Fact]

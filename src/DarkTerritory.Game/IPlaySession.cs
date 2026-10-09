@@ -192,8 +192,12 @@ public static class Eyes
     /// <summary>How far over the feet the eyes are, alive. A headset's tracking space hangs from here (<see cref="VrLocomotion"/>).</summary>
     public const double Height = 1.65;
 
-    /// <summary>In the gun's seat (T112): the eyes at the shield's aiming slot (the seat 0.48 m over the roof, note 137).</summary>
-    public const double Seated = 1.26;
+    /// <summary>
+    /// In the gun's seat (T112): the eyes just over the shield's top (the seat 0.48 m over the roof, note 137). They were at
+    /// its aiming slot, and the director, 9 Oct 2026 (note 594), on the forward gun: its plate blocked the view ahead, the
+    /// line a letterbox through the slot. Over it, the gunner sees the line and the land, and lays the barrel under them.
+    /// </summary>
+    public const double Seated = 1.56;
 
     /// <summary>
     /// Up in the crane's cab while at its controls (T48): looking along the gantry at the bridge and trolley, not down at the
