@@ -42,7 +42,7 @@ public sealed record TrackLayoutTuning
 public sealed record DerelictTuning(int[] Cars);
 /// <summary>A dead town's railway side (linegen plan §11.3; note 302). Field docs in stops.json.</summary>
 public sealed record DeadTownTuning(StationTuning Station, GoodsYardTuning Goods);
-public sealed record StationTuning(double[] Size, double Gap, double[] FromLane);
+public sealed record StationTuning(double[] Size, double Gap, double[] FromLane, bool Open = false);
 public sealed record GoodsYardTuning(double[] Beyond, double[] Length, double Margin, double Reach, int[] Cars, double[] Car, double CarGap, double[] Shed, double Find);
 
 /// <summary>A yard's powerhouse at its throat (level-design P6, D.2). Field docs in stops.json.</summary>
