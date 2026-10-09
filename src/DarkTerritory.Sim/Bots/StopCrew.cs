@@ -1523,7 +1523,8 @@ public sealed partial class StopHand(StopJob job, CrewCalls calls, int member, C
         var train = world.Train;
         int car = trouble.Attached;
         bool flies = trouble is Enemies.FireFlies || trouble is Enemies.CarFire { Phase: Enemies.SpinePhase.Dormant or Enemies.SpinePhase.Telegraph };
-        if (job == StopJob.Driver || !self.Alive || car <= 0 || car >= train.Frames.Count
+        // At a stop only (its plan taken): between them, the walkers' own rounds see to it, and a gunner's gun comes first.
+        if (job == StopJob.Driver || _plan is null || !self.Alive || car <= 0 || car >= train.Frames.Count
             || !flies && !(trouble is Enemies.CarFire && calls.LampHand(car) == member))
         {
             calls.DropLamp(member);
