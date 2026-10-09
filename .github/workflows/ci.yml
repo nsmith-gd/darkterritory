@@ -18,6 +18,9 @@ concurrency:
 jobs:
   build-test:
     strategy:
+      # Each OS reports in full: one failing doesn't cancel the other (a Windows-only failure left every PR without its
+      # Linux result, the screenshots and the replay check among them).
+      fail-fast: false
       matrix:
         os: [ubuntu-latest, windows-latest]
     runs-on: ${{ matrix.os }}
