@@ -1971,8 +1971,10 @@ public sealed partial class StopHand(StopJob job, CrewCalls calls, int member, C
     }
 
     /// <summary>Which side of the spur a point on the ground is (+1 right looking up it).</summary>
+    // Note 533: by the track the engine's on. By the spur's, with the train stood on the main past its toe, a hand on the
+    // ballast beside the engine read as on the other side, and ran at the cab's far door into the engine all night.
     static int SideOf(TrainOnLine train, StopPlan p, Double3 world, double hint) =>
-        TrackCoords(train.Line, p.Spur.Index, world, hint).Across >= 0 ? 1 : -1;
+        TrackCoords(train.Line, train.Dynamics.Path, world, hint).Across >= 0 ? 1 : -1;
 
     /// <summary>
     /// The part this stop: the winch pair carry crates where there's no winch, or once its sleds are in; note 261: and where
@@ -3015,10 +3017,11 @@ public sealed partial class StopHand(StopJob job, CrewCalls calls, int member, C
         var (ta, tx) = TrackCoords(train.Line, path, target, hint);
         if (Math.Sign(x) == Math.Sign(tx) || Math.Abs(x) < 0.5 || Math.Abs(tx) < 0.5)
             return false;
-        // The train between them: a car on this path within the stretch from here to there.
+        // The train between them: a car on this path within the stretch from here to there, or the engine (note 533: two hands
+        // beside it, the cab's door across it, walked into its side for the rest of the night at seed 6's Renwick Yard).
         double lo = Math.Min(a, ta) - 2, hi = Math.Max(a, ta) + 2;
         foreach (var f in train.Frames)
-            if (f.Index > 0 && train.Line.Nearest(f.Origin, ref hint) is var (_, along) && along >= lo - f.Shape.HalfLength && along <= hi + f.Shape.HalfLength
+            if (f.Index >= 0 && train.Line.Nearest(f.Origin, ref hint) is var (_, along) && along >= lo - f.Shape.HalfLength && along <= hi + f.Shape.HalfLength
                 && Math.Abs(TrackCoords(train.Line, path, f.Origin, hint).Across) < 1)
                 return true;
         return false;
