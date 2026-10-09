@@ -108,7 +108,8 @@ def face(i, j, a, th, p):
         off += 0.011 * front * bell(math.hypot((u - eu * 1.22) / 0.2, (w + 0.1) / 0.08))
         off -= 0.024 * front * bell(math.hypot((u - eu * 1.1) / 0.22, (w + 0.36) / 0.18))
     # The nose, thin to the bone, the bridge high, the tip drooped; its nostrils drawn back into it.
-    off += 0.026 * front * bell(u / 0.1) * bell((w + 0.12) / 0.2) * smooth01(-0.3, 0.1, w + 0.25)
+    off += 0.034 * front * bell(u / 0.09) * bell((w + 0.14) / 0.2) * smooth01(-0.3, 0.1, w + 0.27)
+    off -= 0.006 * front * bell((abs(u) - 0.16) / 0.05) * bell((w + 0.12) / 0.16)              # the nose's sides sunk in
     for nx in (-0.075, 0.075):
         off -= 0.007 * front * bell(math.hypot((u - nx) / 0.05, (w + 0.31) / 0.04))
     off -= 0.008 * front * bell(math.hypot(u / 0.32, (w - MOUTH_W) / 0.07))
