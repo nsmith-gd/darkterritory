@@ -822,6 +822,8 @@ CampaignState? Play(IPlaySession session, CampaignState? campaign)
     Hud.Tuning = DataFile.Load<HudTuning>(Path.Combine(content, HudTuning.File));
     // Note 350: one of this player's first nights shows the core controls in the yard.
     bool firstNight = Onboarding.FirstNight(onboarding, settings, nightsOver);
+    // F4 (note 527): the card closed for the night, and back with F4 again.
+    bool cardHidden = false;
     captions.Clear();
     // The canvas TEXT SIZE asks for from the night's first frame (note 351: a night from the command line drew its first on
     // the default canvas, there being no menu frame before it to take the setting).
@@ -1039,6 +1041,7 @@ CampaignState? Play(IPlaySession session, CampaignState? campaign)
         }
         if (Hit(Control.Chase)) chase = !chase;
         if (Pressed(Key.F1)) showHud = !showHud;
+        if (Pressed(Key.F4)) cardHidden = !cardHidden;
         if (Pressed(Key.F2)) net?.ShowInviteDialog();
         // RECONNECT (note 253): a joiner whose link went, out of automatic tries, tries again.
         if (Pressed(Key.F5)) net?.Reconnect();
@@ -1384,7 +1387,7 @@ CampaignState? Play(IPlaySession session, CampaignState? campaign)
         {
             Hud.Build(overlay, UiWidth, UiHeight, session, stills: stills.Stills, pixels: (float)renderer.Height / UiHeight, talk: townTalk, now: now,
                 // The first nights' card gives way to a panel opened over it (note 351: it showed through the supplies).
-                firstNight: firstNight && !Held(Control.Roster) && !showSupplies && cardPage < 0 && !showPlan,
+                firstNight: firstNight && !cardHidden && !Held(Control.Roster) && !showSupplies && cardPage < 0 && !showPlan,
                 captions: frontEnd.Settings.Captions ? captions.Lines() : null);
             wheel.Draw(overlay, UiWidth, UiHeight, Hud.PromptScaleAt((float)renderer.Height / UiHeight));
             // Q held: the crew roster (T69), with who's been heard.

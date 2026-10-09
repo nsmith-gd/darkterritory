@@ -7059,6 +7059,10 @@ Terrain sculpting tools, a node-graph material editor, a general-purpose visual 
         - restless, 20 s, three to five times;
         - at the controls at stage 2, restless: let back, her rattle, nudged up again, and never the crew's brake handle.
     - `RestlessAtTheRegulatorTheTrackDollRattlesTheBrakeHandleItHasntTakenYet` still pins the fallback.
+527. **The first nights' controls card closes (queue #264, D1; the director, 9 Oct 2026, testing main's build: "we need a way to close the 'first time controls' overlay").** Note 350's card stayed up in the yard for a new player's first nights, over the view, with no way to put it away but FIRST NIGHTS OFF in the settings, which is for good.
+   - **Now** F4 hides it for the night, and F4 again brings it back (`Onboarding.HideKey`). Its last row says so: "MENU : [ESC]   HIDE THIS CARD : [F4]". F4 is a fixed key, beside F1's HUD, F2's invite and F3's map, and joins the keys a control can't be bound to (`Controls.Reserved`). FIRST NIGHTS OFF still turns the card off for good.
+   - **Verified.** `FirstNightsTests.TheCardSaysHowToCloseItAndNoControlCanTakeThatKey`. `dt screenshot --hud --route frontier:7 --throttle 0 --first-night`, looked at: the row sits under MENU in the card's keycaps.
+
 501. **The coupler's knuckle heard opening, a clank not a thud (AU1, queue #238; the weak-sounds audit).** `crew-coupling.knuckle-release` plays where a car is cut loose (`GameAudio.Crew`). Its recipe describes "the heavy cast-steel knuckle swinging open on its pin (a heavy iron clank, pitched well down, choked)", but the iron hit was pitched down 8 semitones and choked under a mining hit's sub, with the lock's rattle at -16 dB. The installed takes were a low thud: they centred at 127-136 Hz, with little over 1 kHz after the first 0.1 s, and the cut's own moment was lost under the wheels.
     - **The sound** (`tools/audio/recipes/crew_train.py`, `knuckle-release`, `clank`, 3 takes): rebuilt as a clank, installed in place, its hook unchanged.
         - a short squeal of steel on its pin as it swings;
