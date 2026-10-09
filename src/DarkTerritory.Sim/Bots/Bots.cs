@@ -2026,20 +2026,12 @@ public sealed class ConductorBot(CrewCalls? calls = null, int member = 0) : IWor
         if (front < 0 || !unfought && Crewmates?.Any(c => c.Alive && c.Health >= Heed.PackFightHealth && c.Parent != PlayerState.World) == true
             || !PlayerMotor.InCab(self, train))
             return null;
-        // Note 528: cut a car further forward than the pack's ground, so the whole of that car is between the driver at the
-        // coupling and a hound standing at its ground's end (it bites at 4 m, and stands there facing whoever it chases). At
-        // the ground's own front coupling, D1's frontier:7 seed 3's driver was held and mauled. It costs a car. Not the car
-        // right behind the engine (that gap's the cab's): with no car to spare, a driver alone can't cut it out of reach, and
-        // going anyway it was mauled again; it drives on, and the pack has the cars it's on.
-        int clear = train.VehicleAhead(front);
-        if (clear < 0 || consist.IndexOf(clear) <= 1)
-            return null;
         if (train.Dynamics.Speed > 0.05)
             return hold;
         if (ReadyToLeave(self, world, minded: false) is { } readying)
             return readying;
         _outToCut = true;
-        _cutCar = clear;
+        _cutCar = front;
         return hold;
     }
 
