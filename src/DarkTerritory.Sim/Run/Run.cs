@@ -253,6 +253,16 @@ public sealed partial class Run
     public int Facility { get; private set; } = -1;
     public RouteFeature? FacilityFeature => Facility >= 0 ? _facilities[Facility] : null;
     public bool ChuteOpen { get; private set; }
+    /// <summary>The night's facilities, in order along the line.</summary>
+    public IReadOnlyList<RouteFeature> Facilities => _facilities;
+
+    /// <summary>A coaling tower brought down (Tower Jaw, note 363): its chute's coal is in the wreck, none left to pour.</summary>
+    public void TowerDown(int facility)
+    {
+        if (facility >= 0 && facility < _chuteLeft.Length)
+            _chuteLeft[facility] = 0;
+    }
+
     public double ChuteLeft(int facility) => facility >= 0 && facility < _chuteLeft.Length ? _chuteLeft[facility] : 0;
     public bool Over => Phase is RunPhase.Arrived or RunPhase.Failed;
     /// <summary>Where the engineering kit is, as of this tick (host; GDD v1.4 §23.2).</summary>

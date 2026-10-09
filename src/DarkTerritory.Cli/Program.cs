@@ -889,8 +889,12 @@ static object Screenshot(TrainTuning t, string content, string[] args)
     int width = (int)Opt(args, "--width", 1280), height = (int)Opt(args, "--height", 720), scale = (int)Opt(args, "--scale", 1);
     string output = Str(args, "--out", $"out/shots/{view}.png");
 
+    // --towerjaw gnaw|lean|threat|lunge|away|wreck: Tower Jaw at the night's first coaling tower (note 363; Staging.TowerJaw),
+    // the train stood back down the line from it; a generated night (frontier:3 unless --route says). The towerjaw view
+    // stages it gnawing, the tower leaning over the line; towerjawfall, the tower down across it.
+    string towerJawMode = Str(args, "--towerjaw", view switch { "towerjaw" => "lean", "towerjawfall" => "wreck", _ => "" });
     // --route tier:seed generates the night in memory; --coaling stops the train at its coaling tower, chute pouring.
-    Route? generated = Str(args, "--route", "") is { Length: > 0 } spec
+    Route? generated = Str(args, "--route", towerJawMode.Length > 0 ? "frontier:3" : "") is { Length: > 0 } spec
         ? DarkTerritory.Sim.LineGen.Routes.Generate(content, spec, cars)
         : null;
     var line = generated?.Build() ?? RailLine.Load(Path.Combine(content, "lines", lineName + ".json"));
@@ -970,6 +974,13 @@ static object Screenshot(TrainTuning t, string content, string[] args)
                     Jam = x == site && x.Has(DarkTerritory.Sim.Run.ModuleKind.Conveyor) ? Opt(args, "--jam", -1) : -1,
                 })]);
         }
+    }
+    if (towerJawMode.Length > 0)
+    {
+        if (tower is null || generated is null)
+            return Print(new { error = $"{Str(args, "--route", "frontier:3")} has no coaling tower for --towerjaw" });
+        run ??= new DarkTerritory.Sim.Run.Run(DataFile.Load<DarkTerritory.Sim.Run.RunTuning>(Path.Combine(content, DarkTerritory.Sim.Run.RunTuning.File)), generated);
+        at = run.ChuteAt(tower, line).SpoutAlong - (towerJawMode == "wreck" ? 34 : 40);
     }
     // --junction i: at a branch's points (T27), [--diverge] set for the branch, [--through] and the train run in onto it.
     int junction = (int)Opt(args, "--junction", -1);
@@ -1090,6 +1101,14 @@ static object Screenshot(TrainTuning t, string content, string[] args)
         train.Dynamics.Velocity = Opt(args, "--speed", 20);
         train.RefreshFrames();
     }
+    // --brakeman walk|wind|flee|cornered|lash|climb|drop, --knotter creep|force|taut|slack|coil, --hotboxbug knock|glow|seized|
+    // unfolded|snap|prised: the train's own (notes 364, 365, 367; Staging.Trainfolk) on, behind and under the second car; the
+    // train as they leave it (the cars behind the Brakeman wound on, the gap forced, the axle seized) at --speed or theirs. The
+    // views stage the Brakeman winding and cornered, the Knotter taut and coiled, Hotbox glowing and out, unless told.
+    string brakemanMode = Str(args, "--brakeman", view switch { "brakeman" => "wind", "brakemancorner" => "cornered", _ => "" });
+    string knotterMode = Str(args, "--knotter", view switch { "knotter" => "taut", "knotterslip" => "coil", _ => "" });
+    string hotboxBug = Str(args, "--hotboxbug", view switch { "hotboxbug" => "glow", "hotboxout" => "unfolded", _ => "" });
+    Staging.TrainfolkTrain(train, brakemanMode, knotterMode, hotboxBug, Opt(args, "--speed", -1));
     // --wreck s: off the rails at --speed (22) and that many seconds into the wreck (T117), seen by the cinematic camera.
     if (Opt(args, "--wreck", -1) is var wreckAt and >= 0)
     {
@@ -1719,6 +1738,38 @@ static object Screenshot(TrainTuning t, string content, string[] args)
         scene.Enemies = Staging.Gannet(scene.Enemies is List<DarkTerritory.Sim.Enemies.Enemy> others ? others : [], train, gannetMode);
         scene.Crew = [.. (scene.Crew ?? []).Where(c => c.Id is not (Staging.LoneId or Staging.GannetRescuerId)), Staging.GannetWalker(train, gannetMode),
             .. Staging.GannetRescuer(train, gannetMode) is { } rescuer ? [rescuer] : Array.Empty<Crewmate>()];
+    }
+    // --mourners drag|wait|creep|startle: the staged Mourners round a crewmate's body off the line's left (note 362;
+    // Staging.Mourners), the mourners view's (dragging it off unless told).
+    if (Str(args, "--mourners", view == "mourners" ? "drag" : "") is { Length: > 0 } mournersMode)
+    {
+        scene.Enemies = Staging.Mourners(scene.Enemies is List<DarkTerritory.Sim.Enemies.Enemy> others ? others : [], train, content, mournersMode, out var mourned);
+        scene.Bodies = [.. scene.Bodies ?? [], .. mourned.All];
+    }
+    // --beetle idle|walk|brace|push|startle: the staged Freight Beetle at a crate off the line's left (note 366;
+    // Staging.Beetle), the beetle view's (pushing it unless told).
+    if (Str(args, "--beetle", view == "beetle" ? "push" : "") is { Length: > 0 } beetleMode)
+    {
+        scene.Enemies = Staging.Beetle(scene.Enemies is List<DarkTerritory.Sim.Enemies.Enemy> others ? others : [], train, content, beetleMode, out var freight);
+        scene.Bodies = [.. scene.Bodies ?? [], .. freight.All];
+        if (beetleMode is "walk" or "push")
+            scene.StagedPaces = new Dictionary<int, float>(scene.StagedPaces ?? new Dictionary<int, float>()) { [Staging.BeetleId] = beetleMode == "walk" ? 1.5f : 1.2f };
+    }
+    if (towerJawMode.Length > 0 && run is not null && tower is not null)
+    {
+        scene.Enemies = Staging.TowerJaw(scene.Enemies is List<DarkTerritory.Sim.Enemies.Enemy> others ? others : [], train, content, run, tower, towerJawMode);
+        if (towerJawMode == "away")
+            scene.StagedPaces = new Dictionary<int, float>(scene.StagedPaces ?? new Dictionary<int, float>()) { [Staging.TowerJawId] = 4 };
+        if (view is "towerjaw" or "towerjawfall")
+            camera = Staging.TowerJawCamera(train, run, tower, view);
+    }
+    if (brakemanMode.Length + knotterMode.Length + hotboxBug.Length > 0)
+    {
+        (scene.Enemies, scene.Crew) = Staging.Trainfolk(scene.Enemies is List<DarkTerritory.Sim.Enemies.Enemy> others ? others : [], scene.Crew ?? [], train,
+            brakemanMode, knotterMode, hotboxBug);
+        // (Over the side from his walk: what he was doing before he went, for his drop.)
+        if (brakemanMode == "drop")
+            scene.StagedBefore = new() { [Staging.BrakemanId] = (int)DarkTerritory.Sim.Enemies.BrakemanMode.Walk };
     }
     // --gaunt leave|leavein: the body it's carrying off, under it (App. A.6; Staging.GauntLoad).
     if (Str(args, "--gaunt", "") is "leave" or "leavein" && scene.Enemies?.OfType<DarkTerritory.Sim.Enemies.Gaunt>().FirstOrDefault() is { } leaving)

@@ -1225,8 +1225,10 @@ public sealed class RoofWalkerBot(int seed, ColdTuning? cold = null, StopHand? j
         // got into (App. A.4): its client can see both.
         if (_warm is not null)
         {
+            // Nor onto a Knotter's back (note 367): its gap behind the car is the rope, slipped off at speed.
             _warm.Barred = car => world.ActiveEnemies.Any(e => e is Climber { Inside: true } c && c.Attached == car
-                || e is CarHugger { Latched: true } h && h.Attached == car || e is Whistler w && !w.Gone && w.Attached == car);
+                || e is CarHugger { Latched: true } h && h.Attached == car || e is Whistler w && !w.Gone && w.Attached == car)
+                || car > 0 && car < world.Train.Vehicles.Count && world.Train.Vehicles[car].Knot > 0;
             _warm.Troubled = car => world.ActiveEnemies.Any(e => !e.Gone && e.Attached == car && e is CarFire { Phase: SpinePhase.Punish });
             _warm.LeaveOpen = door => door is 0 or 1 && world.Train.Boiler.Ruptured;
             _warm.Passing = (car, door) => AtTheDoor(world.Train, Crew, car, door);
@@ -1462,6 +1464,9 @@ public sealed class RoofWalkerBot(int seed, ColdTuning? cold = null, StopHand? j
         for (int i = 1; i < train.Vehicles.Count && i < train.Frames.Count; i++)
         {
             var f = train.Frames[i];
+            // Not down into a Knotter's gap (note 367): it's its back down there, not the plate.
+            if (train.Vehicles[i].Knot > 0)
+                continue;
             if (hb is not null && train.Vehicles[i].HotBox > 0)
                 Consider(f.ToWorld(HotBoxes.Box(f.Shape, hb)), hb.Reach, i, false);
             if (lt is not null && train.Vehicles[i].Loose > 0)
@@ -1696,9 +1701,10 @@ public sealed class RoofWalkerBot(int seed, ColdTuning? cold = null, StopHand? j
             else
             {
                 // Not a jump to make from here (off the centreline, a curve pulling the roof away, or too cold to run at it):
-                // stand at the end and square up, and chilled, turn back rather than try it.
+                // stand at the end and square up, and chilled, turn back rather than try it. A Knotter's gap (note 367) is
+                // never one: turned back from at once.
                 intent.MoveZ = 0;
-                if (cold is { } c && self.Cold >= c.OnsetSeconds)
+                if (cold is { } c && self.Cold >= c.OnsetSeconds || Heed.Knotted(train, self.Parent, beyond))
                     _direction = -_direction;
             }
         }
@@ -1815,7 +1821,7 @@ public sealed class RoofWalkerBot(int seed, ColdTuning? cold = null, StopHand? j
 /// late to brake from cruise to under the speed they derail at. So in the dark it runs just under that speed.
 /// </para>
 /// </summary>
-public sealed class ConductorBot(CrewCalls? calls = null, int member = 0) : IWorldBot
+public sealed partial class ConductorBot(CrewCalls? calls = null, int member = 0) : IWorldBot
 {
     public string Name => Fireman ? "fireman" : "conductor";
     public double CruiseSpeed { get; init; } = 14;
@@ -2339,6 +2345,9 @@ public sealed class ConductorBot(CrewCalls? calls = null, int member = 0) : IWor
                 return back with { Lamp = lamp, Buttons = back.Buttons | PlayerButtons.Brake };
             _clubbed = false;
         }
+        // Note 367: the six of 8 Oct. Short of Tower Jaw's wreck; stood for a Hotbox or a Knotter, and coupled up after.
+        if (ForTheSix(self, world, ref cruise) is { } six)
+            return Work(self, train, six) with { Lamp = lamp };
         // Note 258: out of the cab breaking a crewmate out of a Holdout nobody else could, or back up into it after.
         if (_outToBreach && BreachAlone(self, world) is { } outBreaching)
             return outBreaching with { Lamp = lamp };
@@ -2366,7 +2375,10 @@ public sealed class ConductorBot(CrewCalls? calls = null, int member = 0) : IWor
         }
         // And the Sleepers in the lamp, or greased rail down a grade: under the Sleepers' speed (note 231).
         cruise = Math.Min(cruise, HazardAllow(world));
-        if (Stops is { } stops && !Express)
+        // The express driver (note 376) takes no stops, but a dead line's no stop (note 512): taken (the Switchman's points thrown
+        // under it), it stands down it at the buffers all night without the stop driver's way back off it (OffDeadLine,
+        // SetBack, Forward). That much it does as any driver does; back on the main line, it runs on and stops for nothing.
+        if (Stops is { } stops && (!Express || stops.Doing != StopDriver.Leg.Cruise || SwitchPlan.DownOne(world) is not null))
         {
             // Nobody left to set a switch back but the driver: down it gets, and back up (the train stands on its brake).
             if (self.Alive && stops.SetBackAlone(world) is { } wrong)
@@ -3376,7 +3388,15 @@ public sealed class WarmUp(ColdTuning cold, double goInAt = 0.6)
     /// Out by the nearer end door, but never the one onto the engine's plate: its ladder goes up onto the tender, which is
     /// the fireman's and lower than a car roof, and there's no way back along the train from there.
     /// </summary>
-    int WayOut(in PlayerState self, TrainOnLine train) => train.VehicleAhead(_car) == 0 ? 1 : self.Position.Z >= 0 ? 1 : -1;
+    int WayOut(in PlayerState self, TrainOnLine train)
+    {
+        int ahead = train.VehicleAhead(_car);
+        int way = ahead == 0 ? 1 : self.Position.Z >= 0 ? 1 : -1;
+        // Never out onto a Knotter's back (note 367): the other end, where that's a way out.
+        bool knot = way > 0 ? train.Vehicles[_car].Knot > 0 : ahead > 0 && train.Vehicles[ahead].Knot > 0;
+        bool other = way > 0 ? ahead > 0 && train.Vehicles[ahead].Knot <= 0 : train.Vehicles[_car].Knot <= 0;
+        return knot && other ? -way : way;
+    }
 
     /// <summary>
     /// Which plate to drop onto: the one behind this car (this car's own), or in front (the car ahead's), whichever is
@@ -3488,7 +3508,7 @@ public sealed class WarmUp(ColdTuning cold, double goInAt = 0.6)
     /// </para>
     /// </summary>
     public static bool CanJumpGap(in PlayerState self, TrainOnLine train, ColdTuning? cold, int beyond) =>
-        Math.Abs(self.Position.X) < 0.3 && SteadyUnder(train, self.Parent)
+        Math.Abs(self.Position.X) < 0.3 && SteadyUnder(train, self.Parent) && !Heed.Knotted(train, self.Parent, beyond)
         && (beyond <= 0 || SteadyUnder(train, beyond) && !Splayed(train, self.Parent, beyond))
         && (cold is null || self.Cold < cold.OnsetSeconds);
 
@@ -3564,7 +3584,7 @@ public sealed class WarmUp(ColdTuning cold, double goInAt = 0.6)
 /// App. A.1); look behind you standing about alone (Tippy Toesie); keep up a patter near the Gaunt; hush while the Choir
 /// gathers; and keep talking otherwise (the Passenger never does). Worked out from what its client sees.
 /// </summary>
-public static class Heed
+public static partial class Heed
 {
     /// <summary>How far from a lit Holdout a crewmate will go to breach it, with the train standing (T96).</summary>
     public const double HoldoutRange = 180;
@@ -3677,7 +3697,9 @@ public static class Heed
     /// haul at them (Use: a Dragger's hang, the Car Hugger's mouth, Tippy Toesie) and swing at what holds them. The nearest of
     /// us goes; everyone near does, which is the point.
     /// </summary>
-    public static PlayerIntent Rescue(PlayerIntent intent, in PlayerState self, World world, int selfId)
+    /// <param name="crew">Who else is where (the Knotter's coil: it's the one on its back that's hauled up, not it).</param>
+    public static PlayerIntent Rescue(PlayerIntent intent, in PlayerState self, World world, int selfId,
+        IReadOnlyList<(int Id, PlayerState State)>? crew = null)
     {
         if (!self.Alive || self.Has(PlayerFlags.Held) || world.Enemies is not { } et)
             return intent;
@@ -3698,6 +3720,9 @@ public static class Heed
             var (toLadder, there) = WarmUp.Steer(self, new Double3(train.Dynamics.Tuning.Geometry.EndLadderX, 0, platform.Min.Z - 0.35), Math.PI);
             return there ? new PlayerIntent { Buttons = PlayerButtons.Use } : toLadder;
         }
+        // The Knotter's coil (note 365): see KnotRescue.
+        if (holder.e is Knotter knot)
+            return KnotRescue(self, world, knot, crew) ?? intent;
         // Where the held one is: the holder's side of them is close enough (they're pinned together).
         var go = Strike(self, train, holder.At, et.Grab.PullReach * 0.8);
         if (go is not { } step)
