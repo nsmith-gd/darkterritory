@@ -695,7 +695,7 @@ public sealed class RoofWalkerBot(int seed, ColdTuning? cold = null, StopHand? j
         {
             // In there: work it from the aisle. Short of it at a stop: in by its side door from the ground (the stop's
             // hands are down there anyway); otherwise the walker's way, along the roofs.
-            if (self.Parent == trouble.Attached && PlayerMotor.Indoors(self, world.Train))
+            if (self.Parent == trouble.Attached && InTheCar(self, world.Train))
                 return Tend(self, trouble, world, Me);
             return job.IntoTrouble(self, world, trouble.Attached, held: lamp);
         }
@@ -927,6 +927,16 @@ public sealed class RoofWalkerBot(int seed, ColdTuning? cold = null, StopHand? j
         return Math.Abs(doorAt - drop.At) < 40 ? new PlayerIntent { Buttons = PlayerButtons.Fire } : new PlayerIntent();
     }
 
+    /// <summary>
+    /// On a car's floor inside its walls, its side doorways included (note 526): the room's box stops at the wall's inner face,
+    /// and a hand at car 1's side door, going in to its fire, was in the box one step and out of it the next, the trouble's
+    /// work (<see cref="Tend"/>) walking it at the extinguisher on a slant and the way in (<see cref="StopHand.IntoTrouble"/>)
+    /// back to the middle, for the whole of a fire it had reached in its smoke (frontier:7, seed 6).
+    /// </summary>
+    static bool InTheCar(in PlayerState self, TrainOnLine train) =>
+        self.Parent > 0 && self.Parent < train.Frames.Count && self.Surface == Surface.Deck
+        && train.Frames[self.Parent].Shape.Interior is not null && Math.Abs(self.Position.X) < train.Frames[self.Parent].Shape.Bounds.Max.X;
+
     /// <summary>Hurt this badly, a walker leaves the trouble to someone else and gets out.</summary>
     const int TooHurt = 35;
 
@@ -959,6 +969,8 @@ public sealed class RoofWalkerBot(int seed, ColdTuning? cold = null, StopHand? j
         // On a side door's steps, outside the walls (in there for a bag, the hook out): straight in through the doorway first.
         // Note 437: frontier:7's four walkers in at car 1's side door made for its extinguishers from the steps on a slant,
         // into the door's jamb, and stood against it for 20 s with the car alight round them.
+        // In the doorway too (note 526: it's the car's floor, so the trouble's work comes here from it): straight in from there,
+        // and the lamp's press counts only in the room.
         if (train.Frames[self.Parent].Shape.Interior is { } walls && (self.Position.X < walls.Min.X || self.Position.X > walls.Max.X))
         {
             TendStep = "in";
