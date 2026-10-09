@@ -1672,7 +1672,7 @@ public sealed partial class StopHand(StopJob job, CrewCalls calls, int member, C
         }
         Doing = "";
         if (job == StopJob.None || !self.Alive || world.Run is null)
-            return null;
+            return job == StopJob.None ? LeftOnTheBallast(self, world) : null;
         var train = world.Train;
         if (job == StopJob.Shunter && _plan is null && _coal is null && SettingBack(self, world, out var setting))
             return setting;
@@ -1682,7 +1682,7 @@ public sealed partial class StopHand(StopJob job, CrewCalls calls, int member, C
         {
             // The train's standing short of the points for a stop (the driver only makes the ones the crew can work).
             if (StopPlan.Ahead(world, train.Dynamics.Distance - 10, _done, calls) is not { } plan || !plan.StandingAt(train))
-                return null;
+                return job == StopJob.Driver || _coal is not null || _switch is not null ? null : LeftOnTheBallast(self, world);
             _plan = plan;
             _wentIn = _reachedEnd = false;
         }
@@ -2833,6 +2833,44 @@ public sealed partial class StopHand(StopJob job, CrewCalls calls, int member, C
     /// steps, which a walk straight along the car's side goes up), and at its foot, take hold (<see cref="RoofWalkerBot.Board"/>).
     /// </summary>
     /// <param name="only">Only that car's ladders (note 496: up onto the roof of a car with no side door, for its lamp).</param>
+    /// <summary>
+    /// Note 533: on the ballast with the train standing and no stop's part to go back aboard by (out of a Holdout someone
+    /// broke them out of, say): to the nearest roof ladder of the engine's rake by <see cref="OnFoot"/>, round whatever's in
+    /// the way. The walker's own way (<see cref="RoofWalkerBot.Board"/>) is a straight line: on frontier:7 seed 13 a walker
+    /// freed from the Holdout at km 10 ran into its wall for two minutes, the driver went on, and the Ribbits had it. Its
+    /// stale stop plan used to take it to the cab instead (the bug that kept two hurt hands at the engine's side on seed 6).
+    /// </summary>
+    PlayerIntent? LeftOnTheBallast(in PlayerState self, World world)
+    {
+        var train = world.Train;
+        if (!self.Alive || world.Run is not { Phase: not Run.RunPhase.Yard } || self.Parent != PlayerState.World || self.Surface != Surface.Ground
+            || self.Has(PlayerFlags.Held) || Math.Abs(train.Dynamics.Velocity) > 0.05)
+            return null;
+        Double3? best = null;
+        double bestD = double.MaxValue;
+        var here = PlayerMotor.WorldPosition(self, train);
+        foreach (var frame in train.Frames)
+        {
+            if (frame.Index == 0 || train.StandingCar(frame.Index) || train.Dynamics.Consist.IndexOf(frame.Index) < 0)
+                continue;
+            foreach (var ladder in frame.Shape.Ladders)
+            {
+                if (Math.Abs(ladder.Inward.X) < 0.9 || ladder.Foot.Y > 0.5 || ladder.Top < frame.Shape.RoofHeight - 0.5)
+                    continue;
+                var at = frame.ToWorld(ladder.Foot - ladder.Inward * 0.3);
+                double d = (Flat(at) - Flat(here)).Length;
+                if (d < bestD)
+                    (best, bestD) = (at, d);
+            }
+        }
+        if (best is not { } foot)
+            return null;
+        Doing = "back aboard";
+        if (bestD > 1.0)
+            return OnFoot(self, train, train.Dynamics.Path, foot, null).Step;
+        return RoofWalkerBot.Board(self, train, roofOnly: true);
+    }
+
     PlayerIntent ToARoofLadder(in PlayerState self, TrainOnLine train, int? only = null)
     {
         Double3? best = null;
@@ -3044,7 +3082,7 @@ public sealed partial class StopHand(StopJob job, CrewCalls calls, int member, C
         // beside it, the cab's door across it, walked into its side for the rest of the night at seed 6's Renwick Yard).
         double lo = Math.Min(a, ta) - 2, hi = Math.Max(a, ta) + 2;
         foreach (var f in train.Frames)
-            if (f.Index >= 0 && train.Line.Nearest(f.Origin, ref hint) is var (_, along) && along >= lo - f.Shape.HalfLength && along <= hi + f.Shape.HalfLength
+            if (train.Line.Nearest(f.Origin, ref hint) is var (_, along) && along >= lo - f.Shape.HalfLength && along <= hi + f.Shape.HalfLength
                 && Math.Abs(TrackCoords(train.Line, path, f.Origin, hint).Across) < 1)
                 return true;
         return false;
