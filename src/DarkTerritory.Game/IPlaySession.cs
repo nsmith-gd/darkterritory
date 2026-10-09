@@ -138,6 +138,9 @@ public interface IPlaySession
     IReadOnlyList<(int Id, PlayerState State)> CrewStates(double alpha) => [(PlayerId, Player)];
 }
 
+/// <summary>A crewmate's link as their host sees it (note 534): the round trip, their inputs lost or stale, and the route.</summary>
+public readonly record struct CrewLink(byte Id, double PingMs, double? Loss, Ballast.Net.CarrierLink? Via);
+
 /// <summary>What the HUD shows about the connection (spec E: ping to host "shown prominently", non-optional).</summary>
 /// <param name="PingMs">Round trip to the host; null for the host itself.</param>
 /// <param name="JoinAt">Hosting for friends on the network: the address they type to join (T114 playtest: "how is she supposed to join if we're on the same wifi?").</param>
@@ -157,6 +160,15 @@ public readonly record struct LinkInfo(string Role, double? PingMs, int Aboard, 
     public bool Full => Cap > 0 && Places >= Cap;
     /// <summary>Lost, and turned away on the way back (note 254): what the host said, "CREW FULL (8/8)".</summary>
     public string? Refused { get; init; }
+    /// <summary>
+    /// A joiner: the share of the host's snapshots lost or stale over hud.json's window (note 534; netcode-audit.md gap 3),
+    /// 0..1; null before there's been long enough to say.
+    /// </summary>
+    public double? Loss { get; init; }
+    /// <summary>A joiner: how the host is reached (relayed through Steam, or direct); null when the transport can't say.</summary>
+    public Ballast.Net.CarrierLink? Via { get; init; }
+    /// <summary>Hosting: each crewmate's link as the host sees it (note 534), in player-id order; bots and the host aren't on it.</summary>
+    public IReadOnlyList<CrewLink> Crew { get; init; } = [];
     /// <summary>Hosting a private run (note 450): listed with a lock, joined with its password.</summary>
     public bool Locked { get; init; }
 }
