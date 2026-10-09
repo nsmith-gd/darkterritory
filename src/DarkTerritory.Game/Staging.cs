@@ -53,6 +53,21 @@ public static class Staging
     }
 
     /// <summary>
+    /// The night's departure town (GDD §3.1) as `dt screenshot --town` makes it, and where the train of
+    /// <paramref name="consistLength"/> stands to leave it (<paramref name="depart"/>); null with no towns in the content.
+    /// </summary>
+    public static Sim.Towns.Town? DepartureTown(string content, Sim.Route.Route route, Sim.Rail.RailLine line, double consistLength, out double depart)
+    {
+        var runTuning = DataFile.Load<Sim.Run.RunTuning>(Path.Combine(content, Sim.Run.RunTuning.File));
+        double gate = route.GateOr(Sim.Route.RouteTuning.Load(content).YardLength);
+        depart = runTuning.DepartFrom(gate, consistLength);
+        if (Sim.Towns.TownContent.Load(content) is not { } towns)
+            return null;
+        var roster = DataFile.Load<Sim.Enemies.EnemyTuning>(Path.Combine(content, Sim.Enemies.EnemyTuning.File)).Director.Roster;
+        return new Sim.Towns.Town(Sim.Towns.TownGenerator.Generate(towns, Sim.Towns.TownSite.Of(route, gate, roster, towns)), towns.Tuning, line, towns.Looks);
+    }
+
+    /// <summary>
     /// Standing in a fortress town (note 281, `dt screenshot --town`): "square" at the way in from the engine, looking over
     /// the centrepiece to the hall; "centre" at the centrepiece, close; "board" before the notice board; "hall" at the
     /// hall's door; "gate" by the gatekeeper, looking back down the yard; "street" out on the track side, the square across

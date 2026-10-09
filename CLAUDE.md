@@ -33,6 +33,7 @@ tools/art/store/screens.sh                                            # store sc
 tools/blender/build.sh                                                # rebuild the procedural creatures in content/art/models (needs blender)
 python3 tools/models/fetch.py && tools/models/build.sh                # sourced CC0/CC-BY models, and the modelled-and-baked ones (props, the crew) -> content/art/models (needs blender)
 dotnet run --project src/DarkTerritory.Cli -- perf [--only pc|vr] [--views roof,cab]   # frame cost vs tuning/perf.json (90 fps PC, 72 fps VR): CPU phases, GPU passes, counts
+dotnet run --project src/DarkTerritory.Cli -- perf --route local:5 --town square,houses [--ride 8 [--walk]]   # a walled town's frame; --ride: down the line (or its street) at speed, the worst frames and hitches (note 479)
 dotnet run --project src/DarkTerritory.Cli -- harness --bots 8 --seconds 300 [--express 21]   # host + bots over lossy loopback; netcode report (--express: a driver that runs hot and takes no stops, note 376)
 dotnet run --project src/DarkTerritory.Cli -- mods pack tools/mods/example      # mods are Thunderstore packages: check one and zip it; `dt mods` lists what's installed
 dotnet run --project src/DarkTerritory.Cli -- report [--problem]   # a crash report (or a player's own) as the game writes it, its JSON twin and the mail to the studio -> out/reports (note 452); the app's --crash-test crashes it on purpose

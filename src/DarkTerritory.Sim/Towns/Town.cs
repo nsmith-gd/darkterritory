@@ -64,6 +64,31 @@ public sealed class Town
     /// <summary>How far into their own round somebody is (the clock, less the times they stopped to talk).</summary>
     double Own(int id) => (id == _held ? _heldAt : Clock) - _behind[id];
 
+    (Double3 Centre, double Radius)[]? _reach;
+
+    /// <summary>
+    /// Where somebody's whole round lies (world: a circle on the level round their post, their stops and the ways between),
+    /// so a view far from it needn't ask where they are now (note 479: a big town's people, every frame).
+    /// </summary>
+    public (Double3 Centre, double Radius) Reach(Townsperson p)
+    {
+        _reach ??= [.. Plan.People.Select(Bound)];
+        return _reach[p.Id];
+    }
+
+    (Double3 Centre, double Radius) Bound(Townsperson p)
+    {
+        var points = new List<Double3> { World(p.S, p.D, p.Up) };
+        if (Rounds[p.Id] is { } r)
+            foreach (var stop in r.Stops)
+            {
+                points.Add(World(stop.S, stop.D, p.Up));
+                points.AddRange(stop.Via.Select(v => World(v.S, v.D, p.Up)));
+            }
+        var centre = points.Aggregate((a, b) => a + b) * (1.0 / points.Count);
+        return (centre, points.Max(q => (q - centre).Length));
+    }
+
     /// <summary>Where somebody is now on their round, which way they face, and what they're doing.</summary>
     public TownPose Now(Townsperson p)
     {

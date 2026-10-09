@@ -1347,6 +1347,8 @@ CampaignState? Play(IPlaySession session, CampaignState? campaign)
         scene.Controls = session.Controls;
         if (!session.World.LampShining)
             lighting.LampRange = 0.01f; // not 0: the shader divides by it
+        // The night's fog as it's drawn: what's past it is cooked off the frame (note 479).
+        scene.Fog = lighting;
         scene.Build(mesh, session.Train.Line, frames, session.Train.Dynamics.Distance, camera.Position);
         // GDD v1.4 App. D.12: a bookmark that's due is drawn from its camera now, off screen, with what this machine has of
         // the world (everyone but whoever's eyes it is), and kept small for the run-end screen. Rare, so a stall's fine.

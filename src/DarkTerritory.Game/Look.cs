@@ -227,6 +227,10 @@ public sealed record LookTuning
     /// <summary>Past this far from the eye (m) a creature with a distance copy (content/art/models/&lt;name&gt;.lod1.glb) draws
     /// that instead (look.json creatureLodMetres; 0: never).</summary>
     public float CreatureLodMetres { get; init; }
+    /// <summary>A model with no distance copy of its own gets one made at load (Ballast.Assets.ModelLod: its vertices clustered
+    /// <see cref="ClusteredLodCell"/> m apart), drawn past this far (m; 0: never). Note 462: a walled town's people.</summary>
+    public float ClusteredLodMetres { get; init; }
+    public float ClusteredLodCell { get; init; } = 0.08f;
     public float Baked { get; init; } = 0.35f;
     /// <summary>The crew's paint by player id, in turn (the flying cap and the scarf: CreatureArt.Crewmate), as multipliers.</summary>
     public float[][] CrewColours { get; init; } = [[1, 1, 1]];

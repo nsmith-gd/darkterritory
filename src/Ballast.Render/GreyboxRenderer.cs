@@ -728,7 +728,7 @@ public sealed unsafe class GreyboxRenderer : IDisposable
                 MathF.Max(new Vector3(m.M21, m.M22, m.M23).LengthSquared(), new Vector3(m.M31, m.M32, m.M33).LengthSquared())));
             var sphere = new Vector4(Vector3.Transform(centre, m), radius * scale);
             if (instance.Bones >= 0 && gpuMesh.Skin.IsNotNull)
-                // (Its bind pose's sphere; posed, a limb can reach past it: the hand lamp's cube culls it loosely, SkinSlack.)
+                // (Its bind pose's sphere; posed, a limb can reach past it: the lights' maps cull it loosely, SkinSlack.)
                 _skinDraws.Add((gpuMesh, draw, sphere));
             else
                 _draws.Add((gpuMesh, draw, sphere, instance.Shadowless));
@@ -1285,7 +1285,9 @@ public sealed unsafe class GreyboxRenderer : IDisposable
         var offsets = stackalloc ulong[2] { 0, 0 };
         foreach (var (mesh, draw, sphere) in _skinDraws)
         {
-            if (reach > 0 && !Seen(sphere with { W = sphere.W * SkinSlack + 0.5f }, planes, views.Length))
+            // A light's map (the moon's, the headlamp's, the hand lamp's cube) culls them loosely: a town's people behind you
+            // or out of the headlamp's cone are tens of thousands of triangles a pass (note 479). The view itself draws them all.
+            if ((reach > 0 || shadow) && !Seen(sphere with { W = sphere.W * SkinSlack + 0.5f }, planes, views.Length))
                 continue;
             var d = draw;
             Api.vkCmdPushConstants(cmd, _sceneLayout, VkShaderStageFlags.Vertex | VkShaderStageFlags.Fragment, 0, (uint)sizeof(DrawConstants), &d);

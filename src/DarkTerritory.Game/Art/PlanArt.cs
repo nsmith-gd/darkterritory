@@ -1102,15 +1102,50 @@ public sealed partial class WorldArt
     static readonly double[] ShoreLateral = [-30, 0, 40, 140, 380, 900];
     static readonly double[] ShoreRise = [-2, 1.2, 4, 14, 32, 46];
 
+    /// <summary>How long a cell of the far land is along the line (m): cooked once, drawn by transform (note 479).</summary>
+    const double FarCell = 400;
+    readonly Dictionary<long, (MeshAsset Soup, Double3 Origin)> _farCells = new();
+    PlanScene? _farScene;
+    RailLine? _farLine;
+
+    /// <summary>
+    /// The far land (note 138) from the last <c>drawDistance</c> plus its reach behind to as far ahead: the same hills,
+    /// cooked once a <see cref="FarCell"/> and drawn by transform. Built anew every frame they were some 3,000 points of the
+    /// terrain's, 25 ms of a frame's build on a town night (note 479); they never change.
+    /// </summary>
     void FarLand(MeshBuilder mesh, PlanScene p, RailLine line, Double3 eye, double centre, float drawDistance)
     {
-        var k = new Kit(_look, mesh) { SurfaceOrigin = new Vector3(W(eye.X), W(eye.Y), W(eye.Z)), Baked = 0 };
+        if (!ReferenceEquals(p, _farScene) || !ReferenceEquals(line, _farLine))
+        {
+            _farCells.Clear();
+            (_farScene, _farLine) = (p, line);
+        }
+        const double reach = 900;
+        double from = Math.Max(0, centre - drawDistance - reach), to = Math.Min(line.Length, centre + drawDistance + reach);
+        long first = (long)Math.Floor(from / FarCell), last = (long)Math.Floor(Math.Max(from, to - 1e-6) / FarCell);
+        foreach (var gone in _farCells.Keys.Where(k => k < first - 1 || k > last + 1).ToList())
+            _farCells.Remove(gone);
+        for (long i = first; i <= last; i++)
+        {
+            if (!_farCells.TryGetValue(i, out var cell))
+                _farCells[i] = cell = FarLandCell(p, line, i);
+            if (cell.Soup.Triangles > 0)
+                mesh.Instances.Add(new MeshInstance(cell.Soup, Matrix4x4.CreateTranslation(cell.Origin.RelativeTo(eye))));
+        }
+    }
+
+    /// <summary>One <see cref="FarCell"/> of the far land, relative to its start on the line.</summary>
+    (MeshAsset Soup, Double3 Origin) FarLandCell(PlanScene p, RailLine line, long index)
+    {
+        double a0 = index * FarCell, a1 = Math.Min((index + 1) * FarCell, line.Length);
+        var origin = line.Sample(Math.Clamp(a0, 0, line.Length)).Position;
+        var built = new MeshBuilder();
+        var k = new Kit(_look, built) { SurfaceOrigin = new Vector3(W(origin.X), W(origin.Y), W(origin.Z)), Baked = 0 };
         k.Use(_look?.Layer("ground_forest") >= 0 ? "ground_forest" : "tar", Palette.MuddyOlive, 0.95f, 0.02f, tile: 40);
         k.Tint = new Vector3(0.55f, 0.55f, 0.5f);
         var terrain = p.Terrain;
         double corridor = p.Plan.Rules.Terrain.CorridorM, taper = p.Plan.Rules.Terrain.Shore.TaperM;
-        const double step = FarStep, reach = 900;
-        double from = Math.Max(0, centre - drawDistance - reach), to = Math.Min(line.Length, centre + drawDistance + reach);
+        const double step = FarStep;
         // The shore (not a river: that has its banks in the corridor) on a side at s, if any.
         PlanShore? ShoreAt(double s, int side) => p.Plan.Shores.FirstOrDefault(sh => sh.Kind != ShoreKind.River && sh.Side == side
             && p.EdgeLine(sh.Edge) == line && s >= sh.S0 - taper && s <= sh.S1 + taper);
@@ -1123,11 +1158,11 @@ public sealed partial class WorldArt
             var near = terrain.Nearby(at.X, at.Z, corridor + 40);
             if (near.Any(n => Math.Abs(n.Lateral) < corridor + 30))
                 h = Math.Min(h, terrain.Height(at.X, at.Z) - 2);
-            return new Double3(at.X, h, at.Z).RelativeTo(eye);
+            return new Double3(at.X, h, at.Z).RelativeTo(origin);
         }
-        for (double s = from; s < to; s += step)
+        for (double s = a0; s < a1; s += step)
         {
-            double s1 = Math.Min(s + step, to);
+            double s1 = Math.Min(s + step, a1);
             var a = line.Sample(s);
             var b = line.Sample(s1);
             var ra = Double3.Cross(a.Tangent, Double3.Up).Normalized;
@@ -1159,6 +1194,7 @@ public sealed partial class WorldArt
                 }
             }
         }
+        return (MeshAsset.From($"farland-{index}", built), origin);
     }
 
     // ------------------------------------------------------------------ halts and towns

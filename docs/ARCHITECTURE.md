@@ -6780,6 +6780,47 @@ Terrain sculpting tools, a node-graph material editor, a general-purpose visual 
         - two seconds' walk along it, a walk's paws on the tin;
         - over the gap to the next car, one leap and two paws landing on its roof;
         - down in at its door, one leap and two paws on the boards, and walking there, the boards (never the ballast's).
+479. **Loading in the fog (queue #215, B2; the director, 8 Oct: "Performance is important so make sure there's ways to do good loading. We have all this fog we can certainly do good loading where we need to with this fog").** `dt perf` measured only the test loop, never a town or a generated line on the move. Measured now, the frames were well over tuning/perf.json:
+    - **A walled town** (local:5, from the square, down its street, down a lane, over the gate): about 2.6M triangles a frame against 1.5M, and 37–50 ms of build on this container's CPU against 6.7 ms. Two causes:
+        - **its people:** the survivors' figure is 8,400 triangles with no distance copy. Some 60 townsfolk and the watch were drawn at full detail, in the view and in both lights' maps, carrying 2,400-triangle lanterns, with their gear copied vertex by vertex into the frame;
+        - **the far land (note 138):** rebuilt every frame over 2.6 km, 25–34 ms.
+    - **Down the line at 25 m/s:** every 100 m a new cell of the line (its ground, track and lineside) was cooked in the frame it came into the draw distance. That was 87–94 ms to build and 27–30 ms to upload, a 120 ms hitch every 4 s.
+    - **The fog's reach** (`FrameLighting.FogAt`, `FogReach`): scene.frag's `fogAmount` on the CPU, and solved for distance. It takes the height fog's falloff and floor and the curve, so a tower's top reaches further than a yard fence (frontier, from the roof: about 200 m at the ground, 255 m for a 25 m tree, never more than about 420 m). Two things the fog can't hide:
+        - a lit surface keeps 60% of its light through any fog (scene.frag: the lamp is the last thing you lose);
+        - the horizon is 1.35× the fog's colour, so a fully fogged wall or roofline still shows as a silhouette against the sky.
+      So nothing in sight is simply cut at the fog: what the fog is used for is *when* things are made.
+    - **Loading in the fog** (`GreyboxScene.Fog`, `WorldArt.Cells`): the app gives the scene the frame's lighting.
+        - A cell of the line whose nearest point is past the fog's reach for its trees (25 m up) is cooked on a worker thread and drawn once it's done, still deep in the fog. A cell is 100 m and the draw distance 400 m, so at 25 m/s a cell has some 6 s between coming into range and coming out of the fog.
+        - A cell within reach that isn't ready is cooked in the frame as before (the worker's, if it's on it).
+        - Two workers at most, and one finished cell taken a frame, so two never upload in one frame.
+        - The kit's piece cache and the props' are locked; the rest of a cell's build reads what's fixed once the night's made (the line, the terrain's index, the plan).
+        - With no fog given (`dt screenshot`, the tests) everything is cooked at once as before, so those pictures are unchanged.
+        - Riding at 25 m/s, the cells' build spikes are gone: about 4 ms where they were 90. What's left is the upload the frame a cell first draws, 22–30 ms on lavapipe. That's the renderer's (`Resident`'s allocation and wait); on a GPU it's a few ms.
+    - **The far land** (`PlanArt.FarLand`): the same hills, cooked once a 400 m cell and drawn by transform, sampled on a fixed 40 m grid instead of one that slid with the train. 25 ms a frame became 0.5 ms; looked at side by side, the same hills.
+    - **A figure's distance copy** (`Ballast.Assets.ModelLod.Clustered`; look.json `clusteredLodMetres` 40, `clusteredLodCell` 0.1):
+        - A model with no `.lod1.glb` of its own gets one made at load. Its vertices are clustered on a 10 cm grid per part, never across bones, so an arm never fuses to the hip it swings past. A part that would vanish (the crew's bare skin, in patches smaller than a cell) goes finer.
+        - About a fifth of the triangles. It's drawn past 40 m, where a figure is some 16 px tall: the survivors (a town's people), the crew.
+        - A far townsperson's mask, bottle and hat are instances rather than copied into the frame, and the hoses (a pixel wide there) are left off. Their lantern is the clustered hand lamp (`MeshAsset.Clustered`: the same grid for an unskinned piece, each material and each light apart).
+        - Up close the copy is coarse, the head a block. At 42 m it reads as the figure. The town's shots side by side differ in two pixels.
+    - **The lights' maps cull skinned figures loosely** (`DrawGeometry`): the moon's and the headlamp's, by the bind pose's sphere twice over plus half a metre, as the hand lamp's cube already did (note 436). A town's people behind you or out of the headlamp's cone are no longer drawn into the headlamp's map. The view itself still draws every skinned piece, since a clip can carry a creature far from its bind pose.
+    - **A townsperson far from the eye** (`Town.Reach`): each round's circle (the post, the stops, the ways between) is worked out once, and nobody whose whole round is out of reach is asked where they are now.
+    - **`dt perf`:**
+        - `--route r --town square,houses,crooked,over`: a town from Staging's places, its fog the night's;
+        - `--ride s [--speed v]`: down the line at 60 fps, the median, 99th percentile and worst frames, the hitches (frames over twice the budget), what's allocated a frame and the collections;
+        - `--town houses --ride s --walk`: down the town's first street at a walk;
+        - every view's parts now count their pieces' triangles (`instanceTriangles`), the frame's heaviest pieces are listed (`--all-pieces`: every one), and the build is timed by part (land, route, the fortress walls, the town's square and works, houses, streets, smoke, watch and folk).
+    - **After**, local:5's town on a flat screen:
+        - square 1.23M triangles, street 1.34M, lane 0.50M, over the gate 0.64M (were 2.57M, 2.61M, 2.12M, 1.99M);
+        - the build 8–17 ms on this container (was 37–50);
+        - frontier's ride: 14 hitches in 8 s where it was 25, the worst 67 ms where it was 124.
+    - **Verified:**
+        - `FogLoadingTests`: at the fog's reach a surface takes 0.99 of its colour at every height, and it reaches further up; cells past the reach come from the workers and are the same cells, in the same places, as cooked in the frame; the far land is the same assets, where it stood, from five metres on, and none of it in the frame's soup; a far piece clustered to its size keeps its light apart; local:5's town inside the flat screen's triangles and draws from all four places.
+        - `CreatureArtTests.TheFiguresGetADistanceCopyClusteredFromThem`: a fifth or less, the same parts, materials and bones, the same size.
+        - Looked at: the town from its street, its square and under its watch, and frontier's far hills from the chase view, before and after (pictures alike to a few pixels).
+    - **Not yet:**
+        - **a headset in a crowded town:** two eyes over the street and the square are 1.92M and 1.74M. The moon's map still draws the figures within 40 m at full detail, and a figure's distance copy casting its shadow there (a shadow-only instance) would bring it under. VR is on the backburner (note 436).
+        - **the upload when a cell first draws:** it could be done when the worker finishes, a frame ahead, by the renderer.
+        - **a town's houses and works cut at the fog:** they're cheap already (a far block of houses is 145 triangles), and a roofline past the fog still shows against the sky.
 
 477. **The hounds' patrol clips (queue #213, E1; for D1's #208, note 472; the director, 8 Oct: "It matters that they dont just stand there and howl, they should either patrol between cars that have doors open or patrol the roofs of the cars, jumping between them if they can make the jump"; the art checklist's `cinder-hounds-anim`).** Five new clips in tools/blender/cinder_hound.py, which D1 wires in CreatureArt's hound case:
     - **`patrol`** (64 frames, loop): the hunting walk along the roofs. The prowl's slink without its stop and stare: nose down at the boards, the head swept slowly side to side over two strides, the ears pricked forward.
