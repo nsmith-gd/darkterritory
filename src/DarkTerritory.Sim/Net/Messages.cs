@@ -65,7 +65,8 @@ public static class Protocol
     //     snapshot carries a flags byte after the queued count, bit 0 saying it's one of every other (note 557).
     // 47: Dave (note 570): an enemy kind of his own, and a death cause.
     // 48: Jacob (note 572): an enemy kind of his own.
-    public const int Version = 48;
+    // 50: the Pickers and the house creatures (notes 574, 583–586): five enemy kinds of their own. (49 is D1's, queue #304.)
+    public const int Version = 50;
 }
 
 public enum MessageType : byte

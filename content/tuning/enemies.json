@@ -145,6 +145,9 @@
     "mourners": [[0.35, 0.45], [0.3, 0.9]],
     // Knee-high, a crate over its head when it carries (note 574).
     "pickers": [[0.3, 0.3]],
+    // The house creatures (notes 583–586): the Lodger and the Householder man-sized; the Hanger up in the roof.
+    "lodger": [[0.35, 0.5], [0.3, 1.2]],
+    "householder": [[0.35, 0.5], [0.3, 1.3]],
     // A bear-sized beaver, its shoulders over its head (note 363).
     "towerJaw": [[0.8, 0.7], [0.6, 1.3]],
     // Its plated back, a handcart's bulk (note 366).
@@ -410,6 +413,56 @@
     "guardWithin": 4, "shyWithin": 3, "shySeconds": 4, "run": 4.8, "carry": 2.6, "carryHeavy": 1.6, "takeReach": 0.9, "holdHeight": 1.0,
     "heaveBeside": 0.9, "atDrain": 1.0, "biteWithin": 1.2, "bite": 8, "biteEvery": 2,
     "scatterWithin": 10, "scatterSeconds": 6, "leaveSeconds": 12, "health": 1
+  },
+
+  // THE HOUSE CREATURES (GDD §21; the director, 9 Oct 2026: "Every time I go into a house, it should feel like there could
+  // be something lurking in there that wants to kill me, wants to chase me"; ARCHITECTURE §8 notes 583–586). Which of a
+  // stop's open houses something lives in: "share" of them by tier, each house's own dice (the route's seed, the stop and the
+  // building: nothing else's change), never the Gaunt's roost; what lives there by "weights" (a Householder only in a house
+  // with something to find). Put in their houses, asleep, once the train's within placeWithin m of the stop, and gone once
+  // it's forgetPast m past it. Not the director's: they cost it nothing ("enabled" off: none).
+  "dwellings": {
+    "enabled": true,
+    "share": { "local": 0.2, "frontier": 0.25, "deadLines": 0.33, "deepTerritory": 0.5 },
+    "weights": { "lodger": 3, "householder": 2, "hollowHouse": 1.5, "hanger": 3 },
+    "placeWithin": 500, "forgetPast": 800
+  },
+  // THE LODGER · sound · outside (note 583; docs/design/creatures/lodger.md). Folded in the house's darkest corner (the spot
+  // furthest from its doors, hideInset m off the walls), breathing. Someone in its house noticeSeconds, or within
+  // shriekWithin m of it, and it SHRIEKS for shriekSeconds (the telegraph: the spine's least, minReactionSeconds), then lunges at where they were, at lungeSpeed m/s
+  // up to lungeReach m: within killWithin m of them and it has them (a grab of killWindow s: the one-hit kill, the director's
+  // call). Missed, it chases (chase m/s) and shrieks again before every lunge; a shut door in its way it breaks open in
+  // breakSeconds; anyone further than pursuitRadius m from its house's middle it gives up on, and walks back (walk m/s) to
+  // its corner, resting there restSeconds. Only blows from behind as it walks back hurt it (health in blows).
+  "lodger": {
+    "hideInset": 0.6, "noticeSeconds": 2.5, "shriekWithin": 4.5, "shriekSeconds": 1.5,
+    "lungeSpeed": 9, "lungeReach": 4.5, "killWithin": 0.9, "killWindow": 0.25,
+    "chase": 5.0, "pursuitRadius": 25, "breakSeconds": 2, "walk": 1.6, "restSeconds": 3, "health": 4
+  },
+  // THE HOUSEHOLDER · sight · outside (note 584; docs/design/creatures/householder.md). Sat at its set table, watching whoever's
+  // in its house; harmless to guests. Everything lying in its house is its own. Anything of yours left lying on its table
+  // (within tableReach m of it) pays for one of its things. One of its things carried out of the house unpaid, it rises
+  // (riseSeconds) and hunts whoever carries it at hunt m/s, to the train if it must: within grabReach m it has them (a grab of
+  // grabSeconds a friend can break). Dropped, it takes the thing back home and sits again; carried off more than
+  // giveUpBeyond m from its house, it gives up. Blows hurt it (health).
+  "householder": {
+    "tableReach": 1.0, "riseSeconds": 1.5, "hunt": 3.4, "grabReach": 1.0, "grabSeconds": 6, "giveUpBeyond": 200,
+    "walk": 1.4, "health": 6
+  },
+  // THE HOLLOW HOUSE · vibration · outside (note 585; docs/design/creatures/hollow-house.md). The house is the creature.
+  // Someone inside waitSeconds and the ground rumbles under it (the tell) for rumbleSeconds; then its doors slam shut one
+  // every shutEvery s, held shut, and it sinks sinkDepth m over sinkSeconds and comes down on whoever's still inside (a crush
+  // of "crush": a structure coming down kills, as a fall does). Then it stays as it fell. The answer is knowing the house.
+  "hollowHouse": {
+    "waitSeconds": 1.5, "rumbleSeconds": 3, "shutEvery": 0.35, "sinkSeconds": 3, "sinkDepth": 2.4, "crush": 1000
+  },
+  // THE HANGER · movement · outside (note 586; docs/design/creatures/hanger.md). In the roof space; "strands" strands hang
+  // from the ceiling (2.6 m) to 0.9 m off the floor, spread over the house (Hanger.Strands). Walk into one (within
+  // touchWithin m of it) and it has you (a grab of grabSeconds; a friend holding Use beside you, or a blow on it, frees you),
+  // hauling you haulTo m up over haulSeconds (your feet off the floor, your head against the ceiling: a friend beside you can
+  // still reach you). Freed, it draws back into the roof for retreatSeconds. Blows hurt it (health).
+  "hanger": {
+    "strands": 6, "touchWithin": 0.35, "haulSeconds": 2.5, "haulTo": 0.7, "grabSeconds": 10, "retreatSeconds": 25, "health": 3
   },
 
   // TOWER JAW · vibration · outside (GDD §21, App. A.6, B.6; the director's brief of 8 Oct 2026; ARCHITECTURE §8 note 363;
