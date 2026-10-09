@@ -115,8 +115,15 @@ public class FallWatchTests
         var side = shape.DoorList.First(d => Math.Abs(d.Box.Centre.Z) < 1 && d.Box.Centre.X > 0.5);
         n.Train.Vehicles[car].ToggleDoor(1); // the rear end door open, the side door shut
         var bot = new RoofWalkerBot(7, P.Cold) { Me = 1 };
-        n.Crew[1] = new PlayerState { Parent = car, Surface = Surface.Deck, Position = new Double3(walls.Max.X + 0.3, 0, side.Box.Centre.Z - 1.5),
-            Health = P.Health, Cold = P.Cold.OnsetSeconds * 0.9, LineHint = n.Train.Cars[car].FrontDistance };
+        n.Crew[1] = new PlayerState
+        {
+            Parent = car,
+            Surface = Surface.Deck,
+            Position = new Double3(walls.Max.X + 0.3, 0, side.Box.Centre.Z - 1.5),
+            Health = P.Health,
+            Cold = P.Cold.OnsetSeconds * 0.9,
+            LineHint = n.Train.Cars[car].FrontDistance
+        };
         n.Run(SimConstants.TickSeconds);
         bool inside = false;
         for (int i = 0; i < 20 * 4 && !inside; i++)

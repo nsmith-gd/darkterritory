@@ -3659,7 +3659,7 @@ public sealed class WarmUp(ColdTuning cold, double goInAt = 0.6)
     /// with the car alight (the tender's no way back along the train, but the fire's worse).
     /// </summary>
     bool Way(TrainOnLine train, int end) =>
-        Floor(train, _car, end) || end < 0 && train.VehicleAhead(_car) == 0 && Troubled?.Invoke(_car) == true;
+        Floor(train, _car, end) || end < 0 && train.VehicleAhead(_car) == 0 && (Troubled?.Invoke(_car) == true || Ablaze?.Invoke(_car, 1) == true);
 
     /// <summary>
     /// Note 553 (D1's falls audit): whether there's footing beyond that end door of <paramref name="car"/> (+1 its rear): a plate,
