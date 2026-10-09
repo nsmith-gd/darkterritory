@@ -966,7 +966,10 @@ public class CreatureArtTests(CreatureArtTests.TurntableRig rig) : IClassFixture
         }
         Assert.Equal("creep", CreatureArt.RibbitClip(SpinePhase.Grab, Leader("tongue")));
         Assert.Equal("devour", CreatureArt.RibbitClip(SpinePhase.Grab, Leader("devour")));
-        Assert.Equal("tongue", CreatureArt.RibbitClip(SpinePhase.Commit, Leader("devour")));
+        // The pack's others ride COMMIT through the leader's devour (note 558): close to, they're on them too; out of
+        // reach, it's the tongue's strike.
+        Assert.Equal("devour", CreatureArt.RibbitClip(SpinePhase.Commit, Leader("devour")));
+        Assert.Equal("tongue", CreatureArt.RibbitClip(SpinePhase.Commit, Leader("tongue")));
         // Where the sim's hop stops is close enough to be on them.
         Assert.Equal("devour", CreatureArt.RibbitClip(SpinePhase.Grab, 0.8f));
     }

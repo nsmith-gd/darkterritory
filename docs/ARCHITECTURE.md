@@ -746,6 +746,7 @@ written here instead is moved out by `tools/coord/notes.py split`; the Coordinat
 - [555. An invite accepted while playing joins in-process (N2, queue #272; the netcode audit's gap 4, note 530; note 24's relaunch)](notes/555.md)
 - [556. The two-machine test in the nightly soak (N2, queue #276; the netcode audit's gap 8, note 530; note 450's run by hand)](notes/556.md)
 - [557. A weak link adapts (N2, queue #273; the netcode audit's gap 5, note 530)](notes/557.md)
+- [558. The Ribbits as the director met them (queue #297, E1; the director, 9 Oct 2026: "The Ribbits jumped towards me in a weird diagonal…](notes/558.md)
 - [570. Dave, the wandering painter (P1, queue #300; the director, 8 Oct 2026: "a special NPC that shows up randomly in places. His name is Dave…](notes/570.md)
 - [571. Nicki's party (P1, queue #301; the director, 8 Oct 2026: "an NPC you can find some times in one of the houses. Her name is Nicki and she's…](notes/571.md)
 - [572. Jacob, the fisherman (P1, queue #302; the director, 8 Oct 2026: "an NPC named Jacob who can be found randomly in the world near water…](notes/572.md)

@@ -1319,6 +1319,8 @@ CampaignState? Play(IPlaySession session, CampaignState? campaign)
         // Behind a crewmate's eyes (App. D.10), their own figure isn't drawn round the camera.
         if (session.Watching >= 0 && !chase)
             scene.Crew = [.. (scene.Crew ?? []).Where(c => c.Id != session.Watching)];
+        // You, for whatever's after you to face and reach for (note 558): not drawn.
+        scene.Self = session.Self(frames, clock.Alpha);
         // Just come back inside a Holdout, you're seen getting up while the camera's on you (note 529).
         if (session.CameBackFigure(frames, clock.Alpha) is { } risen && !chase && !cinematic)
             scene.Crew = [.. scene.Crew ?? [], risen];

@@ -238,6 +238,42 @@ public class DemoRosterTests
     }
 
     [Fact]
+    public void APackSpreadsRoundItsCatchAndKeepsApart()
+    {
+        // Note 558 (the director, 9 Oct: "they overlapped each other a lot"): three come in from nearly one spot, each
+        // straight at the catch they'd heap up. They spread as they come, never nearer each other than about their spacing
+        // once apart, and on the catch they're round them, not in one pile on one side.
+        var n = new Night(4, speed: 0);
+        var me = OnGroundBeside(n, 2, 4);
+        n.Crew[1] = me;
+        n.Crew[2] = me with { Position = me.Position + new Double3(0, 0, 30) };
+        var at = PlayerMotor.WorldPosition(me, n.Train);
+        var a = n.World.AddEnemy(id => Ribbit.At(id, id, at + new Double3(14, 0, 0), E.Ribbits));
+        var b = n.World.AddEnemy(id => Ribbit.At(id, a.Id, at + new Double3(14.2, 0, 0.1), E.Ribbits));
+        var c = n.World.AddEnemy(id => Ribbit.At(id, a.Id, at + new Double3(14.1, 0, -0.15), E.Ribbits));
+        Enemy[] pack = [a, b, c];
+        static double Gap(Enemy x, Enemy y) => ((x.Local - y.Local) with { Y = 0 }).Length;
+        double nearest = double.MaxValue;
+        for (int i = 0; i < 60 && a.Phase != SpinePhase.Grab; i++)
+        {
+            n.Run(0.1);
+            if (i >= 15)
+                nearest = Math.Min(nearest, Math.Min(Gap(a, b), Math.Min(Gap(a, c), Gap(b, c))));
+        }
+        Assert.Equal(SpinePhase.Grab, a.Phase);
+        n.Run(3);
+        nearest = Math.Min(nearest, Math.Min(Gap(a, b), Math.Min(Gap(a, c), Gap(b, c))));
+        Assert.True(nearest > E.Ribbits.Spacing * 0.75, $"packmates {nearest:0.00} m apart");
+        // Round them: the bearings from the catch to the three span more than a right angle, and all are close.
+        var target = PlayerMotor.WorldPosition(n.Crew[1], n.Train);
+        var bearings = pack.Select(r => Math.Atan2(r.Local.X - target.X, r.Local.Z - target.Z)).OrderBy(x => x).ToList();
+        double span = bearings[^1] - bearings[0];
+        span = Math.Min(span, 2 * Math.PI - span);
+        Assert.True(span > Math.PI / 2, $"the pack's spread {span * 180 / Math.PI:0} degrees round its catch");
+        Assert.All(pack, r => Assert.True(((r.Local - target) with { Y = 0 }).Length < E.Ribbits.RingOut + 1.2, $"a Ribbit {((r.Local - target) with { Y = 0 }).Length:0.0} m off its catch"));
+    }
+
+    [Fact]
     public void AFriendEvensTheCountAndTheTongueLetsGo()
     {
         var n = new Night(4, speed: 0);

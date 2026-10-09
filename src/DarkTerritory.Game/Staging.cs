@@ -1,4 +1,5 @@
 using Ballast;
+using Ballast.Render;
 using DarkTerritory.Sim.Enemies;
 using DarkTerritory.Sim.Train;
 
@@ -540,17 +541,50 @@ public static partial class Staging
             _ => throw new ArgumentException($"--ribbits {mode}: hop, swell, tongue or devour"),
         };
         var pack = threats.OfType<Ribbit>().ToList();
-        foreach (var r in pack)
+        var leader = pack.MinBy(m => m.Id);
+        var them = Lone(train).Feet;
+        var toLeader = leader is null ? default : ((leader.Local - them) with { Y = 0 }).Normalized;
+        int rank = 0;
+        foreach (var r in pack.OrderBy(m => m.Id))
         {
             var at = r.Local;
-            if (mode == "devour" && r == pack.MinBy(m => m.Id))
+            if (mode == "devour" && r == leader)
             {
-                var them = Lone(train).Feet;
-                at = them + ((at - them) with { Y = 0 }).Normalized * 0.8;
+                // On them, eating (note 558): it holds them, and they're down.
+                r.Restore(phase, 2.5, r.Health, r.Attached, them + toLeader * 0.8, 0, 0, 0, LoneId, 0, holding: LoneId);
+                continue;
+            }
+            if (mode == "devour")
+            {
+                // The others in at them as the sim fans them round (Ribbit.Place: fan degrees either side, by rank), riding COMMIT.
+                int side = (rank / 2 + 1) * (rank % 2 == 0 ? 1 : -1);
+                rank++;
+                double a = Math.Atan2(toLeader.Z, toLeader.X) + side * Fanned.Fan * Math.PI / 180;
+                r.Restore(SpinePhase.Commit, 2.5, r.Health, r.Attached, them + new Double3(Math.Cos(a), 0, Math.Sin(a)) * Fanned.RingOut, 0, 0, 0, LoneId, 0);
+                continue;
             }
             r.Restore(phase, 0.3 + 0.21 * (r.Id - 60), r.Health, r.Attached, at, 0, 0, 0, LoneId, 0);
         }
         return threats;
+    }
+
+    // The pack's places round its catch, as the tuning's defaults have them (content/tuning/enemies.json ribbits).
+    static readonly RibbitTuning Fanned = new();
+
+    /// <summary>
+    /// The staged pack eating crewmate 4 (<c>--ribbits devour</c>, note 558): <c>feast</c> from a few steps off and over
+    /// them, the pack on them, them down and the blood; <c>eaten</c> through their own eyes, down (Eyes.Devoured, gone down).
+    /// </summary>
+    public static Camera FeastCamera(TrainOnLine train, IEnumerable<Enemy> enemies, string view)
+    {
+        var them = Lone(train).Feet;
+        var holder = enemies.OfType<Ribbit>().FirstOrDefault(r => r.Holding == LoneId)?.Local ?? them;
+        var head = ((them - holder) with { Y = 0 }).Normalized;
+        var across = Double3.Cross(Double3.Up, head);
+        if (view == "eaten")
+            return Eyes.Devoured(them, holder, Eyes.GoDown, Camera.LookAt(them + Double3.Up * Eyes.Height, holder, 75) with { Near = 0.05f, Far = 2000 });
+        // From beside their head (they lie toward the train, the pack on their legs from out past their feet), down along them.
+        return Camera.LookAt(them + head * 1.6 - across * 2.6 + Double3.Up * 1.7, them + head * 0.5 + Double3.Up * 0.3, 55);
     }
 
     /// <summary>Crewmate 4, alone on the ground off the second car's left, facing the Ribbits there (they're after them).</summary>

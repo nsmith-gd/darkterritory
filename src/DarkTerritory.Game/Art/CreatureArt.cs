@@ -106,7 +106,9 @@ public sealed partial class CreatureArt
     /// Who a Tippy Toesie is after (GreyboxScene, for its target: the crewmate whose id is its Extra), camera-relative:
     /// their feet and the way they face. It faces them; on them, it's stood tight behind with a hand over their mouth.
     /// </summary>
-    public readonly record struct Prey(Vector3 Feet, Vector3 Forward)
+    /// <param name="Down">Laid on their back (a Ribbit pack eating them, note 558): <see cref="Forward"/> is then the way
+    /// they're laid, their head behind their feet (<see cref="At"/>'s z), as <see cref="Pins"/> has it.</param>
+    public readonly record struct Prey(Vector3 Feet, Vector3 Forward, bool Down = false)
     {
         public Vector3 Right => Vector3.Normalize(Vector3.Cross(Forward, Vector3.UnitY));
         /// <summary>A point in their frame (x right, y up, z back), camera-relative.</summary>
@@ -128,10 +130,32 @@ public sealed partial class CreatureArt
     /// <summary>
     /// The clip a Ribbit on the attack plays, <paramref name="near"/> metres from the one its pack is after: its tongue out at
     /// them (COMMIT), then, with them frozen (GRAB), creeping in on them low on the sim's quarter-speed hop, and close to, on
-    /// them, devouring (App. A.6).
+    /// them, devouring (App. A.6). The pack's others ride COMMIT through it (note 558): close to, they're on them too, devouring.
     /// </summary>
     public static string RibbitClip(SpinePhase phase, float near) =>
-        phase is SpinePhase.Grab or SpinePhase.Punish ? near > RibbitDevourReach ? "creep" : "devour" : "tongue";
+        phase is SpinePhase.Grab or SpinePhase.Punish ? near > RibbitDevourReach ? "creep" : "devour"
+        : phase == SpinePhase.Commit && near <= RibbitDevourReach ? "devour" : "tongue";
+
+    /// <summary>
+    /// Whether <paramref name="e"/> is a Ribbit holding its catch and on them, eating (note 558): GRAB or PUNISH, within
+    /// <see cref="RibbitDevourReach"/> across the ground of their feet (<paramref name="feet"/>; it's at <paramref name="at"/>).
+    /// Then they're pulled down onto their back (GreyboxScene's Pins), the pack stoops onto them, there's blood, and their
+    /// own eyes go down with them (Eyes.Devoured).
+    /// </summary>
+    public static bool RibbitEating(Enemy e, Double3 at, Double3 feet) =>
+        e.Kind == EnemyKind.Ribbit && !e.Gone && e.Holding >= 0 && e.Phase is SpinePhase.Grab or SpinePhase.Punish
+        && Math.Sqrt((feet.X - at.X) * (feet.X - at.X) + (feet.Z - at.Z) * (feet.Z - at.Z)) <= RibbitDevourReach;
+
+    /// <summary>
+    /// How far up their body from where the sim has them a Ribbit pack's catch is laid (m, note 558): held_pinned's origin is
+    /// at the hips (the head 0.6 m behind it, the boots 1.3 m in front), so this puts the sim's point at their knees, the
+    /// leader (the hop's 0.8 m off) at their shins and the others either side of their legs and middle.
+    /// </summary>
+    public const double RibbitLaid = 0.7;
+
+    /// <summary>How far a Ribbit eating someone down on their back pitches forward over them from its feet (rad), its
+    /// mouth down to their body instead of at a standing chest (the devour clip's).</summary>
+    const float RibbitStoop = 0.95f;
 
     /// <summary>The toy the Track Doll being drawn has in its hand, or null (GreyboxScene: the one it was given, as it goes).</summary>
     public MeshAsset? DollHolding { get; set; }
@@ -2706,8 +2730,12 @@ public sealed partial class CreatureArt
                     // the half seconds its id puts it on).
                     if (prey is { } p)
                     {
+                        // Down on their back (note 558), it goes for the nearest of their body (the leader at their feet
+                        // their shins, the others either side of them their legs and middle), stooped right over onto
+                        // them, not at the air where a standing chest would be.
                         var (r, _, b) = Basis(model);
-                        var to = p.Feet - model.Translation;
+                        float along = Math.Clamp(Vector3.Dot(model.Translation - p.Feet, -p.Forward), -0.3f, 1.0f);
+                        var to = (p.Down ? p.At(0, 0, along) : p.Feet) - model.Translation;
                         float x = Vector3.Dot(to, r), z = Vector3.Dot(to, b);
                         if (x * x + z * z > 1e-6f)
                         {
@@ -2716,6 +2744,9 @@ public sealed partial class CreatureArt
                             m.Translation = at;
                         }
                         _prey = p;
+                        float near = new Vector2(p.Feet.X - model.Translation.X, p.Feet.Z - model.Translation.Z).Length();
+                        if (p.Down && RibbitClip(e.Phase, near) == "devour")
+                            m = Matrix4x4.CreateRotationX(-RibbitStoop) * m;
                     }
                     return Enemy(mesh, Matrix4x4.CreateScale(RibbitScale) * m, e.Kind, e.Phase, e.PhaseSeconds + (e.Id & 1) * 0.5, e.Extra, e.Health,
                         aboard: false, extra2: e.Id);

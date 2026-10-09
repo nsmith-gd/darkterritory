@@ -1774,6 +1774,18 @@ static object Screenshot(TrainTuning t, string content, string[] args)
     // --ribbits tongue|devour: crewmate 4, the one the tongue has, frozen where they stand as the game draws them (held_frozen).
     if (Str(args, "--ribbits", "") is "tongue" or "devour" && scene.Crew is { } frozen)
         scene.Crew = [.. frozen.Select(c => c.Id == Staging.LoneId ? c with { Act = DarkTerritory.Game.Art.CrewPose.HeldFrozen } : c)];
+    // --ribbits devour --view feast|eaten: the pack on them from a step off, or through their own eyes, down (note 558).
+    if (Str(args, "--ribbits", "") == "devour" && view is "feast" or "eaten" && scene.Enemies is { } feasting)
+    {
+        camera = Staging.FeastCamera(train, feasting, view);
+        scene.StagedEaten = Opt(args, "--eaten", 4);
+        // Through their eyes they're you: not drawn, but who the pack's on (GreyboxScene.Self).
+        if (view == "eaten" && scene.Crew?.FirstOrDefault(c => c.Id == Staging.LoneId) is { Id: Staging.LoneId } you)
+        {
+            scene.Crew = [.. scene.Crew.Where(c => c.Id != Staging.LoneId)];
+            scene.Self = you;
+        }
+    }
     // --hugger swallow: the one it has in its mouth at the rear car's end door (App. A.3; Staging.Swallowed).
     if (Str(args, "--hugger", "") == "swallow" && scene.Enemies?.OfType<DarkTerritory.Sim.Enemies.CarHugger>().FirstOrDefault() is { Holding: >= 0 })
         scene.Crew = [.. scene.Crew ?? [], Staging.Swallowed(train), .. args.Contains("--rescue") ? [Staging.SwallowRescuer(train)] : Array.Empty<Crewmate>()];
