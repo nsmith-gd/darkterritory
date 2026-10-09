@@ -12,6 +12,13 @@ public sealed record RouteTuning(
     public JunctionTuning Junctions { get; init; } = new();
 
     /// <summary>
+    /// Seconds each of the night's facilities adds to its dawn timer, over the transit's (note 554: the director's short
+    /// nights, three stops in about 13 minutes; spec B.8's formula is the transit alone, and on a 6 km line that left no
+    /// time for a stop). 0: the formula as it was.
+    /// </summary>
+    public double DawnPerFacilitySeconds { get; init; }
+
+    /// <summary>
     /// The stops' yards and villages (content/tuning/stops.json), laid out with the route. Without it (a tuning built by
     /// hand) every facility gets route.json's single spur and there are no village halts.
     /// </summary>

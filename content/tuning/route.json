@@ -4,6 +4,9 @@
   // curves and the trouble in the cars wouldn't fit in it, and missing dawn was a night's commonest failure).
   "dawnAverageSpeed": 11,
   "dawnSlack": 0.4,
+  // Note 554 (the director, 9 Oct 2026: "the average run has 3 full stops it can make and lasts roughly 13 minutes
+  // total"): each facility on the night adds this to its dawn timer, so a crew has the time to make all three.
+  "dawnPerFacilitySeconds": 180,
   // Spec B.8 and GDD §11 (the director's decision of 6 Oct 2026, ARCHITECTURE §8 note 270): "the time a run takes should
   // always be the same. Difficulty scales not by time but by monsters and density of challenges." Every tier's line is
   // this long, gate to terminus, so every night's dawn timer is the same
@@ -11,7 +14,7 @@
   // the length of the Frontier night the director has been playing. Was 18-22 / 24-30 / 30-36 / 36-40 km by tier (the
   // generated lines' 18 / 23 / 29 / 34-40 km columns). The line generator (the game's nights) reads it; its
   // content/linegen/tiers.json columns carry the tiers' counts, which over one length are their density.
-  "nightLengthKm": 24,
+  "nightLengthKm": 7,
   // Flat straight track at each end: the fortress yard, and the terminus approach where nothing spawns (App. B.1).
   "yardLength": 600,
   "terminusApproach": 800,
