@@ -697,11 +697,7 @@ public sealed class RoofWalkerBot(int seed, ColdTuning? cold = null, StopHand? j
             // hands are down there anyway); otherwise the walker's way, along the roofs.
             if (self.Parent == trouble.Attached && InTheCar(self, world.Train))
                 return Tend(self, trouble, world, Me);
-            var into = job.IntoTrouble(self, world, trouble.Attached, held: lamp);
-            // Note 526: the flies' lamp and their smoke are on a clock (about 20 s, App. A.5): at a run along the ballast. At a
-            // walk the gunner was 75 s getting from the cab to the guard van, and the van caught and burned a walker in it.
-            return lamp && into is { } go && self.Parent == PlayerState.World && (go.MoveX != 0 || go.MoveZ != 0)
-                ? go with { Buttons = go.Buttons | PlayerButtons.Run } : into;
+            return job.IntoTrouble(self, world, trouble.Attached, held: lamp);
         }
         if (_workedTick != world.Tick)
         {
