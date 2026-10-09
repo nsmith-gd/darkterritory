@@ -7411,6 +7411,35 @@ Terrain sculpting tools, a node-graph material editor, a general-purpose visual 
       - The rear cars' lamps, with every hand at the front: seed 6's guard van, 180 m from the cab at the Foundry's clear-away, was alight before anyone got there.
       - The driver's set-backs for a hand left on the ground: on seed 6, after its switch set-back, it backs a kilometre to the spur's toe for one, and later runs on at 14.5 m/s with all three on the ballast. That one is ConductorBot's (D1).
     - **Test:** `CarFireTests.AtAStopTheNearestHandPutsTheFireFliesLampOutWhateverItsPart` is a theory over seeds 2 and 6 now: no car the flies came to is alight by 520 s.
+
+533. **Two hurt hands on the ballast at Renwick Yard and the driver waiting all night (queue #277, D1.3 for D1; D1.2's trace, frontier:7 seed 6 with #619).** From about 1,846 s the gunner and the last walker stood on the ballast at 1 hp, and the driver waited in the cab for the rest of the night (13.8 km).
+    - **The root cause, a rake lost long ago counted as the train's own.** The crew cut cars 8–10 loose at km 9. `TrainOnLine.TrainRakes` counts every rake that isn't a yard's standing cars, so from then on the stop logic read "the train's split here". The driver made no more stops. The hands' Foundry plan was never over (it's released only with the train back together), so at every stand they rode to the cab by it. At Renwick Yard that meant down off the train and round to the cab's door:
+      - *The wrong side.* `SideOf` measured against the Foundry's spur, kilometres back, and put the hands across the track from where they were.
+      - *Into the engine.* Note 486's `Across` (the train between a hand and where it's going: the foot path round) skipped the engine, so they walked into its side, and stood there till dawn.
+    - **Now:**
+      - The stop logic asks `StopPlan.NearRake`: another rake of this train at this stop, down its spur or within 600 m of its hold. That covers the driver's legs, the coaling stand, the cut, the back-out and the hands' plan release. A rake lost kilometres back is not this stop's.
+      - `SideOf` reads the track the engine's on, and the engine counts in `Across`.
+      - A hand on the ballast with the train standing and no stop's part goes back aboard by the foot path (`StopHand.LeftOnTheBallast`), to the nearest roof ladder of the engine's rake. Its stale plan used to do that by accident. Without the plan, a walker freed from the Holdout at km 10 (seed 13) took the walker's own way, a straight line, into the Holdout's wall for two minutes, and was left to the Ribbits.
+    - **Pinned:** `StopCrewTests.WithCarsLostKilometresBackTheCrewStillWorksTheStop`, with two cars cut loose 2.5 km back (on main the driver sat in Cruise past the stop). And `HoldoutTests.ACrewmateBrokenOutWalksRoundTheHoldoutsWallsAndBackAboard` (on the old code, stuck 2.8 m from the Holdout's inside).
+    - **Measured** (frontier:7, `--bots 4 --enemies --upkeep`, 2,700 s, seeds 1–18; main has #641 in):
+
+      | | Main | Now |
+      |---|---|---|
+      | km | 353.0 | 377.9 |
+      | Delivered | 3 | 3 |
+      | Deaths | 37 | 44 |
+      | Crew lost | 18 | 21 |
+      | Cars lost | 39 | 56 |
+      | Cargo delivered | 73.0 | 62.7 |
+
+      Seed 6 runs 10.9 → 24.2 km. (With #641 in, seed 6 no longer loses the km-9 rake, but its stop is worked again.) The costs are in the longer nights and the stops worked after a lost rake:
+      - Couplings that worked loose and parted: 22 → 35 cars, 6 of them at stops a short-handed crew now works.
+      - Hounds: 8 → 13 deaths.
+      - Hands left behind who froze or were eaten: 9 → 4.
+
+      Single nights are chaotic; the totals are the measure.
+    - **Not yet:** the driver crossing a coupling plate on its way to or from a Holdout or a cut cuts it (Use on a plate standing). "Coupler: Crew 1" loses cars on main too (23 cars on these 18 nights).
+
 510. **Captions for the moments: what a creature does and how the train fails (AU1, queue #247; note 349's CAPTIONS, F1's; note 391; GDD §32; the director, 8 Oct: "these are all quite important").** Captions told a reader how a thing is learned: the tells, the signs, the jobs that call for a hand, the doors, the rules heard (note 494's healing). They didn't say when it happens. A car tearing away, someone dragged under the train, a bite, a seizing, the boiler bursting, a derailment, a misfire and the overspeed bell were all heard by a hearing player and never written.
     - **Added** (content/ui/captions.json, by F1's rules: what it is as someone hearing it would say it, never what makes it, never what to do), 55 sounds:
         - **A creature's acts:**
@@ -7431,6 +7460,14 @@ Terrain sculpting tools, a node-graph material editor, a general-purpose visual 
     - **Left silent:** what plays the crew's own sounds by design (the Passenger's steps and uncoupling, the doll's levers), whose silence is the tell. Also left out are takes kept from the first pass whose content isn't written down: the Whistler's snatch and nest, the Car Hugger's swallow, Tippy Toesie's grab and flee; they get words when they're redone.
     - **Pinned:** `CaptionsTests.TheMomentsAreCaptioned`, twelve of them by name (a variant by its line's, `state-derail.impact.ground`). F1's tests hold: every caption is a sound that plays, none names a creature, all in capitals.
 
+534. **The link's quality shown (F1, UI/UX 3; queue #271; netcode-audit.md gap 3; spec E "ping visibility is load-bearing. Without host migration, a bad host connection loses everyone's run").** The HUD showed the round trip to the host and nothing else: not what was being lost, not whether Steam was relaying, and the host saw nothing of anyone's link.
+    - **Loss, counted on what the game sends every tick** (`Sim.Net.LinkLoss`): of the newest numbers in a window (hud.json `lossWindowSeconds`, 10 s), the share that never came, or came after a newer one had. A joiner counts the host's snapshots by tick (`ClientSession.SnapshotLoss`); a stale one is already skipped, so it counts as lost, which is what it is to the game. The host counts each crewmate's input datagrams by the newest sequence each carries (`HostSession.Links`). A stream that starts again from low (a crewmate back on a new connection) starts the count again. It's statistics only: nothing in the world reads it, so prediction and `NetcodeTests` are untouched. Shown once a second's been counted, so one missed snapshot in the first few doesn't read as a bad link.
+    - **How a peer's reached** (`IDatagramCarrier.Describe`, `IConnectionInfo.Via`, `CarrierLink`): UDP is DIRECT; Steam's carrier asks `ISteamNetworkingMessages.GetSessionConnectionInfo` for relayed or direct, Steam's own ping and its quality; `FakeOnline` says relayed. Like everything on the Steam path (note 530), the Steam half has run only against the fake.
+    - **Where it's shown.** A joiner, in the yard: under the big ping, "0% LOST, DIRECT" or "2% LOST, VIA STEAM RELAY", inked by the loss (good under `lossGood` 2%, danger from `lossWarn` 8%). Out on the line, only what's gone bad (note 285): "13% LOST" as a bad ping is. The host, in the yard: each remote crewmate's "14 MS, 0% LOST, DIRECT" beside their name on the lobby panel, inked by its worst, so a host sees who's struggling before driving out. The host's own player and the bots are on this machine and aren't listed.
+    - **Steam's own ping and quality go in the reports, not the HUD** (`ReportFields.Night`, note 452): the game's own round trip and loss are what a player feels, and two pings on the screen would ask which to believe. A developer reading a crash or a problem report gets both.
+    - **Seen:** `dt screenshot --hud --link-quality host|joiner`: a hosted yard with two joiners over loopback, the second losing 12% of what it sends (it reads 13%, red, on the host's panel). Tests: `LinkLossTests` (the counting, and a perfect, a lossy and a jittery loopback link measured both ways), `QuietHudTests` (said out on the line only when bad; the lines' words and inks).
+    - **Not yet:** a host out on the line isn't told a crewmate's link has gone bad (the lobby panel is the yard's); the per-crewmate line on the host's Esc menu.
+
 536. **The Stoker's char close to (queue #278, E1; the art checklist's `stoker`, its audit of 5 Oct: "the arm it reaches out into the cab with is a smooth featureless tube, and the head is smooth as a helmet close to; neither reads as char at the door").** Note 120's model is only seen within a metre or two, at the open firebox door, so the close look is the whole look. Before, it was round 8-sided tubes and an egg, with a few glowing faces where a 14-per-metre noise crossed a threshold. Now it reads as a fireman burnt to charcoal:
     - **Burnt wood's alligatoring** (`tools/blender/stoker.py`, `cells`): the skin is split into blocks 3-4 cm across (a jittered grid's cells, `CELL` 30 per metre).
         - Each block is domed, and sunk at its edges into a crack (`char_off`, displaced in the game mesh itself, so the outline is lumpy too).
@@ -7447,3 +7484,18 @@ Terrain sculpting tools, a node-graph material editor, a general-purpose visual 
     - **The neck** shows its two cords and the windpipe.
     - **Budget:** 4,858 triangles (was 2,308) of the creature budget's 5,000 (`CreatureArtTests`); 28 bones. The legs, never seen in the fire, have the fewest rings. The clips are unchanged.
     - **Verified:** `dt screenshot --threats --stoker reach --view firebox` and `--stoker peer` (before and after are in the Look Review round). `CreatureArtTests` and the Game suite are green.
+
+538. **The Passenger wrong up close (queue #280, E1; the art checklist's `passenger`, GDD App. A.8: "passes for crew in the dark; wrong up close").** Note 124's model passed in the dark, but close to it was only unfinished: a smooth blue-grey egg of a face with two lit dots and a slot of a mouth, the scarf a sleeve with a flat slab down the front. Now it's a dead man's face kept too long (`tools/blender/passenger.py`, `face`):
+    - **The face:** the skin is drawn tight over the skull (the head 34 by 28, up from 22 by 18).
+        - Deep sockets under a standing brow, with a furrow between the brows.
+        - Sharp cheekbones with the cheeks fallen in under them, and hollow temples.
+        - The nose thin to its bone, its sides sunk and the nostrils drawn back; the jaw's line and the chin hard under the skin.
+    - **What's wrong with it:** the eyes are set a little too far apart (`EYE_U` 0.47, was 0.43) and are a little too big. Their lids have gone back off them: the lower lid has sagged away, showing its wet red rim, and the upper is a thin fold over a stare that never blinks. The ears are shrunk dry against the skull.
+    - **The scarf** (still in the copied crewmate's colour, `wool.passenger.paint`) is wound three times round the throat, each wrap lumpy and tilted, then knotted at the side. Its two ends hang down the coat's front, rucked across their width and frayed at the end. In the dark it reads as a scarf now, which is what it's copying.
+    - **The bake** (`tools/models/recipes/passenger.py`): the skin is creased across the forehead and cracked fine all over, like old paper. The recipe now reads the head's centre and eyes from the script (`g["HC"]`, `g["EYE_U"]`), not copies of them, so the sockets' bruising follows the eyes.
+    - **Budget:** 6,750 triangles (was 4,014) of the model's 9,000 (`CreatureArtTests`); 27 bones. The clips, the sim and `CreatureArt` are unchanged.
+    - **Verified:** `dt screenshot --threats --passenger stand --view passenger` and `dt art clip passenger stand --at 0,1.62,0 --dist 0.55 --yaw 25` (before and after are in the Look Review round). `CreatureArtTests` is green.
+
+540. **A host told whose link is bad out on the line (F1, UI/UX 3; queue #282; note 534's "not yet"; spec E "ping visibility is load-bearing").** Note 534 put each crewmate's ping and loss on the host's lobby panel, which is the yard's: once the train was out, a host driving the night didn't know a joiner was dropping a tenth of their inputs until they said so.
+    - **Out on the line, the host's top-right corner names them** (`Hud.BadLinks`), where a joiner's own bad ping goes: "PRIYA: 13% LOST" or "SAM: PING 210 MS", in danger ink, by hud.json's `pingWarnMs` and `lossWarn` as a joiner's own line is. Each says whichever of the two is further past its warning; worst first; three at most, then "AND n MORE". Nothing while everyone's fine (note 285: the screen says what's gone wrong, and only that).
+    - **Seen:** `dt screenshot --hud --link-quality line` (the hosted yard of note 534 with its 12% sender, drawn as if past the gate). Tests: `QuietHudTests` (said only when someone's bad; named worst first, the rest counted).
