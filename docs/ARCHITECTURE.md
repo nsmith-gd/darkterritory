@@ -7270,6 +7270,21 @@ Terrain sculpting tools, a node-graph material editor, a general-purpose visual 
       Every pin that still parts parted with all three hands dead (seed 5's gunner was back only briefly). Those are pack nights: hounds aboard lighting the cars and mauling the walkers (D1.2's #221 and #232). Seed 3's crew is lost at 2102 s, after the pack. Seed 6 runs the whole night on both builds with the crew home (3 now, 2 on main) but gets less far; its night goes differently from the Foundry on. No tuning changed.
     - **Not yet (note 496's):** on seed 6, on main and now alike, the Fire Flies set cars 1 and 5 alight at Talbot Foundry and three hands burned in car 1. Note 496's lamp claim misses a case there; it's D1.3's next to look at.
     - **Tests:** `LooseCouplingTests.AChilledWalkerGoesToALooseCouplingBeforeGoingInToWarm` (a walker chilled enough to want warming, the cold not yet hurting, tightens car 3's pin without going in first). Without the change it went into car 2 to warm and got to the pin 37 s later. `LeftAloneThePinDropsAndTheRakePartsBehindIt` now also checks the parted cars are the pin's, not anyone's cut.
+
+529. **Come back: the camera cuts in on you getting up (queue #266, E1; the art checklist's `crew-freed` "next": "the camera cut in with it"; GDD App. D.8 "comes back inside it").** Freed, you're drawn getting up off the Holdout's floor for the others (crew_clips' `getup`, 1.87 s; CrewActs while you stand where it put you), but your own eyes were already standing at full height the moment you came back.
+    - **The camera** (`Eyes.CameBack`):
+        - For the first `CutIn` (1 s) it's a held shot from inside the Holdout, by its door and a step to one side, down at you getting up: the way the crew coming in will find you.
+        - Then it cuts into your eyes for the rest of it, the eye coming up with the clip's head (`Eyes.GettingUp`, sampled from the clip: 0.67 m up on an elbow to the stood eye's 1.65).
+        - Then it's your eyes as ever.
+    - **The session** (`NetPlaySession`) marks when you came back: alive again with a Freed Holdout yours. The app draws your own figure (`CameBackFigure`, getting up) only while the camera's on you from by the door; your eyes are never inside it.
+    - **Presentation only:** the return is the sim's, untouched.
+    - **Not yet:** a prison van's Holdout puts you at the siding's ground while its floor is drawn 1.1 m up (note 387's "not yet", the sim's to settle). There, the eyes come up under the van's floor; the cages and shelters are right.
+    - **Headless:** `dt screenshot --route frontier:7 --freed --holdout 2 --cameback s` (s under 1: the held shot; over: your eyes as they come up).
+    - **Verified:**
+        - `EyesCameBackTests`: the held shot from in by the door, over and on you; the eyes up with the clip's head (within 0.15 m every 0.1 s) and never back down; your eyes after it.
+        - SceneArt plays a staged getting up from its Phase.
+    - **Not tested end to end:** the session's marking (a client coming back in a live night).
+
 530. **The netcode audit against the P2P model of Lethal Company, REPO and PEAK (N2, queue #267; the director, 9 Oct 2026: "We don't want to be paying for servers, we want exceptionally strong P2P that is easy").** The audit is [docs/netcode-audit.md](netcode-audit.md). Its findings, for the record here:
     - **The model is Lethal Company's, which is the free one.** One player hosts, friends meet in a Steam lobby, and the packets ride Steam Datagram Relay (`ISteamNetworkingMessages`), which Valve runs for every Steamworks game at no charge. REPO and PEAK put a Steam lobby in front of a Photon room, and Photon's cloud is billed by concurrent players. Nothing here is rented.
     - **Beyond the three:** a dropped player back to their own body on a token (note 253), drop-in at any stop (note 23), the content and mod check before a joiner builds a world, listed private runs behind a password with friends let in (note 450), every row's ping, bots and the harness on the players' intent path, and the nightly eight-client soak on a lossy link.

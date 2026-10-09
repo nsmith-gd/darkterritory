@@ -120,6 +120,11 @@ public interface IPlaySession
     Camera EyeCamera(IReadOnlyList<CarFrame> frames, double alpha, double pendingYaw, double pendingPitch);
     /// <summary>Everyone else aboard, for drawing.</summary>
     IReadOnlyList<Crewmate> Crew(IReadOnlyList<CarFrame> frames, double alpha);
+    /// <summary>
+    /// You, getting up inside the Holdout you came back in, while the camera's on you from in by its door (note 529,
+    /// <see cref="Eyes.CameBack"/>); null otherwise (your own figure isn't drawn round your eyes).
+    /// </summary>
+    Crewmate? CameBackFigure(IReadOnlyList<CarFrame> frames, double alpha) => null;
     PlayerTuning PlayerTuning { get; }
     /// <summary>This machine's player id in the world (bodies record who carries them).</summary>
     int PlayerId => 1;
@@ -198,6 +203,55 @@ public static class Eyes
             Near = 0.05f,
             Far = 2000,
         };
+    }
+
+    /// <summary>
+    /// Come back (GDD App. D.8, note 529): freed, you're up off the Holdout's floor (<paramref name="inside"/>, its door
+    /// <paramref name="door"/>) on crew_clips' <c>getup</c> (1.87 s, as the
+    /// others see you, CrewActs). For the first <see cref="CutIn"/> seconds the camera is a held shot from inside the
+    /// Holdout, by its door, of you getting up; then it cuts into your eyes for the rest of it, the eye coming up with the
+    /// clip's head (<see cref="GettingUp"/>). Null once you're up.
+    /// </summary>
+    public static Camera? CameBack(Double3 inside, Double3 door, double seconds, Camera eyes)
+    {
+        if (seconds < 0 || seconds >= GetUpSeconds)
+            return null;
+        if (seconds < CutIn)
+        {
+            var toDoor = (door - inside) with { Y = 0 };
+            var outward = toDoor.Length > 0.1 ? toDoor.Normalized : new Double3(1, 0, 0);
+            var across = Double3.Cross(Double3.Up, outward);
+            // In by the door, a step to one side, a little over them: the way the crew coming in will find you.
+            double back = Math.Clamp(toDoor.Length - 0.35, 1.2, 2.2);
+            var shot = Camera.LookAt(inside + outward * back + across * 0.45 + Double3.Up * 1.45, inside + Double3.Up * 0.45, 62);
+            return shot with { Near = eyes.Near, Far = eyes.Far };
+        }
+        return eyes with { Position = eyes.Position - Double3.Up * (Height - GettingUp(seconds)) };
+    }
+
+    /// <summary>crew_clips' getup: 56 frames at 30 fps.</summary>
+    public const double GetUpSeconds = 56 / 30.0;
+
+    /// <summary>How long the held shot of you getting up is before it cuts into your eyes (s): up on a knee by then.</summary>
+    public const double CutIn = 1.0;
+
+    /// <summary>
+    /// Your eyes' height over your feet <paramref name="seconds"/> into the getup: up on an elbow off the floor, a knee,
+    /// up, as the clip's head comes up (crew_clips' getup, sampled). <c>EyesCameBackTests</c> holds it to the clip's own
+    /// head, within 0.15 m.
+    /// </summary>
+    public static double GettingUp(double seconds)
+    {
+        ReadOnlySpan<(double T, double Eye)> keys = [(0, 0.67), (0.5, 0.87), (1.0, 1.10), (1.4, 1.32), (1.6, 1.51), (1.75, 1.62), (GetUpSeconds, Height)];
+        if (seconds <= 0)
+            return keys[0].Eye;
+        for (int i = 1; i < keys.Length; i++)
+            if (seconds <= keys[i].T)
+            {
+                double u = (seconds - keys[i - 1].T) / (keys[i].T - keys[i - 1].T);
+                return keys[i - 1].Eye + (keys[i].Eye - keys[i - 1].Eye) * u;
+            }
+        return Height;
     }
 
     /// <summary>The world heading of the frame a player's state is in (0 for the ground).</summary>
