@@ -58,9 +58,14 @@ public static class Protocol
     //     its rails, before the char cells (note 423).
     // 43: the Hello carries the private run's password, as its key (note 450), and a Refused can say WRONG PASSWORD.
     // 44: the vehicle record carries the Brakeman's wound handbrake and Hotbox's seized axle (notes 364, 367), after the tipple's off-rails (protocol 42); and a Knotter's gap (note 365).
-    // 45: Dave (note 570): an enemy kind of his own, and a death cause.
-    // 46: Jacob (note 572): an enemy kind of his own.
-    public const int Version = 46;
+    // 45: the snapshot says how many of the client's inputs the host holds beyond the one it applied, so the client paces
+    //     itself to a host that's behind (note 532).
+    // 46: the input message carries the client's own downlink loss (the host's snapshots it isn't getting), in percent, so the
+    //     host can send a thin link every other snapshot and tell its own player when its upload can't carry the crew; the
+    //     snapshot carries a flags byte after the queued count, bit 0 saying it's one of every other (note 557).
+    // 47: Dave (note 570): an enemy kind of his own, and a death cause.
+    // 48: Jacob (note 572): an enemy kind of his own.
+    public const int Version = 48;
 }
 
 public enum MessageType : byte
@@ -152,11 +157,13 @@ public static class Messages
     /// <summary>How many past inputs each input packet repeats.</summary>
     public const int InputRedundancy = 4;
 
-    public static void WriteInput(NetWriter w, ReadOnlySpan<InputFrame> frames, uint lastSnapshotTick)
+    /// <param name="lossPct">The client's own downlink loss over its window, in percent (note 557); 0 before it has one.</param>
+    public static void WriteInput(NetWriter w, ReadOnlySpan<InputFrame> frames, uint lastSnapshotTick, byte lossPct = 0)
     {
         w.Reset();
         w.U8((byte)MessageType.Input);
         w.U32(lastSnapshotTick);
+        w.U8(lossPct);
         w.U8((byte)frames.Length);
         foreach (var f in frames)
         {
@@ -165,9 +172,12 @@ public static class Messages
         }
     }
 
-    public static void ReadInput(ref NetReader r, List<InputFrame> into, out uint lastSnapshotTick)
+    public static void ReadInput(ref NetReader r, List<InputFrame> into, out uint lastSnapshotTick) => ReadInput(ref r, into, out lastSnapshotTick, out _);
+
+    public static void ReadInput(ref NetReader r, List<InputFrame> into, out uint lastSnapshotTick, out byte lossPct)
     {
         lastSnapshotTick = r.U32();
+        lossPct = r.U8();
         int n = r.U8();
         for (int i = 0; i < n; i++)
             into.Add(new InputFrame(r.U32(), ReadIntent(ref r)));
@@ -260,13 +270,21 @@ public static class Messages
     }
 
     /// <summary>Snapshot: tick, the input it acknowledges, the tick it's a delta against (0 = full), then the records.</summary>
-    public static void WriteSnapshot(NetWriter w, uint tick, uint ackedInput, uint baselineTick, IReadOnlyList<WireRecord> records, IReadOnlyList<WireRecord>? baseline)
+    /// <summary>Note 549: the snapshot's flags byte. Bit 0: this client is being sent every other snapshot (the odd ticks aren't lost).</summary>
+    public const byte SnapshotThinned = 1;
+
+    /// <param name="queued">Inputs from this client the host still holds beyond the one it applied (note 532; at most 255).</param>
+    /// <param name="flags"><see cref="SnapshotThinned"/> and any later ones (note 557).</param>
+    public static void WriteSnapshot(NetWriter w, uint tick, uint ackedInput, uint baselineTick, IReadOnlyList<WireRecord> records, IReadOnlyList<WireRecord>? baseline,
+        int queued = 0, byte flags = 0)
     {
         w.Reset();
         w.U8((byte)MessageType.Snapshot);
         w.U32(tick);
         w.U32(ackedInput);
         w.U32(baselineTick);
+        w.U8((byte)Math.Clamp(queued, 0, 255));
+        w.U8(flags);
         WorldRecords.WriteDelta(w, records, baseline);
     }
 

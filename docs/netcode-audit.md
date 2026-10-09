@@ -169,6 +169,9 @@ The first of those is already in hand: the director saw it on main's build ("I t
 all dead when we spawned in"), and D1 holds it as queue #268 (a transport that wasn't polled through a stall doesn't
 count the stall as its peers' silence). The rest is this gap.
 
+*Done as note 532 (N2, queue #270): the pump thread, player.json `link`, the ping from the pump, the client's pace to a host
+that's behind, and the host told.*
+
 Lethal Company has the same coupling (Unity's main thread), with Steam's own 10 s timeout, and its players know "the
 host's PC is the server". Dark Territory can do better cheaply: pump keepalives, acks and resends from a timer thread
 (the sim keeps reading received datagrams on its tick; the transport's queues become thread-safe), raise the play
@@ -189,12 +192,17 @@ driving out of the yard.
 
 ### Gap 4. Joining mid-game by invite relaunches the game (an agent; small)
 
+*Done as note 555 (N2, queue #272): the friend's lobby is the next launch, in-process.*
+
 Note 24: an invite accepted while playing ends the game and restarts the process with `+connect_lobby`. The outcome
 matches Lethal Company (you leave the game you're in), but a relaunch costs the renderer's startup and loses the menu.
 Tear the session down and go through `JoinLobby` in-process instead; the fresh start stays for an invite accepted from
 outside.
 
 ### Gap 5. Nothing adapts to a weak host or a weak client (an agent; medium)
+
+*Done as note 557 (N2, queue #273): the client reports its loss, a thin link is sent every other snapshot, the crew are sent
+in a rotating order, and the host is told when its upload can't carry them; the interest radius was left alone (the tells).*
 
 At the budget (§2.5), a host on a thin uplink hurts everyone and a client on a thin downlink hurts themselves, and
 neither is told. Three levers, in order of return: send a client whose acks lag at 15 Hz instead of 30 (prediction
@@ -218,6 +226,8 @@ The host can't change the password or the mood once the lobby's open; a password
 connection per guess; nothing lists a crew's record distance beside a competitive run. All small, all in N1's area.
 
 ### Gap 8. The two-machine test is by hand (an agent; small)
+
+*Done as note 556 (N2, queue #276): `tools/net/two-machines.sh`, first in the nightly soak.*
 
 Note 450's two Linux network namespaces joined by a veth pair (two real app windows, one hosting, one joining over the
 wire, the beacon heard, the password refused and then accepted) was run by hand. Put it in the nightly soak as a Linux

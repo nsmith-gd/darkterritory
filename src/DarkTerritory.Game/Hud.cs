@@ -268,6 +268,15 @@ public static partial class Hud
         }
         else if (hosting)
             lines.Add(("A PRIVATE NIGHT: NOBODY ELSE CAN JOIN", Dim));
+        // Note 532: a host whose frames can't hold the tick rate holds everyone's night to its pace; a joiner whose host is
+        // behind has its own clock stretched to match.
+        if (link.HeldBack)
+            lines.Add((HeldBackLine, Red));
+        else if (link.Paced)
+            lines.Add((PacedLine, Amber));
+        // Note 549: the one thing a crew losing snapshots at once share is this host's upload.
+        if (link.UploadStrained)
+            lines.Add((StrainedLine(link.UpKbps), Red));
         lines.Add((hosting ? "EVERYONE IN? DRIVE OUT OF THE YARD" : "THE HOST DRIVES OUT WHEN EVERYONE'S IN", Ink));
         foreach (var (text, colour) in lines)
         {
@@ -431,12 +440,20 @@ public static partial class Hud
         : link.Refused is { } refused ? $"{refused}   TRY AGAIN : [F5]"
         : link.CanReconnect ? "RECONNECT : [F5]" : null;
 
+    /// <summary>Note 532: said on the host's lobby panel, and in the corner out on the line, while its clock drops time.</summary>
+    public const string HeldBackLine = "YOUR MACHINE IS HOLDING THE CREW BACK";
+    /// <summary>Note 532: a joiner's, while its clock is stretched to a host that's behind.</summary>
+    public const string PacedLine = "THE HOST'S BEHIND: THE NIGHT RUNS AT ITS PACE";
+    /// <summary>Note 549: the host's, while its upload can't carry the crew: what it's sending, so the figure can be taken to a router.</summary>
+    public static string StrainedLine(double upKbps) => $"YOUR UPLOAD CAN'T CARRY THE CREW: {upKbps:0} KBIT/S OUT";
+
     static void Link(Overlay o, int width, IPlaySession s)
     {
         if (s.Link is not { } link)
             return;
         float k = Fine, right = width - 6;
         int line = o.Font.LineHeight;
+        bool yard = s.World.Run is null or { Phase: Sim.Run.RunPhase.Yard };
         if (link.Lost)
         {
             o.TextRight(right, 5, "NO LINK", Red, 1);
@@ -444,19 +461,27 @@ public static partial class Hud
                 UiStyle.Keyed(o, Overlay.Snap(right - UiStyle.MeasureKeyed(o, how, k), k), 5 + line + 2 * k, how, link.Attempt > 0 ? Amber : Red, k);
             return;
         }
-        bool yard = s.World.Run is null or { Phase: Sim.Run.RunPhase.Yard };
         if (link.PingMs is not { } ping)
         {
             // Note 540: hosting, out on the line, whose link has gone bad, as a joiner's own is said (the yard's lobby panel
             // has every crewmate's). Nobody else knows: the host's the one who can wait for them, or warn them.
-            if (!yard && BadLinks(link, s.Roster()) is { Count: > 0 } bad)
+            if (!yard)
             {
                 float y = 5;
-                foreach (var (text, ink) in bad)
+                foreach (var (text, ink) in BadLinks(link, s.Roster()))
                 {
                     o.TextRight(right, y, text, ink, k);
                     y += (line + 1) * k;
                 }
+                // Note 532: and whether it's this machine holding them all back (the yard's panel has it).
+                if (link.HeldBack)
+                {
+                    o.TextRight(right, y, HeldBackLine, Red, k);
+                    y += (line + 1) * k;
+                }
+                // Note 549: or its upload that can't carry them.
+                if (link.UploadStrained)
+                    o.TextRight(right, y, StrainedLine(link.UpKbps), Red, k);
             }
             return;
         }
@@ -480,7 +505,13 @@ public static partial class Hud
                 y += (line + 1) * k;
             }
             if (link.Loss is { } loss && loss >= Tuning.LossWarn)
+            {
                 o.TextRight(right, y, $"{Percent(loss)} LOST", LossInk(loss), k);
+                y += (line + 1) * k;
+            }
+            // Note 532: a joiner whose clock is stretched to a host that's behind.
+            if (link.Paced)
+                o.TextRight(right, y, PacedLine, Amber, k);
         }
     }
 
