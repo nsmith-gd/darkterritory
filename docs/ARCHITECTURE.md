@@ -7642,7 +7642,7 @@ Terrain sculpting tools, a node-graph material editor, a general-purpose visual 
       Also `CreatureArtTests` (every phase draws) and the HUD's death lines.
     - **Not yet:** a modelled figure; his own sounds (a brush, his humming: the audio checklist's); any creature sitting by him (the director's "nice to him").
 
-551. **Nicki's party (P1, queue #291; the director, 8 Oct 2026: "an NPC you can find some times in one of the houses. Her name is Nicki and she's the only house late at night that is partying. She offers you wine and says kind things about people needing to enjoy life more even if its the end of the world"; GDD §3.2).**
+551. **Nicki's party (P1, queue #301; the director, 8 Oct 2026: "an NPC you can find some times in one of the houses. Her name is Nicki and she's the only house late at night that is partying. She offers you wine and says kind things about people needing to enjoy life more even if its the end of the world"; GDD §3.2).**
     - **Where** (`TownGenerator.Houses`, on its own stream `houses.party` so every other house is as it was). On `nicki` (0.3) of towns, one of the open houses is Nicki's: `TownHouse.Party`. Its household is the party's words (world/townsfolk.json `party`), not a story off the deck.
     - **Who** (`PartyAt`):
         - Nicki at the door's place, pose `wave`, named just Nicki (her personality's given name, no surname).
