@@ -2698,6 +2698,7 @@ public sealed class GreyboxScene
                 Look.Art.World.Square(mesh, line, eye, town, from, to);
                 Look.Art.World.Civic(mesh, line, eye, town, from, to);
                 Look.Art.World.Works(mesh, line, eye, town, from, to);
+                Look.Art.World.Yard(mesh, line, eye, town, from, to);
                 Look.Art.World.Houses(mesh, line, eye, town, from, to);
                 Look.Art.World.Streets(mesh, line, eye, town, from, to);
                 // A town that's lived in (App. F.3, the director: the fortresses feel static): smoke from its chimneys, and
