@@ -1,0 +1,198 @@
+{
+  "_": "integrate.py --offline-test's pull requests, as its read_prs gives them (the REST API's pulls, each with its head's checks, in `gh pr list --json`'s shape). The bodies are the repository's own (#2, #569-#689, 9 Oct 2026), shortened; the checks are made up to cover each case.",
+  "prs": [
+    {
+      "number": 689,
+      "title": "Feedback from inside the game (queue #253, note 516)",
+      "url": "https://github.com/nsmith-gd/darkterritory/pull/689",
+      "isDraft": false,
+      "baseRefName": "main",
+      "headRefName": "claude/quirky-allen-2oge5d",
+      "headRefOid": "c2b33c47680ed503c441a01e6f79208fe3119bd0",
+      "author": { "login": "nsmith-gd" },
+      "statusCheckRollup": [
+        { "__typename": "CheckRun", "name": "build-test (ubuntu-latest)", "workflowName": "CI", "status": "COMPLETED", "conclusion": "SUCCESS" },
+        { "__typename": "CheckRun", "name": "build-test (windows-latest)", "workflowName": "CI", "status": "IN_PROGRESS", "conclusion": "" }
+      ],
+      "body": "In a dev build, the director now makes notes at the moment itself, from inside the game. ARCHITECTURE §8 note 516.\n\n## How it works\n- **The keys:** **F8** types a note (Enter keeps it, Escape drops it). **F9**, held, records a spoken one.\n- **`dt feedback pull | list | show <id> | make`.** `show` replays the note's recording to its tick.\n\n## Verified\n- `FeedbackTests` (3):\n  - a note made 12 s into a recorded bot night carries its recording, tick, crew, post and phase tags;\n  - the WAV's header and samples.\n- Earlier, by hand on the real window (Xvfb, keys sent with `xdotool`): kept, dropped (no menu), kept.\n- **Not tested:** the spoken path, since there's no microphone here.\n\n🤖 Generated with [Claude Code](https://claude.com/claude-code)\n\nhttps://claude.ai/code/session_01UJ5dMjaazQ4xYrs3iDUieg"
+    },
+    {
+      "number": 644,
+      "title": "The netcode audit's gaps 2, 4, 5 and 8 (queue #270, #272, #273, #276; notes 532, 551–553)",
+      "url": "https://github.com/nsmith-gd/darkterritory/pull/644",
+      "isDraft": false,
+      "baseRefName": "main",
+      "headRefName": "claude/upbeat-faraday-rgbof9",
+      "headRefOid": "65d5515428e7034e6c610bfc1ff63089cb0489b9",
+      "author": { "login": "nsmith-gd" },
+      "statusCheckRollup": [
+        { "__typename": "CheckRun", "name": "build-test (ubuntu-latest)", "workflowName": "CI", "status": "COMPLETED", "conclusion": "SUCCESS" },
+        { "__typename": "CheckRun", "name": "build-test (windows-latest)", "workflowName": "CI", "status": "COMPLETED", "conclusion": "SUCCESS" },
+        { "__typename": "CheckRun", "name": "crossplay", "workflowName": "CI", "status": "COMPLETED", "conclusion": "SUCCESS" }
+      ],
+      "body": "Four of the netcode audit's gaps (note 530), in one PR.\n\n**#270, note 532: the host's network off its frame loop**\n- `DatagramTransport.StartPump`: a thread of the transport's own receives, acks, resends, pings and times out between the ticks.\n\n**#273, note 553: a weak link adapts (protocol 46).** The input carries the client's own downlink loss.\n\n**How to check**\n- New tests: `APumpedLinkOutlivesAFrozenFrameLoopAndMeasuresItsOwnPing`, `AClientPacesItselfToAHostThatsBehind`; the protocol pins at 46.\n- `dt screenshot --hud --held-back`, `--hud --upload-strained` (both looked at).\n- ARCHITECTURE §8 notes 532, 551, 552, 553.\n\n🤖 Generated with [Claude Code](https://claude.com/claude-code)\n\nhttps://claude.ai/code/session_01PyVEMxZr6XvmmVr9CAvtLk"
+    },
+    {
+      "number": 607,
+      "title": "The lamp brightness upgrade lights the line: the headlamp's reach, not the retired Sleepers' (queue #243, note 506)",
+      "url": "https://github.com/nsmith-gd/darkterritory/pull/607",
+      "isDraft": false,
+      "baseRefName": "main",
+      "headRefName": "a1-lamp-upgrade",
+      "headRefOid": "8951612b36856c1964998887bfd1f93e9c251202",
+      "author": { "login": "nsmith-gd" },
+      "statusCheckRollup": [
+        { "__typename": "CheckRun", "name": "build-test (ubuntu-latest)", "workflowName": "CI", "status": "COMPLETED", "conclusion": "SUCCESS" },
+        { "__typename": "CheckRun", "name": "numbers", "workflowName": "Coordination", "status": "COMPLETED", "conclusion": "SKIPPED" }
+      ],
+      "body": "Queue #243, ARCHITECTURE §8 note 506. Spec F.3: \"Lamp brightness\".\n\n## What was wrong\n`campaign.json`'s `lampBrightness` scaled only the Sleepers' `lampRevealDistance`.\n\n## Tests\n- New: `UpgradeTests.TheBrighterLampReadsTheBoardsAndSeesTheGreaseFurtherOff`.\n  - A tunnel's board 40 m past the stock lamp's reach is read only with the upgrade.\n- Looked at `dt screenshot --view cab` and `--view ahead` on frontier:7, with and without `--upgrades lampBrightness`.\n\n## Docs\n- Note 506.\n- COORDINATION row #243.\n\n🤖 Generated with [Claude Code](https://claude.com/claude-code)\n\nhttps://claude.ai/code/session_01TMA97Zfrc5oA6FLDY6p9SH\n\n---\n_Generated by [Claude Code](https://claude.ai/code/session_01TMA97Zfrc5oA6FLDY6p9SH)_"
+    },
+    {
+      "number": 599,
+      "title": "Towns, a third pass: nothing ruled straight, a small town's green (queue #227, note 490)",
+      "url": "https://github.com/nsmith-gd/darkterritory/pull/599",
+      "isDraft": false,
+      "baseRefName": "main",
+      "headRefName": "b2-third",
+      "headRefOid": "580d4cd465845e9296466ab9d182a449b804ad57",
+      "author": { "login": "nsmith-gd" },
+      "statusCheckRollup": [
+        { "__typename": "CheckRun", "name": "build-test (ubuntu-latest)", "workflowName": "CI", "status": "COMPLETED", "conclusion": "SUCCESS" },
+        { "__typename": "CheckRun", "name": "build-test (windows-latest)", "workflowName": "CI", "status": "COMPLETED", "conclusion": "FAILURE" }
+      ],
+      "body": "**Who:** B2 (Towns), log at docs/log/B2.md. Queue **#227**, ARCHITECTURE §8 **note 490**.\n\n## Verified\n- **`WalledTownTests.HousesStandOffTrueAndTheRowAcrossTheGreenTurnsToIt`:** more than a third of the shut street houses are turned.\n\n## Not yet\n- The arrival fortress made a town."
+    },
+    {
+      "number": 595,
+      "title": "Loading in the fog: the line cooked off the frame (queue #215, note 479)",
+      "url": "https://github.com/nsmith-gd/darkterritory/pull/595",
+      "isDraft": false,
+      "baseRefName": "main",
+      "headRefName": "b2-fog",
+      "headRefOid": "8363d97237748fddb1b526dc1bf6d081a4b2d8c5",
+      "author": { "login": "nsmith-gd" },
+      "statusCheckRollup": [
+        { "__typename": "CheckRun", "name": "build-test (ubuntu-latest)", "workflowName": "CI", "status": "COMPLETED", "conclusion": "SUCCESS" },
+        { "__typename": "StatusContext", "context": "netlify/preview", "state": "SUCCESS" }
+      ],
+      "body": "**Who:** B2 (Towns), log at docs/log/B2.md. Queue **#215**, ARCHITECTURE §8 note **479**.\n\n## Measured first\n`dt perf` only ever measured the test loop.\n\n## Verified\n- **`FogLoadingTests`:**\n  - the reach: 0.99 at every height, further up;\n- **Looked at, before and after:**\n  - the town's street, square and watch: identical to within 2 pixels;\n\n### Suites\n- `dotnet format` is clean.\n\n## Not yet\n- **A headset in a crowded town:** 1.92M and 1.74M triangles, over budget."
+    },
+    {
+      "number": 569,
+      "title": "Dave, Nicki and Jacob: the Territory's three figures (queue #300-#302, P1, notes 570-572)",
+      "url": "https://github.com/nsmith-gd/darkterritory/pull/569",
+      "isDraft": false,
+      "baseRefName": "main",
+      "headRefName": "claude/serene-hamilton-794g5c",
+      "headRefOid": "4a95dcf9fc578be092d4b9315984e3ddc233dc61",
+      "author": { "login": "nsmith-gd" },
+      "statusCheckRollup": [
+        { "__typename": "CheckRun", "name": "build-test (ubuntu-latest)", "workflowName": "CI", "status": "COMPLETED", "conclusion": "SUCCESS" },
+        { "__typename": "CheckRun", "name": "build-test (windows-latest)", "workflowName": "CI", "status": "COMPLETED", "conclusion": "NEUTRAL" }
+      ],
+      "body": "**Who:** P1 (townsfolk); log at docs/log/P1.md.\n\n## Dave (#300, note 570)\n- **Where:** on 3 nights in 10 he's at his easel past a stop.\n\n## Verified\n- Build with warnings as errors: clean.\n- **Looked at:** `dt screenshot --view` dave, davefar, davewarn, daveface, nicki, jacob, jacobface and jacobblessed.\n\n## Not yet\n- Modelled figures (C1's #621 for Dave)."
+    },
+    {
+      "number": 685,
+      "title": "The slow frames written down to the launch log (queue #291, note 549)",
+      "url": "https://github.com/nsmith-gd/darkterritory/pull/685",
+      "isDraft": false,
+      "baseRefName": "main",
+      "headRefName": "d1-slow-frames",
+      "headRefOid": "0016f0800000000000000000000000000000beef",
+      "author": { "login": "nsmith-gd" },
+      "statusCheckRollup": [
+        { "__typename": "CheckRun", "name": "build-test (ubuntu-latest)", "workflowName": "CI", "status": "COMPLETED", "conclusion": "SUCCESS" }
+      ],
+      "body": "The director, 9 Oct, of main's build: \"an extreme borderline unplayable performance drop that kept recurring throughout gameplay\".\n\n**What it does.** `FrameWatch` (DarkTerritory.Game) times each frame of a night in parts.\n\n**Seen here.** The night's first frame spent 5.3 s building the scene.\n\n**Tests:** new `FrameWatchTests` (6/6); the app writes the lines with `--route frontier:7 --throttle 1`; 0 warnings; format clean.\n\nThe likely fixes are B2's #595 and N2's #644.\n\n🤖 Generated with [Claude Code](https://claude.com/claude-code)"
+    },
+    {
+      "number": 686,
+      "title": "D1 log: test build 37919425745 (main + #595 + the slow-frame log)",
+      "url": "https://github.com/nsmith-gd/darkterritory/pull/686",
+      "isDraft": false,
+      "baseRefName": "main",
+      "headRefName": "d1-log",
+      "headRefOid": "1111111111111111111111111111111111111111",
+      "author": { "login": "nsmith-gd" },
+      "statusCheckRollup": [],
+      "body": "This PR only adds a line to the log, `docs/log/D1.md`. It records the test build that should find the director's recurring crawl.\n\nWhat's in the build: main at 0016f08 (#685, slow frames written to the launch log), plus B2's open #595.\n\n🤖 Generated with [Claude Code](https://claude.com/claude-code)\n\nhttps://claude.ai/code/session_012k6LuoYFMvY8eYD57MrfjX\n\n---\n_Generated by [Claude Code](https://claude.ai/code/session_012k6LuoYFMvY8eYD57MrfjX)_"
+    },
+    {
+      "number": 687,
+      "title": "Crew freezing on the train's roofs (queue #289, note 547)",
+      "url": "https://github.com/nsmith-gd/darkterritory/pull/687",
+      "isDraft": false,
+      "baseRefName": "main",
+      "headRefName": "d1.2-froze",
+      "headRefOid": "2222222222222222222222222222222222222222",
+      "author": { "login": "nsmith-gd" },
+      "statusCheckRollup": [
+        { "__typename": "CheckRun", "name": "build-test (ubuntu-latest)", "workflowName": "CI", "status": "COMPLETED", "conclusion": "SUCCESS" },
+        { "__typename": "CheckRun", "name": "replay-crossplay", "workflowName": "CI", "status": "COMPLETED", "conclusion": "SKIPPED" }
+      ],
+      "body": "Queue #289, D1.2 for D1, from D1.3's nine-night report (#671).\n\n## Three causes\n- **The Brakeman drafted a warming crewmate** (seed 8, the gunner).\n\n## Measured (seeds 1–9, 4 bots, 2,700 s)\n| | km | deaths | cold |\n|---|---|---|---|\n| main | 128.0 | 14 | 5 |\n\n## Tests\n- `RoofFreezeTests`: a cold gunner at its gun goes in.\n- Each fails on the old code.\n\n## Local checks, after merging main\n- 0 warnings, format clean.\n- Sim 1528/1528.\n\n🤖 Generated with [Claude Code](https://claude.com/claude-code)\n\nhttps://claude.ai/code/session_0192C4D35AbxJAXBcYEYJugR\n\n---\n_Generated by [Claude Code](https://claude.ai/code/session_0192C4D35AbxJAXBcYEYJugR)_"
+    },
+    {
+      "number": 2,
+      "title": "Feel prototype + netcode core (T1–T5)",
+      "url": "https://github.com/nsmith-gd/darkterritory/pull/2",
+      "isDraft": false,
+      "baseRefName": "main",
+      "headRefName": "feel-prototype",
+      "headRefOid": "3333333333333333333333333333333333333333",
+      "author": { "login": "nsmith-gd" },
+      "statusCheckRollup": [
+        { "__typename": "CheckRun", "name": "build-test (ubuntu-latest)", "workflowName": "CI", "status": "COMPLETED", "conclusion": "SUCCESS" }
+      ],
+      "body": "## Summary\nFive tasks toward roadmap M1 (feel prototype) and M2 (crew of eight).\n\n## Test plan\n- [x] `dotnet test --solution Ballast.slnx`: 69/69, including real Vulkan renders on lavapipe\n- [x] `dt harness --bots 8 --seconds 300`:\n  - perfect link: zero prediction error on every client\n- [ ] Director play-test for spec G.1 (4:1 speed ratio) and G.2 (94 s roof traverse)\n\n🤖 Generated with [Claude Code](https://claude.com/claude-code)\n\nhttps://claude.ai/code/session_01XV59m2qzBTRyKw3EDXquHM\n\n---\n_Generated by [Claude Code](https://claude.ai/code/session_01XV59m2qzBTRyKw3EDXquHM)_"
+    },
+    {
+      "number": 690,
+      "title": "A draft",
+      "url": "https://github.com/nsmith-gd/darkterritory/pull/690",
+      "isDraft": true,
+      "baseRefName": "main",
+      "headRefName": "draft",
+      "headRefOid": "4444444444444444444444444444444444444444",
+      "statusCheckRollup": [
+        { "__typename": "CheckRun", "name": "build-test (ubuntu-latest)", "workflowName": "CI", "status": "COMPLETED", "conclusion": "SUCCESS" }
+      ],
+      "body": "Not ready."
+    },
+    {
+      "number": 691,
+      "title": "Stacked on another branch",
+      "url": "https://github.com/nsmith-gd/darkterritory/pull/691",
+      "isDraft": false,
+      "baseRefName": "claude/quirky-allen-2oge5d",
+      "headRefName": "stacked",
+      "headRefOid": "5555555555555555555555555555555555555555",
+      "statusCheckRollup": [
+        { "__typename": "CheckRun", "name": "build-test (ubuntu-latest)", "workflowName": "CI", "status": "COMPLETED", "conclusion": "SUCCESS" }
+      ],
+      "body": "Builds on #689."
+    }
+  ],
+  "expect": {
+    "chosen": [2, 569, 595, 607, 644, 685, 687],
+    "left": {
+      "599": "checks failed: CI / build-test (windows-latest) (failure)",
+      "686": "no checks have run",
+      "689": "checks still running: CI / build-test (windows-latest)",
+      "690": "a draft",
+      "691": "based on claude/quirky-allen-2oge5d, not main"
+    },
+    "plans": {
+      "2": { "headings": ["Test plan"], "contains": ["`dt harness --bots 8 --seconds 300`", "- [ ] Director play-test"], "excludes": ["Generated with", "Five tasks"] },
+      "569": { "headings": ["Verified"], "contains": ["jacobblessed"], "excludes": ["Modelled figures", "easel"] },
+      "595": { "headings": ["Verified"], "contains": ["`FogLoadingTests`", "### Suites", "`dotnet format` is clean."], "excludes": ["only ever measured", "over budget"] },
+      "607": { "headings": ["Tests"], "contains": ["UpgradeTests.TheBrighterLampReadsTheBoardsAndSeesTheGreaseFurtherOff", "--upgrades lampBrightness"], "excludes": ["COORDINATION row", "Generated by"] },
+      "644": { "headings": ["How to check"], "contains": ["`dt screenshot --hud --held-back`", "the protocol pins at 46"], "excludes": ["StartPump", "Generated with"] },
+      "685": { "headings": ["Tests"], "contains": ["new `FrameWatchTests` (6/6)"], "excludes": ["What it does", "likely fixes"] },
+      "686": { "headings": [null], "contains": ["This PR only adds a line to the log"], "excludes": ["What's in the build"] },
+      "687": { "headings": ["Tests", "Local checks, after merging main"], "contains": ["`RoofFreezeTests`", "Sim 1528/1528"], "excludes": ["128.0", "Brakeman", "Generated"] },
+      "689": { "headings": ["Verified"], "contains": ["`FeedbackTests` (3)", "**Not tested:**"], "excludes": ["F8", "Generated with"] }
+    }
+  }
+}

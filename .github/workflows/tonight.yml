@@ -1,0 +1,74 @@
+# Tonight's build (ARCHITECTURE §8 note 523): main with every open pull request on top whose head's checks are all green and
+# that merges cleanly, in number order (tools/tonight/integrate.py; one that conflicts is left out and the test plan says
+# why), built, packaged as the director's test build (a developer build, note 514) and checked for its developer tools.
+# The zip carries TEST-PLAN.md: each merged pull request's title, link and "how to check" lines, and what was left out.
+# D1 made these by hand (an integration branch, then the Test build workflow); this makes one every night. The integration
+# is force-pushed to `tonight`, so anyone can build it again, or bisect it.
+#
+# 09:37 UTC is 5:37 am in the director's EDT: after the night's merges (the agents work through it), done before their
+# morning. Any other time: Actions > Tonight's build > Run workflow.
+name: Tonight's build
+on:
+  schedule:
+    - cron: '37 9 * * *'
+  workflow_dispatch:
+permissions:
+  contents: write
+  pull-requests: read
+  checks: read
+  statuses: read
+concurrency:
+  group: tonight
+  cancel-in-progress: false
+jobs:
+  tonight:
+    runs-on: ubuntu-latest
+    timeout-minutes: 90
+    env:
+      DOTNET_CLI_TELEMETRY_OPTOUT: "1"
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: main
+          # The merges need the history back to where each pull request branched.
+          fetch-depth: 0
+      - uses: actions/setup-dotnet@v4
+        with:
+          global-json-file: global.json
+      - run: sudo apt-get update -qq && sudo apt-get install -y -qq zip
+      - name: Main with the green pull requests on top
+        env:
+          GH_TOKEN: ${{ github.token }}
+          RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898283+github-actions[bot]@users.noreply.github.com"
+          python3 tools/tonight/integrate.py --repo "$GITHUB_REPOSITORY" --out out/tonight --run "$RUN_URL"
+          cat out/tonight/TEST-PLAN.md >> "$GITHUB_STEP_SUMMARY"
+      - name: Build (warnings are errors)
+        run: dotnet build Ballast.slnx -c Release
+      - name: The director's build (Windows, the developer tools in)
+        run: tools/package.sh --dev win-x64
+      - name: The developer tools are in it
+        run: dotnet run --project src/DarkTerritory.Cli -c Release -- build check out/dist/DarkTerritory-Dev-win-x64 --dev
+      - name: The test plan in the zip
+        run: cp out/tonight/TEST-PLAN.md out/tonight/tonight.json out/dist/DarkTerritory-Dev-win-x64/
+      - uses: actions/upload-artifact@v4
+        id: zip
+        with:
+          name: DarkTerritory-Dev-win-x64-tonight-${{ github.run_number }}
+          path: out/dist/DarkTerritory-Dev-win-x64/
+      - name: The integration to `tonight`
+        env:
+          ZIP: ${{ steps.zip.outputs.artifact-url }}
+        run: |
+          echo "" >> "$GITHUB_STEP_SUMMARY"
+          echo "**The build:** $ZIP" >> "$GITHUB_STEP_SUMMARY"
+          # GITHUB_TOKEN may not push a commit that changes a workflow file, so a night with a pull request that does is
+          # built and zipped all the same, and only the branch waits for a night without one.
+          if git push --force origin HEAD:refs/heads/tonight; then
+            echo "**The branch:** \`tonight\` at \`$(git rev-parse --short=10 HEAD)\`" >> "$GITHUB_STEP_SUMMARY"
+          else
+            echo "::warning::couldn't push tonight (a merged pull request changes a workflow file?): the build above is still tonight's"
+            echo "**The branch:** not pushed tonight (see the warning); the build is still tonight's." >> "$GITHUB_STEP_SUMMARY"
+          fi
