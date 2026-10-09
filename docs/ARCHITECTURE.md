@@ -7444,3 +7444,7 @@ Terrain sculpting tools, a node-graph material editor, a general-purpose visual 
     - **The neck** shows its two cords and the windpipe.
     - **Budget:** 4,858 triangles (was 2,308) of the creature budget's 5,000 (`CreatureArtTests`); 28 bones. The legs, never seen in the fire, have the fewest rings. The clips are unchanged.
     - **Verified:** `dt screenshot --threats --stoker reach --view firebox` and `--stoker peer` (before and after are in the Look Review round). `CreatureArtTests` and the Game suite are green.
+
+540. **A host told whose link is bad out on the line (F1, UI/UX 3; queue #282; note 534's "not yet"; spec E "ping visibility is load-bearing").** Note 534 put each crewmate's ping and loss on the host's lobby panel, which is the yard's: once the train was out, a host driving the night didn't know a joiner was dropping a tenth of their inputs until they said so.
+    - **Out on the line, the host's top-right corner names them** (`Hud.BadLinks`), where a joiner's own bad ping goes: "PRIYA: 13% LOST" or "SAM: PING 210 MS", in danger ink, by hud.json's `pingWarnMs` and `lossWarn` as a joiner's own line is. Each says whichever of the two is further past its warning; worst first; three at most, then "AND n MORE". Nothing while everyone's fine (note 285: the screen says what's gone wrong, and only that).
+    - **Seen:** `dt screenshot --hud --link-quality line` (the hosted yard of note 534 with its 12% sender, drawn as if past the gate). Tests: `QuietHudTests` (said only when someone's bad; named worst first, the rest counted).
