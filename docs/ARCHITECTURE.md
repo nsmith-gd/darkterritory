@@ -7541,3 +7541,17 @@ Terrain sculpting tools, a node-graph material editor, a general-purpose visual 
     - **The skin** (`tools/models/recipes/grumbler.py`) is darker, filthier and matte, wrinkled in the creases and pocked.
     - **Budget:** 8,434 triangles (was 5,618) of the model's 9,000 (`CreatureArtTests`); 34 bones. The clips, the sim and `CreatureArt` are unchanged, and the heal tell (note 487) still reads the body's middle.
     - **Verified:** `dt screenshot --threats --grumbler rear --view grumbler` and `dt art clip grumbler gnaw --frames 1 --at 0,0.6,0 --dist 2 --yaw 40 --pitch 20` (before and after are in the Look Review round). `CreatureArtTests` and `GrumblerHealingTests` are green.
+
+546. **The Soot Child close to (queue #288, E1; the art checklist's `soot-children`, GDD App. A.6: "a child calling for help: black eyes, blackened hands and feet, readable from five metres").** Note 125's model is one child with two variants (the real one, 0, and the Soot Child, 1), which is the lure. Close to, it read as a costume, not a child gone wrong:
+    - a white egg of a face with two dots;
+    - a helmet of hair over a clean band of brow;
+    - white tube arms ending in black gloves.
+    - **The face** (`tools/blender/soot_child.py`, `face`, the head 32 by 26, up from 22 by 18) is a starved child's: the forehead high and round, but the skin thin over the bones.
+        - The brow and the cheekbones show, and the cheeks are drawn in under them; the sockets are sunk deeper and the temples hollow.
+        - The skin is greyer and grimed in the bake (`tools/models/recipes/soot_child.py`), not clean as wax.
+    - **The hair** is matted into clumps: ridges run down the head and more clumps hang. A fringe comes down over the forehead to the brows, parted over the left eye, so no clean band of brow shows.
+    - **The arms and legs** are built along their length (`built`, as the Grumbler's, note 543): thin as sticks, with the elbow's, wrist's, knee's and ankle's knobs, and the knee too big for the thigh. The fingers are knuckled.
+    - **A Soot Child's black** climbs past the wrists and ankles in a ragged line, half way up the forearm and the shin, in runs and tongues (`sooted`, per face). It no longer stops at a cuff, so its hands and feet read as dipped in it, not gloved.
+    - **The real child** is the same child, with its eyes and its hands and feet only dirty (note 407's carry unchanged).
+    - **Budget:** 8,828 triangles over both variants, about 6,900 for each variant's own parts, of the model's 9,000 (`CreatureArtTests`); 28 bones. The clips, the sim and `CreatureArt` are unchanged.
+    - **Verified:** `dt art clip soot_child call --frames 1 --at 0,0.55,0 --dist 1.1 --yaw 15 --pitch 5 --variant 1|0` (before and after are in the Look Review round). `CreatureArtTests` is green.
