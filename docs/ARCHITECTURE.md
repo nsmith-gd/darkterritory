@@ -7375,6 +7375,26 @@ Terrain sculpting tools, a node-graph material editor, a general-purpose visual 
     - **Not yet (note 496's):** on seed 6, on main and now alike, the Fire Flies set cars 1 and 5 alight at Talbot Foundry and three hands burned in car 1. Note 496's lamp claim misses a case there; it's D1.3's next to look at.
     - **Tests:** `LooseCouplingTests.AChilledWalkerGoesToALooseCouplingBeforeGoingInToWarm` (a walker chilled enough to want warming, the cold not yet hurting, tightens car 3's pin without going in first). Without the change it went into car 2 to warm and got to the pin 37 s later. `LeftAloneThePinDropsAndTheRakePartsBehindIt` now also checks the parted cars are the pin's, not anyone's cut.
 
+515. **Record and replay a night (W1, queue #252; the director, 9 Oct 2026: "I love all this. Get on it and make sure we preserve performance").** A playtest moment ("a couple playtests ago I had two car huggers") was something no agent could see. Now every night a dev build hosts is recorded, and `dt replay` plays it again tick for tick and draws any moment of it from any camera.
+    - **What's recorded is what the host heard.** The host's step is a function of what its transport hands it (clients send intent, never state; the sim is deterministic and the same on every OS, note 163), so a night is its transport's events, poll by poll. `RecordingTransport` (Ballast.Dev) wraps the host's transport, so the host can't tell it's there. It writes each poll's events to a `TransportLog` (gzip over tagged records), and after each step a 64-bit digest of everything the host sent (`TransportLog.Digest`: plain arithmetic, the same everywhere). Nothing in HostSession changed.
+    - **What the host learns outside its transport** is noted as it happens, so the replay answers alike: the host player (set by the app between steps), the rejoin tokens (note 253: drawn from the system's secure random, by design), and an online host's "is this a friend" answers (note 450).
+    - **The header** (`NightHeader`): the setup as a joiner gets it (its content's hashes and mods), the host-only parts a Welcome leaves out (a resumed night's plan and checkpoint, the music bag, the crew's looks, the first-child flag), the crew the threats were planned for, the password's key, and the build and commit. `NetPlaySession.BuildHost` is `HostGame` without the links, the lobby and the crew, split out so a replay builds the host's world the same way; `HostGame` calls it. That's the one change to shipped code: the `IHostTap` hook (`NetPlaySession.Tap`, null in a player's build, which has nothing to set it) and a `tap` parameter for tests.
+    - **The replay** (`NightReplay`): the world built from the header, a `ReplayTransport` handing the host each recorded poll, and the host's sends digested and compared with the recording's after each step. The first tick that differs is `divergedAt` (other code, other content, or a sim that isn't deterministic: a bug). It also reports the content that differs from the recording machine's, and whether the build is the same. It plays to where a recording stops if a crash cut it off.
+    - **Voices** are blanked by default (`ScrubVoice`: the frame's header and length kept, its audio zeroed), for the crew's privacy and the file's size. The sim reads only that someone spoke and for how long; the voice the host forwards is left out of the digest. `--record-voice` keeps them.
+    - **In a dev build** (`DevTools.Start`): every hosted night is recorded to the app data's `recordings/` (the newest 30 kept; `--recordings dir`, `--no-record`). A crash report names the night's recording (`CrashReports.Context("recording", path)`), so a crash in a night can be replayed up to the crash. Each compressed chunk is flushed through as it's written, so a crash loses at most its last seconds, and the recording's closed at the process's exit. Nights from the menu are hosted, with or without friends or bots, so all of them are recorded. A joiner records nothing (it isn't the host), and the command line's bare `--route` prototype (`PrototypeSession`) isn't recorded.
+    - **`dt replay`:** `dt replay <file> [--to tick|m:ss] [--shot f.png --view eye:N|chase|roof|…]` plays it and checks it, then reports the crew, the train, the run and the marks where it stopped; `--shot` draws it there (`WorldShot`, dressed as `dt playthrough` dresses its shots). Exit 1 if it parted from the recording. `dt replay record [--route r] [--bots n] [--seconds s]` hosts a night headless with a bot crew, recorded as a dev build records one, and says what it cost. `dt replay list` shows this machine's recordings.
+    - **What it costs:** the host's thread copies what arrived and digests what it sent; compression is a background thread's. Measured with `dt replay record` (Debug build): 12 µs a tick for a crew of 5, 17 µs for a crew of 8, against the 33 ms a tick has at 30 Hz (about 0.05 %). Nothing's drawn and nothing runs per frame. On disk: 124 KB a minute for a crew of 5, 191 KB for 8 (7–12 MB an hour).
+    - **Verified:**
+        - `RecordReplayTests` (7), on twenty seconds of frontier:7 hosted with three bots, the threats on:
+            - it replays tick for tick, no divergence, the train and every crewmate to the bit;
+            - it stops at the tick it's asked for;
+            - with one poll's arrivals dropped, the replay names exactly that tick;
+            - cut to 60 % of its length, as a crash leaves it, it plays to where it got with no divergence;
+            - recording costs under 250 µs a tick (measured ~12) and well under a megabyte;
+            - a voice frame is blanked with its length kept, and voice is left out of the digest;
+            - the header carries the setup, the crew and the commit.
+        - By hand: `dt replay record --bots 7 --seconds 300` (a crew of 8, 9,024 ticks, enemies about) replayed with `divergedAt` null. Its shots at 4:00 (`--view eye:8`, through a gunner's eyes) and at the end (`--view chase`), looked at.
+        - CI on main: a night recorded on Windows is replayed on Linux (`replay-crossplay`), and must not diverge.
 529. **Come back: the camera cuts in on you getting up (queue #266, E1; the art checklist's `crew-freed` "next": "the camera cut in with it"; GDD App. D.8 "comes back inside it").** Freed, you're drawn getting up off the Holdout's floor for the others (crew_clips' `getup`, 1.87 s; CrewActs while you stand where it put you), but your own eyes were already standing at full height the moment you came back.
     - **The camera** (`Eyes.CameBack`):
         - For the first `CutIn` (1 s) it's a held shot from inside the Holdout, by its door and a step to one side, down at you getting up: the way the crew coming in will find you.
@@ -7541,6 +7561,53 @@ Terrain sculpting tools, a node-graph material editor, a general-purpose visual 
     - **The skin** (`tools/models/recipes/grumbler.py`) is darker, filthier and matte, wrinkled in the creases and pocked.
     - **Budget:** 8,434 triangles (was 5,618) of the model's 9,000 (`CreatureArtTests`); 34 bones. The clips, the sim and `CreatureArt` are unchanged, and the heal tell (note 487) still reads the body's middle.
     - **Verified:** `dt screenshot --threats --grumbler rear --view grumbler` and `dt art clip grumbler gnaw --frames 1 --at 0,0.6,0 --dist 2 --yaw 40 --pitch 20` (before and after are in the Look Review round). `CreatureArtTests` and `GrumblerHealingTests` are green.
+
+545. **Where a bot night's distance goes (queue #287, D1.3 for D1; D1.3's bot report, #671: frontier:7, 4 bots, `--enemies --upkeep`, 2,700 s, seeds 1–9 went 211 → 140 km and 2 → 0 delivered from 2db2f342, the director's 2:30 pm build of 8 Oct, to a2ffa44b).** A per-second log of each night split the time into moving, moving with brakes wound, and standing, by what it stood for.
+    - **Main, seeds 1–18** (48,313 s):
+        - moving: 16,966 s
+        - moving with brakes wound: 7,636 s
+        - standing at stops: 7,427 s
+        - standing for the Knotter: 5,629 s
+        - standing with the brake on otherwise (crew left behind, Holdouts, all aboard): 3,864 s
+        - standing with the driver out of the cab: 2,884 s
+        - slow, 0.5–3 m/s: 1,975 s
+        - standing for a Hotbox or its axle: 406 s
+    - **The Brakeman's drag costs little.** Moving, the train averages 11.8 m/s with nothing wound, 11.4–12.4 with one to four cars wound and 10.4–10.8 with five or more. Some car is wound about 950 s a night, 3.8 cars on average when any are.
+    - **The Knotter's stands.** Most Knotters die in 30–45 s. On seeds 3, 4, 5, 8 and 9 one stayed 670–2,270 s.
+    - **Seed 8's cause, a bot bug in `Heed.Brakeman`.**
+        - The Brakeman was already dead. `Unwind` sent every roof bot for a wound car's wheel across the Knotter's gap, which `ToAlong` never crosses, so all three stood at its edge.
+        - `Heed.Brakeman` runs after `Heed.Knotter` (BotCrew.Think), so it overrode "go down and kill it slack".
+        - The driver stood its `standGiveUp` (240 s) and went on with the Knotter aboard, splitting the crew all night.
+    - **Now:**
+        - `Heed.Brakeman` never closes on him, and never heads for a wheel, across a Knotter's gap (`Reachable`: no `Knotted` gap between the cars).
+        - At a stand with a Knotter slack, a bot that can get down is left to `Heed.Knotter`.
+    - **The driver's hole it showed.** A Knotter killed while the stop driver had the train left the cars behind its gap on the line. On seed 8 it forced its gap as the driver stood for the Switchman's points, and nine cars were lost.
+        - `ConductorBot.ForTheSix` now tracks the joint whatever leg it's in. Once the Knotter has gone from a stand, and the cars stand its gap behind with nothing aboard them, it backs onto them and puts the reverser forward again.
+        - Only on the switch legs and in Cruise. At a facility the stop's plan takes those cars as its cut and couples back onto them in BackOut; coupled up under its Held, it stood all night with the points set.
+        - "Killed" is read from what replicates: a client's copy of a Knotter is dropped, never ended.
+        - The driver's own cut (note 343), a pack's, the Car Hugger's or a fire's is never undone.
+    - **Measured** (main → this, seeds 1–18):
+        - km: 301.1 → 318.0 (seeds 1–9: 140.4 → 154.9)
+        - standing for the Knotter: 5,629 → 2,075 s
+        - driver out of the cab: 2,884 → 1,541 s
+        - froze: 13 → 7
+    - **The cost: the hounds get their chance.** Hound runs come with sustained speed, and main's long stands kept them off. Over seeds 1–18:
+        - packs boarded: 14 → 31
+        - mauled: 9 → 20
+        - deaths: 48 → 56
+        - crew lost: 23 → 32
+        - cars lost: 62 → 85 (cuts 21 → 69 cars, the pack fight's own cut, note 484)
+        - cargo: 37.2 → 29.7 car-loads
+        - no night delivers either way
+    - **What's left of 211 → 140 is the creatures' own numbers and the Foundry** (for the director, COORDINATION's *Waiting on the director*):
+        - 4.7 Knotters a night, each a stand of about 40 s and a 5 m gap;
+        - the Brakeman aboard about 920 s a night;
+        - Fire Flies' fires at Talbot Foundry on 7 of 9 nights in both builds (7 → 15 fires; note 496).
+    - **Tests:**
+        - `BotsAnswerTheSixTests.ARoofBotNeverHeadsForAWheelAcrossAKnottersGap` and `AtTheKnottersStandTheBotsKillItBeforeAnyWheelBeyondIt`.
+        - `StopCrewTests.AKnotterKilledWhileTheDriverStandsForThePointsIsCoupledUpAfter`: a dead-line night with the creatures on, the walkers heeding the Knotter.
+        - Each fails on main.
+    - **Not this item:** D1.2's #289 (note 547). There the frozen walkers' warm-up was drafted into the Brakeman's pincer, which is `BotCrew`'s order, not the unwind.
 
 546. **The Soot Child close to (queue #288, E1; the art checklist's `soot-children`, GDD App. A.6: "a child calling for help: black eyes, blackened hands and feet, readable from five metres").** Note 125's model is one child with two variants (the real one, 0, and the Soot Child, 1), which is the lure. Close to, it read as a costume, not a child gone wrong:
     - a white egg of a face with two dots;

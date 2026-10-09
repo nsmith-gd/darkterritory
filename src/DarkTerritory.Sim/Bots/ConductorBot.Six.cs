@@ -11,6 +11,12 @@ public sealed partial class ConductorBot
     double _standingForSix;
     /// <summary>The car behind a Knotter's joint (note 365): what's left standing there once it's killed, to couple up to.</summary>
     int _knotRear = -1;
+    /// <summary>
+    /// The Knotter holding that joint (note 545), and whether it was slack when last seen: gone from a stand, with the cars
+    /// left just its gap behind, it was killed. A client's copy of it is dropped, not ended, so its own state can't say.
+    /// </summary>
+    int _knotId = -1;
+    bool _knotSlack;
     /// <summary>A Knotter or a Hotbox stood for <c>standGiveUp</c> and not dealt with (nobody to): gone on from, for good.</summary>
     readonly HashSet<int> _gaveUpOn = [];
 
@@ -63,6 +69,14 @@ public sealed partial class ConductorBot
                 return hold;
             }
 
+        // The coupling a Knotter's forced, wherever the driver's got to (note 545: one forced its gap as the train backed off
+        // frontier:7's dead line, seed 8, was killed slack at that stand, and the train ran on without the eight cars behind it,
+        // the stop driver's moves never having let this see it).
+        if (world.ActiveEnemies.OfType<Knotter>().FirstOrDefault(k => !k.Gone && k.Mode is KnotterMode.Force or KnotterMode.Taut
+                or KnotterMode.Coil or KnotterMode.Slack && k.Attached > 0 && k.Attached < train.Frames.Count) is { } forced
+            && train.VehicleBehind(forced.Attached) is var behind and >= 0)
+            (_knotRear, _knotId, _knotSlack) = (behind, forced.Id, forced.Mode == KnotterMode.Slack);
+
         if (!Express && Stops is not { Doing: not StopDriver.Leg.Cruise })
         {
             var knot = world.ActiveEnemies.OfType<Knotter>().FirstOrDefault(k => !k.Gone && k.Mode is KnotterMode.Force or KnotterMode.Taut
@@ -91,7 +105,43 @@ public sealed partial class ConductorBot
             }
         }
         if (!_stoodForSix)
+        {
+            // Killed while the stop's moves had the train (its stand was theirs): coupled up all the same, then theirs again.
+            // Killed, not cut loose: slack at a stand, gone, and the cars still its gap behind with nothing aboard them (a
+            // coupling cut for a pack, a Car Hugger or a fire stays cut, and the driver's own cut, note 343, is never undone).
+            if (_knotRear >= 0 && !world.ActiveEnemies.Any(e => e.Id == _knotId && !e.Gone))
+            {
+                var left = train.Rakes.FirstOrDefault(r => r != d && r.Consist.IndexOf(_knotRear) >= 0);
+                // Still its gap behind (a stand's jolt as it lets go is waited out); gone further, or coupled, it's done with.
+                double apart = left is null ? double.MaxValue : d.RearDistance - left.Distance;
+                // Never at a facility's stop: its plan takes the cars left as its cut, and couples back onto them after
+                // (StopDriver's BackOut); coupled up under it, its cut is gone and it stands Held with the points set all night.
+                bool facility = Stops is
+                {
+                    Doing: not (StopDriver.Leg.Cruise or StopDriver.Leg.ToSwitch or StopDriver.Leg.OffDeadLine
+                    or StopDriver.Leg.SetBack or StopDriver.Leg.Forward)
+                };
+                // Coupled up onto them (they're the train's again): the reverser forward first, then it's done with.
+                if (left is null && _knotSlack && !facility && world.Controls.Reverser < 0 && Recouple(world) is { } forward)
+                {
+                    SixStep = "coupling up";
+                    return forward;
+                }
+                if (!_knotSlack || _outToCut || facility || left is null || left.Path != d.Path || apart < 0 || apart > et.Knotter.Gap + KnotReach)
+                {
+                    (_knotRear, _knotId, _knotSlack) = (-1, -1, false);
+                    return null;
+                }
+                // (Not only from a stand: backing onto them is moving, and that's still this.)
+                if (!world.ActiveEnemies.Any(e => !e.Gone && e.Attached >= 0 && left.Consist.IndexOf(e.Attached) >= 0)
+                    && Recouple(world) is { } backOnto)
+                {
+                    SixStep = "coupling up";
+                    return backOnto;
+                }
+            }
             return null;
+        }
         // Dealt with: everyone aboard first (nobody's left down between the cars it's about to back onto).
         if (Crewmates?.Any(c => c.Alive && (c.Parent == PlayerState.World || c.Surface == Surface.Ladder)) == true
             && _standingForSix <= b.StandGiveUp + AllAboardSeconds)
@@ -106,7 +156,7 @@ public sealed partial class ConductorBot
         }
         _stoodForSix = false;
         _standingForSix = 0;
-        _knotRear = -1;
+        (_knotRear, _knotId, _knotSlack) = (-1, -1, false);
         return null;
     }
 
@@ -118,11 +168,20 @@ public sealed partial class ConductorBot
     /// </summary>
     PlayerIntent? Recouple(World world)
     {
-        var train = world.Train;
-        var d = train.Dynamics;
-        var left = train.Rakes.FirstOrDefault(r => r != d && r.Consist.IndexOf(_knotRear) >= 0);
-        if (left is null || Math.Abs(left.Velocity) > 0.05 || left.Path != d.Path || left.Distance > d.RearDistance)
+        var d = world.Train.Dynamics;
+        if (LeftStanding(world) is not { } left)
             return world.Controls.Reverser < 0 ? StopDriver.Toward(world, d.Distance + 1000, +1, SetBackSpeed) : null;
         return StopDriver.Toward(world, left.Distance + d.Tuning.Geometry.CouplingGap - 0.5, -1, d.Tuning.Couplings.CoupleMaxSpeed / 2, rear: true);
+    }
+
+    /// <summary>m past a Knotter's gap the cars it left can stand and still be its (they settle a little as it lets go).</summary>
+    const double KnotReach = 1;
+
+    /// <summary>The cars a Knotter's death left standing behind the train, on its path, to back onto; null if there are none.</summary>
+    Train.TrainDynamics? LeftStanding(World world)
+    {
+        var d = world.Train.Dynamics;
+        var left = world.Train.Rakes.FirstOrDefault(r => r != d && r.Consist.IndexOf(_knotRear) >= 0);
+        return left is null || Math.Abs(left.Velocity) > 0.05 || left.Path != d.Path || left.Distance > d.RearDistance ? null : left;
     }
 }

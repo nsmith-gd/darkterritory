@@ -305,6 +305,54 @@ public class BotsAnswerTheSixTests
         n.AssertFair();
     }
 
+    /// <summary>
+    /// Note 545 (frontier:7, 4 bots, seed 8): a Knotter in car 2's coupling, a wound car ahead of it and the Brakeman dead.
+    /// Every roof bot was sent for the wound car's wheel across the knot, which the roofs never cross, and stood at the gap's
+    /// edge: at the stand, for 240 s, while the Knotter lay slack and nobody went down for it; then on at speed, all night.
+    /// </summary>
+    [Fact]
+    public void ARoofBotNeverHeadsForAWheelAcrossAKnottersGap()
+    {
+        var n = new Night(6, speed: 12, enemies: Quiet);
+        var k = n.World.AddEnemy(id => Knotter.Into(id, n.Train, 3, E.Knotter));
+        n.Run(E.Knotter.CreepSeconds + E.Knotter.ForceSeconds + 0.5);
+        Assert.Equal(KnotterMode.Taut, k.Mode);
+        n.Train.Vehicles[1].Wound = true;
+        n.Crew[2] = PlayerMotor.SpawnOnRoof(n.Train, 5, 0, P);
+        Run(n, 30, id => Heed.Brakeman(default, n.Crew[id], n.World, id, Others(n, id), null));
+        Assert.Equal(5, n.Crew[2].Parent);
+        Assert.True(n.Train.Vehicles[1].Wound);
+    }
+
+    /// <summary>
+    /// Note 545: the train stood for the Knotter, a wound car beyond it, the roof bots behind it. They go down and kill it
+    /// slack (the stand is for that), not along the roofs for a wheel; the train couples up and goes on.
+    /// </summary>
+    [Fact]
+    public void AtTheKnottersStandTheBotsKillItBeforeAnyWheelBeyondIt()
+    {
+        var n = new Night(6, speed: 12, enemies: Quiet);
+        var k = n.World.AddEnemy(id => Knotter.Into(id, n.Train, 3, E.Knotter));
+        n.Run(E.Knotter.CreepSeconds + E.Knotter.ForceSeconds + 0.5);
+        Assert.Equal(KnotterMode.Taut, k.Mode);
+        n.Train.Vehicles[1].Wound = true;
+        var driver = new ConductorBot(null, 0);
+        n.Crew[1] = PlayerMotor.SpawnInCab(n.Train, P);
+        n.Crew[2] = PlayerMotor.SpawnOnRoof(n.Train, 4, 0, P);
+        n.Crew[3] = PlayerMotor.SpawnOnRoof(n.Train, 5, 0, P);
+        var legs = new Dictionary<int, RoofWalkerBot> { [2] = Walker(2), [3] = Walker(3) };
+        var hands = new Dictionary<int, StopHand> { [2] = Hand(2), [3] = Hand(3) };
+        // In the order a bot's crew heeds them (BotCrew.Think): the Knotter, then the Brakeman.
+        PlayerIntent Walk(int id) => Heed.Brakeman(
+            Heed.Knotter(legs[id].Decide(n.Crew[id], n.World, n.World.Tick, out _), n.Crew[id], n.World, id, hands[id]),
+            n.Crew[id], n.World, id, Others(n, id), null);
+        Drive(n, driver, Walk, 200, until: () => k.Gone && n.Train.TrainRakes == 1 && n.Train.Dynamics.Speed > 4);
+        Assert.True(k.Gone, $"the Knotter's {k.Mode}, {k.Health} health ({driver.SixStep})");
+        Assert.Equal(1, n.Train.TrainRakes);
+        Assert.True(n.Train.Dynamics.Speed > 4, $"standing at {n.Train.Dynamics.Speed:0.0} m/s ({driver.SixStep})");
+        Assert.All(n.Crew.Values, c => Assert.True(c.Alive && c.Parent != PlayerState.World));
+    }
+
     [Fact]
     public void TheDriverStopsForAHotboxABotPrisesItOutFromTheSideAndFreesTheAxle()
     {
