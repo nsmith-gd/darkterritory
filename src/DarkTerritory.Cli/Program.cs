@@ -72,6 +72,7 @@ return args switch
     ["art", "clearance", ..] => Print(ArtClearance(content, args)),
     // dt perf: a frame's cost against the frame-rate targets (tuning/perf.json), flat and in a headset.
     ["perf", ..] => Print(PerfCommands.Run(train, content, args)),
+    ["holes", ..] => Print(HolesCommands.Run(train, content, args)),
     ["screenshot", ..] when args.Contains("--film") => Print(FilmStill(content, args)),
     ["screenshot", ..] when args.Contains("--hud") || args.Contains("--hurt") => Print(HudShot(content, args)),
     ["screenshot", ..] when args.Contains("--menu") => Print(MenuShot(train, content, args)),
@@ -153,6 +154,10 @@ object RunHarness(string[] args)
             // And what's out there: each enemy, what it's doing, and where (its car, or along the line).
             string enemies = string.Join(" ", world.ActiveEnemies.Where(e => e.Kind != DarkTerritory.Sim.Enemies.EnemyKind.Sleepers)
                 .Select(e => $"{e.Kind}:{e.Phase}@{(e.Attached >= 0 ? $"car{e.Attached}" : $"{e.LineDistance:0}")}"));
+            // And the loose couplings (note 356), by the car whose rear gap each is in.
+            string loose = string.Join(" ", world.Train.Dynamics.Consist.Vehicles.Where(v => v.Loose > 0).Select(v => $"Loose@car{v.Id}"));
+            if (loose.Length > 0)
+                enemies = enemies.Length > 0 ? $"{enemies} {loose}" : loose;
             string now = string.Join(" | ", crew.Select(c => Harness.Describe(c.Bot, c.State))) + (enemies.Length > 0 ? $"  || {enemies}" : "");
             if (now != lastTrace)
             {
@@ -452,13 +457,14 @@ object FacilityWorkDrill(FacilityKind kind, string[] args)
     }
     if (found is not { } at)
         return new { error = $"no route with a {kind} down a spur" };
-    // --empty: the cars run in empty (run.json departureLoad 0); --no-crates: none on the platform, so the machinery fills them.
+    // --empty: the cars run in empty (run.json departureLoad 0); --no-crates: none on the platform, so the machinery fills them;
+    // --stock: the train stocked as a night leaves the fortress (the guard van's hand lamps among it, note 492).
     if (args.Contains("--empty"))
         run = run with { DepartureLoad = 0 };
     if (args.Contains("--no-crates"))
         facilities = facilities with { Crates = facilities.Crates with { Count = [0, 0], Heavy = facilities.Crates.Heavy with { Count = [0, 0] } } };
     var r = DarkTerritory.Sim.Bots.FacilityWork.Run(at.Route, at.Facility, train, player, boiler, run, facilities, routeTuning.Junctions, cars,
-        (int)Opt(args, "--hands", 2), Opt(args, "--seconds", 1500), at.Route.GateOr(routeTuning.YardLength));
+        (int)Opt(args, "--hands", 2), Opt(args, "--seconds", 1500), at.Route.GateOr(routeTuning.YardLength), stock: args.Contains("--stock"));
     return new
     {
         route = at.Route.Name,
@@ -492,6 +498,7 @@ object FacilityWorkDrill(FacilityKind kind, string[] args)
         order = r.Order,
         // The wreck yard's heaps (note 187).
         heaps = r.Heaps.Select(h => new { found = h.Found, unfound = h.Unfound, shifts = h.Shifts, stability = h.Stability }),
+        lampsLeft = r.LampsLeft,
         stops = r.Stops.Select(x => new { x.Kind, x.Seconds }),
     };
 }
@@ -1428,15 +1435,21 @@ static object Screenshot(TrainTuning t, string content, string[] args)
     // door and off to one side, looking in through it; --inside, from by its back wall at a crewman's eye, out through it.
     // --barn n: the same for the nth open barn, outbuilding or goods shed (note 417), its hayloft or workbench at its back;
     // --back, from just in at its door at the back wall; --find, close to where its first find is kept. --roost: of the open
-    // barns or sheds (with a find or not) or the yard sheds, the ones the Gaunt sleeps in (note 488), dark.
-    bool barns = Opt(args, "--barn", -1) >= 0;
-    if (Opt(args, barns ? "--barn" : "--shed", -1) is var shedAt and >= 0 && generated is not null)
+    // barns or sheds (with a find or not) or the yard sheds, the ones the Gaunt sleeps in (note 488), dark. --station n: a
+    // dead town's nth station, open (note 493), framed as a barn. --powerhouse n [--power live|low|dead]: a yard's nth
+    // powerhouse, open (note 509), of the yards with that power (its lamp lit inside only while it's live).
+    BuildingKind? only = Opt(args, "--station", -1) >= 0 ? BuildingKind.Station : Opt(args, "--powerhouse", -1) >= 0 ? BuildingKind.Powerhouse : null;
+    bool barns = only is not null || Opt(args, "--barn", -1) >= 0;
+    if (Opt(args, only == BuildingKind.Station ? "--station" : only == BuildingKind.Powerhouse ? "--powerhouse" : barns ? "--barn" : "--shed", -1) is var shedAt and >= 0
+        && generated is not null)
     {
         var walls = DataFile.Load<DarkTerritory.Sim.Run.RunTuning>(Path.Combine(content, DarkTerritory.Sim.Run.RunTuning.File)).Walls;
         var sheds = generated.Features.Where(f => f.Stop is not null)
             .SelectMany(f => f.Stop!.Buildings.Select((b, i) => (Feature: f, Building: b, Index: i)))
             .Where(x => (barns ? DarkTerritory.Sim.Run.StopWalls.OpenShed(x.Building)
-                    && (args.Contains("--roost") || x.Feature.Stop!.Containers.Any(c => c.Building == x.Index))
+                    && (only is { } kind ? x.Building.Kind == kind
+                        && (!args.Contains("--power") || x.Feature.Stop!.Power.ToString().Equals(Str(args, "--power", ""), StringComparison.OrdinalIgnoreCase))
+                        : args.Contains("--roost") || x.Feature.Stop!.Containers.Any(c => c.Building == x.Index))
                     : x.Building.Kind is BuildingKind.Shed or BuildingKind.Hero)
                 && DarkTerritory.Sim.Run.StopWalls.Doors(x.Feature.Stop!, x.Index, walls).Any()
                 && (!args.Contains("--roost") || DarkTerritory.Sim.Run.StopWalls.Nest(x.Feature.Stop!, x.Index) is not null)).ToList();
@@ -1522,6 +1535,12 @@ static object Screenshot(TrainTuning t, string content, string[] args)
     var shouldered = args.Contains("--shouldered") ? Staging.Shouldered(train, content, Str(args, "--shouldered", "") == "walk")
         : args.Contains("--cradled") ? Staging.Shouldered(train, content, Str(args, "--cradled", "") == "walk", child: true)
         : ((DarkTerritory.Sim.Physics.Bodies Bodies, Crewmate Carrier)?)null;
+    // --powerhouse (note 509): the yards' power as the run has it, so a live powerhouse's lamp burns.
+    if (Opt(args, "--powerhouse", -1) >= 0 && generated is not null)
+    {
+        run ??= new DarkTerritory.Sim.Run.Run(DataFile.Load<DarkTerritory.Sim.Run.RunTuning>(Path.Combine(content, DarkTerritory.Sim.Run.RunTuning.File)), generated);
+        run.EnableSites(DataFile.Load<DarkTerritory.Sim.Run.FacilityTuning>(Path.Combine(content, DarkTerritory.Sim.Run.FacilityTuning.File)), line);
+    }
     // --searched (note 326): every open house's hiding spots searched, opened up, with what they kept out on the floor.
     DarkTerritory.Sim.Physics.Bodies? searched = null;
     if (args.Contains("--searched") && generated is not null)

@@ -47,7 +47,7 @@ public static partial class Staging
                 {
                     var f = plan.Fixtures[Math.Clamp(which, 0, plan.Fixtures.Count - 1)];
                     double back = Math.Max(f.SolidS, f.SolidD) + 1.4;
-                    return (town.World(f.S, f.D) + Out(f.S, f.FaceS, f.FaceD, back), town.World(f.S, f.D, Math.Max(0.3, f.Height * 0.6)));
+                    return (town.World(f.S, f.D) + Out(f.S, f.FaceS, f.FaceD, back), town.LookAt(f));
                 }
         }
     }
@@ -69,7 +69,7 @@ public static partial class Staging
         var hall = plan.Buildings.First(b => b.Kind == "hall");
         // A walled town (queue #74): from over the gate looking back over its roofs, down its first street, and from
         // outside the gate as the train leaves, its front wall either side of the gatehouse.
-        if (plan.Bounds is { } wall && where is "over" or "lane" or "outside" or "watch" or "bend")
+        if (plan.Bounds is { } wall && where is "over" or "lane" or "outside" or "watch" or "bend" or "crooked" or "crookedover")
         {
             var st = wall.Streets.OrderBy(x => Math.Abs(x.D)).ThenBy(x => x.D).First();
             return where switch
@@ -83,7 +83,30 @@ public static partial class Staging
                 // Down the second street, far from the square, where it bends (note 353).
                 "bend" when wall.Streets.Where(x => Math.Sign(x.D) == side).OrderBy(x => Math.Abs(x.D)).Skip(1).FirstOrDefault() is { } far
                     => Ballast.Render.Camera.LookAt(town.World(sq.S0 - 160, far.At(sq.S0 - 160), 2.2), town.World(sq.S0 - 260, far.At(sq.S0 - 260), 1.4), 70),
+                // Down a lane where it turns at the second street on the far side from the square, from the first street
+                // (note 353), and from high over the same lane, the town's crossings not lining up.
+                "crooked" when wall.Lanes.OrderBy(l => Math.Abs(l.S - mid)).FirstOrDefault() is { } lane
+                    => Ballast.Render.Camera.LookAt(town.World(lane.At(-side * (Math.Abs(st.D) + 12)), -side * (Math.Abs(st.D) + 12), 1.8),
+                        town.World(lane.At(-side * (Math.Abs(st.D) + 30)), -side * (Math.Abs(st.D) + 50), 1.4), 70),
+                "crookedover" when wall.Lanes.OrderBy(l => Math.Abs(l.S - mid)).FirstOrDefault() is { } lane
+                    => Ballast.Render.Camera.LookAt(town.World(lane.S + 45, -side * 20, 55), town.World(lane.S, -side * 70, 0), 66),
                 _ => Ballast.Render.Camera.LookAt(town.World(mid + 30, st.D, 1.7), town.World(mid - 40, st.D, 1.6), 72),
+            };
+        }
+        // The quiet house by the gate, the council house in the square, a small town's far wall (note 353).
+        if (where is "quiet" or "council" or "farwall")
+        {
+            var quiet = plan.Buildings.FirstOrDefault(b => b.Kind == "quiet");
+            var names = plan.Fixtures.FirstOrDefault(f => f.Kind == "memorial");
+            var day = plan.Fixtures.FirstOrDefault(f => f.Kind == "mural");
+            var council = plan.Buildings[0];
+            int qs = quiet is null ? 0 : Math.Sign(quiet.D);
+            return where switch
+            {
+                "quiet" when quiet is not null => Ballast.Render.Camera.LookAt(town.World(quiet.S - 5, quiet.D - qs * 9, 1.7), town.World(quiet.S, quiet.D, 1.4), 60),
+                "council" => Ballast.Render.Camera.LookAt(town.World(council.S + 6, council.D - side * 15, 2.0), town.World(council.S, council.D, 3.5), 60),
+                _ when names is not null && day is not null => Ballast.Render.Camera.LookAt(town.World((names.S + day.S) / 2, side * 12, 2.2), town.World((names.S + day.S) / 2, names.D, 1.8), 75),
+                _ => Ballast.Render.Camera.LookAt(town.World(sq.S1 - 3, side * 4.5, 1.7), town.World(centre.S - 6, centre.D, 1.6), 70),
             };
         }
         // A walled town's green and its walls (note 353): over the green from the square's side of the street, at its statue,
@@ -102,6 +125,17 @@ public static partial class Staging
                 "garden" when garden is not null => Ballast.Render.Camera.LookAt(town.World(garden.S - 3, garden.D - side * 3.5, 1.8), town.World(garden.S, garden.D, 0.5), 65),
                 "mural" when mural is not null => Ballast.Render.Camera.LookAt(town.World(mural.S + 26, mural.D + side * 1.5, 1.7), town.World(mural.S, mural.D, 2.6), 60),
                 _ => Ballast.Render.Camera.LookAt(town.World(green.S0 - 6, near - side * 2, 4.5), town.World(gs + 6, gd, 0.5), 72),
+            };
+        }
+        // A walled town's works (note 353): from the first street on their side, and from over the line looking across them.
+        if (plan.Works is { } works && where is "works" or "worksover" or "worksend")
+        {
+            double ws = (works.S0 + works.S1) / 2, wd = works.Side * (works.Near + works.Far) / 2;
+            return where switch
+            {
+                "worksover" => Ballast.Render.Camera.LookAt(town.World(works.S0 - 25, -works.Side * 6, 48), town.World(ws, wd, 0), 64),
+                "worksend" => Ballast.Render.Camera.LookAt(town.World(works.S1 + 14, works.Side * (works.Near - 3), 2.0), town.World(ws, wd, 7), 70),
+                _ => Ballast.Render.Camera.LookAt(town.World(ws - 24, works.Side * (works.Near - 2.5), 1.8), town.World(ws + 6, wd, 8), 74),
             };
         }
         // A walled town's yards (note 335): behind a house with things in its yard, and out on a street at a picket fence.

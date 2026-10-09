@@ -383,9 +383,48 @@ public sealed class TrainOnLine
             vehicle.Knot = v.Knot;
             vehicle.OffRails = v.OffRails;
         }
+        Rebuild(state.Rakes);
+        Boiler = state.Boiler;
+        UpdatePoses();
+    }
+
+    /// <summary>
+    /// A resumed night's train as its save left it (spec E "rolls back to last POI autosave"; note 481): the rakes as they
+    /// were, each vehicle in the one it was in and in its order, the engine's with a switchyard's picked-up cars ahead of
+    /// it, every rake at rest. Returns false and changes nothing if they aren't this train's (each vehicle in exactly one,
+    /// one with the engine): a save from another build of the night.
+    /// </summary>
+    public bool Resume(IReadOnlyList<RakeState> rakes)
+    {
+        var seen = new bool[_vehicles.Length];
+        int engines = 0;
+        foreach (var r in rakes)
+        {
+            if (r.Vehicles is not { Length: > 0 } || r.Path < RailLine.MainPath || r.Path >= Line.Branches.Count)
+                return false;
+            foreach (int id in r.Vehicles)
+            {
+                if (id < 0 || id >= seen.Length || seen[id])
+                    return false;
+                seen[id] = true;
+                if (_vehicles[id].IsEngine)
+                    engines++;
+            }
+        }
+        if (engines != 1 || seen.Any(s => !s))
+            return false;
+        Rebuild(rakes.Select(r => r with { Velocity = 0, BrakeEfficiency = 1 }));
+        foreach (var rake in _rakes)
+            rake.PreviousDistance = rake.Distance;
+        UpdatePoses();
+        return true;
+    }
+
+    void Rebuild(IEnumerable<RakeState> rakes)
+    {
         var previous = _rakes.ToDictionary(r => r.Consist.Vehicles[0].Id);
         _rakes.Clear();
-        foreach (var r in state.Rakes)
+        foreach (var r in rakes)
         {
             var consist = new Consist(Tuning);
             foreach (int id in r.Vehicles)
@@ -403,8 +442,6 @@ public sealed class TrainOnLine
             rake.Path = r.Path;
             _rakes.Add(rake);
         }
-        Boiler = state.Boiler;
-        UpdatePoses();
     }
 
     /// <summary>
