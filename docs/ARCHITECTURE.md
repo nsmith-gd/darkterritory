@@ -7150,3 +7150,15 @@ Terrain sculpting tools, a node-graph material editor, a general-purpose visual 
     - **Only at a stop:** the claim needs the hand's stop plan. Between stops the walkers' own rounds see to the flies, and a gunner's gun comes first.
     - **Test:** `CarFireTests.AtAStopTheNearestHandPutsTheFireFliesLampOutWhateverItsPart` (frontier:7, 10 cars, 4 bots, seed 2, 520 s): no car the flies came to is alight. Without the change, car 2 is.
     - **Not yet:** the hands who fight a fire that's already alight burn hard. On main's seed 1, the winch pair were 10 s at car 1's extinguisher without reaching it, and went from 99 to 14 hp. That is next to D1.2's #232 (hurt walkers going into a burning car).
+508. **Bodies on the grating heard on steel (AU1, queue #245; the weak-sounds audit; note 503's fault in three more cues).** Three sounds of a body coming down on the train's steel grating were the body alone, the grating's steel lost under it:
+    - a crewmate falling (`crew-hurt.body-fall.grate`), 212 Hz;
+    - a body thrown down (`crew-carry.body-land.grate`), 248 Hz;
+    - a body laid down (`crew-carry.body-set.grate`), 255 Hz.
+    Their wood, ground and concrete sets sit at 162-282 Hz, while a boot landing on the same grating rings at 1.5 kHz. The bodies' shared helper (`crew_items.limbs`) asks the floor for a soft knock (`hard` 0.15, right for flesh on planks or earth), and on the grating that knock is a choked thin-plate clatter that the body buries.
+    - **Now** (`tools/audio/recipes/crew_items.py`, `grating`, on the grating only, after every random draw so the other floors are byte-identical):
+        - the grating's heavy plate crashing, choked later the harder the body comes down;
+        - its thin plate ringing on;
+        - its bars buzzing, longer and louder the harder the body comes down (thrown 1.8, fallen 1.3, laid 1.0, as `limbs`' force).
+        - A crewmate's collapse rings it lighter under the knees first (`crew_body.py`'s fall).
+    - **Measured:** they centre at 369-386 Hz now, with steel through 1-8 kHz for the first quarter second; a body is still heavier and lower than a boot, as it should be.
+    - **Installed:** only those nine takes changed of the two lines' 130. Their hooks are unchanged; `AudioTests` and `CrewAudioTests` pass. No verdicts on the old takes.
