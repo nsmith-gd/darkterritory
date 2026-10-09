@@ -34,6 +34,8 @@ public sealed record NightHeader
     /// <summary>The crew the night's threats were planned for.</summary>
     public int Crew { get; init; }
     public byte[]? PasswordKey { get; init; }
+    /// <summary>The host's loss window (note 540), in ticks: what it was told, not what this machine's HUD would say.</summary>
+    public int? LossWindowTicks { get; init; }
     /// <summary>Whether the crew's voices are in it; by default they're blanked (their lengths kept: the sim's the same).</summary>
     public bool Voice { get; init; }
     public int TickRate { get; init; } = Sim.SimConstants.TickRate;
@@ -55,6 +57,7 @@ public sealed record NightHeader
             Resume = night.Resume,
             Crew = night.Crew,
             PasswordKey = night.PasswordKey,
+            LossWindowTicks = night.LossWindowTicks,
             Voice = voice,
         };
     }
@@ -66,7 +69,10 @@ public sealed record NightHeader
         Plan = Plan is { } plan ? Sim.LineGen.LinePlan.Decompress(plan) : null,
         MusicBag = MusicBag,
         Identities = Identities,
-    }, Resume, Crew, PasswordKey);
+    }, Resume, Crew, PasswordKey)
+    {
+        LossWindowTicks = LossWindowTicks ?? new HudTuning().LossWindowTicks,
+    };
 
     public string ToJson() => JsonSerializer.Serialize(this, Compact);
     public static NightHeader FromJson(string json) =>

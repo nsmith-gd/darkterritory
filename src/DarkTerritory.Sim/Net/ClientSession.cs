@@ -204,6 +204,11 @@ public sealed class ClientSession
     public double MaxCorrection { get; private set; }
     public int Corrections { get; private set; }
     public int SnapshotsReceived { get; private set; }
+    /// <summary>
+    /// The host's snapshots, one a tick, getting through (netcode-audit.md gap 3): the ones lost on the way, and the stale
+    /// ones that came after a newer one. For the HUD's link line; set its window from hud.json <c>lossWindowSeconds</c>.
+    /// </summary>
+    public LinkLoss SnapshotLoss { get; set; } = new(10 * SimConstants.TickRate);
 
     /// <summary>Clears the correction statistics (after a deliberate host-side teleport, for example).</summary>
     public void ResetStats()
@@ -375,6 +380,7 @@ public sealed class ClientSession
                     try { records = WorldRecords.ReadDelta(ref r, baseline); }
                     catch (Exception ex) when (ex is EndOfStreamException or InvalidDataException) { continue; }
                     SnapshotsReceived++;
+                    SnapshotLoss.Heard(tick);
                     _decoded[tick] = records;
                     if (_decoded.Count > DecodedHistory)
                         foreach (var old in _decoded.Keys.Where(k => k + DecodedHistory < tick).ToList())

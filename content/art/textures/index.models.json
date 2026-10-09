@@ -879,6 +879,26 @@
     ]
   },
   {
+    "name": "brakeman_0",
+    "diffuse": "models/brakeman_0.png",
+    "spec": "models/brakeman_0_s.png",
+    "normal": "models/brakeman_0_n.png",
+    "size": 1024,
+    "tileMetres": null,
+    "tiling": false,
+    "family": "creature",
+    "alphaTest": false,
+    "sources": [
+      {
+        "generator": "tools/models/recipes/brakeman.py",
+        "what": "the Brakeman, modelled in tools/blender/brakeman.py, his colour painted here",
+        "author": "Dark Territory",
+        "license": "CC0-1.0",
+        "attribution": "Dark Territory (modelled in tools/models from the texture library)"
+      }
+    ]
+  },
+  {
     "name": "cab_backhead_0",
     "diffuse": "models/cab_backhead_0.png",
     "spec": "models/cab_backhead_0_s.png",
@@ -5918,6 +5938,26 @@
     ]
   },
   {
+    "name": "freight_beetle_0",
+    "diffuse": "models/freight_beetle_0.png",
+    "spec": "models/freight_beetle_0_s.png",
+    "normal": "models/freight_beetle_0_n.png",
+    "size": 1024,
+    "tileMetres": null,
+    "tiling": false,
+    "family": "creature",
+    "alphaTest": false,
+    "sources": [
+      {
+        "generator": "tools/models/recipes/freight_beetle.py",
+        "what": "the Freight Beetle, modelled in tools/blender/freight_beetle.py, its colour painted here",
+        "author": "Dark Territory",
+        "license": "CC0-1.0",
+        "attribution": "Dark Territory (modelled in tools/models from the texture library)"
+      }
+    ]
+  },
+  {
     "name": "freight_carboys_0",
     "diffuse": "models/freight_carboys_0.png",
     "spec": "models/freight_carboys_0_s.png",
@@ -7713,6 +7753,26 @@
     ]
   },
   {
+    "name": "hotbox_0",
+    "diffuse": "models/hotbox_0.png",
+    "spec": "models/hotbox_0_s.png",
+    "normal": "models/hotbox_0_n.png",
+    "size": 1024,
+    "tileMetres": null,
+    "tiling": false,
+    "family": "creature",
+    "alphaTest": false,
+    "sources": [
+      {
+        "generator": "tools/models/recipes/hotbox.py",
+        "what": "Hotbox, modelled in tools/blender/hotbox.py, its colour painted here",
+        "author": "Dark Territory",
+        "license": "CC0-1.0",
+        "attribution": "Dark Territory (modelled in tools/models from the texture library)"
+      }
+    ]
+  },
+  {
     "name": "house_0_0",
     "diffuse": "models/house_0_0.png",
     "spec": "models/house_0_0_s.png",
@@ -8343,6 +8403,26 @@
         "path": "mini_texture/textures/leather_brown_diffuse.jpg",
         "license": "CC0-1.0",
         "attribution": "Mini Texture (CC0-1.0), via the library's leather"
+      }
+    ]
+  },
+  {
+    "name": "knotter_0",
+    "diffuse": "models/knotter_0.png",
+    "spec": "models/knotter_0_s.png",
+    "normal": "models/knotter_0_n.png",
+    "size": 1024,
+    "tileMetres": null,
+    "tiling": false,
+    "family": "creature",
+    "alphaTest": false,
+    "sources": [
+      {
+        "generator": "tools/models/recipes/knotter.py",
+        "what": "the Knotter, modelled in tools/blender/knotter.py, its colour painted here",
+        "author": "Dark Territory",
+        "license": "CC0-1.0",
+        "attribution": "Dark Territory (modelled in tools/models from the texture library)"
       }
     ]
   },
@@ -9514,6 +9594,26 @@
       {
         "generator": "tools/models/recipes/moose.py",
         "what": "the Moose, modelled in tools/blender/moose.py, its colour painted here",
+        "author": "Dark Territory",
+        "license": "CC0-1.0",
+        "attribution": "Dark Territory (modelled in tools/models from the texture library)"
+      }
+    ]
+  },
+  {
+    "name": "mourner_0",
+    "diffuse": "models/mourner_0.png",
+    "spec": "models/mourner_0_s.png",
+    "normal": "models/mourner_0_n.png",
+    "size": 1024,
+    "tileMetres": null,
+    "tiling": false,
+    "family": "creature",
+    "alphaTest": false,
+    "sources": [
+      {
+        "generator": "tools/models/recipes/mourner.py",
+        "what": "the Mourners, modelled in tools/blender/mourner.py, their colour painted here",
         "author": "Dark Territory",
         "license": "CC0-1.0",
         "attribution": "Dark Territory (modelled in tools/models from the texture library)"
@@ -13374,6 +13474,26 @@
         "path": "mini_texture/textures/Asphalt033_diffuse.jpg",
         "license": "CC0-1.0",
         "attribution": "ambientCG (CC0-1.0), via the library's wood_sleeper"
+      }
+    ]
+  },
+  {
+    "name": "tower_jaw_0",
+    "diffuse": "models/tower_jaw_0.png",
+    "spec": "models/tower_jaw_0_s.png",
+    "normal": "models/tower_jaw_0_n.png",
+    "size": 1024,
+    "tileMetres": null,
+    "tiling": false,
+    "family": "creature",
+    "alphaTest": false,
+    "sources": [
+      {
+        "generator": "tools/models/recipes/tower_jaw.py",
+        "what": "Tower Jaw, modelled in tools/blender/tower_jaw.py, its colour painted here",
+        "author": "Dark Territory",
+        "license": "CC0-1.0",
+        "attribution": "Dark Territory (modelled in tools/models from the texture library)"
       }
     ]
   },

@@ -22,7 +22,7 @@ public readonly record struct RakeContact(int Front, int Rear, double ClosingSpe
 /// <param name="Path">The track the rake's front is on: <see cref="RailLine.MainPath"/>, or a branch index.</param>
 public readonly record struct RakeState(int[] Vehicles, double Distance, double Velocity, double BrakeEfficiency, bool Handbrake, bool FrontCouplerLocked, int Path = RailLine.MainPath);
 public readonly record struct VehicleState(int Id, double Load, double Integrity, double CargoIntegrity, GunState Gun = default, byte DoorsOpen = 0,
-    CargoKind Cargo = CargoKind.None, bool LampLit = true, double Eaten = 0, uint LockersOpen = 0, bool Breached = false, Double3 BreachAt = default, byte[]? Char = null, double HotBox = 0, double Gutter = 0, double Loose = 0,
+    CargoKind Cargo = CargoKind.None, bool LampLit = true, double Eaten = 0, uint LockersOpen = 0, bool Breached = false, Double3 BreachAt = default, byte[]? Char = null, double HotBox = 0, double Gutter = 0, double Loose = 0, bool Wound = false, bool Seized = false, double Knot = 0,
     bool OffRails = false);
 
 /// <summary>Everything about the train that the host owns and clients re-simulate from.</summary>
@@ -322,7 +322,9 @@ public sealed class TrainOnLine
             return false;
         var front = rake.Consist;
         var rear = front.SplitAfter(index);
-        double shift = front.LengthMetres + Tuning.Geometry.CouplingGap;
+        // (Cut at a Knotter's gap, note 365, the rear rake stands where its body held it, and the gap's its no more.)
+        double shift = front.LengthMetres + Tuning.Geometry.CouplingGap + front.Vehicles[^1].Knot;
+        front.Vehicles[^1].Knot = 0;
         var cut = new TrainDynamics(rear)
         {
             // Behind the front half on the same track: the path only matters past a branch's points, where it's the front half's.
@@ -352,7 +354,7 @@ public sealed class TrainOnLine
 
     public TrainState Capture() => new(
         _rakes.Select(r => new RakeState(r.Consist.Vehicles.Select(v => v.Id).ToArray(), r.Distance, r.Velocity, r.BrakeEfficiency, r.Handbrake, r.FrontCouplerLocked, r.Path)).ToArray(),
-        _vehicles.Select(v => new VehicleState(v.Id, v.Load, v.Integrity, v.CargoIntegrity, v.Gun, v.DoorsOpen, v.Cargo, v.LampLit, v.Eaten, v.LockersOpen, v.Breached, v.BreachAt, v.Char, v.HotBox, v.Gutter, v.Loose, v.OffRails)).ToArray(),
+        _vehicles.Select(v => new VehicleState(v.Id, v.Load, v.Integrity, v.CargoIntegrity, v.Gun, v.DoorsOpen, v.Cargo, v.LampLit, v.Eaten, v.LockersOpen, v.Breached, v.BreachAt, v.Char, v.HotBox, v.Gutter, v.Loose, v.Wound, v.Seized, v.Knot, v.OffRails)).ToArray(),
         Boiler);
 
     /// <summary>Adopts host state and rebuilds rakes and poses; clients then re-simulate forward from it.</summary>
@@ -376,6 +378,9 @@ public sealed class TrainOnLine
             vehicle.HotBox = v.HotBox;
             vehicle.Gutter = v.Gutter;
             vehicle.Loose = v.Loose;
+            vehicle.Wound = v.Wound;
+            vehicle.Seized = v.Seized;
+            vehicle.Knot = v.Knot;
             vehicle.OffRails = v.OffRails;
         }
         Rebuild(state.Rakes);
@@ -562,9 +567,38 @@ public sealed class TrainOnLine
             + (rake == _engineRake && BoilerTuning is { } st ? st.StarvedDrag(Boiler, rake.Speed, rake.Tuning.MaxSpeed) : 0)
             // And its hot boxes run dry (upkeep.json hotBox, note 331): each takes some top speed off it.
             + (HotBoxTuning is { } ht ? HotBoxes.Drag(ht, rake, rake.Tuning.MaxSpeed, _engineRake.MaxTractiveForce / rake.Consist.MassTonnes) : 0)
+            // And what the creatures have done to its cars: brakes the Brakeman wound on, an axle Hotbox seized (notes 364, 367).
+            + CreatureDrag(rake)
             // And a car off its rails (the tipple's bad clamp, note 423) holds its whole rake fast: more than anything can pull.
             + (AnyOffRails(rake) ? OffRailsDrag : 0),
     };
+
+    /// <summary>The top speed a car with a seized axle holds the train to (enemies.json <c>hotbox.seizedTopSpeed</c>, set with the enemies).</summary>
+    public double SeizedTopSpeed { get; set; } = 7;
+    /// <summary>Over it, the drag as a share of what the engine can pull (enemies.json <c>hotbox.seizedHold</c>).</summary>
+    public double SeizedHold { get; set; } = 1.1;
+    /// <summary>How a seized axle's repaired (enemies.json <c>hotbox</c>), when the creatures are on; null, nothing seizes.</summary>
+    public Enemies.HotboxTuning? SeizedRepair { get; set; }
+
+    /// <summary>
+    /// A rake's drag from its wound handbrakes (each car's handbrake on its own mass, as a standing rake's are: note 364) and
+    /// its seized axles (over <see cref="SeizedTopSpeed"/>, more than the engine can pull: note 367). The same on every machine.
+    /// </summary>
+    double CreatureDrag(TrainDynamics rake)
+    {
+        double wound = 0;
+        bool seized = false;
+        foreach (var v in rake.Consist.Vehicles)
+        {
+            if (v.Wound)
+                wound += v.MassTonnes(rake.Tuning);
+            seized |= v.Seized;
+        }
+        double drag = wound > 0 ? rake.Tuning.Couplings.HandbrakeDecel * wound / rake.Consist.MassTonnes : 0;
+        if (seized && rake.Speed > SeizedTopSpeed)
+            drag += SeizedHold * _engineRake.MaxTractiveForce / rake.Consist.MassTonnes;
+        return drag;
+    }
 
     /// <summary>A rake's front running forward through a branch's points goes where the switch is set.</summary>
     void TakeSwitches(TrainDynamics rake)
@@ -791,7 +825,7 @@ public sealed class TrainOnLine
             double len = v.Length(t), m = v.MassTonnes(t);
             weighted += m * Line.Sample(rake.Path, front - len / 2).GradePercent;
             mass += m;
-            front -= len + t.Geometry.CouplingGap;
+            front -= len + t.Geometry.CouplingGap + v.Knot;
         }
         return mass > 0 ? weighted / mass : 0;
     }
@@ -829,8 +863,9 @@ public sealed class TrainOnLine
                 var forward = (fb - rb).Length > 1e-9 ? (fb - rb).Normalized : Line.Sample(rake.Path, front).Tangent;
                 var pose = new CarPose(v.Id, Double3.Lerp(fb, rb, 0.5), forward, length, front);
                 poses[v.Id] = pose;
-                frames[v.Id] = CarFrame.From(pose, rake.Velocity, Shape(g, v.Kind, i < vehicles.Count - 1, v.Id == _kitCar));
-                front -= length + g.CouplingGap;
+                bool behind = i < vehicles.Count - 1;
+                frames[v.Id] = CarFrame.From(pose, rake.Velocity, Shape(g, v.Kind, behind, v.Id == _kitCar, behind ? v.Knot : 0));
+                front -= length + g.CouplingGap + (behind ? v.Knot : 0);
             }
         }
         if (Wreck is { } wreck)
@@ -846,12 +881,13 @@ public sealed class TrainOnLine
                 }
     }
 
-    readonly Dictionary<(VehicleKind, bool, bool), CarShape> _shapes = new();
+    readonly Dictionary<(VehicleKind, bool, bool, int), CarShape> _shapes = new();
     GeometryTuning? _shapeGeometry;
     int? _kitCar;
 
     /// <param name="lockers">The kit's car: it has the crew lockers (ARCHITECTURE §8 note 173).</param>
-    CarShape Shape(GeometryTuning g, VehicleKind kind, bool hasCarBehind, bool lockers)
+    /// <param name="knot">A Knotter's gap behind it (note 365): its body across the gap in place of the coupler plate.</param>
+    CarShape Shape(GeometryTuning g, VehicleKind kind, bool hasCarBehind, bool lockers, double knot = 0)
     {
         if (!ReferenceEquals(g, _shapeGeometry))
         {
@@ -859,8 +895,15 @@ public sealed class TrainOnLine
             _shapeGeometry = g;
         }
         lockers &= Tuning.Kit.Lockers is { Names.Count: > 0 };
-        if (!_shapes.TryGetValue((kind, hasCarBehind, lockers), out var shape))
-            _shapes[(kind, hasCarBehind, lockers)] = shape = CarShape.Build(g, kind, hasCarBehind, lockers ? Tuning.Kit.Lockers : null);
+        // (Its body across the gap, to a tenth of a metre: a handful of shapes while it forces the cars apart.)
+        int tenths = hasCarBehind ? (int)Math.Round(knot * 10) : 0;
+        if (!_shapes.TryGetValue((kind, hasCarBehind, lockers, tenths), out var shape))
+        {
+            shape = CarShape.Build(g, kind, hasCarBehind, lockers ? Tuning.Kit.Lockers : null);
+            if (tenths > 0)
+                shape = CarShape.Knotted(shape, g, tenths / 10.0);
+            _shapes[(kind, hasCarBehind, lockers, tenths)] = shape;
+        }
         return shape;
     }
 }

@@ -891,8 +891,12 @@ static object Screenshot(TrainTuning t, string content, string[] args)
     int width = (int)Opt(args, "--width", 1280), height = (int)Opt(args, "--height", 720), scale = (int)Opt(args, "--scale", 1);
     string output = Str(args, "--out", $"out/shots/{view}.png");
 
+    // --towerjaw gnaw|lean|threat|lunge|away|wreck: Tower Jaw at the night's first coaling tower (note 363; Staging.TowerJaw),
+    // the train stood back down the line from it; a generated night (frontier:3 unless --route says). The towerjaw view
+    // stages it gnawing, the tower leaning over the line; towerjawfall, the tower down across it.
+    string towerJawMode = Str(args, "--towerjaw", view switch { "towerjaw" => "lean", "towerjawfall" => "wreck", _ => "" });
     // --route tier:seed generates the night in memory; --coaling stops the train at its coaling tower, chute pouring.
-    Route? generated = Str(args, "--route", "") is { Length: > 0 } spec
+    Route? generated = Str(args, "--route", towerJawMode.Length > 0 ? "frontier:3" : "") is { Length: > 0 } spec
         ? DarkTerritory.Sim.LineGen.Routes.Generate(content, spec, cars)
         : null;
     var line = generated?.Build() ?? RailLine.Load(Path.Combine(content, "lines", lineName + ".json"));
@@ -972,6 +976,13 @@ static object Screenshot(TrainTuning t, string content, string[] args)
                     Jam = x == site && x.Has(DarkTerritory.Sim.Run.ModuleKind.Conveyor) ? Opt(args, "--jam", -1) : -1,
                 })]);
         }
+    }
+    if (towerJawMode.Length > 0)
+    {
+        if (tower is null || generated is null)
+            return Print(new { error = $"{Str(args, "--route", "frontier:3")} has no coaling tower for --towerjaw" });
+        run ??= new DarkTerritory.Sim.Run.Run(DataFile.Load<DarkTerritory.Sim.Run.RunTuning>(Path.Combine(content, DarkTerritory.Sim.Run.RunTuning.File)), generated);
+        at = run.ChuteAt(tower, line).SpoutAlong - (towerJawMode == "wreck" ? 34 : 40);
     }
     // --junction i: at a branch's points (T27), [--diverge] set for the branch, [--through] and the train run in onto it.
     int junction = (int)Opt(args, "--junction", -1);
@@ -1092,6 +1103,14 @@ static object Screenshot(TrainTuning t, string content, string[] args)
         train.Dynamics.Velocity = Opt(args, "--speed", 20);
         train.RefreshFrames();
     }
+    // --brakeman walk|wind|flee|cornered|lash|climb|drop, --knotter creep|force|taut|slack|coil, --hotboxbug knock|glow|seized|
+    // unfolded|snap|prised: the train's own (notes 364, 365, 367; Staging.Trainfolk) on, behind and under the second car; the
+    // train as they leave it (the cars behind the Brakeman wound on, the gap forced, the axle seized) at --speed or theirs. The
+    // views stage the Brakeman winding and cornered, the Knotter taut and coiled, Hotbox glowing and out, unless told.
+    string brakemanMode = Str(args, "--brakeman", view switch { "brakeman" => "wind", "brakemancorner" => "cornered", _ => "" });
+    string knotterMode = Str(args, "--knotter", view switch { "knotter" => "taut", "knotterslip" => "coil", _ => "" });
+    string hotboxBug = Str(args, "--hotboxbug", view switch { "hotboxbug" => "glow", "hotboxout" => "unfolded", _ => "" });
+    Staging.TrainfolkTrain(train, brakemanMode, knotterMode, hotboxBug, Opt(args, "--speed", -1));
     // --wreck s: off the rails at --speed (22) and that many seconds into the wreck (T117), seen by the cinematic camera.
     if (Opt(args, "--wreck", -1) is var wreckAt and >= 0)
     {
@@ -1366,6 +1385,7 @@ static object Screenshot(TrainTuning t, string content, string[] args)
     }
     // --lit: every Holdout on the route occupied, its lamp burning (GDD App. D.7), as if the dead were waiting at each.
     DarkTerritory.Sim.Run.Holdouts? holdouts = null;
+    Crewmate? cameBack = null; // --cameback s: who's getting up in the Holdout (note 529)
     // --freed: every Holdout broken open and its occupant out (D.7, D.8): the door swung wide, the lock smashed off (or, every
     // other one, picked with the repair kit), the barricade pried down. --holdout n: the camera before the nth one's door.
     // --breaching f: every Holdout being broken into, f of the way (note 464): its lock jumping and sparking on the smash's blows
@@ -1407,6 +1427,18 @@ static object Screenshot(TrainTuning t, string content, string[] args)
             // --inside: through its broken-open door, from just in, at the room (note 387; --lantern for a hand lamp).
             if (args.Contains("--inside"))
                 camera = Camera.LookAt(h.Door - outward * 2.0 + across * 0.3 + Double3.Up * 1.65, h.Inside - outward * 2.5 + Double3.Up * 1.0, 80);
+            // --cameback s (with --freed): come back inside it, s seconds into getting up (note 529): the shot of you getting up
+            // from in by its door, then your eyes as they come up with you (Eyes.CameBack).
+            if (args.Contains("--cameback"))
+            {
+                double since = Opt(args, "--cameback", 0.4);
+                double yaw = Math.Atan2(-outward.X, -outward.Z);
+                // (Seen from in by the door; once it's cut into their eyes, they're the eye, as the app has you: not drawn.)
+                if (since < Eyes.CutIn)
+                    cameBack = new Crewmate(1, h.Inside, yaw, true, Act: DarkTerritory.Game.Art.CrewPose.GetUp, Phase: Math.Max(1e-3, since));
+                var eyes = new Camera { Position = h.Inside + Double3.Up * Eyes.Height, Yaw = yaw, Pitch = -0.1, FovYDegrees = 75, Near = 0.05f, Far = 2000 };
+                camera = Eyes.CameBack(h.Inside, h.Door, since, eyes) ?? eyes;
+            }
             // --approach m: instead from the cab's height on the line that far short of it (App. D.7: seen from the 1 km board).
             if (args.Contains("--approach"))
             {
@@ -1651,6 +1683,8 @@ static object Screenshot(TrainTuning t, string content, string[] args)
                 own == "none" ? Tool.None : Enum.Parse<Tool>(own, true))
             : null,
     };
+    if (cameBack is { } risen)
+        scene.Crew = [.. scene.Crew ?? [], risen];
     // Note 301's callouts, every break the crew can mend: --breached i[,j,...] those cars' end walls eaten through (dents are
     // --integrity's, the boiler --ruptured's); --mending a wrench at each, its strikes' sparks.
     if (Str(args, "--breached", "") is { Length: > 0 } holes)
@@ -1706,6 +1740,38 @@ static object Screenshot(TrainTuning t, string content, string[] args)
         scene.Enemies = Staging.Gannet(scene.Enemies is List<DarkTerritory.Sim.Enemies.Enemy> others ? others : [], train, gannetMode);
         scene.Crew = [.. (scene.Crew ?? []).Where(c => c.Id is not (Staging.LoneId or Staging.GannetRescuerId)), Staging.GannetWalker(train, gannetMode),
             .. Staging.GannetRescuer(train, gannetMode) is { } rescuer ? [rescuer] : Array.Empty<Crewmate>()];
+    }
+    // --mourners drag|wait|creep|startle: the staged Mourners round a crewmate's body off the line's left (note 362;
+    // Staging.Mourners), the mourners view's (dragging it off unless told).
+    if (Str(args, "--mourners", view == "mourners" ? "drag" : "") is { Length: > 0 } mournersMode)
+    {
+        scene.Enemies = Staging.Mourners(scene.Enemies is List<DarkTerritory.Sim.Enemies.Enemy> others ? others : [], train, content, mournersMode, out var mourned);
+        scene.Bodies = [.. scene.Bodies ?? [], .. mourned.All];
+    }
+    // --beetle idle|walk|brace|push|startle: the staged Freight Beetle at a crate off the line's left (note 366;
+    // Staging.Beetle), the beetle view's (pushing it unless told).
+    if (Str(args, "--beetle", view == "beetle" ? "push" : "") is { Length: > 0 } beetleMode)
+    {
+        scene.Enemies = Staging.Beetle(scene.Enemies is List<DarkTerritory.Sim.Enemies.Enemy> others ? others : [], train, content, beetleMode, out var freight);
+        scene.Bodies = [.. scene.Bodies ?? [], .. freight.All];
+        if (beetleMode is "walk" or "push")
+            scene.StagedPaces = new Dictionary<int, float>(scene.StagedPaces ?? new Dictionary<int, float>()) { [Staging.BeetleId] = beetleMode == "walk" ? 1.5f : 1.2f };
+    }
+    if (towerJawMode.Length > 0 && run is not null && tower is not null)
+    {
+        scene.Enemies = Staging.TowerJaw(scene.Enemies is List<DarkTerritory.Sim.Enemies.Enemy> others ? others : [], train, content, run, tower, towerJawMode);
+        if (towerJawMode == "away")
+            scene.StagedPaces = new Dictionary<int, float>(scene.StagedPaces ?? new Dictionary<int, float>()) { [Staging.TowerJawId] = 4 };
+        if (view is "towerjaw" or "towerjawfall")
+            camera = Staging.TowerJawCamera(train, run, tower, view);
+    }
+    if (brakemanMode.Length + knotterMode.Length + hotboxBug.Length > 0)
+    {
+        (scene.Enemies, scene.Crew) = Staging.Trainfolk(scene.Enemies is List<DarkTerritory.Sim.Enemies.Enemy> others ? others : [], scene.Crew ?? [], train,
+            brakemanMode, knotterMode, hotboxBug);
+        // (Over the side from his walk: what he was doing before he went, for his drop.)
+        if (brakemanMode == "drop")
+            scene.StagedBefore = new() { [Staging.BrakemanId] = (int)DarkTerritory.Sim.Enemies.BrakemanMode.Walk };
     }
     // --gaunt leave|leavein: the body it's carrying off, under it (App. A.6; Staging.GauntLoad).
     if (Str(args, "--gaunt", "") is "leave" or "leavein" && scene.Enemies?.OfType<DarkTerritory.Sim.Enemies.Gaunt>().FirstOrDefault() is { } leaving)
@@ -2612,10 +2678,14 @@ static object HudShot(string content, string[] args)
     // --joining (D.10, note 408): the watcher a crewmate who joined mid-run and waits in the queue, lobbied, never having died.
     // --lost (note 253): a joiner whose link has just gone, seen as it sees it: lost, and on its first try at getting back.
     // --lost --refused (note 254): back too late to a full crew, turned away: CREW FULL (2/2). --crew-full: the host at its cap.
+    // --link-quality [host|joiner] (note 534): a hosted night in the yard with two joiners over loopback, one of them losing
+    // 12% of what it sends, seen by the host (each crewmate's link on the lobby panel) or by the first joiner (its own).
+    // --link-quality line (note 540): the host's view as if out on the line, its corner naming the struggling joiner.
     using var spectated = args.Contains("--spectating") ? Spectating(content, Str(args, "--route", "frontier:7"), cars, args.Contains("--vote") || args.Contains("--ballot"),
             args.Contains("--joining") ? DeathCause.Waiting : DeathCause.Mauled)
         : args.Contains("--lost") ? LostLink(content, Str(args, "--route", "frontier:7"), cars, refused: args.Contains("--refused"))
-        : args.Contains("--crew-full") ? CrewFull(content, Str(args, "--route", "frontier:7"), cars) : null;
+        : args.Contains("--crew-full") ? CrewFull(content, Str(args, "--route", "frontier:7"), cars)
+        : args.Contains("--link-quality") ? LinkQuality(content, Str(args, "--route", "frontier:7"), cars, joiner: Str(args, "--link-quality", "host") == "joiner", line: Str(args, "--link-quality", "host") == "line") : null;
     IPlaySession session;
     if (spectated is { } pair)
     {
@@ -3052,6 +3122,27 @@ static SpectatedNight CrewFull(string content, string route, int cars)
     }
     // Shown as the host: the "watcher" is the host's own session.
     return new SpectatedNight(joiner, host);
+}
+
+static SpectatedNight LinkQuality(string content, string route, int cars, bool joiner, bool line = false)
+{
+    var host = NetPlaySession.HostGame(content, new SessionSetup(Route: route, Cars: cars, Enemies: false), port: 0);
+    var at = new System.Net.IPEndPoint(System.Net.IPAddress.Loopback, host.Port);
+    var good = NetPlaySession.Join(content, at, () => host.Step(default));
+    // The second's sends go missing one in eight, seeded, so its line on the host's panel reads as a struggling link's.
+    var poor = NetPlaySession.Join(content, at, () => { host.Step(default); good.Step(default); }, new Ballast.Net.DatagramOptions { SimulatedLoss = 0.12, Seed = 7 });
+    // The loss window's worth (hud.json lossWindowSeconds), so the shares are over the whole of it.
+    for (int t = 0; t < Hud.Tuning.LossWindowTicks + SimConstants.TickRate; t++)
+    {
+        host.Step(default);
+        good.Step(default);
+        poor.Step(default);
+        Thread.Sleep(1);
+    }
+    // The drawn world only (the host's own client's), past the gate: the night itself never left the yard.
+    if (line && host.World.Run is { } run)
+        run.Resume(60, -1, host.Train.Boiler.Tender, host.Train.Vehicles.Sum(v => v.Gun.Ammo));
+    return joiner ? new SpectatedNight(host, good) : new SpectatedNight(good, host);
 }
 
 static SpectatedNight Spectating(string content, string route, int cars, bool enemies = false, DeathCause how = DeathCause.Mauled)

@@ -238,9 +238,19 @@ public static partial class Hud
         // Of the crew cap (note 254), when there is one.
         o.Text(x, y, $"THE LOBBY: {crew.Count} ABOARD{(link.Cap > 0 ? $" OF {link.Cap}" : "")}", Amber, k);
         y += (line + 3) * k;
-        var lines = crew.Select(c => ($"  {c.Name}{(c.You && c.Name != "YOU" ? " (YOU)" : "")}", c.You ? Ink : Dim)).ToList();
         // The host starts the night; a joiner waits for it (the 4 Oct rehearsal: a joiner was told to drive out).
         bool hosting = link.PingMs is null && !link.Lost;
+        // Note 534: hosting, each crewmate's link beside their name, inked by its worst, so a host sees who's struggling
+        // before driving out (netcode-audit.md gap 3). A column after the longest name.
+        float column = crew.Count == 0 ? 0 : crew.Max(c => o.Measure($"  {c.Name} (YOU)", k)) + 6 * k;
+        foreach (var c in crew)
+        {
+            o.Text(x, y, $"  {c.Name}{(c.You && c.Name != "YOU" ? " (YOU)" : "")}", c.You ? Ink : Dim, k);
+            if (hosting && link.Crew.FirstOrDefault(l => l.Id == c.Id) is { PingMs: > 0 } cl && CrewLinkLine(cl) is var (text, ink))
+                o.Text(Overlay.Snap(x + column, k), y, text, ink, k);
+            y += (line + 1) * k;
+        }
+        var lines = new List<(string, Vector4)>();
         // Hosting at the cap: the lobby's shut (listed FULL, the platform lobby closed) till a place frees. The places taken
         // can be more than the names above: a dropped player's held place, someone waiting to board.
         if (link.Full)
@@ -429,18 +439,112 @@ public static partial class Hud
                 UiStyle.Keyed(o, Overlay.Snap(right - UiStyle.MeasureKeyed(o, how, k), k), 5 + line + 2 * k, how, link.Attempt > 0 ? Amber : Red, k);
             return;
         }
+        bool yard = s.World.Run is null or { Phase: Sim.Run.RunPhase.Yard };
         if (link.PingMs is not { } ping)
+        {
+            // Note 540: hosting, out on the line, whose link has gone bad, as a joiner's own is said (the yard's lobby panel
+            // has every crewmate's). Nobody else knows: the host's the one who can wait for them, or warn them.
+            if (!yard && BadLinks(link, s.Roster()) is { Count: > 0 } bad)
+            {
+                float y = 5;
+                foreach (var (text, ink) in bad)
+                {
+                    o.TextRight(right, y, text, ink, k);
+                    y += (line + 1) * k;
+                }
+            }
             return;
-        var colour = ping < 80 ? Green : ping < Tuning.PingWarnMs ? Amber : Red;
-        if (s.World.Run is null or { Phase: Sim.Run.RunPhase.Yard })
+        }
+        var colour = PingInk(ping);
+        if (yard)
         {
             // Just the milliseconds at the big size: "PING 100 MS" ran into the route strip at 1280 wide (the 4 Oct rehearsal).
             o.TextRight(right, 5, $"{ping:0} MS", colour, scale: 2);
             o.TextRight(right, 5 + 2 * line + 1, "PING TO HOST", Dim, k);
+            // Note 534: what's getting through and how, under it, so a joiner sees a bad link before the night starts.
+            if (QualityLine(link) is { } quality)
+                o.TextRight(right, 5 + 2 * line + 1 + (line + 1) * k, quality, link.Loss is { } l ? LossInk(l) : Dim, k);
         }
-        else if (ping >= Tuning.PingWarnMs)
-            o.TextRight(right, 5, $"PING {ping:0} MS", colour, k);
+        else
+        {
+            // Out on the line, only what's gone bad (note 285): the ping, the loss, or both.
+            float y = 5;
+            if (ping >= Tuning.PingWarnMs)
+            {
+                o.TextRight(right, y, $"PING {ping:0} MS", colour, k);
+                y += (line + 1) * k;
+            }
+            if (link.Loss is { } loss && loss >= Tuning.LossWarn)
+                o.TextRight(right, y, $"{Percent(loss)} LOST", LossInk(loss), k);
+        }
     }
+
+    /// <summary>The most crewmates named at once in the host's corner (note 540); past it, "AND n MORE".</summary>
+    const int BadLinksShown = 3;
+
+    /// <summary>
+    /// The host's corner out on the line (note 540): each crewmate whose round trip or loss has gone bad (hud.json
+    /// <c>pingWarnMs</c>, <c>lossWarn</c>), by name, worst first, "PRIYA: 13% LOST" or "SAM: PING 210 MS"; the rest counted.
+    /// </summary>
+    public static List<(string Text, Vector4 Ink)> BadLinks(LinkInfo link, IReadOnlyList<RosterLine> roster)
+    {
+        var bad = link.Crew
+            .Where(c => c.PingMs >= Tuning.PingWarnMs || c.Loss >= Tuning.LossWarn)
+            .OrderByDescending(c => Math.Max(c.PingMs / Tuning.PingWarnMs, (c.Loss ?? 0) / Tuning.LossWarn)).ThenBy(c => c.Id)
+            .ToList();
+        var lines = new List<(string, Vector4)>();
+        foreach (var c in bad.Take(BadLinksShown))
+        {
+            string name = roster.FirstOrDefault(r => r.Id == c.Id).Name is { Length: > 0 } n ? n : $"CREW {c.Id}";
+            bool lossy = c.Loss is { } l && l >= Tuning.LossWarn && l / Tuning.LossWarn >= c.PingMs / Tuning.PingWarnMs;
+            lines.Add(($"{name}: {(lossy ? $"{Percent(c.Loss!.Value)} LOST" : $"PING {c.PingMs:0} MS")}", Red));
+        }
+        if (bad.Count > BadLinksShown)
+            lines.Add(($"AND {bad.Count - BadLinksShown} MORE", Red));
+        return lines;
+    }
+
+    /// <summary>A round trip's ink: good, going (a warning), bad (hud.json <c>pingWarnMs</c>).</summary>
+    static Vector4 PingInk(double ping) => ping < 80 ? Green : ping < Tuning.PingWarnMs ? Amber : Red;
+
+    /// <summary>A loss's ink (note 534): under hud.json <c>lossGood</c> good, from <c>lossWarn</c> bad.</summary>
+    static Vector4 LossInk(double loss) => loss < Tuning.LossGood ? Green : loss < Tuning.LossWarn ? Amber : Red;
+
+    /// <summary>A share as the HUD says it: "0%", "3%", and under one in a hundred but not none, "&lt;1%".</summary>
+    public static string Percent(double share) => share > 0 && share < 0.005 ? "<1%" : $"{Math.Round(share * 100):0}%";
+
+    /// <summary>
+    /// The link's quality in a line (note 534; netcode-audit.md gap 3): what's lost over the window and how the host's
+    /// reached, "2% LOST, VIA STEAM RELAY" or "0% LOST, DIRECT". Null when there's nothing to say yet.
+    /// </summary>
+    public static string? QualityLine(LinkInfo link)
+    {
+        string? loss = link.Loss is { } l ? $"{Percent(l)} LOST" : null;
+        string? via = link.Via is { } v ? Route(v, full: true) : null;
+        return loss is null && via is null ? null : string.Join(", ", new[] { loss, via }.OfType<string>());
+    }
+
+    /// <summary>How a link goes: through a network's relays ("VIA STEAM RELAY", or short, "STEAM RELAY") or "DIRECT".</summary>
+    public static string Route(Ballast.Net.CarrierLink via, bool full) =>
+        !via.Relayed ? "DIRECT"
+        : via.Network is { Length: > 0 } n ? $"{(full ? "VIA " : "")}{n.ToUpperInvariant()} RELAY" : full ? "VIA A RELAY" : "RELAY";
+
+    /// <summary>A crewmate's link on the host's lobby panel (note 534): "42 MS, 1% LOST, DIRECT", and its worst ink.</summary>
+    public static (string Text, Vector4 Ink) CrewLinkLine(CrewLink c)
+    {
+        var parts = new List<string> { $"{c.PingMs:0} MS" };
+        var ink = PingInk(c.PingMs);
+        if (c.Loss is { } loss)
+        {
+            parts.Add($"{Percent(loss)} LOST");
+            ink = Worse(ink, LossInk(loss));
+        }
+        if (c.Via is { } via)
+            parts.Add(Route(via, full: false));
+        return (string.Join(", ", parts), ink);
+    }
+
+    static Vector4 Worse(Vector4 a, Vector4 b) => a == Red || b == Red ? Red : a == Amber || b == Amber ? Amber : a;
 
     /// <summary>An open house's hiding spot as the prompt says it (note 326), or an open barn's or shed's (note 417).</summary>
     static string SpotName(DarkTerritory.Sim.Stops.ContainerKind kind) => kind switch

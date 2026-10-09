@@ -109,6 +109,70 @@ public class QuietHudTests
     }
 
     [Fact]
+    public void ALinkLosingTooMuchIsSaidOutOnTheLineAndAGoodOneIsnt()
+    {
+        // Note 534 (netcode-audit.md gap 3): loss is shown as a bad ping is, only once it's bad.
+        static int TopRight(Overlay o) => In(o, W * 0.7f, 0, W, 30);
+        var line = OutOnTheLine(4000);
+        var good = new LinkInfo("JOINED", 40, 2, null, false) { Loss = Hud.Tuning.LossGood / 2 };
+        Assert.Equal(0, TopRight(Drawn(new Linked(line, good))));
+        Assert.True(TopRight(Drawn(new Linked(line, good with { Loss = Hud.Tuning.LossWarn + 0.02 }))) > 0);
+    }
+
+    [Fact]
+    public void TheLinksQualityIsSaidAsWhatsLostAndHowItsReached()
+    {
+        var relayed = new Ballast.Net.CarrierLink("Steam", Relayed: true, 42, 0.99f);
+        var direct = new Ballast.Net.CarrierLink("", Relayed: false);
+        var link = new LinkInfo("JOINED", 40, 2, null, false);
+        Assert.Null(Hud.QualityLine(link));
+        Assert.Equal("2% LOST, VIA STEAM RELAY", Hud.QualityLine(link with { Loss = 0.02, Via = relayed }));
+        Assert.Equal("0% LOST, DIRECT", Hud.QualityLine(link with { Loss = 0, Via = direct }));
+        Assert.Equal("<1% LOST", Hud.QualityLine(link with { Loss = 0.003 }));
+        // The host's panel: each crewmate's round trip, loss and route, inked by the worst of them.
+        var (fine, fineInk) = Hud.CrewLinkLine(new CrewLink(2, 30, 0, direct));
+        Assert.Equal("30 MS, 0% LOST, DIRECT", fine);
+        var (poor, poorInk) = Hud.CrewLinkLine(new CrewLink(3, 30, Hud.Tuning.LossWarn + 0.05, relayed));
+        Assert.Equal("30 MS, 13% LOST, STEAM RELAY", poor);
+        Assert.NotEqual(fineInk, poorInk);
+        Assert.Equal(poorInk, Hud.CrewLinkLine(new CrewLink(4, Hud.Tuning.PingWarnMs + 50, 0, direct)).Ink);
+    }
+
+    [Fact]
+    public void AHostOutOnTheLineIsToldWhoseLinkIsBad()
+    {
+        // Note 540: hosting, the corner names whoever's link has gone bad, and says nothing while everyone's is fine.
+        static int TopRight(Overlay o) => In(o, W * 0.7f, 0, W, 30);
+        var line = OutOnTheLine(4000);
+        var fine = new LinkInfo("HOST", null, 3, null, false) { Crew = [new CrewLink(2, 40, 0.01, null), new CrewLink(3, 60, 0, null)] };
+        Assert.Equal(0, TopRight(Drawn(new Linked(line, fine))));
+        var struggling = fine with { Crew = [new CrewLink(2, 40, 0.01, null), new CrewLink(3, 60, Hud.Tuning.LossWarn + 0.05, null)] };
+        Assert.True(TopRight(Drawn(new Linked(line, struggling))) > 0);
+    }
+
+    [Fact]
+    public void TheBadLinksAreNamedWorstFirstAndTheRestCounted()
+    {
+        RosterLine Named(byte id, string name) => new(id, name, "", true);
+        var roster = new[] { Named(1, "YOU"), Named(2, "PRIYA"), Named(3, "SAM"), Named(4, "ALEX"), Named(5, "JO"), Named(6, "LEE") };
+        double warn = Hud.Tuning.PingWarnMs, lossy = Hud.Tuning.LossWarn;
+        var link = new LinkInfo("HOST", null, 6, null, false)
+        {
+            Crew =
+            [
+                new CrewLink(2, 40, lossy + 0.05, null), // far over on loss
+                new CrewLink(3, warn * 2, 0, null),      // twice the ping warning: the worst
+                new CrewLink(4, 40, 0, null),            // fine: not named
+                new CrewLink(5, warn + 1, 0, null),
+                new CrewLink(6, warn + 2, 0, null),
+            ],
+        };
+        var lines = Hud.BadLinks(link, roster).Select(l => l.Text).ToList();
+        Assert.Equal([$"SAM: PING {warn * 2:0} MS", $"PRIYA: {Hud.Percent(lossy + 0.05)} LOST", $"LEE: PING {warn + 2:0} MS", "AND 1 MORE"], lines);
+        Assert.Empty(Hud.BadLinks(link with { Crew = [new CrewLink(4, 40, 0, null)] }, roster));
+    }
+
+    [Fact]
     public void TheLinksCornerSaysWhatToDoAsTheAlarmDoes()
     {
         // Note 476: under NO LINK, the action and its key (note 285's form), as the alarm in the middle says it, never key first.

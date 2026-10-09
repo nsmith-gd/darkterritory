@@ -397,16 +397,28 @@ public class CarFireTests
         }
     }
 
-    [Fact]
-    public void AtAStopTheNearestHandPutsTheFireFliesLampOutWhateverItsPart()
+    [Theory]
+    [InlineData(2)]
+    [InlineData(6)]
+    public void AtAStopTheNearestHandPutsTheFireFliesLampOutWhateverItsPart(int seed)
     {
         // Note 496: a crew of four's hands at a stop are the shunter and the winch pair, none a crate hand, and only a crate
         // hand ever went to trouble in a car: held on the main at frontier:7's Talbot Foundry, cutting the train and boarding
         // the cab, nobody put out the lamp the Fire Flies came to (seed 2: car 2, every car of the train alight by the end).
         // Now the nearest hand goes, whatever its part: the lamp's out, or the fire they lit is put out in its smoke.
+        // Note 526 (seed 6, car 1): the nearest, not the first whose client saw the flies (that was the shunter at the switch,
+        // 22 s off); and in at the side door to the room, not stood in the doorway pressing a lamp key that counts only in the
+        // room, or walked between the doorway and the middle by the room's box while the car burned.
+        // The nights as the director dealt them before the six of notes 362–367 joined its roster: a kind more in the deal
+        // reshuffles every night (seed 6 has no Fire Flies with them in), and these two are the cases the notes were written on.
+        EnemyKind[] six = [EnemyKind.Mourners, EnemyKind.TowerJaw, EnemyKind.Brakeman, EnemyKind.Knotter, EnemyKind.FreightBeetle, EnemyKind.Hotbox];
+        var enemies = Tuning.Enemies with
+        {
+            Director = Tuning.Enemies.Director with { Roster = [.. Enum.GetValues<EnemyKind>().Except(six).Select(Director.Key)] },
+        };
         var flies = new Dictionary<int, int>(); // swarm → its car
         var lit = new HashSet<int>();           // cars alight (a fire past its smoke)
-        CrewOfTwoTests.Night("frontier:7", 10, 520, null, bots: 4, seed: 2,
+        CrewOfTwoTests.Night("frontier:7", 10, 520, null, bots: 4, seed: seed, enemies: enemies,
             upkeep: DataFile.Load<UpkeepTuning>(Path.Combine(DataFile.FindContentRoot(), UpkeepTuning.File)), each: world =>
             {
                 foreach (var e in world.ActiveEnemies)

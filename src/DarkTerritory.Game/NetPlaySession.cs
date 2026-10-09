@@ -202,7 +202,11 @@ public sealed record SessionSetup(string? Route = null, string Line = "test-loop
 /// A night this machine hosts, as <see cref="NetPlaySession.BuildHost"/> builds it (note 515): the setup (its content's hashes,
 /// mods, start and line plan filled in), the save it resumes from, the crew its threats are planned for, and the password's key.
 /// </summary>
-public sealed record HostedNight(SessionSetup Setup, Sim.Campaign.RunCheckpoint? Resume, int Crew, byte[]? PasswordKey);
+public sealed record HostedNight(SessionSetup Setup, Sim.Campaign.RunCheckpoint? Resume, int Crew, byte[]? PasswordKey)
+{
+    /// <summary>The window the host counts each link's losses over (note 540: the HUD's, hud.json), in ticks.</summary>
+    public int LossWindowTicks { get; init; } = new HudTuning().LossWindowTicks;
+}
 
 /// <summary>
 /// Told of every night this machine hosts (note 515): a developer build's recorder. <see cref="Hosting"/> may hand back a
@@ -506,7 +510,10 @@ public sealed class NetPlaySession : IPlaySession, IDisposable
         };
         // Planned for who'll be there: alone with bots, them and you; hosted online, the friends expected too (T115: a
         // local night alone was planned for four).
-        var night = new HostedNight(setup, resume, online is null ? bots + 1 : Math.Max(bots + 1, expectedCrew), key);
+        var night = new HostedNight(setup, resume, online is null ? bots + 1 : Math.Max(bots + 1, expectedCrew), key)
+        {
+            LossWindowTicks = Hud.Tuning.LossWindowTicks,
+        };
         var udp = port is { } p ? UdpTransport.Host(p) : UdpTransport.Host(0, bind: IPAddress.Loopback);
         ITransport hostTransport = online is null ? udp : new HostGroup(udp, OnlineTransport.Host(online));
         string tier = setup.Route is { } spec ? Sim.Route.Route.ParseSpec(spec).Tier.ToString() : "";
@@ -557,7 +564,7 @@ public sealed class NetPlaySession : IPlaySession, IDisposable
         }
         var (clientWorld, _) = setup.Build(content);
         var clientTransport = UdpTransport.Connect(new IPEndPoint(IPAddress.Loopback, udp.Port));
-        var client = new ClientSession(clientTransport, clientWorld, trainTuning, playerTuning) { Name = LocalName(lobby), Outfit = Outfit, PasswordKey = key };
+        var client = new ClientSession(clientTransport, clientWorld, trainTuning, playerTuning) { Name = LocalName(lobby), Outfit = Outfit, PasswordKey = key, SnapshotLoss = new(Hud.Tuning.LossWindowTicks) };
         // The host's own player comes aboard before anyone else can: first aboard takes the cab.
         var clock = System.Diagnostics.Stopwatch.StartNew();
         while (client.PlayerId is null && clock.Elapsed.TotalSeconds < 5)
@@ -607,7 +614,12 @@ public sealed class NetPlaySession : IPlaySession, IDisposable
         setup = setup with { PlanPrint = route?.Plan?.Fingerprint(), TerrainPrint = TerrainOf(hostWorld)?.Print() };
         if (resume is not null)
             Restore(hostWorld, resume);
-        var host = new HostSession(transport, hostWorld, loadout.Train, playerTuning) { SessionInfo = setup.Encode(), PasswordKey = night.PasswordKey };
+        var host = new HostSession(transport, hostWorld, loadout.Train, playerTuning)
+        {
+            SessionInfo = setup.Encode(),
+            PasswordKey = night.PasswordKey,
+            LossWindowTicks = night.LossWindowTicks,
+        };
         hostWorld.EnableBodies();
         // A resumed night's things are where they were (note 500); an older save, or a new night, stocks the train afresh.
         if (resume?.Aboard is { } aboard)
@@ -842,7 +854,7 @@ public sealed class NetPlaySession : IPlaySession, IDisposable
         }
         var client = new ClientSession(new Replay(transport, early), world,
             setup.Loadout(content).Train, DataFile.Load<PlayerTuning>(Path.Combine(content, PlayerTuning.File)))
-        { Name = LocalName(lobby), Outfit = Outfit, PasswordKey = key };
+        { Name = LocalName(lobby), Outfit = Outfit, PasswordKey = key, SnapshotLoss = new(Hud.Tuning.LossWindowTicks) };
         return new NetPlaySession(null, null, null, client, transport, setup, route, lobby) { Redial = redial };
     }
 
@@ -963,6 +975,10 @@ public sealed class NetPlaySession : IPlaySession, IDisposable
                 Checkpoints++;
             }
         }
+        // Come back (App. D.8, note 529): alive again where a Holdout put you, the moment the camera cuts in on.
+        if (!_previous.Alive && Client.Predicted.Alive
+            && World.Holdouts?.All.FirstOrDefault(h => h.State == Sim.Run.HoldoutState.Freed && h.Occupant == PlayerId) is { } freed)
+            _cameBack = (freed.Inside, freed.Door, Tick);
         _previous = Client.Predicted;
         // Hosting, this machine's own player is the host whose vote alone skips the film (E.5).
         if (Host is { HostPlayer: < 0 } host && Client.PlayerId is { } me)
@@ -1024,10 +1040,24 @@ public sealed class NetPlaySession : IPlaySession, IDisposable
         return _frames;
     }
 
-    public Camera EyeCamera(IReadOnlyList<CarFrame> frames, double alpha, double pendingYaw, double pendingPitch) =>
-        Watching >= 0 && Client.TryGetRemote((byte)Watching, alpha, out var s)
-            ? Eyes.Operator(s, World) ?? Eyes.From(s, s, frames, alpha, 0, 0)
-            : Eyes.Operator(Player, World) ?? Eyes.From(Player, _previous, frames, alpha, pendingYaw, pendingPitch);
+    public Camera EyeCamera(IReadOnlyList<CarFrame> frames, double alpha, double pendingYaw, double pendingPitch)
+    {
+        if (Watching >= 0 && Client.TryGetRemote((byte)Watching, alpha, out var s))
+            return Eyes.Operator(s, World) ?? Eyes.From(s, s, frames, alpha, 0, 0);
+        var eyes = Eyes.Operator(Player, World) ?? Eyes.From(Player, _previous, frames, alpha, pendingYaw, pendingPitch);
+        // Just come back: the shot of you getting up, then your eyes coming up with you (note 529).
+        return _cameBack is { } back && Eyes.CameBack(back.Inside, back.Door, CameBackSeconds(back.Tick, alpha), eyes) is { } shot ? shot : eyes;
+    }
+
+    // When you last came back inside a Holdout (note 529): its inside and door, and the tick.
+    (Double3 Inside, Double3 Door, long Tick)? _cameBack;
+
+    double CameBackSeconds(long tick, double alpha) => (Tick - tick + alpha) * SimConstants.TickSeconds;
+
+    public Crewmate? CameBackFigure(IReadOnlyList<CarFrame> frames, double alpha) =>
+        _cameBack is { } back && CameBackSeconds(back.Tick, alpha) is >= 0 and < Eyes.CutIn && Player.Alive
+            ? Art.CrewActs.Crewmate((byte)PlayerId, Player, World, frames, [Player]) with { Act = Art.CrewPose.GetUp }
+            : null;
 
     /// <summary>
     /// Dead, or waiting to board, you watch the living crew through their eyes (GDD App. D.10): whoever's first when you
@@ -1167,7 +1197,23 @@ public sealed class NetPlaySession : IPlaySession, IDisposable
         Cap = Host?.Cap ?? Client.PlayerTuning.Crew.Places,
         Places = Host?.Occupied ?? 0,
         Refused = Lost ? Client.Refused?.ToString() : null,
+        Loss = Host is null && Client.Connected ? Client.SnapshotLoss.Settled : null,
+        Via = Host is null && Client.Connected ? _link.Via(PeerId.Host) : null,
+        Crew = CrewLinks(),
     };
+
+    /// <summary>
+    /// Hosting, each remote crewmate's link (note 534; netcode-audit.md gap 3): so the host sees who's struggling before
+    /// driving out of the yard. The host's own player and the bots are on this machine, and aren't on it.
+    /// </summary>
+    IReadOnlyList<CrewLink> CrewLinks()
+    {
+        if (Host is not { } host || _hostTransport is not IConnectionInfo info)
+            return [];
+        var bots = BotCrew?.Bots.Select(b => b.Session.PlayerId).OfType<byte>().ToHashSet() ?? [];
+        return [.. host.Links.Where(l => l.Id != Client.PlayerId && !bots.Contains(l.Id)).OrderBy(l => l.Id)
+            .Select(l => new CrewLink(l.Id, info.RoundTrip(l.Peer) * 1000, l.InputLoss, info.Via(l.Peer)))];
+    }
 
     /// <summary>This machine's address on the local network and the port, for friends to type in; null unless hosting for them.</summary>
     string? JoinAt => _joinAt ??= Host is not null && _udp is { Port: > 0, LocalLoopbackOnly: false } u ? LanAddress() is { } ip ? $"{ip}:{u.Port}" : null : null;
