@@ -24,7 +24,7 @@ public sealed partial class SceneArt(Look look)
 
     /// <summary>A town's people's breathing gear and hats (note 353).</summary>
     public TownsfolkKit Townsfolk { get; } = new(look);
-    /// <summary>Dave's things: his hats and waistcoats, glasses and sandals, his easel and canvas (note 550).</summary>
+    /// <summary>Dave's things: his hats and waistcoats, glasses and sandals, his easel and canvas (note 570).</summary>
     public DaveKit Dave { get; } = new(look);
 
     CreatureArt? _creatures;

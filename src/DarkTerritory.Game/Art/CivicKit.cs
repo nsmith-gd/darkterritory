@@ -25,7 +25,7 @@ public static class CivicKit
     {
         "tree" => name.Contains("elm", StringComparison.OrdinalIgnoreCase) ? 1 : 0,
         "garden" => name.Contains("tin", StringComparison.OrdinalIgnoreCase) ? 1 : 0,
-        // Dave's (note 550), signed with his D: his valley, his sea, his lake.
+        // Dave's (note 570), signed with his D: his valley, his sea, his lake.
         "mural" when name.Contains("D.)", StringComparison.Ordinal) => name.Contains("sea", StringComparison.OrdinalIgnoreCase) ? 4
             : name.Contains("lake", StringComparison.OrdinalIgnoreCase) ? 5 : 3,
         "mural" => name.Contains("window", StringComparison.OrdinalIgnoreCase) ? 1 : name.Contains("sunrise", StringComparison.OrdinalIgnoreCase) ? 0 : 2,
@@ -324,7 +324,7 @@ public static class CivicKit
         {
             case >= 3:
                 {
-                    // Dave's (note 550): one of his landscapes the wall's width, in the hand of his canvases, signed with his D.
+                    // Dave's (note 570): one of his landscapes the wall's width, in the hand of his canvases, signed with his D.
                     k.With(Kit.At(0, y0, -0.02f), () => DaveKit.Landscape(k, x, h, variant - 3, back: true));
                     break;
                 }

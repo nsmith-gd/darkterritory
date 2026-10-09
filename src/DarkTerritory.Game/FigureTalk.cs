@@ -4,7 +4,7 @@ using DarkTerritory.Sim.Player;
 
 namespace DarkTerritory.Game;
 
-/// <summary>Mirror of content/world/figures.json (note 550): the words of the figures met out in the Territory.</summary>
+/// <summary>Mirror of content/world/figures.json (note 570): the words of the figures met out in the Territory.</summary>
 public sealed record FigureWords
 {
     public const string File = "world/figures.json";
@@ -40,7 +40,7 @@ public sealed record FigureLines
 }
 
 /// <summary>
-/// Talking with Dave (GDD §3.2; note 550), on this machine alone, as a town's talk is (<see cref="TownTalk"/>): a Use press at
+/// Talking with Dave (GDD §3.2; note 570), on this machine alone, as a town's talk is (<see cref="TownTalk"/>): a Use press at
 /// his prompt opens his card and Use again hears his next line; walking off closes it. Nothing here changes the night, so
 /// nothing is sent. What he says to a blow is heard here too: the host keeps his count of blows, and every client has the
 /// last striker's (his replicated <see cref="Dave.StrikerBlows"/>), so whoever's near hears him answer it, and hears his

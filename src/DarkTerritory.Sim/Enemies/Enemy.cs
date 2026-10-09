@@ -28,7 +28,7 @@ public enum EnemyKind : byte
     FreightBeetle = 37,
     // Hotbox (GDD §21, the director's brief of 8 Oct 2026; note 367).
     Hotbox = 38,
-    // Dave, the wandering painter (GDD §3.2, the director, 8 Oct 2026; note 550): not a creature, and nobody's quarry.
+    // Dave, the wandering painter (GDD §3.2, the director, 8 Oct 2026; note 570): not a creature, and nobody's quarry.
     Dave = 39
 }
 

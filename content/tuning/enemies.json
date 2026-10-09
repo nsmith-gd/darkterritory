@@ -490,7 +490,7 @@
   },
 
   // DAVE (GDD §3.2; the director, 8 Oct 2026: "a special NPC that shows up randomly in places ... If a player hits Dave 5
-  // times Dave will grab them, say 'You should be nicer in a dark world.' and snap their neck immediately"; note 550). Not a
+  // times Dave will grab them, say 'You should be nicer in a dark world.' and snap their neck immediately"; note 570). Not a
   // creature: the director never spends on him and nothing hunts him. On "chance" of nights he's at his easel out past one
   // of the line's stops beyond "pastGate" m of the gate: "out" m to the side away from its village or yard and "along" m
   // either way of where the train stops, "trackClearance" m clear of any track and "room" m of any wall. "blows" from one

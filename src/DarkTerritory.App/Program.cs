@@ -85,7 +85,7 @@ string Arg(string name, string fallback)
 // A mod manager's profile (Thunderstore, T78) comes in as --mods-dir.
 args = Mods.TakeArgs(args);
 var content = Mods.Mount(DataFile.FindContentRoot(Environment.CurrentDirectory), enabled: !args.Contains("--no-mods"));
-// The figures out in the Territory and their words (note 550): Dave.
+// The figures out in the Territory and their words (note 570): Dave.
 FigureTalk.Words = FigureWords.Load(content);
 // The art pass's surfaces (T39); --greybox draws flat colour instead.
 var look = args.Contains("--greybox") ? null : Look.Load(content);
@@ -812,7 +812,7 @@ CampaignState? Play(IPlaySession session, CampaignState? campaign)
     // Talking and reading in the fortress town (note 281): on this machine alone. A press the town took isn't sent to the
     // host while the key's still down (nothing in a town changes the night; a lamp at somebody's feet stays where it is).
     var townTalk = new TownTalk();
-    // Dave's words and his card (note 550): on this machine, as a town's are.
+    // Dave's words and his card (note 570): on this machine, as a town's are.
     var figureTalk = new FigureTalk();
     bool useKept = false;
     double pendingYaw = 0, pendingPitch = 0;
@@ -1303,7 +1303,7 @@ CampaignState? Play(IPlaySession session, CampaignState? campaign)
             : new OwnView((float)camera.Yaw, (float)camera.Pitch, act, me.Velocity.X * me.Velocity.X + me.Velocity.Z * me.Velocity.Z > 0.16,
                 swing, session.World.OutfitOf(session.PlayerId), Kit.Held(me));
         scene.Time = now;
-        // Dave's card (note 550): closes as you walk off, and opens on what he says to a blow near you.
+        // Dave's card (note 570): closes as you walk off, and opens on what he says to a blow near you.
         figureTalk.Step(session.World, PlayerMotor.WorldPosition(me, session.Train) + Double3.Up * session.Train.Dynamics.Tuning.Pick.EyeHeight, now);
         // The town's card closes once you've walked off; whoever you're talking to turns to you.
         if (session.World.Town is { } here)
