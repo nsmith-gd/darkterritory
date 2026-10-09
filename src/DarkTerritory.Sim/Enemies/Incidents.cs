@@ -169,8 +169,9 @@ public sealed class CarFire(int id) : Incident(id)
     readonly List<int> _sprayed = [];
 
     /// <summary>
-    /// Crew spraying it: inside, an extinguisher with charge in their hands, fire held. Each sprays the cell they're looking
-    /// at, if it's in reach (App. F.1: "the extinguisher puts out the cell you aim at"); aimed at none, it's wasted.
+    /// Crew spraying it: in the car (or at its door, on the landing), an extinguisher with charge in their hands, fire held.
+    /// Each sprays the fire they're pointing at (App. F.1: "the extinguisher puts out the cell you aim at"), within reach;
+    /// pointed at no fire, the boards they're looking at, and it's wasted.
     /// </summary>
     List<(int Player, Physics.Body Extinguisher, int Cell)> Spraying(EnemyContext ctx, FireGrid grid, CarFireTuning t)
     {
@@ -179,13 +180,50 @@ public sealed class CarFire(int id) : Incident(id)
         foreach (var (p, intent) in ctx.Crew)
         {
             var s = p.State;
-            if (!s.Alive || s.Parent != Attached || !PlayerMotor.Indoors(s, ctx.Train) || !intent.Has(PlayerButtons.Fire))
+            if (!s.Alive || s.Parent != Attached || !(PlayerMotor.Indoors(s, ctx.Train) || s.Surface == Surface.Deck) || !intent.Has(PlayerButtons.Fire))
                 continue;
             if (ctx.World.Bodies.CarriedBy(p.Id) is not { Kind: Physics.BodyKind.Extinguisher, Charge: > 0 } ext)
                 continue;
-            list.Add((p.Id, ext, grid.Hit(s.Position + Double3.Up * eye, Run.Bookmarks.Forward(s.Yaw, s.Pitch), t.SprayReach)));
+            list.Add((p.Id, ext, AimedAt(grid, s.Position + Double3.Up * eye, Run.Bookmarks.Forward(s.Yaw, s.Pitch), t)));
         }
         return list;
+    }
+
+    /// <summary>
+    /// The cell a spray from <paramref name="eye"/> along <paramref name="look"/> lands on (note 587, the director, 9 Oct 2026:
+    /// "I'm looking right at a flame. And I couldn't be more than a foot or two from this fire. And I've been holding for
+    /// multiple seconds, and it's still hasn't doused the flames"). The look's ray alone hit the boards behind the flames
+    /// (above a burning floor cell, the far floor or nothing in reach, the car's end walls not being its cells at all). So
+    /// where the look lands on fire it goes there, as before; where it doesn't, on the burning cell whose flames (its surface
+    /// up to <see cref="CarFireTuning.SprayAimLift"/> + <see cref="CarFireTuning.SprayAimLiftPerHeat"/> x its heat off it, as
+    /// tall as they're drawn) are nearest the middle of a <see cref="CarFireTuning.SprayConeDeg"/> cone along the look, within
+    /// reach; with none, on what the look hits. The sprayer's sound finds it the same way (GameAudio.Douse).
+    /// </summary>
+    public int AimedAt(FireGrid grid, Double3 eye, Double3 look, CarFireTuning t)
+    {
+        int hit = grid.Hit(eye, look, t.SprayReach);
+        if (hit >= 0 && hit < Heat.Length && Heat[hit] > 0)
+            return hit;
+        double best = Math.Cos(t.SprayConeDeg * Math.PI / 180), length = look.Length;
+        int cell = -1;
+        for (int i = 0; i < grid.Count && i < Heat.Length; i++)
+        {
+            if (Heat[i] <= 0)
+                continue;
+            // The flames: the burning boards, a third and two thirds up them, and their tips.
+            double tall = t.SprayAimLift + t.SprayAimLiftPerHeat * Heat[i];
+            for (int k = 0; k <= 3; k++)
+            {
+                var to = grid.Centre[i] + grid.Normal(i) * (tall * k / 3) - eye;
+                double d = to.Length;
+                if (d > t.SprayReach || d < 1e-6)
+                    continue;
+                double cos = Double3.Dot(to, look) / (d * length);
+                if (cos > best)
+                    (best, cell) = (cos, i);
+            }
+        }
+        return cell >= 0 ? cell : hit;
     }
 
     protected override void Tick(EnemyContext ctx)

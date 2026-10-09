@@ -10,7 +10,7 @@ namespace DarkTerritory.Game.Sound;
 /// The extinguisher heard on the fire (queue #205, ARCHITECTURE §8 note 469; the director, 8 Oct 2026: holding it on a fire
 /// "still doesnt feel like its doing anything"; D1's note 467: the cell aimed at is out in a second). The jet's own sound is
 /// the extinguisher's and the crackle is the fire's; this is where they meet, off the fire's replicated cells
-/// (<see cref="CarFire.Heat"/>) and the sprayer's aim as the host finds it (<see cref="FireGrid.Hit"/>), so every machine
+/// (<see cref="CarFire.Heat"/>) and the sprayer's aim as the host finds it (<see cref="CarFire.AimedAt"/>), so every machine
 /// hears it: the jet on a burning cell, a cell knocked out under it, and the whole fire out.
 /// </summary>
 public sealed partial class GameAudio
@@ -40,7 +40,7 @@ public sealed partial class GameAudio
             if (fires.FirstOrDefault(f => f.Attached == s.Parent) is not { } fire || FireGrid.Of(train, fire.Attached, tuning.CellSize) is not { } grid)
                 continue;
             _jetOnCar[fire.Attached] = _time;
-            int cell = grid.Hit(s.Position + Double3.Up * eye, Bookmarks.Forward(s.Yaw, s.Pitch), tuning.SprayReach);
+            int cell = fire.AimedAt(grid, s.Position + Double3.Up * eye, Bookmarks.Forward(s.Yaw, s.Pitch), tuning);
             if (cell >= 0 && cell < fire.Heat.Length && fire.Heat[cell] > 0)
                 HoldLevel("crew-extinguisher.on-fire", body, train.Frames[fire.Attached].ToWorld(grid.Centre[cell]), Occlusion(fire.Attached),
                     0.6 + 0.4 * Math.Clamp(fire.Heat[cell], 0, 1));
