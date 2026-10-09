@@ -1,5 +1,5 @@
 """THE BRAKEMAN (GDD §21 corrupted humans, App. A.8; docs/design/creatures/brakeman.md §3; ARCHITECTURE §8 note 364):
-tools/blender/brakeman.py's dead railwayman with his colour and his fine relief baked into one 2048 atlas (the Look
+tools/blender/brakeman.py's dead railwayman with his colour and his fine relief baked into one 1024 atlas (the Look
 Review: organic, not tiled library textures on boxes; the Gannet's and the Ribbit's way).
 
 tools/blender/brakeman.py stays his source: the rig, the fused skin and the parts over it, the clips. This recipe runs it,
@@ -32,7 +32,7 @@ import make  # noqa: E402
 import overbake  # noqa: E402
 from overbake import fine, smooth01  # noqa: E402
 
-S = 2048
+S = 1024  # the roster's human- and small-creature atlas (the crew's, the Gaunt's): every renderer loads every atlas, and ten at 2048 took the CI runner over (note 367)
 kit, g, arm, parts = overbake.hold("brakeman.py")
 print("[dt] brakeman parts", {n: len(o.data.polygons) for n, o in sorted(parts.items())})
 make.USED.clear()

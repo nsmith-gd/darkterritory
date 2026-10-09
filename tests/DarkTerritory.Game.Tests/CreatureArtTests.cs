@@ -1121,6 +1121,26 @@ public class CreatureArtTests
 
     const int W = 480, H = 270;
 
+    // One renderer for every model's turntable, made once: a GPU context and the shaders compiled for each of thirty-odd
+    // models cost the CI runner's memory more than it has (the six of note 362–367 took the Linux job over), and most of
+    // each one's time. A shot is the frame's whole state, so they share it; it lives as long as the test run.
+    static GreyboxRenderer? _turntable;
+    static readonly Lock TurntableLock = new();
+
+    static GreyboxRenderer TurntableRenderer()
+    {
+        lock (TurntableLock)
+        {
+            if (_turntable is null)
+            {
+                var renderer = new GreyboxRenderer(Gpu(), W, H);
+                Look.Dress(renderer);
+                _turntable = renderer;
+            }
+            return _turntable;
+        }
+    }
+
     /// <summary>
     /// One PNG per clip: three angles on the top row, three moments of the clip on the middle row, and the same thing
     /// walked back through the fog on the bottom (8, 15, 25 m), all lit by a single warm lantern near it.
@@ -1130,9 +1150,7 @@ public class CreatureArtTests
     public void Turntable(string name)
     {
         var m = Get(name);
-        using var gpu = Gpu();
-        using var renderer = new GreyboxRenderer(gpu, W, H);
-        Look.Dress(renderer);
+        var renderer = TurntableRenderer();
         string dir = Path.Combine(Repo, "out", "shots", "creatures");
         Directory.CreateDirectory(dir);
         var b = Budgets[name];

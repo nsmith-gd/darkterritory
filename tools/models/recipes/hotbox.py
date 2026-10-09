@@ -1,5 +1,5 @@
 """HOTBOX (GDD §21 structural, App. A.4; docs/design/creatures/hotbox.md §3; ARCHITECTURE §8 note 367):
-tools/blender/hotbox.py's axle parasite with its colour, its fine relief and its glow baked into one 2048 atlas (the Look
+tools/blender/hotbox.py's axle parasite with its colour, its fine relief and its glow baked into one 1024 atlas (the Look
 Review: organic, not tiled library textures on boxes; the Gannet's and the Ribbit's way).
 
 tools/blender/hotbox.py stays its source: the rig, the fused skin and the parts over it, the clips. This recipe runs it,
@@ -32,7 +32,7 @@ import traintexels as texels  # noqa: E402
 from overbake import fine, smooth01  # noqa: E402
 from traintexels import paint, suffix  # noqa: E402
 
-S = 2048
+S = 1024  # the roster's human- and small-creature atlas (the crew's, the Gaunt's): every renderer loads every atlas, and ten at 2048 took the CI runner over (note 367)
 kit, g, arm, parts = overbake.hold("hotbox.py")
 print("[dt] hotbox parts", {n: len(o.data.polygons) for n, o in sorted(parts.items())})
 make.USED.clear()

@@ -1,5 +1,5 @@
 """THE MOURNERS (GDD §21, OUTSIDE; note 362; docs/design/creatures/mourners.md §3): tools/blender/mourner.py's stooping
-scavenger with its colour and its fine relief baked into one 2048 atlas (the Look Review: organic, not primitives; the
+scavenger with its colour and its fine relief baked into one 1024 atlas (the Look Review: organic, not primitives; the
 Gannet's and the Ribbit's way, notes 340, 361).
 
 tools/blender/mourner.py stays its source: the rig, the fused skin and the parts over it, the clips. This recipe runs
@@ -28,7 +28,7 @@ import overbake  # noqa: E402
 from overbake import fine, smooth01  # noqa: E402
 from texels import Texels  # noqa: E402
 
-S = 2048
+S = 1024  # the roster's human- and small-creature atlas (the crew's, the Gaunt's): every renderer loads every atlas, and ten at 2048 took the CI runner over (note 367)
 kit, g, arm, parts = overbake.hold("mourner.py")
 print("[dt] mourner parts", {n: len(o.data.polygons) for n, o in sorted(parts.items())})
 make.USED.clear()
