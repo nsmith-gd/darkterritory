@@ -164,8 +164,8 @@ public sealed class Ribbit(int id, int pack) : Enemy(id)
         var from = (centre - catchAt) with { Y = 0 };
         if (from.Length < 1e-6)
             from = to * -1;
-        double a0 = Math.Atan2(from.X, from.Z) + side * t.Fan * Math.PI / 180;
-        var place = catchAt + new Double3(Math.Sin(a0), 0, Math.Cos(a0)) * t.RingOut;
+        double a0 = DMath.Atan2(from.X, from.Z) + side * t.Fan * Math.PI / 180;
+        var place = catchAt + new Double3(DMath.Sin(a0), 0, DMath.Cos(a0)) * t.RingOut;
         double k = Math.Clamp(1 - (d - t.RingOut) / t.FanFrom, 0, 1);
         var goal = catchAt + (place - catchAt) * k;
         return ((goal - Local) with { Y = 0 }, apart);
