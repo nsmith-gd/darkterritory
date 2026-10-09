@@ -159,7 +159,9 @@ public static class WorldRecords
             // door never shut.
             Q(Math.Min(b.SinceShovel, 60), Fine),
         ]));
-        list.Add(new WireRecord(WireRecord.MakeKey(RecordKind.Controls, 0), [Q(controls.Throttle, Fine), Q(controls.Brake, Fine), controls.Reverser]));
+        // And who holds them (note 574): a bot driver hands over when someone playing does.
+        list.Add(new WireRecord(WireRecord.MakeKey(RecordKind.Controls, 0), [Q(controls.Throttle, Fine), Q(controls.Brake, Fine), controls.Reverser,
+            world.ControlsHolder, world.ControlsHolderBot ? 1 : 0]));
         if (world.Run is { } run)
         {
             // Per facility: the chute's coal left, then its loading modules (crates out, winch sled, sleds left, turning), then
@@ -428,6 +430,8 @@ public static class WorldRecords
                     break;
                 case RecordKind.Controls:
                     controls = new TrainControls { Throttle = D(f[0], Fine), Brake = D(f[1], Fine), Reverser = (int)f[2] };
+                    if (f.Length > 4)
+                        world.HoldControls((int)f[3], f[4] != 0);
                     break;
                 case RecordKind.Player:
                     players.Add(ToPlayer(r));

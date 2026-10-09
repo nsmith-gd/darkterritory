@@ -63,6 +63,20 @@ public sealed class World
     /// driver notches the throttle and flips the reverser from where they are).
     /// </summary>
     public TrainControls Controls { get; private set; } = new() { Reverser = 1 };
+
+    /// <summary>
+    /// Who holds the cab's controls (note 574): the player id, or −1 with nobody holding them (then anyone in the cab works
+    /// them). <see cref="ControlsHolderBot"/>: that's a bot, which someone playing takes them off. The host's to say;
+    /// replicated with the controls, so a bot driver knows when someone playing has them.
+    /// </summary>
+    public int ControlsHolder { get; private set; } = -1;
+    public bool ControlsHolderBot { get; private set; }
+
+    public void HoldControls(int holder, bool bot)
+    {
+        ControlsHolder = holder;
+        ControlsHolderBot = holder >= 0 && bot;
+    }
     public CombatTuning? Combat { get; set; }
     /// <summary>Host: what the crew have said lately (T40), fed by the session as voice arrives. The Soot Children listen here.</summary>
     public Net.VoiceMemory Voices { get; } = new();
