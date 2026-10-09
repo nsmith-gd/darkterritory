@@ -56,7 +56,7 @@ int crashesAt = Array.IndexOf(args, "--crashes");
 var crashes = CrashReports.Install(crashesAt >= 0 && crashesAt + 1 < args.Length ? args[crashesAt + 1] : null);
 #if DEVTOOLS
 // A developer build's tools (note 514): reached only here and under the other DEVTOOLS hooks; a player's build has none of it.
-var dev = DarkTerritory.Dev.DevTools.Start(args);
+var dev = DarkTerritory.Dev.DevTools.Start(args, crashes);
 #endif
 
 // The system's file browser on a folder (note 411): Explorer, Finder, or whatever xdg-open hands it to; or, given an address
