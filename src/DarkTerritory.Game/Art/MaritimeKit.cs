@@ -1205,7 +1205,7 @@ public static class MaritimeKit
                 k.Cylinder(new Vector3(x + 0.2f, y, z), new Vector3(x + 0.2f, y + 0.09f, z), 0.04f, 8);
                 break;
             case "wine":
-                // Nicki's (note 488): a bottle of red half gone, and four odd glasses poured and waiting.
+                // Nicki's (note 527): a bottle of red half gone, and four odd glasses poured and waiting.
                 k.Use("glass_dirty", new Vector3(0.18f, 0.28f, 0.16f), 0.2f, 0.8f, tile: 1);
                 k.Tint = new Vector3(0.35f, 0.5f, 0.3f);
                 k.Lathe(new Vector3(x, y, z), [new(0.04f, 0), new(0.04f, 0.2f), new(0.015f, 0.26f), new(0.014f, 0.31f)], 10);

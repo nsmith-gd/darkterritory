@@ -43,7 +43,7 @@ public sealed record TownHouse(int Id, double S, double D, int Side, double Widt
     /// line's own street of a town that's still the yard (no room behind the houses).
     /// </summary>
     public IReadOnlyList<YardThing> Yard { get; init; } = [];
-    /// <summary>Nicki's party is on in it (note 488): its people keep their places, dancing, and it's lit up.</summary>
+    /// <summary>Nicki's party is on in it (note 527): its people keep their places, dancing, and it's lit up.</summary>
     public bool Party { get; init; }
 
     /// <summary>Everything of it that stops you: <see cref="Parts"/>, and its yard's solid things.</summary>

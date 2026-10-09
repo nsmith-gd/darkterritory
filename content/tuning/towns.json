@@ -73,11 +73,11 @@
   // The share of walled towns with one of Dave's murals at a street's end (note 570; the director, 8 Oct: "some towns should
   // have murals on the walls that are recognizably Dave's work"), in place of one of theirs.
   "daveMural": 0.4,
-  // The share of towns with Nicki's party in one of their open houses, the only house up and lit late (note 488; the
+  // The share of towns with Nicki's party in one of their open houses, the only house up and lit late (note 527; the
   // director, 8 Oct: "an NPC you can find some times in one of the houses"), and how many guests she has.
   "nicki": 0.3,
   "nickiGuests": [2, 4],
-  // Her wine (note 488; the director, 9 Oct: "when Nicki offers wine to the players they should get extra health for the next
+  // Her wine (note 527; the director, 9 Oct: "when Nicki offers wine to the players they should get extra health for the next
   // run if they take it"; never said in the Wiki): hold Use within "reach" m of her for "holdSeconds", a glass a crewmate a
   // night, and "health" on top of what they have for the night that's about to set out (she's only ever in the departure town).
   "wine": { "reach": 2.6, "holdSeconds": 0.8, "health": 25 },

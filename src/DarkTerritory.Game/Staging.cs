@@ -157,7 +157,7 @@ public static partial class Staging
             }
         }
         // The houses (note 281): the first open one, its front, its kitchen from the door, its parlour through the partition.
-        // (party: Nicki's house, note 488, from her door; partyside, from the street.)
+        // (party: Nicki's house, note 527, from her door; partyside, from the street.)
         var home = (where is "party" or "partyside" ? plan.Houses.FirstOrDefault(h => h.Party) : null)
             ?? plan.Houses.FirstOrDefault(h => h.Layout is not null) ?? plan.Houses.FirstOrDefault();
         if (home is not null && where is "houses" or "house" or "kitchen" or "parlour" or "sitter" or "range" or "armchair" or "party" or "partyside")
