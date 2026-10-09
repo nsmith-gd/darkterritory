@@ -2379,10 +2379,111 @@ public sealed partial class ConductorBot(CrewCalls? calls = null, int member = 0
     double _boardWait;
     /// <summary>How long the driver waits at the gate for the crew to climb aboard (T102) before it goes anyway.</summary>
     const double AllAboardSeconds = 120;
-    /// <summary>At the controls: the driver, or a fireman who's had to take them.</summary>
-    public bool Driving => !Fireman || _driving;
+    /// <summary>At the controls: the driver, or a fireman who's had to take them (not while someone playing has them).</summary>
+    public bool Driving => (!Fireman || _driving) && !HandedOver;
+
+    /// <summary>
+    /// The director, 9 Oct 2026: "if a player goes to the cab to drive the bot in there should find another task to do or
+    /// position to take and shouldnt interfere with the player driving." Someone playing has taken the driver's stand: the
+    /// bot leaves them the cab (with steam driving the fire is the speed too, T97, so not even the shovel) and goes out to
+    /// work the train as a walker does, until the stand's been empty a while.
+    /// </summary>
+    public bool HandedOver { get; private set; }
+
+    /// <summary>Its own cold (the walker's legs warm up as a walker does): set with the crew.</summary>
+    public ColdTuning? Cold { get; init; }
+    /// <summary>Its player id, and who's where by id, as the walkers have them (set each tick by the crew).</summary>
+    public int Me { get; set; } = -1;
+    public IReadOnlyList<(int Id, PlayerState State)> Crew { get; set; } = [];
+
+    RoofWalkerBot? _legs;
+    bool _backToTheCab;
+    double _atTheStand, _standEmpty;
+    /// <summary>Within this of the brake valve (m, on the floor's plane) someone's at the driver's stand.</summary>
+    const double StandM = 1.0;
+    /// <summary>At the stand this long (s), they've taken it: not passing through the cab, nor a walk to the fire.</summary>
+    const double TakenAfter = 2;
+    /// <summary>With nobody playing at the stand this long (s), the controls are the bot's again.</summary>
+    const double TakeBackAfter = 30;
+
+    /// <summary>Whether someone playing is at the driver's stand: in the cab, by the brake valve.</summary>
+    bool PlayerAtTheStand(TrainOnLine train)
+    {
+        if (Players is null || train.Frames[0].Shape.Levers is not { } levers)
+            return false;
+        foreach (var p in Players)
+            if (p.Alive && PlayerMotor.InCab(p, train) && (p.Position - levers.Brake) with { Y = 0 } is var d && d.Length <= StandM)
+                return true;
+        return false;
+    }
+
+    /// <summary>Taken over (see <see cref="HandedOver"/>): theirs while they're at the stand, and <see cref="TakeBackAfter"/> after.</summary>
+    bool TakenOver(in PlayerState self, World world)
+    {
+        if (calls is null || Express || Fireman && !_driving || !self.Alive)
+            return HandedOver = false;
+        bool there = PlayerAtTheStand(world.Train);
+        if (HandedOver)
+        {
+            _standEmpty = there ? 0 : _standEmpty + SimConstants.TickSeconds;
+            if (_standEmpty < TakeBackAfter)
+                return true;
+            HandedOver = false;
+            _backToTheCab = true;
+            _atTheStand = 0;
+            return false;
+        }
+        _atTheStand = there ? _atTheStand + SimConstants.TickSeconds : 0;
+        if (_atTheStand < TakenAfter)
+            return false;
+        _standEmpty = 0;
+        return HandedOver = true;
+    }
 
     public PlayerIntent Decide(in PlayerState self, World world, uint tick, out PlayerState aimed)
+    {
+        aimed = self;
+        if (TakenOver(self, world))
+            return Handed(self, world, tick, out aimed);
+        // The controls its again: back to the cab over the roofs, as the relief driver goes (note 399), and down its hatch.
+        if (_backToTheCab)
+        {
+            if (!self.Alive || PlayerMotor.InCab(self, world.Train))
+                _backToTheCab = false;
+            else
+            {
+                calls?.Say(member, StopJob.Driver, self);
+                if (ReliefDriver.ToTheCab(self, world.Train, out bool forward) is { } going)
+                    return going;
+                if (forward && _legs is not null)
+                {
+                    _legs.Head(-1);
+                    return _legs.Decide(self, world.Train, tick);
+                }
+                _backToTheCab = false;
+            }
+        }
+        return DecideDriving(self, world, tick, out aimed);
+    }
+
+    /// <summary>
+    /// Handed over: still the crew's driver to the calls (a walker that heard none would come forward to take the controls,
+    /// note 399), and out of the cab on a walker's legs, with a walker's work: the roofs, the fires, the cold, the crew.
+    /// </summary>
+    PlayerIntent Handed(in PlayerState self, World world, uint tick, out PlayerState aimed)
+    {
+        calls?.Say(member, StopJob.Driver, self);
+        calls?.Away(false);
+        _legs ??= new RoofWalkerBot(member * 1000 + 977, Cold);
+        _legs.Me = Me;
+        _legs.Calls = calls;
+        _legs.Crew = Crew;
+        var going = _legs.Decide(self, world, tick, out aimed);
+        // Never a hand on the controls on its way out.
+        return going with { ThrottleNotch = 0, Buttons = going.Buttons & ~(PlayerButtons.Brake | PlayerButtons.Reverser) };
+    }
+
+    PlayerIntent DecideDriving(in PlayerState self, World world, uint tick, out PlayerState aimed)
     {
         aimed = self;
         var train = world.Train;
