@@ -24,8 +24,13 @@ public class LandingTests
         double ground = PlayerMotor.GroundAt(at, n.Train.Line, ref hint);
         var s = new PlayerState
         {
-            Parent = PlayerState.World, Surface = Surface.Air, Position = at with { Y = ground + up }, Velocity = velocity,
-            Health = P.Health, LineHint = along, Flags = offTheGround ? PlayerFlags.OffTheGround : PlayerFlags.None,
+            Parent = PlayerState.World,
+            Surface = Surface.Air,
+            Position = at with { Y = ground + up },
+            Velocity = velocity,
+            Health = P.Health,
+            LineHint = along,
+            Flags = offTheGround ? PlayerFlags.OffTheGround : PlayerFlags.None,
         };
         return (n, s);
     }
