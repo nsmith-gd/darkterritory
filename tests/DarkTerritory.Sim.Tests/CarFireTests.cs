@@ -409,9 +409,16 @@ public class CarFireTests
         // Note 526 (seed 6, car 1): the nearest, not the first whose client saw the flies (that was the shunter at the switch,
         // 22 s off); and in at the side door to the room, not stood in the doorway pressing a lamp key that counts only in the
         // room, or walked between the doorway and the middle by the room's box while the car burned.
+        // The nights as the director dealt them before the six of notes 362–367 joined its roster: a kind more in the deal
+        // reshuffles every night (seed 6 has no Fire Flies with them in), and these two are the cases the notes were written on.
+        EnemyKind[] six = [EnemyKind.Mourners, EnemyKind.TowerJaw, EnemyKind.Brakeman, EnemyKind.Knotter, EnemyKind.FreightBeetle, EnemyKind.Hotbox];
+        var enemies = Tuning.Enemies with
+        {
+            Director = Tuning.Enemies.Director with { Roster = [.. Enum.GetValues<EnemyKind>().Except(six).Select(Director.Key)] },
+        };
         var flies = new Dictionary<int, int>(); // swarm → its car
         var lit = new HashSet<int>();           // cars alight (a fire past its smoke)
-        CrewOfTwoTests.Night("frontier:7", 10, 520, null, bots: 4, seed: seed,
+        CrewOfTwoTests.Night("frontier:7", 10, 520, null, bots: 4, seed: seed, enemies: enemies,
             upkeep: DataFile.Load<UpkeepTuning>(Path.Combine(DataFile.FindContentRoot(), UpkeepTuning.File)), each: world =>
             {
                 foreach (var e in world.ActiveEnemies)

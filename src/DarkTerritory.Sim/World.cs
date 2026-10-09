@@ -364,6 +364,10 @@ public sealed class World
         Enemies = tuning;
         Route = route;
         Authority = authority;
+        // A seized axle's hold on the train (note 367), on every machine alike: prediction drags as the host does.
+        Train.SeizedTopSpeed = tuning.Hotbox.SeizedTopSpeed;
+        Train.SeizedHold = tuning.Hotbox.SeizedHold;
+        Train.SeizedRepair = tuning.Hotbox;
         if (!authority)
             return;
         Director = new Director(tuning.Director, route, seed, Train.Dynamics.Consist.CarCount, crew);
@@ -1872,6 +1876,9 @@ public sealed class World
             // The lineside moose (note 339): grazing beside the line ahead, as the line's own; they cost the director nothing.
             if (Insist is null && d.Allows(EnemyKind.Moose) && Route is { } route && Train.Dynamics.Speed > 3 && !TrainInFort)
                 LinesideMoose(t.Moose, route);
+            // The Mourners (note 362): a crewmate's body left lying off the train brings a group for it, the director's or not.
+            if (t.Mourners.Enabled)
+                _mourning.Step(this, t.Mourners, Route?.Tier ?? Sim.Route.RouteTier.Local, ref _nextEnemyId, _enemies, 1);
             // T128 (note 273): whoever the train's left behind has a pressure of their own, and the hunts that come of it.
             d.Abandoned(this, _enemies);
             // Note 328: a train run fast draws the hound run, the guns' wave.
@@ -1948,6 +1955,12 @@ public sealed class World
     /// <summary>Seconds the train's run at or over the Gannet's <see cref="GannetTuning.ArriveAbove"/> without a break (note 340).</summary>
     public double FastSeconds { get; private set; }
 
+    readonly Sim.Enemies.Mourning _mourning = new();
+    /// <summary>Structures Tower Jaw brought down tonight, and their wrecks the crew cleared (note 363).</summary>
+    public int TowersDown { get; set; }
+    public int TowersCleared { get; set; }
+    /// <summary>Bodies the Mourners hauled off past finding (note 362): their refunds gone with them.</summary>
+    public int MournersTook { get; set; }
     double _mooseNext = double.NaN;
     Ballast.Pcg32 _mooseDice;
 
