@@ -114,112 +114,112 @@ public sealed class Householder(int id) : Enemy(id)
         switch (Mode)
         {
             case HouseholderMode.Sit or HouseholderMode.Watch:
-            {
-                Local = _chair;
-                // One of its things carried out of the door: paid for, or it rises for whoever has it.
-                foreach (var c in living.OrderBy(c => c.Player.Id))
                 {
-                    var carried = bodies.All.Where(b => _mine.Contains(b.Id) && b.Carrier == c.Player.Id).OrderBy(b => b.Id).FirstOrDefault();
-                    if (carried is null || walls.InHouse(House, c.World + Double3.Up * 0.5))
-                        continue;
-                    _mine.Remove(carried.Id);
-                    if (_credit > 0)
+                    Local = _chair;
+                    // One of its things carried out of the door: paid for, or it rises for whoever has it.
+                    foreach (var c in living.OrderBy(c => c.Player.Id))
                     {
-                        _credit--;
-                        continue;
-                    }
-                    _thing = carried.Id;
-                    Extra = c.Player.Id;
-                    Enter(ctx, SpinePhase.Telegraph);
-                    SetMode(HouseholderMode.Rise);
-                    return;
-                }
-                // Guests it watches.
-                var guest = living.Where(c => walls.InHouse(House, c.World + Double3.Up * 0.5)).OrderBy(c => HouseWays.Flat(c.World - me)).ThenBy(c => c.Player.Id)
-                    .Select(c => (Double3?)c.World).FirstOrDefault();
-                if (guest is { } g)
-                {
-                    SetMode(HouseholderMode.Watch);
-                    Lateral = HouseWays.Yaw(g - me);
-                }
-                else
-                {
-                    SetMode(HouseholderMode.Sit);
-                    Lateral = _chairYaw;
-                }
-                return;
-            }
-            case HouseholderMode.Rise:
-            {
-                if (_modeSeconds >= t.RiseSeconds && Enter(ctx, SpinePhase.Commit))
-                    SetMode(HouseholderMode.Hunt);
-                return;
-            }
-            case HouseholderMode.Hunt:
-            {
-                var thing = bodies.All.FirstOrDefault(b => b.Id == _thing);
-                var carrier = living.Where(c => thing is not null && thing.Carrier == c.Player.Id).Select(c => ((int Id, Double3 World)?)(c.Player.Id, c.World)).FirstOrDefault();
-                if (thing is null)
-                {
-                    // Gone (sold, lost, in a car the train took off): nothing to take back.
-                    GoBack(ctx);
-                    return;
-                }
-                var thingAt = Bodies.WorldCentre(thing, train);
-                if (HouseWays.Flat(thingAt - _chair) > t.GiveUpBeyond)
-                {
-                    GoBack(ctx);
-                    return;
-                }
-                if (carrier is { } who)
-                {
-                    Extra = who.Id;
-                    if (HouseWays.Flat(who.World - me) <= t.GrabReach && !HouseWays.Blocked(walls, me, who.World) && Grab(ctx, who.Id, t.GrabSeconds))
-                    {
-                        SetMode(HouseholderMode.Grab);
+                        var carried = bodies.All.Where(b => _mine.Contains(b.Id) && b.Carrier == c.Player.Id).OrderBy(b => b.Id).FirstOrDefault();
+                        if (carried is null || walls.InHouse(House, c.World + Double3.Up * 0.5))
+                            continue;
+                        _mine.Remove(carried.Id);
+                        if (_credit > 0)
+                        {
+                            _credit--;
+                            continue;
+                        }
+                        _thing = carried.Id;
+                        Extra = c.Player.Id;
+                        Enter(ctx, SpinePhase.Telegraph);
+                        SetMode(HouseholderMode.Rise);
                         return;
                     }
-                    double hint = LineDistance;
-                    HouseWays.Step(this, ctx, HouseWays.Toward(walls, me, who.World), t.Hunt, ref hint);
-                    LineDistance = hint;
-                    return;
-                }
-                // Put down: it takes it back.
-                Extra = -1;
-                if (thing.Carrier < 0 && thing.TakenBy < 0 && HouseWays.Flat(thingAt - me) <= 0.9)
-                {
-                    bodies.TakeAlong(thing, train, Id, PlayerState.World, me + Double3.Up * 0.9, Lateral);
-                    GoBack(ctx);
-                    return;
-                }
-                double h2 = LineDistance;
-                HouseWays.Step(this, ctx, HouseWays.Toward(walls, me, thingAt), t.Hunt, ref h2);
-                LineDistance = h2;
-                return;
-            }
-            case HouseholderMode.Return or HouseholderMode.Grab:
-            {
-                SetMode(HouseholderMode.Return);
-                var held = bodies.All.FirstOrDefault(b => b.Id == _thing && b.TakenBy == Id);
-                double hint = LineDistance;
-                bool there = HouseWays.Step(this, ctx, HouseWays.Toward(walls, me, _chair), t.Walk, ref hint) && HouseWays.Flat(_chair - Local) < 0.05;
-                LineDistance = hint;
-                if (held is { } h)
-                    bodies.TakeAlong(h, train, Id, PlayerState.World, Local + Double3.Up * 0.9, Lateral);
-                if (there)
-                {
-                    // Home: what it carried back goes on the floor beside its chair, its own again.
-                    if (held is { } back)
+                    // Guests it watches.
+                    var guest = living.Where(c => walls.InHouse(House, c.World + Double3.Up * 0.5)).OrderBy(c => HouseWays.Flat(c.World - me)).ThenBy(c => c.Player.Id)
+                        .Select(c => (Double3?)c.World).FirstOrDefault();
+                    if (guest is { } g)
                     {
-                        bodies.LetGo(back);
-                        _mine.Add(back.Id);
+                        SetMode(HouseholderMode.Watch);
+                        Lateral = HouseWays.Yaw(g - me);
                     }
-                    _thing = -1;
-                    Lateral = _chairYaw;
-                    SetMode(HouseholderMode.Sit);
+                    else
+                    {
+                        SetMode(HouseholderMode.Sit);
+                        Lateral = _chairYaw;
+                    }
+                    return;
                 }
-                return;
-            }
+            case HouseholderMode.Rise:
+                {
+                    if (_modeSeconds >= t.RiseSeconds && Enter(ctx, SpinePhase.Commit))
+                        SetMode(HouseholderMode.Hunt);
+                    return;
+                }
+            case HouseholderMode.Hunt:
+                {
+                    var thing = bodies.All.FirstOrDefault(b => b.Id == _thing);
+                    var carrier = living.Where(c => thing is not null && thing.Carrier == c.Player.Id).Select(c => ((int Id, Double3 World)?)(c.Player.Id, c.World)).FirstOrDefault();
+                    if (thing is null)
+                    {
+                        // Gone (sold, lost, in a car the train took off): nothing to take back.
+                        GoBack(ctx);
+                        return;
+                    }
+                    var thingAt = Bodies.WorldCentre(thing, train);
+                    if (HouseWays.Flat(thingAt - _chair) > t.GiveUpBeyond)
+                    {
+                        GoBack(ctx);
+                        return;
+                    }
+                    if (carrier is { } who)
+                    {
+                        Extra = who.Id;
+                        if (HouseWays.Flat(who.World - me) <= t.GrabReach && !HouseWays.Blocked(walls, me, who.World) && Grab(ctx, who.Id, t.GrabSeconds))
+                        {
+                            SetMode(HouseholderMode.Grab);
+                            return;
+                        }
+                        double hint = LineDistance;
+                        HouseWays.Step(this, ctx, HouseWays.Toward(walls, me, who.World), t.Hunt, ref hint);
+                        LineDistance = hint;
+                        return;
+                    }
+                    // Put down: it takes it back.
+                    Extra = -1;
+                    if (thing.Carrier < 0 && thing.TakenBy < 0 && HouseWays.Flat(thingAt - me) <= 0.9)
+                    {
+                        bodies.TakeAlong(thing, train, Id, PlayerState.World, me + Double3.Up * 0.9, Lateral);
+                        GoBack(ctx);
+                        return;
+                    }
+                    double h2 = LineDistance;
+                    HouseWays.Step(this, ctx, HouseWays.Toward(walls, me, thingAt), t.Hunt, ref h2);
+                    LineDistance = h2;
+                    return;
+                }
+            case HouseholderMode.Return or HouseholderMode.Grab:
+                {
+                    SetMode(HouseholderMode.Return);
+                    var held = bodies.All.FirstOrDefault(b => b.Id == _thing && b.TakenBy == Id);
+                    double hint = LineDistance;
+                    bool there = HouseWays.Step(this, ctx, HouseWays.Toward(walls, me, _chair), t.Walk, ref hint) && HouseWays.Flat(_chair - Local) < 0.05;
+                    LineDistance = hint;
+                    if (held is { } h)
+                        bodies.TakeAlong(h, train, Id, PlayerState.World, Local + Double3.Up * 0.9, Lateral);
+                    if (there)
+                    {
+                        // Home: what it carried back goes on the floor beside its chair, its own again.
+                        if (held is { } back)
+                        {
+                            bodies.LetGo(back);
+                            _mine.Add(back.Id);
+                        }
+                        _thing = -1;
+                        Lateral = _chairYaw;
+                        SetMode(HouseholderMode.Sit);
+                    }
+                    return;
+                }
         }
     }
 

@@ -67,7 +67,13 @@ public sealed class Lodger(int id) : Enemy(id)
         var middle = house.Middle;
         return new Lodger(id)
         {
-            Attached = Loose, Local = best, _hide = best, _home = middle, Lateral = HouseWays.Yaw(middle - best), Extra = -1, Extra2 = house.Index,
+            Attached = Loose,
+            Local = best,
+            _hide = best,
+            _home = middle,
+            Lateral = HouseWays.Yaw(middle - best),
+            Extra = -1,
+            Extra2 = house.Index,
             Health = t.Health,
         };
     }
@@ -99,105 +105,105 @@ public sealed class Lodger(int id) : Enemy(id)
         switch (Mode)
         {
             case LodgerMode.Hidden:
-            {
-                // Someone in its house a while, or right by it: it wakes on the nearest of them.
-                var inside = living.Where(c => walls.InHouse(House, c.World + Double3.Up * 0.5)).ToList();
-                _noticed = inside.Count > 0 ? _noticed + dt : Math.Max(0, _noticed - dt);
-                var close = living.Where(c => HouseWays.Flat(c.World - me) <= t.ShriekWithin && !HouseWays.Blocked(walls, me, c.World)).ToList();
-                if (_rest > 0 || (close.Count == 0 && (_noticed < t.NoticeSeconds || inside.Count == 0)))
+                {
+                    // Someone in its house a while, or right by it: it wakes on the nearest of them.
+                    var inside = living.Where(c => walls.InHouse(House, c.World + Double3.Up * 0.5)).ToList();
+                    _noticed = inside.Count > 0 ? _noticed + dt : Math.Max(0, _noticed - dt);
+                    var close = living.Where(c => HouseWays.Flat(c.World - me) <= t.ShriekWithin && !HouseWays.Blocked(walls, me, c.World)).ToList();
+                    if (_rest > 0 || (close.Count == 0 && (_noticed < t.NoticeSeconds || inside.Count == 0)))
+                        return;
+                    var pick = (close.Count > 0 ? close : inside).OrderBy(c => HouseWays.Flat(c.World - me)).ThenBy(c => c.Player.Id).First();
+                    Shriek(ctx, pick.Player.Id);
                     return;
-                var pick = (close.Count > 0 ? close : inside).OrderBy(c => HouseWays.Flat(c.World - me)).ThenBy(c => c.Player.Id).First();
-                Shriek(ctx, pick.Player.Id);
-                return;
-            }
+                }
             case LodgerMode.Shriek:
-            {
-                if (target is not { } tg)
                 {
-                    GoBack(ctx);
+                    if (target is not { } tg)
+                    {
+                        GoBack(ctx);
+                        return;
+                    }
+                    Lateral = HouseWays.Yaw(tg.World - me);
+                    // The shriek's the telegraph: at its end it commits, and lunges at where they are.
+                    if (_modeSeconds >= t.ShriekSeconds && Enter(ctx, SpinePhase.Commit))
+                    {
+                        var way = (tg.World - me) with { Y = 0 };
+                        _lungeWay = way.Length > 1e-6 ? way.Normalized : new Double3(-DMath.Sin(Lateral), 0, -DMath.Cos(Lateral));
+                        _lunged = 0;
+                        SetMode(LodgerMode.Lunge);
+                    }
                     return;
                 }
-                Lateral = HouseWays.Yaw(tg.World - me);
-                // The shriek's the telegraph: at its end it commits, and lunges at where they are.
-                if (_modeSeconds >= t.ShriekSeconds && Enter(ctx, SpinePhase.Commit))
-                {
-                    var way = (tg.World - me) with { Y = 0 };
-                    _lungeWay = way.Length > 1e-6 ? way.Normalized : new Double3(-DMath.Sin(Lateral), 0, -DMath.Cos(Lateral));
-                    _lunged = 0;
-                    SetMode(LodgerMode.Lunge);
-                }
-                return;
-            }
             case LodgerMode.Lunge:
-            {
-                double step = t.LungeSpeed * dt;
-                var next = me + _lungeWay * step;
-                double hint = LineDistance;
-                Local = next with { Y = PlayerMotor.GroundAt(next, ctx.Train.Line, ref hint) };
-                LineDistance = hint;
-                _lunged += step;
-                if (target is { } tg && HouseWays.Flat(tg.World - Local) <= t.KillWithin && !HouseWays.Blocked(walls, Local, tg.World)
-                    && Grab(ctx, tg.Id, t.KillWindow))
-                    return;
-                if (_lunged >= t.LungeReach)
                 {
-                    Enter(ctx, SpinePhase.Alert);
-                    SetMode(LodgerMode.Chase);
+                    double step = t.LungeSpeed * dt;
+                    var next = me + _lungeWay * step;
+                    double hint = LineDistance;
+                    Local = next with { Y = PlayerMotor.GroundAt(next, ctx.Train.Line, ref hint) };
+                    LineDistance = hint;
+                    _lunged += step;
+                    if (target is { } tg && HouseWays.Flat(tg.World - Local) <= t.KillWithin && !HouseWays.Blocked(walls, Local, tg.World)
+                        && Grab(ctx, tg.Id, t.KillWindow))
+                        return;
+                    if (_lunged >= t.LungeReach)
+                    {
+                        Enter(ctx, SpinePhase.Alert);
+                        SetMode(LodgerMode.Chase);
+                    }
+                    return;
                 }
-                return;
-            }
             case LodgerMode.Chase:
-            {
-                if (target is not { } tg || HouseWays.Flat(tg.World - _home) > t.PursuitRadius)
                 {
-                    GoBack(ctx);
+                    if (target is not { } tg || HouseWays.Flat(tg.World - _home) > t.PursuitRadius)
+                    {
+                        GoBack(ctx);
+                        return;
+                    }
+                    bool blocked = HouseWays.Blocked(walls, me, tg.World);
+                    // Close and nothing between: shriek again, and lunge.
+                    if (!blocked && HouseWays.Flat(tg.World - me) <= t.ShriekWithin)
+                    {
+                        Shriek(ctx, tg.Id);
+                        return;
+                    }
+                    // A shut door in its way: it breaks it open.
+                    if (blocked && walls.DoorInReach(me, 1.3) is { } door && walls.Shut(door.Key))
+                    {
+                        _door = door.Key;
+                        Lateral = HouseWays.Yaw(door.At - me);
+                        SetMode(LodgerMode.Break);
+                        return;
+                    }
+                    double hint = LineDistance;
+                    HouseWays.Step(this, ctx, HouseWays.Toward(walls, me, tg.World), t.Chase, ref hint);
+                    LineDistance = hint;
                     return;
                 }
-                bool blocked = HouseWays.Blocked(walls, me, tg.World);
-                // Close and nothing between: shriek again, and lunge.
-                if (!blocked && HouseWays.Flat(tg.World - me) <= t.ShriekWithin)
-                {
-                    Shriek(ctx, tg.Id);
-                    return;
-                }
-                // A shut door in its way: it breaks it open.
-                if (blocked && walls.DoorInReach(me, 1.3) is { } door && walls.Shut(door.Key))
-                {
-                    _door = door.Key;
-                    Lateral = HouseWays.Yaw(door.At - me);
-                    SetMode(LodgerMode.Break);
-                    return;
-                }
-                double hint = LineDistance;
-                HouseWays.Step(this, ctx, HouseWays.Toward(walls, me, tg.World), t.Chase, ref hint);
-                LineDistance = hint;
-                return;
-            }
             case LodgerMode.Break:
-            {
-                if (_modeSeconds >= t.BreakSeconds)
                 {
-                    if (_door >= 0)
-                        walls.SetShut(_door, false);
-                    _door = -1;
-                    SetMode(LodgerMode.Chase);
+                    if (_modeSeconds >= t.BreakSeconds)
+                    {
+                        if (_door >= 0)
+                            walls.SetShut(_door, false);
+                        _door = -1;
+                        SetMode(LodgerMode.Chase);
+                    }
+                    return;
                 }
-                return;
-            }
             case LodgerMode.Return:
-            {
-                double hint = LineDistance;
-                HouseWays.Step(this, ctx, HouseWays.Toward(walls, me, _hide), t.Walk, ref hint);
-                LineDistance = hint;
-                if (HouseWays.Flat(_hide - Local) < 0.05)
                 {
-                    Lateral = HouseWays.Yaw(_home - _hide);
-                    _noticed = 0;
-                    _rest = t.RestSeconds;
-                    SetMode(LodgerMode.Hidden);
+                    double hint = LineDistance;
+                    HouseWays.Step(this, ctx, HouseWays.Toward(walls, me, _hide), t.Walk, ref hint);
+                    LineDistance = hint;
+                    if (HouseWays.Flat(_hide - Local) < 0.05)
+                    {
+                        Lateral = HouseWays.Yaw(_home - _hide);
+                        _noticed = 0;
+                        _rest = t.RestSeconds;
+                        SetMode(LodgerMode.Hidden);
+                    }
+                    return;
                 }
-                return;
-            }
         }
     }
 

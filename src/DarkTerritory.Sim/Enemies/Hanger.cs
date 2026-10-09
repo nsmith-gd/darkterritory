@@ -65,7 +65,11 @@ public sealed class Hanger(int id) : Enemy(id)
     public static Hanger In(int id, StopWalls.OpenHouse house, HangerTuning t) =>
         new(id)
         {
-            Attached = Loose, Local = house.Middle + Double3.Up * (Ceiling - 0.3), Extra = -1, Extra2 = house.Index, Health = t.Health,
+            Attached = Loose,
+            Local = house.Middle + Double3.Up * (Ceiling - 0.3),
+            Extra = -1,
+            Extra2 = house.Index,
+            Health = t.Health,
             _strands = [.. Strands(house, id, t.Strands).Select(p => house.World(p.X, p.Y))],
         };
 

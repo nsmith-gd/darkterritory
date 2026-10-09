@@ -85,15 +85,15 @@ public sealed class HollowHouse(int id) : Enemy(id)
                     SetMode(HollowMode.Shut);
                 return;
             case HollowMode.Shut:
-            {
-                // One door after another, quickly; held shut.
-                int shut = Math.Min(doors.Count, (int)(_modeSeconds / t.ShutEvery) + 1);
-                for (int i = 0; i < shut; i++)
-                    walls.SetShut(doors[i], true);
-                if (shut >= doors.Count)
-                    SetMode(HollowMode.Sink);
-                return;
-            }
+                {
+                    // One door after another, quickly; held shut.
+                    int shut = Math.Min(doors.Count, (int)(_modeSeconds / t.ShutEvery) + 1);
+                    for (int i = 0; i < shut; i++)
+                        walls.SetShut(doors[i], true);
+                    if (shut >= doors.Count)
+                        SetMode(HollowMode.Sink);
+                    return;
+                }
             case HollowMode.Sink:
                 foreach (var k in doors)
                     walls.SetShut(k, true);
