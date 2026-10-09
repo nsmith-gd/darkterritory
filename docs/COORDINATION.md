@@ -549,6 +549,7 @@ renumbered from 268), 277 (C1's art checklist L1s), 278 (B1's bends), 279 (B1's 
 
 ## Waiting on the director
 
+- **A VR hand reaching down in a coupling gap cuts it** (D1.3, note 541). In VR, Use held on a plate with the hand below 0.7 m uncouples, and that's checked before a loose pin or a hot box, though both are below the plate. Reaching down to tighten a pin with the wrench cuts the train instead. Options: (a) at a loose pin or a hot box within reach, the hand works that first, and a cut needs the hand down at the knuckle with nothing else in reach; (b) a cut needs an empty hand, and the wrench never cuts; (c) VR uncouples with a held grip on the pin, like the keyboard's Z. Keyboard and mouse can't cut by accident (Z held, still, looking down).
 - About 13 car fires a night set by boarded hound packs on an 8-bot hot run (D1.2's note 437: 118 over nine nights, against 8 hot boxes caught); the bots fight what they can. Note 269's `igniteEverySeconds` and how often a pack is left aboard are the levers.
 - GDD D.15, question 3: the answer was cut off.
 - D1, 8 Oct: the threat orchestrator's build order (orchestrator.md §6.2) is done but for S2. Two upkeep and boarding pieces need the director's yes before anyone builds them:
