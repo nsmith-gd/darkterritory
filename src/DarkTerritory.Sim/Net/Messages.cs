@@ -67,7 +67,8 @@ public static class Protocol
     // 48: Jacob (note 572): an enemy kind of his own.
     // 49: the controls belong to whoever's working them (note 574): the Hello carries a flags byte after the outfit (bit 0, a
     //     bot), and the controls record carries who holds them and whether that's a bot.
-    public const int Version = 49;
+    // 50: the Pickers and the house creatures (notes 583–586, 592): five enemy kinds of their own.
+    public const int Version = 50;
 }
 
 public enum MessageType : byte

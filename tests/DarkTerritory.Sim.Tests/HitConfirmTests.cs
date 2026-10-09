@@ -126,6 +126,7 @@ public class HitConfirmTests
         EnemyKind.CinderHound, EnemyKind.Switchman, EnemyKind.SootChildren, EnemyKind.Dragger, EnemyKind.Stoker, EnemyKind.Climber,
         EnemyKind.Gaunt, EnemyKind.Passenger, EnemyKind.Follower, EnemyKind.TrackDoll, EnemyKind.CarHugger, EnemyKind.Whistler,
         EnemyKind.TippyToesie, EnemyKind.FireFlies, EnemyKind.Ribbit, EnemyKind.Grumbler, EnemyKind.Choir, EnemyKind.Moose, EnemyKind.Gannet, EnemyKind.Mourners, EnemyKind.TowerJaw, EnemyKind.FreightBeetle, EnemyKind.Brakeman, EnemyKind.Hotbox, EnemyKind.Knotter,
+        EnemyKind.Pickers, EnemyKind.Lodger, EnemyKind.Householder, EnemyKind.Hanger,
     ];
 
     static Enemy Make(EnemyKind kind, int id) => kind switch
@@ -155,6 +156,10 @@ public class HitConfirmTests
         EnemyKind.Brakeman => new Brakeman(id),
         EnemyKind.Hotbox => new Hotbox(id),
         EnemyKind.Knotter => new Knotter(id),
+        EnemyKind.Pickers => new Picker(id),
+        EnemyKind.Lodger => new Lodger(id),
+        EnemyKind.Householder => new Householder(id),
+        EnemyKind.Hanger => new Hanger(id),
         _ => throw new ArgumentException($"{kind} isn't a creature"),
     };
 
@@ -162,8 +167,9 @@ public class HitConfirmTests
     public void TheCreatureListIsTheWholeRosterBarTheHazardsAndFire()
     {
         // A kind added to the roster has to come here too, with a way to be struck.
-        // (Dave and Jacob aren't creatures: DaveTests strikes Dave, notes 570, 572.)
-        var all = Enum.GetValues<EnemyKind>().Except([EnemyKind.Sleepers, EnemyKind.Drift, EnemyKind.CarFire, EnemyKind.Dave, EnemyKind.Jacob]);
+        // (Dave and Jacob aren't creatures: DaveTests strikes Dave, notes 570, 572. The Hollow House is a house, and no blow
+        // lands on it, note 585.)
+        var all = Enum.GetValues<EnemyKind>().Except([EnemyKind.Sleepers, EnemyKind.Drift, EnemyKind.CarFire, EnemyKind.Dave, EnemyKind.Jacob, EnemyKind.HollowHouse]);
         Assert.Equal(all.OrderBy(k => k), Creatures.OrderBy(k => k));
     }
 

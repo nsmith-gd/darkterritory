@@ -43,9 +43,12 @@ public sealed class EnemyContext
     public void Hold(int playerId) => Held.Add(playerId);
 
     /// <summary>Held players being carried off, and to where in the world (the Whistler at a run, the Passenger to the caboose).</summary>
-    public List<(int Player, Double3 To)> Carries { get; } = new();
+    public List<(int Player, Double3 To, bool Up)> Carries { get; } = new();
 
-    public void Carry(int playerId, Double3 to) => Carries.Add((playerId, to));
+    public void Carry(int playerId, Double3 to) => Carries.Add((playerId, to, false));
+
+    /// <summary>A held player hung up off the ground at <paramref name="to"/> (the Hanger's strand, note 586): in the air, not stood.</summary>
+    public void Lift(int playerId, Double3 to) => Carries.Add((playerId, to, true));
 
     /// <summary>Pulls a player off the train over the side (App. A.4, the Draggers): at speed, that's death.</summary>
     public void Pull(int playerId, Double3 outward) => Damage.Add(new DamageEvent(playerId, 0, DeathCause.Dragged, outward));

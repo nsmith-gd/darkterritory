@@ -54,6 +54,43 @@ public sealed partial class StopWalls
     /// </summary>
     public static int DoorKey(int feature, int building, int doorway) => (feature << 12 | building << 2 | doorway) + 1;
 
+    /// <summary>
+    /// An open house as the creatures that live in houses see it (G1's house creatures, notes 583–586): its index (as
+    /// <see cref="HouseAt"/> gives it), its stop's place in the route's features and its building there (from its first
+    /// door's key), its plan, its frame in the world (origin, axis, across; level) and its doors' keys.
+    /// </summary>
+    public readonly record struct OpenHouse(int Index, int Feature, int Building, StopBuilding B, Double3 Origin, Double3 Ex, Double3 Ey, IReadOnlyList<int> Doors, int Part)
+    {
+        /// <summary>A point in the building's own plan (metres along and across it from its middle), in the world, on its floor.</summary>
+        public Double3 World(double x, double y) => Origin + Ex * x + Ey * y;
+
+        /// <summary>
+        /// The home's own plan: its middle in the building's plan and its half-extents along and across. A pair's cottage is
+        /// its own part (note 453), whose middle isn't the building's; a house of several parts, its biggest.
+        /// </summary>
+        public (double X, double Y, double HalfX, double HalfY) Plan
+        {
+            get
+            {
+                // A pair's cottage is its own part; a house of several parts (an L) is its biggest (the middle of the whole
+                // can be out in the L's notch).
+                var part = Part >= 0 && Part < B.Parts.Count ? (FootprintPart?)B.Parts[Part]
+                    : B.Parts.Count > 0 ? B.Parts.OrderByDescending(q => q.Length * q.Width).ThenBy(q => q.X).ThenBy(q => q.Y).First() : (FootprintPart?)null;
+                return part is { } q2 ? (q2.X, q2.Y, q2.Length / 2, q2.Width / 2) : (0, 0, B.Length / 2, B.Width / 2);
+            }
+        }
+
+        /// <summary>The home's middle, in the world, on its floor.</summary>
+        public Double3 Middle => World(Plan.X, Plan.Y);
+    }
+
+    /// <summary>Every open house, in index order (alike on every machine).</summary>
+    public IEnumerable<OpenHouse> OpenHouses => _houses.Select((h, i) => new OpenHouse(i, h.Doors.Length > 0 ? (h.Doors[0] - 1) >> 12 : -1,
+        h.Doors.Length > 0 ? ((h.Doors[0] - 1) >> 2) & 0x3FF : -1, h.B, h.Origin, h.Ex, h.Ey, h.Doors, h.Part));
+
+    /// <summary>Whether a world point stands inside open house <paramref name="house"/>.</summary>
+    public bool InHouse(int house, Double3 p) => house >= 0 && house < _houses.Count && _houses[house].Holds(p);
+
     /// <summary>Every open house's door.</summary>
     public IReadOnlyList<HouseDoor> HouseDoors => _doors;
 

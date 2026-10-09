@@ -31,6 +31,12 @@ public sealed record EnemyTuning(
     public MooseTuning Moose { get; init; } = new();
     public GannetTuning Gannet { get; init; } = new();
     public MournersTuning Mourners { get; init; } = new();
+    public PickersTuning Pickers { get; init; } = new();
+    public DwellingsTuning Dwellings { get; init; } = new();
+    public LodgerTuning Lodger { get; init; } = new();
+    public HouseholderTuning Householder { get; init; } = new();
+    public HollowHouseTuning HollowHouse { get; init; } = new();
+    public HangerTuning Hanger { get; init; } = new();
     public FreightBeetleTuning FreightBeetle { get; init; } = new();
     public BrakemanTuning Brakeman { get; init; } = new();
     public HotboxTuning Hotbox { get; init; } = new();
@@ -1050,6 +1056,111 @@ public sealed record MournersTuning
     /// <summary>How many come, by tier (3 where the tier isn't listed).</summary>
     public int CountFor(Route.RouteTier tier) =>
         Count.GetValueOrDefault(char.ToLowerInvariant(tier.ToString()[0]) + tier.ToString()[1..], 3);
+}
+
+/// <summary>The Pickers (GDD §21, App. A.6, B.6; ARCHITECTURE §8 note 592). Field docs live in enemies.json.</summary>
+public sealed record PickersTuning
+{
+    public bool Enabled { get; init; } = true;
+    public double After { get; init; } = 20;
+    public Dictionary<string, int> Count { get; init; } = new() { ["local"] = 3, ["frontier"] = 4, ["deadLines"] = 6, ["deepTerritory"] = 8 };
+    public int PerTwoCrew { get; init; } = 1;
+    public double FacilityReach { get; init; } = 80;
+    public int Drains { get; init; } = 3;
+    public double DrainOff { get; init; } = 1.2;
+    public double EmergeSeconds { get; init; } = 0.8;
+    public double DownSeconds { get; init; } = 3;
+    public double GuardWithin { get; init; } = 4;
+    public double ShyWithin { get; init; } = 3;
+    public double ShySeconds { get; init; } = 4;
+    public double Run { get; init; } = 4.8;
+    public double Carry { get; init; } = 2.6;
+    public double CarryHeavy { get; init; } = 1.6;
+    public double TakeReach { get; init; } = 0.9;
+    public double HoldHeight { get; init; } = 1.0;
+    public double HeaveBeside { get; init; } = 0.9;
+    public double AtDrain { get; init; } = 1.0;
+    public double BiteWithin { get; init; } = 1.2;
+    public int Bite { get; init; } = 8;
+    public double BiteEvery { get; init; } = 2;
+    public double ScatterWithin { get; init; } = 10;
+    public double ScatterSeconds { get; init; } = 6;
+    public double LeaveSeconds { get; init; } = 12;
+    public double Health { get; init; } = 1;
+
+    /// <summary>How many come to a crew of <paramref name="crew"/> at a stop of <paramref name="tier"/>: the tier's count, and
+    /// <c>perTwoCrew</c> more for every two of the crew past two (3 where the tier isn't listed).</summary>
+    public int CountFor(Route.RouteTier tier, int crew) =>
+        Count.GetValueOrDefault(char.ToLowerInvariant(tier.ToString()[0]) + tier.ToString()[1..], 3) + Math.Max(0, crew - 2) / 2 * PerTwoCrew;
+}
+
+/// <summary>Which village houses something lives in (notes 583–586). Field docs live in enemies.json.</summary>
+public sealed record DwellingsTuning
+{
+    public bool Enabled { get; init; } = true;
+    public Dictionary<string, double> Share { get; init; } = new() { ["local"] = 0.2, ["frontier"] = 0.25, ["deadLines"] = 0.33, ["deepTerritory"] = 0.5 };
+    public Dictionary<string, double> Weights { get; init; } = new() { ["lodger"] = 3, ["householder"] = 2, ["hollowHouse"] = 1.5, ["hanger"] = 3 };
+    public double PlaceWithin { get; init; } = 500;
+    public double ForgetPast { get; init; } = 800;
+
+    /// <summary>The share of a stop's open houses with something in them, at <paramref name="tier"/> (0.25 where it isn't listed).</summary>
+    public double ShareFor(Route.RouteTier tier) =>
+        Share.GetValueOrDefault(char.ToLowerInvariant(tier.ToString()[0]) + tier.ToString()[1..], 0.25);
+}
+
+/// <summary>The Lodger (GDD §21; ARCHITECTURE §8 note 583). Field docs live in enemies.json.</summary>
+public sealed record LodgerTuning
+{
+    public double HideInset { get; init; } = 0.6;
+    public double NoticeSeconds { get; init; } = 2.5;
+    public double ShriekWithin { get; init; } = 4.5;
+    public double ShriekSeconds { get; init; } = 1.5;
+    public double LungeSpeed { get; init; } = 9;
+    public double LungeReach { get; init; } = 4.5;
+    public double KillWithin { get; init; } = 0.9;
+    public double KillWindow { get; init; } = 0.25;
+    public double Chase { get; init; } = 5.0;
+    public double PursuitRadius { get; init; } = 25;
+    public double BreakSeconds { get; init; } = 2;
+    public double Walk { get; init; } = 1.6;
+    public double RestSeconds { get; init; } = 3;
+    public double Health { get; init; } = 4;
+}
+
+/// <summary>The Householder (GDD §21; ARCHITECTURE §8 note 584). Field docs live in enemies.json.</summary>
+public sealed record HouseholderTuning
+{
+    public double TableReach { get; init; } = 1.0;
+    public double RiseSeconds { get; init; } = 1.5;
+    public double Hunt { get; init; } = 3.4;
+    public double GrabReach { get; init; } = 1.0;
+    public double GrabSeconds { get; init; } = 6;
+    public double GiveUpBeyond { get; init; } = 200;
+    public double Walk { get; init; } = 1.4;
+    public double Health { get; init; } = 6;
+}
+
+/// <summary>The Hollow House (GDD §21; ARCHITECTURE §8 note 585). Field docs live in enemies.json.</summary>
+public sealed record HollowHouseTuning
+{
+    public double WaitSeconds { get; init; } = 1.5;
+    public double RumbleSeconds { get; init; } = 3;
+    public double ShutEvery { get; init; } = 0.35;
+    public double SinkSeconds { get; init; } = 3;
+    public double SinkDepth { get; init; } = 2.4;
+    public int Crush { get; init; } = 1000;
+}
+
+/// <summary>The Hanger (GDD §21; ARCHITECTURE §8 note 586). Field docs live in enemies.json.</summary>
+public sealed record HangerTuning
+{
+    public int Strands { get; init; } = 6;
+    public double TouchWithin { get; init; } = 0.35;
+    public double HaulSeconds { get; init; } = 2.5;
+    public double HaulTo { get; init; } = 0.7;
+    public double GrabSeconds { get; init; } = 10;
+    public double RetreatSeconds { get; init; } = 25;
+    public double Health { get; init; } = 3;
 }
 
 /// <summary>The Freight Beetle (GDD §21, App. A.6, B.6; ARCHITECTURE §8 note 366). Field docs live in enemies.json.</summary>

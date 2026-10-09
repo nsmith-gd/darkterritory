@@ -750,4 +750,9 @@ written here instead is moved out by `tools/coord/notes.py split`; the Coordinat
 - [572. Jacob, the fisherman (P1, queue #302; the director, 8 Oct 2026: "an NPC named Jacob who can be found randomly in the world near water…](notes/572.md)
 - [577. The fantasy as the GDD's pillar (D1.5, queue #307; the director, 9 Oct 2026, after a playtest: "The fantasy is we are a crew sent out into…](notes/577.md)
 - [574. The controls belong to whoever's working them (queue #304, D1; the director, 9 Oct 2026, on the short-nights test build: "if a player goes…](notes/574.md)
+- [583. The Lodger, and what lives in the village houses (G1, queue #316; the director, 9 Oct 2026: "Every time I go into a house, it should feel…](notes/583.md)
+- [584. The Householder: pay for what you take (G1, queue #317; the director, 9 Oct 2026: "The householder is very good"; design…](notes/584.md)
+- [585. The Hollow House: the house is the creature (G1, queue #318; the director, 9 Oct 2026: "start maybe rumbling the ground underneath as a…](notes/585.md)
+- [586. The Hanger: don't touch the strands (G1, queue #319; the director, 9 Oct 2026: "if you touch a strand that's hanging, it grabs you. It's a…](notes/586.md)
+- [592. The Pickers: scavengers that race the crew for a yard's loot (G1, queue #315; the director, 9 Oct 2026: "other stuff that is more…](notes/592.md)
 <!-- end of the notes index -->

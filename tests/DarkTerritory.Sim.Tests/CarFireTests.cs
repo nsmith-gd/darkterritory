@@ -409,9 +409,11 @@ public class CarFireTests
         // Note 526 (seed 6, car 1): the nearest, not the first whose client saw the flies (that was the shunter at the switch,
         // 22 s off); and in at the side door to the room, not stood in the doorway pressing a lamp key that counts only in the
         // room, or walked between the doorway and the middle by the room's box while the car burned.
-        // The nights as the director dealt them before the six of notes 362–367 joined its roster: a kind more in the deal
+        // The nights as the director dealt them before the six of notes 362–367 (and the stops' own since) joined its roster: a kind more in the deal
         // reshuffles every night (seed 6 has no Fire Flies with them in), and these two are the cases the notes were written on.
-        EnemyKind[] six = [EnemyKind.Mourners, EnemyKind.TowerJaw, EnemyKind.Brakeman, EnemyKind.Knotter, EnemyKind.FreightBeetle, EnemyKind.Hotbox];
+        EnemyKind[] six = [EnemyKind.Mourners, EnemyKind.TowerJaw, EnemyKind.Brakeman, EnemyKind.Knotter, EnemyKind.FreightBeetle, EnemyKind.Hotbox,
+            // And the yard's and the houses' (notes 583–586, 592): a stop's own, they change what the bots do there.
+            EnemyKind.Pickers, EnemyKind.Lodger, EnemyKind.Householder, EnemyKind.HollowHouse, EnemyKind.Hanger];
         var enemies = Tuning.Enemies with
         {
             Director = Tuning.Enemies.Director with { Roster = [.. Enum.GetValues<EnemyKind>().Except(six).Select(Director.Key)] },

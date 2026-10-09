@@ -2031,6 +2031,12 @@ public sealed class World
             // The Mourners (note 362): a crewmate's body left lying off the train brings a group for it, the director's or not.
             if (t.Mourners.Enabled)
                 _mourning.Step(this, t.Mourners, Route?.Tier ?? Sim.Route.RouteTier.Local, ref _nextEnemyId, _enemies, 1);
+            // The Pickers (note 592): a train standing at a yard with loose crates brings a group up out of its drains.
+            if (t.Pickers.Enabled && d.Allows(EnemyKind.Pickers))
+                _picking.Step(this, t.Pickers, Route?.Tier ?? Sim.Route.RouteTier.Local, ctx.Crew.Count, ref _nextEnemyId, _enemies, 1);
+            // The house creatures (notes 583–586): what lives in the stops' open houses, put in as the train comes up to them.
+            if (t.Dwellings.Enabled)
+                _dwelling.Step(this, t, d, ref _nextEnemyId, _enemies);
             // T128 (note 273): whoever the train's left behind has a pressure of their own, and the hunts that come of it.
             d.Abandoned(this, _enemies);
             // Note 328: a train run fast draws the hound run, the guns' wave.
@@ -2057,8 +2063,8 @@ public sealed class World
         _heldThisTick.Clear();
         _heldThisTick.UnionWith(ctx.Held);
         _carries.Clear();
-        foreach (var (id, at) in ctx.Carries)
-            _carries[id] = at;
+        foreach (var (id, at, up) in ctx.Carries)
+            _carries[id] = (at, up);
     }
 
     /// <summary>The Choir insisted on comes this many seconds after the meter's held up (note 186).</summary>
@@ -2100,7 +2106,7 @@ public sealed class World
 
     readonly List<(uint Tick, Ballast.Double3 Muzzle)> _recentRounds = new();
     readonly HashSet<int> _heldThisTick = new();
-    readonly Dictionary<int, Ballast.Double3> _carries = new();
+    readonly Dictionary<int, (Ballast.Double3 To, bool Up)> _carries = new();
     /// <summary>The marsh (its start) the Drift last came up over: once a marsh.</summary>
     double _driftMarsh = double.NaN;
 
@@ -2108,6 +2114,10 @@ public sealed class World
     public double FastSeconds { get; private set; }
 
     readonly Sim.Enemies.Mourning _mourning = new();
+    readonly Sim.Enemies.Picking _picking = new();
+    readonly Sim.Enemies.Dwelling _dwelling = new();
+    /// <summary>Crates the Pickers carried down their drains (note 592): the stops' loot the less.</summary>
+    public int PickersTook { get; set; }
     /// <summary>Structures Tower Jaw brought down tonight, and their wrecks the crew cleared (note 363).</summary>
     public int TowersDown { get; set; }
     public int TowersCleared { get; set; }
@@ -2241,8 +2251,9 @@ public sealed class World
                 {
                     bool held = _heldThisTick.Contains(id);
                     var flags = held ? h.Flags | PlayerFlags.Held : h.Flags & ~PlayerFlags.Held;
+                    // Carried along the ground (the Whistler's run), or hung up off it (the Hanger's strand, note 586).
                     if (held && _carries.TryGetValue(id, out var to))
-                        h = h with { Parent = PlayerState.World, Position = to, Velocity = Ballast.Double3.Zero, Surface = Surface.Ground };
+                        h = h with { Parent = PlayerState.World, Position = to.To, Velocity = Ballast.Double3.Zero, Surface = to.Up ? Surface.Air : Surface.Ground };
                     if (flags != h.Flags || held && _carries.ContainsKey(id))
                         set(id, h with { Flags = flags });
                 }
