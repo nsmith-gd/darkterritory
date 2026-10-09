@@ -1,5 +1,6 @@
 using Ballast;
 using DarkTerritory.Sim.Bots;
+using DarkTerritory.Sim.Enemies;
 using DarkTerritory.Sim.Net;
 using DarkTerritory.Sim.Player;
 using DarkTerritory.Sim.Rail;
@@ -103,7 +104,7 @@ public class StopCrewTests
         /// <param name="from">How far short of the spur's points it starts.</param>
         public Night(int cars, int walkers = 1, bool winchPair = true, bool crateHands = false, bool coaling = false, bool deadLine = false,
             bool ids = false, int hands = 3, FacilityTuning? facilities = null, bool loot = false, bool express = false, int lost = 0,
-            double from = 600, params ModuleKind[] modules)
+            double from = 600, bool creatures = false, params ModuleKind[] modules)
         {
             // A crew that searches the village (note 326) needs a stop with one: open houses with something kept in them.
             Func<RouteFeature, bool>? village = loot
@@ -115,10 +116,14 @@ public class StopCrewTests
             var train = new TrainOnLine(new TrainDynamics(Consist.Uniform(T, cars + lost, Tuning.Run.DepartureLoad)), route.Build(), toe - from, Tuning.Boiler);
             if (lost > 0)
                 train.Uncouple(train.Vehicles[cars - 1].Id);
-            World = new World(train);
+            World = creatures ? new World(train, Tuning.Combat) : new World(train);
             World.EnableBodies();
             World.EnableSwitches(Tuning.Route.Junctions);
             World.EnableRun(Tuning.Run, route, Tuning.Route.YardLength, authority: true, facilities ?? F, loot ? L : null);
+            // The creatures on, the director quiet: only what a test puts there (note 545).
+            if (creatures)
+                World.EnableEnemies(Tuning.Enemies with { Director = Tuning.Enemies.Director with { GraceMinSeconds = 1e9, GraceMaxSeconds = 1e9 } },
+                    route, 1, 4, authority: true);
             // The stops' finds and their houses' walls (note 326), for a crew that searches the village.
             if (loot)
                 train.Walls = StopWalls.Of(route, train.Line);
@@ -1094,6 +1099,49 @@ public class StopCrewTests
         Assert.False(train.Diverging(night.Branch));
         Assert.False(night.World.Derailed, night.World.DerailCause);
         Assert.Equal(StopDriver.Leg.Cruise, night.Driver.Stops!.Doing);
+    }
+
+    /// <summary>A walker that heeds the Knotter as a bot's crew has it (BotCrew.Think: <see cref="Heed.Knotter"/>), its id its place in the crew.</summary>
+    sealed class Heeding(IWorldBot bot, int id) : IWorldBot
+    {
+        public string Name => bot.Name;
+        public PlayerIntent Decide(in PlayerState self, TrainOnLine train, uint tick) => default;
+        public PlayerIntent Decide(in PlayerState self, World world, uint tick, out PlayerState aimed)
+        {
+            var intent = bot.Decide(self, world, tick, out aimed);
+            return bot is RoofWalkerBot { Job: { } hand } ? Heed.Knotter(intent, self, world, id, hand) : intent;
+        }
+    }
+
+    [Fact]
+    public void AKnotterKilledWhileTheDriverStandsForThePointsIsCoupledUpAfter()
+    {
+        // Note 545 (frontier:7, 4 bots, seed 8): a Knotter forced car 1's coupling as the driver stood for the Switchman's
+        // points. The crew killed it slack at that stand, but the driver's part for it waits for the stop's moves to finish,
+        // and they took the train on: the nine cars behind its gap stood on the line where it died, and the night ran on with one.
+        var night = new Night(cars: 8, deadLine: true, creatures: true);
+        for (int i = 1; i < night.Bots.Count; i++)
+            night.Bots[i] = new Heeding(night.Bots[i], i + 1);
+        var train = night.Train;
+        var toe = train.Line.Branches[night.Branch].Toe;
+        int cars = train.Dynamics.Consist.Vehicles.Count;
+        night.World.SetSwitch(night.Branch, true);
+        Knotter? knot = null;
+        night.Until(() => knot is { Gone: true } && train.OnMain && train.Dynamics.Distance > toe + 150, 900, each: () =>
+        {
+            // Into car 2's coupling once the driver's stood for the points (its ToSwitch, the stop driver's), as seed 8's did.
+            if (knot is null && night.Driver.Stops!.Doing != StopDriver.Leg.Cruise && Math.Abs(train.Dynamics.Velocity) < 0.05)
+                knot = night.World.AddEnemy(id => Knotter.Into(id, train, train.Dynamics.Consist.Vehicles[2].Id, Tuning.Enemies.Knotter));
+        });
+        Assert.NotNull(knot);
+        Assert.True(knot.Gone, $"the Knotter's {knot.Mode}, {knot.Health} health; driver {night.Driver.Stops!.Doing}");
+        Assert.True(knot.Health <= 0, "it was cut loose, not killed");
+        Assert.True(train.OnMain && train.Dynamics.Distance > toe + 150, $"stuck: driver {night.Driver.Stops!.Doing} ({night.Driver.SixStep}) at {train.Dynamics.Distance:0} on {train.Dynamics.Path}");
+        Assert.True(train.TrainRakes == 1, string.Join("; ", train.Rakes.Select(r => $"{r.Distance:0.0}..{r.RearDistance:0.0} v{r.Velocity:0.00} p{r.Path} [{string.Join(",", r.Consist.Vehicles.Select(v => v.Id))}]"))
+            + " | " + string.Join(",", night.World.ActiveEnemies.Select(e => $"{e.Kind}@{e.Attached}")));
+        Assert.Equal(cars, train.Dynamics.Consist.Vehicles.Count);
+        // And forward again: coupled up, it put the reverser back (seed 8 crept backwards at 0.2 m/s for 25 minutes).
+        Assert.True(night.World.Controls.Reverser > 0, $"reverser {night.World.Controls.Reverser}");
     }
 
     /// <summary>A shunter who says it's the shunter and never comes (on the guard van's roof).</summary>

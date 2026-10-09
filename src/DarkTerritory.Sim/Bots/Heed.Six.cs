@@ -337,6 +337,9 @@ public static partial class Heed
     /// runs from the nearer into the other), and cornered (both within his <c>cornerSpan</c>) they club him. Everyone else up
     /// there, and a lone bot that can't corner him, unwinds the cars he's wound: along the roofs to the car's brake wheel and
     /// Use held there, only while the car's wound (else the wheel turns the rake's handbrakes: <see cref="CrewActions"/>).
+    /// Nothing across a Knotter's gap, which the roofs never cross (note 545: frontier:7's seed 8 had every roof bot stood at
+    /// its edge all night for a wheel beyond it). And at a stand with a Knotter slack, a bot that can get down is left to it
+    /// (<see cref="Knotter"/>): the stand is for killing it, and a wound brake costs nothing until the train moves.
     /// </summary>
     public static PlayerIntent Brakeman(PlayerIntent intent, in PlayerState self, World world, int selfId,
         IReadOnlyList<(int Id, PlayerState State)> crew, CrewCalls? calls)
@@ -345,13 +348,15 @@ public static partial class Heed
         if (!Free(self) || self.Has(PlayerFlags.Seated) || self.Surface != Surface.Roof || !OnTheRake(train, self.Parent)
             || world.Enemies is not { } et)
             return intent;
+        if (CanGoDown(self, train) && world.ActiveEnemies.OfType<Knotter>().Any(k => !k.Gone && k.Mode == KnotterMode.Slack))
+            return intent;
         double mine = Along(train, self);
         var him = world.ActiveEnemies.OfType<Enemies.Brakeman>().Where(x => !x.Gone && OnTheRake(train, x.Attached)).OrderBy(x => x.Id).FirstOrDefault();
-        if (him is not null)
+        if (him is not null && Reachable(train, self.Parent, him.Attached))
         {
-            // The pair: the two lowest ids of the bots on the roofs (ourselves among them).
+            // The pair: the two lowest ids of the bots on the roofs on his side of any knot (ourselves among them).
             var pair = crew.Where(c => c.Id != selfId && c.State.Alive && c.State.Surface == Surface.Roof && OnTheRake(train, c.State.Parent)
-                    && !c.State.Has(PlayerFlags.Seated) && (calls?.IsBot(c.Id) ?? true)).Select(c => c.Id)
+                    && Reachable(train, c.State.Parent, him.Attached) && !c.State.Has(PlayerFlags.Seated) && (calls?.IsBot(c.Id) ?? true)).Select(c => c.Id)
                 .Append(selfId).Order().Take(2).ToList();
             if (pair.Count == 2 && pair.Contains(selfId))
             {
@@ -390,7 +395,7 @@ public static partial class Heed
         (int Car, Interactable Wheel, double Along)? best = null;
         foreach (var v in train.Dynamics.Consist.Vehicles)
         {
-            if (!v.Wound || !OnTheRake(train, v.Id) || Wheel(train, v.Id) is not { } wheel)
+            if (!v.Wound || !OnTheRake(train, v.Id) || !Reachable(train, self.Parent, v.Id) || Wheel(train, v.Id) is not { } wheel)
                 continue;
             var pose = train.Cars[v.Id];
             double along = pose.FrontDistance - wheel.Position.Z - pose.Length / 2;
@@ -419,6 +424,19 @@ public static partial class Heed
             if (i.Kind == InteractableKind.Handbrake)
                 return i;
         return null;
+    }
+
+    /// <summary>Along the roofs from one car of the engine's rake to another: no Knotter's gap between them (note 545).</summary>
+    static bool Reachable(TrainOnLine train, int from, int to)
+    {
+        var cars = train.Dynamics.Consist.Vehicles;
+        int a = train.Dynamics.Consist.IndexOf(from), b = train.Dynamics.Consist.IndexOf(to);
+        if (a < 0 || b < 0)
+            return false;
+        for (int i = Math.Min(a, b); i < Math.Max(a, b); i++)
+            if (Knotted(train, cars[i].Id, cars[i + 1].Id))
+                return false;
+        return true;
     }
 
     /// <summary>A car of the engine's rake, bar the engine (the cars he works and the roofs he's walked on).</summary>
