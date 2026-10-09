@@ -770,6 +770,23 @@ public static partial class Hud
     /// it's near), and the cold getting deeper where you are (GDD §22, note 201: how much faster it comes on outside, for a
     /// few seconds as you go into it). The whole night, and where you are in it, is the route card's (C).
     /// </summary>
+    /// <summary>
+    /// Past dawn: with the Wakers up (note 588), how far behind the one on the line is, or that it has the train; without them
+    /// (a mod, v1's dawn), the line gone live.
+    /// </summary>
+    public static string DawnLine(Sim.World world, Sim.Train.TrainOnLine train)
+    {
+        if (world.Enemies?.Wakers is not { Enabled: true })
+            return "DAWN: THE LINE IS LIVE. GET IN";
+        if (world.ActiveEnemies.OfType<Sim.Enemies.Waker>().FirstOrDefault(w => w.Lead) is not { } waker)
+            return "DAWN: THEY'RE WAKING. GET IN";
+        if (waker.Holds)
+            return "IT HAS THE TRAIN";
+        double behind = train.RearDistance - waker.LineDistance;
+        return waker.Phase == Sim.Enemies.SpinePhase.Telegraph ? $"DAWN: ONE'S UP {behind / 1000:0.0} KM BEHIND. GET IN"
+            : $"A WAKER {Math.Max(0, behind):0} M BEHIND. GET IN";
+    }
+
     static void TopCentre(Overlay o, int width, IPlaySession s, Memory m, int line)
     {
         float k = Fine, cx = width / 2f, y = 6;
@@ -778,7 +795,7 @@ public static partial class Hud
         {
             double dawn = run?.DawnIn ?? route.DawnSeconds;
             if (dawn <= 0)
-                o.TextCentred(cx, y, "DAWN: THE LINE IS LIVE. GET IN", Red, 1);
+                o.TextCentred(cx, y, DawnLine(s.World, s.Train), Red, 1);
             else if (dawn <= Tuning.DawnClockSeconds)
                 o.TextCentred(cx, y, $"DAWN {(int)dawn / 60}:{(int)dawn % 60:00}", dawn <= 120 ? Red : Amber, 1);
             if (dawn <= Tuning.DawnClockSeconds)
@@ -885,7 +902,7 @@ public static partial class Hud
             else
             {
                 Big("RUN LOST", Red);
-                Small(r.End switch { RunEnd.Derailed => "DERAILED", RunEnd.CrewLost => "THE WHOLE CREW IS DEAD", _ => "STILL OUT WHEN THE LINE WENT LIVE" }, Ink, fine: false);
+                Small(r.End switch { RunEnd.Derailed => "DERAILED", RunEnd.CrewLost => "THE WHOLE CREW IS DEAD", _ when world.Enemies?.Wakers.Enabled == true => "TAKEN AT DAWN", _ => "STILL OUT WHEN THE LINE WENT LIVE" }, Ink, fine: false);
             }
             // GDD v1.4 App. D.12: the incident report, every line in the clerk's voice, under the result; the night's
             // commendations under it.
@@ -1852,6 +1869,7 @@ public static partial class Hud
         DeathCause.Uncoupled => "TAKEN WITH THE CABOOSE. THE PASSENGER CUT IT LOOSE",
         DeathCause.Trampled => "TRAMPLED BY THE MOOSE. YOU GOT TOO CLOSE, OR TOO LOUD",
         DeathCause.Pecked => "PECKED TO DEATH BY THE GANNET. YOU HIT IT, OR SOMEONE DID",
+        DeathCause.Woken => "TAKEN AT DAWN. THE NIGHT WAS THE SAFE PART",
         // Dave's last words to them (note 570): the director's own.
         DeathCause.Dave => "YOU SHOULD BE NICER IN A DARK WORLD.",
         DeathCause.None => "",

@@ -2025,6 +2025,33 @@ static object Screenshot(TrainTuning t, string content, string[] args)
     IReadOnlyList<CarFrame>? leaned = args.Contains("--strain")
         ? [.. train.Frames.Select(f => DarkTerritory.Game.CarLean.Lean(f, DarkTerritory.Game.CarLean.Angle((float)Opt(args, "--strain", 0.8), train.Dynamics.Tuning.Overspeed)))]
         : null;
+    // --waker chase|lift: a Waker at dawn (note 588), coming down the line --behind m (150) back of the last car, or holding
+    // the train --held s (7) in, the rear cars up in its hands, as the sessions draw it (WakerLift). The waker view looks
+    // back at it from the guard van's platform; wakerlift from out beside the line; wakerinside from the roof of the next car
+    // up, a crewmate's eye, lifted with it.
+    string wakerMode = Str(args, "--waker", view switch { "waker" => "chase", "wakerlift" or "wakerinside" => "lift", _ => "" });
+    if (wakerMode.Length > 0)
+    {
+        var wt = DataFile.Load<DarkTerritory.Sim.Enemies.EnemyTuning>(Path.Combine(content, DarkTerritory.Sim.Enemies.EnemyTuning.File)).Wakers;
+        var waker = (DarkTerritory.Sim.Enemies.Waker)DarkTerritory.Sim.Enemies.Enemy.Blank(DarkTerritory.Sim.Enemies.EnemyKind.Waker, 9_100);
+        bool holds = wakerMode == "lift";
+        waker.Restore(holds ? DarkTerritory.Sim.Enemies.SpinePhase.Punish : DarkTerritory.Sim.Enemies.SpinePhase.Commit, 30, 1, -1, default,
+            train.RearDistance - (holds ? 4 : Opt(args, "--behind", 150)), 0, 0, holds ? Opt(args, "--held", 7) : 0, 0);
+        scene.Enemies = [.. scene.Enemies ?? [], waker];
+        var lifted = new List<CarFrame>(leaned ?? train.Frames);
+        DarkTerritory.Game.WakerLift.Apply(lifted, train, [waker], wt);
+        leaned = lifted;
+        var rear = lifted[train.Dynamics.Consist.Vehicles[^1].Id];
+        var next = lifted[train.Dynamics.Consist.Vehicles[^Math.Min(2, train.Dynamics.Consist.Vehicles.Count)].Id];
+        double half = rear.Shape.HalfLength;
+        camera = view switch
+        {
+            "waker" => Camera.LookAt(rear.ToWorld(new Double3(0.6, 2.4, half + 1.2)), rear.ToWorld(new Double3(0, 9, half + 120)), 70),
+            "wakerlift" => Camera.LookAt(train.Frames[next.Index].ToWorld(new Double3(-60, 4, 10)), train.Frames[next.Index].ToWorld(new Double3(0, 9, 12)), 66),
+            "wakerinside" => Camera.LookAt(next.ToWorld(new Double3(0.4, next.Shape.Bounds.Max.Y + 1.6, -half * 0.4)), next.ToWorld(new Double3(-1.5, next.Shape.Bounds.Max.Y + 2, half + 14)), 80),
+            _ => camera,
+        };
+    }
     // And a car in the mine head's tipple rolled over, or off its rails (note 423; --tip, --offrails), as the sessions draw it.
     if (run is not null && (args.Contains("--tip") || args.Contains("--offrails")))
     {
