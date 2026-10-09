@@ -2310,7 +2310,10 @@ public sealed class ConductorBot(CrewCalls? calls = null, int member = 0) : IWor
         }
         // And the Sleepers in the lamp, or greased rail down a grade: under the Sleepers' speed (note 231).
         cruise = Math.Min(cruise, HazardAllow(world));
-        if (Stops is { } stops && !Express)
+        // The express driver (note 376) takes no stops, but a dead line's no stop (note 512): taken (the Switchman's points thrown
+        // under it), it stands down it at the buffers all night without the stop driver's way back off it (OffDeadLine,
+        // SetBack, Forward). That much it does as any driver does; back on the main line, it runs on and stops for nothing.
+        if (Stops is { } stops && (!Express || stops.Doing != StopDriver.Leg.Cruise || SwitchPlan.DownOne(world) is not null))
         {
             // Nobody left to set a switch back but the driver: down it gets, and back up (the train stands on its brake).
             if (self.Alive && stops.SetBackAlone(world) is { } wrong)

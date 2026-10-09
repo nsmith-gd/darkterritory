@@ -100,7 +100,7 @@ public class StopCrewTests
         /// <param name="hands">Of the shunter and the winch pair, how many there are (note 261: a crew of two is the driver and a shunter).</param>
         /// <param name="facilities">The facilities' tuning, if not the game's (note 261's crew flags).</param>
         public Night(int cars, int walkers = 1, bool winchPair = true, bool crateHands = false, bool coaling = false, bool deadLine = false,
-            bool ids = false, int hands = 3, FacilityTuning? facilities = null, bool loot = false, params ModuleKind[] modules)
+            bool ids = false, int hands = 3, FacilityTuning? facilities = null, bool loot = false, bool express = false, params ModuleKind[] modules)
         {
             // A crew that searches the village (note 326) needs a stop with one: open houses with something kept in them.
             Func<RouteFeature, bool>? village = loot
@@ -119,7 +119,8 @@ public class StopCrewTests
                 train.Walls = StopWalls.Of(route, train.Line);
             Site = deadLine ? null! : World.Run!.Sites[facility]!;
             Branch = deadLine ? facility : -1;
-            Driver = new ConductorBot(calls, 0);
+            // Note 512: the harness's express driver (note 376) runs hot and takes no stops, but backs off a dead line as any does.
+            Driver = express ? new ConductorBot(calls, 0) { CruiseSpeed = 21, Express = true } : new ConductorBot(calls, 0);
             Add(Driver, PlayerMotor.SpawnInCab(train, P));
             if (hands >= 1)
                 Add(new RoofWalkerBot(11, P.Cold, new StopHand(StopJob.Shunter, calls, 1, P.Cold)), PlayerMotor.SpawnOnRoof(train, 1, 0, P));
@@ -1025,11 +1026,15 @@ public class StopCrewTests
         Assert.All(night.Crew, c => Assert.NotEqual(Surface.Ground, c.Surface));
     }
 
-    [Fact]
-    public void DownADeadLineItBacksOutAndGoesOn()
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public void DownADeadLineItBacksOutAndGoesOn(bool express)
     {
-        // Taken: stop on the dead line, back out past the points, set the switch back, and go on down the main line.
-        var night = new Night(cars: 8, deadLine: true);
+        // Taken: stop on the dead line, back out past the points, set the switch back, and go on down the main line. The
+        // express driver too (note 512): it takes no stops, and it ran to the dead line's buffer and stood there all night
+        // (8-bot frontier:7 seed 2, the Switchman's points thrown under it at 6,800 m).
+        var night = new Night(cars: 8, deadLine: true, express: express);
         var train = night.Train;
         var toe = train.Line.Branches[night.Branch].Toe;
         night.World.SetSwitch(night.Branch, true);
