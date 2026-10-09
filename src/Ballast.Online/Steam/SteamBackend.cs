@@ -75,6 +75,8 @@ public sealed class SteamBackend : IOnlineBackend
 
     public string NameOf(UserId user) => user == Me ? SteamFriends.GetPersonaName() : SteamFriends.GetFriendPersonaName(Steam(user));
 
+    public bool IsFriend(UserId user) => user != Me && SteamFriends.HasFriend(Steam(user), EFriendFlags.k_EFriendFlagImmediate);
+
     public void Poll(List<OnlineEvent> into)
     {
         SteamAPI.RunCallbacks();

@@ -247,7 +247,8 @@ public static partial class Hud
             lines.Add(($"CREW FULL ({link.Places}/{link.Cap}): NOBODY ELSE CAN JOIN", Red));
         else if (link.JoinAt is { } at)
         {
-            lines.Add((link.Listed ? "FRIENDS: JOIN, YOUR GAME'S LISTED" : "A PRIVATE LOBBY: FRIENDS JOIN BY INVITE", Dim));
+            // Note 450: a private run's listed too, behind its password; the host's Steam friends get in without it.
+            lines.Add((link.Locked ? "PRIVATE: LISTED WITH A LOCK, JOINED WITH THE PASSWORD" : link.Listed ? "FRIENDS: JOIN, YOUR GAME'S LISTED" : "A PRIVATE LOBBY: FRIENDS JOIN BY INVITE", Dim));
             lines.Add(($"  (OR THEY TYPE {at})", Dim));
         }
         else if (hosting)

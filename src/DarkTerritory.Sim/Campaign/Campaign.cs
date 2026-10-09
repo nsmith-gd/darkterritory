@@ -1,6 +1,7 @@
 using Ballast;
 using DarkTerritory.Sim.Combat;
 using DarkTerritory.Sim.Enemies;
+using DarkTerritory.Sim.Physics;
 using DarkTerritory.Sim.Route;
 using DarkTerritory.Sim.Run;
 using DarkTerritory.Sim.Train;
@@ -74,7 +75,25 @@ public sealed record RunLog(int Run, string Route, RunEnd End, double Net, int C
 
 /// <summary>One car's condition, to put it back as it was.</summary>
 /// <param name="Cargo">What it's carrying (T68): a save from before cargo types reads as none.</param>
-public sealed record CarState(int Id, double Load, double Integrity, double CargoIntegrity, int Ammo, CargoKind Cargo = CargoKind.None);
+/// <param name="Eaten">How much of its shell the Car Hugger has eaten (A.3: "gone, not dented"), so a resumed night doesn't
+/// give it back (note 481). A save from before reads as none.</param>
+public sealed record CarState(int Id, double Load, double Integrity, double CargoIntegrity, int Ammo, CargoKind Cargo = CargoKind.None, double Eaten = 0);
+
+/// <summary>
+/// A rake as the save found it (note 481): its vehicles front to back, the track its front is on and how far along. The
+/// engine's is the train going on, a switchyard's cars it picked up ahead of it; any other is cars cut off it, or a yard's
+/// still standing, where they were left.
+/// </summary>
+public sealed record RakeSave(int[] Vehicles, int Path, double Distance, bool Handbrake, bool Locked);
+
+/// <summary>
+/// A thing aboard at the autosave (note 500): its kind, the car it's in and where its middle is in that car's frame, its size
+/// and how it lies, the locker it's on a shelf of and which shelf (−1: none), and what's its own: a crate's cargo, a find's
+/// owner (which find), an extinguisher's mount and charge, a toy's noise, a radio broken.
+/// </summary>
+public sealed record ThingAboard(BodyKind Kind, int Car, Double3 At, double Radius, double Friction, double Bounce, double Yaw = 0, int Locker = -1,
+    int Slot = 0, bool Claimed = true, CargoKind Cargo = CargoKind.None, int Owner = -1, int Home = -1, double Charge = 1,
+    ToyNoise Noise = ToyNoise.None, bool Broken = false);
 
 /// <summary>
 /// Spec E "autosave per POI, on successful departure": enough of a night to start it again from the facility the
@@ -88,6 +107,25 @@ public sealed record RunCheckpoint(string Route, int Facility, double Seconds, d
     /// that wasn't generated.
     /// </summary>
     public byte[]? Plan { get; init; }
+
+    /// <summary>
+    /// The train as it left, rake by rake (spec E "rolls back to last POI autosave"; note 481): a car cut loose or rolled away
+    /// before the save stays where it was left, and a switchyard's cars picked up are still ahead of the engine. Null for an
+    /// older save, which rebuilds the train from its own cars.
+    /// </summary>
+    public RakeSave[]? Rakes { get; init; }
+
+    /// <summary>
+    /// What the night had taken and spent (note 500): its finds stowed and their pay, the mail, the coal and rounds on the
+    /// bill. Null for an older save, whose resumed night counts from the save.
+    /// </summary>
+    public RunTakings? Takings { get; init; }
+
+    /// <summary>
+    /// Everything aboard the train's cars as it left (note 500), put back in place of a fresh stocking: the kit where it was
+    /// put, a rescued child, the lamps, radios, toys and finds. Null for an older save, which stocks the train afresh.
+    /// </summary>
+    public ThingAboard[]? Aboard { get; init; }
 }
 
 /// <summary>What a host owns between nights (spec E: the host owns the campaign). Saved as text, one file a slot.</summary>

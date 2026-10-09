@@ -717,48 +717,80 @@ def blow(rng, last=False):
     return x
 
 
-@recipe("place-breach", "smash", "sledge",
-        "A lock smashed: three seconds of sledge blows on a padlock and hasp, the door booming, the last blow tearing it out",
-        """Each blow is steel on steel (the packs' heavy metal hits and metal door hit) with the plank door booming under it
-        (heavy wood hits, a deep knock) and the lock jumping on its staple; three or four blows over three seconds, loud
-        as a cannon, the last one tearing the hasp out of the splintering wood and the lock clattering down. Four takes
-        with different swings.""", sources=W.PIECES["iron"] + W.PIECES["wood"] + W.PIECES["scrap"], takes=4, lufs=-22)
+# The breach on its beats (queue #234, note 497; C1's #200, note 464): the lock jumps at each blow of the crew's smash clip
+# (a blow every 0.8 s) and each board flexes out on the pry clip's heave (every 1.33 s) and comes off at each fifth of the
+# breach. The smash was three seconds of blows played every half second (a din of them over one another), the pry a held
+# loop heaving on its own; now each blow and each heave is its own sound, played on the clip's beat, and each board torn
+# off as it goes.
+
+@recipe("place-breach", "smash", "blow",
+        "One sledge blow on a padlock and hasp: steel on steel, the plank door booming, the lock jumping on its staple",
+        """One blow, played on each blow of the crew's smash clip as the lock jumps on its hasp (C1's #200): steel on steel
+        (the packs' heavy metal hits and metal door hit) with the plank door booming under it (heavy wood hits, a deep
+        knock) and the lock rattling on its staple after. Loud as a cannon, as D.7 has it. Five takes, swung differently.""",
+        sources=W.PIECES["iron"] + W.PIECES["wood"] + W.PIECES["scrap"], takes=5, lufs=-20)
 def smash(rng, k):
-    count = (3, 4, 3, 4)[k]
-    b = dsp.Bus(4.5)
-    t = 0.0
-    for i in range(count):
-        b.at(t, blow(rng, last=i == count - 1) * (0.85 + 0.15 * rng.random()))
-        t += rng.uniform(0.7, 1.0)
+    return yard(blow(rng) * (0.85 + 0.15 * rng.random()), rng, 0.25)
+
+
+@recipe("place-breach", "smash-give", "tear",
+        "The last blow: the hasp torn out of the splintering wood and the lock clattering down",
+        """The blow that breaks it: the same steel on steel and the door booming, the staple tearing out of the splintering
+        plank (modelled splintering) and the lock and hasp clattering down onto the step and the ballast (the packs'
+        scrap). Two takes.""", sources=W.PIECES["iron"] + W.PIECES["wood"] + W.PIECES["scrap"], takes=2, lufs=-20)
+def smash_give(rng, k):
+    return yard(blow(rng, last=True), rng, 0.25)
+
+
+PRY_ON, PRY_HELD, PRY_OFF = 14 / 30, 22 / 30, 32 / 30     # the pry clip's heave (crew_clips.py, 30 fps): hauled back, held, eased
+
+
+@recipe("place-breach", "pry", "heave",
+        "One heave on the bar: a board flexing out on its nails, the nails squealing, the wood creaking and splitting",
+        """One heave, played on each heave of the crew's pry clip as the board being worked flexes out (C1's #200): the bar
+        seated under the board with an iron knock, the board bending as it's hauled back (modelled creak through a plank's
+        modes, rising with the strain), its nails squealing as they draw (stick-slip through a nail's ring, shrill) and a
+        crack of splitting wood at the full heave (the packs' real wood cracks), then the board easing back with a groan.
+        Loud as machinery. Four takes.""", sources=["sfx_100_v2:misc_35", "kenney_rpg-audio:chop"] + W.PIECES["iron"],
+        takes=4, lufs=-22)
+def pry(rng, k):
+    b = dsp.Bus(1.8)
+    b.at(0, norm(W.piece(rng, "iron", (-3, 0), tau=0.15)) * 0.5)                     # the bar seated
+    hl = PRY_ON + 0.05
+    groan = synth.creak(hl, env([(0, 15), (hl, 60)], hl), rng, body=frame_body(rng, 0.9, False), q=12, jitter=0.5)
+    b.at(0.04, norm(groan) * env([(0, 0), (hl * 0.7, 1), (hl, 0.7)], hl)[:len(groan)] * 0.5)
+    nl = PRY_HELD - PRY_ON * 0.6
+    nail = synth.creak(nl, env([(0, 200), (nl, rng.uniform(500, 900))], nl), rng,
+                       body=[rng.uniform(1800, 2600) * r for r in (1, 2.76, 5.4)], q=50, jitter=0.15)
+    b.at(PRY_ON * 0.6, norm(nail) * env([(0, 0), (0.05, 1), (nl, 0.3)], nl)[:len(nail)] * 0.4)
+    b.at(PRY_ON + rng.uniform(-0.02, 0.03), norm(W.rec(("sfx_100_v2:misc_35", "kenney_rpg-audio:chop")[k % 2],
+                                                         semis=-rng.uniform(1, 4))) * 0.5)
+    el = PRY_OFF - PRY_HELD
+    ease = synth.creak(el, env([(0, 50), (el, 18)], el), rng, body=frame_body(rng, 0.9, False), q=12, jitter=0.5)
+    b.at(PRY_HELD, norm(ease) * env([(0, 0.6), (el, 0)], el)[:len(ease)] * 0.3)
     return yard(b.x, rng, 0.25)
 
 
-@recipe("place-breach", "pry", "bar",
-        "A barricade pried: a crowbar levering boards, nails shrieking out of the wood, boards creaking and cracking",
-        """A bar worked under the boards nailed over a Holdout's door: nails screeching as they're drawn (modelled stick-slip
-        through a nail's ring, shrill), the boards bending and groaning (modelled through a plank's modes) with cracks
-        and splits (the packs' real wood cracks), the bar's iron knocking and scraping as it's reset for the next heave.
-        Loud as machinery. 8 s exact cycle of heaves.""", sources=["sfx_100_v2:misc_35", "kenney_rpg-audio:chop"] + W.PIECES["iron"],
-        loop=True, takes=1, lufs=-22)
-def pry(rng, k):
-    n = samples(8.0)
-    ev = []
-    t = 0.0
-    while t < 7.6:
-        hl = rng.uniform(1.0, 1.6)
-        ev.append((t, norm(W.piece(rng, "iron", (-3, 0), tau=0.15)), 0.5))                     # the bar seated
-        groan = synth.creak(hl, env([(0, 15), (hl, 60)], hl), rng, body=frame_body(rng, 0.9, False), q=12, jitter=0.5)
-        ev.append((t + 0.1, norm(groan) * env([(0, 0), (hl * 0.6, 1), (hl, 0.5)], hl)[:len(groan)], 0.45))
-        nl = rng.uniform(0.3, 0.7)
-        nail = synth.creak(nl, env([(0, 200), (nl, rng.uniform(500, 900))], nl), rng,
-                           body=[rng.uniform(1800, 2600) * r for r in (1, 2.76, 5.4)], q=50, jitter=0.15)
-        ev.append((t + hl * 0.5, norm(nail) * env([(0, 0), (0.05, 1), (nl, 0.3)], nl)[:len(nail)], 0.4))
-        if rng.random() < 0.6:
-            ev.append((t + hl * 0.8, norm(W.rec(("sfx_100_v2:misc_35", "kenney_rpg-audio:chop")[int(rng.integers(2))],
-                                                semis=-rng.uniform(1, 4))), 0.45))
-        t += hl + rng.uniform(0.3, 0.5)
-    y = W.place(n, ev)
-    return seamless(W.cyclic(lambda z: lp(z, 12000), norm(y)) * 0.9 + croom(y, "hall", 0.2, rng) * 0.1)
+@recipe("place-breach", "board", "torn",
+        "A board torn off a barricade: its last nails shrieking out, the board wrenched free and clattering down",
+        """At each fifth of the breach a board comes away (C1's #200: the chest's, then above, below, the top, the bottom):
+        the board's last nails shrieking out of the jamb (stick-slip through a nail's ring, rising), the wood splitting
+        where it held (the packs' real crack), the board wrenched free and dropping onto the step, clattering and rolling
+        (heavy and plank wood hits), a nail pinging off. Three takes.""",
+        sources=["sfx_100_v2:misc_34", "sfx_100_v2:misc_35"] + W.PIECES["wood"] + W.PIECES["iron"], takes=3, lufs=-22)
+def board(rng, k):
+    b = dsp.Bus(2.4)
+    nl = rng.uniform(0.25, 0.4)
+    nail = synth.creak(nl, env([(0, 300), (nl, rng.uniform(900, 1400))], nl), rng,
+                       body=[rng.uniform(1900, 2700) * r for r in (1, 2.76, 5.4)], q=50, jitter=0.2)
+    b.at(0, norm(nail) * env([(0, 0), (0.03, 1), (nl, 0.4)], nl)[:len(nail)] * 0.45)
+    b.at(nl * 0.7, norm(W.rec(("sfx_100_v2:misc_34", "sfx_100_v2:misc_35")[k % 2], semis=-rng.uniform(1, 3))) * 0.6)
+    b.at(nl * 0.8, norm(W.body(rng, rng.uniform(2500, 3800), W.BAR, decay=0.12, contact=0.0001)) * 0.15)
+    t = nl + rng.uniform(0.3, 0.4)
+    for i in range(int(rng.integers(2, 4))):
+        b.at(t, norm(W.piece(rng, "wood", (-4, 1))) * rng.uniform(0.5, 0.9) * (0.7 ** i))
+        t += rng.uniform(0.09, 0.22)
+    return yard(b.x, rng, 0.25)
 
 
 @recipe("place-breach", "pry-give", "boards",

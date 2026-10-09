@@ -213,6 +213,11 @@ public sealed class NetPlaySession : IPlaySession, IDisposable
     /// is the places taken against the crew cap (note 254), max the cap, full "1" while there's no room.
     /// </summary>
     public const string NameKey = "name", TierKey = "tier", RunKey = "run", AboardKey = "aboard", MaxKey = "max", FullKey = "full";
+    /// <summary>
+    /// Note 450: locked "1" on a private run (the browser shows a lock, and picking it asks for the password); mood the
+    /// run's (<see cref="Moods.Word"/>: "laughs", "competitive", or "" for either).
+    /// </summary>
+    public const string LockedKey = "locked", MoodKey = "mood";
 
     /// <summary>The crew cap the content sets (player.json crew.cap, GDD §1 "2–8"; a mod can raise it: note 254).</summary>
     public static int CrewCap(string content) => DataFile.Load<PlayerTuning>(Path.Combine(content, PlayerTuning.File)).Crew.Places;
@@ -457,12 +462,17 @@ public sealed class NetPlaySession : IPlaySession, IDisposable
     /// search. Private: no beacon and a friends-only lobby, so it's joined by invite or address only.</param>
     /// <param name="lobbyName">What the browser calls it; null, "&lt;host&gt;'s run".</param>
     /// <param name="beacon">The beacon to advertise on (a test's, on loopback); by default the usual broadcast one, when listed.</param>
+    /// <param name="password">A private run's password (note 450): a joiner needs it, or to be the host's friend on the
+    /// platform they came in on. Listed, the run shows a lock. Null or blank: an open run.</param>
+    /// <param name="mood">Who the run is for (note 450), said in the listing so a browser puts it first for players of that mood.</param>
     /// <param name="resume">A night's autosave (spec E): start again from the facility it last left.</param>
     /// <param name="bots">Bot crewmates to play with (T89: a night alone, with a crew). Each is a client of this host over
     /// localhost like anyone else; the first drives (first aboard takes the cab), so the human can go where the trouble is.</param>
     public static NetPlaySession HostGame(string content, SessionSetup setup, int? port = DefaultPort, int expectedCrew = 4, IOnlineBackend? online = null,
-        Sim.Campaign.RunCheckpoint? resume = null, int bots = 0, bool listed = true, string? lobbyName = null, LanBeacon? beacon = null)
+        Sim.Campaign.RunCheckpoint? resume = null, int bots = 0, bool listed = true, string? lobbyName = null, LanBeacon? beacon = null,
+        string? password = null, RunMood mood = RunMood.Either)
     {
+        var key = Messages.PasswordKey(password);
         var playerTuning = DataFile.Load<PlayerTuning>(Path.Combine(content, PlayerTuning.File));
         // Bots hold crewmates, so they count against the cap (note 254); the host's own player always has a place.
         int cap = playerTuning.Crew.Places;
@@ -504,10 +514,20 @@ public sealed class NetPlaySession : IPlaySession, IDisposable
                 [AboardKey] = Invariant(1 + bots),
                 [MaxKey] = Invariant(cap),
                 [FullKey] = 1 + bots >= cap ? "1" : "0",
+                [LockedKey] = key is null ? "0" : "1",
+                [MoodKey] = Moods.Word(mood),
             });
-        var host = new HostSession(hostTransport, hostWorld, trainTuning, playerTuning) { SessionInfo = setup.Encode() };
+        var host = new HostSession(hostTransport, hostWorld, trainTuning, playerTuning) { SessionInfo = setup.Encode(), PasswordKey = key };
+        // Note 450: the host's friends get into a private run without its password, as an invite would: told by the account
+        // they came in on (a LAN or address joiner has none, and needs it).
+        if (online is not null && hostTransport is HostGroup group)
+            host.Trusted = peer => group.Route(peer) is (OnlineTransport over, var at) && over.TryGetAddress(at, out var user) && online.IsFriend(user);
         hostWorld.EnableBodies();
-        hostWorld.Stock();
+        // A resumed night's things are where they were (note 500); an older save, or a new night, stocks the train afresh.
+        if (resume?.Aboard is { } aboard)
+            hostWorld.Restock(aboard);
+        else
+            hostWorld.Stock();
         // Spec E: drop-in at POIs only: in the yard, stopped at a facility, or home. Mid-run joiners wait by
         // the train at the facility, "like a pickup".
         if (hostWorld.Run is { } run)
@@ -530,7 +550,7 @@ public sealed class NetPlaySession : IPlaySession, IDisposable
             {
                 var (botWorld, _) = botSetup.Build(content);
                 var botTransport = UdpTransport.Connect(new IPEndPoint(IPAddress.Loopback, udp.Port));
-                var session = new ClientSession(botTransport, botWorld, trainTuning, playerTuning) { Name = playerTuning.BotName(i) };
+                var session = new ClientSession(botTransport, botWorld, trainTuning, playerTuning) { Name = playerTuning.BotName(i), PasswordKey = key };
                 crew.Add(session, BotCrew.Make(i, bots, crew.Calls, loadout.Combat, playerTuning, (int)(route?.Seed ?? 1)), botTransport);
                 var joining = System.Diagnostics.Stopwatch.StartNew();
                 while (session.PlayerId is null && joining.Elapsed.TotalSeconds < 5)
@@ -544,7 +564,7 @@ public sealed class NetPlaySession : IPlaySession, IDisposable
         }
         var (clientWorld, _) = setup.Build(content);
         var clientTransport = UdpTransport.Connect(new IPEndPoint(IPAddress.Loopback, udp.Port));
-        var client = new ClientSession(clientTransport, clientWorld, trainTuning, playerTuning) { Name = LocalName(lobby), Outfit = Outfit };
+        var client = new ClientSession(clientTransport, clientWorld, trainTuning, playerTuning) { Name = LocalName(lobby), Outfit = Outfit, PasswordKey = key };
         // The host's own player comes aboard before anyone else can: first aboard takes the cab.
         var clock = System.Diagnostics.Stopwatch.StartNew();
         while (client.PlayerId is null && clock.Elapsed.TotalSeconds < 5)
@@ -561,6 +581,8 @@ public sealed class NetPlaySession : IPlaySession, IDisposable
             Listed = listed,
             LobbyName = name,
             Tier = tier,
+            Locked = key is not null,
+            Mood = mood,
             _beacon = listed ? beacon : null,
         };
     }
@@ -574,6 +596,10 @@ public sealed class NetPlaySession : IPlaySession, IDisposable
     /// <summary>What the browser calls this game.</summary>
     public string LobbyName { get; private init; } = "";
     string Tier { get; init; } = "";
+    /// <summary>A private run, behind its password (note 450).</summary>
+    public bool Locked { get; private init; }
+    /// <summary>Who the run is for (note 450).</summary>
+    public RunMood Mood { get; private init; }
 
     static string Invariant(int n) => n.ToString(System.Globalization.CultureInfo.InvariantCulture);
 
@@ -608,15 +634,27 @@ public sealed class NetPlaySession : IPlaySession, IDisposable
     {
         var train = world.Train;
         return new Sim.Campaign.RunCheckpoint(route, facility, world.Run!.Seconds, train.Dynamics.Distance, train.Boiler.Tender,
-            [.. train.Vehicles.Select(v => new Sim.Campaign.CarState(v.Id, v.Load, v.Integrity, v.CargoIntegrity, v.Gun.Ammo, v.Cargo))],
+            [.. train.Vehicles.Select(v => new Sim.Campaign.CarState(v.Id, v.Load, v.Integrity, v.CargoIntegrity, v.Gun.Ammo, v.Cargo, v.Eaten))],
             world.Holdouts?.Spent ?? [])
-        { Plan = world.TrackPlan?.Compress() };
+        {
+            Plan = world.TrackPlan?.Compress(),
+            Rakes = [.. train.Capture().Rakes.Select(r => new Sim.Campaign.RakeSave(r.Vehicles, r.Path, r.Distance, r.Handbrake, r.FrontCouplerLocked))],
+            Takings = world.Run.Takings,
+            Aboard = world.Authority ? world.Aboard() : null,
+        };
     }
 
-    /// <summary>Puts a night back as it was saved: the cars, the coal, the clock, and the stops already made.</summary>
+    /// <summary>
+    /// Puts a night back as it was saved: the train as it left (note 481: its rakes, a car lost before the save still lost,
+    /// a switchyard's cars picked up still ahead of the engine), the cars, the coal, the clock, the stops already made, and what
+    /// the night had taken and spent (note 500). What was aboard goes back once the bodies are on (<see cref="World.Restock"/>).
+    /// </summary>
     static void Restore(World world, Sim.Campaign.RunCheckpoint c)
     {
         var train = world.Train;
+        // An older save, or one whose cars aren't this night's, keeps the train as built: its own cars, from the save's front.
+        if (c.Rakes is { Length: > 0 } rakes)
+            train.Resume([.. rakes.Select(r => new RakeState(r.Vehicles, r.Distance, 0, 1, r.Handbrake, r.Locked, r.Path))]);
         foreach (var car in c.Cars)
             if (car.Id < train.Vehicles.Count)
             {
@@ -625,12 +663,13 @@ public sealed class NetPlaySession : IPlaySession, IDisposable
                 v.Integrity = car.Integrity;
                 v.CargoIntegrity = car.CargoIntegrity;
                 v.Gun = v.Gun with { Ammo = car.Ammo };
+                v.Eaten = car.Eaten;
                 // An older save has no cargo types: its loaded cars keep the goods they were built with.
                 if (car.Cargo != CargoKind.None)
                     v.Cargo = car.Cargo;
             }
         train.Boiler.Tender = c.Tender;
-        world.Run?.Resume(c.Seconds, c.Facility, c.Tender, c.Cars.Sum(x => x.Ammo));
+        world.Run?.Resume(c.Seconds, c.Facility, c.Tender, c.Cars.Sum(x => x.Ammo), c.Takings, train.Dynamics.Distance);
         world.Holdouts?.Spend(c.SpentHoldouts ?? []);
     }
 
@@ -648,11 +687,14 @@ public sealed class NetPlaySession : IPlaySession, IDisposable
 
     /// <summary>Connects to a host over UDP and waits (up to the transport's connect timeout) for its Welcome.</summary>
     /// <param name="whileWaiting">Called each time round the wait (a test steps its in-process host here).</param>
-    public static NetPlaySession Join(string content, IPEndPoint address, Action? whileWaiting = null, DatagramOptions? options = null) =>
-        Connect(content, UdpTransport.Connect(address, options), address.ToString(), null, whileWaiting, () => UdpTransport.Connect(address, options));
+    /// <param name="password">A private run's password (note 450), or null.</param>
+    public static NetPlaySession Join(string content, IPEndPoint address, Action? whileWaiting = null, DatagramOptions? options = null, string? password = null) =>
+        Connect(content, UdpTransport.Connect(address, options), address.ToString(), null, whileWaiting, () => UdpTransport.Connect(address, options),
+            Messages.PasswordKey(password));
 
     /// <summary>Joins a friend's lobby (an invite, "Join Game", <c>+connect_lobby</c>) and connects to its owner.</summary>
-    public static NetPlaySession JoinLobby(string content, IOnlineBackend online, LobbyId id, Action? whileWaiting = null, DatagramOptions? options = null)
+    public static NetPlaySession JoinLobby(string content, IOnlineBackend online, LobbyId id, Action? whileWaiting = null, DatagramOptions? options = null,
+        string? password = null)
     {
         var lobby = Lobby.Join(online, id, Game, Protocol.Version);
         var clock = System.Diagnostics.Stopwatch.StartNew();
@@ -672,13 +714,13 @@ public sealed class NetPlaySession : IPlaySession, IDisposable
             // Note 254: a full crew's lobby is shut; where the platform still shows us its values, say why as the host would.
             if (online.LobbyData(id, FullKey) == "1" && int.TryParse(online.LobbyData(id, AboardKey), System.Globalization.CultureInfo.InvariantCulture, out int aboard)
                 && int.TryParse(online.LobbyData(id, MaxKey), System.Globalization.CultureInfo.InvariantCulture, out int max))
-                throw new IOException(new Refusal(RefusalReason.CrewFull, aboard, max).ToString());
+                throw new JoinRefusedException(new Refusal(RefusalReason.CrewFull, aboard, max));
             throw new IOException($"couldn't join: {lobby.Error}");
         }
         try
         {
             return Connect(content, OnlineTransport.Connect(online, lobby.Owner, options), $"{online.NameOf(lobby.Owner)}'s game", lobby, whileWaiting,
-                () => OnlineTransport.Connect(online, lobby.Owner, options));
+                () => OnlineTransport.Connect(online, lobby.Owner, options), Messages.PasswordKey(password));
         }
         catch
         {
@@ -688,7 +730,9 @@ public sealed class NetPlaySession : IPlaySession, IDisposable
     }
 
     /// <param name="redial">A new link to the same host, for coming back after a drop (note 253).</param>
-    static NetPlaySession Connect(string content, ITransport transport, string describe, Lobby? lobby, Action? whileWaiting, Func<ITransport>? redial = null)
+    /// <param name="key">A private run's password, as its key (note 450): said in the Hello, and again on every redial.</param>
+    static NetPlaySession Connect(string content, ITransport transport, string describe, Lobby? lobby, Action? whileWaiting, Func<ITransport>? redial = null,
+        byte[]? key = null)
     {
         var early = new List<TransportEvent>();
         string? session = null;
@@ -704,7 +748,7 @@ public sealed class NetPlaySession : IPlaySession, IDisposable
                 if (e.Kind == TransportEventKind.Connected)
                 {
                     var hello = new NetWriter();
-                    Messages.WriteHello(hello, LocalName(lobby), outfit: Outfit);
+                    Messages.WriteHello(hello, LocalName(lobby), outfit: Outfit, key: key);
                     transport.Send(PeerId.Host, hello.Written, Delivery.ReliableOrdered);
                 }
                 if (e.Kind == TransportEventKind.Disconnected)
@@ -712,14 +756,15 @@ public sealed class NetPlaySession : IPlaySession, IDisposable
                     transport.Dispose();
                     throw new IOException($"no answer from {describe}");
                 }
-                // Note 254: turned away (a full crew). Said on the join screen, "CREW FULL (8/8)", rather than waiting on.
+                // Note 254: turned away (a full crew; note 450, a private run's wrong password). Said on the join screen, "CREW
+                // FULL (8/8)", rather than waiting on; the password's asked for again.
                 if (e is { Kind: TransportEventKind.Data, Payload: { Length: > 0 } no } && no[0] == (byte)MessageType.Refused)
                 {
                     var r = new NetReader(no);
                     r.U8();
                     var refusal = Messages.ReadRefused(ref r);
                     transport.Dispose();
-                    throw new IOException(refusal.ToString());
+                    throw new JoinRefusedException(refusal);
                 }
                 if (e is { Kind: TransportEventKind.Data, Payload: { Length: > 0 } p } && p[0] == (byte)MessageType.Welcome)
                 {
@@ -751,7 +796,7 @@ public sealed class NetPlaySession : IPlaySession, IDisposable
         }
         var client = new ClientSession(new Replay(transport, early), world,
             setup.Loadout(content).Train, DataFile.Load<PlayerTuning>(Path.Combine(content, PlayerTuning.File)))
-        { Name = LocalName(lobby), Outfit = Outfit };
+        { Name = LocalName(lobby), Outfit = Outfit, PasswordKey = key };
         return new NetPlaySession(null, null, null, client, transport, setup, route, lobby) { Redial = redial };
     }
 
@@ -854,6 +899,8 @@ public sealed class NetPlaySession : IPlaySession, IDisposable
                 Max = hosting.Cap,
                 Tier = Tier,
                 Lobby = Lobby is { IsHost: true, Status: Lobby.State.Open, Visibility: LobbyVisibility.Public } l ? l.Id.ToString() : "",
+                Locked = Locked,
+                Mood = Moods.Word(Mood),
             });
         }
         if (Host is { } served && Lobby is { } meeting)
@@ -1067,6 +1114,7 @@ public sealed class NetPlaySession : IPlaySession, IDisposable
     public LinkInfo? Link => new(Role(), Host is null && Client.Connected ? _link.RoundTrip(PeerId.Host) * 1000 : null,
         Aboard, Client.Waiting ? Client.WaitingReason : null, Lost, JoinAt, Listed && Host is not null)
     {
+        Locked = Locked && Host is not null,
         Attempt = Reconnecting ? Math.Max(1, Attempt) : 0,
         Attempts = Attempts,
         CanReconnect = CanReconnect,
@@ -1161,4 +1209,13 @@ public sealed class NetPlaySession : IPlaySession, IDisposable
             inner.Poll(into);
         }
     }
+}
+
+/// <summary>
+/// A host turned this joiner away (note 254's full crew, note 450's wrong password): the reason, so the join screen can
+/// say it and, for a password, ask again.
+/// </summary>
+public sealed class JoinRefusedException(Refusal refusal) : IOException(refusal.ToString())
+{
+    public Refusal Refusal { get; } = refusal;
 }

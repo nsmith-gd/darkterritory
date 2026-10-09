@@ -138,9 +138,16 @@ public sealed partial class WorldArt
         {
             if (s + step < from || s > to)
                 continue;
+            // Each length laid on the chord between its ends, so on a curve consecutive lengths meet on the line, not a
+            // tangent's sag apart (12 cm at 400 m); and long enough to close the wedge that opens between them on the
+            // curve's outer wall, or the sky shows through the joint (note 433).
+            double end = Math.Min(s + step, f.End);
             var t = line.Sample(s);
-            float len = (float)Math.Min(step, f.End - s) + 0.05f;
-            mesh.Instances.Add(new MeshInstance(Piece($"tunnel-{len:0.0}", () => StructureKit.TunnelLining(_look, len)), Basis(t.Tangent, t.Position, eye, 0)));
+            var t1 = line.Sample(end);
+            var chord = (t1.Position - t.Position).Normalized;
+            double turn = Math.Acos(Math.Clamp(Double3.Dot(t.Tangent.Normalized, t1.Tangent.Normalized), -1, 1));
+            float len = (float)Math.Round(end - s + 0.05 + (StructureKit.TunnelHalf + 0.5) * turn, 2);
+            mesh.Instances.Add(new MeshInstance(Piece($"tunnel-{len:0.00}", () => StructureKit.TunnelLining(_look, len)), Basis(chord, t.Position, eye, 0)));
         }
         // Faces in the walls (tools/models wall_face): deep in the bore, one on each side, where the brick has bulged
         // round a face pushing out through it at a man's height. The headlamp finds one as the train goes by.

@@ -74,5 +74,9 @@ void main() {
     // Below the horizon: the ground's haze.
     if (dir.y < 0.0)
         colour = mix(colour, horizon * 0.85, smoothstep(0.0, -0.08, dir.y));
+    // The hole probe (dt holes, note 433): sky seen lower than the land could hide it is a hole in the land. Bright, so
+    // the grade and the tone curve leave it magenta.
+    if (frame.probe.x < 0.0 && dir.y < frame.probe.x)
+        colour = vec3(8.0, 0.0, 8.0);
     outColor = vec4(colour, 1.0);
 }
