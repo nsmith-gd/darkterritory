@@ -199,6 +199,24 @@ public sealed record SessionSetup(string? Route = null, string Line = "test-loop
 }
 
 /// <summary>
+/// A night this machine hosts, as <see cref="NetPlaySession.BuildHost"/> builds it (note 515): the setup (its content's hashes,
+/// mods, start and line plan filled in), the save it resumes from, the crew its threats are planned for, and the password's key.
+/// </summary>
+public sealed record HostedNight(SessionSetup Setup, Sim.Campaign.RunCheckpoint? Resume, int Crew, byte[]? PasswordKey);
+
+/// <summary>
+/// Told of every night this machine hosts (note 515): a developer build's recorder. <see cref="Hosting"/> may hand back a
+/// transport over the host's, which the host then reads; <see cref="Hosted"/> has the host once it's built, before anyone's
+/// aboard; <see cref="Ended"/> comes when the session's disposed.
+/// </summary>
+public interface IHostTap
+{
+    ITransport Hosting(ITransport transport, HostedNight night);
+    void Hosted(HostSession host, HostedNight night);
+    void Ended(HostSession host);
+}
+
+/// <summary>
 /// A networked game (T13, T20): the host runs <see cref="HostSession"/> and plays through its own
 /// <see cref="ClientSession"/> over localhost, exactly like everyone else, so the host has no advantage and
 /// no separate code path. Friends reach the host over UDP (LAN, direct IP) or through a platform lobby (Steam),
@@ -468,10 +486,12 @@ public sealed class NetPlaySession : IPlaySession, IDisposable
     /// <param name="resume">A night's autosave (spec E): start again from the facility it last left.</param>
     /// <param name="bots">Bot crewmates to play with (T89: a night alone, with a crew). Each is a client of this host over
     /// localhost like anyone else; the first drives (first aboard takes the cab), so the human can go where the trouble is.</param>
+    /// <param name="tap">Told of the night (note 515): a developer build's recorder. Null for <see cref="Tap"/>'s.</param>
     public static NetPlaySession HostGame(string content, SessionSetup setup, int? port = DefaultPort, int expectedCrew = 4, IOnlineBackend? online = null,
         Sim.Campaign.RunCheckpoint? resume = null, int bots = 0, bool listed = true, string? lobbyName = null, LanBeacon? beacon = null,
-        string? password = null, RunMood mood = RunMood.Either)
+        string? password = null, RunMood mood = RunMood.Either, IHostTap? tap = null)
     {
+        tap ??= Tap;
         var key = Messages.PasswordKey(password);
         var playerTuning = DataFile.Load<PlayerTuning>(Path.Combine(content, PlayerTuning.File));
         // Bots hold crewmates, so they count against the cap (note 254); the host's own player always has a place.
@@ -484,23 +504,9 @@ public sealed class NetPlaySession : IPlaySession, IDisposable
             Start = resume?.Front ?? setup.Start,
             Plan = resume?.Plan is { } saved ? Sim.LineGen.LinePlan.Decompress(saved) : setup.Plan,
         };
-        var loadout = setup.Loadout(content);
-        var trainTuning = loadout.Train;
-        var (hostWorld, route) = setup.Build(content, authority: true);
-        // E.6: the host's world draws the derailment's track from the bag it brought (clients' worlds have no rotation).
-        hostWorld.Music = Sim.Music.MusicRotation.Load(content, hostWorld.WreckTuning.Music, setup.MusicBag);
-        // The host records the film on the derail tick, for the deaths (App. E.2 step 1; note 258): compiled now, off the
-        // frame loop, so that tick isn't held up by the JIT as well (a second, the first time).
-        var warmTuning = hostWorld.WreckTuning;
-        _ = Task.Run(() => WreckFilm.Warm(warmTuning));
-        // D.8: who each of the crew is, from the campaign, matched up as their names arrive.
-        if (setup.Identities is { } identities)
-            hostWorld.LooksByName = identities;
-        // B.6: a host's first-ever child call is a real child (their profile says whether they've had one; note 182).
-        hostWorld.NextChildReal = setup.FirstChildReal;
-        setup = setup with { PlanPrint = route?.Plan?.Fingerprint(), TerrainPrint = TerrainOf(hostWorld)?.Print() };
-        if (resume is not null)
-            Restore(hostWorld, resume);
+        // Planned for who'll be there: alone with bots, them and you; hosted online, the friends expected too (T115: a
+        // local night alone was planned for four).
+        var night = new HostedNight(setup, resume, online is null ? bots + 1 : Math.Max(bots + 1, expectedCrew), key);
         var udp = port is { } p ? UdpTransport.Host(p) : UdpTransport.Host(0, bind: IPAddress.Loopback);
         ITransport hostTransport = online is null ? udp : new HostGroup(udp, OnlineTransport.Host(online));
         string tier = setup.Route is { } spec ? Sim.Route.Route.ParseSpec(spec).Tier.ToString() : "";
@@ -517,29 +523,16 @@ public sealed class NetPlaySession : IPlaySession, IDisposable
                 [LockedKey] = key is null ? "0" : "1",
                 [MoodKey] = Moods.Word(mood),
             });
-        var host = new HostSession(hostTransport, hostWorld, trainTuning, playerTuning) { SessionInfo = setup.Encode(), PasswordKey = key };
+        // The host reads what the tap hands it, if anything's tapping (a developer build's recorder); the rest of the session
+        // keeps the transport itself (the friends' check below needs the group, and it's disposed with the session).
+        (var host, setup, var route, var loadout) = BuildHost(content, night, tap?.Hosting(hostTransport, night) ?? hostTransport);
+        var hostWorld = host.World;
+        var trainTuning = loadout.Train;
         // Note 450: the host's friends get into a private run without its password, as an invite would: told by the account
         // they came in on (a LAN or address joiner has none, and needs it).
         if (online is not null && hostTransport is HostGroup group)
             host.Trusted = peer => group.Route(peer) is (OnlineTransport over, var at) && over.TryGetAddress(at, out var user) && online.IsFriend(user);
-        hostWorld.EnableBodies();
-        // A resumed night's things are where they were (note 500); an older save, or a new night, stocks the train afresh.
-        if (resume?.Aboard is { } aboard)
-            hostWorld.Restock(aboard);
-        else
-            hostWorld.Stock();
-        // Spec E: drop-in at POIs only: in the yard, stopped at a facility, or home. Mid-run joiners wait by
-        // the train at the facility, "like a pickup".
-        if (hostWorld.Run is { } run)
-        {
-            host.CanBoard = () => run.Phase is Sim.Run.RunPhase.Yard or Sim.Run.RunPhase.AtFacility or Sim.Run.RunPhase.Arrived;
-            host.BoardAt = n => run.Phase == Sim.Run.RunPhase.Yard ? PlayerMotor.SpawnOnRoof(hostWorld.Train, 1 + (n - 1) % Math.Max(1, hostWorld.Train.OwnVehicles - 1), 0, playerTuning)
-                : Beside(hostWorld.Train, n, playerTuning);
-        }
-        if (setup.Enemies && route is not null)
-            // Planned for who'll be there: alone with bots, them and you; hosted online, the friends expected too (T115: a
-            // local night alone was planned for four).
-            host.EnableEnemies(loadout.Enemies!, route, route.Seed, online is null ? bots + 1 : Math.Max(bots + 1, expectedCrew));
+        tap?.Hosted(host, night);
         // The bot crew aboard first, so one of them has the cab. Their clients take the host's plan, not a fresh generation.
         BotCrew? crew = null;
         if (bots > 0)
@@ -584,8 +577,61 @@ public sealed class NetPlaySession : IPlaySession, IDisposable
             Locked = key is not null,
             Mood = mood,
             _beacon = listed ? beacon : null,
+            _tap = tap,
         };
     }
+
+    /// <summary>
+    /// The host's world for a night and the host over it: everything <see cref="HostGame"/> makes but the links, the lobby and
+    /// the crew. It's how a recorded night is built again (note 515), so whatever the host's world is given has to come in
+    /// through <paramref name="night"/>.
+    /// </summary>
+    /// <returns>The host, the setup with the line's and the land's prints (as joiners get it), the night's route, and its tunings.</returns>
+    public static (HostSession Host, SessionSetup Setup, Route? Route, Sim.Campaign.Loadout Loadout) BuildHost(string content, HostedNight night, ITransport transport)
+    {
+        var (setup, resume) = (night.Setup, night.Resume);
+        var playerTuning = DataFile.Load<PlayerTuning>(Path.Combine(content, PlayerTuning.File));
+        var loadout = setup.Loadout(content);
+        var (hostWorld, route) = setup.Build(content, authority: true);
+        // E.6: the host's world draws the derailment's track from the bag it brought (clients' worlds have no rotation).
+        hostWorld.Music = Sim.Music.MusicRotation.Load(content, hostWorld.WreckTuning.Music, setup.MusicBag);
+        // The host records the film on the derail tick, for the deaths (App. E.2 step 1; note 258): compiled now, off the
+        // frame loop, so that tick isn't held up by the JIT as well (a second, the first time).
+        var warmTuning = hostWorld.WreckTuning;
+        _ = Task.Run(() => WreckFilm.Warm(warmTuning));
+        // D.8: who each of the crew is, from the campaign, matched up as their names arrive.
+        if (setup.Identities is { } identities)
+            hostWorld.LooksByName = identities;
+        // B.6: a host's first-ever child call is a real child (their profile says whether they've had one; note 182).
+        hostWorld.NextChildReal = setup.FirstChildReal;
+        setup = setup with { PlanPrint = route?.Plan?.Fingerprint(), TerrainPrint = TerrainOf(hostWorld)?.Print() };
+        if (resume is not null)
+            Restore(hostWorld, resume);
+        var host = new HostSession(transport, hostWorld, loadout.Train, playerTuning) { SessionInfo = setup.Encode(), PasswordKey = night.PasswordKey };
+        hostWorld.EnableBodies();
+        // A resumed night's things are where they were (note 500); an older save, or a new night, stocks the train afresh.
+        if (resume?.Aboard is { } aboard)
+            hostWorld.Restock(aboard);
+        else
+            hostWorld.Stock();
+        // Spec E: drop-in at POIs only: in the yard, stopped at a facility, or home. Mid-run joiners wait by
+        // the train at the facility, "like a pickup".
+        if (hostWorld.Run is { } run)
+        {
+            host.CanBoard = () => run.Phase is Sim.Run.RunPhase.Yard or Sim.Run.RunPhase.AtFacility or Sim.Run.RunPhase.Arrived;
+            host.BoardAt = n => run.Phase == Sim.Run.RunPhase.Yard ? PlayerMotor.SpawnOnRoof(hostWorld.Train, 1 + (n - 1) % Math.Max(1, hostWorld.Train.OwnVehicles - 1), 0, playerTuning)
+                : Beside(hostWorld.Train, n, playerTuning);
+        }
+        if (setup.Enemies && route is not null)
+            host.EnableEnemies(loadout.Enemies!, route, route.Seed, night.Crew);
+        return (host, setup, route, loadout);
+    }
+
+    /// <summary>
+    /// What's told of every night this machine hosts (note 515): a developer build's recorder, set at launch. A player's build
+    /// has nothing that sets it (DarkTerritory.Dev isn't in it), so it's null there and a night is hosted as it always was.
+    /// </summary>
+    public static IHostTap? Tap { get; set; }
 
     /// <summary>The night as the browser's detail line says it.</summary>
     static string Describe(SessionSetup setup, bool inYard) =>
@@ -1157,6 +1203,8 @@ public sealed class NetPlaySession : IPlaySession, IDisposable
     public void ShowInviteDialog() => Lobby?.ShowInviteDialog();
 
     LanBeacon? _beacon;
+    /// <summary>What's told of this night, hosted (note 515), to be told when it's over.</summary>
+    IHostTap? _tap;
     readonly System.Diagnostics.Stopwatch _clock = System.Diagnostics.Stopwatch.StartNew();
 
     /// <summary>Whose game it is, for the join list: the Steam name hosting through Steam, else the computer's user.</summary>
@@ -1184,6 +1232,8 @@ public sealed class NetPlaySession : IPlaySession, IDisposable
 
     public void Dispose()
     {
+        if (Host is not null)
+            _tap?.Ended(Host);
         _beacon?.Dispose();
         BotCrew?.Dispose();
         // A joiner quitting on purpose gives its place up (note 254), so a full crew has room for someone else at once.

@@ -138,6 +138,17 @@ jobs:
         with:
           name: prints-${{ runner.os }}
           path: out/prints/
+      # A night recorded on Windows plays again on Linux tick for tick (note 515: the director records on Windows, the
+      # agents replay on Linux). Main only: RecordReplayTests holds the replay on each OS on every pull request.
+      - name: A recorded night, for the other OS to replay
+        if: runner.os == 'Windows' && github.event_name != 'pull_request'
+        shell: bash
+        run: dotnet run --project src/DarkTerritory.Cli -c Release --no-build -- replay record --route frontier:7 --bots 2 --seconds 15 --out out/recordings
+      - uses: actions/upload-artifact@v4
+        if: runner.os == 'Windows' && github.event_name != 'pull_request'
+        with:
+          name: recording-Windows
+          path: out/recordings/
   # Windows and Linux build the same night from the same seed, or they can't play together.
   crossplay:
     needs: build-test
@@ -152,6 +163,26 @@ jobs:
         run: |
           cat prints/Linux.json
           diff <(tr -d '\r' < prints/Linux.json) <(tr -d '\r' < prints/Windows.json) && echo "cross-play: the same nights on both"
+  # Windows' recorded night replayed on Linux, checked tick by tick against what its host sent (note 515).
+  replay-crossplay:
+    needs: build-test
+    if: github.event_name != 'pull_request'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-dotnet@v4
+        with:
+          global-json-file: global.json
+      - run: dotnet build src/DarkTerritory.Cli -c Release
+      - uses: actions/download-artifact@v4
+        with:
+          name: recording-Windows
+          path: recordings
+      - name: Windows' night on Linux, tick for tick
+        run: |
+          f=$(ls recordings/*.dtrec | head -1)
+          dotnet run --project src/DarkTerritory.Cli -c Release --no-build -- replay "$f" | tee replay.json
+          jq -e '.divergedAt == null and (.truncated | not) and .steps > 400' replay.json
   # Builds for players (roadmap M6): self-contained Windows and Linux folders with their content, zipped. The Linux one
   # is started from somewhere else and plays a few seconds, so a build that can't find its content never ships.
   package:
