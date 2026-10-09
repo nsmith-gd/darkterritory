@@ -232,7 +232,16 @@ public sealed record ThreatReport(double Budget, double Spent, IReadOnlyDictiona
     public int PackFires { get; init; }
     /// <summary>The Gannet's passes (note 454): hung over a walker, folded, stabbed.</summary>
     public GannetReport Gannet { get; init; } = new(0, 0, 0);
+    /// <summary>Each Cinder Hound pack that boarded (note 484): how long it was aboard and how its hounds ended.</summary>
+    public IReadOnlyList<PackAboardReport> Packs { get; init; } = [];
 }
+
+/// <summary>
+/// A pack that boarded (note 484): when its first hound came aboard and how long any of it stayed (s), its hounds, and how
+/// each ended: killed aboard (the pack fight), cut loose with its car, off another way (driven off, gone), or still aboard
+/// when the night ended.
+/// </summary>
+public sealed record PackAboardReport(int Pack, double Boarded, double Seconds, int Hounds, int Killed, int Cut, int Off, int Aboard);
 
 /// <summary>The Gannet's passes over a night (note 454): how often it hung over a walker, folded on one, and stabbed one.</summary>
 public sealed record GannetReport(int Hangs, int Folds, int Stabs);
@@ -377,6 +386,7 @@ public static class Harness
 
         int ticks = (int)(o.Seconds * SimConstants.TickRate);
         var posted = new Dictionary<byte, double>();
+        var packs = new Dictionary<int, (long First, long Last, List<CinderHound> Hounds)>();
         // Note 253's drop and rejoin: when, who, and how it went.
         uint dropTick = o.DropRejoin is { } drs ? (uint)Math.Round(drs.At * SimConstants.TickRate) : uint.MaxValue;
         uint redialTick = o.DropRejoin is { } drr ? dropTick + (uint)Math.Max(1, Math.Round(drr.Away * SimConstants.TickRate)) : uint.MaxValue;
@@ -545,6 +555,16 @@ public static class Harness
                 if (session.PlayerId is { } pid && !posted.ContainsKey(pid) && host.Players.FirstOrDefault(p => p.Id == pid) is { } hp && hp.State.Alive
                     && AtPost(bot, hp.State, host.World))
                     posted[pid] = t * SimConstants.TickSeconds;
+            // The packs aboard (note 484): every hound seen on a car, kept, and its pack's time aboard.
+            foreach (var e in host.World.ActiveEnemies)
+                if (e is CinderHound { Gone: false } hound && hound.Attached >= 0)
+                {
+                    if (!packs.TryGetValue(hound.Pack, out var p))
+                        packs[hound.Pack] = p = (t, t, new List<CinderHound>());
+                    if (!p.Hounds.Contains(hound))
+                        p.Hounds.Add(hound);
+                    packs[hound.Pack] = (p.First, t, p.Hounds);
+                }
             if (o.Observe is { } observe)
             {
                 var states = host.Players.ToDictionary(p => p.Id, p => p.State);
@@ -588,6 +608,7 @@ public static class Harness
                 Pressure = new PressureReport(Math.Round(d.Grace, 1), d.Tuning.Pressure.Threshold, PressureEvery, per5Min, pressureTrace),
                 Slack = d.Posts.Stats.ToDictionary(kv => kv.Key, kv => new SlackReport(kv.Value.Max, kv.Value.Over)),
                 PackFires = host.World.PackFires,
+                Packs = [.. packs.OrderBy(kv => kv.Value.First).Select(kv => PackAboard(kv.Key, kv.Value, host.Train))],
                 HoundRuns = [.. d.HoundRuns.Select(r => new HoundRunReport(Math.Round(r.Tick * SimConstants.TickSeconds, 1), Math.Round(r.Distance / 1000, 2), r.Size,
                     r.Active, r.Hot, d.RunOutcome(r.Pack).Scattered, d.RunOutcome(r.Pack).Killed, d.RunOutcome(r.Pack).Boarded, d.AheadRunners(r.Pack), d.FlankRunners(r.Pack),
                     d.FlankEngineRunners(r.Pack)))],
@@ -667,6 +688,27 @@ public static class Harness
         new(events.GroupBy(e => e.Kind.ToString()).ToDictionary(g => g.Key, g => g.Count()), StringComparer.Ordinal);
 
     /// <summary>A bot at its post (T102): in the cab at the controls or the fire, at the guard gun, or up on the train.</summary>
+    /// <summary>How a boarded pack ended (note 484): each hound killed, cut loose (gone with a car no longer in the engine's
+    /// rake), off some other way, or still aboard.</summary>
+    public static PackAboardReport PackAboard(int pack, (long First, long Last, List<CinderHound> Hounds) p, TrainOnLine train)
+    {
+        int killed = 0, cut = 0, off = 0, aboard = 0;
+        var engine = train.RakeOf(0);
+        foreach (var h in p.Hounds)
+        {
+            if (!h.Gone && h.Attached >= 0)
+                aboard++;
+            else if (h.Health <= 0)
+                killed++;
+            else if (h.Attached >= 0 && h.Attached < train.Vehicles.Count && !ReferenceEquals(train.RakeOf(h.Attached), engine))
+                cut++;
+            else
+                off++;
+        }
+        return new PackAboardReport(pack, Math.Round(p.First * SimConstants.TickSeconds, 1), Math.Round((p.Last - p.First) * SimConstants.TickSeconds, 1),
+            p.Hounds.Count, killed, cut, off, aboard);
+    }
+
     static bool AtPost(IBot bot, in PlayerState s, World world) => bot switch
     {
         ConductorBot => PlayerMotor.InCab(s, world.Train),

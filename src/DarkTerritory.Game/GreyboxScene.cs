@@ -354,7 +354,8 @@ public sealed class GreyboxScene
                         if ((crane.HookAt - eye).Length < DrawDistance && Look?.Art.Crane(mesh, crane, frames, eye) != true)
                             Crane(mesh, crane, frames, eye);
                 }
-            // A yard's powerhouse with its power on (level-design D.2): the lamp over its door burns.
+            // A yard's powerhouse with its power on (level-design D.2): the lamp over its door burns; an open one's (note 509)
+            // hangs over its switchboard inside, so the engine house is dark until the power runs, and lit from its doorway after.
             if (Run is not null)
                 foreach (var site in Run.Sites)
                     // (Not at a wreck yard: GDD §18 "unlit", note 187.)
@@ -625,8 +626,12 @@ public sealed class GreyboxScene
             // Heavy crates only come from a facility's site, so its size is there (facilities.json "heavy").
             double heavyHalf = Run?.Sites.FirstOrDefault(x => x is not null)?.HeavyRadius ?? 0.5;
             if (Look is not null)
+            {
                 Look.Art.Burned = Crew?.Where(c => c.Death is Sim.Player.DeathCause.Burned or Sim.Player.DeathCause.Stoker
                     or Sim.Player.DeathCause.Exploded or Sim.Player.DeathCause.Keg).Select(c => (int)c.Id).ToHashSet();
+                // Who has the repair kit by its handle (note 513): it's drawn in their fist with them, below, not here.
+                Look.Art.KitCarriers = Crew?.Where(c => c.Alive && c.Act == Art.CrewPose.Toolbox).Select(c => (int)c.Id).ToHashSet();
+            }
             foreach (var b in Bodies)
             {
                 // In your own hands, drawn at them for the frame (the mirror's own pose is back before anything reads it).
@@ -1186,11 +1191,17 @@ public sealed class GreyboxScene
             double h = r.Hint;
             double ground = Sim.Player.PlayerMotor.GroundAt(p, line, ref h);
             // Down off whatever it was on (a roof, a car's floor, the gap's plate), as anything dropped falls.
-            double y = Math.Max(ground, r.From.Value.Y - 0.5 * 9.81 * age * age);
+            double y = go.Rise > 0 ? r.From.Value.Y + go.Rise * age : Math.Max(ground, r.From.Value.Y - 0.5 * 9.81 * age * age);
             var copy = Enemy.Blank(r.Body.Kind, id, r.Body.Extra);
-            copy.Restore(SpinePhase.BreakOff, age, r.Body.Health, Enemy.Loose, p with { Y = y }, r.Body.LineDistance, r.Body.Lateral, 0, r.Body.Extra, r.Body.Extra2);
-            // Loose, it's drawn facing the nearest car: turned about, it faces away, the way it's going.
-            DrawEnemy(mesh, line, frames, copy, eye, from, to, Look?.Art.Creatures, flinch: (Vector3.Zero, Quaternion.CreateFromAxisAngle(Vector3.UnitY, MathF.PI)));
+            // The Gannet loose faces its own heading (its Lateral, a player's yaw: −Z at 0): the way it's going, out.
+            bool heads = r.Body.Kind == EnemyKind.Gannet;
+            double lateral = heads ? Math.Atan2(-r.Out.X, -r.Out.Z) : r.Body.Lateral;
+            // (A Gannet's height is its mode: on the wing, soaring off.)
+            double height = heads ? (double)Sim.Enemies.GannetMode.Soar : 0;
+            copy.Restore(SpinePhase.BreakOff, age, r.Body.Health, Enemy.Loose, p with { Y = y }, r.Body.LineDistance, lateral, height, r.Body.Extra, r.Body.Extra2);
+            // The rest, loose, are drawn facing the nearest car: turned about, they face away, the way they're going.
+            DrawEnemy(mesh, line, frames, copy, eye, from, to, Look?.Art.Creatures,
+                flinch: heads ? default : (Vector3.Zero, Quaternion.CreateFromAxisAngle(Vector3.UnitY, MathF.PI)));
         }
     }
 
@@ -3176,10 +3187,10 @@ public sealed class GreyboxScene
                         if (lengths.Count == 0)
                             continue;
                         // The Gaunt's roost has no lantern lit, as its house would have no candle (TownKit.HouseLight): a dark
-                        // barn among lit ones is the tell (note 488).
+                        // barn among lit ones is the tell (note 488). A powerhouse is lit by its power, not a lantern (note 509).
                         houses.Add(new OpenHouse(origin, (On(1, 0) - origin).Normalized, (On(0, 1) - origin).Normalized, lengths, null, false,
                             (int)(f.Start * 7 + i), yard ? Art.WorldArt.YardShedHeight(b) : Art.WorldArt.OpenShedHeight(b.Kind), Shed: true,
-                            Dark: Sim.Run.StopWalls.Nest(stop, i) is not null));
+                            Dark: Sim.Run.StopWalls.Nest(stop, i) is not null || b.Kind == Sim.Stops.BuildingKind.Powerhouse));
                         continue;
                     }
                     if (!b.Open || !Sim.Run.StopWalls.Walled(stop, i))
