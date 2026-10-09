@@ -6300,6 +6300,17 @@ Terrain sculpting tools, a node-graph material editor, a general-purpose visual 
         - 3 m at full blaze: in, at it, and out of the car before it's too hurt (45 health or more), not shut in.
         - Each of the four changes, taken out, fails one or both. `CarFireTests` (19) still pass.
 
+537. **Warming up clear of the pack (queue #279, D1.2; #208's patrol meeting the warm-up; D1's frontier:7 seed 3 with #265).** The one death left on seed 3 after #265 was the gunner, mauled at 1,519 s while warming up in car 7 as a pack came aboard it. A replay on later code went differently and didn't show how the hound reached it. The doors it had shut, a boarding hound landing on the roof, and a leap's arc (held at roof height) all ruled out a hound getting in by those ways. The bot-level holes were plain, though, and `WarmClearTests` shows them:
+    - **Choosing the car.** The warm-up took its own car or the one ahead, a pack aboard or not. Now a car on a pack's ground is barred (`OnPacksGround`: at or behind a hound's `FrontCar`, note 528, which it patrols, leaping the gaps, and drops into at an open side door). Cold on that ground, a walker goes forward to the car ahead of it, or stays out.
+    - **Warming when they come.** Behind its shut doors (a hound drops in only at an open side door, note 472), but once warm it came out onto the roof among them. A hound that leapt to the next car made "its car" clear, and the walker came out a car from them and was chased down. Now, while its car is on their ground, it stays in, warm or not (`WarmUp.Packed`, "Warm/pack"). Driven out (their fire, note 269), it goes by the front door, towards the engine and off their ground.
+    - **Not done:** shutting a side door that's opened just as a pack lands over it. A hound drops 1.5 s after landing at the door, faster than anyone crosses the car to shut it.
+    - **Not yet:** a pack's fire drives a warming walker out, and a fit one then goes at the pack under #221's rule (note 484), alone if it's alone. Whether a lone fit walker should take on a pack at all is the pack fight's question.
+    - **Tests:** `WarmClearTests`:
+        - Warming in a car a pack boards, it stays in for 25 s, no hound gets in, and it isn't bitten indoors.
+        - Cold on car 2 with a pack on car 3, it warms up in car 1.
+        - Each fails without its half of the change.
+    - **Seed 3 again:** on main as it stands now (the Knotter, #625's rakes and more), the night goes differently. No pack boards, so it doesn't exercise this change (13.86 km). The tests are the evidence here.
+
 528. **A hound bites only who's on its ground (queue #265, D1.2; #221's follow-up, note 484; D1's ask, for the director's counter).** On `harness --route frontier:7 --bots 4 --enemies --upkeep --seconds 2700 --seed 3` with #221, the driver, alone, went to cut a pack loose at the coupling ahead of its ground (note 472's `FrontCar`). A hound patrolling to the ground's front end bit it at the coupling, held it, and mauled it at 1,568 s. The pack rode to dawn: 78 pack fires and 10.19 km.
     - **Now** a hound bites and chases only who's on its ground (`CinderHound.OnGround`, in `Maul`'s choice of prey beside `Reaches`). That's the cars from its `FrontCar` back to the rake's end. On the front car itself it's the roof and the inside; the car's front plate and front end ladder, the gap ahead, are out. Off the train, on a car ahead, or in that gap, a crewmate is out of its reach.
     - **The counter, readable:** stand ahead of the pack's ground and it can't touch you; cut there. Note 472's cost is unchanged: its ground goes, and no car more. (A first version cut a car further forward instead. D1 preferred the hound's rule: it's a counter a player can read, and it doesn't cost another car.)
@@ -7410,6 +7421,46 @@ Terrain sculpting tools, a node-graph material editor, a general-purpose visual 
       - The rear cars' lamps, with every hand at the front: seed 6's guard van, 180 m from the cab at the Foundry's clear-away, was alight before anyone got there.
       - The driver's set-backs for a hand left on the ground: on seed 6, after its switch set-back, it backs a kilometre to the spur's toe for one, and later runs on at 14.5 m/s with all three on the ballast. That one is ConductorBot's (D1).
     - **Test:** `CarFireTests.AtAStopTheNearestHandPutsTheFireFliesLampOutWhateverItsPart` is a theory over seeds 2 and 6 now: no car the flies came to is alight by 520 s.
+
+533. **Two hurt hands on the ballast at Renwick Yard and the driver waiting all night (queue #277, D1.3 for D1; D1.2's trace, frontier:7 seed 6 with #619).** From about 1,846 s the gunner and the last walker stood on the ballast at 1 hp, and the driver waited in the cab for the rest of the night (13.8 km).
+    - **The root cause, a rake lost long ago counted as the train's own.** The crew cut cars 8–10 loose at km 9. `TrainOnLine.TrainRakes` counts every rake that isn't a yard's standing cars, so from then on the stop logic read "the train's split here". The driver made no more stops. The hands' Foundry plan was never over (it's released only with the train back together), so at every stand they rode to the cab by it. At Renwick Yard that meant down off the train and round to the cab's door:
+      - *The wrong side.* `SideOf` measured against the Foundry's spur, kilometres back, and put the hands across the track from where they were.
+      - *Into the engine.* Note 486's `Across` (the train between a hand and where it's going: the foot path round) skipped the engine, so they walked into its side, and stood there till dawn.
+    - **Now:**
+      - The stop logic asks `StopPlan.NearRake`: another rake of this train at this stop, down its spur or within 600 m of its hold. That covers the driver's legs, the coaling stand, the cut, the back-out and the hands' plan release. A rake lost kilometres back is not this stop's.
+      - `SideOf` reads the track the engine's on, and the engine counts in `Across`.
+      - A hand on the ballast with the train standing and no stop's part goes back aboard by the foot path (`StopHand.LeftOnTheBallast`), to the nearest roof ladder of the engine's rake. Its stale plan used to do that by accident. Without the plan, a walker freed from the Holdout at km 10 (seed 13) took the walker's own way, a straight line, into the Holdout's wall for two minutes, and was left to the Ribbits.
+    - **Pinned:** `StopCrewTests.WithCarsLostKilometresBackTheCrewStillWorksTheStop`, with two cars cut loose 2.5 km back (on main the driver sat in Cruise past the stop). And `HoldoutTests.ACrewmateBrokenOutWalksRoundTheHoldoutsWallsAndBackAboard` (on the old code, stuck 2.8 m from the Holdout's inside).
+    - **Measured** (frontier:7, `--bots 4 --enemies --upkeep`, 2,700 s, seeds 1–18; main has #641 in):
+
+      | | Main | Now |
+      |---|---|---|
+      | km | 353.0 | 377.9 |
+      | Delivered | 3 | 3 |
+      | Deaths | 37 | 44 |
+      | Crew lost | 18 | 21 |
+      | Cars lost | 39 | 56 |
+      | Cargo delivered | 73.0 | 62.7 |
+
+      Seed 6 runs 10.9 → 24.2 km. (With #641 in, seed 6 no longer loses the km-9 rake, but its stop is worked again.) The costs are in the longer nights and the stops worked after a lost rake:
+      - Couplings that worked loose and parted: 22 → 35 cars, 6 of them at stops a short-handed crew now works.
+      - Hounds: 8 → 13 deaths.
+      - Hands left behind who froze or were eaten: 9 → 4.
+
+      Single nights are chaotic; the totals are the measure.
+    - **Corrected by note 541:** the "Coupler: Crew 1" cuts this note listed as a driver crossing a plate by mistake are the driver's deliberate cuts of a boarded hound pack's car (note 343, note 484).
+
+541. **What cuts the couplings, and a VR hand that cuts one by mistake (queue #283, D1.3 for D1; from note 533's sweep).** Note 533 put "Coupler: Crew 1" (23 cars on main's 18 nights of frontier:7) down to the bot driver crossing a coupling plate by mistake on its way to or from a Holdout. That was wrong.
+    - **Every bot cut is meant.** A bot cuts only through `StopHand.CutAt`, the one place a bot's intent carries Uncouple. Tagging each caller and logging every cut over seeds 1–18 showed two kinds:
+      - The driver's cuts were all `ConductorBot.CutAlone` (note 343). Each was at a stand, with two to five Cinder Hounds on the cars cut away, after the pack had gone unfought for `Heed.PackUnfoughtSeconds` or with nobody fit to fight it (note 484). That's App. A.3's own counter: "cut the coupling just ahead of the pack's ground".
+      - The shunter's cuts were the stop's own (`StopHand.Cut`), at the Foundry's hold.
+      - Nothing crosses a plate and cuts it by accident: a cut needs Uncouple held, standing still on the plate and looking down (`CrewActions.Uncoupling`). No bot passes through that state on its way past. So nothing changes here. Whether a pack's cars are worth cutting is a balance question for the hounds, not a bot bug.
+    - **A player on keyboard and mouse can't cut by accident either.** Use at a door, a pin or a hot box from the plate never cuts. Uncouple is its own key (Z), held while standing still and looking down.
+    - **A VR player can.** With a hand reported, a cut is Use held on the plate with the hand below 0.7 m (`CrewActions.ReachedDown`), and `CrewActions.Apply` checks that before a loose pin or a hot box.
+      - Checked: on a standing train with the wrench out and Use held at a loose pin, a hand at 0.4 m or 0.65 m cut the coupling. A hand at 0.9 m tightened the pin.
+      - The coupler's knuckle and the axle boxes are below the plate, so reaching down for them is the natural move, and it cuts the train.
+      - Not changed: it's the VR controls, so it's a question for the director under COORDINATION's *Waiting on the director*.
+
 510. **Captions for the moments: what a creature does and how the train fails (AU1, queue #247; note 349's CAPTIONS, F1's; note 391; GDD §32; the director, 8 Oct: "these are all quite important").** Captions told a reader how a thing is learned: the tells, the signs, the jobs that call for a hand, the doors, the rules heard (note 494's healing). They didn't say when it happens. A car tearing away, someone dragged under the train, a bite, a seizing, the boiler bursting, a derailment, a misfire and the overspeed bell were all heard by a hearing player and never written.
     - **Added** (content/ui/captions.json, by F1's rules: what it is as someone hearing it would say it, never what makes it, never what to do), 55 sounds:
         - **A creature's acts:**
@@ -7454,3 +7505,18 @@ Terrain sculpting tools, a node-graph material editor, a general-purpose visual 
     - **The neck** shows its two cords and the windpipe.
     - **Budget:** 4,858 triangles (was 2,308) of the creature budget's 5,000 (`CreatureArtTests`); 28 bones. The legs, never seen in the fire, have the fewest rings. The clips are unchanged.
     - **Verified:** `dt screenshot --threats --stoker reach --view firebox` and `--stoker peer` (before and after are in the Look Review round). `CreatureArtTests` and the Game suite are green.
+
+538. **The Passenger wrong up close (queue #280, E1; the art checklist's `passenger`, GDD App. A.8: "passes for crew in the dark; wrong up close").** Note 124's model passed in the dark, but close to it was only unfinished: a smooth blue-grey egg of a face with two lit dots and a slot of a mouth, the scarf a sleeve with a flat slab down the front. Now it's a dead man's face kept too long (`tools/blender/passenger.py`, `face`):
+    - **The face:** the skin is drawn tight over the skull (the head 34 by 28, up from 22 by 18).
+        - Deep sockets under a standing brow, with a furrow between the brows.
+        - Sharp cheekbones with the cheeks fallen in under them, and hollow temples.
+        - The nose thin to its bone, its sides sunk and the nostrils drawn back; the jaw's line and the chin hard under the skin.
+    - **What's wrong with it:** the eyes are set a little too far apart (`EYE_U` 0.47, was 0.43) and are a little too big. Their lids have gone back off them: the lower lid has sagged away, showing its wet red rim, and the upper is a thin fold over a stare that never blinks. The ears are shrunk dry against the skull.
+    - **The scarf** (still in the copied crewmate's colour, `wool.passenger.paint`) is wound three times round the throat, each wrap lumpy and tilted, then knotted at the side. Its two ends hang down the coat's front, rucked across their width and frayed at the end. In the dark it reads as a scarf now, which is what it's copying.
+    - **The bake** (`tools/models/recipes/passenger.py`): the skin is creased across the forehead and cracked fine all over, like old paper. The recipe now reads the head's centre and eyes from the script (`g["HC"]`, `g["EYE_U"]`), not copies of them, so the sockets' bruising follows the eyes.
+    - **Budget:** 6,750 triangles (was 4,014) of the model's 9,000 (`CreatureArtTests`); 27 bones. The clips, the sim and `CreatureArt` are unchanged.
+    - **Verified:** `dt screenshot --threats --passenger stand --view passenger` and `dt art clip passenger stand --at 0,1.62,0 --dist 0.55 --yaw 25` (before and after are in the Look Review round). `CreatureArtTests` is green.
+
+540. **A host told whose link is bad out on the line (F1, UI/UX 3; queue #282; note 534's "not yet"; spec E "ping visibility is load-bearing").** Note 534 put each crewmate's ping and loss on the host's lobby panel, which is the yard's: once the train was out, a host driving the night didn't know a joiner was dropping a tenth of their inputs until they said so.
+    - **Out on the line, the host's top-right corner names them** (`Hud.BadLinks`), where a joiner's own bad ping goes: "PRIYA: 13% LOST" or "SAM: PING 210 MS", in danger ink, by hud.json's `pingWarnMs` and `lossWarn` as a joiner's own line is. Each says whichever of the two is further past its warning; worst first; three at most, then "AND n MORE". Nothing while everyone's fine (note 285: the screen says what's gone wrong, and only that).
+    - **Seen:** `dt screenshot --hud --link-quality line` (the hosted yard of note 534 with its 12% sender, drawn as if past the gate). Tests: `QuietHudTests` (said only when someone's bad; named worst first, the rest counted).
