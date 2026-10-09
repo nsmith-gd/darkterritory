@@ -494,6 +494,52 @@ public sealed class World
     }
 
     /// <summary>
+    /// What's aboard, for the autosave (note 500): every thing in a car of the train (the engine's cab too) on its floor, a roof,
+    /// a locker's shelf, or in a crewmate's hands there. Not the dead (the crew's places aren't saved, and a resumed night's crew
+    /// are all back), nor anything a creature's carrying off.
+    /// </summary>
+    public Campaign.ThingAboard[] Aboard() =>
+        [.. Bodies.All.Where(b => b.Kind != Physics.BodyKind.Ragdoll && b.TakenBy < 0 && b.Parent >= 0 && b.Parent < Train.Vehicles.Count
+            && b.Pbd.Particles.Length == 1).Select(b =>
+        {
+            var p = b.Pbd.Particles[0];
+            return new Campaign.ThingAboard(b.Kind, b.Parent, p.Position, p.Radius, b.Pbd.Friction, b.Pbd.Bounce, b.Yaw, b.Locker, b.Slot, b.Claimed,
+                b.Cargo, b.Owner, b.Home, b.Charge, b.Noise, b.Broken);
+        })];
+
+    /// <summary>
+    /// Host, a night resumed from its autosave (note 500): what was aboard put back where it was, in place of
+    /// <see cref="Stock"/>'s fresh stocking (a lamp taken out and lost stays lost; a find, a child or the kit where the crew put
+    /// them). What's stowed goes back on its locker's shelves in the order it was there. The train's kit counts as stocked, and
+    /// its radios as carried things, as <see cref="Stock"/> leaves them.
+    /// </summary>
+    public void Restock(IEnumerable<Campaign.ThingAboard> things)
+    {
+        var kit = Train.Dynamics.Tuning.Kit;
+        if (kit.Radios > 0 && Train.Frames[0].Shape.Cab is not null)
+            Bodies.RadiosCarried = true;
+        if (RepairKitCar(Train) is not null && !Repairs.ByWrench(Train) && kit.RepairKits + kit.SpareKits > 0)
+            KitStocked = true;
+        foreach (var t in things.OrderBy(t => t.Locker < 0 ? 0 : 1).ThenBy(t => t.Car).ThenBy(t => t.Locker).ThenBy(t => t.Slot))
+        {
+            if (t.Car < 0 || t.Car >= Train.Vehicles.Count)
+                continue;
+            var b = Bodies.Put(Train, t.Car, t.Kind, t.At, t.Radius, t.Friction, t.Bounce);
+            b.Yaw = t.Yaw;
+            b.Claimed = t.Claimed;
+            b.Cargo = t.Cargo;
+            b.Owner = t.Owner;
+            b.Home = t.Home;
+            b.Charge = t.Charge;
+            b.Noise = t.Noise;
+            b.Broken = t.Broken;
+            // A full shelf (the save's from a train with other lockers) leaves it where it lay: at its shelf, out of the way.
+            if (t.Locker >= 0)
+                Bodies.Stow(b, Train, t.Car, t.Locker);
+        }
+    }
+
+    /// <summary>
     /// The repair kit (GDD §12) in its car (train.json kit.repairKitCar), where the crew learn to look for it: the first car
     /// back from the engine, a walk from the footplate, in the fitter's locker (note 173); and the spares the fortress sold
     /// the crew (GDD v1.4 App. E.12 question 4) beside it, then in the lockers after it. A car without lockers has its kits

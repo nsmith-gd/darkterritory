@@ -49,6 +49,7 @@ public static partial class StopGenerator
     /// <summary>
     /// The powerhouse (level-design P6: the throat's auxiliary buildings are "a natural home for the yard office or
     /// power"): on the yard's side of the main line, around its first switch, clear of the track. −1 if there's no room.
+    /// With <c>powerhouse.open</c> it stands open, its switchboard inside (note 509); no dice of its own.
     /// </summary>
     static int PlacePowerhouse(StopDraft g, Dice R, StopTuning t, int side)
     {
@@ -58,7 +59,7 @@ public static partial class StopGenerator
         {
             var b = new StopBuilding(BuildingKind.Powerhouse, StopZone.Yard, toe + R.Range(p.Throat), side * R.Range(p.Offset), p.Size[0], p.Size[1],
                 R.Range(-0.1, 0.1))
-            { Variant = R.Int(0, 2) };
+            { Variant = R.Int(0, 2), Open = p.Open };
             if (g.Fits(b, new Fit(Gap: 3, Rail: 4, Road: 2)))
                 return g.Add(b);
         }
@@ -89,7 +90,8 @@ public static partial class StopGenerator
     /// yard is out past the tier's rail buffer (P13: its find is loot), on whichever side has room, the far side from the
     /// village first: a siding with its points long lifted, the derelicts standing on it from its buffer stop, and the goods
     /// shed beyond it, its workbench a find at <c>deadTown.goods.find</c>. Anything that doesn't fit is left out, and the
-    /// check says so (the stop's rerolled for it, P15).
+    /// check says so (the stop's rerolled for it, P15). With <c>deadTown.station.open</c> the station stands open (note
+    /// 493), with no dice of its own, so the stop's laid as before; nothing's kept in it (it's inside the rail buffer, P13).
     /// </summary>
     static void RailwaySide(StopDraft g, Dice R, StopTuning t, StopTier tt, Pt halt, int side, List<IReadOnlyList<Pt>> sidings)
     {
@@ -100,7 +102,7 @@ public static partial class StopGenerator
         {
             var station = new StopBuilding(BuildingKind.Station, StopZone.Village, halt.S + along * (dt.Station.Size[0] / 2 + R.Range(dt.Station.FromLane)),
                 side * back, dt.Station.Size[0], dt.Station.Size[1], 0)
-            { Variant = R.Int(0, 2) };
+            { Variant = R.Int(0, 2), Open = dt.Station.Open };
             if (g.Fits(station, new Fit(Gap: 1.5, Rail: 2, Road: 1)))
             {
                 g.Add(station);

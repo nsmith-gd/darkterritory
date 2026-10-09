@@ -354,7 +354,8 @@ public sealed class GreyboxScene
                         if ((crane.HookAt - eye).Length < DrawDistance && Look?.Art.Crane(mesh, crane, frames, eye) != true)
                             Crane(mesh, crane, frames, eye);
                 }
-            // A yard's powerhouse with its power on (level-design D.2): the lamp over its door burns.
+            // A yard's powerhouse with its power on (level-design D.2): the lamp over its door burns; an open one's (note 509)
+            // hangs over its switchboard inside, so the engine house is dark until the power runs, and lit from its doorway after.
             if (Run is not null)
                 foreach (var site in Run.Sites)
                     // (Not at a wreck yard: GDD §18 "unlit", note 187.)
@@ -3182,10 +3183,10 @@ public sealed class GreyboxScene
                         if (lengths.Count == 0)
                             continue;
                         // The Gaunt's roost has no lantern lit, as its house would have no candle (TownKit.HouseLight): a dark
-                        // barn among lit ones is the tell (note 488).
+                        // barn among lit ones is the tell (note 488). A powerhouse is lit by its power, not a lantern (note 509).
                         houses.Add(new OpenHouse(origin, (On(1, 0) - origin).Normalized, (On(0, 1) - origin).Normalized, lengths, null, false,
                             (int)(f.Start * 7 + i), yard ? Art.WorldArt.YardShedHeight(b) : Art.WorldArt.OpenShedHeight(b.Kind), Shed: true,
-                            Dark: Sim.Run.StopWalls.Nest(stop, i) is not null));
+                            Dark: Sim.Run.StopWalls.Nest(stop, i) is not null || b.Kind == Sim.Stops.BuildingKind.Powerhouse));
                         continue;
                     }
                     if (!b.Open || !Sim.Run.StopWalls.Walled(stop, i))

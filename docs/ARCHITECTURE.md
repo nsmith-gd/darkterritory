@@ -6173,7 +6173,7 @@ Terrain sculpting tools, a node-graph material editor, a general-purpose visual 
     - **Drawn** (`WorldArt.OpenShed`): the yard sheds' walk-in shell (C1's `ShedShell`, note 387; no chain hoists here), 6.5 m high for a barn, 7 m for a goods shed, 4.6 m for an outbuilding (its bay door needs the height). Boards over the shell's concrete, 0.06 m up plus however far the ground climbs under the footprint (the terrain's mesh rode up through the concrete in a wide shed set back from the line). The loft: boards, its edge beam on posts (none where a ladder leans), hay heaped against the wall, a little fallen below. The bench: top, legs, a shelf, a vice, tools left on it and a tool rack on the wall. Searched: the bench's drawer pulled out and a tin knocked to the floor, or an armful of hay pulled down by the ladder's foot. The yard's piles of leavings aren't laid round an open barn or shed: a gable's length of rail laid along it reached in through the wall.
     - **`dt screenshot --barn n [--inside | --back | --find] [--searched]`:** the night's nth open barn, outbuilding or goods shed with a find, as `--shed` frames a yard shed; `--back` from just in at its door at the back wall, `--find` standing back from where its first find is kept.
     - **Verified:** `OpenHouseTests.TheBarnsAndShedsStandOpenWithTheirFindsInside` (four routes): each stands as its walls with one door that looks toward the line, walked into there and nowhere else; each find is inside, got to, and a bench is solid. `StopShellArtTests.AnOpenBarnsHayloftAndAShedsBenchStandAtItsBackWall`: the art's bench and loft are where the sim keeps the find, and nothing stands at the bench's height by the door's wall; its door test now covers these shells too. `SearchTests` holds the bench and the hayloft to what's kept facing the room, its find in front. Seen by lantern on frontier:7 and deadLines:2: benches, a loft with its ladder, searched and not. They're heard being searched as AU1 laid them in note 412 (`crew-search.hayloft`, `crew-search.bench`).
-    - **Not yet:** no light of their own (dark as the yard's sheds; an open house has its candle), ~~and not a Room the sky is kept out of as a house's parts are~~ (a Room since note 462). The station, the derelicts and the powerhouse stay shut.
+    - **Not yet:** no light of their own (dark as the yard's sheds; an open house has its candle), ~~and not a Room the sky is kept out of as a house's parts are~~ (a Room since note 462). ~~The station,~~ (open since note 493) the derelicts ~~and the powerhouse~~ (open since note 509) stay shut.
 
 439. **The bots in a car shut it up when the Choir comes (B4, queue #175; note 413's "not yet"; GDD §21, App. A.7).** A crate hand loading a cargo car stands in it with the side door open, and a car with a door open is the outside (`PlayerMotor.Space`): the Choir comes in through it. Note 413 sheltered the hands on the ground; one on a car's floor went on loading through it.
     - **The rule** (`StopHand.ShutIn`, `StopCrew.ShutIn.cs`; the same facilities.json `crew.shelterAt` and `shelterOutAt`). With the Choir gathered or here, a stop hand (not the driver) on the floor of a car with a side door that way:
@@ -7021,7 +7021,7 @@ Terrain sculpting tools, a node-graph material editor, a general-purpose visual 
     - **Resuming** (`NetPlaySession.Restore`): `TrainOnLine.Resume` puts the rakes back as they were, every one at rest, and nothing slides on the first frame (each rake's previous distance is where it is). It shares `Restore`'s rebuild, the one a client's snapshot uses, so the engine's rake object stays the train's. A joiner's world builds its own cars and then takes the host's rakes like any snapshot.
     - **An older save,** with no rakes, resumes as it did: the train from its own cars. So does one whose rakes aren't this train's: `Resume` checks every vehicle is in exactly one rake, the engine in one, on a track the line has, and changes nothing otherwise. The save carries its line (linegen plan §17.4), so a yard's standing cars take the same ids on resume.
     - **Readings:** every rake comes back at rest, the engine's too, as it always did (the night restarts stopped where it was saved). A cut rake left rolling at the save is stopped where it was.
-    - **Not yet:** what was stowed in the cars by hand (crates, loot, bodies, the kit) isn't in the save, which builds the night's items afresh; nor are the crew's places.
+    - **Not yet:** ~~what was stowed in the cars by hand (crates, loot, bodies, the kit) isn't in the save, which builds the night's items afresh~~ (done in note 500, but for the dead); nor are the crew's places.
     - Protocol unchanged (the save is the host's file; clients take the rakes from snapshots as ever). Tests: `ResumeTests` (the rakes back as they left: picked-up cars ahead of the engine and not standing, a cut car where it was left with its handbrake on, at rest, and the train running on; a save that isn't this train's changes nothing: a car missing, a car twice, a car past the train, a track the line hasn't, no rakes). `CampaignSessionTests.AResumedNightKeepsTheTrainAsItLeft` (at the coaling tower on frontier:10, a yard's derelicts put ahead of the engine, the last car cut off and a bite out of car one; the autosave on leaving keeps all three, the resumed host has them, its own client agrees, and an older save without rakes resumes the old way). `CampaignSessionTests.ThreeSlotsOfText` round-trips the rakes and the eaten shell through a save slot.
 499. **The Track Doll's restlessness heard (AU1, queue #236; note 268's "not yet": "the doll has no recorded 'restless' sound of her own (the faster giggle and the crew's brake handle stand in)"; GDD App. F.1).** For `warnSeconds` (30) before each of her stages she's restless (`TrackDoll.Restless`, the half in her replicated escalation): left alone too long, about to get worse. Her giggle came twice as often and that was all. Restless at stage 2, she rattled the brake handle with the crew's own lever sound.
     - **How** (`GameAudio.DollSounds`, off the mirrored record):
@@ -7064,6 +7064,18 @@ Terrain sculpting tools, a node-graph material editor, a general-purpose visual 
       - all six alive, and no lamp left behind.
       - With the cars part full (no `--empty`), the cars fill either way.
     - Protocol unchanged (bots act through intent). Tests: `StopCrewTests.AtTheWreckYardAHandTakesALampOutToTheDarkHeapsAndPutsItBackAboard` (stocked: away whole, every heap found, a lamp put back inside a car and none left in the yard, salvage aboard, nobody under a shift); `AtTheWreckYardTheHandsCarryOutWhatTheHeadlampFindsAndKeepClearWhenItGroans` unchanged (unstocked, no lamp aboard: the headlamp's heaps only).
+
+505. **The Gaunt carries off what it took (queue #242, E1; the art checklist's `gaunt-anim`; GDD App. A.6 "it carries the body out at walking pace, in full view, and the crew can still chase it down before it clears the train").** Leaving with a car's most valuable thing (`Gaunt.Leave`, `Carry`), the sim holds the load under it: `carryHigh` 1.7 m over its feet, aboard `carryLow` 0.55. The Gaunt walked off on its follow and crawl clips, the load (a crewmate's body or a crate) hanging under it, touched by nothing.
+    - **The clips** (tools/blender/gaunt.py): `carry` is the follow's stalk, slower to lift its feet, the body let down under the weight. Its neck loops forward and down and the head turns back, its mouth clamped on the load below its chest. `carry_low` is the same in the crawl's fold aboard, the load dragged under its chest in its mouth.
+    - **No IK for the neck:** `mouth_to` searches the neck's three bends and the head's pitch for where the head's tip (the mouth) goes. It keeps the head and jaw a hand's breadth off the neck's root (clearance). The build prints how near it got: within 3 cm on every key.
+    - **Where it holds:** in front of the load, below the chest (`GRIP_HIGH`, `GRIP_LOW`), where the neck is seen going down to it. The load's middle is under the body, so the mouth's first place, on the load's top, was inside its own torso and nothing showed.
+    - **When:** `CreatureArt.GauntClip` (the Gaunt's pick, now one function) plays them while it's leaving with something (`BreakOff`, its extra a body's id). Talked down, it leaves empty-handed (extra −1) on its follow.
+    - **Headless:** `dt screenshot --threats --crew --gaunt leave --view gauntcarry [--survey]` is side on as it walks off; `--gaunt leavein --view inside` is aboard. `dt art clip gaunt carry|carry_low`.
+    - **Verified:**
+        - `GauntCarryTests`: the jaw down at the load through each loop, nearer it than the empty-handed walk, and the pick.
+        - `CreatureArtTests`' clip list.
+        - `art clearance --only gaunt`: the one overlap is stir's, as before.
+
 503. **Weak sounds: a body on the grating, and a crate set on concrete (AU1, queue #240; the weak-sounds audit, dull one-shots).** Two installed sets came out a thump where their own recipes describe a material.
     - **A crewmate hitting the train's steel grating at speed** (`crew-jump-off.impact.grate`, `GameAudio.Crew` off a moving train onto a car):
         - **Before:** its recipe asks for "the grating crashing and buzzing under the weight (thin and heavy plate, bars chattering)", but its plate crash was choked inside 0.05 s at -4 dB under the body's thump. Its takes centred at 214-263 Hz, the same as on the ballast (254 Hz), so it read as earth.
@@ -7079,3 +7091,103 @@ Terrain sculpting tools, a node-graph material editor, a general-purpose visual 
         - **Now** (`tools/audio/recipes/crew_items.py`), on concrete only: the crate's corner bites the floor and drags a hand's breadth (stick-slip on concrete), grit crunching under it, and its slats knock as it settles. Its takes centre at 298-440 Hz; the wood, the grate and the ground are untouched.
     - **Installed:** only those six takes changed of the two lines' 117. Their hooks are unchanged; `AudioTests` and `CrewAudioTests` pass.
     - Neither old take had a verdict; both lines are on the Audio Checklist for a Keep or Redo.
+
+493. **A dead town's station stands open (B4, queue #230; note 417's "not yet": "the station, the derelicts and the powerhouse stay shut"; linegen plan §11.3; level-design P13).** A dead town's station (note 302) was a shut brick box behind its platform, with a door and a canopy painted onto it.
+    - **Open** (stops.json `deadTown.station.open`, set on the building as the generator makes it; no dice of its own, so the stops are laid as before). `StopWalls.OpenShed` takes a station: its walls (`Shell`) with one door, `walls.bayDoorM` wide, in the middle of the side toward the line, where the platform and the canopy are. It's walked as the goods shed is (note 417): a Room to its eaves (5.2 m, `WorldArt.OpenShedHeight`) with its lantern turned low (note 475). A roost in one goes dark (note 488).
+    - **Nothing kept in it.** The claim had a till to search. The first cut put a find in it, and every dead town failed the stop's "No loot in the rail buffer" check (P13: no loot of any kind within the tier's buffer of the main line). The station stands 7 to 10 m from the rail, so `PlanStops` dropped every dead town: across local, frontier, deadLines and deepTerritory seeds 1 to 12, about 30 dead towns on the main line and no station. P13 is the level-design rule that makes the walk out to a village the danger, and a find right at the platform would undo it, so the rule stands. The station is the railway's own building beside the line: the first place anyone looted, as the houses near the road are the picked-over ones. Its booking office's counter stands at the back wall where a first find would be kept (`StopWalls.ShedKept(b, 0)`), solid, a bench's size (`StopWalls.Benches`).
+    - **Drawn** (`WorldArt.OpenShed`, `StationCanopy`): the walk-in shell in brick (or weatherboard for variant 1), boards a step up, the iron canopy kept over the door. The counter is panelled, with a brass till on it, its drawer hanging out of the front and its tickets strewn on the boards; the ticket rack's pigeonholes are on the wall behind, a few tickets still in them.
+    - **Headless:** `dt screenshot --station n [--back | --inside]`: the night's nth station, framed as `--barn` frames a barn.
+    - **Not yet:** the waiting room's benches and a stove (they'd be solid, as every building near the line is); the derelict vans stay shut (~~and the powerhouse~~, open since note 509).
+    - **Verified:**
+        - `OpenHouseTests.ADeadTownsStationStandsOpenItsCounterSolidAndNothingKeptInIt` (frontier:7, local:3, deadLines:1): each dead town is still a stop; its station stands open and is walked into by its door toward the line and nowhere else; the counter is solid; nothing's kept in it.
+        - `OpenHouseTests.YouWalkInAtTheDoorAndTheFindsAreInside` now counts the station among the open buildings.
+        - `StopGeneratorTests.ADeadTownHasItsStationAndAGoodsYardOfDerelictStock` holds the station open with nothing kept in it, every invariant passing. The full Sim tests pass (1396), as do StopShellArtTests, HouseInteriorArtTests and InteriorLightTests.
+        - Screenshots of frontier:7's first station: from the platform, the lantern's light through the door under the canopy; from its door, the counter, the till and the ticket rack against the back wall, the floor and walls readable.
+
+500. **A resumed night keeps what it earned and what's aboard (A1, queue #237; note 481's "not yet"; spec E "Crash: Session lost. Campaign rolls back to last POI autosave").**
+    - **What was wrong:** the autosave kept the train (note 481), but a resumed night started its tally over and built its things afresh.
+      - **Takings lost:**
+        - the village finds already stowed (their pay, `Run.Scavenged`, and the finds, `Run.Stowed`);
+        - the mail caught (`Run.Mail`).
+      - **The bill started again at the save:** the coal and rounds spent before it were off the bill, and the coal loaded at towers forgotten.
+      - **Everything aboard was stocked afresh (`World.Stock`):**
+        - a rescued child and a find not yet settled were gone;
+        - a lamp lost was back;
+        - the kit was back in its locker wherever the crew had put it;
+        - each extinguisher was full.
+      - **The stop just left was stocked again.** It was still in the stocking's look-ahead (`loot.json` `stockAhead`, 800 m), so its crates and finds came out again behind the train, there to be fetched and paid for twice.
+    - **The save keeps the takings** (`RunCheckpoint.Takings`, a `RunTakings` from `Run.Takings`): the finds stowed and their pay, the mail, the coal and rounds the night left the fortress with, and the coal it's loaded since. `Run.Resume` takes them back, so the pay and the bill go on from where they were.
+    - **The save keeps what's aboard** (`RunCheckpoint.Aboard`, a `ThingAboard` each, from `World.Aboard`). That's every thing in a car of the train, the engine's cab too: on a floor, a roof or a locker's shelf, or in a crewmate's hands there. Each keeps:
+      - its kind and car, where its middle is in that car's frame, its size and how it lies;
+      - its locker and shelf;
+      - what's its own: a crate's cargo, which find it is, an extinguisher's mount and charge, a toy's noise, a radio broken, whether it's the crew's.
+    - **Resuming:** `World.Restock` puts each back where it was in place of `World.Stock`. What was on a shelf goes back on the same locker's shelves in its order (`Bodies.Stow`). The radios and the kit count as `Stock` leaves them (`Bodies.RadiosCarried`, `World.KitStocked`, for §23.2's kit rules).
+    - **No double stocking:** `Run.Resume` marks every stop whose zone is behind the engine's front as stocked.
+    - **An older save,** with neither, resumes as before: the tally from the save and the train stocked afresh.
+    - **Readings:**
+      - **Not the dead.** A body isn't saved: the crew's places aren't (note 481), and a resumed night's crew are all back, so their bodies, the fee and the refund would count a death twice.
+      - **Not what's on the ground.** It's left behind as the train leaves.
+      - **A thing in a crewmate's hands** is put back where it was in their car, and comes to rest there.
+    - Protocol unchanged (the save is the host's file; clients take the bodies from snapshots).
+    - **Tests:** `CampaignSessionTests.AResumedNightKeepsWhatItEarnedAndWhatsAboard`. Before the autosave at frontier:10's coaling tower:
+      - a Gannet's head is stowed (paid), a mail bag caught, coal burned;
+      - a lamp is taken off a crew locker's shelf and left on a car's floor;
+      - a child is aboard, another lamp lost, an extinguisher spent to 0.4.
+      - **The resumed night has all of it:** the takings and the bill, the lamp where it lay, the child, one lamp fewer, the extinguisher at 0.4, and the lockers' shelves as they were.
+    - **Three more cases:**
+      - saved just past the wreck yard (still in the look-ahead), its stop isn't stocked again (it was, without the fix);
+      - an older save counts from the save and stocks afresh;
+      - `ThreeSlotsOfText` round-trips the takings and the things aboard through a save slot.
+
+496. **The nearest hand puts out the Fire Flies' lamp at a stop, whatever its part (queue #233, D1.3 for D1; D1's data: 4-bot full nights losing cars to fires).** On `dt harness --route frontier:7 --bots 4 --enemies --upkeep --seconds 2700`, seeds 1–3, Fire Flies came to a lit car lamp at Talbot Foundry every night, while the train stood held on the main short of the points. Nobody went to the lamp, and the car caught 20 s later (App. A.5). The fire spread car to car from there. By the time the train left the Foundry, 5 or 6 cars were alight and the crew were down to 1–15 hp, one of them burned dead on seeds 1 and 3.
+    - **Why nobody went:** at a stop only a crate hand (or a hand with no part) took trouble in a car, and the winch pair only took a fire already alight with the train at the end of the spur. A crew of four has no crate hand: its parts are the shunter and the winch pair (the gunner is one of them). Held on the main, they were cutting the train, at the switch, or boarding the cab to ride in.
+    - **D1's questions:**
+      - *Do the bots answer the flies by their counter?* Only a walker on its own rounds did (`Look`'s trouble); never a hand with a part at a stop. They do now.
+      - *Do they put the fire out with the extinguisher?* Yes, once they're in. Seed 3 shows it: the fire the flies lit was out within about 8 s of a hand reaching it, while still smoke.
+      - *Is the cut chosen too early?* On current main the cuts at the Foundry are the stop's own (the train's longer than the spur, `StopPlan.CutBehind`), not a fire cut. The burned cars were the ones cut off to wait on the main, or the ones beside the spur once the fire spread. None of the losses came from a cut chosen for a fire.
+    - **Now** (`StopHand.TakesLamp`, `CrewCalls.ClaimLamp`):
+      - The flies' lamp is the nearest hand's, whatever its part (never the driver's). The claim goes to the nearest the tick the flies come and stays with that hand while it's going. When nearer hands could take it from them as they passed on their own parts, the lamp changed hands back and forth at car 1's ladder until the car caught.
+      - The fire the flies light is the same hand's while it's smoke (App. C.5: it burns nobody yet, and an extinguisher puts it out a cell a second), and stays theirs once they're fighting it. The guard van was 75 m back along the ballast, which takes more than the flies' 20 s, and its fire was put out before it took hold.
+      - With the train held on the main, `IntoTrouble` takes the hand in by the car's side door from the ground, as at the end of the spur. A car with no side door (the guard van, a crew car) is reached along the ballast to its own side ladder, up it, and in from its roof the walker's way. Along the roofs from the cab, the gunner had been three cars short of the guard van when it caught.
+      - The gunner follows its walker legs to the lamp (`RoofWalkerBot.ToLamp`).
+    - **Measured** (seeds 1/2/3, current main → now):
+
+      | | Main | Now |
+      |---|---|---|
+      | Cars the Fire Flies set alight that took hold | 2/1/1 | 0/0/0 |
+      | Cars alight by the time the train leaves the Foundry | 5/6/6 | 0/0/0 |
+      | Burned deaths | 1/1/1 | 0/0/0 |
+      | Deaths, all causes | 3/3/3 | 3/3/4 |
+      | Cars lost by the night's end | 4/7/7 | 4/7/4 |
+      | Cargo delivered | 2.01/0.30/0.44 | 4.24/0.17/0.08 |
+
+      The night's end is decided elsewhere now. Seed 1's flies came twice more (the switch set-back at km 6.8, and car 5 as it pulled away): the walkers' own rounds put the first out in its smoke, and the second broke off. The fires that still take hold are all Cinder Hound packs aboard later in the night (D1.2's #221), and the cars lost are rakes left behind at Voss Grain Elevator. The deaths are hounds, the cold, Ribbits, Tippy Toesie and a Dragger. No tuning changed.
+    - **Only at a stop:** the claim needs the hand's stop plan. Between stops the walkers' own rounds see to the flies, and a gunner's gun comes first.
+    - **Test:** `CarFireTests.AtAStopTheNearestHandPutsTheFireFliesLampOutWhateverItsPart` (frontier:7, 10 cars, 4 bots, seed 2, 520 s): no car the flies came to is alight. Without the change, car 2 is.
+    - **Not yet:** the hands who fight a fire that's already alight burn hard. On main's seed 1, the winch pair were 10 s at car 1's extinguisher without reaching it, and went from 99 to 14 hp. That is next to D1.2's #232 (hurt walkers going into a burning car).
+508. **Bodies on the grating heard on steel (AU1, queue #245; the weak-sounds audit; note 503's fault in three more cues).** Three sounds of a body coming down on the train's steel grating were the body alone, the grating's steel lost under it:
+    - a crewmate falling (`crew-hurt.body-fall.grate`), 212 Hz;
+    - a body thrown down (`crew-carry.body-land.grate`), 248 Hz;
+    - a body laid down (`crew-carry.body-set.grate`), 255 Hz.
+    Their wood, ground and concrete sets sit at 162-282 Hz, while a boot landing on the same grating rings at 1.5 kHz. The bodies' shared helper (`crew_items.limbs`) asks the floor for a soft knock (`hard` 0.15, right for flesh on planks or earth), and on the grating that knock is a choked thin-plate clatter that the body buries.
+    - **Now** (`tools/audio/recipes/crew_items.py`, `grating`, on the grating only, after every random draw so the other floors are byte-identical):
+        - the grating's heavy plate crashing, choked later the harder the body comes down;
+        - its thin plate ringing on;
+        - its bars buzzing, longer and louder the harder the body comes down (thrown 1.8, fallen 1.3, laid 1.0, as `limbs`' force).
+        - A crewmate's collapse rings it lighter under the knees first (`crew_body.py`'s fall).
+    - **Measured:** they centre at 369-386 Hz now, with steel through 1-8 kHz for the first quarter second; a body is still heavier and lower than a boot, as it should be.
+    - **Installed:** only those nine takes changed of the two lines' 130. Their hooks are unchanged; `AudioTests` and `CrewAudioTests` pass. No verdicts on the old takes.
+
+509. **The yard's powerhouse stands open, its switchboard inside (B4, queue #246; note 417's "not yet": "the derelicts and the powerhouse stay shut"; level-design D.2 "power"; spec D.2 "start machinery at a powerhouse").** A yard whose power is low or dead was restarted by holding Use at its powerhouse's door, on a shut brick box with a lamp over the door that burned once the power ran.
+    - **Open** (stops.json `powerhouse.open`, set on the building as the generator makes it; no dice of its own, so the stops are laid as before). `StopWalls.OpenShed` takes a powerhouse: its walls with one door, `walls.bayDoorM` wide, in the middle of the side toward the main line, where the shut one's door was. It's walked as the open sheds are (note 417).
+    - **The switchboard** (`StopWalls.Switchboard`, `Run.EnableSites`): the restart is held standing at the switchboard against the back wall (where a shed's first find would be kept, `ShedKept(b, 0)`, a bench's depth and 0.6 m out from it). `Site.Powerhouse` is that point now, and `PowerhouseInReach` and the restart are unchanged around it (facilities.json `power.reach`, `restartSeconds`; loud, the Choir counts it). The switchboard and the engine across from it (`ShedKept(b, 1)`) are solid, each a bench's size (`StopWalls.Benches`).
+    - **Dark until it runs** (`GreyboxScene`): it's a Room to its eaves (5.5 m), but hangs no lantern of its own (`OpenHouse.Dark`, as the Gaunt's roost, note 488). Its lamp burns once the power's live, as the shut one's did over its door, but now it hangs over the switchboard inside. A dead yard's engine house is dark, a live one's lit from its doorway: the yard's power shows from across it.
+    - **Drawn** (`WorldArt.OpenShed`): the walk-in shell in sooty brick, boards a step up, the stack over the engine from the roof up. The switchboard is a slate panel on an iron frame with four knife switches and two dials. The engine is an iron bed with its cylinder, a flywheel standing up from it, and the dynamo it belts.
+    - **Headless:** `dt screenshot --powerhouse n [--power live|low|dead] [--back | --inside]`: the night's nth powerhouse, of the yards with that power, framed as a barn, with the run's sites on so a live one's lamp burns.
+    - **Not yet:** the bots don't restart a yard's power at all (no bot errand to the powerhouse; `FacilityWork` picks live yards). A bot crew at a dead yard leaves its cranes idle. That's a bot item (D1/A1), not this one. The derelict vans stay shut.
+    - **Verified:**
+        - `OpenHouseTests.AYardsPowerhouseStandsOpenItsSwitchboardInsideAndTheRestartIsHeldThere` (frontier:7, deepTerritory:2, deadLines:2): each yard's powerhouse is open, its door faces the line and it can be walked into there and nowhere else; the switchboard and engine are solid; the switchboard's spot is inside and reached; and the run's restart point is that spot.
+        - `CraneTests.HoldingThePowerhouseDoorRestartsItAndItsLoud` restarts it at the site's point, the switchboard now.
+        - `OpenHouseTests.YouWalkInAtTheDoorAndTheFindsAreInside` counts it among the open buildings, and `TheBarnsAndShedsStandOpenWithTheirFindsInside` walks it.
+        - `HouseInteriorArtTests.AnOpenBarnOrShedIsARoomLitByALanternTurnedLowUnlessTheGauntSleepsInIt` now holds the powerhouse to no lantern of its own. The full Sim tests pass (1418), as do StopShellArtTests, HouseInteriorArtTests, InteriorLightTests and ScreenshotTests.
+        - Screenshots read: frontier:7's live powerhouse lit inside, the lamp over the switchboard, the engine and its flywheel beside it, the doorway glowing from outside; deepTerritory:2's dead one dark, its switchboard and engine only just showing by the room's fill.
