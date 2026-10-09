@@ -671,8 +671,18 @@ while (!window.CloseRequested && !QuitNow())
     (session as IDisposable)?.Dispose();
     if (campaign is { Current: not null } unfinished)
         Console.WriteLine($"campaign: the night on {unfinished.Current.Route} isn't settled; its slot carries on from the last facility it left");
+    // An invite accepted (or "Join Game" on a friend) while playing (note 24's relaunch, now in-process: queue #272): this
+    // night's over and disposed, its lobby left, and the friend's lobby is the next launch, through the same loading screen
+    // a JOIN from the menu goes through. Steam stays up: the invite was its.
+    if (relaunch is { } invited)
+    {
+        relaunch = null;
+        launch = new Launch.JoinLobby(invited);
+        fromCommandLine = false;
+        continue;
+    }
     // Started from the command line: done when the night is. Otherwise, back to where it was chosen.
-    if (fromCommandLine || relaunch is not null)
+    if (fromCommandLine)
         break;
     if (leaving is Launch.CampaignNight night)
         frontEnd.ShowFortress(night.Slot, campaign?.History.LastOrDefault() is { } log && campaign.Current is null
@@ -682,13 +692,6 @@ while (!window.CloseRequested && !QuitNow())
 }
 
 Console.WriteLine($"frames {frameCount} ({frameCount / timer.Elapsed.TotalSeconds:0} fps)");
-if (relaunch is { } next)
-{
-    // The simplest way into another game is a fresh start, the same one Steam gives an invite accepted from outside.
-    steam?.Dispose();
-    Console.WriteLine($"leaving for lobby {next}");
-    Process.Start(Environment.ProcessPath!, ["+connect_lobby", next.ToString()]);
-}
 return 0;
 
 // Starts what was chosen off the window's thread, drawing what it's doing meanwhile; null (the menu says why) if it failed.
@@ -740,6 +743,7 @@ CampaignState? Play(IPlaySession session, CampaignState? campaign)
     var settings = frontEnd.Settings;
     var proto = session as PrototypeSession;
     var net = session as NetPlaySession;
+    int aboardLogged = -1;
     // The yard's readings go at its voice's pace (note 240): the card typed as it's said.
     if (net is not null && sound.Clerk.Speaks)
         net.RadioPace = sound.Clerk.Seconds;
@@ -1172,6 +1176,12 @@ CampaignState? Play(IPlaySession session, CampaignState? campaign)
             pendingReverser = false;
             pendingYaw = pendingPitch = 0;
             session.Step(intent);
+            // The crew's count on the console as it changes (queue #276: the two-machine test reads it from both ends' logs).
+            if (net?.Link is { Aboard: var aboardNow } && aboardNow != aboardLogged)
+            {
+                aboardLogged = aboardNow;
+                Console.WriteLine($"crew: {aboardNow} aboard");
+            }
             if (campaign is not null && session is NetPlaySession played)
                 campaign = Autosave(saves, campaign, played);
             // The ears are where the eyes were last frame; audio follows the sim tick so no shot is missed.

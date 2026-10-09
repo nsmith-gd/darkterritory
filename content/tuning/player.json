@@ -131,7 +131,17 @@
     "paceQueued": 4,
     "paceSlow": 0.05,
     "paceSeconds": 1,
-    "heldBackSeconds": 5
+    "heldBackSeconds": 5,
+    // Note 549: each client tells the host what share of its snapshots it isn't getting; one losing thinLossPct or more for
+    // thinSeconds is sent every other snapshot (fewer, whole), held for thinHoldSeconds and let go once the loss has been under
+    // half that for all of it (thinning cures the loss it's for, so without the hold it would come and go). The share counts a
+    // snapshot that came stale as lost (a jittery link reads a few percent), so the threshold sits well above that. When strainCrew or more of the
+    // crew report that much at once for strainSeconds, it's the host's own upload that can't carry them, and the host is told.
+    "thinLossPct": 12,
+    "thinSeconds": 2,
+    "thinHoldSeconds": 20,
+    "strainCrew": 2,
+    "strainSeconds": 5
   },
   // The crew cap (GDD §1 "Players: 2–8", §15's largest crew; ARCHITECTURE §8 note 254). The host turns a joiner away once
   // the crew, living and dead, those waiting to board at a stop and the places held for the dropped (rejoin above) come to

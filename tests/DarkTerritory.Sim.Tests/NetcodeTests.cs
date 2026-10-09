@@ -121,6 +121,58 @@ public class NetcodeTests
     }
 
     [Fact]
+    public void AClientOnAThinDownlinkIsSentEveryOtherSnapshotAndStopsLosingThem()
+    {
+        // Note 549: a client's downlink that can't carry 30 snapshots a second loses a share of them, and tells the host so in
+        // its inputs; the host sends it every other one instead, which fits, and the loss goes.
+        var (net, host, clients) = Session(1);
+        var c = clients[0];
+        Run(net, host, clients, 2 * SimConstants.TickRate + 1, _ => default);
+        // Room for about two thirds of what 30 Hz needs (a second's worth measured): a third lost; 15 Hz fits with room to spare.
+        Assert.True(host.UpKbps > 0);
+        net.Conditions = new LinkConditions(0.03, 0.005, 0) { DownKbps = host.UpKbps * 0.66 };
+        Run(net, host, clients, (int)(P.Link.ThinSeconds * SimConstants.TickRate) + 10 * SimConstants.TickRate, _ => default);
+        Assert.True(host.IsThinned(c.PlayerId!.Value), $"not thinned: the client reported {host.ReportedLoss(c.PlayerId!.Value)}%");
+        Assert.True(c.Thinned);
+        Assert.True(host.SnapshotsThinned > 0);
+        // Thinned, the snapshots fit: the loss the client counts (the withheld ticks aren't lost) is back under the threshold.
+        Run(net, host, clients, 12 * SimConstants.TickRate, _ => default);
+        Assert.True(host.ReportedLoss(c.PlayerId!.Value) < P.Link.ThinLossPct, $"still reporting {host.ReportedLoss(c.PlayerId!.Value)}%");
+        Assert.True(c.MaxCorrection < 0.5, $"corrected by {c.MaxCorrection} m");
+        // The thinning is held for link.thinHoldSeconds of quiet (the 12 s just run count), then let go, whatever the link.
+        net.Conditions = LinkConditions.Perfect;
+        Run(net, host, clients, 2 * SimConstants.TickRate, _ => default);
+        Assert.True(host.IsThinned(c.PlayerId!.Value));
+        Run(net, host, clients, (int)(P.Link.ThinHoldSeconds * SimConstants.TickRate), _ => default);
+        Assert.False(host.IsThinned(c.PlayerId!.Value));
+        // A link that carries everything is never thinned.
+        var (perfectNet, perfectHost, perfectClients) = Session(1);
+        Run(perfectNet, perfectHost, perfectClients, 15 * SimConstants.TickRate, _ => default);
+        Assert.Equal(0, perfectHost.SnapshotsThinned);
+        Assert.False(perfectHost.IsThinned(perfectClients[0].PlayerId!.Value));
+    }
+
+    [Fact]
+    public void TheHostIsToldWhenItsUploadCantCarryTheCrew()
+    {
+        // Note 549: three clients, and a host upload that carries a third of what they need between them: the crew report thin
+        // downlinks at once (a starved one, hearing nothing, reports all of it lost), which only the host's own link explains.
+        // The cap lifted, the word goes.
+        var (net, host, clients) = Session(3);
+        Run(net, host, clients, 2 * SimConstants.TickRate + 1, _ => default);
+        Assert.False(host.UploadStrained);
+        Assert.True(host.UpKbps > 0);
+        net.Conditions = new LinkConditions(0.03, 0.005, 0) { HostUpKbps = host.UpKbps * 0.33 };
+        Run(net, host, clients, (int)(P.Link.StrainSeconds * SimConstants.TickRate) + 10 * SimConstants.TickRate, _ => default);
+        Assert.True(host.UploadStrained, string.Join(" | ", clients.Select(cl => $"{cl.PlayerId}: reported {host.ReportedLoss(cl.PlayerId!.Value)}%")));
+        Assert.True(host.UpKbps > 0);
+        Assert.Equal(0, clients.Count(cl => !cl.Connected));
+        net.Conditions = LinkConditions.Perfect;
+        Run(net, host, clients, 15 * SimConstants.TickRate, _ => default);
+        Assert.False(host.UploadStrained);
+    }
+
+    [Fact]
     public void OnlySomeoneOnTheEngineCanDrive()
     {
         var (net, host, clients) = Session(2);

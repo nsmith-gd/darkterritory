@@ -74,7 +74,8 @@ public sealed record RejoinTuning(double ReserveSeconds = 180, bool ReclaimBody 
 /// <c>DatagramOptions</c>; these are the app's.
 /// </summary>
 public sealed record LinkTuning(double TimeoutSeconds = 15, double KeepaliveSeconds = 1, int PumpMilliseconds = 4,
-    int PaceQueued = 4, double PaceSlow = 0.05, double PaceSeconds = 1, double HeldBackSeconds = 5);
+    int PaceQueued = 4, double PaceSlow = 0.05, double PaceSeconds = 1, double HeldBackSeconds = 5,
+    int ThinLossPct = 12, double ThinSeconds = 2, double ThinHoldSeconds = 20, int StrainCrew = 2, double StrainSeconds = 5);
 /// <summary>
 /// The crew cap (note 254). Field docs live in player.json <c>crew</c>. Never under one: the host's own player always fits.
 /// </summary>

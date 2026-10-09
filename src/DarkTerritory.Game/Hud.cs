@@ -269,6 +269,9 @@ public static partial class Hud
             lines.Add((HeldBackLine, Red));
         else if (link.Paced)
             lines.Add((PacedLine, Amber));
+        // Note 549: the one thing a crew losing snapshots at once share is this host's upload.
+        if (link.UploadStrained)
+            lines.Add((StrainedLine(link.UpKbps), Red));
         lines.Add((hosting ? "EVERYONE IN? DRIVE OUT OF THE YARD" : "THE HOST DRIVES OUT WHEN EVERYONE'S IN", Ink));
         foreach (var (text, colour) in lines)
         {
@@ -436,6 +439,8 @@ public static partial class Hud
     public const string HeldBackLine = "YOUR MACHINE IS HOLDING THE CREW BACK";
     /// <summary>Note 532: a joiner's, while its clock is stretched to a host that's behind.</summary>
     public const string PacedLine = "THE HOST'S BEHIND: THE NIGHT RUNS AT ITS PACE";
+    /// <summary>Note 549: the host's, while its upload can't carry the crew: what it's sending, so the figure can be taken to a router.</summary>
+    public static string StrainedLine(double upKbps) => $"YOUR UPLOAD CAN'T CARRY THE CREW: {upKbps:0} KBIT/S OUT";
 
     static void Link(Overlay o, int width, IPlaySession s)
     {
@@ -465,7 +470,13 @@ public static partial class Hud
                 }
                 // Note 532: and whether it's this machine holding them all back (the yard's panel has it).
                 if (link.HeldBack)
+                {
                     o.TextRight(right, y, HeldBackLine, Red, k);
+                    y += (line + 1) * k;
+                }
+                // Note 549: or its upload that can't carry them.
+                if (link.UploadStrained)
+                    o.TextRight(right, y, StrainedLine(link.UpKbps), Red, k);
             }
             return;
         }

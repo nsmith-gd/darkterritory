@@ -3,6 +3,10 @@ namespace Ballast.Net;
 /// <summary>Simulated link quality, applied per direction.</summary>
 public sealed record LinkConditions(double LatencySeconds = 0, double JitterSeconds = 0, double LossRate = 0)
 {
+    /// <summary>Note 549: what the host's upload carries in all, kbit/s; 0 for no cap. Past it, the host's datagrams are dropped.</summary>
+    public double HostUpKbps { get; init; }
+    /// <summary>Note 549: what each client's downlink carries, kbit/s; 0 for no cap.</summary>
+    public double DownKbps { get; init; }
     public static readonly LinkConditions Perfect = new();
     /// <summary>A bad-but-playable host connection; the agent harness's default stress profile.</summary>
     public static readonly LinkConditions Rough = new(0.090, 0.020, 0.03);
@@ -62,11 +66,40 @@ public sealed class LoopbackNetwork
         return ep;
     }
 
+    readonly Dictionary<PeerId, (double Allowance, double At)> _down = new();
+    (double Allowance, double At) _up;
+
+    /// <summary>A capped pipe (note 552): a bucket refilled at the cap, a quarter second deep; a datagram over it is dropped.</summary>
+    bool Fits((double Allowance, double At) bucket, double kbps, int bytes, out (double Allowance, double At) after)
+    {
+        double perSecond = kbps * 125;
+        double allowance = Math.Min(perSecond / 4, bucket.Allowance + (Now - bucket.At) * perSecond);
+        bool fits = allowance >= bytes;
+        after = (fits ? allowance - bytes : allowance, Now);
+        return fits;
+    }
+
     void Enqueue(PeerId from, PeerId to, ReadOnlySpan<byte> payload, Delivery delivery)
     {
         var c = Conditions;
         if (delivery == Delivery.Unreliable && _random.NextDouble() < c.LossRate)
             return;
+        if (from == PeerId.Host)
+        {
+            if (c.HostUpKbps > 0)
+            {
+                bool fits = Fits(_up, c.HostUpKbps, payload.Length, out _up);
+                if (!fits)
+                    return;
+            }
+            if (c.DownKbps > 0)
+            {
+                bool fits = Fits(_down.GetValueOrDefault(to, (c.DownKbps * 125 / 4, Now)), c.DownKbps, payload.Length, out var after);
+                _down[to] = after;
+                if (!fits)
+                    return;
+            }
+        }
         // Reliable traffic pays for loss with retransmission delay instead of being dropped.
         double retransmits = delivery == Delivery.ReliableOrdered && c.LossRate > 0 && _random.NextDouble() < c.LossRate ? 2 : 0;
         double jitter = delivery == Delivery.ReliableOrdered ? 0 : (_random.NextDouble() * 2 - 1) * c.JitterSeconds;

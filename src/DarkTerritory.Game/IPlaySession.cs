@@ -180,6 +180,10 @@ public readonly record struct LinkInfo(string Role, double? PingMs, int Aboard, 
     public bool HeldBack { get; init; }
     /// <summary>Joined, and this client's clock is stretched to a host that's behind (note 532).</summary>
     public bool Paced { get; init; }
+    /// <summary>Hosting, and enough of the crew report a thin downlink at once that it's this host's upload (note 552).</summary>
+    public bool UploadStrained { get; init; }
+    /// <summary>Hosting: what this machine sent in snapshots over the last second, kbit/s (note 552).</summary>
+    public double UpKbps { get; init; }
 }
 
 /// <summary>First-person eye from a player's state, interpolated in their own frame so riding a car at speed is smooth.</summary>

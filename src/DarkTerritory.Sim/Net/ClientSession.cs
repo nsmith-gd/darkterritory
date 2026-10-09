@@ -206,6 +206,14 @@ public sealed class ClientSession
     /// will throw the oldest away.
     /// </summary>
     public int HostQueued { get; private set; }
+    /// <summary>Note 549: the host is sending this client every other snapshot, its downlink being thin.</summary>
+    public bool Thinned { get; private set; }
+    int _sinceSnapshot;
+    /// <summary>
+    /// Note 549: the downlink loss this client tells the host of itself, in percent: its counted share, or all of it when
+    /// nothing has come for a second (a starved link has no gaps to count: the counter only sees what arrives).
+    /// </summary>
+    public int ReportedLossPct => _sinceSnapshot > SimConstants.TickRate ? 100 : (int)Math.Clamp(Math.Round((SnapshotLoss.Settled ?? 0) * 100), 0, 100);
 
     /// <summary>
     /// Note 532: how much longer this client's ticks should take, as a multiple of the tick: 1, or 1 + link.paceSlow while
@@ -254,6 +262,7 @@ public sealed class ClientSession
         // Gone for good (Leave): a transport polled after hanging up would dial the host again as someone new.
         if (Left)
             return;
+        _sinceSnapshot++;
         Receive();
         StepPace();
         if (!Connected)
@@ -299,7 +308,7 @@ public sealed class ClientSession
             uint seq = _sequence - (uint)(n - 1 - i);
             _redundant[i] = new InputFrame(seq, _history[seq % HistoryLength].Intent);
         }
-        Messages.WriteInput(_writer, _redundant.AsSpan(0, n), _newestSnapshotTick);
+        Messages.WriteInput(_writer, _redundant.AsSpan(0, n), _newestSnapshotTick, (byte)ReportedLossPct);
         _transport.Send(PeerId.Host, _writer.Written, Delivery.Unreliable);
     }
 
@@ -403,7 +412,7 @@ public sealed class ClientSession
                     }
                 case MessageType.Snapshot:
                     uint tick = r.U32(), acked = r.U32(), baseTick = r.U32();
-                    byte queued = r.U8();
+                    byte queued = r.U8(), flags = r.U8();
                     if (tick <= _newestSnapshotTick || _decoded.ContainsKey(tick))
                         continue;
                     HostQueued = queued;
@@ -414,7 +423,12 @@ public sealed class ClientSession
                     try { records = WorldRecords.ReadDelta(ref r, baseline); }
                     catch (Exception ex) when (ex is EndOfStreamException or InvalidDataException) { continue; }
                     SnapshotsReceived++;
+                    _sinceSnapshot = 0;
                     SnapshotLoss.Heard(tick);
+                    // Note 549: sent every other snapshot, the tick between isn't lost; count it heard, or the HUD reads 50 % lost.
+                    if ((flags & Messages.SnapshotThinned) != 0)
+                        SnapshotLoss.Heard(tick + 1);
+                    Thinned = (flags & Messages.SnapshotThinned) != 0;
                     _decoded[tick] = records;
                     if (_decoded.Count > DecodedHistory)
                         foreach (var old in _decoded.Keys.Where(k => k + DecodedHistory < tick).ToList())

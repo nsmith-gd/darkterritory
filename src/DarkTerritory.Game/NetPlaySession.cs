@@ -493,7 +493,7 @@ public sealed class NetPlaySession : IPlaySession, IDisposable
     /// <param name="tap">Told of the night (note 515): a developer build's recorder. Null for <see cref="Tap"/>'s.</param>
     public static NetPlaySession HostGame(string content, SessionSetup setup, int? port = DefaultPort, int expectedCrew = 4, IOnlineBackend? online = null,
         Sim.Campaign.RunCheckpoint? resume = null, int bots = 0, bool listed = true, string? lobbyName = null, LanBeacon? beacon = null,
-        string? password = null, RunMood mood = RunMood.Either, IHostTap? tap = null)
+        string? password = null, RunMood mood = RunMood.Either, IHostTap? tap = null, DatagramOptions? options = null)
     {
         tap ??= Tap;
         var key = Messages.PasswordKey(password);
@@ -514,7 +514,7 @@ public sealed class NetPlaySession : IPlaySession, IDisposable
         {
             LossWindowTicks = Hud.Tuning.LossWindowTicks,
         };
-        var options = LinkOptions(playerTuning);
+        options ??= LinkOptions(playerTuning);
         var udp = Pumped(port is { } p ? UdpTransport.Host(p, options) : UdpTransport.Host(0, options, bind: IPAddress.Loopback), playerTuning);
         ITransport hostTransport = online is null ? udp : new HostGroup(udp, Pumped(OnlineTransport.Host(online, options), playerTuning));
         string tier = setup.Route is { } spec ? Sim.Route.Route.ParseSpec(spec).Tier.ToString() : "";
@@ -1234,6 +1234,8 @@ public sealed class NetPlaySession : IPlaySession, IDisposable
     {
         HeldBack = HeldBack,
         Paced = Host is null && Client.Pace > 1,
+        UploadStrained = Host is { UploadStrained: true },
+        UpKbps = Host?.UpKbps ?? 0,
         Locked = Locked && Host is not null,
         Attempt = Reconnecting ? Math.Max(1, Attempt) : 0,
         Attempts = Attempts,
