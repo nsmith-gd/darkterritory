@@ -54,6 +54,10 @@ using CrewActs = DarkTerritory.Game.Art.CrewActs;
 // elsewhere), and the next launch opens on a notice that says where it is (note 411).
 int crashesAt = Array.IndexOf(args, "--crashes");
 var crashes = CrashReports.Install(crashesAt >= 0 && crashesAt + 1 < args.Length ? args[crashesAt + 1] : null);
+#if DEVTOOLS
+// A developer build's tools (note 514): reached only here and under the other DEVTOOLS hooks; a player's build has none of it.
+var dev = DarkTerritory.Dev.DevTools.Start(args);
+#endif
 
 // The system's file browser on a folder (note 411): Explorer, Finder, or whatever xdg-open hands it to; or, given an address
 // (note 434's store page), the browser.
@@ -81,7 +85,7 @@ string Arg(string name, string fallback)
 // A mod manager's profile (Thunderstore, T78) comes in as --mods-dir.
 args = Mods.TakeArgs(args);
 var content = Mods.Mount(DataFile.FindContentRoot(Environment.CurrentDirectory), enabled: !args.Contains("--no-mods"));
-// The figures out in the Territory and their words (note 528): Dave.
+// The figures out in the Territory and their words (note 550): Dave.
 FigureTalk.Words = FigureWords.Load(content);
 // The art pass's surfaces (T39); --greybox draws flat colour instead.
 var look = args.Contains("--greybox") ? null : Look.Load(content);
@@ -499,6 +503,9 @@ Launch? MenuLoop()
         var camera = view;
         camera.Yaw += Math.Sin((timer.Elapsed.TotalSeconds - started) * 0.07) * 0.25;
         frontEnd.Draw(overlay, UiWidth, UiHeight);
+#if DEVTOOLS
+        dev.Draw(overlay, UiWidth, UiHeight);
+#endif
         if (vr is null)
         {
             renderer.Prepare(mesh, overlay);
@@ -805,7 +812,7 @@ CampaignState? Play(IPlaySession session, CampaignState? campaign)
     // Talking and reading in the fortress town (note 281): on this machine alone. A press the town took isn't sent to the
     // host while the key's still down (nothing in a town changes the night; a lamp at somebody's feet stays where it is).
     var townTalk = new TownTalk();
-    // Dave's words and his card (note 528): on this machine, as a town's are.
+    // Dave's words and his card (note 550): on this machine, as a town's are.
     var figureTalk = new FigureTalk();
     bool useKept = false;
     double pendingYaw = 0, pendingPitch = 0;
@@ -826,6 +833,8 @@ CampaignState? Play(IPlaySession session, CampaignState? campaign)
     Hud.Tuning = DataFile.Load<HudTuning>(Path.Combine(content, HudTuning.File));
     // Note 350: one of this player's first nights shows the core controls in the yard.
     bool firstNight = Onboarding.FirstNight(onboarding, settings, nightsOver);
+    // F4 (note 527): the card closed for the night, and back with F4 again.
+    bool cardHidden = false;
     captions.Clear();
     // The canvas TEXT SIZE asks for from the night's first frame (note 351: a night from the command line drew its first on
     // the default canvas, there being no menu frame before it to take the setting).
@@ -1046,6 +1055,7 @@ CampaignState? Play(IPlaySession session, CampaignState? campaign)
         }
         if (Hit(Control.Chase)) chase = !chase;
         if (Pressed(Key.F1)) showHud = !showHud;
+        if (Pressed(Key.F4)) cardHidden = !cardHidden;
         if (Pressed(Key.F2)) net?.ShowInviteDialog();
         // RECONNECT (note 253): a joiner whose link went, out of automatic tries, tries again.
         if (Pressed(Key.F5)) net?.Reconnect();
@@ -1290,7 +1300,7 @@ CampaignState? Play(IPlaySession session, CampaignState? campaign)
             : new OwnView((float)camera.Yaw, (float)camera.Pitch, act, me.Velocity.X * me.Velocity.X + me.Velocity.Z * me.Velocity.Z > 0.16,
                 swing, session.World.OutfitOf(session.PlayerId), Kit.Held(me));
         scene.Time = now;
-        // Dave's card (note 528): closes as you walk off, and opens on what he says to a blow near you.
+        // Dave's card (note 550): closes as you walk off, and opens on what he says to a blow near you.
         figureTalk.Step(session.World, PlayerMotor.WorldPosition(me, session.Train) + Double3.Up * session.Train.Dynamics.Tuning.Pick.EyeHeight, now);
         // The town's card closes once you've walked off; whoever you're talking to turns to you.
         if (session.World.Town is { } here)
@@ -1393,7 +1403,7 @@ CampaignState? Play(IPlaySession session, CampaignState? campaign)
         {
             Hud.Build(overlay, UiWidth, UiHeight, session, stills: stills.Stills, pixels: (float)renderer.Height / UiHeight, talk: townTalk, figures: figureTalk, now: now,
                 // The first nights' card gives way to a panel opened over it (note 351: it showed through the supplies).
-                firstNight: firstNight && !Held(Control.Roster) && !showSupplies && cardPage < 0 && !showPlan,
+                firstNight: firstNight && !cardHidden && !Held(Control.Roster) && !showSupplies && cardPage < 0 && !showPlan,
                 captions: frontEnd.Settings.Captions ? captions.Lines() : null);
             wheel.Draw(overlay, UiWidth, UiHeight, Hud.PromptScaleAt((float)renderer.Height / UiHeight));
             // Q held: the crew roster (T69), with who's been heard.
@@ -1423,6 +1433,9 @@ CampaignState? Play(IPlaySession session, CampaignState? campaign)
             overlay.Clear();
             frontEnd.Draw(overlay, UiWidth, UiHeight);
         }
+#if DEVTOOLS
+        dev.Draw(overlay, UiWidth, UiHeight);
+#endif
         if (vr is null)
         {
             renderer.Prepare(mesh, showHud || menuShown ? overlay : null);

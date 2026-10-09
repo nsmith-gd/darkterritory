@@ -1018,11 +1018,11 @@ public static class Staging
 
     public const int MooseId = 311;
 
-    /// <summary>The staged Dave's id (note 528).</summary>
+    /// <summary>The staged Dave's id (note 550).</summary>
     public const int DaveId = 333;
 
     /// <summary>
-    /// Dave (note 528; <c>dt screenshot --dave paint|warn|grab</c>): at his easel 18 m up the line from the engine's front and
+    /// Dave (note 550; <c>dt screenshot --dave paint|warn|grab</c>): at his easel 18 m up the line from the engine's front and
     /// 12 m off its left, facing out away from the line. Warned (his telegraph), he's turned to crewmate 4 behind him, who's
     /// struck him four times; holding them (his grab), they're stood held in front of him.
     /// </summary>

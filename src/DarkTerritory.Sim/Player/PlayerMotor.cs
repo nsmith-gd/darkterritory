@@ -193,7 +193,7 @@ public enum DeathCause : byte
     Trampled,
     // GDD §21, App. A.4 (note 340): the Gannet's fourth peck, pinned under its foot.
     Pecked,
-    // GDD §3.2 (note 528): struck Dave five times; he took them by the neck.
+    // GDD §3.2 (note 550): struck Dave five times; he took them by the neck.
     Dave
 }
 

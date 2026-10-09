@@ -1869,7 +1869,7 @@ public sealed class World
                 _driftMarsh = marsh.Start;
                 SpawnDrift(t);
             }
-            // Dave at his easel, some nights (note 528): the route's, not the director's; put down once the stops stand.
+            // Dave at his easel, some nights (note 550): the route's, not the director's; put down once the stops stand.
             if (!_daveLooked && Route is { } dr && Train.Walls is not null)
             {
                 _daveLooked = true;

@@ -57,7 +57,7 @@ public static class Protocol
     // 42: the run record's sites carry the tipple (its ore, clamp, roll and a re-railing), and the vehicle record whether it's off
     //     its rails, before the char cells (note 423).
     // 43: the Hello carries the private run's password, as its key (note 450), and a Refused can say WRONG PASSWORD.
-    // 44: Dave (note 528): an enemy kind of his own, and a death cause.
+    // 44: Dave (note 550): an enemy kind of his own, and a death cause.
     public const int Version = 44;
 }
 
