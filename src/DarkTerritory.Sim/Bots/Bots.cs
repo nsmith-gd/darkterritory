@@ -118,7 +118,7 @@ public sealed class GunnerBot(GunTuning guns, ChoirTuning? choir = null, int see
         // cold well short of what kills (a guard gunner went in to get warm as a run's first pair howled, and all six boarded).
         bool holdOut = cold is { } ct && self.Has(PlayerFlags.Seated) && self.Cold < ct.DeathSeconds * ColdHoldOut
             && world.ActiveEnemies.Any(e => e is CinderHound { Gone: false } h && h.Attached < 0 && h.Phase is SpinePhase.Telegraph or SpinePhase.Commit);
-        if (!holdOut && _legs.Warming(self) || _legs.Work(self, world) is not null)
+        if (!holdOut && _legs.Warming(self) || _legs.Work(self, world) is not null || _legs.ToLamp)
             return _legs.Decide(self, world, tick, out aimed);
         // The look-out in a crew of two (note 222): off the gun to look, only while the gun can spare it (nothing at the back
         // for it to shoot), and back to it once there's nothing left to look at from here.
@@ -657,6 +657,9 @@ public sealed class RoofWalkerBot(int seed, ColdTuning? cold = null, StopHand? j
 
     uint _workedTick = uint.MaxValue;
     PlayerIntent? _work;
+
+    /// <summary>Note 496: at a stop, it's the hand going to the Fire Flies' lamp (by its side door, or its own way along the roofs).</summary>
+    public bool ToLamp { get; private set; }
     bool _looked;
 
     /// <summary>The gunner has read the line for its legs this tick already (it knows whether it's at the gun).</summary>
@@ -673,22 +676,28 @@ public sealed class RoofWalkerBot(int seed, ColdTuning? cold = null, StopHand? j
         // holding the shunter's part, and the driver wait at the switch all night for it.
         if (job is not null && !self.Alive)
         {
+            job.NoLamp();
             job.Decide(self, world);
             return null;
         }
         job?.Warming(self, _warm is { Active: true });
+        // Note 496: the Fire Flies' lamp (and the fire they light) is the nearest hand's, whatever its part.
+        bool lamp = job is not null && _trouble is { } spark && job.TakesLamp(self, world, spark);
+        if (!lamp)
+            job?.NoLamp();
+        ToLamp = lamp;
         if (job is null || _warm is { Active: true })
             return null;
         // Trouble in a car beats carrying crates: a crate hand (or one with no part) goes to it, and so does the winch pair
         // for a fire that's alight or a load that's loose (the loading waits; the car doesn't).
-        if (_trouble is { } trouble && (job.Job is StopJob.Crates or StopJob.None && job.TakesTrouble
+        if (_trouble is { } trouble && (lamp || job.Job is StopJob.Crates or StopJob.None && job.TakesTrouble
                 || job.Job is StopJob.Winch0 or StopJob.Winch1 && trouble is CarFire { Phase: SpinePhase.Punish }))
         {
             // In there: work it from the aisle. Short of it at a stop: in by its side door from the ground (the stop's
             // hands are down there anyway); otherwise the walker's way, along the roofs.
             if (self.Parent == trouble.Attached && PlayerMotor.Indoors(self, world.Train))
                 return Tend(self, trouble, world, Me);
-            return job.IntoTrouble(self, world, trouble.Attached);
+            return job.IntoTrouble(self, world, trouble.Attached, held: lamp);
         }
         if (_workedTick != world.Tick)
         {
@@ -738,8 +747,13 @@ public sealed class RoofWalkerBot(int seed, ColdTuning? cold = null, StopHand? j
         // Trouble aside, a guttering lamp (note 346) in a car nobody's in, the nearest: in there, Heed.Gutter trims it. Before a
         // bag: the lamp's on a clock (45 s and the car's dark, the Climbers' way in); a bag is pay. Only for whoever takes the
         // errands (a gunner only with nobody else to send), and not with the Choir about.
-        _lampCar = tend && catches && !_feedRun && !choir && _trouble is null ? GutterCar(world, here) : null;
-        _drop = tend && catches && !_feedRun && !choir && _trouble is null && _lampCar is null ? NextDrop(world) : null;
+        // Note 511: a loose coupling comes before a guttering lamp or a bag (both a walker's errands, and the warm-up's
+        // routine wait): left 90 s it parts, and the cars behind it are lost. On frontier:7's 4-bot nights the walkers were
+        // in the cars for a bag or getting warm while every pin worked loose, and 11 of 21 parted, the cars behind gone.
+        bool pin = tend && catches && !choir && _trouble is null && LoosePin(self, world, Me, Calls);
+        _warm.Called = pin;
+        _lampCar = tend && catches && !_feedRun && !choir && _trouble is null && !pin ? GutterCar(world, here) : null;
+        _drop = tend && catches && !_feedRun && !choir && _trouble is null && _lampCar is null && !pin ? NextDrop(world) : null;
         _catchCar = _drop is { } d ? CatchCar(train, d, self.Parent) : null;
         _warm.Into = _trouble?.Attached ?? _catchCar ?? _lampCar;
         if (_trouble is { } trouble)
@@ -771,6 +785,29 @@ public sealed class RoofWalkerBot(int seed, ColdTuning? cold = null, StopHand? j
     Sim.Route.Drop? _drop;
     int? _catchCar;
     int? _lampCar;
+
+    /// <summary>
+    /// A coupling of the engine's rake working loose (note 356), a wrench to take to it, and it's this walker's: the nearest
+    /// pin to it, claimed on the crew's calls (<see cref="CrewCalls.ClaimPin"/>), so one goes and the others keep at theirs.
+    /// </summary>
+    static bool LoosePin(in PlayerState self, World world, int me, CrewCalls? calls)
+    {
+        var train = world.Train;
+        if (train.Loose is not { Enabled: true } || !(Couplings.Tightens(self, train) || Repairs.WrenchKey(self) > 0))
+            return false;
+        var here = PlayerMotor.WorldPosition(self, train);
+        int? car = null;
+        double nearest = double.MaxValue;
+        foreach (var v in train.Dynamics.Consist.Vehicles)
+            if (v.Id > 0 && v.Loose > 0 && v.Id < train.Frames.Count)
+            {
+                var f = train.Frames[v.Id];
+                double d = (f.ToWorld(Couplings.Pin(f.Shape, train.Dynamics.Tuning)) - here).Length;
+                if (d < nearest)
+                    (car, nearest) = (v.Id, d);
+            }
+        return car is { } c && (calls?.ClaimPin(c, me, nearest, world.Tick) ?? true);
+    }
 
     /// <summary>The nearest car of the engine's rake whose lamp is guttering (note 346) with no crewmate inside it, or null.</summary>
     int? GutterCar(World world, int here)
@@ -1205,7 +1242,7 @@ public sealed class RoofWalkerBot(int seed, ColdTuning? cold = null, StopHand? j
         // Note 377: free to bring a gun its powder (nothing on but, at most, a mail bag to catch: the gun's first), and said
         // so for the crew, who work out who goes from it (PowderCarry.Carrier).
         // Already on a run, its way out of a car (the warm-up's way out) is the run's.
-        bool free = Feeds && self.Alive && _trouble is null && _warm is not { Shelter: true } && !(_warm?.Chilled(self) ?? false)
+        bool free = Feeds && self.Alive && _trouble is null && _warm is not { Shelter: true } && !(_warm?.Chilled(self) ?? false) && _warm is not { Called: true }
             && !(_warm is { Active: true } && _catchCar is null && !_feedRun);
         // Note 456: free, and the nearest free hand to a gun nobody's at with a run coming or due: to the gun.
         if (free && ManGun(self, world, tick, true, out aimed) is { } manning)
@@ -3082,7 +3119,16 @@ public sealed class WarmUp(ColdTuning cold, double goInAt = 0.6)
     /// <summary>Times it's been in and got warm.</summary>
     public int Done { get; private set; }
 
-    public bool Wants(in PlayerState s) => Shelter || Into is not null || Chilled(s);
+    public bool Wants(in PlayerState s) => Shelter || Into is not null || Chilled(s) && !Answers(s);
+
+    /// <summary>
+    /// Note 511: called out to a loose coupling (note 356): it parts 90 s after it starts working loose, and every car behind
+    /// it goes. Called, a walker doesn't go in to warm, and comes out of a car it's warming in, unless the cold is already
+    /// hurting it (spec B.2's onset) or there's shelter to be in.
+    /// </summary>
+    public bool Called { get; set; }
+
+    bool Answers(in PlayerState s) => Called && !Shelter && Into is null && s.Cold < cold.OnsetSeconds;
 
     /// <summary>Cold enough to go in for it (not for a tunnel or a job in there).</summary>
     public bool Chilled(in PlayerState s) => s.Cold >= cold.OnsetSeconds * goInAt;
@@ -3121,6 +3167,17 @@ public sealed class WarmUp(ColdTuning cold, double goInAt = 0.6)
         // Mid-drop onto the plate: nothing to do until we land.
         if (self.Surface == Surface.Air)
             return new PlayerIntent();
+        // Called out (note 511): not in yet, back up the way it came; in, out by the nearer door.
+        if (Answers(self))
+        {
+            if (_step is Step.ToEnd or Step.Drop or Step.ToDoor or Step.Open)
+                return Abandon();
+            if (_step is Step.In or Step.Shut or Step.Warm)
+            {
+                _outEnd = WayOut(self, train);
+                return Next(Step.Reopen);
+            }
+        }
         bool open = train.Vehicles[_car].DoorOpen(RearDoor);
         switch (_step)
         {

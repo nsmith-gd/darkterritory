@@ -70,8 +70,10 @@
 
   // The yard's powerhouse (level-design P6, D.2 "power"): at the throat, where the switchman walks to restart it when
   // the power's low or dead. Its footprint [length, width], how far back from (−) and past (+) the first switch it
-  // stands, and how far out from the main line.
-  "powerhouse": { "size": [9, 7], "throat": [-70, 10], "offset": [8, 40] },
+  // stands, and how far out from the main line. With `open` it stands open as a barn does (note 509, note 417's "not
+  // yet"): walked into by its door toward the line, the restart held at its switchboard against the back wall, its
+  // engine beside it; dark inside until the power runs. Off, it's a shut box restarted at its door, as before.
+  "powerhouse": { "size": [9, 7], "throat": [-70, 10], "offset": [8, 40], "open": true },
 
   // Holdouts (GDD App. D.4, D.13; level-design H.1): a sealed place where a dead player waits to be freed, the only way
   // back into a run. Placement only; what happens there is holdouts.json.
@@ -140,9 +142,12 @@
   // loot, P13), `length` long, `margin` in from the zone's ends, its middle within `reach` of the halt along the line (it's
   // the station's goods yard; and a long walk along the town is the village's difficulty, P15): a siding with its points
   // lifted, `cars` derelicts on it ([length, width], `carGap` apart) from its buffer stop, and the goods shed [length,
-  // width] beyond it, its workbench a find at `find`.
+  // width] beyond it, its workbench a find at `find`. With `station.open` the station stands open as the goods shed does
+  // (note 493, note 417's "not yet"): its door toward the line and its booking office's counter at the back wall, the till
+  // long since rifled. Nothing to find in it: it stands inside the rail buffer, where there's no loot (P13). Off, it's a
+  // shut box, as before.
   "deadTown": {
-    "station": { "size": [16, 7], "gap": 1.5, "fromLane": [4, 12] },
+    "station": { "size": [16, 7], "gap": 1.5, "fromLane": [4, 12], "open": true },
     "goods": { "beyond": [2, 12], "length": [70, 110], "margin": 20, "reach": 60, "cars": [1, 3], "car": [14, 3.2], "carGap": 1.2, "shed": [20, 9], "find": 0.6 }
   },
 

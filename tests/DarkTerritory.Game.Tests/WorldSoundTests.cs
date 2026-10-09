@@ -467,7 +467,7 @@ public class WorldSoundTests
         // it was heard as the smash, "loud as a cannon".
         var (world, site) = Night(f => f.Stop is { } stop && stop.Holdouts.Any(x => x.Kind != Sim.Stops.HoldoutKind.Shelter), from: -200);
         var audio = new GameAudio(Content);
-        Stand(audio, "place-breach.smash", "place-breach.pick-give");
+        Stand(audio, "place-breach.smash", "place-breach.smash-give", "place-breach.pick-give");
         Held(audio, "place-breach.pick");
         var h = world.Holdouts!.All.First(x => x.Site == site && x.Lockable);
         var ears = new Ears(audio, world);
@@ -499,6 +499,63 @@ public class WorldSoundTests
         world.Holdouts.Mirror(h.Index, HoldoutState.Freed, 1, 0);
         ears.Tick(ear, SimConstants.TickRate);
         Assert.Single(ears.Started, v => v.Name == "place-breach.pick-give");
+        Assert.Single(ears.Started, v => v.Name == "place-breach.smash-give");
+    }
+
+    [Fact]
+    public void ABreachIsHeardOnTheCrewsBeatsEachBlowEachHeaveAndEachBoardOff()
+    {
+        // Note 497 (C1's #200, note 464): the lock jumps at each blow of the crew's smash clip (a blow every 0.8 s, frame 9
+        // of 24, on the scene's clock) and each blow is heard as it lands, one at a time; it gives with the last. A
+        // barricade's board flexes out at each heave of the pry clip (every 1.33 s) and comes off at each fifth of the
+        // breach; each heave and each board is heard, and the barricade giving way.
+        var (world, site) = Night(f => f.Stop is { } stop && stop.Holdouts.Any(x => x.Kind != Sim.Stops.HoldoutKind.Shelter)
+            && stop.Holdouts.Any(x => x.Kind == Sim.Stops.HoldoutKind.Shelter), from: -200);
+        var audio = new GameAudio(Content);
+        Stand(audio, "place-breach.smash", "place-breach.smash-give", "place-breach.pry", "place-breach.board", "place-breach.pry-give");
+        var ears = new Ears(audio, world);
+        double clock = 100;
+        List<(string Name, double At)> Breach(Holdout h, double seconds, bool freed = true)
+        {
+            var heard = new List<(string, double)>();
+            var ear = h.Door + new Double3(1, 1.6, 0);
+            double progress = 0;
+            for (int i = 0; i < seconds * SimConstants.TickRate; i++)
+            {
+                clock += SimConstants.TickSeconds;
+                audio.SceneClock = clock;
+                world.Holdouts!.Mirror(h.Index, HoldoutState.Breaching, 1, progress += SimConstants.TickSeconds);
+                int before = ears.Started.Count;
+                ears.Tick(ear);
+                heard.AddRange(ears.Started.Skip(before).Select(v => (v.Name, clock)));
+            }
+            if (freed)
+            {
+                world.Holdouts!.Mirror(h.Index, HoldoutState.Freed, 1, 0);
+                int before = ears.Started.Count;
+                ears.Tick(ear, 5);
+                heard.AddRange(ears.Started.Skip(before).Select(v => (v.Name, clock)));
+            }
+            return heard;
+        }
+        // The lock: 3 s of blows (holdouts.json smash), each on the clip's beat; then the last tearing it out.
+        var lockup = world.Holdouts!.All.First(x => x.Site == site && x.Lockable && x.Layout.Kind != Sim.Stops.HoldoutKind.Shelter);
+        var smashed = Breach(lockup, 3);
+        var blows = smashed.Where(x => x.Name == "place-breach.smash").Select(x => x.At).ToList();
+        Assert.InRange(blows.Count, 3, 4);
+        Assert.All(blows, t => Assert.InRange(((t - 9 / 30.0) % 0.8 + 0.8) % 0.8, 0, SimConstants.TickSeconds + 1e-9));
+        Assert.Equal(1, smashed.Count(x => x.Name == "place-breach.smash-give"));
+        Assert.DoesNotContain(smashed, x => x.Name is "place-breach.pry" or "place-breach.board");
+        // The barricade: 6 s of heaves (holdouts.json pry), one each 1.33 s at the clip's haul; four boards off as it goes,
+        // the fifth with the barricade giving way.
+        var shelter = world.Holdouts!.All.First(x => x.Site == site && x.Layout.Kind == Sim.Stops.HoldoutKind.Shelter);
+        var pried = Breach(shelter, 6);
+        var heaves = pried.Where(x => x.Name == "place-breach.pry").Select(x => x.At).ToList();
+        Assert.InRange(heaves.Count, 4, 5);
+        Assert.All(heaves, t => Assert.InRange((t % (40 / 30.0) + 40 / 30.0) % (40 / 30.0), 0, SimConstants.TickSeconds + 1e-9));
+        Assert.Equal(4, pried.Count(x => x.Name == "place-breach.board"));
+        Assert.Equal(1, pried.Count(x => x.Name == "place-breach.pry-give"));
+        Assert.DoesNotContain(pried, x => x.Name is "place-breach.smash" or "place-breach.smash-give");
     }
 
     [Fact]

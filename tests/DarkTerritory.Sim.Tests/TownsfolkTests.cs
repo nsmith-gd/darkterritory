@@ -192,16 +192,38 @@ public class TownsfolkTests
         // Each one looked at from in front of it says what it is.
         foreach (var f in plan.Fixtures.Where(f => kinds.Contains(f.Kind) || f.Kind is "laws" or "mural"))
         {
-            var at = town.World(f.S, f.D, Math.Max(0.3, f.Height * 0.6));
+            var at = town.LookAt(f);
             var face = town.Direction(f.S, f.FaceS, f.FaceD);
             var stand = at + face * (f.Kind == "mural" ? 3.0 : Math.Max(f.SolidS, f.SolidD) + 1.0);
             var eye = new Double3(stand.X, town.World(f.S, f.D).Y + 1.6, stand.Z);
             var target = town.Target(eye, (at - eye).Normalized);
             Assert.True(target is { Kind: TownTargetKind.Fixture } t && t.Index == f.Id, $"{f.Name} ({f.Kind}) can't be looked at");
         }
-        // A small town keeps the yard: no green, but its laws and its flag.
+        // The council keeps its house; the quiet house stands by the gate, inside the wall, clear of every house and street,
+        // and can be knocked at.
+        Assert.Equal("the council house", plan.Buildings[0].Name);
+        var quiet = Assert.Single(plan.Buildings, b => b.Kind == "quiet");
+        Assert.True(plan.Bounds.Holds(quiet.S, quiet.D, -3), "the quiet house isn't inside the wall");
+        Assert.DoesNotContain(plan.Houses, h => Math.Abs(h.S - quiet.S) < (h.Width + quiet.Length) / 2 && Math.Abs(h.D - quiet.D) < (h.Depth + quiet.Depth) / 2 + 3);
+        Assert.DoesNotContain(plan.Bounds.Streets, st => Math.Abs(st.At(quiet.S) - quiet.D) < st.Width / 2 + quiet.Depth / 2 && quiet.S > st.S0 && quiet.S < st.S1);
+        var door = town.Door(quiet);
+        var knock = door + (door - town.World(quiet.S, quiet.D, 1.2)).Normalized * 1.6;
+        Assert.Equal(new TownTarget(TownTargetKind.Door, plan.Buildings.ToList().IndexOf(quiet)), town.Target(knock with { Y = door.Y + 0.4 }, (door - knock).Normalized));
+
+        // A small town keeps the yard: no green, but its laws and its flag, and its dead and its day on the square's far wall.
         var small = Plan("frontier:7", 60);
         Assert.Null(small.Plan.Green);
         Assert.Contains(small.Plan.Fixtures, f => f.Kind == "laws");
+        Assert.DoesNotContain(small.Plan.Buildings, b => b.Kind == "quiet");
+        foreach (string kind in (string[])["memorial", "mural"])
+        {
+            var f = Assert.Single(small.Plan.Fixtures, x => x.Kind == kind);
+            Assert.True(small.Plan.Square.Holds(f.S, Math.Sign(f.D)), $"the small town's {kind} isn't in its square");
+            var face = small.Direction(f.S, f.FaceS, f.FaceD);
+            var lookAt = small.LookAt(f);
+            var stand = lookAt + face * (kind == "mural" ? 3.0 : f.SolidD + 1.0);
+            var eye = new Double3(stand.X, small.World(f.S, f.D).Y + 1.6, stand.Z);
+            Assert.Equal(new TownTarget(TownTargetKind.Fixture, f.Id), small.Target(eye, (lookAt - eye).Normalized));
+        }
     }
 }
