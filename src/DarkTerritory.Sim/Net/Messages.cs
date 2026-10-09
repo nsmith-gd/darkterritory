@@ -62,7 +62,7 @@ public static class Protocol
     //     itself to a host that's behind (note 532).
     // 46: the input message carries the client's own downlink loss (the host's snapshots it isn't getting), in percent, so the
     //     host can send a thin link every other snapshot and tell its own player when its upload can't carry the crew; the
-    //     snapshot carries a flags byte after the queued count, bit 0 saying it's one of every other (note 553).
+    //     snapshot carries a flags byte after the queued count, bit 0 saying it's one of every other (note 554).
     public const int Version = 46;
 }
 
@@ -155,7 +155,7 @@ public static class Messages
     /// <summary>How many past inputs each input packet repeats.</summary>
     public const int InputRedundancy = 4;
 
-    /// <param name="lossPct">The client's own downlink loss over its window, in percent (note 553); 0 before it has one.</param>
+    /// <param name="lossPct">The client's own downlink loss over its window, in percent (note 554); 0 before it has one.</param>
     public static void WriteInput(NetWriter w, ReadOnlySpan<InputFrame> frames, uint lastSnapshotTick, byte lossPct = 0)
     {
         w.Reset();
@@ -272,7 +272,7 @@ public static class Messages
     public const byte SnapshotThinned = 1;
 
     /// <param name="queued">Inputs from this client the host still holds beyond the one it applied (note 532; at most 255).</param>
-    /// <param name="flags"><see cref="SnapshotThinned"/> and any later ones (note 553).</param>
+    /// <param name="flags"><see cref="SnapshotThinned"/> and any later ones (note 554).</param>
     public static void WriteSnapshot(NetWriter w, uint tick, uint ackedInput, uint baselineTick, IReadOnlyList<WireRecord> records, IReadOnlyList<WireRecord>? baseline,
         int queued = 0, byte flags = 0)
     {
