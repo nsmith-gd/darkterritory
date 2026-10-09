@@ -4,9 +4,13 @@ using DarkTerritory.Game;
 using DarkTerritory.Game.Art;
 using DarkTerritory.Sim;
 using DarkTerritory.Sim.Net;
+using DarkTerritory.Sim.Player;
 using DarkTerritory.Sim.Train;
 
 namespace DarkTerritory.Dev.Replay;
+
+/// <summary>A shot's camera; for a subject view (note 524), what it's on and what's wrong with the frame, if anything.</summary>
+public sealed record ShotCamera(Camera Camera, string? Subject = null, string? Note = null);
 
 /// <summary>
 /// A host's world drawn from a camera (note 515: a replayed night looked at, at any tick), as the app draws a frame: the
@@ -39,14 +43,31 @@ public sealed class WorldShot : IDisposable
     public int Height { get; }
 
     /// <summary>
-    /// A camera by name: <c>eye:&lt;id&gt;</c> through that crewmate's eyes (where they look), or any of <see cref="Views"/>'
-    /// (chase, roof, cab, trackside…), on car <paramref name="car"/>.
+    /// A camera by name: <c>eye:&lt;id&gt;</c> through that crewmate's eyes (where they look); <c>subject:&lt;who&gt;</c> framed on
+    /// someone or something in the world (note 524: an enemy kind, <c>crew:N</c>, <c>car:N</c>, <c>engine</c>; see
+    /// <see cref="Live.SubjectCamera"/>), for a frame <paramref name="aspect"/> wide; or any of <see cref="Views"/>' (chase,
+    /// roof, cab, trackside…), on car <paramref name="car"/>. A view that isn't one, or a subject that isn't there, is an
+    /// <see cref="ArgumentException"/>.
     /// </summary>
-    public static Camera Camera(string view, World world, IReadOnlyList<PlayerSnapshot> crew, int car = 2)
+    /// <param name="player">The crew's tuning (a crewmate's height, to frame them), when it's at hand.</param>
+    public static Camera Camera(string view, World world, IReadOnlyList<PlayerSnapshot> crew, int car = 2, double aspect = 16.0 / 9, PlayerTuning? player = null) =>
+        Aim(view, world, crew, car, aspect, player).Camera;
+
+    /// <summary>
+    /// <see cref="Camera"/>, and for a subject view what it framed (its name) and what's wrong with the frame if anything is
+    /// (it's under the ground; nowhere round it had a clear view).
+    /// </summary>
+    public static ShotCamera Aim(string view, World world, IReadOnlyList<PlayerSnapshot> crew, int car = 2, double aspect = 16.0 / 9, PlayerTuning? player = null)
     {
+        if (view.StartsWith(Live.SubjectCamera.Prefix, StringComparison.Ordinal))
+        {
+            var subject = Live.SubjectCamera.Find(view[Live.SubjectCamera.Prefix.Length..], world, crew, player);
+            var framing = Live.SubjectCamera.Frame(subject, world, aspect);
+            return new ShotCamera(framing.Camera, subject.Name, framing.Note);
+        }
         if (view.StartsWith("eye:", StringComparison.Ordinal) && byte.TryParse(view[4..], out byte id) && crew.FirstOrDefault(c => c.Id == id) is { Id: > 0 } who)
-            return Eyes.Operator(who.State, world) ?? Eyes.From(who.State, who.State, world.Train.Frames, 1, 0, 0);
-        return Views.Get(view, world.Train, car);
+            return new ShotCamera(Eyes.Operator(who.State, world) ?? Eyes.From(who.State, who.State, world.Train.Frames, 1, 0, 0));
+        return new ShotCamera(Views.Get(view, world.Train, car));
     }
 
     /// <summary>The crewmate whose eyes a view is (<c>eye:N</c>), or null: their own body isn't drawn, as the app draws you.</summary>

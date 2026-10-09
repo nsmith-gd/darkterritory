@@ -173,11 +173,21 @@ public sealed class NightReplay : IDisposable
                 break;
             case "trusted" or "token":
                 break;
+            // Live control's spawns (note 524): the kinds an agent insisted on between steps, which the host can't hear.
+            case "insist":
+                Host.World.Insist = o["kinds"] is JsonArray { Count: > 0 } kinds ? [.. kinds.Select(k => Enum.Parse<Sim.Enemies.EnemyKind>((string)k!))] : null;
+                Host.World.InsistEvery = (double?)o["every"] ?? Host.World.InsistEvery;
+                break;
             case string kind:
                 Marks.Add(new NightMark(kind, (uint?)o["tick"] ?? Host.Tick, o));
                 break;
         }
     }
+
+    /// <summary>A tick, given as one (<c>1830</c>) or as minutes and seconds into the night (<c>12:30</c>).</summary>
+    public static uint TickAt(string at) => at.Split(':') is [var m, var s]
+        ? (uint)Math.Round((int.Parse(m, System.Globalization.CultureInfo.InvariantCulture) * 60 + double.Parse(s, System.Globalization.CultureInfo.InvariantCulture)) * Sim.SimConstants.TickRate)
+        : uint.Parse(at, System.Globalization.CultureInfo.InvariantCulture);
 
     /// <summary>Plays on to the end of the recording, or until the host's at <paramref name="tick"/>.</summary>
     public void Run(uint? tick = null)
