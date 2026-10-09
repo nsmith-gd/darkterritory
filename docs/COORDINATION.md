@@ -28,7 +28,6 @@ source of truth for who owns what**; chat with one session isn't seen by the oth
 
 | Name | Agent ids | What it is | Log |
 |---|---|---|---|
-| A train never left down a facility's spur outside a stop: a stop given up is called off for the shunter, and a spur set for it outside a stop is set back (queue #292) | [#692](https://github.com/nsmith-gd/darkterritory/pull/692) | 550 |
 | **A** | A1; its agents A1.1, A1.2, … | Claude Code, the director's main cloud session, and the agents it launches | [docs/log/A1.md](log/A1.md) |
 | **B** | B1, B2, B3, B4; their agents B1.1, B2.1, B3.1, B4.1, … | Claude Code on the director's second account, several sessions: B1 **Level Design** (the line generator's set pieces, sites, and the world's solidity); B2 **Towns** (the fortress towns, their houses and households, and the world's story; queue #10, [#194](https://github.com/nsmith-gd/darkterritory/pull/194)); B3 **UI/UX** (the HUD overhaul; registered on [#206](https://github.com/nsmith-gd/darkterritory/pull/206)); B4 **Level Design 3**, the third level-design session, beside B1 and B2 | [docs/log/B1.md](log/B1.md), [docs/log/B2.md](log/B2.md), [docs/log/B3.md](log/B3.md), [docs/log/B4.md](log/B4.md) |
 | **C** | C1; its agents C1.1, … | Claude Code, the director's art session: the art checklist (claude.ai/artifact/7MnAAHwaVRtNosBH7hRLNu), the Look Review (claude.ai/artifact/MgW84RexYLg3JVBC52XoXm) and the art's implementation | [docs/log/C1.md](log/C1.md) |
@@ -443,6 +442,7 @@ renumbered from 268), 277 (C1's art checklist L1s), 278 (B1's bends), 279 (B1's 
 
 | Item | PR | Note |
 |---|---|---|
+| A train never left down a facility's spur outside a stop: a stop given up is called off for the shunter, and a spur set for it outside a stop is set back (queue #292) | [#692](https://github.com/nsmith-gd/darkterritory/pull/692) | 550 |
 | A fresh bot baseline for the pack and fire work (queue #286, D1.2 for D1) | [#691](https://github.com/nsmith-gd/darkterritory/pull/691) | 544 |
 | Walkers freezing on the train's roofs (queue #289, D1.2 for D1) | [#687](https://github.com/nsmith-gd/darkterritory/pull/687) | 547 |
 | The slow frames written down: a frame of 100 ms and 4x the median to the launch log with its parts, the GC and where | [#685](https://github.com/nsmith-gd/darkterritory/pull/685) | 549 |
