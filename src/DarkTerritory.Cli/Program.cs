@@ -45,6 +45,8 @@ return args switch
     ["replay", ..] => ReplayCommands.Run(content, args),
     // dt feedback pull | list | show <id> | make: the director's notes from inside the game, and their moments (note 516).
     ["feedback", ..] => FeedbackCommands.Run(content, args),
+    // dt review diff <before> <after>: a pull request's review packet, its shots and numbers against main's (note 517).
+    ["review", ..] => ReviewCommands.Run(args),
     // dt edition bake <name> --into <dir>: the base content with an edition (editions/<name>) baked in, as the demo build
     // ships it (T79). dt [--edition demo] edition: what the content in use is.
     ["edition", "bake", var name, ..] => Print(new { edition = name, content = Path.GetFullPath(Mods.Bake(baseContent, name, Str(args, "--into", $"out/editions/{name}"))) }),
@@ -79,6 +81,9 @@ return args switch
     // dt perf: a frame's cost against the frame-rate targets (tuning/perf.json), flat and in a headset.
     ["perf", ..] => Print(PerfCommands.Run(train, content, args)),
     ["holes", ..] => Print(HolesCommands.Run(train, content, args)),
+    // dt screenshot --batch <file>: one shot a line (the screenshot's own arguments), drawn in one process with one dressed
+    // renderer (note 517); --check also draws each alone and fails on any byte that differs.
+    ["screenshot", "--batch", var batch, ..] => ScreenshotBatch(train, content, batch, args.Contains("--check")),
     ["screenshot", ..] when args.Contains("--film") => Print(FilmStill(content, args)),
     ["screenshot", ..] when args.Contains("--hud") || args.Contains("--hurt") => Print(HudShot(content, args)),
     ["screenshot", ..] when args.Contains("--menu") => Print(MenuShot(train, content, args)),
@@ -890,6 +895,48 @@ static object Drive(TrainTuning t, RailLine line, int cars, double start, double
 }
 
 // Renders a greybox frame to PNG with no window. On machines without a GPU this uses Mesa lavapipe.
+// The gallery's shots in one go (note 517): each line of the file a screenshot's arguments (blank lines and # comments
+// skipped; a --hud line is drawn as `dt screenshot --hud` draws it). --check draws each again on its own and compares.
+static int ScreenshotBatch(TrainTuning t, string content, string file, bool check)
+{
+    var shots = File.ReadAllLines(file).Select(l => l.Trim()).Where(l => l.Length > 0 && !l.StartsWith('#'))
+        .Select(l => l.Split(' ', StringSplitOptions.RemoveEmptyEntries)).ToList();
+    var watch = Stopwatch.StartNew();
+    var done = new List<object>();
+    ShotRig.Batching = true;
+    try
+    {
+        foreach (var shot in shots)
+        {
+            var at = watch.Elapsed.TotalSeconds;
+            object r = shot.Contains("--hud") || shot.Contains("--hurt") ? HudShot(content, shot) : Screenshot(t, content, shot);
+            done.Add(new { args = string.Join(' ', shot), seconds = Math.Round(watch.Elapsed.TotalSeconds - at, 2) });
+        }
+    }
+    finally
+    {
+        ShotRig.Batching = false;
+        ShotRig.Release();
+    }
+    // --check: each shot drawn again on its own and held to the batch's within the review packet's tolerance (note 517: a
+    // reused renderer's art caches leave a level or two here and there, never a change anyone would see).
+    var differ = new List<object>();
+    if (check)
+        foreach (var shot in shots)
+        {
+            string output = Str(shot, "--out", "");
+            if (output.Length == 0 || !File.Exists(output))
+                continue;
+            var batched = ImageFile.Load(output);
+            object _ = shot.Contains("--hud") || shot.Contains("--hurt") ? HudShot(content, shot) : Screenshot(t, content, shot);
+            var r = Ballast.Dev.ImageDiff.Compare(batched, ImageFile.Load(output));
+            if (r.Verdict == "changed")
+                differ.Add(new { output, changedPercent = Math.Round(r.Changed * 100, 3), r.Max, r.Box });
+        }
+    Print(new { shots = shots.Count, seconds = Math.Round(watch.Elapsed.TotalSeconds, 1), check, differ, done });
+    return differ.Count == 0 ? 0 : 1;
+}
+
 static object Screenshot(TrainTuning t, string content, string[] args)
 {
     string view = Str(args, "--view", "trackside");
@@ -1344,13 +1391,11 @@ static object Screenshot(TrainTuning t, string content, string[] args)
     var route = generated ?? (File.Exists(routeFile) ? DataFile.Load<Route>(routeFile) : null);
 
     var clock = Stopwatch.StartNew();
-    using var gpu = new GpuContext("dt screenshot");
-    using var renderer = new GreyboxRenderer(gpu, width, height);
+    // A batch's shots share one dressed renderer (note 517: the look's layers load once); one shot makes and frees its own.
+    var (gpu, renderer, look) = ShotRig.Take(content, args.Contains("--greybox"), width, height, DarkTerritory.Game.Art.PlanSky.For(route),
+        route?.Name, out var rigOwned);
+    using var rigFreed = rigOwned;
     var mesh = new MeshBuilder();
-    var look = Looked(content, args);
-    if (look is not null)
-        look.Sky = DarkTerritory.Game.Art.PlanSky.For(route);
-    look?.Dress(renderer);
     // --ps2: the pipeline's debug era mode, for art direction to compare against (no spec maps, harder banding, no bloom).
     if (args.Contains("--ps2"))
         renderer.Post = renderer.Post with { Ps2 = true };
@@ -3369,6 +3414,7 @@ static int Usage()
           build check <folder> [--dev]             a built game has none of the developer tools in it (note 514); --dev: it has them
           replay <file> [--to t] [--shot f --view v]   a recorded night played again, checked tick by tick (note 515); record, list
           feedback pull | list | show <id> | make  the director's notes from inside the game (F8, F9) and their moments replayed (note 516)
+          review diff <before> <after> [--out d]   what a change did to the shots and numbers, as strips and a summary (note 517)
           train table                              spec table (B.4–B.6) as produced by current tuning
           train stop <cars> [--from v] [--load l] [--grade g]
           train climb <cars> <grade%> [--from v] [--load l]

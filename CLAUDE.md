@@ -24,6 +24,7 @@ tools/xr-sim.sh && XDG_RUNTIME_DIR=/tmp/xr dotnet run --project src/DarkTerritor
 python3 tools/audio/fetch_music.py --dry-run          # E.6's CC0 music intake: the candidate list (--offline-test the cut path); the real run is .github/workflows/music-intake.yml (Commons is blocked here)
 dotnet run --project src/DarkTerritory.Cli -- audio render --listener all   # spec A.3 tell audit; one listener → WAV + spectrogram PNG
 dotnet run --project src/DarkTerritory.Cli -- screenshot --view roof   # 1280x720 PNG to out/shots/; then Read it to look
+tools/review/gallery.sh "--no-build" && dotnet run --project src/DarkTerritory.Cli -- review diff <main's shots> out/shots   # the whole gallery in one process (note 517; `screenshot --batch tools/review/gallery.txt`), and what a change did to it: strips + summary in out/review (CI does this on every PR: the review-packet artifact)
 dotnet run --project src/DarkTerritory.Cli -- art show engine          # a kit piece on a turntable; `art check` = every piece vs its triangle budget
 dotnet run --project src/DarkTerritory.Cli -- art clip car_hugger feed   # a creature's clip as a lit contact sheet (--frames n --at x,y,z --dist --yaw)
 dotnet run --project src/DarkTerritory.Cli -- playthrough --route frontier:7 --minutes 20 [--bots 4] [--insist whistler,choir] [--loot]   # a real night with enemies (solo, or a bot crew working the stops; --loot: the stops' finds, which bots search the villages for, note 326), every encounter photographed as it happens -> out/playthrough (note 200)
