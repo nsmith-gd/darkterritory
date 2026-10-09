@@ -109,6 +109,36 @@ public class QuietHudTests
     }
 
     [Fact]
+    public void ALinkLosingTooMuchIsSaidOutOnTheLineAndAGoodOneIsnt()
+    {
+        // Note 534 (netcode-audit.md gap 3): loss is shown as a bad ping is, only once it's bad.
+        static int TopRight(Overlay o) => In(o, W * 0.7f, 0, W, 30);
+        var line = OutOnTheLine(4000);
+        var good = new LinkInfo("JOINED", 40, 2, null, false) { Loss = Hud.Tuning.LossGood / 2 };
+        Assert.Equal(0, TopRight(Drawn(new Linked(line, good))));
+        Assert.True(TopRight(Drawn(new Linked(line, good with { Loss = Hud.Tuning.LossWarn + 0.02 }))) > 0);
+    }
+
+    [Fact]
+    public void TheLinksQualityIsSaidAsWhatsLostAndHowItsReached()
+    {
+        var relayed = new Ballast.Net.CarrierLink("Steam", Relayed: true, 42, 0.99f);
+        var direct = new Ballast.Net.CarrierLink("", Relayed: false);
+        var link = new LinkInfo("JOINED", 40, 2, null, false);
+        Assert.Null(Hud.QualityLine(link));
+        Assert.Equal("2% LOST, VIA STEAM RELAY", Hud.QualityLine(link with { Loss = 0.02, Via = relayed }));
+        Assert.Equal("0% LOST, DIRECT", Hud.QualityLine(link with { Loss = 0, Via = direct }));
+        Assert.Equal("<1% LOST", Hud.QualityLine(link with { Loss = 0.003 }));
+        // The host's panel: each crewmate's round trip, loss and route, inked by the worst of them.
+        var (fine, fineInk) = Hud.CrewLinkLine(new CrewLink(2, 30, 0, direct));
+        Assert.Equal("30 MS, 0% LOST, DIRECT", fine);
+        var (poor, poorInk) = Hud.CrewLinkLine(new CrewLink(3, 30, Hud.Tuning.LossWarn + 0.05, relayed));
+        Assert.Equal("30 MS, 13% LOST, STEAM RELAY", poor);
+        Assert.NotEqual(fineInk, poorInk);
+        Assert.Equal(poorInk, Hud.CrewLinkLine(new CrewLink(4, Hud.Tuning.PingWarnMs + 50, 0, direct)).Ink);
+    }
+
+    [Fact]
     public void TheLinksCornerSaysWhatToDoAsTheAlarmDoes()
     {
         // Note 476: under NO LINK, the action and its key (note 285's form), as the alarm in the middle says it, never key first.

@@ -186,7 +186,13 @@ public static class ReportFields
             $"player {s.PlayerId} {(s.Player.Alive ? "alive" : $"dead ({s.Player.Death})")}",
         };
         if (s.Link is { } link)
-            parts.Add($"{link.Role.ToLowerInvariant()}, {link.Aboard} aboard{(link.PingMs is { } ping ? $", ping {ping:0} ms" : "")}{(link.Lost ? ", link lost" : "")}");
+            parts.Add($"{link.Role.ToLowerInvariant()}, {link.Aboard} aboard{(link.PingMs is { } ping ? $", ping {ping:0} ms" : "")}"
+                + $"{(link.Loss is { } loss ? $", {loss:P1} lost" : "")}{(link.Via is { } via ? $", {Via(via)}" : "")}{(link.Lost ? ", link lost" : "")}"
+                + string.Concat(link.Crew.Select(c => $"; crew {c.Id} ping {c.PingMs:0} ms{(c.Loss is { } l ? $", {l:P1} lost" : "")}{(c.Via is { } v ? $", {Via(v)}" : "")}")));
         return string.Join(", ", parts);
     }
+
+    /// <summary>A route as a developer reads it (note 534): the network's own ping and quality where it has them.</summary>
+    static string Via(Ballast.Net.CarrierLink v) =>
+        (v.Relayed ? $"via {v.Network} relay" : "direct") + (v.PingMs is { } ms ? $" ({v.Network} ping {ms} ms" + (v.Quality is { } q ? $", quality {q:0.00})" : ")") : "");
 }
