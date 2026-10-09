@@ -81,7 +81,10 @@ public sealed class Picker(int id) : Enemy(id)
             if (held is { } h)
                 ctx.World.Bodies.LetGo(h);
             Extra = -1;
-            if (GoDown(ctx, t, t.Run))
+            if (Mode != PickerMode.Down)
+                SetMode(PickerMode.Scatter);
+            // Down its drain, or out of the stop's way a while after (one that can't get back to its drain still goes).
+            if (Mode == PickerMode.Down || GoDown(ctx, t, t.Run) || _modeSeconds >= t.LeaveSeconds)
                 Enter(ctx, SpinePhase.Gone);
             return;
         }
@@ -151,13 +154,13 @@ public sealed class Picker(int id) : Enemy(id)
             return;
         }
 
-        // Unladen: keeps off anyone close.
-        if (living.Where(c => Flat(c.World - me) <= t.ShyWithin).OrderBy(c => Flat(c.World - me)).ThenBy(c => c.Player.Id)
-            .Select(c => (Double3?)c.World).FirstOrDefault() is { } near)
+        // Unladen, someone close: it bolts back down its drain a while (it keeps off people; a crewmate stood over its drain
+        // keeps it down).
+        if (living.Any(c => Flat(c.World - me) <= t.ShyWithin))
         {
             Extra = -1;
-            SetMode(PickerMode.Scuttle);
-            Walk(ctx, (me - near) with { Y = 0 }, t.Run);
+            _scatter = Math.Max(_scatter, t.ShySeconds);
+            SetMode(PickerMode.Scatter);
             return;
         }
 
@@ -301,16 +304,21 @@ public sealed class Picking
     // The facility the group came up at (−1 none yet), and how long the train's stood at the one it's at.
     int _cameAt = -1, _standingAt = -1;
     double _standing;
+    bool _up;
 
     public void Step(World world, PickersTuning t, Route.RouteTier tier, int crew, ref int nextId, List<Enemy> into, double seconds)
     {
         var train = world.Train;
         int facility = world.Run is { Phase: Run.RunPhase.AtFacility } run ? run.Facility : -1;
         bool standing = facility >= 0 && train.Dynamics.Speed < 0.3;
-        // Gone from the stop (or moving off it): every one of them goes down.
-        if (facility < 0 || train.Dynamics.Speed > 1)
+        // The group's train gone from its stop: every one of them goes down. (Not for the train moving at it: a crew shunting
+        // the yard is still at the stop.)
+        if (_up && facility != _cameAt)
+        {
+            _up = false;
             foreach (var p in into.OfType<Picker>().Where(p => !p.Gone))
                 p.Leave();
+        }
         if (!standing)
         {
             _standing = 0;
@@ -330,6 +338,7 @@ public sealed class Picking
                 && b.Carrier < 0 && b.TakenBy < 0 && !b.Stowed && Flat(b.Centre - front) <= reach))
             return;
         _cameAt = facility;
+        _up = true;
         var drains = Drains(world, t);
         int count = t.CountFor(tier, crew);
         for (int i = 0; i < count; i++)
@@ -365,6 +374,9 @@ public sealed class Picking
                 var spot = at + toward * (b.Width / 2 + t.DrainOff);
                 double hint = train.Dynamics.Distance;
                 spot = spot with { Y = PlayerMotor.GroundAt(spot, train.Line, ref hint) };
+                // Where one standing there would be put: out of any wall, on the land (so it can always get back to it).
+                if (world.Enemies is { } et)
+                    spot = Solidity.Clear(train, et, EnemyKind.Pickers, spot);
                 found.Add((spot, hint, DMath.Atan2(-toward.X, -toward.Z)));
             }
         }

@@ -396,18 +396,20 @@
   // the nearest loose crate on the ground nobody's guarding (a living crewmate within guardWithin m) and no other Picker has (a
   // heavy crate takes two), takes it up (within takeReach) over its head (holdHeight m up) and carries it to its drain (carry
   // m/s; a heavy crate carryHeavy m/s, with a second heaveBeside m beside), and down it goes with it within atDrain m: the
-  // crate's gone, and it comes up again downSeconds later. Unladen, it keeps shyWithin m off anyone. Laden, a crewmate within
+  // crate's gone, and it comes up again downSeconds later. Unladen, anyone within shyWithin m sends it back down its drain for
+  // shySeconds (stood over its drain, you keep it down). Laden, a crewmate within
   // biteWithin m is bitten (bite, never a kill; once in biteEvery s) and it drops the crate and scatters. A blow kills one
   // (health in blows), and every one within scatterWithin m drops what it has and runs to its drain for scatterSeconds. The
-  // train started away from the stop, they all go down their drains. Not the director's: they cost it nothing, and come to
+  // train gone from the stop (not shunting at it), they all go down their drains
+  // (gone after leaveSeconds, whether or not they got there). Not the director's: they cost it nothing, and come to
   // every yard stop with loose crates ("enabled" off: never).
   "pickers": {
     "enabled": true, "after": 20,
     "count": { "local": 3, "frontier": 4, "deadLines": 6, "deepTerritory": 8 }, "perTwoCrew": 1,
-    "facilityReach": 80, "drains": 3, "drainOff": 0.6, "emergeSeconds": 0.8, "downSeconds": 3,
-    "guardWithin": 4, "shyWithin": 3, "run": 4.8, "carry": 2.6, "carryHeavy": 1.6, "takeReach": 0.9, "holdHeight": 1.0,
-    "heaveBeside": 0.9, "atDrain": 0.8, "biteWithin": 1.2, "bite": 8, "biteEvery": 2,
-    "scatterWithin": 10, "scatterSeconds": 6, "health": 1
+    "facilityReach": 80, "drains": 3, "drainOff": 1.2, "emergeSeconds": 0.8, "downSeconds": 3,
+    "guardWithin": 4, "shyWithin": 3, "shySeconds": 4, "run": 4.8, "carry": 2.6, "carryHeavy": 1.6, "takeReach": 0.9, "holdHeight": 1.0,
+    "heaveBeside": 0.9, "atDrain": 1.0, "biteWithin": 1.2, "bite": 8, "biteEvery": 2,
+    "scatterWithin": 10, "scatterSeconds": 6, "leaveSeconds": 12, "health": 1
   },
 
   // TOWER JAW · vibration · outside (GDD §21, App. A.6, B.6; the director's brief of 8 Oct 2026; ARCHITECTURE §8 note 363;

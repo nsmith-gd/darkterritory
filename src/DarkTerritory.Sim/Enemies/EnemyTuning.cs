@@ -1062,23 +1062,25 @@ public sealed record PickersTuning
     public int PerTwoCrew { get; init; } = 1;
     public double FacilityReach { get; init; } = 80;
     public int Drains { get; init; } = 3;
-    public double DrainOff { get; init; } = 0.6;
+    public double DrainOff { get; init; } = 1.2;
     public double EmergeSeconds { get; init; } = 0.8;
     public double DownSeconds { get; init; } = 3;
     public double GuardWithin { get; init; } = 4;
     public double ShyWithin { get; init; } = 3;
+    public double ShySeconds { get; init; } = 4;
     public double Run { get; init; } = 4.8;
     public double Carry { get; init; } = 2.6;
     public double CarryHeavy { get; init; } = 1.6;
     public double TakeReach { get; init; } = 0.9;
     public double HoldHeight { get; init; } = 1.0;
     public double HeaveBeside { get; init; } = 0.9;
-    public double AtDrain { get; init; } = 0.8;
+    public double AtDrain { get; init; } = 1.0;
     public double BiteWithin { get; init; } = 1.2;
     public int Bite { get; init; } = 8;
     public double BiteEvery { get; init; } = 2;
     public double ScatterWithin { get; init; } = 10;
     public double ScatterSeconds { get; init; } = 6;
+    public double LeaveSeconds { get; init; } = 12;
     public double Health { get; init; } = 1;
 
     /// <summary>How many come to a crew of <paramref name="crew"/> at a stop of <paramref name="tier"/>: the tier's count, and
