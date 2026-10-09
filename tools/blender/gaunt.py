@@ -274,10 +274,11 @@ for s, sx in (("r", 1), ("l", -1)):
         gnarl(T(sh), (0.048, 0.044, 0.056), {sh: 0.5, ca: 0.5}, 106 + seed)
         branch(H(ca), T(ca), 0.029, 0.006, ca, seed + 20, rings=9, sides=8, bend=0.03, splinter=True,
                fmat=lambda pts, nn: SPIKE if sum(pts, Vector()).z / len(pts) < 0.14 else BARK)
-        # A twig's stub or two off the thigh and the shin, pointing out and up, away from the body.
+        # A twig's stub or two off the thigh and the shin, pointing out and up, away from the body, and back (a forward
+        # one stands out ahead among the head's: GauntTests reads the head as what's foremost).
         out = Vector((sx, 0, 0.6))
-        stub(H(th).lerp(T(th), 0.4 + 0.1 * (seed % 3)), out + Vector((0, 0.3 * (1 if leg == "f" else -1), 0)), 0.15, 0.018, th, 120 + seed)
-        stub(H(sh).lerp(T(sh), 0.3 + 0.15 * (seed % 2)), Vector((sx, 0.2, -0.2)), 0.11, 0.013, sh, 130 + seed)
+        stub(H(th).lerp(T(th), 0.4 + 0.1 * (seed % 3)), out + Vector((0, -0.3, 0)), 0.15, 0.018, th, 120 + seed)
+        stub(H(sh).lerp(T(sh), 0.3 + 0.15 * (seed % 2)), Vector((sx, -0.2, -0.2)), 0.11, 0.013, sh, 130 + seed)
 
 
 # ----------------------------------------------------------------------------------------------------------------
