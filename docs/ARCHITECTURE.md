@@ -748,4 +748,5 @@ written here instead is moved out by `tools/coord/notes.py split`; the Coordinat
 - [570. Dave, the wandering painter (P1, queue #300; the director, 8 Oct 2026: "a special NPC that shows up randomly in places. His name is Dave…](notes/570.md)
 - [571. Nicki's party (P1, queue #301; the director, 8 Oct 2026: "an NPC you can find some times in one of the houses. Her name is Nicki and she's…](notes/571.md)
 - [572. Jacob, the fisherman (P1, queue #302; the director, 8 Oct 2026: "an NPC named Jacob who can be found randomly in the world near water…](notes/572.md)
+- [582. The belt's hold made clear (D1.4, queue #314; the director, 9 Oct 2026, playtest: "I started the belt hold and it wasnt clear what was…](notes/582.md)
 <!-- end of the notes index -->
