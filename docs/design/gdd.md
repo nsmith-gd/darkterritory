@@ -644,6 +644,11 @@ Scuttles like a spider over the crane, gnawing food crates.
 > **RULE: gang up or leave it alone.**
 Interrupt it and it hunts whoever hit it last. No one player can kill it. Crane it aboard by mistake and it eats your cargo.
 
+**THE BRAKEMAN** · *on the roofs, on the move; never with a crew of one* *(the director's brief, 2026-10-08)*
+A stooped man in a rotted railway coat and cap, his arm grown into rusted chain and a brake wheel.
+> **RULE: chase it alone, catch it together.**
+He climbs up at one end of the train and works toward the other, winding each car's handbrake on: the train slows, and on a climb it stalls. One crewmate can chase him off the roofs (he outruns you, and ducks your blows); out of sight he waits under or in the train and comes up somewhere else to start again. Only two closing on him from both sides corner him, and only cornered can he be hurt. A wound brake is unwound at its wheel.
+
 ### Retired from v1.0
 
 - **Cut:** The Ferryman, Clingers, Rattle.
@@ -653,11 +658,6 @@ Interrupt it and it hunts whoever hit it last. No one player can kill it. Crane 
 ---
 
 # PART SEVEN — WORLD SYSTEMS
-
-**THE BRAKEMAN** · *on the roofs, on the move; never with a crew of one* *(the director's brief, 2026-10-08)*
-A stooped man in a rotted railway coat and cap, his arm grown into rusted chain and a brake wheel.
-> **RULE: chase it alone, catch it together.**
-He climbs up at one end of the train and works toward the other, winding each car's handbrake on: the train slows, and on a climb it stalls. One crewmate can chase him off the roofs (he outruns you, and ducks your blows); out of sight he waits under or in the train and comes up somewhere else to start again. Only two closing on him from both sides corner him, and only cornered can he be hurt. A wound brake is unwound at its wheel.
 
 ## 22. Hazards
 
@@ -996,7 +996,7 @@ Silhouette legibility is not an aesthetic preference here. It is a coordination 
 - **What you look at is said at the crosshair.** The action and its key, in fine print: "PULL CORD : [E]", "SHOVEL COAL : HOLD [E]". A short state only when it stops you ("POINTS HELD", "NO SHOT"), and a hold's progress.
 - **Prompts never foretell.** Nothing says what an action will do: whether it's loud, what it mends, who hears it, that it needs two, or what happens if you don't. Consequences are learned, as in Lethal Company. The stop's status says what's there and what's under way, not how to work it.
 - **What you hold is said in the corner.** The bottom right, in fine print: the keys for what's in your hands, the cab's controls or the gun, a line each. In the cab, the speed sits over them as a figure, read against the boards. A setting (CONTROL HINTS) hides the keys; the speed and what you're holding stay.
-- **The rest comes when it matters, then goes.** A place's name as the train nears it. The cold, as you go into a deeper step. The dawn clock in the night's last stretch. The ping in the lobby, and on the line only when it's bad. The noise meter only once the crew's loud.
+- **The rest comes when it matters, then goes.** A place's name as the train nears it. The cold, as you go into a deeper step. The dawn clock in the night's last stretch. The ping in the lobby with what's being lost and how the host's reached (relayed or direct), and each crewmate's on the host's lobby panel; on the line only when it's bad. The noise meter only once the crew's loud.
 - **The world says it first.** The gauges and the run map in the cab, the route card (where the train is is pencilled on it), the supplies view and the roster are things you look at or open. They're not on screen. Every stretch of the line that would derail the train at its top speed has its max speed on the map and the card.
 - **No frames in play.** Text sits on the picture with a shadow. Only the panels you open, and the run's end, are framed.
 - **Alarms are rare and short.** The headline is big only when it's urgent. The hazard telegraphs (a tunnel mouth, a bend you're too fast for, the boiler about to go) keep their warnings and their speed figures; what to do sits under them in fine print, without the outcome.
