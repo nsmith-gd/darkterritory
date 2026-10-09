@@ -91,11 +91,13 @@ public sealed partial class StopWalls
 
     /// <summary>
     /// A barn, an outbuilding or a dead town's goods shed standing open (note 417, stops.json <c>village.openSheds</c>), or a
-    /// dead town's station (note 493, <c>deadTown.station.open</c>): its walls with a wide door toward the line, its
-    /// hayloft's or workbench's find inside to search, as a yard's shed is walked (a station's booking office long since
-    /// rifled: nothing's kept inside the rail buffer, P13).
+    /// dead town's station (note 493, <c>deadTown.station.open</c>), or a yard's powerhouse (note 509,
+    /// <c>powerhouse.open</c>): its walls with a wide door toward the line, its hayloft's or workbench's find inside to
+    /// search, as a yard's shed is walked (a station's booking office long since rifled: nothing's kept inside the rail
+    /// buffer, P13; a powerhouse's switchboard where the power's restarted).
     /// </summary>
-    public static bool OpenShed(StopBuilding b) => b.Open && b.Kind is BuildingKind.Barn or BuildingKind.Outbuilding or BuildingKind.GoodsShed or BuildingKind.Station;
+    public static bool OpenShed(StopBuilding b) =>
+        b.Open && b.Kind is BuildingKind.Barn or BuildingKind.Outbuilding or BuildingKind.GoodsShed or BuildingKind.Station or BuildingKind.Powerhouse;
 
     /// <summary>
     /// Where a find in a walled building is put out (the houses are shut, with no way in to search): on its step, a
@@ -322,6 +324,12 @@ public sealed partial class StopWalls
         return (x + fx * ahead, y + fy * ahead);
     }
 
+    /// <summary>
+    /// Where an open powerhouse's power is restarted (note 509), in its own frame: standing at its switchboard, in front of
+    /// the back wall where a shed's first find would be kept (<see cref="ShedKept"/>, index 0).
+    /// </summary>
+    public static (double X, double Y) Switchboard(StopBuilding b) => ShedFind(b, ContainerKind.Bench, 0);
+
     /// <summary>A barn's hayloft (note 417; the art's): how deep it reaches in from the back wall, and how far its ladder's foot stands out from its edge (m).</summary>
     public const double LoftDepth = 1.6, LadderLean = 0.6;
 
@@ -452,8 +460,9 @@ public sealed partial class StopWalls
 
     /// <summary>
     /// An open shed's workbenches (note 417), as boxes in its own frame (middles and half sizes): one against the back wall
-    /// for each of its finds kept on one; and an open station's booking-office counter, a bench's size where a first find
-    /// would be kept (note 493). Solid, as a house's cupboards are; a hayloft's ladder is against the wall, not in the way.
+    /// for each of its finds kept on one; an open station's booking-office counter, a bench's size where a first find
+    /// would be kept (note 493); and an open powerhouse's switchboard there and its engine across from it (note 509).
+    /// Solid, as a house's cupboards are; a hayloft's ladder is against the wall, not in the way.
     /// </summary>
     public static IEnumerable<(double X, double Y, double HalfX, double HalfY)> Benches(StopLayout stop, int building)
     {
@@ -465,9 +474,14 @@ public sealed partial class StopWalls
             var (x, y, _, _) = ShedKept(b, c.Index);
             yield return (x, y, BenchWidth, BenchDepth);
         }
-        if (b.Kind == BuildingKind.Station)
+        if (b.Kind is BuildingKind.Station or BuildingKind.Powerhouse)
         {
             var (x, y, _, _) = ShedKept(b, 0);
+            yield return (x, y, BenchWidth, BenchDepth);
+        }
+        if (b.Kind == BuildingKind.Powerhouse)
+        {
+            var (x, y, _, _) = ShedKept(b, 1);
             yield return (x, y, BenchWidth, BenchDepth);
         }
     }
