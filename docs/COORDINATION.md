@@ -16,9 +16,12 @@ source of truth for who owns what**; chat with one session isn't seen by the oth
 4. **Done means merged.** Move the item to *Done* with its PR link and note number in the PR that lands it.
 5. **Questions between agents go in PR comments** on the PR in question (both sides are watching their own PRs).
    Questions for the director go in *Waiting on the director* below and to the director in your own chat.
-6. **Log what you do** in your own file, `docs/log/<agent id>.md`, every entry with its UTC date and time (format in
+6. **Merging main into your branch** (note 521): this file, ARCHITECTURE.md and the logs merge on their own (both sides kept;
+   `.gitattributes`). The Coordination check on your pull request (`python3 tools/coord/check.py`) says if your claim's queue
+   or note number was taken meanwhile; take the next free ones (`tools/coord/check.py --next`) and say so in your log.
+7. **Log what you do** in your own file, `docs/log/<agent id>.md`, every entry with its UTC date and time (format in
    docs/log/README.md). Give yourself an agent id when you start (the table below).
-7. **Follow CLAUDE.md.** Design numbers in `content/tuning`, a deterministic Sim, everything verifiable headless, visual
+8. **Follow CLAUDE.md.** Design numbers in `content/tuning`, a deterministic Sim, everything verifiable headless, visual
    changes looked at.
 
 ## Who's who
