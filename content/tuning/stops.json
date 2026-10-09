@@ -70,8 +70,10 @@
 
   // The yard's powerhouse (level-design P6, D.2 "power"): at the throat, where the switchman walks to restart it when
   // the power's low or dead. Its footprint [length, width], how far back from (−) and past (+) the first switch it
-  // stands, and how far out from the main line.
-  "powerhouse": { "size": [9, 7], "throat": [-70, 10], "offset": [8, 40] },
+  // stands, and how far out from the main line. With `open` it stands open as a barn does (note 509, note 417's "not
+  // yet"): walked into by its door toward the line, the restart held at its switchboard against the back wall, its
+  // engine beside it; dark inside until the power runs. Off, it's a shut box restarted at its door, as before.
+  "powerhouse": { "size": [9, 7], "throat": [-70, 10], "offset": [8, 40], "open": true },
 
   // Holdouts (GDD App. D.4, D.13; level-design H.1): a sealed place where a dead player waits to be freed, the only way
   // back into a run. Placement only; what happens there is holdouts.json.
