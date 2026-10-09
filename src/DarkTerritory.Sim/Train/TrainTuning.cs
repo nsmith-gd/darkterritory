@@ -288,7 +288,9 @@ public sealed record EngineLayout(double DeckHeight, double BoilerHalfWidth, dou
     /// <summary>The bunker's top over the cab floor.</summary>
     public double BunkerHeight { get; init; } = 1.0;
     /// <summary>The running boards: how far out past the body's sides they stand (App. A.2 GREASE: "sanding from the running boards").</summary>
-    public double RunningBoardWidth { get; init; } = 0.6;
+    public double RunningBoardWidth { get; init; } = 0.85;
+    /// <summary>How far ahead of the cab's doorways the running boards run on (note 559: "in front of the cab doors").</summary>
+    public double RunningBoardAhead { get; init; } = 1.0;
     /// <summary>The sandboxes on the running boards: this far behind the cab, over the drivers.</summary>
     public double SandboxBehind { get; init; } = 2.5;
 }

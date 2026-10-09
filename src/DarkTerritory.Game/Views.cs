@@ -209,6 +209,9 @@ public static class Views
             // In the corridor beside the boiler under the hood (note 338), forward to the cab through its back wall's opening.
             "wayin" => Camera.LookAt(engine.ToWorld(new Double3(-1.05, 3.0, -engineHalf + 13)), engine.ToWorld(new Double3(-1.0, 2.6, -engineHalf + 4)), 70),
             "prowside" => Camera.LookAt(engine.ToWorld(new Double3(-9, 2.8, -engineHalf + 3.5)), engine.ToWorld(new Double3(0, 2.6, -engineHalf + 4.5)), 55),
+            // (Not one of Names.) Up off the engine's left side behind the cab, down onto the running board where it runs on in
+            // front of the cab's doorway (the director, 9 Oct: "the platform ... should extend to be in front of the cab doors").
+            "cabboard" => CabBoardCamera(train),
             "ahead" => Camera.LookAt(engine.ToWorld(new Double3(1.5, 2.2, -engineHalf - 70)), engine.ToWorld(new Double3(0, 2.2, 0)), 55),
             "gap" => GapCamera(train, car),
             // (Not one of Names.) From a cargo car's right-hand side doorway, down at its steps (the director, 8 Oct: "an
@@ -360,6 +363,19 @@ public static class Views
         var foot = engine.Shape.Ladders.Where(x => x.Foot.Z > 0 && Math.Abs(x.Inward.Z) > 0).Select(x => x.Foot).DefaultIfEmpty(new Double3(0.6, 0, l)).MinBy(f => f.Y);
         // Up the ladder at a hand's height over the deck, looking down and across at the footplate and the plate.
         return Camera.LookAt(engine.ToWorld(new Double3(foot.X + 0.1, 2.9, l + 0.3)), engine.ToWorld(new Double3(foot.X - 1.6, 1.1, l + gap * 0.4)), 75);
+    }
+
+    /// <summary>
+    /// The left running board at the cab's doorway (note 559): from up off the engine's side behind the cab, at a crewmate's
+    /// eye over the hood's eaves, looking forward and down onto the board where it passes the doorway and the steps under it.
+    /// </summary>
+    static Camera CabBoardCamera(TrainOnLine train)
+    {
+        var engine = train.Frames[0];
+        var g = train.Dynamics.Tuning.Geometry;
+        var plan = EnginePlan.Of(g);
+        double w = engine.Shape.HalfWidth, deck = g.Engine.DeckHeight;
+        return Camera.LookAt(engine.ToWorld(new Double3(-w - 3.2, deck + 2.6, plan.CabBack + 3.2)), engine.ToWorld(new Double3(-w - 0.3, deck - 0.2, plan.DoorFront)), 62);
     }
 
     static Camera CarSideCamera(TrainOnLine train, int car)
