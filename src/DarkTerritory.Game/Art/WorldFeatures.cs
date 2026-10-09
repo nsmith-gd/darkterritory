@@ -192,7 +192,7 @@ public sealed partial class WorldArt
             return;
         // A walled town's wall goes round it (queue #74, note 335); the gatehouse and the platform are the yard's still.
         if (bounds is not null)
-            TownWall(mesh, line, eye, bounds, from, to, lit);
+            TownWall(mesh, line, eye, bounds, from, to, lit, time);
         else
         {
             foreach (int side in new[] { -1, 1 })

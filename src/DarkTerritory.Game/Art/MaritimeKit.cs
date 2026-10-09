@@ -167,9 +167,12 @@ public static class MaritimeKit
         var coat = CoatOf(looks, h.Design, h.Kind);
         var b = Shape(h);
         Yard(k, h, coat);
+        // Its body as it stands, turned off true about its middle; its yard square to its lot (note 490).
+        k.Push(Turned(h));
         if (h.Kind == HouseKind.Burnt)
         {
             Burnt(k, h, b);
+            k.Pop();
             return k.Build($"maritime-burnt-{h.Id}");
         }
         float doorX = X(h, h.Design.DoorU);
@@ -195,8 +198,19 @@ public static class MaritimeKit
             Fancy(k, h, b, coat);
         if (h.Layout is { } l)
             Inside(k, h, l, thing, panes);
+        k.Pop();
         return k.Build($"maritime-{h.Kind}-{h.Id}-{h.S:0}-{h.D:0}");
     }
+
+    /// <summary>
+    /// A house's body turned off true about its middle (<see cref="TownHouse.Turn"/>, note 490), in the kit's frame (X its
+    /// side times along the line, Z in from its middle): the Sim's turn in the rail frame is this rotation here.
+    /// </summary>
+    public static Matrix4x4 Turned(TownHouse h) => Matrix4x4.CreateRotationY((float)-h.Turn);
+
+    /// <summary>A point of a house's body (u, v in its own frame) in the kit's frame, turned as it stands (note 490).</summary>
+    public static Vector3 BodyPoint(TownHouse h, double u, double v, float up = 0) =>
+        Vector3.Transform(new Vector3(X(h, u), up, Z(h, v)), Turned(h));
 
     /// <summary>
     /// A house as it's seen from down the street (queue #74's big towns, note 335): its block and roof in its colours,
@@ -215,6 +229,13 @@ public static class MaritimeKit
     static void FarInto(Kit k, TownHouse h, Block b, Coat c, bool lit)
     {
         FarYard(k, h);
+        k.Push(Turned(h));
+        FarBody(k, h, b, c, lit);
+        k.Pop();
+    }
+
+    static void FarBody(Kit k, TownHouse h, Block b, Coat c, bool lit)
+    {
         if (h.Kind == HouseKind.Burnt)
         {
             k.Use("wood_grey", Palette.SootBlack, 0.95f, 0, tile: 1);
@@ -300,8 +321,8 @@ public static class MaritimeKit
     }
 
     /// <summary>The lamp by a lived-in house's door (the kit's frame): on the wall beside it, a little over the door's head.</summary>
-    public static Vector3 Porch(TownHouse h, float doorHeight) =>
-        new(X(h, h.Design.DoorU) + (float)HouseLayout.DoorWidth / 2 + 0.4f, doorHeight + 0.1f, (float)(-h.Depth / 2 + h.DoorV) - 0.16f);
+    public static Vector3 Porch(TownHouse h, float doorHeight) => Vector3.Transform(
+        new Vector3(X(h, h.Design.DoorU) + (float)HouseLayout.DoorWidth / 2 + 0.4f, doorHeight + 0.1f, (float)(-h.Depth / 2 + h.DoorV) - 0.16f), Turned(h));
 
     /// <summary>The foundation, the walls, the gable ends, the corner boards and fascia, and the roof.</summary>
     static void Shell(Kit k, TownHouse h, Block b, Coat c, float doorX)
@@ -896,7 +917,9 @@ public static class MaritimeKit
     /// Where a house's chimneys (or its stovepipe) let out, in its own kit frame: where a lived-in house's wood smoke rises
     /// from (<see cref="Effects.Chimney"/>). As <see cref="Chimneys"/> builds them.
     /// </summary>
-    public static IEnumerable<Vector3> ChimneyTops(TownHouse h)
+    public static IEnumerable<Vector3> ChimneyTops(TownHouse h) => Tops(h).Select(p => Vector3.Transform(p, Turned(h)));
+
+    static IEnumerable<Vector3> Tops(TownHouse h)
     {
         var b = Shape(h);
         float sr = b.Profile.MaxBy(p => p.Y).X, a0 = b.A0 + 0.55f, a1 = b.A1 - 0.55f;
@@ -1335,6 +1358,12 @@ public static class MaritimeKit
                     k.Shade(0.6f);
                     k.Cylinder(new Vector3((x0 + x1) / 2, 0, (z0 + z1) / 2), new Vector3((x0 + x1) / 2, ht, (z0 + z1) / 2), (x1 - x0) / 2, 10);
                     break;
+                case YardKind.Loft:
+                    Loft(k, c, x0, x1, z0, z1, ht, rng);
+                    break;
+                case YardKind.Flake:
+                    Flake(k, x0, x1, z0, z1, ht, y.Variant, rng);
+                    break;
             }
         }
     }
@@ -1379,6 +1408,63 @@ public static class MaritimeKit
         k.Shade(0.25f);
         float doorW = gable ? 0.9f : 0.6f;
         k.Panel(new Vector3(xm, 0.95f, z0 - 0.02f), -Vector3.UnitZ, Vector3.UnitY, doorW, 1.9f);
+    }
+
+    /// <summary>
+    /// A net loft (note 490): a shed with a loft over it, its gable to the house, the loft door up in that gable under a
+    /// hoist beam with its block, the nets hung over a pole along its side to dry, brown and knotted.
+    /// </summary>
+    static void Loft(Kit k, Coat c, float x0, float x1, float z0, float z1, float ht, Random rng)
+    {
+        Shed(k, c, x0, x1, z0, z1, ht, gable: true);
+        float xm = (x0 + x1) / 2, wall = ht - 0.9f;
+        // The loft door in the gable over the shed's door, dark, and the beam out over it with its block.
+        k.Use("glass_dirty", Palette.SootBlack, 0.4f, 0.4f, tile: 1);
+        k.Shade(0.2f);
+        k.Panel(new Vector3(xm, wall - 0.75f, z0 - 0.02f), -Vector3.UnitZ, Vector3.UnitY, 0.8f, 1.0f);
+        k.Use("wood_grey", Palette.DeepBrown, 0.9f, 0.05f, tile: 1);
+        k.Box(new Vector3(xm - 0.08f, wall + 0.2f, z0 - 0.9f), new Vector3(xm + 0.08f, wall + 0.36f, z0 + 0.2f), Kit.Faces.All);
+        k.Use("iron_plate", Palette.IronGrey, 0.7f, 0.2f, tile: 1);
+        k.Rod(new Vector3(xm, wall + 0.2f, z0 - 0.8f), new Vector3(xm, wall - 0.5f, z0 - 0.8f), 0.012f);
+        // The nets over a pole along its side toward the lot's middle (never over the lot's end): drapes of brown mesh, not
+        // quite to the ground.
+        float side = MathF.Abs(x0) < MathF.Abs(x1) ? x0 - 0.45f : x1 + 0.45f;
+        k.Use("wood_grey", Palette.DeepBrown, 0.9f, 0.05f, tile: 1);
+        k.Rod(new Vector3(side, 2.1f, z0 + 0.1f), new Vector3(side, 2.1f, z1 - 0.1f), 0.04f);
+        k.Use("wool", new Vector3(0.28f, 0.2f, 0.13f), 0.9f, 0.02f, tile: 0.5f);
+        k.Tint = new Vector3(0.55f, 0.4f, 0.26f);
+        for (float z = z0 + 0.2f; z < z1 - 0.3f; z += 0.55f)
+        {
+            float drop = 1.2f + (float)rng.NextDouble() * 0.5f, w = 0.5f;
+            k.Panel(new Vector3(side, 2.1f - drop / 2, z + w / 2), Vector3.UnitX, Vector3.UnitY, w, drop, twoSided: true);
+        }
+    }
+
+    /// <summary>
+    /// A fish flake (note 490): the low rack of spruce boughs on posts that split cod were laid on to dry, the boughs grey
+    /// with salt and years; a few fish still on it in one variant, none in the others (a town that rarely goes out).
+    /// </summary>
+    static void Flake(Kit k, float x0, float x1, float z0, float z1, float ht, int variant, Random rng)
+    {
+        k.Use("wood_grey", Palette.BlueGrey, 0.95f, 0.02f, tile: 1);
+        foreach (float x in new[] { x0 + 0.1f, (x0 + x1) / 2, x1 - 0.1f })
+            foreach (float z in new[] { z0 + 0.1f, z1 - 0.1f })
+                k.Box(new Vector3(x - 0.05f, 0, z - 0.05f), new Vector3(x + 0.05f, ht - 0.05f, z + 0.05f), Kit.Faces.Sides);
+        // The boughs: thin poles laid across the frame, close, a little crooked.
+        for (float x = x0; x < x1; x += 0.12f)
+        {
+            float wob = (float)(rng.NextDouble() - 0.5) * 0.04f;
+            k.Rod(new Vector3(x + wob, ht - 0.03f, z0), new Vector3(x - wob, ht - 0.02f, z1), 0.022f);
+        }
+        if (variant != 0)
+            return;
+        // A few split fish left on it, pale and dried stiff.
+        k.Use("plaster_ruin", new Vector3(0.7f, 0.66f, 0.55f), 0.9f, 0.05f, tile: 0.5f);
+        for (int i = 0; i < 5; i++)
+        {
+            float fx = x0 + 0.4f + (float)rng.NextDouble() * (x1 - x0 - 0.8f), fz = z0 + 0.3f + (float)rng.NextDouble() * (z1 - z0 - 0.6f);
+            k.Panel(new Vector3(fx, ht + 0.01f, fz), Vector3.UnitY, Vector3.UnitZ, 0.22f, 0.5f);
+        }
     }
 
     /// <summary>A dory turned over on its blocks: the hull's flat bottom up, its sides drawn in to the bow and stern.</summary>
@@ -1433,7 +1519,7 @@ public static class MaritimeKit
     static void FarYard(Kit k, TownHouse h)
     {
         k.Use("wood_grey", Palette.BlueGrey, 0.9f, 0.05f, tile: 1);
-        foreach (var y in h.Yard.Where(y => y.Kind is YardKind.Shed or YardKind.Privy or YardKind.Dory or YardKind.Woodpile))
+        foreach (var y in h.Yard.Where(y => y.Kind is YardKind.Shed or YardKind.Privy or YardKind.Dory or YardKind.Woodpile or YardKind.Loft))
         {
             float xa = X(h, y.U0), xb = X(h, y.U1);
             k.Box(new Vector3(MathF.Min(xa, xb), 0, Z(h, y.V0)), new Vector3(MathF.Max(xa, xb), (float)y.Height, Z(h, y.V1)), Kit.Faces.Sides | Kit.Faces.PosY);

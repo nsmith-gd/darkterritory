@@ -5186,6 +5186,7 @@ Terrain sculpting tools, a node-graph material editor, a general-purpose visual 
     - **A town that's lived in** (App. F.3, the director: "the fortresses feel static and lame"). Presentation only (nothing in the Sim; every machine draws it from the clock, alike enough):
         - **Smoke from the chimneys** of the houses lived in, within 160 m of you (`WorldArt.Chimneys`, `MaritimeKit.ChimneyTops` as the kit builds the chimneys; `Effects.Chimney`: a puff a second or so, pale, rising slowly and leaning with the air).
         - **The watch on the wall**: a guard with a lantern walking each stretch of wall between two towers (three stretches in four), up and back at a walk with a pause at each end (`WorldArt.Watch`), a walled town's side walls or the yard's two. The crew's `lantern_walk` clip with the lamp hung and lit. The wall kit's merlons now stand on the wall's outer half (`StructureKit.Wall`, T124's) so the walk behind them is open and the watch shows over the parapet from inside; the Sim's wall is the same box as before.
+        - **Artillery on the towers** (GDD §3's "watchtowers, artillery"): every other tower down a walled town's sides has the train's own cannon (its mount, carriage, shield and barrel; tools/models cannon.py) at a fortress's size (×1.8) on an iron pedestal (`StructureKit.GunPedestal`), so it shows over the merlons from the streets. Laid out over the wall and swinging slowly either side of straight out (±0.55 rad) on the clock, each on its own phase, as if somebody's at it all night. Art only (`WorldArt.TownWall`), drawn within 320 m. `dt screenshot --route r --town towergun`.
         - `dt screenshot --route r --town watch` (from below the wall, up at the nearest of the watch).
     - **Not yet:**
         - granite, gardens, fish sheds on stilts by the water;
@@ -6989,6 +6990,42 @@ Terrain sculpting tools, a node-graph material editor, a general-purpose visual 
         - down at a door, one spring and four paws on the boards, none on the tin;
         - out again, one climb and no paws, spring or snarl;
         - stopped, the sniffing held and no snarl; moving on, it stops.
+490. **Towns, a third pass: nothing ruled straight, a small town's green, the town seen from outside, a fishing town's yards, the guns on the towers (queue #227, B2; the World Building board's open lines; the director, 8 Oct: "Towns dont feel like they have a natural layout to them ... These towns need layouts, parks, signs of governance, signs of culture"; GDD §3 "watchtowers, artillery").**
+    - **Off true** (`TownHouse.Turn`, `Body`, `BodyFacing`, `Extent`; towns.json `walled.turn`, `turnChance`, `crescent`):
+        - three in four of the shut houses on a walled town's streets stand 1–4° off true, either way;
+        - the row across the green's far street turns to the green's middle: none at the middle, up to 16° at its ends, a crescent round it;
+        - the turn is in the body, about the house's middle. Its block, wing and porch walls are turned (`Town.Box`'s `turn`: a wall's axis off the line's), and so is its door. The yard keeps to the square lot, so fences still line up with the neighbours' and the street;
+        - each turn is halved, up to four times, until the body keeps 0.4 m inside the lot's sides, 1.2 m off its street's edge and 1 m short of its back line (never worse than it stood square). Otherwise it stands square;
+        - an open house (its rooms are its walls) and the line's own row (the railway laid it out) stand square;
+        - the yard is laid out behind the turned body's furthest corner;
+        - `dt town` reports how many houses stand off true, and the crescent row's turns.
+    - **The art:** the house's body is built turned inside its mesh (`MaritimeKit.Turned`: the Sim's turn in the rail frame is a rotation of −Turn about Y in the kit's frame). The mesh is still placed square to its lot (`WorldArt.HouseAt`), so the yard drawn with it stays square. The door lamp and the chimney smoke go with the body. This holds for far houses and street blocks too.
+    - **A small town's green** (towns.json `square.greenAlong`, `greenOut`):
+        - in the square's rear end, 5–17 m along and 7–17 m out, clear of the clerk's office, the stall and the first bench;
+        - its pieces: a tin tree in the far corner, the lamp garden by the way in, and a bench facing it;
+        - two lamps at its corners nearest the line, and the square's lamp post that stood there left out.
+    - **Seen from outside** (`WorldArt.Glow`): a walled town's lights on the fog over it, as a Holdout's lamp is seen from its approach board (App. D.7). Additive light keeps 30% of itself through any fog, so these glows read from far off:
+        - a broad glow 38 m over the square;
+        - fainter ones over the first streets every 170 m on both sides of the line;
+        - the furnace's orange over a foundry's casting shed;
+        - a town that keeps its windows dark (the "shutters" custom) glows less;
+        - each glow is faint from inside the town (6%), where the lamps themselves are the light, and grows with distance.
+      From outside, nothing in the town clears its wall (the church's steeple tops out near 17.7 m, under the wall's line from the gate's view), so the glow is what says a town is there.
+    - **A fishing town's yards** (`YardKind.Loft`, `Flake`; houses.json characters' `yard.things`):
+        - a net loft: a shed with a loft over it, a dark loft door under a hoist beam, nets over a pole along its side toward the lot's middle;
+        - a fish flake: a knee-high rack of grey spruce boughs on posts, a few dried fish left on one in three, none on the rest;
+        - the cove keeps both (2 each), the town on the water one each, the mixed town an odd flake;
+        - they're last in the yard's list, so a character that keeps neither rolls its yards as before.
+    - **The guns on the towers:** note 335's addition, in this PR.
+    - **Verified:**
+        - `WalledTownTests.HousesStandOffTrueAndTheRowAcrossTheGreenTurnsToIt`: more than a third of the shut street houses are turned, and open houses and the line's row aren't. The crescent row faces the green's middle, one past the plain turns. Every turned body's corners are walled by its own walls only, off every street. Its yard things are outside its turned body;
+        - `TownTurnArtTests`: a turned house's body corners as the art draws them are within 2 cm of its walls, and its yard as drawn is square to its lot;
+        - `TownsfolkTests`: a small town's green in its square, its tree, garden and bench on it and lookable, nothing else of the square on it;
+        - looked at: local:5 from over a lane and frontier:3's green from over its square in survey light; frontier:7's small green at night and in survey light; local:5 from outside its gate and down a street at night; a cove's (local:1) net loft and fish flake (`dt screenshot --town greenover|loft|flake`).
+    - **Not yet:**
+        - goods sheds and a rail yard along the platform (C1's goods shed, #197, to place when it's modelled);
+        - the arrival fortress made a town;
+        - the works heard (AU1's).
 497. **The breach's blows and boards heard on their beats (AU1, queue #234; C1's #200, note 464: "AU1: the strikes' and the boards' sounds are theirs"; App. D.7).** Since #200 a lock jumps on its hasp at each blow of the crew's smash clip (a blow every 0.8 s, frame 9 of 24), and a barricade's board flexes out at each heave of the pry clip (every 1.33 s) and comes off at each fifth of the breach. Both are on the scene's clock, the crew's clips' own. The sound didn't follow either:
     - **The smash:** each of its takes was three seconds of blows, and it was played again every 0.45-0.7 s at random while the lock was worked. That's a din of six or more sequences over one another, never on the lock's jumps.
     - **The pry:** a held loop with heaves of its own.

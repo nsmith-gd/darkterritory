@@ -60,6 +60,10 @@ public sealed record SquareTuning
     public double BuildingDepth { get; init; }
     public double HallWidth { get; init; }
     public double OfficeWidth { get; init; }
+    /// <summary>A small town's green (note 490): in its square's rear end, from the end along it and out from the line
+    /// (m), clear of the clerk's office, the stall and the first bench.</summary>
+    public double[] GreenAlong { get; init; } = [5, 17];
+    public double[] GreenOut { get; init; } = [7, 17];
 }
 
 public sealed record ExplorableTuning
@@ -122,6 +126,11 @@ public sealed record WalledTuning
     public double BendClear { get; init; } = 30;
     /// <summary>How much further back a house may stand than the setback, or nearer (m): the row steps in and out.</summary>
     public double[] SetbackJitter { get; init; } = [0, 0];
+    /// <summary>How far a shut house on a street stands off true (degrees), and how many do (note 490); none when 0.</summary>
+    public double[] Turn { get; init; } = [0, 0];
+    public double TurnChance { get; init; }
+    /// <summary>How far the row facing the green across its far street turns to it at the green's ends (degrees; note 490).</summary>
+    public double Crescent { get; init; }
     /// <summary>The most streets a side.</summary>
     public int MaxStreets { get; init; } = 5;
     /// <summary>

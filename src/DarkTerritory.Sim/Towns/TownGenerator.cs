@@ -225,6 +225,18 @@ public static partial class TownGenerator
             var (_, nd, _) = TownFixtures.Size("memorial");
             if (Civic("memorial") is { } dead && gap3 - gap2 >= 2 * TownFixtures.Size("memorial").HalfS + 1)
                 Fix("memorial", dead.Title, dead.Text, (gap2 + gap3) / 2, side * (far - nd - 0.05), 0, -side);
+            // And a green of its own (note 490; the board's "a green or a garden for a small town"): grass in the square's
+            // rear end, a tree in its far corner, the lamp garden by the way in, a bench between them to sit and look at it.
+            var small = new TownGreen(s0 + sq.GreenAlong[0], s0 + sq.GreenAlong[1], sq.GreenOut[0], sq.GreenOut[1], side);
+            homes.Green = small;
+            double glen = small.S1 - small.S0, gmid = (small.Near + small.Far) / 2;
+            var trees = Take(w.Civic.GetValueOrDefault("tree") ?? [], 1, Rng("civic.trees"));
+            if (trees.Count > 0)
+                Fix("tree", trees[0].Title, trees[0].Text, small.S0 + 2.5, side * (small.Far - 2.5), 0, -side);
+            var garden = Take(w.Civic.GetValueOrDefault("garden") ?? [], 1, Rng("civic.garden"));
+            if (garden.Count > 0)
+                Fix("garden", garden[0].Title, garden[0].Text, small.S1 - glen * 0.3, side * (gmid - 1), 0, -side);
+            Fix("bench", "a bench", "", small.S0 + glen * 0.4, side * (small.Near + 1.2), 0, side);
         }
         if (homes.Bounds is { } walls)
         {

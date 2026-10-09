@@ -1,3 +1,5 @@
+using Ballast;
+
 namespace DarkTerritory.Sim.Towns;
 
 /// <summary>
@@ -59,10 +61,54 @@ public sealed record TownHouse(int Id, double S, double D, int Side, double Widt
 
     /// <summary>A direction in the house's frame (along, in) as the rail frame's (along the line, across it).</summary>
     public (double S, double D) Facing(double fu, double fv) => (fu, Side * fv);
+
+    /// <summary>
+    /// How far its body stands turned off square to its lot (radians, about its middle; ARCHITECTURE §8 note 490): nothing
+    /// in a town is ruled straight, and the houses across the street from a green turn to face it. Its yard keeps to the
+    /// lot. Only a house with no rooms inside is turned (an open one's walls are its rooms').
+    /// </summary>
+    public double Turn { get; init; }
+
+    /// <summary>A point of its body (its block, wing, porch and door; u, v in its own frame) in the rail frame: as
+    /// <see cref="Rail"/>, turned by <see cref="Turn"/> about its middle.</summary>
+    public (double S, double D) Body(double u, double v)
+    {
+        if (Turn == 0)
+            return Rail(u, v);
+        double du = u, dd = Side * (v - Depth / 2), c = DMath.Cos(Turn), s = DMath.Sin(Turn);
+        return (S + du * c - dd * s, D + du * s + dd * c);
+    }
+
+    /// <summary>A direction of its body (along, in) as the rail frame's: as <see cref="Facing"/>, turned.</summary>
+    public (double S, double D) BodyFacing(double fu, double fv)
+    {
+        if (Turn == 0)
+            return Facing(fu, fv);
+        double dd = Side * fv, c = DMath.Cos(Turn), s = DMath.Sin(Turn);
+        return (fu * c - dd * s, fu * s + dd * c);
+    }
+
+    /// <summary>
+    /// What its body covers in its own lot's frame (u along the line from its middle, v in from where its front would be
+    /// square): its block, wing and porch, turned by <paramref name="turn"/> (its own <see cref="Turn"/> when not given).
+    /// </summary>
+    public (double U0, double U1, double V0, double V1) Extent(double? turn = null)
+    {
+        double t = turn ?? Turn, c = DMath.Cos(t), sn = DMath.Sin(t);
+        double u0 = double.MaxValue, u1 = double.MinValue, v0 = double.MaxValue, v1 = double.MinValue;
+        foreach (var (a0, a1, b0, b1, _) in Parts().Append((-Width / 2, Width / 2, 0, Depth, 0)))
+            foreach (var (u, v) in new[] { (a0, b0), (a1, b0), (a0, b1), (a1, b1) })
+            {
+                double dv = v - Depth / 2, tu = u * c - Side * dv * sn, tv = Depth / 2 + Side * u * sn + dv * c;
+                (u0, u1, v0, v1) = (Math.Min(u0, tu), Math.Max(u1, tu), Math.Min(v0, tv), Math.Max(v1, tv));
+            }
+        return (u0, u1, v0, v1);
+    }
 }
 
-/// <summary>What stands in a yard (houses.json characters' <c>yard</c>, note 335).</summary>
-public enum YardKind : byte { Picket, Boards, Woodpile, Shed, Privy, Traps, Dory, Clothesline, Barrel }
+/// <summary>What stands in a yard (houses.json characters' <c>yard</c>, note 335): a fishing town's net loft and fish flake
+/// too (note 490).</summary>
+public enum YardKind : byte { Picket, Boards, Woodpile, Shed, Privy, Traps, Dory, Clothesline, Barrel, Loft, Flake }
 
 /// <summary>
 /// A thing in a house's yard, in the house's frame (u along its front from its middle, v in from its front): its footprint,
