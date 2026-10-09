@@ -321,6 +321,19 @@ public sealed partial class CrewCalls
         return _lamp[car].Member == member;
     }
 
+    // Note 511: which walker (by player id) is going to the loose coupling behind a car (note 356): the nearest the tick it
+    // started working loose, and theirs while they say so (each tick on the way). One goes; the rest keep the gun fed.
+    readonly Dictionary<int, (int Who, double Distance, uint Tick, uint Seen)> _pins = new();
+
+    /// <summary>A walker going to the loose coupling behind <paramref name="car"/>, from this far: true if it's theirs.</summary>
+    public bool ClaimPin(int car, int who, double distance, uint tick)
+    {
+        if (_pins.TryGetValue(car, out var c) && c.Who != who && tick - c.Seen <= SimConstants.TickRate && !(c.Tick == tick && distance < c.Distance))
+            return false;
+        _pins[car] = (who, distance, _pins.TryGetValue(car, out var mine) && mine.Who == who ? mine.Tick : tick, tick);
+        return true;
+    }
+
     /// <summary>The hand going to this car's swarmed lamp (or the fire the flies lit), or null.</summary>
     public int? LampHand(int car) => _lamp.TryGetValue(car, out var c) && Alive(c.Member) ? c.Member : null;
 
