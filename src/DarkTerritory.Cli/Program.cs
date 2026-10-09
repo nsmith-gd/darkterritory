@@ -47,6 +47,12 @@ return args switch
     ["feedback", ..] => FeedbackCommands.Run(content, args),
     // dt review diff <before> <after>: a pull request's review packet, its shots and numbers against main's (note 517).
     ["review", ..] => ReviewCommands.Run(args),
+    // dt trends measure | show <file.jsonl> | judge | value: main's numbers per commit (dt harness nights, dt perf), the falls
+    // among them, and the bisect's call on a commit (note 523).
+    ["trends", ..] => TrendsCommands.Run(args, RunHarness, a => PerfCommands.Run(train, content, a)),
+    // dt mcp: live control for agents (note 524): an MCP server on stdio whose tools host a night, step it, read it, insist
+    // on what comes, open a recording, draw any of it framed on a subject (subject:gaunt), and run the rest of dt.
+    ["mcp", ..] => McpCommands.Run(content, args, noMods),
     // dt edition bake <name> --into <dir>: the base content with an edition (editions/<name>) baked in, as the demo build
     // ships it (T79). dt [--edition demo] edition: what the content in use is.
     ["edition", "bake", var name, ..] => Print(new { edition = name, content = Path.GetFullPath(Mods.Bake(baseContent, name, Str(args, "--into", $"out/editions/{name}"))) }),
@@ -3432,6 +3438,10 @@ static int Usage()
           replay <file> [--to t] [--shot f --view v]   a recorded night played again, checked tick by tick (note 515); record, list
           feedback pull | list | show <id> | make  the director's notes from inside the game (F8, F9) and their moments replayed (note 516)
           review diff <before> <after> [--out d]   what a change did to the shots and numbers, as strips and a summary (note 517)
+          trends measure [--seeds 1-8] [--perf] | show <file.jsonl> [--markdown]   main's numbers per commit and their falls (note 523); judge, value, nights
+                     --view subject:<gaunt|crew:N|car:N|engine|enemy:id>: framed on that (note 524)
+          mcp [--shots dir] [--recordings dir]   live control for agents (note 524): an MCP server on stdio (night_start, night_step,
+                     night_state, night_insist, replay_open, shot, dt)
           train table                              spec table (B.4–B.6) as produced by current tuning
           train stop <cars> [--from v] [--load l] [--grade g]
           train climb <cars> <grade%> [--from v] [--load l]

@@ -6,16 +6,19 @@ source of truth for who owns what**; chat with one session isn't seen by the oth
 
 ## The rules
 
-1. **Claim before you start.** Put your name (below) and a branch against an item in the queue, and land that change on
-   main first: a docs-only PR, merged as soon as it's green. If someone else's name is already there, pick another item or
+1. **Claim before you start.** Take your numbers first (*Taking numbers* below: a queue number and a note number, which
+   nobody else can then take). Then put your name (below) and a branch against the item in the queue, and land that change
+   on main first: a docs-only PR, merged as soon as it's green. If someone else's name is already there, pick another item or
    ask on their PR.
 2. **One item, one branch, one PR into main.** Squash-merge when CI is green (`dotnet format` clean, build, all tests).
    Merge main into your branch rather than rebasing a branch someone else may have checked out.
-3. **Reserve your ARCHITECTURE §8 note number here** when you claim, so two notes never collide. Take the next free
-   number from the table.
+3. **Your ARCHITECTURE §8 note is a file of its own**, `docs/notes/<number>.md`, with the note number you took (note 521).
+   §8 in ARCHITECTURE.md is the notes' index (`tools/coord/notes.py index` writes it). Read the notes your work touches,
+   not the whole of §8.
 4. **Done means merged.** Move the item to *Done* with its PR link and note number in the PR that lands it.
 5. **Questions between agents go in PR comments** on the PR in question (both sides are watching their own PRs).
-   Questions for the director go in *Waiting on the director* below and to the director in your own chat.
+   Questions for the director go in the Director's Inbox (*The director's inbox* below), with a line in *Waiting on the
+   director* for agents that can't open it, and to the director in your own chat.
 6. **Merging main into your branch** (note 521): this file, ARCHITECTURE.md and the logs merge on their own (both sides kept;
    `.gitattributes`). The Coordination check on your pull request (`python3 tools/coord/check.py`) says if your claim's queue
    or note number was taken meanwhile; take the next free ones (`tools/coord/check.py --next`) and say so in your log.
@@ -129,6 +132,28 @@ based on notes. When work is assigned to an agent, the agent should mark it in t
 - **Read them at the start of a session:** `dt feedback pull` lists them; `dt feedback show <id>` replays the moment and
   draws it through the director's eyes. Take the ones that fit your work as you'd take any note: say so in your log and in
   the PR that answers it, naming the note's id. (The director's inbox, queue #257, will carry their status.)
+
+## The director's inbox (W1, 9 Oct 2026; note 520)
+
+The Director's Inbox (claude.ai/artifact/U72ospwbR1Bpb1jkbSwjxT; its page's source is `tools/inbox/inbox.html`) puts
+everything waiting on the director in one place, each with its pictures and PR. The director answers on the page:
+approve or not, pick an option, answer a question, or say how something looks, with a reason. Each answer is saved on the
+ask, and the page sends it to the asking agent's session.
+
+- **To ask:** write a document to the inbox's store, collection `asks`, id `<agent id>-<slug>`, with the `ArtifactData`
+  tool. Fields: `title`, `from` (your agent id), `session` (your Claude Code session id, from `get_session`, so the answer
+  reaches you), `kind` (`approve`, `choose`, `answer` or `look`), `body`, `options` (for `choose`: `key`, `label`,
+  `detail`), `pictures` (`url`, `caption`: upload a shot to the artifact's assets with the Artifact tool, `asset: true`),
+  `links`, `pr`, `queue`, `note`, `tags`, `blocking` (true when you've stopped until it's answered), `createdAt`, and
+  `status: "open"`. The guide at the foot of the page has an example.
+- **Before you submit work**, read `rules` (the director's standing orders) and the decided `asks` that share your work's
+  tags or queue item. Don't ask again what's been answered.
+- **Read your answers yourself:** the page can't message your session (the organization's policy refuses it; on 9 Oct the
+  director's first answer came back `told: failed:blocked_by_policy`). At the start of a session and at each check-in,
+  query `asks` for your `from` with `status: "decided"` (`decision`: `verdict`, `choice`, `text`). Then remove your line
+  from *Waiting on the director* and write the decision into your note: "(the director, the inbox, <date>)".
+- The inbox was seeded on 9 Oct with the 14 questions in *Waiting on the director* as they stood. Orchestrator question 3,
+  which upkeep job first, was left out: the build order has been done since, all but U6, which is an ask of its own.
 
 ## The queue
 
@@ -391,11 +416,11 @@ Status: **open**, **claimed**, **in review** (a PR is up), **done** (merged).
 | 254 | **Review packets:** for each pull request, CI renders the same shots, balance and perf on main and on the PR's head, diffs them (a perceptual diff for images, deltas for the numbers) and posts what changed as the run's summary and an artifact, so the director reviews changed pictures and numbers | W1 | `claude/quirky-allen-2oge5d`, [#690](https://github.com/nsmith-gd/darkterritory/pull/690) | 517 | done |
 | 255 | **The social test measured (GDD §20), `dt social`:** criterion 2 (better by two than by one: one bot against two), 3 (8–20 s for a friend to act: a grab's length) and 5 (someone gets blamed: the cause names a player) per creature from bot runs; the crew's numbers (time split up, calls made, the dead watching); bot personas through the intent path | W1 | `claude/quirky-allen-2oge5d` | 518 | claimed |
 | 256 | **Moments and the reel:** clip-worthy moments (a grab broken late, someone left behind, a derailment, a mimic answered) scored from bot nights and recordings; `dt moments` lists them and cuts a short reel per build; the count per night trended | W1 | `claude/quirky-allen-2oge5d` | 519 | claimed |
-| 257 | **The director's inbox:** one artifact for everything waiting on the director (approve, reject, pick one, or a note, each with its pictures and PR), every decision saved as data with its reason, which agents check before they submit | W1 | `claude/quirky-allen-2oge5d` | 520 | claimed |
-| 258 | **Coordination as data:** the queue, the claims and the note numbers in a store with atomic claims, and ARCHITECTURE §8 one file per note with a generated index, so claims stop colliding in this file and agents read only the notes they need | W1 | `claude/quirky-allen-2oge5d` | 521 | claimed |
+| 257 | **The director's inbox:** one artifact for everything waiting on the director (approve, reject, pick one, or a note, each with its pictures and PR), every decision saved as data with its reason, which agents check before they submit | W1 | `claude/quirky-allen-2oge5d`, [#694](https://github.com/nsmith-gd/darkterritory/pull/694) | 520 | done |
+| 258 | **Coordination as data:** the queue, the claims and the note numbers in a store with atomic claims, and ARCHITECTURE §8 one file per note with a generated index, so claims stop colliding in this file and agents read only the notes they need | W1 | `claude/quirky-allen-2oge5d`, [#694](https://github.com/nsmith-gd/darkterritory/pull/694) | 521 | done |
 | 259 | **A review rubric (`REVIEW.md`) and cross-model review:** the house rules a reviewer checks (determinism, numbers in tuning, moving frames, verified headless), risk tiers, and each PR reviewed by the other model | W1 | `claude/quirky-allen-2oge5d` | 522 | claimed |
-| 260 | **Tonight's build and the trends:** a nightly build of main with the open green PRs on top and a test plan from their "how to check" lines; perf, pacing, balance and moments tracked per main commit, with a bisect when one falls | W1 | `claude/quirky-allen-2oge5d` | 523 | claimed |
-| 261 | **Live control and shots by subject:** the running game (and `dt`) driven by agents over a local MCP server: entities, spawns, time, ticks, captures; shots framed on a named subject instead of hand-placed coordinates | W1 | `claude/quirky-allen-2oge5d` | 524 | claimed |
+| 260 | **Tonight's build and the trends:** a nightly build of main with the open green PRs on top and a test plan from their "how to check" lines; perf, pacing, balance and moments tracked per main commit, with a bisect when one falls | W1 | `claude/quirky-allen-2oge5d`, [#694](https://github.com/nsmith-gd/darkterritory/pull/694) | 523 | done |
+| 261 | **Live control and shots by subject:** the running game (and `dt`) driven by agents over a local MCP server: entities, spawns, time, ticks, captures; shots framed on a named subject instead of hand-placed coordinates | W1 | `claude/quirky-allen-2oge5d`, [#694](https://github.com/nsmith-gd/darkterritory/pull/694) | 524 | done |
 | 262 | **The visual tell audit:** the twin of spec A.3's audio audit: each threat's contrast and size on screen at its warning distance, in the dark, rain and fog; a tell that can't be seen is a bug | W1 | `claude/quirky-allen-2oge5d` | 525 | claimed |
 | 263 | **Fire Flies still light cars at Talbot Foundry on seed 6 (note 496's "not yet", found on #625's sweep):** `dt harness --route frontier:7 --bots 4 --enemies --upkeep --seconds 2700 --seed 6`, on main with #613 in: the flies set cars 1 and 5 alight at the Foundry and three hands burn in car 1. Why note 496's lamp claim misses it; fixed, tested, cars lost/cargo/km/deaths before and after on seeds 1–6. First (D1): check #625's pin claim doesn't hold a walker out in the cold or leave the guns dry (seeds 3 and 6 ran less far) | D1 (D1.3) | `d1.3-flies2`, [#641](https://github.com/nsmith-gd/darkterritory/pull/641) | 526 | done |
 | 264 | **The first nights' controls card closes (the director, 9 Oct, testing main's build: "we need a way to close the 'first time controls' overlay"):** F4 hides the yard's card (note 350) for the night and brings it back; the card says so on its last row. F4 joins the keys a control can't be bound to. FIRST NIGHTS OFF in the settings still turns it off for good. **Overlaps:** F1's note 350 (`Onboarding`, the HUD's card) | D1 | `claude/relaxed-franklin-xkfjgb`, [#633](https://github.com/nsmith-gd/darkterritory/pull/633) | 527 | done |
@@ -439,7 +464,29 @@ The GDD artifact (claude.ai/artifact/PrfaZjyZb1rWcWWuiPm1Dx) was republished fro
 00:20 UTC (D1, main at e345c64, version 18), with G1's open #247 (the Moose) merged on top, as the live page already
 carried it; whoever lands a gdd.md change republishes it (A1 when it's about).
 
-## ARCHITECTURE §8 note numbers
+## Taking numbers (note 521)
+
+A queue number and an ARCHITECTURE §8 note number are taken on the repository's `claims` branch: a file per number,
+`queue/<n>.json` and `note/<n>.json`. GitHub won't make a file that's already there, so whoever makes a number's file
+first has it. Two agents reaching for the same number can't both get it, and the second learns that at once, before any
+work.
+
+- **With a token** (`GITHUB_TOKEN`, `GH_TOKEN` or `gh`): `tools/coord/claim.py --agent <id> --title "<the item>" [--notes 2]`
+  prints the numbers it took.
+- **With your GitHub tools** (a cloud session without a token):
+  1. List `queue/` and `note/` on branch `claims` (get the contents of a path, ref `claims`).
+  2. Take one more than the highest there and in this file (`python3 tools/coord/check.py --next`).
+  3. Create `queue/<n>.json` on branch `claims` with `{"agent": "<id>", "title": "<the item>", "at": "<UTC>"}`, and no
+     `sha`. If GitHub says the file exists, someone took that number a moment ago: try the next one. (No `claims` branch
+     yet: `claim.py` starts it as an orphan; with the GitHub tools, make it from main first.)
+  4. Do the same under `note/`.
+- **Then write your queue row** with those numbers, as before. The Coordination check fails a row whose number another
+  agent claimed. After each merge, the check runs on main too: when two PRs land the same number, the one that landed
+  second gets a comment.
+- The holdings below were written by hand before the claims branch. They stay as the record, but nothing is added to them
+  any more.
+
+## ARCHITECTURE §8 note numbers (before note 521)
 
 The next free number is **558** (P1 holds 570-572 for queue #300-#302: Dave, Nicki and Jacob, a block ahead: the next free kept going to claim PRs while #569's CI ran) (N2 holds 555–557 for queue #272, #276 and #273) (D1 holds 554 for queue #296) (D1.2 holds 553 for queue #295) (D1 holds 552 for queue #294) (D1.2 holds 551 for queue #293) (D1 holds 550 for queue #292) (D1 holds 549 for queue #291) (E1 holds 548 for queue #290) (D1.2 holds 547 for queue #289) (E1 holds 546 for queue #288) (D1.3 holds 545 for queue #287) (D1.2 holds 544 for queue #286) (E1 holds 543 for queue #285) (D1.3 holds 542 for queue #284) (D1.3 holds 541 for queue #283) (F1 holds 540 for queue #282) (D1.2 holds 539 for queue #281) (E1 holds 538 for queue #280) (D1.2 holds 537 for queue #279) (E1 holds 536 for queue #278) (B3 holds 535 for queue #275) (F1 holds 534 for queue #271) (D1.3 holds 533 for queue #277) (N2 holds 532 for queue #270) (D1 holds 531 for queue #268) (N2 holds 530 for queue #267) (E1 holds 529 for queue #266) (D1.2 holds 528 for queue #265) (D1 holds 527 for queue #264) (D1.3 holds 526 for queue #263) (W1 holds 514–525 for queue #251–#262) (E1 holds 513 for queue #250) (D1.2 holds 512 for queue #249) (D1.3 holds 511 for queue #248) (AU1 holds 510 for queue #247) (B4 holds 509 for queue #246) (AU1 holds 508 for queue #245) (A1 holds 506 and 507 for queue #243 and #244) (E1 holds 505 for queue #242) (C1 holds 504 for queue #241) (AU1 holds 503 for queue #240) (B2 holds 502 for queue #239) (AU1 holds 501 for queue #238) (A1 holds 500 for queue #237) (AU1 holds 499 for queue #236) (B1 holds 498 for queue #235) (AU1 holds 497 for queue #234) (D1.3 holds 496 for queue #233) (D1.2 holds 495 for queue #232) (AU1 holds 494 for queue #231) (B4 holds 493 for queue #230) (A1 holds 492 for queue #229) (C1 holds 491 for queue #228) (B2 holds 490 for queue #227) (AU1 holds 489 for queue #226) (B4 holds 488 for queue #225) (E1 holds 487 for queue #224) (D1.3 holds 486 for queue #223) (E1 holds 485 for queue #222) (D1.2 holds 484 for queue #221) (D1.3 holds 483 for queue #220) (C1 holds 482 for queue #219) (A1 holds 481 for queue #218) (AU1 holds 480 for queue #216) (B2 holds 479 for queue #215) (AU1 holds 478 for queue #214) (E1 holds 477 for queue #213) (B3 holds 476 for queue #212) (B4 holds 475 for queue #211; P1's open #534 holds 474 for #210) (D1 holds 470-473 for queue #206-#209) (AU1 holds 469 for queue #205) (AU1 holds 468 for queue #204) (D1 holds 467 for queue #203) (AU1 holds 466 for queue #202) (B4 holds 465 for queue #201) (C1 holds 464 for queue #200) (D1 holds 463 for queue #199) (B4 holds 462 for queue #198) (C1 holds 461 for queue #197) (E1 holds 460 for queue #196) (B3 holds 459 for queue #195) (D1.2 holds 458 for queue #194) (D1.3 holds 456 and 457 for queue #192 and #193) (E1 holds 455 for queue #191) (D1 holds 454 for queue #190) (B4 holds 453 for queue #189) (F1 holds 452 for queue #188) (D1 holds 451 for queue #187) (N1 holds 450 for queue #186) (A1 holds 449 for queue #185) (D1.3 holds 447 and 448 for queue #183 and #184) (AU1 holds 446 for queue #182) (E1 holds 445 for queue #181) (AU1 holds 444 for queue #180) (D1 holds 443 for queue #179) (D1.3 holds 442 for queue #178) (B3 holds 441 for queue #177) (B4 holds 440 for queue #176) (B4 holds 439 for queue #175) (D1.3 holds 438 for queue #174) (D1.2 holds 437 for queue #173) (E1 holds 436 for queue #172) (D1 holds 435 for queue #171) (F1 holds 434 for queue #170) (B1 holds 433 for queue #169) (B1 holds 432 for queue #168) (AU1 holds 431 for queue #167) (C1 holds 430 for queue #166) (AU1 holds 429 for queue #165) (AU1 holds 428 for queue #164) (C1 holds 427 for queue #163) (B3 holds 426 for queue #162) (AU1 holds 425 for queue #161) (B1 holds 424 for queue #160) (A1 holds 423 for queue #159) (C1 holds 422 for queue #158) (AU1 holds 421 for queue #157) (C1 holds 420 for queue #156) (AU1 holds 419 for queue #155) (D1 holds 418 for queue #154) (B4 holds 417 for queue #153) (F1 holds 416 for queue #152) (AU1 holds 415 for queue #151) (D1 holds 414 for queue #150) (B4 holds 413 for queue #149) (AU1 holds 412 for queue #148) (F1 holds 411 for queue #147) (C1 holds 410 for queue #146) (AU1 holds 409 for queue #145) (B3 holds 408 for queue #144) (E1 holds 407 for queue #143) (D1.3 holds 406 for queue #142) (D1 holds 405 for queue #141) (F1 holds 404 for queue #140) (B4 holds 403 for queue #139) (E1 holds 402 for queue #138) (B4 holds 401 for queue #137) (A1 holds 400 for queue #136) (D1.3 holds 399 for queue #134; AU1's #384 took 396) (C1 holds 398 for queue #135; note 396 is held twice, by AU1 for #133 and by D1.3 for #134, so 397 is left for whichever renumbers) (E1 holds 395 for queue #132) (C1 holds 394 for queue #131) (C1 holds 393 for queue #130) (AU1 holds 392 for queue #129) (AU1 holds 391 for queue #128) (B3 holds 390 for queue #127) (B1 holds 389 for queue #126) (AU1 holds 388 for queue #125) (C1 holds 387 for queue #124) (F1 holds 386 for queue #123) (F1 holds 383 for queue #120) (D1 holds 382 for queue #119) (C1 holds 381 for queue #118) (E1 holds 378 for queue #115) (D1.3 holds 377 for queue #114) (E1 holds 375 for queue #112) (D1 holds 374 for queue #111) (A1 holds 373 for queue #110) (C1 holds 372 for queue #109) (B1 holds 371 for queue #108) (C1 holds 370 for queue #107) (B3 holds 369 for queue #106) (A1 holds 368 for queue #105) (G1 holds 361–367 for queue #98–#104) (E1 holds 360 for queue #97) (B1 holds 359 for queue #96) (AU1 holds 358 for queue #95) (A1 holds 357 for queue #94) (D1 holds 356 for queue #93) (AU1 holds 354 for queue #91) (B2 holds 353 for queue #90: #267's #89 and 352 collided with A1's) (A1 holds 352 for queue #89) (F1's #281 holds 344), after the claims on open PRs (B2 281 on #194, and 335 for queue #74; C1 301 on #203 (its 281 renumbered: B2 had it); AU1 284 on #205; B3 285 on #206; D1 290, landed in #208; E1 291, 306, 307, 311, 312, 325 and 337 on #210; F1 292–293 on #211, and its comfort settings renumbered 294 → 297 since B4's 294 landed first; F1's 298). Reserved by B4: 294 (blocked sidings), 295 (tunnel name plates), 302 (a dead town's railway side), 303 (loop yards, dropped), 309 (creatures at their sites), 313 (fog that fills the low ground first, queue #52), 314 (the Whistler's nest at its site, queue #53), 317 (a trestle across a lake's neck, queue #56), 318 (the map markers, queue #57); its 301 and 302 renumbered, C1's 301 landed first. Next free queue item: **#297** (F1's open branch holds #54 and #55, with 315 and 316) (E1's #210 holds #50 and #51, with 311 and 312). Reserved: 266 (pacing), 286 (A1.8 boarding-first), 287 (A1.9 run-start draw), 288 (A1.10 driven off), 289 (A1.11 switch audit), 268 (Track Doll), 269 (boarding rules), 270 (run length), 271
 (Stoker v3), 272 (damage model), 273 (T128), 274 (T124), 275 (WP19, renumbered from its old 191), 276 (cab forward,
@@ -459,6 +506,10 @@ renumbered from 268), 277 (C1's art checklist L1s), 278 (B1's bends), 279 (B1's 
 | Record and replay a night: a dev build records every night it hosts (what its transport handed it, poll by poll, and a digest of what it sent), `dt replay` plays one again tick for tick and names the first tick that parts, and draws any moment through anyone's eyes; 12–17 µs a tick to record | [#637](https://github.com/nsmith-gd/darkterritory/pull/637) | 515 |
 | Feedback from inside the game: in a dev build F8 types a note and F9 says one, each carrying its moment (the frame, the night's recording and tick, where the director stood, what was near, tags); one commit each on the `feedback` branch; `dt feedback show` replays it through the director's eyes | [#689](https://github.com/nsmith-gd/darkterritory/pull/689) | 516 |
 | Review packets: every PR's CI draws the whole gallery in one process (37 shots in under 2 minutes, from 14.5) and compares it with main's at its base: changed shots as strips and the train table and triangle budgets number by number, in the run's summary and the review-packet artifact; the texture load faster everywhere | [#690](https://github.com/nsmith-gd/darkterritory/pull/690) | 517 |
+| The director's inbox: everything waiting on the director in one place (claude.ai/artifact/U72ospwbR1Bpb1jkbSwjxT), each answer kept on its ask with the reason, for every agent to read; standing orders; seeded with the 14 questions waiting on 9 Oct | [#694](https://github.com/nsmith-gd/darkterritory/pull/694) | 520 |
+| Coordination as data: numbers taken on a `claims` branch where two agents can't take one (tools/coord/claim.py), ARCHITECTURE §8 one file per note in docs/notes/ with §8 their index (tools/coord/notes.py), the Coordination check on main after each merge | [#684](https://github.com/nsmith-gd/darkterritory/pull/684), [#694](https://github.com/nsmith-gd/darkterritory/pull/694) | 521 |
+| Tonight's build (every night at 7:30 pm Montreal time: main with the green PRs on top, a dev build with TEST-PLAN.md) and the trends (D1's full bot nights and dt perf's counts per main commit, falls commented on their PR, tools/trends/bisect.sh) | [#694](https://github.com/nsmith-gd/darkterritory/pull/694) | 523 |
+| Live control: `dt mcp`, an MCP server agents drive a headless night or a replay with, step by step, and shots framed on a subject (`subject:gaunt`, `car:3`), in `dt replay` too | [#694](https://github.com/nsmith-gd/darkterritory/pull/694) | 524 |
 | Fire-fighters don't walk into a car that's well alight (queue #281, D1.2 for D1) | [#679](https://github.com/nsmith-gd/darkterritory/pull/679) | 539 |
 | Why couplings part with a bot crew (queue #284, D1.3): all 12 on seeds 1–18 went in a fight (car fires 11, a Knotter 8), none at a stop's loading; no bot change; the pin's pace put to the director | [#670](https://github.com/nsmith-gd/darkterritory/pull/670) | 542 |
 | Where a bot night's distance goes (queue #287, D1.3): the time split, and seed 8's cause: `Heed.Brakeman` sent the roof bots for a wheel across a Knotter's gap and overrode its kill; fixed, and the driver couples up after a Knotter killed during a switch leg. Seeds 1–18: 301 → 318 km, Knotter stands 5,629 → 2,075 s; packs boarded 14 → 31 | (this PR) | 545 |
@@ -590,6 +641,38 @@ renumbered from 268), 277 (C1's art checklist L1s), 278 (B1's bends), 279 (B1's 
 | Stoker v3, the firebox half: territorial door, vent and starve, the hose | [#191](https://github.com/nsmith-gd/darkterritory/pull/191) | 271 |
 | The derailment opera: CC0 and public-domain recordings, hits at the climax | [#150](https://github.com/nsmith-gd/darkterritory/pull/150) | — |
 
+## Answered in the director's inbox (9 Oct 2026)
+
+The director's answers to the questions that waited here, in their words (claude.ai/artifact/U72ospwbR1Bpb1jkbSwjxT, its
+`asks`; W1 copies them here for the agents that can't open it). Take yours as any of the director's decisions: say so in
+your log and your note, "(the director, the inbox, 9 Oct)".
+
+- **Couplings part in a fight** (D1.3, note 542, queue #284): **a pin holds while the train stands** (the 90 s countdown
+  pauses while the train is stopped).
+- **A VR hand reaching down in a coupling gap cuts it** (D1.3, note 541, queue #283): "We are not working on VR for now."
+- **About 13 car fires a night from boarded hound packs** (D1.2, note 437, queue #173): "This is too much. Cinder Hounds
+  should reignite every minute and a half they are left aboard at the car they are currently in. Crew should have time to
+  fight fires effectively while cinder Hounds are on board. Attacking a cinder hound should reset it's ignite burst from its
+  body that sets the fire. Attacking should cause it to retreat. Cinder Hounds attack the player when the player is first
+  spotted with a lunge attack by jumping at the player to bite, then retreating to so it again. Cinder Hounds stop attacking
+  and leave the train if they are pushed to the back of the train and there is a valid exit (door open or roof of car)."
+- **GDD D.15, question 3, halt stop cost:** "Needs a dedicated response" (a main-line stop at a halt gets a director
+  response of its own).
+- **U6, the boiler's water** (D1, note 328): not this. "I dont want to add refilling the boiler as a task for driving,
+  there's already enough to manage while driving for now."
+- **Orchestrator §5.3, other runners than hounds** (D1, note 328): approved (G1 designs it, for the director's approval).
+- **What makes solo "seriously hard"** (D1, note 300, queue #38): **leave it, income is the wall**. "The cost should feel
+  impossible without friends. Things should be technically possible but the scale of simultaneous management should be
+  uncomfortably big and the reward should be smaller than one would have wanted."
+- **The threat orchestrator's §8 questions** (D1, note 328):
+  - 1, scale by players or by train length: "Scale by both, higher numbers on both readings should increase threat level".
+  - 2, a flying creature for top speed: **a new flying creature (the kites)**.
+  - 4, the hound run only above 19 m/s: **only above 19 m/s, as built**.
+  - 5, what a missed runner does: **it boards, as built** (a pack fight in the rear car).
+  - 3 (which upkeep job first) wasn't put to the director: the build order is done but for U6, now declined.
+- **W1's #694** (the inbox, coordination as data, tonight's build and the trends, live control): approved. "Nightly time
+  should be every night at 7:30pm Montreal time. Not every session for live control, only some."
+
 ## Waiting on the director
 
 - **The six creatures' cost to a night** (D1.3, note 545). On frontier:7 with 4 bots, seeds 1–18, after #287's fixes:
@@ -598,14 +681,5 @@ renumbered from 268), 277 (C1's art checklist L1s), 278 (B1's bends), 279 (B1's 
   - Distance against the 2:30 pm build of 8 Oct: 211 km on seeds 1–9 then, 155 now, and no night delivers.
   - The levers are G1's: the Knotter's `tierWeights` and spawn rate, and the Brakeman's `perCarsWeight` and `hide`.
   - Also: Fire Flies at Talbot Foundry fire a car on 7 of 9 nights, and most of each night's burns are there.
-- **Couplings part in a fight** (D1.3, note 542). Every pin that parted with a bot crew on frontier:7 seeds 1–18 (12, about 35 cars) dropped while the crew was busy with car fires (11) or a Knotter (8), not at a stop's loading. A pin comes loose at the same pace in a fight as on a quiet run (every ~6 km, three times as often on bends), parts 90 s later, and goes on counting down while the train stands. Should a pin hold while the train stands, or come loose less often while fires burn? Tuning or design; nothing changed.
-- **A VR hand reaching down in a coupling gap cuts it** (D1.3, note 541). In VR, Use held on a plate with the hand below 0.7 m uncouples, and that's checked before a loose pin or a hot box, though both are below the plate. Reaching down to tighten a pin with the wrench cuts the train instead. Options: (a) at a loose pin or a hot box within reach, the hand works that first, and a cut needs the hand down at the knuckle with nothing else in reach; (b) a cut needs an empty hand, and the wrench never cuts; (c) VR uncouples with a held grip on the pin, like the keyboard's Z. Keyboard and mouse can't cut by accident (Z held, still, looking down).
-- About 13 car fires a night set by boarded hound packs on an 8-bot hot run (D1.2's note 437: 118 over nine nights, against 8 hot boxes caught); the bots fight what they can. Note 269's `igniteEverySeconds` and how often a pack is left aboard are the levers.
-- GDD D.15, question 3: the answer was cut off.
-- D1, 8 Oct: the threat orchestrator's build order (orchestrator.md §6.2) is done but for S2. Two upkeep and boarding pieces need the director's yes before anyone builds them:
-  - **U6, the boiler's water.** A gauge glass that falls every 8 km and the injector in the cab (Use 2 s) to feed it, with the fire dropped or §23's rupture if it's let go. That's a second job in the cab beside the shovel.
-  - **S2, Climbers at speed.** On Dead Lines and harder, a pack that has paced a fast train long enough gets a grip anyway, over note 286's 14 m/s.
-  - Also §5.3's "other runners than hounds", which would be a second creature for the waves at the guns.
-- What makes solo "seriously hard" (App. F.1; note 300): a bot alone delivers every night swept, Local to Dead Lines at 10 cars, at about a third of a crew's income. Four untuned options in note 300.
-- Whether the Stoker's hose should be a real cab fitting (a slacking pipe) instead of an extinguisher (note 271).
-- The threat orchestrator (App. F.3; note 328): five questions in [orchestrator.md](design/orchestrator.md) §8. They are §15's "scaling by train length, not enemy count multipliers" against scaling by active players; a flying creature for top speed (the kites); which upkeep job comes first; whether the hound run should come only above the hounds' 19 m/s (as built); and whether a missed runner boards or harms the train.
+- **S2, Climbers at speed** (D1, note 328): the director, 9 Oct, in the inbox: "I dont understand what this is saying for gameplay". Ask again in gameplay terms: what a crew sees and does, and what changes for them.
+- **The Stoker's hose** (note 271): the director, 9 Oct, in the inbox: "I don't know what this is I can't answer it without knowing and what the consequences for gameplay are". Ask again with what it is and what it changes in play.
