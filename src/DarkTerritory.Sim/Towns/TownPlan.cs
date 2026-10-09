@@ -153,7 +153,11 @@ public sealed record TownBuilding(string Kind, string Name, double S, double D, 
 /// temperament and how they came by their name (note 474); null where the content has no townsfolk matrix.
 /// </summary>
 public sealed record Townsperson(int Id, string Name, string Title, string Role, double S, double D, double Up, double FaceS, double FaceD, int Look,
-    IReadOnlyList<string> Lines, int House = -1, string Pose = "idle", string Gear = "respirator", TownPersonality? Personality = null);
+    IReadOnlyList<string> Lines, int House = -1, string Pose = "idle", string Gear = "respirator", TownPersonality? Personality = null)
+{
+    /// <summary>Nicki, the host of the party (note 571): the one with the wine.</summary>
+    public bool Hosting { get; init; }
+}
 
 /// <summary>
 /// A paper to read: a notice on the board (<see cref="OnBoard"/>, read in turn there), or a note left lying about at

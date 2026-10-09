@@ -11,7 +11,7 @@ using DarkTerritory.Sim.Net;
 /// <summary>
 /// `dt replay` (ARCHITECTURE §8 note 515): recorded nights, made and played again.
 /// <list type="bullet">
-/// <item><c>dt replay &lt;file&gt; [--to tick|m:ss] [--shot file.png] [--view eye:N|chase|roof|…] [--car n]</c>: builds the night
+/// <item><c>dt replay &lt;file&gt; [--to tick|m:ss] [--shot file.png] [--view eye:N|subject:gaunt|chase|roof|…] [--car n]</c>: builds the night
 /// from its recording and plays it, checking every tick against what the host sent; reports where it parted (if it did),
 /// the marks made in it, and the crew, train and run where it stopped; <c>--shot</c> draws it from a camera there.
 /// Exit 1 if it parted from the recording.</item>
@@ -32,7 +32,7 @@ static class ReplayCommands
 
     static int Usage()
     {
-        Console.Error.WriteLine("usage: dt replay <file.dtrec> [--to tick|m:ss] [--shot file.png --view eye:N|chase|…] | dt replay record [--route r] [--bots n] [--seconds s] | dt replay list");
+        Console.Error.WriteLine("usage: dt replay <file.dtrec> [--to tick|m:ss] [--shot file.png --view eye:N|subject:<kind|crew:N|car:N|engine>|chase|…] | dt replay record [--route r] [--bots n] [--seconds s] | dt replay list");
         return 2;
     }
 
@@ -107,18 +107,29 @@ static class ReplayCommands
     {
         var watch = Stopwatch.StartNew();
         using var replay = NightReplay.Open(file, content);
-        uint? to = Str(args, "--to", "") is { Length: > 0 } at ? Tick(at) : null;
+        uint? to = Str(args, "--to", "") is { Length: > 0 } at ? NightReplay.TickAt(at) : null;
         replay.Run(to);
         var host = replay.Host;
         var world = host.World;
         var crew = host.Players.ToList();
         string? shot = null;
+        ShotCamera? aim = null;
         if (Str(args, "--shot", "") is { Length: > 0 } png)
         {
-            using var shooter = new WorldShot(content, world.Route, (int)Opt(args, "--width", 1280), (int)Opt(args, "--height", 720));
+            int width = (int)Opt(args, "--width", 1280), height = (int)Opt(args, "--height", 720);
             string view = Str(args, "--view", "chase");
-            var camera = WorldShot.Camera(view, world, crew, (int)Opt(args, "--car", 2));
-            shooter.Save(png, shooter.Render(world, crew, camera, WorldShot.EyeOf(view)));
+            try
+            {
+                aim = WorldShot.Aim(view, world, crew, (int)Opt(args, "--car", 2), (double)width / height, host.PlayerTuning);
+            }
+            catch (ArgumentException e)
+            {
+                // A subject that isn't there (note 524) or a view that isn't one: said, rather than a frame of something else.
+                Console.Error.WriteLine($"dt replay: {e.Message}");
+                return 2;
+            }
+            using var shooter = new WorldShot(content, world.Route, width, height);
+            shooter.Save(png, shooter.Render(world, crew, aim.Camera, WorldShot.EyeOf(view)));
             shot = Path.GetFullPath(png);
         }
         var (_, commit) = Report.Build();
@@ -153,15 +164,13 @@ static class ReplayCommands
             run = world.Run is { } run ? new { phase = run.Phase.ToString(), end = run.End.ToString() } : null,
             enemies = world.ActiveEnemies.Count(e => !e.Gone),
             shot,
+            // A subject view's (note 524): what it framed, and what's wrong with the frame if anything is.
+            subject = aim?.Subject,
+            subjectNote = aim?.Note,
             wallSeconds = Math.Round(watch.Elapsed.TotalSeconds, 1),
         });
         return replay.DivergedAt is null ? 0 : 1;
     }
-
-    /// <summary>A tick, given as one or as minutes and seconds into the night (<c>12:30</c>).</summary>
-    static uint Tick(string at) => at.Split(':') is [var m, var s]
-        ? (uint)Math.Round((int.Parse(m, CultureInfo.InvariantCulture) * 60 + double.Parse(s, CultureInfo.InvariantCulture)) * SimConstants.TickRate)
-        : uint.Parse(at, CultureInfo.InvariantCulture);
 
     static void Print(object value) => Console.WriteLine(JsonSerializer.Serialize(value, DataFile.Options));
 

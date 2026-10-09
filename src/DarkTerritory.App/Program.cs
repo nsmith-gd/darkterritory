@@ -85,6 +85,8 @@ string Arg(string name, string fallback)
 // A mod manager's profile (Thunderstore, T78) comes in as --mods-dir.
 args = Mods.TakeArgs(args);
 var content = Mods.Mount(DataFile.FindContentRoot(Environment.CurrentDirectory), enabled: !args.Contains("--no-mods"));
+// The figures out in the Territory and their words (note 570): Dave.
+FigureTalk.Words = FigureWords.Load(content);
 // The art pass's surfaces (T39); --greybox draws flat colour instead.
 var look = args.Contains("--greybox") ? null : Look.Load(content);
 var connectLobby = LaunchArgs.ConnectLobby(args);
@@ -671,8 +673,18 @@ while (!window.CloseRequested && !QuitNow())
     (session as IDisposable)?.Dispose();
     if (campaign is { Current: not null } unfinished)
         Console.WriteLine($"campaign: the night on {unfinished.Current.Route} isn't settled; its slot carries on from the last facility it left");
+    // An invite accepted (or "Join Game" on a friend) while playing (note 24's relaunch, now in-process: queue #272): this
+    // night's over and disposed, its lobby left, and the friend's lobby is the next launch, through the same loading screen
+    // a JOIN from the menu goes through. Steam stays up: the invite was its.
+    if (relaunch is { } invited)
+    {
+        relaunch = null;
+        launch = new Launch.JoinLobby(invited);
+        fromCommandLine = false;
+        continue;
+    }
     // Started from the command line: done when the night is. Otherwise, back to where it was chosen.
-    if (fromCommandLine || relaunch is not null)
+    if (fromCommandLine)
         break;
     if (leaving is Launch.CampaignNight night)
         frontEnd.ShowFortress(night.Slot, campaign?.History.LastOrDefault() is { } log && campaign.Current is null
@@ -682,13 +694,6 @@ while (!window.CloseRequested && !QuitNow())
 }
 
 Console.WriteLine($"frames {frameCount} ({frameCount / timer.Elapsed.TotalSeconds:0} fps)");
-if (relaunch is { } next)
-{
-    // The simplest way into another game is a fresh start, the same one Steam gives an invite accepted from outside.
-    steam?.Dispose();
-    Console.WriteLine($"leaving for lobby {next}");
-    Process.Start(Environment.ProcessPath!, ["+connect_lobby", next.ToString()]);
-}
 return 0;
 
 // Starts what was chosen off the window's thread, drawing what it's doing meanwhile; null (the menu says why) if it failed.
@@ -740,6 +745,7 @@ CampaignState? Play(IPlaySession session, CampaignState? campaign)
     var settings = frontEnd.Settings;
     var proto = session as PrototypeSession;
     var net = session as NetPlaySession;
+    int aboardLogged = -1;
     // The yard's readings go at its voice's pace (note 240): the card typed as it's said.
     if (net is not null && sound.Clerk.Speaks)
         net.RadioPace = sound.Clerk.Seconds;
@@ -812,6 +818,8 @@ CampaignState? Play(IPlaySession session, CampaignState? campaign)
     // Talking and reading in the fortress town (note 281): on this machine alone. A press the town took isn't sent to the
     // host while the key's still down (nothing in a town changes the night; a lamp at somebody's feet stays where it is).
     var townTalk = new TownTalk();
+    // Dave's words and his card (note 570): on this machine, as a town's are.
+    var figureTalk = new FigureTalk();
     bool useKept = false;
     double pendingYaw = 0, pendingPitch = 0;
     int pendingNotch = 0;
@@ -1027,7 +1035,13 @@ CampaignState? Play(IPlaySession session, CampaignState? campaign)
         pendingCarLamp |= Hit(Control.CarLamp);
         // Dead (App. D.10), a bookmark of whom you're watching (D.12): sent on the press, as intent.
         pendingBookmark |= Hit(Control.Bookmark) && !session.Player.Alive;
-        if (Hit(Control.Use) && session.World.Town is { } town && townTalk.Use(town, Hud.TownTarget(session), now))
+        // A word in town is this machine's alone, so the press is kept from the host; but by Nicki, held, it's a glass of her
+        // wine (note 571), which is the host's to pour.
+        if (Hit(Control.Use) && session.World.Town is { } town && Hud.TownTarget(session) is var spoken && townTalk.Use(town, spoken, now))
+            useKept = spoken is not { Kind: DarkTerritory.Sim.Towns.TownTargetKind.Person } hosting || !town.Plan.People[hosting.Index].Hosting;
+        // Dave's card is this machine's alone; Jacob's press goes on to the host as well (a word with him mends the train).
+        else if (Hit(Control.Use) && Hud.Prompt(session) is { } atFigure && FigureTalk.Target(session) is { } figure && atFigure == FigureTalk.Prompt(figure)
+            && figureTalk.Use(figure, now) && figure is not DarkTerritory.Sim.Enemies.Jacob)
             useKept = true;
         if (!Held(Control.Use))
             useKept = false;
@@ -1108,6 +1122,12 @@ CampaignState? Play(IPlaySession session, CampaignState? campaign)
         }
 
         frameWatch.Mark("input");
+        // Note 532: a joiner's clock stretches to a host that's behind; a host's says how much time its frames threw away.
+        if (net is not null)
+        {
+            clock.Stretch = net.Pace;
+            net.ClockDropped(clock.DroppedSeconds);
+        }
         int ticks = clock.Advance(dt);
         for (int i = 0; i < ticks; i++)
         {
@@ -1177,6 +1197,12 @@ CampaignState? Play(IPlaySession session, CampaignState? campaign)
             pendingReverser = false;
             pendingYaw = pendingPitch = 0;
             session.Step(intent);
+            // The crew's count on the console as it changes (queue #276: the two-machine test reads it from both ends' logs).
+            if (net?.Link is { Aboard: var aboardNow } && aboardNow != aboardLogged)
+            {
+                aboardLogged = aboardNow;
+                Console.WriteLine($"crew: {aboardNow} aboard");
+            }
             if (campaign is not null && session is NetPlaySession played)
                 campaign = Autosave(saves, campaign, played);
             // The ears are where the eyes were last frame; audio follows the sim tick so no shot is missed.
@@ -1317,6 +1343,8 @@ CampaignState? Play(IPlaySession session, CampaignState? campaign)
             : new OwnView((float)camera.Yaw, (float)camera.Pitch, act, me.Velocity.X * me.Velocity.X + me.Velocity.Z * me.Velocity.Z > 0.16,
                 swing, session.World.OutfitOf(session.PlayerId), Kit.Held(me));
         scene.Time = now;
+        // Dave's card (note 570): closes as you walk off, and opens on what he says to a blow near you.
+        figureTalk.Step(session.World, PlayerMotor.WorldPosition(me, session.Train) + Double3.Up * session.Train.Dynamics.Tuning.Pick.EyeHeight, now);
         // The town's card closes once you've walked off; whoever you're talking to turns to you.
         if (session.World.Town is { } here)
         {
@@ -1418,7 +1446,7 @@ CampaignState? Play(IPlaySession session, CampaignState? campaign)
             captions.Clear();
         if (showHud)
         {
-            Hud.Build(overlay, UiWidth, UiHeight, session, stills: stills.Stills, pixels: (float)renderer.Height / UiHeight, talk: townTalk, now: now,
+            Hud.Build(overlay, UiWidth, UiHeight, session, stills: stills.Stills, pixels: (float)renderer.Height / UiHeight, talk: townTalk, figures: figureTalk, now: now,
                 // The first nights' card gives way to a panel opened over it (note 351: it showed through the supplies).
                 firstNight: firstNight && !cardHidden && !Held(Control.Roster) && !showSupplies && cardPage < 0 && !showPlan,
                 captions: frontEnd.Settings.Captions ? captions.Lines() : null);
@@ -1467,7 +1495,7 @@ CampaignState? Play(IPlaySession session, CampaignState? campaign)
         VrPanelContent? onPanel = null;
         if (vr is not null && showHud)
         {
-            Hud.Build(vrOverlay, 480, 270, session, crosshair: false, stills: stills.Stills, pixels: 2, talk: townTalk, now: now);
+            Hud.Build(vrOverlay, 480, 270, session, crosshair: false, stills: stills.Stills, pixels: 2, talk: townTalk, figures: figureTalk, now: now);
             if (session.World.Run?.Over == true)
                 vrOverlay.TextCentred(240, 248, campaign is not null ? "A: BACK TO THE FORTRESS" : "A: BACK", new Vector4(1, 0.7f, 0.3f, 1));
             onPanel = new VrPanelContent(vrHud!, vrOverlay, 480, 270);

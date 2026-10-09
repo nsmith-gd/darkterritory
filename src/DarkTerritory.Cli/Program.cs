@@ -47,6 +47,12 @@ return args switch
     ["feedback", ..] => FeedbackCommands.Run(content, args),
     // dt review diff <before> <after>: a pull request's review packet, its shots and numbers against main's (note 517).
     ["review", ..] => ReviewCommands.Run(args),
+    // dt trends measure | show <file.jsonl> | judge | value: main's numbers per commit (dt harness nights, dt perf), the falls
+    // among them, and the bisect's call on a commit (note 523).
+    ["trends", ..] => TrendsCommands.Run(args, RunHarness, a => PerfCommands.Run(train, content, a)),
+    // dt mcp: live control for agents (note 524): an MCP server on stdio whose tools host a night, step it, read it, insist
+    // on what comes, open a recording, draw any of it framed on a subject (subject:gaunt), and run the rest of dt.
+    ["mcp", ..] => McpCommands.Run(content, args, noMods),
     // dt edition bake <name> --into <dir>: the base content with an edition (editions/<name>) baked in, as the demo build
     // ships it (T79). dt [--edition demo] edition: what the content in use is.
     ["edition", "bake", var name, ..] => Print(new { edition = name, content = Path.GetFullPath(Mods.Bake(baseContent, name, Str(args, "--into", $"out/editions/{name}"))) }),
@@ -187,7 +193,12 @@ object RunHarness(string[] args)
         Cars = (int)Opt(args, "--cars", 10),
         Seconds = Opt(args, "--seconds", 120),
         Seed = (int)Opt(args, "--seed", 1),
-        Link = new Ballast.Net.LinkConditions(Opt(args, "--latency", 0.09), Opt(args, "--jitter", 0.02), Opt(args, "--loss", 0.03)),
+        // --host-up-kbps, --down-kbps (note 557): what the host's upload, and each client's downlink, can carry; 0 for no cap.
+        Link = new Ballast.Net.LinkConditions(Opt(args, "--latency", 0.09), Opt(args, "--jitter", 0.02), Opt(args, "--loss", 0.03))
+        {
+            HostUpKbps = Opt(args, "--host-up-kbps", 0),
+            DownKbps = Opt(args, "--down-kbps", 0),
+        },
         StartDistance = Opt(args, "--start", start),
         // Started out on the line (--start past the gate, to look at one stretch of it), the crew are put at their posts: the
         // walk aboard is the yard's (T102), and the fireman stood on the ballast all night.
@@ -1782,6 +1793,23 @@ static object Screenshot(TrainTuning t, string content, string[] args)
         float moosePace = mooseMode switch { "charge" => (float)mooseTuning.ChargeSpeed, "search" => (float)mooseTuning.SearchSpeed, _ => 0 };
         scene.StagedPaces = new Dictionary<int, float>(scene.StagedPaces ?? new Dictionary<int, float>()) { [Staging.MooseId] = moosePace };
     }
+    // --jacob fish|blessed (note 572): Jacob with his rod out; blessed, the train's glow (the scene's clock from now).
+    if (Str(args, "--jacob", view switch { "jacob" or "jacobface" => "fish", "jacobblessed" => "blessed", _ => "" }) is { Length: > 0 } jacobMode)
+    {
+        scene.Enemies = Staging.Jacob(scene.Enemies is List<DarkTerritory.Sim.Enemies.Enemy> others ? others : [], train, jacobMode);
+        if (jacobMode == "blessed")
+            scene.BlessingAge = Opt(args, "--age", 1.4);
+    }
+    // --dave paint|warn|grab (note 570): Dave at his easel; warned, turned to crewmate 4 behind him; holding them in front of him.
+    if (Str(args, "--dave", view switch { "dave" or "davefar" or "daveface" => "paint", "davewarn" => "warn", _ => "" }) is { Length: > 0 } daveMode)
+    {
+        scene.Enemies = Staging.Dave(scene.Enemies is List<DarkTerritory.Sim.Enemies.Enemy> others ? others : [], train, daveMode);
+        // --outfit h,v: which of his hats and waistcoats (0-4 each), whatever the night's.
+        if (Str(args, "--outfit", "") is { Length: > 0 } outfit && outfit.Split(',') is [var h, var v])
+            DarkTerritory.Game.Art.DaveKit.Wearing = (int.Parse(h), int.Parse(v));
+        if (daveMode != "paint")
+            scene.Crew = [.. (scene.Crew ?? []).Where(c => c.Id != Staging.LoneId), Staging.DaveCrewmate(train, daveMode)];
+    }
     if (gannetMode.Length > 0)
     {
         scene.Enemies = Staging.Gannet(scene.Enemies is List<DarkTerritory.Sim.Enemies.Enemy> others ? others : [], train, gannetMode);
@@ -2725,6 +2753,8 @@ static object HudShot(string content, string[] args)
     // --joining (D.10, note 408): the watcher a crewmate who joined mid-run and waits in the queue, lobbied, never having died.
     // --lost (note 253): a joiner whose link has just gone, seen as it sees it: lost, and on its first try at getting back.
     // --lost --refused (note 254): back too late to a full crew, turned away: CREW FULL (2/2). --crew-full: the host at its cap.
+    // --held-back (note 532): the host's own frames can't hold the tick rate (its clock has just dropped time), and its panel says so.
+    // --upload-strained (note 557): the host's upload drops a quarter of everything it sends, two joiners report it, and its panel says so.
     // --link-quality [host|joiner] (note 534): a hosted night in the yard with two joiners over loopback, one of them losing
     // 12% of what it sends, seen by the host (each crewmate's link on the lobby panel) or by the first joiner (its own).
     // --link-quality line (note 540): the host's view as if out on the line, its corner naming the struggling joiner.
@@ -2732,6 +2762,8 @@ static object HudShot(string content, string[] args)
             args.Contains("--joining") ? DeathCause.Waiting : DeathCause.Mauled)
         : args.Contains("--lost") ? LostLink(content, Str(args, "--route", "frontier:7"), cars, refused: args.Contains("--refused"))
         : args.Contains("--crew-full") ? CrewFull(content, Str(args, "--route", "frontier:7"), cars)
+        : args.Contains("--held-back") ? HeldBack(content, Str(args, "--route", "frontier:7"), cars)
+        : args.Contains("--upload-strained") ? UploadStrained(content, Str(args, "--route", "frontier:7"), cars)
         : args.Contains("--link-quality") ? LinkQuality(content, Str(args, "--route", "frontier:7"), cars, joiner: Str(args, "--link-quality", "host") == "joiner", line: Str(args, "--link-quality", "host") == "line") : null;
     IPlaySession session;
     if (spectated is { } pair)
@@ -3171,6 +3203,42 @@ static SpectatedNight CrewFull(string content, string route, int cars)
     return new SpectatedNight(joiner, host);
 }
 
+static SpectatedNight HeldBack(string content, string route, int cars)
+{
+    var host = NetPlaySession.HostGame(content, new SessionSetup(Route: route, Cars: cars, Enemies: false), port: 0);
+    var joiner = NetPlaySession.Join(content, new System.Net.IPEndPoint(System.Net.IPAddress.Loopback, host.Port), () => host.Step(default));
+    for (int t = 0; t < SimConstants.TickRate; t++)
+    {
+        host.Step(default);
+        joiner.Step(default);
+        Thread.Sleep(1);
+    }
+    // As the app's loop would say it after a frame the clock couldn't simulate whole (note 532); held long enough for the
+    // renderer to start and draw it.
+    host.Client.PlayerTuning = host.Client.PlayerTuning with { Link = host.Client.PlayerTuning.Link with { HeldBackSeconds = 600 } };
+    host.ClockDropped(0.5);
+    return new SpectatedNight(joiner, host);
+}
+
+static SpectatedNight UploadStrained(string content, string route, int cars)
+{
+    // The host's own sends lose one in four (note 557): every joiner reports a thin downlink, which only its upload explains.
+    var host = NetPlaySession.HostGame(content, new SessionSetup(Route: route, Cars: cars, Enemies: false), port: 0,
+        options: new Ballast.Net.DatagramOptions { SimulatedLoss = 0.25, Seed = 7 });
+    var at = new System.Net.IPEndPoint(System.Net.IPAddress.Loopback, host.Port);
+    var one = NetPlaySession.Join(content, at, () => host.Step(default));
+    var two = NetPlaySession.Join(content, at, () => { host.Step(default); one.Step(default); });
+    var tuning = host.Client.PlayerTuning.Link;
+    for (int t = 0; t < (Hud.Tuning.LossWindowTicks + tuning.StrainSeconds * SimConstants.TickRate) * 1.2; t++)
+    {
+        host.Step(default);
+        one.Step(default);
+        two.Step(default);
+        Thread.Sleep(1);
+    }
+    return new SpectatedNight(one, host);
+}
+
 static SpectatedNight LinkQuality(string content, string route, int cars, bool joiner, bool line = false)
 {
     var host = NetPlaySession.HostGame(content, new SessionSetup(Route: route, Cars: cars, Enemies: false), port: 0);
@@ -3370,6 +3438,10 @@ static int Usage()
           replay <file> [--to t] [--shot f --view v]   a recorded night played again, checked tick by tick (note 515); record, list
           feedback pull | list | show <id> | make  the director's notes from inside the game (F8, F9) and their moments replayed (note 516)
           review diff <before> <after> [--out d]   what a change did to the shots and numbers, as strips and a summary (note 517)
+          trends measure [--seeds 1-8] [--perf] | show <file.jsonl> [--markdown]   main's numbers per commit and their falls (note 523); judge, value, nights
+                     --view subject:<gaunt|crew:N|car:N|engine|enemy:id>: framed on that (note 524)
+          mcp [--shots dir] [--recordings dir]   live control for agents (note 524): an MCP server on stdio (night_start, night_step,
+                     night_state, night_insist, replay_open, shot, dt)
           train table                              spec table (B.4–B.6) as produced by current tuning
           train stop <cars> [--from v] [--load l] [--grade g]
           train climb <cars> <grade%> [--from v] [--load l]

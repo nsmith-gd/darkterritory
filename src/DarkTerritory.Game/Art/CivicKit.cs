@@ -25,6 +25,9 @@ public static class CivicKit
     {
         "tree" => name.Contains("elm", StringComparison.OrdinalIgnoreCase) ? 1 : 0,
         "garden" => name.Contains("tin", StringComparison.OrdinalIgnoreCase) ? 1 : 0,
+        // Dave's (note 570), signed with his D: his valley, his sea, his lake.
+        "mural" when name.Contains("D.)", StringComparison.Ordinal) => name.Contains("sea", StringComparison.OrdinalIgnoreCase) ? 4
+            : name.Contains("lake", StringComparison.OrdinalIgnoreCase) ? 5 : 3,
         "mural" => name.Contains("window", StringComparison.OrdinalIgnoreCase) ? 1 : name.Contains("sunrise", StringComparison.OrdinalIgnoreCase) ? 0 : 2,
         "statue" => name.Contains("Lamp", StringComparison.Ordinal) ? 1 : name.Contains("Child", StringComparison.Ordinal) ? 2
             : name.Contains("Railway", StringComparison.Ordinal) ? 3 : 0,
@@ -319,6 +322,12 @@ public static class CivicKit
         var grass = new Vector3(0.35f, 0.55f, 0.3f);
         switch (variant)
         {
+            case >= 3:
+                {
+                    // Dave's (note 570): one of his landscapes the wall's width, in the hand of his canvases, signed with his D.
+                    k.With(Kit.At(0, y0, -0.02f), () => DaveKit.Landscape(k, x, h, variant - 3, back: true));
+                    break;
+                }
             case 1:
                 {
                     // A window: the frame, the field and the sky in it, the shutters open, curtains either side.

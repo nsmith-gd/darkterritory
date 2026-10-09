@@ -32,6 +32,10 @@ public sealed class HostSession
         public int MissedInputs;
         /// <summary>This client's inputs getting through, by the newest each datagram carries (netcode-audit.md gap 3).</summary>
         public LinkLoss InputLoss = new(10 * SimConstants.TickRate);
+        /// <summary>Note 549: the downlink loss this client last reported of itself, in percent, and the thinning it's earned.</summary>
+        public byte ReportedLoss;
+        public int ThinFor, ThinHeld;
+        public bool Thin;
         /// <summary>What this client was sent at each tick: its own delta baselines, since interest differs per client.</summary>
         public readonly Dictionary<uint, List<WireRecord>> Sent = new();
     }
@@ -197,8 +201,59 @@ public sealed class HostSession
         foreach (var p in _snapshotScratch)
             _crew.First(c => c.Id == p.Id).State = p.State;
 
+        StepLinks();
         Broadcast(records);
     }
+
+    /// <summary>
+    /// Note 549: a client whose own downlink is losing link.thinLossPct of the snapshots for link.thinSeconds is sent every
+    /// other one (15 Hz) until it's down to half that: fewer, whole pictures beat more with holes, and the client's
+    /// interpolation window (100 ms) spans two of them. And when link.strainCrew or more of the crew report that much loss at
+    /// once for link.strainSeconds, the one thing they share is this host's upload: <see cref="UploadStrained"/>.
+    /// </summary>
+    void StepLinks()
+    {
+        var t = PlayerTuning.Link;
+        int thinTicks = (int)Math.Max(1, t.ThinSeconds * SimConstants.TickRate), holdTicks = (int)Math.Max(1, t.ThinHoldSeconds * SimConstants.TickRate);
+        int strained = 0;
+        foreach (var c in _crew)
+        {
+            if (c.ReportedLoss >= t.ThinLossPct)
+                strained++;
+            if (c.Thin)
+            {
+                // Thinned, the loss it was thinned for goes, so the thinning is held a while and let go only once the link has
+                // been quiet for all of it: otherwise it would come and go every few seconds.
+                c.ThinHeld = c.ReportedLoss * 2 <= t.ThinLossPct ? c.ThinHeld + 1 : 0;
+                if (c.ThinHeld >= holdTicks)
+                    (c.Thin, c.ThinFor, c.ThinHeld) = (false, 0, 0);
+                continue;
+            }
+            c.ThinFor = c.ReportedLoss >= t.ThinLossPct ? c.ThinFor + 1 : 0;
+            if (c.ThinFor >= thinTicks)
+                (c.Thin, c.ThinHeld) = (true, 0);
+        }
+        _strainedFor = strained >= t.StrainCrew ? _strainedFor + 1 : 0;
+        UploadStrained = _strainedFor >= Math.Max(1, t.StrainSeconds * SimConstants.TickRate);
+        if (Tick % SimConstants.TickRate == 0)
+        {
+            UpKbps = _bytesOut * 8 / 1000.0;
+            _bytesOut = 0;
+        }
+    }
+
+    int _strainedFor;
+    long _bytesOut;
+    /// <summary>Note 549: at least link.strainCrew of the crew have been reporting a thin downlink at once for link.strainSeconds.</summary>
+    public bool UploadStrained { get; private set; }
+    /// <summary>Note 549: what this host sent in snapshots over the last whole second, kbit/s (the voice rides on top).</summary>
+    public double UpKbps { get; private set; }
+    /// <summary>Note 549: snapshots withheld from thin links (every other one), for the harness and tests.</summary>
+    public int SnapshotsThinned { get; private set; }
+    /// <summary>Note 549: whether this client is being sent every other snapshot.</summary>
+    public bool IsThinned(byte id) => _crew.FirstOrDefault(c => c.Id == id)?.Thin ?? false;
+    /// <summary>Note 549: the downlink loss this client last reported of itself, in percent.</summary>
+    public int ReportedLoss(byte id) => _crew.FirstOrDefault(c => c.Id == id)?.ReportedLoss ?? 0;
 
     PlayerIntent NextIntent(Crew c)
     {
@@ -825,8 +880,9 @@ public sealed class HostSession
             if (type != MessageType.Input)
                 return;
             _frames.Clear();
-            Messages.ReadInput(ref r, _frames, out uint ackedSnapshot);
+            Messages.ReadInput(ref r, _frames, out uint ackedSnapshot, out byte reportedLoss);
             c.AckedSnapshot = Math.Max(c.AckedSnapshot, ackedSnapshot);
+            c.ReportedLoss = reportedLoss;
             if (_frames.Count > 0)
                 c.InputLoss.Heard(_frames[^1].Sequence);
             foreach (var f in _frames)
@@ -980,15 +1036,24 @@ public sealed class HostSession
 
     void Broadcast(List<WireRecord> records)
     {
-        foreach (var c in _crew)
+        // Note 549: a saturated upload drops the last of each tick's burst, so the crew are sent in a different order each tick
+        // and no one is always last; a thinned link gets every other snapshot, on the ticks of its id's parity so the thinned
+        // aren't all sent together.
+        for (int i = 0; i < _crew.Count; i++)
         {
+            var c = _crew[(int)((Tick + i) % _crew.Count)];
+            if (c.Thin && ((Tick + c.Id) & 1) == 1)
+            {
+                SnapshotsThinned++;
+                continue;
+            }
             var mine = Interest(records, c);
             // Delta against the newest snapshot the client has confirmed; full if that's gone from history.
             uint baseTick = c.AckedSnapshot;
             var baseline = baseTick > 0 ? c.Sent.GetValueOrDefault(baseTick) : null;
             if (baseline is null)
                 baseTick = 0;
-            Messages.WriteSnapshot(_writer, Tick, c.LastApplied, baseTick, mine, baseline);
+            Messages.WriteSnapshot(_writer, Tick, c.LastApplied, baseTick, mine, baseline, c.Pending.Count, c.Thin ? Messages.SnapshotThinned : (byte)0);
             if (_writer.Length > MaxSnapshotBytes)
             {
                 mine = Budget(mine, baseline, c, baseTick);
@@ -998,6 +1063,7 @@ public sealed class HostSession
             c.Sent.Remove(Tick - HistoryTicks);
             LastSnapshotBytes = _writer.Length;
             MaxSnapshotBytesSent = Math.Max(MaxSnapshotBytesSent, _writer.Length);
+            _bytesOut += _writer.Length;
             _transport.Send(c.Peer, _writer.Written, Delivery.Unreliable);
         }
     }
@@ -1041,7 +1107,7 @@ public sealed class HostSession
         {
             bool had = sent.TryGetValue(r.Key, out var was);
             sent[r.Key] = r;
-            Messages.WriteSnapshot(_writer, Tick, c.LastApplied, baseTick, [.. sent.Values], baseline);
+            Messages.WriteSnapshot(_writer, Tick, c.LastApplied, baseTick, [.. sent.Values], baseline, c.Pending.Count, c.Thin ? Messages.SnapshotThinned : (byte)0);
             if (_writer.Length <= MaxSnapshotBytes)
                 continue;
             // That one didn't fit: back to what the client has, and the rest wait for the next snapshot.
@@ -1052,7 +1118,7 @@ public sealed class HostSession
             break;
         }
         var list = sent.Values.ToList();
-        Messages.WriteSnapshot(_writer, Tick, c.LastApplied, baseTick, list, baseline);
+        Messages.WriteSnapshot(_writer, Tick, c.LastApplied, baseTick, list, baseline, c.Pending.Count, c.Thin ? Messages.SnapshotThinned : (byte)0);
         return list;
     }
 

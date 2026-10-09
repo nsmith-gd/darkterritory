@@ -30,6 +30,11 @@ public interface IDatagramCarrier<TAddress> : IDisposable where TAddress : notnu
     /// <summary>The transport has let this peer go (a carrier with sessions of its own can close them).</summary>
     void Forget(TAddress peer) { }
     /// <summary>
+    /// Blocks the pump thread (<see cref="DatagramTransport{TAddress}.StartPump"/>) until a datagram may have arrived or
+    /// <paramref name="milliseconds"/> have passed. A socket waits on itself; a carrier that can't just sleeps.
+    /// </summary>
+    void Wait(int milliseconds) => Thread.Sleep(milliseconds);
+    /// <summary>
     /// How the carrier reaches a peer, as far as it knows (netcode-audit.md gap 3): relayed or direct, and a platform's own
     /// ping and quality. Null when it can't say (no session yet).
     /// </summary>
@@ -66,6 +71,12 @@ public interface IConnectionInfo
 /// <item>Ping/pong every keepalive for the round trip, and a timeout on silence.</item>
 /// </list>
 /// Messages must fit one datagram (<see cref="MaxPayload"/>); nothing here fragments.
+/// <para>
+/// Polled once per tick, with no threads, unless <see cref="StartPump"/> is called (note 532): then a thread of its own
+/// receives, acks, resends, pings and times out between the ticks, so a frame loop that stalls (a scene loading, a film
+/// compiling, a debugger) keeps its links alive and answered, and the round trip is the link's, not the frame's. The sim
+/// still reads what arrived on its own tick, through <see cref="Poll"/>. Every public member takes one lock.
+/// </para>
 /// </summary>
 public class DatagramTransport<TAddress> : ITransport, IConnectionInfo where TAddress : notnull
 {
@@ -88,9 +99,12 @@ public class DatagramTransport<TAddress> : ITransport, IConnectionInfo where TAd
     readonly Random _loss;
     readonly TAddress? _hostAddress;
     readonly ulong _nonce;
+    readonly object _sync = new();
     ulong _nextPeer = 1;
     double _connectStarted, _lastConnectSent = double.NegativeInfinity;
     bool _disposed, _gaveUp;
+    Thread? _pump;
+    volatile bool _stopPump;
 
     /// <summary>A host, listening.</summary>
     /// <param name="ownsCarrier">Dispose the carrier with the transport (a platform's shared carrier isn't).</param>
@@ -119,18 +133,60 @@ public class DatagramTransport<TAddress> : ITransport, IConnectionInfo where TAd
     }
 
     public PeerId LocalId { get; private set; }
-    public bool IsConnected => _isHost || _byPeer.ContainsKey(PeerId.Host);
+    public bool IsConnected
+    {
+        get { lock (_sync) return _isHost || _byPeer.ContainsKey(PeerId.Host); }
+    }
     /// <summary>Round-trip estimate to a peer, seconds (smoothed from reliable acks and pings).</summary>
-    public double RoundTrip(PeerId peer) => _byPeer.TryGetValue(peer, out var l) ? l.Rtt : 0;
-    public CarrierLink? Via(PeerId peer) => _byPeer.TryGetValue(peer, out var l) ? _carrier.Describe(l.Address) : null;
+    public double RoundTrip(PeerId peer)
+    {
+        lock (_sync) return _byPeer.TryGetValue(peer, out var l) ? l.Rtt : 0;
+    }
+    public CarrierLink? Via(PeerId peer)
+    {
+        lock (_sync) return _byPeer.TryGetValue(peer, out var l) ? _carrier.Describe(l.Address) : null;
+    }
     /// <summary>The carrier address of a connected peer (its endpoint, or its platform user id).</summary>
     public bool TryGetAddress(PeerId peer, [MaybeNullWhen(false)] out TAddress address)
     {
-        address = _byPeer.TryGetValue(peer, out var l) ? l.Address : default;
-        return address is not null;
+        lock (_sync)
+        {
+            address = _byPeer.TryGetValue(peer, out var l) ? l.Address : default;
+            return address is not null;
+        }
     }
     public int DatagramsSent { get; private set; }
     public int DatagramsReceived { get; private set; }
+    /// <summary>A thread of this transport's own is keeping its links (<see cref="StartPump"/>).</summary>
+    public bool Pumped => _pump is not null;
+
+    /// <summary>
+    /// Starts the pump (note 532): a background thread that services the links every <paramref name="milliseconds"/>, or
+    /// sooner when the carrier has something, until the transport is disposed. Call once; the app does, the tests and the
+    /// harness (whose timeline is their ticks) don't.
+    /// </summary>
+    public void StartPump(int milliseconds = 4)
+    {
+        ObjectDisposedException.ThrowIf(_disposed, this);
+        if (_pump is not null)
+            return;
+        int wait = Math.Max(1, milliseconds);
+        _pump = new Thread(() =>
+        {
+            while (!_stopPump)
+            {
+                _carrier.Wait(wait);
+                lock (_sync)
+                {
+                    if (_disposed || _stopPump)
+                        return;
+                    Service(Now);
+                }
+            }
+        })
+        { IsBackground = true, Name = "net pump" };
+        _pump.Start();
+    }
 
     double Now => _clock.Elapsed.TotalSeconds;
 
@@ -156,17 +212,20 @@ public class DatagramTransport<TAddress> : ITransport, IConnectionInfo where TAd
         ObjectDisposedException.ThrowIf(_disposed, this);
         if (payload.Length > MaxPayload)
             throw new ArgumentException($"message of {payload.Length} bytes is over the {MaxPayload}-byte datagram limit");
-        if (!_byPeer.TryGetValue(to, out var link))
-            return; // not (or no longer) connected: like a lost packet
-        if (delivery == Delivery.ReliableOrdered)
+        lock (_sync)
         {
-            uint seq = link.NextSendSeq++;
-            link.Unacked[seq] = (payload.ToArray(), Now, Now);
-            SendData(link, seq, payload);
-        }
-        else
-        {
-            SendData(link, 0, payload);
+            if (!_byPeer.TryGetValue(to, out var link))
+                return; // not (or no longer) connected: like a lost packet
+            if (delivery == Delivery.ReliableOrdered)
+            {
+                uint seq = link.NextSendSeq++;
+                link.Unacked[seq] = (payload.ToArray(), Now, Now);
+                SendData(link, seq, payload);
+            }
+            else
+            {
+                SendData(link, 0, payload);
+            }
         }
     }
 
@@ -203,22 +262,31 @@ public class DatagramTransport<TAddress> : ITransport, IConnectionInfo where TAd
     public void Poll(List<TransportEvent> into)
     {
         ObjectDisposedException.ThrowIf(_disposed, this);
-        double now = Now;
+        lock (_sync)
+        {
+            Service(Now);
+            into.AddRange(_events);
+            _events.Clear();
+        }
+    }
+
+    /// <summary>Everything a link needs doing now: receive, connect, resend, ack, ping, time out. Under the lock.</summary>
+    void Service(double now)
+    {
         // A poll long after the last one means this process stood still (a night's scene loading before its first frame, a
         // debugger): we weren't listening, so that time is nobody's silence, and every link's clock moves on by it. A peer that
         // really has gone still times out the usual timeout after. The director, 9 Oct: a night with bots began with them all
-        // gone (the host's first poll after a long load found its in-process bots "silent" and dropped them).
+        // gone (the host's first poll after a long load found its in-process bots "silent" and dropped them). With the pump
+        // running the links were listened to throughout, and this never fires.
         if (!double.IsNaN(_lastPolled) && now - _lastPolled > Math.Min(2 * _options.KeepaliveSeconds, _options.TimeoutSeconds / 2))
             foreach (var link in _byPeer.Values)
                 link.LastHeard += now - _lastPolled;
         _lastPolled = now;
         Receive(now);
-        if (!_isHost && !IsConnected && !_gaveUp)
+        if (!_isHost && !_byPeer.ContainsKey(PeerId.Host) && !_gaveUp)
             KeepConnecting(now);
         foreach (var link in _byPeer.Values.ToList())
             Maintain(link, now);
-        into.AddRange(_events);
-        _events.Clear();
     }
 
     void KeepConnecting(double now)
@@ -304,7 +372,7 @@ public class DatagramTransport<TAddress> : ITransport, IConnectionInfo where TAd
         ulong token = r.U64();
         if (kind == Kind.Accept)
         {
-            if (!_isHost && !IsConnected && !_gaveUp && EqualityComparer<TAddress>.Default.Equals(from, _hostAddress))
+            if (!_isHost && !_byPeer.ContainsKey(PeerId.Host) && !_gaveUp && EqualityComparer<TAddress>.Default.Equals(from, _hostAddress))
             {
                 ulong peer = r.U64();
                 if (r.U64() != _nonce)
@@ -417,22 +485,33 @@ public class DatagramTransport<TAddress> : ITransport, IConnectionInfo where TAd
 
     public void Disconnect(PeerId peer)
     {
-        if (!_byPeer.TryGetValue(peer, out var link))
-            return;
-        Begin(Kind.Bye, link.Token);
-        Transmit(link.Address, link);
-        Drop(link, notify: false);
+        lock (_sync)
+        {
+            if (!_byPeer.TryGetValue(peer, out var link))
+                return;
+            Begin(Kind.Bye, link.Token);
+            Transmit(link.Address, link);
+            Drop(link, notify: false);
+        }
     }
 
     public void Dispose()
     {
         if (_disposed)
             return;
-        foreach (var peer in _byPeer.Keys.ToList())
-            Disconnect(peer);
-        _disposed = true;
-        if (_ownsCarrier)
-            _carrier.Dispose();
+        // The pump first, outside the lock: it may be waiting on the carrier, which is about to go.
+        _stopPump = true;
+        _pump?.Join(TimeSpan.FromSeconds(1));
+        lock (_sync)
+        {
+            if (_disposed)
+                return;
+            foreach (var peer in _byPeer.Keys.ToList())
+                Disconnect(peer);
+            _disposed = true;
+            if (_ownsCarrier)
+                _carrier.Dispose();
+        }
         GC.SuppressFinalize(this);
     }
 }

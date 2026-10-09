@@ -31,8 +31,10 @@ public sealed class TownTalk
     /// The prompt for a thing in the town in front of you: what it is, and the action and its key, never what the action
     /// will do (GDD §32, the director's decisions of 7 Oct on #206: <c>ACTION : [KEY]</c>).
     /// </summary>
-    public static string Prompt(Town town, TownTarget t) => t.Kind switch
+    /// <param name="wine">Nicki has a glass for you in reach (note 571): her prompt says the hold that takes it.</param>
+    public static string Prompt(Town town, TownTarget t, bool wine = false) => t.Kind switch
     {
+        TownTargetKind.Person when wine && town.Plan.People[t.Index].Hosting => $"{town.Plan.People[t.Index].Name.ToUpperInvariant()}   TALK : [E]   A GLASS : HOLD [E]",
         TownTargetKind.Person => $"{town.Plan.People[t.Index].Name.ToUpperInvariant()}   TALK : [E]",
         TownTargetKind.Board => $"THE BOARD ({town.Notices.Count} {(town.Notices.Count == 1 ? "NOTICE" : "NOTICES")})   READ : [E]",
         TownTargetKind.Paper => $"{town.Plan.Papers[t.Index].Title.ToUpperInvariant()}   READ : [E]",

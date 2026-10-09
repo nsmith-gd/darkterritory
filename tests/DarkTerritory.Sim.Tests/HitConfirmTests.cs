@@ -162,7 +162,8 @@ public class HitConfirmTests
     public void TheCreatureListIsTheWholeRosterBarTheHazardsAndFire()
     {
         // A kind added to the roster has to come here too, with a way to be struck.
-        var all = Enum.GetValues<EnemyKind>().Except([EnemyKind.Sleepers, EnemyKind.Drift, EnemyKind.CarFire]);
+        // (Dave and Jacob aren't creatures: DaveTests strikes Dave, notes 570, 572.)
+        var all = Enum.GetValues<EnemyKind>().Except([EnemyKind.Sleepers, EnemyKind.Drift, EnemyKind.CarFire, EnemyKind.Dave, EnemyKind.Jacob]);
         Assert.Equal(all.OrderBy(k => k), Creatures.OrderBy(k => k));
     }
 

@@ -36,6 +36,9 @@ public sealed record PlayerTuning(
     /// <summary>How many the crew can be, and how a joiner past it is turned away (GDD §1 "2–8"; note 254).</summary>
     public CrewTuning Crew { get; init; } = new();
 
+    /// <summary>The links in play: their timeout, keepalive and pump, and a client's pacing to its host (note 532).</summary>
+    public LinkTuning Link { get; init; } = new();
+
     /// <summary>The emotes' lengths (GDD §9's yard, "dance"; note 298). Field docs live in player.json <c>emotes</c>.</summary>
     public EmoteTuning Emotes { get; init; } = new();
 
@@ -66,6 +69,13 @@ public sealed record EdgeTuning(double Lip = 0.3, double StepOffDegrees = 30, do
 /// Rejoining a night after a drop (note 253). Field docs live in player.json <c>rejoin</c>.
 /// </summary>
 public sealed record RejoinTuning(double ReserveSeconds = 180, bool ReclaimBody = true, double GreetSeconds = 1, int Retries = 5, double RetrySeconds = 3);
+/// <summary>
+/// The links in play (note 532). Field docs live in player.json <c>link</c>. A test's transports keep their own
+/// <c>DatagramOptions</c>; these are the app's.
+/// </summary>
+public sealed record LinkTuning(double TimeoutSeconds = 15, double KeepaliveSeconds = 1, int PumpMilliseconds = 4,
+    int PaceQueued = 4, double PaceSlow = 0.05, double PaceSeconds = 1, double HeldBackSeconds = 5,
+    int ThinLossPct = 12, double ThinSeconds = 2, double ThinHoldSeconds = 20, int StrainCrew = 2, double StrainSeconds = 5);
 /// <summary>
 /// The crew cap (note 254). Field docs live in player.json <c>crew</c>. Never under one: the host's own player always fits.
 /// </summary>

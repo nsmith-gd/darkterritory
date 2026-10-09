@@ -241,6 +241,43 @@ Use talks to someone, and Use again hears their next line. They turn to face you
 - things everyone hears when one person does them (ringing the bell);
 - notes found out along the line.
 
+### 3.2 The figures out there *(the director, 8 Oct 2026; ARCHITECTURE §8 note 570)*
+
+A very few people live outside the walls and aren't anybody's prey. They are rare, they are kind, and nobody knows what they are. The crew meet them by luck and talk to them as they talk to townsfolk (text only, a Use press). Each is the night's, made from the route's seed.
+
+**Dave, the wandering painter** (note 570; the director: "a special NPC that shows up randomly in places. His name is Dave (just Dave) and he's a wandering painter"; our Tom Bombadil, named for the director's father, who paints).
+- **Where he is.** On about three nights in ten he's out past one of the line's stops, at his easel on open ground away from the village and the yard. His lantern hangs from the easel's top, lit: from the line he's a warm point and the silhouette of a good hat (enemies.json `dave`).
+- **What he looks like** (after the director's photographs of his father). Grey hair, clean-shaven, black rectangular glasses, a small black hoop in his left ear and a silver chain, a black tee and light jeans, bare feet in sandals, a bit tubby. He's extremely fashionable: one of his cool hats (the wide straw, a beret, a fedora with a feather, his black felt, a panama, a ball cap with a bright patch) and one of his waistcoats (mustard corduroy, plum velvet, tartan, teal brocade, a patchwork of his paints, black leather with silver snaps). The pairing changes most nights, so a crew who meets him twice rarely sees him dressed the same. He wears no mask, and nobody knows how he breathes the air.
+- **What he does.** He paints the natural world as it used to be: a valley in June, the sea and a lighthouse at noon, a lake under hills in October. Every canvas is signed with a small red D.
+- **Nothing hunts him.** No creature's target is ever anyone but the crew, and some nights, he says, they come and sit by him while he works. The director never counts him.
+- **He's kind.** He says hopeful things about the light, the world resting, and keeping each other close (content/world/figures.json). He never says where he's from.
+- **Don't hit Dave.** A crewmate's blows are their own count:
+  - the first three he takes kindly ("Easy, now. You'll muddy the sky.");
+  - at the fourth he sets his brush down and turns to them ("That's four. ... I've set my brush down. Think on it."). That is his telegraph, held the reaction window at least;
+  - at the fifth he takes them by the neck, says "You should be nicer in a dark world.", and snaps it. The death screen says the same.
+  - The kill goes through the spine as every kill does (App. A.1): a short grab, then the punish. Nothing hurts him, and a friend's blow frees nobody.
+- **His murals.** About two walled towns in five have one of his murals on a street's end wall, in place of one of their own: his valley or his sea, in the same hand as the canvases, signed with the red D (tuning/towns.json `daveMural`). Nobody in the town will say who painted it.
+- **The Wiki** keeps him a mystery: a name, a few sightings, the D, and a warning.
+
+**Nicki's party** (note 571; the director: "an NPC you can find some times in one of the houses. Her name is Nicki and she's the only house late at night that is partying. She offers you wine and says kind things about people needing to enjoy life more even if its the end of the world").
+- **Where.** In about three towns in ten, one of the open houses is the only house up and lit late: every lamp burning, warm and bright, a party on (tuning/towns.json `nicki`).
+- **Who's there.** Nicki (just Nicki) is at the door, waving you in. Two to four guests from the town's other houses are dancing, and one sits at the table with the wine. Everyone's mask is down.
+- **What she says.** The first thing is always the wine ("Here, there's wine. Real wine, from before. I was saving it for nobody, so it's yours."). Then two of hers, kind and a little defiant: the end of the world is no reason to stop living in it. Her guests say what a night at Nicki's is. Nobody at the party talks about the custom tonight.
+- **The wine** is on the table: a bottle from a vineyard that isn't there any more, and a row of odd glasses poured and waiting, one marked YOURS.
+- **A glass** (the director, 9 Oct: "when Nicki offers wine to the players they should get extra health for the next run if they take it. Don't mention that anywhere in the wiki"). Hold Use by her ("NICKI   TALK : [E]   A GLASS : HOLD [E]") and you've taken one: 25 health over full (tuning/towns.json `wine`) for the night that's about to set out, since she's only ever in the departure town. One a crewmate a night. Nothing on the screen says what it did. **Never in the Wiki.**
+- **What she looks like** (after the director's photographs of her). Shoulder-length strawberry-blonde hair, wavy, with a fringe; a tan; silver drop earrings; a lime tank top or a blush-pink camisole (the town's night has one), black trousers. No mask: it's her party.
+
+**Jacob, the fisherman** (note 572; the director: "an NPC named Jacob who can be found randomly in the world near water edges, fishing. He's another legendary NPC who if found and talked to will cast magic over the train and repair everything instantly, restoring it to brand new condition without affecting your loot count. He spawns very rarely").
+- **Where.** On about one night in twenty he's at a lake's or the sea's edge beside the main line. He stands on dry ground with water a stride in front of him, his rod out over it, a lantern on a stake beside him and a pail at his feet (enemies.json `jacob`). His lantern by the water is what a crew sees, if they're looking.
+- **What he looks like** (after the director's photographs of him, "with a shorter beard"). A young man, broad; a short auburn beard; a fitted navy cap on backwards; wraparound sunglasses with blue mirror lenses; a red plaid flannel, buttoned but for the top, over a slate-blue tee; a silver chain with a compass on it; dark grey joggers and olive clogs. No mask.
+- **A word with him** (hold Use by him) and he casts it over the train. A pale gold light runs down the cars from the engine back, motes rise off them, and the train is as new:
+  - every car whole (the dents and the Car Hugger's bites mended), its char gone, any breach shut;
+  - every axle box cool, every lamp trimmed and lit, every coupling tight, every gun cleared;
+  - the boiler whole and in steam again, its valve free;
+  - the forward lamp mended, the brakes fresh, every fire out, every radio working.
+- **What it doesn't touch.** The cargo and what it's worth, the finds, the coal in the tender and the powder: they're supplies, not the train's condition, and the night's tally stays the crew's. A car already lost stays lost.
+- **Once a night.** After that he says so ("There. She'll run like the morning she was built. Go on, now, before the tide turns.").
+
 ## 4. The player's place in it
 
 The players are freight crews. Not elite soldiers. Not monster hunters. Not chosen heroes.

@@ -1204,6 +1204,24 @@ public static class MaritimeKit
                 k.Disc(new Vector3(x, y + 0.005f, z), Vector3.UnitY, 0.12f, 12);
                 k.Cylinder(new Vector3(x + 0.2f, y, z), new Vector3(x + 0.2f, y + 0.09f, z), 0.04f, 8);
                 break;
+            case "wine":
+                // Nicki's (note 571): a bottle of red half gone, and four odd glasses poured and waiting.
+                k.Use("glass_dirty", new Vector3(0.18f, 0.28f, 0.16f), 0.2f, 0.8f, tile: 1);
+                k.Tint = new Vector3(0.35f, 0.5f, 0.3f);
+                k.Lathe(new Vector3(x, y, z), [new(0.04f, 0), new(0.04f, 0.2f), new(0.015f, 0.26f), new(0.014f, 0.31f)], 10);
+                for (int i = 0; i < 4; i++)
+                {
+                    float gx = x + 0.12f + i * 0.09f, gz = z + (i % 2 == 0 ? 0.06f : -0.05f);
+                    k.Use("glass_dirty", Palette.BoardEnamel, 0.1f, 0.9f, tile: 1);
+                    k.Tint = new Vector3(0.9f);
+                    k.Cylinder(new Vector3(gx, y, gz), new Vector3(gx, y + 0.07f, gz), 0.006f, 5);
+                    k.Lathe(new Vector3(gx, y + 0.07f, gz), [new(0.012f, 0), new(0.03f, 0.04f), new(0.032f, 0.08f)], 8, capTop: false);
+                    k.Use("cream", new Vector3(0.45f, 0.06f, 0.1f), 0.2f, 0.5f, tile: 1);
+                    k.Tint = new Vector3(0.45f, 0.06f, 0.1f);
+                    k.Disc(new Vector3(gx, y + 0.11f, gz), Vector3.UnitY, 0.026f, 8);
+                }
+                k.Tint = Vector3.One;
+                break;
             case "letters":
                 k.Use("paper_form", Palette.BoardEnamel, 0.7f, 0, tile: 1);
                 for (int i = 0; i < 4; i++)

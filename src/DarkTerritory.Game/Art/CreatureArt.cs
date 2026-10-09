@@ -390,6 +390,9 @@ public sealed partial class CreatureArt
     readonly float _texels;
 
     /// <param name="contentRoot">The content folder; by default the one <paramref name="look"/>'s textures came from.</param>
+    DaveKit? _dave;
+    JacobKit? _jacob;
+
     public CreatureArt(Look look, string? contentRoot = null)
     {
         Look = look;
@@ -421,10 +424,27 @@ public sealed partial class CreatureArt
                     ? new Entry(lod, [.. lod.Materials.Select(m => Resolve(m, wear))]) : null,
             };
         }
+        Dress(DaveKit.Figure, DaveKit.Clothes);
+        Dress(NickiKit.Figure, NickiKit.Clothes, NickiKit.Shape);
+        Dress(JacobKit.Figure, JacobKit.Clothes, growths: JacobKit.Growths);
     }
 
     public Look Look { get; }
     public string ContentRoot { get; }
+
+    /// <summary>
+    /// The figures met out in the Territory (GDD §3.2), dressed from the survivors' (<see cref="Redress"/>): on its rig and
+    /// clips, with no file of their own. Called once the files are loaded.
+    /// </summary>
+    void Dress(string name, IReadOnlyDictionary<Cloth, Dye> clothes, Func<Vector3, string, Vector3>? shape = null, IReadOnlyList<Growth>? growths = null)
+    {
+        // A figure modelled for them (content/art/models/<name>.glb, the art sessions') is theirs: the dressed one is the fallback.
+        if (_models.ContainsKey(name) || !_models.TryGetValue("survivor_prisoner", out var figure))
+            return;
+        var model = Redress.Of(figure.Model, name, clothes, shape, growths);
+        float wear = WearOf.GetValueOrDefault("survivor_prisoner", 0.5f);
+        _models[name] = new Entry(model, [.. model.Materials.Select(m => Resolve(m, wear))]);
+    }
 
     /// <summary>A model's distance copy (tools/models overbake `lod`), its joints renumbered by name to the full model's so
     /// the full model's pose skins it; null when there's none or a bone of it isn't the full model's.</summary>
@@ -2120,6 +2140,28 @@ public sealed partial class CreatureArt
                             _fx.ChoirCold(mesh, Vector3.Transform(new Vector3(0, 1.15f, 0), at), t, clip == "swoop", 71 + (float)extra2 * 13);
                     }
                     return drawn;
+                }
+            case EnemyKind.Dave when _models.ContainsKey(DaveKit.Figure):
+                {
+                    // DAVE (note 570): his figure in a hat, waistcoat, glasses and sandals, at his easel (GreyboxScene.Painter
+                    // draws him so in the world, turned to whoever he's warned; here, as he is in this phase).
+                    _dave ??= new DaveKit(Look);
+                    var (hat, vest) = DaveKit.Outfit(extra2 * 1000);
+                    if (!Draw(mesh, DaveKit.Figure, DaveKit.Clip(phase), t, true, model, 2, seed: 47))
+                        return false;
+                    mesh.Append(_dave.Easel(0), model);
+                    _dave.Dress(this, mesh, model, hat, vest);
+                    return true;
+                }
+            case EnemyKind.Jacob when _models.ContainsKey(JacobKit.Figure):
+                {
+                    // JACOB (note 572): his figure in his cap, shades, beard and flannel, rod out, lantern by him (GreyboxScene.Fisherman).
+                    _jacob ??= new JacobKit(Look);
+                    if (!Draw(mesh, JacobKit.Figure, JacobKit.Clip, t, true, model, 0, seed: 53))
+                        return false;
+                    mesh.Append(_jacob.Gear, model);
+                    _jacob.Dress(this, mesh, model);
+                    return true;
                 }
             case EnemyKind.Moose when _models.ContainsKey("moose"):
                 {
