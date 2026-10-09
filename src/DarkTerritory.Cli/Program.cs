@@ -956,7 +956,7 @@ static object Screenshot(TrainTuning t, string content, string[] args)
     // stages it gnawing, the tower leaning over the line; towerjawfall, the tower down across it.
     string towerJawMode = Str(args, "--towerjaw", view switch { "towerjaw" => "lean", "towerjawfall" => "wreck", _ => "" });
     // --route tier:seed generates the night in memory; --coaling stops the train at its coaling tower, chute pouring.
-    Route? generated = Str(args, "--route", towerJawMode.Length > 0 ? "frontier:3" : "") is { Length: > 0 } spec
+    Route? generated = Str(args, "--route", towerJawMode.Length > 0 ? "frontier:3" : Staging.IsHouseView(view) ? "frontier:7" : "") is { Length: > 0 } spec
         ? DarkTerritory.Sim.LineGen.Routes.Generate(content, spec, cars)
         : null;
     var line = generated?.Build() ?? RailLine.Load(Path.Combine(content, "lines", lineName + ".json"));
@@ -1884,6 +1884,26 @@ static object Screenshot(TrainTuning t, string content, string[] args)
             foreach (var d in scene.Walls.HouseDoors)
                 scene.Walls.SetShut(d.Key, true);
     }
+    // G1's house creatures (notes 584-586; Staging.House) in the night's first plain open house (frontier:7 unless --route says;
+    // --house n the nth such): the hanger view's Hanger hidden in its roof space over its strands, hangergrab's hauling crewmate
+    // 4 up on one (--hanger mode: hidden, grab, haul, hold, hit, retreat); the hollowhouse view's Hollow House sinking,
+    // hollowcollapse's come down (--hollow mode: still, rumble, shut, sink, collapse, settled); householderhouse, the
+    // Householder's house kept, its table set (--householder mode). Each lit by a hand lamp at the eye.
+    if (Staging.IsHouseView(view) && generated is not null && scene.Walls is { } houseWalls)
+    {
+        string houseMode = Str(args, view.StartsWith("hanger", StringComparison.Ordinal) ? "--hanger" : view.StartsWith("hollow", StringComparison.Ordinal) ? "--hollow" : "--householder", "");
+        var (houseThreats, houseCamera, caught) = Staging.House(scene.Enemies is List<DarkTerritory.Sim.Enemies.Enemy> others ? others : [], view, houseMode,
+            generated, line, houseWalls, (int)Opt(args, "--house", 0), args.Contains("--inside"));
+        scene.Enemies = houseThreats;
+        if (Str(args, "--cam", "") is not { Length: > 0 })
+            camera = houseCamera;
+        if (caught is { } hung)
+            scene.Crew = [.. (scene.Crew ?? []).Where(c => c.Id != hung.Id), hung];
+        // (The hollowhouse views' shut doors: the Sim shuts them at its Shut.)
+        if (view is "hollowhouse" or "hollowcollapse")
+            foreach (int key in houseWalls.OpenHouses.First(h => h.Index == (int)houseThreats[^1].Extra2).Doors)
+                houseWalls.SetShut(key, true);
+    }
     scene.Wreck = train.Wreck;
     // --impact ground|water|structure|train|creature|doll [--impact-at ahead,lateral] [--impact-age s] (T121): a cannonball
     // come down there that long ago (its burst, debris, smoke, scorch or splash, and the light of it); "doll" on the staged
@@ -2040,7 +2060,7 @@ static object Screenshot(TrainTuning t, string content, string[] args)
         scene.Build(mesh, train, camera.Position, leaned);
     double buildMs = buildClock.Elapsed.TotalMilliseconds / builds;
     // --lantern: a hand lamp held just under the eye (the scene is eye-relative), the light you'd have in a dark car.
-    if (args.Contains("--lantern"))
+    if (args.Contains("--lantern") || Staging.IsHouseView(view))
         mesh.PointLights.Add(new PointLight(new System.Numerics.Vector3(0.15f, -0.35f, 0), DarkTerritory.Game.Palette.LampAmber * 1.6f, 6));
     // --dawn t: the dawn that far up (0 night .. 1 dawn; look.json atmosphere.dawn).
     var lighting = Views.Lighting(train, look, (float)Opt(args, "--dawn", 0));

@@ -272,7 +272,7 @@ public sealed partial class GreyboxScene
     }
 
     /// <summary>Depth of the valley under a bridge.</summary>
-    const double ValleyDepth = 18;
+    public const double ValleyDepth = 18;
 
     /// <param name="frames">The cars as drawn, when not the train's own (leaning on a bend: CarLean).</param>
     public void Build(MeshBuilder mesh, TrainOnLine train, Double3 eye, IReadOnlyList<CarFrame>? frames = null)
@@ -315,6 +315,8 @@ public sealed partial class GreyboxScene
         double centre = NearestDistance(line, eye, hint);
         double from = Math.Max(0, centre - DrawDistance), to = Math.Min(line.Length, centre + DrawDistance);
 
+        // The house creatures' houses first (notes 584-586): a house one moves comes out of its cell before the cells are drawn.
+        HouseCreatures(mesh, line, eye);
         Track(mesh, line, eye, from, to, centre);
         foreach (var branch in line.Branches)
             if (branch.Toe < to && branch.End > from)
@@ -617,6 +619,9 @@ public sealed partial class GreyboxScene
                         continue;
                     // Jacob at the water's edge (note 572).
                     if (e is Sim.Enemies.Jacob jacob && Look is not null && Fisherman(mesh, eye, jacob))
+                        continue;
+                    // The Hanger and the Hollow House are drawn in their houses (GreyboxScene.Houses, notes 585, 586).
+                    if (e.Kind is EnemyKind.Hanger or EnemyKind.HollowHouse && Look is not null)
                         continue;
                     // The Mourners', the Freight Beetle's and Tower Jaw's too (notes 362, 366, 363); Tower Jaw's tower, once
                     // it's down, lies across the line at its spout.
@@ -3429,7 +3434,8 @@ public sealed partial class GreyboxScene
     /// stand over that floor (an open barn's or shed's eaves, note 462). Dark: a barn or shed the Gaunt roosts in, its lanterns
     /// out (note 488).
     /// </summary>
-    sealed record OpenHouse(Double3 Origin, Double3 X, Double3 Y, IReadOnlyList<Sim.Stops.FootprintPart> Parts, Double3? Light, bool Lamp, int Id, float Height = 3.0f, bool Shed = false, bool Dark = false);
+    sealed record OpenHouse(Double3 Origin, Double3 X, Double3 Y, IReadOnlyList<Sim.Stops.FootprintPart> Parts, Double3? Light, bool Lamp, int Id, float Height = 3.0f, bool Shed = false, bool Dark = false,
+        int Feature = -1, int Building = -1);
 
     /// <summary>The light indoors (note 475): the look's, or the old numbers for the greybox.</summary>
     InteriorTuning Interiors => Look?.Tuning.Atmosphere.Interiors ?? DefaultInteriors;
@@ -3449,8 +3455,9 @@ public sealed partial class GreyboxScene
         if (_openHouses is not { } cached || cached.Route != route || cached.Line != line)
         {
             var houses = new List<OpenHouse>();
-            foreach (var f in route.Features)
+            for (int fi = 0; fi < route.Features.Count; fi++)
             {
+                var f = route.Features[fi];
                 if (f.Stop is not { } stop || f.Start < 0 || f.End > line.Length)
                     continue;
                 for (int i = 0; i < stop.Buildings.Count; i++)
@@ -3490,7 +3497,8 @@ public sealed partial class GreyboxScene
                         Sim.Run.StopWalls.ClutterOf(stop, index), Sim.Run.StopWalls.Nest(stop, index));
                     var parts = b.Parts.Count > 0 ? b.Parts : [new Sim.Stops.FootprintPart(0, 0, b.Length, b.Width)];
                     houses.Add(new OpenHouse(o, (At(1, 0) - o).Normalized, (At(0, 1) - o).Normalized, parts,
-                        light is var (lx, ly, height, _) ? At(lx, ly) + Double3.Up * height : null, light?.Lamp ?? false, (int)(f.Start * 7 + i)));
+                        light is var (lx, ly, height, _) ? At(lx, ly) + Double3.Up * height : null, light?.Lamp ?? false, (int)(f.Start * 7 + i),
+                        Feature: fi, Building: i));
                 }
             }
             _openHouses = cached = (route, line, houses);
@@ -3507,6 +3515,12 @@ public sealed partial class GreyboxScene
             // The shader's frame has up = back x right.
             if (Vector3.Cross(back, right).Y < 0)
                 back = -back;
+            // A house a creature's moved (GreyboxScene.Houses): its room and its light go with it; come down, it has neither.
+            var moved = _movedHouses.TryGetValue((h.Feature, h.Building), out var how) ? how : (Moved: Matrix4x4.Identity, Down: false, Kept: false);
+            if (moved.Down)
+                continue;
+            var up = Vector3.Normalize(Vector3.TransformNormal(Vector3.UnitY, moved.Moved));
+            (right, back) = (Vector3.Normalize(Vector3.TransformNormal(right, moved.Moved)), Vector3.Normalize(Vector3.TransformNormal(back, moved.Moved)));
             var lit = Interiors;
             foreach (var part in h.Parts)
             {
@@ -3514,7 +3528,7 @@ public sealed partial class GreyboxScene
                 // left them outside, moonlit blue; note 475) to its eaves.
                 const float Under = 0.3f;
                 var centre = h.Origin + h.X * part.X + h.Y * part.Y + Double3.Up * ((wallHeight - Under) / 2);
-                mesh.Rooms.Add(new Room(V(centre, eye), right, Vector3.UnitY, back, new Vector3((float)part.Length / 2, (wallHeight + Under) / 2, (float)part.Width / 2)));
+                mesh.Rooms.Add(new Room(Vector3.Transform(V(centre, eye), moved.Moved), right, up, back, new Vector3((float)part.Length / 2, (wallHeight + Under) / 2, (float)part.Width / 2)));
                 // A barn's, a shed's or a yard shed length's hurricane lantern turned low, hung from a beam in its middle
                 // (note 475: the director's "functional"), steady and dim: enough to see the stacks, the loft, the bench by.
                 // A long yard shed has one each shedLanternSpacing along it. The Gaunt's has none (note 488).
@@ -3540,9 +3554,10 @@ public sealed partial class GreyboxScene
             // Dim and warm, a candle's guttering more than a lamp's.
             double t = Time * (h.Lamp ? 3 : 9) + h.Id * 1.7;
             float gutter = (float)(0.8 + 0.12 * Math.Sin(t) + 0.08 * Math.Sin(t * 2.9 + 0.7) * Math.Sin(t * 0.37));
-            mesh.PointLights.Add(new PointLight(V(light, eye), Palette.LampAmber * (h.Lamp ? lit.Lamp : lit.Candle) * gutter, h.Lamp ? lit.LampRange : lit.CandleRange));
+            var flame = Vector3.Transform(V(light, eye), moved.Moved);
+            mesh.PointLights.Add(new PointLight(flame, Palette.LampAmber * (h.Lamp ? lit.Lamp : lit.Candle) * gutter, h.Lamp ? lit.LampRange : lit.CandleRange));
             // The flame's own small halo, so the light reads as coming from it.
-            mesh.Billboard(V(light, eye), (h.Lamp ? 0.35f : 0.22f) * gutter, 0, new Vector4(Palette.LampAmber * 0.45f * gutter, 1), -1, FxBlend.Additive);
+            mesh.Billboard(flame, (h.Lamp ? 0.35f : 0.22f) * gutter, 0, new Vector4(Palette.LampAmber * 0.45f * gutter, 1), -1, FxBlend.Additive);
         }
     }
 
@@ -3578,7 +3593,14 @@ public sealed partial class GreyboxScene
             // side, and open, it's swung in about its hinge into the room, a little past square.
             double t = Sim.Run.StopWalls.WallThickness;
             var hingeAt = new Double3(d.At.X, floor, d.At.Z) + ToD(side * (Half - 0.03f) - outward * (float)(t * 0.35));
-            float swing = walls.Shut(d.Key) ? 0 : 100 * MathF.PI / 180;
+            // A house a creature's moved carries its doors (GreyboxScene.Houses); come down, they're under it.
+            var moved = _movedHouses.TryGetValue((feature, building), out var how) ? how : (Moved: Matrix4x4.Identity, Down: false, Kept: false);
+            if (moved.Down)
+                continue;
+            int start = mesh.Count;
+            // It swings to, not at once; shut, it slams (DoorSwing), and the dust comes off its frame.
+            var (open, slammed) = DoorSwing(d.Key, walls.Shut(d.Key));
+            float swing = open * 100 * MathF.PI / 180;
             var along = Vector3.Normalize(-side * MathF.Cos(swing) - outward * MathF.Sin(swing));
             var face = Vector3.Cross(up, along);
             float width = Half * 2 - 0.08f, height = Lintel - 0.04f;
@@ -3588,6 +3610,10 @@ public sealed partial class GreyboxScene
             float inside = Vector3.Dot(face, -outward) >= 0 ? 1 : -1;
             foreach (float h in new[] { 0.3f, height - 0.3f })
                 mesh.Box(On(width / 2, h, inside * (Thick + 0.012f)), face, up, along, new Vector3(0.012f, 0.06f, width / 2 - 0.04f), wood * 0.8f);
+            if (moved.Moved != Matrix4x4.Identity)
+                mesh.Move(start, moved.Moved);
+            if (slammed >= 0 && Look is not null)
+                Look.Art.Effects.DoorSlam(mesh, Vector3.Transform(V(new Double3(d.At.X, floor + Lintel, d.At.Z), eye), moved.Moved), outward, side, slammed, d.Key);
         }
     }
 
@@ -3609,6 +3635,12 @@ public sealed partial class GreyboxScene
             var b = stop.Buildings[spot.Container.Building];
             double boards = Sim.Run.StopWalls.OpenShed(b) ? 0.21 : 0.17;
             float floor = (float)(Sim.Run.Run.StopWorld(line, f, b.Centre, Art.WorldArt.Ground(Route, f.Start + b.S, (float)b.D, (float)ValleyDepth) - 0.15 + boards).Y);
+            // A house a creature's moved carries what's been searched in it (GreyboxScene.Houses); come down, it's under it.
+            var moved = _movedHouses.Count > 0 && Route is not null && _movedHouses.TryGetValue((FeatureIndex(f), spot.Container.Building), out var how)
+                ? how : (Moved: Matrix4x4.Identity, Down: false, Kept: false);
+            if (moved.Down)
+                continue;
+            int start = mesh.Count;
             var into = new Vector3((float)spot.Facing.X, 0, (float)spot.Facing.Z);
             var up = Vector3.UnitY;
             var side = Vector3.Cross(up, into);
@@ -3660,6 +3692,8 @@ public sealed partial class GreyboxScene
                     mesh.Box(At(foot + 0.25f, 0.05f, 0.6f), side, up, into, new Vector3(0.4f, 0.05f, 0.3f), Palette.HazardYellow * 0.4f);
                     break;
             }
+            if (moved.Moved != Matrix4x4.Identity)
+                mesh.Move(start, moved.Moved);
         }
     }
 

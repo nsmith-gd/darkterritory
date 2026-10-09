@@ -7246,6 +7246,26 @@
     ]
   },
   {
+    "name": "hanger_0",
+    "diffuse": "models/hanger_0.png",
+    "spec": "models/hanger_0_s.png",
+    "normal": "models/hanger_0_n.png",
+    "size": 1024,
+    "tileMetres": null,
+    "tiling": false,
+    "family": "creature",
+    "alphaTest": false,
+    "sources": [
+      {
+        "generator": "tools/models/recipes/hanger.py",
+        "what": "the Hanger, modelled in tools/blender/hanger.py, its colour painted here",
+        "author": "Dark Territory",
+        "license": "CC0-1.0",
+        "attribution": "Dark Territory (modelled in tools/models from the texture library)"
+      }
+    ]
+  },
+  {
     "name": "headframe_0",
     "diffuse": "models/headframe_0.png",
     "spec": "models/headframe_0_s.png",

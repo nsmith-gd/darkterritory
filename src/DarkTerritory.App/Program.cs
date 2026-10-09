@@ -1310,6 +1310,8 @@ CampaignState? Play(IPlaySession session, CampaignState? campaign)
         {
             // The settings' CAMERA SHAKE (note 297) scales both, down to none.
             camera.Position += BoilerShake.Offset(session.World, session.Viewpoint, timer.Elapsed.TotalSeconds) * settings.CameraShake;
+            // In or by a Hollow House going (note 585): the ground under it rumbling, the doors slamming, the floor going.
+            camera.Position += HouseShake.Offset(session.World, session.Viewpoint, timer.Elapsed.TotalSeconds) * settings.CameraShake;
             // On a car straining round a bend too fast, it judders you (the overspeed telegraph, App. F.1).
             if (scene.BendStrain is { } judder && session.Viewpoint.Parent is var on and >= 0 && on < judder.Count)
                 camera.Position += BendStrain.Offset(judder[on].Stress, timer.Elapsed.TotalSeconds) * settings.CameraShake;
