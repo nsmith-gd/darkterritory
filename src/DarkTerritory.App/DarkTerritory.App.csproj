@@ -7,6 +7,15 @@
     <ProjectReference Include="../Ballast.Platform/Ballast.Platform.csproj" />
     <ProjectReference Include="../DarkTerritory.Game/DarkTerritory.Game.csproj" />
   </ItemGroup>
+  <!-- A developer build (DevTools, Directory.Build.props; note 514): the developer tools, reached under #if DEVTOOLS, and the
+       mark that says so on the assembly. A player's build has neither. -->
+  <PropertyGroup Condition="'$(DevTools)' == 'true'">
+    <DefineConstants>$(DefineConstants);DEVTOOLS</DefineConstants>
+  </PropertyGroup>
+  <ItemGroup Condition="'$(DevTools)' == 'true'">
+    <ProjectReference Include="../DarkTerritory.Dev/DarkTerritory.Dev.csproj" />
+    <AssemblyMetadata Include="DevTools" Value="true" />
+  </ItemGroup>
   <ItemGroup>
     <!-- A shipped build carries the game's content beside it (DataFile looks there when there's no repository), and
          how to play. Development builds read content/ from the repository instead. -->
