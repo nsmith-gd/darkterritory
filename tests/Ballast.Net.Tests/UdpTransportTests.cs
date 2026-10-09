@@ -102,6 +102,27 @@ public class UdpTransportTests
     }
 
     [Fact]
+    public void AWholeProcessStandingStillDropsNobody()
+    {
+        // The host and its bots in one process, none of them polled while a night's scene loads (the director, 9 Oct: a night
+        // with bots began with them all dropped). Longer than the timeout, but nobody was listening: both links live on.
+        var (host, client) = Pair(Fast with { TimeoutSeconds = 0.3 }, Fast with { TimeoutSeconds = 0.3 });
+        using var _ = host.T;
+        using var __ = client.T;
+        Thread.Sleep(800);
+        // The bots step before the host on the first frame (NetPlaySession.Step), so a client hears the stand first.
+        for (int i = 0; i < 20; i++)
+        {
+            client.Poll();
+            host.Poll();
+            Thread.Sleep(5);
+        }
+        Assert.DoesNotContain(host.Events, e => e.Kind == TransportEventKind.Disconnected);
+        Assert.DoesNotContain(client.Events, e => e.Kind == TransportEventKind.Disconnected);
+        Assert.True(client.T.IsConnected);
+    }
+
+    [Fact]
     public void ConnectingToNobodyGivesUp()
     {
         int port;
