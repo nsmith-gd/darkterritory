@@ -161,6 +161,10 @@ public static class Views
             // (Not one of Names.) Close on the whistle's lever and its rod forward along the roof (note 445).
             "whistlelever" => Camera.LookAt(engine.ToWorld(new Double3(1.5, engine.Shape.Bounds.Max.Y + 0.8, Art.TrainKit.WhistleZ(engine.Shape) + 1.4)),
                 engine.ToWorld(new Double3(0.4, engine.Shape.Bounds.Max.Y + 0.4, Art.TrainKit.WhistleZ(engine.Shape) - 0.6)), 50),
+            // (Not one of Names.) The staged Gaunt leaving with what it took (--gaunt leave), side on as it walks off from the
+            // train: the load under it in its mouth (note 505).
+            "gauntcarry" => Camera.LookAt(train.Frames[Math.Min(2, train.Frames.Count - 1)].ToWorld(new Double3(-(train.Frames[Math.Min(2, train.Frames.Count - 1)].Shape.HalfWidth + 3.6), 1.6, -6.2)),
+                train.Frames[Math.Min(2, train.Frames.Count - 1)].ToWorld(new Double3(-(train.Frames[Math.Min(2, train.Frames.Count - 1)].Shape.HalfWidth + 3.4), 1.6, -1.5)), 60),
             // (Not one of Names.) A breath from the driver's window, looking out through it (note 485): the frost in from its
             // frame, and with --breathe the eye's own breath fogging it.
             "glass" => Art.TrainKit.CabPanes(engine.Shape).Skip(1).FirstOrDefault() is { U.X: > 0 } pane
