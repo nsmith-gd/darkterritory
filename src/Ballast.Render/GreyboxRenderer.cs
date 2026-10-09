@@ -511,6 +511,28 @@ public sealed unsafe class GreyboxRenderer : IDisposable
         WriteSets();
     }
 
+    /// <summary>
+    /// Only the far horizon replaced (another night's sky, note 517): the material arrays stay as loaded, so a batch of
+    /// screenshots over many nights loads the look's layers once. Nothing loaded yet: nothing to replace.
+    /// </summary>
+    public void LoadBackdrop(Image? sky)
+    {
+        if (_assets is null)
+            return;
+        Api.vkDeviceWaitIdle();
+        _backdrop.Dispose();
+        _assets = _assets with { Backdrop = sky };
+        _backdrop = UploadBackdrop(_assets);
+        WriteSets();
+    }
+
+    GpuTexture UploadBackdrop(RenderAssets assets)
+    {
+        var sky = assets.Backdrop ?? Image.Solid(4, 0, 0, 0, 0);
+        return new GpuTexture(_gpu, GpuTexture.Kind.Image2D, VkFormat.R8G8B8A8Srgb, sky.Width, sky.Height, [GpuTexture.MipChain(sky)], VkFilter.Linear,
+            VkSamplerAddressMode.Repeat, VkSamplerAddressMode.ClampToEdge, assets.Post.MipBias);
+    }
+
     /// <summary>The loaded material layers kept at full size in the hero arrays (<see cref="RenderAssets.HeroSize"/>).</summary>
     public IEnumerable<string> HeroLayers => _assets is null ? [] : _heroSlot.Select((s, i) => (s, i)).Where(x => x.s >= 0).Select(x => _assets.Layers[x.i].Name);
 
@@ -521,8 +543,8 @@ public sealed unsafe class GreyboxRenderer : IDisposable
     {
         int size = assets.LayerSize;
         var layers = assets.Layers.Count > 0 ? assets.Layers : [new MaterialLayer("white", Image.Solid(size, 255, 255, 255), Image.Solid(size, 0, 0, 0))];
-        var diffuse = layers.Select(l => (IReadOnlyList<byte[]>)GpuTexture.MipChain(l.Diffuse.Resized(size, size))).ToList();
-        var spec = layers.Select(l => (IReadOnlyList<byte[]>)GpuTexture.MipChain(l.Spec.Resized(size, size))).ToList();
+        var diffuse = GpuTexture.MipChains([.. layers.Select(l => l.Diffuse)], size);
+        var spec = GpuTexture.MipChains([.. layers.Select(l => l.Spec)], size);
         float bias = assets.Post.MipBias;
         // Trilinear and anisotropic: the 2008-2012 look the benchmarks set (BioShock 2, Dead Space). The PS2 comparison
         // mode swaps in the point-sampled, positively biased sampler instead (_crunchy).
@@ -530,9 +552,7 @@ public sealed unsafe class GreyboxRenderer : IDisposable
             VkSamplerAddressMode.Repeat, VkSamplerAddressMode.Repeat, bias, anisotropy: _gpu.MaxAnisotropy);
         var s = new GpuTexture(_gpu, GpuTexture.Kind.Array2D, VkFormat.R8G8B8A8Unorm, size, size, spec, VkFilter.Linear,
             VkSamplerAddressMode.Repeat, VkSamplerAddressMode.Repeat, bias, anisotropy: _gpu.MaxAnisotropy);
-        var sky = assets.Backdrop ?? Image.Solid(4, 0, 0, 0, 0);
-        var b = new GpuTexture(_gpu, GpuTexture.Kind.Image2D, VkFormat.R8G8B8A8Srgb, sky.Width, sky.Height, [GpuTexture.MipChain(sky)], VkFilter.Linear,
-            VkSamplerAddressMode.Repeat, VkSamplerAddressMode.ClampToEdge, bias);
+        var b = UploadBackdrop(assets);
         var lut = new GpuTexture(_gpu, GpuTexture.Kind.Volume, VkFormat.R8G8B8A8Unorm, ColourGrade.Size, ColourGrade.Size, [[assets.Lut ?? ColourGrade.Identity()]],
             VkFilter.Linear, VkSamplerAddressMode.ClampToEdge, VkSamplerAddressMode.ClampToEdge, depth: ColourGrade.Size);
         return (d, s, b, lut);
@@ -583,7 +603,7 @@ public sealed unsafe class GreyboxRenderer : IDisposable
             var flat = Image.Solid(at, 128, 128, 255);
             var list = layers.Count > 0 ? layers : [new MaterialLayer("none", Image.Solid(at, 255, 255, 255), Image.Solid(at, 0, 0, 0))];
             GpuTexture Array(Func<MaterialLayer, Image> map, VkFormat format) => new(_gpu, GpuTexture.Kind.Array2D, format, at, at,
-                list.Select(l => (IReadOnlyList<byte[]>)GpuTexture.MipChain(map(l).Resized(at, at))).ToList(), VkFilter.Linear,
+                GpuTexture.MipChains([.. list.Select(map)], at), VkFilter.Linear,
                 VkSamplerAddressMode.Repeat, VkSamplerAddressMode.Repeat, assets.Post.MipBias, anisotropy: _gpu.MaxAnisotropy);
             return (Array(l => l.Diffuse, VkFormat.R8G8B8A8Srgb), Array(l => l.Spec, VkFormat.R8G8B8A8Unorm), Array(l => l.Normal ?? flat, VkFormat.R8G8B8A8Unorm));
         }
@@ -598,7 +618,7 @@ public sealed unsafe class GreyboxRenderer : IDisposable
         int size = assets.LayerSize;
         var flat = Image.Solid(size, 128, 128, 255);
         var layers = assets.Layers.Count > 0 ? assets.Layers : [new MaterialLayer("white", Image.Solid(size, 255, 255, 255), Image.Solid(size, 0, 0, 0))];
-        var normals = layers.Select(l => (IReadOnlyList<byte[]>)GpuTexture.MipChain((l.Normal ?? flat).Resized(size, size))).ToList();
+        var normals = GpuTexture.MipChains([.. layers.Select(l => l.Normal ?? flat)], size);
         return new GpuTexture(_gpu, GpuTexture.Kind.Array2D, VkFormat.R8G8B8A8Unorm, size, size, normals, VkFilter.Linear,
             VkSamplerAddressMode.Repeat, VkSamplerAddressMode.Repeat, assets.Post.MipBias, anisotropy: _gpu.MaxAnisotropy);
     }
