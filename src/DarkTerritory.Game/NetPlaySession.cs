@@ -1067,8 +1067,34 @@ public sealed class NetPlaySession : IPlaySession, IDisposable
         if (Watching >= 0 && Client.TryGetRemote((byte)Watching, alpha, out var s))
             return Eyes.Operator(s, World) ?? Eyes.From(s, s, frames, alpha, 0, 0);
         var eyes = Eyes.Operator(Player, World) ?? Eyes.From(Player, _previous, frames, alpha, pendingYaw, pendingPitch);
+        // A Ribbit pack on you (note 558): down on your back with them, from when they got onto you.
+        double now = (Tick + alpha) * SimConstants.TickSeconds;
+        if (Player.Alive && Eaten(frames) is { } holder)
+        {
+            _eatenSince ??= now;
+            eyes = Eyes.Devoured(Eyes.World(Player, frames).Feet, holder, now - _eatenSince.Value, eyes);
+        }
+        else
+            _eatenSince = null;
         // Just come back: the shot of you getting up, then your eyes coming up with you (note 529).
         return _cameBack is { } back && Eyes.CameBack(back.Inside, back.Door, CameBackSeconds(back.Tick, alpha), eyes) is { } shot ? shot : eyes;
+    }
+
+    // Since when a Ribbit pack's been eating you (note 558), on the session's clock; null while it isn't.
+    double? _eatenSince;
+
+    /// <summary>Where the Ribbit eating you is (note 558), or null: none is.</summary>
+    Double3? Eaten(IReadOnlyList<CarFrame> frames)
+    {
+        var feet = Eyes.World(Player, frames).Feet;
+        foreach (var e in World.ActiveEnemies)
+            if (e.Holding == PlayerId && e.Kind == Sim.Enemies.EnemyKind.Ribbit)
+            {
+                var at = e.Attached >= 0 && e.Attached < frames.Count ? frames[e.Attached].ToWorld(e.Local) : e.Local;
+                if (Art.CreatureArt.RibbitEating(e, at, feet))
+                    return at;
+            }
+        return null;
     }
 
     // When you last came back inside a Holdout (note 529): its inside and door, and the tick.

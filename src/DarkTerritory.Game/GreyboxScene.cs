@@ -192,6 +192,14 @@ public sealed partial class GreyboxScene
         return Self is { } me && me.Id == id ? me : null;
     }
 
+    /// <summary>For a still (dt screenshot --ribbits devour): how long the pack's been on them already (s), so there's blood.</summary>
+    public double StagedEaten { get; set; }
+
+    // Who a Ribbit pack is eating this frame (note 558): their id, and the way their head lies from their feet (away from
+    // the one holding them); and since when on the scene's clock, for the blood.
+    readonly Dictionary<int, Double3> _eaten = new();
+    readonly Dictionary<int, double> _eatenSince = new();
+
     /// <summary>The others and you (<see cref="Self"/>), for a creature going for whichever of you is nearest.</summary>
     IEnumerable<Crewmate> Everyone()
     {
@@ -576,6 +584,30 @@ public sealed partial class GreyboxScene
         }
         Look?.Art.Creatures?.Clutches.Clear();
         Look?.Art.Creatures?.Pins.Clear();
+        // A Ribbit pack eating someone (note 558): they're pulled down onto their back, their head away from the one holding
+        // them (Pins), the pack stoops onto them (Prey.Down), and there's blood, from when it got onto them.
+        _eaten.Clear();
+        if (Enemies is not null)
+            foreach (var e in Enemies)
+                if (e.Kind == EnemyKind.Ribbit && e.Holding >= 0 && Whom(e.Holding) is { } held
+                    && EnemyWorld(e, frames) is var holder && Art.CreatureArt.RibbitEating(e, holder, held.Feet))
+                {
+                    var away = (held.Feet - holder) with { Y = 0 };
+                    _eaten[e.Holding] = away.Length > 1e-3 ? away.Normalized : new Double3(-Math.Sin(held.Yaw), 0, -Math.Cos(held.Yaw));
+                }
+        foreach (int gone in _eatenSince.Keys.Where(id => !_eaten.ContainsKey(id)).ToList())
+            _eatenSince.Remove(gone);
+        foreach (var (id, head) in _eaten)
+        {
+            if (!_eatenSince.TryGetValue(id, out double since))
+                _eatenSince[id] = since = Time - StagedEaten;
+            if (Whom(id) is not { } laid)
+                continue;
+            // held_pinned lies from 0.6 m behind its origin (the head) to 1.3 m in front (the boots): the origin goes
+            // Art.CreatureArt.RibbitLaid up the body from where the sim has them, so the leader's at their shins.
+            Look?.Art.Creatures?.Pins[id] = (V(laid.Feet + head * Art.CreatureArt.RibbitLaid, eye), -ToF(head));
+            Look?.Art.Effects?.Devour(mesh, V(laid.Feet, eye), ToF(head), Time - since, id);
+        }
         // A fire on its cells draws its flames there (FireGrids), and only its smoke and light at its heart (note 267).
         if (Look?.Art.Effects is { } cells)
             cells.CellFlames = Enemies?.Any(e => e is Sim.Enemies.CarFire { Gone: false, Heat.Length: > 0 }) == true;
@@ -621,8 +653,10 @@ public sealed partial class GreyboxScene
                         after = Whom(e.Holding);
                     Art.CreatureArt.Prey? prey = leaving && GauntHeading(e, frames) is { } going
                         ? new(V(going, eye), Vector3.Zero)
-                        : after is { } victim
-                        ? new(V(victim.Feet, eye), new Vector3((float)-Math.Sin(victim.Yaw), 0, (float)-Math.Cos(victim.Yaw)))
+                        : after is { } victim && e.Kind == EnemyKind.Ribbit && _eaten.TryGetValue(victim.Id, out var laid)
+                        ? new(V(victim.Feet, eye), -ToF(laid), Down: true)
+                        : after is { } victim2
+                        ? new(V(victim2.Feet, eye), new Vector3((float)-Math.Sin(victim2.Yaw), 0, (float)-Math.Cos(victim2.Yaw)))
                         : null;
                     // And stoops under a roof, ducks through a door (note 110); a Gaunt gets down (note 118).
                     Art.CreatureArt.Room? room = e.Kind is EnemyKind.TippyToesie or EnemyKind.Gaunt && e.Attached >= 0 && e.Attached < frames.Count
@@ -1584,8 +1618,9 @@ public sealed partial class GreyboxScene
     {
         // Pinned under a Moose's rack (note 339; Art/CreatureArt.Pins): where the sim has them, on their back, laid with their
         // head toward it (it's stood over them).
+        // (A Ribbit pack's catch is laid a step up from where the sim has them, note 558: wherever the pin has them.)
         if (Look?.Art.Creatures?.Pins.TryGetValue(c.Id, out var pin) == true)
-            return c with { Yaw = Math.Atan2(-pin.Forward.X, -pin.Forward.Z), Act = Art.CrewPose.HeldPinned };
+            return c with { Feet = eye + new Double3(pin.Feet.X, pin.Feet.Y, pin.Feet.Z), Yaw = Math.Atan2(-pin.Forward.X, -pin.Forward.Z), Act = Art.CrewPose.HeldPinned };
         if (Look?.Art.Creatures?.Clutches.TryGetValue(c.Id, out var clutch) != true)
             return c.Act == Art.CrewPose.HeldCarried ? c with { Act = Art.CrewPose.HeldPinned } : c;
         var yaw = Math.Atan2(-clutch.Forward.X, -clutch.Forward.Z);

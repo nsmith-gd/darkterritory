@@ -254,6 +254,35 @@ public static class Eyes
         return eyes with { Position = eyes.Position - Double3.Up * (Height - GettingUp(seconds)) };
     }
 
+    /// <summary>
+    /// Eaten (note 558; the director: "There was no blood or lay down of me when they started eating me"): a Ribbit pack's
+    /// on you (<see cref="Art.CreatureArt.RibbitEating"/>), so you're down on your back as the others see you (held_pinned,
+    /// your head <see cref="DownHead"/> from your feet, away from the one holding you at <paramref name="holder"/>), and your
+    /// eyes go down with you over <see cref="GoDown"/> seconds: low over the ground, looking down yourself at them on you.
+    /// </summary>
+    public static Camera Devoured(Double3 feet, Double3 holder, double seconds, Camera eyes)
+    {
+        var away = (feet - holder) with { Y = 0 };
+        var head = away.Length > 1e-3 ? away.Normalized : new Double3(-Math.Sin(eyes.Yaw), 0, -Math.Cos(eyes.Yaw));
+        var down = Camera.LookAt(feet + head * DownHead + Double3.Up * 0.3, holder + Double3.Up * 0.45, (float)eyes.FovYDegrees);
+        double u = Math.Clamp(seconds / GoDown, 0, 1);
+        u = u * u * (3 - 2 * u);
+        double yaw = eyes.Yaw + Math.IEEERemainder(down.Yaw - eyes.Yaw, Math.Tau) * u;
+        return eyes with
+        {
+            Position = Double3.Lerp(eyes.Position, down.Position, u),
+            Yaw = yaw,
+            Pitch = eyes.Pitch + (down.Pitch - eyes.Pitch) * u,
+        };
+    }
+
+    /// <summary>How long you take going down when a Ribbit pack gets onto you (s).</summary>
+    public const double GoDown = 0.7;
+
+    /// <summary>How far from where the sim has you your head lies, down on your back (m): laid <see cref="Art.CreatureArt.RibbitLaid"/>
+    /// up from there, held_pinned's head 0.6 m behind its origin.</summary>
+    public const double DownHead = Art.CreatureArt.RibbitLaid + 0.6;
+
     /// <summary>crew_clips' getup: 56 frames at 30 fps.</summary>
     public const double GetUpSeconds = 56 / 30.0;
 

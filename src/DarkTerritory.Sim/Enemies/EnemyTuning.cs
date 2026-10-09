@@ -251,7 +251,7 @@ public sealed record RibbitTuning
     public double SpawnOut { get; init; } = 35;
     public double Health { get; init; } = 2;
     public double PerGroundWeight { get; init; } = 0.5;
-    public double Fan { get; init; } = 80;
+    public double Fan { get; init; } = 100;
     public double RingOut { get; init; } = 1.05;
     public double FanFrom { get; init; } = 10;
     public double Spacing { get; init; } = 1.15;
