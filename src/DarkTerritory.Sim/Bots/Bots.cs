@@ -3368,6 +3368,31 @@ public sealed class WarmUp(ColdTuning cold, double goInAt = 0.6)
             }
         }
         bool open = train.Vehicles[_car].DoorOpen(RearDoor);
+        // Note 553: in its car, but out on a side door's landing beyond the walls: straight in through the doorway first. The
+        // walk to an end door from there went along the car's outside, off the landing's end: deepTerritory:2's gunner, in to
+        // shut car 4's doors at 10 m/s, walked off car 4's landing and then car 5's, 45 and 35 lost.
+        if (_step is Step.Shut or Step.Warm or Step.Reopen or Step.Out && self.Parent == _car && self.Surface == Surface.Deck
+            && train.Frames[_car].Shape is { Interior: { } walls } inShape && (self.Position.X < walls.Min.X || self.Position.X > walls.Max.X))
+        {
+            // Along the landing to the doorway's span first (the steps reach past it), then straight in.
+            double inX = Math.Clamp(self.Position.X, walls.Min.X + 0.5, walls.Max.X - 0.5), facing = self.Position.X < 0 ? -Math.PI / 2 : Math.PI / 2;
+            var at = self.Position;
+            var doorway = inShape.DoorList.Where(d => Math.Sign(d.Box.Centre.X) == Math.Sign(at.X) && d.Box.Max.Z - d.Box.Min.Z > d.Box.Max.X - d.Box.Min.X)
+                .OrderBy(d => Math.Abs(d.Box.Centre.Z - at.Z)).Select(d => (int?)d.Index).FirstOrDefault();
+            var span = doorway is { } di ? inShape.DoorList.First(d => d.Index == di).Box : default;
+            bool shut = doorway is { } sd && !train.Vehicles[_car].DoorOpen(sd);
+            // Shut, by its handle (a door wants its handle in reach, and facing); open, anywhere in its span.
+            double handleZ = shut ? inShape.Interactables.First(i => i.Kind == InteractableKind.Door && i.Index == doorway!.Value).Position.Z : self.Position.Z;
+            double inZ = doorway is not null ? Math.Clamp(handleZ, span.Min.Z + 0.3, span.Max.Z - 0.3) : self.Position.Z;
+            if (doorway is not null && (shut ? Math.Abs(self.Position.Z - inZ) > 0.15 : self.Position.Z < span.Min.Z + 0.15 || self.Position.Z > span.Max.Z - 0.15))
+                return Steer(self, new Double3(self.Position.X, 0, inZ), self.Yaw).Step;
+            // Shut: open it, facing in.
+            if (shut)
+                return CrewActions.Nearest(self, train) == InteractableKind.Door
+                    ? new PlayerIntent { Buttons = PlayerButtons.Use } // held: a door takes a moment's hold (interior.doorSeconds)
+                    : new PlayerIntent { LookYaw = Turn(self, facing) };
+            return Steer(self, new Double3(inX, 0, inZ), facing).Step;
+        }
         switch (_step)
         {
             case Step.ToEnd:
@@ -3503,6 +3528,14 @@ public sealed class WarmUp(ColdTuning cold, double goInAt = 0.6)
                 return Next(Step.Reopen);
             case Step.Reopen:
                 {
+                    // Note 553: the rake may have changed while it was in here (cars left at a stop, a cut): out the other end if
+                    // there's no plate this way now, and if neither end has one, wait in here (it gives up in 25 s).
+                    if (!Floor(train, _car, _outEnd))
+                    {
+                        if (!Floor(train, _car, -_outEnd))
+                            return new PlayerIntent();
+                        _outEnd = -_outEnd;
+                    }
                     // The way out: the door nearer where we are (in by the rear, but someone may have moved us).
                     int door = _outEnd > 0 ? RearDoor : FrontDoor;
                     if (train.Vehicles[_car].DoorOpen(door))
@@ -3522,7 +3555,8 @@ public sealed class WarmUp(ColdTuning cold, double goInAt = 0.6)
                     return null;
                 }
                 // Shut again in our face (someone warming in here): open it again rather than walk into it till we give up.
-                if (!train.Vehicles[_car].DoorOpen(_outEnd > 0 ? RearDoor : FrontDoor))
+                // Nothing beyond it now (the car behind uncoupled and gone, note 553): back to choosing the way out.
+                if (!train.Vehicles[_car].DoorOpen(_outEnd > 0 ? RearDoor : FrontDoor) || !Floor(train, _car, _outEnd))
                     return Next(Step.Reopen);
                 return Reach(self, new Double3(_doorX, 0, _outEnd * (_l + 0.6)), _outEnd > 0 ? Math.PI : 0, Step.Out);
             default:
@@ -3569,8 +3603,19 @@ public sealed class WarmUp(ColdTuning cold, double goInAt = 0.6)
         // Never out onto a Knotter's back (note 367): the other end, where that's a way out.
         bool knot = way > 0 ? train.Vehicles[_car].Knot > 0 : ahead > 0 && train.Vehicles[ahead].Knot > 0;
         bool other = way > 0 ? ahead > 0 && train.Vehicles[ahead].Knot <= 0 : train.Vehicles[_car].Knot <= 0;
-        return knot && other ? -way : way;
+        way = knot && other ? -way : way;
+        // Note 553: never out of an end with nothing beyond it (the last car of a rake, its cars behind left at a stop).
+        return Floor(train, _car, way) || !Floor(train, _car, -way) ? way : -way;
     }
+
+    /// <summary>
+    /// Note 553 (D1's falls audit): whether there's footing beyond that end door of <paramref name="car"/> (+1 its rear): a plate,
+    /// with a car on the other side of it (never the engine's, whose cab is the fireman's), or the guard van's rear platform. On
+    /// frontier:7's 4-bot nights the commonest fall was a walker in out of the cold coming out of the rear door of a rake's
+    /// last car, its cars behind left at the stop, onto the ballast with the train setting back, 11 to 19 lost each time.
+    /// </summary>
+    internal static bool Floor(TrainOnLine train, int car, int end) =>
+        end > 0 ? train.VehicleBehind(car) > 0 || train.Frames[car].Shape.Platform is not null : train.VehicleAhead(car) > 0;
 
     /// <summary>
     /// Which plate to drop onto: the one behind this car (this car's own), or in front (the car ahead's), whichever is

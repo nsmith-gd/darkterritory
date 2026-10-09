@@ -160,6 +160,8 @@ public sealed record HarnessReport(int Ticks, double Seconds, string Link, doubl
     public IReadOnlyDictionary<string, double>? Posts { get; init; }
     /// <summary>With <see cref="HarnessOptions.Holdouts"/>: the night's Holdouts, lit and freed, and by whom (note 259).</summary>
     public HoldoutReport? Holdouts { get; init; }
+    /// <summary>Every fall of the night (note 553, <see cref="FallWatch"/>): landed well under the rails, or hurt by the landing.</summary>
+    public IReadOnlyList<FallReport> Falls { get; init; } = [];
 }
 
 /// <summary>
@@ -417,6 +419,7 @@ public static class Harness
         int litCount = 0, breached = 0, holdoutEventsSeen = 0;
         var toFree = new List<double>();
         var freedBy = new SortedDictionary<string, int>(StringComparer.Ordinal);
+        var falls = new FallWatch();
         for (uint t = 0; t < ticks; t++)
         {
             if (host.World.Run is { Over: true } || o.Until?.Invoke(host.World) == true)
@@ -429,6 +432,8 @@ public static class Harness
             o.Script?.Invoke(t, host.World);
             host.Step();
             events.AddRange(host.World.EnemyEvents);
+            foreach (var p in host.Players)
+                falls.Watch(t, host.Train, p.Id, p.State, clients.FirstOrDefault(c => c.Session.PlayerId == p.Id).Bot);
             if (host.World.Holdouts is { } hs)
             {
                 foreach (var h in hs.All)
@@ -663,6 +668,7 @@ public static class Harness
                 host.HoldoutEvents.Count(e => e.Kind == Sim.Run.HoldoutEventKind.Assigned), breached,
                 host.HoldoutEvents.Count(e => e.Kind == Sim.Run.HoldoutEventKind.Freed),
                 host.HoldoutEvents.Count(e => e.Kind == Sim.Run.HoldoutEventKind.Released), toFree, freedBy),
+            Falls = falls.Falls,
         };
     }
 
