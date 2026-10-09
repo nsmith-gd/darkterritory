@@ -7451,6 +7451,15 @@ Terrain sculpting tools, a node-graph material editor, a general-purpose visual 
       - The coupler's knuckle and the axle boxes are below the plate, so reaching down for them is the natural move, and it cuts the train.
       - Not changed: it's the VR controls, so it's a question for the director under COORDINATION's *Waiting on the director*.
 
+542. **Why couplings part with a bot crew aboard (queue #284, D1.3 for D1; from note 533's sweep: parted couplings 22 → 35 cars on frontier:7 seeds 1–18 with #651, "6 at stops").** I logged every pin that dropped on seeds 1–18 (main, with #651), with the train's speed, how long the pin stood loose while the train stood, the crew, and every creature on the cars while it was loose. There were 12 partings.
+    - **None was at a stop's loading.** "Lost at Talbot Foundry" in the report names the stop's area, not the stop's work. Ten parted with the train running (6–14 m/s). Two parted standing, both at the km-10 Holdout stand (44 and 60 s of the 90 standing).
+    - **Every one went with the crew taken up by something else:**
+      - **Fire, 11 of 12.** Car fires were burning near the loose pin, two to five cars alight at once. Trouble in a car comes before a pin for every bot (note 511's order: a loose pin before a lamp or a bag, after trouble).
+      - **A Knotter, 8 of 12.** Its 5 m gap can't be walked, so a pin on its far side is out of reach along the roofs. It's also killed only at a stand.
+      - **The two standing ones.** One stood with cars 4–8 alight. In the other, the only walker left alive was breaching the Holdout.
+    - **Not the bots' order at a stop.** At a stop the stop's part does come before the pin errand, and the pin errand only goes along the roofs. But no parting came from that. A bot that finds itself in reach of a loose pin on the ground already tightens it (`Heed.Coupling`). So nothing in the bots changes here.
+    - **For the director:** the pin's own pace (`upkeep.json` coupling: every ~6 km, three times as often on bends, parting after 90 s) is the same in a fight as on a quiet run. A loose pin also goes on counting down while the train stands. That's under COORDINATION's *Waiting on the director*; no tuning changed.
+
 510. **Captions for the moments: what a creature does and how the train fails (AU1, queue #247; note 349's CAPTIONS, F1's; note 391; GDD §32; the director, 8 Oct: "these are all quite important").** Captions told a reader how a thing is learned: the tells, the signs, the jobs that call for a hand, the doors, the rules heard (note 494's healing). They didn't say when it happens. A car tearing away, someone dragged under the train, a bite, a seizing, the boiler bursting, a derailment, a misfire and the overspeed bell were all heard by a hearing player and never written.
     - **Added** (content/ui/captions.json, by F1's rules: what it is as someone hearing it would say it, never what makes it, never what to do), 55 sounds:
         - **A creature's acts:**
