@@ -830,26 +830,21 @@ public sealed partial class SceneArt(Look look)
     }
 
     /// <summary>
-    /// A lineside board (sight.json; GDD §22, the line's own warnings) as the plan's boards are drawn (SignKit): a posted
+    /// A lineside board (sight.json; GDD §22, the line's own warnings) as the plan's boards are drawn (note 560): a posted
     /// speed in its figures, the tunnel's yellow LOW board, the mail crane's MAIL and an arrow to its side, the terminus's
-    /// END. Paint that sends the lamp back when <paramref name="lit"/> (it's within the lamp's reading range, exactly when the
-    /// sim reads it). <paramref name="foot"/> is the post's foot (camera-relative), <paramref name="right"/> across the line
-    /// and <paramref name="toward"/> the way it faces (back at the oncoming train).
+    /// END, stood back from the line on posts as big as its words, where the sim stands it on a generated line
+    /// (<see cref="Sim.Run.LinesideProps.SightBoard"/>: its sight lines clear), back from the rail on a hand-laid one; its
+    /// reflective paint shining back at the lamp (<see cref="WorldArt.Glow"/>).
     /// </summary>
-    public bool LinesideBoard(MeshBuilder mesh, Sim.Route.Sign sign, Vector3 foot, Vector3 right, Vector3 toward, bool lit)
+    public bool LinesideBoard(MeshBuilder mesh, Sim.Route.Sign sign, Sim.Rail.RailLine line, Sim.Route.Route? route, Double3 eye)
     {
-        var (type, text) = sign.Kind switch
-        {
-            Sim.Route.SignKind.SpeedLimit => ("speedBoard", sign.LimitKmh.ToString(System.Globalization.CultureInfo.InvariantCulture)),
-            Sim.Route.SignKind.LowClearance => ("restricted", "LOW"),
-            Sim.Route.SignKind.Drop => ("mailDrop", sign.Drop is { Side: < 0 } ? "< MAIL" : "MAIL >"),
-            Sim.Route.SignKind.Terminus => ("lineClosed", "END"),
-            _ => ("restricted", "?"),
-        };
-        var board = Piece($"board-{type}-{text}", () => SignKit.Board(Look, type, text, 1.0f, 3.9f));
-        var up = Vector3.UnitY;
-        mesh.Instances.Add(new MeshInstance(board, new Matrix4x4(right.X, right.Y, right.Z, 0, up.X, up.Y, up.Z, 0, toward.X, toward.Y, toward.Z, 0,
-            foot.X, foot.Y, foot.Z, 1), lit ? 7 : 1));
+        var (type, text) = Sim.Run.LinesideProps.SightLettering(sign);
+        var lineside = route?.Plan is not null ? Sim.Run.LinesideProps.Of(route, line) : null;
+        var site = lineside?.SightBoard(sign) ?? World.HandLaidSite(line, sign.Board, WorldArt.BillboardSide(World.HandLaidSignage.Rules), type, text);
+        var (boards, rules) = route?.Plan is { } plan ? (plan.Rules.Boards, plan.Rules.Billboard) : World.HandLaidSignage;
+        if ((site.Centre - eye).Length > rules.DrawM)
+            return true;
+        World.Billboard(mesh, site, rules, boards.GetValueOrDefault(type)?.VisibleM ?? 300, eye);
         return true;
     }
 

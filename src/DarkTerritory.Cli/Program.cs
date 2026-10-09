@@ -1063,6 +1063,20 @@ static object Screenshot(TrainTuning t, string content, string[] args)
         return Print(new { error = $"no {Str(args, "--structure", "")} on {Str(args, "--route", "")}'s main line", has = generated?.Plan?.Structures.Where(x => x.Edge == "main").Select(x => x.Type.ToString()).Distinct() });
     if (structure is not null)
         at = (structure.S0 + structure.S1) / 2 + t.Geometry.EngineLength + t.Geometry.CarLength;
+    // --board type[:n] [--ahead m]: the engine's front m (150) short of the night's nth (from 0) standing board of that type
+    // on the main line (signage.json's types: facility, stationName, speedBoard...), where the sim stands it (note 560): with
+    // --view cab, the board on the approach as the driver reads it.
+    if (Str(args, "--board", "") is { Length: > 0 } boardArg && generated is not null)
+    {
+        var parts = boardArg.Split(':');
+        int nth = parts.Length > 1 ? int.Parse(parts[1], System.Globalization.CultureInfo.InvariantCulture) : 0;
+        var boards = DarkTerritory.Sim.Run.LinesideProps.Of(generated, line)?.PlanBoards
+            .Where(b => b.Key is { Edge: "main", State: DarkTerritory.Sim.LineGen.SignState.Intact } && b.Key.Type == parts[0])
+            .Select(b => b.Value).OrderBy(b => b.Along).ToList() ?? [];
+        if (nth >= boards.Count)
+            return Print(new { error = $"{Str(args, "--route", "")} has {boards.Count} standing {parts[0]} boards on its main line" });
+        at = boards[nth].Along - Opt(args, "--ahead", 150);
+    }
     // --town [square|centre|board|hall|gate|street|houses|house|kitchen|parlour|over|lane]: the departure fortress's town (GDD §3.1;
     // note 281), the train at the gate as a night starts, the camera standing in it (square: at the way in from the engine,
     // looking at the centrepiece; houses down its street; house, kitchen, parlour: the first open house, outside and in).

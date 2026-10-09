@@ -1,0 +1,487 @@
+using Ballast;
+using DarkTerritory.Sim.LineGen;
+using DarkTerritory.Sim.Rail;
+using DarkTerritory.Sim.Route;
+
+namespace DarkTerritory.Sim.Run;
+
+/// <summary>
+/// Where a lettered board stands beside the line (note 560), as the sim keeps its sight lines clear and the art draws it:
+/// the board of <see cref="Type"/> reading <see cref="Text"/>, on <see cref="Edge"/> at <see cref="Along"/> (the plan put
+/// it at <see cref="S"/>; it's moved back toward the train where it couldn't be seen there), on <see cref="Side"/>; its
+/// <see cref="Face"/>, the middle of the face's bottom edge at <see cref="Bottom"/> (world), its face across
+/// <see cref="Right"/> (the piece's +X, as the cab sees it) and turned <see cref="Toward"/> the oncoming train (its +Z);
+/// its <see cref="Posts"/> (each a foot on the land, world, and how tall). <see cref="SeenM"/> of the
+/// <see cref="ApproachM"/> it's read over sees it, in the lamp, past the land.
+/// </summary>
+public sealed record BoardSite(string Type, string Text, string Edge, double S, double Along, int Side, BoardFace Face, Double3 Bottom,
+    Double3 Right, Double3 Toward, IReadOnlyList<(Double3 Foot, double Height)> Posts, double SeenM, double ApproachM)
+{
+    /// <summary>Where along its line the driver's eye sees it from (every sightStepM): the sight lines kept clear.</summary>
+    public IReadOnlyList<double> SeenFrom { get; init; } = [];
+    /// <summary>A tunnel's plate, on its portal: no posts, nothing cleared.</summary>
+    public bool Plate => Type == "tunnelPlate";
+    /// <summary>The middle of the face (world).</summary>
+    public Double3 Centre => Bottom + Double3.Up * (Face.Height / 2);
+}
+
+public sealed partial class LinesideProps
+{
+    readonly object _boardsLock = new();
+    Dictionary<PlanSign, BoardSite>? _planBoards;
+    Dictionary<(string, long), BoardSite>? _sightBoards;
+    SightCones? _cones;
+    const double BuildingCell = 32;
+    readonly Dictionary<(long, long), List<(double X, double Z, double R, double Top)>> _buildings = [];
+
+    /// <summary>The plan's lettered boards as they stand (note 560), by sign: none for a missing one or a dead signal.</summary>
+    public IReadOnlyDictionary<PlanSign, BoardSite> PlanBoards
+    {
+        get
+        {
+            Stand();
+            return _planBoards!;
+        }
+    }
+
+    /// <summary>
+    /// A board of the sim's (sight.json's, <see cref="Lineside.Boards(SightTuning, Route.Route)"/>) as it stands: the
+    /// default tuning's site if it's one of those (its sight lines kept clear), stood afresh if the night's tuning moved it.
+    /// </summary>
+    public BoardSite SightBoard(Sign sign)
+    {
+        Stand();
+        var (type, text) = SightLettering(sign);
+        if (_sightBoards!.TryGetValue((type, (long)Math.Round(sign.Board * 10)), out var site) && site.Text == text)
+            return site;
+        return Site("main", _line, sign.Board, 1, type, text);
+    }
+
+    /// <summary>What a sim's board reads (note 560): a posted speed's figure, a tunnel's LOW, the mail crane's MAIL and its side, the terminus's END.</summary>
+    public static (string Type, string Text) SightLettering(Sign sign) => sign.Kind switch
+    {
+        SignKind.SpeedLimit => ("speedBoard", sign.LimitKmh.ToString(System.Globalization.CultureInfo.InvariantCulture)),
+        SignKind.LowClearance => ("restricted", "LOW"),
+        SignKind.Drop => ("mailDrop", sign.Drop is { Side: < 0 } ? "< MAIL" : "MAIL >"),
+        SignKind.Terminus => ("lineClosed", "END"),
+        _ => ("restricted", "?"),
+    };
+
+    /// <summary>Whether something <paramref name="radius"/> round at a world point stands in a board's sight lines (note 560): the woods leave them clear.</summary>
+    public bool InBoardsSight(double x, double z, double radius)
+    {
+        Stand();
+        return _cones!.Holds(x, z, radius + _plan.Rules.Billboard.ClearOfM);
+    }
+
+    /// <summary>How much of a lineside thing stands in the way of a sight line: a tree's crown, a boulder's or a piece's reach.</summary>
+    public double SightRadius(LinesideProp p) => p.Kind == LinesideKind.Tree
+        ? Math.Max(p.Radius, _plan.Rules.Billboard.CrownShare * p.Height)
+        : Extent(p);
+
+    /// <summary>Whether a thing beside the line is kept out of the boards' sight (never a telegraph pole: the wires run on).</summary>
+    bool Hidden(LinesideProp p)
+    {
+        if (p.Kind == LinesideKind.Pole)
+            return false;
+        var w = World(p.Along, p.Lateral);
+        return InBoardsSight(w.X, w.Z, SightRadius(p));
+    }
+
+    double Ground(double x, double z) => _terrain.Height(x, z);
+
+    /// <summary>Whether a board's post can stand at a world point beside <paramref name="edge"/> (<paramref name="along"/>, <paramref name="offset"/> on it).</summary>
+    bool Footing(string edge, double along, double offset, Double3 w)
+    {
+        if (edge == "main")
+            return OffTheLine(along, offset) && !OnStop(along, offset);
+        if (_terrain.WaterAt(w.X, w.Z) is not null)
+            return false;
+        foreach (var n in _terrain.Nearby(w.X, w.Z, 12))
+            if (Math.Abs(n.Lateral) < 4.5)
+                return false;
+        return true;
+    }
+
+    /// <summary>Whether a sight line's point is behind a stop's building (main-line stops; each a disc round it, as tall as a house).</summary>
+    bool Shelter(Double3 w)
+    {
+        if (!_buildings.TryGetValue(((long)Math.Floor(w.X / BuildingCell), (long)Math.Floor(w.Z / BuildingCell)), out var near))
+            return false;
+        foreach (var (x, z, r, top) in near)
+            if (w.Y < top && (w.X - x) * (w.X - x) + (w.Z - z) * (w.Z - z) < r * r)
+                return true;
+        return false;
+    }
+
+    /// <summary>Whether a branch is clear of bridges and tunnels at a distance along it (the main line's: <see cref="Clear"/>).</summary>
+    bool ClearOn(string edge, double at)
+    {
+        if (edge == "main")
+            return Clear(at);
+        foreach (var st in _plan.Structures)
+            if (st.Edge == edge && st.Type is StructureType.Tunnel or StructureType.Trestle or StructureType.Girder or StructureType.Truss or StructureType.Viaduct
+                && at > st.S0 - 30 && at < st.S1 + 30)
+                return false;
+        return true;
+    }
+
+    /// <summary>A board stood beside this night's line (<see cref="Place"/>): its land, its footing and the stops' buildings this night's.</summary>
+    BoardSite Site(string edge, RailLine line, double s, int side, string type, string text, BoardDef? def = null, BoardFace? face = null)
+    {
+        var r = _plan.Rules.Billboard;
+        def ??= _plan.Rules.Boards.GetValueOrDefault(type);
+        face ??= BoardLayout.Of(type, text, def, r);
+        // The side every board stands on (billboard.side), whatever side the plan gave it; a plate's side is the way it faces.
+        if (type != "tunnelPlate" && r.Side != 0)
+            side = r.Side;
+        return Place(def, face, r, edge, line, s, side, type, text, Ground, Footing, Shelter, at => ClearOn(edge, at));
+    }
+
+    /// <summary>
+    /// A run of boards close together on one side of the line (within billboard.stackM: a limit and what it's for, a resume
+    /// board and its whistle) stood as one: hung one under another on the run's posts, the first on top, so none stands in
+    /// front of another's sight line. Each board's own site; the posts are the lowest's.
+    /// </summary>
+    List<BoardSite> Stack(string edge, RailLine line, int side, IReadOnlyList<(string Type, string Text, double S)> boards)
+    {
+        var r = _plan.Rules.Billboard;
+        var faces = boards.Select(b => BoardLayout.Of(b.Type, b.Text, _plan.Rules.Boards.GetValueOrDefault(b.Type), r)).ToList();
+        if (boards.Count == 1)
+            return [Site(edge, line, boards[0].S, side, boards[0].Type, boards[0].Text, face: faces[0])];
+        double gap = r.StackGapM, width = faces.Max(f => f.Width), height = faces.Sum(f => f.Height) + gap * (faces.Count - 1);
+        var def = (_plan.Rules.Boards.GetValueOrDefault(boards[0].Type) ?? new BoardDef("", 3.5, 1, 150, true)) with
+        {
+            VisibleM = boards.Max(b => _plan.Rules.Boards.GetValueOrDefault(b.Type)?.VisibleM ?? 150),
+            Warns = boards.Any(b => _plan.Rules.Boards.GetValueOrDefault(b.Type)?.Warns == true),
+        };
+        var whole = Site(edge, line, boards[0].S, side, boards[0].Type, "", def, new BoardFace([], faces[0].Pixel, width, height, 0));
+        var outward = whole.Right * whole.Side;
+        var inner = whole.Bottom - outward * (width / 2);
+        var sites = new List<BoardSite>();
+        double top = whole.Bottom.Y + height;
+        for (int i = 0; i < boards.Count; i++)
+        {
+            top -= faces[i].Height;
+            var bottom = (inner + outward * (faces[i].Width / 2)) with { Y = top };
+            sites.Add(whole with
+            {
+                Type = boards[i].Type,
+                Text = boards[i].Text,
+                S = boards[i].S,
+                Face = faces[i],
+                Bottom = bottom,
+                Posts = i == boards.Count - 1 ? whole.Posts : [],
+            });
+            top -= gap;
+        }
+        return sites;
+    }
+
+    /// <summary>Stands every board of the plan's and the sim's (at the default sight tuning), once.</summary>
+    void Stand()
+    {
+        lock (_boardsLock)
+        {
+            if (_cones is not null)
+                return;
+            var rules = _plan.Rules;
+            // The stops' buildings, as discs round them, as tall as a house is (the sight test's only buildings).
+            foreach (var f in _route.Features)
+                foreach (var b in f.Stop?.Buildings ?? [])
+                {
+                    var w = World(f.Start + b.S, b.D);
+                    double r = double.Hypot(b.Length, b.Width) / 2;
+                    var disc = (w.X, w.Z, r, _terrain.Height(w.X, w.Z) + 9.0);
+                    for (long i = (long)Math.Floor((w.X - r) / BuildingCell); i <= (long)Math.Floor((w.X + r) / BuildingCell); i++)
+                        for (long j = (long)Math.Floor((w.Z - r) / BuildingCell); j <= (long)Math.Floor((w.Z + r) / BuildingCell); j++)
+                        {
+                            if (!_buildings.TryGetValue((i, j), out var list))
+                                _buildings[(i, j)] = list = [];
+                            list.Add(disc);
+                        }
+                }
+            var plan = new Dictionary<PlanSign, BoardSite>();
+            var cones = new SightCones();
+            RailLine? LineOf(string edge) => edge == "main" ? _line
+                : _plan.Edge(edge).Branch is int b && b >= 0 && b < _line.Branches.Count ? _line.Branches[b].Local : null;
+            // A plate on its portal, and a fallen board down where it stood, alone; the standing ones in runs (Stack).
+            var standing = new List<PlanSign>();
+            foreach (var sign in _plan.Signage)
+            {
+                if (sign.State == SignState.Missing || sign.Type == "deadSignal" || LineOf(sign.Edge) is not { } line)
+                    continue;
+                if (sign.State == SignState.Intact && sign.Type != "tunnelPlate")
+                    standing.Add(sign);
+                else
+                    plan[sign] = Site(sign.Edge, line, sign.S, sign.Side, sign.Type, sign.Text);
+            }
+            // The plan's standing boards and the sim's own (sight.json's, on the main line) stand together: a mail crane's
+            // board by a limit's hangs with it, rather than one before the other.
+            int SideOf(PlanSign sign) => rules.Billboard.Side != 0 ? rules.Billboard.Side : sign.Side;
+            bool Warns(string type) => rules.Boards.GetValueOrDefault(type)?.Warns == true;
+            var requests = standing.Select(x => (Plan: (PlanSign?)x, x.Edge, Side: SideOf(x), x.S, x.Type, x.Text))
+                .Concat(Lineside.Boards(new SightTuning(), _route).Select(x =>
+                {
+                    var (type, text) = SightLettering(x);
+                    return (Plan: (PlanSign?)null, Edge: "main", Side: rules.Billboard.Side != 0 ? rules.Billboard.Side : 1, S: x.Board, Type: type, Text: text);
+                }))
+                // (A warning over what stands with it at the same spot: it's read first.)
+                .OrderBy(x => x.Edge, StringComparer.Ordinal).ThenBy(x => x.Side).ThenBy(x => x.S).ThenByDescending(x => Warns(x.Type))
+                .ThenBy(x => x.Type, StringComparer.Ordinal).ThenBy(x => x.Text, StringComparer.Ordinal).ToList();
+            var sight = new Dictionary<(string, long), BoardSite>();
+            foreach (var run in Runs(requests, (a, b) => a.Edge == b.Edge && a.Side == b.Side && b.S - a.S <= rules.Billboard.StackM))
+            {
+                var line = LineOf(run[0].Edge)!;
+                var sites = Stack(run[0].Edge, line, run[0].Side, [.. run.Select(x => (x.Type, x.Text, x.S))]);
+                for (int i = 0; i < run.Count; i++)
+                {
+                    if (run[i].Plan is { } sign)
+                        plan[sign] = sites[i];
+                    else
+                        sight[(run[i].Type, (long)Math.Round(run[i].S * 10))] = sites[i];
+                    cones.Add(line, sites[i], rules.Billboard);
+                }
+            }
+            _planBoards = plan;
+            _sightBoards = sight;
+            _cones = cones;
+        }
+    }
+
+    /// <summary>A sorted list cut into runs: each item joins the run if <paramref name="together"/> holds with the run's last.</summary>
+    static IEnumerable<List<T>> Runs<T>(IReadOnlyList<T> sorted, Func<T, T, bool> together)
+    {
+        var run = new List<T>();
+        foreach (var item in sorted)
+        {
+            if (run.Count > 0 && !together(run[^1], item))
+            {
+                yield return run;
+                run = [];
+            }
+            run.Add(item);
+        }
+        if (run.Count > 0)
+            yield return run;
+    }
+
+    /// <summary>
+    /// Stands a board (note 560): its face stood back <see cref="BillboardRules.InnerM"/> from the track and turned in to the
+    /// cab, up over the land at its foot, and moved back toward the train (or, failing that, on past where the plan put it)
+    /// until the driver sees it, in the lamp, over enough of its approach; never where a post would stand on the line's
+    /// own ground (<paramref name="footing"/>) or by a bridge or tunnel (<paramref name="clear"/>). A tunnel's plate stays on
+    /// its portal. Pure: the same board stands the same on every machine.
+    /// </summary>
+    /// <param name="def">Its kind (signage.json): how high it stands and how far off it's read.</param>
+    /// <param name="face">Its face, as its words lay it out (<see cref="BoardLayout"/>).</param>
+    /// <param name="ground">The land's height at a world point.</param>
+    /// <param name="footing">Whether a post can stand at a world point (the edge, along it and out from it, and the point).</param>
+    /// <param name="shelter">Whether a world point is behind a building.</param>
+    /// <param name="clear">Whether the line is clear of bridges and tunnels at a distance along it.</param>
+    public static BoardSite Place(BoardDef? def, BoardFace face, BillboardRules r, string edge, RailLine line, double s, int side,
+        string type, string text, Func<double, double, double> ground, Func<string, double, double, Double3, bool> footing,
+        Func<Double3, bool> shelter, Func<double, bool> clear)
+    {
+        if (type == "tunnelPlate")
+        {
+            // Over the arch, square on its portal, facing out of it (+1 the train coming in; −1 the far portal's).
+            var t = line.Sample(Math.Clamp(s, 0, line.Length));
+            var fwd = new Double3(t.Tangent.X, 0, t.Tangent.Z).Normalized;
+            var toward = fwd * -side;
+            var right = Double3.Cross(Double3.Up, toward);
+            double top = def?.HeightM ?? 11.2;
+            return new BoardSite(type, text, edge, s, s, side, face, t.Position + Double3.Up * (top - face.Height), right, toward, [], 0, 0);
+        }
+        BoardSite? best = null;
+        int steps = (int)Math.Floor(r.MaxBackM / Math.Max(1, r.StepBackM));
+        bool Clear(double at) => at >= 0 && at <= line.Length && clear(at) && clear(at - face.Width) && clear(at + face.Width);
+        // Its own side first, then (an alternate's track or a road along it, a stop's ground) the other. Back toward the
+        // train first, then (not for a warning: it'd come too late) on past the plan's spot.
+        foreach (int stand in (ReadOnlySpan<int>)[side, -side])
+        {
+            for (int k = 0; k <= (def?.Warns == true ? steps : 2 * steps); k++)
+            {
+                double at = k <= steps ? s - k * r.StepBackM : s + (k - steps) * r.StepBackM;
+                if (!Clear(at) || Stood(line, edge, at, stand, type, text, face, def, r, ground, footing, shelter) is not { } site)
+                    continue;
+                site = site with { S = s };
+                if (site.SeenM >= r.SeenShare * site.ApproachM - 1e-9)
+                    return site;
+                if (best is null || site.SeenM > best.SeenM)
+                    best = site;
+            }
+            if (best is not null)
+                return best;
+        }
+        // Nowhere to stand near it (a limit for a bend inside a tunnel): the first spot back down the line clear of tunnels
+        // and bridges, never up on the hill over the bore.
+        for (double at = s; at >= Math.Max(0, s - 1000); at -= r.StepBackM)
+            if (Clear(at))
+                return Stood(line, edge, at, side, type, text, face, def, r, ground, (_, _, _, _) => true, shelter)! with { S = s };
+        return Stood(line, edge, Math.Clamp(s, 0, line.Length), side, type, text, face, def, r, ground, (_, _, _, _) => true, shelter)! with { S = s };
+    }
+
+    /// <summary>A board stood at <paramref name="at"/>, its sight measured; null if a post can't stand there.</summary>
+    static BoardSite? Stood(RailLine line, string edge, double at, int side, string type, string text, BoardFace face, BoardDef? def, BillboardRules r,
+        Func<double, double, double> ground, Func<string, double, double, Double3, bool> footing, Func<Double3, bool> shelter)
+    {
+        var t = line.Sample(at);
+        var fwd = new Double3(t.Tangent.X, 0, t.Tangent.Z).Normalized;
+        var across = Double3.Cross(fwd, Double3.Up).Normalized;
+        double turn = r.TowardDeg * DMath.PI / 180, cos = DMath.Cos(turn), sin = DMath.Sin(turn);
+        // Facing back down the line at the train, turned in toward the track; its face runs out from the inner edge.
+        var toward = (fwd * -cos - across * (side * sin)).Normalized;
+        var right = Double3.Cross(Double3.Up, toward).Normalized;
+        var outward = right * side;
+        var inner = t.Position + across * (side * r.InnerM);
+        double w = face.Width;
+        // Its posts: one under a narrow board, two under a wide one, none nearer the track than postsFromM.
+        double[] us = w > 3 ? [0.2 * w, 0.8 * w] : [0.5 * w];
+        for (int i = 0; i < us.Length; i++)
+            us[i] = Math.Min(w, Math.Max(us[i], (r.PostsFromM - r.InnerM) / Math.Max(0.1, cos)));
+        var feet = new Double3[us.Length];
+        double highest = double.MinValue;
+        for (int i = 0; i < us.Length; i++)
+        {
+            var p = inner + outward * us[i];
+            double g = ground(p.X, p.Z);
+            feet[i] = p with { Y = g };
+            if (!footing(edge, at - sin * us[i], side * (r.InnerM + cos * us[i]), p))
+                return null;
+            highest = Math.Max(highest, g);
+        }
+        foreach (double u in (ReadOnlySpan<double>)[0, 0.5 * w, w])
+        {
+            var p = inner + outward * u;
+            highest = Math.Max(highest, ground(p.X, p.Z));
+        }
+        double bottomY = Math.Max(t.Position.Y + (def?.HeightM ?? 3.5), highest + r.OverGroundM);
+        var bottom = (inner + outward * (w / 2)) with { Y = bottomY };
+        var posts = feet.Select(f => (f, bottomY + face.Height * 0.85 - f.Y)).ToArray();
+        // How much of its approach sees it: the driver's eye every sightStepM from visibleM out to readToM short of it.
+        var centre = bottom + Double3.Up * (face.Height / 2);
+        double cone = DMath.Cos(r.LampConeDeg * DMath.PI / 180);
+        double visible = def?.VisibleM ?? 150, seen = 0, approach = 0;
+        var from = new List<double>();
+        for (double d = visible; d >= r.ReadToM - 1e-9; d -= r.SightStepM)
+        {
+            double a = at - d;
+            if (a < 0)
+                continue;
+            approach += r.SightStepM;
+            var c = line.Sample(a);
+            var eye = c.Position + Double3.Up * r.EyeM;
+            var to = centre - eye;
+            var flat = new Double3(to.X, 0, to.Z);
+            var dir = new Double3(c.Tangent.X, 0, c.Tangent.Z).Normalized;
+            // In the lamp's cone (it shines along the engine's heading), and the whole face past the land and the buildings:
+            // its middle and its two lower corners (a cutting's bank hides the low outer end first).
+            if (Double3.Dot(flat.Normalized, dir) < cone || !Sees(eye, centre, ground, shelter)
+                || !Sees(eye, bottom + outward * (0.4 * w) + Double3.Up * (0.2 * face.Height), ground, shelter)
+                || !Sees(eye, bottom - outward * (0.4 * w) + Double3.Up * (0.2 * face.Height), ground, shelter))
+                continue;
+            seen += r.SightStepM;
+            from.Add(a);
+        }
+        return new BoardSite(type, text, edge, at, at, side, face, bottom, right, toward, posts, seen, approach) { SeenFrom = from };
+    }
+
+    /// <summary>How finely a sight line is asked of the land (m): finer than any rise that could hide a board this big.</summary>
+    const double RayStepM = 12;
+
+    /// <summary>Whether the land, or a building, stands between the eye and a point (every <see cref="RayStepM"/> along).</summary>
+    static bool Sees(Double3 eye, Double3 target, Func<double, double, double> ground, Func<Double3, bool> shelter)
+    {
+        var d = target - eye;
+        int n = Math.Max(1, (int)Math.Ceiling(d.Length / RayStepM));
+        for (int i = 1; i < n; i++)
+        {
+            var p = eye + d * ((double)i / n);
+            if (ground(p.X, p.Z) > p.Y - 0.3 || shelter(p))
+                return false;
+        }
+        return true;
+    }
+
+    /// <summary>
+    /// The boards' sight lines on the ground (note 560): for each, the triangles between the driver's eye where it sees the
+    /// board and its face's two ends, in a grid so a tree asks only those near it.
+    /// </summary>
+    sealed class SightCones
+    {
+        const double Cell = 32, Pad = 20;
+        readonly List<(double Ax, double Az, double Bx, double Bz, double Cx, double Cz)> _tris = [];
+        readonly Dictionary<(long, long), List<int>> _grid = [];
+
+        public void Add(RailLine line, BoardSite site, BillboardRules r)
+        {
+            var inner = site.Bottom - site.Right * (site.Side * site.Face.Width / 2);
+            var outer = site.Bottom + site.Right * (site.Side * site.Face.Width / 2);
+            // From where the driver sees it, and between neighbouring such places.
+            double? last = null;
+            foreach (double a in site.SeenFrom)
+            {
+                var c = line.Sample(a).Position;
+                Tri(c, inner, outer);
+                if (last is { } l && a - l <= r.SightStepM + 1e-6)
+                {
+                    var p = line.Sample(l).Position;
+                    Tri(p, c, inner);
+                    Tri(p, c, outer);
+                }
+                last = a;
+            }
+            // And the ground under the face itself.
+            Tri(inner, outer, inner - site.Toward * 2);
+            Tri(inner, outer, outer - site.Toward * 2);
+        }
+
+        void Tri(Double3 a, Double3 b, Double3 c)
+        {
+            int i = _tris.Count;
+            _tris.Add((a.X, a.Z, b.X, b.Z, c.X, c.Z));
+            long x0 = (long)Math.Floor((Math.Min(a.X, Math.Min(b.X, c.X)) - Pad) / Cell), x1 = (long)Math.Floor((Math.Max(a.X, Math.Max(b.X, c.X)) + Pad) / Cell);
+            long z0 = (long)Math.Floor((Math.Min(a.Z, Math.Min(b.Z, c.Z)) - Pad) / Cell), z1 = (long)Math.Floor((Math.Max(a.Z, Math.Max(b.Z, c.Z)) + Pad) / Cell);
+            for (long x = x0; x <= x1; x++)
+                for (long z = z0; z <= z1; z++)
+                {
+                    if (!_grid.TryGetValue((x, z), out var list))
+                        _grid[(x, z)] = list = [];
+                    list.Add(i);
+                }
+        }
+
+        /// <summary>Whether a disc of <paramref name="r"/> (at most <see cref="Pad"/>) at a point meets any sight triangle.</summary>
+        public bool Holds(double x, double z, double r)
+        {
+            if (!_grid.TryGetValue(((long)Math.Floor(x / Cell), (long)Math.Floor(z / Cell)), out var list))
+                return false;
+            r = Math.Min(r, Pad);
+            foreach (int i in list)
+            {
+                var (ax, az, bx, bz, cx, cz) = _tris[i];
+                if (Inside(x, z, ax, az, bx, bz, cx, cz) || Near(x, z, ax, az, bx, bz, r) || Near(x, z, bx, bz, cx, cz, r) || Near(x, z, cx, cz, ax, az, r))
+                    return true;
+            }
+            return false;
+        }
+
+        static bool Inside(double x, double z, double ax, double az, double bx, double bz, double cx, double cz)
+        {
+            double d1 = (x - bx) * (az - bz) - (ax - bx) * (z - bz);
+            double d2 = (x - cx) * (bz - cz) - (bx - cx) * (z - cz);
+            double d3 = (x - ax) * (cz - az) - (cx - ax) * (z - az);
+            bool neg = d1 < 0 || d2 < 0 || d3 < 0, pos = d1 > 0 || d2 > 0 || d3 > 0;
+            return !(neg && pos);
+        }
+
+        static bool Near(double x, double z, double ax, double az, double bx, double bz, double r)
+        {
+            double dx = bx - ax, dz = bz - az, len = dx * dx + dz * dz;
+            double t = len < 1e-12 ? 0 : Math.Clamp(((x - ax) * dx + (z - az) * dz) / len, 0, 1);
+            double px = ax + dx * t - x, pz = az + dz * t - z;
+            return px * px + pz * pz < r * r;
+        }
+    }
+}

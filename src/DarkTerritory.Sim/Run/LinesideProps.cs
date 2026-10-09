@@ -264,7 +264,11 @@ public sealed partial class LinesideProps
     /// </summary>
     /// <param name="reach">Only what stands within this of the line (m): the rest is dealt and passed over unchecked, so
     /// what's within it is the same either way.</param>
-    public IEnumerable<LinesideProp> Props(double from, double to, double reach = double.MaxValue)
+    public IEnumerable<LinesideProp> Props(double from, double to, double reach = double.MaxValue) =>
+        // The boards' sight lines are kept clear (note 560): what would stand in one isn't there.
+        Dealt(from, to, reach).Where(p => !Hidden(p));
+
+    IEnumerable<LinesideProp> Dealt(double from, double to, double reach)
     {
         for (double s = Math.Ceiling(from / SlotM) * SlotM; s < to; s += SlotM)
             foreach (var p in Slot(s, reach))

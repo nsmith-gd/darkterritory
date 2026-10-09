@@ -470,6 +470,10 @@ public sealed partial class WorldArt
                 double offset = side * (5.5 + rng.NextDouble() * 6.5), along = s + rng.NextDouble() * 6;
                 if (!Free(along, offset))
                     continue;
+                // Cut back out of the boards' sight lines (note 560), as the woods are: it grows to a man's height and more.
+                var at = lineside?.World(along, offset);
+                if (at is { } w && lineside!.InBoardsSight(w.X, w.Z, 2.5))
+                    continue;
                 int v = rng.Next(4);
                 var (m, slope) = Place(along, offset, (float)rng.NextDouble() * 6.28f, 0.8f + (float)rng.NextDouble() * 0.6f, 0.1f);
                 if (slope < 0.9f)
@@ -575,7 +579,7 @@ public sealed partial class WorldArt
         if (Scene(route) is not { } p)
             return;
         BranchLand(mesh, p, route, eye, drawDistance);
-        Signs(mesh, p, eye, drawDistance);
+        Signs(mesh, p, route, eye, drawDistance);
         Hazards(mesh, p, eye, drawDistance, time);
         Banks(mesh, p, route, eye, drawDistance);
         Water(mesh, p, eye, drawDistance);
@@ -691,35 +695,34 @@ public sealed partial class WorldArt
 
     // ------------------------------------------------------------------ boards
 
-    void Signs(MeshBuilder mesh, PlanScene p, Double3 eye, float drawDistance)
+    /// <summary>
+    /// The plan's boards where the sim stands them (note 560; <see cref="Sim.Run.LinesideProps.PlanBoards"/>): stood back from the
+    /// line on their posts, as big as their words, their sight lines clear, shining back at the lamp; a fallen one down in
+    /// the brush at its foot. The dead signals beside them.
+    /// </summary>
+    void Signs(MeshBuilder mesh, PlanScene p, Route route, Double3 eye, float drawDistance)
     {
         var rules = p.Plan.Rules;
+        var boards = Sim.Run.LinesideProps.Of(route, p.Line)?.PlanBoards;
+        double reach = Math.Min(drawDistance, rules.Billboard.DrawM);
         foreach (var sign in p.Plan.Signage)
         {
             if (sign.State == SignState.Missing)
                 continue;
-            var line = p.EdgeLine(sign.Edge);
-            var t = line.Sample(Math.Clamp(sign.S, 0, line.Length));
-            if ((t.Position - eye).Length > Math.Min(drawDistance, 300))
-                continue;
-            var right = Double3.Cross(t.Tangent, Double3.Up).Normalized;
             if (sign.Type == "deadSignal")
             {
+                var line = p.EdgeLine(sign.Edge);
+                var t = line.Sample(Math.Clamp(sign.S, 0, line.Length));
+                if ((t.Position - eye).Length > reach)
+                    continue;
+                var right = Double3.Cross(t.Tangent, Double3.Up).Normalized;
                 var foot = t.Position + right * (sign.Side * (rules.SignOffsetM + 0.6)) - Double3.Up * 0.25;
                 mesh.Instances.Add(new MeshInstance(Piece("signal-False", () => WorldKit.Signal(_look, false)), Basis(t.Tangent, foot, eye, MathF.PI)));
                 continue;
             }
-            var board = rules.Boards.GetValueOrDefault(sign.Type);
-            float width = (float)(board?.WidthM ?? 0.8), height = (float)(board?.HeightM ?? 2.2);
-            var piece = Piece($"sign-{sign.Type}-{sign.Text}", () => SignKit.Board(_look, sign.Type, sign.Text, width, height));
-            bool plate = sign.Type == "tunnelPlate";
-            var at = plate ? t.Position : t.Position + right * (sign.Side * rules.SignOffsetM) - Double3.Up * 0.25;
-            // Turned a little toward the track, so the lamp catches it square; a tunnel's plate square on its portal's face, the
-            // far portal's turned round as its portal is (WorldFeatures.Tunnel).
-            var m = Basis(t.Tangent, at, eye, plate ? sign.Side > 0 ? 0 : MathF.PI : -sign.Side * 0.18f);
-            if (sign.State == SignState.Fallen)
-                m = Matrix4x4.CreateRotationZ(sign.Side * 1.35f) * Matrix4x4.CreateTranslation(0, 0.15f, 0) * m;
-            mesh.Instances.Add(new MeshInstance(piece, m));
+            if (boards?.GetValueOrDefault(sign) is not { } site || (site.Centre - eye).Length > reach)
+                continue;
+            Billboard(mesh, site, rules.Billboard, rules.Boards.GetValueOrDefault(sign.Type)?.VisibleM ?? 150, eye, sign.State == SignState.Fallen);
         }
     }
 

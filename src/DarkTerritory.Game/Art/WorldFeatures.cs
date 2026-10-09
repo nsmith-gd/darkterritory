@@ -79,8 +79,9 @@ public sealed partial class WorldArt
     /// </summary>
     /// <param name="type">What a generated line's plan built it as (linegen plan §12.3): a girder viaduct or a truss in iron,
     /// a timber trestle, or stone. Unset (a hand-laid line), the masonry viaduct, or the trestle where it's weak.</param>
+    /// <param name="lettered">Its car limit on boards at its ends (a hand-laid line's; a generated line's plan boards its own).</param>
     public void Bridge(MeshBuilder mesh, RailLine line, RouteFeature f, Double3 eye, double from, double to, float depth,
-        Sim.LineGen.StructureType? type = null)
+        Sim.LineGen.StructureType? type = null, bool lettered = true)
     {
         bool weak = f.MaxCars > 0 || type == Sim.LineGen.StructureType.Trestle;
         float step = weak ? StructureKit.Bent : StructureKit.Bay;
@@ -113,24 +114,29 @@ public sealed partial class WorldArt
             mesh.Instances.Add(new MeshInstance(piece, at));
         }
         // Its limit on a board at each end, facing the train coming onto it (GDD §17 "a bridge that takes four cars"):
-        // the speed board's posted limit is the sim's, this is the count it'll carry.
-        if (f.MaxCars > 0)
+        // the speed board's posted limit is the sim's, this is the count it'll carry. Stood and lettered as the plan's boards
+        // are (note 560); a generated line's plan has its own (bridgeLimit), where its land is.
+        if (f.MaxCars > 0 && lettered)
             foreach (var (s, dir) in new[] { (f.Start - 25, 1), (f.End + 25, -1) })
             {
                 if (s < from - 50 || s > to + 50)
                     continue;
-                var t = line.Sample(Math.Clamp(s, 0, line.Length));
-                if ((t.Position - eye).Length > 300)
-                    continue;
-                var fwd = new Vector3((float)t.Tangent.X, 0, (float)t.Tangent.Z) * dir;
-                fwd = Vector3.Normalize(fwd);
-                var right = Vector3.Cross(fwd, Vector3.UnitY);
-                var toward = -fwd;
-                var foot = (t.Position + new Double3(right.X, 0, right.Z) * 3.4).RelativeTo(eye);
-                var board = Piece($"board-weak-{f.MaxCars}", () => SignKit.Board(_look, "restricted", $"{f.MaxCars} CARS", 1.0f, 3.9f));
-                var up = Vector3.UnitY;
-                mesh.Instances.Add(new MeshInstance(board, new Matrix4x4(right.X, right.Y, right.Z, 0, up.X, up.Y, up.Z, 0,
-                    toward.X, toward.Y, toward.Z, 0, foot.X, foot.Y, foot.Z, 1)));
+                var (boards, rules) = HandLaidSignage;
+                // The billboard side as the train coming onto it sees it: for one coming the other way, the line's other side.
+                int side = BillboardSide(rules);
+                var site = HandLaidSite(line, Math.Clamp(s, 0, line.Length), side * dir, "bridgeLimit", $"MAX {f.MaxCars} CARS");
+                if (dir < 0)
+                {
+                    // Turned to the train coming the other way.
+                    var t = line.Sample(Math.Clamp(s, 0, line.Length));
+                    var fwd = new Double3(t.Tangent.X, 0, t.Tangent.Z).Normalized;
+                    var inner = site.Bottom - site.Right * (site.Side * site.Face.Width / 2);
+                    var toward = site.Toward - fwd * (2 * Double3.Dot(site.Toward, fwd));
+                    var right = Double3.Cross(Double3.Up, toward).Normalized;
+                    site = site with { Toward = toward, Right = right, Side = side, Bottom = inner + right * (side * site.Face.Width / 2) };
+                }
+                if ((site.Centre - eye).Length <= rules.DrawM)
+                    Billboard(mesh, site, rules, boards.GetValueOrDefault("bridgeLimit")?.VisibleM ?? 300, eye);
             }
     }
 
