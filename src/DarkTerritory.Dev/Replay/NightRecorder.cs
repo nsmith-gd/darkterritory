@@ -108,6 +108,10 @@ public sealed class NightRecorder(string directory, bool voice = false, int keep
     public (TimeSpan Spent, long Polls, long RawBytes) Cost => _transport is { } t ? (t.Spent, t.Log.Polls, t.Log.RawBytes) : _last;
     (TimeSpan, long, long) _last;
 
+    /// <summary>What recording cost the median step of that night, in microseconds (<see cref="RecordingTransport.MedianStepMicros"/>).</summary>
+    public double MedianStepMicros => _transport?.MedianStepMicros ?? _lastMedian;
+    double _lastMedian;
+
     RecordingTransport? _transport;
     HostSession? _host;
     int _hostPlayer = -1;
@@ -224,6 +228,7 @@ public sealed class NightRecorder(string directory, bool voice = false, int keep
         };
         t.Log.Close(end.ToJsonString(NightHeader.Compact));
         _last = (t.Spent, t.Log.Polls, t.Log.RawBytes);
+        _lastMedian = t.MedianStepMicros;
         _transport = null;
         _host = null;
         if (Current is { } closed)
