@@ -2678,11 +2678,12 @@ static object HudShot(string content, string[] args)
     // --lost --refused (note 254): back too late to a full crew, turned away: CREW FULL (2/2). --crew-full: the host at its cap.
     // --link-quality [host|joiner] (note 534): a hosted night in the yard with two joiners over loopback, one of them losing
     // 12% of what it sends, seen by the host (each crewmate's link on the lobby panel) or by the first joiner (its own).
+    // --link-quality line (note 540): the host's view as if out on the line, its corner naming the struggling joiner.
     using var spectated = args.Contains("--spectating") ? Spectating(content, Str(args, "--route", "frontier:7"), cars, args.Contains("--vote") || args.Contains("--ballot"),
             args.Contains("--joining") ? DeathCause.Waiting : DeathCause.Mauled)
         : args.Contains("--lost") ? LostLink(content, Str(args, "--route", "frontier:7"), cars, refused: args.Contains("--refused"))
         : args.Contains("--crew-full") ? CrewFull(content, Str(args, "--route", "frontier:7"), cars)
-        : args.Contains("--link-quality") ? LinkQuality(content, Str(args, "--route", "frontier:7"), cars, joiner: Str(args, "--link-quality", "host") == "joiner") : null;
+        : args.Contains("--link-quality") ? LinkQuality(content, Str(args, "--route", "frontier:7"), cars, joiner: Str(args, "--link-quality", "host") == "joiner", line: Str(args, "--link-quality", "host") == "line") : null;
     IPlaySession session;
     if (spectated is { } pair)
     {
@@ -3121,7 +3122,7 @@ static SpectatedNight CrewFull(string content, string route, int cars)
     return new SpectatedNight(joiner, host);
 }
 
-static SpectatedNight LinkQuality(string content, string route, int cars, bool joiner)
+static SpectatedNight LinkQuality(string content, string route, int cars, bool joiner, bool line = false)
 {
     var host = NetPlaySession.HostGame(content, new SessionSetup(Route: route, Cars: cars, Enemies: false), port: 0);
     var at = new System.Net.IPEndPoint(System.Net.IPAddress.Loopback, host.Port);
@@ -3136,6 +3137,9 @@ static SpectatedNight LinkQuality(string content, string route, int cars, bool j
         poor.Step(default);
         Thread.Sleep(1);
     }
+    // The drawn world only (the host's own client's), past the gate: the night itself never left the yard.
+    if (line && host.World.Run is { } run)
+        run.Resume(60, -1, host.Train.Boiler.Tender, host.Train.Vehicles.Sum(v => v.Gun.Ammo));
     return joiner ? new SpectatedNight(host, good) : new SpectatedNight(good, host);
 }
 

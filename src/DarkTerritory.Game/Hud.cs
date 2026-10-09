@@ -439,10 +439,24 @@ public static partial class Hud
                 UiStyle.Keyed(o, Overlay.Snap(right - UiStyle.MeasureKeyed(o, how, k), k), 5 + line + 2 * k, how, link.Attempt > 0 ? Amber : Red, k);
             return;
         }
+        bool yard = s.World.Run is null or { Phase: Sim.Run.RunPhase.Yard };
         if (link.PingMs is not { } ping)
+        {
+            // Note 540: hosting, out on the line, whose link has gone bad, as a joiner's own is said (the yard's lobby panel
+            // has every crewmate's). Nobody else knows: the host's the one who can wait for them, or warn them.
+            if (!yard && BadLinks(link, s.Roster()) is { Count: > 0 } bad)
+            {
+                float y = 5;
+                foreach (var (text, ink) in bad)
+                {
+                    o.TextRight(right, y, text, ink, k);
+                    y += (line + 1) * k;
+                }
+            }
             return;
+        }
         var colour = PingInk(ping);
-        if (s.World.Run is null or { Phase: Sim.Run.RunPhase.Yard })
+        if (yard)
         {
             // Just the milliseconds at the big size: "PING 100 MS" ran into the route strip at 1280 wide (the 4 Oct rehearsal).
             o.TextRight(right, 5, $"{ping:0} MS", colour, scale: 2);
@@ -463,6 +477,31 @@ public static partial class Hud
             if (link.Loss is { } loss && loss >= Tuning.LossWarn)
                 o.TextRight(right, y, $"{Percent(loss)} LOST", LossInk(loss), k);
         }
+    }
+
+    /// <summary>The most crewmates named at once in the host's corner (note 540); past it, "AND n MORE".</summary>
+    const int BadLinksShown = 3;
+
+    /// <summary>
+    /// The host's corner out on the line (note 540): each crewmate whose round trip or loss has gone bad (hud.json
+    /// <c>pingWarnMs</c>, <c>lossWarn</c>), by name, worst first, "PRIYA: 13% LOST" or "SAM: PING 210 MS"; the rest counted.
+    /// </summary>
+    public static List<(string Text, Vector4 Ink)> BadLinks(LinkInfo link, IReadOnlyList<RosterLine> roster)
+    {
+        var bad = link.Crew
+            .Where(c => c.PingMs >= Tuning.PingWarnMs || c.Loss >= Tuning.LossWarn)
+            .OrderByDescending(c => Math.Max(c.PingMs / Tuning.PingWarnMs, (c.Loss ?? 0) / Tuning.LossWarn)).ThenBy(c => c.Id)
+            .ToList();
+        var lines = new List<(string, Vector4)>();
+        foreach (var c in bad.Take(BadLinksShown))
+        {
+            string name = roster.FirstOrDefault(r => r.Id == c.Id).Name is { Length: > 0 } n ? n : $"CREW {c.Id}";
+            bool lossy = c.Loss is { } l && l >= Tuning.LossWarn && l / Tuning.LossWarn >= c.PingMs / Tuning.PingWarnMs;
+            lines.Add(($"{name}: {(lossy ? $"{Percent(c.Loss!.Value)} LOST" : $"PING {c.PingMs:0} MS")}", Red));
+        }
+        if (bad.Count > BadLinksShown)
+            lines.Add(($"AND {bad.Count - BadLinksShown} MORE", Red));
+        return lines;
     }
 
     /// <summary>A round trip's ink: good, going (a warning), bad (hud.json <c>pingWarnMs</c>).</summary>
