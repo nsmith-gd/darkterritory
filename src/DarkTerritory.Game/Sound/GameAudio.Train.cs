@@ -574,6 +574,8 @@ public sealed partial class GameAudio
     const double WreckHitJump = 3, WreckHitEvery = 0.5;
     // Off the rails: sliding sideways faster than this (or this share of its speed). Over: its up past 55° from the sky's.
     const double WreckSlip = 0.5, WreckSlipShare = 0.04, WreckOver = 0.5736;
+    // Going up or down faster than this (m/s), a wreck's car is in the air, not sliding on anything (note 579).
+    const double WreckAirborne = 2.5;
     // A coupling torn: the cars it joined this much further apart than when they came off (it's slack, then it's gone).
     const double WreckTear = 1.5;
 
@@ -671,12 +673,14 @@ public sealed partial class GameAudio
                 c.Over = true;
                 Cue("state-derail.tip", b.Centre + b.Up * 0.5, occlusion, (float)Math.Clamp(0.5 + speed / 15, 0.5, 1));
             }
-            // Sliding: on the rails, then through the ballast; held while it goes, louder the faster.
-            if (!wreck.Settled && speed > 0.6)
+            // Sliding: on the rails, then through the ballast; held while it goes, louder the faster. Along the ground: a car
+            // blasted up into the air (note 579) isn't dragging on anything till it comes down.
+            double sliding = new Double3(b.Velocity.X, 0, b.Velocity.Z).Length;
+            if (!wreck.Settled && sliding > 0.6 && Math.Abs(b.Velocity.Y) < WreckAirborne)
             {
                 string slide = c.Off ? "state-derail.grind" : "state-derail.rail-scrape";
                 if (HasCue(slide))
-                    HoldLevel(slide, b.Vehicle, b.ToWorld(new Double3(0, 0.4, 0)), occlusion, Math.Clamp(speed / (c.Off ? 8 : 10), 0.25, 1));
+                    HoldLevel(slide, b.Vehicle, b.ToWorld(new Double3(0, 0.4, 0)), occlusion, Math.Clamp(sliding / (c.Off ? 8 : 10), 0.25, 1));
             }
             // At rest after it's been moving: it settles, creaking.
             c.Moved |= speed > 2;
