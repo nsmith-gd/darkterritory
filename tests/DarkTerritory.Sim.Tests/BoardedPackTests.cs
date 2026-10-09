@@ -182,4 +182,19 @@ public class BoardedPackTests
         Assert.Equal(P.Health, least);
         Assert.True(n.Train.Dynamics.Consist.IndexOf(rear) < 0, "the pack's car is cut loose");
     }
+
+    [Fact]
+    public void WithNoCarToSpareTheDriverDrivesOnRatherThanCutAtThePack()
+    {
+        // Note 528 again (D1's seed 3, its third pack): on the front car of what was left, the only cut was at the hounds' own
+        // coupling, and the driver went to it and was mauled. With no car between, it stays at the controls and drives on.
+        var n = new Lone(cars: 2, speed: 12);
+        var pack = n.Pack(n.Train.Dynamics.Consist.Vehicles.Count - 1, 4);
+        bool left = false;
+        n.Until(() => { left |= !PlayerMotor.InCab(n.Self, n.Train); return false; }, 120);
+        Assert.False(left, $"went out: {string.Join(" ", n.Path)}");
+        Assert.Equal(P.Health, n.Self.Health);
+        Assert.True(n.Train.Dynamics.Speed > 3, $"standing at {n.Train.Dynamics.Speed:0.0} m/s");
+        Assert.False(n.Driver.CuttingAlone);
+    }
 }
