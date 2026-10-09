@@ -25,6 +25,13 @@ public enum Cloth
 public sealed record Dye(string? Texture, Vector3 Colour, float Shine = 0.05f);
 
 /// <summary>
+/// Something that grows on the face or head (a beard, short hair): the head's own triangles where <see cref="On"/> holds
+/// (their middle, in the bind pose), copied <see cref="Out"/> metres out along their normals and dyed, so it lies on the
+/// face it grows from and moves with it.
+/// </summary>
+public sealed record Growth(string Name, Func<Vector3, bool> On, float Out, Dye Dye);
+
+/// <summary>
 /// The survivors' figure (tools/models/recipes/survivor_prisoner.py: the crew figure in penal greys) dressed as somebody
 /// else, without a new model (this container builds none: Blender isn't here): the long coat, the scarf and the chest lamp
 /// left off, and what's under them, the figure's frame, cut by the bone each triangle moves with into <see cref="Cloth"/>
@@ -38,12 +45,16 @@ public static class Redress
     const float Waist = 0.94f;
     /// <summary>The satchel at the right hip (what's out past this below the arms, m): left off with the coat.</summary>
     const float Satchel = 0.2f;
+    /// <summary>The middle of the survivors' head in its bind pose (m): what grows on it grows out from here.</summary>
+    static readonly Vector3 HeadMiddle = new(0, 1.64f, -0.015f);
 
     /// <param name="figure">The survivors' figure as loaded.</param>
     /// <param name="name">What to call the dressed one.</param>
     /// <param name="dyes">A dye for each cloth to colour; one not given keeps the figure's own atlas there (its face, its hands).</param>
     /// <param name="shape">Moves the bind pose's vertices before they're cut (a slimmer waist, narrower shoulders), or null.</param>
-    public static Model Of(Model figure, string name, IReadOnlyDictionary<Cloth, Dye> dyes, Func<Vector3, string, Vector3>? shape = null)
+    /// <param name="growths">Beards and hair grown from the head's own surface, or null.</param>
+    public static Model Of(Model figure, string name, IReadOnlyDictionary<Cloth, Dye> dyes, Func<Vector3, string, Vector3>? shape = null,
+        IReadOnlyList<Growth>? growths = null)
     {
         var bones = figure.Skeleton.Names;
         var materials = figure.Materials.ToList();
@@ -83,6 +94,37 @@ public static class Redress
                 list.Add(idx[t + 1]);
                 list.Add(idx[t + 2]);
             }
+            if (headOnly && growths is not null && cut.TryGetValue(Cloth.Face, out var face))
+                foreach (var g in growths)
+                {
+                    var grown = new List<int>();
+                    for (int t = 0; t + 2 < face.Count; t += 3)
+                        if (g.On((positions[face[t]] + positions[face[t + 1]] + positions[face[t + 2]]) / 3))
+                            grown.AddRange([face[t], face[t + 1], face[t + 2]]);
+                    if (grown.Count == 0)
+                        continue;
+                    // Out from the head's middle, not along the scan's normals (they don't all face out).
+                    var outward = new Vector3[positions.Length];
+                    var normals = new Vector3[positions.Length];
+                    for (int v = 0; v < outward.Length; v++)
+                    {
+                        normals[v] = Vector3.Normalize(positions[v] - HeadMiddle);
+                        outward[v] = positions[v] + normals[v] * g.Out;
+                    }
+                    materials.Add(new ModelMaterial($"{name}.{g.Name}", g.Dye.Texture ?? figure.Materials[part.Material].Texture, g.Dye.Colour, g.Dye.Shine, 0, 0, g.Dye.Colour));
+                    parts.Add(new MeshPart
+                    {
+                        Name = $"{part.Name}.{g.Name}",
+                        Material = materials.Count - 1,
+                        Positions = outward,
+                        Normals = normals,
+                        Uvs = part.Uvs,
+                        Joints = part.Joints,
+                        Weights = part.Weights,
+                        Indices = [.. grown],
+                        Variants = part.Variants,
+                    });
+                }
             foreach (var (cloth, indices) in cut.OrderBy(kv => kv.Key))
                 parts.Add(new MeshPart
                 {

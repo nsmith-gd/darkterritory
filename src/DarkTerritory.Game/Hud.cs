@@ -2106,9 +2106,9 @@ public static partial class Hud
         // A switch stand's lever (queue #94, note 357): Use is the lever's there, so it's offered before what's lying by it.
         if (SwitchPrompt(world, p, train, hand) is { } atStand)
             return atStand;
-        // Dave (note 570): a word with him, before anything lying at his feet.
-        if (FigureTalk.Target(s) is { } dave)
-            return FigureTalk.Prompt(dave);
+        // Dave or Jacob (notes 570, 572): a word with him, before anything lying at his feet.
+        if (FigureTalk.Target(s) is { } figure)
+            return FigureTalk.Prompt(figure);
         // A fortress town (note 281): somebody to talk to, a paper to read, a thing to look at. Before what's lying in reach,
         // so a lamp at somebody's feet doesn't take the press meant for them.
         if (world.Town is { } town && town.Target(p, train.Dynamics.Tuning.Pick.EyeHeight) is { } there)

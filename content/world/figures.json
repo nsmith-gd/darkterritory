@@ -44,5 +44,21 @@
       "That's four. ... I've set my brush down. Think on it."
     ],
     "last": "You should be nicer in a dark world."
+  },
+
+  // JACOB (the director, 8 Oct 2026: "an NPC named Jacob who can be found randomly in the world near water edges, fishing.
+  // He's another legendary NPC who if found and talked to will cast magic over the train and repair everything instantly";
+  // note 572). Old, unhurried, a fisherman out of a story. A word with him mends the train; he says so once, then that's
+  // what he says.
+  "jacob": {
+    "name": "Jacob",
+    "title": "fishing",
+    "lines": [
+      "Ah. Found me, did you. Not many do.",
+      "Nothing's biting. Never is. I'm not here for the fish.",
+      "That engine of yours is sore. I can hear it from here.",
+      "Sit a while. The water's the only thing left out here that remembers how to be still."
+    ],
+    "blessing": "There. She'll run like the morning she was built. Go on, now, before the tide turns."
   }
 }

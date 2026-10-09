@@ -29,7 +29,9 @@ public enum EnemyKind : byte
     // Hotbox (GDD §21, the director's brief of 8 Oct 2026; note 367).
     Hotbox = 38,
     // Dave, the wandering painter (GDD §3.2, the director, 8 Oct 2026; note 570): not a creature, and nobody's quarry.
-    Dave = 39
+    Dave = 39,
+    // Jacob, the fisherman (GDD §3.2, the director, 8 Oct 2026; note 572): rarer still, and he mends the train.
+    Jacob = 40
 }
 
 /// <summary>
@@ -230,6 +232,7 @@ public abstract class Enemy
         EnemyKind.Hotbox => new Hotbox(id),
         EnemyKind.Knotter => new Knotter(id),
         EnemyKind.Dave => new Dave(id),
+        EnemyKind.Jacob => new Jacob(id),
         _ => new ChoirGhost(id),
     };
 

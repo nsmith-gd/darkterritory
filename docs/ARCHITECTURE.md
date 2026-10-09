@@ -7675,3 +7675,28 @@ Terrain sculpting tools, a node-graph material editor, a general-purpose visual 
     - **Her look** (`Art/NickiKit.cs`, `GreyboxScene.Hostess`), after the director's photographs of her: the survivors' figure dressed (`Art/Redress.cs`, note 570) and taken in at the shoulders and waist (`NickiKit.Shape`), tanned; shoulder-length wavy strawberry-blonde hair with a fringe; silver drop earrings; tonight's top (`NickiKit.TopOf`, from the town's name: the lime tank top or the blush camisole) fitted over the figure; black trousers; no mask. The crew's `wave` turns the body off to its side, so she's turned back 1.2 rad by as much and waves at the door. `--town nicki` looks at her from inside her door.
     - **Verified:** `NickiWineTests.AGlassIsHealthOverFullOnceANightAndOnlyByHer` (a tap isn't a glass; held, +25 over full; once a night; not from across the room).
     - **Not yet:** the party heard (music kept low, laughing, glasses: the audio checklist's); her coloured lamps read only faintly under the house's own fill light; her face is the survivors' scan.
+
+572. **Jacob, the fisherman (P1, queue #302; the director, 8 Oct 2026: "an NPC named Jacob who can be found randomly in the world near water edges, fishing. He's another legendary NPC who if found and talked to will cast magic over the train and repair everything instantly, restoring it to brand new condition without affecting your loot count. He spawns very rarely"; GDD §3.2).**
+    - **What he is in the Sim.** `Sim/Enemies/Jacob.cs`, an `Enemy` as Dave is (note 570): a `Hazard`, `Far`, never struck or `Exposed`. `Extra` is 1 once he's blessed the train (replicated). Protocol 46 (his kind).
+    - **Where** (`Jacob.Site`, from the route's seed, put down with Dave in the first enemy step after the yard).
+        - Only on `jacob.chance` (0.05) of nights.
+        - The main line is sampled every `step` m past `pastGate`, and `out` m to either side, for dry ground with water (`Guns.Water`) `edge` m further out, `trackClearance` from any track, clear of walls and forts.
+        - One of the spots found is his. He faces the water.
+    - **The word** (`World.JacobAct`, host, in `CrewAct`): a crewmate on the ground holding Use within `reach` for `holdSeconds`. Once a night it calls `World.Bless`.
+    - **`World.Bless`.**
+        - Every own car (not taken, derelict or the yard's): `Integrity` 1, `Eaten` 0, `Char` cleared, `Breached` off, `HotBox`/`Gutter`/`Loose` 0, `LampLit`, the Brakeman's wound handbrake unwound and Hotbox's seized axle freed (notes 364, 367), a car the tipple threw back on its rails (note 423), the gun unjammed and cooled. (The Knotter's forced gap is the creature's own, held while it's there: not damage, and left.)
+        - The boiler: repaired if ruptured and brought to at least its starting pressure and firebox; valve unjammed, no external heat.
+        - The forward lamp: `LampOutSeconds` 0, lit. Brakes fresh (`BrakeEfficiency` 1).
+        - Every `CarFire` dismissed, every radio mended.
+        - Untouched, the director's "without affecting your loot count": `Load`, `Cargo`, `CargoIntegrity`, the finds, `Boiler.Tender` (coal) and the guns' `Ammo` and `Rack`. Coal and powder are supplies, not condition, and refilling them would also erase the night's coal and ammo costs in `Run.Tally`. A car already gone stays gone.
+        - Host-only, so a predicting client is corrected by the next snapshot (one tick).
+    - **On clients** (`FigureTalk`, content/world/figures.json `jacob`): "JACOB   TALK : [E]" and his lines. The Use press is not kept from the host (it's what mends the train). His `blessing` line is heard by anyone within `hearBeyond` as it comes, and is his answer after.
+    - **His look** (`Art/JacobKit.cs`; `GreyboxScene.Fisherman`, `CreatureArt.Enemy`), after the director's photographs of him (9 Oct: "with a shorter beard"): the survivors' figure dressed (`Art/Redress.cs`, note 570; registered as "jacob"): the flannel's red over all of him above the waist, dark grey joggers, olive clogs; his short auburn beard and short brown hair grown from the head's own triangles (`Redress`'s `Growth`: the face's triangles in the beard's region copied a few millimetres out from the head's middle, so it lies on the face and moves with it); worn on it (`JacobKit.Dress`) his fitted navy cap on backwards (a structured crown, its seams and button, a flat brim out over his neck), blue mirror wraparound sunglasses, the flannel's check laid on the red shirt (dark red bands across and stripes down), buttoned but for the top with the tee in the V and its collar, and a silver chain with a compass. No mask. his rod out over the water with its line and float, a pail, a lantern on a stake (lit).
+    - **The blessing** (`GreyboxScene.Blessing`): for 5 s from when it's seen, a pale gold light runs down the cars from the engine back, and motes rise off their sides and roofs.
+    - **Looked at:** `dt screenshot --view jacob` and `--view jacobblessed [--age s]`.
+    - **Verified:** `JacobTests`:
+        - a word with him mends every kind of damage and wear and leaves the load, cargo integrity, powder and coal alone;
+        - out of reach, or a tap, does nothing, and only once a night;
+        - where he's found (with the chance at 1, over 16 lines) is dry ground with water in front of him, clear of the track, the same every time;
+        - he's rare.
+    - **Not yet:** his sounds (the reel, the water, the blessing's chime: the audio checklist's); the derailed train (`OffRails` at a tipple, note 423) re-railed by him; a modelled figure.

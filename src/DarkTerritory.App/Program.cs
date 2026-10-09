@@ -1021,8 +1021,9 @@ CampaignState? Play(IPlaySession session, CampaignState? campaign)
         // wine (note 571), which is the host's to pour.
         if (Hit(Control.Use) && session.World.Town is { } town && Hud.TownTarget(session) is var spoken && townTalk.Use(town, spoken, now))
             useKept = spoken is not { Kind: DarkTerritory.Sim.Towns.TownTargetKind.Person } hosting || !town.Plan.People[hosting.Index].Hosting;
-        else if (Hit(Control.Use) && Hud.Prompt(session) is { } atDave && FigureTalk.Target(session) is { } dave && atDave == FigureTalk.Prompt(dave)
-            && figureTalk.Use(dave, now))
+        // Dave's card is this machine's alone; Jacob's press goes on to the host as well (a word with him mends the train).
+        else if (Hit(Control.Use) && Hud.Prompt(session) is { } atFigure && FigureTalk.Target(session) is { } figure && atFigure == FigureTalk.Prompt(figure)
+            && figureTalk.Use(figure, now) && figure is not DarkTerritory.Sim.Enemies.Jacob)
             useKept = true;
         if (!Held(Control.Use))
             useKept = false;

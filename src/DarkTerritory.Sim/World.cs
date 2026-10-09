@@ -871,6 +871,88 @@ public sealed class World
     /// Host: a crewmate's hands on a house door this tick. Use held <c>walls.houseDoorSeconds</c> shuts an open one or opens a
     /// shut one, once a hold; let go and hold again to work it again. As a car's door is worked (CrewActions).
     /// </summary>
+    // Who's been holding Use by Jacob, and how long (note 572).
+    readonly Dictionary<int, double> _byJacob = [];
+
+    /// <summary>
+    /// Host: a crewmate on the ground holding Use within Jacob's reach for <c>jacob.holdSeconds</c> has had their word with
+    /// him, and once a night he mends the train (<see cref="Bless"/>).
+    /// </summary>
+    void JacobAct(in PlayerState s, in PlayerIntent intent, int playerId)
+    {
+        var t = Enemies?.Jacob;
+        var jacob = t is null ? null : _enemies.OfType<Sim.Enemies.Jacob>().FirstOrDefault(j => !j.Gone && !j.Blessed);
+        if (jacob is null || !s.Alive || s.Parent != PlayerState.World || !intent.Has(PlayerButtons.Use)
+            || (PlayerMotor.WorldPosition(s, Train) - jacob.Local).Length > t!.Reach)
+        {
+            _byJacob.Remove(playerId);
+            return;
+        }
+        double held = _byJacob[playerId] = _byJacob.GetValueOrDefault(playerId) + SimConstants.TickSeconds;
+        if (held < t.HoldSeconds - 1e-9)
+            return;
+        jacob.Bless();
+        Bless();
+        _byJacob.Clear();
+    }
+
+    /// <summary>
+    /// Jacob's blessing (note 572; the director: "repair everything instantly, restoring it to brand new condition without
+    /// affecting your loot count"). Every one of the train's own cars as new:
+    /// <list type="bullet">
+    /// <item>its body whole (dents and the Car Hugger's bites), its char gone, any breach closed;</item>
+    /// <item>its axle box cool, its lamp trimmed and lit, its coupling tight;</item>
+    /// <item>its gun cleared and cooled.</item>
+    /// </list>
+    /// The boiler whole and in steam again, its valve free and nothing in its firebox that shouldn't be; the forward lamp
+    /// mended and lit; the brakes fresh; every fire out; every radio aboard working. Untouched: what's loaded and what it's
+    /// worth (its load, cargo and cargo integrity), the finds, the coal in the tender and the powder (supplies, not the
+    /// train's condition), and a car already gone (taken, or cut loose).
+    /// </summary>
+    public void Bless()
+    {
+        if (!Authority)
+            return;
+        var bt = Train.BoilerTuning;
+        foreach (var v in Train.Dynamics.Consist.Vehicles)
+        {
+            if (v.Taken || v.Derelict || v.YardCar)
+                continue;
+            v.Integrity = 1;
+            v.Eaten = 0;
+            v.Char = [];
+            v.Breached = false;
+            v.HotBox = 0;
+            v.Gutter = 0;
+            v.Loose = 0;
+            v.LampLit = true;
+            // And what the creatures of 8 Oct leave broken (notes 364, 367), and a car the tipple threw off its rails (note 423).
+            v.Wound = false;
+            v.Seized = false;
+            v.OffRails = false;
+            if (v.HasGun)
+                v.Gun = v.Gun with { Jammed = false, Cooldown = 0 };
+        }
+        if (bt is not null)
+        {
+            ref var b = ref Train.Boiler;
+            if (b.Ruptured)
+                b.Repair();
+            b.Pressure = Math.Max(b.Pressure, bt.StartPressure);
+            b.Firebox = Math.Max(b.Firebox, bt.StartFirebox);
+            b.SafetyValveJammed = false;
+            b.ExternalHeat = 0;
+        }
+        LampOutSeconds = 0;
+        LampLit = true;
+        Train.Dynamics.Restore(Train.Dynamics.Distance, Train.Dynamics.Velocity, 1);
+        foreach (var e in _enemies)
+            if (e.Kind == EnemyKind.CarFire && !e.Gone)
+                e.Dismiss();
+        foreach (var radio in Bodies.All.Where(b => b.Kind == Physics.BodyKind.Radio))
+            radio.Broken = false;
+    }
+
     void DoorAct(in PlayerState s, in PlayerIntent intent, int playerId, bool emptyHanded)
     {
         if (!emptyHanded || !intent.Has(PlayerButtons.Use) || intent.MoveZ > 0.5 || DoorInReach(s) is not { } door)
@@ -1221,6 +1303,7 @@ public sealed class World
         // spot took. (She waves you in at her door: by her, a held Use is a glass, not the door shut in her face.)
         if (Authority && !WineAct(ref s, intent, playerId, emptyHanded: !handsTookIt && Bodies.CarriedBy(playerId) is null))
             DoorAct(s, intent, playerId, emptyHanded: !handsTookIt && Bodies.CarriedBy(playerId) is null);
+        JacobAct(s, intent, playerId);
         // A healing find used up in the hands this tick (GDD App. F.1; note 272): its health back, up to full.
         if (Authority && Bodies.TakeDose(playerId) is > 0 and var dose && s.Alive)
             s.Health = Math.Min(Bodies.FullHealth, s.Health + dose);
@@ -1924,6 +2007,9 @@ public sealed class World
                 _daveLooked = true;
                 if (Sim.Enemies.Dave.Site(this, dr, t.Dave) is { } dave)
                     _enemies.Add(Sim.Enemies.Dave.At(_nextEnemyId++, dave.At, dave.Along, dave.Yaw, t.Dave));
+                // And Jacob at a water's edge, very rarely (note 572).
+                if (Sim.Enemies.Jacob.Site(this, dr, t.Jacob) is { } jacob)
+                    _enemies.Add(Sim.Enemies.Jacob.At(_nextEnemyId++, jacob.At, jacob.Along, jacob.Yaw));
             }
             // The lineside moose (note 339): grazing beside the line ahead, as the line's own; they cost the director nothing.
             if (Insist is null && d.Allows(EnemyKind.Moose) && Route is { } route && Train.Dynamics.Speed > 3 && !TrainInFort)

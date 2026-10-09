@@ -615,6 +615,9 @@ public sealed partial class GreyboxScene
                     // Dave at his easel (note 570): his own figure and things, not a creature's.
                     if (e is Sim.Enemies.Dave dave && Look is not null && Painter(mesh, eye, dave))
                         continue;
+                    // Jacob at the water's edge (note 572).
+                    if (e is Sim.Enemies.Jacob jacob && Look is not null && Fisherman(mesh, eye, jacob))
+                        continue;
                     // The Mourners', the Freight Beetle's and Tower Jaw's too (notes 362, 366, 363); Tower Jaw's tower, once
                     // it's down, lies across the line at its spout.
                     bool outside = e.Kind is EnemyKind.Mourners or EnemyKind.FreightBeetle or EnemyKind.TowerJaw;
@@ -633,6 +636,9 @@ public sealed partial class GreyboxScene
                         knit.Knit(mesh, V(feet, eye) + Vector3.UnitY * GrumblerMiddle, V(feet, eye), healing, Time, e.Id);
                     }
                 }
+        // Jacob's blessing over the train as it comes (note 572), wherever he is.
+        if (Enemies?.OfType<Sim.Enemies.Jacob>().FirstOrDefault() is { } blessing)
+            Blessing(mesh, eye, frames, blessing);
         Deaths(mesh, line, frames, eye, from, to);
         Lap(mesh, "enemies");
         if (Bodies is not null)
@@ -2873,6 +2879,72 @@ public sealed partial class GreyboxScene
             return false;
         Look.Art.Nicki.Dress(creatures, mesh, m, Art.NickiKit.TopOf(Sim.LineGen.Streams.Mix(0x41C1, "top", town.Plan.Name, 0)));
         return true;
+    }
+
+    /// <summary>Jacob (note 572): dressed after the director's photographs (Art.JacobKit), rod out over the water, lantern lit.</summary>
+    bool Fisherman(MeshBuilder mesh, Double3 eye, Sim.Enemies.Jacob jacob)
+    {
+        var creatures = Look!.Art.Creatures;
+        if (creatures.Get(Art.JacobKit.Figure) is null)
+            return false;
+        var feet = V(jacob.Local, eye);
+        var facing = new Vector3((float)-Math.Sin(jacob.Yaw), 0, (float)-Math.Cos(jacob.Yaw));
+        var back = -facing;
+        var m = Art.CreatureArt.Basis(feet, Vector3.Cross(Vector3.UnitY, back), Vector3.UnitY, back);
+        mesh.Append(Look.Art.Jacob.Gear, m);
+        var flame = Vector3.Transform(Art.JacobKit.Flame, m);
+        mesh.PointLights.Add(new PointLight(flame, Palette.LampAmber * 1.3f, 9));
+        mesh.Billboard(flame, 0.45f, 0, new Vector4(Palette.LampAmber * 0.6f, 1), -1, FxBlend.Additive);
+        if (!creatures.Draw(mesh, Art.JacobKit.Figure, Art.JacobKit.Clip, Time * 0.3, true, m, 0, seed: 53,
+            adjust: (mat, l) => l with { Emissive = 0 }))
+            return false;
+        Look.Art.Jacob.Dress(creatures, mesh, m);
+        return true;
+    }
+
+    // When this machine first saw Jacob's blessing (the scene's clock), for its glow over the train.
+    double _blessedAt = double.NaN;
+
+    /// <summary>How far into Jacob's blessing to draw it (s), for a still (<c>dt screenshot --view jacobblessed</c>); null as it plays.</summary>
+    public double? BlessingAge { get; set; }
+
+    /// <summary>
+    /// Jacob's blessing over the train (note 572): for a few seconds from when it comes, a pale gold light runs down the
+    /// cars from the engine back and motes rise off every car, then it's gone and the train's as new.
+    /// </summary>
+    void Blessing(MeshBuilder mesh, Double3 eye, IReadOnlyList<CarFrame> frames, Sim.Enemies.Jacob jacob)
+    {
+        if (!jacob.Blessed)
+            return;
+        if (double.IsNaN(_blessedAt))
+            _blessedAt = Time;
+        double age = BlessingAge ?? Time - _blessedAt;
+        const double Seconds = 5;
+        if (age > Seconds)
+            return;
+        var gold = new Vector3(1.0f, 0.9f, 0.55f);
+        for (int i = 0; i < frames.Count; i++)
+        {
+            // Each car lit in turn, the engine first, fading as it passes on.
+            double t = age - i * 0.35;
+            if (t < 0 || t > 2.5)
+                continue;
+            float glow = (float)(Math.Sin(Math.Min(1, t / 2.5) * Math.PI));
+            var f = frames[i];
+            // A light either side of it, washing its sides gold, and one over its roof.
+            foreach (double side in (double[])[-1, 1])
+                mesh.PointLights.Add(new PointLight(V(f.ToWorld(new Double3(side * (f.Shape.HalfWidth + 1.4), 1.8, 0)), eye), gold * (3.5f * glow), 8));
+            mesh.PointLights.Add(new PointLight(V(f.ToWorld(new Double3(0, f.Shape.RoofHeight + 1.2, 0)), eye), gold * (3f * glow), 9));
+            // Motes rising off its sides and roof, out in the open where they're seen.
+            for (int k = 0; k < 14; k++)
+            {
+                double along = (k / 13.0 - 0.5) * 2 * f.Shape.HalfLength * 0.95, rise = (t * 0.8 + k * 0.17) % 2.6;
+                double side = (k % 3 - 1) * (f.Shape.HalfWidth + 0.25);
+                double up = k % 3 == 1 ? f.Shape.RoofHeight + 0.2 + rise : 0.6 + rise * 1.4;
+                var mote = V(f.ToWorld(new Double3(side, up, along)), eye);
+                mesh.Billboard(mote, 0.22f, 0, new Vector4(gold * (1.4f * glow), 1), -1, FxBlend.Additive);
+            }
+        }
     }
 
     void Folk(MeshBuilder mesh, Double3 eye, Double3 feet, Double3 facing, int variant, float drab = 0.45f, string pose = "idle",

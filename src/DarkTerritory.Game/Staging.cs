@@ -1057,6 +1057,30 @@ public static partial class Staging
 
     public static Double3 DaveAt(TrainOnLine train) => Lineside(train, 18, -12);
 
+    /// <summary>The staged Jacob's id (note 572).</summary>
+    public const int JacobId = 334;
+
+    /// <summary>
+    /// Jacob (note 572; <c>dt screenshot --jacob fish|blessed</c>): 14 m off the line's right, 20 m up from the engine's
+    /// front, facing out away from it, rod out (wherever the ground is: the staging's not at water). Blessed, the train's
+    /// glow is on.
+    /// </summary>
+    public static List<Enemy> Jacob(List<Enemy> threats, TrainOnLine train, string mode)
+    {
+        if (mode.Length == 0)
+            return threats;
+        threats.RemoveAll(e => e is Sim.Enemies.Jacob);
+        var at = JacobAt(train);
+        var outward = (Lineside(train, 20, 30) - at) with { Y = 0 };
+        var jacob = Sim.Enemies.Jacob.At(JacobId, at, train.Dynamics.Distance + 20, Math.Atan2(-outward.X, -outward.Z));
+        if (mode == "blessed")
+            jacob.Extra = 1;
+        threats.Add(jacob);
+        return threats;
+    }
+
+    public static Double3 JacobAt(TrainOnLine train) => Lineside(train, 20, 14);
+
     /// <summary>Crewmate 4 behind Dave (<c>--dave warn</c>), the line at their back; held, in front of him, facing him.</summary>
     public static Crewmate DaveCrewmate(TrainOnLine train, string mode)
     {

@@ -391,6 +391,7 @@ public sealed partial class CreatureArt
 
     /// <param name="contentRoot">The content folder; by default the one <paramref name="look"/>'s textures came from.</param>
     DaveKit? _dave;
+    JacobKit? _jacob;
 
     public CreatureArt(Look look, string? contentRoot = null)
     {
@@ -425,6 +426,7 @@ public sealed partial class CreatureArt
         }
         Dress(DaveKit.Figure, DaveKit.Clothes);
         Dress(NickiKit.Figure, NickiKit.Clothes, NickiKit.Shape);
+        Dress(JacobKit.Figure, JacobKit.Clothes, growths: JacobKit.Growths);
     }
 
     public Look Look { get; }
@@ -434,12 +436,12 @@ public sealed partial class CreatureArt
     /// The figures met out in the Territory (GDD §3.2), dressed from the survivors' (<see cref="Redress"/>): on its rig and
     /// clips, with no file of their own. Called once the files are loaded.
     /// </summary>
-    void Dress(string name, IReadOnlyDictionary<Cloth, Dye> clothes, Func<Vector3, string, Vector3>? shape = null)
+    void Dress(string name, IReadOnlyDictionary<Cloth, Dye> clothes, Func<Vector3, string, Vector3>? shape = null, IReadOnlyList<Growth>? growths = null)
     {
         // A figure modelled for them (content/art/models/<name>.glb, the art sessions') is theirs: the dressed one is the fallback.
         if (_models.ContainsKey(name) || !_models.TryGetValue("survivor_prisoner", out var figure))
             return;
-        var model = Redress.Of(figure.Model, name, clothes, shape);
+        var model = Redress.Of(figure.Model, name, clothes, shape, growths);
         float wear = WearOf.GetValueOrDefault("survivor_prisoner", 0.5f);
         _models[name] = new Entry(model, [.. model.Materials.Select(m => Resolve(m, wear))]);
     }
@@ -2149,6 +2151,16 @@ public sealed partial class CreatureArt
                         return false;
                     mesh.Append(_dave.Easel(0), model);
                     _dave.Dress(this, mesh, model, hat, vest);
+                    return true;
+                }
+            case EnemyKind.Jacob when _models.ContainsKey(JacobKit.Figure):
+                {
+                    // JACOB (note 572): his figure in his cap, shades, beard and flannel, rod out, lantern by him (GreyboxScene.Fisherman).
+                    _jacob ??= new JacobKit(Look);
+                    if (!Draw(mesh, JacobKit.Figure, JacobKit.Clip, t, true, model, 0, seed: 53))
+                        return false;
+                    mesh.Append(_jacob.Gear, model);
+                    _jacob.Dress(this, mesh, model);
                     return true;
                 }
             case EnemyKind.Moose when _models.ContainsKey("moose"):

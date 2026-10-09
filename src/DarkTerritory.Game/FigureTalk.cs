@@ -13,6 +13,10 @@ public sealed record FigureWords
     public double TypePerSecond { get; init; } = 40;
     public double LingerSeconds { get; init; } = 6;
     public FigureLines Dave { get; init; } = new();
+    public FigureLines Jacob { get; init; } = new();
+
+    /// <summary>The words of <paramref name="figure"/>: Dave's or Jacob's.</summary>
+    public FigureLines Of(Enemy figure) => figure is Jacob ? Jacob : Dave;
 
     public static FigureWords Load(string content)
     {
@@ -37,6 +41,8 @@ public sealed record FigureLines
     public string[] Lines { get; init; } = [];
     public string[] Blows { get; init; } = [];
     public string Last { get; init; } = "";
+    /// <summary>Jacob's, as the train's made new (note 572).</summary>
+    public string Blessing { get; init; } = "";
 }
 
 /// <summary>
@@ -61,8 +67,8 @@ public sealed class FigureTalk
     public int? Open { get; private set; }
     public double Since { get; private set; }
 
-    /// <summary>Dave, if he's in front of <paramref name="s"/>'s player within reach to talk to: the least angle off the view's centre.</summary>
-    public static Dave? Target(IPlaySession s)
+    /// <summary>Dave or Jacob, if one's in front of <paramref name="s"/>'s player within reach to talk to: the least angle off the view's centre.</summary>
+    public static Enemy? Target(IPlaySession s)
     {
         var p = s.Player;
         if (!p.Alive || p.Parent != PlayerState.World)
@@ -72,35 +78,42 @@ public sealed class FigureTalk
         double cp = DMath.Cos(p.Pitch);
         var view = new Double3(-DMath.Sin(p.Yaw) * cp, DMath.Sin(p.Pitch), -DMath.Cos(p.Yaw) * cp);
         double best = DMath.Cos(r.LookDegrees * Math.PI / 180);
-        Dave? found = null;
+        Enemy? found = null;
         foreach (var e in s.World.ActiveEnemies)
-            if (e is Dave dave && !dave.Gone && dave.Holding < 0)
+            if (e is Dave { Gone: false, Holding: < 0 } or Jacob { Gone: false })
             {
-                var to = dave.Local + Double3.Up * 1.45 - eye;
+                var to = e.Local + Double3.Up * 1.45 - eye;
                 double d = to.Length;
                 if (d > r.Talk || d < 1e-6)
                     continue;
                 double cos = Double3.Dot(view, to * (1 / d));
                 if (cos >= best)
-                    (best, found) = (cos, dave);
+                    (best, found) = (cos, e);
             }
         return found;
     }
 
     /// <summary>The prompt for him in front of you: his name, and the action and its key (GDD §32's <c>ACTION : [KEY]</c>).</summary>
-    public static string Prompt(Dave dave) => $"{Words.Dave.Name.ToUpperInvariant()}   TALK : [E]";
+    public static string Prompt(Enemy figure) => $"{Words.Of(figure).Name.ToUpperInvariant()}   TALK : [E]";
 
     /// <summary>A Use press with Dave the prompt (null when it's something else's): opens his card or hears his next line.</summary>
-    public bool Use(Dave? target, double now)
+    public bool Use(Enemy? target, double now)
     {
-        if (target is null || Words.Dave.Lines.Length == 0)
+        var words = target is null ? null : Words.Of(target);
+        if (target is null || words!.Lines.Length == 0)
             return false;
         Open = target.Id;
+        _figure = target;
         Since = now;
         _talked = true;
-        _said = Words.Dave.Lines[_heard++ % Words.Dave.Lines.Length];
+        // Jacob, once he's mended the train, says that; until then, his next line (the press goes on to the host: a word
+        // with him is what mends it).
+        _said = target is Jacob { Blessed: true } && words.Blessing.Length > 0 ? words.Blessing : words.Lines[_heard++ % words.Lines.Length];
         return true;
     }
+
+    Enemy? _figure;
+    bool _wasBlessed;
 
     /// <summary>
     /// Closes the card once you've walked off or it's been said and left long enough; and opens it on what he says to a blow
@@ -108,10 +121,25 @@ public sealed class FigureTalk
     /// </summary>
     public void Step(Sim.World world, Double3 eye, double now)
     {
+        // Jacob's blessing, heard by whoever's near him as it comes (note 572).
+        if (world.ActiveEnemies.OfType<Jacob>().FirstOrDefault(j => !j.Gone) is { } jacob)
+        {
+            if (jacob.Blessed && !_wasBlessed && Words.Jacob.Blessing.Length > 0 && (jacob.Local - eye).Length <= Words.Reach.HearBeyond)
+                (Open, _figure, Since, _talked, _said) = (jacob.Id, jacob, now, false, Words.Jacob.Blessing);
+            _wasBlessed = jacob.Blessed;
+            if (Open == jacob.Id)
+            {
+                double gone = (jacob.Local + Double3.Up * 1.45 - eye).Length;
+                if (gone > (_talked ? Words.Reach.CloseBeyond : Words.Reach.HearBeyond) || now - Since > _said.Length / Math.Max(1, Words.TypePerSecond) + Words.LingerSeconds)
+                    Open = null;
+                return;
+            }
+        }
         var dave = world.ActiveEnemies.OfType<Dave>().FirstOrDefault(d => !d.Gone);
         if (dave is null)
         {
-            Open = null;
+            if (_figure is not Jacob)
+                Open = null;
             return;
         }
         var words = Words.Dave;
@@ -136,6 +164,7 @@ public sealed class FigureTalk
             if (far > Words.Reach.HearBeyond)
                 return;
             Open = dave.Id;
+            _figure = dave;
             Since = now;
             _talked = false;
             _said = line;
@@ -147,7 +176,7 @@ public sealed class FigureTalk
     {
         if (Open is null)
             return null;
-        var words = Words.Dave;
+        var words = _figure is { } f ? Words.Of(f) : Words.Dave;
         int typed = (int)Math.Clamp((now - Since) * Words.TypePerSecond, 0, _said.Length);
         string heading = words.Title.Length > 0 ? $"{words.Name}, {words.Title}" : words.Name;
         return new TownCard(TownCardKind.Speech, heading, _said[..typed], typed == _said.Length && words.Lines.Contains(_said) ? "AGAIN : [E]" : "");

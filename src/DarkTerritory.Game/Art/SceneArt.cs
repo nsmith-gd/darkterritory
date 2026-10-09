@@ -28,6 +28,8 @@ public sealed partial class SceneArt(Look look)
     public DaveKit Dave { get; } = new(look);
     /// <summary>Nicki's things: her hair, earrings and camisole (note 571).</summary>
     public NickiKit Nicki { get; } = new(look);
+    /// <summary>Jacob's things: his cap, shades, beard, flannel and chain; his rod, pail and lantern (note 572).</summary>
+    public JacobKit Jacob { get; } = new(look);
 
     CreatureArt? _creatures;
     readonly Dictionary<byte, (Double3 At, int Car, double Time, float Speed)> _crewMotion = new();

@@ -151,7 +151,7 @@ public sealed class Dave(int id) : Enemy(id)
     }
 
     /// <summary>No stop building's wall within <paramref name="room"/> metres (level) of a spot.</summary>
-    static bool Open(Train.TrainOnLine train, Double3 at, double room)
+    internal static bool Open(Train.TrainOnLine train, Double3 at, double room)
     {
         if (train.Walls is not { } walls)
             return true;

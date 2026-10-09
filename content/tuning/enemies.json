@@ -499,6 +499,15 @@
   "dave": { "chance": 0.3, "pastGate": 1500, "out": [14, 26], "along": [-30, 30], "trackClearance": 9, "room": 3, "blows": 5,
     "grabSeconds": 0.4, "meleeRadius": 0.7 },
 
+  // JACOB (GDD §3.2; the director, 8 Oct 2026: "an NPC named Jacob who can be found randomly in the world near water edges,
+  // fishing ... if found and talked to will cast magic over the train and repair everything instantly, restoring it to brand
+  // new condition without affecting your loot count. He spawns very rarely"; note 572). On "chance" of nights, at a water's
+  // edge beside the main line past "pastGate" m of the gate and "shortOfEnd" m short of its end: sampled every "step" m along
+  // it and out "out" m to either side, dry ground with water "edge" m further out, "trackClearance" m off any track. Holding
+  // Use within "reach" m of him for "holdSeconds" is a word with him: once a night, he mends the train.
+  "jacob": { "chance": 0.05, "pastGate": 1500, "shortOfEnd": 800, "step": 40, "out": [10, 45], "edge": 3, "trackClearance": 8,
+    "reach": 3, "holdSeconds": 0.5 },
+
   // THE SWITCHMAN · vibration · corrupted (App. A.8, B.8). At a junction ahead[0]-[1] m out; seen at revealAt m. It throws
   // the points for the dead line, and the train goes down a line that leads nowhere (the clock's cost: stop, back out, set
   // them back by hand). Killed before the train's over them (killedSetsBack), the lever falls back to the main line. One

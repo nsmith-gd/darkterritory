@@ -59,7 +59,8 @@ public static class Protocol
     // 43: the Hello carries the private run's password, as its key (note 450), and a Refused can say WRONG PASSWORD.
     // 44: the vehicle record carries the Brakeman's wound handbrake and Hotbox's seized axle (notes 364, 367), after the tipple's off-rails (protocol 42); and a Knotter's gap (note 365).
     // 45: Dave (note 570): an enemy kind of his own, and a death cause.
-    public const int Version = 45;
+    // 46: Jacob (note 572): an enemy kind of his own.
+    public const int Version = 46;
 }
 
 public enum MessageType : byte

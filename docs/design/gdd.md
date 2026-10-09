@@ -267,7 +267,16 @@ A very few people live outside the walls and aren't anybody's prey. They are rar
 - **A glass** (the director, 9 Oct: "when Nicki offers wine to the players they should get extra health for the next run if they take it. Don't mention that anywhere in the wiki"). Hold Use by her ("NICKI   TALK : [E]   A GLASS : HOLD [E]") and you've taken one: 25 health over full (tuning/towns.json `wine`) for the night that's about to set out, since she's only ever in the departure town. One a crewmate a night. Nothing on the screen says what it did. **Never in the Wiki.**
 - **What she looks like** (after the director's photographs of her). Shoulder-length strawberry-blonde hair, wavy, with a fringe; a tan; silver drop earrings; a lime tank top or a blush-pink camisole (the town's night has one), black trousers. No mask: it's her party.
 
-**Jacob, the fisherman** comes next.
+**Jacob, the fisherman** (note 572; the director: "an NPC named Jacob who can be found randomly in the world near water edges, fishing. He's another legendary NPC who if found and talked to will cast magic over the train and repair everything instantly, restoring it to brand new condition without affecting your loot count. He spawns very rarely").
+- **Where.** On about one night in twenty he's at a lake's or the sea's edge beside the main line. He stands on dry ground with water a stride in front of him, his rod out over it, a lantern on a stake beside him and a pail at his feet (enemies.json `jacob`). His lantern by the water is what a crew sees, if they're looking.
+- **What he looks like** (after the director's photographs of him, "with a shorter beard"). A young man, broad; a short auburn beard; a fitted navy cap on backwards; wraparound sunglasses with blue mirror lenses; a red plaid flannel, buttoned but for the top, over a slate-blue tee; a silver chain with a compass on it; dark grey joggers and olive clogs. No mask.
+- **A word with him** (hold Use by him) and he casts it over the train. A pale gold light runs down the cars from the engine back, motes rise off them, and the train is as new:
+  - every car whole (the dents and the Car Hugger's bites mended), its char gone, any breach shut;
+  - every axle box cool, every lamp trimmed and lit, every coupling tight, every gun cleared;
+  - the boiler whole and in steam again, its valve free;
+  - the forward lamp mended, the brakes fresh, every fire out, every radio working.
+- **What it doesn't touch.** The cargo and what it's worth, the finds, the coal in the tender and the powder: they're supplies, not the train's condition, and the night's tally stays the crew's. A car already lost stays lost.
+- **Once a night.** After that he says so ("There. She'll run like the morning she was built. Go on, now, before the tide turns.").
 
 ## 4. The player's place in it
 

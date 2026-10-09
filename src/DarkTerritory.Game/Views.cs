@@ -111,6 +111,14 @@ public static class Views
             "davefar" => DaveCamera(train, 1),
             "davewarn" => DaveCamera(train, 2),
             "daveface" => DaveCamera(train, 3),
+            // (Not one of Names.) Jacob (note 572): side on to him and his rod; from the engine's roof, the train blessed.
+            "jacob" => Camera.LookAt(Staging.JacobAt(train) + new Double3(0, 1.6, 0) + (Staging.Lineside(train, 26, 14) - Staging.JacobAt(train)).Normalized * 3.5
+                - ((Staging.Lineside(train, 20, 30) - Staging.JacobAt(train)) with { Y = 0 }).Normalized * 1.0, Staging.JacobAt(train) + Double3.Up * 1.4
+                + ((Staging.Lineside(train, 20, 30) - Staging.JacobAt(train)) with { Y = 0 }).Normalized * 1.5, 60),
+            // ... and face to face with him, from out over the water's edge (his look, after the director's photographs).
+            "jacobface" => Camera.LookAt(Staging.JacobAt(train) + Double3.Up * 1.62 + ((Staging.Lineside(train, 20, 30) - Staging.JacobAt(train)) with { Y = 0 }).Normalized * 1.5
+                + ((Staging.Lineside(train, 26, 14) - Staging.JacobAt(train)) with { Y = 0 }).Normalized * 0.4, Staging.JacobAt(train) + Double3.Up * 1.5, 55),
+            "jacobblessed" => Camera.LookAt(train.Frames[0].ToWorld(new Double3(6, 4.5, -6)), train.Frames[Math.Min(3, train.Frames.Count - 1)].ToWorld(new Double3(0, 2, 0)), 60),
             // Over crewmate 4's shoulder out in front of the engine, at the staged Moose squaring up to them, coming at them,
             // or on them (Staging.Moose: squareup, charge, pin...).
             "moosecharge" => MooseChargeCamera(train),
