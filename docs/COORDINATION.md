@@ -700,6 +700,7 @@ your log and your note, "(the director, the inbox, 9 Oct)".
 
 ## Waiting on the director
 
+- **What a contract asks of the crew, now the train leaves empty** (D1.5, note 575, queue #305; the inbox's `D1.5-contracts`). A contract named the freight the train left the fortress with, and nothing leaves with it now. Options: a town's order (its freight guaranteed a stop on the line, paid at a premium; the comet contract back with a comet site to load from; recommended), just a route (no freight on the board), or one consignment handed over at the gate. Meanwhile a contract still names a freight and its pay per car, and the comet contract is off the board.
 - **The six creatures' cost to a night** (D1.3, note 545). On frontier:7 with 4 bots, seeds 1–18, after #287's fixes:
   - 4.7 Knotters a night. Each is a stand of about 40 s, with the bots down to kill it and the cars coupled up, then the 240 s give-up (`crewBots.standGiveUp`) if nobody does.
   - The Brakeman is aboard about 920 s a night. Some car is wound about 950 s, 3.8 cars on average when any are. That costs about 1 m/s with five or more wound.
