@@ -107,6 +107,12 @@ Interactive version, with the roster explorer and director tools: [claude.ai/art
 | **Price** | $9.99–$14.99 |
 | **Comms** | Proximity voice — a hard dependency, not a feature |
 
+### The fantasy *(the director, 9 Oct 2026; ARCHITECTURE §8 note 577)*
+
+> "The fantasy is we are a crew sent out into a dangerous world at night when most of the really bad monsters are asleep, we go and pick up cargo and loot abandoned villages to bring to towns. We're like merchant bandits of the rails that keep these towns alive. The towns though dont get too attached because these crews always die eventually on the job."
+
+Everything else serves this. The night is the window: the worst of the Territory sleeps, and dawn is the hour it wakes (§8). The train leaves the gate **empty**; the crew fill it, buying freight at the stops and taking what they can carry out of the dead villages, and only what they bring through the gates is paid (§9, §19, App. D). The towns need the crews and say so in scrip, not in grief (§9 Arrival, §23.1). A night that brings nothing home earns nothing.
+
 ### Design pillars
 
 **1 — The train is escape route and death trap, same object, all night.**
@@ -282,9 +288,11 @@ A very few people live outside the walls and aren't anybody's prey. They are rar
 
 The players are freight crews. Not elite soldiers. Not monster hunters. Not chosen heroes.
 
-They are the people willing to take heavily armoured locomotives through the Territory and keep the surviving settlements connected. It is dangerous work and extraordinarily valuable. Experienced crews become wealthy because everyone needs them and few survive long enough to get good at it.
+They are the people willing to take heavily armoured locomotives through the Territory and keep the surviving settlements connected: merchant bandits of the rails, who go out at night while the worst of it sleeps, fill empty cars with freight bought at the stops and loot taken from abandoned villages, and bring it to the towns that live on it (§1, *The fantasy*). It is dangerous work and extraordinarily valuable. Experienced crews become wealthy because everyone needs them and few survive long enough to get good at it.
 
 > **Keep the train moving. Get the cargo through. Come home richer than you left.**
+
+The towns don't get attached to them. Crews always die on the job eventually; the yard clerk reads a lost crewmate's fee in the voice he uses for the coal (§9 Arrival).
 
 ## 5. The rail network
 

@@ -133,7 +133,9 @@ public static class IncidentLog
         DeathCause.Gnawed => "Eaten by the gnawers",
         DeathCause.Replaced => "Replaced",
         DeathCause.Nested => "Killed by Followers nested aboard",
-        DeathCause.Drift => "Fell from the moving train",
+        // The Marsh (GDD v1.1 §22, the code's Drift): not a fall, though v1.0's cause read as one (note 553: on deepTerritory's
+        // marsh nights the falls audit found ten "fell from the moving train" that were the reeds' work).
+        DeathCause.Drift => "Taken by the Marsh",
         DeathCause.Eaten => "Swallowed by the Car Hugger",
         DeathCause.Suffocated => "Smothered by Tippy Toesie",
         DeathCause.Devoured => "Eaten by the Ribbits",
@@ -163,7 +165,7 @@ public static class IncidentLog
         string action;
         switch (s.Death)
         {
-            case DeathCause.JumpedAtSpeed or DeathCause.Drift:
+            case DeathCause.JumpedAtSpeed:
                 actor = victim;
                 action = $"The train at {Kmh(train.Dynamics.Speed)}.";
                 break;
