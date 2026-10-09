@@ -311,7 +311,8 @@ public sealed class Consist
 
     /// <summary>
     /// The night's freight from the fortress (GDD §9 "choose freight contracts"; note 182): every loaded cargo car carries the
-    /// contract's cargo. Goods (or none) leaves it as it is.
+    /// contract's cargo. Goods (or none) leaves it as it is. A train that leaves empty (run.json departureLoad 0, note 575)
+    /// has none to carry: this only marks what a save or a test put aboard.
     /// </summary>
     public Consist Carrying(CargoKind cargo)
     {

@@ -98,10 +98,12 @@
     "overfillDamagePerUnit": 0.0015
   },
 
-  // GDD §17-18: cargo is loaded at facilities, and "every facility is optional. Skipping them is safe and poor."
-  // Cars leave the fortress this full (a fraction of a load each); filling them is the facilities' work. Not in the
-  // spec: F.1's table is the fully loaded train, which is the ceiling.
-  "departureLoad": 0.5,
+  // GDD §1 *The fantasy*, §17-18 (the director, 9 Oct 2026, ARCHITECTURE §8 note 575: "if I skip everything and just drive
+  // the train to town, I get scrip and a payout? the train cars should be totally empty and we are the ones who have to fill
+  // them"): cars leave the fortress this full (a fraction of a load each). Empty: every load the night pays for is one the
+  // crew put aboard at a stop, and a train driven straight home earns nothing and still pays its coal and repairs. F.1's
+  // table is the fully loaded train, the ceiling. (Was 0.5, notes 28 and 36.)
+  "departureLoad": 0,
 
   // Spec F.1: contracts pay on delivered cargo that survives, and nothing else.
   "economy": {

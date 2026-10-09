@@ -30,9 +30,12 @@ public class CargoTests
         Assert.Equal(CargoKind.Heavy, F.CargoOf(FacilityKind.Foundry));
         // The coaling tower loads no cargo; anything unlisted is goods.
         Assert.Equal(CargoKind.Goods, F.CargoOf(FacilityKind.CoalingTower));
-        // A night leaves with the fortress's own freight: goods, in its loaded cars.
+        // A loaded car with nothing said of its freight is goods.
         var consist = Consist.Uniform(Tuning.Train, 5, 0.5);
         Assert.All(consist.Vehicles.Where(v => v.Kind == VehicleKind.Cargo), v => Assert.Equal(CargoKind.Goods, v.Cargo));
+        // A night leaves the fortress empty (note 575): no freight at all until a stop loads it, whatever the contract.
+        var departing = Consist.Uniform(Tuning.Train, 5, Tuning.Run.DepartureLoad).Carrying(CargoKind.Chemicals);
+        Assert.All(departing.Vehicles, v => Assert.Equal((0.0, CargoKind.None), (v.Load, v.Cargo)));
     }
 
     [Fact]
@@ -296,8 +299,9 @@ public class CargoTests
     [Fact]
     public void ACometContractPutsCometAboardAndWeighsEverythingUp()
     {
-        // B.9: "all weights x1.4 · Passenger gate relaxed by one tier". The contract's freight is in every loaded car.
-        var consist = Consist.Uniform(Tuning.Train, 5, Tuning.Run.DepartureLoad).Carrying(CargoKind.Comet);
+        // B.9: "all weights x1.4 · Passenger gate relaxed by one tier". The freight is in every loaded car (the train leaves
+        // empty since note 575, so here it's a loaded one, as a save would put it back).
+        var consist = Consist.Uniform(Tuning.Train, 5, 1).Carrying(CargoKind.Comet);
         Assert.All(consist.Vehicles.Where(v => v.Kind == VehicleKind.Cargo), v => Assert.Equal(CargoKind.Comet, v.Cargo));
         Assert.DoesNotContain(consist.Vehicles, v => v.Kind != VehicleKind.Cargo && v.Cargo == CargoKind.Comet);
         Assert.Equal(1.4, Tuning.Enemies.Director.CargoWeights["comet"]["*"]);
