@@ -30,7 +30,7 @@ import overbake  # noqa: E402
 from overbake import fine, smooth01  # noqa: E402
 from texels import Texels  # noqa: E402
 
-S = 2048
+S = 1024  # the roster's creature atlas: every renderer holds every atlas, and the 2048 tier is the big ones' (the Gannet's, the Moose's); the CI runner's Game tests ran out of memory with more there (note 367)
 kit, g, arm, parts = overbake.hold("freight_beetle.py")
 print("[dt] freight_beetle parts", {n: len(o.data.polygons) for n, o in sorted(parts.items())})
 make.USED.clear()

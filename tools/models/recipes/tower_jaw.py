@@ -1,6 +1,6 @@
 """TOWER JAW (GDD §21, OUTSIDE; note 363; docs/design/creatures/tower-jaw.md §3 and the director's reference):
 tools/blender/tower_jaw.py's corrupted beaver with its colour, its fine relief and the embers in its cracks baked into
-one 2048 atlas (the Look Review: organic, not primitives; the Gannet's and the Ribbit's way, notes 340, 361).
+one 1024 atlas (the Look Review: organic, not primitives; the Gannet's and the Ribbit's way, notes 340, 361).
 
 tools/blender/tower_jaw.py stays its source: the rig, the fused skin, the fur's spikes, the splinters, the spines, the
 incisors and the claws, the clips. This recipe runs it, unwraps every part into one atlas (the face, the teeth and the
@@ -31,7 +31,7 @@ import overbake  # noqa: E402
 from overbake import fine, smooth01  # noqa: E402
 from texels import Texels  # noqa: E402
 
-S = 2048
+S = 1024  # the roster's creature atlas: every renderer holds every atlas, and the 2048 tier is the big ones' (the Gannet's, the Moose's); the CI runner's Game tests ran out of memory with more there (note 367)
 kit, g, arm, parts = overbake.hold("tower_jaw.py")
 print("[dt] tower_jaw parts", {n: len(o.data.polygons) for n, o in sorted(parts.items())})
 make.USED.clear()

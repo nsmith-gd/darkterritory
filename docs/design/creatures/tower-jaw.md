@@ -141,7 +141,7 @@ NEVER     a bridge; it never boards the train
   forearm hanging well below the lip, plank claws, small black eyes high on the skull. **15,528 triangles** (distance
   copy 6,199), about 1.6 m at the hump
   and 2.2 m to the spines' tips.
-- **Colour** (`tools/models/recipes/tower_jaw.py`, one 2048 atlas): dark brown soaked fur with lighter clump tips and black
+- **Colour** (`tools/models/recipes/tower_jaw.py`, one 1024 atlas, the roster's): dark brown soaked fur with lighter clump tips and black
   hollows, charred round the spines' roots; the spines black char split by cracks that glow ember-red (an emission map);
   the incisors orange-brown (a beaver's, stained: G1's review), darker streaks run down them, paler at their chipped
   chisel ends; dark wet muzzle and paws, a black

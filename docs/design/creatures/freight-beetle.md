@@ -125,7 +125,7 @@ NEVER     it never attacks anyone; it never pushes a body or a lamp
   head's top down to an edge 1.12 m ahead (where the sim's crate is: `headAt`); huge segmented, ringed and shielded
   forelimbs wider than the head, four thinner legs behind with hooked feet; glossy eyes in the cheeks, two palps and two
   short feelers working. **13,646 triangles** (distance copy 5,530), 2.45 m long, 1.48 m to the top of its back.
-- **Colour** (`tools/models/recipes/freight_beetle.py`, one 2048 atlas): the bands painted like old freight (buff and
+- **Colour** (`tools/models/recipes/freight_beetle.py`, one 1024 atlas, the roster's): the bands painted like old freight (buff and
   ochre bands, an orange stripe run down them, grey primer patches, a scorch across the rear, chipped to dark iron at the
   edges and scraped across, grimed); the hood scuffed grey-brown; the shovel dark oily iron with its edge scraped bright;
   the hide grey-brown and wrinkled; red wet flesh between the plates; grey-beige legs, mud low down; black claws.
