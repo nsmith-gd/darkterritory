@@ -52,6 +52,9 @@ for rid in "${rids[@]}"; do
   if [ "$demo" = 1 ]; then grep -q '"demo": true' "$dir/content/tuning/edition.json" || fail "$dir isn't the demo edition: run tools/package.sh --demo"
   elif grep -q '"demo": true' "$dir/content/tuning/edition.json" 2>/dev/null; then fail "$dir is the demo edition"; fi
   [ -f "$dir/PLAYING.txt" ] || fail "$dir has no PLAYING.txt"
+  # None of the developer tools go to a store (note 514): package.sh checked it, and it's checked again on what's sent.
+  dotnet run --project src/DarkTerritory.Cli -c Release -- build check "$dir" > "$out/check-$rid.json" \
+    || fail "$dir carries the developer tools (see $out/check-$rid.json): package it without --dev"
   # Steam players need Valve's library beside the game for lobbies and invites (external/steam/README.md). The Windows
   # one is required to ship on Steam; Linux players can still host and join by address without theirs.
   if [ "$store" = steam ] && [ ! -f "$dir/${steamlib[$rid]}" ]; then

@@ -47,6 +47,26 @@ public class CaptionsTests
         Assert.NotNull(new Captions(File).CaptionOf(sound));
     }
 
+    [Theory]
+    [InlineData("cs-car-hugger.break-away")]
+    [InlineData("cs-draggers.under")]
+    [InlineData("cs-gannet-strike.stab")]
+    [InlineData("cs-hounds.bite")]
+    [InlineData("cs-choir.seize")]
+    [InlineData("state-derail.flange-scream")]
+    [InlineData("state-derail.impact.ground")]
+    [InlineData("state-rupture.burst")]
+    [InlineData("state-cannon-foul.misfire")]
+    [InlineData("state-breach.breach")]
+    [InlineData("warn-overspeed")]
+    [InlineData("warn-low-clearance")]
+    public void TheMomentsAreCaptioned(string sound)
+    {
+        // Note 510: a reader was told how a thing is learned (the tells, the signs, the jobs) but not when it happens: a car
+        // tearing away, someone dragged under, a bite, a seizing, the boiler bursting, a derailment, a misfire, the bell.
+        Assert.NotNull(new Captions(File).CaptionOf(sound));
+    }
+
     [Fact]
     public void EveryCaptionIsASoundThatPlays()
     {

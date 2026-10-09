@@ -6,5 +6,6 @@
   <ItemGroup>
     <ProjectReference Include="../DarkTerritory.Game/DarkTerritory.Game.csproj" />
     <ProjectReference Include="../DarkTerritory.Editor/DarkTerritory.Editor.csproj" />
+    <ProjectReference Include="../DarkTerritory.Dev/DarkTerritory.Dev.csproj" />
   </ItemGroup>
 </Project>
