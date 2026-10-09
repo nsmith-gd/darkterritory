@@ -161,6 +161,41 @@ public class HoldoutTests
         Assert.DoesNotContain(n.World.Holdouts!.Queue, e => e.PlayerId == dead);
     }
 
+    [Theory]
+    [InlineData(270)]
+    [InlineData(-60)]
+    public void ACrewmateBrokenOutWalksRoundTheHoldoutsWallsAndBackAboard(double engineFrom)
+    {
+        // Note 533 (frontier:7 seed 13): a walker freed from the Holdout at km 10, with no stop's part to go back aboard by,
+        // took the walker's own way to the nearest ladder, a straight line, and ran into the Holdout's wall for two minutes.
+        // The driver went on, and the Ribbits had it on the line.
+        var n = new Night(AHalt, engineFrom);
+        int living = n.Add(alive: true), dead = n.Add(alive: false);
+        n.Step(0.2);
+        var h = Assert.Single(n.Here);
+        n.Stand(living, h.Door);
+        n.Hold(living, PlayerButtons.Use);
+        n.Step(h.Breach(H).Seconds + 0.2);
+        Assert.Equal(HoldoutState.Freed, h.State);
+
+        var calls = new Bots.CrewCalls();
+        var bot = new Bots.RoofWalkerBot(21, P.Cold, new Bots.StopHand(Bots.StopJob.Crates, calls, 1, P.Cold)) { Me = dead };
+        var s = n[dead];
+        var from = s.Position;
+        double bound = 30 + ((h.Door - n.Train.Frames[1].Origin) with { Y = 0 }).Length / P.Walk * 1.5;
+        for (uint tick = 0; tick < bound * SimConstants.TickRate && s.Parent == PlayerState.World; tick++)
+        {
+            n.World.BeginTick();
+            var intent = bot.Decide(s, n.World, tick, out _);
+            n.World.CrewAct(ref s, intent, dead);
+            n.World.Step(new TrainControls { Brake = 1 });
+            PlayerMotor.Step(ref s, intent, n.Train, P, Tuning.Train, SimConstants.TickSeconds, applyLook: false);
+            Assert.True(s.Alive, $"died of {s.Death}");
+        }
+        Assert.True(s.Parent != PlayerState.World,
+            $"still on the ground after {bound:0} s, {(s.Position - from).Length:0.0} m from the Holdout's inside; doing {bot.Job!.Doing}");
+    }
+
     [Fact]
     public void ABreachThatStopsStartsOver()
     {
