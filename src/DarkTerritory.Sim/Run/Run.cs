@@ -813,7 +813,9 @@ public sealed partial class Run
             foreach (var b in world.Bodies.All.Where(b => b.Kind == Physics.BodyKind.Ragdoll && ids.Contains(b.Parent) && b.Carrier < 0))
                 inside.Add($"the body of {IncidentLog.NameOf(world, b.Owner)}");
             int puller = taken is null ? world.Attribution.CouplerPulledBy(ids.Min()) : -1;
-            string action = (puller >= 0 ? $"Coupler: {IncidentLog.NameOf(world, puller)}. " : "") + (inside.Count > 0 ? $"Inside: {string.Join(", ", inside)}." : "Empty.");
+            // Note 511: or nobody's: the coupling worked loose and its pin dropped (note 356).
+            string cause = puller >= 0 ? $"Coupler: {IncidentLog.NameOf(world, puller)}. " : taken is null && world.Attribution.Parted(ids.Min()) ? "The coupling worked loose and parted. " : "";
+            string action = cause + (inside.Count > 0 ? $"Inside: {string.Join(", ", inside)}." : "Empty.");
             lost.Add(new ReportLine(IncidentKind.CarLost, "", $"{what} {where}. {action}"));
         }
         lines.InsertRange(end < 0 ? lines.Count : end, lost);

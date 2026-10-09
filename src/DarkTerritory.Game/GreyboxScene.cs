@@ -626,8 +626,12 @@ public sealed class GreyboxScene
             // Heavy crates only come from a facility's site, so its size is there (facilities.json "heavy").
             double heavyHalf = Run?.Sites.FirstOrDefault(x => x is not null)?.HeavyRadius ?? 0.5;
             if (Look is not null)
+            {
                 Look.Art.Burned = Crew?.Where(c => c.Death is Sim.Player.DeathCause.Burned or Sim.Player.DeathCause.Stoker
                     or Sim.Player.DeathCause.Exploded or Sim.Player.DeathCause.Keg).Select(c => (int)c.Id).ToHashSet();
+                // Who has the repair kit by its handle (note 513): it's drawn in their fist with them, below, not here.
+                Look.Art.KitCarriers = Crew?.Where(c => c.Alive && c.Act == Art.CrewPose.Toolbox).Select(c => (int)c.Id).ToHashSet();
+            }
             foreach (var b in Bodies)
             {
                 // In your own hands, drawn at them for the frame (the mirror's own pose is back before anything reads it).

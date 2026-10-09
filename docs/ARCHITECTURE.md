@@ -7191,3 +7191,37 @@ Terrain sculpting tools, a node-graph material editor, a general-purpose visual 
         - `OpenHouseTests.YouWalkInAtTheDoorAndTheFindsAreInside` counts it among the open buildings, and `TheBarnsAndShedsStandOpenWithTheirFindsInside` walks it.
         - `HouseInteriorArtTests.AnOpenBarnOrShedIsARoomLitByALanternTurnedLowUnlessTheGauntSleepsInIt` now holds the powerhouse to no lantern of its own. The full Sim tests pass (1418), as do StopShellArtTests, HouseInteriorArtTests, InteriorLightTests and ScreenshotTests.
         - Screenshots read: frontier:7's live powerhouse lit inside, the lamp over the switchboard, the engine and its flywheel beside it, the doorway glowing from outside; deepTerritory:2's dead one dark, its switchboard and engine only just showing by the room's fill.
+
+513. **The repair kit carried in one hand (queue #250, E1; the art checklist's `repair-kit` "next": "a one-hand toolbox carry clip, and a lock-picking clip at the door"; the pick was already in, crew_clips' `pick`).** A crewmate carrying the kit held it out in front in both hands (the generic `carry`, the kit drawn where the sim holds a crate): an engineer's toolbox carried like a crate.
+    - **The clips** (tools/blender/crew_clips.py): `toolbox` and `toolbox_walk`. The kit hangs from the right fist by its handle, down at the side, the arm straight with its weight. The body leans away from it and the free arm is out a little against it. Walking, it swings a little by the leg.
+    - **The pose:** `CrewActs` gives a carried repair kit `CrewPose.Toolbox` (`ToolboxWalk` on the move, SceneArt). It stays `Mend` at a ruptured boiler, as before. An older crew_clips without them plays the two-handed carry.
+    - **The kit:** `CreatureArt.Crewmate` hangs it under the fist by its handle (its top, `HandleOf`), its length along the way they walk. `SceneArt.Body` leaves the sim's own kit out for the crew GreyboxScene names in `KitCarriers` (their act this frame, so there's no frame behind, unlike the lamp's).
+    - **What it doesn't touch:** the first person's own kit is drawn at their hands as before (`HeldHere`; the local player isn't in `Crew`). The sim's hold, the lockers and the prompts are as they were.
+    - **Headless:** `dt screenshot --act toolbox,toolbox_walk --view crew|crewside [--survey]`.
+    - **Verified:**
+        - `ToolboxCarryTests`: carried, it's at their right side under the fist and nothing's drawn at the sim's hold; not in the pose, it's at the sim's hold.
+        - `art clearance --only crew`: the crew's 18 older overlaps, none of the new clips'.
+
+511. **A loose coupling calls the nearest walker (queue #248, D1.3 for D1; D1's data after note 496: the rakes "lost at Voss Grain Elevator").** On `dt harness --route frontier:7 --bots 4 --enemies --upkeep --seconds 2700`, seeds 1–3, the biggest steady loss was cars 3–5 lost at Voss every seed, and 6–10 on some, with no coupler puller named.
+    - **Not the elevator:** on these seeds the train never stops at Voss Grain Elevator. Its driver passes it after the switch set-back. The rakes are ones a loose coupling's dropped pin parted from the train (note 356). The report names where a lost rake comes to rest (`IncidentLog.At` on the rake's distance), and those came to rest near Voss.
+    - **Why the pins dropped:** a coupling parts 90 s after it starts working loose (`upkeep.json` `coupling.partAfter`). On main's three nights, 6 of 9 parted. Each time the walkers were in the cars, waiting there for a mail bag (`CatchAt`) or getting warm. During a hound run, a walker became the gun's powder carrier (`Feed`, note 377) and walked back to the guard van while car 5's pin parted, taking the guard van with it. `Grease` (note 356's walker errand) only runs for a walker out on the roofs with no warm-up going and no trouble in a car.
+    - **Now:**
+      - The nearest walker to a loose pin claims it on the crew's calls (`CrewCalls.ClaimPin`): the nearest the tick it started working loose, and theirs while they say so each tick on the way. One goes, and the rest keep at theirs (the gun's powder among them).
+      - The claimant is `WarmUp.Called`. It doesn't go in to warm, and comes out of a car it's warming in, by the way out it came in. Not when the cold is already hurting it (spec B.2's onset), nor with shelter to be in (a tunnel, the Choir).
+      - It takes no guttering lamp or mail bag errand, and isn't a powder carrier, until the pin is tight. Then `Grease` takes it along the roofs and down into the gap.
+      - The gunner never answers; its gun comes first, as before.
+    - **The report:** a rake the pin dropped now says so, "The coupling worked loose and parted.", in place of the coupler puller it never had (`Attribution.PartedAt`, marked as the couplings part). The `dt harness --trace` lines show each loose coupling as `Loose@carN`.
+    - **Measured** (seeds 1–6, main → now):
+
+      | Seed | Couplings parted | Cars lost | Cargo delivered | km | Deaths |
+      |---|---|---|---|---|---|
+      | 1 | 1 → 0 | 4 → 0 | 4.24 → 6.75 | 22.25 → 22.41 | 3 → 2 |
+      | 2 | 3 → 0 | 7 → 0 | 0.17 → 5.02 | 21.70 → 22.15 | 3 → 2 |
+      | 3 | 2 → 1 | 4 → 6 | 0.08 → 2.72 | 23.15 → 16.41 | 4 → 5 |
+      | 4 | 2 → 2 | 8 → 7 | 0 → 1.14 | 24.73 → 21.70 | 6 → 6 |
+      | 5 | 1 → 1 | 4 → 4 | 2.01 → 3.99 | 18.54 → 21.70 | 5 → 6 |
+      | 6 | 1 → 0 | 4 → 2 | 1.00 → 2.67 | 22.58 → 13.79 | 6 → 5 |
+
+      Every pin that still parts parted with all three hands dead (seed 5's gunner was back only briefly). Those are pack nights: hounds aboard lighting the cars and mauling the walkers (D1.2's #221 and #232). Seed 3's crew is lost at 2102 s, after the pack. Seed 6 runs the whole night on both builds with the crew home (3 now, 2 on main) but gets less far; its night goes differently from the Foundry on. No tuning changed.
+    - **Not yet (note 496's):** on seed 6, on main and now alike, the Fire Flies set cars 1 and 5 alight at Talbot Foundry and three hands burned in car 1. Note 496's lamp claim misses a case there; it's D1.3's next to look at.
+    - **Tests:** `LooseCouplingTests.AChilledWalkerGoesToALooseCouplingBeforeGoingInToWarm` (a walker chilled enough to want warming, the cold not yet hurting, tightens car 3's pin without going in first). Without the change it went into car 2 to warm and got to the pin 37 s later. `LeftAloneThePinDropsAndTheRakePartsBehindIt` now also checks the parted cars are the pin's, not anyone's cut.

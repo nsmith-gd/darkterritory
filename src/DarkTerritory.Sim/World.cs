@@ -1523,8 +1523,12 @@ public sealed class World
             _couplings = new Couplings(ct, (Route?.Seed ?? 0) ^ 0xC0091UL);
         // The couplings (note 356): one loose for each crewmate at most, none in the yard or a fort; one left too long drops
         // its pin, and the rake parts behind it.
-        if (Authority && !Derailed && _couplings is { } pins)
-            pins.Step(Train, Math.Max(1, _actors.Count(a => a.State.Alive)), SafeYard || TrainInFort);
+        if (Authority && !Derailed && _couplings is { } pins
+            && pins.Step(Train, Math.Max(1, _actors.Count(a => a.State.Alive)), SafeYard || TrainInFort) >= 0)
+            // Note 511: what it parted is in the report as the pin's, not a cut nobody's named for.
+            foreach (var v in Train.Rakes.Where(r => r != Train.Dynamics).SelectMany(r => r.Consist.Vehicles))
+                if (Attribution.CouplerPulledBy(v.Id) < 0)
+                    Attribution.PartedAt(v.Id);
         // The lamps (note 346): one guttering for each crewmate at most, none in the yard or a fort; one left too long goes out.
         if (Authority && !Derailed && _gutters is { } lamps)
             lamps.Step(Train, Math.Max(1, _actors.Count(a => a.State.Alive)), SafeYard || TrainInFort);
