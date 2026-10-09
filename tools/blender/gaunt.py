@@ -212,17 +212,72 @@ for s, sx in (("r", 1), ("l", -1)):
             pts.append(c + R @ q)
         head.tube(pts, [0.011, 0.008, 0.003], 5, KNOT, f"ear_{s}", ref=(0, 1, 0))
 
-# --- the legs: poles, knotted at the joints, ending in spikes --------------------------------------------------
+# --- the legs: dead branches, gnarled at the joints, ending in spikes -----------------------------------------
+# (Note 548: they were dowels of one taper with a ball at every joint, a wooden toy's. Asleep it's to be a heap of dead
+# branches, note 132, so each bone's length is a branch: bent and uneven along it, the bark split in fissures, the joints
+# gnarled lumps grown over, a broken-off twig's stub here and there, the cannons drawn down to a splintered spike.)
 legs = kit.part("legs")
+
+
+def branch(a, b, r0, r1, bone, seed, rings=9, sides=10, bend=0.04, mat=None, fmat=None, splinter=False):
+    """A branch from a to b: bowed off its line (most in its middle), its girth swelling and pinching along it, the bark
+    fissured deep along its length."""
+    d = (b - a).normalized()
+    side = d.cross(Vector((0, 0, 1)) if abs(d.z) < 0.9 else Vector((1, 0, 0))).normalized()
+    up = d.cross(side).normalized()
+    ph = noise3(Vector((seed * 1.7, 0.3, 0.9)), 92, 1.0) * 3.14
+    bow = side * math.cos(ph) + up * math.sin(ph)
+    pts, rr = [], []
+    for k in range(rings + 1):
+        t = k / rings
+        wob = 0.35 * noise3(Vector((seed * 2.1, t * 3.0, 0.5)), 93, 1.0)
+        pts.append(a.lerp(b, t) + bow * (bend * math.sin(math.pi * t) + 0.012 * wob * math.sin(math.pi * t)))
+        r = r0 + (r1 - r0) * t
+        r *= 1 + 0.18 * noise3(Vector((seed * 3.3, t * 5.0, 1.7)), 94, 1.0)
+        rr.append(max(0.002, r))
+
+    def shape(i, j, aa, p, fr):
+        p = Vector(p)
+        out = fr[0] * math.sin(aa) + fr[1] * math.cos(aa)
+        # Fissured: deep cracks running along it between ridges of bark, wandering a little.
+        crack = abs(math.sin(aa * 4 + i * 0.35 + seed + 1.2 * noise3(p * 6, 95, 1.0)))
+        off = 0.01 * (crack ** 0.5 - 0.6) + 0.004 * noise3(p * 22, 91, 1.0)
+        if splinter and i == len(pts) - 2:
+            off -= 0.006 * max(0.0, math.sin(aa * 3 + seed))
+        return p + out * off * (rr[i] / 0.05)
+    return legs.tube(pts, [(r, r) for r in rr], sides, mat or BARK, bone, ref=(0, 1, 0), shape=shape, fmat=fmat, cap1="point" if splinter else False)
+
+
+def gnarl(c, size, bones, seed):
+    """A joint grown over: a lump of knotted wood, wider one way than the other, its burls standing."""
+    def jag(i, j, aa, th, p):
+        q = Vector(p) - c
+        k = 1 + 0.32 * noise3(Vector(p), seed, 24.0) + 0.18 * max(0.0, math.sin(aa * 3 + th * 2 + seed)) ** 3
+        return c + q * k
+    legs.blob(c, size, 12, 9, KNOT, bones, shape=jag)
+
+
+def stub(a, d, ln, r, bone, seed):
+    """A twig broken off short: out of the branch at a, along d."""
+    d = d.normalized()
+    legs.tube([a, a + d * ln * 0.6, a + d * ln], [r, r * 0.7, r * 0.45], 6, BARK, bone, ref=(0, 0, 1), cap1=True,
+              shape=lambda i, j, aa, p, fr: Vector(p) + (fr[0] * math.sin(aa) + fr[1] * math.cos(aa)) * 0.002 * noise3(Vector(p) * 30, seed, 1.0))
+
+
 for s, sx in (("r", 1), ("l", -1)):
-    for leg in LEGS:
+    for n, leg in enumerate(LEGS):
+        seed = n * 2 + (s == "l") + 1
         th, sh, ca = f"thigh_{leg}{s}", f"shin_{leg}{s}", f"cannon_{leg}{s}"
-        legs.tube([H(th) + (H(th) - T(th)).normalized() * 0.05, H(th).lerp(T(th), 0.5), T(th)], [0.07, 0.055, 0.048], 10, BARK, th, ref=(0, 1, 0), shape=bark)
-        legs.blob(T(th), (0.075, 0.07, 0.08), 10, 7, KNOT, {th: 0.5, sh: 0.5})
-        legs.tube([H(sh), H(sh).lerp(T(sh), 0.5), T(sh)], [0.046, 0.034, 0.03], 10, BARK, sh, ref=(0, 1, 0), shape=bark)
-        legs.blob(T(sh), (0.05, 0.05, 0.056), 10, 6, KNOT, {sh: 0.5, ca: 0.5})
-        legs.tube([H(ca), H(ca).lerp(T(ca), 0.6), T(ca) + Vector((0, 0, 0.08)), T(ca)], [0.028, 0.022, 0.014, 0.002], 6, BARK, ca, ref=(0, 1, 0),
-                  fmat=lambda pts, n: SPIKE if sum(pts, Vector()).z / len(pts) < 0.14 else BARK, shape=bark)
+        branch(H(th) + (H(th) - T(th)).normalized() * 0.05, T(th), 0.072, 0.046, th, seed, rings=10, bend=0.05)
+        gnarl(T(th), (0.072, 0.064, 0.082), {th: 0.5, sh: 0.5}, 96 + seed)
+        branch(H(sh), T(sh), 0.047, 0.029, sh, seed + 10, rings=10, bend=-0.045)
+        gnarl(T(sh), (0.048, 0.044, 0.056), {sh: 0.5, ca: 0.5}, 106 + seed)
+        branch(H(ca), T(ca), 0.029, 0.006, ca, seed + 20, rings=9, sides=8, bend=0.03, splinter=True,
+               fmat=lambda pts, nn: SPIKE if sum(pts, Vector()).z / len(pts) < 0.14 else BARK)
+        # A twig's stub or two off the thigh and the shin, pointing out and up, away from the body.
+        out = Vector((sx, 0, 0.6))
+        stub(H(th).lerp(T(th), 0.4 + 0.1 * (seed % 3)), out + Vector((0, 0.3 * (1 if leg == "f" else -1), 0)), 0.15, 0.018, th, 120 + seed)
+        stub(H(sh).lerp(T(sh), 0.3 + 0.15 * (seed % 2)), Vector((sx, 0.2, -0.2)), 0.11, 0.013, sh, 130 + seed)
 
 
 # ----------------------------------------------------------------------------------------------------------------
