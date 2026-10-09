@@ -39,6 +39,8 @@ return args switch
     // dt report [--problem] [--out dir] (note 452): a crash report (or a player's own) as the game writes one, its JSON
     // twin, and the mail to the studio it opens.
     ["report", ..] => ReportCommands.Run(content, args),
+    // dt build check <folder> [--dev]: a built game fit for players, none of the developer tools in it (note 514). Exit 1 if not.
+    ["build", ..] => BuildCommands.Run(args),
     // dt edition bake <name> --into <dir>: the base content with an edition (editions/<name>) baked in, as the demo build
     // ships it (T79). dt [--edition demo] edition: what the content in use is.
     ["edition", "bake", var name, ..] => Print(new { edition = name, content = Path.GetFullPath(Mods.Bake(baseContent, name, Str(args, "--into", $"out/editions/{name}"))) }),
@@ -3239,6 +3241,7 @@ static int Usage()
         usage: dt <command>        (mods in ./mods and the user's app data are laid over content/; --no-mods for the base game)
           mods                                     the mods found, their load order, and what each does to which file
           credits [--notices | --write]            everyone whose work is in the game (note 390); --write rewrites the notices
+          build check <folder> [--dev]             a built game has none of the developer tools in it (note 514); --dev: it has them
           train table                              spec table (B.4–B.6) as produced by current tuning
           train stop <cars> [--from v] [--load l] [--grade g]
           train climb <cars> <grade%> [--from v] [--load l]
