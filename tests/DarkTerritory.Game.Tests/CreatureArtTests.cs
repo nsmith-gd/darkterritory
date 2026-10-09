@@ -14,7 +14,7 @@ namespace DarkTerritory.Game.Tests;
 /// without a pop, and skins the same way every time. The turntables render each clip at 480×270, lantern-lit in the
 /// night's fog, into out/shots/creatures/ for a person to look at (CLAUDE.md: "look at your visual changes").
 /// </summary>
-public class CreatureArtTests
+public class CreatureArtTests(CreatureArtTests.TurntableRig rig) : IClassFixture<CreatureArtTests.TurntableRig>
 {
     static readonly string Repo = Path.GetDirectoryName(DataFile.FindContentRoot())!;
     // DT_CONTENT lets a turntable run against a content folder with textures not yet checked in.
@@ -1123,23 +1123,36 @@ public class CreatureArtTests
 
     const int W = 480, H = 270;
 
-    // One renderer for every model's turntable, made once: a GPU context and the shaders compiled for each of thirty-odd
-    // models cost the CI runner's memory more than it has (the six of note 362–367 took the Linux job over), and most of
-    // each one's time. A shot is the frame's whole state, so they share it; it lives as long as the test run.
-    static GreyboxRenderer? _turntable;
-    static readonly Lock TurntableLock = new();
-
-    static GreyboxRenderer TurntableRenderer()
+    /// <summary>
+    /// One renderer for every model's turntable, made on the first and let go after the class's last: a GPU context and
+    /// the shaders compiled for each of thirty-odd models cost most of each one's time, and a renderer held past the class
+    /// keeps every texture on the GPU for the rest of the run, which the Linux CI runner hasn't the memory for (note 367).
+    /// A shot is the frame's whole state, so they share it.
+    /// </summary>
+    public sealed class TurntableRig : IDisposable
     {
-        lock (TurntableLock)
+        readonly Lock _lock = new();
+        GpuContext? _gpu;
+        GreyboxRenderer? _renderer;
+
+        public GreyboxRenderer Renderer()
         {
-            if (_turntable is null)
+            lock (_lock)
             {
-                var renderer = new GreyboxRenderer(Gpu(), W, H);
-                Look.Dress(renderer);
-                _turntable = renderer;
+                if (_renderer is null)
+                {
+                    _gpu = Gpu();
+                    _renderer = new GreyboxRenderer(_gpu, W, H);
+                    Look.Dress(_renderer);
+                }
+                return _renderer;
             }
-            return _turntable;
+        }
+
+        public void Dispose()
+        {
+            _renderer?.Dispose();
+            _gpu?.Dispose();
         }
     }
 
@@ -1152,7 +1165,7 @@ public class CreatureArtTests
     public void Turntable(string name)
     {
         var m = Get(name);
-        var renderer = TurntableRenderer();
+        var renderer = rig.Renderer();
         string dir = Path.Combine(Repo, "out", "shots", "creatures");
         Directory.CreateDirectory(dir);
         var b = Budgets[name];
