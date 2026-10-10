@@ -692,6 +692,12 @@
   "carFire": {
     "startIntensity": 0.1, "growPerSecond": 0.006, "growWithSize": 0.02, "burnFrom": 0.35, "sprayReach": 3.5,
     "sprayPerSecond": 1.0, "chargeSeconds": 15, "rechargeSeconds": 90, "burnReach": 1.6,
+    // Note 587 (the director, 9 Oct 2026, playtesting: "I point at fire, I click, I hold, it should stay there"): the spray
+    // goes where the look lands on fire; where it lands on none (looking at the flames over a burning cell, the ray goes on
+    // to the boards beyond), on the burning cell whose flames are nearest the middle of a sprayConeDeg cone along the look,
+    // within sprayReach: its flames as tall as they're drawn, sprayAimLift + sprayAimLiftPerHeat x its heat (m) off its
+    // surface. With none burning in it, on what the look hits.
+    "sprayConeDeg": 25, "sprayAimLift": 0.4, "sprayAimLiftPerHeat": 1.2,
     // App. C.5: it burns "whoever's in it", and says no more. The director's decision of 6 Oct 2026 (note 263: "if I stay in
     // the fire too long, then yeah, I die, but I just barely touched it"): it burns by the second, not in lumps. Within
     // burnReach of it you take burnPerSecond x its intensity, at burnBrushShare of that the moment you're in it, rising to the

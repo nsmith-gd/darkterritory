@@ -742,6 +742,7 @@ written here instead is moved out by `tools/coord/notes.py split`; the Coordinat
 - [550. A train run down a facility's spur outside a stop (queue #292, D1; D1.2's find on #289: frontier:7, 4 bots, seed 8 on #289's build)](notes/550.md)
 - [551. The mauled deaths: too hurt for the pack, into cover (queue #293, D1.2 for D1; note 544's baseline: mauled 5 → 10 dead at dawn on…](notes/551.md)
 - [552. The lone driver off a bridge's deck (queue #294, D1; D1.2's find on #293: frontier:7, 4 bots, seed 4)](notes/552.md)
+- [553. A falls audit, and the falls and deaths it found the bots' doing (queue #295, D1.2 for D1; note 552's "not yet": the lone driver off Stroud…](notes/553.md)
 - [555. An invite accepted while playing joins in-process (N2, queue #272; the netcode audit's gap 4, note 530; note 24's relaunch)](notes/555.md)
 - [556. The two-machine test in the nightly soak (N2, queue #276; the netcode audit's gap 8, note 530; note 450's run by hand)](notes/556.md)
 - [557. A weak link adapts (N2, queue #273; the netcode audit's gap 5, note 530)](notes/557.md)
@@ -751,4 +752,5 @@ written here instead is moved out by `tools/coord/notes.py split`; the Coordinat
 - [574. The controls belong to whoever's working them (queue #304, D1; the director, 9 Oct 2026, on the short-nights test build: "if a player goes…](notes/574.md)
 - [577. The fantasy as the GDD's pillar (D1.5, queue #307; the director, 9 Oct 2026, after a playtest: "The fantasy is we are a crew sent out into…](notes/577.md)
 - [588. Dawn: the Wakers (queue #321, D1; the director, 9 Oct 2026, approving D1's proposal: "The new Dawn ending design is excellent. This is…](notes/588.md)
+- [587. The extinguisher stays on the fire (queue #320, D1; the director, 9 Oct 2026, playtesting: "I'm looking right at a flame. And I couldn't be…](notes/587.md)
 <!-- end of the notes index -->
