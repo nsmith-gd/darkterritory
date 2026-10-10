@@ -102,6 +102,43 @@ public class LootIntoCarsTests
     }
 
     [Fact]
+    public void ATapAtARunOnATrainAtLineSpeedStillPutsItDown()
+    {
+        // D1, from the director's screenshot (a find carried into a car's aisle, "no way ... to actually unhook" it): the train
+        // was likely running, and they were moving. A tap while running down the aisle at line speed puts it down, and stowed.
+        var (world, model) = AtAHalt();
+        var train = world.Train;
+        var f = train.Frames.First(c => c.Index > 0 && c.Shape.Interior is not null);
+        var room = f.Shape.Interior!.Value;
+        var s = new PlayerState { Parent = f.Index, Position = new Double3(-0.3, 1.1, room.Max.Z - 1), Yaw = 0, Surface = Surface.Deck, Health = Tuning.Player.Health };
+        var body = Carried(world, model, s);
+        double before = world.Run!.Scavenged;
+        const double LineSpeed = 15;
+        var run = new PlayerIntent { MoveZ = 1, Buttons = PlayerButtons.Run };
+        void Step(PlayerIntent intent)
+        {
+            train.Dynamics.Velocity = LineSpeed;
+            world.BeginTick();
+            world.CrewAct(ref s, intent, 1);
+            PlayerMotor.Step(ref s, intent, train, Tuning.Player, Tuning.Train, SimConstants.TickSeconds);
+            world.Step(new TrainControls { Reverser = 1, Throttle = 1 });
+            world.StepBodies([(1, s)]);
+            world.StepRun([]);
+        }
+        for (int i = 0; i < SimConstants.TickRate; i++)
+            Step(run);
+        Assert.Same(body, world.Bodies.CarriedBy(1));
+        Assert.True(PlayerMotor.Indoors(s, train), "ran out of the car");
+        Step(run with { Buttons = PlayerButtons.Run | PlayerButtons.Use });
+        Step(run);
+        Assert.Null(world.Bodies.CarriedBy(1));
+        for (int i = 0; i < (L.SettleSeconds + 1.5) * SimConstants.TickRate; i++)
+            Step(default);
+        Assert.DoesNotContain(body, world.Bodies.All);
+        Assert.True(world.Run.Scavenged > before, "put down at a run on a moving train, and never stowed");
+    }
+
+    [Fact]
     public void AFindPutDownOutsideAnOpenDoorIsTakenIn()
     {
         var (world, model) = AtAHalt();
