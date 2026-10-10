@@ -139,4 +139,20 @@ public class LandingTests
         int knock = (int)Math.Round(l.RollDamage + (Math.Max(l.DamageAtLethal, l.RollDamage) - l.RollDamage) * k);
         Assert.Equal(P.Health - knock, s.Health);
     }
+
+    [Fact]
+    public void NobodyGetsDownOffTheTrainWhereTheresNoGroundToLandOn()
+    {
+        // deepTerritory:1 seed 2: a walker and the gunner stepped down off the train at a stand where the ground beside it was
+        // 26 m under the rail, and the fall (now) killed them. Getting down looks for ground on its side, then the other.
+        var route = LineGen.Routes.Generate(DataFile.FindContentRoot(), "frontier:7", 8);
+        var line = route.Build();
+        var bridge = route.Plan!.Structures.Single(st => st.Name == "Stroud Bridge");
+        var n = new Night(4, 0, line: line);
+        var mid = line.Sample(RailLine.MainPath, (bridge.S0 + bridge.S1) / 2).Position;
+        var open = line.Sample(RailLine.MainPath, bridge.S0 - 300).Position;
+        Assert.False(Bots.StopHand.GroundBeside(n.Train, mid, 1));
+        Assert.False(Bots.StopHand.GroundBeside(n.Train, mid, -1));
+        Assert.True(Bots.StopHand.GroundBeside(n.Train, open, 1) || Bots.StopHand.GroundBeside(n.Train, open, -1));
+    }
 }

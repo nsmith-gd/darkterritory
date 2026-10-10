@@ -2136,10 +2136,10 @@ public sealed partial class ConductorBot(CrewCalls? calls = null, int member = 0
     /// The ground beside the line further down than this below its rail (m) is no walk: off a bridge's deck, the river bank
     /// 8 m under it. Everywhere else frontier:7's ground beside the track is within half a metre of the rail (note 552).
     /// </summary>
-    const double NoGroundBelow = 1.0;
+    internal const double NoGroundBelow = 1.0;
 
     /// <summary>How far out from the track a walk beside the train goes (m): <see cref="StopHand"/>'s walk keeps 2.6 m off it, its foot path further.</summary>
-    const double AfootOut = 2.8;
+    internal const double AfootOut = 2.8;
 
     /// <summary>
     /// Note 552 (D1.2's frontier:7 seed 4): whether there's ground to walk on beside the train on one side or the other, from
