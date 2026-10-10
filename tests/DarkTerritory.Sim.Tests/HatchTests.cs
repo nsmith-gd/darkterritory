@@ -10,7 +10,8 @@ namespace DarkTerritory.Sim.Tests;
 /// <summary>
 /// T99 (playtest: "a way to open the roofs of cars up so we can use the crane to lower crates in. Crates cannot be lowered
 /// to a point where they block the roof from closing"): a cargo car's roof hatch, opened from the roof, that the crane
-/// lowers a casting in through; one it can't set down under the roof line stays on the hook, and the lid won't shut on one.
+/// lowers a casting in through; one low over its edge is eased in (note 581), one it can't set down under the roof line stays on
+/// the hook, and the lid won't shut on one.
 /// </summary>
 public class HatchTests
 {
@@ -115,17 +116,37 @@ public class HatchTests
     }
 
     [Fact]
-    public void HungOverTheHatchsEdgeItWontGoInAndWontBeLetGo()
+    public void HungOverTheHatchsEdgeItsEasedInAndLetGoThereItGoesIn()
     {
-        // Its middle over the opening's back edge: half of it over the roof.
+        // Its middle over the opening's back edge: half of it over the roof. T99 kept it on the hook there, let go or not,
+        // with nothing said; the director, 9 Oct 2026 (note 581): "There's no way it seems to actually unhook loot when its in
+        // the car finally. Also it's extremely difficult to get loot into the cars, the game should be more forgiving".
         var (stop, crane, car) = OverTheHatch(h => h.Centre with { Z = h.Max.Z });
         var frame = stop.Train.Frames[car];
         stop.Train.Vehicles[car].ToggleDoor(CarShape.HatchBit);
-        // The hook stops over the roof, not down in the car.
+        // Up high, nothing guides it: the hook stops over the roof.
+        Assert.Null(crane.Guided(stop.Train));
         Assert.Equal(frame.ToWorld(frame.ToLocal(crane.HookAt) with { Y = frame.Shape.RoofHeight }).Y, crane.Under(stop.Train).Y, 3);
+        // Brought down onto the roof by the opening, it's eased over it as the operator holds the stick still ...
         crane.Hook = crane.Lowest(stop.Train);
-        Assert.Null(crane.Release(stop.Train));
-        Assert.Equal(CastingState.Hooked, crane.Castings[0].State);
+        Assert.NotNull(crane.Guided(stop.Train));
+        double before = stop.Train.Vehicles[car].Load;
+        for (int i = 0; i < 3 * SimConstants.TickRate; i++)
+            crane.Drive(default, stop.Train, SimConstants.TickSeconds);
+        Assert.True(crane.Guided(stop.Train) is null, $"hook local {frame.ToLocal(crane.HookAt)}, fit {(crane.Guided(stop.Train) is { } g ? frame.ToLocal(g) : default)}, hatch {frame.Shape.Hatch}, bridge {crane.Bridge} trolley {crane.Trolley}");
+        Assert.True(crane.Hatch(stop.Train, car, frame.ToLocal(crane.HookAt)) is { Fits: true }, "eased, and still not clear of the opening");
+
+        // ... and let go at the edge without waiting, it's put through and set down inside, not kept on the hook.
+        var (again, crane2, car2) = OverTheHatch(h => h.Centre with { Z = h.Max.Z });
+        again.Train.Vehicles[car2].ToggleDoor(CarShape.HatchBit);
+        crane2.Hook = crane2.Lowest(again.Train);
+        var landed = crane2.Release(again.Train);
+        Assert.NotNull(landed);
+        Assert.False(landed!.Value.Fell, "dropped through it");
+        Assert.Equal(CastingState.Loaded, crane2.Castings[0].State);
+        Assert.Equal(car2, crane2.Castings[0].Car);
+        Assert.True(crane2.Castings[0].At.Y < again.Train.Frames[car2].Shape.Hatch!.Value.Min.Y, "set down standing in the opening");
+        Assert.Equal(before + C.LoadPerCasting, again.Train.Vehicles[car2].Load, 6);
     }
 
     [Fact]

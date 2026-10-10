@@ -67,6 +67,23 @@ public class DerailSequenceTests
         var later = seq.ReplayAt(T.FirstPersonSeconds + T.ReplayLeadSeconds + 2, T)!.Value;
         Assert.True(later.Off);
         var cam = seq.ReplayCamera(later.Frames, _ => false);
-        Assert.True(cam.Position.Y > 5, "the chase view is up over the train");
+        Assert.True(cam.Position.Y > 5, "the replay's wide is up over the train");
+        // Note 579 ("show the derailment happening in slow motion ... cars basically being blasted off the tracks"): off, it
+        // cuts in from the chase view to a wide side on to the front of the train, close enough to see the cars go up.
+        var front = later.Frames[0].Origin;
+        double across = Math.Abs(Double3.Dot(cam.Position - front, later.Frames[0].Right));
+        Assert.InRange((cam.Position - front).Length, 15, 50);
+        Assert.True(across > 20, $"the wide's {across:0} m out from the line, not side on");
+        Assert.True(Off(cam, front) < 30, "the front of the train's out of the shot");
+        // Kept off a hillside.
+        var hill = seq.ReplayCamera(later.Frames, _ => false, ground: (_, _) => 40);
+        Assert.True(hill.Position.Y >= 43 - 1e-9);
+    }
+
+    static double Off(Camera c, Double3 p)
+    {
+        var to = p - c.Position;
+        var dir = System.Numerics.Vector3.Normalize(new System.Numerics.Vector3((float)to.X, (float)to.Y, (float)to.Z));
+        return Math.Acos(Math.Clamp(System.Numerics.Vector3.Dot(dir, c.Forward), -1, 1)) * 180 / Math.PI;
     }
 }

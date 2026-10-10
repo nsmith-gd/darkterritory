@@ -1018,6 +1018,29 @@ public sealed class World
             Run?.Step(this, crew, SimConstants.TickSeconds);
     }
 
+    /// <summary>
+    /// Dawn (note 588): the train's still out, and the Wakers get up behind it, the first on the line, the rest off to its sides.
+    /// Host, once a night.
+    /// </summary>
+    void Wake(WakersTuning t)
+    {
+        if (!t.Enabled || _wakersUp || Derailed || Run is not { LineLive: true, Phase: Sim.Run.RunPhase.Underway or Sim.Run.RunPhase.AtFacility } run)
+            return;
+        _wakersUp = true;
+        int count = t.For(run.Route.Tier);
+        for (int i = 0; i < count; i++)
+        {
+            int side = i == 0 ? 0 : i % 2 == 1 ? 1 : -1;
+            AddEnemy(id => Waker.Rise(id, Train.RearDistance, side, t));
+        }
+    }
+    bool _wakersUp;
+
+    /// <summary>A Waker has the train (note 588): it's being lifted and eaten.</summary>
+    public bool WakerHolds => _enemies.Any(e => e is Waker { Holds: true });
+    /// <summary>Host: a Waker has eaten the train to the engine (note 588). The run ends "taken at dawn".</summary>
+    public bool TakenAtDawn { get; set; }
+
     /// <summary>Puts an enemy into the world directly (tests, the editor, scripted set pieces). Host only.</summary>
     public T AddEnemy<T>(Func<int, T> make) where T : Enemy
     {
@@ -1064,9 +1087,9 @@ public sealed class World
             // clients are sent the poses. Thrown outward off the curve it was on, if it was on one.
             if (Train.Wreck is null)
             {
-                double k = Train.Line.Sample(Train.Dynamics.Distance).Curvature;
                 ulong seed = (ulong)Tick * 0x9E3779B97F4A7C15UL ^ (Route?.Seed ?? 0);
-                Train.Wreck = Wreck.Begin(WreckTuning, Train, Ground, seed, first: Train.Dynamics.Consist.Vehicles[0].Id, outward: k > 1e-6 ? -1 : k < -1e-6 ? 1 : 0);
+                int first = Train.Dynamics.Consist.Vehicles[0].Id;
+                Train.Wreck = Wreck.Begin(WreckTuning, Train, Ground, seed, first, outward: OffTheBend(first));
                 // E.2 step 2: the crew as they were this tick, alive, and the wreck as it began, for the film. (Only what
                 // simulates the train derails it; a client's wreck is a puppet of the host's, and its film is sent.)
                 Film = WreckFilm.StartOf(Train.Wreck, FilmCrew(), Sim.Run.IncidentLog.CauseCard(this), DerailSpeed, Train.Dynamics.Distance,
@@ -1094,6 +1117,28 @@ public sealed class World
             v.LampLit = false;
         foreach (var rake in Train.Rakes)
             rake.Velocity = 0;
+    }
+
+    /// <summary>
+    /// Which way the first car off is thrown, +1 to its own right: to the outside of the sharpest bend under the train, the
+    /// way its momentum carries it (note 578; the director, 9 Oct 2026: "we took a bend too fast and it derailed inwards").
+    /// A positive curvature turns the line left (<see cref="Rail.TrackSegment.Radius"/>), so its outside is the line's right.
+    /// Measured on the train's own path (a branch's bends are its own) and at each car, not the engine's front alone, which
+    /// may already be off the bend onto the straight beyond it. 0 off any bend: the wreck picks a side.
+    /// </summary>
+    int OffTheBend(int first)
+    {
+        var rake = Train.Dynamics;
+        Rail.TrackSample sharpest = default;
+        foreach (var car in Train.Cars)
+            if (rake.Consist.IndexOf(car.Index) >= 0
+                && Train.Line.Sample(rake.Path, car.FrontDistance - car.Length / 2) is var t && Math.Abs(t.Curvature) > Math.Abs(sharpest.Curvature))
+                sharpest = t;
+        if (Math.Abs(sharpest.Curvature) < 1e-6 || first < 0 || first >= Train.Frames.Count)
+            return 0;
+        var lineRight = Double3.Cross(sharpest.Tangent, Double3.Up);
+        var outside = lineRight * Math.Sign(sharpest.Curvature);
+        return Double3.Dot(Train.Frames[first].Right, outside) >= 0 ? 1 : -1;
     }
 
     /// <summary>
@@ -1981,6 +2026,7 @@ public sealed class World
             && Train.Boiler.Firebox >= t.Stoker.HeatFirebox ? _hotFor + SimConstants.TickSeconds : 0;
         // The director thinks once a second; the Stoker comes whenever its condition holds, charged when it does (App. B.5).
         // Not in the safe yard (note 263): nothing comes before the run begins.
+        Wake(t.Wakers);
         if (Tick % SimConstants.TickRate == 0 && Director is { } d && !Derailed && !SafeYard)
         {
             d.Present(_context?.Crew.Count ?? 0);
