@@ -158,6 +158,8 @@ public sealed partial class GreyboxScene
     public Sim.Towns.Town? Arrival { get; set; }
     /// <summary>Somebody in the town turned to face whoever's talking to them (<see cref="TownTalk"/>), by person id.</summary>
     public (int Person, Double3 Toward)? TownFacing { get; set; }
+    /// <summary>The town <see cref="TownFacing"/>'s person is in (note 603); null, the departure's (<see cref="Town"/>).</summary>
+    public Sim.Towns.Town? TownFacingIn { get; set; }
     /// <summary>Seconds, for animating things that move on their own.</summary>
     public double Time { get; set; }
     /// <summary>Vehicle state for doors (open or shut). Without it every door is drawn shut.</summary>
@@ -3166,7 +3168,7 @@ public sealed partial class GreyboxScene
                     var feet = now.Feet;
                     if ((feet - eye).Length > 160)
                         continue;
-                    bool talking = TownFacing is { } f && f.Person == p.Id;
+                    bool talking = TownFacing is { } f && f.Person == p.Id && (TownFacingIn ?? Town) == town;
                     // Whoever sits or crouches at their work stays put when you talk to them: turned to you, they'd swing
                     // off their chair or out from the range (the director, 8 Oct: "some of the animation positions are off").
                     bool settled = now.Act is "seated" or "crouch" or "mend";

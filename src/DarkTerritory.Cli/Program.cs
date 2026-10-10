@@ -3005,10 +3005,12 @@ static object HudShot(string content, string[] args)
         session = solo;
     }
     // --talk person|board|paper|fixture|door [--who i] (note 281): stood in the departure fortress's town in front of one
-    // of its people (the i-th) or things, their card open and the line typed out, as Use at the prompt opens it.
+    // of its people (the i-th) or things, their card open and the line typed out, as Use at the prompt opens it. With
+    // --arrival, in the terminus's town (note 603), as the crew would after the night's delivered.
     TownTalk? talk = null;
     double talkNow = 0;
-    if (Str(args, "--talk", "") is { Length: > 0 } talked && session is PrototypeSession here && here.World.Town is { } town)
+    if (Str(args, "--talk", "") is { Length: > 0 } talked && session is PrototypeSession here
+        && (args.Contains("--arrival") ? here.World.Arrival : here.World.Town) is { } town)
     {
         talk = new TownTalk();
         var (stand, lookAt) = Staging.TownStand(town, talked, (int)Opt(args, "--who", 0));
@@ -3062,6 +3064,7 @@ static object HudShot(string content, string[] args)
         Town = session.World.Town,
         Arrival = session.World.Arrival,
         TownFacing = talk?.Open is { Kind: DarkTerritory.Sim.Towns.TownTargetKind.Person } facing ? (facing.Index, camera.Position) : null,
+        TownFacingIn = talk?.In,
         Vehicles = session.Train.Vehicles,
         Bodies = session.World.Bodies.All,
         Time = 0.37,
