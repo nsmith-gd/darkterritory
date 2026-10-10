@@ -116,7 +116,10 @@ public sealed partial class Effects
     /// </summary>
     /// <param name="guns">The guns' muzzles (camera-relative).</param>
     /// <param name="target">The middle of the Waker's back (camera-relative); <paramref name="feet"/> the ground under it.</param>
-    public void WallGuns(MeshBuilder mesh, IReadOnlyList<Vector3> guns, Vector3 target, Vector3 feet, double time, long seed)
+    /// <param name="spread">How widely the shots land round the target, as a share of a Waker's back (a creature brought into
+    /// town, note 589, is a man's size).</param>
+    public void WallGuns(MeshBuilder mesh, IReadOnlyList<Vector3> guns, Vector3 target, Vector3 feet, double time, long seed, float spread = 1,
+        Sim.Enemies.EnemyKind struck = Sim.Enemies.EnemyKind.Waker)
     {
         for (int g = 0; g < guns.Count; g++)
         {
@@ -130,9 +133,9 @@ public sealed partial class Effects
             // Where it lands: somewhere over its back, its own for each shot.
             float h = Hash(shot * 0.37f + 1.3f), h2 = Hash(shot * 1.13f + 0.7f);
             var side = Vector3.Normalize(Vector3.Cross(Vector3.UnitY, along));
-            var hit = target + side * ((h - 0.5f) * 10) + Vector3.UnitY * ((h2 - 0.5f) * 8);
+            var hit = target + side * ((h - 0.5f) * 10 * spread) + Vector3.UnitY * ((h2 - 0.5f) * 8 * spread);
             double flight = dist / WallShotSpeed;
-            CannonImpact(mesh, hit, along, Sim.Combat.ImpactSurface.Creature, Sim.Enemies.EnemyKind.Waker, since - flight, shot, feet);
+            CannonImpact(mesh, hit, along, Sim.Combat.ImpactSurface.Creature, struck, since - flight, shot, feet);
         }
     }
 

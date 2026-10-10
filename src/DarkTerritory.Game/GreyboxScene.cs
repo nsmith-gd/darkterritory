@@ -658,6 +658,10 @@ public sealed partial class GreyboxScene
                     // A Waker getting up (note 599): the earth it throws off rising, and the dust it raises on the move.
                     if (e.Kind == EnemyKind.Waker && Look?.Art.Effects is { } wake)
                         WakerDust(mesh, wake, e, line, eye);
+                    // Brought into town (note 589): the town's guns firing on whatever rode in, while the yard fight lasts (the
+                    // fort drives off anything else inside it the moment it's there, so anything alive in there is being fought).
+                    else if (Arrival is { } town && Look?.Art.Effects is { } guns && EnemyWorld(e, frames) is var inside && InTheTown(line, inside))
+                        guns.WallGuns(mesh, WallGuns(town, eye), V(inside + Double3.Up * 1.2, eye), V(inside, eye), Time, e.Id, BroughtInSpread, e.Kind);
                     // A Grumbler healing (App. A.8, note 487): what a lone crewmate's blow knocked out of it drawn back in.
                     if (e.Kind == EnemyKind.Grumbler && Healing(e) is > 0 and var healing && Look?.Art.Effects is { } knit)
                     {
@@ -1849,6 +1853,19 @@ public sealed partial class GreyboxScene
             if (s > b.Rear)
                 guns.Add(V(town.World(s, d, Sim.Run.Fortresses.TowerHeight + 1), eye));
         return guns;
+    }
+
+    /// <summary>How widely the town's shots land round a creature brought in (note 589), as a share of a Waker's back.</summary>
+    const float BroughtInSpread = 0.15f;
+
+    /// <summary>In through the terminus town's gate (note 589): along the main line past it.</summary>
+    bool InTheTown(RailLine line, Double3 at)
+    {
+        if (Route?.Plan?.Terminus is not { Silent: false } t)
+            return false;
+        double hint = t.GateM;
+        line.Nearest(at, ref hint);
+        return hint >= t.GateM;
     }
 
     static Double3 EnemyWorld(Enemy e, IReadOnlyList<CarFrame> frames) =>

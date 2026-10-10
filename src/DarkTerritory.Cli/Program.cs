@@ -1249,7 +1249,12 @@ static object Screenshot(TrainTuning t, string content, string[] args)
     if (town is not null && !args.Contains("--view"))
         camera = Staging.TownCamera(town, args.Contains("--arrival") ? Str(args, "--where", "square") : Str(args, "--town", "square"));
     if (arrival is not null && !args.Contains("--view"))
-        camera = Staging.TownCamera(arrival, Str(args, "--arrival", "square"));
+        camera = Str(args, "--arrival", "square") == "brought"
+            // --arrival brought --patrol (note 589): hounds ridden in on car 2, the town's guns on them, seen from the square's
+            // side of the yard, up a little.
+            ? train.Frames[Math.Min(2, train.Frames.Count - 1)] is var car && car.Right * (-arrival.Plan.Square.Side) is var toward
+                ? Ballast.Render.Camera.LookAt(car.Origin + toward * 22 + car.Back * 6 + Double3.Up * 8, car.Origin + Double3.Up * 3, 62) : camera
+            : Staging.TownCamera(arrival, Str(args, "--arrival", "square"));
     // --cam s,lateral,height --target s,lateral,height: place the camera anywhere by line coordinates.
     if (Str(args, "--cam", "") is { Length: > 0 } cam)
     {
@@ -3033,7 +3038,13 @@ static object HudShot(string content, string[] args)
     string output = Str(args, "--out", "out/shots/hud.png");
     // --report [derailed]: the night over, and its incident report as the run-end screen shows it (GDD v1.4 App. D.12).
     if (args.Contains("--report") && session.World.Run is { } over)
-        over.MirrorReport(Staging.Report(session.World, Str(args, "--report", "") == "derailed" ? DarkTerritory.Sim.Run.RunEnd.Derailed : DarkTerritory.Sim.Run.RunEnd.CrewLost));
+        // (brought: delivered with creatures ridden into town, note 589.)
+        over.MirrorReport(Staging.Report(session.World, Str(args, "--report", "") switch
+        {
+            "derailed" => DarkTerritory.Sim.Run.RunEnd.Derailed,
+            "brought" => DarkTerritory.Sim.Run.RunEnd.Delivered,
+            _ => DarkTerritory.Sim.Run.RunEnd.CrewLost,
+        }));
     var frames = session.InterpolatedFrames(1);
     var camera = session.EyeCamera(frames, 1, 0, 0);
     using var gpu = new GpuContext("dt screenshot --hud");
