@@ -1530,6 +1530,8 @@ public sealed partial class StopHand(StopJob job, CrewCalls calls, int member, C
 
     readonly HashSet<int> _done = [];
     StopPlan? _plan;
+    /// <summary>Its part in a facility stop is under way: the train's standing for it, or in at it, and not yet away (note 601).</summary>
+    public bool AtAStop => _plan is not null;
     bool _wentIn, _reachedEnd, _warming;
 
     public StopJob Job => job;
