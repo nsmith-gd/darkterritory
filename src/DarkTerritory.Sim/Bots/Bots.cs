@@ -57,6 +57,8 @@ public sealed class GunnerBot(GunTuning guns, ChoirTuning? choir = null, int see
     /// <summary>What its legs are doing about trouble in a car, and about the cold (for the harness's trace).</summary>
     public string? TendStep => _legs.TendStep;
     public string? WarmUpStep => _legs.WarmUpStep;
+    /// <summary>Its legs are going to a loose pin (note 602).</summary>
+    public bool Pinning => _legs.Pinning;
     /// <summary>
     /// The look-out's errand when there's no walker to send (a crew of two: driver and gunner; note 222), or null. Its legs
     /// run it, off the gun while the gun can spare it.
@@ -105,7 +107,10 @@ public sealed class GunnerBot(GunTuning guns, ChoirTuning? choir = null, int see
         // The mail cranes' bags are the walkers' to catch, not the gun's (note 299: with a bag always ahead the gunner went in
         // for each and never reached its gun all night); only with no other hand aboard but the driver does it go for them.
         bool alone = _legs.Crew.Count(c => c.State.Alive && c.Id != Me) < 2;
-        _legs.Looked(world, self, safe: Guns.MannedGun(self, world.Train, guns) is not null, tend: !hounds, catches: alone);
+        // Note 602: off its seat, a loose pin beside it is its to tighten whatever the hounds are doing (PinBeside keeps it off
+        // the pack's cars); seated, the gun comes first.
+        bool seated = self.Has(PlayerFlags.Seated);
+        _legs.Looked(world, self, safe: Guns.MannedGun(self, world.Train, guns) is not null, tend: !hounds, catches: alone, pins: !seated);
         // Note 448: a truss Dragger scraping over this gun's car coming under: down its hatch ladder until the car's through.
         if (Duck(self, world) is { } ducking)
             return ducking;
@@ -115,6 +120,8 @@ public sealed class GunnerBot(GunTuning guns, ChoirTuning? choir = null, int see
             return saving;
         // The boiler ruptured and the kit's back down the train with nobody else to bring it (KitCarry): off the gun for it.
         if (_legs.Fetching(self, world))
+            return _legs.Decide(self, world, tick, out aimed);
+        if (!seated && _legs.Pinning)
             return _legs.Decide(self, world, tick, out aimed);
         // Nobody holds a gun through the cold (spec B.2): off it and indoors until warm, then back. Nor through a stop
         // they have a part in. Note 447: but seated with a run coming in on the ground, it keeps the gun until it's over, the
@@ -670,9 +677,9 @@ public sealed class RoofWalkerBot(int seed, ColdTuning? cold = null, StopHand? j
     bool _looked;
 
     /// <summary>The gunner has read the line for its legs this tick already (it knows whether it's at the gun).</summary>
-    internal void Looked(World world, in PlayerState self, bool safe, bool tend = true, bool catches = true)
+    internal void Looked(World world, in PlayerState self, bool safe, bool tend = true, bool catches = true, bool? pins = null)
     {
-        Look(world, self, safe, tend, catches);
+        Look(world, self, safe, tend, catches, pins);
         _looked = true;
     }
 
@@ -721,7 +728,8 @@ public sealed class RoofWalkerBot(int seed, ColdTuning? cold = null, StopHand? j
     /// stands is clear anyway (a gun's crew are down behind its shield).
     /// </summary>
     /// <param name="catches">Whether it goes in for the mail cranes' bags (the gunner leaves them to the walkers, note 299).</param>
-    public void Look(World world, in PlayerState self, bool safe = false, bool tend = true, bool catches = true)
+    /// <param name="pins">Whether it weighs a loose pin beside it (<see cref="PinBeside"/>, note 602): by default when it tends.</param>
+    public void Look(World world, in PlayerState self, bool safe = false, bool tend = true, bool catches = true, bool? pins = null)
     {
         if (_warm is null)
             return;
@@ -733,7 +741,7 @@ public sealed class RoofWalkerBot(int seed, ColdTuning? cold = null, StopHand? j
         bool choir = !world.SafeYard && !world.TrainInFort && (world.Choir.Present || world.Choir.Build >= ChoirShelterAt);
         // Note 602: a loose pin in a gap of its own car's comes first, hurt or not (a few seconds with the wrench; parted, it loses
         // every car behind it).
-        _pinBeside = tend ? PinBeside(self, world) : null;
+        _pinBeside = pins ?? tend ? PinBeside(self, world) : null;
         bool pinFirst = _pinBeside is not null;
         // Note 551: too hurt for a pack that's about, and in a car: in it stays, its doors shut (on the roofs, it's the cab's way).
         Hunted = Hiding(world, self) && !pinFirst;
@@ -771,8 +779,10 @@ public sealed class RoofWalkerBot(int seed, ColdTuning? cold = null, StopHand? j
         // Note 511: a loose coupling comes before a guttering lamp or a bag (both a walker's errands, and the warm-up's
         // routine wait): left 90 s it parts, and the cars behind it are lost. On frontier:7's 4-bot nights the walkers were
         // in the cars for a bag or getting warm while every pin worked loose, and 11 of 21 parted, the cars behind gone.
-        bool pin = (tend || pinFirst) && catches && !choir && _trouble is null && LoosePin(self, world, Me, Calls, _pinBeside);
+        // A gunner (catches false: the bags are the walkers', note 299) takes only a pin beside it (note 602).
+        bool pin = (tend || pinFirst) && (catches || pinFirst) && !choir && _trouble is null && LoosePin(self, world, Me, Calls, _pinBeside);
         _warm.Called = pin;
+        Pinning = pin;
         // Note 576: a car battered and let go is coming apart, its freight spilling, and in a few minutes it's gone with what's
         // behind it: before a lamp or a bag, a walker with a wrench goes in to it and mends it at its dent (Heed.Mend).
         _mendCar = tend && catches && !choir && _trouble is null && !pin ? FailingCar(self, world, here) : null;
@@ -888,6 +898,9 @@ public sealed class RoofWalkerBot(int seed, ColdTuning? cold = null, StopHand? j
         Head(-1);
         return Decide(self, train, tick);
     }
+
+    /// <summary>It's going to a loose pin this tick (note 511, note 602): the gunner's legs take it there.</summary>
+    public bool Pinning { get; private set; }
 
     /// <summary>The car whose gap's pin is beside it this tick (<see cref="PinBeside"/>), or null.</summary>
     int? _pinBeside;

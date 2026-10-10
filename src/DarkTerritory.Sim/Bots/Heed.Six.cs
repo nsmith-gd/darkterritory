@@ -342,8 +342,9 @@ public static partial class Heed
     /// (<see cref="Knotter"/>): the stand is for killing it, and a wound brake costs nothing until the train moves.
     /// </summary>
     /// <param name="atAStop">Its part in a facility stop is under way (<see cref="StopHand.AtAStop"/>).</param>
+    /// <param name="pinning">It's going to a loose pin (<see cref="RoofWalkerBot.Pinning"/>, note 602).</param>
     public static PlayerIntent Brakeman(PlayerIntent intent, in PlayerState self, World world, int selfId,
-        IReadOnlyList<(int Id, PlayerState State)> crew, CrewCalls? calls, bool atAStop = false)
+        IReadOnlyList<(int Id, PlayerState State)> crew, CrewCalls? calls, bool atAStop = false, bool pinning = false)
     {
         var train = world.Train;
         if (!Free(self) || self.Has(PlayerFlags.Seated) || self.Surface != Surface.Roof || !OnTheRake(train, self.Parent)
@@ -356,6 +357,11 @@ public static partial class Heed
         // Foundry's shunter off its cut on frontier:7 (4 bots, seed 2): along the roofs to car 10's end and back for four
         // minutes, until the driver gave the stop up with nothing loaded. Under way again, the pincer and the wheels are theirs.
         if (atAStop && Math.Abs(train.RakeOf(self.Parent).Velocity) < StandingBelow)
+            return intent;
+        // Note 602: nor a hand going to a loose pin. Left, it parts in 90 s and every car behind it is lost; a wound brake
+        // drags. frontier:7 seed 5: the gunner, stood over the loose gap behind car 5 with the wrench, was taken along the
+        // roofs for his pincer, and the pin parted.
+        if (pinning)
             return intent;
         double mine = Along(train, self);
         var him = world.ActiveEnemies.OfType<Enemies.Brakeman>().Where(x => !x.Gone && OnTheRake(train, x.Attached)).OrderBy(x => x.Id).FirstOrDefault();
