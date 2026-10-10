@@ -648,7 +648,7 @@ object CampaignCommand(string content, string verb, string[] args)
                 var s = Load();
                 var contract = DarkTerritory.Sim.Campaign.Campaign.Offers(t, runTuning, s)[(int)Opt(args, "--contract", 0)];
                 s = DarkTerritory.Sim.Campaign.Campaign.Begin(s, contract);
-                var route = DarkTerritory.Sim.LineGen.Routes.Generate(content, contract.Tier, contract.Seed, s.Cars);
+                var route = DarkTerritory.Sim.LineGen.Routes.Generate(content, DarkTerritory.Sim.Campaign.Campaign.RouteOf(s, contract), s.Cars);
                 var loadout = DarkTerritory.Sim.Campaign.Campaign.Apply(t, s.Upgrades, DarkTerritory.Sim.Campaign.Campaign.WithStores(t, DarkTerritory.Sim.Campaign.Campaign.WithSpareKits(new DarkTerritory.Sim.Campaign.Loadout(train, boiler,
                     DataFile.Load<DarkTerritory.Sim.Combat.CombatTuning>(Path.Combine(content, DarkTerritory.Sim.Combat.CombatTuning.File)),
                     DataFile.Load<DarkTerritory.Sim.Enemies.EnemyTuning>(Path.Combine(content, DarkTerritory.Sim.Enemies.EnemyTuning.File))), s.SpareKits), s.Stores));
@@ -671,9 +671,11 @@ object CampaignCommand(string content, string verb, string[] args)
                 }, loadout.Boiler);
                 if (report.Run is not { } night)
                     return new { error = "the night didn't run" };
-                s = DarkTerritory.Sim.Campaign.Campaign.Settle(s, night);
+                // As the app settles it (note 591): delivered to a town, the crew's in it for the next night.
+                s = DarkTerritory.Sim.Campaign.Campaign.Arrived(DarkTerritory.Sim.Campaign.Campaign.Settle(s, night), night,
+                    DarkTerritory.Sim.Towns.TownAt.Terminus(route, DarkTerritory.Sim.LineGen.LineGenContent.Cached(content).Config.Tiers.Fortress.Identities));
                 saves.Save(s);
-                return new { contract = contract.Route, cargo = DarkTerritory.Sim.Train.Cargoes.Name(contract.Cargo), night, board = Board(s) };
+                return new { contract = contract.Route, from = route.Plan?.Fortress.Name, to = s.Town?.Name, cargo = DarkTerritory.Sim.Train.Cargoes.Name(contract.Cargo), night, board = Board(s) };
             }
         default:
             return new { error = $"unknown campaign command '{verb}': new, show, slots, buy car|kit|powder|lamp|extinguisher|sell|<upgrade>, sim, play" };
@@ -2058,6 +2060,18 @@ static object Screenshot(TrainTuning t, string content, string[] args)
         var tilted = new List<CarFrame>(leaned ?? train.Frames);
         DarkTerritory.Game.TippleTilt.Apply(tilted, train, run);
         leaned = tilted;
+    }
+    // --held (note 580): the staged grab (a creature whose Holding is a staged crewmate: --hugger swallow, --moose pin,
+    // --gannet pin, --whistler carry, --knotter coil ...) as the held one's own camera has it in the game, HeldShot's framing.
+    if (args.Contains("--held") && scene.Enemies?.FirstOrDefault(e => e.Holding >= 0) is { } holder
+        && scene.Crew?.FirstOrDefault(c => c.Id == holder.Holding) is { } victim)
+    {
+        var inside = train.Frames.FirstOrDefault(f => f.Shape.Interior is { } room && room.Contains(f.ToLocal(victim.Feet + Double3.Up * 0.5)));
+        double heldHint = train.Dynamics.Distance;
+        var eyesThere = Camera.LookAt(victim.Feet + Double3.Up * Eyes.Height, victim.Feet + Double3.Up * Eyes.Height
+            + new Double3(-Math.Sin(victim.Yaw), 0, -Math.Cos(victim.Yaw)), 75);
+        camera = HeldShot.Frame(victim.Feet, holder.WorldPosition(train), eyesThere, inside, HeldShot.Size(holder.Kind),
+            (x, z) => PlayerMotor.GroundAt(new Double3(x, 0, z), train.Line, ref heldHint));
     }
     scene.Build(mesh, train, camera.Position, leaned);
     // How long a frame's scene takes to build on the CPU, warm (the first build cooks the kit's pieces).
