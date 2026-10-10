@@ -21,7 +21,9 @@
   // Village finds are small things a player carries aboard by hand, and they pay on the spot (GDD §19's medicine,
   // tools and treats). A stop's finds are worth this many of the tier's value per car (run.json economy.perCar)
   // between them, split by each container's weight; an outlier's weigh this much more (P11).
-  "villageBudget": [0.3, 0.6],
+  // Note 593: doubled from [0.3, 0.6] with the villages' finds (about twice as many houses hold something), so each find is
+  // worth what it was.
+  "villageBudget": [0.6, 1.2],
   "outlierWeight": 1.8,
   // Stowed: lying still inside any car for this long.
   "settleSeconds": 1.0,
@@ -72,11 +74,16 @@
   // much of the budget it draws. Note 272 ("healing items are rare loot"): a cabinet was all medicine, bandages and
   // morphine and a floor's cache a third medicine, about six on a frontier night, a quarter of every find. Now a cabinet
   // holds them one time in four, bandages the likeliest, and nothing else does: about one a frontier night (the
-  // DamageModelTests pin it).
+  // DamageModelTests pin it). Note 593, with about twice the village finds: one cabinet in eight (6 of its 48), so still
+  // about one a frontier night.
   "kinds": {
     "cupboard":   { "weight": 1.0, "items": ["treats", "tinnedFood", "candles"] },
-    "cabinet":    { "weight": 1.3, "items": ["bandages", "bandages", "medicine", "morphine", "candles", "candles", "candles", "lampOil",
-      "lampOil", "pocketWatch", "pocketWatch", "treats", "treats", "tinnedFood", "rope", "lampParts"] },
+    "cabinet":    { "weight": 1.3, "items": ["bandages", "bandages", "bandages", "medicine", "medicine", "morphine", "candles", "candles",
+      "candles", "candles", "candles", "candles", "candles", "candles", "candles", "candles", "lampOil",
+      "lampOil", "lampOil", "lampOil", "lampOil", "lampOil", "lampOil", "lampOil", "pocketWatch",
+      "pocketWatch", "pocketWatch", "pocketWatch", "pocketWatch", "pocketWatch", "treats", "treats",
+      "treats", "treats", "treats", "treats", "treats", "treats", "tinnedFood", "tinnedFood", "tinnedFood",
+      "tinnedFood", "rope", "rope", "rope", "rope", "lampParts", "lampParts"] },
     "cellar":     { "weight": 1.2, "items": ["preserves", "treats", "tools"] },
     "underFloor": { "weight": 1.6, "items": ["valuableTools", "pocketWatch", "preserves"] },
     "bench":      { "weight": 0.9, "items": ["tools", "lampParts"] },

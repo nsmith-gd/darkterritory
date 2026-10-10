@@ -849,12 +849,32 @@ static object SweepStops(RouteTuning rt, StopTuning st, int seeds)
                 blocked = kept.Where(l => l.HasYard).GroupBy(l => l.Tracks.Count(t => t.Blocked)).OrderBy(g => g.Key).ToDictionary(g => g.Key.ToString(), g => g.Count()),
                 clearances = Math.Round(kept.Where(l => l.HasYard).Select(l => (double)l.Moves.Clearances).DefaultIfEmpty(0).Average(), 2),
                 villages = kept.Where(l => l.VillageForm is not null).GroupBy(l => l.VillageForm!.Value).ToDictionary(g => g.Key.ToString(), g => g.Count()),
+                // Note 593 (the director, 9 Oct: "a good chunk of them should have something here, something there"): what the
+                // village's open houses hold, the barns and sheds aside. The share with a find in them, and how many finds each.
+                houses = Houses(kept),
                 failing = kept.SelectMany(l => l.Checks.Where(c => c.Applies && !c.Pass)).GroupBy(c => c.Name).ToDictionary(g => g.Key, g => g.Count()),
                 examples = kept.Where(l => !l.Valid).Take(4).Select(l => new { l.Seed, failed = l.Checks.Where(c => c.Applies && !c.Pass).Select(c => $"{c.Name}: {c.Detail}") }),
             };
         }
         return new { tier = tier.ToString(), stops = result };
     }).ToList();
+}
+
+static object? Houses(IReadOnlyList<StopLayout> stops)
+{
+    var houses = stops.SelectMany(l => l.Buildings.Select((b, i) => (l, b, i))
+        .Where(x => x.b.Zone == StopZone.Village && x.b.Kind == BuildingKind.House && x.b.Open)
+        .Select(x => x.l.Containers.Count(c => c.Zone == StopZone.Village && c.Building == x.i))).ToList();
+    if (houses.Count == 0)
+        return null;
+    return new
+    {
+        open = houses.Count,
+        perVillage = Math.Round(houses.Count / (double)Math.Max(1, stops.Count(l => l.VillageForm is not null)), 1),
+        withFinds = Math.Round(houses.Count(n => n > 0) / (double)houses.Count, 2),
+        findsPerHouse = Math.Round(houses.Average(), 2),
+        mostInOne = houses.Max(),
+    };
 }
 
 static object LineInfo(RailLine line, double every) => new

@@ -658,7 +658,9 @@ public class StopCrewTests
         var doing = new List<string>();
         night.Until(() => run.Departures > 0, 1800, () =>
         {
-            most = Math.Max(most, hands.Count(h => h.Searching is not null));
+            // Whoever's carrying crates may go: at a crates-only stop the winch pair carry too (note 593: with more spots to
+            // search, the one that went first was one of them).
+            most = Math.Max(most, night.Bots.OfType<RoofWalkerBot>().Select(b => b.Job).OfType<StopHand>().Count(h => h.Searching is not null));
             foreach (var h in hands)
                 if (h.Doing.Length > 0 && !doing.Contains(h.Doing))
                     doing.Add(h.Doing);
@@ -669,7 +671,7 @@ public class StopCrewTests
         // Some of the village searched, its finds stowed aboard, by no more than half the crate hands at once.
         Assert.True(run.HidingSpots.Any(h => h.Stop == k && run.Searched(k, h.Container.Index)), trace);
         Assert.True(run.Stowed.Any(f => run.HidingSpots.Any(h => h.Stop == k && h.Container.Index == f.Container)), trace);
-        Assert.InRange(most, 1, (int)Math.Ceiling(hands.Count * F.Crew.VillageShare));
+        Assert.InRange(most, 1, (int)Math.Ceiling(night.Calls.CrateHands * F.Crew.VillageShare));
         // Nobody left behind, nobody dead, the train whole.
         Assert.All(night.Crew, c => Assert.True(c.Alive, $"died of {c.Death}; crew {where}"));
         Assert.All(night.Crew, c => Assert.NotEqual(Surface.Ground, c.Surface));
@@ -687,7 +689,8 @@ public class StopCrewTests
         var world = night.World;
         var run = world.Run!;
         var walls = train.Walls!;
-        var hands = night.Bots.OfType<RoofWalkerBot>().Select(b => b.Job).OfType<StopHand>().Where(h => h.Job == StopJob.Crates).ToList();
+        // Any hand carrying crates may be the one out there: at a crates-only stop the winch pair carry too (note 593).
+        var hands = night.Bots.OfType<RoofWalkerBot>().Select(b => b.Job).OfType<StopHand>().ToList();
         // Out among the houses: the Choir comes.
         night.Until(() => hands.Any(h => h.Doing.StartsWith("searching the", StringComparison.Ordinal)), 1800);
         var outThere = hands.First(h => h.Doing.StartsWith("searching the", StringComparison.Ordinal));
@@ -747,7 +750,8 @@ public class StopCrewTests
         var walls = train.Walls!;
         var pairs = walls.HouseDoors.GroupBy(d => (d.Key - 1) >> 2).Where(g => g.Count() == 2).ToList();
         Assert.NotEmpty(pairs);
-        var hands = night.Bots.OfType<RoofWalkerBot>().Select(b => b.Job).OfType<StopHand>().Where(h => h.Job == StopJob.Crates).ToList();
+        // Any hand carrying crates may be the one out there: at a crates-only stop the winch pair carry too (note 593).
+        var hands = night.Bots.OfType<RoofWalkerBot>().Select(b => b.Job).OfType<StopHand>().ToList();
         night.Until(() => hands.Any(h => h.Doing.StartsWith("searching the", StringComparison.Ordinal)), 1800);
         var outThere = hands.First(h => h.Doing.StartsWith("searching the", StringComparison.Ordinal));
         int me = outThere.PlayerId!.Value - 1;

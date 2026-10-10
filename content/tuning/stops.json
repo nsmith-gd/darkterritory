@@ -53,7 +53,13 @@
     "houseGap": 2.5,
     "outliers": [1, 2],
     "outlierFindBonus": 0.3,
-    "secondFindChance": 0.35,
+    // Note 593 (the director, 9 Oct: "not every house certainly should have loot in it, but a good chunk of them should
+    // have something here, something there, things that we can stash in our lockers"): a house the tier's `find` picks has a
+    // find, a second at secondFindChance, a third besides at thirdFindChance. With the tiers' finds (0.9 to 0.65, from 0.45 to
+    // 0.26) about three houses in four have something, one in ten two or three; the score's findOdds doubled with them (3 to 6),
+    // so a village measures where D.1's bands were set.
+    "secondFindChance": 0.45,
+    "thirdFindChance": 0.15,
     "outbuildings": [1, 2],
     "wellChance": 0.5,
     // A village set back from the line (arrangement "setback") sits this much further out, within this range.
@@ -159,7 +165,7 @@
     "clearance": 5,
     // The village's part: its round trip, the odds, the houses to search and how far out it is. It counts at
     // `villageWeight` where the stop also has a yard (the village is optional there).
-    "villageMetresPerPoint": 50, "findOdds": 3, "perHouse": 0.15, "offsetPerPoint": 25, "villageWeight": 0.4,
+    "villageMetresPerPoint": 50, "findOdds": 6, "perHouse": 0.15, "offsetPerPoint": 25, "villageWeight": 0.4,
     // Walking a route isn't a straight line.
     "walkFactor": 1.25,
     // What each yard container loads, in cars (facilities.json loadPerCasting, loadPerCrate × loot.json's crates per
@@ -192,7 +198,7 @@
       "sidings": [1, 2], "blocked": [0, 0], "faceCars": [5, 7], "crane": 1.0, "runway": [45, 60], "stock": [1.3, 1.6], "everyTrack": true,
       "villages": [["street", 0.4], ["blocks", 0.35], ["crossroads", 0.25]],
       "arrangements": [["opposite", 0.8], ["along", 0.2]],
-      "villageOffset": [30, 40], "crossingReach": 70, "crossingClear": true, "buffer": 20, "find": 0.45, "stub": [20, 30],
+      "villageOffset": [30, 40], "crossingReach": 70, "crossingClear": true, "buffer": 20, "find": 0.9, "stub": [20, 30],
       "band": { "yard": [4, 20], "village": [10, 18] }
     },
     "frontier": {
@@ -202,7 +208,7 @@
       "sidings": [2, 3], "blocked": [0, 1], "faceCars": [3, 5], "crane": 0.75, "runway": [35, 50], "stock": [1.2, 1.5], "everyTrack": true,
       "villages": [["blocks", 0.35], ["street", 0.25], ["crossroads", 0.25], ["farmsteads", 0.15]],
       "arrangements": [["opposite", 0.55], ["setback", 0.25], ["along", 0.2]],
-      "villageOffset": [32, 60], "crossingReach": 90, "crossingClear": false, "buffer": 24, "find": 0.38, "stub": [25, 45],
+      "villageOffset": [32, 60], "crossingReach": 90, "crossingClear": false, "buffer": 24, "find": 0.8, "stub": [25, 45],
       "band": { "yard": [14, 38], "village": [14, 22] }
     },
     "deadLines": {
@@ -212,7 +218,7 @@
       "sidings": [2, 4], "blocked": [1, 2], "faceCars": [3, 5], "crane": 0.55, "runway": [28, 42], "stock": [1.1, 1.4], "everyTrack": true,
       "villages": [["blocks", 0.25], ["crossroads", 0.25], ["farmsteads", 0.3], ["street", 0.2]],
       "arrangements": [["opposite", 0.35], ["setback", 0.45], ["along", 0.2]],
-      "villageOffset": [45, 90], "crossingReach": 110, "crossingClear": false, "buffer": 28, "find": 0.32, "stub": [35, 60],
+      "villageOffset": [45, 90], "crossingReach": 110, "crossingClear": false, "buffer": 28, "find": 0.72, "stub": [35, 60],
       "band": { "yard": [28, 64], "village": [18, 28] }
     },
     "deepTerritory": {
@@ -222,7 +228,7 @@
       "sidings": [3, 5], "blocked": [1, 3], "faceCars": [2, 4], "crane": 0.3, "runway": [18, 28], "stock": [1.0, 1.3], "everyTrack": false,
       "villages": [["farmsteads", 0.45], ["crossroads", 0.3], ["blocks", 0.25]],
       "arrangements": [["setback", 0.6], ["along", 0.25], ["opposite", 0.15]],
-      "villageOffset": [60, 110], "crossingReach": 130, "crossingClear": false, "buffer": 34, "find": 0.26, "stub": [45, 75],
+      "villageOffset": [60, 110], "crossingReach": 130, "crossingClear": false, "buffer": 34, "find": 0.65, "stub": [45, 75],
       "band": { "yard": [34, 112], "village": [22, 36] }
     }
   }

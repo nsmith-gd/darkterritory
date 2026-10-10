@@ -757,4 +757,5 @@ written here instead is moved out by `tools/coord/notes.py split`; the Coordinat
 - [581. Loot into the cars, forgivingly (D1.4, queue #313; the director, 9 Oct 2026, playtest: "There's no way it seems to actually unhook loot…](notes/581.md)
 - [582. The belt's hold made clear (D1.4, queue #314; the director, 9 Oct 2026, playtest: "I started the belt hold and it wasnt clear what was…](notes/582.md)
 - [587. The extinguisher stays on the fire (queue #320, D1; the director, 9 Oct 2026, playtesting: "I'm looking right at a flame. And I couldn't be…](notes/587.md)
+- [593. Loot in the abandoned villages (D1.5, queue #325; the director, 9 Oct 2026, playtest, via D1: "I'm not really finding a lot of loot. I feel…](notes/593.md)
 <!-- end of the notes index -->
