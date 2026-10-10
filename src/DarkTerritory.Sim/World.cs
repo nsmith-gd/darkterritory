@@ -1888,7 +1888,7 @@ public sealed class World
         // Out on the line: not the yard, not home, and not the run in to the terminus either, where nothing's sent by design
         // (the line's terminus_safe, the final approach): the quiet there is the night letting go (T74).
         double front = Train.Dynamics.Distance;
-        bool home = Route is { } r && (front > r.Length - NoSpawnFinalApproach || r.Plan?.Director.TagsAt(front).Contains("terminus_safe") == true);
+        bool home = HomeStretch;
         bool out_ = (Run is null || Run.Phase is DarkTerritory.Sim.Run.RunPhase.Underway or DarkTerritory.Sim.Run.RunPhase.AtFacility) && !home;
         bool active = _enemies.Any(e => !e.Gone && e.Phase is SpinePhase.Telegraph or SpinePhase.Commit or SpinePhase.Punish)
             // The line at its hardest (linegen plan §15.4): the director sends nothing of its own there because the terrain's
@@ -2053,8 +2053,9 @@ public sealed class World
             foreach (var (cause, actor) in d.TakeAnswers())
                 Answer = new DrawAnswer(t.Director.Draw.ShowSeconds, cause, AnswerAt(t.Director.Draw), actor);
             // Drawn by the heat (note 263): it boards at the tender, to cross to the firebox.
+            bool homeStretch = HomeStretch;
             if (d.Allows(EnemyKind.Stoker) && _hotFor >= t.Stoker.HeatSeconds && Train.BoilerTuning is not null
-                && !_enemies.Any(e => !e.Gone && e.Kind == EnemyKind.Stoker) && !TrainInFort)
+                && !_enemies.Any(e => !e.Gone && e.Kind == EnemyKind.Stoker) && !TrainInFort && !homeStretch)
             {
                 d.Charge(this, EnemyKind.Stoker, _enemies);
                 _enemies.Add(Stoker.AtTender(_nextEnemyId++, Train, t.Stoker));
@@ -2062,7 +2063,7 @@ public sealed class World
             }
             // The marsh (v1.1 §22, formerly the Drift): a hazard over the line's bogs, not a spawn. Once a marsh.
             if (d.Allows(EnemyKind.Drift) && Drift.Ground(this, t.Drift) is { } marsh && marsh.Start != _driftMarsh && Train.Dynamics.Consist.CarCount >= 1
-                && !_enemies.Any(e => !e.Gone && e.Kind == EnemyKind.Drift))
+                && !_enemies.Any(e => !e.Gone && e.Kind == EnemyKind.Drift) && !homeStretch)
             {
                 _driftMarsh = marsh.Start;
                 SpawnDrift(t);
@@ -2078,7 +2079,7 @@ public sealed class World
                     _enemies.Add(Sim.Enemies.Jacob.At(_nextEnemyId++, jacob.At, jacob.Along, jacob.Yaw));
             }
             // The lineside moose (note 339): grazing beside the line ahead, as the line's own; they cost the director nothing.
-            if (Insist is null && d.Allows(EnemyKind.Moose) && Route is { } route && Train.Dynamics.Speed > 3 && !TrainInFort)
+            if (Insist is null && d.Allows(EnemyKind.Moose) && Route is { } route && Train.Dynamics.Speed > 3 && !TrainInFort && !homeStretch)
                 LinesideMoose(t.Moose, route);
             // The Mourners (note 362): a crewmate's body left lying off the train brings a group for it, the director's or not.
             if (t.Mourners.Enabled)
@@ -2258,6 +2259,14 @@ public sealed class World
 
     /// <summary>App. B.1: nothing may spawn inside the final approach.</summary>
     public double NoSpawnFinalApproach { get; set; } = 500;
+
+    /// <summary>
+    /// The train's front on the run in to the terminus, where nothing new comes for it (the line's terminus_safe, the final
+    /// <see cref="NoSpawnFinalApproach"/>): the director's own spawns, and (note 590) the Stoker, the Marsh and the lineside
+    /// moose too, so a crew stopped outside the doors can clear the train. The Wakers (note 588) are dawn's, not this.
+    /// </summary>
+    public bool HomeStretch => Route is { } r
+        && (Train.Dynamics.Distance > r.Length - NoSpawnFinalApproach || r.Plan?.Director.TagsAt(Train.Dynamics.Distance).Contains("terminus_safe") == true);
 
     /// <summary>Applies this tick's damage and a derailment to the crew. Host only.</summary>
     public void ApplyDamage(Func<int, PlayerState?> get, Action<int, PlayerState> set, IEnumerable<int> crew)

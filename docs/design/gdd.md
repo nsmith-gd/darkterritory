@@ -1783,7 +1783,7 @@ Enforced regardless of budget:
 
 **Post-event cooldown.** After a spawn, a trough of at least 25–45 s (design decision, 2026-10; was 30–60 s). Sustained pressure reads as noise; pressure with troughs reads as rhythm. The spawn's relief of the pressure makes the trough; the cooldown gives way only when the pressure is well past its threshold.
 
-**Terminus approach.** One deliberate spike, then a hard stop 500m out. Nothing may spawn inside the final approach — the last stretch is for surviving what's already aboard.
+**Terminus approach.** One deliberate spike, then a hard stop 1,200 m out (was 500 m; the director, 9 Oct: a crew stopped outside the doors to clear the train has to be able to clear it, note 590). Nothing may spawn inside the final approach, nor come for the train there (the Stoker, the Marsh, the lineside moose) — the last stretch is for surviving, and clearing, what's already aboard.
 
 ### Contradiction seeding
 

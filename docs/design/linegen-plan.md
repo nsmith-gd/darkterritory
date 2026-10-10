@@ -110,7 +110,7 @@ Each run has a terrain budget `B = budgetPerKm(D) × mainLineLengthKm`. It is sp
 | Opening | 2 km → first facility | 15% | Single features only, no stacks |
 | Middle | first → last facility | 45% | Stacks allowed up to the tier cap |
 | Final approach | last facility → terminus home straight | 40% | Contains the run's terminal spike (§11.4) |
-| Home straight | last 1.5 km | 0% | Level, straight or R ≥ 1000 m. Director spawn ban applies to the final 500 m. |
+| Home straight | last 1.5 km | 0% | Level, straight or R ≥ 1000 m. Director spawn ban applies to the final 1,200 m (was 500; note 590). |
 | Facility lulls | 1 km before each facility junction, 0.5 km after rejoin | 0% | Level approach, holding track (§11.1) |
 
 The final approach carries a disproportionate share on purpose: it is the stretch where the crew is carrying the most cargo and the most damage.
@@ -519,8 +519,8 @@ The arrival mirrors the threshold in reverse, with the run's biggest terrain mom
 | 4 → 1.5 km | **Terminal spike:** the final approach's largest stack, placed deliberately. Pairs with the director's "one deliberate spike" (GDD B.1). |
 | ~3 km | **Sky glow** above the fog: floodlight glow and sweeping searchlight beams, visible as light before anything is visible as shape. "Eventually the crew sees lights." |
 | 1.5 km | **Home straight** begins: level, straight or R ≥ 1000 m, long sightline. Budget cost 0. |
+| 1.2 km | Director spawn ban begins (`terminus_safe` tag; was 500 m, note 590: past the yard-limit board, where a crew stops to clear the train) |
 | 1.0 km | "YARD LIMIT" board (demand: 2.5 m/s at the gate) |
-| 500 m | Director spawn ban begins (`terminus_safe` tag) |
 | ~300 m | Walls and gun towers resolve out of the fog |
 | 0 | Outer gate. Arrival yard with a stop road long enough for the consist. |
 
