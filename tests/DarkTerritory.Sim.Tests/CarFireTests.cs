@@ -349,8 +349,9 @@ public class CarFireTests
         int cell = grid.FloorAt(fire.Local);
         var at = grid.Centre[cell];
         n.Crew[1] = Aim(n.Crew[1] with { Position = new Double3(room.Centre.X, room.Min.Y, at.Z - 2) }, at);
-        n.Run(1.0 + SimConstants.TickSeconds, _ => new PlayerIntent { Buttons = PlayerButtons.Fire });
-        Assert.Contains(cell, fire.Sprayed);
+        var sprayed = new HashSet<int>();
+        n.Run(1.0 + SimConstants.TickSeconds, _ => { sprayed.UnionWith(fire.Sprayed); return new PlayerIntent { Buttons = PlayerButtons.Fire }; });
+        Assert.Contains(cell, sprayed);
         Assert.Equal(0, fire.Heat[cell]);
         Assert.False(fire.Gone); // the rest of the car's still alight: one cell a second
     }
@@ -368,6 +369,53 @@ public class CarFireTests
         Assert.False(fire.Gone);
         Assert.True(ext.Charge < 0.05, $"charge {ext.Charge:0.00}");
         Assert.All(fire.Sprayed, c => Assert.NotEqual(FireGrid.Of(n.Train, 2, Tuning.Enemies.CarFire.CellSize)!.FloorAt(fire.Local), c));
+    }
+
+    [Fact]
+    public void PointedAtTheFlamesAFootAwayTheSprayPutsThemOut()
+    {
+        // Note 587 (the director, 9 Oct 2026: "I'm looking right at a flame. And I couldn't be more than a foot or two from
+        // this fire ... I point at fire, I click, I hold, it should stay there"). A fire burning high on one patch of boards,
+        // looked at in the middle of its flames from just short of it: the look's ray goes on over the burning boards to the
+        // floor beyond, which isn't alight. The spray still goes on the fire.
+        var (n, fire, ext, room) = Armed();
+        var grid = FireGrid.Of(n.Train, 2, Tuning.Enemies.CarFire.CellSize)!;
+        int cell = grid.FloorAt(fire.Local);
+        var at = grid.Centre[cell];
+        var heat = new double[grid.Count];
+        heat[cell] = 0.9;
+        fire.RestoreHeat(heat);
+        n.Crew[1] = n.Crew[1] with { Position = new Double3(at.X, room.Min.Y, at.Z - 0.6) };
+        n.Crew[1] = Aim(n.Crew[1], at + Double3.Up * 1.0);
+        Assert.NotEqual(cell, grid.Hit(n.Crew[1].Position + Double3.Up * Tuning.Train.Pick.EyeHeight,
+            Run.Bookmarks.Forward(n.Crew[1].Yaw, n.Crew[1].Pitch), Tuning.Enemies.CarFire.SprayReach)); // the ray alone misses
+        var sprayed = new HashSet<int>();
+        n.Run(1.0 + SimConstants.TickSeconds, _ => { sprayed.UnionWith(fire.Sprayed); return new PlayerIntent { Buttons = PlayerButtons.Fire }; });
+        Assert.Contains(cell, sprayed);
+        Assert.Equal(0, fire.Heat[cell]);
+    }
+
+    [Fact]
+    public void HeldOnAFireTheSprayFollowsItOut()
+    {
+        // Note 587: point, click, hold. A fire that has spread along the boards either side of where it started, the look
+        // kept on where it started: each cell out, the spray goes on the next burning one in the cone, and the fire's gone
+        // before the charge is.
+        var (n, fire, ext, room) = Armed();
+        var grid = FireGrid.Of(n.Train, 2, Tuning.Enemies.CarFire.CellSize)!;
+        int start = grid.FloorAt(fire.Local);
+        var at = grid.Centre[start];
+        var heat = new double[grid.Count];
+        for (int i = 0; i < grid.Count; i++)
+            if (grid.Normal(i).Y > 0.9 && (grid.Centre[i] - at).Length <= Tuning.Enemies.CarFire.CellSize + 0.1)
+                heat[i] = 0.6;
+        fire.RestoreHeat(heat);
+        int burning = fire.Heat.Count(h => h > 0);
+        Assert.True(burning > 1, $"{burning} cells alight");
+        n.Crew[1] = n.Crew[1] with { Position = new Double3(at.X, room.Min.Y, at.Z - 1.0) };
+        n.Crew[1] = Aim(n.Crew[1], at + Double3.Up * 0.5);
+        n.Run(Tuning.Enemies.CarFire.ChargeSeconds * 0.9, _ => new PlayerIntent { Buttons = PlayerButtons.Fire });
+        Assert.True(fire.Gone, $"{fire.Heat.Count(h => h > 0)} of {burning} cells still alight, charge {ext.Charge:0.00}");
     }
 
     [Fact]
