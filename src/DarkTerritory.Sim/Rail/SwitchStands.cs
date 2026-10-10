@@ -89,7 +89,7 @@ public sealed class SwitchStands(JunctionTuning tuning)
         AtThrower(s, train, hand) ? (PointsAhead(train), SlowEnough(train)) : null;
 
     /// <summary>
-    /// Host: a cannonball that found a stand's lever (the director, 9 Oct 2026, note 593: "someone should be able to throw a
+    /// Host: a cannonball that found a stand's lever (the director, 9 Oct 2026, note 595: "someone should be able to throw a
     /// switch by shooting it with the cannon if their aim is good enough"). Its flight from the muzzle to where it came down
     /// passes within <see cref="JunctionTuning.ShotReach"/> of the lever: over it goes, in the gunner's name, as a hand on it
     /// would throw it (not with a wheel on the points). The nearest lever to its line, if it passes more than one.

@@ -7,7 +7,7 @@ using DarkTerritory.Sim.Player;
 namespace DarkTerritory.Sim.Tests;
 
 /// <summary>
-/// A switch thrown by a cannonball (ARCHITECTURE §8 note 593; the director, 9 Oct 2026: "someone should be able to throw a
+/// A switch thrown by a cannonball (ARCHITECTURE §8 note 595; the director, 9 Oct 2026: "someone should be able to throw a
 /// switch by shooting it with the cannon if their aim is good enough"): a ball that finds a stand's lever throws it over,
 /// in the gunner's name; one that goes wide does nothing.
 /// </summary>

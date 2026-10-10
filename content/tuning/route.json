@@ -34,7 +34,7 @@
     "leverOffset": 2.6,
     "leverReach": 2.2,
     "throwSeconds": 1.5,
-    // The director, 9 Oct 2026 (note 593): "someone should be able to throw a switch by shooting it with the cannon if their
+    // The director, 9 Oct 2026 (note 595): "someone should be able to throw a switch by shooting it with the cannon if their
     // aim is good enough". A ball passing within shotReach m of a stand's lever throws it over, as a hand on it would (and
     // no more than a hand: not with a wheel on the points).
     "shotReach": 0.6,
