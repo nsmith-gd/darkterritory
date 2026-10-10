@@ -359,6 +359,13 @@ public sealed record CarFireTuning
     public double BurnFrom { get; init; } = 0.35;
     public double SprayReach { get; init; } = 2.5;
     public double SprayPerSecond { get; init; } = 0.035;
+    /// <summary>
+    /// The spray's cone (degrees either side of the look, note 587): it goes on the burning cell nearest the middle of it,
+    /// seen anywhere up its flames, <see cref="SprayAimLift"/> + <see cref="SprayAimLiftPerHeat"/> x its heat tall (as drawn).
+    /// </summary>
+    public double SprayConeDeg { get; init; } = 25;
+    public double SprayAimLift { get; init; } = 0.4;
+    public double SprayAimLiftPerHeat { get; init; } = 1.2;
     public double ChargeSeconds { get; init; } = 10;
     public double RechargeSeconds { get; init; } = 90;
     public double BurnReach { get; init; } = 4;
