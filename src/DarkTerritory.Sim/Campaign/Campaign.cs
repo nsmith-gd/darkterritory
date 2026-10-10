@@ -62,8 +62,9 @@ public sealed record UpgradeDef(string Id, string Name, UpgradeSize Size, double
 public sealed record StandardCrew(double SmallShare, double MajorShare, int MajorEvery, double LossFraction, double RunningCosts);
 
 /// <summary>
-/// A night on the board at the fortress: a route, the freight the train leaves with, and what a car of it pays (spec F.1; GDD
-/// §9 "choose freight contracts", §19; note 182). A save from before cargo reads as goods.
+/// A night on the board at the fortress: a route, a freight, and what a car of it pays (spec F.1; GDD §9 "choose freight
+/// contracts", §19; note 182). The train leaves empty (note 575), so the freight is aboard only once a stop loads it. A save
+/// from before cargo reads as goods.
 /// </summary>
 public sealed record Contract(RouteTier Tier, ulong Seed, double PerCar, CargoKind Cargo = CargoKind.Goods)
 {

@@ -750,6 +750,7 @@ written here instead is moved out by `tools/coord/notes.py split`; the Coordinat
 - [571. Nicki's party (P1, queue #301; the director, 8 Oct 2026: "an NPC you can find some times in one of the houses. Her name is Nicki and she's…](notes/571.md)
 - [572. Jacob, the fisherman (P1, queue #302; the director, 8 Oct 2026: "an NPC named Jacob who can be found randomly in the world near water…](notes/572.md)
 - [576. Damage with consequences, Sea of Thieves style (D1.5, queue #306; the director, 9 Oct 2026, playtest: "we also need the cars and locomotive…](notes/576.md)
+- [575. The train departs empty (D1.5, queue #305; the director, 9 Oct 2026, playtest: "It also doesnt make sense that if I skip everything and…](notes/575.md)
 - [577. The fantasy as the GDD's pillar (D1.5, queue #307; the director, 9 Oct 2026, after a playtest: "The fantasy is we are a crew sent out into…](notes/577.md)
 - [574. The controls belong to whoever's working them (queue #304, D1; the director, 9 Oct 2026, on the short-nights test build: "if a player goes…](notes/574.md)
 - [577. The fantasy as the GDD's pillar (D1.5, queue #307; the director, 9 Oct 2026, after a playtest: "The fantasy is we are a crew sent out into…](notes/577.md)
@@ -767,4 +768,5 @@ written here instead is moved out by `tools/coord/notes.py split`; the Coordinat
 - [597. The bot leaves your steam alone (queue #329, D1; the director's in-game note 2, 9 Oct 2026: the bot venting pressure all the time)](notes/597.md)
 - [598. Bots and the extinguisher (queue #330, D1; the director's in-game notes, 9 Oct 2026: the bots not using the fire extinguisher)](notes/598.md)
 - [599. Dawn, seen and felt coming (D1.4, queue #331, at D1's ask over its Wakers, #321 and note 588; docs/design/creatures/wakers.md §2-§4; the…](notes/599.md)
+- [600. The end town is the town (D1.4, queue #332, D1's follow-up to its #324 and note 591; the director, 9 Oct 2026, playtest: "The end town…](notes/600.md)
 <!-- end of the notes index -->
