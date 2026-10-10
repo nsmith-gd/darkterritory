@@ -1018,6 +1018,29 @@ public sealed class World
             Run?.Step(this, crew, SimConstants.TickSeconds);
     }
 
+    /// <summary>
+    /// Dawn (note 588): the train's still out, and the Wakers get up behind it, the first on the line, the rest off to its sides.
+    /// Host, once a night.
+    /// </summary>
+    void Wake(WakersTuning t)
+    {
+        if (!t.Enabled || _wakersUp || Derailed || Run is not { LineLive: true, Phase: Sim.Run.RunPhase.Underway or Sim.Run.RunPhase.AtFacility } run)
+            return;
+        _wakersUp = true;
+        int count = t.For(run.Route.Tier);
+        for (int i = 0; i < count; i++)
+        {
+            int side = i == 0 ? 0 : i % 2 == 1 ? 1 : -1;
+            AddEnemy(id => Waker.Rise(id, Train.RearDistance, side, t));
+        }
+    }
+    bool _wakersUp;
+
+    /// <summary>A Waker has the train (note 588): it's being lifted and eaten.</summary>
+    public bool WakerHolds => _enemies.Any(e => e is Waker { Holds: true });
+    /// <summary>Host: a Waker has eaten the train to the engine (note 588). The run ends "taken at dawn".</summary>
+    public bool TakenAtDawn { get; set; }
+
     /// <summary>Puts an enemy into the world directly (tests, the editor, scripted set pieces). Host only.</summary>
     public T AddEnemy<T>(Func<int, T> make) where T : Enemy
     {
@@ -1981,6 +2004,7 @@ public sealed class World
             && Train.Boiler.Firebox >= t.Stoker.HeatFirebox ? _hotFor + SimConstants.TickSeconds : 0;
         // The director thinks once a second; the Stoker comes whenever its condition holds, charged when it does (App. B.5).
         // Not in the safe yard (note 263): nothing comes before the run begins.
+        Wake(t.Wakers);
         if (Tick % SimConstants.TickRate == 0 && Director is { } d && !Derailed && !SafeYard)
         {
             d.Present(_context?.Crew.Count ?? 0);

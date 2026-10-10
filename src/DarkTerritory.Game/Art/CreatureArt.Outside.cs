@@ -96,8 +96,38 @@ public sealed partial class CreatureArt
                 }
             case EnemyKind.Mourners or EnemyKind.FreightBeetle or EnemyKind.TowerJaw:
                 return false;
+            case EnemyKind.Waker:
+                return WakerStandIn(mesh, model, phase, t);
         }
         return null;
+    }
+
+    /// <summary>
+    /// A Waker (note 588; docs/design/creatures/wakers.md) until its model comes (C1/E1, the art checklist): the land standing
+    /// up, a car a mouthful. Rising, it heaves up out of the ground; running, it's bent over the line, long arms reaching;
+    /// holding the train, the arms up at the last car and its head down to it. Earth, unlit.
+    /// </summary>
+    static bool WakerStandIn(MeshBuilder mesh, in Matrix4x4 model, SpinePhase phase, double t)
+    {
+        var o = model.Translation;
+        var r = Vector3.Normalize(Vector3.TransformNormal(Vector3.UnitX, model));
+        var u = Vector3.Normalize(Vector3.TransformNormal(Vector3.UnitY, model));
+        var b = Vector3.Normalize(Vector3.TransformNormal(Vector3.UnitZ, model));
+        var earth = Palette.DeepBrown * 0.55f;
+        double sink = phase == SpinePhase.Telegraph ? (1 - Math.Clamp(t / 8, 0, 1)) * 18 : phase == SpinePhase.Dormant ? 18 : 0;
+        bool holds = phase is SpinePhase.Punish or SpinePhase.Grab;
+        void Box(double x, double y, double z, double hx, double hy, double hz, Vector3 colour) =>
+            mesh.Box(o + r * (float)x + u * (float)(y - sink) + b * (float)z, r, u, b, new Vector3((float)hx, (float)hy, (float)hz), colour);
+        Box(0, 11, 6, 7, 6, 11, earth);
+        Box(0, 16, -6, 5, 4, 5, earth * 0.9f);
+        Box(0, holds ? 13 : 15, -12, 3, 3, 4, earth * 0.6f);
+        Box(0, holds ? 11 : 13, -15.5, 2.4, 0.8, 0.6, earth * 0.3f);
+        foreach (double x in new[] { -5.5, 5.5 })
+        {
+            Box(x, holds ? 12 : 7, holds ? -14 : -11, 1.2, holds ? 3 : 7, 1.2, earth * 0.8f);
+            Box(x * 0.9, 5, 12, 1.6, 5, 1.6, earth * 0.8f);
+        }
+        return true;
     }
 
     static float Hash01(int id, int k) => 0.5f + 0.5f * MathF.Sin(id * 12.9898f + k * 78.233f);
