@@ -68,6 +68,13 @@ public sealed partial class GreyboxScene
     public bool LampLit { get; set; } = true;
     /// <summary>GDD v1.4 App. E.9: this many of the cars' lamps are out, from the last car forward (all of them: the engine's too).</summary>
     public int LampsOut { get; set; }
+    /// <summary>
+    /// How far each car's lanterns are swung on their chains (radians, by car; note 599: the Wakers' stir knocking them about,
+    /// <see cref="DawnStir.LampSway"/>). Null: hanging still.
+    /// </summary>
+    public Func<int, float>? LampSwayOf { get; set; }
+    /// <summary>The stir's last thud (note 599, <see cref="DawnStir.Thud"/>): how strong, and how long ago; strength 0, none.</summary>
+    public (double Strength, double Since) StirThud { get; set; }
 
     /// <summary>Car <paramref name="index"/>'s lamps are out (its vehicle's LampLit), so it's drawn dark inside and out.</summary>
     /// <summary>
@@ -436,14 +443,21 @@ public sealed partial class GreyboxScene
             if (frame.Shape.Interior is { } room && !dark)
                 foreach (double z in new[] { -room.HalfSize.Z * 0.5, room.HalfSize.Z * 0.5 })
                 {
+                    // Swung on its chain (note 599), the light goes with the lantern.
+                    var swung = Vector3.Transform(new Vector3(0, (float)(room.Max.Y - 0.2), (float)(room.Centre.Z + z)),
+                        Art.SceneArt.LampSwing(room, LampSwayOf?.Invoke(frame.Index) ?? 0));
                     if (eatenBy.Eats(new Vector3(0, (float)room.Max.Y - 0.05f, (float)(room.Centre.Z + z))))
                         continue;
                     // With the art pass the lamps are flames, and flicker (Art.SceneArt.Flicker); the greybox's are steady.
                     float flicker = Look is null ? 1 : Art.SceneArt.Flicker(Time, frame.Index * 2 + (z < 0 ? 0 : 1));
                     mesh.PointLights.Add(Emergency
-                        ? new PointLight(V(frame.ToWorld(new Double3(0, room.Max.Y - 0.2, room.Centre.Z + z)), eye), EmergencyRed, 4f)
-                        : new PointLight(V(frame.ToWorld(new Double3(0, room.Max.Y - 0.2, room.Centre.Z + z)), eye), Palette.LampAmber * 1.6f * flicker, 7.5f));
+                        ? new PointLight(V(frame.ToWorld(new Double3(swung.X, swung.Y, swung.Z)), eye), EmergencyRed, 4f)
+                        : new PointLight(V(frame.ToWorld(new Double3(swung.X, swung.Y, swung.Z)), eye), Palette.LampAmber * 1.6f * flicker, 7.5f));
                 }
+            // A thud of the Wakers' stir shakes coal off the bunker's heap onto the footplate (note 599).
+            if (StirThud.Strength > 0 && Look?.Art.Effects is { } shaken
+                && frame.Shape.Interactables.FirstOrDefault(i => i.Kind == InteractableKind.Coal) is { Kind: InteractableKind.Coal } coal)
+                shaken.CoalSlide(mesh, V(frame.ToWorld(coal.Position), eye), ToF(frame.Back), ToF(frame.Right), StirThud.Since, StirThud.Strength, frame.Index);
             foreach (var i in frame.Shape.Interactables.Where(i => i.Kind == InteractableKind.Firebox && FireGlow > 0))
                 mesh.PointLights.Add(new PointLight(V(frame.ToWorld(i.Position + new Double3(0, 0.7, 0.3)), eye), FireColour(0.6f + 1.6f * FireGlow), 5f));
         }
@@ -629,6 +643,9 @@ public sealed partial class GreyboxScene
                     DrawEnemy(mesh, line, frames, e, eye, from, to, Look?.Art.Creatures, bite, prey, room,
                         e.Kind is EnemyKind.Gaunt or EnemyKind.Grumbler or EnemyKind.Moose || outside ? Pace(e) : 0, Flinch(e), HitAge(e),
                         modeSeconds: modeSeconds, place: e is Sim.Enemies.TowerJaw { Mode: Sim.Enemies.TowerJawMode.Wreck } ? TowerPlace(line, e.Local) : null);
+                    // A Waker getting up (note 599): the earth it throws off rising, and the dust it raises on the move.
+                    if (e.Kind == EnemyKind.Waker && Look?.Art.Effects is { } wake)
+                        WakerDust(mesh, wake, e, line, eye);
                     // A Grumbler healing (App. A.8, note 487): what a lone crewmate's blow knocked out of it drawn back in.
                     if (e.Kind == EnemyKind.Grumbler && Healing(e) is > 0 and var healing && Look?.Art.Effects is { } knit)
                     {
@@ -1755,6 +1772,52 @@ public sealed partial class GreyboxScene
         new(v.X * Math.Cos(yaw) + v.Z * Math.Sin(yaw), v.Y, -v.X * Math.Sin(yaw) + v.Z * Math.Cos(yaw));
 
     /// <summary>Where <paramref name="e"/> stands in the world: in its car's frame aboard, as it is loose.</summary>
+    /// <summary>
+    /// A Waker's earth and dust (note 599): rising, the clods it heaves up and the bank of dust it breaks out of; running,
+    /// what its feet raise, a stride as long as its pace makes it (the stir's thuds keep the same beat, <see cref="DawnStir"/>).
+    /// </summary>
+    void WakerDust(MeshBuilder mesh, Art.Effects fx, Enemy e, RailLine line, Double3 eye)
+    {
+        var t = Look?.Art.Creatures?.WakersTuning ?? new Sim.Enemies.WakersTuning();
+        var at = line.Sample(e.LineDistance);
+        var right = Double3.Cross(at.Tangent, Double3.Up).Normalized;
+        var feet = at.Position + right * e.Lateral + Double3.Up * e.Height;
+        var (r, b) = (ToF(right), ToF(at.Tangent * -1));
+        double since = WakerRise.Since(e.Phase, e.PhaseSeconds, t.RiseSeconds);
+        if (since < 0)
+            return;
+        fx.WakerRise(mesh, V(feet, eye), r, b, since, t.RiseSeconds, WakerRise.Up(e.Phase, e.PhaseSeconds, t.RiseSeconds), e.Id);
+        // Stopped short of the terminus's gate, it stands there under the town's guns (wakers.md §4); else it's coming on.
+        double wall = (Route?.Plan?.Terminus.GateM ?? line.Length - (Run?.Tuning.TerminusZone ?? 400)) - t.StopShort;
+        if (e.Phase == SpinePhase.Commit && e.LineDistance >= wall - 1)
+            fx.WallGuns(mesh, WallGuns(line, wall + t.StopShort, eye), V(feet + Double3.Up * 12, eye), V(feet, eye), Time, e.Id);
+        else if (e.Phase == SpinePhase.Commit)
+            fx.WakerStride(mesh, V(feet, eye), r, b, Time, 1.4, e.Id);
+    }
+
+    /// <summary>
+    /// The terminus's guns that bear on what's stopped outside its gate (note 599): one on each of the gatehouse's towers and on
+    /// the first two of the wall's towers each side (Fortresses' gun towers, a tower every TowerEvery m), at their tops
+    /// (camera-relative).
+    /// </summary>
+    public static List<Vector3> WallGuns(RailLine line, double gate, Double3 eye)
+    {
+        var guns = new List<Vector3>();
+        var g = line.Sample(Math.Min(gate, line.Length));
+        var gr = Double3.Cross(g.Tangent, Double3.Up).Normalized;
+        foreach (int side in new[] { -1, 1 })
+            guns.Add(V(g.Position + gr * (side * (Sim.Run.Fortresses.GateInner + Sim.Run.Fortresses.GateOuter) / 2) + Double3.Up * (Sim.Run.Fortresses.GateHeight + 1), eye));
+        double first = Math.Ceiling(gate / Sim.Run.Fortresses.TowerEvery) * Sim.Run.Fortresses.TowerEvery;
+        for (double s = first; s < Math.Min(line.Length, first + 2 * Sim.Run.Fortresses.TowerEvery); s += Sim.Run.Fortresses.TowerEvery)
+        {
+            var at = line.Sample(s);
+            var right = Double3.Cross(at.Tangent, Double3.Up).Normalized;
+            foreach (int side in new[] { -1, 1 })
+                guns.Add(V(at.Position + right * (side * Sim.Run.Fortresses.WallOut) + Double3.Up * (Sim.Run.Fortresses.TowerHeight + 1), eye));
+        }
+        return guns;
+    }
+
     static Double3 EnemyWorld(Enemy e, IReadOnlyList<CarFrame> frames) =>
         e.Attached >= 0 && e.Attached < frames.Count ? frames[e.Attached].ToWorld(e.Local) : e.Local;
 
@@ -2170,8 +2233,7 @@ public sealed partial class GreyboxScene
                     // Rising (TELEGRAPH) it heaves up out of the ground; running, it's bent over the line, long arms reaching;
                     // holding the train, the arms are up at the last car and its head down to it. Its model is C1/E1's.
                     var earth = Palette.DeepBrown * 0.55f;
-                    double rose = e.Phase == SpinePhase.Telegraph ? Math.Clamp(e.PhaseSeconds / 8, 0, 1) : 1;
-                    double sink = (1 - rose) * 18;
+                    double sink = WakerRise.Sink(e.Phase, e.PhaseSeconds, creatures?.WakersTuning.RiseSeconds ?? new Sim.Enemies.WakersTuning().RiseSeconds);
                     bool holds = e.Phase == SpinePhase.Punish;
                     Draw(0, 11 - sink, 6, 7, 6, 11, earth);                          // the back, a hill's worth
                     Draw(0, 16 - sink, -6, 5, 4, 5, earth * 0.9f);                   // shoulders
@@ -4339,7 +4401,8 @@ public sealed partial class GreyboxScene
             // board and cradle, a gun car's powder and shot.
             var fitted = Vehicles is { } lampsOf && frame.Index < lampsOf.Count ? lampsOf[frame.Index] : null;
             var bitten = Art.Bite.For(Look.Tuning.Bite, frame.Shape, fitted, frame.Index);
-            Look.Art.CarLamps(mesh, frame, eye, Emergency, bitten, lit: !CarDark(frame.Index) && frame.Index < (Vehicles?.Count ?? int.MaxValue) - LampsOut);
+            Look.Art.CarLamps(mesh, frame, eye, Emergency, bitten, lit: !CarDark(frame.Index) && frame.Index < (Vehicles?.Count ?? int.MaxValue) - LampsOut,
+                sway: LampSwayOf?.Invoke(frame.Index) ?? 0);
             Look.Art.Fittings(mesh, frame, eye, fitted, bitten);
         }
         else if (shape.Interior is { } room)

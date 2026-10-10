@@ -97,7 +97,7 @@ public sealed partial class CreatureArt
             case EnemyKind.Mourners or EnemyKind.FreightBeetle or EnemyKind.TowerJaw:
                 return false;
             case EnemyKind.Waker:
-                return WakerStandIn(mesh, model, phase, t);
+                return WakerStandIn(mesh, model, phase, t, WakersTuning.RiseSeconds);
         }
         return null;
     }
@@ -107,14 +107,14 @@ public sealed partial class CreatureArt
     /// up, a car a mouthful. Rising, it heaves up out of the ground; running, it's bent over the line, long arms reaching;
     /// holding the train, the arms up at the last car and its head down to it. Earth, unlit.
     /// </summary>
-    static bool WakerStandIn(MeshBuilder mesh, in Matrix4x4 model, SpinePhase phase, double t)
+    static bool WakerStandIn(MeshBuilder mesh, in Matrix4x4 model, SpinePhase phase, double t, double riseSeconds)
     {
         var o = model.Translation;
         var r = Vector3.Normalize(Vector3.TransformNormal(Vector3.UnitX, model));
         var u = Vector3.Normalize(Vector3.TransformNormal(Vector3.UnitY, model));
         var b = Vector3.Normalize(Vector3.TransformNormal(Vector3.UnitZ, model));
         var earth = Palette.DeepBrown * 0.55f;
-        double sink = phase == SpinePhase.Telegraph ? (1 - Math.Clamp(t / 8, 0, 1)) * 18 : phase == SpinePhase.Dormant ? 18 : 0;
+        double sink = WakerRise.Sink(phase, t, riseSeconds);
         bool holds = phase is SpinePhase.Punish or SpinePhase.Grab;
         void Box(double x, double y, double z, double hx, double hy, double hz, Vector3 colour) =>
             mesh.Box(o + r * (float)x + u * (float)(y - sink) + b * (float)z, r, u, b, new Vector3((float)hx, (float)hy, (float)hz), colour);
