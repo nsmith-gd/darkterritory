@@ -751,11 +751,11 @@ written here instead is moved out by `tools/coord/notes.py split`; the Coordinat
 - [572. Jacob, the fisherman (P1, queue #302; the director, 8 Oct 2026: "an NPC named Jacob who can be found randomly in the world near water…](notes/572.md)
 - [574. The controls belong to whoever's working them (queue #304, D1; the director, 9 Oct 2026, on the short-nights test build: "if a player goes…](notes/574.md)
 - [577. The fantasy as the GDD's pillar (D1.5, queue #307; the director, 9 Oct 2026, after a playtest: "The fantasy is we are a crew sent out into…](notes/577.md)
-- [596. Bots and the extinguisher (queue #328, D1; the director's in-game notes, 9 Oct 2026: the bots not using the fire extinguisher)](notes/596.md)
 - [578. A bend taken too fast throws the train to its outside (D1.4, queue #310; the director, 9 Oct 2026, playtest: "The derailment physics didn't…](notes/578.md)
 - [579. The derailment in slow motion, the crew thrown and the cars blasted off (D1.4, queue #311; the director, 9 Oct 2026, playtest: "When…](notes/579.md)
 - [580. Held: the camera cuts to third person on what's holding you (D1.4, queue #312; the director, 9 Oct 2026, playtest: "When you are being held…](notes/580.md)
 - [581. Loot into the cars, forgivingly (D1.4, queue #313; the director, 9 Oct 2026, playtest: "There's no way it seems to actually unhook loot…](notes/581.md)
 - [582. The belt's hold made clear (D1.4, queue #314; the director, 9 Oct 2026, playtest: "I started the belt hold and it wasnt clear what was…](notes/582.md)
 - [587. The extinguisher stays on the fire (queue #320, D1; the director, 9 Oct 2026, playtesting: "I'm looking right at a flame. And I couldn't be…](notes/587.md)
+- [598. Bots and the extinguisher (queue #330, D1; the director's in-game notes, 9 Oct 2026: the bots not using the fire extinguisher)](notes/598.md)
 <!-- end of the notes index -->

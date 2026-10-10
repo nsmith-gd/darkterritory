@@ -56,7 +56,7 @@ public class CarFireTests
     [Fact]
     public void ACrewOfTwosGunnerComesOffItsGunToPutAFireOut()
     {
-        // Note 596 (the director's in-game notes, 9 Oct 2026: the bots not using the extinguisher). A crew of two bots is the
+        // Note 598 (the director's in-game notes, 9 Oct 2026: the bots not using the extinguisher). A crew of two bots is the
         // driver and the gunner, the gunner's part at a stop the shunter's. Under way, a fire in the car in front of its van
         // is its to put out: off the gun, in, the extinguisher off its mount, and the fire's out.
         var n = new Night(5, speed: 10);
@@ -84,7 +84,7 @@ public class CarFireTests
     [InlineData(3)]
     public void UnderWayAHandWithAPartAtTheStopsStillPutsAFireOut(int place)
     {
-        // Note 596: a crew of four's walkers have parts at a stop (the shunter, the winch pair). Under way there's no stop to
+        // Note 598: a crew of four's walkers have parts at a stop (the shunter, the winch pair). Under way there's no stop to
         // work, and a fire in the next car is theirs.
         var n = new Night(5, speed: 10);
         n.World.MountExtinguishers();
