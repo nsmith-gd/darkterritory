@@ -763,4 +763,5 @@ written here instead is moved out by `tools/coord/notes.py split`; the Coordinat
 - [596. The forward gun turns all the way round, and its gunner sees ahead (queue #328, D1; the director's in-game notes 8 and 9, 9 Oct 2026,…](notes/596.md)
 - [597. The bot leaves your steam alone (queue #329, D1; the director's in-game note 2, 9 Oct 2026: the bot venting pressure all the time)](notes/597.md)
 - [598. Bots and the extinguisher (queue #330, D1; the director's in-game notes, 9 Oct 2026: the bots not using the fire extinguisher)](notes/598.md)
+- [599. Dawn, seen and felt coming (D1.4, queue #331, at D1's ask over its Wakers, #321 and note 588; docs/design/creatures/wakers.md §2-§4; the…](notes/599.md)
 <!-- end of the notes index -->
