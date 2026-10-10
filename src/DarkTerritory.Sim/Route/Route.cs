@@ -97,10 +97,10 @@ public sealed record Route(string Name, RouteTier Tier, ulong Seed, LineDefiniti
         Features.Where(f => f.Start > s && f.Kind is FeatureKind.Tunnel or FeatureKind.Bridge or FeatureKind.Facility or FeatureKind.Junction or FeatureKind.Village)
             .MinBy(f => f.Start);
 
-    /// <summary>Parses "tier:seed" (e.g. "frontier:7").</summary>
+    /// <summary>Parses "tier:seed" (e.g. "frontier:7"; a town it departs from after an "@" is the generator's, note 591).</summary>
     public static (RouteTier Tier, ulong Seed) ParseSpec(string spec)
     {
-        var parts = spec.Split(':');
+        var parts = Towns.TownAt.Split(spec).Spec.Split(':');
         return (Enum.Parse<RouteTier>(parts[0], ignoreCase: true), parts.Length > 1 ? ulong.Parse(parts[1]) : 1);
     }
 }

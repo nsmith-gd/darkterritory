@@ -770,6 +770,23 @@ public static partial class Hud
     /// it's near), and the cold getting deeper where you are (GDD §22, note 201: how much faster it comes on outside, for a
     /// few seconds as you go into it). The whole night, and where you are in it, is the route card's (C).
     /// </summary>
+    /// <summary>
+    /// Past dawn: with the Wakers up (note 588), how far behind the one on the line is, or that it has the train; without them
+    /// (a mod, v1's dawn), the line gone live.
+    /// </summary>
+    public static string DawnLine(Sim.World world, Sim.Train.TrainOnLine train)
+    {
+        if (world.Enemies?.Wakers is not { Enabled: true })
+            return "DAWN: THE LINE IS LIVE. GET IN";
+        if (world.ActiveEnemies.OfType<Sim.Enemies.Waker>().FirstOrDefault(w => w.Lead) is not { } waker)
+            return "DAWN: THEY'RE WAKING. GET IN";
+        if (waker.Holds)
+            return "IT HAS THE TRAIN";
+        double behind = train.RearDistance - waker.LineDistance;
+        return waker.Phase == Sim.Enemies.SpinePhase.Telegraph ? $"DAWN: ONE'S UP {behind / 1000:0.0} KM BEHIND. GET IN"
+            : $"A WAKER {Math.Max(0, behind):0} M BEHIND. GET IN";
+    }
+
     static void TopCentre(Overlay o, int width, IPlaySession s, Memory m, int line)
     {
         float k = Fine, cx = width / 2f, y = 6;
@@ -778,7 +795,7 @@ public static partial class Hud
         {
             double dawn = run?.DawnIn ?? route.DawnSeconds;
             if (dawn <= 0)
-                o.TextCentred(cx, y, "DAWN: THE LINE IS LIVE. GET IN", Red, 1);
+                o.TextCentred(cx, y, DawnLine(s.World, s.Train), Red, 1);
             else if (dawn <= Tuning.DawnClockSeconds)
                 o.TextCentred(cx, y, $"DAWN {(int)dawn / 60}:{(int)dawn % 60:00}", dawn <= 120 ? Red : Amber, 1);
             if (dawn <= Tuning.DawnClockSeconds)
@@ -885,7 +902,7 @@ public static partial class Hud
             else
             {
                 Big("RUN LOST", Red);
-                Small(r.End switch { RunEnd.Derailed => "DERAILED", RunEnd.CrewLost => "THE WHOLE CREW IS DEAD", _ => "STILL OUT WHEN THE LINE WENT LIVE" }, Ink, fine: false);
+                Small(r.End switch { RunEnd.Derailed => "DERAILED", RunEnd.CrewLost => "THE WHOLE CREW IS DEAD", _ when world.Enemies?.Wakers.Enabled == true => "TAKEN AT DAWN", _ => "STILL OUT WHEN THE LINE WENT LIVE" }, Ink, fine: false);
             }
             // GDD v1.4 App. D.12: the incident report, every line in the clerk's voice, under the result; the night's
             // commendations under it.
@@ -1852,6 +1869,7 @@ public static partial class Hud
         DeathCause.Uncoupled => "TAKEN WITH THE CABOOSE. THE PASSENGER CUT IT LOOSE",
         DeathCause.Trampled => "TRAMPLED BY THE MOOSE. YOU GOT TOO CLOSE, OR TOO LOUD",
         DeathCause.Pecked => "PECKED TO DEATH BY THE GANNET. YOU HIT IT, OR SOMEONE DID",
+        DeathCause.Woken => "TAKEN AT DAWN. THE NIGHT WAS THE SAFE PART",
         // Dave's last words to them (note 570): the director's own.
         DeathCause.Dave => "YOU SHOULD BE NICER IN A DARK WORLD.",
         DeathCause.None => "",
@@ -1970,6 +1988,21 @@ public static partial class Hud
         CanHeal(s, carried) && carried.MendTicks > 0 && s.World.Run?.Healing is { } h
             ? $"USING IT ({Math.Min(1, carried.MendTicks * Sim.SimConstants.TickSeconds / h.UseSeconds) * 100:0}%)"
             : null;
+
+    /// <summary>
+    /// A running conveyor (note 400), as the drive house and the belt say it (note 582): what its head's filling and how full,
+    /// or what's stopping it, as the spout's prompt says its car.
+    /// </summary>
+    static string BeltDoing(Sim.Run.Run run, TrainOnLine train, Site belt, Ballast.Double3 at)
+    {
+        if (belt.Jam >= 0)
+            return $"THE BELT'S JAMMED, {((belt.JamAt - at) with { Y = 0 }).Length:0} M AWAY";
+        if (belt.Grain <= 1e-9)
+            return "THE BELT'S RUNNING   NO GRAIN LEFT";
+        if (run.CarUnderHead(train, belt) is not { } car)
+            return "THE BELT'S RUNNING   NO CAR UNDER ITS HEAD";
+        return car.Load >= 1 - 1e-6 ? "THE BELT'S RUNNING   THE CAR UNDER ITS HEAD IS FULL" : $"LOADING   CAR {car.Load * 100:0}% FULL";
+    }
 
     /// <summary>
     /// A hold's prompt (GDD §32, note 344): the action and its key, and its progress only once there's some, as the search's
@@ -2217,8 +2250,13 @@ public static partial class Hud
                 return jammed.Clear > 0 ? $"CLEARING THE JAM ({Math.Min(1, jammed.Clear / belt.ClearSeconds) * 100:0}%)" : "BELT JAMMED : HOLD [E]";
             if (conveyors.StarterInReach(p, train, hand) is { } drive)
                 return drive.Power == Sim.Stops.PowerState.Dead ? "NO POWER : RESTART THE GENERATOR"
-                    : drive.Start > 0 ? $"STARTING THE BELT ({Math.Min(1, drive.Start / belt.StartSeconds) * 100:0}%)"
+                    // Note 582 (the director, 9 Oct: "I started the belt hold and it wasnt clear what was happening"): the hold
+                    // says it's a hold all the way through, as Hold's do.
+                    : drive.Start > 0 ? $"STARTING THE BELT : KEEP HOLDING [E] ({Math.Min(1, drive.Start / belt.StartSeconds) * 100:0}%)"
                     : drive.Jam >= 0 ? "START THE BELT : HOLD [E]   IT'S JAMMED" : "START THE BELT : HOLD [E]";
+            // Once it's started, the drive house says what it's doing: what the head's filling, or why it isn't.
+            if (conveyors.DriveInReach(p, train, hand) is { Running: true } going)
+                return BeltDoing(conveyors, train, going, PlayerMotor.WorldPosition(p, train));
         }
         if (world.Run?.InPen(p, train) is { } pen)
             return pen.Herding ? $"DRIVING THE HERD ({pen.Head} LEFT)"
@@ -2272,6 +2310,8 @@ public static partial class Hud
             var at = PlayerMotor.WorldPosition(p, train);
             if (beltSite.Jam >= 0)
                 return $"THE BELT'S JAMMED, {((beltSite.JamAt - at) with { Y = 0 }).Length:0} M AWAY";
+            if (beltSite.Running)
+                return BeltDoing(run, train, beltSite, at);
             if (!beltSite.Running && beltSite.Grain > 0 && beltSite.Grain < line.Grain - 1e-6)
                 return "THE BELT'S STALLED : START IT AT THE DRIVE HOUSE";
         }

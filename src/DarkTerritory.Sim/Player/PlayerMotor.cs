@@ -194,7 +194,9 @@ public enum DeathCause : byte
     // GDD §21, App. A.4 (note 340): the Gannet's fourth peck, pinned under its foot.
     Pecked,
     // GDD §3.2 (note 570): struck Dave five times; he took them by the neck.
-    Dave
+    Dave,
+    // GDD §8 (note 588): still out at dawn, and a Waker caught the train.
+    Woken
 }
 
 /// <summary>Conditions a player carries.</summary>
