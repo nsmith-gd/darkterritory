@@ -21,6 +21,9 @@ public sealed record FumesTuning(int Cars = 1, double GasM = 8, int Damage = 150
 /// The crude cannons (GDD v1.1 §12, App. C.3): arc-limited, loud, and every shot a timed decision. After each shot a full
 /// manual reload (powder, ball, ram) at the gun before it fires again. Field docs live in combat.json.
 /// </summary>
+/// <summary>Which way a gun faces at rest: ahead (the engine's forward gun) or back down the train (every car's).</summary>
+public enum GunMountFacing : byte { Ahead, Back }
+
 public sealed record GunTuning(double RoundsPerSecond, double Range, double TraverseDegrees, double DeadZoneDegrees,
     double MinPitchDegrees, double MaxPitchDegrees, int Ammo, double Reach, double DamagePerRound, double MinPressure)
 {
@@ -29,6 +32,18 @@ public sealed record GunTuning(double RoundsPerSecond, double Range, double Trav
     public int ReloadSteps { get; init; } = 3;
     /// <summary>Seconds of Use held at the gun per step.</summary>
     public double ReloadStepSeconds { get; init; } = 1.5;
+    /// <summary>
+    /// The engine's forward gun's whole traverse (note 596; the director's in-game notes, 9 Oct 2026: it should turn all the
+    /// way round): 360 turns it the full circle, the short way. Unset, it's <see cref="TraverseDegrees"/> as every gun's.
+    /// </summary>
+    public double? ForwardTraverseDegrees { get; init; }
+
+    /// <summary>
+    /// A gun's whole traverse: the forward gun's (the one that faces ahead, on the engine's cab roof) or every other's. Its
+    /// dead zone along the train's own body is the same either way (spec B.7).
+    /// </summary>
+    public double Traverse(GunMountFacing facing) => facing == GunMountFacing.Ahead ? ForwardTraverseDegrees ?? TraverseDegrees : TraverseDegrees;
+
     /// <summary>How far behind the pivot the gunner's seat is (T112).</summary>
     public double SeatBehind { get; init; } = 0.75;
     /// <summary>How fast the seated gunner can turn the carriage, and lift or drop the barrel (T112).</summary>

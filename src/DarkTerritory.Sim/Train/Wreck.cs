@@ -247,8 +247,10 @@ public sealed class Wreck
                 bool slow = t.KickLateral * speed < t.KickMin;
                 double up = Math.Max(slow ? t.KickUp : 0, w.Blast(out var tumble));
                 b.Velocity += b.Right * (side * Math.Max(t.KickLateral * speed, t.KickMin)) + b.Up * up;
-                // Rolling over the way it slides (about +Back a car's top swings to its left, so the roll is the other sign).
-                b.Spin += b.Up * (-side * t.KickYaw) + b.Back * (-side * t.KickRoll) + b.Right * tumble.Pitch + b.Back * (-side * Math.Abs(tumble.Roll));
+                // Rolling over the way it slides (about +Back a car's top swings to its left, so the roll is the other sign). Its
+                // blast only rolls it the harder: tumbling end over end too, a slow one (note 330's 30 km/h) came down on its
+                // wheels and slid on upright (the end-over-end spin taken by its ends in the ground before it went over).
+                b.Spin += b.Up * (-side * t.KickYaw) + b.Back * (-side * (t.KickRoll + Math.Abs(tumble.Roll)));
             }
             else
             {
