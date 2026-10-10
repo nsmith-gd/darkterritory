@@ -4,6 +4,10 @@
   "stopBelowSpeed": 0.5,
   // The terminus gates: the train is home once it's stopped with its front this close to the end of line.
   "terminusZone": 400,
+  // A terminus that answers is a town, its yard as long as the departure's (ARCHITECTURE §8 note 600; linegen tiers.json
+  // terminus townYard): the train is home there once it's stopped with the whole of it this far in through the gate, the
+  // town's square beside it as the next night's starts, not a kilometre's crawl at yard speed to the end of line.
+  "homeInsideGateM": 15,
   // GDD §8: at dawn the main line reopens and dispatch can't guarantee it's clear. This long after,
   // traffic is on it: the run is lost.
   "dawnGraceSeconds": 120,

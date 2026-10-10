@@ -16,6 +16,13 @@ public sealed record RunTuning(double StopBelowSpeed, double TerminusZone, doubl
     public double DepartShortOfGateM { get; init; } = 8;
 
     /// <summary>
+    /// A terminus that's a town is home once the whole train has stopped this far in through its gate (run.json
+    /// <c>homeInsideGateM</c>; note 600): its yard is the departure's length, too long to crawl to the end of. Null: home is
+    /// <see cref="TerminusZone"/> from the end of the line, as a silent settlement's always is.
+    /// </summary>
+    public double? HomeInsideGateM { get; init; }
+
+    /// <summary>
     /// The fortress yard is a safe space until the run begins (run.json <c>yardIsSafe</c>; the director's decision of 6 Oct
     /// 2026, ARCHITECTURE §8 note 263): nothing spawns, the boiler and the fire hold, the cold doesn't bite.
     /// </summary>
@@ -342,7 +349,7 @@ public sealed partial class Run
             Finish(world, crew, RunPhase.Failed, RunEnd.Stranded);
         else if (!wakers && Seconds > _route.DawnSeconds + Tuning.DawnGraceSeconds)
             Finish(world, crew, RunPhase.Failed, RunEnd.DawnMissed);
-        else if (engine.Speed < Tuning.StopBelowSpeed && train.OnMain && front >= _route.Length - Tuning.TerminusZone)
+        else if (engine.Speed < Tuning.StopBelowSpeed && train.OnMain && front >= HomeFront(train))
             Finish(world, crew, RunPhase.Arrived, RunEnd.Delivered);
         else
         {
@@ -594,6 +601,18 @@ public sealed partial class Run
     public double YardLength { get; init; } = 600;
 
     static TrainDynamics EngineRake(TrainOnLine train) => train.Rakes.First(r => r.Consist.HasEngine);
+
+    /// <summary>
+    /// Where the engine's front has to be for the night to be delivered, stopped: the whole of its rake in through a town
+    /// terminus's gate (note 600, <see cref="RunTuning.HomeInsideGateM"/>), or within the terminus zone of the end of line.
+    /// </summary>
+    public double HomeFront(TrainOnLine train) => TownHome(train) ?? _route.Length - Tuning.TerminusZone;
+
+    /// <summary>Home in through a town terminus's gate (<see cref="HomeFront"/>), or null where home is the terminus zone.</summary>
+    public double? TownHome(TrainOnLine train) =>
+        Tuning.HomeInsideGateM is { } inside && _route.Plan?.Terminus is { Silent: false } t
+            && t.GateM + inside + EngineRake(train).Consist.LengthMetres is var home && home < _route.Length - Tuning.TerminusZone
+            ? home : null;
 
     /// <summary>Where the coaling spout is over the line, and where its lever stands, for a facility.</summary>
     public (double SpoutAlong, Double3 Lever) ChuteAt(RouteFeature f, RailLine line)

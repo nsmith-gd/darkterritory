@@ -799,6 +799,7 @@ CampaignState? Play(IPlaySession session, CampaignState? campaign)
         Run = session.World.Run,
         Holdouts = session.World.Holdouts,
         Town = session.World.Town,
+        Arrival = session.World.Arrival,
         Vehicles = session.Train.Vehicles,
         HotBoxTuning = session.Train.HotBoxTuning,
         Gutter = session.Train.Gutter,
