@@ -2124,10 +2124,16 @@ public sealed class World
         Sim.Enemies.Solidity.Settle(_enemies, Train, t);
         // GDD §9, T128 (note 273): no creature comes into a fort. One that does (riding the train in, running down a crewmate
         // who got back inside the gate, put down there by a spawn) is driven off: it lets go and is gone.
-        if (Run is { Tuning.Forts.Safe: true })
+        if (Run is { Tuning.Forts.Safe: true } run)
             foreach (var e in _enemies)
-                if (!e.Gone && !e.Hazard && e is not Sim.Enemies.Incident && InFort(e.WorldPosition(Train)))
-                    e.Dismiss();
+                if (!e.Gone && !e.Hazard && e is not Sim.Enemies.Incident && e.WorldPosition(Train) is var at && InFort(at))
+                {
+                    // Unless it rode in through a town's gate (note 589): the town fights it in the yard a while first.
+                    double hint = Train.Dynamics.Distance;
+                    Train.Line.Nearest(at, ref hint);
+                    if (run.BringIn(e, hint) <= 0)
+                        e.Dismiss();
+                }
 
         _enemies.RemoveAll(e => e.Gone);
         EnemyEvents.AddRange(ctx.Events);
