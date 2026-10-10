@@ -1013,11 +1013,12 @@ public sealed partial class SceneArt(Look look)
     /// lighting. One whose ceiling a Car Hugger's eaten (<paramref name="bite"/>) has gone with it.
     /// </summary>
     /// <param name="lit">The lamps are lit: out, the lanterns hang dark (their glass unlit, no glow round them).</param>
-    public void CarLamps(MeshBuilder mesh, in CarFrame frame, Double3 eye, bool emergency, Bite bite = default, bool lit = true)
+    /// <param name="sway">How far they're swung on their chains (radians about the car's length, from the ceiling; note 599).</param>
+    public void CarLamps(MeshBuilder mesh, in CarFrame frame, Double3 eye, bool emergency, Bite bite = default, bool lit = true, float sway = 0)
     {
         if (frame.Shape.Interior is not { } room || (frame.Origin - eye).Length > 80)
             return;
-        var m = FrameMatrix(frame, eye);
+        var m = LampSwing(room, sway) * FrameMatrix(frame, eye);
         var lamps = Piece($"lamps:{room.Min.Y:0.00}:{room.Max.Y:0.00}:{room.HalfSize.Z:0.00}:{room.Centre.Z:0.00}", () =>
         {
             var k = new Kit(Look, 71);
@@ -1048,6 +1049,15 @@ public sealed partial class SceneArt(Look look)
         foreach (var at in LampPositions(room))
             if (!bite.Eats(at with { Y = (float)room.Max.Y - 0.05f }))
                 mesh.Billboard(Vector3.Transform(at, m), 0.6f, 0, new Vector4(glow, 1), -1, FxBlend.Additive);
+    }
+
+    /// <summary>The lanterns swung on their chains (note 599), in the car's frame: about its length, from the ceiling.</summary>
+    public static Matrix4x4 LampSwing(Box room, float sway)
+    {
+        if (sway == 0)
+            return Matrix4x4.Identity;
+        var pivot = new Vector3(0, (float)room.Max.Y, 0);
+        return Matrix4x4.CreateTranslation(-pivot) * Matrix4x4.CreateRotationZ(sway) * Matrix4x4.CreateTranslation(pivot);
     }
 
     /// <summary>Where a car's lanterns' flames are, in its frame: the Fire Flies gather on the nearer (GreyboxScene).</summary>

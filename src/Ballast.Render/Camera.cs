@@ -114,6 +114,13 @@ public struct FrameLighting
     /// <summary>How far the dawn's up (0..1), and the glow it puts low on the sky on the sun's side.</summary>
     public float Dawn;
     public Vector3 DawnGlow;
+    /// <summary>
+    /// A cold line low on the sky toward <see cref="StirDirection"/> (flat, world), this strong (0: none), in
+    /// <see cref="StirColour"/>: wide and dim at first, thin as it grows (the Wakers' stir before dawn).
+    /// </summary>
+    public float Stir;
+    public Vector3 StirDirection;
+    public Vector3 StirColour;
     /// <summary>The wind (m/s, world axes): the foliage's cards and boughs bend with it (<see cref="Gusts"/> how unevenly).</summary>
     public Vector3 Wind;
     public float Gusts;
