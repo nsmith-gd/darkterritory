@@ -532,6 +532,12 @@ public sealed class TrainOnLine
         UpdatePoses();
     }
 
+    /// <summary>
+    /// The vehicles worn through by running failing (note 576, <see cref="Failing.Step"/>): what comes apart. On the host it
+    /// decides; a client's is only its prediction's, and unused.
+    /// </summary>
+    public HashSet<int> WornThrough { get; } = [];
+
     /// <summary>How hard the engine pulled this tick (its effective throttle, 0 standing): what works a failing engine apart.</summary>
     double _pulling;
 

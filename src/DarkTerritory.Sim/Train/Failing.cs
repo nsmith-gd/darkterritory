@@ -80,6 +80,8 @@ public static class Failing
                     continue;
                 double work = v.IsEngine ? (rake == engineRake ? pulling : 0) : 1;
                 v.Integrity = Math.Max(0, v.Integrity - t.WorkPerSecond * f * work * dt);
+                if (v.Integrity <= 0)
+                    train.WornThrough.Add(v.Id);
                 if (v.Kind == VehicleKind.Cargo && v.Load > 0)
                     v.Load = Math.Max(0, v.Load - t.SpillPerSecond * f * dt);
             }
@@ -129,7 +131,9 @@ public static class Failing
     public static bool BrokenDown(TrainOnLine train) => train.Vehicles.Count > 0 && Stage(train, 0) == FailStage.Broken;
 
     /// <summary>
-    /// Host, after the step: a car of the engine's rake with nothing left of its shell comes apart. Its freight's gone
+    /// Host, after the step: a car of the engine's rake worn through by running failing (<see cref="TrainOnLine.WornThrough"/>)
+    /// comes apart. A car taken to nothing at once by something with an end of its own (the powder blast, note 182; the Car
+    /// Hugger's take, note 109) keeps that end. Its freight's gone
     /// (spilled), it's off its rails (it holds fast where it is, <see cref="TrainOnLine.OffRailsDrag"/>), and the train's
     /// parted ahead of it, so it and everything behind it are left on the line. Never the engine (it breaks down instead).
     /// </summary>
@@ -143,7 +147,7 @@ public static class Failing
         for (int i = 1; i < rake.Count; i++)
         {
             var v = rake[i];
-            if (Stage(t, v) != FailStage.Broken || v.OffRails || v.IsEngine)
+            if (Stage(t, v) != FailStage.Broken || v.OffRails || v.IsEngine || !train.WornThrough.Contains(v.Id))
                 continue;
             if (!train.Uncouple(rake[i - 1].Id))
                 return -1;

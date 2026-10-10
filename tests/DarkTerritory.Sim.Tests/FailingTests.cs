@@ -113,6 +113,17 @@ public class FailingTests
     }
 
     [Fact]
+    public void ACarTakenToNothingAtOnceKeepsItsOwnEnd()
+    {
+        // The powder blast (note 182) leaves its car burnt out in the train: only a car worn through comes apart.
+        var world = World();
+        world.Train.Vehicles[2].Integrity = 0;
+        Run(world, 5, F.AtSpeed);
+        Assert.False(world.Train.Vehicles[2].OffRails);
+        Assert.Equal(6, world.Train.Dynamics.Consist.Vehicles.Count);
+    }
+
+    [Fact]
     public void MendedWithTheWrenchItStopsFailing()
     {
         var world = World();
