@@ -137,6 +137,9 @@ public sealed record TownSquare(double S0, double S1, int Side, double WallD)
 {
     /// <summary>Whether a point along the line, on a side, is inside the square (a fortress house wouldn't stand there).</summary>
     public bool Holds(double s, int side) => side == Side && s >= S0 && s <= S1;
+
+    /// <summary>This square in the line's frame, for a town standing turned round from <paramref name="turn"/> (note 600).</summary>
+    public TownSquare Turned(double turn) => new(turn - S1, turn - S0, -Side, -WallD);
 }
 
 /// <summary>One of the square's buildings, backed onto its far wall, its front to the line. <see cref="Kind"/>: hall,

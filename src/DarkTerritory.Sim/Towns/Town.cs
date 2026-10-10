@@ -35,6 +35,29 @@ public sealed class Town
     }
 
     /// <summary>
+    /// The town at the end of <paramref name="route"/> (ARCHITECTURE §8 note 600): <paramref name="arrival"/>, built from the
+    /// site the next night's departure will build it from (its gate <paramref name="gate"/> from its yard's far end, as this
+    /// night's departure gate is from its start; <paramref name="last"/>, this night's departure town's custom, the one it
+    /// won't share), so the same plan. It stands in <paramref name="line"/> turned round from that far end
+    /// (<see cref="RailLine.Turned"/>, <see cref="Turn"/>), its gate toward the train coming in. Null for a silent settlement,
+    /// a hand-laid line, or no town named.
+    /// </summary>
+    public static Town? AtTerminus(TownContent content, Route.Route route, RailLine line, double gate, IReadOnlyList<string> roster, string? last,
+        TownAt? arrival)
+    {
+        if (arrival is null || !content.Tuning.Enabled || route.Plan?.Terminus is not { Silent: false } terminus)
+            return null;
+        double turn = Math.Min(terminus.GateM + gate, line.Length);
+        var frame = line.Turned(turn, Math.Min(turn, gate + FrameBeyond));
+        var plan = TownGenerator.Generate(content, new TownSite(arrival.Name, arrival.Industry, gate, arrival.Seed, roster, last));
+        return new Town(plan, content.Tuning, frame, content.Looks) { Turn = turn };
+    }
+
+    /// <summary>How far past its gate a terminus town's frame runs on, out over the approach (m): far enough for anything
+    /// placed off it. Not a design number.</summary>
+    const double FrameBeyond = 600;
+
+    /// <summary>
     /// The night's clock the townspeople's rounds run on (seconds; note 353): <see cref="DarkTerritory.Sim.World"/> sets
     /// it from its tick every step, so every machine has them in the same places.
     /// </summary>
@@ -180,6 +203,13 @@ public sealed class Town
     }
 
     public TownPlan Plan { get; }
+
+    /// <summary>The frame it stands in: the line, or for a terminus's town the line turned round (note 600).</summary>
+    public RailLine Line => _line;
+
+    /// <summary>For a terminus's town (note 600), the main line's distance its frame turns round from (<see cref="Line"/>'s
+    /// 0); null for one standing in the line's own frame.</summary>
+    public double? Turn { get; init; }
 
     /// <summary>How its houses look (content/world/houses.json's palettes): the art's, carried with the town.</summary>
     public HouseLooks Looks { get; }

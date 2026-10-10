@@ -154,6 +154,8 @@ public sealed partial class GreyboxScene
     public Sim.Run.Holdouts? Holdouts { get; set; }
     /// <summary>The departure fortress's town (GDD §3.1; note 281): its square, and its people where the town's folk stand.</summary>
     public Sim.Towns.Town? Town { get; set; }
+    /// <summary>The terminus's town (note 600): the one the next night departs from, standing turned round in its own frame.</summary>
+    public Sim.Towns.Town? Arrival { get; set; }
     /// <summary>Somebody in the town turned to face whoever's talking to them (<see cref="TownTalk"/>), by person id.</summary>
     public (int Person, Double3 Toward)? TownFacing { get; set; }
     /// <summary>Seconds, for animating things that move on their own.</summary>
@@ -408,7 +410,12 @@ public sealed partial class GreyboxScene
             double yard = Run?.YardLength ?? 600, terminus = Run?.Tuning.TerminusZone ?? 400;
             // (Where the sim stands their solids, T124.)
             foreach (var fort in Sim.Run.Fortresses.Of(Route, line, yard, terminus))
-                Fortress(mesh, line, eye, from, to, fort.Start, fort.End, gateAt: fort.Gate, lit: fort.Lived);
+                // The terminus that's a town (note 600) is drawn as the departure's is, in its own frame turned round: the
+                // window and its gate measured back from where that frame starts.
+                if (fort.Start > 0 && fort.Lived && Arrival is { Turn: { } turn } arrival)
+                    Fortress(mesh, arrival.Line, eye, turn - to, turn - from, 0, turn - fort.Gate, gateAt: turn - fort.Gate, town: arrival);
+                else
+                    Fortress(mesh, line, eye, from, to, fort.Start, fort.End, gateAt: fort.Gate, lit: fort.Lived);
             Lap(mesh, "route");
         }
         // Practical lights first, so everything built after is lit by them: each car's lamps, the firebox,
@@ -1790,7 +1797,8 @@ public sealed partial class GreyboxScene
         // Stopped short of the terminus's gate, it stands there under the town's guns (wakers.md §4); else it's coming on.
         double wall = (Route?.Plan?.Terminus.GateM ?? line.Length - (Run?.Tuning.TerminusZone ?? 400)) - t.StopShort;
         if (e.Phase == SpinePhase.Commit && e.LineDistance >= wall - 1)
-            fx.WallGuns(mesh, WallGuns(line, wall + t.StopShort, eye), V(feet + Double3.Up * 12, eye), V(feet, eye), Time, e.Id);
+            fx.WallGuns(mesh, Arrival is { Plan.Bounds: not null } walled ? WallGuns(walled, eye) : WallGuns(line, wall + t.StopShort, eye),
+                V(feet + Double3.Up * 12, eye), V(feet, eye), Time, e.Id);
         else if (e.Phase == SpinePhase.Commit)
             fx.WakerStride(mesh, V(feet, eye), r, b, Time, 1.4, e.Id);
     }
@@ -1815,6 +1823,26 @@ public sealed partial class GreyboxScene
             foreach (int side in new[] { -1, 1 })
                 guns.Add(V(at.Position + right * (side * Sim.Run.Fortresses.WallOut) + Double3.Up * (Sim.Run.Fortresses.TowerHeight + 1), eye));
         }
+        return guns;
+    }
+
+    /// <summary>
+    /// The guns that bear on the walls of a walled terminus town (note 600): on its gatehouse's towers, the corner towers
+    /// either side of its front wall, and the next tower back down each side (<see cref="Sim.Run.Fortresses.Round(Sim.Towns.TownBounds, TrackSample)"/>).
+    /// </summary>
+    public static List<Vector3> WallGuns(Sim.Towns.Town town, Double3 eye)
+    {
+        var guns = new List<Vector3>();
+        if (town.Plan.Bounds is not { } b)
+            return guns;
+        double mid = (Sim.Run.Fortresses.GateInner + Sim.Run.Fortresses.GateOuter) / 2, every = Sim.Run.Fortresses.TowerEvery;
+        foreach (int side in new[] { -1, 1 })
+            guns.Add(V(town.World(b.Gate, side * mid, Sim.Run.Fortresses.GateHeight + 1), eye));
+        // The last of the side towers before the gate (Round stands one every TowerEvery from the rear, none within half of it of the gate).
+        double back = b.Rear + Math.Floor((b.Gate - every / 2 - b.Rear - 1e-6) / every) * every;
+        foreach (var (d, s) in new[] { (-b.Left, b.Gate), (b.Right, b.Gate), (-b.Left, back), (b.Right, back) })
+            if (s > b.Rear)
+                guns.Add(V(town.World(s, d, Sim.Run.Fortresses.TowerHeight + 1), eye));
         return guns;
     }
 
@@ -2465,6 +2493,7 @@ public sealed partial class GreyboxScene
                 Look.Art.World.Walls = (Run?.YardLength ?? 600, Route.Plan?.Terminus.GateM ?? line.Length - (Run?.Tuning.TerminusZone ?? 400) - 200);
             Look.Art.World.TownSquare = Town?.Plan.Square;
             Look.Art.World.TownBounds = Town?.Plan.Bounds;
+            Look.Art.World.Arrival = Arrival;
             Look.Art.World.Cells(mesh, line, Route, eye, from, to, Seed, (float)ValleyDepth);
             return;
         }
@@ -3063,12 +3092,14 @@ public sealed partial class GreyboxScene
     }
 
     /// <summary>Walls both sides, gun towers with lamps, and a gatehouse over the line.</summary>
-    void Fortress(MeshBuilder mesh, RailLine line, Double3 eye, double from, double to, double start, double end, double gateAt, bool lit = true)
+    /// <param name="town">The town this fortress is (the terminus's, note 600); null, the departure fortress's is <see cref="Town"/>.</param>
+    void Fortress(MeshBuilder mesh, RailLine line, Double3 eye, double from, double to, double start, double end, double gateAt, bool lit = true,
+        Sim.Towns.Town? town = null)
     {
         if (Look is not null)
         {
             // The departure fortress is a town (note 281): its square, and its people where note 107's folk stood.
-            var town = start == 0 && lit ? Town : null;
+            town ??= start == 0 && lit ? Town : null;
             Look.Art.World.Fortress(mesh, line, eye, from, to, start, end, gateAt, platform: start == 0, lit, Time, town?.Plan.Square, town?.Plan.Bounds);
             if (town is not null)
             {

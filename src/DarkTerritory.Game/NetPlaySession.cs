@@ -186,7 +186,9 @@ public sealed record SessionSetup(string? Route = null, string Line = "test-loop
             world.EnableHoldouts(DataFile.Load<Sim.Run.HoldoutTuning>(Path.Combine(content, Sim.Run.HoldoutTuning.File)), route);
             // The departure fortress's town (note 281), after the run: its walls go up beside the stops'.
             if (Sim.Towns.TownContent.Load(content) is { } towns)
-                world.EnableTown(towns, route, route.GateOr(routeTuning.YardLength), loadout.Enemies?.Director.Roster ?? [], LastTown);
+                world.EnableTown(towns, route, route.GateOr(routeTuning.YardLength), loadout.Enemies?.Director.Roster ?? [], LastTown,
+                    // And the terminus's (note 600): the town the next night departs from.
+                    Sim.Towns.TownAt.Terminus(route, Sim.LineGen.LineGenContent.Cached(content).Config.Tiers.Fortress.Identities));
             // The jobs the train makes as it runs (note 331), host and clients alike.
             world.Upkeep = DataFile.Load<UpkeepTuning>(Path.Combine(content, UpkeepTuning.File));
         }

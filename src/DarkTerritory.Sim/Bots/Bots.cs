@@ -3208,16 +3208,23 @@ public sealed partial class ConductorBot(CrewCalls? calls = null, int member = 0
     /// <summary>Going backwards faster than this (m/s) when it's meant to be going on, it's rolling back.</summary>
     const double RollingBack = 0.2;
 
+    /// <summary>How far short of the end of the track the driver plans to stand (m), and how far past home it pulls up.</summary>
+    const double StopShort = 150, HomePast = 30;
+
     PlayerIntent Drive(TrainOnLine train, uint tick, double cruise, double over)
     {
         _cruise = cruise;
         var d = train.Dynamics;
         // To the end of the track it's on: the terminus, or a dead line's buffer stop.
         double remaining = train.Line.PathLength(d.Path) - d.Distance;
+        // On the main line, no further than home (note 600: a town terminus's yard runs on a kilometre past it): pulled up a
+        // little past where the night's delivered.
+        if (d.Path == Rail.RailLine.MainPath || d.Path <= -2)
+            remaining = Math.Min(remaining, train.HomeAt + HomePast + StopShort - d.Distance);
         // With steam driving (T97) the engine pulls against the brake until the steam's down: plan the stop on the difference.
         var brakeRate = d.MaxBrakeForce / d.Consist.MassTonnes
             - (train.BoilerTuning is { SteamDrive: true } ? d.MaxTractiveForce / d.Consist.MassTonnes : 0);
-        double stopping = d.Speed * d.Speed / (2 * Math.Max(0.1, brakeRate)) + 150;
+        double stopping = d.Speed * d.Speed / (2 * Math.Max(0.1, brakeRate)) + StopShort;
         var intent = new PlayerIntent();
         // A descent runs the train away with the regulator shut; hold it on the brake, with some
         // hysteresis so it isn't hammered every tick (fade only builds while it's applied).

@@ -1105,6 +1105,41 @@ static object Screenshot(TrainTuning t, string content, string[] args)
         // --clock s: that far into the night, the town's people on their rounds (note 353).
         town.Clock = Opt(args, "--clock", 0);
     }
+    // --arrival [square|centre|gate|over|outside|...]: the terminus's town (note 600), the one the next night departs from,
+    // the train stopped home inside its gate, the camera standing in it as --town's does in the departure's (TownCamera,
+    // the town's own frame). `--arrival depart` is the same town as the next night's departure stands it, for comparing.
+    DarkTerritory.Sim.Towns.Town? arrival = null;
+    if (args.Contains("--arrival") && generated is not null && DarkTerritory.Sim.Towns.TownContent.Load(content) is { } arrivalTowns)
+    {
+        var runTuning = DataFile.Load<DarkTerritory.Sim.Run.RunTuning>(Path.Combine(content, DarkTerritory.Sim.Run.RunTuning.File));
+        double gate = generated.GateOr(RouteTuning.Load(content).YardLength);
+        var roster = DataFile.Load<DarkTerritory.Sim.Enemies.EnemyTuning>(Path.Combine(content, DarkTerritory.Sim.Enemies.EnemyTuning.File)).Director.Roster;
+        var departure = DarkTerritory.Sim.Towns.TownGenerator.Generate(arrivalTowns, DarkTerritory.Sim.Towns.TownSite.Of(generated, gate, roster, arrivalTowns));
+        var named = DarkTerritory.Sim.Towns.TownAt.Terminus(generated, DarkTerritory.Sim.LineGen.LineGenContent.Cached(content).Config.Tiers.Fortress.Identities);
+        if (Str(args, "--arrival", "square") == "depart" && named is not null)
+        {
+            // The next night's: its route departing from this one's terminus, its town built as World.EnableTown builds it.
+            var next = DarkTerritory.Sim.LineGen.Routes.Generate(content, DarkTerritory.Sim.Towns.TownAt.With(Str(args, "--next", Str(args, "--route", "frontier:7")), named), cars);
+            generated = next;
+            line = next.Build();
+            double nextGate = next.GateOr(RouteTuning.Load(content).YardLength);
+            town = new DarkTerritory.Sim.Towns.Town(DarkTerritory.Sim.Towns.TownGenerator.Generate(arrivalTowns,
+                DarkTerritory.Sim.Towns.TownSite.Of(next, nextGate, roster, arrivalTowns, departure.Culture)), arrivalTowns.Tuning, line, arrivalTowns.Looks);
+            run = new DarkTerritory.Sim.Run.Run(runTuning, next) { YardLength = nextGate };
+            if (!args.Contains("--at"))
+                at = runTuning.DepartFrom(nextGate, consist.LengthMetres);
+            town.Clock = Opt(args, "--clock", 0);
+        }
+        else
+        {
+            arrival = DarkTerritory.Sim.Towns.Town.AtTerminus(arrivalTowns, generated, line, gate, roster, departure.Culture, named);
+            run ??= new DarkTerritory.Sim.Run.Run(runTuning, generated) { YardLength = gate };
+            if (!args.Contains("--at") && generated.Plan?.Terminus is { } terminus)
+                at = terminus.GateM + (runTuning.HomeInsideGateM ?? 0) + consist.LengthMetres + 10;
+            if (arrival is not null)
+                arrival.Clock = Opt(args, "--clock", 0);
+        }
+    }
     var train = new TrainOnLine(new TrainDynamics(consist), line, at);
     if (site is { Spur: >= 0 })
     {
@@ -1212,7 +1247,9 @@ static object Screenshot(TrainTuning t, string content, string[] args)
     var camera = strandedAt >= 0 && !args.Contains("--view") ? Views.Stranded(train, outro, strandedAt)
         : train.Wreck is { } shown && !args.Contains("--view") ? Views.Wreck(shown, shown.RealSeconds) : Views.Get(view, train, (int)Opt(args, "--car", 2));
     if (town is not null && !args.Contains("--view"))
-        camera = Staging.TownCamera(town, Str(args, "--town", "square"));
+        camera = Staging.TownCamera(town, args.Contains("--arrival") ? Str(args, "--where", "square") : Str(args, "--town", "square"));
+    if (arrival is not null && !args.Contains("--view"))
+        camera = Staging.TownCamera(arrival, Str(args, "--arrival", "square"));
     // --cam s,lateral,height --target s,lateral,height: place the camera anywhere by line coordinates.
     if (Str(args, "--cam", "") is { Length: > 0 } cam)
     {
@@ -1667,6 +1704,7 @@ static object Screenshot(TrainTuning t, string content, string[] args)
         Run = run,
         Holdouts = holdouts,
         Town = town,
+        Arrival = arrival,
         DropCaught = mail is not null ? id => id == mail.Id && Opt(args, "--mail", 0) > 0 : null,
         StagedCatch = Opt(args, "--mail", 0),
         StagedCold = args.Contains("--cold") ? Opt(args, "--cold", 0) : null,
@@ -3009,6 +3047,7 @@ static object HudShot(string content, string[] args)
         Run = session.World.Run,
         Holdouts = session.World.Holdouts,
         Town = session.World.Town,
+        Arrival = session.World.Arrival,
         TownFacing = talk?.Open is { Kind: DarkTerritory.Sim.Towns.TownTargetKind.Person } facing ? (facing.Index, camera.Position) : null,
         Vehicles = session.Train.Vehicles,
         Bodies = session.World.Bodies.All,

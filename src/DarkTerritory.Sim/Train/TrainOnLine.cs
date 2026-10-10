@@ -450,6 +450,12 @@ public sealed class TrainOnLine
     /// </summary>
     public bool HeldInYard { get; set; }
 
+    /// <summary>
+    /// Where on the main line the engine's front has the night home (note 600; <see cref="Run.Run.HomeFront"/>): a driver
+    /// pulls up there, not at the end of the track. The world sets it every step from the run; none without one.
+    /// </summary>
+    public double HomeAt { get; set; } = double.PositiveInfinity;
+
     public void Step(double dt, in TrainControls controls)
     {
         RupturedThisTick = false;
