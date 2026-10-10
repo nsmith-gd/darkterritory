@@ -31,7 +31,9 @@ public enum EnemyKind : byte
     // Dave, the wandering painter (GDD §3.2, the director, 8 Oct 2026; note 570): not a creature, and nobody's quarry.
     Dave = 39,
     // Jacob, the fisherman (GDD §3.2, the director, 8 Oct 2026; note 572): rarer still, and he mends the train.
-    Jacob = 40
+    Jacob = 40,
+    // The Wakers, what gets up at dawn (GDD §8, the director, 9 Oct 2026; note 588): not the night's, and nobody's quarry.
+    Waker = 41
 }
 
 /// <summary>
@@ -233,6 +235,7 @@ public abstract class Enemy
         EnemyKind.Knotter => new Knotter(id),
         EnemyKind.Dave => new Dave(id),
         EnemyKind.Jacob => new Jacob(id),
+        EnemyKind.Waker => new Waker(id),
         _ => new ChoirGhost(id),
     };
 

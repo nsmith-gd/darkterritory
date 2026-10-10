@@ -310,6 +310,8 @@ At three cars, the boiler is a periodic chore someone fits around other work. **
 
 The dawn budget assumes an 11 m/s average, below the 14 m/s cruise. **The slack is what you spend on stopping** — every POI, every repair, every revival eats it.
 
+**At dawn the Wakers get up** (GDD §8; docs/design/creatures/wakers.md; note 588; enemies.json `wakers`), in place of v1's two minutes' grace and a failed night. A train still out has them behind it: 1 on the Local and Frontier tiers, 2 on the Dead Lines, 3 in the Deep Territory. The first rises 1.2 km behind the last car. After 8 s it runs 6 m/s, building to 26 m/s over 45 s (the engine's flat out is 22). A train standing at dawn is caught in about 75 s; one at cruise is caught from about 2.5 km out, so a crew that close races it in. They stop 300 m short of the terminus's gate. The one that reaches the last car drags the train to a stand (3 × the engine's pull) and lifts a car every 2.5 s from the rear. From 6 s in it eats one every 4 s, whoever's in it with it, and anyone off the train goes 8 s in. The engine eaten, the night is lost: "taken at dawn" (`RunEnd.DawnMissed`).
+
 **One night length** (the director, 6 Oct 2026): "The time a run takes should always be the same. Difficulty scales not by time but by monsters and density of challenges." The total run's floor is the transit at cruise with no stop made (28.6 min, the table's 28); its ceiling is a crew that works a few stops. A tier no longer adds kilometres; it packs more into the same 24:
 
 | Tier | Facilities | Junctions | Washouts, weak bridges, brass | Terrain budget per km | Terrain laid per night (measured) | Director's base budget per km |

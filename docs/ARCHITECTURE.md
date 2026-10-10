@@ -758,4 +758,10 @@ written here instead is moved out by `tools/coord/notes.py split`; the Coordinat
 - [582. The belt's hold made clear (D1.4, queue #314; the director, 9 Oct 2026, playtest: "I started the belt hold and it wasnt clear what was…](notes/582.md)
 - [587. The extinguisher stays on the fire (queue #320, D1; the director, 9 Oct 2026, playtesting: "I'm looking right at a flame. And I couldn't be…](notes/587.md)
 - [596. The forward gun turns all the way round, and its gunner sees ahead (queue #328, D1; the director's in-game notes 8 and 9, 9 Oct 2026,…](notes/596.md)
+- [588. Dawn: the Wakers (queue #321, D1; the director, 9 Oct 2026, approving D1's proposal: "The new Dawn ending design is excellent. This is…](notes/588.md)
+- [591. Town to town (queue #324, D1; the director, 9 Oct 2026: "the town that we end in in a run should be the same town that we begin in in the…](notes/591.md)
+- [595. A cannon shot throws a switch (queue #327, D1; the director, 9 Oct 2026: "also someone should be able to throw a switch by shooting it with…](notes/595.md)
+- [596. The forward gun turns all the way round, and its gunner sees ahead (queue #328, D1; the director's in-game notes 8 and 9, 9 Oct 2026,…](notes/596.md)
+- [597. The bot leaves your steam alone (queue #329, D1; the director's in-game note 2, 9 Oct 2026: the bot venting pressure all the time)](notes/597.md)
+- [598. Bots and the extinguisher (queue #330, D1; the director's in-game notes, 9 Oct 2026: the bots not using the fire extinguisher)](notes/598.md)
 <!-- end of the notes index -->

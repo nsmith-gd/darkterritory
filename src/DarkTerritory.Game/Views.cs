@@ -118,6 +118,10 @@ public static class Views
             // ... and face to face with him, from out over the water's edge (his look, after the director's photographs).
             "jacobface" => Camera.LookAt(Staging.JacobAt(train) + Double3.Up * 1.62 + ((Staging.Lineside(train, 20, 30) - Staging.JacobAt(train)) with { Y = 0 }).Normalized * 1.5
                 + ((Staging.Lineside(train, 26, 14) - Staging.JacobAt(train)) with { Y = 0 }).Normalized * 0.4, Staging.JacobAt(train) + Double3.Up * 1.5, 55),
+            // (Not one of Names.) Dawn's Wakers (note 588): back down the line from the guard van at one coming (the screenshot
+            // stages it and puts the camera on it; this is only where it looks without one).
+            "waker" or "wakerlift" or "wakerinside" => Camera.LookAt(train.Frames[^1].ToWorld(new Double3(0.6, 2.4, train.Frames[^1].Shape.HalfLength + 1.2)),
+                train.Frames[^1].ToWorld(new Double3(0, 9, 120)), 70),
             "jacobblessed" => Camera.LookAt(train.Frames[0].ToWorld(new Double3(6, 4.5, -6)), train.Frames[Math.Min(3, train.Frames.Count - 1)].ToWorld(new Double3(0, 2, 0)), 60),
             // Over crewmate 4's shoulder out in front of the engine, at the staged Moose squaring up to them, coming at them,
             // or on them (Staging.Moose: squareup, charge, pin...).

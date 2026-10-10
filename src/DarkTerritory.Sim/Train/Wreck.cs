@@ -50,6 +50,15 @@ public sealed record WreckTuning
     /// <summary>... hops up this much (m/s), and tips this much (rad/s) the way it's thrown.</summary>
     public double JostleUp { get; init; }
     public double JostleRoll { get; init; }
+    /// <summary>
+    /// Note 579 (the director, 9 Oct 2026: "cars basically being blasted off the tracks in a comedic way"): every car, the first
+    /// included, is popped up about this (m/s) as its wheels come off, each by its own draw within <see cref="BlastSpread"/>
+    /// of it, ...
+    /// </summary>
+    public double BlastUp { get; init; }
+    public double BlastSpread { get; init; }
+    /// <summary>... and set tumbling end over end and about its length up to this (rad/s), each its own way.</summary>
+    public double BlastRoll { get; init; }
     public double Jostle { get; init; } = 0.06;
     public double JostleYaw { get; init; } = 0.35;
     public double DigIn { get; init; } = 2.0;
@@ -236,9 +245,10 @@ public sealed class Wreck
             {
                 // A slow derail's share is nothing (note 330): thrown at kickMin instead, and popped up off the rail.
                 bool slow = t.KickLateral * speed < t.KickMin;
-                b.Velocity += b.Right * (side * Math.Max(t.KickLateral * speed, t.KickMin)) + b.Up * (slow ? t.KickUp : 0);
+                double up = Math.Max(slow ? t.KickUp : 0, w.Blast(out var tumble));
+                b.Velocity += b.Right * (side * Math.Max(t.KickLateral * speed, t.KickMin)) + b.Up * up;
                 // Rolling over the way it slides (about +Back a car's top swings to its left, so the roll is the other sign).
-                b.Spin += b.Up * (-side * t.KickYaw) + b.Back * (-side * t.KickRoll);
+                b.Spin += b.Up * (-side * t.KickYaw) + b.Back * (-side * t.KickRoll) + b.Right * tumble.Pitch + b.Back * (-side * Math.Abs(tumble.Roll));
             }
             else
             {
@@ -312,8 +322,23 @@ public sealed class Wreck
         int way = draw < 0 ? -1 : 1;
         if (Math.Abs(sideways) < _t.JostleMin)
             sideways = way * _t.JostleMin;
-        b.Velocity += b.Right * sideways + b.Up * _t.JostleUp;
-        b.Spin += b.Up * ((_rng.NextDouble() * 2 - 1) * _t.JostleYaw) + b.Back * (-way * _t.JostleRoll);
+        double up = Math.Max(_t.JostleUp, Blast(out var tumble));
+        b.Velocity += b.Right * sideways + b.Up * up;
+        b.Spin += b.Up * ((_rng.NextDouble() * 2 - 1) * _t.JostleYaw) + b.Back * (-way * (_t.JostleRoll + Math.Abs(tumble.Roll))) + b.Right * tumble.Pitch;
+    }
+
+    /// <summary>
+    /// A car's blast off the rails (note 579): how hard it's popped up (m/s), and its tumble, end over end and about its
+    /// length (rad/s), each drawn for it. Nothing drawn with no blast, so a wreck without one is the wreck it was.
+    /// </summary>
+    double Blast(out (double Pitch, double Roll) tumble)
+    {
+        tumble = default;
+        if (_t.BlastUp <= 0 && _t.BlastRoll <= 0)
+            return 0;
+        double up = _t.BlastUp * (1 + (_rng.NextDouble() * 2 - 1) * _t.BlastSpread);
+        tumble = ((_rng.NextDouble() * 2 - 1) * _t.BlastRoll, (_rng.NextDouble() * 2 - 1) * _t.BlastRoll);
+        return up;
     }
 
     /// <summary>The points a box meets the ground by: its bottom and top edges, every quarter of its length.</summary>

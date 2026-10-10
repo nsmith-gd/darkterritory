@@ -159,6 +159,10 @@ public sealed record CraneTuning
     public double RigSeconds { get; init; } = 2;
     public double DropAbove { get; init; } = 0.6;
     public double CrushRadius { get; init; } = 1.4;
+    /// <summary>Note 581: a casting this low over an open hatch's roof (m, its base) that overlaps it is eased over the opening ...</summary>
+    public double GuideAbove { get; init; }
+    /// <summary>... at this speed (m/s); 0: never.</summary>
+    public double GuideSpeed { get; init; }
 }
 
 /// <summary>Who works a facility stop (note 261; spec D.2's "Crew" column). Field docs in facilities.json.</summary>
