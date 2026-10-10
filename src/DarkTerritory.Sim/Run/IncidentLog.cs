@@ -144,6 +144,7 @@ public static class IncidentLog
         DeathCause.Uncoupled => "Taken with the caboose by the Passenger",
         DeathCause.Trampled => "Trampled by the Moose",
         DeathCause.Pecked => "Pecked to death by the Gannet",
+        DeathCause.Woken => "Taken at dawn by a Waker",
         DeathCause.Dave => "Struck Dave once too often",
         _ => cause.ToString(),
     };
@@ -226,6 +227,11 @@ public static class IncidentLog
                         : $"{share}% of the noise. Loudest on the line: {{actor}}.";
                     break;
                 }
+            case DeathCause.Woken:
+                // Note 588: the night's clock was the driver's to beat.
+                actor = a.Driver;
+                action = actor >= 0 ? "At the controls at dawn: {actor}." : "Nobody at the controls.";
+                break;
             case DeathCause.Dave:
                 // Their own doing (note 570): the five blows were theirs.
                 actor = victim;
