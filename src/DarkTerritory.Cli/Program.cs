@@ -1825,6 +1825,8 @@ static object Screenshot(TrainTuning t, string content, string[] args)
         }
         Couplings.Callouts(train, breaks);
         scene.Breaks = breaks;
+        // Note 576: the cars and engine --integrity has put under the failing line, shedding as they go.
+        scene.Failings = Failing.Of(train);
         if (args.Contains("--mending"))
             scene.Mending = Enumerable.Range(0, breaks.Count).ToHashSet();
     }

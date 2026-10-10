@@ -54,6 +54,53 @@ public class CarFireTests
     }
 
     [Fact]
+    public void ACrewOfTwosGunnerComesOffItsGunToPutAFireOut()
+    {
+        // Note 598 (the director's in-game notes, 9 Oct 2026: the bots not using the extinguisher). A crew of two bots is the
+        // driver and the gunner, the gunner's part at a stop the shunter's. Under way, a fire in the car in front of its van
+        // is its to put out: off the gun, in, the extinguisher off its mount, and the fire's out.
+        var n = new Night(5, speed: 10);
+        n.World.MountExtinguishers();
+        var calls = new Bots.CrewCalls();
+        var gunner = Assert.IsType<Bots.GunnerBot>(Bots.BotCrew.Make(1, 2, calls, Tuning.Combat, Tuning.Player, seed: 3));
+        gunner.Me = 1;
+        gunner.Calls = calls;
+        int van = n.Train.Vehicles.First(v => v.Kind == VehicleKind.Guard).Id;
+        var mount = n.Train.Frames[van].Shape.Gun!.Value;
+        var s = PlayerMotor.SpawnOnRoof(n.Train, van, mount.Position.Z - mount.Facing.Z * 0.7, P);
+        s.Yaw = Math.PI;
+        s.Flags |= PlayerFlags.Seated;
+        n.Crew[1] = s;
+        gunner.Crew = [(1, s)];
+        var fire = n.World.AddEnemy(id => CarFire.In(id, n.Train, van - 1, 2, Tuning.Enemies.CarFire));
+        for (int t = 0; t < 90 && !fire.Gone; t++)
+            n.Run(1, id => gunner.Decide(n.Crew[id], n.World, n.World.Tick, out _));
+        Assert.True(fire.Gone, $"{fire.Phase} at {fire.Extra:0.00}, the gunner at car {n.Crew[1].Parent} {n.Crew[1].Surface}");
+        Assert.True(n.Crew[1].Alive);
+    }
+
+    [Theory]
+    [InlineData(2)]
+    [InlineData(3)]
+    public void UnderWayAHandWithAPartAtTheStopsStillPutsAFireOut(int place)
+    {
+        // Note 598: a crew of four's walkers have parts at a stop (the shunter, the winch pair). Under way there's no stop to
+        // work, and a fire in the next car is theirs.
+        var n = new Night(5, speed: 10);
+        n.World.MountExtinguishers();
+        var calls = new Bots.CrewCalls();
+        var bot = Assert.IsType<Bots.RoofWalkerBot>(Bots.BotCrew.Make(place, 4, calls, Tuning.Combat, Tuning.Player, seed: 3));
+        bot.Me = 1;
+        bot.Calls = calls;
+        n.Crew[1] = PlayerMotor.SpawnOnRoof(n.Train, 2, 0, P);
+        bot.Crew = [(1, n.Crew[1])];
+        var fire = n.World.AddEnemy(id => CarFire.In(id, n.Train, 3, 2, Tuning.Enemies.CarFire));
+        for (int t = 0; t < 60 && !fire.Gone; t++)
+            n.Run(1, id => bot.Decide(n.Crew[id], n.World, n.World.Tick, out _));
+        Assert.True(fire.Gone, $"{fire.Phase} at {fire.Extra:0.00}, the walker ({bot.Job?.Job}) at car {n.Crew[1].Parent} {n.Crew[1].Surface}");
+    }
+
+    [Fact]
     public void TheDriverVentsAndStarvesTheStokerOutBeforeTheBoilerGoes()
     {
         // Stoker v3 (note 271): the driver bot never opens the door on it; it holds the vent and the brake and fires nothing

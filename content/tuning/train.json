@@ -187,6 +187,29 @@
     "lampMendRate": 6
   },
 
+  // Damage with consequences, Sea of Thieves style (the director, 9 Oct 2026, ARCHITECTURE §8 note 576: "If players dont fix
+  // the ship in sea of thieves the ship goes down and you lose everything. If players dont fix the train here seemingly
+  // nothing happens"). Not in the spec. A car or the engine battered under `below` of its shell (fire, the line's knocks, a
+  // bend taken too hard, a collision, what boards it) works itself apart as it runs: `workPerSecond` of its shell a second
+  // at `atSpeed` m/s, by the speed (to `mostFactor` times it; nothing standing, the engine only while it pulls). A failing car
+  // spills `spillPerSecond` of a load a second the same way (a full one's empty in about 200 s at line speed). Under
+  // `breakingBelow`, the last warning. At nothing a car comes apart: it's off its rails and the train's parted ahead of it, it
+  // and what's behind it left on the line; the engine breaks down (no power) and, at a stand, the night ends stranded
+  // (GDD §23.2). Failing, the engine's pull falls from all of it to `powerAtBreak` and its brake to `brakeAtBreak` (kept
+  // broken down, to stop on). From `below` to nothing is about 200 s at line speed. The wrench at its dent mends it (repair
+  // `integrityPerSecond`: 0.5 back in 12.5 s).
+  "failing": {
+    "enabled": true,
+    "below": 0.5,
+    "breakingBelow": 0.2,
+    "workPerSecond": 0.0025,
+    "spillPerSecond": 0.005,
+    "atSpeed": 15,
+    "mostFactor": 1.5,
+    "powerAtBreak": 0.35,
+    "brakeAtBreak": 0.4
+  },
+
   "speedBands": {
     "yard": 2.5,
     "jumpOffLethal": 4.0,

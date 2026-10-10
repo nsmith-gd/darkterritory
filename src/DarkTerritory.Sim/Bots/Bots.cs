@@ -769,10 +769,13 @@ public sealed class RoofWalkerBot(int seed, ColdTuning? cold = null, StopHand? j
         // in the cars for a bag or getting warm while every pin worked loose, and 11 of 21 parted, the cars behind gone.
         bool pin = tend && catches && !choir && _trouble is null && LoosePin(self, world, Me, Calls);
         _warm.Called = pin;
-        _lampCar = tend && catches && !_feedRun && !choir && _trouble is null && !pin ? GutterCar(world, here) : null;
-        _drop = tend && catches && !_feedRun && !choir && _trouble is null && _lampCar is null && !pin ? NextDrop(world) : null;
+        // Note 576: a car battered and let go is coming apart, its freight spilling, and in a few minutes it's gone with what's
+        // behind it: before a lamp or a bag, a walker with a wrench goes in to it and mends it at its dent (Heed.Mend).
+        _mendCar = tend && catches && !choir && _trouble is null && !pin ? FailingCar(self, world, here) : null;
+        _lampCar = tend && catches && !_feedRun && !choir && _trouble is null && !pin && _mendCar is null ? GutterCar(world, here) : null;
+        _drop = tend && catches && !_feedRun && !choir && _trouble is null && _lampCar is null && _mendCar is null && !pin ? NextDrop(world) : null;
         _catchCar = _drop is { } d ? CatchCar(train, d, self.Parent) : null;
-        _warm.Into = _trouble?.Attached ?? _catchCar ?? _lampCar;
+        _warm.Into = _trouble?.Attached ?? _catchCar ?? _mendCar ?? _lampCar;
         if (_trouble is { } trouble)
             _warm.Indoors = s => Tend(s, trouble, world, Me);
         else if (_drop is { } drop && _catchCar is { } car && world.Lineside is { } lineside)
@@ -802,6 +805,30 @@ public sealed class RoofWalkerBot(int seed, ColdTuning? cold = null, StopHand? j
     Sim.Route.Drop? _drop;
     int? _catchCar;
     int? _lampCar;
+    int? _mendCar;
+
+    /// <summary>
+    /// The nearest car of the engine's rake that's failing (note 576), that a wrench can bring back and nobody else is in, if
+    /// this walker has a wrench to take to it.
+    /// </summary>
+    int? FailingCar(in PlayerState self, World world, int here)
+    {
+        var train = world.Train;
+        if (!train.Dynamics.Tuning.Failing.Enabled || !(Repairs.WrenchInHand(self) || Repairs.WrenchKey(self) > 0))
+            return null;
+        int? best = null;
+        foreach (var v in train.Dynamics.Consist.Vehicles)
+        {
+            if (v.Id == 0 || Failing.Stage(train, v.Id) is not (FailStage.Failing or FailStage.Breaking) || !Repairs.Mendable(train, v.Id)
+                || Repairs.Mendable(v) < train.Dynamics.Tuning.Failing.Below)
+                continue;
+            if (v.Id != here && Crew.Any(c => c.Id != Me && c.State.Alive && c.State.Parent == v.Id && PlayerMotor.Indoors(c.State, train)))
+                continue;
+            if (best is not { } b || Math.Abs(v.Id - here) < Math.Abs(b - here))
+                best = v.Id;
+        }
+        return best;
+    }
 
     /// <summary>
     /// A coupling of the engine's rake working loose (note 356), a wrench to take to it, and it's this walker's: the nearest
@@ -4272,6 +4299,35 @@ public static partial class Heed
             intent.Actions |= PlayerActions.CarLamp;
         return intent;
     }
+
+    /// <summary>
+    /// A car coming apart (note 576): a bot in it, not busy with its hands, goes to its dent, puts the wrench in hand and mends
+    /// it, and keeps at it until the car's well back over the failing line (<see cref="MendTo"/> of it), not just over it.
+    /// </summary>
+    public static PlayerIntent Mend(PlayerIntent intent, in PlayerState self, World world)
+    {
+        var train = world.Train;
+        var t = train.Dynamics.Tuning.Failing;
+        if (!t.Enabled || !self.Alive || self.Has(PlayerFlags.Held) || self.Parent <= 0 || self.Parent >= train.Vehicles.Count
+            || intent.Buttons != PlayerButtons.None || !PlayerMotor.Indoors(self, train) || !Repairs.Mendable(train, self.Parent))
+            return intent;
+        var v = train.Vehicles[self.Parent];
+        bool going = Failing.Stage(t, v) is FailStage.Failing or FailStage.Breaking;
+        bool atIt = self.ActionProgress > 0 && v.Integrity < MendTo * Repairs.Mendable(v);
+        if (!going && !atIt)
+            return intent;
+        if (Repairs.AtDent(self, train) is null)
+        {
+            var dent = Repairs.DentAt(train, self.Parent)!.Value;
+            return WarmUp.Steer(self, new Double3(dent.X + 0.7, self.Position.Y, dent.Z), self.Yaw).Step;
+        }
+        if (Repairs.WrenchKey(self) is var key and > 0)
+            return new PlayerIntent { Select = key };
+        return Repairs.WrenchInHand(self) ? new PlayerIntent { Buttons = PlayerButtons.Use } : intent;
+    }
+
+    /// <summary>How far a bot mends a failing car before it leaves it: most of the way (a car just over the line is one knock from going again).</summary>
+    public const double MendTo = 0.9;
 
     /// <summary>
     /// A lamp guttering (note 346): a bot in the car trims it with the lamp key. A press every half second while it's guttering

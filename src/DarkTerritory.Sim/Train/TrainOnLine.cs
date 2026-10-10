@@ -495,6 +495,13 @@ public sealed class TrainOnLine
                         RupturedThisTick = !HeldInYard && Boiler.Step(bt, dt, controls.Throttle, rake.Consist.CarCount);
                     }
                 }
+                // A failing engine's pull and brake go with its shell (note 576); broken down, it pulls nothing.
+                if (Dynamics.Tuning.Failing is { Enabled: true } ft && _vehicles.Length > 0 && _vehicles[0] is not null)
+                {
+                    effective.Throttle *= Failing.Power(ft, _vehicles[0]);
+                    effective.Brake *= Failing.Brake(ft, _vehicles[0]);
+                }
+                _pulling = rake.Speed < 0.05 ? 0 : effective.Throttle;
                 double before = rake.Speed;
                 rake.Step(dt, effective, Conditions(rake));
                 BrakeShock(rake, before, dt);
@@ -527,8 +534,19 @@ public sealed class TrainOnLine
             TakeSwitches(rake); // shoved through the points by a collision
             Readdress(rake);
         }
+        // Battered shells let go work themselves apart as they run (note 576), on every machine alike.
+        Failing.Step(this, _rakes, _engineRake, _pulling, dt);
         UpdatePoses();
     }
+
+    /// <summary>
+    /// The vehicles worn through by running failing (note 576, <see cref="Failing.Step"/>): what comes apart. On the host it
+    /// decides; a client's is only its prediction's, and unused.
+    /// </summary>
+    public HashSet<int> WornThrough { get; } = [];
+
+    /// <summary>How hard the engine pulled this tick (its effective throttle, 0 standing): what works a failing engine apart.</summary>
+    double _pulling;
 
     /// <summary>
     /// Keeps each rake addressed along the track it's on (see <see cref="RailLine"/>'s paths): backed out through a
