@@ -115,10 +115,13 @@ public class BoardedPackTests
         // Note 552 (D1.2's frontier:7 seed 4): the train stood with its cars on Stroud Bridge, the truss over the river. The
         // driver cut the pack loose and got down beside the train to walk back to the cab, but the deck is no wider than the
         // cars (2.6 m from the track): it stepped off it, fell 8 m to the river bank, and the train stood there all night.
-        var route = LineGen.Routes.Generate(DataFile.FindContentRoot(), "frontier:7", 8);
+        // The 7 km nights of note 554 have no truss: frontier:12's Grieve Trestle over its lake is a deck as narrow.
+        var route = LineGen.Routes.Generate(DataFile.FindContentRoot(), "frontier:12", 8);
         var line = route.Build();
-        var bridge = route.Plan!.Structures.Single(st => st.Name == "Stroud Bridge");
-        var n = new Lone(cars: 8, speed: 0, line, front: bridge.S1 + 20);
+        var bridge = route.Plan!.Structures.Single(st => st.Name == "Grieve Trestle");
+        // Stood with its rear car 25 m onto the deck (the trestle's 106 m are shorter than the train).
+        double rearCarFront = Consist.Uniform(T, 8, 1).LengthMetres - T.Geometry.CarLength;
+        var n = new Lone(cars: 8, speed: 0, line, front: Math.Max(bridge.S1 + 20, bridge.S0 + 25 + rearCarFront));
         int rear = n.Train.Dynamics.Consist.Vehicles[^1].Id;
         Assert.InRange(n.Train.Cars[rear].FrontDistance, bridge.S0, bridge.S1);
         var pack = n.Pack(n.Train.Dynamics.Consist.Vehicles.Count - 1, 3);

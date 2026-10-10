@@ -13,9 +13,9 @@ public class SettlementStopTests
 {
     [Theory]
     [InlineData("frontier:2")]
-    [InlineData("frontier:5")]
-    [InlineData("deadLines:12")]
-    [InlineData("deepTerritory:8")]
+    [InlineData("frontier:3")]
+    [InlineData("deadLines:28")]
+    [InlineData("deepTerritory:6")]
     public void EveryNamedSettlementOnTheMainLineHasItsVillage(string spec)
     {
         var r = Routes.Generate(DataFile.FindContentRoot(), spec, 6);

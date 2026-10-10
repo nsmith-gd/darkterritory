@@ -61,14 +61,14 @@ public class WatersideTests
     }
 
     [Theory]
-    [InlineData("frontier:3")]
+    [InlineData("frontier:5")]
     [InlineData("deadLines:8")]
     [InlineData("local:4")]
     public void ALakesRimStandsOverItsWater(string spec)
     {
         // Out along rays from each lake's middle to its shore, the land just past it (3 m and its rim's crest out) is over
         // the water (tiers.json lakes.rimM; ARCHITECTURE §8 note 424): no lake's water stands over its own shore. Before the
-        // rim, frontier:3's second lake was 6.5 m over the land on 45 of 120 rays.
+        // rim, frontier:3's second lake was 6.5 m over the land on 45 of 120 rays (on its 24 km line; note 554's 7 km one has none).
         var (plan, _, terrain) = Night(spec);
         var rules = plan.Rules.Terrain.Lakes;
         Assert.NotEmpty(plan.Lakes);
@@ -87,8 +87,8 @@ public class WatersideTests
     }
 
     [Theory]
-    [InlineData("local:3")]
-    [InlineData("frontier:7")]
+    [InlineData("local:16")]
+    [InlineData("frontier:25")]
     [InlineData("deadLines:3")]
     public void ShoresAreWetPastTheirEdgeAndDykedFieldsLieFlat(string spec)
     {
@@ -127,8 +127,8 @@ public class WatersideTests
     [Fact]
     public void TheWatersideIsPartOfThePlanAndTheSameEveryRun()
     {
-        var a = Night("deadLines:2").Plan;
-        var b = Routes.Generate(Content, "deadLines:2", 6).Plan!;
+        var a = Night("deadLines:3").Plan;
+        var b = Routes.Generate(Content, "deadLines:3", 6).Plan!;
         Assert.Equal(a.Lakes, b.Lakes);
         Assert.Equal(a.Shores, b.Shores);
         // And a client's copy round-trips it.
@@ -168,8 +168,8 @@ public class WatersideTests
         }
     }
     [Theory]
-    [InlineData("frontier:5")]
-    [InlineData("deadLines:9")]
+    [InlineData("frontier:12")]
+    [InlineData("deadLines:84")]
     [InlineData("deadLines:12")]
     public void SomeCrossedLakesAreTakenOnATrestleWithTheWaterOnUnderIt(string spec)
     {

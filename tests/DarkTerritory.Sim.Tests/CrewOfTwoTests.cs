@@ -16,14 +16,20 @@ public class CrewOfTwoTests
     static readonly string Content = DataFile.FindContentRoot();
 
     /// <summary>
-    /// Where deadLines:2's Car Hugger nights start: 270 m short of the middle of its trestle past the tunnel, where it lurks
-    /// (`CarHugger.Spot`: a bridge 250–800 m ahead), as they were found at 7700 m. Taken from the line, not pinned: note 278's
-    /// bends moved the trestle 23 m nearer, inside the 250, and the Car Hugger never came.
+    /// The Car Hugger nights' line: deadLines:2's, found at 7700 m by its trestle past the tunnel, was a 24 km line; on the
+    /// 7 km nights of note 554 it's deadLines:10, with Dunmore Trestle at 3.4 km.
+    /// </summary>
+    internal const string HuggerNight = "deadLines:10";
+
+    /// <summary>
+    /// Where the Car Hugger nights start: 270 m short of the middle of the line's trestle, where it lurks (`CarHugger.Spot`:
+    /// a bridge 250–800 m ahead). Taken from the line, not pinned: note 278's bends moved deadLines:2's trestle 23 m nearer,
+    /// inside the 250, and the Car Hugger never came.
     /// </summary>
     internal static double ShortOfTheTrestle(int cars = 6)
     {
-        var route = LineGen.Routes.Generate(Content, "deadLines:2", cars);
-        var trestle = route.Of(Route.FeatureKind.Bridge).First(f => (f.Start + f.End) / 2 > 7500);
+        var route = LineGen.Routes.Generate(Content, HuggerNight, cars);
+        var trestle = route.Of(Route.FeatureKind.Bridge).First();
         return Math.Round((trestle.Start + trestle.End) / 2 - 270);
     }
 
@@ -67,8 +73,9 @@ public class CrewOfTwoTests
         // Note 486: frontier:7's first stop (seed 2) has a winch whose handles are on the far side of the spur from where the
         // shunter came down. Lent to the pair, it walked straight across at its handle, into car 3's side and up its steps,
         // for the six minutes the driver cranked alone; the winch turns only with both handles held, and hauled nothing. By
-        // the foot path round the cars, it gets there, and the sleds come in.
-        var route = LineGen.Routes.Generate(Content, "frontier:7", 6);
+        // the foot path round the cars, it gets there, and the sleds come in. (On the 7 km nights of note 554 frontier:7's
+        // first stop is a coaling tower: frontier:1's, a wreck yard, has the winch.)
+        var route = LineGen.Routes.Generate(Content, "frontier:1", 6);
         double gate = route.GateOr(Tuning.Route.YardLength);
         var report = Harness.Run(route.Build(), Tuning.Train, Tuning.Player, new HarnessOptions
         {
@@ -112,7 +119,7 @@ public class CrewOfTwoTests
         // it. With nobody near but the driver in the cab, the gunner went down to its car's platform to club it and was eaten
         // (deadLines:2, every crew-2 night). Now it goes up the train, clear of it.
         bool latched = false;
-        var report = Night("deadLines:2", 6, 90, EnemyKind.CarHugger, start: ShortOfTheTrestle(),
+        var report = Night(HuggerNight, 6, 90, EnemyKind.CarHugger, start: ShortOfTheTrestle(),
             each: world => latched |= world.ActiveEnemies.Any(e => e is CarHugger { Latched: true }));
         Assert.True(latched, "the Car Hugger never latched on");
         Assert.False(report.Threats!.DeathsByCause.ContainsKey(nameof(DeathCause.Eaten)), string.Join(", ", report.Threats.DeathsByCause));

@@ -15,7 +15,7 @@ public class FogTests
     static readonly string Content = DataFile.FindContentRoot();
 
     [Theory]
-    [InlineData("frontier:7")]
+    [InlineData("frontier:12")]
     [InlineData("deadLines:3")]
     public void TheFogThickensInTheLowGroundAndByWaterAndNeverSteps(string spec)
     {

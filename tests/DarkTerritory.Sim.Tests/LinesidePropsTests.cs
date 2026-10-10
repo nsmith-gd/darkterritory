@@ -68,9 +68,9 @@ public class LinesidePropsTests
             var route = plan.ToRoute(c.Route);
             return LinesideProps.Of(route, route.Build())!;
         }
-        var a = Build("frontier:7").Props(0, 30000).ToList();
-        var b = Build("frontier:7").Props(0, 30000).ToList();
-        Assert.True(a.Count > 1000, $"only {a.Count} things beside frontier:7");
+        var a = Build("frontier:3").Props(0, 30000).ToList();
+        var b = Build("frontier:3").Props(0, 30000).ToList();
+        Assert.True(a.Count > 1000, $"only {a.Count} things beside frontier:3");
         Assert.Equal(a, b);
         var other = Build("frontier:8").Props(0, 30000).Take(200).ToList();
         Assert.NotEqual(a.Take(200), other);
@@ -78,7 +78,7 @@ public class LinesidePropsTests
         // Asking for a stretch, or only what's within reach, deals the same as the whole: the art's cells and the sim's walls
         // agree. Within reach is all that stands there; nothing's dealt that the whole doesn't have.
         static IEnumerable<LinesideProp> Sorted(IEnumerable<LinesideProp> ps) => ps.OrderBy(p => p.Kind).ThenBy(p => p.Along).ThenBy(p => p.Lateral).ThenBy(p => p.Species, StringComparer.Ordinal);
-        foreach (var spec in new[] { "frontier:7", "local:1" })
+        foreach (var spec in new[] { "frontier:3", "local:1" })
         {
             var side = Build(spec);
             var whole = side.Props(0, 30000).ToList();
@@ -185,7 +185,7 @@ public class LinesidePropsTests
     [Fact]
     public void WhatsLooseIsPutOutOfATrunkAndALowBoulderIsSteppedOver()
     {
-        var (_, train, side, _) = Night("deepTerritory:2");
+        var (_, train, side, _) = Night("deepTerritory:16");
         var props = side.Props(2000, 20000, 40).ToList();
         var tree = props.First(p => p.Kind == LinesideKind.Tree && p.Radius >= 0.15);
         var ribbit = Ribbit.At(1, 1, Foot(train, tree) + Double3.Up * 0.5, Tuning.Enemies.Ribbits);
@@ -209,7 +209,7 @@ public class LinesidePropsTests
     {
         // Note 389: a house by the country road stands on its footprint, the box round its walls and roof, turned to face
         // the road; walked at from the line's side, a crewmate stops at its wall.
-        var (_, train, side, forts) = Night("local:1");
+        var (_, train, side, forts) = Night("deadLines:1");
         var props = side.Props(1500, train.Line.Length - 1500, Tuning.Run.Walls.LinesideReachM).ToList();
         Double3 From(LinesideProp p, double back)
         {
@@ -245,7 +245,7 @@ public class LinesidePropsTests
         // one box; a church its nave and its tower; a tank round; a headframe on its four legs and its stay, open between; a
         // burying ground and a wharf walked through.
         var seen = new HashSet<string>();
-        foreach (var spec in new[] { "local:1", "deadLines:3", "deepTerritory:2" })
+        foreach (var spec in new[] { "local:11", "local:13", "deadLines:3", "deepTerritory:2" })
         {
             var (route, train, side, _) = Night(spec);
             foreach (var p in side.Props(0, train.Line.Length).Where(p => p.Kind == LinesideKind.Piece))
@@ -296,7 +296,7 @@ public class LinesidePropsTests
 
     [Theory]
     [InlineData("frontier:7")]
-    [InlineData("deadLines:3")]
+    [InlineData("deadLines:6")]
     [InlineData("deepTerritory:2")]
     public void TheBranchesPinesAreDealtAsTheMainLinesWoodsAre(string spec)
     {

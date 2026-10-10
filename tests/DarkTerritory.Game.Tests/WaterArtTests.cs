@@ -38,12 +38,16 @@ public class WaterArtTests
     [Fact]
     public void TheWaterStaysPutUnderTheCameraAndMovesAsItsKindDoes()
     {
-        // frontier:3: its lakes beside the line at 6.7 km, and the sea.
-        var route = Routes.Generate(Content, "frontier:3", 6);
+        // frontier:5: its lakes beside the line (frontier:3's at 6.7 km on its 24 km line; note 554's 7 km one has none), the
+        // nearest to the line looked at from two places along it, as frontier:3's was from 6.6 and 6.75 km.
+        var route = Routes.Generate(Content, "frontier:5", 6);
         var line = route.Build();
         var plan = route.Plan!;
-        var lake = plan.Lakes.OrderBy(l => Math.Abs(l.X - line.Sample(6734).Position.X) + Math.Abs(l.Z - line.Sample(6734).Position.Z)).First();
-        foreach (var at in new[] { 6600.0, 6750 })
+        var along = Enumerable.Range(0, (int)(line.Length / 10)).Select(i => i * 10.0).ToList();
+        double Off(PlanLake l, double s) => Math.Abs(l.X - line.Sample(s).Position.X) + Math.Abs(l.Z - line.Sample(s).Position.Z);
+        var lake = plan.Lakes.MinBy(l => along.Min(s => Off(l, s)))!;
+        double nearest = along.MinBy(s => Off(lake, s));
+        foreach (var at in new[] { nearest - 134, nearest + 16 })
         {
             var eye = line.Sample(at).Position + new Double3(0, 3, 0);
             var water = Water(route, eye, out _);

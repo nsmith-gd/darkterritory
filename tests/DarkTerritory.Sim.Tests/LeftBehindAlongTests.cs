@@ -14,14 +14,15 @@ public class LeftBehindAlongTests
     [Fact]
     public void BesideTheRearCarOnAnAlternateIsBesideTheRearCar()
     {
-        var line = LineGen.Routes.Generate(DataFile.FindContentRoot(), "deepTerritory:1", 10).Build();
-        // Its last alternate (J6 when the line was 37 km; at one 24 km length, note 270, J4), 1,173 m up it.
+        var line = LineGen.Routes.Generate(DataFile.FindContentRoot(), "deepTerritory:31", 10).Build();
+        // Its last alternate (deepTerritory:1's J6 when the line was 37 km; at one 24 km length, note 270, J4, 1,173 m up it;
+        // on the 7 km nights of note 554, deepTerritory:31's only one, about 1.1 km long), most of the way up it.
         int alt = Enumerable.Range(0, line.Branches.Count).Last(i => line.Branches[i].Definition.Kind == Rail.BranchKind.Alternate);
-        double toe = line.Branches[alt].Toe;
+        double toe = line.Branches[alt].Toe, up = Math.Min(1_173, line.Branches[alt].Definition.Length - 150);
         var train = new TrainOnLine(new TrainDynamics(Consist.Uniform(Tuning.Train, 10, 1)), line, toe - 670);
         var world = new World(train);
         world.SetSwitch(alt, true);
-        while (train.Dynamics.Distance < toe + 1_173)
+        while (train.Dynamics.Distance < toe + up)
         {
             train.Dynamics.Velocity = 12;
             world.BeginTick();
@@ -34,6 +35,9 @@ public class LeftBehindAlongTests
         Assert.InRange(ConductorBot.AlongTheTrain(train, beside), d.RearDistance + 11, d.RearDistance + 13);
         double hint = 0;
         line.Nearest(beside, ref hint);
-        Assert.True(Math.Abs(hint - (d.RearDistance + 12)) > 50, $"the main line's count is {hint:0} there, the train's {d.RearDistance + 12:0}");
+        // The main line's count there is another (by 50 m and more up a 24 km night's alternates; up a 7 km night's, about a
+        // kilometre long, by a few cars' lengths): more than a car's length out, as a LineHint would have it.
+        var g = Tuning.Train.Geometry;
+        Assert.True(Math.Abs(hint - (d.RearDistance + 12)) > g.CarLength + g.CouplingGap, $"the main line's count is {hint:0} there, the train's {d.RearDistance + 12:0}");
     }
 }
