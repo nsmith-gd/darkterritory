@@ -56,6 +56,18 @@ void main() {
         float low = exp(-max(dir.y, -0.02) * 12.0);
         colour += frame.dawn.xyz * frame.dawn.w * low * (0.08 + 0.92 * pow(toward, 4.0)) * (1.0 - cloud * 0.4);
     }
+    // The Wakers' stir (note 599; wakers.md section 2: "the horizon behind the train goes from black to a bruise to a thin cold
+    // line"): low on the sky where they'll rise, wide and dim as it first shows, a thin grey line by dawn.
+    if (frame.stir.w > 0.0) {
+        vec2 flatDir = dir.xz / max(length(dir.xz), 1e-4);
+        float toward = max(dot(flatDir, normalize(frame.stir.xz)), 0.0);
+        float w = clamp(frame.stir.w, 0.0, 1.5);
+        // Tall enough to clear the treeline and the far ridges (a few degrees), tightening as it grows.
+        float tight = mix(5.0, 16.0, min(w, 1.0));
+        float low = exp(-max(dir.y - 0.02, 0.0) * tight) * smoothstep(-0.03, 0.02, dir.y);
+        float across = pow(toward, mix(2.0, 5.0, min(w, 1.0)));
+        colour += frame.stirColour.rgb * w * low * across * (1.0 - cloud * 0.5);
+    }
     // The backdrop band: 360 degrees across, sky2.x tall, the horizon 85 % of the way down.
     float azimuth = atan(dir.x, -dir.z) / (2.0 * PI) + 0.5;
     float elevation = asin(clamp(dir.y, -1.0, 1.0));

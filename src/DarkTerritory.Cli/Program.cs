@@ -851,12 +851,32 @@ static object SweepStops(RouteTuning rt, StopTuning st, int seeds)
                 blocked = kept.Where(l => l.HasYard).GroupBy(l => l.Tracks.Count(t => t.Blocked)).OrderBy(g => g.Key).ToDictionary(g => g.Key.ToString(), g => g.Count()),
                 clearances = Math.Round(kept.Where(l => l.HasYard).Select(l => (double)l.Moves.Clearances).DefaultIfEmpty(0).Average(), 2),
                 villages = kept.Where(l => l.VillageForm is not null).GroupBy(l => l.VillageForm!.Value).ToDictionary(g => g.Key.ToString(), g => g.Count()),
+                // Note 593 (the director, 9 Oct: "a good chunk of them should have something here, something there"): what the
+                // village's open houses hold, the barns and sheds aside. The share with a find in them, and how many finds each.
+                houses = Houses(kept),
                 failing = kept.SelectMany(l => l.Checks.Where(c => c.Applies && !c.Pass)).GroupBy(c => c.Name).ToDictionary(g => g.Key, g => g.Count()),
                 examples = kept.Where(l => !l.Valid).Take(4).Select(l => new { l.Seed, failed = l.Checks.Where(c => c.Applies && !c.Pass).Select(c => $"{c.Name}: {c.Detail}") }),
             };
         }
         return new { tier = tier.ToString(), stops = result };
     }).ToList();
+}
+
+static object? Houses(IReadOnlyList<StopLayout> stops)
+{
+    var houses = stops.SelectMany(l => l.Buildings.Select((b, i) => (l, b, i))
+        .Where(x => x.b.Zone == StopZone.Village && x.b.Kind == BuildingKind.House && x.b.Open)
+        .Select(x => x.l.Containers.Count(c => c.Zone == StopZone.Village && c.Building == x.i))).ToList();
+    if (houses.Count == 0)
+        return null;
+    return new
+    {
+        open = houses.Count,
+        perVillage = Math.Round(houses.Count / (double)Math.Max(1, stops.Count(l => l.VillageForm is not null)), 1),
+        withFinds = Math.Round(houses.Count(n => n > 0) / (double)houses.Count, 2),
+        findsPerHouse = Math.Round(houses.Average(), 2),
+        mostInOne = houses.Max(),
+    };
 }
 
 static object LineInfo(RailLine line, double every) => new
@@ -971,6 +991,9 @@ static object Screenshot(TrainTuning t, string content, string[] args)
     var consist = Consist.Uniform(t, cars, 1);
     DarkTerritory.Sim.Run.Run? run = null;
     double at = Opt(args, "--at", 1200);
+    // --waker wall (note 599; the wakerwall view): the train home inside the terminus, a Waker stopped stopShort out.
+    if ((Str(args, "--waker", "") == "wall" || view == "wakerwall") && generated is not null && !args.Contains("--at"))
+        at = Math.Min((generated.Plan?.Terminus.GateM ?? line.Length - 600) + 260, line.Length - 20);
     // --truss (note 435): stood 30 m short of the night's first through-truss, a Dragger on its top chord 10 m in, scraping.
     var truss = args.Contains("--truss") ? generated?.Plan?.Structures.FirstOrDefault(st => st.Type == DarkTerritory.Sim.LineGen.StructureType.Truss && st.Edge == "main") : null;
     if (truss is not null)
@@ -2031,14 +2054,37 @@ static object Screenshot(TrainTuning t, string content, string[] args)
     // the train --held s (7) in, the rear cars up in its hands, as the sessions draw it (WakerLift). The waker view looks
     // back at it from the guard van's platform; wakerlift from out beside the line; wakerinside from the roof of the next car
     // up, a crewmate's eye, lifted with it.
-    string wakerMode = Str(args, "--waker", view switch { "waker" => "chase", "wakerlift" or "wakerinside" => "lift", _ => "" });
+    // --sway r: the cars' lanterns swung that far on their chains (radians), --thud s: a thud of the Wakers' stir (--stir its
+    // strength, 0.8) that many seconds ago, coal coming off the bunker (note 599).
+    if (Opt(args, "--sway", 0) is var sway and not 0)
+        scene.LampSwayOf = car => (float)sway;
+    if (Opt(args, "--thud", -1) is var thud and >= 0)
+        scene.StirThud = (Opt(args, "--stir", 0.8), thud);
+    // --waker rise (note 599; the wakerrise view): one getting up --rise s into its rise (half of it) --behind m back of the
+    // last car (riseBehind), or --aside -1|1 off to that side (riseAside out, asideBack further back), the earth and dust it
+    // throws off as the sessions draw them.
+    string wakerMode = Str(args, "--waker", view switch { "waker" => "chase", "wakerlift" or "wakerinside" => "lift", "wakerrise" => "rise", "wakerwall" => "wall", _ => "" });
     if (wakerMode.Length > 0)
     {
         var wt = DataFile.Load<DarkTerritory.Sim.Enemies.EnemyTuning>(Path.Combine(content, DarkTerritory.Sim.Enemies.EnemyTuning.File)).Wakers;
         var waker = (DarkTerritory.Sim.Enemies.Waker)DarkTerritory.Sim.Enemies.Enemy.Blank(DarkTerritory.Sim.Enemies.EnemyKind.Waker, 9_100);
-        bool holds = wakerMode == "lift";
-        waker.Restore(holds ? DarkTerritory.Sim.Enemies.SpinePhase.Punish : DarkTerritory.Sim.Enemies.SpinePhase.Commit, 30, 1, -1, default,
-            train.RearDistance - (holds ? 4 : Opt(args, "--behind", 150)), 0, 0, holds ? Opt(args, "--held", 7) : 0, 0);
+        bool holds = wakerMode == "lift", rising = wakerMode == "rise", walled = wakerMode == "wall";
+        double gateM = generated?.Plan?.Terminus.GateM ?? line.Length - DataFile.Load<DarkTerritory.Sim.Run.RunTuning>(Path.Combine(content, DarkTerritory.Sim.Run.RunTuning.File)).TerminusZone;
+        double aside = Opt(args, "--aside", 0);
+        if (walled)
+        {
+            waker.Restore(DarkTerritory.Sim.Enemies.SpinePhase.Commit, 120, 1, -1, default, gateM - wt.StopShort, 0, 0, 0, 0);
+            scene.Time = Opt(args, "--clock", 2.3);
+        }
+        else if (rising)
+        {
+            waker.Restore(DarkTerritory.Sim.Enemies.SpinePhase.Telegraph, Opt(args, "--rise", wt.RiseSeconds / 2), 1, -1, default,
+                train.RearDistance - Opt(args, "--behind", wt.RiseBehind) - Math.Abs(aside) * wt.AsideBack, aside * wt.RiseAside, 0, 0, aside);
+            scene.Time = Opt(args, "--rise", wt.RiseSeconds / 2);
+        }
+        else
+            waker.Restore(holds ? DarkTerritory.Sim.Enemies.SpinePhase.Punish : DarkTerritory.Sim.Enemies.SpinePhase.Commit, 30, 1, -1, default,
+                train.RearDistance - (holds ? 4 : Opt(args, "--behind", 150)), 0, 0, holds ? Opt(args, "--held", 7) : 0, 0);
         scene.Enemies = [.. scene.Enemies ?? [], waker];
         var lifted = new List<CarFrame>(leaned ?? train.Frames);
         DarkTerritory.Game.WakerLift.Apply(lifted, train, [waker], wt);
@@ -2049,6 +2095,12 @@ static object Screenshot(TrainTuning t, string content, string[] args)
         camera = view switch
         {
             "waker" => Camera.LookAt(rear.ToWorld(new Double3(0.6, 2.4, half + 1.2)), rear.ToWorld(new Double3(0, 9, half + 120)), 70),
+            // From up behind the gatehouse, over the line out of the gate at it standing under the town's guns.
+            "wakerwall" => Camera.LookAt(line.Sample(gateM + 40) is var inside ? inside.Position + Double3.Cross(inside.Tangent, Double3.Up).Normalized * 6 + Double3.Up * 22 : default,
+                line.Sample(gateM - wt.StopShort).Position + Double3.Up * 10, 55),
+            // From the guard van's platform back down the line at it getting up (or off to its side, across the land).
+            "wakerrise" => Camera.LookAt(rear.ToWorld(new Double3(0.6, 2.4, half + 1.2)), line.Sample(waker.LineDistance) is var w
+                ? w.Position + Double3.Cross(w.Tangent, Double3.Up).Normalized * waker.Lateral + Double3.Up * 8 : default, Math.Abs(aside) > 0 ? 55 : 45),
             "wakerlift" => Camera.LookAt(train.Frames[next.Index].ToWorld(new Double3(-60, 4, 10)), train.Frames[next.Index].ToWorld(new Double3(0, 9, 12)), 66),
             "wakerinside" => Camera.LookAt(next.ToWorld(new Double3(0.4, next.Shape.Bounds.Max.Y + 1.6, -half * 0.4)), next.ToWorld(new Double3(-1.5, next.Shape.Bounds.Max.Y + 2, half + 14)), 80),
             _ => camera,
@@ -2083,8 +2135,9 @@ static object Screenshot(TrainTuning t, string content, string[] args)
     // --lantern: a hand lamp held just under the eye (the scene is eye-relative), the light you'd have in a dark car.
     if (args.Contains("--lantern"))
         mesh.PointLights.Add(new PointLight(new System.Numerics.Vector3(0.15f, -0.35f, 0), DarkTerritory.Game.Palette.LampAmber * 1.6f, 6));
-    // --dawn t: the dawn that far up (0 night .. 1 dawn; look.json atmosphere.dawn).
-    var lighting = Views.Lighting(train, look, (float)Opt(args, "--dawn", 0));
+    // --dawn t: the dawn that far up (0 night .. 1 dawn; look.json atmosphere.dawn). --stir t: the Wakers' stir that far to
+    // dawn (0..1, note 599), its cold line low behind the train.
+    var lighting = Views.Lighting(train, look, (float)Opt(args, "--dawn", 0), (float)Opt(args, "--stir", 0));
     if (args.Contains("--emergency") || args.Contains("--headlamp-out"))
         lighting.LampRange = 0.01f; // emergency lighting (or the lamp out): no light from the headlamp
     if (route is not null)

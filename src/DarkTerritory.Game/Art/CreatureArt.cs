@@ -2475,6 +2475,11 @@ public sealed partial class CreatureArt
     /// <summary>The Moose's tuning, as the content has it (its tells' thresholds, its speeds).</summary>
     public Sim.Enemies.MooseTuning MooseTuning => _moose ??= DataFile.Load<Sim.Enemies.EnemyTuning>(Path.Combine(ContentRoot, Sim.Enemies.EnemyTuning.File)).Moose;
 
+    Sim.Enemies.WakersTuning? _wakers;
+
+    /// <summary>The Wakers' tuning (note 588): how long one takes to rise, for its stand-in and its effects (note 599).</summary>
+    public Sim.Enemies.WakersTuning WakersTuning => _wakers ??= DataFile.Load<Sim.Enemies.EnemyTuning>(Path.Combine(ContentRoot, Sim.Enemies.EnemyTuning.File)).Wakers;
+
     /// <summary>A Moose's mode as its phase has it, for a draw without the sim's (a test's, the greybox's): grazing, after
     /// someone, squaring up, charging, pinning, going home.</summary>
     public static Sim.Enemies.MooseMode MooseModeOf(SpinePhase phase) => phase switch

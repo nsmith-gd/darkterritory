@@ -120,7 +120,7 @@ public static class Views
                 + ((Staging.Lineside(train, 26, 14) - Staging.JacobAt(train)) with { Y = 0 }).Normalized * 0.4, Staging.JacobAt(train) + Double3.Up * 1.5, 55),
             // (Not one of Names.) Dawn's Wakers (note 588): back down the line from the guard van at one coming (the screenshot
             // stages it and puts the camera on it; this is only where it looks without one).
-            "waker" or "wakerlift" or "wakerinside" => Camera.LookAt(train.Frames[^1].ToWorld(new Double3(0.6, 2.4, train.Frames[^1].Shape.HalfLength + 1.2)),
+            "waker" or "wakerlift" or "wakerinside" or "wakerrise" or "wakerwall" => Camera.LookAt(train.Frames[^1].ToWorld(new Double3(0.6, 2.4, train.Frames[^1].Shape.HalfLength + 1.2)),
                 train.Frames[^1].ToWorld(new Double3(0, 9, 120)), 70),
             "jacobblessed" => Camera.LookAt(train.Frames[0].ToWorld(new Double3(6, 4.5, -6)), train.Frames[Math.Min(3, train.Frames.Count - 1)].ToWorld(new Double3(0, 2, 0)), 60),
             // Over crewmate 4's shoulder out in front of the engine, at the staged Moose squaring up to them, coming at them,
@@ -140,6 +140,10 @@ public static class Views
             // cornered there; the Knotter taut across the gap behind it at speed from the next car's roof, and coiled round
             // someone; Hotbox glowing in its truck from beside the car, and out on the ballast at a stand.
             "brakeman" or "brakemancorner" or "knotter" or "knotterslip" or "hotboxbug" or "hotboxout" => Staging.TrainfolkCamera(train, name),
+            // (Not one of Names.) From the engine's roof back along the train to the horizon behind it: where the Wakers' stir
+            // shows before dawn (note 599; --stir t).
+            "stir" => Camera.LookAt(train.Frames[0].ToWorld(new Double3(1.0, train.Frames[0].Shape.RoofHeight + 1.7, 0)),
+                train.Frames[train.Dynamics.Consist.Vehicles[^1].Id] is var rear ? rear.ToWorld(new Double3(0, 6, rear.Shape.HalfLength + 300)) : default, 62),
             // (Not one of Names.) Across the line, close, side on to crewmate 4 pinned under its rack (--moose pin).
             "moosepin" => Camera.LookAt(Staging.Lineside(train, 7, 1.6) + Double3.Up * EyeHeight,
                 Staging.MooseCrewmate(train, "pin").Feet + (Staging.MooseAt(train, "pin").At - Staging.MooseCrewmate(train, "pin").Feet) * 0.4 + Double3.Up * 0.9, 55),
@@ -244,6 +248,8 @@ public static class Views
             // (Not one of Names.) Sat in the cannon's seat (note 137), the gunner's eye over the breech, along the barrel;
             // and off its side, close, the whole of it.
             "cannon" => CannonCamera(train, side: false),
+            // (Not one of Names.) The engine's forward gun from its seat (note 596): what the gunner sees ahead of the train.
+            "cannonfront" => CannonCamera(train, side: false, engine: true),
             // From the rear gun's seat, back down the line at the staged hound run (note 328, --run).
             "run" => RunCamera(train),
             "cannonside" => CannonCamera(train, side: true),
@@ -567,9 +573,9 @@ public static class Views
         return Camera.LookAt(f.ToWorld(eye + new Double3(0, 0.9, 0)), ahead + Double3.Up * 0.6, 20);
     }
 
-    static Camera CannonCamera(TrainOnLine train, bool side)
+    static Camera CannonCamera(TrainOnLine train, bool side, bool engine = false)
     {
-        int v = Enumerable.Range(0, train.Vehicles.Count).LastOrDefault(i => train.Vehicles[i].HasGun, -1);
+        int v = engine ? 0 : Enumerable.Range(0, train.Vehicles.Count).LastOrDefault(i => train.Vehicles[i].HasGun, -1);
         if (v < 0 || Sim.Combat.Guns.Mount(train, v) is not { } mount)
             return GunCamera(train);
         var f = train.Frames[v];
@@ -577,7 +583,8 @@ public static class Views
         double dir = mount.Facing.Z;             // the barrel's way along the car (−1: towards the engine)
         var seat = Art.TrainKit.CannonSeat;
         // The seat is behind the breech: back along the car from the pivot, its height under it.
-        var eye = new Double3(p.X, p.Y + seat.Y + 0.78, p.Z - dir * seat.Z);
+        // The seated eye (Eyes.Seated over the roof the seat stands on; note 596: over the shield, not through its slot).
+        var eye = new Double3(p.X, p.Y - 0.9 + Eyes.Seated, p.Z - dir * seat.Z);
         return side
             ? Camera.LookAt(f.ToWorld(new Double3(p.X + 2.2, p.Y + 0.6, p.Z + dir * 0.4)), f.ToWorld(new Double3(p.X, p.Y - 0.25, p.Z + dir * 0.1)), 50)
             : Camera.LookAt(f.ToWorld(eye), f.ToWorld(new Double3(p.X, p.Y + 0.1, p.Z + dir * 12)), 65);
@@ -676,7 +683,8 @@ public static class Views
         return Camera.LookAt(last.ToWorld(new Double3(-12, 14, last.Shape.HalfLength + 30)), mid.ToWorld(new Double3(0, 2, 0)), 60);
     }
 
-    public static FrameLighting Lighting(TrainOnLine train, Look? look = null, float dawn = 0) => Lighting(train.Frames[0], look, dawn);
+    public static FrameLighting Lighting(TrainOnLine train, Look? look = null, float dawn = 0, float stir = 0) =>
+        Lighting(train.Frames[0], look, dawn, stir, train.Frames[train.Dynamics.Consist.Vehicles[^1].Id].Back with { Y = 0 });
 
     /// <summary>
     /// The night's fog where the engine is (linegen plan §14; note 313): the route's density times the stretch's factor,
@@ -688,11 +696,12 @@ public static class Views
 
     /// <param name="look">The art pass's atmosphere (look.json) over the night's defaults, when there is one.</param>
     /// <param name="dawn">How far the dawn's come up (0..1, <see cref="Look.DawnOf"/>).</param>
-    public static FrameLighting Lighting(in CarFrame engine, Look? look = null, float dawn = 0)
+    /// <param name="stir">How far the Wakers' stir has come (0..1, <see cref="DawnStir.Sky"/>), lying toward <paramref name="stirFrom"/>.</param>
+    public static FrameLighting Lighting(in CarFrame engine, Look? look = null, float dawn = 0, float stir = 0, Double3 stirFrom = default)
     {
         var light = look?.Apply(FrameLighting.Night) ?? FrameLighting.Night;
         if (look is not null)
-            light = look.Dawn(light, dawn);
+            light = look.Stir(look.Dawn(light, dawn), stir, new Vector3((float)stirFrom.X, 0, (float)stirFrom.Z));
         light.LampPosition = Sim.World.LampPosition(engine);
         var fwd = engine.Back * -1;
         light.LampDirection = Vector3.Normalize(new Vector3((float)fwd.X, (float)fwd.Y - 0.04f, (float)fwd.Z));
