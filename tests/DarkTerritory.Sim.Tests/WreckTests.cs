@@ -74,13 +74,17 @@ public class WreckTests
         }
     }
 
-    [Fact]
-    public void AThirtyKilometreDerailGoesOverRatherThanGlidingOff()
+    [Theory]
+    [InlineData(300)]
+    [InlineData(-300)]
+    public void AThirtyKilometreDerailGoesOverRatherThanGlidingOff(double radius)
     {
         // Note 330 (#69, the director, 7 Oct: "took a curve going into a yard at 30 kilometers an hour ... glided off the
         // rails"): the kick was a share of the speed, so at 8 m/s nothing went past 9°. Now the engine and most of the
         // train go over.
-        var w = Derailed(8.3);
+        // Either hand of bend (note 578 throws it to the outside, note 579 blasts it up: together, a first car that also
+        // tumbled end over end came down on its wheels; it only rolls the harder now).
+        var w = Derailed(8.3, radius: radius);
         var wreck = w.Train.Wreck!;
         var rolled = new double[wreck.Bodies.Count];
         for (int i = 0; i < 40 * SimConstants.TickRate && !wreck.Settled; i++)
