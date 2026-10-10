@@ -13,8 +13,9 @@ public sealed record TownSite(string Name, string Industry, double Gate, ulong S
     /// <summary>The departure fortress of a route: the plan's, or for a hand-laid line one named from the seed.</summary>
     public static TownSite Of(Route.Route route, double gate, IReadOnlyList<string> roster, TownContent content, string? last = null)
     {
+        // The town arrived at last night (note 591) is its own seed's; any other, the route's.
         if (route.Plan?.Fortress is { } f)
-            return new TownSite(f.Name, f.Identity, gate, route.Seed, roster, last);
+            return new TownSite(f.Name, f.Identity, gate, f.TownSeed ?? route.Seed, roster, last);
         var rng = Streams.Rng(route.Seed, "town", "name");
         string[] industries = [.. content.Writing.Industries.Keys.Order(StringComparer.Ordinal)];
         return new TownSite("Fort " + rng.Pick(content.Surnames), industries.Length > 0 ? rng.Pick(industries) : "", gate, route.Seed, roster, last);

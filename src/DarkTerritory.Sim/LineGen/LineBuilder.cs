@@ -165,7 +165,9 @@ sealed partial class LineBuilder
         _gate = _innerGate + f.InnerGateBeforeM;
         double length = Math.Round(_l.LengthKm * 100) * 10;
         _terminus = _gate + length;
-        _end = _terminus + _t.Terminus.ArrivalYardM;
+        // A terminus that's a town has its yard as the departure's (note 600): the same town stands in it either way round.
+        bool town = _t.Terminus.TownYard && _p.Tier < _t.Terminus.SilentFromTier;
+        _end = _terminus + (town ? _gate : _t.Terminus.ArrivalYardM);
         _edges["main"] = new EdgeDraft { Id = "main", Role = EdgeRole.Main };
         LayBiomes();
         PlaceFacilities();

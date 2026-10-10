@@ -84,7 +84,7 @@ public class OpenHouseTests
     [InlineData("frontier:7")]
     [InlineData("deadLines:2")]
     [InlineData("local:3")]
-    [InlineData("deepTerritory:2")]
+    [InlineData("deepTerritory:3")] // (seed 2 until note 593: with the villages' finds its kept stops have no L)
     public void TheBiggerHousesHaveABackRoomThroughADoorway(string spec)
     {
         // An L's wing and a long plain house's far end are rooms of their own (note 326's rooms): a wall between, stood

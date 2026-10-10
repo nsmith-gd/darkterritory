@@ -195,6 +195,8 @@ public enum DeathCause : byte
     Pecked,
     // GDD §3.2 (note 570): struck Dave five times; he took them by the neck.
     Dave,
+    // GDD §8 (note 588): still out at dawn, and a Waker caught the train.
+    Woken,
     // Note 573: came down from too high (off a bridge's deck, down a bank's drop).
     Fell
 }

@@ -770,6 +770,23 @@ public static partial class Hud
     /// it's near), and the cold getting deeper where you are (GDD §22, note 201: how much faster it comes on outside, for a
     /// few seconds as you go into it). The whole night, and where you are in it, is the route card's (C).
     /// </summary>
+    /// <summary>
+    /// Past dawn: with the Wakers up (note 588), how far behind the one on the line is, or that it has the train; without them
+    /// (a mod, v1's dawn), the line gone live.
+    /// </summary>
+    public static string DawnLine(Sim.World world, Sim.Train.TrainOnLine train)
+    {
+        if (world.Enemies?.Wakers is not { Enabled: true })
+            return "DAWN: THE LINE IS LIVE. GET IN";
+        if (world.ActiveEnemies.OfType<Sim.Enemies.Waker>().FirstOrDefault(w => w.Lead) is not { } waker)
+            return "DAWN: THEY'RE WAKING. GET IN";
+        if (waker.Holds)
+            return "IT HAS THE TRAIN";
+        double behind = train.RearDistance - waker.LineDistance;
+        return waker.Phase == Sim.Enemies.SpinePhase.Telegraph ? $"DAWN: ONE'S UP {behind / 1000:0.0} KM BEHIND. GET IN"
+            : $"A WAKER {Math.Max(0, behind):0} M BEHIND. GET IN";
+    }
+
     static void TopCentre(Overlay o, int width, IPlaySession s, Memory m, int line)
     {
         float k = Fine, cx = width / 2f, y = 6;
@@ -778,7 +795,7 @@ public static partial class Hud
         {
             double dawn = run?.DawnIn ?? route.DawnSeconds;
             if (dawn <= 0)
-                o.TextCentred(cx, y, "DAWN: THE LINE IS LIVE. GET IN", Red, 1);
+                o.TextCentred(cx, y, DawnLine(s.World, s.Train), Red, 1);
             else if (dawn <= Tuning.DawnClockSeconds)
                 o.TextCentred(cx, y, $"DAWN {(int)dawn / 60}:{(int)dawn % 60:00}", dawn <= 120 ? Red : Amber, 1);
             if (dawn <= Tuning.DawnClockSeconds)
@@ -885,7 +902,7 @@ public static partial class Hud
             else
             {
                 Big("RUN LOST", Red);
-                Small(r.End switch { RunEnd.Derailed => "DERAILED", RunEnd.CrewLost => "THE WHOLE CREW IS DEAD", _ => "STILL OUT WHEN THE LINE WENT LIVE" }, Ink, fine: false);
+                Small(r.End switch { RunEnd.Derailed => "DERAILED", RunEnd.CrewLost => "THE WHOLE CREW IS DEAD", _ when world.Enemies?.Wakers.Enabled == true => "TAKEN AT DAWN", _ => "STILL OUT WHEN THE LINE WENT LIVE" }, Ink, fine: false);
             }
             // GDD v1.4 App. D.12: the incident report, every line in the clerk's voice, under the result; the night's
             // commendations under it.
@@ -947,6 +964,17 @@ public static partial class Hud
             else if (b.Pressure >= bt.Redline)
                 Small(Bound("PRESSURE IN THE RED   VENT : HOLD [VENT]"), flash ? Red : Amber);
         }
+        // Note 576: a battered shell let go is working itself apart, said where it's felt: in the car, on the engine, and to
+        // the cab for any car of the train (the driver feels it through the couplings).
+        if (p.Alive)
+            foreach (var (text, worst) in FailingLines(world.Train, p))
+            {
+                bool flash = world.Tick / 10 % 2 == 0;
+                if (worst == FailStage.Broken)
+                    Big(text, Red);
+                else
+                    Small(text, worst == FailStage.Breaking ? (flash ? Red : Amber) : Amber);
+            }
         // Note 267: a crewmate's whistle names whose hand is on the cord (GDD §12). The Whistler's has no hand on it, and no
         // line (App. A.4: "the whistle sounds with no hand on the cord" is its tell), so one with no name is the Whistler.
         if (p.Alive && world.WhistleSeconds > 0 && world.WhistleBy >= 0)
@@ -1852,6 +1880,7 @@ public static partial class Hud
         DeathCause.Uncoupled => "TAKEN WITH THE CABOOSE. THE PASSENGER CUT IT LOOSE",
         DeathCause.Trampled => "TRAMPLED BY THE MOOSE. YOU GOT TOO CLOSE, OR TOO LOUD",
         DeathCause.Pecked => "PECKED TO DEATH BY THE GANNET. YOU HIT IT, OR SOMEONE DID",
+        DeathCause.Woken => "TAKEN AT DAWN. THE NIGHT WAS THE SAFE PART",
         // Dave's last words to them (note 570): the director's own.
         DeathCause.Dave => "YOU SHOULD BE NICER IN A DARK WORLD.",
         DeathCause.Fell => "FELL. IT WAS FURTHER DOWN THAN IT LOOKED",
@@ -1973,6 +2002,21 @@ public static partial class Hud
             : null;
 
     /// <summary>
+    /// A running conveyor (note 400), as the drive house and the belt say it (note 582): what its head's filling and how full,
+    /// or what's stopping it, as the spout's prompt says its car.
+    /// </summary>
+    static string BeltDoing(Sim.Run.Run run, TrainOnLine train, Site belt, Ballast.Double3 at)
+    {
+        if (belt.Jam >= 0)
+            return $"THE BELT'S JAMMED, {((belt.JamAt - at) with { Y = 0 }).Length:0} M AWAY";
+        if (belt.Grain <= 1e-9)
+            return "THE BELT'S RUNNING   NO GRAIN LEFT";
+        if (run.CarUnderHead(train, belt) is not { } car)
+            return "THE BELT'S RUNNING   NO CAR UNDER ITS HEAD";
+        return car.Load >= 1 - 1e-6 ? "THE BELT'S RUNNING   THE CAR UNDER ITS HEAD IS FULL" : $"LOADING   CAR {car.Load * 100:0}% FULL";
+    }
+
+    /// <summary>
     /// A hold's prompt (GDD §32, note 344): the action and its key, and its progress only once there's some, as the search's
     /// and the generator's say it. A mend kept half done with Use let go (note 301) still shows how far it got.
     /// </summary>
@@ -1983,6 +2027,41 @@ public static partial class Hud
     /// The break in reach and what mends it (note 301): with the wrench in hand, the hold and how far it's got; without, the
     /// break and the key that puts the wrench in hand. Null with no break in reach.
     /// </summary>
+    /// <summary>
+    /// What's failing that this player would feel (note 576): the car they're in or on, coming apart and spilling its freight;
+    /// the engine, from on it; and in the cab, the worst car of the train. Each with how far gone it is.
+    /// </summary>
+    public static List<(string Text, FailStage Stage)> FailingLines(TrainOnLine train, in PlayerState p)
+    {
+        var lines = new List<(string, FailStage)>();
+        if (!train.Dynamics.Tuning.Failing.Enabled || p.Parent < 0 || p.Parent >= train.Vehicles.Count)
+            return lines;
+        var engine = Failing.Stage(train, 0);
+        if (p.Parent == 0 && engine >= FailStage.Failing)
+            lines.Add((engine switch
+            {
+                FailStage.Broken => "THE ENGINE'S BROKEN DOWN",
+                FailStage.Breaking => "THE ENGINE'S BREAKING DOWN",
+                _ => "THE ENGINE'S FAILING",
+            }, engine));
+        if (p.Parent > 0 && Failing.Stage(train, p.Parent) is var here and (FailStage.Failing or FailStage.Breaking))
+        {
+            string spill = train.Vehicles[p.Parent] is { Kind: VehicleKind.Cargo, Load: > 0 } ? "   THE FREIGHT'S SPILLING" : "";
+            lines.Add(((here == FailStage.Breaking ? "THE CAR'S BREAKING UP" : "THE CAR'S COMING APART") + spill, here));
+        }
+        if (p.Parent == 0 && PlayerMotor.InCab(p, train))
+        {
+            int worst = -1;
+            var stage = FailStage.Holding;
+            foreach (var v in train.Dynamics.Consist.Vehicles)
+                if (v.Id > 0 && Failing.Stage(train, v.Id) is var st and (FailStage.Failing or FailStage.Breaking) && st > stage)
+                    (worst, stage) = (v.Id, st);
+            if (worst > 0)
+                lines.Add(($"CAR {worst} {(stage == FailStage.Breaking ? "BREAKING UP" : "COMING APART")}", stage));
+        }
+        return lines;
+    }
+
     public static string? RepairPrompt(in PlayerState p, TrainOnLine train, HandTuning? hand)
     {
         var at = Repairs.At(p, train, hand);
@@ -1993,6 +2072,8 @@ public static partial class Hud
             BreakKind.Breach => "THE CAR'S BREACHED",
             BreakKind.Rupture => "BOILER RUPTURED",
             BreakKind.Lamp => "THE HEADLAMP'S SMASHED",
+            // Note 576: under the failing line, it's no longer a knock: it's going.
+            _ when Failing.Stage(train, p.Parent) >= FailStage.Failing => p.Parent == 0 ? "THE ENGINE'S FAILING" : "THE CAR'S COMING APART",
             _ => "THE CAR'S BATTERED",
         };
         if (!Repairs.WrenchInHand(p))
@@ -2218,8 +2299,13 @@ public static partial class Hud
                 return jammed.Clear > 0 ? $"CLEARING THE JAM ({Math.Min(1, jammed.Clear / belt.ClearSeconds) * 100:0}%)" : "BELT JAMMED : HOLD [E]";
             if (conveyors.StarterInReach(p, train, hand) is { } drive)
                 return drive.Power == Sim.Stops.PowerState.Dead ? "NO POWER : RESTART THE GENERATOR"
-                    : drive.Start > 0 ? $"STARTING THE BELT ({Math.Min(1, drive.Start / belt.StartSeconds) * 100:0}%)"
+                    // Note 582 (the director, 9 Oct: "I started the belt hold and it wasnt clear what was happening"): the hold
+                    // says it's a hold all the way through, as Hold's do.
+                    : drive.Start > 0 ? $"STARTING THE BELT : KEEP HOLDING [E] ({Math.Min(1, drive.Start / belt.StartSeconds) * 100:0}%)"
                     : drive.Jam >= 0 ? "START THE BELT : HOLD [E]   IT'S JAMMED" : "START THE BELT : HOLD [E]";
+            // Once it's started, the drive house says what it's doing: what the head's filling, or why it isn't.
+            if (conveyors.DriveInReach(p, train, hand) is { Running: true } going)
+                return BeltDoing(conveyors, train, going, PlayerMotor.WorldPosition(p, train));
         }
         if (world.Run?.InPen(p, train) is { } pen)
             return pen.Herding ? $"DRIVING THE HERD ({pen.Head} LEFT)"
@@ -2273,6 +2359,8 @@ public static partial class Hud
             var at = PlayerMotor.WorldPosition(p, train);
             if (beltSite.Jam >= 0)
                 return $"THE BELT'S JAMMED, {((beltSite.JamAt - at) with { Y = 0 }).Length:0} M AWAY";
+            if (beltSite.Running)
+                return BeltDoing(run, train, beltSite, at);
             if (!beltSite.Running && beltSite.Grain > 0 && beltSite.Grain < line.Grain - 1e-6)
                 return "THE BELT'S STALLED : START IT AT THE DRIVE HOUSE";
         }

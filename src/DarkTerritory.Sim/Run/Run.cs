@@ -16,6 +16,13 @@ public sealed record RunTuning(double StopBelowSpeed, double TerminusZone, doubl
     public double DepartShortOfGateM { get; init; } = 8;
 
     /// <summary>
+    /// A terminus that's a town is home once the whole train has stopped this far in through its gate (run.json
+    /// <c>homeInsideGateM</c>; note 600): its yard is the departure's length, too long to crawl to the end of. Null: home is
+    /// <see cref="TerminusZone"/> from the end of the line, as a silent settlement's always is.
+    /// </summary>
+    public double? HomeInsideGateM { get; init; }
+
+    /// <summary>
     /// The fortress yard is a safe space until the run begins (run.json <c>yardIsSafe</c>; the director's decision of 6 Oct
     /// 2026, ARCHITECTURE §8 note 263): nothing spawns, the boiler and the fire hold, the cold doesn't bite.
     /// </summary>
@@ -270,6 +277,7 @@ public sealed partial class Run
     double _kitLostFor;
     bool _kitStocked;
     bool _wasRuptured;
+    bool _wasBrokenDown;
     public RunReport? Report { get; private set; }
 
     /// <summary>Advances the run after the world has stepped. <paramref name="crew"/> is everyone's authoritative state.</summary>
@@ -321,17 +329,27 @@ public sealed partial class Run
         }
         _wasRuptured = train.Boiler.Ruptured;
         _kitLostFor = Kit.Lost ? _kitLostFor + dt : 0;
-        bool stranded = train.Boiler.Ruptured && _kitLostFor >= Tuning.Stranded.LostForSeconds && engine.Speed < Tuning.StopBelowSpeed;
+        // Note 576: an engine battered and let go breaks down, and with nothing to make it go, at a stand it's stranded too.
+        bool brokenDown = Train.Failing.BrokenDown(train);
+        if (brokenDown && !_wasBrokenDown)
+            world.Attribution.Add(new Incident(IncidentKind.Rupture, Seconds, -1, "Engine broke down",
+                IncidentLog.At(world, train.Frames[0].Origin, front), -1, "Battered, and never mended."));
+        _wasBrokenDown = brokenDown;
+        bool stranded = (train.Boiler.Ruptured && _kitLostFor >= Tuning.Stranded.LostForSeconds || brokenDown) && engine.Speed < Tuning.StopBelowSpeed;
 
+        // Note 588: with the Wakers up, dawn's end is theirs (a train eaten, or its crew), not dawnGraceSeconds' timer.
+        bool wakers = world.Enemies?.Wakers.Enabled == true;
         if (world.Derailed)
             Finish(world, crew, RunPhase.Failed, RunEnd.Derailed);
+        else if (world.TakenAtDawn || world.WakerHolds && crew.Count > 0 && crew.All(c => !c.Alive))
+            Finish(world, crew, RunPhase.Failed, RunEnd.DawnMissed);
         else if (crew.Count > 0 && crew.All(c => !c.Alive))
             Finish(world, crew, RunPhase.Failed, RunEnd.CrewLost);
         else if (stranded)
             Finish(world, crew, RunPhase.Failed, RunEnd.Stranded);
-        else if (Seconds > _route.DawnSeconds + Tuning.DawnGraceSeconds)
+        else if (!wakers && Seconds > _route.DawnSeconds + Tuning.DawnGraceSeconds)
             Finish(world, crew, RunPhase.Failed, RunEnd.DawnMissed);
-        else if (engine.Speed < Tuning.StopBelowSpeed && train.OnMain && front >= _route.Length - Tuning.TerminusZone)
+        else if (engine.Speed < Tuning.StopBelowSpeed && train.OnMain && front >= HomeFront(train))
             Finish(world, crew, RunPhase.Arrived, RunEnd.Delivered);
         else
         {
@@ -584,6 +602,18 @@ public sealed partial class Run
 
     static TrainDynamics EngineRake(TrainOnLine train) => train.Rakes.First(r => r.Consist.HasEngine);
 
+    /// <summary>
+    /// Where the engine's front has to be for the night to be delivered, stopped: the whole of its rake in through a town
+    /// terminus's gate (note 600, <see cref="RunTuning.HomeInsideGateM"/>), or within the terminus zone of the end of line.
+    /// </summary>
+    public double HomeFront(TrainOnLine train) => TownHome(train) ?? _route.Length - Tuning.TerminusZone;
+
+    /// <summary>Home in through a town terminus's gate (<see cref="HomeFront"/>), or null where home is the terminus zone.</summary>
+    public double? TownHome(TrainOnLine train) =>
+        Tuning.HomeInsideGateM is { } inside && _route.Plan?.Terminus is { Silent: false } t
+            && t.GateM + inside + EngineRake(train).Consist.LengthMetres is var home && home < _route.Length - Tuning.TerminusZone
+            ? home : null;
+
     /// <summary>Where the coaling spout is over the line, and where its lever stands, for a facility.</summary>
     public (double SpoutAlong, Double3 Lever) ChuteAt(RouteFeature f, RailLine line)
     {
@@ -707,6 +737,9 @@ public sealed partial class Run
         if (end == RunEnd.Derailed)
             a.Add(new Incident(IncidentKind.Derailed, Seconds, -1, $"Consist derailed, {Kmh(world.DerailSpeed)}", where, world.DerailActor,
                 $"{Capital(world.DerailCause ?? "cause not established")}. {(world.DerailAction is { Length: > 0 } blame ? blame : "Throttle: {actor}.")}"));
+        // Note 576: broken down, not ruptured: that's the cause, whatever wrenches are aboard.
+        else if (end == RunEnd.Stranded && Train.Failing.BrokenDown(train))
+            a.Add(new Incident(IncidentKind.Stranded, Seconds, -1, "Consist stranded", where, -1, "The engine broke down."));
         else if (end == RunEnd.Stranded)
         {
             int coupler = Kit.Loss == KitLoss.LeftBehind && Kit.Vehicle > 0 ? a.CouplerPulledBy(Kit.Vehicle) : -1;
@@ -824,7 +857,9 @@ public sealed partial class Run
                 inside.Add($"the body of {IncidentLog.NameOf(world, b.Owner)}");
             int puller = taken is null ? world.Attribution.CouplerPulledBy(ids.Min()) : -1;
             // Note 511: or nobody's: the coupling worked loose and its pin dropped (note 356).
-            string cause = puller >= 0 ? $"Coupler: {IncidentLog.NameOf(world, puller)}. " : taken is null && world.Attribution.Parted(ids.Min()) ? "The coupling worked loose and parted. " : "";
+            string cause = puller >= 0 ? $"Coupler: {IncidentLog.NameOf(world, puller)}. " : taken is null && world.Attribution.Parted(ids.Min()) ? "The coupling worked loose and parted. "
+                // Note 576: battered and let go, it came apart and its freight's on the line.
+                : taken is null && world.Attribution.Apart(ids.Min()) ? "Battered and never mended, it came apart; its freight spilled on the line. " : "";
             string action = cause + (inside.Count > 0 ? $"Inside: {string.Join(", ", inside)}." : "Empty.");
             lost.Add(new ReportLine(IncidentKind.CarLost, "", $"{what} {where}. {action}"));
         }

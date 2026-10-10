@@ -29,6 +29,9 @@ public class CrewOfTwoTests
 
     /// <summary>A crew (of two, unless said) on a route, as `dt harness --insist` runs it (the combination sweep's night by hand).</summary>
     /// <param name="cranes">The mail cranes up (false: none, every other board as it is).</param>
+    /// <summary>The departure load these nights were found with (run.json departureLoad before note 575).</summary>
+    internal const double AsFound = 0.5;
+
     internal static HarnessReport Night(string routeName, int cars, double seconds, EnemyKind? insist, double? start = null,
         Action<World>? each = null, int bots = 2, int seed = 1, bool cranes = true, Train.UpkeepTuning? upkeep = null,
         EnemyTuning? enemies = null)
@@ -49,7 +52,9 @@ public class CrewOfTwoTests
             Combat = Tuning.Combat,
             Enemies = enemies ?? Tuning.Enemies,
             Route = route,
-            Run = Tuning.Run,
+            // The night these seeds were found on: the cars half full from the fortress, as they left until note 575 (the
+            // train's weight is the night's timing). What's tested is what a crew does in it, not what the train leaves with.
+            Run = Tuning.Run with { DepartureLoad = AsFound },
             Facilities = DataFile.Load<Run.FacilityTuning>(Path.Combine(Content, Run.FacilityTuning.File)),
             Sight = DataFile.Load<Route.SightTuning>(Path.Combine(Content, Route.SightTuning.File)) is var sight && !cranes
                 ? sight with { DropFrom = double.MaxValue } : sight,
@@ -80,7 +85,9 @@ public class CrewOfTwoTests
             StartDistance = Tuning.Run.DepartFrom(gate, Train.Consist.Uniform(Tuning.Train, 6, 1).LengthMetres),
             Combat = Tuning.Combat,
             Route = route,
-            Run = Tuning.Run,
+            // The night these seeds were found on: the cars half full from the fortress, as they left until note 575 (the
+            // train's weight is the night's timing). What's tested is what a crew does in it, not what the train leaves with.
+            Run = Tuning.Run with { DepartureLoad = AsFound },
             Facilities = DataFile.Load<Run.FacilityTuning>(Path.Combine(Content, Run.FacilityTuning.File)),
             Sight = DataFile.Load<Route.SightTuning>(Path.Combine(Content, Route.SightTuning.File)),
             YardLength = gate,
