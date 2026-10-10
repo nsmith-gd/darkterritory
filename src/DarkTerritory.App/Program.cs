@@ -1296,9 +1296,14 @@ CampaignState? Play(IPlaySession session, CampaignState? campaign)
         sound.Film(derailShot.Film, derailShot.Filming);
         bool cinematic = wrecking || outro;
         var outroTuning = wreckTuning.Stranded;
+        var eyes = session.EyeCamera(frames, clock.Alpha, pendingYaw, pendingPitch) with { FovYDegrees = settings.EyeFov };
+        // Held by something (note 580): the shot cuts to you and what has you, and back to your eyes when it lets go. A
+        // headset stays in its own eyes; so does watching a crewmate's.
+        var heldShot = outro || derailShot.Camera is not null || chase || vr is not null || session.Watching >= 0 ? null : HeldShot.For(session, frames, eyes);
+        bool held = heldShot is not null;
         camera = outro ? Views.Stranded(session.Train, outroTuning, session.OutroSeconds)
             : derailShot.Camera is { } sequenceCamera ? sequenceCamera
-            : chase ? Views.Get("chase", session.Train) : session.EyeCamera(frames, clock.Alpha, pendingYaw, pendingPitch) with { FovYDegrees = settings.EyeFov };
+            : chase ? Views.Get("chase", session.Train) : heldShot ?? eyes;
         // E.9: the lamps go out down the train as the camera pulls back, and stay lit (or not) as far as it can see.
         // E.9: the outro opens on the repair kit's locker standing open and empty (note 173).
         scene.KitLockerOpen = outro;
@@ -1306,7 +1311,7 @@ CampaignState? Play(IPlaySession session, CampaignState? campaign)
         scene.LampRange = outro ? 400 : 60;
         scene.RoofGlow = outro;
         // On the engine with the boiler in the red, it shakes you (T109).
-        if (!chase && !cinematic)
+        if (!chase && !cinematic && !held)
         {
             // The settings' CAMERA SHAKE (note 297) scales both, down to none.
             camera.Position += BoilerShake.Offset(session.World, session.Viewpoint, timer.Elapsed.TotalSeconds) * settings.CameraShake;
@@ -1324,11 +1329,14 @@ CampaignState? Play(IPlaySession session, CampaignState? campaign)
         // Just come back inside a Holdout, you're seen getting up while the camera's on you (note 529).
         if (session.CameBackFigure(frames, clock.Alpha) is { } risen && !chase && !cinematic)
             scene.Crew = [.. scene.Crew ?? [], risen];
+        // Held, you're in the shot (note 580).
+        if (held && HeldShot.Figure(session, frames) is { } you)
+            scene.Crew = [.. scene.Crew ?? [], you];
         // What you carry is drawn at your hands as you see them this frame, not where the last tick left it (T92).
         var carry = session.World.Bodies.Hands;
         var eyeForward = new Double3(-Math.Sin(camera.Yaw), 0, -Math.Cos(camera.Yaw));
         // Off the rails the living ride the wreck to their death (App. E.2 step 1): no hands, nothing carried, in the sequence.
-        scene.HeldHere = chase || cinematic || !session.Player.Alive ? null
+        scene.HeldHere = chase || cinematic || held || !session.Player.Alive ? null
             : (session.PlayerId, camera.Position - Double3.Up * (Eyes.Height - carry.CarryHeight) + eyeForward * carry.CarryForward, camera.Yaw);
         // Your own arms in view (X3), and the swing you've started: a blow lasts the melee's recovery, and held, they follow
         // one another (World.Swing's cadence). A headset draws its own hands; behind a crewmate's eyes, theirs aren't yours.
@@ -1341,7 +1349,7 @@ CampaignState? Play(IPlaySession session, CampaignState? campaign)
         double swing = swingFrom >= 0 && now - swingFrom < swingSeconds ? now - swingFrom : -1;
         if (swing < 0)
             swingFrom = -1;
-        scene.Own = chase || cinematic || vr is not null || !me.Alive || session.Watching >= 0 ? null
+        scene.Own = chase || cinematic || held || vr is not null || !me.Alive || session.Watching >= 0 ? null
             : new OwnView((float)camera.Yaw, (float)camera.Pitch, act, me.Velocity.X * me.Velocity.X + me.Velocity.Z * me.Velocity.Z > 0.16,
                 swing, session.World.OutfitOf(session.PlayerId), Kit.Held(me));
         scene.Time = now;
