@@ -964,6 +964,17 @@ public static partial class Hud
             else if (b.Pressure >= bt.Redline)
                 Small(Bound("PRESSURE IN THE RED   VENT : HOLD [VENT]"), flash ? Red : Amber);
         }
+        // Note 576: a battered shell let go is working itself apart, said where it's felt: in the car, on the engine, and to
+        // the cab for any car of the train (the driver feels it through the couplings).
+        if (p.Alive)
+            foreach (var (text, worst) in FailingLines(world.Train, p))
+            {
+                bool flash = world.Tick / 10 % 2 == 0;
+                if (worst == FailStage.Broken)
+                    Big(text, Red);
+                else
+                    Small(text, worst == FailStage.Breaking ? (flash ? Red : Amber) : Amber);
+            }
         // Note 267: a crewmate's whistle names whose hand is on the cord (GDD §12). The Whistler's has no hand on it, and no
         // line (App. A.4: "the whistle sounds with no hand on the cord" is its tell), so one with no name is the Whistler.
         if (p.Alive && world.WhistleSeconds > 0 && world.WhistleBy >= 0)
@@ -2015,6 +2026,41 @@ public static partial class Hud
     /// The break in reach and what mends it (note 301): with the wrench in hand, the hold and how far it's got; without, the
     /// break and the key that puts the wrench in hand. Null with no break in reach.
     /// </summary>
+    /// <summary>
+    /// What's failing that this player would feel (note 576): the car they're in or on, coming apart and spilling its freight;
+    /// the engine, from on it; and in the cab, the worst car of the train. Each with how far gone it is.
+    /// </summary>
+    public static List<(string Text, FailStage Stage)> FailingLines(TrainOnLine train, in PlayerState p)
+    {
+        var lines = new List<(string, FailStage)>();
+        if (!train.Dynamics.Tuning.Failing.Enabled || p.Parent < 0 || p.Parent >= train.Vehicles.Count)
+            return lines;
+        var engine = Failing.Stage(train, 0);
+        if (p.Parent == 0 && engine >= FailStage.Failing)
+            lines.Add((engine switch
+            {
+                FailStage.Broken => "THE ENGINE'S BROKEN DOWN",
+                FailStage.Breaking => "THE ENGINE'S BREAKING DOWN",
+                _ => "THE ENGINE'S FAILING",
+            }, engine));
+        if (p.Parent > 0 && Failing.Stage(train, p.Parent) is var here and (FailStage.Failing or FailStage.Breaking))
+        {
+            string spill = train.Vehicles[p.Parent] is { Kind: VehicleKind.Cargo, Load: > 0 } ? "   THE FREIGHT'S SPILLING" : "";
+            lines.Add(((here == FailStage.Breaking ? "THE CAR'S BREAKING UP" : "THE CAR'S COMING APART") + spill, here));
+        }
+        if (p.Parent == 0 && PlayerMotor.InCab(p, train))
+        {
+            int worst = -1;
+            var stage = FailStage.Holding;
+            foreach (var v in train.Dynamics.Consist.Vehicles)
+                if (v.Id > 0 && Failing.Stage(train, v.Id) is var st and (FailStage.Failing or FailStage.Breaking) && st > stage)
+                    (worst, stage) = (v.Id, st);
+            if (worst > 0)
+                lines.Add(($"CAR {worst} {(stage == FailStage.Breaking ? "BREAKING UP" : "COMING APART")}", stage));
+        }
+        return lines;
+    }
+
     public static string? RepairPrompt(in PlayerState p, TrainOnLine train, HandTuning? hand)
     {
         var at = Repairs.At(p, train, hand);
@@ -2025,6 +2071,8 @@ public static partial class Hud
             BreakKind.Breach => "THE CAR'S BREACHED",
             BreakKind.Rupture => "BOILER RUPTURED",
             BreakKind.Lamp => "THE HEADLAMP'S SMASHED",
+            // Note 576: under the failing line, it's no longer a knock: it's going.
+            _ when Failing.Stage(train, p.Parent) >= FailStage.Failing => p.Parent == 0 ? "THE ENGINE'S FAILING" : "THE CAR'S COMING APART",
             _ => "THE CAR'S BATTERED",
         };
         if (!Repairs.WrenchInHand(p))
