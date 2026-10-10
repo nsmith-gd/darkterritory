@@ -508,6 +508,20 @@
   "jacob": { "chance": 0.05, "pastGate": 1500, "shortOfEnd": 800, "step": 40, "out": [10, 45], "edge": 3, "trackClearance": 8,
     "reach": 3, "holdSeconds": 0.5 },
 
+  // THE WAKERS · what gets up at dawn (GDD §8; docs/design/creatures/wakers.md; note 588; the director, 9 Oct 2026: "The new
+  // Dawn ending design is excellent ... The gargantuan creatures, the picking up of the train, especially with you in it").
+  // enabled false is v1's dawn (the line goes live; the run fails run.json dawnGraceSeconds later). At dawn, count[tier] of
+  // them rise (Local, Frontier, DeadLines, DeepTerritory): the first riseBehind m behind the train's rear on its path, the
+  // rest riseAside m off either side and asideBack m further back, closing on the line over joinSeconds. Up after
+  // riseSeconds, each runs startSpeed rising to topSpeed m/s over rampSeconds (faster than the engine's 22), over everything,
+  // and stops stopShort m short of the terminus's gate (the guns). The first one to reach the last car has the train: it
+  // drags at dragFactor x the engine's pull, lifts a car every liftSeconds from the rear, and from eatAfter s eats one every
+  // eatSeconds, whoever's in it with it; anyone off the train is taken groundSeconds in. The engine eaten, the run's over:
+  // "taken at dawn". stirSeconds: the tension before dawn (the sky, the ground, their calls; presentation and audio).
+  "wakers": { "enabled": true, "stirSeconds": 180, "count": [1, 1, 2, 3], "riseBehind": 1200, "riseAside": 600, "asideBack": 300,
+    "joinSeconds": 90, "riseSeconds": 8, "startSpeed": 6, "topSpeed": 26, "rampSeconds": 45, "stopShort": 300,
+    "dragFactor": 3, "liftSeconds": 2.5, "eatAfter": 6, "eatSeconds": 4, "groundSeconds": 8 },
+
   // THE SWITCHMAN · vibration · corrupted (App. A.8, B.8). At a junction ahead[0]-[1] m out; seen at revealAt m. It throws
   // the points for the dead line, and the train goes down a line that leads nowhere (the clock's cost: stop, back out, set
   // them back by hand). Killed before the train's over them (killedSetsBack), the lever falls back to the main line. One
