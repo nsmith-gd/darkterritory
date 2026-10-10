@@ -324,6 +324,8 @@ The crew must reach the destination before dawn — not because monsters disappe
 
 Your crew operates inside a dangerous nighttime freight window. Miss it and the railway itself becomes a threat, because dispatch can no longer guarantee the line ahead is clear.
 
+**What gets up at dawn** *(the director's decision, 9 Oct 2026: "The new Dawn ending design is excellent. This is exactly what I was looking for. The gargantuan creatures, the picking up of the train, especially with you in it, you should experience that if you're still playing. And then the tension before it is really, really important"; docs/design/creatures/wakers.md, note 588)*. The night is the crew's because the worst of the world sleeps through it. The crews call them the Wakers. In the last minutes before dawn the horizon behind the train goes cold and light, the ground thuds, and long low calls come from behind the hills. At dawn they rise out of the land far behind the train, and come down the line after it, slow, then faster than any engine. A train that gets in under the terminus's guns is safe: they stop short of the walls. One that doesn't is caught. The Waker takes the last car and lifts, and the train goes up from the rear car by car, the crew inside it seeing the land fall away, and then it eats it. A crew near the end at dawn can race them in; a crew far out almost never does. ~~The line goes live and the night is lost two minutes later~~ (v1's dawn, kept as a mod's `wakers.enabled: false`).
+
 ---
 
 # PART THREE — CORE LOOP

@@ -753,6 +753,7 @@ written here instead is moved out by `tools/coord/notes.py split`; the Coordinat
 - [577. The fantasy as the GDD's pillar (D1.5, queue #307; the director, 9 Oct 2026, after a playtest: "The fantasy is we are a crew sent out into…](notes/577.md)
 - [574. The controls belong to whoever's working them (queue #304, D1; the director, 9 Oct 2026, on the short-nights test build: "if a player goes…](notes/574.md)
 - [577. The fantasy as the GDD's pillar (D1.5, queue #307; the director, 9 Oct 2026, after a playtest: "The fantasy is we are a crew sent out into…](notes/577.md)
+- [588. Dawn: the Wakers (queue #321, D1; the director, 9 Oct 2026, approving D1's proposal: "The new Dawn ending design is excellent. This is…](notes/588.md)
 - [578. A bend taken too fast throws the train to its outside (D1.4, queue #310; the director, 9 Oct 2026, playtest: "The derailment physics didn't…](notes/578.md)
 - [579. The derailment in slow motion, the crew thrown and the cars blasted off (D1.4, queue #311; the director, 9 Oct 2026, playtest: "When…](notes/579.md)
 - [580. Held: the camera cuts to third person on what's holding you (D1.4, queue #312; the director, 9 Oct 2026, playtest: "When you are being held…](notes/580.md)

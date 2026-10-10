@@ -330,13 +330,17 @@ public sealed partial class Run
         _wasBrokenDown = brokenDown;
         bool stranded = (train.Boiler.Ruptured && _kitLostFor >= Tuning.Stranded.LostForSeconds || brokenDown) && engine.Speed < Tuning.StopBelowSpeed;
 
+        // Note 588: with the Wakers up, dawn's end is theirs (a train eaten, or its crew), not dawnGraceSeconds' timer.
+        bool wakers = world.Enemies?.Wakers.Enabled == true;
         if (world.Derailed)
             Finish(world, crew, RunPhase.Failed, RunEnd.Derailed);
+        else if (world.TakenAtDawn || world.WakerHolds && crew.Count > 0 && crew.All(c => !c.Alive))
+            Finish(world, crew, RunPhase.Failed, RunEnd.DawnMissed);
         else if (crew.Count > 0 && crew.All(c => !c.Alive))
             Finish(world, crew, RunPhase.Failed, RunEnd.CrewLost);
         else if (stranded)
             Finish(world, crew, RunPhase.Failed, RunEnd.Stranded);
-        else if (Seconds > _route.DawnSeconds + Tuning.DawnGraceSeconds)
+        else if (!wakers && Seconds > _route.DawnSeconds + Tuning.DawnGraceSeconds)
             Finish(world, crew, RunPhase.Failed, RunEnd.DawnMissed);
         else if (engine.Speed < Tuning.StopBelowSpeed && train.OnMain && front >= _route.Length - Tuning.TerminusZone)
             Finish(world, crew, RunPhase.Arrived, RunEnd.Delivered);
