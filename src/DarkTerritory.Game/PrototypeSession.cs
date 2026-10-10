@@ -50,7 +50,8 @@ public sealed class PrototypeSession : IPlaySession
         // The departure fortress's town (note 281): the customs of the creatures this edition fields.
         if (Sim.Towns.TownContent.Load(contentRoot) is { } towns)
             World.EnableTown(towns, route, route.GateOr(routeTuning.YardLength),
-                DataFile.Load<EnemyTuning>(Path.Combine(contentRoot, EnemyTuning.File)).Director.Roster);
+                DataFile.Load<EnemyTuning>(Path.Combine(contentRoot, EnemyTuning.File)).Director.Roster,
+                arrival: Sim.Towns.TownAt.Terminus(route, Sim.LineGen.LineGenContent.Cached(contentRoot).Config.Tiers.Fortress.Identities));
     }
 
     PrototypeSession(string contentRoot, RailLine line, Route? route, int cars, double start)

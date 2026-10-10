@@ -155,7 +155,7 @@ public sealed class Lineside
         };
         double total = kinds.Sum(k => k.Weight);
         int id = 0;
-        for (double s = t.DropFrom; s < route.Length - t.TerminusBoard; s += rng.Range(t.DropSpacing[0], t.DropSpacing[1]))
+        for (double s = t.DropFrom; s < route.RunLength - t.TerminusBoard; s += rng.Range(t.DropSpacing[0], t.DropSpacing[1]))
         {
             if (route.Features.Any(f => f.Kind is FeatureKind.Tunnel or FeatureKind.Bridge or FeatureKind.Facility or FeatureKind.Junction
                     && s >= f.Start - t.DropClear && s <= f.End + t.DropClear)
@@ -232,10 +232,10 @@ public sealed class Lineside
             zones.Add((SignKind.LowClearance, tunnel.Start, tunnel.End, 0, false));
         var boards = zones.Select(z => new Sign(0, z.Kind, Math.Max(0, z.Start - t.BoardAhead), z.Start, z.End, z.Limit) { Bridge = z.Bridge })
             .Concat(drops.Select(d => new Sign(0, SignKind.Drop, Math.Max(0, d.At - t.DropBoardAhead), d.At, d.At) { Drop = d }))
-            .Append(new Sign(0, SignKind.Terminus, Math.Max(0, route.Length - t.TerminusBoard), route.Length, route.Length))
+            .Append(new Sign(0, SignKind.Terminus, Math.Max(0, route.RunLength - t.TerminusBoard), route.RunLength, route.RunLength))
             // And the home signal and the platform's board, close in: the last run in has its moments too.
-            .Append(new Sign(0, SignKind.Terminus, Math.Max(0, route.Length - t.HomeSignal), route.Length, route.Length))
-            .Append(new Sign(0, SignKind.Terminus, Math.Max(0, route.Length - t.PlatformBoard), route.Length, route.Length));
+            .Append(new Sign(0, SignKind.Terminus, Math.Max(0, route.RunLength - t.HomeSignal), route.RunLength, route.RunLength))
+            .Append(new Sign(0, SignKind.Terminus, Math.Max(0, route.RunLength - t.PlatformBoard), route.RunLength, route.RunLength));
         int id = 0;
         foreach (var b in boards.OrderBy(b => b.Start).ThenBy(b => b.Kind))
             yield return b with { Id = id++ };
