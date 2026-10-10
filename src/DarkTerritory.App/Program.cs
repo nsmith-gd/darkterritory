@@ -1309,6 +1309,11 @@ CampaignState? Play(IPlaySession session, CampaignState? campaign)
         // E.9: the outro opens on the repair kit's locker standing open and empty (note 173).
         scene.KitLockerOpen = outro;
         scene.LampsOut = outro || session.World.Run?.End == DarkTerritory.Sim.Run.RunEnd.Stranded ? Views.StrandedLampsOut(session.Train.Frames.Count, outroTuning, session.OutroSeconds) : 0;
+        // The Wakers' stir felt in the train (note 599): the lanterns swinging and coal off the bunker on each thud.
+        double stirAt = timer.Elapsed.TotalSeconds;
+        var stirWorld = session.World;
+        scene.LampSwayOf = car => DawnStir.LampSway(stirWorld, stirAt, car);
+        scene.StirThud = DawnStir.Thud(stirWorld, stirAt);
         scene.LampRange = outro ? 400 : 60;
         scene.RoofGlow = outro;
         // On the engine with the boiler in the red, it shakes you (T109).
@@ -1363,7 +1368,9 @@ CampaignState? Play(IPlaySession session, CampaignState? campaign)
             townTalk.Step(here, eye, now);
             scene.TownFacing = townTalk.Open is { Kind: DarkTerritory.Sim.Towns.TownTargetKind.Person } talking ? (talking.Index, eye) : null;
         }
-        lighting = Views.Lighting(frames[0], look, session.World.Run is { } dawnRun && look is not null ? look.DawnOf(dawnRun.DawnIn) : 0);
+        // And the Wakers' stir behind the train before dawn (note 599).
+        lighting = Views.Lighting(frames[0], look, session.World.Run is { } dawnRun && look is not null ? look.DawnOf(dawnRun.DawnIn) : 0,
+            DawnStir.Sky(session.World), DawnStir.SkyFrom(session.World, frames));
         lighting.Time = now;
         // Lamps down (T52), or smashed: no beam.
         if (!session.World.LampShining)

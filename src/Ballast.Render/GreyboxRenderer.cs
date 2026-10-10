@@ -51,6 +51,10 @@ unsafe struct FrameData
     public Vector4 Indoor;
     /// <summary>x <see cref="GreyboxRenderer.HoleSlope"/>, y 1 for <see cref="GreyboxRenderer.ShowUntextured"/>.</summary>
     public Vector4 Probe;
+    /// <summary>xyz towards the stir's line on the horizon (flat), w how strong (<see cref="FrameLighting.Stir"/>).</summary>
+    public Vector4 Stir;
+    /// <summary>rgb its colour.</summary>
+    public Vector4 StirColour;
 }
 
 [StructLayout(LayoutKind.Sequential)]
@@ -956,6 +960,8 @@ public sealed unsafe class GreyboxRenderer : IDisposable
         f->Dawn = new Vector4(lighting.DawnGlow, lighting.Dawn);
         f->Wind = new Vector4(lighting.Wind, lighting.Gusts);
         f->Probe = new Vector4(HoleSlope, ShowUntextured ? 1 : 0, 0, 0);
+        f->Stir = new Vector4(lighting.StirDirection, lighting.Stir);
+        f->StirColour = new Vector4(lighting.StirColour, 0);
         for (int i = 0; i < LayerTable; i++)
             f->MotionOf[i] = i < _motion.Length ? _motion[i] : 0;
     }
