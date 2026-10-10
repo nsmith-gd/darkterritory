@@ -3179,14 +3179,23 @@ public sealed partial class StopHand(StopJob job, CrewCalls calls, int member, C
         return null;
     }
 
+    /// <summary>The share of a walk a hand steps off the train at (a step off the edge, not a stride).</summary>
+    const float EdgeStep = 0.5f;
+
     /// <summary>Walk to a point on the player's own car in its frame, facing a way, at a stroll (so it's not a roll).</summary>
     static PlayerIntent Edge(in PlayerState self, Double3 target, double yaw)
     {
         if (!Aligned(self, yaw))
             return new PlayerIntent { LookYaw = Turn(self, yaw) };
         var (step, _) = WarmUp.Steer(self, target, yaw);
-        step.MoveX = Math.Clamp(step.MoveX, -0.5f, 0.5f);
-        step.MoveZ = Math.Clamp(step.MoveZ, -0.5f, 0.5f);
+        // Half a walk however it's headed (note 553): held to half on each axis, a step off on a slant was 0.71 of one, over
+        // spec B.3's roll (landing.rollAbove, 1.5 m/s), and a hand getting down out of the cab at a stand landed 11 the worse.
+        float len = MathF.Sqrt(step.MoveX * step.MoveX + step.MoveZ * step.MoveZ);
+        if (len > EdgeStep)
+        {
+            step.MoveX *= EdgeStep / len;
+            step.MoveZ *= EdgeStep / len;
+        }
         return step;
     }
 
