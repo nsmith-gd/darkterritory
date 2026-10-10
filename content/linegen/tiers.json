@@ -86,9 +86,13 @@
   // B.1's "hard stop 500m out"); the director, 9 Oct (note 590): a crew clearing the train outside the doors met an
   // endless trickle. They stop at the yard-limit board (yardLimitBoardM, a 2.5 m/s crawl in from there), so the ban
   // reaches past it by a train's length.
+  // townYard (ARCHITECTURE §8 note 600; the director, 9 Oct: "the town that we end in in a run
+  // should be the same town that we begin in in the next run"): a terminus that answers is the town the next night
+  // departs from, so its yard is as long as the departure yard (the town spans its yard) and levelled as wide (fortress
+  // padM); arrivalYardM is then a silent settlement's alone.
   "terminus": {
     "skyGlowM": 3000, "yardLimitBoardM": 1000, "spawnBanM": 1200, "wallsResolveM": 300, "arrivalYardM": 450,
-    "yardLimitSpeed": 2.5, "silentFromTier": "deadLines", "homeStraightMinRadius": 1000
+    "yardLimitSpeed": 2.5, "silentFromTier": "deadLines", "homeStraightMinRadius": 1000, "townYard": true
   },
 
   // Plan §6.3. A turnout on tangent, nearly level track; its lamp seen from 250 m; branches curve away to 300 m

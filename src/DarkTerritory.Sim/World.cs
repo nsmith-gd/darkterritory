@@ -806,7 +806,10 @@ public sealed class World
     /// <param name="roster">The edition's creatures (enemies.json director.roster; empty, all): a town keeps only a custom
     /// for a creature this edition fields.</param>
     /// <param name="last">The custom of the last night's town, which this one won't have (App. F.1: "different from the last").</param>
-    public void EnableTown(Towns.TownContent content, Route.Route route, double gate, IReadOnlyList<string> roster, string? last = null)
+    /// <param name="arrival">The town at the end of the line (<see cref="Towns.TownAt.Terminus"/>; note 600), built as the
+    /// next night will build it departing from there; null, the terminus's fortress is the plain one.</param>
+    public void EnableTown(Towns.TownContent content, Route.Route route, double gate, IReadOnlyList<string> roster, string? last = null,
+        Towns.TownAt? arrival = null)
     {
         if (!content.Tuning.Enabled)
             return;
@@ -815,9 +818,26 @@ public sealed class World
         // The departure fortress is the town's: its walls stand back round the square (note 281), so they're built again.
         if (Forts is { Count: > 0 } forts)
             Forts = [forts[0] with { Square = plan.Square, Bounds = plan.Bounds }, .. forts.Skip(1)];
+        // The terminus is the town the next night departs from (note 600): its own site as that night's departure has it
+        // (its gate as far from its yard's far end as this one's from its start, and this town's custom the one it won't
+        // share), so the same plan, laid out in the line turned round from there and come into through its gate.
+        if (Towns.Town.AtTerminus(content, route, Train.Line, gate, roster, plan.Culture, arrival) is { Turn: { } turn } there && Forts is { Count: > 1 } both)
+        {
+            Arrival = there;
+            Forts = [both[0], both[1] with { Square = there.Plan.Square.Turned(turn), Bounds = there.Plan.Bounds, Turn = turn }, .. both.Skip(2)];
+        }
         Train.Walls = ClearSiteWork(LinesideToo(Sim.Run.StopWalls.Of(route, Train.Line, Forts, _walls), route));
         Train.Walls.Add(Town.Walls);
+        if (Arrival is not null)
+            Train.Walls.Add(Arrival.Walls);
     }
+
+    /// <summary>
+    /// The terminus's town (note 600): the town the next night departs from, built here as it will be built there, standing
+    /// turned round in its own frame (<see cref="Towns.Town.Line"/>) with its gate toward the arriving train. Null for a
+    /// silent settlement, a hand-laid line, or a night that wasn't told whose town it ends in.
+    /// </summary>
+    public Towns.Town? Arrival { get; private set; }
 
     // Host: who's holding Use by Nicki and how long, and who's had their glass tonight (note 571).
     readonly Dictionary<int, double> _byNicki = [];
@@ -1646,6 +1666,9 @@ public sealed class World
         // A walled town's fort reaches its wall (queue #74, note 335), past the radius every other fort keeps.
         if (along <= run.YardLength && Town?.Plan.Bounds is { } walled)
             return off <= Math.Max(forts.HalfWidthM, Math.Max(walled.Left, walled.Right) + 5);
+        // And the terminus's (note 600), from its gate on.
+        if (Arrival?.Plan.Bounds is { } there && run.Route.Plan?.Terminus is { } home && along >= home.GateM)
+            return off <= Math.Max(forts.HalfWidthM, Math.Max(there.Left, there.Right) + 5);
         if (off > forts.HalfWidthM)
             return false;
         if (along <= run.YardLength)
@@ -1664,6 +1687,7 @@ public sealed class World
     {
         Controls = controls;
         Train.HeldInYard = SafeYard;
+        Train.HomeAt = Run?.TownHome(Train) ?? double.PositiveInfinity;
         var applied = controls;
         // Something at the controls (v1.1 App. A.2, the Track Doll playing with an empty cab's throttle and brake). On the
         // clients too, from their mirror of it, so prediction drives as the host does.
@@ -1843,6 +1867,8 @@ public sealed class World
         // The town's people go about their rounds on the night's clock (note 353).
         if (Town is { } town)
             town.Clock = Tick * SimConstants.TickSeconds;
+        if (Arrival is { } arrival)
+            arrival.Clock = Tick * SimConstants.TickSeconds;
         if (Authority)
             RefreshTargets();
     }
@@ -2266,7 +2292,7 @@ public sealed class World
     /// moose too, so a crew stopped outside the doors can clear the train. The Wakers (note 588) are dawn's, not this.
     /// </summary>
     public bool HomeStretch => Route is { } r
-        && (Train.Dynamics.Distance > r.Length - NoSpawnFinalApproach || r.Plan?.Director.TagsAt(Train.Dynamics.Distance).Contains("terminus_safe") == true);
+        && (Train.Dynamics.Distance > r.RunLength - NoSpawnFinalApproach || r.Plan?.Director.TagsAt(Train.Dynamics.Distance).Contains("terminus_safe") == true);
 
     /// <summary>Applies this tick's damage and a derailment to the crew. Host only.</summary>
     public void ApplyDamage(Func<int, PlayerState?> get, Action<int, PlayerState> set, IEnumerable<int> crew)

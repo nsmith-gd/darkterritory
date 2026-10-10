@@ -97,6 +97,7 @@ public sealed class WorldShot : IDisposable
         s.Run = world.Run;
         s.Holdouts = world.Holdouts;
         s.Town = world.Town;
+        s.Arrival = world.Arrival;
         s.Vehicles = train.Vehicles;
         s.Bodies = world.Bodies.All;
         s.Diverging = train.Diverging;

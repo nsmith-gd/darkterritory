@@ -761,6 +761,7 @@ written here instead is moved out by `tools/coord/notes.py split`; the Coordinat
 - [587. The extinguisher stays on the fire (queue #320, D1; the director, 9 Oct 2026, playtesting: "I'm looking right at a flame. And I couldn't be…](notes/587.md)
 - [588. Dawn: the Wakers (queue #321, D1; the director, 9 Oct 2026, approving D1's proposal: "The new Dawn ending design is excellent. This is…](notes/588.md)
 - [590. No spawns outside the town doors (queue #323, D1.2 for D1; the director, 9 Oct: "we're going to need to add a no monster spawner on the…](notes/590.md)
+- [589. Monsters brought into town (queue #322, D1's proposal, built by D1.4; the director, 9 Oct 2026: "Bringing monsters into town design is also…](notes/589.md)
 - [591. Town to town (queue #324, D1; the director, 9 Oct 2026: "the town that we end in in a run should be the same town that we begin in in the…](notes/591.md)
 - [593. Loot in the abandoned villages (D1.5, queue #325; the director, 9 Oct 2026, playtest, via D1: "I'm not really finding a lot of loot. I feel…](notes/593.md)
 - [595. A cannon shot throws a switch (queue #327, D1; the director, 9 Oct 2026: "also someone should be able to throw a switch by shooting it with…](notes/595.md)
@@ -769,4 +770,5 @@ written here instead is moved out by `tools/coord/notes.py split`; the Coordinat
 - [598. Bots and the extinguisher (queue #330, D1; the director's in-game notes, 9 Oct 2026: the bots not using the fire extinguisher)](notes/598.md)
 - [599. Dawn, seen and felt coming (D1.4, queue #331, at D1's ask over its Wakers, #321 and note 588; docs/design/creatures/wakers.md §2-§4; the…](notes/599.md)
 - [600. The end town is the town (D1.4, queue #332, D1's follow-up to its #324 and note 591; the director, 9 Oct 2026, playtest: "The end town…](notes/600.md)
+- [601. The bots load at the stops: the Brakeman's pincer leaves a stop's hands to their work (D1.5, queue #333; D1's ask after note 575: on…](notes/601.md)
 <!-- end of the notes index -->
