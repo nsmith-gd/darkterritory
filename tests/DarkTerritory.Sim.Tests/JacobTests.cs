@@ -102,9 +102,9 @@ public class JacobTests
         // Held: the train's made new. Then knocked about again, and another word does nothing more.
         n.Run(J.HoldSeconds + 0.3, id => new PlayerIntent { Buttons = PlayerButtons.Use });
         Assert.True(jacob.Blessed);
-        n.Train.Dynamics.Consist.Vehicles[1].Integrity = 0.4;
+        n.Train.Dynamics.Consist.Vehicles[1].Integrity = 0.6; // knocked, over the failing line (note 576)
         n.Run(J.HoldSeconds + 0.3, id => new PlayerIntent { Buttons = PlayerButtons.Use });
-        Assert.Equal(0.4, n.Train.Dynamics.Consist.Vehicles[1].Integrity);
+        Assert.Equal(0.6, n.Train.Dynamics.Consist.Vehicles[1].Integrity);
         Assert.False(jacob.Hazard is false || jacob.Exposed || jacob.MeleeRadius > 0);
     }
 
