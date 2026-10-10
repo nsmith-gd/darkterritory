@@ -64,7 +64,7 @@ public class VentTests
     [Fact]
     public void WithSomeonePlayingAtTheControlsTheFiremanLeavesTheirSteamAloneTillItsInTheRed()
     {
-        // Note 595 (the director's in-game note 2, 9 Oct 2026): the bot vented all the time while they drove. Someone playing
+        // Note 597 (the director's in-game note 2, 9 Oct 2026): the bot vented all the time while they drove. Someone playing
         // holds the controls (note 574), running the same descent hard on the regulator: the speed's theirs, so the fireman
         // doesn't go out and blow their steam down to what it reckons the line allows. Only with the gauge in the red (the
         // safety valve held shut) does it vent, to save the boiler.
