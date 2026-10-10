@@ -194,7 +194,7 @@ public static class Eyes
 
     /// <summary>
     /// In the gun's seat (T112): the eyes just over the shield's top (the seat 0.48 m over the roof, note 137). They were at
-    /// its aiming slot, and the director, 9 Oct 2026 (note 594), on the forward gun: its plate blocked the view ahead, the
+    /// its aiming slot, and the director, 9 Oct 2026 (note 596), on the forward gun: its plate blocked the view ahead, the
     /// line a letterbox through the slot. Over it, the gunner sees the line and the land, and lays the barrel under them.
     /// </summary>
     public const double Seated = 1.56;

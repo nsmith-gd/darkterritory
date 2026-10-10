@@ -142,7 +142,7 @@ public class GunTests
     {
         var w = World();
         // T112: seated, the view itself is held at the traverse's stop, and the gun is laid there and no further. The guard
-        // van's gun, facing back down the line: the forward gun turns all the way round (note 594).
+        // van's gun, facing back down the line: the forward gun turns all the way round (note 596).
         int van = GuardCar(w);
         var s = AtGun(w, van);
         s.Yaw = Math.PI + 120 * Math.PI / 180;
@@ -158,7 +158,7 @@ public class GunTests
     [Fact]
     public void TheForwardGunTurnsAllTheWayRoundTheShortWay()
     {
-        // Note 594 (the director's in-game notes, 9 Oct 2026): the engine's forward gun turns the full circle. Laid round to
+        // Note 596 (the director's in-game notes, 9 Oct 2026): the engine's forward gun turns the full circle. Laid round to
         // its right past its side to 170°, then the view taken on round past its back to 190° (−170°): the carriage goes on
         // the short way, 20°, not back the long way round through the front.
         Assert.Equal(360, C.Guns.ForwardTraverseDegrees);

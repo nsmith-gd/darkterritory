@@ -143,7 +143,7 @@ public static class Guns
         double off = Math.Clamp(Wrap(s.Yaw - face), -half, half);
         s.Yaw = face + off;
         s.Pitch = Math.Clamp(s.Pitch, t.MinPitchDegrees * Math.PI / 180, t.MaxPitchDegrees * Math.PI / 180);
-        // The gun after it, at its pace: the full circle (note 594) the short way round, past its back.
+        // The gun after it, at its pace: the full circle (note 596) the short way round, past its back.
         double turn = t.TraverseDegreesPerSecond * Math.PI / 180 * dt, lift = t.ElevateDegreesPerSecond * Math.PI / 180 * dt;
         if (half >= Math.PI - 1e-9)
             gun.Traverse = Wrap(gun.Traverse + Math.Clamp(Wrap(off - gun.Traverse), -turn, turn));

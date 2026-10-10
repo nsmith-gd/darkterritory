@@ -1148,7 +1148,7 @@ public sealed partial class GameAudio
                 }
                 // Laid by its seated gunner (T112): the steam motor and its gear while it turns or lifts, faster the faster it
                 // goes (combat.json's traverse rate is full), and the gear's clunk as it stops.
-                // (The short way round: the forward gun turns the full circle past its back, note 594.)
+                // (The short way round: the forward gun turns the full circle past its back, note 596.)
                 double laid = Math.Abs(Math.IEEERemainder(g.Traverse - m.Traverse, 2 * Math.PI)) + Math.Abs(g.Elevation - m.Elevation);
                 if (laid > 1e-5)
                 {

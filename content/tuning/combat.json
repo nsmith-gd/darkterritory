@@ -15,7 +15,7 @@
     "windLoudness": 0.6,
     // Total traverse either side of the gun's facing is half of this.
     "traverseDegrees": 200,
-    // The engine's forward gun (note 594; the director's in-game notes, 9 Oct 2026: it should turn all the way round): the
+    // The engine's forward gun (note 596; the director's in-game notes, 9 Oct 2026: it should turn all the way round): the
     // full circle, the short way round past its back. The dead zone along the train's own body still holds it from firing
     // back down the train, and the train's body still stops the rounds it would put into itself.
     "forwardTraverseDegrees": 360,

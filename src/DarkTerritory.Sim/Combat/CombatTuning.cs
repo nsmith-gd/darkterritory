@@ -33,7 +33,7 @@ public sealed record GunTuning(double RoundsPerSecond, double Range, double Trav
     /// <summary>Seconds of Use held at the gun per step.</summary>
     public double ReloadStepSeconds { get; init; } = 1.5;
     /// <summary>
-    /// The engine's forward gun's whole traverse (note 594; the director's in-game notes, 9 Oct 2026: it should turn all the
+    /// The engine's forward gun's whole traverse (note 596; the director's in-game notes, 9 Oct 2026: it should turn all the
     /// way round): 360 turns it the full circle, the short way. Unset, it's <see cref="TraverseDegrees"/> as every gun's.
     /// </summary>
     public double? ForwardTraverseDegrees { get; init; }
