@@ -451,8 +451,9 @@ public sealed class TrainOnLine
     public bool HeldInYard { get; set; }
 
     /// <summary>
-    /// Where on the main line the engine's front has the night home (note 600; <see cref="Run.Run.HomeFront"/>): a driver
-    /// pulls up there, not at the end of the track. The world sets it every step from the run; none without one.
+    /// Where on the main line the engine's front has the night home in through a town terminus's gate (note 600;
+    /// <see cref="Run.Run.TownHome"/>): a driver pulls up there, not at the end of the track. The world sets it every step
+    /// from the run; none without one, or where home is the end of line's terminus zone.
     /// </summary>
     public double HomeAt { get; set; } = double.PositiveInfinity;
 

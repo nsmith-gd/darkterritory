@@ -75,7 +75,10 @@ sealed partial class LineBuilder
         for (double s = _terminus - tt.WallsResolveM; s < _end; s += 90)
             foreach (int side in new[] { -1, 1 })
                 tlights.Add(Light(s, side * 14, 10, silent ? 0.05 : 1));
-        _terminusPlan = new PlanTerminus(terminusName, silent, _t.Conflicts.SilentGateSafe, R(_terminus), R(_terminus - tt.SkyGlowM), R(_terminus - _t.Budget.HomeStraightM), tlights);
+        _terminusPlan = new PlanTerminus(terminusName, silent, _t.Conflicts.SilentGateSafe, R(_terminus), R(_terminus - tt.SkyGlowM), R(_terminus - _t.Budget.HomeStraightM), tlights)
+        {
+            RunEndM = R(_terminus + tt.ArrivalYardM),
+        };
         // A town's ground as the departure's (note 600); a silent settlement's the old corridor between its walls.
         _pads.Add(LongPad("terminus", _terminus - tt.WallsResolveM, _end, tt.TownYard && !silent ? f.PadM : 70));
         _markers.Add(new PlanMarker("sky_glow", "main", R(_terminus - tt.SkyGlowM)));

@@ -599,13 +599,13 @@ public sealed partial class Run
     /// Where the engine's front has to be for the night to be delivered, stopped: the whole of its rake in through a town
     /// terminus's gate (note 600, <see cref="RunTuning.HomeInsideGateM"/>), or within the terminus zone of the end of line.
     /// </summary>
-    public double HomeFront(TrainOnLine train)
-    {
-        double zone = _route.Length - Tuning.TerminusZone;
-        return Tuning.HomeInsideGateM is { } inside && _route.Plan?.Terminus is { Silent: false } t
-            ? Math.Min(zone, t.GateM + inside + EngineRake(train).Consist.LengthMetres)
-            : zone;
-    }
+    public double HomeFront(TrainOnLine train) => TownHome(train) ?? _route.Length - Tuning.TerminusZone;
+
+    /// <summary>Home in through a town terminus's gate (<see cref="HomeFront"/>), or null where home is the terminus zone.</summary>
+    public double? TownHome(TrainOnLine train) =>
+        Tuning.HomeInsideGateM is { } inside && _route.Plan?.Terminus is { Silent: false } t
+            && t.GateM + inside + EngineRake(train).Consist.LengthMetres is var home && home < _route.Length - Tuning.TerminusZone
+            ? home : null;
 
     /// <summary>Where the coaling spout is over the line, and where its lever stands, for a facility.</summary>
     public (double SpoutAlong, Double3 Lever) ChuteAt(RouteFeature f, RailLine line)

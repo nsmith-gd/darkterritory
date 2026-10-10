@@ -1687,7 +1687,7 @@ public sealed class World
     {
         Controls = controls;
         Train.HeldInYard = SafeYard;
-        Train.HomeAt = Run?.HomeFront(Train) ?? double.PositiveInfinity;
+        Train.HomeAt = Run?.TownHome(Train) ?? double.PositiveInfinity;
         var applied = controls;
         // Something at the controls (v1.1 App. A.2, the Track Doll playing with an empty cab's throttle and brake). On the
         // clients too, from their mirror of it, so prediction drives as the host does.
@@ -1911,7 +1911,7 @@ public sealed class World
         // Out on the line: not the yard, not home, and not the run in to the terminus either, where nothing's sent by design
         // (the line's terminus_safe, the final approach): the quiet there is the night letting go (T74).
         double front = Train.Dynamics.Distance;
-        bool home = Route is { } r && (front > r.Length - NoSpawnFinalApproach || r.Plan?.Director.TagsAt(front).Contains("terminus_safe") == true);
+        bool home = Route is { } r && (front > r.RunLength - NoSpawnFinalApproach || r.Plan?.Director.TagsAt(front).Contains("terminus_safe") == true);
         bool out_ = (Run is null || Run.Phase is DarkTerritory.Sim.Run.RunPhase.Underway or DarkTerritory.Sim.Run.RunPhase.AtFacility) && !home;
         bool active = _enemies.Any(e => !e.Gone && e.Phase is SpinePhase.Telegraph or SpinePhase.Commit or SpinePhase.Punish)
             // The line at its hardest (linegen plan §15.4): the director sends nothing of its own there because the terrain's

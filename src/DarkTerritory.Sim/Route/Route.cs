@@ -59,6 +59,11 @@ public sealed record RouteWeather(double FogDensity, bool Wet, double Cold, doub
 public sealed record Route(string Name, RouteTier Tier, ulong Seed, LineDefinition Line, IReadOnlyList<RouteFeature> Features, RouteWeather Weather, double DawnSeconds)
 {
     public double Length => Line.Segments.Sum(s => s.Length);
+    /// <summary>
+    /// How long the night's run is, for its pacing (note 600; <see cref="LineGen.PlanTerminus.RunEndM"/>): to the end of the
+    /// line, but for a town terminus's yard, which runs on past where it used to end.
+    /// </summary>
+    public double RunLength => Plan?.Terminus.RunEndM is { } end ? Math.Min(end, Length) : Length;
     public IEnumerable<RouteFeature> Of(FeatureKind kind) => Features.Where(f => f.Kind == kind);
     public bool InTunnel(double s) => Features.Any(f => f.Kind == FeatureKind.Tunnel && f.Contains(s));
     /// <summary>
