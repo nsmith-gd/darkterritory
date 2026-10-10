@@ -749,6 +749,8 @@ written here instead is moved out by `tools/coord/notes.py split`; the Coordinat
 - [570. Dave, the wandering painter (P1, queue #300; the director, 8 Oct 2026: "a special NPC that shows up randomly in places. His name is Dave…](notes/570.md)
 - [571. Nicki's party (P1, queue #301; the director, 8 Oct 2026: "an NPC you can find some times in one of the houses. Her name is Nicki and she's…](notes/571.md)
 - [572. Jacob, the fisherman (P1, queue #302; the director, 8 Oct 2026: "an NPC named Jacob who can be found randomly in the world near water…](notes/572.md)
+- [575. The train departs empty (D1.5, queue #305; the director, 9 Oct 2026, playtest: "It also doesnt make sense that if I skip everything and…](notes/575.md)
+- [577. The fantasy as the GDD's pillar (D1.5, queue #307; the director, 9 Oct 2026, after a playtest: "The fantasy is we are a crew sent out into…](notes/577.md)
 - [574. The controls belong to whoever's working them (queue #304, D1; the director, 9 Oct 2026, on the short-nights test build: "if a player goes…](notes/574.md)
 - [577. The fantasy as the GDD's pillar (D1.5, queue #307; the director, 9 Oct 2026, after a playtest: "The fantasy is we are a crew sent out into…](notes/577.md)
 - [578. A bend taken too fast throws the train to its outside (D1.4, queue #310; the director, 9 Oct 2026, playtest: "The derailment physics didn't…](notes/578.md)

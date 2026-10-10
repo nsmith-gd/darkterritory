@@ -359,7 +359,7 @@ The run, and every consequence in it, begins as the train goes through the gate 
 ### Arrival
 Eventually the crew sees lights. Then walls. Then cannon towers. The gates open and the train crosses back into civilization.
 
-**Everything still attached to the locomotive counts.** Cargo is unloaded and paid into the crew's shared wallet. Bodies brought home earn back most of their crew-loss fee. Lost cars, powder, equipment and unrecovered crew become the cost of the run (Appendix D.9).
+**Everything still attached to the locomotive counts.** Cargo is unloaded and paid into the crew's shared wallet. The cars left the fortress empty, so every load paid is one the crew put aboard; a train driven straight home earns nothing and still pays its coal and repairs (note 575). Bodies brought home earn back most of their crew-loss fee. Lost cars, powder, equipment and unrecovered crew become the cost of the run (Appendix D.9).
 
 **The settlement does not mourn.** A yard clerk tallies the run over the radio as the cars come through: cargo by the car, bodies by the body, each fee read out flat, in the same voice as the coal. The town values your friend at 75%, says so, and moves on to the next line. This is the world's indifference, and it is the punchline to every failure that came before it (§23.1).
 
@@ -502,7 +502,7 @@ Not a punishment mechanic — the whole tension of the sequence. The person on t
 
 Each stop of a kind has the module it's named for and two to four in all, drawn for the night (spec D.1's module grammar; note 449). One mine head has its lift and a winch, the next its lift, tipple and crates; a switchyard or a slaughterhouse may have a winch; a wreck yard, crates.
 
-**Every facility is optional. Skipping them is safe and poor.** The payout exists to force bad decisions, not to reward good ones.
+**Every facility is optional. Skipping them is safe and pays nothing:** the train leaves the fortress empty, and only what the crew load at the stops and carry out of the villages is paid at the gates (§1 *The fantasy*; the director, 9 Oct 2026, note 575). The payout exists to force bad decisions, not to reward good ones.
 
 ## 19. Cargo
 
