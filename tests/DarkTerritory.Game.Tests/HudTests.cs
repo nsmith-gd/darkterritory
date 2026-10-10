@@ -461,7 +461,15 @@ public class HudTests
         s.Player = At(site.ConveyorStarter - Double3.Up * 0.9);
         Assert.Equal("START THE BELT : HOLD [E]", Hud.Prompt(s));
         site.Mirror(site.State with { Start = c.StartSeconds / 2 });
-        Assert.Equal("STARTING THE BELT (50%)", Hud.Prompt(s));
+        Assert.Equal("STARTING THE BELT : KEEP HOLDING [E] (50%)", Hud.Prompt(s));
+        // Note 582 (the director, 9 Oct: "I started the belt hold and it wasnt clear what was happening"): started, the drive
+        // house says what it's doing, not nothing. No car under the head yet: it runs and carries nothing.
+        site.Mirror(site.State with { Start = 0, Running = true });
+        Assert.Null(s.World.Run.CarUnderHead(s.Train, site));
+        Assert.Equal("THE BELT'S RUNNING   NO CAR UNDER ITS HEAD", Hud.Prompt(s));
+        site.Mirror(site.State with { Grain = 0 });
+        Assert.Equal("THE BELT'S RUNNING   NO GRAIN LEFT", Hud.Prompt(s));
+        site.Mirror(site.State with { Grain = c.Grain, Running = false });
         // Running and jammed halfway along its low run: beside the jam, clearing it.
         site.Mirror(site.State with { Start = 0, Running = true, Jam = 0.5 });
         var toTrack = ((site.ConveyorKnee - site.ConveyorTail) with { Y = 0 }).Normalized;
