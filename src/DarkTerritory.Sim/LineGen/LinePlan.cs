@@ -240,7 +240,11 @@ public sealed record PlanRouteCard(string Title, IReadOnlyList<CardLine> Timetab
 public sealed record PlanMarker(string Type, string Edge, double S);
 
 public sealed record PlanFortress(string Name, string Identity, double DepartureRoadM, double InnerGateM, double OuterGateM, int ThroatSwitches,
-    IReadOnlyList<double[]> Lights);
+    IReadOnlyList<double[]> Lights)
+{
+    /// <summary>The seed of the town it is, when it's the one arrived at last night (note 591); null, the route's own.</summary>
+    public ulong? TownSeed { get; init; }
+}
 public sealed record PlanTerminus(string Name, bool Silent, bool GateSafe, double GateM, double SkyGlowFromM, double HomeStraightFromM, IReadOnlyList<double[]> Lights);
 
 /// <summary>

@@ -573,7 +573,8 @@ static string Doing(Launch chosen) => chosen switch
                 campaign = Campaign.Begin(campaign, contract) with { Checkpoint = resume };
                 saves.Save(campaign);
                 int? port = night.Host ? NetPlaySession.DefaultPort : null;
-                var setup = new SessionSetup(Route: contract.Route, Cars: campaign.Cars, Enemies: enemies)
+                // Note 591: from the town the crew's in (last night's terminus), if they got to one.
+                var setup = new SessionSetup(Route: Campaign.RouteOf(campaign, contract), Cars: campaign.Cars, Enemies: enemies)
                 {
                     Upgrades = campaign.Upgrades,
                     SpareKits = campaign.SpareKits,
@@ -1204,7 +1205,7 @@ CampaignState? Play(IPlaySession session, CampaignState? campaign)
                 Console.WriteLine($"crew: {aboardNow} aboard");
             }
             if (campaign is not null && session is NetPlaySession played)
-                campaign = Autosave(saves, campaign, played);
+                campaign = Autosave(saves, campaign, played, content);
             // The ears are where the eyes were last frame; audio follows the sim tick so no shot is missed.
             // Watching a crewmate (App. D.10), you hear what they hear: their shelter, their space.
             var ears = session.Viewpoint;
@@ -1559,7 +1560,7 @@ CampaignState? Play(IPlaySession session, CampaignState? campaign)
 }
 
 // Spec E: autosave on each departure from a facility, and settle the night into the slot when it's over.
-static CampaignState Autosave(SaveSlots saves, CampaignState campaign, NetPlaySession session)
+static CampaignState Autosave(SaveSlots saves, CampaignState campaign, NetPlaySession session, string content)
 {
     if (campaign.Current is null)
         return campaign;
@@ -1568,6 +1569,10 @@ static CampaignState Autosave(SaveSlots saves, CampaignState campaign, NetPlaySe
         // E.6: the shuffle bag goes into the save with the night (a derail drew from it).
         // Note 281: and the town it left, so the next night's isn't the same custom again.
         var settled = Campaign.Settle(campaign, report) with { Music = session.MusicBag ?? campaign.Music, LastTown = session.World.Town?.Plan.Culture ?? campaign.LastTown };
+        // Note 591: delivered to a town, the crew's in it, and the next night departs from it.
+        if (session.Route is { } arrived)
+            settled = Campaign.Arrived(settled, report, DarkTerritory.Sim.Towns.TownAt.Terminus(arrived,
+                DarkTerritory.Sim.LineGen.LineGenContent.Cached(content).Config.Tiers.Fortress.Identities));
         saves.Save(settled);
         Console.WriteLine($"campaign: {report.End}, net {report.Net:0} scrip; now {settled.Cars} cars and {settled.Scrip:0} scrip after {settled.Runs} nights");
         return settled;

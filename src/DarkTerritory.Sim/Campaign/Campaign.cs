@@ -161,6 +161,11 @@ public sealed record CampaignState
     public Stores Stores { get; init; } = new();
     /// <summary>The custom of the last night's departure town (note 281): the next one won't share it. Null before the first.</summary>
     public string? LastTown { get; init; }
+    /// <summary>
+    /// The town the crew's in (note 591): the last night's terminus, if they got there. The next night departs from it. Null
+    /// before the first night, or after one that didn't arrive (the crew's where they were).
+    /// </summary>
+    public Towns.TownAt? Town { get; init; }
 }
 
 /// <summary>What a purchase came to: the new state, or why not.</summary>
@@ -331,6 +336,16 @@ public static class Campaign
             },
         };
     }
+
+    /// <summary>
+    /// Where a night arrived (note 591): delivered to a town (not a silent settlement), the crew's in it now, and the next
+    /// night departs from it. Anything else, they're where they were.
+    /// </summary>
+    public static CampaignState Arrived(CampaignState s, RunReport report, Towns.TownAt? terminus) =>
+        report.End == RunEnd.Delivered && terminus is not null ? s with { Town = terminus } : s;
+
+    /// <summary>The route spec a contract's night is played on: from the town the crew's in, if it's in one (note 591).</summary>
+    public static string RouteOf(CampaignState s, Contract c) => Towns.TownAt.With(c.Route, s.Town);
 
     /// <summary>Starts a night on a contract from the board.</summary>
     public static CampaignState Begin(CampaignState s, Contract c) => s with { Current = c, Checkpoint = null };
