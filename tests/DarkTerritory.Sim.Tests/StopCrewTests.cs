@@ -1271,7 +1271,7 @@ public class StopCrewTests
         // Let go as each filled: at most a tick or two's overflow, nothing that strains a car beyond the stop's own knocks.
         Assert.All(spurCars, c => Assert.True(c.Integrity > 0.95, $"integrity {c.Integrity}"));
         // The conveyor reaches the first three (the car under the spout's and those ahead of it); the spout the fourth.
-        double fill = 1 - HalfLoaded;
+        double fill = 1 - Tuning.Run.DepartureLoad; // FacilityWork runs the game's own departure (empty, note 575)
         Assert.Equal(F.Conveyor.Grain - 3 * fill, r.Grain, 1);
         Assert.Equal(F.Spout.Bin - fill, r.Bin, 1);
     }
