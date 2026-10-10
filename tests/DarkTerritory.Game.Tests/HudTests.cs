@@ -877,4 +877,36 @@ public class HudTests
         toy.Carrier = ((IPlaySession)s).PlayerId;
         Assert.DoesNotContain("SEARCH", Hud.Prompt(s) ?? "");
     }
+
+    /// <summary>Note 576: a battered car or engine let go is said where it's felt, and how far gone.</summary>
+    [Fact]
+    public void FailingIsSaidWhereItsFelt()
+    {
+        var tuning = DataFile.Load<TrainTuning>(Path.Combine(Content, TrainTuning.File));
+        var boiler = DataFile.Load<BoilerTuning>(Path.Combine(Content, BoilerTuning.File));
+        var player = DataFile.Load<PlayerTuning>(Path.Combine(Content, PlayerTuning.File));
+        var line = new Sim.Rail.RailLine(new Sim.Rail.LineDefinition("t", [new Sim.Rail.TrackSegment(20_000)]));
+        var train = new TrainOnLine(new TrainDynamics(Consist.Uniform(tuning, 5, 1)), line, 2_000, boiler);
+        var cab = PlayerMotor.SpawnInCab(train, player);
+        var inCar = new PlayerState { Parent = 2, Health = player.Health };
+        // Sound: nothing said.
+        Assert.Empty(Hud.FailingLines(train, inCar));
+        Assert.Empty(Hud.FailingLines(train, cab));
+        // Car 2 under the line: in it, it's coming apart and its freight's going; in the cab, which car.
+        train.Vehicles[2].Integrity = 0.4;
+        Assert.Equal(["THE CAR'S COMING APART   THE FREIGHT'S SPILLING"], Hud.FailingLines(train, inCar).Select(l => l.Text));
+        Assert.Equal(["CAR 2 COMING APART"], Hud.FailingLines(train, cab).Select(l => l.Text));
+        // Nearly gone: breaking up, and the cab hears the worst.
+        train.Vehicles[3].Integrity = 0.1;
+        Assert.Equal((FailStage.Breaking, "CAR 3 BREAKING UP"), Hud.FailingLines(train, cab).Select(l => (l.Stage, l.Text)).Single());
+        // The engine, from on it.
+        train.Vehicles[0].Integrity = 0.3;
+        Assert.Contains("THE ENGINE'S FAILING", Hud.FailingLines(train, cab).Select(l => l.Text));
+        train.Vehicles[0].Integrity = 0;
+        Assert.Contains((FailStage.Broken, "THE ENGINE'S BROKEN DOWN"), Hud.FailingLines(train, cab).Select(l => (l.Stage, l.Text)));
+        // And the rules off, nothing.
+        var off = new TrainOnLine(new TrainDynamics(Consist.Uniform(tuning with { Failing = new FailingTuning() }, 5, 1)), line, 2_000, boiler);
+        off.Vehicles[2].Integrity = 0.1;
+        Assert.Empty(Hud.FailingLines(off, inCar));
+    }
 }

@@ -758,6 +758,8 @@ Nothing there is a mystery. It's still a disaster.
 | Radio breaks | Shouting down the length of a moving train |
 | Cannon fouls | Someone clears it by hand, under fire |
 | Car catches fire | Grab the extinguishers or abandon it |
+| A car battered and left (§23.3) | It works itself apart as it runs and its freight spills out of it; mend it with the wrench, or it comes off its rails and takes everything behind it |
+| The engine battered and left (§23.3) | It loses its pull and its brake; mend it with the wrench, or it breaks down and the crew are stranded |
 | Engineering kit left in car four | Somebody's going out there, and the kit is on a body (§12) |
 | Crew lost on the ground | Two cannons, one gunner, pick a direction |
 
@@ -771,7 +773,7 @@ Nothing there is a mystery. It's still a disaster.
 | **Derailed** | The train leaves the rails. Everyone dies, and Appendix E plays |
 | **Crew lost** | No living crew remain |
 | **Dawn missed** | Still out when the line goes live (§8) |
-| **Stranded** | The boiler is ruptured and the engineering kit is lost (§23.2) |
+| **Stranded** | The boiler is ruptured and the engineering kit is lost (§23.2), or the engine has broken down (§23.3) |
 
 ### Boiler rupture
 
@@ -810,6 +812,21 @@ A kit that comes to rest outside the walkable corridor is relocated like a body 
 **Settlement.** A stranded night pays like any failed night: no cargo, no body refunds, and crew-loss fees for anyone who died. The settlement sends a dawn freight to tow the train in, and bills for it: a **recovery fee** of 0.5 × the tier's per-car value. The locomotive and every car still coupled come home. The living crew come home too, and aren't charged a crew-loss fee. Appendix E.9 covers the outro.
 
 **Death takes you out of the night, not out of the session.** The dead watch their crew and talk among themselves, wait in a queue, and come back through a **Holdout** at the next halt or yard, if the crew stops for them. Their bodies stay out there, and the settlement pays the crew to bring them home. See Appendix D.
+
+### 23.3 Damage let go *(the director, 9 Oct 2026; ARCHITECTURE §8 note 576)*
+
+*"We also need the cars and locomotive being busted to have clear model differences and have real consequences. If players dont fix the ship in sea of thieves the ship goes down and you lose everything. If players dont fix the train here seemingly nothing happens."*
+
+A knock costs a repair bill. A car or the engine battered past half its shell, and left, goes on to cost the night (train.json `failing`):
+
+| Stage | A car | The engine |
+|---|---|---|
+| **Holding** (over half) | Dented, called out where the wrench mends it (note 301). Nothing more | Leaking steam, knocking (the art and the audio's) |
+| **Failing** (under half) | Works itself apart as it runs, faster the faster it runs: about 200 s at line speed from half to nothing. Its freight spills out of it as it goes, about a car-load in the same time. Dust and splinters off its sides, sparks where its plate grinds, its timbers groaning; "THE CAR'S COMING APART" inside it, and "CAR n COMING APART" in the cab | Its pull falls with its shell, to about a third, and its brake to under half. Only while it's pulling. "THE ENGINE'S FAILING" on it; dark smoke off its flanks |
+| **Breaking** (under a fifth) | The last warning: a shower of sparks, the groaning louder, the HUD flashing | "THE ENGINE'S BREAKING DOWN" |
+| **Gone** | It comes apart: off its rails, the train parted ahead of it, it and everything behind it left on the line. Its freight is gone. The report says so | It breaks down: no power at all. Once it's at a stand, the night ends **Stranded** (§23.2's tow, its fee) |
+
+Nothing comes of it standing, nor in the fortress. The wrench at the dent mends any of it, half a shell back in about 12 s (note 301); a car a Car Hugger has eaten into can only come back to what's left of it. The bots send a walker with a wrench to a failing car before a lamp or a mail bag. The model's visible stages are the art's (DamageKit's three, asked to be made clearer on the art checklist).
 
 ### 23.1 Failure has to be funny
 
