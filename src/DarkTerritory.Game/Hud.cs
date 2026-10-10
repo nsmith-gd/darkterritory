@@ -1990,6 +1990,21 @@ public static partial class Hud
             : null;
 
     /// <summary>
+    /// A running conveyor (note 400), as the drive house and the belt say it (note 582): what its head's filling and how full,
+    /// or what's stopping it, as the spout's prompt says its car.
+    /// </summary>
+    static string BeltDoing(Sim.Run.Run run, TrainOnLine train, Site belt, Ballast.Double3 at)
+    {
+        if (belt.Jam >= 0)
+            return $"THE BELT'S JAMMED, {((belt.JamAt - at) with { Y = 0 }).Length:0} M AWAY";
+        if (belt.Grain <= 1e-9)
+            return "THE BELT'S RUNNING   NO GRAIN LEFT";
+        if (run.CarUnderHead(train, belt) is not { } car)
+            return "THE BELT'S RUNNING   NO CAR UNDER ITS HEAD";
+        return car.Load >= 1 - 1e-6 ? "THE BELT'S RUNNING   THE CAR UNDER ITS HEAD IS FULL" : $"LOADING   CAR {car.Load * 100:0}% FULL";
+    }
+
+    /// <summary>
     /// A hold's prompt (GDD §32, note 344): the action and its key, and its progress only once there's some, as the search's
     /// and the generator's say it. A mend kept half done with Use let go (note 301) still shows how far it got.
     /// </summary>
@@ -2235,8 +2250,13 @@ public static partial class Hud
                 return jammed.Clear > 0 ? $"CLEARING THE JAM ({Math.Min(1, jammed.Clear / belt.ClearSeconds) * 100:0}%)" : "BELT JAMMED : HOLD [E]";
             if (conveyors.StarterInReach(p, train, hand) is { } drive)
                 return drive.Power == Sim.Stops.PowerState.Dead ? "NO POWER : RESTART THE GENERATOR"
-                    : drive.Start > 0 ? $"STARTING THE BELT ({Math.Min(1, drive.Start / belt.StartSeconds) * 100:0}%)"
+                    // Note 582 (the director, 9 Oct: "I started the belt hold and it wasnt clear what was happening"): the hold
+                    // says it's a hold all the way through, as Hold's do.
+                    : drive.Start > 0 ? $"STARTING THE BELT : KEEP HOLDING [E] ({Math.Min(1, drive.Start / belt.StartSeconds) * 100:0}%)"
                     : drive.Jam >= 0 ? "START THE BELT : HOLD [E]   IT'S JAMMED" : "START THE BELT : HOLD [E]";
+            // Once it's started, the drive house says what it's doing: what the head's filling, or why it isn't.
+            if (conveyors.DriveInReach(p, train, hand) is { Running: true } going)
+                return BeltDoing(conveyors, train, going, PlayerMotor.WorldPosition(p, train));
         }
         if (world.Run?.InPen(p, train) is { } pen)
             return pen.Herding ? $"DRIVING THE HERD ({pen.Head} LEFT)"
@@ -2290,6 +2310,8 @@ public static partial class Hud
             var at = PlayerMotor.WorldPosition(p, train);
             if (beltSite.Jam >= 0)
                 return $"THE BELT'S JAMMED, {((beltSite.JamAt - at) with { Y = 0 }).Length:0} M AWAY";
+            if (beltSite.Running)
+                return BeltDoing(run, train, beltSite, at);
             if (!beltSite.Running && beltSite.Grain > 0 && beltSite.Grain < line.Grain - 1e-6)
                 return "THE BELT'S STALLED : START IT AT THE DRIVE HOUSE";
         }
