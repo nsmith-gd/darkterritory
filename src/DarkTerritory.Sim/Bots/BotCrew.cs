@@ -177,6 +177,6 @@ public sealed class BotCrew(CrewCalls? calls) : IDisposable
     public static PlayerIntent HeedBrakeman(IBot bot, PlayerIntent intent, in PlayerState self, World world, int me,
         IReadOnlyList<(int Id, PlayerState State)> others, CrewCalls? calls) =>
         (bot as RoofWalkerBot)?.WarmUpStep is null or "Off" && (bot as GunnerBot)?.WarmUpStep is null or "Off"
-            ? Heed.Brakeman(intent, self, world, me, others, calls)
+            ? Heed.Brakeman(intent, self, world, me, others, calls, ((bot as RoofWalkerBot)?.Job ?? (bot as GunnerBot)?.Job)?.AtAStop == true)
             : intent;
 }
