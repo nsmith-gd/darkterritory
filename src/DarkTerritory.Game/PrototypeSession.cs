@@ -198,6 +198,8 @@ public sealed class PrototypeSession : IPlaySession
         _lean.Apply(_renderFrames, Train, Route?.Plan?.Rules, (Tick + alpha) * SimConstants.TickSeconds);
         // And a car in the mine head's tipple rolled over toward its bin, or off its rails (note 423): drawn only.
         TippleTilt.Apply(_renderFrames, Train, World.Run);
+        // And the cars a Waker has at dawn, lifted from the rear with whoever's in them (note 588): drawn only.
+        WakerLift.Apply(_renderFrames, Train, World);
         return _renderFrames;
     }
 
@@ -493,10 +495,10 @@ public sealed class PrototypeSession : IPlaySession
         if (run?.Report is { } r)
             return r.End == RunEnd.Delivered
                 ? $" | DELIVERED {r.CarsDelivered} cars ({r.CargoDelivered:0.0} loads), {r.CarsLost} lost | gross {r.Gross:0} − coal {r.CoalCost:0} − ammo {r.AmmoCost:0} − repairs {r.RepairCost:0} = {r.Net:0} scrip | crew home {r.CrewHome}"
-                : $" | RUN LOST: {r.End switch { RunEnd.Derailed => "derailed", RunEnd.CrewLost => "the whole crew is dead", _ => "still out when the line went live" }} | {r.DistanceKm:0.0} km in {r.Seconds / 60:0} min";
+                : $" | RUN LOST: {r.End switch { RunEnd.Derailed => "derailed", RunEnd.CrewLost => "the whole crew is dead", _ when world.Enemies?.Wakers.Enabled == true => "taken at dawn", _ => "still out when the line went live" }} | {r.DistanceKm:0.0} km in {r.Seconds / 60:0} min";
         double dawn = run?.DawnIn ?? route.DawnSeconds;
         string clock = run?.Phase == RunPhase.Yard ? "in the yard: gates ahead"
-            : dawn > 0 ? $"dawn {(int)dawn / 60:00}:{(int)dawn % 60:00}" : "DAWN — the line is live, get in";
+            : dawn > 0 ? $"dawn {(int)dawn / 60:00}:{(int)dawn % 60:00}" : Hud.DawnLine(world, train);
         string stop = run?.FacilityFeature is { } f
             ? $" | STOPPED AT {f.Facility.ToString()!.ToUpperInvariant()}" + (f.Facility == FacilityKind.CoalingTower
                 ? run.ChuteOpen ? $" — chute POURING ({run.ChuteLeft(run.Facility):0} left)" : run.ChuteLeft(run.Facility) > 0 ? " — a chute lever on the ground" : " — chute empty"

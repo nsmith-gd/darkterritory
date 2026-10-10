@@ -2087,7 +2087,8 @@ public sealed partial class GreyboxScene
         }
         else
         {
-            if (e.LineDistance < from || e.LineDistance > to)
+            // A Waker's seen from as far as it can be (note 588): the land getting up a kilometre behind is the point.
+            if ((e.LineDistance < from || e.LineDistance > to) && e.Kind != EnemyKind.Waker)
             {
                 return;
             }
@@ -2163,6 +2164,26 @@ public sealed partial class GreyboxScene
             case EnemyKind.Brakeman or EnemyKind.Knotter or EnemyKind.Hotbox:
                 TrainfolkBoxes(e, Draw);
                 break;
+            case EnemyKind.Waker:
+                {
+                    // What gets up at dawn (note 588; docs/design/creatures/wakers.md): the land standing up, a car a mouthful.
+                    // Rising (TELEGRAPH) it heaves up out of the ground; running, it's bent over the line, long arms reaching;
+                    // holding the train, the arms are up at the last car and its head down to it. Its model is C1/E1's.
+                    var earth = Palette.DeepBrown * 0.55f;
+                    double rose = e.Phase == SpinePhase.Telegraph ? Math.Clamp(e.PhaseSeconds / 8, 0, 1) : 1;
+                    double sink = (1 - rose) * 18;
+                    bool holds = e.Phase == SpinePhase.Punish;
+                    Draw(0, 11 - sink, 6, 7, 6, 11, earth);                          // the back, a hill's worth
+                    Draw(0, 16 - sink, -6, 5, 4, 5, earth * 0.9f);                   // shoulders
+                    Draw(0, (holds ? 13 : 15) - sink, -12, 3, 3, 4, Palette.Charcoal); // the head, down to its catch holding
+                    Draw(0, (holds ? 11 : 13) - sink, -15.5, 2.4, 0.8, 0.6, Palette.SootBlack); // the mouth
+                    foreach (double x in new[] { -5.5, 5.5 })
+                    {
+                        Draw(x, (holds ? 12 : 7) - sink, holds ? -14 : -11, 1.2, holds ? 3 : 7, 1.2, earth * 0.8f); // arms
+                        Draw(x * 0.9, 5 - sink, 12, 1.6, 5, 1.6, earth * 0.8f);  // hind legs
+                    }
+                    break;
+                }
             case EnemyKind.Gannet:
                 {
                     // A pale cross 7 m across with a spear for a head (note 340): wings spread flying, a dart diving, the
