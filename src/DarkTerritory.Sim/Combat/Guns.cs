@@ -139,13 +139,16 @@ public static class Guns
         ref var gun = ref train.Vehicles[gunVehicle!.Value].Gun;
         var mount = Mount(train, gunVehicle.Value)!.Value;
         // The view stays inside what the gun can be laid on: its traverse either side of its facing, its pitch limits.
-        double half = t.TraverseDegrees / 2 * Math.PI / 180, face = FacingYaw(mount);
+        double half = t.Traverse(Facing(mount)) / 2 * Math.PI / 180, face = FacingYaw(mount);
         double off = Math.Clamp(Wrap(s.Yaw - face), -half, half);
         s.Yaw = face + off;
         s.Pitch = Math.Clamp(s.Pitch, t.MinPitchDegrees * Math.PI / 180, t.MaxPitchDegrees * Math.PI / 180);
-        // The gun after it, at its pace.
+        // The gun after it, at its pace: the full circle (note 596) the short way round, past its back.
         double turn = t.TraverseDegreesPerSecond * Math.PI / 180 * dt, lift = t.ElevateDegreesPerSecond * Math.PI / 180 * dt;
-        gun.Traverse += Math.Clamp(off - gun.Traverse, -turn, turn);
+        if (half >= Math.PI - 1e-9)
+            gun.Traverse = Wrap(gun.Traverse + Math.Clamp(Wrap(off - gun.Traverse), -turn, turn));
+        else
+            gun.Traverse += Math.Clamp(off - gun.Traverse, -turn, turn);
         gun.Elevation += Math.Clamp(s.Pitch - gun.Elevation, -lift, lift);
         var seat = SeatAt(mount, gun, t, s.Position.Y);
         s.Position = seat;
@@ -155,6 +158,9 @@ public static class Guns
     /// <summary>Whether a gun's barrel is laid on <paramref name="aim"/> (car frame), within the tuning's tolerance (bots fire on it).</summary>
     public static bool Laid(GunMount mount, in GunState g, Double3 aim, GunTuning t) =>
         DMath.Acos(Math.Clamp(Double3.Dot(BarrelAim(mount, g), aim.Normalized), -1, 1)) * 180 / Math.PI <= t.LaidDegrees;
+
+    /// <summary>Whether a mount faces ahead (the engine's forward gun) or back down the train.</summary>
+    public static GunMountFacing Facing(GunMount mount) => mount.Facing.Z < 0 ? GunMountFacing.Ahead : GunMountFacing.Back;
 
     static double Wrap(double a)
     {
@@ -177,7 +183,7 @@ public static class Guns
             return AimResult.PitchLimit;
         flat = flat.Normalized;
         double bearing = DMath.Acos(Math.Clamp(Double3.Dot(flat, mount.Facing), -1, 1)) * 180 / Math.PI;
-        if (bearing > t.TraverseDegrees / 2)
+        if (bearing > t.Traverse(Facing(mount)) / 2)
             return AimResult.OutOfTraverse;
         // The train's body runs away from the gun opposite its facing; nothing fires along it.
         double alongBody = DMath.Acos(Math.Clamp(Double3.Dot(flat, mount.Facing * -1), -1, 1)) * 180 / Math.PI;
