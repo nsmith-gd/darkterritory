@@ -24,7 +24,8 @@ public sealed class ReportInkTests : IDisposable
     }
 
     static readonly IncidentKind[] Took = [IncidentKind.Derailed, IncidentKind.Stranded, IncidentKind.CarLost, IncidentKind.Fire, IncidentKind.Nest,
-        IncidentKind.Aboard, IncidentKind.Runaway, IncidentKind.Points, IncidentKind.Rupture, IncidentKind.Struck];
+        IncidentKind.Aboard, IncidentKind.Runaway, IncidentKind.Points, IncidentKind.Rupture, IncidentKind.Struck,
+        IncidentKind.BroughtIn];
     static readonly IncidentKind[] WentWell = [IncidentKind.Rescue, IncidentKind.Slain];
     static readonly IncidentKind[] Faint = [IncidentKind.Grab, IncidentKind.Voted, IncidentKind.Punished, IncidentKind.Drawn];
 

@@ -923,7 +923,10 @@ public sealed partial class Run
     {
         string hurt = t.Hurt switch { 0 => "", 1 => " One of its people hurt.", var n => $" {n} of its people hurt." };
         return new ReportLine(IncidentKind.BroughtIn, "", $"{Capital(b.Called)} brought into {town} on car {b.Car}. "
-            + $"The town's guards and guns put it down.{hurt}{(fee > 0 ? $" Brigade fee {fee:0}." : "")}", fee) { Seconds = b.Seconds };
+            + $"The town's guards and guns put it down.{hurt}{(fee > 0 ? $" Brigade fee {fee:0}." : "")}", fee)
+        {
+            Seconds = b.Seconds,
+        };
     }
 
     /// <summary>
