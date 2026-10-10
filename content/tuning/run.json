@@ -29,6 +29,13 @@
   // is put down inside one, and a creature that comes into one is driven off (it lets go of whoever it holds, and is gone).
   // A crewmate left behind near the gate can run back inside.
   "forts": { "safe": true, "halfWidthM": 80 },
+  // Monsters brought into town (queue #322, ARCHITECTURE §8 note 589; the director, 9 Oct 2026: "It also encourages players
+  // to plan a little extra time at the end of the run to stop the train, clear the monsters, and then bring it in"). The
+  // gates stay open: a creature still aboard as its car comes in through a town terminus's gate is brought into town. The
+  // town's guards and guns fight it in the yard for fightSeconds before it's driven off (the fort's rule, above), so it's
+  // a fight among the houses while it lasts; delivered, the night pays the town's monster brigade fee (this share of the
+  // tier's perCar) for each one, and the report says so, and how many of the town's people each one hurt.
+  "broughtIn": { "fightSeconds": 8, "fee": 0.5, "hurt": 2 },
   // The world is solid (the director, 6 Oct 2026; ARCHITECTURE §8 note 279): a stop's buildings stand as walls nobody walks
   // through and a ball stops at. The houses, barns and outbuildings (T114), and now the powerhouse, signal box, lamp room,
   // water tower, lockup, prison car and well: shut, each its footprint, topM over its ground (a well's kerb wellTopM). A

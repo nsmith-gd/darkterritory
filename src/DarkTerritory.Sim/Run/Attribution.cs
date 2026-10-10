@@ -10,7 +10,7 @@ namespace DarkTerritory.Sim.Run;
 /// and any other PUNISH that held nobody (<see cref="Punished"/>). Note 287: the night's first threat and the draw that
 /// brought it (<see cref="Drawn"/>): "Cinder Hounds came first at km 2. Drawn by the whistle: Dave."
 /// </remarks>
-public enum IncidentKind : byte { Grab, Death, Rescue, Rupture, CarLost, Derailed, Stranded, Voted, Struck, Fire, Nest, Aboard, Runaway, Points, Punished, Drawn, Slain }
+public enum IncidentKind : byte { Grab, Death, Rescue, Rupture, CarLost, Derailed, Stranded, Voted, Struck, Fire, Nest, Aboard, Runaway, Points, Punished, Drawn, Slain, BroughtIn }
 
 /// <summary>
 /// One fact for the incident report (C.9, D.12): what happened, to whom and where, and the <b>contributing action</b>: the

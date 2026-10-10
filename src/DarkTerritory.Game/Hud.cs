@@ -1395,7 +1395,7 @@ public static partial class Hud
         IncidentKind.Derailed or IncidentKind.Stranded => 0,
         IncidentKind.Death => 1,
         IncidentKind.CarLost or IncidentKind.Fire or IncidentKind.Nest or IncidentKind.Aboard or IncidentKind.Runaway or IncidentKind.Points
-            or IncidentKind.Rupture or IncidentKind.Struck => 2,
+            or IncidentKind.Rupture or IncidentKind.Struck or IncidentKind.BroughtIn => 2,
         IncidentKind.Rescue or IncidentKind.Slain => 3,
         _ => 4,
     };
@@ -1457,6 +1457,9 @@ public static partial class Hud
             money.Add($"refunds {r.BodyRefunds:0}");
         if (r.Recovery > 0)
             money.Add($"recovery {r.Recovery:0}");
+        // Note 589: what the town's monster brigade charged for what rode in.
+        if (r.BroughtInFees > 0)
+            money.Add($"brigade fees {r.BroughtInFees:0}");
         money.Add($"running costs {r.CoalCost + r.AmmoCost + r.RepairCost:0}");
         // Wrapped as the lines are (note 347): at a bigger TEXT SIZE it's wider than the plate.
         var sum = Wrap($"{string.Join(", ", money)}. Net {r.Net:0} scrip.", chars).ToList();

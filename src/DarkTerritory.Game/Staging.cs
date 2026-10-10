@@ -1395,8 +1395,28 @@ public static partial class Staging
             // Only Dave's still aboard by then: the derailment's stills are of whoever it took.
             marks.End(world, end, [crew[0], crew[1] with { State = beside with { Death = Sim.Player.DeathCause.Seized } }]);
         }
+        // Delivered, with two of them ridden into town (note 589, `--report brought`): a night that went well but for that, the
+        // clerk's lines and the brigade's fee.
+        double brigade = 0;
+        if (end == Sim.Run.RunEnd.Delivered)
+        {
+            lines = [.. lines.Where(l => l.Kind is Sim.Run.IncidentKind.Slain or Sim.Run.IncidentKind.Rescue)];
+            var t = run.Tuning.BroughtIn;
+            brigade = Math.Round(t.Fee * run.Tuning.Economy.PerCar.GetValueOrDefault("frontier", 700));
+            string town = run.Route.Plan?.Terminus.Name ?? "the town";
+            lines.Add(Sim.Run.Run.BroughtInLine(new Sim.Run.BroughtIn(90, EnemyKind.CinderHound, "the Cinder Hound", 2, 1702), town, t, brigade));
+            lines.Add(Sim.Run.Run.BroughtInLine(new Sim.Run.BroughtIn(91, EnemyKind.Grumbler, "the Grumbler", 3, 1706), town, t, brigade));
+        }
         var (marked, shown) = Sim.Run.Run.MarkBookmarks(world, lines);
-        return new Sim.Run.RunReport(end, 1720, 17.2, 4, 1, 2.1, 0, 120, 6, 40, -1416, 1, 3, Deaths: 3, CrewLossFees: 1050) { Lines = marked, Bookmarks = shown };
+        return brigade > 0
+            ? new Sim.Run.RunReport(end, 1720, 17.2, 5, 0, 4.6, 3220, 120, 6, 40, 3220 - 166 - 2 * brigade, 4, 0)
+            {
+                Lines = marked,
+                BroughtIn = 2,
+                BroughtInFees = 2 * brigade,
+                TownHurt = 2 * run.Tuning.BroughtIn.Hurt,
+            }
+            : new Sim.Run.RunReport(end, 1720, 17.2, 4, 1, 2.1, 0, 120, 6, 40, -1416, 1, 3, Deaths: 3, CrewLossFees: 1050) { Lines = marked, Bookmarks = shown };
     }
 
     static readonly Sim.Player.PlayerTuning DefaultPlayer = DataFile.Load<Sim.Player.PlayerTuning>(Path.Combine(DataFile.FindContentRoot(), Sim.Player.PlayerTuning.File));
