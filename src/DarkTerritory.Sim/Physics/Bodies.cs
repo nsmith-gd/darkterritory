@@ -174,6 +174,11 @@ public sealed class Bodies
     /// <summary>What a player carries in their hands (a radio's on the belt, not in them).</summary>
     public Body? CarriedBy(int playerId) => _bodies.FirstOrDefault(b => b.HeldBy(playerId) && b.Kind != BodyKind.Radio);
 
+    // Ticks Use has been held at a car's door with arms full, by player (note 581): a tap puts it down, a hold is the door's.
+    readonly Dictionary<int, int> _doorHeld = new();
+
+    static double DoorSeconds(TrainOnLine train) => train.Dynamics.Tuning.Geometry.Interior?.DoorSeconds ?? 0.4;
+
     /// <summary>A heavy crate's span (T43): its carriers this far apart at most, hands to hands, or it's down.</summary>
     public double HeavySpan { get; set; } = 2.4;
 
@@ -490,6 +495,21 @@ public sealed class Bodies
             return false;
         }
         _lockerHeld.Remove(playerId);
+        // At a car's door with your arms full (note 581; the director, 9 Oct 2026: "extremely difficult to get loot into the
+        // cars, the game should be more forgiving"): Use is the door's, held, as it is empty-handed (CrewActions works it),
+        // and a tap still puts down what you carry, as at a locker. It used to put it down on the press, so a crate couldn't
+        // be got through a shut door without setting it down to open it.
+        if (carried is not null && !throwPressed && CrewActions.NearestInteractable(s, train, hand) is { Thing.Kind: InteractableKind.Door })
+        {
+            if (usePressed)
+                _doorHeld[playerId] = 1;
+            else if (use && _doorHeld.ContainsKey(playerId))
+                _doorHeld[playerId]++;
+            else if (!use && _doorHeld.Remove(playerId, out int held) && held * Dt < DoorSeconds(train) - Dt / 2)
+                Release(carried, s, train, 0);
+            return false;
+        }
+        _doorHeld.Remove(playerId);
         if (Mend(s, intent, playerId, train, hand, carried, use, usePressed, throwPressed))
             return false;
         if (Dose(s, intent, playerId, train, hand, carried, use, usePressed, throwPressed))
@@ -715,7 +735,72 @@ public sealed class Bodies
             p[i].SetVelocity(throwVelocity, Dt);
         b.Spin = speed > 0 ? 6 : 0;
         b.Airborne = speed > 0 ? 3 : 0;
+        if (speed <= 0)
+            TakeIn(b, train);
         b.Pbd.Wake();
+    }
+
+    /// <summary>How far outside a car's open doorway (m) a find or a crate set down is taken in through it (note 581).</summary>
+    public double DoorTakeIn { get; set; } = 1.0;
+
+    /// <summary>
+    /// A find or a crate set down just outside a car's open doorway, from its steps or the ground or the plates (note 581; the
+    /// director, 9 Oct 2026: "it's extremely difficult to get loot into the cars, the game should be more forgiving"): it's
+    /// taken in, onto the floor a step inside the doorway, where it loads or is stowed as anything put down inside does.
+    /// </summary>
+    void TakeIn(Body b, TrainOnLine train)
+    {
+        if (b.Kind is not (BodyKind.Loot or BodyKind.Cargo or BodyKind.Heavy) || DoorTakeIn <= 0)
+            return;
+        var at = WorldCentre(b, train);
+        // Already inside a room: nothing to take in.
+        if (b.Parent > 0 && b.Parent < train.Frames.Count && train.Frames[b.Parent].Shape.Interior is { } own && own.Contains(b.Centre))
+            return;
+        double floor = train.Dynamics.Tuning.Geometry.Interior?.FloorHeight ?? 1.1;
+        (int Car, Double3 Inside, double Off)? best = null;
+        foreach (var frame in train.Frames)
+        {
+            if (frame.Index == 0 || frame.Shape.Interior is not { } room || train.StandingCar(frame.Index))
+                continue;
+            var local = frame.ToLocal(at);
+            if (local.Y < floor - 1.6 || local.Y > room.Max.Y)
+                continue;
+            foreach (var door in frame.Shape.DoorList)
+            {
+                if (!train.Vehicles[frame.Index].DoorOpen(door.Index))
+                    continue;
+                var box = door.Box;
+                double dx = Math.Max(0, Math.Max(box.Min.X - local.X, local.X - box.Max.X));
+                double dz = Math.Max(0, Math.Max(box.Min.Z - local.Z, local.Z - box.Max.Z));
+                double off = Math.Sqrt(dx * dx + dz * dz);
+                if (off > DoorTakeIn || best is { } b0 && b0.Off <= off)
+                    continue;
+                // A step in from the doorway, square to it: a side door's across the car, an end door's along it.
+                var mid = box.Centre;
+                bool side = box.HalfSize.Z >= box.HalfSize.X;
+                var inward = side ? new Double3(-Math.Sign(mid.X), 0, 0) : new Double3(0, 0, -Math.Sign(mid.Z));
+                var inside = new Double3(side ? mid.X : Math.Clamp(local.X, box.Min.X + 0.2, box.Max.X - 0.2), floor,
+                    side ? Math.Clamp(local.Z, box.Min.Z + 0.2, box.Max.Z - 0.2) : mid.Z) + inward * 0.7;
+                if (room.Contains(inside + Double3.Up * 0.3))
+                    best = (frame.Index, inside, off);
+            }
+        }
+        if (best is not { } took)
+            return;
+        if (b.Parent != took.Car)
+        {
+            if (b.Parent != PlayerState.World)
+                ToWorld(b, train, b.Parent);
+            ToCar(b, train, took.Car);
+        }
+        var p = b.Pbd.Particles;
+        var shift = took.Inside + Double3.Up * p[0].Radius - b.Centre;
+        for (int i = 0; i < p.Length; i++)
+        {
+            p[i].Position += shift;
+            p[i].Previous = p[i].Position;
+        }
+        b.Airborne = 0;
     }
 
     /// <summary>Host: one physics step for everything loose, after the train and players have moved.</summary>

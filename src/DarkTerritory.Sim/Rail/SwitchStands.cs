@@ -88,6 +88,40 @@ public sealed class SwitchStands(JunctionTuning tuning)
     public static (int? Branch, bool Slow)? CabLever(in PlayerState s, TrainOnLine train, HandTuning? hand = null) =>
         AtThrower(s, train, hand) ? (PointsAhead(train), SlowEnough(train)) : null;
 
+    /// <summary>
+    /// Host: a cannonball that found a stand's lever (the director, 9 Oct 2026, note 595: "someone should be able to throw a
+    /// switch by shooting it with the cannon if their aim is good enough"). Its flight from the muzzle to where it came down
+    /// passes within <see cref="JunctionTuning.ShotReach"/> of the lever: over it goes, in the gunner's name, as a hand on it
+    /// would throw it (not with a wheel on the points). The nearest lever to its line, if it passes more than one.
+    /// </summary>
+    public SwitchThrow? Shot(in Combat.GunShot shot, TrainOnLine train)
+    {
+        if (Tuning.ShotReach <= 0 || train.Line.Branches.Count == 0)
+            return null;
+        var end = shot.Muzzle + shot.Direction.Normalized * shot.Distance;
+        int? best = null;
+        double nearest = Tuning.ShotReach;
+        foreach (var b in train.Line.Branches)
+        {
+            double d = Apart(LeverAt(train.Line, b.Index), shot.Muzzle, end);
+            if (d <= nearest)
+                (nearest, best) = (d, b.Index);
+        }
+        if (best is not { } branch)
+            return null;
+        bool diverge = !train.Diverging(branch);
+        return new SwitchThrow(branch, shot.Shooter, diverge, train.ThrowSwitch(branch, diverge, Tuning.PointsLength));
+    }
+
+    /// <summary>How far <paramref name="p"/> is from the segment <paramref name="a"/>–<paramref name="b"/>.</summary>
+    static double Apart(Double3 p, Double3 a, Double3 b)
+    {
+        var ab = b - a;
+        double len2 = Double3.Dot(ab, ab);
+        double t = len2 < 1e-12 ? 0 : Math.Clamp(Double3.Dot(p - a, ab) / len2, 0, 1);
+        return (p - (a + ab * t)).Length;
+    }
+
     /// <summary>How far through throwing it a player is, 0..1 (host only: clients see the switch move when it has).</summary>
     public double Progress(int playerId) => _held.TryGetValue(playerId, out var h) ? Math.Min(1, h.Held / Tuning.ThrowSeconds) : 0;
 

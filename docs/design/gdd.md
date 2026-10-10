@@ -2465,19 +2465,21 @@ Nobody died, so there's no opera. The joke is how little anyone cares.
 
 ## E.10 Tunables
 
+The director, 9 Oct 2026, playtest (note 579): "When derailment happens things need to slow right down. They need to show the derailment happening in slow motion with people being thrown all over the place and cars basically being blasted off the tracks in a comedic way." The fling, kick and spin went to the top of their ranges and the slow motion down; outside the film, the live wreck plays its first 6 s at 0.2× (the replay shows it again) and every car is blasted up off the rails (tuning/wreck.json `slowSeconds`, `slowRate`, `blastUp`, `blastRoll`).
+
 | Tunable | Default | Range |
 |---|---|---|
 | Pre-sim length | 6s | 4–8s |
 | Substeps | 4 | 2–8 |
 | Coupling break strain | — | Set in feel-testing |
-| Fling multiplier | ×1.6 (5 Oct; was ×1.3) | ×1.0–2.0 |
-| Upward kick | 3–5 m/s (5 Oct; was 2–4) | 0–6 m/s |
-| Spin | 3.5–7 rad/s (5 Oct; was ≤4) | 0–8 |
+| Fling multiplier | ×2.0 (9 Oct; was ×1.6, ×1.3) | ×1.0–2.0 |
+| Upward kick | 4–6 m/s (9 Oct; was 3–5, 2–4) | 0–6 m/s |
+| Spin | 4.5–8 rad/s (9 Oct; was 3.5–7, ≤4) | 0–8 |
 | Ejection cap | 30 m/s | 20–40 |
 | Minimum-kick speed | 6 m/s | 4–10 |
 | Bystander distance | 25 m | 15–40 |
-| Base slow motion | 0.4× (5 Oct; was 0.25×) | 0.1–0.5× |
-| Peak slow motion | 0.15× (5 Oct; was 0.1×) | 0.05–0.25× |
+| Base slow motion | 0.3× (9 Oct; was 0.4×, 0.25×) | 0.1–0.5× |
+| Peak slow motion | 0.1× (9 Oct; was 0.15×, 0.1×) | 0.05–0.25× |
 | Player shot | 4s (5 Oct, take 3; was 2.5s) | 1.5–5s |
 | Player-shot block cap | 32s (5 Oct, take 3; was 16s) | 10–40s |
 | First person | to the death + 3.8s, 4.5–9s (5 Oct, take 3) | — |
