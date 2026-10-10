@@ -762,6 +762,7 @@ written here instead is moved out by `tools/coord/notes.py split`; the Coordinat
 - [587. The extinguisher stays on the fire (queue #320, D1; the director, 9 Oct 2026, playtesting: "I'm looking right at a flame. And I couldn't be…](notes/587.md)
 - [593. Loot in the abandoned villages (D1.5, queue #325; the director, 9 Oct 2026, playtest, via D1: "I'm not really finding a lot of loot. I feel…](notes/593.md)
 - [588. Dawn: the Wakers (queue #321, D1; the director, 9 Oct 2026, approving D1's proposal: "The new Dawn ending design is excellent. This is…](notes/588.md)
+- [589. Monsters brought into town (queue #322, D1's proposal, built by D1.4; the director, 9 Oct 2026: "Bringing monsters into town design is also…](notes/589.md)
 - [591. Town to town (queue #324, D1; the director, 9 Oct 2026: "the town that we end in in a run should be the same town that we begin in in the…](notes/591.md)
 - [595. A cannon shot throws a switch (queue #327, D1; the director, 9 Oct 2026: "also someone should be able to throw a switch by shooting it with…](notes/595.md)
 - [596. The forward gun turns all the way round, and its gunner sees ahead (queue #328, D1; the director's in-game notes 8 and 9, 9 Oct 2026,…](notes/596.md)
