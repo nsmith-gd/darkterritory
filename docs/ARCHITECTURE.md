@@ -791,4 +791,5 @@ written here instead is moved out by `tools/coord/notes.py split`; the Coordinat
 - [617. A second stop on a 7 km night (queue #349, D1; #341's "not yet", note 609)](notes/617.md)
 - [618. A switchyard's cars ahead of the engine aren't boarded (D1.5, queue #346; D1's find from D1.4's campaign, #345: night 3 brought seven…](notes/618.md)
 - [619. The bots shut the door on a lit lamp (D1.4, queue #350, at D1's ask after #348 and note 616: "your runs found the cars burning at lamps the…](notes/619.md)
+- [620. The bots break a crewmate out of a Holdout off the line (D1.5, queue #346: the stands with a crewmate held dead)](notes/620.md)
 <!-- end of the notes index -->
