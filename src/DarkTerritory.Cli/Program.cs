@@ -668,6 +668,19 @@ object CampaignCommand(string content, string verb, string[] args)
                     Holdouts = DataFile.Load<DarkTerritory.Sim.Run.HoldoutTuning>(Path.Combine(content, DarkTerritory.Sim.Run.HoldoutTuning.File)),
                     Sight = sight,
                     Cargo = contract.Cargo,
+                    // A night as the app plays it (note 613): the jobs the train makes as it runs (note 331) and the stops' finds
+                    // (note 326), unless --no-upkeep, --no-loot.
+                    Upkeep = args.Contains("--no-upkeep") ? null : DataFile.Load<UpkeepTuning>(Path.Combine(content, UpkeepTuning.File)),
+                    Loot = args.Contains("--no-loot") ? null : DataFile.Load<DarkTerritory.Sim.Stops.LootTuning>(Path.Combine(content, DarkTerritory.Sim.Stops.LootTuning.File)),
+                    // --lose-at s: the night lost at dawn, forced, s seconds into the run (note 613): the Wakers have the train, as
+                    // they would at dawn's end (note 588), to see what the campaign makes of a night that didn't arrive.
+                    Observe = Opt(args, "--lose-at", -1) is var loseAt and >= 0
+                        ? (_, _, w) =>
+                        {
+                            if (w.Run is { Seconds: var at } && at >= loseAt)
+                                w.TakenAtDawn = true;
+                        }
+                        : null,
                 }, loadout.Boiler);
                 if (report.Run is not { } night)
                     return new { error = "the night didn't run" };
