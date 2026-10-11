@@ -8,8 +8,8 @@ namespace DarkTerritory.Sim.Tests;
 /// <summary>
 /// Note 605 (queue #337; the director, 9 Oct 2026: "plan a little extra time at the end of the run to stop the train, clear the
 /// monsters, and then bring it in"): a bot crew coming in on a town's gate with a hound aboard stops short of it, clears the
-/// train and brings it in with nothing aboard. With dawn about to break and no stand that puts its rear past the Wakers' wall
-/// (they stop short of the gate), the driver runs straight in; a stand inside the wall is safe at dawn, and it stands.
+/// train and brings it in with nothing aboard. At dawn a stand inside the Wakers' wall (they stop short of the gate) is safe,
+/// and it stands; one short of it isn't, and with no time in hand the driver runs straight in.
 /// </summary>
 public class GateClearTests
 {
@@ -68,17 +68,34 @@ public class GateClearTests
         Assert.Equal(0, run.BroughtInFees);
     }
 
-    [Fact]
-    public void WithDawnAboutToBreakAndNoStandPastTheWakersWallTheDriverRunsStraightIn()
+    /// <summary>
+    /// The driver's reckoning at dawn, a train placed short of frontier:7's town gate and standing: <paramref name="cars"/>
+    /// cars, its front <paramref name="out_"/> m short of the gate, the clock <paramref name="dawnIn"/> s short of dawn.
+    /// </summary>
+    static double TimeInHand(int cars, double out_, double dawnIn)
     {
-        // Eighteen cars (some 300 m): stood short of the gate, the rear's short of the Wakers' wall (wakers.stopShort, 300 m
-        // short of it), and dawn's 20 s off. They'd have it standing: no stand, and the town's brigade gets the hounds.
-        var (report, seen) = Night(900, dawnIn: 20, cars: 18);
-        Assert.True(seen.HoundPlaced);
-        var run = Assert.IsType<RunReport>(report.Run);
-        Assert.False(seen.Stood, "stood short of the gate with dawn breaking");
-        Assert.Equal(RunEnd.Delivered, run.End);
-        Assert.True(run.BroughtIn > 0, "nothing aboard at the gate: the test's hounds were cleared before it");
+        // The night's line as for its usual ten cars (the generator lays its yards for that), whatever the train on it.
+        var route = LineGen.Routes.Generate(DataFile.FindContentRoot(), "frontier:7", 10);
+        double gate = route.Plan!.Terminus.GateM;
+        var train = new Train.TrainOnLine(new Train.TrainDynamics(Train.Consist.Uniform(Tuning.Train, cars, 1)), route.Build(), gate - out_, Tuning.Boiler);
+        var world = new World(train, Tuning.Combat);
+        world.EnableRun(Tuning.Run, route, route.GateOr(Tuning.Route.YardLength), authority: true);
+        world.Run!.Resume(route.DawnSeconds - dawnIn, -1, train.Boiler.Tender, 0);
+        world.EnableEnemies(HoundRunTests.Quiet, route, 1, crew: 1, authority: true);
+        return DarkTerritory.Sim.Bots.ConductorBot.GateTimeInHand(world, world.Run, HoundRunTests.Quiet, gate - HoundRunTests.Quiet.CrewBots.GateClearShort);
+    }
+
+    [Fact]
+    public void AtDawnAStandShortOfTheWakersWallHasNoTimeInHandAndOnePastItHasAllOfIt()
+    {
+        var w = HoundRunTests.Quiet.Wakers;
+        Assert.True(w.Enabled);
+        // Four cars stood 30 m short of the gate: the rear's inside their wall (stopShort short of the gate), out of reach.
+        Assert.True(double.IsPositiveInfinity(TimeInHand(4, 30, 0)));
+        // Twenty-four cars (some 390 m): stood there, the rear's short of the wall, and dawn's now: they'd have it standing.
+        Assert.True(TimeInHand(24, 30, 0) <= 0, $"{TimeInHand(24, 30, 0):0} s in hand at dawn");
+        // The same train well before dawn: time enough to stand and clear.
+        Assert.True(TimeInHand(24, 30, 600) > 300);
     }
 
     [Fact]
