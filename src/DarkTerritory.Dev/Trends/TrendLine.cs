@@ -12,7 +12,9 @@ namespace DarkTerritory.Dev.Trends;
 /// and the upkeep, one a seed, the nights D1 measured by hand ("4-bot full nights with upkeep, frontier:7, 2700 s").
 /// <see cref="Harness"/> is that command line less its seed, recorded as it was run: a series compares only lines measured on
 /// the same nights, and the bisect runs them on each commit it tries with that commit's own <c>dt harness</c> (an older commit
-/// has no <c>dt trends</c>, but every one has the harness).
+/// has no <c>dt trends</c>, but every one has the harness). Since note 622 the nights are hosted as the app hosts them
+/// (<c>--as-app</c>: the train at the gate, the crew aboard, the perfect link, the stops' finds), "so the trend lines measure
+/// what the director plays" (D1); a commit from before that has no <c>--as-app</c>, and the bisect skips it.
 /// </summary>
 public sealed record TrendNights
 {
@@ -40,7 +42,7 @@ public sealed record TrendNights
     };
 
     static string Line(string route, int bots, int cars, double seconds) =>
-        $"--route {route} --bots {bots} --cars {cars} --enemies --upkeep --seconds {seconds.ToString(CultureInfo.InvariantCulture)}";
+        $"--as-app --route {route} --bots {bots} --cars {cars} --enemies --upkeep --seconds {seconds.ToString(CultureInfo.InvariantCulture)}";
 
     /// <summary>One night's <c>dt harness</c> command line (the arguments after <c>dt</c>).</summary>
     public string[] Args(int seed) => ["harness", .. Harness.Split(' ', StringSplitOptions.RemoveEmptyEntries), "--seed", seed.ToString(CultureInfo.InvariantCulture)];
