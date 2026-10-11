@@ -433,6 +433,60 @@ public class BotsAnswerTheSixTests
     }
 
     /// <summary>
+    /// Note 619 (local:435 from Radley, slot seed 7, hosted as the app hosts it): down car 1's side-door steps at the
+    /// Knotter's stand, a hand landed on their last tread and turned back along the car for the gap behind car 2, up the
+    /// tread onto the steps, and was sent down them again: four ticks round, for 800 s, the door held open and the lamp lit,
+    /// and Fire Flies set cars 1 and 2 alight sixteen times. Off the treads it walks out clear of them first, and on to the gap.
+    /// </summary>
+    [Fact]
+    public void OffASideDoorsStepsAHandWalksOutClearOfThemNotBackUpThem()
+    {
+        var n = new Night(4, speed: 0, enemies: Quiet);
+        var frame = n.Train.Frames[1];
+        // Just off the last tread, on the ballast at its foot (where the walker landed).
+        var tread = frame.Shape.Solids.Where(s => s.Part == PartKind.Steps && s.Box.Max.X < 0).MinBy(s => s.Box.Max.Y).Box;
+        n.Crew[2] = Ground(n, Beside(n, 1, tread.Centre.X, tread.Min.Z - 0.1));
+        var hand = Hand(2);
+        var behind = n.Train.Frames[2];
+        var gap = Beside(n, 2, -(behind.Shape.HalfWidth + 0.6), behind.Shape.HalfLength);
+        bool boarded = false;
+        Run(n, 30, id => hand.Afoot(n.Crew[id], n.World, gap, 0.6) ?? default,
+            until: () => (boarded |= n.Crew[2].Parent != PlayerState.World) || Flat(gap - PlayerMotor.WorldPosition(n.Crew[2], n.Train)) <= 0.6);
+        Assert.False(boarded, $"up car {n.Crew[2].Parent}'s steps again ({hand.Doing})");
+        Assert.True(Flat(gap - PlayerMotor.WorldPosition(n.Crew[2], n.Train)) <= 1, $"{Flat(gap - PlayerMotor.WorldPosition(n.Crew[2], n.Train)):0.0} m short of the gap");
+    }
+
+    /// <summary>
+    /// Note 619 (local:486 from Fort Fenwick, slot seed 9): sent down to the Knotter from a car shut up for the cold, two
+    /// walkers walked into its shut side door for 180 s; and every car the Fire Flies set alight had its lamp lit and a door
+    /// a crewmate went out by left open. Down to the ground from a car shut up, its lamp lit: the door opened, out, and shut
+    /// behind.
+    /// </summary>
+    [Fact]
+    public void OutOfACarShutUpAHandOpensItsDoorAndShutsItBehindOnALitLamp()
+    {
+        var n = new Night(4, speed: 0, enemies: Quiet);
+        var car = n.Train.Vehicles[2];
+        Assert.True(car.LampLit);
+        car.DoorsOpen = 0;
+        int door = StopHand.SideDoor(n.Train.Frames[2].Shape, -1)!.Value;
+        n.Crew[2] = new PlayerState { Parent = 2, Position = new Double3(0, Tuning.Train.Geometry.Interior!.FloorHeight, 0), Surface = Surface.Deck, Health = P.Health };
+        var hand = Hand(2);
+        var frame = n.Train.Frames[2];
+        var gap = Beside(n, 2, -(frame.Shape.HalfWidth + 0.6), frame.Shape.HalfLength);
+        bool opened = false;
+        Run(n, 40, id => hand.Afoot(n.Crew[id], n.World, gap, 0.6) ?? default, until: () =>
+        {
+            opened |= car.DoorOpen(door);
+            return Flat(gap - PlayerMotor.WorldPosition(n.Crew[2], n.Train)) <= 0.6;
+        });
+        Assert.True(opened, $"never opened it ({hand.Doing}, car {n.Crew[2].Parent})");
+        Assert.Equal(PlayerState.World, n.Crew[2].Parent);
+        Assert.True(Flat(gap - PlayerMotor.WorldPosition(n.Crew[2], n.Train)) <= 1, $"{hand.Doing}, short of the gap");
+        Assert.False(car.DoorOpen(door), "the door left open on a lit lamp");
+    }
+
+    /// <summary>
     /// Note 614 (local:7, 4 bots, seed 5, and five more of the other tiers' 7 km nights): a Whistler watching the Knotter's own
     /// gap at its stand. Kept off the gap as a pair, the bots stood at its edge three minutes and never clubbed the Knotter,
     /// the driver waiting on them. Two together, the Whistler takes neither, and they kill the Knotter and the train goes on
