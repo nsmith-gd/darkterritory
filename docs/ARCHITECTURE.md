@@ -789,6 +789,7 @@ written here instead is moved out by `tools/coord/notes.py split`; the Coordinat
 - [615. The driver at dawn stands for no Knotter the Wakers won't allow (queue #347, D1.2 for D1; note 607's seed 13; D1's dawn rule: "at the dawn…](notes/615.md)
 - [616. The app's bots are the harness's (D1.4, queue #348, at D1's ask after #345 and note 613: "the director plays with the app's bots, and every…](notes/616.md)
 - [617. A second stop on a 7 km night (queue #349, D1; #341's "not yet", note 609)](notes/617.md)
+- [619. The Fire Flies' fires were hands stuck at a car's door, and a lamp key pressed blind (D1.4, queue #350, at D1's ask after #348 and note 616: "your runs found the cars burning at lamps the bots had lit, with doors left open")](notes/619.md)
 - [618. A switchyard's cars ahead of the engine aren't boarded (D1.5, queue #346; D1's find from D1.4's campaign, #345: night 3 brought seven…](notes/618.md)
 - [619. The bots shut the door on a lit lamp (D1.4, queue #350, at D1's ask after #348 and note 616: "your runs found the cars burning at lamps the…](notes/619.md)
 - [620. The bots break a crewmate out of a Holdout off the line (D1.5, queue #346: the stands with a crewmate held dead)](notes/620.md)
@@ -797,4 +798,7 @@ written here instead is moved out by `tools/coord/notes.py split`; the Coordinat
 - [624. The GDD and the Wiki brought up to today's game (D1.4, queue #354, at D1's ask after #806: "it's docs, but the director reads them")](notes/624.md)
 - [625. Late Dispatch, a little more time again (D1.4, queue #355, at D1's ask after note 624: "its `dawnGraceSeconds` does nothing with the Wakers…](notes/625.md)
 - [626. Two hands at one guttering lamp: not seen, so not changed (D1.4, queue #356, note 619's not-yet, at D1's ask: "if it shows in a sweep,…](notes/626.md)
+- [625. Late Dispatch, a little more time again (D1.4, queue #355, at D1's ask after note 624)](notes/625.md)
+- [626. Two hands at one guttering lamp (D1.4, queue #356, note 619's not-yet)](notes/626.md)
+- [627. A guttering lamp nobody reaches (D1.4, queue #357, note 626's find)](notes/627.md)
 <!-- end of the notes index -->
