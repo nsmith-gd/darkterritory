@@ -145,9 +145,10 @@ public class LandingTests
     {
         // deepTerritory:1 seed 2: a walker and the gunner stepped down off the train at a stand where the ground beside it was
         // 26 m under the rail, and the fall (now) killed them. Getting down looks for ground on its side, then the other.
-        var route = LineGen.Routes.Generate(DataFile.FindContentRoot(), "frontier:7", 8);
+        // (frontier:5's trestle, 34 m up, on note 554's 7 km nights.)
+        var route = LineGen.Routes.Generate(DataFile.FindContentRoot(), "frontier:5", 8);
         var line = route.Build();
-        var bridge = route.Plan!.Structures.Single(st => st.Name == "Stroud Bridge");
+        var bridge = route.Plan!.Structures.Single(st => st.Name == "Mercer Trestle");
         var n = new Night(4, 0, line: line);
         var mid = line.Sample(RailLine.MainPath, (bridge.S0 + bridge.S1) / 2).Position;
         var open = line.Sample(RailLine.MainPath, bridge.S0 - 300).Position;
