@@ -73,6 +73,13 @@ static class CampaignNights
                     bots = new { count = crew.Count, alive = crew.Count(c => c.Alive), aboard = crew.Count(c => c.Alive && c.Parent >= 0) },
                     broughtIn = report?.BroughtIn ?? 0,
                     net = report?.Net ?? 0,
+                    // Where the night's scrip went (spec F.2's settlement): what the freight and mail made, and what it cost.
+                    money = report is null ? null : new
+                    {
+                        report.Gross, report.Mail, report.CoalCost, report.AmmoCost, report.RepairCost, report.CrewLossFees,
+                        report.BodyRefunds, report.Recovery, report.BroughtInFees, report.CarsLost, report.CrewLost, report.Deaths,
+                    },
+                    lines = report?.Lines.Select(l => $"{l.Kind}: {l.Text}").ToArray(),
                     wall = Math.Round(clock.Elapsed.TotalSeconds, 1),
                 };
                 // As the app's Autosave settles it: the night into the slot, the town it left, the town it got to.
