@@ -4366,21 +4366,30 @@ public static partial class Heed
 
     /// <summary>
     /// The Whistler (v1.1 App. A.4): "check the gaps after the whistle; move in pairs at stops". With one watching its gap, a
-    /// bot doesn't go past it: it steps back out of reach of the gap and goes round another way.
+    /// bot on its own doesn't go past it: it steps back out of reach of the gap and goes round another way. One of a pair (a
+    /// crewmate within the Whistler's <c>pairRadius</c>, less <see cref="PairKept"/>) goes on with its work: the Whistler never
+    /// takes one of a pair, and two facing its gap find it and it flees (note 614). Kept off as a pair too, a crew of four
+    /// stood on the local, dead lines and deep territory 7 km nights for minutes at a time beside a Knotter in the same gap,
+    /// never clubbing it, while the driver waited on them.
     /// </summary>
-    public static PlayerIntent Gaps(PlayerIntent intent, in PlayerState self, World world, int selfId)
+    /// <param name="others">The rest of the crew, where they are.</param>
+    public static PlayerIntent Gaps(PlayerIntent intent, in PlayerState self, World world, int selfId,
+        IReadOnlyList<(int Id, PlayerState State)>? others = null)
     {
         if (!self.Alive || self.Has(PlayerFlags.Held) || world.Enemies is not { } et)
             return intent;
         var train = world.Train;
         var me = PlayerMotor.WorldPosition(self, train);
+        if (others?.Any(o => o.Id != selfId && o.State.Alive && !o.State.Has(PlayerFlags.Held)
+                && (PlayerMotor.WorldPosition(o.State, train) - me).Length <= et.Whistler.PairRadius - PairKept) == true)
+            return intent;
         foreach (var w in world.ActiveEnemies.OfType<Whistler>())
         {
             if (w.Gone || w.Phase is not (SpinePhase.Telegraph or SpinePhase.Commit) || w.Attached < 0)
                 continue;
             var gap = w.WorldPosition(train);
             double d = (gap - me).Length;
-            if (d > et.Whistler.PassReach + 2)
+            if (d > et.Whistler.PassReach + GapKeptOff)
                 continue;
             // A client doesn't know for certain who's beside it; a bot plays safe and keeps clear either way.
             var away = me - gap;
@@ -4390,6 +4399,20 @@ public static partial class Heed
         }
         return intent;
     }
+
+    /// <summary>How far past the Whistler's <c>passReach</c> a bot on its own keeps from its gap (m).</summary>
+    const double GapKeptOff = 2;
+
+    /// <summary>
+    /// Within a bot's keeping-off of a gap a Whistler's watching (<see cref="Gaps"/>): no place for a bot on its own to go
+    /// (note 614: the ladder up by it, say).
+    /// </summary>
+    public static bool Watched(World world, Double3 at) =>
+        world.Enemies is { } et && world.ActiveEnemies.OfType<Whistler>().Any(w => !w.Gone && w.Phase is SpinePhase.Telegraph or SpinePhase.Commit
+            && w.Attached >= 0 && (w.WorldPosition(world.Train) - at).Length <= et.Whistler.PassReach + GapKeptOff);
+
+    /// <summary>How well inside the Whistler's <c>pairRadius</c> a crewmate is reckoned a pair (m: a step's slack as they move).</summary>
+    const double PairKept = 0.75;
 
     /// <summary>
     /// Fire Flies (v1.1 App. A.5): "lamps off when they swarm". In the car they're swarming, a bot puts its lamp out (a press,
