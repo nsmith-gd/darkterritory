@@ -828,7 +828,7 @@ public sealed class RoofWalkerBot(int seed, ColdTuning? cold = null, StopHand? j
         // and at a stand that's not until it moves. Held at frontier:12's first stop (seed 1) beside a crane, the shunter and
         // the winch hand sat in car 1 at its side door for the bag the whole 240 s, their parts waiting on it, and the stop
         // was given up.
-        bool standing = Environment.GetEnvironmentVariable("DT_NOBAG") is null && job is not null && Math.Abs(train0.Dynamics.Velocity) < 0.05;
+        bool standing = job is not null && Math.Abs(train0.Dynamics.Velocity) < 0.05;
         _drop = tend && catches && !_feedRun && !choir && !standing && _trouble is null && _lampCar is null && _mendCar is null && !pin ? NextDrop(world) : null;
         _catchCar = _drop is { } d ? CatchCar(train, d, self.Parent) : null;
         _warm.Into = _trouble?.Attached ?? _catchCar ?? _mendCar ?? _lampCar;
