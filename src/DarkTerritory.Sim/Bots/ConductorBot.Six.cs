@@ -142,8 +142,11 @@ public sealed partial class ConductorBot
             }
             return null;
         }
-        // Dealt with: everyone aboard first (nobody's left down between the cars it's about to back onto).
-        if (Crewmates?.Any(c => c.Alive && (c.Parent == PlayerState.World || c.Surface == Surface.Ladder)) == true
+        // Dealt with: nobody left down between the cars it's about to back onto. Only those by the gap it closes (note 614):
+        // waiting on everyone down anywhere, local:7 seed 5's gunner, down by the cars the knot left 100 m back and kept off
+        // the engine's rake by the bend's ledge, held the train six minutes. Backed onto, those cars are the train's again,
+        // and their ladders the nearest.
+        if (Crewmates?.Any(c => c.Alive && (c.Parent == PlayerState.World || c.Surface == Surface.Ladder) && ByTheKnot(world, c)) == true
             && _standingForSix <= b.StandGiveUp + AllAboardSeconds)
         {
             SixStep = "all aboard";
@@ -173,6 +176,27 @@ public sealed partial class ConductorBot
             return world.Controls.Reverser < 0 ? StopDriver.Toward(world, d.Distance + 1000, +1, SetBackSpeed) : null;
         return StopDriver.Toward(world, left.Distance + d.Tuning.Geometry.CouplingGap - 0.5, -1, d.Tuning.Couplings.CoupleMaxSpeed / 2, rear: true);
     }
+
+    /// <summary>
+    /// Down by the gap a Knotter's death left (within <see cref="KnotClear"/> of the train's rear, or of the cars it's backing
+    /// onto, by the line), or anywhere when there's no gap to close (a Hotbox's, an axle's stand).
+    /// </summary>
+    bool ByTheKnot(World world, in PlayerState c)
+    {
+        var train = world.Train;
+        if (_knotRear < 0 || LeftStanding(world) is not { } left)
+            return true;
+        var d = train.Dynamics;
+        var at = PlayerMotor.WorldPosition(c, train);
+        var rear = train.Frames[d.Consist.Vehicles[^1].Id];
+        var front = train.Frames[left.Consist.Vehicles[0].Id];
+        var rearEnd = rear.ToWorld(new Ballast.Double3(0, 0, rear.Shape.HalfLength));
+        var frontEnd = front.ToWorld(new Ballast.Double3(0, 0, -front.Shape.HalfLength));
+        return ((at - rearEnd) with { Y = 0 }).Length <= KnotClear || ((at - frontEnd) with { Y = 0 }).Length <= KnotClear;
+    }
+
+    /// <summary>How near the gap it's closing a crewmate down on the ground has the driver wait before backing (m: a car's width and a step or two).</summary>
+    const double KnotClear = 6;
 
     /// <summary>m past a Knotter's gap the cars it left can stand and still be its (they settle a little as it lets go).</summary>
     const double KnotReach = 1;
