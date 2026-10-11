@@ -749,6 +749,7 @@ written here instead is moved out by `tools/coord/notes.py split`; the Coordinat
 - [570. Dave, the wandering painter (P1, queue #300; the director, 8 Oct 2026: "a special NPC that shows up randomly in places. His name is Dave…](notes/570.md)
 - [571. Nicki's party (P1, queue #301; the director, 8 Oct 2026: "an NPC you can find some times in one of the houses. Her name is Nicki and she's…](notes/571.md)
 - [572. Jacob, the fisherman (P1, queue #302; the director, 8 Oct 2026: "an NPC named Jacob who can be found randomly in the world near water…](notes/572.md)
+- [573. Landing hurt: none for a run on the ground, and a fall hurts by its height (queue #303, D1.2 for D1; #295's falls audit, note 553, and the…](notes/573.md)
 - [574. The controls belong to whoever's working them (queue #304, D1; the director, 9 Oct 2026, on the short-nights test build: "if a player goes…](notes/574.md)
 - [575. The train departs empty (D1.5, queue #305; the director, 9 Oct 2026, playtest: "It also doesnt make sense that if I skip everything and…](notes/575.md)
 - [576. Damage with consequences, Sea of Thieves style (D1.5, queue #306; the director, 9 Oct 2026, playtest: "we also need the cars and locomotive…](notes/576.md)
@@ -772,4 +773,5 @@ written here instead is moved out by `tools/coord/notes.py split`; the Coordinat
 - [600. The end town is the town (D1.4, queue #332, D1's follow-up to its #324 and note 591; the director, 9 Oct 2026, playtest: "The end town…](notes/600.md)
 - [601. The bots load at the stops: the Brakeman's pincer leaves a stop's hands to their work (D1.5, queue #333; D1's ask after note 575: on…](notes/601.md)
 - [603. The arrival town lived in (D1.4, queue #335, the follow-up to #332 and note 600, at D1's ask)](notes/603.md)
+- [604. Town to town, without leaving it (D1.4, queue #336; the director, 9 Oct 2026: "the town that we end in in a run should be the same town…](notes/604.md)
 <!-- end of the notes index -->

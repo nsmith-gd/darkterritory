@@ -3157,6 +3157,19 @@ public sealed partial class StopHand(StopJob job, CrewCalls calls, int member, C
 
     PlayerIntent? GetDown(in PlayerState self, TrainOnLine train, int side)
     {
+        // Note 573: down only where there's ground to land on. deepTerritory:1 seed 2's walker and gunner stepped off car 8's
+        // roof and car 2's plate at a stand by a tunnel's mouth, the ground 26 m under the rail (a fall that kills now). The
+        // other side if it has ground; neither, and it stays where it is.
+        if (self.Parent >= 0 && self.Surface is Surface.Roof or Surface.Coupler or Surface.Deck)
+        {
+            var at = PlayerMotor.WorldPosition(self, train);
+            if (!GroundBeside(train, at, side))
+            {
+                if (!GroundBeside(train, at, -side))
+                    return new PlayerIntent();
+                side = -side;
+            }
+        }
         double facing = side > 0 ? -Math.PI / 2 : Math.PI / 2;
         // Never off anything that's moving. On a roof, out to its centreline meanwhile (note 526; App. A.4: "walk the
         // centreline"): sent along the roofs at a stop for the Fire Flies' lamp, the train going in under it, a hand stood
@@ -3183,6 +3196,21 @@ public sealed partial class StopHand(StopJob job, CrewCalls calls, int member, C
             return Edge(self, new Double3(side * (train.Frames[self.Parent].Shape.Bounds.Max.X + 1), self.Position.Y, self.Position.Z), facing);
         }
         return null;
+    }
+
+    /// <summary>
+    /// Ground to land on beside the train at <paramref name="at"/>, on that side (+1 right): no further under the rail there
+    /// than <see cref="ConductorBot.NoGroundBelow"/> (#294's test for a walk beside the train, note 552).
+    /// </summary>
+    public static bool GroundBeside(TrainOnLine train, Double3 at, int side)
+    {
+        var line = train.Line;
+        double hint = train.Dynamics.Distance;
+        var (path, along) = line.Nearest(at, ref hint);
+        var t = line.Sample(path, along);
+        var right = Double3.Cross(t.Tangent, Double3.Up).Normalized;
+        double h = along;
+        return PlayerMotor.GroundAt(t.Position + right * (side * ConductorBot.AfootOut), line, ref h) >= t.Position.Y - ConductorBot.NoGroundBelow;
     }
 
     /// <summary>The share of a walk a hand steps off the train at (a step off the edge, not a stride).</summary>
