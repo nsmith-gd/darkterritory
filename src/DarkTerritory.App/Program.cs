@@ -598,22 +598,8 @@ static string Doing(Launch chosen) => chosen switch
                 saves.Save(campaign);
                 int? port = night.Host ? NetPlaySession.DefaultPort : null;
                 // Note 591: from the town the crew's in (last night's terminus), if they got to one.
-                var setup = new SessionSetup(Route: Campaign.RouteOf(campaign, contract), Cars: campaign.Cars, Enemies: enemies)
-                {
-                    Upgrades = campaign.Upgrades,
-                    SpareKits = campaign.SpareKits,
-                    MusicBag = campaign.Music,
-                    Identities = campaign.Identities,
-                    // GDD §9 (note 182): the contract's freight in every loaded car, and the stores bought for the night.
-                    Cargo = contract.Cargo,
-                    Powder = campaign.Stores.Powder,
-                    SpareLamps = campaign.Stores.Lamps,
-                    SpareExtinguishers = campaign.Stores.Extinguishers,
-                    FirstChildReal = profile.FirstChildReal,
-                    LastTown = campaign.LastTown,
-                    // Note 612: a terminus the crew's burnt houses in before is built with them.
-                    Burnt = campaign.Burnt.Count > 0 ? campaign.Burnt : null,
-                };
+                // The slot's night (HostedAsApp.Campaign, note 616: the harness's campaign nights are made the same way).
+                var setup = HostedAsApp.Campaign(campaign, contract, enemies) with { FirstChildReal = profile.FirstChildReal };
                 Console.WriteLine($"campaign slot {night.Slot} ({campaign.Name}): {campaign.Cars} cars, {campaign.Scrip:0} scrip, tonight {contract.Route} carrying {Cargoes.Name(contract.Cargo)} at {contract.PerCar:0} a car{(resume is not null ? $", resuming after facility {resume.Facility}" : "")}");
                 // Note 450: private, behind the host screen's password (listed with a lock); with none typed, unlisted as before.
                 string? password = frontEnd.Settings.PublicLobby ? null : frontEnd.Settings.LobbyPassword.Trim() is { Length: > 0 } pw ? pw : null;

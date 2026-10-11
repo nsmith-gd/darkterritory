@@ -651,34 +651,26 @@ object CampaignCommand(string content, string verb, string[] args)
                 var s = Load();
                 var contract = DarkTerritory.Sim.Campaign.Campaign.Offers(t, runTuning, s)[(int)Opt(args, "--contract", 0)];
                 s = DarkTerritory.Sim.Campaign.Campaign.Begin(s, contract);
-                var route = DarkTerritory.Sim.LineGen.Routes.Generate(content, DarkTerritory.Sim.Campaign.Campaign.RouteOf(s, contract), s.Cars);
-                var loadout = DarkTerritory.Sim.Campaign.Campaign.Apply(t, s.Upgrades, DarkTerritory.Sim.Campaign.Campaign.WithStores(t, DarkTerritory.Sim.Campaign.Campaign.WithSpareKits(new DarkTerritory.Sim.Campaign.Loadout(train, boiler,
-                    DataFile.Load<DarkTerritory.Sim.Combat.CombatTuning>(Path.Combine(content, DarkTerritory.Sim.Combat.CombatTuning.File)),
-                    DataFile.Load<DarkTerritory.Sim.Enemies.EnemyTuning>(Path.Combine(content, DarkTerritory.Sim.Enemies.EnemyTuning.File))), s.SpareKits), s.Stores));
-                var report = Harness.Run(route.Build(), loadout.Train, player, new HarnessOptions
+                // The night as the app hosts it (note 616): the slot's setup (HostedAsApp.Campaign), the train at the gate, the crew
+                // aboard, the director seeded by the route (HostedAsApp.For).
+                var setup = DarkTerritory.Game.HostedAsApp.Campaign(s, contract, enemies: !args.Contains("--no-enemies"));
+                var hosted = DarkTerritory.Game.HostedAsApp.For(content, setup, (int)Opt(args, "--bots", 4), Opt(args, "--seconds", 3600));
+                var route = hosted.Options.Route!;
+                var loadout = setup.Loadout(content);
+                var report = Harness.Run(hosted.Line, hosted.Train, hosted.Player, hosted.Options with
                 {
-                    Bots = (int)Opt(args, "--bots", 4),
-                    Cars = s.Cars,
-                    Seconds = Opt(args, "--seconds", 3600),
-                    Link = Ballast.Net.LinkConditions.Perfect,
-                    StartDistance = 400,
-                    Combat = loadout.Combat,
-                    Enemies = args.Contains("--no-enemies") ? null : loadout.Enemies,
-                    Route = route,
-                    Run = runTuning,
-                    YardLength = route.GateOr(routeTuning.YardLength),
-                    Facilities = DataFile.Load<DarkTerritory.Sim.Run.FacilityTuning>(Path.Combine(content, DarkTerritory.Sim.Run.FacilityTuning.File)),
-                    Holdouts = DataFile.Load<DarkTerritory.Sim.Run.HoldoutTuning>(Path.Combine(content, DarkTerritory.Sim.Run.HoldoutTuning.File)),
-                    Sight = sight,
-                    Cargo = contract.Cargo,
-                    // A night as the app plays it (note 613): the jobs the train makes as it runs (note 331) and the stops' finds
-                    // (note 326), unless --no-upkeep, --no-loot.
-                    Upkeep = args.Contains("--no-upkeep") ? null : DataFile.Load<UpkeepTuning>(Path.Combine(content, UpkeepTuning.File)),
-                    Loot = args.Contains("--no-loot") ? null : DataFile.Load<DarkTerritory.Sim.Stops.LootTuning>(Path.Combine(content, DarkTerritory.Sim.Stops.LootTuning.File)),
+                    // --no-upkeep, --no-loot: without the jobs the train makes as it runs (note 331) or the stops' finds (note 326).
+                    Upkeep = args.Contains("--no-upkeep") ? null : hosted.Options.Upkeep,
+                    Loot = args.Contains("--no-loot") ? null : hosted.Options.Loot,
                     // --lose-at s: the night lost at dawn, forced, s seconds into the run (note 613): the Wakers have the train, as
                     // they would at dawn's end (note 588), to see what the campaign makes of a night that didn't arrive.
                     Observe = Opt(args, "--lose-at", -1) is var loseAt and >= 0 ? (_, _, w) => w.TakenAtDawn |= w.Run?.Seconds >= loseAt == true : null,
-                }, loadout.Boiler);
+                    // --as-harness start,seed: the harness's own ways back, to set beside the app's (note 616): the crew walking
+                    // aboard from 400 m back in the yard, and the director on the harness's seed (1).
+                    StartDistance = Str(args, "--as-harness", "").Contains("start") ? 400 : hosted.Options.StartDistance,
+                    WalkAboard = Str(args, "--as-harness", "").Contains("start"),
+                    DirectorSeed = Str(args, "--as-harness", "").Contains("seed") ? null : hosted.Options.DirectorSeed,
+                }, hosted.Boiler);
                 if (report.Run is not { } night)
                     return new { error = "the night didn't run" };
                 // The town it left, as the app keeps it (note 281): the next night's departure town won't share its custom, and the
