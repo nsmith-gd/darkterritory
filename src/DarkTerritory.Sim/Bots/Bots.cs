@@ -1994,8 +1994,9 @@ public sealed class RoofWalkerBot(int seed, ColdTuning? cold = null, StopHand? j
         {
             if (frame.Index == 0)
                 continue; // the engine is boarded by its crew
-            // Nor a switchyard's cars still standing on their siding (note 187): they're not the train (yet).
-            if (train.StandingCar(frame.Index))
+            // Nor a switchyard's cars still standing on their siding (note 187): they're not the train (yet). Nor those
+            // picked up and carried ahead of the engine: their roofs are no way back to the train's (note 618).
+            if (train.StandingCar(frame.Index) || StopHand.AheadOfTheEngine(train, frame.Index))
                 continue;
             foreach (var ladder in frame.Shape.Ladders)
             {
