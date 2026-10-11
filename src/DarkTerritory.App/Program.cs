@@ -392,6 +392,14 @@ bool menuOpened = false;
 TownBackdrop? inTown = null;
 bool QuitNow() => quitAfter > 0 && timer.Elapsed.TotalSeconds >= quitAfter;
 
+// The town the crew's in behind the menus and the loading card (notes 604, 606): built into the mesh, the view and light its.
+void Backdrop(TownBackdrop town)
+{
+    var view = town.Camera;
+    town.Scene(look).Build(mesh, town.Train, view.Position);
+    (menuView, menuLight) = (view, Views.Lighting(town.Train, look));
+}
+
 // The front end over a night scene: the fortress yard with a train standing in it, the camera slowly looking about.
 Launch? Menu()
 {
@@ -412,13 +420,18 @@ Launch? MenuLoop()
 {
     var trainTuning = DataFile.Load<TrainTuning>(Path.Combine(content, TrainTuning.File));
     var line = DarkTerritory.Sim.Rail.RailLine.Load(Path.Combine(content, "lines", "test-loop.json"));
-    var standing = inTown?.Train ?? new TrainOnLine(new TrainDynamics(Consist.Uniform(trainTuning, 6, 1)), line, 1200);
     // The town the crew's in (note 604), from its square, the train home in its yard; else the stand-in yard.
-    var view = inTown?.Camera ?? Views.Get("trackside", standing);
-    var backdrop = inTown?.Scene(look) ?? new GreyboxScene { Time = 0.37, Look = look };
-    backdrop.Build(mesh, standing, view.Position);
-    var light = Views.Lighting(standing, look);
-    (menuView, menuLight) = (view, light);
+    if (inTown is { } town)
+        Backdrop(town);
+    else
+    {
+        var standing = new TrainOnLine(new TrainDynamics(Consist.Uniform(trainTuning, 6, 1)), line, 1200);
+        var stand = Views.Get("trackside", standing);
+        new GreyboxScene { Time = 0.37, Look = look }.Build(mesh, standing, stand.Position);
+        (menuView, menuLight) = (stand, Views.Lighting(standing, look));
+    }
+    var view = menuView;
+    var light = menuLight;
     double started = timer.Elapsed.TotalSeconds;
     // In a headset the menus float ahead, over the yard (T36), and the controllers work them.
     var vrMenu = vr is null ? null : new VrPanel(DataFile.Load<VrTuning>(Path.Combine(content, VrTuning.File)).Menu);
@@ -565,6 +578,11 @@ static string Doing(Launch chosen) => chosen switch
                 Console.WriteLine($"joining {endpoint}…");
                 return (NetPlaySession.Join(content, endpoint, password: join.Password), null);
             }
+        case Launch.Follow after:
+            {
+                Console.WriteLine($"going on with the crew from {after.Going.Town.Name}: waiting on the host's next night");
+                return (NetPlaySession.Follow(content, after.Going), null);
+            }
         case Launch.CampaignNight night:
             {
                 // Spec E: the host owns the campaign, and picks a slot. The night is the contract picked from the board, with
@@ -664,10 +682,24 @@ while (!window.CloseRequested && !QuitNow())
     (playing, doing) = (session, Doing(leaving));
     campaign = Play(session, campaign);
     (playing, doing) = (null, "the menus");
-    // Note 604: delivered to a town (note 591's campaign town), the front end stands in it until the next night's picked.
-    inTown = leaving is Launch.CampaignNight && campaign?.Town is not null && session.World.Run?.End == DarkTerritory.Sim.Run.RunEnd.Delivered
+    bool delivered = session.World.Run?.End == DarkTerritory.Sim.Run.RunEnd.Delivered;
+    // Note 606: a joiner whose host went on to the next night goes after it.
+    var following = session is NetPlaySession { Lost: true, GoingOn: { } going } ? going : null;
+    // Note 604: delivered to a town (note 591's campaign town), the front end stands in it until the next night's picked; a
+    // joiner following its host waits in it.
+    inTown = (leaving is Launch.CampaignNight && campaign?.Town is not null || following is not null) && delivered
         && session.Route is { } arrivedOn && session.World.Arrival is { } arrival
         ? new TownBackdrop(arrivedOn, session.Train, session.World.Run, arrival, session.World.Town) : null;
+    // Note 606: the host's going on from the town; its crew's told, and given a moment to hear it before it hangs up.
+    if (leaving is Launch.CampaignNight && delivered && campaign?.Town is { } goingOn && session is NetPlaySession { Host: not null } goingHost)
+    {
+        goingHost.CarryOn(goingOn);
+        for (var told = Stopwatch.StartNew(); told.Elapsed.TotalSeconds < NetPlaySession.CarryOnSeconds;)
+        {
+            window.PumpEvents();
+            Thread.Sleep(15);
+        }
+    }
     // Left: nothing of the night follows into the menus (its bed, its loops, a hold's tick).
     sound.EndNight();
     // What the crew commended you for tonight, on the PROFILE page from now (note 293).
@@ -691,6 +723,14 @@ while (!window.CloseRequested && !QuitNow())
         fromCommandLine = false;
         continue;
     }
+    // Note 606: after the host, to its next night, on the town's card over the town (no menu in between).
+    if (following is not null)
+    {
+        if (inTown is { } waitIn)
+            Backdrop(waitIn);
+        launch = new Launch.Follow(following);
+        continue;
+    }
     // Started from the command line: done when the night is. Otherwise, back to where it was chosen.
     if (fromCommandLine)
         break;
@@ -711,8 +751,15 @@ return 0;
     // The user's playtest: "You should be able to host a run, not a night."
     string doing = chosen is Launch.Join or Launch.JoinLobby ? "JOINING"
         : chosen is Launch.Night { Host: true } or Launch.CampaignNight { Host: true } ? "BUILDING THE RUN" : "BUILDING THE NIGHT";
-    // Note 604: a campaign night from the town the crew's in is that town's card: its name, the night ahead.
-    string? town = chosen is Launch.CampaignNight { Resume: false } from ? saves.Load(from.Slot)?.Town?.Name : null;
+    // Note 604: a campaign night from the town the crew's in is that town's card: its name, the night ahead; a joiner
+    // following its host (note 606) has the same card, the host picking the night meanwhile.
+    bool follow = chosen is Launch.Follow;
+    string? town = chosen switch
+    {
+        Launch.CampaignNight { Resume: false } from => saves.Load(from.Slot)?.Town?.Name,
+        Launch.Follow after => after.Going.Town.Name,
+        _ => null,
+    };
     double began = timer.Elapsed.TotalSeconds;
     while (!task.IsCompleted)
     {
@@ -724,7 +771,7 @@ return 0;
         // Note 350: with FIRST NIGHTS on, the night's tip under it (a new one each of the player's nights).
         if (town is not null)
         {
-            var (heading, under) = TownBackdrop.Card(town, null);
+            var (heading, under) = TownBackdrop.Card(town, null, follow);
             Onboarding.DrawLoading(overlay, UiWidth, UiHeight, heading, under + dots, Onboarding.Tip(onboarding, frontEnd.Settings, nightsOver));
         }
         else
@@ -1023,6 +1070,9 @@ CampaignState? Play(IPlaySession session, CampaignState? campaign)
         if (dev.Notes is { Typing: true })
             inMenu = true;
 #endif
+        // The crew goes on together (note 606): the host's left for the next night; this joiner goes after it.
+        if (net is { Lost: true, GoingOn: not null })
+            break;
         // The night's over: Enter goes back (to the fortress, for a campaign night).
         if (session.World.Run?.Over == true && Pressed(Key.Enter))
         {

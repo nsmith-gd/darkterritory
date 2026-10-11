@@ -68,7 +68,8 @@ public sealed record EdgeTuning(double Lip = 0.3, double StepOffDegrees = 30, do
 /// <summary>
 /// Rejoining a night after a drop (note 253). Field docs live in player.json <c>rejoin</c>.
 /// </summary>
-public sealed record RejoinTuning(double ReserveSeconds = 180, bool ReclaimBody = true, double GreetSeconds = 1, int Retries = 5, double RetrySeconds = 3);
+public sealed record RejoinTuning(double ReserveSeconds = 180, bool ReclaimBody = true, double GreetSeconds = 1, int Retries = 5, double RetrySeconds = 3,
+    double FollowSeconds = 600);
 /// <summary>
 /// The links in play (note 532). Field docs live in player.json <c>link</c>. A test's transports keep their own
 /// <c>DatagramOptions</c>; these are the app's.

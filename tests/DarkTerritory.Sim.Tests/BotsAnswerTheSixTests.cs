@@ -452,7 +452,7 @@ public class BotsAnswerTheSixTests
         var t = E.Hotbox;
         Hotbox? h = null;
         double? stood = null, freed = null, on = null;
-        CrewOfTwoTests.Night("frontier:7", 6, 110, null, start: 2500, bots: 3, each: w =>
+        CrewOfTwoTests.Night(CrewOfTwoTests.OpenLine.Spec, 6, 110, null, start: CrewOfTwoTests.OpenLine.Start, bots: 3, each: w =>
         {
             if (h is null && w.ElapsedSeconds >= 30)
             {

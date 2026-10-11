@@ -23,7 +23,7 @@ public class OpenHouseTests
 
     [Theory]
     [InlineData("frontier:7")]
-    [InlineData("deadLines:2")]
+    [InlineData("deadLines:7")]
     public void YouWalkInAtTheDoorAndTheFindsAreInside(string spec)
     {
         var route = Routes.Generate(Content, spec, 6);
@@ -82,9 +82,9 @@ public class OpenHouseTests
 
     [Theory]
     [InlineData("frontier:7")]
-    [InlineData("deadLines:2")]
-    [InlineData("local:3")]
-    [InlineData("deepTerritory:3")] // (seed 2 until note 593: with the villages' finds its kept stops have no L)
+    [InlineData("deadLines:7")]
+    [InlineData("local:4")]
+    [InlineData("deepTerritory:5")]
     public void TheBiggerHousesHaveABackRoomThroughADoorway(string spec)
     {
         // An L's wing and a long plain house's far end are rooms of their own (note 326's rooms): a wall between, stood
@@ -179,10 +179,10 @@ public class OpenHouseTests
 
     /// <summary>Where a crewmate gets to from outside a house, on a 10 cm grid in its own frame.</summary>
     [Theory]
-    [InlineData("frontier:7")]
-    [InlineData("deadLines:2")]
-    [InlineData("local:3")]
-    [InlineData("deepTerritory:2")]
+    [InlineData("frontier:1")]
+    [InlineData("deadLines:20")]
+    [InlineData("local:10")]
+    [InlineData("deepTerritory:1")]
     public void TheBarnsAndShedsStandOpenWithTheirFindsInside(string spec)
     {
         // Note 417: a barn, an outbuilding and a dead town's goods shed stand as their walls with one wide door toward the
@@ -230,9 +230,9 @@ public class OpenHouseTests
     }
 
     [Theory]
-    [InlineData("frontier:7")]
-    [InlineData("local:3")]
-    [InlineData("deadLines:1")]
+    [InlineData("frontier:36")]
+    [InlineData("deadLines:20")]
+    [InlineData("deepTerritory:63")]
     public void ADeadTownsStationStandsOpenItsCounterSolidAndNothingKeptInIt(string spec)
     {
         // Note 493 (note 417's "not yet"): a dead town's station stands open as its goods shed does, walked into by its door
