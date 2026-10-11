@@ -153,6 +153,10 @@ static object TrainTable(TrainTuning t, PlayerTuning p) => t.Performance.Select(
 object RunHarness(string[] args)
 {
     Route? route = Str(args, "--route", "") is { Length: > 0 } spec ? DarkTerritory.Sim.LineGen.Routes.Generate(content, spec, (int)Opt(args, "--cars", 10)) : null;
+    // --dawn-at s: the night's dawn that many seconds in, not the route's (note 628: a night with time for every stop, to see
+    // the stops a crew makes only on its best nights, as a switchyard's pick-up).
+    if (route is not null && Opt(args, "--dawn-at", 0) is var dawnAt and > 0)
+        route = route with { DawnSeconds = dawnAt };
     var line = route?.Build() ?? LoadLine(Str(args, "--line", "test-loop"));
     var combat = DataFile.Load<DarkTerritory.Sim.Combat.CombatTuning>(Path.Combine(content, DarkTerritory.Sim.Combat.CombatTuning.File));
     var enemies = DataFile.Load<DarkTerritory.Sim.Enemies.EnemyTuning>(Path.Combine(content, DarkTerritory.Sim.Enemies.EnemyTuning.File));
