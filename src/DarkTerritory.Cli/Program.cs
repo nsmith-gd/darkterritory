@@ -642,6 +642,9 @@ object CampaignCommand(string content, string verb, string[] args)
                     carCosts = Enumerable.Range(4, t.MaxCars - 3).ToDictionary(n => n.ToString(), n => DarkTerritory.Sim.Campaign.Campaign.CarCost(t, n)),
                 };
             }
+        case "nights":
+            // Note 613: the nights back to back in one process, each hosted as the app hosts it.
+            return CampaignNights.Run(content, saves, slot, args);
         case "play":
             {
                 // A night on a contract from the board, crewed by bots (they drive, shoot, and load at winch stops), settled.
@@ -668,6 +671,13 @@ object CampaignCommand(string content, string verb, string[] args)
                     Holdouts = DataFile.Load<DarkTerritory.Sim.Run.HoldoutTuning>(Path.Combine(content, DarkTerritory.Sim.Run.HoldoutTuning.File)),
                     Sight = sight,
                     Cargo = contract.Cargo,
+                    // A night as the app plays it (note 613): the jobs the train makes as it runs (note 331) and the stops' finds
+                    // (note 326), unless --no-upkeep, --no-loot.
+                    Upkeep = args.Contains("--no-upkeep") ? null : DataFile.Load<UpkeepTuning>(Path.Combine(content, UpkeepTuning.File)),
+                    Loot = args.Contains("--no-loot") ? null : DataFile.Load<DarkTerritory.Sim.Stops.LootTuning>(Path.Combine(content, DarkTerritory.Sim.Stops.LootTuning.File)),
+                    // --lose-at s: the night lost at dawn, forced, s seconds into the run (note 613): the Wakers have the train, as
+                    // they would at dawn's end (note 588), to see what the campaign makes of a night that didn't arrive.
+                    Observe = Opt(args, "--lose-at", -1) is var loseAt and >= 0 ? (_, _, w) => w.TakenAtDawn |= w.Run?.Seconds >= loseAt == true : null,
                 }, loadout.Boiler);
                 if (report.Run is not { } night)
                     return new { error = "the night didn't run" };
@@ -700,7 +710,7 @@ object CampaignCommand(string content, string verb, string[] args)
                 };
             }
         default:
-            return new { error = $"unknown campaign command '{verb}': new, show, slots, buy car|kit|powder|lamp|extinguisher|sell|<upgrade>, sim, play" };
+            return new { error = $"unknown campaign command '{verb}': new, show, slots, buy car|kit|powder|lamp|extinguisher|sell|<upgrade>, sim, play, nights" };
     }
 }
 
@@ -3069,6 +3079,14 @@ static object HudShot(string content, string[] args)
             "brought" => DarkTerritory.Sim.Run.RunEnd.Delivered,
             _ => DarkTerritory.Sim.Run.RunEnd.CrewLost,
         }));
+    // --report-file f.json: a night's own report as the run-end screen shows it (note 613): `dt campaign play`'s output (its
+    // "night") or a report on its own.
+    if (Str(args, "--report-file", "") is { Length: > 0 } reportFile && session.World.Run is { } played)
+    {
+        using var doc = System.Text.Json.JsonDocument.Parse(File.ReadAllText(reportFile));
+        var json = doc.RootElement.TryGetProperty("night", out var n) ? n : doc.RootElement;
+        played.MirrorReport(json.Deserialize<DarkTerritory.Sim.Run.RunReport>(DataFile.Options)!);
+    }
     var frames = session.InterpolatedFrames(1);
     var camera = session.EyeCamera(frames, 1, 0, 0);
     // --loading [built]: the next night's loading card over the town the crew's in (note 604), from its square; "built", the
