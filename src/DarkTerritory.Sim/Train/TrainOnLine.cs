@@ -430,9 +430,14 @@ public sealed class TrainOnLine
             foreach (int id in r.Vehicles)
                 consist.Add(_vehicles[id]);
             // Reuse the engine rake object so references to Dynamics stay valid, and any rake that still
-            // exists so its render interpolation carries on.
-            var rake = consist.HasEngine ? _engineRake : previous.GetValueOrDefault(r.Vehicles[0]) ?? new TrainDynamics(consist);
-            bool known = previous.ContainsKey(r.Vehicles[0]);
+            // exists so its render interpolation carries on. Never the engine's for a rake without it: the engine's rake can
+            // lead with cars a switchyard put ahead of it (note 481), and those cut off again (note 613's three nights) would
+            // otherwise take the engine's object with them, leaving the train no engine at all.
+            var before = previous.GetValueOrDefault(r.Vehicles[0]);
+            if (!consist.HasEngine && before == _engineRake)
+                before = null;
+            var rake = consist.HasEngine ? _engineRake : before ?? new TrainDynamics(consist);
+            bool known = consist.HasEngine ? previous.ContainsKey(r.Vehicles[0]) : before is not null;
             rake.Consist = consist;
             rake.Restore(r.Distance, r.Velocity, r.BrakeEfficiency);
             if (!known)

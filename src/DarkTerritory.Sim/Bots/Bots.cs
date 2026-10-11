@@ -2743,6 +2743,9 @@ public sealed partial class ConductorBot(CrewCalls? calls = null, int member = 0
                 return Work(self, train, setBack) with { Lamp = lamp };
             if (ForAHoldout(world, ref cruise) is { } standing)
                 return (BreachAlone(self, world) ?? Work(self, train, standing)) with { Lamp = lamp };
+            // Note 605: short of a town's gate, stood for the crew to clear the train of what it'd charge for.
+            if (ForTheGate(world, ref cruise) is { } clearing)
+                return Work(self, train, clearing) with { Lamp = lamp };
         }
         // Running hot (note 376): over the boards and the line's authority (frontier's line speed is 18 m/s, under the hound
         // run's 19), braking only for a bend it would come off on.

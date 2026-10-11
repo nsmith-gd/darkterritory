@@ -54,7 +54,14 @@ public abstract record Launch
     /// A campaign night (spec E, F): the slot, and the contract off its board; or, with <paramref name="Resume"/>, the
     /// night already under way, from its last autosave.
     /// </summary>
-    public sealed record CampaignNight(int Slot, int Contract, bool Resume, bool Host) : Launch;
+    public sealed record CampaignNight(int Slot, int Contract, bool Resume, bool Host) : Launch
+    {
+        /// <summary>
+        /// The crew's bots (note 611; T89): the fortress board's CREW, or <c>--bots</c>. The host going on to the next night
+        /// from the town (note 606) keeps them: the board's next contract carries the same.
+        /// </summary>
+        public int Bots { get; init; }
+    }
     /// <summary>
     /// The crew goes on together (note 606): a joiner whose host left a delivered campaign night to go on to the next, waiting
     /// on the town's card and dialling the same host until that night's up.
@@ -136,6 +143,16 @@ public sealed class FrontEnd
     /// </summary>
     int _bots = 0;
     public const int MaxBots = 7;
+
+    /// <summary>
+    /// The crew's bots, as the CREW choice has them (note 611): a campaign night launched with some (<c>--campaign n --bots n</c>)
+    /// sets it, so the board's next contract, after a delivered night, takes the same crew on.
+    /// </summary>
+    public int Bots
+    {
+        get => _bots;
+        set => _bots = Math.Clamp(value, 0, MaxBots);
+    }
     bool _host;
 
     /// <param name="newSeed">Where a new campaign's seed comes from (tests pin it).</param>
@@ -925,9 +942,13 @@ public sealed class FrontEnd
                 null, by => _tier = (_tier + by + _tiers.Length) % _tiers.Length),
             new(new($"SEED: {_seed}", "The same seed is the same line for everyone."), null, by => _seed = by > 0 ? _seed + 1 : Math.Max(1UL, _seed - 1)),
             new(new($"CARS: {_cars}"), null, by => _cars = Math.Clamp(_cars + by, 3, MaxCars)),
-            new(new(_bots == 0 ? "CREW: JUST YOU" : $"CREW: YOU AND {_bots} BOT{(_bots == 1 ? "" : "S")}",
-                "Bots drive, stoke, man the rear gun and lend a hand. None, and it's all yours to do."), null, by => _bots = Math.Clamp(_bots + by, 0, MaxBots)),
+            CrewEntry(),
     ];
+
+    /// <summary>Who goes out with you (T89): bots, or none. The quick night's and the campaign's (note 611).</summary>
+    Entry CrewEntry() =>
+        new(new(_bots == 0 ? "CREW: JUST YOU" : $"CREW: YOU AND {_bots} BOT{(_bots == 1 ? "" : "S")}",
+            "Bots drive, stoke, man the rear gun and lend a hand. None, and it's all yours to do."), null, by => _bots = Math.Clamp(_bots + by, 0, MaxBots));
 
     /// <param name="Back">A BACK item: choosing it sounds as backing out.</param>
     /// <param name="Field">A text field: choosing it starts typing into it (note 264).</param>
@@ -1231,7 +1252,7 @@ public sealed class FrontEnd
             // Spec E: a night that was under way picks up from its last autosave (or starts again, if it had none).
             string from = s.Checkpoint is null ? "from the yard" : "from the last facility it left";
             list.Add(new(new($"CARRY ON: {Name(tonight.Tier)} {tonight.Seed}", $"The night that was under way, {from}."),
-                () => new Launch.CampaignNight(s.Slot, -1, Resume: true, _host)));
+                () => new Launch.CampaignNight(s.Slot, -1, Resume: true, _host) { Bots = _bots }));
         }
         else
         {
@@ -1243,9 +1264,11 @@ public sealed class FrontEnd
                 // GDD §9 "choose freight contracts" (note 182): each names the freight the train leaves with, and pays a car by it.
                 string cargo = Cargoes.Name(c.Cargo).ToUpperInvariant();
                 list.Add(new(new($"TONIGHT: {Name(c.Tier)} {c.Seed}, {cargo}, {c.PerCar:0} A CAR", $"{Carrying(c.Cargo)} Up to {c.PerCar * s.Cars:0} on {s.Cars} cars."),
-                    () => new Launch.CampaignNight(s.Slot, contract, Resume: false, _host)));
+                    () => new Launch.CampaignNight(s.Slot, contract, Resume: false, _host) { Bots = _bots }));
             }
         }
+        // The crew's bots (note 611): who goes out with you tonight, and on to the next night from the town after it.
+        list.Add(CrewEntry());
         double carCost = Campaign.NextCarCost(_campaign, s);
         bool full = s.Cars >= _campaign.MaxCars;
         list.Add(new(new(full ? "BUY A CAR: THE CONSIST IS FULL" : $"BUY A CAR: {carCost:0} SCRIP", full ? null : $"Car {s.Cars + 1}. More cars carry more, and burn more, and need more hands.",
