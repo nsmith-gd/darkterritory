@@ -90,6 +90,78 @@ public class BotsAnswerTheSixTests
         n.AssertFair();
     }
 
+    /// <summary>
+    /// Note 623: clubbed off it, the body's picked up and carried home, up a car's steps and in, and the Mourners go (B.14: a
+    /// body in a car the engine pulls sends them off). Stood over, they never went: deadLines:3 seeds 1 and 4 stood 430–480 s
+    /// so at the mine head, the lift unwound.
+    /// </summary>
+    [Fact]
+    public void ABotCarriesTheBodyHomeFromTheMournersAndTheyGo()
+    {
+        var n = new Night(4, speed: 0, enemies: Quiet);
+        var at = Beside(n, 2, 8);
+        var body = n.World.Bodies.SpawnRagdoll(n.Train, 3, new PlayerState { Parent = PlayerState.World, Position = at + Double3.Up * 0.3, LineHint = n.Train.Dynamics.Distance });
+        Run(n, E.Mourners.After + 20, _ => default);
+        Assert.Contains(n.World.ActiveEnemies.OfType<Mourner>(), m => body.TakenBy == m.Id);
+        var from = Beside(n, 3, 3);
+        var bodyAt = Bodies.WorldCentre(body, n.Train);
+        n.Crew[2] = Ground(n, bodyAt + ((from - bodyAt) with { Y = 0 }).Normalized * 20);
+        var hand = Hand(2);
+        bool home = false;
+        Run(n, 120, id => Heed.Mourners(default, n.Crew[id], n.World, id, hand),
+            () => home = body.Carrier < 0 && body.Parent > 0 && n.Train.Dynamics.Consist.IndexOf(body.Parent) >= 0);
+        Assert.True(home, $"the body's at {Bodies.WorldCentre(body, n.Train)} (car {body.Parent}, carried by {body.Carrier}); the hand's {hand.Doing}");
+        Assert.Contains(n.World.Bodies.All, b => b.Id == body.Id);
+        Assert.Equal(0, n.World.MournersTook);
+        Run(n, 5, _ => default);
+        Assert.All(n.World.ActiveEnemies.OfType<Mourner>().Where(m => !m.Gone), m => Assert.Equal(MournerMode.Leave, m.Mode));
+        Assert.Equal(P.Health, n.Crew[2].Health);
+        n.AssertFair();
+    }
+
+    /// <summary>
+    /// Note 623 (D1: "a body never costs the night"): with the loading called done (late for the dawn, given up), a body's
+    /// left; one already in the arms is put down where it is, and the hand's away to its own work.
+    /// </summary>
+    [Fact]
+    public void WithTheTrainLeavingTheBodyIsLeft()
+    {
+        var n = new Night(4, speed: 0, enemies: Quiet);
+        var body = n.World.Bodies.SpawnRagdoll(n.Train, 3, new PlayerState { Parent = PlayerState.World, Position = Beside(n, 2, 8) + Double3.Up * 0.3, LineHint = n.Train.Dynamics.Distance });
+        n.World.AddEnemy(id => Mourner.Come(id, 1, body, n.Train, E.Mourners)[0]);
+        n.Crew[2] = Ground(n, Beside(n, 2, 14));
+        var calls = new CrewCalls();
+        var hand = new StopHand(StopJob.None, calls, 2, P.Cold);
+        var job = new PlayerIntent { MoveX = 0.7f };
+        Assert.NotEqual(job, Heed.Mourners(job, n.Crew[2], n.World, 2, hand));
+        calls.Leave(true);
+        Assert.Equal(job, Heed.Mourners(job, n.Crew[2], n.World, 2, hand));
+    }
+
+    /// <summary>
+    /// Note 623: a body in the train's footprint (fallen between two cars, under one, tight against one) is out of reach from
+    /// the ground, and a bot walking at it takes hold of the car's ladders (T90): it's left to the bot's own work, and to the
+    /// Mourners to take out (deadLines:3 seed 4's walkers were up car 4's ladder and down again through the lift).
+    /// </summary>
+    [Fact]
+    public void ABodyInTheTrainsFootprintIsLeftToTheBotsWork()
+    {
+        var n = new Night(4, speed: 0, enemies: Quiet);
+        // Fallen into the gap between cars 2 and 3, on the ballast there (deadLines:3 seed 4's gunner, off car 4's end), and
+        // the Mourners come for it: as it lies, not stepped (the cars' ends shoulder a ragdoll out of a gap).
+        var gap = Beside(n, 2, 0, n.Train.Frames[2].Shape.Bounds.Max.Z + 0.6);
+        var body = n.World.Bodies.SpawnRagdoll(n.Train, 3, new PlayerState { Parent = PlayerState.World, Position = gap + Double3.Up * 0.3, LineHint = n.Train.Dynamics.Distance });
+        n.World.AddEnemy(id => Mourner.Come(id, 1, body, n.Train, E.Mourners)[0]);
+        n.Crew[2] = Ground(n, Beside(n, 2, 6));
+        var job = new PlayerIntent { MoveX = 0.7f };
+        Assert.Equal(job, Heed.Mourners(job, n.Crew[2], n.World, 2, Hand(2)));
+        // The same out on the ballast, 8 m off the car: it's gone for.
+        var open = n.World.Bodies.SpawnRagdoll(n.Train, 4, new PlayerState { Parent = PlayerState.World, Position = Beside(n, 1, 8) + Double3.Up * 0.3, LineHint = n.Train.Dynamics.Distance });
+        n.World.AddEnemy(id => Mourner.Come(id, 1, open, n.Train, E.Mourners)[0]);
+        n.Crew[2] = Ground(n, Beside(n, 1, 14));
+        Assert.NotEqual(job, Heed.Mourners(job, n.Crew[2], n.World, 2, Hand(2)));
+    }
+
     [Fact]
     public void ABotOnFootClubsTheFreightBeetleOffItsLoad()
     {

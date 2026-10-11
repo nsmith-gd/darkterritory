@@ -63,17 +63,69 @@ public static partial class Heed
     /// <summary>A Mourner is frail (health 1, <c>meleeRadius</c> 0.9, a blow reaching 3.1 m): this near it on the flat, a swing (m).</summary>
     const double MournerReach = 2.4;
 
+    /// <summary>This near where it stands to pick a body up (<see cref="TakeUpFrom"/>), on the flat, it's in the hands' reach.</summary>
+    const double TakeUpAt = 0.4;
+
+    /// <summary>
+    /// Where a bot stands to pick a body up (note 623): a stride off it on our side, or, with a car's ladder by it, on its far
+    /// side from the ladder. Walking into a ladder's foot takes hold of it (T90): deadLines:3 seed 4's gunner lay at car 4's,
+    /// and both walkers going to it went up the ladder and down again for a minute.
+    /// </summary>
+    static Double3 TakeUpFrom(TrainOnLine train, Double3 body, Double3 me)
+    {
+        var away = Flat3(me - body);
+        foreach (var frame in train.Frames)
+            foreach (var ladder in frame.Shape.Ladders)
+            {
+                var foot = frame.ToWorld(ladder.Foot);
+                if (Flat(body - foot) < LadderClear && Flat(body - foot) > 0.01)
+                    away = Flat3(body - foot);
+            }
+        return body + (away.Length > 0.01 ? away.Normalized : new Double3(1, 0, 0)) * 0.6;
+    }
+
+    /// <summary>Whether a point's in a car's footprint, or the gap at either end of it (m, flat).</summary>
+    static bool InTheTrain(TrainOnLine train, Double3 at)
+    {
+        foreach (var frame in train.Frames)
+        {
+            var local = frame.ToLocal(at);
+            var box = frame.Shape.Bounds;
+            if (Math.Abs(local.X) < box.Max.X + 0.3 && local.Z > box.Min.Z - GapReach && local.Z < box.Max.Z + GapReach)
+                return true;
+        }
+        return false;
+    }
+
+    /// <summary>m beyond a car's end that's the gap to the next.</summary>
+    const double GapReach = 1.2;
+
+    /// <summary>A body this near a ladder's foot (m, flat) is picked up from its far side from it.</summary>
+    const double LadderClear = 2.5;
+
+    static Double3 Flat3(Double3 v) => v with { Y = 0 };
+
     /// <summary>
     /// The Mourners (note 362: "stand over your dead, or carry them home"). A bot that can get down, within
     /// <c>crewBots.mournersWithin</c> of a crewmate's body they're about, goes to it: over it (inside their <c>dropWithin</c>)
-    /// they drop it and start back, and it clubs the nearest of them within <c>mournersLeash</c> of the body (one blow kills
-    /// one and scatters the rest), and stands over it while none are near. Not carried home (see note 367).
+    /// they drop it and start back, and it clubs the nearest of them hauling it (within <c>mournersLeash</c> of the body; one
+    /// blow kills one and scatters the rest; the rest shy from it as it comes). Then it picks the body up and carries it
+    /// home into a car of the train, where they leave it (note 623). It used to stand over it and run at any of them near:
+    /// they shy back faster than it closes, and they go only once it's home or lost, so a group kept a bot there while the
+    /// train waited (note 367's "not yet"; 3,373 s of stands over 80 bot nights).
     /// </summary>
     public static PlayerIntent Mourners(PlayerIntent intent, in PlayerState self, World world, int selfId, StopHand? hand)
     {
         if (hand is null || !Free(self) || world.Enemies is not { } et || !CanGoDown(self, world.Train))
             return intent;
         var train = world.Train;
+        // Note 623: one in our arms, home with it; unless there's no car near to take it to or the train has to go (D1: "a
+        // body never costs the night"), when it's put down.
+        bool homeward = !hand.Leaving && Waker.SecondsInHand(world) >= et.CrewBots.MournersCarrySeconds + et.CrewBots.SixDawnMargin;
+        if (world.Bodies.CarriedBy(selfId) is { Kind: BodyKind.Ragdoll })
+            return (homeward ? hand.BodyHome(self, world, et.CrewBots.MournersCarryWithin) : null) is { } home ? Up(self, home) : hand.SetDown();
+        if (!homeward)
+            return intent;
         var b = et.CrewBots;
         var me = PlayerMotor.WorldPosition(self, train);
         Body? body = null;
@@ -93,10 +145,21 @@ public static partial class Heed
         if (body is null)
             return intent;
         var near = world.ActiveEnemies.OfType<Mourner>().Where(m => !m.Gone && m.BodyId == body.Id && m.Mode != MournerMode.Leave)
+            .Where(m => m.Mode == MournerMode.Drag)
             .Select(m => (m, At: m.WorldPosition(train))).Where(x => Flat(x.At - bodyAt) <= b.MournersLeash)
-            .OrderBy(x => x.m.Mode is MournerMode.Drag or MournerMode.Creep ? 0 : 1).ThenBy(x => Flat(x.At - me)).ThenBy(x => x.m.Id).FirstOrDefault();
+            .OrderBy(x => Flat(x.At - me)).ThenBy(x => x.m.Id).FirstOrDefault();
+        // In the train's own footprint (fallen between two cars, under one), there's no reaching it from the ground: a bot
+        // walking at it takes hold of the car's end ladder (T90), and was up it and down again all through deadLines:3 seed
+        // 4's lift. It's left to the stop's work, and to them: they take it out only with nobody near it (and a bot clubbing
+        // them as they crept in for it kept seed 1's lift waiting on its winder), and once they're hauling it in the open,
+        // it's clubbed out of their hands there.
+        if (InTheTrain(train, bodyAt))
+            return intent;
+        // No car of the train to carry it to near enough: it's left.
+        if (near.m is null && !hand.CanTakeHome(train, bodyAt, b.MournersCarryWithin))
+            return intent;
         var go = near.m is not null ? Club(self, world, hand, near.At, MournerReach)
-            : hand.Afoot(self, world, bodyAt, et.Mourners.DropWithin - 1) ?? new PlayerIntent();
+            : hand.Afoot(self, world, TakeUpFrom(train, bodyAt, me), TakeUpAt) ?? hand.TakeUp(self, train, bodyAt);
         return go is { } going ? Up(self, going) : intent;
     }
 
