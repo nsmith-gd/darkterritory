@@ -137,6 +137,63 @@ public class GunPowderTests
         Assert.Equal(0, Guns.Stowed(gun, t));
     }
 
+    /// <summary>
+    /// Note 602 (D1, on note 299): the gunner takes a loose pin beside it when it isn't seated at its gun, on PinBeside's terms;
+    /// the bags and lamps stay the walkers'. frontier:7 seed 5: walking back along the roofs to the guard van's gun, a pack
+    /// aboard the last cars, the gunner jumped the loose gap behind car 5 and it parted. Off its seat on car 2's roof with a
+    /// pack aboard car 7, the pin behind car 2 loose: it tightens it. Seated at the guard van's gun with the pin behind the car
+    /// ahead of the van loose: it keeps the gun.
+    /// </summary>
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public void TheGunnerTakesALoosePinBesideItOnlyOffItsSeat(bool seated)
+    {
+        var n = new Night(seated ? 4 : 8, 10, enemies: Quiet);
+        var loose = DataFile.Load<UpkeepTuning>(Path.Combine(DataFile.FindContentRoot(), UpkeepTuning.File)).Coupling;
+        n.World.Upkeep = new UpkeepTuning { HotBox = new() { Enabled = false }, Lamp = new() { Enabled = false }, Coupling = loose with { FirstAfterMetres = 1e9 } };
+        int van = Rear(n);
+        var cars = n.Train.Dynamics.Consist.Vehicles;
+        var kit = Kit.Of([Tool.Crowbar, Tool.Wrench]);
+        n.Crew[1] = (seated ? AtTheGun(n) : PlayerMotor.SpawnOnRoof(n.Train, cars[2].Id, 0, P)) with { Kit = kit };
+        // Two crewmates in the cab: not a crew of two, so the bags are the walkers' (note 299), not the gunner's.
+        var cab = PlayerMotor.SpawnInCab(n.Train, P);
+        var gunner = new GunnerBot(G) { Me = 1, Crew = [(0, cab), (2, cab)] };
+        if (seated)
+        {
+            n.Run(3, id => gunner.Decide(n.Crew[id], n.World, n.World.Tick, out _));
+            Assert.True(n.Crew[1].Has(PlayerFlags.Seated));
+        }
+        else
+        {
+            // A pack aboard car 7, at the back.
+            var shape = n.Train.Frames[cars[7].Id].Shape;
+            for (int i = 0; i < 2; i++)
+            {
+                var h = n.World.AddEnemy(e => new Enemies.CinderHound(e, e) { Health = Tuning.Enemies.CinderHounds.Health });
+                h.Restore(Enemies.SpinePhase.Commit, 0, Tuning.Enemies.CinderHounds.Health, cars[7].Id, new Double3(i == 0 ? 0.6 : -0.6, shape.RoofHeight, 0), 0, 0, 0.6, h.Id, 0);
+            }
+        }
+        int car = seated ? n.Train.VehicleAhead(van) : cars[2].Id;
+        n.Train.Vehicles[car].Loose = SimConstants.TickSeconds;
+        double? tight = null;
+        for (int i = 0; i < 40 * 4 && tight is null; i++)
+        {
+            n.Run(0.25, id => gunner.Decide(n.Crew[id], n.World, n.World.Tick, out _));
+            if (n.Train.Vehicles[car].Loose == 0)
+                tight = i / 4.0;
+        }
+        var s = n.Crew[1];
+        string where = $"{s.Surface} on {s.Parent} at z {s.Position.Z:0.0}, seated {s.Has(PlayerFlags.Seated)}";
+        if (seated)
+        {
+            Assert.Null(tight);
+            Assert.True(s.Has(PlayerFlags.Seated), where);
+        }
+        else
+            Assert.True(tight is not null, where);
+    }
+
     [Fact]
     public void AnIdleGunnerKeepsTheGunLaidOnItsLane()
     {
