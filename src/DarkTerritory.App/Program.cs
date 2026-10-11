@@ -388,6 +388,8 @@ LobbyId? Invited(NetPlaySession? net)
 }
 
 bool menuOpened = false;
+// Note 604: after a delivered campaign night, the town the crew arrived in, behind the front end in place of the stand-in yard.
+TownBackdrop? inTown = null;
 bool QuitNow() => quitAfter > 0 && timer.Elapsed.TotalSeconds >= quitAfter;
 
 // The front end over a night scene: the fortress yard with a train standing in it, the camera slowly looking about.
@@ -410,9 +412,10 @@ Launch? MenuLoop()
 {
     var trainTuning = DataFile.Load<TrainTuning>(Path.Combine(content, TrainTuning.File));
     var line = DarkTerritory.Sim.Rail.RailLine.Load(Path.Combine(content, "lines", "test-loop.json"));
-    var standing = new TrainOnLine(new TrainDynamics(Consist.Uniform(trainTuning, 6, 1)), line, 1200);
-    var view = Views.Get("trackside", standing);
-    var backdrop = new GreyboxScene { Time = 0.37, Look = look };
+    var standing = inTown?.Train ?? new TrainOnLine(new TrainDynamics(Consist.Uniform(trainTuning, 6, 1)), line, 1200);
+    // The town the crew's in (note 604), from its square, the train home in its yard; else the stand-in yard.
+    var view = inTown?.Camera ?? Views.Get("trackside", standing);
+    var backdrop = inTown?.Scene(look) ?? new GreyboxScene { Time = 0.37, Look = look };
     backdrop.Build(mesh, standing, view.Position);
     var light = Views.Lighting(standing, look);
     (menuView, menuLight) = (view, light);
@@ -661,6 +664,10 @@ while (!window.CloseRequested && !QuitNow())
     (playing, doing) = (session, Doing(leaving));
     campaign = Play(session, campaign);
     (playing, doing) = (null, "the menus");
+    // Note 604: delivered to a town (note 591's campaign town), the front end stands in it until the next night's picked.
+    inTown = leaving is Launch.CampaignNight && campaign?.Town is not null && session.World.Run?.End == DarkTerritory.Sim.Run.RunEnd.Delivered
+        && session.Route is { } arrivedOn && session.World.Arrival is { } arrival
+        ? new TownBackdrop(arrivedOn, session.Train, session.World.Run, arrival, session.World.Town) : null;
     // Left: nothing of the night follows into the menus (its bed, its loops, a hold's tick).
     sound.EndNight();
     // What the crew commended you for tonight, on the PROFILE page from now (note 293).
@@ -704,6 +711,8 @@ return 0;
     // The user's playtest: "You should be able to host a run, not a night."
     string doing = chosen is Launch.Join or Launch.JoinLobby ? "JOINING"
         : chosen is Launch.Night { Host: true } or Launch.CampaignNight { Host: true } ? "BUILDING THE RUN" : "BUILDING THE NIGHT";
+    // Note 604: a campaign night from the town the crew's in is that town's card: its name, the night ahead.
+    string? town = chosen is Launch.CampaignNight { Resume: false } from ? saves.Load(from.Slot)?.Town?.Name : null;
     double began = timer.Elapsed.TotalSeconds;
     while (!task.IsCompleted)
     {
@@ -713,8 +722,14 @@ return 0;
         overlay.Clear();
         string dots = new('.', 1 + (int)((timer.Elapsed.TotalSeconds - began) * 2) % 3);
         // Note 350: with FIRST NIGHTS on, the night's tip under it (a new one each of the player's nights).
-        Onboarding.DrawLoading(overlay, UiWidth, UiHeight, doing + dots, chosen is Launch.Join j ? j.Address.ToUpperInvariant() : "THE LINE, THE LAND, THE CREW",
-            Onboarding.Tip(onboarding, frontEnd.Settings, nightsOver));
+        if (town is not null)
+        {
+            var (heading, under) = TownBackdrop.Card(town, null);
+            Onboarding.DrawLoading(overlay, UiWidth, UiHeight, heading, under + dots, Onboarding.Tip(onboarding, frontEnd.Settings, nightsOver));
+        }
+        else
+            Onboarding.DrawLoading(overlay, UiWidth, UiHeight, doing + dots, chosen is Launch.Join j ? j.Address.ToUpperInvariant() : "THE LINE, THE LAND, THE CREW",
+                Onboarding.Tip(onboarding, frontEnd.Settings, nightsOver));
         // From the command line there's no menu yard behind it (no camera yet): the window's only kept answering.
         if (vr is null && menuView.FovYDegrees > 0)
         {
@@ -726,6 +741,22 @@ return 0;
     }
     if (!task.IsCompleted)
         return null;
+    // Built: the town's card names the night ahead a moment before it opens in the town's yard (note 604).
+    if (town is not null && task.Exception is null && task.Result.Session.Route?.Plan?.Terminus is { } ahead)
+        for (double held = timer.Elapsed.TotalSeconds; timer.Elapsed.TotalSeconds - held < TownBackdrop.CardHoldSeconds && !window.CloseRequested;)
+        {
+            window.PumpEvents();
+            overlay.Clear();
+            var (heading, under) = TownBackdrop.Card(town, ahead.Name);
+            Onboarding.DrawLoading(overlay, UiWidth, UiHeight, heading, under, null);
+            if (vr is null && menuView.FovYDegrees > 0)
+            {
+                renderer.Prepare(mesh, overlay);
+                Present(menuView, menuLight);
+            }
+            input.EndFrame();
+            Thread.Sleep(15);
+        }
     if (task.Exception?.GetBaseException() is { } failed)
     {
         Console.WriteLine($"couldn't start {chosen.Redacted()}: {failed}");
@@ -737,6 +768,8 @@ return 0;
                 failed is IOException or System.Net.Sockets.SocketException ? failed.Message : $"couldn't start: {failed.Message}");
         return null;
     }
+    // The night's begun: the town's in it now, not behind the menus.
+    inTown = null;
     return task.Result;
 }
 

@@ -196,12 +196,14 @@ public enum DeathCause : byte
     // GDD §3.2 (note 570): struck Dave five times; he took them by the neck.
     Dave,
     // GDD §8 (note 588): still out at dawn, and a Waker caught the train.
-    Woken
+    Woken,
+    // Note 573: came down from too high (off a bridge's deck, down a bank's drop).
+    Fell
 }
 
 /// <summary>Conditions a player carries.</summary>
 [Flags]
-public enum PlayerFlags : byte
+public enum PlayerFlags : ushort
 {
     None = 0,
     /// <summary>
@@ -235,6 +237,12 @@ public enum PlayerFlags : byte
     /// they carry, so a predicting client mends as the host does.
     /// </summary>
     RepairKit = 128,
+    /// <summary>
+    /// In the air off the ground's own footing (note 573): over the lip of a dip or down a bank on open ground, not off
+    /// anything moving. Its landing counts none of the crewmate's own run (spec B.3's knock is for leaving the train), only
+    /// what's over it. Set as they leave their footing, cleared once they have one again.
+    /// </summary>
+    OffTheGround = 256,
 }
 
 /// <summary>
@@ -494,6 +502,18 @@ public static class PlayerMotor
     /// <summary>Advances one tick. Call after the train has stepped this tick.</summary>
     /// <param name="applyLook">False when look was already applied this tick (the world's crew step does it).</param>
     public static void Step(ref PlayerState s, in PlayerIntent input, TrainOnLine train, PlayerTuning p, TrainTuning t, double dt, bool applyLook = true)
+    {
+        // Note 573: what they're leaving, if they leave it this tick: the ground's own footing, or something else.
+        bool onGround = s.Parent == PlayerState.World && s.Surface == Surface.Ground;
+        bool aloft = s.Surface == Surface.Air;
+        Move(ref s, input, train, p, t, dt, applyLook);
+        if (s.Surface != Surface.Air)
+            s.Flags &= ~PlayerFlags.OffTheGround;
+        else if (!aloft)
+            s.Flags = onGround ? s.Flags | PlayerFlags.OffTheGround : s.Flags & ~PlayerFlags.OffTheGround;
+    }
+
+    static void Move(ref PlayerState s, in PlayerIntent input, TrainOnLine train, PlayerTuning p, TrainTuning t, double dt, bool applyLook)
     {
         var intent = input;
         if (!s.Alive)
@@ -998,18 +1018,38 @@ public static class PlayerMotor
     static void Land(ref PlayerState s, Double3 worldVelocity, PlayerTuning p, TrainTuning t)
     {
         double horizontal = Math.Sqrt(worldVelocity.X * worldVelocity.X + worldVelocity.Z * worldVelocity.Z);
+        // Note 573: off the ground's own footing (a dip, a bank on open ground), the knock is for what's over their own run, not
+        // the run: spec B.3's table is for leaving the train, at its speed. frontier:7 seed 4's driver, running beside the train
+        // at a stand, took 29 coming down off a dip on the bank. Off a car, a ladder or a platform it's as ever.
+        if (s.Has(PlayerFlags.OffTheGround))
+            horizontal = Math.Max(0, horizontal - p.Run);
         var l = p.Landing;
+        // Note 573: and by the height it came down from (the speed it lands at): whichever knock is the worse.
+        double fell = worldVelocity.Y < 0 ? worldVelocity.Y * worldVelocity.Y / (2 * p.Gravity) : 0;
+        if (l.FallLethalFrom > 0 && fell >= l.FallLethalFrom)
+        {
+            s.Health = 0;
+            s.Death = DeathCause.Fell;
+            return;
+        }
+        int fallKnock = l.FallLethalFrom > l.FallHurtFrom && fell >= l.FallHurtFrom
+            ? (int)Math.Round(l.RollDamage + (p.Health - l.RollDamage) * (fell - l.FallHurtFrom) / (l.FallLethalFrom - l.FallHurtFrom)) : 0;
         double lethal = l.LethalAbove > 0 ? l.LethalAbove : t.SpeedBands.JumpOffLethal;
         if (horizontal > lethal)
         {
             s.Health = 0;
             s.Death = DeathCause.JumpedAtSpeed;
         }
-        else if (horizontal > l.RollAbove)
+        else
         {
-            double k = Math.Clamp((horizontal - l.RollAbove) / Math.Max(1e-6, lethal - l.RollAbove), 0, 1);
-            int damage = (int)Math.Round(l.RollDamage + (Math.Max(l.DamageAtLethal, l.RollDamage) - l.RollDamage) * k);
-            s.Health = Math.Max(1, s.Health - damage);
+            int damage = fallKnock;
+            if (horizontal > l.RollAbove)
+            {
+                double k = Math.Clamp((horizontal - l.RollAbove) / Math.Max(1e-6, lethal - l.RollAbove), 0, 1);
+                damage = Math.Max(damage, (int)Math.Round(l.RollDamage + (Math.Max(l.DamageAtLethal, l.RollDamage) - l.RollDamage) * k));
+            }
+            if (damage > 0)
+                s.Health = Math.Max(1, s.Health - damage);
         }
     }
 

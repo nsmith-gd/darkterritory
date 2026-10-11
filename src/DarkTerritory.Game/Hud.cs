@@ -1886,6 +1886,7 @@ public static partial class Hud
         DeathCause.Woken => "TAKEN AT DAWN. THE NIGHT WAS THE SAFE PART",
         // Dave's last words to them (note 570): the director's own.
         DeathCause.Dave => "YOU SHOULD BE NICER IN A DARK WORLD.",
+        DeathCause.Fell => "FELL. IT WAS FURTHER DOWN THAN IT LOOKED",
         DeathCause.None => "",
         _ => cause.ToString().ToUpperInvariant(),
     };

@@ -57,6 +57,8 @@ public sealed class GunnerBot(GunTuning guns, ChoirTuning? choir = null, int see
     /// <summary>What its legs are doing about trouble in a car, and about the cold (for the harness's trace).</summary>
     public string? TendStep => _legs.TendStep;
     public string? WarmUpStep => _legs.WarmUpStep;
+    /// <summary>Its legs are going to a loose pin (note 602).</summary>
+    public bool Pinning => _legs.Pinning;
     /// <summary>
     /// The look-out's errand when there's no walker to send (a crew of two: driver and gunner; note 222), or null. Its legs
     /// run it, off the gun while the gun can spare it.
@@ -105,7 +107,10 @@ public sealed class GunnerBot(GunTuning guns, ChoirTuning? choir = null, int see
         // The mail cranes' bags are the walkers' to catch, not the gun's (note 299: with a bag always ahead the gunner went in
         // for each and never reached its gun all night); only with no other hand aboard but the driver does it go for them.
         bool alone = _legs.Crew.Count(c => c.State.Alive && c.Id != Me) < 2;
-        _legs.Looked(world, self, safe: Guns.MannedGun(self, world.Train, guns) is not null, tend: !hounds, catches: alone);
+        // Note 602: off its seat, a loose pin beside it is its to tighten whatever the hounds are doing (PinBeside keeps it off
+        // the pack's cars); seated, the gun comes first.
+        bool seated = self.Has(PlayerFlags.Seated);
+        _legs.Looked(world, self, safe: Guns.MannedGun(self, world.Train, guns) is not null, tend: !hounds, catches: alone, pins: !seated);
         // Note 448: a truss Dragger scraping over this gun's car coming under: down its hatch ladder until the car's through.
         if (Duck(self, world) is { } ducking)
             return ducking;
@@ -115,6 +120,8 @@ public sealed class GunnerBot(GunTuning guns, ChoirTuning? choir = null, int see
             return saving;
         // The boiler ruptured and the kit's back down the train with nobody else to bring it (KitCarry): off the gun for it.
         if (_legs.Fetching(self, world))
+            return _legs.Decide(self, world, tick, out aimed);
+        if (!seated && _legs.Pinning)
             return _legs.Decide(self, world, tick, out aimed);
         // Nobody holds a gun through the cold (spec B.2): off it and indoors until warm, then back. Nor through a stop
         // they have a part in. Note 447: but seated with a run coming in on the ground, it keeps the gun until it's over, the
@@ -670,9 +677,9 @@ public sealed class RoofWalkerBot(int seed, ColdTuning? cold = null, StopHand? j
     bool _looked;
 
     /// <summary>The gunner has read the line for its legs this tick already (it knows whether it's at the gun).</summary>
-    internal void Looked(World world, in PlayerState self, bool safe, bool tend = true, bool catches = true)
+    internal void Looked(World world, in PlayerState self, bool safe, bool tend = true, bool catches = true, bool? pins = null)
     {
-        Look(world, self, safe, tend, catches);
+        Look(world, self, safe, tend, catches, pins);
         _looked = true;
     }
 
@@ -721,7 +728,8 @@ public sealed class RoofWalkerBot(int seed, ColdTuning? cold = null, StopHand? j
     /// stands is clear anyway (a gun's crew are down behind its shield).
     /// </summary>
     /// <param name="catches">Whether it goes in for the mail cranes' bags (the gunner leaves them to the walkers, note 299).</param>
-    public void Look(World world, in PlayerState self, bool safe = false, bool tend = true, bool catches = true)
+    /// <param name="pins">Whether it weighs a loose pin beside it (<see cref="PinBeside"/>, note 602): by default when it tends.</param>
+    public void Look(World world, in PlayerState self, bool safe = false, bool tend = true, bool catches = true, bool? pins = null)
     {
         if (_warm is null)
             return;
@@ -731,8 +739,12 @@ public sealed class RoofWalkerBot(int seed, ColdTuning? cold = null, StopHand? j
         // the fire it was working was half the crew, every night the Choir came).
         // Not in the safe yard or a fort, where it never comes (and a crew still to board would go nowhere).
         bool choir = !world.SafeYard && !world.TrainInFort && (world.Choir.Present || world.Choir.Build >= ChoirShelterAt);
+        // Note 602: a loose pin in a gap of its own car's comes first, hurt or not (a few seconds with the wrench; parted, it loses
+        // every car behind it).
+        _pinBeside = pins ?? tend ? PinBeside(self, world) : null;
+        bool pinFirst = _pinBeside is not null;
         // Note 551: too hurt for a pack that's about, and in a car: in it stays, its doors shut (on the roofs, it's the cab's way).
-        Hunted = Hiding(world, self);
+        Hunted = Hiding(world, self) && !pinFirst;
         bool hiding = Hunted && self.Parent > 0 && PlayerMotor.Indoors(self, world.Train);
         _warm.Shelter = !safe && RoofWarned(world) || choir || hiding;
         _warm.ShutFirst = choir || hiding;
@@ -767,8 +779,10 @@ public sealed class RoofWalkerBot(int seed, ColdTuning? cold = null, StopHand? j
         // Note 511: a loose coupling comes before a guttering lamp or a bag (both a walker's errands, and the warm-up's
         // routine wait): left 90 s it parts, and the cars behind it are lost. On frontier:7's 4-bot nights the walkers were
         // in the cars for a bag or getting warm while every pin worked loose, and 11 of 21 parted, the cars behind gone.
-        bool pin = tend && catches && !choir && _trouble is null && LoosePin(self, world, Me, Calls);
+        // A gunner (catches false: the bags are the walkers', note 299) takes only a pin beside it (note 602).
+        bool pin = (tend || pinFirst) && (catches || pinFirst) && !choir && _trouble is null && LoosePin(self, world, Me, Calls, _pinBeside);
         _warm.Called = pin;
+        Pinning = pin;
         // Note 576: a car battered and let go is coming apart, its freight spilling, and in a few minutes it's gone with what's
         // behind it: before a lamp or a bag, a walker with a wrench goes in to it and mends it at its dent (Heed.Mend).
         _mendCar = tend && catches && !choir && _trouble is null && !pin ? FailingCar(self, world, here) : null;
@@ -834,7 +848,8 @@ public sealed class RoofWalkerBot(int seed, ColdTuning? cold = null, StopHand? j
     /// A coupling of the engine's rake working loose (note 356), a wrench to take to it, and it's this walker's: the nearest
     /// pin to it, claimed on the crew's calls (<see cref="CrewCalls.ClaimPin"/>), so one goes and the others keep at theirs.
     /// </summary>
-    static bool LoosePin(in PlayerState self, World world, int me, CrewCalls? calls)
+    /// <param name="beside">The car whose gap's pin is beside it (<see cref="PinBeside"/>), which needn't be <see cref="ClearOfPack"/>.</param>
+    static bool LoosePin(in PlayerState self, World world, int me, CrewCalls? calls, int? beside)
     {
         var train = world.Train;
         if (train.Loose is not { Enabled: true } || !(Couplings.Tightens(self, train) || Repairs.WrenchKey(self) > 0))
@@ -843,7 +858,7 @@ public sealed class RoofWalkerBot(int seed, ColdTuning? cold = null, StopHand? j
         int? car = null;
         double nearest = double.MaxValue;
         foreach (var v in train.Dynamics.Consist.Vehicles)
-            if (v.Id > 0 && v.Loose > 0 && v.Id < train.Frames.Count)
+            if (v.Id > 0 && v.Loose > 0 && v.Id < train.Frames.Count && (v.Id == beside || ClearOfPack(world, v.Id)))
             {
                 var f = train.Frames[v.Id];
                 double d = (f.ToWorld(Couplings.Pin(f.Shape, train.Dynamics.Tuning)) - here).Length;
@@ -882,6 +897,63 @@ public sealed class RoofWalkerBot(int seed, ColdTuning? cold = null, StopHand? j
             return null;
         Head(-1);
         return Decide(self, train, tick);
+    }
+
+    /// <summary>It's going to a loose pin this tick (note 511, note 602): the gunner's legs take it there.</summary>
+    public bool Pinning { get; private set; }
+
+    /// <summary>The car whose gap's pin is beside it this tick (<see cref="PinBeside"/>), or null.</summary>
+    int? _pinBeside;
+
+    /// <summary>Whole cars between a loose pin's gap and any car with a hound aboard, at the least, for a walker to go to it (note 602).</summary>
+    const int PinClearCars = 2;
+
+    /// <summary>
+    /// Note 602 (D1's boundary on note 537): the gap behind <paramref name="car"/> has at least <see cref="PinClearCars"/> whole
+    /// cars between it and every car with a hound aboard. A walker keeping off the pack's ground, or shut in on it, may leave for
+    /// such a pin; one nearer the pack is the pack's ground, and left to it. Pack on car 2: the pin behind car 5 qualifies
+    /// (cars 3 and 4 between), the one behind car 1 doesn't.
+    /// </summary>
+    static bool ClearOfPack(World world, int car)
+    {
+        var rake = world.Train.Dynamics.Consist;
+        int at = rake.IndexOf(car);
+        if (at < 0)
+            return false;
+        foreach (var e in world.ActiveEnemies)
+            if (e is CinderHound { Gone: false } h && h.Attached >= 0 && rake.IndexOf(h.Attached) is var hi and >= 0
+                && hi > at - PinClearCars - 1 && hi < at + 1 + PinClearCars + 1)
+                return false;
+        return true;
+    }
+
+    /// <summary>Under this health (of 100) even a pin beside it isn't worth it: in, out of the pack's way (note 602).</summary>
+    const int PinHurt = 10;
+
+    /// <summary>
+    /// Note 602 (queue #334; D1's ask after note 601): a loose coupling (note 356) in the gap behind the car it's on or the one
+    /// ahead of it, a wrench to take to it, and nothing on it: that's mended before it shelters from a pack (<see cref="Hunted"/>)
+    /// or leaves the work to the fit (<see cref="TooHurt"/>). Not under <see cref="PinHurt"/>, held, or with a hound aboard its
+    /// car or either car of that gap. On frontier:7's 4-bot nights a pin worked loose behind car 5 as a hound run came in, the
+    /// walkers on 18 to 27 hp went for the cab past it, and it parted: cars 6 to 10 lost on 3 or 4 nights of 8.
+    /// </summary>
+    /// <returns>The car whose gap it is, or null.</returns>
+    static int? PinBeside(in PlayerState self, World world)
+    {
+        var train = world.Train;
+        if (!self.Alive || self.Health < PinHurt || self.Has(PlayerFlags.Held) || self.Parent <= 0 || self.Parent >= train.Vehicles.Count
+            || train.Loose is not { Enabled: true } || !(Couplings.Tightens(self, train) || Repairs.WrenchKey(self) > 0))
+            return null;
+        int here = self.Parent;
+        foreach (int car in (ReadOnlySpan<int>)[here, train.VehicleAhead(here)])
+        {
+            if (car <= 0 || car >= train.Vehicles.Count || train.Vehicles[car].Loose <= 0)
+                continue;
+            int behind = train.VehicleBehind(car);
+            if (!world.ActiveEnemies.Any(e => e is CinderHound { Gone: false } h && (h.Attached == here || h.Attached == car || h.Attached == behind)))
+                return car;
+        }
+        return null;
     }
 
     static bool Hiding(World world, in PlayerState self) =>
@@ -1566,7 +1638,8 @@ public sealed class RoofWalkerBot(int seed, ColdTuning? cold = null, StopHand? j
                 continue;
             if (hb is not null && train.Vehicles[i].HotBox > 0)
                 Consider(f.ToWorld(HotBoxes.Box(f.Shape, hb)), hb.Reach, i, false);
-            if (lt is not null && train.Vehicles[i].Loose > 0)
+            // Note 602: not a pin on the pack's ground (unless it's the one beside it a hurt hand stays out for).
+            if (lt is not null && train.Vehicles[i].Loose > 0 && (i == _pinBeside || ClearOfPack(world, i)))
                 Consider(f.ToWorld(Couplings.Pin(f.Shape, train.Dynamics.Tuning)), lt.Reach, i, true);
         }
         void Consider(Ballast.Double3 at, double reach, int i, bool isPin)
@@ -2163,10 +2236,10 @@ public sealed partial class ConductorBot(CrewCalls? calls = null, int member = 0
     /// The ground beside the line further down than this below its rail (m) is no walk: off a bridge's deck, the river bank
     /// 8 m under it. Everywhere else frontier:7's ground beside the track is within half a metre of the rail (note 552).
     /// </summary>
-    const double NoGroundBelow = 1.0;
+    internal const double NoGroundBelow = 1.0;
 
     /// <summary>How far out from the track a walk beside the train goes (m): <see cref="StopHand"/>'s walk keeps 2.6 m off it, its foot path further.</summary>
-    const double AfootOut = 2.8;
+    internal const double AfootOut = 2.8;
 
     /// <summary>
     /// Note 552 (D1.2's frontier:7 seed 4): whether there's ground to walk on beside the train on one side or the other, from

@@ -146,6 +146,7 @@ public static class IncidentLog
         DeathCause.Pecked => "Pecked to death by the Gannet",
         DeathCause.Woken => "Taken at dawn by a Waker",
         DeathCause.Dave => "Struck Dave once too often",
+        DeathCause.Fell => "Fell to their death",
         _ => cause.ToString(),
     };
 
