@@ -478,7 +478,10 @@ public static partial class TownGenerator
 
         var plan = new TownPlan(site.Name, population, former, culture.Id, culture.Creature, culture.Law.Replace("{town}", site.Name), culture.Hall,
             industry?.Name ?? site.Industry, [.. quirks.Select(q => q.Id)], square, buildings, homes.Houses, townsfolk, papers, fixtures, homes.Character, homes.Bounds,
-            homes.Green, homes.Works) { Gate = site.Gate };
+            homes.Green, homes.Works)
+        {
+            Gate = site.Gate,
+        };
         return Remember(plan, site.Burnt, w, Rng("remember"));
     }
 
