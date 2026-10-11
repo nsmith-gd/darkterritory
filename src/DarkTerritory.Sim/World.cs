@@ -847,12 +847,35 @@ public sealed class World
     public Towns.Townsperson? Nicki => Town?.Plan.People.FirstOrDefault(p => p.Hosting);
 
     /// <summary>
+    /// The town a point is in (note 603): the terminus's (<see cref="Arrival"/>) from a little short of its gate on, else the
+    /// departure's. Talking, reading, knocking and Nicki's wine are the town's you're in, so both are lived in alike.
+    /// </summary>
+    public Towns.Town? TownAt(Ballast.Double3 at)
+    {
+        if (Arrival is { } arrival && (Route ?? Run?.Route)?.Plan?.Terminus is { } t)
+        {
+            double hint = t.GateM;
+            Train.Line.Nearest(at, ref hint);
+            if (hint >= t.GateM - TownReachOutside)
+                return arrival;
+        }
+        return Town;
+    }
+
+    /// <summary>The town a crewmate is in (<see cref="TownAt"/>).</summary>
+    public Towns.Town? TownOf(in PlayerState s) => TownAt(PlayerMotor.WorldPosition(s, Train));
+
+    /// <summary>How far outside the terminus's gate its town's things are still in reach (m): its gatekeeper and guard just
+    /// outside. Not a design number.</summary>
+    const double TownReachOutside = 20;
+
+    /// <summary>
     /// Whether Nicki has a glass for <paramref name="s"/> in reach (note 571): on foot, alive, near her, and not had theirs
     /// tonight. The host knows who has; a client goes by their being over full health, as only the wine puts anyone there.
     /// </summary>
     public bool WineInReach(in PlayerState s, int playerId)
     {
-        if (!s.Alive || s.Parent != PlayerState.World || Town is not { } town || Nicki is not { } nicki
+        if (!s.Alive || s.Parent != PlayerState.World || TownOf(s) is not { } town || town.Plan.People.FirstOrDefault(p => p.Hosting) is not { } nicki
             || _toasted.Contains(playerId) || s.Health > Bodies.FullHealth)
             return false;
         return (PlayerMotor.WorldPosition(s, Train) - town.Feet(nicki)).Length <= town.Tuning.Wine.Reach;
@@ -869,7 +892,7 @@ public sealed class World
             _byNicki.Remove(playerId);
             return false;
         }
-        var t = Town!.Tuning.Wine;
+        var t = TownOf(s)!.Tuning.Wine;
         double held = _byNicki[playerId] = _byNicki.GetValueOrDefault(playerId) + SimConstants.TickSeconds;
         if (held >= t.HoldSeconds - 1e-9)
         {
