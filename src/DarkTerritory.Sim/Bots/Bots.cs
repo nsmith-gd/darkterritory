@@ -59,6 +59,8 @@ public sealed class GunnerBot(GunTuning guns, ChoirTuning? choir = null, int see
     public string? WarmUpStep => _legs.WarmUpStep;
     /// <summary>Its legs are going to a loose pin (note 602).</summary>
     public bool Pinning => _legs.Pinning;
+    /// <summary>Its hand on a car's lamp key (note 619), its legs'.</summary>
+    public LampKey Lamp => _legs.Lamp;
     /// <summary>
     /// The look-out's errand when there's no walker to send (a crew of two: driver and gunner; note 222), or null. Its legs
     /// run it, off the gun while the gun can spare it.
@@ -494,6 +496,8 @@ public sealed class RoofWalkerBot(int seed, ColdTuning? cold = null, StopHand? j
     public bool Warming(in PlayerState self) => _warm is { } w && (w.Active || w.Wants(self));
     /// <summary>Where getting warm has got to (for tests and the harness).</summary>
     public string? WarmUpStep => _warm?.Doing;
+    /// <summary>Its hand on a car's lamp key (note 619): pressed to put a lamp out, and left to see the press come back.</summary>
+    public LampKey Lamp { get; } = new();
     /// <summary>Times it's gone in and got warm.</summary>
     public int WarmUps => _warm?.Done ?? 0;
     /// <summary>Its part when the train stops to work a facility (T32).</summary>
@@ -793,7 +797,7 @@ public sealed class RoofWalkerBot(int seed, ColdTuning? cold = null, StopHand? j
         // and at a stand that's not until it moves. Held at frontier:12's first stop (seed 1) beside a crane, the shunter and
         // the winch hand sat in car 1 at its side door for the bag the whole 240 s, their parts waiting on it, and the stop
         // was given up.
-        bool standing = job is not null && Math.Abs(train0.Dynamics.Velocity) < 0.05;
+        bool standing = Environment.GetEnvironmentVariable("DT_NOBAG") is null && job is not null && Math.Abs(train0.Dynamics.Velocity) < 0.05;
         _drop = tend && catches && !_feedRun && !choir && !standing && _trouble is null && _lampCar is null && _mendCar is null && !pin ? NextDrop(world) : null;
         _catchCar = _drop is { } d ? CatchCar(train, d, self.Parent) : null;
         _warm.Into = _trouble?.Attached ?? _catchCar ?? _mendCar ?? _lampCar;
@@ -1115,7 +1119,7 @@ public sealed class RoofWalkerBot(int seed, ColdTuning? cold = null, StopHand? j
         // go once it's alight and leave the lamp lit for the next swarm. frontier:7 and :3's crews put car 2's fire out and
         // left it lit, and the flies came back to it again and again (note 188). A tap by the bot's own tick, every
         // KitRun.TapEvery, until it's out: the press toggles it, and the snapshot that says so is a few ticks behind.
-        if (intent is { } fighting && trouble is CarFire && world.Train.Vehicles[self.Parent].LampLit && Heed.LampTurn(_tick, me))
+        if (intent is { } fighting && trouble is CarFire && world.Train.Vehicles[self.Parent].LampLit && Lamp.Press(self, world, me, Crew, _tick))
             return fighting with { Actions = fighting.Actions | PlayerActions.CarLamp };
         return intent;
     }
@@ -1136,13 +1140,30 @@ public sealed class RoofWalkerBot(int seed, ColdTuning? cold = null, StopHand? j
         {
             TendStep = "in";
             double inX = Math.Clamp(self.Position.X, walls.Min.X + 0.5, walls.Max.X - 0.5);
+            // Note 619: up the steps, the top tread's ahead of the doorway: along the landing into its span first. Straight in from
+            // there, local:9765's gunner (slot seed 11) walked into the wall beside car 2's door for the last 3 s the Fire Flies
+            // needed.
+            double half = (train.Dynamics.Tuning.Geometry.Interior?.SideDoorWidth ?? 1.8) / 2 - 0.3;
+            if (Math.Abs(self.Position.Z) > half)
+                return WarmUp.Steer(self, self.Position with { Z = Math.Sign(self.Position.Z) * (half - 0.25) }, self.Position.Z < 0 ? Math.PI : 0).Step;
+            // And its door shut (the flies in by another way: the far side, the hatch): opened, Use held (a door's worked held
+            // for interior.doorSeconds, once however long it's held after).
+            if (StopHand.SideDoor(train.Frames[self.Parent].Shape, Math.Sign(self.Position.X)) is { } door && !train.Vehicles[self.Parent].DoorOpen(door))
+            {
+                TendStep = "opening up";
+                // Facing the door itself (a door's worked only looked at, CrewActions): from along the landing, straight in is
+                // too far off it.
+                var handle = train.Frames[self.Parent].Shape.Interactables.First(i => i.Kind == Train.InteractableKind.Door && i.Index == door).Position;
+                var (turn, facing) = WarmUp.Steer(self, self.Position, DMath.Atan2(-(handle.X - self.Position.X), -(handle.Z - self.Position.Z)));
+                return facing ? new PlayerIntent { Buttons = PlayerButtons.Use } : turn;
+            }
             return WarmUp.Steer(self, new Double3(inX, 0, self.Position.Z), self.Position.X < 0 ? -Math.PI / 2 : Math.PI / 2).Step;
         }
-        // Fire Flies on the lamp: put it out (a press in this hand's turn until it's out: Heed.LampTurn).
+        // Fire Flies on the lamp: put it out (pressed as its LampKey says, until it's out: note 619).
         if (trouble is FireFlies)
         {
             TendStep = "lamp";
-            return train.Vehicles[self.Parent].LampLit && Heed.LampTurn(_tick, me) ? new PlayerIntent { Actions = PlayerActions.CarLamp } : new PlayerIntent();
+            return train.Vehicles[self.Parent].LampLit && Lamp.Press(self, world, me, Crew, _tick) ? new PlayerIntent { Actions = PlayerActions.CarLamp } : new PlayerIntent();
         }
         var held = world.Bodies.CarriedBy(me);
         if (held is { Kind: Physics.BodyKind.Extinguisher, Charge: <= 0.01 })
@@ -4421,32 +4442,19 @@ public static partial class Heed
 
     /// <summary>
     /// Fire Flies (v1.1 App. A.5): "lamps off when they swarm". In the car they're swarming, a bot puts its lamp out (a press
-    /// in its turn, <see cref="LampTurn"/>, until it's out: the press is the host's to count).
+    /// as its <see cref="LampKey"/> says, until it's out: the press is the host's to count).
     /// </summary>
-    public static PlayerIntent Flies(PlayerIntent intent, in PlayerState self, World world, int me, uint tick)
+    public static PlayerIntent Flies(PlayerIntent intent, in PlayerState self, World world, int me, IReadOnlyList<(int Id, PlayerState State)> crew,
+        LampKey key, uint tick)
     {
         if (!self.Alive || self.Has(PlayerFlags.Held) || self.Parent <= 0 || self.Parent >= world.Train.Vehicles.Count
             || !world.Train.Vehicles[self.Parent].LampLit || !PlayerMotor.Indoors(self, world.Train))
             return intent;
         int car = self.Parent;
-        if (world.ActiveEnemies.Any(e => e is FireFlies f && !f.Gone && f.Attached == car) && LampTurn(tick, me))
+        if (world.ActiveEnemies.Any(e => e is FireFlies f && !f.Gone && f.Attached == car) && key.Press(self, world, me, crew, tick))
             intent.Actions |= PlayerActions.CarLamp;
         return intent;
     }
-
-    /// <summary>
-    /// Note 619: a hand's turn at a car's lamp key to put the lamp out: its own half second of a two-second round, by its id.
-    /// The key toggles the lamp, and what a client sees of it is a snapshot behind: pressed every other tick by the two walkers
-    /// in car 1 at frontier:12's first stop (seed 1), it went out and was lit again by the next press in flight, and the Fire
-    /// Flies came back to it every 30 to 40 s for the 240 s the stop was held, and the stop was given up. A hand presses once
-    /// in its turn and sees it land before its next; two in the car press half a second apart at least.
-    /// </summary>
-    public static bool LampTurn(uint tick, int me) => tick % (LampHands * LampSlot) == (uint)(me % LampHands * LampSlot);
-
-    /// <summary>Ticks in a hand's turn at the lamp key (half a second: a press and its snapshot back, with room).</summary>
-    const int LampSlot = SimConstants.TickRate / 2;
-    /// <summary>Hands with a turn each in the round (more in one car than this is rare: two share a turn).</summary>
-    const int LampHands = 4;
 
     /// <summary>
     /// A car coming apart (note 576): a bot in it, not busy with its hands, goes to its dent, puts the wrench in hand and mends

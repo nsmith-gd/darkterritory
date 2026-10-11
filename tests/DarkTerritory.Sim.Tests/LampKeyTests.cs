@@ -1,6 +1,7 @@
 using Ballast;
 using DarkTerritory.Sim.Bots;
 using DarkTerritory.Sim.Net;
+using DarkTerritory.Sim.Player;
 using DarkTerritory.Sim.Run;
 
 namespace DarkTerritory.Sim.Tests;
@@ -12,19 +13,38 @@ namespace DarkTerritory.Sim.Tests;
 /// (sat at car 1's side door for a mail bag the whole while, the train standing) never went to their parts. The 240 s the
 /// driver holds for them ran out and the stop was given up.
 /// </summary>
-public class LampTurnTests
+public class LampKeyTests
 {
-    [Fact]
-    public void TwoHandsAtOneLampPressHalfASecondApartAndOnceARoundEach()
+    static PlayerState Inside(Night n, int car) => new()
     {
-        var pressed = new Dictionary<int, List<uint>> { [2] = [], [3] = [] };
-        for (uint t = 0; t < 4 * SimConstants.TickRate; t++)
-            foreach (var (me, ticks) in pressed)
-                if (Heed.LampTurn(t, me))
-                    ticks.Add(t);
-        Assert.All(pressed.Values, ticks => Assert.Equal(2, ticks.Count));
-        var all = pressed.Values.SelectMany(t => t).Order().ToList();
-        Assert.All(all.Zip(all.Skip(1)), p => Assert.True(p.Second - p.First >= SimConstants.TickRate / 2, $"{p.First} and {p.Second}"));
+        Parent = car,
+        Position = new Double3(0, Tuning.Train.Geometry.Interior!.FloorHeight, 0),
+        Surface = Surface.Deck,
+        Health = Tuning.Player.Health,
+    };
+
+    [Fact]
+    public void AHandPressesAtOnceThenLeavesTheKeyToSeeItsPressComeBack()
+    {
+        var n = new Night(4, speed: 0);
+        var key = new LampKey();
+        var self = Inside(n, 2);
+        var presses = Enumerable.Range(100, SimConstants.TickRate * 2).Where(t => key.Press(self, n.World, 3, [], (uint)t)).ToList();
+        Assert.Equal(100, presses[0]);
+        Assert.All(presses.Zip(presses.Skip(1)), p => Assert.True(p.Second - p.First >= LampKey.Settle, $"{p.First} and {p.Second}"));
+    }
+
+    [Fact]
+    public void TwoHandsInOneCarTheLowerIdPressesFirstAndTheOtherOnlyIfItDoesnt()
+    {
+        var n = new Night(4, speed: 0);
+        var (two, three) = (new LampKey(), new LampKey());
+        var self = Inside(n, 2);
+        Assert.True(two.Press(self, n.World, 2, [(3, self)], 100));
+        Assert.False(three.Press(self, n.World, 3, [(2, self)], 100));
+        // Still lit as it sees it a second on (the other's a person, say, not pressing): it presses.
+        int? pressed = Enumerable.Range(101, SimConstants.TickRate * 2).FirstOrDefault(t => three.Press(self, n.World, 3, [(2, self)], (uint)t));
+        Assert.Equal(100 + (int)LampKey.Defer, pressed);
     }
 
     [Fact]

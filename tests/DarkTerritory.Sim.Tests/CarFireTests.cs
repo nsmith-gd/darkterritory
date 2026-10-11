@@ -133,6 +133,26 @@ public class CarFireTests
         Assert.DoesNotContain(n.World.ActiveEnemies, e => e is CarFire && !e.Gone);
     }
     [Fact]
+    public void AWalkerUpASwarmedCarsStepsOpensItsShutDoorAndPutsTheLampOut()
+    {
+        // Note 619 (local:9765, slot seed 11): up car 2's steps to the Fire Flies' lamp, the gunner stood on the top treads,
+        // ahead of the doorway, and walked straight across into the wall; along to the door, it walked into that, shut (the
+        // flies were in by the far side's). The car caught. Along the landing into the doorway's span, the door opened, in.
+        var n = new Night(5, speed: 0);
+        var shape = n.Train.Frames[3].Shape;
+        n.Train.Vehicles[3].DoorsOpen = 0;
+        n.Train.Vehicles[3].ToggleDoor(Bots.StopHand.SideDoor(shape, 1)!.Value);
+        var tread = shape.Solids.Where(s => s.Part == PartKind.Steps && s.Box.Max.X < 0 && s.Box.Max.Z < -1).MaxBy(s => s.Box.Max.Y).Box;
+        var bot = new Bots.RoofWalkerBot(3, Tuning.Player.Cold) { Me = 1 };
+        n.Crew[1] = new PlayerState { Parent = 3, Position = tread.Centre with { Y = tread.Max.Y }, Surface = Surface.Deck, Health = P.Health };
+        var flies = n.World.AddEnemy(id => FireFlies.OnLamp(id, n.Train, 3));
+        n.Run(Tuning.Enemies.FireFlies.IgniteSeconds + 2, id => bot.Decide(n.Crew[id], n.World, n.World.Tick, out _));
+        Assert.False(n.Train.Vehicles[3].LampLit, $"the walker {bot.TendStep ?? bot.WarmUpStep} at {n.Crew[1].Position} on {n.Crew[1].Parent} yaw {n.Crew[1].Yaw:0.00} nearest {CrewActions.Nearest(n.Crew[1], n.Train)} doors {n.Train.Vehicles[3].DoorsOpen}");
+        Assert.True(flies.Gone);
+        Assert.DoesNotContain(n.World.ActiveEnemies, e => e is CarFire && !e.Gone);
+    }
+
+    [Fact]
     public void AWalkerTakesTheExtinguisherFromBesideTheCrewLockersAndPutsTheFireOut()
     {
         // Note 188: car 1's extinguisher stands just ahead of the crew lockers (note 173), and the walker made for the spot

@@ -69,6 +69,9 @@ public sealed class BotCrew(CrewCalls? calls) : IDisposable
     }
 
     /// <summary>What a bot does this tick: its own part, then what the roster asks of any crewmate (v1.1).</summary>
+    /// <summary>The lamp key of a bot that keeps none of its own (note 619: the driver, the fireman), by the bot.</summary>
+    static readonly System.Runtime.CompilerServices.ConditionalWeakTable<IBot, LampKey> Lamps = new();
+
     public static PlayerIntent Think(ClientSession session, IBot bot, uint t, CrewCalls? calls)
     {
         // Its part at a stop needs its own id for the heavy crates (T45); and it needs to know what's in its hands.
@@ -141,7 +144,7 @@ public sealed class BotCrew(CrewCalls? calls) : IDisposable
         intent = Heed.Backs(intent, session.Predicted, session.World, me, t);
         intent = Heed.Voice(intent, session.Predicted, session.World, me, t);
         intent = Heed.Gaps(intent, session.Predicted, session.World, me, others);
-        intent = Heed.Flies(intent, session.Predicted, session.World, me, t);
+        intent = Heed.Flies(intent, session.Predicted, session.World, me, others, (bot as RoofWalkerBot)?.Lamp ?? (bot as GunnerBot)?.Lamp ?? Lamps.GetValue(bot, _ => new LampKey()), t);
         intent = Heed.Gutter(intent, session.Predicted, session.World, t);
         intent = Heed.Mend(intent, session.Predicted, session.World);
         intent = Heed.Followers(intent, session.Predicted, session.World, me, calls, t);
