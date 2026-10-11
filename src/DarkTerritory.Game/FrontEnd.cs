@@ -55,6 +55,11 @@ public abstract record Launch
     /// night already under way, from its last autosave.
     /// </summary>
     public sealed record CampaignNight(int Slot, int Contract, bool Resume, bool Host) : Launch;
+    /// <summary>
+    /// The crew goes on together (note 606): a joiner whose host left a delivered campaign night to go on to the next, waiting
+    /// on the town's card and dialling the same host until that night's up.
+    /// </summary>
+    public sealed record Follow(NetPlaySession.Following Going) : Launch;
     public sealed record Quit : Launch;
     /// <summary>The in-night menu's INVITE (note 292): the platform's invite dialog, over the night.</summary>
     public sealed record Invite : Launch;
