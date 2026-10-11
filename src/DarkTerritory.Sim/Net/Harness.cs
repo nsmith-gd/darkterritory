@@ -180,6 +180,8 @@ public sealed record HarnessReport(int Ticks, double Seconds, string Link, doubl
     public IReadOnlyList<FallReport> Falls { get; init; } = [];
     /// <summary>Dawn (note 607): when the dawn line came up and when the lead Waker took the train, and where everyone was.</summary>
     public DawnReport? Dawn { get; init; }
+    /// <summary>The driver's reckonings of the run home through the night (note 621), to score against when it got in.</summary>
+    public IReadOnlyList<Reckoning>? Reckonings { get; init; }
 }
 
 /// <summary>
@@ -707,6 +709,7 @@ public static class Harness
                 host.HoldoutEvents.Count(e => e.Kind == Sim.Run.HoldoutEventKind.Released), toFree, freedBy),
             Falls = falls.Falls,
             Dawn = dawn ?? (lineAt is { } la ? new DawnReport(la, atLine ?? [], -1, -1, -1, []) : null),
+            Reckonings = clients.Select(c => c.Bot).OfType<ConductorBot>().FirstOrDefault()?.Stops?.Reckonings,
         };
     }
 

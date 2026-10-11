@@ -129,6 +129,20 @@ public class WakersTests
     }
 
     [Fact]
+    public void ATrainStoodAtDawnIsCaughtWhenTheGraceSaysAndARunningOneLater()
+    {
+        // Note 621: the driver's deadline is the dawn and the Wakers' catch of a stood train after it, not the dawn alone. It's
+        // the same reckoning as a stood train's seconds in hand (they're seen from dawn here, not from now).
+        var n = new Night(front: 4000);
+        n.Step(1);
+        double fromDawn = Waker.SecondsInHand(n.World) - n.Run.DawnIn;
+        Assert.Equal(fromDawn, Waker.CatchAfterDawn(W, 0), 0.5);
+        Assert.InRange(Waker.CatchAfterDawn(W, 0), 60, 90);
+        Assert.True(Waker.CatchAfterDawn(W, 10) > Waker.CatchAfterDawn(W, 0) + 20);
+        Assert.True(double.IsPositiveInfinity(Waker.CatchAfterDawn(W, W.TopSpeed)));
+    }
+
+    [Fact]
     public void UnderTheGunsTheShelterIsReachedAndOutOnTheLineItIsnt()
     {
         var home = new Night(front: Frontier.Length - 20);
