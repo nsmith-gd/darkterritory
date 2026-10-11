@@ -202,6 +202,9 @@ object RunHarness(string[] args)
             Combat = args.Contains("--no-combat") ? null : hosted.Options.Combat,
             Upkeep = args.Contains("--no-upkeep") ? null : hosted.Options.Upkeep,
             Loot = args.Contains("--no-loot") ? null : hosted.Options.Loot,
+            // The app's own link is UDP over localhost (D1.4); the perfect one is kept by default, as a trends night must
+            // play the same on every commit it's measured on. --udp for the sockets.
+            Udp = args.Contains("--udp"),
         }, args.Contains("--no-boiler") ? null : hosted.Boiler);
     }
     return Harness.Run(line, train, player, new HarnessOptions
