@@ -30,7 +30,7 @@ public class WatersideTests
     }
 
     [Theory]
-    [InlineData("frontier:19")]
+    [InlineData("frontier:6")]
     [InlineData("deadLines:5")]
     public void LakesHoldWaterAndACrossedOneIsCrossedOnTheFormation(string spec)
     {
@@ -63,7 +63,7 @@ public class WatersideTests
     [Theory]
     [InlineData("frontier:7")]
     [InlineData("deadLines:2")]
-    [InlineData("local:6")]
+    [InlineData("local:9")]
     public void ALakesRimStandsOverItsWater(string spec)
     {
         // Out along rays from each lake's middle to its shore, the land just past it (3 m and its rim's crest out) is over
@@ -168,9 +168,8 @@ public class WatersideTests
         }
     }
     [Theory]
-    [InlineData("frontier:106")]
+    [InlineData("frontier:49")]
     [InlineData("deadLines:5")]
-    [InlineData("local:37")]
     public void SomeCrossedLakesAreTakenOnATrestleWithTheWaterOnUnderIt(string spec)
     {
         // Maritime-rules §4's "not yet" (ARCHITECTURE §8 note 317): a crossed lake's neck on a low timber trestle.

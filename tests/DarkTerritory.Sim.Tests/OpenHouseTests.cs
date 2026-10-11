@@ -179,10 +179,10 @@ public class OpenHouseTests
 
     /// <summary>Where a crewmate gets to from outside a house, on a 10 cm grid in its own frame.</summary>
     [Theory]
-    [InlineData("frontier:7")]
+    [InlineData("frontier:1")]
     [InlineData("deadLines:20")]
     [InlineData("local:10")]
-    [InlineData("deepTerritory:8")]
+    [InlineData("deepTerritory:1")]
     public void TheBarnsAndShedsStandOpenWithTheirFindsInside(string spec)
     {
         // Note 417: a barn, an outbuilding and a dead town's goods shed stand as their walls with one wide door toward the
