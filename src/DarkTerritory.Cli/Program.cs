@@ -680,8 +680,8 @@ object CampaignCommand(string content, string verb, string[] args)
                 var fromTown = s.Town;
                 // As the app settles it (note 591): delivered to a town, the crew's in it for the next night.
                 s = DarkTerritory.Sim.Campaign.Campaign.Arrived(DarkTerritory.Sim.Campaign.Campaign.Settle(s, night), night,
-                    DarkTerritory.Sim.Towns.TownAt.Terminus(route, DarkTerritory.Sim.LineGen.LineGenContent.Cached(content).Config.Tiers.Fortress.Identities))
-                    with { LastTown = departed ?? s.LastTown };
+                    DarkTerritory.Sim.Towns.TownAt.Terminus(route, DarkTerritory.Sim.LineGen.LineGenContent.Cached(content).Config.Tiers.Fortress.Identities));
+                s = s with { LastTown = departed ?? s.LastTown };
                 saves.Save(s);
                 // Each town by name and seed (note 604): play again and the next night's "from" is this one's "to".
                 return new
