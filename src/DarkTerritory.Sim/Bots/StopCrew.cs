@@ -1054,7 +1054,7 @@ public sealed class StopDriver(CrewCalls calls)
     double Home(World world, Run.Run run, double at)
     {
         double end = HomeAt(world, run);
-        double home = (end - at) / (Pace(run, at) * LatePace);
+        double home = (end - at) / (Pace(world, run, at) * LatePace);
         if (world.TrackPlan is { } plan)
             home = Math.Max(home, LineGen.LineAuthority.For(plan, world.Train.Line).SecondsTo(at, end, _cruiseTop) / LatePace);
         return home * CargoPressure(world);
@@ -1067,15 +1067,27 @@ public sealed class StopDriver(CrewCalls calls)
     /// </summary>
     const double CargoPressurePerLoad = 0.09;
 
-    static double CargoPressure(World world) =>
-        1 + CargoPressurePerLoad * world.Train.Dynamics.Consist.Vehicles.Where(v => v.Kind == VehicleKind.Cargo).Sum(v => v.Load);
+    double CargoPressure(World world) => 1 + CargoPressurePerLoad * Math.Max(0, Aboard(world) - _loadAtUnderway);
+
+    /// <summary>
+    /// The cargo aboard when the night got under way (car-loads): the pace kept since is already the pace with that much aboard,
+    /// so only what's been loaded since weighs the run home more (a train out of the yard loaded, its pace counted twice, passed
+    /// frontier:7's Foundry: CarFireTests seed 5).
+    /// </summary>
+    double _loadAtUnderway;
+
+    static double Aboard(World world) => world.Train.Dynamics.Consist.Vehicles.Where(v => v.Kind == VehicleKind.Cargo).Sum(v => v.Load);
 
     /// <summary>Where the run to the end of the line ends, as the night's paced (note 600: not a town terminus's long yard's end).</summary>
     static double HomeAt(World world, Run.Run run) => run.Route.RunLength;
 
-    double Pace(Run.Run run, double at)
+    double Pace(World world, Run.Run run, double at)
     {
-        _underway ??= (at, run.Seconds);
+        if (_underway is null)
+        {
+            _underway = (at, run.Seconds);
+            _loadAtUnderway = Aboard(world);
+        }
         double stopped = _log.Sum(r => r.Seconds) + Seconds(_ticks - _stopStart);
         double moving = run.Seconds - _underway.Value.Seconds - stopped;
         // Cruise is whatever it's set to now (down a spur, a crawl): the fastest it's been set is the line's.
@@ -1205,8 +1217,11 @@ public sealed class StopDriver(CrewCalls calls)
                     }
                     // Every stop is optional (GDD §18): only one there's time for before the dawn, after the run to the end of
                     // the line. The tender's the exception once it's low: without coal there's no getting there at all.
-                    if (run.Seconds > 0)
-                        _underway ??= (engine.Distance, run.Seconds);
+                    if (run.Seconds > 0 && _underway is null)
+                    {
+                        _underway = (engine.Distance, run.Seconds);
+                        _loadAtUnderway = Aboard(world);
+                    }
                     _cruiseTop = Math.Max(_cruiseTop, Reckoned);
                     // Note 621: at the night's cruise (the lamp's or the dark's), not this moment's: a crawl for a Track Doll or a
                     // switch reckoned the run home at it (frontier:7 seeds 4 and 14: spares of -1,205 and -13,989 s).
