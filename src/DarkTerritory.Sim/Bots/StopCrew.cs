@@ -3460,11 +3460,25 @@ public sealed partial class StopHand(StopJob job, CrewCalls calls, int member, C
     (PlayerIntent Step, bool There) OnFoot(in PlayerState self, TrainOnLine train, int path, Double3 target, double? yaw)
     {
         var here = PlayerMotor.WorldPosition(self, train);
-        if (self.Parent == PlayerState.World && ((Flat(target) - Flat(here)).Length > ByFootPath || Across(train, path, here, target, self.LineHint))
+        if (self.Parent == PlayerState.World && ((Flat(target) - Flat(here)).Length > ByFootPath || Across(train, path, here, target, self.LineHint)
+                || OffTheTrack(train, path, target, self.LineHint))
             && WayTo(train, here, target))
             return (Follow(self, train, target), false);
         return WalkTo(self, train.Line, path, target, yaw);
     }
+
+    /// <summary>
+    /// Note 620: <paramref name="target"/> is well off the track (past <see cref="TrackSide"/>), a Holdout's door say: the
+    /// foot path all the way, round the walls, and never <see cref="WalkTo"/>'s track-side walk, which keeps to the track's own
+    /// across and along. Within <see cref="ByFootPath"/> of a door on the far side of its house it walked into the wall and
+    /// stood there, 6.7 m short: the breach never began, the driver stood its give-up out, and the crewmate in it was left
+    /// (deadLines:7 seed 4).
+    /// </summary>
+    static bool OffTheTrack(TrainOnLine train, int path, Double3 target, double hint) =>
+        Math.Abs(TrackCoords(train.Line, path, target, hint).Across) > TrackSide;
+
+    /// <summary>How far either side of the track the track-side walk is the way (m): the cars, their steps and a stride.</summary>
+    const double TrackSide = 6;
 
     /// <summary>
     /// Note 486: <paramref name="target"/> is across the track from <paramref name="here"/> with the train standing between:

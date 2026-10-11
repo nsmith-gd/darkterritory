@@ -1,14 +1,7 @@
 using System.Text.Json.Nodes;
 using Ballast;
 using DarkTerritory.Dev.Trends;
-using DarkTerritory.Sim.Combat;
-using DarkTerritory.Sim.Enemies;
-using DarkTerritory.Sim.LineGen;
 using DarkTerritory.Sim.Net;
-using DarkTerritory.Sim.Player;
-using DarkTerritory.Sim.Route;
-using DarkTerritory.Sim.Run;
-using DarkTerritory.Sim.Train;
 
 namespace DarkTerritory.Dev.Tests;
 
@@ -222,30 +215,14 @@ public class TrendsTests
             Assert.Contains(bands.Metrics, b => b.Matches(name));
     }
 
-    /// <summary>A short night as `dt harness` runs one on a route (Program.cs RunHarness): the run, the enemies and the upkeep on.</summary>
+    /// <summary>A short night as `dt harness --as-app` runs one (Program.cs RunHarness, note 622): hosted as the app hosts it
+    /// (HostedAsApp, note 616), the enemies, the upkeep and the finds on, the seed the bots' and the director's.</summary>
     static JsonNode Night(TrendNights nights, int seed)
     {
-        var train = DataFile.Load<TrainTuning>(Path.Combine(Content, TrainTuning.File));
-        var run = DataFile.Load<RunTuning>(Path.Combine(Content, RunTuning.File));
-        var route = Routes.Generate(Content, nights.Route, nights.Cars);
-        double gate = route.GateOr(RouteTuning.Load(Content).YardLength);
-        var report = Harness.Run(route.Build(), train, DataFile.Load<PlayerTuning>(Path.Combine(Content, PlayerTuning.File)), new HarnessOptions
-        {
-            Bots = nights.Bots,
-            Cars = nights.Cars,
-            Seconds = nights.Seconds,
-            Seed = seed,
-            StartDistance = run.DepartFrom(gate, Consist.Uniform(train, nights.Cars, 1).LengthMetres),
-            Combat = DataFile.Load<CombatTuning>(Path.Combine(Content, CombatTuning.File)),
-            Enemies = DataFile.Load<EnemyTuning>(Path.Combine(Content, EnemyTuning.File)),
-            Upkeep = DataFile.Load<UpkeepTuning>(Path.Combine(Content, UpkeepTuning.File)),
-            Route = route,
-            Run = run,
-            Facilities = DataFile.Load<FacilityTuning>(Path.Combine(Content, FacilityTuning.File)),
-            Holdouts = DataFile.Load<HoldoutTuning>(Path.Combine(Content, HoldoutTuning.File)),
-            Sight = DataFile.Load<SightTuning>(Path.Combine(Content, SightTuning.File)),
-            YardLength = gate,
-        }, DataFile.Load<BoilerTuning>(Path.Combine(Content, BoilerTuning.File)));
+        Assert.Contains("--as-app", nights.Args(seed));
+        var hosted = DarkTerritory.Game.HostedAsApp.For(Content, new DarkTerritory.Game.SessionSetup(Route: nights.Route, Cars: nights.Cars, Enemies: true),
+            nights.Bots, nights.Seconds);
+        var report = Harness.Run(hosted.Line, hosted.Train, hosted.Player, hosted.Options with { Seed = seed, DirectorSeed = (ulong)seed }, hosted.Boiler);
         return TrendMeasure.AsPrinted(report, DataFile.Options);
     }
 }
