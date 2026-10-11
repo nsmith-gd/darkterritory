@@ -3085,6 +3085,14 @@ static object HudShot(string content, string[] args)
             "brought" => DarkTerritory.Sim.Run.RunEnd.Delivered,
             _ => DarkTerritory.Sim.Run.RunEnd.CrewLost,
         }));
+    // --report-file f.json: a night's own report as the run-end screen shows it (note 613): `dt campaign play`'s output (its
+    // "night") or a report on its own.
+    if (Str(args, "--report-file", "") is { Length: > 0 } reportFile && session.World.Run is { } played)
+    {
+        using var doc = System.Text.Json.JsonDocument.Parse(File.ReadAllText(reportFile));
+        var json = doc.RootElement.TryGetProperty("night", out var n) ? n : doc.RootElement;
+        played.MirrorReport(json.Deserialize<DarkTerritory.Sim.Run.RunReport>(DataFile.Options)!);
+    }
     var frames = session.InterpolatedFrames(1);
     var camera = session.EyeCamera(frames, 1, 0, 0);
     // --loading [built]: the next night's loading card over the town the crew's in (note 604), from its square; "built", the
