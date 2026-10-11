@@ -779,4 +779,6 @@ written here instead is moved out by `tools/coord/notes.py split`; the Coordinat
 - [606. The crew goes on together (D1.4, queue #338, at D1's ask after #336 and note 604: "it's a co-op game, and town to town only holds if the…](notes/606.md)
 - [608. The town remembers the creature brought in (D1.4, queue #340, note 589's not-yets, at D1's ask after #338)](notes/608.md)
 - [609. The bots make the stops on the 7 km nights (queue #341, D1; after #296, note 554)](notes/609.md)
+- [611. The bots carry on (D1.4, queue #343, note 606's not-yet, at D1's ask after #340: "the director plays campaign nights with bots")](notes/611.md)
+- [612. A town burnt on an earlier visit shows it as you arrive (D1.4, queue #344, note 608's not-yet)](notes/612.md)
 <!-- end of the notes index -->
