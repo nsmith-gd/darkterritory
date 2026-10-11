@@ -89,6 +89,9 @@ public class BroughtInTests
         Assert.Equal(1, brought.BroughtIn);
         Assert.Equal(fee, brought.BroughtInFees);
         Assert.Equal(Tuning.Run.BroughtIn.Hurt, brought.TownHurt);
+        // And the houses it set alight (note 608), which the campaign remembers against the town.
+        Assert.Equal(Tuning.Run.BroughtIn.Burns, brought.TownBurnt);
+        Assert.Equal(0, clear.TownBurnt);
         Assert.Equal(0, clear.BroughtIn);
         Assert.Equal(0, clear.BroughtInFees);
         var line = Assert.Single(brought.Lines, l => l.Kind == IncidentKind.BroughtIn);

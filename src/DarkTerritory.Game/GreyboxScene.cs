@@ -578,6 +578,9 @@ public sealed partial class GreyboxScene
         // A fire on its cells draws its flames there (FireGrids), and only its smoke and light at its heart (note 267).
         if (Look?.Art.Effects is { } cells)
             cells.CellFlames = Enemies?.Any(e => e is Sim.Enemies.CarFire { Gone: false, Heat.Length: > 0 }) == true;
+        // The yard's fight (note 608): the town's guards out to whatever's brought in through the gate, while it lasts.
+        if (Arrival is { } fought)
+            fought.Fight = YardFight(line, frames, fought);
         if (Enemies is not null)
             foreach (var e in Enemies)
                 if (e.Kind == EnemyKind.Passenger && Look?.Art.Creatures is { } passengers && passengers.Get("passenger") is not null)
@@ -663,7 +666,8 @@ public sealed partial class GreyboxScene
                     // Brought into town (note 589): the town's guns firing on whatever rode in, while the yard fight lasts (the
                     // fort drives off anything else inside it the moment it's there, so anything alive in there is being fought).
                     else if (Arrival is { } town && Look?.Art.Effects is { } guns && EnemyWorld(e, frames) is var inside && InTheTown(line, inside))
-                        guns.WallGuns(mesh, WallGuns(town, eye), V(inside + Double3.Up * 1.2, eye), V(inside, eye), Time, e.Id, BroughtInSpread, e.Kind);
+                        guns.WallGuns(mesh, [.. WallGuns(town, eye), .. YardGuns(town, eye)], V(inside + Double3.Up * 1.2, eye), V(inside, eye), Time, e.Id,
+                            BroughtInSpread, e.Kind);
                     // A Grumbler healing (App. A.8, note 487): what a lone crewmate's blow knocked out of it drawn back in.
                     if (e.Kind == EnemyKind.Grumbler && Healing(e) is > 0 and var healing && Look?.Art.Effects is { } knit)
                     {
@@ -1855,6 +1859,58 @@ public sealed partial class GreyboxScene
             if (s > b.Rear)
                 guns.Add(V(town.World(s, d, Sim.Run.Fortresses.TowerHeight + 1), eye));
         return guns;
+    }
+
+    /// <summary>The town's guards out on the yard (note 608), their pieces at shoulder height: they fire with the walls' guns.</summary>
+    static IEnumerable<Vector3> YardGuns(Sim.Towns.Town town, Double3 eye) =>
+        town.Fight is null ? [] : town.Plan.People.Where(Sim.Towns.Town.Guards).Select(p => town.Now(p)).Select(n => V(n.Feet + n.Facing * 0.6 + Double3.Up * 1.45, eye));
+
+    /// <summary>The creatures seen brought into the arrival town this night (note 608), by id: each sets houses alight.</summary>
+    readonly HashSet<int> _broughtIn = [];
+
+    /// <summary>
+    /// Where along the arrival town's own frame a creature brought in through its gate is being fought (note 608), the first
+    /// of them; null, none. The fort drives anything else inside off the moment it's there (note 589), so anything alive in
+    /// there, not a fire or the like, is being fought.
+    /// </summary>
+    double? YardFight(RailLine line, IReadOnlyList<CarFrame> frames, Sim.Towns.Town town)
+    {
+        double? fight = null;
+        foreach (var e in Enemies ?? [])
+        {
+            if (e.Gone || e.Hazard || e is Sim.Enemies.Incident || EnemyWorld(e, frames) is var at && !InTheTown(line, at))
+                continue;
+            _broughtIn.Add(e.Id);
+            if (fight is null && Route?.Plan?.Terminus is { } t)
+            {
+                double hint = t.GateM;
+                line.Nearest(at, ref hint);
+                fight = town.Along(hint);
+            }
+        }
+        return fight;
+    }
+
+    /// <summary>
+    /// The arrival town's houses burning (note 608): run.json broughtIn.burns for each creature brought in tonight, the
+    /// lived-in houses nearest the gate (<see cref="Sim.Towns.TownGenerator.Harmed"/>, the ones the campaign remembers burnt).
+    /// They catch as the creature comes in and burn on through the night.
+    /// </summary>
+    void HouseFires(MeshBuilder mesh, Double3 eye, Sim.Towns.Town town)
+    {
+        int brought = Math.Max(_broughtIn.Count, Run?.BroughtIn.Count ?? 0);
+        if (brought == 0 || Look?.Art.Effects is not { } fx)
+            return;
+        foreach (var h in Sim.Towns.TownGenerator.Harmed(town.Plan, brought * (Run?.Tuning.BroughtIn.Burns ?? 1)))
+        {
+            var (s, d) = h.Rail(0, 0);
+            var front = town.World(s, d);
+            if ((front - eye).Length > 400)
+                continue;
+            var into = ToF(town.Direction(s, 0, h.Side));
+            var along = ToF(town.Direction(s, 1, 0));
+            fx.HouseFire(mesh, V(front, eye), along, into, (float)h.Width, (float)h.Depth, 7.5f, Time, h.Id);
+        }
     }
 
     /// <summary>How widely the town's shots land round a creature brought in (note 589), as a share of a Waker's back.</summary>
@@ -3131,6 +3187,8 @@ public sealed partial class GreyboxScene
                 Look.Art.World.Civic(mesh, line, eye, town, from, to);
                 Look.Art.World.Works(mesh, line, eye, town, from, to);
                 Look.Art.World.Houses(mesh, line, eye, town, from, to);
+                if (town == Arrival)
+                    HouseFires(mesh, eye, town);
                 Look.Art.World.Streets(mesh, line, eye, town, from, to);
                 // A town that's lived in (App. F.3, the director: the fortresses feel static): smoke from its chimneys, and
                 // its watch walking the wall with their lanterns.
