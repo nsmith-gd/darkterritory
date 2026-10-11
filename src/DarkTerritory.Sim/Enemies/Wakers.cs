@@ -62,6 +62,62 @@ public sealed class Waker(int id) : Enemy(id)
     public int EatenCars(WakersTuning t, int cars) =>
         !Holds ? 0 : Math.Min(cars, (int)Math.Floor(Math.Max(0, Extra - t.EatAfter) / Math.Max(1e-6, t.EatSeconds)));
 
+    /// <summary>
+    /// Note 607 (shared with D1.5's #337, the driver at dawn): seconds before the lead Waker reaches the train's rear, the train
+    /// going on at its speed now; +∞ with no Wakers tonight or before the dawn line's reckoning can start, 0 once one holds it.
+    /// From what every machine has (the run's dawn clock, the lead's place on the line, the tuning), so a client's bot reckons it
+    /// as the host does. Whether they stop short of it first is <see cref="SecondsToShelter"/>.
+    /// </summary>
+    public static double SecondsInHand(World world)
+    {
+        if (world.Enemies is not { Wakers: { Enabled: true } t } || world.Run is not { } run)
+            return double.PositiveInfinity;
+        Waker? lead = null;
+        foreach (var e in world.ActiveEnemies)
+            if (e is Waker { Lead: true, Gone: false } w)
+                lead = w;
+        if (lead is { Holds: true })
+            return 0;
+        var train = world.Train;
+        // Seconds it's been coming (negative: still to rise, or still to dawn) and how far behind the rear it is.
+        double since = -run.DawnIn - t.RiseSeconds;
+        double gap = lead is not null ? train.RearDistance - lead.LineDistance : t.RiseBehind;
+        if (gap <= 0)
+            return 0;
+        double wait = Math.Max(0, -since), s0 = Math.Max(0, since), v = Math.Max(0, train.Dynamics.Speed);
+        if (v >= t.TopSpeed)
+            return double.PositiveInfinity;
+        // Covered(s0 + τ) − Covered(s0) = gap + v (wait + τ): the closing speed only rises, so it's met once.
+        double Short(double tau) => Covered(s0 + tau, t) - Covered(s0, t) - gap - v * (wait + tau);
+        double lo = 0, hi = 60;
+        while (Short(hi) < 0 && hi < 1e6)
+            hi *= 2;
+        for (int i = 0; i < 60; i++)
+        {
+            double mid = 0.5 * (lo + hi);
+            if (Short(mid) < 0)
+                lo = mid;
+            else
+                hi = mid;
+        }
+        return wait + hi;
+    }
+
+    /// <summary>
+    /// Note 607: seconds before the train's rear is past where the Wakers stop short of the terminus's gate (in under the guns),
+    /// at its speed now: 0 once it is, +∞ stood short of it. Under <see cref="SecondsInHand"/>, it's home before they catch it.
+    /// </summary>
+    public static double SecondsToShelter(World world)
+    {
+        if (world.Enemies is not { Wakers: { Enabled: true } t } || world.Run is null)
+            return double.PositiveInfinity;
+        double past = Wall(world, t) - world.Train.RearDistance;
+        if (past <= 0)
+            return 0;
+        double v = world.Train.Dynamics.Speed;
+        return v > 0.05 ? past / v : double.PositiveInfinity;
+    }
+
     /// <summary>How far short of the terminus's gate they stop: in under the guns, the crew's home.</summary>
     static double Wall(World world, WakersTuning t) => world.Run is { } run
         ? (run.Route.Plan?.Terminus.GateM ?? run.Route.Length - run.Tuning.TerminusZone) - t.StopShort

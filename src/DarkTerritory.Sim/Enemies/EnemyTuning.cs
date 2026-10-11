@@ -1201,4 +1201,8 @@ public sealed record CrewBotsTuning
     public double BeetleWithin { get; init; } = 15;
     public double BrakemanStandOff { get; init; } = 1.5;
     public double StandGiveUp { get; init; } = 240;
+    public double GateClearShort { get; init; } = 30;
+    public double GateClearWithin { get; init; } = 1500;
+    public double GateClearGiveUp { get; init; } = 240;
+    public double GateClearMargin { get; init; } = 45;
 }
