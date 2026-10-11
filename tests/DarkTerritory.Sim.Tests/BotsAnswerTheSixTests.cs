@@ -257,6 +257,28 @@ public class BotsAnswerTheSixTests
         Assert.NotEqual(own.MoveX, Heed.Brakeman(own, n.Crew[2], n.World, 2, Others(n, 2), null, atAStop: true).MoveX);
     }
 
+    /// <summary>
+    /// Note 602 (frontier:7, 4 bots, seed 5): under way, the gunner stood over the loose gap behind car 5 with the wrench,
+    /// and the pincer took it along the roofs; the pin parted and the cars behind were lost. A hand going to a loose pin is
+    /// left to it; the others are his pincer as ever.
+    /// </summary>
+    [Fact]
+    public void GoingToALoosePinTheBrakemanLeavesTheHandToIt()
+    {
+        var n = new Night(6, speed: 10, enemies: Quiet);
+        AtTail(n);
+        n.Train.Vehicles[3].Wound = true;
+        n.Crew[2] = PlayerMotor.SpawnOnRoof(n.Train, 2, 0, P);
+        n.Crew[3] = PlayerMotor.SpawnOnRoof(n.Train, 3, 0, P);
+        Run(n, 2, _ => default);
+        var own = new PlayerIntent { MoveZ = 1, MoveX = 0.4f };
+        var pinning = Heed.Brakeman(own, n.Crew[2], n.World, 2, Others(n, 2), null, pinning: true);
+        Assert.Equal(own.MoveZ, pinning.MoveZ);
+        Assert.Equal(own.MoveX, pinning.MoveX);
+        Assert.Equal(own.Buttons, pinning.Buttons);
+        Assert.NotEqual(own.MoveX, Heed.Brakeman(own, n.Crew[2], n.World, 2, Others(n, 2), null).MoveX);
+    }
+
     [Fact]
     public void TwoRoofBotsCornerTheBrakemanFromBothSidesAndKillHim()
     {

@@ -84,6 +84,87 @@ public class HuntedTests
         Assert.Equal(30, s.Health);
     }
 
+    /// <summary>
+    /// Note 602 (queue #334): a pack aboard car 5 and the pin behind car 2 loose, a walker on car 2's roof with the wrench. Hurt
+    /// (30 hp, too hurt for the pack and for errands), it goes down into the gap and tightens the pin before the cab; on 8 hp
+    /// it leaves it and goes in.
+    /// </summary>
+    [Theory]
+    [InlineData(30, true)]
+    [InlineData(8, false)]
+    public void HurtAWalkerMendsALoosePinBesideItBeforeTakingShelter(int health, bool mends)
+    {
+        var n = new Night(6, 6, enemies: HoundRunTests.Quiet);
+        var loose = DataFile.Load<UpkeepTuning>(Path.Combine(DataFile.FindContentRoot(), UpkeepTuning.File)).Coupling;
+        n.World.Upkeep = new UpkeepTuning { HotBox = new() { Enabled = false }, Lamp = new() { Enabled = false }, Coupling = loose with { FirstAfterMetres = 1e9 } };
+        n.Crew[0] = PlayerMotor.SpawnInCab(n.Train, P);
+        var cars = n.Train.Dynamics.Consist.Vehicles;
+        PackOn(n, cars[5].Id, 3);
+        n.Run(SimConstants.TickSeconds);
+        int car = cars[2].Id;
+        n.Train.Vehicles[car].Loose = SimConstants.TickSeconds;
+        var bot = new RoofWalkerBot(7, P.Cold) { Me = 1 };
+        n.Crew[1] = PlayerMotor.SpawnOnRoof(n.Train, car, 0, P) with { Health = health, Kit = Kit.Of([Tool.Shovel, Tool.Wrench]) };
+        double? tight = null;
+        for (int i = 0; i < 60 * 4 && tight is null; i++)
+        {
+            n.Run(0.25, id => id == 1 ? bot.Decide(n.Crew[1], n.World, n.World.Tick, out _) : default);
+            if (n.Train.Vehicles[car].Loose == 0)
+                tight = i / 4.0;
+        }
+        var s = n.Crew[1];
+        string where = $"{bot.WarmUpStep}; {s.Surface} on {s.Parent} at z {s.Position.Z:0.0}, health {s.Health}, hunted {bot.Hunted}";
+        if (mends)
+        {
+            Assert.True(tight is not null, where);
+            Assert.True(tight < loose.PartAfter, where);
+        }
+        else
+        {
+            Assert.Null(tight);
+            Assert.True(PlayerMotor.InCab(s, n.Train), where);
+        }
+    }
+
+    /// <summary>
+    /// Note 602, D1's boundary on note 537: a pack aboard car 2, a fit walker on car 6's roof with the wrench. A pin with two
+    /// whole cars between its gap and the pack (behind car 5: cars 3 and 4 between) it goes to and tightens; one on the
+    /// pack's ground (behind car 3, next to it) it leaves.
+    /// </summary>
+    [Theory]
+    [InlineData(5, true)]
+    [InlineData(3, false)]
+    public void AFitWalkerGoesToALoosePinOnlyClearOfThePack(int behind, bool goes)
+    {
+        var n = new Night(8, 6, enemies: HoundRunTests.Quiet);
+        var loose = DataFile.Load<UpkeepTuning>(Path.Combine(DataFile.FindContentRoot(), UpkeepTuning.File)).Coupling;
+        n.World.Upkeep = new UpkeepTuning { HotBox = new() { Enabled = false }, Lamp = new() { Enabled = false }, Coupling = loose with { FirstAfterMetres = 1e9 } };
+        n.Crew[0] = PlayerMotor.SpawnInCab(n.Train, P);
+        var cars = n.Train.Dynamics.Consist.Vehicles;
+        var pack = PackOn(n, cars[2].Id, 2);
+        n.Run(SimConstants.TickSeconds);
+        int car = cars[behind].Id;
+        n.Train.Vehicles[car].Loose = SimConstants.TickSeconds;
+        var bot = new RoofWalkerBot(7, P.Cold) { Me = 1 };
+        n.Crew[1] = PlayerMotor.SpawnOnRoof(n.Train, cars[6].Id, 0, P) with { Kit = Kit.Of([Tool.Shovel, Tool.Wrench]) };
+        double? tight = null;
+        for (int i = 0; i < 40 * 4 && tight is null; i++)
+        {
+            n.Run(0.25, id => id == 1 ? bot.Decide(n.Crew[1], n.World, n.World.Tick, out _) : default);
+            if (n.Train.Vehicles[car].Loose == 0)
+                tight = i / 4.0;
+        }
+        var s = n.Crew[1];
+        string where = $"{bot.WarmUpStep}; {s.Surface} on {s.Parent} at z {s.Position.Z:0.0}, health {s.Health}; pack on {string.Join(",", pack.Select(h => h.Attached))}";
+        if (goes)
+            Assert.True(tight is not null, where);
+        else
+        {
+            Assert.Null(tight);
+            Assert.NotEqual(car, s.Parent);
+        }
+    }
+
     [Fact]
     public void FitEnoughItStaysOutForThePack()
     {
