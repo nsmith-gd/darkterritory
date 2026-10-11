@@ -341,14 +341,21 @@ public static partial class Heed
     /// its edge all night for a wheel beyond it). And at a stand with a Knotter slack, a bot that can get down is left to it
     /// (<see cref="Knotter"/>): the stand is for killing it, and a wound brake costs nothing until the train moves.
     /// </summary>
+    /// <param name="atAStop">Its part in a facility stop is under way (<see cref="StopHand.AtAStop"/>).</param>
     public static PlayerIntent Brakeman(PlayerIntent intent, in PlayerState self, World world, int selfId,
-        IReadOnlyList<(int Id, PlayerState State)> crew, CrewCalls? calls)
+        IReadOnlyList<(int Id, PlayerState State)> crew, CrewCalls? calls, bool atAStop = false)
     {
         var train = world.Train;
         if (!Free(self) || self.Has(PlayerFlags.Seated) || self.Surface != Surface.Roof || !OnTheRake(train, self.Parent)
             || world.Enemies is not { } et)
             return intent;
         if (CanGoDown(self, train) && world.ActiveEnemies.OfType<Knotter>().Any(k => !k.Gone && k.Mode == KnotterMode.Slack))
+            return intent;
+        // Note 601: nor a hand at its part in a stop, the train standing for it. He stops a moving train, and a wound brake
+        // costs nothing until it moves: the stop's work first. Posted at the train's ends while he hid, the pincer took the
+        // Foundry's shunter off its cut on frontier:7 (4 bots, seed 2): along the roofs to car 10's end and back for four
+        // minutes, until the driver gave the stop up with nothing loaded. Under way again, the pincer and the wheels are theirs.
+        if (atAStop && Math.Abs(train.RakeOf(self.Parent).Velocity) < StandingBelow)
             return intent;
         double mine = Along(train, self);
         var him = world.ActiveEnemies.OfType<Enemies.Brakeman>().Where(x => !x.Gone && OnTheRake(train, x.Attached)).OrderBy(x => x.Id).FirstOrDefault();
@@ -374,6 +381,9 @@ public static partial class Heed
         }
         return Unwind(self, world, selfId, crew, mine) ?? intent;
     }
+
+    /// <summary>A rake slower than this (m/s) is at a stand, as the stop crew reckon it.</summary>
+    const double StandingBelow = 0.05;
 
     /// <summary>How far in from a roof's end the pincer keeps its end of the train (m: on the roof, just short of its edge).</summary>
     const double PostIn = 0.2;

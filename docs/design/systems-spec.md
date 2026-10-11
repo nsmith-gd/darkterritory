@@ -286,7 +286,7 @@ At three cars, the boiler is a periodic chore someone fits around other work. **
 |---|---|
 | Fire rate | 3/s |
 | Effective range | 220m (T121: the forward gun covers the Track Doll from the 200 m it shows in the lamp; cab forward since note 276, nothing of the engine masks the rail: the driver sees it from 8 m past the plough) |
-| Traverse | 200° |
+| Traverse | 200°; **the engine's forward gun 360°** (the director's in-game notes, 9 Oct 2026; note 596): it turns the full circle, the short way round past its back, and the dead zone and the train's own body still keep it from firing back down the train |
 | **Dead zone** | **20° each side along the train's own body** |
 | Ammunition | 200 rounds/gun, resupply at POI |
 | Choir aggro | +1.5 per round fired, decay 45s |
@@ -309,6 +309,8 @@ At three cars, the boiler is a periodic chore someone fits around other work. **
 | Dawn timer | Route length ÷ 11 m/s average, +40% slack (14.9 min), + 3 min for each facility on the night (`dawnPerFacilitySeconds`, 180): **23.9 min, every night** ("Dawn in 24 minutes"; the slack was +18%: after the 100-night playtest a stop, the posted boards and the in-car trouble didn't fit, and missing dawn was the commonest failure) |
 
 The dawn budget assumes an 11 m/s average, below the 14 m/s cruise. **The slack is what you spend on stopping** — every POI, every repair, every revival eats it — and each facility adds its own three minutes on top (note 554: at 7 km the transit's slack alone, 4.2 min, left no time for a stop). A crew that makes all three stops in good time is home with minutes to spare; a slow one isn't.
+
+**At dawn the Wakers get up** (GDD §8; docs/design/creatures/wakers.md; note 588; enemies.json `wakers`), in place of v1's two minutes' grace and a failed night. A train still out has them behind it: 1 on the Local and Frontier tiers, 2 on the Dead Lines, 3 in the Deep Territory. The first rises 1.2 km behind the last car. After 8 s it runs 6 m/s, building to 26 m/s over 45 s (the engine's flat out is 22). A train standing at dawn is caught in about 75 s; one at cruise is caught from about 2.5 km out, so a crew that close races it in. They stop 300 m short of the terminus's gate. The one that reaches the last car drags the train to a stand (3 × the engine's pull) and lifts a car every 2.5 s from the rear. From 6 s in it eats one every 4 s, whoever's in it with it, and anyone off the train goes 8 s in. The engine eaten, the night is lost: "taken at dawn" (`RunEnd.DawnMissed`).
 
 **One night length** (the director, 6 Oct 2026): "The time a run takes should always be the same. Difficulty scales not by time but by monsters and density of challenges." On 9 Oct 2026 the one length became 7 km ("Sessions are feeling very long ... the average run has 3 full stops it can make", then "let me increase the time of a run up to 17 minutes ... that time is just an average run marker"; and after playing it, "yes make the shorter night final"). The total run's floor is the transit at cruise with no stop made (8.3 min); its ceiling is the dawn. A tier no longer adds kilometres; it packs more into the same 7:
 

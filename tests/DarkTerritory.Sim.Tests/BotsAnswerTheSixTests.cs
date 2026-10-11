@@ -224,6 +224,39 @@ public class BotsAnswerTheSixTests
         Assert.False(n.Train.Dynamics.Handbrake);
     }
 
+    /// <summary>
+    /// Note 601 (frontier:7, 4 bots, seeds 2 and 3): the train held short of the Foundry's points for its cut, the Brakeman
+    /// aboard and hidden. The pincer posted the shunter at the train's tail and back for four minutes, until the driver gave
+    /// the stop up with nothing loaded. At a stop a hand's own work goes on; under way, the pincer has it again.
+    /// </summary>
+    [Fact]
+    public void AtAStopTheBrakemanLeavesTheHandsToTheirWork()
+    {
+        var n = new Night(6, speed: 0, enemies: Quiet);
+        var b = AtTail(n);
+        n.Train.Vehicles[3].Wound = true;
+        n.Crew[2] = PlayerMotor.SpawnOnRoof(n.Train, 2, 0, P);
+        n.Crew[3] = PlayerMotor.SpawnOnRoof(n.Train, 3, 0, P);
+        // Its own work: along the roofs toward the cut, a step at a time.
+        var own = new PlayerIntent { MoveZ = 1, MoveX = 0.4f };
+        for (int t = 0; t < 30 * SimConstants.TickRate; t++)
+        {
+            foreach (int id in new[] { 2, 3 })
+            {
+                var heeded = Heed.Brakeman(own, n.Crew[id], n.World, id, Others(n, id), null, atAStop: true);
+                Assert.Equal(own.MoveZ, heeded.MoveZ);
+                Assert.Equal(own.MoveX, heeded.MoveX);
+                Assert.Equal(own.Buttons, heeded.Buttons);
+            }
+            Run(n, SimConstants.TickSeconds, _ => default);
+        }
+        Assert.False(b.Gone);
+        // A stand that isn't a stop's is his to work, and theirs to stop him at; under way again, the pincer has them.
+        Assert.NotEqual(own.MoveX, Heed.Brakeman(own, n.Crew[2], n.World, 2, Others(n, 2), null).MoveX);
+        n.Train.Dynamics.Velocity = 10;
+        Assert.NotEqual(own.MoveX, Heed.Brakeman(own, n.Crew[2], n.World, 2, Others(n, 2), null, atAStop: true).MoveX);
+    }
+
     [Fact]
     public void TwoRoofBotsCornerTheBrakemanFromBothSidesAndKillHim()
     {

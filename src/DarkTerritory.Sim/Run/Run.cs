@@ -16,6 +16,16 @@ public sealed record RunTuning(double StopBelowSpeed, double TerminusZone, doubl
     public double DepartShortOfGateM { get; init; } = 8;
 
     /// <summary>
+    /// A terminus that's a town is home once the whole train has stopped this far in through its gate (run.json
+    /// <c>homeInsideGateM</c>; note 600): its yard is the departure's length, too long to crawl to the end of. Null: home is
+    /// <see cref="TerminusZone"/> from the end of the line, as a silent settlement's always is.
+    /// </summary>
+    public double? HomeInsideGateM { get; init; }
+
+    /// <summary>Monsters brought into town (run.json <c>broughtIn</c>; note 589): the yard fight, the brigade's fee, the hurt.</summary>
+    public BroughtInTuning BroughtIn { get; init; } = new();
+
+    /// <summary>
     /// The fortress yard is a safe space until the run begins (run.json <c>yardIsSafe</c>; the director's decision of 6 Oct
     /// 2026, ARCHITECTURE §8 note 263): nothing spawns, the boiler and the fire hold, the cold doesn't bite.
     /// </summary>
@@ -67,6 +77,17 @@ public enum RunPhase : byte { Yard, Underway, AtFacility, Arrived, Failed }
 /// </summary>
 public sealed record FortTuning(bool Safe = true, double HalfWidthM = 80);
 
+/// <summary>
+/// Monsters brought into town (queue #322, ARCHITECTURE §8 note 589; the director, 9 Oct 2026): a creature still aboard as its
+/// car comes in through a town terminus's gate. <paramref name="FightSeconds"/>: how long the town's guards and guns fight it
+/// in the yard before it's driven off; <paramref name="Fee"/>: the town's monster brigade, in the tier's per-car values, each
+/// one; <paramref name="Hurt"/>: how many of the town's people each one hurts. Field docs live in run.json <c>broughtIn</c>.
+/// </summary>
+public sealed record BroughtInTuning(double FightSeconds = 0, double Fee = 0, int Hurt = 0);
+
+/// <summary>A creature brought into town (note 589): which, what it was, the car it rode in on, and when (run seconds).</summary>
+public sealed record BroughtIn(int Enemy, Enemies.EnemyKind Kind, string Called, int Car, double Seconds);
+
 /// <summary>Note 279: the stops' buildings as walls (<see cref="StopWalls"/>). Field docs live in run.json <c>walls</c>.</summary>
 public sealed record WallTuning(double WallM = 0.3, double BayDoorM = 4, double PersonDoorM = 1.2, double WellTopM = 0.85, double TopM = 9, double LinesideReachM = 40,
     double HouseDoorSeconds = 0.6, double HouseDoorReachM = 1.2);
@@ -112,6 +133,10 @@ public sealed record RunReport(RunEnd End, double Seconds, double DistanceKm, in
     /// <summary>Rescued children brought home (GDD §19, App. B.9), and what they paid (in the gross: <c>economy.childPay</c> each).</summary>
     public int ChildrenHome { get; init; }
     public double ChildPay { get; init; }
+    /// <summary>Creatures brought into town (note 589), what the town's brigade charged for them, and the town's people they hurt.</summary>
+    public int BroughtIn { get; init; }
+    public double BroughtInFees { get; init; }
+    public int TownHurt { get; init; }
 }
 
 /// <summary>
@@ -270,6 +295,7 @@ public sealed partial class Run
     double _kitLostFor;
     bool _kitStocked;
     bool _wasRuptured;
+    bool _wasBrokenDown;
     public RunReport? Report { get; private set; }
 
     /// <summary>Advances the run after the world has stepped. <paramref name="crew"/> is everyone's authoritative state.</summary>
@@ -321,17 +347,27 @@ public sealed partial class Run
         }
         _wasRuptured = train.Boiler.Ruptured;
         _kitLostFor = Kit.Lost ? _kitLostFor + dt : 0;
-        bool stranded = train.Boiler.Ruptured && _kitLostFor >= Tuning.Stranded.LostForSeconds && engine.Speed < Tuning.StopBelowSpeed;
+        // Note 576: an engine battered and let go breaks down, and with nothing to make it go, at a stand it's stranded too.
+        bool brokenDown = Train.Failing.BrokenDown(train);
+        if (brokenDown && !_wasBrokenDown)
+            world.Attribution.Add(new Incident(IncidentKind.Rupture, Seconds, -1, "Engine broke down",
+                IncidentLog.At(world, train.Frames[0].Origin, front), -1, "Battered, and never mended."));
+        _wasBrokenDown = brokenDown;
+        bool stranded = (train.Boiler.Ruptured && _kitLostFor >= Tuning.Stranded.LostForSeconds || brokenDown) && engine.Speed < Tuning.StopBelowSpeed;
 
+        // Note 588: with the Wakers up, dawn's end is theirs (a train eaten, or its crew), not dawnGraceSeconds' timer.
+        bool wakers = world.Enemies?.Wakers.Enabled == true;
         if (world.Derailed)
             Finish(world, crew, RunPhase.Failed, RunEnd.Derailed);
+        else if (world.TakenAtDawn || world.WakerHolds && crew.Count > 0 && crew.All(c => !c.Alive))
+            Finish(world, crew, RunPhase.Failed, RunEnd.DawnMissed);
         else if (crew.Count > 0 && crew.All(c => !c.Alive))
             Finish(world, crew, RunPhase.Failed, RunEnd.CrewLost);
         else if (stranded)
             Finish(world, crew, RunPhase.Failed, RunEnd.Stranded);
-        else if (Seconds > _route.DawnSeconds + Tuning.DawnGraceSeconds)
+        else if (!wakers && Seconds > _route.DawnSeconds + Tuning.DawnGraceSeconds)
             Finish(world, crew, RunPhase.Failed, RunEnd.DawnMissed);
-        else if (engine.Speed < Tuning.StopBelowSpeed && train.OnMain && front >= _route.Length - Tuning.TerminusZone)
+        else if (engine.Speed < Tuning.StopBelowSpeed && train.OnMain && front >= HomeFront(train))
             Finish(world, crew, RunPhase.Arrived, RunEnd.Delivered);
         else
         {
@@ -584,6 +620,40 @@ public sealed partial class Run
 
     static TrainDynamics EngineRake(TrainOnLine train) => train.Rakes.First(r => r.Consist.HasEngine);
 
+    /// <summary>
+    /// Where the engine's front has to be for the night to be delivered, stopped: the whole of its rake in through a town
+    /// terminus's gate (note 600, <see cref="RunTuning.HomeInsideGateM"/>), or within the terminus zone of the end of line.
+    /// </summary>
+    public double HomeFront(TrainOnLine train) => TownHome(train) ?? _route.Length - Tuning.TerminusZone;
+
+    readonly List<BroughtIn> _broughtIn = [];
+
+    /// <summary>The creatures brought into town tonight (note 589), in the order they came in. The host's.</summary>
+    public IReadOnlyList<BroughtIn> BroughtIn => _broughtIn;
+
+    /// <summary>
+    /// Host: a creature found inside a fort (<see cref="World.InFort"/>), which the fort drives off. Aboard a car come in through
+    /// a town terminus's gate (note 589), it's brought into town: the town fights it in the yard for
+    /// <see cref="BroughtInTuning.FightSeconds"/> before it's gone, and the night pays for it at the end. Returns how long the
+    /// yard fight has left (seconds); 0, it's driven off now, as any other creature in a fort is.
+    /// </summary>
+    /// <param name="along">Where it is along the main line.</param>
+    public double BringIn(Enemies.Enemy e, double along)
+    {
+        if (_broughtIn.FindIndex(b => b.Enemy == e.Id) is var i and >= 0)
+            return Math.Max(0, _broughtIn[i].Seconds + Tuning.BroughtIn.FightSeconds - Seconds);
+        if (Phase == RunPhase.Yard || e.Attached < 0 || _route.Plan?.Terminus is not { Silent: false } t || along < t.GateM)
+            return 0;
+        _broughtIn.Add(new BroughtIn(e.Id, e.Kind, e.Called, e.Attached, Seconds));
+        return Tuning.BroughtIn.FightSeconds;
+    }
+
+    /// <summary>Home in through a town terminus's gate (<see cref="HomeFront"/>), or null where home is the terminus zone.</summary>
+    public double? TownHome(TrainOnLine train) =>
+        Tuning.HomeInsideGateM is { } inside && _route.Plan?.Terminus is { Silent: false } t
+            && t.GateM + inside + EngineRake(train).Consist.LengthMetres is var home && home < _route.Length - Tuning.TerminusZone
+            ? home : null;
+
     /// <summary>Where the coaling spout is over the line, and where its lever stands, for a facility.</summary>
     public (double SpoutAlong, Double3 Lever) ChuteAt(RouteFeature f, RailLine line)
     {
@@ -707,6 +777,9 @@ public sealed partial class Run
         if (end == RunEnd.Derailed)
             a.Add(new Incident(IncidentKind.Derailed, Seconds, -1, $"Consist derailed, {Kmh(world.DerailSpeed)}", where, world.DerailActor,
                 $"{Capital(world.DerailCause ?? "cause not established")}. {(world.DerailAction is { Length: > 0 } blame ? blame : "Throttle: {actor}.")}"));
+        // Note 576: broken down, not ruptured: that's the cause, whatever wrenches are aboard.
+        else if (end == RunEnd.Stranded && Train.Failing.BrokenDown(train))
+            a.Add(new Incident(IncidentKind.Stranded, Seconds, -1, "Consist stranded", where, -1, "The engine broke down."));
         else if (end == RunEnd.Stranded)
         {
             int coupler = Kit.Loss == KitLoss.LeftBehind && Kit.Vehicle > 0 ? a.CouplerPulledBy(Kit.Vehicle) : -1;
@@ -775,16 +848,23 @@ public sealed partial class Run
             fees = Math.Round(deaths * fee);
             refunds = Math.Round(bodiesHome * ht.BodyRefund * fee);
         }
-        var (lines, shown) = MarkBookmarks(world, ReportLines(world, attached, delivered, feeEach, refundEach));
+        // Note 589: every creature brought into town is the brigade's fee, and some of the town's people hurt.
+        double broughtEach = Math.Round(Tuning.BroughtIn.Fee * perCar);
+        double broughtFees = delivered ? broughtEach * _broughtIn.Count : 0;
+        int hurt = delivered ? Tuning.BroughtIn.Hurt * _broughtIn.Count : 0;
+        var (lines, shown) = MarkBookmarks(world, ReportLines(world, attached, delivered, feeEach, refundEach, broughtEach));
         return new RunReport(End, Math.Round(Seconds, 1), Math.Round(engine.Distance / 1000, 2), home.Count, cargo.Count - home.Count,
             Math.Round(cargoValue, 2), Math.Round(gross), Math.Round(coal), Math.Round(ammo), Math.Round(repairs),
-            Math.Round(gross - coal - ammo - repairs - fees + refunds - recovery), crewHome, crew.Count - crewHome, delivered ? Math.Round(Scavenged) : 0,
+            Math.Round(gross - coal - ammo - repairs - fees + refunds - recovery - broughtFees), crewHome, crew.Count - crewHome, delivered ? Math.Round(Scavenged) : 0,
             deaths, bodiesHome, fees, refunds, Math.Round(delivered ? Mail : 0), recovery, stranded ? Kit.Loss : KitLoss.None)
         {
             Lines = lines,
             Bookmarks = shown,
             ChildrenHome = children,
             ChildPay = childPay,
+            BroughtIn = delivered ? _broughtIn.Count : 0,
+            BroughtInFees = broughtFees,
+            TownHurt = hurt,
             // D.8: who everyone is now, for the campaign to carry into the next night.
             Identities = Identity.ByName(world, world.LastCrew.Select(c => c.Id)),
             // Home with the cars that are (in one of them, its floor or a locker) or in a living crewmate's hands.
@@ -797,7 +877,7 @@ public sealed partial class Run
     /// The incident report (D.12): the attribution log read out, then the cars that didn't come home (C.9 "car lost,
     /// decoupled": who pulled the coupler, and what was inside), and how the night ended last.
     /// </summary>
-    List<ReportLine> ReportLines(World world, HashSet<int> attached, bool delivered, double fee, double refund)
+    List<ReportLine> ReportLines(World world, HashSet<int> attached, bool delivered, double fee, double refund, double broughtFee = 0)
     {
         bool Home(int bodyId) => delivered && world.Bodies.All.FirstOrDefault(b => b.Id == bodyId) is { DroppedOut: false } b
             && (attached.Contains(b.Parent) || b.Carrier >= 0);
@@ -824,12 +904,29 @@ public sealed partial class Run
                 inside.Add($"the body of {IncidentLog.NameOf(world, b.Owner)}");
             int puller = taken is null ? world.Attribution.CouplerPulledBy(ids.Min()) : -1;
             // Note 511: or nobody's: the coupling worked loose and its pin dropped (note 356).
-            string cause = puller >= 0 ? $"Coupler: {IncidentLog.NameOf(world, puller)}. " : taken is null && world.Attribution.Parted(ids.Min()) ? "The coupling worked loose and parted. " : "";
+            string cause = puller >= 0 ? $"Coupler: {IncidentLog.NameOf(world, puller)}. " : taken is null && world.Attribution.Parted(ids.Min()) ? "The coupling worked loose and parted. "
+                // Note 576: battered and let go, it came apart and its freight's on the line.
+                : taken is null && world.Attribution.Apart(ids.Min()) ? "Battered and never mended, it came apart; its freight spilled on the line. " : "";
             string action = cause + (inside.Count > 0 ? $"Inside: {string.Join(", ", inside)}." : "Empty.");
             lost.Add(new ReportLine(IncidentKind.CarLost, "", $"{what} {where}. {action}"));
         }
         lines.InsertRange(end < 0 ? lines.Count : end, lost);
+        // Note 589: what rode into town, as the clerk has it, each with the brigade's fee.
+        if (delivered && _route.Plan?.Terminus is { } terminus)
+            foreach (var b in _broughtIn)
+                lines.Add(BroughtInLine(b, terminus.Name, Tuning.BroughtIn, broughtFee));
         return lines;
+    }
+
+    /// <summary>The clerk's line for a creature brought into town (note 589): "The Cinder Hound brought into Grieve on car 2. ..."</summary>
+    public static ReportLine BroughtInLine(BroughtIn b, string town, BroughtInTuning t, double fee)
+    {
+        string hurt = t.Hurt switch { 0 => "", 1 => " One of its people hurt.", var n => $" {n} of its people hurt." };
+        return new ReportLine(IncidentKind.BroughtIn, "", $"{Capital(b.Called)} brought into {town} on car {b.Car}. "
+            + $"The town's guards and guns put it down.{hurt}{(fee > 0 ? $" Brigade fee {fee:0}." : "")}", fee)
+        {
+            Seconds = b.Seconds,
+        };
     }
 
     /// <summary>

@@ -107,6 +107,12 @@ Interactive version, with the roster explorer and director tools: [claude.ai/art
 | **Price** | $9.99–$14.99 |
 | **Comms** | Proximity voice — a hard dependency, not a feature |
 
+### The fantasy *(the director, 9 Oct 2026; ARCHITECTURE §8 note 577)*
+
+> "The fantasy is we are a crew sent out into a dangerous world at night when most of the really bad monsters are asleep, we go and pick up cargo and loot abandoned villages to bring to towns. We're like merchant bandits of the rails that keep these towns alive. The towns though dont get too attached because these crews always die eventually on the job."
+
+Everything else serves this. The night is the window: the worst of the Territory sleeps, and dawn is the hour it wakes (§8). The train leaves the gate **empty**; the crew fill it, buying freight at the stops and taking what they can carry out of the dead villages, and only what they bring through the gates is paid (§9, §19, App. D). The towns need the crews and say so in scrip, not in grief (§9 Arrival, §23.1). A night that brings nothing home earns nothing.
+
 ### Design pillars
 
 **1 — The train is escape route and death trap, same object, all night.**
@@ -282,9 +288,11 @@ A very few people live outside the walls and aren't anybody's prey. They are rar
 
 The players are freight crews. Not elite soldiers. Not monster hunters. Not chosen heroes.
 
-They are the people willing to take heavily armoured locomotives through the Territory and keep the surviving settlements connected. It is dangerous work and extraordinarily valuable. Experienced crews become wealthy because everyone needs them and few survive long enough to get good at it.
+They are the people willing to take heavily armoured locomotives through the Territory and keep the surviving settlements connected: merchant bandits of the rails, who go out at night while the worst of it sleeps, fill empty cars with freight bought at the stops and loot taken from abandoned villages, and bring it to the towns that live on it (§1, *The fantasy*). It is dangerous work and extraordinarily valuable. Experienced crews become wealthy because everyone needs them and few survive long enough to get good at it.
 
 > **Keep the train moving. Get the cargo through. Come home richer than you left.**
+
+The towns don't get attached to them. Crews always die on the job eventually; the yard clerk reads a lost crewmate's fee in the voice he uses for the coal (§9 Arrival).
 
 ## 5. The rail network
 
@@ -315,6 +323,8 @@ Different creatures react to different parts of that signature. Some avoid it. S
 The crew must reach the destination before dawn — not because monsters disappear, but because **dawn reopens the main railway network.** Passenger trains, industrial traffic and scheduled freight begin moving.
 
 Your crew operates inside a dangerous nighttime freight window. Miss it and the railway itself becomes a threat, because dispatch can no longer guarantee the line ahead is clear.
+
+**What gets up at dawn** *(the director's decision, 9 Oct 2026: "The new Dawn ending design is excellent. This is exactly what I was looking for. The gargantuan creatures, the picking up of the train, especially with you in it, you should experience that if you're still playing. And then the tension before it is really, really important"; docs/design/creatures/wakers.md, note 588)*. The night is the crew's because the worst of the world sleeps through it. The crews call them the Wakers. In the last minutes before dawn the horizon behind the train goes cold and light, the ground thuds, and long low calls come from behind the hills. At dawn they rise out of the land far behind the train, and come down the line after it, slow, then faster than any engine. A train that gets in under the terminus's guns is safe: they stop short of the walls. One that doesn't is caught. The Waker takes the last car and lifts, and the train goes up from the rear car by car, the crew inside it seeing the land fall away, and then it eats it. A crew near the end at dawn can race them in; a crew far out almost never does. ~~The line goes live and the night is lost two minutes later~~ (v1's dawn, kept as a mod's `wakers.enabled: false`).
 
 ---
 
@@ -349,7 +359,7 @@ The run, and every consequence in it, begins as the train goes through the gate 
 ### Arrival
 Eventually the crew sees lights. Then walls. Then cannon towers. The gates open and the train crosses back into civilization.
 
-**Everything still attached to the locomotive counts.** Cargo is unloaded and paid into the crew's shared wallet. Bodies brought home earn back most of their crew-loss fee. Lost cars, powder, equipment and unrecovered crew become the cost of the run (Appendix D.9).
+**Everything still attached to the locomotive counts.** Cargo is unloaded and paid into the crew's shared wallet. The cars left the fortress empty, so every load paid is one the crew put aboard; a train driven straight home earns nothing and still pays its coal and repairs (note 575). Bodies brought home earn back most of their crew-loss fee. Lost cars, powder, equipment and unrecovered crew become the cost of the run (Appendix D.9).
 
 **The settlement does not mourn.** A yard clerk tallies the run over the radio as the cars come through: cargo by the car, bodies by the body, each fee read out flat, in the same voice as the coal. The town values your friend at 75%, says so, and moves on to the next line. This is the world's indifference, and it is the punchline to every failure that came before it (§23.1).
 
@@ -492,7 +502,7 @@ Not a punishment mechanic — the whole tension of the sequence. The person on t
 
 Each stop of a kind has the module it's named for and two to four in all, drawn for the night (spec D.1's module grammar; note 449). One mine head has its lift and a winch, the next its lift, tipple and crates; a switchyard or a slaughterhouse may have a winch; a wreck yard, crates.
 
-**Every facility is optional. Skipping them is safe and poor.** The payout exists to force bad decisions, not to reward good ones.
+**Every facility is optional. Skipping them is safe and pays nothing:** the train leaves the fortress empty, and only what the crew load at the stops and carry out of the villages is paid at the gates (§1 *The fantasy*; the director, 9 Oct 2026, note 575). The payout exists to force bad decisions, not to reward good ones.
 
 ## 19. Cargo
 
@@ -748,6 +758,8 @@ Nothing there is a mystery. It's still a disaster.
 | Radio breaks | Shouting down the length of a moving train |
 | Cannon fouls | Someone clears it by hand, under fire |
 | Car catches fire | Grab the extinguishers or abandon it |
+| A car battered and left (§23.3) | It works itself apart as it runs and its freight spills out of it; mend it with the wrench, or it comes off its rails and takes everything behind it |
+| The engine battered and left (§23.3) | It loses its pull and its brake; mend it with the wrench, or it breaks down and the crew are stranded |
 | Engineering kit left in car four | Somebody's going out there, and the kit is on a body (§12) |
 | Crew lost on the ground | Two cannons, one gunner, pick a direction |
 
@@ -761,7 +773,7 @@ Nothing there is a mystery. It's still a disaster.
 | **Derailed** | The train leaves the rails. Everyone dies, and Appendix E plays |
 | **Crew lost** | No living crew remain |
 | **Dawn missed** | Still out when the line goes live (§8) |
-| **Stranded** | The boiler is ruptured and the engineering kit is lost (§23.2) |
+| **Stranded** | The boiler is ruptured and the engineering kit is lost (§23.2), or the engine has broken down (§23.3) |
 
 ### Boiler rupture
 
@@ -800,6 +812,21 @@ A kit that comes to rest outside the walkable corridor is relocated like a body 
 **Settlement.** A stranded night pays like any failed night: no cargo, no body refunds, and crew-loss fees for anyone who died. The settlement sends a dawn freight to tow the train in, and bills for it: a **recovery fee** of 0.5 × the tier's per-car value. The locomotive and every car still coupled come home. The living crew come home too, and aren't charged a crew-loss fee. Appendix E.9 covers the outro.
 
 **Death takes you out of the night, not out of the session.** The dead watch their crew and talk among themselves, wait in a queue, and come back through a **Holdout** at the next halt or yard, if the crew stops for them. Their bodies stay out there, and the settlement pays the crew to bring them home. See Appendix D.
+
+### 23.3 Damage let go *(the director, 9 Oct 2026; ARCHITECTURE §8 note 576)*
+
+*"We also need the cars and locomotive being busted to have clear model differences and have real consequences. If players dont fix the ship in sea of thieves the ship goes down and you lose everything. If players dont fix the train here seemingly nothing happens."*
+
+A knock costs a repair bill. A car or the engine battered past half its shell, and left, goes on to cost the night (train.json `failing`):
+
+| Stage | A car | The engine |
+|---|---|---|
+| **Holding** (over half) | Dented, called out where the wrench mends it (note 301). Nothing more | Leaking steam, knocking (the art and the audio's) |
+| **Failing** (under half) | Works itself apart as it runs, faster the faster it runs: about 200 s at line speed from half to nothing. Its freight spills out of it as it goes, about a car-load in the same time. Dust and splinters off its sides, sparks where its plate grinds, its timbers groaning; "THE CAR'S COMING APART" inside it, and "CAR n COMING APART" in the cab | Its pull falls with its shell, to about a third, and its brake to under half. Only while it's pulling. "THE ENGINE'S FAILING" on it; dark smoke off its flanks |
+| **Breaking** (under a fifth) | The last warning: a shower of sparks, the groaning louder, the HUD flashing | "THE ENGINE'S BREAKING DOWN" |
+| **Gone** | It comes apart: off its rails, the train parted ahead of it, it and everything behind it left on the line. Its freight is gone. The report says so | It breaks down: no power at all. Once it's at a stand, the night ends **Stranded** (§23.2's tow, its fee) |
+
+Nothing comes of it standing, nor in the fortress. The wrench at the dent mends any of it, half a shell back in about 12 s (note 301); a car a Car Hugger has eaten into can only come back to what's left of it. The bots send a walker with a wrench to a failing car before a lamp or a mail bag. The model's visible stages are the art's (DamageKit's three, asked to be made clearer on the art checklist).
 
 ### 23.1 Failure has to be funny
 
@@ -2438,19 +2465,21 @@ Nobody died, so there's no opera. The joke is how little anyone cares.
 
 ## E.10 Tunables
 
+The director, 9 Oct 2026, playtest (note 579): "When derailment happens things need to slow right down. They need to show the derailment happening in slow motion with people being thrown all over the place and cars basically being blasted off the tracks in a comedic way." The fling, kick and spin went to the top of their ranges and the slow motion down; outside the film, the live wreck plays its first 6 s at 0.2× (the replay shows it again) and every car is blasted up off the rails (tuning/wreck.json `slowSeconds`, `slowRate`, `blastUp`, `blastRoll`).
+
 | Tunable | Default | Range |
 |---|---|---|
 | Pre-sim length | 6s | 4–8s |
 | Substeps | 4 | 2–8 |
 | Coupling break strain | — | Set in feel-testing |
-| Fling multiplier | ×1.6 (5 Oct; was ×1.3) | ×1.0–2.0 |
-| Upward kick | 3–5 m/s (5 Oct; was 2–4) | 0–6 m/s |
-| Spin | 3.5–7 rad/s (5 Oct; was ≤4) | 0–8 |
+| Fling multiplier | ×2.0 (9 Oct; was ×1.6, ×1.3) | ×1.0–2.0 |
+| Upward kick | 4–6 m/s (9 Oct; was 3–5, 2–4) | 0–6 m/s |
+| Spin | 4.5–8 rad/s (9 Oct; was 3.5–7, ≤4) | 0–8 |
 | Ejection cap | 30 m/s | 20–40 |
 | Minimum-kick speed | 6 m/s | 4–10 |
 | Bystander distance | 25 m | 15–40 |
-| Base slow motion | 0.4× (5 Oct; was 0.25×) | 0.1–0.5× |
-| Peak slow motion | 0.15× (5 Oct; was 0.1×) | 0.05–0.25× |
+| Base slow motion | 0.3× (9 Oct; was 0.4×, 0.25×) | 0.1–0.5× |
+| Peak slow motion | 0.1× (9 Oct; was 0.15×, 0.1×) | 0.05–0.25× |
 | Player shot | 4s (5 Oct, take 3; was 2.5s) | 1.5–5s |
 | Player-shot block cap | 32s (5 Oct, take 3; was 16s) | 10–40s |
 | First person | to the death + 3.8s, 4.5–9s (5 Oct, take 3) | — |

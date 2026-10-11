@@ -20,6 +20,12 @@ public class StopCrewTests
     static readonly PlayerTuning P = Tuning.Player;
     static readonly FacilityTuning F = FacilityTests.F;
     static readonly Stops.LootTuning L = DataFile.Load<Stops.LootTuning>(Path.Combine(DataFile.FindContentRoot(), Stops.LootTuning.File));
+    /// <summary>
+    /// The room these stops were written for: every car half full, as the train left the fortress until note 575. The train
+    /// leaves empty now (run.json departureLoad 0); these test a stop's own work (its crates, heavies, village and doors), so
+    /// they keep the room they were measured with. What an empty train does at a stop is the harness nights' (note 575).
+    /// </summary>
+    const double HalfLoaded = 0.5;
 
     /// <summary>
     /// A route whose first facility (before any other kind of stop) has these modules down its spur: the facility's index
@@ -113,7 +119,7 @@ public class StopCrewTests
             var (route, facility, toe) = deadLine ? DeadLine() : coaling ? CoalingTower() : StopWith(village, modules.Length > 0 ? modules : [ModuleKind.Winch]);
             Calls = new CrewCalls();
             var calls = Calls;
-            var train = new TrainOnLine(new TrainDynamics(Consist.Uniform(T, cars + lost, Tuning.Run.DepartureLoad)), route.Build(), toe - from, Tuning.Boiler);
+            var train = new TrainOnLine(new TrainDynamics(Consist.Uniform(T, cars + lost, HalfLoaded)), route.Build(), toe - from, Tuning.Boiler);
             if (lost > 0)
                 train.Uncouple(train.Vehicles[cars - 1].Id);
             World = creatures ? new World(train, Tuning.Combat) : new World(train);
@@ -632,7 +638,7 @@ public class StopCrewTests
         Assert.True(run.Departures > 0, $"never left: driver {night.Driver.Stops!.Doing}; crew {where}");
         // Every crate that had a car with room went in: the cars that went down the spur leave the fortress part loaded.
         int fit = SpurDrill.Capacity(T.Geometry, train.Line.Branches[night.Site.Spur], Tuning.Route.Junctions.PointsLength);
-        int room = (int)Math.Round(fit * (1 - Tuning.Run.DepartureLoad) / F.Crates.LoadPerCrate);
+        int room = (int)Math.Round(fit * (1 - HalfLoaded) / F.Crates.LoadPerCrate);
         double added = cargoCars.Sum(v => v.Load) - before;
         Assert.Equal(Math.Min(night.Site.CrateCount, room) * F.Crates.LoadPerCrate, added, 6);
         Assert.All(night.Crew, c => Assert.True(c.Alive, $"died of {c.Death}; crew {where}"));
@@ -658,7 +664,9 @@ public class StopCrewTests
         var doing = new List<string>();
         night.Until(() => run.Departures > 0, 1800, () =>
         {
-            most = Math.Max(most, hands.Count(h => h.Searching is not null));
+            // Whoever's carrying crates may go: at a crates-only stop the winch pair carry too (note 593: with more spots to
+            // search, the one that went first was one of them).
+            most = Math.Max(most, night.Bots.OfType<RoofWalkerBot>().Select(b => b.Job).OfType<StopHand>().Count(h => h.Searching is not null));
             foreach (var h in hands)
                 if (h.Doing.Length > 0 && !doing.Contains(h.Doing))
                     doing.Add(h.Doing);
@@ -669,7 +677,7 @@ public class StopCrewTests
         // Some of the village searched, its finds stowed aboard, by no more than half the crate hands at once.
         Assert.True(run.HidingSpots.Any(h => h.Stop == k && run.Searched(k, h.Container.Index)), trace);
         Assert.True(run.Stowed.Any(f => run.HidingSpots.Any(h => h.Stop == k && h.Container.Index == f.Container)), trace);
-        Assert.InRange(most, 1, (int)Math.Ceiling(hands.Count * F.Crew.VillageShare));
+        Assert.InRange(most, 1, (int)Math.Ceiling(night.Calls.CrateHands * F.Crew.VillageShare));
         // Nobody left behind, nobody dead, the train whole.
         Assert.All(night.Crew, c => Assert.True(c.Alive, $"died of {c.Death}; crew {where}"));
         Assert.All(night.Crew, c => Assert.NotEqual(Surface.Ground, c.Surface));
@@ -687,7 +695,8 @@ public class StopCrewTests
         var world = night.World;
         var run = world.Run!;
         var walls = train.Walls!;
-        var hands = night.Bots.OfType<RoofWalkerBot>().Select(b => b.Job).OfType<StopHand>().Where(h => h.Job == StopJob.Crates).ToList();
+        // Any hand carrying crates may be the one out there: at a crates-only stop the winch pair carry too (note 593).
+        var hands = night.Bots.OfType<RoofWalkerBot>().Select(b => b.Job).OfType<StopHand>().ToList();
         // Out among the houses: the Choir comes.
         night.Until(() => hands.Any(h => h.Doing.StartsWith("searching the", StringComparison.Ordinal)), 1800);
         var outThere = hands.First(h => h.Doing.StartsWith("searching the", StringComparison.Ordinal));
@@ -747,7 +756,8 @@ public class StopCrewTests
         var walls = train.Walls!;
         var pairs = walls.HouseDoors.GroupBy(d => (d.Key - 1) >> 2).Where(g => g.Count() == 2).ToList();
         Assert.NotEmpty(pairs);
-        var hands = night.Bots.OfType<RoofWalkerBot>().Select(b => b.Job).OfType<StopHand>().Where(h => h.Job == StopJob.Crates).ToList();
+        // Any hand carrying crates may be the one out there: at a crates-only stop the winch pair carry too (note 593).
+        var hands = night.Bots.OfType<RoofWalkerBot>().Select(b => b.Job).OfType<StopHand>().ToList();
         night.Until(() => hands.Any(h => h.Doing.StartsWith("searching the", StringComparison.Ordinal)), 1800);
         var outThere = hands.First(h => h.Doing.StartsWith("searching the", StringComparison.Ordinal));
         int me = outThere.PlayerId!.Value - 1;
@@ -943,7 +953,7 @@ public class StopCrewTests
         Assert.True(run.Departures > 0, $"never left: driver {night.Driver.Stops!.Doing}; crew {where}; did {string.Join(", ", doing)}");
         Assert.Contains("carrying the back end", doing);
         int fit = SpurDrill.Capacity(T.Geometry, train.Line.Branches[night.Site.Spur], Tuning.Route.Junctions.PointsLength);
-        double room = fit * (1 - Tuning.Run.DepartureLoad);
+        double room = fit * (1 - HalfLoaded);
         double offered = night.Site.CrateCount * F.Crates.LoadPerCrate + night.Site.HeavyStack.Length * F.Crates.Heavy.LoadPerCrate;
         Assert.Equal(Math.Min(offered, room), cargoCars.Sum(v => v.Load) - before, 6);
         // None left lying at the site if there was room for it.
@@ -1265,7 +1275,7 @@ public class StopCrewTests
         // Let go as each filled: at most a tick or two's overflow, nothing that strains a car beyond the stop's own knocks.
         Assert.All(spurCars, c => Assert.True(c.Integrity > 0.95, $"integrity {c.Integrity}"));
         // The conveyor reaches the first three (the car under the spout's and those ahead of it); the spout the fourth.
-        double fill = 1 - Tuning.Run.DepartureLoad;
+        double fill = 1 - Tuning.Run.DepartureLoad; // FacilityWork runs the game's own departure (empty, note 575)
         Assert.Equal(F.Conveyor.Grain - 3 * fill, r.Grain, 1);
         Assert.Equal(F.Spout.Bin - fill, r.Bin, 1);
     }

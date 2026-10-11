@@ -10,7 +10,7 @@ namespace DarkTerritory.Sim.Run;
 /// and any other PUNISH that held nobody (<see cref="Punished"/>). Note 287: the night's first threat and the draw that
 /// brought it (<see cref="Drawn"/>): "Cinder Hounds came first at km 2. Drawn by the whistle: Dave."
 /// </remarks>
-public enum IncidentKind : byte { Grab, Death, Rescue, Rupture, CarLost, Derailed, Stranded, Voted, Struck, Fire, Nest, Aboard, Runaway, Points, Punished, Drawn, Slain }
+public enum IncidentKind : byte { Grab, Death, Rescue, Rupture, CarLost, Derailed, Stranded, Voted, Struck, Fire, Nest, Aboard, Runaway, Points, Punished, Drawn, Slain, BroughtIn }
 
 /// <summary>
 /// One fact for the incident report (C.9, D.12): what happened, to whom and where, and the <b>contributing action</b>: the
@@ -37,6 +37,7 @@ public sealed class Attribution
     readonly Dictionary<int, int> _lampBy = [], _couplerBy = [];
     // Note 511: the cars a loose coupling's dropped pin parted from the train (note 356), nobody's hand on it.
     readonly HashSet<int> _parted = [];
+    readonly HashSet<int> _apart = [];
 
     public IReadOnlyList<Incident> Log => _log;
 
@@ -69,6 +70,9 @@ public sealed class Attribution
     public int CouplerPulledBy(int vehicle) => _couplerBy.GetValueOrDefault(vehicle, -1);
     public void PartedAt(int vehicle) => _parted.Add(vehicle);
     public bool Parted(int vehicle) => _parted.Contains(vehicle);
+    /// <summary>A car that came apart, battered and let go (note 576): what parted the train ahead of it.</summary>
+    public void CameApart(int vehicle) => _apart.Add(vehicle);
+    public bool Apart(int vehicle) => _apart.Contains(vehicle);
 
     public void Add(Incident incident) => _log.Add(incident);
 

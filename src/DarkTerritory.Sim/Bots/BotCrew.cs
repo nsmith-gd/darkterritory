@@ -52,7 +52,7 @@ public sealed class BotCrew(CrewCalls? calls) : IDisposable
             _ => i == 1 && gunner ? StopJob.None : StopJob.Crates,
         };
         StopHand? hand = calls is null ? null : new StopHand(job, calls, i, player.Cold);
-        return i == 0 ? express is { } fast ? new ConductorBot(calls, i) { CruiseSpeed = fast, Express = true } : new ConductorBot(calls, i)
+        return i == 0 ? express is { } fast ? new ConductorBot(calls, i) { CruiseSpeed = fast, Express = true } : new ConductorBot(calls, i) { Cold = player.Cold }
             : i == 1 && combat is { } c ? new GunnerBot(c.Guns, c.Choir, seed * 1000 + i, player.Cold, hand)
             // The engine's forward gun's (note 414), in a crew big enough: its last place.
             : i == count - 1 && combat is { Guns.ForwardGunnerFrom: > 0 } f && count >= f.Guns.ForwardGunnerFrom
@@ -91,6 +91,9 @@ public sealed class BotCrew(CrewCalls? calls) : IDisposable
         // (note 259: one in the cab minds it while the driver's out breaching a Holdout).
         if (bot is ConductorBot cb)
         {
+            cb.Me = session.PlayerId ?? -1;
+            cb.Crew = [.. session.RemoteIds.Select(id => (Id: (int)id, Seen: session.TryGetRemote(id, 1, out var s), State: s))
+                .Where(c => c.Seen && (c.State.Health > 0 || c.State.Death != DeathCause.None)).Select(c => (c.Id, c.State))];
             cb.Crewmates = [.. session.RemoteIds.Select(id => session.TryGetRemote(id, 1, out var s) ? s : default).Where(s => s.Health > 0 || s.Death != DeathCause.None)];
             cb.Players = calls is null ? null : [.. session.RemoteIds.Where(id => !calls.IsBot(id))
                 .Select(id => session.TryGetRemote(id, 1, out var s) ? s : default).Where(s => s.Health > 0 || s.Death != DeathCause.None)];
@@ -119,7 +122,8 @@ public sealed class BotCrew(CrewCalls? calls) : IDisposable
         // the Mourners off a body, Tower Jaw clubbed or its wreck cleared, the Freight Beetle clubbed, the Knotter clubbed
         // slack, a Hotbox prised out and its axle freed, the Brakeman cornered and his brakes unwound. A rescue (after) beats them.
         var others = (bot as RoofWalkerBot)?.Crew ?? (bot as GunnerBot)?.Crew ?? [];
-        if (bot is RoofWalkerBot { Relieving: false } or GunnerBot && !hunted)
+        // And the driver that's handed someone playing the controls (the director, 9 Oct 2026): out working the train as a walker.
+        if (bot is RoofWalkerBot { Relieving: false } or GunnerBot or ConductorBot { HandedOver: true } && !hunted)
         {
             var hand = (bot as RoofWalkerBot)?.Job ?? (bot as GunnerBot)?.Job;
             intent = Heed.Mourners(intent, session.Predicted, session.World, me, hand);
@@ -139,6 +143,7 @@ public sealed class BotCrew(CrewCalls? calls) : IDisposable
         intent = Heed.Gaps(intent, session.Predicted, session.World, me);
         intent = Heed.Flies(intent, session.Predicted, session.World, t);
         intent = Heed.Gutter(intent, session.Predicted, session.World, t);
+        intent = Heed.Mend(intent, session.Predicted, session.World);
         intent = Heed.Followers(intent, session.Predicted, session.World, me, calls, t);
         intent = Heed.Drift(intent, session.Predicted, session.World, me);
         intent = Heed.Gannet(intent, session.Predicted, session.World, me);
@@ -172,6 +177,6 @@ public sealed class BotCrew(CrewCalls? calls) : IDisposable
     public static PlayerIntent HeedBrakeman(IBot bot, PlayerIntent intent, in PlayerState self, World world, int me,
         IReadOnlyList<(int Id, PlayerState State)> others, CrewCalls? calls) =>
         (bot as RoofWalkerBot)?.WarmUpStep is null or "Off" && (bot as GunnerBot)?.WarmUpStep is null or "Off"
-            ? Heed.Brakeman(intent, self, world, me, others, calls)
+            ? Heed.Brakeman(intent, self, world, me, others, calls, ((bot as RoofWalkerBot)?.Job ?? (bot as GunnerBot)?.Job)?.AtAStop == true)
             : intent;
 }
