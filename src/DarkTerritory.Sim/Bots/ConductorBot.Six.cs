@@ -51,6 +51,11 @@ public sealed partial class ConductorBot
         if (_stoodForSix && standing)
             _standingForSix += SimConstants.TickSeconds;
         bool givenUp = _standingForSix > b.StandGiveUp;
+        // Note 615: at dawn, with the Wakers coming, a stand that their run up to the train won't allow is given up on at once
+        // (frontier:7 seed 13: stood for a Knotter on car 2 from 36 s after the dawn line, with the hands come forward to the
+        // cab, and caught 215 s on, short of the 240 s give-up).
+        double pace = world.LampShining ? CruiseSpeed : DarkCruiseSpeed;
+        givenUp |= DawnInHand(world, et, Math.Max(0, b.StandGiveUp - _standingForSix), pace) <= 0;
 
         // The wreck across the line ahead: short of it, and stood there till it's cleared.
         if (world.Controls.Reverser >= 0 && d.Path == Rail.RailLine.MainPath)
@@ -144,7 +149,7 @@ public sealed partial class ConductorBot
         }
         // Dealt with: everyone aboard first (nobody's left down between the cars it's about to back onto).
         if (Crewmates?.Any(c => c.Alive && (c.Parent == PlayerState.World || c.Surface == Surface.Ladder)) == true
-            && _standingForSix <= b.StandGiveUp + AllAboardSeconds)
+            && _standingForSix <= b.StandGiveUp + AllAboardSeconds && DawnInHand(world, et, 0, pace) > 0)
         {
             SixStep = "all aboard";
             return hold;
@@ -158,6 +163,23 @@ public sealed partial class ConductorBot
         _standingForSix = 0;
         (_knotRear, _knotId, _knotSlack) = (-1, -1, false);
         return null;
+    }
+
+    /// <summary>
+    /// Note 615 (queue #347; D1's dawn rule: "at the dawn line, when SecondsInHand doesn't cover the wait plus the run in, it
+    /// goes"): seconds to spare if the train stands <paramref name="wait"/> s more and then runs in to where the Wakers stop
+    /// (their wall, <c>wakers.stopShort</c> short of the gate) at <paramref name="pace"/>, before the lead reaches its rear
+    /// (<see cref="Waker.SecondsInHand"/>, reckoned for the train as it is: stood, they catch it soonest), less
+    /// <c>crewBots.sixDawnMargin</c>. +∞ with no Wakers tonight, or the rear already past their wall.
+    /// </summary>
+    public static double DawnInHand(World world, EnemyTuning et, double wait, double pace)
+    {
+        if (!et.Wakers.Enabled || world.Run is null)
+            return double.PositiveInfinity;
+        double past = Waker.Wall(world, et.Wakers) - world.Train.RearDistance;
+        if (past <= 0)
+            return double.PositiveInfinity;
+        return Waker.SecondsInHand(world) - wait - past / Math.Max(1, pace) - et.CrewBots.SixDawnMargin;
     }
 
     /// <summary>

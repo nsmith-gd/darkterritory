@@ -785,4 +785,5 @@ written here instead is moved out by `tools/coord/notes.py split`; the Coordinat
 - [611. The bots carry on (D1.4, queue #343, note 606's not-yet, at D1's ask after #340: "the director plays campaign nights with bots")](notes/611.md)
 - [612. A town burnt on an earlier visit shows it as you arrive (D1.4, queue #344, note 608's not-yet)](notes/612.md)
 - [613. Three nights running (D1.4, queue #345, at D1's ask after #343 and #344: "a campaign played end to end, three nights running, the way the…](notes/613.md)
+- [615. The driver at dawn stands for no Knotter the Wakers won't allow (queue #347, D1.2 for D1; note 607's seed 13; D1's dawn rule: "at the dawn…](notes/615.md)
 <!-- end of the notes index -->
