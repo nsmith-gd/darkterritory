@@ -784,4 +784,5 @@ written here instead is moved out by `tools/coord/notes.py split`; the Coordinat
 - [611. The bots carry on (D1.4, queue #343, note 606's not-yet, at D1's ask after #340: "the director plays campaign nights with bots")](notes/611.md)
 - [612. A town burnt on an earlier visit shows it as you arrive (D1.4, queue #344, note 608's not-yet)](notes/612.md)
 - [613. Three nights running (D1.4, queue #345, at D1's ask after #343 and #344: "a campaign played end to end, three nights running, the way the director will play it")](notes/613.md)
+- [614. The bots on the other tiers' 7 km nights (D1.5, queue #346; D1's ask after #342: every bot sweep so far was frontier:7)](notes/614.md)
 <!-- end of the notes index -->

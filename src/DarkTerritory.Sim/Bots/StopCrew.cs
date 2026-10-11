@@ -2885,6 +2885,10 @@ public sealed partial class StopHand(StopJob job, CrewCalls calls, int member, C
                 if (Math.Abs(ladder.Inward.X) < 0.9 || ladder.Foot.Y > 0.5 || ladder.Top < frame.Shape.RoofHeight - 0.5)
                     continue;
                 var at = frame.ToWorld(ladder.Foot - ladder.Inward * 0.3);
+                // Note 614: not up by a gap a Whistler's watching, which a bot on its own keeps clear of (Heed.Gaps): local:7
+                // seed 5's gunner, the nearest ladder by one, stood off it for three minutes and the driver waited on it.
+                if (Heed.Watched(world, at))
+                    continue;
                 double d = (Flat(at) - Flat(here)).Length;
                 if (d < bestD)
                     (best, bestD) = (at, d);
