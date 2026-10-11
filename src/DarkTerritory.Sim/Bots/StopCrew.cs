@@ -3069,7 +3069,7 @@ public sealed partial class StopHand(StopJob job, CrewCalls calls, int member, C
         var here = PlayerMotor.WorldPosition(self, train);
         foreach (var frame in train.Frames)
         {
-            if (frame.Index == 0 || train.StandingCar(frame.Index) || train.Dynamics.Consist.IndexOf(frame.Index) < 0)
+            if (frame.Index == 0 || train.StandingCar(frame.Index) || train.Dynamics.Consist.IndexOf(frame.Index) < 0 || AheadOfTheEngine(train, frame.Index))
                 continue;
             for (int l = 0; l < frame.Shape.Ladders.Count; l++)
             {
@@ -3123,13 +3123,25 @@ public sealed partial class StopHand(StopJob job, CrewCalls calls, int member, C
     Double3? _ballastAt;
     int _ballastStill;
 
+    /// <summary>
+    /// A car the engine's rake carries ahead of the engine: a switchyard's, picked up off its siding (note 187: the crew go in
+    /// for each siding's with every car they've already picked up still ahead of the engine). Its roof's no way to the train's:
+    /// the engine's between, its cab forward and its tender lower than a roof (note 618).
+    /// </summary>
+    public static bool AheadOfTheEngine(TrainOnLine train, int car)
+    {
+        var consist = train.Dynamics.Consist;
+        int at = consist.IndexOf(car);
+        return at >= 0 && at < consist.IndexOf(0);
+    }
+
     PlayerIntent ToARoofLadder(in PlayerState self, TrainOnLine train, int? only = null)
     {
         Double3? best = null;
         double bestD = double.MaxValue;
         foreach (var frame in train.Frames)
         {
-            if (frame.Index == 0 || train.StandingCar(frame.Index) || train.Dynamics.Consist.IndexOf(frame.Index) < 0
+            if (frame.Index == 0 || train.StandingCar(frame.Index) || train.Dynamics.Consist.IndexOf(frame.Index) < 0 || AheadOfTheEngine(train, frame.Index)
                 || only is { } o && frame.Index != o)
                 continue;
             foreach (var ladder in frame.Shape.Ladders)
