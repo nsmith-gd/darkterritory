@@ -494,7 +494,7 @@ public class StopCrewTests
         double next = double.MaxValue;
         for (var ahead = StopPlan.Ahead(open.World, openStops.Plan.Hold + 50, done, open.Calls); ahead is not null;
              done.Add(ahead.Key), ahead = StopPlan.Ahead(open.World, openStops.Plan.Hold + 50, done, open.Calls))
-            next = Math.Min(next, StopDriver.Allowance(ahead));
+            next = Math.Min(next, StopDriver.Allowance(ahead, open.World));
         Assert.NotEqual(double.MaxValue, next);
         var night = new Night(cars: 8, walkers: 0, dawn: 1e6 - (spare - (next + over)));
         var stops = night.Driver.Stops!;
@@ -521,8 +521,8 @@ public class StopCrewTests
         Assert.False(own.PickUp, "the yard's own track first");
         var pickUp = StopPlan.Ahead(open.World, own.Hold + 1, new HashSet<int> { own.Key }, open.Calls);
         Assert.True(pickUp is { PickUp: true }, "a siding with cars standing on it past the own track");
-        double between = (StopDriver.Allowance(own) + StopDriver.Allowance(pickUp!)) / 2;
-        Assert.True(StopDriver.Allowance(pickUp!) < between && between < StopDriver.Allowance(own));
+        double between = (StopDriver.Allowance(own, open.World) + StopDriver.Allowance(pickUp!, open.World)) / 2;
+        Assert.True(StopDriver.Allowance(pickUp!, open.World) < between && between < StopDriver.Allowance(own, open.World));
         var night = new Night(cars: 8, walkers: 0, dawn: 1e6 - (spare - between), modules: [ModuleKind.Rakes, ModuleKind.Crates]);
         var stops = night.Driver.Stops!;
         night.Until(() => stops.Log.Count > 0, 900);

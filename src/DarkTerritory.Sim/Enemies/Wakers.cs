@@ -63,6 +63,30 @@ public sealed class Waker(int id) : Enemy(id)
         !Holds ? 0 : Math.Min(cars, (int)Math.Floor(Math.Max(0, Extra - t.EatAfter) / Math.Max(1e-6, t.EatSeconds)));
 
     /// <summary>
+    /// Note 621: seconds after dawn the lead Waker reaches the rear of a train going on at <paramref name="speed"/> (m/s) all the
+    /// while: it rises <c>riseSeconds</c> after dawn <c>riseBehind</c> m behind the rear and runs it down. A stood train's is the
+    /// soonest (about 72 s on the tuning of 9 Oct); +∞ if the train runs at their top speed or over.
+    /// </summary>
+    public static double CatchAfterDawn(WakersTuning t, double speed)
+    {
+        double v = Math.Max(0, speed);
+        if (v >= t.TopSpeed)
+            return double.PositiveInfinity;
+        double lo = 0, hi = 60;
+        while (Covered(hi, t) - t.RiseBehind - v * (t.RiseSeconds + hi) < 0 && hi < 1e6)
+            hi *= 2;
+        for (int i = 0; i < 60; i++)
+        {
+            double mid = 0.5 * (lo + hi);
+            if (Covered(mid, t) - t.RiseBehind - v * (t.RiseSeconds + mid) < 0)
+                lo = mid;
+            else
+                hi = mid;
+        }
+        return t.RiseSeconds + hi;
+    }
+
+    /// <summary>
     /// Note 607 (shared with D1.5's #337, the driver at dawn): seconds before the lead Waker reaches the train's rear, the train
     /// going on at its speed now; +∞ with no Wakers tonight or before the dawn line's reckoning can start, 0 once one holds it.
     /// From what every machine has (the run's dawn clock, the lead's place on the line, the tuning), so a client's bot reckons it
