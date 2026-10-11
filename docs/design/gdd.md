@@ -22,6 +22,7 @@ Interactive version, with the roster explorer and director tools: [claude.ai/art
   - a town's standing lowered by what's been brought into it (only its burnt houses are remembered);
   - the guards running out to the yard (they're at their places round the creature at once);
   - a joiner leaving the wait for the host's next night by hand (it gives up after a while, back to the menu).
+  - the example mod, Late Dispatch (tools/mods/example), holding the main line past dawn: dispatch's hold counts only with the Wakers turned off, and the mod doesn't turn them off.
 
 **v1.5 changes — the director's play-tests of 5–7 October.**
 - **Boarding-first.** Nothing acts inside the train unless it boarded: each creature by its own rule at a known point, with a telegraph and a counter, at its own speeds. A hauling train is safe from most creatures, not all; stops, facilities and tight bends are where things get on (§21, App. A, F.1 Decided).
@@ -252,7 +253,7 @@ Use talks to someone, and Use again hears their next line. They turn to face you
 
 **Mystery is seeded, not explained.** A few threads run through every town, a scrap or two each: the fall, the lost trains (the night mail, "still due"), the towns that stopped answering, the sea, the penal cars, Dispatch, and the clerk's fees. None of them is ever explained.
 
-**Town to town** *(the director, 9 Oct 2026: "the town that we end in in a run should be the same town that we begin in in the next run ... so that you feel like you are still living up this fantasy of I'm going from town to town to town"; notes 591, 600, 603, 604)*. The terminus is a town of its own, and it's the town the next night leaves from: the same name, custom, streets, people and papers. Delivered, its people talk and its board reads as the departure town's do. Between nights the crew look out on it from its square while the host picks the next contract from its board, and the loading card is that town's ("FORT BOUDREAU · BUILDING THE NIGHT AHEAD"). A night not delivered leaves the crew where they were.
+**Town to town** *(the director, 9 Oct 2026: "the town that we end in in a run should be the same town that we begin in in the next run ... so that you feel like you are still living up this fantasy of I'm going from town to town to town"; notes 591, 600, 603, 604)*. The terminus is a town of its own, and it's the town the next night leaves from: the same name, custom, streets, people and papers. Delivered, its people talk and its board reads as the departure town's do. Between nights the crew look out on it from its square while the host picks the next contract from its board, and the loading card is that town's ("FORT BOUDREAU · BUILDING THE NIGHT AHEAD"). A night not delivered leaves the crew where they were, and so does one delivered to a dead line's silent settlement: nobody lives there to leave from.
 
 **A town remembers** *(notes 608, 612)*. A creature ridden in through the gate (§9) is fought in the yard: the gatekeeper and guards turn out round it, pieces up, with the wall guns. Each one brought in sets a house nearest the gate alight, and it burns that night. The town keeps its burnt houses: they're burnt out when the crew next arrive, and when they next leave from it, and the gatekeeper and guards say so.
 
