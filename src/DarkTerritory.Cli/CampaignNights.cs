@@ -76,8 +76,18 @@ static class CampaignNights
                     // Where the night's scrip went (spec F.2's settlement): what the freight and mail made, and what it cost.
                     money = report is null ? null : new
                     {
-                        report.Gross, report.Mail, report.CoalCost, report.AmmoCost, report.RepairCost, report.CrewLossFees,
-                        report.BodyRefunds, report.Recovery, report.BroughtInFees, report.CarsLost, report.CrewLost, report.Deaths,
+                        report.Gross,
+                        report.Mail,
+                        report.CoalCost,
+                        report.AmmoCost,
+                        report.RepairCost,
+                        report.CrewLossFees,
+                        report.BodyRefunds,
+                        report.Recovery,
+                        report.BroughtInFees,
+                        report.CarsLost,
+                        report.CrewLost,
+                        report.Deaths,
                     },
                     lines = report?.Lines.Select(l => $"{l.Kind}: {l.Text}").ToArray(),
                     wall = Math.Round(clock.Elapsed.TotalSeconds, 1),

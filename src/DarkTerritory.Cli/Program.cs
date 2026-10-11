@@ -677,13 +677,7 @@ object CampaignCommand(string content, string verb, string[] args)
                     Loot = args.Contains("--no-loot") ? null : DataFile.Load<DarkTerritory.Sim.Stops.LootTuning>(Path.Combine(content, DarkTerritory.Sim.Stops.LootTuning.File)),
                     // --lose-at s: the night lost at dawn, forced, s seconds into the run (note 613): the Wakers have the train, as
                     // they would at dawn's end (note 588), to see what the campaign makes of a night that didn't arrive.
-                    Observe = Opt(args, "--lose-at", -1) is var loseAt and >= 0
-                        ? (_, _, w) =>
-                        {
-                            if (w.Run is { Seconds: var at } && at >= loseAt)
-                                w.TakenAtDawn = true;
-                        }
-                        : null,
+                    Observe = Opt(args, "--lose-at", -1) is var loseAt and >= 0 ? (_, _, w) => w.TakenAtDawn |= w.Run?.Seconds >= loseAt == true : null,
                 }, loadout.Boiler);
                 if (report.Run is not { } night)
                     return new { error = "the night didn't run" };
