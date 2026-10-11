@@ -95,7 +95,8 @@ public sealed class EditorTests : IDisposable
         var back = DataFile.Load<Route>(Path.Combine(_content, "lines", "my-night.route.json"));
         Assert.Equal("my-night", back.Name);
         Assert.Contains(back.Features, f => f.Kind == FeatureKind.Sleepers && f.Start == 6000);
-        Assert.True(back.Build().Length > 17_000);
+        // Past the patch the designer put in (the nights are 7 km since queue #296).
+        Assert.True(back.Build().Length > 6020);
         Assert.True(File.Exists(Path.Combine(_content, "lines", "my-night.json")));
     }
 
