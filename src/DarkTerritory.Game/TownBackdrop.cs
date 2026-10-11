@@ -25,6 +25,8 @@ public sealed record TownBackdrop(Sim.Route.Route Route, TrainOnLine Train, Sim.
     /// The loading card over it (note 604): the town by name, and the night ahead, "THE NIGHT TO GRIEVE" once the line's built
     /// (<paramref name="terminus"/>), "BUILDING THE NIGHT AHEAD" while it is.
     /// </summary>
-    public static (string Heading, string Under) Card(string town, string? terminus) =>
-        (town.ToUpperInvariant(), terminus is { Length: > 0 } t ? $"THE NIGHT TO {t.ToUpperInvariant()}" : "BUILDING THE NIGHT AHEAD");
+    /// <param name="following">A joiner waiting on its host (note 606): "THE HOST IS PICKING THE NIGHT AHEAD" till the night's up.</param>
+    public static (string Heading, string Under) Card(string town, string? terminus, bool following = false) =>
+        (town.ToUpperInvariant(), terminus is { Length: > 0 } t ? $"THE NIGHT TO {t.ToUpperInvariant()}"
+            : following ? "THE HOST IS PICKING THE NIGHT AHEAD" : "BUILDING THE NIGHT AHEAD");
 }
