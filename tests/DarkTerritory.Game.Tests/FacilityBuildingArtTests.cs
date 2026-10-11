@@ -180,7 +180,7 @@ public class FacilityBuildingArtTests
         Assert.Contains(model.Materials, m => m.Glow >= 1);
         // The yard's tracks, where its cars stand to be fetched (note 187), and its own spur: the shed, its dock and its
         // canopy stand clear of all of them, on the yards of a few nights.
-        foreach (var route in new[] { "frontier:1", "frontier:2", "frontier:4", "frontier:5" })
+        foreach (var route in new[] { "frontier:1", "frontier:2", "frontier:6", "frontier:7" })
         {
             var (run, line, site) = YardOf(route, FacilityKind.Switchyard);
             var (_, world) = FrameOf(site);

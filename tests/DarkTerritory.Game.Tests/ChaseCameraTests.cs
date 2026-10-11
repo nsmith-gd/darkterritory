@@ -13,11 +13,11 @@ public class ChaseCameraTests
     [Fact]
     public void TheChaseViewIsOnTheTrainNotASwitchyardsStandingCars()
     {
-        // frontier:5 has a switchyard (frontier:7 had on its 24 km line): its standing cars are frames past the train's own.
-        var route = Sim.LineGen.Routes.Generate(Content, "frontier:5", 6);
+        // frontier:7 has a switchyard: its standing cars are frames past the train's own.
+        var route = Sim.LineGen.Routes.Generate(Content, "frontier:7", 6);
         var session = new PrototypeSession(Content, route, cars: 6, enemies: false);
         var train = session.Train;
-        Assert.True(train.Frames.Count > train.OwnVehicles, "no standing cars on frontier:5 to test against");
+        Assert.True(train.Frames.Count > train.OwnVehicles, "no standing cars on frontier:7 to test against");
         var engine = train.Frames[0].Origin;
         Assert.True((Views.Get("chase", train).Position - engine).Length < 250, "the chase view isn't on the train");
         // The replay frames what the train's frames are, standing cars and all, without them.

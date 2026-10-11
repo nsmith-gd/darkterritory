@@ -43,7 +43,7 @@ public class HouseInteriorArtTests
 
     [Theory]
     [InlineData("frontier:7")]
-    [InlineData("deadLines:2")]
+    [InlineData("deadLines:7")]
     public void EveryOpenHouseHasItsDimLightInsideItClearOfTheFurniture(string spec)
     {
         var route = Routes.Generate(Content, spec, 6);

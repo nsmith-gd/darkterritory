@@ -38,9 +38,9 @@ public class WaterArtTests
     [Fact]
     public void TheWaterStaysPutUnderTheCameraAndMovesAsItsKindDoes()
     {
-        // frontier:5: its lakes beside the line (frontier:3's at 6.7 km on its 24 km line; note 554's 7 km one has none), the
+        // frontier:7: its lakes beside the line (frontier:3's at 6.7 km on its 24 km line; note 554's 7 km one has none), the
         // nearest to the line looked at from two places along it, as frontier:3's was from 6.6 and 6.75 km.
-        var route = Routes.Generate(Content, "frontier:5", 6);
+        var route = Routes.Generate(Content, "frontier:7", 6);
         var line = route.Build();
         var plan = route.Plan!;
         var along = Enumerable.Range(0, (int)(line.Length / 10)).Select(i => i * 10.0).ToList();
@@ -82,9 +82,10 @@ public class WaterArtTests
     [Fact]
     public void ARiverRunsUnderItsSpanAndTheSeaLiesOpen()
     {
-        // frontier:7's tidal river at 8.1 km: it runs across under the line, one way or the other, at its kind's current, and
-        // laps at its banks (its blend 1 at either end of its crossing, less out on it).
-        var route = Routes.Generate(Content, "frontier:7", 6);
+        // frontier:7's tidal river at 8.1 km on its 24 km line (on the 7 km nights of note 554, frontier:5's): it runs across
+        // under the line, one way or the other, at its kind's current, and laps at its banks (its blend 1 at either end of its
+        // crossing, less out on it).
+        var route = Routes.Generate(Content, "frontier:5", 6);
         var line = route.Build();
         var river = route.Plan!.Water.First(w => w.Type == "tidal");
         var mid = line.Sample((river.S0 + river.S1) / 2);
@@ -102,10 +103,10 @@ public class WaterArtTests
         Assert.Contains(water, v => v.Blend == 1);
         Assert.Contains(water, v => v.Blend < 1);
 
-        // local:1's sea at 9.4 km: the open Atlantic, its lap along the beach's foot and none out on it.
+        // local:1's sea (at 9.4 km on its 24 km line): the open Atlantic, its lap along the beach's foot and none out on it.
         var coast = Routes.Generate(Content, "local:1", 6);
-        var shore = coast.Plan!.Shores.First(sh => sh.Kind == ShoreKind.Sea && sh.S0 < 9400 && sh.S1 > 9400);
-        var at = coast.Build().Sample(9400).Position + new Double3(0, 3, 0);
+        var shore = coast.Plan!.Shores.First(sh => sh.Kind == ShoreKind.Sea);
+        var at = coast.Build().Sample((shore.S0 + shore.S1) / 2).Position + new Double3(0, 3, 0);
         var sea = Water(coast, at, out _).Where(v => Math.Abs(v.Position.Y + at.Y - shore.LevelM) < 0.01).ToList();
         Assert.NotEmpty(sea);
         Assert.All(sea, v => Assert.Equal(Look.Tuning.Water.Of("sea").Open, v.Surface.Z));

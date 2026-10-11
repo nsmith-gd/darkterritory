@@ -95,9 +95,9 @@ public class CampaignSessionTests
     {
         // The coaling tower stands over the main line (the rest are down spurs): stopped under it near the far end of
         // its zone, then away past the end of it.
-        // frontier:4 at four cars is a night with one (the line generator draws it as any other kind, linegen plan §11.1;
+        // frontier:11 at four cars is a night with one (the line generator draws it as any other kind, linegen plan §11.1;
         // frontier:10 was on its 24 km line).
-        const string spec = "frontier:4";
+        const string spec = "frontier:11";
         var route = Sim.LineGen.Routes.Generate(Content, spec, 4);
         var facilities = route.Of(FeatureKind.Facility).ToList();
         var facility = facilities.First(f => f.Facility == FacilityKind.CoalingTower);
@@ -157,8 +157,9 @@ public class CampaignSessionTests
     {
         // Queue #218, ARCHITECTURE §8 note 481 (spec E "rolls back to last POI autosave"). At the coaling tower, as the night
         // left it: a yard's standing cars picked up ahead of the engine (as a switchyard leaves them), the last car cut off
-        // and left at the stop, and a bite out of the first car's shell. The save keeps all three.
-        const string spec = "frontier:4";
+        // and left at the stop, and a bite out of the first car's shell. The save keeps all three. (frontier:73: on the 7 km
+        // nights of note 554, a coaling tower with a standing rake to pick up and room ahead for it.)
+        const string spec = "frontier:73";
         var route = Sim.LineGen.Routes.Generate(Content, spec, 4);
         var facility = route.Of(FeatureKind.Facility).First(f => f.Facility == FacilityKind.CoalingTower);
         var setup = new SessionSetup(Route: spec, Cars: 4, Enemies: false) { Start = facility.End - 20 };
@@ -223,7 +224,8 @@ public class CampaignSessionTests
         // Queue #237, ARCHITECTURE §8 note 500 (spec E "rolls back to last POI autosave"). Before the save at the coaling tower:
         // a Gannet's head stowed aboard (paid), a mail bag caught, coal burned since the night left; a thing taken off a crew
         // locker's shelf and left on a car's floor, a rescued child aboard, a lamp lost, an extinguisher half spent.
-        const string spec = "frontier:4";
+        // (frontier:10: on the 7 km nights of note 554, a coaling tower and its wreck yard first again.)
+        const string spec = "frontier:10";
         var route = Sim.LineGen.Routes.Generate(Content, spec, 4);
         var facility = route.Of(FeatureKind.Facility).First(f => f.Facility == FacilityKind.CoalingTower);
         var setup = new SessionSetup(Route: spec, Cars: 4, Enemies: false) { Start = facility.End - 20 };

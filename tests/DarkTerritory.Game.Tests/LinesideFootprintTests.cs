@@ -48,7 +48,7 @@ public class LinesideFootprintTests
         // 24 km line; on the 7 km nights of note 554 few lines have every one, so each is looked for on the first of a few
         // nights that stands one out on the line.
         var art = new WorldArt(Look.Load(Content));
-        var nights = new[] { "local:1", "local:13", "deadLines:57", "deadLines:20" }.Select(spec =>
+        var nights = new[] { "local:1", "deadLines:49", "deadLines:3", "local:4" }.Select(spec =>
         {
             var route = Routes.Generate(Content, spec, 6);
             var line = route.Build();
@@ -83,8 +83,9 @@ public class LinesideFootprintTests
     public void TheArtDrawsEachBranchsPineWhereTheSimStandsIt()
     {
         // Note 432: an alternate's or a dead line's pines are the sim's (LinesideProps.BranchTrees), so the art draws each
-        // one, of its mesh and height, where the sim stands it as a wall, and no other.
-        var route = Routes.Generate(Content, "frontier:7", 6);
+        // one, of its mesh and height, where the sim stands it as a wall, and no other (frontier:5: on the 7 km nights of note
+        // 554 frontier:7's dead line is short of pines).
+        var route = Routes.Generate(Content, "frontier:5", 6);
         var line = route.Build();
         var side = LinesideProps.Of(route, line)!;
         var art = new WorldArt(Look.Load(Content));

@@ -668,10 +668,10 @@ public class WorldSoundTests
     }
 
     [Theory]
-    [InlineData("deadLines:20", "world-water.surf", "sea")]
-    [InlineData("deadLines:20", "world-water.river", "river")]
-    [InlineData("frontier:76", "world-water.tide", "fundy")]
-    [InlineData("frontier:7", "world-water.river", "tidal")]
+    [InlineData("local:60", "world-water.surf", "sea")]
+    [InlineData("local:4", "world-water.river", "river")]
+    [InlineData("frontier:271", "world-water.tide", "fundy")]
+    [InlineData("frontier:5", "world-water.river", "tidal")]
     [InlineData("frontier:7", "world-water.lake", "lake")]
     public void TheLinesWaterIsHeardWhereItsWaterIs(string id, string cue, string kind)
     {

@@ -43,7 +43,7 @@ public class SetPieceArtTests
     [Fact]
     public void TheElevatorsBinStandsOverItsSpoutAndItsLeverGoesDownWhilePouring()
     {
-        var site = SiteOf("frontier:3", FacilityKind.GrainElevator);
+        var site = SiteOf("frontier:7", FacilityKind.GrainElevator);
         var eye = site.Spout;
         var bin = PropArt.Of(Look.Load(Content)).Get("spout_bin")!;
         var drawn = Drawn(site, eye);
@@ -60,7 +60,7 @@ public class SetPieceArtTests
     [Fact]
     public void TheLiftsBinStandsOverItsChuteAndTheSkipRisesAsItsWound()
     {
-        var site = SiteOf("deepTerritory:6", FacilityKind.MineHead);
+        var site = SiteOf("deepTerritory:1", FacilityKind.MineHead);
         var eye = site.LiftChute;
         var drawn = Drawn(site, eye);
         Assert.True(Vector3.Distance(Origin(drawn.Single(i => i.Asset.Name.Contains("lift_works"))), new Vector3(0, -4.6f, 0)) < 0.01f);
@@ -73,10 +73,10 @@ public class SetPieceArtTests
     [Fact]
     public void TheHoseStandAndThePenAndRampAreTheArts()
     {
-        var works = SiteOf("deepTerritory:2", FacilityKind.ChemicalWorks);
+        var works = SiteOf("deepTerritory:6", FacilityKind.ChemicalWorks);
         var stand = Drawn(works, works.HoseStand).Single(i => i.Asset.Name.Contains("hose_stand"));
         Assert.True(Origin(stand).Length() < 0.01f);
-        var slaughterhouse = SiteOf("frontier:7", FacilityKind.Slaughterhouse);
+        var slaughterhouse = SiteOf("frontier:3", FacilityKind.Slaughterhouse);
         var pen = Drawn(slaughterhouse, slaughterhouse.Pen);
         // Seven panels round the pen (open toward the track for the ramp), each out at its edge, and the ramp.
         var panels = pen.Where(i => i.Asset.Name.Contains("cattle_pen")).ToList();
@@ -91,7 +91,7 @@ public class SetPieceArtTests
         // Note 430: A1's conveyor (note 400) drawn by the art pass: its head's gantry on the track under the sim's head, its low
         // run's sections filling the run from the tail to the knee, the drive's flywheel still while it's stopped and turning
         // while it runs, its lamp red then green.
-        var site = SiteOf("frontier:3", FacilityKind.GrainElevator);
+        var site = SiteOf("frontier:7", FacilityKind.GrainElevator);
         Assert.True(site.Has(ModuleKind.Conveyor));
         var eye = site.ConveyorHead;
         List<MeshInstance> At(double time, out Vector3 lamp)

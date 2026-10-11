@@ -532,8 +532,8 @@ public class HudTests
     {
         // Note 289: on the line generator's nights (the ones the game plays) every branch that wasn't a spur was "the dead
         // line", so the crew choosing the route card's high line at its junction was told it was throwing the train away.
-        // (frontier:7's; the 7 km nights of note 554 seldom have an alternate, and deadLines:9 has one.)
-        var route = DarkTerritory.Sim.LineGen.Routes.Generate(Content, "deadLines:9", 4);
+        // (frontier:7's; the 7 km nights of note 554 seldom have an alternate, and frontier:31 has one.)
+        var route = DarkTerritory.Sim.LineGen.Routes.Generate(Content, "frontier:31", 4);
         var s = new PrototypeSession(Content, route, 4, enemies: false);
         var line = s.Train.Line;
         var alt = line.Branches.First(b => b.Kind == DarkTerritory.Sim.Rail.BranchKind.Alternate);
