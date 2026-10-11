@@ -112,5 +112,30 @@ public class WakersTests
         Assert.Equal(Covered(W.RampSeconds) + W.TopSpeed * 10, Covered(W.RampSeconds + 10), 1e-6);
     }
 
+    [Fact]
+    public void TheSecondsInHandAreWhenTheyCatchIt()
+    {
+        // Note 607 (shared with D1.5's #337): the reckoning a driver and the hands go by. A standing train, from just after
+        // dawn: the seconds it gives are when the lead Waker takes it, to within a tick or two.
+        var n = new Night(front: 4000);
+        n.Step(1);
+        double inHand = Waker.SecondsInHand(n.World);
+        Assert.True(inHand > W.RiseSeconds && inHand < 600, $"{inHand:0.0}");
+        double before = n.Run.Seconds;
+        while (!(n.Lead?.Holds ?? false) && n.Run.Seconds < before + 600)
+            n.Step(0.1);
+        Assert.Equal(inHand, n.Run.Seconds - before, 0.5);
+        Assert.Equal(0, Waker.SecondsInHand(n.World));
+    }
+
+    [Fact]
+    public void UnderTheGunsTheShelterIsReachedAndOutOnTheLineItIsnt()
+    {
+        var home = new Night(front: Frontier.Length - 20);
+        Assert.Equal(0, Waker.SecondsToShelter(home.World));
+        var out_ = new Night(front: 4000);
+        Assert.True(double.IsPositiveInfinity(Waker.SecondsToShelter(out_.World))); // stood: it never gets there
+    }
+
     static double Covered(double s) => Waker.Covered(s, W);
 }
