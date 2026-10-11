@@ -798,4 +798,5 @@ written here instead is moved out by `tools/coord/notes.py split`; the Coordinat
 - [625. Late Dispatch, a little more time again (D1.4, queue #355, at D1's ask after note 624: "its `dawnGraceSeconds` does nothing with the Wakers…](notes/625.md)
 - [626. Two hands at one guttering lamp: not seen, so not changed (D1.4, queue #356, note 619's not-yet, at D1's ask: "if it shows in a sweep,…](notes/626.md)
 - [627. A guttering lamp nobody reaches (D1.4, queue #357, note 626's find, at D1's ask: "a dark car invites the Climbers, so it's worth a walker's…](notes/627.md)
+- [629. The Climbers into dark cars (D1.4, queue #359, note 627's find)](notes/629.md)
 <!-- end of the notes index -->
