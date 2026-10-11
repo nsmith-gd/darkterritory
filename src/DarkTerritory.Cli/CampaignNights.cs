@@ -25,38 +25,33 @@ static class CampaignNights
         var identities = LineGenContent.Cached(content).Config.Tiers.Fortress.Identities;
         int nights = (int)Opt(args, "--nights", 3), bots = (int)Opt(args, "--bots", 3), loseNight = (int)Opt(args, "--lose-night", 0);
         double loseAt = Opt(args, "--lose-at", -1), limit = Opt(args, "--seconds", 3600);
+        // The player at the host's own seat (note 616): "bot", played by one more of the crew's bots, as near as the tools come to
+        // somebody playing (the default); "idle", nobody at the keys, which the bots pay for (they rescue, wait for and count on
+        // a crewmate who never moves, and the director's census hunts them).
+        bool humanBot = Str(args, "--human", "bot") == "bot";
+        var combat = DataFile.Load<DarkTerritory.Sim.Combat.CombatTuning>(Path.Combine(content, DarkTerritory.Sim.Combat.CombatTuning.File));
+        var playerTuning = DataFile.Load<DarkTerritory.Sim.Player.PlayerTuning>(Path.Combine(content, DarkTerritory.Sim.Player.PlayerTuning.File));
         var results = new List<object>();
         for (int n = 1; n <= nights; n++)
         {
             var s = saves.Load(slot) ?? throw new InvalidOperationException($"slot {slot} is empty: dt campaign new --slot {slot}");
             var contract = Campaign.Offers(t, runTuning, s)[(int)Opt(args, "--contract", 0)];
             s = Campaign.Begin(s, contract);
-            // As the app's Start has it (Program.cs): the slot's night, from the town the crew's in.
-            var setup = new SessionSetup(Route: Campaign.RouteOf(s, contract), Cars: s.Cars, Enemies: !args.Contains("--no-enemies"))
-            {
-                Upgrades = s.Upgrades,
-                SpareKits = s.SpareKits,
-                MusicBag = s.Music,
-                Identities = s.Identities,
-                Cargo = contract.Cargo,
-                Powder = s.Stores.Powder,
-                SpareLamps = s.Stores.Lamps,
-                SpareExtinguishers = s.Stores.Extinguishers,
-                LastTown = s.LastTown,
-                Burnt = s.Burnt.Count > 0 ? s.Burnt : null,
-            };
+            // As the app's Start has it (HostedAsApp.Campaign): the slot's night, from the town the crew's in.
+            var setup = HostedAsApp.Campaign(s, contract, enemies: !args.Contains("--no-enemies"));
             var clock = Stopwatch.StartNew();
             RunReport? report;
             object night;
             using (var session = NetPlaySession.HostGame(content, setup, port: null, bots: bots))
             {
                 bool lose = loseAt >= 0 && (loseNight == 0 || loseNight == n);
+                var human = humanBot ? DarkTerritory.Sim.Bots.BotCrew.Make(bots, bots + 1, session.BotCrew?.Calls, combat, playerTuning, (int)(session.Route?.Seed ?? 1)) : null;
                 int ticks = 0;
                 while (session.World.Run is not { Over: true } && ticks < limit * SimConstants.TickRate)
                 {
                     if (lose && session.Host!.World.Run is { Seconds: var at } && at >= loseAt)
                         session.Host.World.TakenAtDawn = true;
-                    session.Step(default);
+                    session.Step(human is null ? default : DarkTerritory.Sim.Bots.BotCrew.Think(session.Client, human, (uint)ticks, session.BotCrew?.Calls));
                     ticks++;
                 }
                 report = session.World.Run?.Report;
@@ -120,6 +115,12 @@ static class CampaignNights
             Console.Error.WriteLine($"night {n}: {results[^1]}");
         }
         return new { slot, nights = results };
+    }
+
+    static string Str(string[] args, string name, string fallback)
+    {
+        int i = Array.IndexOf(args, name);
+        return i >= 0 && i + 1 < args.Length ? args[i + 1] : fallback;
     }
 
     static double Opt(string[] args, string name, double fallback)
