@@ -598,8 +598,8 @@ static string Doing(Launch chosen) => chosen switch
                 saves.Save(campaign);
                 int? port = night.Host ? NetPlaySession.DefaultPort : null;
                 // Note 591: from the town the crew's in (last night's terminus), if they got to one.
-                // The slot's night (HostedNight.Campaign, note 616: the harness's campaign nights are made the same way).
-                var setup = HostedNight.Campaign(campaign, contract, enemies) with { FirstChildReal = profile.FirstChildReal };
+                // The slot's night (HostedAsApp.Campaign, note 616: the harness's campaign nights are made the same way).
+                var setup = HostedAsApp.Campaign(campaign, contract, enemies) with { FirstChildReal = profile.FirstChildReal };
                 Console.WriteLine($"campaign slot {night.Slot} ({campaign.Name}): {campaign.Cars} cars, {campaign.Scrip:0} scrip, tonight {contract.Route} carrying {Cargoes.Name(contract.Cargo)} at {contract.PerCar:0} a car{(resume is not null ? $", resuming after facility {resume.Facility}" : "")}");
                 // Note 450: private, behind the host screen's password (listed with a lock); with none typed, unlisted as before.
                 string? password = frontEnd.Settings.PublicLobby ? null : frontEnd.Settings.LobbyPassword.Trim() is { Length: > 0 } pw ? pw : null;

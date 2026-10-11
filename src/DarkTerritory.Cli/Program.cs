@@ -651,10 +651,10 @@ object CampaignCommand(string content, string verb, string[] args)
                 var s = Load();
                 var contract = DarkTerritory.Sim.Campaign.Campaign.Offers(t, runTuning, s)[(int)Opt(args, "--contract", 0)];
                 s = DarkTerritory.Sim.Campaign.Campaign.Begin(s, contract);
-                // The night as the app hosts it (note 616): the slot's setup (HostedNight.Campaign), the train at the gate, the crew
-                // aboard, the director seeded by the route (HostedNight.For).
-                var setup = DarkTerritory.Game.HostedNight.Campaign(s, contract, enemies: !args.Contains("--no-enemies"));
-                var hosted = DarkTerritory.Game.HostedNight.For(content, setup, (int)Opt(args, "--bots", 4), Opt(args, "--seconds", 3600));
+                // The night as the app hosts it (note 616): the slot's setup (HostedAsApp.Campaign), the train at the gate, the crew
+                // aboard, the director seeded by the route (HostedAsApp.For).
+                var setup = DarkTerritory.Game.HostedAsApp.Campaign(s, contract, enemies: !args.Contains("--no-enemies"));
+                var hosted = DarkTerritory.Game.HostedAsApp.For(content, setup, (int)Opt(args, "--bots", 4), Opt(args, "--seconds", 3600));
                 var route = hosted.Options.Route!;
                 var loadout = setup.Loadout(content);
                 var report = Harness.Run(hosted.Line, hosted.Train, hosted.Player, hosted.Options with
@@ -665,6 +665,11 @@ object CampaignCommand(string content, string verb, string[] args)
                     // --lose-at s: the night lost at dawn, forced, s seconds into the run (note 613): the Wakers have the train, as
                     // they would at dawn's end (note 588), to see what the campaign makes of a night that didn't arrive.
                     Observe = Opt(args, "--lose-at", -1) is var loseAt and >= 0 ? (_, _, w) => w.TakenAtDawn |= w.Run?.Seconds >= loseAt == true : null,
+                    // --as-harness start,seed: the harness's own ways back, to set beside the app's (note 616): the crew walking
+                    // aboard from 400 m back in the yard, and the director on the harness's seed (1).
+                    StartDistance = Str(args, "--as-harness", "").Contains("start") ? 400 : hosted.Options.StartDistance,
+                    WalkAboard = Str(args, "--as-harness", "").Contains("start"),
+                    DirectorSeed = Str(args, "--as-harness", "").Contains("seed") ? null : hosted.Options.DirectorSeed,
                 }, hosted.Boiler);
                 if (report.Run is not { } night)
                     return new { error = "the night didn't run" };

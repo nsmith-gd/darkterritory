@@ -37,8 +37,8 @@ static class CampaignNights
             var s = saves.Load(slot) ?? throw new InvalidOperationException($"slot {slot} is empty: dt campaign new --slot {slot}");
             var contract = Campaign.Offers(t, runTuning, s)[(int)Opt(args, "--contract", 0)];
             s = Campaign.Begin(s, contract);
-            // As the app's Start has it (HostedNight.Campaign): the slot's night, from the town the crew's in.
-            var setup = HostedNight.Campaign(s, contract, enemies: !args.Contains("--no-enemies"));
+            // As the app's Start has it (HostedAsApp.Campaign): the slot's night, from the town the crew's in.
+            var setup = HostedAsApp.Campaign(s, contract, enemies: !args.Contains("--no-enemies"));
             var clock = Stopwatch.StartNew();
             RunReport? report;
             object night;

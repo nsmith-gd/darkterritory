@@ -1,5 +1,6 @@
 using Ballast;
 using DarkTerritory.Sim.Net;
+using DarkTerritory.Sim.Rail;
 using DarkTerritory.Sim.Player;
 using DarkTerritory.Sim.Route;
 using DarkTerritory.Sim.Train;
@@ -14,7 +15,7 @@ namespace DarkTerritory.Game;
 /// director seeded by the route, as the app's is; and the run, its facilities, Holdouts, lineside, upkeep and finds. What
 /// stays the harness's: its perfect lock-step link, and that every crewmate is a bot (the app's own seat is somebody playing).
 /// </summary>
-public static class HostedNight
+public static class HostedAsApp
 {
     /// <summary>
     /// A campaign night's setup, as the app's Start makes it (spec E: the host owns the campaign): the contract's route from
