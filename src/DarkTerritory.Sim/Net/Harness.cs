@@ -17,6 +17,11 @@ public sealed record HarnessOptions
     public int Cars { get; init; } = 10;
     public double Seconds { get; init; } = 120;
     public int Seed { get; init; } = 1;
+    /// <summary>
+    /// The director's seed, where it isn't <see cref="Seed"/> (note 616): the app seeds a night's director with its route's
+    /// (<c>NetPlaySession</c>), so a harness night measuring what a player plays does too.
+    /// </summary>
+    public ulong? DirectorSeed { get; init; }
     public LinkConditions Link { get; init; } = LinkConditions.Rough;
     public double StartDistance { get; init; } = 600;
     public CombatTuning? Combat { get; init; }
@@ -323,7 +328,7 @@ public static class Harness
             ? full with { Director = full.Director with { Roster = only.Count == 0 ? ["none"] : [.. only.Select(Director.Key)] } }
             : o.Enemies;
         if (enemyTuning is { } et)
-            host.EnableEnemies(et, o.Route, (ulong)o.Seed, crewSize);
+            host.EnableEnemies(et, o.Route, o.DirectorSeed ?? (ulong)o.Seed, crewSize);
         if (o.Insist is { } insist)
         {
             host.World.Insist = insist;
@@ -373,7 +378,7 @@ public static class Harness
             // The enemies' tuning, as a joiner loads it: prediction drags with the Weight as the host does (T59), and the bots
             // read their counters from it (the Gaunt's view, the Passenger's reach).
             if (enemyTuning is { } cet)
-                session.World.EnableEnemies(cet, o.Route, (ulong)o.Seed, crewSize, authority: false);
+                session.World.EnableEnemies(cet, o.Route, o.DirectorSeed ?? (ulong)o.Seed, crewSize, authority: false);
             // Clients see the night as players do: the phase, and each site's winch (mirrored from the host).
             if (o.Run is { } crt && o.Route is { } croute)
                 session.World.EnableRun(crt, croute, o.YardLength, authority: false, o.Facilities, o.Loot);

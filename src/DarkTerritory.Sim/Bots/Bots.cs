@@ -72,6 +72,8 @@ public sealed class GunnerBot(GunTuning guns, ChoirTuning? choir = null, int see
 
     PlayerIntent Decided(in PlayerState self, World world, uint tick, out PlayerState aimed)
     {
+        // Note 609: where it is, whatever it's about (StopHand.Report).
+        Job?.Report(self);
         var intent = Gun(self, world, tick, out aimed);
         // Off the gun for anything else, it gets up out of the seat first (T112: Jump, seated, is getting up).
         if (self.Has(PlayerFlags.Seated) && !_atGun)
@@ -1340,8 +1342,12 @@ public sealed class RoofWalkerBot(int seed, ColdTuning? cold = null, StopHand? j
     public static bool TrussScrape(World world) =>
         world.ActiveEnemies.Any(e => e is Dragger { Attached: < 0, Phase: SpinePhase.Telegraph });
 
-    public PlayerIntent Decide(in PlayerState self, World world, uint tick, out PlayerState aimed) =>
-        HoldOn(self, world.Train, Decided(self, world, tick, out aimed));
+    public PlayerIntent Decide(in PlayerState self, World world, uint tick, out PlayerState aimed)
+    {
+        // Note 609: where it is, whatever it's about (StopHand.Report).
+        job?.Report(self);
+        return HoldOn(self, world.Train, Decided(self, world, tick, out aimed));
+    }
 
     /// <summary>Above the ballast, a climber going down a ladder that reaches it stops this high (m) at speed.</summary>
     const double LowestRung = 0.6;
@@ -2007,8 +2013,9 @@ public sealed class RoofWalkerBot(int seed, ColdTuning? cold = null, StopHand? j
         {
             if (frame.Index == 0)
                 continue; // the engine is boarded by its crew
-            // Nor a switchyard's cars still standing on their siding (note 187): they're not the train (yet).
-            if (train.StandingCar(frame.Index))
+            // Nor a switchyard's cars still standing on their siding (note 187): they're not the train (yet). Nor those
+            // picked up and carried ahead of the engine: their roofs are no way back to the train's (note 618).
+            if (train.StandingCar(frame.Index) || StopHand.AheadOfTheEngine(train, frame.Index))
                 continue;
             foreach (var ladder in frame.Shape.Ladders)
             {
