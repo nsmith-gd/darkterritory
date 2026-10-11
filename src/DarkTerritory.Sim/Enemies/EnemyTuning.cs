@@ -1206,4 +1206,5 @@ public sealed record CrewBotsTuning
     public double GateClearWithin { get; init; } = 1500;
     public double GateClearGiveUp { get; init; } = 240;
     public double GateClearMargin { get; init; } = 45;
+    public double SixDawnMargin { get; init; } = 45;
 }
