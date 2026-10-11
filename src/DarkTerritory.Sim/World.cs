@@ -847,12 +847,35 @@ public sealed class World
     public Towns.Townsperson? Nicki => Town?.Plan.People.FirstOrDefault(p => p.Hosting);
 
     /// <summary>
+    /// The town a point is in (note 603): the terminus's (<see cref="Arrival"/>) from a little short of its gate on, else the
+    /// departure's. Talking, reading, knocking and Nicki's wine are the town's you're in, so both are lived in alike.
+    /// </summary>
+    public Towns.Town? TownAt(Ballast.Double3 at)
+    {
+        if (Arrival is { } arrival && (Route ?? Run?.Route)?.Plan?.Terminus is { } t)
+        {
+            double hint = t.GateM;
+            Train.Line.Nearest(at, ref hint);
+            if (hint >= t.GateM - TownReachOutside)
+                return arrival;
+        }
+        return Town;
+    }
+
+    /// <summary>The town a crewmate is in (<see cref="TownAt"/>).</summary>
+    public Towns.Town? TownOf(in PlayerState s) => TownAt(PlayerMotor.WorldPosition(s, Train));
+
+    /// <summary>How far outside the terminus's gate its town's things are still in reach (m): its gatekeeper and guard just
+    /// outside. Not a design number.</summary>
+    const double TownReachOutside = 20;
+
+    /// <summary>
     /// Whether Nicki has a glass for <paramref name="s"/> in reach (note 571): on foot, alive, near her, and not had theirs
     /// tonight. The host knows who has; a client goes by their being over full health, as only the wine puts anyone there.
     /// </summary>
     public bool WineInReach(in PlayerState s, int playerId)
     {
-        if (!s.Alive || s.Parent != PlayerState.World || Town is not { } town || Nicki is not { } nicki
+        if (!s.Alive || s.Parent != PlayerState.World || TownOf(s) is not { } town || town.Plan.People.FirstOrDefault(p => p.Hosting) is not { } nicki
             || _toasted.Contains(playerId) || s.Health > Bodies.FullHealth)
             return false;
         return (PlayerMotor.WorldPosition(s, Train) - town.Feet(nicki)).Length <= town.Tuning.Wine.Reach;
@@ -869,7 +892,7 @@ public sealed class World
             _byNicki.Remove(playerId);
             return false;
         }
-        var t = Town!.Tuning.Wine;
+        var t = TownOf(s)!.Tuning.Wine;
         double held = _byNicki[playerId] = _byNicki.GetValueOrDefault(playerId) + SimConstants.TickSeconds;
         if (held >= t.HoldSeconds - 1e-9)
         {
@@ -2124,10 +2147,16 @@ public sealed class World
         Sim.Enemies.Solidity.Settle(_enemies, Train, t);
         // GDD §9, T128 (note 273): no creature comes into a fort. One that does (riding the train in, running down a crewmate
         // who got back inside the gate, put down there by a spawn) is driven off: it lets go and is gone.
-        if (Run is { Tuning.Forts.Safe: true })
+        if (Run is { Tuning.Forts.Safe: true } run)
             foreach (var e in _enemies)
-                if (!e.Gone && !e.Hazard && e is not Sim.Enemies.Incident && InFort(e.WorldPosition(Train)))
-                    e.Dismiss();
+                if (!e.Gone && !e.Hazard && e is not Sim.Enemies.Incident && e.WorldPosition(Train) is var at && InFort(at))
+                {
+                    // Unless it rode in through a town's gate (note 589): the town fights it in the yard a while first.
+                    double hint = Train.Dynamics.Distance;
+                    Train.Line.Nearest(at, ref hint);
+                    if (run.BringIn(e, hint) <= 0)
+                        e.Dismiss();
+                }
 
         _enemies.RemoveAll(e => e.Gone);
         EnemyEvents.AddRange(ctx.Events);

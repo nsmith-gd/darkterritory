@@ -158,6 +158,8 @@ public sealed partial class GreyboxScene
     public Sim.Towns.Town? Arrival { get; set; }
     /// <summary>Somebody in the town turned to face whoever's talking to them (<see cref="TownTalk"/>), by person id.</summary>
     public (int Person, Double3 Toward)? TownFacing { get; set; }
+    /// <summary>The town <see cref="TownFacing"/>'s person is in (note 603); null, the departure's (<see cref="Town"/>).</summary>
+    public Sim.Towns.Town? TownFacingIn { get; set; }
     /// <summary>Seconds, for animating things that move on their own.</summary>
     public double Time { get; set; }
     /// <summary>Vehicle state for doors (open or shut). Without it every door is drawn shut.</summary>
@@ -658,6 +660,10 @@ public sealed partial class GreyboxScene
                     // A Waker getting up (note 599): the earth it throws off rising, and the dust it raises on the move.
                     if (e.Kind == EnemyKind.Waker && Look?.Art.Effects is { } wake)
                         WakerDust(mesh, wake, e, line, eye);
+                    // Brought into town (note 589): the town's guns firing on whatever rode in, while the yard fight lasts (the
+                    // fort drives off anything else inside it the moment it's there, so anything alive in there is being fought).
+                    else if (Arrival is { } town && Look?.Art.Effects is { } guns && EnemyWorld(e, frames) is var inside && InTheTown(line, inside))
+                        guns.WallGuns(mesh, WallGuns(town, eye), V(inside + Double3.Up * 1.2, eye), V(inside, eye), Time, e.Id, BroughtInSpread, e.Kind);
                     // A Grumbler healing (App. A.8, note 487): what a lone crewmate's blow knocked out of it drawn back in.
                     if (e.Kind == EnemyKind.Grumbler && Healing(e) is > 0 and var healing && Look?.Art.Effects is { } knit)
                     {
@@ -1849,6 +1855,19 @@ public sealed partial class GreyboxScene
             if (s > b.Rear)
                 guns.Add(V(town.World(s, d, Sim.Run.Fortresses.TowerHeight + 1), eye));
         return guns;
+    }
+
+    /// <summary>How widely the town's shots land round a creature brought in (note 589), as a share of a Waker's back.</summary>
+    const float BroughtInSpread = 0.15f;
+
+    /// <summary>In through the terminus town's gate (note 589): along the main line past it.</summary>
+    bool InTheTown(RailLine line, Double3 at)
+    {
+        if (Route?.Plan?.Terminus is not { Silent: false } t)
+            return false;
+        double hint = t.GateM;
+        line.Nearest(at, ref hint);
+        return hint >= t.GateM;
     }
 
     static Double3 EnemyWorld(Enemy e, IReadOnlyList<CarFrame> frames) =>
@@ -3149,7 +3168,7 @@ public sealed partial class GreyboxScene
                     var feet = now.Feet;
                     if ((feet - eye).Length > 160)
                         continue;
-                    bool talking = TownFacing is { } f && f.Person == p.Id;
+                    bool talking = TownFacing is { } f && f.Person == p.Id && (TownFacingIn ?? Town) == town;
                     // Whoever sits or crouches at their work stays put when you talk to them: turned to you, they'd swing
                     // off their chair or out from the range (the director, 8 Oct: "some of the animation positions are off").
                     bool settled = now.Act is "seated" or "crouch" or "mend";

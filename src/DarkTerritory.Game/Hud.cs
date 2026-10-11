@@ -116,7 +116,7 @@ public static partial class Hud
             Onboarding.DrawCard(o, width, height, Keys, Fine, 1, Dim, Amber);
         // A fortress town's card (note 281): what somebody's saying to you, or the paper you're reading. While it's open its
         // own foot says what Use does next, so the town's prompt under the crosshair stands down.
-        var townCard = !over && talk is not null && s.World.Town is { } town ? talk.Card(town, now) : null;
+        var townCard = !over && talk is not null && (talk.In ?? s.World.TownOf(p)) is { } town ? talk.Card(town, now) : null;
         // Dave's card (note 570): what he's saying to you, or to a blow you were near enough to hear.
         bool figureCard = false;
         if (townCard is null && !over && figures?.Card(now) is { } said)
@@ -1395,7 +1395,7 @@ public static partial class Hud
         IncidentKind.Derailed or IncidentKind.Stranded => 0,
         IncidentKind.Death => 1,
         IncidentKind.CarLost or IncidentKind.Fire or IncidentKind.Nest or IncidentKind.Aboard or IncidentKind.Runaway or IncidentKind.Points
-            or IncidentKind.Rupture or IncidentKind.Struck => 2,
+            or IncidentKind.Rupture or IncidentKind.Struck or IncidentKind.BroughtIn => 2,
         IncidentKind.Rescue or IncidentKind.Slain => 3,
         _ => 4,
     };
@@ -1457,6 +1457,9 @@ public static partial class Hud
             money.Add($"refunds {r.BodyRefunds:0}");
         if (r.Recovery > 0)
             money.Add($"recovery {r.Recovery:0}");
+        // Note 589: what the town's monster brigade charged for what rode in.
+        if (r.BroughtInFees > 0)
+            money.Add($"brigade fees {r.BroughtInFees:0}");
         money.Add($"running costs {r.CoalCost + r.AmmoCost + r.RepairCost:0}");
         // Wrapped as the lines are (note 347): at a bigger TEXT SIZE it's wider than the plate.
         var sum = Wrap($"{string.Join(", ", money)}. Net {r.Net:0} scrip.", chars).ToList();
@@ -1709,7 +1712,7 @@ public static partial class Hud
     /// town's (note 281). The app keeps that press from the host (nothing in a town changes the night).
     /// </summary>
     public static TownTarget? TownTarget(IPlaySession s) =>
-        s.World.Town is { } town && town.Target(s.Player, s.Train.Dynamics.Tuning.Pick.EyeHeight) is { } t
+        s.World.TownOf(s.Player) is { } town && town.Target(s.Player, s.Train.Dynamics.Tuning.Pick.EyeHeight) is { } t
         && Prompt(s) == TownTalk.Prompt(town, t, s.World.WineInReach(s.Player, s.PlayerId)) ? t : null;
 
     /// <summary>
@@ -2223,7 +2226,7 @@ public static partial class Hud
             return FigureTalk.Prompt(figure);
         // A fortress town (note 281): somebody to talk to, a paper to read, a thing to look at. Before what's lying in reach,
         // so a lamp at somebody's feet doesn't take the press meant for them.
-        if (world.Town is { } town && town.Target(p, train.Dynamics.Tuning.Pick.EyeHeight) is { } there)
+        if (world.TownOf(p) is { } town && town.Target(p, train.Dynamics.Tuning.Pick.EyeHeight) is { } there)
             return TownTalk.Prompt(town, there, world.WineInReach(p, s.PlayerId));
         // The powder locker (note 374): a charge for a gun's rack, while there's any.
         if (world.Combat is { } powder && Guns.AtLocker(p, train, powder.Guns) is not null)
