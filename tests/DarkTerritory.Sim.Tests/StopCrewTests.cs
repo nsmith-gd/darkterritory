@@ -489,7 +489,14 @@ public class StopCrewTests
         double spare = double.NaN;
         open.Until(() => !double.IsNaN(spare), 900, () => spare = openStops.SpareAtLoading);
         Assert.False(double.IsNaN(spare), $"never began loading: driver {openStops.Doing}");
-        var night = new Night(cars: 8, walkers: 0, dawn: 1e6 - (spare - (StopAllowanceForTests + over)));
+        // The least allowance of the stops ahead (note 617: each kind its own).
+        var done = new HashSet<int> { openStops.Plan!.Key };
+        double next = double.MaxValue;
+        for (var ahead = StopPlan.Ahead(open.World, openStops.Plan.Hold + 50, done, open.Calls); ahead is not null;
+             done.Add(ahead.Key), ahead = StopPlan.Ahead(open.World, openStops.Plan.Hold + 50, done, open.Calls))
+            next = Math.Min(next, StopDriver.Allowance(ahead));
+        Assert.NotEqual(double.MaxValue, next);
+        var night = new Night(cars: 8, walkers: 0, dawn: 1e6 - (spare - (next + over)));
         var stops = night.Driver.Stops!;
         night.Until(() => stops.Log.Count(r => r.Facility >= 0) >= 2, 2400);
         string legs = string.Join("; ", stops.Log.Select(r => $"{r.Kind} {r.Seconds:0} s: {string.Join(", ", r.Legs.Select(l => $"{l.Key} {l.Value:0}"))}"));
@@ -498,8 +505,48 @@ public class StopCrewTests
         Assert.True(stops.Log.Count(r => r.Facility >= 0) >= 2, $"no second stop: driver {stops.Doing}; stops {legs}");
     }
 
-    /// <summary>The driver's allowance for a stop (StopDriver's StopAllowance, note 609).</summary>
-    const double StopAllowanceForTests = 500;
+    [Fact]
+    public void WithTimeForAPickUpButNotItsOwnTrackTheDriverFetchesTheStandingCars()
+    {
+        // Note 617: one allowance for every stop (note 609's 500 s) turned a switchyard's pick-up away with the crates' own track,
+        // though a pick-up's loading is only the coupling up: frontier:7's Renwick Yard was passed every night. Each kind now has
+        // its own. The night's dawn is set so the driver has between the pick-up's and the own track's when it comes up to the
+        // yard: found from the same night with no dawn to speak of (the run up to it is the same).
+        var open = new Night(cars: 8, walkers: 0, dawn: 1e6, modules: [ModuleKind.Rakes, ModuleKind.Crates]);
+        var openStops = open.Driver.Stops!;
+        double spare = double.NaN;
+        open.Until(() => openStops.Doing != StopDriver.Leg.Cruise, 900, () => spare = openStops.Spare);
+        Assert.Equal(StopDriver.Leg.Approach, openStops.Doing);
+        var own = openStops.Plan!;
+        Assert.False(own.PickUp, "the yard's own track first");
+        var pickUp = StopPlan.Ahead(open.World, own.Hold + 1, new HashSet<int> { own.Key }, open.Calls);
+        Assert.True(pickUp is { PickUp: true }, "a siding with cars standing on it past the own track");
+        double between = (StopDriver.Allowance(own) + StopDriver.Allowance(pickUp!)) / 2;
+        Assert.True(StopDriver.Allowance(pickUp!) < between && between < StopDriver.Allowance(own));
+        var night = new Night(cars: 8, walkers: 0, dawn: 1e6 - (spare - between), modules: [ModuleKind.Rakes, ModuleKind.Crates]);
+        var stops = night.Driver.Stops!;
+        night.Until(() => stops.Log.Count > 0, 900);
+        var made = Assert.Single(stops.Log);
+        Assert.StartsWith(nameof(FacilityKind.Switchyard) + "PickUp", made.Kind);
+    }
+
+    [Fact]
+    public void AtTheWreckYardTheShunterCarriesTheSalvageWhileThePairCrankTheWinch()
+    {
+        // Note 617: the pair cranked the winch for the whole of a bots' loading (note 609's 150 s) at frontier:1's wreck yard, the
+        // shunter in the cab and the driver at the controls, and none of the salvage came out: 0.5 car-loads against main's 1.75.
+        // The spare hands carry it while the pair are at their own work.
+        var night = new Night(cars: 8, walkers: 0, modules: [ModuleKind.Wreck, ModuleKind.Winch]);
+        var run = night.World.Run!;
+        bool meanwhile = false;
+        night.Until(() => run.Departures > 0, 1500, () =>
+            meanwhile |= night.Bots[1] is RoofWalkerBot { Job: { Job: StopJob.Shunter, Doing: "carrying" or "picking one up" } }
+                && night.Site.SledsLeft > 0);
+        string where = string.Join(", ", night.Crew.Select((c, i) => $"{i}: {c.Surface} on {c.Parent}"));
+        Assert.True(run.Departures > 0, $"never left the stop: driver {night.Driver.Stops!.Doing}; crew {where}");
+        Assert.True(meanwhile, "the shunter never carried salvage while the sleds were still to come in");
+        Assert.All(night.Crew, c => Assert.True(c.Alive, $"died of {c.Death}; crew {where}"));
+    }
 
     [Fact]
     public void AHandOnTheBallastWithACrateInItsArmsPutsItDownToClimbAboard()

@@ -525,6 +525,53 @@ public class BotsAnswerTheSixTests
         Assert.All(n.Crew.Values, c => Assert.True(c.Alive && c.Parent != PlayerState.World));
     }
 
+    /// <summary>
+    /// frontier:7 with dawn <paramref name="dawn"/> s in, the engine's front 4 km along, running at 12 m/s on its run; a Knotter
+    /// forced into car 3's coupling (taut), and the driver alone in the cab: nobody to kill it.
+    /// </summary>
+    static (Night N, ConductorBot Driver, Knotter K) KnottedAt(double dawn)
+    {
+        var route = Frontier with { DawnSeconds = dawn };
+        var n = new Night(6, speed: 12, route, enemies: Quiet, front: 4000);
+        n.World.EnableRun(Tuning.Run, route, 600, authority: true);
+        var k = n.World.AddEnemy(id => Knotter.Into(id, n.Train, 3, E.Knotter));
+        n.Run(E.Knotter.CreepSeconds + E.Knotter.ForceSeconds + 0.5);
+        Assert.Equal(KnotterMode.Taut, k.Mode);
+        n.Crew[1] = PlayerMotor.SpawnInCab(n.Train, P);
+        return (n, new ConductorBot(null, 0), k);
+    }
+
+    /// <summary>
+    /// Note 615 (queue #347; frontier:7 seed 13, 4 bots: stood for a Knotter on car 2 from 36 s after the dawn line, every hand
+    /// come forward to the cab, and taken by the Wakers 4.4 km short, 215 s into the stand's 240): from dawn, a stand their run
+    /// up to the train won't allow is given up on, and the driver goes on.
+    /// </summary>
+    [Fact]
+    public void AtDawnTheDriverGoesOnRatherThanStandForAKnotter()
+    {
+        var (n, driver, k) = KnottedAt(dawn: 3);
+        Assert.True(ConductorBot.DawnInHand(n.World, E, E.CrewBots.StandGiveUp, driver.CruiseSpeed) <= 0);
+        double stood = 0;
+        Drive(n, driver, _ => default, 60, until: () =>
+        {
+            stood += n.Train.Dynamics.Speed < 0.05 ? SimConstants.TickSeconds : 0;
+            return false;
+        });
+        Assert.True(n.Train.Dynamics.Speed > 4, $"standing at {n.Train.Dynamics.Speed:0.0} m/s ({driver.SixStep}; the Knotter {k.Mode})");
+        Assert.True(stood < 5, $"stood {stood:0} s");
+    }
+
+    /// <summary>Note 615: the same knot with the night's dawn far off: stood for, the stand note 367 gives the crew to kill it.</summary>
+    [Fact]
+    public void WithDawnFarOffTheDriverStandsForTheKnotter()
+    {
+        var (n, driver, _) = KnottedAt(dawn: 3000);
+        Assert.True(ConductorBot.DawnInHand(n.World, E, E.CrewBots.StandGiveUp, driver.CruiseSpeed) > 0);
+        Drive(n, driver, _ => default, 60);
+        Assert.True(n.Train.Dynamics.Speed < 0.05, $"going at {n.Train.Dynamics.Speed:0.0} m/s");
+        Assert.Equal("for the Knotter", driver.SixStep);
+    }
+
     [Fact]
     public void TheDriverStopsForAHotboxABotPrisesItOutFromTheSideAndFreesTheAxle()
     {

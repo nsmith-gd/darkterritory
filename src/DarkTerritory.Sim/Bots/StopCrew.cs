@@ -153,10 +153,24 @@ public sealed partial class CrewCalls
     /// </summary>
     public bool Carries(StopJob who) => who switch
     {
-        StopJob.Shunter => Has(StopJob.Shunter) && CrateBots < 2,
+        StopJob.Shunter => Has(StopJob.Shunter) && (CrateBots < 2 || PairAtWork),
         StopJob.Driver => DriverHand && CrateBots == 0 && !Has(StopJob.Shunter),
         _ => false,
     };
+
+    /// <summary>
+    /// Note 617: the driver's call that the pair are at their own work (the winch, the herd, the hose) with the crates (or a wreck
+    /// yard's salvage) still to carry: the shunter, spare, carries them meanwhile (the driver too had them out of the cab and
+    /// further from it when the loading was called done: 40 s more of a frontier:7 Foundry's aboard wait). At
+    /// frontier:1's wreck yard the pair cranked one sled in the loading a crew of bots gives it (note 609's 150 s), the shunter in
+    /// the cab and the driver at the controls, and none of the salvage came out.
+    /// </summary>
+    public bool PairAtWork { get; private set; }
+    public void PairWorking(bool on)
+    {
+        if (PairAtWork != on)
+            Heard(-1, "pair at work", -1, on, () => PairAtWork = on);
+    }
 
     /// <summary>
     /// What a spare hand (the shunter, the driver) takes on at the loading, with the train at the end of the spur (note 261):
@@ -496,7 +510,9 @@ public sealed record StopPlan(int Facility, Site Site, Branch Spur, double Hold,
     const int PickUpKeys = 1 << 16;
 
     /// <summary>The next stop the crew can work whose points are ahead of <paramref name="from"/>, if any.</summary>
-    public static StopPlan? Ahead(World world, double from, IReadOnlySet<int> done, CrewCalls calls)
+    /// <param name="takes">Note 617: only a stop this says the crew would make (the driver's allowance for it): one turned down
+    /// is passed over for the next, as a switchyard's own track for the pick-up on the siding beside it.</param>
+    public static StopPlan? Ahead(World world, double from, IReadOnlySet<int> done, CrewCalls calls, Func<StopPlan, bool>? takes = null)
     {
         if (world.Run is not { } run)
             return null;
@@ -533,7 +549,9 @@ public sealed record StopPlan(int Facility, Site Site, Branch Spur, double Hold,
                     // (note 261): only a train that goes in whole.
                     if (!calls.Has(StopJob.Shunter) && vehicles.Count - 1 > fit)
                         continue;
-                    best = new StopPlan(site.Index, site, spur, hold, fit, vehicles.Count - 1 > fit ? vehicles[fit].Id : -1);
+                    var plan = new StopPlan(site.Index, site, spur, hold, fit, vehicles.Count - 1 > fit ? vehicles[fit].Id : -1);
+                    if (takes is null || takes(plan))
+                        best = plan;
                 }
                 else
                 {
@@ -541,7 +559,9 @@ public sealed record StopPlan(int Facility, Site Site, Branch Spur, double Hold,
                     // left waiting on the main line.
                     if (fit < engine + 1 || !calls.Has(StopJob.Shunter))
                         continue;
-                    best = new StopPlan(site.Index, site, spur, hold, engine + 1, vehicles.Count - 1 > engine + 1 ? vehicles[engine + 1].Id : -1) { PickUp = true };
+                    var pickUp = new StopPlan(site.Index, site, spur, hold, engine + 1, vehicles.Count - 1 > engine + 1 ? vehicles[engine + 1].Id : -1) { PickUp = true };
+                    if (takes is null || takes(pickUp))
+                        best = pickUp;
                 }
             }
         }
@@ -867,7 +887,7 @@ public sealed class StopDriver(CrewCalls calls)
     const double HeldGiveUp = 240, LoadingGiveUp = 360, AboardGiveUp = 120, CoalGiveUp = 150, SpoutGiveUp = 300;
     /// <summary>
     /// Note 609: seconds a crew of bots gives a stop's loading before it calls it done, on a night without the spare for a whole
-    /// loading (<see cref="LoadingGiveUp"/>) and another stop's <see cref="StopAllowance"/> after it (the spout, the conveyor,
+    /// loading (<see cref="LoadingGiveUp"/>) and another stop's <see cref="Allowance"/> after it (the spout, the conveyor,
     /// the lift and the tipple after it have their own give-ups). What a stop's
     /// worth is in its first couple of minutes (the crane's castings, a sled, the nearest crates), and cargo aboard draws the
     /// night's pressure (the director's cargo term): loaded until it was late for the dawn, sixteen frontier:7 nights with a
@@ -888,13 +908,49 @@ public sealed class StopDriver(CrewCalls calls)
     /// </summary>
     const double TippleTrue = 0.45;
     /// <summary>
-    /// Seconds of spare before the dawn (at the pace the night's kept, <see cref="Home"/>) a facility stop wants, or a coaling
-    /// stop. Note 609: what a stop takes now, from frontier:7's Foundry with a crew of four: the legs up to the loading (approach,
-    /// held for the cut and the points, in down the spur) about 115 s, the loading at least <see cref="OnwardLoading"/>, and
-    /// what <see cref="Late"/> keeps back for the leaving and the aboard wait (<see cref="LateSpare"/> and
-    /// <see cref="AboardGiveUp"/>, 300 s). It was 600, sized for the 51-minute nights.
+    /// Seconds of spare before the dawn a coaling stop wants; and note 609's one allowance for a facility stop (500), sized on
+    /// frontier:7's Foundry, which a loading still weighs itself against with no stop ahead (<see cref="LoadingFor"/>). Note
+    /// 617: each kind of stop its own, <see cref="Allowance"/>.
     /// </summary>
     const double StopAllowance = 500, CoalAllowance = 120;
+
+    /// <summary>
+    /// Note 617: seconds a stop's legs take up to its loading (the approach, held for the cut and the points, in down the
+    /// spur), by what it is: the means of frontier:7, :1, :3, :4 and :6's harness nights with a crew of four (and the drills'
+    /// for the mine head's), the spur's length and the cut's walk the most of it.
+    /// </summary>
+    static double ToTheLoading(StopPlan p) =>
+        p.Site.Has(ModuleKind.Tipple) ? 100
+        : p.Site.Has(ModuleKind.Conveyor) || p.Site.Has(ModuleKind.Spout) ? 140
+        : p.Site.Feature.Facility == FacilityKind.Switchyard ? 145
+        : p.Site.Crane is not null ? 125
+        : p.Site.Feature.Facility == FacilityKind.WreckYard ? 95
+        : 110;
+
+    /// <summary>
+    /// Note 617: seconds of spare before the dawn (at the pace the night's kept, <see cref="Spare"/>) a stop wants, by what it
+    /// is. A stop with a loading: its legs up to the loading (<see cref="ToTheLoading"/>), the loading's least
+    /// (<see cref="OnwardLoading"/>), and what <see cref="Late"/> keeps back for the leaving and the aboard wait
+    /// (<see cref="LateSpare"/> and <see cref="AboardGiveUp"/>): 485 s for the wreck yard to 535 for a switchyard's own track
+    /// and the grain elevator (note 609's one 500 was the Foundry's). A switchyard's pick-up (note 187) has no loading for
+    /// <see cref="Late"/> to cut short: the stop itself (<see cref="PickUpStop"/>) and <see cref="PickUpReserve"/> over it.
+    /// </summary>
+    public static double Allowance(StopPlan p) =>
+        p.PickUp ? PickUpStop + PickUpReserve : ToTheLoading(p) + OnwardLoading + LateSpare + AboardGiveUp;
+
+    /// <summary>
+    /// Note 617: a switchyard pick-up's stop (s): in with the engine and a car, couple up, out onto the rest. 136 s in the drill
+    /// (no creatures); on frontier:7's harness nights at Renwick Yard 148–518, 184 the median of seven.
+    /// </summary>
+    const double PickUpStop = 185;
+    /// <summary>
+    /// Note 617: what a pick-up leaves the night over its own seconds (s): what a stop with a loading leaves it, <see cref="Late"/>'s
+    /// 300 s less its leaving (backing out and clearing, about 100 s). The run home after a stop is the night's least reckoned
+    /// part (frontier:7's reckoned spare at Renwick Yard was out by ±150 s against the dawn the crew came in to): with 15,
+    /// seven nights in sixteen made Renwick Yard's pick-up after the Foundry and five came in after the dawn, two taken by the
+    /// Wakers; with 120, four made it and three were taken.
+    /// </summary>
+    const double PickUpReserve = 200;
     /// <summary>Note 609: a stop's loading isn't cut short for the next stop (<see cref="Onward"/>) unless this much of it's to be had first.</summary>
     const double OnwardLoading = 90;
     /// <summary>Note 609: past the next stop's allowance, a stop's loading is called done this much early (the leaving takes less than reckoned).</summary>
@@ -903,17 +959,40 @@ public sealed class StopDriver(CrewCalls calls)
     const double OnwardBeyond = 50;
     /// <summary>The spare a stop's loading had when it began (<see cref="Onward"/>), NaN before then; and whether there was a stop ahead.</summary>
     double _spareAtLoading = double.NaN;
-    bool _onwardStop;
+    /// <summary>Note 617: the least allowance of the stops ahead this crew can work (<see cref="NextAllowance"/>), null with none.</summary>
+    double? _onwardAllowance;
+
+    /// <summary>
+    /// Note 617: the least <see cref="Allowance"/> of the stops ahead of this one the crew can work, or null with none: the stop
+    /// it would make next if any (a switchyard's own track turned down, its pick-up).
+    /// </summary>
+    double? NextAllowance(World world, StopPlan p)
+    {
+        double? least = null;
+        var done = new HashSet<int>(_done) { p.Key };
+        double from = p.Hold + OnwardBeyond;
+        for (int i = 0; i < 16 && StopPlan.Ahead(world, from, done, calls) is { } next; i++)
+        {
+            least = Math.Min(least ?? double.MaxValue, Allowance(next));
+            done.Add(next.Key);
+        }
+        return least;
+    }
     /// <summary>
     /// Note 609: the spare this stop's loading began with, past its leaving (<see cref="Onward"/>'s reckoning, for tests and
     /// traces); NaN before the loading.
     /// </summary>
     public double SpareAtLoading => _spareAtLoading;
+    /// <summary>
+    /// Note 617: the spare before the dawn the driver reckoned it had when it last weighed a stop, cruising (the lesser of the
+    /// run home at cruise and at the pace kept, <see cref="Home"/>; for tests and traces). NaN before.
+    /// </summary>
+    public double Spare { get; private set; } = double.NaN;
 
     /// <summary>
     /// Note 609: the loading called done for the stop ahead, as a crew says "that'll do, there's the yard still to make": another
     /// stop ahead this crew can work, the spare left once it's backed out (as <see cref="Late"/> reckons it) down to that stop's
-    /// <see cref="StopAllowance"/>, and this one's loading had <see cref="OnwardLoading"/> to be going on with. Without it a stop
+    /// <see cref="Allowance"/>, and this one's loading had <see cref="OnwardLoading"/> to be going on with. Without it a stop
     /// loaded until it was late for the dawn, and the next one never had the spare to be made.
     /// </summary>
     bool Onward(World world, StopPlan p)
@@ -924,9 +1003,9 @@ public sealed class StopDriver(CrewCalls calls)
         if (double.IsNaN(_spareAtLoading))
         {
             _spareAtLoading = spare;
-            _onwardStop = StopPlan.Ahead(world, p.Hold + OnwardBeyond, new HashSet<int>(_done) { p.Key }, calls) is not null;
+            _onwardAllowance = NextAllowance(world, p);
         }
-        return _onwardStop && _spareAtLoading > StopAllowance + OnwardLoading && spare <= StopAllowance + OnwardMargin;
+        return _onwardAllowance is { } next && _spareAtLoading > next + OnwardLoading && spare <= next + OnwardMargin;
     }
     /// <summary>Seconds a stop's leaving takes (backing out, clearing, the crew aboard): a stop's loading is late past this.</summary>
     const double LateSpare = 180;
@@ -1040,6 +1119,7 @@ public sealed class StopDriver(CrewCalls calls)
     {
         _loadedAt = -1;
         calls.SpareWinch(false);
+        calls.PairWorking(false);
         // Called all aboard for the loading until the next stop's (backing out and clearing, they're coming aboard).
         if (leg == Leg.Approach)
         {
@@ -1097,7 +1177,11 @@ public sealed class StopDriver(CrewCalls calls)
                     // A stop's worth making only with its loading's time in hand, reckoned as the loading's own lateness is
                     // (T74): at the pace the night's kept, a stop that would be late the moment it starts loading isn't one.
                     double spareAtPace = run.DawnIn - Home(world, run, engine.Distance);
-                    var plan = Math.Min(spare, spareAtPace) > StopAllowance ? StopPlan.Ahead(world, engine.Distance, _done, calls) : null;
+                    Spare = Math.Min(spare, spareAtPace);
+                    // Note 617: each kind of stop with its own allowance, the nearest that has it (a switchyard's own track turned
+                    // down, the pick-up on the siding beside it: that's only the coupling up).
+                    double reckoned = Spare;
+                    var plan = StopPlan.Ahead(world, engine.Distance, _done, calls, a => reckoned > Allowance(a));
                     bool low = train.BoilerTuning is { } bt && train.Boiler.Tender < bt.TenderCapacity * 0.2;
                     var coal = spare > CoalAllowance || low ? CoalPlan.Ahead(world, engine.Distance, _coaled, calls) : null;
                     double reach = engine.Distance + StoppingDistance(train) + 80;
@@ -1234,7 +1318,7 @@ public sealed class StopDriver(CrewCalls calls)
                     // A pick-up's loading is the coupling, done once it's run up to the end (note 187).
                     // Note 609: or it's had its time, on a short night, for a crew of bots (people playing call their own done).
                     bool loaded = p.PickUp || Loaded(world, p) || Waited > LoadingGiveUp || late
-                        || calls.PeopleHands == 0 && Waited > LoadingFor && _spareAtLoading < StopAllowance + LoadingGiveUp;
+                        || calls.PeopleHands == 0 && Waited > LoadingFor && _spareAtLoading < (_onwardAllowance ?? StopAllowance) + LoadingGiveUp;
                     // The rest in, the grain elevator's conveyor first (note 400): walked under its head a car at a time, the
                     // shunter starting it at its drive house and roaming its belt for the jams. It reaches the cars ahead of the
                     // spout's, so the spout takes the rest after it.
@@ -1508,7 +1592,13 @@ public sealed class StopDriver(CrewCalls calls)
         if (Doing != Leg.Loading || Plan is not { } p)
             return;
         // Note 609: called from here, every tick: the driver's out at the winch itself for much of it, not in the cab.
-        SpareWinch(world, p, Late(world, p) || Onward(world, p));
+        bool late = Late(world, p) || Onward(world, p);
+        SpareWinch(world, p, late);
+        // Note 617: and whether the pair are at their own work with the crates still to carry. Not at a crane's (the Foundry's):
+        // there the shunter's on the winch with the driver while the pair are at the crane (note 609), and out at the crates
+        // after it, it was 15–35 s further from the train when the loading was called done, and at its points later.
+        calls.PairWorking(!late && _loadedAt < 0 && !p.PickUp && p.Site.Crane is null && p.AtTheEnd(world.Train) && calls.Has(StopJob.Winch0) && calls.Has(StopJob.Winch1)
+            && calls.PairNow && p.PairWork(world, StopJob.Winch0) && p.CrateWork(world, calls.HeavyHands));
         double now = p.Progress(world);
         if (double.IsNaN(_progress) || Math.Abs(now - _progress) > 1e-6)
         {
@@ -2659,9 +2749,12 @@ public sealed partial class StopHand(StopJob job, CrewCalls calls, int member, C
         // shut behind us (an open car is a cold one), and aboard.
         // The site's crates in: the rest of the yard's, on foot (note 403); then the village.
         // (On with one we've set out for, whoever else has a crate in their arms: that's a crate to load too.)
-        if (!heavy && _setDown is null && (Fetching || !p.CratesToLoad(world, calls.HeavyHands)) && Yard(self, world, p) is { } fetch)
+        // Note 617: not the shunter lent to them while the pair are at their own work: it's the points' to set back once the
+        // loading's done, and out at the yard's far crates it kept a frontier:7 Foundry's clear waiting 150 s for it.
+        bool spare = job == StopJob.Shunter && calls.PairAtWork;
+        if (!heavy && _setDown is null && !spare && (Fetching || !p.CratesToLoad(world, calls.HeavyHands)) && Yard(self, world, p) is { } fetch)
             return fetch;
-        if (!heavy && _setDown is null && (!p.CratesToLoad(world, calls.HeavyHands) || calls.Leaving) && Village(self, world, p) is { } errand)
+        if (!heavy && _setDown is null && !spare && (!p.CratesToLoad(world, calls.HeavyHands) || calls.Leaving) && Village(self, world, p) is { } errand)
             return errand;
         if (!heavy && _setDown is null && (!p.CratesToLoad(world, calls.HeavyHands) || calls.Leaving))
         {
@@ -3351,11 +3444,25 @@ public sealed partial class StopHand(StopJob job, CrewCalls calls, int member, C
     (PlayerIntent Step, bool There) OnFoot(in PlayerState self, TrainOnLine train, int path, Double3 target, double? yaw)
     {
         var here = PlayerMotor.WorldPosition(self, train);
-        if (self.Parent == PlayerState.World && ((Flat(target) - Flat(here)).Length > ByFootPath || Across(train, path, here, target, self.LineHint))
+        if (self.Parent == PlayerState.World && ((Flat(target) - Flat(here)).Length > ByFootPath || Across(train, path, here, target, self.LineHint)
+                || OffTheTrack(train, path, target, self.LineHint))
             && WayTo(train, here, target))
             return (Follow(self, train, target), false);
         return WalkTo(self, train.Line, path, target, yaw);
     }
+
+    /// <summary>
+    /// Note 620: <paramref name="target"/> is well off the track (past <see cref="TrackSide"/>), a Holdout's door say: the
+    /// foot path all the way, round the walls, and never <see cref="WalkTo"/>'s track-side walk, which keeps to the track's own
+    /// across and along. Within <see cref="ByFootPath"/> of a door on the far side of its house it walked into the wall and
+    /// stood there, 6.7 m short: the breach never began, the driver stood its give-up out, and the crewmate in it was left
+    /// (deadLines:7 seed 4).
+    /// </summary>
+    static bool OffTheTrack(TrainOnLine train, int path, Double3 target, double hint) =>
+        Math.Abs(TrackCoords(train.Line, path, target, hint).Across) > TrackSide;
+
+    /// <summary>How far either side of the track the track-side walk is the way (m): the cars, their steps and a stride.</summary>
+    const double TrackSide = 6;
 
     /// <summary>
     /// Note 486: <paramref name="target"/> is across the track from <paramref name="here"/> with the train standing between:

@@ -128,6 +128,14 @@ public sealed record RejoinReport(string Bot, int Was, int Back, double DroppedA
 /// the places taken at the night's end (the crew, the waiting, the held), <paramref name="Refusals"/> the host's count of
 /// joiners turned away, and <paramref name="Refused"/> each refused bot with what its client was told.
 /// </summary>
+/// <summary>
+/// Dawn on a harness night (note 607). <paramref name="LineAt"/>: when the dawn line came up (wakers.stirSeconds before dawn)
+/// and <paramref name="AtLine"/> the crew then (the trace's words); <paramref name="TakenAt"/>: when the lead Waker took the
+/// train (−1, it didn't), <paramref name="Short"/> how far short of the terminus's gate (m), <paramref name="Speed"/> the
+/// train's then, and <paramref name="AtTaking"/> where everyone was.
+/// </summary>
+public sealed record DawnReport(double LineAt, IReadOnlyList<string> AtLine, double TakenAt, double Short, double Speed, IReadOnlyList<string> AtTaking);
+
 public sealed record CrewCapReport(int Cap, int Occupied, int Refusals, IReadOnlyList<string> Refused);
 
 /// <summary>Transports for the harness from elsewhere: the Sim doesn't reference platform code, so the CLI brings it.</summary>
@@ -170,6 +178,8 @@ public sealed record HarnessReport(int Ticks, double Seconds, string Link, doubl
     public HoldoutReport? Holdouts { get; init; }
     /// <summary>Every fall of the night (note 553, <see cref="FallWatch"/>): landed well under the rails, or hurt by the landing.</summary>
     public IReadOnlyList<FallReport> Falls { get; init; } = [];
+    /// <summary>Dawn (note 607): when the dawn line came up and when the lead Waker took the train, and where everyone was.</summary>
+    public DawnReport? Dawn { get; init; }
 }
 
 /// <summary>
@@ -428,6 +438,10 @@ public static class Harness
         var toFree = new List<double>();
         var freedBy = new SortedDictionary<string, int>(StringComparer.Ordinal);
         var falls = new FallWatch();
+        // Note 607: the crew at the dawn line, and when the lead Waker took the train.
+        double? lineAt = null;
+        IReadOnlyList<string>? atLine = null;
+        DawnReport? dawn = null;
         for (uint t = 0; t < ticks; t++)
         {
             if (host.World.Run is { Over: true } || o.Until?.Invoke(host.World) == true)
@@ -442,6 +456,18 @@ public static class Harness
             events.AddRange(host.World.EnemyEvents);
             foreach (var p in host.Players)
                 falls.Watch(t, host.Train, p.Id, p.State, clients.FirstOrDefault(c => c.Session.PlayerId == p.Id).Bot);
+            if (host.World.Run is { } dawnRun && host.World.Enemies is { Wakers.Enabled: true } dawnTuning)
+            {
+                List<string> Crew() => [.. host.Players.Select(p => clients.FirstOrDefault(c => c.Session.PlayerId == p.Id).Bot is { } b ? Describe(b, p.State) : $"player {p.Id}")];
+                if (lineAt is null && dawnRun.DawnIn <= dawnTuning.Wakers.StirSeconds)
+                    (lineAt, atLine) = (Math.Round(t * SimConstants.TickSeconds, 1), Crew());
+                if (dawn is null && host.World.ActiveEnemies.OfType<Waker>().Any(w => w.Lead && w.Holds))
+                {
+                    double gate = dawnRun.Route.Plan?.Terminus.GateM ?? dawnRun.Route.Length;
+                    dawn = new DawnReport(lineAt ?? -1, atLine ?? [], Math.Round(t * SimConstants.TickSeconds, 1),
+                        Math.Round(gate - host.Train.Dynamics.Distance), Math.Round(host.Train.Dynamics.Speed, 1), Crew());
+                }
+            }
             if (host.World.Holdouts is { } hs)
             {
                 foreach (var h in hs.All)
@@ -680,6 +706,7 @@ public static class Harness
                 host.HoldoutEvents.Count(e => e.Kind == Sim.Run.HoldoutEventKind.Freed),
                 host.HoldoutEvents.Count(e => e.Kind == Sim.Run.HoldoutEventKind.Released), toFree, freedBy),
             Falls = falls.Falls,
+            Dawn = dawn ?? (lineAt is { } la ? new DawnReport(la, atLine ?? [], -1, -1, -1, []) : null),
         };
     }
 

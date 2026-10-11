@@ -119,7 +119,7 @@ public sealed class Waker(int id) : Enemy(id)
     }
 
     /// <summary>How far short of the terminus's gate they stop: in under the guns, the crew's home.</summary>
-    static double Wall(World world, WakersTuning t) => world.Run is { } run
+    internal static double Wall(World world, WakersTuning t) => world.Run is { } run
         ? (run.Route.Plan?.Terminus.GateM ?? run.Route.Length - run.Tuning.TerminusZone) - t.StopShort
         : double.MaxValue;
 

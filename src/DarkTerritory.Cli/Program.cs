@@ -164,9 +164,7 @@ object RunHarness(string[] args)
     // A route's night starts where the game's does (run.json departShortOfGateM: just short of the fortress's gate), not
     // 400 m along: the yard is all at yard speed, and the crawl to the gate was five minutes of the harness's time (note 188).
     double start = route is null ? 600 : runTuning!.DepartFrom(route.GateOr(routeTuning.YardLength), Consist.Uniform(train, (int)Opt(args, "--cars", 10), 1).LengthMetres);
-    return Harness.Run(line, train, player, new HarnessOptions
-    {
-        Observe = trace is null ? null : (tick, crew, world) =>
+    Action<uint, IReadOnlyList<(DarkTerritory.Sim.Bots.IBot Bot, PlayerState State)>, World>? observe = trace is null ? null : (tick, crew, world) =>
         {
             // And what's out there: each enemy, what it's doing, and where (its car, or along the line).
             string enemies = string.Join(" ", world.ActiveEnemies.Where(e => e.Kind != DarkTerritory.Sim.Enemies.EnemyKind.Sleepers)
@@ -184,7 +182,34 @@ object RunHarness(string[] args)
                 trace.WriteLine($"{tick / 30.0,7:0.0}s  @{world.Train.Dynamics.Distance:0} {world.Train.Dynamics.Velocity:0.0}m/s p{world.Train.Dynamics.Path}{fire}  {now}");
             }
             lastTrace = now;
-        },
+        };
+    // --as-app (note 622): the night as the app hosts it (HostedAsApp, note 616): the train at the gate as the app stands it,
+    // the crew aboard, the perfect link, the loadout's tunings, the upkeep and the stops' finds (--no-upkeep, --no-loot to
+    // leave them out, as `dt campaign play`). What stays the harness's: --seed seeds the director as well as the bots, so a
+    // route's nights are as many nights as seeds (the app's director takes the route's seed: one night a route).
+    if (args.Contains("--as-app"))
+    {
+        if (route is null)
+            throw new ArgumentException("--as-app hosts a route's night: give --route");
+        int seed = (int)Opt(args, "--seed", 1);
+        var hosted = DarkTerritory.Game.HostedAsApp.For(content, new DarkTerritory.Game.SessionSetup(Route: Str(args, "--route", ""), Cars: (int)Opt(args, "--cars", 10),
+            Enemies: args.Contains("--enemies")), (int)Opt(args, "--bots", 8), Opt(args, "--seconds", 120));
+        return Harness.Run(hosted.Line, hosted.Train, hosted.Player, hosted.Options with
+        {
+            Observe = observe,
+            Seed = seed,
+            DirectorSeed = (ulong)seed,
+            Combat = args.Contains("--no-combat") ? null : hosted.Options.Combat,
+            Upkeep = args.Contains("--no-upkeep") ? null : hosted.Options.Upkeep,
+            Loot = args.Contains("--no-loot") ? null : hosted.Options.Loot,
+            // The app's own link is UDP over localhost (D1.4); the perfect one is kept by default, as a trends night must
+            // play the same on every commit it's measured on. --udp for the sockets.
+            Udp = args.Contains("--udp"),
+        }, args.Contains("--no-boiler") ? null : hosted.Boiler);
+    }
+    return Harness.Run(line, train, player, new HarnessOptions
+    {
+        Observe = observe,
         Bots = (int)Opt(args, "--bots", 8),
         // --express [m/s]: the driver runs hot (21 m/s if no speed's given) and takes no stops (note 376): the hound run's night.
         Express = Array.IndexOf(args, "--express") is var ex and >= 0
