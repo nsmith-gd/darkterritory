@@ -39,5 +39,8 @@ public class TownToTownTests
     {
         Assert.Equal(("FORT BOUDREAU", "BUILDING THE NIGHT AHEAD"), TownBackdrop.Card("Fort Boudreau", null));
         Assert.Equal(("FORT BOUDREAU", "THE NIGHT TO GRIEVE"), TownBackdrop.Card("Fort Boudreau", "Grieve"));
+        // A joiner following its host (note 606): the same card, the host picking the night till it's up.
+        Assert.Equal(("FORT BOUDREAU", "THE HOST IS PICKING THE NIGHT AHEAD"), TownBackdrop.Card("Fort Boudreau", null, following: true));
+        Assert.Equal(("FORT BOUDREAU", "THE NIGHT TO GRIEVE"), TownBackdrop.Card("Fort Boudreau", "Grieve", following: true));
     }
 }

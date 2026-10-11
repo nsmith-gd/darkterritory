@@ -87,7 +87,7 @@ public class GutterTests
         // nobody's in there, so the walker goes along the roofs, in at its door, and trims it before it goes out.
         double? cameAt = null, trimmedAt = null;
         bool wentOut = false;
-        var report = CrewOfTwoTests.Night("frontier:7", 6, 100, null, start: 2500, bots: 3,
+        var report = CrewOfTwoTests.Night(CrewOfTwoTests.OpenLine.Spec, 6, 100, null, start: CrewOfTwoTests.OpenLine.Start, bots: 3,
             upkeep: new UpkeepTuning { HotBox = new() { Enabled = false }, Lamp = G with { FirstAfterMetres = 1e9 }, Coupling = new() { Enabled = false } },
             each: w =>
             {

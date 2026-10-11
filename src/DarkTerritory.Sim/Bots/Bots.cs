@@ -4216,11 +4216,34 @@ public static partial class Heed
         // The Car Hugger's mouth is at the end of its car, under the roof's edge (App. A.3): the one it has is on the end ladder
         // or the platform below. From that car's roof, to the top of the ladder over them, and haul from there. On the roof
         // above, walking at them got no nearer, and a crew of four watched a walker eaten under their feet (note 310).
-        if (holder.e is CarHugger hugger && self.Parent == hugger.Attached && self.Surface == Surface.Roof
-            && train.Frames[hugger.Attached].Shape.Platform is { } platform)
+        // One it has down on the coupling below (a walker gone down to club it, note 310) is out of reach from up there: down the
+        // ladder after them, the way they went, and haul from beside them. From the roof a crew of four watched a walker they'd
+        // just pulled out go back down and be eaten 3 m under the one who'd saved them (note 554's 7 km lines, deadLines:2).
+        if (holder.e is CarHugger hugger && self.Parent == hugger.Attached && train.Frames[hugger.Attached].Shape.Platform is { } platform
+            && self.Surface is Surface.Roof or Surface.Ladder or Surface.Coupler)
         {
-            var (toLadder, there) = WarmUp.Steer(self, new Double3(train.Dynamics.Tuning.Geometry.EndLadderX, 0, platform.Min.Z - 0.35), Math.PI);
-            return there ? new PlayerIntent { Buttons = PlayerButtons.Use } : toLadder;
+            var heldAt = crew?.FirstOrDefault(c => c.Id == holder.e.Holding) is { State.Alive: true } h
+                ? PlayerMotor.WorldPosition(h.State, train) : holder.At;
+            bool reach = (heldAt - me).Length <= et.Grab.PullReach;
+            switch (self.Surface)
+            {
+                case Surface.Roof:
+                    {
+                        var (toLadder, there) = WarmUp.Steer(self, new Double3(train.Dynamics.Tuning.Geometry.EndLadderX, 0, platform.Min.Z - 0.35), Math.PI);
+                        if (!there)
+                            return toLadder;
+                        // Pushing on over the edge takes the ladder down (as Beat goes to club it).
+                        return reach ? new PlayerIntent { Buttons = PlayerButtons.Use } : new PlayerIntent { MoveZ = 1, Buttons = PlayerButtons.Use };
+                    }
+                case Surface.Ladder:
+                    return reach ? new PlayerIntent { Buttons = PlayerButtons.Use } : new PlayerIntent { MoveZ = -1 };
+                default:
+                    if (Strike(self, train, heldAt, et.Grab.PullReach * 0.8) is not { } closer)
+                        return intent;
+                    if (reach)
+                        closer.Buttons |= PlayerButtons.Use;
+                    return closer;
+            }
         }
         // The Knotter's coil (note 365): see KnotRescue.
         if (holder.e is Knotter knot)

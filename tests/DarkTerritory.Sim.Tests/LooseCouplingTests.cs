@@ -146,7 +146,7 @@ public class LooseCouplingTests
         // As the hot box's walker (HotBoxTests): car 3's coupling comes loose 20 s in, and the walker goes along the roofs to
         // it, down the end ladder into the gap behind car 3, puts the wrench in hand and tightens it before the pin drops.
         double? cameAt = null, tightAt = null;
-        var report = CrewOfTwoTests.Night("frontier:7", 6, 100, null, start: 2500, bots: 3,
+        var report = CrewOfTwoTests.Night(CrewOfTwoTests.OpenLine.Spec, 6, 100, null, start: CrewOfTwoTests.OpenLine.Start, bots: 3,
             upkeep: new UpkeepTuning { HotBox = new() { Enabled = false }, Lamp = new() { Enabled = false }, Coupling = L with { FirstAfterMetres = 1e9 } },
             each: w =>
             {

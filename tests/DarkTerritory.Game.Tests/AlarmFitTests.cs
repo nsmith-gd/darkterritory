@@ -84,10 +84,11 @@ public sealed class AlarmFitTests
     }
 
     // The line's own warnings as a player meets them (the screenshots' staging): the cab's bend warning coming and on it, a
-    // roof rider's tunnel and bend.
+    // roof rider's tunnel and bend (deadLines:1 on the 7 km nights of note 554: most tunnels are short of 2 km, in the yard's
+    // reach, where the staging doesn't look).
     static readonly Lazy<(string What, PrototypeSession Session)[]> Staged = new(() =>
     {
-        var route = Sim.LineGen.Routes.Generate(Content, "deepTerritory:2", 6);
+        var route = Sim.LineGen.Routes.Generate(Content, "deadLines:1", 6);
         return
         [
             ("the bend coming", Staging.BendWarning(Content, route, 6, 4)),

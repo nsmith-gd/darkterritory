@@ -119,7 +119,11 @@
     "reclaimBody": true,
     "greetSeconds": 1,
     "retries": 5,
-    "retrySeconds": 3
+    "retrySeconds": 3,
+    // The crew goes on together (ARCHITECTURE §8 note 606): told the host's going on from a delivered campaign night's town,
+    // a joiner waits on its card and dials the host again, retrySeconds apart, for up to followSeconds while the host picks
+    // the next night at its board; past that it's back to its menu.
+    "followSeconds": 600
   },
   // The links in play (ARCHITECTURE §8 note 532). timeoutSeconds: silence from the other end for this long and the link's
   // gone (a joiner then redials, rejoin above; it was the transport's own 8 s, note 18, which a wifi blip could reach).
