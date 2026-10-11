@@ -52,6 +52,14 @@ public sealed record TownAt(string Name, string Industry, ulong Seed, int Burnt 
     public static (string Spec, TownAt? From) Split(string spec) =>
         spec.IndexOf('@') is var at and >= 0 ? (spec[..at], Parse(spec[(at + 1)..])) : (spec, null);
 
+    /// <summary>
+    /// <paramref name="town"/> as the campaign remembers it (note 612): with the houses burnt in it on earlier visits
+    /// (<paramref name="burnt"/>, by <see cref="Key"/>; note 608), so a terminus the crew's burnt before is built with them as
+    /// it's come into. Null, or one it has nothing against, as it is.
+    /// </summary>
+    public static TownAt? Remembered(TownAt? town, IReadOnlyDictionary<string, int>? burnt) =>
+        town is not null && burnt is not null && burnt.TryGetValue(town.Key, out int b) && b > 0 ? town with { Burnt = b } : town;
+
     /// <summary><paramref name="spec"/> departing from <paramref name="from"/> (none, as it is).</summary>
     public static string With(string spec, TownAt? from) => from is null ? Split(spec).Spec : $"{Split(spec).Spec}@{from.Spec}";
 }

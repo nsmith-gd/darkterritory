@@ -611,6 +611,8 @@ static string Doing(Launch chosen) => chosen switch
                     SpareExtinguishers = campaign.Stores.Extinguishers,
                     FirstChildReal = profile.FirstChildReal,
                     LastTown = campaign.LastTown,
+                    // Note 612: a terminus the crew's burnt houses in before is built with them.
+                    Burnt = campaign.Burnt.Count > 0 ? campaign.Burnt : null,
                 };
                 Console.WriteLine($"campaign slot {night.Slot} ({campaign.Name}): {campaign.Cars} cars, {campaign.Scrip:0} scrip, tonight {contract.Route} carrying {Cargoes.Name(contract.Cargo)} at {contract.PerCar:0} a car{(resume is not null ? $", resuming after facility {resume.Facility}" : "")}");
                 // Note 450: private, behind the host screen's password (listed with a lock); with none typed, unlisted as before.
