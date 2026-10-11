@@ -671,7 +671,7 @@ public class WorldSoundTests
     [InlineData("local:60", "world-water.surf", "sea")]
     [InlineData("local:4", "world-water.river", "river")]
     [InlineData("frontier:271", "world-water.tide", "fundy")]
-    [InlineData("frontier:5", "world-water.river", "tidal")]
+    [InlineData("local:15", "world-water.river", "tidal")]
     [InlineData("frontier:7", "world-water.lake", "lake")]
     public void TheLinesWaterIsHeardWhereItsWaterIs(string id, string cue, string kind)
     {

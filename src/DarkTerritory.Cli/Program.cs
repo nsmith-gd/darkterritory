@@ -2929,16 +2929,16 @@ static object HudShot(string content, string[] args)
     else
     {
         // --roof-warning tunnel|bend (note 260): up on a roof with a tunnel's mouth, or a bend taken too fast, coming
-        // (--route; deepTerritory:2 if none: frontier:7 has no tunnel on its main line), warned.
+        // (--route; deadLines:1 if none: on the 7 km nights of note 554 most tunnels are short of 2 km, in the yard's reach), warned.
         string roofWarning = Str(args, "--roof-warning", "");
         // --bend-warning [s] (note 265): in the cab, s seconds short of a bend the speed would derail the train on (0: on it),
-        // warned. deepTerritory:2 if no --route (every night has such bends since note 278; frontier:7's first is at km 8.8).
+        // warned. deadLines:1 if no --route (every night has such bends since note 278).
         if (args.Contains("--bend-warning"))
             roofWarning = "bend-cab";
         var solo = roofWarning == "bend-cab"
-            ? Staging.BendWarning(content, generated ?? DarkTerritory.Sim.LineGen.Routes.Generate(content, "deepTerritory:2", cars), cars, Array.IndexOf(args, "--bend-warning") is var bw && bw + 1 < args.Length && double.TryParse(args[bw + 1], System.Globalization.CultureInfo.InvariantCulture, out double bws) ? bws : 4)
+            ? Staging.BendWarning(content, generated ?? DarkTerritory.Sim.LineGen.Routes.Generate(content, "deadLines:1", cars), cars, Array.IndexOf(args, "--bend-warning") is var bw && bw + 1 < args.Length && double.TryParse(args[bw + 1], System.Globalization.CultureInfo.InvariantCulture, out double bws) ? bws : 4)
             : roofWarning.Length > 0
-            ? Staging.RoofWarning(content, generated ?? DarkTerritory.Sim.LineGen.Routes.Generate(content, "deepTerritory:2", cars), cars, roofWarning)
+            ? Staging.RoofWarning(content, generated ?? DarkTerritory.Sim.LineGen.Routes.Generate(content, "deadLines:1", cars), cars, roofWarning)
             : generated is null ? new PrototypeSession(content, Str(args, "--line", "test-loop"), cars) : new PrototypeSession(content, generated, cars, enemies: false);
         if (roofWarning.Length == 0)
             solo.Controls.Throttle = Opt(args, "--throttle", args.Contains("--talk") ? 0 : 0.6);
@@ -3461,7 +3461,7 @@ static object RenderAudio(string content, string[] args)
     // A bend taken too fast (note 265): the stress telegraph built up to the derailment, a second at a time.
     if (scenario == "bend")
     {
-        var (bend, bent) = DarkTerritory.Game.Sound.AudioBench.RenderBend(content, Str(args, "--route", "deepTerritory:2"), (int)Opt(args, "--cars", 6),
+        var (bend, bent) = DarkTerritory.Game.Sound.AudioBench.RenderBend(content, Str(args, "--route", "deepTerritory:5"), (int)Opt(args, "--cars", 6),
             (int)Opt(args, "--listener", 0), Opt(args, "--seconds", 16));
         string bendOut = Str(args, "--out", "out/audio/bend.wav");
         Ballast.Audio.Wav.Write(bendOut, bent);

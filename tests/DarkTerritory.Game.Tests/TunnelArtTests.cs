@@ -70,7 +70,7 @@ public class TunnelArtTests
 
     [Theory]
     [InlineData("deadLines:12")]
-    [InlineData("deepTerritory:20")]
+    [InlineData("deepTerritory:21")]
     public void AboveAPortalsFaceTheGroundClosesOntoTheHill(string spec)
     {
         // From up in front of each portal, either side of the line (where `dt holes` stood its high camera), every sight

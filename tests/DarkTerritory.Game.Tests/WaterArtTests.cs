@@ -82,10 +82,10 @@ public class WaterArtTests
     [Fact]
     public void ARiverRunsUnderItsSpanAndTheSeaLiesOpen()
     {
-        // frontier:7's tidal river at 8.1 km on its 24 km line (on the 7 km nights of note 554, frontier:5's): it runs across
+        // frontier:7's tidal river at 8.1 km on its 24 km line (on the 7 km nights of note 554, local:15's): it runs across
         // under the line, one way or the other, at its kind's current, and laps at its banks (its blend 1 at either end of its
         // crossing, less out on it).
-        var route = Routes.Generate(Content, "frontier:5", 6);
+        var route = Routes.Generate(Content, "local:15", 6);
         var line = route.Build();
         var river = route.Plan!.Water.First(w => w.Type == "tidal");
         var mid = line.Sample((river.S0 + river.S1) / 2);

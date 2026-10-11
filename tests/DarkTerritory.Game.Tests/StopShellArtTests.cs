@@ -19,9 +19,9 @@ public class StopShellArtTests
     static readonly string Content = DataFile.FindContentRoot();
     static readonly Look Look = Look.Load(Content);
 
-    /// <summary>frontier:38 has sheds, a hero, a pump house, prison cars and lockups; frontier:1 signal boxes and lamp rooms (frontier:13
+    /// <summary>frontier:39 has sheds, a hero, a pump house, prison cars and lockups; frontier:1 signal boxes and lamp rooms (frontier:13
     /// and frontier:2 had them on their 24 km lines).</summary>
-    public static TheoryData<string> Nights => ["frontier:38", "frontier:1"];
+    public static TheoryData<string> Nights => ["frontier:39", "frontier:1"];
 
     /// <summary>Every shelled building of a night, drawn alone, its triangles relative to an eye at its middle.</summary>
     static IEnumerable<(RouteFeature Feature, int Index, Double3 Eye, List<(Vector3, Vector3, Vector3)> Triangles, RailLine Line)> Shells(string spec)
@@ -117,14 +117,14 @@ public class StopShellArtTests
             }
         }
         Assert.True(doors >= 4, $"{spec}: only {doors} doors");
-        BuildingKind[] expected = spec == "frontier:38"
+        BuildingKind[] expected = spec == "frontier:39"
             ? [BuildingKind.Shed, BuildingKind.Hero, BuildingKind.WaterTower, BuildingKind.PrisonCar, BuildingKind.Lockup]
             : [BuildingKind.SignalBox, BuildingKind.LampRoom];
         Assert.Subset(kinds, expected.ToHashSet());
     }
 
     [Theory]
-    [InlineData("frontier:7")]
+    [InlineData("frontier:1")]
     [InlineData("deadLines:20")]
     public void AnOpenBarnsHayloftAndAShedsBenchStandAtItsBackWall(string spec)
     {
