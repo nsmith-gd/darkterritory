@@ -151,6 +151,9 @@ public sealed class GunnerBot(GunTuning guns, ChoirTuning? choir = null, int see
         // the cab (the legs' way). With all of it still running in it keeps the gun: a ball each is how it's least hurt.
         if (_legs.Hunted && world.ActiveEnemies.Any(e => e.Kind == EnemyKind.CinderHound && !e.Gone && e.Attached >= 0))
             return _legs.Decide(self, world, tick, out aimed);
+        // Note 607: dawn, the Wakers up (the guard van's gun is in the last car, the first they lift): off it, forward with the rest.
+        if (_legs.Dawn)
+            return _legs.Decide(self, world, tick, out aimed);
         // The Car Hugger on the rear car (v1.1 App. A.3): the gun's no answer to it (it's below the arc). Off the gun: down to
         // the guard van's rear platform to club it off (the legs do that), or with no platform to get at it from, up the
         // train, clear of its mouth, and let it take the car.
@@ -744,8 +747,11 @@ public sealed class RoofWalkerBot(int seed, ColdTuning? cold = null, StopHand? j
         _pinBeside = pins ?? tend ? PinBeside(self, world) : null;
         bool pinFirst = _pinBeside is not null;
         // Note 551: too hurt for a pack that's about, and in a car: in it stays, its doors shut (on the roofs, it's the cab's way).
-        Hunted = Hiding(world, self) && !pinFirst;
-        bool hiding = Hunted && self.Parent > 0 && PlayerMotor.Indoors(self, world.Train);
+        // Note 607: from the dawn line, the Wakers coming, it's the cab's way for everyone (not mid-fire or mid-pin), out of a car too.
+        Dawn = AtDawn(world) && !pinFirst && TendStep is null;
+        _warm.Forward = Dawn;
+        Hunted = (Hiding(world, self) || Dawn) && !pinFirst;
+        bool hiding = Hunted && !Dawn && self.Parent > 0 && PlayerMotor.Indoors(self, world.Train);
         _warm.Shelter = !safe && RoofWarned(world) || choir || hiding;
         _warm.ShutFirst = choir || hiding;
         // Trouble inside a car: in to it, and work it from the aisle, unless it's too much for us (hurt, get out).
@@ -880,6 +886,19 @@ public sealed class RoofWalkerBot(int seed, ColdTuning? cold = null, StopHand? j
     /// </summary>
     public bool Hunted { get; private set; }
 
+    /// <summary>
+    /// Note 607 (queue #339; the director, 9 Oct: "the picking up of the train, especially with you in it ... And then the
+    /// tension before it is really, really important"): from the dawn line (wakers.stirSeconds before dawn, the HUD's "get in")
+    /// with the train still short of where the Wakers stop, forward along the train to the cab: the engine is the last thing
+    /// they eat. Off the ground (the stop's work waits), off the roofs, and out of a car, the guard van's gunner off its gun.
+    /// </summary>
+    public bool Dawn { get; private set; }
+
+    /// <summary>The Wakers are coming tonight and the dawn line is up, the train out on the line short of their stopping place.</summary>
+    public static bool AtDawn(World world) =>
+        world.Enemies is { Wakers: { Enabled: true } t } && world.Run is { Phase: Run.RunPhase.Underway or Run.RunPhase.AtFacility } run
+        && run.DawnIn <= t.StirSeconds && !world.TrainInFort && Waker.SecondsToShelter(world) > 0;
+
     /// <summary>Hunted (note 551): the way to the cab, standing in it once there; null in a car, on the ground, or mid warm-up.</summary>
     PlayerIntent? ToCover(in PlayerState self, TrainOnLine train, uint tick)
     {
@@ -887,7 +906,7 @@ public sealed class RoofWalkerBot(int seed, ColdTuning? cold = null, StopHand? j
             return null;
         if (PlayerMotor.InCab(self, train))
             return new PlayerIntent();
-        if (self.Parent > 0 && self.Surface == Surface.Deck)
+        if (self.Parent > 0 && self.Surface == Surface.Deck && !Dawn)
             return null;
         if (self.Has(PlayerFlags.Seated))
             return new PlayerIntent { Buttons = PlayerButtons.Jump }; // up out of a gun's seat first
@@ -3831,6 +3850,9 @@ public sealed class WarmUp(ColdTuning cold, double goInAt = 0.6)
         bool knot = way > 0 ? train.Vehicles[_car].Knot > 0 : ahead > 0 && train.Vehicles[ahead].Knot > 0;
         bool other = way > 0 ? ahead > 0 && train.Vehicles[ahead].Knot <= 0 : train.Vehicles[_car].Knot <= 0;
         way = knot && other ? -way : way;
+        // Note 607: dawn, the Wakers eating from the rear: out by the front door, toward the engine, where there's a way.
+        if (Forward && Way(train, -1) && !(ahead > 0 && train.Vehicles[ahead].Knot > 0))
+            return -1;
         // Note 553: a car alight, out the way with less of the fire on it (car 1's front door onto the engine's plate too).
         if (FireOnTheWay is { } fire && Way(train, -way) && fire(_car, self.Position.Z, -way) < fire(_car, self.Position.Z, way))
             return -way;
@@ -3885,6 +3907,8 @@ public sealed class WarmUp(ColdTuning cold, double goInAt = 0.6)
     /// end alight, 7 m back through the whole fire to the rear one. Set by the bot.
     /// </summary>
     public Func<int, double, int, double>? FireOnTheWay { get; set; }
+    /// <summary>Out toward the engine whichever end is nearer (note 607: dawn, the Wakers eating from the rear). Set by the bot.</summary>
+    public bool Forward { get; set; }
     /// <summary>
     /// A door of the car it's warming in that's to be left open, by its index: the repair kit's way up the train while the
     /// boiler's ruptured (<see cref="KitCarry"/>). The cascade audit's walker in out of the cold in car 3 shut every end door
