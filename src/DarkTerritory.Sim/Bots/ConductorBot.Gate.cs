@@ -15,12 +15,13 @@ public sealed partial class ConductorBot
 
     /// <summary>
     /// Something aboard that a town's gate would charge the brigade for (note 589, <see cref="Run.Run.BringIn"/>), and the crew
-    /// can clear: a creature on the train, not a hazard (the Wakers) nor an incident (a fire, a loose load). Not the Brakeman
-    /// while he's hidden under or in the train, where nobody reaches him (note 364): on frontier:7's last 5 km (16 nights)
-    /// every stand that ran its give-up out was for him, and he was brought in after it all the same.
+    /// can clear: a creature on the train, not a hazard (the Wakers) nor an incident (a fire, a loose load). The Brakeman
+    /// hidden under or in the train too (note 610): he's up again in 30 to 60 s, and at a stand the pair (note 364) waits for
+    /// him at the train's ends and corners him. Left out, the stand ended as soon as he dropped out of sight, and he was
+    /// brought in.
     /// </summary>
     public static bool Aboard(World world) =>
-        world.ActiveEnemies.Any(e => !e.Gone && !e.Hazard && e is not Incident && e.Attached >= 0 && e is not Brakeman { Mode: BrakemanMode.Hidden });
+        world.ActiveEnemies.Any(e => !e.Gone && !e.Hazard && e is not Incident && e.Attached >= 0);
 
     /// <summary>
     /// Note 605 (queue #337; the director, 9 Oct 2026: "plan a little extra time at the end of the run to stop the train, clear
