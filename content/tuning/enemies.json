@@ -483,10 +483,16 @@
   // wreckStopShort m short of its near edge, braking hard from wreckHoldWithin m out. On foot within beetleWithin m of the
   // Freight Beetle it clubs it. Cornering the Brakeman, each of the pair closes to brakemanStandOff m off him on its side.
   // The driver stands for a seized axle or a wreck no longer than standGiveUp s.
+  // Note 605 (queue #337; the director, 9 Oct: "plan a little extra time at the end of the run to stop the train, clear the
+  // monsters, and then bring it in"): with something aboard a town's gate would charge for (note 589), within gateClearWithin
+  // m of the gate the driver pulls up gateClearShort m short of it, in the quiet zone (note 590's spawnBanM), and stands while
+  // the crew clears the train, no longer than gateClearGiveUp s, nor once the time in hand runs out: dawn, the Wakers' run up
+  // to the train's rear (wakers.riseBehind at their speeds) where it isn't past their wall (wakers.stopShort short of the gate),
+  // less the run in and gateClearMargin s. No time, it runs straight in: a fee beats being eaten.
   "crewBots": {
     "mournersWithin": 30, "mournersLeash": 20, "towerJawWithin": 25, "towerJawClearFrom": 0.9, "towerJawClearBy": 2.5,
     "wreckWithin": 250, "wreckStopShort": 15, "wreckHoldWithin": 60, "beetleWithin": 15, "brakemanStandOff": 1.5,
-    "standGiveUp": 240
+    "standGiveUp": 240, "gateClearShort": 30, "gateClearWithin": 1500, "gateClearGiveUp": 240, "gateClearMargin": 45
   },
 
   // DAVE (GDD §3.2; the director, 8 Oct 2026: "a special NPC that shows up randomly in places ... If a player hits Dave 5
