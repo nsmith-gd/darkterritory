@@ -66,6 +66,12 @@ public sealed record SessionSetup(string? Route = null, string Line = "test-loop
     /// </summary>
     [System.Text.Json.Serialization.JsonIgnore(Condition = System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull)]
     public string? LastTown { get; init; }
+    /// <summary>
+    /// The towns the campaign's crew has burnt houses in (note 608), by <see cref="Sim.Towns.TownAt.Key"/>: tonight's terminus,
+    /// if it's one of them, is built with them as it's come into (note 612). Every machine makes the town, so a joiner is sent it.
+    /// </summary>
+    [System.Text.Json.Serialization.JsonIgnore(Condition = System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull)]
+    public IReadOnlyDictionary<string, int>? Burnt { get; init; }
     /// <summary>The host's line's fingerprint: a joiner whose own generated line differs (another generator version) is refused.</summary>
     public string? PlanPrint { get; init; }
     /// <summary>The host's terrain's fingerprint (linegen plan §17.3): a joiner whose ground comes out differently is refused.</summary>
@@ -187,8 +193,9 @@ public sealed record SessionSetup(string? Route = null, string Line = "test-loop
             // The departure fortress's town (note 281), after the run: its walls go up beside the stops'.
             if (Sim.Towns.TownContent.Load(content) is { } towns)
                 world.EnableTown(towns, route, route.GateOr(routeTuning.YardLength), loadout.Enemies?.Director.Roster ?? [], LastTown,
-                    // And the terminus's (note 600): the town the next night departs from.
-                    Sim.Towns.TownAt.Terminus(route, Sim.LineGen.LineGenContent.Cached(content).Config.Tiers.Fortress.Identities));
+                    // And the terminus's (note 600): the town the next night departs from, with any houses the crew's burnt in it
+                    // before (note 612).
+                    Sim.Towns.TownAt.Remembered(Sim.Towns.TownAt.Terminus(route, Sim.LineGen.LineGenContent.Cached(content).Config.Tiers.Fortress.Identities), Burnt));
             // The jobs the train makes as it runs (note 331), host and clients alike.
             world.Upkeep = DataFile.Load<UpkeepTuning>(Path.Combine(content, UpkeepTuning.File));
         }

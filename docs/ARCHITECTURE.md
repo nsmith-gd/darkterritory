@@ -781,4 +781,7 @@ written here instead is moved out by `tools/coord/notes.py split`; the Coordinat
 - [608. The town remembers the creature brought in (D1.4, queue #340, note 589's not-yets, at D1's ask after #338)](notes/608.md)
 - [609. The bots make the stops on the 7 km nights (queue #341, D1; after #296, note 554)](notes/609.md)
 - [610. The bots corner the Brakeman at the gate's stand (D1.5, queue #342; D1's ask after note 605: on frontier:7's 7 km nights every creature…](notes/610.md)
+- [611. The bots carry on (D1.4, queue #343, note 606's not-yet, at D1's ask after #340: "the director plays campaign nights with bots")](notes/611.md)
+- [612. A town burnt on an earlier visit shows it as you arrive (D1.4, queue #344, note 608's not-yet)](notes/612.md)
+- [613. Three nights running (D1.4, queue #345, at D1's ask after #343 and #344: "a campaign played end to end, three nights running, the way the director will play it")](notes/613.md)
 <!-- end of the notes index -->

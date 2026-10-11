@@ -81,9 +81,10 @@ public sealed record FortTuning(bool Safe = true, double HalfWidthM = 80);
 /// Monsters brought into town (queue #322, ARCHITECTURE §8 note 589; the director, 9 Oct 2026): a creature still aboard as its
 /// car comes in through a town terminus's gate. <paramref name="FightSeconds"/>: how long the town's guards and guns fight it
 /// in the yard before it's driven off; <paramref name="Fee"/>: the town's monster brigade, in the tier's per-car values, each
-/// one; <paramref name="Hurt"/>: how many of the town's people each one hurts. Field docs live in run.json <c>broughtIn</c>.
+/// one; <paramref name="Hurt"/>: how many of the town's people each one hurts; <paramref name="Burns"/>: how many of its houses
+/// each one sets alight (note 608). Field docs live in run.json <c>broughtIn</c>.
 /// </summary>
-public sealed record BroughtInTuning(double FightSeconds = 0, double Fee = 0, int Hurt = 0);
+public sealed record BroughtInTuning(double FightSeconds = 0, double Fee = 0, int Hurt = 0, int Burns = 0);
 
 /// <summary>A creature brought into town (note 589): which, what it was, the car it rode in on, and when (run seconds).</summary>
 public sealed record BroughtIn(int Enemy, Enemies.EnemyKind Kind, string Called, int Car, double Seconds);
@@ -137,6 +138,8 @@ public sealed record RunReport(RunEnd End, double Seconds, double DistanceKm, in
     public int BroughtIn { get; init; }
     public double BroughtInFees { get; init; }
     public int TownHurt { get; init; }
+    /// <summary>The town's houses they burnt (note 608), which the campaign remembers against the town.</summary>
+    public int TownBurnt { get; init; }
 }
 
 /// <summary>
@@ -865,6 +868,7 @@ public sealed partial class Run
             BroughtIn = delivered ? _broughtIn.Count : 0,
             BroughtInFees = broughtFees,
             TownHurt = hurt,
+            TownBurnt = delivered ? Tuning.BroughtIn.Burns * _broughtIn.Count : 0,
             // D.8: who everyone is now, for the campaign to carry into the next night.
             Identities = Identity.ByName(world, world.LastCrew.Select(c => c.Id)),
             // Home with the cars that are (in one of them, its floor or a locker) or in a living crewmate's hands.

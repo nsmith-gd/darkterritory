@@ -244,6 +244,8 @@ public sealed record PlanFortress(string Name, string Identity, double Departure
 {
     /// <summary>The seed of the town it is, when it's the one arrived at last night (note 591); null, the route's own.</summary>
     public ulong? TownSeed { get; init; }
+    /// <summary>How many of that town's houses are burnt out (note 608): the creatures the crew brought in on earlier nights.</summary>
+    public int TownBurnt { get; init; }
 }
 public sealed record PlanTerminus(string Name, bool Silent, bool GateSafe, double GateM, double SkyGlowFromM, double HomeStraightFromM, IReadOnlyList<double[]> Lights)
 {

@@ -26,7 +26,14 @@ public sealed record TownPlan(
     string Character = "",
     TownBounds? Bounds = null,
     TownGreen? Green = null,
-    TownWorks? Works = null);
+    TownWorks? Works = null)
+{
+    /// <summary>Its outer gate along the line (the site's), which the houses a creature brought in burns are nearest (note 608).</summary>
+    public double Gate { get; init; }
+
+    /// <summary>How many of its houses were burnt by creatures brought in on earlier nights (note 608).</summary>
+    public int Burnt { get; init; }
+}
 
 /// <summary>
 /// A walled town's green (note 353): across the first street from the square, from <see cref="S0"/> to <see cref="S1"/>

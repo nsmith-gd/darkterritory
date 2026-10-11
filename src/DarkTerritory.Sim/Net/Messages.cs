@@ -68,7 +68,9 @@ public static class Protocol
     // 49: the controls belong to whoever's working them (note 574): the Hello carries a flags byte after the outfit (bit 0, a
     //     bot), and the controls record carries who holds them and whether that's a bot.
     // 50: the crew goes on together (note 606): CarryOn, host to client, carries the town the crew's going on from.
-    public const int Version = 50;
+    // 51: the towns remember (notes 608, 612): a town's burnt houses ride on the route spec after its seed, and the
+    // campaign's in the session's setup, so every machine builds both towns with them.
+    public const int Version = 51;
 }
 
 public enum MessageType : byte
