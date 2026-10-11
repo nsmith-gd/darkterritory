@@ -671,11 +671,30 @@ object CampaignCommand(string content, string verb, string[] args)
                 }, loadout.Boiler);
                 if (report.Run is not { } night)
                     return new { error = "the night didn't run" };
+                // The town it left, as the app keeps it (note 281): the next night's departure town won't share its custom, and the
+                // terminus town is built with that same custom kept off (note 600), so it's the town the next night leaves from.
+                string? departed = DarkTerritory.Sim.Towns.TownContent.Load(content) is { } towns
+                    ? DarkTerritory.Sim.Towns.TownGenerator.Generate(towns, DarkTerritory.Sim.Towns.TownSite.Of(route, route.GateOr(routeTuning.YardLength),
+                        loadout.Enemies?.Director.Roster ?? [], towns, s.LastTown)).Culture
+                    : null;
+                var fromTown = s.Town;
                 // As the app settles it (note 591): delivered to a town, the crew's in it for the next night.
                 s = DarkTerritory.Sim.Campaign.Campaign.Arrived(DarkTerritory.Sim.Campaign.Campaign.Settle(s, night), night,
-                    DarkTerritory.Sim.Towns.TownAt.Terminus(route, DarkTerritory.Sim.LineGen.LineGenContent.Cached(content).Config.Tiers.Fortress.Identities));
+                    DarkTerritory.Sim.Towns.TownAt.Terminus(route, DarkTerritory.Sim.LineGen.LineGenContent.Cached(content).Config.Tiers.Fortress.Identities))
+                    with { LastTown = departed ?? s.LastTown };
                 saves.Save(s);
-                return new { contract = contract.Route, from = route.Plan?.Fortress.Name, to = s.Town?.Name, cargo = DarkTerritory.Sim.Train.Cargoes.Name(contract.Cargo), night, board = Board(s) };
+                // Each town by name and seed (note 604): play again and the next night's "from" is this one's "to".
+                return new
+                {
+                    contract = contract.Route,
+                    from = route.Plan?.Fortress.Name,
+                    fromSeed = route.Plan?.Fortress.TownSeed ?? fromTown?.Seed,
+                    to = s.Town?.Name,
+                    toSeed = s.Town?.Seed,
+                    cargo = DarkTerritory.Sim.Train.Cargoes.Name(contract.Cargo),
+                    night,
+                    board = Board(s),
+                };
             }
         default:
             return new { error = $"unknown campaign command '{verb}': new, show, slots, buy car|kit|powder|lamp|extinguisher|sell|<upgrade>, sim, play" };
@@ -3049,6 +3068,11 @@ static object HudShot(string content, string[] args)
         }));
     var frames = session.InterpolatedFrames(1);
     var camera = session.EyeCamera(frames, 1, 0, 0);
+    // --loading [built]: the next night's loading card over the town the crew's in (note 604), from its square; "built", the
+    // night ahead named (its terminus), as it holds before the night opens.
+    var loadingIn = args.Contains("--loading") ? session.World.Arrival : null;
+    if (loadingIn is not null)
+        camera = new TownBackdrop(session.Route!, session.Train, session.World.Run, loadingIn, session.World.Town).Camera;
     using var gpu = new GpuContext("dt screenshot --hud");
     // Drawn at the scaled size with the HUD's canvas laid over it, as the app draws it at a window's size: the prompt's fine
     // print (Hud.PromptScaleAt) only shows as it will with real pixels under it.
@@ -3126,6 +3150,20 @@ static object HudShot(string content, string[] args)
     }
     // --first-night (note 350): one of a new player's first nights, the controls' card up in the yard.
     // --commend: the night's commendations shown under its report (App. D.12; awarding them isn't in the game yet).
+    if (loadingIn is not null)
+    {
+        // Built: the next night's line (--next, departing from this town, note 591) and its terminus, as the app names it.
+        string? ahead = null;
+        if (Str(args, "--loading", "") == "built" && session.Route is { } arrivedOn)
+        {
+            var named = DarkTerritory.Sim.Towns.TownAt.Terminus(arrivedOn, DarkTerritory.Sim.LineGen.LineGenContent.Cached(content).Config.Tiers.Fortress.Identities);
+            ahead = DarkTerritory.Sim.LineGen.Routes.Generate(content, DarkTerritory.Sim.Towns.TownAt.With(Str(args, "--next", "frontier:3"), named),
+                session.Train.Dynamics.Consist.CarCount).Plan?.Terminus.Name;
+        }
+        var (heading, under) = TownBackdrop.Card(loadingIn.Plan.Name, ahead);
+        Onboarding.DrawLoading(hud, width, height, heading, under, null);
+    }
+    else
     Hud.Build(hud, width, height, session, pixels: scale, firstNight: args.Contains("--first-night"), captions: captioned, commendations: args.Contains("--commend")
         ? [("Dave", UiStyle.Commendation.CameBackForMe, "Okafor"), ("Priya", UiStyle.Commendation.KeptTheFire, "Dave"),
             ("Okafor", UiStyle.Commendation.HeldTheSwitch, "Priya"), ("Dunmore", UiStyle.Commendation.LastOneStanding, "Dave")]
