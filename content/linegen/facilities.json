@@ -3,8 +3,9 @@
 {
   // First slot at least firstMinM and firstMinShare of the line from the gate; slots spacingM apart; the last this far
   // before the terminus. The approach: a straight (or gently curved) nearly level kilometre, then the holding track
-  // (level, the consist plus holdingExtraM) up to the facing junction, and a departure lull after. Boards 2 km and 1 km
-  // out. Spurs this long and graded (spec D.1: 0-4%); the pickup shelter (spec E drop-in) this far from the track.
+  // (level, the consist plus holdingExtraM) up to the facing junction, and a departure lull after. Boards 1 km and 500 m
+  // out (boardFarM, boardNearM; 2 km and 1 km before the 7 km nights). Spurs this long and graded (spec D.1: 0-4%); the
+  // pickup shelter (spec E drop-in) this far from the track.
   // The 7 km night (note 554): lastBeforeEndM 1700 (was 5000, then 1300) leaves the spike window (tiers.json budget) clear
   // of the last stop.
   "slots": {

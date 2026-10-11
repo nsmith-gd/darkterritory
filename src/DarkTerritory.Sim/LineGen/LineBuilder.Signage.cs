@@ -130,7 +130,8 @@ sealed partial class LineBuilder
                 case DemandType.FacilityStop:
                     {
                         var slot = _facilities.First(f => Math.Abs((f.OnSpur ? f.S - 10 : f.S) - d.SReq) < 1);
-                        // 2 km and 1 km out, and the far one farther if a heavy train needs more warning than that.
+                        // boardFarM and boardNearM out (1 km and 500 m), and the far one farther if a heavy train needs more
+                        // warning than that.
                         foreach (double before in new[] { _c.Config.Facilities.Slots.BoardFarM, _c.Config.Facilities.Slots.BoardNearM })
                         {
                             double at = before == _c.Config.Facilities.Slots.BoardFarM ? Math.Min(slot.S - before, board) : slot.S - before;

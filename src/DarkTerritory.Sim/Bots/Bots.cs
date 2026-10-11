@@ -59,6 +59,8 @@ public sealed class GunnerBot(GunTuning guns, ChoirTuning? choir = null, int see
     public string? WarmUpStep => _legs.WarmUpStep;
     /// <summary>Its legs are going to a loose pin (note 602).</summary>
     public bool Pinning => _legs.Pinning;
+    /// <summary>Its legs are the guttering lamp's hand (note 627).</summary>
+    public bool LampRun => _legs.LampRun;
     /// <summary>Its hand on a car's lamp key (note 619), its legs'.</summary>
     public LampKey Lamp => _legs.Lamp;
     /// <summary>
@@ -723,6 +725,23 @@ public sealed class RoofWalkerBot(int seed, ColdTuning? cold = null, StopHand? j
                 return Tend(self, trouble, world, Me);
             return job.IntoTrouble(self, world, trouble.Attached, held: lamp);
         }
+        // Note 627: the guttering lamp's hand (not the shunter, whose switch is wanted the moment the train stands). Aboard a
+        // moving train, its part is only riding: it goes to the lamp the walker's way.
+        if (LampRun && _lampCar is { } lampCar && job.Job != StopJob.Shunter)
+        {
+            if (Math.Abs(world.Train.Dynamics.Velocity) > 0.05)
+            {
+                if (self.Parent > 0)
+                    return null;
+            }
+            // Standing at a stop: in by the car's side door from the ground, the stop's way in to trouble (note 496). From the
+            // roofs there may be none: seed 15's car 1 was the last of the rake backed out of the spur, no platform behind it,
+            // and its hand stood on its roof for 40 s. In the car, it stays while Heed.Gutter trims.
+            else if (self.Parent == lampCar && InTheCar(self, world.Train))
+                return new PlayerIntent();
+            else if (job.IntoTrouble(self, world, lampCar, held: true) is { } goingIn)
+                return goingIn;
+        }
         if (_workedTick != world.Tick)
         {
             _workedTick = world.Tick;
@@ -798,7 +817,13 @@ public sealed class RoofWalkerBot(int seed, ColdTuning? cold = null, StopHand? j
         // Note 576: a car battered and let go is coming apart, its freight spilling, and in a few minutes it's gone with what's
         // behind it: before a lamp or a bag, a walker with a wrench goes in to it and mends it at its dent (Heed.Mend).
         _mendCar = tend && catches && !choir && _trouble is null && !pin ? FailingCar(self, world, here) : null;
-        _lampCar = tend && catches && !_feedRun && !choir && _trouble is null && !pin && _mendCar is null ? GutterCar(world, here) : null;
+        // Note 627: trouble crewmates are already in at (Covered) leaves a hand free for a guttering lamp: in seed 15's night two
+        // walkers fought car 4's fire while the third stood on the roofs beside it, and car 1's lamp guttered out.
+        bool covered = _trouble is { } near && near.Attached != here && Covered(near, here);
+        _lampCar = tend && catches && !_feedRun && !choir && (_trouble is null || covered) && !pin && _mendCar is null ? GutterCar(world, here) : null;
+        if (covered && _lampCar is not null)
+            _trouble = null;
+        LampRun = _lampCar is { } lamp && LampHand(self, world, lamp);
         // Note 619: not with the train standing, for a hand with a part at a stop: a bag's hooked as its car goes by the crane,
         // and at a stand that's not until it moves. Held at frontier:12's first stop (seed 1) beside a crane, the shunter and
         // the winch hand sat in car 1 at its side door for the bag the whole 240 s, their parts waiting on it, and the stop
@@ -1007,6 +1032,25 @@ public sealed class RoofWalkerBot(int seed, ColdTuning? cold = null, StopHand? j
                 best = v.Id;
         }
         return best;
+    }
+
+    /// <summary>
+    /// Note 627: it's the crew's hand for a guttering lamp nobody's in to (<see cref="GutterCar"/>): of the fit walkers wanting
+    /// it, the nearest the tick it's first wanted, and theirs while they want it (<see cref="CrewCalls.ClaimGutter"/>), so only
+    /// one goes. That hand leaves a stop's part while the train's moving (it only rides), the six creatures' errands on the
+    /// ground and the Brakeman's watch (<see cref="BotCrew"/>), for the lamp: in note 626's 16 nights 3 of 16 gutters went
+    /// out unreached, a car dark for the Climbers, the hands riding a back-out, down at a Knotter's stand, or about the
+    /// engine with the Brakeman.
+    /// </summary>
+    public bool LampRun { get; private set; }
+
+    bool LampHand(in PlayerState self, World world, int car)
+    {
+        var train = world.Train;
+        if (!self.Alive || self.Has(PlayerFlags.Held) || self.Health < TooHurt || PlayerMotor.InCab(self, train))
+            return false;
+        double far = (PlayerMotor.WorldPosition(self, train) - train.Frames[car].Origin).Length;
+        return Calls?.ClaimGutter(car, Me, far, world.Tick) ?? true;
     }
 
     /// <summary>The rest of the crew as its client sees them, by player id (who goes for the kit: <see cref="KitCarry"/>). Set by whoever runs it.</summary>
