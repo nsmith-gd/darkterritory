@@ -661,7 +661,12 @@ object CampaignCommand(string content, string verb, string[] args)
                     Cars = s.Cars,
                     Seconds = Opt(args, "--seconds", 3600),
                     Link = Ballast.Net.LinkConditions.Perfect,
-                    StartDistance = 400,
+                    // Hosted as the app hosts a night (note 616): the train at the gate, ready to depart (run.json
+                    // departShortOfGateM), the crew aboard as the app boards them, the director seeded by the route.
+                    StartDistance = runTuning.DepartFrom(route.GateOr(routeTuning.YardLength),
+                        DarkTerritory.Sim.Train.Consist.Uniform(loadout.Train, s.Cars, runTuning.DepartureLoad).LengthMetres),
+                    WalkAboard = false,
+                    DirectorSeed = route.Seed,
                     Combat = loadout.Combat,
                     Enemies = args.Contains("--no-enemies") ? null : loadout.Enemies,
                     Route = route,
