@@ -303,27 +303,27 @@ At three cars, the boiler is a periodic chore someone fits around other work. **
 
 | Parameter | Value |
 |---|---|
-| Route length | **24 km, every tier** (was 18–40 km by tier; the director's decision of 6 Oct 2026) |
-| Transit at cruise | 28.6 min (was 21–48) |
+| Route length | **7 km, every tier** (the director's decision of 9 Oct 2026, note 554: shorter nights, an average run of about 17 min; was 24 km from 6 Oct, and 18–40 km by tier before that) |
+| Transit at cruise | 8.3 min (was 28.6) |
 | POIs per run | 3 (a stop is time: more of them would make a deeper night longer) |
-| Time per POI | 4–8 min |
-| **Total run** | **28–45 min** |
-| Dawn timer | Route length ÷ 11 m/s average, +40% slack: **51 min, every night** (the slack was +18%: after the 100-night playtest a stop, the posted boards and the in-car trouble didn't fit, and missing dawn was the commonest failure) |
+| Time per POI | about 2 min for a crew that works it well |
+| **Total run** | **about 17 min on average** (the director's marker, not a limit: three stops made in good time) |
+| Dawn timer | Route length ÷ 11 m/s average, +40% slack (14.9 min), + 3 min for each facility on the night (`dawnPerFacilitySeconds`, 180): **23.9 min, every night** ("Dawn in 24 minutes"; the slack was +18%: after the 100-night playtest a stop, the posted boards and the in-car trouble didn't fit, and missing dawn was the commonest failure) |
 
-The dawn budget assumes an 11 m/s average, below the 14 m/s cruise. **The slack is what you spend on stopping** — every POI, every repair, every revival eats it.
+The dawn budget assumes an 11 m/s average, below the 14 m/s cruise. **The slack is what you spend on stopping** — every POI, every repair, every revival eats it — and each facility adds its own three minutes on top (note 554: at 7 km the transit's slack alone, 4.2 min, left no time for a stop). A crew that makes all three stops in good time is home with minutes to spare; a slow one isn't.
 
 **At dawn the Wakers get up** (GDD §8; docs/design/creatures/wakers.md; note 588; enemies.json `wakers`), in place of v1's two minutes' grace and a failed night. A train still out has them behind it: 1 on the Local and Frontier tiers, 2 on the Dead Lines, 3 in the Deep Territory. The first rises 1.2 km behind the last car. After 8 s it runs 6 m/s, building to 26 m/s over 45 s (the engine's flat out is 22). A train standing at dawn is caught in about 75 s; one at cruise is caught from about 2.5 km out, so a crew that close races it in. They stop 300 m short of the terminus's gate. The one that reaches the last car drags the train to a stand (3 × the engine's pull) and lifts a car every 2.5 s from the rear. From 6 s in it eats one every 4 s, whoever's in it with it, and anyone off the train goes 8 s in. The engine eaten, the night is lost: "taken at dawn" (`RunEnd.DawnMissed`).
 
-**One night length** (the director, 6 Oct 2026): "The time a run takes should always be the same. Difficulty scales not by time but by monsters and density of challenges." The total run's floor is the transit at cruise with no stop made (28.6 min, the table's 28); its ceiling is a crew that works a few stops. A tier no longer adds kilometres; it packs more into the same 24:
+**One night length** (the director, 6 Oct 2026): "The time a run takes should always be the same. Difficulty scales not by time but by monsters and density of challenges." On 9 Oct 2026 the one length became 7 km ("Sessions are feeling very long ... the average run has 3 full stops it can make", then "let me increase the time of a run up to 17 minutes ... that time is just an average run marker"; and after playing it, "yes make the shorter night final"). The total run's floor is the transit at cruise with no stop made (8.3 min); its ceiling is the dawn. A tier no longer adds kilometres; it packs more into the same 7:
 
 | Tier | Facilities | Junctions | Washouts, weak bridges, brass | Terrain budget per km | Terrain laid per night (measured) | Director's base budget per km |
 |---|---|---|---|---|---|---|
-| Local | 3 | 2–3 | 0 | 0.6 | 6.8 | 3.8 |
-| Frontier | 3 | 3–5 | 0–1 each, 1 brass | 1.0 | 9.3 | 6.3 |
-| Dead lines | 3 | 4–6 | 1 each, 2 brass | 1.5 | 14 | 9.6 |
-| Deep territory | 3 | 4–7 | 1–2 each, 2–3 brass | 2.1–2.6 | 17 | 13.8 |
+| Local | 3 | 0–1 | 0 | 0.6 | 3.3 | 12.9 |
+| Frontier | 3 | 1–2 | 0–1 each | 1.0 | 4.4 | 21.4 |
+| Dead lines | 3 | 1–2 | 0–1 each | 1.5 | 5.9 | 32.9 |
+| Deep territory | 3 | 1–2 | 1 washout, 0–1 weak bridge and brass | 2.1–2.6 | 6.3 | 47.1 |
 
-Counts are each tier's start, rising with a route's severity toward the next tier's (`content/linegen/tiers.json`); terrain laid is `dt linegen sweep`'s mean terrain cost at 10 cars; the director's budget is App. B.1's per night (`enemies.json` `baseBudget`: 90 / 150 / 230 / 330) over the one length, × the train and crew multipliers. The deeper tiers' counts were set for 29–40 km lines; on 24 km the space-hungry ones (facilities, junctions with their level pads, alternates, dead lines, brass fields, momentum banks) were cut until the line generator fits every tier's quotas again (Dead lines' long climbs: one, was two), so what still rises steeply is what the land and the director put on each kilometre. Quiet stretches are counted in kilometres of line, with time as the backstop for a stopped train (GDD App. F.1): the director's quiet pressure ramps over 1.26 km run since a threat was engaged (the old 90 s at cruise), or over 120 s if that's sooner (`enemies.json` `quietRampMetres`, `quietBackstopSeconds`; ARCHITECTURE §8 note 270).
+Counts are each tier's start, rising with a route's severity toward the next tier's (`content/linegen/tiers.json`); terrain laid is `dt linegen sweep`'s mean terrain cost at 10 cars; the director's budget is App. B.1's per night (`enemies.json` `baseBudget`: 90 / 150 / 230 / 330) over the one length, × the train and crew multipliers. The counts were set for 24 km lines (and the deeper tiers' for 29–40 km before that); on 7 km they are a 24 km night's per kilometre where that's a whole number (note 554: the facility slots from 1.25 km past the gate, 1.1 km apart and 1.7 km before the end; one or two hard bends; at most one alternate, dead line, washout, weak bridge, momentum bank and brass field; the tag quotas, the tunnel quota and the dead settlement by a facility dropped). The three stops take about half of a 7 km line, so the set pieces, their recoveries and the threshold, home straight and spike window are cut to fit what's left (content/linegen, note 554): the land laid per kilometre is near a 24 km night's again, rising with the tier (above, `dt linegen sweep --cars 10 --seeds 20`, 11 Oct 2026; it was 2.2 / 3.2 / 2.8 / 2.8 with the 24 km lengths, which left the 7 km lines flat). Quiet stretches are counted in kilometres of line, with time as the backstop for a stopped train (GDD App. F.1): the director's quiet pressure ramps over 1.26 km run since a threat was engaged (the old 90 s at cruise), or over 120 s if that's sooner (`enemies.json` `quietRampMetres`, `quietBackstopSeconds`; ARCHITECTURE §8 note 270).
 
 ## B.9 Breaches
 

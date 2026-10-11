@@ -44,16 +44,24 @@ public class LinesideFootprintTests
     [Fact]
     public void TheArtDrawsEachPieceWhereTheSimStandsIt()
     {
-        // local:1 has the country road's homesteads, the coast's sheds and lighthouses, and the farmland's walls.
-        var route = Routes.Generate(Content, "local:1", 6);
-        var line = route.Build();
-        var side = LinesideProps.Of(route, line)!;
-        var forts = Fortresses.Of(route, line, 600, 400);
+        // The country road's homesteads, the coast's sheds and lighthouses, and the farmland's walls: local:1 had them all on its
+        // 24 km line; on the 7 km nights of note 554 few lines have every one, so each is looked for on the first of a few
+        // nights that stands one out on the line.
         var art = new WorldArt(Look.Load(Content));
+        var nights = new[] { "local:1", "deadLines:49", "deadLines:3", "local:4" }.Select(spec =>
+        {
+            var route = Routes.Generate(Content, spec, 6);
+            var line = route.Build();
+            return (Route: route, Line: line, Side: LinesideProps.Of(route, line)!, Forts: Fortresses.Of(route, line, 600, 400));
+        }).ToList();
         var drawn = 0;
         foreach (var name in new[] { "saltbox", "stoneWall", "lighthouse", "fishShed", "pole" })
         {
-            var p = side.Props(1500, line.Length - 1500).First(q => q.Kind == LinesideKind.Piece && q.Species == name && !LinesideProps.InsideAFort(forts, q.Along, q.Lateral));
+            var (route, line, side, found) = nights.Select(n => (n.Route, n.Line, n.Side, Piece: n.Side.Props(1500, n.Line.Length - 1500)
+                .Where(q => q.Kind == LinesideKind.Piece && q.Species == name && !LinesideProps.InsideAFort(n.Forts, q.Along, q.Lateral))
+                .Select(q => (LinesideProp?)q).FirstOrDefault()))
+                .First(n => n.Piece is not null);
+            var p = found!.Value;
             // The art draws by where a slot, a road's or shore's cell or a block starts: a stretch back far enough to hold
             // a stone wall's block (its lengths run on up to 150 m past the block).
             double from = p.Along - 400;
@@ -75,8 +83,9 @@ public class LinesideFootprintTests
     public void TheArtDrawsEachBranchsPineWhereTheSimStandsIt()
     {
         // Note 432: an alternate's or a dead line's pines are the sim's (LinesideProps.BranchTrees), so the art draws each
-        // one, of its mesh and height, where the sim stands it as a wall, and no other.
-        var route = Routes.Generate(Content, "frontier:7", 6);
+        // one, of its mesh and height, where the sim stands it as a wall, and no other (frontier:5: on the 7 km nights of note
+        // 554 frontier:7's dead line is short of pines).
+        var route = Routes.Generate(Content, "frontier:5", 6);
         var line = route.Build();
         var side = LinesideProps.Of(route, line)!;
         var art = new WorldArt(Look.Load(Content));

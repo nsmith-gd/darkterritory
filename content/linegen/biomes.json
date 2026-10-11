@@ -39,7 +39,8 @@
     "deadLines":     { "blackForest": 25, "mountain": 25, "marsh": 15, "deadTown": 20, "coast": 15 },
     "deepTerritory": { "industrialRuin": 30, "mountain": 25, "slag": 20, "contaminatedMarsh": 15, "coast": 10 }
   },
-  "regionKm": [2, 6],
+  // The 7 km night (note 554): 0.8-2 km (was 2-6 km), so a night passes through as many regions as a 24 km one did.
+  "regionKm": [0.8, 2],
   "transitionM": 300,
   // Plan §13.2: corruption rises further near these (added to the tier's level within 400 m).
   "corruptionNear": { "brass": 0.35, "contaminated": 0.4, "dead_settlement": 0.25 },
