@@ -14,11 +14,13 @@ public sealed partial class ConductorBot
     public bool ClearingForTheGate { get; private set; }
 
     /// <summary>
-    /// Something aboard that a town's gate would charge the brigade for (note 589, <see cref="Run.Run.BringIn"/>): a creature on
-    /// the train, not a hazard (the Wakers) nor an incident (a fire, a loose load).
+    /// Something aboard that a town's gate would charge the brigade for (note 589, <see cref="Run.Run.BringIn"/>), and the crew
+    /// can clear: a creature on the train, not a hazard (the Wakers) nor an incident (a fire, a loose load). Not the Brakeman
+    /// while he's hidden under or in the train, where nobody reaches him (note 364): on frontier:7's last 5 km (16 nights)
+    /// every stand that ran its give-up out was for him, and he was brought in after it all the same.
     /// </summary>
     public static bool Aboard(World world) =>
-        world.ActiveEnemies.Any(e => !e.Gone && !e.Hazard && e is not Incident && e.Attached >= 0);
+        world.ActiveEnemies.Any(e => !e.Gone && !e.Hazard && e is not Incident && e.Attached >= 0 && e is not Brakeman { Mode: BrakemanMode.Hidden });
 
     /// <summary>
     /// Note 605 (queue #337; the director, 9 Oct 2026: "plan a little extra time at the end of the run to stop the train, clear
@@ -60,51 +62,27 @@ public sealed partial class ConductorBot
 
     /// <summary>
     /// How long the train can still stand at <paramref name="stand"/> (its front there) and come to no harm at dawn (s). With
-    /// the Wakers (note 588): a rear past their wall (<c>wakers.stopShort</c> short of the gate) is out of their reach. So a
-    /// stand whose rear is past it has all the time there is (only the give-up bounds it), once the rear's got past the wall:
-    /// short of it still, the time in hand is to their catch (they rise <c>riseBehind</c> m behind the rear at dawn and come at
-    /// their speeds, <see cref="Waker.Covered"/>) less the run to the wall from here, and up already, none. A stand short of
-    /// the wall (a train longer than the gap) has to the catch less the run in past it. All less <c>crewBots.gateClearMargin</c>.
-    /// Without the Wakers, dawn and <c>run.json dawnGraceSeconds</c>.
+    /// the Wakers (note 588) a rear past their wall is out of their reach (<see cref="Wakers.CatchIn"/>): a stand whose rear is
+    /// past it has all the time there is (only the give-up bounds it) once the rear's got past the wall; short of it still,
+    /// the time in hand is to their coming to the wall less the run there from here. A stand short of the wall (a train
+    /// longer than the gap) has to their catch of its rear there less the run in past the wall. Less
+    /// <c>crewBots.gateClearMargin</c>. Without the Wakers, dawn and <c>run.json dawnGraceSeconds</c>.
     /// </summary>
     public static double GateTimeInHand(World world, Run.Run run, EnemyTuning et, double stand)
     {
-        var train = world.Train;
-        var d = train.Dynamics;
+        var d = world.Train.Dynamics;
         double margin = et.CrewBots.GateClearMargin;
         if (!et.Wakers.Enabled)
             return run.DawnIn + run.Tuning.DawnGraceSeconds - margin;
-        var w = et.Wakers;
-        double wall = (run.Route.Plan?.Terminus.GateM ?? run.Route.Length - run.Tuning.TerminusZone) - w.StopShort;
+        double wall = Wakers.Wall(world);
         double length = d.Consist.LengthMetres, rear = d.Distance - length, standRear = stand - length;
-        bool up = world.ActiveEnemies.Any(e => e is Waker { Gone: false });
         if (rear > wall && standRear > wall)
             return double.PositiveInfinity;
-        if (up)
-            return 0;
-        double catchAt = run.DawnIn + w.RiseSeconds + SecondsToCover(w.RiseBehind, w);
-        // To the wall: from here at the pace it's making (no less than the run in's), or from the stand at the run in's.
-        double toWall = standRear > wall
-            ? Math.Max(0, wall - rear) / Math.Max(GateRunIn, d.Speed)
-            : (wall - standRear) / GateRunIn;
-        return catchAt - toWall - margin;
+        if (standRear > wall)
+            return Wakers.CatchIn(world, wall) - Math.Max(0, wall - rear) / Math.Max(GateRunIn, d.Speed) - margin;
+        return Wakers.CatchIn(world, standRear) - (wall - standRear) / GateRunIn - margin;
     }
 
     /// <summary>The speed the train's reckoned to make getting in from the gate's stand (m/s): a cautious one, off a stand.</summary>
     const double GateRunIn = 4;
-
-    /// <summary>The seconds a Waker takes to come <paramref name="metres"/> (the inverse of <see cref="Waker.Covered"/>).</summary>
-    static double SecondsToCover(double metres, WakersTuning t)
-    {
-        double lo = 0, hi = 3600;
-        for (int i = 0; i < 40; i++)
-        {
-            double mid = (lo + hi) / 2;
-            if (Waker.Covered(mid, t) < metres)
-                lo = mid;
-            else
-                hi = mid;
-        }
-        return hi;
-    }
 }
