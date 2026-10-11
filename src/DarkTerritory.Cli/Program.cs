@@ -691,6 +691,9 @@ object CampaignCommand(string content, string verb, string[] args)
                     fromSeed = route.Plan?.Fortress.TownSeed ?? fromTown?.Seed,
                     to = s.Town?.Name,
                     toSeed = s.Town?.Seed,
+                    // The houses burnt in each by creatures brought in (note 608): the town remembers.
+                    fromBurnt = route.Plan?.Fortress.TownBurnt ?? 0,
+                    toBurnt = s.Town?.Burnt ?? 0,
                     cargo = DarkTerritory.Sim.Train.Cargoes.Name(contract.Cargo),
                     night,
                     board = Board(s),

@@ -8,14 +8,15 @@ namespace DarkTerritory.Sim.Towns;
 /// along the main line, the night's seed, the creatures this edition fields (enemies.json director.roster; empty, all of
 /// them), and the custom of the last town, which this one won't share (App. F.1: "different from the last").
 /// </summary>
-public sealed record TownSite(string Name, string Industry, double Gate, ulong Seed, IReadOnlyList<string> Roster, string? Last = null)
+/// <para><see cref="Burnt"/>: how many of its houses are burnt out (note 608), the nearest its gate (<see cref="TownGenerator.Harmed"/>).</para>
+public sealed record TownSite(string Name, string Industry, double Gate, ulong Seed, IReadOnlyList<string> Roster, string? Last = null, int Burnt = 0)
 {
     /// <summary>The departure fortress of a route: the plan's, or for a hand-laid line one named from the seed.</summary>
     public static TownSite Of(Route.Route route, double gate, IReadOnlyList<string> roster, TownContent content, string? last = null)
     {
         // The town arrived at last night (note 591) is its own seed's; any other, the route's.
         if (route.Plan?.Fortress is { } f)
-            return new TownSite(f.Name, f.Identity, gate, f.TownSeed ?? route.Seed, roster, last);
+            return new TownSite(f.Name, f.Identity, gate, f.TownSeed ?? route.Seed, roster, last, f.TownBurnt);
         var rng = Streams.Rng(route.Seed, "town", "name");
         string[] industries = [.. content.Writing.Industries.Keys.Order(StringComparer.Ordinal)];
         return new TownSite("Fort " + rng.Pick(content.Surnames), industries.Length > 0 ? rng.Pick(industries) : "", gate, route.Seed, roster, last);
@@ -475,9 +476,45 @@ public static partial class TownGenerator
         for (int i = 0; i < looseCount && loose.Next() is { } n; i++)
             papers.Add(new TownPaper(papers.Count, fill.In(n.Title, null), fill.In(n.Text, null), false, lying[i].S, lying[i].D, lying[i].H));
 
-        return new TownPlan(site.Name, population, former, culture.Id, culture.Creature, culture.Law.Replace("{town}", site.Name), culture.Hall,
+        var plan = new TownPlan(site.Name, population, former, culture.Id, culture.Creature, culture.Law.Replace("{town}", site.Name), culture.Hall,
             industry?.Name ?? site.Industry, [.. quirks.Select(q => q.Id)], square, buildings, homes.Houses, townsfolk, papers, fixtures, homes.Character, homes.Bounds,
-            homes.Green, homes.Works);
+            homes.Green, homes.Works) { Gate = site.Gate };
+        return Remember(plan, site.Burnt, w, Rng("remember"));
+    }
+
+    /// <summary>
+    /// The <paramref name="count"/> houses a creature brought in through the gate burns (note 608): lived-in houses, the
+    /// nearest the gate first (the yard's fight is there), the same ones every time for the same plan. A plan with some
+    /// burnt already gives the next ones, so tonight's fires and the town the crew comes back to agree.
+    /// </summary>
+    public static IReadOnlyList<TownHouse> Harmed(TownPlan plan, int count) =>
+        count <= 0 ? [] : [.. plan.Houses.Where(h => h.Kind == HouseKind.Lived).OrderBy(h => Math.Abs(h.S - plan.Gate)).ThenBy(h => h.Id).Take(count)];
+
+    /// <summary>
+    /// The town remembering what's been brought into it (note 608): its <paramref name="burnt"/> houses (<see cref="Harmed"/>)
+    /// burnt out and shut, nobody home, and its gatekeeper and guards saying so first.
+    /// </summary>
+    static TownPlan Remember(TownPlan plan, int burnt, TownWriting w, Pcg32 rng)
+    {
+        var harmed = Harmed(plan, burnt);
+        if (harmed.Count == 0 || w.BroughtIn is not { } said)
+            return plan;
+        var gone = harmed.Select(h => h.Id).ToHashSet();
+        string Fill(string text, string? family = null) => text.Replace("{town}", plan.Name).Replace("{family}", family ?? "");
+        var houses = plan.Houses.Select(h => gone.Contains(h.Id)
+            ? h with { Kind = HouseKind.Burnt, Layout = null, Text = said.Houses.Length > 0 ? Fill(rng.Pick(said.Houses), h.Family) : h.Text }
+            : h).ToList();
+        var people = plan.People.Select(p =>
+        {
+            var lines = p.Role switch { "gatekeeper" => said.Gate, "guard" => said.Guard, _ => [] };
+            if (lines.Length == 0)
+                return p;
+            var all = p.Lines.ToList();
+            // The gate's law first, as ever; then this.
+            all.Insert(p.Role == "gatekeeper" && all.Count > 0 ? 1 : 0, Fill(rng.Pick(lines)));
+            return p with { Lines = all };
+        }).ToList();
+        return plan with { Houses = houses, People = people, Burnt = harmed.Count };
     }
 
     static List<T> Take<T>(IReadOnlyList<T> from, int count, Pcg32 rng) where T : class

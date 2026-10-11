@@ -167,6 +167,11 @@ public sealed record CampaignState
     /// before the first night, or after one that didn't arrive (the crew's where they were).
     /// </summary>
     public Towns.TownAt? Town { get; init; }
+    /// <summary>
+    /// The towns the crew's brought creatures into (note 608), by <see cref="Towns.TownAt.Key"/>: how many of each one's houses
+    /// burnt. Arrived at again, the town's still missing them.
+    /// </summary>
+    public IReadOnlyDictionary<string, int> Burnt { get; init; } = new Dictionary<string, int>();
 }
 
 /// <summary>What a purchase came to: the new state, or why not.</summary>
@@ -342,8 +347,18 @@ public static class Campaign
     /// Where a night arrived (note 591): delivered to a town (not a silent settlement), the crew's in it now, and the next
     /// night departs from it. Anything else, they're where they were.
     /// </summary>
-    public static CampaignState Arrived(CampaignState s, RunReport report, Towns.TownAt? terminus) =>
-        report.End == RunEnd.Delivered && terminus is not null ? s with { Town = terminus } : s;
+    /// <para>The houses its creatures burnt there (note 608) are remembered against the town, with any from an earlier visit,
+    /// and the town the crew's in carries them, so the next night's departure town has them burnt out.</para>
+    public static CampaignState Arrived(CampaignState s, RunReport report, Towns.TownAt? terminus)
+    {
+        if (report.End != RunEnd.Delivered || terminus is null)
+            return s;
+        int burnt = s.Burnt.GetValueOrDefault(terminus.Key) + report.TownBurnt;
+        if (burnt <= 0)
+            return s with { Town = terminus };
+        var all = new SortedDictionary<string, int>(s.Burnt.ToDictionary(), StringComparer.Ordinal) { [terminus.Key] = burnt };
+        return s with { Town = terminus with { Burnt = burnt }, Burnt = all };
+    }
 
     /// <summary>The route spec a contract's night is played on: from the town the crew's in, if it's in one (note 591).</summary>
     public static string RouteOf(CampaignState s, Contract c) => Towns.TownAt.With(c.Route, s.Town);

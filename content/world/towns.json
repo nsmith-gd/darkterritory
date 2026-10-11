@@ -847,5 +847,26 @@
     "Children here draw the sun with a handle on it.",
     "I keep a jar of sea water on the sill. It's gone green. I don't open it.",
     "The quiet house had somebody in it last week. The bowl on the step was empty every morning. Then it wasn't."
-  ]
+  ],
+
+  // A town that's had a creature ridden in through its gate on a train (ARCHITECTURE §8 note 608; note 589): it was fought
+  // in the yard and the houses nearest it burnt. The next time a crew is in the town, it remembers. houses: one of those
+  // houses, looked at ({family}: whose it was); gate and guard: the first thing the gatekeeper (after the law) and a guard say.
+  "broughtIn": {
+    "houses": [
+      "The {family} house. Burnt the night a train came in with something on it. The door's still on its hinges, and nothing else.",
+      "Burnt out, the {family}s'. Still warm when you put a hand to the step. Chalked on the step: AT THE HALL.",
+      "The {family} house, to the sills. The yard's guns did that as much as the thing did. Nobody says so."
+    ],
+    "gate": [
+      "You're the crew that brought it in. Don't look at the houses on your way through. We know where they are.",
+      "Last time you came in with something hanging off a car. Check your cars before the gate. We'll be checking them.",
+      "{town} remembers your train. So do the families by the yard, what's left of them."
+    ],
+    "guard": [
+      "I was on the yard the night you brought it in. I'd not shot at anything inside the walls before. I'd not wanted to.",
+      "We fought it between the houses. Between the houses. You understand me.",
+      "Next time you bring one in, we shut the gate with you outside it. The council's voted."
+    ]
+  }
 }

@@ -10,10 +10,18 @@ namespace DarkTerritory.Sim.Towns;
 /// terminus is one (<see cref="Terminus"/>); delivered there, it's where the campaign's next night departs from, carried in
 /// that night's route spec (<c>frontier:7@Fort Boudreau/coal/1234</c>), so every machine makes the same town.
 /// </summary>
-public sealed record TownAt(string Name, string Industry, ulong Seed)
+/// <para>
+/// <see cref="Burnt"/>: how many of its houses the crew has seen burn (note 608): a creature ridden in through its gate sets
+/// the houses nearest it alight, and the town remembers (<see cref="TownGenerator.Harmed"/>). Rides on the spec after the
+/// seed when there are any (<c>Fort Boudreau/coal/1234/2</c>).
+/// </para>
+public sealed record TownAt(string Name, string Industry, ulong Seed, int Burnt = 0)
 {
     /// <summary>How it rides in a route spec, after its <c>@</c>.</summary>
-    public string Spec => $"{Name}/{Industry}/{Seed}";
+    public string Spec => Burnt > 0 ? $"{Name}/{Industry}/{Seed}/{Burnt}" : $"{Name}/{Industry}/{Seed}";
+
+    /// <summary>Which town it is, whatever's happened to it: how the campaign remembers it (note 608).</summary>
+    public string Key => $"{Name}/{Seed}";
 
     /// <summary>
     /// The town at the end of <paramref name="route"/>: its terminus's name, a trade drawn from <paramref name="industries"/>
@@ -29,8 +37,13 @@ public sealed record TownAt(string Name, string Industry, ulong Seed)
     }
 
     /// <summary>A spec's carried town (<see cref="Spec"/>), or null if it doesn't read as one.</summary>
-    public static TownAt? Parse(string text) =>
-        text.Split('/') is [var name, var industry, var seed] && name.Length > 0 && ulong.TryParse(seed, out var s) ? new TownAt(name, industry, s) : null;
+    public static TownAt? Parse(string text) => text.Split('/') switch
+    {
+        [var name, var industry, var seed] when name.Length > 0 && ulong.TryParse(seed, out var s) => new TownAt(name, industry, s),
+        [var name, var industry, var seed, var burnt] when name.Length > 0 && ulong.TryParse(seed, out var s) && int.TryParse(burnt, out var b) && b >= 0
+            => new TownAt(name, industry, s, b),
+        _ => null,
+    };
 
     /// <summary>
     /// A route spec split at its carried town: <c>frontier:7@Fort Boudreau/coal/1234</c> is <c>frontier:7</c> departing from
