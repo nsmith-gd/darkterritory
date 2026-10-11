@@ -177,9 +177,9 @@ public class StopGeneratorTests
     [Fact]
     public void TheLinesDeadTownsAreStopsWithTheirRailwaySide()
     {
-        // frontier:7's Maddox (and every main-line dead town on these nights): a village halt with its station and goods yard.
+        // frontier:36's Carrow Cross (and every main-line dead town on these nights): a village halt with its station and goods yard.
         int towns = 0;
-        foreach (var spec in new[] { "frontier:7", "deepTerritory:2", "deepTerritory:5" })
+        foreach (var spec in new[] { "frontier:36", "deadLines:20", "deepTerritory:5" })
         {
             var route = LineGen.Routes.Generate(Content, spec, 10);
             foreach (var t in route.Plan!.Landmarks.Where(l => l.Type == "town" && l.Edge == "main"))
