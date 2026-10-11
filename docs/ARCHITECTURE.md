@@ -796,4 +796,5 @@ written here instead is moved out by `tools/coord/notes.py split`; the Coordinat
 - [624. The GDD and the Wiki brought up to today's game (D1.4, queue #354, at D1's ask after #806: "it's docs, but the director reads them")](notes/624.md)
 - [625. Late Dispatch, a little more time again (D1.4, queue #355, at D1's ask after note 624)](notes/625.md)
 - [626. Two hands at one guttering lamp (D1.4, queue #356, note 619's not-yet)](notes/626.md)
+- [623. The bots carry a body home from the Mourners (D1.5, queue #353, D1's ask after tracing deadLines:3's missed dawns; note 367's "not yet")](notes/623.md)
 <!-- end of the notes index -->
