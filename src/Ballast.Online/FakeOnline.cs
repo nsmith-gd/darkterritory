@@ -93,6 +93,12 @@ public sealed class FakeOnline
 
         public void JoinLobby(LobbyId lobby)
         {
+            lock (cloud)
+                Join(lobby);
+        }
+
+        void Join(LobbyId lobby)
+        {
             string? why = !cloud._lobbies.TryGetValue(lobby, out var room) ? "that lobby is gone"
                 : !room.Joinable ? "the lobby is closed"
                 : room.Members.Count >= room.Max ? "the lobby is full"
@@ -111,6 +117,12 @@ public sealed class FakeOnline
         }
 
         public void LeaveLobby(LobbyId lobby)
+        {
+            lock (cloud)
+                Leave(lobby);
+        }
+
+        void Leave(LobbyId lobby)
         {
             if (!cloud._lobbies.TryGetValue(lobby, out var room) || !room.Members.Remove(me))
                 return;
@@ -196,7 +208,15 @@ public sealed class FakeOnline
         bool Accepts(UserId from) =>
             _sentTo.Contains(from) || cloud._lobbies.Values.Any(r => r.Members.Contains(me) && r.Members.Contains(from));
 
+        // Send, TryReceive and the lobbies' members they read are under the cloud's lock: a transport's pump thread sends and
+        // receives while the test's thread steps its own session (a plain Queue torn between them threw in TryReceive).
         public void Send(UserId to, ReadOnlySpan<byte> datagram)
+        {
+            lock (cloud)
+                Carry(to, datagram);
+        }
+
+        void Carry(UserId to, ReadOnlySpan<byte> datagram)
         {
             _sentTo.Add(to);
             if (!cloud._users.TryGetValue(to, out var u) || u._signedOut)
@@ -212,7 +232,11 @@ public sealed class FakeOnline
 
         public bool TryReceive(Span<byte> buffer, out int length, [MaybeNullWhen(false)] out UserId from)
         {
-            if (!_inbox.TryDequeue(out var d))
+            (UserId From, byte[] Datagram) d;
+            bool got;
+            lock (cloud)
+                got = _inbox.TryDequeue(out d);
+            if (!got)
             {
                 length = 0;
                 from = default;
@@ -225,6 +249,12 @@ public sealed class FakeOnline
         }
 
         public void Dispose()
+        {
+            lock (cloud)
+                SignOut();
+        }
+
+        void SignOut()
         {
             if (_signedOut)
                 return;
