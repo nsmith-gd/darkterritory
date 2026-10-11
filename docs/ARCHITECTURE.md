@@ -791,10 +791,10 @@ written here instead is moved out by `tools/coord/notes.py split`; the Coordinat
 - [617. A second stop on a 7 km night (queue #349, D1; #341's "not yet", note 609)](notes/617.md)
 - [618. A switchyard's cars ahead of the engine aren't boarded (D1.5, queue #346; D1's find from D1.4's campaign, #345: night 3 brought seven…](notes/618.md)
 - [619. The bots shut the door on a lit lamp (D1.4, queue #350, at D1's ask after #348 and note 616: "your runs found the cars burning at lamps the…](notes/619.md)
-- [621. The driver's run-home reckoning, honest (queue #351, D1.2 for D1; after #341 and #349, notes 609 and 617: "the one thing between a bot crew…](notes/621.md)
 - [620. The bots break a crewmate out of a Holdout off the line (D1.5, queue #346: the stands with a crewmate held dead)](notes/620.md)
+- [621. The driver's run-home reckoning, honest (queue #351, D1.2 for D1; after #341 and #349, notes 609 and 617: "the one thing between a bot crew…](notes/621.md)
 - [622. `dt trends` hosts its nights the app's way (D1.5, queue #352, at D1's ask after note 616: "the trend lines measure what the director plays")](notes/622.md)
 - [624. The GDD and the Wiki brought up to today's game (D1.4, queue #354, at D1's ask after #806: "it's docs, but the director reads them")](notes/624.md)
-- [625. Late Dispatch, a little more time again (D1.4, queue #355, at D1's ask after note 624)](notes/625.md)
-- [626. Two hands at one guttering lamp (D1.4, queue #356, note 619's not-yet)](notes/626.md)
+- [625. Late Dispatch, a little more time again (D1.4, queue #355, at D1's ask after note 624: "its `dawnGraceSeconds` does nothing with the Wakers…](notes/625.md)
+- [626. Two hands at one guttering lamp: not seen, so not changed (D1.4, queue #356, note 619's not-yet, at D1's ask: "if it shows in a sweep,…](notes/626.md)
 <!-- end of the notes index -->
