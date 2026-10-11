@@ -30,8 +30,8 @@ public class WatersideTests
     }
 
     [Theory]
-    [InlineData("frontier:9")]
-    [InlineData("deadLines:1")]
+    [InlineData("frontier:19")]
+    [InlineData("deadLines:5")]
     public void LakesHoldWaterAndACrossedOneIsCrossedOnTheFormation(string spec)
     {
         var (plan, line, terrain) = Night(spec);
@@ -61,9 +61,9 @@ public class WatersideTests
     }
 
     [Theory]
-    [InlineData("frontier:5")]
-    [InlineData("deadLines:8")]
-    [InlineData("local:4")]
+    [InlineData("frontier:7")]
+    [InlineData("deadLines:2")]
+    [InlineData("local:6")]
     public void ALakesRimStandsOverItsWater(string spec)
     {
         // Out along rays from each lake's middle to its shore, the land just past it (3 m and its rim's crest out) is over
@@ -87,9 +87,9 @@ public class WatersideTests
     }
 
     [Theory]
-    [InlineData("local:16")]
-    [InlineData("frontier:25")]
-    [InlineData("deadLines:3")]
+    [InlineData("local:4")]
+    [InlineData("frontier:44")]
+    [InlineData("deadLines:10")]
     public void ShoresAreWetPastTheirEdgeAndDykedFieldsLieFlat(string spec)
     {
         var (plan, line, terrain) = Night(spec);
@@ -127,8 +127,8 @@ public class WatersideTests
     [Fact]
     public void TheWatersideIsPartOfThePlanAndTheSameEveryRun()
     {
-        var a = Night("deadLines:3").Plan;
-        var b = Routes.Generate(Content, "deadLines:3", 6).Plan!;
+        var a = Night("deadLines:12").Plan;
+        var b = Routes.Generate(Content, "deadLines:12", 6).Plan!;
         Assert.Equal(a.Lakes, b.Lakes);
         Assert.Equal(a.Shores, b.Shores);
         // And a client's copy round-trips it.
@@ -141,7 +141,7 @@ public class WatersideTests
     [Fact]
     public void RoadsLieFlatAcrossTheirBedAndCrossTheLineAtRailHeight()
     {
-        var (plan, line, terrain) = Night("frontier:7");
+        var (plan, line, terrain) = Night("frontier:6");
         Assert.NotEmpty(plan.Roads);
         Assert.NotEmpty(plan.Crossings);
         var rules = plan.Rules.Terrain.Roads;
@@ -168,9 +168,9 @@ public class WatersideTests
         }
     }
     [Theory]
-    [InlineData("frontier:12")]
-    [InlineData("deadLines:84")]
-    [InlineData("deadLines:12")]
+    [InlineData("frontier:106")]
+    [InlineData("deadLines:5")]
+    [InlineData("local:37")]
     public void SomeCrossedLakesAreTakenOnATrestleWithTheWaterOnUnderIt(string spec)
     {
         // Maritime-rules §4's "not yet" (ARCHITECTURE §8 note 317): a crossed lake's neck on a low timber trestle.

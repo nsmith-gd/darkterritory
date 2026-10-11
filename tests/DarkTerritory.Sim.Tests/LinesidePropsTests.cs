@@ -209,7 +209,7 @@ public class LinesidePropsTests
     {
         // Note 389: a house by the country road stands on its footprint, the box round its walls and roof, turned to face
         // the road; walked at from the line's side, a crewmate stops at its wall.
-        var (_, train, side, forts) = Night("deadLines:1");
+        var (_, train, side, forts) = Night("deadLines:3");
         var props = side.Props(1500, train.Line.Length - 1500, Tuning.Run.Walls.LinesideReachM).ToList();
         Double3 From(LinesideProp p, double back)
         {
@@ -245,7 +245,7 @@ public class LinesidePropsTests
         // one box; a church its nave and its tower; a tank round; a headframe on its four legs and its stay, open between; a
         // burying ground and a wharf walked through.
         var seen = new HashSet<string>();
-        foreach (var spec in new[] { "local:11", "local:13", "deadLines:3", "deepTerritory:2" })
+        foreach (var spec in new[] { "local:4", "deadLines:49", "deepTerritory:2", "local:1", "deadLines:3" })
         {
             var (route, train, side, _) = Night(spec);
             foreach (var p in side.Props(0, train.Line.Length).Where(p => p.Kind == LinesideKind.Piece))
@@ -297,7 +297,7 @@ public class LinesidePropsTests
     [Theory]
     [InlineData("frontier:7")]
     [InlineData("deadLines:6")]
-    [InlineData("deepTerritory:2")]
+    [InlineData("deepTerritory:3")]
     public void TheBranchesPinesAreDealtAsTheMainLinesWoodsAre(string spec)
     {
         // Note 432 (the last of the lineside the art dealt alone, after notes 371 and 389): the alternates' and dead lines'

@@ -23,7 +23,7 @@ public class OpenHouseTests
 
     [Theory]
     [InlineData("frontier:7")]
-    [InlineData("deadLines:2")]
+    [InlineData("deadLines:7")]
     public void YouWalkInAtTheDoorAndTheFindsAreInside(string spec)
     {
         var route = Routes.Generate(Content, spec, 6);
@@ -82,8 +82,8 @@ public class OpenHouseTests
 
     [Theory]
     [InlineData("frontier:7")]
-    [InlineData("deadLines:2")]
-    [InlineData("local:3")]
+    [InlineData("deadLines:7")]
+    [InlineData("local:4")]
     [InlineData("deepTerritory:5")]
     public void TheBiggerHousesHaveABackRoomThroughADoorway(string spec)
     {
@@ -180,7 +180,7 @@ public class OpenHouseTests
     /// <summary>Where a crewmate gets to from outside a house, on a 10 cm grid in its own frame.</summary>
     [Theory]
     [InlineData("frontier:7")]
-    [InlineData("deadLines:28")]
+    [InlineData("deadLines:20")]
     [InlineData("local:10")]
     [InlineData("deepTerritory:8")]
     public void TheBarnsAndShedsStandOpenWithTheirFindsInside(string spec)
@@ -230,9 +230,9 @@ public class OpenHouseTests
     }
 
     [Theory]
-    [InlineData("frontier:9")]
-    [InlineData("local:10")]
-    [InlineData("deepTerritory:77")]
+    [InlineData("frontier:36")]
+    [InlineData("deadLines:20")]
+    [InlineData("deepTerritory:63")]
     public void ADeadTownsStationStandsOpenItsCounterSolidAndNothingKeptInIt(string spec)
     {
         // Note 493 (note 417's "not yet"): a dead town's station stands open as its goods shed does, walked into by its door

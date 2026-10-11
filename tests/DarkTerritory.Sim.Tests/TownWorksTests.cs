@@ -31,7 +31,7 @@ public class TownWorksTests
 
     [Theory]
     [InlineData("local:3", 1200, "coal", new[] { "tip", "headframe", "coal", "winding" })]
-    [InlineData("frontier:10", 1200, "farm", new[] { "glasshouse", "elevator", "cellar" })]
+    [InlineData("frontier:3", 1200, "farm", new[] { "glasshouse", "elevator", "cellar" })]
     [InlineData("local:5", 1200, "foundry", new[] { "casting", "slag", "pigs" })]
     public void AWalledTownsWorksAreItsTradeAcrossTheLineFromItsGreen(string spec, int people, string trade, string[] kinds)
     {

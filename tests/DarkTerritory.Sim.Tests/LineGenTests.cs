@@ -252,12 +252,12 @@ public class LineGenTests
     {
         // deadLines:1 planned for six cars had a main-line trestle rated for six (§7.3, §22.5), and a washout on the main
         // line with the switch set around it. On the 7 km nights of note 554 a night has at most one of each, and a washout
-        // needs an alternate to be set round it: frontier:85 has both (which night that is moves with the tuning the
-        // planner reads; a Dead Lines night with both is past seed 90).
-        var route = Routes.Generate(Content, "frontier:85", 6);
+        // needs an alternate to be set round it: two nights in 250 have both, and on those the weak bridge is on the main
+        // line the washout closes. So the bridge is frontier:12's and the washout frontier:107's (which nights those are moves
+        // with the tuning the planner reads).
+        var route = Routes.Generate(Content, "frontier:12", 6);
         var plan = route.Plan!;
         Assert.Contains(plan.Structures, s => s.Edge == "main" && s.Weak is not null);
-        Assert.Contains(plan.Structures, s => s.Type == StructureType.Washout && s.Edge == "main");
         var bridge = plan.Structures.First(s => s.Edge == "main" && s.Weak is not null);
         int limit = bridge.Weak!.MaxCars;
 
@@ -273,6 +273,9 @@ public class LineGenTests
         Assert.Contains($"car {limit + 1}", world.DerailCause);
 
         // The washout: its junction starts the night set for the alternate; on the main line past the points, it's the end.
+        route = Routes.Generate(Content, "frontier:107", 6);
+        plan = route.Plan!;
+        Assert.Contains(plan.Structures, s => s.Type == StructureType.Washout && s.Edge == "main");
         var washout = plan.Structures.First(s => s.Type == StructureType.Washout && s.Edge == "main");
         var fork = plan.Alignment.Where(a => a.Role == EdgeRole.Alternate && a.Toe < washout.S0 && a.Rejoin > washout.S1).OrderByDescending(a => a.Toe).First();
         Assert.True(route.Build().Branches[fork.Branch].Definition.StartsDiverging);

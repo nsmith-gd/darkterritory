@@ -20,8 +20,8 @@ public class CarHuggerRescueTests
     }
 
     [Theory]
-    [InlineData(9)]
-    [InlineData(15)]
+    [InlineData(1)]
+    [InlineData(2)]
     public void AFriendOnTheRoofHaulsASwallowedCrewmateOutOfTheCarHuggersMouth(int seed)
     {
         // Each of these lost two walkers, one after the other, down the end ladder to it with the other on the roof above.

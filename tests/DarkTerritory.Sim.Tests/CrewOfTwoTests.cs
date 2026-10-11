@@ -17,9 +17,16 @@ public class CrewOfTwoTests
 
     /// <summary>
     /// The Car Hugger nights' line: deadLines:2's, found at 7700 m by its trestle past the tunnel, was a 24 km line; on the
-    /// 7 km nights of note 554 it's deadLines:10, with Dunmore Trestle at 3.4 km.
+    /// 7 km nights of note 554 it's deadLines:2 again, with Holt Bridge over its river at 1.7 km.
     /// </summary>
-    internal const string HuggerNight = "deadLines:10";
+    internal const string HuggerNight = "deadLines:2";
+
+    /// <summary>
+    /// Where the walker nights start (a crew of three out on open line, the stops behind and ahead of them far enough off):
+    /// frontier:7 from 2.5 km on its 24 km line; on the 7 km nights of note 554 that's its first stop, and frontier:3 is
+    /// past its coaling tower at 2.9 km with 1.5 km of line before its next.
+    /// </summary>
+    internal static readonly (string Spec, double Start) OpenLine = ("frontier:3", 2900);
 
     /// <summary>
     /// Where the Car Hugger nights start: 270 m short of the middle of the line's trestle, where it lurks (`CarHugger.Spot`:
