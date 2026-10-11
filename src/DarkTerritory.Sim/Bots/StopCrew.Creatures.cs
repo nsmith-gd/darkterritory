@@ -24,7 +24,7 @@ public sealed partial class StopHand
                 return new PlayerIntent();
             int side = train.Frames[self.Parent].ToLocal(target).X >= 0 ? 1 : -1;
             if (self.Parent > 0 && self.Surface == Surface.Deck)
-                return OffTheCar(self, train, side) ?? new PlayerIntent();
+                return OffTheCar(self, train, side, shutBehind: true) ?? new PlayerIntent();
             // On a ladder (the end ladder out of a gap, a side ladder): on up, and off the roof's edge from there.
             if (self.Surface == Surface.Ladder)
                 return new PlayerIntent { MoveZ = 1, Buttons = PlayerButtons.Use };
@@ -34,7 +34,7 @@ public sealed partial class StopHand
         if ((Flat(target) - Flat(here)).Length <= within)
             return null;
         // Note 619: off a car's side-door steps onto the ballast, still over their treads: straight out from the car first. Back
-        // along it to a Knotter's gap, frontier's local:435 walker went up its last tread onto the steps, was sent down them
+        // along it to a Knotter's gap, local:435's walker (slot seed 7) went up its last tread onto the steps, was sent down them
         // again, and went up again, four ticks round, for 800 s at the stand, the door held open and the lamp lit; Fire Flies set
         // the car alight sixteen times.
         if (OnTheTreads(train, here) is { } car && OnTheTreads(train, target) is null)

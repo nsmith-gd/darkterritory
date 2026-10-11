@@ -1967,16 +1967,43 @@ public sealed partial class StopHand(StopJob job, CrewCalls calls, int member, C
     /// <summary>On a car's landing or inside it at a stop: out by its side door and down its steps. Null when it isn't.</summary>
     PlayerIntent? OffTheCar(in PlayerState self, World world, StopPlan p) => OffTheCar(self, world.Train, p.Site.Side);
 
-    /// <summary>On a car's landing or inside it: out by its side door on one side (+1 right) and down its steps.</summary>
-    PlayerIntent? OffTheCar(in PlayerState self, TrainOnLine train, int side)
+    /// <summary>
+    /// On a car's landing or inside it: out by its side door on one side (+1 right) and down its steps; with
+    /// <paramref name="shutBehind"/>, the door shut behind it on a lit lamp (not at a loading, where the crates go in by it).
+    /// </summary>
+    PlayerIntent? OffTheCar(in PlayerState self, TrainOnLine train, int side, bool shutBehind = false)
     {
         if (self.Surface != Surface.Deck || self.Parent <= 0 || train.Dynamics.Tuning.Geometry.Interior is not { } layout)
             return null;
         double w = train.Frames[self.Parent].Shape.Bounds.Max.X, sd = layout.SideDoorWidth / 2;
         var landing = new Double3(side * (w + layout.StepWidth / 2), layout.FloorHeight, 0);
         double facingIn = side > 0 ? Math.PI / 2 : -Math.PI / 2;
+        var car = train.Vehicles[self.Parent];
+        int? door = SideDoor(train.Frames[self.Parent].Shape, side);
+        bool open = door is not { } d || car.DoorOpen(d);
         if (Math.Abs(self.Position.X) < w - layout.WallThickness)
+        {
+            // Note 619: its door shut, opened from inside first. Sent down at local:486's Knotter stand (slot seed 9) from a car
+            // shut up for the cold, two walkers walked into the shut door for 180 s, the warm-up's reopening it drowned out.
+            if (!open)
+            {
+                var inside = new Double3(side * (w - layout.WallThickness - 0.45), layout.FloorHeight, 0);
+                if (!Near(self, inside, 0.25) || !Aligned(self, facingIn + Math.PI))
+                    return Walk(self, inside, facingIn + Math.PI, "to the door");
+                Doing = "opening the door";
+                return new PlayerIntent { Buttons = PlayerButtons.Use }; // held: the press's edge works the door, once
+            }
             return Walk(self, landing, facingIn + Math.PI, "out of the car");
+        }
+        // Note 619: out on the landing of a car whose lamp is lit, the door shut behind it (the Fire Flies' rule, note 286: a
+        // lit lamp draws them, and a car shut up keeps them off it). Left open, it was the way in to every car they set alight.
+        if (shutBehind && open && door is not null && car.LampLit && Math.Abs(self.Position.Z) < sd)
+        {
+            if (!Near(self, landing, 0.25) || !Aligned(self, facingIn))
+                return Walk(self, landing, facingIn, "shutting the door behind");
+            Doing = "shutting the door behind";
+            return new PlayerIntent { Buttons = PlayerButtons.Use };
+        }
         return Walk(self, landing with { Y = 0, Z = -sd - 4 * layout.StepDepth - 0.5 }, Math.PI, "down the steps");
     }
 

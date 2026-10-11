@@ -385,6 +385,36 @@ public class BotsAnswerTheSixTests
     }
 
     /// <summary>
+    /// Note 619 (local:486 from Fort Fenwick, slot seed 9): sent down to the Knotter from a car shut up for the cold, two
+    /// walkers walked into its shut side door for 180 s; and every car the Fire Flies set alight had its lamp lit and a door
+    /// a crewmate went out by left open. Down to the ground from a car shut up, its lamp lit: the door opened, out, and shut
+    /// behind.
+    /// </summary>
+    [Fact]
+    public void OutOfACarShutUpAHandOpensItsDoorAndShutsItBehindOnALitLamp()
+    {
+        var n = new Night(4, speed: 0, enemies: Quiet);
+        var car = n.Train.Vehicles[2];
+        Assert.True(car.LampLit);
+        car.DoorsOpen = 0;
+        int door = StopHand.SideDoor(n.Train.Frames[2].Shape, -1)!.Value;
+        n.Crew[2] = new PlayerState { Parent = 2, Position = new Double3(0, Tuning.Train.Geometry.Interior!.FloorHeight, 0), Surface = Surface.Deck, Health = P.Health };
+        var hand = Hand(2);
+        var frame = n.Train.Frames[2];
+        var gap = Beside(n, 2, -(frame.Shape.HalfWidth + 0.6), frame.Shape.HalfLength);
+        bool opened = false;
+        Run(n, 40, id => hand.Afoot(n.Crew[id], n.World, gap, 0.6) ?? default, until: () =>
+        {
+            opened |= car.DoorOpen(door);
+            return Flat(gap - PlayerMotor.WorldPosition(n.Crew[2], n.Train)) <= 0.6;
+        });
+        Assert.True(opened, $"never opened it ({hand.Doing}, car {n.Crew[2].Parent})");
+        Assert.Equal(PlayerState.World, n.Crew[2].Parent);
+        Assert.True(Flat(gap - PlayerMotor.WorldPosition(n.Crew[2], n.Train)) <= 1, $"{hand.Doing}, short of the gap");
+        Assert.False(car.DoorOpen(door), "the door left open on a lit lamp");
+    }
+
+    /// <summary>
     /// Note 545 (frontier:7, 4 bots, seed 8): a Knotter in car 2's coupling, a wound car ahead of it and the Brakeman dead.
     /// Every roof bot was sent for the wound car's wheel across the knot, which the roofs never cross, and stood at the gap's
     /// edge: at the stand, for 240 s, while the Knotter lay slack and nobody went down for it; then on at speed, all night.
