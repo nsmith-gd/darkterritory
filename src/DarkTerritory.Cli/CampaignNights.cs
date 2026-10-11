@@ -25,9 +25,10 @@ static class CampaignNights
         var identities = LineGenContent.Cached(content).Config.Tiers.Fortress.Identities;
         int nights = (int)Opt(args, "--nights", 3), bots = (int)Opt(args, "--bots", 3), loseNight = (int)Opt(args, "--lose-night", 0);
         double loseAt = Opt(args, "--lose-at", -1), limit = Opt(args, "--seconds", 3600);
-        // The player at the host's own seat (note 616): "idle", as the app is with nobody at the keys (the default); "bot", played
-        // by one more of the crew's bots, as near as the tools come to somebody playing.
-        bool humanBot = Str(args, "--human", "idle") == "bot";
+        // The player at the host's own seat (note 616): "bot", played by one more of the crew's bots, as near as the tools come to
+        // somebody playing (the default); "idle", nobody at the keys, which the bots pay for (they rescue, wait for and count on
+        // a crewmate who never moves, and the director's census hunts them).
+        bool humanBot = Str(args, "--human", "bot") == "bot";
         var combat = DataFile.Load<DarkTerritory.Sim.Combat.CombatTuning>(Path.Combine(content, DarkTerritory.Sim.Combat.CombatTuning.File));
         var playerTuning = DataFile.Load<DarkTerritory.Sim.Player.PlayerTuning>(Path.Combine(content, DarkTerritory.Sim.Player.PlayerTuning.File));
         var results = new List<object>();
@@ -36,20 +37,8 @@ static class CampaignNights
             var s = saves.Load(slot) ?? throw new InvalidOperationException($"slot {slot} is empty: dt campaign new --slot {slot}");
             var contract = Campaign.Offers(t, runTuning, s)[(int)Opt(args, "--contract", 0)];
             s = Campaign.Begin(s, contract);
-            // As the app's Start has it (Program.cs): the slot's night, from the town the crew's in.
-            var setup = new SessionSetup(Route: Campaign.RouteOf(s, contract), Cars: s.Cars, Enemies: !args.Contains("--no-enemies"))
-            {
-                Upgrades = s.Upgrades,
-                SpareKits = s.SpareKits,
-                MusicBag = s.Music,
-                Identities = s.Identities,
-                Cargo = contract.Cargo,
-                Powder = s.Stores.Powder,
-                SpareLamps = s.Stores.Lamps,
-                SpareExtinguishers = s.Stores.Extinguishers,
-                LastTown = s.LastTown,
-                Burnt = s.Burnt.Count > 0 ? s.Burnt : null,
-            };
+            // As the app's Start has it (HostedNight.Campaign): the slot's night, from the town the crew's in.
+            var setup = HostedNight.Campaign(s, contract, enemies: !args.Contains("--no-enemies"));
             var clock = Stopwatch.StartNew();
             RunReport? report;
             object night;
