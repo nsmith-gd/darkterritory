@@ -169,7 +169,10 @@ Launch? LaunchFromArgs()
         return new Launch.Join(Arg("--join", "127.0.0.1")) { Password = password };
     var edition = EditionTuning.Load(content);
     if (Arg("--campaign", "") is { Length: > 0 } slot && edition.Campaign)
-        return new Launch.CampaignNight(int.Parse(slot), int.Parse(Arg("--contract", "0")), args.Contains("--resume"), port is not null);
+        return new Launch.CampaignNight(int.Parse(slot), int.Parse(Arg("--contract", "0")), args.Contains("--resume"), port is not null)
+        {
+            Bots = int.TryParse(Arg("--bots", "0"), out var crew) ? crew : 0,
+        };
     string? route = Arg("--route", "") is { Length: > 0 } r ? r : null;
     // The demo's nights are on its own tiers (T79), whatever's asked for.
     if (route is not null && edition.Tiers.Length > 0 && !edition.HasTier(DarkTerritory.Sim.Route.Route.ParseSpec(route).Tier))
@@ -551,7 +554,7 @@ Launch? MenuLoop()
 // What a night was, for a report (note 452): "a hosted night, frontier:7, 6 cars, 3 bots".
 static string Doing(Launch chosen) => chosen switch
 {
-    Launch.CampaignNight c => $"a campaign night, slot {c.Slot}, contract {c.Contract}{(c.Resume ? ", resumed" : "")}{(c.Host ? ", hosted" : "")}",
+    Launch.CampaignNight c => $"a campaign night, slot {c.Slot}, contract {c.Contract}{(c.Resume ? ", resumed" : "")}{(c.Host ? ", hosted" : "")}{(c.Bots > 0 ? $", {c.Bots} bots" : "")}",
     Launch.Night n => $"a {(n.Host ? "hosted" : "solo")} night, {n.Route ?? n.RouteFile ?? n.Line}, {n.Cars} cars{(n.Bots > 0 ? $", {n.Bots} bots" : "")}",
     Launch.Join j => $"joined {j.Address}",
     Launch.JoinLobby l => $"joined Steam lobby {l.Lobby}",
@@ -608,11 +611,17 @@ static string Doing(Launch chosen) => chosen switch
                     SpareExtinguishers = campaign.Stores.Extinguishers,
                     FirstChildReal = profile.FirstChildReal,
                     LastTown = campaign.LastTown,
+                    // Note 612: a terminus the crew's burnt houses in before is built with them.
+                    Burnt = campaign.Burnt.Count > 0 ? campaign.Burnt : null,
                 };
                 Console.WriteLine($"campaign slot {night.Slot} ({campaign.Name}): {campaign.Cars} cars, {campaign.Scrip:0} scrip, tonight {contract.Route} carrying {Cargoes.Name(contract.Cargo)} at {contract.PerCar:0} a car{(resume is not null ? $", resuming after facility {resume.Facility}" : "")}");
                 // Note 450: private, behind the host screen's password (listed with a lock); with none typed, unlisted as before.
                 string? password = frontEnd.Settings.PublicLobby ? null : frontEnd.Settings.LobbyPassword.Trim() is { Length: > 0 } pw ? pw : null;
-                return (NetPlaySession.HostGame(content, setup, port, online: night.Host ? steam : null, resume: resume,
+                // The crew's bots (note 611), kept for the board's next contract: the host going on from the town takes them too.
+                frontEnd.Bots = night.Bots;
+                if (night.Bots > 0)
+                    Console.WriteLine($"a crew of {night.Bots} bot{(night.Bots == 1 ? "" : "s")} aboard");
+                return (NetPlaySession.HostGame(content, setup, port, online: night.Host ? steam : null, resume: resume, bots: night.Bots,
                     listed: frontEnd.Settings.PublicLobby || password is not null, lobbyName: frontEnd.LobbyName, password: password, mood: frontEnd.Settings.Mood), campaign);
             }
         // From the menu always the real night (T110: with no bots too, it's the same game alone); the bare prototype is the

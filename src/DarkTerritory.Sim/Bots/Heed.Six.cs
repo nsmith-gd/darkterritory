@@ -375,13 +375,30 @@ public static partial class Heed
             {
                 int side = pair[0] == selfId ? 1 : -1; // +1: the front (toward the engine), the way along grows
                 var (head, tail) = Span(train);
+                var partner = crew.First(c => c.Id == (pair[0] == selfId ? pair[1] : pair[0])).State;
                 double mark;
                 if (him.Mode == BrakemanMode.Hidden)
                     mark = side > 0 ? head - PostIn : tail + PostIn;
                 else
-                    mark = Math.Clamp(BrakemanAlong(train, him) + side * et.CrewBots.BrakemanStandOff, tail + PostIn, head - PostIn);
+                {
+                    double his = BrakemanAlong(train, him);
+                    mark = Math.Clamp(his + side * et.CrewBots.BrakemanStandOff, tail + PostIn, head - PostIn);
+                    // Note 610: one of the pair on its own side of him waits off his spook until the other's as near, and then
+                    // both close. Closing alone it ran him (he outruns a roof run) and he dropped out of sight as soon as it
+                    // was over a gap with the other 20 m off: frontier:7's gate stands, the pair after him for four minutes.
+                    double wait = et.Brakeman.Spook + et.CrewBots.BrakemanWaitPast;
+                    if (him.Mode != BrakemanMode.Cornered && (mine - his) * side > 0
+                        && Math.Abs(Along(train, partner) - his) > wait + et.CrewBots.BrakemanWaitPast)
+                        mark = Math.Abs(mine - his) > wait ? Math.Clamp(his + side * wait, tail + PostIn, head - PostIn) : mine;
+                }
                 if (him.Mode == BrakemanMode.Cornered && Math.Abs(mine - BrakemanAlong(train, him)) <= et.CrewBots.BrakemanStandOff + 0.75)
                     return Strike(self, train, him.WorldPosition(train), et.CrewBots.BrakemanStandOff) ?? intent;
+                // Note 610: cornered, the one off his car keeps its place while the other's on it to club him. Over the gap
+                // to his car it's off the roofs, and he's out (he counts only the crew up on them).
+                if (him.Mode == BrakemanMode.Cornered && self.Parent != him.Attached
+                    && Math.Abs(mine - BrakemanAlong(train, him)) < et.Brakeman.CornerSpan - et.CrewBots.BrakemanWaitPast
+                    && partner.Parent == him.Attached)
+                    return Facing(self, train, him.WorldPosition(train));
                 return ToAlong(self, train, mark, side > 0 ? Math.PI : 0) ?? Facing(self, train, him.WorldPosition(train));
             }
         }

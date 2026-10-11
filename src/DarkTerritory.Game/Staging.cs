@@ -67,6 +67,17 @@ public static partial class Staging
         var centre = plan.Fixtures[0];
         var board = plan.Fixtures.First(f => f.Kind == "board");
         var hall = plan.Buildings.First(b => b.Kind == "hall");
+        // A house from out in front of it, along its street a way (note 608): "fires", the first a creature brought in tonight
+        // sets alight (`--arrival fires --patrol`); "burnt", the nearest the gate of a town's burnt houses, come back to.
+        if (where is "fires" or "burnt"
+            && (where == "fires" ? Sim.Towns.TownGenerator.Harmed(plan, 1).FirstOrDefault()
+                : plan.Houses.Where(h => h.Kind == Sim.Towns.HouseKind.Burnt).OrderBy(h => Math.Abs(h.S - plan.Gate)).ThenBy(h => h.Id).FirstOrDefault()) is { } house)
+        {
+            var (fs, fd) = house.Rail(0, 0);
+            var front = town.World(fs, fd);
+            return Ballast.Render.Camera.LookAt(front + town.Direction(fs, 0, -house.Side) * 18 + town.Direction(fs, 1, 0) * 10 + Double3.Up * 3,
+                front + Double3.Up * (where == "fires" ? 5 : 1.5), 62);
+        }
         // A walled town (queue #74): from over the gate looking back over its roofs, down its first street, and from
         // outside the gate as the train leaves, its front wall either side of the gatehouse.
         if (plan.Bounds is { } wall && where is "over" or "lane" or "outside" or "watch" or "bend" or "crooked" or "crookedover")
