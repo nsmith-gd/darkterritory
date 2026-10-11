@@ -642,6 +642,9 @@ object CampaignCommand(string content, string verb, string[] args)
                     carCosts = Enumerable.Range(4, t.MaxCars - 3).ToDictionary(n => n.ToString(), n => DarkTerritory.Sim.Campaign.Campaign.CarCost(t, n)),
                 };
             }
+        case "nights":
+            // Note 613: the nights back to back in one process, each hosted as the app hosts it.
+            return CampaignNights.Run(content, saves, slot, args);
         case "play":
             {
                 // A night on a contract from the board, crewed by bots (they drive, shoot, and load at winch stops), settled.
@@ -713,7 +716,7 @@ object CampaignCommand(string content, string verb, string[] args)
                 };
             }
         default:
-            return new { error = $"unknown campaign command '{verb}': new, show, slots, buy car|kit|powder|lamp|extinguisher|sell|<upgrade>, sim, play" };
+            return new { error = $"unknown campaign command '{verb}': new, show, slots, buy car|kit|powder|lamp|extinguisher|sell|<upgrade>, sim, play, nights" };
     }
 }
 
