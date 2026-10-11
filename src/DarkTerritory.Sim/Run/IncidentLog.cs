@@ -295,7 +295,11 @@ public static class IncidentLog
             return (lit, drawn);
         var v = train.Vehicles[car];
         int doors = v.DoorsOpen & ~(1 << Train.CarShape.HatchBit);
-        string way = v.Breached ? " In through the breach." : doors != 0 ? " Door left open." : (v.DoorsOpen & (1 << Train.CarShape.HatchBit)) != 0 ? " Hatch left open." : "";
+        // Note 619: and who left it open, if a crewmate opened it.
+        int opener = Enumerable.Range(0, Train.CarShape.HatchBit).Where(d => (doors & (1 << d)) != 0).Select(d => world.Attribution.DoorOpenedBy(car, d))
+            .FirstOrDefault(p => p >= 0, -1);
+        string left = opener >= 0 ? $" Door left open by {NameOf(world, opener)}." : " Door left open.";
+        string way = v.Breached ? " In through the breach." : doors != 0 ? left : (v.DoorsOpen & (1 << Train.CarShape.HatchBit)) != 0 ? " Hatch left open." : "";
         return (lit, drawn + way);
     }
 

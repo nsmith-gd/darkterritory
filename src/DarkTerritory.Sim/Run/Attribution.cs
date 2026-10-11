@@ -34,7 +34,7 @@ public sealed record Incident(IncidentKind Kind, double Seconds, int Victim, str
 public sealed class Attribution
 {
     readonly List<Incident> _log = [];
-    readonly Dictionary<int, int> _lampBy = [], _couplerBy = [];
+    readonly Dictionary<int, int> _lampBy = [], _couplerBy = [], _doorBy = [];
     // Note 511: the cars a loose coupling's dropped pin parted from the train (note 356), nobody's hand on it.
     readonly HashSet<int> _parted = [];
     readonly HashSet<int> _apart = [];
@@ -67,6 +67,9 @@ public sealed class Attribution
     public void LitLamp(int car, int player) => _lampBy[car] = player;
     public void PulledCoupler(int vehicle, int player) => _couplerBy[vehicle] = player;
     public int LampLitBy(int car) => _lampBy.GetValueOrDefault(car, -1);
+    /// <summary>Who last opened a car's door (note 619): a shut car keeps the Fire Flies out (note 286), so the clerk names them.</summary>
+    public void OpenedDoor(int car, int door, int player) => _doorBy[car * 8 + door] = player;
+    public int DoorOpenedBy(int car, int door) => _doorBy.GetValueOrDefault(car * 8 + door, -1);
     public int CouplerPulledBy(int vehicle) => _couplerBy.GetValueOrDefault(vehicle, -1);
     public void PartedAt(int vehicle) => _parted.Add(vehicle);
     public bool Parted(int vehicle) => _parted.Contains(vehicle);
