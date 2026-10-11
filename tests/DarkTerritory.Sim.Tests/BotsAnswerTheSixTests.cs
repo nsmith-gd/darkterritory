@@ -361,6 +361,69 @@ public class BotsAnswerTheSixTests
     }
 
     /// <summary>
+    /// Note 614 (local:7, 4 bots, seed 5, and five more of the other tiers' 7 km nights): a Whistler watching the Knotter's own
+    /// gap at its stand. Kept off the gap as a pair, the bots stood at its edge three minutes and never clubbed the Knotter,
+    /// the driver waiting on them. Two together, the Whistler takes neither, and they kill the Knotter and the train goes on
+    /// (here 25 s into the stand, and on at 45 s; kept off, 195 s and 217 s).
+    /// </summary>
+    [Fact]
+    public void WithAWhistlerInTheKnottersGapAPairOfBotsStillKillsIt()
+    {
+        var n = new Night(6, speed: 12, enemies: Quiet);
+        var k = n.World.AddEnemy(id => Knotter.Into(id, n.Train, 3, E.Knotter));
+        n.World.AddEnemy(id => Whistler.InGap(id, n.Train, 3, E.Whistler));
+        n.Run(E.Knotter.CreepSeconds + E.Knotter.ForceSeconds + 0.5);
+        Assert.Equal(KnotterMode.Taut, k.Mode);
+        var driver = new ConductorBot(null, 0);
+        n.Crew[1] = PlayerMotor.SpawnInCab(n.Train, P);
+        n.Crew[2] = PlayerMotor.SpawnOnRoof(n.Train, 2, 0, P);
+        n.Crew[3] = PlayerMotor.SpawnOnRoof(n.Train, 2, 2, P);
+        var legs = new Dictionary<int, RoofWalkerBot> { [2] = Walker(2), [3] = Walker(3) };
+        var hands = new Dictionary<int, StopHand> { [2] = Hand(2), [3] = Hand(3) };
+        PlayerIntent Walk(int id) => Heed.Gaps(
+            Heed.Knotter(legs[id].Decide(n.Crew[id], n.World, n.World.Tick, out _), n.Crew[id], n.World, id, hands[id]),
+            n.Crew[id], n.World, id, Others(n, id));
+        // On within a minute and a half: kept off the gap, it was more than three before the Whistler gave up its watch.
+        Drive(n, driver, Walk, 90, until: () => k.Gone && n.Train.TrainRakes == 1 && n.Train.Dynamics.Speed > 4);
+        Assert.True(k.Gone, $"the Knotter's {k.Mode}, {k.Health} health");
+        Assert.Equal(1, n.Train.TrainRakes);
+        Assert.True(n.Train.Dynamics.Speed > 4, $"standing at {n.Train.Dynamics.Speed:0.0} m/s ({driver.SixStep})");
+        Assert.All(n.Crew.Values, c => Assert.True(c.Alive && !c.Has(PlayerFlags.Held)));
+    }
+
+    /// <summary>
+    /// Note 614 (local:7, 4 bots, seed 5): the Knotter killed, the driver waited for everyone down on the ground to be aboard
+    /// before backing onto the cars it left, though the gunner was 100 m off by them and kept from the engine's rake by a bend's
+    /// ledge: six minutes. It waits for those by the gap it closes; anyone further off is picked up as the cars are.
+    /// </summary>
+    [Fact]
+    public void KilledTheKnotterTheDriverBacksOntoTheCarsWithACrewmateDownFarFromTheGap()
+    {
+        var n = new Night(6, speed: 12, enemies: Quiet);
+        var k = n.World.AddEnemy(id => Knotter.Into(id, n.Train, 2, E.Knotter));
+        n.Run(E.Knotter.CreepSeconds + E.Knotter.ForceSeconds + 0.5);
+        var driver = new ConductorBot(null, 0);
+        n.Crew[1] = PlayerMotor.SpawnInCab(n.Train, P);
+        n.Crew[2] = PlayerMotor.SpawnOnRoof(n.Train, 2, 0, P);
+        n.Crew[3] = PlayerMotor.SpawnOnRoof(n.Train, 1, 0, P);
+        var legs = new Dictionary<int, RoofWalkerBot> { [2] = Walker(2), [3] = Walker(3) };
+        var hands = new Dictionary<int, StopHand> { [2] = Hand(2), [3] = Hand(3) };
+        PlayerIntent Walk(int id) => id == 4 ? default
+            : Heed.Knotter(legs[id].Decide(n.Crew[id], n.World, n.World.Tick, out _), n.Crew[id], n.World, id, hands[id]);
+        // Stood for it, a crewmate goes down by the tail, 40 m and more from the knot behind car 2, and stays there.
+        Drive(n, driver, Walk, 60, until: () => n.Train.Dynamics.Speed < 0.05);
+        n.Crew[4] = Ground(n, Beside(n, n.Train.Dynamics.Consist.Vehicles[^1].Id, 3));
+        bool backed = false;
+        Drive(n, driver, Walk, 120, until: () =>
+        {
+            backed |= k.Gone && n.Train.TrainRakes == 1;
+            return backed;
+        });
+        Assert.True(k.Gone, $"the Knotter's {k.Mode}, {k.Health} health");
+        Assert.True(backed, $"killed, never coupled up: {driver.SixStep}, {n.Train.TrainRakes} rakes");
+    }
+
+    /// <summary>
     /// Note 545 (frontier:7, 4 bots, seed 8): a Knotter in car 2's coupling, a wound car ahead of it and the Brakeman dead.
     /// Every roof bot was sent for the wound car's wheel across the knot, which the roofs never cross, and stood at the gap's
     /// edge: at the stand, for 240 s, while the Knotter lay slack and nobody went down for it; then on at speed, all night.
