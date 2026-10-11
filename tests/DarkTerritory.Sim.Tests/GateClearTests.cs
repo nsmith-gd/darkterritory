@@ -98,6 +98,36 @@ public class GateClearTests
         Assert.True(TimeInHand(24, 30, 600) > 300);
     }
 
+    /// <summary>
+    /// Note 610 (queue #342): the Brakeman put aboard 600 m out, ten cars, nothing else about. The driver stands for him hidden
+    /// too (he comes up again in 30 to 60 s, and at a stand the pair's waiting for him at the train's ends), and the pair
+    /// corners him and kills him: nothing's brought in. Before, the stand ended as soon as he dropped out of sight, and when
+    /// it waited, the pair ran him and let him out of the corner over a gap (seed 2: he was brought in either way).
+    /// </summary>
+    [Fact]
+    public void StoodShortOfTheGateThePairKillsTheBrakemanAndNothingsBroughtIn()
+    {
+        const int cars = 10;
+        var route = LineGen.Routes.Generate(DataFile.FindContentRoot(), "frontier:7", cars);
+        double gate = route.Plan!.Terminus.GateM;
+        Brakeman? him = null;
+        bool stood = false;
+        var report = CrewOfTwoTests.Night("frontier:7", cars, 600, null, start: gate - 1500, bots: 4, seed: 2,
+            enemies: HoundRunTests.Quiet, each: world =>
+            {
+                var train = world.Train;
+                if (him is null && gate - train.Dynamics.Distance < 600 && world.Run is { Phase: RunPhase.Underway })
+                    him = world.AddEnemy(id => Brakeman.AtFarEnd(id, train, [], HoundRunTests.Quiet.Brakeman));
+                stood |= him is not null && train.Dynamics.Speed < 0.05 && gate - train.Dynamics.Distance is > 0 and < 200;
+            });
+        Assert.NotNull(him);
+        var run = Assert.IsType<RunReport>(report.Run);
+        Assert.True(stood, "never stood short of the gate");
+        Assert.Equal(RunEnd.Delivered, run.End);
+        Assert.True(him.Gone, $"he's {him.Mode}");
+        Assert.Equal(0, run.BroughtIn);
+    }
+
     [Fact]
     public void AStandWithItsRearPastTheWakersWallHasTimeInHandAtDawn()
     {
