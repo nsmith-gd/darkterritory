@@ -1437,7 +1437,14 @@ public sealed class World
             bool venting = Train.Boiler.Venting, door = Train.Boiler.FireDoorOpen;
             int cars = Train.Dynamics.Consist.Vehicles.Count;
             var attached = Train.Dynamics.Consist.Vehicles.Select(v => v.Id).ToArray();
+            // Note 619: the doors as they were, to say who opened one (only a Use works a door).
+            var doors = Authority && intent.Buttons.HasFlag(PlayerButtons.Use) ? Train.Vehicles.Select(v => v.DoorsOpen).ToArray() : null;
             CrewActions.Apply(ref s, intent, Train, SimConstants.TickSeconds, Hand);
+            if (doors is not null)
+                for (int v = 0; v < doors.Length; v++)
+                    for (int opened = Train.Vehicles[v].DoorsOpen & ~doors[v], d = 0; opened != 0; opened >>= 1, d++)
+                        if ((opened & 1) != 0)
+                            Attribution.OpenedDoor(v, d, playerId);
             if (Train.Boiler.Firebox > firebox + 1e-9 || Train.Boiler.Venting && !venting)
                 Attribution.Fired(playerId, Run?.Seconds ?? 0);
             else if (Train.Boiler.FireDoorOpen && !door)
