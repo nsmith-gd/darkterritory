@@ -794,4 +794,6 @@ written here instead is moved out by `tools/coord/notes.py split`; the Coordinat
 - [620. The bots break a crewmate out of a Holdout off the line (D1.5, queue #346: the stands with a crewmate held dead)](notes/620.md)
 - [622. `dt trends` hosts its nights the app's way (D1.5, queue #352, at D1's ask after note 616: "the trend lines measure what the director plays")](notes/622.md)
 - [624. The GDD and the Wiki brought up to today's game (D1.4, queue #354, at D1's ask after #806: "it's docs, but the director reads them")](notes/624.md)
+- [625. Late Dispatch, a little more time again (D1.4, queue #355, at D1's ask after note 624)](notes/625.md)
+- [626. Two hands at one guttering lamp (D1.4, queue #356, note 619's not-yet)](notes/626.md)
 <!-- end of the notes index -->
