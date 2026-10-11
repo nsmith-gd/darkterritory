@@ -788,6 +788,6 @@ written here instead is moved out by `tools/coord/notes.py split`; the Coordinat
 - [613. Three nights running (D1.4, queue #345, at D1's ask after #343 and #344: "a campaign played end to end, three nights running, the way the…](notes/613.md)
 - [616. The app's bots are the harness's (D1.4, queue #348, at D1's ask after #345 and note 613: "the director plays with the app's bots, and every…](notes/616.md)
 - [617. A second stop on a 7 km night (queue #349, D1; #341's "not yet", note 609)](notes/617.md)
-- [619. The bots shut the door on a lit lamp (D1.4, queue #350, at D1's ask after #348 and note 616: "your runs found the cars burning at lamps the bots had lit, with doors left open")](notes/619.md)
+- [619. The Fire Flies' fires were hands stuck at a car's door (D1.4, queue #350, at D1's ask after #348 and note 616: "your runs found the cars burning at lamps the bots had lit, with doors left open")](notes/619.md)
 - [618. A switchyard's cars ahead of the engine aren't boarded (D1.5, queue #346; D1's find from D1.4's campaign, #345: night 3 brought seven…](notes/618.md)
 <!-- end of the notes index -->
