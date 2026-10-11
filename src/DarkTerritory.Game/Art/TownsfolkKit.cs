@@ -132,6 +132,8 @@ public sealed class TownsfolkKit(Look? look)
         "lantern" => "lantern",
         "walk" => lamp ? "lantern_walk" : "walk",
         "talk" when who % 3 == 0 => "point",
+        // Out on the yard to a creature brought in (note 608): pointing their piece at it.
+        "guard" => "point",
         // Nicki's party (note 571): her guests dancing, Nicki waving you in.
         "dance" => "dance",
         "wave" => "wave",
