@@ -777,4 +777,5 @@ written here instead is moved out by `tools/coord/notes.py split`; the Coordinat
 - [603. The arrival town lived in (D1.4, queue #335, the follow-up to #332 and note 600, at D1's ask)](notes/603.md)
 - [604. Town to town, without leaving it (D1.4, queue #336; the director, 9 Oct 2026: "the town that we end in in a run should be the same town…](notes/604.md)
 - [606. The crew goes on together (D1.4, queue #338, at D1's ask after #336 and note 604: "it's a co-op game, and town to town only holds if the…](notes/606.md)
+- [608. The town remembers the creature brought in (D1.4, queue #340, note 589's not-yets, at D1's ask after #338)](notes/608.md)
 <!-- end of the notes index -->
