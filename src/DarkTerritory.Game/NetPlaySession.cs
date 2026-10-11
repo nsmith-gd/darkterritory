@@ -899,7 +899,56 @@ public sealed class NetPlaySession : IPlaySession, IDisposable
     /// <summary>The tries ran out: RECONNECT (the F5 key) starts them again.</summary>
     public bool CanReconnect => Lost && Redialable && !_dialing && Attempt >= Attempts;
     /// <summary>A joiner, with a host to go back to: not hosting, and the host hasn't left its lobby (spec E: that ends it).</summary>
-    bool Redialable => Redial is not null && Lobby is not { HostLeft: true };
+    /// (Not once the host's said it's going on to the next night, note 606: that's a new night to join, not this one to rejoin.)
+    bool Redialable => Redial is not null && Lobby is not { HostLeft: true } && Client.CarryingOn is null;
+
+    /// <summary>
+    /// The crew goes on together (note 606), the host's end: tells the crew it's going on to the next night from
+    /// <paramref name="town"/>, as it leaves a delivered campaign night, so each dials back in for it rather than going to its
+    /// menu. The caller gives the message a moment to go before it hangs up.
+    /// </summary>
+    public void CarryOn(Sim.Towns.TownAt town) => Host?.CarryOn(town);
+
+    /// <summary>How long a host leaving for the next night gives its word to reach the crew before it hangs up (s). Not a design number.</summary>
+    public const double CarryOnSeconds = 0.5;
+
+    /// <summary>Who a joiner dials to follow its host to the next night (note 606): the same host, the same way, with the run's key.</summary>
+    public sealed record Following(Func<ITransport> Dial, byte[]? Key, string? Left, Sim.Towns.TownAt Town);
+
+    /// <summary>A joiner told its host is going on (note 606), with a host to dial: whom, and from which town; else null.</summary>
+    public Following? GoingOn => Host is null && Redial is { } dial && Client.CarryingOn is { } town ? new Following(dial, Client.PasswordKey, Setup.Route, town) : null;
+
+    /// <summary>
+    /// The crew goes on together (note 606), a joiner's end: dials the host it followed until the host's next night welcomes
+    /// it (a night on another route than the one left; the one left, still closing, is hung up on and dialled again), every
+    /// rejoin.retrySeconds for up to rejoin.followSeconds, and joins it as any joiner does (its yard, its town).
+    /// </summary>
+    /// <param name="whileWaiting">Called each time round (the app draws the town's card; a test steps its in-process host).</param>
+    public static NetPlaySession Follow(string content, Following going, Action? whileWaiting = null, PlayerTuning? tuning = null)
+    {
+        var t = (tuning ?? DataFile.Load<PlayerTuning>(Path.Combine(content, PlayerTuning.File))).Rejoin;
+        var clock = System.Diagnostics.Stopwatch.StartNew();
+        while (true)
+        {
+            try
+            {
+                var joined = Connect(content, going.Dial(), "the host", null, whileWaiting, going.Dial, going.Key);
+                if (joined.Setup.Route != going.Left)
+                    return joined;
+                joined.Dispose();
+            }
+            catch (IOException) when (clock.Elapsed.TotalSeconds < t.FollowSeconds)
+            {
+            }
+            if (clock.Elapsed.TotalSeconds >= t.FollowSeconds)
+                throw new IOException("the host didn't start the next night");
+            for (var wait = System.Diagnostics.Stopwatch.StartNew(); wait.Elapsed.TotalSeconds < t.RetrySeconds;)
+            {
+                whileWaiting?.Invoke();
+                Thread.Sleep(5);
+            }
+        }
+    }
 
     /// <summary>RECONNECT: another round of tries, the first at once.</summary>
     public void Reconnect()
