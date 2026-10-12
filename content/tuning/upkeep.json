@@ -39,21 +39,25 @@
     "firstAfterMetres": 3000,
     "outAfter": 45
   },
-  // U2, a coupling working loose (note 356): a gap's pin worked loose by the running. One comes loose, in a gap drawn
-  // from the engine's rake (never the engine's own coupling: that would be the whole train), every everyMetres of the
-  // train's running (± jitter of it), the metres counting roughFactor times over on a bend tighter than roughRadius (m;
-  // the outline's "rough track"), none in the first firstAfterMetres, none in the yard or a fort, and never more loose
-  // than there are crewmates alive. It knocks at the gap, faster as it goes, and it's called out as every break is (the
-  // tell). The wrench in hand, Use held tightenSeconds with the hands within reach m of the pin (from the plate in the
-  // gap, an end ladder over it, the ground beside), it's tight. Left partAfter seconds the pin drops and the rake parts
-  // behind it (§24's cut-car rules). The worst job, so the rarest: the outline's every 6 km.
+  // U2, a coupling working loose (notes 356 and 640): a gap's pin, in the engine's rake (never the engine's own coupling:
+  // that would be the whole train), worked loose only by something the crew can see and name (the director, the inbox, 12
+  // Oct: "There should always be a clear identifiable cause of a decouple"): a run-in, the engine's rake slowing at
+  // runInShare of its whole brake or more for runInSeconds, from runInAbove m/s (an emergency application held: the cars
+  // run in on the engine and one gap's pin jumps; a tap to hold a speed isn't one), or a knock, rakes meeting faster than
+  // knockAbove m/s (coupling up too hard, past the stop driver's crawl: the pin where they met). None in the yard or a
+  // fort, none while a hound pack is aboard, and never more loose than there are crewmates
+  // alive. It knocks at the gap, faster as it goes, and it's called out as every break is (the tell). The wrench in hand,
+  // Use held tightenSeconds with the hands within reach m of the pin (from the plate in the gap, an end ladder over it, the
+  // ground beside), it's tight. Left partAfter seconds of running the pin drops and the rake parts behind it (§24's cut-car
+  // rules), and the clerk names what worked it loose and who was driving. With holds, a loose pin holds while the train
+  // stands (the director, the inbox, 9 Oct) and while a pack is aboard (12 Oct).
   "coupling": {
     "enabled": true,
-    "everyMetres": 6000,
-    "jitter": 0.5,
-    "roughRadius": 800,
-    "roughFactor": 3,
-    "firstAfterMetres": 4000,
+    "runInShare": 0.8,
+    "runInAbove": 5,
+    "runInSeconds": 1.5,
+    "knockAbove": 1.2,
+    "holds": true,
     "partAfter": 90,
     "tightenSeconds": 4,
     "reach": 2.2
