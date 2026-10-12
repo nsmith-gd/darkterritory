@@ -980,10 +980,11 @@ public sealed class StopDriver(CrewCalls calls)
     /// <summary>
     /// Note 621: what a pick-up wants over its own seconds (s), against the night's real deadline (<see cref="Deadline"/>): the
     /// run home after a stop is out by about 120 s on any one night however it's reckoned (frontier:7's sixteen, at Renwick
-    /// Yard), and this is 1.3 of that. 120 here took three trains in nine; 160 made the pick-up on the one night of sixteen
-    /// with the time for it, and lost none. (Note 617's 200 was over the dawn itself, with the reckoning 73 s optimistic.)
+    /// Yard), and this was 1.3 of that, 160: with the pick-up itself out by up to 340 s more (148–528 s), 120 took three trains
+    /// in nine. Note 628: with the pick-up's own stalls taken out (178–212 s on the mean, few over 250), 100: on sixteen nights
+    /// each, frontier:6 made eight pick-ups against none (cargo 16.1 → 20.6, a dawn missed 1 → 0) and frontier:7 two.
     /// </summary>
-    const double PickUpNoise = 160;
+    const double PickUpNoise = 100;
     /// <summary>Note 609: a stop's loading isn't cut short for the next stop (<see cref="Onward"/>) unless this much of it's to be had first.</summary>
     const double OnwardLoading = 90;
     /// <summary>Note 609: past the next stop's allowance, a stop's loading is called done this much early (the leaving takes less than reckoned).</summary>
