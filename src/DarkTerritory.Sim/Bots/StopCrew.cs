@@ -2173,10 +2173,10 @@ public sealed partial class StopHand(StopJob job, CrewCalls calls, int member, C
 
     /// <summary>On a car's landing or inside it at a stop: out by its side door and down its steps. Null when it isn't.</summary>
     /// <para>Note 633 (the director, the inbox, 12 Oct: a lit car shut up keeps the Climbers out): the door shut behind it, but a
-    /// cargo car's on the site's side while there are crates still to go in by it (the crate hands shut those after, T50).</para>
+    /// cargo car's on the site's side: the crates and the village's finds go in by it, and the crate hands shut those before the
+    /// train leaves (<see cref="StopDriver.Loaded"/>, T50). Shut behind the last crate, the driver left before the village.</para>
     PlayerIntent? OffTheCar(in PlayerState self, World world, StopPlan p) =>
-        OffTheCar(self, world.Train, p.Site.Side, shutBehind: !(self.Parent > 0 && world.Train.Vehicles[self.Parent].Kind == VehicleKind.Cargo
-            && p.CratesToLoad(world, calls.HeavyHands) && !calls.Leaving));
+        OffTheCar(self, world.Train, p.Site.Side, shutBehind: !(self.Parent > 0 && world.Train.Vehicles[self.Parent].Kind == VehicleKind.Cargo));
 
     /// <summary>
     /// On a car's landing or inside it: out by its side door on one side (+1 right) and down its steps; with

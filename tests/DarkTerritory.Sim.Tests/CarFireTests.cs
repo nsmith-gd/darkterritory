@@ -513,8 +513,7 @@ public class CarFireTests
     }
 
     [Theory]
-    [InlineData(3)]
-    [InlineData(5)]
+    [InlineData(1)]
     public void AtAStopTheNearestHandPutsTheFireFliesLampOutWhateverItsPart(int seed)
     {
         // Note 496: a crew of four's hands at a stop are the shunter and the winch pair, none a crate hand, and only a crate
@@ -526,8 +525,9 @@ public class CarFireTests
         // room, or walked between the doorway and the middle by the room's box while the car burned.
         // The nights as the director dealt them before the six of notes 362–367 joined its roster: a kind more in the deal
         // reshuffles every night (seed 6 has no Fire Flies with them in), and seeds 2 and 6 were the cases the notes were written
-        // on. On the 7 km nights of note 554 frontier:7 is another line (its first stop a foundry again): seeds 3 and 5 have
-        // the Fire Flies come to a car at a stop.
+        // on. On the 7 km nights of note 554 frontier:7 is another line (its first stop a foundry again): seeds 3 and 5 had
+        // the Fire Flies come to a car at a stop. With the bots shutting the doors behind them (note 633) neither has them come
+        // at all; of seeds 1 to 14 only seed 1 does.
         EnemyKind[] six = [EnemyKind.Mourners, EnemyKind.TowerJaw, EnemyKind.Brakeman, EnemyKind.Knotter, EnemyKind.FreightBeetle, EnemyKind.Hotbox];
         var enemies = Tuning.Enemies with
         {
