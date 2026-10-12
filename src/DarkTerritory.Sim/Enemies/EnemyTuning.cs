@@ -527,6 +527,11 @@ public sealed record StokerTuning
     /// <summary>Note 268: an extinguisher held into the firebox this long kills it, taking this share of the fire.</summary>
     public double HoseSeconds { get; init; } = 2;
     public double HoseFireCost { get; init; } = 0.6;
+    /// <summary>
+    /// The cab's own hose (note 648; the director, the inbox, 12 Oct, `D1-stoker-hose-in-the-cab`, "b"): Fire held at the door
+    /// with nothing fetched. Off, an extinguisher from car 1 stands in (note 271).
+    /// </summary>
+    public bool CabHose { get; init; }
     /// <summary>Note 268: how near the fire door (m, across the cab floor) counts as at it, to open it or hose it.</summary>
     public double DoorReach { get; init; } = 1.8;
     /// <summary>Note 265 (the director's decision of 6 Oct 2026): once one's gone, none comes back for this long (s).</summary>
@@ -866,8 +871,20 @@ public sealed record OrchestratorTuning
     /// </summary>
     public double EngagedPerCar { get; init; }
 
-    /// <summary>The share of the crew that may be engaged at once with a train of <paramref name="cars"/> (note 646).</summary>
-    public double EngagedShare(int cars, int scaleCars) => Math.Min(PerPlayer, EngagedPerActive + EngagedPerCar * Math.Max(0, cars - scaleCars));
+    /// <summary>
+    /// A long train, two threats each (note 647; the director, the inbox, 12 Oct, `D1-long-train-two-each`, "b"): from this
+    /// many cars a crewmate may have <see cref="PerPlayerLong"/> threats on them at once, and the director's hard caps grow
+    /// with it. 0: never.
+    /// </summary>
+    public int LongTrainCars { get; init; }
+    public double PerPlayerLong { get; init; } = 2;
+
+    /// <summary>The most threats on one crewmate at once with a train of <paramref name="cars"/>.</summary>
+    public double PerPlayerFor(int cars) => LongTrainCars > 0 && cars >= LongTrainCars ? PerPlayerLong : PerPlayer;
+
+    /// <summary>The share of the crew that may be engaged at once with a train of <paramref name="cars"/> (notes 646, 647).</summary>
+    public double EngagedShare(int cars, int scaleCars) => LongTrainCars > 0 && cars >= LongTrainCars ? PerPlayerLong
+        : Math.Min(PerPlayer, EngagedPerActive + EngagedPerCar * Math.Max(0, cars - scaleCars));
     // The census (note 345; orchestrator.md §3.1, §3.2 items 2 and 4).
     public bool Census { get; init; } = true;
     public int MinCrew { get; init; } = 2;

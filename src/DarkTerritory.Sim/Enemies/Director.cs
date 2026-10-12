@@ -175,7 +175,7 @@ public sealed class Director
                 return MaxConcurrent;
             // A longer train has more of them under a threat at once (note 646), never more than perPlayer each.
             double share = o.EngagedShare(_cars, _t.Pressure.ScaleCars);
-            int byCrew = Math.Min((int)Math.Ceiling(Active * share - 1e-9), (int)Math.Floor(Active * o.PerPlayer + 1e-9));
+            int byCrew = Math.Min((int)Math.Ceiling(Active * share - 1e-9), (int)Math.Floor(Active * o.PerPlayerFor(_cars) + 1e-9));
             return Math.Min(MaxConcurrent, Math.Max(1, byCrew));
         }
     }
@@ -313,7 +313,9 @@ public sealed class Director
         return Budget * Math.Clamp(share, 0, 1);
     }
 
-    int MaxConcurrent => Crew >= 6 ? _t.MaxConcurrentLargeCrew : _t.MaxConcurrentSmallCrew;
+    // A long train's two each (note 647) grows the hard caps with them.
+    int MaxConcurrent => (int)Math.Round((Crew >= 6 ? _t.MaxConcurrentLargeCrew : _t.MaxConcurrentSmallCrew)
+        * (_t.Orchestrator.PerPlayerFor(_cars) / Math.Max(1e-9, _t.Orchestrator.PerPlayer)));
 
     /// <summary>At or near one of the route's facilities: within <paramref name="margin"/> of its span.</summary>
     bool NearFacility(double distance, double margin) =>
@@ -532,7 +534,8 @@ public sealed class Director
             var posts = Census.AnswerPosts(o, op.Kind).ToList();
             if (posts.Count == 0)
                 return op;
-            if (o.PerTarget && entries.Where(c => posts.Contains(c.Post)).ToList() is { Count: > 0 } answering && answering.All(c => c.On > 0))
+            if (o.PerTarget && entries.Where(c => posts.Contains(c.Post)).ToList() is { Count: > 0 } answering
+                && answering.All(c => c.On >= Math.Max(1, (int)Math.Floor(o.PerPlayerFor(_cars) + 1e-9))))
                 return (op.Kind, 0.0);
             if (next is not null && posts.Contains(next.Post))
                 return (op.Kind, op.Weight * o.SlackWeight);
