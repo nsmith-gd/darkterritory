@@ -1892,11 +1892,14 @@ static object Screenshot(TrainTuning t, string content, string[] args)
     if (Staging.IsHouseView(view) && generated is not null && scene.Walls is { } houseWalls)
     {
         string houseMode = Str(args, view.StartsWith("hanger", StringComparison.Ordinal) ? "--hanger" : view.StartsWith("hollow", StringComparison.Ordinal) ? "--hollow" : "--householder", "");
-        var (houseThreats, houseCamera, caught) = Staging.House(scene.Enemies is List<DarkTerritory.Sim.Enemies.Enemy> others ? others : [], view, houseMode,
-            generated, line, houseWalls, (int)Opt(args, "--house", 0), args.Contains("--inside"));
+        var (houseThreats, houseCamera, caught, seat) = Staging.House(scene.Enemies is List<DarkTerritory.Sim.Enemies.Enemy> others ? others : [], view, houseMode,
+            generated, line, houseWalls, DataFile.Load<DarkTerritory.Sim.Enemies.EnemyTuning>(Path.Combine(content, DarkTerritory.Sim.Enemies.EnemyTuning.File)).Hanger,
+            (int)Opt(args, "--house", 0), args.Contains("--inside"));
         scene.Enemies = houseThreats;
         if (Str(args, "--cam", "") is not { Length: > 0 })
             camera = houseCamera;
+        if (seat is var (chairAt, chairYaw))
+            scene.Seat(Staging.HouseholderId, chairAt, chairYaw);
         if (caught is { } hung)
             scene.Crew = [.. (scene.Crew ?? []).Where(c => c.Id != hung.Id), hung];
         // (The hollowhouse views' shut doors: the Sim shuts them at its Shut.)

@@ -1,4 +1,5 @@
 using System.Numerics;
+using Ballast;
 using Ballast.Render;
 using DarkTerritory.Sim.Enemies;
 
@@ -11,6 +12,11 @@ namespace DarkTerritory.Game.Art;
 /// </summary>
 public sealed partial class CreatureArt
 {
+    HangerTuning? _hanger;
+
+    /// <summary>The Hanger's tuning, as the content has it (how many strands it hangs, how high it hauls).</summary>
+    public HangerTuning HangerTuning => _hanger ??= DataFile.Load<EnemyTuning>(Path.Combine(ContentRoot, EnemyTuning.File)).Hanger;
+
     /// <summary>
     /// How far under what it hangs from its body is (m): the model's origin is the underside of the beams it grips
     /// (tools/blender/hanger.py), the sim's <see cref="Enemy.Local"/> its body.

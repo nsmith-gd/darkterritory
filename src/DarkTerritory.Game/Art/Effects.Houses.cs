@@ -71,7 +71,7 @@ public sealed partial class Effects
                 _ => new Vector3(-halfX - 0.3f, 0, a * halfZ),
             };
             at.Y = 0.3f + 0.9f * t;
-            mesh.Billboard(Vector3.Transform(at, frame), 0.8f + 1.4f * t, h * 6.28f, new Vector4(0.75f, 0.7f, 0.62f, 0.45f * MathF.Sin(t * MathF.PI)),
+            mesh.Billboard(Vector3.Transform(at, frame), 0.8f + 1.4f * t, h * 6.28f, new Vector4(0.8f, 0.75f, 0.66f, 0.65f * MathF.Sin(t * MathF.PI)),
                 _smoke, FxBlend.Alpha, (int)(t * 10), 4);
         }
     }
@@ -89,7 +89,7 @@ public sealed partial class Effects
         {
             float h = Hash(seed * 0.91f + i * 1.7f);
             var p = top + side * ((h - 0.5f) * 1.4f) + outward * (0.2f + 0.9f * spread * (0.5f + h)) - Vector3.UnitY * (0.2f + 1.6f * spread * h);
-            mesh.Billboard(p, 0.3f + 0.8f * spread, h * 6.28f, new Vector4(0.85f, 0.8f, 0.72f, 0.65f * MathF.Max(0, 1 - a / 1.6f)), _smoke, FxBlend.Alpha,
+            mesh.Billboard(p, 0.5f + 1.2f * spread, h * 6.28f, new Vector4(0.9f, 0.85f, 0.76f, 0.9f * MathF.Max(0, 1 - a / 1.6f)), _smoke, FxBlend.Alpha,
                 (int)(spread * 10), 4);
         }
         // Grit off the lintel.
@@ -117,8 +117,8 @@ public sealed partial class Effects
             float ang = i * MathF.Tau / puffs + h;
             float r = (0.3f + 0.7f * h2) * (1 + 1.6f * spread);
             var p = new Vector3(MathF.Cos(ang) * halfX * r, 0.6f + 2.2f * spread * h + 0.4f * MathF.Sin((float)age * 0.3f + i), MathF.Sin(ang) * halfZ * r);
-            mesh.Billboard(Vector3.Transform(p, frame), 2.2f + 3.5f * spread * (0.6f + h), h * 6.28f + a * 0.05f,
-                new Vector4(0.8f, 0.76f, 0.68f, 0.6f * fade * MathF.Min(1, a * 4 + 0.3f)), _smoke, FxBlend.Alpha, (int)(spread * 10) % 16, 4);
+            mesh.Billboard(Vector3.Transform(p, frame), 2.6f + 4.5f * spread * (0.6f + h), h * 6.28f + a * 0.05f,
+                new Vector4(0.85f, 0.8f, 0.72f, 0.85f * fade * MathF.Min(1, a * 4 + 0.3f)), _smoke, FxBlend.Alpha, (int)(spread * 10) % 16, 4);
         }
     }
 }

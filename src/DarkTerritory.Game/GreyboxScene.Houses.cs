@@ -32,6 +32,9 @@ public sealed partial class GreyboxScene
     readonly Dictionary<int, (Double3 Seat, double Yaw)> _householderSeats = [];
     readonly Dictionary<int, (bool Shut, double Since)> _doorMoved = [];
 
+    /// <summary>Where a Householder's chair is (as if it had been seen sitting there): for a staged one that's up and gone.</summary>
+    public void Seat(int householder, Double3 seat, double yaw) => _householderSeats[householder] = (seat, yaw);
+
     /// <summary>How far a Hollow House tilts as it sinks (radians a metre, and at most), and how fast it comes down.</summary>
     const float HollowTilt = 0.065f, HollowTiltMost = 0.13f, HollowFallSeconds = 0.8f;
 
@@ -246,7 +249,8 @@ public sealed partial class GreyboxScene
             float glow = (float)(0.85 + 0.1 * Math.Sin(s) + 0.07 * Math.Sin(s * 2.3 + 1) + 0.04 * Math.Sin(s * 7.1));
             var fire = Vector3.Transform(Art.HouseholdKit.StoveFire, stove);
             mesh.PointLights.Add(new PointLight(fire + inward * 0.35f, new Vector3(1.0f, 0.42f, 0.14f) * 3.2f * glow, 7.5f));
-            mesh.Billboard(fire, 0.5f * glow, 0, new Vector4(new Vector3(1.0f, 0.4f, 0.1f) * 0.35f * glow, 1), -1, FxBlend.Additive);
+            mesh.Billboard(fire, 0.7f * glow, 0, new Vector4(new Vector3(1.0f, 0.4f, 0.1f) * 0.5f * glow, 1), -1, FxBlend.Additive);
+            mesh.Billboard(fire - inward * 0.3f + Vector3.UnitY * 0.2f, 1.6f, 0, new Vector4(new Vector3(1.0f, 0.35f, 0.08f) * 0.12f * glow, 1), -1, FxBlend.Additive);
         }
         // The whole room warm: a lamp's worth of light up under the ceiling over the table, steady.
         mesh.PointLights.Add(new PointLight(Vector3.Transform(new Vector3(0, 0, 0), table) + new Vector3(0, 2.2f, 0), Palette.LampAmber * 0.55f, 9));
@@ -302,7 +306,7 @@ public sealed partial class GreyboxScene
 
     /// <summary>
     /// The Hanger in its house (note 586): its ceiling (Art.HouseholdKit.Ceiling: joists, a few boards, the rafters over them),
-    /// its strands (<see cref="Hanger.Strands"/>, <see cref="Hanger.StrandCount"/> of them) hanging from the joists down to
+    /// its strands (<see cref="Hanger.Strands"/>, as many as its tuning hangs) hanging from the joists down to
     /// <see cref="Hanger.StrandBottom"/>, glistening, swaying a little, each with a bead at its end; and itself at its body
     /// (<see cref="Enemy.Local"/>): hidden or retreating, up in the roof space between the boards; on someone, down under the
     /// joists, one strand from its mouth taut to their chest.
@@ -339,7 +343,7 @@ public sealed partial class GreyboxScene
                 if (c.Id == (int)e.Extra && c.Alive)
                     held = c;
         Matrix4x4.Invert(frame, out var toHouse);
-        var strands = Hanger.Strands(b, e.Id, Hanger.StrandCount);
+        var strands = Hanger.Strands(house, e.Id, Look.Art.Creatures.HangerTuning.Strands);
         int taut = -1;
         if (held is { } victim)
         {
@@ -386,7 +390,7 @@ public sealed partial class GreyboxScene
         {
             var mouth = Vector3.Transform(Art.CreatureArt.HangerMouth, model);
             var chest = Vector3.Transform((caught.Feet + Double3.Up * 1.3).RelativeTo(eye), toHouse);
-            Strand(k, mouth, chest, 0.006f);
+            Strand(k, mouth, chest, 0.008f);
         }
         k.Pop();
     }
@@ -415,13 +419,6 @@ public sealed partial class GreyboxScene
                 return i;
         return -1;
     }
-
-    /// <summary>
-    /// A point of a house the creatures move, where it's drawn now (camera-relative: its cell's place to the house's), and
-    /// whether that house has come down (nothing stands in it). Points of any other house are where they were.
-    /// </summary>
-    (Vector3 At, bool Down) MovedHouse(int feature, int building, Vector3 at) =>
-        _movedHouses.TryGetValue((feature, building), out var m) ? (Vector3.Transform(at, m.Moved), m.Down) : (at, false);
 
     /// <summary>
     /// A door's swing toward where it's going (note 401's doors, drawn from the sim's state): it swings to over a moment, not

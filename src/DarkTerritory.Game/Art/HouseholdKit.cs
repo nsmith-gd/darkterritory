@@ -47,10 +47,11 @@ public sealed class HouseholdKit(Look? look)
                 k.Box(new Vector3(x - 0.03f, 0, z - 0.03f), new Vector3(x + 0.03f, H - 0.04f, z + 0.03f));
         k.Box(new Vector3(-W + 0.03f, H - 0.12f, -D + 0.03f), new Vector3(W - 0.03f, H - 0.04f, D - 0.03f), Kit.Faces.All & ~Kit.Faces.PosY);
         k.Box(new Vector3(-W, H - 0.04f, -D), new Vector3(W, H, D));
-        // The cloth: laid over it, hanging a hand's breadth down every side, its hem straight.
+        // The cloth: laid over it, hanging a hand's breadth down every side, its hem straight; a deep red, kept.
         k.Use("cream", Linen, 0.25f, 0.05f, tile: 0.6f);
+        k.Tint = new Vector3(0.62f, 0.2f, 0.17f);
         k.Box(new Vector3(-W - 0.012f, H, -D - 0.012f), new Vector3(W + 0.012f, H + 0.004f, D + 0.012f));
-        k.Box(new Vector3(-W - 0.014f, H - 0.16f, -D - 0.014f), new Vector3(W + 0.014f, H + 0.002f, D + 0.014f), Kit.Faces.All & ~Kit.Faces.PosY & ~Kit.Faces.NegY);
+        k.Box(new Vector3(-W - 0.014f, H - 0.1f, -D - 0.014f), new Vector3(W + 0.014f, H + 0.002f, D + 0.014f), Kit.Faces.All & ~Kit.Faces.PosY & ~Kit.Faces.NegY);
         // The plate (white enamel, a dark blue rim), at the sitter's place.
         float top = H + 0.004f;
         var plate = new Vector3(0, top, D - 0.17f);
@@ -130,7 +131,7 @@ public sealed class HouseholdKit(Look? look)
     public MeshAsset Stove => Get("stove", k =>
     {
         const float W = StoveHalfWidth, D = StoveHalfDepth, Legs = 0.14f, Top = 0.78f;
-        k.Use("rust_heavy", Iron, 0.4f, 0.45f, tile: 0.8f);
+        k.Use("paint_black", Iron, 0.4f, 0.45f, tile: 0.8f);
         foreach (float x in new[] { -W + 0.05f, W - 0.05f })
             foreach (float z in new[] { -D + 0.05f, D - 0.05f })
                 k.Cylinder(new Vector3(x, 0, z), new Vector3(x, Legs, z), 0.025f, 6, radiusB: 0.035f);
@@ -157,6 +158,14 @@ public sealed class HouseholdKit(Look? look)
         k.Use("firebox", new Vector3(1.0f, 0.45f, 0.12f), 0, 0, tile: 0.4f);
         k.Emissive = 1;
         k.Box(new Vector3(-0.15f, 0.34f, -D - 0.034f), new Vector3(0.15f, 0.5f, -D - 0.033f), Kit.Faces.NegZ);
+        // The hob's ring and the draught holes down its sides, hot from the fire: it reads lit from any side.
+        k.Lathe(new Vector3(-0.12f, Top + 0.001f, -0.05f), [new(0.085f, 0), new(0.1f, 0.002f)], 16, capTop: false);
+        foreach (float x in new[] { -W - 0.001f, W + 0.001f })
+            for (int i = 0; i < 4; i++)
+            {
+                float z = -D + 0.1f + i * 0.12f;
+                k.Box(new Vector3(x - 0.001f, 0.28f, z - 0.03f), new Vector3(x + 0.001f, 0.34f, z + 0.03f));
+            }
         // The fire's light leaking round the door's edge, and the ash pan's draught.
         k.Box(new Vector3(-0.2f, 0.265f, -D - 0.016f), new Vector3(0.2f, 0.272f, -D - 0.014f), Kit.Faces.NegZ);
         k.Box(new Vector3(-W + 0.07f, Legs + 0.1f, -D - 0.012f), new Vector3(W - 0.07f, Legs + 0.11f, -D - 0.011f), Kit.Faces.NegZ);

@@ -26,6 +26,8 @@ public class CreatureBodyTests
         { EnemyKind.Moose, "moose", 1 }, { EnemyKind.Gannet, "gannet", 1 }, { EnemyKind.Mourners, "mourner", 1 },
         { EnemyKind.FreightBeetle, "freight_beetle", 1 }, { EnemyKind.TowerJaw, "tower_jaw", 1 },
         { EnemyKind.Brakeman, "brakeman", 1 }, { EnemyKind.Knotter, "knotter", 1 }, { EnemyKind.Hotbox, "hotbox", 1 },
+        // (Hung from its beams: its model's origin is where it grips, its sac under it.)
+        { EnemyKind.Hanger, "hanger", 1 },
     };
 
     [Theory]

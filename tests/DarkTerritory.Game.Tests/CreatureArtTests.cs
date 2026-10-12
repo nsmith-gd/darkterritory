@@ -101,6 +101,9 @@ public class CreatureArtTests(CreatureArtTests.TurntableRig rig) : IClassFixture
         ["knotter"] = new(6000, 14000, 40, 60, ["creep", "force", "taut", "coil", "exposed"], ["clamp", "slip", "hit", "death"]),
         // Hotbox a beast's (2-8k), the size of a dog; SK_Hotbox's plates, belly and sixteen legs.
         ["hotbox"] = new(2000, 8000, 35, 55, ["clamped", "knock", "glow", "out", "scuttle"], ["unfold", "snap", "prised", "hit", "death"]),
+        // The Hanger (note 586; the director, 9 Oct 2026), a beast's (2-8k): a sac and ten thin legs on its own rig (SK_Hanger: three
+        // bones a leg, the sac breathing by scale, the mouth, two palps); a clip for each of its modes (HangerMode) and its death.
+        ["hanger"] = new(2000, 8000, 30, 45, ["hidden", "haul", "hold", "retreat"], ["grab", "hit", "death"]),
     };
 
     public static TheoryData<string> Models() => [.. CreatureArt.Names];
@@ -131,8 +134,9 @@ public class CreatureArtTests(CreatureArtTests.TurntableRig rig) : IClassFixture
         // car hugger's at its mouth on the rear platform, its body down to the rail; a Choir ghost flies, its strips hanging
         // below where it is; the Stoker's is the firebox door, its body in the fire behind and below it; a Fire Fly's is its
         // body's middle, its legs under it, for the glass it settles on).
-        // (The Knotter's is the gap's middle at the coupler's height, the rope through it.)
-        if (name is not ("clinger" or "dragger" or "weight" or "car_hugger" or "choir" or "stoker" or "fire_fly" or "knotter"))
+        // (The Knotter's is the gap's middle at the coupler's height, the rope through it; the Hanger's the underside of the beams
+        // it hangs from, all of it below but its feet's hooks.)
+        if (name is not ("clinger" or "dragger" or "weight" or "car_hugger" or "choir" or "stoker" or "fire_fly" or "knotter" or "hanger"))
         {
             Assert.InRange(m.Min.Y, -0.02f, 0.05f);
             Assert.InRange((m.Min.X + m.Max.X) / 2, -0.25f, 0.25f);
@@ -189,6 +193,13 @@ public class CreatureArtTests(CreatureArtTests.TurntableRig rig) : IClassFixture
         var hotbox = Get("hotbox");
         Assert.InRange(hotbox.Max.Z - hotbox.Min.Z, 1.3f, 1.65f);
         Assert.InRange(Height(hotbox), 0.3f, 0.5f);
+        // The Hanger (note 586): hung upside down from the beams at its origin, its body and its knees below, its feet's hooks
+        // just up over them; about 2.3 m across its braced legs, a pale sac half a metre deep; its head forward (−Z).
+        var hanger = Get("hanger");
+        Assert.InRange(hanger.Max.Y, 0f, 0.06f);
+        Assert.InRange(hanger.Min.Y, -0.8f, -0.45f);
+        Assert.InRange(hanger.Max.X - hanger.Min.X, 2.0f, 2.6f);
+        Assert.True(hanger.Min.Z < -0.9f, "the hanger's front legs reach forward (−Z)");
         var sleeper = Get("sleeper");
         Assert.InRange(sleeper.Max.X - sleeper.Min.X, 2.5f, 3.1f);
         Assert.InRange(Height(sleeper), 0.2f, 0.45f);
