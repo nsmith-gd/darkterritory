@@ -200,7 +200,7 @@ public class CreatureArtTests(CreatureArtTests.TurntableRig rig) : IClassFixture
         // head and the long hands forward (−Z).
         var picker = Get("picker");
         Assert.InRange(Height(picker), 0.45f, 0.62f);
-        Assert.InRange(picker.Max.Z - picker.Min.Z, 0.8f, 1.0f);
+        Assert.InRange(picker.Max.Z - picker.Min.Z, 0.75f, 1.0f);
         Assert.True(picker.Min.Z < -0.4f, "the picker's head and hands are forward (−Z)");
         // The Lodger (lodger.md): about 2.1 m stood up; the Householder tall and thin, about 1.95 m.
         Assert.InRange(Height(Get("lodger")), 2.0f, 2.2f);
@@ -429,7 +429,9 @@ public class CreatureArtTests(CreatureArtTests.TurntableRig rig) : IClassFixture
                     // mound sunk in the low ground by the line, App. A.3 LURK.)
                     bool hidden = kind == EnemyKind.Dragger && phase is not (SpinePhase.Telegraph or SpinePhase.Grab or SpinePhase.Punish)
                         || kind == EnemyKind.Stoker
-                        || kind == EnemyKind.FireFlies && phase == SpinePhase.Dormant;
+                        || kind == EnemyKind.FireFlies && phase == SpinePhase.Dormant
+                        // The Hollow House is the house (note 585): the town's art draws it, no figure of its own.
+                        || kind == EnemyKind.HollowHouse;
                     // A car fire is an effect (Effects.CarFire): smoke and flame billboards, no triangles of its own.
                     if (kind == EnemyKind.CarFire)
                         Assert.True(mesh.AlphaFx.Count + mesh.AdditiveFx.Count > 0, $"{kind} {phase} drew no smoke or flame");

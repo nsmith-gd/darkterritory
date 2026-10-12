@@ -2218,6 +2218,23 @@ public sealed partial class CreatureArt
                 return Knotter(mesh, model, phase, t);
             case EnemyKind.Hotbox when _models.ContainsKey("hotbox"):
                 return Hotbox(mesh, model, phase, t, extra2);
+            case EnemyKind.HollowHouse:
+                // The Hollow House is the house itself (note 585): the town's art draws it, sinking; no figure of its own.
+                return true;
+            case EnemyKind.Hanger:
+                {
+                    // A stand-in until its model comes (note 586, another session's art): its sac hung up under the roof, a
+                    // grey-black lump turning slowly, and a strand let down from it.
+                    var (r, u, b) = Basis(model);
+                    var o = model.Translation;
+                    float turn = (float)Math.Sin(t * 0.7) * 0.4f;
+                    var rr = r * MathF.Cos(turn) + b * MathF.Sin(turn);
+                    var bb = b * MathF.Cos(turn) - r * MathF.Sin(turn);
+                    mesh.Box(o, rr, u, bb, new Vector3(0.4f, 0.32f, 0.4f), Palette.SootBlack * 1.6f);
+                    mesh.Box(o - u * 0.4f, rr, u, bb, new Vector3(0.22f, 0.12f, 0.22f), Palette.IronGrey * 0.6f);
+                    mesh.Box(o - u * 1.0f, rr, u, bb, new Vector3(0.006f, 0.55f, 0.006f), Palette.IronGrey);
+                    return true;
+                }
             case EnemyKind.Choir:
                 {
                     // (No model: the Hollow's figure, child-sized and pale, bobbing in the air with a cold light of its own.)
