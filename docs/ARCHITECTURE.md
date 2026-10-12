@@ -805,4 +805,5 @@ written here instead is moved out by `tools/coord/notes.py split`; the Coordinat
 - [632. A train eaten at dawn ends the campaign (D1.4, queue #362, the director, the inbox, 12 Oct)](notes/632.md)
 - [633. Lit and shut keeps the Climbers out (D1.4, queue #363, the director, the inbox, 12 Oct)](notes/633.md)
 - [634. Bots fight a fully burning car together (D1.4, queue #364, the director, the inbox, 12 Oct)](notes/634.md)
+- [635. The director's creature calls of 12 Oct: the Knotter once or twice a night, the night things run at dawn, and the Creature Tweaker (D1,…](notes/635.md)
 <!-- end of the notes index -->
