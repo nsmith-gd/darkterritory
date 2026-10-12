@@ -221,6 +221,17 @@ public class HouseCreatureTests
         Assert.True(n.Crew[1].Alive);
     }
 
+    [Fact]
+    public void AtDawnTheHouseCreaturesGoToGroundButTheHollowHouseIsStillAHouse()
+    {
+        // The night things run at dawn (note 635); a house can't (note 585): one gone would stand up out of its own wreck.
+        var (n, house) = AtAHouse();
+        var walls = Walls(n);
+        Assert.False(Waker.NightThing(n.World.AddEnemy(id => HollowHouse.In(id, house))));
+        Assert.True(Waker.NightThing(n.World.AddEnemy(id => Lodger.In(id, house, walls, Tuning.Enemies.Lodger))));
+        Assert.True(Waker.NightThing(n.World.AddEnemy(id => Hanger.In(id, house, Tuning.Enemies.Hanger))));
+    }
+
     // ---- The Hanger ----
 
     [Fact]

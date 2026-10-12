@@ -444,6 +444,8 @@ public static partial class Hud
     public const string HeldBackLine = "YOUR MACHINE IS HOLDING THE CREW BACK";
     /// <summary>Note 532: a joiner's, while its clock is stretched to a host that's behind.</summary>
     public const string PacedLine = "THE HOST'S BEHIND: THE NIGHT RUNS AT ITS PACE";
+    /// <summary>A campaign's train taken at dawn (note 632; the director, the inbox, 12 Oct: "the campaign ends").</summary>
+    public const string CampaignOver = "THE COMPANY HAS NO MORE TRAINS FOR YOU";
     /// <summary>Note 549: the host's, while its upload can't carry the crew: what it's sending, so the figure can be taken to a router.</summary>
     public static string StrainedLine(double upKbps) => $"YOUR UPLOAD CAN'T CARRY THE CREW: {upKbps:0} KBIT/S OUT";
 
@@ -903,6 +905,9 @@ public static partial class Hud
             {
                 Big("RUN LOST", Red);
                 Small(r.End switch { RunEnd.Derailed => "DERAILED", RunEnd.CrewLost => "THE WHOLE CREW IS DEAD", _ when world.Enemies?.Wakers.Enabled == true => "TAKEN AT DAWN", _ => "STILL OUT WHEN THE LINE WENT LIVE" }, Ink, fine: false);
+                // Note 632 (the director, the inbox, 12 Oct: "the campaign ends"): a campaign's train taken at dawn is its last.
+                if (r.End == RunEnd.DawnMissed && world.DawnEndsCampaign)
+                    Small(CampaignOver, Red, fine: false);
             }
             // GDD v1.4 App. D.12: the incident report, every line in the clerk's voice, under the result; the night's
             // commendations under it.
