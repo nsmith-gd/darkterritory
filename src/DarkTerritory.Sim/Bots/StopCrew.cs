@@ -2206,7 +2206,11 @@ public sealed partial class StopHand(StopJob job, CrewCalls calls, int member, C
     public PlayerIntent LetGo() => Press();
 
     /// <summary>On a car's landing or inside it at a stop: out by its side door and down its steps. Null when it isn't.</summary>
-    PlayerIntent? OffTheCar(in PlayerState self, World world, StopPlan p) => OffTheCar(self, world.Train, p.Site.Side);
+    /// <para>Note 633 (the director, the inbox, 12 Oct: a lit car shut up keeps the Climbers out): the door shut behind it, but a
+    /// cargo car's on the site's side: the crates and the village's finds go in by it, and the crate hands shut those before the
+    /// train leaves (<see cref="StopDriver.Loaded"/>, T50). Shut behind the last crate, the driver left before the village.</para>
+    PlayerIntent? OffTheCar(in PlayerState self, World world, StopPlan p) =>
+        OffTheCar(self, world.Train, p.Site.Side, shutBehind: !(self.Parent > 0 && world.Train.Vehicles[self.Parent].Kind == VehicleKind.Cargo));
 
     /// <summary>
     /// On a car's landing or inside it: out by its side door on one side (+1 right) and down its steps; with
@@ -3310,7 +3314,7 @@ public sealed partial class StopHand(StopJob job, CrewCalls calls, int member, C
         {
             var layout = train.Dynamics.Tuning.Geometry.Interior;
             bool inside = layout is null || Math.Abs(self.Position.X) < train.Frames[self.Parent].Shape.Bounds.Max.X - layout.WallThickness;
-            return inside ? OffTheCar(self, train, +1) ?? new PlayerIntent() : ToARoofLadder(self, train);
+            return inside ? OffTheCar(self, train, +1, shutBehind: true) ?? new PlayerIntent() : ToARoofLadder(self, train);
         }
         if (self.Surface == Surface.Coupler)
             return GetDown(self, train, +1) ?? new PlayerIntent();
@@ -3540,7 +3544,7 @@ public sealed partial class StopHand(StopJob job, CrewCalls calls, int member, C
             return new PlayerIntent();
         // Still up on a car (the last door it shut, on that car's landing): off it by the side it's on first. The walk to the
         // cab is on the ground; from a car's deck it went nowhere, and a crew of one stood there while the fire died (note 300).
-        if (self.Parent > 0 && (OffTheCar(self, train, self.Position.X < 0 ? -1 : 1) ?? GetDown(self, train, self.Position.X < 0 ? -1 : 1)) is { } off)
+        if (self.Parent > 0 && (OffTheCar(self, train, self.Position.X < 0 ? -1 : 1, shutBehind: true) ?? GetDown(self, train, self.Position.X < 0 ? -1 : 1)) is { } off)
             return off;
         return IntoCab(self, train, self.LineHint >= 0 && self.Parent == PlayerState.World ? Side(train, self.Position, self.LineHint) : 1);
     }

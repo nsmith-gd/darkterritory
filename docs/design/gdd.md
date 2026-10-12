@@ -616,7 +616,7 @@ Anyone in front of its mouth can be swallowed. A group kills it fast; one player
 **CLIMBERS** · *alongside, then the gaps*
 Come up between cars, onto the roofs, then in.
 > **RULE: outnumber them at the gaps.**
-They mount any gap held by fewer players than there are Climbers. Scales brutally with train length.
+They mount any gap held by fewer players than there are Climbers. Scales brutally with train length. A lit car with every door shut keeps them out, and they go on over it toward the engine (the director, the inbox, 12 Oct; note 633).
 
 **DRAGGERS** · *under the car edges*
 Reach up from beneath the car edges.
@@ -1359,6 +1359,7 @@ MOUNT     gap held by fewer players than Climbers present
           └ TELEGRAPH: scrabbling at the gap, visible from adjacent roofs
 TRAVERSE  along the roofs toward the engine
 ENTER     first unlit or unoccupied car → interior threat
+          └ a lit car shut up tight is passed over, on toward the cab (note 633)
 COUNTER   outnumber them at the gap; bludgeon any that mount
 ```
 **Scales directly with train length.** More cars means more gaps to hold with the same crew.

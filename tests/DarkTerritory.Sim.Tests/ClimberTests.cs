@@ -121,6 +121,8 @@ public class ClimberTests
         // so it goes on past to car 1.
         foreach (var v in night.Train.Vehicles)
             v.LampLit = true;
+        // Car 1's door left open: a lit car shut up tight they'd pass over (note 633).
+        night.Train.Vehicles[1].ToggleDoor(0);
         int inside = night.InCar(2);
         // At the car's front end, well clear of the gap behind it (so they don't hold the gap, App. A.4 COUNT).
         var room = night.Train.Frames[2].Shape.Interior!.Value;
@@ -139,6 +141,8 @@ public class ClimberTests
     public void AnEmptyCarItsOnItGetsInto()
     {
         var night = new Night(speed: 12);
+        // Its door left open: a lit car shut up tight they'd pass over (note 633).
+        night.Train.Vehicles[3].ToggleDoor(0);
         var c = night.At(car: 3);
         night.Run(C.PaceSeconds + C.ScrabbleSeconds + 20);
         Assert.True(c.Inside);
@@ -150,6 +154,7 @@ public class ClimberTests
     {
         // GDD v1.1 App. A.4: "it takes a lone player in there (a grab a friend can club it off)".
         var night = new Night(speed: 12);
+        night.Train.Vehicles[3].ToggleDoor(0); // left open (note 633)
         var c = night.At(car: 3);
         night.Run(C.PaceSeconds + C.ScrabbleSeconds + 20);
         Assert.True(c.Inside);
