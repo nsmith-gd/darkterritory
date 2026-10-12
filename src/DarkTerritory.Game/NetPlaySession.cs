@@ -28,7 +28,7 @@ public sealed record SessionSetup(string? Route = null, string Line = "test-loop
     /// </summary>
     public int SpareKits { get; init; }
     /// <summary>
-    /// A freight every loaded car leaves the fortress carrying (§19; note 182). None is goods. Since note 635 a contract is just
+    /// A freight every loaded car leaves the fortress carrying (§19; note 182). None is goods. Since note 637 a contract is just
     /// a route and names none, and the train leaves empty (note 575): this is a test's or the harness's to set. Every machine
     /// builds the same consist from it.
     /// </summary>

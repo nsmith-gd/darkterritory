@@ -29,7 +29,7 @@ public static class HostedAsApp
             SpareKits = s.SpareKits,
             MusicBag = s.Music,
             Identities = s.Identities,
-            // GDD §9 (note 182): the stores bought for the night. A contract is just a route (note 635): no freight of its own.
+            // GDD §9 (note 182): the stores bought for the night. A contract is just a route (note 637): no freight of its own.
             Powder = s.Stores.Powder,
             SpareLamps = s.Stores.Lamps,
             SpareExtinguishers = s.Stores.Extinguishers,

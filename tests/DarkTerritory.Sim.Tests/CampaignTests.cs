@@ -119,10 +119,10 @@ public class CampaignTests
         // A local crew has nothing below it.
         Assert.All(Campaign.Campaign.Offers(C, R, s with { Cars = 3 }), c => Assert.Equal(RouteTier.Local, c.Tier));
     }
-    // ---- WP13: the departure's purchases (GDD §9, App. B.9; note 182); a contract is just a route (note 635) ----
+    // ---- WP13: the departure's purchases (GDD §9, App. B.9; note 182); a contract is just a route (note 637) ----
 
     /// <summary>
-    /// Note 635 ("Just a route", the director, the inbox, 12 Oct): a contract is the route and its tier, and what a car-load
+    /// Note 637 ("Just a route", the director, the inbox, 12 Oct): a contract is the route and its tier, and what a car-load
     /// pays there. The train leaves empty (note 575); the freight is whatever its stops load. A save from when a contract
     /// named a freight (note 182) reads as the same route, the freight dropped.
     /// </summary>

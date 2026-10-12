@@ -1261,7 +1261,7 @@ public sealed class FrontEnd
             {
                 var c = offers[i];
                 int contract = i;
-                // GDD §9 "choose a route" (note 635: a contract is just a route): the train leaves empty, and its cars are paid
+                // GDD §9 "choose a route" (note 637: a contract is just a route): the train leaves empty, and its cars are paid
                 // by what its stops load, about the tier's car-load each.
                 list.Add(new(new($"TONIGHT: {Name(c.Tier)} {c.Seed}, ABOUT {c.PerCar:0} A CAR-LOAD", $"Whatever its stops load. Up to about {c.PerCar * s.Cars:0} on {s.Cars} cars."),
                     () => new Launch.CampaignNight(s.Slot, contract, Resume: false, _host) { Bots = _bots }));

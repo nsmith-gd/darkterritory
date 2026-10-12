@@ -15,7 +15,7 @@
     { "tier": "deepTerritory", "fromCars": 16 }
   ],
   // GDD §9 departure: "choose a route". This many on the board each night: the consist's own tier, and one from the tier
-  // below for a crew that wants a safer, poorer night. A contract is just a route (note 635; the director, the inbox, 12
+  // below for a crew that wants a safer, poorer night. A contract is just a route (note 637; the director, the inbox, 12
   // Oct): what the cars carry home is whatever its stops load.
   "contractsOffered": 3,
   // GDD §9 departure: "stock coal, powder and shot, lamps, repair supplies and tools" (note 182). The fortress issues the

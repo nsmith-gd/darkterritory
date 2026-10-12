@@ -802,5 +802,5 @@ written here instead is moved out by `tools/coord/notes.py split`; the Coordinat
 - [628. The switchyard pick-up, fast and steady (queue #358, D1.2 for D1; after #818, note 621: "its own 148–518 s spread is now the biggest thing…](notes/628.md)
 - [629. The Climbers into dark cars (D1.4, queue #359, note 627's find, at D1's ask: "that's the bigger fish")](notes/629.md)
 - [630. The cars a Knotter leaves, chased as they roll back (queue #360, D1.2 for D1; D1's ask after #826, note 628: frontier:6 seed 16, "the…](notes/630.md)
-- [635. A contract is just a route (D1.5, queue #365; "Just a route", the director, the inbox, 12 Oct)](notes/635.md)
+- [637. A contract is just a route (D1.5, queue #367; "Just a route", the director, the inbox, 12 Oct)](notes/637.md)
 <!-- end of the notes index -->

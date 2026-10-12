@@ -52,7 +52,7 @@ public sealed record StandardCrew(double SmallShare, double MajorShare, int Majo
 
 /// <summary>
 /// A night on the board at the fortress: a route and its tier, and what a car-load pays on it (spec F.1; GDD §9 "choose a
-/// route"; note 635: "Just a route", the director, the inbox, 12 Oct). The train leaves empty (note 575), and what the cars
+/// route"; note 637: "Just a route", the director, the inbox, 12 Oct). The train leaves empty (note 575), and what the cars
 /// carry home is whatever its stops load, each car paid by its freight's rate (run.json economy.cargoRates). A save from
 /// when a contract named a freight reads the same: the freight is dropped.
 /// </summary>
@@ -190,7 +190,7 @@ public static class Campaign
     public static RouteTier TierFor(CampaignTuning t, int cars) => t.Tiers.Where(x => cars >= x.FromCars).OrderBy(x => x.FromCars).Last().Tier;
 
     /// <summary>
-    /// Tonight's board: routes at the consist's own tier, and one from the tier below if there is one (note 635: a contract
+    /// Tonight's board: routes at the consist's own tier, and one from the tier below if there is one (note 637: a contract
     /// is just a route). The same every time for the same night.
     /// </summary>
     public static IReadOnlyList<Contract> Offers(CampaignTuning t, RunTuning run, CampaignState s)
