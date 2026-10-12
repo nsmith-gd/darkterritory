@@ -1318,17 +1318,33 @@ public sealed partial class GreyboxScene
             // Down off whatever it was on (a roof, a car's floor, the gap's plate), as anything dropped falls.
             double y = go.Rise > 0 ? r.From.Value.Y + go.Rise * age : Math.Max(ground, r.From.Value.Y - 0.5 * 9.81 * age * age);
             var copy = Enemy.Blank(r.Body.Kind, id, r.Body.Extra);
-            // The Gannet loose faces its own heading (its Lateral, a player's yaw: −Z at 0): the way it's going, out.
-            bool heads = r.Body.Kind == EnemyKind.Gannet;
-            double lateral = heads ? Math.Atan2(-r.Out.X, -r.Out.Z) : r.Body.Lateral;
-            // (A Gannet's height is its mode: on the wing, soaring off.)
-            double height = heads ? (double)Sim.Enemies.GannetMode.Soar : 0;
+            // Those loose in the sim face their own heading (their Lateral, a player's yaw: −Z at 0): the way they're going,
+            // out. Their height is their mode where their draw reads one: going.
+            var (going, heads) = Going(r.Body.Kind);
+            double lateral = heads ? Math.Atan2(-r.Out.X, -r.Out.Z) : r.Body.Kind == EnemyKind.Brakeman ? 0 : r.Body.Lateral;
+            double height = going;
             copy.Restore(SpinePhase.BreakOff, age, r.Body.Health, Enemy.Loose, p with { Y = y }, r.Body.LineDistance, lateral, height, r.Body.Extra, r.Body.Extra2);
             // The rest, loose, are drawn facing the nearest car: turned about, they face away, the way they're going.
             DrawEnemy(mesh, line, frames, copy, eye, from, to, Look?.Art.Creatures,
                 flinch: heads ? default : (Vector3.Zero, Quaternion.CreateFromAxisAngle(Vector3.UnitY, MathF.PI)));
         }
     }
+
+    /// <summary>
+    /// What one let go of is doing as it goes (note 642), for the kinds whose draw reads a mode from its height: the Gannet on
+    /// the wing, the Freight Beetle and Tower Jaw away, the Mourners leaving, the Moose going home, the Brakeman fleeing; and
+    /// whether its heading is its own (loose in the sim, it faces the way it's going).
+    /// </summary>
+    static (double Mode, bool Heads) Going(EnemyKind kind) => kind switch
+    {
+        EnemyKind.Gannet => ((double)Sim.Enemies.GannetMode.Soar, true),
+        EnemyKind.FreightBeetle => ((double)Sim.Enemies.BeetleMode.Away, true),
+        EnemyKind.Mourners => ((double)Sim.Enemies.MournerMode.Leave, true),
+        EnemyKind.Moose => ((double)Sim.Enemies.MooseMode.Home, true),
+        EnemyKind.TowerJaw => ((double)Sim.Enemies.TowerJawMode.Away, false),
+        EnemyKind.Brakeman => ((double)Sim.Enemies.BrakemanMode.Flee, false),
+        _ => (0, false),
+    };
 
     // One let go of going: how hard it pulls up along the line (m/s²), from the speed it was going with the train.
     const double AwaySlowing = 7;

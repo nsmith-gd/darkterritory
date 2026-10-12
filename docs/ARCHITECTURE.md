@@ -810,5 +810,5 @@ written here instead is moved out by `tools/coord/notes.py split`; the Coordinat
 - [635. The director's creature calls of 12 Oct: the Knotter once or twice a night, the night things run at dawn, and the Creature Tweaker (D1,…](notes/635.md)
 - [637. A contract is just a route (D1.5, queue #367; the director's answer to `D1.5-contracts`: "Just a route", the director, the inbox, 12 Oct)](notes/637.md)
 - [641. The cab keeps a Climber pack out (D1.4, queue #371, note 633's not-yet, at D1's ask: "the engine shouldn't break down to a pack the crew…](notes/641.md)
-- [642. The night things seen going at dawn (D1, queue #372; note 635's not-yet)](notes/642.md)
+- [642. The night things seen going at dawn (D1, queue #372; note 635's not-yet; wakers.md §2: "boarders drop off and run for the trees, packs…](notes/642.md)
 <!-- end of the notes index -->

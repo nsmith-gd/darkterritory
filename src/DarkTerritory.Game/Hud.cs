@@ -776,6 +776,13 @@ public static partial class Hud
     /// Past dawn: with the Wakers up (note 588), how far behind the one on the line is, or that it has the train; without them
     /// (a mod, v1's dawn), the line gone live.
     /// </summary>
+    /// <summary>
+    /// The night things going to ground before dawn (note 642; wakers.md §2: "the clearest sign the night's over"), beside the
+    /// dawn clock: from the run's clock, so every machine shows it alike.
+    /// </summary>
+    public static string DawnFlight(Sim.World world) =>
+        world.Enemies?.Wakers is { } w && Sim.Enemies.Waker.NightFleeing(world, w) ? " · THE NIGHT THINGS ARE GOING" : "";
+
     public static string DawnLine(Sim.World world, Sim.Train.TrainOnLine train)
     {
         if (world.Enemies?.Wakers is not { Enabled: true })
@@ -799,7 +806,7 @@ public static partial class Hud
             if (dawn <= 0)
                 o.TextCentred(cx, y, DawnLine(s.World, s.Train), Red, 1);
             else if (dawn <= Tuning.DawnClockSeconds)
-                o.TextCentred(cx, y, $"DAWN {(int)dawn / 60}:{(int)dawn % 60:00}", dawn <= 120 ? Red : Amber, 1);
+                o.TextCentred(cx, y, $"DAWN {(int)dawn / 60}:{(int)dawn % 60:00}{DawnFlight(s.World)}", dawn <= 120 ? Red : Amber, 1);
             if (dawn <= Tuning.DawnClockSeconds)
                 y += line + 4;
         }

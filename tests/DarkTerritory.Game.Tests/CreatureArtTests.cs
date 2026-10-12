@@ -547,6 +547,13 @@ public class CreatureArtTests(CreatureArtTests.TurntableRig rig) : IClassFixture
     [InlineData(EnemyKind.Gaunt, "gaunt", false)]
     [InlineData(EnemyKind.Switchman, "switchman", false)]
     [InlineData(EnemyKind.Gannet, "gannet", true)]
+    // The night things going to ground at dawn (note 642), and any of these let go of otherwise.
+    [InlineData(EnemyKind.Brakeman, "brakeman", true)]
+    [InlineData(EnemyKind.Grumbler, "grumbler", false)]
+    [InlineData(EnemyKind.Moose, "moose", false)]
+    [InlineData(EnemyKind.FreightBeetle, "freight_beetle", false)]
+    [InlineData(EnemyKind.TowerJaw, "tower_jaw", false)]
+    [InlineData(EnemyKind.Mourners, "mourner", false)]
     public void OneLetGoOfInSightIsSeenGoingOffIntoTheDarkThenIsGone(EnemyKind kind, string asset, bool aboard)
     {
         // GreyboxScene.Retreating (note 458): the sim has one gone the tick it's done with it (a Climber outnumbered, a Whistler
