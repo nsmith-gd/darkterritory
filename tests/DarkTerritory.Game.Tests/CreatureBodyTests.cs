@@ -26,7 +26,14 @@ public class CreatureBodyTests
         { EnemyKind.Moose, "moose", 1 }, { EnemyKind.Gannet, "gannet", 1 }, { EnemyKind.Mourners, "mourner", 1 },
         { EnemyKind.FreightBeetle, "freight_beetle", 1 }, { EnemyKind.TowerJaw, "tower_jaw", 1 },
         { EnemyKind.Brakeman, "brakeman", 1 }, { EnemyKind.Knotter, "knotter", 1 }, { EnemyKind.Hotbox, "hotbox", 1 },
+        // The Pickers (note 574; drawn 0.92-1.08 by their id: the body's for the middling one) and the house creatures (notes
+        // 583, 584).
+        { EnemyKind.Pickers, "picker", 1 }, { EnemyKind.Lodger, "lodger", 1 }, { EnemyKind.Householder, "householder", 1 },
     };
+
+    /// <summary>Kinds with a body whose model is still to come (the Hanger, note 586: its art is another session's), drawn
+    /// meanwhile by CreatureArt's stand-in.</summary>
+    static readonly EnemyKind[] ModelToCome = [EnemyKind.Hanger];
 
     [Theory]
     [MemberData(nameof(Drawn))]
@@ -51,6 +58,6 @@ public class CreatureBodyTests
     public void EveryCreatureWithABodyIsDrawn()
     {
         var drawn = Drawn().Select(r => r.Data.Item1).OrderBy(k => k);
-        Assert.Equal(drawn, E.Bodies.Keys.Select(k => Enum.Parse<EnemyKind>(k, true)).OrderBy(k => k));
+        Assert.Equal(drawn, E.Bodies.Keys.Select(k => Enum.Parse<EnemyKind>(k, true)).Except(ModelToCome).OrderBy(k => k));
     }
 }

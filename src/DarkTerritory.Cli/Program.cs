@@ -1832,6 +1832,34 @@ static object Screenshot(TrainTuning t, string content, string[] args)
         if (beetleMode is "walk" or "push")
             scene.StagedPaces = new Dictionary<int, float>(scene.StagedPaces ?? new Dictionary<int, float>()) { [Staging.BeetleId] = beetleMode == "walk" ? 1.5f : 1.2f };
     }
+    // --pickers yard|carry: the staged Pickers off the line's left (note 574; Staging.Pickers): carrying crates off, racing for
+    // one, coming up out of a drain (the pickers view's); close to, under a crate and two under a heavy one (pickerscarry's).
+    if (Str(args, "--pickers", view switch { "pickers" => "yard", "pickerscarry" => "carry", _ => "" }) is { Length: > 0 } pickersMode)
+    {
+        scene.Enemies = Staging.Pickers(scene.Enemies is List<DarkTerritory.Sim.Enemies.Enemy> others ? others : [], train, content, pickersMode,
+            out var crates, out var pickerPaces);
+        scene.Bodies = [.. scene.Bodies ?? [], .. crates.All];
+        var paces = new Dictionary<int, float>(scene.StagedPaces ?? new Dictionary<int, float>());
+        foreach (var (id, pace) in pickerPaces)
+            paces[id] = pace;
+        scene.StagedPaces = paces;
+    }
+    // --lodger hidden|shriek|lunge|chase|break|return: the staged Lodger off the line's left (note 583; Staging.Lodger): folded
+    // in its crouch (the lodger view's), shrieking (lodgershriek's).
+    if (Str(args, "--lodger", view switch { "lodger" => "hidden", "lodgershriek" => "shriek", _ => "" }) is { Length: > 0 } lodgerMode)
+    {
+        scene.Enemies = Staging.Lodger(scene.Enemies is List<DarkTerritory.Sim.Enemies.Enemy> others ? others : [], train, lodgerMode, out float lodgerPace);
+        scene.StagedPaces = new Dictionary<int, float>(scene.StagedPaces ?? new Dictionary<int, float>()) { [Staging.LodgerId] = lodgerPace };
+    }
+    // --householder watch|sit|rise|hunt|grab|return: the staged Householder at its chair and table off the line's left (note 584;
+    // Staging.Householder), watching whoever's looking (the householder view's).
+    if (Str(args, "--householder", view == "householder" ? "watch" : "") is { Length: > 0 } householderMode)
+    {
+        scene.Enemies = Staging.Householder(scene.Enemies is List<DarkTerritory.Sim.Enemies.Enemy> others ? others : [], train, householderMode,
+            out var furniture, out float householderPace);
+        scene.StagedClutter = furniture;
+        scene.StagedPaces = new Dictionary<int, float>(scene.StagedPaces ?? new Dictionary<int, float>()) { [Staging.HouseholderId] = householderPace };
+    }
     if (towerJawMode.Length > 0 && run is not null && tower is not null)
     {
         scene.Enemies = Staging.TowerJaw(scene.Enemies is List<DarkTerritory.Sim.Enemies.Enemy> others ? others : [], train, content, run, tower, towerJawMode);
