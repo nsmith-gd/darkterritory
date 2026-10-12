@@ -73,6 +73,9 @@ public static class Views
             "swallow" => Camera.LookAt(train.Frames[^1].ToWorld(new Double3(0.7, Floor(train) + 1.6, train.Frames[^1].Shape.HalfLength - 3.6)),
                 train.Frames[^1].ToWorld(new Double3(-0.45, Floor(train) + 1.0, train.Frames[^1].Shape.HalfLength)), 60),
             // Off the second car's left, over the shoulder of crewmate 4 (Staging.Lone) at the Ribbit pack beyond them.
+            // (Not one of Names.) The pack eating crewmate 4 (note 558): dt screenshot --ribbits devour puts the camera on them
+            // (Staging.FeastCamera); without it, the pack's view.
+            "feast" or "eaten" => Get("pack", train, car),
             "pack" => Camera.LookAt(train.Frames[Math.Min(2, train.Frames.Count - 1)].ToWorld(new Double3(-(train.Frames[Math.Min(2, train.Frames.Count - 1)].Shape.HalfWidth + 0.4), 2.1, 1.2)),
                 train.Frames[Math.Min(2, train.Frames.Count - 1)].ToWorld(new Double3(-(train.Frames[Math.Min(2, train.Frames.Count - 1)].Shape.HalfWidth + 5.2), 0.4, -1.6)), 55),
             // Up off the second car's left, looking along its roof to the gap behind it (the hounds' patrol, --patrol).
