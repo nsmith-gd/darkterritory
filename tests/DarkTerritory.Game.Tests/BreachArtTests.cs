@@ -17,11 +17,12 @@ public class BreachArtTests
     static readonly string Content = DataFile.FindContentRoot();
     static readonly Look Look = Look.Load(Content);
 
-    /// <summary>Frontier:7's Holdouts, the art's view of one of them breached <paramref name="breach"/> of the way (−1: shut,
-    /// nobody at it) at the scene's <paramref name="time"/>: what's drawn within 3 m of its door, relative to the door.</summary>
+    /// <summary>frontier:21's Holdouts (a shelter, prison cars and lockups; frontier:7's 7 km line, note 554, has no shelter), the
+    /// art's view of one of them breached <paramref name="breach"/> of the way (−1: shut, nobody at it) at the scene's
+    /// <paramref name="time"/>: what's drawn within 3 m of its door, relative to the door.</summary>
     static List<Vertex> At(HoldoutKind kind, double breach, double time, bool quiet = false)
     {
-        var night = Sim.LineGen.Routes.Generate(Content, "frontier:7", 6);
+        var night = Sim.LineGen.Routes.Generate(Content, "frontier:21", 6);
         var line = night.Build();
         var holdouts = new Holdouts(DataFile.Load<HoldoutTuning>(Path.Combine(Content, HoldoutTuning.File)), night, line);
         var h = holdouts.All.First(x => x.Layout.Kind == kind);

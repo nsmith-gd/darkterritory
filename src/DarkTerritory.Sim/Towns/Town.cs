@@ -35,6 +35,29 @@ public sealed class Town
     }
 
     /// <summary>
+    /// The town at the end of <paramref name="route"/> (ARCHITECTURE §8 note 600): <paramref name="arrival"/>, built from the
+    /// site the next night's departure will build it from (its gate <paramref name="gate"/> from its yard's far end, as this
+    /// night's departure gate is from its start; <paramref name="last"/>, this night's departure town's custom, the one it
+    /// won't share), so the same plan. It stands in <paramref name="line"/> turned round from that far end
+    /// (<see cref="RailLine.Turned"/>, <see cref="Turn"/>), its gate toward the train coming in. Null for a silent settlement,
+    /// a hand-laid line, or no town named.
+    /// </summary>
+    public static Town? AtTerminus(TownContent content, Route.Route route, RailLine line, double gate, IReadOnlyList<string> roster, string? last,
+        TownAt? arrival)
+    {
+        if (arrival is null || !content.Tuning.Enabled || route.Plan?.Terminus is not { Silent: false } terminus)
+            return null;
+        double turn = Math.Min(terminus.GateM + gate, line.Length);
+        var frame = line.Turned(turn, Math.Min(turn, gate + FrameBeyond));
+        var plan = TownGenerator.Generate(content, new TownSite(arrival.Name, arrival.Industry, gate, arrival.Seed, roster, last, arrival.Burnt));
+        return new Town(plan, content.Tuning, frame, content.Looks) { Turn = turn };
+    }
+
+    /// <summary>How far past its gate a terminus town's frame runs on, out over the approach (m): far enough for anything
+    /// placed off it. Not a design number.</summary>
+    const double FrameBeyond = 600;
+
+    /// <summary>
     /// The night's clock the townspeople's rounds run on (seconds; note 353): <see cref="DarkTerritory.Sim.World"/> sets
     /// it from its tick every step, so every machine has them in the same places.
     /// </summary>
@@ -64,9 +87,37 @@ public sealed class Town
     /// <summary>How far into their own round somebody is (the clock, less the times they stopped to talk).</summary>
     double Own(int id) => (id == _held ? _heldAt : Clock) - _behind[id];
 
+    /// <summary>
+    /// The yard's fight (ARCHITECTURE §8 note 608; note 589): where along this town's own frame (its S) a creature brought in
+    /// through the gate is being fought, while it is; null, none. The town's guards leave their posts for the yard and stand
+    /// round it, firing (<see cref="OnTheYard"/>). Whatever draws the town sets it from what it sees: like who's held to
+    /// talk, it moves nobody in the night.
+    /// </summary>
+    public double? Fight { get; set; }
+
+    /// <summary>Who turns out to the yard's fight (note 608): the gate's keeper and the town's guards.</summary>
+    public static bool Guards(Townsperson p) => p.Role is "gatekeeper" or "guard";
+
+    // Out on the yard (note 608): this far out from the line either side, and this far apart along it.
+    const double YardOut = 5.5, YardApart = 6;
+
+    /// <summary>
+    /// Where the <paramref name="k"/>th of the town's guards stands to the yard's fight at <paramref name="fight"/> (note 608):
+    /// either side of the line in turn, the first pair abreast of it and the rest either way along it, facing it.
+    /// </summary>
+    public TownPose OnTheYard(int k, double fight, double up = 0)
+    {
+        int side = k % 2 == 0 ? 1 : -1;
+        int pair = k / 2;
+        double s = fight + (pair % 2 == 0 ? pair / 2 : -(pair + 1) / 2) * YardApart, d = side * YardOut;
+        return new TownPose(World(s, d, up), Direction(s, fight - s, -d), "guard", false);
+    }
+
     /// <summary>Where somebody is now on their round, which way they face, and what they're doing.</summary>
     public TownPose Now(Townsperson p)
     {
+        if (Fight is { } fight && Guards(p))
+            return OnTheYard(Plan.People.Count(q => q.Id < p.Id && Guards(q)), fight, p.Up);
         var at = World(p.S, p.D, p.Up);
         if (Rounds[p.Id] is not { Stops.Count: > 0 } r)
             return new TownPose(at, Direction(p.S, p.FaceS, p.FaceD), p.Pose, false);
@@ -180,6 +231,16 @@ public sealed class Town
     }
 
     public TownPlan Plan { get; }
+
+    /// <summary>The frame it stands in: the line, or for a terminus's town the line turned round (note 600).</summary>
+    public RailLine Line => _line;
+
+    /// <summary>For a terminus's town (note 600), the main line's distance its frame turns round from (<see cref="Line"/>'s
+    /// 0); null for one standing in the line's own frame.</summary>
+    public double? Turn { get; init; }
+
+    /// <summary>Where a distance along the main line is in this town's own frame (note 600's turn; note 608).</summary>
+    public double Along(double main) => Turn is { } turn ? turn - main : main;
 
     /// <summary>How its houses look (content/world/houses.json's palettes): the art's, carried with the town.</summary>
     public HouseLooks Looks { get; }

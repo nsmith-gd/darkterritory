@@ -256,6 +256,38 @@ public sealed class RailLine
         }
     }
 
+    RailLine(string name, Double3[] points, double[] grade, double[] curvature, double length)
+    {
+        _branches = [];
+        Name = name;
+        Segments = [new TrackSegment(length)];
+        Length = length;
+        _points = points;
+        _grade = grade;
+        _curvature = curvature;
+    }
+
+    /// <summary>
+    /// This line turned round from <paramref name="at"/>: distance 0 there, running back down it for <paramref name="length"/>
+    /// (its tangents the other way, its grades and curves turned with them). A terminus's town stands in it (ARCHITECTURE §8
+    /// note 600): the frame a departure town stands in from its yard's start, laid out from the terminus's far end instead.
+    /// </summary>
+    public RailLine Turned(double at, double length)
+    {
+        int n = (int)Math.Ceiling(length / Step - 1e-9) + 1;
+        var points = new Double3[n];
+        var grade = new double[n];
+        var curvature = new double[n];
+        for (int i = 0; i < n; i++)
+        {
+            var t = Sample(at - Math.Min(i * Step, length));
+            points[i] = t.Position;
+            grade[i] = -t.GradePercent;
+            curvature[i] = -t.Curvature;
+        }
+        return new RailLine(Name + " (turned)", points, grade, curvature, length);
+    }
+
     public string Name { get; }
     public double Length { get; }
     public IReadOnlyList<TrackSegment> Segments { get; }

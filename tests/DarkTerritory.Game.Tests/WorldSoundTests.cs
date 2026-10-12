@@ -668,11 +668,11 @@ public class WorldSoundTests
     }
 
     [Theory]
-    [InlineData("deadLines:2", "world-water.surf", "sea")]
-    [InlineData("deadLines:2", "world-water.river", "river")]
-    [InlineData("frontier:7", "world-water.tide", "fundy")]
-    [InlineData("frontier:7", "world-water.river", "tidal")]
-    [InlineData("frontier:3", "world-water.lake", "lake")]
+    [InlineData("local:60", "world-water.surf", "sea")]
+    [InlineData("local:4", "world-water.river", "river")]
+    [InlineData("frontier:271", "world-water.tide", "fundy")]
+    [InlineData("local:15", "world-water.river", "tidal")]
+    [InlineData("frontier:7", "world-water.lake", "lake")]
     public void TheLinesWaterIsHeardWhereItsWaterIs(string id, string cue, string kind)
     {
         // Note 429: each kind of the plan's water, by an ear beside it, held on its water (the terrain has water there, of

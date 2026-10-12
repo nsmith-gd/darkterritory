@@ -806,7 +806,10 @@ public sealed class World
     /// <param name="roster">The edition's creatures (enemies.json director.roster; empty, all): a town keeps only a custom
     /// for a creature this edition fields.</param>
     /// <param name="last">The custom of the last night's town, which this one won't have (App. F.1: "different from the last").</param>
-    public void EnableTown(Towns.TownContent content, Route.Route route, double gate, IReadOnlyList<string> roster, string? last = null)
+    /// <param name="arrival">The town at the end of the line (<see cref="Towns.TownAt.Terminus"/>; note 600), built as the
+    /// next night will build it departing from there; null, the terminus's fortress is the plain one.</param>
+    public void EnableTown(Towns.TownContent content, Route.Route route, double gate, IReadOnlyList<string> roster, string? last = null,
+        Towns.TownAt? arrival = null)
     {
         if (!content.Tuning.Enabled)
             return;
@@ -815,9 +818,26 @@ public sealed class World
         // The departure fortress is the town's: its walls stand back round the square (note 281), so they're built again.
         if (Forts is { Count: > 0 } forts)
             Forts = [forts[0] with { Square = plan.Square, Bounds = plan.Bounds }, .. forts.Skip(1)];
+        // The terminus is the town the next night departs from (note 600): its own site as that night's departure has it
+        // (its gate as far from its yard's far end as this one's from its start, and this town's custom the one it won't
+        // share), so the same plan, laid out in the line turned round from there and come into through its gate.
+        if (Towns.Town.AtTerminus(content, route, Train.Line, gate, roster, plan.Culture, arrival) is { Turn: { } turn } there && Forts is { Count: > 1 } both)
+        {
+            Arrival = there;
+            Forts = [both[0], both[1] with { Square = there.Plan.Square.Turned(turn), Bounds = there.Plan.Bounds, Turn = turn }, .. both.Skip(2)];
+        }
         Train.Walls = ClearSiteWork(LinesideToo(Sim.Run.StopWalls.Of(route, Train.Line, Forts, _walls), route));
         Train.Walls.Add(Town.Walls);
+        if (Arrival is not null)
+            Train.Walls.Add(Arrival.Walls);
     }
+
+    /// <summary>
+    /// The terminus's town (note 600): the town the next night departs from, built here as it will be built there, standing
+    /// turned round in its own frame (<see cref="Towns.Town.Line"/>) with its gate toward the arriving train. Null for a
+    /// silent settlement, a hand-laid line, or a night that wasn't told whose town it ends in.
+    /// </summary>
+    public Towns.Town? Arrival { get; private set; }
 
     // Host: who's holding Use by Nicki and how long, and who's had their glass tonight (note 571).
     readonly Dictionary<int, double> _byNicki = [];
@@ -827,12 +847,35 @@ public sealed class World
     public Towns.Townsperson? Nicki => Town?.Plan.People.FirstOrDefault(p => p.Hosting);
 
     /// <summary>
+    /// The town a point is in (note 603): the terminus's (<see cref="Arrival"/>) from a little short of its gate on, else the
+    /// departure's. Talking, reading, knocking and Nicki's wine are the town's you're in, so both are lived in alike.
+    /// </summary>
+    public Towns.Town? TownAt(Ballast.Double3 at)
+    {
+        if (Arrival is { } arrival && (Route ?? Run?.Route)?.Plan?.Terminus is { } t)
+        {
+            double hint = t.GateM;
+            Train.Line.Nearest(at, ref hint);
+            if (hint >= t.GateM - TownReachOutside)
+                return arrival;
+        }
+        return Town;
+    }
+
+    /// <summary>The town a crewmate is in (<see cref="TownAt"/>).</summary>
+    public Towns.Town? TownOf(in PlayerState s) => TownAt(PlayerMotor.WorldPosition(s, Train));
+
+    /// <summary>How far outside the terminus's gate its town's things are still in reach (m): its gatekeeper and guard just
+    /// outside. Not a design number.</summary>
+    const double TownReachOutside = 20;
+
+    /// <summary>
     /// Whether Nicki has a glass for <paramref name="s"/> in reach (note 571): on foot, alive, near her, and not had theirs
     /// tonight. The host knows who has; a client goes by their being over full health, as only the wine puts anyone there.
     /// </summary>
     public bool WineInReach(in PlayerState s, int playerId)
     {
-        if (!s.Alive || s.Parent != PlayerState.World || Town is not { } town || Nicki is not { } nicki
+        if (!s.Alive || s.Parent != PlayerState.World || TownOf(s) is not { } town || town.Plan.People.FirstOrDefault(p => p.Hosting) is not { } nicki
             || _toasted.Contains(playerId) || s.Health > Bodies.FullHealth)
             return false;
         return (PlayerMotor.WorldPosition(s, Train) - town.Feet(nicki)).Length <= town.Tuning.Wine.Reach;
@@ -849,7 +892,7 @@ public sealed class World
             _byNicki.Remove(playerId);
             return false;
         }
-        var t = Town!.Tuning.Wine;
+        var t = TownOf(s)!.Tuning.Wine;
         double held = _byNicki[playerId] = _byNicki.GetValueOrDefault(playerId) + SimConstants.TickSeconds;
         if (held >= t.HoldSeconds - 1e-9)
         {
@@ -1018,6 +1061,29 @@ public sealed class World
             Run?.Step(this, crew, SimConstants.TickSeconds);
     }
 
+    /// <summary>
+    /// Dawn (note 588): the train's still out, and the Wakers get up behind it, the first on the line, the rest off to its sides.
+    /// Host, once a night.
+    /// </summary>
+    void Wake(WakersTuning t)
+    {
+        if (!t.Enabled || _wakersUp || Derailed || Run is not { LineLive: true, Phase: Sim.Run.RunPhase.Underway or Sim.Run.RunPhase.AtFacility } run)
+            return;
+        _wakersUp = true;
+        int count = t.For(run.Route.Tier);
+        for (int i = 0; i < count; i++)
+        {
+            int side = i == 0 ? 0 : i % 2 == 1 ? 1 : -1;
+            AddEnemy(id => Waker.Rise(id, Train.RearDistance, side, t));
+        }
+    }
+    bool _wakersUp;
+
+    /// <summary>A Waker has the train (note 588): it's being lifted and eaten.</summary>
+    public bool WakerHolds => _enemies.Any(e => e is Waker { Holds: true });
+    /// <summary>Host: a Waker has eaten the train to the engine (note 588). The run ends "taken at dawn".</summary>
+    public bool TakenAtDawn { get; set; }
+
     /// <summary>Puts an enemy into the world directly (tests, the editor, scripted set pieces). Host only.</summary>
     public T AddEnemy<T>(Func<int, T> make) where T : Enemy
     {
@@ -1064,9 +1130,9 @@ public sealed class World
             // clients are sent the poses. Thrown outward off the curve it was on, if it was on one.
             if (Train.Wreck is null)
             {
-                double k = Train.Line.Sample(Train.Dynamics.Distance).Curvature;
                 ulong seed = (ulong)Tick * 0x9E3779B97F4A7C15UL ^ (Route?.Seed ?? 0);
-                Train.Wreck = Wreck.Begin(WreckTuning, Train, Ground, seed, first: Train.Dynamics.Consist.Vehicles[0].Id, outward: k > 1e-6 ? -1 : k < -1e-6 ? 1 : 0);
+                int first = Train.Dynamics.Consist.Vehicles[0].Id;
+                Train.Wreck = Wreck.Begin(WreckTuning, Train, Ground, seed, first, outward: OffTheBend(first));
                 // E.2 step 2: the crew as they were this tick, alive, and the wreck as it began, for the film. (Only what
                 // simulates the train derails it; a client's wreck is a puppet of the host's, and its film is sent.)
                 Film = WreckFilm.StartOf(Train.Wreck, FilmCrew(), Sim.Run.IncidentLog.CauseCard(this), DerailSpeed, Train.Dynamics.Distance,
@@ -1094,6 +1160,28 @@ public sealed class World
             v.LampLit = false;
         foreach (var rake in Train.Rakes)
             rake.Velocity = 0;
+    }
+
+    /// <summary>
+    /// Which way the first car off is thrown, +1 to its own right: to the outside of the sharpest bend under the train, the
+    /// way its momentum carries it (note 578; the director, 9 Oct 2026: "we took a bend too fast and it derailed inwards").
+    /// A positive curvature turns the line left (<see cref="Rail.TrackSegment.Radius"/>), so its outside is the line's right.
+    /// Measured on the train's own path (a branch's bends are its own) and at each car, not the engine's front alone, which
+    /// may already be off the bend onto the straight beyond it. 0 off any bend: the wreck picks a side.
+    /// </summary>
+    int OffTheBend(int first)
+    {
+        var rake = Train.Dynamics;
+        Rail.TrackSample sharpest = default;
+        foreach (var car in Train.Cars)
+            if (rake.Consist.IndexOf(car.Index) >= 0
+                && Train.Line.Sample(rake.Path, car.FrontDistance - car.Length / 2) is var t && Math.Abs(t.Curvature) > Math.Abs(sharpest.Curvature))
+                sharpest = t;
+        if (Math.Abs(sharpest.Curvature) < 1e-6 || first < 0 || first >= Train.Frames.Count)
+            return 0;
+        var lineRight = Double3.Cross(sharpest.Tangent, Double3.Up);
+        var outside = lineRight * Math.Sign(sharpest.Curvature);
+        return Double3.Dot(Train.Frames[first].Right, outside) >= 0 ? 1 : -1;
     }
 
     /// <summary>
@@ -1349,7 +1437,14 @@ public sealed class World
             bool venting = Train.Boiler.Venting, door = Train.Boiler.FireDoorOpen;
             int cars = Train.Dynamics.Consist.Vehicles.Count;
             var attached = Train.Dynamics.Consist.Vehicles.Select(v => v.Id).ToArray();
+            // Note 619: the doors as they were, to say who opened one (only a Use works a door).
+            var doors = Authority && intent.Buttons.HasFlag(PlayerButtons.Use) ? Train.Vehicles.Select(v => v.DoorsOpen).ToArray() : null;
             CrewActions.Apply(ref s, intent, Train, SimConstants.TickSeconds, Hand);
+            if (doors is not null)
+                for (int v = 0; v < doors.Length; v++)
+                    for (int opened = Train.Vehicles[v].DoorsOpen & ~doors[v], d = 0; opened != 0; opened >>= 1, d++)
+                        if ((opened & 1) != 0)
+                            Attribution.OpenedDoor(v, d, playerId);
             if (Train.Boiler.Firebox > firebox + 1e-9 || Train.Boiler.Venting && !venting)
                 Attribution.Fired(playerId, Run?.Seconds ?? 0);
             else if (Train.Boiler.FireDoorOpen && !door)
@@ -1370,6 +1465,9 @@ public sealed class World
         if (Combat is { } c && Guns.TryFire(s, intent, Train, c.Guns, ref Choir, c.Choir, targets, Tick, playerId) is { } shot)
         {
             Shots.Add(shot);
+            // A good shot at a switch stand throws it (note 595), the host's say as a hand on it is.
+            if (Authority && Switches?.Shot(shot, Train) is { } struck)
+                SwitchThrows.Add(struck);
             // The round's burst, in the gunner's name: it lifts the meter by roundLoudness, which the window takes to fall away.
             if (Authority)
                 CreditChoir(playerId, c.Choir.RoundLoudness * c.Choir.WindowSeconds);
@@ -1598,6 +1696,9 @@ public sealed class World
         // A walled town's fort reaches its wall (queue #74, note 335), past the radius every other fort keeps.
         if (along <= run.YardLength && Town?.Plan.Bounds is { } walled)
             return off <= Math.Max(forts.HalfWidthM, Math.Max(walled.Left, walled.Right) + 5);
+        // And the terminus's (note 600), from its gate on.
+        if (Arrival?.Plan.Bounds is { } there && run.Route.Plan?.Terminus is { } home && along >= home.GateM)
+            return off <= Math.Max(forts.HalfWidthM, Math.Max(there.Left, there.Right) + 5);
         if (off > forts.HalfWidthM)
             return false;
         if (along <= run.YardLength)
@@ -1616,6 +1717,7 @@ public sealed class World
     {
         Controls = controls;
         Train.HeldInYard = SafeYard;
+        Train.HomeAt = Run?.TownHome(Train) ?? double.PositiveInfinity;
         var applied = controls;
         // Something at the controls (v1.1 App. A.2, the Track Doll playing with an empty cab's throttle and brake). On the
         // clients too, from their mirror of it, so prediction drives as the host does.
@@ -1675,6 +1777,9 @@ public sealed class World
             foreach (var v in Train.Rakes.Where(r => r != Train.Dynamics).SelectMany(r => r.Consist.Vehicles))
                 if (Attribution.CouplerPulledBy(v.Id) < 0)
                     Attribution.PartedAt(v.Id);
+        // A car battered and let go comes apart (note 576): its freight spilled, off its rails, the train parted ahead of it.
+        if (Authority && !Derailed && Failing.Apart(Train) is var apart and >= 0)
+            Attribution.CameApart(apart);
         // The lamps (note 346): one guttering for each crewmate at most, none in the yard or a fort; one left too long goes out.
         if (Authority && !Derailed && _gutters is { } lamps)
             lamps.Step(Train, Math.Max(1, _actors.Count(a => a.State.Alive)), SafeYard || TrainInFort);
@@ -1792,6 +1897,8 @@ public sealed class World
         // The town's people go about their rounds on the night's clock (note 353).
         if (Town is { } town)
             town.Clock = Tick * SimConstants.TickSeconds;
+        if (Arrival is { } arrival)
+            arrival.Clock = Tick * SimConstants.TickSeconds;
         if (Authority)
             RefreshTargets();
     }
@@ -1837,7 +1944,7 @@ public sealed class World
         // Out on the line: not the yard, not home, and not the run in to the terminus either, where nothing's sent by design
         // (the line's terminus_safe, the final approach): the quiet there is the night letting go (T74).
         double front = Train.Dynamics.Distance;
-        bool home = Route is { } r && (front > r.Length - NoSpawnFinalApproach || r.Plan?.Director.TagsAt(front).Contains("terminus_safe") == true);
+        bool home = HomeStretch;
         bool out_ = (Run is null || Run.Phase is DarkTerritory.Sim.Run.RunPhase.Underway or DarkTerritory.Sim.Run.RunPhase.AtFacility) && !home;
         bool active = _enemies.Any(e => !e.Gone && e.Phase is SpinePhase.Telegraph or SpinePhase.Commit or SpinePhase.Punish)
             // The line at its hardest (linegen plan §15.4): the director sends nothing of its own there because the terrain's
@@ -1981,6 +2088,7 @@ public sealed class World
             && Train.Boiler.Firebox >= t.Stoker.HeatFirebox ? _hotFor + SimConstants.TickSeconds : 0;
         // The director thinks once a second; the Stoker comes whenever its condition holds, charged when it does (App. B.5).
         // Not in the safe yard (note 263): nothing comes before the run begins.
+        Wake(t.Wakers);
         if (Tick % SimConstants.TickRate == 0 && Director is { } d && !Derailed && !SafeYard)
         {
             d.Present(_context?.Crew.Count ?? 0);
@@ -2001,8 +2109,9 @@ public sealed class World
             foreach (var (cause, actor) in d.TakeAnswers())
                 Answer = new DrawAnswer(t.Director.Draw.ShowSeconds, cause, AnswerAt(t.Director.Draw), actor);
             // Drawn by the heat (note 263): it boards at the tender, to cross to the firebox.
+            bool homeStretch = HomeStretch;
             if (d.Allows(EnemyKind.Stoker) && _hotFor >= t.Stoker.HeatSeconds && Train.BoilerTuning is not null
-                && !_enemies.Any(e => !e.Gone && e.Kind == EnemyKind.Stoker) && !TrainInFort)
+                && !_enemies.Any(e => !e.Gone && e.Kind == EnemyKind.Stoker) && !TrainInFort && !homeStretch)
             {
                 d.Charge(this, EnemyKind.Stoker, _enemies);
                 _enemies.Add(Stoker.AtTender(_nextEnemyId++, Train, t.Stoker));
@@ -2010,7 +2119,7 @@ public sealed class World
             }
             // The marsh (v1.1 §22, formerly the Drift): a hazard over the line's bogs, not a spawn. Once a marsh.
             if (d.Allows(EnemyKind.Drift) && Drift.Ground(this, t.Drift) is { } marsh && marsh.Start != _driftMarsh && Train.Dynamics.Consist.CarCount >= 1
-                && !_enemies.Any(e => !e.Gone && e.Kind == EnemyKind.Drift))
+                && !_enemies.Any(e => !e.Gone && e.Kind == EnemyKind.Drift) && !homeStretch)
             {
                 _driftMarsh = marsh.Start;
                 SpawnDrift(t);
@@ -2026,7 +2135,7 @@ public sealed class World
                     _enemies.Add(Sim.Enemies.Jacob.At(_nextEnemyId++, jacob.At, jacob.Along, jacob.Yaw));
             }
             // The lineside moose (note 339): grazing beside the line ahead, as the line's own; they cost the director nothing.
-            if (Insist is null && d.Allows(EnemyKind.Moose) && Route is { } route && Train.Dynamics.Speed > 3 && !TrainInFort)
+            if (Insist is null && d.Allows(EnemyKind.Moose) && Route is { } route && Train.Dynamics.Speed > 3 && !TrainInFort && !homeStretch)
                 LinesideMoose(t.Moose, route);
             // The Mourners (note 362): a crewmate's body left lying off the train brings a group for it, the director's or not.
             if (t.Mourners.Enabled)
@@ -2046,10 +2155,16 @@ public sealed class World
         Sim.Enemies.Solidity.Settle(_enemies, Train, t);
         // GDD §9, T128 (note 273): no creature comes into a fort. One that does (riding the train in, running down a crewmate
         // who got back inside the gate, put down there by a spawn) is driven off: it lets go and is gone.
-        if (Run is { Tuning.Forts.Safe: true })
+        if (Run is { Tuning.Forts.Safe: true } run)
             foreach (var e in _enemies)
-                if (!e.Gone && !e.Hazard && e is not Sim.Enemies.Incident && InFort(e.WorldPosition(Train)))
-                    e.Dismiss();
+                if (!e.Gone && !e.Hazard && e is not Sim.Enemies.Incident && e.WorldPosition(Train) is var at && InFort(at))
+                {
+                    // Unless it rode in through a town's gate (note 589): the town fights it in the yard a while first.
+                    double hint = Train.Dynamics.Distance;
+                    Train.Line.Nearest(at, ref hint);
+                    if (run.BringIn(e, hint) <= 0)
+                        e.Dismiss();
+                }
 
         _enemies.RemoveAll(e => e.Gone);
         EnemyEvents.AddRange(ctx.Events);
@@ -2206,6 +2321,14 @@ public sealed class World
 
     /// <summary>App. B.1: nothing may spawn inside the final approach.</summary>
     public double NoSpawnFinalApproach { get; set; } = 500;
+
+    /// <summary>
+    /// The train's front on the run in to the terminus, where nothing new comes for it (the line's terminus_safe, the final
+    /// <see cref="NoSpawnFinalApproach"/>): the director's own spawns, and (note 590) the Stoker, the Marsh and the lineside
+    /// moose too, so a crew stopped outside the doors can clear the train. The Wakers (note 588) are dawn's, not this.
+    /// </summary>
+    public bool HomeStretch => Route is { } r
+        && (Train.Dynamics.Distance > r.RunLength - NoSpawnFinalApproach || r.Plan?.Director.TagsAt(Train.Dynamics.Distance).Contains("terminus_safe") == true);
 
     /// <summary>Applies this tick's damage and a derailment to the crew. Host only.</summary>
     public void ApplyDamage(Func<int, PlayerState?> get, Action<int, PlayerState> set, IEnumerable<int> crew)

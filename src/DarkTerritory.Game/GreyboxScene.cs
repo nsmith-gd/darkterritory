@@ -68,6 +68,13 @@ public sealed partial class GreyboxScene
     public bool LampLit { get; set; } = true;
     /// <summary>GDD v1.4 App. E.9: this many of the cars' lamps are out, from the last car forward (all of them: the engine's too).</summary>
     public int LampsOut { get; set; }
+    /// <summary>
+    /// How far each car's lanterns are swung on their chains (radians, by car; note 599: the Wakers' stir knocking them about,
+    /// <see cref="DawnStir.LampSway"/>). Null: hanging still.
+    /// </summary>
+    public Func<int, float>? LampSwayOf { get; set; }
+    /// <summary>The stir's last thud (note 599, <see cref="DawnStir.Thud"/>): how strong, and how long ago; strength 0, none.</summary>
+    public (double Strength, double Since) StirThud { get; set; }
 
     /// <summary>Car <paramref name="index"/>'s lamps are out (its vehicle's LampLit), so it's drawn dark inside and out.</summary>
     /// <summary>
@@ -147,8 +154,12 @@ public sealed partial class GreyboxScene
     public Sim.Run.Holdouts? Holdouts { get; set; }
     /// <summary>The departure fortress's town (GDD §3.1; note 281): its square, and its people where the town's folk stand.</summary>
     public Sim.Towns.Town? Town { get; set; }
+    /// <summary>The terminus's town (note 600): the one the next night departs from, standing turned round in its own frame.</summary>
+    public Sim.Towns.Town? Arrival { get; set; }
     /// <summary>Somebody in the town turned to face whoever's talking to them (<see cref="TownTalk"/>), by person id.</summary>
     public (int Person, Double3 Toward)? TownFacing { get; set; }
+    /// <summary>The town <see cref="TownFacing"/>'s person is in (note 603); null, the departure's (<see cref="Town"/>).</summary>
+    public Sim.Towns.Town? TownFacingIn { get; set; }
     /// <summary>Seconds, for animating things that move on their own.</summary>
     public double Time { get; set; }
     /// <summary>Vehicle state for doors (open or shut). Without it every door is drawn shut.</summary>
@@ -236,6 +247,8 @@ public sealed partial class GreyboxScene
     /// (by index) someone's wrench is at now. Null, none.
     /// </summary>
     public IReadOnlyList<BreakCallout>? Breaks { get; set; }
+    /// <summary>The cars and engine battered and let go, working themselves apart (note 576: <see cref="Sim.Train.Failing.Of"/>). Null, none.</summary>
+    public IReadOnlyList<FailingCar>? Failings { get; set; }
     public IReadOnlySet<int>? Mending { get; set; }
     /// <summary>Each car's strain on a bend taken too fast and its outer rail (BendStrain.PerCar): flange sparks off it.</summary>
     public IReadOnlyList<(float Stress, int Outer)>? BendStrain { get; set; }
@@ -401,7 +414,12 @@ public sealed partial class GreyboxScene
             double yard = Run?.YardLength ?? 600, terminus = Run?.Tuning.TerminusZone ?? 400;
             // (Where the sim stands their solids, T124.)
             foreach (var fort in Sim.Run.Fortresses.Of(Route, line, yard, terminus))
-                Fortress(mesh, line, eye, from, to, fort.Start, fort.End, gateAt: fort.Gate, lit: fort.Lived);
+                // The terminus that's a town (note 600) is drawn as the departure's is, in its own frame turned round: the
+                // window and its gate measured back from where that frame starts.
+                if (fort.Start > 0 && fort.Lived && Arrival is { Turn: { } turn } arrival)
+                    Fortress(mesh, arrival.Line, eye, turn - to, turn - from, 0, turn - fort.Gate, gateAt: turn - fort.Gate, town: arrival);
+                else
+                    Fortress(mesh, line, eye, from, to, fort.Start, fort.End, gateAt: fort.Gate, lit: fort.Lived);
             Lap(mesh, "route");
         }
         // Practical lights first, so everything built after is lit by them: each car's lamps, the firebox,
@@ -436,14 +454,21 @@ public sealed partial class GreyboxScene
             if (frame.Shape.Interior is { } room && !dark)
                 foreach (double z in new[] { -room.HalfSize.Z * 0.5, room.HalfSize.Z * 0.5 })
                 {
+                    // Swung on its chain (note 599), the light goes with the lantern.
+                    var swung = Vector3.Transform(new Vector3(0, (float)(room.Max.Y - 0.2), (float)(room.Centre.Z + z)),
+                        Art.SceneArt.LampSwing(room, LampSwayOf?.Invoke(frame.Index) ?? 0));
                     if (eatenBy.Eats(new Vector3(0, (float)room.Max.Y - 0.05f, (float)(room.Centre.Z + z))))
                         continue;
                     // With the art pass the lamps are flames, and flicker (Art.SceneArt.Flicker); the greybox's are steady.
                     float flicker = Look is null ? 1 : Art.SceneArt.Flicker(Time, frame.Index * 2 + (z < 0 ? 0 : 1));
                     mesh.PointLights.Add(Emergency
-                        ? new PointLight(V(frame.ToWorld(new Double3(0, room.Max.Y - 0.2, room.Centre.Z + z)), eye), EmergencyRed, 4f)
-                        : new PointLight(V(frame.ToWorld(new Double3(0, room.Max.Y - 0.2, room.Centre.Z + z)), eye), Palette.LampAmber * 1.6f * flicker, 7.5f));
+                        ? new PointLight(V(frame.ToWorld(new Double3(swung.X, swung.Y, swung.Z)), eye), EmergencyRed, 4f)
+                        : new PointLight(V(frame.ToWorld(new Double3(swung.X, swung.Y, swung.Z)), eye), Palette.LampAmber * 1.6f * flicker, 7.5f));
                 }
+            // A thud of the Wakers' stir shakes coal off the bunker's heap onto the footplate (note 599).
+            if (StirThud.Strength > 0 && Look?.Art.Effects is { } shaken
+                && frame.Shape.Interactables.FirstOrDefault(i => i.Kind == InteractableKind.Coal) is { Kind: InteractableKind.Coal } coal)
+                shaken.CoalSlide(mesh, V(frame.ToWorld(coal.Position), eye), ToF(frame.Back), ToF(frame.Right), StirThud.Since, StirThud.Strength, frame.Index);
             foreach (var i in frame.Shape.Interactables.Where(i => i.Kind == InteractableKind.Firebox && FireGlow > 0))
                 mesh.PointLights.Add(new PointLight(V(frame.ToWorld(i.Position + new Double3(0, 0.7, 0.3)), eye), FireColour(0.6f + 1.6f * FireGlow), 5f));
         }
@@ -481,6 +506,9 @@ public sealed partial class GreyboxScene
                     if (frames.FirstOrDefault(f => f.Index == b.Vehicle) is { Shape: not null } bf && (bf.Origin - eye).Length < 60)
                         mesh.PointLights.Add(new PointLight(V(bf.ToWorld(b.At), eye), Palette.LampAmber * (2.2f + 0.8f * (float)Math.Sin(Time * 6.9)), 4f));
             }
+            // What's coming off the cars and engine let go (note 576), seen from anywhere along the train.
+            if (Failings is { Count: > 0 } failings)
+                Look.Art.Effects.Failing(mesh, frames, eye, Time, failings);
             // Derailed (GDD §14): timed from the frame the scene first saw it (presentation only; the sim just stops the train).
             if (Derailed)
             {
@@ -550,6 +578,9 @@ public sealed partial class GreyboxScene
         // A fire on its cells draws its flames there (FireGrids), and only its smoke and light at its heart (note 267).
         if (Look?.Art.Effects is { } cells)
             cells.CellFlames = Enemies?.Any(e => e is Sim.Enemies.CarFire { Gone: false, Heat.Length: > 0 }) == true;
+        // The yard's fight (note 608): the town's guards out to whatever's brought in through the gate, while it lasts.
+        if (Arrival is { } fought)
+            fought.Fight = YardFight(line, frames, fought);
         if (Enemies is not null)
             foreach (var e in Enemies)
                 if (e.Kind == EnemyKind.Passenger && Look?.Art.Creatures is { } passengers && passengers.Get("passenger") is not null)
@@ -629,6 +660,14 @@ public sealed partial class GreyboxScene
                     DrawEnemy(mesh, line, frames, e, eye, from, to, Look?.Art.Creatures, bite, prey, room,
                         e.Kind is EnemyKind.Gaunt or EnemyKind.Grumbler or EnemyKind.Moose || outside ? Pace(e) : 0, Flinch(e), HitAge(e),
                         modeSeconds: modeSeconds, place: e is Sim.Enemies.TowerJaw { Mode: Sim.Enemies.TowerJawMode.Wreck } ? TowerPlace(line, e.Local) : null);
+                    // A Waker getting up (note 599): the earth it throws off rising, and the dust it raises on the move.
+                    if (e.Kind == EnemyKind.Waker && Look?.Art.Effects is { } wake)
+                        WakerDust(mesh, wake, e, line, eye);
+                    // Brought into town (note 589): the town's guns firing on whatever rode in, while the yard fight lasts (the
+                    // fort drives off anything else inside it the moment it's there, so anything alive in there is being fought).
+                    else if (Arrival is { } town && Look?.Art.Effects is { } guns && EnemyWorld(e, frames) is var inside && InTheTown(line, inside))
+                        guns.WallGuns(mesh, [.. WallGuns(town, eye), .. YardGuns(town, eye)], V(inside + Double3.Up * 1.2, eye), V(inside, eye), Time, e.Id,
+                            BroughtInSpread, e.Kind);
                     // A Grumbler healing (App. A.8, note 487): what a lone crewmate's blow knocked out of it drawn back in.
                     if (e.Kind == EnemyKind.Grumbler && Healing(e) is > 0 and var healing && Look?.Art.Effects is { } knit)
                     {
@@ -1755,6 +1794,138 @@ public sealed partial class GreyboxScene
         new(v.X * Math.Cos(yaw) + v.Z * Math.Sin(yaw), v.Y, -v.X * Math.Sin(yaw) + v.Z * Math.Cos(yaw));
 
     /// <summary>Where <paramref name="e"/> stands in the world: in its car's frame aboard, as it is loose.</summary>
+    /// <summary>
+    /// A Waker's earth and dust (note 599): rising, the clods it heaves up and the bank of dust it breaks out of; running,
+    /// what its feet raise, a stride as long as its pace makes it (the stir's thuds keep the same beat, <see cref="DawnStir"/>).
+    /// </summary>
+    void WakerDust(MeshBuilder mesh, Art.Effects fx, Enemy e, RailLine line, Double3 eye)
+    {
+        var t = Look?.Art.Creatures?.WakersTuning ?? new Sim.Enemies.WakersTuning();
+        var at = line.Sample(e.LineDistance);
+        var right = Double3.Cross(at.Tangent, Double3.Up).Normalized;
+        var feet = at.Position + right * e.Lateral + Double3.Up * e.Height;
+        var (r, b) = (ToF(right), ToF(at.Tangent * -1));
+        double since = WakerRise.Since(e.Phase, e.PhaseSeconds, t.RiseSeconds);
+        if (since < 0)
+            return;
+        fx.WakerRise(mesh, V(feet, eye), r, b, since, t.RiseSeconds, WakerRise.Up(e.Phase, e.PhaseSeconds, t.RiseSeconds), e.Id);
+        // Stopped short of the terminus's gate, it stands there under the town's guns (wakers.md §4); else it's coming on.
+        double wall = (Route?.Plan?.Terminus.GateM ?? line.Length - (Run?.Tuning.TerminusZone ?? 400)) - t.StopShort;
+        if (e.Phase == SpinePhase.Commit && e.LineDistance >= wall - 1)
+            fx.WallGuns(mesh, Arrival is { Plan.Bounds: not null } walled ? WallGuns(walled, eye) : WallGuns(line, wall + t.StopShort, eye),
+                V(feet + Double3.Up * 12, eye), V(feet, eye), Time, e.Id);
+        else if (e.Phase == SpinePhase.Commit)
+            fx.WakerStride(mesh, V(feet, eye), r, b, Time, 1.4, e.Id);
+    }
+
+    /// <summary>
+    /// The terminus's guns that bear on what's stopped outside its gate (note 599): one on each of the gatehouse's towers and on
+    /// the first two of the wall's towers each side (Fortresses' gun towers, a tower every TowerEvery m), at their tops
+    /// (camera-relative).
+    /// </summary>
+    public static List<Vector3> WallGuns(RailLine line, double gate, Double3 eye)
+    {
+        var guns = new List<Vector3>();
+        var g = line.Sample(Math.Min(gate, line.Length));
+        var gr = Double3.Cross(g.Tangent, Double3.Up).Normalized;
+        foreach (int side in new[] { -1, 1 })
+            guns.Add(V(g.Position + gr * (side * (Sim.Run.Fortresses.GateInner + Sim.Run.Fortresses.GateOuter) / 2) + Double3.Up * (Sim.Run.Fortresses.GateHeight + 1), eye));
+        double first = Math.Ceiling(gate / Sim.Run.Fortresses.TowerEvery) * Sim.Run.Fortresses.TowerEvery;
+        for (double s = first; s < Math.Min(line.Length, first + 2 * Sim.Run.Fortresses.TowerEvery); s += Sim.Run.Fortresses.TowerEvery)
+        {
+            var at = line.Sample(s);
+            var right = Double3.Cross(at.Tangent, Double3.Up).Normalized;
+            foreach (int side in new[] { -1, 1 })
+                guns.Add(V(at.Position + right * (side * Sim.Run.Fortresses.WallOut) + Double3.Up * (Sim.Run.Fortresses.TowerHeight + 1), eye));
+        }
+        return guns;
+    }
+
+    /// <summary>
+    /// The guns that bear on the walls of a walled terminus town (note 600): on its gatehouse's towers, the corner towers
+    /// either side of its front wall, and the next tower back down each side (<see cref="Sim.Run.Fortresses.Round(Sim.Towns.TownBounds, TrackSample)"/>).
+    /// </summary>
+    public static List<Vector3> WallGuns(Sim.Towns.Town town, Double3 eye)
+    {
+        var guns = new List<Vector3>();
+        if (town.Plan.Bounds is not { } b)
+            return guns;
+        double mid = (Sim.Run.Fortresses.GateInner + Sim.Run.Fortresses.GateOuter) / 2, every = Sim.Run.Fortresses.TowerEvery;
+        foreach (int side in new[] { -1, 1 })
+            guns.Add(V(town.World(b.Gate, side * mid, Sim.Run.Fortresses.GateHeight + 1), eye));
+        // The last of the side towers before the gate (Round stands one every TowerEvery from the rear, none within half of it of the gate).
+        double back = b.Rear + Math.Floor((b.Gate - every / 2 - b.Rear - 1e-6) / every) * every;
+        foreach (var (d, s) in new[] { (-b.Left, b.Gate), (b.Right, b.Gate), (-b.Left, back), (b.Right, back) })
+            if (s > b.Rear)
+                guns.Add(V(town.World(s, d, Sim.Run.Fortresses.TowerHeight + 1), eye));
+        return guns;
+    }
+
+    /// <summary>The town's guards out on the yard (note 608), their pieces at shoulder height: they fire with the walls' guns.</summary>
+    static IEnumerable<Vector3> YardGuns(Sim.Towns.Town town, Double3 eye) =>
+        town.Fight is null ? [] : town.Plan.People.Where(Sim.Towns.Town.Guards).Select(p => town.Now(p)).Select(n => V(n.Feet + n.Facing * 0.6 + Double3.Up * 1.45, eye));
+
+    /// <summary>The creatures seen brought into the arrival town this night (note 608), by id: each sets houses alight.</summary>
+    readonly HashSet<int> _broughtIn = [];
+
+    /// <summary>
+    /// Where along the arrival town's own frame a creature brought in through its gate is being fought (note 608), the first
+    /// of them; null, none. The fort drives anything else inside off the moment it's there (note 589), so anything alive in
+    /// there, not a fire or the like, is being fought.
+    /// </summary>
+    double? YardFight(RailLine line, IReadOnlyList<CarFrame> frames, Sim.Towns.Town town)
+    {
+        double? fight = null;
+        foreach (var e in Enemies ?? [])
+        {
+            if (e.Gone || e.Hazard || e is Sim.Enemies.Incident || EnemyWorld(e, frames) is var at && !InTheTown(line, at))
+                continue;
+            _broughtIn.Add(e.Id);
+            if (fight is null && Route?.Plan?.Terminus is { } t)
+            {
+                double hint = t.GateM;
+                line.Nearest(at, ref hint);
+                fight = town.Along(hint);
+            }
+        }
+        return fight;
+    }
+
+    /// <summary>
+    /// The arrival town's houses burning (note 608): run.json broughtIn.burns for each creature brought in tonight, the
+    /// lived-in houses nearest the gate (<see cref="Sim.Towns.TownGenerator.Harmed"/>, the ones the campaign remembers burnt).
+    /// They catch as the creature comes in and burn on through the night.
+    /// </summary>
+    void HouseFires(MeshBuilder mesh, Double3 eye, Sim.Towns.Town town)
+    {
+        int brought = Math.Max(_broughtIn.Count, Run?.BroughtIn.Count ?? 0);
+        if (brought == 0 || Look?.Art.Effects is not { } fx)
+            return;
+        foreach (var h in Sim.Towns.TownGenerator.Harmed(town.Plan, brought * (Run?.Tuning.BroughtIn.Burns ?? 1)))
+        {
+            var (s, d) = h.Rail(0, 0);
+            var front = town.World(s, d);
+            if ((front - eye).Length > 400)
+                continue;
+            var into = ToF(town.Direction(s, 0, h.Side));
+            var along = ToF(town.Direction(s, 1, 0));
+            fx.HouseFire(mesh, V(front, eye), along, into, (float)h.Width, (float)h.Depth, 7.5f, Time, h.Id);
+        }
+    }
+
+    /// <summary>How widely the town's shots land round a creature brought in (note 589), as a share of a Waker's back.</summary>
+    const float BroughtInSpread = 0.15f;
+
+    /// <summary>In through the terminus town's gate (note 589): along the main line past it.</summary>
+    bool InTheTown(RailLine line, Double3 at)
+    {
+        if (Route?.Plan?.Terminus is not { Silent: false } t)
+            return false;
+        double hint = t.GateM;
+        line.Nearest(at, ref hint);
+        return hint >= t.GateM;
+    }
+
     static Double3 EnemyWorld(Enemy e, IReadOnlyList<CarFrame> frames) =>
         e.Attached >= 0 && e.Attached < frames.Count ? frames[e.Attached].ToWorld(e.Local) : e.Local;
 
@@ -2087,7 +2258,8 @@ public sealed partial class GreyboxScene
         }
         else
         {
-            if (e.LineDistance < from || e.LineDistance > to)
+            // A Waker's seen from as far as it can be (note 588): the land getting up a kilometre behind is the point.
+            if ((e.LineDistance < from || e.LineDistance > to) && e.Kind != EnemyKind.Waker)
             {
                 return;
             }
@@ -2163,6 +2335,25 @@ public sealed partial class GreyboxScene
             case EnemyKind.Brakeman or EnemyKind.Knotter or EnemyKind.Hotbox:
                 TrainfolkBoxes(e, Draw);
                 break;
+            case EnemyKind.Waker:
+                {
+                    // What gets up at dawn (note 588; docs/design/creatures/wakers.md): the land standing up, a car a mouthful.
+                    // Rising (TELEGRAPH) it heaves up out of the ground; running, it's bent over the line, long arms reaching;
+                    // holding the train, the arms are up at the last car and its head down to it. Its model is C1/E1's.
+                    var earth = Palette.DeepBrown * 0.55f;
+                    double sink = WakerRise.Sink(e.Phase, e.PhaseSeconds, creatures?.WakersTuning.RiseSeconds ?? new Sim.Enemies.WakersTuning().RiseSeconds);
+                    bool holds = e.Phase == SpinePhase.Punish;
+                    Draw(0, 11 - sink, 6, 7, 6, 11, earth);                          // the back, a hill's worth
+                    Draw(0, 16 - sink, -6, 5, 4, 5, earth * 0.9f);                   // shoulders
+                    Draw(0, (holds ? 13 : 15) - sink, -12, 3, 3, 4, Palette.Charcoal); // the head, down to its catch holding
+                    Draw(0, (holds ? 11 : 13) - sink, -15.5, 2.4, 0.8, 0.6, Palette.SootBlack); // the mouth
+                    foreach (double x in new[] { -5.5, 5.5 })
+                    {
+                        Draw(x, (holds ? 12 : 7) - sink, holds ? -14 : -11, 1.2, holds ? 3 : 7, 1.2, earth * 0.8f); // arms
+                        Draw(x * 0.9, 5 - sink, 12, 1.6, 5, 1.6, earth * 0.8f);  // hind legs
+                    }
+                    break;
+                }
             case EnemyKind.Gannet:
                 {
                     // A pale cross 7 m across with a spear for a head (note 340): wings spread flying, a dart diving, the
@@ -2382,6 +2573,7 @@ public sealed partial class GreyboxScene
                 Look.Art.World.Walls = (Run?.YardLength ?? 600, Route.Plan?.Terminus.GateM ?? line.Length - (Run?.Tuning.TerminusZone ?? 400) - 200);
             Look.Art.World.TownSquare = Town?.Plan.Square;
             Look.Art.World.TownBounds = Town?.Plan.Bounds;
+            Look.Art.World.Arrival = Arrival;
             Look.Art.World.Cells(mesh, line, Route, eye, from, to, Seed, (float)ValleyDepth);
             return;
         }
@@ -2980,12 +3172,14 @@ public sealed partial class GreyboxScene
     }
 
     /// <summary>Walls both sides, gun towers with lamps, and a gatehouse over the line.</summary>
-    void Fortress(MeshBuilder mesh, RailLine line, Double3 eye, double from, double to, double start, double end, double gateAt, bool lit = true)
+    /// <param name="town">The town this fortress is (the terminus's, note 600); null, the departure fortress's is <see cref="Town"/>.</param>
+    void Fortress(MeshBuilder mesh, RailLine line, Double3 eye, double from, double to, double start, double end, double gateAt, bool lit = true,
+        Sim.Towns.Town? town = null)
     {
         if (Look is not null)
         {
             // The departure fortress is a town (note 281): its square, and its people where note 107's folk stood.
-            var town = start == 0 && lit ? Town : null;
+            town ??= start == 0 && lit ? Town : null;
             Look.Art.World.Fortress(mesh, line, eye, from, to, start, end, gateAt, platform: start == 0, lit, Time, town?.Plan.Square, town?.Plan.Bounds);
             if (town is not null)
             {
@@ -2993,6 +3187,8 @@ public sealed partial class GreyboxScene
                 Look.Art.World.Civic(mesh, line, eye, town, from, to);
                 Look.Art.World.Works(mesh, line, eye, town, from, to);
                 Look.Art.World.Houses(mesh, line, eye, town, from, to);
+                if (town == Arrival)
+                    HouseFires(mesh, eye, town);
                 Look.Art.World.Streets(mesh, line, eye, town, from, to);
                 // A town that's lived in (App. F.3, the director: the fortresses feel static): smoke from its chimneys, and
                 // its watch walking the wall with their lanterns.
@@ -3030,7 +3226,7 @@ public sealed partial class GreyboxScene
                     var feet = now.Feet;
                     if ((feet - eye).Length > 160)
                         continue;
-                    bool talking = TownFacing is { } f && f.Person == p.Id;
+                    bool talking = TownFacing is { } f && f.Person == p.Id && (TownFacingIn ?? Town) == town;
                     // Whoever sits or crouches at their work stays put when you talk to them: turned to you, they'd swing
                     // off their chair or out from the range (the director, 8 Oct: "some of the animation positions are off").
                     bool settled = now.Act is "seated" or "crouch" or "mend";
@@ -4318,7 +4514,8 @@ public sealed partial class GreyboxScene
             // board and cradle, a gun car's powder and shot.
             var fitted = Vehicles is { } lampsOf && frame.Index < lampsOf.Count ? lampsOf[frame.Index] : null;
             var bitten = Art.Bite.For(Look.Tuning.Bite, frame.Shape, fitted, frame.Index);
-            Look.Art.CarLamps(mesh, frame, eye, Emergency, bitten, lit: !CarDark(frame.Index) && frame.Index < (Vehicles?.Count ?? int.MaxValue) - LampsOut);
+            Look.Art.CarLamps(mesh, frame, eye, Emergency, bitten, lit: !CarDark(frame.Index) && frame.Index < (Vehicles?.Count ?? int.MaxValue) - LampsOut,
+                sway: LampSwayOf?.Invoke(frame.Index) ?? 0);
             Look.Art.Fittings(mesh, frame, eye, fitted, bitten);
         }
         else if (shape.Interior is { } room)

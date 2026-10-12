@@ -632,7 +632,7 @@ public sealed class TerrainField
     /// ground) ends square at its zone's ends and leaves the rail's formation its own, since the line past a stop may climb.
     /// So does a long pad laid along the line (a halt's or a town's, the fortress's, the terminus's): its 30 m blend past the
     /// end held the ballast at the halt's level where the line had already started down (frontier:3's Mile 13 Halt, 8 cm
-    /// over the rail 20 m on).
+    /// over the rail 20 m on). A round pad (a facility's) too, where the approach to it is still on its grade.
     /// </summary>
     double Pads(double x, double z, double height, double formation, double formationW)
     {
@@ -659,7 +659,9 @@ public sealed class TerrainField
             if (d >= p.RadiusM + 30)
                 continue;
             double w = 1 - Smooth(p.RadiusM, p.RadiusM + 30, d);
-            if ((p.Box || p.HalfLengthM > 0) && !double.IsNaN(formation))
+            // Every pad leaves a rail's formation its own: a facility's round pad blended out over the approach's grade held
+            // the ballast up to 0.24 m over the rail short of the stop (deadLines:3, local:1, frontier:3).
+            if (!double.IsNaN(formation))
                 w *= 1 - formationW;
             height = height * (1 - w) + p.ElevM * w;
         }

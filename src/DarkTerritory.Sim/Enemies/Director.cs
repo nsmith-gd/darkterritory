@@ -109,7 +109,7 @@ public sealed class Director
         if (!_t.Orchestrator.On)
             return;
         double front = world.Train.Dynamics.Distance;
-        bool home = _route is { } route && (front > route.Length - noSpawnFinal || route.Plan?.Director.TagsAt(front).Contains("terminus_safe") == true);
+        bool home = _route is { } route && (front > route.RunLength - noSpawnFinal || route.Plan?.Director.TagsAt(front).Contains("terminus_safe") == true);
         // Not at a facility either: the stop's work is the crew's to answer there (App. F.1: "slowing opens the doors"; the stops
         // are the heightened part of the night), and the census is for the run between them (App. F.3).
         // And only with the train on the move: a generated stop keeps the run under way while the train stands to be worked.
@@ -222,7 +222,7 @@ public sealed class Director
     /// </summary>
     double Reserve(World world, double distance, EnemyKind forKind)
     {
-        if (_route is null || distance < _route.Length * _t.SaveFrom || world.Enemies is not { } et)
+        if (_route is null || distance < _route.RunLength * _t.SaveFrom || world.Enemies is not { } et)
             return 0;
         double reserve = 0;
         foreach (var name in _t.SaveFor)
@@ -265,12 +265,12 @@ public sealed class Director
         if (_route is null)
             return Budget * Math.Clamp(distance / 20_000, 0, 1);
         var facilities = _route.Of(FeatureKind.Facility).ToList();
-        double first = facilities.Count > 0 ? facilities[0].Start : _route.Length * 0.25;
-        double last = facilities.Count > 0 ? facilities[^1].End : _route.Length * 0.75;
+        double first = facilities.Count > 0 ? facilities[0].Start : _route.RunLength * 0.25;
+        double last = facilities.Count > 0 ? facilities[^1].End : _route.RunLength * 0.75;
         var s = _t.PhaseShares;
         double share = distance < first ? s[0] * distance / first
             : distance < last ? s[0] + s[1] * (distance - first) / Math.Max(1, last - first)
-            : s[0] + s[1] + s[2] * (distance - last) / Math.Max(1, _route.Length - last);
+            : s[0] + s[1] + s[2] * (distance - last) / Math.Max(1, _route.RunLength - last);
         return Budget * Math.Clamp(share, 0, 1);
     }
 
@@ -297,7 +297,7 @@ public sealed class Director
         double s = train.Dynamics.Distance;
         if (elapsed < Grace)
             return Held("grace");
-        if (_route is not null && s > _route.Length - noSpawnFinal)
+        if (_route is not null && s > _route.RunLength - noSpawnFinal)
             return Held("final stretch");
         // GDD §9, T128 (note 273): nothing comes for a train that's in one of the forts.
         if (world.TrainInFort)
@@ -519,7 +519,7 @@ public sealed class Director
         }
         // How far into the night: along the line, or toward dawn if the clock's ahead of the train.
         double progress = _route is null ? s / 20_000
-            : Math.Max(s / Math.Max(1, _route.Length), _route.DawnSeconds > 0 ? elapsed / _route.DawnSeconds : 0);
+            : Math.Max(s / Math.Max(1, _route.RunLength), _route.DawnSeconds > 0 ? elapsed / _route.DawnSeconds : 0);
         double escalation = 1 + p.Escalation * DMath.Pow(Math.Clamp(progress, 0, 1), p.EscalationPower);
         // Engaged with the crew: showing itself, coming on, holding someone, punishing. What only paces the train or lingers
         // (on the caps, <see cref="Engaged"/>) neither stops the quiet nor keeps the crew busy (harness: a Climber pacing a car
@@ -998,7 +998,7 @@ public sealed class Director
         }
         var train = world.Train;
         double speed = train.Dynamics.Speed, front = train.Dynamics.Distance;
-        bool home = _route is { } route && (front > route.Length - noSpawnFinal || route.Plan?.Director.TagsAt(front).Contains("terminus_safe") == true);
+        bool home = _route is { } route && (front > route.RunLength - noSpawnFinal || route.Plan?.Director.TagsAt(front).Contains("terminus_safe") == true);
         bool open = elapsed >= Grace && !world.TrainInFort && !home && train.Dynamics.Consist.CarCount >= 1
             && world.Run?.Phase is null or Run.RunPhase.Underway;
         if (!open || speed < r.StopSpeed)
@@ -1136,7 +1136,7 @@ public sealed class Director
         }
         var train = world.Train;
         double front = train.Dynamics.Distance;
-        if (elapsed < Grace || world.TrainInFort || train.Dynamics.Speed < t.FromSpeed || front > _route.Length - noSpawnFinal
+        if (elapsed < Grace || world.TrainInFort || train.Dynamics.Speed < t.FromSpeed || front > _route.RunLength - noSpawnFinal
             || train.Dynamics.Consist.CarCount < world.Enemies!.Draggers.MinCars)
             return;
         foreach (var st in plan.Structures)

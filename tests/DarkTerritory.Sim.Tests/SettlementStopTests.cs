@@ -12,10 +12,10 @@ namespace DarkTerritory.Sim.Tests;
 public class SettlementStopTests
 {
     [Theory]
-    [InlineData("frontier:2")]
-    [InlineData("frontier:5")]
-    [InlineData("deadLines:12")]
-    [InlineData("deepTerritory:8")]
+    [InlineData("frontier:8")]
+    [InlineData("frontier:10")]
+    [InlineData("deadLines:9")]
+    [InlineData("deepTerritory:6")]
     public void EveryNamedSettlementOnTheMainLineHasItsVillage(string spec)
     {
         var r = Routes.Generate(DataFile.FindContentRoot(), spec, 6);

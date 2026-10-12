@@ -56,18 +56,24 @@ public class SpecTableTests
         Assert.InRange(Consist.Uniform(T, 20, 1).LengthMetres / Tuning.Player.RoofRun, 93, 95);
 
     /// <summary>
-    /// Spec B.8 (the director's decision of 6 Oct 2026, note 270): one route length for every tier, 24 km, so one dawn timer:
-    /// 24 km ÷ 11 m/s + 40% = 51 min. Transit at cruise (spec B.3's 14 m/s) is the total run's floor, 28.6 min.
+    /// Spec B.8 (the director's decisions of 6 Oct 2026, note 270, and 9 Oct 2026, note 554): one route length for every
+    /// tier, 7 km, three stops, so one dawn timer: 7 km ÷ 11 m/s + 40% (14.9 min) and 3 min for each of the three
+    /// facilities, 23.9 min. Transit at cruise (spec B.3's 14 m/s) is the total run's floor, 8.3 min.
     /// </summary>
     [Fact]
     public void RunLengthMatchesSpecB8()
     {
         var r = Tuning.Route;
-        Assert.Equal(24, r.NightLengthKm);
+        Assert.Equal(7, r.NightLengthKm);
         Assert.Equal(11, r.DawnAverageSpeed);
         Assert.Equal(0.4, r.DawnSlack, 6);
-        Assert.InRange(r.NightLengthKm * 1000 / r.DawnAverageSpeed * (1 + r.DawnSlack) / 60, 50.5, 51.5);
-        Assert.InRange(r.NightLengthKm * 1000 / 14 / 60, 28, 29);
+        Assert.Equal(180, r.DawnPerFacilitySeconds);
+        var tiers = LineGen.LineGenConfig.Load(Ballast.DataFile.FindContentRoot()).Tiers.Columns;
+        Assert.All(Enumerable.Range(0, 5), i => Assert.Equal(3, tiers[i].Facilities));
+        double transit = r.NightLengthKm * 1000 / r.DawnAverageSpeed * (1 + r.DawnSlack);
+        Assert.InRange(transit / 60, 14.5, 15);
+        Assert.InRange((transit + 3 * r.DawnPerFacilitySeconds) / 60, 23.5, 24);
+        Assert.InRange(r.NightLengthKm * 1000 / 14 / 60, 8, 8.5);
     }
 
     /// <summary>GDD v1.4 App. D.13: auto-bookmarks per run, cap 12 (range 8-20); priority derailment cinematic > PUNISH > GRAB start.</summary>

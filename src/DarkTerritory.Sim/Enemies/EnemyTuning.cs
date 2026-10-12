@@ -42,6 +42,8 @@ public sealed record EnemyTuning(
     public DaveTuning Dave { get; init; } = new();
     /// <summary>Jacob, the fisherman (note 572).</summary>
     public JacobTuning Jacob { get; init; } = new();
+    /// <summary>The Wakers, what gets up at dawn (note 588).</summary>
+    public WakersTuning Wakers { get; init; } = new();
     /// <summary>The damage model (GDD App. F.1, the director's decision of 6 Oct 2026; note 272): no creature's hit is chip.</summary>
     public DamageModelTuning Damage { get; init; } = new();
     /// <summary>
@@ -359,6 +361,13 @@ public sealed record CarFireTuning
     public double BurnFrom { get; init; } = 0.35;
     public double SprayReach { get; init; } = 2.5;
     public double SprayPerSecond { get; init; } = 0.035;
+    /// <summary>
+    /// The spray's cone (degrees either side of the look, note 587): it goes on the burning cell nearest the middle of it,
+    /// seen anywhere up its flames, <see cref="SprayAimLift"/> + <see cref="SprayAimLiftPerHeat"/> x its heat tall (as drawn).
+    /// </summary>
+    public double SprayConeDeg { get; init; } = 25;
+    public double SprayAimLift { get; init; } = 0.4;
+    public double SprayAimLiftPerHeat { get; init; } = 1.2;
     public double ChargeSeconds { get; init; } = 10;
     public double RechargeSeconds { get; init; } = 90;
     public double BurnReach { get; init; } = 4;
@@ -1191,5 +1200,13 @@ public sealed record CrewBotsTuning
     public double WreckHoldWithin { get; init; } = 60;
     public double BeetleWithin { get; init; } = 15;
     public double BrakemanStandOff { get; init; } = 1.5;
+    public double BrakemanWaitPast { get; init; } = 1;
     public double StandGiveUp { get; init; } = 240;
+    public double GateClearShort { get; init; } = 30;
+    public double GateClearWithin { get; init; } = 1500;
+    public double GateClearGiveUp { get; init; } = 240;
+    public double GateClearMargin { get; init; } = 45;
+    public double SixDawnMargin { get; init; } = 45;
+    public double MournersCarryWithin { get; init; } = 60;
+    public double MournersCarrySeconds { get; init; } = 60;
 }

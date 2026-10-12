@@ -80,6 +80,46 @@ public class GutterTests
         Assert.False(w.Train.Vehicles[2].LampLit);
     }
 
+    /// <summary>
+    /// Note 627 (seed 4's night, in note 626's sweep): car 3's lamp guttering, its walkers on their way in, and the driver stood
+    /// for a Knotter: every hand went down to the ballast for it and the lamp went out, a car dark for the Climbers. One hand
+    /// is the lamp's (claimed among the walkers, <c>CrewCalls.ClaimGutter</c>): it leaves the ground's errands to the others
+    /// and trims the lamp; the rest kill the Knotter.
+    /// </summary>
+    [Fact]
+    public void AtAKnottersStandOneHandStillTrimsTheGutteringLamp()
+    {
+        var quiet = Tuning.Enemies with { Director = Tuning.Enemies.Director with { GraceMinSeconds = 1e9, GraceMaxSeconds = 1e9 } };
+        double? cameAt = null, trimmedAt = null;
+        bool wentOut = false, stood = false;
+        DarkTerritory.Sim.Enemies.Knotter? knot = null;
+        var report = CrewOfTwoTests.Night(CrewOfTwoTests.OpenLine.Spec, 6, 150, null, start: CrewOfTwoTests.OpenLine.Start, bots: 4, enemies: quiet,
+            upkeep: new UpkeepTuning { HotBox = new() { Enabled = false }, Lamp = G with { FirstAfterMetres = 1e9 }, Coupling = new() { Enabled = false } },
+            each: w =>
+            {
+                var lamp = w.Train.Vehicles[3];
+                if (cameAt is null && w.ElapsedSeconds >= 30 && lamp.LampLit && w.Train.Dynamics.Speed > 8)
+                {
+                    knot = w.AddEnemy(id => DarkTerritory.Sim.Enemies.Knotter.Into(id, w.Train, 1, quiet.Knotter));
+                    lamp.Gutter = SimConstants.TickSeconds;
+                    cameAt = w.ElapsedSeconds;
+                }
+                else if (cameAt is not null && trimmedAt is null)
+                {
+                    stood |= Math.Abs(w.Train.Dynamics.Velocity) < 0.05;
+                    if (lamp.Gutter == 0)
+                    {
+                        wentOut |= !lamp.LampLit;
+                        trimmedAt = w.ElapsedSeconds;
+                    }
+                }
+            });
+        Assert.NotNull(cameAt);
+        Assert.True(stood, "the driver never stood for the Knotter while the lamp guttered");
+        Assert.True(trimmedAt is { } at && at - cameAt < G.OutAfter && !wentOut,
+            $"came at {cameAt:0} s, done at {trimmedAt?.ToString("0") ?? "never"}, out {wentOut}; the Knotter {knot?.Mode}, gone {knot?.Gone} ({report.Deaths} died)");
+    }
+
     [Fact]
     public void AWalkerGoesInToAGutteringLampNobodysWithAndTrimsIt()
     {
@@ -87,7 +127,7 @@ public class GutterTests
         // nobody's in there, so the walker goes along the roofs, in at its door, and trims it before it goes out.
         double? cameAt = null, trimmedAt = null;
         bool wentOut = false;
-        var report = CrewOfTwoTests.Night("frontier:7", 6, 100, null, start: 2500, bots: 3,
+        var report = CrewOfTwoTests.Night(CrewOfTwoTests.OpenLine.Spec, 6, 100, null, start: CrewOfTwoTests.OpenLine.Start, bots: 3,
             upkeep: new UpkeepTuning { HotBox = new() { Enabled = false }, Lamp = G with { FirstAfterMetres = 1e9 }, Coupling = new() { Enabled = false } },
             each: w =>
             {
