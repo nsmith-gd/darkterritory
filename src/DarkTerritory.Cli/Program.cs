@@ -1976,7 +1976,7 @@ static object Screenshot(TrainTuning t, string content, string[] args)
     }
     // --householder watch|sit|rise|hunt|grab|return: the staged Householder at its chair and table off the line's left (note 584;
     // Staging.Householder), watching whoever's looking (the householder view's).
-    if (Str(args, "--householder", view == "householder" ? "watch" : "") is { Length: > 0 } householderMode)
+    if (!Staging.IsHouseView(view) && Str(args, "--householder", view == "householder" ? "watch" : "") is { Length: > 0 } householderMode)
     {
         scene.Enemies = Staging.Householder(scene.Enemies is List<DarkTerritory.Sim.Enemies.Enemy> others ? others : [], train, householderMode,
             out var furniture, out float householderPace);
@@ -2050,7 +2050,7 @@ static object Screenshot(TrainTuning t, string content, string[] args)
         if (Str(args, "--cam", "") is not { Length: > 0 })
             camera = houseCamera;
         if (seat is var (chairAt, chairYaw))
-            scene.Seat(Staging.HouseholderId, chairAt, chairYaw);
+            scene.Seat(Staging.HouseholderHouseId, chairAt, chairYaw);
         if (caught is { } hung)
             scene.Crew = [.. (scene.Crew ?? []).Where(c => c.Id != hung.Id), hung];
         // (The hollowhouse views' shut doors: the Sim shuts them at its Shut.)

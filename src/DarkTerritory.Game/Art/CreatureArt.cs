@@ -2221,9 +2221,6 @@ public sealed partial class CreatureArt
                 return Knotter(mesh, model, phase, t);
             case EnemyKind.Hotbox when _models.ContainsKey("hotbox"):
                 return Hotbox(mesh, model, phase, t, extra2);
-            case EnemyKind.HollowHouse or EnemyKind.Hanger when Houses(mesh, model, kind, t) is { } housed:
-                // The house creatures (notes 585, 586): the Hollow House is its house; the Hanger hung where its body is.
-                return housed;
             case EnemyKind.Choir:
                 {
                     // (No model: the Hollow's figure, child-sized and pale, bobbing in the air with a cold light of its own.)

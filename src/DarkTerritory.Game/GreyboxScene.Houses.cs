@@ -93,7 +93,7 @@ public sealed partial class GreyboxScene
     void Hollow(MeshBuilder mesh, HollowHouse e, HouseSite house, in Matrix4x4 frame, Double3 eye)
     {
         var mode = e.Mode;
-        double since = ModeSince(e);
+        double since = ModeSince(e, out _);
         float sink = (float)Math.Max(0, e.Extra);
         var key = (house.Feature, house.Building);
         var b = house.B;
@@ -385,7 +385,7 @@ public sealed partial class GreyboxScene
                 facing = Vector3.Normalize(to with { Y = 0 });
         }
         var model = Art.CreatureArt.Basis(at, Vector3.Cross(Vector3.UnitY, -facing), Vector3.UnitY, -facing);
-        Look.Art.Creatures.Hanger(mesh, model * frame, mode, ModeSince(e), e.Id);
+        Look.Art.Creatures.Hanger(mesh, model * frame, mode, ModeSince(e, out _), e.Id);
         if (held is { } caught)
         {
             var mouth = Vector3.Transform(Art.CreatureArt.HangerMouth, model);

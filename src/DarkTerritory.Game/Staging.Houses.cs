@@ -14,7 +14,7 @@ namespace DarkTerritory.Game;
 /// </summary>
 public static partial class Staging
 {
-    public const int HangerId = 5860, HollowHouseId = 5850, HouseholderId = 5840;
+    public const int HangerId = 5860, HollowHouseId = 5850, HouseholderHouseId = 5840;
 
     /// <summary>The views that stage a house creature.</summary>
     public static bool IsHouseView(string view) => view is "hanger" or "hangergrab" or "hollowhouse" or "hollowcollapse" or "householderhouse";
@@ -42,7 +42,7 @@ public static partial class Staging
     public static (List<Enemy> Threats, Camera Camera, Crewmate? Caught, (Double3 At, double Yaw)? Seat) House(List<Enemy> threats, string view, string mode, Route route, RailLine line,
         Sim.Run.StopWalls walls, HangerTuning hanger, int skip = 0, bool inside = false)
     {
-        threats.RemoveAll(e => e is Hanger or HollowHouse or Householder);
+        threats.RemoveAll(e => e is Hanger or HollowHouse or DarkTerritory.Sim.Enemies.Householder);
         var house = StagedHouse(walls, skip);
         double floor = FloorOf(line, route, house);
         var b = house.B;
@@ -120,7 +120,7 @@ public static partial class Staging
                     double deep = Math.Abs(ix) > 0.5 ? b.Length : b.Width;
                     var seat = In(deep - 2.0, 0.6, 0);
                     var toDoor = (door.At - seat) with { Y = 0 };
-                    var e = new Householder(HouseholderId);
+                    var e = new DarkTerritory.Sim.Enemies.Householder(HouseholderHouseId);
                     double yaw = Math.Atan2(-toDoor.X, -toDoor.Z);
                     e.Restore(SpinePhase.Dormant, 3, 1, Enemy.Loose, away ? door.At + door.Out * 12 : seat, 0, yaw, (double)hm, -1, house.Index);
                     chair = (seat, yaw);
