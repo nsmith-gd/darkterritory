@@ -64,6 +64,17 @@ public sealed record EconomyTuning(Dictionary<string, double> PerCar, double Coa
     /// <summary>A rescued child brought home (GDD §19, App. B.9 "highest payout"), in the tier's per-car values.</summary>
     public double ChildPay { get; init; }
 
+    /// <summary>
+    /// What the night's fees are priced in, by tier (run.json <c>economy.feeValue</c>; note 636): a death's crew-loss fee
+    /// (holdouts.json <c>crewLossFee</c>, GDD App. D.9) and a creature's monster brigade fee (<c>broughtIn.fee</c>, note 589)
+    /// are shares of it. Once they were shares of the per-car value, so a raise in pay was a raise in what a death cost, and on
+    /// the dead lines (a death a night) more pay was less money. A fee prices a death, not the freight (D1). Unset: the per-car value.
+    /// </summary>
+    public Dictionary<string, double>? FeeValue { get; init; }
+
+    /// <summary>The tier's fee value (<see cref="FeeValue"/>), or its per-car value where it has none.</summary>
+    public double FeeFor(string tier) => FeeValue is { } f && f.TryGetValue(tier, out double v) ? v : PerCar.GetValueOrDefault(tier, 700);
+
     public double Rate(CargoKind cargo) => CargoRates.GetValueOrDefault(Cargoes.Key(cargo is CargoKind.None ? CargoKind.Goods : cargo), 1);
 }
 
@@ -843,7 +854,7 @@ public sealed partial class Run
         if (world.Holdouts?.Tuning is { } ht)
         {
             deaths = world.Bodies.Deaths;
-            double fee = ht.CrewLossFee * perCar;
+            double fee = ht.CrewLossFee * e.FeeFor(tier);
             feeEach = Math.Round(fee);
             refundEach = Math.Round(ht.BodyRefund * fee);
             bodiesHome = delivered ? world.Bodies.All.Count(b => b.Kind == Physics.BodyKind.Ragdoll && !b.DroppedOut
@@ -852,7 +863,7 @@ public sealed partial class Run
             refunds = Math.Round(bodiesHome * ht.BodyRefund * fee);
         }
         // Note 589: every creature brought into town is the brigade's fee, and some of the town's people hurt.
-        double broughtEach = Math.Round(Tuning.BroughtIn.Fee * perCar);
+        double broughtEach = Math.Round(Tuning.BroughtIn.Fee * e.FeeFor(tier));
         double broughtFees = delivered ? broughtEach * _broughtIn.Count : 0;
         int hurt = delivered ? Tuning.BroughtIn.Hurt * _broughtIn.Count : 0;
         var (lines, shown) = MarkBookmarks(world, ReportLines(world, attached, delivered, feeEach, refundEach, broughtEach));

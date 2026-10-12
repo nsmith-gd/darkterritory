@@ -83,8 +83,7 @@ public class BroughtInTests
         Assert.InRange(fought, Tuning.Run.BroughtIn.FightSeconds - 0.2, Tuning.Run.BroughtIn.FightSeconds + 0.2);
 
         // The brigade's fee off the night's pay, the town's hurt, and the clerk's line saying so; a cleared train pays none.
-        double perCar = Tuning.Run.Economy.PerCar["frontier"];
-        double fee = Math.Round(Tuning.Run.BroughtIn.Fee * perCar);
+        double fee = Math.Round(Tuning.Run.BroughtIn.Fee * Tuning.Run.Economy.FeeFor("frontier"));
         Assert.True(fee > 0);
         Assert.Equal(1, brought.BroughtIn);
         Assert.Equal(fee, brought.BroughtInFees);
