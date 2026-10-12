@@ -638,13 +638,15 @@ public static class TrainKit
 
         // The cylinders cased in armour: a riveted box over each, its front cut back at a slant.
         float cyl = CylinderZ(shape);
+        // (Under the running board, which runs on over them to ahead of the cab's doorway, note 559: up to its underside.)
+        float boardUnder = shape.Solids.Where(s => s.Part == PartKind.RunningBoard).Select(s => (float)s.Box.Min.Y).DefaultIfEmpty(1.42f).Min();
         foreach (int side in new[] { -1, 1 })
         {
             float x0 = side * 0.82f, x1 = side * (w + 0.12f);
             Plate(k, 1.1f);
-            k.BevelBox(new Vector3(MathF.Min(x0, x1), 0.5f, cyl - 0.8f), new Vector3(MathF.Max(x0, x1), 1.42f, cyl + 0.8f), 0.12f);
+            k.BevelBox(new Vector3(MathF.Min(x0, x1), 0.5f, cyl - 0.8f), new Vector3(MathF.Max(x0, x1), MathF.Min(1.42f, boardUnder), cyl + 0.8f), 0.12f);
             Rusted(k).Shade(0.6f);
-            k.Box(new Vector3(MathF.Min(x1, x1 + side * 0.03f), 0.55f, cyl - 0.02f), new Vector3(MathF.Max(x1, x1 + side * 0.03f), 1.38f, cyl + 0.06f));
+            k.Box(new Vector3(MathF.Min(x1, x1 + side * 0.03f), 0.55f, cyl - 0.02f), new Vector3(MathF.Max(x1, x1 + side * 0.03f), MathF.Min(1.38f, boardUnder - 0.04f), cyl + 0.06f));
         }
 
         // Under the running boards: an air tank each side, strapped, and a tool chest.
@@ -1346,13 +1348,23 @@ public static class TrainKit
                 float z = cabFront + 0.15f + span * i / 3;
                 k.Box(new Vector3(MathF.Min(xo, xo - side * 0.09f), waist + 0.05f, z - 0.045f), new Vector3(MathF.Max(xo, xo - side * 0.09f), roofLow - EaveAt(z, cabFront, cabBack), z + 0.045f));
             }
-            // Grab irons at the doorway, and the step irons down to the ballast.
+            // Grab irons at the doorway, and the step irons down to the ballast: hung off the running board's outer edge
+            // under the doorway, where the sim's cab steps are (note 559; off the cab's side when the board stopped short of
+            // the doorway), with a grab iron up from the board's edge either side of them for the hand going up.
             k.Use("rust_heavy", Palette.IronGrey, 0.8f, 0.3f);
             Grab(k, new Vector3(xo, deck + 0.3f, cabBack - 0.12f), new Vector3(xo, waist + 0.6f, cabBack - 0.12f), new Vector3(side, 0, 0));
+            float hang = shape.Ladders.Where(d => d.Foot.Y < 0.2 && MathF.Sign((float)d.Foot.X) == side && Math.Abs(d.Inward.X) > 0.9)
+                .Select(d => side * ((float)Math.Abs(d.Foot.X) - 0.15f)).DefaultIfEmpty(xo).First();
+            float under = shape.Solids.Where(s => s.Part == PartKind.RunningBoard && MathF.Sign((float)s.Box.Centre.X) == side && s.Box.Min.Z <= doorFront)
+                .Select(s => (float)s.Box.Min.Y - 0.16f).DefaultIfEmpty(deck).First();
             foreach (float y in new[] { deck - 0.5f, deck - 1.0f })
-                k.Box(new Vector3(MathF.Min(xo, xo + side * 0.25f), y - 0.03f, doorFront + 0.1f), new Vector3(MathF.Max(xo, xo + side * 0.25f), y, cabBack - 0.1f));
-            k.Rod(new Vector3(xo + side * 0.24f, deck - 1.03f, doorFront + 0.12f), new Vector3(xo + side * 0.02f, deck, doorFront + 0.12f), 0.015f);
-            k.Rod(new Vector3(xo + side * 0.24f, deck - 1.03f, cabBack - 0.12f), new Vector3(xo + side * 0.02f, deck, cabBack - 0.12f), 0.015f);
+                k.Box(new Vector3(MathF.Min(hang, hang + side * 0.25f), y - 0.03f, doorFront + 0.1f), new Vector3(MathF.Max(hang, hang + side * 0.25f), y, cabBack - 0.1f));
+            foreach (float z in new[] { doorFront + 0.12f, cabBack - 0.12f })
+            {
+                k.Rod(new Vector3(hang + side * 0.24f, deck - 1.03f, z), new Vector3(hang + side * 0.02f, under, z), 0.015f);
+                if (MathF.Abs(hang) > MathF.Abs(xo) + 0.05f)
+                    k.Rod(new Vector3(hang - side * 0.04f, deck + 0.03f, z - 0.02f), new Vector3(hang - side * 0.04f, deck + 1.0f, z - 0.02f), 0.016f, 6);
+            }
         }
         // The front windows (note 276: "controls at the front with full vis of the rail"): two tall openings either side of a
         // narrow middle post, from the waist to the run map's plate, their frames thin. Over them, the plate the map hangs on.
@@ -2188,6 +2200,9 @@ public static class TrainKit
     /// <summary>
     /// The engine's running boards out past the cab sides (App. A.2 GREASE: "sanding from the running boards"): a chequer-plate
     /// walk on brackets, a grab rail along the boiler, and a lidded sandbox on the outer lip of each where the sand's let down.
+    /// Note 559 (the director, 9 Oct: "the platform on the outer edge of the train really should extend to be in front of the
+    /// cab doors and extend a bit wider"): wider, on past the doorway, and armoured as the hood is (note 338): a riveted plate
+    /// edge down its outer side and across its front end, a strap along it, and plate gussets under it to the frame.
     /// </summary>
     static void RunningBoards(Kit k, CarShape shape)
     {
@@ -2203,11 +2218,29 @@ public static class TrainKit
             float side = MathF.Sign(min.X + max.X);
             k.Use("steel_grate", Palette.IronGrey, 0.8f, 0.4f, tile: 0.8f);
             k.Box(min, max, Kit.Faces.All);
-            // Brackets under it back to the frame.
-            k.Use("rust_heavy", Palette.IronGrey, 0.9f, 0.3f);
             float inner = side > 0 ? min.X : max.X, outer = side > 0 ? max.X : min.X;
-            for (float z = min.Z + 0.4f; z < max.Z; z += 2.2f)
-                k.Rod(new Vector3(outer - side * 0.05f, min.Y, z), new Vector3(inner, min.Y - 0.45f, z), 0.025f, 5);
+            // Its edge: riveted plate down the outer side and across the front end, standing a toe's height proud of the
+            // tread, and a strap of rust along it at the rivets.
+            const float Edge = 0.16f, Toe = 0.03f, Thick = 0.02f;
+            Plate(k, 1.2f);
+            var eo = new Vector3(MathF.Min(outer, outer + side * Thick), min.Y - Edge, min.Z - Thick);
+            var ei = new Vector3(MathF.Max(outer, outer + side * Thick), max.Y + Toe, max.Z);
+            k.Box(eo, ei, Kit.Faces.All & ~Kit.Faces.PosZ);
+            k.Box(new Vector3(MathF.Min(inner, outer), min.Y - Edge, min.Z - Thick), new Vector3(MathF.Max(inner, outer), max.Y + Toe, min.Z),
+                Kit.Faces.NegZ | Kit.Faces.PosZ | Kit.Faces.PosY | Kit.Faces.NegY);
+            Rusted(k).Shade(0.7f);
+            float face = outer + side * (Thick + 0.001f), strapY = min.Y - Edge / 2 + 0.02f;
+            Strap(k, new Vector3(face, strapY, min.Z + 0.02f), new Vector3(face, strapY, max.Z - 0.02f), new Vector3(side, 0, 0), 0.05f);
+            // Gussets of plate under it back to the frame (a triangle each, both faces).
+            Iron(k).Shade(0.7f);
+            for (float z = min.Z + 0.35f; z < max.Z - 0.2f; z += 1.8f)
+            {
+                var a = new Vector3(outer - side * 0.03f, min.Y, z);
+                var b = new Vector3(inner, min.Y, z);
+                var c = new Vector3(inner, min.Y - 0.5f, z);
+                k.Tri(a, b, c);
+                k.Tri(a, c, b);
+            }
         }
         foreach (var box in shape.Interactables.Where(i => i.Kind == InteractableKind.Sandbox))
         {
