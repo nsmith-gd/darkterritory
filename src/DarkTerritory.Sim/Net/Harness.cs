@@ -132,9 +132,12 @@ public sealed record RejoinReport(string Bot, int Was, int Back, double DroppedA
 /// Dawn on a harness night (note 607). <paramref name="LineAt"/>: when the dawn line came up (wakers.stirSeconds before dawn)
 /// and <paramref name="AtLine"/> the crew then (the trace's words); <paramref name="TakenAt"/>: when the lead Waker took the
 /// train (−1, it didn't), <paramref name="Short"/> how far short of the terminus's gate (m), <paramref name="Speed"/> the
-/// train's then, and <paramref name="AtTaking"/> where everyone was.
+/// train's then, and <paramref name="AtTaking"/> where everyone was. <paramref name="Closest"/> (note 631): the night's closest
+/// call, the fewest seconds before the lead Waker would have had the train had it stood just then
+/// (<see cref="Enemies.Waker.SecondsInHand"/> at a stand), from the dawn line until it was in under the guns; −1, never reckoned.
 /// </summary>
-public sealed record DawnReport(double LineAt, IReadOnlyList<string> AtLine, double TakenAt, double Short, double Speed, IReadOnlyList<string> AtTaking);
+public sealed record DawnReport(double LineAt, IReadOnlyList<string> AtLine, double TakenAt, double Short, double Speed, IReadOnlyList<string> AtTaking,
+    double Closest = -1);
 
 public sealed record CrewCapReport(int Cap, int Occupied, int Refusals, IReadOnlyList<string> Refused);
 
@@ -226,6 +229,8 @@ public sealed record ThreatReport(double Budget, double Spent, IReadOnlyDictiona
     public string? DerailCause { get; init; }
     /// <summary>The conflict-table pairs the director put together (App. B.1).</summary>
     public IReadOnlyList<string> Pairs { get; init; } = [];
+    /// <summary>The night's creatures gone to ground before dawn (note 635; <see cref="World.FledAtDawn"/>).</summary>
+    public int FledAtDawn { get; init; }
     /// <summary>Seconds out on the line by what the director did each second: sent something, or why it held back (T114).</summary>
     public IReadOnlyDictionary<string, int> Director { get; init; } = new Dictionary<string, int>();
     /// <summary>While it held back at the cap: the engaged threats that filled it, by kind and phase, in seconds.</summary>
@@ -444,6 +449,7 @@ public static class Harness
         double? lineAt = null;
         IReadOnlyList<string>? atLine = null;
         DawnReport? dawn = null;
+        double closest = double.PositiveInfinity;
         for (uint t = 0; t < ticks; t++)
         {
             if (host.World.Run is { Over: true } || o.Until?.Invoke(host.World) == true)
@@ -463,11 +469,14 @@ public static class Harness
                 List<string> Crew() => [.. host.Players.Select(p => clients.FirstOrDefault(c => c.Session.PlayerId == p.Id).Bot is { } b ? Describe(b, p.State) : $"player {p.Id}")];
                 if (lineAt is null && dawnRun.DawnIn <= dawnTuning.Wakers.StirSeconds)
                     (lineAt, atLine) = (Math.Round(t * SimConstants.TickSeconds, 1), Crew());
+                // Note 631: how near a stand came to being one too many, from the dawn line till it's in under the guns.
+                if (lineAt is not null && dawn is null && t % 15 == 0 && Waker.SecondsToShelter(host.World) > 0)
+                    closest = Math.Min(closest, Waker.SecondsInHand(host.World, speed: 0));
                 if (dawn is null && host.World.ActiveEnemies.OfType<Waker>().Any(w => w.Lead && w.Holds))
                 {
                     double gate = dawnRun.Route.Plan?.Terminus.GateM ?? dawnRun.Route.Length;
                     dawn = new DawnReport(lineAt ?? -1, atLine ?? [], Math.Round(t * SimConstants.TickSeconds, 1),
-                        Math.Round(gate - host.Train.Dynamics.Distance), Math.Round(host.Train.Dynamics.Speed, 1), Crew());
+                        Math.Round(gate - host.Train.Dynamics.Distance), Math.Round(host.Train.Dynamics.Speed, 1), Crew(), 0);
                 }
             }
             if (host.World.Holdouts is { } hs)
@@ -640,6 +649,7 @@ public static class Harness
                 Math.Round(host.Train.Vehicles.Where(v => v.Kind == VehicleKind.Cargo).DefaultIfEmpty().Average(v => v?.CargoIntegrity ?? 1), 3), rounds)
             {
                 Pairs = [.. d.Pairs],
+                FledAtDawn = host.World.FledAtDawn,
                 DerailCause = host.World.DerailCause,
                 Director = held,
                 AtTheCap = capped,
@@ -708,7 +718,7 @@ public static class Harness
                 host.HoldoutEvents.Count(e => e.Kind == Sim.Run.HoldoutEventKind.Freed),
                 host.HoldoutEvents.Count(e => e.Kind == Sim.Run.HoldoutEventKind.Released), toFree, freedBy),
             Falls = falls.Falls,
-            Dawn = dawn ?? (lineAt is { } la ? new DawnReport(la, atLine ?? [], -1, -1, -1, []) : null),
+            Dawn = dawn ?? (lineAt is { } la ? new DawnReport(la, atLine ?? [], -1, -1, -1, [], double.IsFinite(closest) ? Math.Round(closest, 1) : -1) : null),
             Reckonings = clients.Select(c => c.Bot).OfType<ConductorBot>().FirstOrDefault()?.Stops?.Reckonings,
         };
     }

@@ -61,6 +61,30 @@ public sealed class Director
         double u = new Pcg32(seed, 0x6EACE).NextDouble() * tuning.Pressure.GraceTierScale.GetValueOrDefault(key, 1);
         Grace = tuning.GraceMinSeconds + (tuning.GraceMaxSeconds - tuning.GraceMinSeconds) * Math.Clamp(u, 0, 1);
         _tierRate = tuning.Pressure.Tier.GetValueOrDefault(key, 1);
+        // The kinds not about tonight (note 635): each named kind's roll, in name order, on its own stream from the scrambled
+        // seed (a PCG stream's first draws barely move between neighbouring seeds), so the night's other draws are as they were.
+        var about = new Pcg32(unchecked(seed * 0x9E3779B97F4A7C15UL + 0x0BE5E), 0x0BE5E);
+        foreach (var (name, chance) in tuning.NightChance.OrderBy(k => k.Key, StringComparer.Ordinal))
+            if (about.NextDouble() >= chance)
+                _outTonight.Add(name);
+    }
+
+    readonly HashSet<string> _outTonight = [];
+
+    /// <summary>The kind's not about tonight (<see cref="DirectorTuning.NightChance"/>'s roll).</summary>
+    public bool OutTonight(EnemyKind kind) => _outTonight.Contains(Key(kind));
+
+    /// <summary>
+    /// The director may send <paramref name="kind"/> now (note 635): it's about tonight, it's under its night's cap
+    /// (<see cref="DirectorTuning.PerNight"/>), and it isn't one of the night things gone to ground before dawn
+    /// (<see cref="WakersTuning.NightFleesSeconds"/>).
+    /// </summary>
+    public bool Tonight(EnemyKind kind, World world)
+    {
+        string key = Key(kind);
+        if (_outTonight.Contains(key) || _t.PerNight.TryGetValue(key, out int cap) && Log.Count(l => l.Kind == kind) >= cap)
+            return false;
+        return world.Enemies is not { } et || !et.Wakers.Flees(kind) || !Waker.NightFleeing(world, et.Wakers);
     }
 
     readonly double _tierRate;
@@ -368,9 +392,9 @@ public sealed class Director
             foreach (var rule in Spawns.Rules)
             {
                 // Killed by the crew together tonight (note 288): it's done for the night.
-                if (!Allows(rule.Kind) || world.Slain.Contains(rule.Kind) || !Room(rule.Kind, active) || rule.Weight(ctx) is not { } w || w <= 0)
+                if (!Allows(rule.Kind) || !Tonight(rule.Kind, world) || world.Slain.Contains(rule.Kind) || !Room(rule.Kind, active) || rule.Weight(ctx) is not { } w || w <= 0)
                     continue;
-                options.Add((rule.Kind, w));
+                options.Add((rule.Kind, w * _t.Weights.GetValueOrDefault(Key(rule.Kind), 1)));
             }
         }
         // The budget saved up for what's still to come (the Passenger) holds, except that a pressed spawn may always spend what
@@ -989,7 +1013,7 @@ public sealed class Director
     public void Runs(World world, double elapsed, IReadOnlyList<Enemy> active, double noSpawnFinal)
     {
         var r = _t.Run;
-        if (!r.On || world.Enemies is not { } et || !Allows(EnemyKind.CinderHound))
+        if (!r.On || world.Enemies is not { } et || !Allows(EnemyKind.CinderHound) || !Tonight(EnemyKind.CinderHound, world))
             return;
         if (!_runSeeded)
         {
@@ -1125,7 +1149,7 @@ public sealed class Director
     public void Drops(World world, double elapsed, double noSpawnFinal)
     {
         var t = world.Enemies?.Draggers.Drop;
-        if (t is not { On: true } || !Allows(EnemyKind.Dragger) || _route?.Plan is not { } plan)
+        if (t is not { On: true } || !Allows(EnemyKind.Dragger) || !Tonight(EnemyKind.Dragger, world) || _route?.Plan is not { } plan)
             return;
         if (!_dropSeeded)
         {
@@ -1185,6 +1209,8 @@ public sealed class Director
         && e is not Gannet { Mode: GannetMode.Away }
         // The Mourners (note 362) hunt nobody: they come for the dead, and cost the caps nothing.
         && e.Kind != EnemyKind.Mourners
+        // Nor the Pickers (note 592): the stop's own, after its loot, and they cost the caps nothing.
+        && e.Kind != EnemyKind.Pickers
         // Nor a Brakeman out of sight under the train (note 364), waiting to come up again.
         && e is not Brakeman { Mode: BrakemanMode.Hidden }
         && (e.Phase is SpinePhase.Alert or SpinePhase.Telegraph or SpinePhase.Commit or SpinePhase.Grab or SpinePhase.Punish
@@ -1251,6 +1277,11 @@ public sealed class Director
                 EnemyKind.Knotter => new Knotter(0),
                 EnemyKind.Dave => new Dave(0),
                 EnemyKind.Jacob => new Jacob(0),
+                EnemyKind.Pickers => new Picker(0),
+                EnemyKind.Lodger => new Lodger(0),
+                EnemyKind.Householder => new Householder(0),
+                EnemyKind.HollowHouse => new HollowHouse(0),
+                EnemyKind.Hanger => new Hanger(0),
                 _ => new ChoirGhost(0),
             };
             d[kind] = (e.Zone, e.Sense, e.Want);
@@ -1394,7 +1425,7 @@ public sealed class Director
         {
             var ctx = new SpawnContext(world, et, this);
             foreach (var rule in Spawns.Rules)
-                if (Allows(rule.Kind) && rule.Weight(ctx) is > 0 and var w)
+                if (Allows(rule.Kind) && Tonight(rule.Kind, world) && rule.Weight(ctx) is > 0 and var w)
                     eligible.Add((rule.Kind, w));
         }
         var rng = new Pcg32(_seed ^ (ulong)(player + 1) * 0x9E3779B97F4A7C15UL, 0xB0A7);

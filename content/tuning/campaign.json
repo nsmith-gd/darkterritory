@@ -30,6 +30,10 @@
   // GDD §9 "add or remove railcars": a car taken off the consist brings back this share of what that car cost (spec F.2),
   // and a consist keeps the starting three at least. A shorter train works a lower tier when it drops below one (F.4).
   "sellCar": { "share": 0.5, "fewest": 3 },
+  // The director, the inbox, 12 Oct (note 632): "c, The campaign ends", roguelike. A train taken at dawn (the Wakers, GDD
+  // §8) ends the campaign: the save is closed, the company has no more trains for that crew, and the slot's next start is a
+  // new crew from a fortress. Off, the night is settled like any other lost one and the crew goes on (as before note 632).
+  "dawnEndsCampaign": true,
   // Spec E: 3 save slots per host.
   "saveSlots": 3,
   // Spec F.3. Cost is a share of what the next car costs now. "effect" multiplies tuning: tender (tender capacity),

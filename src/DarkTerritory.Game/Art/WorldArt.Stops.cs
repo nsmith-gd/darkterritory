@@ -63,8 +63,9 @@ public sealed partial class WorldArt
         if (route is null)
             return;
         var k = new Kit(_look, mesh) { SurfaceOrigin = new Vector3(W(eye.X), W(eye.Y), W(eye.Z)) };
-        foreach (var f in route.Features)
+        for (int fi = 0; fi < route.Features.Count; fi++)
         {
+            var f = route.Features[fi];
             if (f.Stop is not { } stop || f.End + 250 < from || f.Start - 250 > to)
                 continue;
             Roads(mesh, line, route, f, stop, eye, from, to, valleyDepth);
@@ -72,7 +73,8 @@ public sealed partial class WorldArt
             {
                 var b = stop.Buildings[i];
                 double along = f.Start + b.S;
-                if (along < from || along >= to)
+                // (A house a creature lives in is drawn by the scene, moved as it moves: WorldArt.Houses.)
+                if (along < from || along >= to || Lifted(route, fi, i))
                     continue;
                 k.Reseed(b.Variant * 7.1f + (float)(b.S * 0.13));
                 Building(k, line, route, f, stop, i, eye, valleyDepth);
