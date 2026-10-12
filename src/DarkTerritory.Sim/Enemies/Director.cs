@@ -70,6 +70,8 @@ public sealed class Director
     }
 
     readonly HashSet<string> _outTonight = [];
+    /// <summary>The cars the engine pulls, as of the director's last second (note 646: the engaged cap's share).</summary>
+    int _cars;
     readonly Dictionary<EnemyKind, int> _ownWay = [];
 
     /// <summary>
@@ -137,6 +139,7 @@ public sealed class Director
     /// </summary>
     public void Count(World world, double elapsed, IReadOnlyList<Enemy> active, double noSpawnFinal)
     {
+        _cars = world.Train.Dynamics.Consist.CarCount;
         if (world.CrewThisTick.Count > 0)
             Active = world.CrewThisTick.Count(c => c.State.Alive);
         // Counted whenever the orchestrator's on (the harness reads it); census steers only with its own flag (Steering).
@@ -170,7 +173,9 @@ public sealed class Director
             var o = _t.Orchestrator;
             if (!o.On)
                 return MaxConcurrent;
-            int byCrew = Math.Min((int)Math.Ceiling(Active * o.EngagedPerActive - 1e-9), (int)Math.Floor(Active * o.PerPlayer + 1e-9));
+            // A longer train has more of them under a threat at once (note 646), never more than perPlayer each.
+            double share = o.EngagedShare(_cars, _t.Pressure.ScaleCars);
+            int byCrew = Math.Min((int)Math.Ceiling(Active * share - 1e-9), (int)Math.Floor(Active * o.PerPlayer + 1e-9));
             return Math.Min(MaxConcurrent, Math.Max(1, byCrew));
         }
     }
@@ -597,7 +602,10 @@ public sealed class Director
         double busy = 1 / (1 + p.Busy * engaged * Math.Max(0, 1 - p.BusyFade * Math.Clamp(progress, 0, 1)));
         // Note 327 (App. F.3): the crew off the train, on foot, draw it on: the share of the living afoot (Watch, this second).
         double afoot = _t.Afoot.On ? _t.Afoot.PerSecond * AfootShare : 0;
-        double rate = _tierRate * conditions * relief * busy * escalation * (p.BasePerSecond + quiet + loud + cargo + afoot);
+        // By the crew in the night (who joined it, alive or not: the relief valve has the dead) and the cars the engine
+        // pulls (note 646).
+        double scale = p.Scale(Math.Max(1, Crew), world.Train.Dynamics.Consist.CarCount);
+        double rate = _tierRate * scale * conditions * relief * busy * escalation * (p.BasePerSecond + quiet + loud + cargo + afoot);
         _pressure = Math.Min(p.Max, _pressure + rate);
         Terms = new PressureTerms(rate, escalation, _sinceThreat, loud, cargo, relief, conditions, afoot);
     }
