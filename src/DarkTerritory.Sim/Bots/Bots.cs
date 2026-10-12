@@ -1491,6 +1491,7 @@ public sealed class RoofWalkerBot(int seed, ColdTuning? cold = null, StopHand? j
             _warm.FireOnTheWay = (car, from, end) => FireOnTheWay(world, car, from, end);
             _warm.LeaveOpen = door => door is 0 or 1 && world.Train.Boiler.Ruptured;
             _warm.Passing = (car, door) => AtTheDoor(world.Train, Crew, car, door);
+            _warm.ShutBehind = (car, door) => ShutBehind(world.Train, Crew, car, door, _warm.LeaveOpen);
         }
         // The driver's dead (note 399): forward to take the controls, before anything else.
         if (Relieve(self, world, tick, out aimed) is { } relieving)
@@ -1794,6 +1795,21 @@ public sealed class RoofWalkerBot(int seed, ColdTuning? cold = null, StopHand? j
             }
         }
         return false;
+    }
+
+    /// <summary>
+    /// Note 633 (the director, the inbox, 12 Oct: a lit car shut up keeps the Climbers out): a door to shut behind on the way out
+    /// of that car. Its lamp's lit (a dark car shut up they force through the roof, a breach), no crewmate's still in it, and it
+    /// isn't to be left open (<see cref="WarmUp.LeaveOpen"/>).
+    /// </summary>
+    public static bool ShutBehind(TrainOnLine train, IReadOnlyList<(int Id, PlayerState State)> crew, int car, int door, Func<int, bool>? leaveOpen = null)
+    {
+        if (car <= 0 || car >= train.Vehicles.Count || !train.Vehicles[car].LampLit || leaveOpen?.Invoke(door) == true)
+            return false;
+        foreach (var (_, c) in crew)
+            if (c.Alive && c.Parent == car && c.Surface == Surface.Deck && PlayerMotor.Indoors(c, train))
+                return false;
+        return true;
     }
 
     /// <summary>A Climber running alongside this far (m) from a gap is plainly making for it.</summary>
@@ -3611,7 +3627,7 @@ public static class KitRun
 
 public sealed class WarmUp(ColdTuning cold, double goInAt = 0.6)
 {
-    enum Step : byte { Off, ToEnd, Drop, ToDoor, Open, In, Shut, Warm, Reopen, Out }
+    enum Step : byte { Off, ToEnd, Drop, ToDoor, Open, In, Shut, Warm, Reopen, Out, ShutBehind }
 
     /// <summary>Come out this warm.</summary>
     const double WarmEnough = 5;
@@ -3877,6 +3893,10 @@ public sealed class WarmUp(ColdTuning cold, double goInAt = 0.6)
                 // the walker climbs the end ladder as it does out of any gap.
                 if (self.Surface == Surface.Coupler || self.Parent != _car)
                 {
+                    // Note 633: the door shut behind it, on a lit car with nobody left in it (ShutBehind).
+                    int door = _outEnd > 0 ? RearDoor : FrontDoor;
+                    if (self.Surface == Surface.Coupler && train.Vehicles[_car].DoorOpen(door) && ShutBehind?.Invoke(_car, door) == true)
+                        return Next(Step.ShutBehind);
                     _step = Step.Off;
                     return null;
                 }
@@ -3885,11 +3905,30 @@ public sealed class WarmUp(ColdTuning cold, double goInAt = 0.6)
                 if (!train.Vehicles[_car].DoorOpen(_outEnd > 0 ? RearDoor : FrontDoor) || !Way(train, _outEnd))
                     return Next(Step.Reopen);
                 return Reach(self, new Double3(_doorX, 0, _outEnd * (_l + 0.6)), _outEnd > 0 ? Math.PI : 0, Step.Out);
+            case Step.ShutBehind:
+                {
+                    // Note 633 (the director, the inbox, 12 Oct: a lit car shut up keeps the Climbers out): on the plate, turned
+                    // back to the door it came out by and shut it. Shut, or someone in there after all, or it isn't the door
+                    // in front of it: on up the ladder as before.
+                    int door = _outEnd > 0 ? RearDoor : FrontDoor;
+                    if (self.Surface != Surface.Coupler || !train.Vehicles[_car].DoorOpen(door) || ShutBehind?.Invoke(_car, door) != true || _ticks > ShutBehindTicks)
+                    {
+                        _step = Step.Off;
+                        return null;
+                    }
+                    double back = _outEnd > 0 ? 0 : Math.PI;
+                    if (!Aligned(self, back))
+                        return new PlayerIntent { LookYaw = Turn(self, back) };
+                    return CrewActions.Nearest(self, train) == InteractableKind.Door ? new PlayerIntent { Buttons = PlayerButtons.Use } : Abandon();
+                }
             default:
                 _step = Step.Off;
                 return null;
         }
     }
+
+    /// <summary>The longest it stands on the plate shutting the door behind it (note 633), counted from going in.</summary>
+    const int ShutBehindTicks = GiveUpTicks - SimConstants.TickRate;
 
     const int FrontDoor = 0, RearDoor = 1; // doors are listed front (−Z) then rear (+Z)
     /// <summary>The share of a roof walk a walker steps off the end onto a rear platform at (0.7 m/s: 0.55 m in the fall).</summary>
@@ -4004,6 +4043,12 @@ public sealed class WarmUp(ColdTuning cold, double goInAt = 0.6)
     /// till it gave up 25 s later, again and again, with Fire Flies on a lamp two cars back (frontier:7, note 188).
     /// </summary>
     public Func<int, int, bool>? Passing { get; set; }
+    /// <summary>
+    /// Out on the plate, whether to shut that door of that car (car, door index) behind it (note 633; the director, the inbox,
+    /// 12 Oct: a lit car shut up keeps the Climbers out, enemies.json climbers.litShutCarKeepsOut): its lamp lit, nobody left
+    /// in it (they'll be out the same way, or it's theirs), and not a door to be left open. Set by the bot.
+    /// </summary>
+    public Func<int, int, bool>? ShutBehind { get; set; }
 
     bool Plan(in PlayerState s, TrainOnLine train)
     {

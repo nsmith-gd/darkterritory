@@ -75,7 +75,7 @@ public class BoardingFirstTests
     [Fact]
     public void WithTheDirectorsFlagALitCarShutUpTightKeepsClimbersOutAndAnOpenDoorLetsThemIn()
     {
-        // enemies.json climbers.litShutCarKeepsOut, off by default (the director's call, note 286).
+        // enemies.json climbers.litShutCarKeepsOut: the director's call (note 286), on since the inbox of 12 Oct (note 633).
         var on = E with { Climbers = E.Climbers with { LitShutCarKeepsOut = true } };
         var shut = new Night(5, speed: 8, enemies: on);
         var over = MountsAndGoesIn(shut);
