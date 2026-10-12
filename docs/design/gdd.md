@@ -1,5 +1,5 @@
 # DARK TERRITORY
-## Game Design Document — v1.5, October 2026
+## Game Design Document — v1.6, October 2026
 
 **Two to eight players crew an armoured freight train through a corrupted wilderness. Load what you can. Deliver what survives.**
 
@@ -7,11 +7,27 @@
 
 Interactive version, with the roster explorer and director tools: [claude.ai/artifact/PrfaZjyZb1rWcWWuiPm1Dx](https://claude.ai/artifact/PrfaZjyZb1rWcWWuiPm1Dx). It opens only for people it has been shared with.
 
+**v1.6 changes — town to town, and the end of the night (the director's play-test of 9 October; built 9–11 October).**
+- **Dawn is seen and felt coming.** For the last three minutes a cold line comes up on the sky behind the train, the ground thuds and the lamps swing; at dawn the Wakers heave up out of the land in earth and dust and come down the line. The terminus's guns fire on any that come near, and they stop 300 m short of its gate (§8; notes 588, 599).
+- **Town to town.** The town a night ends in is the town the next one leaves from, built the same to the last person and paper. Delivered, its people talk, its board and papers read, as the departure town's do; and between nights the crew look out on it from its square while the host picks the next contract, the loading card drawn over it (§3.1, §9; notes 591, 600, 603, 604).
+- **The crew goes on together**, joiners and bots: when the host goes on to the next night, everyone aboard follows it by way of the town's card, and the same bots crew it (§9; notes 606, 611).
+- **Monsters brought into town.** Anything still aboard as its car comes in through the gate is fought in the yard by the town's guns and guards. The night pays the town's monster brigade, two of its people are hurt, and a house burns; the town remembers its burnt houses on the next visit (§3.1, §9, D.9; notes 589, 608, 612).
+- **The quiet doors.** Nothing new comes within 1,200 m of a town's gate, so a crew can stop short, clear the train and bring it in; the bots do (§9, B.1; notes 590, 605, 610).
+- **A fall hurts by its height**, and a run over open ground isn't a landing: from 5.5 m a knock, from 7.5 m death (§23; note 573).
+- **§1's table** has the night's length v1.5 set: a run of about 17 minutes, dawn at 24 (note 554).
+- Touches §1, §3.1, §8, §9, §23, B.1 and D.9.
+- **Not yet**, of what these promise:
+  - the night's creatures going to ground in the last minute before dawn (wakers.md §2), and the far hills moving against the line;
+  - the arrival town's sounds, and the screams and fire of a creature brought in (AU1's: the town ambience is the departure town's);
+  - a town's standing lowered by what's been brought into it (only its burnt houses are remembered);
+  - the guards running out to the yard (they're at their places round the creature at once);
+  - a joiner leaving the wait for the host's next night by hand (it gives up after a while, back to the menu).
+
 **v1.5 changes — the director's play-tests of 5–7 October.**
 - **Boarding-first.** Nothing acts inside the train unless it boarded: each creature by its own rule at a known point, with a telegraph and a counter, at its own speeds. A hauling train is safe from most creatures, not all; stops, facilities and tight bends are where things get on (§21, App. A, F.1 Decided).
 - **A derailment is the driver's mistake.** The Sleepers are retired. Every bend that can derail the train is boarded and on the cab map with its speed, and the cab hears and sees the stress before it goes. Every night carries its tier's hard bends. The Switchman sends you down a dead line, and only running off its end derails you (§21, §22, A.8).
 - **A derailment commits.** However slow it comes off, the first car is thrown and every car after goes over, one after another (App. E, F.3).
-- **One night length for every tier:** 24 km and dawn at 51 minutes. A deeper tier is denser, not longer (§11).
+- **One night length for every tier:** 7 km, three stops and dawn at 24 minutes, an average run of about 17 (the director, 9 Oct 2026, note 554; was 24 km and 51 minutes). A deeper tier is denser, not longer (§11).
 - **The director runs on pressure.** Quiet, loudness, cargo and the night's depth build it; the grace is 20–90 s, picked per night; the night's first threat answers something a crewmate did, and the report names it (B.1).
 - **The orchestrator** (outlined): threats planned against the players active now. Built so far: the budget from the crew alive, and a cap on threats at once by it (B.1, orchestrator.md).
 - **Something to do between stops.** The hound run, a stream of Cinder Hounds a fast train draws for the guns to answer one at a time; and the first upkeep jobs: the hot box, an axle box running dry that's greased from the gap or the ground before it slows the train and catches, a car's lamp guttering, trimmed inside before it goes out, a coupling working loose, knocking in its gap until the wrench tightens it or the rake parts behind it, and powder to the guns: a gun's ready rack of six, refilled by a charge carried up from the guard van's powder locker (B.3, C.3, F.3).
@@ -101,11 +117,17 @@ Interactive version, with the roster explorer and director tools: [claude.ai/art
 |---|---|
 | **Genre** | Co-operative survival horror |
 | **Players** | 2–8, ideal at 3–4 |
-| **Session** | 25–45 minutes per run |
+| **Session** | About 17 minutes a run, dawn at 24 (every tier: note 554) |
 | **Perspective** | First person |
 | **Platform** | PC / Steam, premium |
 | **Price** | $9.99–$14.99 |
 | **Comms** | Proximity voice — a hard dependency, not a feature |
+
+### The fantasy *(the director, 9 Oct 2026; ARCHITECTURE §8 note 577)*
+
+> "The fantasy is we are a crew sent out into a dangerous world at night when most of the really bad monsters are asleep, we go and pick up cargo and loot abandoned villages to bring to towns. We're like merchant bandits of the rails that keep these towns alive. The towns though dont get too attached because these crews always die eventually on the job."
+
+Everything else serves this. The night is the window: the worst of the Territory sleeps, and dawn is the hour it wakes (§8). The train leaves the gate **empty**; the crew fill it, buying freight at the stops and taking what they can carry out of the dead villages, and only what they bring through the gates is paid (§9, §19, App. D). The towns need the crews and say so in scrip, not in grief (§9 Arrival, §23.1). A night that brings nothing home earns nothing.
 
 ### Design pillars
 
@@ -230,12 +252,15 @@ Use talks to someone, and Use again hears their next line. They turn to face you
 
 **Mystery is seeded, not explained.** A few threads run through every town, a scrap or two each: the fall, the lost trains (the night mail, "still due"), the towns that stopped answering, the sea, the penal cars, Dispatch, and the clerk's fees. None of them is ever explained.
 
+**Town to town** *(the director, 9 Oct 2026: "the town that we end in in a run should be the same town that we begin in in the next run ... so that you feel like you are still living up this fantasy of I'm going from town to town to town"; notes 591, 600, 603, 604)*. The terminus is a town of its own, and it's the town the next night leaves from: the same name, custom, streets, people and papers. Delivered, its people talk and its board reads as the departure town's do. Between nights the crew look out on it from its square while the host picks the next contract from its board, and the loading card is that town's ("FORT BOUDREAU · BUILDING THE NIGHT AHEAD"). A night not delivered leaves the crew where they were, and so does one delivered to a dead line's silent settlement: nobody lives there to leave from.
+
+**A town remembers** *(notes 608, 612)*. A creature ridden in through the gate (§9) is fought in the yard: the gatekeeper and guards turn out round it, pieces up, with the wall guns. Each one brought in sets a house nearest the gate alight, and it burns that night. The town keeps its burnt houses: they're burnt out when the crew next arrive, and when they next leave from it, and the gatekeeper and guards say so.
+
 **Everything is solid and safe.** The square, the houses (an open one through its doors), their furniture and the people stand where they're drawn, and the fortress's walls step back round the square. The yard is a safe space until the gate (§9).
 
 **Not yet** (for the next passes):
 - fish sheds, fences, granite and lobster traps between the houses;
 - buying, upgrading and turning loot into scrip in the town itself, not the menu;
-- the terminus as a town of its own, and the town you arrive at becoming the one you leave from;
 - townspeople who move about, and faces of their own (they wear the crew's model);
 - upstairs in the open houses;
 - things everyone hears when one person does them (ringing the bell);
@@ -282,9 +307,11 @@ A very few people live outside the walls and aren't anybody's prey. They are rar
 
 The players are freight crews. Not elite soldiers. Not monster hunters. Not chosen heroes.
 
-They are the people willing to take heavily armoured locomotives through the Territory and keep the surviving settlements connected. It is dangerous work and extraordinarily valuable. Experienced crews become wealthy because everyone needs them and few survive long enough to get good at it.
+They are the people willing to take heavily armoured locomotives through the Territory and keep the surviving settlements connected: merchant bandits of the rails, who go out at night while the worst of it sleeps, fill empty cars with freight bought at the stops and loot taken from abandoned villages, and bring it to the towns that live on it (§1, *The fantasy*). It is dangerous work and extraordinarily valuable. Experienced crews become wealthy because everyone needs them and few survive long enough to get good at it.
 
 > **Keep the train moving. Get the cargo through. Come home richer than you left.**
+
+The towns don't get attached to them. Crews always die on the job eventually; the yard clerk reads a lost crewmate's fee in the voice he uses for the coal (§9 Arrival).
 
 ## 5. The rail network
 
@@ -315,6 +342,10 @@ Different creatures react to different parts of that signature. Some avoid it. S
 The crew must reach the destination before dawn — not because monsters disappear, but because **dawn reopens the main railway network.** Passenger trains, industrial traffic and scheduled freight begin moving.
 
 Your crew operates inside a dangerous nighttime freight window. Miss it and the railway itself becomes a threat, because dispatch can no longer guarantee the line ahead is clear.
+
+**What gets up at dawn** *(the director's decision, 9 Oct 2026: "The new Dawn ending design is excellent. This is exactly what I was looking for. The gargantuan creatures, the picking up of the train, especially with you in it, you should experience that if you're still playing. And then the tension before it is really, really important"; docs/design/creatures/wakers.md, note 588)*. The night is the crew's because the worst of the world sleeps through it. The crews call them the Wakers. In the last minutes before dawn the horizon behind the train goes cold and light, the ground thuds, and long low calls come from behind the hills. At dawn they rise out of the land far behind the train, and come down the line after it, slow, then faster than any engine. A train that gets in under the terminus's guns is safe: they stop short of the walls. One that doesn't is caught. The Waker takes the last car and lifts, and the train goes up from the rear car by car, the crew inside it seeing the land fall away, and then it eats it. A crew near the end at dawn can race them in; a crew far out almost never does. ~~The line goes live and the night is lost two minutes later~~ (v1's dawn, kept as a mod's `wakers.enabled: false`: the example mod, Late Dispatch, is that dawn held twelve minutes, note 625).
+
+**Seen and felt coming** *(note 599; the director: "the tension before it is really, really important")*. For the last three minutes before dawn (`wakers.stirSeconds`, 180) a cold line comes up low on the sky behind the train, where they'll rise: nothing at first, then a wide dim bruise, and by dawn a thin grey band clear of the treeline. The ground thuds, and in the cars the lamps swing and the coal slides. At dawn each Waker heaves up out of the land in three surges, earth and boulders shed off its back in a bank of dark dust, and every footfall raises dust as it comes down the line. **The town's guns fire on any that come near the walls**, and they stop 300 m short of the gate (`wakers.stopShort`): a train whose last car is in past that is safe.
 
 ---
 
@@ -349,7 +380,11 @@ The run, and every consequence in it, begins as the train goes through the gate 
 ### Arrival
 Eventually the crew sees lights. Then walls. Then cannon towers. The gates open and the train crosses back into civilization.
 
-**Everything still attached to the locomotive counts.** Cargo is unloaded and paid into the crew's shared wallet. Bodies brought home earn back most of their crew-loss fee. Lost cars, powder, equipment and unrecovered crew become the cost of the run (Appendix D.9).
+**Everything still attached to the locomotive counts.** Cargo is unloaded and paid into the crew's shared wallet. The cars left the fortress empty, so every load paid is one the crew put aboard; a train driven straight home earns nothing and still pays its coal and repairs (note 575). Bodies brought home earn back most of their crew-loss fee. Lost cars, powder, equipment and unrecovered crew become the cost of the run (Appendix D.9).
+
+**The crew goes on together** *(notes 606, 611)*. When the host goes on to the next night, everyone aboard and waiting follows it, by way of the town's card ("GRIEVE · THE HOST IS PICKING THE NIGHT AHEAD"), not their menus, and the bots the night was crewed with crew the next.
+
+**Don't bring them in** *(the director, 9 Oct 2026: "It also encourages players to plan a little extra time at the end of the run to stop the train, clear the monsters, and then bring it in"; notes 589, 590)*. The gates stay open. Anything still aboard a car as it comes in through the gate is brought into town: the town fights it in the yard among the houses for a few seconds and puts it down, and whatever it breaks meanwhile is the night's. Each one costs the night the town's **monster brigade fee** (half the tier's per-car value, as a crew-loss fee: D.9), two of its people hurt, and a house burnt (§3.1). Nothing new comes within 1,200 m of the gate (B.1), so a crew can stop there, clear the train and bring it in clean. The bot driver does: it stands short of the gate while the crew clears the train, and the bots corner the Brakeman there (notes 605, 610).
 
 **The settlement does not mourn.** A yard clerk tallies the run over the radio as the cars come through: cargo by the car, bodies by the body, each fee read out flat, in the same voice as the coal. The town values your friend at 75%, says so, and moves on to the next line. This is the world's indifference, and it is the punchline to every failure that came before it (§23.1).
 
@@ -388,7 +423,7 @@ Successful deliveries earn money. Money buys capability. Capability allows more 
 
 You aren't picking a difficulty level. You're travelling farther from civilization.
 
-**Every night is the same length** *(the director's decision, 2026-10-06)*: "The time a run takes should always be the same. Difficulty scales not by time but by monsters and density of challenges." Every route is one length to the same dawn (systems spec B.8: 24 km, dawn in 51 minutes). A deeper tier sends more creatures over it and packs more into each kilometre: harder grades and bends, junctions, washouts, weak bridges and brass. Every tier has the same three stops, since a stop is time.
+**Every night is the same length** *(the director's decision, 2026-10-06)*: "The time a run takes should always be the same. Difficulty scales not by time but by monsters and density of challenges." Every route is one length to the same dawn (systems spec B.8: 7 km, dawn in 24 minutes, the transit's 15 and three minutes for each of the three stops; the director's shorter nights of 9 Oct 2026, note 554, were 24 km and 51 minutes). A deeper tier sends more creatures over it and packs more into each kilometre: harder grades and bends, junctions, washouts, weak bridges and brass. Every tier has the same three stops, since a stop is time.
 
 ---
 
@@ -492,7 +527,7 @@ Not a punishment mechanic — the whole tension of the sequence. The person on t
 
 Each stop of a kind has the module it's named for and two to four in all, drawn for the night (spec D.1's module grammar; note 449). One mine head has its lift and a winch, the next its lift, tipple and crates; a switchyard or a slaughterhouse may have a winch; a wreck yard, crates.
 
-**Every facility is optional. Skipping them is safe and poor.** The payout exists to force bad decisions, not to reward good ones.
+**Every facility is optional. Skipping them is safe and pays nothing:** the train leaves the fortress empty, and only what the crew load at the stops and carry out of the villages is paid at the gates (§1 *The fantasy*; the director, 9 Oct 2026, note 575). The payout exists to force bad decisions, not to reward good ones.
 
 ## 19. Cargo
 
@@ -735,6 +770,7 @@ Nothing there is a mystery. It's still a disaster.
 **Three things kill outright:**
 
 - **Jumping at speed** — above 16.5 m/s. Below it, landing is a knock. The train is a trap by design
+- **Falling** — a drop from 7.5 m kills, and from 5.5 m it's a knock: off a bridge's deck, not off a car's roof (note 573). A run over open ground, down a bank or a dip, is never a landing
 - **Getting left behind** — cold and distance do the rest
 - **Derailment** — kills the entire crew at once, in slow motion, to opera (Appendix E)
 
@@ -748,6 +784,8 @@ Nothing there is a mystery. It's still a disaster.
 | Radio breaks | Shouting down the length of a moving train |
 | Cannon fouls | Someone clears it by hand, under fire |
 | Car catches fire | Grab the extinguishers or abandon it |
+| A car battered and left (§23.3) | It works itself apart as it runs and its freight spills out of it; mend it with the wrench, or it comes off its rails and takes everything behind it |
+| The engine battered and left (§23.3) | It loses its pull and its brake; mend it with the wrench, or it breaks down and the crew are stranded |
 | Engineering kit left in car four | Somebody's going out there, and the kit is on a body (§12) |
 | Crew lost on the ground | Two cannons, one gunner, pick a direction |
 
@@ -760,8 +798,8 @@ Nothing there is a mystery. It's still a disaster.
 | **Delivered** | The engine stops at the terminus on the main line |
 | **Derailed** | The train leaves the rails. Everyone dies, and Appendix E plays |
 | **Crew lost** | No living crew remain |
-| **Dawn missed** | Still out when the line goes live (§8) |
-| **Stranded** | The boiler is ruptured and the engineering kit is lost (§23.2) |
+| **Dawn missed** | Still out at dawn: the Wakers take the train (§8) |
+| **Stranded** | The boiler is ruptured and the engineering kit is lost (§23.2), or the engine has broken down (§23.3) |
 
 ### Boiler rupture
 
@@ -800,6 +838,21 @@ A kit that comes to rest outside the walkable corridor is relocated like a body 
 **Settlement.** A stranded night pays like any failed night: no cargo, no body refunds, and crew-loss fees for anyone who died. The settlement sends a dawn freight to tow the train in, and bills for it: a **recovery fee** of 0.5 × the tier's per-car value. The locomotive and every car still coupled come home. The living crew come home too, and aren't charged a crew-loss fee. Appendix E.9 covers the outro.
 
 **Death takes you out of the night, not out of the session.** The dead watch their crew and talk among themselves, wait in a queue, and come back through a **Holdout** at the next halt or yard, if the crew stops for them. Their bodies stay out there, and the settlement pays the crew to bring them home. See Appendix D.
+
+### 23.3 Damage let go *(the director, 9 Oct 2026; ARCHITECTURE §8 note 576)*
+
+*"We also need the cars and locomotive being busted to have clear model differences and have real consequences. If players dont fix the ship in sea of thieves the ship goes down and you lose everything. If players dont fix the train here seemingly nothing happens."*
+
+A knock costs a repair bill. A car or the engine battered past half its shell, and left, goes on to cost the night (train.json `failing`):
+
+| Stage | A car | The engine |
+|---|---|---|
+| **Holding** (over half) | Dented, called out where the wrench mends it (note 301). Nothing more | Leaking steam, knocking (the art and the audio's) |
+| **Failing** (under half) | Works itself apart as it runs, faster the faster it runs: about 200 s at line speed from half to nothing. Its freight spills out of it as it goes, about a car-load in the same time. Dust and splinters off its sides, sparks where its plate grinds, its timbers groaning; "THE CAR'S COMING APART" inside it, and "CAR n COMING APART" in the cab | Its pull falls with its shell, to about a third, and its brake to under half. Only while it's pulling. "THE ENGINE'S FAILING" on it; dark smoke off its flanks |
+| **Breaking** (under a fifth) | The last warning: a shower of sparks, the groaning louder, the HUD flashing | "THE ENGINE'S BREAKING DOWN" |
+| **Gone** | It comes apart: off its rails, the train parted ahead of it, it and everything behind it left on the line. Its freight is gone. The report says so | It breaks down: no power at all. Once it's at a stand, the night ends **Stranded** (§23.2's tow, its fee) |
+
+Nothing comes of it standing, nor in the fortress. The wrench at the dent mends any of it, half a shell back in about 12 s (note 301); a car a Car Hugger has eaten into can only come back to what's left of it. The bots send a walker with a wrench to a failing car before a lamp or a mail bag. The model's visible stages are the art's (DamageKit's three, asked to be made clearer on the art checklist).
 
 ### 23.1 Failure has to be funny
 
@@ -1756,7 +1809,7 @@ Enforced regardless of budget:
 
 **Post-event cooldown.** After a spawn, a trough of at least 25–45 s (design decision, 2026-10; was 30–60 s). Sustained pressure reads as noise; pressure with troughs reads as rhythm. The spawn's relief of the pressure makes the trough; the cooldown gives way only when the pressure is well past its threshold.
 
-**Terminus approach.** One deliberate spike, then a hard stop 500m out. Nothing may spawn inside the final approach — the last stretch is for surviving what's already aboard.
+**Terminus approach.** One deliberate spike, then a hard stop 1,200 m out (was 500 m; the director, 9 Oct: a crew stopped outside the doors to clear the train has to be able to clear it, note 590). Nothing may spawn inside the final approach, nor come for the train there (the Stoker, the Marsh, the lineside moose) — the last stretch is for surviving, and clearing, what's already aboard.
 
 ### Contradiction seeding
 
@@ -2144,7 +2197,9 @@ Breach noise counts because it is the living's action. A crew that smashes a loc
 | Dead lines | 1,100 | 550 | 413 | −137 |
 | Deep territory | 1,700 | 850 | 638 | −212 |
 
-**Settlement:** `wallet += delivered cargo − running costs − Σ crew-loss fees + Σ body refunds`
+**Settlement:** `wallet += delivered cargo − running costs − Σ crew-loss fees + Σ body refunds − Σ monster brigade fees`
+
+**Monster brigade fee** (notes 589, 608): charged for each creature brought into town through the gate (§9), the same as a crew-loss fee: half the tier's per-car value (run.json `broughtIn.fee`, 0.5).
 
 **Silent-settlement termini** (Dead lines) pay cargo and body refunds as normal, credited by the fortress that issued the contract.
 
@@ -2438,19 +2493,21 @@ Nobody died, so there's no opera. The joke is how little anyone cares.
 
 ## E.10 Tunables
 
+The director, 9 Oct 2026, playtest (note 579): "When derailment happens things need to slow right down. They need to show the derailment happening in slow motion with people being thrown all over the place and cars basically being blasted off the tracks in a comedic way." The fling, kick and spin went to the top of their ranges and the slow motion down; outside the film, the live wreck plays its first 6 s at 0.2× (the replay shows it again) and every car is blasted up off the rails (tuning/wreck.json `slowSeconds`, `slowRate`, `blastUp`, `blastRoll`).
+
 | Tunable | Default | Range |
 |---|---|---|
 | Pre-sim length | 6s | 4–8s |
 | Substeps | 4 | 2–8 |
 | Coupling break strain | — | Set in feel-testing |
-| Fling multiplier | ×1.6 (5 Oct; was ×1.3) | ×1.0–2.0 |
-| Upward kick | 3–5 m/s (5 Oct; was 2–4) | 0–6 m/s |
-| Spin | 3.5–7 rad/s (5 Oct; was ≤4) | 0–8 |
+| Fling multiplier | ×2.0 (9 Oct; was ×1.6, ×1.3) | ×1.0–2.0 |
+| Upward kick | 4–6 m/s (9 Oct; was 3–5, 2–4) | 0–6 m/s |
+| Spin | 4.5–8 rad/s (9 Oct; was 3.5–7, ≤4) | 0–8 |
 | Ejection cap | 30 m/s | 20–40 |
 | Minimum-kick speed | 6 m/s | 4–10 |
 | Bystander distance | 25 m | 15–40 |
-| Base slow motion | 0.4× (5 Oct; was 0.25×) | 0.1–0.5× |
-| Peak slow motion | 0.15× (5 Oct; was 0.1×) | 0.05–0.25× |
+| Base slow motion | 0.3× (9 Oct; was 0.4×, 0.25×) | 0.1–0.5× |
+| Peak slow motion | 0.1× (9 Oct; was 0.15×, 0.1×) | 0.05–0.25× |
 | Player shot | 4s (5 Oct, take 3; was 2.5s) | 1.5–5s |
 | Player-shot block cap | 32s (5 Oct, take 3; was 16s) | 10–40s |
 | First person | to the death + 3.8s, 4.5–9s (5 Oct, take 3) | — |
@@ -2653,7 +2710,7 @@ Further decisions (the director, 6 Oct 2026):
 - **The Track Doll may haunt the train.** It's a supernatural apparition, a deliberate exception to the boarding rule. *Done (notes 268, 269).*
 - **The Stoker** is drawn to the train only when the firebox runs above a set heat; it seeks heat. Once beaten, it stays gone for at least a couple of minutes. If it gets in, the consequences must be larger and more urgent. Running hot has to be a real trade-off. *Done (notes 263, 271).*
 - **Car lamps start lit.** Their pull on Fire Flies is rare, and only while the car is stopped. *Done (note 269).*
-- **Run length** is to be set by simulation sweeps (T125). *Set: 24 km, every tier, a 51 min dawn; `dt linegen sweep` passes at it (note 270).*
+- **Run length** is to be set by simulation sweeps (T125). *Set: 24 km, every tier, a 51 min dawn; `dt linegen sweep` passes at it (note 270). Then 7 km, every tier, a 24 min dawn with three stops (the director, 9 Oct 2026, note 554); `dt linegen sweep` passes at it.*
 - **Solo:** a solo player can finish one to three runs before it gets seriously hard and they realise they need friends. You can teach yourself the game solo, but you can't really advance solo. The solo finish target will be tested later. *Tested (note 300): with two bot bugs fixed (a lone driver stranded on a car's landing, and a train stood on the points it needed thrown), a bot alone delivers every night swept: Local and Frontier at 3 and 6 cars, Frontier and Dead Lines at 10. What solo pays is income, about a third of a crew's. The bot never forgets the fire; people alone will find it harder. `balance.json` `solo` judges the target; what should make solo seriously hard is the director's call (four options in note 300).*
 
 - **Quiet stretches are counted in kilometres, not seconds.** A stretch of line holds the same danger whatever the train's speed. A time backstop keeps a stopped train from waiting it out. *Done (T125): the director's quiet pressure ramps over 1.26 km of line run since a threat was engaged, or 120 s if that's sooner (note 270).*
@@ -2681,7 +2738,7 @@ Further decisions (the director, 6 Oct 2026):
   - **Driven off, or killed together** *(the director, 7 Oct 2026)*: "They should be driven off by rules but they should also be able to be killed like in Lethal Company if the team coordinates effectively." Following a creature's rule drives it off (the normal answer, a break: it can come back); a coordinated team can kill it, which takes several of the crew striking at once with the setup its rule asks for, and a lone player swinging never gets there. Killing is riskier and costlier than driving off, and rewarded: it doesn't come back that night, and the incident report names the gang. *Done for the Grumbler, the Gaunt, the Passenger, Climbers and the Choir's ghosts (note 288; enemies.json `coordinatedKill` and each one's `drivenOff`).*
 - **Fire is a grid.** Each car's surfaces (floor, walls, roof; never mid-air) are cut into large cells of 1–2 m. Fire spreads cell to cell, the extinguisher puts out the cell you aim at, and burnt cells char the textures. *Done (note 267; systems spec B.11).*
 
-**Decided** (the director, 6 Oct 2026): "The time a run takes should always be the same. Difficulty scales not by time but by monsters and density of challenges." One night length for every tier; §11 Route tiers and systems spec B.8 (run length) to change. *Done (T125): one 24 km line and a 51 min dawn on every tier, the tiers' counts and creature budgets now their density (§11, spec B.8; ARCHITECTURE.md note 270).*
+**Decided** (the director, 6 Oct 2026): "The time a run takes should always be the same. Difficulty scales not by time but by monsters and density of challenges." One night length for every tier; §11 Route tiers and systems spec B.8 (run length) to change. *Done (T125): one 24 km line and a 51 min dawn on every tier, the tiers' counts and creature budgets now their density (§11, spec B.8; ARCHITECTURE.md note 270). Since 9 Oct 2026 the one line is 7 km with a 24 min dawn (note 554).*
 
 **Decided** (the director, 7 Oct 2026): "The switch itself shouldn't cause derail, it should be lines that lead nowhere." The Switchman never derails the train by throwing points under it; it throws a junction ahead and the train goes down a dead line. The crew notice (the wrong lamp, the figure at the lever, the route card), stop, back out and set the switch back by hand. A derailment comes only from the driver running off the end of the dead line, warned in the cab in time to stop. §21 and App. A.8 changed. *Done (note 286).*
 

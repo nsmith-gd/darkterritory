@@ -65,7 +65,12 @@ public static class Protocol
     //     snapshot carries a flags byte after the queued count, bit 0 saying it's one of every other (note 557).
     // 47: Dave (note 570): an enemy kind of his own, and a death cause.
     // 48: Jacob (note 572): an enemy kind of his own.
-    public const int Version = 48;
+    // 49: the controls belong to whoever's working them (note 574): the Hello carries a flags byte after the outfit (bit 0, a
+    //     bot), and the controls record carries who holds them and whether that's a bot.
+    // 50: the crew goes on together (note 606): CarryOn, host to client, carries the town the crew's going on from.
+    // 51: the towns remember (notes 608, 612): a town's burnt houses ride on the route spec after its seed, and the
+    // campaign's in the session's setup, so every machine builds both towns with them.
+    public const int Version = 51;
 }
 
 public enum MessageType : byte
@@ -118,6 +123,12 @@ public enum MessageType : byte
     Outfits = 18,
     /// <summary>Client → host, reliable: the outfit this player puts on (note 298). The host takes it only in the yard.</summary>
     Wear = 19,
+    /// <summary>
+    /// Host → client, reliable, as the host leaves a delivered campaign night (note 606): the crew's going on to the next night
+    /// from this town (<see cref="Towns.TownAt.Spec"/>). The client waits on its card and dials the host again for that night,
+    /// rather than going back to its menu.
+    /// </summary>
+    CarryOn = 20,
 }
 
 /// <summary>Why the host turned a joiner away (note 254).</summary>
@@ -142,7 +153,7 @@ public readonly record struct Refusal(RefusalReason Reason, int Crew, int Cap)
 }
 
 /// <summary>A joiner's first word (note 253): who, the slot it's coming back to, its outfit, and a private run's key (note 450).</summary>
-public readonly record struct Hello(string Name, ulong Token, byte Outfit, byte[]? Key);
+public readonly record struct Hello(string Name, ulong Token, byte Outfit, byte[]? Key, bool Bot = false);
 
 public readonly record struct InputFrame(uint Sequence, PlayerIntent Intent);
 
@@ -367,13 +378,15 @@ public static class Messages
     /// <param name="token">The token from this player's last Welcome, coming back after a drop; 0 for a new joiner (note 253).</param>
     /// <param name="outfit">The outfit they come in (note 298), or <see cref="NoOutfit"/>.</param>
     /// <param name="key">A private run's password as <see cref="PasswordKey"/> makes it (note 450), or null for none.</param>
-    public static void WriteHello(NetWriter w, string name, ulong token = 0, byte outfit = NoOutfit, byte[]? key = null)
+    /// <param name="bot">A bot crewmate (note 574): it never takes the cab's controls off someone playing.</param>
+    public static void WriteHello(NetWriter w, string name, ulong token = 0, byte outfit = NoOutfit, byte[]? key = null, bool bot = false)
     {
         w.Reset();
         w.U8((byte)MessageType.Hello);
         w.Str(CleanName(name));
         w.U64(token);
         w.U8(outfit);
+        w.U8((byte)(bot ? 1 : 0));
         if (key is { Length: KeyLength })
             w.Bytes(key);
     }
@@ -387,7 +400,8 @@ public static class Messages
         string name = CleanName(r.Str());
         ulong token = r.Remaining >= 8 ? r.U64() : 0;
         byte outfit = r.Remaining >= 1 ? r.U8() : NoOutfit;
-        return new(name, token, outfit, r.Remaining >= KeyLength ? r.Rest()[..KeyLength].ToArray() : null);
+        byte flags = r.Remaining >= 1 ? r.U8() : (byte)0;
+        return new(name, token, outfit, r.Remaining >= KeyLength ? r.Rest()[..KeyLength].ToArray() : null, (flags & 1) != 0);
     }
 
     /// <summary>A password's key: SHA-256's length.</summary>
@@ -432,6 +446,17 @@ public static class Messages
         w.U8((byte)MessageType.Wear);
         w.U8(outfit);
     }
+
+    /// <summary>The crew's going on from <paramref name="town"/> (note 606): its <see cref="Towns.TownAt.Spec"/>.</summary>
+    public static void WriteCarryOn(NetWriter w, Towns.TownAt town)
+    {
+        w.Reset();
+        w.U8((byte)MessageType.CarryOn);
+        w.Str(town.Spec);
+    }
+
+    /// <summary>The town a <see cref="MessageType.CarryOn"/> names, or null if it doesn't read as one.</summary>
+    public static Towns.TownAt? ReadCarryOn(ref NetReader r) => Towns.TownAt.Parse(r.Str());
 
     public static void WriteNames(NetWriter w, IEnumerable<KeyValuePair<int, string>> names)
     {

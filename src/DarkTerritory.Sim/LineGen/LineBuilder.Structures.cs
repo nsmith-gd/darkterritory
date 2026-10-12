@@ -42,7 +42,20 @@ sealed partial class LineBuilder
             double len = Math.Round(rng.Range(_t.Hazards.WashoutLengthM));
             if (w.WashoutOnMain)
             {
+                // Clear of whatever the main line crosses or goes through there (a weak trestle in the window was laid over
+                // it, and the train for the bridge's limit ran onto the washout): past it, or failing that, short of it.
                 double s = w.T + _t.Hazards.WashoutAfterJunctionM;
+                var onIt = _structures.Where(x => x.Edge == "main" && x.Type is not (StructureType.Washout or StructureType.BrassField))
+                    .Where(x => x.S0 < w.J && x.S1 > w.T).ToList();
+                bool Fouls(double at) => onIt.Any(x => at - 20 < x.S1 && at + len + 20 > x.S0);
+                for (int guard = 0; Fouls(s) && guard < onIt.Count; guard++)
+                    s = onIt.Where(x => s - 20 < x.S1 && s + len + 20 > x.S0).Max(x => x.S1) + 20;
+                if (Fouls(s) || s + len > w.J - _t.Junctions.PadM)
+                {
+                    s = w.T + _t.Junctions.PadM + 20;
+                    for (int guard = 0; Fouls(s) && guard < onIt.Count; guard++)
+                        s = onIt.Where(x => s - 20 < x.S1 && s + len + 20 > x.S0).Max(x => x.S1) + 20;
+                }
                 _structures.Add(new PlanStructure($"{w.Edge}-washout", StructureType.Washout, "main", R(s), R(s + len)));
             }
             else if (w.WashoutOnAlt && _edges.TryGetValue(w.Edge, out var alt))

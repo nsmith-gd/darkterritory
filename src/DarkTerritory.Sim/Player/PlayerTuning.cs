@@ -68,7 +68,8 @@ public sealed record EdgeTuning(double Lip = 0.3, double StepOffDegrees = 30, do
 /// <summary>
 /// Rejoining a night after a drop (note 253). Field docs live in player.json <c>rejoin</c>.
 /// </summary>
-public sealed record RejoinTuning(double ReserveSeconds = 180, bool ReclaimBody = true, double GreetSeconds = 1, int Retries = 5, double RetrySeconds = 3);
+public sealed record RejoinTuning(double ReserveSeconds = 180, bool ReclaimBody = true, double GreetSeconds = 1, int Retries = 5, double RetrySeconds = 3,
+    double FollowSeconds = 600);
 /// <summary>
 /// The links in play (note 532). Field docs live in player.json <c>link</c>. A test's transports keep their own
 /// <c>DatagramOptions</c>; these are the app's.
@@ -94,7 +95,10 @@ public sealed record EmoteTuning(double Dance = 8, double Wave = 2.5, double Poi
 }
 /// <param name="LethalAbove">Speed over the ground on landing that kills (spec B.3 after T90); 0 for the train's jump-off band.</param>
 /// <param name="DamageAtLethal">A landing's knock rises from <paramref name="RollDamage"/> to this at the lethal edge.</param>
-public sealed record LandingTuning(double RollAbove, int RollDamage, double LethalAbove = 0, int DamageAtLethal = 0);
+/// <param name="FallHurtFrom">Note 573: a fall from at least this high (m, by the speed it lands at) knocks, from <paramref name="RollDamage"/>
+/// rising to death at <paramref name="FallLethalFrom"/>; 0 for no fall knock.</param>
+public sealed record LandingTuning(double RollAbove, int RollDamage, double LethalAbove = 0, int DamageAtLethal = 0, double FallHurtFrom = 0,
+    double FallLethalFrom = 0);
 public sealed record LadderTuning(double GrabRange, double GrabMaxRelativeSpeed);
 /// <summary>A VR player's reaching hand (T29). Field docs live in player.json.</summary>
 public sealed record HandTuning(double Arm, double Overhead, double Grab);

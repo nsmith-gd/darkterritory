@@ -17,6 +17,11 @@ public sealed record HarnessOptions
     public int Cars { get; init; } = 10;
     public double Seconds { get; init; } = 120;
     public int Seed { get; init; } = 1;
+    /// <summary>
+    /// The director's seed, where it isn't <see cref="Seed"/> (note 616): the app seeds a night's director with its route's
+    /// (<c>NetPlaySession</c>), so a harness night measuring what a player plays does too.
+    /// </summary>
+    public ulong? DirectorSeed { get; init; }
     public LinkConditions Link { get; init; } = LinkConditions.Rough;
     public double StartDistance { get; init; } = 600;
     public CombatTuning? Combat { get; init; }
@@ -123,6 +128,14 @@ public sealed record RejoinReport(string Bot, int Was, int Back, double DroppedA
 /// the places taken at the night's end (the crew, the waiting, the held), <paramref name="Refusals"/> the host's count of
 /// joiners turned away, and <paramref name="Refused"/> each refused bot with what its client was told.
 /// </summary>
+/// <summary>
+/// Dawn on a harness night (note 607). <paramref name="LineAt"/>: when the dawn line came up (wakers.stirSeconds before dawn)
+/// and <paramref name="AtLine"/> the crew then (the trace's words); <paramref name="TakenAt"/>: when the lead Waker took the
+/// train (−1, it didn't), <paramref name="Short"/> how far short of the terminus's gate (m), <paramref name="Speed"/> the
+/// train's then, and <paramref name="AtTaking"/> where everyone was.
+/// </summary>
+public sealed record DawnReport(double LineAt, IReadOnlyList<string> AtLine, double TakenAt, double Short, double Speed, IReadOnlyList<string> AtTaking);
+
 public sealed record CrewCapReport(int Cap, int Occupied, int Refusals, IReadOnlyList<string> Refused);
 
 /// <summary>Transports for the harness from elsewhere: the Sim doesn't reference platform code, so the CLI brings it.</summary>
@@ -163,6 +176,12 @@ public sealed record HarnessReport(int Ticks, double Seconds, string Link, doubl
     public IReadOnlyDictionary<string, double>? Posts { get; init; }
     /// <summary>With <see cref="HarnessOptions.Holdouts"/>: the night's Holdouts, lit and freed, and by whom (note 259).</summary>
     public HoldoutReport? Holdouts { get; init; }
+    /// <summary>Every fall of the night (note 553, <see cref="FallWatch"/>): landed well under the rails, or hurt by the landing.</summary>
+    public IReadOnlyList<FallReport> Falls { get; init; } = [];
+    /// <summary>Dawn (note 607): when the dawn line came up and when the lead Waker took the train, and where everyone was.</summary>
+    public DawnReport? Dawn { get; init; }
+    /// <summary>The driver's reckonings of the run home through the night (note 621), to score against when it got in.</summary>
+    public IReadOnlyList<Reckoning>? Reckonings { get; init; }
 }
 
 /// <summary>
@@ -311,7 +330,7 @@ public static class Harness
             ? full with { Director = full.Director with { Roster = only.Count == 0 ? ["none"] : [.. only.Select(Director.Key)] } }
             : o.Enemies;
         if (enemyTuning is { } et)
-            host.EnableEnemies(et, o.Route, (ulong)o.Seed, crewSize);
+            host.EnableEnemies(et, o.Route, o.DirectorSeed ?? (ulong)o.Seed, crewSize);
         if (o.Insist is { } insist)
         {
             host.World.Insist = insist;
@@ -357,11 +376,11 @@ public static class Harness
             // Past the cap (note 254) the crew is the crew of the cap, its parts as ever; the rest are spare hands with no part
             // at a stop, turned away at the door.
             IBot bot = BotCrew.Make(i, crewSize, i < crewSize ? calls : null, o.Combat, playerTuning, o.Seed, o.Express);
-            var session = new ClientSession(transport, NewTrain(line, trainTuning, o, boiler), trainTuning, playerTuning, o.Combat);
+            var session = new ClientSession(transport, NewTrain(line, trainTuning, o, boiler), trainTuning, playerTuning, o.Combat) { Bot = true };
             // The enemies' tuning, as a joiner loads it: prediction drags with the Weight as the host does (T59), and the bots
             // read their counters from it (the Gaunt's view, the Passenger's reach).
             if (enemyTuning is { } cet)
-                session.World.EnableEnemies(cet, o.Route, (ulong)o.Seed, crewSize, authority: false);
+                session.World.EnableEnemies(cet, o.Route, o.DirectorSeed ?? (ulong)o.Seed, crewSize, authority: false);
             // Clients see the night as players do: the phase, and each site's winch (mirrored from the host).
             if (o.Run is { } crt && o.Route is { } croute)
                 session.World.EnableRun(crt, croute, o.YardLength, authority: false, o.Facilities, o.Loot);
@@ -420,6 +439,11 @@ public static class Harness
         int litCount = 0, breached = 0, holdoutEventsSeen = 0;
         var toFree = new List<double>();
         var freedBy = new SortedDictionary<string, int>(StringComparer.Ordinal);
+        var falls = new FallWatch();
+        // Note 607: the crew at the dawn line, and when the lead Waker took the train.
+        double? lineAt = null;
+        IReadOnlyList<string>? atLine = null;
+        DawnReport? dawn = null;
         for (uint t = 0; t < ticks; t++)
         {
             if (host.World.Run is { Over: true } || o.Until?.Invoke(host.World) == true)
@@ -432,6 +456,20 @@ public static class Harness
             o.Script?.Invoke(t, host.World);
             host.Step();
             events.AddRange(host.World.EnemyEvents);
+            foreach (var p in host.Players)
+                falls.Watch(t, host.Train, p.Id, p.State, clients.FirstOrDefault(c => c.Session.PlayerId == p.Id).Bot);
+            if (host.World.Run is { } dawnRun && host.World.Enemies is { Wakers.Enabled: true } dawnTuning)
+            {
+                List<string> Crew() => [.. host.Players.Select(p => clients.FirstOrDefault(c => c.Session.PlayerId == p.Id).Bot is { } b ? Describe(b, p.State) : $"player {p.Id}")];
+                if (lineAt is null && dawnRun.DawnIn <= dawnTuning.Wakers.StirSeconds)
+                    (lineAt, atLine) = (Math.Round(t * SimConstants.TickSeconds, 1), Crew());
+                if (dawn is null && host.World.ActiveEnemies.OfType<Waker>().Any(w => w.Lead && w.Holds))
+                {
+                    double gate = dawnRun.Route.Plan?.Terminus.GateM ?? dawnRun.Route.Length;
+                    dawn = new DawnReport(lineAt ?? -1, atLine ?? [], Math.Round(t * SimConstants.TickSeconds, 1),
+                        Math.Round(gate - host.Train.Dynamics.Distance), Math.Round(host.Train.Dynamics.Speed, 1), Crew());
+                }
+            }
             if (host.World.Holdouts is { } hs)
             {
                 foreach (var h in hs.All)
@@ -669,6 +707,9 @@ public static class Harness
                 host.HoldoutEvents.Count(e => e.Kind == Sim.Run.HoldoutEventKind.Assigned), breached,
                 host.HoldoutEvents.Count(e => e.Kind == Sim.Run.HoldoutEventKind.Freed),
                 host.HoldoutEvents.Count(e => e.Kind == Sim.Run.HoldoutEventKind.Released), toFree, freedBy),
+            Falls = falls.Falls,
+            Dawn = dawn ?? (lineAt is { } la ? new DawnReport(la, atLine ?? [], -1, -1, -1, []) : null),
+            Reckonings = clients.Select(c => c.Bot).OfType<ConductorBot>().FirstOrDefault()?.Stops?.Reckonings,
         };
     }
 

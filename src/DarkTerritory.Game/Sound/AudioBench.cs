@@ -307,9 +307,10 @@ public static class AudioBench
     /// <paramref name="route"/> that can derail it at the bend's board, then its speed taken up steadily to a tenth over what
     /// derails it and held there till it comes off. The telegraph plays out in its order (the flanges squealing, the frames
     /// creaking faster, the slack's lurch down the train, the scream, the cab's bell), then the derailment. Heard from the cab
-    /// (<paramref name="listenerCar"/> 0) or a roof; each stress sound's level a second at a time.
+    /// (<paramref name="listenerCar"/> 0) or a roof; each stress sound's level a second at a time. deepTerritory:5 by default:
+    /// on the 7 km nights of note 554 deepTerritory:2's first such bend comes on so tight the squeal and the scream start together.
     /// </summary>
-    public static (BendRender Report, float[] Mix) RenderBend(string content, string route = "deepTerritory:2", int cars = 6, int listenerCar = 0,
+    public static (BendRender Report, float[] Mix) RenderBend(string content, string route = "deepTerritory:5", int cars = 6, int listenerCar = 0,
         double seconds = 16, double rampSeconds = 8)
     {
         var session = Staging.BendWarning(content, Sim.LineGen.Routes.Generate(content, route, cars), cars, seconds: 2);

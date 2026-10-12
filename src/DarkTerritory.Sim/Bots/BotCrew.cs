@@ -52,7 +52,7 @@ public sealed class BotCrew(CrewCalls? calls) : IDisposable
             _ => i == 1 && gunner ? StopJob.None : StopJob.Crates,
         };
         StopHand? hand = calls is null ? null : new StopHand(job, calls, i, player.Cold);
-        return i == 0 ? express is { } fast ? new ConductorBot(calls, i) { CruiseSpeed = fast, Express = true } : new ConductorBot(calls, i)
+        return i == 0 ? express is { } fast ? new ConductorBot(calls, i) { CruiseSpeed = fast, Express = true } : new ConductorBot(calls, i) { Cold = player.Cold }
             : i == 1 && combat is { } c ? new GunnerBot(c.Guns, c.Choir, seed * 1000 + i, player.Cold, hand)
             // The engine's forward gun's (note 414), in a crew big enough: its last place.
             : i == count - 1 && combat is { Guns.ForwardGunnerFrom: > 0 } f && count >= f.Guns.ForwardGunnerFrom
@@ -69,6 +69,9 @@ public sealed class BotCrew(CrewCalls? calls) : IDisposable
     }
 
     /// <summary>What a bot does this tick: its own part, then what the roster asks of any crewmate (v1.1).</summary>
+    /// <summary>The lamp key of a bot that keeps none of its own (note 619: the driver, the fireman), by the bot.</summary>
+    static readonly System.Runtime.CompilerServices.ConditionalWeakTable<IBot, LampKey> Lamps = new();
+
     public static PlayerIntent Think(ClientSession session, IBot bot, uint t, CrewCalls? calls)
     {
         // Its part at a stop needs its own id for the heavy crates (T45); and it needs to know what's in its hands.
@@ -91,6 +94,9 @@ public sealed class BotCrew(CrewCalls? calls) : IDisposable
         // (note 259: one in the cab minds it while the driver's out breaching a Holdout).
         if (bot is ConductorBot cb)
         {
+            cb.Me = session.PlayerId ?? -1;
+            cb.Crew = [.. session.RemoteIds.Select(id => (Id: (int)id, Seen: session.TryGetRemote(id, 1, out var s), State: s))
+                .Where(c => c.Seen && (c.State.Health > 0 || c.State.Death != DeathCause.None)).Select(c => (c.Id, c.State))];
             cb.Crewmates = [.. session.RemoteIds.Select(id => session.TryGetRemote(id, 1, out var s) ? s : default).Where(s => s.Health > 0 || s.Death != DeathCause.None)];
             cb.Players = calls is null ? null : [.. session.RemoteIds.Where(id => !calls.IsBot(id))
                 .Select(id => session.TryGetRemote(id, 1, out var s) ? s : default).Where(s => s.Health > 0 || s.Death != DeathCause.None)];
@@ -119,15 +125,25 @@ public sealed class BotCrew(CrewCalls? calls) : IDisposable
         // the Mourners off a body, Tower Jaw clubbed or its wreck cleared, the Freight Beetle clubbed, the Knotter clubbed
         // slack, a Hotbox prised out and its axle freed, the Brakeman cornered and his brakes unwound. A rescue (after) beats them.
         var others = (bot as RoofWalkerBot)?.Crew ?? (bot as GunnerBot)?.Crew ?? [];
-        if (bot is RoofWalkerBot { Relieving: false } or GunnerBot && !hunted)
+        // And the driver that's handed someone playing the controls (the director, 9 Oct 2026): out working the train as a walker.
+        if (bot is RoofWalkerBot { Relieving: false } or GunnerBot or ConductorBot { HandedOver: true } && !hunted)
         {
             var hand = (bot as RoofWalkerBot)?.Job ?? (bot as GunnerBot)?.Job;
-            intent = Heed.Mourners(intent, session.Predicted, session.World, me, hand);
-            intent = Heed.Beetle(intent, session.Predicted, session.World, me);
-            intent = Heed.TowerJaw(intent, session.Predicted, session.World, me, hand);
-            intent = Heed.Knotter(intent, session.Predicted, session.World, me, hand);
+            // Note 627: not the guttering lamp's hand: the ground's errands are the rest of the crew's while it's in at the lamp
+            // (seed 4's four went down to a Knotter's stand from car 3's roof, on their way in to its lamp, and it went out).
+            bool lampRun = (bot as RoofWalkerBot)?.LampRun ?? (bot as GunnerBot)?.LampRun ?? false;
+            if (!lampRun)
+            {
+                intent = Heed.Mourners(intent, session.Predicted, session.World, me, hand);
+                intent = Heed.Beetle(intent, session.Predicted, session.World, me);
+                intent = Heed.TowerJaw(intent, session.Predicted, session.World, me, hand);
+                intent = Heed.Knotter(intent, session.Predicted, session.World, me, hand);
+            }
             intent = Heed.Hotbox(intent, session.Predicted, session.World, me, hand, others);
-            intent = HeedBrakeman(bot, intent, session.Predicted, session.World, me, others, calls);
+            // Nor, for the lamp's hand, the Brakeman while he only watches (Dormant, Alert): the pair's wait past his spook (note
+            // 610) held seed 15's walker on car 1's roof, its lamp guttering under it, for 40 s. At his work, he's the pair's.
+            if (!lampRun || session.World.ActiveEnemies.Any(e => e is Enemies.Brakeman { Gone: false, Phase: not (Enemies.SpinePhase.Dormant or Enemies.SpinePhase.Alert) }))
+                intent = HeedBrakeman(bot, intent, session.Predicted, session.World, me, others, calls);
         }
         // Note 463: not the driver at the controls of a moving train. Gone back along the hood for a walker grabbed on the
         // engine's roof (out of reach from inside it), the driver never came back, and the fire went out under it.
@@ -136,9 +152,10 @@ public sealed class BotCrew(CrewCalls? calls) : IDisposable
         intent = Heed.Hounds(intent, session.Predicted, session.World, me);
         intent = Heed.Backs(intent, session.Predicted, session.World, me, t);
         intent = Heed.Voice(intent, session.Predicted, session.World, me, t);
-        intent = Heed.Gaps(intent, session.Predicted, session.World, me);
-        intent = Heed.Flies(intent, session.Predicted, session.World, t);
+        intent = Heed.Gaps(intent, session.Predicted, session.World, me, others);
+        intent = Heed.Flies(intent, session.Predicted, session.World, me, others, (bot as RoofWalkerBot)?.Lamp ?? (bot as GunnerBot)?.Lamp ?? Lamps.GetValue(bot, _ => new LampKey()), t);
         intent = Heed.Gutter(intent, session.Predicted, session.World, t);
+        intent = Heed.Mend(intent, session.Predicted, session.World);
         intent = Heed.Followers(intent, session.Predicted, session.World, me, calls, t);
         intent = Heed.Drift(intent, session.Predicted, session.World, me);
         intent = Heed.Gannet(intent, session.Predicted, session.World, me);
@@ -172,6 +189,7 @@ public sealed class BotCrew(CrewCalls? calls) : IDisposable
     public static PlayerIntent HeedBrakeman(IBot bot, PlayerIntent intent, in PlayerState self, World world, int me,
         IReadOnlyList<(int Id, PlayerState State)> others, CrewCalls? calls) =>
         (bot as RoofWalkerBot)?.WarmUpStep is null or "Off" && (bot as GunnerBot)?.WarmUpStep is null or "Off"
-            ? Heed.Brakeman(intent, self, world, me, others, calls)
+            ? Heed.Brakeman(intent, self, world, me, others, calls, ((bot as RoofWalkerBot)?.Job ?? (bot as GunnerBot)?.Job)?.AtAStop == true,
+                (bot as RoofWalkerBot)?.Pinning ?? (bot as GunnerBot)?.Pinning ?? false)
             : intent;
 }

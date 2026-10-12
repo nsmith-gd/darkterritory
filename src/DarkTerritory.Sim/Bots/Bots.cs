@@ -57,6 +57,12 @@ public sealed class GunnerBot(GunTuning guns, ChoirTuning? choir = null, int see
     /// <summary>What its legs are doing about trouble in a car, and about the cold (for the harness's trace).</summary>
     public string? TendStep => _legs.TendStep;
     public string? WarmUpStep => _legs.WarmUpStep;
+    /// <summary>Its legs are going to a loose pin (note 602).</summary>
+    public bool Pinning => _legs.Pinning;
+    /// <summary>Its legs are the guttering lamp's hand (note 627).</summary>
+    public bool LampRun => _legs.LampRun;
+    /// <summary>Its hand on a car's lamp key (note 619), its legs'.</summary>
+    public LampKey Lamp => _legs.Lamp;
     /// <summary>
     /// The look-out's errand when there's no walker to send (a crew of two: driver and gunner; note 222), or null. Its legs
     /// run it, off the gun while the gun can spare it.
@@ -70,6 +76,8 @@ public sealed class GunnerBot(GunTuning guns, ChoirTuning? choir = null, int see
 
     PlayerIntent Decided(in PlayerState self, World world, uint tick, out PlayerState aimed)
     {
+        // Note 609: where it is, whatever it's about (StopHand.Report).
+        Job?.Report(self);
         var intent = Gun(self, world, tick, out aimed);
         // Off the gun for anything else, it gets up out of the seat first (T112: Jump, seated, is getting up).
         if (self.Has(PlayerFlags.Seated) && !_atGun)
@@ -105,7 +113,10 @@ public sealed class GunnerBot(GunTuning guns, ChoirTuning? choir = null, int see
         // The mail cranes' bags are the walkers' to catch, not the gun's (note 299: with a bag always ahead the gunner went in
         // for each and never reached its gun all night); only with no other hand aboard but the driver does it go for them.
         bool alone = _legs.Crew.Count(c => c.State.Alive && c.Id != Me) < 2;
-        _legs.Looked(world, self, safe: Guns.MannedGun(self, world.Train, guns) is not null, tend: !hounds, catches: alone);
+        // Note 602: off its seat, a loose pin beside it is its to tighten whatever the hounds are doing (PinBeside keeps it off
+        // the pack's cars); seated, the gun comes first.
+        bool seated = self.Has(PlayerFlags.Seated);
+        _legs.Looked(world, self, safe: Guns.MannedGun(self, world.Train, guns) is not null, tend: !hounds, catches: alone, pins: !seated);
         // Note 448: a truss Dragger scraping over this gun's car coming under: down its hatch ladder until the car's through.
         if (Duck(self, world) is { } ducking)
             return ducking;
@@ -115,6 +126,8 @@ public sealed class GunnerBot(GunTuning guns, ChoirTuning? choir = null, int see
             return saving;
         // The boiler ruptured and the kit's back down the train with nobody else to bring it (KitCarry): off the gun for it.
         if (_legs.Fetching(self, world))
+            return _legs.Decide(self, world, tick, out aimed);
+        if (!seated && _legs.Pinning)
             return _legs.Decide(self, world, tick, out aimed);
         // Nobody holds a gun through the cold (spec B.2): off it and indoors until warm, then back. Nor through a stop
         // they have a part in. Note 447: but seated with a run coming in on the ground, it keeps the gun until it's over, the
@@ -143,6 +156,9 @@ public sealed class GunnerBot(GunTuning guns, ChoirTuning? choir = null, int see
         // Note 551: too hurt for the pack fight with some of it aboard, not to the fight, nor staying at the gun on its ground:
         // the cab (the legs' way). With all of it still running in it keeps the gun: a ball each is how it's least hurt.
         if (_legs.Hunted && world.ActiveEnemies.Any(e => e.Kind == EnemyKind.CinderHound && !e.Gone && e.Attached >= 0))
+            return _legs.Decide(self, world, tick, out aimed);
+        // Note 607: dawn, the Wakers up (the guard van's gun is in the last car, the first they lift): off it, forward with the rest.
+        if (_legs.Dawn)
             return _legs.Decide(self, world, tick, out aimed);
         // The Car Hugger on the rear car (v1.1 App. A.3): the gun's no answer to it (it's below the arc). Off the gun: down to
         // the guard van's rear platform to club it off (the legs do that), or with no platform to get at it from, up the
@@ -485,6 +501,8 @@ public sealed class RoofWalkerBot(int seed, ColdTuning? cold = null, StopHand? j
     public bool Warming(in PlayerState self) => _warm is { } w && (w.Active || w.Wants(self));
     /// <summary>Where getting warm has got to (for tests and the harness).</summary>
     public string? WarmUpStep => _warm?.Doing;
+    /// <summary>Its hand on a car's lamp key (note 619): pressed to put a lamp out, and left to see the press come back.</summary>
+    public LampKey Lamp { get; } = new();
     /// <summary>Times it's gone in and got warm.</summary>
     public int WarmUps => _warm?.Done ?? 0;
     /// <summary>Its part when the train stops to work a facility (T32).</summary>
@@ -670,9 +688,9 @@ public sealed class RoofWalkerBot(int seed, ColdTuning? cold = null, StopHand? j
     bool _looked;
 
     /// <summary>The gunner has read the line for its legs this tick already (it knows whether it's at the gun).</summary>
-    internal void Looked(World world, in PlayerState self, bool safe, bool tend = true, bool catches = true)
+    internal void Looked(World world, in PlayerState self, bool safe, bool tend = true, bool catches = true, bool? pins = null)
     {
-        Look(world, self, safe, tend, catches);
+        Look(world, self, safe, tend, catches, pins);
         _looked = true;
     }
 
@@ -707,6 +725,23 @@ public sealed class RoofWalkerBot(int seed, ColdTuning? cold = null, StopHand? j
                 return Tend(self, trouble, world, Me);
             return job.IntoTrouble(self, world, trouble.Attached, held: lamp);
         }
+        // Note 627: the guttering lamp's hand (not the shunter, whose switch is wanted the moment the train stands). Aboard a
+        // moving train, its part is only riding: it goes to the lamp the walker's way.
+        if (LampRun && _lampCar is { } lampCar && job.Job != StopJob.Shunter)
+        {
+            if (Math.Abs(world.Train.Dynamics.Velocity) > 0.05)
+            {
+                if (self.Parent > 0)
+                    return null;
+            }
+            // Standing at a stop: in by the car's side door from the ground, the stop's way in to trouble (note 496). From the
+            // roofs there may be none: seed 15's car 1 was the last of the rake backed out of the spur, no platform behind it,
+            // and its hand stood on its roof for 40 s. In the car, it stays while Heed.Gutter trims.
+            else if (self.Parent == lampCar && InTheCar(self, world.Train))
+                return new PlayerIntent();
+            else if (job.IntoTrouble(self, world, lampCar, held: true) is { } goingIn)
+                return goingIn;
+        }
         if (_workedTick != world.Tick)
         {
             _workedTick = world.Tick;
@@ -721,7 +756,8 @@ public sealed class RoofWalkerBot(int seed, ColdTuning? cold = null, StopHand? j
     /// stands is clear anyway (a gun's crew are down behind its shield).
     /// </summary>
     /// <param name="catches">Whether it goes in for the mail cranes' bags (the gunner leaves them to the walkers, note 299).</param>
-    public void Look(World world, in PlayerState self, bool safe = false, bool tend = true, bool catches = true)
+    /// <param name="pins">Whether it weighs a loose pin beside it (<see cref="PinBeside"/>, note 602): by default when it tends.</param>
+    public void Look(World world, in PlayerState self, bool safe = false, bool tend = true, bool catches = true, bool? pins = null)
     {
         if (_warm is null)
             return;
@@ -731,9 +767,16 @@ public sealed class RoofWalkerBot(int seed, ColdTuning? cold = null, StopHand? j
         // the fire it was working was half the crew, every night the Choir came).
         // Not in the safe yard or a fort, where it never comes (and a crew still to board would go nowhere).
         bool choir = !world.SafeYard && !world.TrainInFort && (world.Choir.Present || world.Choir.Build >= ChoirShelterAt);
+        // Note 602: a loose pin in a gap of its own car's comes first, hurt or not (a few seconds with the wrench; parted, it loses
+        // every car behind it).
+        _pinBeside = pins ?? tend ? PinBeside(self, world) : null;
+        bool pinFirst = _pinBeside is not null;
         // Note 551: too hurt for a pack that's about, and in a car: in it stays, its doors shut (on the roofs, it's the cab's way).
-        Hunted = Hiding(world, self);
-        bool hiding = Hunted && self.Parent > 0 && PlayerMotor.Indoors(self, world.Train);
+        // Note 607: from the dawn line, the Wakers coming, it's the cab's way for everyone (not mid-fire or mid-pin), out of a car too.
+        Dawn = AtDawn(world) && !pinFirst && TendStep is null;
+        _warm.Forward = Dawn;
+        Hunted = (Hiding(world, self) || Dawn) && !pinFirst;
+        bool hiding = Hunted && !Dawn && self.Parent > 0 && PlayerMotor.Indoors(self, world.Train);
         _warm.Shelter = !safe && RoofWarned(world) || choir || hiding;
         _warm.ShutFirst = choir || hiding;
         // Trouble inside a car: in to it, and work it from the aisle, unless it's too much for us (hurt, get out).
@@ -767,12 +810,28 @@ public sealed class RoofWalkerBot(int seed, ColdTuning? cold = null, StopHand? j
         // Note 511: a loose coupling comes before a guttering lamp or a bag (both a walker's errands, and the warm-up's
         // routine wait): left 90 s it parts, and the cars behind it are lost. On frontier:7's 4-bot nights the walkers were
         // in the cars for a bag or getting warm while every pin worked loose, and 11 of 21 parted, the cars behind gone.
-        bool pin = tend && catches && !choir && _trouble is null && LoosePin(self, world, Me, Calls);
+        // A gunner (catches false: the bags are the walkers', note 299) takes only a pin beside it (note 602).
+        bool pin = (tend || pinFirst) && (catches || pinFirst) && !choir && _trouble is null && LoosePin(self, world, Me, Calls, _pinBeside);
         _warm.Called = pin;
-        _lampCar = tend && catches && !_feedRun && !choir && _trouble is null && !pin ? GutterCar(world, here) : null;
-        _drop = tend && catches && !_feedRun && !choir && _trouble is null && _lampCar is null && !pin ? NextDrop(world) : null;
+        Pinning = pin;
+        // Note 576: a car battered and let go is coming apart, its freight spilling, and in a few minutes it's gone with what's
+        // behind it: before a lamp or a bag, a walker with a wrench goes in to it and mends it at its dent (Heed.Mend).
+        _mendCar = tend && catches && !choir && _trouble is null && !pin ? FailingCar(self, world, here) : null;
+        // Note 627: trouble crewmates are already in at (Covered) leaves a hand free for a guttering lamp: in seed 15's night two
+        // walkers fought car 4's fire while the third stood on the roofs beside it, and car 1's lamp guttered out.
+        bool covered = _trouble is { } near && near.Attached != here && Covered(near, here);
+        _lampCar = tend && catches && !_feedRun && !choir && (_trouble is null || covered) && !pin && _mendCar is null ? GutterCar(world, here) : null;
+        if (covered && _lampCar is not null)
+            _trouble = null;
+        LampRun = _lampCar is { } lamp && LampHand(self, world, lamp);
+        // Note 619: not with the train standing, for a hand with a part at a stop: a bag's hooked as its car goes by the crane,
+        // and at a stand that's not until it moves. Held at frontier:12's first stop (seed 1) beside a crane, the shunter and
+        // the winch hand sat in car 1 at its side door for the bag the whole 240 s, their parts waiting on it, and the stop
+        // was given up.
+        bool standing = job is not null && Math.Abs(train0.Dynamics.Velocity) < 0.05;
+        _drop = tend && catches && !_feedRun && !choir && !standing && _trouble is null && _lampCar is null && _mendCar is null && !pin ? NextDrop(world) : null;
         _catchCar = _drop is { } d ? CatchCar(train, d, self.Parent) : null;
-        _warm.Into = _trouble?.Attached ?? _catchCar ?? _lampCar;
+        _warm.Into = _trouble?.Attached ?? _catchCar ?? _mendCar ?? _lampCar;
         if (_trouble is { } trouble)
             _warm.Indoors = s => Tend(s, trouble, world, Me);
         else if (_drop is { } drop && _catchCar is { } car && world.Lineside is { } lineside)
@@ -802,12 +861,37 @@ public sealed class RoofWalkerBot(int seed, ColdTuning? cold = null, StopHand? j
     Sim.Route.Drop? _drop;
     int? _catchCar;
     int? _lampCar;
+    int? _mendCar;
+
+    /// <summary>
+    /// The nearest car of the engine's rake that's failing (note 576), that a wrench can bring back and nobody else is in, if
+    /// this walker has a wrench to take to it.
+    /// </summary>
+    int? FailingCar(in PlayerState self, World world, int here)
+    {
+        var train = world.Train;
+        if (!train.Dynamics.Tuning.Failing.Enabled || !(Repairs.WrenchInHand(self) || Repairs.WrenchKey(self) > 0))
+            return null;
+        int? best = null;
+        foreach (var v in train.Dynamics.Consist.Vehicles)
+        {
+            if (v.Id == 0 || Failing.Stage(train, v.Id) is not (FailStage.Failing or FailStage.Breaking) || !Repairs.Mendable(train, v.Id)
+                || Repairs.Mendable(v) < train.Dynamics.Tuning.Failing.Below)
+                continue;
+            if (v.Id != here && Crew.Any(c => c.Id != Me && c.State.Alive && c.State.Parent == v.Id && PlayerMotor.Indoors(c.State, train)))
+                continue;
+            if (best is not { } b || Math.Abs(v.Id - here) < Math.Abs(b - here))
+                best = v.Id;
+        }
+        return best;
+    }
 
     /// <summary>
     /// A coupling of the engine's rake working loose (note 356), a wrench to take to it, and it's this walker's: the nearest
     /// pin to it, claimed on the crew's calls (<see cref="CrewCalls.ClaimPin"/>), so one goes and the others keep at theirs.
     /// </summary>
-    static bool LoosePin(in PlayerState self, World world, int me, CrewCalls? calls)
+    /// <param name="beside">The car whose gap's pin is beside it (<see cref="PinBeside"/>), which needn't be <see cref="ClearOfPack"/>.</param>
+    static bool LoosePin(in PlayerState self, World world, int me, CrewCalls? calls, int? beside)
     {
         var train = world.Train;
         if (train.Loose is not { Enabled: true } || !(Couplings.Tightens(self, train) || Repairs.WrenchKey(self) > 0))
@@ -816,7 +900,7 @@ public sealed class RoofWalkerBot(int seed, ColdTuning? cold = null, StopHand? j
         int? car = null;
         double nearest = double.MaxValue;
         foreach (var v in train.Dynamics.Consist.Vehicles)
-            if (v.Id > 0 && v.Loose > 0 && v.Id < train.Frames.Count)
+            if (v.Id > 0 && v.Loose > 0 && v.Id < train.Frames.Count && (v.Id == beside || ClearOfPack(world, v.Id)))
             {
                 var f = train.Frames[v.Id];
                 double d = (f.ToWorld(Couplings.Pin(f.Shape, train.Dynamics.Tuning)) - here).Length;
@@ -838,6 +922,19 @@ public sealed class RoofWalkerBot(int seed, ColdTuning? cold = null, StopHand? j
     /// </summary>
     public bool Hunted { get; private set; }
 
+    /// <summary>
+    /// Note 607 (queue #339; the director, 9 Oct: "the picking up of the train, especially with you in it ... And then the
+    /// tension before it is really, really important"): from the dawn line (wakers.stirSeconds before dawn, the HUD's "get in")
+    /// with the train still short of where the Wakers stop, forward along the train to the cab: the engine is the last thing
+    /// they eat. Off the ground (the stop's work waits), off the roofs, and out of a car, the guard van's gunner off its gun.
+    /// </summary>
+    public bool Dawn { get; private set; }
+
+    /// <summary>The Wakers are coming tonight and the dawn line is up, the train out on the line short of their stopping place.</summary>
+    public static bool AtDawn(World world) =>
+        world.Enemies is { Wakers: { Enabled: true } t } && world.Run is { Phase: Run.RunPhase.Underway or Run.RunPhase.AtFacility } run
+        && run.DawnIn <= t.StirSeconds && !world.TrainInFort && Waker.SecondsToShelter(world) > 0;
+
     /// <summary>Hunted (note 551): the way to the cab, standing in it once there; null in a car, on the ground, or mid warm-up.</summary>
     PlayerIntent? ToCover(in PlayerState self, TrainOnLine train, uint tick)
     {
@@ -845,7 +942,7 @@ public sealed class RoofWalkerBot(int seed, ColdTuning? cold = null, StopHand? j
             return null;
         if (PlayerMotor.InCab(self, train))
             return new PlayerIntent();
-        if (self.Parent > 0 && self.Surface == Surface.Deck)
+        if (self.Parent > 0 && self.Surface == Surface.Deck && !Dawn)
             return null;
         if (self.Has(PlayerFlags.Seated))
             return new PlayerIntent { Buttons = PlayerButtons.Jump }; // up out of a gun's seat first
@@ -855,6 +952,63 @@ public sealed class RoofWalkerBot(int seed, ColdTuning? cold = null, StopHand? j
             return null;
         Head(-1);
         return Decide(self, train, tick);
+    }
+
+    /// <summary>It's going to a loose pin this tick (note 511, note 602): the gunner's legs take it there.</summary>
+    public bool Pinning { get; private set; }
+
+    /// <summary>The car whose gap's pin is beside it this tick (<see cref="PinBeside"/>), or null.</summary>
+    int? _pinBeside;
+
+    /// <summary>Whole cars between a loose pin's gap and any car with a hound aboard, at the least, for a walker to go to it (note 602).</summary>
+    const int PinClearCars = 2;
+
+    /// <summary>
+    /// Note 602 (D1's boundary on note 537): the gap behind <paramref name="car"/> has at least <see cref="PinClearCars"/> whole
+    /// cars between it and every car with a hound aboard. A walker keeping off the pack's ground, or shut in on it, may leave for
+    /// such a pin; one nearer the pack is the pack's ground, and left to it. Pack on car 2: the pin behind car 5 qualifies
+    /// (cars 3 and 4 between), the one behind car 1 doesn't.
+    /// </summary>
+    static bool ClearOfPack(World world, int car)
+    {
+        var rake = world.Train.Dynamics.Consist;
+        int at = rake.IndexOf(car);
+        if (at < 0)
+            return false;
+        foreach (var e in world.ActiveEnemies)
+            if (e is CinderHound { Gone: false } h && h.Attached >= 0 && rake.IndexOf(h.Attached) is var hi and >= 0
+                && hi > at - PinClearCars - 1 && hi < at + 1 + PinClearCars + 1)
+                return false;
+        return true;
+    }
+
+    /// <summary>Under this health (of 100) even a pin beside it isn't worth it: in, out of the pack's way (note 602).</summary>
+    const int PinHurt = 10;
+
+    /// <summary>
+    /// Note 602 (queue #334; D1's ask after note 601): a loose coupling (note 356) in the gap behind the car it's on or the one
+    /// ahead of it, a wrench to take to it, and nothing on it: that's mended before it shelters from a pack (<see cref="Hunted"/>)
+    /// or leaves the work to the fit (<see cref="TooHurt"/>). Not under <see cref="PinHurt"/>, held, or with a hound aboard its
+    /// car or either car of that gap. On frontier:7's 4-bot nights a pin worked loose behind car 5 as a hound run came in, the
+    /// walkers on 18 to 27 hp went for the cab past it, and it parted: cars 6 to 10 lost on 3 or 4 nights of 8.
+    /// </summary>
+    /// <returns>The car whose gap it is, or null.</returns>
+    static int? PinBeside(in PlayerState self, World world)
+    {
+        var train = world.Train;
+        if (!self.Alive || self.Health < PinHurt || self.Has(PlayerFlags.Held) || self.Parent <= 0 || self.Parent >= train.Vehicles.Count
+            || train.Loose is not { Enabled: true } || !(Couplings.Tightens(self, train) || Repairs.WrenchKey(self) > 0))
+            return null;
+        int here = self.Parent;
+        foreach (int car in (ReadOnlySpan<int>)[here, train.VehicleAhead(here)])
+        {
+            if (car <= 0 || car >= train.Vehicles.Count || train.Vehicles[car].Loose <= 0)
+                continue;
+            int behind = train.VehicleBehind(car);
+            if (!world.ActiveEnemies.Any(e => e is CinderHound { Gone: false } h && (h.Attached == here || h.Attached == car || h.Attached == behind)))
+                return car;
+        }
+        return null;
     }
 
     static bool Hiding(World world, in PlayerState self) =>
@@ -878,6 +1032,25 @@ public sealed class RoofWalkerBot(int seed, ColdTuning? cold = null, StopHand? j
                 best = v.Id;
         }
         return best;
+    }
+
+    /// <summary>
+    /// Note 627: it's the crew's hand for a guttering lamp nobody's in to (<see cref="GutterCar"/>): of the fit walkers wanting
+    /// it, the nearest the tick it's first wanted, and theirs while they want it (<see cref="CrewCalls.ClaimGutter"/>), so only
+    /// one goes. That hand leaves a stop's part while the train's moving (it only rides), the six creatures' errands on the
+    /// ground and the Brakeman's watch (<see cref="BotCrew"/>), for the lamp: in note 626's 16 nights 3 of 16 gutters went
+    /// out unreached, a car dark for the Climbers, the hands riding a back-out, down at a Knotter's stand, or about the
+    /// engine with the Brakeman.
+    /// </summary>
+    public bool LampRun { get; private set; }
+
+    bool LampHand(in PlayerState self, World world, int car)
+    {
+        var train = world.Train;
+        if (!self.Alive || self.Has(PlayerFlags.Held) || self.Health < TooHurt || PlayerMotor.InCab(self, train))
+            return false;
+        double far = (PlayerMotor.WorldPosition(self, train) - train.Frames[car].Origin).Length;
+        return Calls?.ClaimGutter(car, Me, far, world.Tick) ?? true;
     }
 
     /// <summary>The rest of the crew as its client sees them, by player id (who goes for the kit: <see cref="KitCarry"/>). Set by whoever runs it.</summary>
@@ -1009,7 +1182,7 @@ public sealed class RoofWalkerBot(int seed, ColdTuning? cold = null, StopHand? j
         // go once it's alight and leave the lamp lit for the next swarm. frontier:7 and :3's crews put car 2's fire out and
         // left it lit, and the flies came back to it again and again (note 188). A tap by the bot's own tick, every
         // KitRun.TapEvery, until it's out: the press toggles it, and the snapshot that says so is a few ticks behind.
-        if (intent is { } fighting && trouble is CarFire && world.Train.Vehicles[self.Parent].LampLit && _tick % KitRun.TapEvery == 0)
+        if (intent is { } fighting && trouble is CarFire && world.Train.Vehicles[self.Parent].LampLit && Lamp.Press(self, world, me, Crew, _tick))
             return fighting with { Actions = fighting.Actions | PlayerActions.CarLamp };
         return intent;
     }
@@ -1030,13 +1203,30 @@ public sealed class RoofWalkerBot(int seed, ColdTuning? cold = null, StopHand? j
         {
             TendStep = "in";
             double inX = Math.Clamp(self.Position.X, walls.Min.X + 0.5, walls.Max.X - 0.5);
+            // Note 619: up the steps, the top tread's ahead of the doorway: along the landing into its span first. Straight in from
+            // there, local:9765's gunner (slot seed 11) walked into the wall beside car 2's door for the last 3 s the Fire Flies
+            // needed.
+            double half = (train.Dynamics.Tuning.Geometry.Interior?.SideDoorWidth ?? 1.8) / 2 - 0.3;
+            if (Math.Abs(self.Position.Z) > half)
+                return WarmUp.Steer(self, self.Position with { Z = Math.Sign(self.Position.Z) * (half - 0.25) }, self.Position.Z < 0 ? Math.PI : 0).Step;
+            // And its door shut (the flies in by another way: the far side, the hatch): opened, Use held (a door's worked held
+            // for interior.doorSeconds, once however long it's held after).
+            if (StopHand.SideDoor(train.Frames[self.Parent].Shape, Math.Sign(self.Position.X)) is { } door && !train.Vehicles[self.Parent].DoorOpen(door))
+            {
+                TendStep = "opening up";
+                // Facing the door itself (a door's worked only looked at, CrewActions): from along the landing, straight in is
+                // too far off it.
+                var handle = train.Frames[self.Parent].Shape.Interactables.First(i => i.Kind == Train.InteractableKind.Door && i.Index == door).Position;
+                var (turn, facing) = WarmUp.Steer(self, self.Position, DMath.Atan2(-(handle.X - self.Position.X), -(handle.Z - self.Position.Z)));
+                return facing ? new PlayerIntent { Buttons = PlayerButtons.Use } : turn;
+            }
             return WarmUp.Steer(self, new Double3(inX, 0, self.Position.Z), self.Position.X < 0 ? -Math.PI / 2 : Math.PI / 2).Step;
         }
-        // Fire Flies on the lamp: put it out (a press every other tick until it's out; the press is what the host counts).
+        // Fire Flies on the lamp: put it out (pressed as its LampKey says, until it's out: note 619).
         if (trouble is FireFlies)
         {
             TendStep = "lamp";
-            return train.Vehicles[self.Parent].LampLit && world.Tick % 2 == 0 ? new PlayerIntent { Actions = PlayerActions.CarLamp } : new PlayerIntent();
+            return train.Vehicles[self.Parent].LampLit && Lamp.Press(self, world, me, Crew, _tick) ? new PlayerIntent { Actions = PlayerActions.CarLamp } : new PlayerIntent();
         }
         var held = world.Bodies.CarriedBy(me);
         if (held is { Kind: Physics.BodyKind.Extinguisher, Charge: <= 0.01 })
@@ -1222,8 +1412,12 @@ public sealed class RoofWalkerBot(int seed, ColdTuning? cold = null, StopHand? j
     public static bool TrussScrape(World world) =>
         world.ActiveEnemies.Any(e => e is Dragger { Attached: < 0, Phase: SpinePhase.Telegraph });
 
-    public PlayerIntent Decide(in PlayerState self, World world, uint tick, out PlayerState aimed) =>
-        HoldOn(self, world.Train, Decided(self, world, tick, out aimed));
+    public PlayerIntent Decide(in PlayerState self, World world, uint tick, out PlayerState aimed)
+    {
+        // Note 609: where it is, whatever it's about (StopHand.Report).
+        job?.Report(self);
+        return HoldOn(self, world.Train, Decided(self, world, tick, out aimed));
+    }
 
     /// <summary>Above the ballast, a climber going down a ladder that reaches it stops this high (m) at speed.</summary>
     const double LowestRung = 0.6;
@@ -1293,6 +1487,8 @@ public sealed class RoofWalkerBot(int seed, ColdTuning? cold = null, StopHand? j
             // one it comes onto, stay in behind the shut doors, not out onto the roofs among them.
             _warm.Packed = car => OnPacksGround(world, car);
             _warm.Troubled = car => world.ActiveEnemies.Any(e => !e.Gone && e.Attached == car && e is CarFire { Phase: SpinePhase.Punish });
+            _warm.Ablaze = (car, end) => EndAblaze(world, car, end);
+            _warm.FireOnTheWay = (car, from, end) => FireOnTheWay(world, car, from, end);
             _warm.LeaveOpen = door => door is 0 or 1 && world.Train.Boiler.Ruptured;
             _warm.Passing = (car, door) => AtTheDoor(world.Train, Crew, car, door);
         }
@@ -1537,7 +1733,8 @@ public sealed class RoofWalkerBot(int seed, ColdTuning? cold = null, StopHand? j
                 continue;
             if (hb is not null && train.Vehicles[i].HotBox > 0)
                 Consider(f.ToWorld(HotBoxes.Box(f.Shape, hb)), hb.Reach, i, false);
-            if (lt is not null && train.Vehicles[i].Loose > 0)
+            // Note 602: not a pin on the pack's ground (unless it's the one beside it a hurt hand stays out for).
+            if (lt is not null && train.Vehicles[i].Loose > 0 && (i == _pinBeside || ClearOfPack(world, i)))
                 Consider(f.ToWorld(Couplings.Pin(f.Shape, train.Dynamics.Tuning)), lt.Reach, i, true);
         }
         void Consider(Ballast.Double3 at, double reach, int i, bool isPin)
@@ -1789,6 +1986,44 @@ public sealed class RoofWalkerBot(int seed, ColdTuning? cold = null, StopHand? j
     /// A car on a hound pack's ground (note 528: the cars from a hound's FrontCar back, which it patrols, leaping the gaps, and
     /// bites on), so out on its roof is out among them, and in it a hound may drop in at an open side door (note 472).
     /// </summary>
+    /// <summary>How far in from a car's end (m) its fire counts as at that end's door (note 553).</summary>
+    const double EndReach = 2;
+
+    /// <summary>
+    /// Note 553: that end of the car (+1 its rear), by its end door, alight: a cell within <see cref="EndReach"/> of it at the fire's
+    /// burnFrom or more (a cell there burns whoever's in it, App. C.5).
+    /// </summary>
+    static bool EndAblaze(World world, int car, int end)
+    {
+        if (world.Enemies is not { } et || car <= 0 || car >= world.Train.Frames.Count
+            || world.ActiveEnemies.OfType<CarFire>().FirstOrDefault(f => !f.Gone && f.Attached == car) is not { Heat.Length: > 0 } fire
+            || FireGrid.Of(world.Train, car, et.CarFire.CellSize) is not { } grid || grid.Count != fire.Heat.Length)
+            return false;
+        double from = world.Train.Frames[car].Shape.HalfLength - EndReach;
+        for (int i = 0; i < grid.Count; i++)
+            if (fire.Heat[i] >= et.CarFire.BurnFrom && grid.Centre[i].Z * end > from)
+                return true;
+        return false;
+    }
+
+    /// <summary>
+    /// Note 553: how much of the car's fire lies between <paramref name="from"/> (along the car) and its end door that way (+1 its
+    /// rear): the heat of every cell on the way, summed. Out the way with less of it.
+    /// </summary>
+    static double FireOnTheWay(World world, int car, double from, int end)
+    {
+        if (world.Enemies is not { } et || car <= 0 || car >= world.Train.Frames.Count
+            || world.ActiveEnemies.OfType<CarFire>().FirstOrDefault(f => !f.Gone && f.Attached == car) is not { Heat.Length: > 0 } fire
+            || FireGrid.Of(world.Train, car, et.CarFire.CellSize) is not { } grid || grid.Count != fire.Heat.Length)
+            return 0;
+        double to = end * world.Train.Frames[car].Shape.HalfLength, lo = Math.Min(from, to), hi = Math.Max(from, to);
+        double sum = 0;
+        for (int i = 0; i < grid.Count; i++)
+            if (grid.Centre[i].Z >= lo - et.CarFire.CellSize / 2 && grid.Centre[i].Z <= hi)
+                sum += fire.Heat[i];
+        return sum;
+    }
+
     static bool OnPacksGround(World world, int car)
     {
         if (world.Enemies is not { } et || world.Train.Dynamics.Consist.IndexOf(car) is not (var at and >= 0))
@@ -1848,8 +2083,9 @@ public sealed class RoofWalkerBot(int seed, ColdTuning? cold = null, StopHand? j
         {
             if (frame.Index == 0)
                 continue; // the engine is boarded by its crew
-            // Nor a switchyard's cars still standing on their siding (note 187): they're not the train (yet).
-            if (train.StandingCar(frame.Index))
+            // Nor a switchyard's cars still standing on their siding (note 187): they're not the train (yet). Nor those
+            // picked up and carried ahead of the engine: their roofs are no way back to the train's (note 618).
+            if (train.StandingCar(frame.Index) || StopHand.AheadOfTheEngine(train, frame.Index))
                 continue;
             foreach (var ladder in frame.Shape.Ladders)
             {
@@ -2096,10 +2332,10 @@ public sealed partial class ConductorBot(CrewCalls? calls = null, int member = 0
     /// The ground beside the line further down than this below its rail (m) is no walk: off a bridge's deck, the river bank
     /// 8 m under it. Everywhere else frontier:7's ground beside the track is within half a metre of the rail (note 552).
     /// </summary>
-    const double NoGroundBelow = 1.0;
+    internal const double NoGroundBelow = 1.0;
 
     /// <summary>How far out from the track a walk beside the train goes (m): <see cref="StopHand"/>'s walk keeps 2.6 m off it, its foot path further.</summary>
-    const double AfootOut = 2.8;
+    internal const double AfootOut = 2.8;
 
     /// <summary>
     /// Note 552 (D1.2's frontier:7 seed 4): whether there's ground to walk on beside the train on one side or the other, from
@@ -2379,10 +2615,81 @@ public sealed partial class ConductorBot(CrewCalls? calls = null, int member = 0
     double _boardWait;
     /// <summary>How long the driver waits at the gate for the crew to climb aboard (T102) before it goes anyway.</summary>
     const double AllAboardSeconds = 120;
-    /// <summary>At the controls: the driver, or a fireman who's had to take them.</summary>
-    public bool Driving => !Fireman || _driving;
+    /// <summary>At the controls: the driver, or a fireman who's had to take them (not while someone playing has them).</summary>
+    public bool Driving => (!Fireman || _driving) && !HandedOver;
+
+    /// <summary>
+    /// The director, 9 Oct 2026: "if a player goes to the cab to drive the bot in there should find another task to do or
+    /// position to take and shouldnt interfere with the player driving", then "yes the bot was still fighting me for the
+    /// controls". Someone playing holds the cab's controls (the host's to say, <see cref="World.ControlsHolder"/>, note 574): the
+    /// bot leaves them the cab (with steam driving the fire is the speed too, T97, so not even the shovel) and goes out to
+    /// work the train as a walker does, and comes back to drive the moment nobody playing holds them.
+    /// </summary>
+    public bool HandedOver { get; private set; }
+
+    /// <summary>Its own cold (the walker's legs warm up as a walker does): set with the crew.</summary>
+    public ColdTuning? Cold { get; init; }
+    /// <summary>Its player id, and who's where by id, as the walkers have them (set each tick by the crew).</summary>
+    public int Me { get; set; } = -1;
+    public IReadOnlyList<(int Id, PlayerState State)> Crew { get; set; } = [];
+
+    RoofWalkerBot? _legs;
+    bool _backToTheCab;
+
+    /// <summary>Whether someone playing holds the controls (note 574): it hands over until they don't.</summary>
+    bool TakenOver(in PlayerState self, World world)
+    {
+        bool theirs = calls is not null && !Express && (!Fireman || _driving) && self.Alive
+            && world.ControlsHolder >= 0 && world.ControlsHolder != Me && !world.ControlsHolderBot;
+        if (HandedOver && !theirs)
+            _backToTheCab = true;
+        return HandedOver = theirs;
+    }
 
     public PlayerIntent Decide(in PlayerState self, World world, uint tick, out PlayerState aimed)
+    {
+        aimed = self;
+        if (TakenOver(self, world))
+            return Handed(self, world, tick, out aimed);
+        // The controls its again: back to the cab over the roofs, as the relief driver goes (note 399), and down its hatch.
+        if (_backToTheCab)
+        {
+            if (!self.Alive || PlayerMotor.InCab(self, world.Train))
+                _backToTheCab = false;
+            else
+            {
+                calls?.Say(member, StopJob.Driver, self);
+                if (ReliefDriver.ToTheCab(self, world.Train, out bool forward) is { } going)
+                    return going;
+                if (forward && _legs is not null)
+                {
+                    _legs.Head(-1);
+                    return _legs.Decide(self, world.Train, tick);
+                }
+                _backToTheCab = false;
+            }
+        }
+        return DecideDriving(self, world, tick, out aimed);
+    }
+
+    /// <summary>
+    /// Handed over: still the crew's driver to the calls (a walker that heard none would come forward to take the controls,
+    /// note 399), and out of the cab on a walker's legs, with a walker's work: the roofs, the fires, the cold, the crew.
+    /// </summary>
+    PlayerIntent Handed(in PlayerState self, World world, uint tick, out PlayerState aimed)
+    {
+        calls?.Say(member, StopJob.Driver, self);
+        calls?.Away(false);
+        _legs ??= new RoofWalkerBot(member * 1000 + 977, Cold);
+        _legs.Me = Me;
+        _legs.Calls = calls;
+        _legs.Crew = Crew;
+        var going = _legs.Decide(self, world, tick, out aimed);
+        // Never a hand on the controls on its way out.
+        return going with { ThrottleNotch = 0, Buttons = going.Buttons & ~(PlayerButtons.Brake | PlayerButtons.Reverser) };
+    }
+
+    PlayerIntent DecideDriving(in PlayerState self, World world, uint tick, out PlayerState aimed)
     {
         aimed = self;
         var train = world.Train;
@@ -2526,6 +2833,9 @@ public sealed partial class ConductorBot(CrewCalls? calls = null, int member = 0
                 return Work(self, train, setBack) with { Lamp = lamp };
             if (ForAHoldout(world, ref cruise) is { } standing)
                 return (BreachAlone(self, world) ?? Work(self, train, standing)) with { Lamp = lamp };
+            // Note 605: short of a town's gate, stood for the crew to clear the train of what it'd charge for.
+            if (ForTheGate(world, ref cruise) is { } clearing)
+                return Work(self, train, clearing) with { Lamp = lamp };
         }
         // Running hot (note 376): over the boards and the line's authority (frontier's line speed is 18 m/s, under the hound
         // run's 19), braking only for a bend it would come off on.
@@ -2753,6 +3063,12 @@ public sealed partial class ConductorBot(CrewCalls? calls = null, int member = 0
         bool fading = train.Dynamics.BrakeEfficiency < FadedBrake && train.Boiler.Pressure > still + 2 && train.Dynamics.Speed > allowed - 1;
         bool over = (train.Boiler.Pressure > target + (_ventLeg >= 0 ? 2 : VentOver) && train.Dynamics.Speed > allowed + (_ventLeg >= 0 ? 0 : 1) || fading)
             && calls?.DriverAway != true;
+        // Note 597 (the director's in-game note 2, 9 Oct 2026: the bot venting all the time): with someone playing at the
+        // controls (note 574), the speed and the steam for it are theirs. Venting the gauge down to what the bot reckons the
+        // line allows was fighting their driving from the blow-off, every time they ran faster than it would. Then it vents
+        // only to keep the boiler out of the red (the safety valve held shut, a Stoker's fire).
+        if (world.ControlsHolder >= 0 && world.ControlsHolder != Me && !world.ControlsHolderBot)
+            over = train.Boiler.Pressure > bt.Redline - (_ventLeg >= 0 ? 3 : 0);
         var way = VentWay(train);
         if (_ventLeg < 0)
         {
@@ -3091,16 +3407,23 @@ public sealed partial class ConductorBot(CrewCalls? calls = null, int member = 0
     /// <summary>Going backwards faster than this (m/s) when it's meant to be going on, it's rolling back.</summary>
     const double RollingBack = 0.2;
 
+    /// <summary>How far short of the end of the track the driver plans to stand (m), and how far past home it pulls up.</summary>
+    const double StopShort = 150, HomePast = 30;
+
     PlayerIntent Drive(TrainOnLine train, uint tick, double cruise, double over)
     {
         _cruise = cruise;
         var d = train.Dynamics;
         // To the end of the track it's on: the terminus, or a dead line's buffer stop.
         double remaining = train.Line.PathLength(d.Path) - d.Distance;
+        // On the main line, no further than home (note 600: a town terminus's yard runs on a kilometre past it): pulled up a
+        // little past where the night's delivered.
+        if (d.Path == Rail.RailLine.MainPath || d.Path <= -2)
+            remaining = Math.Min(remaining, train.HomeAt + HomePast + StopShort - d.Distance);
         // With steam driving (T97) the engine pulls against the brake until the steam's down: plan the stop on the difference.
         var brakeRate = d.MaxBrakeForce / d.Consist.MassTonnes
             - (train.BoilerTuning is { SteamDrive: true } ? d.MaxTractiveForce / d.Consist.MassTonnes : 0);
-        double stopping = d.Speed * d.Speed / (2 * Math.Max(0.1, brakeRate)) + 150;
+        double stopping = d.Speed * d.Speed / (2 * Math.Max(0.1, brakeRate)) + StopShort;
         var intent = new PlayerIntent();
         // A descent runs the train away with the regulator shut; hold it on the brake, with some
         // hysteresis so it isn't hammered every tick (fade only builds while it's applied).
@@ -3368,6 +3691,34 @@ public sealed class WarmUp(ColdTuning cold, double goInAt = 0.6)
             }
         }
         bool open = train.Vehicles[_car].DoorOpen(RearDoor);
+        // Note 553: in its car, but out on a side door's landing beyond the walls: straight in through the doorway first. The
+        // walk to an end door from there went along the car's outside, off the landing's end: deepTerritory:2's gunner, in to
+        // shut car 4's doors at 10 m/s, walked off car 4's landing and then car 5's, 45 and 35 lost.
+        // At a stand a step off a landing is a step down (and a stop's hands work the crates from them: StopCrewTests); it's the
+        // moving train's (faster than anyone catches on foot) that's a fall.
+        if (_step is Step.Shut or Step.Warm or Step.Reopen or Step.Out && self.Parent == _car && self.Surface == Surface.Deck
+            && !SpeedBands.CanBeCaughtOnFoot(train.Dynamics.Tuning, train.Dynamics.Speed)
+            && train.Frames[_car].Shape is { Interior: { } walls } inShape && (self.Position.X < walls.Min.X || self.Position.X > walls.Max.X))
+        {
+            // Along the landing to the doorway's span first (the steps reach past it), then straight in.
+            double inX = Math.Clamp(self.Position.X, walls.Min.X + 0.5, walls.Max.X - 0.5), facing = self.Position.X < 0 ? -Math.PI / 2 : Math.PI / 2;
+            var at = self.Position;
+            var doorway = inShape.DoorList.Where(d => Math.Sign(d.Box.Centre.X) == Math.Sign(at.X) && d.Box.Max.Z - d.Box.Min.Z > d.Box.Max.X - d.Box.Min.X)
+                .OrderBy(d => Math.Abs(d.Box.Centre.Z - at.Z)).Select(d => (int?)d.Index).FirstOrDefault();
+            var span = doorway is { } di ? inShape.DoorList.First(d => d.Index == di).Box : default;
+            bool shut = doorway is { } sd && !train.Vehicles[_car].DoorOpen(sd);
+            // Shut, by its handle (a door wants its handle in reach, and facing); open, anywhere in its span.
+            double handleZ = shut ? inShape.Interactables.First(i => i.Kind == InteractableKind.Door && i.Index == doorway!.Value).Position.Z : self.Position.Z;
+            double inZ = doorway is not null ? Math.Clamp(handleZ, span.Min.Z + 0.3, span.Max.Z - 0.3) : self.Position.Z;
+            if (doorway is not null && (shut ? Math.Abs(self.Position.Z - inZ) > 0.15 : self.Position.Z < span.Min.Z + 0.15 || self.Position.Z > span.Max.Z - 0.15))
+                return Steer(self, new Double3(self.Position.X, 0, inZ), self.Yaw).Step;
+            // Shut: open it, facing in.
+            if (shut)
+                return CrewActions.Nearest(self, train) == InteractableKind.Door
+                    ? new PlayerIntent { Buttons = PlayerButtons.Use } // held: a door takes a moment's hold (interior.doorSeconds)
+                    : new PlayerIntent { LookYaw = Turn(self, facing) };
+            return Steer(self, new Double3(inX, 0, inZ), facing).Step;
+        }
         switch (_step)
         {
             case Step.ToEnd:
@@ -3503,6 +3854,14 @@ public sealed class WarmUp(ColdTuning cold, double goInAt = 0.6)
                 return Next(Step.Reopen);
             case Step.Reopen:
                 {
+                    // Note 553: the rake may have changed while it was in here (cars left at a stop, a cut): out the other end if
+                    // there's no plate this way now, and if neither end has one, wait in here (it gives up in 25 s).
+                    if (!Way(train, _outEnd))
+                    {
+                        if (!Way(train, -_outEnd))
+                            return new PlayerIntent();
+                        _outEnd = -_outEnd;
+                    }
                     // The way out: the door nearer where we are (in by the rear, but someone may have moved us).
                     int door = _outEnd > 0 ? RearDoor : FrontDoor;
                     if (train.Vehicles[_car].DoorOpen(door))
@@ -3522,7 +3881,8 @@ public sealed class WarmUp(ColdTuning cold, double goInAt = 0.6)
                     return null;
                 }
                 // Shut again in our face (someone warming in here): open it again rather than walk into it till we give up.
-                if (!train.Vehicles[_car].DoorOpen(_outEnd > 0 ? RearDoor : FrontDoor))
+                // Nothing beyond it now (the car behind uncoupled and gone, note 553): back to choosing the way out.
+                if (!train.Vehicles[_car].DoorOpen(_outEnd > 0 ? RearDoor : FrontDoor) || !Way(train, _outEnd))
                     return Next(Step.Reopen);
                 return Reach(self, new Double3(_doorX, 0, _outEnd * (_l + 0.6)), _outEnd > 0 ? Math.PI : 0, Step.Out);
             default:
@@ -3569,8 +3929,32 @@ public sealed class WarmUp(ColdTuning cold, double goInAt = 0.6)
         // Never out onto a Knotter's back (note 367): the other end, where that's a way out.
         bool knot = way > 0 ? train.Vehicles[_car].Knot > 0 : ahead > 0 && train.Vehicles[ahead].Knot > 0;
         bool other = way > 0 ? ahead > 0 && train.Vehicles[ahead].Knot <= 0 : train.Vehicles[_car].Knot <= 0;
-        return knot && other ? -way : way;
+        way = knot && other ? -way : way;
+        // Note 607: dawn, the Wakers eating from the rear: out by the front door, toward the engine, where there's a way.
+        if (Forward && Way(train, -1) && !(ahead > 0 && train.Vehicles[ahead].Knot > 0))
+            return -1;
+        // Note 553: a car alight, out the way with less of the fire on it (car 1's front door onto the engine's plate too).
+        if (FireOnTheWay is { } fire && Way(train, -way) && fire(_car, self.Position.Z, -way) < fire(_car, self.Position.Z, way))
+            return -way;
+        // Note 553: never out of an end with nothing beyond it (the last car of a rake, its cars behind left at a stop).
+        return Way(train, way) || !Way(train, -way) ? way : -way;
     }
+
+    /// <summary>
+    /// A way out of <see cref="_car"/> by that end (note 553): <see cref="Floor"/>, or car 1's front door onto the engine's plate
+    /// with the car alight (the tender's no way back along the train, but the fire's worse).
+    /// </summary>
+    bool Way(TrainOnLine train, int end) =>
+        Floor(train, _car, end) || end < 0 && train.VehicleAhead(_car) == 0 && (Troubled?.Invoke(_car) == true || Ablaze?.Invoke(_car, 1) == true);
+
+    /// <summary>
+    /// Note 553 (D1's falls audit): whether there's footing beyond that end door of <paramref name="car"/> (+1 its rear): a plate,
+    /// with a car on the other side of it (never the engine's, whose cab is the fireman's), or the guard van's rear platform. On
+    /// frontier:7's 4-bot nights the commonest fall was a walker in out of the cold coming out of the rear door of a rake's
+    /// last car, its cars behind left at the stop, onto the ballast with the train setting back, 11 to 19 lost each time.
+    /// </summary>
+    internal static bool Floor(TrainOnLine train, int car, int end) =>
+        end > 0 ? train.VehicleBehind(car) > 0 || train.Frames[car].Shape.Platform is not null : train.VehicleAhead(car) > 0;
 
     /// <summary>
     /// Which plate to drop onto: the one behind this car (this car's own), or in front (the car ahead's), whichever is
@@ -3589,6 +3973,22 @@ public sealed class WarmUp(ColdTuning cold, double goInAt = 0.6)
     /// front door, off their ground). Set by the bot.
     /// </summary>
     public Func<int, bool>? Packed { get; set; }
+    /// <summary>
+    /// That end of that car (car, end: +1 its rear) alight by its end door (note 553): never in through it (the way out is
+    /// <see cref="FireOnTheWay"/>'s).
+    /// frontier:7 seed 5's gunner, freed from a Holdout on 80, went into car 1 by its rear door through the half of it ablaze,
+    /// stood short of the extinguisher in the other half, and at 35 went back out the way it came, the only way out of car 1 a
+    /// warm-up takes (never onto the engine's plate), and burned to death in it. Set by the bot.
+    /// </summary>
+    public Func<int, int, bool>? Ablaze { get; set; }
+    /// <summary>
+    /// The fire between a place along that car and its end door that way (car, z, end), note 553: the way out is the one with
+    /// less of it. "Never out through the burning end" sent frontier:7 seed 3's walker, 1.7 m from car 9's front door with that
+    /// end alight, 7 m back through the whole fire to the rear one. Set by the bot.
+    /// </summary>
+    public Func<int, double, int, double>? FireOnTheWay { get; set; }
+    /// <summary>Out toward the engine whichever end is nearer (note 607: dawn, the Wakers eating from the rear). Set by the bot.</summary>
+    public bool Forward { get; set; }
     /// <summary>
     /// A door of the car it's warming in that's to be left open, by its index: the repair kit's way up the train while the
     /// boiler's ruptured (<see cref="KitCarry"/>). The cascade audit's walker in out of the cold in car 3 shut every end door
@@ -3613,8 +4013,10 @@ public sealed class WarmUp(ColdTuning cold, double goInAt = 0.6)
         // plate with a car behind it. Without it nobody ever went into the guard van: Fire Flies on its lamp set it alight, the
         // walkers paced its roof with the fire under them, and it spread forward a car at a time (frontier:7, note 188).
         bool ownPlate = behind > 0 || train.Frames[here].Shape.Platform is not null;
-        bool back = ownPlate && Walkable(train, here) && Barred?.Invoke(here) != true && (Into == here || Troubled?.Invoke(here) != true);
-        bool front = ahead > 0 && Walkable(train, ahead) && Barred?.Invoke(ahead) != true && (Into == ahead || Troubled?.Invoke(ahead) != true);
+        bool back = ownPlate && Walkable(train, here) && Barred?.Invoke(here) != true && (Into == here || Troubled?.Invoke(here) != true)
+            && Ablaze?.Invoke(here, 1) != true;
+        bool front = ahead > 0 && Walkable(train, ahead) && Barred?.Invoke(ahead) != true && (Into == ahead || Troubled?.Invoke(ahead) != true)
+            && Ablaze?.Invoke(ahead, 1) != true;
         // A tunnel's mouth coming (or a bend taken over its board, the roof warning) and the only ways in alight: down onto
         // the plate, under the roof line, and wait there till it's passed, not in. Note 380: on a hot run (the express
         // driver takes bends over their boards, note 376) the warning held for whole stretches, and a walker in for shelter
@@ -3894,11 +4296,34 @@ public static partial class Heed
         // The Car Hugger's mouth is at the end of its car, under the roof's edge (App. A.3): the one it has is on the end ladder
         // or the platform below. From that car's roof, to the top of the ladder over them, and haul from there. On the roof
         // above, walking at them got no nearer, and a crew of four watched a walker eaten under their feet (note 310).
-        if (holder.e is CarHugger hugger && self.Parent == hugger.Attached && self.Surface == Surface.Roof
-            && train.Frames[hugger.Attached].Shape.Platform is { } platform)
+        // One it has down on the coupling below (a walker gone down to club it, note 310) is out of reach from up there: down the
+        // ladder after them, the way they went, and haul from beside them. From the roof a crew of four watched a walker they'd
+        // just pulled out go back down and be eaten 3 m under the one who'd saved them (note 554's 7 km lines, deadLines:2).
+        if (holder.e is CarHugger hugger && self.Parent == hugger.Attached && train.Frames[hugger.Attached].Shape.Platform is { } platform
+            && self.Surface is Surface.Roof or Surface.Ladder or Surface.Coupler)
         {
-            var (toLadder, there) = WarmUp.Steer(self, new Double3(train.Dynamics.Tuning.Geometry.EndLadderX, 0, platform.Min.Z - 0.35), Math.PI);
-            return there ? new PlayerIntent { Buttons = PlayerButtons.Use } : toLadder;
+            var heldAt = crew?.FirstOrDefault(c => c.Id == holder.e.Holding) is { State.Alive: true } h
+                ? PlayerMotor.WorldPosition(h.State, train) : holder.At;
+            bool reach = (heldAt - me).Length <= et.Grab.PullReach;
+            switch (self.Surface)
+            {
+                case Surface.Roof:
+                    {
+                        var (toLadder, there) = WarmUp.Steer(self, new Double3(train.Dynamics.Tuning.Geometry.EndLadderX, 0, platform.Min.Z - 0.35), Math.PI);
+                        if (!there)
+                            return toLadder;
+                        // Pushing on over the edge takes the ladder down (as Beat goes to club it).
+                        return reach ? new PlayerIntent { Buttons = PlayerButtons.Use } : new PlayerIntent { MoveZ = 1, Buttons = PlayerButtons.Use };
+                    }
+                case Surface.Ladder:
+                    return reach ? new PlayerIntent { Buttons = PlayerButtons.Use } : new PlayerIntent { MoveZ = -1 };
+                default:
+                    if (Strike(self, train, heldAt, et.Grab.PullReach * 0.8) is not { } closer)
+                        return intent;
+                    if (reach)
+                        closer.Buttons |= PlayerButtons.Use;
+                    return closer;
+            }
         }
         // The Knotter's coil (note 365): see KnotRescue.
         if (holder.e is Knotter knot)
@@ -4035,21 +4460,30 @@ public static partial class Heed
 
     /// <summary>
     /// The Whistler (v1.1 App. A.4): "check the gaps after the whistle; move in pairs at stops". With one watching its gap, a
-    /// bot doesn't go past it: it steps back out of reach of the gap and goes round another way.
+    /// bot on its own doesn't go past it: it steps back out of reach of the gap and goes round another way. One of a pair (a
+    /// crewmate within the Whistler's <c>pairRadius</c>, less <see cref="PairKept"/>) goes on with its work: the Whistler never
+    /// takes one of a pair, and two facing its gap find it and it flees (note 614). Kept off as a pair too, a crew of four
+    /// stood on the local, dead lines and deep territory 7 km nights for minutes at a time beside a Knotter in the same gap,
+    /// never clubbing it, while the driver waited on them.
     /// </summary>
-    public static PlayerIntent Gaps(PlayerIntent intent, in PlayerState self, World world, int selfId)
+    /// <param name="others">The rest of the crew, where they are.</param>
+    public static PlayerIntent Gaps(PlayerIntent intent, in PlayerState self, World world, int selfId,
+        IReadOnlyList<(int Id, PlayerState State)>? others = null)
     {
         if (!self.Alive || self.Has(PlayerFlags.Held) || world.Enemies is not { } et)
             return intent;
         var train = world.Train;
         var me = PlayerMotor.WorldPosition(self, train);
+        if (others?.Any(o => o.Id != selfId && o.State.Alive && !o.State.Has(PlayerFlags.Held)
+                && (PlayerMotor.WorldPosition(o.State, train) - me).Length <= et.Whistler.PairRadius - PairKept) == true)
+            return intent;
         foreach (var w in world.ActiveEnemies.OfType<Whistler>())
         {
             if (w.Gone || w.Phase is not (SpinePhase.Telegraph or SpinePhase.Commit) || w.Attached < 0)
                 continue;
             var gap = w.WorldPosition(train);
             double d = (gap - me).Length;
-            if (d > et.Whistler.PassReach + 2)
+            if (d > et.Whistler.PassReach + GapKeptOff)
                 continue;
             // A client doesn't know for certain who's beside it; a bot plays safe and keeps clear either way.
             var away = me - gap;
@@ -4060,20 +4494,64 @@ public static partial class Heed
         return intent;
     }
 
+    /// <summary>How far past the Whistler's <c>passReach</c> a bot on its own keeps from its gap (m).</summary>
+    const double GapKeptOff = 2;
+
     /// <summary>
-    /// Fire Flies (v1.1 App. A.5): "lamps off when they swarm". In the car they're swarming, a bot puts its lamp out (a press,
-    /// every other tick, until it's out: the press is the host's to count).
+    /// Within a bot's keeping-off of a gap a Whistler's watching (<see cref="Gaps"/>): no place for a bot on its own to go
+    /// (note 614: the ladder up by it, say).
     /// </summary>
-    public static PlayerIntent Flies(PlayerIntent intent, in PlayerState self, World world, uint tick)
+    public static bool Watched(World world, Double3 at) =>
+        world.Enemies is { } et && world.ActiveEnemies.OfType<Whistler>().Any(w => !w.Gone && w.Phase is SpinePhase.Telegraph or SpinePhase.Commit
+            && w.Attached >= 0 && (w.WorldPosition(world.Train) - at).Length <= et.Whistler.PassReach + GapKeptOff);
+
+    /// <summary>How well inside the Whistler's <c>pairRadius</c> a crewmate is reckoned a pair (m: a step's slack as they move).</summary>
+    const double PairKept = 0.75;
+
+    /// <summary>
+    /// Fire Flies (v1.1 App. A.5): "lamps off when they swarm". In the car they're swarming, a bot puts its lamp out (a press
+    /// as its <see cref="LampKey"/> says, until it's out: the press is the host's to count).
+    /// </summary>
+    public static PlayerIntent Flies(PlayerIntent intent, in PlayerState self, World world, int me, IReadOnlyList<(int Id, PlayerState State)> crew,
+        LampKey key, uint tick)
     {
         if (!self.Alive || self.Has(PlayerFlags.Held) || self.Parent <= 0 || self.Parent >= world.Train.Vehicles.Count
             || !world.Train.Vehicles[self.Parent].LampLit || !PlayerMotor.Indoors(self, world.Train))
             return intent;
         int car = self.Parent;
-        if (world.ActiveEnemies.Any(e => e is FireFlies f && !f.Gone && f.Attached == car) && tick % 2 == 0)
+        if (world.ActiveEnemies.Any(e => e is FireFlies f && !f.Gone && f.Attached == car) && key.Press(self, world, me, crew, tick))
             intent.Actions |= PlayerActions.CarLamp;
         return intent;
     }
+
+    /// <summary>
+    /// A car coming apart (note 576): a bot in it, not busy with its hands, goes to its dent, puts the wrench in hand and mends
+    /// it, and keeps at it until the car's well back over the failing line (<see cref="MendTo"/> of it), not just over it.
+    /// </summary>
+    public static PlayerIntent Mend(PlayerIntent intent, in PlayerState self, World world)
+    {
+        var train = world.Train;
+        var t = train.Dynamics.Tuning.Failing;
+        if (!t.Enabled || !self.Alive || self.Has(PlayerFlags.Held) || self.Parent <= 0 || self.Parent >= train.Vehicles.Count
+            || intent.Buttons != PlayerButtons.None || !PlayerMotor.Indoors(self, train) || !Repairs.Mendable(train, self.Parent))
+            return intent;
+        var v = train.Vehicles[self.Parent];
+        bool going = Failing.Stage(t, v) is FailStage.Failing or FailStage.Breaking;
+        bool atIt = self.ActionProgress > 0 && v.Integrity < MendTo * Repairs.Mendable(v);
+        if (!going && !atIt)
+            return intent;
+        if (Repairs.AtDent(self, train) is null)
+        {
+            var dent = Repairs.DentAt(train, self.Parent)!.Value;
+            return WarmUp.Steer(self, new Double3(dent.X + 0.7, self.Position.Y, dent.Z), self.Yaw).Step;
+        }
+        if (Repairs.WrenchKey(self) is var key and > 0)
+            return new PlayerIntent { Select = key };
+        return Repairs.WrenchInHand(self) ? new PlayerIntent { Buttons = PlayerButtons.Use } : intent;
+    }
+
+    /// <summary>How far a bot mends a failing car before it leaves it: most of the way (a car just over the line is one knock from going again).</summary>
+    public const double MendTo = 0.9;
 
     /// <summary>
     /// A lamp guttering (note 346): a bot in the car trims it with the lamp key. A press every half second while it's guttering

@@ -134,9 +134,11 @@ public sealed record FortressTemplate(double DepartureRoadExtraM, double ThroatM
     double LastLightM, double[] DressingTransitionM, double YardSpeed, int[] ThroatSwitches, string[] Identities, double MaxThresholdGrade,
     double ThresholdMinRadius, double PadM = 70);
 
-/// <summary>§11.4: the terminus and arrival.</summary>
+/// <summary>§11.4: the terminus and arrival. <see cref="TownYard"/> (note 600): a terminus that answers is a town, the one
+/// the next night departs from, so its yard is the departure yard's length and its ground the fortress's pad;
+/// <see cref="ArrivalYardM"/> is a silent settlement's (or every terminus's, without it).</summary>
 public sealed record TerminusTemplate(double SkyGlowM, double YardLimitBoardM, double SpawnBanM, double WallsResolveM, double ArrivalYardM,
-    double YardLimitSpeed, RouteTier SilentFromTier, double HomeStraightMinRadius);
+    double YardLimitSpeed, RouteTier SilentFromTier, double HomeStraightMinRadius, bool TownYard = false);
 
 /// <summary>§6.3.</summary>
 public sealed record JunctionRules(double TangentClearM, double MaxGrade, double LampVisibleM, double SeparationM, double SeparationWithinM, double PadM,

@@ -165,7 +165,9 @@ sealed partial class LineBuilder
         _gate = _innerGate + f.InnerGateBeforeM;
         double length = Math.Round(_l.LengthKm * 100) * 10;
         _terminus = _gate + length;
-        _end = _terminus + _t.Terminus.ArrivalYardM;
+        // A terminus that's a town has its yard as the departure's (note 600): the same town stands in it either way round.
+        bool town = _t.Terminus.TownYard && _p.Tier < _t.Terminus.SilentFromTier;
+        _end = _terminus + (town ? _gate : _t.Terminus.ArrivalYardM);
         _edges["main"] = new EdgeDraft { Id = "main", Role = EdgeRole.Main };
         LayBiomes();
         PlaceFacilities();
@@ -395,11 +397,35 @@ sealed partial class LineBuilder
     bool TryAddDeadLine(ref Pcg32 rng)
     {
         var d = _t.DeadLines;
+        // A dead line turns away at its angle and is a stop's depth (StopContext.MaxLateral) off the main line only so far on:
+        // from a toe nearer a stop than that its branch runs through the stop's yard or village, which are laid later and
+        // can't see it (frontier:7's prison van stood on dead1's rail, on the 7 km nights of note 554 whose stops are half
+        // the line).
+        double runOut = (_c.Route.StopContext.MaxLateral + 30) / DMath.Sin(d.AngleDeg[0] * Math.PI / 180);
+        bool beforeAStop(double t) => _facilities.Any(f => f.LullStart > t && f.LullStart < t + runOut);
         for (int tries = 0; tries < 200; tries++)
         {
             double toe = Math.Round(rng.Range(_gate + _t.Budget.GraceM, _terminus - _t.Budget.HomeStraightM) / 10) * 10;
-            if (!Clear(Blocked(withSpike: false), toe - _t.Junctions.PadM, toe + _t.Junctions.PadM))
+            var blocked = Blocked(withSpike: false);
+            double pad = _t.Junctions.PadM;
+            if (!Clear(blocked, toe - pad, toe + pad))
                 continue;
+            // Up against the nearest zone already laid (a stop's lull, another junction's pad) where that's clear: its pad then
+            // takes no room from between them (on the 7 km nights of note 554 a pad in the middle of a stretch left two too
+            // short for anything).
+            double lo = _gate + _t.Budget.GraceM + pad, hi = _terminus - _t.Budget.HomeStraightM - pad;
+            var snapped = blocked.SelectMany(x => new[] { Math.Ceiling((x.S1 + pad) / 10) * 10, Math.Floor((x.S0 - pad) / 10) * 10 })
+                .Where(c => c >= lo && c <= hi && Math.Abs(c - toe) <= 400 && Clear(blocked, c - pad, c + pad) && !beforeAStop(c))
+                .OrderBy(c => Math.Abs(c - toe)).ThenBy(c => c).ToList();
+            if (snapped.Count > 0)
+                toe = snapped[0];
+            // Short of a stop: out past its lull instead, where that's clear.
+            if (beforeAStop(toe))
+            {
+                toe = Math.Ceiling((_facilities.Where(f => f.LullStart > toe && f.LullStart < toe + runOut).Max(f => f.LullEnd) + pad) / 10) * 10;
+                if (toe > hi || !Clear(blocked, toe - pad, toe + pad) || beforeAStop(toe))
+                    continue;
+            }
             _deads.Add(new DeadLinePlan
             {
                 Toe = toe,
