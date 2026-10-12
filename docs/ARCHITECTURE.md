@@ -805,7 +805,6 @@ written here instead is moved out by `tools/coord/notes.py split`; the Coordinat
 - [629. The Climbers into dark cars (D1.4, queue #359, note 627's find, at D1's ask: "that's the bigger fish")](notes/629.md)
 - [630. The cars a Knotter leaves, chased as they roll back (queue #360, D1.2 for D1; D1's ask after #826, note 628: frontier:6 seed 16, "the…](notes/630.md)
 - [631. A dawn cushion for the run home: measured, and not kept (queue #361, D1.2 for D1; D1's ask after #826, from D1.2's own flag on note 628:…](notes/631.md)
-- [632. A train eaten at dawn ends the campaign (D1.4, queue #362, the director, the inbox, 12 Oct)](notes/632.md)
 - [632. A train taken at dawn ends the campaign (D1.4, queue #362; the director, the inbox, 12 Oct: `D1-eaten-at-dawn`, "c, The campaign ends",…](notes/632.md)
 - [633. Lit and shut keeps the Climbers out (D1.4, queue #363, the director, the inbox, 12 Oct)](notes/633.md)
 - [634. Bots fight a fully burning car together (D1.4, queue #364, the director, the inbox, 12 Oct)](notes/634.md)
