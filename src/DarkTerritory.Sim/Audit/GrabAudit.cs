@@ -220,6 +220,8 @@ public static class GrabAudit
                     // it takes a lone player), so the friends are up on the roof of the car behind; when it grabs they come down
                     // onto the plate and in at the car's rear door, as the bots go in to a fire (WarmUp.Into), then at it.
                     var n = new AuditNight(c, Cars, 12, crew);
+                    // Car 3's door left open: a lit car shut up tight they'd pass over, to the cab (note 633).
+                    n.Train.Vehicles[3].ToggleDoor(0);
                     var climber = n.World.AddEnemy(id => Climber.Pacing(id, n.Train, 3, 1, e.Climbers));
                     n.Run(e.Climbers.PaceSeconds + e.Climbers.ScrabbleSeconds + 30, (_, _) => default, () => climber.Inside);
                     int car = climber.Attached >= 1 ? climber.Attached : 3;

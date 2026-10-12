@@ -513,7 +513,8 @@ public class CarFireTests
     }
 
     [Theory]
-    [InlineData(1)]
+    [InlineData(3)]
+    [InlineData(5)]
     public void AtAStopTheNearestHandPutsTheFireFliesLampOutWhateverItsPart(int seed)
     {
         // Note 496: a crew of four's hands at a stop are the shunter and the winch pair, none a crate hand, and only a crate
@@ -526,8 +527,9 @@ public class CarFireTests
         // The nights as the director dealt them before the six of notes 362–367 joined its roster: a kind more in the deal
         // reshuffles every night (seed 6 has no Fire Flies with them in), and seeds 2 and 6 were the cases the notes were written
         // on. On the 7 km nights of note 554 frontier:7 is another line (its first stop a foundry again): seeds 3 and 5 had
-        // the Fire Flies come to a car at a stop. With the bots shutting the doors behind them (note 633) neither has them come
-        // at all; of seeds 1 to 14 only seed 1 does.
+        // the Fire Flies come to a car at a stop. With the bots shutting the doors behind them (note 633) no seed of 1 to 16
+        // has them come at all, so the swarm is put on: ten seconds into the first stand, on the first lit car in the engine's
+        // rake, its door left open, as the director would have dealt it.
         EnemyKind[] six = [EnemyKind.Mourners, EnemyKind.TowerJaw, EnemyKind.Brakeman, EnemyKind.Knotter, EnemyKind.FreightBeetle, EnemyKind.Hotbox,
             // And the yard's and the houses' (notes 583–586, 592): a stop's own, they change what the bots do there.
             EnemyKind.Pickers, EnemyKind.Lodger, EnemyKind.Householder, EnemyKind.HollowHouse, EnemyKind.Hanger];
@@ -537,9 +539,20 @@ public class CarFireTests
         };
         var flies = new Dictionary<int, int>(); // swarm → its car
         var lit = new HashSet<int>();           // cars alight (a fire past its smoke)
+        double stood = 0;
+        bool dealt = false;
         CrewOfTwoTests.Night("frontier:7", 10, 520, null, bots: 4, seed: seed, enemies: enemies,
             upkeep: DataFile.Load<UpkeepTuning>(Path.Combine(DataFile.FindContentRoot(), UpkeepTuning.File)), each: world =>
             {
+                var train = world.Train;
+                stood = world.Run is { Phase: DarkTerritory.Sim.Run.RunPhase.AtFacility } && Math.Abs(train.Dynamics.Velocity) < 0.05 ? stood + SimConstants.TickSeconds : 0;
+                if (!dealt && stood >= 10 && train.Dynamics.Consist.Vehicles.FirstOrDefault(v => v.Id > 0 && v.LampLit && train.Frames[v.Id].Shape.Interior is not null) is { } car)
+                {
+                    dealt = true;
+                    if (car.DoorsOpen == 0)
+                        car.ToggleDoor(0);
+                    world.AddEnemy(id => FireFlies.OnLamp(id, train, car.Id));
+                }
                 foreach (var e in world.ActiveEnemies)
                     if (e is FireFlies { Gone: false } f)
                         flies.TryAdd(f.Id, f.Attached);
