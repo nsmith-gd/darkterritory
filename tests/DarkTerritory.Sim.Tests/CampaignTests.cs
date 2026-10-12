@@ -25,16 +25,17 @@ public class CampaignTests
         Assert.InRange(Campaign.Campaign.CarCost(C, car), cost * 0.99, cost * 1.01);
 
     [Theory]
-    [InlineData(3, RouteTier.Local, 765)]
-    [InlineData(6, RouteTier.Frontier, 2975)]
-    [InlineData(10, RouteTier.Frontier, 5355)]
-    [InlineData(15, RouteTier.DeadLines, 13090)]
-    [InlineData(20, RouteTier.DeepTerritory, 27455)]
+    [InlineData(3, RouteTier.Local, 855)]
+    [InlineData(6, RouteTier.Frontier, 2556.45)]
+    [InlineData(10, RouteTier.Frontier, 2556.45)]
+    [InlineData(15, RouteTier.DeadLines, 7889.75)]
+    [InlineData(20, RouteTier.DeepTerritory, 19446.5)]
     public void NetIncomeByConsistMatchesSpecF1(int cars, RouteTier tier, double net)
     {
         Assert.Equal(tier, Campaign.Campaign.TierFor(C, cars));
-        // F.1's table is gross less the average 15% running costs, with no losses.
-        Assert.Equal(net, Campaign.Campaign.NetFor(C, R, cars, C.StandardCrew with { LossFraction = 0 }), 0);
+        // F.1's table (note 636): what a night's stop loads on the tier, never more than all but the guard, less the 5%
+        // its costs and fees come to.
+        Assert.Equal(net, Campaign.Campaign.NetFor(C, R, cars, C.StandardCrew), 0);
     }
 
     [Fact]

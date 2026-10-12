@@ -34,7 +34,7 @@
   // gates stay open: a creature still aboard as its car comes in through a town terminus's gate is brought into town. The
   // town's guards and guns fight it in the yard for fightSeconds before it's driven off (the fort's rule, above), so it's
   // a fight among the houses while it lasts; delivered, the night pays the town's monster brigade fee (this share of the
-  // tier's perCar) for each one, and the report says so, and how many of the town's people each one hurt.
+  // tier's economy.feeValue, note 636) for each one, and the report says so, and how many of the town's people each one hurt.
   // burns (note 608): the houses each one sets alight, the lived-in ones nearest the gate; they burn that night, and the
   // campaign remembers them against the town, so the next time the crew's there they're burnt out and the town says so.
   "broughtIn": { "fightSeconds": 8, "fee": 0.5, "hurt": 2, "burns": 1 },
@@ -120,8 +120,18 @@
 
   // Spec F.1: contracts pay on delivered cargo that survives, and nothing else.
   "economy": {
-    "perCar": { "local": 450, "frontier": 700, "deadLines": 1100, "deepTerritory": 1700 },
-    // Running costs, priced so a competent night averages spec F.1's 15% of gross.
+    // Note 636 ("each successful run should help players towards earning and spending to upgrade so they can go further
+    // the next run when the difficulty goes up", the director, the inbox, 12 Oct): a car-load pays so a delivered night
+    // with a competent crew nets about the tier's next car / 1.5 (spec F.1/F.2: 1,100 / 2,650 / 7,800 / 20,000). Priced on
+    // what a night's one stop loads (64 nights, 4 bots: 2.7 / 3.0 / 1.5 / 0.9 car-loads; the harder yards load less).
+    // Was 450 / 700 / 1,100 / 1,700, for full trains.
+    "perCar": { "local": 450, "frontier": 900, "deadLines": 5500, "deepTerritory": 23000 },
+    // Note 636: what the night's fees are priced in, by tier. A death's crew-loss fee (holdouts.json crewLossFee) and a
+    // creature's monster brigade fee (broughtIn.fee) are shares of it: the per-car values these were before the pay was
+    // raised, so a raise in pay isn't a raise in what a death costs. A fee prices a death, not the freight (D1).
+    "feeValue": { "local": 450, "frontier": 700, "deadLines": 1100, "deepTerritory": 1700 },
+    // Running costs, priced so a competent night averaged spec F.1's 15% of gross (before note 636: they're fixed, so
+    // they're a smaller share of the raised pay).
     "coalPerUnit": 2,
     "roundsPerRound": 1,
     "repairPerIntegrity": 150,

@@ -53,7 +53,11 @@ public sealed record SpareKitTuning(double Cost, int Most);
 public sealed record TierStep(RouteTier Tier, int FromCars);
 public enum UpgradeSize : byte { Small, Major }
 public sealed record UpgradeDef(string Id, string Name, UpgradeSize Size, double CostShare, Dictionary<string, double> Effect);
-public sealed record StandardCrew(double SmallShare, double MajorShare, int MajorEvery, double LossFraction, double RunningCosts);
+/// <summary>The yardstick crew for <see cref="Campaign.Simulate"/>; <c>Loads</c> is the car-loads a competent delivered night
+/// brings home on each tier (note 636: the train leaves empty, note 575, and a night earns what its stops load), and a tier
+/// it doesn't name loads every car but the guard.</summary>
+public sealed record StandardCrew(double SmallShare, double MajorShare, int MajorEvery, double LossFraction, double RunningCosts,
+    Dictionary<string, double>? Loads = null);
 
 /// <summary>
 /// A night on the board at the fortress: a route and its tier, and what a car-load pays on it (spec F.1; GDD §9 "choose a
@@ -221,11 +225,10 @@ public static class Campaign
         return 1 + h % 9999;
     }
 
-    public static double PerCar(RunTuning run, RouteTier tier)
-    {
-        string key = char.ToLowerInvariant(tier.ToString()[0]) + tier.ToString()[1..];
-        return run.Economy.PerCar.GetValueOrDefault(key, 700);
-    }
+    public static double PerCar(RunTuning run, RouteTier tier) => run.Economy.PerCar.GetValueOrDefault(Key(tier), 700);
+
+    /// <summary>A tier's key in the tuning files ("deadLines").</summary>
+    static string Key(RouteTier tier) => char.ToLowerInvariant(tier.ToString()[0]) + tier.ToString()[1..];
 
     public static Purchase BuyCar(CampaignTuning t, CampaignState s)
     {
@@ -454,7 +457,14 @@ public static class Campaign
         return reached;
     }
 
-    /// <summary>Spec F.1: gross on the loaded cars (all but the guard), less running costs and the expected loss.</summary>
-    public static double NetFor(CampaignTuning t, RunTuning run, int cars, StandardCrew crew) =>
-        PerCar(run, TierFor(t, cars)) * (cars - 1) * (1 - crew.RunningCosts) * (1 - crew.LossFraction);
+    /// <summary>Spec F.1: gross on the car-loads a night brings home (note 636: what its stops load, never more than all
+    /// but the guard), less running costs and the expected loss.</summary>
+    public static double NetFor(CampaignTuning t, RunTuning run, int cars, StandardCrew crew)
+    {
+        var tier = TierFor(t, cars);
+        double loads = cars - 1;
+        if (crew.Loads is { } l && l.TryGetValue(Key(tier), out double home))
+            loads = Math.Min(loads, home);
+        return PerCar(run, tier) * loads * (1 - crew.RunningCosts) * (1 - crew.LossFraction);
+    }
 }

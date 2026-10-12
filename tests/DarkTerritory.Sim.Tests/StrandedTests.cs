@@ -123,7 +123,7 @@ public class StrandedTests
         Assert.Equal(KitLoss.CarTaken, r.KitLoss);
         // §23.2's settlement: no cargo, the tow billed, the living home and not charged.
         Assert.Equal(0, r.Gross);
-        Assert.Equal(Math.Round(Tuning.Run.Stranded.RecoveryFee * 700), r.Recovery);
+        Assert.Equal(Math.Round(Tuning.Run.Stranded.RecoveryFee * Tuning.Run.Economy.PerCar["frontier"]), r.Recovery);
         Assert.Equal(2, r.CrewHome);
         Assert.Equal(0, r.CrewLossFees);
     }
