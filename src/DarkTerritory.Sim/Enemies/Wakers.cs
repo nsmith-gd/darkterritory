@@ -100,9 +100,10 @@ public sealed class Waker(int id) : Enemy(id)
     /// Note 607 (shared with D1.5's #337, the driver at dawn): seconds before the lead Waker reaches the train's rear, the train
     /// going on at its speed now; +∞ with no Wakers tonight or before the dawn line's reckoning can start, 0 once one holds it.
     /// From what every machine has (the run's dawn clock, the lead's place on the line, the tuning), so a client's bot reckons it
-    /// as the host does. Whether they stop short of it first is <see cref="SecondsToShelter"/>.
+    /// as the host does. Whether they stop short of it first is <see cref="SecondsToShelter"/>. With <paramref name="speed"/>,
+    /// reckoned for the train going on at that instead (0: had it stood here, note 631's closest call).
     /// </summary>
-    public static double SecondsInHand(World world)
+    public static double SecondsInHand(World world, double? speed = null)
     {
         if (world.Enemies is not { Wakers: { Enabled: true } t } || world.Run is not { } run)
             return double.PositiveInfinity;
@@ -118,7 +119,7 @@ public sealed class Waker(int id) : Enemy(id)
         double gap = lead is not null ? train.RearDistance - lead.LineDistance : t.RiseBehind;
         if (gap <= 0)
             return 0;
-        double wait = Math.Max(0, -since), s0 = Math.Max(0, since), v = Math.Max(0, train.Dynamics.Speed);
+        double wait = Math.Max(0, -since), s0 = Math.Max(0, since), v = Math.Max(0, speed ?? train.Dynamics.Speed);
         if (v >= t.TopSpeed)
             return double.PositiveInfinity;
         // Covered(s0 + τ) − Covered(s0) = gap + v (wait + τ): the closing speed only rises, so it's met once.
