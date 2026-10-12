@@ -40,7 +40,7 @@ public class TwoHosesTests
             foreach (var b in bots)
                 b.Crew = [.. n.Crew.Select(kv => (kv.Key, kv.Value))];
             PlayerIntent last = default;
-            n.Run(0.25, id => { var i = bots[id - 1].Decide(n.Crew[id], n.World, n.World.Tick, out _); if (id == 2) last = i; return i; });
+            n.Run(0.25, id => { var i = bots[id - 1].Decide(n.Crew[id], n.World, n.World.Tick, out _); if (id == bots.Count) last = i; return i; });
             peak = Math.Max(peak, fire.Extra);
             least = Math.Min(least, n.Crew.Values.Min(c => c.Health));
             everIn |= fire.Extra > Bots.RoofWalkerBot.WellAlight && n.Crew.Values.Any(c => c.Parent == 3 && c.Surface == Surface.Deck);
@@ -49,7 +49,7 @@ public class TwoHosesTests
                     brought.Add(ext.Home);
             string w = string.Join(" ", bots.Select(b => $"{b.TendStep ?? b.WarmUpStep ?? "-"}:{n.Crew[b.Me].Surface}{n.Crew[b.Me].Parent}:{n.Crew[b.Me].Health / 10 * 10}@{n.Crew[b.Me].Position.X:0.0},{n.Crew[b.Me].Position.Z:0.0}"));
             if (steps.Count == 0 || steps[^1] != w)
-                steps.Add($"{t / 4}s {w} f{fire.Extra:0.00} i2[{last.MoveX:0.0},{last.MoveZ:0.0},{last.LookYaw:0.00},{last.Buttons}] y{n.Crew[2].Yaw:0.00}");
+                steps.Add($"{t / 4}s {w} f{fire.Extra:0.00} i2[{last.MoveX:0.0},{last.MoveZ:0.0},{last.LookYaw:0.00},{last.Buttons}] y{n.Crew[bots.Count].Yaw:0.00}");
         }
         string fires = string.Join(",", n.World.ActiveEnemies.Where(e => !e.Gone && e is CarFire).Select(e => $"{e.Attached}:{e.Extra:0.00}"));
         return new(fire.Gone, (n.World.Tick - t0) / (double)SimConstants.TickRate, peak, n.Train.Vehicles[3].CargoIntegrity, least, everIn,
@@ -57,27 +57,26 @@ public class TwoHosesTests
     }
 
     [Fact]
-    public void TheSecondHandBringsAnExtinguisherOfItsOwnFromTheCarBeside()
+    public void TwoHandsPutACarWellAlightOutFromEachEnd()
     {
-        // A third of the car alight (3 m either side of its middle at full blaze): car 3's own extinguisher is the first
-        // hand's; the second's is car 2's or car 4's. Out before it's well alight, and nobody hurt past the fit's margin.
-        var r = Run([2, 4], 1.0, 3);
-        Assert.True(r.Out, $"{r.Peak:0.00}: {r.Steps}");
-        Assert.True(r.Brought.Any(home => home is 2 or 4), $"brought {string.Join(",", r.Brought)}: {r.Steps}");
-        Assert.True(r.Peak < Bots.RoofWalkerBot.WellAlight, $"peaked at {r.Peak:0.00}: {r.Steps}");
+        // The whole car at full blaze (the director's "a", on their 16 cells and twice the spray, "b"): two hands on it, so in
+        // they go (one alone doesn't, below), the first by its front door to its own extinguisher while the second fetches car
+        // 4's for the rear. Out inside a minute, and nobody hurt past the fit's margin.
+        var r = Run([2, 4], 0.97, 99, seconds: 90);
+        Assert.True(r.InWellAlight, $"nobody went in: {r.Steps}");
+        Assert.True(r.Out, $"not out ({r.Fires}): {r.Steps}");
+        Assert.True(r.Seconds < 60, $"out at {r.Seconds:0} s: {r.Steps}");
         Assert.True(r.Least >= Bots.RoofWalkerBot.FireFightHealth - 15, $"burned to {r.Least}: {r.Steps}");
     }
 
     [Fact]
-    public void ACarWellAlightIsLeftToBurnOutAndTheCarsEitherSideKeptFromIt()
+    public void OneHandAloneKeepsOutOfACarWellAlight()
     {
-        // The whole car at full blaze: two hands can't put it out (note 634: 72 cells, 15 s of spray each, and it relights),
-        // so nobody goes in while it is (once it's burning down, it's a fire like any). It burns itself out in about two minutes; what it sets going in the cars either side, they put out.
-        var r = Run([2, 4], 0.97, 99, seconds: 240);
-        Assert.True(r.Out, $"not out ({r.Fires}): {r.Steps}");
+        // Note 539, and the director's "a": a lone hand doesn't go into a car well alight, with the crew's calls to make or not
+        // (FireSenseTests has it without). It waits on the roofs for a second, and the car burns (and is out once it's
+        // burning down: then it's a fire like any).
+        var r = Run([2], 0.97, 99, seconds: 60);
         Assert.False(r.InWellAlight, $"went in: {r.Steps}");
-        Assert.True(r.Fires.Length == 0, $"still alight: {r.Fires}; {r.Steps}");
-        Assert.True(r.Least >= Bots.RoofWalkerBot.FireFightHealth - 15, $"burned to {r.Least}: {r.Steps}");
     }
 
     [Fact]

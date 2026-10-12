@@ -813,7 +813,7 @@ public sealed class RoofWalkerBot(int seed, ColdTuning? cold = null, StopHand? j
         _hands.Clear();
         _second = null;
         var me = self;
-        _trouble = tend ? world.ActiveEnemies.Where(e => !e.Gone && e.Attached > 0 && (e is Incident && !(e is CarFire && (e.Extra > WellAlight && e.Attached != inside || e.Phase == SpinePhase.Punish && !fireFit))
+        _trouble = tend ? world.ActiveEnemies.Where(e => !e.Gone && e.Attached > 0 && (e is Incident && !(e is CarFire && (e.Extra > WellAlight && e.Attached != inside && Calls is null || e.Phase == SpinePhase.Punish && !fireFit))
                 && !(e is CarFire && Boarded(world, e.Attached))
                 || e is FireFlies && e.Attached < train0.Vehicles.Count && train0.Vehicles[e.Attached].LampLit))
             .OrderBy(e => Covered(e, here) ? 1 : 0).ThenBy(e => e is CarFire ? 0 : 1).ThenBy(e => Math.Abs(e.Attached - here))
@@ -854,7 +854,7 @@ public sealed class RoofWalkerBot(int seed, ColdTuning? cold = null, StopHand? j
         // Note 634: the first hand in by the fire's front door where it can: the car's own extinguisher hangs 2 m in from its
         // front end (World.ExtinguisherMount), and in by the rear the first hand walked through the fire to it, two thirds
         // of the car's length, and burned.
-        bool frontIn = _trouble is CarFire && _hands.GetValueOrDefault(_trouble.Id) == 1 && FrontIn(world, _trouble.Attached) && here != _trouble.Attached;
+        bool frontIn = _trouble is CarFire && _hands.GetValueOrDefault(_trouble.Id) == 1 && FrontIn(world, _trouble.Attached, _trouble.Extra > WellAlight) && here != _trouble.Attached;
         // Note 634: the second hand first into the car on its side for that car's extinguisher, then out of it by the door
         // facing the fire, across the plate and in. In there already, or with one in hand, it's the fire's.
         if (_second is { } second && here != second.Fire.Attached && !Armed(world))
@@ -920,7 +920,13 @@ public sealed class RoofWalkerBot(int seed, ColdTuning? cold = null, StopHand? j
             _hands[e.Id] = hand = calls.ClaimFire(e.Attached, Me, world.Tick);
         // The second only with a way to bring an extinguisher of its own, and only to a fire that's alight: smoke's one
         // hand's.
-        return hand == 2 && (e.Phase != SpinePhase.Punish || Second(world, self, e, here) is null) ? 0 : hand;
+        if (hand == 2 && (e.Phase != SpinePhase.Punish || Second(world, self, e, here) is null))
+            return 0;
+        // A car well alight is two hands' together or nobody's (the director's "a"; note 539: one alone keeps out). The first
+        // waits on the roofs, its claim kept, till a second's on it with an extinguisher to bring; already in, it's in.
+        if (hand == 1 && e.Extra > WellAlight && self.Parent != e.Attached && calls.FireHands(e.Attached, world.Tick) < 2)
+            return 0;
+        return hand;
     }
 
     readonly Dictionary<int, int> _hands = new();
@@ -942,7 +948,9 @@ public sealed class RoofWalkerBot(int seed, ColdTuning? cold = null, StopHand? j
         foreach (int end in new[] { 1, -1 })
         {
             int from = end < 0 ? train.VehicleAhead(car) : train.VehicleBehind(car);
-            if ((Source(world, from) || self.Parent == from && Armed(world) || Armed(world) && here == car) && !EndAblaze(world, car, end > 0 ? 1 : -1))
+            // A car well alight is ablaze at both ends: the pair goes in all the same, the extinguisher in hand (note 634).
+            if ((Source(world, from) || self.Parent == from && Armed(world) || Armed(world) && here == car)
+                && (fire.Extra > WellAlight || !EndAblaze(world, car, end > 0 ? 1 : -1)))
                 return (fire, end, from);
         }
         return null;
@@ -952,11 +960,11 @@ public sealed class RoofWalkerBot(int seed, ColdTuning? cold = null, StopHand? j
 
     /// <summary>
     /// Note 634: the fire's car can be gone into by its front door, from the plate behind the car ahead (a car, not the
-    /// engine, whose cab is the fireman's), its front end not ablaze.
+    /// engine, whose cab is the fireman's), its front end not ablaze (unless it's the pair's, into a car well alight).
     /// </summary>
-    static bool FrontIn(World world, int car) =>
+    static bool FrontIn(World world, int car, bool pair = false) =>
         world.Train.VehicleAhead(car) is var ahead and > 0 && ahead < world.Train.Frames.Count && world.Train.Frames[ahead].Shape.Interior is not null
-        && !EndAblaze(world, car, -1);
+        && (pair || !EndAblaze(world, car, -1));
 
     /// <summary>Note 634: a car to bring an extinguisher from to the fire beside it: walked into by its end doors, no fire of its own, and one on it charged.</summary>
     static bool Source(World world, int car) =>

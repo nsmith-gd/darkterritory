@@ -449,6 +449,10 @@ public sealed partial class CrewCalls
         return hands.Count;
     }
 
+    /// <summary>Note 634: how many hands are on the fire in <paramref name="car"/>, by what they said in the last second.</summary>
+    public int FireHands(int car, uint tick) =>
+        _fireHands.TryGetValue(car, out var hands) ? hands.Count(h => tick - h.Seen <= SimConstants.TickRate) : 0;
+
     /// <summary>The hand going to this car's swarmed lamp (or the fire the flies lit), or null.</summary>
     public int? LampHand(int car) => _lamp.TryGetValue(car, out var c) && Alive(c.Member) ? c.Member : null;
 
