@@ -59,6 +59,40 @@ public class CabWalkTests
         Assert.True(s.Position.Z < plan.CabBack - 0.6, $"at {s.Position}");
     }
 
+    [Theory]
+    [InlineData(-1)]
+    [InlineData(1)]
+    public void TheRunningBoardRunsOnInFrontOfTheCabsDoorway(int side)
+    {
+        // Note 559 (the director, 9 Oct 2026: "the platform on the outer edge of the train really should extend to be in
+        // front of the cab doors and extend a bit wider"): out of the doorway is onto the board, and along it forward past
+        // the doorway's front is still the board. The cab steps hang off its outer edge, and still come up into the cab.
+        var train = new TrainOnLine(new TrainDynamics(Consist.Uniform(Tuning.Train, 3, 1)), new RailLine(new LineDefinition("t", [new TrackSegment(2000)])), 500);
+        var shape = train.Frames[0].Shape;
+        var g = Tuning.Train.Geometry;
+        var plan = EnginePlan.Of(g);
+        double w = shape.HalfWidth, width = g.Engine.RunningBoardWidth, mid = plan.DoorFront + g.Doorway.Width / 2;
+        Assert.True(width >= 0.85, $"the board's {width} m wide");
+        foreach (double z in new[] { plan.DoorFront - g.Engine.RunningBoardAhead + 0.05, plan.DoorFront, mid, plan.CabBack + 1 })
+            foreach (double x in new[] { w + 0.05, w + width - 0.05 })
+                Assert.Equal((g.Engine.DeckHeight, SurfaceKind.Deck), shape.TopAt(side * x, z, g.Engine.DeckHeight + 0.5));
+        var steps = shape.Ladders.Single(l => l.Foot.Y < 0.2 && Math.Sign(l.Foot.X) == side && Math.Abs(l.Inward.X) > 0.9);
+        Assert.True(Math.Abs(steps.Foot.X) > w + width, $"the steps at {steps.Foot} hang off the board's edge");
+        Assert.InRange(steps.Foot.Z, plan.DoorFront, plan.CabBack - 0.15);
+
+        // Out of the cab through the doorway onto the board, and forward along it, in front of the doorway and past it.
+        var s = PlayerMotor.SpawnInCab(train, Tuning.Player, side * 0.3);
+        double board = side * (w + width / 2);
+        foreach (var (to, seconds) in new[] { (new Double3(side * 0.9, 0, plan.DoorFront - 0.3), 3.0), (new Double3(side * 0.9, 0, mid), 1.5), (new Double3(board, 0, mid), 1.5), (new Double3(board, 0, plan.DoorFront - 0.6), 1.5) })
+            for (int i = 0; i < seconds * SimConstants.TickRate; i++)
+                PlayerMotor.Step(ref s, Toward(s, to), train, Tuning.Player, Tuning.Train, SimConstants.TickSeconds, applyLook: false);
+        Assert.Equal(0, s.Parent);
+        Assert.Equal(Surface.Deck, s.Surface);
+        Assert.Equal(g.Engine.DeckHeight, s.Position.Y, 3);
+        Assert.False(PlayerMotor.InCab(s, train));
+        Assert.True(s.Position.Z < plan.DoorFront - 0.4 && Math.Abs(s.Position.X - board) < 0.2, $"at {s.Position} (the doorway's front is {plan.DoorFront:0.00})");
+    }
+
     static PlayerIntent Toward(in PlayerState s, Double3 to)
     {
         var d = (to - s.Position) with { Y = 0 };
