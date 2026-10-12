@@ -17,9 +17,10 @@ namespace DarkTerritory.Sim.Physics;
 /// <summary>
 /// <see cref="RepairKit"/> is the engineer's toolbox (GDD §12 "the repair kit is an item, not a station"): whoever carries
 /// it opens a Holdout's lock quietly (App. D.7), and when they die it's lying where they fell. <see cref="Powder"/> is a charge
-/// for a gun's ready rack (note 374), taken from a powder locker and carried up to the gun.
+/// for a gun's ready rack (note 374), taken from a powder locker and carried up to the gun. A tool is one left on a crew
+/// locker's shelf (note 649): it's only ever there, its tool in <see cref="Body.Tools"/>; taken, it's back in a slot.
 /// </summary>
-public enum BodyKind : byte { Crate = 1, Lamp = 2, Ragdoll = 3, Cargo = 4, Radio = 5, Heavy = 6, Toy = 7, Loot = 8, Child = 9, Extinguisher = 10, RepairKit = 11, Powder = 12 }
+public enum BodyKind : byte { Crate = 1, Lamp = 2, Ragdoll = 3, Cargo = 4, Radio = 5, Heavy = 6, Toy = 7, Loot = 8, Child = 9, Extinguisher = 10, RepairKit = 11, Powder = 12, Tool = 13 }
 
 /// <summary>
 /// What a toy sounds like while it's carried (GDD v1.4 §19, App. C.7): most are quiet; a squeaker, a music box and a wind-up
@@ -191,7 +192,40 @@ public sealed class Bodies
     /// Note 594 ("Lethal Company's four shared slots", the director, the inbox, 12 Oct): what goes in a slot is what goes in a
     /// crew locker, hand-sized (train.json <c>kit.lockers.holds</c>), but the radio, which has its belt.
     /// </summary>
-    public static bool Pocketable(TrainOnLine train, BodyKind kind) => kind != BodyKind.Radio && Lockers.Holds(train, kind);
+    public static bool Pocketable(TrainOnLine train, BodyKind kind) => kind is not (BodyKind.Radio or BodyKind.Tool) && Lockers.Holds(train, kind);
+
+    /// <summary>
+    /// Note 649 (the director's `D1.5-loot-slots`: "leave a tool in your locker to carry more loot"): the tool in hand onto a
+    /// locker's first free shelf, its slot freed, there for anyone to take. False with nothing to put, or the locker full.
+    /// </summary>
+    bool StowTool(ref PlayerState s, TrainOnLine train, int car, int locker)
+    {
+        var tool = Player.Kit.Held(s);
+        if (tool == Tool.None || !Lockers.Holds(train, BodyKind.Tool) || Lockers.FreeSlot(this, train, car, locker) < 0)
+            return false;
+        var b = Put(train, car, BodyKind.Tool, train.Frames[car].Shape.Lockers[locker].Box.Centre, 0.1, 0.5, 0);
+        b.Tools = Player.Kit.With(0, 0, tool);
+        b.Claimed = true;
+        if (!Stow(b, train, car, locker))
+        {
+            _bodies.Remove(b);
+            return false;
+        }
+        s.Kit = Player.Kit.With(s.Kit, s.HeldSlot, Tool.None);
+        return true;
+    }
+
+    /// <summary>Note 649: a tool off a locker's shelf, back into the slot it's taken into (in hand); the body's gone.</summary>
+    void TakeTool(ref PlayerState s, Body b)
+    {
+        int slot = Player.Kit.SlotFor(s);
+        var tool = Player.Kit.At(b.Tools, 0);
+        _bodies.Remove(b);
+        if (slot < 0 || tool == Tool.None)
+            return;
+        s.Kit = Player.Kit.With(s.Kit, slot, tool);
+        s.HeldSlot = (byte)slot;
+    }
 
     /// <summary>
     /// Host, every tick (note 594): the thing in the slot in hand comes out into the hands, and one in hand from another slot
@@ -544,6 +578,15 @@ public sealed class Bodies
         }
         if (carried is not null && (keep || lever) && !throwPressed)
             return false;
+        // Note 649: at a locker with a tool in hand and nothing else, Throw puts the tool on a shelf (a tap of Use still takes
+        // what's there: everyone has the crowbar in hand most of the night, and the repair kit is fetched that way).
+        if (throwPressed && carried is null && Player.Kit.Held(s) != Tool.None && Lockers.AtHand(s, train, hand) is { } shelf)
+        {
+            var v = train.Vehicles[shelf.Car];
+            if (!v.LockerOpen(shelf.Bay.Index))
+                v.ToggleLocker(shelf.Bay.Index);
+            return StowTool(ref s, train, shelf.Car, shelf.Bay.Index);
+        }
         // At a locker's door (note 173), Use is the locker's: tapped, what's in your hands goes on a shelf (or the top thing
         // comes off one); held, CrewActions works the door. So the hands wait for the release to know which it was, and
         // never take the press (the door's hold is worked the same on a predicting client, which has no hands).
@@ -563,9 +606,13 @@ public sealed class Bodies
                     v.ToggleLocker(locker.Bay.Index);
                 if (carried is not null)
                     Stow(carried, train, locker.Car, locker.Bay.Index);
-                else if (open && Player.Kit.SlotFor(s) >= 0 && Take(train, locker.Car, locker.Bay.Index, playerId) is { } taken
-                    && Pocketable(train, taken.Kind))
-                    IntoSlot(ref s, playerId, taken);
+                else if (open && Player.Kit.SlotFor(s) >= 0 && Take(train, locker.Car, locker.Bay.Index, playerId) is { } taken)
+                {
+                    if (taken.Kind == BodyKind.Tool)
+                        TakeTool(ref s, taken);
+                    else if (Pocketable(train, taken.Kind))
+                        IntoSlot(ref s, playerId, taken);
+                }
             }
             return false;
         }

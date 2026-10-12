@@ -708,6 +708,8 @@ public static partial class Hud
             _ => "THE TOY",
         },
         BodyKind.Extinguisher => "THE EXTINGUISHER",
+        // A tool on a locker's shelf (note 649).
+        BodyKind.Tool => $"THE {ToolName(Kit.At(b.Tools, 0))}",
         BodyKind.Loot => world.Run?.FindName(b)?.ToUpperInvariant() ?? "THE FIND",
         // What else is carried, for the hotbar's IN HANDS (note 264).
         BodyKind.Crate or BodyKind.Cargo => "A CRATE",
@@ -733,12 +735,15 @@ public static partial class Hud
         bool full = Lockers.FreeSlot(world.Bodies, train, at.Car, at.Bay.Index) < 0;
         // Note 267 ("there needs to be some telegraphing that there's a repair kit inside"): the tag on its door says
         // what's in it, shut or open; a tap opens a shut one, and puts what's in your hands in.
+        // Note 649: a tool in hand, with nothing else, goes in with Throw, its slot freed; a tap of Use still takes.
+        string toolIn = carried is null && Kit.Held(p) is var tool && tool != Tool.None && Lockers.Holds(train, BodyKind.Tool) && !full
+            ? $"   PUT THE {ToolName(tool)} IN : [RMB]" : "";
         if (!train.Vehicles[at.Car].LockerOpen(at.Bay.Index))
-            return carried is not null && !full ? $"{name}   PUT {Called(world, carried)} IN : [E]" : $"{name}: {Holding(world, at.Car, at.Bay.Index)}   OPEN : [E]";
+            return carried is not null && !full ? $"{name}   PUT {Called(world, carried)} IN : [E]" : $"{name}: {Holding(world, at.Car, at.Bay.Index)}   OPEN : [E]{toolIn}";
         if (carried is not null)
             return !full ? $"PUT {Called(world, carried)} IN : [E]   SHUT : HOLD [E]" : $"{name} IS FULL   SHUT : HOLD [E]";
         return Lockers.Contents(world.Bodies, at.Car, at.Bay.Index).LastOrDefault() is { } top
-            ? $"TAKE {Called(world, top)} : [E]   SHUT : HOLD [E]" : $"{name}: EMPTY   SHUT : HOLD [E]";
+            ? $"TAKE {Called(world, top)} : [E]{toolIn}   SHUT : HOLD [E]" : $"{name}: EMPTY{toolIn}   SHUT : HOLD [E]";
     }
 
     /// <summary>What's on a locker's shelves, as its door's tag has it (note 264): "THE REPAIR KIT", "2 LAMPS", "EMPTY".</summary>
