@@ -1235,6 +1235,13 @@ public sealed class FrontEnd
                 return null;
             });
         string underway = s.Current is null ? "" : ", a night under way";
+        // Note 632 (the director, the inbox, 12 Oct: "the campaign ends"): a crew whose train was taken at dawn is done.
+        if (s.Over)
+            return new(new($"SLOT {slot}: {CrewName(s).ToUpperInvariant()}, TAKEN AT DAWN", $"{s.Runs} nights. The company has no more trains for them."), () =>
+            {
+                ShowFortress(slot);
+                return null;
+            });
         return new(new($"SLOT {slot}: {CrewName(s).ToUpperInvariant()}", $"{s.Cars} cars, {s.Scrip:0} scrip, {s.Runs} nights{underway}"), () =>
         {
             ShowFortress(slot);
@@ -1246,6 +1253,8 @@ public sealed class FrontEnd
     {
         if (Open is not { } s)
             return [BackTo(Screen.Slots)];
+        if (s.Over)
+            return OverEntries(s);
         var list = new List<Entry>();
         if (s.Current is { } tonight)
         {
@@ -1261,9 +1270,9 @@ public sealed class FrontEnd
             {
                 var c = offers[i];
                 int contract = i;
-                // GDD §9 "choose freight contracts" (note 182): each names the freight the train leaves with, and pays a car by it.
-                string cargo = Cargoes.Name(c.Cargo).ToUpperInvariant();
-                list.Add(new(new($"TONIGHT: {Name(c.Tier)} {c.Seed}, {cargo}, {c.PerCar:0} A CAR", $"{Carrying(c.Cargo)} Up to {c.PerCar * s.Cars:0} on {s.Cars} cars."),
+                // GDD §9 "choose a route" (note 637: a contract is just a route): the train leaves empty, and its cars are paid
+                // by what its stops load, about the tier's car-load each.
+                list.Add(new(new($"TONIGHT: {Name(c.Tier)} {c.Seed}, ABOUT {c.PerCar:0} A CAR-LOAD", $"Whatever its stops load. Up to about {c.PerCar * s.Cars:0} on {s.Cars} cars."),
                     () => new Launch.CampaignNight(s.Slot, contract, Resume: false, _host) { Bots = _bots }));
             }
         }
@@ -1305,6 +1314,27 @@ public sealed class FrontEnd
         return list;
     }
 
+    /// <summary>
+    /// A slot whose campaign is over (note 632; the director, the inbox, 12 Oct: a train taken at dawn ends it): what the crew
+    /// came to, and in place of the board, a new crew from the fortress in the same slot.
+    /// </summary>
+    List<Entry> OverEntries(CampaignState s)
+    {
+        var last = s.History.LastOrDefault();
+        return
+        [
+            new(new(Hud.CampaignOver, $"{CrewName(s)}'s train was taken at dawn{(last is null ? "" : $" on {last.Route}")}, after {s.Runs} nights.", Heading: true)),
+            new(new("A NEW CREW", "Start again from a fortress: three cars on local work, and no scrip. This crew's save is gone."), () =>
+            {
+                var fresh = Campaign.New(_campaign, s.Slot, DefaultCrewName(s.Slot), _newSeed());
+                _saves.Save(fresh);
+                ShowFortress(s.Slot, "A new crew has signed on.");
+                return null;
+            }),
+            BackTo(Screen.Slots),
+        ];
+    }
+
     List<Entry> UpgradeEntries()
     {
         if (Open is not { } s)
@@ -1322,21 +1352,6 @@ public sealed class FrontEnd
         list.Add(BackTo(Screen.Fortress));
         return list;
     }
-
-    /// <summary>What a contract's freight does to the night (GDD §19, App. B.9), said on the board.</summary>
-    static string Carrying(CargoKind cargo) => cargo switch
-    {
-        CargoKind.Comet => "Comet material: best pay; everything wants it.",
-        CargoKind.Ammunition => "Powder and shot: a fire in its car can blow.",
-        CargoKind.Chemicals => "Chemicals: fires spread; no cannon beside it.",
-        CargoKind.Medicine => "Medicine: rough couplings and brakes spoil it.",
-        CargoKind.Coal => "Coal: it burns, and fire runs down the train.",
-        CargoKind.Timber => "Timber: it burns, and fire runs down the train.",
-        CargoKind.Livestock => "Livestock: loud all night; hounds smell it.",
-        CargoKind.Food => "Food: the scavengers come for it.",
-        CargoKind.Heavy => "Machine parts: heavy, inert, safe.",
-        _ => "Goods.",
-    };
 
     static string StoresLine(Stores st) => st.Any
         ? $"Bought for tonight: {st.Powder} powder, {st.Lamps} lamps, {st.Extinguishers} extinguishers."

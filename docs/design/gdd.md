@@ -13,6 +13,7 @@ Interactive version, with the roster explorer and director tools: [claude.ai/art
 - **The crew goes on together**, joiners and bots: when the host goes on to the next night, everyone aboard follows it by way of the town's card, and the same bots crew it (§9; notes 606, 611).
 - **Monsters brought into town.** Anything still aboard as its car comes in through the gate is fought in the yard by the town's guns and guards. The night pays the town's monster brigade, two of its people are hurt, and a house burns; the town remembers its burnt houses on the next visit (§3.1, §9, D.9; notes 589, 608, 612).
 - **The quiet doors.** Nothing new comes within 1,200 m of a town's gate, so a crew can stop short, clear the train and bring it in; the bots do (§9, B.1; notes 590, 605, 610).
+- **Taken at dawn, the campaign ends** (the director, 12 Oct): the save is closed and the slot's next start is a new crew (§8, §23; note 632).
 - **A fall hurts by its height**, and a run over open ground isn't a landing: from 5.5 m a knock, from 7.5 m death (§23; note 573).
 - **§1's table** has the night's length v1.5 set: a run of about 17 minutes, dawn at 24 (note 554).
 - Touches §1, §3.1, §8, §9, §23, B.1 and D.9.
@@ -59,7 +60,7 @@ Interactive version, with the roster explorer and director tools: [claude.ai/art
 - **The Mourners** (outside, absence, Cargo, cost 1): ash-pale scavengers that come only after a crewmate dies, in a nervous group. They never touch the living and drag the body away from the line unless someone stands over it, scatters them or carries it home. 120 m out, the body (its refund and its kit) is gone.
 - **Tower Jaw** (outside, vibration, Cargo, cost 3): a corrupted beaver that gnaws a coaling tower's leg (or the loading crane's gantry) through. Down, the tower's chute is empty and its wreck closes the line until the crew clears it by hand. Never a bridge. Four blows drive it off (it comes back); twelve kill it.
 - **The Brakeman** (a corrupted human, sight, Split, cost 3): winds the cars' handbrakes on car by car toward one end; a wound car's own handbrake drags the train, and on a climb it stalls. One crewmate can chase him off the roofs, and out of sight he comes up elsewhere. Only two closing from both sides corner him, and only then do blows land. Never with a crew of one (G1's reading of "never spawns solo").
-- **The Knotter** (structural, vibration, Split, cost 3): takes a coupling at speed and forces the cars 5 m apart, its body the coupling. Walking its back slips you under the train (a grab a friend can break). Stop, kill it, couple up.
+- **The Knotter** (structural, vibration, Split, cost 3): takes a coupling at speed and forces the cars 5 m apart, its body the coupling. Walking its back slips you under the train (a grab a friend can break). Stop, kill it, couple up. Once or twice a night, and some nights not at all (the director, the inbox, 12 Oct 2026: "They should show up once or twice a run. Sometimes never. We need more monster variety"; `director.perNight` 2, `director.nightChance` 0.75; note 635).
 - **The Freight Beetle** (outside, sight, Cargo, cost 1): at a facility, it pushes a loose crate directly away from the nearest player. Two players can steer it, off a platform or into a car. It never attacks.
 - **Hotbox** (structural, vibration, Cargo, cost 2): an axle parasite in one truck and side of a car. A knock tied to wheel speed, then glow and smoke, then a seized axle that drags the train to 7 m/s; never fire or a derailment. Exposed only at a stand, to kill or prise out; a seized axle is repaired with a wrench, or the car cut.
 - **Every tier, weighted** for all six (G1's call, as the Moose and the Gannet). Bites never kill (App. A.1); the only killer of the six is the Knotter, through its grab.
@@ -347,6 +348,10 @@ Your crew operates inside a dangerous nighttime freight window. Miss it and the 
 
 **Seen and felt coming** *(note 599; the director: "the tension before it is really, really important")*. For the last three minutes before dawn (`wakers.stirSeconds`, 180) a cold line comes up low on the sky behind the train, where they'll rise: nothing at first, then a wide dim bruise, and by dawn a thin grey band clear of the treeline. The ground thuds, and in the cars the lamps swing and the coal slides. At dawn each Waker heaves up out of the land in three surges, earth and boulders shed off its back in a bank of dark dust, and every footfall raises dust as it comes down the line. **The town's guns fire on any that come near the walls**, and they stop 300 m short of the gate (`wakers.stopShort`): a train whose last car is in past that is safe.
 
+**The night things run** *(the director, the inbox, 12 Oct 2026: "creatures should leave all except the knotter and the hotbox who are parasites that have train functions"; note 635)*. A minute before dawn (`wakers.nightFleesSeconds`, 60) the night's creatures let go and are gone, and nothing more of theirs comes: it is the clearest sign the night's over, and fewer of them ride into town. The Knotter and Hotbox stay aboard (`wakers.staysAtDawn`), parasites in the train's own couplings and axles. The director sets which leave, creature by creature, in the Creature Tweaker (claude.ai/artifact/TdoxfYnmZTgv2jc9JmRkkw).
+
+**Taken at dawn, the campaign ends** *(the director, the inbox, 12 Oct: "c, The campaign ends", roguelike; note 632)*. A train the Wakers take is the crew's last. The night is settled into the save like any other, and the save is closed: the company has no more trains for that crew, and the end card says so on every machine ("THE COMPANY HAS NO MORE TRAINS FOR YOU"). The slot's next start is a new crew from a fortress. A night lost any other way (derailed, the crew lost, stranded) is settled and the crew goes on. A mod can keep the old way (campaign.json `dawnEndsCampaign: false`).
+
 ---
 
 # PART THREE — CORE LOOP
@@ -358,7 +363,7 @@ FORTRESS → WILDERNESS → FACILITY → WILDERNESS → TERMINUS
 ```
 
 ### Departure
-Inside the walls: purchase equipment, repair or upgrade the train, choose freight contracts, add or remove railcars, stock coal, powder and shot, lamps, repair supplies and tools.
+Inside the walls: purchase equipment, repair or upgrade the train, choose a contract, add or remove railcars, stock coal, powder and shot, lamps, repair supplies and tools. A contract is just a route *(the director, the inbox, 12 Oct: "Just a route"; note 637)*: the route and its tier, and about what a car-load pays there. The train leaves empty, and what its cars carry home is whatever its stops load, each car paid by its freight.
 
 Then the gates open. ~~The yard dispatcher reads the crew out over the radio by name, as a manifest, with the same tone used for the coal.~~ *Director's decision of 2026-10-06: no reading at the gates; the night starts as the train moves off.*
 
@@ -798,7 +803,7 @@ Nothing there is a mystery. It's still a disaster.
 | **Delivered** | The engine stops at the terminus on the main line |
 | **Derailed** | The train leaves the rails. Everyone dies, and Appendix E plays |
 | **Crew lost** | No living crew remain |
-| **Dawn missed** | Still out at dawn: the Wakers take the train (§8) |
+| **Dawn missed** | Still out at dawn: the Wakers take the train (§8), and the campaign ends with it (note 632) |
 | **Stranded** | The boiler is ruptured and the engineering kit is lost (§23.2), or the engine has broken down (§23.3) |
 
 ### Boiler rupture
@@ -1944,7 +1949,7 @@ Cargo changes the run rather than just scoring it. These multipliers apply to sp
 | **Child survivor** | Highest payout · carried by hand · no spawn change |
 | **Comet-derived material** | **All weights ×1.4** · Passenger gate relaxed by one tier |
 
-Comet material is the high-risk contract: it is the best freight payout and it makes the entire world more interested in you.
+Comet material is the high-risk freight: it is the best freight payout and it makes the entire world more interested in you. No contract carries it (a contract is just a route, note 637): a night has it aboard only where a stop loads it, and none does yet.
 
 ---
 

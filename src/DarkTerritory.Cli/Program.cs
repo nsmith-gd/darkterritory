@@ -613,6 +613,8 @@ object CampaignCommand(string content, string verb, string[] args)
     {
         slot = s.Slot,
         s.Name,
+        // Note 632: taken at dawn, the campaign's over (no board; a new crew with dt campaign new).
+        over = s.Over,
         cars = s.Cars,
         scrip = Math.Round(s.Scrip),
         runs = s.Runs,
@@ -620,7 +622,7 @@ object CampaignCommand(string content, string verb, string[] args)
         tier = DarkTerritory.Sim.Campaign.Campaign.TierFor(t, s.Cars).ToString(),
         nextCar = DarkTerritory.Sim.Campaign.Campaign.NextCarCost(t, s),
         upgrades = s.Upgrades,
-        contracts = DarkTerritory.Sim.Campaign.Campaign.Offers(t, runTuning, s).Select((c, i) => new { index = i, route = c.Route, cargo = DarkTerritory.Sim.Train.Cargoes.Name(c.Cargo), perCar = c.PerCar }),
+        contracts = DarkTerritory.Sim.Campaign.Campaign.Offers(t, runTuning, s).Select((c, i) => new { index = i, route = c.Route, perCar = c.PerCar }),
         stores = s.Stores,
         sellBack = DarkTerritory.Sim.Campaign.Campaign.SellBack(t, s),
         shop = t.Upgrades.Where(u => !s.Upgrades.Contains(u.Id)).Select(u => new { u.Id, u.Name, size = u.Size.ToString(), cost = DarkTerritory.Sim.Campaign.Campaign.UpgradeCost(t, s, u), modelled = u.Effect.Count > 0 }),
@@ -678,6 +680,8 @@ object CampaignCommand(string content, string verb, string[] args)
             {
                 // A night on a contract from the board, crewed by bots (they drive, shoot, and load at winch stops), settled.
                 var s = Load();
+                if (s.Over)
+                    return new { error = $"slot {slot}'s campaign is over (taken at dawn): the company has no more trains for {s.Name}. dt campaign new --slot {slot}", board = Board(s) };
                 var contract = DarkTerritory.Sim.Campaign.Campaign.Offers(t, runTuning, s)[(int)Opt(args, "--contract", 0)];
                 s = DarkTerritory.Sim.Campaign.Campaign.Begin(s, contract);
                 // The night as the app hosts it (note 616): the slot's setup (HostedAsApp.Campaign), the train at the gate, the crew
@@ -710,7 +714,7 @@ object CampaignCommand(string content, string verb, string[] args)
                     : null;
                 var fromTown = s.Town;
                 // As the app settles it (note 591): delivered to a town, the crew's in it for the next night.
-                s = DarkTerritory.Sim.Campaign.Campaign.Arrived(DarkTerritory.Sim.Campaign.Campaign.Settle(s, night), night,
+                s = DarkTerritory.Sim.Campaign.Campaign.Arrived(DarkTerritory.Sim.Campaign.Campaign.Settle(s, night, t), night,
                     DarkTerritory.Sim.Towns.TownAt.Terminus(route, DarkTerritory.Sim.LineGen.LineGenContent.Cached(content).Config.Tiers.Fortress.Identities));
                 s = s with { LastTown = departed ?? s.LastTown };
                 saves.Save(s);
@@ -725,7 +729,6 @@ object CampaignCommand(string content, string verb, string[] args)
                     // The houses burnt in each by creatures brought in (note 608): the town remembers.
                     fromBurnt = route.Plan?.Fortress.TownBurnt ?? 0,
                     toBurnt = s.Town?.Burnt ?? 0,
-                    cargo = DarkTerritory.Sim.Train.Cargoes.Name(contract.Cargo),
                     night,
                     board = Board(s),
                 };
@@ -1897,6 +1900,18 @@ static object Screenshot(TrainTuning t, string content, string[] args)
     // --ribbits tongue|devour: crewmate 4, the one the tongue has, frozen where they stand as the game draws them (held_frozen).
     if (Str(args, "--ribbits", "") is "tongue" or "devour" && scene.Crew is { } frozen)
         scene.Crew = [.. frozen.Select(c => c.Id == Staging.LoneId ? c with { Act = DarkTerritory.Game.Art.CrewPose.HeldFrozen } : c)];
+    // --ribbits devour --view feast|eaten: the pack on them from a step off, or through their own eyes, down (note 558).
+    if (Str(args, "--ribbits", "") == "devour" && view is "feast" or "eaten" && scene.Enemies is { } feasting)
+    {
+        camera = Staging.FeastCamera(train, feasting, view);
+        scene.StagedEaten = Opt(args, "--eaten", 4);
+        // Through their eyes they're you: not drawn, but who the pack's on (GreyboxScene.Self).
+        if (view == "eaten" && scene.Crew?.FirstOrDefault(c => c.Id == Staging.LoneId) is { Id: Staging.LoneId } you)
+        {
+            scene.Crew = [.. scene.Crew.Where(c => c.Id != Staging.LoneId)];
+            scene.Self = you;
+        }
+    }
     // --hugger swallow: the one it has in its mouth at the rear car's end door (App. A.3; Staging.Swallowed).
     if (Str(args, "--hugger", "") == "swallow" && scene.Enemies?.OfType<DarkTerritory.Sim.Enemies.CarHugger>().FirstOrDefault() is { Holding: >= 0 })
         scene.Crew = [.. scene.Crew ?? [], Staging.Swallowed(train), .. args.Contains("--rescue") ? [Staging.SwallowRescuer(train)] : Array.Empty<Crewmate>()];
@@ -3108,6 +3123,9 @@ static object HudShot(string content, string[] args)
         var json = doc.RootElement.TryGetProperty("night", out var n) ? n : doc.RootElement;
         played.MirrorReport(json.Deserialize<DarkTerritory.Sim.Run.RunReport>(DataFile.Options)!);
     }
+    // --campaign: a campaign's night, so a train taken at dawn ends it and the end card says so (note 632).
+    if (args.Contains("--campaign"))
+        session.World.DawnEndsCampaign = true;
     var frames = session.InterpolatedFrames(1);
     var camera = session.EyeCamera(frames, 1, 0, 0);
     // --loading [built]: the next night's loading card over the town the crew's in (note 604), from its square; "built", the

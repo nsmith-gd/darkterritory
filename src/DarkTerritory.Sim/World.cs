@@ -1083,6 +1083,11 @@ public sealed class World
     public bool WakerHolds => _enemies.Any(e => e is Waker { Holds: true });
     /// <summary>Host: a Waker has eaten the train to the engine (note 588). The run ends "taken at dawn".</summary>
     public bool TakenAtDawn { get; set; }
+    /// <summary>
+    /// This night is a campaign's, and a train taken at dawn ends the campaign (note 632; the director, the inbox, 12 Oct):
+    /// every machine's end card says so. Set from the night's setup, the same on every machine; nothing in the sim reads it.
+    /// </summary>
+    public bool DawnEndsCampaign { get; set; }
 
     /// <summary>Puts an enemy into the world directly (tests, the editor, scripted set pieces). Host only.</summary>
     public T AddEnemy<T>(Func<int, T> make) where T : Enemy
@@ -2001,6 +2006,27 @@ public sealed class World
 
     readonly Dictionary<int, double> _unmet = [];
 
+    /// <summary>The night's creatures gone to ground before dawn tonight (note 635).</summary>
+    public int FledAtDawn { get; private set; }
+
+    /// <summary>
+    /// The night things run (wakers.md §2; note 635; the director, the inbox, 12 Oct 2026: "creatures should leave all except
+    /// the knotter and the hotbox who are parasites that have train functions"): from <c>wakers.nightFleesSeconds</c> before
+    /// dawn every night creature but those <c>wakers.staysAtDawn</c> names lets go and is gone, as one driven out of a fort
+    /// is, and the director sends no more of them (<see cref="Sim.Enemies.Director.Tonight"/>).
+    /// </summary>
+    void NightFlees(WakersTuning t)
+    {
+        if (!Sim.Enemies.Waker.NightFleeing(this, t))
+            return;
+        foreach (var e in _enemies)
+            if (!e.Gone && Sim.Enemies.Waker.NightThing(e) && t.Flees(e.Kind))
+            {
+                e.Dismiss();
+                FledAtDawn++;
+            }
+    }
+
     /// <summary>
     /// Once a second: what's gone <see cref="DirectorTuning.LingerSeconds"/> with nobody near it, holding nobody, goes (T114).
     /// Alone, a Climber settled in a car nobody walked into, or hounds trailing a train nobody shot from, held the caps full
@@ -2089,6 +2115,7 @@ public sealed class World
         // The director thinks once a second; the Stoker comes whenever its condition holds, charged when it does (App. B.5).
         // Not in the safe yard (note 263): nothing comes before the run begins.
         Wake(t.Wakers);
+        NightFlees(t.Wakers);
         if (Tick % SimConstants.TickRate == 0 && Director is { } d && !Derailed && !SafeYard)
         {
             d.Present(_context?.Crew.Count ?? 0);
@@ -2110,7 +2137,7 @@ public sealed class World
                 Answer = new DrawAnswer(t.Director.Draw.ShowSeconds, cause, AnswerAt(t.Director.Draw), actor);
             // Drawn by the heat (note 263): it boards at the tender, to cross to the firebox.
             bool homeStretch = HomeStretch;
-            if (d.Allows(EnemyKind.Stoker) && _hotFor >= t.Stoker.HeatSeconds && Train.BoilerTuning is not null
+            if (d.Allows(EnemyKind.Stoker) && d.Tonight(EnemyKind.Stoker, this) && _hotFor >= t.Stoker.HeatSeconds && Train.BoilerTuning is not null
                 && !_enemies.Any(e => !e.Gone && e.Kind == EnemyKind.Stoker) && !TrainInFort && !homeStretch)
             {
                 d.Charge(this, EnemyKind.Stoker, _enemies);
@@ -2135,7 +2162,7 @@ public sealed class World
                     _enemies.Add(Sim.Enemies.Jacob.At(_nextEnemyId++, jacob.At, jacob.Along, jacob.Yaw));
             }
             // The lineside moose (note 339): grazing beside the line ahead, as the line's own; they cost the director nothing.
-            if (Insist is null && d.Allows(EnemyKind.Moose) && Route is { } route && Train.Dynamics.Speed > 3 && !TrainInFort && !homeStretch)
+            if (Insist is null && d.Allows(EnemyKind.Moose) && d.Tonight(EnemyKind.Moose, this) && Route is { } route && Train.Dynamics.Speed > 3 && !TrainInFort && !homeStretch)
                 LinesideMoose(t.Moose, route);
             // The Mourners (note 362): a crewmate's body left lying off the train brings a group for it, the director's or not.
             if (t.Mourners.Enabled)

@@ -600,7 +600,7 @@ static string Doing(Launch chosen) => chosen switch
                 // Note 591: from the town the crew's in (last night's terminus), if they got to one.
                 // The slot's night (HostedAsApp.Campaign, note 616: the harness's campaign nights are made the same way).
                 var setup = HostedAsApp.Campaign(campaign, contract, enemies) with { FirstChildReal = profile.FirstChildReal };
-                Console.WriteLine($"campaign slot {night.Slot} ({campaign.Name}): {campaign.Cars} cars, {campaign.Scrip:0} scrip, tonight {contract.Route} carrying {Cargoes.Name(contract.Cargo)} at {contract.PerCar:0} a car{(resume is not null ? $", resuming after facility {resume.Facility}" : "")}");
+                Console.WriteLine($"campaign slot {night.Slot} ({campaign.Name}): {campaign.Cars} cars, {campaign.Scrip:0} scrip, tonight {contract.Route}, about {contract.PerCar:0} a car-load{(resume is not null ? $", resuming after facility {resume.Facility}" : "")}");
                 // Note 450: private, behind the host screen's password (listed with a lock); with none typed, unlisted as before.
                 string? password = frontEnd.Settings.PublicLobby ? null : frontEnd.Settings.LobbyPassword.Trim() is { Length: > 0 } pw ? pw : null;
                 // The crew's bots (note 611), kept for the board's next contract: the host going on from the town takes them too.
@@ -730,7 +730,8 @@ while (!window.CloseRequested && !QuitNow())
     if (fromCommandLine)
         break;
     if (leaving is Launch.CampaignNight night)
-        frontEnd.ShowFortress(night.Slot, campaign?.History.LastOrDefault() is { } log && campaign.Current is null
+        frontEnd.ShowFortress(night.Slot, campaign is { Over: true } ? $"TAKEN AT DAWN. {Hud.CampaignOver}."
+            : campaign?.History.LastOrDefault() is { } log && campaign.Current is null
             ? $"{log.End}: {(log.Net >= 0 ? "+" : "")}{log.Net:0} scrip" : null);
     else
         frontEnd.NightOver();
@@ -1411,6 +1412,8 @@ CampaignState? Play(IPlaySession session, CampaignState? campaign)
         // Behind a crewmate's eyes (App. D.10), their own figure isn't drawn round the camera.
         if (session.Watching >= 0 && !chase)
             scene.Crew = [.. (scene.Crew ?? []).Where(c => c.Id != session.Watching)];
+        // You, for whatever's after you to face and reach for (note 558): not drawn.
+        scene.Self = session.Self(frames, clock.Alpha);
         // Just come back inside a Holdout, you're seen getting up while the camera's on you (note 529).
         if (session.CameBackFigure(frames, clock.Alpha) is { } risen && !chase && !cinematic)
             scene.Crew = [.. scene.Crew ?? [], risen];
@@ -1656,7 +1659,8 @@ static CampaignState Autosave(SaveSlots saves, CampaignState campaign, NetPlaySe
     {
         // E.6: the shuffle bag goes into the save with the night (a derail drew from it).
         // Note 281: and the town it left, so the next night's isn't the same custom again.
-        var settled = Campaign.Settle(campaign, report) with { Music = session.MusicBag ?? campaign.Music, LastTown = session.World.Town?.Plan.Culture ?? campaign.LastTown };
+        // Note 632: a train taken at dawn ends the campaign (campaign.json dawnEndsCampaign).
+        var settled = Campaign.Settle(campaign, report, DataFile.Load<CampaignTuning>(Path.Combine(content, CampaignTuning.File))) with { Music = session.MusicBag ?? campaign.Music, LastTown = session.World.Town?.Plan.Culture ?? campaign.LastTown };
         // Note 591: delivered to a town, the crew's in it, and the next night departs from it.
         if (session.Route is { } arrived)
             settled = Campaign.Arrived(settled, report, DarkTerritory.Sim.Towns.TownAt.Terminus(arrived,
