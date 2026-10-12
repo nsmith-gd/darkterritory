@@ -185,6 +185,15 @@ public sealed partial class CreatureArt
         EnemyKind.Passenger => (3.0, 3.0, 0),      // unmasked, off the back of the train
         EnemyKind.Follower => (4.0, 3.0, 0),
         EnemyKind.CinderHound => (6.0, 3.0, 0),    // one aboard (its car cut, or its kill made): over the side and away
+        // The night things going to ground at dawn (note 642; wakers.md §2: "boarders drop off and run for the trees"), and any
+        // of these let go of otherwise: none of them is drawn just gone. (A Dragger sinks back under the edge as it always
+        // has, and the Fire Flies' swarm goes with its lamp: neither is seen going.)
+        EnemyKind.Brakeman => (3.0, 3.5, 0),       // down off the roof, walking away
+        EnemyKind.Grumbler => (3.0, 3.0, 0),
+        EnemyKind.Moose => (5.0, 4.0, 0),          // trotting off into the trees
+        EnemyKind.FreightBeetle => (2.5, 3.5, 0),
+        EnemyKind.TowerJaw => (2.5, 3.5, 0),
+        EnemyKind.Mourners => (1.5, 5.0, 0),       // walking off, slow
         _ => null,
     };
 
