@@ -269,9 +269,13 @@
   // RIBBITS · sight · outside (App. A.6, B.6). A pack of packSize (never more than the crew) hops at hopSpeed toward the
   // nearest group smaller than it (players within groupRadius of each other: App. C.6); in tongueReach it freezes one and
   // eats for devourSeconds. They lose interest past giveUpBeyond m.
+  // Note 558 (the director, 9 Oct: "they overlapped each other a lot"): the leader comes straight in, the rest fan out
+  // either side of it, fan degrees a place apart round the catch, ringOut m from them (the leader to the hop's own 0.8);
+  // within the last fanFrom m of the catch they make for those places; and none comes nearer a packmate than spacing m.
+  // Past a right angle, so with the catch down on their back (laid away from the leader) the others are at their sides.
   "ribbits": {
     "packSize": [2, 4], "hopSpeed": 4, "groupRadius": 8, "tongueReach": 4, "devourSeconds": 8, "giveUpBeyond": 45,
-    "spawnOut": 35, "health": 2, "perGroundWeight": 0.5
+    "spawnOut": 35, "health": 2, "perGroundWeight": 0.5, "fan": 100, "ringOut": 1.05, "fanFrom": 10, "spacing": 1.15
   },
 
   // GRUMBLER · sound · corrupted human (App. A.8, B.8). Gnaws the food crates at a facility; hit, it hunts the last to hit

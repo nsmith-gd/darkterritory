@@ -108,52 +108,37 @@ public class CampaignTests
     public void TheBoardOffersTheConsistsTierAndOneBelow()
     {
         var s = Campaign.Campaign.New(C, 1, "test", 99) with { Cars = 8 };
-        var all = Campaign.Campaign.Offers(C, R, s);
-        // The ordinary contracts, then the comet (note 182).
-        var board = all.Where(c => c.Cargo != Train.CargoKind.Comet).ToList();
+        var board = Campaign.Campaign.Offers(C, R, s);
+        var all = board;
         Assert.Equal(C.ContractsOffered, board.Count);
         Assert.Equal(C.ContractsOffered - 1, board.Count(c => c.Tier == RouteTier.Frontier));
         Assert.Single(board, c => c.Tier == RouteTier.Local);
         Assert.Equal(all, Campaign.Campaign.Offers(C, R, s));
         Assert.NotEqual(all.Select(c => c.Seed), Campaign.Campaign.Offers(C, R, s with { Runs = 1 }).Select(c => c.Seed));
-        Assert.All(all, c => Assert.Equal(Math.Round(Campaign.Campaign.PerCar(R, c.Tier) * R.Economy.Rate(c.Cargo)), c.PerCar));
+        Assert.All(all, c => Assert.Equal(Campaign.Campaign.PerCar(R, c.Tier), c.PerCar));
         // A local crew has nothing below it.
         Assert.All(Campaign.Campaign.Offers(C, R, s with { Cars = 3 }), c => Assert.Equal(RouteTier.Local, c.Tier));
     }
-    // ---- WP13: contracts carry a cargo; the comet; the departure's purchases (GDD §9, §19, App. B.9; note 182) ----
+    // ---- WP13: the departure's purchases (GDD §9, App. B.9; note 182); a contract is just a route (note 637) ----
 
+    /// <summary>
+    /// Note 637 ("Just a route", the director, the inbox, 12 Oct): a contract is the route and its tier, and what a car-load
+    /// pays there. The train leaves empty (note 575); the freight is whatever its stops load. A save from when a contract
+    /// named a freight (note 182) reads as the same route, the freight dropped.
+    /// </summary>
     [Fact]
-    public void EveryContractCarriesAFreightAndTheCometPaysBest()
+    public void AContractIsJustARoute()
     {
-        // No stop loads comet material and the train leaves empty (note 575), so main's board carries no comet contract;
-        // the rules for one stand, for when the director says where it's loaded.
-        Assert.False(C.Contracts.Comet);
-        Assert.DoesNotContain(Campaign.Campaign.Offers(C, R, Campaign.Campaign.New(C, 1, "test", 99) with { Cars = 8 }), c => c.Cargo == Train.CargoKind.Comet);
-        var rules = C with { Contracts = C.Contracts with { Comet = true } };
-        var s = Campaign.Campaign.New(rules, 1, "test", 99) with { Cars = 8 };
-        var board = Campaign.Campaign.Offers(rules, R, s);
-        // Each ordinary contract's freight is one of campaign.json's; the comet is one more, at the consist's own tier.
-        Assert.All(board.Where(c => c.Cargo != Train.CargoKind.Comet), c => Assert.Contains(c.Cargo, rules.Contracts.Cargo));
-        var comet = Assert.Single(board, c => c.Cargo == Train.CargoKind.Comet);
-        Assert.Equal(Campaign.Campaign.TierFor(rules, s.Cars), comet.Tier);
-        Assert.All(board.Where(c => c != comet), c => Assert.True(comet.PerCar > c.PerCar, $"{c.Cargo} {c.PerCar} vs comet {comet.PerCar}"));
-        // Over many nights the freights vary, and the comet always pays best (B.9: "the best freight payout").
-        var seen = new HashSet<Train.CargoKind>();
-        for (int run = 0; run < 60; run++)
-        {
-            var night = Campaign.Campaign.Offers(rules, R, s with { Runs = run });
-            foreach (var c in night)
-                seen.Add(c.Cargo);
-            var best = night.MaxBy(c => c.PerCar)!;
-            Assert.Equal(Train.CargoKind.Comet, best.Cargo);
-        }
-        Assert.True(seen.Count >= 6, string.Join(", ", seen));
-        Assert.All(rules.Contracts.Cargo, c => Assert.True(R.Economy.Rate(Train.CargoKind.Comet) > R.Economy.Rate(c)));
-        // The contract goes with the night, and a save from before cargo reads as goods.
-        var begun = Campaign.Campaign.Begin(s, comet);
-        Assert.Equal(Train.CargoKind.Comet, begun.Current!.Cargo);
-        var old = System.Text.Json.JsonSerializer.Deserialize<Contract>("{\"tier\":\"frontier\",\"seed\":7,\"perCar\":700}", DataFile.Options)!;
-        Assert.Equal(Train.CargoKind.Goods, old.Cargo);
+        var s = Campaign.Campaign.New(C, 1, "test", 99) with { Cars = 8 };
+        var board = Campaign.Campaign.Offers(C, R, s);
+        Assert.All(board, c => Assert.Equal(Campaign.Campaign.PerCar(R, c.Tier), c.PerCar));
+        // Nothing more on the board than the routes: no comet contract alongside them.
+        Assert.Equal(C.ContractsOffered, board.Count);
+        var begun = Campaign.Campaign.Begin(s, board[0]);
+        Assert.Equal(board[0], begun.Current);
+        var old = System.Text.Json.JsonSerializer.Deserialize<Contract>("{\"tier\":\"frontier\",\"seed\":7,\"perCar\":1260,\"cargo\":\"comet\"}", DataFile.Options)!;
+        Assert.Equal(new Contract(RouteTier.Frontier, 7, 1260), old);
+        Assert.Equal("frontier:7", old.Route);
     }
 
     [Fact]

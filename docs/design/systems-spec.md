@@ -628,7 +628,7 @@ Currency: **scrip**.
 
 ## F.1 Income
 
-Contracts pay on **delivered cargo that survives**. Nothing else.
+Contracts pay on **delivered cargo that survives**. Nothing else. A contract is the route and its tier (note 637: "Just a route", the director, the inbox, 12 Oct); the cargo is whatever the night's stops load, each car paid at this table's value by its freight's rate (run.json `economy.cargoRates`).
 
 | Tier | Value per delivered car |
 |---|---|

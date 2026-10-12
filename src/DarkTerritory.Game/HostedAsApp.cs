@@ -19,7 +19,7 @@ public static class HostedAsApp
 {
     /// <summary>
     /// A campaign night's setup, as the app's Start makes it (spec E: the host owns the campaign): the contract's route from
-    /// the town the crew's in (note 591), the slot's cars, upgrades, spare kits, stores and freight, who everyone is (note
+    /// the town the crew's in (note 591), the slot's cars, upgrades, spare kits and stores, who everyone is (note
     /// 181), the music's bag, the last town's custom (note 281) and the towns the crew has burnt houses in (note 612).
     /// </summary>
     public static SessionSetup Campaign(Sim.Campaign.CampaignState s, Sim.Campaign.Contract contract, bool enemies) =>
@@ -29,8 +29,7 @@ public static class HostedAsApp
             SpareKits = s.SpareKits,
             MusicBag = s.Music,
             Identities = s.Identities,
-            // GDD §9 (note 182): the contract's freight in every loaded car, and the stores bought for the night.
-            Cargo = contract.Cargo,
+            // GDD §9 (note 182): the stores bought for the night. A contract is just a route (note 637): no freight of its own.
             Powder = s.Stores.Powder,
             SpareLamps = s.Stores.Lamps,
             SpareExtinguishers = s.Stores.Extinguishers,

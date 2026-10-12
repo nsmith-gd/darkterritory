@@ -28,8 +28,9 @@ public sealed record SessionSetup(string? Route = null, string Line = "test-loop
     /// </summary>
     public int SpareKits { get; init; }
     /// <summary>
-    /// The contract's freight (GDD §9 "choose freight contracts", §19; note 182): what every loaded car leaves the fortress
-    /// carrying. None is goods. Every machine builds the same consist from it.
+    /// A freight every loaded car leaves the fortress carrying (§19; note 182). None is goods. Since note 637 a contract is just
+    /// a route and names none, and the train leaves empty (note 575): this is a test's or the harness's to set. Every machine
+    /// builds the same consist from it.
     /// </summary>
     [System.Text.Json.Serialization.JsonIgnore(Condition = System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingDefault)]
     public CargoKind Cargo { get; init; }
@@ -1127,14 +1128,43 @@ public sealed class NetPlaySession : IPlaySession, IDisposable
         if (Watching >= 0 && Client.TryGetRemote((byte)Watching, alpha, out var s))
             return Eyes.Operator(s, World) ?? Eyes.From(s, s, frames, alpha, 0, 0);
         var eyes = Eyes.Operator(Player, World) ?? Eyes.From(Player, _previous, frames, alpha, pendingYaw, pendingPitch);
+        // A Ribbit pack on you (note 558): down on your back with them, from when they got onto you.
+        double now = (Tick + alpha) * SimConstants.TickSeconds;
+        if (Player.Alive && Eaten(frames) is { } holder)
+        {
+            _eatenSince ??= now;
+            eyes = Eyes.Devoured(Eyes.World(Player, frames).Feet, holder, now - _eatenSince.Value, eyes);
+        }
+        else
+            _eatenSince = null;
         // Just come back: the shot of you getting up, then your eyes coming up with you (note 529).
         return _cameBack is { } back && Eyes.CameBack(back.Inside, back.Door, CameBackSeconds(back.Tick, alpha), eyes) is { } shot ? shot : eyes;
+    }
+
+    // Since when a Ribbit pack's been eating you (note 558), on the session's clock; null while it isn't.
+    double? _eatenSince;
+
+    /// <summary>Where the Ribbit eating you is (note 558), or null: none is.</summary>
+    Double3? Eaten(IReadOnlyList<CarFrame> frames)
+    {
+        var feet = Eyes.World(Player, frames).Feet;
+        foreach (var e in World.ActiveEnemies)
+            if (e.Holding == PlayerId && e.Kind == Sim.Enemies.EnemyKind.Ribbit)
+            {
+                var at = e.Attached >= 0 && e.Attached < frames.Count ? frames[e.Attached].ToWorld(e.Local) : e.Local;
+                if (Art.CreatureArt.RibbitEating(e, at, feet))
+                    return at;
+            }
+        return null;
     }
 
     // When you last came back inside a Holdout (note 529): its inside and door, and the tick.
     (Double3 Inside, Double3 Door, long Tick)? _cameBack;
 
     double CameBackSeconds(long tick, double alpha) => (Tick - tick + alpha) * SimConstants.TickSeconds;
+
+    public Crewmate? Self(IReadOnlyList<CarFrame> frames, double alpha) =>
+        Player.Alive && Watching < 0 ? Art.CrewActs.Crewmate((byte)PlayerId, Player, World, frames, [Player]) : null;
 
     public Crewmate? CameBackFigure(IReadOnlyList<CarFrame> frames, double alpha) =>
         _cameBack is { } back && CameBackSeconds(back.Tick, alpha) is >= 0 and < Eyes.CutIn && Player.Alive
