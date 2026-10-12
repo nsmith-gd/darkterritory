@@ -20,7 +20,7 @@ import argparse, glob, json, os, sys
 
 ROOT = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
-from calibrate import load_jsonc, parse_jsonc  # noqa: E402
+from calibrate import OWN, load_jsonc, parse_jsonc  # noqa: E402
 
 TIERS = ["local", "frontier", "deadLines", "deepTerritory"]
 
@@ -185,13 +185,22 @@ def plan(enemies, creatures, night):
     tables = {"weights": dict(d.get("weights", {})), "perNight": dict(d.get("perNight", {})),
               "nightChance": dict(d.get("nightChance", {})), "costs": dict(d["costs"])}
     stays = list(w.get("staysAtDawn", []))
+    houses = dict(enemies.get("dwellings", {}).get("weights", {}))
     said = []
     for name, doc in sorted(creatures.items(), key=lambda kv: kv[1].get("order", 99)):
         want = doc.get("want") or {}
-        if name not in d["costs"]:
-            said.append(f"  {name}: not in director.costs; skipped")
+        own = OWN.get(name)
+        if name not in d["costs"] and not own:
+            said.append(f"  {name}: neither in director.costs nor one that comes its own way; skipped")
             continue
+        # Those come their own way (note 644): a house creature's how often is its share of the houses (dwellings.weights);
+        # the Pickers have none, and neither has a cost.
+        if own == "house" and "weight" in want and num(want["weight"]) != houses.get(name):
+            said.append(f"  {name}: how often (dwellings.weights) {houses.get(name)} -> {num(want['weight'])}")
+            houses[name] = num(want["weight"])
         for field, table, drop in (("weight", "weights", 1), ("perNight", "perNight", None), ("nightChance", "nightChance", 1)):
+            if own and field == "weight":
+                continue
             if field not in want:
                 continue
             v = num(want[field])
@@ -202,7 +211,7 @@ def plan(enemies, creatures, night):
                 else:
                     tables[table][name] = v
                 said.append(f"  {name}: {field} {now} -> {v}")
-        if "cost" in want and num(want["cost"]) != tables["costs"][name]:
+        if not own and "cost" in want and num(want["cost"]) != tables["costs"][name]:
             said.append(f"  {name}: cost {tables['costs'][name]} -> {num(want['cost'])}")
             tables["costs"][name] = num(want["cost"])
         if "abandonAtDawn" in want:
@@ -223,6 +232,8 @@ def plan(enemies, creatures, night):
             changes.append((["director"], table, tables[table]))
     if tables["costs"] != d["costs"]:
         changes.append((["director"], "costs", tables["costs"]))
+    if houses != enemies.get("dwellings", {}).get("weights", {}):
+        changes.append((["dwellings"], "weights", houses))
     if stays != w.get("staysAtDawn", []):
         changes.append((["wakers"], "staysAtDawn", stays))
     if night and (night.get("want") or {}).get("nightFleesSeconds") is not None:
@@ -251,11 +262,17 @@ def self_test():
                 want["tierWeights"] = enemies[k]["tierWeights"]
             return {"name": k, "want": want, "game": copy.deepcopy(want)}
         docs = {k: doc(k) for k in d["costs"]}
+        for k, where in OWN.items():
+            want = {"weight": enemies["dwellings"]["weights"].get(k, 1) if where == "house" else 1, "perNight": d.get("perNight", {}).get(k),
+                    "nightChance": d.get("nightChance", {}).get(k, 1), "abandonAtDawn": k not in w["staysAtDawn"]}
+            docs[k] = {"name": k, "want": want, "game": copy.deepcopy(want)}
         changes, _ = plan(enemies, docs, None)
         assert not changes, f"the game's own values change something: {changes}"
         docs["knotter"]["want"].update(perNight=1, nightChance=0.5, abandonAtDawn=True, tierWeights={"local": 0.5, "frontier": 1, "deadLines": 1.5, "deepTerritory": 2})
         docs["climbers"]["want"].update(weight=1.5, cost=4, abandonAtDawn=False)
         docs["passenger"]["want"].update(perNight=1)
+        docs["lodger"]["want"].update(weight=1.5, perNight=2)
+        docs["pickers"]["want"].update(nightChance=0.5)
         for k, v in docs.items():
             json.dump(v, open(os.path.join(tmp, "export", "creatures", k + ".json"), "w"))
         os.makedirs(os.path.join(tmp, "export", "settings"))
@@ -265,8 +282,9 @@ def self_test():
         main()
         after = open(dst).read()
         e2 = load_jsonc(dst)
-        assert e2["director"]["perNight"] == {"knotter": 1, "passenger": 1}, e2["director"]["perNight"]
-        assert e2["director"]["nightChance"] == {"knotter": 0.5}, e2["director"]["nightChance"]
+        assert e2["director"]["perNight"] == {"knotter": 1, "passenger": 1, "lodger": 2}, e2["director"]["perNight"]
+        assert e2["director"]["nightChance"] == {"knotter": 0.5, "pickers": 0.5}, e2["director"]["nightChance"]
+        assert e2["dwellings"]["weights"]["lodger"] == 1.5 and "lodger" not in e2["director"]["costs"]
         assert e2["director"]["weights"] == {"climbers": 1.5}, e2["director"]["weights"]
         assert e2["director"]["costs"]["climbers"] == 4 and e2["director"]["costs"]["knotter"] == d["costs"]["knotter"]
         assert set(e2["wakers"]["staysAtDawn"]) == {"hotbox", "climbers"}, e2["wakers"]["staysAtDawn"]
@@ -275,7 +293,7 @@ def self_test():
         assert before.count("//") == after.count("//"), "a comment was lost"
         assert max(len(l) for l in after.splitlines()) <= 120 or max(len(l) for l in before.splitlines()) > 120, "a line past 120"
         writes = json.load(open(os.path.join(tmp, "writes.json")))
-        assert {x["doc_id"] for x in writes} == {"knotter", "climbers", "passenger", "night"}, writes
+        assert {x["doc_id"] for x in writes} == {"knotter", "climbers", "passenger", "lodger", "pickers", "night"}, writes
         sys.argv = ["apply.py", os.path.join(tmp, "export"), "--enemies", dst, "--check"]
         try:
             main()

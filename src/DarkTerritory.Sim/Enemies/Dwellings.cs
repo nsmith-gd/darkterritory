@@ -31,8 +31,13 @@ public sealed class Dwelling
             {
                 _placed.Add(byStop.Key);
                 foreach (var house in byStop.OrderBy(h => h.Index))
-                    if (Lives(route, stop, house, dt, director) is { } kind)
+                    // Not about tonight, or its night's cap reached (note 644; the director's Creature Tweaker): the house
+                    // stands empty.
+                    if (Lives(route, stop, house, dt, director) is { } kind && director.Tonight(kind, world))
+                    {
                         into.Add(Put(kind, nextId++, house, walls, t));
+                        director.Counted(kind);
+                    }
             }
             if (_placed.Contains(byStop.Key) && !_forgotten.Contains(byStop.Key) && front > f.End + dt.ForgetPast)
             {
