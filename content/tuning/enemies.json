@@ -965,6 +965,9 @@
     // one never meets two things at once. The left-behind's hunts and the Stoker stay outside it, as before.
     "orchestrator": {
       "on": true, "liveCrew": true, "engagedPerActive": 0.75, "perPlayer": 1,
+      // A longer train has more of the crew under a threat at once (note 646; the director, 9 Oct: "Scale by both"):
+      // engagedPerActive + engagedPerCar a car over pressure.scaleCars (8), up to perPlayer: one each from 13 cars.
+      "engagedPerCar": 0.05,
       // The census of posts and slack (ARCHITECTURE §8 note 345; orchestrator.md §3.1, §3.2 items 2–4). Once a second, each
       // crewmate alive: their post (cab, gunner, walker on the roofs, a ladder or a gap, rider inside a car, ground off the
       // train near it, or left behind past abandoned.behindM, whose own hunt answers them); which engaged threats are on whom

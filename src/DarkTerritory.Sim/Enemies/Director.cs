@@ -70,6 +70,8 @@ public sealed class Director
     }
 
     readonly HashSet<string> _outTonight = [];
+    /// <summary>The cars the engine pulls, as of the director's last second (note 646: the engaged cap's share).</summary>
+    int _cars;
     readonly Dictionary<EnemyKind, int> _ownWay = [];
 
     /// <summary>
@@ -137,6 +139,7 @@ public sealed class Director
     /// </summary>
     public void Count(World world, double elapsed, IReadOnlyList<Enemy> active, double noSpawnFinal)
     {
+        _cars = world.Train.Dynamics.Consist.CarCount;
         if (world.CrewThisTick.Count > 0)
             Active = world.CrewThisTick.Count(c => c.State.Alive);
         // Counted whenever the orchestrator's on (the harness reads it); census steers only with its own flag (Steering).
@@ -170,7 +173,9 @@ public sealed class Director
             var o = _t.Orchestrator;
             if (!o.On)
                 return MaxConcurrent;
-            int byCrew = Math.Min((int)Math.Ceiling(Active * o.EngagedPerActive - 1e-9), (int)Math.Floor(Active * o.PerPlayer + 1e-9));
+            // A longer train has more of them under a threat at once (note 646), never more than perPlayer each.
+            double share = o.EngagedShare(_cars, _t.Pressure.ScaleCars);
+            int byCrew = Math.Min((int)Math.Ceiling(Active * share - 1e-9), (int)Math.Floor(Active * o.PerPlayer + 1e-9));
             return Math.Min(MaxConcurrent, Math.Max(1, byCrew));
         }
     }

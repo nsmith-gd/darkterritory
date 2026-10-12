@@ -26,6 +26,19 @@ public class ThreatScaleTests
     }
 
     [Fact]
+    public void ALongerTrainHasMoreOfTheCrewUnderAThreatAtOnceNeverMoreThanOneEach()
+    {
+        var o = Tuning.Enemies.Director.Orchestrator;
+        Assert.Equal(o.EngagedPerActive, o.EngagedShare(P.ScaleCars, P.ScaleCars), 9);
+        Assert.Equal(o.EngagedPerActive, o.EngagedShare(4, P.ScaleCars), 9);
+        Assert.True(o.EngagedShare(P.ScaleCars + 3, P.ScaleCars) > o.EngagedPerActive);
+        Assert.Equal(o.PerPlayer, o.EngagedShare(40, P.ScaleCars), 9);
+        // A crew of four: three at once on a Frontier train, four on a long one.
+        Assert.Equal(3, (int)Math.Ceiling(4 * o.EngagedShare(8, P.ScaleCars) - 1e-9));
+        Assert.Equal(4, (int)Math.Ceiling(4 * o.EngagedShare(13, P.ScaleCars) - 1e-9));
+    }
+
+    [Fact]
     public void OffItIsTheTiersAlone()
     {
         var off = P with { CrewScale = 0, LengthScale = 0 };

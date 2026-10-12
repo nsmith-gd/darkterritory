@@ -859,6 +859,15 @@ public sealed record OrchestratorTuning
     public bool LiveCrew { get; init; } = true;
     public double EngagedPerActive { get; init; } = 0.75;
     public double PerPlayer { get; init; } = 1;
+    /// <summary>
+    /// Note 646 (the director, 9 Oct: "Scale by both"): each car over <see cref="PressureTuning.ScaleCars"/> raises
+    /// <see cref="EngagedPerActive"/> by this, up to <see cref="PerPlayer"/>: a longer train has more of the crew under a threat
+    /// at once, never more than one each.
+    /// </summary>
+    public double EngagedPerCar { get; init; }
+
+    /// <summary>The share of the crew that may be engaged at once with a train of <paramref name="cars"/> (note 646).</summary>
+    public double EngagedShare(int cars, int scaleCars) => Math.Min(PerPlayer, EngagedPerActive + EngagedPerCar * Math.Max(0, cars - scaleCars));
     // The census (note 345; orchestrator.md §3.1, §3.2 items 2 and 4).
     public bool Census { get; init; } = true;
     public int MinCrew { get; init; } = 2;
