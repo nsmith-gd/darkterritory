@@ -633,22 +633,27 @@ Contracts pay on **delivered cargo that survives**. Nothing else. A contract is 
 | Tier | Value per delivered car |
 |---|---|
 | Local | 450 |
-| Frontier | 700 |
-| Dead lines | 1,100 |
-| Deep territory | 1,700 |
+| Frontier | 900 |
+| Dead lines | 5,500 |
+| Deep territory | 23,000 |
 
-**Running costs** — coal, ammunition, repairs — average **15% of gross.**
-**Expected loss** — roughly one car's cargo per run at competent play.
+*Note 636 (the director, the inbox, 12 Oct: "each successful run should help players towards earning and spending to upgrade so they can go further the next run when the difficulty goes up").* The train leaves empty (note 575) and a night earns what its one stop loads, and the harder yards load less: 2.7 car-loads on Local, 3.0 on Frontier, 1.5 on Dead lines, 0.9 in Deep territory (64 nights of four bots). So each tier's car-load is priced for a delivered night to net about **the tier's next car ÷ 1.5** (F.2): about 1,100 on Local, 2,650 on Frontier, 7,800 on Dead lines and 20,000 in Deep territory. (Was 450 / 700 / 1,100 / 1,700 a car, priced for full trains.)
+
+**Running costs** — coal, ammunition, repairs — are fixed sums, not a share: they came to 15% of gross at the old pay, and with the deaths' fees and less the mail they come to about **5% of gross** now.
+**Fees don't follow the pay.** A death's crew-loss fee and a creature's monster brigade fee are halves of the tier's **fee value** (450 / 700 / 1,100 / 1,700, run.json `economy.feeValue`), so a raise in the pay isn't a raise in what a death costs (GDD App. D).
+**Expected loss** is already out of the car-loads above: they're what came home.
 
 ### Net income by consist
 
-| Consist | Tier | Loaded | Gross | Net |
+| Consist | Tier | Car-loads home | Gross | Net |
 |---|---|---|---|---|
-| 3 | Local | 2 | 900 | **765** |
-| 6 | Frontier | 5 | 3,500 | **2,975** |
-| 10 | Frontier | 9 | 6,300 | **5,355** |
-| 15 | Dead lines | 14 | 15,400 | **13,090** |
-| 20 | Deep | 19 | 32,300 | **27,455** |
+| 3 | Local | 2 | 900 | **855** |
+| 6 | Frontier | 3.0 | 2,690 | **2,556** |
+| 10 | Frontier | 3.0 | 2,690 | **2,556** |
+| 15 | Dead lines | 1.5 | 8,305 | **7,890** |
+| 20 | Deep | 0.9 | 20,470 | **19,447** |
+
+A longer train doesn't earn more on the same tier: it carries home what the stop loads. It earns more by going further (F.4).
 
 ## F.2 Car costs
 
@@ -686,10 +691,12 @@ Armoured car conversion · second guard car (a **third gun**, but it costs a car
 
 | Phase | Consist | Tier | Runs |
 |---|---|---|---|
-| Early | 3–6 | Local | 1–8 |
-| Establishing | 6–10 | Frontier | 9–20 |
-| Committed | 10–15 | Dead lines | 21–38 |
-| Behemoth | 15–20 | Deep territory | 39–60 |
+| Early | 3–6 | Local | 1–9 |
+| Establishing | 6–10 | Frontier | 9–21 |
+| Committed | 10–15 | Dead lines | 21–40 |
+| Behemoth | 15–20 | Deep territory | 40–56 |
+
+*Note 636: `dt campaign sim`'s standard crew on F.1's nets (campaign.json `standardCrew`) reaches 6 cars on run 9, 10 on 21, 15 on 40 and 20 on 56.*
 
 **Roughly 55–60 successful runs to reach 20 cars**, which at 35 minutes average is around 33 hours of successful play — considerably more with failures. That's a healthy campaign length for the genre and leaves room for post-launch route and enemy additions without inflating the ceiling.
 

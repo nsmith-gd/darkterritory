@@ -723,7 +723,7 @@ public class HoldoutTests
             var report = Deliver(n);
             Assert.Equal(deaths, report.Deaths);
             Assert.Equal(recovered, report.BodiesHome);
-            double fee = H.CrewLossFee * Tuning.Run.Economy.PerCar["frontier"];
+            double fee = H.CrewLossFee * Tuning.Run.Economy.FeeFor("frontier");
             Assert.Equal(Math.Round(deaths * fee), report.CrewLossFees);
             Assert.Equal(Math.Round(recovered * H.BodyRefund * fee), report.BodyRefunds);
             clean ??= report.Net;

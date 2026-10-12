@@ -398,7 +398,7 @@ Eventually the crew sees lights. Then walls. Then cannon towers. The gates open 
 
 **The crew goes on together** *(notes 606, 611)*. When the host goes on to the next night, everyone aboard and waiting follows it, by way of the town's card ("GRIEVE · THE HOST IS PICKING THE NIGHT AHEAD"), not their menus, and the bots the night was crewed with crew the next.
 
-**Don't bring them in** *(the director, 9 Oct 2026: "It also encourages players to plan a little extra time at the end of the run to stop the train, clear the monsters, and then bring it in"; notes 589, 590)*. The gates stay open. Anything still aboard a car as it comes in through the gate is brought into town: the town fights it in the yard among the houses for a few seconds and puts it down, and whatever it breaks meanwhile is the night's. Each one costs the night the town's **monster brigade fee** (half the tier's per-car value, as a crew-loss fee: D.9), two of its people hurt, and a house burnt (§3.1). Nothing new comes within 1,200 m of the gate (B.1), so a crew can stop there, clear the train and bring it in clean. The bot driver does: it stands short of the gate while the crew clears the train, and the bots corner the Brakeman there (notes 605, 610).
+**Don't bring them in** *(the director, 9 Oct 2026: "It also encourages players to plan a little extra time at the end of the run to stop the train, clear the monsters, and then bring it in"; notes 589, 590)*. The gates stay open. Anything still aboard a car as it comes in through the gate is brought into town: the town fights it in the yard among the houses for a few seconds and puts it down, and whatever it breaks meanwhile is the night's. Each one costs the night the town's **monster brigade fee** (half the tier's fee value, as a crew-loss fee: D.9), two of its people hurt, and a house burnt (§3.1). Nothing new comes within 1,200 m of the gate (B.1), so a crew can stop there, clear the train and bring it in clean. The bot driver does: it stands short of the gate while the crew clears the train, and the bots corner the Brakeman there (notes 605, 610).
 
 **The settlement does not mourn.** A yard clerk tallies the run over the radio as the cars come through: cargo by the car, bodies by the body, each fee read out flat, in the same voice as the coal. The town values your friend at 75%, says so, and moves on to the next line. This is the world's indifference, and it is the punchline to every failure that came before it (§23.1).
 
@@ -497,7 +497,7 @@ Sometimes the correct response to a monster is to go quiet.
 | **3–4** | Standard | The intended fit. Both cannons crewed only when nobody's on the ground. |
 | **5–8** | Long | Long enough that half the crew can't hear the other half. Eight people on proximity voice is its own difficulty. |
 
-Scaling is handled by **train length**, not enemy count multipliers.
+~~Scaling is handled by **train length**, not enemy count multipliers.~~ **Both** *(the director, 9 Oct 2026: "Scale by both, higher numbers on both readings should increase threat level"; note 646)*. A bigger crew and a longer train each bring more: the night's pressure, which sets how often something comes, builds 12% faster for each crewmate over four and 12% slower for each under (× 0.64 alone, × 0.76 for two, × 1.48 for eight), and 4% faster for each car over eight (× 0.84 for four cars, × 1.2 for 13, × 1.4 for 18; `director.pressure.crewScale`, `lengthScale`). And a longer train has more of the crew under a threat at once: three of a crew of four on a Frontier train, all four from 13 cars, never more than one each (`director.orchestrator.engagedPerCar`). Train length still sets the work: more cars to walk, guard and load.
 
 ---
 
@@ -2219,7 +2219,7 @@ Breach noise counts because it is the living's action. A crew that smashes a loc
 
 | Rule | Value |
 |---|---|
-| **Crew-loss fee** | Charged to the shared wallet at settlement for every in-run death: **50% of the tier's per-car value** |
+| **Crew-loss fee** | Charged to the shared wallet at settlement for every in-run death: **50% of the tier's fee value** (run.json `economy.feeValue`: 450 local, 700 frontier, 1,100 dead lines, 1,700 deep territory; note 636: a flat fee by tier, so a raise in what a car-load pays isn't eaten by deaths) |
 | **Body refund** | For every body delivered: **75% of that death's fee**, plus everything the body was carrying returned to stores |
 | **Net cost of a recovered death** | 25% of the fee. Unrecovered, 100%. |
 | **Delivered means** | Stowed in a car attached to the locomotive at arrival, or carried by a crew member aboard. **Decouple the car and the body goes with it.** |
@@ -2230,7 +2230,7 @@ Breach noise counts because it is the living's action. A crew that smashes a loc
 | **One body per death** | A player who dies twice leaves two bodies and incurs two fees |
 | **Drop-out bodies** | Kit recoverable. No fee, no refund. |
 
-| Tier | Per-car value | Fee | Refund | Recovered net |
+| Tier | Fee value (note 636) | Fee | Refund | Recovered net |
 |---|---|---|---|---|
 | Local | 450 | 225 | 169 | −56 |
 | Frontier | 700 | 350 | 263 | −87 |
@@ -2239,7 +2239,7 @@ Breach noise counts because it is the living's action. A crew that smashes a loc
 
 **Settlement:** `wallet += delivered cargo − running costs − Σ crew-loss fees + Σ body refunds − Σ monster brigade fees`
 
-**Monster brigade fee** (notes 589, 608): charged for each creature brought into town through the gate (§9), the same as a crew-loss fee: half the tier's per-car value (run.json `broughtIn.fee`, 0.5).
+**Monster brigade fee** (notes 589, 608): charged for each creature brought into town through the gate (§9), the same as a crew-loss fee: half the tier's fee value (run.json `broughtIn.fee`, 0.5, of `economy.feeValue`; note 636).
 
 **Silent-settlement termini** (Dead lines) pay cargo and body refunds as normal, credited by the fortress that issued the contract.
 

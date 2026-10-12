@@ -810,6 +810,20 @@ public sealed record PressureTuning
     public double HurtRelief { get; init; } = 0.25;
     public double Busy { get; init; } = 0.5;
     public double BusyFade { get; init; } = 1;
+    /// <summary>
+    /// The threat scales by the crew and by the train (note 646; the director, the inbox, 9 Oct: "Scale by both, higher
+    /// numbers on both readings should increase threat level"): the rate × (1 + crewScale × (crew − scaleCrew)) × (1 +
+    /// lengthScale × (cars − scaleCars)), each at least scaleFloor. 0 for either leaves it as the tier's alone.
+    /// </summary>
+    public double CrewScale { get; init; }
+    public double LengthScale { get; init; }
+    public int ScaleCrew { get; init; } = 4;
+    public int ScaleCars { get; init; } = 8;
+    public double ScaleFloor { get; init; } = 0.5;
+
+    /// <summary>The rate's scale for a crew of <paramref name="crew"/> and a train of <paramref name="cars"/> cars.</summary>
+    public double Scale(int crew, int cars) =>
+        Math.Max(ScaleFloor, 1 + CrewScale * (crew - ScaleCrew)) * Math.Max(ScaleFloor, 1 + LengthScale * (cars - ScaleCars));
 }
 
 /// <summary>
@@ -845,6 +859,15 @@ public sealed record OrchestratorTuning
     public bool LiveCrew { get; init; } = true;
     public double EngagedPerActive { get; init; } = 0.75;
     public double PerPlayer { get; init; } = 1;
+    /// <summary>
+    /// Note 646 (the director, 9 Oct: "Scale by both"): each car over <see cref="PressureTuning.ScaleCars"/> raises
+    /// <see cref="EngagedPerActive"/> by this, up to <see cref="PerPlayer"/>: a longer train has more of the crew under a threat
+    /// at once, never more than one each.
+    /// </summary>
+    public double EngagedPerCar { get; init; }
+
+    /// <summary>The share of the crew that may be engaged at once with a train of <paramref name="cars"/> (note 646).</summary>
+    public double EngagedShare(int cars, int scaleCars) => Math.Min(PerPlayer, EngagedPerActive + EngagedPerCar * Math.Max(0, cars - scaleCars));
     // The census (note 345; orchestrator.md §3.1, §3.2 items 2 and 4).
     public bool Census { get; init; } = true;
     public int MinCrew { get; init; } = 2;

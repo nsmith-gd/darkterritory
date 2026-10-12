@@ -245,7 +245,7 @@ the line (`HoundRunTests`). A bot crew hauls at cruise (14 m/s), and the boards 
 | D4 | Quiet is the train's (seconds or metres since a threat) | Plus slack: idle players press it (§3.2 4) |
 | D5 | Hounds: a pack of 3–5 behind, any round fired near drives all off, can't board above 19 m/s | The director's packs as before; the run (§6.1) is the fast train's: faster than the train, one ball per hound |
 | D6 | Nothing between stops but the director's spends | Upkeep jobs (§5.1) and the run (§5.3), outside the budget |
-| D7 | §15: "scaling by train length, not enemy count multipliers" | Train length still sets the work; who's active sets how many come at once. **For the director: confirm the §15 change** |
+| D7 | §15: "scaling by train length, not enemy count multipliers" | Train length still sets the work; who's active sets how many come at once. **The director, 9 Oct: "Scale by both, higher numbers on both readings should increase threat level"; built: the pressure's rate × the crew and the cars (note 646)** |
 
 ## 8. Questions for the director
 
