@@ -81,10 +81,20 @@ table.infl td.all { border-left: 2px solid var(--rule); font-weight: 600; width:
 .swatch { display: inline-block; width: 14px; height: 14px; border-radius: 2px; vertical-align: -2px; margin-right: 4px; }
 .foot { font-size: 13px; color: var(--muted); max-width: 90ch; margin: 0; }
 .status { font-size: 13px; color: var(--muted); min-height: 1.3em; }
-.night { display: flex; flex-wrap: wrap; gap: 12px 24px; align-items: center; }
+.night .knobs { display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 14px 24px; }
+.night .knob { display: grid; grid-row: span 3; grid-template-rows: subgrid; gap: 4px; align-items: end; }
+.night .knob .foot { align-self: start; }
 .night label { font: 600 14px/1.3 var(--body); }
 .night input { width: 5em; font: 14px var(--mono); padding: 4px 6px; border: 1px solid var(--rule); border-radius: 3px; background: var(--field); color: var(--ink); }
 .night input.changed { border-color: var(--lamp); background: var(--lamp-bg); }
+table.scale th { text-align: center; }
+table.scale th.name { text-align: left; }
+table.scale td { text-align: center; padding: 5px 6px; min-width: 64px; border: 1px solid var(--bg); }
+table.scale td b { display: block; font: 600 15px/1.2 var(--mono); }
+table.scale td span { display: block; font: 11px/1.3 var(--body); color: var(--muted); }
+table.scale td.base { outline: 2px solid var(--ink); outline-offset: -2px; }
+table.scale td.moved { box-shadow: inset 0 0 0 2px var(--lamp); }
+table.scale th.long { color: var(--accent); }
 button.primary { font: 600 14px/1 var(--body); padding: 8px 12px; border-radius: 4px; border: 1px solid var(--ink); background: var(--ink); color: var(--sheet); cursor: pointer; }
 input:focus-visible, textarea:focus-visible, button:focus-visible, select:focus-visible { outline: 2px solid var(--focus); outline-offset: 1px; }
 .ro input, .ro textarea, .ro button.primary { pointer-events: none; opacity: .7; }
@@ -100,7 +110,7 @@ input:focus-visible, textarea:focus-visible, button:focus-visible, select:focus-
   <section class="panel how" aria-labelledby="how-h">
     <h2 id="how-h">How the numbers work together</h2>
     <ol>
-      <li><b>Pressure builds through the night</b>: faster on harder tiers, toward the end, in a long quiet, when the crew is loud, and with cargo aboard.</li>
+      <li><b>Pressure builds through the night</b>: faster on harder tiers, toward the end, in a long quiet, when the crew is loud, with cargo aboard, and with a bigger crew or a longer train (set under "The whole night").</li>
       <li><b>When it's high enough, the director picks one creature.</b> Each that could come right now (some need a stop, a fast train, a bridge, a dark car) is weighted by its <b>How often</b> × its <b>tier weight</b>.</li>
       <li><b>Cost is how long the quiet after it lasts.</b> The pick takes 3 × its cost off the pressure, so after a cost-1 Freight Beetle the next thing comes soon, and after a cost-5 Passenger the night goes quiet for a while. The night also has a budget of cost, but on today's 7 km nights the director spends about 45 of its 360, so the budget never runs out.</li>
       <li><b>Most in a night</b> and <b>Nights it comes</b> take a creature out once it's reached its cap or on the nights it's not about. Its picks go to the others.</li>
@@ -109,10 +119,32 @@ input:focus-visible, textarea:focus-visible, button:focus-visible, select:focus-
     </ol>
   </section>
 
-  <section class="panel night" aria-label="The whole night">
-    <label for="flee">Night things leave this many seconds before dawn</label>
-    <input type="number" id="flee" min="-1" step="10" inputmode="decimal">
-    <span class="foot" id="flee-game"></span>
+  <section class="panel night" aria-labelledby="night-h">
+    <h2 id="night-h">The whole night: dawn, the crew and the train</h2>
+    <div class="knobs">
+      <div class="knob">
+        <label for="k-nightFleesSeconds">Night things leave this many seconds before dawn</label>
+        <input type="number" id="k-nightFleesSeconds" min="-1" step="10" inputmode="decimal">
+        <span class="foot" id="g-nightFleesSeconds"></span>
+      </div>
+      <div class="knob">
+        <label for="k-crewScale">Faster for each crewmate over four</label>
+        <input type="number" id="k-crewScale" min="0" step="0.02" inputmode="decimal">
+        <span class="foot" id="g-crewScale"></span>
+      </div>
+      <div class="knob">
+        <label for="k-lengthScale">Faster for each car over eight</label>
+        <input type="number" id="k-lengthScale" min="0" step="0.01" inputmode="decimal">
+        <span class="foot" id="g-lengthScale"></span>
+      </div>
+      <div class="knob">
+        <label for="k-longTrainCars">Two threats on one crewmate from this many cars</label>
+        <input type="number" id="k-longTrainCars" min="0" step="1" inputmode="numeric">
+        <span class="foot" id="g-longTrainCars"></span>
+      </div>
+    </div>
+    <p class="foot">The grid is what those three make. In each square, the large number is how fast the night builds toward its next creature against a crew of four on eight cars (the outlined square, where the estimates above are measured): ×1.5 is half again as often. Below it is how many can be under a threat at once, and the most on one crewmate. Squares your values change from the game's have an amber edge. More comes on a bigger crew or a longer train, but how many can be about at once also limits it, so the creatures a night rise less than the large number says: on 12 Oct, four bots on 18 cars went from 17 to 26 a night.</p>
+    <div class="scroll"><table class="scale" id="scale" aria-label="How fast the night builds and how many at once, by crew and cars"></table></div>
   </section>
 
   <div class="bar">
@@ -446,21 +478,69 @@ input:focus-visible, textarea:focus-visible, button:focus-visible, select:focus-
     }));
   }
 
+  // ---- The whole night (settings/night): the dawn setting and the threat's scaling (notes 646, 647, 651). `rules` are
+  // the game's own fixed numbers the grid needs, written by tools/tweaker/apply.py --game-out; the fallbacks are 12 Oct's.
+  const KNOBS = {
+    nightFleesSeconds: g => `In the game: ${g} s. Creatures ticked "Leaves at dawn" let go and are gone then; −1 keeps them all night.`,
+    crewScale: g => `In the game: ${g}. How much faster the night builds for each crewmate over four (slower under): 0 is the same for any crew.`,
+    lengthScale: g => `In the game: ${g}. The same for each car over eight (fewer slows it). 0 is the same for any train.`,
+    longTrainCars: g => `In the game: ${g || "off"}. Shorter trains keep one threat each. 0 is never two.`,
+  };
+  const RULES = { scaleCrew: 4, scaleCars: 8, scaleFloor: 0.5, engagedPerActive: 0.75, engagedPerCar: 0.05, perPlayer: 1, perPlayerLong: 2, maxConcurrentSmallCrew: 4, maxConcurrentLargeCrew: 6 };
+  const CREWS = [1, 2, 3, 4, 6, 8], CARS = [4, 6, 8, 10, 13, 15, 18];
+  const nightDraft = {};
+  const nightWant = () => Object.assign({}, night?.want, nightDraft);
+  // Director.cs and EnemyTuning.cs, line for line: PressureTuning.Scale, OrchestratorTuning.EngagedShare/PerPlayerFor,
+  // Director.EngagedCap/MaxConcurrent.
+  function scaleAt(v, crew, cars) {
+    const r = Object.assign({}, RULES, night?.rules), cs = v.crewScale ?? 0, ls = v.lengthScale ?? 0, lt = v.longTrainCars ?? 0;
+    const mult = Math.max(r.scaleFloor, 1 + cs * (crew - r.scaleCrew)) * Math.max(r.scaleFloor, 1 + ls * (cars - r.scaleCars));
+    const long = lt > 0 && cars >= lt, each = long ? r.perPlayerLong : r.perPlayer;
+    const share = long ? r.perPlayerLong : Math.min(r.perPlayer, r.engagedPerActive + r.engagedPerCar * Math.max(0, cars - r.scaleCars));
+    const hard = Math.round((crew >= 6 ? r.maxConcurrentLargeCrew : r.maxConcurrentSmallCrew) * (each / Math.max(1e-9, r.perPlayer)));
+    const atOnce = Math.min(hard, Math.max(1, Math.min(Math.ceil(crew * share - 1e-9), Math.floor(crew * each + 1e-9))));
+    return { mult, atOnce, each: Math.min(each, atOnce) };
+  }
+  function tint(m) {
+    const d = Math.min(1, Math.abs(Math.log(m)) / Math.log(2));
+    return d < 0.02 ? "" : `color-mix(in srgb, var(${m > 1 ? "--more" : "--fewer"}) ${Math.round(8 + 40 * d)}%, var(--sheet))`;
+  }
+  function paintScale() {
+    const v = nightWant(), g = night?.game || {}, lt = v.longTrainCars ?? 0, r = Object.assign({}, RULES, night?.rules);
+    const head = el("tr", {}, el("th", { class: "name", scope: "col", text: "Crew ↓  cars →" }),
+      ...CARS.map(c => el("th", { scope: "col", class: lt > 0 && c >= lt ? "long" : "", text: lt > 0 && c >= lt ? `${c} · two each` : `${c}` })));
+    const rows = CREWS.map(crew => el("tr", {}, el("th", { class: "name", scope: "row", text: crew === 1 ? "1 (alone)" : `${crew}` }),
+      ...CARS.map(cars => {
+        const a = scaleAt(v, crew, cars), b = scaleAt(g, crew, cars);
+        const moved = night && (Math.abs(a.mult - b.mult) > 0.005 || a.atOnce !== b.atOnce || a.each !== b.each);
+        const td = el("td", { class: [crew === r.scaleCrew && cars === r.scaleCars ? "base" : "", moved ? "moved" : ""].join(" ").trim(),
+          title: moved ? `In the game: ×${b.mult.toFixed(2)}, ${b.atOnce} at once, up to ${b.each} on one` : "" },
+          el("b", { text: `×${a.mult.toFixed(2)}` }), el("span", { text: `${a.atOnce} at once${a.each > 1 ? `, ${a.each} on one` : ""}` }));
+        const t = tint(a.mult); if (t) td.style.background = t;
+        return td;
+      })));
+    $("scale").replaceChildren(el("thead", {}, head), el("tbody", {}, ...rows));
+  }
   function paintNight() {
-    const input = $("flee");
-    if (document.activeElement !== input) input.value = night?.want?.nightFleesSeconds ?? "";
-    const g = night?.game?.nightFleesSeconds;
-    input.classList.toggle("changed", !!night && !same(night.want?.nightFleesSeconds, g));
-    $("flee-game").textContent = night ? `In the game: ${g} s. Creatures ticked "Leaves at dawn" let go and are gone then; −1 keeps them all night.` : "";
+    for (const [k, line] of Object.entries(KNOBS)) {
+      const input = $(`k-${k}`), w = nightWant()[k], g = night?.game?.[k];
+      if (document.activeElement !== input) input.value = w ?? "";
+      input.classList.toggle("changed", !!night && w !== undefined && !same(w, g));
+      $(`g-${k}`).textContent = night && g !== undefined ? line(g) : "";
+    }
+    paintScale();
   }
   let nightChain = Promise.resolve(), nightTimer = null;
-  $("flee").addEventListener("input", e => {
+  for (const k of Object.keys(KNOBS)) $(`k-${k}`).addEventListener("input", e => {
+    const v = e.target.value === "" ? null : Number(e.target.value);
+    if (v === null || !Number.isFinite(v)) return;
+    nightDraft[k] = v; e.target.classList.toggle("changed", !!night && !same(v, night.game?.[k])); paintScale();
     clearTimeout(nightTimer);
     nightTimer = setTimeout(() => {
-      const v = e.target.value === "" ? null : Number(e.target.value);
-      if (!db || readOnly || !night || v === null) return;
-      nightChain = nightChain.then(() => db.doc("settings/night").update({ want: { nightFleesSeconds: v }, changedAt: new Date().toISOString() }))
-        .then(() => say("Saved the dawn setting."), err => say(`Couldn't save the dawn setting (${err?.code || "error"}).`));
+      if (!db || readOnly || !night) return;
+      const want = nightWant();
+      nightChain = nightChain.then(() => db.doc("settings/night").update({ want, changedAt: new Date().toISOString() }))
+        .then(() => say("Saved the night's settings."), err => say(`Couldn't save the night's settings (${err?.code || "error"}).`));
     }, 600);
   });
 
@@ -494,7 +574,11 @@ input:focus-visible, textarea:focus-visible, button:focus-visible, select:focus-
       if (!editing) renderMatrix(); else liveUpdate();
     }, err => say(`Lost the connection to the store (${err.code}). Reload the page.`));
     db.doc("model/calibration").onSnapshot(s => { model = s.exists ? s.data() : null; paintCalib(); if (docs.size) renderMatrix(); }, () => {});
-    db.doc("settings/night").onSnapshot(s => { night = s.exists ? s.data() : null; paintNight(); }, () => {});
+    db.doc("settings/night").onSnapshot(s => {
+      night = s.exists ? s.data() : null;
+      for (const k of Object.keys(nightDraft)) if (same(nightDraft[k], night?.want?.[k])) delete nightDraft[k];
+      paintNight();
+    }, () => {});
     db.doc("requests/measure").onSnapshot(s => { request = s.exists ? s.data() : null; paintRequest(); }, () => {});
   })();
 })();

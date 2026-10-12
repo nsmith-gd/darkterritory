@@ -829,5 +829,5 @@ written here instead is moved out by `tools/coord/notes.py split`; the Coordinat
 - [647. A long train: two threats each (D1, queue #377; the director, the inbox, 12 Oct, `D1-long-train-two-each`, "b"; with "Couplings never…](notes/647.md)
 - [648. The Stoker's hose in the cab (D1, queue #378; the director, the inbox, 12 Oct, `D1-stoker-hose-in-the-cab`, "b": "A hose fitting in the…](notes/648.md)
 - [649. The lockers hold what the slots let go (D1.5, queue #379; the director, the inbox, 12 Oct)](notes/649.md)
-- [651. The threat's scaling on the Creature Tweaker (D1, queue #381)](notes/651.md)
+- [651. The threat's scaling on the Creature Tweaker (D1, queue #381; the director, 12 Oct: "Let's get this all set up as a matrix so we can see…](notes/651.md)
 <!-- end of the notes index -->
