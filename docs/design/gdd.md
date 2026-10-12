@@ -13,6 +13,7 @@ Interactive version, with the roster explorer and director tools: [claude.ai/art
 - **The crew goes on together**, joiners and bots: when the host goes on to the next night, everyone aboard follows it by way of the town's card, and the same bots crew it (§9; notes 606, 611).
 - **Monsters brought into town.** Anything still aboard as its car comes in through the gate is fought in the yard by the town's guns and guards. The night pays the town's monster brigade, two of its people are hurt, and a house burns; the town remembers its burnt houses on the next visit (§3.1, §9, D.9; notes 589, 608, 612).
 - **The quiet doors.** Nothing new comes within 1,200 m of a town's gate, so a crew can stop short, clear the train and bring it in; the bots do (§9, B.1; notes 590, 605, 610).
+- **Taken at dawn, the campaign ends** (the director, 12 Oct): the save is closed and the slot's next start is a new crew (§8, §23; note 632).
 - **A fall hurts by its height**, and a run over open ground isn't a landing: from 5.5 m a knock, from 7.5 m death (§23; note 573).
 - **§1's table** has the night's length v1.5 set: a run of about 17 minutes, dawn at 24 (note 554).
 - Touches §1, §3.1, §8, §9, §23, B.1 and D.9.
@@ -348,6 +349,8 @@ Your crew operates inside a dangerous nighttime freight window. Miss it and the 
 **Seen and felt coming** *(note 599; the director: "the tension before it is really, really important")*. For the last three minutes before dawn (`wakers.stirSeconds`, 180) a cold line comes up low on the sky behind the train, where they'll rise: nothing at first, then a wide dim bruise, and by dawn a thin grey band clear of the treeline. The ground thuds, and in the cars the lamps swing and the coal slides. At dawn each Waker heaves up out of the land in three surges, earth and boulders shed off its back in a bank of dark dust, and every footfall raises dust as it comes down the line. **The town's guns fire on any that come near the walls**, and they stop 300 m short of the gate (`wakers.stopShort`): a train whose last car is in past that is safe.
 
 **The night things run** *(the director, the inbox, 12 Oct 2026: "creatures should leave all except the knotter and the hotbox who are parasites that have train functions"; note 635)*. A minute before dawn (`wakers.nightFleesSeconds`, 60) the night's creatures let go and are gone, and nothing more of theirs comes: it is the clearest sign the night's over, and fewer of them ride into town. The Knotter and Hotbox stay aboard (`wakers.staysAtDawn`), parasites in the train's own couplings and axles. The director sets which leave, creature by creature, in the Creature Tweaker (claude.ai/artifact/TdoxfYnmZTgv2jc9JmRkkw).
+
+**Taken at dawn, the campaign ends** *(the director, the inbox, 12 Oct: "c, The campaign ends", roguelike; note 632)*. A train the Wakers take is the crew's last. The night is settled into the save like any other, and the save is closed: the company has no more trains for that crew, and the end card says so on every machine ("THE COMPANY HAS NO MORE TRAINS FOR YOU"). The slot's next start is a new crew from a fortress. A night lost any other way (derailed, the crew lost, stranded) is settled and the crew goes on. A mod can keep the old way (campaign.json `dawnEndsCampaign: false`).
 
 ---
 
@@ -800,7 +803,7 @@ Nothing there is a mystery. It's still a disaster.
 | **Delivered** | The engine stops at the terminus on the main line |
 | **Derailed** | The train leaves the rails. Everyone dies, and Appendix E plays |
 | **Crew lost** | No living crew remain |
-| **Dawn missed** | Still out at dawn: the Wakers take the train (§8) |
+| **Dawn missed** | Still out at dawn: the Wakers take the train (§8), and the campaign ends with it (note 632) |
 | **Stranded** | The boiler is ruptured and the engineering kit is lost (§23.2), or the engine has broken down (§23.3) |
 
 ### Boiler rupture

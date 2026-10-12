@@ -73,6 +73,12 @@ public sealed record SessionSetup(string? Route = null, string Line = "test-loop
     /// </summary>
     [System.Text.Json.Serialization.JsonIgnore(Condition = System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull)]
     public IReadOnlyDictionary<string, int>? Burnt { get; init; }
+    /// <summary>
+    /// A campaign's night (note 632): with campaign.json <c>dawnEndsCampaign</c>, taken at dawn it's the campaign's last, and
+    /// every machine's end card says so. Every machine is sent it.
+    /// </summary>
+    [System.Text.Json.Serialization.JsonIgnore(Condition = System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingDefault)]
+    public bool CampaignNight { get; init; }
     /// <summary>The host's line's fingerprint: a joiner whose own generated line differs (another generator version) is refused.</summary>
     public string? PlanPrint { get; init; }
     /// <summary>The host's terrain's fingerprint (linegen plan §17.3): a joiner whose ground comes out differently is refused.</summary>
@@ -180,7 +186,11 @@ public sealed record SessionSetup(string? Route = null, string Line = "test-loop
         }
         start = Start ?? start;
         var train = new TrainOnLine(new TrainDynamics(consist), line, start, boiler);
-        var world = new World(train, combat) { WreckTuning = DataFile.Load<WreckTuning>(Path.Combine(content, WreckTuning.File)) };
+        var world = new World(train, combat)
+        {
+            WreckTuning = DataFile.Load<WreckTuning>(Path.Combine(content, WreckTuning.File)),
+            DawnEndsCampaign = CampaignNight && DataFile.Load<Sim.Campaign.CampaignTuning>(Path.Combine(content, Sim.Campaign.CampaignTuning.File)).DawnEndsCampaign,
+        };
         if (route is not null)
         {
             var routeTuning = RouteTuning.Load(content);
