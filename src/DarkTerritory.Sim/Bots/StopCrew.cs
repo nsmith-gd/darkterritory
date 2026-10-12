@@ -409,6 +409,20 @@ public sealed partial class CrewCalls
         return true;
     }
 
+    // Note 627: which walker is going to a guttering lamp (note 346), as for a loose pin: the nearest the tick it's first
+    // wanted, and theirs while they say so. Only those who'd take it want it: a gunner standing nearer, which never goes for a
+    // lamp, held the choice from the walker at car 3's door on seed 4's night, and it went out.
+    readonly Dictionary<int, (int Who, double Distance, uint Tick, uint Seen)> _gutters = new();
+
+    /// <summary>A walker going to the guttering lamp of <paramref name="car"/>, from this far: true if it's theirs.</summary>
+    public bool ClaimGutter(int car, int who, double distance, uint tick)
+    {
+        if (_gutters.TryGetValue(car, out var c) && c.Who != who && tick - c.Seen <= SimConstants.TickRate && !(c.Tick == tick && distance < c.Distance))
+            return false;
+        _gutters[car] = (who, distance, _gutters.TryGetValue(car, out var mine) && mine.Who == who ? mine.Tick : tick, tick);
+        return true;
+    }
+
     /// <summary>The hand going to this car's swarmed lamp (or the fire the flies lit), or null.</summary>
     public int? LampHand(int car) => _lamp.TryGetValue(car, out var c) && Alive(c.Member) ? c.Member : null;
 
