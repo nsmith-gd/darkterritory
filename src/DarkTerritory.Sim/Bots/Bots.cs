@@ -1389,7 +1389,7 @@ public sealed class RoofWalkerBot(int seed, ColdTuning? cold = null, StopHand? j
         // Note 539: from outside the fire's reach (burnReach of a burning cell's patch, half a cell round its centre) and inside
         // the spray's: at 1.2 m from the cell, a walker spraying a cell at full blaze burned at 6 to 10 a second and died at it.
         var ft = world.Enemies?.CarFire;
-        double standOff = ft is null ? 1.2 : Math.Max(1.2, Math.Min(ft.SprayReach - 0.6, ft.BurnReach + ft.CellSize * 0.5 + 0.05));
+        double standOff = ft is null ? 1.2 : Math.Max(1.2, Math.Min(ft.SprayReach - 0.6, ft.BurnReach + ft.BurnPatch + 0.05));
         double standZ = target.Z + side * standOff;
         if (train.Frames[self.Parent].Shape.Interior is { } rm)
             standZ = Math.Clamp(standZ, rm.Min.Z + 0.4, rm.Max.Z - 0.4);
