@@ -3370,8 +3370,16 @@ public sealed partial class ConductorBot(CrewCalls? calls = null, int member = 0
             club.ThrottleNotch = -4;
             return club;
         }
-        // In the firebox (Stoker v3, note 271): never the door (it burns), never a shovelful; vent and starve it out, the brake
-        // held against its runaway.
+        // In the firebox (Stoker v3, note 271): never the door (it burns), never a shovelful. With the cab's hose (note 648;
+        // the director, the inbox, 12 Oct: "b") at the door and the hose on it, the brake held; else vent and starve it out.
+        if (world.Enemies is { Stoker.CabHose: true })
+        {
+            var (step, there) = WarmUp.Steer(self, FiringSpot(firebox, Fireman ? -1 : 1), FacingFire);
+            var hose = there ? new PlayerIntent { Buttons = PlayerButtons.Fire } : step;
+            hose.Buttons |= PlayerButtons.Brake;
+            hose.ThrottleNotch = -4;
+            return hose;
+        }
         var intent = new PlayerIntent { Actions = PlayerActions.Vent, Buttons = PlayerButtons.Brake, ThrottleNotch = -4 };
         return intent;
     }
