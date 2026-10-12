@@ -620,7 +620,7 @@ object CampaignCommand(string content, string verb, string[] args)
         tier = DarkTerritory.Sim.Campaign.Campaign.TierFor(t, s.Cars).ToString(),
         nextCar = DarkTerritory.Sim.Campaign.Campaign.NextCarCost(t, s),
         upgrades = s.Upgrades,
-        contracts = DarkTerritory.Sim.Campaign.Campaign.Offers(t, runTuning, s).Select((c, i) => new { index = i, route = c.Route, cargo = DarkTerritory.Sim.Train.Cargoes.Name(c.Cargo), perCar = c.PerCar }),
+        contracts = DarkTerritory.Sim.Campaign.Campaign.Offers(t, runTuning, s).Select((c, i) => new { index = i, route = c.Route, perCar = c.PerCar }),
         stores = s.Stores,
         sellBack = DarkTerritory.Sim.Campaign.Campaign.SellBack(t, s),
         shop = t.Upgrades.Where(u => !s.Upgrades.Contains(u.Id)).Select(u => new { u.Id, u.Name, size = u.Size.ToString(), cost = DarkTerritory.Sim.Campaign.Campaign.UpgradeCost(t, s, u), modelled = u.Effect.Count > 0 }),
@@ -725,7 +725,6 @@ object CampaignCommand(string content, string verb, string[] args)
                     // The houses burnt in each by creatures brought in (note 608): the town remembers.
                     fromBurnt = route.Plan?.Fortress.TownBurnt ?? 0,
                     toBurnt = s.Town?.Burnt ?? 0,
-                    cargo = DarkTerritory.Sim.Train.Cargoes.Name(contract.Cargo),
                     night,
                     board = Board(s),
                 };
