@@ -351,6 +351,13 @@ public sealed partial class CrewCalls
     /// <summary>Note 628: the trade's done (the shunter has the part given up).</summary>
     public void Traded() => ShuntTaken = null;
 
+    /// <summary>Note 628: someone alive with a lower member number than <paramref name="member"/> has the shunter's part too.</summary>
+    public bool ShunterBefore(int member) => _crew.Any(c => c.Key < member && c.Value.Alive && c.Value.Job == StopJob.Shunter);
+
+    /// <summary>Note 628: a part someone had and nobody alive has now (the winch's handles first), or a crate hand's.</summary>
+    public StopJob FreePart() =>
+        new[] { StopJob.Winch0, StopJob.Winch1 }.FirstOrDefault(p => _held.Contains(p) && !Has(p), StopJob.Crates);
+
     /// <summary>Nobody alive is on the ground.</summary>
     public bool AllAboard => _crew.Values.All(c => !c.Alive || c.Vehicle != PlayerState.World);
 
@@ -1991,6 +1998,12 @@ public sealed partial class StopHand(StopJob job, CrewCalls calls, int member, C
             job = taken.Gave;
             calls.Traded();
         }
+        // Note 628: two with the shunter's part, between stops, as when one's back from the dead (out of a Holdout) with its
+        // stand-in still on it: frontier:7 seed 11's two went to the points by turns and set them back and forth for the 180 s
+        // of the clear. The one with the higher number gives it up, for a part nobody has.
+        else if (job == StopJob.Shunter && self.Alive && _plan is null && _coal is null && _switch is null && calls.ShuntTaken is null
+            && calls.ShunterBefore(member))
+            job = calls.FreePart();
         // And the winch pair, where one's died or gone to shunt: a crate hand takes the part (never mid-part).
         foreach (var winch in new[] { StopJob.Winch0, StopJob.Winch1 })
             if (job == StopJob.Crates && self.Alive && _plan is null && _coal is null && _switch is null && calls.StandIn(member, winch))
@@ -2446,8 +2459,11 @@ public sealed partial class StopHand(StopJob job, CrewCalls calls, int member, C
             return Rerail(self, world, p, off);
         if (!back && _reachedEnd && p.TippleTarget(world) is not null && !calls.Leaving)
             return Tipple(self, world, p);
+        // Note 628: at a pick-up, aboard by the nearest ladder of the engine's rake, not the walk to the cab: frontier:7 seed 3's
+        // shunter, on the ballast in the siding as the engine coupled up, walked for the cab steps for the whole 120 s of the
+        // aboard wait.
         if (!back)
-            return Ride(self, train, p);
+            return p.PickUp && self.Parent == PlayerState.World ? LeftOnTheBallast(self, world) ?? Ride(self, train, p) : Ride(self, train, p);
         return set ? Throw(self, train, p.Spur) : Aboard(self, p);
     }
 
