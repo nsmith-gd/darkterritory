@@ -1407,6 +1407,14 @@ public sealed class RoofWalkerBot(int seed, ColdTuning? cold = null, StopHand? j
         var (step, _) = WarmUp.Steer(self, aisle, yaw);
         double ox = aisle.X - self.Position.X, oz = aisle.Z - self.Position.Z;
         bool there = ox * ox + oz * oz < 0.4 * 0.4;
+        // Note 634: held short of the spot (a crewmate on it: the pair in car 3 at Rooke stood pressed together at the same
+        // spot, 25 s short of it, and burned from 90 to nothing) with the fire in the spray's reach: spray it from here.
+        var moved = self.Position - _fightAt;
+        _fightAt = self.Position;
+        _fightHeld = !there && moved.X * moved.X + moved.Z * moved.Z < 0.01 * 0.01 ? _fightHeld + 1 : 0;
+        if (!there && _fightHeld > SimConstants.TickRate && ft is not null
+            && (target - (self.Position + Double3.Up * train.Dynamics.Tuning.Pick.EyeHeight)).Length < ft.SprayReach - 0.3)
+            there = true;
         TendStep = there ? "spraying" : "to the fire";
         if (!there)
             return step;
@@ -1466,6 +1474,10 @@ public sealed class RoofWalkerBot(int seed, ColdTuning? cold = null, StopHand? j
         }
         return at ? new PlayerIntent { Buttons = tap ? PlayerButtons.Use : PlayerButtons.None, LookPitch = (float)(-0.6 - self.Pitch) } : walk;
     }
+
+    /// <summary>Note 634: where the walker stood last tick going to the fire, and how many ticks it's been held there.</summary>
+    Double3 _fightAt;
+    int _fightHeld;
 
     static InteriorLayout Interior(TrainOnLine train) => train.Dynamics.Tuning.Geometry.Interior!;
 
