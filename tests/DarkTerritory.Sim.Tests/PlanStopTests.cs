@@ -15,7 +15,7 @@ public class PlanStopTests
 {
     static readonly string Content = DataFile.FindContentRoot();
 
-    static readonly string[] Specs = ["local:1", "frontier:7", "deadLines:3", "deepTerritory:2"];
+    static readonly string[] Specs = ["local:4", "frontier:10", "deadLines:9", "deepTerritory:6"];
     public static TheoryData<string> Nights => [.. Specs];
 
     static Route.Route Night(string spec, int cars = 6) => Routes.Generate(Content, spec, cars);

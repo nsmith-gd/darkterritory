@@ -67,8 +67,11 @@ public static class Protocol
     // 48: Jacob (note 572): an enemy kind of his own.
     // 49: the controls belong to whoever's working them (note 574): the Hello carries a flags byte after the outfit (bit 0, a
     //     bot), and the controls record carries who holds them and whether that's a bot.
-    // 50: the Pickers and the house creatures (notes 583–586, 592): five enemy kinds of their own.
-    public const int Version = 50;
+    // 50: the crew goes on together (note 606): CarryOn, host to client, carries the town the crew's going on from.
+    // 51: the towns remember (notes 608, 612): a town's burnt houses ride on the route spec after its seed, and the
+    // campaign's in the session's setup, so every machine builds both towns with them.
+    // 52: the Pickers and the house creatures (notes 583–586, 592): five enemy kinds of their own.
+    public const int Version = 52;
 }
 
 public enum MessageType : byte
@@ -121,6 +124,12 @@ public enum MessageType : byte
     Outfits = 18,
     /// <summary>Client → host, reliable: the outfit this player puts on (note 298). The host takes it only in the yard.</summary>
     Wear = 19,
+    /// <summary>
+    /// Host → client, reliable, as the host leaves a delivered campaign night (note 606): the crew's going on to the next night
+    /// from this town (<see cref="Towns.TownAt.Spec"/>). The client waits on its card and dials the host again for that night,
+    /// rather than going back to its menu.
+    /// </summary>
+    CarryOn = 20,
 }
 
 /// <summary>Why the host turned a joiner away (note 254).</summary>
@@ -438,6 +447,17 @@ public static class Messages
         w.U8((byte)MessageType.Wear);
         w.U8(outfit);
     }
+
+    /// <summary>The crew's going on from <paramref name="town"/> (note 606): its <see cref="Towns.TownAt.Spec"/>.</summary>
+    public static void WriteCarryOn(NetWriter w, Towns.TownAt town)
+    {
+        w.Reset();
+        w.U8((byte)MessageType.CarryOn);
+        w.Str(town.Spec);
+    }
+
+    /// <summary>The town a <see cref="MessageType.CarryOn"/> names, or null if it doesn't read as one.</summary>
+    public static Towns.TownAt? ReadCarryOn(ref NetReader r) => Towns.TownAt.Parse(r.Str());
 
     public static void WriteNames(NetWriter w, IEnumerable<KeyValuePair<int, string>> names)
     {

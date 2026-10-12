@@ -430,9 +430,14 @@ public sealed class TrainOnLine
             foreach (int id in r.Vehicles)
                 consist.Add(_vehicles[id]);
             // Reuse the engine rake object so references to Dynamics stay valid, and any rake that still
-            // exists so its render interpolation carries on.
-            var rake = consist.HasEngine ? _engineRake : previous.GetValueOrDefault(r.Vehicles[0]) ?? new TrainDynamics(consist);
-            bool known = previous.ContainsKey(r.Vehicles[0]);
+            // exists so its render interpolation carries on. Never the engine's for a rake without it: the engine's rake can
+            // lead with cars a switchyard put ahead of it (note 481), and those cut off again (note 613's three nights) would
+            // otherwise take the engine's object with them, leaving the train no engine at all.
+            var before = previous.GetValueOrDefault(r.Vehicles[0]);
+            if (!consist.HasEngine && before == _engineRake)
+                before = null;
+            var rake = consist.HasEngine ? _engineRake : before ?? new TrainDynamics(consist);
+            bool known = consist.HasEngine ? previous.ContainsKey(r.Vehicles[0]) : before is not null;
             rake.Consist = consist;
             rake.Restore(r.Distance, r.Velocity, r.BrakeEfficiency);
             if (!known)
@@ -449,6 +454,13 @@ public sealed class TrainOnLine
     /// (run.json yardIsSafe, note 263). The boiler and its fire hold: no pressure gained or lost, no coal burned, no rupture.
     /// </summary>
     public bool HeldInYard { get; set; }
+
+    /// <summary>
+    /// Where on the main line the engine's front has the night home in through a town terminus's gate (note 600;
+    /// <see cref="Run.Run.TownHome"/>): a driver pulls up there, not at the end of the track. The world sets it every step
+    /// from the run; none without one, or where home is the end of line's terminus zone.
+    /// </summary>
+    public double HomeAt { get; set; } = double.PositiveInfinity;
 
     public void Step(double dt, in TrainControls controls)
     {
@@ -488,6 +500,13 @@ public sealed class TrainOnLine
                         RupturedThisTick = !HeldInYard && Boiler.Step(bt, dt, controls.Throttle, rake.Consist.CarCount);
                     }
                 }
+                // A failing engine's pull and brake go with its shell (note 576); broken down, it pulls nothing.
+                if (Dynamics.Tuning.Failing is { Enabled: true } ft && _vehicles.Length > 0 && _vehicles[0] is not null)
+                {
+                    effective.Throttle *= Failing.Power(ft, _vehicles[0]);
+                    effective.Brake *= Failing.Brake(ft, _vehicles[0]);
+                }
+                _pulling = rake.Speed < 0.05 ? 0 : effective.Throttle;
                 double before = rake.Speed;
                 rake.Step(dt, effective, Conditions(rake));
                 BrakeShock(rake, before, dt);
@@ -520,8 +539,19 @@ public sealed class TrainOnLine
             TakeSwitches(rake); // shoved through the points by a collision
             Readdress(rake);
         }
+        // Battered shells let go work themselves apart as they run (note 576), on every machine alike.
+        Failing.Step(this, _rakes, _engineRake, _pulling, dt);
         UpdatePoses();
     }
+
+    /// <summary>
+    /// The vehicles worn through by running failing (note 576, <see cref="Failing.Step"/>): what comes apart. On the host it
+    /// decides; a client's is only its prediction's, and unused.
+    /// </summary>
+    public HashSet<int> WornThrough { get; } = [];
+
+    /// <summary>How hard the engine pulled this tick (its effective throttle, 0 standing): what works a failing engine apart.</summary>
+    double _pulling;
 
     /// <summary>
     /// Keeps each rake addressed along the track it's on (see <see cref="RailLine"/>'s paths): backed out through a

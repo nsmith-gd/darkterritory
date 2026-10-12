@@ -28,21 +28,26 @@
   // director, 6 Oct 2026: derailing on a bend is the core fear, and always the driver's mistake. sBends: the chance a
   // hard bend is laid as an S-bend (note 359), two hard turns either way with a short straight between, held as one:
   // one board and one demand over both, so a driver who brakes for the first has to hold it through the second.
+  // The 7 km night (note 554): recoveryMin cut to a third or so (was 1500 / 1000 / 600 / 400 / 300) and maxTunnel by half
+  // (was 300 / 700 / 1200 / 1800 / 2200), with the set pieces' lengths (setpieces.json); hard bends 1 (Frontier, Dead
+  // lines) and brass 0-1 (Dead lines, Deep territory), junctions 1-2 (Dead lines, Deep territory): a 24 km night's per km.
   "columns": {
-    "local":         { "facilities": 3, "mainGrade": 1.5, "momentumGrade": 0,   "branchGrade": 2.0, "minRadius": 450, "minVerticalRadius": 4000, "maxTunnel": 300,  "tunnelGrade": 0.5, "curvedTunnels": false, "stackCap": 1, "stackOnceDeeper": false, "recoveryMin": 1500, "tellMargin": 1.5, "lineSpeed": 20, "redundancy": 3, "signageSurvival": 1.00, "junctions": [2, 3],  "alternates": [0, 1], "deadLines": [0, 0], "washouts": [0, 0], "weakBridges": [0, 0], "momentumBanks": [0, 0], "brassFields": [0, 0], "budgetPerKm": 0.6, "corruption": 0.10, "fog": [110, 120], "rainChance": 0.20, "cold": [0.0, 0.3], "wind": [0.0, 0.4], "sleeperDensity": 1.0, "bends": [1, 2], "bendDerail": [20, 21], "sBends": 0 },
-    "frontier":      { "facilities": 3, "mainGrade": 2.0, "momentumGrade": 3.0, "branchGrade": 3.0, "minRadius": 300, "minVerticalRadius": 3000, "maxTunnel": 700,  "tunnelGrade": 1.0, "curvedTunnels": false, "stackCap": 2, "stackOnceDeeper": false, "recoveryMin": 1000, "tellMargin": 1.3, "lineSpeed": 18, "redundancy": 2, "signageSurvival": 0.85, "junctions": [3, 5],  "alternates": [1, 2], "deadLines": [0, 1], "washouts": [0, 1], "weakBridges": [0, 1], "momentumBanks": [0, 1], "brassFields": [1, 1], "budgetPerKm": 1.0, "corruption": 0.35, "fog": [90, 120],  "rainChance": 0.30, "cold": [0.1, 0.5], "wind": [0.1, 0.6], "sleeperDensity": 2.0, "bends": [3, 4], "bendDerail": [16, 19], "sBends": 0.2 },
-    "deadLines":     { "facilities": 3, "mainGrade": 2.5, "momentumGrade": 4.0, "branchGrade": 4.0, "minRadius": 220, "minVerticalRadius": 2500, "maxTunnel": 1200, "tunnelGrade": 2.0, "curvedTunnels": true,  "stackCap": 2, "stackOnceDeeper": true,  "recoveryMin": 600,  "tellMargin": 1.2, "lineSpeed": 16, "redundancy": 2, "signageSurvival": 0.55, "junctions": [4, 6],  "alternates": [1, 2], "deadLines": [1, 2], "washouts": [1, 1], "weakBridges": [1, 1], "momentumBanks": [1, 1], "brassFields": [2, 2], "budgetPerKm": 1.5, "corruption": 0.60, "fog": [75, 110],  "rainChance": 0.35, "cold": [0.3, 0.7], "wind": [0.2, 0.8], "sleeperDensity": 3.5, "bends": [3, 4], "bendDerail": [15, 18], "sBends": 0.3 },
-    "deepTerritory": { "facilities": 3, "mainGrade": 3.0, "momentumGrade": 5.0, "branchGrade": 5.0, "minRadius": 170, "minVerticalRadius": 2000, "maxTunnel": 1800, "tunnelGrade": 0,   "curvedTunnels": true,  "stackCap": 3, "stackOnceDeeper": false, "recoveryMin": 400,  "tellMargin": 1.1, "lineSpeed": 14, "redundancy": 1, "signageSurvival": 0.30, "junctions": [4, 6],  "alternates": [1, 2], "deadLines": [1, 2], "washouts": [1, 2], "weakBridges": [1, 2], "momentumBanks": [1, 1], "brassFields": [2, 2], "budgetPerKm": 2.1, "corruption": 0.85, "fog": [60, 100],  "rainChance": 0.40, "cold": [0.5, 1.0], "wind": [0.3, 1.0], "sleeperDensity": 3.5, "bends": [4, 5], "bendDerail": [13.5, 17], "sBends": 0.4 },
-    "deepMax":       { "facilities": 3, "mainGrade": 3.5, "momentumGrade": 6.0, "branchGrade": 6.0, "minRadius": 150, "minVerticalRadius": 1500, "maxTunnel": 2200, "tunnelGrade": 0,   "curvedTunnels": true,  "stackCap": 3, "stackOnceDeeper": false, "recoveryMin": 300,  "tellMargin": 1.1, "lineSpeed": 14, "redundancy": 1, "signageSurvival": 0.20, "junctions": [5, 7],  "alternates": [2, 2], "deadLines": [1, 2], "washouts": [2, 2], "weakBridges": [2, 2], "momentumBanks": [1, 2], "brassFields": [2, 3], "budgetPerKm": 2.6, "corruption": 1.00, "fog": [60, 90],   "rainChance": 0.45, "cold": [0.6, 1.0], "wind": [0.4, 1.0], "sleeperDensity": 3.5, "bends": [5, 6], "bendDerail": [12.5, 16], "sBends": 0.5 }
+    "local":         { "facilities": 3, "mainGrade": 1.5, "momentumGrade": 0,   "branchGrade": 2.0, "minRadius": 450, "minVerticalRadius": 4000, "maxTunnel": 300,  "tunnelGrade": 0.5, "curvedTunnels": false, "stackCap": 1, "stackOnceDeeper": false, "recoveryMin": 300, "tellMargin": 1.5, "lineSpeed": 20, "redundancy": 3, "signageSurvival": 1.00, "junctions": [0, 1],  "alternates": [0, 0], "deadLines": [0, 0], "washouts": [0, 0], "weakBridges": [0, 0], "momentumBanks": [0, 0], "brassFields": [0, 0], "budgetPerKm": 0.6, "corruption": 0.10, "fog": [110, 120], "rainChance": 0.20, "cold": [0.0, 0.3], "wind": [0.0, 0.4], "sleeperDensity": 1.0, "bends": [1, 1], "bendDerail": [20, 21], "sBends": 0 },
+    "frontier":      { "facilities": 3, "mainGrade": 2.0, "momentumGrade": 3.0, "branchGrade": 3.0, "minRadius": 300, "minVerticalRadius": 3000, "maxTunnel": 400,  "tunnelGrade": 1.0, "curvedTunnels": false, "stackCap": 2, "stackOnceDeeper": false, "recoveryMin": 220, "tellMargin": 1.3, "lineSpeed": 18, "redundancy": 2, "signageSurvival": 0.85, "junctions": [1, 2],  "alternates": [0, 1], "deadLines": [0, 1], "washouts": [0, 1], "weakBridges": [0, 1], "momentumBanks": [0, 0], "brassFields": [0, 1], "budgetPerKm": 1.0, "corruption": 0.35, "fog": [90, 120],  "rainChance": 0.30, "cold": [0.1, 0.5], "wind": [0.1, 0.6], "sleeperDensity": 2.0, "bends": [1, 1], "bendDerail": [16, 19], "sBends": 0.2 },
+    "deadLines":     { "facilities": 3, "mainGrade": 2.5, "momentumGrade": 4.0, "branchGrade": 4.0, "minRadius": 220, "minVerticalRadius": 2500, "maxTunnel": 600, "tunnelGrade": 2.0, "curvedTunnels": true,  "stackCap": 2, "stackOnceDeeper": true,  "recoveryMin": 150,  "tellMargin": 1.2, "lineSpeed": 16, "redundancy": 2, "signageSurvival": 0.55, "junctions": [1, 2],  "alternates": [0, 1], "deadLines": [1, 1], "washouts": [0, 1], "weakBridges": [0, 1], "momentumBanks": [0, 1], "brassFields": [0, 1], "budgetPerKm": 1.5, "corruption": 0.60, "fog": [75, 110],  "rainChance": 0.35, "cold": [0.3, 0.7], "wind": [0.2, 0.8], "sleeperDensity": 3.5, "bends": [1, 1], "bendDerail": [15, 18], "sBends": 0.3 },
+    "deepTerritory": { "facilities": 3, "mainGrade": 3.0, "momentumGrade": 5.0, "branchGrade": 5.0, "minRadius": 170, "minVerticalRadius": 2000, "maxTunnel": 900, "tunnelGrade": 0,   "curvedTunnels": true,  "stackCap": 3, "stackOnceDeeper": false, "recoveryMin": 100,  "tellMargin": 1.1, "lineSpeed": 14, "redundancy": 1, "signageSurvival": 0.30, "junctions": [1, 2],  "alternates": [0, 1], "deadLines": [1, 1], "washouts": [1, 1], "weakBridges": [0, 1], "momentumBanks": [0, 1], "brassFields": [0, 1], "budgetPerKm": 2.1, "corruption": 0.85, "fog": [60, 100],  "rainChance": 0.40, "cold": [0.5, 1.0], "wind": [0.3, 1.0], "sleeperDensity": 3.5, "bends": [1, 2], "bendDerail": [13.5, 17], "sBends": 0.4 },
+    "deepMax":       { "facilities": 3, "mainGrade": 3.5, "momentumGrade": 6.0, "branchGrade": 6.0, "minRadius": 150, "minVerticalRadius": 1500, "maxTunnel": 1100, "tunnelGrade": 0,   "curvedTunnels": true,  "stackCap": 3, "stackOnceDeeper": false, "recoveryMin": 80,  "tellMargin": 1.1, "lineSpeed": 14, "redundancy": 1, "signageSurvival": 0.20, "junctions": [2, 3],  "alternates": [1, 1], "deadLines": [1, 1], "washouts": [1, 1], "weakBridges": [1, 1], "momentumBanks": [1, 1], "brassFields": [1, 1], "budgetPerKm": 2.6, "corruption": 1.00, "fog": [60, 90],   "rainChance": 0.45, "cold": [0.6, 1.0], "wind": [0.4, 1.0], "sleeperDensity": 3.5, "bends": [1, 2], "bendDerail": [12.5, 16], "sBends": 0.5 }
   },
 
   // Plan §3.3: the terrain budget spent over chainage, mirroring the director's pressure shape (GDD B.1). Zones in
   // metres from the outer gate; lulls around each facility junction; the final approach holds the terminal spike.
   // recoveryShare: of each budgeted stretch, at least this much is recovery connector (§7.1's troughs).
+  // The 7 km night (note 554): grace and home straight 400 m (were 2000 and 1500), the spike window 1300-400 m out (was
+  // 4000-1500), the lulls 400 and 300 m (were 1000 and 500).
   "budget": {
     "opening": 0.15, "middle": 0.45, "finalApproach": 0.40,
-    "graceM": 2000, "homeStraightM": 1500, "spikeWindowM": [4000, 1500],
-    "lullBeforeM": 1000, "lullAfterM": 500,
+    "graceM": 400, "homeStraightM": 400, "spikeWindowM": [1300, 400],
+    "lullBeforeM": 400, "lullAfterM": 300,
     "recoveryShare": 0.3
   },
 
@@ -82,32 +87,41 @@
 
   // Plan §11.4. Distances before the terminus's outer gate. Past the gate, an arrival yard with a stop road; it has to
   // be longer than run.json's terminusZone so the train is home once stopped inside it. Silent settlements from
-  // silentFromTier (§22.4).
+  // silentFromTier (§22.4). spawnBanM (the terminus_safe tag): nothing new comes for the train inside it. Was 500 (GDD
+  // B.1's "hard stop 500m out"); the director, 9 Oct (note 590): a crew clearing the train outside the doors met an
+  // endless trickle. They stop at the yard-limit board (yardLimitBoardM, a 2.5 m/s crawl in from there), so the ban
+  // reaches past it by a train's length.
+  // townYard (ARCHITECTURE §8 note 600; the director, 9 Oct: "the town that we end in in a run
+  // should be the same town that we begin in in the next run"): a terminus that answers is the town the next night
+  // departs from, so its yard is as long as the departure yard (the town spans its yard) and levelled as wide (fortress
+  // padM); arrivalYardM is then a silent settlement's alone.
   "terminus": {
-    "skyGlowM": 3000, "yardLimitBoardM": 1000, "spawnBanM": 500, "wallsResolveM": 300, "arrivalYardM": 450,
-    "yardLimitSpeed": 2.5, "silentFromTier": "deadLines", "homeStraightMinRadius": 1000
+    "skyGlowM": 3000, "yardLimitBoardM": 1000, "spawnBanM": 1200, "wallsResolveM": 300, "arrivalYardM": 450,
+    "yardLimitSpeed": 2.5, "silentFromTier": "deadLines", "homeStraightMinRadius": 1000, "townYard": true
   },
 
   // Plan §6.3. A turnout on tangent, nearly level track; its lamp seen from 250 m; branches curve away to 300 m
-  // separation within 2 km; a level pad ±150 m where the corridors meet. Boards 2 km and 1 km out. Junctions no nearer
-  // each other than minSpacingM (a train's tail clears one before its front reaches the next). An alternate's or dead
-  // line's turnout: two curves of turnoutLength at turnoutRadius, out to 7.5 m between track centres. The radius posts
-  // no lower than the fastest line speed (floor(sqrt(aPost R)) >= 20 m/s) and derails above spec B.1's 22 m/s: the
-  // diverging route is taken at line speed, and a switch the Switchman threw costs the clock, never the train
-  // (App. A.7). Facility spurs are route.json's kit, taken at a crawl.
+  // separation within 2 km; a level pad ±150 m where the corridors meet. Boards 1 km and 500 m out (2 km and 1 km before
+  // the 7 km nights). Junctions no nearer each other than minSpacingM (a train's tail clears one before its front
+  // reaches the next). An alternate's or dead line's turnout: two curves of turnoutLength at turnoutRadius, out to
+  // 7.5 m between track centres. The radius posts no lower than the fastest line speed (floor(sqrt(aPost R)) >= 20
+  // m/s) and derails above spec B.1's 22 m/s: the diverging route is taken at line speed, and a switch the Switchman
+  // threw costs the clock, never the train (App. A.7). Facility spurs are route.json's kit, taken at a crawl.
+  // padM 75 on the 7 km night (note 554; was 150): a pad in the middle of a short stretch left two too short for anything.
   "junctions": {
-    "tangentClearM": 40, "maxGrade": 0.5, "lampVisibleM": 250, "separationM": 300, "separationWithinM": 2000, "padM": 150,
-    "minSpacingM": 600, "boardFarM": 2000, "boardNearM": 1000, "turnoutRadius": 650, "turnoutLength": 70
+    "tangentClearM": 40, "maxGrade": 0.5, "lampVisibleM": 250, "separationM": 300, "separationWithinM": 2000, "padM": 75,
+    "minSpacingM": 400, "boardFarM": 1000, "boardNearM": 500, "turnoutRadius": 650, "turnoutLength": 70
   },
 
   // Plan §6.2 step 4. Windows of main line an alternate bypasses; each differs from the main line in what it trades.
   // lengthRatio: the alternate's length over the window's (held to at least lengthOverChordMin of the straight distance
   // across the window, and bulging at least minBulgeM clear). pieces: what it must carry. The last closureReserveM
   // of an alternate is kept for the connector that brings it back onto the main line.
+  // The 7 km night (note 554): windows 0.8-1.6 km (were 3-8), the closure 300 m (was 900).
   "alternates": {
-    "windowKm": [3, 8],
-    "closureReserveM": 900,
-    "minBulgeM": 450,
+    "windowKm": [0.8, 1.6],
+    "closureReserveM": 300,
+    "minBulgeM": 250,
     "lengthOverChordMin": 1.04,
     "tradeOffs": {
       "highLine":       { "weight": 1.0, "lengthRatio": [0.75, 0.95], "pieces": ["climb", "trestle"], "level": false, "radioBlackout": false, "summary": "shorter, steeper", "minD": 0 },
@@ -119,14 +133,14 @@
 
   // Plan §6.2 step 7: dead lines off facing junctions, curving away (angleDeg off the main line's heading) to a buffer
   // stop; some end at a wreck yard. Kept gentle (maxGrade) so a train misrouted onto one can always back out of it.
-  "deadLines": { "lengthKm": [2, 6], "wreckYardChance": 0.25, "angleDeg": [18, 35], "maxGrade": 1.0 },
+  "deadLines": { "lengthKm": [0.8, 2], "wreckYardChance": 0.25, "angleDeg": [18, 35], "maxGrade": 1.0 },
 
   // Plan §6.2 steps 5-6, §9.2, §9.6, §22.5. Weak bridges: a crossing speed, and on an alternate a car limit this many
   // below the departing consist (on the main line it's always at least the consist). Washouts sit on one side of a
   // fork, this far past its junction. Brass (GDD §22 "cut through slowly or ram it and pay"): above the cutting speed
   // the engine takes (v - cut)^2 x damage and the growth drags at it.
   "hazards": {
-    "weakBridgeSpeed": [6, 10], "weakBridgeCarsBelowPlan": [1, 4], "washoutLengthM": [30, 80], "washoutAfterJunctionM": 1200,
+    "weakBridgeSpeed": [6, 10], "weakBridgeCarsBelowPlan": [1, 4], "washoutLengthM": [30, 80], "washoutAfterJunctionM": 500,
     "brassCuttingSpeed": 6, "brassLengthM": [50, 200], "brassRampM": 300, "brassDamagePerSpeedSquared": 0.004, "brassDrag": 0.25
   },
 
@@ -203,9 +217,10 @@
     // A shore along the line: its edge nearM out plus coves up to coveM deeper every coveWavelengthM (the Atlantic's
     // drowned coast); a beach up from the water, a cliff where the rail stands over cliffAboveM above it (Fundy's
     // sandstone, 30 m at Joggins); Fundy's mudflats flatM wide at low water (a 12-16 m tide leaves kilometres); drowned
-    // drumlins for islands (islandShare of the sea floor humps up). Tidal rivers: the span and depth scaled.
+    // drumlins for islands (islandShare of the sea floor humps up). Tidal rivers: the span and depth scaled. On the 7 km
+    // night (note 554) a shore fits between the stops: tapering in over 200 m (was 350), 500 m or more of it (was 900).
     "shore": { "levelBelowRailM": 4.5, "nearM": [30, 70], "coveM": [30, 140], "coveWavelengthM": [260, 650], "beachSlope": 0.16, "cliffAboveM": 11,
-      "cliffSlope": 1.7, "depthM": 8, "flatM": [50, 160], "taperM": 350, "minM": 900, "islandShare": 0.25, "islandWavelengthM": 170,
+      "cliffSlope": 1.7, "depthM": 8, "flatM": [50, 160], "taperM": 200, "minM": 500, "islandShare": 0.25, "islandWavelengthM": 170,
       "tidalSpanFactor": 2.2, "tidalDepthFactor": 1.8,
       // The Atlantic's own: its water seaBelowRailM under the lowest rail (the line on its bank just over the tide), its
       // edge seaNearM out and its coves seaCoveM deeper; levelBelowRailM and nearM are Fundy's low water and the dykes'.
@@ -220,8 +235,9 @@
     // wandering, crossing at grade every crossEveryM or so (swinging across over rampM either side); its bed follows
     // the land under its centre, halfWidthM each side, banked at bankSlope; kept clearM from structures, cuttings and
     // junctions, and no piece shorter than minM.
-    "roads": { "offsetM": [20, 38], "wanderM": [3, 9], "wanderWavelengthM": [300, 800], "crossEveryM": [1200, 3000], "rampM": 70, "halfWidthM": 3,
-      "bankSlope": 0.45, "minM": 600, "clearM": 80 },
+    // The 7 km night (note 554): crossings every 400-1000 m (were 1200-3000) on pieces of 300 m or more (were 600).
+    "roads": { "offsetM": [20, 38], "wanderM": [3, 9], "wanderWavelengthM": [300, 800], "crossEveryM": [400, 1000], "rampM": 70, "halfWidthM": 3,
+      "bankSlope": 0.45, "minM": 300, "clearM": 80 },
     "dykes": { "fieldsBelowRailM": 1.5, "heightM": 2.2, "crestM": 3, "sideSlope": 0.55, "outM": [40, 90], "marshAboveWaterM": 2.8, "landwardM": 160,
       "maxRailRangeM": 8 }
   },
@@ -254,10 +270,10 @@
     "spawnBans": ["grace", "terminus_safe"],
     "pressureCeiling": 2.5,
     "quotas": {
-      "local":         { "tags": { "straight_long": 1, "climb": 1, "forest_or_open": 1 }, "facingJunctions": 0, "deadLines": 0, "tunnels": 0, "deadSettlementNearFacility": 0 },
-      "frontier":      { "tags": { "climb_long": 1, "marsh_or_water": 1 }, "facingJunctions": 3, "deadLines": 0, "tunnels": 0, "deadSettlementNearFacility": 1 },
-      "deadLines":     { "tags": { "climb_long": 1 }, "facingJunctions": 3, "deadLines": 1, "tunnels": 1, "deadSettlementNearFacility": 1 },
-      "deepTerritory": { "tags": { "contaminated": 1 }, "facingJunctions": 3, "deadLines": 1, "tunnels": 2, "deadSettlementNearFacility": 1 }
+      "local":         { "tags": { }, "facingJunctions": 0, "deadLines": 0, "tunnels": 0, "deadSettlementNearFacility": 0 },
+      "frontier":      { "tags": { }, "facingJunctions": 1, "deadLines": 0, "tunnels": 0, "deadSettlementNearFacility": 0 },
+      "deadLines":     { "tags": { }, "facingJunctions": 1, "deadLines": 1, "tunnels": 0, "deadSettlementNearFacility": 0 },
+      "deepTerritory": { "tags": { }, "facingJunctions": 1, "deadLines": 1, "tunnels": 0, "deadSettlementNearFacility": 0 }
     }
   },
 

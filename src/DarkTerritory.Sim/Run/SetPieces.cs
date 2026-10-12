@@ -106,6 +106,22 @@ public sealed partial class Run
         return null;
     }
 
+    /// <summary>
+    /// A conveyor's drive house within reach of its starter (on foot), whatever the belt's doing: the HUD says there what it's
+    /// doing once it's started (note 582; the director, 9 Oct 2026: "I started the belt hold and it wasnt clear what was happening").
+    /// </summary>
+    public Site? DriveInReach(in PlayerState s, TrainOnLine train, HandTuning? hand = null)
+    {
+        if (Over || !s.Alive || s.Parent != PlayerState.World || _facilityTuning is not { } t)
+            return null;
+        var at = PlayerMotor.WorldPosition(s, train);
+        foreach (var site in _sites)
+            if (site is not null && site.Has(ModuleKind.Conveyor)
+                && PlayerMotor.Grips(s, train, hand, site.ConveyorStarter, (at - site.ConveyorStarter).Length <= t.Conveyor.StarterReach))
+                return site;
+        return null;
+    }
+
     /// <summary>A jammed conveyor belt within reach of its jam, standing on the ground beside it (on foot).</summary>
     public Site? JamInReach(in PlayerState s, TrainOnLine train)
     {

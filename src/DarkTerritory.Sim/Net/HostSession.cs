@@ -130,6 +130,19 @@ public sealed class HostSession
     /// <summary>Every Holdout assigned, freed, released or called out from this session, oldest first (GDD App. D).</summary>
     public List<Run.HoldoutEvent> HoldoutEvents { get; } = new();
 
+    /// <summary>
+    /// The crew goes on together (note 606): tells everyone aboard and waiting that the host's going on to the next night from
+    /// <paramref name="town"/>, as it leaves a delivered campaign night. Each dials back in for it rather than going to its menu.
+    /// </summary>
+    public void CarryOn(Towns.TownAt town)
+    {
+        Messages.WriteCarryOn(_writer, town);
+        foreach (var c in _crew)
+            _transport.Send(c.Peer, _writer.Written, Delivery.ReliableOrdered);
+        foreach (var (_, peer) in _waiting)
+            _transport.Send(peer, _writer.Written, Delivery.ReliableOrdered);
+    }
+
     public void Step()
     {
         Receive();

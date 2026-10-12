@@ -290,7 +290,9 @@ public class AuditTests
     [Fact]
     public void TheCarHuggerIsStagedShortOfItsMarsh()
     {
-        var route = LineGen.Routes.Generate(Content, "frontier:7", 6);
+        // A night with water for it to lurk in (frontier:7's on its 24 km line; on the 7 km nights of note 554, frontier:26's
+        // trestle).
+        var route = LineGen.Routes.Generate(Content, "frontier:26", 6);
         var line = route.Build();
         var stage = Combinations.Stage(route, line, [EnemyKind.CarHugger], Tuning.Enemies, route.GateOr(Tuning.Route.YardLength), 20);
         Assert.Empty(stage.Unstaged);
