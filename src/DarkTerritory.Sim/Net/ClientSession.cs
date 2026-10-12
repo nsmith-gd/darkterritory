@@ -131,6 +131,12 @@ public sealed class ClientSession
 
     public string SessionInfo { get; private set; } = "";
     /// <summary>Set while welcomed but not yet aboard (spec E: drop-in at POIs), with the host's reason.</summary>
+    /// <summary>
+    /// The town the host said the crew's going on from (note 606), once it's leaving a delivered campaign night; null till then.
+    /// When the link goes after it, it's the host gone to pick the next night, not the night lost.
+    /// </summary>
+    public Towns.TownAt? CarryingOn { get; private set; }
+
     public string? WaitingReason { get; private set; }
     public bool Waiting => WaitingReason is not null && !Connected;
     public bool Connected => PlayerId is not null && _haveState;
@@ -362,6 +368,9 @@ public sealed class ClientSession
                     break;
                 case MessageType.Wait:
                     WaitingReason = r.Str();
+                    break;
+                case MessageType.CarryOn:
+                    CarryingOn = Messages.ReadCarryOn(ref r);
                     break;
                 case MessageType.Refused:
                     // Note 254: turned away (a full crew). Kept to show; the host hangs up on this link in a moment.

@@ -292,7 +292,7 @@ public class EffectsTests
         Fx.Corruption(dust, new Double3(100, 5, 200), 3, Effects.Air.Brass);
         Assert.NotEmpty(dust.AdditiveFx);
         Assert.Empty(dust.AlphaFx);
-        var route = Sim.LineGen.Routes.Generate(DataFile.FindContentRoot(), "deadlines:4", 6);
+        var route = Sim.LineGen.Routes.Generate(DataFile.FindContentRoot(), "deadLines:1", 6);
         var line = route.Build();
         var field = route.Plan!.Structures.First(s => s.Type == Sim.LineGen.StructureType.BrassField && s.Edge == "main");
         var over = line.Sample((field.S0 + field.S1) / 2).Position + Double3.Up * 3;
