@@ -433,6 +433,40 @@ public class BotsAnswerTheSixTests
     }
 
     /// <summary>
+    /// Note 630 (frontier:6, 4 bots, seed 16): killed on a grade their handbrakes didn't hold, the Knotter left seven cars
+    /// that crept back from under its gap while the crew climbed aboard. Once they passed a walking pace's tenth the driver
+    /// took them for gone and ran on without them. Rolling back slower than a lost cut, they're chased and coupled up.
+    /// </summary>
+    [Fact]
+    public void KilledTheKnotterTheDriverChasesTheCarsItLeftRollingBack()
+    {
+        var n = new Night(6, speed: 12, enemies: Quiet);
+        var k = n.World.AddEnemy(id => Knotter.Into(id, n.Train, 3, E.Knotter));
+        n.Run(E.Knotter.CreepSeconds + E.Knotter.ForceSeconds + 0.5);
+        int vehicles = n.Train.Dynamics.Consist.Vehicles.Count;
+        var driver = new ConductorBot(null, 0);
+        n.Crew[1] = PlayerMotor.SpawnInCab(n.Train, P);
+        n.Crew[2] = PlayerMotor.SpawnOnRoof(n.Train, 2, 0, P);
+        n.Crew[3] = PlayerMotor.SpawnOnRoof(n.Train, 5, 0, P);
+        var legs = new Dictionary<int, RoofWalkerBot> { [2] = Walker(2), [3] = Walker(3) };
+        var hands = new Dictionary<int, StopHand> { [2] = Hand(2), [3] = Hand(3) };
+        PlayerIntent Walk(int id) =>
+            Heed.Knotter(legs[id].Decide(n.Crew[id], n.World, n.World.Tick, out _), n.Crew[id], n.World, id, hands[id]);
+        bool rolled = false;
+        Drive(n, driver, Walk, 300, until: () =>
+        {
+            // The grade, as it lets go: its cars' handbrakes off and rolling back at seed 16's pace.
+            if (!rolled && k.Gone && n.Train.Rakes.FirstOrDefault(r => r != n.Train.Dynamics) is { } left)
+                (left.Handbrake, left.Velocity, rolled) = (false, -0.3, true);
+            return rolled && n.Train.TrainRakes == 1 && n.Train.Dynamics.Speed > 4;
+        });
+        Assert.True(rolled, $"the Knotter's {k.Mode}, {k.Health} health");
+        Assert.Equal(1, n.Train.TrainRakes);
+        Assert.Equal(vehicles, n.Train.Dynamics.Consist.Vehicles.Count);
+        Assert.True(n.Train.Dynamics.Speed > 4, $"standing at {n.Train.Dynamics.Speed:0.0} m/s ({driver.SixStep})");
+    }
+
+    /// <summary>
     /// Note 619 (local:435 from Radley, slot seed 7, hosted as the app hosts it): down car 1's side-door steps at the
     /// Knotter's stand, a hand landed on their last tread and turned back along the car for the gap behind car 2, up the
     /// tread onto the steps, and was sent down them again: four ticks round, for 800 s, the door held open and the lamp lit,
