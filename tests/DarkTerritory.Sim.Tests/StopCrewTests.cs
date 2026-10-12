@@ -531,6 +531,19 @@ public class StopCrewTests
     }
 
     [Fact]
+    public void TwoWithTheShuntersPartSettleOnOne()
+    {
+        // Note 628: frontier:7 seed 11's shunter burned and the gunner stood in (CrewCalls.StandIn); broken out of a Holdout, the
+        // shunter came back still holding the part, and at the next stop the two went to the points by turns, setting them
+        // over and back, for the 180 s of the clear. The one with the higher number gives it up for a part nobody has.
+        var night = new Night(cars: 8, walkers: 0);
+        night.Add(new RoofWalkerBot(31, P.Cold, new StopHand(StopJob.Shunter, night.Calls, 9, P.Cold)), PlayerMotor.SpawnOnRoof(night.Train, 4, 0, P));
+        night.Until(() => false, 5);
+        Assert.Equal(1, night.Calls.Crew.Count(c => c.Alive && c.Job == StopJob.Shunter));
+        Assert.Equal(StopJob.Shunter, ((RoofWalkerBot)night.Bots[1]).Job!.Job);
+    }
+
+    [Fact]
     public void AtTheWreckYardTheShunterCarriesTheSalvageWhileThePairCrankTheWinch()
     {
         // Note 617: the pair cranked the winch for the whole of a bots' loading (note 609's 150 s) at frontier:1's wreck yard, the

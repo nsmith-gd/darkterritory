@@ -336,6 +336,28 @@ public sealed partial class CrewCalls
             _warming.Remove(member);
     });
 
+    /// <summary>Note 628: the shunter is off warming (in a car or the cab, too cold to work).</summary>
+    public bool ShunterWarming => _crew.Any(c => c.Value.Alive && c.Value.Job == StopJob.Shunter && _warming.Contains(c.Key));
+
+    /// <summary>
+    /// Note 628: a hand that took the shunter's part from a shunter off warming, and the part it gave up for it, which the
+    /// shunter takes once warm (a trade, as a crew would sort it out on the radio). Null with none.
+    /// </summary>
+    public (int Member, StopJob Gave)? ShuntTaken { get; private set; }
+
+    /// <summary>Note 628: <paramref name="member"/> takes the shunter's part, giving up <paramref name="gave"/>.</summary>
+    public void TakeShunt(int member, StopJob gave) => Heard(member, "shunt", member, gave, () => ShuntTaken = (member, gave));
+
+    /// <summary>Note 628: the trade's done (the shunter has the part given up).</summary>
+    public void Traded() => ShuntTaken = null;
+
+    /// <summary>Note 628: someone alive with a lower member number than <paramref name="member"/> has the shunter's part too.</summary>
+    public bool ShunterBefore(int member) => _crew.Any(c => c.Key < member && c.Value.Alive && c.Value.Job == StopJob.Shunter);
+
+    /// <summary>Note 628: a part someone had and nobody alive has now (the winch's handles first), or a crate hand's.</summary>
+    public StopJob FreePart() =>
+        new[] { StopJob.Winch0, StopJob.Winch1 }.FirstOrDefault(p => _held.Contains(p) && !Has(p), StopJob.Crates);
+
     /// <summary>Nobody alive is on the ground.</summary>
     public bool AllAboard => _crew.Values.All(c => !c.Alive || c.Vehicle != PlayerState.World);
 
@@ -972,10 +994,11 @@ public sealed class StopDriver(CrewCalls calls)
     /// <summary>
     /// Note 621: what a pick-up wants over its own seconds (s), against the night's real deadline (<see cref="Deadline"/>): the
     /// run home after a stop is out by about 120 s on any one night however it's reckoned (frontier:7's sixteen, at Renwick
-    /// Yard), and this is 1.3 of that. 120 here took three trains in nine; 160 made the pick-up on the one night of sixteen
-    /// with the time for it, and lost none. (Note 617's 200 was over the dawn itself, with the reckoning 73 s optimistic.)
+    /// Yard), and this was 1.3 of that, 160: with the pick-up itself out by up to 340 s more (148–528 s), 120 took three trains
+    /// in nine. Note 628: with the pick-up's own stalls taken out (178–212 s on the mean, few over 250), 100: on sixteen nights
+    /// each, frontier:6 made eight pick-ups against none (cargo 16.1 → 20.6, a dawn missed 1 → 0) and frontier:7 two.
     /// </summary>
-    const double PickUpNoise = 160;
+    const double PickUpNoise = 100;
     /// <summary>Note 609: a stop's loading isn't cut short for the next stop (<see cref="Onward"/>) unless this much of it's to be had first.</summary>
     const double OnwardLoading = 90;
     /// <summary>Note 609: past the next stop's allowance, a stop's loading is called done this much early (the leaving takes less than reckoned).</summary>
@@ -1976,6 +1999,26 @@ public sealed partial class StopHand(StopJob job, CrewCalls calls, int member, C
         if (job is not (StopJob.None or StopJob.Driver or StopJob.Shunter) && self.Alive && _plan is null && _coal is null && _switch is null
             && calls.StandIn(member, StopJob.Shunter))
             job = StopJob.Shunter;
+        // Note 628: a switchyard's pick-up with the shunter off warming (frontier:7 seed 2: shut in car 3 the whole of the
+        // 240 s the driver held for the points), before the train's gone in: the switch hand (note 609) takes the shunter's
+        // part, and the shunter its part once warm. Others stay aboard at a pick-up, so the switch hand is free for it.
+        if (job is StopJob.Winch0 or StopJob.Winch1 or StopJob.Crates && self.Alive && _plan is { PickUp: true } && !_wentIn
+            && calls.ShuntTaken is null && calls.ShunterWarming && calls.SwitchHand(member))
+        {
+            calls.TakeShunt(member, job);
+            job = StopJob.Shunter;
+        }
+        else if (job == StopJob.Shunter && calls.ShuntTaken is { } taken && taken.Member != member)
+        {
+            job = taken.Gave;
+            calls.Traded();
+        }
+        // Note 628: two with the shunter's part, between stops, as when one's back from the dead (out of a Holdout) with its
+        // stand-in still on it: frontier:7 seed 11's two went to the points by turns and set them back and forth for the 180 s
+        // of the clear. The one with the higher number gives it up, for a part nobody has.
+        else if (job == StopJob.Shunter && self.Alive && _plan is null && _coal is null && _switch is null && calls.ShuntTaken is null
+            && calls.ShunterBefore(member))
+            job = calls.FreePart();
         // And the winch pair, where one's died or gone to shunt: a crate hand takes the part (never mid-part).
         foreach (var winch in new[] { StopJob.Winch0, StopJob.Winch1 })
             if (job == StopJob.Crates && self.Alive && _plan is null && _coal is null && _switch is null && calls.StandIn(member, winch))
@@ -2013,9 +2056,11 @@ public sealed partial class StopHand(StopJob job, CrewCalls calls, int member, C
             _plan = null;
             return null;
         }
-        // A pick-up (note 187) is the shunter's and the driver's: everyone else stays aboard.
+        // A pick-up (note 187) is the shunter's and the driver's: everyone else stays aboard, and one on the ballast already
+        // comes back aboard (note 628: frontier:6 seed 3's gunner, down from the yard's own track, stood beside the train
+        // through the pick-up, and the driver waited out the aboard and the clear give-ups for it, 240 s).
         if (p.PickUp && job != StopJob.Shunter)
-            return null;
+            return job == StopJob.Driver ? null : LeftOnTheBallast(self, world);
         // Note 261: the shunter's free once the train's in: a place in the pair nobody else has, or the crates with too few
         // carrying them. Back to the cab once there's none left (anything in its arms put down first).
         _lent = job == StopJob.Shunter && !p.PickUp && _reachedEnd && p.AtTheEnd(train) && !calls.Leaving
@@ -2429,8 +2474,11 @@ public sealed partial class StopHand(StopJob job, CrewCalls calls, int member, C
             return Rerail(self, world, p, off);
         if (!back && _reachedEnd && p.TippleTarget(world) is not null && !calls.Leaving)
             return Tipple(self, world, p);
+        // Note 628: at a pick-up, aboard by the nearest ladder of the engine's rake, not the walk to the cab: frontier:7 seed 3's
+        // shunter, on the ballast in the siding as the engine coupled up, walked for the cab steps for the whole 120 s of the
+        // aboard wait.
         if (!back)
-            return Ride(self, train, p);
+            return p.PickUp && self.Parent == PlayerState.World ? LeftOnTheBallast(self, world) ?? Ride(self, train, p) : Ride(self, train, p);
         return set ? Throw(self, train, p.Spur) : Aboard(self, p);
     }
 
