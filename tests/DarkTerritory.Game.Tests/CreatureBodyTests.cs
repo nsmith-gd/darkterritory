@@ -28,6 +28,9 @@ public class CreatureBodyTests
         { EnemyKind.Brakeman, "brakeman", 1 }, { EnemyKind.Knotter, "knotter", 1 }, { EnemyKind.Hotbox, "hotbox", 1 },
         // (Hung from its beams: its model's origin is where it grips, its sac under it.)
         { EnemyKind.Hanger, "hanger", 1 },
+        // The Pickers (note 574; drawn 0.92-1.08 by their id: the body's for the middling one) and the house creatures (notes
+        // 583, 584).
+        { EnemyKind.Pickers, "picker", 1 }, { EnemyKind.Lodger, "lodger", 1 }, { EnemyKind.Householder, "householder", 1 },
     };
 
     [Theory]

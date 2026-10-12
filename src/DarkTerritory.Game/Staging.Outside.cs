@@ -6,10 +6,181 @@ using DarkTerritory.Sim.Train;
 
 namespace DarkTerritory.Game;
 
-/// <summary>The Mourners, the Freight Beetle and Tower Jaw staged for a look (notes 362, 366, 363).</summary>
+/// <summary>The Mourners, the Freight Beetle and Tower Jaw staged for a look (notes 362, 366, 363); the Pickers, the Lodger and
+/// the Householder (notes 574, 583, 584).</summary>
 public static partial class Staging
 {
-    public const int MournerId = 3620, BeetleId = 366, TowerJawId = 363;
+    public const int MournerId = 3620, BeetleId = 366, TowerJawId = 363, PickerId = 5740, LodgerId = 583, HouseholderId = 584;
+
+    /// <summary>
+    /// The staged Pickers (<c>dt screenshot --pickers</c>; note 574, docs/design/creatures/pickers.md) in the headlamp's spill
+    /// off the line's left, 15-22 m up from the engine: <c>yard</c> two carrying crates off over their heads, one scuttling
+    /// for a third crate on the ground, one coming up out of its drain and one crouched by it; <c>carry</c> close to, one
+    /// with a crate and two under a heavy one (the lead, and its second beside it hoisting at its edge). The crates are in
+    /// <paramref name="bodies"/>, held where the sim's TakeAlong holds them (enemies.json pickers holdHeight); the paces in
+    /// <paramref name="paces"/>.
+    /// </summary>
+    public static List<Enemy> Pickers(List<Enemy> threats, TrainOnLine train, string content, string mode, out Sim.Physics.Bodies bodies,
+        out Dictionary<int, float> paces)
+    {
+        threats.RemoveAll(e => e is Picker);
+        var t = DataFile.Load<EnemyTuning>(Path.Combine(content, EnemyTuning.File)).Pickers;
+        var tuning = DataFile.Load<TrainTuning>(Path.Combine(content, TrainTuning.File));
+        var made = new Sim.Physics.Bodies();
+        var paced = new Dictionary<int, float>();
+        var tangent = train.Line.Sample(train.Dynamics.Distance + 18).Tangent;
+        var away = Double3.Cross(tangent, Double3.Up).Normalized * -1;
+        double Yaw(Double3 way) => Math.Atan2(-way.X, -way.Z);
+        var carried = new List<(Sim.Physics.Body Crate, int By, Double3 Hold, double Yaw)>();
+        int n = 0;
+        Picker Add(Double3 at, double yaw, PickerMode m, SpinePhase phase, double seconds, int crate, float pace)
+        {
+            var p = Picker.Up(PickerId + n, at, n, train.Dynamics.Distance, yaw, t);
+            p.Restore(phase, seconds, t.Health, Enemy.Loose, at, train.Dynamics.Distance, yaw, (double)m, crate, n);
+            paced[PickerId + n] = pace;
+            n++;
+            threats.Add(p);
+            return p;
+        }
+        Sim.Physics.Body Crate(Double3 at, double? heavy = null) => made.SpawnCargo(at, train.Dynamics.Distance + 18, heavy);
+        void Carry(Picker p, Sim.Physics.Body crate) => carried.Add((crate, p.Id, p.Local + Double3.Up * t.HoldHeight, p.Lateral));
+        if (mode == "carry")
+        {
+            // One under a crate, coming off toward the camera's side; and a heavy crate up between two, the second at the lead's
+            // right, under the crate's edge.
+            var at = Lineside(train, 17.5, -5.0);
+            var one = Add(at, Yaw(away + tangent * 0.6), PickerMode.Carry, SpinePhase.Telegraph, 0.9, -1, (float)t.Carry);
+            var crate = Crate(at);
+            one.Restore(one.Phase, one.PhaseSeconds, t.Health, Enemy.Loose, at, one.LineDistance, one.Lateral, one.Height, crate.Id, one.Extra2);
+            Carry(one, crate);
+            var lead = Lineside(train, 20.5, -6.2);
+            double yaw = Yaw(away - tangent * 0.4);
+            var leader = Add(lead, yaw, PickerMode.Carry, SpinePhase.Telegraph, 1.3, -1, (float)t.CarryHeavy);
+            var heavy = Crate(lead, 0.55);
+            leader.Restore(leader.Phase, leader.PhaseSeconds, t.Health, Enemy.Loose, lead, leader.LineDistance, yaw, leader.Height, heavy.Id, leader.Extra2);
+            Carry(leader, heavy);
+            var right = Double3.Cross(new Double3(-Math.Sin(yaw), 0, -Math.Cos(yaw)), Double3.Up).Normalized;
+            Add(OnGround(train, lead + right * t.HeaveBeside), yaw, PickerMode.Heave, SpinePhase.Telegraph, 0.7, heavy.Id, (float)t.CarryHeavy);
+        }
+        else
+        {
+            // The yard: two off with crates, one racing for a third, one up out of its drain, one crouched by the drain.
+            var a = Lineside(train, 15.5, -4.0);
+            var b = Lineside(train, 19.0, -5.0);
+            var c = Lineside(train, 17.2, -2.9);
+            var drain = Lineside(train, 18.5, -7.6);
+            foreach (var (at, delay) in new[] { (a, 0.9), (b, 1.7) })
+            {
+                var p = Add(at, Yaw(away + tangent * (at == a ? -0.3 : 0.3)), PickerMode.Carry, SpinePhase.Telegraph, delay, -1, (float)t.Carry);
+                var crate = Crate(at);
+                p.Restore(p.Phase, p.PhaseSeconds, t.Health, Enemy.Loose, at, p.LineDistance, p.Lateral, p.Height, crate.Id, p.Extra2);
+                Carry(p, crate);
+            }
+            var loose = Crate(c);
+            var runner = OnGround(train, c + away * 2.6 + tangent * 0.8);
+            Add(runner, Yaw(c - runner), PickerMode.Scuttle, SpinePhase.Telegraph, 0.6, loose.Id, (float)t.Run);
+            Add(drain, Yaw(away * -1), PickerMode.Emerge, SpinePhase.Telegraph, 0.42, -1, 0);
+            Add(OnGround(train, drain + tangent * 1.6 + away * 0.4), Yaw(away * -1 + tangent * 0.5), PickerMode.Wait, SpinePhase.Telegraph, 1.1, -1, 0);
+        }
+        for (int i = 0; i < 40; i++)
+        {
+            foreach (var (crate, by, hold, yaw) in carried)
+                made.TakeAlong(crate, train, by, Sim.Player.PlayerState.World, hold, yaw);
+            made.Step(train, tuning, _ => null);
+        }
+        (bodies, paces) = (made, paced);
+        return threats;
+    }
+
+    /// <summary>The <c>pickers</c> and <c>pickerscarry</c> views: from beside the engine, out at the staged Pickers in the
+    /// headlamp's spill (<c>pickers</c>), or crouched close to the ones under their crates (<c>pickerscarry</c>).</summary>
+    public static Camera PickersCamera(TrainOnLine train, string view)
+    {
+        if (view == "pickerscarry")
+            return Camera.LookAt(Lineside(train, 22.6, -3.4) + Double3.Up * 0.6, Lineside(train, 18.8, -5.6) + Double3.Up * 0.55, 52);
+        return Camera.LookAt(Lineside(train, 12.0, -1.2) + Double3.Up * 1.45, Lineside(train, 17.8, -5.0) + Double3.Up * 0.3, 56);
+    }
+
+    /// <summary>
+    /// The staged Lodger (<c>dt screenshot --lodger</c>; note 583) 14 m up the line from the engine and 4 m off its left, turned
+    /// to the line: <c>hidden</c> folded into a crouch; <c>shriek</c> reared, the jaw dropped open (0.6 s into it); <c>lunge</c>
+    /// mid-leap; <c>chase</c> loping; <c>break</c> bashing; <c>return</c> walking back.
+    /// </summary>
+    public static List<Enemy> Lodger(List<Enemy> threats, TrainOnLine train, string mode, out float pace)
+    {
+        threats.RemoveAll(e => e is Lodger);
+        var at = Lineside(train, 14, -4.0);
+        var toLine = (Lineside(train, 14, 0) - at) with { Y = 0 };
+        double yaw = Math.Atan2(-toLine.X, -toLine.Z) + 0.35;
+        var (m, phase, seconds) = mode switch
+        {
+            "hidden" => (LodgerMode.Hidden, SpinePhase.Dormant, 1.2),
+            "shriek" => (LodgerMode.Shriek, SpinePhase.Telegraph, 0.62),
+            "lunge" => (LodgerMode.Lunge, SpinePhase.Commit, 0.24),
+            "chase" => (LodgerMode.Chase, SpinePhase.Grab, 0.3),
+            "break" => (LodgerMode.Break, SpinePhase.Grab, 0.47),
+            "return" => (LodgerMode.Return, SpinePhase.BreakOff, 0.5),
+            _ => throw new ArgumentException($"--lodger {mode}: hidden, shriek, lunge, chase, break or return"),
+        };
+        pace = m is LodgerMode.Chase ? 5f : m is LodgerMode.Return ? 1f : 0f;
+        var lodger = new Lodger(LodgerId);
+        lodger.Restore(phase, seconds, 1, Enemy.Loose, at, train.Dynamics.Distance, yaw, (double)m, -1, 0);
+        threats.Add(lodger);
+        return threats;
+    }
+
+    /// <summary>The <c>lodger</c> and <c>lodgershriek</c> views: a crewmate's eye on the ballast a few metres off it.</summary>
+    public static Camera LodgerCamera(TrainOnLine train, string view)
+    {
+        var at = Lineside(train, 14, -4.0);
+        return view == "lodgershriek"
+            ? Camera.LookAt(Lineside(train, 16.6, -0.6) + Double3.Up * 1.6, at + Double3.Up * 1.45, 56)
+            : Camera.LookAt(Lineside(train, 16.2, -1.4) + Double3.Up * 1.5, at + Double3.Up * 0.5, 50);
+    }
+
+    /// <summary>
+    /// The staged Householder (<c>dt screenshot --householder</c>; note 584) 15 m up the line and 5 m off its left, at a chair
+    /// and its set table (RansackKit's: in a night, its house's own), its back to the dark: <c>watch</c> sat, its head turned to
+    /// whoever's looking; <c>sit</c>; <c>rise</c> half up; <c>hunt</c> walking at the line; <c>grab</c>; <c>return</c>. The
+    /// furniture's in <paramref name="clutter"/>.
+    /// </summary>
+    public static List<Enemy> Householder(List<Enemy> threats, TrainOnLine train, string mode, out List<(Sim.Run.Clutter, Double3)> clutter,
+        out float pace)
+    {
+        threats.RemoveAll(e => e is Householder);
+        var chair = Lineside(train, 15, -5.0);
+        var toLine = (Lineside(train, 15, 0) - chair) with { Y = 0 };
+        double yaw = Math.Atan2(-toLine.X, -toLine.Z);
+        var forward = new Double3(-Math.Sin(yaw), 0, -Math.Cos(yaw));
+        var (m, phase, seconds) = mode switch
+        {
+            "watch" => (HouseholderMode.Watch, SpinePhase.Alert, 0.6),
+            "sit" => (HouseholderMode.Sit, SpinePhase.Dormant, 1.0),
+            "rise" => (HouseholderMode.Rise, SpinePhase.Telegraph, 1.5),
+            "hunt" => (HouseholderMode.Hunt, SpinePhase.Commit, 0.4),
+            "grab" => (HouseholderMode.Grab, SpinePhase.Grab, 0.3),
+            "return" => (HouseholderMode.Return, SpinePhase.BreakOff, 0.5),
+            _ => throw new ArgumentException($"--householder {mode}: watch, sit, rise, hunt, grab or return"),
+        };
+        bool sat = m is HouseholderMode.Watch or HouseholderMode.Sit or HouseholderMode.Rise;
+        var at = sat ? chair : OnGround(train, chair + forward * 2.4 + toLine.Normalized * 0.0);
+        pace = m is HouseholderMode.Hunt ? 1.4f : m is HouseholderMode.Return ? 1f : 0f;
+        var householder = new Householder(HouseholderId);
+        householder.Restore(phase, seconds, 1, Enemy.Loose, at, train.Dynamics.Distance, yaw, (double)m, -1, 0);
+        threats.Add(householder);
+        // Its chair, and its table Householder.TableOut in front, square to it (TownKit's frame for a piece: x along its yaw).
+        double piece = -(Math.PI / 2 + yaw);
+        clutter = [(new Sim.Run.Clutter(Sim.Run.ClutterKind.Chair, 0, 0, 0.2, 0.2, piece, false), chair),
+            (new Sim.Run.Clutter(Sim.Run.ClutterKind.Table, 0, 0, 0.6, 0.38, piece, false), OnGround(train, chair + forward * Sim.Enemies.Householder.TableOut))];
+        return threats;
+    }
+
+    /// <summary>The <c>householder</c> view: across its table from it, a crewmate stood in its doorway's light.</summary>
+    public static Camera HouseholderCamera(TrainOnLine train)
+    {
+        var chair = Lineside(train, 15, -5.0);
+        return Camera.LookAt(Lineside(train, 13.4, -1.6) + Double3.Up * 1.65, chair + Double3.Up * 1.0, 50);
+    }
 
     /// <summary>
     /// The staged Mourners (<c>dt screenshot --mourners</c>; note 362, docs/design/creatures/mourners.md) round a crewmate's

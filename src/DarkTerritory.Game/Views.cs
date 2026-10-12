@@ -135,6 +135,12 @@ public static class Views
             // the screenshot puts the camera there, at the night's tower; this is only where it looks without one).
             "mourners" => Staging.MournersCamera(train),
             "beetle" => Staging.BeetleCamera(train),
+            // (Not one of Names.) The staged Pickers in the headlamp's spill off the line's left (Staging.Pickers), and close to
+            // the ones under their crates; the Lodger folded in its crouch and shrieking (Staging.Lodger); the Householder at
+            // its table (Staging.Householder: in a night, its house's).
+            "pickers" or "pickerscarry" => Staging.PickersCamera(train, name),
+            "lodger" or "lodgershriek" => Staging.LodgerCamera(train, name),
+            "householder" => Staging.HouseholderCamera(train),
             "towerjaw" or "towerjawfall" => Camera.LookAt(engine.ToWorld(new Double3(-6, 2, -engineHalf - 20)), engine.ToWorld(new Double3(4, 4, -engineHalf - 40)), 66),
             // (Not one of Names.) G1's house creatures in a night's open house (Staging.House: the screenshot puts the camera in the
             // house; this is only where it looks without one): the Hanger, the Hollow House, the Householder's house.
