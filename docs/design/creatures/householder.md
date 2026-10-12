@@ -29,7 +29,16 @@ face too still, the eyes always on you; too-long fingers resting on the table. I
 cutlery, cup, candle), its chair, a lit iron stove, a warm light. Clips: `sit`, `watch`, `rise`, `hunt` (a stiff,
 relentless walk), `grab`, `return`, `hit`, `death`.
 
-## 4. Behaviour tree (App. A.4 format)
+## 4. How it sounds (a request to the audio chat)
+
+- **Its house** (the tell, from the door): the stove's tick and crackle, a clock, a kettle at the edge of the boil; the one
+  warm, homely sound in a dead village.
+- **Watching:** the creak of its chair and of its neck as its head follows you; nothing else.
+- **Rising** (the telegraph, 1.5 s): the chair scraped back hard on the boards, cutlery rattling on the table.
+- **Hunting:** a stiff, even tread that never hurries, and a dry, rasping breath. **The grab:** a hard clutch and a grunt.
+- **Going home:** the thing set back down, the chair drawn in, the stove again.
+
+## 5. Behaviour tree (App. A.4 format)
 
 ### THE HOUSEHOLDER · sight
 ```
@@ -44,7 +53,7 @@ HUNT      after the carrier at 3.4 m/s, to the train if it must
 HIT       blows hurt it (6 kill it)
 ```
 
-## 5. First-pass numbers (`enemies.json` `householder`)
+## 6. First-pass numbers (`enemies.json` `householder`)
 
 | Field | Value |
 |---|---|
@@ -55,12 +64,12 @@ HIT       blows hurt it (6 kill it)
 | `giveUpBeyond` | 200 m |
 | `health` | 6 |
 
-## 6. What the harness verifies
+## 7. What the harness verifies
 
 `HouseCreatureTests`: guests watched, never touched; one of its things carried out unpaid and it hunts the carrier (and,
 left to it, kills); something left on its table pays for one, and it lets it go.
 
-## 7. Decisions (G1's calls, for the director)
+## 8. Decisions (G1's calls, for the director)
 
 1. **Anything counts as payment**: any body that isn't its own, left on its table (a tool, a toy, a crate).
 2. **One payment, one thing.**
