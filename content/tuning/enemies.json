@@ -926,7 +926,13 @@
       // The relief valve: × (alive / crew)^downPower, and × (1 − hurtRelief × the share of the living under hurtBelow health,
       // the bots' own "too hurt to fight"), so a crew that's losing isn't fed faster; and busy: × 1 / (1 + busy × threats
       // engaged × (1 − busyFade × progress)) while they're fighting: late in the night it stops waiting for them.
-      "downPower": 2, "hurtBelow": 35, "hurtRelief": 0.25, "busy": 0.5, "busyFade": 1
+      "downPower": 2, "hurtBelow": 35, "hurtRelief": 0.25, "busy": 0.5, "busyFade": 1,
+      // By the crew and the train (note 646; the director, the inbox, 9 Oct: "Scale by both, higher numbers on both readings
+      // should increase threat level"; orchestrator.md §8 question 1): the rate × (1 + crewScale × (crew − scaleCrew)) ×
+      // (1 + lengthScale × (cars − scaleCars)), each at least scaleFloor; 1 at a crew of four and eight cars (a Frontier
+      // train). The budget scales by both too (crewPerPlayer, lengthPerCarBeyondThird), but on a 7 km night it never binds:
+      // this is what does.
+      "crewScale": 0.12, "lengthScale": 0.04, "scaleCrew": 4, "scaleCars": 8, "scaleFloor": 0.5
     },
     // T128 (build 1121: "a player left behind by the train should feel the world close in: tension, monsters coming, the
     // difficulty spiking for that player. They needn't die at once"; GDD §7, §23; ARCHITECTURE §8 note 273). Not in the spec.

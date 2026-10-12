@@ -597,7 +597,10 @@ public sealed class Director
         double busy = 1 / (1 + p.Busy * engaged * Math.Max(0, 1 - p.BusyFade * Math.Clamp(progress, 0, 1)));
         // Note 327 (App. F.3): the crew off the train, on foot, draw it on: the share of the living afoot (Watch, this second).
         double afoot = _t.Afoot.On ? _t.Afoot.PerSecond * AfootShare : 0;
-        double rate = _tierRate * conditions * relief * busy * escalation * (p.BasePerSecond + quiet + loud + cargo + afoot);
+        // By the crew in the night (who joined it, alive or not: the relief valve has the dead) and the cars the engine
+        // pulls (note 646).
+        double scale = p.Scale(Math.Max(1, Crew), world.Train.Dynamics.Consist.CarCount);
+        double rate = _tierRate * scale * conditions * relief * busy * escalation * (p.BasePerSecond + quiet + loud + cargo + afoot);
         _pressure = Math.Min(p.Max, _pressure + rate);
         Terms = new PressureTerms(rate, escalation, _sinceThreat, loud, cargo, relief, conditions, afoot);
     }

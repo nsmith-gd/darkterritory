@@ -810,6 +810,20 @@ public sealed record PressureTuning
     public double HurtRelief { get; init; } = 0.25;
     public double Busy { get; init; } = 0.5;
     public double BusyFade { get; init; } = 1;
+    /// <summary>
+    /// The threat scales by the crew and by the train (note 646; the director, the inbox, 9 Oct: "Scale by both, higher
+    /// numbers on both readings should increase threat level"): the rate × (1 + crewScale × (crew − scaleCrew)) × (1 +
+    /// lengthScale × (cars − scaleCars)), each at least scaleFloor. 0 for either leaves it as the tier's alone.
+    /// </summary>
+    public double CrewScale { get; init; }
+    public double LengthScale { get; init; }
+    public int ScaleCrew { get; init; } = 4;
+    public int ScaleCars { get; init; } = 8;
+    public double ScaleFloor { get; init; } = 0.5;
+
+    /// <summary>The rate's scale for a crew of <paramref name="crew"/> and a train of <paramref name="cars"/> cars.</summary>
+    public double Scale(int crew, int cars) =>
+        Math.Max(ScaleFloor, 1 + CrewScale * (crew - ScaleCrew)) * Math.Max(ScaleFloor, 1 + LengthScale * (cars - ScaleCars));
 }
 
 /// <summary>
