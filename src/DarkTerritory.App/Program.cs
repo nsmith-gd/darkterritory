@@ -730,7 +730,8 @@ while (!window.CloseRequested && !QuitNow())
     if (fromCommandLine)
         break;
     if (leaving is Launch.CampaignNight night)
-        frontEnd.ShowFortress(night.Slot, campaign?.History.LastOrDefault() is { } log && campaign.Current is null
+        frontEnd.ShowFortress(night.Slot, campaign is { Over: true } ? $"TAKEN AT DAWN. {Hud.CampaignOver}."
+            : campaign?.History.LastOrDefault() is { } log && campaign.Current is null
             ? $"{log.End}: {(log.Net >= 0 ? "+" : "")}{log.Net:0} scrip" : null);
     else
         frontEnd.NightOver();
@@ -1400,6 +1401,8 @@ CampaignState? Play(IPlaySession session, CampaignState? campaign)
         {
             // The settings' CAMERA SHAKE (note 297) scales both, down to none.
             camera.Position += BoilerShake.Offset(session.World, session.Viewpoint, timer.Elapsed.TotalSeconds) * settings.CameraShake;
+            // In or by a Hollow House going (note 585): the ground under it rumbling, the doors slamming, the floor going.
+            camera.Position += HouseShake.Offset(session.World, session.Viewpoint, timer.Elapsed.TotalSeconds) * settings.CameraShake;
             // The ground's thuds as dawn comes, and as a Waker comes on behind (note 588).
             camera.Position += DawnStir.Offset(session.World, timer.Elapsed.TotalSeconds) * settings.CameraShake;
             // On a car straining round a bend too fast, it judders you (the overspeed telegraph, App. F.1).
@@ -1658,7 +1661,8 @@ static CampaignState Autosave(SaveSlots saves, CampaignState campaign, NetPlaySe
     {
         // E.6: the shuffle bag goes into the save with the night (a derail drew from it).
         // Note 281: and the town it left, so the next night's isn't the same custom again.
-        var settled = Campaign.Settle(campaign, report) with { Music = session.MusicBag ?? campaign.Music, LastTown = session.World.Town?.Plan.Culture ?? campaign.LastTown };
+        // Note 632: a train taken at dawn ends the campaign (campaign.json dawnEndsCampaign).
+        var settled = Campaign.Settle(campaign, report, DataFile.Load<CampaignTuning>(Path.Combine(content, CampaignTuning.File))) with { Music = session.MusicBag ?? campaign.Music, LastTown = session.World.Town?.Plan.Culture ?? campaign.LastTown };
         // Note 591: delivered to a town, the crew's in it, and the next night departs from it.
         if (session.Route is { } arrived)
             settled = Campaign.Arrived(settled, report, DarkTerritory.Sim.Towns.TownAt.Terminus(arrived,
