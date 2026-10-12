@@ -156,6 +156,28 @@ ask, and the page sends it to the asking agent's session.
 - The inbox was seeded on 9 Oct with the 14 questions in *Waiting on the director* as they stood. Orchestrator question 3,
   which upkeep job first, was left out: the build order has been done since, all but U6, which is an ask of its own.
 
+## The Creature Tweaker (D1, 12 Oct 2026; note 635)
+
+The director's page for the creatures (claude.ai/artifact/TdoxfYnmZTgv2jc9JmRkkw; its source is
+`tools/tweaker/creature-tweaker.html`; the director, the inbox, 12 Oct: "a tuning artifact that I can use to work creature
+tuning and spawn rates. Per creature these things should be tunable values or written answers I can send"). One document
+per creature in its store's `creatures` (id: the creature's name in `enemies.json`'s `director.costs`), and
+`settings/night`.
+
+- `want` is the director's: `weight` (`director.weights`, ×1 not named), `cost` (`director.costs`), `perNight`
+  (`director.perNight`, null no cap), `nightChance` (`director.nightChance`, 1 not named), `abandonAtDawn` (not in
+  `wakers.staysAtDawn`), `tierWeights` (the creature's own block, where it has one); `settings/night` `want.nightFleesSeconds`.
+  `game` is what main has. `note` is a written answer (`noteAt` when it changed).
+- **Whoever works the enemies' tuning** (D1's, unless the queue says otherwise) reads `creatures` at each check-in. Where
+  `want` differs from `game`, or `noteAt` is later than `replyAt`: claim it, put it into `content/tuning/enemies.json`,
+  measure it, and when it merges set `game` to `want` and write `reply` and `replyAt` (what changed, the PR, what it did
+  to a night). A note you can't do as written gets an answer in `reply` just the same.
+- A creature added to the game gets its document (`name`, `order`, `blurb` in gameplay terms, `want` and `game` alike).
+- **The estimate** the page shows comes from measured nights (`model/calibration`, written by `tools/tweaker/calibrate.py`
+  from `dt harness --as-app` reports, 4 bots, enemies). After a change goes in, or when `requests/measure` is `open` (the
+  director's "Measure my values"), play the nights on each tier, write each creature's `measured.<tier>` (`perNight`,
+  `nights`, `at`), refresh `model/calibration`, and set the request `done` with `doneAt`.
+
 ## The queue
 
 Status: **open**, **claimed**, **in review** (a PR is up), **done** (merged).
@@ -522,7 +544,7 @@ Status: **open**, **claimed**, **in review** (a PR is up), **done** (merged).
 | 362 | **A train eaten at dawn ends the campaign (the director, the inbox, 12 Oct: `D1-eaten-at-dawn`, "c, The campaign ends", roguelike):** when the Wakers take the train (`RunEnd.DawnMissed`) the save is closed and the next start is a new crew from a fortress; the results screen says so plainly in the house voice; followers in co-op see the same and the board offers a new campaign. Tested through `dt campaign play --lose-at`; note 588 and GDD §8/§23 with it | D1.4 | `d1.4-eaten-ends` | 632 | claimed |
 | 363 | **Lit and shut keeps the Climbers out (the director, the inbox, 12 Oct: `D1-lit-shut-keeps-climbers-out`, "b"; note 629's option 2):** `climbers.litShutCarKeepsOut` on; the bots shut what they open on a stop's get-down and in their loading (but the door the crates are going through, while it is). Climbers aboard over the 16 app-hosted nights | D1.4 | `d1.4-lit-shut` | 633 | claimed |
 | 364 | **Bots fight a fully burning car together (the director, the inbox, 12 Oct: `D1-bots-two-extinguishers`, "a"):** a car well alight with two hands free, they go in from each end with extinguishers; a lone hand still keeps out (note 539) and the car is cut loose. Cars lost to fire and burn deaths over the 16 app-hosted nights | D1.4 | `d1.4-two-hoses` | 634 | claimed |
-| 365 | **The director's creature calls of 12 Oct, and the Creature Tweaker to set them (the inbox: `D1-knotter-kills`, "They should show up once or twice a run. Sometimes never. We need more monster variety."; `D1-night-things-flee`, "creatures should leave all except the knotter and the hotbox who are parasites that have train functions. Have 'abandon at dawn' as a tick in the enemy tweaker artifact so I can choose for each."; `D1.3-six-creatures-cost`, "a tuning artifact that I can use to work creature tuning and spawn rates"):** a per-kind night cap and chance to be about at all (`director.perNight`, `director.nightChance`), the Knotter at most 2 a night and some nights none; the night things run (wakers.md §2, `wakers.nightFleesSeconds` 60, `wakers.staysAtDawn` the Knotter and Hotbox): boarders let go and are gone, and the director sends none after; and the Creature Tweaker artifact: each creature's cost, tier weights, night cap and chance, abandon-at-dawn tick and a note to send, read back into `content/tuning/enemies.json`. Knotters a night and creatures fled at dawn over the 16 app-hosted nights | D1 | `claude/relaxed-franklin-xkfjgb` | 635 | claimed |
+| 365 | **The director's creature calls of 12 Oct, and the Creature Tweaker to set them (the inbox: `D1-knotter-kills`, "They should show up once or twice a run. Sometimes never. We need more monster variety."; `D1-night-things-flee`, "creatures should leave all except the knotter and the hotbox who are parasites that have train functions. Have 'abandon at dawn' as a tick in the enemy tweaker artifact so I can choose for each."; `D1.3-six-creatures-cost`, "a tuning artifact that I can use to work creature tuning and spawn rates"):** a per-kind night cap and chance to be about at all (`director.perNight`, `director.nightChance`), the Knotter at most 2 a night and some nights none; the night things run (wakers.md §2, `wakers.nightFleesSeconds` 60, `wakers.staysAtDawn` the Knotter and Hotbox): boarders let go and are gone, and the director sends none after; and the Creature Tweaker artifact: each creature's cost, tier weights, night cap and chance, abandon-at-dawn tick and a note to send, read back into `content/tuning/enemies.json`. Knotters a night and creatures fled at dawn over the 16 app-hosted nights | D1 | `claude/relaxed-franklin-xkfjgb`, [#837](https://github.com/nsmith-gd/darkterritory/pull/837) | 635 | done |
 | 366 | **The harder tiers pay more than they cost (the director, the inbox, 12 Oct: `D1-tier-economy`, "Yes raise the payout, each successful run should help players towards earning and spending to upgrade so they can go further the next run when the difficulty goes up"):** run.json's payouts by tier set so a competent crew's delivered night nets more on each harder tier than the one below, aimed at the next upgrades' prices; spec F.1's table and its tests with them. Measured the app's way (`--as-app`), each tier on its own train length. **Overlaps:** #367 (the contract's per-car is the tier's); the campaign's progression (`dt campaign sim`, F.4) | D1.5 | `d1.5-tier-pay` | 636 | in progress |
 | 367 | **A contract is just a route (the director, the inbox, 12 Oct: `D1.5-contracts`, "Just a route"):** the board's contract is the route and its tier, and what a car-load pays there; the freight line, the comet contract and campaign.json's `contracts` go; the GDD (§9, App. B.9) and the spec (F.1) say the same. **Overlaps:** the GDD artifact (D1.4's, note 624); HostedAsApp (note 616) loses the contract's cargo | D1.5 | `d1.5-contract-route`, [#833](https://github.com/nsmith-gd/darkterritory/pull/833) | 637 | in progress |
 

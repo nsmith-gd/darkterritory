@@ -712,6 +712,21 @@ public sealed record DirectorTuning(
     public OrchestratorTuning Orchestrator { get; init; } = new();
     /// <summary>The last this many spawns: each of a kind among them halves that kind's weight (variety).</summary>
     public int VarietyWindow { get; init; } = 4;
+    /// <summary>
+    /// The most of a kind the director sends a night (note 635; the director, the inbox, 12 Oct 2026, of the Knotter: "once or
+    /// twice a run"), by its name in <see cref="Costs"/>; a kind not named has no cap.
+    /// </summary>
+    public Dictionary<string, int> PerNight { get; init; } = new();
+    /// <summary>
+    /// The chance a kind is about at all tonight (note 635; of the Knotter: "Sometimes never"), drawn once a night from the
+    /// seed; a kind not named is always about.
+    /// </summary>
+    public Dictionary<string, double> NightChance { get; init; } = new();
+    /// <summary>
+    /// How often, against the rest (note 635; the director's Creature Tweaker): each kind's weight among what could come is
+    /// multiplied by this; a kind not named weighs as its own rule says (×1).
+    /// </summary>
+    public Dictionary<string, double> Weights { get; init; } = new();
     /// <summary>A spawn pressed for (pressure at <see cref="PressureTuning.PressAt"/>) may overdraw the budget's curve by up to this much: enough for a threat of this cost.</summary>
     public double PacedCost { get; init; } = 3;
     /// <summary>The in-car incidents' weight, each, against the other threats' 1.</summary>

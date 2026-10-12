@@ -46,7 +46,12 @@ The director: "the tension before it is really, really important." Three minutes
   (spec A.3; AU1).
 - **The night things run.** In the last minute the night's creatures go to ground: boarders drop off and run for the
   trees, packs break off. *For the director:* this helps a late crew home and is the clearest sign the night's over. It
-  also means fewer monsters brought into town (#322). Not built until the director says (`nightFleesSeconds`).
+  also means fewer monsters brought into town (#322). Built (note 635; the director, the inbox, 12 Oct 2026: "creatures
+  should leave all except the knotter and the hotbox who are parasites that have train functions"): from
+  `nightFleesSeconds` before dawn each night creature lets go and is gone, as one driven out of a fort is, and the
+  director sends no more of them. The Knotter and Hotbox stay (`staysAtDawn`); the director ticks each creature in the
+  Creature Tweaker (claude.ai/artifact/TdoxfYnmZTgv2jc9JmRkkw). Not yet: a creature seen running for the trees, rather
+  than gone.
 - **The hills move.** Across the dark land, the shapes the crew took for hills settle and shift.
 - **The clock.** The HUD's dawn clock shows in the last stretch already (note 459). In the stir it turns to the
   Wakers' distance once they're up.
@@ -93,7 +98,7 @@ playing."
 | | |
 |---|---|
 | `stirSeconds` | 180: the stir before dawn |
-| `nightFleesSeconds` | 60: the night's creatures go to ground in the last minute (not built: the director's call) |
+| `nightFleesSeconds` | 60: the night's creatures go to ground in the last minute (note 635); `staysAtDawn` the Knotter and Hotbox |
 | `count` | 1 / 2 / 3 by tier |
 | `riseBehind` | 1200 m behind the last car |
 | `riseAside` | 600 m off the line, the others |

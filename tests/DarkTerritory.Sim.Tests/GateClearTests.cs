@@ -26,7 +26,9 @@ public class GateClearTests
         double gate = route.Plan!.Terminus.GateM;
         bool placed = false, stood = false;
         World? last = null;
-        var report = CrewOfTwoTests.Night("frontier:7", cars, seconds, null, start: gate - out_, bots: 4, enemies: HoundRunTests.Quiet,
+        // So near dawn the pack would have gone to ground (note 635); with that off, it's the driver's stand that's tested.
+        var enemies = dawnIn is null ? HoundRunTests.Quiet : HoundRunTests.Quiet with { Wakers = HoundRunTests.Quiet.Wakers with { NightFleesSeconds = -1 } };
+        var report = CrewOfTwoTests.Night("frontier:7", cars, seconds, null, start: gate - out_, bots: 4, enemies: enemies,
             each: world =>
             {
                 last = world;
