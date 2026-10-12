@@ -7,6 +7,8 @@ Co-op first-person survival horror (2–8+ players, PC + VR) on **Ballast**, a s
 - Every agent marks the checklist lines it works on: `assignee`, `queue` and `assignedAt` on the line's `items` row (nothing else on C1's row). Someone else's `assignee` means it's theirs: ask on their PR.
 **World building notes** (the director, 8 Oct): the director reviews the towns and the world, and leaves notes, on the World Building board (claude.ai/artifact/JuwKtJb7gdT41PEtFaowdp, its store's `notes`; each piece's shots and status in `sections`). Agents whose work touches the world read the open notes and take them as COORDINATION.md's "World building notes" says. Its Cultures tab (store collection `lore`) is the director's writing on how the towns live, for the town agents to turn into content; its `canon` collection lists what's in the game.
 
+**The Creature Tweaker** (the director, 12 Oct): the director sets each creature's spawn rate, night cap and chance, cost and "abandon at dawn" on claude.ai/artifact/TdoxfYnmZTgv2jc9JmRkkw (store collection `creatures`: `want` the director's, `game` main's, `note`/`reply`); COORDINATION.md's "The Creature Tweaker" says how a change goes into `content/tuning/enemies.json`.
+
 Read before large changes: `docs/ARCHITECTURE.md` (decisions and why), `docs/ROADMAP.md` (what's next), `docs/design/gdd.md` and `docs/design/systems-spec.md` (the design, source of truth for numbers), `docs/design/level-design.md` (level-design principles from example sketches, and the rules for generating sites).
 
 ## Commands

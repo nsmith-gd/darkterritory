@@ -226,6 +226,8 @@ public sealed record ThreatReport(double Budget, double Spent, IReadOnlyDictiona
     public string? DerailCause { get; init; }
     /// <summary>The conflict-table pairs the director put together (App. B.1).</summary>
     public IReadOnlyList<string> Pairs { get; init; } = [];
+    /// <summary>The night's creatures gone to ground before dawn (note 635; <see cref="World.FledAtDawn"/>).</summary>
+    public int FledAtDawn { get; init; }
     /// <summary>Seconds out on the line by what the director did each second: sent something, or why it held back (T114).</summary>
     public IReadOnlyDictionary<string, int> Director { get; init; } = new Dictionary<string, int>();
     /// <summary>While it held back at the cap: the engaged threats that filled it, by kind and phase, in seconds.</summary>
@@ -640,6 +642,7 @@ public static class Harness
                 Math.Round(host.Train.Vehicles.Where(v => v.Kind == VehicleKind.Cargo).DefaultIfEmpty().Average(v => v?.CargoIntegrity ?? 1), 3), rounds)
             {
                 Pairs = [.. d.Pairs],
+                FledAtDawn = host.World.FledAtDawn,
                 DerailCause = host.World.DerailCause,
                 Director = held,
                 AtTheCap = capped,

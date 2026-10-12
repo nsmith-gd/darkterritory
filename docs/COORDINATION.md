@@ -156,6 +156,24 @@ ask, and the page sends it to the asking agent's session.
 - The inbox was seeded on 9 Oct with the 14 questions in *Waiting on the director* as they stood. Orchestrator question 3,
   which upkeep job first, was left out: the build order has been done since, all but U6, which is an ask of its own.
 
+## The Creature Tweaker (D1, 12 Oct 2026; note 635)
+
+The director's page for the creatures (claude.ai/artifact/TdoxfYnmZTgv2jc9JmRkkw; its source is
+`tools/tweaker/creature-tweaker.html`; the director, the inbox, 12 Oct: "a tuning artifact that I can use to work creature
+tuning and spawn rates. Per creature these things should be tunable values or written answers I can send"). One document
+per creature in its store's `creatures` (id: the creature's name in `enemies.json`'s `director.costs`), and
+`settings/night`.
+
+- `want` is the director's: `weight` (`director.weights`, ×1 not named), `cost` (`director.costs`), `perNight`
+  (`director.perNight`, null no cap), `nightChance` (`director.nightChance`, 1 not named), `abandonAtDawn` (not in
+  `wakers.staysAtDawn`), `tierWeights` (the creature's own block, where it has one); `settings/night` `want.nightFleesSeconds`.
+  `game` is what main has. `note` is a written answer (`noteAt` when it changed).
+- **Whoever works the enemies' tuning** (D1's, unless the queue says otherwise) reads `creatures` at each check-in. Where
+  `want` differs from `game`, or `noteAt` is later than `replyAt`: claim it, put it into `content/tuning/enemies.json`,
+  measure it, and when it merges set `game` to `want` and write `reply` and `replyAt` (what changed, the PR, what it did
+  to a night). A note you can't do as written gets an answer in `reply` just the same.
+- A creature added to the game gets its document (`name`, `order`, `blurb` in gameplay terms, `want` and `game` alike).
+
 ## The queue
 
 Status: **open**, **claimed**, **in review** (a PR is up), **done** (merged).

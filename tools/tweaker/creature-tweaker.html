@@ -1,0 +1,291 @@
+<title>Creature Tweaker</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@500;600;700&family=Source+Sans+3:wght@400;600&family=JetBrains+Mono:wght@400;600&display=swap">
+<style>
+/* Layout: a dispatcher's roster sheet. A night-wide strip, then one ruled card per creature, two to three across. */
+:root {
+  --bg: #eef0ec; --sheet: #fbfcf9; --ink: #1d2a33; --muted: #5b6a72; --rule: #c9d0cc;
+  --accent: #b5361f; --accent-ink: #ffffff; --lamp: #c98a12; --ok: #2f6b45; --wait-bg: #fbeee0; --ok-bg: #e4efe6;
+  --field: #ffffff; --focus: #2a6f9e;
+  --display: "Barlow Condensed", "Arial Narrow", "Roboto Condensed", sans-serif;
+  --body: "Source Sans 3", "Segoe UI", system-ui, sans-serif;
+  --mono: "JetBrains Mono", ui-monospace, "SFMono-Regular", Menlo, monospace;
+}
+@media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) {
+  --bg: #141b20; --sheet: #1b242a; --ink: #e3e8e4; --muted: #95a3a8; --rule: #33424a;
+  --accent: #e2694f; --accent-ink: #1b1110; --lamp: #e5aa3c; --ok: #7cc493; --wait-bg: #3a2a1a; --ok-bg: #1d3326;
+  --field: #11181c; --focus: #6fb3e0; color-scheme: dark } }
+:root[data-theme="dark"] {
+  --bg: #141b20; --sheet: #1b242a; --ink: #e3e8e4; --muted: #95a3a8; --rule: #33424a;
+  --accent: #e2694f; --accent-ink: #1b1110; --lamp: #e5aa3c; --ok: #7cc493; --wait-bg: #3a2a1a; --ok-bg: #1d3326;
+  --field: #11181c; --focus: #6fb3e0; color-scheme: dark }
+body { background: var(--bg); color: var(--ink); font: 15px/1.5 var(--body); }
+.wrap { max-width: 1240px; margin: 0 auto; padding-inline: 16px; padding-block: 28px 64px; display: grid; gap: 22px; }
+header { display: grid; gap: 10px; }
+.eyebrow { font: 600 13px/1 var(--display); letter-spacing: .14em; text-transform: uppercase; color: var(--accent); }
+h1 { font: 700 clamp(34px, 6vw, 52px)/1 var(--display); margin: 0; letter-spacing: .01em; text-wrap: balance; }
+.lede { max-width: 68ch; color: var(--muted); margin: 0; }
+.lede b { color: var(--ink); font-weight: 600; }
+.summary { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
+.chip { display: inline-flex; align-items: center; gap: 6px; padding: 4px 10px; border-radius: 999px; font: 600 13px/1.3 var(--body); }
+.chip.wait { background: var(--wait-bg); color: var(--lamp); }
+.chip.ok { background: var(--ok-bg); color: var(--ok); }
+.chip.off { border: 1px solid var(--rule); color: var(--muted); }
+.dot { width: 8px; height: 8px; border-radius: 50%; background: currentColor; }
+.night { background: var(--sheet); border: 1px solid var(--rule); border-radius: 6px; padding: 14px 16px; display: flex; flex-wrap: wrap; gap: 12px 28px; align-items: end; }
+.night h2 { font: 600 20px/1.1 var(--display); margin: 0; letter-spacing: .02em; flex-basis: 100%; }
+.grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(min(100%, 360px), 1fr)); gap: 14px; }
+.card { background: var(--sheet); border: 1px solid var(--rule); border-radius: 6px; padding: 14px 16px 16px; display: grid; gap: 12px; align-content: start; min-width: 0; }
+.card.waiting { border-color: var(--lamp); box-shadow: inset 4px 0 0 var(--lamp); }
+.head { display: flex; justify-content: space-between; gap: 10px; align-items: start; }
+.head h3 { font: 700 24px/1 var(--display); margin: 0; letter-spacing: .02em; }
+.blurb { margin: 4px 0 0; color: var(--muted); font-size: 14px; }
+.fields { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px 14px; }
+.f { display: grid; gap: 3px; min-width: 0; }
+.f label, .lbl { font: 600 12px/1.2 var(--body); letter-spacing: .06em; text-transform: uppercase; color: var(--muted); }
+.f input[type=number] { width: 100%; box-sizing: border-box; font: 15px/1.2 var(--mono); font-variant-numeric: tabular-nums; padding: 6px 8px; border: 1px solid var(--rule); border-radius: 4px; background: var(--field); color: var(--ink); }
+.ingame { font: 12px/1.2 var(--mono); color: var(--muted); min-height: 1.2em; }
+.ingame.diff { color: var(--lamp); }
+.tiers { grid-column: 1 / -1; }
+.tiers .row { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 6px; }
+.tiers .row span { font-size: 12px; color: var(--muted); display: block; }
+.dawn { grid-column: 1 / -1; display: flex; align-items: center; gap: 10px; padding: 8px 10px; border: 1px dashed var(--rule); border-radius: 4px; }
+.dawn input { width: 18px; height: 18px; accent-color: var(--accent); }
+.dawn label { font: 600 15px/1.2 var(--body); color: var(--ink); text-transform: none; letter-spacing: 0; }
+.dawn .ingame { margin-left: auto; }
+.note { display: grid; gap: 4px; }
+.note textarea { width: 100%; box-sizing: border-box; min-height: 58px; resize: vertical; font: 14px/1.45 var(--body); padding: 7px 9px; border: 1px solid var(--rule); border-radius: 4px; background: var(--field); color: var(--ink); }
+.reply { font-size: 14px; border-left: 3px solid var(--ok); padding: 4px 10px; color: var(--ink); background: var(--ok-bg); border-radius: 0 4px 4px 0; }
+.reply b { font-weight: 600; }
+input:focus-visible, textarea:focus-visible, button:focus-visible { outline: 2px solid var(--focus); outline-offset: 1px; }
+.empty, .status { color: var(--muted); }
+.status { font-size: 13px; min-height: 1.3em; }
+.ro .f input, .ro textarea, .ro .dawn input { pointer-events: none; opacity: .75; }
+@media (max-width: 420px) { .fields { grid-template-columns: 1fr; } }
+@media (prefers-reduced-motion: no-preference) { .card { transition: border-color .2s, box-shadow .2s; } }
+</style>
+
+<div class="wrap">
+  <header>
+    <div class="eyebrow">Dark Territory · the night's creatures</div>
+    <h1>Creature Tweaker</h1>
+    <p class="lede">Set how each creature comes on a night. <b>Your changes save as you type.</b> The agents read this page, put your values into <code>content/tuning/enemies.json</code>, and mark the card <b>in the game</b> when the change has merged. A card waiting for an agent has an amber edge. Anything a number can't say, write in its note and an agent will answer there.</p>
+    <div class="summary" id="summary"><span class="chip off">Loading the roster…</span></div>
+  </header>
+
+  <section class="night" id="night" aria-label="Night-wide settings">
+    <h2>The whole night</h2>
+    <div class="f">
+      <label for="flee">Night things leave this long before dawn (s)</label>
+      <input type="number" id="flee" min="-1" step="10" inputmode="decimal">
+      <div class="ingame" id="flee-game"></div>
+    </div>
+    <p class="blurb" style="max-width:60ch;margin:0">Creatures ticked <b>Leaves at dawn</b> let go and are gone this many seconds before dawn, and the director sends no more of them. Set −1 to keep them all night.</p>
+  </section>
+
+  <div class="status" id="status" role="status" aria-live="polite"></div>
+  <div class="grid" id="grid"><p class="empty">The roster appears here once the page connects to its store.</p></div>
+</div>
+
+<script>
+(() => {
+  const TIERS = [["local", "Local"], ["frontier", "Frontier"], ["deadLines", "Dead Lines"], ["deepTerritory", "Deep"]];
+  const grid = document.getElementById("grid"), statusEl = document.getElementById("status"), summary = document.getElementById("summary");
+  let db = null, readOnly = false;
+  const cards = new Map();      // id -> {el, doc, timer, chain, dirty}
+  let night = null, nightTimer = null, nightChain = Promise.resolve();
+
+  const say = t => { statusEl.textContent = t; };
+  const num = v => v === null || v === undefined || v === "" ? null : Number(v);
+  const fmt = v => v === null || v === undefined ? "no cap" : String(Math.round(v * 1000) / 1000);
+  const pct = v => v === null || v === undefined ? "100%" : Math.round(v * 100) + "%";
+  const same = (a, b) => JSON.stringify(a ?? null) === JSON.stringify(b ?? null);
+
+  function waiting(d) {
+    const w = d.want || {}, g = d.game || {};
+    const valuesDiffer = ["weight", "cost", "perNight", "nightChance", "abandonAtDawn", "tierWeights"].some(k => !same(w[k], g[k]));
+    const noteOpen = !!(d.note && d.note.trim()) && (d.noteAt || "") > (d.replyAt || "");
+    return valuesDiffer || noteOpen;
+  }
+
+  function el(tag, attrs = {}, ...kids) {
+    const e = document.createElement(tag);
+    for (const [k, v] of Object.entries(attrs)) {
+      if (k === "class") e.className = v; else if (k === "text") e.textContent = v; else e.setAttribute(k, v);
+    }
+    for (const k of kids) if (k) e.append(k);
+    return e;
+  }
+
+  function field(id, key, label, attrs) {
+    const input = el("input", { type: "number", id: `${id}-${key}`, inputmode: "decimal", ...attrs });
+    const f = el("div", { class: "f" }, el("label", { for: input.id, text: label }), input, el("div", { class: "ingame", id: `${id}-${key}-game` }));
+    return f;
+  }
+
+  function build(id) {
+    const card = el("article", { class: "card", id: `c-${id}` });
+    const title = el("h3", { id: `${id}-name` });
+    const blurb = el("p", { class: "blurb", id: `${id}-blurb` });
+    const chip = el("span", { class: "chip", id: `${id}-chip` });
+    card.append(el("div", { class: "head" }, el("div", {}, title, blurb), chip));
+    const fields = el("div", { class: "fields" });
+    fields.append(field(id, "weight", "How often (× its usual)", { min: "0", step: "0.1" }));
+    fields.append(field(id, "cost", "Cost to the night", { min: "0", step: "1" }));
+    fields.append(field(id, "perNight", "Most in a night (blank: no cap)", { min: "0", step: "1" }));
+    fields.append(field(id, "nightChance", "Nights it comes at all (%)", { min: "0", max: "100", step: "5" }));
+    const tiers = el("div", { class: "f tiers", id: `${id}-tiers` }, el("span", { class: "lbl", text: "More on harder lines (weight per tier)" }));
+    const row = el("div", { class: "row" });
+    for (const [k, name] of TIERS) {
+      const input = el("input", { type: "number", id: `${id}-tw-${k}`, min: "0", step: "0.25", inputmode: "decimal", "aria-label": `${name} weight` });
+      row.append(el("label", { for: input.id }, el("span", { text: name }), input));
+    }
+    tiers.append(row, el("div", { class: "ingame", id: `${id}-tiers-game` }));
+    fields.append(tiers);
+    const dawnBox = el("input", { type: "checkbox", id: `${id}-dawn` });
+    fields.append(el("div", { class: "dawn" }, dawnBox, el("label", { for: dawnBox.id, text: "Leaves at dawn" }), el("span", { class: "ingame", id: `${id}-dawn-game` })));
+    card.append(fields);
+    const note = el("textarea", { id: `${id}-note`, placeholder: "A written answer for the agents: what you want this creature to do, how often, anything else." });
+    card.append(el("div", { class: "note" }, el("label", { class: "lbl", for: note.id, text: "Note to the agents" }), note, el("div", { class: "reply", id: `${id}-reply`, hidden: "" })));
+
+    const entry = { el: card, doc: null, timer: null, chain: Promise.resolve(), dirty: new Set() };
+    cards.set(id, entry);
+    card.addEventListener("input", e => {
+      const t = e.target;
+      entry.dirty.add(t.id);
+      clearTimeout(entry.timer);
+      entry.timer = setTimeout(() => save(id), t.tagName === "TEXTAREA" ? 900 : 500);
+    });
+    card.addEventListener("change", e => { if (e.target.type === "checkbox") { entry.dirty.add(e.target.id); clearTimeout(entry.timer); save(id); } });
+    return card;
+  }
+
+  function wantFrom(id) {
+    const q = s => document.getElementById(`${id}-${s}`);
+    const d = cards.get(id).doc || {};
+    const want = {
+      weight: num(q("weight").value) ?? 1,
+      cost: num(q("cost").value) ?? 0,
+      perNight: num(q("perNight").value),
+      nightChance: q("nightChance").value === "" ? 1 : Math.max(0, Math.min(1, Number(q("nightChance").value) / 100)),
+      abandonAtDawn: q("dawn").checked,
+    };
+    if (d.want && d.want.tierWeights) {
+      want.tierWeights = {};
+      for (const [k] of TIERS) want.tierWeights[k] = num(document.getElementById(`${id}-tw-${k}`).value) ?? 0;
+    }
+    return want;
+  }
+
+  function save(id) {
+    const entry = cards.get(id);
+    if (!db || readOnly || !entry.doc) return;
+    const want = wantFrom(id);
+    const noteNow = document.getElementById(`${id}-note`).value;
+    const body = { want, changedAt: new Date().toISOString() };
+    if (noteNow !== (entry.doc.note || "")) { body.note = noteNow; body.noteAt = body.changedAt; }
+    const dirtyNow = new Set(entry.dirty);
+    entry.chain = entry.chain.then(() => db.collection("creatures").doc(id).update(body)).then(() => {
+      for (const k of dirtyNow) entry.dirty.delete(k);
+      say(`Saved ${entry.doc.name}.`);
+    }, err => {
+      if (err && err.code === "invalid_argument") { readOnly = true; document.body.classList.add("ro"); say("This page is read-only for you: only the director's account changes the values."); }
+      else say(`Couldn't save ${entry.doc.name} (${err && err.code || "error"}). Your edit is still on the page; change it again to retry.`);
+    });
+  }
+
+  function setVal(input, v, entry) {
+    if (document.activeElement === input || entry.dirty.has(input.id)) return;
+    if (input.type === "checkbox") input.checked = !!v; else input.value = v === null || v === undefined ? "" : v;
+  }
+
+  function paint(id, d) {
+    const entry = cards.get(id);
+    entry.doc = d;
+    const w = d.want || {}, g = d.game || {};
+    const q = s => document.getElementById(`${id}-${s}`);
+    q("name").textContent = d.name || id;
+    q("blurb").textContent = d.blurb || "";
+    setVal(q("weight"), w.weight ?? 1, entry);
+    setVal(q("cost"), w.cost, entry);
+    setVal(q("perNight"), w.perNight ?? null, entry);
+    setVal(q("nightChance"), w.nightChance === undefined || w.nightChance === null ? 100 : Math.round(w.nightChance * 100), entry);
+    setVal(q("dawn"), w.abandonAtDawn !== false, entry);
+    setVal(q("note"), d.note || "", entry);
+    const game = (key, text, differ) => { const e = q(`${key}-game`); e.textContent = `in game: ${text}`; e.classList.toggle("diff", differ); };
+    game("weight", "×" + fmt(g.weight ?? 1), !same(w.weight ?? 1, g.weight ?? 1));
+    game("cost", fmt(g.cost), !same(w.cost, g.cost));
+    game("perNight", fmt(g.perNight ?? null), !same(w.perNight ?? null, g.perNight ?? null));
+    game("nightChance", pct(g.nightChance), !same(w.nightChance ?? 1, g.nightChance ?? 1));
+    game("dawn", g.abandonAtDawn === false ? "stays" : "leaves", !same(w.abandonAtDawn !== false, g.abandonAtDawn !== false));
+    const tiers = q("tiers");
+    tiers.hidden = !w.tierWeights;
+    if (w.tierWeights) {
+      for (const [k] of TIERS) setVal(document.getElementById(`${id}-tw-${k}`), w.tierWeights[k], entry);
+      const gt = g.tierWeights || {};
+      game("tiers", TIERS.map(([k]) => fmt(gt[k])).join(" · "), !same(w.tierWeights, g.tierWeights));
+    }
+    const reply = q("reply");
+    if (d.reply) { reply.hidden = false; reply.replaceChildren(el("b", { text: "Agent: " }), document.createTextNode(d.reply)); }
+    else reply.hidden = true;
+    const wait = waiting(d);
+    entry.el.classList.toggle("waiting", wait);
+    const chip = q("chip");
+    chip.className = "chip " + (wait ? "wait" : "ok");
+    chip.replaceChildren(el("span", { class: "dot" }), document.createTextNode(wait ? "Waiting for an agent" : "In the game"));
+  }
+
+  function paintSummary() {
+    const docs = [...cards.values()].map(c => c.doc).filter(Boolean);
+    const n = docs.filter(waiting).length + (night && !same(night.want, night.game) ? 1 : 0);
+    const leaving = docs.filter(d => (d.want || {}).abandonAtDawn !== false).length;
+    summary.replaceChildren(
+      el("span", { class: "chip " + (n ? "wait" : "ok") }, el("span", { class: "dot" }), document.createTextNode(n ? `${n} waiting for an agent` : "Everything here is in the game")),
+      el("span", { class: "chip off", text: `${docs.length} creatures` }),
+      el("span", { class: "chip off", text: `${leaving} leave at dawn, ${docs.length - leaving} stay` }));
+  }
+
+  function paintNight(d) {
+    night = d;
+    const input = document.getElementById("flee");
+    if (document.activeElement !== input) input.value = d.want?.nightFleesSeconds ?? "";
+    const g = d.game?.nightFleesSeconds;
+    const ge = document.getElementById("flee-game");
+    ge.textContent = `in game: ${g ?? "–"} s`;
+    ge.classList.toggle("diff", !same(d.want?.nightFleesSeconds, g));
+    paintSummary();
+  }
+
+  document.getElementById("flee").addEventListener("input", e => {
+    clearTimeout(nightTimer);
+    nightTimer = setTimeout(() => {
+      if (!db || readOnly || !night) return;
+      const v = num(e.target.value);
+      if (v === null) return;
+      nightChain = nightChain.then(() => db.doc("settings/night").update({ want: { nightFleesSeconds: v }, changedAt: new Date().toISOString() }))
+        .then(() => say("Saved the night's dawn setting."), err => say(`Couldn't save the dawn setting (${err && err.code || "error"}).`));
+    }, 600);
+  });
+
+  (async () => {
+    db = await window.claude?.use?.("db");
+    if (!db) { grid.replaceChildren(el("p", { class: "empty", text: "The roster lives in this page's store, which isn't available in this view. Open the page on claude.ai, signed in." })); summary.replaceChildren(el("span", { class: "chip off", text: "Store not available" })); return; }
+    try {
+      const user = await window.claude.use("user");
+      const can = user ? await user.can("data.write") : null;
+      if (can === false) { readOnly = true; document.body.classList.add("ro"); say("Read-only: only the director's account changes the values."); }
+    } catch { /* keep inputs; a refused write decides */ }
+    db.collection("creatures").onSnapshot(snap => {
+      if (snap.empty) { grid.replaceChildren(el("p", { class: "empty", text: "No creatures yet. An agent fills the roster from the game's tuning." })); return; }
+      if (grid.querySelector(".empty")) grid.replaceChildren();
+      const docs = snap.docs.map(s => ({ id: s.id, d: s.data() })).sort((a, b) => (a.d.order ?? 99) - (b.d.order ?? 99));
+      for (const { id, d } of docs) {
+        if (!cards.has(id)) grid.append(build(id));
+        paint(id, d);
+      }
+      paintSummary();
+    }, err => say(`Lost the connection to the store (${err.code}). Reload the page.`));
+    db.doc("settings/night").onSnapshot(s => { if (s.exists) paintNight(s.data()); }, () => {});
+  })();
+})();
+</script>

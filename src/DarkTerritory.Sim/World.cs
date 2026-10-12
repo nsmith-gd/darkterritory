@@ -2001,6 +2001,27 @@ public sealed class World
 
     readonly Dictionary<int, double> _unmet = [];
 
+    /// <summary>The night's creatures gone to ground before dawn tonight (note 635).</summary>
+    public int FledAtDawn { get; private set; }
+
+    /// <summary>
+    /// The night things run (wakers.md §2; note 635; the director, the inbox, 12 Oct 2026: "creatures should leave all except
+    /// the knotter and the hotbox who are parasites that have train functions"): from <c>wakers.nightFleesSeconds</c> before
+    /// dawn every night creature but those <c>wakers.staysAtDawn</c> names lets go and is gone, as one driven out of a fort
+    /// is, and the director sends no more of them (<see cref="Sim.Enemies.Director.Tonight"/>).
+    /// </summary>
+    void NightFlees(WakersTuning t)
+    {
+        if (!Sim.Enemies.Waker.NightFleeing(this, t))
+            return;
+        foreach (var e in _enemies)
+            if (!e.Gone && Sim.Enemies.Waker.NightThing(e) && t.Flees(e.Kind))
+            {
+                e.Dismiss();
+                FledAtDawn++;
+            }
+    }
+
     /// <summary>
     /// Once a second: what's gone <see cref="DirectorTuning.LingerSeconds"/> with nobody near it, holding nobody, goes (T114).
     /// Alone, a Climber settled in a car nobody walked into, or hounds trailing a train nobody shot from, held the caps full
@@ -2089,6 +2110,7 @@ public sealed class World
         // The director thinks once a second; the Stoker comes whenever its condition holds, charged when it does (App. B.5).
         // Not in the safe yard (note 263): nothing comes before the run begins.
         Wake(t.Wakers);
+        NightFlees(t.Wakers);
         if (Tick % SimConstants.TickRate == 0 && Director is { } d && !Derailed && !SafeYard)
         {
             d.Present(_context?.Crew.Count ?? 0);

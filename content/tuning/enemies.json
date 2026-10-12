@@ -535,7 +535,12 @@
   // "taken at dawn". stirSeconds: the tension before dawn (the sky, the ground, their calls; presentation and audio).
   "wakers": { "enabled": true, "stirSeconds": 180, "count": [1, 1, 2, 3], "riseBehind": 1200, "riseAside": 600, "asideBack": 300,
     "joinSeconds": 90, "riseSeconds": 8, "startSpeed": 6, "topSpeed": 26, "rampSeconds": 45, "stopShort": 300,
-    "dragFactor": 3, "liftSeconds": 2.5, "eatAfter": 6, "eatSeconds": 4, "groundSeconds": 8 },
+    "dragFactor": 3, "liftSeconds": 2.5, "eatAfter": 6, "eatSeconds": 4, "groundSeconds": 8,
+    // wakers.md §2, the night things run (note 635; the director, the inbox, 12 Oct 2026: "creatures should leave all except
+    // the knotter and the hotbox who are parasites that have train functions"): nightFleesSeconds before dawn the night's
+    // creatures let go and are gone, and the director sends none of them after; negative, they stay. Those staysAtDawn names
+    // (as in the director's "costs") stay aboard through it. The director's Creature Tweaker sets each one's tick.
+    "nightFleesSeconds": 60, "staysAtDawn": ["knotter", "hotbox"] },
 
   // THE SWITCHMAN · vibration · corrupted (App. A.8, B.8). At a junction ahead[0]-[1] m out; seen at revealAt m. It throws
   // the points for the dead line, and the train goes down a line that leads nowhere (the clock's cost: stop, back out, set
@@ -963,6 +968,13 @@
     // App. B.1's to pay for it. A kind among the last varietyWindow spawns has its weight halved for each.
     "pacedCost": 3,
     "varietyWindow": 4,
+    // The most of a kind the director sends a night, and the chance it's about at all tonight (drawn from the seed), by the
+    // names in "costs"; a kind not named has no cap and is always about. Note 635, the director, the inbox, 12 Oct 2026, of
+    // the Knotter: "They should show up once or twice a run. Sometimes never. We need more monster variety."
+    "perNight": { "knotter": 2 },
+    "nightChance": { "knotter": 0.75 },
+    // How often each kind comes against the rest: its weight among what could come, times this (×1 not named).
+    "weights": {},
     // The in-car incidents' weight each (the others weigh 1): trouble in the cars is some of the night, not most of it.
     "incidentWeight": 0.5,
     // ...at full weight with this many hands besides the driver, proportionally less with fewer (a crew of two: a third).
