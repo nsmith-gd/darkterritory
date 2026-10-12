@@ -361,7 +361,7 @@ FORTRESS → WILDERNESS → FACILITY → WILDERNESS → TERMINUS
 ```
 
 ### Departure
-Inside the walls: purchase equipment, repair or upgrade the train, choose freight contracts, add or remove railcars, stock coal, powder and shot, lamps, repair supplies and tools.
+Inside the walls: purchase equipment, repair or upgrade the train, choose a contract, add or remove railcars, stock coal, powder and shot, lamps, repair supplies and tools. A contract is just a route *(the director, the inbox, 12 Oct: "Just a route"; note 637)*: the route and its tier, and about what a car-load pays there. The train leaves empty, and what its cars carry home is whatever its stops load, each car paid by its freight.
 
 Then the gates open. ~~The yard dispatcher reads the crew out over the radio by name, as a manifest, with the same tone used for the coal.~~ *Director's decision of 2026-10-06: no reading at the gates; the night starts as the train moves off.*
 
@@ -1946,7 +1946,7 @@ Cargo changes the run rather than just scoring it. These multipliers apply to sp
 | **Child survivor** | Highest payout · carried by hand · no spawn change |
 | **Comet-derived material** | **All weights ×1.4** · Passenger gate relaxed by one tier |
 
-Comet material is the high-risk contract: it is the best freight payout and it makes the entire world more interested in you.
+Comet material is the high-risk freight: it is the best freight payout and it makes the entire world more interested in you. No contract carries it (a contract is just a route, note 637): a night has it aboard only where a stop loads it, and none does yet.
 
 ---
 
