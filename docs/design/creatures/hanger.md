@@ -26,7 +26,14 @@ A pale, bloated, spider-like thing clinging upside-down to the rafters: a soft s
 against the beams, a mouth underneath paying out the strands. The strands: thin, glistening, slightly swaying threads with a
 bead at the end. Clips: `hidden`, `grab`, `haul`, `hold`, `hit`, `retreat`, `death`.
 
-## 4. Behaviour tree (App. A.4 format)
+## 4. How it sounds (a request to the audio chat)
+
+- **Its house** (the tell): a faint creak of the rafters and a soft, wet clicking overhead, heard once you're inside.
+- **The strands quivering** (the telegraph): a thin, taut hum, like a wire in wind, rising when someone walks among them.
+- **The grab:** a sticky snap and the strand pulled tight. **The haul:** a ratcheting creak of the rafters, a wet reel.
+- **Letting go:** a hiss and a scuttle back into the roof.
+
+## 5. Behaviour tree (App. A.4 format)
 
 ### THE HANGER · movement
 ```
@@ -38,7 +45,7 @@ HAUL      up the strand 0.7 m over 2.5 s (feet off the floor, head against the c
 RETREAT   back into the roof for 25 s, its strands slack
 ```
 
-## 5. First-pass numbers (`enemies.json` `hanger`)
+## 6. First-pass numbers (`enemies.json` `hanger`)
 
 | Field | Value |
 |---|---|
@@ -47,12 +54,12 @@ RETREAT   back into the roof for 25 s, its strands slack
 | `grabSeconds` / `retreatSeconds` | 10 s / 25 s |
 | `health` | 3 |
 
-## 6. What the harness verifies
+## 7. What the harness verifies
 
 `HouseCreatureTests`: keep clear of the strands and nothing happens; walk into one and it has you up it, until a friend
 prises you free; left on the strand, you die.
 
-## 7. Decisions (G1's calls, for the director)
+## 8. Decisions (G1's calls, for the director)
 
 1. **Where the strands hang** comes from the house and the Hanger (so every machine agrees, and nothing's sent).
 2. **A crew of one** struggles free (the solo rule, as every grab).
