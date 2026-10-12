@@ -1331,6 +1331,9 @@ public sealed class World
     public SortedDictionary<int, int> RacksFilledBy { get; } = [];
     /// <summary>Host: the night's loose couplings so far (note 356): how many worked loose, and how many parted.</summary>
     public (int Came, int Parted) LooseCount => _couplings is { } c ? (c.Came, c.Parted) : (0, 0);
+    /// <summary>Host: each pin worked loose tonight, what did it and the train's speed then (note 640; the harness's).</summary>
+    public IReadOnlyList<(LooseCause Cause, double Speed)> Loosenings => _loosenings;
+    readonly List<(LooseCause Cause, double Speed)> _loosenings = [];
     /// <summary>Host: the night's guttering lamps so far (note 346): how many started, and how many went out.</summary>
     public (int Came, int WentOut) GutterCount => _gutters is { } g ? (g.Came, g.WentOut) : (0, 0);
     /// <summary>Host: the night's hot boxes so far (note 331): how many came on, and how many caught.</summary>
@@ -1774,14 +1777,21 @@ public sealed class World
             _gutters = new Gutters(gt, (Route?.Seed ?? 0) ^ 0x6077UL);
         if (Authority && _couplings is null && Train.Loose is { } ct)
             _couplings = new Couplings(ct, (Route?.Seed ?? 0) ^ 0xC0091UL);
-        // The couplings (note 356): one loose for each crewmate at most, none in the yard or a fort; one left too long drops
-        // its pin, and the rake parts behind it.
-        if (Authority && !Derailed && _couplings is { } pins
-            && pins.Step(Train, Math.Max(1, _actors.Count(a => a.State.Alive)), SafeYard || TrainInFort) >= 0)
+        // The couplings (notes 356 and 640): one loose for each crewmate at most, from a run-in or a knock, none in the yard or a
+        // fort nor with a pack aboard; one left too long drops its pin, and the rake parts behind it.
+        if (Authority && !Derailed && _couplings is { } pins)
+        {
+            bool pack = ActiveEnemies.Any(e => e.Kind == EnemyKind.CinderHound && !e.Gone && e.Attached >= 0);
+            int parted = pins.Step(Train, Math.Max(1, _actors.Count(a => a.State.Alive)), SafeYard || TrainInFort, pack);
+            if (pins.Loosened is { } l)
+            {
+                Attribution.Loosened(l.Car, l.Cause, l.Speed);
+                _loosenings.Add((l.Cause, l.Speed));
+            }
             // Note 511: what it parted is in the report as the pin's, not a cut nobody's named for.
-            foreach (var v in Train.Rakes.Where(r => r != Train.Dynamics).SelectMany(r => r.Consist.Vehicles))
-                if (Attribution.CouplerPulledBy(v.Id) < 0)
-                    Attribution.PartedAt(v.Id);
+            if (parted >= 0 && pins.PartedFrom >= 0)
+                Attribution.PartedAt(parted, Train.RakeOf(pins.PartedFrom).Consist.Vehicles.Select(v => v.Id));
+        }
         // A car battered and let go comes apart (note 576): its freight spilled, off its rails, the train parted ahead of it.
         if (Authority && !Derailed && Failing.Apart(Train) is var apart and >= 0)
             Attribution.CameApart(apart);
