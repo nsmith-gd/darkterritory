@@ -161,7 +161,9 @@ public static class DamageKit
         var b = boards[rng.Next(boards.Length)];
         int side = b.Centre.X >= 0 ? 1 : -1;
         float len = 1.1f + 0.5f * (float)rng.NextDouble();
-        float z0 = Lerp((float)b.Min.Z + 1, (float)b.Max.Z - 1 - len, (float)rng.NextDouble()), z1 = z0 + len;
+        // Behind the cab: the board runs on ahead of its doorway (note 559), where the steps hang, and that stays whole.
+        float from = MathF.Max((float)b.Min.Z + 1, shape.Cab is { } cab ? (float)cab.Max.Z + 0.3f : float.MinValue);
+        float z0 = Lerp(from, (float)b.Max.Z - 1 - len, (float)rng.NextDouble()), z1 = z0 + len;
         float top = (float)b.Max.Y, inner = (float)(side > 0 ? b.Min.X : b.Max.X), outer = (float)(side > 0 ? b.Max.X : b.Min.X);
         float mid = (inner + outer) / 2;
         // The gap: the board's outer half gone, black over where it lay.

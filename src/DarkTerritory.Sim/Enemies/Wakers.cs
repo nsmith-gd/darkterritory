@@ -34,6 +34,16 @@ public sealed class Waker(int id) : Enemy(id)
     /// <summary>It has the train (the lift and the eating, <see cref="Enemy.Extra"/> seconds in).</summary>
     public bool Holds => Phase == SpinePhase.Punish;
 
+    /// <summary>The night's creatures are going to ground (<see cref="WakersTuning.NightFleesSeconds"/> or less to dawn, or past it).</summary>
+    public static bool NightFleeing(World world, WakersTuning t) => t.NightFleesSeconds >= 0 && world.Run is { } run && run.DawnIn <= t.NightFleesSeconds;
+
+    /// <summary>
+    /// One of the night's creatures, which go to ground at dawn: not a hazard (a car fire, the Drift, the Sleepers, the Wakers
+    /// themselves), nor the trouble in the cars, nor a person (Dave, Jacob).
+    /// </summary>
+    public static bool NightThing(Enemy e) => !e.Hazard && e is not Incident && e.Kind is not (EnemyKind.Dave or EnemyKind.Jacob
+        or EnemyKind.Waker or EnemyKind.CarFire or EnemyKind.Drift or EnemyKind.Sleepers);
+
     double _start, _since;
 
     /// <summary>
@@ -238,6 +248,16 @@ public sealed record WakersTuning
     public double EatAfter { get; init; } = 6;
     public double EatSeconds { get; init; } = 4;
     public double GroundSeconds { get; init; } = 8;
+    /// <summary>
+    /// wakers.md §2, the night things run (note 635; the director, the inbox, 12 Oct 2026): this many seconds before dawn the
+    /// night's creatures go to ground, and the director sends none of them after. Negative: they stay (v1).
+    /// </summary>
+    public double NightFleesSeconds { get; init; } = -1;
+    /// <summary>The kinds that don't (their names in the director's costs): the parasites with a train function, the Knotter and Hotbox.</summary>
+    public string[] StaysAtDawn { get; init; } = [];
+
+    /// <summary>A creature of <paramref name="kind"/> goes to ground at dawn (<see cref="StaysAtDawn"/> doesn't name it).</summary>
+    public bool Flees(EnemyKind kind) => !StaysAtDawn.Contains(Director.Key(kind));
 
     /// <summary>How many rise for a night of <paramref name="tier"/>.</summary>
     public int For(RouteTier tier) => Count.Length == 0 ? 0 : Count[Math.Clamp((int)tier, 0, Count.Length - 1)];
