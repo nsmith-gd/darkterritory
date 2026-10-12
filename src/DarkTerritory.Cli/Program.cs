@@ -3076,6 +3076,16 @@ static object HudShot(string content, string[] args)
             if (bodies.All.FirstOrDefault(b => b.Kind == DarkTerritory.Sim.Physics.BodyKind.RepairKit) is { } kit)
                 (kit.Carrier, kit.Locker) = (((IPlaySession)solo).PlayerId, -1);
         }
+        // --slots (note 594): the four shared slots with things in them: the crowbar and the wrench, a hand-sized thing in hand
+        // from slot 3 (its name over the bar) and another put away in slot 4, as the hotbar shows it.
+        if (args.Contains("--slots"))
+        {
+            int me = ((IPlaySession)solo).PlayerId;
+            var things = solo.World.Bodies.All.Where(b => DarkTerritory.Sim.Physics.Bodies.Pocketable(solo.Train, b.Kind) && b.Carrier < 0).Take(2).ToList();
+            for (int i = 0; i < things.Count; i++)
+                (things[i].Carrier, things[i].Locker, things[i].Pocket, things[i].Stashed) = (me, -1, 2 + i, i > 0);
+            solo.Player = solo.Player with { HeldSlot = 2, Pockets = (byte)(things.Count > 1 ? 0b1100 : things.Count > 0 ? 0b0100 : 0) };
+        }
         // --lockers [NAME] (note 264): stood at a crew locker (the fitter's if none named), facing it, with what it holds on
         // its door's tag; --carrying kit: the repair kit in hands (from the fitter's), as the hotbar shows it.
         if (args.Contains("--lockers") && DarkTerritory.Sim.World.KitLocker(solo.Train) is { } kitLocker)

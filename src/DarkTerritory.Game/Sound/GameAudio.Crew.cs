@@ -1312,7 +1312,8 @@ public sealed partial class GameAudio
             // The extinguisher at work (App. C.5).
             if (b.Kind == BodyKind.Extinguisher)
             {
-                bool carried = b.Carrier >= 0;
+                // Put away in a slot (note 594), it's on them, not at work.
+                bool carried = b.Carrier >= 0 && !b.Stashed;
                 if (carried && b.Charge < m.Charge - 1e-9)
                     m.LastDrain = _time;
                 var carrier = carried ? CrewStates.FirstOrDefault(x => x.Id == b.Carrier) : default;

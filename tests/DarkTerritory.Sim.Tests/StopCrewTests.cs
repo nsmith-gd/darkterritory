@@ -3,6 +3,7 @@ using DarkTerritory.Sim.Bots;
 using DarkTerritory.Sim.Enemies;
 using DarkTerritory.Sim.Net;
 using DarkTerritory.Sim.Player;
+using DarkTerritory.Sim.Physics;
 using DarkTerritory.Sim.Rail;
 using DarkTerritory.Sim.Route;
 using DarkTerritory.Sim.Run;
@@ -919,6 +920,37 @@ public class StopCrewTests
         Assert.All(night.Crew, c => Assert.True(c.Alive, $"died of {c.Death}; crew {where}"));
         Assert.All(night.Crew, c => Assert.NotEqual(Surface.Ground, c.Surface));
         Assert.Equal(1, train.TrainRakes);
+    }
+
+    [Fact]
+    public void AHandOutInTheVillageFillsItsSlotsBeforeItWalksBack()
+    {
+        // Note 594 (the director, 9 Oct: "I'm able to kind of hold on to it so I can grab a few pieces of loot at a time"): a
+        // hand puts each find away and searches on while it has a slot free, then carries them home one after another.
+        var night = new Night(cars: 8, walkers: 3, crateHands: true, ids: true, loot: true, modules: ModuleKind.Crates);
+        var run = night.World.Run!;
+        int k = run.Stops.ToList().IndexOf(night.Site.Feature);
+        var hands = night.Bots.OfType<RoofWalkerBot>().Select(b => b.Job).OfType<StopHand>().ToList();
+        int most = 0;
+        var doing = new HashSet<string>();
+        night.Until(() => run.Departures > 0, 1800, () =>
+        {
+            foreach (var h in hands)
+            {
+                if (h.PlayerId is int id)
+                    most = Math.Max(most, night.World.Bodies.Slotted(id).Count(b => b.Kind == BodyKind.Loot));
+                if (h.Doing.Length > 0)
+                    doing.Add(h.Doing);
+            }
+        });
+        string trace = $"spots {run.HidingSpots.Count(h => h.Stop == k)}, stowed {run.Stowed.Count}, most carried {most}; {string.Join(", ", doing)}";
+        Assert.True(run.Departures > 0, trace);
+        Assert.True(most >= 2, trace);
+        Assert.True(run.Stowed.Count >= most, trace);
+        // Nothing left in anyone's slots as the train goes.
+        string left = string.Join("; ", hands.Where(h => h.PlayerId is int id && night.World.Bodies.Slotted(id).Any(b => b.Kind == BodyKind.Loot))
+            .Select(h => $"{h.Job} '{h.Doing}' slots {string.Join(",", night.World.Bodies.Slotted(h.PlayerId!.Value).Select(b => $"{b.Pocket}{(b.Stashed ? "s" : "")}"))}"));
+        Assert.True(left.Length == 0, $"finds left in slots: {left}; {trace}");
     }
 
     [Fact]
