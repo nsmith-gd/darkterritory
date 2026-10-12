@@ -14,21 +14,10 @@ public sealed record CampaignTuning(int StartingCars, double StartingScrip, int 
 {
     public const string File = "tuning/campaign.json";
     /// <summary>What the board's contracts carry (campaign.json <c>contracts</c>; GDD §9, §19, App. B.9; note 182).</summary>
-    public ContractTuning Contracts { get; init; } = new();
     /// <summary>The departure's stores (campaign.json <c>stores</c>; GDD §9; note 182). Unset, the fortress sells none.</summary>
     public StoresTuning? Stores { get; init; }
     /// <summary>Taking a car off the consist (campaign.json <c>sellCar</c>; GDD §9 "add or remove railcars"). Unset, it can't.</summary>
     public SellCarTuning? SellCar { get; init; }
-}
-
-/// <summary>
-/// campaign.json <c>contracts</c>: the freight the board's ordinary contracts are drawn from, one each by its seed, and whether
-/// the board carries a comet contract besides (App. B.9: "the high-risk contract ... the best freight payout").
-/// </summary>
-public sealed record ContractTuning
-{
-    public IReadOnlyList<CargoKind> Cargo { get; init; } = [];
-    public bool Comet { get; init; }
 }
 
 /// <summary>One line of the fortress's stores: its price, how many a night takes at most, and what each holds.</summary>
@@ -62,11 +51,12 @@ public sealed record UpgradeDef(string Id, string Name, UpgradeSize Size, double
 public sealed record StandardCrew(double SmallShare, double MajorShare, int MajorEvery, double LossFraction, double RunningCosts);
 
 /// <summary>
-/// A night on the board at the fortress: a route, a freight, and what a car of it pays (spec F.1; GDD §9 "choose freight
-/// contracts", §19; note 182). The train leaves empty (note 575), so the freight is aboard only once a stop loads it. A save
-/// from before cargo reads as goods.
+/// A night on the board at the fortress: a route and its tier, and what a car-load pays on it (spec F.1; GDD §9 "choose a
+/// route"; note 635: "Just a route", the director, the inbox, 12 Oct). The train leaves empty (note 575), and what the cars
+/// carry home is whatever its stops load, each car paid by its freight's rate (run.json economy.cargoRates). A save from
+/// when a contract named a freight reads the same: the freight is dropped.
 /// </summary>
-public sealed record Contract(RouteTier Tier, ulong Seed, double PerCar, CargoKind Cargo = CargoKind.Goods)
+public sealed record Contract(RouteTier Tier, ulong Seed, double PerCar)
 {
     /// <summary>The route spec the session builds (<c>frontier:7</c>).</summary>
     public string Route => $"{char.ToLowerInvariant(Tier.ToString()[0])}{Tier.ToString()[1..]}:{Seed}";
@@ -200,9 +190,8 @@ public static class Campaign
     public static RouteTier TierFor(CampaignTuning t, int cars) => t.Tiers.Where(x => cars >= x.FromCars).OrderBy(x => x.FromCars).Last().Tier;
 
     /// <summary>
-    /// Tonight's board: the consist's own tier, and one from below if there is one, each carrying a freight drawn from
-    /// campaign.json's list; then, if the board carries one, a comet contract at the consist's tier, the best-paying freight
-    /// there is (App. B.9). The same every time for the same night.
+    /// Tonight's board: routes at the consist's own tier, and one from the tier below if there is one (note 635: a contract
+    /// is just a route). The same every time for the same night.
     /// </summary>
     public static IReadOnlyList<Contract> Offers(CampaignTuning t, RunTuning run, CampaignState s)
     {
@@ -210,27 +199,8 @@ public static class Campaign
         var tiers = Enumerable.Repeat(tier, Math.Max(1, t.ContractsOffered - (tier > RouteTier.Local ? 1 : 0))).ToList();
         if (tier > RouteTier.Local && t.ContractsOffered > 1)
             tiers.Add(tier - 1);
-        var board = tiers.Select((tr, i) => Offer(run, tr, SeedFor(s, i), CargoFor(t, s, i))).ToList();
-        if (t.Contracts.Comet)
-            board.Add(Offer(run, tier, SeedFor(s, board.Count), CargoKind.Comet));
-        return board;
+        return [.. tiers.Select((tr, i) => new Contract(tr, SeedFor(s, i), PerCar(run, tr)))];
     }
-
-    static Contract Offer(RunTuning run, RouteTier tier, ulong seed, CargoKind cargo) => new(tier, seed, PerCar(run, tier, cargo), cargo);
-
-    /// <summary>An ordinary contract's freight: one of campaign.json's list, by the night and the slot on the board.</summary>
-    static CargoKind CargoFor(CampaignTuning t, CampaignState s, int i)
-    {
-        var pool = t.Contracts.Cargo;
-        if (pool.Count == 0)
-            return CargoKind.Goods;
-        ulong h = s.Seed * 0xD6E8FEB86659FD93UL ^ (ulong)(s.Runs + 1) * 0xA0761D6478BD642FUL ^ (ulong)(i + 1) * 0xE7037ED1A0B428DBUL;
-        h ^= h >> 31;
-        return pool[(int)(h % (ulong)pool.Count)];
-    }
-
-    /// <summary>What a car of <paramref name="cargo"/> pays on <paramref name="tier"/>: the tier's value by the cargo's rate (run.json economy.cargoRates).</summary>
-    public static double PerCar(RunTuning run, RouteTier tier, CargoKind cargo) => Math.Round(PerCar(run, tier) * run.Economy.Rate(cargo));
 
     static ulong SeedFor(CampaignState s, int i)
     {

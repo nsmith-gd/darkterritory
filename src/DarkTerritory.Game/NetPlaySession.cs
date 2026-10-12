@@ -28,8 +28,9 @@ public sealed record SessionSetup(string? Route = null, string Line = "test-loop
     /// </summary>
     public int SpareKits { get; init; }
     /// <summary>
-    /// The contract's freight (GDD §9 "choose freight contracts", §19; note 182): what every loaded car leaves the fortress
-    /// carrying. None is goods. Every machine builds the same consist from it.
+    /// A freight every loaded car leaves the fortress carrying (§19; note 182). None is goods. Since note 635 a contract is just
+    /// a route and names none, and the train leaves empty (note 575): this is a test's or the harness's to set. Every machine
+    /// builds the same consist from it.
     /// </summary>
     [System.Text.Json.Serialization.JsonIgnore(Condition = System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingDefault)]
     public CargoKind Cargo { get; init; }
