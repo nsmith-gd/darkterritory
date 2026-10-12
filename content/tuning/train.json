@@ -57,8 +57,14 @@
       "fireboxDepth": 0.7,
       "fireboxHeight": 1.05,
       // The running boards out past the body's sides (App. A.2 GREASE: "sanding from the running boards"), this wide, from
-      // the cab's doorways back along the boiler, and the sandbox on each this far behind the cab, over the drivers.
-      "runningBoardWidth": 0.6,
+      // this far ahead of the cab's doorways back along the boiler, and the sandbox on each this far behind the cab, over
+      // the drivers. Note 559 (the director, 9 Oct: "the platform on the outer edge of the train really should extend to be
+      // in front of the cab doors and extend a bit wider"): 0.6 m wide from partway across the doorway, now 0.85 m from a
+      // metre ahead of it, the cab steps hung off its outer edge. Its edge is 2.35 m off the centreline and the steps 2.5:
+      // inside the truss spans' posts and a bridge deck's edge (2.6, note 552), and over the girder spans' handrails and the
+      // viaducts' parapets, clear above them. Any wider and the steps' foot is off a bridge's deck.
+      "runningBoardWidth": 0.85,
+      "runningBoardAhead": 1.0,
       "sandboxBehind": 2.5
     },
     // Cars are walk-in (GDD §10: "the back door"; §26: warm interior, hostile exterior). The floor is
