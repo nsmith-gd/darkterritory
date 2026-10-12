@@ -305,6 +305,8 @@ public sealed class Picking
     int _cameAt = -1, _standingAt = -1;
     double _standing;
     bool _up;
+    /// <summary>A group of them is up at this stop (note 644: the director counts each group against its night's cap).</summary>
+    public bool Up => _up;
 
     public void Step(World world, PickersTuning t, Route.RouteTier tier, int crew, ref int nextId, List<Enemy> into, double seconds)
     {

@@ -10,6 +10,9 @@ For each tier it writes what the Tweaker's page (tools/tweaker/creature-tweaker.
               (`director.weights`, its tier weight); half a sighting is added so a kind never seen still answers a raise.
   - fixed[k]: kinds that come on their own condition, not the director's pick (the Stoker: a firebox held hot), a night.
   - relief:   the night's pressure the creatures used up, in cost (each sent takes 3 × its cost off; spec App. B.1, note 266).
+  - own[k], ownBase[k]: those that come their own way, not the director's spend (note 644: a group of Pickers up at a
+              yard, a house creature put in its house), a night; the house creatures share the stops' houses by
+              `dwellings.weights`, so ownBase is each one's count over its weight. They take nothing off the pressure.
 A kind held under a cap or a night's chance when measured (the Knotter) can't show its own rate; --uncapped nights (a
 build without the cap) give its share against the rest, carried to each tier by its tier weights.
 `--check` prints the model's estimate for the measured settings beside what was measured.
@@ -19,6 +22,8 @@ import argparse, glob, json, os, re, sys
 ROOT = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 TIERS = ["local", "frontier", "deadLines", "deepTerritory"]
 FIXED = {"stoker"}
+# Those come their own way (note 644), and where: the Pickers at a yard, the rest in the stops' open houses.
+OWN = {"pickers": "yard", "lodger": "house", "householder": "house", "hollowHouse": "house", "hanger": "house"}
 # Who can't be about at once (Director.Room, App. B.1's caps): one engaged creature per zone and sense, and the corrupted
 # humans one at a time (director.maxCorrupted). From each creature's Zone and Sense in src/DarkTerritory.Sim/Enemies.
 SLOTS = [
@@ -72,6 +77,10 @@ def settings(enemies):
         if "tierWeights" in enemies.get(k, {}):
             s["tierWeights"] = enemies[k]["tierWeights"]
         out[k] = s
+    for k, where in OWN.items():
+        if k in enemies:
+            out[k] = {"weight": enemies.get("dwellings", {}).get("weights", {}).get(k, 1) if where == "house" else 1, "cost": 0,
+                      "perNight": d.get("perNight", {}).get(k), "nightChance": d.get("nightChance", {}).get(k, 1), "own": where}
     return out
 
 
@@ -124,11 +133,28 @@ def night1(st, cal, ids, fixed, absent, t):
     return res
 
 
+def own_estimate(st, cal):
+    """Those come their own way (note 644): the Pickers as measured, the house creatures sharing the houses filled by their
+    weights; each held to its cap, on the nights it's about. They don't touch the director's pressure, nor it them."""
+    own = [k for k in cal.get("own", {}) if k in st]
+    houses = [k for k in own if OWN.get(k) == "house"]
+    filled = sum(cal["own"][k] for k in houses)
+    raw = {k: cal.get("ownBase", {}).get(k, 0) * st[k]["weight"] for k in houses}
+    total = sum(raw.values())
+    out = {}
+    for k in own:
+        n = cal["own"][k] if k not in houses else (filled * raw[k] / total if total else 0)
+        cap = st[k]["perNight"] if st[k]["perNight"] is not None else 1e9
+        out[k] = st[k]["nightChance"] * min(n, cap)
+    return out
+
+
 def estimate(st, cal, t):
     ids = [k for k in cal["base"] if k in st]
     fixed = [k for k in cal.get("fixed", {}) if k in st]
     chancey = [k for k in ids + fixed if st[k]["nightChance"] < 1][:10]
     out = {k: 0.0 for k in ids + fixed}
+    out.update(own_estimate(st, cal))
     for mask in range(1 << len(chancey)):
         p, absent = 1.0, set()
         for i, k in enumerate(chancey):
@@ -175,7 +201,7 @@ def main():
                     "a night per tier, and model/calibration")
     a = ap.parse_args()
     st = settings(load_jsonc(a.enemies))
-    capped = {k for k, s in st.items() if s["perNight"] is not None or s["nightChance"] < 1}
+    capped = {k for k, s in st.items() if (s["perNight"] is not None or s["nightChance"] < 1) and not s.get("own")}
     ratio = {}
     if a.uncapped:
         n, tot = counts(sorted(glob.glob(a.uncapped)))
@@ -186,15 +212,18 @@ def main():
     for f in sorted(glob.glob(a.nights)):
         if tier_of(f):
             by.setdefault(tier_of(f), []).append(f)
-    model = {"how": a.how, "at": a.at, "slots": SLOTS, "tiers": {}}
+    model = {"how": a.how, "at": a.at, "slots": SLOTS, "own": OWN, "tiers": {}}
     for t in TIERS:
         if t not in by:
             continue
         n, tot = counts(by[t])
-        base, fixed = {}, {}
+        base, fixed, own, own_base = {}, {}, {}, {}
         for k, s in st.items():
             c = (tot.get(k, 0) + 0.5) / n
-            if k in FIXED:
+            if s.get("own"):
+                own[k] = round(tot.get(k, 0) / n, 3)
+                own_base[k] = round(c / s["weight"], 4) if s["weight"] else 0
+            elif k in FIXED:
                 fixed[k] = round(tot.get(k, 0) / n, 3)
             else:
                 base[k] = c / s["weight"] / tw(s, t)
@@ -204,7 +233,7 @@ def main():
                 base[k] = ratio[k] * others
         base = {k: round(v, 4) for k, v in base.items()}
         relief = sum(tot.get(k, 0) / n * st[k]["cost"] for k in st)
-        model["tiers"][t] = {"nights": n, "relief": round(relief, 2), "base": base, "fixed": fixed}
+        model["tiers"][t] = {"nights": n, "relief": round(relief, 2), "base": base, "fixed": fixed, "own": own, "ownBase": own_base}
         if a.check:
             e = estimate(st, model["tiers"][t], t)
             print(f"== {t}: {n} nights, relief {relief:.1f}", file=sys.stderr)

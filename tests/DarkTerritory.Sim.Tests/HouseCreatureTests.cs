@@ -291,6 +291,27 @@ public class HouseCreatureTests
     // ---- Which houses ----
 
     [Fact]
+    public void OnANightTheyreOutOrAtTheirCapTheHousesStandEmpty()
+    {
+        // Note 644 (the director's Creature Tweaker): what lives in the houses keeps the night's rules as the director's own
+        // spawns do: none on a night it's out (director.nightChance), no more than its cap (director.perNight).
+        var f = Frontier.Features.First(x => x.Stop is { } s && s.Buildings.Any(b => b.Open));
+        Dictionary<EnemyKind, int> Placed(DirectorTuning director)
+        {
+            var n = new Night(4, speed: 0, route: Frontier, enemies: Quiet with { Director = director, Dwellings = Tuning.Enemies.Dwellings }, front: f.Start + 60);
+            n.Train.Walls = StopWalls.Of(Frontier, n.Train.Line, tuning: Tuning.Run.Walls);
+            Run(n, 2);
+            return n.World.ActiveEnemies.GroupBy(e => e.Kind).ToDictionary(g => g.Key, g => g.Count());
+        }
+        var all = Placed(Quiet.Director);
+        var (kind, most) = all.Where(k => k.Key is not EnemyKind.HollowHouse).OrderByDescending(k => k.Value).First();
+        Assert.True(most >= 1, "something lives in this stop's houses");
+        string key = Director.Key(kind);
+        Assert.Equal(0, Placed(Quiet.Director with { NightChance = new() { [key] = 0 } }).GetValueOrDefault(kind));
+        Assert.Equal(1, Placed(Quiet.Director with { PerNight = new() { [key] = 1 } }).GetValueOrDefault(kind));
+    }
+
+    [Fact]
     public void AboutTheTiersShareOfOpenHousesHaveSomethingInThemNeverTheGauntsRoostAndAlwaysTheSame()
     {
         var walls = StopWalls.Of(Frontier, Frontier.Build(), tuning: Tuning.Run.Walls);

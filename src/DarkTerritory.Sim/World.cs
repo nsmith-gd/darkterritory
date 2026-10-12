@@ -2168,8 +2168,14 @@ public sealed class World
             if (t.Mourners.Enabled)
                 _mourning.Step(this, t.Mourners, Route?.Tier ?? Sim.Route.RouteTier.Local, ref _nextEnemyId, _enemies, 1);
             // The Pickers (note 592): a train standing at a yard with loose crates brings a group up out of its drains.
-            if (t.Pickers.Enabled && d.Allows(EnemyKind.Pickers))
+            // Each group counts against their night's cap, and none come up on a night they're out (note 644).
+            if (t.Pickers.Enabled && d.Allows(EnemyKind.Pickers) && (_picking.Up || d.Tonight(EnemyKind.Pickers, this)))
+            {
+                bool wereUp = _picking.Up;
                 _picking.Step(this, t.Pickers, Route?.Tier ?? Sim.Route.RouteTier.Local, ctx.Crew.Count, ref _nextEnemyId, _enemies, 1);
+                if (!wereUp && _picking.Up)
+                    d.Counted(EnemyKind.Pickers);
+            }
             // The house creatures (notes 583–586): what lives in the stops' open houses, put in as the train comes up to them.
             if (t.Dwellings.Enabled)
                 _dwelling.Step(this, t, d, ref _nextEnemyId, _enemies);
@@ -2199,6 +2205,15 @@ public sealed class World
                         e.Dismiss();
                 }
 
+        // What one gone was carrying off (a Picker's crate, the Householder's thing, the Mourners' dead) is dropped where it is
+        // (note 645): let go of at dawn (note 635) or driven out of a fort, nothing holds it any more, and it isn't left hanging.
+        if (_enemies.Any(e => e.Gone))
+        {
+            var gone = _enemies.Where(e => e.Gone).Select(e => e.Id).ToHashSet();
+            foreach (var b in Bodies.All)
+                if (b.TakenBy >= 0 && gone.Contains(b.TakenBy))
+                    Bodies.LetGo(b);
+        }
         _enemies.RemoveAll(e => e.Gone);
         EnemyEvents.AddRange(ctx.Events);
         Damage.AddRange(ctx.Damage);

@@ -70,6 +70,16 @@ public sealed class Director
     }
 
     readonly HashSet<string> _outTonight = [];
+    readonly Dictionary<EnemyKind, int> _ownWay = [];
+
+    /// <summary>
+    /// One come its own way tonight, not the director's spend (note 644: a group of Pickers up at a yard, a house creature
+    /// put in its house): counted against its night's cap (<see cref="DirectorTuning.PerNight"/>) as the director's own are.
+    /// </summary>
+    public void Counted(EnemyKind kind) => _ownWay[kind] = _ownWay.GetValueOrDefault(kind) + 1;
+
+    /// <summary>Those come their own way tonight, by kind (<see cref="Counted"/>).</summary>
+    public IReadOnlyDictionary<EnemyKind, int> OwnWay => _ownWay;
 
     /// <summary>The kind's not about tonight (<see cref="DirectorTuning.NightChance"/>'s roll).</summary>
     public bool OutTonight(EnemyKind kind) => _outTonight.Contains(Key(kind));
@@ -82,7 +92,7 @@ public sealed class Director
     public bool Tonight(EnemyKind kind, World world)
     {
         string key = Key(kind);
-        if (_outTonight.Contains(key) || _t.PerNight.TryGetValue(key, out int cap) && Log.Count(l => l.Kind == kind) >= cap)
+        if (_outTonight.Contains(key) || _t.PerNight.TryGetValue(key, out int cap) && Log.Count(l => l.Kind == kind) + _ownWay.GetValueOrDefault(kind) >= cap)
             return false;
         return world.Enemies is not { } et || !et.Wakers.Flees(kind) || !Waker.NightFleeing(world, et.Wakers);
     }

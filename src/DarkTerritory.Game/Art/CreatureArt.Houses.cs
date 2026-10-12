@@ -53,15 +53,16 @@ public sealed partial class CreatureArt
     }
 
     /// <summary>
-    /// The house creatures' draw where there's nothing but the sim's enemy to go by (a death, the greybox's): the Hanger hung
-    /// over where its body is; the Hollow House is its house (GreyboxScene.Houses draws it), so nothing. Null for any other kind.
+    /// The house creatures' draw where there's nothing but the sim's enemy to go by (a death, the greybox's, one going): the
+    /// Hanger hung over where its body is (going, scuttling back up into its roof, note 645); the Hollow House is its house
+    /// (GreyboxScene.Houses draws it), so nothing. Null for any other kind.
     /// </summary>
-    bool? Houses(MeshBuilder mesh, in Matrix4x4 model, EnemyKind kind, double t)
+    bool? Houses(MeshBuilder mesh, in Matrix4x4 model, EnemyKind kind, SpinePhase phase, double t)
     {
         switch (kind)
         {
             case EnemyKind.Hanger when _models.ContainsKey("hanger"):
-                return Draw(mesh, "hanger", "hold", t, true, Matrix4x4.CreateTranslation(0, HangerBody, 0) * model, seed: 586);
+                return Draw(mesh, "hanger", phase == SpinePhase.BreakOff ? "retreat" : "hold", t, true, Matrix4x4.CreateTranslation(0, HangerBody, 0) * model, seed: 586);
             case EnemyKind.HollowHouse:
                 return true;
         }
