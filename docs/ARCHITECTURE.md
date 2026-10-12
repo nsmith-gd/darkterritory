@@ -811,7 +811,7 @@ written here instead is moved out by `tools/coord/notes.py split`; the Coordinat
 - [630. The cars a Knotter leaves, chased as they roll back (queue #360, D1.2 for D1; D1's ask after #826, note 628: frontier:6 seed 16, "the…](notes/630.md)
 - [631. A dawn cushion for the run home: measured, and not kept (queue #361, D1.2 for D1; D1's ask after #826, from D1.2's own flag on note 628:…](notes/631.md)
 - [632. A train taken at dawn ends the campaign (D1.4, queue #362; the director, the inbox, 12 Oct: `D1-eaten-at-dawn`, "c, The campaign ends",…](notes/632.md)
-- [633. Lit and shut keeps the Climbers out (D1.4, queue #363, the director, the inbox, 12 Oct)](notes/633.md)
+- [633. Lit and shut keeps the Climbers out (D1.4, queue #363; the director, the inbox, 12 Oct: `D1-lit-shut-keeps-climbers-out`, "b"; note 629's…](notes/633.md)
 - [634. Bots fight a fully burning car together (D1.4, queue #364, the director, the inbox, 12 Oct)](notes/634.md)
 - [635. The director's creature calls of 12 Oct: the Knotter once or twice a night, the night things run at dawn, and the Creature Tweaker (D1,…](notes/635.md)
 - [637. A contract is just a route (D1.5, queue #367; the director's answer to `D1.5-contracts`: "Just a route", the director, the inbox, 12 Oct)](notes/637.md)
@@ -822,4 +822,5 @@ written here instead is moved out by `tools/coord/notes.py split`; the Coordinat
 - [643. The Creature Tweaker's values into the game without hand edits (D1, queue #373; note 635's not-yet)](notes/643.md)
 - [644. The Pickers and the house creatures under the night's rules and on the Creature Tweaker (D1, queue #374; after G1's #721, note 635)](notes/644.md)
 - [645. The Pickers and the house creatures seen going at dawn (G1, queue #375; D1's ask on #374; notes 635, 642)](notes/645.md)
+- [646. The threat scales by the crew and by the train (D1, queue #376; the director, the inbox, 9 Oct)](notes/646.md)
 <!-- end of the notes index -->
