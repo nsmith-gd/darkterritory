@@ -822,4 +822,4 @@ director's decisions: "(the director, the inbox, 12 Oct)". Handed out by D1 the 
 
 ## Waiting on the director
 
-- **The Stoker's hose** (note 271): the director, 9 Oct, in the inbox: "I don't know what this is I can't answer it without knowing and what the consequences for gameplay are". Ask again with what it is and what it changes in play.
+- **The Stoker's hose** (note 271): asked again in gameplay terms on 12 Oct (D1, the inbox's `D1-stoker-hose-in-the-cab`): keep the extinguisher fetched from car 1 (killing it is a job for two), a hose fitting in the cab (the fireman kills it from the footplate), or no water (starve it out only).
