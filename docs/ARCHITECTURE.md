@@ -824,4 +824,6 @@ written here instead is moved out by `tools/coord/notes.py split`; the Coordinat
 - [644. The Pickers and the house creatures under the night's rules and on the Creature Tweaker (D1, queue #374; after G1's #721, note 635)](notes/644.md)
 - [645. The Pickers and the house creatures seen going at dawn (G1, queue #375; D1's ask on #374; notes 635, 642)](notes/645.md)
 - [646. The threat scales by the crew and by the train (D1, queue #376; the director, the inbox, 9 Oct, orchestrator.md §8 question 1: "Scale by…](notes/646.md)
+- [647. A long train: two threats each (D1, queue #377; the director, the inbox, 12 Oct)](notes/647.md)
+- [648. The Stoker's hose in the cab (D1, queue #378; the director, the inbox, 12 Oct)](notes/648.md)
 <!-- end of the notes index -->
