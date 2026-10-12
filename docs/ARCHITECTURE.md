@@ -747,6 +747,7 @@ written here instead is moved out by `tools/coord/notes.py split`; the Coordinat
 - [555. An invite accepted while playing joins in-process (N2, queue #272; the netcode audit's gap 4, note 530; note 24's relaunch)](notes/555.md)
 - [556. The two-machine test in the nightly soak (N2, queue #276; the netcode audit's gap 8, note 530; note 450's run by hand)](notes/556.md)
 - [557. A weak link adapts (N2, queue #273; the netcode audit's gap 5, note 530)](notes/557.md)
+- [558. The Ribbits as the director met them (queue #297, E1; the director, 9 Oct 2026: "The Ribbits jumped towards me in a weird diagonal…](notes/558.md)
 - [570. Dave, the wandering painter (P1, queue #300; the director, 8 Oct 2026: "a special NPC that shows up randomly in places. His name is Dave…](notes/570.md)
 - [571. Nicki's party (P1, queue #301; the director, 8 Oct 2026: "an NPC you can find some times in one of the houses. Her name is Nicki and she's…](notes/571.md)
 - [572. Jacob, the fisherman (P1, queue #302; the director, 8 Oct 2026: "an NPC named Jacob who can be found randomly in the world near water…](notes/572.md)
@@ -802,4 +803,9 @@ written here instead is moved out by `tools/coord/notes.py split`; the Coordinat
 - [628. The switchyard pick-up, fast and steady (queue #358, D1.2 for D1; after #818, note 621: "its own 148–518 s spread is now the biggest thing…](notes/628.md)
 - [629. The Climbers into dark cars (D1.4, queue #359, note 627's find, at D1's ask: "that's the bigger fish")](notes/629.md)
 - [630. The cars a Knotter leaves, chased as they roll back (queue #360, D1.2 for D1; D1's ask after #826, note 628: frontier:6 seed 16, "the…](notes/630.md)
+- [632. A train eaten at dawn ends the campaign (D1.4, queue #362, the director, the inbox, 12 Oct)](notes/632.md)
+- [633. Lit and shut keeps the Climbers out (D1.4, queue #363, the director, the inbox, 12 Oct)](notes/633.md)
+- [634. Bots fight a fully burning car together (D1.4, queue #364, the director, the inbox, 12 Oct)](notes/634.md)
+- [635. The director's creature calls of 12 Oct: the Knotter once or twice a night, the night things run at dawn, and the Creature Tweaker (D1,…](notes/635.md)
+- [637. A contract is just a route (D1.5, queue #367; "Just a route", the director, the inbox, 12 Oct)](notes/637.md)
 <!-- end of the notes index -->
