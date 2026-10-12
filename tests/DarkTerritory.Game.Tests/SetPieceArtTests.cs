@@ -60,7 +60,7 @@ public class SetPieceArtTests
     [Fact]
     public void TheLiftsBinStandsOverItsChuteAndTheSkipRisesAsItsWound()
     {
-        var site = SiteOf("deepTerritory:3", FacilityKind.MineHead);
+        var site = SiteOf("deepTerritory:1", FacilityKind.MineHead);
         var eye = site.LiftChute;
         var drawn = Drawn(site, eye);
         Assert.True(Vector3.Distance(Origin(drawn.Single(i => i.Asset.Name.Contains("lift_works"))), new Vector3(0, -4.6f, 0)) < 0.01f);
@@ -73,7 +73,7 @@ public class SetPieceArtTests
     [Fact]
     public void TheHoseStandAndThePenAndRampAreTheArts()
     {
-        var works = SiteOf("deepTerritory:2", FacilityKind.ChemicalWorks);
+        var works = SiteOf("deepTerritory:6", FacilityKind.ChemicalWorks);
         var stand = Drawn(works, works.HoseStand).Single(i => i.Asset.Name.Contains("hose_stand"));
         Assert.True(Origin(stand).Length() < 0.01f);
         var slaughterhouse = SiteOf("frontier:3", FacilityKind.Slaughterhouse);

@@ -167,9 +167,9 @@ public class HitConfirmTests
     public void TheCreatureListIsTheWholeRosterBarTheHazardsAndFire()
     {
         // A kind added to the roster has to come here too, with a way to be struck.
-        // (Dave and Jacob aren't creatures: DaveTests strikes Dave, notes 570, 572. The Hollow House is a house, and no blow
-        // lands on it, note 585.)
-        var all = Enum.GetValues<EnemyKind>().Except([EnemyKind.Sleepers, EnemyKind.Drift, EnemyKind.CarFire, EnemyKind.Dave, EnemyKind.Jacob, EnemyKind.HollowHouse]);
+        // (Dave and Jacob aren't creatures: DaveTests strikes Dave, notes 570, 572. The Wakers are the day's, nothing a crew
+        // can strike: note 588. The Hollow House is a house, and no blow lands on it, note 585.)
+        var all = Enum.GetValues<EnemyKind>().Except([EnemyKind.Sleepers, EnemyKind.Drift, EnemyKind.CarFire, EnemyKind.Dave, EnemyKind.Jacob, EnemyKind.Waker, EnemyKind.HollowHouse]);
         Assert.Equal(all.OrderBy(k => k), Creatures.OrderBy(k => k));
     }
 

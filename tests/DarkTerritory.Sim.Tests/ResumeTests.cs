@@ -54,6 +54,28 @@ public class ResumeTests
     }
 
     [Theory]
+    [InlineData(true)]
+    [InlineData(false)]
+    public void ACutOffFromAheadOfTheEngineLeavesTheClientsTrainItsEngine(bool engineFirst)
+    {
+        // Note 613's three nights: a client's train led by cars a switchyard put ahead of the engine (its rake keyed by the
+        // first of them), and the host cutting them off again. Restored from the host's state, the client's train keeps its
+        // engine in its own rake, and the cut-off cars are a rake of their own, every car in exactly one.
+        var train = Night();
+        Assert.True(train.Resume([Rake([5, 6, 0, 1, 2, 3], 7_000), Rake([4], 6_500, handbrake: true)]));
+        var engine = train.Dynamics;
+        RakeState[] host = [Rake([0, 1, 2, 3], 6_990), Rake([5, 6], 7_000), Rake([4], 6_500, handbrake: true)];
+        var state = train.Capture() with { Rakes = engineFirst ? host : [host[1], host[0], host[2]] };
+        train.Restore(state);
+        Assert.Same(engine, train.Dynamics);
+        Assert.Equal([0, 1, 2, 3], train.Dynamics.Consist.Vehicles.Select(v => v.Id));
+        Assert.Equal(3, train.Rakes.Distinct().Count());
+        Assert.Single(train.Rakes, r => r.Consist.HasEngine);
+        Assert.Equal(Enumerable.Range(0, 7), train.Rakes.SelectMany(r => r.Consist.Vehicles.Select(v => v.Id)).Order());
+        Assert.Equal(7_000, train.RakeOf(5).Distance);
+    }
+
+    [Theory]
     [InlineData("a car missing")]
     [InlineData("a car twice")]
     [InlineData("a car past the train")]

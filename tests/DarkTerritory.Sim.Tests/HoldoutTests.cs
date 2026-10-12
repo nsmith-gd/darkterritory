@@ -196,6 +196,43 @@ public class HoldoutTests
             $"still on the ground after {bound:0} s, {(s.Position - from).Length:0.0} m from the Holdout's inside; doing {bot.Job!.Doing}");
     }
 
+    /// <summary>
+    /// Note 620 (deadLines:7 seed 4): within 10 m of a Holdout's door, a hand going to breach it took the track-side walk,
+    /// which keeps to the track's own across and along. With the door on the far side of the house it walked into the wall
+    /// and stood there, 6.7 m short, while the driver stood its give-up out and the crewmate in it was left. A door well off
+    /// the track is gone to by the foot path, round the walls, from however near.
+    /// </summary>
+    [Fact]
+    public void FromBehindTheHoldoutAHandGoesRoundToItsDoorAndBreachesIt()
+    {
+        var n = new Night(AHalt, 270);
+        int living = n.Add(alive: true), dead = n.Add(alive: false);
+        n.Step(0.2);
+        var h = Assert.Single(n.Here);
+        Assert.True(h.Lit);
+        // Behind the house from its door, on the ground, nearer than the foot path's 10 m.
+        var into = (h.Inside - h.Door) with { Y = 0 };
+        double depth = into.Length;
+        var behind = h.Door + into.Normalized * (depth * 2 + 1.5);
+        Assert.InRange(((behind - h.Door) with { Y = 0 }).Length, 2, 10);
+        n.Stand(living, behind);
+        var hand = new Bots.StopHand(Bots.StopJob.Crates, new Bots.CrewCalls(), living, P.Cold);
+        var s = n[living];
+        double closest = double.MaxValue;
+        for (uint tick = 0; tick < 60 * SimConstants.TickRate && h.State != HoldoutState.Freed; tick++)
+        {
+            var intent = hand.Breach(s, n.World, h) ?? default;
+            n.Intents = new PlayerIntent[n.Crew.Count];
+            n.Intents[living] = intent;
+            PlayerMotor.Step(ref s, intent, n.Train, P, Tuning.Train, SimConstants.TickSeconds, applyLook: false);
+            n[living] = s;
+            n.Step(SimConstants.TickSeconds);
+            s = n[living];
+            closest = Math.Min(closest, ((s.Position - h.Door) with { Y = 0 }).Length);
+        }
+        Assert.True(h.State == HoldoutState.Freed, $"{h.State} after 60 s; the hand came within {closest:0.0} m of the door");
+    }
+
     [Fact]
     public void ABreachThatStopsStartsOver()
     {

@@ -133,7 +133,9 @@ public static class IncidentLog
         DeathCause.Gnawed => "Eaten by the gnawers",
         DeathCause.Replaced => "Replaced",
         DeathCause.Nested => "Killed by Followers nested aboard",
-        DeathCause.Drift => "Fell from the moving train",
+        // The Marsh (GDD v1.1 §22, the code's Drift): not a fall, though v1.0's cause read as one (note 553: on deepTerritory's
+        // marsh nights the falls audit found ten "fell from the moving train" that were the reeds' work).
+        DeathCause.Drift => "Taken by the Marsh",
         DeathCause.Eaten => "Swallowed by the Car Hugger",
         DeathCause.Suffocated => "Smothered by Tippy Toesie",
         DeathCause.Devoured => "Eaten by the Ribbits",
@@ -142,7 +144,9 @@ public static class IncidentLog
         DeathCause.Uncoupled => "Taken with the caboose by the Passenger",
         DeathCause.Trampled => "Trampled by the Moose",
         DeathCause.Pecked => "Pecked to death by the Gannet",
+        DeathCause.Woken => "Taken at dawn by a Waker",
         DeathCause.Dave => "Struck Dave once too often",
+        DeathCause.Fell => "Fell to their death",
         _ => cause.ToString(),
     };
 
@@ -162,7 +166,7 @@ public static class IncidentLog
         string action;
         switch (s.Death)
         {
-            case DeathCause.JumpedAtSpeed or DeathCause.Drift:
+            case DeathCause.JumpedAtSpeed:
                 actor = victim;
                 action = $"The train at {Kmh(train.Dynamics.Speed)}.";
                 break;
@@ -224,6 +228,11 @@ public static class IncidentLog
                         : $"{share}% of the noise. Loudest on the line: {{actor}}.";
                     break;
                 }
+            case DeathCause.Woken:
+                // Note 588: the night's clock was the driver's to beat.
+                actor = a.Driver;
+                action = actor >= 0 ? "At the controls at dawn: {actor}." : "Nobody at the controls.";
+                break;
             case DeathCause.Dave:
                 // Their own doing (note 570): the five blows were theirs.
                 actor = victim;
@@ -286,7 +295,11 @@ public static class IncidentLog
             return (lit, drawn);
         var v = train.Vehicles[car];
         int doors = v.DoorsOpen & ~(1 << Train.CarShape.HatchBit);
-        string way = v.Breached ? " In through the breach." : doors != 0 ? " Door left open." : (v.DoorsOpen & (1 << Train.CarShape.HatchBit)) != 0 ? " Hatch left open." : "";
+        // Note 619: and who left it open, if a crewmate opened it.
+        int opener = Enumerable.Range(0, Train.CarShape.HatchBit).Where(d => (doors & (1 << d)) != 0).Select(d => world.Attribution.DoorOpenedBy(car, d))
+            .FirstOrDefault(p => p >= 0, -1);
+        string left = opener >= 0 ? $" Door left open by {NameOf(world, opener)}." : " Door left open.";
+        string way = v.Breached ? " In through the breach." : doors != 0 ? left : (v.DoorsOpen & (1 << Train.CarShape.HatchBit)) != 0 ? " Hatch left open." : "";
         return (lit, drawn + way);
     }
 

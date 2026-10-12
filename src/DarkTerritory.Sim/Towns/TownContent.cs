@@ -194,6 +194,19 @@ public sealed record TownWriting
     public Dictionary<string, TownWork[]> Works { get; init; } = [];
     /// <summary>What the people of a walled town say of living inside it (note 353): what becomes of those who rarely leave.</summary>
     public string[] Walled { get; init; } = [];
+    /// <summary>A town that's had a creature brought in through its gate, remembering it (note 608); none, it says nothing of it.</summary>
+    public TownBroughtIn? BroughtIn { get; init; }
+}
+
+/// <summary>
+/// What a town says of the creatures brought in through its gate (note 608), once it's had one: a house it burnt, looked at
+/// ({family}), and what its gatekeeper and its guards say first ({town}).
+/// </summary>
+public sealed record TownBroughtIn
+{
+    public string[] Houses { get; init; } = [];
+    public string[] Gate { get; init; } = [];
+    public string[] Guard { get; init; } = [];
 }
 
 /// <summary>

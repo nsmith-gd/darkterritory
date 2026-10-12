@@ -14,21 +14,22 @@ public class CarHuggerRescueTests
     public void AHarnessNightStartedOnTheLineHasItsWholeCrewAboard()
     {
         // Past the gate nobody spawns aboard (D.1): the gunner and fireman were posted, the walkers never were.
-        var report = CrewOfTwoTests.Night("deadLines:2", 6, 5, EnemyKind.CarHugger, start: CrewOfTwoTests.ShortOfTheTrestle(), bots: 4);
+        var report = CrewOfTwoTests.Night(CrewOfTwoTests.HuggerNight, 6, 5, EnemyKind.CarHugger, start: CrewOfTwoTests.ShortOfTheTrestle(), bots: 4);
         Assert.Equal(4, report.Clients.Count);
         Assert.All(report.Clients, c => Assert.True(c.Alive, $"{c.Bot} never came aboard"));
     }
 
     [Theory]
     [InlineData(1)]
-    [InlineData(10)]
+    [InlineData(2)]
     public void AFriendOnTheRoofHaulsASwallowedCrewmateOutOfTheCarHuggersMouth(int seed)
     {
         // Each of these lost two walkers, one after the other, down the end ladder to it with the other on the roof above.
         // The mail cranes are down: once note 278 moved the line, an ammo crane fell 100 m past the trestle, and the walkers
         // were in car 4 at its side door for the bag when it took hold (seeds 1 and 3 were found with the cranes up; 1 and
-        // 10 are the ones that eat two without the rescue now).
-        var report = CrewOfTwoTests.Night("deadLines:2", 6, 90, EnemyKind.CarHugger, start: CrewOfTwoTests.ShortOfTheTrestle(), bots: 4, seed: seed,
+        // 10 were the ones that ate two without the rescue on deadLines:2's 24 km line; 9 and 15 are the nights at
+        // deadLines:10's trestle, note 554's 7 km line, where it swallows and the crew pulls them out).
+        var report = CrewOfTwoTests.Night(CrewOfTwoTests.HuggerNight, 6, 90, EnemyKind.CarHugger, start: CrewOfTwoTests.ShortOfTheTrestle(), bots: 4, seed: seed,
             cranes: false);
         var threats = report.Threats!;
         Assert.False(threats.DeathsByCause.ContainsKey(nameof(DeathCause.Eaten)), string.Join(", ", threats.DeathsByCause));

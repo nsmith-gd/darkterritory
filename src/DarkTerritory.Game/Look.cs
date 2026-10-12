@@ -154,6 +154,23 @@ public sealed record DawnTuning
     public float Ambient { get; init; } = 0.3f;
     /// <summary>The glow low on the sky on the sun's side as it comes up (the sky shader's dawn band).</summary>
     public Vector3 HorizonGlow { get; init; } = new(0.28f, 0.16f, 0.11f);
+    /// <summary>The Wakers' stir (note 599): the cold line low behind the train before dawn, where they'll rise.</summary>
+    public StirLook Stir { get; init; } = new();
+}
+
+/// <summary>
+/// The stir's sky (docs/design/creatures/wakers.md §2: "the horizon behind the train goes from black to a bruise to a thin
+/// cold line. The light comes from where the Wakers will rise"; ARCHITECTURE §8 note 599). Over the stir it grows from
+/// nothing, a wide dim <see cref="Bruise"/> low behind the train narrowing to a thin grey <see cref="Line"/> by dawn.
+/// </summary>
+public sealed record StirLook
+{
+    /// <summary>Its colour as it first shows (rgb, added to the sky).</summary>
+    public Vector3 Bruise { get; init; } = new(0.10f, 0.05f, 0.09f);
+    /// <summary>Its colour at dawn.</summary>
+    public Vector3 Line { get; init; } = new(0.34f, 0.37f, 0.42f);
+    /// <summary>How bright it gets, at dawn.</summary>
+    public float Strength { get; init; } = 1;
 }
 
 /// <summary>
@@ -458,6 +475,24 @@ public sealed class Look
     /// <summary>How far the dawn's come up (0 night .. 1 dawn) <paramref name="dawnIn"/> seconds before it (the run's dawn clock).</summary>
     public float DawnOf(double dawnIn) =>
         Tuning.Atmosphere.Dawn is { } d ? (float)Math.Clamp(1 - dawnIn / Math.Max(1, d.LeadSeconds), 0, 1) : 0;
+
+    /// <summary>
+    /// <paramref name="light"/> with the Wakers' stir <paramref name="t"/> of the way to dawn (0..1, note 599), lying low on
+    /// the sky toward <paramref name="from"/> (world, flattened: behind the train, where they'll rise).
+    /// </summary>
+    public FrameLighting Stir(FrameLighting light, float t, Vector3 from)
+    {
+        if (Tuning.Atmosphere.Dawn is not { } d || t <= 0)
+            return light;
+        t = Math.Clamp(t, 0, 1);
+        var flat = new Vector3(from.X, 0, from.Z);
+        if (flat.LengthSquared() < 1e-6f)
+            return light;
+        light.Stir = t * d.Stir.Strength;
+        light.StirDirection = Vector3.Normalize(flat);
+        light.StirColour = Vector3.Lerp(d.Stir.Bruise, d.Stir.Line, t * t);
+        return light;
+    }
 
     /// <summary>
     /// <paramref name="light"/> with the dawn <paramref name="t"/> of the way up (0..1, eased): the fog lightening to the

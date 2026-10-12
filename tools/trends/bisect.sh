@@ -75,6 +75,10 @@ out="$WORK/results/$sha"
 mkdir -p "$out"
 if [ ! -f "$out/done" ]; then
   echo "bisect: $sha $(git log -1 --format=%s | cut -c1-90)" >&2
+  # Note 622: a harness from before --as-app ignores it, and its nights would be the harness's own, not the app's.
+  if [[ " $HARNESS " == *" --as-app "* ]] && ! grep -q -- '"--as-app"' src/DarkTerritory.Cli/Program.cs; then
+    echo "bisect: $sha's harness has no --as-app: skipped" >&2; exit 125
+  fi
   dotnet build src/DarkTerritory.Cli -c Release -nologo -v quiet > "$out/build.log" 2>&1 || { echo "bisect: $sha doesn't build: skipped" >&2; exit 125; }
   pids=() fail=0
   for seed in $SEEDS; do
@@ -119,6 +123,10 @@ end_value() {
   (cd "$tree" && "$work/step.sh") > /dev/null || { echo "bisect: couldn't measure $sha" >&2; exit 2; }
   jq -r .value "$work/results/$sha/judge.json"
 }
+if [[ " $harness " == *" --as-app "* ]] && ! git -C "$repo" show "$good:src/DarkTerritory.Cli/Program.cs" | grep -q -- '"--as-app"'; then
+  echo "bisect: the good end's harness has no --as-app (note 622): it can't measure the app's nights; take a good end from after it" >&2
+  exit 2
+fi
 goodv=$(end_value "$good")
 badv=$(end_value "$bad")
 echo "bisect: $metric is $goodv at the good end (${good:0:8}), $badv at the bad (${bad:0:8})" >&2

@@ -125,25 +125,30 @@ public class CampaignTests
     [Fact]
     public void EveryContractCarriesAFreightAndTheCometPaysBest()
     {
-        var s = Campaign.Campaign.New(C, 1, "test", 99) with { Cars = 8 };
-        var board = Campaign.Campaign.Offers(C, R, s);
+        // No stop loads comet material and the train leaves empty (note 575), so main's board carries no comet contract;
+        // the rules for one stand, for when the director says where it's loaded.
+        Assert.False(C.Contracts.Comet);
+        Assert.DoesNotContain(Campaign.Campaign.Offers(C, R, Campaign.Campaign.New(C, 1, "test", 99) with { Cars = 8 }), c => c.Cargo == Train.CargoKind.Comet);
+        var rules = C with { Contracts = C.Contracts with { Comet = true } };
+        var s = Campaign.Campaign.New(rules, 1, "test", 99) with { Cars = 8 };
+        var board = Campaign.Campaign.Offers(rules, R, s);
         // Each ordinary contract's freight is one of campaign.json's; the comet is one more, at the consist's own tier.
-        Assert.All(board.Where(c => c.Cargo != Train.CargoKind.Comet), c => Assert.Contains(c.Cargo, C.Contracts.Cargo));
+        Assert.All(board.Where(c => c.Cargo != Train.CargoKind.Comet), c => Assert.Contains(c.Cargo, rules.Contracts.Cargo));
         var comet = Assert.Single(board, c => c.Cargo == Train.CargoKind.Comet);
-        Assert.Equal(Campaign.Campaign.TierFor(C, s.Cars), comet.Tier);
+        Assert.Equal(Campaign.Campaign.TierFor(rules, s.Cars), comet.Tier);
         Assert.All(board.Where(c => c != comet), c => Assert.True(comet.PerCar > c.PerCar, $"{c.Cargo} {c.PerCar} vs comet {comet.PerCar}"));
         // Over many nights the freights vary, and the comet always pays best (B.9: "the best freight payout").
         var seen = new HashSet<Train.CargoKind>();
         for (int run = 0; run < 60; run++)
         {
-            var night = Campaign.Campaign.Offers(C, R, s with { Runs = run });
+            var night = Campaign.Campaign.Offers(rules, R, s with { Runs = run });
             foreach (var c in night)
                 seen.Add(c.Cargo);
             var best = night.MaxBy(c => c.PerCar)!;
             Assert.Equal(Train.CargoKind.Comet, best.Cargo);
         }
         Assert.True(seen.Count >= 6, string.Join(", ", seen));
-        Assert.All(C.Contracts.Cargo, c => Assert.True(R.Economy.Rate(Train.CargoKind.Comet) > R.Economy.Rate(c)));
+        Assert.All(rules.Contracts.Cargo, c => Assert.True(R.Economy.Rate(Train.CargoKind.Comet) > R.Economy.Rate(c)));
         // The contract goes with the night, and a save from before cargo reads as goods.
         var begun = Campaign.Campaign.Begin(s, comet);
         Assert.Equal(Train.CargoKind.Comet, begun.Current!.Cargo);

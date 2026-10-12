@@ -90,7 +90,12 @@
     "rigSeconds": 2,
     // A casting let go more than this above what's under it falls, and kills anyone within this of where it lands.
     "dropAbove": 0.6,
-    "crushRadius": 1.4
+    "crushRadius": 1.4,
+    // Note 581 (the director, 9 Oct 2026: "extremely difficult to get loot into the cars, the game should be more forgiving"):
+    // a casting with its base this low over an open hatch's roof that overlaps the opening but doesn't clear it is eased over
+    // it, the bridge and trolley drawn there at guideSpeed (m/s, about the bridge's own speed); let go there, it's put through.
+    "guideAbove": 2.5,
+    "guideSpeed": 1.0
   },
   // GDD §18's set pieces (WP15, ARCHITECTURE §8 note 185).
   // The grain elevator: "one spout, one car at a time. Endless repositioning and switch calls" (spec D.2's gravity chute,

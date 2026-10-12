@@ -3,11 +3,14 @@
 {
   // First slot at least firstMinM and firstMinShare of the line from the gate; slots spacingM apart; the last this far
   // before the terminus. The approach: a straight (or gently curved) nearly level kilometre, then the holding track
-  // (level, the consist plus holdingExtraM) up to the facing junction, and a departure lull after. Boards 2 km and 1 km
-  // out. Spurs this long and graded (spec D.1: 0-4%); the pickup shelter (spec E drop-in) this far from the track.
+  // (level, the consist plus holdingExtraM) up to the facing junction, and a departure lull after. Boards 1 km and 500 m
+  // out (boardFarM, boardNearM; 2 km and 1 km before the 7 km nights). Spurs this long and graded (spec D.1: 0-4%); the
+  // pickup shelter (spec E drop-in) this far from the track.
+  // The 7 km night (note 554): lastBeforeEndM 1700 (was 5000, then 1300) leaves the spike window (tiers.json budget) clear
+  // of the last stop.
   "slots": {
-    "firstMinM": 3000, "firstMinShare": 0.15, "spacingM": 3000, "lastBeforeEndM": 5000, "approachM": 1000, "approachMinRadius": 800,
-    "holdingExtraM": 50, "holdingGrade": 0.2, "departureM": 500, "boardFarM": 2000, "boardNearM": 1000,
+    "firstMinM": 1250, "firstMinShare": 0.1, "spacingM": 1100, "lastBeforeEndM": 1700, "approachM": 500, "approachMinRadius": 800,
+    "holdingExtraM": 50, "holdingGrade": 0.2, "departureM": 300, "boardFarM": 1000, "boardNearM": 500,
     "spurLengthM": [100, 100], "spurGrade": [0, 0], "pickupFromTrackM": 12
   },
   // Plan §11.1's table. biomes: where each belongs (a weight, 0 or missing: not there); intent: the terrain it wants
