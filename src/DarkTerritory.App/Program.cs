@@ -730,7 +730,8 @@ while (!window.CloseRequested && !QuitNow())
     if (fromCommandLine)
         break;
     if (leaving is Launch.CampaignNight night)
-        frontEnd.ShowFortress(night.Slot, campaign?.History.LastOrDefault() is { } log && campaign.Current is null
+        frontEnd.ShowFortress(night.Slot, campaign is { Over: true } ? $"TAKEN AT DAWN. {Hud.CampaignOver}."
+            : campaign?.History.LastOrDefault() is { } log && campaign.Current is null
             ? $"{log.End}: {(log.Net >= 0 ? "+" : "")}{log.Net:0} scrip" : null);
     else
         frontEnd.NightOver();
@@ -1656,7 +1657,8 @@ static CampaignState Autosave(SaveSlots saves, CampaignState campaign, NetPlaySe
     {
         // E.6: the shuffle bag goes into the save with the night (a derail drew from it).
         // Note 281: and the town it left, so the next night's isn't the same custom again.
-        var settled = Campaign.Settle(campaign, report) with { Music = session.MusicBag ?? campaign.Music, LastTown = session.World.Town?.Plan.Culture ?? campaign.LastTown };
+        // Note 632: a train taken at dawn ends the campaign (campaign.json dawnEndsCampaign).
+        var settled = Campaign.Settle(campaign, report, DataFile.Load<CampaignTuning>(Path.Combine(content, CampaignTuning.File))) with { Music = session.MusicBag ?? campaign.Music, LastTown = session.World.Town?.Plan.Culture ?? campaign.LastTown };
         // Note 591: delivered to a town, the crew's in it, and the next night departs from it.
         if (session.Route is { } arrived)
             settled = Campaign.Arrived(settled, report, DarkTerritory.Sim.Towns.TownAt.Terminus(arrived,

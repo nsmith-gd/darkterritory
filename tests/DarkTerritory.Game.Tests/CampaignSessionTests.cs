@@ -90,6 +90,23 @@ public class CampaignSessionTests
         Assert.Equal(host.Host.Train.Dynamics.Tuning.Performance[0].Brake, joiner.Train.Dynamics.Tuning.Performance[0].Brake);
     }
 
+    /// <summary>
+    /// Note 632: a campaign's night tells every machine that a train taken at dawn ends the campaign, so the joiner's end card
+    /// says so as the host's does (Hud.CampaignOver). A quick night isn't a campaign's.
+    /// </summary>
+    [Fact]
+    public void EveryMachineKnowsACampaignsNightEndsItAtDawn()
+    {
+        var s = Campaign.New(C, 1, "test", 3);
+        var setup = HostedAsApp.Campaign(s, new Contract(RouteTier.Local, 5, 450), enemies: false);
+        using var host = NetPlaySession.HostGame(Content, setup, port: 0);
+        Assert.True(host.Host!.World.DawnEndsCampaign);
+        using var joiner = NetPlaySession.Join(Content, new System.Net.IPEndPoint(System.Net.IPAddress.Loopback, host.Port), () => host.Step(default));
+        Assert.True(joiner.World.DawnEndsCampaign);
+        using var quick = NetPlaySession.HostGame(Content, new SessionSetup(Route: "local:5", Cars: 3, Enemies: false), port: 0);
+        Assert.False(quick.Host!.World.DawnEndsCampaign);
+    }
+
     [Fact]
     public void LeavingAFacilityAutosavesAndTheNightResumesFromThere()
     {

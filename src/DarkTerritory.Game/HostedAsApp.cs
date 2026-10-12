@@ -36,6 +36,7 @@ public static class HostedAsApp
             SpareExtinguishers = s.Stores.Extinguishers,
             LastTown = s.LastTown,
             Burnt = s.Burnt.Count > 0 ? s.Burnt : null,
+            CampaignNight = true,
         };
 
     /// <summary>The harness's arguments for <paramref name="setup"/>'s night with <paramref name="bots"/> bots, for up to

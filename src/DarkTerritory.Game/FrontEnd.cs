@@ -1235,6 +1235,13 @@ public sealed class FrontEnd
                 return null;
             });
         string underway = s.Current is null ? "" : ", a night under way";
+        // Note 632 (the director, the inbox, 12 Oct: "the campaign ends"): a crew whose train was taken at dawn is done.
+        if (s.Over)
+            return new(new($"SLOT {slot}: {CrewName(s).ToUpperInvariant()}, TAKEN AT DAWN", $"{s.Runs} nights. The company has no more trains for them."), () =>
+            {
+                ShowFortress(slot);
+                return null;
+            });
         return new(new($"SLOT {slot}: {CrewName(s).ToUpperInvariant()}", $"{s.Cars} cars, {s.Scrip:0} scrip, {s.Runs} nights{underway}"), () =>
         {
             ShowFortress(slot);
@@ -1246,6 +1253,8 @@ public sealed class FrontEnd
     {
         if (Open is not { } s)
             return [BackTo(Screen.Slots)];
+        if (s.Over)
+            return OverEntries(s);
         var list = new List<Entry>();
         if (s.Current is { } tonight)
         {
@@ -1303,6 +1312,27 @@ public sealed class FrontEnd
         list.Add(new(new("DELETE THIS CREW", $"Slot {s.Slot} emptied for a new crew. It asks first."), Go(Screen.DeleteCrew)));
         list.Add(BackTo(Screen.Slots));
         return list;
+    }
+
+    /// <summary>
+    /// A slot whose campaign is over (note 632; the director, the inbox, 12 Oct: a train taken at dawn ends it): what the crew
+    /// came to, and in place of the board, a new crew from the fortress in the same slot.
+    /// </summary>
+    List<Entry> OverEntries(CampaignState s)
+    {
+        var last = s.History.LastOrDefault();
+        return
+        [
+            new(new(Hud.CampaignOver, $"{CrewName(s)}'s train was taken at dawn{(last is null ? "" : $" on {last.Route}")}, after {s.Runs} nights.", Heading: true)),
+            new(new("A NEW CREW", "Start again from a fortress: three cars on local work, and no scrip. This crew's save is gone."), () =>
+            {
+                var fresh = Campaign.New(_campaign, s.Slot, DefaultCrewName(s.Slot), _newSeed());
+                _saves.Save(fresh);
+                ShowFortress(s.Slot, "A new crew has signed on.");
+                return null;
+            }),
+            BackTo(Screen.Slots),
+        ];
     }
 
     List<Entry> UpgradeEntries()

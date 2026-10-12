@@ -613,6 +613,8 @@ object CampaignCommand(string content, string verb, string[] args)
     {
         slot = s.Slot,
         s.Name,
+        // Note 632: taken at dawn, the campaign's over (no board; a new crew with dt campaign new).
+        over = s.Over,
         cars = s.Cars,
         scrip = Math.Round(s.Scrip),
         runs = s.Runs,
@@ -678,6 +680,8 @@ object CampaignCommand(string content, string verb, string[] args)
             {
                 // A night on a contract from the board, crewed by bots (they drive, shoot, and load at winch stops), settled.
                 var s = Load();
+                if (s.Over)
+                    return new { error = $"slot {slot}'s campaign is over (taken at dawn): the company has no more trains for {s.Name}. dt campaign new --slot {slot}", board = Board(s) };
                 var contract = DarkTerritory.Sim.Campaign.Campaign.Offers(t, runTuning, s)[(int)Opt(args, "--contract", 0)];
                 s = DarkTerritory.Sim.Campaign.Campaign.Begin(s, contract);
                 // The night as the app hosts it (note 616): the slot's setup (HostedAsApp.Campaign), the train at the gate, the crew
@@ -710,7 +714,7 @@ object CampaignCommand(string content, string verb, string[] args)
                     : null;
                 var fromTown = s.Town;
                 // As the app settles it (note 591): delivered to a town, the crew's in it for the next night.
-                s = DarkTerritory.Sim.Campaign.Campaign.Arrived(DarkTerritory.Sim.Campaign.Campaign.Settle(s, night), night,
+                s = DarkTerritory.Sim.Campaign.Campaign.Arrived(DarkTerritory.Sim.Campaign.Campaign.Settle(s, night, t), night,
                     DarkTerritory.Sim.Towns.TownAt.Terminus(route, DarkTerritory.Sim.LineGen.LineGenContent.Cached(content).Config.Tiers.Fortress.Identities));
                 s = s with { LastTown = departed ?? s.LastTown };
                 saves.Save(s);
@@ -3108,6 +3112,9 @@ static object HudShot(string content, string[] args)
         var json = doc.RootElement.TryGetProperty("night", out var n) ? n : doc.RootElement;
         played.MirrorReport(json.Deserialize<DarkTerritory.Sim.Run.RunReport>(DataFile.Options)!);
     }
+    // --campaign: a campaign's night, so a train taken at dawn ends it and the end card says so (note 632).
+    if (args.Contains("--campaign"))
+        session.World.DawnEndsCampaign = true;
     var frames = session.InterpolatedFrames(1);
     var camera = session.EyeCamera(frames, 1, 0, 0);
     // --loading [built]: the next night's loading card over the town the crew's in (note 604), from its square; "built", the
