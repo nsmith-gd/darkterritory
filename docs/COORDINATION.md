@@ -173,6 +173,10 @@ per creature in its store's `creatures` (id: the creature's name in `enemies.jso
   measure it, and when it merges set `game` to `want` and write `reply` and `replyAt` (what changed, the PR, what it did
   to a night). A note you can't do as written gets an answer in `reply` just the same.
 - A creature added to the game gets its document (`name`, `order`, `blurb` in gameplay terms, `want` and `game` alike).
+- **The estimate** the page shows comes from measured nights (`model/calibration`, written by `tools/tweaker/calibrate.py`
+  from `dt harness --as-app` reports, 4 bots, enemies). After a change goes in, or when `requests/measure` is `open` (the
+  director's "Measure my values"), play the nights on each tier, write each creature's `measured.<tier>` (`perNight`,
+  `nights`, `at`), refresh `model/calibration`, and set the request `done` with `doneAt`.
 
 ## The queue
 
