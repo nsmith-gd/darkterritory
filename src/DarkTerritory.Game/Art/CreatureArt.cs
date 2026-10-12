@@ -169,7 +169,7 @@ public sealed partial class CreatureArt
     /// <summary>
     /// How the ones the sim lets go of in sight are seen going (GreyboxScene.Retreating, note 458): off the train or the
     /// ground they stood on, out from the line at <c>Out</c> m/s, facing away, for <c>Seconds</c>; then lost in the dark. What
-    /// flies lifts at <c>Rise</c> m/s instead of falling.
+    /// flies lifts at <c>Rise</c> m/s instead of falling, and what goes down into the ground sinks at −<c>Rise</c>.
     /// Null: one that isn't drawn going this way (killed ones fall, the Choir disperses, the Track Doll flickers, the Car
     /// Hugger rides its car away, a hound on the line runs off; the rest aren't seen go, or have no body to see).
     /// </summary>
@@ -195,6 +195,13 @@ public sealed partial class CreatureArt
         EnemyKind.FreightBeetle => (2.5, 3.5, 0),
         EnemyKind.TowerJaw => (2.5, 3.5, 0),
         EnemyKind.Mourners => (1.5, 5.0, 0),       // walking off, slow
+        // The stops' own (note 645): the Pickers down into the ground where they stand (their descend, head first); the Lodger
+        // slinking off into the dark, and the Householder walking off, stiff; the Hanger drawn up into its roof. (The Hollow
+        // House stays: it's the house itself, note 585.)
+        EnemyKind.Pickers => (0.4, 0.6, -1.2),
+        EnemyKind.Lodger => (2.0, 3.0, 0),
+        EnemyKind.Householder => (1.2, 4.0, 0),
+        EnemyKind.Hanger => (0, 1.2, 0.8),
         _ => null,
     };
 
@@ -1533,7 +1540,7 @@ public sealed partial class CreatureArt
         if (Outside(mesh, model, kind, phase, t, extra, extra2) is { } outside)
             return outside;
         // The house creatures (notes 585, 586; CreatureArt.Houses.cs).
-        if (Houses(mesh, model, kind, t) is { } houses)
+        if (Houses(mesh, model, kind, phase, t) is { } houses)
             return houses;
         float pulse = (float)(0.5 + 0.5 * Math.Sin(t * 9));
         switch (kind)

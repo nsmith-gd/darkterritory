@@ -163,6 +163,22 @@ public class PickersTests
     }
 
     [Fact]
+    public void OneLetGoOfMidCarryDropsItsCrateWhereItIs()
+    {
+        // Note 645: let go of at dawn (note 635) carrying, it's gone; its crate isn't left hanging, nor taken by nobody.
+        var n = new Night(4, speed: 0);
+        var (crate, pickers, _) = Stage(n);
+        Run(n, 4);
+        Assert.Equal(pickers[0].Id, crate.TakenBy);
+        pickers[0].Dismiss();
+        Run(n, 2);
+        Assert.Equal(-1, crate.TakenBy);
+        Assert.True(Present(n, crate));
+        double hint = n.Train.Dynamics.Distance;
+        Assert.True(crate.Centre.Y - PlayerMotor.GroundAt(crate.Centre, n.Train.Line, ref hint) < 0.8, "down on the ground");
+    }
+
+    [Fact]
     public void TheSameNightTwiceIsTheSame()
     {
         static string Play()

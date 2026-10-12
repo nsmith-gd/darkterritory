@@ -653,6 +653,9 @@ public class CreatureArtTests(CreatureArtTests.TurntableRig rig) : IClassFixture
     [InlineData(EnemyKind.FreightBeetle, "freight_beetle", false)]
     [InlineData(EnemyKind.TowerJaw, "tower_jaw", false)]
     [InlineData(EnemyKind.Mourners, "mourner", false)]
+    // The stops' own walking off (note 645).
+    [InlineData(EnemyKind.Lodger, "lodger", false)]
+    [InlineData(EnemyKind.Householder, "householder", false)]
     public void OneLetGoOfInSightIsSeenGoingOffIntoTheDarkThenIsGone(EnemyKind kind, string asset, bool aboard)
     {
         // GreyboxScene.Retreating (note 458): the sim has one gone the tick it's done with it (a Climber outnumbered, a Whistler
@@ -701,6 +704,48 @@ public class CreatureArtTests(CreatureArtTests.TurntableRig rig) : IClassFixture
         Assert.True((going - from).Length() > 0.8 * outward, $"{kind}: moved {(going - from).Length():0.0} m from where it was");
         Assert.True(going.Length() > was.Length() + 0.5 * outward, $"{kind}: away from the eye: {was.Length():0.0} → {going.Length():0.0} m");
         Assert.Empty(Drawn(CreatureArt.Retreat(kind)!.Value.Seconds + 0.2));
+    }
+
+    [Theory]
+    [InlineData(EnemyKind.Pickers, "picker", 0.0)]
+    [InlineData(EnemyKind.Hanger, "hanger", 2.3)]
+    public void APickerLetGoOfGoesDownIntoTheGroundAndAHangerUpIntoItsRoof(EnemyKind kind, string asset, double up)
+    {
+        // Note 645: at dawn (note 635) the stops' own are let go of like the rest; a Picker isn't seen walk off but go down,
+        // head first, where it stands, and a Hanger is drawn up into the roof it hangs in. Both are then gone.
+        var tuning = DataFile.Load<Sim.Train.TrainTuning>(Path.Combine(Content, Sim.Train.TrainTuning.File));
+        var line = Sim.Rail.RailLine.Load(Path.Combine(Content, "lines", "test-loop.json"));
+        var train = new Sim.Train.TrainOnLine(new Sim.Train.TrainDynamics(Sim.Train.Consist.Uniform(tuning, 6, 1)), line, 1200);
+        var f = train.Frames[2];
+        var at = f.ToWorld(new Double3(f.Shape.HalfWidth + 6, 0, 0));
+        double hint = train.Cars[2].FrontDistance;
+        at = at with { Y = Sim.Player.PlayerMotor.GroundAt(at, line, ref hint) + up };
+        var e = Enemy.Blank(kind, 92, 0);
+        e.Restore(SpinePhase.Telegraph, 1, 1, Enemy.Loose, at, 0, 0, 0, 0, 7);
+        var eye = f.ToWorld(new Double3(-10, 4, 0));
+        var scene = new GreyboxScene { Look = Look, Time = 0.37, Enemies = [], Tick = Staging.StrikeTick };
+        scene.Retreated(e, (uint)(Staging.StrikeTick + 1), 0);
+        List<Vector3> Drawn(double after)
+        {
+            scene.Tick = Staging.StrikeTick + 1 + (long)Math.Round(after * Sim.SimConstants.TickRate);
+            var mesh = new MeshBuilder();
+            scene.Build(mesh, train, eye);
+            return [.. mesh.Instances.Where(i => i.Asset.Name.Contains(asset, StringComparison.OrdinalIgnoreCase)).Select(i => i.Model.Translation)];
+        }
+        var go = CreatureArt.Retreat(kind)!.Value;
+        // Where it's drawn: its model's place (the middle of them, were it several).
+        static float Height(List<Vector3> drawn)
+        {
+            Assert.NotEmpty(drawn);
+            return drawn.Average(d => d.Y);
+        }
+        var start = Height(Drawn(0.05));
+        var later = Height(Drawn(go.Seconds * 0.6));
+        if (go.Rise < 0)
+            Assert.True(later < start - 0.2f, $"{kind}: down into the ground: {start:0.00} → {later:0.00}");
+        else
+            Assert.True(later > start + 0.2f, $"{kind}: up into its roof: {start:0.00} → {later:0.00}");
+        Assert.Empty(Drawn(go.Seconds + 0.2));
     }
 
     [Theory]
