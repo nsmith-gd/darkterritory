@@ -794,11 +794,11 @@ written here instead is moved out by `tools/coord/notes.py split`; the Coordinat
 - [620. The bots break a crewmate out of a Holdout off the line (D1.5, queue #346: the stands with a crewmate held dead)](notes/620.md)
 - [621. The driver's run-home reckoning, honest (queue #351, D1.2 for D1; after #341 and #349, notes 609 and 617: "the one thing between a bot crew…](notes/621.md)
 - [622. `dt trends` hosts its nights the app's way (D1.5, queue #352, at D1's ask after note 616: "the trend lines measure what the director plays")](notes/622.md)
-- [623. The bots carry a body home from the Mourners (D1.5, queue #353, D1's ask after tracing deadLines:3's missed dawns; note 367's "not yet")](notes/623.md)
+- [623. The bots carry a body home from the Mourners (D1.5, queue #353, D1's ask after tracing deadLines:3's missed dawns; note 367's "not yet": "a…](notes/623.md)
 - [624. The GDD and the Wiki brought up to today's game (D1.4, queue #354, at D1's ask after #806: "it's docs, but the director reads them")](notes/624.md)
 - [625. Late Dispatch, a little more time again (D1.4, queue #355, at D1's ask after note 624: "its `dawnGraceSeconds` does nothing with the Wakers…](notes/625.md)
 - [626. Two hands at one guttering lamp: not seen, so not changed (D1.4, queue #356, note 619's not-yet, at D1's ask: "if it shows in a sweep,…](notes/626.md)
 - [627. A guttering lamp nobody reaches (D1.4, queue #357, note 626's find, at D1's ask: "a dark car invites the Climbers, so it's worth a walker's…](notes/627.md)
 - [628. The switchyard pick-up, fast and steady (queue #358, D1.2 for D1; after #818, note 621: "its own 148–518 s spread is now the biggest thing…](notes/628.md)
-- [629. The Climbers into dark cars (D1.4, queue #359, note 627's find)](notes/629.md)
+- [629. The Climbers into dark cars (D1.4, queue #359, note 627's find, at D1's ask: "that's the bigger fish")](notes/629.md)
 <!-- end of the notes index -->
