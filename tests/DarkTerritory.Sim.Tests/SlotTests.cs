@@ -36,7 +36,11 @@ public class SlotTests
             var room = f.Shape.Interior!.Value;
             var s = new PlayerState
             {
-                Parent = f.Index, Position = new Double3(0, 1.1, room.Max.Z - 1.5), Yaw = 0, Surface = Surface.Deck, Health = Tuning.Player.Health,
+                Parent = f.Index,
+                Position = new Double3(0, 1.1, room.Max.Z - 1.5),
+                Yaw = 0,
+                Surface = Surface.Deck,
+                Health = Tuning.Player.Health,
                 Kit = Kit.Of([Tool.Crowbar, Tool.Wrench]),
             };
             return (world, s, world.Bodies.All.First(b => b.Kind == BodyKind.Loot));
