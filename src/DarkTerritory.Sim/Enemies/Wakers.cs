@@ -39,10 +39,11 @@ public sealed class Waker(int id) : Enemy(id)
 
     /// <summary>
     /// One of the night's creatures, which go to ground at dawn: not a hazard (a car fire, the Drift, the Sleepers, the Wakers
-    /// themselves), nor the trouble in the cars, nor a person (Dave, Jacob).
+    /// themselves), nor the trouble in the cars, nor a person (Dave, Jacob), nor the Hollow House (note 585: it's the house
+    /// itself, and can't run; one gone at dawn would stand up again out of its own wreck).
     /// </summary>
     public static bool NightThing(Enemy e) => !e.Hazard && e is not Incident && e.Kind is not (EnemyKind.Dave or EnemyKind.Jacob
-        or EnemyKind.Waker or EnemyKind.CarFire or EnemyKind.Drift or EnemyKind.Sleepers);
+        or EnemyKind.Waker or EnemyKind.CarFire or EnemyKind.Drift or EnemyKind.Sleepers or EnemyKind.HollowHouse);
 
     double _start, _since;
 

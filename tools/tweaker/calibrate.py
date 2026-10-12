@@ -37,7 +37,11 @@ def key(kind):
 
 
 def load_jsonc(path):
-    s = open(path).read()
+    return parse_jsonc(open(path).read())
+
+
+def parse_jsonc(s):
+    """JSON with // comments and trailing commas, as content/ writes it."""
     out, i, ins = [], 0, False
     while i < len(s):
         c = s[i]
@@ -167,6 +171,8 @@ def main():
     ap.add_argument("--how", default="dt harness --as-app, 4 bots, enemies, 7 km nights")
     ap.add_argument("--at", default="")
     ap.add_argument("--check", action="store_true")
+    ap.add_argument("--writes", help="also write the ArtifactData batch for the Tweaker's store: each creature's measured "
+                    "a night per tier, and model/calibration")
     a = ap.parse_args()
     st = settings(load_jsonc(a.enemies))
     capped = {k for k, s in st.items() if s["perNight"] is not None or s["nightChance"] < 1}
@@ -212,6 +218,16 @@ def main():
         for k in sorted(st0, key=lambda k: -tot.get(k, 0)):
             print(f"   {k:14s} measured {tot.get(k, 0) / n:5.2f}  estimate {e.get(k, 0):5.2f}", file=sys.stderr)
         print(f"   {'all':14s} measured {sum(tot.values()) / n:5.2f}  estimate {sum(e.values()):5.2f}", file=sys.stderr)
+    if a.writes:
+        writes = []
+        for k in sorted(st):
+            m = {}
+            for t, files in by.items():
+                n, tot = counts(files)
+                m[t] = {"perNight": round(tot.get(k, 0) / n, 3), "nights": n, "at": a.at}
+            writes.append({"op": "update", "collection": "creatures", "doc_id": k, "data": {"measured": m}})
+        writes.append({"op": "set", "collection": "model", "doc_id": "calibration", "data": model})
+        json.dump(writes, open(a.writes, "w"), indent=1)
     json.dump(model, sys.stdout, indent=1)
     print()
 

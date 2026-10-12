@@ -101,6 +101,16 @@ public class CreatureArtTests(CreatureArtTests.TurntableRig rig) : IClassFixture
         ["knotter"] = new(6000, 14000, 40, 60, ["creep", "force", "taut", "coil", "exposed"], ["clamp", "slip", "hit", "death"]),
         // Hotbox a beast's (2-8k), the size of a dog; SK_Hotbox's plates, belly and sixteen legs.
         ["hotbox"] = new(2000, 8000, 35, 55, ["clamped", "knock", "glow", "out", "scuttle"], ["unfold", "snap", "prised", "hit", "death"]),
+        // The Hanger (note 586; the director, 9 Oct 2026), a beast's (2-8k): a sac and ten thin legs on its own rig (SK_Hanger: three
+        // bones a leg, the sac breathing by scale, the mouth, two palps); a clip for each of its modes (HangerMode) and its death.
+        ["hanger"] = new(2000, 8000, 30, 45, ["hidden", "haul", "hold", "retreat"], ["grab", "hit", "death"]),
+        // The Pickers (pickers.md §3): a beast's (GDD §27: 2-8k), a group of up to eight at once, so kept light; their own rig
+        // (SK_Picker: three three-boned fingers and a thumb a hand, a jaw, the ears).
+        ["picker"] = new(3000, 7000, 40, 55, ["idle", "scuttle", "carry", "heave", "scatter"], ["grab", "bite", "emerge", "descend", "hit", "death"]),
+        // The house creatures (notes 583, 584): characters (GDD §27: 4-10k), each on its own rig. The Lodger's SK_Lodger: a
+        // jaw that drops open, three three-boned fingers a hand. The Householder's SK_Householder: four three-boned fingers.
+        ["lodger"] = new(5000, 10000, 40, 55, ["hidden", "chase", "break", "return"], ["shriek", "lunge", "hit", "death"]),
+        ["householder"] = new(6000, 10000, 45, 60, ["sit", "watch", "hunt", "grab", "return"], ["rise", "hit", "death"]),
     };
 
     public static TheoryData<string> Models() => [.. CreatureArt.Names];
@@ -131,8 +141,9 @@ public class CreatureArtTests(CreatureArtTests.TurntableRig rig) : IClassFixture
         // car hugger's at its mouth on the rear platform, its body down to the rail; a Choir ghost flies, its strips hanging
         // below where it is; the Stoker's is the firebox door, its body in the fire behind and below it; a Fire Fly's is its
         // body's middle, its legs under it, for the glass it settles on).
-        // (The Knotter's is the gap's middle at the coupler's height, the rope through it.)
-        if (name is not ("clinger" or "dragger" or "weight" or "car_hugger" or "choir" or "stoker" or "fire_fly" or "knotter"))
+        // (The Knotter's is the gap's middle at the coupler's height, the rope through it; the Hanger's the underside of the beams
+        // it hangs from, all of it below but its feet's hooks.)
+        if (name is not ("clinger" or "dragger" or "weight" or "car_hugger" or "choir" or "stoker" or "fire_fly" or "knotter" or "hanger"))
         {
             Assert.InRange(m.Min.Y, -0.02f, 0.05f);
             Assert.InRange((m.Min.X + m.Max.X) / 2, -0.25f, 0.25f);
@@ -189,6 +200,22 @@ public class CreatureArtTests(CreatureArtTests.TurntableRig rig) : IClassFixture
         var hotbox = Get("hotbox");
         Assert.InRange(hotbox.Max.Z - hotbox.Min.Z, 1.3f, 1.65f);
         Assert.InRange(Height(hotbox), 0.3f, 0.5f);
+        // The Hanger (note 586): hung upside down from the beams at its origin, its body and its knees below, its feet's hooks
+        // just up over them; about 2.3 m across its braced legs, a pale sac half a metre deep; its head forward (−Z).
+        var hanger = Get("hanger");
+        Assert.InRange(hanger.Max.Y, 0f, 0.06f);
+        Assert.InRange(hanger.Min.Y, -0.8f, -0.45f);
+        Assert.InRange(hanger.Max.X - hanger.Min.X, 2.0f, 2.6f);
+        Assert.True(hanger.Min.Z < -0.9f, "the hanger's front legs reach forward (−Z)");
+        // The Pickers (pickers.md §3): knee-high, about 0.5 m at the shoulder and 0.9 m long, crouched on all fours at rest; the
+        // head and the long hands forward (−Z).
+        var picker = Get("picker");
+        Assert.InRange(Height(picker), 0.45f, 0.62f);
+        Assert.InRange(picker.Max.Z - picker.Min.Z, 0.75f, 1.0f);
+        Assert.True(picker.Min.Z < -0.4f, "the picker's head and hands are forward (−Z)");
+        // The Lodger (lodger.md): about 2.1 m stood up; the Householder tall and thin, about 1.95 m.
+        Assert.InRange(Height(Get("lodger")), 2.0f, 2.2f);
+        Assert.InRange(Height(Get("householder")), 1.88f, 2.02f);
         var sleeper = Get("sleeper");
         Assert.InRange(sleeper.Max.X - sleeper.Min.X, 2.5f, 3.1f);
         Assert.InRange(Height(sleeper), 0.2f, 0.45f);
@@ -260,6 +287,76 @@ public class CreatureArtTests(CreatureArtTests.TurntableRig rig) : IClassFixture
         Assert.InRange(b, a / 4, a * 6 / 10);
         Assert.Equal(full.Materials.Length, lod.Materials.Length);
         Assert.All(lod.Parts, p => Assert.All(p.Joints, j => Assert.InRange(j, 0, full.Skeleton.Count - 1)));
+    }
+
+    /// <summary>
+    /// The Pickers, the Lodger and the Householder (notes 574, 583, 584): no part of one through another beyond touching in
+    /// any clip (Clearance.Mesh, as the demo's), and a distance copy two fifths or so of it on the same bones (a group of
+    /// Pickers is eight at once).
+    /// </summary>
+    [Theory]
+    [InlineData("picker")]
+    [InlineData("lodger")]
+    [InlineData("householder")]
+    public void TheYardAndHouseCreaturesStayOutOfThemselvesAndHaveADistanceCopy(string name)
+    {
+        var full = Get(name);
+        var through = Clearance.Mesh(full).Where(o => o.Depth > Clearance.Touching).ToList();
+        Assert.True(through.Count == 0, string.Join("; ", through.Select(o => $"{o.Clip} {o.Pair} {o.Depth:0.000} at {o.At:0.00} s")));
+        var lod = Art.LodOf(name);
+        Assert.NotNull(lod);
+        int a = full.Parts.Sum(p => p.Triangles), b = lod.Parts.Sum(p => p.Triangles);
+        Assert.InRange(b, a / 4, a * 6 / 10);
+        Assert.Equal(full.Materials.Length, lod.Materials.Length);
+    }
+
+    /// <summary>
+    /// Every mode the sim gives a Picker, the Lodger and the Householder has a clip of its own (CreatureArt.PickerClip,
+    /// LodgerClip, HouseholderClip), and is drawn from the enemy's own state; a Picker down its drain isn't drawn.
+    /// </summary>
+    [Fact]
+    public void TheYardAndHouseCreaturesDrawEveryModeFromTheSimsState()
+    {
+        var picker = Get("picker");
+        foreach (var mode in Enum.GetValues<PickerMode>())
+            foreach (double t in new[] { 0.0, 0.2, 3.0 })
+                if (CreatureArt.PickerClip(mode, null, t, 2.5f) is { } play)
+                    Assert.Contains(play.Clip, picker.ClipNames);
+        Assert.Null(CreatureArt.PickerClip(PickerMode.Down, PickerMode.Down, 1.0, 0));
+        Assert.Equal("bite", CreatureArt.PickerClip(PickerMode.Scatter, PickerMode.Bite, 0.1, 4)?.Clip);
+        Assert.Equal("grab", CreatureArt.PickerClip(PickerMode.Carry, PickerMode.Scuttle, 0.1, 2)?.Clip);
+        foreach (var mode in Enum.GetValues<LodgerMode>())
+            foreach (double t in new[] { 0.0, 0.7, 3.0 })
+                Assert.Contains(CreatureArt.LodgerClip(mode, t, 3).Clip, Get("lodger").ClipNames);
+        foreach (var mode in Enum.GetValues<HouseholderMode>())
+            Assert.Contains(CreatureArt.HouseholderClip(mode, 0.5).Clip, Get("householder").ClipNames);
+
+        var mesh = new MeshBuilder();
+        var model = Matrix4x4.CreateTranslation(0, 0, -6);
+        int Drawn(Enemy e)
+        {
+            mesh.Clear();
+            Assert.True(Art.Enemy(mesh, model, e, modeSeconds: 0.6));
+            return mesh.Flattened().Length + mesh.Instances.Count;
+        }
+        foreach (var mode in Enum.GetValues<PickerMode>())
+        {
+            var p = new Picker(1);
+            p.Restore(SpinePhase.Telegraph, 0.6, 1, Enemy.Loose, default, 0, 0, (double)mode, -1, 0);
+            Assert.True(mode == PickerMode.Down ? Drawn(p) == 0 : Drawn(p) > 0, $"picker {mode}");
+        }
+        foreach (var mode in Enum.GetValues<LodgerMode>())
+        {
+            var l = new Lodger(2);
+            l.Restore(SpinePhase.Alert, 0.6, 1, Enemy.Loose, default, 0, 0, (double)mode, -1, 0);
+            Assert.True(Drawn(l) > 0, $"lodger {mode}");
+        }
+        foreach (var mode in Enum.GetValues<HouseholderMode>())
+        {
+            var h = new Householder(3);
+            h.Restore(SpinePhase.Alert, 0.6, 1, Enemy.Loose, default, 0, 0, (double)mode, -1, 0);
+            Assert.True(Drawn(h) > 0, $"householder {mode}");
+        }
     }
 
     [Theory]
@@ -343,7 +440,9 @@ public class CreatureArtTests(CreatureArtTests.TurntableRig rig) : IClassFixture
                     // mound sunk in the low ground by the line, App. A.3 LURK.)
                     bool hidden = kind == EnemyKind.Dragger && phase is not (SpinePhase.Telegraph or SpinePhase.Grab or SpinePhase.Punish)
                         || kind == EnemyKind.Stoker
-                        || kind == EnemyKind.FireFlies && phase == SpinePhase.Dormant;
+                        || kind == EnemyKind.FireFlies && phase == SpinePhase.Dormant
+                        // The Hollow House is its house (GreyboxScene.Houses moves the house's own drawing): nothing of its own.
+                        || kind == EnemyKind.HollowHouse;
                     // A car fire is an effect (Effects.CarFire): smoke and flame billboards, no triangles of its own.
                     if (kind == EnemyKind.CarFire)
                         Assert.True(mesh.AlphaFx.Count + mesh.AdditiveFx.Count > 0, $"{kind} {phase} drew no smoke or flame");
@@ -547,6 +646,13 @@ public class CreatureArtTests(CreatureArtTests.TurntableRig rig) : IClassFixture
     [InlineData(EnemyKind.Gaunt, "gaunt", false)]
     [InlineData(EnemyKind.Switchman, "switchman", false)]
     [InlineData(EnemyKind.Gannet, "gannet", true)]
+    // The night things going to ground at dawn (note 642), and any of these let go of otherwise.
+    [InlineData(EnemyKind.Brakeman, "brakeman", true)]
+    [InlineData(EnemyKind.Grumbler, "grumbler", false)]
+    [InlineData(EnemyKind.Moose, "moose", false)]
+    [InlineData(EnemyKind.FreightBeetle, "freight_beetle", false)]
+    [InlineData(EnemyKind.TowerJaw, "tower_jaw", false)]
+    [InlineData(EnemyKind.Mourners, "mourner", false)]
     public void OneLetGoOfInSightIsSeenGoingOffIntoTheDarkThenIsGone(EnemyKind kind, string asset, bool aboard)
     {
         // GreyboxScene.Retreating (note 458): the sim has one gone the tick it's done with it (a Climber outnumbered, a Whistler
