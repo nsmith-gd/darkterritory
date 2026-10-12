@@ -94,13 +94,24 @@ public sealed partial class WorldArt
     /// </summary>
     public BoardSite HandLaidSite(RailLine line, double s, int side, string type, string text)
     {
+        if (!ReferenceEquals(_handLaidFor, line))
+        {
+            _handLaid.Clear();
+            _handLaidFor = line;
+        }
+        var key = (s, side, type, text);
+        if (_handLaid.TryGetValue(key, out var site))
+            return site;
         var (boards, rules) = HandLaidSignage;
         var def = boards.GetValueOrDefault(type);
         double ground = line.Sample(Math.Clamp(s, 0, line.Length)).Position.Y - 0.3;
         // (Stood where it's put: a hand-laid line has no land to hide it.)
-        return LinesideProps.Place(def, BoardLayout.Of(type, text, def, rules), rules with { MaxBackM = 0 }, "main", line, s, side, type, text,
+        return _handLaid[key] = LinesideProps.Place(def, BoardLayout.Of(type, text, def, rules), rules with { MaxBackM = 0 }, "main", line, s, side, type, text,
             (_, _) => ground, (_, _, _, _) => true, _ => false, _ => true);
     }
+
+    readonly Dictionary<(double, int, string, string), BoardSite> _handLaid = [];
+    RailLine? _handLaidFor;
 
     /// <summary>The side a board stands on as the train coming sees it (<see cref="BillboardRules.Side"/>; 0: the right, the driver's).</summary>
     public static int BillboardSide(BillboardRules rules) => rules.Side != 0 ? rules.Side : 1;

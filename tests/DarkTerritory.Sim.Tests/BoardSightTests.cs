@@ -132,6 +132,26 @@ public class BoardSightTests
                     Assert.True(b.Along - a.Along >= 10, $"{a.Type} {a.Text} at {a.Along:0} and {b.Type} {b.Text} at {b.Along:0}");
     }
 
+    [Fact]
+    public void TheSimsOwnBoardsStandWhereTheirSightLinesWereCleared()
+    {
+        // The lineside clears for the sim's boards (sight.json's: a bend's advance limit, LOW, MAIL, END) at the default
+        // tuning, before any night's is loaded; the content's puts them in the same places, so the clearing is theirs.
+        var sight = DataFile.Load<Route.SightTuning>(Path.Combine(Content, Route.SightTuning.File));
+        var route = Routes.Generate(Content, "frontier:7", 6);
+        var boards = Route.Lineside.Boards(sight, route).ToList();
+        Assert.Equal(Route.Lineside.Boards(new Route.SightTuning(), route).Select(b => (b.Kind, b.Board)), boards.Select(b => (b.Kind, b.Board)));
+        var side = LinesideProps.Of(route, route.Build())!;
+        Assert.Contains(boards, b => b.Kind == Route.SignKind.Drop);
+        foreach (var b in boards)
+        {
+            var site = side.SightBoard(b);
+            Assert.Same(site, side.SightBoard(b));
+            Assert.Equal(LinesideProps.SightLettering(b).Text, site.Text);
+        }
+        Assert.True(boards.Sum(b => side.SightBoard(b).SeenM) >= 0.9 * boards.Sum(b => side.SightBoard(b).ApproachM));
+    }
+
     static double Distance(double x, double z, double ax, double az, double bx, double bz)
     {
         double dx = bx - ax, dz = bz - az, len = dx * dx + dz * dz;
