@@ -773,6 +773,7 @@ written here instead is moved out by `tools/coord/notes.py split`; the Coordinat
 - [591. Town to town (queue #324, D1; the director, 9 Oct 2026: "the town that we end in in a run should be the same town that we begin in in the…](notes/591.md)
 - [592. The Pickers: scavengers that race the crew for a yard's loot (G1, queue #315; the director, 9 Oct 2026: "other stuff that is more…](notes/592.md)
 - [593. Loot in the abandoned villages (D1.5, queue #325; the director, 9 Oct 2026, playtest, via D1: "I'm not really finding a lot of loot. I feel…](notes/593.md)
+- [594. Loot carried Lethal Company's way: four shared slots (D1.5, queue #326; the director, the inbox, 12 Oct: "Lethal Company's four shared slots")](notes/594.md)
 - [595. A cannon shot throws a switch (queue #327, D1; the director, 9 Oct 2026: "also someone should be able to throw a switch by shooting it with…](notes/595.md)
 - [596. The forward gun turns all the way round, and its gunner sees ahead (queue #328, D1; the director's in-game notes 8 and 9, 9 Oct 2026,…](notes/596.md)
 - [597. The bot leaves your steam alone (queue #329, D1; the director's in-game note 2, 9 Oct 2026: the bot venting pressure all the time)](notes/597.md)
