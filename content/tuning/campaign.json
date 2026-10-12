@@ -94,8 +94,10 @@
   // stores sell none. A save's spares are kept in its file but no longer stowed.
   // The yardstick for `dt campaign sim`: a crew that buys a car as soon as it can also afford upgrades worth
   // smallShare of it (F.3 "one or two small upgrades per car purchase"), a major worth majorShare every majorEvery
-  // cars, loses lossFraction of its cargo on an average night (F.1 "expected loss"), and pays F.1's 15% running
-  // costs. It reaches 20 cars in 56 successful runs, F.4's "roughly 55-60" (6 cars by run 12, 10 by 23, 15 by 39;
-  // F.4 has the early phase quicker, 6 by 8, which would need a crew that buys almost nothing but cars at first).
-  "standardCrew": { "smallShare": 0.3, "majorShare": 1.8, "majorEvery": 2, "lossFraction": 0.25, "runningCosts": 0.15 }
+  // cars. A night brings home `loads` car-loads on its tier (note 636: measured, 64 nights of 4 bots, the train leaving
+  // empty and loading at its one stop, losses already out of it, so lossFraction 0), and coal, ammunition, repairs and
+  // fees less the mail come to runningCosts of its gross. It reaches 20 cars in 56 successful runs, F.4's "roughly
+  // 55-60" (6 cars by run 9, 10 by 21, 15 by 40).
+  "standardCrew": { "smallShare": 0.3, "majorShare": 1.8, "majorEvery": 2, "lossFraction": 0, "runningCosts": 0.05,
+    "loads": { "local": 2.66, "frontier": 2.99, "deadLines": 1.51, "deepTerritory": 0.89 } }
 }
