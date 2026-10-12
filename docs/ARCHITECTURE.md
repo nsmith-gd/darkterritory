@@ -815,6 +815,7 @@ written here instead is moved out by `tools/coord/notes.py split`; the Coordinat
 - [633. Lit and shut keeps the Climbers out (D1.4, queue #363; the director, the inbox, 12 Oct: `D1-lit-shut-keeps-climbers-out`, "b"; note 629's…](notes/633.md)
 - [634. Bots fight a fully burning car together (D1.4, queue #364, the director, the inbox, 12 Oct)](notes/634.md)
 - [635. The director's creature calls of 12 Oct: the Knotter once or twice a night, the night things run at dawn, and the Creature Tweaker (D1,…](notes/635.md)
+- [636. The tiers' pay raised, each harder tier paying more (D1.5, queue #366; the director, the inbox, 12 Oct: "each successful run should help players…](notes/636.md)
 - [637. A contract is just a route (D1.5, queue #367; the director's answer to `D1.5-contracts`: "Just a route", the director, the inbox, 12 Oct)](notes/637.md)
 - [638. The steam lift's lever reaches the clients: a bot driver vents for it (D1.5, queue #368; found under #366, the tiers' pay)](notes/638.md)
 - [639. The bots restart a yard's powerhouse (D1.5, queue #369; found under #366, the tiers' pay)](notes/639.md)
