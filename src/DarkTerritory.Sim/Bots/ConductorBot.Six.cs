@@ -187,16 +187,18 @@ public sealed partial class ConductorBot
 
     /// <summary>
     /// Back onto the cars a Knotter's death left standing behind the train (note 365: the knot's metres behind it, their
-    /// brakes on), at half the couplers' <c>coupleMaxSpeed</c>, aimed a little into them so the rakes touch and couple (as
-    /// the stop's set-back onto its cut, <see cref="StopDriver"/>); coupled, the reverser forward again. Null once it's
-    /// running forward with them, or if they're gone (rolled off, or on another path).
+    /// brakes on), at half the couplers' <c>coupleMaxSpeed</c> over their own speed if they're rolling back, aimed a little
+    /// into them so the rakes touch and couple (as the stop's set-back onto its cut, <see cref="StopDriver"/>); coupled, the
+    /// reverser forward again. Null once it's running forward with them, or if they're gone (run away, or on another path).
     /// </summary>
     PlayerIntent? Recouple(World world)
     {
         var d = world.Train.Dynamics;
         if (LeftStanding(world) is not { } left)
             return world.Controls.Reverser < 0 ? StopDriver.Toward(world, d.Distance + 1000, +1, SetBackSpeed) : null;
-        return StopDriver.Toward(world, left.Distance + d.Tuning.Geometry.CouplingGap - 0.5, -1, d.Tuning.Couplings.CoupleMaxSpeed / 2, rear: true);
+        double rolling = Math.Max(0, -left.Velocity);
+        return StopDriver.Toward(world, left.Distance + d.Tuning.Geometry.CouplingGap - 0.5, -1,
+            d.Tuning.Couplings.CoupleMaxSpeed / 2 + rolling, rear: true, away: rolling);
     }
 
     /// <summary>
@@ -223,11 +225,17 @@ public sealed partial class ConductorBot
     /// <summary>m past a Knotter's gap the cars it left can stand and still be its (they settle a little as it lets go).</summary>
     const double KnotReach = 1;
 
-    /// <summary>The cars a Knotter's death left standing behind the train, on its path, to back onto; null if there are none.</summary>
+    /// <summary>
+    /// The cars a Knotter's death left behind the train, on its path, to back onto; null if there are none. Standing, or
+    /// rolling back off the stand slower than a cut that's lost (note 630: frontier:6 seed 16's seven cars, left on a grade
+    /// their handbrakes don't hold, crept back from under the gap while the crew climbed aboard, and once they'd passed
+    /// 0.05 m/s the driver took them for gone and ran on without them).
+    /// </summary>
     Train.TrainDynamics? LeftStanding(World world)
     {
         var d = world.Train.Dynamics;
         var left = world.Train.Rakes.FirstOrDefault(r => r != d && r.Consist.IndexOf(_knotRear) >= 0);
-        return left is null || Math.Abs(left.Velocity) > 0.05 || left.Path != d.Path || left.Distance > d.RearDistance ? null : left;
+        return left is null || left.Velocity > 0.05 || left.Velocity < -StopDriver.SetBackTop || left.Path != d.Path
+            || left.Distance > d.RearDistance ? null : left;
     }
 }
