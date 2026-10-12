@@ -2103,6 +2103,12 @@ public sealed partial class StopHand(StopJob job, CrewCalls calls, int member, C
         // shunter's walk back to the cut, then forward past the engine to the stand, then to the cab: 68 to 115 s).
         if (ThrowsForTheShunter(world, p))
             return Throw(self, train, p.Spur);
+        // Note 639: the yard's power down (level-design D.1: "the cranes wait on a walk to the powerhouse and a restart"), the
+        // crane's operator walks to the powerhouse and holds the restart till it's live, before the crane: dead, it doesn't
+        // move at all, and at low power at half speed. Nobody did, and a dead yard's crane never lifted a casting.
+        if (Pair == StopJob.Winch0 && !WinchOnly && !calls.Leaving && p.Site.Crane is { } powered && CraneTarget(powered, train) is not null
+            && PowerUp(self, world, p) is { } restart)
+            return restart;
         // The gantry crane (T54, spec D.2): the pair work it first, one at the controls and one rigging, while the cars under
         // the gantry still have room (the crates and the sleds would fill them); then the winch.
         if (Pair is StopJob.Winch0 or StopJob.Winch1 && !WinchOnly && p.Site.Crane is { } crane && (calls.PairNow || crane.Hooked is not null)
@@ -2125,6 +2131,34 @@ public sealed partial class StopHand(StopJob job, CrewCalls calls, int member, C
             StopJob.Crates => Carry(self, world, p),
             _ => Crank(self, world, p),
         };
+    }
+
+    /// <summary>
+    /// Note 639: to the yard's powerhouse (its door, or an open one's switchboard inside, note 509) by the way round the walls,
+    /// and Use held there till the power's live (facilities.json <c>power.restartSeconds</c>; loud while it's held). Null once
+    /// it's live, or with no powerhouse to restart it at. Off a car first, if it's on one.
+    /// </summary>
+    PlayerIntent? PowerUp(in PlayerState self, World world, StopPlan p)
+    {
+        if (world.Run?.CurrentSite is not { Power: not Stops.PowerState.Live, Powerhouse: { } door } site || site != p.Site)
+            return null;
+        var train = world.Train;
+        if (_atControls || self.Has(PlayerFlags.Operating))
+        {
+            _atControls = false;
+            return self.Has(PlayerFlags.Operating) ? new PlayerIntent { Actions = PlayerActions.Seat } : new PlayerIntent();
+        }
+        if (self.Parent != PlayerState.World)
+            return GetDown(self, train, SideOf(train, p, door, self.LineHint));
+        double reach = world.Run.PowerTuning.Reach;
+        var here = PlayerMotor.WorldPosition(self, train);
+        if (((here - door) with { Y = 0 }).Length > reach - 0.5)
+        {
+            Doing = "to the powerhouse";
+            return OnFoot(self, train, p.Spur.Index, door, null).Step;
+        }
+        Doing = "restarting the power";
+        return new PlayerIntent { Buttons = PlayerButtons.Use };
     }
 
     /// <summary>The part a spare hand (the shunter, the driver) has taken at this loading (note 261), or None.</summary>
@@ -2280,7 +2314,9 @@ public sealed partial class StopHand(StopJob job, CrewCalls calls, int member, C
             return GetDown(self, train, SideOf(train, p, c.Controls, self.LineHint));
         if (!_atControls)
         {
-            var (step, there) = WalkTo(self, train.Line, p.Spur.Index, c.Controls, null);
+            // By the way round the walls from further off (note 639: back from the powerhouse, the track-side walk stuck
+            // against its walls for a minute, and the Gaunt had the operator there).
+            var (step, there) = OnFoot(self, train, p.Spur.Index, c.Controls, null);
             if (!there && ((self.Position - c.Controls) with { Y = 0 }).Length > c.Tuning.ControlsReach - 0.4)
             {
                 Doing = "to the crane";
@@ -2544,6 +2580,9 @@ public sealed partial class StopHand(StopJob job, CrewCalls calls, int member, C
     {
         var train = world.Train;
         var site = p.Site;
+        // Note 639: the belt doesn't start on a dead yard's power, and runs at half speed on low: the powerhouse first.
+        if (PowerUp(self, world, p) is { } restart)
+            return restart;
         if (self.Parent != PlayerState.World)
             return GetDown(self, train, SideOf(train, p, site.ConveyorStarter, self.LineHint));
         var (goal, beyond, going, doing, use) = site.Jam >= 0 ? (site.JamAt, -0.8, "to the jam", "clearing the jam", true)

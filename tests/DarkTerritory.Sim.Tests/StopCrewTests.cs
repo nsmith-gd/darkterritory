@@ -344,6 +344,35 @@ public class StopCrewTests
         Assert.True(new StopHand(StopJob.Crates, calls, 4).TakesTrouble);
     }
 
+    /// <summary>
+    /// Note 639: the yard's power dead (level-design D.1: "the cranes wait on a walk to the powerhouse and a restart"), the
+    /// crane's operator walks to the powerhouse and restarts it, then the pair run the crane as before. Nobody did: dead, the
+    /// crane never moved, and deep territory's foundry (dead four yards in five) loaded no casting on 8 nights of 8.
+    /// </summary>
+    [Fact]
+    public void WithTheYardsPowerDeadTheOperatorRestartsItAndTheCastingsGoOn()
+    {
+        var night = new Night(cars: 8, walkers: 0, modules: [ModuleKind.Crane, ModuleKind.Winch, ModuleKind.Crates]);
+        var run = night.World.Run!;
+        var crane = Assert.IsType<Crane>(night.Site.Crane);
+        Assert.NotNull(night.Site.Powerhouse);
+        night.Site.Mirror(night.Site.State with { Power = Stops.PowerState.Dead });
+        Assert.Equal(Stops.PowerState.Dead, night.Site.Power);
+        var doing = new HashSet<string>();
+        night.Until(() => run.Departures > 0, 1500, () =>
+        {
+            foreach (var b in night.Bots)
+                if (b is RoofWalkerBot { Job: { } hand } && hand.Doing.Length > 0)
+                    doing.Add(hand.Doing);
+        });
+        Assert.True(run.Departures > 0, $"never left the stop: driver {night.Driver.Stops!.Doing}; did {string.Join(", ", doing)}");
+        Assert.Contains("restarting the power", doing);
+        Assert.Equal(Stops.PowerState.Live, night.Site.Power);
+        Assert.True(crane.Castings.All(c => c.State == CastingState.Loaded),
+            $"castings {string.Join(", ", crane.Castings.Select(c => $"{c.State} car {c.Car}"))}; did {string.Join(", ", doing)}");
+        Assert.All(night.Crew, c => Assert.True(c.Alive, $"died of {c.Death}"));
+    }
+
     [Fact]
     public void AtTheFoundryThePairRunTheCraneAndTheCastingsGoOnTheRoofs()
     {
