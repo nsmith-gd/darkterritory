@@ -104,6 +104,7 @@ input:focus-visible, textarea:focus-visible, button:focus-visible, select:focus-
       <li><b>When it's high enough, the director picks one creature.</b> Each that could come right now (some need a stop, a fast train, a bridge, a dark car) is weighted by its <b>How often</b> × its <b>tier weight</b>.</li>
       <li><b>Cost is how long the quiet after it lasts.</b> The pick takes 3 × its cost off the pressure, so after a cost-1 Freight Beetle the next thing comes soon, and after a cost-5 Passenger the night goes quiet for a while. The night also has a budget of cost, but on today's 7 km nights the director spends about 45 of its 360, so the budget never runs out.</li>
       <li><b>Most in a night</b> and <b>Nights it comes</b> take a creature out once it's reached its cap or on the nights it's not about. Its picks go to the others.</li>
+      <li><b>Five come their own way, not the director's pick:</b> the Pickers when the train stands at a yard with crates about, and the Lodger, the Householder, the Hollow House and the Hanger in the stops' open houses. They take nothing off the pressure, so they don't move the rest. Their "How often" is their share of the houses: more Lodgers means fewer of the other house creatures.</li>
       <li><b>So every number moves the others.</b> More of one means fewer of the rest. A costlier creature means fewer things all night, for everyone. The grid at the foot shows each creature's effect on every other.</li>
     </ol>
   </section>
@@ -220,6 +221,21 @@ input:focus-visible, textarea:focus-visible, button:focus-visible, select:focus-
       const one = night1(settings, cal, ids, fixed, absent, t);
       for (const k in one) out[k] += p * one[k];
     }
+    return Object.assign(out, ownEstimate(settings, cal));
+  }
+  // Those that come their own way (the Pickers at a yard, the house creatures in the stops' open houses): not the
+  // director's spend, so they take nothing off the pressure. The houses filled are shared by their weights.
+  function ownEstimate(settings, cal) {
+    const own = Object.keys(cal.own || {}).filter(k => settings[k]);
+    const houses = own.filter(k => model?.own?.[k] === "house");
+    const filled = houses.reduce((s, k) => s + cal.own[k], 0);
+    const raw = Object.fromEntries(houses.map(k => [k, (cal.ownBase?.[k] ?? 0) * (settings[k].weight ?? 1)]));
+    const total = Object.values(raw).reduce((a, b) => a + b, 0);
+    const out = {};
+    for (const k of own) {
+      const n = houses.includes(k) ? (total ? filled * raw[k] / total : 0) : cal.own[k];
+      out[k] = (settings[k].nightChance ?? 1) * Math.min(n, settings[k].perNight ?? Infinity);
+    }
     return out;
   }
   function night1(settings, cal, ids, fixed, absent, t) {
@@ -289,16 +305,22 @@ input:focus-visible, textarea:focus-visible, button:focus-visible, select:focus-
       const partners = slot ? slot.kinds.filter(k => k !== id && docs.has(k)).map(k => docs.get(k).name.replace(/^The /, "the ")) : [];
       tr.append(el("td", { class: "name" }, document.createTextNode(d.name || id), el("small", { text: d.blurb || "" }),
         partners.length ? el("small", { class: "slot", text: `Never about with ${partners.join(", ")} (${slot.why})` }) : null));
-      tr.append(numCell(id, "weight", w.weight ?? 1, g.weight ?? 1, { label: "how often", attrs: { min: "0", step: "0.1" } }));
-      tr.append(numCell(id, "cost", w.cost, g.cost, { label: "cost", attrs: { min: "0", step: "1" } }));
+      const own = d.ownWay;
+      tr.append(own === "yard" ? el("td", {}, el("span", { class: "na", text: "–" }))
+        : numCell(id, "weight", w.weight ?? 1, g.weight ?? 1, { label: own ? "how often (its share of the houses)" : "how often", attrs: { min: "0", step: "0.1" } }));
+      tr.append(own ? el("td", {}, el("span", { class: "na", text: "its own way" }))
+        : numCell(id, "cost", w.cost, g.cost, { label: "cost", attrs: { min: "0", step: "1" } }));
       tr.append(numCell(id, "perNight", w.perNight ?? null, g.perNight ?? null, { label: "most a night", attrs: { min: "0", step: "1", placeholder: "no cap" } }));
       tr.append(numCell(id, "nightChance", Math.round((w.nightChance ?? 1) * 100), Math.round((g.nightChance ?? 1) * 100), { label: "nights it comes, percent", attrs: { min: "0", max: "100", step: "5" } }));
       tr.append(w.tierWeights ? numCell(id, "tw", w.tierWeights[tier], g.tierWeights?.[tier], { label: "tier weight", attrs: { min: "0", step: "0.25" } }) : el("td", {}, el("span", { class: "na", text: "same" })));
-      const box = el("input", { type: "checkbox", id: `${id}-dawn`, "aria-label": `${d.name}: leaves at dawn` });
-      box.checked = w.abandonAtDawn !== false;
-      const dawnTd = el("td", {}, box, el("span", { class: "was", text: same(w.abandonAtDawn !== false, g.abandonAtDawn !== false) ? "" : (g.abandonAtDawn === false ? "game: stays" : "game: leaves") }));
-      if (!same(w.abandonAtDawn !== false, g.abandonAtDawn !== false)) dawnTd.classList.add("changed");
-      tr.append(dawnTd);
+      if (d.staysAlways) tr.append(el("td", {}, el("span", { class: "na", text: d.staysAlways })));
+      else {
+        const box = el("input", { type: "checkbox", id: `${id}-dawn`, "aria-label": `${d.name}: leaves at dawn` });
+        box.checked = w.abandonAtDawn !== false;
+        const dawnTd = el("td", {}, box, el("span", { class: "was", text: same(w.abandonAtDawn !== false, g.abandonAtDawn !== false) ? "" : (g.abandonAtDawn === false ? "game: stays" : "game: leaves") }));
+        if (!same(w.abandonAtDawn !== false, g.abandonAtDawn !== false)) dawnTd.classList.add("changed");
+        tr.append(dawnTd);
+      }
       const e = want?.[id], ge = game?.[id];
       tr.append(el("td", { class: "est group" }, e == null ? el("span", { class: "na", text: "–" }) : document.createTextNode(r1(e)),
         e == null || !totalW ? null : el("span", { class: "share", style: `width:${Math.round(60 * e / totalW)}px`, title: `${Math.round(100 * e / totalW)}% of the night` })));

@@ -643,7 +643,9 @@ public static class Harness
                 deaths[p.State.Death.ToString()] = deaths.GetValueOrDefault(p.State.Death.ToString()) + 1;
             int unfair = events.Count(e => e.To == SpinePhase.Commit && (e.From != SpinePhase.Telegraph || e.SecondsInFrom < o.Enemies!.MinReactionSeconds - 1e-9));
             threats = new ThreatReport(Math.Round(d.Budget, 1), Math.Round(d.Spent, 1),
-                d.Log.GroupBy(l => l.Kind.ToString()).ToDictionary(g => g.Key, g => g.Count()),
+                // The director's own sends, and those come their own way (note 644: a group of Pickers, a house creature).
+                d.Log.Select(l => l.Kind).Concat(d.OwnWay.SelectMany(o => Enumerable.Repeat(o.Key, o.Value)))
+                    .GroupBy(k => k.ToString()).OrderBy(g => g.Key, StringComparer.Ordinal).ToDictionary(g => g.Key, g => g.Count()),
                 events.Where(e => e.To == SpinePhase.Punish).GroupBy(e => e.Kind.ToString()).ToDictionary(g => g.Key, g => g.Count()),
                 deaths, unfair, host.World.Derailed, Math.Round(choirPeak, 1),
                 Math.Round(host.Train.Vehicles.Where(v => v.Kind == VehicleKind.Cargo).DefaultIfEmpty().Average(v => v?.CargoIntegrity ?? 1), 3), rounds)
