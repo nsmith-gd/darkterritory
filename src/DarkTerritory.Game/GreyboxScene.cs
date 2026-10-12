@@ -489,7 +489,7 @@ public sealed partial class GreyboxScene
         // and any hand lamp lying about or being carried.
         // (Carried, where it swings in the carrier's fist: Art.SceneArt.LampInHand.)
         if (Bodies is not null)
-            foreach (var b in Bodies.Where(b => b.Kind == Sim.Physics.BodyKind.Lamp))
+            foreach (var b in Bodies.Where(b => b.Kind == Sim.Physics.BodyKind.Lamp && !b.Stashed))
                 if (((b.Carrier >= 0 ? Look?.Art.LampInHand(b.Carrier, Time) : null) ?? BodyWorld(b, frames, b.Centre)) is { } at)
                     HandLamp(mesh, at, eye, b.Carrier >= 0 ? b.Carrier : b.Id);
         // (A staged crewmate's, dt screenshot --act lantern, has no body: its light is where the art hung it.)
@@ -792,6 +792,9 @@ public sealed partial class GreyboxScene
             }
             foreach (var b in Bodies)
             {
+                // Put away in a slot (note 594): on them, not drawn.
+                if (b.Stashed)
+                    continue;
                 // In your own hands, drawn at them for the frame (the mirror's own pose is back before anything reads it).
                 bool held = HeldHere is { } h && b.Carrier == h.Player && b.Kind is not (Sim.Physics.BodyKind.Heavy or Sim.Physics.BodyKind.Ragdoll or Sim.Physics.BodyKind.Radio);
                 var (parent, at, yaw) = (b.Parent, b.Pbd.Particles[0].Position, b.Yaw);
@@ -1640,7 +1643,7 @@ public sealed partial class GreyboxScene
                 continue;
             foreach (var b in Bodies)
             {
-                if (b.Kind != Sim.Physics.BodyKind.Extinguisher || b.Carrier < 0)
+                if (b.Kind != Sim.Physics.BodyKind.Extinguisher || b.Carrier < 0 || b.Stashed)
                     continue;
                 var held = HeldHere is { } h && b.Carrier == h.Player ? h.Hands
                     : b.Parent >= 0 && b.Parent < frames.Count ? frames[b.Parent].ToWorld(b.Pbd.Particles[0].Position) : b.Pbd.Particles[0].Position;

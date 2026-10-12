@@ -285,7 +285,7 @@ public static class CrewActions
         if (train.Boiler.WrenchOut || Kit.Has(s.Kit, Tool.Wrench))
             return;
         for (int i = 0; i < Kit.Slots; i++)
-            if (Kit.At(s.Kit, i) == Tool.None)
+            if (Kit.Empty(s, i))
             {
                 s.Kit = Kit.With(s.Kit, i, Tool.Wrench);
                 s.HeldSlot = (byte)i;
@@ -312,7 +312,7 @@ public static class CrewActions
         if (train.Boiler.ShovelOut)
             return false;
         for (int i = 0; i < Kit.Slots; i++)
-            if (Kit.At(s.Kit, i) == Tool.None)
+            if (Kit.Empty(s, i))
             {
                 s.Kit = Kit.With(s.Kit, i, Tool.Shovel);
                 s.HeldSlot = (byte)i;

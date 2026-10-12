@@ -71,7 +71,9 @@ public static class Protocol
     // 51: the towns remember (notes 608, 612): a town's burnt houses ride on the route spec after its seed, and the
     // campaign's in the session's setup, so every machine builds both towns with them.
     // 52: the Pickers and the house creatures (notes 583–586, 592): five enemy kinds of their own.
-    public const int Version = 52;
+    // 53: four shared slots (note 594): the player record's held slot carries the slots holding a thing over it, and the body
+    //     record's locker field a thing's slot and whether it's put away.
+    public const int Version = 53;
 }
 
 public enum MessageType : byte
