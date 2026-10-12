@@ -1083,6 +1083,11 @@ public sealed class World
     public bool WakerHolds => _enemies.Any(e => e is Waker { Holds: true });
     /// <summary>Host: a Waker has eaten the train to the engine (note 588). The run ends "taken at dawn".</summary>
     public bool TakenAtDawn { get; set; }
+    /// <summary>
+    /// This night is a campaign's, and a train taken at dawn ends the campaign (note 632; the director, the inbox, 12 Oct):
+    /// every machine's end card says so. Set from the night's setup, the same on every machine; nothing in the sim reads it.
+    /// </summary>
+    public bool DawnEndsCampaign { get; set; }
 
     /// <summary>Puts an enemy into the world directly (tests, the editor, scripted set pieces). Host only.</summary>
     public T AddEnemy<T>(Func<int, T> make) where T : Enemy

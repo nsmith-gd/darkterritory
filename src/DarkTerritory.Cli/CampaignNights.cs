@@ -35,6 +35,9 @@ static class CampaignNights
         for (int n = 1; n <= nights; n++)
         {
             var s = saves.Load(slot) ?? throw new InvalidOperationException($"slot {slot} is empty: dt campaign new --slot {slot}");
+            // Note 632: taken at dawn, the campaign's over, and the nights stop with it.
+            if (s.Over)
+                break;
             var contract = Campaign.Offers(t, runTuning, s)[(int)Opt(args, "--contract", 0)];
             s = Campaign.Begin(s, contract);
             // As the app's Start has it (HostedAsApp.Campaign): the slot's night, from the town the crew's in.
@@ -90,7 +93,7 @@ static class CampaignNights
                 // As the app's Autosave settles it: the night into the slot, the town it left, the town it got to.
                 if (report is not null)
                 {
-                    var settled = Campaign.Settle(s, report) with { Music = session.MusicBag ?? s.Music, LastTown = session.World.Town?.Plan.Culture ?? s.LastTown };
+                    var settled = Campaign.Settle(s, report, t) with { Music = session.MusicBag ?? s.Music, LastTown = session.World.Town?.Plan.Culture ?? s.LastTown };
                     if (session.Route is { } arrived)
                         settled = Campaign.Arrived(settled, report, TownAt.Terminus(arrived, identities));
                     saves.Save(settled);
@@ -107,6 +110,7 @@ static class CampaignNights
                 scrip = Math.Round(after.Scrip),
                 after.Cars,
                 after.Runs,
+                after.Over,
                 town = after.Town?.Spec,
                 board = Campaign.Offers(t, runTuning, after).Select(o => o.Route).ToArray(),
                 managedMB = Math.Round(GC.GetTotalMemory(false) / 1048576.0, 1),

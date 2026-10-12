@@ -104,6 +104,35 @@ public class CampaignTests
         Assert.Equal(RunEnd.Delivered, log.End);
     }
 
+    /// <summary>
+    /// Note 632 (the director, the inbox, 12 Oct: "c, The campaign ends", roguelike): a train taken at dawn is settled, so its
+    /// night is in the history, and the campaign's over: no board, and no night begun on it. Any other lost night, the crew
+    /// goes on. With campaign.json dawnEndsCampaign off (a mod's), a dawn loss is just a lost night again.
+    /// </summary>
+    [Fact]
+    public void ATrainTakenAtDawnEndsTheCampaign()
+    {
+        Assert.True(C.DawnEndsCampaign);
+        var s = Campaign.Campaign.Begin(Campaign.Campaign.New(C, 1, "test", 1), new Contract(RouteTier.Local, 5, 450));
+        static RunReport Lost(RunEnd end) => new(end, 1200, 0, 0, 0, 0, 0, 40, 20, 0, -60, 3, 0);
+
+        var taken = Campaign.Campaign.Settle(s, Lost(RunEnd.DawnMissed), C);
+        Assert.True(taken.Over);
+        Assert.Equal(RunEnd.DawnMissed, Assert.Single(taken.History).End);
+        Assert.Empty(Campaign.Campaign.Offers(C, R, taken));
+        Assert.Throws<InvalidOperationException>(() => Campaign.Campaign.Begin(taken, new Contract(RouteTier.Local, 6, 450)));
+
+        foreach (var end in new[] { RunEnd.Derailed, RunEnd.CrewLost, RunEnd.Stranded, RunEnd.Delivered })
+        {
+            var on = Campaign.Campaign.Settle(s, Lost(end), C);
+            Assert.False(on.Over, end.ToString());
+            Assert.NotEmpty(Campaign.Campaign.Offers(C, R, on));
+        }
+        Assert.False(Campaign.Campaign.Settle(s, Lost(RunEnd.DawnMissed), C with { DawnEndsCampaign = false }).Over);
+        // A new crew in the slot starts afresh.
+        Assert.False(Campaign.Campaign.New(C, 1, "next", 2).Over);
+    }
+
     [Fact]
     public void TheBoardOffersTheConsistsTierAndOneBelow()
     {

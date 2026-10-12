@@ -119,6 +119,8 @@ from within ~2.5 km of the gate. One flat out (22 m/s) makes it from within ~3.5
   Thieves: "the ship goes down and you lose everything"). *For the director:* what does the company put under a crew who
   lost the train? A crew needs something to run the next night on. My suggestion: the campaign's starting consist,
   on credit against the next nights' scrip.
+  - *Answered (the director, the inbox, 12 Oct, note 632): "c, The campaign ends", roguelike.* The company puts nothing
+    under them: the night is settled, the save is closed, and the slot's next start is a new crew from a fortress.
 
 ## 8. Building it
 
