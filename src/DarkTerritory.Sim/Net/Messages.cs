@@ -70,7 +70,8 @@ public static class Protocol
     // 50: the crew goes on together (note 606): CarryOn, host to client, carries the town the crew's going on from.
     // 51: the towns remember (notes 608, 612): a town's burnt houses ride on the route spec after its seed, and the
     // campaign's in the session's setup, so every machine builds both towns with them.
-    public const int Version = 51;
+    // 52: the Pickers and the house creatures (notes 583–586, 592): five enemy kinds of their own.
+    public const int Version = 52;
 }
 
 public enum MessageType : byte

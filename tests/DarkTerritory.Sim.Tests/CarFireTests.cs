@@ -528,7 +528,9 @@ public class CarFireTests
         // reshuffles every night (seed 6 has no Fire Flies with them in), and seeds 2 and 6 were the cases the notes were written
         // on. On the 7 km nights of note 554 frontier:7 is another line (its first stop a foundry again): seeds 3 and 5 have
         // the Fire Flies come to a car at a stop.
-        EnemyKind[] six = [EnemyKind.Mourners, EnemyKind.TowerJaw, EnemyKind.Brakeman, EnemyKind.Knotter, EnemyKind.FreightBeetle, EnemyKind.Hotbox];
+        EnemyKind[] six = [EnemyKind.Mourners, EnemyKind.TowerJaw, EnemyKind.Brakeman, EnemyKind.Knotter, EnemyKind.FreightBeetle, EnemyKind.Hotbox,
+            // And the yard's and the houses' (notes 583–586, 592): a stop's own, they change what the bots do there.
+            EnemyKind.Pickers, EnemyKind.Lodger, EnemyKind.Householder, EnemyKind.HollowHouse, EnemyKind.Hanger];
         var enemies = Tuning.Enemies with
         {
             Director = Tuning.Enemies.Director with { Roster = [.. Enum.GetValues<EnemyKind>().Except(six).Select(Director.Key)] },
