@@ -153,6 +153,10 @@ static object TrainTable(TrainTuning t, PlayerTuning p) => t.Performance.Select(
 object RunHarness(string[] args)
 {
     Route? route = Str(args, "--route", "") is { Length: > 0 } spec ? DarkTerritory.Sim.LineGen.Routes.Generate(content, spec, (int)Opt(args, "--cars", 10)) : null;
+    // --dawn-at s: the night's dawn that many seconds in, not the route's (note 628: a night with time for every stop, to see
+    // the stops a crew makes only on its best nights, as a switchyard's pick-up).
+    if (route is not null && Opt(args, "--dawn-at", 0) is var dawnAt and > 0)
+        route = route with { DawnSeconds = dawnAt };
     var line = route?.Build() ?? LoadLine(Str(args, "--line", "test-loop"));
     var combat = DataFile.Load<DarkTerritory.Sim.Combat.CombatTuning>(Path.Combine(content, DarkTerritory.Sim.Combat.CombatTuning.File));
     var enemies = DataFile.Load<DarkTerritory.Sim.Enemies.EnemyTuning>(Path.Combine(content, DarkTerritory.Sim.Enemies.EnemyTuning.File));
@@ -164,9 +168,7 @@ object RunHarness(string[] args)
     // A route's night starts where the game's does (run.json departShortOfGateM: just short of the fortress's gate), not
     // 400 m along: the yard is all at yard speed, and the crawl to the gate was five minutes of the harness's time (note 188).
     double start = route is null ? 600 : runTuning!.DepartFrom(route.GateOr(routeTuning.YardLength), Consist.Uniform(train, (int)Opt(args, "--cars", 10), 1).LengthMetres);
-    return Harness.Run(line, train, player, new HarnessOptions
-    {
-        Observe = trace is null ? null : (tick, crew, world) =>
+    Action<uint, IReadOnlyList<(DarkTerritory.Sim.Bots.IBot Bot, PlayerState State)>, World>? observe = trace is null ? null : (tick, crew, world) =>
         {
             // And what's out there: each enemy, what it's doing, and where (its car, or along the line).
             string enemies = string.Join(" ", world.ActiveEnemies.Where(e => e.Kind != DarkTerritory.Sim.Enemies.EnemyKind.Sleepers)
@@ -184,7 +186,34 @@ object RunHarness(string[] args)
                 trace.WriteLine($"{tick / 30.0,7:0.0}s  @{world.Train.Dynamics.Distance:0} {world.Train.Dynamics.Velocity:0.0}m/s p{world.Train.Dynamics.Path}{fire}  {now}");
             }
             lastTrace = now;
-        },
+        };
+    // --as-app (note 622): the night as the app hosts it (HostedAsApp, note 616): the train at the gate as the app stands it,
+    // the crew aboard, the perfect link, the loadout's tunings, the upkeep and the stops' finds (--no-upkeep, --no-loot to
+    // leave them out, as `dt campaign play`). What stays the harness's: --seed seeds the director as well as the bots, so a
+    // route's nights are as many nights as seeds (the app's director takes the route's seed: one night a route).
+    if (args.Contains("--as-app"))
+    {
+        if (route is null)
+            throw new ArgumentException("--as-app hosts a route's night: give --route");
+        int seed = (int)Opt(args, "--seed", 1);
+        var hosted = DarkTerritory.Game.HostedAsApp.For(content, new DarkTerritory.Game.SessionSetup(Route: Str(args, "--route", ""), Cars: (int)Opt(args, "--cars", 10),
+            Enemies: args.Contains("--enemies")), (int)Opt(args, "--bots", 8), Opt(args, "--seconds", 120));
+        return Harness.Run(hosted.Line, hosted.Train, hosted.Player, hosted.Options with
+        {
+            Observe = observe,
+            Seed = seed,
+            DirectorSeed = (ulong)seed,
+            Combat = args.Contains("--no-combat") ? null : hosted.Options.Combat,
+            Upkeep = args.Contains("--no-upkeep") ? null : hosted.Options.Upkeep,
+            Loot = args.Contains("--no-loot") ? null : hosted.Options.Loot,
+            // The app's own link is UDP over localhost (D1.4); the perfect one is kept by default, as a trends night must
+            // play the same on every commit it's measured on. --udp for the sockets.
+            Udp = args.Contains("--udp"),
+        }, args.Contains("--no-boiler") ? null : hosted.Boiler);
+    }
+    return Harness.Run(line, train, player, new HarnessOptions
+    {
+        Observe = observe,
         Bots = (int)Opt(args, "--bots", 8),
         // --express [m/s]: the driver runs hot (21 m/s if no speed's given) and takes no stops (note 376): the hound run's night.
         Express = Array.IndexOf(args, "--express") is var ex and >= 0
@@ -642,41 +671,67 @@ object CampaignCommand(string content, string verb, string[] args)
                     carCosts = Enumerable.Range(4, t.MaxCars - 3).ToDictionary(n => n.ToString(), n => DarkTerritory.Sim.Campaign.Campaign.CarCost(t, n)),
                 };
             }
+        case "nights":
+            // Note 613: the nights back to back in one process, each hosted as the app hosts it.
+            return CampaignNights.Run(content, saves, slot, args);
         case "play":
             {
                 // A night on a contract from the board, crewed by bots (they drive, shoot, and load at winch stops), settled.
                 var s = Load();
                 var contract = DarkTerritory.Sim.Campaign.Campaign.Offers(t, runTuning, s)[(int)Opt(args, "--contract", 0)];
                 s = DarkTerritory.Sim.Campaign.Campaign.Begin(s, contract);
-                var route = DarkTerritory.Sim.LineGen.Routes.Generate(content, contract.Tier, contract.Seed, s.Cars);
-                var loadout = DarkTerritory.Sim.Campaign.Campaign.Apply(t, s.Upgrades, DarkTerritory.Sim.Campaign.Campaign.WithStores(t, DarkTerritory.Sim.Campaign.Campaign.WithSpareKits(new DarkTerritory.Sim.Campaign.Loadout(train, boiler,
-                    DataFile.Load<DarkTerritory.Sim.Combat.CombatTuning>(Path.Combine(content, DarkTerritory.Sim.Combat.CombatTuning.File)),
-                    DataFile.Load<DarkTerritory.Sim.Enemies.EnemyTuning>(Path.Combine(content, DarkTerritory.Sim.Enemies.EnemyTuning.File))), s.SpareKits), s.Stores));
-                var report = Harness.Run(route.Build(), loadout.Train, player, new HarnessOptions
+                // The night as the app hosts it (note 616): the slot's setup (HostedAsApp.Campaign), the train at the gate, the crew
+                // aboard, the director seeded by the route (HostedAsApp.For).
+                var setup = DarkTerritory.Game.HostedAsApp.Campaign(s, contract, enemies: !args.Contains("--no-enemies"));
+                var hosted = DarkTerritory.Game.HostedAsApp.For(content, setup, (int)Opt(args, "--bots", 4), Opt(args, "--seconds", 3600));
+                var route = hosted.Options.Route!;
+                var loadout = setup.Loadout(content);
+                var report = Harness.Run(hosted.Line, hosted.Train, hosted.Player, hosted.Options with
                 {
-                    Bots = (int)Opt(args, "--bots", 4),
-                    Cars = s.Cars,
-                    Seconds = Opt(args, "--seconds", 3600),
-                    Link = Ballast.Net.LinkConditions.Perfect,
-                    StartDistance = 400,
-                    Combat = loadout.Combat,
-                    Enemies = args.Contains("--no-enemies") ? null : loadout.Enemies,
-                    Route = route,
-                    Run = runTuning,
-                    YardLength = route.GateOr(routeTuning.YardLength),
-                    Facilities = DataFile.Load<DarkTerritory.Sim.Run.FacilityTuning>(Path.Combine(content, DarkTerritory.Sim.Run.FacilityTuning.File)),
-                    Holdouts = DataFile.Load<DarkTerritory.Sim.Run.HoldoutTuning>(Path.Combine(content, DarkTerritory.Sim.Run.HoldoutTuning.File)),
-                    Sight = sight,
-                    Cargo = contract.Cargo,
-                }, loadout.Boiler);
+                    // --no-upkeep, --no-loot: without the jobs the train makes as it runs (note 331) or the stops' finds (note 326).
+                    Upkeep = args.Contains("--no-upkeep") ? null : hosted.Options.Upkeep,
+                    Loot = args.Contains("--no-loot") ? null : hosted.Options.Loot,
+                    // --lose-at s: the night lost at dawn, forced, s seconds into the run (note 613): the Wakers have the train, as
+                    // they would at dawn's end (note 588), to see what the campaign makes of a night that didn't arrive.
+                    Observe = Opt(args, "--lose-at", -1) is var loseAt and >= 0 ? (_, _, w) => w.TakenAtDawn |= w.Run?.Seconds >= loseAt == true : null,
+                    // --as-harness start,seed: the harness's own ways back, to set beside the app's (note 616): the crew walking
+                    // aboard from 400 m back in the yard, and the director on the harness's seed (1).
+                    StartDistance = Str(args, "--as-harness", "").Contains("start") ? 400 : hosted.Options.StartDistance,
+                    WalkAboard = Str(args, "--as-harness", "").Contains("start"),
+                    DirectorSeed = Str(args, "--as-harness", "").Contains("seed") ? null : hosted.Options.DirectorSeed,
+                }, hosted.Boiler);
                 if (report.Run is not { } night)
                     return new { error = "the night didn't run" };
-                s = DarkTerritory.Sim.Campaign.Campaign.Settle(s, night);
+                // The town it left, as the app keeps it (note 281): the next night's departure town won't share its custom, and the
+                // terminus town is built with that same custom kept off (note 600), so it's the town the next night leaves from.
+                string? departed = DarkTerritory.Sim.Towns.TownContent.Load(content) is { } towns
+                    ? DarkTerritory.Sim.Towns.TownGenerator.Generate(towns, DarkTerritory.Sim.Towns.TownSite.Of(route, route.GateOr(routeTuning.YardLength),
+                        loadout.Enemies?.Director.Roster ?? [], towns, s.LastTown)).Culture
+                    : null;
+                var fromTown = s.Town;
+                // As the app settles it (note 591): delivered to a town, the crew's in it for the next night.
+                s = DarkTerritory.Sim.Campaign.Campaign.Arrived(DarkTerritory.Sim.Campaign.Campaign.Settle(s, night), night,
+                    DarkTerritory.Sim.Towns.TownAt.Terminus(route, DarkTerritory.Sim.LineGen.LineGenContent.Cached(content).Config.Tiers.Fortress.Identities));
+                s = s with { LastTown = departed ?? s.LastTown };
                 saves.Save(s);
-                return new { contract = contract.Route, cargo = DarkTerritory.Sim.Train.Cargoes.Name(contract.Cargo), night, board = Board(s) };
+                // Each town by name and seed (note 604): play again and the next night's "from" is this one's "to".
+                return new
+                {
+                    contract = contract.Route,
+                    from = route.Plan?.Fortress.Name,
+                    fromSeed = route.Plan?.Fortress.TownSeed ?? fromTown?.Seed,
+                    to = s.Town?.Name,
+                    toSeed = s.Town?.Seed,
+                    // The houses burnt in each by creatures brought in (note 608): the town remembers.
+                    fromBurnt = route.Plan?.Fortress.TownBurnt ?? 0,
+                    toBurnt = s.Town?.Burnt ?? 0,
+                    cargo = DarkTerritory.Sim.Train.Cargoes.Name(contract.Cargo),
+                    night,
+                    board = Board(s),
+                };
             }
         default:
-            return new { error = $"unknown campaign command '{verb}': new, show, slots, buy car|kit|powder|lamp|extinguisher|sell|<upgrade>, sim, play" };
+            return new { error = $"unknown campaign command '{verb}': new, show, slots, buy car|kit|powder|lamp|extinguisher|sell|<upgrade>, sim, play, nights" };
     }
 }
 
@@ -849,12 +904,32 @@ static object SweepStops(RouteTuning rt, StopTuning st, int seeds)
                 blocked = kept.Where(l => l.HasYard).GroupBy(l => l.Tracks.Count(t => t.Blocked)).OrderBy(g => g.Key).ToDictionary(g => g.Key.ToString(), g => g.Count()),
                 clearances = Math.Round(kept.Where(l => l.HasYard).Select(l => (double)l.Moves.Clearances).DefaultIfEmpty(0).Average(), 2),
                 villages = kept.Where(l => l.VillageForm is not null).GroupBy(l => l.VillageForm!.Value).ToDictionary(g => g.Key.ToString(), g => g.Count()),
+                // Note 593 (the director, 9 Oct: "a good chunk of them should have something here, something there"): what the
+                // village's open houses hold, the barns and sheds aside. The share with a find in them, and how many finds each.
+                houses = Houses(kept),
                 failing = kept.SelectMany(l => l.Checks.Where(c => c.Applies && !c.Pass)).GroupBy(c => c.Name).ToDictionary(g => g.Key, g => g.Count()),
                 examples = kept.Where(l => !l.Valid).Take(4).Select(l => new { l.Seed, failed = l.Checks.Where(c => c.Applies && !c.Pass).Select(c => $"{c.Name}: {c.Detail}") }),
             };
         }
         return new { tier = tier.ToString(), stops = result };
     }).ToList();
+}
+
+static object? Houses(IReadOnlyList<StopLayout> stops)
+{
+    var houses = stops.SelectMany(l => l.Buildings.Select((b, i) => (l, b, i))
+        .Where(x => x.b.Zone == StopZone.Village && x.b.Kind == BuildingKind.House && x.b.Open)
+        .Select(x => x.l.Containers.Count(c => c.Zone == StopZone.Village && c.Building == x.i))).ToList();
+    if (houses.Count == 0)
+        return null;
+    return new
+    {
+        open = houses.Count,
+        perVillage = Math.Round(houses.Count / (double)Math.Max(1, stops.Count(l => l.VillageForm is not null)), 1),
+        withFinds = Math.Round(houses.Count(n => n > 0) / (double)houses.Count, 2),
+        findsPerHouse = Math.Round(houses.Average(), 2),
+        mostInOne = houses.Max(),
+    };
 }
 
 static object LineInfo(RailLine line, double every) => new
@@ -969,6 +1044,9 @@ static object Screenshot(TrainTuning t, string content, string[] args)
     var consist = Consist.Uniform(t, cars, 1);
     DarkTerritory.Sim.Run.Run? run = null;
     double at = Opt(args, "--at", 1200);
+    // --waker wall (note 599; the wakerwall view): the train home inside the terminus, a Waker stopped stopShort out.
+    if ((Str(args, "--waker", "") == "wall" || view == "wakerwall") && generated is not null && !args.Contains("--at"))
+        at = Math.Min((generated.Plan?.Terminus.GateM ?? line.Length - 600) + 260, line.Length - 20);
     // --truss (note 435): stood 30 m short of the night's first through-truss, a Dragger on its top chord 10 m in, scraping.
     var truss = args.Contains("--truss") ? generated?.Plan?.Structures.FirstOrDefault(st => st.Type == DarkTerritory.Sim.LineGen.StructureType.Truss && st.Edge == "main") : null;
     if (truss is not null)
@@ -1080,6 +1158,41 @@ static object Screenshot(TrainTuning t, string content, string[] args)
         // --clock s: that far into the night, the town's people on their rounds (note 353).
         town.Clock = Opt(args, "--clock", 0);
     }
+    // --arrival [square|centre|gate|over|outside|...]: the terminus's town (note 600), the one the next night departs from,
+    // the train stopped home inside its gate, the camera standing in it as --town's does in the departure's (TownCamera,
+    // the town's own frame). `--arrival depart` is the same town as the next night's departure stands it, for comparing.
+    DarkTerritory.Sim.Towns.Town? arrival = null;
+    if (args.Contains("--arrival") && generated is not null && DarkTerritory.Sim.Towns.TownContent.Load(content) is { } arrivalTowns)
+    {
+        var runTuning = DataFile.Load<DarkTerritory.Sim.Run.RunTuning>(Path.Combine(content, DarkTerritory.Sim.Run.RunTuning.File));
+        double gate = generated.GateOr(RouteTuning.Load(content).YardLength);
+        var roster = DataFile.Load<DarkTerritory.Sim.Enemies.EnemyTuning>(Path.Combine(content, DarkTerritory.Sim.Enemies.EnemyTuning.File)).Director.Roster;
+        var departure = DarkTerritory.Sim.Towns.TownGenerator.Generate(arrivalTowns, DarkTerritory.Sim.Towns.TownSite.Of(generated, gate, roster, arrivalTowns));
+        var named = DarkTerritory.Sim.Towns.TownAt.Terminus(generated, DarkTerritory.Sim.LineGen.LineGenContent.Cached(content).Config.Tiers.Fortress.Identities);
+        if (Str(args, "--arrival", "square") == "depart" && named is not null)
+        {
+            // The next night's: its route departing from this one's terminus, its town built as World.EnableTown builds it.
+            var next = DarkTerritory.Sim.LineGen.Routes.Generate(content, DarkTerritory.Sim.Towns.TownAt.With(Str(args, "--next", Str(args, "--route", "frontier:7")), named), cars);
+            generated = next;
+            line = next.Build();
+            double nextGate = next.GateOr(RouteTuning.Load(content).YardLength);
+            town = new DarkTerritory.Sim.Towns.Town(DarkTerritory.Sim.Towns.TownGenerator.Generate(arrivalTowns,
+                DarkTerritory.Sim.Towns.TownSite.Of(next, nextGate, roster, arrivalTowns, departure.Culture)), arrivalTowns.Tuning, line, arrivalTowns.Looks);
+            run = new DarkTerritory.Sim.Run.Run(runTuning, next) { YardLength = nextGate };
+            if (!args.Contains("--at"))
+                at = runTuning.DepartFrom(nextGate, consist.LengthMetres);
+            town.Clock = Opt(args, "--clock", 0);
+        }
+        else
+        {
+            arrival = DarkTerritory.Sim.Towns.Town.AtTerminus(arrivalTowns, generated, line, gate, roster, departure.Culture, named);
+            run ??= new DarkTerritory.Sim.Run.Run(runTuning, generated) { YardLength = gate };
+            if (!args.Contains("--at") && generated.Plan?.Terminus is { } terminus)
+                at = terminus.GateM + (runTuning.HomeInsideGateM ?? 0) + consist.LengthMetres + 10;
+            if (arrival is not null)
+                arrival.Clock = Opt(args, "--clock", 0);
+        }
+    }
     var train = new TrainOnLine(new TrainDynamics(consist), line, at);
     if (site is { Spur: >= 0 })
     {
@@ -1187,7 +1300,14 @@ static object Screenshot(TrainTuning t, string content, string[] args)
     var camera = strandedAt >= 0 && !args.Contains("--view") ? Views.Stranded(train, outro, strandedAt)
         : train.Wreck is { } shown && !args.Contains("--view") ? Views.Wreck(shown, shown.RealSeconds) : Views.Get(view, train, (int)Opt(args, "--car", 2));
     if (town is not null && !args.Contains("--view"))
-        camera = Staging.TownCamera(town, Str(args, "--town", "square"));
+        camera = Staging.TownCamera(town, args.Contains("--arrival") ? Str(args, "--where", "square") : Str(args, "--town", "square"));
+    if (arrival is not null && !args.Contains("--view"))
+        camera = Str(args, "--arrival", "square") == "brought"
+            // --arrival brought --patrol (note 589): hounds ridden in on car 2, the town's guns on them, seen from the square's
+            // side of the yard, up a little.
+            ? train.Frames[Math.Min(2, train.Frames.Count - 1)] is var car && car.Right * (-arrival.Plan.Square.Side) is var toward
+                ? Ballast.Render.Camera.LookAt(car.Origin + toward * 22 + car.Back * 6 + Double3.Up * 8, car.Origin + Double3.Up * 3, 62) : camera
+            : Staging.TownCamera(arrival, Str(args, "--arrival", "square"));
     // --cam s,lateral,height --target s,lateral,height: place the camera anywhere by line coordinates.
     if (Str(args, "--cam", "") is { Length: > 0 } cam)
     {
@@ -1642,6 +1762,7 @@ static object Screenshot(TrainTuning t, string content, string[] args)
         Run = run,
         Holdouts = holdouts,
         Town = town,
+        Arrival = arrival,
         DropCaught = mail is not null ? id => id == mail.Id && Opt(args, "--mail", 0) > 0 : null,
         StagedCatch = Opt(args, "--mail", 0),
         StagedCold = args.Contains("--cold") ? Opt(args, "--cold", 0) : null,
@@ -1762,6 +1883,8 @@ static object Screenshot(TrainTuning t, string content, string[] args)
         }
         Couplings.Callouts(train, breaks);
         scene.Breaks = breaks;
+        // Note 576: the cars and engine --integrity has put under the failing line, shedding as they go.
+        scene.Failings = Failing.Of(train);
         if (args.Contains("--mending"))
             scene.Mending = Enumerable.Range(0, breaks.Count).ToHashSet();
     }
@@ -2053,12 +2176,80 @@ static object Screenshot(TrainTuning t, string content, string[] args)
     IReadOnlyList<CarFrame>? leaned = args.Contains("--strain")
         ? [.. train.Frames.Select(f => DarkTerritory.Game.CarLean.Lean(f, DarkTerritory.Game.CarLean.Angle((float)Opt(args, "--strain", 0.8), train.Dynamics.Tuning.Overspeed)))]
         : null;
+    // --waker chase|lift: a Waker at dawn (note 588), coming down the line --behind m (150) back of the last car, or holding
+    // the train --held s (7) in, the rear cars up in its hands, as the sessions draw it (WakerLift). The waker view looks
+    // back at it from the guard van's platform; wakerlift from out beside the line; wakerinside from the roof of the next car
+    // up, a crewmate's eye, lifted with it.
+    // --sway r: the cars' lanterns swung that far on their chains (radians), --thud s: a thud of the Wakers' stir (--stir its
+    // strength, 0.8) that many seconds ago, coal coming off the bunker (note 599).
+    if (Opt(args, "--sway", 0) is var sway and not 0)
+        scene.LampSwayOf = car => (float)sway;
+    if (Opt(args, "--thud", -1) is var thud and >= 0)
+        scene.StirThud = (Opt(args, "--stir", 0.8), thud);
+    // --waker rise (note 599; the wakerrise view): one getting up --rise s into its rise (half of it) --behind m back of the
+    // last car (riseBehind), or --aside -1|1 off to that side (riseAside out, asideBack further back), the earth and dust it
+    // throws off as the sessions draw them.
+    string wakerMode = Str(args, "--waker", view switch { "waker" => "chase", "wakerlift" or "wakerinside" => "lift", "wakerrise" => "rise", "wakerwall" => "wall", _ => "" });
+    if (wakerMode.Length > 0)
+    {
+        var wt = DataFile.Load<DarkTerritory.Sim.Enemies.EnemyTuning>(Path.Combine(content, DarkTerritory.Sim.Enemies.EnemyTuning.File)).Wakers;
+        var waker = (DarkTerritory.Sim.Enemies.Waker)DarkTerritory.Sim.Enemies.Enemy.Blank(DarkTerritory.Sim.Enemies.EnemyKind.Waker, 9_100);
+        bool holds = wakerMode == "lift", rising = wakerMode == "rise", walled = wakerMode == "wall";
+        double gateM = generated?.Plan?.Terminus.GateM ?? line.Length - DataFile.Load<DarkTerritory.Sim.Run.RunTuning>(Path.Combine(content, DarkTerritory.Sim.Run.RunTuning.File)).TerminusZone;
+        double aside = Opt(args, "--aside", 0);
+        if (walled)
+        {
+            waker.Restore(DarkTerritory.Sim.Enemies.SpinePhase.Commit, 120, 1, -1, default, gateM - wt.StopShort, 0, 0, 0, 0);
+            scene.Time = Opt(args, "--clock", 2.3);
+        }
+        else if (rising)
+        {
+            waker.Restore(DarkTerritory.Sim.Enemies.SpinePhase.Telegraph, Opt(args, "--rise", wt.RiseSeconds / 2), 1, -1, default,
+                train.RearDistance - Opt(args, "--behind", wt.RiseBehind) - Math.Abs(aside) * wt.AsideBack, aside * wt.RiseAside, 0, 0, aside);
+            scene.Time = Opt(args, "--rise", wt.RiseSeconds / 2);
+        }
+        else
+            waker.Restore(holds ? DarkTerritory.Sim.Enemies.SpinePhase.Punish : DarkTerritory.Sim.Enemies.SpinePhase.Commit, 30, 1, -1, default,
+                train.RearDistance - (holds ? 4 : Opt(args, "--behind", 150)), 0, 0, holds ? Opt(args, "--held", 7) : 0, 0);
+        scene.Enemies = [.. scene.Enemies ?? [], waker];
+        var lifted = new List<CarFrame>(leaned ?? train.Frames);
+        DarkTerritory.Game.WakerLift.Apply(lifted, train, [waker], wt);
+        leaned = lifted;
+        var rear = lifted[train.Dynamics.Consist.Vehicles[^1].Id];
+        var next = lifted[train.Dynamics.Consist.Vehicles[^Math.Min(2, train.Dynamics.Consist.Vehicles.Count)].Id];
+        double half = rear.Shape.HalfLength;
+        camera = view switch
+        {
+            "waker" => Camera.LookAt(rear.ToWorld(new Double3(0.6, 2.4, half + 1.2)), rear.ToWorld(new Double3(0, 9, half + 120)), 70),
+            // From up behind the gatehouse, over the line out of the gate at it standing under the town's guns.
+            "wakerwall" => Camera.LookAt(line.Sample(gateM + 40) is var inside ? inside.Position + Double3.Cross(inside.Tangent, Double3.Up).Normalized * 6 + Double3.Up * 22 : default,
+                line.Sample(gateM - wt.StopShort).Position + Double3.Up * 10, 55),
+            // From the guard van's platform back down the line at it getting up (or off to its side, across the land).
+            "wakerrise" => Camera.LookAt(rear.ToWorld(new Double3(0.6, 2.4, half + 1.2)), line.Sample(waker.LineDistance) is var w
+                ? w.Position + Double3.Cross(w.Tangent, Double3.Up).Normalized * waker.Lateral + Double3.Up * 8 : default, Math.Abs(aside) > 0 ? 55 : 45),
+            "wakerlift" => Camera.LookAt(train.Frames[next.Index].ToWorld(new Double3(-60, 4, 10)), train.Frames[next.Index].ToWorld(new Double3(0, 9, 12)), 66),
+            "wakerinside" => Camera.LookAt(next.ToWorld(new Double3(0.4, next.Shape.Bounds.Max.Y + 1.6, -half * 0.4)), next.ToWorld(new Double3(-1.5, next.Shape.Bounds.Max.Y + 2, half + 14)), 80),
+            _ => camera,
+        };
+    }
     // And a car in the mine head's tipple rolled over, or off its rails (note 423; --tip, --offrails), as the sessions draw it.
     if (run is not null && (args.Contains("--tip") || args.Contains("--offrails")))
     {
         var tilted = new List<CarFrame>(leaned ?? train.Frames);
         DarkTerritory.Game.TippleTilt.Apply(tilted, train, run);
         leaned = tilted;
+    }
+    // --held (note 580): the staged grab (a creature whose Holding is a staged crewmate: --hugger swallow, --moose pin,
+    // --gannet pin, --whistler carry, --knotter coil ...) as the held one's own camera has it in the game, HeldShot's framing.
+    if (args.Contains("--held") && scene.Enemies?.FirstOrDefault(e => e.Holding >= 0) is { } holder
+        && scene.Crew?.FirstOrDefault(c => c.Id == holder.Holding) is { } victim)
+    {
+        var inside = train.Frames.FirstOrDefault(f => f.Shape.Interior is { } room && room.Contains(f.ToLocal(victim.Feet + Double3.Up * 0.5)));
+        double heldHint = train.Dynamics.Distance;
+        var eyesThere = Camera.LookAt(victim.Feet + Double3.Up * Eyes.Height, victim.Feet + Double3.Up * Eyes.Height
+            + new Double3(-Math.Sin(victim.Yaw), 0, -Math.Cos(victim.Yaw)), 75);
+        camera = HeldShot.Frame(victim.Feet, holder.WorldPosition(train), eyesThere, inside, HeldShot.Size(holder.Kind),
+            (x, z) => PlayerMotor.GroundAt(new Double3(x, 0, z), train.Line, ref heldHint));
     }
     scene.Build(mesh, train, camera.Position, leaned);
     // How long a frame's scene takes to build on the CPU, warm (the first build cooks the kit's pieces).
@@ -2070,8 +2261,9 @@ static object Screenshot(TrainTuning t, string content, string[] args)
     // --lantern: a hand lamp held just under the eye (the scene is eye-relative), the light you'd have in a dark car.
     if (args.Contains("--lantern"))
         mesh.PointLights.Add(new PointLight(new System.Numerics.Vector3(0.15f, -0.35f, 0), DarkTerritory.Game.Palette.LampAmber * 1.6f, 6));
-    // --dawn t: the dawn that far up (0 night .. 1 dawn; look.json atmosphere.dawn).
-    var lighting = Views.Lighting(train, look, (float)Opt(args, "--dawn", 0));
+    // --dawn t: the dawn that far up (0 night .. 1 dawn; look.json atmosphere.dawn). --stir t: the Wakers' stir that far to
+    // dawn (0..1, note 599), its cold line low behind the train.
+    var lighting = Views.Lighting(train, look, (float)Opt(args, "--dawn", 0), (float)Opt(args, "--stir", 0));
     if (args.Contains("--emergency") || args.Contains("--headlamp-out"))
         lighting.LampRange = 0.01f; // emergency lighting (or the lamp out): no light from the headlamp
     if (route is not null)
@@ -2818,16 +3010,16 @@ static object HudShot(string content, string[] args)
     else
     {
         // --roof-warning tunnel|bend (note 260): up on a roof with a tunnel's mouth, or a bend taken too fast, coming
-        // (--route; deepTerritory:2 if none: frontier:7 has no tunnel on its main line), warned.
+        // (--route; deadLines:1 if none: on the 7 km nights of note 554 most tunnels are short of 2 km, in the yard's reach), warned.
         string roofWarning = Str(args, "--roof-warning", "");
         // --bend-warning [s] (note 265): in the cab, s seconds short of a bend the speed would derail the train on (0: on it),
-        // warned. deepTerritory:2 if no --route (every night has such bends since note 278; frontier:7's first is at km 8.8).
+        // warned. deadLines:1 if no --route (every night has such bends since note 278).
         if (args.Contains("--bend-warning"))
             roofWarning = "bend-cab";
         var solo = roofWarning == "bend-cab"
-            ? Staging.BendWarning(content, generated ?? DarkTerritory.Sim.LineGen.Routes.Generate(content, "deepTerritory:2", cars), cars, Array.IndexOf(args, "--bend-warning") is var bw && bw + 1 < args.Length && double.TryParse(args[bw + 1], System.Globalization.CultureInfo.InvariantCulture, out double bws) ? bws : 4)
+            ? Staging.BendWarning(content, generated ?? DarkTerritory.Sim.LineGen.Routes.Generate(content, "deadLines:1", cars), cars, Array.IndexOf(args, "--bend-warning") is var bw && bw + 1 < args.Length && double.TryParse(args[bw + 1], System.Globalization.CultureInfo.InvariantCulture, out double bws) ? bws : 4)
             : roofWarning.Length > 0
-            ? Staging.RoofWarning(content, generated ?? DarkTerritory.Sim.LineGen.Routes.Generate(content, "deepTerritory:2", cars), cars, roofWarning)
+            ? Staging.RoofWarning(content, generated ?? DarkTerritory.Sim.LineGen.Routes.Generate(content, "deadLines:1", cars), cars, roofWarning)
             : generated is null ? new PrototypeSession(content, Str(args, "--line", "test-loop"), cars) : new PrototypeSession(content, generated, cars, enemies: false);
         if (roofWarning.Length == 0)
             solo.Controls.Throttle = Opt(args, "--throttle", args.Contains("--talk") ? 0 : 0.6);
@@ -2894,10 +3086,12 @@ static object HudShot(string content, string[] args)
         session = solo;
     }
     // --talk person|board|paper|fixture|door [--who i] (note 281): stood in the departure fortress's town in front of one
-    // of its people (the i-th) or things, their card open and the line typed out, as Use at the prompt opens it.
+    // of its people (the i-th) or things, their card open and the line typed out, as Use at the prompt opens it. With
+    // --arrival, in the terminus's town (note 603), as the crew would after the night's delivered.
     TownTalk? talk = null;
     double talkNow = 0;
-    if (Str(args, "--talk", "") is { Length: > 0 } talked && session is PrototypeSession here && here.World.Town is { } town)
+    if (Str(args, "--talk", "") is { Length: > 0 } talked && session is PrototypeSession here
+        && (args.Contains("--arrival") ? here.World.Arrival : here.World.Town) is { } town)
     {
         talk = new TownTalk();
         var (stand, lookAt) = Staging.TownStand(town, talked, (int)Opt(args, "--who", 0));
@@ -2927,9 +3121,28 @@ static object HudShot(string content, string[] args)
     string output = Str(args, "--out", "out/shots/hud.png");
     // --report [derailed]: the night over, and its incident report as the run-end screen shows it (GDD v1.4 App. D.12).
     if (args.Contains("--report") && session.World.Run is { } over)
-        over.MirrorReport(Staging.Report(session.World, Str(args, "--report", "") == "derailed" ? DarkTerritory.Sim.Run.RunEnd.Derailed : DarkTerritory.Sim.Run.RunEnd.CrewLost));
+        // (brought: delivered with creatures ridden into town, note 589.)
+        over.MirrorReport(Staging.Report(session.World, Str(args, "--report", "") switch
+        {
+            "derailed" => DarkTerritory.Sim.Run.RunEnd.Derailed,
+            "brought" => DarkTerritory.Sim.Run.RunEnd.Delivered,
+            _ => DarkTerritory.Sim.Run.RunEnd.CrewLost,
+        }));
+    // --report-file f.json: a night's own report as the run-end screen shows it (note 613): `dt campaign play`'s output (its
+    // "night") or a report on its own.
+    if (Str(args, "--report-file", "") is { Length: > 0 } reportFile && session.World.Run is { } played)
+    {
+        using var doc = System.Text.Json.JsonDocument.Parse(File.ReadAllText(reportFile));
+        var json = doc.RootElement.TryGetProperty("night", out var n) ? n : doc.RootElement;
+        played.MirrorReport(json.Deserialize<DarkTerritory.Sim.Run.RunReport>(DataFile.Options)!);
+    }
     var frames = session.InterpolatedFrames(1);
     var camera = session.EyeCamera(frames, 1, 0, 0);
+    // --loading [built]: the next night's loading card over the town the crew's in (note 604), from its square; "built", the
+    // night ahead named (its terminus), as it holds before the night opens.
+    var loadingIn = args.Contains("--loading") ? session.World.Arrival : null;
+    if (loadingIn is not null)
+        camera = new TownBackdrop(session.Route!, session.Train, session.World.Run, loadingIn, session.World.Town).Camera;
     using var gpu = new GpuContext("dt screenshot --hud");
     // Drawn at the scaled size with the HUD's canvas laid over it, as the app draws it at a window's size: the prompt's fine
     // print (Hud.PromptScaleAt) only shows as it will with real pixels under it.
@@ -2943,7 +3156,9 @@ static object HudShot(string content, string[] args)
         Run = session.World.Run,
         Holdouts = session.World.Holdouts,
         Town = session.World.Town,
+        Arrival = session.World.Arrival,
         TownFacing = talk?.Open is { Kind: DarkTerritory.Sim.Towns.TownTargetKind.Person } facing ? (facing.Index, camera.Position) : null,
+        TownFacingIn = talk?.In,
         Vehicles = session.Train.Vehicles,
         Bodies = session.World.Bodies.All,
         Time = 0.37,
@@ -3005,10 +3220,26 @@ static object HudShot(string content, string[] args)
     }
     // --first-night (note 350): one of a new player's first nights, the controls' card up in the yard.
     // --commend: the night's commendations shown under its report (App. D.12; awarding them isn't in the game yet).
-    Hud.Build(hud, width, height, session, pixels: scale, firstNight: args.Contains("--first-night"), captions: captioned, commendations: args.Contains("--commend")
-        ? [("Dave", UiStyle.Commendation.CameBackForMe, "Okafor"), ("Priya", UiStyle.Commendation.KeptTheFire, "Dave"),
-            ("Okafor", UiStyle.Commendation.HeldTheSwitch, "Priya"), ("Dunmore", UiStyle.Commendation.LastOneStanding, "Dave")]
-        : null, stills: stills.Stills, talk: talk, now: talkNow);
+    if (loadingIn is not null)
+    {
+        // Built: the next night's line (--next, departing from this town, note 591) and its terminus, as the app names it.
+        string? ahead = null;
+        if (Str(args, "--loading", "") == "built" && session.Route is { } arrivedOn)
+        {
+            var named = DarkTerritory.Sim.Towns.TownAt.Terminus(arrivedOn, DarkTerritory.Sim.LineGen.LineGenContent.Cached(content).Config.Tiers.Fortress.Identities);
+            ahead = DarkTerritory.Sim.LineGen.Routes.Generate(content, DarkTerritory.Sim.Towns.TownAt.With(Str(args, "--next", "frontier:3"), named),
+                session.Train.Dynamics.Consist.CarCount).Plan?.Terminus.Name;
+        }
+        var (heading, under) = TownBackdrop.Card(loadingIn.Plan.Name, ahead);
+        Onboarding.DrawLoading(hud, width, height, heading, under, null);
+    }
+    else
+    {
+        Hud.Build(hud, width, height, session, pixels: scale, firstNight: args.Contains("--first-night"), captions: captioned, commendations: args.Contains("--commend")
+            ? [("Dave", UiStyle.Commendation.CameBackForMe, "Okafor"), ("Priya", UiStyle.Commendation.KeptTheFire, "Dave"),
+                ("Okafor", UiStyle.Commendation.HeldTheSwitch, "Priya"), ("Dunmore", UiStyle.Commendation.LastOneStanding, "Dave")]
+            : null, stills: stills.Stills, talk: talk, now: talkNow);
+    }
     // --emote-wheel: the emote wheel held, the mouse leant toward the wave (note 298).
     if (args.Contains("--emote-wheel"))
     {
@@ -3340,7 +3571,7 @@ static object RenderAudio(string content, string[] args)
     // A bend taken too fast (note 265): the stress telegraph built up to the derailment, a second at a time.
     if (scenario == "bend")
     {
-        var (bend, bent) = DarkTerritory.Game.Sound.AudioBench.RenderBend(content, Str(args, "--route", "deepTerritory:2"), (int)Opt(args, "--cars", 6),
+        var (bend, bent) = DarkTerritory.Game.Sound.AudioBench.RenderBend(content, Str(args, "--route", "deepTerritory:5"), (int)Opt(args, "--cars", 6),
             (int)Opt(args, "--listener", 0), Opt(args, "--seconds", 16));
         string bendOut = Str(args, "--out", "out/audio/bend.wav");
         Ballast.Audio.Wav.Write(bendOut, bent);

@@ -19,6 +19,8 @@ public sealed record TrainTuning
     public BreachTuning Breach { get; init; } = new();
     /// <summary>The wrench is the repair tool, Sea of Thieves style (train.json <c>repair</c>; queue #39, note 301).</summary>
     public RepairTuning Repair { get; init; } = new();
+    /// <summary>A battered car or engine let go goes on to cost the night (train.json <c>failing</c>; note 576).</summary>
+    public FailingTuning Failing { get; init; } = new();
     /// <summary>Line Plan §12.6, never an unrecoverable body or kit (train.json <c>recovery</c>; note 181).</summary>
     public RecoveryTuning Recovery { get; init; } = new();
     /// <summary>What the consist's made of past engine, cargo and guard van, and what its fittings do (train.json <c>composition</c>; note 184).</summary>

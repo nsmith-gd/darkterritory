@@ -32,10 +32,12 @@ public enum EnemyKind : byte
     Dave = 39,
     // Jacob, the fisherman (GDD §3.2, the director, 8 Oct 2026; note 572): rarer still, and he mends the train.
     Jacob = 40,
+    // The Wakers, what gets up at dawn (GDD §8, the director, 9 Oct 2026; note 588): not the night's, and nobody's quarry.
+    Waker = 41,
     // The Pickers (GDD §21, the director's pick to prototype, 9 Oct 2026; note 592).
-    Pickers = 41,
+    Pickers = 42,
     // The house creatures (GDD §21, the director, 9 Oct 2026; notes 583–586).
-    Lodger = 42, Householder = 43, HollowHouse = 44, Hanger = 45
+    Lodger = 43, Householder = 44, HollowHouse = 45, Hanger = 46
 }
 
 /// <summary>
@@ -237,6 +239,7 @@ public abstract class Enemy
         EnemyKind.Knotter => new Knotter(id),
         EnemyKind.Dave => new Dave(id),
         EnemyKind.Jacob => new Jacob(id),
+        EnemyKind.Waker => new Waker(id),
         EnemyKind.Pickers => new Picker(id),
         EnemyKind.Lodger => new Lodger(id),
         EnemyKind.Householder => new Householder(id),

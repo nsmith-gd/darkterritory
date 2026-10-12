@@ -461,7 +461,15 @@ public class HudTests
         s.Player = At(site.ConveyorStarter - Double3.Up * 0.9);
         Assert.Equal("START THE BELT : HOLD [E]", Hud.Prompt(s));
         site.Mirror(site.State with { Start = c.StartSeconds / 2 });
-        Assert.Equal("STARTING THE BELT (50%)", Hud.Prompt(s));
+        Assert.Equal("STARTING THE BELT : KEEP HOLDING [E] (50%)", Hud.Prompt(s));
+        // Note 582 (the director, 9 Oct: "I started the belt hold and it wasnt clear what was happening"): started, the drive
+        // house says what it's doing, not nothing. No car under the head yet: it runs and carries nothing.
+        site.Mirror(site.State with { Start = 0, Running = true });
+        Assert.Null(s.World.Run.CarUnderHead(s.Train, site));
+        Assert.Equal("THE BELT'S RUNNING   NO CAR UNDER ITS HEAD", Hud.Prompt(s));
+        site.Mirror(site.State with { Grain = 0 });
+        Assert.Equal("THE BELT'S RUNNING   NO GRAIN LEFT", Hud.Prompt(s));
+        site.Mirror(site.State with { Grain = c.Grain, Running = false });
         // Running and jammed halfway along its low run: beside the jam, clearing it.
         site.Mirror(site.State with { Start = 0, Running = true, Jam = 0.5 });
         var toTrack = ((site.ConveyorKnee - site.ConveyorTail) with { Y = 0 }).Normalized;
@@ -532,7 +540,8 @@ public class HudTests
     {
         // Note 289: on the line generator's nights (the ones the game plays) every branch that wasn't a spur was "the dead
         // line", so the crew choosing the route card's high line at its junction was told it was throwing the train away.
-        var route = DarkTerritory.Sim.LineGen.Routes.Generate(Content, "frontier:7", 4);
+        // (frontier:7's; the 7 km nights of note 554 seldom have an alternate, and frontier:31 has one.)
+        var route = DarkTerritory.Sim.LineGen.Routes.Generate(Content, "frontier:31", 4);
         var s = new PrototypeSession(Content, route, 4, enemies: false);
         var line = s.Train.Line;
         var alt = line.Branches.First(b => b.Kind == DarkTerritory.Sim.Rail.BranchKind.Alternate);
@@ -868,5 +877,37 @@ public class HudTests
         var toy = s.World.Bodies.SpawnItem(spot.At, hint, DarkTerritory.Sim.Physics.BodyKind.Toy);
         toy.Carrier = ((IPlaySession)s).PlayerId;
         Assert.DoesNotContain("SEARCH", Hud.Prompt(s) ?? "");
+    }
+
+    /// <summary>Note 576: a battered car or engine let go is said where it's felt, and how far gone.</summary>
+    [Fact]
+    public void FailingIsSaidWhereItsFelt()
+    {
+        var tuning = DataFile.Load<TrainTuning>(Path.Combine(Content, TrainTuning.File));
+        var boiler = DataFile.Load<BoilerTuning>(Path.Combine(Content, BoilerTuning.File));
+        var player = DataFile.Load<PlayerTuning>(Path.Combine(Content, PlayerTuning.File));
+        var line = new Sim.Rail.RailLine(new Sim.Rail.LineDefinition("t", [new Sim.Rail.TrackSegment(20_000)]));
+        var train = new TrainOnLine(new TrainDynamics(Consist.Uniform(tuning, 5, 1)), line, 2_000, boiler);
+        var cab = PlayerMotor.SpawnInCab(train, player);
+        var inCar = new PlayerState { Parent = 2, Health = player.Health };
+        // Sound: nothing said.
+        Assert.Empty(Hud.FailingLines(train, inCar));
+        Assert.Empty(Hud.FailingLines(train, cab));
+        // Car 2 under the line: in it, it's coming apart and its freight's going; in the cab, which car.
+        train.Vehicles[2].Integrity = 0.4;
+        Assert.Equal(["THE CAR'S COMING APART   THE FREIGHT'S SPILLING"], Hud.FailingLines(train, inCar).Select(l => l.Text));
+        Assert.Equal(["CAR 2 COMING APART"], Hud.FailingLines(train, cab).Select(l => l.Text));
+        // Nearly gone: breaking up, and the cab hears the worst.
+        train.Vehicles[3].Integrity = 0.1;
+        Assert.Equal((FailStage.Breaking, "CAR 3 BREAKING UP"), Hud.FailingLines(train, cab).Select(l => (l.Stage, l.Text)).Single());
+        // The engine, from on it.
+        train.Vehicles[0].Integrity = 0.3;
+        Assert.Contains("THE ENGINE'S FAILING", Hud.FailingLines(train, cab).Select(l => l.Text));
+        train.Vehicles[0].Integrity = 0;
+        Assert.Contains((FailStage.Broken, "THE ENGINE'S BROKEN DOWN"), Hud.FailingLines(train, cab).Select(l => (l.Stage, l.Text)));
+        // And the rules off, nothing.
+        var off = new TrainOnLine(new TrainDynamics(Consist.Uniform(tuning with { Failing = new FailingTuning() }, 5, 1)), line, 2_000, boiler);
+        off.Vehicles[2].Integrity = 0.1;
+        Assert.Empty(Hud.FailingLines(off, inCar));
     }
 }

@@ -21,7 +21,9 @@ public class ExpressTests
         {
             Bots = 1,
             Cars = 6,
-            Seconds = 420,
+            // Long enough to run past the night's stops, and short of its terminus: run hot, a 7 km night (note 554) is
+            // done inside seven minutes, and the train stands there at the end (it was 420 s on a 24 km night).
+            Seconds = 300,
             Seed = 1,
             Link = new Ballast.Net.LinkConditions(0, 0, 0),
             StartDistance = Tuning.Run.DepartFrom(route.GateOr(Tuning.Route.YardLength), Train.Consist.Uniform(Tuning.Train, 6, 1).LengthMetres),

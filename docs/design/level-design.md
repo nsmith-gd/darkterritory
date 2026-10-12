@@ -165,7 +165,7 @@ The score is a weighted sum: throws ×1, couplings ×0.5, reversals ×1.5, blind
 | Lever | Local | Frontier | Dead lines | Deep territory |
 |---|---|---|---|---|
 | Consist (spec F table) | 3 cars | 8 | 15 | 20 |
-| Empties to fill (half, the departure load) | 2 | 4 | 8 | 10 |
+| Empties to fill (car-loads a stop is stocked for; the train leaves empty, note 575) | 2 | 4 | 8 | 10 |
 | Yard forms | spur 45%, loop 40%, fan 15% | spur 15%, loop 25%, fan 40%, parallel 20% | loop 10%, fan 35%, parallel 35%, split 20% | fan 30%, parallel 35%, split 35% |
 | Sidings | 1–2 | 2–4 | 3–5 | 4–6 |
 | Siding holds | 5–7 cars | 3–5 | 3–5 | 2–4 |

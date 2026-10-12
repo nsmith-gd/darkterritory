@@ -122,6 +122,8 @@ public sealed record VillageTuning
     public required int[] Outliers { get; init; }
     public required double OutlierFindBonus { get; init; }
     public required double SecondFindChance { get; init; }
+    /// <summary>Note 593: a house with two finds has a third at this chance. Unset, never.</summary>
+    public double ThirdFindChance { get; init; }
     public required int[] Outbuildings { get; init; }
     public required double WellChance { get; init; }
     public required double SetbackExtra { get; init; }

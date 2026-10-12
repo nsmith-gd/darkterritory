@@ -66,6 +66,12 @@ public sealed record SessionSetup(string? Route = null, string Line = "test-loop
     /// </summary>
     [System.Text.Json.Serialization.JsonIgnore(Condition = System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull)]
     public string? LastTown { get; init; }
+    /// <summary>
+    /// The towns the campaign's crew has burnt houses in (note 608), by <see cref="Sim.Towns.TownAt.Key"/>: tonight's terminus,
+    /// if it's one of them, is built with them as it's come into (note 612). Every machine makes the town, so a joiner is sent it.
+    /// </summary>
+    [System.Text.Json.Serialization.JsonIgnore(Condition = System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull)]
+    public IReadOnlyDictionary<string, int>? Burnt { get; init; }
     /// <summary>The host's line's fingerprint: a joiner whose own generated line differs (another generator version) is refused.</summary>
     public string? PlanPrint { get; init; }
     /// <summary>The host's terrain's fingerprint (linegen plan §17.3): a joiner whose ground comes out differently is refused.</summary>
@@ -186,7 +192,10 @@ public sealed record SessionSetup(string? Route = null, string Line = "test-loop
             world.EnableHoldouts(DataFile.Load<Sim.Run.HoldoutTuning>(Path.Combine(content, Sim.Run.HoldoutTuning.File)), route);
             // The departure fortress's town (note 281), after the run: its walls go up beside the stops'.
             if (Sim.Towns.TownContent.Load(content) is { } towns)
-                world.EnableTown(towns, route, route.GateOr(routeTuning.YardLength), loadout.Enemies?.Director.Roster ?? [], LastTown);
+                world.EnableTown(towns, route, route.GateOr(routeTuning.YardLength), loadout.Enemies?.Director.Roster ?? [], LastTown,
+                    // And the terminus's (note 600): the town the next night departs from, with any houses the crew's burnt in it
+                    // before (note 612).
+                    Sim.Towns.TownAt.Remembered(Sim.Towns.TownAt.Terminus(route, Sim.LineGen.LineGenContent.Cached(content).Config.Tiers.Fortress.Identities), Burnt));
             // The jobs the train makes as it runs (note 331), host and clients alike.
             world.Upkeep = DataFile.Load<UpkeepTuning>(Path.Combine(content, UpkeepTuning.File));
         }
@@ -897,7 +906,56 @@ public sealed class NetPlaySession : IPlaySession, IDisposable
     /// <summary>The tries ran out: RECONNECT (the F5 key) starts them again.</summary>
     public bool CanReconnect => Lost && Redialable && !_dialing && Attempt >= Attempts;
     /// <summary>A joiner, with a host to go back to: not hosting, and the host hasn't left its lobby (spec E: that ends it).</summary>
-    bool Redialable => Redial is not null && Lobby is not { HostLeft: true };
+    /// (Not once the host's said it's going on to the next night, note 606: that's a new night to join, not this one to rejoin.)
+    bool Redialable => Redial is not null && Lobby is not { HostLeft: true } && Client.CarryingOn is null;
+
+    /// <summary>
+    /// The crew goes on together (note 606), the host's end: tells the crew it's going on to the next night from
+    /// <paramref name="town"/>, as it leaves a delivered campaign night, so each dials back in for it rather than going to its
+    /// menu. The caller gives the message a moment to go before it hangs up.
+    /// </summary>
+    public void CarryOn(Sim.Towns.TownAt town) => Host?.CarryOn(town);
+
+    /// <summary>How long a host leaving for the next night gives its word to reach the crew before it hangs up (s). Not a design number.</summary>
+    public const double CarryOnSeconds = 0.5;
+
+    /// <summary>Who a joiner dials to follow its host to the next night (note 606): the same host, the same way, with the run's key.</summary>
+    public sealed record Following(Func<ITransport> Dial, byte[]? Key, string? Left, Sim.Towns.TownAt Town);
+
+    /// <summary>A joiner told its host is going on (note 606), with a host to dial: whom, and from which town; else null.</summary>
+    public Following? GoingOn => Host is null && Redial is { } dial && Client.CarryingOn is { } town ? new Following(dial, Client.PasswordKey, Setup.Route, town) : null;
+
+    /// <summary>
+    /// The crew goes on together (note 606), a joiner's end: dials the host it followed until the host's next night welcomes
+    /// it (a night on another route than the one left; the one left, still closing, is hung up on and dialled again), every
+    /// rejoin.retrySeconds for up to rejoin.followSeconds, and joins it as any joiner does (its yard, its town).
+    /// </summary>
+    /// <param name="whileWaiting">Called each time round (the app draws the town's card; a test steps its in-process host).</param>
+    public static NetPlaySession Follow(string content, Following going, Action? whileWaiting = null, PlayerTuning? tuning = null)
+    {
+        var t = (tuning ?? DataFile.Load<PlayerTuning>(Path.Combine(content, PlayerTuning.File))).Rejoin;
+        var clock = System.Diagnostics.Stopwatch.StartNew();
+        while (true)
+        {
+            try
+            {
+                var joined = Connect(content, going.Dial(), "the host", null, whileWaiting, going.Dial, going.Key);
+                if (joined.Setup.Route != going.Left)
+                    return joined;
+                joined.Dispose();
+            }
+            catch (IOException) when (clock.Elapsed.TotalSeconds < t.FollowSeconds)
+            {
+            }
+            if (clock.Elapsed.TotalSeconds >= t.FollowSeconds)
+                throw new IOException("the host didn't start the next night");
+            for (var wait = System.Diagnostics.Stopwatch.StartNew(); wait.Elapsed.TotalSeconds < t.RetrySeconds;)
+            {
+                whileWaiting?.Invoke();
+                Thread.Sleep(5);
+            }
+        }
+    }
 
     /// <summary>RECONNECT: another round of tries, the first at once.</summary>
     public void Reconnect()
@@ -1059,6 +1117,8 @@ public sealed class NetPlaySession : IPlaySession, IDisposable
         _lean.Apply(_frames, Train, Route?.Plan?.Rules, (Tick + alpha) * SimConstants.TickSeconds);
         // And a car in the mine head's tipple rolled over toward its bin, or off its rails (note 423): drawn only.
         TippleTilt.Apply(_frames, Train, World.Run);
+        // And the cars a Waker has at dawn, lifted from the rear with whoever's in them (note 588): drawn only.
+        WakerLift.Apply(_frames, Train, World);
         return _frames;
     }
 
