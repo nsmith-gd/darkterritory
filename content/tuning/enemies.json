@@ -834,6 +834,9 @@
     // minute needing two, and a car left alone taking the next in about a minute and a half.
     // cellSize 3.5 (the director, 12 Oct, "72 patches of fire per car is far too many, make it 15"; note 634): 16 cells in a
     // cargo car (4 along, the floor, the roof and each wall one across), the nearest the grid comes to 15; it was 1.5, 72.
+    // burnPatch: the boards round a burning cell's centre that burn you as if you stood on them, the reach counted from there
+    // (note 634): 0.75, half the 1.5 m cells it was tuned on, so the bigger cells don't burn further.
+    "burnPatch": 0.75,
     "cellSize": 3.5, "catchFrom": 0.5, "catchPerSecond": 0.04, "climb": 2, "charPerSecond": 0.01,
     "sprayShare": 0.4, "dampSeconds": 3, "ceilingBurnShare": 0.5, "bodyHeight": 1.8, "outBelow": 0.05
   },

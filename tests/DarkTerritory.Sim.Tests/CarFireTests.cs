@@ -406,9 +406,9 @@ public class CarFireTests
         var heat = new double[grid.Count];
         heat[cell] = 0.9;
         fire.RestoreHeat(heat);
-        // High in its flames, so the ray goes on over the cell (3.5 m of boards, note 634) to the floor beyond.
+        // Into its flames, so the ray goes on over the cell (3.5 m of boards, note 634) to the floor of the next.
         n.Crew[1] = n.Crew[1] with { Position = new Double3(at.X, room.Min.Y, at.Z - 1.0) };
-        n.Crew[1] = Aim(n.Crew[1], at + Double3.Up * 1.4 + new Double3(0, 0, 0.5));
+        n.Crew[1] = Aim(n.Crew[1], at + Double3.Up * 0.8 + new Double3(0, 0, 0.5));
         Assert.NotEqual(cell, grid.Hit(n.Crew[1].Position + Double3.Up * Tuning.Train.Pick.EyeHeight,
             Run.Bookmarks.Forward(n.Crew[1].Yaw, n.Crew[1].Pitch), Tuning.Enemies.CarFire.SprayReach)); // the ray alone misses
         var sprayed = new HashSet<int>();
