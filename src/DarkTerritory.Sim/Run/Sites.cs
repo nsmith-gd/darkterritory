@@ -423,6 +423,12 @@ public readonly record struct SiteState(bool Stocked, double Progress, int Sleds
     public double Wind { get; init; }
     public bool Winding { get; init; }
     /// <summary>
+    /// Whether someone's on the lift's lever (note 638): the bot driver's signal to vent for it, on a client as on the host.
+    /// Unsent, a client's driver never saw it held, never vented, and the skip never wound: no mine head loaded a car-load
+    /// on a bot night (deadLines:3, 16 nights).
+    /// </summary>
+    public bool LeverHeld { get; init; }
+    /// <summary>
     /// The conveyor line's (note 400): the grain left in the elevator for it, whether its drive's running and whether it's
     /// carrying grain into a car, where along its low run it's jammed (0..1 from the tail; −1 not), how long it's been jammed,
     /// and how far through starting it and clearing the jam whoever's at them are (seconds held).
@@ -869,6 +875,7 @@ public sealed class Site
         Ore = Ore,
         Wind = Wind,
         Winding = Winding,
+        LeverHeld = LeverHeld,
         Grain = Grain,
         Running = Running,
         Carrying = Carrying,
@@ -907,6 +914,7 @@ public sealed class Site
         Ore = s.Ore;
         Wind = s.Wind;
         Winding = s.Winding;
+        LeverHeld = s.LeverHeld;
         Grain = s.Grain;
         Running = s.Running;
         Carrying = s.Carrying;
