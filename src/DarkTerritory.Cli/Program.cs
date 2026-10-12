@@ -620,7 +620,7 @@ object CampaignCommand(string content, string verb, string[] args)
         tier = DarkTerritory.Sim.Campaign.Campaign.TierFor(t, s.Cars).ToString(),
         nextCar = DarkTerritory.Sim.Campaign.Campaign.NextCarCost(t, s),
         upgrades = s.Upgrades,
-        contracts = DarkTerritory.Sim.Campaign.Campaign.Offers(t, runTuning, s).Select((c, i) => new { index = i, route = c.Route, cargo = DarkTerritory.Sim.Train.Cargoes.Name(c.Cargo), perCar = c.PerCar }),
+        contracts = DarkTerritory.Sim.Campaign.Campaign.Offers(t, runTuning, s).Select((c, i) => new { index = i, route = c.Route, perCar = c.PerCar }),
         stores = s.Stores,
         sellBack = DarkTerritory.Sim.Campaign.Campaign.SellBack(t, s),
         shop = t.Upgrades.Where(u => !s.Upgrades.Contains(u.Id)).Select(u => new { u.Id, u.Name, size = u.Size.ToString(), cost = DarkTerritory.Sim.Campaign.Campaign.UpgradeCost(t, s, u), modelled = u.Effect.Count > 0 }),
@@ -725,7 +725,6 @@ object CampaignCommand(string content, string verb, string[] args)
                     // The houses burnt in each by creatures brought in (note 608): the town remembers.
                     fromBurnt = route.Plan?.Fortress.TownBurnt ?? 0,
                     toBurnt = s.Town?.Burnt ?? 0,
-                    cargo = DarkTerritory.Sim.Train.Cargoes.Name(contract.Cargo),
                     night,
                     board = Board(s),
                 };
@@ -1911,6 +1910,18 @@ static object Screenshot(TrainTuning t, string content, string[] args)
     // --ribbits tongue|devour: crewmate 4, the one the tongue has, frozen where they stand as the game draws them (held_frozen).
     if (Str(args, "--ribbits", "") is "tongue" or "devour" && scene.Crew is { } frozen)
         scene.Crew = [.. frozen.Select(c => c.Id == Staging.LoneId ? c with { Act = DarkTerritory.Game.Art.CrewPose.HeldFrozen } : c)];
+    // --ribbits devour --view feast|eaten: the pack on them from a step off, or through their own eyes, down (note 558).
+    if (Str(args, "--ribbits", "") == "devour" && view is "feast" or "eaten" && scene.Enemies is { } feasting)
+    {
+        camera = Staging.FeastCamera(train, feasting, view);
+        scene.StagedEaten = Opt(args, "--eaten", 4);
+        // Through their eyes they're you: not drawn, but who the pack's on (GreyboxScene.Self).
+        if (view == "eaten" && scene.Crew?.FirstOrDefault(c => c.Id == Staging.LoneId) is { Id: Staging.LoneId } you)
+        {
+            scene.Crew = [.. scene.Crew.Where(c => c.Id != Staging.LoneId)];
+            scene.Self = you;
+        }
+    }
     // --hugger swallow: the one it has in its mouth at the rear car's end door (App. A.3; Staging.Swallowed).
     if (Str(args, "--hugger", "") == "swallow" && scene.Enemies?.OfType<DarkTerritory.Sim.Enemies.CarHugger>().FirstOrDefault() is { Holding: >= 0 })
         scene.Crew = [.. scene.Crew ?? [], Staging.Swallowed(train), .. args.Contains("--rescue") ? [Staging.SwallowRescuer(train)] : Array.Empty<Crewmate>()];

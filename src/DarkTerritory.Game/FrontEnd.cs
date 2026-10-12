@@ -1261,9 +1261,9 @@ public sealed class FrontEnd
             {
                 var c = offers[i];
                 int contract = i;
-                // GDD §9 "choose freight contracts" (note 182): each names the freight the train leaves with, and pays a car by it.
-                string cargo = Cargoes.Name(c.Cargo).ToUpperInvariant();
-                list.Add(new(new($"TONIGHT: {Name(c.Tier)} {c.Seed}, {cargo}, {c.PerCar:0} A CAR", $"{Carrying(c.Cargo)} Up to {c.PerCar * s.Cars:0} on {s.Cars} cars."),
+                // GDD §9 "choose a route" (note 637: a contract is just a route): the train leaves empty, and its cars are paid
+                // by what its stops load, about the tier's car-load each.
+                list.Add(new(new($"TONIGHT: {Name(c.Tier)} {c.Seed}, ABOUT {c.PerCar:0} A CAR-LOAD", $"Whatever its stops load. Up to about {c.PerCar * s.Cars:0} on {s.Cars} cars."),
                     () => new Launch.CampaignNight(s.Slot, contract, Resume: false, _host) { Bots = _bots }));
             }
         }
@@ -1322,21 +1322,6 @@ public sealed class FrontEnd
         list.Add(BackTo(Screen.Fortress));
         return list;
     }
-
-    /// <summary>What a contract's freight does to the night (GDD §19, App. B.9), said on the board.</summary>
-    static string Carrying(CargoKind cargo) => cargo switch
-    {
-        CargoKind.Comet => "Comet material: best pay; everything wants it.",
-        CargoKind.Ammunition => "Powder and shot: a fire in its car can blow.",
-        CargoKind.Chemicals => "Chemicals: fires spread; no cannon beside it.",
-        CargoKind.Medicine => "Medicine: rough couplings and brakes spoil it.",
-        CargoKind.Coal => "Coal: it burns, and fire runs down the train.",
-        CargoKind.Timber => "Timber: it burns, and fire runs down the train.",
-        CargoKind.Livestock => "Livestock: loud all night; hounds smell it.",
-        CargoKind.Food => "Food: the scavengers come for it.",
-        CargoKind.Heavy => "Machine parts: heavy, inert, safe.",
-        _ => "Goods.",
-    };
 
     static string StoresLine(Stores st) => st.Any
         ? $"Bought for tonight: {st.Powder} powder, {st.Lamps} lamps, {st.Extinguishers} extinguishers."
