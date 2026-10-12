@@ -18,6 +18,11 @@ public sealed record CampaignTuning(int StartingCars, double StartingScrip, int 
     public StoresTuning? Stores { get; init; }
     /// <summary>Taking a car off the consist (campaign.json <c>sellCar</c>; GDD §9 "add or remove railcars"). Unset, it can't.</summary>
     public SellCarTuning? SellCar { get; init; }
+    /// <summary>
+    /// A train taken at dawn ends the campaign (campaign.json <c>dawnEndsCampaign</c>; the director, the inbox, 12 Oct, note
+    /// 632: "the campaign ends", roguelike): the save is closed, and the next start is a new crew. Unset, the crew goes on.
+    /// </summary>
+    public bool DawnEndsCampaign { get; init; }
 }
 
 /// <summary>One line of the fortress's stores: its price, how many a night takes at most, and what each holds.</summary>
@@ -162,6 +167,11 @@ public sealed record CampaignState
     /// burnt. Arrived at again, the town's still missing them.
     /// </summary>
     public IReadOnlyDictionary<string, int> Burnt { get; init; } = new Dictionary<string, int>();
+    /// <summary>
+    /// The campaign's over (note 632; the director, the inbox, 12 Oct: a train taken at dawn ends it): the company has no more
+    /// trains for this crew. The save is kept to be read, and the slot's next start is a new crew.
+    /// </summary>
+    public bool Over { get; init; }
 }
 
 /// <summary>What a purchase came to: the new state, or why not.</summary>
@@ -191,10 +201,12 @@ public static class Campaign
 
     /// <summary>
     /// Tonight's board: routes at the consist's own tier, and one from the tier below if there is one (note 637: a contract
-    /// is just a route). The same every time for the same night.
+    /// is just a route). The same every time for the same night. None for a campaign that's over (note 632).
     /// </summary>
     public static IReadOnlyList<Contract> Offers(CampaignTuning t, RunTuning run, CampaignState s)
     {
+        if (s.Over)
+            return [];
         var tier = TierFor(t, s.Cars);
         var tiers = Enumerable.Repeat(tier, Math.Max(1, t.ContractsOffered - (tier > RouteTier.Local ? 1 : 0))).ToList();
         if (tier > RouteTier.Local && t.ContractsOffered > 1)
@@ -333,16 +345,25 @@ public static class Campaign
     /// <summary>The route spec a contract's night is played on: from the town the crew's in, if it's in one (note 591).</summary>
     public static string RouteOf(CampaignState s, Contract c) => Towns.TownAt.With(c.Route, s.Town);
 
-    /// <summary>Starts a night on a contract from the board.</summary>
-    public static CampaignState Begin(CampaignState s, Contract c) => s with { Current = c, Checkpoint = null };
+    /// <summary>Starts a night on a contract from the board. A campaign that's over (note 632) has no more nights.</summary>
+    public static CampaignState Begin(CampaignState s, Contract c) =>
+        s.Over ? throw new InvalidOperationException($"{s.Name}'s campaign is over: the company has no more trains for them") : s with { Current = c, Checkpoint = null };
+
+    /// <summary>
+    /// Whether a night that ended this way ends the campaign (note 632; the director, the inbox, 12 Oct): a train taken at dawn
+    /// (<see cref="RunEnd.DawnMissed"/>), with campaign.json <c>dawnEndsCampaign</c>. A derailment, a crew lost or a night
+    /// stranded is settled and the crew goes on.
+    /// </summary>
+    public static bool Ends(CampaignTuning? t, RunEnd end) => end == RunEnd.DawnMissed && t?.DawnEndsCampaign == true;
 
     /// <summary>
     /// GDD §9 arrival: "everything still attached to the locomotive counts". The night's net goes to (or comes out of)
     /// the scrip, and cars left behind are gone from the consist. The spare repair kits are the ones that came home beyond
     /// the train's own (the fortress always issues that one): spares lost in the night are gone, and kits found at a stop
-    /// and brought in are kept (E.12 question 4).
+    /// and brought in are kept (E.12 question 4). A train taken at dawn ends the campaign (<see cref="Ends"/>, note 632): settled
+    /// all the same, so its last night is in the history, and closed.
     /// </summary>
-    public static CampaignState Settle(CampaignState s, RunReport report)
+    public static CampaignState Settle(CampaignState s, RunReport report, CampaignTuning? t = null)
     {
         int cars = Math.Max(2, s.Cars - report.CarsLost);
         double scrip = s.Scrip + report.Net;
@@ -353,7 +374,7 @@ public static class Campaign
         foreach (var (name, look) in report.Identities)
             identities[name] = look;
         // The departure's stores were the night's issue (note 182): spent with it.
-        return s with { Cars = cars, Scrip = scrip, Runs = s.Runs + 1, History = [.. s.History, log], Current = null, Checkpoint = null, SpareKits = spares, Identities = identities, Stores = new() };
+        return s with { Cars = cars, Scrip = scrip, Runs = s.Runs + 1, History = [.. s.History, log], Current = null, Checkpoint = null, SpareKits = spares, Identities = identities, Stores = new(), Over = s.Over || Ends(t, report.End) };
     }
 
     /// <summary>The night's tunings with the crew's spare repair kits aboard (E.12 question 4): stocked in the lockers beside the train's own.</summary>
