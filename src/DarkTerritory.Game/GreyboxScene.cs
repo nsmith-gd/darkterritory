@@ -1352,13 +1352,16 @@ public sealed partial class GreyboxScene
             double h = r.Hint;
             double ground = Sim.Player.PlayerMotor.GroundAt(p, line, ref h);
             // Down off whatever it was on (a roof, a car's floor, the gap's plate), as anything dropped falls.
-            double y = go.Rise > 0 ? r.From.Value.Y + go.Rise * age : Math.Max(ground, r.From.Value.Y - 0.5 * 9.81 * age * age);
+            double y = go.Rise != 0 ? r.From.Value.Y + go.Rise * age : Math.Max(ground, r.From.Value.Y - 0.5 * 9.81 * age * age);
             var copy = Enemy.Blank(r.Body.Kind, id, r.Body.Extra);
             // Those loose in the sim face their own heading (their Lateral, a player's yaw: −Z at 0): the way they're going,
             // out. Their height is their mode where their draw reads one: going.
             var (going, heads) = Going(r.Body.Kind);
             double lateral = heads ? Math.Atan2(-r.Out.X, -r.Out.Z) : r.Body.Kind == EnemyKind.Brakeman ? 0 : r.Body.Lateral;
             double height = going;
+            // (A Picker's descend plays from the start: nothing it did before, note 645.)
+            if (r.Body.Kind == EnemyKind.Pickers && Look?.Art.Creatures is { } art)
+                art.ModeWas = null;
             copy.Restore(SpinePhase.BreakOff, age, r.Body.Health, Enemy.Loose, p with { Y = y }, r.Body.LineDistance, lateral, height, r.Body.Extra, r.Body.Extra2);
             // The rest, loose, are drawn facing the nearest car: turned about, they face away, the way they're going.
             DrawEnemy(mesh, line, frames, copy, eye, from, to, Look?.Art.Creatures,
@@ -1379,6 +1382,11 @@ public sealed partial class GreyboxScene
         EnemyKind.Moose => ((double)Sim.Enemies.MooseMode.Home, true),
         EnemyKind.TowerJaw => ((double)Sim.Enemies.TowerJawMode.Away, false),
         EnemyKind.Brakeman => ((double)Sim.Enemies.BrakemanMode.Flee, false),
+        // The stops' own (note 645): a Picker down its hole, the Lodger and the Householder walking off, the Hanger up.
+        EnemyKind.Pickers => ((double)Sim.Enemies.PickerMode.Down, true),
+        EnemyKind.Lodger => ((double)Sim.Enemies.LodgerMode.Return, true),
+        EnemyKind.Householder => ((double)Sim.Enemies.HouseholderMode.Return, true),
+        EnemyKind.Hanger => ((double)Sim.Enemies.HangerMode.Retreat, false),
         _ => (0, false),
     };
 

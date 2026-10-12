@@ -2205,6 +2205,15 @@ public sealed class World
                         e.Dismiss();
                 }
 
+        // What one gone was carrying off (a Picker's crate, the Householder's thing, the Mourners' dead) is dropped where it is
+        // (note 645): let go of at dawn (note 635) or driven out of a fort, nothing holds it any more, and it isn't left hanging.
+        if (_enemies.Any(e => e.Gone))
+        {
+            var gone = _enemies.Where(e => e.Gone).Select(e => e.Id).ToHashSet();
+            foreach (var b in Bodies.All)
+                if (b.TakenBy >= 0 && gone.Contains(b.TakenBy))
+                    Bodies.LetGo(b);
+        }
         _enemies.RemoveAll(e => e.Gone);
         EnemyEvents.AddRange(ctx.Events);
         Damage.AddRange(ctx.Damage);
