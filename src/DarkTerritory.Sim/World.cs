@@ -2132,7 +2132,7 @@ public sealed class World
                 Answer = new DrawAnswer(t.Director.Draw.ShowSeconds, cause, AnswerAt(t.Director.Draw), actor);
             // Drawn by the heat (note 263): it boards at the tender, to cross to the firebox.
             bool homeStretch = HomeStretch;
-            if (d.Allows(EnemyKind.Stoker) && _hotFor >= t.Stoker.HeatSeconds && Train.BoilerTuning is not null
+            if (d.Allows(EnemyKind.Stoker) && d.Tonight(EnemyKind.Stoker, this) && _hotFor >= t.Stoker.HeatSeconds && Train.BoilerTuning is not null
                 && !_enemies.Any(e => !e.Gone && e.Kind == EnemyKind.Stoker) && !TrainInFort && !homeStretch)
             {
                 d.Charge(this, EnemyKind.Stoker, _enemies);
@@ -2157,7 +2157,7 @@ public sealed class World
                     _enemies.Add(Sim.Enemies.Jacob.At(_nextEnemyId++, jacob.At, jacob.Along, jacob.Yaw));
             }
             // The lineside moose (note 339): grazing beside the line ahead, as the line's own; they cost the director nothing.
-            if (Insist is null && d.Allows(EnemyKind.Moose) && Route is { } route && Train.Dynamics.Speed > 3 && !TrainInFort && !homeStretch)
+            if (Insist is null && d.Allows(EnemyKind.Moose) && d.Tonight(EnemyKind.Moose, this) && Route is { } route && Train.Dynamics.Speed > 3 && !TrainInFort && !homeStretch)
                 LinesideMoose(t.Moose, route);
             // The Mourners (note 362): a crewmate's body left lying off the train brings a group for it, the director's or not.
             if (t.Mourners.Enabled)
