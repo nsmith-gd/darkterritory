@@ -8,7 +8,7 @@ namespace DarkTerritory.Game.Art;
 /// "isolated town"): gabled houses of peeling plaster and sagging slate, their windows black, a church with a spire
 /// you can see before you can see the church, a windmill with its sails stopped. Read by silhouette in the fog.
 /// </summary>
-public static class TownKit
+public static partial class TownKit
 {
     /// <summary>
     /// A house, <paramref name="variant"/> choosing its size, storeys and state: whole, roof fallen in at one end, or a
@@ -414,7 +414,9 @@ public static class TownKit
                 k.Tri(r, top, l, new(w / 2, -H), new(0, -ridge), new(-w / 2, -H));
             }
         }
-        else
+        else if (outline is null && fx == 0)
+            // (A plain house's door in its side: its lintel. Not one in its end, which has its own above: drawn here as well, it
+            // hung in the middle of the room.)
             Box(0, fy * (hy - t / 2), door, t / 2, Lintel, H);
 
         BoardedWindows(k, b, Box);

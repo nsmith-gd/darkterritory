@@ -247,6 +247,30 @@ public sealed partial class GreyboxScene
     public double? StagedCold { get; set; }
     /// <summary>For a still frame (<c>dt screenshot --mail s</c>): a bag caught is that many seconds into its snatch.</summary>
     public double StagedCatch { get; set; }
+
+    /// <summary>
+    /// For a still frame (<c>dt screenshot --householder</c>): furniture stood with a staged creature, each piece of
+    /// Art.RansackKit's where it stands (its yaw as a house's clutter has it): the Householder's chair and its set table,
+    /// which in a night are its house's own (note 584).
+    /// </summary>
+    public IReadOnlyList<(Sim.Run.Clutter Piece, Double3 At)>? StagedClutter { get; set; }
+
+    void StagedFurniture(MeshBuilder mesh, Double3 eye)
+    {
+        if (StagedClutter is null)
+            return;
+        var k = new Art.Kit(Look, mesh);
+        foreach (var (c, at) in StagedClutter)
+        {
+            // (Art.TownKit's frame for a piece: its x along the yaw, its z its front.)
+            float yaw = (float)c.Yaw;
+            var along = new Vector3(MathF.Sin(yaw), 0, -MathF.Cos(yaw));
+            var front = new Vector3(MathF.Cos(yaw), 0, MathF.Sin(yaw));
+            var o = V(at, eye);
+            var m = new Matrix4x4(along.X, along.Y, along.Z, 0, 0, 1, 0, 0, front.X, front.Y, front.Z, 0, o.X, o.Y, o.Z, 1);
+            k.With(m, () => Art.RansackKit.Piece(k, c));
+        }
+    }
     /// <summary>The switch stands, for where their levers are. Unset, they stand where the default tuning puts them.</summary>
     public SwitchStands? Stands { get; set; }
     /// <summary>The cab's controls, for where the levers' handles are.</summary>
@@ -322,7 +346,7 @@ public sealed partial class GreyboxScene
     }
 
     /// <summary>Depth of the valley under a bridge.</summary>
-    const double ValleyDepth = 18;
+    public const double ValleyDepth = 18;
 
     /// <param name="frames">The cars as drawn, when not the train's own (leaning on a bend: CarLean).</param>
     public void Build(MeshBuilder mesh, TrainOnLine train, Double3 eye, IReadOnlyList<CarFrame>? frames = null)
@@ -365,6 +389,8 @@ public sealed partial class GreyboxScene
         double centre = NearestDistance(line, eye, hint);
         double from = Math.Max(0, centre - DrawDistance), to = Math.Min(line.Length, centre + DrawDistance);
 
+        // The house creatures' houses first (notes 584-586): a house one moves comes out of its cell before the cells are drawn.
+        HouseCreatures(mesh, line, eye);
         Track(mesh, line, eye, from, to, centre);
         foreach (var branch in line.Branches)
             if (branch.Toe < to && branch.End > from)
@@ -712,11 +738,20 @@ public sealed partial class GreyboxScene
                     // Jacob at the water's edge (note 572).
                     if (e is Sim.Enemies.Jacob jacob && Look is not null && Fisherman(mesh, eye, jacob))
                         continue;
-                    // The Mourners', the Freight Beetle's and Tower Jaw's too (notes 362, 366, 363); Tower Jaw's tower, once
-                    // it's down, lies across the line at its spout.
-                    bool outside = e.Kind is EnemyKind.Mourners or EnemyKind.FreightBeetle or EnemyKind.TowerJaw;
+                    // The Hanger and the Hollow House are drawn in their houses (GreyboxScene.Houses, notes 585, 586).
+                    if (e.Kind is EnemyKind.Hanger or EnemyKind.HollowHouse && Look is not null)
+                        continue;
+                    // The Mourners', the Freight Beetle's and Tower Jaw's too (notes 362, 366, 363), the Pickers' and the house
+                    // creatures' (notes 574, 583, 584), and what they did before; Tower Jaw's tower, once it's down, lies across
+                    // the line at its spout.
+                    bool outside = e.Kind is EnemyKind.Mourners or EnemyKind.FreightBeetle or EnemyKind.TowerJaw or EnemyKind.Pickers
+                        or EnemyKind.Lodger or EnemyKind.Householder;
                     if (outside)
-                        modeSeconds = ModeSince(e);
+                    {
+                        modeSeconds = ModeSince(e, out int? before);
+                        if (Look?.Art.Creatures is { } outsiders)
+                            outsiders.ModeWas = before;
+                    }
                     // The train's own: their clips by their mode's time and what came before (notes 364, 365, 367).
                     if (e.Kind is EnemyKind.Brakeman or EnemyKind.Knotter or EnemyKind.Hotbox)
                         modeSeconds = Trainfolk(e, frames, Look?.Art.Creatures);
@@ -742,6 +777,7 @@ public sealed partial class GreyboxScene
         if (Enemies?.OfType<Sim.Enemies.Jacob>().FirstOrDefault() is { } blessing)
             Blessing(mesh, eye, frames, blessing);
         Deaths(mesh, line, frames, eye, from, to);
+        StagedFurniture(mesh, eye);
         Lap(mesh, "enemies");
         if (Bodies is not null)
         {
@@ -2057,22 +2093,25 @@ public sealed partial class GreyboxScene
         return Time - was.Since;
     }
 
-    // What each of the Mourners, the Freight Beetle and Tower Jaw was doing when last drawn (its mode, in its Height), since
-    // when (scene time).
-    readonly Dictionary<int, (int Mode, double Since)> _outsideModes = new();
+    // What each of the Mourners, the Freight Beetle, Tower Jaw, the Pickers and the house creatures was doing when last drawn
+    // (its mode, in its Height), since when (scene time), and what it did before that (its mode's number).
+    readonly Dictionary<int, (int Mode, double Since, int? Before)> _outsideModes = new();
 
     /// <summary>
-    /// How long a Mourner, the Freight Beetle or Tower Jaw has been at what it's doing (its mode, s; notes 362, 366, 363), for
-    /// its clips to start with it (a startle, the beetle rearing, the beaver's turn into its threat and its lunge). As
-    /// <see cref="MooseSince"/>: first seen, its phase's time stands in.
+    /// How long a Mourner, the Freight Beetle, Tower Jaw, a Picker, the Lodger or the Householder has been at what it's doing
+    /// (its mode, s; notes 362, 366, 363, 574, 583, 584), for its clips to start with it (a startle, the beetle rearing, the
+    /// beaver's turn into its threat and its lunge, a Picker taking a crate up, the Lodger's shriek), and what it did before
+    /// (<paramref name="before"/>: a Picker's bite, a tick of the sim's before it scatters). As <see cref="MooseSince"/>:
+    /// first seen, its phase's time stands in.
     /// </summary>
-    double ModeSince(Enemy e)
+    double ModeSince(Enemy e, out int? before)
     {
         int mode = (int)e.Height;
         if (!_outsideModes.TryGetValue(e.Id, out var was) || Time < was.Since)
-            _outsideModes[e.Id] = was = (mode, Time - e.PhaseSeconds);
+            _outsideModes[e.Id] = was = (mode, Time - e.PhaseSeconds, StagedBefore?.TryGetValue(e.Id, out var staged) == true ? staged : null);
         else if (was.Mode != mode)
-            _outsideModes[e.Id] = was = (mode, Time);
+            _outsideModes[e.Id] = was = (mode, Time, was.Mode);
+        before = was.Before;
         return Time - was.Since;
     }
 
@@ -2258,11 +2297,12 @@ public sealed partial class GreyboxScene
             right = placed.Right;
             back = Double3.Cross(right, Double3.Up).Normalized;
         }
-        else if (e.Kind is EnemyKind.Moose or EnemyKind.Gannet or EnemyKind.Mourners or EnemyKind.FreightBeetle or EnemyKind.TowerJaw && e.Attached == Enemy.Loose)
+        else if (e.Kind is EnemyKind.Moose or EnemyKind.Gannet or EnemyKind.Mourners or EnemyKind.FreightBeetle or EnemyKind.TowerJaw
+                     or EnemyKind.Pickers or EnemyKind.Lodger or EnemyKind.Householder && e.Attached == Enemy.Loose)
         {
             // The Moose goes its own way (note 339): it faces its heading (Moose.Yaw, a player's yaw: −Z at 0), not the train.
             // So does a Gannet down on someone on the ground (note 340), and the Mourners, the Freight Beetle and Tower Jaw
-            // (their Lateral; notes 362, 366, 363).
+            // (their Lateral; notes 362, 366, 363), the Pickers and the house creatures (notes 574, 583, 584).
             origin = e.Local;
             back = new Double3(Math.Sin(e.Lateral), 0, Math.Cos(e.Lateral));
             right = Double3.Cross(Double3.Up, back).Normalized;
@@ -2396,6 +2436,38 @@ public sealed partial class GreyboxScene
                     foreach (double x in new[] { -0.85, 0.85 })
                         foreach (double z in new[] { -0.8, 0.0, 0.8 })
                             Draw(x, 0.3, z, 0.06, 0.3, 0.06, Palette.DeepBrown);
+                    break;
+                }
+            case EnemyKind.Pickers:
+                {
+                    // A knee-high grey hunch on long forelegs (note 574); carrying, up under its crate (the crate's a body of
+                    // its own), the arms up its sides. Down its drain: nothing.
+                    if (e is Sim.Enemies.Picker { Mode: Sim.Enemies.PickerMode.Down })
+                        break;
+                    bool carrying = e is Sim.Enemies.Picker { Mode: Sim.Enemies.PickerMode.Carry or Sim.Enemies.PickerMode.Heave };
+                    Draw(0, 0.33, 0, 0.07, carrying ? 0.12 : 0.08, carrying ? 0.12 : 0.22, Palette.IronGrey * 0.6f);
+                    Draw(0, 0.36, -0.3, 0.04, 0.03, 0.06, Palette.IronGrey * 0.5f);
+                    foreach (double x in new[] { -0.11, 0.11 })
+                        Draw(carrying ? x * 3.6 : x, carrying ? 0.6 : 0.2, carrying ? 0 : -0.15, 0.02, 0.2, 0.02, Palette.SootBlack);
+                    break;
+                }
+            case EnemyKind.Lodger:
+                {
+                    // A long grey figure (note 583): folded down into a crouch while it's hidden, stood tall otherwise.
+                    bool hidden = e is not Sim.Enemies.Lodger lodger || lodger.Mode == Sim.Enemies.LodgerMode.Hidden;
+                    double h = hidden ? 0.45 : 1.0;
+                    Draw(0, h, 0, 0.13, h, 0.1, Palette.BoardEnamel * 0.45f);
+                    Draw(0, 2 * h + 0.05, -0.08, 0.06, 0.1, 0.09, Palette.BoardEnamel * 0.5f);
+                    break;
+                }
+            case EnemyKind.Householder:
+                {
+                    // A tall thin figure in black (note 584), sat at its table or stood.
+                    bool sat = e is not Sim.Enemies.Householder householder
+                        || householder.Mode is Sim.Enemies.HouseholderMode.Sit or Sim.Enemies.HouseholderMode.Watch;
+                    Draw(0, sat ? 0.85 : 1.3, 0, 0.16, 0.3, 0.1, Palette.SootBlack);
+                    Draw(0, sat ? 1.33 : 1.8, 0, 0.08, 0.12, 0.1, Palette.BoardEnamel * 0.5f);
+                    Draw(0, sat ? 0.5 : 0.5, sat ? -0.2 : 0, 0.15, sat ? 0.06 : 0.5, sat ? 0.22 : 0.08, Palette.SootBlack * 1.4f);
                     break;
                 }
             case EnemyKind.TowerJaw when e is Sim.Enemies.TowerJaw { Mode: Sim.Enemies.TowerJawMode.Wreck }:
@@ -3705,7 +3777,8 @@ public sealed partial class GreyboxScene
     /// stand over that floor (an open barn's or shed's eaves, note 462). Dark: a barn or shed the Gaunt roosts in, its lanterns
     /// out (note 488).
     /// </summary>
-    sealed record OpenHouse(Double3 Origin, Double3 X, Double3 Y, IReadOnlyList<Sim.Stops.FootprintPart> Parts, Double3? Light, bool Lamp, int Id, float Height = 3.0f, bool Shed = false, bool Dark = false);
+    sealed record OpenHouse(Double3 Origin, Double3 X, Double3 Y, IReadOnlyList<Sim.Stops.FootprintPart> Parts, Double3? Light, bool Lamp, int Id, float Height = 3.0f, bool Shed = false, bool Dark = false,
+        int Feature = -1, int Building = -1);
 
     /// <summary>The light indoors (note 475): the look's, or the old numbers for the greybox.</summary>
     InteriorTuning Interiors => Look?.Tuning.Atmosphere.Interiors ?? DefaultInteriors;
@@ -3725,8 +3798,9 @@ public sealed partial class GreyboxScene
         if (_openHouses is not { } cached || cached.Route != route || cached.Line != line)
         {
             var houses = new List<OpenHouse>();
-            foreach (var f in route.Features)
+            for (int fi = 0; fi < route.Features.Count; fi++)
             {
+                var f = route.Features[fi];
                 if (f.Stop is not { } stop || f.Start < 0 || f.End > line.Length)
                     continue;
                 for (int i = 0; i < stop.Buildings.Count; i++)
@@ -3766,7 +3840,8 @@ public sealed partial class GreyboxScene
                         Sim.Run.StopWalls.ClutterOf(stop, index), Sim.Run.StopWalls.Nest(stop, index));
                     var parts = b.Parts.Count > 0 ? b.Parts : [new Sim.Stops.FootprintPart(0, 0, b.Length, b.Width)];
                     houses.Add(new OpenHouse(o, (At(1, 0) - o).Normalized, (At(0, 1) - o).Normalized, parts,
-                        light is var (lx, ly, height, _) ? At(lx, ly) + Double3.Up * height : null, light?.Lamp ?? false, (int)(f.Start * 7 + i)));
+                        light is var (lx, ly, height, _) ? At(lx, ly) + Double3.Up * height : null, light?.Lamp ?? false, (int)(f.Start * 7 + i),
+                        Feature: fi, Building: i));
                 }
             }
             _openHouses = cached = (route, line, houses);
@@ -3783,6 +3858,12 @@ public sealed partial class GreyboxScene
             // The shader's frame has up = back x right.
             if (Vector3.Cross(back, right).Y < 0)
                 back = -back;
+            // A house a creature's moved (GreyboxScene.Houses): its room and its light go with it; come down, it has neither.
+            var moved = _movedHouses.TryGetValue((h.Feature, h.Building), out var how) ? how : (Moved: Matrix4x4.Identity, Down: false, Kept: false);
+            if (moved.Down)
+                continue;
+            var up = Vector3.Normalize(Vector3.TransformNormal(Vector3.UnitY, moved.Moved));
+            (right, back) = (Vector3.Normalize(Vector3.TransformNormal(right, moved.Moved)), Vector3.Normalize(Vector3.TransformNormal(back, moved.Moved)));
             var lit = Interiors;
             foreach (var part in h.Parts)
             {
@@ -3790,7 +3871,7 @@ public sealed partial class GreyboxScene
                 // left them outside, moonlit blue; note 475) to its eaves.
                 const float Under = 0.3f;
                 var centre = h.Origin + h.X * part.X + h.Y * part.Y + Double3.Up * ((wallHeight - Under) / 2);
-                mesh.Rooms.Add(new Room(V(centre, eye), right, Vector3.UnitY, back, new Vector3((float)part.Length / 2, (wallHeight + Under) / 2, (float)part.Width / 2)));
+                mesh.Rooms.Add(new Room(Vector3.Transform(V(centre, eye), moved.Moved), right, up, back, new Vector3((float)part.Length / 2, (wallHeight + Under) / 2, (float)part.Width / 2)));
                 // A barn's, a shed's or a yard shed length's hurricane lantern turned low, hung from a beam in its middle
                 // (note 475: the director's "functional"), steady and dim: enough to see the stacks, the loft, the bench by.
                 // A long yard shed has one each shedLanternSpacing along it. The Gaunt's has none (note 488).
@@ -3816,9 +3897,10 @@ public sealed partial class GreyboxScene
             // Dim and warm, a candle's guttering more than a lamp's.
             double t = Time * (h.Lamp ? 3 : 9) + h.Id * 1.7;
             float gutter = (float)(0.8 + 0.12 * Math.Sin(t) + 0.08 * Math.Sin(t * 2.9 + 0.7) * Math.Sin(t * 0.37));
-            mesh.PointLights.Add(new PointLight(V(light, eye), Palette.LampAmber * (h.Lamp ? lit.Lamp : lit.Candle) * gutter, h.Lamp ? lit.LampRange : lit.CandleRange));
+            var flame = Vector3.Transform(V(light, eye), moved.Moved);
+            mesh.PointLights.Add(new PointLight(flame, Palette.LampAmber * (h.Lamp ? lit.Lamp : lit.Candle) * gutter, h.Lamp ? lit.LampRange : lit.CandleRange));
             // The flame's own small halo, so the light reads as coming from it.
-            mesh.Billboard(V(light, eye), (h.Lamp ? 0.35f : 0.22f) * gutter, 0, new Vector4(Palette.LampAmber * 0.45f * gutter, 1), -1, FxBlend.Additive);
+            mesh.Billboard(flame, (h.Lamp ? 0.35f : 0.22f) * gutter, 0, new Vector4(Palette.LampAmber * 0.45f * gutter, 1), -1, FxBlend.Additive);
         }
     }
 
@@ -3854,7 +3936,14 @@ public sealed partial class GreyboxScene
             // side, and open, it's swung in about its hinge into the room, a little past square.
             double t = Sim.Run.StopWalls.WallThickness;
             var hingeAt = new Double3(d.At.X, floor, d.At.Z) + ToD(side * (Half - 0.03f) - outward * (float)(t * 0.35));
-            float swing = walls.Shut(d.Key) ? 0 : 100 * MathF.PI / 180;
+            // A house a creature's moved carries its doors (GreyboxScene.Houses); come down, they're under it.
+            var moved = _movedHouses.TryGetValue((feature, building), out var how) ? how : (Moved: Matrix4x4.Identity, Down: false, Kept: false);
+            if (moved.Down)
+                continue;
+            int start = mesh.Count;
+            // It swings to, not at once; shut, it slams (DoorSwing), and the dust comes off its frame.
+            var (open, slammed) = DoorSwing(d.Key, walls.Shut(d.Key));
+            float swing = open * 100 * MathF.PI / 180;
             var along = Vector3.Normalize(-side * MathF.Cos(swing) - outward * MathF.Sin(swing));
             var face = Vector3.Cross(up, along);
             float width = Half * 2 - 0.08f, height = Lintel - 0.04f;
@@ -3864,6 +3953,10 @@ public sealed partial class GreyboxScene
             float inside = Vector3.Dot(face, -outward) >= 0 ? 1 : -1;
             foreach (float h in new[] { 0.3f, height - 0.3f })
                 mesh.Box(On(width / 2, h, inside * (Thick + 0.012f)), face, up, along, new Vector3(0.012f, 0.06f, width / 2 - 0.04f), wood * 0.8f);
+            if (moved.Moved != Matrix4x4.Identity)
+                mesh.Move(start, moved.Moved);
+            if (slammed >= 0 && Look is not null)
+                Look.Art.Effects.DoorSlam(mesh, Vector3.Transform(V(new Double3(d.At.X, floor + Lintel, d.At.Z), eye), moved.Moved), outward, side, slammed, d.Key);
         }
     }
 
@@ -3885,6 +3978,12 @@ public sealed partial class GreyboxScene
             var b = stop.Buildings[spot.Container.Building];
             double boards = Sim.Run.StopWalls.OpenShed(b) ? 0.21 : 0.17;
             float floor = (float)(Sim.Run.Run.StopWorld(line, f, b.Centre, Art.WorldArt.Ground(Route, f.Start + b.S, (float)b.D, (float)ValleyDepth) - 0.15 + boards).Y);
+            // A house a creature's moved carries what's been searched in it (GreyboxScene.Houses); come down, it's under it.
+            var moved = _movedHouses.Count > 0 && Route is not null && _movedHouses.TryGetValue((FeatureIndex(f), spot.Container.Building), out var how)
+                ? how : (Moved: Matrix4x4.Identity, Down: false, Kept: false);
+            if (moved.Down)
+                continue;
+            int start = mesh.Count;
             var into = new Vector3((float)spot.Facing.X, 0, (float)spot.Facing.Z);
             var up = Vector3.UnitY;
             var side = Vector3.Cross(up, into);
@@ -3936,6 +4035,8 @@ public sealed partial class GreyboxScene
                     mesh.Box(At(foot + 0.25f, 0.05f, 0.6f), side, up, into, new Vector3(0.4f, 0.05f, 0.3f), Palette.HazardYellow * 0.4f);
                     break;
             }
+            if (moved.Moved != Matrix4x4.Identity)
+                mesh.Move(start, moved.Moved);
         }
     }
 

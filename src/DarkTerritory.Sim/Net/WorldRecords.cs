@@ -188,7 +188,7 @@ public static class WorldRecords
                 f[Head + 1 + i * Each] = (site?.Stocked == true ? 1 : 0) | (site?.Turning == true ? 2 : 0) | (site?.OutOfRhythm == true ? 4 : 0)
                     | (site?.Pouring == true ? 8 : 0) | (site?.Herding == true ? 16 : 0) | (site?.Winding == true ? 32 : 0)
                     | (site?.Running == true ? 64 : 0) | (site?.Carrying == true ? 128 : 0)
-                    | (site?.GoodClamp == true ? 256 : 0) | (site?.RollingBack == true ? 512 : 0);
+                    | (site?.GoodClamp == true ? 256 : 0) | (site?.RollingBack == true ? 512 : 0) | (site?.LeverHeld == true ? 1024 : 0);
                 f[Head + 2 + i * Each] = Q(site?.Progress ?? 0, Fine);
                 f[Head + 3 + i * Each] = site?.SledsLeft ?? 0;
                 f[Head + 4 + i * Each] = Q(site?.Crank ?? 0, Ang);
@@ -497,6 +497,7 @@ public static class WorldRecords
                             Start = D(f[Head + 18 + i * Each], Fine), Clear = D(f[Head + 19 + i * Each], Fine),
                             TippleOre = D(f[Head + 20 + i * Each], Fine), Clamped = (int)f[Head + 21 + i * Each],
                             GoodClamp = (f[Head + 1 + i * Each] & 256) != 0, RollingBack = (f[Head + 1 + i * Each] & 512) != 0,
+                            LeverHeld = (f[Head + 1 + i * Each] & 1024) != 0,
                             Roll = D(f[Head + 22 + i * Each], Fine), Clamp = D(f[Head + 23 + i * Each], Fine), Rerail = D(f[Head + 24 + i * Each], Fine),
                         })], D(f[5], Fine), new Run.KitWhere((Run.KitPlace)f[6], -1, (int)f[7], (Run.KitLoss)f[8]));
                     break;

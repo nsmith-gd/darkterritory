@@ -7,8 +7,9 @@ namespace DarkTerritory.Game.Art;
 
 /// <summary>
 /// The Mourners, the Freight Beetle and Tower Jaw (GDD §21 OUTSIDE; the director's briefs of 8 Oct 2026; notes 362, 366,
-/// 363): each drawn by the sim's mode (replicated in its Height) and how long it's been in it (GreyboxScene watches it
-/// change), each facing its own heading.
+/// 363), the Pickers (note 574) and the house creatures, the Lodger and the Householder (notes 583, 584): each drawn by the
+/// sim's mode (replicated in its Height) and how long it's been in it (GreyboxScene watches it change), each facing its own
+/// heading.
 /// </summary>
 public sealed partial class CreatureArt
 {
@@ -16,6 +17,9 @@ public sealed partial class CreatureArt
     MournerMode? _mournerMode;
     BeetleMode? _beetleMode;
     TowerJawMode? _towerJawMode;
+    PickerMode? _pickerMode;
+    LodgerMode? _lodgerMode;
+    HouseholderMode? _householderMode;
     double _outsideSince = -1;
     float _outsidePace;
     TowerJawTuning? _towerJaw;
@@ -24,7 +28,11 @@ public sealed partial class CreatureArt
     /// <summary>Tower Jaw's tuning, as the content has it (its lean, its groan, its gnawing).</summary>
     public TowerJawTuning TowerJawTuning => _towerJaw ??= DataFile.Load<EnemyTuning>(Path.Combine(ContentRoot, EnemyTuning.File)).TowerJaw;
 
-    void ForgetOutside() => (_mournerMode, _beetleMode, _towerJawMode, _outsideSince, _outsidePace) = (null, null, null, -1, 0);
+    void ForgetOutside()
+    {
+        (_mournerMode, _beetleMode, _towerJawMode, _outsideSince, _outsidePace) = (null, null, null, -1, 0);
+        (_pickerMode, _lodgerMode, _householderMode) = (null, null, null);
+    }
 
     /// <summary>The live enemy's mode and pace for its draw; the basis it's drawn at (Tower Jaw set back of its jaws).</summary>
     Matrix4x4 OutsideIn(Enemy e, in Matrix4x4 model, float pace)
@@ -40,6 +48,15 @@ public sealed partial class CreatureArt
                 return model;
             case TowerJaw j:
                 _towerJawMode = j.Mode;
+                return model;
+            case Picker p:
+                _pickerMode = p.Mode;
+                return model;
+            case Lodger l:
+                _lodgerMode = l.Mode;
+                return model;
+            case Householder h:
+                _householderMode = h.Mode;
                 return model;
         }
         return model;
@@ -94,7 +111,44 @@ public sealed partial class CreatureArt
                         Chips(mesh, model, at);
                     return drawn;
                 }
-            case EnemyKind.Mourners or EnemyKind.FreightBeetle or EnemyKind.TowerJaw:
+            case EnemyKind.Pickers when _models.ContainsKey("picker"):
+                {
+                    // THE PICKERS (note 574; tools/blender/picker.py; docs/design/creatures/pickers.md §3): up out of a drain;
+                    // scuttling on all fours, or crouched with the head jerking round; under a crate, its hands up its sides,
+                    // the little legs pattering (a heavy one's second beside it, hoisting at its edge); the bite and the
+                    // scatter; down the drain head first, and gone. Several at once, each its own size and its own time (by
+                    // its id), so the group's never in step.
+                    var mode = _pickerMode ?? PickerModeOf(phase);
+                    var was = ModeWas is { } w ? (PickerMode?)w : null;
+                    int id = (int)extra2;
+                    if (PickerClip(mode, was, since, _outsidePace, id * 0.37) is not { } play)
+                        return true;
+                    float size = 0.92f + 0.16f * Hash01(id, 2);
+                    return Draw(mesh, "picker", play.Clip, play.Time, play.Loop, Matrix4x4.CreateScale(size) * model, seed: 574 + id);
+                }
+            case EnemyKind.Lodger when _models.ContainsKey("lodger"):
+                {
+                    // THE LODGER (note 583; tools/blender/lodger.py): folded into its corner, breathing; rearing up with its
+                    // jaw dropped open, shrieking (the telegraph); the lunge; the loping chase; bashing at a door; the slow
+                    // walk back to its room.
+                    var mode = _lodgerMode ?? LodgerModeOf(phase);
+                    var (clip, at, loop) = LodgerClip(mode, since, _outsidePace);
+                    return Draw(mesh, "lodger", clip, at, loop, model, seed: 583);
+                }
+            case EnemyKind.Householder when _models.ContainsKey("householder"):
+                {
+                    // THE HOUSEHOLDER (note 584; tools/blender/householder.py): sat at its table, its hands flat on it, still,
+                    // its eyes on you (the head turned to whoever's looking); getting up, slowly; the stiff walk after
+                    // whoever took from it; both hands on them; the walk back to its chair. Sat, a blow doesn't move it.
+                    var mode = _householderMode ?? HouseholderModeOf(phase);
+                    var (clip, at, loop) = HouseholderClip(mode, since);
+                    if (mode is HouseholderMode.Sit or HouseholderMode.Watch or HouseholderMode.Rise)
+                        _hit = -1;
+                    float look = HouseholderLooks(mode);
+                    var placed = model;
+                    return Draw(mesh, "householder", clip, at, loop, model, m => LookAtEye(m, placed, look), seed: 584);
+                }
+            case EnemyKind.Mourners or EnemyKind.FreightBeetle or EnemyKind.TowerJaw or EnemyKind.Pickers or EnemyKind.Lodger or EnemyKind.Householder:
                 return false;
             case EnemyKind.Waker:
                 return WakerStandIn(mesh, model, phase, t, WakersTuning.RiseSeconds);
@@ -267,5 +321,136 @@ public sealed partial class CreatureArt
             var p = start + r * (side * (float)age * 1.2f) + b * ((float)age * 0.5f) + u * (float)(1.4 * age - 2.6 * age * age);
             mesh.Box(p, r, u, b, new Vector3(0.035f, 0.012f, 0.025f), Palette.TarnishedBrass * 0.7f);
         }
+    }
+
+    // ----------------------------------------------------------------------------------------------------------------
+    // The Pickers
+
+    // Their clips' lengths (tools/blender/picker.py): up out of the drain (the sim's emergeSeconds), taking a crate up, the
+    // bite, down the drain.
+    public const double PickerEmergeSeconds = 0.8, PickerGrabSeconds = 0.4, PickerBiteSeconds = 0.4, PickerDescendSeconds = 0.5;
+
+    /// <summary>A Picker's mode as its phase has it, for a draw without the sim's (a test's, the greybox's).</summary>
+    public static PickerMode PickerModeOf(SpinePhase phase) => phase switch
+    {
+        SpinePhase.Dormant => PickerMode.Emerge,
+        SpinePhase.Alert => PickerMode.Wait,
+        SpinePhase.Grab or SpinePhase.Punish => PickerMode.Carry,
+        SpinePhase.BreakOff => PickerMode.Scatter,
+        _ => PickerMode.Scuttle,
+    };
+
+    /// <summary>
+    /// The clip a Picker plays, how far into it, and whether it loops: by its mode (the sim's), what it did before (its bite
+    /// is a tick of the sim's before it scatters; its grab starts its carry), how long it's been at it and how fast it's
+    /// going; <paramref name="offset"/> puts each of a group out of step with the rest. Null: down its drain, out of sight.
+    /// </summary>
+    public static (string Clip, double Time, bool Loop)? PickerClip(PickerMode mode, PickerMode? was, double modeSeconds, float pace, double offset = 0) => mode switch
+    {
+        PickerMode.Emerge when modeSeconds < PickerEmergeSeconds => ("emerge", modeSeconds, false),
+        PickerMode.Carry when modeSeconds < PickerGrabSeconds && was is not (PickerMode.Carry or PickerMode.Heave) => ("grab", modeSeconds, false),
+        PickerMode.Carry => ("carry", modeSeconds + offset, true),
+        PickerMode.Heave => ("heave", modeSeconds + offset, true),
+        PickerMode.Bite => ("bite", modeSeconds, false),
+        PickerMode.Scatter when was == PickerMode.Bite && modeSeconds < PickerBiteSeconds => ("bite", modeSeconds, false),
+        PickerMode.Scatter when pace > 0.3f => ("scatter", modeSeconds + offset, true),
+        PickerMode.Down when modeSeconds < PickerDescendSeconds && was is not PickerMode.Down => ("descend", modeSeconds, false),
+        PickerMode.Down => null,
+        _ => pace > 0.3f ? ("scuttle", modeSeconds + offset, true) : ("idle", modeSeconds + offset, true),
+    };
+
+    // ----------------------------------------------------------------------------------------------------------------
+    // The Lodger
+
+    // Its clips' lengths (tools/blender/lodger.py): the lunge, after which it lopes on.
+    public const double LodgerLungeSeconds = 0.6;
+
+    /// <summary>The Lodger's mode as its phase has it, for a draw without the sim's.</summary>
+    public static LodgerMode LodgerModeOf(SpinePhase phase) => phase switch
+    {
+        SpinePhase.Telegraph => LodgerMode.Shriek,
+        SpinePhase.Commit => LodgerMode.Lunge,
+        SpinePhase.Grab or SpinePhase.Punish => LodgerMode.Chase,
+        SpinePhase.BreakOff => LodgerMode.Return,
+        _ => LodgerMode.Hidden,
+    };
+
+    /// <summary>
+    /// The clip the Lodger plays: folded in its corner, breathing; the shriek (held at its end, jaw open, if it goes on); the
+    /// lunge, then the lope; at a door, bashing; walking back. Stood still in the chase it prowls (the slow walk).
+    /// </summary>
+    public static (string Clip, double Time, bool Loop) LodgerClip(LodgerMode mode, double modeSeconds, float pace) => mode switch
+    {
+        LodgerMode.Shriek => ("shriek", modeSeconds, false),
+        LodgerMode.Lunge when modeSeconds < LodgerLungeSeconds => ("lunge", modeSeconds, false),
+        LodgerMode.Lunge => ("chase", modeSeconds - LodgerLungeSeconds, true),
+        LodgerMode.Chase => pace > 0.4f ? ("chase", modeSeconds, true) : ("return", modeSeconds, true),
+        LodgerMode.Break => ("break", modeSeconds, true),
+        LodgerMode.Return => ("return", modeSeconds, true),
+        _ => ("hidden", modeSeconds, true),
+    };
+
+    // ----------------------------------------------------------------------------------------------------------------
+    // The Householder
+
+    /// <summary>The Householder's mode as its phase has it, for a draw without the sim's.</summary>
+    public static HouseholderMode HouseholderModeOf(SpinePhase phase) => phase switch
+    {
+        SpinePhase.Alert => HouseholderMode.Watch,
+        SpinePhase.Telegraph => HouseholderMode.Rise,
+        SpinePhase.Commit => HouseholderMode.Hunt,
+        SpinePhase.Grab or SpinePhase.Punish => HouseholderMode.Grab,
+        SpinePhase.BreakOff => HouseholderMode.Return,
+        _ => HouseholderMode.Sit,
+    };
+
+    /// <summary>The clip the Householder plays: sat at its table; watching; getting up (held stood at its end); the hunt's stiff
+    /// walk; both hands on someone; the walk back.</summary>
+    public static (string Clip, double Time, bool Loop) HouseholderClip(HouseholderMode mode, double modeSeconds) => mode switch
+    {
+        HouseholderMode.Watch => ("watch", modeSeconds, true),
+        HouseholderMode.Rise => ("rise", modeSeconds, false),
+        HouseholderMode.Hunt => ("hunt", modeSeconds, true),
+        HouseholderMode.Grab => ("grab", modeSeconds, true),
+        HouseholderMode.Return => ("return", modeSeconds, true),
+        _ => ("sit", modeSeconds, true),
+    };
+
+    /// <summary>How far the Householder's head turns after whoever's looking (GDD §31: its face too still, its eyes always on
+    /// you): a little sat at its table, all the way watching or getting up, most of the way hunting; not with its hands on
+    /// someone, or going back.</summary>
+    public static float HouseholderLooks(HouseholderMode mode) => mode switch
+    {
+        HouseholderMode.Sit => 0.4f,
+        HouseholderMode.Watch or HouseholderMode.Rise => 1f,
+        HouseholderMode.Hunt => 0.7f,
+        _ => 0f,
+    };
+
+    /// <summary>The most the Householder's head turns from its shoulders (radians), and tips up or down at you.</summary>
+    const float HouseholderTurn = 1.3f, HouseholderTip = 0.4f;
+
+    /// <summary>
+    /// A posed figure's head and neck turned (<paramref name="look"/> of the way) to the eye (the scene's built about it: the
+    /// origin), as far as <see cref="HouseholderTurn"/>, and tipped up or down at it.
+    /// </summary>
+    static void LookAtEye(Entry m, Matrix4x4 at, float look)
+    {
+        int head = m.Model.Skeleton.IndexOf("head");
+        if (look <= 0 || head < 0 || !Matrix4x4.Invert(at, out var inv))
+            return;
+        var eye = Vector3.Transform(Vector3.Zero, inv);
+        var from = m.Pose.World[head].Translation;
+        var to = eye - from;
+        float flat = MathF.Sqrt(to.X * to.X + to.Z * to.Z);
+        if (flat < 0.05f)
+            return;
+        // (The model faces −Z: CreateRotationY(a) takes that to (−sin a, 0, −cos a).)
+        float yaw = Math.Clamp(MathF.Atan2(-to.X, -to.Z), -HouseholderTurn, HouseholderTurn) * look;
+        float tip = Math.Clamp(MathF.Atan2(to.Y, flat), -HouseholderTip, HouseholderTip) * look;
+        Bend(m, "neck", Matrix4x4.CreateRotationY(yaw * 0.35f));
+        Bend(m, "head", Matrix4x4.CreateRotationY(yaw * 0.65f));
+        var right = Vector3.Transform(Vector3.UnitX, Matrix4x4.CreateRotationY(yaw));
+        Bend(m, "head", Matrix4x4.CreateFromAxisAngle(right, tip));
     }
 }
