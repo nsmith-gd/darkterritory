@@ -33,6 +33,8 @@ public sealed partial class LinesideProps
     SightCones? _cones;
     const double BuildingCell = 32;
     readonly Dictionary<(long, long), List<(double X, double Z, double R, double Top)>> _buildings = [];
+    /// <summary>The boards stood so far (as <see cref="Stand"/> stands them): the next keeps out of their way.</summary>
+    readonly List<BoardSite> _placed = [];
 
     /// <summary>The plan's lettered boards as they stand (note 560), by sign: none for a missing one or a dead signal.</summary>
     public IReadOnlyDictionary<PlanSign, BoardSite> PlanBoards
@@ -135,7 +137,9 @@ public sealed partial class LinesideProps
         // The side every board stands on (billboard.side), whatever side the plan gave it; a plate's side is the way it faces.
         if (type != "tunnelPlate" && r.Side != 0)
             side = r.Side;
-        return Place(def, face, r, edge, line, s, side, type, text, Ground, Footing, Shelter, at => ClearOn(edge, at));
+        // (Clear of the boards already stood, on its side: one standing before another would hide it.)
+        return Place(def, face, r, edge, line, s, side, type, text, Ground, Footing, Shelter, at => ClearOn(edge, at),
+            (at, stand) => _placed.Any(p => p.Edge == edge && p.Side == stand && Math.Abs(p.Along - at) < r.StackM));
     }
 
     /// <summary>
@@ -230,10 +234,17 @@ public sealed partial class LinesideProps
                 .OrderBy(x => x.Edge, StringComparer.Ordinal).ThenBy(x => x.Side).ThenBy(x => x.S).ThenByDescending(x => Warns(x.Type))
                 .ThenBy(x => x.Type, StringComparer.Ordinal).ThenBy(x => x.Text, StringComparer.Ordinal).ToList();
             var sight = new Dictionary<(string, long), BoardSite>();
+            _placed.Clear();
             foreach (var run in Runs(requests, (a, b) => a.Edge == b.Edge && a.Side == b.Side && b.S - a.S <= rules.Billboard.StackM))
             {
                 var line = LineOf(run[0].Edge)!;
                 var sites = Stack(run[0].Edge, line, run[0].Side, [.. run.Select(x => (x.Type, x.Text, x.S))]);
+                // A board moved to stand beside its twin (a bridge's far plate, moved back over the bridge to where it could
+                // stand) isn't stood twice.
+                if (run.All(x => x.Plan is not null) && sites.All(s => _placed.Any(p => p.Edge == s.Edge && p.Type == s.Type && p.Text == s.Text
+                    && Math.Abs(p.Along - s.Along) <= rules.Billboard.StackM)))
+                    continue;
+                _placed.AddRange(sites);
                 for (int i = 0; i < run.Count; i++)
                 {
                     if (run[i].Plan is { } sign)
@@ -279,9 +290,10 @@ public sealed partial class LinesideProps
     /// <param name="footing">Whether a post can stand at a world point (the edge, along it and out from it, and the point).</param>
     /// <param name="shelter">Whether a world point is behind a building.</param>
     /// <param name="clear">Whether the line is clear of bridges and tunnels at a distance along it.</param>
+    /// <param name="taken">Whether a distance along it, on a side, is another board's already.</param>
     public static BoardSite Place(BoardDef? def, BoardFace face, BillboardRules r, string edge, RailLine line, double s, int side,
         string type, string text, Func<double, double, double> ground, Func<string, double, double, Double3, bool> footing,
-        Func<Double3, bool> shelter, Func<double, bool> clear)
+        Func<Double3, bool> shelter, Func<double, bool> clear, Func<double, int, bool>? taken = null)
     {
         if (type == "tunnelPlate")
         {
@@ -296,14 +308,21 @@ public sealed partial class LinesideProps
         BoardSite? best = null;
         int steps = (int)Math.Floor(r.MaxBackM / Math.Max(1, r.StepBackM));
         bool Clear(double at) => at >= 0 && at <= line.Length && clear(at) && clear(at - face.Width) && clear(at + face.Width);
-        // Its own side first, then (an alternate's track or a road along it, a stop's ground) the other. Back toward the
-        // train first, then (not for a warning: it'd come too late) on past the plan's spot.
-        foreach (int stand in (ReadOnlySpan<int>)[side, -side])
+        // Where the plan put it, then the nearest spots either way, back toward the train before on past it (and never on
+        // past it for a warning: it'd come too late); on its own side first, then (an alternate's track or a road along it,
+        // a stop's ground, the land) the other. The first seen over enough of its approach, or else the best seen.
+        var offsets = new List<double> { 0 };
+        for (int k = 1; k <= steps; k++)
         {
-            for (int k = 0; k <= (def?.Warns == true ? steps : 2 * steps); k++)
+            offsets.Add(-k * r.StepBackM);
+            if (def?.Warns != true)
+                offsets.Add(k * r.StepBackM);
+        }
+        foreach (int stand in (ReadOnlySpan<int>)[side, -side])
+            foreach (double offset in offsets)
             {
-                double at = k <= steps ? s - k * r.StepBackM : s + (k - steps) * r.StepBackM;
-                if (!Clear(at) || Stood(line, edge, at, stand, type, text, face, def, r, ground, footing, shelter) is not { } site)
+                double at = s + offset;
+                if (!Clear(at) || taken?.Invoke(at, stand) == true || Stood(line, edge, at, stand, type, text, face, def, r, ground, footing, shelter) is not { } site)
                     continue;
                 site = site with { S = s };
                 if (site.SeenM >= r.SeenShare * site.ApproachM - 1e-9)
@@ -311,9 +330,8 @@ public sealed partial class LinesideProps
                 if (best is null || site.SeenM > best.SeenM)
                     best = site;
             }
-            if (best is not null)
-                return best;
-        }
+        if (best is not null)
+            return best;
         // Nowhere to stand near it (a limit for a bend inside a tunnel): the first spot back down the line clear of tunnels
         // and bridges, never up on the hill over the bore.
         for (double at = s; at >= Math.Max(0, s - 1000); at -= r.StepBackM)

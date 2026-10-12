@@ -99,6 +99,17 @@ static class LineGenCommands
             seenShare = standing.Count == 0 ? 0 : Math.Round(standing.Sum(r => r.seenM) / Math.Max(1, standing.Sum(r => r.approachM)), 3),
             under = standing.Where(r => r.seenM < r.approachM * new DarkTerritory.Sim.LineGen.BillboardRules().SeenShare).Select(r => $"{r.Type} {r.Text} at {r.s}: {r.seenM}/{r.approachM} m").ToList(),
             rows,
+            // The sim's own boards (sight.json's), as they stand.
+            sim = Lineside.Boards(new SightTuning(), route).Select(b => side.SightBoard(b)).Select(b => new
+            {
+                b.Type,
+                b.Text,
+                s = Math.Round(b.S),
+                moved = Math.Round(b.Along - b.S),
+                b.Side,
+                b.SeenM,
+                b.ApproachM,
+            }).ToList(),
         };
     }
 
