@@ -32,10 +32,22 @@ public class ThreatScaleTests
         Assert.Equal(o.EngagedPerActive, o.EngagedShare(P.ScaleCars, P.ScaleCars), 9);
         Assert.Equal(o.EngagedPerActive, o.EngagedShare(4, P.ScaleCars), 9);
         Assert.True(o.EngagedShare(P.ScaleCars + 3, P.ScaleCars) > o.EngagedPerActive);
-        Assert.Equal(o.PerPlayer, o.EngagedShare(40, P.ScaleCars), 9);
-        // A crew of four: three at once on a Frontier train, four on a long one.
+        // A crew of four: three at once on a Frontier train, four short of a long one.
         Assert.Equal(3, (int)Math.Ceiling(4 * o.EngagedShare(8, P.ScaleCars) - 1e-9));
-        Assert.Equal(4, (int)Math.Ceiling(4 * o.EngagedShare(13, P.ScaleCars) - 1e-9));
+        Assert.Equal(4, (int)Math.Ceiling(4 * o.EngagedShare(o.LongTrainCars - 1, P.ScaleCars) - 1e-9));
+        Assert.Equal(o.PerPlayer, o.PerPlayerFor(o.LongTrainCars - 1));
+    }
+
+    [Fact]
+    public void ALongTrainCanPutTwoOnOneCrewmate()
+    {
+        // Note 647 (the director, the inbox, 12 Oct: "b"): from about 13 cars, two threats each.
+        var o = Tuning.Enemies.Director.Orchestrator;
+        Assert.InRange(o.LongTrainCars, 12, 14);
+        Assert.Equal(2, o.PerPlayerFor(o.LongTrainCars));
+        Assert.Equal(2, o.PerPlayerFor(18));
+        Assert.Equal(8, (int)Math.Ceiling(4 * o.EngagedShare(18, P.ScaleCars) - 1e-9));
+        Assert.Equal(1, (o with { LongTrainCars = 0 }).PerPlayerFor(40));
     }
 
     [Fact]

@@ -688,6 +688,11 @@ public static partial class Hud
         return car > 0 ? $"REPAIR KIT: CAR {car}" : car == 0 ? "REPAIR KIT: ON THE ENGINE" : "REPAIR KIT: OFF THE TRAIN";
     }
 
+    /// <summary>Note 594: a hand-sized thing lying in reach, offered to a hand holding another: TAKE it : [E].</summary>
+    static string? TakePrompt(Sim.World world, in PlayerState p, TrainOnLine train, int playerId) =>
+        world.Bodies.InReach(p, train, world.Hand, world.Bodies.RadiosCarried && world.Bodies.HasRadio(playerId), playerId) is { Carrier: < 0 } thing
+        && Bodies.Pocketable(train, thing.Kind) ? $"TAKE {Called(world, thing)} : [E]" : null;
+
     /// <summary>A hand-sized thing by name, for the lockers' prompts.</summary>
     static string Called(Sim.World world, Body b) => b.Kind switch
     {
@@ -2147,6 +2152,11 @@ public static partial class Hud
         }
         // Carried, Use puts it down: nothing else in reach is offered. What it is, and how to be rid of it, is the corner's;
         // here only a healing find's use under way (note 272, in note 285's form).
+        // Note 594: a thing in hand from a slot, off the train, a slot free and another hand-sized thing in reach: Use takes it
+        // into a slot (aboard, Use puts the one in hand down).
+        if (world.Bodies.CarriedBy(s.PlayerId) is { Pocket: >= 0 } slotted && p.Parent == PlayerState.World && Kit.SlotFor(p) >= 0
+            && SwitchPrompt(world, p, train, world.Hand) is null && HealPrompt(s, slotted) is null && TakePrompt(world, p, train, s.PlayerId) is { } another)
+            return another;
         if (world.Bodies.CarriedBy(s.PlayerId) is { } inHands)
             return PowderPrompt(s, inHands) ?? SwitchPrompt(world, p, train, world.Hand) ?? HealPrompt(s, inHands);
         // T112: the gun's seat and its own controls.
@@ -2246,7 +2256,8 @@ public static partial class Hud
             return Guns.Stowed(train, powder.Guns) > 0 ? $"TAKE A CHARGE : [E]   {Guns.Stowed(train, powder.Guns)} ROUNDS" : "THE POWDER LOCKER'S EMPTY";
         bool wearing = world.Bodies.RadiosCarried && world.Bodies.HasRadio(s.PlayerId);
         if (world.Bodies.InReach(p, train, hand, wearing, s.PlayerId) is { } thing)
-            return thing.Kind switch
+            // Note 594: every slot full, a hand-sized thing isn't taken.
+            return Bodies.Pocketable(train, thing.Kind) && Kit.SlotFor(p) < 0 ? "HANDS FULL" : thing.Kind switch
             {
                 BodyKind.Ragdoll => "PICK UP THE BODY : [E]",
                 BodyKind.Radio => "TAKE THE RADIO : [E]",

@@ -809,6 +809,21 @@ public sealed partial class Run
         Report = Tally(world, crew);
     }
 
+    /// <summary>
+    /// Note 640 (the director, the inbox, 12 Oct: "a clear identifiable cause of a decouple"): what worked the pin loose that
+    /// parted these cars, and who was driving, in the clerk's words.
+    /// </summary>
+    static string PinParted(World world, int car)
+    {
+        string driving(int d) => d >= 0 ? $" Driving: {IncidentLog.NameOf(world, d)}." : "";
+        return world.Attribution.LooseOf(car) switch
+        {
+            { Cause: LooseCause.RunIn } l => $"A hard brake at {Kmh(l.Speed)} worked the coupling's pin loose, and it parted.{driving(l.Driver)} ",
+            { Cause: LooseCause.Knock } l => $"Coupled up at {Kmh(l.Speed)}, the knock worked the coupling's pin loose, and it parted.{driving(l.Driver)} ",
+            _ => "The coupling worked loose and parted. ",
+        };
+    }
+
     static string Kmh(double metresPerSecond) => $"{Math.Abs(metresPerSecond) * 3.6:0} km/h";
     static string Capital(string s) => s.Length == 0 ? s : char.ToUpperInvariant(s[0]) + s[1..];
 
@@ -919,7 +934,7 @@ public sealed partial class Run
                 inside.Add($"the body of {IncidentLog.NameOf(world, b.Owner)}");
             int puller = taken is null ? world.Attribution.CouplerPulledBy(ids.Min()) : -1;
             // Note 511: or nobody's: the coupling worked loose and its pin dropped (note 356).
-            string cause = puller >= 0 ? $"Coupler: {IncidentLog.NameOf(world, puller)}. " : taken is null && world.Attribution.Parted(ids.Min()) ? "The coupling worked loose and parted. "
+            string cause = puller >= 0 ? $"Coupler: {IncidentLog.NameOf(world, puller)}. " : taken is null && world.Attribution.Parted(ids.Min()) ? PinParted(world, ids.Min())
                 // Note 576: battered and let go, it came apart and its freight's on the line.
                 : taken is null && world.Attribution.Apart(ids.Min()) ? "Battered and never mended, it came apart; its freight spilled on the line. " : "";
             string action = cause + (inside.Count > 0 ? $"Inside: {string.Join(", ", inside)}." : "Empty.");

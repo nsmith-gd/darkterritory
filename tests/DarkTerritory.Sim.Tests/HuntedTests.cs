@@ -96,7 +96,7 @@ public class HuntedTests
     {
         var n = new Night(6, 6, enemies: HoundRunTests.Quiet);
         var loose = DataFile.Load<UpkeepTuning>(Path.Combine(DataFile.FindContentRoot(), UpkeepTuning.File)).Coupling;
-        n.World.Upkeep = new UpkeepTuning { HotBox = new() { Enabled = false }, Lamp = new() { Enabled = false }, Coupling = loose with { FirstAfterMetres = 1e9 } };
+        n.World.Upkeep = new UpkeepTuning { HotBox = new() { Enabled = false }, Lamp = new() { Enabled = false }, Coupling = loose };
         n.Crew[0] = PlayerMotor.SpawnInCab(n.Train, P);
         var cars = n.Train.Dynamics.Consist.Vehicles;
         PackOn(n, cars[5].Id, 3);
@@ -138,7 +138,7 @@ public class HuntedTests
     {
         var n = new Night(8, 6, enemies: HoundRunTests.Quiet);
         var loose = DataFile.Load<UpkeepTuning>(Path.Combine(DataFile.FindContentRoot(), UpkeepTuning.File)).Coupling;
-        n.World.Upkeep = new UpkeepTuning { HotBox = new() { Enabled = false }, Lamp = new() { Enabled = false }, Coupling = loose with { FirstAfterMetres = 1e9 } };
+        n.World.Upkeep = new UpkeepTuning { HotBox = new() { Enabled = false }, Lamp = new() { Enabled = false }, Coupling = loose };
         n.Crew[0] = PlayerMotor.SpawnInCab(n.Train, P);
         var cars = n.Train.Dynamics.Consist.Vehicles;
         var pack = PackOn(n, cars[2].Id, 2);

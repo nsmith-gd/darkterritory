@@ -2912,6 +2912,10 @@ public sealed partial class StopHand(StopJob job, CrewCalls calls, int member, C
         // Heavy crates (T45): holding an end, wait for a hand; at the back end of one, follow it in; someone holding one
         // alone, go and take the other end.
         var mine = PlayerId is { } me ? world.Bodies.CarriedBy(me) : null;
+        // Note 594's four slots: finds in them. A slot still free and another house worth searching, the one in hand is put
+        // away (the number key of a slot without a find) and on to the next; else one out into the hand, and home with it.
+        if (_setDown is null && SlotFinds(self, world, p, mine) is { } slots)
+            return slots;
         if (mine is { Kind: Physics.BodyKind.Heavy })
         {
             if (!mine.Lifted)

@@ -110,6 +110,16 @@ public sealed class Body
     public int Slot { get; set; }
     public bool Stowed => Locker >= 0;
     /// <summary>
+    /// Note 594: the slot of its carrier's hotbar it's in (a hand-sized thing carried, <see cref="Bodies.Slotted"/>), or −1:
+    /// lying about, or held two-handed in the arms.
+    /// </summary>
+    public int Pocket { get; set; } = -1;
+    /// <summary>
+    /// Note 594: in a slot that isn't the one in hand, put away on its carrier: still theirs (<see cref="Carrier"/>) and going
+    /// where they go, but not in their hands (<see cref="Bodies.CarriedBy"/>), not drawn, and not lit or working.
+    /// </summary>
+    public bool Stashed { get; set; }
+    /// <summary>
     /// The crew's: stocked aboard at the fortress, or in someone's hands since. A repair kit found at a stop is the crew's
     /// once it's been picked up (GDD v1.4 §23.2 counts the kits the crew have; one lying unfound in a village isn't one).
     /// Host only.
@@ -171,8 +181,63 @@ public sealed class Bodies
     /// <summary>Whether a player can use the radio: wearing one, or everyone while radios aren't things.</summary>
     public bool HasRadio(int playerId) => !RadiosCarried || _bodies.Any(b => b.Kind == BodyKind.Radio && b.Carrier == playerId && !b.Broken);
 
-    /// <summary>What a player carries in their hands (a radio's on the belt, not in them).</summary>
-    public Body? CarriedBy(int playerId) => _bodies.FirstOrDefault(b => b.HeldBy(playerId) && b.Kind != BodyKind.Radio);
+    /// <summary>What a player carries in their hands (a radio's on the belt, not in them; a thing put away in a slot, note 594, isn't either).</summary>
+    public Body? CarriedBy(int playerId) => _bodies.FirstOrDefault(b => b.HeldBy(playerId) && b.Kind != BodyKind.Radio && !b.Stashed);
+
+    /// <summary>Note 594: the things a player carries in their slots, the one in hand among them, by slot.</summary>
+    public IEnumerable<Body> Slotted(int playerId) => _bodies.Where(b => b.Carrier == playerId && b.Pocket >= 0).OrderBy(b => b.Pocket);
+
+    /// <summary>
+    /// Note 594 ("Lethal Company's four shared slots", the director, the inbox, 12 Oct): what goes in a slot is what goes in a
+    /// crew locker, hand-sized (train.json <c>kit.lockers.holds</c>), but the radio, which has its belt.
+    /// </summary>
+    public static bool Pocketable(TrainOnLine train, BodyKind kind) => kind != BodyKind.Radio && Lockers.Holds(train, kind);
+
+    /// <summary>
+    /// Host, every tick (note 594): the thing in the slot in hand comes out into the hands, and one in hand from another slot
+    /// is put away, so the hotbar's choice (<see cref="Player.Kit.Select"/>, predicted) decides what's held. Arms full of
+    /// something two-handed, nothing comes out. <see cref="PlayerState.Pockets"/> is set from what's in the slots.
+    /// </summary>
+    void SyncSlots(ref PlayerState s, int playerId)
+    {
+        byte pockets = 0;
+        bool armsFull = _bodies.Any(b => b.HeldBy(playerId) && b.Kind != BodyKind.Radio && b.Pocket < 0);
+        foreach (var b in _bodies)
+        {
+            if (b.Carrier != playerId || b.Pocket < 0)
+                continue;
+            pockets |= (byte)(1 << b.Pocket);
+            b.Stashed = armsFull || b.Pocket != s.HeldSlot;
+        }
+        s.Pockets = pockets;
+    }
+
+    /// <summary>
+    /// Note 594: a hand-sized thing into a slot (the one in hand if it's empty, else the first empty one) and into the hands,
+    /// that slot taken in hand. False, and it's not taken, if every slot's full.
+    /// </summary>
+    bool IntoSlot(ref PlayerState s, int playerId, Body b)
+    {
+        int slot = Player.Kit.SlotFor(s);
+        if (slot < 0)
+            return false;
+        b.Carrier = playerId;
+        b.Pocket = slot;
+        b.Stashed = false;
+        s.HeldSlot = (byte)slot;
+        s.Pockets |= (byte)(1 << slot);
+        foreach (var other in _bodies)
+            if (other != b && other.Carrier == playerId && other.Pocket >= 0)
+                other.Stashed = true;
+        return true;
+    }
+
+    /// <summary>Note 594: everything in a dead player's slots falls where they are.</summary>
+    void DropSlots(in PlayerState s, int playerId, TrainOnLine train)
+    {
+        foreach (var b in _bodies.Where(b => b.Carrier == playerId && b.Pocket >= 0).ToList())
+            Release(b, s, train, 0);
+    }
 
     // Ticks Use has been held at a car's door with arms full, by player (note 581): a tap puts it down, a hold is the door's.
     readonly Dictionary<int, int> _doorHeld = new();
@@ -225,6 +290,8 @@ public sealed class Bodies
             ToCar(b, train, car);
         }
         b.Carrier = b.Second = -1;
+        b.Pocket = -1;
+        b.Stashed = false;
         b.Locker = locker;
         b.Slot = slot;
         b.Airborne = 0;
@@ -368,7 +435,7 @@ public sealed class Bodies
             .OrderBy(t => t is Tool.Wrench or Tool.Shovel ? 0 : 1))
         {
             // A spare crowbar isn't worth a slot; the wrench and the shovel (there's the one of each) always are.
-            if (tool is not (Tool.Wrench or Tool.Shovel) && Player.Kit.Has(kit, tool) || !Player.Kit.TryAdd(ref kit, tool))
+            if (tool is not (Tool.Wrench or Tool.Shovel) && Player.Kit.Has(kit, tool) || !Player.Kit.TryAdd(ref kit, tool, s.Pockets))
                 Player.Kit.TryAdd(ref left, tool);
         }
         s.Kit = kit;
@@ -450,9 +517,14 @@ public sealed class Bodies
     /// carried and nothing lying by it is picked up. Throw still lets go.
     /// </param>
     /// <param name="fetch">Empty hands here take a new one of these on a Use press (a powder locker's charge, note 374).</param>
-    public bool Handle(in PlayerState s, in PlayerIntent intent, int playerId, TrainOnLine train, HandTuning? hand = null, bool keep = false,
+    /// <summary>The same, for a player whose state the caller keeps (tests): the slots it chooses aren't written back.</summary>
+    public bool Handle(PlayerState s, in PlayerIntent intent, int playerId, TrainOnLine train, HandTuning? hand = null, bool keep = false,
+        bool lever = false, BodyKind? fetch = null) => Handle(ref s, intent, playerId, train, hand, keep, lever, fetch);
+
+    public bool Handle(ref PlayerState s, in PlayerIntent intent, int playerId, TrainOnLine train, HandTuning? hand = null, bool keep = false,
         bool lever = false, BodyKind? fetch = null)
     {
+        SyncSlots(ref s, playerId);
         bool use = intent.Has(PlayerButtons.Use), thrown = intent.Has(PlayerButtons.Throw);
         bool usePressed = use && !_useWas.GetValueOrDefault(playerId);
         bool throwPressed = thrown && !_throwWas.GetValueOrDefault(playerId);
@@ -466,6 +538,8 @@ public sealed class Bodies
                 Release(carried, s, train, 0);
             if (worn is not null)
                 Release(worn, s, train, 0);
+            DropSlots(s, playerId, train);
+            s.Pockets = 0;
             return false;
         }
         if (carried is not null && (keep || lever) && !throwPressed)
@@ -489,8 +563,9 @@ public sealed class Bodies
                     v.ToggleLocker(locker.Bay.Index);
                 if (carried is not null)
                     Stow(carried, train, locker.Car, locker.Bay.Index);
-                else if (open)
-                    Take(train, locker.Car, locker.Bay.Index, playerId);
+                else if (open && Player.Kit.SlotFor(s) >= 0 && Take(train, locker.Car, locker.Bay.Index, playerId) is { } taken
+                    && Pocketable(train, taken.Kind))
+                    IntoSlot(ref s, playerId, taken);
             }
             return false;
         }
@@ -514,8 +589,23 @@ public sealed class Bodies
             return false;
         if (Dose(s, intent, playerId, train, hand, carried, use, usePressed, throwPressed))
             return false;
+        // Note 594: a find in hand off the train and another hand-sized thing in reach, with a slot free: Use takes it into that
+        // slot, the one in hand put away (Lethal Company's E). Aboard, Use puts the find down, as it always has: that's where
+        // finds are unloaded, and the one put down a moment before is still lying in reach.
+        if (carried is { Pocket: >= 0 } inHand && usePressed && !lever && intent.MoveZ <= 0.5 && s.Parent == PlayerState.World
+            && Player.Kit.SlotFor(s) >= 0 && CrewActions.NearestInteractable(s, train, hand) is null
+            && InReach(s, train, hand, wearingRadio: worn is not null, playerId) is { Carrier: < 0 } another && Pocketable(train, another.Kind))
+        {
+            inHand.Stashed = true;
+            IntoSlot(ref s, playerId, another);
+            another.Claimed = true;
+            another.Pbd.Wake();
+            return true;
+        }
         if (carried is not null && (throwPressed || usePressed))
         {
+            if (carried.Pocket >= 0)
+                s.Pockets &= (byte)~(1 << carried.Pocket);
             // Nobody throws a heavy crate: either of you lets go, and it's down.
             double speed = !throwPressed || carried.Kind == BodyKind.Heavy ? 0 : carried.Kind == BodyKind.Ragdoll ? Hands.RagdollThrowSpeed : Hands.ThrowSpeed;
             Release(carried, s, train, speed);
@@ -550,8 +640,20 @@ public sealed class Bodies
             else
                 nearest.Carrier = playerId;
         }
+        else if (Pocketable(train, nearest.Kind))
+        {
+            // Note 594: into a slot, the thing that was in hand (a tool) put away; not taken with every slot full.
+            if (!IntoSlot(ref s, playerId, nearest))
+                return false;
+        }
         else
+        {
+            // Two-handed (a crate, freight, a body, a child): in the arms, and the slots wait till it's down.
             nearest.Carrier = playerId;
+            foreach (var other in _bodies)
+                if (other.Carrier == playerId && other.Pocket >= 0)
+                    other.Stashed = true;
+        }
         nearest.Claimed = true;
         nearest.Pbd.Wake();
         return true;
@@ -725,6 +827,8 @@ public sealed class Bodies
     void Release(Body b, in PlayerState s, TrainOnLine train, double speed)
     {
         b.Carrier = b.Second = -1;
+        b.Pocket = -1;
+        b.Stashed = false;
         var p = b.Pbd.Particles;
         foreach (int held in Grips(b))
             p[held].InverseMass = 1;

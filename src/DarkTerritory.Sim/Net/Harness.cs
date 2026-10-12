@@ -281,6 +281,8 @@ public sealed record UpkeepReport(int HotBoxes, int Caught, int Lamps, int WentO
 {
     /// <summary>Rounds the guns fired (note 377).</summary>
     public int Rounds { get; init; }
+    /// <summary>Note 640: each pin worked loose, its cause, the train's speed and what the driver was doing then.</summary>
+    public IReadOnlyList<string> Loosened { get; init; } = [];
     /// <summary>Who carried each charge up to fill a rack, by bot (note 377: the gunner's own, or a walker's).</summary>
     public IReadOnlyDictionary<string, int> FilledBy { get; init; } = new Dictionary<string, int>();
     /// <summary>Seconds a gun that's fired stood with its rack dry while there was powder below (note 377), its gunner waiting or gone for it.</summary>
@@ -450,6 +452,7 @@ public static class Harness
         IReadOnlyList<string>? atLine = null;
         DawnReport? dawn = null;
         double closest = double.PositiveInfinity;
+        var loosened = new List<string>();
         for (uint t = 0; t < ticks; t++)
         {
             if (host.World.Run is { Over: true } || o.Until?.Invoke(host.World) == true)
@@ -462,6 +465,16 @@ public static class Harness
             o.Script?.Invoke(t, host.World);
             host.Step();
             events.AddRange(host.World.EnemyEvents);
+            // Note 640: what worked each pin loose, and what the driver was at.
+            while (loosened.Count < host.World.Loosenings.Count)
+            {
+                var (cause, at) = host.World.Loosenings[loosened.Count];
+                string doing = "";
+                foreach (var p in host.Players)
+                    if (clients.FirstOrDefault(c => c.Session.PlayerId == p.Id).Bot is ConductorBot cb)
+                        doing = " " + Describe(cb, p.State);
+                loosened.Add($"{t * SimConstants.TickSeconds:0}s {cause} {at:0.0} m/s{doing}");
+            }
             foreach (var p in host.Players)
                 falls.Watch(t, host.Train, p.Id, p.State, clients.FirstOrDefault(c => c.Session.PlayerId == p.Id).Bot);
             if (host.World.Run is { } dawnRun && host.World.Enemies is { Wakers.Enabled: true } dawnTuning)
@@ -693,6 +706,7 @@ public static class Harness
             host.World.GutterCount.Came, host.World.GutterCount.WentOut, host.World.LooseCount.Came, host.World.LooseCount.Parted, host.World.RacksFilled)
         {
             Rounds = rounds,
+            Loosened = loosened,
             FilledBy = host.World.RacksFilledBy.GroupBy(f => clients.FirstOrDefault(c => c.Session.PlayerId == f.Key).Bot?.Name ?? $"player {f.Key}")
                 .ToDictionary(g => g.Key, g => g.Sum(f => f.Value)),
             DrySeconds = Math.Round(dryTicks * SimConstants.TickSeconds, 1),
