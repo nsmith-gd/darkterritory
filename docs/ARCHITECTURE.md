@@ -861,4 +861,5 @@ written here instead is moved out by `tools/coord/notes.py split`; the Coordinat
 - [676. The creature gym (A1, queue #407; the director, 13 Oct 2026: "make a dev gym for me to test all the creatures functions and make sure all…](notes/676.md)
 - [677. Test reports in one file, in the game's folder (A1, queue #409; the director, 13 Oct 2026: "I want them stored as logs in the game folder…](notes/677.md)
 - [679. The Wakers' model (queue #411, C1; docs/design/creatures/wakers.md §8.3, note 588; the director, 13 Oct 2026: "propose some model designs…](notes/679.md)
+- [684. A moved board says its distance from where it stands (B4, queue #416; note 560's handoff, not yet (1); the director, 13 Oct,…](notes/684.md)
 <!-- end of the notes index -->
