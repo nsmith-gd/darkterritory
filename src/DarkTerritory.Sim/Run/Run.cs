@@ -315,6 +315,8 @@ public sealed partial class Run
     /// <summary>Where the engineering kit is, as of this tick (host; GDD v1.4 §23.2).</summary>
     public KitWhere Kit { get; private set; }
     double _kitLostFor;
+    /// <summary>Host: how long the engine's stood broken down (note 660), for its mend before the dawn freight's called.</summary>
+    double _brokenStandingFor;
     bool _kitStocked;
     bool _wasRuptured;
     bool _wasBrokenDown;
@@ -377,7 +379,14 @@ public sealed partial class Run
             world.Attribution.Add(new Incident(IncidentKind.Rupture, Seconds, -1, "Engine broke down",
                 IncidentLog.At(world, train.Frames[0].Origin, front), -1, "Battered, and never mended."));
         _wasBrokenDown = brokenDown;
-        bool stranded = (train.Boiler.Ruptured && _kitLostFor >= Tuning.Stranded.LostForSeconds || brokenDown) && engine.Speed < Tuning.StopBelowSpeed;
+        // Note 660 (the director, 13 Oct: "There's no wrench, but I have a wrench ... It's in my inventory"): broken down, the
+        // night used to end at the first stand regardless. The wrench at the engine's dent mends it as any dent (note 576), so
+        // with one aboard the crew have stranded.brokenDownSeconds standing to mend it; with the last wrench (or the kit) lost,
+        // it's stranded at once, as a rupture is.
+        bool standing = engine.Speed < Tuning.StopBelowSpeed;
+        _brokenStandingFor = brokenDown && standing ? _brokenStandingFor + dt : 0;
+        bool stranded = standing && ((train.Boiler.Ruptured || brokenDown) && _kitLostFor >= Tuning.Stranded.LostForSeconds
+            || brokenDown && _brokenStandingFor >= Tuning.Stranded.BrokenDownSeconds);
 
         // Note 588: with the Wakers up, dawn's end is theirs (a train eaten, or its crew), not dawnGraceSeconds' timer.
         bool wakers = world.Enemies?.Wakers.Enabled == true;

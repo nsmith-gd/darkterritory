@@ -841,7 +841,7 @@ written here instead is moved out by `tools/coord/notes.py split`; the Coordinat
 - [657. The Tweaker's estimate under a roster (D1, queue #387; note 654's "not yet")](notes/657.md)
 - [658. A bot walks back into the same Ribbit: now the bots club them (D1.5, queue #388; found under note 652's roster, at D1's ask)](notes/658.md)
 - [659. Loot never vanishes, and the lockers hold several (D1.5, queue #390; the director, 13 Oct, playing the morning build)](notes/659.md)
-- [660. Stranded with a wrench in a slot (D1.5, queue #391; the director, 13 Oct, playing the morning build)](notes/660.md)
+- [660. Stranded with a wrench in a slot: a broken-down engine waits to be mended while a wrench is aboard (D1.5, queue #391; the director, 13 Oct)](notes/660.md)
 - [661. The buffer stop strand: a buffer stop run into dents the engine, it doesn't break it down (D1.4, queue #392; the director, 13 Oct, playing…](notes/661.md)
 - [662. A fire worked a stretch at a time: held on the floor ahead, the spray puts out the car all round there (D1.4, queue #393; the director, 13…](notes/662.md)
 - [663. A lost car told (D1.4, queue #394; the director, 13 Oct, playing the morning build)](notes/663.md)
