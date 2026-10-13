@@ -159,7 +159,10 @@ public sealed partial class WorldArt
                 continue;
             var m = Place(line, eye, town.World(f.S, f.D), f.S, f.FaceS, f.FaceD);
             int count = f.Kind switch { "board" => notices, "line" => (int)(sq.S1 - sq.S0 - 8), _ => 0 };
-            var piece = Piece($"square-{f.Kind}-{count}", () => SquareKit.Fixture(_look, f.Kind, count));
+            // The board carries the town's own notices, written on its sheets (note 669): a piece of its own, per town.
+            var piece = f.Kind == "board"
+                ? Piece($"square-board-{plan.Name}-{notices}", () => SquareKit.Board(_look, [.. plan.Papers.Where(p => p.OnBoard).Select(p => (p.Title, p.Text))]))
+                : Piece($"square-{f.Kind}-{count}", () => SquareKit.Fixture(_look, f.Kind, count));
             mesh.Instances.Add(new MeshInstance(piece, m));
             // The banked fire glows; the shuttered lamps leak a little round their shutters.
             if (f.Kind == "brazier")

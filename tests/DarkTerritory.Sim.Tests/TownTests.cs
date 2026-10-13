@@ -164,6 +164,31 @@ public class TownTests
             Assert.InRange(board.Count, Towns.Tuning.Notices[0], Towns.Tuning.Notices[1]);
             Assert.Equal(culture.Notes[0].Title, board[0].Title);
             Assert.Contains(plan.Papers, p => !p.OnBoard);
+            // Then the town's own notices, written for it (note 669; a title with a place in it filled in).
+            foreach (var own in board.Skip(1).Take(Towns.Tuning.BoardOwn))
+                Assert.Contains(culture.Board, n => n.Title == own.Title || n.Title.Contains('{'));
+        }
+    }
+
+    /// <summary>
+    /// Every custom has notices of its own for its board, in its own voice (note 669; the director, 13 Oct: "we're going
+    /// to want to have actual like custom writing for this"): a town's business, never the game's instructions.
+    /// </summary>
+    [Fact]
+    public void EveryCustomHasNoticesOfItsOwnAndNoneReadsAsInstructions()
+    {
+        string[] instructions = ["player", "press ", "click", "[e]", "hold e", "the crew should", "tip:", "objective", "health", "loot"];
+        foreach (var culture in Towns.Writing.Cultures)
+        {
+            Assert.True(culture.Board.Length >= Towns.Tuning.BoardOwn + 1, $"{culture.Id}: {culture.Board.Length} notices of its own");
+            Assert.Equal(culture.Board.Length, culture.Board.Select(n => n.Title).Distinct().Count());
+            foreach (var n in culture.Board)
+            {
+                Assert.InRange(n.Title.Split(' ').Length, 1, 5);
+                Assert.InRange(n.Text.Split(' ').Length, 10, 60);
+                Assert.DoesNotContain(instructions, w => (n.Title + " " + n.Text).Contains(w, StringComparison.OrdinalIgnoreCase));
+                Assert.DoesNotContain(Towns.Writing.Cultures.SelectMany(c => c.Notes), o => o.Text == n.Text);
+            }
         }
     }
 
