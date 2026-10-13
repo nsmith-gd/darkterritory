@@ -36,7 +36,12 @@ public static class Calls
                 return "boarding at the tender, for the firebox";
             case EnemyKind.Drift:
                 if (Drift.Ground(world, t.Drift) is null)
-                    return "it's the ground itself: it needs the train standing on a marsh (the map's)";
+                {
+                    double front = train.Dynamics.Distance;
+                    var marsh = world.Route?.Of(Route.FeatureKind.Marsh).OrderBy(f => Math.Abs(f.Start - front)).FirstOrDefault();
+                    return marsh is null ? "it's the marsh's own ground, and this line has no marsh"
+                        : $"it's the marsh's own ground: stand the train on the marsh {Math.Abs(marsh.Start - front) / 1000:0.0} km {(marsh.Start > front ? "ahead" : "back")}";
+                }
                 world.CallDrift(t);
                 return "the marsh coming up under a car";
             case EnemyKind.Sleepers:
@@ -44,7 +49,7 @@ public static class Calls
                 world.AddEnemy(i => new Sleepers(i) { LineDistance = train.Dynamics.Distance + Math.Max(max, t.Sleepers.LampRevealDistance + 30), Height = 0.2 });
                 return "debris on the line ahead: drive onto it";
             case EnemyKind.Choir:
-                return world.CallChoir() ? "gathering: it comes in a few seconds, and it hears you" : "this night has no guns or loudness meter";
+                return world.CallChoir() ? "gathering: it comes within 20 s, and it hears you" : "this night has no guns or loudness meter";
             case EnemyKind.CarFire:
                 {
                     int car = FarthestCar(world, you, interior: true);
@@ -78,10 +83,14 @@ public static class Calls
                 return House(world, kind, you, t);
             case EnemyKind.Pickers:
                 {
-                    if (world.Run?.FacilityFeature is null)
-                        return "they come up at a yard: stand the train at its stop";
-                    Crates(world, you, min, max, 3);
-                    var drains = Picking.Drains(world, t.Pickers);
+                    var crates = Crates(world, you, min, max, 3);
+                    // Their drains at the stop's sheds when the train's in its yard; out on the ground past the crates when it isn't.
+                    var drains = world.Run?.FacilityFeature is not null ? Picking.Drains(world, t.Pickers) : [];
+                    if (drains.Count == 0)
+                    {
+                        var (at, hint, yaw) = Out(world, crates, t.Pickers.FacilityReach * 0.2, 4);
+                        drains = [(at, hint, yaw)];
+                    }
                     int count = t.Pickers.CountFor(world.Route?.Tier ?? Route.RouteTier.Local, AsCrew);
                     for (int n = 0; n < count && drains.Count > 0; n++)
                     {
@@ -119,14 +128,91 @@ public static class Calls
             return "from where it lives at this stop";
         return kind switch
         {
+            EnemyKind.Ribbit => Warren(world, you, t),
+            EnemyKind.Switchman => Points(world, t),
+            EnemyKind.TowerJaw => Tower(world, t),
+            EnemyKind.Grumbler => Castings(world, t),
             EnemyKind.CarHugger => Hugger(world, t),
-            EnemyKind.Follower => "it rides a crewmate off the train: step down onto the ground at the stop",
-            EnemyKind.Switchman => "it needs a branch's points 0.5 to 1.2 km ahead: drive on towards one",
-            EnemyKind.TowerJaw => "it needs a coaling tower or a crane at the stop, standing",
-            EnemyKind.Grumbler => "it needs the stop's crane with castings stacked",
+            EnemyKind.Follower => "it rides whoever's off the train: step down and call it again (only the others ever see it)",
             EnemyKind.Passenger => "it needs a car with a room, and a crewmate",
             _ => "its rule found nowhere to put it here",
         };
+    }
+
+    /// <summary>
+    /// The pack from the stop's warren nearest you, however far (the rule takes only one within reach of the ground crew); a
+    /// pack sized for a crew of <see cref="AsCrew"/>, so it goes for a lone player.
+    /// </summary>
+    static string Warren(World world, Double3 you, EnemyTuning t)
+    {
+        var sites = CreatureSites.Of(world, Stops.LairKind.Warren, t.Sites.Around);
+        if (sites.Count == 0)
+            return "no warren at this stop";
+        var at = sites.Select(x => x.At).OrderBy(a => Flat(a - you)).First();
+        int size = Math.Min(AsCrew, Math.Max(2, t.Ribbits.PackSize[^1]));
+        int pack = world.NextEnemyId;
+        for (int n = 0; n < size; n++)
+        {
+            var spot = at + new Double3(n * 1.2, 0, (n % 2) * 1.2);
+            world.AddEnemy(i => Ribbit.At(i, pack, spot, t.Ribbits));
+        }
+        return "out of the stop's warren";
+    }
+
+    /// <summary>The Switchman at the first points ahead: a dead line's if there's one, else any branch's (a yard's spur).</summary>
+    static string Points(World world, EnemyTuning t)
+    {
+        var train = world.Train;
+        double front = train.Dynamics.Distance;
+        var ahead = train.Line.Branches.Where(b => !train.Diverging(b.Index) && b.Toe - front >= 60).ToList();
+        var branch = ahead.Where(b => b.Kind == Rail.BranchKind.DeadLine).OrderBy(b => b.Toe).FirstOrDefault() ?? ahead.OrderBy(b => b.Toe).FirstOrDefault();
+        if (branch is null)
+            return "no points ahead on this line";
+        world.AddEnemy(i => Switchman.At(i, branch, t.Switchman, world.Switches?.Tuning.LeverOffset ?? 2.6, false));
+        return $"at the {(branch.Kind == Rail.BranchKind.DeadLine ? "dead line's" : "branch's")} points {branch.Toe - front:0} m ahead: drive towards them";
+    }
+
+    /// <summary>Tower Jaw at the nearest coaling tower or standing crane along the line, here or not.</summary>
+    static string Tower(World world, EnemyTuning t)
+    {
+        if (world.Run is not { } run)
+            return "no stops on this line";
+        double front = world.Train.Dynamics.Distance;
+        var down = world.ActiveEnemies.OfType<TowerJaw>().Where(j => j.Mode == TowerJawMode.Wreck).Select(j => j.FacilityIndex).ToHashSet();
+        foreach (int i in Enumerable.Range(0, run.Facilities.Count).Where(i => !down.Contains(i)).OrderBy(i => Math.Abs((run.Facilities[i].Start + run.Facilities[i].End) / 2 - front)))
+        {
+            if (run.Facilities[i].Facility == Route.FacilityKind.CoalingTower && run.ChuteLeft(i) > 0)
+            {
+                world.AddEnemy(n => TowerJaw.AtCoalingTower(n, world, i, t.TowerJaw, t.TowerJaw.StartGnawed));
+                return $"gnawing the coaling tower's leg, {Math.Abs(run.Facilities[i].Start - front):0} m along";
+            }
+            if (run.Sites.ElementAtOrDefault(i)?.Crane is { Wrecked: false } crane)
+            {
+                world.AddEnemy(n => TowerJaw.AtGantry(n, world, i, crane, t.TowerJaw, t.TowerJaw.StartGnawed));
+                return "gnawing the stop's crane's leg";
+            }
+        }
+        return "no coaling tower or crane standing on this line";
+    }
+
+    /// <summary>The Grumbler on the castings stacked by the nearest crane, whether the train's in its yard or not.</summary>
+    static string Castings(World world, EnemyTuning t)
+    {
+        if (world.Run is not { } run)
+            return "no stops on this line";
+        double front = world.Train.Dynamics.Distance;
+        foreach (int i in Enumerable.Range(0, run.Facilities.Count).OrderBy(i => Math.Abs((run.Facilities[i].Start + run.Facilities[i].End) / 2 - front)))
+            if (run.Sites.ElementAtOrDefault(i)?.Crane is { } crane)
+            {
+                var stacked = Enumerable.Range(0, crane.Castings.Length).Where(c => crane.Castings[c].State == CastingState.Stacked).ToList();
+                if (stacked.Count == 0)
+                    continue;
+                int on = stacked[0];
+                var at = crane.Castings[on].At;
+                world.AddEnemy(n => Grumbler.OnCrates(n, at + Double3.Up * 0.8, on, t.Grumbler));
+                return "gnawing the castings by the crane: leave it be, or hit it";
+            }
+        return "no crane with castings stacked on this line";
     }
 
     /// <summary>A Car Hugger with no marsh or bridge ahead: lurking on the line a little ahead, for the train to run over.</summary>
@@ -185,11 +271,12 @@ public static class Calls
     }
 
     /// <summary>Loose crates set down on the ground out from you (the Freight Beetle's and the Pickers' freight).</summary>
-    static void Crates(World world, Double3 you, double min, double max, int count)
+    static Double3 Crates(World world, Double3 you, double min, double max, int count)
     {
         var (at, hint, _) = Out(world, you, Math.Clamp(min, 0, max), 4);
         for (int n = 0; n < count; n++)
             world.Bodies.SpawnCargo(at + new Double3(n * 1.6, 0.6, (n % 2) * 1.4), hint);
+        return at;
     }
 
     /// <summary>

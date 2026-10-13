@@ -583,6 +583,9 @@ static string Doing(Launch chosen) => chosen switch
     if (chosen is Launch.DevTool { Name: DarkTerritory.Dev.Gym.CreatureGym.ToolName })
     {
         gym = DarkTerritory.Dev.Gym.CreatureGym.Load(content);
+        // --gym-call ribbit,gaunt: those called as the night begins (headless captures, or straight to one).
+        if (Arg("--gym-call", "") is { Length: > 0 } calls)
+            gym.CallAtStart = DarkTerritory.Dev.Live.EnemyNames.ParseAll(calls.Split(','));
         var gymSetup = gym.Setup() with { MusicBag = musicBags.Load(), FirstChildReal = profile.FirstChildReal };
         var gymNight = NetPlaySession.HostGame(content, gymSetup, port: null, bots: 0, listed: false);
         gym.Begin(gymNight.Host!);
@@ -1625,7 +1628,8 @@ CampaignState? Play(IPlaySession session, CampaignState? campaign)
         if (vr is null)
             dev.Notes?.Frame(() => renderer.Render(mesh, camera, lighting, lighting.FogColor, showHud || menuShown ? overlay : null), renderer.Width, renderer.Height);
         dev.Draw(overlay, UiWidth, UiHeight);
-        if (gym is not null && !menuShown)
+        // F1 hides it with the HUD (for filming).
+        if (gym is not null && !menuShown && showHud)
             gym.Draw(overlay, UiWidth, UiHeight, now);
 #endif
         if (vr is null)

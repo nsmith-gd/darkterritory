@@ -53,6 +53,12 @@ return args switch
     // dt mcp: live control for agents (note 524): an MCP server on stdio whose tools host a night, step it, read it, insist
     // on what comes, open a recording, draw any of it framed on a subject (subject:gaunt), and run the rest of dt.
     ["mcp", ..] => McpCommands.Run(content, args, noMods),
+    // dt gym [--only ribbit,gaunt] [--seconds 6] [--shots out/gym]: the creature gym (GDD §34.1, note 676) hosted headless, every
+    // creature called in turn: whether it came, where, how far off, and a photograph of each under the gym's light; a death
+    // and where it stood up again; and the safe ring kept.
+    ["gym", ..] => Print(DarkTerritory.Dev.Gym.GymCheck.Run(content,
+        Str(args, "--only", "") is { Length: > 0 } only ? DarkTerritory.Dev.Live.EnemyNames.ParseAll(only.Split(',')) : null,
+        Opt(args, "--seconds", 6), args.Contains("--no-shots") ? null : Str(args, "--shots", "out/gym"))),
     // dt edition bake <name> --into <dir>: the base content with an edition (editions/<name>) baked in, as the demo build
     // ships it (T79). dt [--edition demo] edition: what the content in use is.
     ["edition", "bake", var name, ..] => Print(new { edition = name, content = Path.GetFullPath(Mods.Bake(baseContent, name, Str(args, "--into", $"out/editions/{name}"))) }),

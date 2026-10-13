@@ -66,8 +66,8 @@ public sealed class CreatureGym
             ?? route.Of(FeatureKind.Facility).FirstOrDefault();
         var train = DataFile.Load<Sim.Train.TrainTuning>(Path.Combine(Content, Sim.Train.TrainTuning.File));
         double length = Sim.Train.Consist.Uniform(train, Tuning.Cars, 1).LengthMetres;
-        // The train's middle at the stop's middle, its front no further on than the stop's end.
-        Front = Stop is { } s ? Math.Min(s.End, (s.Start + s.End) / 2 + length / 2) : route.Length * 0.25;
+        // The train's middle beside the stop's village (its houses and their creatures a short walk off), else the stop's middle.
+        Front = Stop is { } s ? s.Start + Middle(s) + length / 2 : route.Length * 0.25;
         return new SessionSetup(Route: Tuning.Route, Cars: Tuning.Cars, Enemies: true) { Start = Front };
     }
 
@@ -108,6 +108,13 @@ public sealed class CreatureGym
     /// <summary>Where a death stands you up again: the safe ring's middle.</summary>
     public Double3 SafeSpot { get; private set; }
 
+    /// <summary>Along the stop from its start: its village's middle (its houses'), or the stop's own middle with none.</summary>
+    static double Middle(RouteFeature stop)
+    {
+        var houses = stop.Stop?.Buildings.Where(b => b.Zone == StopZone.Village).ToList() ?? [];
+        return houses.Count > 0 ? houses.Average(b => b.S) : stop.Length / 2;
+    }
+
     static int VillageSide(StopLayout layout) => layout.VillageSide is var s && s != 0 ? Math.Sign(s) : 1;
 
     /// <summary>
@@ -139,6 +146,9 @@ public sealed class CreatureGym
         return called;
     }
 
+    /// <summary>Kinds called once the night's begun (<c>--gym-call</c>), the last of them picked.</summary>
+    public IReadOnlyList<EnemyKind> CallAtStart { get; set; } = [];
+
     /// <summary>How many calls the gym's had (a test's count).</summary>
     public int Calls { get; private set; }
 
@@ -157,6 +167,17 @@ public sealed class CreatureGym
     /// </summary>
     public void Step(HostSession host, double now)
     {
+        // --gym-call (headless checks, or straight to one creature): called once the night's two seconds in.
+        if (CallAtStart.Count > 0 && now >= 2 && host.Players.FirstOrDefault() is { Id: > 0 } first)
+        {
+            var kinds = CallAtStart;
+            CallAtStart = [];
+            foreach (var kind in kinds)
+            {
+                _pick = Math.Max(0, Roster.ToList().IndexOf(kind));
+                Call(host, first.Id, kind, now);
+            }
+        }
         foreach (var (id, state) in host.Players.ToList())
         {
             if (state.Alive)
