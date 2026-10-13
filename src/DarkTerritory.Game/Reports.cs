@@ -169,7 +169,7 @@ public static class ReportFields
 {
     /// <summary>The settings a bug most often hangs on, in one line.</summary>
     public static string Settings(Settings s) => string.Join(", ",
-        $"{s.Resolution} {(s.Fullscreen ? "fullscreen" : "windowed")}", $"render scale {s.RenderScale * 100:0}%", $"vsync {(s.VSync ? "on" : "off")}",
+        $"{s.Resolution} {s.Display.ToString().ToLowerInvariant()}", $"render scale {s.RenderScale * 100:0}%", $"vsync {(s.VSync ? "on" : "off")}",
         $"fov {s.EyeFov:0}", $"text size {s.TextScale * 100:0}%", $"colours {s.Colours.ToString().ToLowerInvariant()}",
         $"captions {(s.Captions ? "on" : "off")}", $"text backing {(s.TextBacking ? "on" : "off")}", $"hold keys {(s.ToggleHolds ? "toggle" : "hold")}",
         $"hud {(s.Hud ? "on" : "off")}", $"voice {(s.PushToTalk ? "push to talk" : "open mic")}", $"keys rebound {s.Keys.Count}");
