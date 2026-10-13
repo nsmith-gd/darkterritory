@@ -50,6 +50,10 @@ using CrewActs = DarkTerritory.Game.Art.CrewActs;
 // Voice (networked): open mic with voice activity, or push to talk (the settings, or --push-to-talk) and hold V. Hold T
 //   to talk on the radio. --no-mic to only listen.
 
+// The garbage collector never stops the game for a full collection while it plays, unless memory runs short (note 695:
+// its pauses are stutters; the background collector does the work alongside the frames instead).
+System.Runtime.GCSettings.LatencyMode = System.Runtime.GCLatencyMode.SustainedLowLatency;
+
 // A crash leaves a report (the exception, and the last things the game said) in the user's app data (--crashes dir
 // elsewhere), and the next launch opens on a notice that says where it is (note 411).
 int crashesAt = Array.IndexOf(args, "--crashes");
