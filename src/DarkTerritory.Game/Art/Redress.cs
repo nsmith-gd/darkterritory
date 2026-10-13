@@ -51,6 +51,13 @@ public static class Redress
     const float Waist = 0.94f;
     /// <summary>Below this (m) the head part's skin is the collar's (<see cref="Cloth.Collar"/>): under the chin.</summary>
     const float CollarLine = 1.5f;
+    /// <summary>The most open edges a loop has and is still a hole to close (<see cref="Capped"/>), not an opening.</summary>
+    const int HoleEdges = 16;
+    /// <summary>Where the frame's breast is crumpled (m, bind pose; across the breast, round the number patch): its normals set right (<see cref="Capped"/>).</summary>
+    static class Patch
+    {
+        public const float MinX = -0.17f, MaxX = 0.17f, MinY = 1.28f, MaxY = 1.48f, MaxZ = -0.08f;
+    }
     /// <summary>The satchel at the right hip (what's out past this below the arms, m): left off with the coat.</summary>
     const float Satchel = 0.2f;
     /// <summary>The middle of the survivors' head in its bind pose (m): what grows on it grows out from here.</summary>
@@ -79,8 +86,10 @@ public static class Redress
                 dye.Texture is null ? source.BaseColour * dye.Colour : dye.Colour, dye.Shine, 0, 0, dye.Texture is null ? source.Tint * dye.Colour : dye.Colour));
             return dyed[cloth] = materials.Count - 1;
         }
-        foreach (var part in figure.Parts)
+        foreach (var raw in figure.Parts)
         {
+            // The frame was modelled to be worn under the coat and the chest lamp, and is open where they hid it.
+            var part = raw.Name.Contains("frame", StringComparison.Ordinal) ? Capped(raw) : raw;
             string material = figure.Materials[part.Material].Name;
             if (material.Contains(".lamp", StringComparison.Ordinal) || part.Clip is not null)
                 continue;
@@ -120,6 +129,10 @@ public static class Redress
                 // The head part's skin runs on down the throat to the chest (1.27 m): under a buttoned coat or a high
                 // collar it's that cloth's, when the clothes name one (note 694).
                 if (headOnly && dyes.ContainsKey(Cloth.Collar) && (positions[idx[t]].Y + positions[idx[t + 1]].Y + positions[idx[t + 2]].Y) / 3 < CollarLine)
+                    c = Cloth.Collar;
+                // The shirt's and the coat's own neckline moves with the neck, but it's cloth, not the face's skin: in the
+                // atlas it's the penal shirt's pale collar, which the face's tint would leave showing (note 694).
+                if (!headOnly && c == Cloth.Face && dyes.ContainsKey(Cloth.Collar))
                     c = Cloth.Collar;
                 if (!cut.TryGetValue(c, out var list))
                     cut[c] = list = [];
@@ -191,6 +204,114 @@ public static class Redress
             VariantCount = figure.VariantCount,
             Min = min,
             Max = max,
+        };
+    }
+
+    /// <summary>
+    /// The part with its small holes closed (a loop of open edges up to <see cref="HoleEdges"/> long, welded by position: the
+    /// frame's breast, under where the chest lamp's strap was), each fanned from a vertex at its middle that moves as its
+    /// first corner does. Seen through, they read as pale flecks on a dressed chest (note 694).
+    /// </summary>
+    static MeshPart Capped(MeshPart part)
+    {
+        var at = new Dictionary<Vector3, int>();
+        var weld = new int[part.Positions.Length];
+        for (int v = 0; v < weld.Length; v++)
+        {
+            var key = new Vector3(MathF.Round(part.Positions[v].X, 4), MathF.Round(part.Positions[v].Y, 4), MathF.Round(part.Positions[v].Z, 4));
+            weld[v] = at.TryGetValue(key, out int w) ? w : at[key] = v;
+        }
+        // A triangle wound against its own corners' normals is culled from the front and seen through: turned round.
+        var idx = part.Indices.ToArray();
+        for (int t = 0; t + 2 < idx.Length; t += 3)
+        {
+            var p0 = part.Positions[idx[t]];
+            var face = Vector3.Cross(part.Positions[idx[t + 1]] - p0, part.Positions[idx[t + 2]] - p0);
+            if (Vector3.Dot(face, part.Normals[idx[t]] + part.Normals[idx[t + 1]] + part.Normals[idx[t + 2]]) < 0)
+                (idx[t + 1], idx[t + 2]) = (idx[t + 2], idx[t + 1]);
+        }
+        var uses = new Dictionary<(int, int), int>();
+        for (int t = 0; t + 2 < idx.Length; t += 3)
+            for (int c = 0; c < 3; c++)
+            {
+                int a = weld[idx[t + c]], b = weld[idx[t + (c + 1) % 3]];
+                var e = a < b ? (a, b) : (b, a);
+                uses[e] = uses.GetValueOrDefault(e) + 1;
+            }
+        // Each open edge as its triangle winds it, a to b; a hole is walked b to a.
+        var next = new Dictionary<int, int>();
+        for (int t = 0; t + 2 < idx.Length; t += 3)
+            for (int c = 0; c < 3; c++)
+            {
+                int a = weld[idx[t + c]], b = weld[idx[t + (c + 1) % 3]];
+                if (uses[a < b ? (a, b) : (b, a)] == 1)
+                    next.TryAdd(b, a);
+            }
+        var positions = part.Positions.ToList();
+        var normals = part.Normals.ToList();
+        var uvs = part.Uvs.ToList();
+        var joints = part.Joints.ToList();
+        var weights = part.Weights.ToList();
+        // A seam in its texture is two vertices in one place, and they aren't always skinned alike: posed, they part, and
+        // the field shows through the crack. Each moves as the first of its place does.
+        for (int v = 0; v < weld.Length; v++)
+            if (weld[v] != v)
+                for (int j = 0; j < 4; j++)
+                {
+                    joints[v * 4 + j] = part.Joints[weld[v] * 4 + j];
+                    weights[v * 4 + j] = part.Weights[weld[v] * 4 + j];
+                }
+        var indices = idx.ToList();
+        var seen = new HashSet<int>();
+        foreach (int start in next.Keys.Order())
+        {
+            if (seen.Contains(start))
+                continue;
+            var loop = new List<int> { start };
+            seen.Add(start);
+            for (int v = next[start]; v != start && loop.Count <= HoleEdges && next.TryGetValue(v, out int after) && seen.Add(v); v = after)
+                loop.Add(v);
+            if (loop.Count < 3 || loop.Count > HoleEdges || !next.TryGetValue(loop[^1], out int closes) || closes != start)
+                continue;
+            var middle = Vector3.Zero;
+            var normal = Vector3.Zero;
+            var uv = Vector2.Zero;
+            foreach (int v in loop)
+            {
+                middle += part.Positions[v];
+                normal += part.Normals[v];
+                uv += part.Uvs[v];
+            }
+            int m = positions.Count;
+            positions.Add(middle / loop.Count);
+            normals.Add(Vector3.Normalize(normal));
+            uvs.Add(uv / loop.Count);
+            joints.AddRange(part.Joints.AsSpan(loop[0] * 4, 4).ToArray());
+            weights.AddRange(part.Weights.AsSpan(loop[0] * 4, 4).ToArray());
+            for (int i = 0; i < loop.Count; i++)
+                indices.AddRange([loop[i], loop[(i + 1) % loop.Count], m]);
+        }
+        // The breast where the number patch was (tools/models/recipes/survivor_prisoner.py's number()) is crumpled round its
+        // edge, its creases' normals turned every way: up, they catch the sky, pale flecks on a dressed chest (in the atlas
+        // the patch's own paint hid them). They're given the chest's: out, and a little up.
+        for (int v = 0; v < part.Positions.Length; v++)
+        {
+            var p = part.Positions[v];
+            if (p.X is >= Patch.MinX and <= Patch.MaxX && p.Y is >= Patch.MinY and <= Patch.MaxY && p.Z <= Patch.MaxZ)
+                normals[v] = Vector3.Normalize(new Vector3(p.X * 2.2f, 0.15f + MathF.Max(0, p.Y - 1.4f) * 4, -1));
+        }
+        return new MeshPart
+        {
+            Name = part.Name,
+            Material = part.Material,
+            Positions = [.. positions],
+            Normals = [.. normals],
+            Uvs = [.. uvs],
+            Joints = [.. joints],
+            Weights = [.. weights],
+            Indices = [.. indices],
+            Variants = part.Variants,
+            Clip = part.Clip,
         };
     }
 

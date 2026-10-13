@@ -1965,12 +1965,13 @@ static object Screenshot(TrainTuning t, string content, string[] args)
         float moosePace = mooseMode switch { "charge" => (float)mooseTuning.ChargeSpeed, "search" => (float)mooseTuning.SearchSpeed, _ => 0 };
         scene.StagedPaces = new Dictionary<int, float>(scene.StagedPaces ?? new Dictionary<int, float>()) { [Staging.MooseId] = moosePace };
     }
-    // --lookbook all|top|bottom|id,id (note 694): the townsfolk lookbook stood in a row beside the line, the camera on them.
+    // --lookbook all|top|bottom|id,id [--closeup] [--turn deg] (note 694): the townsfolk lookbook stood in a row beside the
+    // line, the camera on them (closeup: on their heads; turn: each turned by that much, to see their sides and backs).
     if (Str(args, "--lookbook", "") is { Length: > 0 } lookbook)
     {
         var all = DarkTerritory.Game.Art.LookbookKit.Characters.Select(c => c.Id).ToList();
         var ids = lookbook switch { "all" => all, "top" => all.Take(5).ToList(), "bottom" => all.Skip(5).ToList(), _ => [.. lookbook.Split(',')] };
-        (scene.Lineup, camera) = Staging.Lookbook(train, ids);
+        (scene.Lineup, camera) = Staging.Lookbook(train, ids, args.Contains("--closeup"), Opt(args, "--turn", 0));
     }
     // --jacob fish|blessed (note 572): Jacob with his rod out; blessed, the train's glow (the scene's clock from now).
     if (Str(args, "--jacob", view switch { "jacob" or "jacobface" => "fish", "jacobblessed" => "blessed", _ => "" }) is { Length: > 0 } jacobMode)

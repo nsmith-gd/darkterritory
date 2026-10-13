@@ -1262,9 +1262,11 @@ public static partial class Staging
     /// The townsfolk lookbook stood in a row beside the line (note 694; <c>dt screenshot --lookbook all|top|bottom|id,id</c>):
     /// 9 m out on the right, 1.3 m apart along it, facing the line; and a camera on them from the line, framing them all.
     /// </summary>
-    public static (List<(string Id, Double3 Feet, Double3 Facing)> Row, Ballast.Render.Camera Camera) Lookbook(TrainOnLine train, IReadOnlyList<string> ids)
+    public static (List<(string Id, Double3 Feet, Double3 Facing)> Row, Ballast.Render.Camera Camera) Lookbook(TrainOnLine train, IReadOnlyList<string> ids,
+        bool closeup = false, double turn = 0)
     {
-        const double Out = 9, Apart = 1.3, Ahead = 24;
+        const double Out = 9, Ahead = 24;
+        double Apart = closeup ? 0.55 : 1.3;
         var row = new List<(string, Double3, Double3)>();
         double first = Ahead - (ids.Count - 1) * Apart / 2;
         for (int i = 0; i < ids.Count; i++)
@@ -1272,13 +1274,14 @@ public static partial class Staging
             // Left to right as the camera sees them, as the lookbook reads.
             double along = first + (ids.Count - 1 - i) * Apart;
             var feet = Lineside(train, along, Out);
-            var toward = (Lineside(train, along, 0) - feet) with { Y = 0 };
-            row.Add((ids[i], feet, toward.Normalized));
+            var toward = ((Lineside(train, along, 0) - feet) with { Y = 0 }).Normalized;
+            double c = Math.Cos(turn * Math.PI / 180), s = Math.Sin(turn * Math.PI / 180);
+            row.Add((ids[i], feet, new Double3(toward.X * c - toward.Z * s, 0, toward.X * s + toward.Z * c)));
         }
         var mid = Lineside(train, Ahead, Out);
         var from = (Lineside(train, Ahead, 0) - mid) with { Y = 0 };
-        double distance = 2.2 + ids.Count * 1.05;
-        var camera = Ballast.Render.Camera.LookAt(mid + from.Normalized * distance + Double3.Up * 1.25, mid + Double3.Up * 0.95, 40);
+        double distance = closeup ? 0.5 + ids.Count * 0.42 : 2.2 + ids.Count * 1.05;
+        var camera = Ballast.Render.Camera.LookAt(mid + from.Normalized * distance + Double3.Up * (closeup ? 1.62 : 1.25), mid + Double3.Up * (closeup ? 1.6 : 0.95), 40);
         return (row, camera);
     }
 
