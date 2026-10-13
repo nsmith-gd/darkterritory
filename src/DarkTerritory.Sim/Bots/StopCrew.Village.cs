@@ -113,6 +113,39 @@ public sealed partial class StopHand
         return Follow(self, train, front);
     }
 
+    /// <summary>
+    /// Note 594 (Lethal Company's four shared slots): the finds a hand carries in its slots. With a slot still empty, on the
+    /// ground and another spot worth the walk, the find in hand is put away (a number key for a slot without one) so the hands
+    /// are free to search; otherwise, with none in hand, one comes out of its slot, for the way home and to set down aboard.
+    /// Null when there's nothing to do with them.
+    /// </summary>
+    PlayerIntent? SlotFinds(in PlayerState self, World world, StopPlan p, Physics.Body? inHand)
+    {
+        if (PlayerId is not { } me || world.Run is not { } run)
+            return null;
+        var finds = world.Bodies.Slotted(me).Where(b => b.Kind == Physics.BodyKind.Loot).ToList();
+        if (finds.Count == 0 || inHand is not null && inHand.Pocket < 0)
+            return null;
+        // Still out (the driver waits) till every find's down aboard.
+        calls.Out(member, true);
+        var me0 = self;
+        bool room = Enumerable.Range(0, Kit.Slots).Any(i => Kit.Empty(me0, i));
+        bool more = room && !calls.Leaving && self.Parent == PlayerState.World && _stopIndex >= 0
+            && Worth(world, run, PlayerMotor.WorldPosition(self, world.Train));
+        if (more && inHand is { Kind: Physics.BodyKind.Loot })
+        {
+            Doing = "putting the find away";
+            int free = Enumerable.Range(0, Kit.Slots).First(i => finds.All(f => f.Pocket != i));
+            return new PlayerIntent { Select = (byte)(free + 1) };
+        }
+        if (!more && inHand is null)
+        {
+            Doing = "a find out to carry home";
+            return new PlayerIntent { Select = (byte)(finds[0].Pocket + 1) };
+        }
+        return null;
+    }
+
     /// <summary>Whether there's a spot at this stop still to search, within reach, that nobody's taken and it hasn't failed to reach.</summary>
     bool Worth(World world, Run.Run run, Double3 here)
     {

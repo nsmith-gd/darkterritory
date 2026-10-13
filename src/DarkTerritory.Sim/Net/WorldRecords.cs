@@ -284,7 +284,8 @@ public static class WorldRecords
                 Physics.BodyKind.Loot => body.MendTicks,
                 _ => (long)body.Cargo,
             };
-            f[9] = body.Locker < 0 ? -1 : body.Locker * 256 + body.Slot;
+            // On a locker's shelf (note 173), or in a carrier's slot and whether it's put away (note 594: −2 − 2 × slot − stashed).
+            f[9] = body.Locker >= 0 ? body.Locker * 256 + body.Slot : body.Pocket >= 0 ? -2 - 2 * body.Pocket - (body.Stashed ? 1 : 0) : -1;
             // What's carrying it off, if a thing is (the Gaunt leaving with it, App. A.6).
             f[10] = body.TakenBy;
             for (int i = 0; i < ps.Length; i++)
@@ -306,8 +307,8 @@ public static class WorldRecords
                 Q(s.Cold, Fine), (long)s.Flags, s.Placed,
                 // A VR player's hands, on the centimetre grid they came in on (T47): the rest of the crew see their arms.
                 Q(s.Hand.X, Cm), Q(s.Hand.Y, Cm), Q(s.Hand.Z, Cm), Q(s.OtherHand.X, Cm), Q(s.OtherHand.Y, Cm), Q(s.OtherHand.Z, Cm),
-                // The hotbar (T108): what they carry, and which is in hand.
-                (long)s.Kit, s.HeldSlot,
+                // The hotbar (T108): what they carry, and which is in hand; over it, the slots holding a thing (note 594).
+                (long)s.Kit, s.HeldSlot | s.Pockets << 8,
                 // A headset's head height over the feet (T82): zero, so free, for a keyboard or a bot.
                 Q(s.Head, Cm),
             ]));
@@ -559,6 +560,8 @@ public static class WorldRecords
             MendTicks = (Physics.BodyKind)f[0] == Physics.BodyKind.Radio && f[8] > 1 ? (int)(f[8] - 1) : (Physics.BodyKind)f[0] == Physics.BodyKind.Loot ? (int)f[8] : 0,
             Locker = f[9] < 0 ? -1 : (int)(f[9] / 256),
             Slot = f[9] < 0 ? 0 : (int)(f[9] % 256),
+            Pocket = f[9] <= -2 ? (int)((-f[9] - 2) / 2) : -1,
+            Stashed = f[9] <= -2 && (-f[9] - 2) % 2 == 1,
             TakenBy = (int)f[10],
         };
     }
@@ -678,7 +681,8 @@ public static class WorldRecords
             Hand = f.Length > 22 ? new Double3(D(f[17], Cm), D(f[18], Cm), D(f[19], Cm)) : default,
             OtherHand = f.Length > 22 ? new Double3(D(f[20], Cm), D(f[21], Cm), D(f[22], Cm)) : default,
             Kit = f.Length > 24 ? (ulong)f[23] : 0,
-            HeldSlot = f.Length > 24 ? (byte)f[24] : (byte)0,
+            HeldSlot = f.Length > 24 ? (byte)(f[24] & 0xFF) : (byte)0,
+            Pockets = f.Length > 24 ? (byte)(f[24] >> 8) : (byte)0,
             Head = f.Length > 25 ? D(f[25], Cm) : 0,
         });
     }

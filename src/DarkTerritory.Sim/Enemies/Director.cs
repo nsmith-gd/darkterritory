@@ -88,13 +88,13 @@ public sealed class Director
 
     /// <summary>
     /// The director may send <paramref name="kind"/> now (note 635): it's about tonight, it's under its night's cap
-    /// (<see cref="DirectorTuning.PerNight"/>), and it isn't one of the night things gone to ground before dawn
-    /// (<see cref="WakersTuning.NightFleesSeconds"/>).
+    /// (<see cref="DirectorTuning.CapFor"/>: its own or the default, note 654), and it isn't one of the night things gone
+    /// to ground before dawn (<see cref="WakersTuning.NightFleesSeconds"/>).
     /// </summary>
     public bool Tonight(EnemyKind kind, World world)
     {
         string key = Key(kind);
-        if (_outTonight.Contains(key) || _t.PerNight.TryGetValue(key, out int cap) && Log.Count(l => l.Kind == kind) + _ownWay.GetValueOrDefault(kind) >= cap)
+        if (_outTonight.Contains(key) || _t.CapFor(key) is int cap && Log.Count(l => l.Kind == kind) + _ownWay.GetValueOrDefault(kind) >= cap)
             return false;
         return world.Enemies is not { } et || !et.Wakers.Flees(kind) || !Waker.NightFleeing(world, et.Wakers);
     }
@@ -175,7 +175,7 @@ public sealed class Director
                 return MaxConcurrent;
             // A longer train has more of them under a threat at once (note 646), never more than perPlayer each.
             double share = o.EngagedShare(_cars, _t.Pressure.ScaleCars);
-            int byCrew = Math.Min((int)Math.Ceiling(Active * share - 1e-9), (int)Math.Floor(Active * o.PerPlayer + 1e-9));
+            int byCrew = Math.Min((int)Math.Ceiling(Active * share - 1e-9), (int)Math.Floor(Active * o.PerPlayerFor(_cars) + 1e-9));
             return Math.Min(MaxConcurrent, Math.Max(1, byCrew));
         }
     }
@@ -313,7 +313,9 @@ public sealed class Director
         return Budget * Math.Clamp(share, 0, 1);
     }
 
-    int MaxConcurrent => Crew >= 6 ? _t.MaxConcurrentLargeCrew : _t.MaxConcurrentSmallCrew;
+    // A long train's two each (note 647) grows the hard caps with them.
+    int MaxConcurrent => (int)Math.Round((Crew >= 6 ? _t.MaxConcurrentLargeCrew : _t.MaxConcurrentSmallCrew)
+        * (_t.Orchestrator.PerPlayerFor(_cars) / Math.Max(1e-9, _t.Orchestrator.PerPlayer)));
 
     /// <summary>At or near one of the route's facilities: within <paramref name="margin"/> of its span.</summary>
     bool NearFacility(double distance, double margin) =>
@@ -532,7 +534,8 @@ public sealed class Director
             var posts = Census.AnswerPosts(o, op.Kind).ToList();
             if (posts.Count == 0)
                 return op;
-            if (o.PerTarget && entries.Where(c => posts.Contains(c.Post)).ToList() is { Count: > 0 } answering && answering.All(c => c.On > 0))
+            if (o.PerTarget && entries.Where(c => posts.Contains(c.Post)).ToList() is { Count: > 0 } answering
+                && answering.All(c => c.On >= Math.Max(1, (int)Math.Floor(o.PerPlayerFor(_cars) + 1e-9))))
                 return (op.Kind, 0.0);
             if (next is not null && posts.Contains(next.Post))
                 return (op.Kind, op.Weight * o.SlackWeight);

@@ -2,6 +2,7 @@ using Ballast;
 using DarkTerritory.Sim.Bots;
 using DarkTerritory.Sim.Enemies;
 using DarkTerritory.Sim.Net;
+using DarkTerritory.Sim.Physics;
 using DarkTerritory.Sim.Player;
 using DarkTerritory.Sim.Rail;
 using DarkTerritory.Sim.Route;
@@ -235,6 +236,22 @@ public class StopCrewTests
         }
         Assert.True(s.Parent != PlayerState.World, $"still on the ballast after {bound:0} s, {(PlayerMotor.WorldPosition(s, train) - at).Length:0.0} m from where it started");
         Assert.Equal(0, train.Dynamics.Velocity);
+    }
+
+    [Fact]
+    public void ASmashedLampWaitsForTheTrainToStandWhileTheDriverMovesItAtAStop()
+    {
+        // Note 641 (seed 16's night): a Climber into the cab at Kessel's conveyor smashed the forward lamp, and the driver mended
+        // it from the front windows mid-shunt, Use held and no brake: the train ran on from 1.5 to 12.6 m/s, struck at 5.7, and
+        // the engine broke down. Moving the train at a stop, the driver drives; the glass waits till it's standing.
+        var n = new Night(5);
+        n.Until(() => n.Driver.Stops!.Doing == StopDriver.Leg.SpurIn && n.Train.Dynamics.Speed > 1, 900);
+        Assert.Equal(StopDriver.Leg.SpurIn, n.Driver.Stops!.Doing);
+        n.World.SmashLamp(Tuning.Enemies.Climbers.LampOutSeconds);
+        double top = 0;
+        n.Until(() => !Repairs.LampSmashed(n.Train), 120, () => top = Math.Max(top, n.Train.Dynamics.Speed));
+        Assert.True(top < 8, $"ran to {top:0.0} m/s with the lamp smashed");
+        Assert.False(Repairs.LampSmashed(n.Train), "never mended");
     }
 
     [Fact]
@@ -919,6 +936,37 @@ public class StopCrewTests
         Assert.All(night.Crew, c => Assert.True(c.Alive, $"died of {c.Death}; crew {where}"));
         Assert.All(night.Crew, c => Assert.NotEqual(Surface.Ground, c.Surface));
         Assert.Equal(1, train.TrainRakes);
+    }
+
+    [Fact]
+    public void AHandOutInTheVillageFillsItsSlotsBeforeItWalksBack()
+    {
+        // Note 594 (the director, 9 Oct: "I'm able to kind of hold on to it so I can grab a few pieces of loot at a time"): a
+        // hand puts each find away and searches on while it has a slot free, then carries them home one after another.
+        var night = new Night(cars: 8, walkers: 3, crateHands: true, ids: true, loot: true, modules: ModuleKind.Crates);
+        var run = night.World.Run!;
+        int k = run.Stops.ToList().IndexOf(night.Site.Feature);
+        var hands = night.Bots.OfType<RoofWalkerBot>().Select(b => b.Job).OfType<StopHand>().ToList();
+        int most = 0;
+        var doing = new HashSet<string>();
+        night.Until(() => run.Departures > 0, 1800, () =>
+        {
+            foreach (var h in hands)
+            {
+                if (h.PlayerId is int id)
+                    most = Math.Max(most, night.World.Bodies.Slotted(id).Count(b => b.Kind == BodyKind.Loot));
+                if (h.Doing.Length > 0)
+                    doing.Add(h.Doing);
+            }
+        });
+        string trace = $"spots {run.HidingSpots.Count(h => h.Stop == k)}, stowed {run.Stowed.Count}, most carried {most}; {string.Join(", ", doing)}";
+        Assert.True(run.Departures > 0, trace);
+        Assert.True(most >= 2, trace);
+        Assert.True(run.Stowed.Count >= most, trace);
+        // Nothing left in anyone's slots as the train goes.
+        string left = string.Join("; ", hands.Where(h => h.PlayerId is int id && night.World.Bodies.Slotted(id).Any(b => b.Kind == BodyKind.Loot))
+            .Select(h => $"{h.Job} '{h.Doing}' slots {string.Join(",", night.World.Bodies.Slotted(h.PlayerId!.Value).Select(b => $"{b.Pocket}{(b.Stashed ? "s" : "")}"))}"));
+        Assert.True(left.Length == 0, $"finds left in slots: {left}; {trace}");
     }
 
     [Fact]

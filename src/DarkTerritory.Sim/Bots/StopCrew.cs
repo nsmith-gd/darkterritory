@@ -423,6 +423,36 @@ public sealed partial class CrewCalls
         return true;
     }
 
+    // Note 634 (the director, the inbox, 12 Oct: `D1-bots-two-extinguishers`, "a, two together"): who's on a car's fire,
+    // two hands at most, in the order they said so, and theirs while they say so (each tick, as for a pin). A third leaves
+    // it to them.
+    readonly Dictionary<int, List<(int Who, uint Seen)>> _fireHands = new();
+
+    /// <summary>
+    /// A hand wanting to go to the fire in <paramref name="car"/>: 1 if it's the first hand on it, 2 the second, 0 with two
+    /// on it already. Hands that stopped saying so (a second ago) are off it.
+    /// </summary>
+    public int ClaimFire(int car, int who, uint tick)
+    {
+        if (!_fireHands.TryGetValue(car, out var hands))
+            _fireHands[car] = hands = [];
+        hands.RemoveAll(h => h.Who != who && tick - h.Seen > SimConstants.TickRate);
+        int at = hands.FindIndex(h => h.Who == who);
+        if (at >= 0)
+        {
+            hands[at] = (who, tick);
+            return at + 1;
+        }
+        if (hands.Count >= 2)
+            return 0;
+        hands.Add((who, tick));
+        return hands.Count;
+    }
+
+    /// <summary>Note 634: how many hands are on the fire in <paramref name="car"/>, by what they said in the last second.</summary>
+    public int FireHands(int car, uint tick) =>
+        _fireHands.TryGetValue(car, out var hands) ? hands.Count(h => tick - h.Seen <= SimConstants.TickRate) : 0;
+
     /// <summary>The hand going to this car's swarmed lamp (or the fire the flies lit), or null.</summary>
     public int? LampHand(int car) => _lamp.TryGetValue(car, out var c) && Alive(c.Member) ? c.Member : null;
 
@@ -2886,6 +2916,10 @@ public sealed partial class StopHand(StopJob job, CrewCalls calls, int member, C
         // Heavy crates (T45): holding an end, wait for a hand; at the back end of one, follow it in; someone holding one
         // alone, go and take the other end.
         var mine = PlayerId is { } me ? world.Bodies.CarriedBy(me) : null;
+        // Note 594's four slots: finds in them. A slot still free and another house worth searching, the one in hand is put
+        // away (the number key of a slot without a find) and on to the next; else one out into the hand, and home with it.
+        if (_setDown is null && SlotFinds(self, world, p, mine) is { } slots)
+            return slots;
         if (mine is { Kind: Physics.BodyKind.Heavy })
         {
             if (!mine.Lifted)
