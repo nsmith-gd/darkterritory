@@ -56,7 +56,10 @@ public static class GymCheck
             var me = Me(host, you);
             var called = gym.Call(host, you, kind);
             double? at = Nearest(host, called.Ids, me);
-            bool aboard = host.World.ActiveEnemies.FirstOrDefault(e => called.Ids.Contains(e.Id)) is { Attached: >= 0 };
+            // On the train, or on the line beside it (pacing a coupling gap): the train's, where its rule put it.
+            var train = host.World.Train;
+            bool aboard = host.World.ActiveEnemies.FirstOrDefault(e => called.Ids.Contains(e.Id)) is { } first
+                && (first.Attached >= 0 || first.Attached == -1 && first.LineDistance >= train.Dynamics.RearDistance - 10 && first.LineDistance <= train.Dynamics.Distance + 10);
             Step(night, gym, host, 1);
             string? shot = called.Ids.Count > 0 && host.World.ActiveEnemies.Any(e => e.Id == called.Ids[0] && !e.Gone)
                 ? Shoot(shooter, host, $"subject:enemy:{called.Ids[0]}", shots, $"{n:00}-{Live.EnemyNames.Name(kind)}") : null;
