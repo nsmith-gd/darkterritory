@@ -985,9 +985,20 @@ public static partial class Hud
         }
         // Note 576: a battered shell let go is working itself apart, said where it's felt: in the car, on the engine, and to
         // the cab for any car of the train (the driver feels it through the couplings).
+        // Note 663: the news, to everyone alike (the director: "did a coupler break on its own or was that a creature?"): cars
+        // the engine lost and its failing, as it happens and with what did it, the newest line for its few seconds. Its own
+        // line says the engine's stage, so the engine's own line (on it) waits out the news.
+        bool engineNews = false;
+        if (world.News.Count > 0 && world.News[^1] is var news)
+        {
+            engineNews = news.Kind != NewsKind.CarsLost;
+            Small(News.Line(world, news), news.Kind == NewsKind.EngineBroken ? Red : Amber);
+        }
         if (p.Alive)
             foreach (var (text, worst) in FailingLines(world.Train, p))
             {
+                if (engineNews && text.StartsWith("THE ENGINE'S", StringComparison.Ordinal))
+                    continue;
                 bool flash = world.Tick / 10 % 2 == 0;
                 if (worst == FailStage.Broken)
                     Big(text, Red);

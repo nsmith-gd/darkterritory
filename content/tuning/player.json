@@ -173,5 +173,13 @@
     "wave": 2.5,
     "point": 2.5,
     "cooldown": 0.5
+  },
+  // The news (ARCHITECTURE §8 note 663; the director: "did a coupler break on its own or was that a creature?"): cars the
+  // engine loses and its failing or breaking down, told to everyone as it happens, with what did it, on one line for
+  // `seconds`. A crewmate's own cut is told only with the train running faster than `cutToldAbove` (m/s): cars set out at a
+  // stand aren't news. The report reads the same events.
+  "news": {
+    "seconds": 5,
+    "cutToldAbove": 1.5
   }
 }

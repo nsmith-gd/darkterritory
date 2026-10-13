@@ -35,7 +35,7 @@ public static class CrewActions
             double was = s.ActionProgress;
             s.ActionProgress += dt;
             if (was < needed && s.ActionProgress >= needed)
-                train.Uncouple(s.Parent);
+                train.Uncouple(s.Parent, Parting.Crew);
             return;
         }
         // The vent's own key (note 264): held anywhere in the cab, the blow-off's open, whatever Use is doing.

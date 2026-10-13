@@ -813,16 +813,34 @@ public sealed partial class Run
     /// Note 640 (the director, the inbox, 12 Oct: "a clear identifiable cause of a decouple"): what worked the pin loose that
     /// parted these cars, and who was driving, in the clerk's words.
     /// </summary>
-    static string PinParted(World world, int car)
+    static string PinParted(World world, int car) =>
+        world.Attribution.LooseOf(car) is { } l ? PinParted(world, l.Cause, l.Speed, l.Driver) : PinParted(world, LooseCause.None, 0, -1);
+
+    static string PinParted(World world, LooseCause cause, double speed, int driver)
     {
-        string driving(int d) => d >= 0 ? $" Driving: {IncidentLog.NameOf(world, d)}." : "";
-        return world.Attribution.LooseOf(car) switch
+        string driving = driver >= 0 ? $" Driving: {IncidentLog.NameOf(world, driver)}." : "";
+        return cause switch
         {
-            { Cause: LooseCause.RunIn } l => $"A hard brake at {Kmh(l.Speed)} worked the coupling's pin loose, and it parted.{driving(l.Driver)} ",
-            { Cause: LooseCause.Knock } l => $"Coupled up at {Kmh(l.Speed)}, the knock worked the coupling's pin loose, and it parted.{driving(l.Driver)} ",
+            LooseCause.RunIn => $"A hard brake at {Kmh(speed)} worked the coupling's pin loose, and it parted.{driving} ",
+            LooseCause.Knock => $"Coupled up at {Kmh(speed)}, the knock worked the coupling's pin loose, and it parted.{driving} ",
             _ => "The coupling worked loose and parted. ",
         };
     }
+
+    const string CameApart = "Battered and never mended, it came apart; its freight spilled on the line. ";
+
+    /// <summary>
+    /// Note 663: what parted the lost cars, as the news told it (<see cref="News"/>): the report reads the same event, so the
+    /// clerk and the crew's line never disagree.
+    /// </summary>
+    static string LostCause(World world, NewsEvent e) => (Parting)e.Cause switch
+    {
+        Parting.Crew when e.Who >= 0 => $"Coupler: {IncidentLog.NameOf(world, e.Who)}. ",
+        Parting.Pin => PinParted(world, (LooseCause)e.Detail, e.Speed, e.Who),
+        Parting.Knotter => "A Knotter took the coupling, and it parted. ",
+        Parting.Apart => CameApart,
+        _ => "",
+    };
 
     static string Kmh(double metresPerSecond) => $"{Math.Abs(metresPerSecond) * 3.6:0} km/h";
     static string Capital(string s) => s.Length == 0 ? s : char.ToUpperInvariant(s[0]) + s[1..];
@@ -935,10 +953,14 @@ public sealed partial class Run
             foreach (var b in world.Bodies.All.Where(b => b.Kind == Physics.BodyKind.Ragdoll && ids.Contains(b.Parent) && b.Carrier < 0))
                 inside.Add($"the body of {IncidentLog.NameOf(world, b.Owner)}");
             int puller = taken is null ? world.Attribution.CouplerPulledBy(ids.Min()) : -1;
-            // Note 511: or nobody's: the coupling worked loose and its pin dropped (note 356).
-            string cause = puller >= 0 ? $"Coupler: {IncidentLog.NameOf(world, puller)}. " : taken is null && world.Attribution.Parted(ids.Min()) ? PinParted(world, ids.Min())
+            // Note 663: the news that told the crew they'd gone, where there's one; the report says what it said.
+            var news = world.NewsLog.LastOrDefault(e => e.Kind == NewsKind.CarsLost && e.Cars.Any(ids.Contains));
+            string cause = news.Cars is not null ? LostCause(world, news)
+                : puller >= 0 ? $"Coupler: {IncidentLog.NameOf(world, puller)}. "
+                // Note 511: or nobody's: the coupling worked loose and its pin dropped (note 356).
+                : taken is null && world.Attribution.Parted(ids.Min()) ? PinParted(world, ids.Min())
                 // Note 576: battered and let go, it came apart and its freight's on the line.
-                : taken is null && world.Attribution.Apart(ids.Min()) ? "Battered and never mended, it came apart; its freight spilled on the line. " : "";
+                : taken is null && world.Attribution.Apart(ids.Min()) ? CameApart : "";
             string action = cause + (inside.Count > 0 ? $"Inside: {string.Join(", ", inside)}." : "Empty.");
             lost.Add(new ReportLine(IncidentKind.CarLost, "", $"{what} {where}. {action}"));
         }

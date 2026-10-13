@@ -395,6 +395,7 @@ public sealed class Lineside
                     {
                         // The frames strain (repairs, spec F.1) and the loads shift about.
                         v.Integrity = Math.Max(0, v.Integrity - Tuning.StrainPerSecond * over * dt);
+                        v.Knock = (KnockCause.Bend, rake.Speed);
                         if (v.Kind == VehicleKind.Cargo)
                             v.CargoIntegrity = Math.Max(0, v.CargoIntegrity - Tuning.CargoDamagePerSecond * over * dt);
                     }
