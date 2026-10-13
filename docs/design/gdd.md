@@ -1196,6 +1196,19 @@ Embodied in-engine agents play the game headlessly. A fixed roster makes this an
 
 **Agents cannot tell us whether it is funny.** That is the director's call, and it is the only judgement the build genuinely requires from a human.
 
+### 34.1 The creature gym *(developer builds only; the director, 13 Oct 2026; ARCHITECTURE §8 note 676)*
+
+"Make a dev gym for me to test all the creatures' functions, and make sure all the props they need are in there too. Have a button that lets me cycle through creatures and then a spawn button I can press to spawn them in. They need to spawn far enough away that I cannot trigger them immediately on spawn." And: "In the gym I will intentionally let things kill me, so I will need to respawn directly in the gym at a safe location. Add some moody atmosphere to the gym as well, just for the purpose of video recording."
+
+The gym is where the director meets each creature on purpose, one at a time, and lets it do its worst. It isn't part of the game: a player's build doesn't have it.
+
+- **Getting there.** A developer build's main menu has CREATURE GYM, and `--gym` on the command line goes straight in. It's a solo night, hosted as any night is, so the creatures run by the same rules and code as on a real night.
+- **The place.** The train stands at a stop with a yard and a village beside the line, with everything the roster needs within a walk: the engine and its firebox, the cars and their couplings, roofs and doors, the yard's sheds, switches and lamps, the village's houses, and the creatures' own ground (warrens, roosts, drains). The run is under way, but the night doesn't end: no dawn and no cold. Nothing comes unless it's called; the director's own spawns are off.
+- **Picking and spawning.** F6 picks the next creature, Shift+F6 the one before; F7 spawns it; F10 clears everything that's about. A panel names the creature, where it will come from and what answers it, so the director knows what they're testing.
+- **Far enough away.** Each creature comes the way it comes on a real night, by its own spawn rule. In the gym, that rule's own gates are set aside (once a night, the train's speed, the cargo, the dice), so it always comes when called. It never comes nearer than its own reach: whatever sets it off is out of range when it arrives (`gym.json` `minDistance`, and each creature's own trigger range). Where a creature's rule needs a place the stop hasn't got, it comes at the nearest place that has it.
+- **Dying.** Death in the gym is the point. A few seconds after the killing blow, so it's seen and heard (`gym.json` `respawnSeconds`), the director is back on their feet at the gym's safe spot with full health and the night's starting kit. The safe spot is a ring by the train that no creature enters, as the forts keep them out (§9). The creature that did it is left where it is, to be tried again.
+- **The mood.** The gym is lit for filming, not balanced for play: low, heavy fog, a low cold moon, and lamps and braziers burning about the stop, so a creature reads in silhouette against the light (`gym.json` `look`).
+
 ---
 
 # PART TEN — PRODUCTION

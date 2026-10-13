@@ -113,6 +113,33 @@ public class NightCallsTests
     }
 
     [Fact]
+    public void ANightOverStrandedSendsItsNightThingsAway()
+    {
+        // Note 661 (the director, stranded at Voss Green, 13 Oct: "now I've been picked up by something, even though I'm
+        // stranded, but I'm not dead"): the engine broken down at a stand ends the night, and its night things go as at dawn.
+        var n = new Night(dawn: 3600, EveryKind.Of(Quiet));
+        var train = n.World.Train;
+        n.World.Run!.Resume(900, -1, train.Boiler.Tender, 0);
+        var shape = train.Frames[3].Shape;
+        var hound = n.World.AddEnemy(id => new CinderHound(id, 900) { Health = E.CinderHounds.Health });
+        hound.Restore(SpinePhase.Commit, 0, E.CinderHounds.Health, 3, new Double3(0.6, shape.RoofHeight, 0), 0, 0, 0, 900, 0);
+        var climber = n.World.AddEnemy(id => Climber.Pacing(id, train, 2, 1, E.Climbers));
+        var knotter = n.World.AddEnemy(id => Knotter.Into(id, train, 4, E.Knotter));
+        var d = n.World.Director!;
+        n.Step(1);
+        Assert.False(hound.Gone);
+        Assert.False(climber.Gone);
+
+        train.Vehicles[0].Integrity = 0;
+        n.Step(3);
+        Assert.Equal(Sim.Run.RunEnd.Stranded, n.World.Run.End);
+        Assert.True(hound.Gone);
+        Assert.True(climber.Gone);
+        Assert.False(knotter.Gone);
+        Assert.False(d.Tonight(EnemyKind.Climber, n.World));
+    }
+
+    [Fact]
     public void OffTheNightThingsStay()
     {
         var off = Quiet with { Wakers = Quiet.Wakers with { NightFleesSeconds = -1 } };

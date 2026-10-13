@@ -115,7 +115,7 @@ public class CraneTests
     }
 
     [Fact]
-    public void LetGoOfHighItFallsAndKillsWhoeverIsUnder()
+    public void LetGoOfHighItFallsKillsWhoeverIsUnderAndLiesWhereItLands()
     {
         var (stop, crane) = AtTheCrane();
         var casting = crane.Castings[0];
@@ -128,7 +128,11 @@ public class CraneTests
         stop.Crew.Add(stop.OnTheGround(under + new Double3(C.CrushRadius + 2, 0, 0)));
         stop.Step(SimConstants.TickSeconds, [Drive(), default, default]);
         stop.Step(SimConstants.TickSeconds, [Drive(also: PlayerButtons.Fire), default, default]);
-        Assert.Equal(CastingState.Lost, casting.State);
+        // Note 659 (the director, 13 Oct: "an accidental mouse click means it's essentially lost"): it lies where it landed, to
+        // be rigged again, not lost.
+        Assert.Equal(CastingState.Stacked, casting.State);
+        Assert.True(((casting.At - under) with { Y = 0 }).Length < 0.5, $"it lies at {casting.At}, under the hook at {under}");
+        Assert.Equal(C.Castings, crane.Left);
         // It comes down on the one under it the next moment; the one a couple of metres off is spared.
         stop.Step(SimConstants.TickSeconds, [Drive(), default, default]);
         var crushed = Assert.Single(stop.World.Damage);

@@ -11,6 +11,16 @@ namespace DarkTerritory.Game.LineGen;
 /// </summary>
 public static class PostedSpeeds
 {
+    /// <summary>
+    /// What the map and the card print for a posted stretch: the number alone (note 671, the director: "we just show the
+    /// number ... we're trying to give information without tutorializing the whole game all at once"). No unit, no key, no
+    /// word for what it's for: the red says which ones have you off.
+    /// </summary>
+    public static string Figure(int kmh) => kmh.ToString(System.Globalization.CultureInfo.InvariantCulture);
+
+    /// <summary>A stretch that has the train off the rails (a bend, a weak bridge), inked red; brass only costs the engine.</summary>
+    public static bool Derails(string? why) => why != "BRASS";
+
     public static List<(double S0, double S1, int Kmh, string? Why)> Of(LinePlan plan, RailLine line, double length)
     {
         var bends = new List<(double S0, double S1, int Kmh, string? Why)>();
