@@ -679,8 +679,11 @@ public sealed class TrainOnLine
     void HitBufferStop(TrainDynamics rake)
     {
         var c = Tuning.Couplings;
+        // Note 661: a buffer stop's own knock, not a collision's (a spur's end is run up to at a crawl; at a collision's rate,
+        // 5.3 m/s broke the engine down outright, and the director's run into Voss Green's stranded the night).
+        var b = Tuning.BufferStop;
         double speed = Math.Max(0, rake.Velocity);
-        double damage = speed > c.SafeContactSpeed ? (speed - c.SafeContactSpeed) * (speed - c.SafeContactSpeed) * c.DamagePerSpeedSquared : 0;
+        double damage = speed > b.SafeSpeed ? (speed - b.SafeSpeed) * (speed - b.SafeSpeed) * b.DamagePerSpeedSquared : 0;
         int front = rake.Consist.Vehicles[0].Id;
         if (damage > 0)
         {
