@@ -351,6 +351,48 @@ public sealed class Crane
         Rigging = 0;
     }
 
+    /// <summary>
+    /// A casting on the hook set down on a car (its base within <c>dropAbove</c> of what's under it, the car's floor through
+    /// an open hatch or its roof) that a hand on that car beside the hook could unhook there (note 659, the director, 13 Oct:
+    /// "allowing people to walk up to the casting and unrig it once it's in the car").
+    /// </summary>
+    public bool Unriggable(TrainOnLine train, Double3 rigger)
+    {
+        if (Hooked is null)
+            return false;
+        var (car, floor) = Under(train);
+        if (car < 0 || train.Vehicles[car].Kind != VehicleKind.Cargo || HookedBase.Y - floor > _t.DropAbove)
+            return false;
+        return ((rigger - HookAt) with { Y = 0 }).Length <= _t.RigReach;
+    }
+
+    /// <summary>
+    /// One tick of unrigging (<see cref="Unriggable"/>): a hand on the car holding Use at the hook as long as rigging takes,
+    /// and it's let go of there, as the operator's Fire lets it go (<see cref="Release"/>): loaded into the car. True the tick
+    /// it's done.
+    /// </summary>
+    public bool Unrig(int player, Double3 at, bool holding, TrainOnLine train, double dt)
+    {
+        if (!holding || !Unriggable(train, at))
+        {
+            if (Rigger == player)
+            {
+                Rigger = -1;
+                Rigging = 0;
+            }
+            return false;
+        }
+        if (Rigger >= 0 && Rigger != player)
+            return false;
+        Rigger = player;
+        Rigging += dt / _t.RigSeconds;
+        if (Rigging < 1)
+            return false;
+        Rigger = -1;
+        Rigging = 0;
+        return Release(train) is not null;
+    }
+
     /// <summary>The operator's Fire, as a press (held down it lets go once).</summary>
     internal bool Pressed(bool fire)
     {
