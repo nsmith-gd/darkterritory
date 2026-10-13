@@ -190,6 +190,9 @@ public static class StructureKit
         return k.Build($"girder-{depth:0}-{lastPier}");
     }
 
+    /// <summary>A truss's sides: off the centreline, and their chords under and over the rail (the boards' sight test has them, note 686).</summary>
+    public const float TrussHalf = 2.7f, TrussHigh = 7.0f, TrussLow = -0.55f;
+
     /// <summary>
     /// One span of an iron through truss (linegen plan §12.3 "truss": the long crossings), Bay long, on a stone pier at
     /// z = 0: a Pratt truss either side, its end posts raked down to the bearings, verticals at each panel and the
@@ -200,7 +203,7 @@ public static class StructureKit
     public static MeshAsset TrussSpan(Look? look, float depth, bool lastPier)
     {
         var k = new Kit(look, 930);
-        const float half = 2.7f, high = 7.0f, low = -0.55f, z0 = -0.6f, z1 = -Bay + 0.6f, panel = (z0 - z1) / 5;
+        const float half = TrussHalf, high = TrussHigh, low = TrussLow, z0 = -0.6f, z1 = -Bay + 0.6f, panel = (z0 - z1) / 5;
         // The pier.
         k.Use("stone_block", Palette.Charcoal, 0.7f, 0.1f, tile: 2.5f);
         foreach (float pz in lastPier ? new[] { 0f, -Bay } : new[] { 0f })
