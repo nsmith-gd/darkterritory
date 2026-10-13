@@ -822,7 +822,8 @@ public static partial class Hud
             double left = place.At - s.Train.Dynamics.Distance;
             o.TextCentred(cx, y, place.Name.ToUpperInvariant(), Ink with { W = a }, 1);
             y += line;
-            o.TextCentred(cx, y, left > 50 ? $"IN {left / 1000:0.0} KM" : "HERE", Dim with { W = a }, k);
+            // The distance alone (note 671): "0.6 KM" under a place's name says how far.
+            o.TextCentred(cx, y, left > 50 ? $"{left / 1000:0.0} KM" : "HERE", Dim with { W = a }, k);
             y += (line + 2) * k;
         }
         if (s.Player.Alive && Shown(Since(s, m.ColdTick), Tuning.ColdSeconds) is > 0 and var c
