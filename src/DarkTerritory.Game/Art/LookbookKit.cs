@@ -195,15 +195,17 @@ public sealed class LookbookKit(Look? look)
     /// <summary>
     /// Puts on <paramref name="c"/>, as drawn last at <paramref name="model"/>, what they wear; and in their fists what they
     /// carry, unless <paramref name="hands"/> is false (sat at a table, at the range, at work: their hands are busy).
-    /// <paramref name="far"/>: drawn as instances (a far figure's, note 479). Lights its lamps (the lamplighter's).
+    /// <paramref name="far"/>: drawn as instances (a far figure's, note 479). <paramref name="lamp"/>: their right fist has a
+    /// hand lamp in it (the street's lamp-carriers), so what they'd carry there is left. Lights its lamps (the lamplighter's).
     /// </summary>
-    public void Dress(CreatureArt creatures, MeshBuilder mesh, in Matrix4x4 model, TownCharacter c, bool hands = true, bool far = false)
+    public void Dress(CreatureArt creatures, MeshBuilder mesh, in Matrix4x4 model, TownCharacter c, bool hands = true, bool far = false, bool lamp = false)
     {
         foreach (var (piece, bone) in Worn(c.Id))
             creatures.Wear(mesh, Get(piece, c), bone, model, c.Figure, instanced: far);
         if (hands)
             foreach (var (piece, left, upright) in Held(c.Id))
-                creatures.Hold(mesh, Get(piece, c), model, c.Figure, left, upright);
+                if (left || !lamp)
+                    creatures.Hold(mesh, Get(piece, c), model, c.Figure, left, upright);
         if (c.Id != "lamplighter")
             return;
         var mask = creatures.Posed("head", MaskFlame, model, c.Figure);

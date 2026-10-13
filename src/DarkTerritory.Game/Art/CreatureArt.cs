@@ -493,7 +493,13 @@ public sealed partial class CreatureArt
             return;
         var model = Redress.Of(figure.Model, name, clothes, shape, growths);
         float wear = WearOf.GetValueOrDefault("survivor_prisoner", 0.5f);
-        _models[name] = new Entry(model, [.. model.Materials.Select(m => Resolve(m, wear))]);
+        // Its distance copy as the survivors' is made (note 479): a town's lookbook people (note 694) are many.
+        var far = Look.Tuning.ClusteredLodMetres > 0 ? ModelLod.Clustered(model, Look.Tuning.ClusteredLodCell) : null;
+        _models[name] = new Entry(model, [.. model.Materials.Select(m => Resolve(m, wear))])
+        {
+            Lod = far is null ? null : new Entry(far, [.. far.Materials.Select(m => Resolve(m, wear))]),
+            LodFrom = Look.Tuning.ClusteredLodMetres,
+        };
     }
 
     /// <summary>A model's distance copy (tools/models overbake `lod`), its joints renumbered by name to the full model's so

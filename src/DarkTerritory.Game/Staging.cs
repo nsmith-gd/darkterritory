@@ -95,6 +95,16 @@ public static partial class Staging
         var centre = plan.Fixtures[0];
         var board = plan.Fixtures.First(f => f.Kind == "board");
         var hall = plan.Buildings.First(b => b.Kind == "hall");
+        // "folk", "folk2"...: the townspeople the lookbook dresses for their job (note 694), the nth of them by their id, from
+        // a few metres off at head height, where they are on their round now.
+        if (where.StartsWith("folk", StringComparison.Ordinal)
+            && plan.People.Where(p => Art.LookbookKit.For(p.Role, p.Id) is not null).OrderBy(p => p.Id).ToList() is { Count: > 0 } dressed)
+        {
+            int nth = where.Length > 4 && int.TryParse(where[4..], out int n) ? Math.Clamp(n - 1, 0, dressed.Count - 1) : 0;
+            var now = town.Now(dressed[nth]);
+            var at = now.Feet + now.Facing * 3.2 + Double3.Up * 1.55;
+            return Ballast.Render.Camera.LookAt(at, now.Feet + Double3.Up * 1.0, 55);
+        }
         // A house from out in front of it, along its street a way (note 608): "fires", the first a creature brought in tonight
         // sets alight (`--arrival fires --patrol`); "burnt", the nearest the gate of a town's burnt houses, come back to.
         if (where is "fires" or "burnt"

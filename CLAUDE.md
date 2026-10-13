@@ -30,6 +30,7 @@ python3 tools/tweaker/apply.py <the Tweaker's store, read with ArtifactData out_
 python3 tools/audio/fetch_music.py --dry-run          # E.6's CC0 music intake: the candidate list (--offline-test the cut path); the real run is .github/workflows/music-intake.yml (Commons is blocked here)
 dotnet run --project src/DarkTerritory.Cli -- audio render --listener all   # spec A.3 tell audit; one listener → WAV + spectrogram PNG
 dotnet run --project src/DarkTerritory.Cli -- screenshot --view roof   # 1280x720 PNG to out/shots/; then Read it to look
+dotnet run --project src/DarkTerritory.Cli -- screenshot --lookbook all --survey [--closeup] [--turn 180]   # the townsfolk lookbook's ten in a row (note 694; `--route frontier:7 --town folk2`: one in a town)
 tools/review/gallery.sh "--no-build" && dotnet run --project src/DarkTerritory.Cli -- review diff <main's shots> out/shots   # the whole gallery in one process (note 517; `screenshot --batch tools/review/gallery.txt`), and what a change did to it: strips + summary in out/review (CI does this on every PR: the review-packet artifact)
 dotnet run --project src/DarkTerritory.Cli -- art show engine          # a kit piece on a turntable; `art check` = every piece vs its triangle budget
 dotnet run --project src/DarkTerritory.Cli -- art clip car_hugger feed   # a creature's clip as a lit contact sheet (--frames n --at x,y,z --dist --yaw)

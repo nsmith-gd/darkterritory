@@ -3301,19 +3301,20 @@ public sealed partial class GreyboxScene
     /// the figure's variant 0: the survivors' other variants show other coats and patches over the dyed ones. False when
     /// the figure isn't built.
     /// </summary>
-    bool TownCharacter(MeshBuilder mesh, Double3 eye, Double3 feet, Double3 facing, Art.TownCharacter who, string clip, bool hands, int variant,
-        float drab = 1, bool far = false)
+    Matrix4x4? TownCharacter(MeshBuilder mesh, Double3 eye, Double3 feet, Double3 facing, Art.TownCharacter who, string clip, bool hands, int variant,
+        float drab = 1, bool far = false, bool seated = false, bool lamp = false)
     {
         var creatures = Look!.Art.Creatures;
         if (creatures.Get(who.Figure) is null)
-            return false;
+            return null;
         var back = -Vector3.Normalize(ToF(facing) with { Y = 0 });
-        var m = Art.CreatureArt.Basis(V(feet, eye) - Vector3.UnitY * creatures.FeetOver(who.Figure, clip), Vector3.Cross(Vector3.UnitY, back), Vector3.UnitY, back);
+        float lift = seated ? 0 : creatures.FeetOver(who.Figure, clip);
+        var m = Art.CreatureArt.Basis(V(feet, eye) - Vector3.UnitY * lift, Vector3.Cross(Vector3.UnitY, back), Vector3.UnitY, back);
         if (!creatures.Draw(mesh, who.Figure, clip, Time + variant * 0.73, true, m, 0, seed: variant * 13,
             adjust: (mat, l) => l with { Colour = l.Colour * drab, Emissive = 0 }))
-            return false;
-        Look.Art.Lookbook.Dress(creatures, mesh, m, who, hands, far);
-        return true;
+            return null;
+        Look.Art.Lookbook.Dress(creatures, mesh, m, who, hands, far, lamp);
+        return m;
     }
 
     /// <summary>How far into Jacob's blessing to draw it (s), for a still (<c>dt screenshot --view jacobblessed</c>); null as it plays.</summary>
@@ -3359,7 +3360,7 @@ public sealed partial class GreyboxScene
     }
 
     void Folk(MeshBuilder mesh, Double3 eye, Double3 feet, Double3 facing, int variant, float drab = 0.45f, string pose = "idle",
-        string? gear = null, bool home = false, int who = 0, bool lamp = false)
+        string? gear = null, bool home = false, int who = 0, bool lamp = false, string? role = null)
     {
         drab += variant % 3 * 0.05f;
         string clip = gear is null
@@ -3372,7 +3373,16 @@ public sealed partial class GreyboxScene
         bool far = (feet - eye).Length > Look.Tuning.ClusteredLodMetres && Look.Tuning.ClusteredLodMetres > 0;
         // A town's people are the survivors' figure, bare-headed, with what they breathe through (note 353), set down on
         // their feet (the director's 8 Oct shots: a resident crouched in the air by the range).
-        if (gear is not null && Look.Art.Townsfolk.Person(creatures, mesh, V(feet, eye), ToF(facing), clip, pose == "seated", gear, home, variant, who,
+        // Who the lookbook dresses for their job (note 694): their own figure, their hat and what they carry, their hands
+        // free only when they're stood or walking (at a table, at the range, at their work, what they carry's put down).
+        // The lamplighter's lamp is on his pole; anyone else's hand lamp takes the right fist.
+        var character = role is null ? null : Art.LookbookKit.For(role, who);
+        if (character is not null && lamp && character.Id == "lamplighter")
+            lamp = false;
+        if (character is not null && TownCharacter(mesh, eye, feet, facing, character, clip, clip is "idle" or "walk" or "point" or "lantern" or "lantern_walk",
+            variant, far: far, seated: pose == "seated", lamp: lamp) is { } dressed)
+            (figure, m) = (character.Figure, dressed);
+        else if (gear is not null && Look.Art.Townsfolk.Person(creatures, mesh, V(feet, eye), ToF(facing), clip, pose == "seated", gear, home, variant, who,
             Time + variant * 0.73, drab, far) is { } drawn)
             (figure, m) = drawn;
         else
@@ -3475,7 +3485,7 @@ public sealed partial class GreyboxScene
                     string act = talking && now.Walking ? "idle" : now.Act;
                     // Nicki at her party (note 571): her own figure, not the town's drab.
                     if (!p.Hosting || !Hostess(mesh, eye, feet, facing, act, p.Id))
-                        Folk(mesh, eye, feet, facing, p.Look % 7 + 1, drab: 0.72f, act, p.Gear, home: p.House >= 0, who: p.Id, lamp: p.Pose == "lantern");
+                        Folk(mesh, eye, feet, facing, p.Look % 7 + 1, drab: 0.72f, act, p.Gear, home: p.House >= 0, who: p.Id, lamp: p.Pose == "lantern", role: p.Role);
                     // Whoever you're talking to has the lamplight on their face, so you can see who it is (most stand with
                     // a lit door or a fire at their back).
                     if (talking)
