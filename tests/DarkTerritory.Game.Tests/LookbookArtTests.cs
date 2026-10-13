@@ -40,6 +40,24 @@ public class LookbookArtTests
     }
 
     [Fact]
+    public void EachIsModelledAndBakedOnTheSurvivorsRig()
+    {
+        // tools/models/recipes/townsfolk_*.py: the ten, their clothes modelled over the survivors' figure and baked with it.
+        var figure = Art.Get("survivor_prisoner")!;
+        foreach (var c in LookbookKit.Characters)
+        {
+            var model = Art.Get(c.Modelled);
+            Assert.True(model is not null, $"{c.Modelled}.glb isn't built (tools/models/build.sh {c.Modelled})");
+            Assert.Equal(c.Modelled, Art.FigureFor(c));
+            Assert.Equal(figure.Skeleton.Names, model.Skeleton.Names);
+            // A character's budget (GDD §27: 4-10k triangles).
+            Assert.InRange(model.Parts.Where(p => p.Clip is null).Sum(p => p.Triangles), 4000, 10000);
+            foreach (string clip in (string[])["idle", "walk", "gunner", "crouch_idle", "lantern_walk"])
+                Assert.True(Art.Joints(c.Modelled, clip, 0.5, true).Any(), $"{c.Modelled} can't play {clip}");
+        }
+    }
+
+    [Fact]
     public void WhatTheyWearIsCheapAndSitsOnTheFigure()
     {
         var kit = new LookbookKit(Look);

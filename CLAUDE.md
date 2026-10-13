@@ -43,6 +43,7 @@ python3 tools/art/textures.py                                         # rebuild 
 tools/art/store/screens.sh                                            # store screenshots, capsules and the icon -> out/store (icon also content/art/ui)
 tools/blender/build.sh                                                # rebuild the procedural creatures in content/art/models (needs blender)
 python3 tools/models/fetch.py && tools/models/build.sh                # sourced CC0/CC-BY models, and the modelled-and-baked ones (props, the crew) -> content/art/models (needs blender)
+pip install bpy && BLENDER=tools/models/bpy-blender.sh tools/models/build.sh townsfolk_trapper   # no Blender (a cloud session): its Python module stands in; TOWN_PREVIEW=1 for the high figure's renders in out/review (note 694)
 dotnet run --project src/DarkTerritory.Cli -- perf [--only pc|vr] [--views roof,cab]   # frame cost vs tuning/perf.json (90 fps PC, 72 fps VR): CPU phases, GPU passes, counts
 dotnet run --project src/DarkTerritory.Cli -- perf --route local:5 --town square,houses [--ride 8 [--walk]]   # a walled town's frame; --ride: down the line (or its street) at speed, the worst frames and hitches (note 479)
 dotnet run --project src/DarkTerritory.Cli -- harness --bots 8 --seconds 300 [--express 21]   # host + bots over lossy loopback; netcode report (--express: a driver that runs hot and takes no stops, note 376)

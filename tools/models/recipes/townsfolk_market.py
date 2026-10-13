@@ -10,7 +10,6 @@ import sys
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
-import crewfigure  # noqa: E402
 import townfolk as tf  # noqa: E402
 
 RED = (2.6, 0.62, 0.42)
@@ -38,9 +37,5 @@ def grade(base, atlas, face):
     return tf.soften_face(base, face)
 
 
-crewfigure.build("townsfolk_market", crewfigure.Style(
-    dress=DRESS, preview="TOWN_PREVIEW", figure="bare", hats=False, coat=False, body_off=("strap", "satchel", "lamp", "belt"),
-    garments=garments, head=tf.softer, grade=grade,
-    views=[("front", (0.2, 1, 0.1), (0, 0, 0.95), 4.2), ("back", (-0.3, -1, 0.1), (0, 0, 0.95), 4.2),
-           ("face", (0.15, 1, -0.1), (0, 0.05, 1.6), 0.7), ("profile", (1, 0.12, 0.08), (0, 0.03, 1.2), 2.0)],
-    what="the townsfolk lookbook's market woman, modelled over tools/blender/crew.py"))
+tf.recipe("townsfolk_market", "market woman", DRESS, garments, coat=False, off=("strap", "satchel", "lamp", "belt"), head=tf.softer,
+          grade=grade)

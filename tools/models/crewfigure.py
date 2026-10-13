@@ -28,7 +28,7 @@ from overbake import bell, fine, smooth01
 class Style:
     def __init__(self, head=None, dress=None, shapes=None, masks=None, grade=None, preview="CREW_PREVIEW",
                  what="the crew's clothes and kit, modelled over tools/blender/crew.py", lamp=True, mask=None, figure="helm",
-                 gear=None, views=None, hats=True, low_shapes=None, coat=True, body_off=(), garments=None):
+                 gear=None, views=None, hats=True, low_shapes=None, coat=True, body_off=(), garments=None, scarf=True):
         self.head, self.dress, self.shapes = head, dress or {}, shapes or {}
         # Displacement of a game part itself before its high copy's made from it (note 407: the silhouette, which the
         # bake's normals can't give): {part: fn(positions, normals) -> metres}, the coat's shell signed as its sculpt is.
@@ -57,6 +57,8 @@ class Style:
         # Clothes modelled over the figure (the townsfolk's, note 694): garments(fit) -> [Garment], each a game mesh in
         # kit materials (dressed and sculpted as any part, by `dress` and `shapes`), joined to the body and baked with it.
         self.garments = garments
+        # False: the scarf at the neck left off (under a hood, a wrap, a high collar it's only triangles).
+        self.scarf = scarf
 
 
 class Garment:
@@ -320,6 +322,8 @@ def build(name, style):
     kit, g, arm, parts = overbake.hold("crew.py")
     if not style.coat:
         bpy.data.objects.remove(parts.pop("coat"))
+    if not style.scarf:
+        bpy.data.objects.remove(parts.pop("scarf"))
     scan = style.figure == "bare"
     hats = ("hat_cap", "hat_helmet") if scan else ()
     if not style.hats:
@@ -605,6 +609,8 @@ def build(name, style):
     BAKED = ["body", "frame", "coat"] + ([*hats, "scarf"] if scan else ["visor_up", "visor_down", "scarf"])
     if not style.coat:
         BAKED.remove("coat")
+    if not style.scarf and "scarf" in BAKED:
+        BAKED.remove("scarf")
     for k, fn in style.shapes.items():
         SHAPE[k] = (lambda f, base: (lambda p, n: base(p, n) + f(p, n)) if base else f)(fn, SHAPE.get(k))
     # The coat's shells are two-sided: each side sculpted the outer side's way (along its normal the lining would move
@@ -620,6 +626,8 @@ def build(name, style):
     highs = {part: overbake.high_of(parts[part], dress, SHELL if part == "coat" else SHAPE) for part in BAKED if part != "frame"}
     if not style.coat:
         highs["coat"] = []
+    if not style.scarf:
+        highs["scarf"] = []
     highs["frame"] = overbake.high_of(g["FRAME_HIGH"], dress, SHAPE, dense=True)
     # The respirator and goggles (Style.mask), modelled on the scan's landmarks, their game mesh on the head bone.
     if style.mask and scan:

@@ -10,7 +10,6 @@ import sys
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
-import crewfigure  # noqa: E402
 import townfolk as tf  # noqa: E402
 
 OILSKIN = (2.6, 1.95, 0.45)
@@ -34,8 +33,4 @@ def garments(fit):
     return [tf.bucket_hat(fit), tf.gas_mask(fit)]
 
 
-crewfigure.build("townsfolk_trapper", crewfigure.Style(
-    dress=DRESS, preview="TOWN_PREVIEW", figure="bare", hats=False, body_off=("strap", "satchel", "lamp"), garments=garments,
-    views=[("front", (0.2, 1, 0.1), (0, 0, 0.95), 4.2), ("back", (-0.3, -1, 0.1), (0, 0, 0.95), 4.2),
-           ("face", (0.15, 1, -0.1), (0, 0.05, 1.64), 0.6), ("profile", (1, 0.12, 0.08), (0, 0.03, 1.66), 1.0)],
-    what="the townsfolk lookbook's trapper, modelled over tools/blender/crew.py"))
+tf.recipe("townsfolk_trapper", "trapper", DRESS, garments)

@@ -79,14 +79,17 @@ def sheet(rows, material, name, closed=False, outward=None, thick=0.0, cap=None)
     return o
 
 
-def tube(a, b, r, material, name="tube", n=12, caps=True, r1=None):
-    """A cylinder from `a` to `b`, radius `r` (to `r1` at b), closed at its ends."""
+def tube(a, b, r, material, name="tube", n=12, caps=True, r1=None, rings=2):
+    """A cylinder from `a` to `b`, radius `r` (to `r1` at b), closed at its ends; `rings` round it along its length (more
+    for a high copy to sculpt along: a can's ribs)."""
     a, b = Vector(a), Vector(b)
     t = (b - a).normalized()
     u = t.orthogonal().normalized()
     v = t.cross(u)
     rows = []
-    for p, rr in ((a, r), (b, r if r1 is None else r1)):
+    for k in range(rings):
+        f = k / (rings - 1)
+        p, rr = a.lerp(b, f), r + ((r if r1 is None else r1) - r) * f
         rows.append([p + (u * math.cos(TAU * j / n) + v * math.sin(TAU * j / n)) * rr for j in range(n)])
     o = sheet(rows, material, name, closed=True, outward=(a + b) / 2)
     if caps:
@@ -181,7 +184,7 @@ def brim(fit, band, ease, wide, droop, material, name, n=24, back=0.0, front=0.0
     (negative: turned up), rolled up at its very edge by `roll`."""
     zb = band if callable(band) else (lambda a, b=band: b)
     rows = []
-    for t in (0.0, 0.4, 0.75, 1.0):
+    for t in (0.0, 0.5, 1.0) if roll == 0 else (0.0, 0.4, 0.75, 1.0):
         row = []
         for a in bearings(n):
             c = math.cos(a)
@@ -196,12 +199,9 @@ def brim(fit, band, ease, wide, droop, material, name, n=24, back=0.0, front=0.0
 def bucket_hat(fit, what="hat"):
     """A bucket hat in oilskin: a soft crown dented on top, its brim turned down all round."""
     m = mat(what)
-    rows, c = crown(fit, 1.70, 0.016, 1.83, [(0, 1.0), (0.3, 0.98), (0.6, 0.93), (0.82, 0.84), (0.94, 0.7), (1.0, 0.45)], dent=0.01)
-    # Its band of stitching round the crown's foot, over the seam to the brim.
-    band = [[fit.head_c + Vector(((p - fit.head_c).x * 1.02, (p - fit.head_c).y * 1.02, (p - fit.head_c).z)) for p in r]
-            for r in ([q.lerp(s, 0.0) for q, s in zip(rows[0], rows[1])], [q.lerp(s, 0.18) for q, s in zip(rows[0], rows[1])])]
-    return worn([capped(rows, c, m, "bucket_crown"), sheet(band, m, "bucket_band", closed=True, thick=0.002, outward=fit.head_c),
-                 brim(fit, 1.70, 0.016, 0.065, 0.06, m, "bucket_brim", back=0.012)], "bucket", "head")
+    # (Its stitching, round the crown's foot and round and round the brim, is sculpted on its high copy: SHAPES.)
+    rows, c = crown(fit, 1.70, 0.016, 1.83, [(0, 1.0), (0.3, 0.98), (0.6, 0.93), (0.82, 0.84), (0.94, 0.7), (1.0, 0.45)], n=20, dent=0.01)
+    return worn([capped(rows, c, m, "bucket_crown"), brim(fit, 1.70, 0.016, 0.065, 0.06, m, "bucket_brim", n=20, back=0.012)], "bucket", "head")
 
 
 def flat_cap(fit, what="cap", goggles=None):
@@ -233,7 +233,7 @@ def flat_cap(fit, what="cap", goggles=None):
 def facepiece(fit, material, brow=1.705, chin=1.505, half=1.05, ease=0.012, snout=0.03, thick=0.005):
     """A rubber facepiece moulded over the face from the brow to under the chin, pushed out at the mouth."""
     rows = []
-    levels, n = 8, 13
+    levels, n = 7, 11
     for i in range(levels + 1):
         z = brow + (chin - brow) * i / levels
         w = half * (0.72 + 0.28 * math.sin(math.pi * i / levels))
@@ -248,22 +248,24 @@ def facepiece(fit, material, brow=1.705, chin=1.505, half=1.05, ease=0.012, snou
     return sheet(rows, material, "facepiece", thick=thick, outward=fit.head_c)
 
 
+CAN = Vector((0, 1.0, -0.5)).normalized()
+
+
 def gas_mask(fit, rubber="rubber", brass="brass", glass="glass", tin="tin", strap="strap"):
     """A gas mask: the facepiece, two round eyepieces in brass, a filter can screwed in under the nose, its straps."""
     parts = [facepiece(fit, mat(rubber))]
     for sx in (-1, 1):
         at = fit.head(1.659, sx * 0.36, 0.02)
         nrm = Vector((sx * 0.25, 1.0, 0.05)).normalized()
-        parts.append(tube(at - nrm * 0.006, at + nrm * 0.012, 0.027, mat(brass), "eyepiece"))
-        parts.append(tube(at + nrm * 0.012, at + nrm * 0.0135, 0.021, mat(glass), "lens"))
+        parts.append(tube(at - nrm * 0.006, at + nrm * 0.012, 0.027, mat(brass), "eyepiece", n=10))
+        parts.append(tube(at + nrm * 0.012, at + nrm * 0.0135, 0.021, mat(glass), "lens", n=10, caps=False))
+    # The can's ribs are sculpted on its high copy (SHAPES), not modelled.
     root = fit.head(1.585, 0.0, 0.03)
-    d = Vector((0, 1.0, -0.5)).normalized()
-    parts.append(tube(root - d * 0.01, root + d * 0.025, 0.026, mat(rubber), "can_neck", r1=0.029))
-    parts.append(tube(root + d * 0.025, root + d * 0.085, 0.036, mat(tin), "can"))
-    for k in (0.04, 0.06, 0.078):
-        parts.append(ring(root + d * k, d, 0.036, 0.003, mat(tin), "can_rib", n=16, m=4))
+    d = CAN
+    parts.append(tube(root - d * 0.01, root + d * 0.025, 0.026, mat(rubber), "can_neck", n=10, r1=0.029, caps=False))
+    parts.append(tube(root + d * 0.025, root + d * 0.085, 0.036, mat(tin), "can", rings=7))
     for z in (1.6, 1.705):
-        rows = [[fit.head(zz, a, 0.006) for a in bearings(13, -math.pi * 0.7 + math.pi, math.pi * 0.7 + math.pi, closed=False)]
+        rows = [[fit.head(zz, a, 0.006) for a in bearings(9, -math.pi * 0.7 + math.pi, math.pi * 0.7 + math.pi, closed=False)]
                 for zz in (z - 0.011, z + 0.011)]
         parts.append(sheet(rows, mat(strap), "mask_strap", thick=0.003, outward=fit.head_c))
     return worn(parts, "gas_mask", "head")
@@ -772,8 +774,37 @@ def soften_face(base, face, amount=0.6):
 
 
 def recipe(name, what, dress, garments, coat=True, off=("strap", "satchel", "lamp"), head=None, grade=None, low_shapes=None,
-           masks=None, shapes=None):
+           masks=None, shapes=None, scarf=False):
     crewfigure.build(name, crewfigure.Style(
         dress=dress, preview="TOWN_PREVIEW", figure="bare", hats=False, coat=coat, body_off=off, garments=garments, head=head,
-        grade=grade, low_shapes=low_shapes, masks=masks, shapes=shapes, views=VIEWS,
+        grade=grade, low_shapes=low_shapes, masks=masks, shapes={**SHAPES, **(shapes or {})}, views=VIEWS, scarf=scarf,
         what=f"the townsfolk lookbook's {what}, modelled over tools/blender/crew.py"))
+
+
+# ----------------------------------------------------------------------------------------------------------------
+# Sculpted on the high copies (crewfigure's shapes: metres along the normal at each point)
+
+def _bell(x):
+    import numpy as np
+    return np.exp(-x * x)
+
+
+def hat_stitching(p, n):
+    """A bucket hat's stitching: a groove round the crown's foot, and the brim stitched round and round."""
+    import numpy as np
+    z = p[:, 2]
+    r = np.hypot(p[:, 0], p[:, 1] - 0.006)
+    d = -0.0018 * _bell((z - 1.722) / 0.003) - 0.0014 * _bell((z - 1.738) / 0.003)
+    brim = z < 1.703
+    d += -0.0012 * _bell(np.sin(r * np.pi / 0.011) / 0.15) * brim
+    return d.astype(np.float32)
+
+
+def ribbed(p, n):
+    """A filter can's ribs, round it every two centimetres, and its grille's dimples at its end."""
+    import numpy as np
+    along = p @ np.array(CAN, np.float32)
+    return (0.0025 * _bell(np.sin(along * np.pi / 0.02) / 0.2)).astype(np.float32)
+
+
+SHAPES = {"town.hat": hat_stitching, "town.tin": ribbed}
