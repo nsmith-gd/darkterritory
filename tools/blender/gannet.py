@@ -843,17 +843,40 @@ HANG = flying(merge(chain(-48, -58, -78, -88), TUCK, {"tail_01": (-18, 0, 0), "t
                     wings(upper=(36, -22, 12), fore=(4, 12, 4), hand=(0, 8, -6), tip=(4, 4, 0))))
 show("hang", HANG)
 hang = Clip("hang")
-for f in range(0, 30, 6):
-    k = math.sin(2 * math.pi * f / 30)
-    hang.key(f, merge(HANG, wings(upper=(36, -22 - 6 * k, 12), fore=(4, 12 + 4 * k, 4), hand=(0, 8 + 6 * k, -6), tip=(4, 4 + 6 * k, 0))), "LINEAR")
+
+
+def hang_at(kr, kl, head=(0, 0, 0)):
+    """The hang with each wing's tremble (`kr`, `kl`, the two out of step) and the head jerked by `head` (degrees)."""
+    def side(k, s):
+        return {f"upperarm_{s}": (36, -22 - 6 * k, 12), f"forearm_{s}": (4, 12 + 4 * k, 4), f"hand_{s}": (0, 8 + 6 * k, -6),
+                f"tip_{s}": (4, 4 + 6 * k, 0)}
+    w = {**side(kr, "r"), **{b.replace("_r", "_l"): v for b, v in mirror(side(kl, "r")).items() if b.endswith("_l")}}
+    p = merge(HANG, w)
+    h = p["head"]
+    p["head"] = (h[0] + head[0], h[1] + head[1], h[2] + head[2])
+    return p
+
+
+# The head dead still on whoever it's over, but for a seabird's jerks: snapped to a new cock in one frame, held, snapped
+# again (out of time with the wings, which tremble each to its own beat).
+for f, kr, kl, head, i in ((0, 0, 0.3, (0, 0, 0), "LINEAR"), (5, 0.8, -0.4, (0, 0, 0), "CONSTANT"), (6, 0.9, -0.2, (4, 10, 6), "LINEAR"),
+                           (11, -0.6, 0.7, (4, 10, 6), "LINEAR"), (15, -0.2, 0.9, (4, 10, 6), "CONSTANT"),
+                           (16, 0.1, 0.6, (-3, -8, -4), "LINEAR"), (22, 0.7, -0.6, (-3, -8, -4), "CONSTANT"),
+                           (23, 0.5, -0.3, (0, 0, 0), "LINEAR")):
+    hang.key(f, hang_at(kr, kl, head), i)
 hang.close(30)
 
 # --- fold (0.4 s, once): the wings swept back, the sacs swelling, the spear down its line; by the end its tip is the origin
 DART = tip_at(merge(chain(-75, -75, -75, -75), TUCK, DART_WINGS, {"tail_01": (0, 0, 0), "tail_02": (0, 0, 0)}, swollen(1.22, 1.28)), (0, 0, 0))
 show("dart", DART)
 fold = Clip("fold", loop=False)
+# The tell, then the commit down the line it showed: dead still for a beat with the sacs swelling, the beak pitched
+# straight down at them (the head first), then the wings snapped back into the dart (the body after).
+AIMED = merge(HANG, swollen(1.12, 1.18), {"head": (HANG["head"][0] - 10, 0, 0), "neck_02": (HANG["neck_02"][0] - 4, 0, 0)})
 fold.key(0, HANG)
-fold.key(4, merge(mix(HANG, DART, 0.45), wings(upper=(18, -30, -26), fore=(2, 8, -8), hand=(0, 8, -6))), "LINEAR")
+fold.key(2, AIMED, "LINEAR")
+fold.key(4, AIMED, "LINEAR")
+fold.key(8, merge(mix(AIMED, DART, 0.6), wings(upper=(10, -26, -40), fore=(2, 4, -14), hand=(0, 4, -8))), "LINEAR")
 fold.key(12, DART)
 # --- dive (0.5 s): the dart held, shuddering in the wind of it, the bladders swollen tight --------------------------------
 dive = Clip("dive")
@@ -888,8 +911,12 @@ for s, x, y in (("r", 0.42, -1.75), ("l", -0.42, -1.6)):
     STUCK = plant(STUCK, s, (x, y, 0.07))
 show("stuck", STUCK)
 stuck = Clip("stuck")
-THRASH = [(0.0, 0.0, 0, 0), (0.7, -0.5, 8, 0.03), (-0.8, 0.8, -6, -0.02), (0.9, -0.7, 10, 0.04), (-0.4, 0.6, -4, 0)]
-for f, (kr, kl, wr, lift) in enumerate(THRASH):
+# Thrashing in no rhythm: two hard heaves, then a dead stop (frozen, the spear still in the planks, a beat), then a wild
+# flurry of short wrenches.
+THRASH = [(0, 0.0, 0.0, 0, 0, "LINEAR"), (5, 0.7, -0.5, 8, 0.03, "CONSTANT"), (8, -0.8, 0.8, -6, -0.02, "LINEAR"),
+          (12, -0.5, 0.4, -3, -0.01, "LINEAR"), (19, -0.5, 0.4, -3, -0.01, "CONSTANT"), (21, 0.9, -0.7, 10, 0.04, "LINEAR"),
+          (24, -0.6, 0.9, -8, 0.0, "CONSTANT"), (27, 0.8, 0.2, 6, 0.03, "LINEAR"), (32, -0.4, 0.6, -4, 0, "BEZIER")]
+for f, (fr, kr, kl, wr, lift, interp) in enumerate(THRASH):
     p = merge(STUCK, thrash(kr, kl), {"pelvis": (STUCK["pelvis"][0] + wr * 0.4, wr * 0.8, 0)})
     # (The spear stays in the planks: the body heaves about it.)
     p = tip_at(p, (0, 0, -0.32 + lift))
@@ -897,7 +924,7 @@ for f, (kr, kl, wr, lift) in enumerate(THRASH):
     s = "r" if f % 2 else "l"
     p[f"thigh_{s}"] = (p[f"thigh_{s}"][0] + 22, p[f"thigh_{s}"][1], p[f"thigh_{s}"][2])
     p["jaw"] = (-6 - 6 * (f % 2), 0, 0)
-    stuck.key(f * 8, p, "CONSTANT" if f in (1, 3) else "LINEAR")
+    stuck.key(fr, p, interp)
 stuck.close(40)
 
 # --- tearFree (0.8 s, once): a heave, the spear wrenched out of the planks, a great downstroke and it's off the roof -------
@@ -952,11 +979,18 @@ STOOD = plant(STOOD, "l", (-0.42, 0.12, 0.07))
 STOOD = plant(STOOD, "r", PIN_FOOT, PIN_KNEE)
 show("pin", STOOD)
 pin = Clip("pin")
-for f, k in enumerate((0, 1, 0, -0.6)):
+# The mantle breathing slowly over them, the sacs throbbing; the head a seabird's, never smooth: snapped to a new look in a
+# frame, cocked, held stock still, snapped again, at no steady beat; the wing tips shivering once.
+for f, k, (hx, hy, hz), shiver, i in ((0, 0, (0, 0, 0), 0, "CONSTANT"), (6, 0.3, (-4, 14, 8), 0, "LINEAR"),
+                                      (16, 1, (-4, 14, 8), 0, "CONSTANT"), (17, 1, (2, -6, -10), 0, "LINEAR"),
+                                      (22, 0.7, (2, -6, -10), 4, "LINEAR"), (24, 0.6, (2, -6, -10), -3, "LINEAR"),
+                                      (26, 0.5, (2, -6, -10), 0, "LINEAR"), (33, 0.0, (2, -6, -10), 0, "CONSTANT"),
+                                      (34, -0.4, (-8, 22, 4), 0, "LINEAR"), (42, -0.6, (-8, 22, 4), 0, "CONSTANT"),
+                                      (43, -0.3, (0, 0, 0), 0, "LINEAR")):
     p = merge(STOOD, swollen(1.02 + 0.05 * k, 1.02 + 0.07 * k), {"jaw": (-4 - 4 * max(k, 0), 0, 0)},
-              wings(upper=(18, -42 - 2 * k, 26), fore=(-6, 64 + 2 * k, 8), hand=(-4, 36, -8), tip=(0, 14 + 3 * k, -4)))
-    p["head"] = (p["head"][0] - 4 * k, 0, 6 * math.sin(f * 1.7))
-    pin.key(f * 12, p)
+              wings(upper=(18, -42 - 2 * k, 26), fore=(-6, 64 + 2 * k, 8), hand=(-4, 36, -8), tip=(0, 14 + 3 * k + shiver, -4)))
+    p["head"] = (p["head"][0] - 4 * k + hx, hy, hz)
+    pin.key(f, p, i)
 pin.close(48)
 
 # --- land (0.6 s, once): out of the swoop onto them, the weight coming down through the foot, the wings closing to mantle ---
@@ -972,8 +1006,10 @@ WINDUP = plant(plant(WINDUP, "l", (-0.42, 0.12, 0.07)), "r", PIN_FOOT, PIN_KNEE)
 show("windup", WINDUP)
 windup = Clip("peckWindup", loop=False)
 windup.key(0, STOOD)
-for f in range(10, 28, 3):
+# Drawn up, the throat rattling; then held at the top, dead still, aimed: the beat before the strike.
+for f in range(10, 20, 3):
     windup.key(f, merge(WINDUP, {"jaw": (-3 if f % 2 else -8, 0, 0)}, swollen(1.08 + 0.02 * (f % 2), 1.16)), "CONSTANT" if f > 10 else "BEZIER")
+windup.key(20, WINDUP, "LINEAR")
 windup.key(27, WINDUP)
 
 # --- peck (0.5 s, once): the strike, at their head (the beat lands at PECK_STRIKE), then the spear drawn back ---------------
