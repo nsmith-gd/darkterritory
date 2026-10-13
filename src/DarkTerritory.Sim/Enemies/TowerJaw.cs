@@ -270,6 +270,7 @@ public sealed class TowerJaw(int id) : Enemy(id)
             {
                 var hit = rake.Consist.Vehicles[fromBehind ? 0 : ^1];
                 hit.Integrity = Math.Max(0, hit.Integrity - (speed - t.SafeSpeed) * (speed - t.SafeSpeed) * t.DamagePerSpeed);
+                hit.Knock = (KnockCause.Wreck, speed);
             }
             train.RefreshFrames();
         }

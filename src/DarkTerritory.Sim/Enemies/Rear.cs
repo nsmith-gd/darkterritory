@@ -752,7 +752,7 @@ public sealed class CarHugger(int id) : Enemy(id)
             // FINISH: eaten through, the car drops away with it (and whoever was in it goes with the car).
             int ahead = train.VehicleAhead(Attached);
             if (ahead >= 0)
-                train.Uncouple(ahead);
+                train.Uncouple(ahead, Parting.CarHugger);
             car.Taken = true;
             Enter(ctx, SpinePhase.BreakOff);
             Enter(ctx, SpinePhase.Gone);

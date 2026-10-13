@@ -3113,6 +3113,9 @@ static object HudShot(string content, string[] args)
             : generated is null ? new PrototypeSession(content, Str(args, "--line", "test-loop"), cars) : new PrototypeSession(content, generated, cars, enemies: false);
         if (roofWarning.Length == 0 && mailCrane is null)
             solo.Controls.Throttle = Opt(args, "--throttle", args.Contains("--talk") ? 0 : 0.6);
+        // (--news: out of the yard and under way, where cars are lost.)
+        if (args.Contains("--news"))
+            solo.Controls.Brake = 0;
         // --hazards name: one of balance.json's hazard sets laid over the line (note 186), e.g. cold: the HUD's cold step (note 201).
         if (Str(args, "--hazards", "") is { Length: > 0 } hz)
             DarkTerritory.Sim.Net.HazardConditions.Apply(solo.Train.Line,
@@ -3169,6 +3172,17 @@ static object HudShot(string content, string[] args)
             solo.Player = solo.Player with { Parent = car, Surface = DarkTerritory.Sim.Player.Surface.Deck, Position = middle with { Y = room.Min.Y + 0.1 }, Velocity = default };
             solo.Train.Vehicles[car].Load = 1;
             solo.World.Bodies.All.First(b => b.Kind == DarkTerritory.Sim.Physics.BodyKind.Cargo).Carrier = ((IPlaySession)solo).PlayerId;
+        }
+        // --news pin|engine (note 663): the news under the dawn clock, a moment after it's said: the pin behind car 2 dropped
+        // (cars 3 on lost), or the engine knocked down to failing at the buffer stop at 21 km/h.
+        if (Str(args, "--news", "") is { Length: > 0 } said)
+        {
+            if (said == "engine")
+                (solo.Train.Vehicles[0].Integrity, solo.Train.Vehicles[0].Knock) = (0.45, (DarkTerritory.Sim.Train.KnockCause.BufferStop, 21 / 3.6));
+            else
+                solo.Train.Uncouple(2, DarkTerritory.Sim.Train.Parting.Pin);
+            for (int i = 0; i < SimConstants.TickRate / 2; i++)
+                solo.Step(default);
         }
         // --cord (note 264): in the cab looking up at the whistle cord's handle, as the driver reaching for it does.
         if (args.Contains("--cord") && solo.Train.Frames[0].Shape.Interactables.FirstOrDefault(i => i.Kind == DarkTerritory.Sim.Train.InteractableKind.Whistle) is { Aim: > 0 } cord)

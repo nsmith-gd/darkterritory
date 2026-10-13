@@ -142,6 +142,9 @@ public class SwitchTests
             for (int i = 0; i < SimConstants.TickRate * 60 && !train.ContactsThisTick.Any(); i++)
                 train.Step(SimConstants.TickSeconds, new TrainControls { Reverser = 1 });
             Assert.True(train.AtEndOfLine);
+            // Note 663: what knocked it, for the news ("ENGINE FAILING · HIT THE BUFFER STOP AT 18 KM/H").
+            if (train.Vehicles[0].Integrity < 1)
+                Assert.Equal(KnockCause.BufferStop, train.Vehicles[0].Knock.Cause);
             return train.Vehicles[0].Integrity;
         }
         Assert.Equal(1, Left(T.BufferStop.SafeSpeed - 0.1), 6);

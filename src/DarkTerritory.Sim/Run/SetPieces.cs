@@ -717,7 +717,10 @@ public sealed partial class Run
             _kegHeld.Remove(b.Id);
             foreach (var v in train.Vehicles)
                 if (v.Id < train.Frames.Count && (train.Frames[v.Id].Origin - at).Length <= k.KillRadius + train.Frames[v.Id].Shape.HalfLength)
+                {
                     v.Integrity = Math.Max(0, v.Integrity - k.CarDamage);
+                    v.Knock = (KnockCause.Blast, 0);
+                }
         }
         // Whatever powder lay near each blast goes next.
         foreach (var b in world.Bodies.All)
