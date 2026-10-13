@@ -370,7 +370,7 @@ def vent(lifted, k):
     out = {}
     for j, name in enumerate(["shield", "plate_1", "plate_2", "plate_3", "plate_4"]):
         u = max(0.0, min(1.0, lifted - j))
-        out[name] = (-(16 if j else 12) * k * u, 0, 0)
+        out[name] = (-(22 if j else 16) * k * u, 0, 0)
     return out
 
 
