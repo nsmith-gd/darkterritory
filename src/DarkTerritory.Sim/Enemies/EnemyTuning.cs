@@ -735,6 +735,13 @@ public sealed record DirectorTuning(
     /// </summary>
     public Dictionary<string, int> PerNight { get; init; } = new();
     /// <summary>
+    /// The most of any kind <see cref="PerNight"/> doesn't name (note 654, for the director's `D1-roster-piles-up`: with few
+    /// kinds about on a night, those about come again and again, note 652); null, no cap.
+    /// </summary>
+    public int? PerNightDefault { get; init; }
+    /// <summary>The kind's most a night: its own (<see cref="PerNight"/>), else <see cref="PerNightDefault"/>; null, none.</summary>
+    public int? CapFor(string key) => PerNight.TryGetValue(key, out int cap) ? cap : PerNightDefault;
+    /// <summary>
     /// The chance a kind is about at all tonight (note 635; of the Knotter: "Sometimes never"), drawn once a night from the
     /// seed; a kind not named is always about.
     /// </summary>

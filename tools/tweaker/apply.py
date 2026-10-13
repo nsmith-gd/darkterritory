@@ -15,6 +15,8 @@ keeps it, every comment left as it is:
   - settings/night want.nightFleesSeconds  wakers.nightFleesSeconds
   - settings/night want.crewScale, lengthScale  director.pressure.<key>     (the threat's scaling, notes 646, 651)
   - settings/night want.longTrainCars          director.orchestrator.longTrainCars  (two each, note 647; 0 is off)
+  - settings/night want.perNightDefault        director.perNightDefault  (most a night for every kind without its own,
+                                               note 654; null is no cap)
 --check prints what would change and writes nothing (exit 1 if anything would). --game-out writes the ArtifactData batch
 that sets each changed creature's `game` to its `want`, and the night's `game` and `rules` (the game's own fixed numbers the
 page's crew × cars grid needs) from the tuning as written, for after the change merges.
@@ -28,7 +30,9 @@ from calibrate import OWN, load_jsonc, parse_jsonc  # noqa: E402
 TIERS = ["local", "frontier", "deadLines", "deepTerritory"]
 # settings/night: what the director sets (want/game), and the fixed numbers the page computes its grid with (rules).
 NIGHT = {"nightFleesSeconds": ["wakers"], "crewScale": ["director", "pressure"], "lengthScale": ["director", "pressure"],
-         "longTrainCars": ["director", "orchestrator"]}
+         "longTrainCars": ["director", "orchestrator"], "perNightDefault": ["director"]}
+# Those a null sets (off); the rest a null leaves alone.
+NULLABLE = {"perNightDefault"}
 RULES = {"scaleCrew": ["director", "pressure"], "scaleCars": ["director", "pressure"], "scaleFloor": ["director", "pressure"],
          "engagedPerActive": ["director", "orchestrator"], "engagedPerCar": ["director", "orchestrator"],
          "perPlayer": ["director", "orchestrator"], "perPlayerLong": ["director", "orchestrator"],
@@ -39,7 +43,7 @@ def at(enemies, path, key):
     o = enemies
     for k in path:
         o = o[k]
-    return num(o[key])
+    return num(o.get(key))
 
 
 def night_of(enemies):
@@ -260,9 +264,10 @@ def plan(enemies, creatures, night):
     if stays != w.get("staysAtDawn", []):
         changes.append((["wakers"], "staysAtDawn", stays))
     for k, path in NIGHT.items():
-        v = (night or {}).get("want", {}).get(k) if night else None
-        if v is None:
+        want = (night or {}).get("want") or {}
+        if k not in want or want[k] is None and k not in NULLABLE:
             continue
+        v = want[k]
         v, now = num(v), at(enemies, path, k)
         if v != now:
             changes.append((path, k, v))
@@ -306,7 +311,7 @@ def self_test():
         os.makedirs(os.path.join(tmp, "export", "settings"))
         game0, _ = night_of(enemies)
         assert not plan(enemies, {}, {"want": game0})[0], "the game's own night changes something"
-        json.dump({"want": {"nightFleesSeconds": 45, "crewScale": 0.2, "longTrainCars": 0}, "game": {"nightFleesSeconds": w["nightFleesSeconds"]}},
+        json.dump({"want": {"nightFleesSeconds": 45, "crewScale": 0.2, "longTrainCars": 0, "perNightDefault": 3}, "game": {"nightFleesSeconds": w["nightFleesSeconds"]}},
                   open(os.path.join(tmp, "export", "settings", "night.json"), "w"))
         before = open(dst).read()
         sys.argv = ["apply.py", os.path.join(tmp, "export"), "--enemies", dst, "--game-out", os.path.join(tmp, "writes.json")]
@@ -322,6 +327,7 @@ def self_test():
         assert e2["wakers"]["nightFleesSeconds"] == 45
         assert e2["director"]["pressure"]["crewScale"] == 0.2 and e2["director"]["orchestrator"]["longTrainCars"] == 0
         assert e2["director"]["pressure"]["lengthScale"] == d["pressure"]["lengthScale"]
+        assert e2["director"]["perNightDefault"] == 3
         assert e2["knotter"]["tierWeights"] == {"local": 0.5, "frontier": 1, "deadLines": 1.5, "deepTerritory": 2}
         assert before.count("//") == after.count("//"), "a comment was lost"
         assert max(len(l) for l in after.splitlines()) <= 120 or max(len(l) for l in before.splitlines()) > 120, "a line past 120"
@@ -405,7 +411,7 @@ def main():
         if night is not None:
             game, rules = night_of(load_jsonc(a.enemies))
             # A setting the page hasn't had yet starts at the game's; the director's own wants are kept.
-            want = {**game, **{k: v for k, v in (night.get("want") or {}).items() if v is not None}}
+            want = {**game, **(night.get("want") or {})}
             data = {k: v for k, v in (("game", game), ("rules", rules), ("want", want)) if night.get(k) != v}
             if data:
                 writes.append({"op": "update", "collection": "settings", "doc_id": "night", "data": data})

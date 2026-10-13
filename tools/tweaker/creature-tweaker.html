@@ -142,6 +142,11 @@ input:focus-visible, textarea:focus-visible, button:focus-visible, select:focus-
         <input type="number" id="k-longTrainCars" min="0" step="1" inputmode="numeric">
         <span class="foot" id="g-longTrainCars"></span>
       </div>
+      <div class="knob">
+        <label for="k-perNightDefault">Most a night, for every creature without its own</label>
+        <input type="number" id="k-perNightDefault" min="1" step="1" inputmode="numeric" placeholder="no cap">
+        <span class="foot" id="g-perNightDefault"></span>
+      </div>
     </div>
     <p class="foot">The grid is what those three make. In each square, the large number is how fast the night builds toward its next creature against a crew of four on eight cars (the outlined square, where the estimates above are measured): ×1.5 is half again as often. Below it is how many can be under a threat at once, and the most on one crewmate. Squares your values change from the game's have an amber edge. More comes on a bigger crew or a longer train, but how many can be about at once also limits it, so the creatures a night rise less than the large number says: on 12 Oct, four bots on 18 cars went from 17 to 26 a night.</p>
     <div class="scroll"><table class="scale" id="scale" aria-label="How fast the night builds and how many at once, by crew and cars"></table></div>
@@ -307,7 +312,14 @@ input:focus-visible, textarea:focus-visible, button:focus-visible, select:focus-
   // caps): the estimate can't see it, so the page says so.
   const slotOf = id => (model?.slots || []).find(s => s.kinds.includes(id));
   const sharesSlot = (a, b) => a !== b && !!slotOf(a)?.kinds.includes(b);
-  const settingsFrom = pick => Object.fromEntries([...docs.keys()].map(id => [id, pick(id)]));
+  // Each creature's settings, its "Most a night" falling back to the night's own for every creature (note 654).
+  const settingsFrom = (pick, side = "want") => {
+    const def = (side === "game" ? night?.game : nightWant())?.perNightDefault ?? null;
+    return Object.fromEntries([...docs.keys()].map(id => {
+      const s = pick(id);
+      return [id, s.perNight == null && def != null ? { ...s, perNight: def } : s];
+    }));
+  };
 
   // ---- The matrix
   function numCell(id, field, value, gameValue, opts) {
@@ -327,7 +339,7 @@ input:focus-visible, textarea:focus-visible, button:focus-visible, select:focus-
   function renderMatrix() {
     const active = document.activeElement?.id;
     const typed = active && $(active)?.tagName === "INPUT" && $(active).type === "number" ? $(active).value : null;
-    const want = estimate(settingsFrom(wantOf), tier), game = estimate(settingsFrom(gameOf), tier);
+    const want = estimate(settingsFrom(wantOf), tier), game = estimate(settingsFrom(gameOf, "game"), tier);
     const totalW = want ? Object.values(want).reduce((a, b) => a + b, 0) : 0;
     const rows = [];
     for (const id of ids()) {
@@ -342,7 +354,7 @@ input:focus-visible, textarea:focus-visible, button:focus-visible, select:focus-
         : numCell(id, "weight", w.weight ?? 1, g.weight ?? 1, { label: own ? "how often (its share of the houses)" : "how often", attrs: { min: "0", step: "0.1" } }));
       tr.append(own ? el("td", {}, el("span", { class: "na", text: "its own way" }))
         : numCell(id, "cost", w.cost, g.cost, { label: "cost", attrs: { min: "0", step: "1" } }));
-      tr.append(numCell(id, "perNight", w.perNight ?? null, g.perNight ?? null, { label: "most a night", attrs: { min: "0", step: "1", placeholder: "no cap" } }));
+      tr.append(numCell(id, "perNight", w.perNight ?? null, g.perNight ?? null, { label: "most a night", attrs: { min: "0", step: "1", placeholder: nightWant().perNightDefault != null ? `≤ ${nightWant().perNightDefault}` : "no cap" } }));
       tr.append(numCell(id, "nightChance", Math.round((w.nightChance ?? 1) * 100), Math.round((g.nightChance ?? 1) * 100), { label: "nights it comes, percent", attrs: { min: "0", max: "100", step: "5" } }));
       tr.append(w.tierWeights ? numCell(id, "tw", w.tierWeights[tier], g.tierWeights?.[tier], { label: "tier weight", attrs: { min: "0", step: "0.25" } }) : el("td", {}, el("span", { class: "na", text: "same" })));
       if (d.staysAlways) tr.append(el("td", {}, el("span", { class: "na", text: d.staysAlways })));
@@ -485,6 +497,7 @@ input:focus-visible, textarea:focus-visible, button:focus-visible, select:focus-
     crewScale: g => `In the game: ${g}. How much faster the night builds for each crewmate over four (slower under): 0 is the same for any crew.`,
     lengthScale: g => `In the game: ${g}. The same for each car over eight (fewer slows it). 0 is the same for any train.`,
     longTrainCars: g => `In the game: ${g || "off"}. Shorter trains keep one threat each. 0 is never two.`,
+    perNightDefault: g => `In the game: ${g ?? "no cap"}. On a night with few kinds about, those about come again and again; this holds each one that has no "Most a night" of its own. Blank is no cap.`,
   };
   const RULES = { scaleCrew: 4, scaleCars: 8, scaleFloor: 0.5, engagedPerActive: 0.75, engagedPerCar: 0.05, perPlayer: 1, perPlayerLong: 2, maxConcurrentSmallCrew: 4, maxConcurrentLargeCrew: 6 };
   const CREWS = [1, 2, 3, 4, 6, 8], CARS = [4, 6, 8, 10, 13, 15, 18];
@@ -533,8 +546,9 @@ input:focus-visible, textarea:focus-visible, button:focus-visible, select:focus-
   let nightChain = Promise.resolve(), nightTimer = null;
   for (const k of Object.keys(KNOBS)) $(`k-${k}`).addEventListener("input", e => {
     const v = e.target.value === "" ? null : Number(e.target.value);
-    if (v === null || !Number.isFinite(v)) return;
+    if (v === null ? k !== "perNightDefault" : !Number.isFinite(v)) return;
     nightDraft[k] = v; e.target.classList.toggle("changed", !!night && !same(v, night.game?.[k])); paintScale();
+    if (k === "perNightDefault" && docs.size) liveUpdate();
     clearTimeout(nightTimer);
     nightTimer = setTimeout(() => {
       if (!db || readOnly || !night) return;
@@ -578,6 +592,7 @@ input:focus-visible, textarea:focus-visible, button:focus-visible, select:focus-
       night = s.exists ? s.data() : null;
       for (const k of Object.keys(nightDraft)) if (same(nightDraft[k], night?.want?.[k])) delete nightDraft[k];
       paintNight();
+      if (docs.size && !$("rows").contains(document.activeElement)) renderMatrix();
     }, () => {});
     db.doc("requests/measure").onSnapshot(s => { request = s.exists ? s.data() : null; paintRequest(); }, () => {});
   })();
