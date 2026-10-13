@@ -38,6 +38,26 @@ public class LinesideArtTests
         Assert.True(spruce.Vertices.Max(v => v.Position.Y) > 11.5f);
     }
 
+    /// <summary>
+    /// The forest has no flat walls (note 670; the director, 13 Oct, from the cab: "We got some billboarded stuff back there
+    /// that looks pretty bad"): the stand's mass behind the single trees is spruces, not one painted card, and every far
+    /// tree's crossed cards give it depth whichever way it's seen from, the line turning past it or looked back at.
+    /// </summary>
+    [Theory]
+    [InlineData(0.3f)]
+    [InlineData(0.46f)]
+    [InlineData(0.26f)]
+    public void TheFarTreesHaveDepthFromAnySide(float width)
+    {
+        for (int v = 0; v < 8; v++)
+        {
+            var tree = NovaKit.Conifer(Look, v, 12, width);
+            float x = tree.Vertices.Max(p => p.Position.X) - tree.Vertices.Min(p => p.Position.X);
+            float z = tree.Vertices.Max(p => p.Position.Z) - tree.Vertices.Min(p => p.Position.Z);
+            Assert.True(Math.Min(x, z) > 0.5f * Math.Max(x, z), $"conifer {v} ({width}): {x:0.0} by {z:0.0} m, a card");
+        }
+    }
+
     [Fact]
     public void ACarsLoadComesInItsCargosCases()
     {

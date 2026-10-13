@@ -4357,6 +4357,8 @@ public sealed partial class GreyboxScene
         // surfaces go down in 2 m slices so the per-vertex lamp light has vertices to land on.
         foreach (var solid in shape.Solids)
         {
+            if (vehicle is not null && !solid.Present(vehicle) && solid.Part == PartKind.Cargo)
+                continue; // no heap: nothing's been poured in (note 659)
             if (vehicle is not null && !solid.Present(vehicle))
             {
                 // An open roof hatch's two leaves (T99), swung up on their hinges at the sides.
@@ -4367,7 +4369,7 @@ public sealed partial class GreyboxScene
                 continue;
             }
             var colour = PartColour(solid.Part, frame.Index);
-            var b = solid.Box;
+            var b = vehicle is not null ? solid.BoxIn(vehicle) : solid.Box;
             double length = b.Max.Z - b.Min.Z;
             if (shape.Interior is null || length <= 2.5 || solid.Part is not (PartKind.Wall or PartKind.Chassis or PartKind.Body or PartKind.Cargo))
             {

@@ -89,6 +89,14 @@ public sealed class Vehicle(int id, VehicleKind kind, double load)
     public bool HasGun => Gun.Mounted;
     /// <summary>0 empty to 1 full.</summary>
     public double Load { get; set; } = Math.Clamp(load, 0, 1);
+    /// <summary>
+    /// How much of <see cref="Load"/> is things put in it that lie there as themselves (note 659): crates set down in it, a
+    /// crane's casting lowered in. The rest (<see cref="Bulk"/>) was poured, tipped or driven in (a chute's coal, the tipple's
+    /// ore, the ramp's sheep) and lies in a heap down its load side, as high as it's full.
+    /// </summary>
+    public double Placed { get; set; }
+    /// <summary>The poured share of its load (<see cref="Placed"/>): the heap down its load side.</summary>
+    public double Bulk => Math.Max(0, Load - Placed);
     /// <summary>What's in it: the departure's goods, or what the last facility that loaded it put in (a mixed car goes by the last).</summary>
     public CargoKind Cargo { get; set; } = load > 0 && kind == VehicleKind.Cargo ? CargoKind.Goods : CargoKind.None;
     /// <summary>Structural condition, 1 sound to 0 wrecked.</summary>

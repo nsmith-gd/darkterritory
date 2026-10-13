@@ -36,6 +36,8 @@ public sealed record TownTuning
     public NickiWine Wine { get; init; } = new();
     public required int[] Quirks { get; init; }
     public required int[] Notices { get; init; }
+    /// <summary>How many of the board's notices are the town's own (its culture's <c>board</c>; note 669).</summary>
+    public int BoardOwn { get; init; }
     public required int[] LooseNotes { get; init; }
     public required TownReach Reach { get; init; }
     public double TypePerSecond { get; init; } = 45;
@@ -89,6 +91,11 @@ public sealed record StreetTuning
     public double[] GableWidth { get; init; } = [5.4, 7.0];
     public required double[] Depth { get; init; }
     public double FromGate { get; init; } = 30;
+    /// <summary>
+    /// The most houses a town keeps on the line's own street once it has more than that (note 668): the rest stand on
+    /// streets of its own, so a town of forty houses isn't one row down the track.
+    /// </summary>
+    public int LineRow { get; init; } = int.MaxValue;
     public double Burnt { get; init; }
     public double Open { get; init; }
 }
@@ -256,6 +263,8 @@ public sealed record TownCulture
     public required TownCentrepiece Centrepiece { get; init; }
     public required string[] Lines { get; init; }
     public required TownText[] Notes { get; init; }
+    /// <summary>What only this town pins on its board, in its own voice (note 669): a few each night, after its order.</summary>
+    public TownText[] Board { get; init; } = [];
 }
 
 public sealed record TownCentrepiece(string Kind, string Name, string Text);

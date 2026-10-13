@@ -943,6 +943,9 @@ public static partial class Hud
             {
                 // GDD v1.4 §23.2: nobody died of it, and nobody much cares.
                 Big("STRANDED", Amber);
+                // Note 660: broken down, it's the engine that's said (the last wrench lost too, or it'd have been mended).
+                if (Failing.BrokenDown(world.Train))
+                    Small("THE ENGINE BROKE DOWN", Ink, fine: false);
                 Small(EngineeringKit.Line(r.KitLoss, Repairs.ByWrench(world.Train)), Ink, fine: false);
                 Small($"RECOVERY AT FIRST LIGHT. RECOVERY IS CHARGEABLE: {r.Recovery:0} SCRIP", Dim, fine: false);
             }

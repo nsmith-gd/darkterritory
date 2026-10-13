@@ -95,6 +95,8 @@ public static class WorldRecords
                     (v.Wound ? 1 : 0) | (v.Seized ? 2 : 0),
                     // How far a Knotter's forced the coupling behind it apart (note 365): every client lays the cars out so.
                     Q(v.Knot, Fine),
+                    // How much of its load is things lying in it as themselves (note 659): the rest is its heap, every client's.
+                    Q(v.Placed, Fine),
                     // How charred its fire cells are (note 267: every client draws the burnt boards).
                     .. CarFire.Pack([.. v.Char.Select(c => c / (double)((1 << CarFire.Bits) - 1))])]));
         list.Add(new WireRecord(WireRecord.MakeKey(RecordKind.World, 0),
@@ -379,10 +381,10 @@ public static class WorldRecords
                         f.Length > 8 ? (CargoKind)f[8] : CargoKind.None, f.Length <= 9 || f[9] != 0, f.Length > 15 ? D(f[15], Fine) : 0,
                         f.Length > 18 ? (uint)f[18] : 0,
                         f.Length > 22 && f[19] != 0, f.Length > 22 ? new Double3(D(f[20], Pos), D(f[21], Pos), D(f[22], Pos)) : default,
-                        [.. CarFire.Unpack(f, 30).Select(c => (byte)Math.Round(c * ((1 << CarFire.Bits) - 1)))],
+                        [.. CarFire.Unpack(f, 31).Select(c => (byte)Math.Round(c * ((1 << CarFire.Bits) - 1)))],
                         f.Length > 23 ? D(f[23], Fine) : 0, f.Length > 24 ? D(f[24], Fine) : 0, f.Length > 25 ? D(f[25], Fine) : 0,
                         f.Length > 28 && (f[28] & 1) != 0, f.Length > 28 && (f[28] & 2) != 0, f.Length > 29 ? D(f[29], Fine) : 0,
-                        f.Length > 27 && f[27] != 0));
+                        f.Length > 27 && f[27] != 0, f.Length > 30 ? D(f[30], Fine) : 0));
                     break;
                 case RecordKind.World:
                     world.Choir = new ChoirState

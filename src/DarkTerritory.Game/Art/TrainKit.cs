@@ -2576,7 +2576,12 @@ public static class TrainKit
         return k.Build("roof-handrails");
     }
 
-    public static MeshAsset Load(Look? look, CarShape shape, CargoKind cargo, int variant)
+    /// <summary>
+    /// A car's load as its heap (note 659): what's been poured, tipped or driven in, its cargo's cases piled down the load side
+    /// to <paramref name="fill"/> of the load's full height (<see cref="Solid.BoxIn"/>, the heap the sim has); a livestock
+    /// car's pen whatever's in it. Nothing's drawn for what's put in by hand or hook: that lies there as itself.
+    /// </summary>
+    public static MeshAsset Load(Look? look, CarShape shape, CargoKind cargo, int variant, float fill = 1)
     {
         var k = new Kit(look, 64 + (int)cargo);
         var name = LoadProp(cargo);
@@ -2585,6 +2590,8 @@ public static class TrainKit
         foreach (var solid in shape.Solids.Where(s => s.Part == PartKind.Cargo))
         {
             var (min, max) = (F(solid.Box.Min), F(solid.Box.Max));
+            if (cargo != CargoKind.Livestock)
+                max.Y = min.Y + (max.Y - min.Y) * Math.Clamp(fill, 0, 1);
             // Livestock: no cases, a pen: straw down and a rail along its open side (the animals: SceneArt.Livestock).
             if (cargo == CargoKind.Livestock)
             {
@@ -2618,7 +2625,7 @@ public static class TrainKit
                             * Matrix4x4.CreateRotationY(jitter * 0.05f + ((x + y + z) % 2) * MathF.PI) * Matrix4x4.CreateTranslation(centre));
                     }
         }
-        return k.Build($"load-{cargo}-{variant}");
+        return k.Build($"load-{cargo}-{variant}-{fill:0.###}");
     }
 
     /// <summary>A livestock pen in a load's volume: straw bedding over its floor, posts and two rails along the aisle side.</summary>
