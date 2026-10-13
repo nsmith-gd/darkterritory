@@ -355,6 +355,8 @@ Your crew operates inside a dangerous nighttime freight window. Miss it and the 
 
 **What gets up at dawn** *(the director's decision, 9 Oct 2026: "The new Dawn ending design is excellent. This is exactly what I was looking for. The gargantuan creatures, the picking up of the train, especially with you in it, you should experience that if you're still playing. And then the tension before it is really, really important"; docs/design/creatures/wakers.md, note 588)*. The night is the crew's because the worst of the world sleeps through it. The crews call them the Wakers. In the last minutes before dawn the horizon behind the train goes cold and light, the ground thuds, and long low calls come from behind the hills. At dawn they rise out of the land far behind the train, and come down the line after it, slow, then faster than any engine. A train that gets in under the terminus's guns is safe: they stop short of the walls. One that doesn't is caught. The Waker takes the last car and lifts, and the train goes up from the rear car by car, the crew inside it seeing the land fall away, and then it eats it. A crew near the end at dawn can race them in; a crew far out almost never does. ~~The line goes live and the night is lost two minutes later~~ (v1's dawn, kept as a mod's `wakers.enabled: false`: the example mod, Late Dispatch, is that dawn held twelve minutes, note 625).
 
+**A titan** *(the director, 13 Oct 2026, from the creature gym, App. F.5: "the waker is the right idea but it needs to be this large lumbering beast, at least 3 times as large as the current model, it should be a biped titan type thing, the train should be struggling to outrun it because it has such a large gait, not because it itself is fast")*. A Waker is a lumbering thing on two legs, at least three times the size it was. It isn't quick: each step is slow and heavy, but each one covers so much ground that a train at full steam only just stays ahead of it.
+
 **Seen and felt coming** *(note 599; the director: "the tension before it is really, really important")*. For the last three minutes before dawn (`wakers.stirSeconds`, 180) a cold line comes up low on the sky behind the train, where they'll rise: nothing at first, then a wide dim bruise, and by dawn a thin grey band clear of the treeline. The ground thuds, and in the cars the lamps swing and the coal slides. At dawn each Waker heaves up out of the land in three surges, earth and boulders shed off its back in a bank of dark dust, and every footfall raises dust as it comes down the line. **The town's guns fire on any that come near the walls**, and they stop 300 m short of the gate (`wakers.stopShort`): a train whose last car is in past that is safe.
 
 **Not every creature every night** *(the director, on the Creature Tweaker, 13 Oct 2026; note 652; "We need more monster variety", 12 Oct)*. Each creature is about only on some nights (`director.nightChance`): the Gannet, the Cinder Hounds and the Tippy Toesie on about seven in ten, the Climbers on a third, the Gaunt and the Moose on one in five, the Switchman, the Grumbler and the Passenger on about one in ten, the Lodger on one in sixteen. So no two nights bring the same mix, and the director sets each creature's chance on the Tweaker. With few kinds about, the night's creatures come from those few, again and again (note 652); a most-a-night for every creature without its own (`director.perNightDefault`, off until the director sets it; note 654) holds each to a few.
@@ -680,6 +682,7 @@ Crowd it, talk near it, or hit it and it charges, in straight lines it can't tur
 A child calling for help. Half the time it's a real survivor, the most valuable cargo in the game.
 > **RULE: check the eyes from five metres.**
 Black eyes and blackened hands mean a Soot Child. Get within five metres and it pins you and drinks. Your cries for help get quieter.
+*(The director, 13 Oct 2026, from the creature gym, App. F.5.)* A real survivor, picked up, is carried in both arms in front of you, plainly a child being carried, for you and the crew to see: it should feel like a rescue. A Soot Child gives one clear tell in the last second before it pins you, a last chance to read it and get away.
 
 **THE MOURNERS** · *wherever a crewmate fell off the train* *(the director's brief, 2026-10-08)*
 A huddle of grey, stooping things with long hooked fingers, picking their way toward your dead.
@@ -710,6 +713,7 @@ Stay in its house a moment, or come close, and it shrieks, then lunges: if it re
 A house like the others, that rumbles when you're in it.
 > **RULE: know the house you're in.**
 Step inside and the ground starts rumbling under it. Anyone still inside when the rumble ends, its doors slam shut one after another and the house sinks and comes down on them. Out in time, and it goes still again.
+*(The director, 13 Oct 2026, from the creature gym, App. F.5.)* The village's houses have real doors and windows, which open and shut. In the Hollow House, a door slamming shut is what's coming, and a crewmate can still get out through a door or a window while they slam. The house really comes down: its walls and roof sink and fall in.
 
 **THE HANGER** · *in a village house's roof* *(the director, 2026-10-09)*
 Strands hanging from the ceiling, glistening in the lamp.
@@ -1210,6 +1214,17 @@ The gym is where the director meets each creature on purpose, one at a time, and
 - **Dying.** Death in the gym is the point. A few seconds after the killing blow, so it's seen and heard (`gym.json` `respawnSeconds`, 4), the director is back on their feet at the safe spot with full health and the night's starting kit. The safe spot is a ring on the ground beside the engine, on the side away from the village, kept as the forts keep their ground (§9): a creature that comes into it is sent off. The creature that did it is left where it is, to be tried again.
 - **The mood.** The gym is lit for filming, not balanced for play (`gym.json` `look`, `fogScale`): the fog heavier and lower, the moon low and cold, the ambient darker, and eight hand lamps set down lit along the train, so a creature reads in silhouette against the light.
 - **Checked headless.** `dt gym` hosts the gym as the app does, calls every creature in turn, and says whether it came, where and how far off, and photographs each under the gym's light; then dies and stands up again, and puts a creature in the ring to see it sent off.
+
+### 34.2 Test reports *(developer builds only; the director, 13 Oct 2026; ARCHITECTURE §8 note 677)*
+
+"I want them stored as logs in the game folder in future, and I want all of them to just be test reports, all bundled together into a single .txt file, so I don't have to manually drag and drop each of them like I'm doing now."
+
+A developer build keeps its notes and reports where the director can find them, in one file that can be sent as it is.
+
+- **One file.** Every report a developer build writes goes on the end of one text file, `logs/test-reports.txt`, in the game's own folder (beside `DarkTerritory.exe`). That covers a note typed with F8 or spoken with F9 (note 516), REPORT A PROBLEM, and a crash. Each is written as its report always is: the build, the machine, the settings, what the game was doing, what happened, and the log's last lines. Each sits under a numbered rule with its time. A note also names the folder that holds its frame and its voice. To send a session's notes, drag in that one file.
+- **The logs there too.** The launches' logs (`latest.log` and the last five), each report's own copy, and the notes' folders are all in the same `logs` folder. A new build unzipped into a new folder starts a new file. To start afresh in the same build, delete the file.
+- **If the game's folder can't be written** (installed under Program Files, say), all of it goes where it always did, the user's app data (`%LOCALAPPDATA%\DarkTerritory`), and the log's first lines say where the test reports are.
+- **A player's build is as it was:** a report is a file of its own in the app data, mailed from the game (note 452).
 
 ---
 
@@ -2029,6 +2044,7 @@ Spawn tuning is the single largest use of the agent harness. Nineteen enemies ag
 The roster depends on nine systems. Each is shared by several enemies, so each is built once. The ninth, failure attribution, was added in v1.3.
 
 1. **The GRAB rescue state.** Part of the shared skeleton (A.1): a held player, a timer (8–20s), an interrupt that ends in BREAK OFF, and a hook for voice effects. **A held player can talk at full clarity** unless the enemy applies a voice effect (C.8). Their commentary is the point of the window: it's the call for help, and it's the joke.
+   **Alone** *(the director, 13 Oct 2026, from the creature gym, App. F.5: "holding e shouldn't always result in escape, it should at best give me a 15% chance of escape")*: a held player can struggle (hold Use), but it's a chance and never a sure thing, at best 15%. A creature struggled off doesn't vanish: it's still there, and it comes again. While you're held, Use is the struggle's alone: nothing else in reach (the firebox's coal, a door, a lever) takes it.
 2. **Melee.** The core verb. The tools already on the train are the weapons: shovel, wrench, crowbar. The boiler player's shovel doubling as the crew's best club is intended tension. *(Note 664, the director, 13 Oct: "Every crew member should be able to shovel coal regardless of having the shovel in their hand": coal goes on without it, and the shovel's a club on the cab's rack. `boiler.json shovelInHand` false.)* Server-authoritative hits with lag compensation.
 3. **Cannons.** Bullets and guns are rare in this world; crude cannons and crude gunpowder are not. Each mounted cannon has a full manual reload (powder, ball, ram, fire), so every shot is a timed decision. Powder and shot are stocked at departure. *A gun fires what's in its ready rack, six rounds; the rest of the night's powder is in the guard van's powder locker, the engine gun's share too, and comes up a charge at a time, carried by hand to the gun (ARCHITECTURE §8 note 374; [orchestrator.md](orchestrator.md) §5.1 U4). In a wave a gun is a two-person job: a gunner, and someone bringing the powder. A bot crew splits it the same way (note 377).*
 4. **Hand-carried loot.** Small items players carry alongside car-level freight: toys (for the Track Doll), crates (the Grumbler), salvage, and a rescued child. Carrying runs at 2.8 m/s with no climbing, per the systems spec. **Some toys are noisy** (a squeaker, a music box, a wind-up drummer). They emit sound while carried or jostled and feed the loudness meter in the carrier's name (C.7). They are worth more than quiet toys, and the Track Doll likes them just as much.
@@ -2608,6 +2624,41 @@ Agents can't tell whether it's funny, but they can tell whether everyone was on 
 # APPENDIX F — BUILD REVIEWS
 
 *Added October 2026. A running log of the director's play-tests and reviews of a build: what was said (the point, not verbatim), tracked against the design. Newest entry first. Each entry gives the date, the build number and what was played, then the notes grouped by area. Each note carries a status: **open**, **in progress** (with its task), **fixed in PR …**, or **design change → §/note** for a note that changed the design. Praise and observations that need no work are marked **keep** or **noted**. When a review decides something about the design, a **Decided** line names the section it changed, and that section carries the date of the decision; engineering detail goes in the numbered notes of `docs/ARCHITECTURE.md`.*
+
+## F.5 2026-10-13 — the creature gym, Test build 21 (ca0d37e)
+
+**Played:** the director, alone in the creature gym (§34.1) of the developer Test build of ca0d37e, calling the creatures one by one and letting them do their worst. Fifteen notes were sent from inside it (F8), each as a test report.
+
+**The reports**
+- Sending each note's report on its own is a chore. Keep them as logs in the game's folder, all bundled into one .txt. *In progress (queue #409, ARCHITECTURE §8 note 677): §34.2.*
+
+**The gym**
+- The Cinder Hounds, called, never come up to the train: they play out their whole life without reaching it. *Open.* (The gym puts them behind a moving train, as on a real night; a standing train has to bring them in too.)
+- The Switchman can't be tried: the points it works are too far off. *Open.* (At the Foundry the nearest points ahead are beyond the gym's 200 m.)
+- Tippy Toesie is called very far away, which makes no sense. Many of the creatures' spawn rules need putting to the director for review, in the inbox. *Open.*
+
+**Grabs** (App. C.1)
+- Struggling free is holding E, and beside the firebox the same hold also shovels coal: input needs priorities. *Open; design change → App. C.1.*
+- The Whistler, and creatures like it, shouldn't vanish when you hold E to escape. Holding E shouldn't always get you out: at best a 15% chance. *Open; design change → App. C.1.*
+
+**The creatures**
+- The Soot Children: the kill looks terrible as animation. *Open.*
+- The Soot Children: it wasn't clear whether the child had been picked up. A child should be carried in both arms, plainly seen, so it feels like rescuing a child. And a Soot Child should give a clear tell at the last second, a last chance to read it, before it kills. *Open; design change → the Soot Children (§21).*
+- The Draggers: none seen on the side of any car. *Open.*
+- The Gannet doesn't dive consistently, or come round again for another attack. *Open.*
+- The Waker is the right idea, but it should be a huge lumbering beast, at least three times the size of the current model, a titan on two legs. The train should struggle to outrun it because of its enormous stride, not because it's fast. *Open; design change → §8.*
+- The Lodger made no sound, and its tell was a little too short. *Open.*
+- The Householder grabbed the director, and the death said "seized by the Choir". *Open.*
+- The abandoned villages' houses don't seem to have doors, though there's an open and shut prompt and a collider. A house's doors and windows need to shut and be escapable, so the house can show what it's about to do. *Open; design change → the Hollow House (§21).* (The director named the Householder; the doors slamming shut one after another are the Hollow House's tell.)
+- The house that should come down didn't: the model doesn't collapse. *Open.* (The Hollow House.)
+- Pulled up by a Hanger without seeing one, and with no tell. *Open.*
+
+**Decided** (the director, 13 Oct 2026):
+- A lone player's struggle is a chance, at best 15%, and what held them doesn't vanish; while held, Use is the struggle's alone (App. C.1).
+- The Waker is a titan on two legs, three times the size, whose stride is what keeps up with the train (§8).
+- A rescued child is carried in both arms, and a Soot Child gives a last-second tell (the Soot Children).
+- The village houses' doors and windows shut and can be escaped through, and the Hollow House really comes down (the Hollow House).
+- A developer build's reports go into one file in the game's folder (§34.2).
 
 ## F.4 2026-10-08 — main's test builds, the night of 7–8 Oct
 
