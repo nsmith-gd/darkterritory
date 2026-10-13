@@ -801,7 +801,14 @@
     // sprayPerSecond: the director, the inbox, 12 Oct (`D1.4-burning-car-beatable`, "b": "make it 15 and have the extinguisher
     // extinguish far more of the fire. A car should be extinguished from full blaze within 20 seconds."; note 634): 2, twice
     // what it was, and with 16 cells (cellSize below) one extinguisher has a car at full blaze out in about 10.5 s (FireCellsTests).
-    "sprayPerSecond": 2.0, "chargeSeconds": 15, "rechargeSeconds": 90, "burnReach": 1.6,
+    // Note 662 (the director, 13 Oct, playing: "I'm not getting visual feedback that the fire is going out ... I should be able
+    // to point at it ... one grid ahead of me. I should be able to hold. And it should dissipate within five seconds. And then
+    // I should be able to continue walking forward to the next grid"): sprayWorksAcross, the spray works all round the car
+    // where it's aimed (its floor, walls and roof there, a 3.5 m stretch of it), each of those cells at sprayPerSecond. At
+    // 0.6 the stretch dies from full blaze to out in about 1.6 s, its flames shrinking as it goes, and stays out while it's
+    // wet (dampSeconds); one aimed at the floor alone went out under walls and a roof still burning over it.
+    "sprayWorksAcross": true,
+    "sprayPerSecond": 0.6, "chargeSeconds": 15, "rechargeSeconds": 90, "burnReach": 1.6,
     // Note 587 (the director, 9 Oct 2026, playtesting: "I point at fire, I click, I hold, it should stay there"): the spray
     // goes where the look lands on fire; where it lands on none (looking at the flames over a burning cell, the ray goes on
     // to the boards beyond), on the burning cell whose flames are nearest the middle of a sprayConeDeg cone along the look,
