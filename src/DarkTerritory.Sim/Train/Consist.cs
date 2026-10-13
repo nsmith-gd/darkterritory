@@ -148,6 +148,12 @@ public sealed class Vehicle(int id, VehicleKind kind, double load)
         return lost;
     }
 
+    /// <summary>
+    /// What last knocked the shell about, and the speed it was taken at (note 663): host-side, for what the crew's told
+    /// took the engine down. Set where a knock's dealt.
+    /// </summary>
+    public (KnockCause Cause, double Speed) Knock { get; set; }
+
     /// <summary>Fraction of the cargo that would still pay on delivery (spec F.1).</summary>
     public double CargoIntegrity { get; set; } = 1;
     /// <summary>One bit per door in <see cref="CarShape.Doors"/>: set is open. Doors start shut.</summary>

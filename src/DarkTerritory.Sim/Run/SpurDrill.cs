@@ -99,7 +99,7 @@ public sealed class SpurDrill
                     if (LeftWaiting.Count > 0)
                     {
                         _waiting = LeftWaiting[0];
-                        Train.Uncouple(vehicles[fit].Id);
+                        Train.Uncouple(vehicles[fit].Id, Parting.Shunt);
                     }
                     _world.SetSwitch(_spur, true);
                     Log(DrillStep.SpurIn);

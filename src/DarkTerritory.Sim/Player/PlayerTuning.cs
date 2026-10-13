@@ -44,6 +44,7 @@ public sealed record PlayerTuning(
 
     /// <summary>The emotes' lengths (GDD §9's yard, "dance"; note 298). Field docs live in player.json <c>emotes</c>.</summary>
     public EmoteTuning Emotes { get; init; } = new();
+    public NewsTuning News { get; init; } = new();
 
     public string BotName(int i) => i < BotNames.Count ? BotNames[i] : $"Crew {i + 1}";
 
@@ -91,6 +92,9 @@ public sealed record CrewTuning(int Cap = 8, double RefuseLingerSeconds = 3)
 /// How long each emote lasts (note 298), in seconds, unless its player moves first. Field docs live in player.json
 /// <c>emotes</c>. Presentation only: the host keeps the event this long for the crew to see; nothing in the sim acts on it.
 /// </summary>
+/// <summary>Note 663: how long a line of news is up, and how fast the train runs before a crewmate's own cut is news.</summary>
+public sealed record NewsTuning(double Seconds = 5, double CutToldAbove = 1.5);
+
 public sealed record EmoteTuning(double Dance = 8, double Wave = 2.5, double Point = 2.5, double Cooldown = 0.5)
 {
     public double Seconds(Emote e) => e switch { Emote.Dance => Dance, Emote.Wave => Wave, Emote.Point => Point, _ => 0 };

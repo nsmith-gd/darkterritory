@@ -79,7 +79,8 @@ public static class Protocol
     // 56: what's lying in a car is solid (note 659): the body record carries a thing's size (its twelfth field, the particles
     //     after it), so every client walks into the same things.
     // 57: a third byte of buttons on every intent, after the voice level (note 664: crouch, and pushing the gun on its own key).
-    public const int Version = 57;
+    // 58: the news (note 663): cars lost and the engine failing, with what did it, a record kind of its own.
+    public const int Version = 58;
 }
 
 public enum MessageType : byte

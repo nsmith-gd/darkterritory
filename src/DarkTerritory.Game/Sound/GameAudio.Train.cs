@@ -3,6 +3,7 @@ using Ballast.Audio;
 using DarkTerritory.Sim;
 using DarkTerritory.Sim.Player;
 using DarkTerritory.Sim.Rail;
+using DarkTerritory.Sim.Run;
 using DarkTerritory.Sim.Train;
 
 namespace DarkTerritory.Game.Sound;
@@ -145,6 +146,7 @@ public sealed partial class GameAudio
         BoilerAlarms(train, engine, dt, primed);
         TrainDamage(train, engine, rake);
         CarsFailing(train, dt, primed);
+        Partings(world, train, primed);
         Derailing(world, train, dt, primed);
 
         for (int i = _cuesLater.Count - 1; i >= 0; i--)
@@ -609,6 +611,33 @@ public sealed partial class GameAudio
                     Mixer.Play("wreck-crash", car.Origin, 1)?.Also(v => v.Occlusion = occlusion);
                 Cue("state-derail.tear", car.ToWorld(new Double3(0, 1, -car.Shape.HalfLength)), occlusion);
             }
+    }
+
+    /// <summary>The news's lost cars already heard parting (note 663), by the news's id.</summary>
+    readonly HashSet<int> _partsHeard = [];
+
+    /// <summary>
+    /// Note 663 (the director: "did a coupler break on its own or was that a creature?"): a dropped pin or a Knotter's coupling
+    /// let go is heard where it parted, the coupling torn, as the news line says it. A crewmate's own cut has its hold, a car
+    /// coming apart its crash; the creatures that take cars are heard at it.
+    /// </summary>
+    void Partings(World world, TrainOnLine train, bool primed)
+    {
+        foreach (var e in world.News)
+        {
+            if (e.Kind != NewsKind.CarsLost || !_partsHeard.Add(e.Id) || !primed || (Parting)e.Cause is not (Parting.Pin or Parting.Knotter)
+                || e.Cars.Length == 0 || e.Cars.Any(c => c >= train.Frames.Count))
+                continue;
+            // At the lost cars' end nearest the engine: their front, or their rear where they ran off ahead of it.
+            CarFrame front = train.Frames[e.Cars[0]], rear = train.Frames[e.Cars[^1]];
+            var engine = train.Frames[0].Origin;
+            var (car, at) = (front.Origin - engine).Length <= (rear.Origin - engine).Length
+                ? (e.Cars[0], front.ToWorld(new Double3(0, 1, -front.Shape.HalfLength)))
+                : (e.Cars[^1], rear.ToWorld(new Double3(0, 1, rear.Shape.HalfLength)));
+            Cue("state-derail.tear", at, Occlusion(car));
+        }
+        if (_partsHeard.Count > 64)
+            _partsHeard.RemoveWhere(id => !world.News.Any(e => e.Id == id));
     }
 
     // ---- Derailment ------------------------------------------------------------------------------------------------------

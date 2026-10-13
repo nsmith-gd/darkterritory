@@ -81,7 +81,10 @@ public static class Failing
                 double work = v.IsEngine ? (rake == engineRake ? pulling : 0) : 1;
                 v.Integrity = Math.Max(0, v.Integrity - t.WorkPerSecond * f * work * dt);
                 if (v.Integrity <= 0)
+                {
                     train.WornThrough.Add(v.Id);
+                    v.Knock = (KnockCause.Worn, rake.Speed);
+                }
                 if (v.Kind == VehicleKind.Cargo && v.Load > 0)
                     v.Load = Math.Max(0, v.Load - t.SpillPerSecond * f * dt);
             }
@@ -149,7 +152,7 @@ public static class Failing
             var v = rake[i];
             if (Stage(t, v) != FailStage.Broken || v.OffRails || v.IsEngine || !train.WornThrough.Contains(v.Id))
                 continue;
-            if (!train.Uncouple(rake[i - 1].Id))
+            if (!train.Uncouple(rake[i - 1].Id, Parting.Apart))
                 return -1;
             v.Load = 0;
             v.CargoIntegrity = 0;
