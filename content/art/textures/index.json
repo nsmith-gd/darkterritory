@@ -2945,5 +2945,321 @@
       }
     ],
     "license": "CC0-1.0"
+  },
+  {
+    "name": "town_flags",
+    "diffuse": "town_flags.png",
+    "spec": "town_flags_s.png",
+    "normal": "town_flags_n.png",
+    "size": 1024,
+    "tileMetres": null,
+    "tiling": false,
+    "family": "cloth",
+    "alphaTest": true,
+    "cells": [
+      {
+        "name": "hush-coal",
+        "x": 0,
+        "y": 0,
+        "w": 171,
+        "h": 114
+      },
+      {
+        "name": "hush-farm",
+        "x": 171,
+        "y": 0,
+        "w": 170,
+        "h": 114
+      },
+      {
+        "name": "hush-foundry",
+        "x": 341,
+        "y": 0,
+        "w": 171,
+        "h": 114
+      },
+      {
+        "name": "pairs-coal",
+        "x": 512,
+        "y": 0,
+        "w": 171,
+        "h": 114
+      },
+      {
+        "name": "pairs-farm",
+        "x": 683,
+        "y": 0,
+        "w": 170,
+        "h": 114
+      },
+      {
+        "name": "pairs-foundry",
+        "x": 853,
+        "y": 0,
+        "w": 171,
+        "h": 114
+      },
+      {
+        "name": "count-coal",
+        "x": 0,
+        "y": 114,
+        "w": 171,
+        "h": 114
+      },
+      {
+        "name": "count-farm",
+        "x": 171,
+        "y": 114,
+        "w": 170,
+        "h": 114
+      },
+      {
+        "name": "count-foundry",
+        "x": 341,
+        "y": 114,
+        "w": 171,
+        "h": 114
+      },
+      {
+        "name": "shutters-coal",
+        "x": 512,
+        "y": 114,
+        "w": 171,
+        "h": 114
+      },
+      {
+        "name": "shutters-farm",
+        "x": 683,
+        "y": 114,
+        "w": 170,
+        "h": 114
+      },
+      {
+        "name": "shutters-foundry",
+        "x": 853,
+        "y": 114,
+        "w": 171,
+        "h": 114
+      },
+      {
+        "name": "talkers-coal",
+        "x": 0,
+        "y": 228,
+        "w": 171,
+        "h": 114
+      },
+      {
+        "name": "talkers-farm",
+        "x": 171,
+        "y": 228,
+        "w": 170,
+        "h": 114
+      },
+      {
+        "name": "talkers-foundry",
+        "x": 341,
+        "y": 228,
+        "w": 171,
+        "h": 114
+      },
+      {
+        "name": "eyes-coal",
+        "x": 512,
+        "y": 228,
+        "w": 171,
+        "h": 114
+      },
+      {
+        "name": "eyes-farm",
+        "x": 683,
+        "y": 228,
+        "w": 170,
+        "h": 114
+      },
+      {
+        "name": "eyes-foundry",
+        "x": 853,
+        "y": 228,
+        "w": 171,
+        "h": 114
+      },
+      {
+        "name": "offerings-coal",
+        "x": 0,
+        "y": 342,
+        "w": 171,
+        "h": 114
+      },
+      {
+        "name": "offerings-farm",
+        "x": 171,
+        "y": 342,
+        "w": 170,
+        "h": 114
+      },
+      {
+        "name": "offerings-foundry",
+        "x": 341,
+        "y": 342,
+        "w": 171,
+        "h": 114
+      },
+      {
+        "name": "rulebook-coal",
+        "x": 512,
+        "y": 342,
+        "w": 171,
+        "h": 114
+      },
+      {
+        "name": "rulebook-farm",
+        "x": 683,
+        "y": 342,
+        "w": 170,
+        "h": 114
+      },
+      {
+        "name": "rulebook-foundry",
+        "x": 853,
+        "y": 342,
+        "w": 171,
+        "h": 114
+      },
+      {
+        "name": "banked-coal",
+        "x": 0,
+        "y": 456,
+        "w": 171,
+        "h": 114
+      },
+      {
+        "name": "banked-farm",
+        "x": 171,
+        "y": 456,
+        "w": 170,
+        "h": 114
+      },
+      {
+        "name": "banked-foundry",
+        "x": 341,
+        "y": 456,
+        "w": 171,
+        "h": 114
+      },
+      {
+        "name": "crown-coal",
+        "x": 512,
+        "y": 456,
+        "w": 171,
+        "h": 114
+      },
+      {
+        "name": "crown-farm",
+        "x": 683,
+        "y": 456,
+        "w": 170,
+        "h": 114
+      },
+      {
+        "name": "crown-foundry",
+        "x": 853,
+        "y": 456,
+        "w": 171,
+        "h": 114
+      },
+      {
+        "name": "backs-coal",
+        "x": 0,
+        "y": 570,
+        "w": 171,
+        "h": 114
+      },
+      {
+        "name": "backs-farm",
+        "x": 171,
+        "y": 570,
+        "w": 170,
+        "h": 114
+      },
+      {
+        "name": "backs-foundry",
+        "x": 341,
+        "y": 570,
+        "w": 171,
+        "h": 114
+      },
+      {
+        "name": "fours-coal",
+        "x": 512,
+        "y": 570,
+        "w": 171,
+        "h": 114
+      },
+      {
+        "name": "fours-farm",
+        "x": 683,
+        "y": 570,
+        "w": 170,
+        "h": 114
+      },
+      {
+        "name": "fours-foundry",
+        "x": 853,
+        "y": 570,
+        "w": 171,
+        "h": 114
+      },
+      {
+        "name": "lastCar-coal",
+        "x": 0,
+        "y": 684,
+        "w": 171,
+        "h": 114
+      },
+      {
+        "name": "lastCar-farm",
+        "x": 171,
+        "y": 684,
+        "w": 170,
+        "h": 114
+      },
+      {
+        "name": "lastCar-foundry",
+        "x": 341,
+        "y": 684,
+        "w": 171,
+        "h": 114
+      },
+      {
+        "name": "backGun-coal",
+        "x": 512,
+        "y": 684,
+        "w": 171,
+        "h": 114
+      },
+      {
+        "name": "backGun-farm",
+        "x": 683,
+        "y": 684,
+        "w": 170,
+        "h": 114
+      },
+      {
+        "name": "backGun-foundry",
+        "x": 853,
+        "y": 684,
+        "w": 171,
+        "h": 114
+      }
+    ],
+    "sources": [
+      {
+        "generator": "tools/art/textures.py",
+        "what": "the towns' flags: trade fields, the province's saltire, the customs' charges, weathered",
+        "author": "Dark Territory",
+        "license": "CC0-1.0"
+      }
+    ],
+    "license": "CC0-1.0"
   }
 ]

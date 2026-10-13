@@ -59,11 +59,12 @@ public static class Guns
     }
 
     /// <summary>
-    /// Pushing the gun you're at along its rail (T93): Use held at it while you walk, and it isn't waiting on a reload (then
-    /// Use works the reload). The motor moves it with you (<see cref="Slide"/>).
+    /// Pushing the gun you're at along its rail (T93): the push key held at it while you walk (note 664: it was Use, which
+    /// is also sitting in it, the director: "We need a different button for push and walk"), and it isn't waiting on a
+    /// reload. The motor moves it with you (<see cref="Slide"/>).
     /// </summary>
     public static bool Pushing(in PlayerState s, in PlayerIntent intent, TrainOnLine train, GunTuning t) =>
-        intent.Has(PlayerButtons.Use) && (Math.Abs(intent.MoveX) > 0.5 || Math.Abs(intent.MoveZ) > 0.5) && !s.Has(PlayerFlags.Held)
+        intent.Has(PlayerMoves.Push) && (Math.Abs(intent.MoveX) > 0.5 || Math.Abs(intent.MoveZ) > 0.5) && !s.Has(PlayerFlags.Held)
         && !s.Has(PlayerFlags.Seated)
         && MannedGun(s, train, t) is { } g && train.Vehicles[g].Gun.ReloadNeeded <= 0;
 

@@ -351,6 +351,19 @@ public sealed class Lineside
     /// </summary>
     public List<(uint Tick, int Player, int Sign, SignKind Kind)> Commits { get; } = new();
 
+    /// <summary>
+    /// Note 664: a player on a car's roof inside a tunnel's mouth's reach (the low clearance that takes anyone standing up
+    /// there): crouched, they stay down until it's past.
+    /// </summary>
+    public bool UnderLowClearance(in PlayerState s, TrainOnLine train)
+    {
+        if (s.Surface != Surface.Roof || s.Parent < 0 || s.Parent >= train.Frames.Count || train.RakeOf(s.Parent).Path != RailLine.MainPath)
+            return false;
+        // Where along the line they stand, as Hazards has it: a car's −Z is its front.
+        double along = train.Cars[s.Parent].FrontDistance - (s.Position.Z + train.Frames[s.Parent].Shape.HalfLength);
+        return _signs.Any(g => g.Kind == SignKind.LowClearance && along >= g.Start && along <= g.End);
+    }
+
     /// <summary>The engine's on greased rail now (what the drivers feel: they slip).</summary>
     public bool OnGrease(TrainOnLine train) =>
         train.Dynamics.Path == RailLine.MainPath && _route.Features.Any(f => f.Kind == FeatureKind.Grease && f.Contains(train.Dynamics.Distance));
@@ -414,9 +427,10 @@ public sealed class Lineside
                         double along = carFront - (s.Position.Z + train.Frames[v.Id].Shape.HalfLength);
                         if (along < sign.Start || along > sign.End)
                             continue;
-                        // Note 260: whether a crouch gets you under the mouth isn't in the spec. Reading kept: it doesn't, unless
-                        // tuned to (a headset rider down under crouchHead; the keyboard's body has no crouch).
-                        if (w.CrouchClearsMouth && s.Head > 0 && s.Head <= w.CrouchHead)
+                        // Note 260: whether a crouch gets you under the mouth isn't in the spec; it doesn't, unless tuned to.
+                        // Note 664 (D1 for the director: a crouch "fits the body under low clearance"): it's tuned to, crouched
+                        // on the key or a headset rider's head down under crouchHead.
+                        if (w.CrouchClearsMouth && (s.Has(PlayerFlags.Crouched) || s.Head > 0 && s.Head <= w.CrouchHead))
                             continue;
                         // App. A.1: no commit without its telegraph, the warning up its whole lead.
                         if (!WarnedInTime(sign.Id))

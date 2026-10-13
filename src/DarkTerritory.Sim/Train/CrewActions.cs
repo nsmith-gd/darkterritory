@@ -380,7 +380,7 @@ public static class CrewActions
         var pick = train.Dynamics.Tuning.Pick;
         double cp = DMath.Cos(s.Pitch);
         var view = new Double3(fx * cp, DMath.Sin(s.Pitch), fz * cp);
-        var eye = s.Position + Double3.Up * pick.EyeHeight;
+        var eye = s.Position + Double3.Up * (s.Has(PlayerFlags.Crouched) ? pick.CrouchedEyeHeight : pick.EyeHeight);
         // Compared as cosines (no Acos: what's picked changes the train, so it's worked out alike on every machine).
         double bestCos = DMath.Cos(pick.LookDegrees * Math.PI / 180);
         void Search(int vehicle, Double3 at, bool doorsOnly)

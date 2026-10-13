@@ -216,10 +216,16 @@ public static class Eyes
         return Camera.LookAt(crane.Cab + Double3.Up * 0.3, trolley, 55);
     }
 
-    public static Camera From(in PlayerState cur, in PlayerState prev, IReadOnlyList<CarFrame> frames, double alpha, double pendingYaw, double pendingPitch)
+    /// <param name="crouchDrop">
+    /// Note 664: how much lower the eyes are crouched on the key (player.json crouch.eyeDrop; the world's
+    /// <see cref="Sim.World.Movement"/>). A headset rider's crouch is their own head going down, so theirs isn't dropped again.
+    /// </param>
+    public static Camera From(in PlayerState cur, in PlayerState prev, IReadOnlyList<CarFrame> frames, double alpha, double pendingYaw, double pendingPitch,
+        double crouchDrop = 0)
     {
         var local = prev.Parent == cur.Parent ? Double3.Lerp(prev.Position, cur.Position, alpha) : cur.Position;
-        var eyeLocal = local + Double3.Up * (!cur.Alive ? 0.3 : cur.Has(PlayerFlags.Seated) ? Seated : Height);
+        var eyeLocal = local + Double3.Up * (!cur.Alive ? 0.3 : cur.Has(PlayerFlags.Seated) ? Seated
+            : cur.Has(PlayerFlags.Crouched) && cur.Head <= 0 ? Height - crouchDrop : Height);
         bool onCar = cur.Parent != PlayerState.World && cur.Parent < frames.Count;
         var eye = onCar ? frames[cur.Parent].ToWorld(eyeLocal) : eyeLocal;
         double heading = onCar ? frames[cur.Parent].Heading : 0;

@@ -1291,6 +1291,8 @@ CampaignState? Play(IPlaySession session, CampaignState? campaign)
                 // How loud you are (GDD v1.1 App. C.7, C.8): the mic while it sends; with no mic, holding Talk counts as
                 // speaking up, so a player without one can still talk the Gaunt down and answer a roll call.
                 Voice = (byte)Math.Clamp(voiceLevel * 255, 0, 255),
+                // Note 664: crouch and pushing the gun along, each its own key, held (a headset rider crouches for real).
+                Moves = (Held(Control.Crouch) ? PlayerMoves.Crouch : 0) | (Held(Control.Push) ? PlayerMoves.Push : 0),
                 Select = pendingSelect,
                 // Scrolled up is the previous slot, down the next, as in most games.
                 Cycle = (sbyte)(pendingCycle >= 1 ? -1 : pendingCycle <= -1 ? 1 : 0),

@@ -88,6 +88,12 @@ public sealed class World
     /// unset, hands in intents are ignored and everyone reaches from the body.
     /// </summary>
     public HandTuning? Hand { get; set; }
+
+    /// <summary>
+    /// Note 664: the players' movement tuning, for crouching (<see cref="Crouching"/>). The sessions set it with <see cref="Hand"/>;
+    /// while it's unset nobody crouches.
+    /// </summary>
+    public PlayerTuning? Movement { get; set; }
     public ChoirState Choir;
     /// <summary>Hit volumes for this tick (from the enemies).</summary>
     public List<HitTarget> Targets { get; } = new();
@@ -1388,6 +1394,26 @@ public sealed class World
     }
 
     /// <summary>
+    /// Note 664 (the director's playtest, 13 Oct: "we should have a crouch function"; D1: held, and "release the key and you
+    /// stand, unless the clearance above won't let you"): crouched while the key's held, or while a headset rider's head is
+    /// down under crouch.headsetBelow (they've no key); let go, up again once there's the headroom: nothing of a car over
+    /// them lower than a standing head, and on a roof not under a tunnel's mouth (which takes anyone standing there). Not on
+    /// a ladder, in a seat, at the crane's controls or in something's grip. Here, before the motor moves them, so the host
+    /// and a predicting client crouch alike.
+    /// </summary>
+    public void Crouching(ref PlayerState s, in PlayerIntent intent)
+    {
+        if (Movement is not { } p)
+            return;
+        bool can = s.Alive && s.Surface != Surface.Ladder && !s.Has(PlayerFlags.Seated) && !s.Has(PlayerFlags.Operating) && !s.Has(PlayerFlags.Held);
+        bool down = can && (intent.Has(PlayerMoves.Crouch) || s.Head > 0 && s.Head <= p.Crouch.HeadsetBelow);
+        if (down)
+            s.Flags |= PlayerFlags.Crouched;
+        else if (s.Has(PlayerFlags.Crouched) && (!can || PlayerMotor.Headroom(s, Train, p) && Lineside?.UnderLowClearance(s, Train) != true))
+            s.Flags &= ~PlayerFlags.Crouched;
+    }
+
+    /// <summary>
     /// One player's hands this tick: crew actions at interactables, and firing a gun they're manning.
     /// <paramref name="viewTick"/> is when the shooter saw the targets (lag compensation: the host checks
     /// hits against where things were on the shooter's screen).
@@ -1396,6 +1422,7 @@ public sealed class World
     {
         PlayerMotor.Look(ref s, intent);
         PlayerMotor.TakeHand(ref s, intent, Hand);
+        Crouching(ref s, intent);
         // The lamp switch in the cab (T52, "lamps down"): a predicting client sets it too, so the lamp goes out at once.
         if (intent.Lamp != LampSwitch.None && Net.CabControls.CanDrive(s, Train))
         {

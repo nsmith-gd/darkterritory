@@ -9,8 +9,14 @@
   // GDD v1.4 App. D.9 "solo remainer" (note 181): the last of the crew alive can climb a ladder carrying a body, at this
   // (a quarter of ladderClimb); anyone else carrying a body, a toy, a find or the child can't climb at all (C.4).
   "soloBodyClimb": 0.4,
-  // Pushing a gun along its roof rail (T93): the gun goes where you go, no faster than this.
+  // Pushing a gun along its roof rail (T93): the gun goes where you go, no faster than this. Note 664: on its own key, O.
   "pushGun": 1.2,
+  // Note 664 (the director's playtest, 13 Oct: "we should have a crouch function"; D1's calls for it): held down (LeftCtrl),
+  // the body's this tall (m; height's 1.8 standing), so it goes under what standing would hit, and a tunnel's mouth on a roof
+  // (sight.json crouchClearsMouth); the eye's eyeDrop lower (the view, and what's looked at: train.json pick); the walk at
+  // speedScale of a walk's pace, never a run, no jump; footsteps footstepGainDb quieter. Let go, they stand once there's the
+  // headroom. A headset rider has no key: their head under headsetBelow (m over the feet) is a crouch.
+  "crouch": { "height": 1.2, "eyeDrop": 0.55, "speedScale": 0.5, "footstepGainDb": -8, "headsetBelow": 1.2 },
   "jumpGap": 2.2,
   // How high a standing jump lifts your feet. Playtest (T90): the 0.48 m that a flat 2.2 m gap jump at roof run needs was
   // too weak to feel like a jump at all, and it went to 0.8 m. The director, 8 Oct 2026 (note 473): "our base jump is too

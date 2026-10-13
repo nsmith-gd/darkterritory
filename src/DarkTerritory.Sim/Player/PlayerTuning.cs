@@ -21,6 +21,9 @@ public sealed record PlayerTuning(
     /// </summary>
     public double SoloBodyClimb { get; init; } = 0.4;
 
+    /// <summary>Note 664: crouching (the director's playtest, 13 Oct: "we should have a crouch function"). Docs in player.json.</summary>
+    public CrouchTuning Crouch { get; init; } = new();
+
     /// <summary>GDD §22 wind, and spec B.2's "roof run: wind and balance penalty", on a roof's footing (note 201).</summary>
     public WindTuning Wind { get; init; } = new();
 
@@ -106,3 +109,13 @@ public sealed record LandingTuning(double RollAbove, int RollDamage, double Leth
 public sealed record LadderTuning(double GrabRange, double GrabMaxRelativeSpeed);
 /// <summary>A VR player's reaching hand (T29). Field docs live in player.json.</summary>
 public sealed record HandTuning(double Arm, double Overhead, double Grab);
+
+/// <summary>Note 664: crouching. Mirror of player.json <c>crouch</c>, where each field is documented.</summary>
+public sealed record CrouchTuning
+{
+    public double Height { get; init; } = 1.2;
+    public double EyeDrop { get; init; } = 0.55;
+    public double SpeedScale { get; init; } = 0.5;
+    public double FootstepGainDb { get; init; } = -8;
+    public double HeadsetBelow { get; init; } = 1.2;
+}

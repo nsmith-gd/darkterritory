@@ -181,6 +181,18 @@
       "full": 16,
       "from": [-0.7, 0, -0.4],
       "gusts": 0.7
+    },
+    // A town's flag in that wind (queue #405, note 674): its cloth (m); the wind (m/s) it starts lifting in and flies flat
+    // by; how far its fly hangs down in none (rad); how far it snakes side to side, calm to full (rad, at the fly); how
+    // fast the ripple runs out along it, calm to full (rad/s); how far it billows up and down in its own plane, flying (rad,
+    // at the fly); how many waves are on it at once.
+    "flag": {
+      "length": 1.8, "height": 1.2,
+      "liftFrom": 1.5, "liftFull": 10,
+      "droop": 1.9,
+      "ripple": 0.22, "rippleFull": 0.6, "flutter": 0.22,
+      "pace": 2.2, "paceFull": 10,
+      "waves": 1.6
     }
   },
   // The water (ARCHITECTURE §8 note 424): how each kind of it moves. Its current (m/s: a river's down its valley, the
