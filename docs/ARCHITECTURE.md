@@ -846,4 +846,7 @@ written here instead is moved out by `tools/coord/notes.py split`; the Coordinat
 - [664. Controls from the playtest (D1.2, queue #395; the director, 13 Oct, playing the morning build)](notes/664.md)
 - [665. The cab's readouts (D1.2, queue #396; the director, 13 Oct, playing the morning build)](notes/665.md)
 - [666. Skips in the morning build (D1, queue #397; the director, 13 Oct, playing the morning build)](notes/666.md)
+- [667. Audio skips and the floors in the morning build (AU1, queue #398; the director, 13 Oct, playing the morning build at 8fc43b58)](notes/667.md)
+- [674. Town flags: the cloth in the wind, and a flag for every town (E1, queue #405; the director, 13 Oct, playing the morning build; the World…](notes/674.md)
+- [675. Car roofs and loading (D1.4, queue #406; the director, 13 Oct, playing the morning build)](notes/675.md)
 <!-- end of the notes index -->
