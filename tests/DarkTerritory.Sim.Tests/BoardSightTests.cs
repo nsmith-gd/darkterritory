@@ -55,7 +55,9 @@ public class BoardSightTests
                 var at = LineOf(route, line, sign.Edge).Sample(site.Along);
                 var inner = site.Bottom - site.Right * (site.Side * site.Face.Width / 2);
                 double lateral = Double3.Dot(inner - at.Position, Double3.Cross(at.Tangent, Double3.Up).Normalized);
-                Assert.InRange(lateral * site.Side, rules.InnerM - 0.5, rules.InnerM + 0.5);
+                // (Or, where it's read on neither side by the line, stood back past what's in the way: note 693.)
+                Assert.True(Math.Abs(lateral * site.Side - rules.InnerM) <= 0.5 || Math.Abs(lateral * site.Side - rules.BackInnerM) <= 0.5,
+                    $"{spec} {sign.Type} {sign.Text}: {lateral * site.Side:0.0} m off the track");
                 Assert.True(Double3.Dot(site.Toward, at.Tangent) < -0.9, $"{spec} {sign.Type} {sign.Text}: faces the train coming");
                 // (A km post low by the line, under the eye line.)
                 if (route.Plan.Rules.Boards[sign.Type].Side == 0)
@@ -261,6 +263,32 @@ public class BoardSightTests
             return false;
         double h = eye.Y + t * (target.Y - eye.Y), rail = a.Y + u * (b.Y - a.Y);
         return h >= rail + r.TrussLowM && h <= rail + r.TrussHighM;
+    }
+
+    [Fact]
+    public void ABoardReadFromNowhereByTheLineStandsBackPastWhatsInTheWay()
+    {
+        // Note 693: frontier:7's MAIL board at 4010 was seen from none of its approach: a dead line alongside keeps posts
+        // 16 m off the billboard side there, and the other side is behind a rock wall's curve and the cab's right pillar.
+        // Stood back past the dead line (billboard.backInnerM), it's read; and no billboard on these nights is read from
+        // nowhere (a km post, fixed by its km, may be: frontier:7's 3.5 in a cutting).
+        var route = Routes.Generate(Content, "frontier:7", 6);
+        var side = LinesideProps.Of(route, route.Build())!;
+        var rules = route.Plan!.Rules;
+        var mail = Route.Lineside.Boards(new Route.SightTuning(), route).Single(b => b.Kind == Route.SignKind.Drop && Math.Abs(b.Board - 4010) < 1);
+        var site = side.SightBoard(mail);
+        Assert.True(site.SeenM >= 0.4 * site.ApproachM, $"MAIL at 4010 read over {site.SeenM} m of {site.ApproachM}");
+        var inner = site.Bottom - site.Right * (site.Side * site.Face.Width / 2);
+        var t = route.Build().Sample(site.Along);
+        Assert.True(Math.Abs(Double3.Dot(inner - t.Position, Double3.Cross(new Double3(t.Tangent.X, 0, t.Tangent.Z).Normalized, Double3.Up).Normalized))
+            >= rules.Billboard.BackInnerM - 0.5, "stood back past the dead line");
+        foreach (var spec in Nights.Append("local:3"))
+        {
+            var r = Routes.Generate(Content, spec, 6);
+            var s = LinesideProps.Of(r, r.Build())!;
+            foreach (var b in Standing(r, s).Where(b => b.ApproachM > 0 && r.Plan!.Rules.Boards.GetValueOrDefault(b.Type) is not { Fixed: true }))
+                Assert.True(b.SeenM > 0, $"{spec}: the {b.Type} {b.Text} at {b.Along:0} is read from nowhere");
+        }
     }
 
     [Fact]

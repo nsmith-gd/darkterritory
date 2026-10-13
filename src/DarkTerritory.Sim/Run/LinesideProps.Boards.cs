@@ -597,20 +597,27 @@ public sealed partial class LinesideProps
             if (def?.Warns != true || keep)
                 offsets.Add(k * r.StepBackM);
         }
-        foreach (int stand in (ReadOnlySpan<int>)[side, -side])
-            foreach (double offset in offsets)
-            {
-                double at = s + offset;
-                if (!Clear(at) || !keep && taken?.Invoke(at, stand) == true
-                    || Stood(line, edge, at, stand, type, text, face, def, r, ground, footing, shelter, inTheWay, sees) is not { } site
-                    || !keep && hides?.Invoke(site) == true)
-                    continue;
-                site = site with { S = s };
-                if (site.SeenM >= r.SeenShare * site.ApproachM - 1e-9 && site.BoardsInWay == 0)
-                    return site;
-                if (best is null || site.SeenM - site.BoardsInWay * r.SightStepM > best.SeenM - best.BoardsInWay * r.SightStepM)
-                    best = site;
-            }
+        // And where it's read on neither side by the line (a dead line alongside keeps its posts off one side, a rock wall's
+        // curve hides the other: note 693), stood back past what's in the way, billboard.backInnerM from the track.
+        foreach (double innerM in (ReadOnlySpan<double>)[r.InnerM, r.BackInnerM])
+        {
+            if (innerM != r.InnerM && (keep || def?.Side is int own && own != 0))
+                break;
+            foreach (int stand in (ReadOnlySpan<int>)[side, -side])
+                foreach (double offset in offsets)
+                {
+                    double at = s + offset;
+                    if (!Clear(at) || !keep && taken?.Invoke(at, stand) == true
+                        || Stood(line, edge, at, stand, type, text, face, def, r, ground, footing, shelter, inTheWay, sees, innerM) is not { } site
+                        || !keep && hides?.Invoke(site) == true)
+                        continue;
+                    site = site with { S = s };
+                    if (site.SeenM >= r.SeenShare * site.ApproachM - 1e-9 && site.BoardsInWay == 0)
+                        return site;
+                    if (best is null || site.SeenM - site.BoardsInWay * r.SightStepM > best.SeenM - best.BoardsInWay * r.SightStepM)
+                        best = site;
+                }
+        }
         if (best is not null)
             return best;
         // Nowhere to stand near it (a limit for a bend inside a tunnel): the first spot back down the line clear of tunnels
@@ -624,9 +631,10 @@ public sealed partial class LinesideProps
     /// <summary>A board stood at <paramref name="at"/>, its sight measured; null if a post can't stand there.</summary>
     static BoardSite? Stood(RailLine line, string edge, double at, int side, string type, string text, BoardFace face, BoardDef? def, BillboardRules r,
         Func<double, double, double> ground, Func<string, double, double, Double3, bool> footing, Func<Double3, bool> shelter,
-        Func<Double3, double, Func<Double3, Double3, bool>>? inTheWay = null, Func<Double3, Double3, bool>? sees = null)
+        Func<Double3, double, Func<Double3, Double3, bool>>? inTheWay = null, Func<Double3, Double3, bool>? sees = null, double? innerM = null)
     {
         sees ??= (eye, target) => Sees(eye, target, ground, shelter);
+        double innerAt = innerM ?? r.InnerM;
         var t = line.Sample(at);
         var fwd = new Double3(t.Tangent.X, 0, t.Tangent.Z).Normalized;
         var across = Double3.Cross(fwd, Double3.Up).Normalized;
@@ -635,12 +643,12 @@ public sealed partial class LinesideProps
         var toward = (fwd * -cos - across * (side * sin)).Normalized;
         var right = Double3.Cross(Double3.Up, toward).Normalized;
         var outward = right * side;
-        var inner = t.Position + across * (side * r.InnerM);
+        var inner = t.Position + across * (side * innerAt);
         double w = face.Width;
         // Its posts: one under a narrow board, two under a wide one, none nearer the track than postsFromM.
         double[] us = w > 3 ? [0.2 * w, 0.8 * w] : [0.5 * w];
         for (int i = 0; i < us.Length; i++)
-            us[i] = Math.Min(w, Math.Max(us[i], (r.PostsFromM - r.InnerM) / Math.Max(0.1, cos)));
+            us[i] = Math.Min(w, Math.Max(us[i], (r.PostsFromM - innerAt) / Math.Max(0.1, cos)));
         var feet = new Double3[us.Length];
         double highest = double.MinValue;
         for (int i = 0; i < us.Length; i++)
@@ -648,7 +656,7 @@ public sealed partial class LinesideProps
             var p = inner + outward * us[i];
             double g = ground(p.X, p.Z);
             feet[i] = p with { Y = g };
-            if (!footing(edge, at - sin * us[i], side * (r.InnerM + cos * us[i]), p))
+            if (!footing(edge, at - sin * us[i], side * (innerAt + cos * us[i]), p))
                 return null;
             highest = Math.Max(highest, g);
         }
