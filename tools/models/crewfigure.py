@@ -394,7 +394,15 @@ def build(name, style):
             bmesh.ops.delete(bm, geom=doomed, context="FACES")
             bmesh.ops.delete(bm, geom=[v for v in bm.verts if not v.link_faces], context="VERTS")
             rim = [e for e in bm.edges if e.is_boundary and abs(e.verts[0].co.x) < 0.04 and lo_z - 0.01 < e.verts[0].co.z < hi_z + 0.01]
-            bmesh.ops.holes_fill(bm, edges=rim, sides=0)
+            filled = bmesh.ops.holes_fill(bm, edges=rim, sides=0)["faces"]
+            # The cap's corners take the lips' own texture coordinates (a new face's are the map's corner, which on the
+            # scan's map is red: a red smear across the mouth, the survivors' and the townsfolk's alike, note 694).
+            for layer in bm.loops.layers.uv.values():
+                for f in filled:
+                    for loop in f.loops:
+                        own = [l[layer].uv.copy() for l in loop.vert.link_loops if l.face not in filled]
+                        if own:
+                            loop[layer].uv = sum(own, own[0] * 0) / len(own)
             bmesh.ops.triangulate(bm, faces=[f for f in bm.faces if len(f.verts) > 4])
             bm.to_mesh(me)
             bm.free()
