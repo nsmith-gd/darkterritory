@@ -1,4 +1,5 @@
 using Ballast;
+using DarkTerritory.Sim.Bots;
 using DarkTerritory.Sim.Physics;
 using DarkTerritory.Sim.Player;
 using DarkTerritory.Sim.Rail;
@@ -103,5 +104,46 @@ public class LyingInCarsTests
         }
         Assert.Equal(Surface.Deck, up.Surface);
         Assert.Equal(floor + 0.9, up.Position.Y, 2);
+    }
+
+    /// <summary>A bot in car 1's aisle 3 m ahead of its middle, steered for a point 3 m behind it, heeding what's lying there.</summary>
+    static PlayerState BotDownTheAisle(World world, double seconds, out int stood)
+    {
+        double floor = T.Geometry.Interior!.FloorHeight;
+        var s = new PlayerState { Parent = Car, Position = new Double3(0, floor, -3), Surface = Surface.Deck, Health = P.Health, Yaw = Math.PI,
+            LineHint = world.Train.Cars[Car].FrontDistance };
+        stood = 0;
+        for (int i = 0; i < seconds * SimConstants.TickRate; i++)
+        {
+            Tick(world, [(1, s)]);
+            var (step, _) = WarmUp.Steer(s, new Double3(0, floor, 3), Math.PI);
+            var heeded = Heed.Lying(step, s, world, P);
+            if (heeded.MoveX == 0 && heeded.MoveZ == 0)
+                stood++;
+            PlayerMotor.Step(ref s, heeded, world.Train, P, T, Dt);
+        }
+        return s;
+    }
+
+    [Fact]
+    public void ABotGoesRoundACrateInTheAisleAndStandsWhereTheAisleIsStackedShut()
+    {
+        // One crate in the middle of the aisle: round it, on to where it was going.
+        var (world, _) = WithAThingInTheAisle(BodyKind.Cargo, 0.45);
+        var s = BotDownTheAisle(world, 8, out _);
+        Assert.True(s.Position.Z > 2.5, $"never got past the crate: {s.Position}");
+
+        // The aisle stacked shut, wall to wall: it stands short of it, not pushing at it.
+        var (shut, _) = WithAThingInTheAisle(BodyKind.Cargo, 0.45);
+        var room = shut.Train.Frames[Car].Shape.Interior!.Value;
+        double floor = T.Geometry.Interior!.FloorHeight;
+        for (double x = room.Min.X + 0.45; x < room.Max.X; x += 0.9)
+            if (Math.Abs(x) > 0.5)
+                shut.Bodies.Put(shut.Train, Car, BodyKind.Cargo, new Double3(x, floor + 0.45, 0), 0.45, 0.35, 0.05);
+        for (int i = 0; i < 3 * SimConstants.TickRate; i++)
+            Tick(shut, []);
+        var blocked = BotDownTheAisle(shut, 6, out int stood);
+        Assert.True(blocked.Position.Z < -0.5, $"through the stack: {blocked.Position}");
+        Assert.True(stood > 3 * SimConstants.TickRate, $"stood only {stood} ticks of 6 s");
     }
 }
