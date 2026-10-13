@@ -1047,7 +1047,7 @@ public sealed class StopDriver(CrewCalls calls)
     const double PickUpNoise = 100;
     /// <summary>Note 609: a stop's loading isn't cut short for the next stop (<see cref="Onward"/>) unless this much of it's to be had first.</summary>
     const double OnwardLoading = 90;
-    /// <summary>Note 656: a pick-up with this much freight standing (car-loads) is worth a loading called done for it.</summary>
+    /// <summary>Note 656: a pick-up on the stop's own siding with this much freight standing (car-loads) is worth a loading called done for it.</summary>
     const double PickUpWorth = 0.5;
     /// <summary>Note 609: past the next stop's allowance, a stop's loading is called done this much early (the leaving takes less than reckoned).</summary>
     const double OnwardMargin = 30;
@@ -1069,11 +1069,12 @@ public sealed class StopDriver(CrewCalls calls)
         double from = p.Hold + OnwardBeyond;
         for (int i = 0; i < 16 && StopPlan.Ahead(world, from, done, calls) is { } next; i++)
         {
-            // Note 621: not for a pick-up of little or nothing. Called done for Renwick Yard's after the Foundry, the Foundry's
-            // loading came to 1.0 car-loads instead of 1.5 on most of frontier:7's nights. Note 656: for one with freight
-            // standing, worth more than the loading it cuts, it is (frontier:6's switchyard, its hands back from a rescue
-            // sooner, loaded on past the time its pick-up needed: 0.8 car-loads given up for 0.5).
-            if (!next.PickUp || next.StandingFreight(world.Train) >= PickUpWorth)
+            // Note 621: not for another site's pick-up. Called done for Renwick Yard's after the Foundry, the Foundry's loading
+            // came to 1.0 car-loads instead of 1.5 on most of frontier:7's nights, and with the run between to reckon, the
+            // pick-up it was cut for was missed as often as made (note 656). Note 656: for its own siding's, with freight
+            // standing, it is: frontier:6's switchyard, its hands back from a rescue sooner, loaded on past the time its
+            // pick-up needed, 0.8 car-loads given up for 0.5.
+            if (!next.PickUp || next.Site.Index == p.Site.Index && next.StandingFreight(world.Train) >= PickUpWorth)
                 least = Math.Min(least ?? double.MaxValue, Allowance(next, world));
             done.Add(next.Key);
         }
