@@ -4511,7 +4511,8 @@ public static partial class Heed
         // and the claim was its, so nobody else went.
         bool free = self.Parent == PlayerState.World || self.Parent == 0 && self.Surface == Surface.Deck
             || self.Parent >= 0 && self.Surface is Surface.Roof or Surface.Coupler;
-        if (!free)
+        // Note 650: not a hand with a part in the stop's moves before its loading (the shunter's, the points'): the rest.
+        if (!free || hand.OnTheMoves(world))
         {
             calls.DropBreach(selfId);
             return intent;

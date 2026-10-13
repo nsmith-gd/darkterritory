@@ -2093,9 +2093,9 @@ Once a run has left the gate, **a Holdout is the only way back into it.** A dead
 
 | Site | Holdouts | Placement |
 |---|---|---|
-| **Facility pad** | 2: the second at every facility, active only with a big crew (D.15 question 2) | 60–200 m from the consist's stopping position on the pad. Must not share a walking route with the nearest loading module, so rescue competes with loading for people. |
-| **Halt** (Line Plan §11.3) | 1 | On or beside the platform, ≤40 m from the main line |
-| **Dead town / village** (Line Plan §11.3) | 1 | Within the station footprint, ≤80 m from the main line |
+| **Facility pad** | 2: the second at every facility, active only with a big crew (D.15 question 2) | Right beside the track the consist stands on, within 100 m of where it stops, 30 m clear of the loading: never on the line, a few metres off it (the director, the inbox, 12 Oct: "Holdouts should never be on the line but should be essentially right next to the line. Minimum rescue time"; note 650). |
+| **Halt** (Line Plan §11.3) | 1 | The lockup behind the platform, ≤40 m from the main line |
+| **Dead town / village** (Line Plan §11.3) | 1 | Right beside the main line, within 100 m of the halt (note 650) |
 
 - **The second facility Holdout only activates when the session crew is 5 or more** at assignment time. Below that it stays dormant dressing.
 - **Every Holdout lamp needs line of sight** to the site's approach: from the 1 km board at facilities, and from the whistle board at halts and dead towns.

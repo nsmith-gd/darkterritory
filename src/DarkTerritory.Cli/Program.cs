@@ -215,6 +215,8 @@ object RunHarness(string[] args)
     {
         Observe = observe,
         Bots = (int)Opt(args, "--bots", 8),
+        // --kill-at s: the last bot dies that many seconds in, back up the line, for a rescue to measure (note 650).
+        KillAt = Opt(args, "--kill-at", 0) is var killAt and > 0 ? killAt : null,
         // --express [m/s]: the driver runs hot (21 m/s if no speed's given) and takes no stops (note 376): the hound run's night.
         Express = Array.IndexOf(args, "--express") is var ex and >= 0
             ? ex + 1 < args.Length && double.TryParse(args[ex + 1], System.Globalization.CultureInfo.InvariantCulture, out double fast) ? fast : 21
