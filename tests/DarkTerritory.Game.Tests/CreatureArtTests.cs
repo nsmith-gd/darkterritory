@@ -113,7 +113,7 @@ public class CreatureArtTests(CreatureArtTests.TurntableRig rig) : IClassFixture
         ["householder"] = new(6000, 10000, 45, 60, ["sit", "watch", "hunt", "grab", "return"], ["rise", "hit", "death"]),
         // The Waker (note 679): a large monster (GDD §27: 8-16k) drawn sixty metres tall, on its own SK_Waker: a jaw, a mouth
         // socket, the rope's end, four three-boned fingers a hand.
-        ["waker"] = new(8000, 16000, 50, 60, ["lie", "walk", "run", "eat", "stand"], ["rise", "grab", "roar"]),
+        ["waker"] = new(8000, 16000, 50, 60, ["lie", "walk", "run", "lift", "eat", "stand"], ["rise", "grab", "roar"]),
     };
 
     public static TheoryData<string> Models() => [.. CreatureArt.Names];

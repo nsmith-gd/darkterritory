@@ -28,7 +28,8 @@ Clips (wakers.md; the Sim's phases: TELEGRAPH rising, COMMIT running, PUNISH hol
   run    the long bound he runs a train down in (3.4 s a cycle, 1.7 s and 44 m a step: 26 m/s, wakers.topSpeed, at 30x).
          CreatureArt blends the two by his speed and plays them at it, so his feet stay planted (WakerGait);
   grab   down on his knees over the line, both hands on the last car (2.5 s: wakers.liftSeconds);
-  eat    kneeling, feeding the train to his mouth hand over hand, a bite every wakers.eatSeconds (4 s loop; the bite on 0);
+  lift   holding it under his mouth, drawing it in, his jaw working, till he starts eating (2 s loop);
+  eat    kneeling, biting the car off in four bites a car, his jaws shutting on frames 0, 30, 60, 90 (4 s loop: eatSeconds);
   stand  stood short of the walls, out of the guns' reach, swaying (6 s loop);
   roar   the howl at the walls, his jaw hanging (4 s).
 
@@ -639,9 +640,8 @@ grab.key(30, holding(kneel(lean=1.8, sit=0.3, jaw=34), lift=0.0), "BEZIER")
 grab.key(75, holding(kneel(lean=1.5, sit=0.5, jaw=20), lift=0.5), "BEZIER")
 
 
-# Eat (4 s, loop: wakers.eatSeconds; the bite on frame 0): kneeling over the line, the car's end in both hands under his
-# mouth; his jaw drops wide and comes down on it, he wrenches his head back with the bite, then pulls the next of it up to
-# his mouth; his knees shuffle him on after the train between bites (CreatureArt moves him on as it goes).
+# Lift (2 s, loop: from his grab till he starts eating, wakers.eatAfter): kneeling over the line, the car's end in both hands
+# under his mouth, drawing it in; his jaw working wider, not shutting yet.
 def feeding(jaw, lift, pull, chew=0.0, knee=0.0, side=1):
     p = kneel(lean=1.5 - 0.1 * chew, sit=0.5, jaw=jaw, up=(knee, 0.0) if side > 0 else (0.0, knee))
     p["neck"] = (p["neck"][0] + 10 * chew, 0, 3 * chew * side)
@@ -649,15 +649,23 @@ def feeding(jaw, lift, pull, chew=0.0, knee=0.0, side=1):
     return holding(p, lift=lift, pull=pull)
 
 
+lift = Clip("lift")
+lift.key(0, feeding(jaw=24, lift=0.5, pull=0.2), "BEZIER")
+lift.key(30, feeding(jaw=44, lift=0.7, pull=0.5, chew=0.3, side=-1), "BEZIER")
+lift.close(60)
+
+# Eat (4 s, loop: wakers.eatSeconds): the car bitten off in four bites, his jaws shutting on frames 0, 30, 60 and 90 (the
+# bite's frontier steps a quarter of the car on each, CreatureArt.WakerBite): each time his jaw drops wide, his head comes
+# onto the car, the jaws snap shut and he wrenches his head back with the bite, chewing, his knees shuffling him on after
+# the train (CreatureArt moves him on down the car as it goes).
 eat = Clip("eat")
-eat.key(0, feeding(jaw=6, lift=0.7, pull=0.8, chew=0.6), "CONSTANT")
-eat.key(8, feeding(jaw=14, lift=0.4, pull=0.4, chew=1.0, side=-1), "BEZIER")
-eat.key(24, feeding(jaw=10, lift=0.2, pull=0.0, chew=0.2, knee=1.0, side=1), "BEZIER")
-eat.key(44, feeding(jaw=16, lift=0.3, pull=0.0, knee=1.0, side=-1), "BEZIER")
-eat.key(70, feeding(jaw=34, lift=0.6, pull=0.2), "BEZIER")
-eat.key(104, feeding(jaw=52, lift=0.8, pull=0.5), "BEZIER")
-eat.key(114, feeding(jaw=56, lift=0.85, pull=0.7), "LINEAR")
-eat.key(EAT_FRAMES, eat.keys[0][1], "CONSTANT")
+for n in range(4):
+    base, side = 30 * n, (1 if n % 2 else -1)
+    eat.key(base, feeding(jaw=4, lift=0.6, pull=0.8, chew=0.9, side=side), "CONSTANT")
+    eat.key(base + 8, feeding(jaw=12, lift=0.45, pull=0.5, chew=0.5, side=-side, knee=1.0 if n in (1, 3) else 0.0), "BEZIER")
+    eat.key(base + 20, feeding(jaw=46, lift=0.7, pull=0.15, knee=0.4 if n in (1, 3) else 0.0, side=-side), "BEZIER")
+    eat.key(base + 27, feeding(jaw=56, lift=0.8, pull=0.25), "LINEAR")
+eat.close(EAT_FRAMES)
 
 
 # Stand (6 s, loop): stood out of the guns' reach, hunched, swaying from foot to foot, his jaw working, the arms hanging.
@@ -691,7 +699,7 @@ roar.key(36, HOWL, "CONSTANT")
 roar.key(90, with_(HOWL, {"jaw": (-64, 0, 0)}), "BEZIER")
 roar.key(120, stood(0, 0, 12), "BEZIER")
 
-CLIPS = [lie, rise, walk, run, grab, eat, stand, roar]
+CLIPS = [lie, rise, walk, run, grab, lift, eat, stand, roar]
 
 if os.environ.get("DT_POSES"):
     want = [("foot_r", "head"), ("foot_l", "head"), ("toe_r", "tail"), ("hand_r", "tail"), ("mouth", "head"), ("calf_r", "head"),

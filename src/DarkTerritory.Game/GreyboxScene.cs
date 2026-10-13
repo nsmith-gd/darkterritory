@@ -525,6 +525,10 @@ public sealed partial class GreyboxScene
         if (Lights is not null)
             foreach (var (at, colour, radius) in Lights)
                 mesh.PointLights.Add(new PointLight(V(at, eye), colour, radius));
+        // The car a Waker's eating is bitten off, not dropped out of sight (note 679): its lamps, its fittings and its body
+        // all go by the same bite (Art.SceneArt.BiteOf).
+        if (Look is not null)
+            Look.Art.WakerEating = WakerEating(frames) is { } eating ? (eating.Car.Index, eating.Through) : null;
         foreach (var frame in frames)
         {
             if ((frame.Origin - eye).Length > LampRange)
@@ -536,7 +540,7 @@ public sealed partial class GreyboxScene
             if (Look is not null && frame.Shape.Interior is { } inside)
                 mesh.Rooms.Add(new Room(V(frame.ToWorld(inside.Centre), eye), ToF(frame.Right), ToF(frame.Up), ToF(frame.Back), ToF(inside.HalfSize)));
             // (A lamp in what a Car Hugger's eaten of the car has gone with its ceiling: Art/BiteKit.)
-            var eatenBy = Look is null ? default : Art.Bite.For(Look.Tuning.Bite, frame.Shape, Vehicles is { } fleet && frame.Index < fleet.Count ? fleet[frame.Index] : null, frame.Index);
+            var eatenBy = Look is null ? default : Look.Art.BiteOf(frame.Shape, Vehicles is { } fleet && frame.Index < fleet.Count ? fleet[frame.Index] : null, frame.Index);
             if (RoofGlow && !dark && frame.Shape.Interior is { } lit)
                 mesh.PointLights.Add(new PointLight(V(frame.ToWorld(new Double3(0, lit.Max.Y + 0.6, lit.Centre.Z)), eye), Palette.LampAmber * 1.4f, 9f));
             if (frame.Shape.Interior is { } room && !dark)
@@ -573,7 +577,7 @@ public sealed partial class GreyboxScene
         {
             // The art pass's effects (Art/Effects): smoke, steam, sparks, the lamp's beam, and fog banks along the line.
             Look.Art.Effects.Train(mesh, frames, eye, Time, Controls, FireGlow, Emergency, Venting && !Ruptured, SafetyValve && !Ruptured,
-                frames.Count == 0 ? default : Art.Bite.For(Look.Tuning.Bite, frames[^1].Shape, Vehicles is { } fleet && frames[^1].Index < fleet.Count ? fleet[frames[^1].Index] : null, frames[^1].Index),
+                frames.Count == 0 ? default : Look.Art.BiteOf(frames[^1].Shape, Vehicles is { } fleet && frames[^1].Index < fleet.Count ? fleet[frames[^1].Index] : null, frames[^1].Index),
                 whistle: !Ruptured && (CordPulled || Enemies?.Any(e => e is Sim.Enemies.Whistler { Whistling: true } && !e.Gone) == true), dead: Ruptured, lamp: LampLit);
             // (And the crew on a straining car stumble: SceneArt.Crewmate, drawn after.)
             Look.Art.BendStrain = BendStrain;
@@ -1955,42 +1959,41 @@ public sealed partial class GreyboxScene
     double WakerWall(RailLine line, Sim.Enemies.WakersTuning t) =>
         (Route?.Plan?.Terminus.GateM ?? line.Length - (Run?.Tuning.TerminusZone ?? 400)) - t.StopShort;
 
-    /// <summary>How long after he's bitten a car off he's onto the next (s): his mouth carried down the ramp to its end.</summary>
-    const double WakerNextCar = 1.2;
+    /// <summary>
+    /// The car the Waker holding the train is eating (note 679): the rearmost car he hasn't finished (an eaten one's drawn far
+    /// under the ground, <see cref="WakerLift"/>) and how far through his eating of it he is (0 till wakers.eatAfter, then
+    /// 0..1 over each wakers.eatSeconds, as the sim counts them eaten). Null with nobody holding it.
+    /// </summary>
+    (Sim.Enemies.Waker Waker, CarFrame Car, double Through)? WakerEating(IReadOnlyList<CarFrame> frames)
+    {
+        if (frames.Count == 0 || Enemies?.OfType<Sim.Enemies.Waker>().FirstOrDefault(w => w.Lead && w.Holds && !w.Gone) is not { } e)
+            return null;
+        var t = Look?.Art.Creatures?.WakersTuning ?? new Sim.Enemies.WakersTuning();
+        double floor = frames[0].Origin.Y - 100;
+        for (int i = frames.Count - 1; i >= 0; i--)
+            if (frames[i].Origin.Y > floor)
+            {
+                double into = e.Extra - t.EatAfter;
+                double through = into < 0 ? 0 : (into - Math.Floor(into / Math.Max(1e-6, t.EatSeconds)) * t.EatSeconds) / Math.Max(1e-6, t.EatSeconds);
+                return (e, frames[i], through);
+            }
+        return null;
+    }
 
     /// <summary>
-    /// What a Waker's art needs of the scene (note 679): whether he's stood at the walls; and, the one holding the train, the end
-    /// of the rearmost car he hasn't eaten (the top of <see cref="WakerLift"/>'s ramp, which the lift has drawn the frames up
-    /// to), where his mouth goes. Just after a bite, his mouth is carried on from where the car he bit off had its end.
+    /// What a Waker's art needs of the scene (note 679): whether he's stood at the walls; and, the one holding the train, where
+    /// his mouth goes: on the car he's eating (the top of <see cref="WakerLift"/>'s ramp, which the lift has drawn the frames up
+    /// to), its end at first, then on down it as he bites it off (<see cref="Art.Bite.Waker"/>), to the next car's end.
     /// </summary>
     Art.WakerScene WakerIn(Sim.Enemies.Waker e, RailLine line, IReadOnlyList<CarFrame> frames, Double3 eye)
     {
         var t = Look?.Art.Creatures?.WakersTuning ?? new Sim.Enemies.WakersTuning();
         bool walls = e.Phase == SpinePhase.Commit && e.LineDistance >= WakerWall(line, t) - 1;
-        if (!e.Holds || !e.Lead || frames.Count == 0)
+        if (WakerEating(frames) is not { } eating || eating.Waker != e)
             return new Art.WakerScene(walls);
-        // The rearmost car not yet eaten (an eaten one's drawn far under the ground, WakerLift).
-        double floor = frames[0].Origin.Y - 100;
-        CarFrame? car = null;
-        for (int i = frames.Count - 1; i >= 0; i--)
-            if (frames[i].Origin.Y > floor)
-            {
-                car = frames[i];
-                break;
-            }
-        if (car is not { } held)
-            return new Art.WakerScene(walls);
-        double half = held.Shape.HalfLength;
-        var end = held.ToWorld(new Double3(0, WakerMouthHeight, half));
-        int eaten = e.EatenCars(t, frames.Count);
-        double since = eaten > 0 ? e.Extra - t.EatAfter - (eaten - 1) * t.EatSeconds : double.PositiveInfinity;
-        if (since < WakerNextCar)
-        {
-            // The car he's just bitten off had its end a car further back up the ramp.
-            var was = end + held.Back * (2 * half + 1);
-            double k = since / WakerNextCar;
-            end = was + (end - was) * (k * k * (3 - 2 * k));
-        }
+        var held = eating.Car;
+        double half = held.Shape.HalfLength, rear = held.Shape.Platform is { } p ? p.Max.Z : half;
+        var end = held.ToWorld(new Double3(0, WakerMouthHeight, rear - eating.Through * (rear + half)));
         return new Art.WakerScene(walls, V(end, eye));
     }
 
@@ -4849,7 +4852,7 @@ public sealed partial class GreyboxScene
             // Lanterns hanging where the car's lights are (the art pass's), and the car's fittings: its extinguisher's
             // board and cradle, a gun car's powder and shot.
             var fitted = Vehicles is { } lampsOf && frame.Index < lampsOf.Count ? lampsOf[frame.Index] : null;
-            var bitten = Art.Bite.For(Look.Tuning.Bite, frame.Shape, fitted, frame.Index);
+            var bitten = Look.Art.BiteOf(frame.Shape, fitted, frame.Index);
             Look.Art.CarLamps(mesh, frame, eye, Emergency, bitten, lit: !CarDark(frame.Index) && frame.Index < (Vehicles?.Count ?? int.MaxValue) - LampsOut,
                 sway: LampSwayOf?.Invoke(frame.Index) ?? 0);
             Look.Art.Fittings(mesh, frame, eye, fitted, bitten);

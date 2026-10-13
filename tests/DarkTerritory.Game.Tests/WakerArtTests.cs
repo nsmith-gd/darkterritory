@@ -106,6 +106,40 @@ public class WakerArtTests
         Assert.True(off < 1.5f, $"{held} s in, the car's end {up} m up and {-ahead} m ahead: his mouth {off:0.0} m off it");
     }
 
+    /// <summary>
+    /// The car he's eating is bitten off, not dropped out of sight (the director, 13 Oct 2026): from its rear end a quarter of
+    /// it at a bite, the whole of it (underframe and trucks too), as his jaws shut; the other cars are left alone, and a Car
+    /// Hugger's bite still comes off its car's own eating.
+    /// </summary>
+    [Fact]
+    public void TheCarHesEatingIsBittenOffAQuarterAtABite()
+    {
+        var shape = Sim.Train.CarShape.Build(DataFile.Load<Sim.Train.TrainTuning>(Path.Combine(Content, Sim.Train.TrainTuning.File)).Geometry,
+            Sim.Train.VehicleKind.Cargo, hasCarBehind: true);
+        float l = (float)shape.HalfLength, rear = shape.Platform is { } p ? (float)p.Max.Z : l;
+        Assert.False(Bite.Waker(shape, 0, 1).Any);
+        Assert.False(Bite.Waker(shape, 0.24, 1).Any);
+        float last = 0;
+        foreach (double through in new[] { 0.26, 0.51, 0.76 })
+        {
+            var bite = Bite.Waker(shape, through, 1);
+            Assert.True(bite.Centre > last + 1, $"{through}: a bite further in");
+            last = bite.Centre;
+            // Down to the rails: the trucks and the underframe go with the rest.
+            Assert.True(bite.Eats(new Vector3(0, 0.3f, rear - 0.2f)), "the underframe at the end");
+            Assert.True(bite.Eats(new Vector3(bite.HalfWidth - 0.05f, 2, rear - 0.2f)), "a side wall at the end");
+        }
+        Assert.Equal((rear + l) * 3 / 4, last, 2);
+        // The front of the car is there till the last bite, which the sim's eating takes.
+        Assert.False(Bite.Waker(shape, 0.99, 1).Eats(new Vector3(0, 2, -l + 0.5f)));
+        var art = new SceneArt(Look);
+        art.WakerEating = (5, 0.6);
+        Assert.True(art.BiteOf(shape, null, 5).Any);
+        Assert.False(art.BiteOf(shape, null, 4).Any);
+        art.WakerEating = null;
+        Assert.False(art.BiteOf(shape, null, 5).Any);
+    }
+
     /// <summary>Every phase of his draws him: lying, rising, running (slow and at speed), at the walls, holding the train.</summary>
     [Fact]
     public void EveryPhaseDrawsHim()
@@ -122,9 +156,12 @@ public class WakerArtTests
             Assert.NotEmpty(mesh.Instances);
             Art.WakerIn = default;
         }
-        foreach (var (phase, s, extra) in new[] { (SpinePhase.Dormant, 0.0, 0.0), (SpinePhase.Telegraph, 4.0, 0.0), (SpinePhase.Punish, 3.0, 3.0),
+        foreach (var (phase, s, extra) in new[] { (SpinePhase.Dormant, 0.0, 0.0), (SpinePhase.Telegraph, 4.0, 0.0), (SpinePhase.Punish, 2.0, 2.0),
+                     (SpinePhase.Punish, 3.0, 3.0),
                      (SpinePhase.Punish, 13.0, 13.0) })
             Assert.Contains(CreatureArt.WakerClip(phase, s, extra, false, Tuning).Clip, Waker.ClipNames);
+        Assert.Equal("lift", CreatureArt.WakerClip(SpinePhase.Punish, 4, 4, false, Tuning).Clip);
+        Assert.Equal("eat", CreatureArt.WakerClip(SpinePhase.Punish, Tuning.EatAfter + 0.5, Tuning.EatAfter + 0.5, false, Tuning).Clip);
         Assert.Equal("roar", CreatureArt.WakerClip(SpinePhase.Commit, 61, 0, true, Tuning).Clip);
         Assert.Equal("stand", CreatureArt.WakerClip(SpinePhase.Commit, 66, 0, true, Tuning).Clip);
         Assert.Equal(CreatureArt.WakerRiseClipSeconds, Waker.Clip("rise").Duration, 2);

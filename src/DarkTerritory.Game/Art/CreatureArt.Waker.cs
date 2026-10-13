@@ -10,8 +10,8 @@ namespace DarkTerritory.Game.Art;
 /// and, holding the train, where the car he's eating meets his mouth.
 /// </summary>
 /// <param name="AtWalls">Stopped short of the terminus's gate, under its guns (wakers.stopShort).</param>
-/// <param name="Mouth">Holding the train: the end of the car he has (camera-relative, as the model matrix is), the top of the
-/// lifted cars' ramp (<see cref="WakerLift"/>).</param>
+/// <param name="Mouth">Holding the train: where he's biting the car he has (camera-relative, as the model matrix is), at the
+/// top of the lifted cars' ramp (<see cref="WakerLift"/>).</param>
 public readonly record struct WakerScene(bool AtWalls = false, Vector3? Mouth = null);
 
 /// <summary>
@@ -19,8 +19,8 @@ public readonly record struct WakerScene(bool AtWalls = false, Vector3? Mouth = 
 /// a bog body sixty metres tall. Lying, face down under the land; rising (TELEGRAPH), pushing himself up out of it, the earth
 /// falling off him; running (COMMIT), his walk and his run blended by his speed and played at it (<see cref="WakerGait"/>), so
 /// his feet stay where they come down; stood at the walls, swaying, and howling at the guns; holding the train (PUNISH), down
-/// on his knees over the line, feeding it to his mouth: moved along the line and bowed so the end of the car he has is at his
-/// mouth (<see cref="WakerReach"/>).
+/// on his knees over the line, biting it off a car at a time in four bites a car (<see cref="Bite.Waker"/>, his eat clip's jaws
+/// shutting on each): moved along the line and bowed so his mouth is where he's biting (<see cref="WakerReach"/>).
 /// </summary>
 public sealed partial class CreatureArt
 {
@@ -48,6 +48,7 @@ public sealed partial class CreatureArt
         SpinePhase.Dormant => ("lie", seconds, true),
         SpinePhase.Telegraph => ("rise", Math.Clamp(seconds / Math.Max(0.1, t.RiseSeconds), 0, 1) * WakerRiseClipSeconds, false),
         SpinePhase.Grab or SpinePhase.Punish when extra < WakerGrabSeconds => ("grab", extra, false),
+        SpinePhase.Grab or SpinePhase.Punish when extra < t.EatAfter => ("lift", extra - WakerGrabSeconds, true),
         SpinePhase.Grab or SpinePhase.Punish => ("eat", Wrap(extra - t.EatAfter, t.EatSeconds) * WakerEatClipSeconds / Math.Max(1e-6, t.EatSeconds), true),
         _ when atWalls && seconds % WakerRoarEvery < 4 => ("roar", seconds % WakerRoarEvery, false),
         _ when atWalls => ("stand", seconds % WakerRoarEvery - 4, true),
