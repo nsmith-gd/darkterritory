@@ -164,13 +164,15 @@ public sealed class TerrainField
     }
 
     /// <summary>The height of the land at (x, z) (plan §12.2).</summary>
-    public double Height(double x, double z) => TownAt(x, z, false) ?? Height(x, z, true);
+    public double Height(double x, double z) => Height(x, z, true);
 
     /// <summary>
     /// A town type's ground laid over the land (queue #424, ARCHITECTURE §8 note 692): its terraces, quarry benches, ramps,
     /// decks and water, in its rail frame from <paramref name="origin"/> (its frame's start, on the rail) along
     /// <paramref name="tangent"/>. Laid by whoever puts the town down (the world, on every machine alike); laying the same
-    /// town again changes nothing.
+    /// town again changes nothing. It's what's stood on (<see cref="Ground"/>) and the town's water (<see cref="TownWater"/>);
+    /// the land itself (<see cref="Height"/>, <see cref="WaterAt(double, double)"/>) stays the plan's, since the lineside
+    /// a route shares between its nights (LinesideProps.Of) is dealt from it.
     /// </summary>
     public void Lay(Towns.TownGround ground, Double3 origin, Double3 tangent)
     {
@@ -217,7 +219,7 @@ public sealed class TerrainField
     }
 
     /// <summary>A laid town's water at (x, z) (its surface's height), or null.</summary>
-    double? TownWater(double x, double z)
+    public double? TownWater(double x, double z)
     {
         foreach (var t in _towns)
         {
@@ -944,8 +946,6 @@ public sealed class TerrainField
     /// <summary><see cref="WaterAt(double, double)"/> where the land's <paramref name="height"/> there is already known (the lineside's, note 371).</summary>
     public double? WaterAt(double x, double z, double? height)
     {
-        if (TownWater(x, z) is { } town)
-            return town;
         foreach (var w in _plan.Water)
         {
             var edge = Array.Find(_edges, e => e.Id == w.Edge);
