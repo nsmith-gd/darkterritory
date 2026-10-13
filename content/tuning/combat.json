@@ -29,9 +29,17 @@
     "reach": 1.0,
     // In blows (App. C.2's unit): a ball is four clubbings' worth. The Switchman dies to "one cannon shot".
     "damagePerRound": 4,
-    // Spec C.2: "turret traverse dead (no boiler pressure)". The turrets run on steam; below this they don't move.
-    // The same floor where the engine loses its pull (boiler.json powerFloor).
-    "minPressure": 20,
+    // The guns are their own (the director, 13 Oct evening, note 689: "I really don't want a situation where the driver has to
+    // coordinate how much pressure the boiler has to be able to fire the cannons. I just want the cannons to be like an
+    // independent entity"): 0, no boiler pressure needed to fire. Spec C.2's "turret traverse dead (no boiler pressure)" was
+    // 20, the boiler's powerFloor.
+    "minPressure": 0,
+    // "They have their own cannonballs that they need to reload. The reload sequence is honestly so long that I feel like
+    // that's a penalty in and of itself ... let them fire and reload as much as they want, infinite ammo" (the director,
+    // 13 Oct evening, note 689): a shot takes nothing from the gun's stock or its rack, so nothing's carried up from the
+    // powder locker and the tally charges no powder. The reload below is the cost, and the noise (the Choir hears every
+    // shot). false: the night's stock of ammo and the rack (note 374).
+    "infiniteAmmo": true,
     // App. C.3: "a full manual reload (powder, ball, ram, fire)": after each shot, this many steps of Use held at the gun,
     // each this long. Fire is the trigger.
     "reloadSteps": 3,

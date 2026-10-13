@@ -213,8 +213,12 @@ public static class Guns
         if (CheckAim(mount, aimLocal, t) != AimResult.Ok)
             return null;
 
-        gun.Ammo--;
-        gun.Rack = Math.Max(0, gun.Rack - 1);
+        // Note 689: the guns' shot is endless (combat.json infiniteAmmo); only the reload stands between shots.
+        if (!t.InfiniteAmmo)
+        {
+            gun.Ammo--;
+            gun.Rack = Math.Max(0, gun.Rack - 1);
+        }
         gun.Cooldown = t.TicksPerRound;
         gun.LastShotTick = tick;
         // The cannon's full manual reload before the next (GDD v1.1 App. C.3): powder, ball, ram. The rack run dry (note

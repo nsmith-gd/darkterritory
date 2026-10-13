@@ -64,6 +64,8 @@ public class GunPowderTests
     public void TheRackRunDryTheGunHasNothingToLoadOrFire()
     {
         var n = new Night(4, 0);
+        // The rack runs dry only with a night's stock of shot (note 374); note 689 made the guns' shot endless.
+        n.World.Combat = n.World.Combat! with { Guns = G with { InfiniteAmmo = false } };
         ref var gun = ref n.Train.Vehicles[Rear(n)].Gun;
         gun.Rack = 1;
         var s = AtTheGun(n);
