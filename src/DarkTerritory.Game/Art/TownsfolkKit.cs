@@ -132,6 +132,11 @@ public sealed class TownsfolkKit(Look? look)
         "lantern" => "lantern",
         "walk" => lamp ? "lantern_walk" : "walk",
         "talk" when who % 3 == 0 => "point",
+        // Out on the yard to a creature brought in (note 608): pointing their piece at it.
+        "guard" => "point",
+        // Nicki's party (note 571): her guests dancing, Nicki waving you in.
+        "dance" => "dance",
+        "wave" => "wave",
         _ => "idle",
     };
 
@@ -161,8 +166,8 @@ public sealed class TownsfolkKit(Look? look)
             adjust: (mat, l) => l with { Colour = l.Colour * new Vector3(drab, drab * 0.95f, drab * 0.9f) * (mat.Emissive > 0 ? 0.15f : 1), Emissive = 0 }))
             return null;
         // Far off (past the figure's distance copy, note 479) what they wear is drawn as it is, not copied into the frame,
-        // and the hoses (a pixel wide there) left off.
-        bool down = home && (variant + who) % 2 == 0 && gear != "rebreather";
+        // and the hoses (a pixel wide there) left off. (At Nicki's party, note 571, everyone's mask is down.)
+        bool down = home && ((variant + who) % 2 == 0 || clip is "dance" or "wave") && gear != "rebreather";
         creatures.Wear(mesh, Face(gear, down), down ? "spine_03" : "head", m, figure, instanced: far);
         if (Body(gear) is { } body)
             creatures.Wear(mesh, body, "spine_03", m, figure, instanced: far);

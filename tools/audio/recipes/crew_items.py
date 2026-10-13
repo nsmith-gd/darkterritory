@@ -634,7 +634,24 @@ def limbs(rng, take, mat, force):
         parts += [(t, limb, -8 - 3 * i), (t, ck.floor(rng, mat, take + i + 1, 0.7, 0.25), -12 - 3 * i)]
         t += rng.uniform(0.07, 0.16) / force
     parts.append((0.05, ck.cloth(rng, take + 2, 0.4), -10))
+    if mat == "grate":
+        parts += grating(rng, take, force)
     return ck.place(parts)
+
+
+GRATE_PLATE = K("impactPlate_heavy")
+
+
+def grating(rng, take, force):
+    """Queue #245 (note 508): the train's steel grating under a body's weight. The floor's own knock is soft for flesh
+    (`hard` 0.15), and on the grating that left only the body: its takes centred at 212-255 Hz, beside the wood and the
+    ground. The grating crashes and buzzes under the weight, its thin plate ringing on and its bars chattering, longer
+    and louder the harder the body comes down (as #240's impact, note 503)."""
+    crash = ck.choke(ck.norm(ck.align(dsp.vari(ck.get(GRATE_PLATE[take % 5]), -3 - force))), 0.06 + 0.05 * force, 0.1)
+    thin = ck.choke(ck.norm(hp(ck.align(dsp.vari(ck.get(ck.THIN_PLATE[(take + 2) % 5]), -2)), 300)), 0.1 + 0.06 * force, 0.14)
+    buzz = ck.norm(ck.grains(rng, int(25 + 25 * force), 0.1 + 0.07 * force, 1200, 5500, q=(14, 30), length=(0.004, 0.012),
+                             shape=0.35))
+    return [(0, crash, -6 + 2 * force), (0.004, thin, -5 + 2 * force), (0.008, buzz, -10 + 2 * force)]
 
 
 # ---- Lamps ---------------------------------------------------------------------------------------------------------------

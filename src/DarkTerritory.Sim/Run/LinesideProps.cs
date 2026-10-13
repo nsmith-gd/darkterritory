@@ -236,7 +236,7 @@ public sealed partial class LinesideProps
             if (f.Square is { } sq && Math.Sign(offset) == sq.Side && Math.Abs(offset) < Math.Abs(sq.WallD) + 2 && along > sq.S0 - 2 && along < sq.S1 + 2)
                 return true;
             // A walled town's whole extent (note 335), its streets and lanes behind the wall.
-            if (f.Bounds is { } town && town.Holds(along, offset, 3))
+            if (f.InTown(along, offset, 3))
                 return true;
         }
         return false;
@@ -270,7 +270,7 @@ public sealed partial class LinesideProps
             foreach (var p in Slot(s, reach))
                 yield return p;
         for (double s = Math.Ceiling(from / PoleEveryM) * PoleEveryM; s < to; s += PoleEveryM)
-            if (s >= 0 && s <= _line.Length && Clear(s) && OffTheLine(s, PoleOut, out double ground))
+            if (s >= 0 && s <= _line.Length && !PastTheTownGate(s) && Clear(s) && OffTheLine(s, PoleOut, out double ground))
                 yield return new LinesideProp(LinesideKind.Pole, s, PoleOut, 0, PoleHeight, 1, 0, (int)(s / PoleEveryM) % 3, "pole", false, false, 0, ground);
         foreach (var p in Roads(from, to, reach))
             yield return p;
@@ -281,7 +281,13 @@ public sealed partial class LinesideProps
     }
 
     /// <summary>Whether a telegraph pole stands at <paramref name="s"/> (a multiple of <see cref="PoleEveryM"/>): not on a bridge, by a tunnel, on a siding or a branch, in water or inside a fort.</summary>
-    public bool Pole(double s) => s >= 0 && s <= _line.Length && Clear(s) && OffTheLine(s, PoleOut);
+    public bool Pole(double s) => s >= 0 && s <= _line.Length && !PastTheTownGate(s) && Clear(s) && OffTheLine(s, PoleOut);
+
+    /// <summary>
+    /// In through a terminus town's gate (note 600): the telegraph ends there. The town stands turned round in its yard, so
+    /// poles right of the line would run down its square's side, where the same town departing has none.
+    /// </summary>
+    bool PastTheTownGate(double s) => _route.Plan?.Terminus is { Silent: false } t && s > t.GateM;
 
     /// <summary>One slot's trees and boulders (PlanArt.PlanDressing's, on the slot's own stream).</summary>
     IEnumerable<LinesideProp> Slot(double s, double reach)

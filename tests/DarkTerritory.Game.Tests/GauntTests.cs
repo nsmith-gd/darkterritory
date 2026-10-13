@@ -104,11 +104,12 @@ public class GauntTests
         var calm = Drawn(Woken());
         var angry = Drawn(Woken(anger: 4));
         // (Its head and ears: the front of it, out ahead of its forelegs (the model faces −Z), over the height of a man's
-        // chest.)
+        // chest, and between its forelegs, which stand a metre out to either side: a foreleg reaching as far forward
+        // would count its vertices in with the head's, so its rings would weigh on the head's height (note 548).)
         static Vertex[] Head(Vertex[] v)
         {
             float front = v.Where(p => p.Position.Y > 1.2f).Min(p => p.Position.Z);
-            return v.Where(p => p.Position.Y > 1.2f && p.Position.Z < front + 0.35f).ToArray();
+            return v.Where(p => p.Position.Y > 1.2f && p.Position.Z < front + 0.35f && MathF.Abs(p.Position.X) < 0.6f).ToArray();
         }
         // Leant in: its head let down lower over you (its neck from the shoulders; at full anger to just over a crewmate's
         // helmet, not into it), and no further back.

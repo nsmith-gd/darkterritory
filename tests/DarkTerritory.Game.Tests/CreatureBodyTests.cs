@@ -23,7 +23,14 @@ public class CreatureBodyTests
         { EnemyKind.Grumbler, "grumbler", 1 }, { EnemyKind.Whistler, "whistler", 1 }, { EnemyKind.Dragger, "dragger", 1 },
         { EnemyKind.Follower, "follower", 1 }, { EnemyKind.SootChildren, "soot_child", 1 }, { EnemyKind.CarHugger, "car_hugger", 1 },
         { EnemyKind.Passenger, "passenger", 1 }, { EnemyKind.Stoker, "stoker", 1 }, { EnemyKind.TippyToesie, "tippy_toesie", 1 },
-        { EnemyKind.Moose, "moose", 1 }, { EnemyKind.Gannet, "gannet", 1 },
+        { EnemyKind.Moose, "moose", 1 }, { EnemyKind.Gannet, "gannet", 1 }, { EnemyKind.Mourners, "mourner", 1 },
+        { EnemyKind.FreightBeetle, "freight_beetle", 1 }, { EnemyKind.TowerJaw, "tower_jaw", 1 },
+        { EnemyKind.Brakeman, "brakeman", 1 }, { EnemyKind.Knotter, "knotter", 1 }, { EnemyKind.Hotbox, "hotbox", 1 },
+        // (Hung from its beams: its model's origin is where it grips, its sac under it.)
+        { EnemyKind.Hanger, "hanger", 1 },
+        // The Pickers (note 574; drawn 0.92-1.08 by their id: the body's for the middling one) and the house creatures (notes
+        // 583, 584).
+        { EnemyKind.Pickers, "picker", 1 }, { EnemyKind.Lodger, "lodger", 1 }, { EnemyKind.Householder, "householder", 1 },
     };
 
     [Theory]

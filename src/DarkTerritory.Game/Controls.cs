@@ -61,7 +61,7 @@ public static class Controls
     };
 
     /// <summary>Keys nothing can be bound to: the menus' own.</summary>
-    public static readonly IReadOnlySet<string> Reserved = new HashSet<string> { "Escape", "Enter", "Up", "Down", "Left", "Right", "F1", "F2", "F3" };
+    public static readonly IReadOnlySet<string> Reserved = new HashSet<string> { "Escape", "Enter", "Up", "Down", "Left", "Right", "F1", "F2", "F3", "F4" };
 
     public static string Label(Control c) => c switch
     {

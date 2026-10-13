@@ -13,6 +13,7 @@ namespace DarkTerritory.Sim.Tests;
 public class HoundsAboardTests
 {
     static readonly PlayerTuning P = Tuning.Player;
+    static readonly Train.TrainTuning T = Tuning.Train;
 
     static CinderHound OnRoof(Night n, int car, double z)
     {
@@ -36,6 +37,42 @@ public class HoundsAboardTests
         n.Crew[1] = PlayerMotor.SpawnOnRoof(n.Train, hound.Attached, hound.Local.Z + (hound.Local.Z > 0 ? -2 : 2), P);
         n.Run(Tuning.Enemies.CinderHounds.BiteEverySeconds + 1);
         Assert.True(n.Crew[1].Health < P.Health, "not bitten on the roof beside it");
+    }
+
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public void AHoundAtTheFrontOfItsGroundNeverBitesWhoeversUncouplingTheGapAheadOfIt(bool onItsPlate)
+    {
+        // Note 528 (D1, for the director's counter; D1's frontier:7 seed 3): a hound bites and chases only who's on its ground,
+        // the cars from its FrontCar back. The coupling gap ahead of that is out of reach: there the driver uncoupled, a hound
+        // at the ground's front end beside it, and was held and mauled. On the car ahead's back plate, or its own front car's
+        // front plate, a metre or two from it: never bitten. One step onto its roof, it has them.
+        var n = new Night(4, 0, enemies: HoundRunTests.Quiet);
+        int car = 2, ahead = n.Train.VehicleAhead(car);
+        double half = T.Geometry.CarLength / 2;
+        var hound = OnRoof(n, car, -half + 1.2);
+        n.Run(SimConstants.TickSeconds);
+        Assert.Equal(car, hound.FrontCar(n.Train, Tuning.Enemies.CinderHounds));
+        var plate = new PlayerState
+        {
+            Parent = onItsPlate ? car : ahead,
+            Surface = Surface.Coupler,
+            Position = new Double3(T.Geometry.PlateX, T.Geometry.CouplerHeight, onItsPlate ? -half - 0.7 : half + 0.7),
+            Yaw = Math.PI / 2,
+            Health = P.Health,
+        };
+        for (int i = 0; i < Tuning.Enemies.CinderHounds.BiteEverySeconds * 4 * SimConstants.TickRate; i++)
+        {
+            n.Crew[1] = plate;
+            n.Run(SimConstants.TickSeconds);
+            plate = plate with { Health = n.Crew[1].Health };
+        }
+        Assert.Equal(P.Health, n.Crew[1].Health);
+        // On its ground beside it (wherever its patrol's taken it), it has them.
+        n.Crew[1] = PlayerMotor.SpawnOnRoof(n.Train, hound.Attached, hound.Local.Z + (hound.Local.Z > 0 ? -2 : 2), P);
+        n.Run(Tuning.Enemies.CinderHounds.BiteEverySeconds + 1);
+        Assert.True(n.Crew[1].Health < P.Health, "not bitten on its roof beside it");
     }
 
     [Fact]

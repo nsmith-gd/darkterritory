@@ -57,8 +57,14 @@
       "fireboxDepth": 0.7,
       "fireboxHeight": 1.05,
       // The running boards out past the body's sides (App. A.2 GREASE: "sanding from the running boards"), this wide, from
-      // the cab's doorways back along the boiler, and the sandbox on each this far behind the cab, over the drivers.
-      "runningBoardWidth": 0.6,
+      // this far ahead of the cab's doorways back along the boiler, and the sandbox on each this far behind the cab, over
+      // the drivers. Note 559 (the director, 9 Oct: "the platform on the outer edge of the train really should extend to be
+      // in front of the cab doors and extend a bit wider"): 0.6 m wide from partway across the doorway, now 0.85 m from a
+      // metre ahead of it, the cab steps hung off its outer edge. Its edge is 2.35 m off the centreline and the steps 2.5:
+      // inside the truss spans' posts and a bridge deck's edge (2.6, note 552), and over the girder spans' handrails and the
+      // viaducts' parapets, clear above them. Any wider and the steps' foot is off a bridge's deck.
+      "runningBoardWidth": 0.85,
+      "runningBoardAhead": 1.0,
       "sandboxBehind": 2.5
     },
     // Cars are walk-in (GDD §10: "the back door"; §26: warm interior, hostile exterior). The floor is
@@ -187,6 +193,29 @@
     "lampMendRate": 6
   },
 
+  // Damage with consequences, Sea of Thieves style (the director, 9 Oct 2026, ARCHITECTURE §8 note 576: "If players dont fix
+  // the ship in sea of thieves the ship goes down and you lose everything. If players dont fix the train here seemingly
+  // nothing happens"). Not in the spec. A car or the engine battered under `below` of its shell (fire, the line's knocks, a
+  // bend taken too hard, a collision, what boards it) works itself apart as it runs: `workPerSecond` of its shell a second
+  // at `atSpeed` m/s, by the speed (to `mostFactor` times it; nothing standing, the engine only while it pulls). A failing car
+  // spills `spillPerSecond` of a load a second the same way (a full one's empty in about 200 s at line speed). Under
+  // `breakingBelow`, the last warning. At nothing a car comes apart: it's off its rails and the train's parted ahead of it, it
+  // and what's behind it left on the line; the engine breaks down (no power) and, at a stand, the night ends stranded
+  // (GDD §23.2). Failing, the engine's pull falls from all of it to `powerAtBreak` and its brake to `brakeAtBreak` (kept
+  // broken down, to stop on). From `below` to nothing is about 200 s at line speed. The wrench at its dent mends it (repair
+  // `integrityPerSecond`: 0.5 back in 12.5 s).
+  "failing": {
+    "enabled": true,
+    "below": 0.5,
+    "breakingBelow": 0.2,
+    "workPerSecond": 0.0025,
+    "spillPerSecond": 0.005,
+    "atSpeed": 15,
+    "mostFactor": 1.5,
+    "powerAtBreak": 0.35,
+    "brakeAtBreak": 0.4
+  },
+
   "speedBands": {
     "yard": 2.5,
     "jumpOffLethal": 4.0,
@@ -310,8 +339,9 @@
       "kitLocker": "8",
       // Shelves in each: the locker's floor, and one at chest height.
       "slots": 2,
-      // What goes in: hand-sized things. Freight, the train's crates, the heavy, the dead and the living don't.
-      "holds": ["lamp", "radio", "toy", "loot", "extinguisher", "repairKit"],
+      // What goes in: hand-sized things, and a tool left to free its slot (note 649). Freight, the train's crates, the heavy,
+      // the dead and the living don't.
+      "holds": ["lamp", "radio", "toy", "loot", "extinguisher", "repairKit", "tool"],
       // Each locker's size (m): along the row, out from the wall, and tall. The row starts this far behind the front end
       // wall (the car's extinguisher board goes in the gap) and stops short of the side door.
       "width": 0.42,

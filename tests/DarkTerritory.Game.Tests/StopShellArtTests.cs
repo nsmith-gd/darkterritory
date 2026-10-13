@@ -19,8 +19,9 @@ public class StopShellArtTests
     static readonly string Content = DataFile.FindContentRoot();
     static readonly Look Look = Look.Load(Content);
 
-    /// <summary>frontier:7 has sheds, a hero with a gantry's cut, a pump house, prison cars and lockups; frontier:1 signal boxes and lamp rooms.</summary>
-    public static TheoryData<string> Nights => ["frontier:7", "frontier:1"];
+    /// <summary>frontier:39 has sheds, a hero, a pump house, prison cars and lockups; frontier:13 signal boxes and lamp rooms (frontier:1
+    /// had them till note 650 put the Holdouts beside the line).</summary>
+    public static TheoryData<string> Nights => ["frontier:39", "frontier:13"];
 
     /// <summary>Every shelled building of a night, drawn alone, its triangles relative to an eye at its middle.</summary>
     static IEnumerable<(RouteFeature Feature, int Index, Double3 Eye, List<(Vector3, Vector3, Vector3)> Triangles, RailLine Line)> Shells(string spec)
@@ -116,15 +117,15 @@ public class StopShellArtTests
             }
         }
         Assert.True(doors >= 4, $"{spec}: only {doors} doors");
-        BuildingKind[] expected = spec == "frontier:7"
+        BuildingKind[] expected = spec == "frontier:39"
             ? [BuildingKind.Shed, BuildingKind.Hero, BuildingKind.WaterTower, BuildingKind.PrisonCar, BuildingKind.Lockup]
             : [BuildingKind.SignalBox, BuildingKind.LampRoom];
         Assert.Subset(kinds, expected.ToHashSet());
     }
 
     [Theory]
-    [InlineData("frontier:7")]
-    [InlineData("deadLines:2")]
+    [InlineData("frontier:1")]
+    [InlineData("deadLines:20")]
     public void AnOpenBarnsHayloftAndAShedsBenchStandAtItsBackWall(string spec)
     {
         // Note 417: where the sim keeps an open barn's or shed's find (StopWalls.ShedKept), against the wall across from its

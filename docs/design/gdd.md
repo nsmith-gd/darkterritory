@@ -1,5 +1,5 @@
 # DARK TERRITORY
-## Game Design Document — v1.5, October 2026
+## Game Design Document — v1.6, October 2026
 
 **Two to eight players crew an armoured freight train through a corrupted wilderness. Load what you can. Deliver what survives.**
 
@@ -7,11 +7,28 @@
 
 Interactive version, with the roster explorer and director tools: [claude.ai/artifact/PrfaZjyZb1rWcWWuiPm1Dx](https://claude.ai/artifact/PrfaZjyZb1rWcWWuiPm1Dx). It opens only for people it has been shared with.
 
+**v1.6 changes — town to town, and the end of the night (the director's play-test of 9 October; built 9–11 October).**
+- **Dawn is seen and felt coming.** For the last three minutes a cold line comes up on the sky behind the train, the ground thuds and the lamps swing; at dawn the Wakers heave up out of the land in earth and dust and come down the line. The terminus's guns fire on any that come near, and they stop 300 m short of its gate (§8; notes 588, 599).
+- **Town to town.** The town a night ends in is the town the next one leaves from, built the same to the last person and paper. Delivered, its people talk, its board and papers read, as the departure town's do; and between nights the crew look out on it from its square while the host picks the next contract, the loading card drawn over it (§3.1, §9; notes 591, 600, 603, 604).
+- **The crew goes on together**, joiners and bots: when the host goes on to the next night, everyone aboard follows it by way of the town's card, and the same bots crew it (§9; notes 606, 611).
+- **Monsters brought into town.** Anything still aboard as its car comes in through the gate is fought in the yard by the town's guns and guards. The night pays the town's monster brigade, two of its people are hurt, and a house burns; the town remembers its burnt houses on the next visit (§3.1, §9, D.9; notes 589, 608, 612).
+- **The quiet doors.** Nothing new comes within 1,200 m of a town's gate, so a crew can stop short, clear the train and bring it in; the bots do (§9, B.1; notes 590, 605, 610).
+- **Taken at dawn, the campaign ends** (the director, 12 Oct): the save is closed and the slot's next start is a new crew (§8, §23; note 632).
+- **A fall hurts by its height**, and a run over open ground isn't a landing: from 5.5 m a knock, from 7.5 m death (§23; note 573).
+- **§1's table** has the night's length v1.5 set: a run of about 17 minutes, dawn at 24 (note 554).
+- Touches §1, §3.1, §8, §9, §23, B.1 and D.9.
+- **Not yet**, of what these promise:
+  - the night's creatures going to ground in the last minute before dawn (wakers.md §2), and the far hills moving against the line;
+  - the arrival town's sounds, and the screams and fire of a creature brought in (AU1's: the town ambience is the departure town's);
+  - a town's standing lowered by what's been brought into it (only its burnt houses are remembered);
+  - the guards running out to the yard (they're at their places round the creature at once);
+  - a joiner leaving the wait for the host's next night by hand (it gives up after a while, back to the menu).
+
 **v1.5 changes — the director's play-tests of 5–7 October.**
 - **Boarding-first.** Nothing acts inside the train unless it boarded: each creature by its own rule at a known point, with a telegraph and a counter, at its own speeds. A hauling train is safe from most creatures, not all; stops, facilities and tight bends are where things get on (§21, App. A, F.1 Decided).
 - **A derailment is the driver's mistake.** The Sleepers are retired. Every bend that can derail the train is boarded and on the cab map with its speed, and the cab hears and sees the stress before it goes. Every night carries its tier's hard bends. The Switchman sends you down a dead line, and only running off its end derails you (§21, §22, A.8).
 - **A derailment commits.** However slow it comes off, the first car is thrown and every car after goes over, one after another (App. E, F.3).
-- **One night length for every tier:** 24 km and dawn at 51 minutes. A deeper tier is denser, not longer (§11).
+- **One night length for every tier:** 7 km, three stops and dawn at 24 minutes, an average run of about 17 (the director, 9 Oct 2026, note 554; was 24 km and 51 minutes). A deeper tier is denser, not longer (§11).
 - **The director runs on pressure.** Quiet, loudness, cargo and the night's depth build it; the grace is 20–90 s, picked per night; the night's first threat answers something a crewmate did, and the report names it (B.1).
 - **The orchestrator** (outlined): threats planned against the players active now. Built so far: the budget from the crew alive, and a cap on threats at once by it (B.1, orchestrator.md).
 - **Something to do between stops.** The hound run, a stream of Cinder Hounds a fast train draws for the guns to answer one at a time; and the first upkeep jobs: the hot box, an axle box running dry that's greased from the gap or the ground before it slows the train and catches, a car's lamp guttering, trimmed inside before it goes out, a coupling working loose, knocking in its gap until the wrench tightens it or the rake parts behind it, and powder to the guns: a gun's ready rack of six, refilled by a charge carried up from the guard van's powder locker (B.3, C.3, F.3).
@@ -38,6 +55,25 @@ Interactive version, with the roster explorer and director tools: [claude.ai/art
 - **Jumping off** is lethal above 16.5 m/s, matching the systems spec in the repo (§23).
 - **Run budgets match the build** (B.1): 90, 150, 230 and 330 by tier, about twice v1.1's, to pay for the paced director the build runs.
 - Touches §12, §23, §23.1, B.1, C.9, D.2, D.4, D.7, D.12, E.9 and E.12.
+
+**The director's notes of 2026-10-09: the houses and the yards (queue #315–#319; ARCHITECTURE §8 notes 583–586, 592; designs in `docs/design/creatures/`).** "Every time I go into a house, it should feel like there could be something lurking in there that wants to kill me, wants to chase me", and something "more frequently active in the yard". From G1's proposals, the director took:
+- **The Pickers** (outside, sight, Cargo; the stop's own): knee-high scavengers out of a yard's drains, racing the crew for its loose crates. They bite but never kill.
+- **The Lodger** (outside, sound, Kill): hidden in a house's dark; a shriek, then a one-hit lunge; a shut door stops it; it gives up past its pursuit radius (25 m).
+- **The Householder** (a corrupted human, sight, Cargo): at its set table; take one of its things unpaid and it hunts the carrier. Pay with something left on its table.
+- **The Hollow House** (outside, vibration, Kill): the house itself. A rumble, then the doors slam shut and it sinks and comes down on whoever's inside.
+- **The Hanger** (outside, movement, Kill): in the roof space; touch a strand and it hauls you up. A friend frees you.
+- **What lives in the houses:** a share of each stop's open houses by tier (a fifth on Local, a half in Deep Territory), never the Gaunt's roost; not the director's (they cost it nothing). The Lamp Walker and the Cupboard weren't taken.
+- Touches §21.
+
+**The director's brief of 2026-10-08: six creatures (queue #99–#104; ARCHITECTURE §8 notes 362–367; designs in `docs/design/creatures/`).** Built overnight by G1 from the director's descriptions and reference images; every call the brief left open is marked "G1's call" on each creature's page, for the director to overrule.
+- **The Mourners** (outside, absence, Cargo, cost 1): ash-pale scavengers that come only after a crewmate dies, in a nervous group. They never touch the living and drag the body away from the line unless someone stands over it, scatters them or carries it home. 120 m out, the body (its refund and its kit) is gone.
+- **Tower Jaw** (outside, vibration, Cargo, cost 3): a corrupted beaver that gnaws a coaling tower's leg (or the loading crane's gantry) through. Down, the tower's chute is empty and its wreck closes the line until the crew clears it by hand. Never a bridge. Four blows drive it off (it comes back); twelve kill it.
+- **The Brakeman** (a corrupted human, sight, Split, cost 3): winds the cars' handbrakes on car by car toward one end; a wound car's own handbrake drags the train, and on a climb it stalls. One crewmate can chase him off the roofs, and out of sight he comes up elsewhere. Only two closing from both sides corner him, and only then do blows land. Never with a crew of one (G1's reading of "never spawns solo").
+- **The Knotter** (structural, vibration, Split, cost 3): takes a coupling at speed and forces the cars 5 m apart, its body the coupling. Walking its back slips you under the train (a grab a friend can break). Stop, kill it, couple up. Once or twice a night, and some nights not at all (the director, the inbox, 12 Oct 2026: "They should show up once or twice a run. Sometimes never. We need more monster variety"; `director.perNight` 2, `director.nightChance` 0.66, the director's roster of 13 Oct; notes 635, 652).
+- **The Freight Beetle** (outside, sight, Cargo, cost 1): at a facility, it pushes a loose crate directly away from the nearest player. Two players can steer it, off a platform or into a car. It never attacks.
+- **Hotbox** (structural, vibration, Cargo, cost 2): an axle parasite in one truck and side of a car. A knock tied to wheel speed, then glow and smoke, then a seized axle that drags the train to 7 m/s; never fire or a derailment. Exposed only at a stand, to kill or prise out; a seized axle is repaired with a wrench, or the car cut.
+- **Every tier, weighted** for all six (G1's call, as the Moose and the Gannet). Bites never kill (App. A.1); the only killer of the six is the Knotter, through its grab.
+- Touches §21, A.6, A.7, A.8, B.1, B.6, B.7 and B.8.
 
 **Director's decisions of 2026-10-07: the Gannet (queue #78; ARCHITECTURE §8 note 340; design `docs/design/creatures/gannet.md`).**
 - **A nineteenth enemy, the Gannet:** App. F.1's "fast, flying class" (the orchestrator's S3). One enormous corrupted seabird that rides a fast train, the inverse of the roster: everything else boards a slow train, and it comes only to one run at 18 m/s or more. It hangs over a walker on the roofs and dives beak-first; break your stride after it folds and it misses, its beak stuck in the planks; hold your line and it stabs. Hit it and it comes down on you, pins you under a foot and pecks four times while your friends beat it off. A team can kill it, and its head is a trophy worth a good deal. A slow train, a tunnel or a still roof and it peels off. Every tier, weighted (§21, A.4, A.9, B.1, B.4).
@@ -91,11 +127,17 @@ Interactive version, with the roster explorer and director tools: [claude.ai/art
 |---|---|
 | **Genre** | Co-operative survival horror |
 | **Players** | 2–8, ideal at 3–4 |
-| **Session** | 25–45 minutes per run |
+| **Session** | About 17 minutes a run, dawn at 24 (every tier: note 554) |
 | **Perspective** | First person |
 | **Platform** | PC / Steam, premium |
 | **Price** | $9.99–$14.99 |
 | **Comms** | Proximity voice — a hard dependency, not a feature |
+
+### The fantasy *(the director, 9 Oct 2026; ARCHITECTURE §8 note 577)*
+
+> "The fantasy is we are a crew sent out into a dangerous world at night when most of the really bad monsters are asleep, we go and pick up cargo and loot abandoned villages to bring to towns. We're like merchant bandits of the rails that keep these towns alive. The towns though dont get too attached because these crews always die eventually on the job."
+
+Everything else serves this. The night is the window: the worst of the Territory sleeps, and dawn is the hour it wakes (§8). The train leaves the gate **empty**; the crew fill it, buying freight at the stops and taking what they can carry out of the dead villages, and only what they bring through the gates is paid (§9, §19, App. D). The towns need the crews and say so in scrip, not in grief (§9 Arrival, §23.1). A night that brings nothing home earns nothing.
 
 ### Design pillars
 
@@ -220,24 +262,66 @@ Use talks to someone, and Use again hears their next line. They turn to face you
 
 **Mystery is seeded, not explained.** A few threads run through every town, a scrap or two each: the fall, the lost trains (the night mail, "still due"), the towns that stopped answering, the sea, the penal cars, Dispatch, and the clerk's fees. None of them is ever explained.
 
+**Town to town** *(the director, 9 Oct 2026: "the town that we end in in a run should be the same town that we begin in in the next run ... so that you feel like you are still living up this fantasy of I'm going from town to town to town"; notes 591, 600, 603, 604)*. The terminus is a town of its own, and it's the town the next night leaves from: the same name, custom, streets, people and papers. Delivered, its people talk and its board reads as the departure town's do. Between nights the crew look out on it from its square while the host picks the next contract from its board, and the loading card is that town's ("FORT BOUDREAU · BUILDING THE NIGHT AHEAD"). A night not delivered leaves the crew where they were, and so does one delivered to a dead line's silent settlement: nobody lives there to leave from.
+
+**A town remembers** *(notes 608, 612)*. A creature ridden in through the gate (§9) is fought in the yard: the gatekeeper and guards turn out round it, pieces up, with the wall guns. Each one brought in sets a house nearest the gate alight, and it burns that night. The town keeps its burnt houses: they're burnt out when the crew next arrive, and when they next leave from it, and the gatekeeper and guards say so.
+
 **Everything is solid and safe.** The square, the houses (an open one through its doors), their furniture and the people stand where they're drawn, and the fortress's walls step back round the square. The yard is a safe space until the gate (§9).
 
 **Not yet** (for the next passes):
 - fish sheds, fences, granite and lobster traps between the houses;
 - buying, upgrading and turning loot into scrip in the town itself, not the menu;
-- the terminus as a town of its own, and the town you arrive at becoming the one you leave from;
 - townspeople who move about, and faces of their own (they wear the crew's model);
 - upstairs in the open houses;
 - things everyone hears when one person does them (ringing the bell);
 - notes found out along the line.
 
+### 3.2 The figures out there *(the director, 8 Oct 2026; ARCHITECTURE §8 note 570)*
+
+A very few people live outside the walls and aren't anybody's prey. They are rare, they are kind, and nobody knows what they are. The crew meet them by luck and talk to them as they talk to townsfolk (text only, a Use press). Each is the night's, made from the route's seed.
+
+**Dave, the wandering painter** (note 570; the director: "a special NPC that shows up randomly in places. His name is Dave (just Dave) and he's a wandering painter"; our Tom Bombadil, named for the director's father, who paints).
+- **Where he is.** On about three nights in ten he's out past one of the line's stops, at his easel on open ground away from the village and the yard. His lantern hangs from the easel's top, lit: from the line he's a warm point and the silhouette of a good hat (enemies.json `dave`).
+- **What he looks like** (after the director's photographs of his father). Grey hair, clean-shaven, black rectangular glasses, a small black hoop in his left ear and a silver chain, a black tee and light jeans, bare feet in sandals, a bit tubby. He's extremely fashionable: one of his cool hats (the wide straw, a beret, a fedora with a feather, his black felt, a panama, a ball cap with a bright patch) and one of his waistcoats (mustard corduroy, plum velvet, tartan, teal brocade, a patchwork of his paints, black leather with silver snaps). The pairing changes most nights, so a crew who meets him twice rarely sees him dressed the same. He wears no mask, and nobody knows how he breathes the air.
+- **What he does.** He paints the natural world as it used to be: a valley in June, the sea and a lighthouse at noon, a lake under hills in October. Every canvas is signed with a small red D.
+- **Nothing hunts him.** No creature's target is ever anyone but the crew, and some nights, he says, they come and sit by him while he works. The director never counts him.
+- **He's kind.** He says hopeful things about the light, the world resting, and keeping each other close (content/world/figures.json). He never says where he's from.
+- **Don't hit Dave.** A crewmate's blows are their own count:
+  - the first three he takes kindly ("Easy, now. You'll muddy the sky.");
+  - at the fourth he sets his brush down and turns to them ("That's four. ... I've set my brush down. Think on it."). That is his telegraph, held the reaction window at least;
+  - at the fifth he takes them by the neck, says "You should be nicer in a dark world.", and snaps it. The death screen says the same.
+  - The kill goes through the spine as every kill does (App. A.1): a short grab, then the punish. Nothing hurts him, and a friend's blow frees nobody.
+- **His murals.** About two walled towns in five have one of his murals on a street's end wall, in place of one of their own: his valley or his sea, in the same hand as the canvases, signed with the red D (tuning/towns.json `daveMural`). Nobody in the town will say who painted it.
+- **The Wiki** keeps him a mystery: a name, a few sightings, the D, and a warning.
+
+**Nicki's party** (note 571; the director: "an NPC you can find some times in one of the houses. Her name is Nicki and she's the only house late at night that is partying. She offers you wine and says kind things about people needing to enjoy life more even if its the end of the world").
+- **Where.** In about three towns in ten, one of the open houses is the only house up and lit late: every lamp burning, warm and bright, a party on (tuning/towns.json `nicki`).
+- **Who's there.** Nicki (just Nicki) is at the door, waving you in. Two to four guests from the town's other houses are dancing, and one sits at the table with the wine. Everyone's mask is down.
+- **What she says.** The first thing is always the wine ("Here, there's wine. Real wine, from before. I was saving it for nobody, so it's yours."). Then two of hers, kind and a little defiant: the end of the world is no reason to stop living in it. Her guests say what a night at Nicki's is. Nobody at the party talks about the custom tonight.
+- **The wine** is on the table: a bottle from a vineyard that isn't there any more, and a row of odd glasses poured and waiting, one marked YOURS.
+- **A glass** (the director, 9 Oct: "when Nicki offers wine to the players they should get extra health for the next run if they take it. Don't mention that anywhere in the wiki"). Hold Use by her ("NICKI   TALK : [E]   A GLASS : HOLD [E]") and you've taken one: 25 health over full (tuning/towns.json `wine`) for the night that's about to set out, since she's only ever in the departure town. One a crewmate a night. Nothing on the screen says what it did. **Never in the Wiki.**
+- **What she looks like** (after the director's photographs of her). Shoulder-length strawberry-blonde hair, wavy, with a fringe; a tan; silver drop earrings; a lime tank top or a blush-pink camisole (the town's night has one), black trousers. No mask: it's her party.
+
+**Jacob, the fisherman** (note 572; the director: "an NPC named Jacob who can be found randomly in the world near water edges, fishing. He's another legendary NPC who if found and talked to will cast magic over the train and repair everything instantly, restoring it to brand new condition without affecting your loot count. He spawns very rarely").
+- **Where.** On about one night in twenty he's at a lake's or the sea's edge beside the main line. He stands on dry ground with water a stride in front of him, his rod out over it, a lantern on a stake beside him and a pail at his feet (enemies.json `jacob`). His lantern by the water is what a crew sees, if they're looking.
+- **What he looks like** (after the director's photographs of him, "with a shorter beard"). A young man, broad; a short auburn beard; a fitted navy cap on backwards; wraparound sunglasses with blue mirror lenses; a red plaid flannel, buttoned but for the top, over a slate-blue tee; a silver chain with a compass on it; dark grey joggers and olive clogs. No mask.
+- **A word with him** (hold Use by him) and he casts it over the train. A pale gold light runs down the cars from the engine back, motes rise off them, and the train is as new:
+  - every car whole (the dents and the Car Hugger's bites mended), its char gone, any breach shut;
+  - every axle box cool, every lamp trimmed and lit, every coupling tight, every gun cleared;
+  - the boiler whole and in steam again, its valve free;
+  - the forward lamp mended, the brakes fresh, every fire out, every radio working.
+- **What it doesn't touch.** The cargo and what it's worth, the finds, the coal in the tender and the powder: they're supplies, not the train's condition, and the night's tally stays the crew's. A car already lost stays lost.
+- **Once a night.** After that he says so ("There. She'll run like the morning she was built. Go on, now, before the tide turns.").
+
 ## 4. The player's place in it
 
 The players are freight crews. Not elite soldiers. Not monster hunters. Not chosen heroes.
 
-They are the people willing to take heavily armoured locomotives through the Territory and keep the surviving settlements connected. It is dangerous work and extraordinarily valuable. Experienced crews become wealthy because everyone needs them and few survive long enough to get good at it.
+They are the people willing to take heavily armoured locomotives through the Territory and keep the surviving settlements connected: merchant bandits of the rails, who go out at night while the worst of it sleeps, fill empty cars with freight bought at the stops and loot taken from abandoned villages, and bring it to the towns that live on it (§1, *The fantasy*). It is dangerous work and extraordinarily valuable. Experienced crews become wealthy because everyone needs them and few survive long enough to get good at it.
 
 > **Keep the train moving. Get the cargo through. Come home richer than you left.**
+
+The towns don't get attached to them. Crews always die on the job eventually; the yard clerk reads a lost crewmate's fee in the voice he uses for the coal (§9 Arrival).
 
 ## 5. The rail network
 
@@ -269,6 +353,16 @@ The crew must reach the destination before dawn — not because monsters disappe
 
 Your crew operates inside a dangerous nighttime freight window. Miss it and the railway itself becomes a threat, because dispatch can no longer guarantee the line ahead is clear.
 
+**What gets up at dawn** *(the director's decision, 9 Oct 2026: "The new Dawn ending design is excellent. This is exactly what I was looking for. The gargantuan creatures, the picking up of the train, especially with you in it, you should experience that if you're still playing. And then the tension before it is really, really important"; docs/design/creatures/wakers.md, note 588)*. The night is the crew's because the worst of the world sleeps through it. The crews call them the Wakers. In the last minutes before dawn the horizon behind the train goes cold and light, the ground thuds, and long low calls come from behind the hills. At dawn they rise out of the land far behind the train, and come down the line after it, slow, then faster than any engine. A train that gets in under the terminus's guns is safe: they stop short of the walls. One that doesn't is caught. The Waker takes the last car and lifts, and the train goes up from the rear car by car, the crew inside it seeing the land fall away, and then it eats it. A crew near the end at dawn can race them in; a crew far out almost never does. ~~The line goes live and the night is lost two minutes later~~ (v1's dawn, kept as a mod's `wakers.enabled: false`: the example mod, Late Dispatch, is that dawn held twelve minutes, note 625).
+
+**Seen and felt coming** *(note 599; the director: "the tension before it is really, really important")*. For the last three minutes before dawn (`wakers.stirSeconds`, 180) a cold line comes up low on the sky behind the train, where they'll rise: nothing at first, then a wide dim bruise, and by dawn a thin grey band clear of the treeline. The ground thuds, and in the cars the lamps swing and the coal slides. At dawn each Waker heaves up out of the land in three surges, earth and boulders shed off its back in a bank of dark dust, and every footfall raises dust as it comes down the line. **The town's guns fire on any that come near the walls**, and they stop 300 m short of the gate (`wakers.stopShort`): a train whose last car is in past that is safe.
+
+**Not every creature every night** *(the director, on the Creature Tweaker, 13 Oct 2026; note 652; "We need more monster variety", 12 Oct)*. Each creature is about only on some nights (`director.nightChance`): the Gannet, the Cinder Hounds and the Tippy Toesie on about seven in ten, the Climbers on a third, the Gaunt and the Moose on one in five, the Switchman, the Grumbler and the Passenger on about one in ten, the Lodger on one in sixteen. So no two nights bring the same mix, and the director sets each creature's chance on the Tweaker. With few kinds about, the night's creatures come from those few, again and again (note 652); a most-a-night for every creature without its own (`director.perNightDefault`, off until the director sets it; note 654) holds each to a few.
+
+**The night things run** *(the director, the inbox, 12 Oct 2026: "creatures should leave all except the knotter and the hotbox who are parasites that have train functions"; note 635)*. 35 seconds before dawn (`wakers.nightFleesSeconds`, 35; the director's roster, 13 Oct, note 652) the night's creatures let go and are gone, and nothing more of theirs comes: it is the clearest sign the night's over, and fewer of them ride into town. The Knotter and Hotbox stay aboard (`wakers.staysAtDawn`), parasites in the train's own couplings and axles. The director sets which leave, creature by creature, in the Creature Tweaker (claude.ai/artifact/TdoxfYnmZTgv2jc9JmRkkw).
+
+**Taken at dawn, the campaign ends** *(the director, the inbox, 12 Oct: "c, The campaign ends", roguelike; note 632)*. A train the Wakers take is the crew's last. The night is settled into the save like any other, and the save is closed: the company has no more trains for that crew, and the end card says so on every machine ("THE COMPANY HAS NO MORE TRAINS FOR YOU"). The slot's next start is a new crew from a fortress. A night lost any other way (derailed, the crew lost, stranded) is settled and the crew goes on. A mod can keep the old way (campaign.json `dawnEndsCampaign: false`).
+
 ---
 
 # PART THREE — CORE LOOP
@@ -280,7 +374,7 @@ FORTRESS → WILDERNESS → FACILITY → WILDERNESS → TERMINUS
 ```
 
 ### Departure
-Inside the walls: purchase equipment, repair or upgrade the train, choose freight contracts, add or remove railcars, stock coal, powder and shot, lamps, repair supplies and tools.
+Inside the walls: purchase equipment, repair or upgrade the train, choose a contract, add or remove railcars, stock coal, powder and shot, lamps, repair supplies and tools. A contract is just a route *(the director, the inbox, 12 Oct: "Just a route"; note 637)*: the route and its tier, and about what a car-load pays there. The train leaves empty, and what its cars carry home is whatever its stops load, each car paid by its freight.
 
 Then the gates open. ~~The yard dispatcher reads the crew out over the radio by name, as a manifest, with the same tone used for the coal.~~ *Director's decision of 2026-10-06: no reading at the gates; the night starts as the train moves off.*
 
@@ -302,7 +396,11 @@ The run, and every consequence in it, begins as the train goes through the gate 
 ### Arrival
 Eventually the crew sees lights. Then walls. Then cannon towers. The gates open and the train crosses back into civilization.
 
-**Everything still attached to the locomotive counts.** Cargo is unloaded and paid into the crew's shared wallet. Bodies brought home earn back most of their crew-loss fee. Lost cars, powder, equipment and unrecovered crew become the cost of the run (Appendix D.9).
+**Everything still attached to the locomotive counts.** Cargo is unloaded and paid into the crew's shared wallet. The cars left the fortress empty, so every load paid is one the crew put aboard; a train driven straight home earns nothing and still pays its coal and repairs (note 575). Bodies brought home earn back most of their crew-loss fee. Lost cars, powder, equipment and unrecovered crew become the cost of the run (Appendix D.9).
+
+**The crew goes on together** *(notes 606, 611)*. When the host goes on to the next night, everyone aboard and waiting follows it, by way of the town's card ("GRIEVE · THE HOST IS PICKING THE NIGHT AHEAD"), not their menus, and the bots the night was crewed with crew the next.
+
+**Don't bring them in** *(the director, 9 Oct 2026: "It also encourages players to plan a little extra time at the end of the run to stop the train, clear the monsters, and then bring it in"; notes 589, 590)*. The gates stay open. Anything still aboard a car as it comes in through the gate is brought into town: the town fights it in the yard among the houses for a few seconds and puts it down, and whatever it breaks meanwhile is the night's. Each one costs the night the town's **monster brigade fee** (half the tier's fee value, as a crew-loss fee: D.9), two of its people hurt, and a house burnt (§3.1). Nothing new comes within 1,200 m of the gate (B.1), so a crew can stop there, clear the train and bring it in clean. The bot driver does: it stands short of the gate while the crew clears the train, and the bots corner the Brakeman there (notes 605, 610).
 
 **The settlement does not mourn.** A yard clerk tallies the run over the radio as the cars come through: cargo by the car, bodies by the body, each fee read out flat, in the same voice as the coal. The town values your friend at 75%, says so, and moves on to the next line. This is the world's indifference, and it is the punchline to every failure that came before it (§23.1).
 
@@ -341,7 +439,7 @@ Successful deliveries earn money. Money buys capability. Capability allows more 
 
 You aren't picking a difficulty level. You're travelling farther from civilization.
 
-**Every night is the same length** *(the director's decision, 2026-10-06)*: "The time a run takes should always be the same. Difficulty scales not by time but by monsters and density of challenges." Every route is one length to the same dawn (systems spec B.8: 24 km, dawn in 51 minutes). A deeper tier sends more creatures over it and packs more into each kilometre: harder grades and bends, junctions, washouts, weak bridges and brass. Every tier has the same three stops, since a stop is time.
+**Every night is the same length** *(the director's decision, 2026-10-06)*: "The time a run takes should always be the same. Difficulty scales not by time but by monsters and density of challenges." Every route is one length to the same dawn (systems spec B.8: 7 km, dawn in 24 minutes, the transit's 15 and three minutes for each of the three stops; the director's shorter nights of 9 Oct 2026, note 554, were 24 km and 51 minutes). A deeper tier sends more creatures over it and packs more into each kilometre: harder grades and bends, junctions, washouts, weak bridges and brass. Every tier has the same three stops, since a stop is time.
 
 ---
 
@@ -401,7 +499,7 @@ Sometimes the correct response to a monster is to go quiet.
 | **3–4** | Standard | The intended fit. Both cannons crewed only when nobody's on the ground. |
 | **5–8** | Long | Long enough that half the crew can't hear the other half. Eight people on proximity voice is its own difficulty. |
 
-Scaling is handled by **train length**, not enemy count multipliers.
+~~Scaling is handled by **train length**, not enemy count multipliers.~~ **Both** *(the director, 9 Oct 2026: "Scale by both, higher numbers on both readings should increase threat level"; note 646)*. A bigger crew and a longer train each bring more: the night's pressure, which sets how often something comes, builds 18% faster for each crewmate over four and 18% slower for each under (× 0.46 alone, × 0.64 for two, × 1.72 for eight), and 6% faster for each car over eight (× 0.76 for four cars, × 1.3 for 13, × 1.6 for 18; `director.pressure.crewScale`, `lengthScale`; the director's values on the Creature Tweaker, 13 Oct, note 652). And from eight cars, a Frontier train and longer, a crewmate can have two threats on them at once, and as many of the crew as there are can be under one (`director.orchestrator.longTrainCars` 8, `perPlayerLong` 2; notes 647, 652); a shorter train keeps one each. Train length still sets the work: more cars to walk, guard and load.
 
 ---
 
@@ -445,7 +543,7 @@ Not a punishment mechanic — the whole tension of the sequence. The person on t
 
 Each stop of a kind has the module it's named for and two to four in all, drawn for the night (spec D.1's module grammar; note 449). One mine head has its lift and a winch, the next its lift, tipple and crates; a switchyard or a slaughterhouse may have a winch; a wreck yard, crates.
 
-**Every facility is optional. Skipping them is safe and poor.** The payout exists to force bad decisions, not to reward good ones.
+**Every facility is optional. Skipping them is safe and pays nothing:** the train leaves the fortress empty, and only what the crew load at the stops and carry out of the villages is paid at the gates (§1 *The fantasy*; the director, 9 Oct 2026, note 575). The payout exists to force bad decisions, not to reward good ones.
 
 ## 19. Cargo
 
@@ -490,7 +588,7 @@ Every enemy must pass at least four of the six, including 1 and 3. This is the f
 
 The learnability rules from v1.0 — the rule fits in six words, one death teaches it, the telegraph always comes first — now live in the fairness contract (Appendix A.1).
 
-## 21. Roster — 19 enemies
+## 21. Roster — 30 enemies
 
 Demo ships with **five**: Track Doll, Car Hugger, Whistler, Tippy Toesie and Ribbits, with the Choir running underneath as the ambient system. If the Foundry is one of the two demo facilities, the Grumbler replaces the Ribbits.
 
@@ -520,7 +618,7 @@ Anyone in front of its mouth can be swallowed. A group kills it fast; one player
 **CLIMBERS** · *alongside, then the gaps*
 Come up between cars, onto the roofs, then in.
 > **RULE: outnumber them at the gaps.**
-They mount any gap held by fewer players than there are Climbers. Scales brutally with train length.
+They mount any gap held by fewer players than there are Climbers. Scales brutally with train length. A lit car with every door shut keeps them out, and they go on over it toward the engine (the director, the inbox, 12 Oct; note 633).
 
 **DRAGGERS** · *under the car edges*
 Reach up from beneath the car edges.
@@ -583,12 +681,57 @@ A child calling for help. Half the time it's a real survivor, the most valuable 
 > **RULE: check the eyes from five metres.**
 Black eyes and blackened hands mean a Soot Child. Get within five metres and it pins you and drinks. Your cries for help get quieter.
 
+**THE MOURNERS** · *wherever a crewmate fell off the train* *(the director's brief, 2026-10-08)*
+A huddle of grey, stooping things with long hooked fingers, picking their way toward your dead.
+> **RULE: stand over your dead, or carry them home.**
+They come only after a death, a nervous group like crows to a carcass. They never touch the living, start back from anyone who comes near, and the moment nobody's over the body two of them drag it straight away from the line. A blow kills one and scatters the rest. A body carried is followed, never taken; one brought home sends them off; one dragged far enough is gone, and its refund and kit with it.
+
+**TOWER JAW** · *at the stops, under the railway's timber* *(the director's brief, 2026-10-08)*
+A beaver as big as a bear, its hide bristling with splinters, gnawing at a tower's legs with iron-dark teeth.
+> **RULE: hear the chewing, find the tower, get it off before it falls.**
+It's at work on a coaling tower's leg (or the loading crane's gantry) when the train comes. The tower leans and groans as it goes. Come near and it rears; come close and it bites. Four blows drive it off, though it comes back to finish; twelve kill it. Ignored, the tower falls across the line: the chute's coal is lost, and the crew must clear the wreck by hand to go on. It never touches a bridge.
+
+**THE FREIGHT BEETLE** · *at the facilities, among the freight* *(the director's brief, 2026-10-08)*
+A beetle the size of a handcart, shovel-headed, its back plated like a crate, shoving a load of freight across the yard.
+> **RULE: it pushes away from whoever's nearest. Stand where you want it not to go.**
+It takes the loose freight nearest it and shoves it directly away from the nearest player: off a platform, out into the dark, or, if two of you steer it, into a car's open door. It never attacks; blows drive it off its load or kill it.
+
+**THE PICKERS** · *in a yard's drains, out when a train stands* *(the director, 2026-10-09)*
+Knee-high, long-armed scavengers that scuttle out of the drains at the foot of the sheds and carry off whatever crate nobody's standing by, over their heads, down into the dark.
+> **RULE: get there first.**
+They come up a little after the train stands at a yard and race the crew for its loose crates: each takes the nearest one nobody's guarding and runs it down its drain, gone; a heavy one takes two. Come right up to one carrying and it bites and drops it; a blow kills one and scatters the rest. They never kill.
+
+**THE LODGER** · *in the dark of a village house* *(the director, 2026-10-09)*
+A long, starved thing folded into the corner of a back room, breathing.
+> **RULE: when it shrieks, put a door between you.**
+Stay in its house a moment, or come close, and it shrieks, then lunges: if it reaches you, you're dead. Missed, it chases you out further than most things will, shrieking before every lunge, and has to break a shut door to get through it. Far enough from its house and it gives up and goes back to its corner.
+
+**THE HOLLOW HOUSE** · *one of the village's houses* *(the director, 2026-10-09)*
+A house like the others, that rumbles when you're in it.
+> **RULE: know the house you're in.**
+Step inside and the ground starts rumbling under it. Anyone still inside when the rumble ends, its doors slam shut one after another and the house sinks and comes down on them. Out in time, and it goes still again.
+
+**THE HANGER** · *in a village house's roof* *(the director, 2026-10-09)*
+Strands hanging from the ceiling, glistening in the lamp.
+> **RULE: don't touch the strands.**
+Walk into a strand and it has you, hauling you up it until your feet leave the floor. A friend prises you free, or a blow makes it let go.
+
 ### STRUCTURAL — attack how you run the train
 
 **THE CHOIR** · *drawn by noise*
 Small flying ghosts that come for a loud crew. Long warning, then the swarm.
 > **RULE: hush, and shut every door.**
 Takes anyone outside, on the roofs, or behind no door, **loudest first**: whoever put the most into the meter during the build. The player shouting at everyone to shut up is usually the one it takes. Killable, barely. Takes one crew member per run at most, then it's gone.
+
+**THE KNOTTER** · *in a coupling, on the move* *(the director's brief, 2026-10-08)*
+A rope of pale flesh with claws at both ends, holding two cars apart.
+> **RULE: don't walk the rope. Stop, kill it, couple up.**
+At speed it crawls into a coupling (the creak is the tell; cut the coupling then and it drops off), forces the cars five metres apart and becomes the coupling. The train still pulls as one, but no jump carries the gap, and the crew is split. Walk its back and you'll very likely slip under the train, unless a friend pulls you up. At a stand it slackens, and it can be killed; the cars stand uncoupled where it held them.
+
+**HOTBOX** · *in a freight car's wheels, on the move* *(the director's brief, 2026-10-08)*
+A low, armoured thing folded into a bogie, its belly swollen with heat between black plates.
+> **RULE: hear the knock, find the wheel, stop to pull it.**
+A knock once a wheel turn from one truck, one side. Then that bearing glows and smokes, then the axle seizes and the car drags the train to a crawl. Grease does nothing. Only at a stand does it half unfold, to be killed or prised out (and it bites). A seized axle stays seized until it's repaired with a wrench, or the car is cut. It never sets a fire or derails you.
 
 ### CORRUPTED HUMANS
 
@@ -608,6 +751,16 @@ Wrong routes cost the clock: it sends you down a line that leads nowhere, and yo
 Scuttles like a spider over the crane, gnawing food crates.
 > **RULE: gang up or leave it alone.**
 Interrupt it and it hunts whoever hit it last. No one player can kill it. Crane it aboard by mistake and it eats your cargo.
+
+**THE BRAKEMAN** · *on the roofs, on the move; never with a crew of one* *(the director's brief, 2026-10-08)*
+A stooped man in a rotted railway coat and cap, his arm grown into rusted chain and a brake wheel.
+> **RULE: chase it alone, catch it together.**
+He climbs up at one end of the train and works toward the other, winding each car's handbrake on: the train slows, and on a climb it stalls. One crewmate can chase him off the roofs (he outruns you, and ducks your blows); out of sight he waits under or in the train and comes up somewhere else to start again. Only two closing on him from both sides corner him, and only cornered can he be hurt. A wound brake is unwound at its wheel.
+
+**THE HOUSEHOLDER** · *at its table, in the one house that looks lived in* *(the director, 2026-10-09)*
+A gaunt figure in rotting Sunday clothes, sat at a set table by a lit stove, watching you.
+> **RULE: pay for what you take.**
+It doesn't touch guests. Everything in its house is its own: leave something of yours on its table and you can take one of its things. Walk out with one unpaid and it gets up and follows whoever's carrying it, slow and relentless, to the train if it has to. Drop it and it takes it home.
 
 ### Retired from v1.0
 
@@ -658,6 +811,7 @@ Nothing there is a mystery. It's still a disaster.
 **Three things kill outright:**
 
 - **Jumping at speed** — above 16.5 m/s. Below it, landing is a knock. The train is a trap by design
+- **Falling** — a drop from 7.5 m kills, and from 5.5 m it's a knock: off a bridge's deck, not off a car's roof (note 573). A run over open ground, down a bank or a dip, is never a landing
 - **Getting left behind** — cold and distance do the rest
 - **Derailment** — kills the entire crew at once, in slow motion, to opera (Appendix E)
 
@@ -671,6 +825,8 @@ Nothing there is a mystery. It's still a disaster.
 | Radio breaks | Shouting down the length of a moving train |
 | Cannon fouls | Someone clears it by hand, under fire |
 | Car catches fire | Grab the extinguishers or abandon it |
+| A car battered and left (§23.3) | It works itself apart as it runs and its freight spills out of it; mend it with the wrench, or it comes off its rails and takes everything behind it |
+| The engine battered and left (§23.3) | It loses its pull and its brake; mend it with the wrench, or it breaks down and the crew are stranded |
 | Engineering kit left in car four | Somebody's going out there, and the kit is on a body (§12) |
 | Crew lost on the ground | Two cannons, one gunner, pick a direction |
 
@@ -683,8 +839,8 @@ Nothing there is a mystery. It's still a disaster.
 | **Delivered** | The engine stops at the terminus on the main line |
 | **Derailed** | The train leaves the rails. Everyone dies, and Appendix E plays |
 | **Crew lost** | No living crew remain |
-| **Dawn missed** | Still out when the line goes live (§8) |
-| **Stranded** | The boiler is ruptured and the engineering kit is lost (§23.2) |
+| **Dawn missed** | Still out at dawn: the Wakers take the train (§8), and the campaign ends with it (note 632) |
+| **Stranded** | The boiler is ruptured and the engineering kit is lost (§23.2), or the engine has broken down (§23.3) |
 
 ### Boiler rupture
 
@@ -723,6 +879,21 @@ A kit that comes to rest outside the walkable corridor is relocated like a body 
 **Settlement.** A stranded night pays like any failed night: no cargo, no body refunds, and crew-loss fees for anyone who died. The settlement sends a dawn freight to tow the train in, and bills for it: a **recovery fee** of 0.5 × the tier's per-car value. The locomotive and every car still coupled come home. The living crew come home too, and aren't charged a crew-loss fee. Appendix E.9 covers the outro.
 
 **Death takes you out of the night, not out of the session.** The dead watch their crew and talk among themselves, wait in a queue, and come back through a **Holdout** at the next halt or yard, if the crew stops for them. Their bodies stay out there, and the settlement pays the crew to bring them home. See Appendix D.
+
+### 23.3 Damage let go *(the director, 9 Oct 2026; ARCHITECTURE §8 note 576)*
+
+*"We also need the cars and locomotive being busted to have clear model differences and have real consequences. If players dont fix the ship in sea of thieves the ship goes down and you lose everything. If players dont fix the train here seemingly nothing happens."*
+
+A knock costs a repair bill. A car or the engine battered past half its shell, and left, goes on to cost the night (train.json `failing`):
+
+| Stage | A car | The engine |
+|---|---|---|
+| **Holding** (over half) | Dented, called out where the wrench mends it (note 301). Nothing more | Leaking steam, knocking (the art and the audio's) |
+| **Failing** (under half) | Works itself apart as it runs, faster the faster it runs: about 200 s at line speed from half to nothing. Its freight spills out of it as it goes, about a car-load in the same time. Dust and splinters off its sides, sparks where its plate grinds, its timbers groaning; "THE CAR'S COMING APART" inside it, and "CAR n COMING APART" in the cab | Its pull falls with its shell, to about a third, and its brake to under half. Only while it's pulling. "THE ENGINE'S FAILING" on it; dark smoke off its flanks |
+| **Breaking** (under a fifth) | The last warning: a shower of sparks, the groaning louder, the HUD flashing | "THE ENGINE'S BREAKING DOWN" |
+| **Gone** | It comes apart: off its rails, the train parted ahead of it, it and everything behind it left on the line. Its freight is gone. The report says so | It breaks down: no power at all. Once it's at a stand, the night ends **Stranded** (§23.2's tow, its fee) |
+
+Nothing comes of it standing, nor in the fortress. The wrench at the dent mends any of it, half a shell back in about 12 s (note 301); a car a Car Hugger has eaten into can only come back to what's left of it. The bots send a walker with a wrench to a failing car before a lamp or a mail bag. The model's visible stages are the art's (DamageKit's three, asked to be made clearer on the art checklist).
 
 ### 23.1 Failure has to be funny
 
@@ -956,7 +1127,7 @@ Silhouette legibility is not an aesthetic preference here. It is a coordination 
 - **What you look at is said at the crosshair.** The action and its key, in fine print: "PULL CORD : [E]", "SHOVEL COAL : HOLD [E]". A short state only when it stops you ("POINTS HELD", "NO SHOT"), and a hold's progress.
 - **Prompts never foretell.** Nothing says what an action will do: whether it's loud, what it mends, who hears it, that it needs two, or what happens if you don't. Consequences are learned, as in Lethal Company. The stop's status says what's there and what's under way, not how to work it.
 - **What you hold is said in the corner.** The bottom right, in fine print: the keys for what's in your hands, the cab's controls or the gun, a line each. In the cab, the speed sits over them as a figure, read against the boards. A setting (CONTROL HINTS) hides the keys; the speed and what you're holding stay.
-- **The rest comes when it matters, then goes.** A place's name as the train nears it. The cold, as you go into a deeper step. The dawn clock in the night's last stretch. The ping in the lobby, and on the line only when it's bad. The noise meter only once the crew's loud.
+- **The rest comes when it matters, then goes.** A place's name as the train nears it. The cold, as you go into a deeper step. The dawn clock in the night's last stretch. The ping in the lobby with what's being lost and how the host's reached (relayed or direct), and each crewmate's on the host's lobby panel; on the line only when it's bad, a host's naming whichever crewmate's link has gone bad. The noise meter only once the crew's loud.
 - **The world says it first.** The gauges and the run map in the cab, the route card (where the train is is pencilled on it), the supplies view and the roster are things you look at or open. They're not on screen. Every stretch of the line that would derail the train at its top speed has its max speed on the map and the card.
 - **No frames in play.** Text sits on the picture with a shadow. Only the panels you open, and the run's end, are framed.
 - **Alarms are rare and short.** The headline is big only when it's urgent. The hazard telegraphs (a tunnel mouth, a bend you're too fast for, the boiler about to go) keep their warnings and their speed figures; what to do sits under them in fine print, without the outcome.
@@ -1190,6 +1361,7 @@ MOUNT     gap held by fewer players than Climbers present
           └ TELEGRAPH: scrabbling at the gap, visible from adjacent roofs
 TRAVERSE  along the roofs toward the engine
 ENTER     first unlit or unoccupied car → interior threat
+          └ a lit car shut up tight is passed over, on toward the cab (note 633)
 COUNTER   outnumber them at the gap; bludgeon any that mount
 ```
 **Scales directly with train length.** More cars means more gaps to hold with the same crew.
@@ -1381,6 +1553,58 @@ GRAB      drains blood; every second adds hits needed to kill it
 PUNISH    drained → death
 ```
 
+### THE MOURNERS · absence *(the director's brief, 2026-10-08; note 362)*
+```
+DEATH     a crewmate dies and their body lies off the train (on the ground, or in a car cut loose) → after 15 s a
+          group comes (3 at Local, 4 Frontier, 5 Dead Lines, 6 Deep Territory) out of the dark, 40 m off, on the far
+          side from the line
+          └ TELEGRAPH: the keening; pale shapes at the edge of the light
+GATHER    they edge in and wait, 6 m from any living crewmate (they never touch the living, never harm them)
+          ├ a crewmate comes within 6 m of one → it starts back to 12 m (STARTLE), and edges in again when they go
+          └ no crewmate within 6 m of the body → TWO take it and DRAG
+DRAG      straight away from the nearest track, 1.6 m/s (a walk; a run catches them), the rest flanking
+          ├ a crewmate within 3 m, or a blow on any of them → they drop it and scatter to 12 m; back in 4 s
+          ├ one blow kills one (they're frail); each death scatters the rest for 6 s
+          └ 120 m from the track → the body's GONE (its refund and its kit with it), and they go
+CARRIED   a crewmate picks the body up → they follow at 6 m, waiting for it to be put down
+HOME      the body in a car of the train (or the train leaving) → they keen, and go
+```
+**They never hurt anyone.** Their danger is the money, and what a chase off into the dark leads to.
+
+### TOWER JAW · vibration *(the director's brief, 2026-10-08; note 363)*
+```
+GNAW      at a stop with a wooden or light structure (not a bridge) → it's gnawing one of its supports when the train
+          comes; the structure's strength falls (it comes down in 150 s of gnawing; faster at harder tiers)
+          └ TELEGRAPH: the chiselling; chips; then the creak and the lean (from half gnawed), the groan (the last 5 s)
+NOTICE    a crewmate within 10 m → it turns, rears and slaps its tail (THREAT, 1.5 s)
+          ├ they come within 3 m → LUNGE: a bite (35, never a kill); then back to the post
+          └ they back off → back to gnawing
+HIT       blows: 4 in 15 s DRIVE IT OFF (it lopes away for 120 s, then comes back to the same post, its gnawing kept)
+          12 blows kill it (a gun round is 4)
+COLLAPSE  the support gnawed through → the structure falls across the track beside it or the facility:
+          ├ anyone under it takes a crushing blow (45, never a kill)
+          └ the wreckage BLOCKS that track there (a train that hits it is damaged and stopped, as any collision)
+CLEAR     the crew clears it by hand: Use held at the wreckage, 30 crew-seconds (two do it in 15), or works round it
+          (another track through the yard), or abandons it (the coaling tower's chute, the crane: gone for the night)
+NEVER     a bridge; it never boards the train
+```
+**It never kills** (a bite is a hurt, App. A.1): its danger is the stop it costs, the line it closes and the coal it takes.
+
+### THE FREIGHT BEETLE · sight *(the director's brief, 2026-10-08; note 366)*
+```
+WAIT      at a facility with loose freight, settled beside it; no player within 25 m → still
+PICK      a player within 25 m → it takes the movable load nearest to it (a crate, a cargo crate, a heavy crate)
+          └ TELEGRAPH: it braces behind the load, head down (1 s)
+PUSH      it shoves the load DIRECTLY AWAY FROM THE NEAREST PLAYER (1.2 m/s; a heavy crate 0.8 m/s), walking behind it
+          ├ the nearest player changes → the push turns with them (a 90°/s turn): two players steer it
+          ├ into a car's open door at the floor, from a platform → the load's in the car (loaded, as if carried)
+          ├ off a platform's edge → it falls (a keg may go off, as any)
+          ├ a player within 1.5 m of its head → it rears back (STARTLE) and pushes on after 2 s
+          └ no player within 25 m → it stops, and waits
+HIT       blows: 6 kill it (a gun round is 4); 3 blows in 10 s drive it off its load for 30 s
+NEVER     it never attacks anyone; it never pushes a body or a lamp
+```
+
 ---
 
 ## A.7 Structural
@@ -1402,6 +1626,44 @@ LIMIT     one crew member taken → the Choir is gone for the rest of the run
 **Fully preventable by hushing in time.** Fighting it is possible and almost always a mistake.
 
 **Loudest first is the blame rule.** Among exposed players, the Choir takes whoever contributed most to the meter during BUILD: their voice, a cannon they fired, the whistle they pulled, a squeaker in their hands. It stays fair because loudness is entirely player-controlled, and a player behind a closed door is safe however loud they were. The one shouting at everyone to shut up is usually the one it takes.
+
+### THE KNOTTER · vibration *(the director's brief, 2026-10-08; note 365)*
+```
+CREEP     the train over 8 m/s for 30 s, out of yards and forts → it comes up into a coupling of the engine's rake that
+          nobody's standing at
+          └ TELEGRAPH: the creaking at that coupling, its claws over the plate (4 s); cut the coupling now and it drops
+FORCE     it clamps both cars and forces them apart: the gap opens from 1.5 m to 5 m over 6 s; the coupling plate's gone,
+          its body across the gap instead
+HOLD      the train pulls as one; the gap is 5 m (no jump carries it)
+          ├ a crewmate walks its back → each second on it at speed, a chance to SLIP (45% a second over 2 m/s)
+          │   SLIP → GRAB: it coils round them, dragging them under (1.5 s): a friend's blow on it, or the victim's own
+          │   jump back, frees them → else PUNISH: pulled under the train
+          └ blows on it while the train moves don't land (taut, it shrugs them off)
+STOPPED   the train stands → it slackens (EXPOSED): its back is safe to walk; blows land
+          ├ 8 blows kill it (a gun round is 4) → it unlays, and the cars stand uncoupled where it was (the rear rake's
+          │   handbrakes go on, as any cut at a stand)
+          └ the train moves again → it pulls taut again
+COUPLE    back the engine onto the standing cars (as any coupling) and go on
+```
+**It kills only by the slip**, through the grab (App. A.1): whoever walks its back at speed is gambling, and a friend at the gap can save them.
+
+### HOTBOX · vibration *(the director's brief, 2026-10-08; note 367)*
+```
+BOARD     the train over 10 m/s, out of a fort → it takes a truck (one side) of a car of the engine's rake, never the engine
+KNOCK     a knock once per wheel turn from that truck and side, nothing to see
+          └ TELEGRAPH: the knock (90 s at 18 m/s; faster the faster you run)
+GLOW      the bearing glows and smokes on that side
+          └ TELEGRAPH: glow and smoke (90 s more)
+SEIZE     the axle locks: the car drags badly (top speed 7 m/s while it's in the train), the wheel slides and screams
+          (never fire, never a derailment)
+STOPPED   the train stands for 2 s → it half unfolds out of the truck (EXPOSED): legs out onto the rail and the ballast
+          ├ killed (6 blows; a gun round is 4) → it falls out of the truck, dead
+          ├ prised (Use held 4 s at it, with a crowbar or a wrench) → it drops out and scuttles off for the night
+          └ anyone within 1.2 m of its head → SNAP: a bite (30), every 3 s while they stay (it never kills)
+MOVING    the train moves again before it's out → it folds back in, the heat where it was
+AFTER     a seized axle stays seized once it's out: REPAIR (a wrench, Use held 10 s at the truck) or ABANDON (cut the car)
+```
+**It never kills** (it bites; App. A.1): its danger is the car it costs you, the stop it forces, and what else comes to a train standing in the dark.
 
 ---
 
@@ -1446,6 +1708,28 @@ LOADED    craned aboard with the crates → eats cargo on the train
 COUNTER   gang up and kill it, or leave it alone;
           a spotter checks the crates before every lift
 ```
+
+### THE BRAKEMAN · sight *(the director's brief, 2026-10-08; note 364)*
+```
+ARRIVE    the train moving, a crew of two or more alive → it climbs up the end ladder of the car at one end of the
+          train (the end furthest from the crew), facing the other end
+WORK      walks the roofs toward the other end, car by car; at each car's brake wheel it WINDS it on (4 s)
+          └ TELEGRAPH: the ratchet and the shoes' squeal from that car; the train slowing
+          each car wound adds its handbrake's drag (a wound car's 0.3 m/s² of its mass); a crewmate unwinds one with
+          Use held 1 s at its wheel (as any handbrake)
+FLEE      a crewmate on the roofs within 12 m that it can see → it runs from them along the roofs (5 m/s, faster than
+          a roof run), jumping the gaps
+          ├ out of their sight, or 20 m clear, or at the end of the train → DROP: over the side, gone
+          └ blows on it while it's running: it ducks them (no damage)
+HIDE      under or inside the train, unseen, 30–60 s → it climbs up somewhere else (the car furthest from the crew)
+          and starts again
+CORNERED  crewmates on the roofs on both sides of it, each within 10 m → it can't run: it backs, the chain up
+          ├ TELEGRAPH: the wheeze, the chain raised (1.5 s) → LASH the nearer one (30, never a kill), every 2.5 s
+          ├ blows land now: 4 blows kill it (a gun round is 4) → it pitches off the roof, dead for the night
+          └ one of them steps back out of 10 m → it runs again
+NEVER     with a crew of one; never in a yard or a fort; never inside a car
+```
+**He never kills** (a lash is a hurt; App. A.1). His danger is the train: every car he winds is drag, the drag grows with the train's length, and on a climb it stalls you.
 
 ---
 
@@ -1524,8 +1808,9 @@ Past the **threshold** the director spends: on what its weights, wants, pairs, g
 
 | Cost | Enemies |
 |---|---|
-| **2** | Followers, Draggers, Fire Flies, The Switchman |
-| **3** | Track Doll, Cinder Hounds, Climbers, Whistler, Stoker, Ribbits, The Moose |
+| **1** | The Mourners, The Freight Beetle |
+| **2** | Followers, Draggers, Fire Flies, The Switchman, Hotbox |
+| **3** | Track Doll, Cinder Hounds, Climbers, Whistler, Stoker, Ribbits, The Moose, Tower Jaw, The Brakeman, The Knotter |
 | **4** | Car Hugger, Tippy Toesie, The Gaunt, Soot Children, Grumbler, The Gannet |
 | **5** | The Passenger |
 | **—** | The Choir (not spawned; triggered by the loudness meter) |
@@ -1537,11 +1822,11 @@ The director tags each enemy with the player want it attacks, and aims for a tar
 | Tag | Target share | Enemies |
 |---|---|---|
 | **Kill** | 40% | Cinder Hounds, Draggers, Whistler, Stoker, Tippy Toesie, Ribbits, The Choir, The Gannet |
-| **Split** | 25% | Track Doll, Climbers, The Gaunt, The Moose |
+| **Split** | 25% | Track Doll, Climbers, The Gaunt, The Moose, The Brakeman, The Knotter |
 | **Trust** | 20% | Followers, Soot Children, The Passenger |
-| **Cargo** | 15% | Car Hugger, Fire Flies, The Switchman, Grumbler |
+| **Cargo** | 15% | Car Hugger, Fire Flies, The Switchman, Grumbler, The Mourners, Tower Jaw, The Freight Beetle, Hotbox |
 
-Split is the thinnest category and the best target for a post-launch addition. The Moose (2026-10-07) is the first.
+Split is the thinnest category and the best target for a post-launch addition. The Moose (2026-10-07) is the first; the Brakeman and the Knotter (2026-10-08) follow. The Mourners (Cargo, cost 1) come for the dead and cost the caps nothing: they hunt no one.
 
 **Dead vote.** Each dead player gets one vote per run that raises one creature's spawn weight, ×1.2 per vote and capped at ×1.5, applied within that creature's want tag so the target shares hold (Appendix D.11). It never changes budget, gates, caps or pacing.
 
@@ -1566,7 +1851,7 @@ Enforced regardless of budget:
 
 **Post-event cooldown.** After a spawn, a trough of at least 25–45 s (design decision, 2026-10; was 30–60 s). Sustained pressure reads as noise; pressure with troughs reads as rhythm. The spawn's relief of the pressure makes the trough; the cooldown gives way only when the pressure is well past its threshold.
 
-**Terminus approach.** One deliberate spike, then a hard stop 500m out. Nothing may spawn inside the final approach — the last stretch is for surviving what's already aboard.
+**Terminus approach.** One deliberate spike, then a hard stop 1,200 m out (was 500 m; the director, 9 Oct: a crew stopped outside the doors to clear the train has to be able to clear it, note 590). Nothing may spawn inside the final approach, nor come for the train there (the Stoker, the Marsh, the lineside moose) — the last stretch is for surviving, and clearing, what's already aboard.
 
 ### Contradiction seeding
 
@@ -1589,6 +1874,16 @@ The director draws pairs from a **conflict table** rather than spawning independ
 | Cinder Hounds + The Gannet | Outrun the hounds by running fast vs. a fast train brings the Gannet |
 | Draggers + The Gannet | Walk the centreline vs. step aside when it folds, toward the edge the Draggers hold |
 | The Choir + The Gannet | The gun is the quick answer vs. every ball feeds the meter, and marks the gunner |
+| The Freight Beetle + facility loading | Load fast vs. it pushes the freight off |
+| Grumbler + The Freight Beetle | Steer it to the car vs. the crane's castings overhead |
+| The Moose + Tower Jaw | Crowd the beaver to drive it off vs. crowding is what the Moose minds |
+| Tower Jaw + facility loading | Load and go vs. the coaling tower's coming down |
+| The Brakeman + The Gannet | Up on the roofs after him vs. walking the roofs is what the Gannet dives at |
+| Draggers + The Brakeman | Run the roofs after him vs. the edges the Draggers hold |
+| Cinder Hounds + The Brakeman | Keep the speed up vs. he's winding the brakes on |
+| Cinder Hounds + Hotbox | Run fast for the hounds vs. stop to pull it before it seizes |
+| Cinder Hounds + The Knotter | Never stop with the pack behind vs. it's killed only at a stand |
+| Car Hugger + The Knotter | Cut the car the Hugger's on vs. the coupling you'd cut across is the Knotter |
 
 At least one pair per run on Frontier and above. Two on Deep Territory.
 
@@ -1647,6 +1942,9 @@ At least one pair per run on Frontier and above. Two on Deep Territory.
 | **Followers** | Facility grounds; latches onto a disembarked player | Requires an excursion · any tier | Weight up per additional player on the ground |
 | **Soot Children** | Near facilities and dead settlements | Crew ≥2 | True 50/50 with a real child survivor; a host player's first-ever call is always a real child |
 | **The Moose** | Grazing beside a stop, 30–60 m out; beside the line on the run (2–5 per 10 km by tier, the line's own, costing the director nothing) | **Every tier** · one about at a time · never within the track's clearance | ×1 Local, ×1.5 Frontier, ×2 Dead Lines, ×2.5 Deep Territory; ×2 bog, ×1.5 barrens and tar ponds, less in towns and coal country; up per player on the ground |
+| **The Mourners** | Beside a crewmate's body off the train, 15 s after the death | **Every tier** (G1's call) · only after a death · one group a body · never in a fort or a car of the train · not the director's (no cost, no cap) | Their number by tier: 3 Local, 4 Frontier, 5 Dead Lines, 6 Deep Territory |
+| **Tower Jaw** | At a facility's coaling tower (or crane gantry), at work as the train comes within 800 m or stands there | **Every tier** (G1's call) · never a bridge · one at a stop · not at a structure already down | ×1 Local, ×1.5 Frontier, ×2 Dead Lines, ×2 Deep Territory |
+| **The Freight Beetle** | Beside a facility's loose freight, the train stopped there | **Every tier** (G1's call) · one at a stop · only with loose freight about | ×1 Local, ×1.25 Frontier, ×1.5 Dead Lines and Deep Territory |
 
 ---
 
@@ -1655,6 +1953,8 @@ At least one pair per run on Frontier and above. Two on Deep Territory.
 | Enemy | Spawn context | Gates | Weighting |
 |---|---|---|---|
 | **The Choir** | **Not spawned.** Triggered when crew loudness is held above threshold | Available all run until it has taken one crew member | Livestock raises baseline loudness · disabled for the rest of the run after its first victim |
+| **The Knotter** | A coupling of the engine's rake at 8 m/s or more, nobody at it, never the engine's own | **Every tier** (G1's call) · train length ≥3 · one at a time · not in a fort | ×1 Local, ×1.5 Frontier, ×2 Dead Lines, ×2.5 Deep Territory |
+| **Hotbox** | A truck of a car of the engine's rake at 10 m/s or more | **Every tier** (G1's call) · one at a time · never the engine · not a car already seized · not in a fort | ×1 Local, ×1.25 Frontier, ×1.5 Dead Lines, ×1.75 Deep Territory |
 
 ---
 
@@ -1665,6 +1965,7 @@ At least one pair per run on Frontier and above. Two on Deep Territory.
 | **The Passenger** | Boards during a facility stop | **Dead lines+ · crew ≥3** (needs a crowd to hide in) · once per run | Weight up if the crew were split across several facility tasks |
 | **The Switchman** | Junction network ahead of the train | Frontier+ · **route must contain ≥3 junctions** | Weight up on routes with dead-line branches available |
 | **Grumbler** | Facilities with a crane and crates (Foundry first) | Any tier (first pass) | ×2 with food crates at the facility |
+| **The Brakeman** | Up the end ladder at the end of a moving train furthest from the crew | **Never with a crew of one** · train length ≥4 · over 3 m/s · not in a fort or a tunnel · one at a time; gone for the night once killed | ×1 Local, ×1.5 Frontier, ×2 Dead Lines, ×2.5 Deep Territory; × cars ÷ 6; ×2 with a climb of 2% or more within 1 km |
 
 Corrupted humans are the rarest category by design. **Maximum one active at a time**, regardless of budget.
 
@@ -1684,7 +1985,7 @@ Cargo changes the run rather than just scoring it. These multipliers apply to sp
 | **Child survivor** | Highest payout · carried by hand · no spawn change |
 | **Comet-derived material** | **All weights ×1.4** · Passenger gate relaxed by one tier |
 
-Comet material is the high-risk contract: it is the best freight payout and it makes the entire world more interested in you.
+Comet material is the high-risk freight: it is the best freight payout and it makes the entire world more interested in you. No contract carries it (a contract is just a route, note 637): a night has it aboard only where a stop loads it, and none does yet.
 
 ---
 
@@ -1792,9 +2093,9 @@ Once a run has left the gate, **a Holdout is the only way back into it.** A dead
 
 | Site | Holdouts | Placement |
 |---|---|---|
-| **Facility pad** | 2: the second at every facility, active only with a big crew (D.15 question 2) | 60–200 m from the consist's stopping position on the pad. Must not share a walking route with the nearest loading module, so rescue competes with loading for people. |
-| **Halt** (Line Plan §11.3) | 1 | On or beside the platform, ≤40 m from the main line |
-| **Dead town / village** (Line Plan §11.3) | 1 | Within the station footprint, ≤80 m from the main line |
+| **Facility pad** | 2: the second at every facility, active only with a big crew (D.15 question 2) | Right beside the track the consist stands on, within 100 m of where it stops, 30 m clear of the loading: never on the line, a few metres off it (the director, the inbox, 12 Oct: "Holdouts should never be on the line but should be essentially right next to the line. Minimum rescue time"; note 650). |
+| **Halt** (Line Plan §11.3) | 1 | The lockup behind the platform, ≤40 m from the main line |
+| **Dead town / village** (Line Plan §11.3) | 1 | Right beside the main line, within 100 m of the halt (note 650) |
 
 - **The second facility Holdout only activates when the session crew is 5 or more** at assignment time. Below that it stays dormant dressing.
 - **Every Holdout lamp needs line of sight** to the site's approach: from the 1 km board at facilities, and from the whistle board at halts and dead towns.
@@ -1920,7 +2221,7 @@ Breach noise counts because it is the living's action. A crew that smashes a loc
 
 | Rule | Value |
 |---|---|
-| **Crew-loss fee** | Charged to the shared wallet at settlement for every in-run death: **50% of the tier's per-car value** |
+| **Crew-loss fee** | Charged to the shared wallet at settlement for every in-run death: **50% of the tier's fee value** (run.json `economy.feeValue`: 450 local, 700 frontier, 1,100 dead lines, 1,700 deep territory; note 636: a flat fee by tier, so a raise in what a car-load pays isn't eaten by deaths) |
 | **Body refund** | For every body delivered: **75% of that death's fee**, plus everything the body was carrying returned to stores |
 | **Net cost of a recovered death** | 25% of the fee. Unrecovered, 100%. |
 | **Delivered means** | Stowed in a car attached to the locomotive at arrival, or carried by a crew member aboard. **Decouple the car and the body goes with it.** |
@@ -1931,14 +2232,16 @@ Breach noise counts because it is the living's action. A crew that smashes a loc
 | **One body per death** | A player who dies twice leaves two bodies and incurs two fees |
 | **Drop-out bodies** | Kit recoverable. No fee, no refund. |
 
-| Tier | Per-car value | Fee | Refund | Recovered net |
+| Tier | Fee value (note 636) | Fee | Refund | Recovered net |
 |---|---|---|---|---|
 | Local | 450 | 225 | 169 | −56 |
 | Frontier | 700 | 350 | 263 | −87 |
 | Dead lines | 1,100 | 550 | 413 | −137 |
 | Deep territory | 1,700 | 850 | 638 | −212 |
 
-**Settlement:** `wallet += delivered cargo − running costs − Σ crew-loss fees + Σ body refunds`
+**Settlement:** `wallet += delivered cargo − running costs − Σ crew-loss fees + Σ body refunds − Σ monster brigade fees`
+
+**Monster brigade fee** (notes 589, 608): charged for each creature brought into town through the gate (§9), the same as a crew-loss fee: half the tier's fee value (run.json `broughtIn.fee`, 0.5, of `economy.feeValue`; note 636).
 
 **Silent-settlement termini** (Dead lines) pay cargo and body refunds as normal, credited by the fortress that issued the contract.
 
@@ -2232,19 +2535,21 @@ Nobody died, so there's no opera. The joke is how little anyone cares.
 
 ## E.10 Tunables
 
+The director, 9 Oct 2026, playtest (note 579): "When derailment happens things need to slow right down. They need to show the derailment happening in slow motion with people being thrown all over the place and cars basically being blasted off the tracks in a comedic way." The fling, kick and spin went to the top of their ranges and the slow motion down; outside the film, the live wreck plays its first 6 s at 0.2× (the replay shows it again) and every car is blasted up off the rails (tuning/wreck.json `slowSeconds`, `slowRate`, `blastUp`, `blastRoll`).
+
 | Tunable | Default | Range |
 |---|---|---|
 | Pre-sim length | 6s | 4–8s |
 | Substeps | 4 | 2–8 |
 | Coupling break strain | — | Set in feel-testing |
-| Fling multiplier | ×1.6 (5 Oct; was ×1.3) | ×1.0–2.0 |
-| Upward kick | 3–5 m/s (5 Oct; was 2–4) | 0–6 m/s |
-| Spin | 3.5–7 rad/s (5 Oct; was ≤4) | 0–8 |
+| Fling multiplier | ×2.0 (9 Oct; was ×1.6, ×1.3) | ×1.0–2.0 |
+| Upward kick | 4–6 m/s (9 Oct; was 3–5, 2–4) | 0–6 m/s |
+| Spin | 4.5–8 rad/s (9 Oct; was 3.5–7, ≤4) | 0–8 |
 | Ejection cap | 30 m/s | 20–40 |
 | Minimum-kick speed | 6 m/s | 4–10 |
 | Bystander distance | 25 m | 15–40 |
-| Base slow motion | 0.4× (5 Oct; was 0.25×) | 0.1–0.5× |
-| Peak slow motion | 0.15× (5 Oct; was 0.1×) | 0.05–0.25× |
+| Base slow motion | 0.3× (9 Oct; was 0.4×, 0.25×) | 0.1–0.5× |
+| Peak slow motion | 0.1× (9 Oct; was 0.15×, 0.1×) | 0.05–0.25× |
 | Player shot | 4s (5 Oct, take 3; was 2.5s) | 1.5–5s |
 | Player-shot block cap | 32s (5 Oct, take 3; was 16s) | 10–40s |
 | First person | to the death + 3.8s, 4.5–9s (5 Oct, take 3) | — |
@@ -2447,7 +2752,7 @@ Further decisions (the director, 6 Oct 2026):
 - **The Track Doll may haunt the train.** It's a supernatural apparition, a deliberate exception to the boarding rule. *Done (notes 268, 269).*
 - **The Stoker** is drawn to the train only when the firebox runs above a set heat; it seeks heat. Once beaten, it stays gone for at least a couple of minutes. If it gets in, the consequences must be larger and more urgent. Running hot has to be a real trade-off. *Done (notes 263, 271).*
 - **Car lamps start lit.** Their pull on Fire Flies is rare, and only while the car is stopped. *Done (note 269).*
-- **Run length** is to be set by simulation sweeps (T125). *Set: 24 km, every tier, a 51 min dawn; `dt linegen sweep` passes at it (note 270).*
+- **Run length** is to be set by simulation sweeps (T125). *Set: 24 km, every tier, a 51 min dawn; `dt linegen sweep` passes at it (note 270). Then 7 km, every tier, a 24 min dawn with three stops (the director, 9 Oct 2026, note 554); `dt linegen sweep` passes at it.*
 - **Solo:** a solo player can finish one to three runs before it gets seriously hard and they realise they need friends. You can teach yourself the game solo, but you can't really advance solo. The solo finish target will be tested later. *Tested (note 300): with two bot bugs fixed (a lone driver stranded on a car's landing, and a train stood on the points it needed thrown), a bot alone delivers every night swept: Local and Frontier at 3 and 6 cars, Frontier and Dead Lines at 10. What solo pays is income, about a third of a crew's. The bot never forgets the fire; people alone will find it harder. `balance.json` `solo` judges the target; what should make solo seriously hard is the director's call (four options in note 300).*
 
 - **Quiet stretches are counted in kilometres, not seconds.** A stretch of line holds the same danger whatever the train's speed. A time backstop keeps a stopped train from waiting it out. *Done (T125): the director's quiet pressure ramps over 1.26 km of line run since a threat was engaged, or 120 s if that's sooner (note 270).*
@@ -2475,7 +2780,7 @@ Further decisions (the director, 6 Oct 2026):
   - **Driven off, or killed together** *(the director, 7 Oct 2026)*: "They should be driven off by rules but they should also be able to be killed like in Lethal Company if the team coordinates effectively." Following a creature's rule drives it off (the normal answer, a break: it can come back); a coordinated team can kill it, which takes several of the crew striking at once with the setup its rule asks for, and a lone player swinging never gets there. Killing is riskier and costlier than driving off, and rewarded: it doesn't come back that night, and the incident report names the gang. *Done for the Grumbler, the Gaunt, the Passenger, Climbers and the Choir's ghosts (note 288; enemies.json `coordinatedKill` and each one's `drivenOff`).*
 - **Fire is a grid.** Each car's surfaces (floor, walls, roof; never mid-air) are cut into large cells of 1–2 m. Fire spreads cell to cell, the extinguisher puts out the cell you aim at, and burnt cells char the textures. *Done (note 267; systems spec B.11).*
 
-**Decided** (the director, 6 Oct 2026): "The time a run takes should always be the same. Difficulty scales not by time but by monsters and density of challenges." One night length for every tier; §11 Route tiers and systems spec B.8 (run length) to change. *Done (T125): one 24 km line and a 51 min dawn on every tier, the tiers' counts and creature budgets now their density (§11, spec B.8; ARCHITECTURE.md note 270).*
+**Decided** (the director, 6 Oct 2026): "The time a run takes should always be the same. Difficulty scales not by time but by monsters and density of challenges." One night length for every tier; §11 Route tiers and systems spec B.8 (run length) to change. *Done (T125): one 24 km line and a 51 min dawn on every tier, the tiers' counts and creature budgets now their density (§11, spec B.8; ARCHITECTURE.md note 270). Since 9 Oct 2026 the one line is 7 km with a 24 min dawn (note 554).*
 
 **Decided** (the director, 7 Oct 2026): "The switch itself shouldn't cause derail, it should be lines that lead nowhere." The Switchman never derails the train by throwing points under it; it throws a junction ahead and the train goes down a dead line. The crew notice (the wrong lamp, the figure at the lever, the route card), stop, back out and set the switch back by hand. A derailment comes only from the driver running off the end of the dead line, warned in the cab in time to stop. §21 and App. A.8 changed. *Done (note 286).*
 

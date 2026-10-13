@@ -49,6 +49,7 @@ public static partial class StopGenerator
     /// <summary>
     /// The powerhouse (level-design P6: the throat's auxiliary buildings are "a natural home for the yard office or
     /// power"): on the yard's side of the main line, around its first switch, clear of the track. −1 if there's no room.
+    /// With <c>powerhouse.open</c> it stands open, its switchboard inside (note 509); no dice of its own.
     /// </summary>
     static int PlacePowerhouse(StopDraft g, Dice R, StopTuning t, int side)
     {
@@ -58,7 +59,7 @@ public static partial class StopGenerator
         {
             var b = new StopBuilding(BuildingKind.Powerhouse, StopZone.Yard, toe + R.Range(p.Throat), side * R.Range(p.Offset), p.Size[0], p.Size[1],
                 R.Range(-0.1, 0.1))
-            { Variant = R.Int(0, 2) };
+            { Variant = R.Int(0, 2), Open = p.Open };
             if (g.Fits(b, new Fit(Gap: 3, Rail: 4, Road: 2)))
                 return g.Add(b);
         }

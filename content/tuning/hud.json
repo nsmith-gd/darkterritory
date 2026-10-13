@@ -25,6 +25,13 @@
   // Spec E: ping is shown prominently in the lobby (the yard). Out on the line, only once it's this bad (ms), or lost.
   "pingWarnMs": 150,
 
+  // The link's loss (note 534; netcode-audit.md gap 3): the share of the host's snapshots (a joiner's) or a crewmate's
+  // inputs (the host's lobby panel) lost or stale over the last this many seconds. Under lossGood it's fine (good ink);
+  // at lossWarn it's bad (danger ink), and shown out on the line as a bad ping is; between, a warning.
+  "lossWindowSeconds": 10,
+  "lossGood": 0.02,
+  "lossWarn": 0.08,
+
   // The crew's noise meter (T113) shows once the crew's this loud, as a share of the Choir's threshold, or the Choir's
   // gathering or here; quiet, it's gone.
   "noiseShowAt": 0.5,

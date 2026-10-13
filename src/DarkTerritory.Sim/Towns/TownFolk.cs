@@ -68,7 +68,7 @@ public sealed record TownPersonality(TownTraits Traits, string Temperament, doub
     string Byname, string Generation)
 {
     /// <summary>What they're called: the byname with the surname after it, the Cape Breton way, or the plain name.</summary>
-    public string Name => Byname.Length > 0 ? $"{Byname} {Surname}" : $"{Given} {Surname}";
+    public string Name => (Byname.Length > 0 ? $"{Byname} {Surname}" : $"{Given} {Surname}").Trim();
 }
 
 /// <summary>Mirror of content/tuning/townsfolk.json (note 474). Field docs live in that file.</summary>
@@ -121,6 +121,23 @@ public sealed record TownFolkWriting
     public Dictionary<string, string[]> RoleBynames { get; init; } = [];
     public Dictionary<string, string[]> TradeBynames { get; init; } = [];
     public Dictionary<string, FolkTemperament> Temperaments { get; init; } = [];
+    /// <summary>Nicki's party (note 571); null without it.</summary>
+    public FolkParty? Party { get; init; }
+}
+
+/// <summary>
+/// Nicki's party (world/townsfolk.json <c>party</c>; note 571): her name and her card's titles, what she says first (the
+/// wine), the rest of what she says, her guests' lines, and the wine on the table.
+/// </summary>
+public sealed record FolkParty
+{
+    public string Name { get; init; } = "Nicki";
+    public string Title { get; init; } = "";
+    public string GuestTitle { get; init; } = "";
+    public string[] Offer { get; init; } = [];
+    public string[] Host { get; init; } = [];
+    public string[] Guests { get; init; } = [];
+    public required TownCentrepiece Wine { get; init; }
 }
 
 /// <summary>One of the province's peoples: its given names, its surnames, and (the Gaelic) its patronymics' fathers.</summary>

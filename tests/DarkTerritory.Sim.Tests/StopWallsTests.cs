@@ -58,7 +58,7 @@ public class StopWallsTests
     [Theory]
     [InlineData("frontier:3")]
     [InlineData("frontier:7")]
-    [InlineData("deadLines:3")]
+    [InlineData("deadLines:20")]
     public void EveryFindPutOutOnAStepIsClearOfTheWalls(string spec)
     {
         var (route, train) = Night(spec);

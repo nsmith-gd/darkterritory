@@ -798,7 +798,10 @@
     "mural": [
       { "title": "a painted sunrise", "text": "A sunrise across the wall, ten metres of it: a yellow sun, a blue sea, a white house on a hill. In chalk underneath, in a child's hand: THIS IS WHAT IT LOOKS LIKE." },
       { "title": "a painted window", "text": "A window painted on the stone, its shutters open on a field and a summer sky. Real curtains hang either side of it, tied back." },
-      { "title": "the day", "text": "A sky painted the length of the wall, morning at one end and evening at the other, so the children can walk the day. The evening end's been painted over darker, more than once." }
+      { "title": "the day", "text": "A sky painted the length of the wall, morning at one end and evening at the other, so the children can walk the day. The evening end's been painted over darker, more than once." },
+      // Dave's (note 570): nobody in any town painted them, and every one is signed the same, small, in red.
+      { "title": "the valley in June (signed D.)", "text": "A valley in June the width of the wall: a gold sky, blue hills, a river down through the green. It was there one morning after a train went through, the paint still wet. In the corner, small: a red D." },
+      { "title": "the sea at noon (signed D.)", "text": "The sea at noon, a lighthouse on its headland, gulls. Nobody here will say who painted it. Somebody keeps it washed. In the corner, small: a red D." }
     ]
   },
 
@@ -844,5 +847,26 @@
     "Children here draw the sun with a handle on it.",
     "I keep a jar of sea water on the sill. It's gone green. I don't open it.",
     "The quiet house had somebody in it last week. The bowl on the step was empty every morning. Then it wasn't."
-  ]
+  ],
+
+  // A town that's had a creature ridden in through its gate on a train (ARCHITECTURE §8 note 608; note 589): it was fought
+  // in the yard and the houses nearest it burnt. The next time a crew is in the town, it remembers. houses: one of those
+  // houses, looked at ({family}: whose it was); gate and guard: the first thing the gatekeeper (after the law) and a guard say.
+  "broughtIn": {
+    "houses": [
+      "The {family} house. Burnt the night a train came in with something on it. The door's still on its hinges, and nothing else.",
+      "Burnt out, the {family}s'. Still warm when you put a hand to the step. Chalked on the step: AT THE HALL.",
+      "The {family} house, to the sills. The yard's guns did that as much as the thing did. Nobody says so."
+    ],
+    "gate": [
+      "You're the crew that brought it in. Don't look at the houses on your way through. We know where they are.",
+      "Last time you came in with something hanging off a car. Check your cars before the gate. We'll be checking them.",
+      "{town} remembers your train. So do the families by the yard, what's left of them."
+    ],
+    "guard": [
+      "I was on the yard the night you brought it in. I'd not shot at anything inside the walls before. I'd not wanted to.",
+      "We fought it between the houses. Between the houses. You understand me.",
+      "Next time you bring one in, we shut the gate with you outside it. The council's voted."
+    ]
+  }
 }

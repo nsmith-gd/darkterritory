@@ -67,6 +67,18 @@ public static class CrewActions
                 train.Vehicles[pin].Loose = 0;
             return;
         }
+        // A seized axle (note 367): a wrench held at one of its car's trucks, from beside it, frees it.
+        if (s.Alive && intent.Has(PlayerButtons.Use) && intent.MoveZ <= 0.5 && train.SeizedRepair is { } sr && Repairs.WrenchInHand(s)
+            && Enemies.Axles.At(s, train, sr) is { } seized)
+        {
+            s.Flags &= ~PlayerFlags.Shovelful;
+            if (s.ActionProgress >= sr.RepairSeconds)
+                s.ActionProgress = 0;
+            s.ActionProgress += dt;
+            if (s.ActionProgress >= sr.RepairSeconds)
+                train.Vehicles[seized].Seized = false;
+            return;
+        }
         if (!s.Alive || !intent.Has(PlayerButtons.Use) || intent.MoveZ > 0.5 || s.Parent == PlayerState.World)
         {
             // Let go of the shovel and what's on it is spilled. A mend under way with the wrench is kept while you're at it
@@ -202,7 +214,14 @@ public static class CrewActions
             case InteractableKind.Handbrake when s.Surface == Surface.Roof || Hand(s, hand):
                 s.ActionProgress += dt;
                 if (before < couplings.HandbrakeSeconds && s.ActionProgress >= couplings.HandbrakeSeconds)
-                    train.SetHandbrake(s.Parent, !train.RakeOf(s.Parent).Handbrake);
+                {
+                    // A brake the Brakeman wound on (note 364) is unwound at its wheel; any other, the rake's turned.
+                    var wheel = train.Vehicles[near.Value.Vehicle];
+                    if (wheel.Wound)
+                        wheel.Wound = false;
+                    else
+                        train.SetHandbrake(s.Parent, !train.RakeOf(s.Parent).Handbrake);
+                }
                 break;
             // A battered car's dent, the wrench in hand (note 301): its shell comes back while it's worked.
             case null when Repairs.Dent(s, train, hand) is { } dented:
@@ -266,7 +285,7 @@ public static class CrewActions
         if (train.Boiler.WrenchOut || Kit.Has(s.Kit, Tool.Wrench))
             return;
         for (int i = 0; i < Kit.Slots; i++)
-            if (Kit.At(s.Kit, i) == Tool.None)
+            if (Kit.Empty(s, i))
             {
                 s.Kit = Kit.With(s.Kit, i, Tool.Wrench);
                 s.HeldSlot = (byte)i;
@@ -293,7 +312,7 @@ public static class CrewActions
         if (train.Boiler.ShovelOut)
             return false;
         for (int i = 0; i < Kit.Slots; i++)
-            if (Kit.At(s.Kit, i) == Tool.None)
+            if (Kit.Empty(s, i))
             {
                 s.Kit = Kit.With(s.Kit, i, Tool.Shovel);
                 s.HeldSlot = (byte)i;

@@ -350,6 +350,20 @@ public sealed class MeshBuilder
             _vertices.RemoveRange(count, _vertices.Count - count);
     }
 
+    /// <summary>
+    /// Moves the vertices added since there were <paramref name="from"/> (<see cref="Count"/> then) by <paramref name="m"/>,
+    /// their normals with them: what was drawn where it stood, then carried with what it belongs to (a sinking house's door).
+    /// </summary>
+    public void Move(int from, in Matrix4x4 m)
+    {
+        var span = CollectionsMarshal.AsSpan(_vertices);
+        for (int i = Math.Max(0, from); i < span.Length; i++)
+        {
+            span[i].Position = Vector3.Transform(span[i].Position, m);
+            span[i].Normal = Vector3.Normalize(Vector3.TransformNormal(span[i].Normal, m));
+        }
+    }
+
     /// <summary>Appends a vertex exactly as given (the kit builders make their own UVs and materials).</summary>
     public void Add(in Vertex v) => _vertices.Add(v);
 

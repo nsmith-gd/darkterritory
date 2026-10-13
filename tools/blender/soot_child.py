@@ -89,22 +89,24 @@ EYE_U, EYE_W, MOUTH_W = 0.4, 0.04, -0.48
 
 
 def face(i, j, a, th, p):
-    """A child's face: the forehead high and round, the cheeks full, the nose small, the chin small; the sockets a
-    little deep, so the eyes in them catch the light, or don't."""
+    """A child's face, starved (note 543's way, note 546): the forehead high and round, but the skin thin over the bones,
+    so the brow and the cheekbones show and the cheeks are drawn in under them; the eyes sunk deep in their sockets, so
+    the eyes in them catch the light, or don't; the nose small, the chin small, the jaw a child's, narrow."""
     p = Vector(p)
     u, v, w = head_units(p)
     front = smooth01(0.15, 0.6, v)
     n = head_normal(p)
     off = 0.0
     for eu in (-EYE_U, EYE_U):
-        off -= 0.015 * front * bell(math.hypot((u - eu) / 0.26, (w - EYE_W) / 0.19))
-        off += 0.005 * front * bell(math.hypot((u - eu) / 0.3, (w - EYE_W - 0.22) / 0.08))      # the brow over it
-        off += 0.006 * front * bell(math.hypot((u - eu * 1.15) / 0.28, (w + 0.28) / 0.2))      # the cheeks
+        off -= 0.023 * front * bell(math.hypot((u - eu) / 0.27, (w - EYE_W) / 0.21))
+        off += 0.008 * front * bell(math.hypot((u - eu) / 0.32, (w - EYE_W - 0.24) / 0.08))      # the brow over it
+        off += 0.007 * front * bell(math.hypot((u - eu * 1.22) / 0.2, (w + 0.12) / 0.09))      # the cheekbones
+        off -= 0.009 * front * bell(math.hypot((u - eu * 1.1) / 0.22, (w + 0.42) / 0.16))      # the cheeks drawn in
     off += 0.017 * front * bell(u / 0.1) * bell((w + 0.22) / 0.13) + 0.006 * front * bell(u / 0.07) * bell((w + 0.02) / 0.15)   # the nose, small
     off -= 0.004 * front * bell(math.hypot(u / 0.3, (w - MOUTH_W) / 0.08))
-    off += 0.004 * front * bell(math.hypot(u / 0.28, (w + 0.76) / 0.12))                         # the chin
-    # The jaw's below the mouth: narrower, a child's.
+    off += 0.005 * front * bell(math.hypot(u / 0.28, (w + 0.78) / 0.12))                         # the chin
     off -= 0.006 * bell((w + 0.75) / 0.25) * smooth01(0.5, 0.95, abs(u))
+    off -= 0.007 * bell((abs(u) - 0.88) / 0.12) * bell((w - 0.2) / 0.22) * smooth01(-0.3, 0.3, v)   # the temples
     return p + n * (off + 0.001 * noise3(p * 40, 81, 1.0))
 
 
@@ -123,7 +125,7 @@ def head_weights(p):
 
 
 head = kit.part("head")
-head.blob(HC, tuple(HR), 22, 18, SKIN, head_weights, shape=face,
+head.blob(HC, tuple(HR), 32, 26, SKIN, head_weights, shape=face,
           fmat=lambda pts, n: MOUTH if all(abs(head_units(q)[0]) < 0.28 and abs(head_units(q)[2] - MOUTH_W) < 0.03 and head_units(q)[1] > 0.6 for q in pts) else SKIN)
 for sx in (1, -1):
     head.blob(HC + Vector((sx * HR.x * 0.95, -0.006, -0.005)), (0.009, 0.019, 0.026), 6, 5, SKIN, "head")
@@ -146,22 +148,37 @@ def hair_shape(i, j, a, th, p):
     if v > 0.25 and w < 0.62:
         p += Vector((0, -0.06 * smooth01(0.25, 0.7, v), 0.0))
     p.z -= 0.05 * smooth01(0.2, -0.6, w) * smooth01(0.4, -0.6, v)
-    return p + head_normal(p) * 0.004 * noise3(p * 60, 82, 1.0)
+    # Matted into clumps (note 546: it was a helmet): ridges running down the head, uneven, and the clumps' ends ragged.
+    clump = max(0.0, math.sin(a * 11 + 1.7 * noise3(p * 18, 85, 1.0))) ** 2
+    return p + head_normal(p) * (0.007 * clump + 0.004 * noise3(p * 60, 82, 1.0))
 
 
-hair.blob(HC + Vector((0, -0.006, 0.012)), (HR.x * 1.08, HR.y * 1.06, HR.z * 1.04), 18, 10, HAIR, "head", shape=hair_shape, z0=-0.5)
-# Lank strands down the sides and the back (round from the temples: the face, and its eyes, stay clear), two of them
-# hanging forward at the cheeks.
-for k in range(14):
-    a = (0.75 + 1.9 * (k // 2) / 6) * (1 if k % 2 else -1)
-    root = HC + Vector((math.sin(a) * HR.x * 0.98, math.cos(a) * HR.y * 0.95, HR.z * 0.25))
-    ln = 0.08 + 0.06 * (0.5 + 0.5 * math.sin(k * 2.3)) + 0.04 * (abs(a) > 2.0)
+hair.blob(HC + Vector((0, -0.006, 0.012)), (HR.x * 1.08, HR.y * 1.06, HR.z * 1.04), 26, 12, HAIR, "head", shape=hair_shape, z0=-0.5)
+# Lank clumps down the sides and the back (round from the temples: the face, and its eyes, stay clear), and a few hanging
+# forward over the brow and the cheeks, matted into points.
+for k in range(26):
+    a = (0.7 + 2.1 * (k // 2) / 12) * (1 if k % 2 else -1)
+    root = HC + Vector((math.sin(a) * HR.x * 0.98, math.cos(a) * HR.y * 0.95, HR.z * (0.25 + 0.2 * math.sin(k * 1.3))))
+    ln = 0.08 + 0.07 * (0.5 + 0.5 * math.sin(k * 2.3)) + 0.05 * (abs(a) > 2.0)
     out = Vector((math.sin(a), math.cos(a), 0)) * 0.012
-    pts = [root, root + out + Vector((0, 0, -ln * 0.5)), root + out * 1.3 + Vector((0, 0, -ln))]
-    hair.tube(pts, [0.009, 0.007, 0.002], 4, HAIR, "head", ref=(0, 0, 1), cap1="point")
-for sx in (1, -1):
-    root = HC + Vector((sx * HR.x * 0.72, HR.y * 0.62, HR.z * 0.5))
-    hair.tube([root, root + Vector((sx * 0.012, 0.016, -0.06)), root + Vector((sx * 0.014, 0.012, -0.12))], [0.007, 0.005, 0.0015], 4, HAIR, "head",
+    sway = Vector((0.01 * math.sin(k * 3.1), 0.0, 0.0))
+    pts = [root, root + out + sway * 0.5 + Vector((0, 0, -ln * 0.45)), root + out * 1.3 + sway + Vector((0, 0, -ln * 0.8)), root + out * 1.2 + sway + Vector((0, 0, -ln))]
+    hair.tube(pts, [0.011, 0.009, 0.005, 0.0015], 5, HAIR, "head", ref=(0, 0, 1), cap1="point")
+# The fringe: matted clumps down over the forehead to the brows, so there's no clean band of brow between the hair and
+# the eyes (note 546), parted a little over the left eye.
+for k in range(9):
+    u = -0.62 + 1.24 * k / 8
+    if abs(u - 0.38) < 0.12:
+        continue
+    root = HC + Vector((u * HR.x * 0.95, HR.y * (0.55 - 0.25 * u * u), HR.z * 0.82))
+    ln = 0.05 + 0.02 * (0.5 + 0.5 * math.sin(k * 2.9))
+    tip = on_face(u * 1.05, EYE_W + 0.24 + 0.06 * math.sin(k * 1.7), 0.008)[0]
+    mid = root.lerp(tip, 0.5) + Vector((0, 0.012, 0))
+    hair.tube([root, mid, tip + (tip - mid).normalized() * (ln - 0.05)], [0.009, 0.007, 0.0015], 5, HAIR, "head", ref=(0, 0, 1), cap1="point")
+for sx, du in ((1, 0.72), (-1, 0.72), (1, 0.3), (-1, 0.15)):
+    root = HC + Vector((sx * HR.x * du, HR.y * 0.62, HR.z * 0.55))
+    ln = 0.12 if du > 0.5 else 0.07
+    hair.tube([root, root + Vector((sx * 0.01, 0.018, -ln * 0.5)), root + Vector((sx * 0.012, 0.014, -ln))], [0.008, 0.006, 0.0015], 5, HAIR, "head",
               ref=(0, 0, 1), cap1="point")
 # The neck, thin.
 NECK = [Vector((0, 0.0, TOP - 0.02)), Vector((0, 0.004, (TOP + NT) / 2)), Vector((0, 0.008, NT + 0.03))]
@@ -250,26 +267,77 @@ def jointed(a, b, c, upper, lower, blend=0.025):
     return w
 
 
+def built(part, points, radii, per, sides, mat, bones, ref, bumps=(), lumps=0.0, fmat=None, **kw):
+    """A limb built along its length (note 546, as the Grumbler's, note 543): `per` more rings between each pair, a bone's
+    knob or a tendon raised at t (0..1 along it) where the surface faces `direction` (`bumps`: (t, direction, metres,
+    along, power)), and wasted unevenly (`lumps`)."""
+    rs = [r if isinstance(r, tuple) else (r, r) for r in radii]
+    pts, rr = [], []
+    for (p0, r0), (p1, r1) in zip(zip(points, rs), zip(points[1:], rs[1:])):
+        for k in range(per + 1):
+            f = k / (per + 1)
+            pts.append(p0.lerp(p1, f))
+            rr.append((r0[0] + (r1[0] - r0[0]) * f, r0[1] + (r1[1] - r0[1]) * f))
+    pts.append(points[-1])
+    rr.append(rs[-1])
+    last = len(pts) - 1
+
+    def shape(i, j, a, p, fr):
+        p = Vector(p)
+        o = fr[0] * math.sin(a) + fr[1] * math.cos(a)
+        t = i / last
+        off = lumps * noise3(p * 30, 86, 1.0)
+        for t0, d, amt, wt, pw in bumps:
+            off += amt * bell((t - t0) / wt) * max(0.0, o.dot(Vector(d).normalized())) ** pw
+        return p + o * off
+    return part.tube(pts, rr, sides, mat, bones, ref=ref, shape=shape, fmat=fmat, **kw)
+
+
+def sooted(a, b, start, mat_soot, mat_skin):
+    """A face's material along a→b: the soot climbs to `start` (0..1 from b back toward a), raggedly, in runs and
+    tongues, not stopping at a cuff (note 546: the hands were black gloves)."""
+    d = b - a
+
+    def fmat(pts, n):
+        c = sum(pts, Vector()) / len(pts)
+        t = (c - a).dot(d) / d.length_squared
+        line = 1 - start + 0.1 * noise3(c * 45, 87, 1.0) - 0.12 * max(0.0, noise3(c * 18, 88, 1.0))
+        return mat_soot if t > line else mat_skin
+    return fmat
+
+
 hands = {0: kit.part("hands_real", variants=(0,)), 1: kit.part("hands_soot", variants=(1,))}
 for s, sx in (("r", 1), ("l", -1)):
     ua, la, hd = f"upperarm_{s}", f"lowerarm_{s}", f"hand_{s}"
     sh, e, wr = H(ua), H(la), H(hd)
-    # The sleeve, rolled to the elbow; the forearm bare and thin.
+    elbow = jointed(sh, e, wr, ua, la)
+    # The sleeve, rolled to the elbow.
     limbs.tube([sh - Vector((sx * 0.012, 0, 0)), sh.lerp(e, 0.5), e + Vector((sx * 0.012, 0, 0))], [(0.045, 0.042), 0.036, 0.04], 9, SHIRT,
-               jointed(sh, e, wr, ua, la), ref=(0, 0, 1), shape=lambda i, j, a, p, fr: Vector(p) + (fr[0] * math.sin(a) + fr[1] * math.cos(a)) * 0.003 * math.sin(a * 5))
-    limbs.tube([e - Vector((sx * 0.01, 0, 0)), e.lerp(wr, 0.5)], [0.022, 0.019], 8, SKIN, jointed(sh, e, wr, ua, la), ref=(0, 0, 1))
+               elbow, ref=(0, 0, 1), shape=lambda i, j, a, p, fr: Vector(p) + (fr[0] * math.sin(a) + fr[1] * math.cos(a)) * 0.003 * math.sin(a * 5))
     k0 = T(hd)
-    # The hand from mid-forearm on, the real child's dirty and a Soot Child's black, ragged where it stops.
+
+    def fore(p, e=e, wr=wr, la=la, hd=hd, elbow=elbow, sx=sx):
+        k = smooth01(-0.008, 0.008, (p - wr).x * sx)
+        w = elbow(p) if (p - e).x * sx < 0.03 else {la: 1.0}
+        if k > 0:
+            w = {n: x * (1 - k) for n, x in w.items()}
+            w[hd] = w.get(hd, 0) + k
+        return {n: x for n, x in w.items() if x > 1e-4}
+    # The forearm, thin as a stick, the elbow's knob and the wrist's knobs standing; the hand. A Soot Child's black from
+    # the fingers up past the wrist, in a ragged line half way up the forearm; the real child's only dirty (the bake).
     for v, mat in ((0, SKIN), (1, SOOT)):
         part = hands[v]
-        part.tube([e.lerp(wr, 0.5), wr, wr.lerp(k0, 0.6), k0], [0.019, 0.017, (0.025, 0.01), (0.026, 0.009)], 8, mat, la if v else la, ref=(0, 0, 1),
-                  shape=lambda i, j, a, p, fr, v=v: Vector(p) + (fr[0] * math.sin(a) + fr[1] * math.cos(a)) * (0.0025 * max(0.0, math.sin(a * 7)) * (i == 0) * v))
+        built(part, [e - Vector((sx * 0.01, 0, 0)), e.lerp(wr, 0.5), wr, wr.lerp(k0, 0.6), k0], [0.022, 0.018, (0.017, 0.015), (0.025, 0.01), (0.026, 0.009)],
+              2, 10, SKIN, fore, (0, 0, 1), bumps=[(0.02, (0, -1, 0), 0.008, 0.06, 2), (0.5, (0, 0, 1), 0.004, 0.06, 3), (0.5, (0, -0.4, 1), 0.003, 0.06, 4)],
+              lumps=0.0012, fmat=sooted(e, k0, 0.62, SOOT, SKIN) if v else None)
         for f in range(4):
             spread = (f - 1.5) * 0.013
             base = k0 + Vector((0, spread, 0))
             along = Vector((sx, spread * 0.6, 0)).normalized()
             n = 0.055 * (0.88 + 0.12 * (1 - abs(f - 1.5) / 1.5))
-            part.tube([base, base + along * n * 0.5, base + along * n], [0.0065, 0.0058, 0.0042], 5, mat,
+            # Thin, the knuckles standing.
+            ts = (0.0, 0.25, 0.45, 0.55, 0.72, 0.85, 1.0)
+            part.tube([base + along * n * t for t in ts], [0.0068, 0.0052, 0.006, 0.005, 0.0055, 0.0045, 0.003], 6, mat,
                       lambda p, base=base, n=n, s=s: {f"hand_{s}": 1.0} if (p - base).length < n * 0.15 else {f"fingers_{s}": 1.0}, ref=(0, 0, 1), cap1=True)
         th0, th1 = H(f"thumb_{s}"), T(f"thumb_{s}")
         part.tube([th0, th0.lerp(th1, 0.6), th1 + (th1 - th0) * 0.3], [0.0075, 0.0065, 0.004], 5, mat, f"thumb_{s}", ref=(0, 0, 1), cap1=True)
@@ -278,12 +346,18 @@ feet = {0: kit.part("feet_real", variants=(0,)), 1: kit.part("feet_soot", varian
 for s, sx in (("r", 1), ("l", -1)):
     hp, kn, an, bl = H(f"thigh_{s}"), H(f"calf_{s}"), H(f"foot_{s}"), H(f"ball_{s}")
     toe = T(f"ball_{s}")
-    limbs.tube([hp + Vector((0, 0, -0.04)), hp.lerp(kn, 0.5), kn, kn.lerp(an, 0.6)], [0.045, 0.036, (0.03, 0.031), 0.024], 9, SKIN,
-               jointed(hp, kn, an, f"thigh_{s}", f"calf_{s}"), ref=(0, 1, 0))
+    knee = jointed(hp, kn, an, f"thigh_{s}", f"calf_{s}")
+    # The thigh, thin, and the knee too big for it, a child's starved.
+    built(limbs, [hp + Vector((0, 0, -0.04)), hp.lerp(kn, 0.5), kn], [0.042, 0.032, (0.03, 0.031)], 2, 10, SKIN, knee, (0, 1, 0),
+          bumps=[(1.0, (0, 1, 0), 0.012, 0.12, 2), (0.95, (1, 0.3, 0), 0.005, 0.1, 3), (0.95, (-1, 0.3, 0), 0.005, 0.1, 3)], lumps=0.001)
     for v, mat in ((0, SKIN), (1, SOOT)):
-        feet[v].tube([kn.lerp(an, 0.6), an + Vector((0, -0.008, 0.012)), an.lerp(bl, 0.5) + Vector((0, 0, -0.012)), bl + Vector((0, 0, -0.008)),
-                      toe + Vector((0, -0.006, -0.01))], [0.024, (0.026, 0.028), (0.03, 0.02), (0.031, 0.016), (0.026, 0.012)], 9, mat,
-                     [f"calf_{s}", f"foot_{s}", f"foot_{s}", f"ball_{s}", f"ball_{s}"], ref=(0, 0, 1), cap1=True)
+        # The shin to the ankle (black from the foot up, raggedly, half way to the knee: a Soot Child's), and the foot.
+        built(feet[v], [kn, kn.lerp(an, 0.5), an + Vector((0, -0.006, 0.01))], [(0.03, 0.031), 0.023, (0.023, 0.025)], 3, 10, SKIN, knee, (0, 1, 0),
+              bumps=[(0.0, (0, 1, 0), 0.01, 0.1, 2), (0.45, (0, 1, 0), 0.004, 0.3, 8), (1.0, (1, 0, 0), 0.005, 0.07, 4), (1.0, (-1, 0, 0), 0.005, 0.07, 4)],
+              lumps=0.001, fmat=sooted(kn, an, 0.55, SOOT, SKIN) if v else None)
+        feet[v].tube([an + Vector((0, -0.008, 0.012)), an.lerp(bl, 0.5) + Vector((0, 0, -0.012)), bl + Vector((0, 0, -0.008)),
+                      toe + Vector((0, -0.006, -0.01))], [(0.026, 0.028), (0.03, 0.02), (0.031, 0.016), (0.026, 0.012)], 9, mat,
+                     [f"foot_{s}", f"foot_{s}", f"ball_{s}", f"ball_{s}"], ref=(0, 0, 1), cap1=True)
 
 
 # ----------------------------------------------------------------------------------------------------------------

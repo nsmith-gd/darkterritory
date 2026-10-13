@@ -269,6 +269,8 @@ public static class CrewActs
                 BodyKind.Extinguisher => CrewPose.Extinguish,
                 // The repair kit at work on a burst boiler (T109): down at the firebox mending it.
                 BodyKind.RepairKit when s.ActionProgress > 0 && CrewActions.AtTheRupture(s, train) => CrewPose.Mend,
+                // Otherwise the kit by its handle at the side, a toolbox (note 513), not held out in front like a crate.
+                BodyKind.RepairKit => CrewPose.Toolbox,
                 _ => CrewPose.Carry,
             };
         // The wrench at work on a break (note 301): down at it, mending.

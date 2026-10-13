@@ -147,7 +147,14 @@ public sealed partial class WorldArt
     }
 
     /// <summary>How high an open barn's, outbuilding's or goods shed's walls stand (m, to the eaves): what it's drawn at, and its Room (note 462).</summary>
-    public static float OpenShedHeight(BuildingKind kind) => kind switch { BuildingKind.Barn => 6.5f, BuildingKind.GoodsShed => 7f, BuildingKind.Station => 5.2f, _ => 4.6f };
+    public static float OpenShedHeight(BuildingKind kind) => kind switch
+    {
+        BuildingKind.Barn => 6.5f,
+        BuildingKind.GoodsShed => 7f,
+        BuildingKind.Station => 5.2f,
+        BuildingKind.Powerhouse => 5.5f,
+        _ => 4.6f,
+    };
 
     /// <summary>How high a yard's shed or its hero (the strongroom) stands (m, to the eaves): what it's drawn at, and its Room (note 465).</summary>
     public static float YardShedHeight(StopBuilding b) => b.Kind == BuildingKind.Hero ? 10 + b.Variant : 6.5f + b.Variant * 0.8f;
@@ -271,6 +278,37 @@ public sealed partial class WorldArt
             k.Use("wood_grey", new Vector3(0.62f, 0.55f, 0.38f), 0.9f, 0);
             foreach (double tx in new[] { -0.55, -0.1, 0.4 })
                 BoxIn(k, x + tx, Back(0.1), 0.06, 0.06, up + 1.52f, up + 1.62f);
+        }
+        if (b.Kind == BuildingKind.Powerhouse)
+        {
+            // A powerhouse's switchboard (note 509, the sim's box at ShedKept 0): a slate panel on an iron frame against the
+            // back wall, its knife switches and two dials, where the power's restarted. Across from it (ShedKept 1, the
+            // sim's other box) the engine: a bed, its cylinder, a flywheel standing up out of a pit, and the dynamo it
+            // belts, under the stack.
+            var (sx, _, _, _) = StopWalls.ShedKept(b, 0);
+            double y = Back(StopWalls.BenchDepth), hw = StopWalls.BenchWidth, hd = StopWalls.BenchDepth;
+            k.Use("rust_heavy", Palette.IronGrey, 0.85f, 0.5f);
+            foreach (double fx in new[] { -hw + 0.05, hw - 0.05 })
+                BoxIn(k, sx + fx, y, 0.05, hd, floor, up + 2.2f);
+            BoxIn(k, sx, y, hw, hd, floor, up + 0.5f);
+            k.Use("stone_block", new Vector3(0.12f, 0.13f, 0.14f), 0.4f, 0.1f, tile: 2);
+            BoxIn(k, sx, Back(0.12), hw - 0.08, 0.04, up + 0.6f, up + 2.1f);
+            k.Use("rust_heavy", new Vector3(0.45f, 0.32f, 0.12f), 0.5f, 0.7f);
+            for (int i = 0; i < 4; i++)
+            {
+                double kx = sx - hw + 0.35 + i * (2 * hw - 0.7) / 3;
+                BoxIn(k, kx, Back(0.2), 0.03, 0.06, up + 1.15f, up + 1.45f);
+                k.Rod(InKit(kx, Back(0.2), up + 1.45f), InKit(kx, Back(0.38), up + 1.62f), 0.02f);
+            }
+            foreach (double dx in new[] { -0.4, 0.4 })
+                k.Cylinder(InKit(sx + dx, Back(0.16), up + 1.8f), InKit(sx + dx, Back(0.2), up + 1.8f), 0.13f, 12);
+            var (ex, _, _, _) = StopWalls.ShedKept(b, 1);
+            k.Use("rust_heavy", Palette.IronGrey, 0.85f, 0.5f);
+            BoxIn(k, ex, y, hw, hd, floor, up + 0.35f);
+            k.Cylinder(InKit(ex - hw + 0.15, y, up + 0.75f), InKit(ex - 0.1, y, up + 0.75f), 0.3f, 12);
+            k.Cylinder(InKit(ex + 0.35, y - door * 0.05, up + 0.8f), InKit(ex + 0.35, y + door * 0.12, up + 0.8f), 0.75f, 16);
+            k.Use("rust_heavy", new Vector3(0.3f, 0.2f, 0.1f), 0.6f, 0.6f);
+            k.Cylinder(InKit(ex + hw - 0.3, y, up + 0.35f), InKit(ex + hw - 0.3, y, up + 0.95f), 0.25f, 12);
         }
         // The Gaunt's nest, if it roosts here (note 488): on the boards where it sleeps, under no lantern
         // (GreyboxScene.HouseInteriors), as in a house (TownKit.OpenHouse).

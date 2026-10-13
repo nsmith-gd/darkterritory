@@ -30,9 +30,12 @@ public class CargoTests
         Assert.Equal(CargoKind.Heavy, F.CargoOf(FacilityKind.Foundry));
         // The coaling tower loads no cargo; anything unlisted is goods.
         Assert.Equal(CargoKind.Goods, F.CargoOf(FacilityKind.CoalingTower));
-        // A night leaves with the fortress's own freight: goods, in its loaded cars.
+        // A loaded car with nothing said of its freight is goods.
         var consist = Consist.Uniform(Tuning.Train, 5, 0.5);
         Assert.All(consist.Vehicles.Where(v => v.Kind == VehicleKind.Cargo), v => Assert.Equal(CargoKind.Goods, v.Cargo));
+        // A night leaves the fortress empty (note 575): no freight at all until a stop loads it, whatever the contract.
+        var departing = Consist.Uniform(Tuning.Train, 5, Tuning.Run.DepartureLoad).Carrying(CargoKind.Chemicals);
+        Assert.All(departing.Vehicles, v => Assert.Equal((0.0, CargoKind.None), (v.Load, v.Cargo)));
     }
 
     [Fact]
@@ -70,7 +73,7 @@ public class CargoTests
             v.Cargo = cargo;
         train.Dynamics.Velocity = speed;
         var world = new World(train, Tuning.Combat);
-        world.EnableEnemies(enemies ?? Tuning.Enemies, route ?? Frontier(), seed, crew, authority: true);
+        world.EnableEnemies(enemies ?? EveryKind.Enemies, route ?? Frontier(), seed, crew, authority: true);
         return world;
     }
 
@@ -90,8 +93,8 @@ public class CargoTests
     public void WithLivestockAboardTheHoundsComeFarMoreOften()
     {
         // Hounds and the Track Doll priced alike and nothing else in reach: over a dozen nights, how often the first is the Hounds.
-        var d = Tuning.Enemies.Director;
-        var t = Tuning.Enemies with
+        var d = EveryKind.Enemies.Director;
+        var t = EveryKind.Enemies with
         {
             Director = d with
             {
@@ -123,10 +126,10 @@ public class CargoTests
     [Fact]
     public void LivestockAboardTheChoirNeverQuietsBelowItsFloor()
     {
-        var quiet = Night(10, CargoKind.Goods, enemies: Tuning.Enemies with { Director = Tuning.Enemies.Director with { GraceMinSeconds = 1e9, GraceMaxSeconds = 1e9 } });
+        var quiet = Night(10, CargoKind.Goods, enemies: EveryKind.Enemies with { Director = EveryKind.Enemies.Director with { GraceMinSeconds = 1e9, GraceMaxSeconds = 1e9 } });
         Run(quiet, 2, 10);
         Assert.Equal(0, quiet.Choir.Loudness, 6);
-        var lowing = Night(10, CargoKind.Livestock, enemies: Tuning.Enemies with { Director = Tuning.Enemies.Director with { GraceMinSeconds = 1e9, GraceMaxSeconds = 1e9 } });
+        var lowing = Night(10, CargoKind.Livestock, enemies: EveryKind.Enemies with { Director = EveryKind.Enemies.Director with { GraceMinSeconds = 1e9, GraceMaxSeconds = 1e9 } });
         // The meter's measured over a few seconds (App. C.7): it settles on the floor.
         Run(lowing, 8 * Tuning.Combat.Choir.WindowSeconds, 10);
         Assert.Equal(Tuning.Combat.Choir.LivestockFloor, lowing.Choir.Loudness, 2);
@@ -138,11 +141,11 @@ public class CargoTests
         static double Spread(CargoKind cargo)
         {
             var route = new Route.Route("t", RouteTier.Frontier, 1, Straight, [new RouteFeature(FeatureKind.Marsh, 0, 80_000)], new RouteWeather(0.01, false, 0, 0), 3600);
-            var world = Night(8, cargo, route, enemies: Tuning.Enemies with { Director = Tuning.Enemies.Director with { GraceMinSeconds = 1e9, GraceMaxSeconds = 1e9 } });
+            var world = Night(8, cargo, route, enemies: EveryKind.Enemies with { Director = EveryKind.Enemies.Director with { GraceMinSeconds = 1e9, GraceMaxSeconds = 1e9 } });
             Run(world, 10, 8);
-            return Assert.IsType<Drift>(Assert.Single(world.ActiveEnemies, e => e.Kind == EnemyKind.Drift)).Radius - Tuning.Enemies.Drift.StartRadius;
+            return Assert.IsType<Drift>(Assert.Single(world.ActiveEnemies, e => e.Kind == EnemyKind.Drift)).Radius - EveryKind.Enemies.Drift.StartRadius;
         }
-        Assert.Equal(Tuning.Enemies.Drift.ChemicalSpread * Spread(CargoKind.Goods), Spread(CargoKind.Chemicals), 1);
+        Assert.Equal(EveryKind.Enemies.Drift.ChemicalSpread * Spread(CargoKind.Goods), Spread(CargoKind.Chemicals), 1);
     }
 
     [Fact]
@@ -231,7 +234,7 @@ public class CargoTests
         var toy = n.World.Bodies.SpawnCrate(n.Train, car, new Double3(room.Centre.X, room.Min.Y + 0.1, room.Centre.Z + 2), BodyKind.Toy);
         n.Crew[1] = new PlayerState { Parent = car, Position = new Double3(room.Centre.X, room.Min.Y, room.Centre.Z - 1), Surface = Surface.Deck, Health = Tuning.Player.Health };
         var at = n.Train.Frames[car].ToWorld(n.Crew[1].Position);
-        var gaunt = n.World.AddEnemy(id => Gaunt.Asleep(id, at, Tuning.Enemies.Gaunt));
+        var gaunt = n.World.AddEnemy(id => Gaunt.Asleep(id, at, EveryKind.Enemies.Gaunt));
         n.Run(3);
         // It's leaving with it (A.6): the toy in its hold, out in full view, the child left where it was.
         Assert.Equal(SpinePhase.BreakOff, gaunt.Phase);
@@ -248,7 +251,7 @@ public class CargoTests
         var m = new Night(4, speed: 0);
         var kid = ChildIn(m.World, car);
         m.Crew[1] = n.Crew[1] with { };
-        var again = m.World.AddEnemy(id => Gaunt.Asleep(id, at, Tuning.Enemies.Gaunt));
+        var again = m.World.AddEnemy(id => Gaunt.Asleep(id, at, EveryKind.Enemies.Gaunt));
         m.Run(40);
         Assert.True(again.Gone, $"{again.Phase}");
         Assert.Contains(kid, m.World.Bodies.All);
@@ -270,7 +273,7 @@ public class CargoTests
         var body = n.World.Bodies.SpawnRagdoll(n.Train, 3, lying);
         n.Crew[1] = new PlayerState { Parent = car, Position = new Double3(room.Centre.X, room.Min.Y, room.Centre.Z - 1), Surface = Surface.Deck, Health = Tuning.Player.Health };
         var at = n.Train.Frames[car].ToWorld(n.Crew[1].Position);
-        var gaunt = n.World.AddEnemy(id => Gaunt.Asleep(id, at, Tuning.Enemies.Gaunt));
+        var gaunt = n.World.AddEnemy(id => Gaunt.Asleep(id, at, EveryKind.Enemies.Gaunt));
         n.Run(3);
         Assert.Equal(SpinePhase.BreakOff, gaunt.Phase);
         Assert.Equal(gaunt.Id, body.TakenBy);
@@ -296,18 +299,19 @@ public class CargoTests
     [Fact]
     public void ACometContractPutsCometAboardAndWeighsEverythingUp()
     {
-        // B.9: "all weights x1.4 · Passenger gate relaxed by one tier". The contract's freight is in every loaded car.
-        var consist = Consist.Uniform(Tuning.Train, 5, Tuning.Run.DepartureLoad).Carrying(CargoKind.Comet);
+        // B.9: "all weights x1.4 · Passenger gate relaxed by one tier". The freight is in every loaded car (the train leaves
+        // empty since note 575, so here it's a loaded one, as a save would put it back).
+        var consist = Consist.Uniform(Tuning.Train, 5, 1).Carrying(CargoKind.Comet);
         Assert.All(consist.Vehicles.Where(v => v.Kind == VehicleKind.Cargo), v => Assert.Equal(CargoKind.Comet, v.Cargo));
         Assert.DoesNotContain(consist.Vehicles, v => v.Kind != VehicleKind.Cargo && v.Cargo == CargoKind.Comet);
-        Assert.Equal(1.4, Tuning.Enemies.Director.CargoWeights["comet"]["*"]);
-        Assert.True(Tuning.Enemies.Director.CometRelaxesGates);
+        Assert.Equal(1.4, EveryKind.Enemies.Director.CargoWeights["comet"]["*"]);
+        Assert.True(EveryKind.Enemies.Director.CometRelaxesGates);
         var world = Night(0, CargoKind.Comet);
         Assert.Contains(CargoKind.Comet, Director.Aboard(world));
         Assert.Equal(RouteTier.Frontier, world.Director!.Gate(world, RouteTier.DeadLines));
         // Over a run of draws, the director weighs every option up by 1.4 alike: the share of each kind sent doesn't move,
         // only the total weight. Same seeds, comet or goods: the same first creature.
-        var t = Tuning.Enemies with { Director = Tuning.Enemies.Director with { GraceMinSeconds = 0, GraceMaxSeconds = 0, Pressure = Tuning.Eager, Draw = Tuning.Unheld, CooldownSeconds = [1, 1], SaveFor = [] } };
+        var t = EveryKind.Enemies with { Director = EveryKind.Enemies.Director with { GraceMinSeconds = 0, GraceMaxSeconds = 0, Pressure = Tuning.Eager, Draw = Tuning.Unheld, CooldownSeconds = [1, 1], SaveFor = [] } };
         for (ulong seed = 1; seed <= 6; seed++)
         {
             var g = Night(12, CargoKind.Goods, seed: seed, enemies: t);
@@ -381,7 +385,7 @@ public class CargoTests
             var n = new Night(5, speed: 8);
             foreach (var v in n.Train.Vehicles.Where(v => v.Kind == VehicleKind.Cargo))
                 v.Cargo = cargo;
-            var fire = n.World.AddEnemy(id => CarFire.In(id, n.Train, 2, 2, Tuning.Enemies.CarFire));
+            var fire = n.World.AddEnemy(id => CarFire.In(id, n.Train, 2, 2, EveryKind.Enemies.CarFire));
             n.Run(20);
             double grown = fire.Extra;
             double t = 20;
@@ -435,7 +439,7 @@ public class CargoTests
     {
         // App. B.6 / A.6: "the first one a host player ever meets is always real". With the dice set to Soot Children every
         // time, the first call is still a child; the next is the dice's. The Game keeps ChildCalled in the host's profile.
-        var t = Tuning.Enemies with { SootChildren = Tuning.Enemies.SootChildren with { RealChance = 0 } };
+        var t = EveryKind.Enemies with { SootChildren = EveryKind.Enemies.SootChildren with { RealChance = 0 } };
         var n = new Night(4, speed: 0);
         n.World.EnableEnemies(t, null, 1, crew: 4, authority: true);
         n.World.NextChildReal = true;

@@ -48,9 +48,9 @@ public static partial class Hud
     static Memory Observe(IPlaySession s)
     {
         if (_memory is not { Session: { } held } m || !held.TryGetTarget(out var was) || !ReferenceEquals(was, s))
-            _memory = m = new Memory { Session = new(s), Slot = s.Player.HeldSlot, Carrying = s.World.Bodies.CarriedBy(s.PlayerId) is not null };
+            _memory = m = new Memory { Session = new(s), Slot = s.Player.HeldSlot, Carrying = s.World.Bodies.CarriedBy(s.PlayerId) is { Pocket: < 0 } };
         long now = s.Tick;
-        bool carrying = s.World.Bodies.CarriedBy(s.PlayerId) is not null;
+        bool carrying = s.World.Bodies.CarriedBy(s.PlayerId) is { Pocket: < 0 };
         if (s.Player.HeldSlot != m.Slot || carrying != m.Carrying)
             (m.Slot, m.Carrying, m.SlotTick) = (s.Player.HeldSlot, carrying, now);
         if (s.Route is { } route && Ahead(route, s.Train.Dynamics.Distance) is { } next
@@ -101,34 +101,45 @@ public static partial class Hud
     /// <summary>The side of a hotbar slot, in canvas pixels (60 screen pixels at 1080p).</summary>
     public const float SlotSize = 15;
 
+    /// <summary>A thing carried in a slot (note 594): a sack.</summary>
+    static readonly string[] FindPicture = ["...........", "....###....", ".....#.....", "...#####...", "..#######..", ".#########.",
+        ".#########.", ".#########.", ".#########.", "..#######..", "...........",];
+
+    /// <summary>An empty slot not in hand.</summary>
+    static readonly string[] EmptyPicture = [];
+
     /// <summary>
-    /// The hotbar (T108; note 285): bottom centre, a small square for each slot with a tool in it and for the one in hand
-    /// (empty, your hands), each with its tool's picture and its number; the one in hand lit. The tool's name over it for a
-    /// moment after a change of hands. With something in both hands the slots dim (the corner names what's held). A radio
-    /// you're wearing is a slot of its own at the right, with its key; a broken one's drawn red.
+    /// The hotbar (T108; note 285): bottom centre, a small square for each slot, each with its tool's picture (or a thing's,
+    /// note 594's four shared slots) and its number; the one in hand lit (empty, your hands). The tool's name, or the thing's,
+    /// over it for a moment after a change of hands. With something in both arms the slots dim (the corner names what's held).
+    /// A radio you're wearing is a slot of its own at the right, with its key; a broken one's drawn red.
     /// </summary>
     static void Hotbar(Overlay o, int width, int height, IPlaySession s, Memory m)
     {
         var p = s.Player;
         var bodies = s.World.Bodies;
-        bool carrying = bodies.CarriedBy(s.PlayerId) is not null;
-        var slots = Enumerable.Range(0, Kit.Slots).Where(i => Kit.At(p.Kit, i) != Tool.None || (i == p.HeldSlot && !carrying)).ToList();
+        var slotted = bodies.Slotted(s.PlayerId).ToDictionary(b => b.Pocket);
+        bool carrying = bodies.CarriedBy(s.PlayerId) is { Pocket: < 0 };
         bool radio = bodies.RadiosCarried && bodies.HasRadio(s.PlayerId);
         bool broken = !radio && bodies.All.Any(b => b.Kind == BodyKind.Radio && b.Carrier == s.PlayerId && b.Broken);
         const float Gap = 2, RadioGap = 6;
-        float w = slots.Count * (SlotSize + Gap) - Gap + (radio || broken ? RadioGap + SlotSize : 0);
+        float w = Kit.Slots * (SlotSize + Gap) - Gap + (radio || broken ? RadioGap + SlotSize : 0);
         float x = MathF.Round((width - w) / 2), y = height - SlotSize - 6;
-        foreach (int i in slots)
+        for (int i = 0; i < Kit.Slots; i++)
         {
             bool held = i == p.HeldSlot && !carrying;
-            Slot(o, x, y, Pictures[Kit.At(p.Kit, i)], $"{i + 1}", held, carrying ? 0.45f : 1);
+            var picture = slotted.ContainsKey(i) ? FindPicture : Kit.At(p.Kit, i) != Tool.None || held ? Pictures[Kit.At(p.Kit, i)] : EmptyPicture;
+            Slot(o, x, y, picture, $"{i + 1}", held, carrying ? 0.45f : 1);
             x += SlotSize + Gap;
         }
         if (radio || broken)
             Slot(o, x - Gap + RadioGap, y, RadioPicture, Controls.KeyLabel(Keys.KeyFor(Control.Radio)), false, 1, broken ? Red : null);
         float named = carrying ? 0 : Shown(Since(s, m.SlotTick), Tuning.ToolNameSeconds);
         if (named > 0)
-            o.TextCentred(width / 2f, y - 4 - o.Font.Height * Fine, ToolName(Kit.At(p.Kit, p.HeldSlot)), Ink with { W = named }, Fine);
+        {
+            string name = slotted.TryGetValue(p.HeldSlot, out var thing) ? Called(s.World, thing) : ToolName(Kit.At(p.Kit, p.HeldSlot));
+            o.TextCentred(width / 2f, y - 4 - o.Font.Height * Fine, name, Ink with { W = named }, Fine);
+        }
     }
 
     /// <summary>One slot: a dark square, its edge lit for the one in hand, the picture, and its key small in the corner.</summary>
@@ -196,6 +207,10 @@ public static partial class Hud
                 lines.AddRange(["PUT DOWN : [E]", "THROW : [RMB]"]);
             return (Called(world, carried), lines);
         }
+        // Note 649: at a crew locker with a tool in hand, Throw puts it on a shelf (the prompt's line is the locker's Use).
+        if (Kit.Held(p) is var tool && tool != Tool.None && Lockers.Holds(train, BodyKind.Tool) && Lockers.AtHand(p, train, world.Hand) is { } locker
+            && Lockers.FreeSlot(world.Bodies, train, locker.Car, locker.Bay.Index) >= 0)
+            return ($"THE {ToolName(tool)}", ["STOW : [RMB]"]);
         // T112: sat at the gun, its own controls.
         if (world.Combat is { } combat && p.Has(PlayerFlags.Seated) && Guns.MannedGun(p, train, combat.Guns) is { } manned)
         {

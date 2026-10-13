@@ -63,8 +63,9 @@ public sealed partial class WorldArt
         if (route is null)
             return;
         var k = new Kit(_look, mesh) { SurfaceOrigin = new Vector3(W(eye.X), W(eye.Y), W(eye.Z)) };
-        foreach (var f in route.Features)
+        for (int fi = 0; fi < route.Features.Count; fi++)
         {
+            var f = route.Features[fi];
             if (f.Stop is not { } stop || f.End + 250 < from || f.Start - 250 > to)
                 continue;
             Roads(mesh, line, route, f, stop, eye, from, to, valleyDepth);
@@ -72,7 +73,8 @@ public sealed partial class WorldArt
             {
                 var b = stop.Buildings[i];
                 double along = f.Start + b.S;
-                if (along < from || along >= to)
+                // (A house a creature lives in is drawn by the scene, moved as it moves: WorldArt.Houses.)
+                if (along < from || along >= to || Lifted(route, fi, i))
                     continue;
                 k.Reseed(b.Variant * 7.1f + (float)(b.S * 0.13));
                 Building(k, line, route, f, stop, i, eye, valleyDepth);
@@ -173,10 +175,11 @@ public sealed partial class WorldArt
                     });
                     break;
                 }
-            case BuildingKind.Barn or BuildingKind.Outbuilding or BuildingKind.GoodsShed or BuildingKind.Station when Sim.Run.StopWalls.OpenShed(b)
-                && Sim.Run.StopWalls.Shelled(stop, index) && stop.Holdouts.All(h => h.Building != index):
+            case BuildingKind.Barn or BuildingKind.Outbuilding or BuildingKind.GoodsShed or BuildingKind.Station or BuildingKind.Powerhouse
+                when Sim.Run.StopWalls.OpenShed(b) && Sim.Run.StopWalls.Shelled(stop, index) && stop.Holdouts.All(h => h.Building != index):
                 // Open (note 417): walked into by its wide door, its hayloft or workbench inside; a station (note 493) its
-                // booking hall, the booking office's counter at the back, and its canopy kept over the door to the line.
+                // booking hall, the booking office's counter at the back, and its canopy kept over the door to the line; a
+                // powerhouse (note 509) its engine and switchboard at the back, the engine's stack up through the roof.
                 {
                     // The ground climbs away from the line (the valley's sides): its floor is laid over the highest of it under
                     // the footprint, so the far side's earth doesn't come up through it.
@@ -187,11 +190,20 @@ public sealed partial class WorldArt
                             var p = Sim.Run.StopWalls.InHouse(b, cx * b.Length, cy * b.Width);
                             rise = MathF.Max(rise, Ground(route, f.Start + p.S, (float)p.D, valleyDepth) - centre);
                         }
-                    string wall = b.Kind == BuildingKind.Station ? b.Variant == 1 ? "wood_grey" : "brick_soot"
+                    string wall = b.Kind == BuildingKind.Powerhouse ? "brick_soot" : b.Kind == BuildingKind.Station ? b.Variant == 1 ? "wood_grey" : "brick_soot"
                         : b.Kind == BuildingKind.Outbuilding && b.Variant == 1 || b.Kind == BuildingKind.GoodsShed && b.Variant == 1 ? "rust_heavy" : "wood_grey";
                     k.With(frame, () => OpenShed(k, stop, index, OpenShedHeight(b.Kind), wall, rise));
                     if (b.Kind == BuildingKind.Station)
                         k.With(frame, () => StationCanopy(k, width, length, Sim.Run.StopWalls.ShedDoorSide(b)));
+                    if (b.Kind == BuildingKind.Powerhouse)
+                        k.With(frame, () =>
+                        {
+                            // The stack over the engine (a quarter along, the back wall's side), from the roof up.
+                            int door = Sim.Run.StopWalls.ShedDoorSide(b);
+                            k.Use("brick_soot", Palette.RustRed, 0.9f, 0.1f, tile: 1.2f);
+                            k.Cylinder(new Vector3(-door * (width / 2 - 1.2f), OpenShedHeight(b.Kind) - 0.4f, length / 4),
+                                new Vector3(-door * (width / 2 - 1.2f), 14, length / 4), 0.7f, 8, radiusB: 0.5f);
+                        });
                 }
                 break;
             case BuildingKind.Barn:

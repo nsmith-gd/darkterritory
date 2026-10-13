@@ -26,10 +26,10 @@ public class RunTests
         // Standing on its brake unless a test drives it: with steam driving (T97) an unbraked engine pulls away.
         public TrainControls Controls = new() { Reverser = 1, Brake = 1 };
 
-        public Night(double front, int cars = 6, Route.Route? route = null, double yard = 600)
+        public Night(double front, int cars = 6, Route.Route? route = null, double yard = 600, double load = 1)
         {
             route ??= Frontier;
-            var train = new TrainOnLine(new TrainDynamics(Consist.Uniform(T, cars, 1)), route.Build(), front, Tuning.Boiler);
+            var train = new TrainOnLine(new TrainDynamics(Consist.Uniform(T, cars, load)), route.Build(), front, Tuning.Boiler);
             World = new World(train, Tuning.Combat);
             World.EnableRun(R, route, yard, authority: true);
             Run = World.Run!;
@@ -152,6 +152,31 @@ public class RunTests
         Assert.Equal(cargoCars, report.CarsDelivered);
         Assert.Equal(R.Economy.PerCar["frontier"] * cargoCars, report.Gross);
         Assert.Equal(1, report.CrewHome);
+    }
+
+    /// <summary>
+    /// The director, 9 Oct 2026 (note 575): "if I skip everything and just drive the train to town, I get scrip and a payout?
+    /// the train cars should be totally empty and we are the ones who have to fill them". The train leaves the fortress
+    /// empty; driven straight home it earns nothing, and the coal it burned and the knocks it took are still the crew's bill.
+    /// </summary>
+    [Fact]
+    public void ATrainDrivenStraightHomeEarnsNothingAndStillPaysItsCosts()
+    {
+        Assert.Equal(0, R.DepartureLoad);
+        var n = new Night(front: Frontier.Length - 900, load: R.DepartureLoad);
+        Assert.All(n.Train.Vehicles, v => Assert.Equal(0, v.Load));
+        n.Step(1, holdSpeed: 10);
+        Assert.Equal(RunPhase.Underway, n.Run.Phase);
+        // The night's coal, and a knock on the way.
+        n.Train.Boiler.Tender -= 100;
+        n.Train.Vehicles[1].Integrity = 0.9;
+        n.Step(70, holdSpeed: 10);
+        n.Step(3, holdSpeed: 0);
+        var report = n.Run.Report!;
+        Assert.Equal(RunEnd.Delivered, report.End);
+        Assert.Equal(0, report.Gross);
+        Assert.True(report.CoalCost > 0 && report.RepairCost > 0, $"coal {report.CoalCost}, repairs {report.RepairCost}");
+        Assert.True(report.Net < 0, $"net {report.Net}");
     }
 
     [Fact]
