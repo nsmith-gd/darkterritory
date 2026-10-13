@@ -2249,8 +2249,9 @@ public static partial class Hud
                     : "TAKE THE WRENCH : [E]";
             case InteractableKind.Handbrake when p.Surface == Surface.Roof:
                 return "HANDBRAKE : HOLD [E]";
-            // T99: a cargo car's roof hatch, for the crane to lower a casting in through.
-            case InteractableKind.Hatch when p.Surface == Surface.Roof:
+            // T99: a cargo car's roof hatch, for the crane to lower a casting in through; from the roof, or the floor under it
+            // looking up (note 675).
+            case InteractableKind.Hatch when p.Surface is Surface.Roof or Surface.Deck:
                 return train.Vehicles[p.Parent].DoorOpen(CarShape.HatchBit)
                     ? train.HatchBlocked?.Invoke(p.Parent) == true ? "THE CASTING'S IN THE HATCH" : "SHUT THE HATCH : HOLD [E]"
                     : "OPEN THE HATCH : HOLD [E]";
