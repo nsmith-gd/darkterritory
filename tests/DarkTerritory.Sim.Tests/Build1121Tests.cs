@@ -13,7 +13,7 @@ namespace DarkTerritory.Sim.Tests;
 public class Build1121Tests
 {
     static readonly PlayerTuning P = Tuning.Player;
-    static readonly EnemyTuning E = Tuning.Enemies;
+    static readonly EnemyTuning E = EveryKind.Enemies;
 
     /// <summary>In the cab, a step behind the firebox door and facing it.</summary>
     static PlayerState AtTheFirebox(TrainOnLine train)
@@ -25,7 +25,7 @@ public class Build1121Tests
 
     static Night Standing(double pressure)
     {
-        var n = new Night(4, speed: 0, boiler: true);
+        var n = new Night(4, speed: 0, boiler: true, enemies: E);
         n.Train.Boiler.Pressure = pressure;
         n.Controls = new TrainControls { Reverser = 1, Brake = 1 };
         return n;

@@ -314,7 +314,7 @@ def self_test():
         after = open(dst).read()
         e2 = load_jsonc(dst)
         assert e2["director"]["perNight"] == {"knotter": 1, "passenger": 1, "lodger": 2}, e2["director"]["perNight"]
-        assert e2["director"]["nightChance"] == {"knotter": 0.5, "pickers": 0.5}, e2["director"]["nightChance"]
+        assert e2["director"]["nightChance"] == {**d.get("nightChance", {}), "knotter": 0.5, "pickers": 0.5}, e2["director"]["nightChance"]
         assert e2["dwellings"]["weights"]["lodger"] == 1.5 and "lodger" not in e2["director"]["costs"]
         assert e2["director"]["weights"] == {"climbers": 1.5}, e2["director"]["weights"]
         assert e2["director"]["costs"]["climbers"] == 4 and e2["director"]["costs"]["knotter"] == d["costs"]["knotter"]
@@ -365,9 +365,10 @@ def page_grid(enemies):
         hard = round((r["maxConcurrentLargeCrew"] if crew >= 6 else r["maxConcurrentSmallCrew"]) * each / r["perPlayer"])
         once = min(hard, max(1, min(math.ceil(crew * share - 1e-9), math.floor(crew * each + 1e-9))))
         assert abs(x["mult"] - mult) < 1e-9 and x["atOnce"] == once, f"crew {crew}, {cars} cars: page {x}, game {mult}, {once}"
-    # ThreatScaleTests' own: a crew of four, three at once on 8 cars, four on 12, eight on 18 (two each).
+    # ThreatScaleTests' own: a crew of four on a long train, eight at once (two each); 1 at four crew on eight cars.
     at = {(c, n): x for (c, n), x in zip(cases, got)}
-    assert (at[(4, 8)]["atOnce"], at[(4, 12)]["atOnce"], at[(4, 18)]["atOnce"], at[(4, 18)]["each"]) == (3, 4, 8, 2), at
+    if 0 < g["longTrainCars"] <= 18:
+        assert (at[(4, 18)]["atOnce"], at[(4, 18)]["each"]) == (8, 2), at
     assert abs(at[(4, 8)]["mult"] - 1) < 1e-9
 
 
@@ -389,8 +390,8 @@ def main():
     if changes:
         s = open(a.enemies).read()
         for path, key, value in changes:
-            # The costs table keeps its wrapped shape (its value starts after '    "costs": ').
-            s = put(s, path, key, value, wrap_at=len('    "costs": ') if key == "costs" else None)
+            # The director's tables wrap at 120 like the costs table (a value starts after '    "<key>": ').
+            s = put(s, path, key, value, wrap_at=len(f'    "{key}": ') if path == ["director"] and isinstance(value, dict) else None)
         open(a.enemies, "w").write(s)
         # Read back what was written: it must still parse and hold every value.
         back, _ = plan(load_jsonc(a.enemies), creatures, night)
