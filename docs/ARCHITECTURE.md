@@ -846,4 +846,7 @@ written here instead is moved out by `tools/coord/notes.py split`; the Coordinat
 - [664. Controls from the playtest (D1.2, queue #395; the director, 13 Oct, playing the morning build)](notes/664.md)
 - [665. The cab's readouts (D1.2, queue #396; the director, 13 Oct, playing the morning build)](notes/665.md)
 - [666. Skips in the morning build (D1, queue #397; the director, 13 Oct, playing the morning build)](notes/666.md)
+- [668. frontier:7's departure town reads as a town, not a row (P1, queue #399; the World Building board's `pt13-seed7-row`; the director, 13 Oct,…](notes/668.md)
+- [669. The notice board in the town's own words (P1, queue #400; the World Building board's `pt13-notice-board`; the director, 13 Oct, playing the…](notes/669.md)
+- [670. The billboarded things past frontier:7's first stop (P1, queue #401; the World Building board's `pt13-billboards`; the director, 13 Oct,…](notes/670.md)
 <!-- end of the notes index -->
