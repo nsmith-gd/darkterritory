@@ -384,6 +384,9 @@ public sealed partial class GreyboxScene
     {
         mesh.Clear();
         _speed = frames.Count == 0 ? 0 : Vector3.Dot(ToF(frames[0].Velocity), ToF(frames[0].Back * -1));
+        // The headlamp as the lineside boards' reflective paint sees it (note 560).
+        if (Look is not null && frames.Count > 0)
+            Look.Art.World.Lamp = new Art.BoardLamp(Sim.World.LampPosition(frames[0]), frames[0].Back * -1, LampLit);
         // How far the engine's rolled, for its turning wheels (Art.SceneArt.Gear): its speed run on over the frames' time.
         // (Seized, they slide: they don't turn, and take up turning where they stopped once she's down to coasting.)
         if (_wheelClock is { } then && Time > then && Time - then < 1 && !DriversLocked)
@@ -3059,14 +3062,13 @@ public sealed partial class GreyboxScene
         {
             if (sign.Board < from || sign.Board > to)
                 continue;
+            // The art pass's boards (SignKit, the plan's own: note 560's billboards), shining back at the lamp.
+            if (Look is not null && Look.Art.LinesideBoard(mesh, sign, line, Route, eye))
+                continue;
             var t = line.Sample(sign.Board);
             var right = Double3.Cross(t.Tangent, Double3.Up).Normalized;
             var foot = t.Position + right * 3.4;
             var (x, y, z) = (ToF(right), Vector3.UnitY, ToF(t.Tangent * -1));
-            double read = sign.Board - front;
-            // The art pass's boards (SignKit, the plan's own), lit back at the lamp while it's reading them.
-            if (Look is not null && Look.Art.LinesideBoard(mesh, sign, V(foot, eye), x, z, LampLit && read > 0 && read <= SignRange))
-                continue;
             mesh.Box(V(foot + Double3.Up * 1.8, eye), x, y, z, new Vector3(0.08f, 1.8f, 0.08f), Palette.IronGrey);
             var plate = foot + Double3.Up * 3.6 - t.Tangent * 0.1;
             double ahead = sign.Board - front;
@@ -3116,7 +3118,7 @@ public sealed partial class GreyboxScene
             // The art pass's structures (Art/StructureKit): viaducts and trestles, portals and bores.
             if (Look is not null && f.Kind == FeatureKind.Bridge)
             {
-                Look.Art.World.Bridge(mesh, line, f, eye, from, to, Art.WorldArt.SpanDepth(Route, f) ?? (float)ValleyDepth, Art.WorldArt.SpanType(Route, f));
+                Look.Art.World.Bridge(mesh, line, f, eye, from, to, Art.WorldArt.SpanDepth(Route, f) ?? (float)ValleyDepth, Art.WorldArt.SpanType(Route, f), Route.Plan is null);
                 continue;
             }
             if (Look is not null && f.Kind == FeatureKind.Tunnel)

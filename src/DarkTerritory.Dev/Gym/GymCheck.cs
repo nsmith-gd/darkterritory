@@ -24,7 +24,7 @@ public static class GymCheck
     public sealed record RespawnResult(bool Alive, double Seconds, int Health, double FromRing, bool RunOver);
     public sealed record RingResult(int RibbitPutInRing, bool SentOff);
     public sealed record GymReport(string Route, object? Stop, double Front, double FrontNow, double Speed, string? Phase, double[] SafeRing,
-        double SafeRadius, int Lamps, string? Overview, IReadOnlyList<KindResult> Kinds, int Came, int Of, IReadOnlyList<string> TooNear,
+        double SafeRadius, int Lamps, string? Overview, IReadOnlyList<KindResult> Kinds, int Came, int Of, IReadOnlyList<string> TooNear, IReadOnlyList<string> TooFar,
         RespawnResult Respawn, RingResult Ring);
 
     public static GymReport Run(string content, IReadOnlyList<EnemyKind>? only, double seconds, string? shots, int width = 960, int height = 540)
@@ -81,6 +81,9 @@ public static class GymCheck
             overview, results, results.Count(r => r.Came), results.Count,
             // Off the train, nothing should come nearer than the gym's distance (what's aboard is where its rule put it).
             [.. results.Where(r => r.Came && !r.Aboard && r.NearestAtCall < gym.Tuning.MinDistance).Select(r => r.Kind)],
+            // And nothing farther than its reach (the director, 13 Oct: "nothing should spawn more than 200m off"); the Tippy
+            // Toesie has nowhere to be till it's behind someone.
+            [.. results.Where(r => r.Came && r.Kind != "tippyToesie" && r.NearestAtCall > gym.Tuning.MaxDistance).Select(r => r.Kind)],
             Respawn(night, gym, host, you), Ring(night, gym, host));
     }
 
