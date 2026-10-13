@@ -3390,8 +3390,8 @@ public sealed partial class GreyboxScene
                 Lap(mesh, "town streets");
                 // A town that's lived in (App. F.3, the director: the fortresses feel static): smoke from its chimneys, and
                 // its watch walking the wall with their lanterns.
-                foreach (var top in Look.Art.World.Chimneys(line, eye, town, 160))
-                    Look.Art.Effects.Chimney(mesh, top, Time, (int)(top.X * 7 + top.Z * 13));
+                foreach (var (top, seed) in Look.Art.World.Chimneys(line, eye, town, 160))
+                    Look.Art.Effects.Chimney(mesh, top, Time, seed);
                 // Its lights on the fog over it (note 490): what a crew coming home sees over the wall long before any lamp, and
                 // looks back at as it leaves. Faint from inside, where the lamps themselves are the light.
                 foreach (var (at, size, colour, strength) in Art.WorldArt.Glow(town))
@@ -3400,9 +3400,9 @@ public sealed partial class GreyboxScene
                     mesh.Billboard(V(at, eye), size, 0, new Vector4(colour * strength * (0.06f + 1.2f * far), 1), -1, FxBlend.Additive);
                 }
                 // And the works' (note 353): the foundry's stack and the winding house's chimney, thicker.
-                foreach (var top in Look.Art.World.Stacks(line, eye, town, 420))
+                foreach (var (top, seed) in Look.Art.World.Stacks(line, eye, town, 420))
                     for (int plume = 0; plume < 3; plume++)
-                        Look.Art.Effects.Chimney(mesh, top + new Vector3(0, plume * 0.6f, 0), Time + plume * 1.7, (int)(top.X * 7 + top.Z * 13) + plume * 31);
+                        Look.Art.Effects.Chimney(mesh, top + new Vector3(0, plume * 0.6f, 0), Time + plume * 1.7, seed + plume * 31);
                 Lap(mesh, "town smoke");
                 foreach (var (feet, facing, variant) in Art.WorldArt.Watch(town, gateAt, Time))
                     if ((feet - eye).Length < 260)
