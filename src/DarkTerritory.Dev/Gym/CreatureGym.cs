@@ -142,6 +142,8 @@ public sealed class CreatureGym
         var at = me.Id == you ? PlayerMotor.WorldPosition(me.State, world.Train) : SafeSpot;
         var called = world.Call(kind, at, Tuning.MinDistance, Tuning.MaxDistance);
         Say(called.Came ? $"{Name(kind)} CALLED: {called.Where}" : $"{Name(kind)} CAN'T COME: {called.Where}", now);
+        if (called.Came)
+            Pointed = kind;
         Calls++;
         return called;
     }
@@ -221,6 +223,85 @@ public sealed class CreatureGym
     public static string Name(EnemyKind kind) => Sim.Run.IncidentLog.Spoken(kind.ToString()).ToUpperInvariant();
 
     static readonly Vector4 Ink = new(0.92f, 0.88f, 0.78f, 0.95f), Dim = new(0.75f, 0.72f, 0.65f, 0.7f), Back = new(0, 0, 0, 0.55f);
+
+    /// <summary>The kind the pointer's on: the last that came when called (null before any has).</summary>
+    public EnemyKind? Pointed { get; private set; }
+
+    static readonly Vector4 Mark = new(1f, 0.78f, 0.36f, 0.95f);
+
+    /// <summary>
+    /// The pointer (the director, 13 Oct 2026: "the gym needs a UI pointer that points to where the thing spawned is"): to
+    /// the nearest of the kind last called, in <paramref name="world"/> as this machine draws it. In view, a mark on it with
+    /// its name and how far; out of view, an arrow at the screen's edge the way to turn, with the same. Nothing once
+    /// they're gone, and nothing for what has nowhere to be seen (the Tippy Toesie, hidden till it's behind someone).
+    /// </summary>
+    public void Pointer(Overlay overlay, int width, int height, in Camera camera, World world)
+    {
+        if (Pointed is not { } kind)
+            return;
+        var eye = camera.Position;
+        var all = world.ActiveEnemies.Where(e => !e.Gone && e.Kind == kind)
+            .Select(e => e.WorldPosition(world.Train) + Double3.Up * 1.2)
+            .Where(at => (at - eye).Length <= Tuning.MaxDistance * 3).ToList();
+        if (all.Count == 0)
+            return;
+        var at = all.MinBy(a => (a - eye).Length);
+        string label = $"{Name(kind)}{(all.Count > 1 ? $" x{all.Count}" : "")} {(at - eye).Length:0} M";
+        var p = Point(camera, at, width, height, Edge);
+        if (p.OnScreen)
+        {
+            overlay.Outline(p.X - 5, p.Y - 5, 10, 10, Mark);
+            overlay.Rect(p.X - 1, p.Y - 1, 2, 2, Mark);
+            overlay.TextCentred(p.X, p.Y + 8, label, Mark);
+            return;
+        }
+        // At the edge, the way to it: an arrowhead, its point at the edge and widening back in, and the label inside it.
+        for (int i = 0; i < 5; i++)
+        {
+            float back = 2.5f * i, half = 0.8f + i * 1.1f;
+            float cx = p.X - p.DirX * back, cy = p.Y - p.DirY * back;
+            overlay.Rect(cx - half, cy - half, half * 2, half * 2, Mark);
+        }
+        if (p.DirX > 0.6f)
+            overlay.TextRight(p.X - 16, p.Y - 4, label, Mark);
+        else if (p.DirX < -0.6f)
+            overlay.Text(p.X + 16, p.Y - 4, label, Mark);
+        else
+            overlay.TextCentred(Math.Clamp(p.X, 60, width - 60), p.DirY > 0 ? p.Y - 22 : p.Y + 14, label, Mark);
+    }
+
+    /// <summary>How far in from the screen's edge the pointer's arrow stands (UI pixels).</summary>
+    const float Edge = 14;
+
+    /// <summary>
+    /// Where <paramref name="at"/> falls on a <paramref name="width"/> by <paramref name="height"/> screen through
+    /// <paramref name="camera"/>: on it, or (behind the eye, or past an edge) the point on a frame <paramref name="inset"/> in
+    /// from the edge in its direction, with that direction (screen space, +X right, +Y down).
+    /// </summary>
+    public static (bool OnScreen, float X, float Y, float DirX, float DirY) Point(in Camera camera, Double3 at, float width, float height, float inset)
+    {
+        var rel = at - camera.Position;
+        var clip = Vector4.Transform(new Vector4((float)rel.X, (float)rel.Y, (float)rel.Z, 1), camera.ViewProjection(width / height));
+        float cx = width / 2, cy = height / 2;
+        if (clip.W > 1e-3f)
+        {
+            float x = (clip.X / clip.W * 0.5f + 0.5f) * width, y = (clip.Y / clip.W * 0.5f + 0.5f) * height;
+            if (x >= inset && x <= width - inset && y >= inset && y <= height - inset)
+                return (true, x, y, 0, 0);
+        }
+        // In front, the way it lies on the screen. Behind the eye, the side it's on (the way to turn to it), at the edge's
+        // middle; straight behind, the bottom.
+        float dx = clip.X, dy = clip.Y;
+        if (clip.W <= 1e-3f)
+            (dx, dy) = Math.Abs(clip.X) < 1e-3f * Math.Abs(clip.W) + 1e-4f ? (0f, 1f) : (Math.Sign(clip.X), 0f);
+        float len = MathF.Sqrt(dx * dx + dy * dy);
+        dx /= len;
+        dy /= len;
+        // Out from the middle along it to the inset frame.
+        float sx = dx == 0 ? float.MaxValue : (cx - inset) / Math.Abs(dx), sy = dy == 0 ? float.MaxValue : (cy - inset) / Math.Abs(dy);
+        float s = Math.Min(sx, sy);
+        return (false, cx + dx * s, cy + dy * s, dx, dy);
+    }
 
     /// <summary>The panel, top left: the picked kind, where it comes from and what answers it, the keys, and what was last said.</summary>
     public void Draw(Overlay overlay, int width, int height, double now)

@@ -280,6 +280,8 @@ public sealed record PlanRules(double ADerail, double BrassCuttingSpeed, double 
     public IReadOnlyDictionary<string, double> BiomeRelief { get; init; } = new Dictionary<string, double>();
     /// <summary>Each kind of board as the signage kit builds it (signage.json "boards"), by type.</summary>
     public IReadOnlyDictionary<string, BoardDef> Boards { get; init; } = new Dictionary<string, BoardDef>();
+    /// <summary>How the lettered boards stand back, read and shine in the lamp (signage.json "billboard", note 560).</summary>
+    public BillboardRules Billboard { get; init; } = new();
     /// <summary>What each lineside kit piece stands on (footprints.json; note 389), by piece: each variant's boxes.</summary>
     public IReadOnlyDictionary<string, double[][][]> Footprints { get; init; } = new Dictionary<string, double[][][]>();
 }

@@ -433,6 +433,7 @@ public sealed class World
             if (Run is not null && !_countedAhead.Remove(id))
                 Attribution.Add(Sim.Run.IncidentLog.Death(this, id, s, body, crew));
         Bodies.Step(Train, Train.Dynamics.Tuning, id => crew.FirstOrDefault(c => c.Id == id) is { State: var s } pair && pair.Id == id ? s : null);
+        Train.Lying = Bodies.Lying(Train);
         Recover();
         BreakRadios(crew);
     }
@@ -2330,8 +2331,9 @@ public sealed class World
     /// <summary>
     /// Host, the creature gym (GDD §34.1, note 676): one of <paramref name="kind"/> now, by its own spawn rule (where it
     /// comes from and how it arrives), with that rule's gates set aside (once a night, the train's speed, the cargo, the
-    /// dice), and never nearer <paramref name="you"/> than <paramref name="min"/> metres: whatever it put down nearer is moved
-    /// out along the way it lay from you. Where its rule needs something the place hasn't got, it says so and nothing comes.
+    /// dice), never nearer <paramref name="you"/> than <paramref name="min"/> metres (whatever it put down nearer is moved
+    /// out along the way it lay from you) and never farther than <paramref name="max"/> (brought in; what stands where its rule
+    /// finds it is taken only within reach). Where its rule needs something the place hasn't got, it says so and nothing comes.
     /// </summary>
     public Called Call(EnemyKind kind, Ballast.Double3 you, double min, double max)
     {
@@ -2346,6 +2348,7 @@ public sealed class World
             return new(kind, false, why ?? "its rule found nowhere to put it here", []);
         foreach (var e in came)
             Sim.Enemies.Calls.KeepOff(this, e, you, min);
+        Sim.Enemies.Calls.KeepIn(this, came, you, max);
         double nearest = came.Min(e => ((e.WorldPosition(Train) - you) with { Y = 0 }).Length);
         return new(kind, true, $"{why ?? "by its own rule"}, {nearest:0} m off", [.. came.Select(e => e.Id)]);
     }
