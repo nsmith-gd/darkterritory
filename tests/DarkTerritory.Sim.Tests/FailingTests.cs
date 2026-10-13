@@ -181,25 +181,62 @@ public class FailingTests
         Assert.True(broken < failing, $"failing {failing:0.00} m/s, broken {broken:0.00} m/s");
     }
 
-    [Fact]
-    public void AnEngineLetGoBreaksDownAndAtAStandTheNightIsStranded()
+    /// <summary>frontier:1's line, the engine broken down and running at 6 m/s, one crewmate in the cab with <paramref name="kit"/>.</summary>
+    static (World World, PlayerState[] Crew) BrokenDown(ulong kit, bool rackHasWrench)
     {
         var route = RouteGenerator.Generate(Tuning.Route, RouteTier.Frontier, 1);
         var train = new TrainOnLine(new TrainDynamics(Consist.Uniform(T, 4, 0)), route.Build(), 3_000, Tuning.Boiler);
         var world = new World(train, Tuning.Combat);
         world.EnableRun(Tuning.Run, route, 600, authority: true);
         world.Run!.Resume(900, -1, train.Boiler.Tender, 0);
-        var crew = new[] { PlayerMotor.SpawnInCab(train, Tuning.Player) };
+        train.Boiler.WrenchOut = !rackHasWrench;
+        var crew = new[] { PlayerMotor.SpawnInCab(train, Tuning.Player) with { Kit = kit } };
         train.Vehicles[0].Integrity = 0;
         Assert.True(Failing.BrokenDown(train));
         train.Dynamics.Velocity = 6;
-        for (int i = 0; i < 120 * SimConstants.TickRate && !world.Run.Over; i++)
+        return (world, crew);
+    }
+
+    static void Run(World world, PlayerState[] crew, double seconds)
+    {
+        for (int i = 0; i < seconds * SimConstants.TickRate && !world.Run!.Over; i++)
         {
             world.BeginTick();
             world.Step(new TrainControls { Reverser = 1, Throttle = 1, Brake = 1 });
             world.StepRun(crew);
         }
-        Assert.Equal(RunEnd.Stranded, world.Run.End);
+    }
+
+    [Fact]
+    public void AnEngineLetGoBreaksDownAndWithNoWrenchAboardAtAStandTheNightIsStranded()
+    {
+        var (world, crew) = BrokenDown(Kit.Of([Tool.Crowbar]), rackHasWrench: false);
+        Run(world, crew, 30);
+        Assert.Equal(RunEnd.Stranded, world.Run!.End);
         Assert.Contains(world.Attribution.Of(IncidentKind.Stranded), i => i.Action.Contains("broke down"));
+    }
+
+    [Fact]
+    public void BrokenDownWithAWrenchInASlotTheCrewHaveTimeToMendIt()
+    {
+        // Note 660 (the director, 13 Oct: "There's no wrench, but I have a wrench ... It's in my inventory"): the wrench in the
+        // second slot, not in hand. The night isn't stranded at the stand; mended (any of it back), the engine goes again.
+        var (world, crew) = BrokenDown(Kit.Of([Tool.Crowbar, Tool.Wrench]), rackHasWrench: false);
+        double window = Tuning.Run.Stranded.BrokenDownSeconds;
+        Run(world, crew, window - 5);
+        Assert.False(world.Run!.Over, $"ended {world.Run.End} with a wrench aboard");
+        world.Train.Vehicles[0].Integrity = 0.3;
+        Assert.False(Failing.BrokenDown(world.Train));
+        Run(world, crew, 30);
+        Assert.False(world.Run.Over);
+    }
+
+    [Fact]
+    public void BrokenDownAndNeverMendedTheNightIsStrandedOnceItsStoodItsTime()
+    {
+        // A crew that never gets to the dent (the bots don't go out along the running board) isn't held till dawn.
+        var (world, crew) = BrokenDown(Kit.Of([Tool.Crowbar, Tool.Wrench]), rackHasWrench: true);
+        Run(world, crew, Tuning.Run.Stranded.BrokenDownSeconds + 30);
+        Assert.Equal(RunEnd.Stranded, world.Run!.End);
     }
 }
