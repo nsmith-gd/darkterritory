@@ -327,7 +327,7 @@ public static class TownForms
         /// House lots along a straight stretch of way from a to b (u, d), on its left (<paramref name="sides"/> &amp; 1, as
         /// you walk from a to b) and right (&amp; 2), fronting it: frontages from the form's lot range, each that fits.
         /// </summary>
-        void Lots(double ua, double da, double ub, double db, double wayWidth, int sides, double depth = 0, bool yards = false, double frontMul = 1)
+        void Lots(double ua, double da, double ub, double db, double wayWidth, int sides, double depth = 0, bool yards = false)
         {
             var (a, b) = (P(ua, da), P(ub, db));
             double len = Math.Sqrt((b.S - a.S) * (b.S - a.S) + (b.D - a.D) * (b.D - a.D));
@@ -345,7 +345,7 @@ public static class TownForms
                 double off = wayWidth / 2 + _f.Setback + depth / 2;
                 for (double x = 0; ;)
                 {
-                    double front = _lots.Range(_f.Lot[0], _f.Lot[1]) * frontMul;
+                    double front = _lots.Range(_f.Lot[0], _f.Lot[1]);
                     if (x + front > len)
                         break;
                     double cs = a.S + ts * (x + front / 2) + ns * off, cd = a.D + td * (x + front / 2) + nd * off;
@@ -530,10 +530,10 @@ public static class TownForms
             Landmark("lighthouse", -L * 0.5, -wl - 10, 0, 1);
             Landmark("chapel", -L * 0.5 + 40, -wl + 14, 0, 1);
             Way([(-L * 0.5 - 60, -wl + 30), (-L * 0.5 - 30, -wl + 8), (-L * 0.5 + 20, -wl + 6)], 4, levels: [0, _f.TerraceLevel, _f.TerraceLevel]);
-            Blocks(-1, _t.Walled.First, _t.Walled.Every, wl - 45, -L + 20, -8);
+            Blocks(-1, _t.Walled.First, 29, wl - 40, -L + 20, -8);
             District(DistrictKind.Quarter, "lanes", Rect(-L + 40, -L * 0.6, -wl * 0.4, -wl * 0.8), named: true);
             // A row of net lofts and stores along the wharf's back, fronting it.
-            Lots(-L + 100, quay - 2, -L * 0.55 - 4, quay - 2, 0, 2, 7, frontMul: 0.8);
+            Lots(-L + 100, quay - 2, -L * 0.55 - 4, quay - 2, 0, 2, 7);
         }
 
         /// <summary>
@@ -651,8 +651,8 @@ public static class TownForms
             // The square's green, the yard and works across the line (the lift's winding house, the tip), the workers' rows.
             Green(34, 54);
             Works(-L * 0.62, -40, 14, 70, 1, "coal");
-            Blocks(1, 84, 28, wr - 14, -L + 20, -20);
-            Blocks(-1, 34, 26, 62, -L + 20, -L * 0.62 - 10);
+            Blocks(1, 84, 29, wr - 14, -L + 20, -20);
+            Blocks(-1, 34, 29, 66, -L + 20, -L * 0.62 - 10);
             // The founders' row on the rim's far side, between the pit and the wall.
             if (pd - rim - 4 > -wl + 14)
                 District(DistrictKind.Quarter, "founders", Rect(pu - 50, pu + 50, -wl + 8, pd - rim - 4));
@@ -696,7 +696,7 @@ public static class TownForms
             Works(-L * 0.3, -30, 12, 24, 1, "tidewater");
             // The hills' own road, round under their edges, then the blocks below it.
             Way([(-L + 30, -wl * 0.5 - 20), (-24, -wl * 0.5 - 20)], 5);
-            Blocks(-1, 34, 26, wl * 0.5, -L + 20, -10);
+            Blocks(-1, 34, 29, wl * 0.5, -L + 20, -10);
             Lots(-L + 30, -wl * 0.5 - 20, -24, -wl * 0.5 - 20, 5, 3);
             Landmark("crane", -60, 22, 0, 1);
         }
@@ -757,7 +757,7 @@ public static class TownForms
             Landmark("seedhouse", (pu0 + pu1) / 2, -wl + 26, 0, 1);
             // The long houses (rows of the same house, the gardeners'), and the square's green.
             Green(34, 56);
-            Blocks(-1, 34, 24, wl - 18, -L * 0.45 + 10, -10);
+            Blocks(-1, 34, 29, wl - 18, -L * 0.45 + 10, -10);
             Lots(-L + 30, wr * 0.48, -L * 0.8, wr * 0.48, 3, 3, 0, false);
             Lots(-L * 0.1, wr * 0.55, -30, wr * 0.55, 3, 3, 0, false);
         }

@@ -97,13 +97,14 @@ public class EndTownTests
         var street = b.Streets.Count > 0 ? b.Streets.OrderByDescending(s => Math.Abs(s.D)).First() : new TownStreet(-b.Left + 15, b.Rear + 40, b.Gate - 40, 6);
         var far = arrival.World((street.S0 + street.S1) / 2, street.At((street.S0 + street.S1) / 2));
         Assert.True(world.InFort(far), "the town's outermost street is inside the fort");
-        Assert.False(world.InFort(arrival.World(b.Rear - 120, street.D)), "outside its way in isn't");
-        Assert.Equal(arrival.Origin, world.Forts[1].Origin);
-        // Its rear wall, across the line at its way in, out from the gatehouse there (Fortresses.Round from its straight frame):
-        // the fort's own solids, the gatehouse's arch over the line.
+        // (Outside its way in, on its straight frame back out along the line: its own frame starts there.)
         var o = arrival.Anchor();
         var along = new Double3(o.Tangent.X, 0, o.Tangent.Z).Normalized;
         var right = Double3.Cross(along, Double3.Up).Normalized;
+        Assert.False(world.InFort(o.Position + along * (b.Rear - 120) + right * street.D), "outside its way in isn't");
+        Assert.Equal(arrival.Origin, world.Forts[1].Origin);
+        // Its rear wall, across the line at its way in, out from the gatehouse there (Fortresses.Round from its straight frame):
+        // the fort's own solids, the gatehouse's arch over the line.
         var solids = Fortresses.Solids(world.Forts[1], line).ToList();
         foreach (double d in new[] { -b.Left / 2, b.Right / 2 })
         {

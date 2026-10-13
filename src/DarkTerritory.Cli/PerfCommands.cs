@@ -19,6 +19,9 @@ static class PerfCommands
 {
     public static object Run(TrainTuning t, string content, string[] args)
     {
+        // --form: every town the one type (note 692).
+        if (Str(args, "--form", "") is { Length: > 0 } townForm)
+            DarkTerritory.Game.PrototypeSession.TownForm = townForm == "street" ? "" : townForm;
         var tuning = DataFile.Load<PerfTuning>(Path.Combine(content, PerfTuning.File));
         int frames = (int)Opt(args, "--frames", 12);
         var views = Str(args, "--views", string.Join(',', Views.Names)).Split(',');

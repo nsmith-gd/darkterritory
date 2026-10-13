@@ -62,10 +62,14 @@ public static partial class Staging
         var runTuning = DataFile.Load<Sim.Run.RunTuning>(Path.Combine(content, Sim.Run.RunTuning.File));
         double gate = route.GateOr(Sim.Route.RouteTuning.Load(content).YardLength);
         depart = runTuning.DepartFrom(gate, consistLength);
-        if (Sim.Towns.TownContent.Load(content) is not { } towns)
+        if (Sim.Towns.TownContent.Load(content) is not { } loaded)
             return null;
         var roster = DataFile.Load<Sim.Enemies.EnemyTuning>(Path.Combine(content, Sim.Enemies.EnemyTuning.File)).Director.Roster;
-        return new Sim.Towns.Town(Sim.Towns.TownGenerator.Generate(towns, Sim.Towns.TownSite.Of(route, gate, roster, towns)), towns.Tuning, line, towns.Looks);
+        // `--form` (note 692): every town the one type.
+        var towns = PrototypeSession.TownForm is { } form ? loaded with { Tuning = loaded.Tuning with { Forms = loaded.Tuning.Forms with { Force = form } } } : loaded;
+        var town = new Sim.Towns.Town(Sim.Towns.TownGenerator.Generate(towns, Sim.Towns.TownSite.Of(route, gate, roster, towns)), towns.Tuning, line, towns.Looks);
+        town.Lay(line);
+        return town;
     }
 
     /// <summary>

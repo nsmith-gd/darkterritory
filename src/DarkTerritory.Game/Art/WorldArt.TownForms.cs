@@ -129,6 +129,14 @@ public sealed partial class WorldArt
         }
     }
 
+    static double SegDistance(double s, double d, (double S, double D) a, (double S, double D) b)
+    {
+        double es = b.S - a.S, ed = b.D - a.D, len2 = es * es + ed * ed;
+        double k = len2 < 1e-9 ? 0 : Math.Clamp(((s - a.S) * es + (d - a.D) * ed) / len2, 0, 1);
+        double x = a.S + es * k - s, y = a.D + ed * k - d;
+        return Math.Sqrt(x * x + y * y);
+    }
+
     /// <summary>The landmarks a town type stands (TownForms' kinds) that the square and the works don't draw.</summary>
     static bool Landmark(string kind) => kind is "lighthouse" or "beacon" or "chapel" or "watchtower" or "lift" or "crane" or "boatshed" or "seedhouse" or "glasshouse";
 
@@ -149,6 +157,36 @@ public sealed partial class WorldArt
         string land = plan.Form switch { "quarry" => "granite_lichen", "tidewater" => "cobbles", "harbour" => "ground_heath", "dykeland" => "marsh", _ => "ground_mud" };
         string face = quarry ? "rock_cliff" : "stone_block";
         static Vector3 V(double s, double y, double d) => new((float)d, (float)y, (float)-s);
+        // The sides of a rectangle with lower ground beside them (the piece's +X is +D, its +Z back down the line): only
+        // those are seen, the rest stand against ground as high (half the town's ground, on a quarry's benches).
+        Kit.Faces Exposed(double s0, double s1, double d0, double d1, double level)
+        {
+            bool Lower(double s, double d) => g.Bed(s, d) < level - 0.05;
+            bool Along(double s, double da, double db)
+            {
+                for (double d = da + 0.5; d < db; d += 1)
+                    if (Lower(s, d))
+                        return true;
+                return false;
+            }
+            bool Across(double d, double sa, double sb)
+            {
+                for (double s = sa + 0.5; s < sb; s += 1)
+                    if (Lower(s, d))
+                        return true;
+                return false;
+            }
+            var faces = Kit.Faces.None;
+            if (Along(s0 - 0.5, d0, d1))
+                faces |= Kit.Faces.PosZ;
+            if (Along(s1 + 0.5, d0, d1))
+                faces |= Kit.Faces.NegZ;
+            if (Across(d0 - 0.5, s0, s1))
+                faces |= Kit.Faces.NegX;
+            if (Across(d1 + 0.5, s0, s1))
+                faces |= Kit.Faces.PosX;
+            return faces;
+        }
         foreach (var (s0, s1, d0, d1, level, kind) in rects)
         {
             var lo = V(s1, floor, d0);
@@ -170,19 +208,57 @@ public sealed partial class WorldArt
                     break;
                 default:
                     // Land: its top, a hand thick, on a body whose sides are the face of the step down from it.
+                    var sides = Exposed(s0, s1, d0, d1, level);
                     k.Use(level == 0 ? "ground_mud" : land, Palette.DeepBrown, 0.9f, 0.04f, tile: 3);
-                    k.Box(V(s1, level - 0.3, d0), V(s0, level, d1), Kit.Faces.PosY | Kit.Faces.Sides);
-                    if (level - 0.3 > floor)
+                    k.Box(V(s1, level - 0.3, d0), V(s0, level, d1), Kit.Faces.PosY | sides);
+                    if (level - 0.3 > floor && sides != Kit.Faces.None)
                     {
                         k.Use(face, Palette.DeepBrown, 0.8f, 0.05f, tile: 3);
-                        k.Box(lo, V(s0, level - 0.3, d1), Kit.Faces.Sides);
+                        k.Box(lo, V(s0, level - 0.3, d1), sides);
                     }
                     break;
             }
         }
+        // The beds (a glasshouse town's plots): ridges of earth along each, a crop on them under the grow lamps' rota.
+        foreach (var d in plan.Districts.Where(x => x.Kind == DistrictKind.Plots))
+        {
+            double ps0 = d.Outline.Min(p => p.S), ps1 = d.Outline.Max(p => p.S), pd0 = d.Outline.Min(p => p.D), pd1 = d.Outline.Max(p => p.D);
+            for (double s = ps0 + 0.8; s < ps1 - 0.4; s += 1.3)
+            {
+                k.Use("ground_mud", Palette.DeepBrown, 0.95f, 0.05f, tile: 2);
+                k.Box(V(s + 0.35, -0.1, pd0 + 0.6), V(s - 0.35, 0.22, pd1 - 0.6), Kit.Faces.PosY | Kit.Faces.Sides);
+                k.Use("bog_sphagnum", new Vector3(0.25f, 0.4f, 0.15f), 0.6f, 0.05f, tile: 1.5f);
+                k.Box(V(s + 0.2, 0.22, pd0 + 0.8), V(s - 0.2, 0.5, pd1 - 0.8), Kit.Faces.PosY | Kit.Faces.Sides);
+            }
+        }
+        // A ramp's sides drawn along it (the Sim's walls step with its raster; the eye sees the ramp's own line): a wall each
+        // side from the lower of it and the ground beside it to a parapet over the higher.
+        var ramps = plan.Ways.Where(w => w.Levels is not null).ToList();
+        bool ByARamp(double s, double d) => ramps.Any(w => Enumerable.Range(1, w.Points.Count - 1).Any(i =>
+            SegDistance(s, d, w.Points[i - 1], w.Points[i]) < w.Width / 2 + 1.6));
+        k.Use(face, Palette.DeepBrown, 0.8f, 0.05f, tile: 3);
+        foreach (var w in ramps)
+            for (int i = 1; i < w.Points.Count; i++)
+            {
+                var (a, z) = (w.Points[i - 1], w.Points[i]);
+                double es = z.S - a.S, ed = z.D - a.D, len = Math.Sqrt(es * es + ed * ed);
+                if (len < 0.1)
+                    continue;
+                foreach (int side in new[] { -1, 1 })
+                {
+                    double ns = -ed / len * side, nd = es / len * side, off = w.Width / 2 + 0.15;
+                    double la = w.Levels![i - 1], lz = w.Levels[i];
+                    double ba = g.Bed(a.S + ns * (off + 1), a.D + nd * (off + 1)), bz = g.Bed(z.S + ns * (off + 1), z.D + nd * (off + 1));
+                    double lowA = Math.Min(la, ba) - 0.3, lowZ = Math.Min(lz, bz) - 0.3, highA = Math.Max(la, ba) + 0.9, highZ = Math.Max(lz, bz) + 0.9;
+                    var (pa, pz) = ((a.S + ns * off, a.D + nd * off), (z.S + ns * off, z.D + nd * off));
+                    k.Quad(V(pa.Item1, lowA, pa.Item2), V(pz.Item1, lowZ, pz.Item2), V(pz.Item1, highZ, pz.Item2), V(pa.Item1, highA, pa.Item2), twoSided: true);
+                }
+            }
         // The rails along the deep water and the parapets along the terraces' edges (the Sim's walls, TownGround.Edges).
         foreach (var (s0, d0, s1, d1, bottom, top) in g.Edges())
         {
+            if (ByARamp((s0 + s1) / 2, (d0 + d1) / 2))
+                continue;
             double upper = top - Sim.Towns.TownGround.Parapet;
             bool rail = g.Water((s0 + s1) / 2 + (s1 == s0 ? 0.5 : 0), (d0 + d1) / 2 + (d1 == d0 ? 0.5 : 0)) is not null
                 || g.Water((s0 + s1) / 2 - (s1 == s0 ? 0.5 : 0), (d0 + d1) / 2 - (d1 == d0 ? 0.5 : 0)) is not null;
