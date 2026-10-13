@@ -1,7 +1,8 @@
 # THE WAKERS — four designs for the model
 
-*Model design, C1 (queue #411, ARCHITECTURE §8 note 679). **Status: proposed, waiting on the director** (the Director's
-Inbox, `C1-waker-model`). The ending itself, its timings and its numbers are D1's (`wakers.md`, note 588; approved 9 Oct)
+*Model design, C1 (queue #411, ARCHITECTURE §8 note 679). **Status: the director chose B, the Peat Man** (the Director's
+Inbox, `C1-waker-model`, 13 Oct 2026), **built as GDD §8's titan**: on two legs, at least three times the stand-in's size
+(the director's gym note, App. F.5; below). The ending itself, its timings and its numbers are D1's (`wakers.md`, note 588; approved 9 Oct)
 and don't change here. This page is only what gets up: four ways it could look, each blocked out at its real size
 against the real train, in the five moments the ending turns on. The blockouts are `tools/models/concepts/wakers.py`;
 nothing in them goes into the game.*
@@ -141,7 +142,31 @@ The cars' lit windows are people.
 
 ---
 
-## C1's recommendation
+## The director's choice: B, the Peat Man, a titan
+
+The director chose **B** (the inbox, 13 Oct 2026). The same day, from the creature gym (GDD App. F.5, written into §8 as
+"A titan"): "the waker is the right idea but it needs to be this large lumbering beast, at least 3 times as large as the
+current model, it should be a biped titan type thing, the train should be struggling to outrun it because it has such a
+large gait, not because it itself is fast."
+
+So the Peat Man is built stood up, not crawling as in the blockout above:
+
+- **On two legs, about 60 m tall.** That is three and a half times the stand-in's 17 m. A car is the length of his
+  forearm. He walks hunched, his long arms hanging, his head pushed forward on the rope-galled neck.
+- **Lumbering.** His top speed (26 m/s, `wakers.topSpeed`, unchanged) comes from his stride, not his cadence: each step
+  is about as long as he is tall and takes about two seconds. His foot comes down, the ground shakes (the stir's thuds
+  are his footfalls), and his weight rolls over it. The run's cycle is played at the Sim's speed, so his feet stay
+  planted.
+- **Lying.** He lies face down under the land, as in the blockout, only three times longer: a long barrow 80 m from head
+  to heel, with a spine down it.
+- **The rise.** He pushes himself up out of the ground on his arms, gets a knee under him, and stands. The peat slides
+  off him (the rise effect).
+- **The catch.** He drops to his knees astride the line behind the train, takes the rear car in both hands, and feeds
+  the train to his mouth hand over hand. `WakerLift`'s ramp of cars runs up into his hands. From a lifted car you see
+  his face, close.
+- **At the walls.** He stands out of the guns' reach and howls, his jaw hanging.
+
+## C1's recommendation (before the choice)
 
 **A, the Drumlin.** It is the design `wakers.md` already describes:
 - the hills move;
