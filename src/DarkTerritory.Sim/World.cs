@@ -1792,8 +1792,12 @@ public sealed class World
                 _loosenings.Add((l.Cause, l.Speed));
             }
             // Note 511: what it parted is in the report as the pin's, not a cut nobody's named for.
+            // The rake that isn't the engine's: ahead of it, the parted pin's own car's (note 653: seed 7's pair carried ahead).
             if (parted >= 0 && pins.PartedFrom >= 0)
-                Attribution.PartedAt(parted, Train.RakeOf(pins.PartedFrom).Consist.Vehicles.Select(v => v.Id));
+            {
+                int cut = Train.RakeOf(pins.PartedFrom) == Train.Dynamics ? parted : pins.PartedFrom;
+                Attribution.PartedAt(parted, Train.RakeOf(cut).Consist.Vehicles.Select(v => v.Id));
+            }
         }
         // A car battered and let go comes apart (note 576): its freight spilled, off its rails, the train parted ahead of it.
         if (Authority && !Derailed && Failing.Apart(Train) is var apart and >= 0)
