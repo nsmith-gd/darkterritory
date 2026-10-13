@@ -766,6 +766,9 @@ public sealed partial class Run
                 }
                 else if (s.Parent == PlayerState.World)
                     crane.Rig(playerId, PlayerMotor.WorldPosition(s, train), intent.Has(PlayerButtons.Use) && intent.MoveZ <= 0.5, SimConstants.TickSeconds);
+                // On the car it's been set down on, unrigging it there (note 659).
+                else if (s.Parent > 0)
+                    crane.Unrig(playerId, PlayerMotor.WorldPosition(s, train), intent.Has(PlayerButtons.Use) && intent.MoveZ <= 0.5, train, SimConstants.TickSeconds);
             }
         bool holding = LeverInReach(s, train, hand) && intent.Has(PlayerButtons.Use) && intent.MoveZ <= 0.5;
         if (!holding)
