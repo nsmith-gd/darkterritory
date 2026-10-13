@@ -149,22 +149,50 @@ def own_estimate(st, cal):
     return out
 
 
+# Above this many kinds with a night's chance, the nights are sampled rather than all counted (note 657): SAMPLES of them,
+# the same nights for any settings (each kind's draw is fixed per night), so two estimates differ by the settings alone.
+EXACT, SAMPLES, SEED = 10, 256, 0x5EED657
+
+
+def mulberry32(a):
+    """The page's own generator (creature-tweaker.html), draw for draw."""
+    a &= 0xFFFFFFFF
+    while True:
+        a = (a + 0x6D2B79F5) & 0xFFFFFFFF
+        t = a
+        t = ((t ^ (t >> 15)) * (t | 1)) & 0xFFFFFFFF
+        t ^= (t + (((t ^ (t >> 7)) * (t | 61)) & 0xFFFFFFFF)) & 0xFFFFFFFF
+        yield ((t ^ (t >> 14)) & 0xFFFFFFFF) / 4294967296
+
+
+def nights(st, kinds):
+    """(weight, the kinds not about) for each night the estimate counts: every combination of the kinds with a chance
+    while there are few of them; else SAMPLES nights, each kind (in name order) drawing once a night."""
+    chancey = [k for k in kinds if st[k]["nightChance"] < 1]
+    if len(chancey) <= EXACT:
+        for mask in range(1 << len(chancey)):
+            p, absent = 1.0, set()
+            for i, k in enumerate(chancey):
+                c = st[k]["nightChance"]
+                if mask & (1 << i):
+                    p *= c
+                else:
+                    p *= 1 - c; absent.add(k)
+            if p > 0:
+                yield p, absent
+        return
+    rng, order = mulberry32(SEED), sorted(kinds)
+    for _ in range(SAMPLES):
+        draws = {k: next(rng) for k in order}
+        yield 1 / SAMPLES, {k for k in chancey if draws[k] >= st[k]["nightChance"]}
+
+
 def estimate(st, cal, t):
     ids = [k for k in cal["base"] if k in st]
     fixed = [k for k in cal.get("fixed", {}) if k in st]
-    chancey = [k for k in ids + fixed if st[k]["nightChance"] < 1][:10]
     out = {k: 0.0 for k in ids + fixed}
     out.update(own_estimate(st, cal))
-    for mask in range(1 << len(chancey)):
-        p, absent = 1.0, set()
-        for i, k in enumerate(chancey):
-            c = st[k]["nightChance"]
-            if mask & (1 << i):
-                p *= c
-            else:
-                p *= 1 - c; absent.add(k)
-        if p <= 0:
-            continue
+    for p, absent in nights(st, ids + fixed):
         for k, v in night1(st, cal, ids, fixed, absent, t).items():
             out[k] += p * v
     return out
