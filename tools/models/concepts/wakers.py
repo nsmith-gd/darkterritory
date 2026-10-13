@@ -386,10 +386,16 @@ def peatman(pose, grip=None):
         ellipsoid(skin, p + axis.cross(Vector((1, 0, 0))) * -5.8 + Vector((0, 0, 0.5)), (0.9, 0.9, 0.9), seg=10, rings=6)
     neck = chest.lerp(head, 0.55)
     tube(skin, [chest + Vector((0, 2, 2)), neck, head], [3.0, 2.2, 2.0])
-    ellipsoid(skin, head, (3.4, 4.0, 4.2), rot=(0.2, 0, 0))
-    ellipsoid(skin, head + Vector((0, 2.6, -3.0 - mouth * 1.5)), (2.6, 2.4, 1.2 + mouth * 0.4))   # the jaw, hanging
+    # A man's skull under the leather: the brow, the nose, the cheekbones; the jaw hanging open under it, too far; the
+    # eyes sunk to pits of bog water.
+    ellipsoid(skin, head, (3.4, 3.8, 4.4), rot=(0.15, 0, 0))
+    ellipsoid(skin, head + Vector((0, 3.0, 1.4)), (3.1, 1.2, 0.9))                                  # the brow
+    ellipsoid(skin, head + Vector((0, 3.9, -0.6)), (0.8, 0.9, 1.5), rot=(0.3, 0, 0))                # the nose
     for sx in (-1, 1):
-        ellipsoid(eyes, head + Vector((sx * 1.4, 3.2, 0.8)), (0.9, 0.6, 0.8), seg=12, rings=8)
+        ellipsoid(skin, head + Vector((sx * 2.2, 2.8, -0.8)), (1.0, 1.0, 0.8))                       # cheekbones
+    ellipsoid(skin, head + Vector((0, 1.6, -3.4 - mouth * 1.6)), (2.6, 2.6, 1.2 + mouth * 0.3))     # the jaw, hanging
+    for sx in (-1, 1):
+        ellipsoid(eyes, head + Vector((sx * 1.3, 3.3, 0.4)), (0.75, 0.5, 0.65), seg=12, rings=8)
     tube(rope, [neck + Vector((math.cos(a) * 2.6, math.sin(a) * 2.6, 0)) for a in np.linspace(0, 2 * math.pi, 13)],
          [0.35] * 13, n=8, joints=False)
     tube(rope, [neck + Vector((0, -2.6, 0)), neck + Vector((0.5, -4, -4)), neck + Vector((1.5, -3.5, -8))], [0.35, 0.3, 0.25], n=8)
