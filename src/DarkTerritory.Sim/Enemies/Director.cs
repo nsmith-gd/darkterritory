@@ -88,13 +88,13 @@ public sealed class Director
 
     /// <summary>
     /// The director may send <paramref name="kind"/> now (note 635): it's about tonight, it's under its night's cap
-    /// (<see cref="DirectorTuning.PerNight"/>), and it isn't one of the night things gone to ground before dawn
-    /// (<see cref="WakersTuning.NightFleesSeconds"/>).
+    /// (<see cref="DirectorTuning.CapFor"/>: its own or the default, note 654), and it isn't one of the night things gone
+    /// to ground before dawn (<see cref="WakersTuning.NightFleesSeconds"/>).
     /// </summary>
     public bool Tonight(EnemyKind kind, World world)
     {
         string key = Key(kind);
-        if (_outTonight.Contains(key) || _t.PerNight.TryGetValue(key, out int cap) && Log.Count(l => l.Kind == kind) + _ownWay.GetValueOrDefault(kind) >= cap)
+        if (_outTonight.Contains(key) || _t.CapFor(key) is int cap && Log.Count(l => l.Kind == kind) + _ownWay.GetValueOrDefault(kind) >= cap)
             return false;
         return world.Enemies is not { } et || !et.Wakers.Flees(kind) || !Waker.NightFleeing(world, et.Wakers);
     }

@@ -381,6 +381,12 @@ public sealed record CarFireTuning
     public double ChargeSeconds { get; init; } = 10;
     public double RechargeSeconds { get; init; } = 90;
     public double BurnReach { get; init; } = 4;
+    /// <summary>
+    /// Note 634: how far round a burning cell's centre its boards burn you as if you stood on them (m), the fire's reach
+    /// counted from there. Half the 1.5 m cells the burn was tuned on; with bigger cells (the director's 15 a car), half a
+    /// cell put the walls of the stretch a walker stood in on top of it.
+    /// </summary>
+    public double BurnPatch { get; init; } = 0.75;
     /// <summary>Note 265: the burn at full blaze once you've stood in it <see cref="BurnRampSeconds"/> (health a second).</summary>
     public double BurnPerSecond { get; init; } = 10;
     /// <summary>Note 265: the share of <see cref="BurnPerSecond"/> a brush against it burns at, from the first moment.</summary>
@@ -728,6 +734,13 @@ public sealed record DirectorTuning(
     /// twice a run"), by its name in <see cref="Costs"/>; a kind not named has no cap.
     /// </summary>
     public Dictionary<string, int> PerNight { get; init; } = new();
+    /// <summary>
+    /// The most of any kind <see cref="PerNight"/> doesn't name (note 654, for the director's `D1-roster-piles-up`: with few
+    /// kinds about on a night, those about come again and again, note 652); null, no cap.
+    /// </summary>
+    public int? PerNightDefault { get; init; }
+    /// <summary>The kind's most a night: its own (<see cref="PerNight"/>), else <see cref="PerNightDefault"/>; null, none.</summary>
+    public int? CapFor(string key) => PerNight.TryGetValue(key, out int cap) ? cap : PerNightDefault;
     /// <summary>
     /// The chance a kind is about at all tonight (note 635; of the Knotter: "Sometimes never"), drawn once a night from the
     /// seed; a kind not named is always about.

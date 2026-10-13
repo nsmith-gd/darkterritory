@@ -28,7 +28,9 @@ public class ThreatScaleTests
     [Fact]
     public void ALongerTrainHasMoreOfTheCrewUnderAThreatAtOnceNeverMoreThanOneEach()
     {
-        var o = Tuning.Enemies.Director.Orchestrator;
+        // The ramp below a long train (note 646), with the long train at note 647's 13 cars: the director's roster
+        // (note 652) has it from 8, where the ramp has nothing left to do.
+        var o = Tuning.Enemies.Director.Orchestrator with { LongTrainCars = 13 };
         Assert.Equal(o.EngagedPerActive, o.EngagedShare(P.ScaleCars, P.ScaleCars), 9);
         Assert.Equal(o.EngagedPerActive, o.EngagedShare(4, P.ScaleCars), 9);
         Assert.True(o.EngagedShare(P.ScaleCars + 3, P.ScaleCars) > o.EngagedPerActive);
@@ -41,9 +43,11 @@ public class ThreatScaleTests
     [Fact]
     public void ALongTrainCanPutTwoOnOneCrewmate()
     {
-        // Note 647 (the director, the inbox, 12 Oct: "b"): from about 13 cars, two threats each.
+        // Note 647 (the director, the inbox, 12 Oct: "b"): from longTrainCars, two threats each. The director's roster on
+        // the Creature Tweaker (note 652, 13 Oct) sets it at 8: a Frontier train and longer.
         var o = Tuning.Enemies.Director.Orchestrator;
-        Assert.InRange(o.LongTrainCars, 12, 14);
+        Assert.Equal(8, o.LongTrainCars);
+        Assert.Equal(o.PerPlayer, o.PerPlayerFor(o.LongTrainCars - 1));
         Assert.Equal(2, o.PerPlayerFor(o.LongTrainCars));
         Assert.Equal(2, o.PerPlayerFor(18));
         Assert.Equal(8, (int)Math.Ceiling(4 * o.EngagedShare(18, P.ScaleCars) - 1e-9));

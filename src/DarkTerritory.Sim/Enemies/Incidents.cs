@@ -405,7 +405,7 @@ public sealed class CarFire(int id) : Incident(id)
                     continue;
                 var c = grid.Centre[i];
                 var body = feet with { Y = Math.Clamp(c.Y, feet.Y, feet.Y + t.BodyHeight) };
-                double d = Math.Max(0, (c - body).Length - t.CellSize * 0.5);
+                double d = Math.Max(0, (c - body).Length - t.BurnPatch);
                 if (d < t.BurnReach)
                     heat = Math.Max(heat, Heat[i] * (1 - d / t.BurnReach) * (grid.Face[i] == FireFace.Ceiling ? t.CeilingBurnShare : 1));
             }

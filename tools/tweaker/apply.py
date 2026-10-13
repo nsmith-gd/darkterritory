@@ -13,8 +13,13 @@ keeps it, every comment left as it is:
   - tierWeights  <name>.tierWeights           (only where the creature has its own)
   - abandonAtDawn  wakers.staysAtDawn         (the names that don't)
   - settings/night want.nightFleesSeconds  wakers.nightFleesSeconds
+  - settings/night want.crewScale, lengthScale  director.pressure.<key>     (the threat's scaling, notes 646, 651)
+  - settings/night want.longTrainCars          director.orchestrator.longTrainCars  (two each, note 647; 0 is off)
+  - settings/night want.perNightDefault        director.perNightDefault  (most a night for every kind without its own,
+                                               note 654; null is no cap)
 --check prints what would change and writes nothing (exit 1 if anything would). --game-out writes the ArtifactData batch
-that sets each changed creature's `game` to its `want` (and the night's), for after the change merges.
+that sets each changed creature's `game` to its `want`, and the night's `game` and `rules` (the game's own fixed numbers the
+page's crew × cars grid needs) from the tuning as written, for after the change merges.
 """
 import argparse, glob, json, os, sys
 
@@ -23,6 +28,27 @@ sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 from calibrate import OWN, load_jsonc, parse_jsonc  # noqa: E402
 
 TIERS = ["local", "frontier", "deadLines", "deepTerritory"]
+# settings/night: what the director sets (want/game), and the fixed numbers the page computes its grid with (rules).
+NIGHT = {"nightFleesSeconds": ["wakers"], "crewScale": ["director", "pressure"], "lengthScale": ["director", "pressure"],
+         "longTrainCars": ["director", "orchestrator"], "perNightDefault": ["director"]}
+# Those a null sets (off); the rest a null leaves alone.
+NULLABLE = {"perNightDefault"}
+RULES = {"scaleCrew": ["director", "pressure"], "scaleCars": ["director", "pressure"], "scaleFloor": ["director", "pressure"],
+         "engagedPerActive": ["director", "orchestrator"], "engagedPerCar": ["director", "orchestrator"],
+         "perPlayer": ["director", "orchestrator"], "perPlayerLong": ["director", "orchestrator"],
+         "maxConcurrentSmallCrew": ["director"], "maxConcurrentLargeCrew": ["director"]}
+
+
+def at(enemies, path, key):
+    o = enemies
+    for k in path:
+        o = o[k]
+    return num(o.get(key))
+
+
+def night_of(enemies):
+    """The night's settings as the game has them, and its fixed rules."""
+    return ({k: at(enemies, p, k) for k, p in NIGHT.items()}, {k: at(enemies, p, k) for k, p in RULES.items()})
 
 
 def skip(s, i):
@@ -214,7 +240,8 @@ def plan(enemies, creatures, night):
         if not own and "cost" in want and num(want["cost"]) != tables["costs"][name]:
             said.append(f"  {name}: cost {tables['costs'][name]} -> {num(want['cost'])}")
             tables["costs"][name] = num(want["cost"])
-        if "abandonAtDawn" in want:
+        # One that stays whatever (a house: `staysAlways` on its row) has no dawn of its own to set.
+        if "abandonAtDawn" in want and not doc.get("staysAlways"):
             leaves = want["abandonAtDawn"] is not False
             if leaves and name in stays:
                 stays.remove(name); said.append(f"  {name}: now leaves at dawn")
@@ -236,11 +263,15 @@ def plan(enemies, creatures, night):
         changes.append((["dwellings"], "weights", houses))
     if stays != w.get("staysAtDawn", []):
         changes.append((["wakers"], "staysAtDawn", stays))
-    if night and (night.get("want") or {}).get("nightFleesSeconds") is not None:
-        v = num(night["want"]["nightFleesSeconds"])
-        if v != w.get("nightFleesSeconds"):
-            changes.append((["wakers"], "nightFleesSeconds", v))
-            said.append(f"  the night: nightFleesSeconds {w.get('nightFleesSeconds')} -> {v}")
+    for k, path in NIGHT.items():
+        want = (night or {}).get("want") or {}
+        if k not in want or want[k] is None and k not in NULLABLE:
+            continue
+        v = want[k]
+        v, now = num(v), at(enemies, path, k)
+        if v != now:
+            changes.append((path, k, v))
+            said.append(f"  the night: {k} {now} -> {v}")
     return changes, said
 
 
@@ -268,6 +299,8 @@ def self_test():
             docs[k] = {"name": k, "want": want, "game": copy.deepcopy(want)}
         changes, _ = plan(enemies, docs, None)
         assert not changes, f"the game's own values change something: {changes}"
+        house = {"want": {"abandonAtDawn": False}, "staysAlways": "a house: it stays", "ownWay": "house"}
+        assert not plan(enemies, {"hollowHouse": house}, None)[0], "a house's row put it in staysAtDawn"
         docs["knotter"]["want"].update(perNight=1, nightChance=0.5, abandonAtDawn=True, tierWeights={"local": 0.5, "frontier": 1, "deadLines": 1.5, "deepTerritory": 2})
         docs["climbers"]["want"].update(weight=1.5, cost=4, abandonAtDawn=False)
         docs["passenger"]["want"].update(perNight=1)
@@ -276,30 +309,102 @@ def self_test():
         for k, v in docs.items():
             json.dump(v, open(os.path.join(tmp, "export", "creatures", k + ".json"), "w"))
         os.makedirs(os.path.join(tmp, "export", "settings"))
-        json.dump({"want": {"nightFleesSeconds": 45}, "game": {"nightFleesSeconds": w["nightFleesSeconds"]}}, open(os.path.join(tmp, "export", "settings", "night.json"), "w"))
+        game0, _ = night_of(enemies)
+        assert not plan(enemies, {}, {"want": game0})[0], "the game's own night changes something"
+        json.dump({"want": {"nightFleesSeconds": 45, "crewScale": 0.2, "longTrainCars": 0, "perNightDefault": 3}, "game": {"nightFleesSeconds": w["nightFleesSeconds"]}},
+                  open(os.path.join(tmp, "export", "settings", "night.json"), "w"))
         before = open(dst).read()
         sys.argv = ["apply.py", os.path.join(tmp, "export"), "--enemies", dst, "--game-out", os.path.join(tmp, "writes.json")]
         main()
         after = open(dst).read()
         e2 = load_jsonc(dst)
         assert e2["director"]["perNight"] == {"knotter": 1, "passenger": 1, "lodger": 2}, e2["director"]["perNight"]
-        assert e2["director"]["nightChance"] == {"knotter": 0.5, "pickers": 0.5}, e2["director"]["nightChance"]
+        assert e2["director"]["nightChance"] == {**d.get("nightChance", {}), "knotter": 0.5, "pickers": 0.5}, e2["director"]["nightChance"]
         assert e2["dwellings"]["weights"]["lodger"] == 1.5 and "lodger" not in e2["director"]["costs"]
         assert e2["director"]["weights"] == {"climbers": 1.5}, e2["director"]["weights"]
         assert e2["director"]["costs"]["climbers"] == 4 and e2["director"]["costs"]["knotter"] == d["costs"]["knotter"]
         assert set(e2["wakers"]["staysAtDawn"]) == {"hotbox", "climbers"}, e2["wakers"]["staysAtDawn"]
         assert e2["wakers"]["nightFleesSeconds"] == 45
+        assert e2["director"]["pressure"]["crewScale"] == 0.2 and e2["director"]["orchestrator"]["longTrainCars"] == 0
+        assert e2["director"]["pressure"]["lengthScale"] == d["pressure"]["lengthScale"]
+        assert e2["director"]["perNightDefault"] == 3
         assert e2["knotter"]["tierWeights"] == {"local": 0.5, "frontier": 1, "deadLines": 1.5, "deepTerritory": 2}
         assert before.count("//") == after.count("//"), "a comment was lost"
         assert max(len(l) for l in after.splitlines()) <= 120 or max(len(l) for l in before.splitlines()) > 120, "a line past 120"
         writes = json.load(open(os.path.join(tmp, "writes.json")))
         assert {x["doc_id"] for x in writes} == {"knotter", "climbers", "passenger", "lodger", "pickers", "night"}, writes
+        nw = next(x for x in writes if x["doc_id"] == "night")["data"]
+        assert nw["game"]["crewScale"] == 0.2 and nw["game"]["lengthScale"] == d["pressure"]["lengthScale"], nw
+        assert nw["want"]["lengthScale"] == d["pressure"]["lengthScale"] and nw["rules"]["perPlayerLong"] == 2, nw
         sys.argv = ["apply.py", os.path.join(tmp, "export"), "--enemies", dst, "--check"]
         try:
             main()
         except SystemExit as e:
             assert not e.code, "applied, it still differs"
+    page_grid(enemies)
+    page_estimate(enemies)
     print("apply.py self-test: ok")
+
+
+def page_estimate(enemies):
+    """The page's estimate against calibrate.py's, every kind with a night's chance (the sampled nights, note 657) and with
+    none: the same numbers both ways, run with node where there is one."""
+    import re, shutil, subprocess
+    import calibrate as C
+    node = shutil.which("node")
+    if not node:
+        print("  (no node: the page's estimate not run)")
+        return
+    page = open(os.path.join(os.path.dirname(os.path.abspath(__file__)), "creature-tweaker.html")).read()
+    code = page[page.index("  const tw = "):page.index("  // Each creature's settings")]
+    st = C.settings(enemies)
+    kinds = [k for k in st if not st[k].get("own") and k not in C.FIXED]
+    cal = {"relief": 30.0, "base": {k: 0.2 + (i % 7) / 5 for i, k in enumerate(sorted(kinds))}, "fixed": {"stoker": 0.5},
+           "own": {k: 1.0 for k in C.OWN}, "ownBase": {k: 0.7 for k in C.OWN}}
+    # Every kind on a chance (sampled, as under the director's roster), and every kind about (counted).
+    for label, chance in (("the sampled nights", lambda v: v["nightChance"] if v["nightChance"] < 1 else 0.5),
+                          ("every kind about", lambda v: 1)):
+        s2 = {k: dict(v, nightChance=chance(v)) for k, v in st.items()}
+        want = C.estimate(s2, cal, "frontier")
+        js = f"const model = {{ own: {json.dumps(C.OWN)} }};\n{code}\nconsole.log(JSON.stringify(estimate({json.dumps(s2)}, 'frontier')));"
+        js = js.replace("const cal = model?.tiers?.[t];", f"const cal = {json.dumps(cal)};")
+        got = json.loads(subprocess.run([node, "-e", js], capture_output=True, text=True, check=True).stdout)
+        bad = {k: (got.get(k), v) for k, v in want.items() if abs(got.get(k, 0) - v) > 1e-6}
+        assert not bad, f"{label}: the page's estimate isn't calibrate.py's: {bad}"
+
+
+
+def page_grid(enemies):
+    """The page's crew × cars grid against Director.cs's own reading (PressureTuning.Scale, EngagedCap, MaxConcurrent),
+    and its fallback rules against the game's: run with node where there is one."""
+    import math, re, shutil, subprocess
+    page = open(os.path.join(os.path.dirname(os.path.abspath(__file__)), "creature-tweaker.html")).read()
+    game, rules = night_of(enemies)
+    fallback = json.loads(re.sub(r"(\w+):", r'"\1":', re.search(r"const RULES = (\{[^}]*\});", page).group(1)))
+    assert fallback == rules, f"the page's fallback rules aren't the game's: {fallback} vs {rules}"
+    node = shutil.which("node")
+    if not node:
+        print("  (no node: the page's grid not run)")
+        return
+    fn = page[page.index("  function scaleAt("):]
+    fn = fn[:fn.index("\n  }\n") + 4]
+    cases = [(c, n) for c in (1, 2, 3, 4, 6, 8) for n in (4, 6, 8, 10, 12, 13, 15, 18)]
+    js = f"const RULES = {{}}, night = {{ rules: {json.dumps(rules)} }};\n{fn}\nconsole.log(JSON.stringify({json.dumps(cases)}.map(([c, n]) => scaleAt({json.dumps(game)}, c, n))));"
+    got = json.loads(subprocess.run([node, "-e", js], capture_output=True, text=True, check=True).stdout)
+    r, g = rules, game
+    for (crew, cars), x in zip(cases, got):
+        mult = max(r["scaleFloor"], 1 + g["crewScale"] * (crew - r["scaleCrew"])) * max(r["scaleFloor"], 1 + g["lengthScale"] * (cars - r["scaleCars"]))
+        long = g["longTrainCars"] > 0 and cars >= g["longTrainCars"]
+        each = r["perPlayerLong"] if long else r["perPlayer"]
+        share = r["perPlayerLong"] if long else min(r["perPlayer"], r["engagedPerActive"] + r["engagedPerCar"] * max(0, cars - r["scaleCars"]))
+        hard = round((r["maxConcurrentLargeCrew"] if crew >= 6 else r["maxConcurrentSmallCrew"]) * each / r["perPlayer"])
+        once = min(hard, max(1, min(math.ceil(crew * share - 1e-9), math.floor(crew * each + 1e-9))))
+        assert abs(x["mult"] - mult) < 1e-9 and x["atOnce"] == once, f"crew {crew}, {cars} cars: page {x}, game {mult}, {once}"
+    # ThreatScaleTests' own: a crew of four on a long train, eight at once (two each); 1 at four crew on eight cars.
+    at = {(c, n): x for (c, n), x in zip(cases, got)}
+    if 0 < g["longTrainCars"] <= 18:
+        assert (at[(4, 18)]["atOnce"], at[(4, 18)]["each"]) == (8, 2), at
+    assert abs(at[(4, 8)]["mult"] - 1) < 1e-9
 
 
 def main():
@@ -320,8 +425,8 @@ def main():
     if changes:
         s = open(a.enemies).read()
         for path, key, value in changes:
-            # The costs table keeps its wrapped shape (its value starts after '    "costs": ').
-            s = put(s, path, key, value, wrap_at=len('    "costs": ') if key == "costs" else None)
+            # The director's tables wrap at 120 like the costs table (a value starts after '    "<key>": ').
+            s = put(s, path, key, value, wrap_at=len(f'    "{key}": ') if path == ["director"] and isinstance(value, dict) else None)
         open(a.enemies, "w").write(s)
         # Read back what was written: it must still parse and hold every value.
         back, _ = plan(load_jsonc(a.enemies), creatures, night)
@@ -332,8 +437,13 @@ def main():
         for name, doc in creatures.items():
             if doc.get("want") and doc.get("want") != doc.get("game"):
                 writes.append({"op": "update", "collection": "creatures", "doc_id": name, "data": {"game": doc["want"]}})
-        if night and night.get("want") != night.get("game"):
-            writes.append({"op": "update", "collection": "settings", "doc_id": "night", "data": {"game": night["want"]}})
+        if night is not None:
+            game, rules = night_of(load_jsonc(a.enemies))
+            # A setting the page hasn't had yet starts at the game's; the director's own wants are kept.
+            want = {**game, **(night.get("want") or {})}
+            data = {k: v for k, v in (("game", game), ("rules", rules), ("want", want)) if night.get(k) != v}
+            if data:
+                writes.append({"op": "update", "collection": "settings", "doc_id": "night", "data": data})
         json.dump(writes, open(a.game_out, "w"), indent=1)
         print(f"  {len(writes)} store writes for after it merges -> {a.game_out}")
 

@@ -10,7 +10,7 @@ namespace DarkTerritory.Sim.Tests;
 /// <summary>Climbers (T58, App. A.4, B.4): on at the coupling gaps, along the roofs, into an empty car. Counter: hold the gap.</summary>
 public class ClimberTests
 {
-    static readonly ClimberTuning C = Tuning.Enemies.Climbers;
+    static readonly ClimberTuning C = EveryKind.Enemies.Climbers;
     static readonly RailLine Line = new(new LineDefinition("t", [new TrackSegment(80_000)]));
 
     sealed class Night
@@ -29,7 +29,7 @@ public class ClimberTests
             var train = new TrainOnLine(new TrainDynamics(Consist.Uniform(Tuning.Train, cars, 1)), Line, 2_000);
             train.Dynamics.Velocity = speed;
             World = new World(train, Tuning.Combat);
-            var quiet = Tuning.Enemies with { Director = Tuning.Enemies.Director with { GraceMinSeconds = 1e9, GraceMaxSeconds = 1e9 } };
+            var quiet = EveryKind.Enemies with { Director = EveryKind.Enemies.Director with { GraceMinSeconds = 1e9, GraceMaxSeconds = 1e9 } };
             World.EnableEnemies(enemies ?? quiet, route: null, 1, crew: 2, authority: true);
         }
 
@@ -108,7 +108,7 @@ public class ClimberTests
         night.Run(C.ScrabbleSeconds + 0.1);
         Assert.Equal(SpinePhase.Commit, c.Phase);
         var commit = Assert.Single(night.Events, e => e.EnemyId == c.Id && e.To == SpinePhase.Commit);
-        Assert.True(commit.SecondsInFrom >= Tuning.Enemies.MinReactionSeconds);
+        Assert.True(commit.SecondsInFrom >= EveryKind.Enemies.MinReactionSeconds);
         // Up on the roof of the car ahead of the gap.
         Assert.Equal(night.Train.Frames[2].Shape.RoofHeight, c.Local.Y, 3);
     }
@@ -285,8 +285,8 @@ public class ClimberTests
         Assert.Equal([1, 2, 3, 4], Climber.Gaps(new Night(speed: 12, cars: 5).Train));
         // A car and the engine: no gap to mount.
         Assert.Empty(Climber.Gaps(new Night(speed: 12, cars: 1).Train));
-        var d = Tuning.Enemies.Director;
-        var only = Tuning.Enemies with
+        var d = EveryKind.Enemies.Director;
+        var only = EveryKind.Enemies with
         {
             Director = d with { GraceMinSeconds = 0, GraceMaxSeconds = 0, Pressure = Tuning.Eager, Draw = Tuning.Unheld, CooldownSeconds = [1, 1], Costs = d.Costs.ToDictionary(c => c.Key, c => c.Key == "climbers" ? 0.5 : 1e9) },
         };
@@ -310,7 +310,7 @@ public class ClimberTests
         var c = night.At(car: 2);
         night.Run(C.PaceSeconds + 0.5);
         var client = new World(new TrainOnLine(new TrainDynamics(Consist.Uniform(Tuning.Train, 5, 1)), Line, 2_000), Tuning.Combat);
-        client.EnableEnemies(Tuning.Enemies, route: null, 1, crew: 1, authority: false);
+        client.EnableEnemies(EveryKind.Enemies, route: null, 1, crew: 1, authority: false);
         var controls = new TrainControls();
         WorldRecords.Apply(WorldRecords.Capture(night.World, controls, []), client, ref controls, []);
         var seen = Assert.IsType<Climber>(Assert.Single(client.ActiveEnemies));
