@@ -838,4 +838,12 @@ written here instead is moved out by `tools/coord/notes.py split`; the Coordinat
 - [656. A loading ended in time for a pick-up: measured, and dropped (queue #386, D1.2 for D1; D1's ask after note 650's knock-on: "a loading…](notes/656.md)
 - [657. The Tweaker's estimate under a roster (D1, queue #387; note 654's "not yet")](notes/657.md)
 - [658. A bot walks back into the same Ribbit: now the bots club them (D1.5, queue #388; found under note 652's roster, at D1's ask)](notes/658.md)
+- [659. Loot never vanishes, and the lockers hold several (D1.5, queue #390; the director, 13 Oct, playing the morning build)](notes/659.md)
+- [660. Stranded with a wrench in a slot (D1.5, queue #391; the director, 13 Oct, playing the morning build)](notes/660.md)
+- [661. The buffer stop strand (D1.4, queue #392; the director, 13 Oct, playing the morning build)](notes/661.md)
+- [662. A fire worked a cell at a time (D1.4, queue #393; the director, 13 Oct, playing the morning build)](notes/662.md)
+- [663. A lost car told (D1.4, queue #394; the director, 13 Oct, playing the morning build)](notes/663.md)
+- [664. Controls from the playtest (D1.2, queue #395; the director, 13 Oct, playing the morning build)](notes/664.md)
+- [665. The cab's readouts (D1.2, queue #396; the director, 13 Oct, playing the morning build)](notes/665.md)
+- [666. Skips in the morning build (D1, queue #397; the director, 13 Oct, playing the morning build)](notes/666.md)
 <!-- end of the notes index -->
