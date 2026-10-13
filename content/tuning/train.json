@@ -339,8 +339,9 @@
       "kitLocker": "8",
       // Shelves in each: the locker's floor, and one at chest height.
       "slots": 2,
-      // What goes in: hand-sized things. Freight, the train's crates, the heavy, the dead and the living don't.
-      "holds": ["lamp", "radio", "toy", "loot", "extinguisher", "repairKit"],
+      // What goes in: hand-sized things, and a tool left to free its slot (note 649). Freight, the train's crates, the heavy,
+      // the dead and the living don't.
+      "holds": ["lamp", "radio", "toy", "loot", "extinguisher", "repairKit", "tool"],
       // Each locker's size (m): along the row, out from the wall, and tall. The row starts this far behind the front end
       // wall (the car's extinguisher board goes in the gap) and stops short of the side door.
       "width": 0.42,

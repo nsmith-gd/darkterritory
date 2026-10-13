@@ -829,9 +829,12 @@ written here instead is moved out by `tools/coord/notes.py split`; the Coordinat
 - [650. Holdouts right beside the line, for the shortest rescue (queue #380, D1.2 for D1; the director, the inbox, 12 Oct, `D1-holdout-cost`:…](notes/650.md)
 - [647. A long train: two threats each (D1, queue #377; the director, the inbox, 12 Oct, `D1-long-train-two-each`, "b"; with "Couplings never…](notes/647.md)
 - [648. The Stoker's hose in the cab (D1, queue #378; the director, the inbox, 12 Oct, `D1-stoker-hose-in-the-cab`, "b": "A hose fitting in the…](notes/648.md)
-- [649. The lockers hold what the slots let go (D1.5, queue #379; the director, the inbox, 12 Oct)](notes/649.md)
+- [649. The lockers hold what the slots let go: a tool left frees its slot, a find on a shelf pays at the gates (D1.5, queue #379; the director, the inbox, 12 Oct)](notes/649.md)
 - [651. The threat's scaling on the Creature Tweaker (D1, queue #381; the director, 12 Oct: "Let's get this all set up as a matrix so we can see…](notes/651.md)
 - [652. The director's roster from the Creature Tweaker (D1, queue #382; the director, on the Tweaker, the evening of 12 Oct, and "Measure my…](notes/652.md)
+- [653. Cars a dropped pin parts off are gone for and coupled back on (D1.4, queue #383; D1's ask after #371: "the crew coupled car 2 back but…](notes/653.md)
 - [653. Cars left behind after a parting are gone back for (D1.4, queue #383; D1's ask after #371)](notes/653.md)
 - [654. A most-a-night for every creature without its own (D1, queue #384; for the director's `D1-roster-piles-up`, note 652)](notes/654.md)
+- [655. The crew keep the train moving on a Dragger-heavy night (D1.4, queue #385; D1's ask after #882)](notes/655.md)
+- [657. The Tweaker's estimate under a roster (D1, queue #387; note 654's "not yet")](notes/657.md)
 <!-- end of the notes index -->

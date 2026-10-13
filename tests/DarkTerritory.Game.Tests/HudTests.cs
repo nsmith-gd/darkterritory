@@ -286,6 +286,8 @@ public class HudTests
         s.Player = s.Player with { Kit = s.PlayerTuning.StartingKit, HeldSlot = 1 };
         AssertShort(Hud.Prompt(s));
         Assert.All(Hud.Hints(s).Lines, AssertShort);
+        // Note 649: and the corner says it can be left there.
+        Assert.Contains("STOW : [RMB]", Hud.Hints(s).Lines);
     }
 
     [Fact]
