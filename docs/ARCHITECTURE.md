@@ -831,4 +831,5 @@ written here instead is moved out by `tools/coord/notes.py split`; the Coordinat
 - [649. The lockers hold what the slots let go (D1.5, queue #379; the director, the inbox, 12 Oct)](notes/649.md)
 - [651. The threat's scaling on the Creature Tweaker (D1, queue #381; the director, 12 Oct: "Let's get this all set up as a matrix so we can see…](notes/651.md)
 - [652. The director's roster from the Creature Tweaker (D1, queue #382)](notes/652.md)
+- [653. Cars left behind after a parting are gone back for (D1.4, queue #383)](notes/653.md)
 <!-- end of the notes index -->
