@@ -75,7 +75,8 @@ public static class Protocol
     //     record's locker field a thing's slot and whether it's put away.
     // 54: a tool on a crew locker's shelf (note 649): a body kind of its own, its tool in the body record's ninth field.
     // 55: a car's load as what's in it (note 659): the vehicle record carries how much of it is things lying there as
-    //     themselves (its 31st field; the fire cells after it), the rest its heap.
+    //     themselves (its 31st field; the fire cells after it), the rest its heap; and the body record a thing's size (its
+    //     twelfth field), so what's lying in a car is as solid on every client.
     public const int Version = 55;
 }
 

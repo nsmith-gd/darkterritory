@@ -52,6 +52,14 @@ public sealed class TrainOnLine
     /// <summary>The stops' buildings, for whoever walks among them (T114); set with the run, alike on every machine.</summary>
     public Run.StopWalls? Walls { get; set; }
 
+    /// <summary>
+    /// What's lying still in the cars (note 659, the director: "we want the loot we put in the cars to persist once in there so
+    /// poor stacking becomes an obstacle for players passing through"): each thing's box in its car's frame, to walk round or
+    /// step up onto. Made after the bodies' step on the host and from the bodies' record on a client
+    /// (<see cref="Physics.Bodies.Lying"/>), from the same rounded numbers, so every machine walks into the same things.
+    /// </summary>
+    public IReadOnlyList<(int Car, Box Box)> Lying { get; set; } = [];
+
     readonly List<TrainDynamics> _rakes = new();
     // Grown once when a switchyard's standing cars are put on its sidings (Stand), before the night begins.
     Vehicle[] _vehicles;

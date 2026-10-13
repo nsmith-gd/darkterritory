@@ -383,6 +383,31 @@ public sealed class Bodies
     /// </summary>
     public static double Prey(Body b) => b.Kind == BodyKind.Child || b.Banked ? 0 : Value(b);
 
+    /// <summary>
+    /// What's lying still in the cars, as boxes in each car's frame (note 659, <see cref="TrainOnLine.Lying"/>): a thing at rest
+    /// in a car's room, not in anyone's hands or slots, on a shelf or being carried off; its middle and its size rounded as the
+    /// body's record rounds them, so the host and every client make the same boxes. In body order.
+    /// </summary>
+    public IReadOnlyList<(int Car, Box Box)> Lying(TrainOnLine train)
+    {
+        List<(int, Box)>? lying = null;
+        foreach (var b in _bodies.OrderBy(b => b.Id))
+        {
+            if (b.Kind is not (BodyKind.Crate or BodyKind.Cargo or BodyKind.Heavy or BodyKind.Loot or BodyKind.Toy or BodyKind.Tool
+                    or BodyKind.Radio or BodyKind.RepairKit or BodyKind.Powder)
+                || b.Carrier >= 0 || b.Locker >= 0 || b.Pocket >= 0 || b.TakenBy >= 0 || !b.Pbd.Asleep || b.Pbd.Particles.Length != 1
+                || b.Parent <= 0 || b.Parent >= train.Frames.Count || train.Frames[b.Parent].Shape.Interior is not { } room)
+                continue;
+            var p = b.Pbd.Particles[0];
+            var c = new Double3(Math.Round(p.Position.X * 1e4) / 1e4, Math.Round(p.Position.Y * 1e4) / 1e4, Math.Round(p.Position.Z * 1e4) / 1e4);
+            double r = Math.Round(p.Radius * 1e2) / 1e2;
+            if (r <= 0 || !room.Contains(c))
+                continue;
+            (lying ??= []).Add((b.Parent, new Box(c - new Double3(r, r, r), c + new Double3(r, r, r))));
+        }
+        return lying ?? (IReadOnlyList<(int, Box)>)[];
+    }
+
     /// <summary>A small thing on the ground at a facility (a toy, salvage, a child), in the world frame.</summary>
     public Body SpawnItem(Double3 world, double lineHint, BodyKind kind)
     {
