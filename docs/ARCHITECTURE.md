@@ -681,6 +681,7 @@ written here instead is moved out by `tools/coord/notes.py split`; the Coordinat
 - [476. The link's corner in note 285's form, and `--radio tally` without a route (B3, queue #212; found sweeping main's prompts after notes 441…](notes/476.md)
 - [477. The hounds' patrol clips (queue #213, E1; for D1's #208, note 472; the director, 8 Oct: "It matters that they dont just stand there and…](notes/477.md)
 - [478. The hounds heard on their patrol aboard (AU1, queue #214; D1's #208, note 472, the director, 8 Oct: hounds aboard "should either patrol…](notes/478.md)
+- [479. Loading in the fog (queue #215, B2; the director, 8 Oct: "Performance is important so make sure there's ways to do good loading. We have…](notes/479.md)
 - [480. The tipple heard (AU1, queue #216; A1's #458, note 423: "its sound (the clamp, the roll, the derail) AU1's"; spec D.2 "Clamp the car,…](notes/480.md)
 - [481. A resumed night keeps the train as it left (A1, queue #218; spec E "Autosave per POI, on successful departure", "Crash: Session lost.…](notes/481.md)
 - [482. The comet's green out of its car's seams (queue #219, C1; the art checklist's `comet` "next": "the green leaking out of the car's seams at…](notes/482.md)
