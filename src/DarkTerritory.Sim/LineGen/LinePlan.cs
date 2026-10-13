@@ -192,7 +192,10 @@ public enum SignState : byte { Intact, Fallen, Missing }
 
 /// <param name="Side">+1 right, −1 left of the direction of travel.</param>
 /// <param name="For">The demand or place it tells of.</param>
-public sealed record PlanSign(string Type, string Edge, double S, int Side, string Text, SignState State, bool Required, double? Value = null, string? For = null);
+/// <param name="To">Where along <paramref name="Edge"/> the distance it reads counts to (a facility's or junction's board, "0.5 KM"):
+/// a board stood elsewhere than <paramref name="S"/> says its own distance from there (note 684).</param>
+public sealed record PlanSign(string Type, string Edge, double S, int Side, string Text, SignState State, bool Required, double? Value = null, string? For = null,
+    double? To = null);
 
 /// <summary>A facility slot (§11.1) as handed to the POI generator.</summary>
 public sealed record PlanPoi(string Id, FacilityKind Type, string Name, string Junction, double S, int Side, PlanRange Approach, PlanRange Holding,
@@ -280,6 +283,8 @@ public sealed record PlanRules(double ADerail, double BrassCuttingSpeed, double 
     public IReadOnlyDictionary<string, double> BiomeRelief { get; init; } = new Dictionary<string, double>();
     /// <summary>Each kind of board as the signage kit builds it (signage.json "boards"), by type.</summary>
     public IReadOnlyDictionary<string, BoardDef> Boards { get; init; } = new Dictionary<string, BoardDef>();
+    /// <summary>How the lettered boards stand back, read and shine in the lamp (signage.json "billboard", note 560).</summary>
+    public BillboardRules Billboard { get; init; } = new();
     /// <summary>What each lineside kit piece stands on (footprints.json; note 389), by piece: each variant's boxes.</summary>
     public IReadOnlyDictionary<string, double[][][]> Footprints { get; init; } = new Dictionary<string, double[][][]>();
 }

@@ -35,7 +35,7 @@ public static class CrewActions
             double was = s.ActionProgress;
             s.ActionProgress += dt;
             if (was < needed && s.ActionProgress >= needed)
-                train.Uncouple(s.Parent);
+                train.Uncouple(s.Parent, Parting.Crew);
             return;
         }
         // The vent's own key (note 264): held anywhere in the cab, the blow-off's open, whatever Use is doing.
@@ -200,9 +200,9 @@ public static class CrewActions
                 if (before < RackSeconds && s.ActionProgress >= RackSeconds)
                     Rack(ref s, train);
                 break;
-            // A cargo car's roof hatch (T99), from the roof: opened or shut like a door, but not shut down onto a casting the
-            // crane has hanging in it.
-            case InteractableKind.Hatch when s.Surface == Surface.Roof || Hand(s, hand):
+            // A cargo car's roof hatch (T99), from the roof or, looking up at it, from the floor under it (note 675): opened or
+            // shut like a door, but not shut down onto a casting the crane has hanging in it.
+            case InteractableKind.Hatch when s.Surface is Surface.Roof or Surface.Deck || Hand(s, hand):
                 double hatchSeconds = train.Dynamics.Tuning.Geometry.Interior?.DoorSeconds ?? 0.4;
                 s.ActionProgress += dt;
                 var hv = train.Vehicles[near.Value.Vehicle];
@@ -368,9 +368,10 @@ public static class CrewActions
         if (s.Parent == PlayerState.World)
             return null;
         var reaching = Hand(s, hand) ? PlayerMotor.HandAt(s) : null;
-        (Interactable, int)? best = null, looked = null;
+        (Interactable, int)? best = null, looked = null, lid = null;
         double bestD = double.MaxValue;
         int own = s.Parent;
+        double pitch = s.Pitch;
         // Doors want facing: the coupler plate is in reach of two of them, and Use there also cuts the coupling. So do the
         // crew lockers: a row of them, and you're at the one you face.
         double fx = -DMath.Sin(s.Yaw), fz = -DMath.Cos(s.Yaw);
@@ -379,7 +380,7 @@ public static class CrewActions
         var pick = train.Dynamics.Tuning.Pick;
         double cp = DMath.Cos(s.Pitch);
         var view = new Double3(fx * cp, DMath.Sin(s.Pitch), fz * cp);
-        var eye = s.Position + Double3.Up * pick.EyeHeight;
+        var eye = s.Position + Double3.Up * (s.Has(PlayerFlags.Crouched) ? pick.CrouchedEyeHeight : pick.EyeHeight);
         // Compared as cosines (no Acos: what's picked changes the train, so it's worked out alike on every machine).
         double bestCos = DMath.Cos(pick.LookDegrees * Math.PI / 180);
         void Search(int vehicle, Double3 at, bool doorsOnly)
@@ -395,6 +396,15 @@ public static class CrewActions
                 bool height = reaching is null ? Math.Abs(at.Y - i.Position.Y) < 1.2 : at.Y - i.Position.Y is >= 0.2 and <= 1.8;
                 if (d > i.Radius * i.Radius || !height)
                     continue;
+                // Note 675: a thing worked only looked at steeply enough (a hatch's lid, down from the roof or up from the
+                // floor), and then it's the one looked at; never reached for by hand, nor stood near.
+                if (i.LookDegrees != 0)
+                {
+                    double pitched = i.LookDegrees > 0 ? pitch : -pitch;
+                    if (reaching is null && vehicle == own && pitched >= Math.Abs(i.LookDegrees) * Math.PI / 180)
+                        lid = (i, vehicle);
+                    continue;
+                }
                 if (reaching is null && vehicle == own)
                 {
                     var to = i.Position + Double3.Up * i.Aim - eye;
@@ -423,6 +433,6 @@ public static class CrewActions
             var world = train.Frames[s.Parent].ToWorld(from);
             Search(behind, train.Frames[behind].ToLocal(world), doorsOnly: true);
         }
-        return looked ?? best;
+        return lid ?? looked ?? best;
     }
 }

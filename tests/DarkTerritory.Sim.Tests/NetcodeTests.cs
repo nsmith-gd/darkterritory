@@ -276,7 +276,7 @@ public class NetcodeTests
         foreach (var c in clients)
             c.ResetStats();
 
-        Run(net, host, clients, 60, i => i == 1 ? new PlayerIntent { MoveZ = 1, Buttons = PlayerButtons.Use } : default);
+        Run(net, host, clients, 60, i => i == 1 ? new PlayerIntent { MoveZ = 1, Moves = PlayerMoves.Push } : default);
         Run(net, host, clients, 3, _ => default);
         Assert.True(z0 - host.Train.Vehicles[guard].Gun.Z > 1.5);
         Assert.All(clients, c => Assert.Equal(host.Train.Vehicles[guard].Gun.Z, c.Train.Vehicles[guard].Gun.Z, 6));

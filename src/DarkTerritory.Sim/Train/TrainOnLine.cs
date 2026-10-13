@@ -52,6 +52,14 @@ public sealed class TrainOnLine
     /// <summary>The stops' buildings, for whoever walks among them (T114); set with the run, alike on every machine.</summary>
     public Run.StopWalls? Walls { get; set; }
 
+    /// <summary>
+    /// What's lying still in the cars (note 659, the director: "we want the loot we put in the cars to persist once in there so
+    /// poor stacking becomes an obstacle for players passing through"): each thing's box in its car's frame, to walk round or
+    /// step up onto. Made after the bodies' step on the host and from the bodies' record on a client
+    /// (<see cref="Physics.Bodies.Lying"/>), from the same rounded numbers, so every machine walks into the same things.
+    /// </summary>
+    public IReadOnlyList<(int Car, Box Box)> Lying { get; set; } = [];
+
     readonly List<TrainDynamics> _rakes = new();
     // Grown once when a switchyard's standing cars are put on its sidings (Stand), before the night begins.
     Vehicle[] _vehicles;
@@ -319,13 +327,20 @@ public sealed class TrainOnLine
         return i > 0 ? c.Vehicles[i - 1].Id : -1;
     }
 
+    /// <summary>
+    /// The couplings cut since the world last read them (note 663), each with what cut it: the host tells the crew of the cars
+    /// it lost the engine, and why.
+    /// </summary>
+    public List<PartingMark> Partings { get; } = [];
+
     /// <summary>Cuts the coupling behind <paramref name="vehicleId"/>. Returns false if nothing is coupled there.</summary>
-    public bool Uncouple(int vehicleId)
+    public bool Uncouple(int vehicleId, Parting cause = Parting.Unknown, int who = -1)
     {
         var rake = RakeOf(vehicleId);
         int index = rake.Consist.IndexOf(vehicleId);
         if (index + 1 >= rake.Consist.Vehicles.Count)
             return false;
+        Partings.Add(new PartingMark(vehicleId, rake.Consist.Vehicles[index + 1].Id, cause, who));
         var front = rake.Consist;
         var rear = front.SplitAfter(index);
         // (Cut at a Knotter's gap, note 365, the rear rake stands where its body held it, and the gap's its no more.)
@@ -694,7 +709,7 @@ public sealed class TrainOnLine
         int front = rake.Consist.Vehicles[0].Id;
         if (damage > 0)
         {
-            Damage(_vehicles[front], damage);
+            Damage(_vehicles[front], damage, KnockCause.BufferStop, speed);
             foreach (var v in rake.Consist.Vehicles)
                 v.CargoIntegrity = Math.Max(0, v.CargoIntegrity - damage * c.CargoDamageShare);
         }
@@ -793,8 +808,8 @@ public sealed class TrainOnLine
             if (closing > c.SafeContactSpeed)
             {
                 damage = (closing - c.SafeContactSpeed) * (closing - c.SafeContactSpeed) * c.DamagePerSpeedSquared;
-                Damage(_vehicles[frontId], damage);
-                Damage(_vehicles[rearId], damage);
+                Damage(_vehicles[frontId], damage, KnockCause.Collision, closing);
+                Damage(_vehicles[rearId], damage, KnockCause.Collision, closing);
                 foreach (var v in a.Consist.Vehicles.Concat(b.Consist.Vehicles))
                     v.CargoIntegrity = Math.Max(0, v.CargoIntegrity - damage * c.CargoDamageShare);
             }
@@ -851,7 +866,11 @@ public sealed class TrainOnLine
     }
 
     /// <summary>A knock at the couplers: an armoured car's plate takes some of it (note 184).</summary>
-    void Damage(Vehicle v, double amount) => v.Batter(amount, Tuning);
+    void Damage(Vehicle v, double amount, KnockCause cause, double speed)
+    {
+        v.Batter(amount, Tuning);
+        v.Knock = (cause, speed);
+    }
 
     /// <summary>Mass-weighted grade under the engine's rake; a long train straddling a summit feels both sides.</summary>
     public double AverageGrade() => AverageGrade(_engineRake);

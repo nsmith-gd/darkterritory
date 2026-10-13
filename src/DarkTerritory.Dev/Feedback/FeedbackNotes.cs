@@ -43,6 +43,9 @@ public sealed class FeedbackNotes(string directory, NightRecorder? recorder, Cra
     public int Made => _made;
     public FeedbackUpload? Upload => upload;
 
+    /// <summary>The build's test reports (note 677): every note kept goes on the end of them too.</summary>
+    public TestReports? Tests { get; init; }
+
     /// <summary>The last note kept: its bundle's folder.</summary>
     public string? Last { get; private set; }
 
@@ -171,7 +174,7 @@ public sealed class FeedbackNotes(string directory, NightRecorder? recorder, Cra
         _sending.RemoveAll(t => t.IsCompleted);
         _sending.Add(Task.Run(async () =>
         {
-            string dir = FeedbackBundle.Write(directory, note, frame, voice, sampleRate, reports);
+            string dir = FeedbackBundle.Write(directory, note, frame, voice, sampleRate, reports, Tests);
             Last = dir;
             if (upload is not null)
                 await upload.SendAsync(dir, null).ConfigureAwait(false);

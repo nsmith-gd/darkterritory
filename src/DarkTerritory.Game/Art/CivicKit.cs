@@ -110,14 +110,11 @@ public static class CivicKit
                 k.Cylinder(Vector3.Zero, new Vector3(0, h, 0), 0.07f, 8, radiusB: 0.045f);
                 k.Use("brass", Palette.TarnishedBrass, 0.4f, 0.6f);
                 k.Lathe(new Vector3(0, h, 0), [new(0.09f, 0), new(0.09f, 0.04f), new(0, 0.14f)], 8);
-                // The flag, hung a little off the wind (there's none in here): the town's blue with its lamp, patched.
-                k.Use("scarf", Palette.BlueGrey, 0.6f, 0, tile: 1);
-                k.Tint = new Vector3(0.45f, 0.6f, 1.1f);
-                var top = new Vector3(0.07f, h - 0.2f, 0);
-                k.Quad(top, top + new Vector3(1.6f, -0.12f, 0.1f), top + new Vector3(1.55f, -1.15f, 0.12f), top + new Vector3(0, -1.0f, 0), twoSided: true);
-                k.Use("paint_oxide", Palette.LampAmber, 0.5f, 0.1f, tile: 1);
-                k.Tint = new Vector3(1.6f, 1.2f, 0.5f);
-                k.Quad(top + new Vector3(0.6f, -0.35f, 0.04f), top + new Vector3(0.95f, -0.37f, 0.06f), top + new Vector3(0.93f, -0.75f, 0.07f), top + new Vector3(0.6f, -0.7f, 0.05f), twoSided: true);
+                // The flag itself is cloth in the wind (FlagKit, note 674), drawn with the pole by WorldArt.Civic: a ring
+                // and its halyard cleat here, where it's bent on.
+                Iron(k);
+                k.Cylinder(new Vector3(0, h - 0.22f, 0), new Vector3(0, h - 0.16f, 0), 0.085f, 8);
+                k.Box(new Vector3(0.06f, 1.2f, -0.02f), new Vector3(0.1f, 1.35f, 0.02f));
                 break;
             case "laws":
                 // The council's board: two posts, a roof, one long sheet of ordinances with the council's red seal.

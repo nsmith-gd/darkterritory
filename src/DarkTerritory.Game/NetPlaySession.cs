@@ -1146,8 +1146,8 @@ public sealed class NetPlaySession : IPlaySession, IDisposable
     public Camera EyeCamera(IReadOnlyList<CarFrame> frames, double alpha, double pendingYaw, double pendingPitch)
     {
         if (Watching >= 0 && Client.TryGetRemote((byte)Watching, alpha, out var s))
-            return Eyes.Operator(s, World) ?? Eyes.From(s, s, frames, alpha, 0, 0);
-        var eyes = Eyes.Operator(Player, World) ?? Eyes.From(Player, _previous, frames, alpha, pendingYaw, pendingPitch);
+            return Eyes.Operator(s, World) ?? Eyes.From(s, s, frames, alpha, 0, 0, World.Movement?.Crouch.EyeDrop ?? 0);
+        var eyes = Eyes.Operator(Player, World) ?? Eyes.From(Player, _previous, frames, alpha, pendingYaw, pendingPitch, World.Movement?.Crouch.EyeDrop ?? 0);
         // A Ribbit pack on you (note 558): down on your back with them, from when they got onto you.
         double now = (Tick + alpha) * SimConstants.TickSeconds;
         if (Player.Alive && Eaten(frames) is { } holder)

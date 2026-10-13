@@ -855,6 +855,58 @@ public sealed record StopPlan(int Facility, Site Site, Branch Spur, double Hold,
         return world.Train.Dynamics.Consist.IndexOf(b.Parent) >= 0 && !Inside(world.Train, b) && b.Pbd.Asleep;
     }
 
+    /// <summary>A crate of freight's size (<see cref="Physics.Bodies.SpawnCargo"/>'s, m): what a hand that doesn't know what it holds stows for.</summary>
+    public const double CrateRadius = 0.45;
+
+    /// <summary>
+    /// Where a crate goes down in a car so the next one gets by (note 659: what's put in a car stays there, solid, so a crew
+    /// stacks it): a light one against a wall, clear of the doorways and the aisle down the middle, the wall across from the
+    /// door first; a heavy one (two carrying it, along the car) down the middle, clear of the
+    /// doorways. The first spot nothing lies on and no fitting stands in, as the crate's middle on the floor; null if the
+    /// car's full up.
+    /// </summary>
+    public static Double3? Stow(TrainOnLine train, int car, int side, double radius, bool heavy)
+    {
+        var shape = train.Frames[car].Shape;
+        if (shape.Interior is not { } room || train.Dynamics.Tuning.Geometry.Interior is not { } layout)
+            return null;
+        var vehicle = train.Vehicles[car];
+        double floor = layout.FloorHeight, sd = layout.SideDoorWidth / 2, gap = 0.08;
+        double ends = room.Max.Z - radius - gap, door = sd + radius + 0.3;
+        var spots = new List<Double3>();
+        if (heavy)
+            for (double z = door + 0.3; z <= ends; z += 2 * radius + gap)
+            {
+                spots.Add(new Double3(0, floor, z));
+                spots.Add(new Double3(0, floor, -z));
+            }
+        else
+        {
+            // Across from the door, out from beside the doorway (the shortest carry, and never in the way in); then the door's
+            // own wall from the ends back (what's put by the doorway there is what the next one in walks round).
+            double far = -side * (room.Max.X - radius - gap), near = side * (room.Max.X - radius - gap);
+            for (double z = door; z <= ends; z += 2 * radius + gap)
+            {
+                spots.Add(new Double3(far, floor, -z));
+                spots.Add(new Double3(far, floor, z));
+            }
+            for (double z = ends; z >= door; z -= 2 * radius + gap)
+            {
+                spots.Add(new Double3(near, floor, -z));
+                spots.Add(new Double3(near, floor, z));
+            }
+        }
+        foreach (var at in spots)
+        {
+            bool Over(Box b) => b.Max.Y > floor + 0.1 && b.Min.Y < floor + 2 * radius && Math.Abs(b.Centre.X - at.X) < radius + b.HalfSize.X
+                && Math.Abs(b.Centre.Z - at.Z) < radius + b.HalfSize.Z;
+            if (train.Lying.Any(l => l.Car == car && Over(l.Box)) || shape.Solids.Any(s => s.Present(vehicle) && Over(s.BoxIn(vehicle))))
+                continue;
+            return at;
+        }
+        return null;
+    }
+
     internal static bool Inside(TrainOnLine train, Physics.Body b) =>
         b.Parent > 0 && train.Frames[b.Parent].Shape.Interior is { } room && room.Contains(b.Pbd.Particles[0].Position);
 }
@@ -3016,10 +3068,22 @@ public sealed partial class StopHand(StopJob job, CrewCalls calls, int member, C
         {
             if (!heavy)
                 return Walk(self, landing, facingIn + Math.PI, "out of the car");
-            // In the middle of the car, facing away from the door: the crate goes down in front, inside the walls.
+            // Note 659: what's put down stays, so it's stacked: a crate against a wall, clear of the doorway and the aisle, from
+            // the car's far ends in (StopPlan.Stow), set down in front, facing the wall. A find (under a step's height) or a car
+            // full up: in the middle of the car, facing away from the door, as ever.
             var drop = new Double3(0, layout.FloorHeight, 0);
-            if (!Near(self, drop, 0.25) || !Aligned(self, facingIn))
-                return Walk(self, drop, facingIn, "carrying in");
+            double toward = facingIn;
+            // (What's in our arms, if we know who we are; else a crate's size, the stack's: a find's the one thing put down in
+            // the middle, and a find's in our hands only when we know.)
+            double? size = mine is null ? StopPlan.CrateRadius : mine.Kind == Physics.BodyKind.Cargo ? mine.Pbd.Particles[0].Radius : null;
+            if (size is { } radius && StopPlan.Stow(train, _car, side, radius, heavy: false) is { } stow)
+            {
+                int wall = Math.Sign(stow.X);
+                toward = wall > 0 ? -Math.PI / 2 : Math.PI / 2;
+                drop = stow with { X = stow.X - wall * world.Bodies.Hands.CarryForward };
+            }
+            if (!Near(self, drop, 0.25) || !Aligned(self, toward))
+                return Walk(self, drop, toward, "carrying in");
             Doing = "putting it down";
             return Press();
         }

@@ -53,10 +53,18 @@ using CrewActs = DarkTerritory.Game.Art.CrewActs;
 // A crash leaves a report (the exception, and the last things the game said) in the user's app data (--crashes dir
 // elsewhere), and the next launch opens on a notice that says where it is (note 411).
 int crashesAt = Array.IndexOf(args, "--crashes");
-var crashes = CrashReports.Install(crashesAt >= 0 && crashesAt + 1 < args.Length ? args[crashesAt + 1] : null);
+string? crashesDir = crashesAt >= 0 && crashesAt + 1 < args.Length ? args[crashesAt + 1] : null;
+string? logsDir = null;
+#if DEVTOOLS
+// A developer build keeps its logs and reports in the game's own folder, where the director finds them (GDD §34.2, note
+// 677); one that can't write there keeps them in the app data, as a player's does.
+if (crashesDir is null && DarkTerritory.Dev.TestReports.GameLogs() is { } gameLogs)
+    (crashesDir, logsDir) = (Path.Combine(gameLogs, "reports"), gameLogs);
+#endif
+var crashes = CrashReports.Install(crashesDir, logs: logsDir);
 #if DEVTOOLS
 // A developer build's tools (note 514): reached only here and under the other DEVTOOLS hooks; a player's build has none of it.
-var dev = DarkTerritory.Dev.DevTools.Start(args, crashes);
+var dev = DarkTerritory.Dev.DevTools.Start(args, crashes, logsDir);
 // The creature gym (GDD §34.1, note 676): the night it's on, while it's on.
 DarkTerritory.Dev.Gym.CreatureGym? gym = null;
 #endif
@@ -1291,6 +1299,8 @@ CampaignState? Play(IPlaySession session, CampaignState? campaign)
                 // How loud you are (GDD v1.1 App. C.7, C.8): the mic while it sends; with no mic, holding Talk counts as
                 // speaking up, so a player without one can still talk the Gaunt down and answer a roll call.
                 Voice = (byte)Math.Clamp(voiceLevel * 255, 0, 255),
+                // Note 664: crouch and pushing the gun along, each its own key, held (a headset rider crouches for real).
+                Moves = (Held(Control.Crouch) ? PlayerMoves.Crouch : 0) | (Held(Control.Push) ? PlayerMoves.Push : 0),
                 Select = pendingSelect,
                 // Scrolled up is the previous slot, down the next, as in most games.
                 Cycle = (sbyte)(pendingCycle >= 1 ? -1 : pendingCycle <= -1 ? 1 : 0),
@@ -1646,7 +1656,12 @@ CampaignState? Play(IPlaySession session, CampaignState? campaign)
         dev.Draw(overlay, UiWidth, UiHeight);
         // F1 hides it with the HUD (for filming).
         if (gym is not null && !menuShown && showHud)
+        {
             gym.Draw(overlay, UiWidth, UiHeight, now);
+            // And the pointer to what was called (note 676, part 2), as this machine draws the world.
+            if (vr is null)
+                gym.Pointer(overlay, UiWidth, UiHeight, camera, session.World);
+        }
 #endif
         if (vr is null)
         {

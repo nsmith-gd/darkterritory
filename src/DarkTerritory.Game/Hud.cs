@@ -103,7 +103,9 @@ public static partial class Hud
         if (!over)
         {
             TopCentre(o, width, s, memory, line);
-            Situation(o, s);
+            // The news's line is wide enough to run into the top left's fine print (F1, note 663): its few seconds have it.
+            if (NewsUp(s.World) is null)
+                Situation(o, s);
         }
         Alerts(o, width, height, s, line);
         if (captions is { Count: > 0 } && !over)
@@ -815,6 +817,9 @@ public static partial class Hud
             : $"A WAKER {Math.Max(0, behind):0} M BEHIND. GET IN";
     }
 
+    /// <summary>The newest news (note 663), or null.</summary>
+    static NewsEvent? NewsUp(Sim.World world) => world.News.Count > 0 ? world.News[^1] : null;
+
     static void TopCentre(Overlay o, int width, IPlaySession s, Memory m, int line)
     {
         float k = Fine, cx = width / 2f, y = 6;
@@ -828,6 +833,18 @@ public static partial class Hud
                 o.TextCentred(cx, y, $"DAWN {(int)dawn / 60}:{(int)dawn % 60:00}{DawnFlight(s.World)}", dawn <= 120 ? Red : Amber, 1);
             if (dawn <= Tuning.DawnClockSeconds)
                 y += line + 4;
+        }
+        // Note 663 (F1's place for it): the news, to everyone alike (the director: "did a coupler break on its own or was that a
+        // creature?"): cars the engine lost and its failing, as it happens and with what did it. Under the clock, which is
+        // the one that kills you; the newest only, fading as a place's name does.
+        if (NewsUp(s.World) is { } news && Shown((s.World.Tick - news.Tick) * SimConstants.TickSeconds, s.World.NewsTuning.Seconds) is > 0 and var n)
+        {
+            foreach (var row in Fitted(o, News.Line(s.World, news), width - 32, 1))
+            {
+                o.TextCentred(cx, y, row, (news.Kind == NewsKind.EngineBroken ? Red : Amber) with { W = n }, 1);
+                y += line;
+            }
+            y += 4;
         }
         if (m.Place is { } place && Shown(Since(s, m.PlaceTick), Tuning.PlaceSeconds) is > 0 and var a)
         {
@@ -1002,9 +1019,13 @@ public static partial class Hud
         }
         // Note 576: a battered shell let go is working itself apart, said where it's felt: in the car, on the engine, and to
         // the cab for any car of the train (the driver feels it through the couplings).
+        // The news under the dawn clock says the engine's stage (note 663), so the engine's own line here waits it out.
+        bool engineNews = NewsUp(world) is { Kind: not NewsKind.CarsLost };
         if (p.Alive)
             foreach (var (text, worst) in FailingLines(world.Train, p))
             {
+                if (engineNews && text.StartsWith("THE ENGINE'S", StringComparison.Ordinal))
+                    continue;
                 bool flash = world.Tick / 10 % 2 == 0;
                 if (worst == FailStage.Broken)
                     Big(text, Red);
@@ -2193,7 +2214,8 @@ public static partial class Hud
                 : Guns.Ready(gun, combat.Guns) <= 0 ? Guns.Stowed(train, combat.Guns) > 0 ? "THE RACK'S EMPTY: POWDER FROM THE GUARD VAN" : "NO SHOT"
                 : train.BoilerTuning is not null && train.Boiler.Pressure < combat.Guns.MinPressure ? "NO STEAM"
                 : seated ? null
-                : "SIT : [E]   PUSH ALONG : [E] + WALK";
+                // Note 664: pushing it along is its own key (Use's sitting in it; the director: "a different button").
+                : "SIT : [E]   PUSH : HOLD [O] + WALK";
         }
         // A headset player's prompts follow their reaching hand (T29), as the sim's reach does.
         var hand = world.Hand;
@@ -2249,8 +2271,9 @@ public static partial class Hud
                     : "TAKE THE WRENCH : [E]";
             case InteractableKind.Handbrake when p.Surface == Surface.Roof:
                 return "HANDBRAKE : HOLD [E]";
-            // T99: a cargo car's roof hatch, for the crane to lower a casting in through.
-            case InteractableKind.Hatch when p.Surface == Surface.Roof:
+            // T99: a cargo car's roof hatch, for the crane to lower a casting in through; from the roof, or the floor under it
+            // looking up (note 675).
+            case InteractableKind.Hatch when p.Surface is Surface.Roof or Surface.Deck:
                 return train.Vehicles[p.Parent].DoorOpen(CarShape.HatchBit)
                     ? train.HatchBlocked?.Invoke(p.Parent) == true ? "THE CASTING'S IN THE HATCH" : "SHUT THE HATCH : HOLD [E]"
                     : "OPEN THE HATCH : HOLD [E]";
@@ -2386,6 +2409,9 @@ public static partial class Hud
                 return "THE CRANE : [E]";
             if (p.Parent == PlayerState.World && crane.Riggable(PlayerMotor.WorldPosition(p, train)) is not null)
                 return crane.Rigging > 0 ? $"RIGGING ({crane.Rigging * 100:0}%)" : "RIG THE CASTING : HOLD [E]";
+            // Set down on the car you're on, still on the hook (note 659): unhooked there.
+            if (p.Parent > 0 && crane.Unriggable(train, PlayerMotor.WorldPosition(p, train)))
+                return crane.Rigging > 0 ? $"UNHOOKING ({crane.Rigging * 100:0}%)" : "UNHOOK THE CASTING : HOLD [E]";
         }
         if (world.Run?.HandleInReach(p, train, hand) is not null && world.Run.CurrentSite is { } site)
             // A headset turns the crank round with the hand (T43): which way is how it's worked, so it's said.

@@ -72,6 +72,7 @@ public sealed class ClientSession
         World = world;
         // How long the host keeps an emote is how long it's drawn (note 298).
         world.EmoteTuning = playerTuning.Emotes;
+        world.NewsTuning = playerTuning.News;
         // Clients mirror enemies; only the host simulates them.
         _transport = transport;
 
@@ -91,6 +92,7 @@ public sealed class ClientSession
         {
             _playerTuning = value;
             World.Hand = value.Hand;
+            World.Movement = value;
             World.Bodies.FullHealth = value.Health; // a healing find is used only short of it (note 272)
         }
     }

@@ -80,12 +80,25 @@ public class LinesideArtTests
     [Fact]
     public void BoardsShineBackInTheLampAndCranesHangTheirBag()
     {
-        var mesh = new MeshBuilder();
-        var sign = new Sim.Route.Sign(1, Sim.Route.SignKind.SpeedLimit, 100, 100, 200, 25 / 3.6);
-        Assert.True(Look.Art.LinesideBoard(mesh, sign, Vector3.Zero, Vector3.UnitX, Vector3.UnitZ, lit: false));
-        Assert.True(Look.Art.LinesideBoard(mesh, sign, Vector3.Zero, Vector3.UnitX, Vector3.UnitZ, lit: true));
-        Assert.Equal(1, mesh.Instances[0].Glow);
-        Assert.True(mesh.Instances[1].Glow > 4);
+        // Note 560: a board's reflective paint is as bright as the lamp makes it, from as far off as it's read; dark, it's
+        // only paint in the moonlight.
+        var line = RailLine.Load(Path.Combine(Content, "lines/test-loop.json"));
+        var sign = new Sim.Route.Sign(1, Sim.Route.SignKind.SpeedLimit, 400, 400, 500, 25 / 3.6);
+        var rules = Look.Signage!.Billboard;
+        float GlowFrom(double at, bool lit)
+        {
+            var t = line.Sample(at);
+            Look.Art.World.Lamp = new BoardLamp(t.Position + Double3.Up * 2.8, t.Tangent, lit);
+            var mesh = new MeshBuilder();
+            Assert.True(Look.Art.LinesideBoard(mesh, sign, line, null, t.Position));
+            // The face first, then its posts.
+            Assert.True(mesh.Instances.Count >= 2);
+            return mesh.Instances[0].Glow;
+        }
+        Assert.Equal((float)rules.DarkGlow, GlowFrom(250, lit: false));
+        Assert.True(GlowFrom(250, lit: true) > rules.LitGlow * 0.9, "150 m off, in the lamp");
+        Assert.True(GlowFrom(140, lit: true) > rules.LitGlow * 0.4, "260 m off, shining yet");
+        Assert.Equal((float)rules.DarkGlow, GlowFrom(0, lit: true));
         var cranes = new MeshBuilder();
         Assert.True(Look.Art.MailCrane(cranes, Vector3.Zero, Vector3.UnitX, Sim.Route.DropKind.Coal));
         // The crane, its two arms, and the bag.

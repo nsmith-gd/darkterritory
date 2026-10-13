@@ -98,7 +98,7 @@ public sealed class Couplings(LooseTuning tuning, ulong seed)
             {
                 v.Loose = 0;
                 int behind = train.VehicleBehind(i);
-                if (parted < 0 && train.Uncouple(i))
+                if (parted < 0 && train.Uncouple(i, Parting.Pin))
                 {
                     (parted, PartedFrom) = (i, behind);
                     Parted++;

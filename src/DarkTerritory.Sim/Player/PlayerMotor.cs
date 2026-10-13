@@ -71,6 +71,23 @@ public enum PlayerActions : byte
 }
 
 /// <summary>
+/// What else a player's body does this tick (note 664, the director's playtest of 13 Oct): a third byte, the first two being
+/// full. Held keys, sent every tick they're held.
+/// </summary>
+[Flags]
+public enum PlayerMoves : byte
+{
+    None = 0,
+    /// <summary>Crouch, while held (LeftCtrl): "we should have a crouch function". A headset rider crouches for real instead.</summary>
+    Crouch = 1,
+    /// <summary>
+    /// Push the gun you're at along its roof rail, walking (O): it was Use and walking, and Use at the gun is also sitting in
+    /// it ("We need a different button for push and walk").
+    /// </summary>
+    Push = 2,
+}
+
+/// <summary>
 /// A crewmate's emote (GDD §9: in the yard "the crew wait for friends, hang out, dance"; note 298), sent on the press. The
 /// crew see it; nothing in the sim acts on it.
 /// </summary>
@@ -135,9 +152,12 @@ public struct PlayerIntent
     /// under the head lean and crouch (T82, roadmap M4 "VR body IK").
     /// </summary>
     public float Head;
+    /// <summary>Note 664: the third byte (<see cref="PlayerMoves"/>): crouch, and pushing the gun along.</summary>
+    public PlayerMoves Moves;
 
     public readonly bool Has(PlayerButtons b) => (Buttons & b) != 0;
     public readonly bool Has(PlayerActions a) => (Actions & a) != 0;
+    public readonly bool Has(PlayerMoves m) => (Moves & m) != 0;
 
     /// <summary>
     /// Reports a hand, on the centimetre grid the wire carries (<see cref="Net.Messages"/>), so a predicting client
@@ -243,6 +263,11 @@ public enum PlayerFlags : ushort
     /// what's over it. Set as they leave their footing, cleared once they have one again.
     /// </summary>
     OffTheGround = 256,
+    /// <summary>
+    /// Crouched (note 664): held down, or a headset rider's head low. Lower, slower, under what standing would hit; up again
+    /// once let go and there's the headroom (<see cref="DarkTerritory.Sim.World.Crouching"/>).
+    /// </summary>
+    Crouched = 512,
 }
 
 /// <summary>
@@ -547,9 +572,13 @@ public static class PlayerMotor
 
         if (s.Grounded)
         {
+            // Crouched (note 664): a walk at crouch.speedScale of a walk's pace, never a run.
+            bool crouched = s.Has(PlayerFlags.Crouched);
             double speed = s.Surface == Surface.Roof
-                ? (intent.Has(PlayerButtons.Run) ? p.RoofRun : p.RoofWalkSafe)
-                : (intent.Has(PlayerButtons.Run) ? p.Run : p.Walk);
+                ? (intent.Has(PlayerButtons.Run) && !crouched ? p.RoofRun : p.RoofWalkSafe)
+                : (intent.Has(PlayerButtons.Run) && !crouched ? p.Run : p.Walk);
+            if (crouched)
+                speed *= p.Crouch.SpeedScale;
             if (Chilled(s, p))
                 speed *= p.Cold.OnsetSpeedScale;
             if (s.Has(PlayerFlags.Heavy))
@@ -568,7 +597,7 @@ public static class PlayerMotor
                 if (intent.Has(PlayerButtons.Jump))
                     s.Flags &= ~PlayerFlags.Seated;
             }
-            else if (intent.Has(PlayerButtons.Jump) && !s.Has(PlayerFlags.Heavy) && !s.Has(PlayerFlags.Operating))
+            else if (intent.Has(PlayerButtons.Jump) && !s.Has(PlayerFlags.Heavy) && !s.Has(PlayerFlags.Operating) && !crouched)
             {
                 // Take off in the car's frame and integrate this tick there. The car has already moved
                 // this tick; switching to world first would count its motion twice (0.73 m at 22 m/s).
@@ -592,7 +621,7 @@ public static class PlayerMotor
         s.Position += s.Velocity * dt;
         var world = ToWorld(s, train, s.Position);
 
-        world = Collide(world, train, p, out bool ceiling);
+        world = Collide(world, train, p, s.Has(PlayerFlags.Crouched) ? p.Crouch.Height : p.Height, out bool ceiling);
         // The world is solid (note 279): down in a tunnel you stay inside its lining; on the land you don't walk up a cliff.
         if (s.Parent == PlayerState.World && train.Line.Conditions is { } land)
         {
@@ -825,7 +854,7 @@ public static class PlayerMotor
     /// Pushes the player's cylinder out of every car body, wall, shut door and coupler plate nearby. A head
     /// that rises into something overhead (a car's ceiling) stops there instead of being shoved sideways.
     /// </summary>
-    static Double3 Collide(Double3 world, TrainOnLine train, PlayerTuning p, out bool ceiling)
+    static Double3 Collide(Double3 world, TrainOnLine train, PlayerTuning p, double height, out bool ceiling)
     {
         ceiling = false;
         foreach (var frame in train.Frames)
@@ -838,13 +867,17 @@ public static class PlayerMotor
             // ballast beside the engine passes under (up to the cab steps, along to the points), and nobody bumps into.
             foreach (var solid in frame.Shape.Solids)
                 if (solid.Part != PartKind.RunningBoard && solid.Present(vehicle))
-                    local = Ceiling(local, solid.BoxIn(vehicle), p, ref ceiling);
+                    local = Ceiling(local, solid.BoxIn(vehicle), height, ref ceiling);
             foreach (var solid in frame.Shape.Solids)
                 if (solid.Part != PartKind.RunningBoard && solid.Present(vehicle))
-                    local = PushOut(local, solid.BoxIn(vehicle), p);
+                    local = PushOut(local, solid.BoxIn(vehicle), p, height);
             foreach (var door in frame.Shape.DoorList)
                 if (!vehicle.DoorOpen(door.Index))
-                    local = PushOut(local, door.Box, p);
+                    local = PushOut(local, door.Box, p, height);
+            // What's lying in it (note 659): walked round, or stepped up onto.
+            foreach (var (car, thing) in train.Lying)
+                if (car == frame.Index)
+                    local = PushOut(local, thing, p, height);
             world = frame.ToWorld(local);
         }
         // The stops' buildings (T114) and the fortresses' (T124): pushed out of each wall in its own frame. Out of one can
@@ -857,7 +890,7 @@ public static class PlayerMotor
             {
                 var was = world;
                 foreach (var w in near)
-                    world = w.ToWorld(PushOut(w.ToLocal(world), w.Box, p));
+                    world = w.ToWorld(PushOut(w.ToLocal(world), w.Box, p, height));
                 if ((world - was).Length < 1e-9)
                     break;
             }
@@ -895,18 +928,39 @@ public static class PlayerMotor
     }
 
     /// <summary>Head up into the underside of a box whose footprint we're under: stop at it.</summary>
-    static Double3 Ceiling(Double3 feet, Box box, PlayerTuning p, ref bool hit)
+    static Double3 Ceiling(Double3 feet, Box box, double height, ref bool hit)
     {
-        double head = feet.Y + p.Height;
+        double head = feet.Y + height;
         if (head <= box.Min.Y || feet.Y >= box.Min.Y || head - box.Min.Y > 0.5 || !box.ContainsXZ(feet))
             return feet;
         hit = true;
-        return feet with { Y = box.Min.Y - p.Height };
+        return feet with { Y = box.Min.Y - height };
     }
 
-    static Double3 PushOut(Double3 feet, Box box, PlayerTuning p)
+    /// <summary>
+    /// Note 664: whether there's the headroom to stand up from a crouch where they are: nothing of a car over their feet
+    /// lower than a standing head (a crouched body under it goes on under it until there is).
+    /// </summary>
+    public static bool Headroom(in PlayerState s, TrainOnLine train, PlayerTuning p)
     {
-        if (feet.Y >= box.Max.Y || feet.Y + p.Height <= box.Min.Y)
+        var feet = ToWorld(s, train, s.Position);
+        foreach (var frame in train.Frames)
+        {
+            if ((frame.Origin - feet).Length > NearbyCar)
+                continue;
+            var local = frame.ToLocal(feet);
+            var vehicle = train.Vehicles[frame.Index];
+            foreach (var solid in frame.Shape.Solids)
+                if (solid.Part != PartKind.RunningBoard && solid.Present(vehicle) && solid.BoxIn(vehicle) is var box && box.ContainsXZ(local)
+                    && box.Min.Y > local.Y + p.StepUp && box.Min.Y < local.Y + p.Height)
+                    return false;
+        }
+        return true;
+    }
+
+    static Double3 PushOut(Double3 feet, Box box, PlayerTuning p, double height)
+    {
+        if (feet.Y >= box.Max.Y || feet.Y + height <= box.Min.Y)
             return feet;
         // Close enough to the top to step (or land) onto it: support resolution handles that.
         if (box.Max.Y - feet.Y <= p.StepUp)
@@ -982,6 +1036,20 @@ public static class PlayerMotor
                 bestTop = worldTop;
                 bestParent = frame.Index;
                 bestSurface = ToSurface(solid.Top);
+                bestLocal = local with { Y = top };
+            }
+            // On top of what's lying in it (note 659): a crate stood on, a stack climbed a step at a time.
+            foreach (var (car, box) in train.Lying)
+            {
+                double top = box.Max.Y;
+                if (car != frame.Index || !box.ContainsXZ(local) || local.Y > top + snap || local.Y < top - below)
+                    continue;
+                double worldTop = frame.ToWorld(local with { Y = top }).Y;
+                if (worldTop <= bestTop)
+                    continue;
+                bestTop = worldTop;
+                bestParent = frame.Index;
+                bestSurface = Surface.Deck;
                 bestLocal = local with { Y = top };
             }
         }

@@ -301,8 +301,9 @@
   // Note 267 (the director's notes on build 1121): Use works the thing looked at. Where several are in reach (a row of
   // lockers a hand wide; the firebox, the vent, the tool rack and the whistle cord in the cab), the one within
   // lookDegrees of the view's centre, taken from eyeHeight over the feet, wins; none looked at, the nearest, as before.
-  // The whistle cord is only ever pulled looked at.
-  "pick": { "eyeHeight": 1.6, "lookDegrees": 30 },
+  // The whistle cord is only ever pulled looked at. Crouched (note 664), from crouchedEyeHeight: eyeHeight less player.json's
+  // crouch.eyeDrop.
+  "pick": { "eyeHeight": 1.6, "lookDegrees": 30, "crouchedEyeHeight": 1.05 },
   "kit": {
     "radios": 2,
     // Note 266 (build 1121, solo: "there's no lanterns. The lights are completely off"): the forward lamp a Climber smashed

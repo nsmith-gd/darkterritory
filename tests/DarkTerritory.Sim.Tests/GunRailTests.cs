@@ -48,10 +48,11 @@ public class GunRailTests
         }
     }
 
-    static readonly PlayerIntent Push = new() { MoveZ = 1, Buttons = PlayerButtons.Use };
+    // Note 664: the push key, held walking (it was Use, which is also sitting in it).
+    static readonly PlayerIntent Push = new() { MoveZ = 1, Moves = PlayerMoves.Push };
 
     [Fact]
-    public void UseHeldWalkingAtTheGunPushesItAlongTheRoofAtPushingPace()
+    public void ThePushKeyHeldWalkingAtTheGunPushesItAlongTheRoofAtPushingPace()
     {
         var w = World(speed: 14);
         int guard = Guard(w);
@@ -63,6 +64,20 @@ public class GunRailTests
         Assert.InRange(moved, P.PushGun * 2 - 0.15, P.PushGun * 2 + 0.05);
         // The pusher kept up with it, so it's still theirs to push (and fire).
         Assert.Equal(guard, Guns.MannedGun(s, w.Train, C.Guns));
+    }
+
+    [Fact]
+    public void UseHeldWalkingAtTheGunNoLongerPushesIt()
+    {
+        // Note 664 (the director, 13 Oct: "sitting in the turret is E. But also pushing the turret is E. We need a different
+        // button for push and walk"): Use is the seat's, and walking with it held leaves the gun where it is.
+        var w = World();
+        int guard = Guard(w);
+        double z0 = w.Train.Vehicles[guard].Gun.Z;
+        var s = BehindGun(w, guard);
+        Walk(w, ref s, new PlayerIntent { MoveZ = 1, Buttons = PlayerButtons.Use }, 1);
+        Assert.False(s.Has(PlayerFlags.Pushing));
+        Assert.Equal(z0, w.Train.Vehicles[guard].Gun.Z);
     }
 
     [Fact]

@@ -236,7 +236,8 @@ public class LinesideTests
     [Fact]
     public void ACrouchClearsAMouthOnlyIfTunedTo()
     {
-        // Note 260: the spec doesn't say; the kept reading is that it doesn't (a tuning flag says otherwise).
+        // Note 260: the spec doesn't say; the kept reading was that it doesn't (a tuning flag says otherwise; on since note 664).
+        // Standing (no crouch on the key: the world has no movement tuning here), the mouth takes them.
         PlayerState[] Crouched(TrainOnLine train) => [PlayerMotor.SpawnOnRoof(train, 2, 0, P) with { Head = 0.8 }];
         var (_, kept) = Ride(Tunnel(), 12, 1750, Crouched);
         Assert.Equal(DeathCause.Struck, kept[0].Death);
@@ -260,6 +261,41 @@ public class LinesideTests
             PlayerMotor.Step(ref s, crouch, train, P, T, SimConstants.TickSeconds, applyLook: false);
         }
         Assert.True(s.Alive, $"crouched under the mouth: {s.Death}");
+    }
+
+    [Fact]
+    public void CrouchedOnTheKeyARoofRiderGoesUnderTheMouthAndStaysDownTillItsPast()
+    {
+        // Note 664 (D1 for the director: a crouch "fits the body under low clearance"; "release the key and you stand, unless
+        // the clearance above won't let you"): held down to the mouth, let go under it, and still down until it's past.
+        Assert.True(S.RoofWarning.CrouchClearsMouth);
+        var route = Tunnel();
+        var train = new TrainOnLine(new TrainDynamics(Consist.Uniform(T, 5, 1)), route.Build(), 600);
+        var world = new World(train, Tuning.Combat);
+        world.EnableBodies();
+        world.EnableLineside(S, route);
+        world.Hand = P.Hand;
+        world.Movement = P;
+        var s = PlayerMotor.SpawnOnRoof(train, 2, 0, P);
+        bool under = false, past = false;
+        while (train.Dynamics.RearDistance < 1750)
+        {
+            bool inside = world.Lineside!.UnderLowClearance(s, train);
+            under |= inside;
+            past |= under && !inside;
+            var intent = new PlayerIntent { Moves = under ? PlayerMoves.None : PlayerMoves.Crouch };
+            train.Dynamics.Velocity = 12;
+            world.BeginTick();
+            world.CrewAct(ref s, intent, 1);
+            world.Step(new TrainControls { Reverser = 1 });
+            world.ApplyDamage(_ => s, (_, v) => s = v, [1]);
+            PlayerMotor.Step(ref s, intent, train, P, T, SimConstants.TickSeconds, applyLook: false);
+            if (inside)
+                Assert.True(s.Has(PlayerFlags.Crouched), "stood up under the mouth");
+        }
+        Assert.True(under && past, $"under {under}, past {past}");
+        Assert.True(s.Alive, $"crouched under the mouth: {s.Death}");
+        Assert.False(s.Has(PlayerFlags.Crouched), "still down past the tunnel, the key let go");
     }
 
     [Fact]

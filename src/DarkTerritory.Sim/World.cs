@@ -88,6 +88,12 @@ public sealed class World
     /// unset, hands in intents are ignored and everyone reaches from the body.
     /// </summary>
     public HandTuning? Hand { get; set; }
+
+    /// <summary>
+    /// Note 664: the players' movement tuning, for crouching (<see cref="Crouching"/>). The sessions set it with <see cref="Hand"/>;
+    /// while it's unset nobody crouches.
+    /// </summary>
+    public PlayerTuning? Movement { get; set; }
     public ChoirState Choir;
     /// <summary>Hit volumes for this tick (from the enemies).</summary>
     public List<HitTarget> Targets { get; } = new();
@@ -109,6 +115,16 @@ public sealed class World
     public List<EmoteEvent> Emotes { get; } = new();
     /// <summary>How long an emote lasts, and how soon another may follow (player.json emotes; the host sets it).</summary>
     public EmoteTuning EmoteTuning { get; set; } = new();
+    /// <summary>
+    /// The news lately (note 663): cars the engine lost and its failing, each with what did it, as the crew are told. The
+    /// host's, kept <see cref="NewsTuning"/>'s seconds and replicated, so every machine shows the same line.
+    /// </summary>
+    public List<Sim.Run.NewsEvent> News { get; } = new();
+    /// <summary>The host's every piece of news this night, told or not (a cut at a stand): what the report reads.</summary>
+    public List<Sim.Run.NewsEvent> NewsLog { get; } = new();
+    public NewsTuning NewsTuning { get; set; } = new();
+    /// <summary>The engine's stage last told (−1 not yet looked at: a night begun failing isn't news).</summary>
+    int _engineTold = -1;
     int _nextFx = 1;
     /// <summary>The host's world, or one with nobody else's to mirror: it decides what landed where.</summary>
     bool Hosting => Authority || Enemies is null;
@@ -423,6 +439,7 @@ public sealed class World
             if (Run is not null && !_countedAhead.Remove(id))
                 Attribution.Add(Sim.Run.IncidentLog.Death(this, id, s, body, crew));
         Bodies.Step(Train, Train.Dynamics.Tuning, id => crew.FirstOrDefault(c => c.Id == id) is { State: var s } pair && pair.Id == id ? s : null);
+        Train.Lying = Bodies.Lying(Train);
         Recover();
         BreakRadios(crew);
     }
@@ -1377,6 +1394,26 @@ public sealed class World
     }
 
     /// <summary>
+    /// Note 664 (the director's playtest, 13 Oct: "we should have a crouch function"; D1: held, and "release the key and you
+    /// stand, unless the clearance above won't let you"): crouched while the key's held, or while a headset rider's head is
+    /// down under crouch.headsetBelow (they've no key); let go, up again once there's the headroom: nothing of a car over
+    /// them lower than a standing head, and on a roof not under a tunnel's mouth (which takes anyone standing there). Not on
+    /// a ladder, in a seat, at the crane's controls or in something's grip. Here, before the motor moves them, so the host
+    /// and a predicting client crouch alike.
+    /// </summary>
+    public void Crouching(ref PlayerState s, in PlayerIntent intent)
+    {
+        if (Movement is not { } p)
+            return;
+        bool can = s.Alive && s.Surface != Surface.Ladder && !s.Has(PlayerFlags.Seated) && !s.Has(PlayerFlags.Operating) && !s.Has(PlayerFlags.Held);
+        bool down = can && (intent.Has(PlayerMoves.Crouch) || s.Head > 0 && s.Head <= p.Crouch.HeadsetBelow);
+        if (down)
+            s.Flags |= PlayerFlags.Crouched;
+        else if (s.Has(PlayerFlags.Crouched) && (!can || PlayerMotor.Headroom(s, Train, p) && Lineside?.UnderLowClearance(s, Train) != true))
+            s.Flags &= ~PlayerFlags.Crouched;
+    }
+
+    /// <summary>
     /// One player's hands this tick: crew actions at interactables, and firing a gun they're manning.
     /// <paramref name="viewTick"/> is when the shooter saw the targets (lag compensation: the host checks
     /// hits against where things were on the shooter's screen).
@@ -1385,6 +1422,7 @@ public sealed class World
     {
         PlayerMotor.Look(ref s, intent);
         PlayerMotor.TakeHand(ref s, intent, Hand);
+        Crouching(ref s, intent);
         // The lamp switch in the cab (T52, "lamps down"): a predicting client sets it too, so the lamp goes out at once.
         if (intent.Lamp != LampSwitch.None && Net.CabControls.CanDrive(s, Train))
         {
@@ -1467,7 +1505,12 @@ public sealed class World
             var attached = Train.Dynamics.Consist.Vehicles.Select(v => v.Id).ToArray();
             // Note 619: the doors as they were, to say who opened one (only a Use works a door).
             var doors = Authority && intent.Buttons.HasFlag(PlayerButtons.Use) ? Train.Vehicles.Select(v => v.DoorsOpen).ToArray() : null;
+            int partings = Train.Partings.Count;
             CrewActions.Apply(ref s, intent, Train, SimConstants.TickSeconds, Hand);
+            // Note 663: whose hand cut it, for the news.
+            for (int i = partings; i < Train.Partings.Count; i++)
+                if (Train.Partings[i] is { Cause: Parting.Crew, Who: < 0 } cut)
+                    Train.Partings[i] = cut with { Who = playerId };
             if (doors is not null)
                 for (int v = 0; v < doors.Length; v++)
                     for (int opened = Train.Vehicles[v].DoorsOpen & ~doors[v], d = 0; opened != 0; opened >>= 1, d++)
@@ -1686,7 +1729,11 @@ public sealed class World
             Swings.RemoveAll(w => Tick - w.Tick > keep.KeepSeconds * SimConstants.TickRate);
             Emotes.RemoveAll(e => Tick - e.Tick > EmoteTuning.Seconds(e.Kind) * SimConstants.TickRate);
             Impacts.RemoveAll(i => Tick - i.Tick > keep.ImpactKeepSeconds * SimConstants.TickRate);
+            News.RemoveAll(e => Tick - e.Tick > NewsTuning.Seconds * SimConstants.TickRate);
         }
+        if (Hosting)
+            TellNews();
+        Train.Partings.Clear();
         Shots.Clear();
         SwitchThrows.Clear();
         EnemyEvents.Clear();
@@ -2311,8 +2358,9 @@ public sealed class World
     /// <summary>
     /// Host, the creature gym (GDD §34.1, note 676): one of <paramref name="kind"/> now, by its own spawn rule (where it
     /// comes from and how it arrives), with that rule's gates set aside (once a night, the train's speed, the cargo, the
-    /// dice), and never nearer <paramref name="you"/> than <paramref name="min"/> metres: whatever it put down nearer is moved
-    /// out along the way it lay from you. Where its rule needs something the place hasn't got, it says so and nothing comes.
+    /// dice), never nearer <paramref name="you"/> than <paramref name="min"/> metres (whatever it put down nearer is moved
+    /// out along the way it lay from you) and never farther than <paramref name="max"/> (brought in; what stands where its rule
+    /// finds it is taken only within reach). Where its rule needs something the place hasn't got, it says so and nothing comes.
     /// </summary>
     public Called Call(EnemyKind kind, Ballast.Double3 you, double min, double max)
     {
@@ -2327,6 +2375,7 @@ public sealed class World
             return new(kind, false, why ?? "its rule found nowhere to put it here", []);
         foreach (var e in came)
             Sim.Enemies.Calls.KeepOff(this, e, you, min);
+        Sim.Enemies.Calls.KeepIn(this, came, you, max);
         double nearest = came.Min(e => ((e.WorldPosition(Train) - you) with { Y = 0 }).Length);
         return new(kind, true, $"{why ?? "by its own rule"}, {nearest:0} m off", [.. came.Select(e => e.Id)]);
     }
@@ -2461,10 +2510,60 @@ public sealed class World
                 into.AddRange(e.Body(Train, t));
     }
 
+    /// <summary>
+    /// Note 663: last tick's news, on the host. Each coupling cut that left the engine's rake without cars (the cars on the
+    /// other side of it, lost to it), and the engine gone failing or broken down, with what last knocked it.
+    /// </summary>
+    void TellNews()
+    {
+        var d = Train.Dynamics;
+        foreach (var p in Train.Partings)
+        {
+            if (p.Ahead >= Train.Vehicles.Count || p.Behind >= Train.Vehicles.Count)
+                continue;
+            var (ahead, behind) = (Train.RakeOf(p.Ahead), Train.RakeOf(p.Behind));
+            var lost = ahead == d && behind != d ? behind : behind == d && ahead != d ? ahead : null;
+            if (lost is null)
+                continue;
+            int[] cars = [.. lost.Consist.Vehicles.Where(v => !v.Derelict).Select(v => v.Id)];
+            if (cars.Length == 0)
+                continue;
+            byte detail = 0;
+            int who = p.Who;
+            double speed = 0;
+            if (p.Cause == Parting.Pin && Attribution.LooseOf(cars[0]) is { } loose)
+                (detail, who, speed) = ((byte)loose.Cause, loose.Driver, loose.Speed);
+            bool told = p.Cause != Parting.Shunt && (p.Cause != Parting.Crew || d.Speed > NewsTuning.CutToldAbove);
+            Say(new Sim.Run.NewsEvent(_nextFx, Tick, Sim.Run.NewsKind.CarsLost, cars, (byte)p.Cause, detail, who, speed, told));
+        }
+        if (Train.Vehicles.Count == 0)
+            return;
+        var stage = Failing.Stage(Train, 0);
+        int now = stage switch { FailStage.Broken => 2, FailStage.Failing or FailStage.Breaking => 1, _ => 0 };
+        if (_engineTold >= 0 && now > _engineTold)
+        {
+            var knock = Train.Vehicles[0].Knock;
+            Say(new Sim.Run.NewsEvent(_nextFx, Tick, now == 2 ? Sim.Run.NewsKind.EngineBroken : Sim.Run.NewsKind.EngineFailing, [], (byte)knock.Cause, 0, -1,
+                knock.Speed));
+        }
+        _engineTold = now;
+
+        void Say(Sim.Run.NewsEvent e)
+        {
+            NewsLog.Add(e);
+            if (e.Told)
+                News.Add(e);
+            _nextFx = _nextFx % 0xFFFFFF + 1;
+        }
+    }
+
     /// <summary>Client side: the host's recent hits and impacts (T121), as the snapshot has them.</summary>
     public void MirrorHits(IEnumerable<HitConfirm> hits, IEnumerable<CannonImpact> impacts, IEnumerable<SwingEvent>? swings = null,
-        IEnumerable<EmoteEvent>? emotes = null)
+        IEnumerable<EmoteEvent>? emotes = null, IEnumerable<Sim.Run.NewsEvent>? news = null)
     {
+        News.Clear();
+        if (news is not null)
+            News.AddRange(news);
         Emotes.Clear();
         if (emotes is not null)
             Emotes.AddRange(emotes);

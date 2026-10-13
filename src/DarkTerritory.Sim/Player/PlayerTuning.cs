@@ -21,6 +21,9 @@ public sealed record PlayerTuning(
     /// </summary>
     public double SoloBodyClimb { get; init; } = 0.4;
 
+    /// <summary>Note 664: crouching (the director's playtest, 13 Oct: "we should have a crouch function"). Docs in player.json.</summary>
+    public CrouchTuning Crouch { get; init; } = new();
+
     /// <summary>GDD §22 wind, and spec B.2's "roof run: wind and balance penalty", on a roof's footing (note 201).</summary>
     public WindTuning Wind { get; init; } = new();
 
@@ -41,6 +44,7 @@ public sealed record PlayerTuning(
 
     /// <summary>The emotes' lengths (GDD §9's yard, "dance"; note 298). Field docs live in player.json <c>emotes</c>.</summary>
     public EmoteTuning Emotes { get; init; } = new();
+    public NewsTuning News { get; init; } = new();
 
     public string BotName(int i) => i < BotNames.Count ? BotNames[i] : $"Crew {i + 1}";
 
@@ -88,6 +92,9 @@ public sealed record CrewTuning(int Cap = 8, double RefuseLingerSeconds = 3)
 /// How long each emote lasts (note 298), in seconds, unless its player moves first. Field docs live in player.json
 /// <c>emotes</c>. Presentation only: the host keeps the event this long for the crew to see; nothing in the sim acts on it.
 /// </summary>
+/// <summary>Note 663: how long a line of news is up, and how fast the train runs before a crewmate's own cut is news.</summary>
+public sealed record NewsTuning(double Seconds = 5, double CutToldAbove = 1.5);
+
 public sealed record EmoteTuning(double Dance = 8, double Wave = 2.5, double Point = 2.5, double Cooldown = 0.5)
 {
     public double Seconds(Emote e) => e switch { Emote.Dance => Dance, Emote.Wave => Wave, Emote.Point => Point, _ => 0 };
@@ -102,3 +109,13 @@ public sealed record LandingTuning(double RollAbove, int RollDamage, double Leth
 public sealed record LadderTuning(double GrabRange, double GrabMaxRelativeSpeed);
 /// <summary>A VR player's reaching hand (T29). Field docs live in player.json.</summary>
 public sealed record HandTuning(double Arm, double Overhead, double Grab);
+
+/// <summary>Note 664: crouching. Mirror of player.json <c>crouch</c>, where each field is documented.</summary>
+public sealed record CrouchTuning
+{
+    public double Height { get; init; } = 1.2;
+    public double EyeDrop { get; init; } = 0.55;
+    public double SpeedScale { get; init; } = 0.5;
+    public double FootstepGainDb { get; init; } = -8;
+    public double HeadsetBelow { get; init; } = 1.2;
+}
