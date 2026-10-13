@@ -784,9 +784,11 @@ GUARD = over(CROUCH, pelvis__loc=(0, 0, -0.16), pelvis=(-20, 0, 0), spine_02=(-6
              thigh_r=(56, 0, -10), calf_r=(-80, 0, 0), thigh_l=(40, 0, 10), calf_l=(-70, 0, 0),
              upperarm_r=(70, 10, 0), lowerarm_r=(0, 0, 70), hand_r=(0, -10, 0), upperarm_l=(50, -40, 0), lowerarm_l=(0, 0, -40),
              fingers_l=(0, -30, 0))
-TELL = over(GUARD, upperarm_r=(30, -52, 0), lowerarm_r=(0, 0, 30), hand_r=(0, -6, 0), clavicle_r=(10, -8, 6), spine_03=(2, 0, 0),
+TELL = over(GUARD, upperarm_r=(14, -68, 0), lowerarm_r=(0, 0, 14), hand_r=(0, -6, 0), clavicle_r=(10, -8, 6), spine_03=(2, 0, 0),
             neck=(24, 0, 0), head=(10, 0, 0))
 CORNER_LEN = 60
+# (How far from plumb the whirled chain flies out: about level, over his head.)
+WHIRL = 84
 
 
 def whirl(f):
@@ -797,8 +799,21 @@ def whirl(f):
 def telling(f, look=0.0, gasp=0.0, back=0.0):
     q = over(TELL, neck=(24, 0, 0.4 * look), head=(10 + 4 * gasp, 0, 0.6 * look), spine_03=(2 + 5 * gasp, 0, 0),
              spine_02=(-6 + 2 * gasp, 0, 0), pelvis__loc=(0, -0.04 * back, -0.16 + 0.01 * gasp))
-    th = whirl(f)
-    return hang_chain(q, (55 * math.cos(th), 55 * math.sin(th), 0))
+    return whirl_chain(hang_chain(q), whirl(f))
+
+
+def whirl_chain(pose, th):
+    """The lash whirled round over his head like a rope, flung out about level from the raised fist, each link trailing
+    the one before it round the circle (`th` where its first link points: 0 ahead of him, then round to his right)."""
+    p = dict(pose)
+    for k in range(4):
+        n = f"chain_{k + 1:02d}"
+        t = th - 0.22 * k
+        a = math.radians(WHIRL + 3 * k)
+        d = Vector((math.sin(t) * math.sin(a), math.cos(t) * math.sin(a), -math.cos(a)))
+        q = Vector((0, 0, -1)).rotation_difference(d)
+        p[n] = rig.world_rotation(sk, p, sk[n].parent).inverted() @ q
+    return p
 
 
 def _at(table, f):
@@ -847,6 +862,15 @@ death.key(26, hang_chain(at(over(STOOP, upperarm_r=(50, 30, 0), upperarm_l=(0, -
 death.key(42, hang_chain(at(over(STOOP, upperarm_r=(50, 30, 0), upperarm_l=(0, -10, 0)), 1.9, -0.25, -2.4, tip=120, turn=15)), "LINEAR")
 
 CLIPS = [walk, wind, flee, jump, drop, climb, cornered, lash, hit, death]
+
+if os.environ.get("DT_POSES"):
+    # A quick look at the clips' keys without building the mesh: where the hands, the head and the chain's end are.
+    want = [("lowerarm_r", "tail"), ("lowerarm_l", "tail"), ("head", "tail"), ("chain_04", "tail")]
+    for clip in CLIPS:
+        for frame, pz, _ in clip.keys:
+            P = rig.pose_points(sk, pz, want)
+            print(f"{clip.name:8s} {frame:3d} " + " ".join(f"{n[0][:7]}=({p.x:+.2f},{p.y:+.2f},{p.z:+.2f})" for n, p in zip(want, P)))
+    sys.exit(0)
 
 # One skin from the cap to the soles (trainflesh.fuse, settled on the field, then QuadriFlow); the rest over it.
 kit.build()
