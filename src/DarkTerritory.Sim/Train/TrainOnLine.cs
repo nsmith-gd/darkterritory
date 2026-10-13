@@ -255,10 +255,16 @@ public sealed class TrainOnLine
     /// a car stood just inside the branch is over the blades as much as one on the main line (note 289: only the main
     /// line's leg was counted, so the points went over under a car left at the mouth of a spur).
     /// </summary>
-    public bool PointsOccupied(int branch, double pointsLength)
+    public bool PointsOccupied(int branch, double pointsLength) => OnThePoints(branch, pointsLength) is not null;
+
+    /// <summary>
+    /// The rake with a wheel on a switch's points (<see cref="PointsOccupied"/>), or null: the train's own, or cars standing
+    /// there (note 665: the cab said "POINTS HELD", and the director couldn't tell what was holding them).
+    /// </summary>
+    public TrainDynamics? OnThePoints(int branch, double pointsLength)
     {
         double toe = Line.Branches[branch].Toe;
-        return _rakes.Any(r => On(r, RailLine.MainPath) is { } o && o.Rear < toe + pointsLength && o.Front > toe - pointsLength
+        return _rakes.FirstOrDefault(r => On(r, RailLine.MainPath) is { } o && o.Rear < toe + pointsLength && o.Front > toe - pointsLength
             || On(r, branch) is { } d && d.Rear < pointsLength);
     }
 
@@ -679,8 +685,11 @@ public sealed class TrainOnLine
     void HitBufferStop(TrainDynamics rake)
     {
         var c = Tuning.Couplings;
+        // Note 661: a buffer stop's own knock, not a collision's (a spur's end is run up to at a crawl; at a collision's rate,
+        // 5.3 m/s broke the engine down outright, and the director's run into Voss Green's stranded the night).
+        var b = Tuning.BufferStop;
         double speed = Math.Max(0, rake.Velocity);
-        double damage = speed > c.SafeContactSpeed ? (speed - c.SafeContactSpeed) * (speed - c.SafeContactSpeed) * c.DamagePerSpeedSquared : 0;
+        double damage = speed > b.SafeSpeed ? (speed - b.SafeSpeed) * (speed - b.SafeSpeed) * b.DamagePerSpeedSquared : 0;
         int front = rake.Consist.Vehicles[0].Id;
         if (damage > 0)
         {

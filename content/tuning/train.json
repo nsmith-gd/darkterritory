@@ -229,6 +229,14 @@
   // Line Plan §12.6 (note 181): a body or a repair kit at rest further than corridorM from the track, or more than dropM below
   // the rails (off a bridge, into a ravine), is put back on the formation's edge, edgeM out, the side it went off.
   "recovery": { "corridorM": 40, "dropM": 15, "edgeM": 3.5 },
+  // A branch's buffer stop run into (note 661; not in the spec: GDD App. A.7's "a hit short of the lead is the buffer stop's
+  // damage alone"). Over safeSpeed (m/s; the yard's 2.5, a crawl up to the stop) the front vehicle takes
+  // (speed - safeSpeed)^2 x damagePerSpeedSquared of its shell, and the cargo couplings.cargoDamageShare of that. It was the
+  // collision's (from 1 m/s, 0.06: 5 m/s took 0.96 of the engine, 5.3 m/s all of it), and the director's run into Voss
+  // Green's broke the engine down at the stop and stranded the night (13 Oct). Now 5 m/s is 0.125 and a dead line's
+  // 25 km/h (overspeed.deadEndDerailAbove) 0.39: a dent the wrench mends, short of failing (failing.below).
+  "bufferStop": { "safeSpeed": 2.5, "damagePerSpeedSquared": 0.02 },
+
   // A bend taken too fast (ARCHITECTURE §8 note 265; build 1121: "we'll want to telegraph using sound design that the train
   // is going under stress and it's getting close to derailment"). Linegen plan §8.5's numbers stand: a bend derails above
   // √(aDerail R) and is boarded at √(aPost R) (linegen/tiers.json "curves"). What's here is how it's told and when it may
@@ -337,8 +345,9 @@
       "names": ["1", "2", "3", "4", "5", "6", "7", "8", "9", "10", "11", "12"],
       // The repair kit's locker. Spare kits go on its other shelf, then into the lockers after it.
       "kitLocker": "8",
-      // Shelves in each: the locker's floor, and one at chest height.
-      "slots": 2,
+      // Shelves in each: the locker's floor, and three more up to a hand under its top, about 0.4 m apart (note 659; the director,
+      // 13 Oct: "we really should be able to put multiple things in lockers": two filled one with tinned food).
+      "slots": 4,
       // What goes in: hand-sized things, and a tool left to free its slot (note 649). Freight, the train's crates, the heavy,
       // the dead and the living don't.
       "holds": ["lamp", "radio", "toy", "loot", "extinguisher", "repairKit", "tool"],

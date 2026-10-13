@@ -88,7 +88,8 @@
     "rigReach": 1.5,
     "rigHeight": 2.2,
     "rigSeconds": 2,
-    // A casting let go more than this above what's under it falls, and kills anyone within this of where it lands.
+    // A casting let go more than this above what's under it falls, and kills anyone within this of where it lands; it lands
+    // as if set down there (note 659: it's no longer lost).
     "dropAbove": 0.6,
     "crushRadius": 1.4,
     // Note 581 (the director, 9 Oct 2026: "extremely difficult to get loot into the cars, the game should be more forgiving"):
