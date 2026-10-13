@@ -9,32 +9,32 @@
 // capitals of 2.8 m are made out by 250 m and read from 150 m on; a speed's figures of 3.2 m from 250 m.
 {
   "boards": {
-    "kmPost":        { "text": "{value}",          "heightM": 2.5,  "widthM": 1.2, "visibleM": 150, "reflective": true, "letterM": 1.4,  "lineChars": 6, "warns": false },
-    "minorPost":     { "text": "{value}",          "heightM": 2.5,  "widthM": 0.9, "visibleM": 110, "reflective": true, "letterM": 1.0,  "lineChars": 6, "warns": false },
-    "speedBoard":    { "text": "{value}",          "heightM": 3.5,  "widthM": 5,   "visibleM": 300, "reflective": true, "letterM": 3.2,  "lineChars": 4, "warns": true },
-    "resumeBoard":   { "text": "{value}",          "heightM": 3.5,  "widthM": 5,   "visibleM": 300, "reflective": true, "letterM": 3.2,  "lineChars": 4, "warns": false },
-    "restricted":    { "text": "R",                "heightM": 3.5,  "widthM": 5,   "visibleM": 300, "reflective": true, "letterM": 3.2,  "lineChars": 6, "warns": true },
-    "endRestricted": { "text": "END R",            "heightM": 3.5,  "widthM": 5,   "visibleM": 300, "reflective": true, "letterM": 2.8,  "lineChars": 6, "warns": false },
-    "gradientPost":  { "text": "{value}",          "heightM": 3.0,  "widthM": 3,   "visibleM": 200, "reflective": true, "letterM": 1.8,  "lineChars": 7, "warns": false },
-    "whistle":       { "text": "W",                "heightM": 3.5,  "widthM": 4,   "visibleM": 250, "reflective": true, "letterM": 3.2,  "lineChars": 4, "warns": true },
-    "junction":      { "text": "{name} {value}",   "heightM": 3.5,  "widthM": 6,   "visibleM": 300, "reflective": true, "letterM": 2.8,  "lineChars": 8, "warns": false },
-    "facility":      { "text": "{name} {value}",   "heightM": 3.5,  "widthM": 6,   "visibleM": 300, "reflective": true, "letterM": 2.8,  "lineChars": 8, "warns": false },
-    "bridge":        { "text": "{name}",           "heightM": 3.5,  "widthM": 6,   "visibleM": 250, "reflective": true, "letterM": 2.4,  "lineChars": 8, "warns": false },
-    "bridgeLimit":   { "text": "MAX {value} CARS", "heightM": 3.5,  "widthM": 6,   "visibleM": 300, "reflective": true, "letterM": 2.8,  "lineChars": 6, "warns": true },
+    "kmPost":        { "text": "{value}",          "heightM": 2.5,  "widthM": 1.2, "visibleM": 150, "reflective": true, "letterM": 1.4,  "lineChars": 6, "warns": false, "side": 1, "fixed": true },
+    "minorPost":     { "text": "{value}",          "heightM": 2.5,  "widthM": 0.9, "visibleM": 110, "reflective": true, "letterM": 1.0,  "lineChars": 6, "warns": false, "side": 1, "fixed": true },
+    "speedBoard":    { "text": "{value}",          "heightM": 3.5,  "widthM": 5,   "visibleM": 300, "reflective": true, "letterM": 3.2,  "lineChars": 4, "warns": true, "side": 0, "fixed": false },
+    "resumeBoard":   { "text": "{value}",          "heightM": 3.5,  "widthM": 5,   "visibleM": 300, "reflective": true, "letterM": 3.2,  "lineChars": 4, "warns": false, "side": 0, "fixed": false },
+    "restricted":    { "text": "R",                "heightM": 3.5,  "widthM": 5,   "visibleM": 300, "reflective": true, "letterM": 3.2,  "lineChars": 6, "warns": true, "side": 0, "fixed": false },
+    "endRestricted": { "text": "END R",            "heightM": 3.5,  "widthM": 5,   "visibleM": 300, "reflective": true, "letterM": 2.8,  "lineChars": 6, "warns": false, "side": 0, "fixed": false },
+    "gradientPost":  { "text": "{value}",          "heightM": 3.0,  "widthM": 3,   "visibleM": 200, "reflective": true, "letterM": 1.8,  "lineChars": 7, "warns": false, "side": 0, "fixed": false },
+    "whistle":       { "text": "W",                "heightM": 3.5,  "widthM": 4,   "visibleM": 250, "reflective": true, "letterM": 3.2,  "lineChars": 4, "warns": true, "side": 0, "fixed": false },
+    "junction":      { "text": "{name} {value}",   "heightM": 3.5,  "widthM": 6,   "visibleM": 300, "reflective": true, "letterM": 2.8,  "lineChars": 8, "warns": false, "side": 0, "fixed": false },
+    "facility":      { "text": "{name} {value}",   "heightM": 3.5,  "widthM": 6,   "visibleM": 300, "reflective": true, "letterM": 2.8,  "lineChars": 8, "warns": false, "side": 0, "fixed": false },
+    "bridge":        { "text": "{name}",           "heightM": 3.5,  "widthM": 6,   "visibleM": 250, "reflective": true, "letterM": 2.4,  "lineChars": 8, "warns": false, "side": 0, "fixed": false },
+    "bridgeLimit":   { "text": "MAX {value} CARS", "heightM": 3.5,  "widthM": 6,   "visibleM": 300, "reflective": true, "letterM": 2.8,  "lineChars": 6, "warns": true, "side": 0, "fixed": false },
     // What a speed board that isn't for a bend is for, on its own post just past it (note 265, build 1121: "20" boards on
     // straight track read as speed traps): BRASS for a brass field's cutting speed. A bend's board stands alone, as ever.
-    "limitReason":   { "text": "{name}",           "heightM": 3.5,  "widthM": 6,   "visibleM": 300, "reflective": true, "letterM": 2.8,  "lineChars": 8, "warns": true },
-    "lineClosed":    { "text": "LINE CLOSED",      "heightM": 3.5,  "widthM": 6,   "visibleM": 300, "reflective": true, "letterM": 2.8,  "lineChars": 6, "warns": true },
-    "yardLimit":     { "text": "YARD LIMIT",       "heightM": 3.5,  "widthM": 6,   "visibleM": 300, "reflective": true, "letterM": 2.8,  "lineChars": 6, "warns": true },
-    "stationName":   { "text": "{name}",           "heightM": 3.5,  "widthM": 6,   "visibleM": 300, "reflective": true, "letterM": 2.8,  "lineChars": 9, "warns": false },
+    "limitReason":   { "text": "{name}",           "heightM": 3.5,  "widthM": 6,   "visibleM": 300, "reflective": true, "letterM": 2.8,  "lineChars": 8, "warns": true, "side": 0, "fixed": false },
+    "lineClosed":    { "text": "LINE CLOSED",      "heightM": 3.5,  "widthM": 6,   "visibleM": 300, "reflective": true, "letterM": 2.8,  "lineChars": 6, "warns": true, "side": 0, "fixed": false },
+    "yardLimit":     { "text": "YARD LIMIT",       "heightM": 3.5,  "widthM": 6,   "visibleM": 300, "reflective": true, "letterM": 2.8,  "lineChars": 6, "warns": true, "side": 0, "fixed": false },
+    "stationName":   { "text": "{name}",           "heightM": 3.5,  "widthM": 6,   "visibleM": 300, "reflective": true, "letterM": 2.8,  "lineChars": 9, "warns": false, "side": 0, "fixed": false },
     // The sim's own boards (sight.json, Lineside.Boards, drawn by SceneArt.LinesideBoard): the mail crane's (MAIL and an
     // arrow to its side); and the weak bridge's car count on a hand-laid line (WorldFeatures; a generated line's is the
     // plan's bridgeLimit).
-    "mailDrop":      { "text": "MAIL",             "heightM": 3.5,  "widthM": 5,   "visibleM": 300, "reflective": true, "letterM": 2.8,  "lineChars": 6, "warns": true },
+    "mailDrop":      { "text": "MAIL",             "heightM": 3.5,  "widthM": 5,   "visibleM": 300, "reflective": true, "letterM": 2.8,  "lineChars": 6, "warns": true, "side": 0, "fixed": false },
     // A tunnel's name over each portal's arch (§13.3; the arch's crown is 7.5 m up, the portal's face 11.5 m and 20 m
     // across): no post, as big as fits across the portal over the arch, standing up off its coping, its number over its name.
-    "tunnelPlate":   { "text": "{name}",           "heightM": 12.8, "widthM": 19.6, "visibleM": 250, "reflective": true, "letterM": 2.0, "lineChars": 24, "warns": false },
-    "deadSignal":    { "text": "",                 "heightM": 5.0,  "widthM": 0.5, "visibleM": 120, "reflective": false, "letterM": 1, "lineChars": 1, "warns": false }
+    "tunnelPlate":   { "text": "{name}",           "heightM": 12.8, "widthM": 19.6, "visibleM": 250, "reflective": true, "letterM": 2.0, "lineChars": 24, "warns": false, "side": 0, "fixed": false },
+    "deadSignal":    { "text": "",                 "heightM": 5.0,  "widthM": 0.5, "visibleM": 120, "reflective": false, "letterM": 1, "lineChars": 1, "warns": false, "side": 0, "fixed": false }
   },
   // How a board stands, is seen and shines (note 560). On side (-1 the left, as the train coming sees it; 0 the plan's
   // side): across the line from the telegraph poles (4.5 m right, every 50 m), which stood in every right-hand board's
@@ -57,10 +57,21 @@
   // (glowConeDeg either side of it, fading over the last fifth of its visibleM) litGlow close to and farGlow out at its
   // visibleM (the fog takes the more of it the further it is), so a board shines back up the line from as far off as
   // it's read, and for as long.
+  // The director, 13 Oct (`pt13-signs`, the morning build): "I still can't read the signs when I'm driving past them ...
+  // there's no clear enough sight lines to see them. Some signs are overlapping." So the driver's eye is where the cab
+  // view's is, eyeAcrossM right of the line's middle (Views.CabEye), and what the cab's own frame hides from it isn't seen:
+  // cabBlindDeg, pairs of degrees off the heading (+ right) that its posts cover (the right front window's outer pillar,
+  // the middle post; CabSightTests hold them to the cab). And no board's face stands in front of another's from
+  // clearFromM in (where its words are read from) to readToM: a board that would is moved, goes to the other side, or
+  // stands over its neighbour on one set of posts (within stackM they're one board), and a board whose words already
+  // stand within its reading back down the line (a bridge's plate at each end) isn't stood again. A board with its own
+  // side (the km posts, low by the poles) stands there whatever billboard.side is; a fixed one stands where the plan puts
+  // it, never moved (a km post marks its km), and the billboards keep clear of it. Boards hung together are at most
+  // stackMaxM tall, and if together they can't be read (one on a ledge round a hillside) each stands on its own.
   "billboard": {
-    "side": -1, "stackM": 30, "stackGapM": 0.5,
+    "side": -1, "stackM": 60, "stackGapM": 0.5, "stackMaxM": 20,
     "innerM": 4.5, "postsFromM": 6.5, "overGroundM": 2.5, "towardDeg": 10, "marginLetters": 0.3,
-    "eyeM": 3.2, "readToM": 40, "sightStepM": 15, "seenShare": 0.75, "lampConeDeg": 18, "stepBackM": 15, "maxBackM": 150,
+    "eyeM": 3.2, "eyeAcrossM": 1.1, "cabBlindDeg": [8.6, 14.2, -35.3, -32], "clearFromM": 150, "readToM": 40, "sightStepM": 15, "seenShare": 0.75, "lampConeDeg": 18, "stepBackM": 15, "maxBackM": 150,
     "clearOfM": 1, "crownShare": 0.2, "drawM": 400,
     "emissive": 0.9, "plainShare": 0.3, "darkGlow": 0.06, "litGlow": 0.8, "farGlow": 2.0, "glowConeDeg": 24
   },

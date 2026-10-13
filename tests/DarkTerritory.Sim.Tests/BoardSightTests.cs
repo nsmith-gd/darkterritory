@@ -60,9 +60,13 @@ public class BoardSightTests
                 if (route.Plan.Rules.Boards[sign.Type].Warns)
                     Assert.True(site.Along <= sign.S + 1e-6, $"{spec} {sign.Type} {sign.Text} moved on {site.Along - sign.S:0} m");
             }
-            // On the billboard side, across from the telegraph poles, but where an alternate's track or a road runs along it.
-            Assert.True(standing.Count(b => b.Value.Side == rules.Side) >= standing.Count * 0.6,
-                $"{spec}: {standing.Count(b => b.Value.Side == rules.Side)} of {standing.Count} on the billboard side");
+            // On the billboard side, across from the telegraph poles, but where an alternate's track or a road runs along it
+            // (or a board on the left would stand in front of another); the km posts on their own side, by the poles.
+            var billboards = standing.Where(b => route.Plan.Rules.Boards[b.Key.Type].Side == 0).ToList();
+            Assert.True(billboards.Count(b => b.Value.Side == rules.Side) >= billboards.Count * 0.5,
+                $"{spec}: {billboards.Count(b => b.Value.Side == rules.Side)} of {billboards.Count} on the billboard side");
+            Assert.All(standing.Where(b => route.Plan.Rules.Boards[b.Key.Type].Side != 0),
+                b => Assert.Equal(route.Plan.Rules.Boards[b.Key.Type].Side, b.Value.Side));
             // Read in the lamp, past the land, over most of the line's approaches (a board on a bend has its lamp on it
             // late; one in a cutting is moved back to where it's seen).
             double seen = standing.Sum(b => b.Value.SeenM), approach = standing.Sum(b => b.Value.ApproachM);
@@ -105,14 +109,20 @@ public class BoardSightTests
         }
     }
 
+    /// <summary>Every board standing beside a night's line: the plan's and the sim's own (sight.json's, as the content has them).</summary>
+    static List<BoardSite> Standing(Route.Route route, LinesideProps side) =>
+        [.. side.PlanBoards.Where(b => b.Key.State == SignState.Intact && !b.Value.Plate).Select(b => b.Value)
+            .Concat(Route.Lineside.Boards(new Route.SightTuning(), route).Select(side.SightBoard))];
+
     [Fact]
     public void BoardsCloseTogetherHangOneUnderAnother()
     {
-        // A limit and what it's for (note 265's BRASS), or anything else within stackM: one set of posts, no face before another.
+        // A limit and what it's for (note 265's BRASS), a mail board by a bridge's, anything else within stackM: one set of
+        // posts, no face before another.
         var route = Routes.Generate(Content, "frontier:7", 6);
         var line = route.Build();
         var side = LinesideProps.Of(route, line)!;
-        var standing = side.PlanBoards.Where(b => b.Key.State == SignState.Intact && !b.Value.Plate).Select(b => b.Value).ToList();
+        var standing = Standing(route, side);
         int stacked = 0;
         foreach (var a in standing)
             foreach (var b in standing)
@@ -124,12 +134,75 @@ public class BoardSightTests
                 Assert.True(apart, $"{a.Type} {a.Text} and {b.Type} {b.Text} overlap");
                 Assert.True(a.Posts.Count == 0 || b.Posts.Count == 0, "one set of posts");
             }
-        Assert.True(stacked > 0, "no boards stand together on frontier:7 (its BRASS boards under their limits)");
-        // And otherwise no two stand so close along the line that the nearer would hide the further.
+        Assert.True(stacked > 0, "no boards stand together on frontier:7 (its mail boards with what's by them)");
+        // And otherwise no two stand so close along the line, on a side, that the nearer would hide the further.
         foreach (var a in standing)
             foreach (var b in standing)
-                if (a.Edge == b.Edge && b.Along > a.Along + 1e-6)
+                if (a.Edge == b.Edge && a.Side == b.Side && b.Along > a.Along + 1e-6)
                     Assert.True(b.Along - a.Along >= 10, $"{a.Type} {a.Text} at {a.Along:0} and {b.Type} {b.Text} at {b.Along:0}");
+        // None hung together is taller than stackMaxM.
+        foreach (var group in standing.Where(b => b.Posts.Count > 0 || standing.Any(o => !ReferenceEquals(o, b) && o.Edge == b.Edge && Math.Abs(o.Along - b.Along) < 1e-6))
+            .GroupBy(b => (b.Edge, Math.Round(b.Along, 3), b.Side)))
+        {
+            double low = group.Min(b => b.Bottom.Y), high = group.Max(b => b.Bottom.Y + b.Face.Height);
+            Assert.True(high - low <= route.Plan!.Rules.Billboard.StackMaxM + 1e-6, $"{string.Join(" over ", group.Select(b => b.Text))}: {high - low:0.0} m tall");
+        }
+    }
+
+    [Fact]
+    public void NoBoardStandsInFrontOfAnotherWhileItsRead()
+    {
+        // The director, 13 Oct (`pt13-signs`): "Some signs are overlapping." From where a board's words are read (clearFromM)
+        // until it's passed (readToM), from the driver's eye, no other board's face (the plan's, the sim's mail and limit
+        // boards, the km posts) is between them and its middle or lower corners.
+        foreach (var spec in Nights)
+        {
+            var route = Routes.Generate(Content, spec, 6);
+            var line = route.Build();
+            var side = LinesideProps.Of(route, line)!;
+            var rules = route.Plan!.Rules.Billboard;
+            var standing = Standing(route, side);
+            int lines = 0;
+            foreach (var board in standing.Where(b => b.Edge == "main"))
+                foreach (double a in board.SeenFrom.Where(a => board.Along - a <= rules.ClearFromM + 1e-9))
+                {
+                    var t = line.Sample(a);
+                    var dir = new Double3(t.Tangent.X, 0, t.Tangent.Z).Normalized;
+                    var eye = t.Position + Double3.Up * rules.EyeM + Double3.Cross(dir, Double3.Up).Normalized * rules.EyeAcrossM;
+                    foreach (var target in board.SightTargets())
+                    {
+                        lines++;
+                        foreach (var other in standing)
+                            Assert.False(!ReferenceEquals(other, board) && other.Crosses(eye, target),
+                                $"{spec}: the {other.Type} {other.Text} at {other.Along:0} stands in front of the {board.Type} {board.Text} at {board.Along:0}, seen from {a:0}");
+                    }
+                }
+            Assert.True(lines > 100, $"{spec}: only {lines} sight lines");
+            // And where a board couldn't be stood clear of the others, it's said (none on these nights).
+            Assert.All(standing, b => Assert.Equal(0, b.BoardsInWay));
+        }
+    }
+
+    [Fact]
+    public void TheKmPostsStandAtTheirKmAndABridgesNameIsStoodOnce()
+    {
+        // A km post marks its km (signage.json's `fixed`): nudged a step or two to be seen, never shoved along by the
+        // billboards. A bridge's plate at each end, both facing the train coming, would stand one in front of the other:
+        // the second isn't stood.
+        foreach (var spec in Nights)
+        {
+            var route = Routes.Generate(Content, spec, 6);
+            var side = LinesideProps.Of(route, route.Build())!;
+            var rules = route.Plan!.Rules;
+            foreach (var (sign, site) in side.PlanBoards.Where(b => b.Key.State == SignState.Intact && rules.Boards[b.Key.Type].Fixed))
+                Assert.True(Math.Abs(site.Along - sign.S) <= 2 * rules.Billboard.StepBackM + 1e-6, $"{spec}: km post {sign.Text} {site.Along - sign.S:0} m off its km");
+            foreach (var group in side.PlanBoards.Where(b => b.Key is { State: SignState.Intact, Type: "bridge" }).GroupBy(b => (b.Key.Edge, b.Key.Text)))
+            {
+                var at = group.Select(b => b.Key.S).OrderBy(x => x).ToList();
+                for (int i = 1; i < at.Count; i++)
+                    Assert.True(at[i] - at[i - 1] > rules.Boards["bridge"].VisibleM, $"{spec}: {group.Key.Text} stood twice, {at[i] - at[i - 1]:0} m apart");
+            }
+        }
     }
 
     [Fact]

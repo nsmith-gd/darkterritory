@@ -331,20 +331,31 @@ public sealed record BoardDef(string Text, double HeightM, double WidthM, double
     public int LineChars { get; init; } = 9;
     /// <summary>It warns of what's ahead (a limit, a closed line): moved to be seen, it's only ever moved back toward the train.</summary>
     public bool Warns { get; init; }
+    /// <summary>
+    /// The side it stands on, if not the billboards' (1 the right, as the train coming sees it): the km posts by the poles,
+    /// low, out of the billboards' way (`pt13-signs`). 0: billboard.side.
+    /// </summary>
+    public int Side { get; init; }
+    /// <summary>It stands where the plan puts it (a km post marks its km): never moved, and the billboards keep clear of it instead.</summary>
+    public bool Fixed { get; init; }
 }
 
 /// <summary>Mirror of signage.json's <c>billboard</c> (note 560): field docs live in that file.</summary>
 public sealed record BillboardRules
 {
     public int Side { get; init; } = -1;
-    public double StackM { get; init; } = 30;
+    public double StackM { get; init; } = 60;
     public double StackGapM { get; init; } = 0.5;
+    public double StackMaxM { get; init; } = 20;
     public double InnerM { get; init; } = 4.5;
     public double PostsFromM { get; init; } = 6.5;
     public double OverGroundM { get; init; } = 2.5;
     public double TowardDeg { get; init; } = 10;
     public double MarginLetters { get; init; } = 0.3;
     public double EyeM { get; init; } = 3.2;
+    public double EyeAcrossM { get; init; } = 1.1;
+    public IReadOnlyList<double> CabBlindDeg { get; init; } = [8.6, 14.2, -35.3, -32];
+    public double ClearFromM { get; init; } = 150;
     public double ReadToM { get; init; } = 40;
     public double SightStepM { get; init; } = 15;
     public double SeenShare { get; init; } = 0.75;

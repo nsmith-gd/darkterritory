@@ -88,6 +88,8 @@ static class LineGenCommands
             overRailM = Math.Round(b.Value.Bottom.Y - EdgeLine(route, line, b.Key.Edge).Sample(Math.Clamp(b.Value.Along, 0, EdgeLine(route, line, b.Key.Edge).Length)).Position.Y, 1),
             seenM = b.Value.SeenM,
             approachM = b.Value.ApproachM,
+            // From how many places it's read (150 m in) another board's face stands in front of it (`pt13-signs`): 0.
+            inWay = b.Value.BoardsInWay,
         }).ToList();
         var standing = rows.Where(r => r.state == "Intact" && r.Type != "tunnelPlate").ToList();
         return new
@@ -98,6 +100,7 @@ static class LineGenCommands
             moved = standing.Count(r => r.moved != 0),
             seenShare = standing.Count == 0 ? 0 : Math.Round(standing.Sum(r => r.seenM) / Math.Max(1, standing.Sum(r => r.approachM)), 3),
             under = standing.Where(r => r.seenM < r.approachM * new DarkTerritory.Sim.LineGen.BillboardRules().SeenShare).Select(r => $"{r.Type} {r.Text} at {r.s}: {r.seenM}/{r.approachM} m").ToList(),
+            overlapped = standing.Where(r => r.inWay > 0).Select(r => $"{r.Type} {r.Text} at {r.along}: {r.inWay}").ToList(),
             rows,
             // The sim's own boards (sight.json's), as they stand.
             sim = Lineside.Boards(new SightTuning(), route).Select(b => side.SightBoard(b)).Select(b => new
@@ -109,6 +112,7 @@ static class LineGenCommands
                 b.Side,
                 b.SeenM,
                 b.ApproachM,
+                inWay = b.BoardsInWay,
             }).ToList(),
         };
     }
