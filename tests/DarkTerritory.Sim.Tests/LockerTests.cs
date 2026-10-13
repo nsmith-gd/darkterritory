@@ -147,12 +147,14 @@ public class LockerTests
         var world = Stocked();
         int car = World.RepairKitCar(world.Train)!.Value;
         var bay = KitCarShape(world).Lockers.First(b => b.Name == "11");
-        // Toys are found at the stops now (note 264): two brought aboard.
+        // Toys are found at the stops now (note 264): a shelf's worth brought aboard (note 659: four now).
         var room = KitCarShape(world).Interior!.Value;
-        var toys = Enumerable.Range(0, 2).Select(i => world.Bodies.SpawnCrate(world.Train, car, new Double3(room.Centre.X, room.Min.Y + 0.1, room.Centre.Z + i), BodyKind.Toy)).ToList();
+        int shelves = Lockers.Slots(world.Train);
+        Assert.True(shelves >= 4, $"{shelves} shelves");
+        var toys = Enumerable.Range(0, shelves).Select(i => world.Bodies.SpawnCrate(world.Train, car, new Double3(room.Centre.X, room.Min.Y + 0.1, room.Centre.Z + i * 0.5), BodyKind.Toy)).ToList();
         var radio = world.Bodies.All.First(b => b.Kind == BodyKind.Radio && b.Parent != 0);
-        Assert.True(world.Bodies.Stow(toys[0], world.Train, car, bay.Index));
-        Assert.True(world.Bodies.Stow(toys[1], world.Train, car, bay.Index));
+        foreach (var toy in toys)
+            Assert.True(world.Bodies.Stow(toy, world.Train, car, bay.Index));
         Assert.Equal(Lockers.Slots(world.Train), Lockers.Contents(world.Bodies, car, bay.Index).Count());
         Assert.False(world.Bodies.Stow(radio, world.Train, car, bay.Index));
         Assert.False(radio.Stowed);
@@ -162,7 +164,7 @@ public class LockerTests
         // Brought from another car, a stowed thing takes the locker's car's frame, on its shelf.
         Assert.Equal(car, toys[1].Parent);
         Assert.Equal(1, toys[1].Slot);
-        Assert.True(Lockers.SlotAt(bay, 1, Lockers.Slots(world.Train), toys[1].Pbd.Particles[0].Radius).Y > Lockers.SlotAt(bay, 0, 2, 0).Y + 0.5);
+        Assert.True(Lockers.SlotAt(bay, 1, Lockers.Slots(world.Train), toys[1].Pbd.Particles[0].Radius).Y > Lockers.SlotAt(bay, 0, Lockers.Slots(world.Train), 0).Y + 0.3);
     }
 
     [Fact]
@@ -354,9 +356,10 @@ public class LockerTests
         Assert.All(kits, k => Assert.Equal("8", shape.Lockers[k.Locker].Name));
         Assert.Equal([0, 1], kits.Select(k => k.Slot));
         // With more spares than his shelves, the next lockers along take them.
-        var many = Stocked(KitRule with { Kit = KitRule.Kit with { SpareKits = 3 } });
+        int shelves = Lockers.Slots(world.Train);
+        var many = Stocked(KitRule with { Kit = KitRule.Kit with { SpareKits = shelves } });
         var stowed = many.Bodies.All.Where(b => b.Kind == BodyKind.RepairKit).ToList();
-        Assert.Equal(4, stowed.Count);
+        Assert.Equal(shelves + 1, stowed.Count);
         Assert.All(stowed, k => Assert.True(k.Stowed));
         Assert.Equal(2, stowed.Select(k => k.Locker).Distinct().Count());
     }
