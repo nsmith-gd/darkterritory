@@ -74,7 +74,9 @@ static class LineGenCommands
         var rows = boards.OrderBy(b => b.Key.Edge, StringComparer.Ordinal).ThenBy(b => b.Key.S).Select(b => new
         {
             b.Key.Type,
-            b.Key.Text,
+            // What it says where it stands (a distance board's own distance from there, note 684); the plan's words if not that.
+            b.Value.Text,
+            plan = b.Value.Text == b.Key.Text ? null : b.Key.Text,
             b.Key.Edge,
             state = b.Key.State.ToString(),
             s = Math.Round(b.Key.S),

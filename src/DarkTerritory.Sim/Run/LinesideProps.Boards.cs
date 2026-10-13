@@ -437,6 +437,9 @@ public sealed partial class LinesideProps
 
             void Record(IReadOnlyList<(PlanSign? Plan, string Edge, int Side, double S, string Type, string Text)> run, List<BoardSite> sites, RailLine line)
             {
+                for (int i = 0; i < run.Count; i++)
+                    if (run[i].Plan is { To: { } to } && Distance(sites[i], to) is { } said)
+                        sites[i] = said;
                 _placed.AddRange(sites);
                 for (int i = 0; i < run.Count; i++)
                 {
@@ -451,6 +454,23 @@ public sealed partial class LinesideProps
             _sightBoards = sight;
             _cones = cones;
         }
+    }
+
+    /// <summary>
+    /// A distance board ("RENWICK 0.5 KM") stood off its plan's spot, to where it can be read, lettered with its own distance
+    /// from there to <paramref name="to"/> (note 684: a "0.5 KM" stood 118 m on still said 0.5 km); null if it says so already.
+    /// </summary>
+    BoardSite? Distance(BoardSite site, double to)
+    {
+        int unit = site.Text.LastIndexOf(' ', site.Text.Length - " KM".Length - 1);
+        if (!site.Text.EndsWith(" KM", StringComparison.Ordinal) || unit < 0)
+            return null;
+        // (Never less than the nearest tenth: a board's past nothing it counts to.)
+        string text = $"{site.Text[..unit]} {Math.Max(0.1, (to - site.Along) / 1000):0.0} KM";
+        if (text == site.Text)
+            return null;
+        var face = BoardLayout.Of(site.Type, text, _plan.Rules.Boards.GetValueOrDefault(site.Type), _plan.Rules.Billboard);
+        return site with { Text = text, Face = face };
     }
 
     /// <summary>A sorted list cut into runs: each item joins the run so far if <paramref name="together"/> holds of them.</summary>

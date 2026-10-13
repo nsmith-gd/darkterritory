@@ -30,14 +30,14 @@ sealed partial class LineBuilder
             double fallen = sg.StateWeights.GetValueOrDefault("fallen", 0.5), missing = sg.StateWeights.GetValueOrDefault("missing", 0.5);
             return r.Chance(fallen / (fallen + missing)) ? SignState.Fallen : SignState.Missing;
         }
-        void Sign(string type, string edge, double s, string text, bool required, double? value, string? of, ref Pcg32 r, int onSide = 0)
+        void Sign(string type, string edge, double s, string text, bool required, double? value, string? of, ref Pcg32 r, int onSide = 0, double? to = null)
         {
             // A branch's board before its own points stands on the main line coming up to them.
             if (s < 0 && edge != "main")
                 (edge, s) = ("main", _edges[edge].Toe + s);
             if (s < 0)
                 return;
-            _signs.Add(new PlanSign(type, edge, R(s), onSide == 0 ? side : onSide, text, State(required, ref r), required, value, of));
+            _signs.Add(new PlanSign(type, edge, R(s), onSide == 0 ? side : onSide, text, State(required, ref r), required, value, of, to is { } t ? R(t) : null));
         }
 
         // Kilometre posts every 1 km, always required: the reference for all paperwork. Minor posts at the half.
@@ -135,7 +135,7 @@ sealed partial class LineBuilder
                         foreach (double before in new[] { _c.Config.Facilities.Slots.BoardFarM, _c.Config.Facilities.Slots.BoardNearM })
                         {
                             double at = before == _c.Config.Facilities.Slots.BoardFarM ? Math.Min(slot.S - before, board) : slot.S - before;
-                            Sign("facility", "main", at, $"{slot.Name} {(slot.S - at) / 1000:0.0} KM", true, Math.Round((slot.S - at) / 1000, 1), d.Id, ref rng);
+                            Sign("facility", "main", at, $"{slot.Name} {(slot.S - at) / 1000:0.0} KM", true, Math.Round((slot.S - at) / 1000, 1), d.Id, ref rng, to: slot.S);
                         }
                         break;
                     }
@@ -145,7 +145,7 @@ sealed partial class LineBuilder
                         foreach (double before in new[] { _t.Junctions.BoardFarM, _t.Junctions.BoardNearM })
                         {
                             double at = before == _t.Junctions.BoardFarM ? Math.Min(d.SReq - before, board) : d.SReq - before;
-                            Sign("junction", "main", at, $"J{node.Number} {(d.SReq - at) / 1000:0.0} KM", true, Math.Round((d.SReq - at) / 1000, 1), d.Id, ref rng);
+                            Sign("junction", "main", at, $"J{node.Number} {(d.SReq - at) / 1000:0.0} KM", true, Math.Round((d.SReq - at) / 1000, 1), d.Id, ref rng, to: d.SReq);
                         }
                         break;
                     }
