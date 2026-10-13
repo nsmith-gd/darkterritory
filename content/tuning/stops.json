@@ -84,24 +84,25 @@
   // Holdouts (GDD App. D.4, D.13; level-design H.1): a sealed place where a dead player waits to be freed, the only way
   // back into a run. Placement only; what happens there is holdouts.json.
   "holdouts": {
-    // A facility's: this far from the consist's stopping position on the pad (the middle of its first track's loading
-    // face). A second on a pad at least `secondPadScale` long along the line, and at every switchyard. GDD D.15 question 2,
-    // answered (T121): "Big crews should get at least one ... our goal with holdouts is to get everyone back and reduce
-    // downtime": a second at every facility (0 m), taking someone only with holdouts.json's secondCrew in the session.
-    "facilityDistance": [60, 200],
+    // Beside the track the consist stands on (note 650; the director, the inbox, 12 Oct: "Holdouts should never be on
+    // the line but should be essentially right next to the line. Minimum rescue time"): its near face `beside` m off the
+    // track's centreline (a facility's first track at its loading face, else the main line), within `along` m of where
+    // the consist stops. A second on a pad at least `secondPadScale` long along the line, and at every switchyard. GDD
+    // D.15 question 2, answered (T121): "Big crews should get at least one ... our goal with holdouts is to get everyone
+    // back and reduce downtime": a second at every facility (0 m), taking someone only with holdouts.json's secondCrew.
+    "beside": [3.5, 7],
+    "along": 100,
+    // A facility's stands at least this far from every loading container: out of the hands' way (beside the loading face,
+    // frontier:6's switchyard loading ran 90 → 270 s, and its pick-up was given up on 7 nights in 16; note 650).
+    "loadingClear": 30,
     "secondPadScale": 0,
-    // A halt's lockup, and a dead town's shelter: at most this far from the main line.
+    // A halt's lockup stands behind its platform, at most this far from the main line.
     "haltDistance": 40,
-    "villageDistance": 80,
     // A village stop's Holdout is the halt's lockup at this chance, else a shelter in the village (ARCHITECTURE §8).
     "villageLockup": 0.5,
     // Its lamp is seen from the approach: the 1 km board at a facility, the whistle board at a halt or village (the Line
     // Plan's; not in this repo, so its distance is ours, ARCHITECTURE §8).
     "approach": { "facility": 1000, "halt": 400 },
-    // "Must not share a walking route with the nearest loading module": at least this far from any loading container,
-    // and at least this angle (degrees) between the walk to it and the walk to the nearest one, from the consist.
-    "loadingClear": 30,
-    "loadingAngle": 45,
     // Types (D.4): a prison car on a spare siding, at `prisonCar` chance at a facility (`preferred` where the kind
     // prefers one), else a barricaded shelter; a mine head's is always the portal lamp room.
     "prisonCar": 0.35,
@@ -111,8 +112,6 @@
     // Footprints [length along, width across], and the prison car's spare siding (derelict track, its points lifted).
     "sizes": { "prisonCar": [14, 3.2], "signalBox": [6, 4], "lampRoom": [4.5, 4], "waterTower": [5, 5], "lockup": [6, 4] },
     "siding": 26,
-    // A signal box or water tower stands this far from a track (main or yard): it was built to watch or water one.
-    "byTrack": [5, 12],
     // A halt's lockup stands this far behind the platform's back edge.
     "lockupBehind": [2, 8],
     // Placement tries this many candidates, and walks the ground in cells this big (D.14 "recoverability").

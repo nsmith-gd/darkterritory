@@ -12,6 +12,11 @@ namespace DarkTerritory.Sim.Net;
 public sealed record HarnessOptions
 {
     public int Bots { get; init; } = 8;
+    /// <summary>
+    /// Note 650: the last bot dies this many seconds in, 200 m back up the line (as the Holdout tests kill a player), so the
+    /// night has a rescue to measure; null, nobody's killed.
+    /// </summary>
+    public double? KillAt { get; init; }
     /// <summary>The driver runs hot at this speed and takes no stops (note 376, <see cref="Bots.ConductorBot.Express"/>); null as usual.</summary>
     public double? Express { get; init; }
     public int Cars { get; init; } = 10;
@@ -194,7 +199,14 @@ public sealed record HarnessReport(int Ticks, double Seconds, string Link, doubl
 /// <paramref name="SecondsToFree"/>: from lighting to out, each one freed. <paramref name="FreedBy"/>: who broke them out, by bot.
 /// </summary>
 public sealed record HoldoutReport(int Lit, int Assigned, int Breached, int Freed, int Released, IReadOnlyList<double> SecondsToFree,
-    IReadOnlyDictionary<string, int> FreedBy);
+    IReadOnlyDictionary<string, int> FreedBy)
+{
+    /// <summary>
+    /// Note 650: each rescue's stand, from the train first standing with a Holdout lit to its moving on after the freeing (s);
+    /// a facility's own work stood out alongside it is in it.
+    /// </summary>
+    public IReadOnlyList<double> StandSeconds { get; init; } = [];
+}
 
 /// <summary>
 /// How often something happened (after the playtest: "a reward or a problem every 30 s at most, ideally 20"): the moments
@@ -445,6 +457,9 @@ public static class Harness
         var breachBegun = new HashSet<int>();
         int litCount = 0, breached = 0, holdoutEventsSeen = 0;
         var toFree = new List<double>();
+        var stands = new List<double>();
+        uint? standFrom = null;
+        bool freedSince = false;
         var freedBy = new SortedDictionary<string, int>(StringComparer.Ordinal);
         var falls = new FallWatch();
         // Note 607: the crew at the dawn line, and when the lead Waker took the train.
@@ -463,6 +478,19 @@ public static class Harness
             net.Advance(SimConstants.TickSeconds);
             o.Network?.Pump();
             o.Script?.Invoke(t, host.World);
+            if (o.KillAt is { } killAt && t == (uint)Math.Round(killAt * SimConstants.TickRate) && host.Players.LastOrDefault() is { } dying)
+            {
+                // Note 650: as the Holdout tests' KillThePlayer: dead 200 m back up the line, not to wait where they died.
+                double upLine = host.Train.Dynamics.RearDistance - 200;
+                host.SetPlayerState(dying.Id, dying.State with
+                {
+                    Parent = PlayerState.World,
+                    Health = 0,
+                    Death = DeathCause.Mauled,
+                    LineHint = upLine,
+                    Position = host.Train.Line.Sample(upLine).Position,
+                });
+            }
             host.Step();
             events.AddRange(host.World.EnemyEvents);
             // Note 640: what worked each pin loose, and what the driver was at.
@@ -504,6 +532,15 @@ public static class Harness
                     if (h.State == Sim.Run.HoldoutState.Breaching && litSince.ContainsKey(h.Index) && breachBegun.Add(h.Index))
                         breached++;
                 }
+                // Note 650: the rescue's stand, from standing with a Holdout lit till moving on after it's freed.
+                bool standing = Math.Abs(host.Train.Dynamics.Velocity) < 0.05;
+                if (standFrom is null && standing && hs.All.Any(h => h.Lit))
+                    standFrom = t;
+                if (standFrom is { } sf && freedSince && Math.Abs(host.Train.Dynamics.Velocity) > 0.5)
+                {
+                    stands.Add(Math.Round((t - sf) * SimConstants.TickSeconds, 1));
+                    (standFrom, freedSince) = (null, false);
+                }
                 for (; holdoutEventsSeen < host.HoldoutEvents.Count; holdoutEventsSeen++)
                 {
                     var e = host.HoldoutEvents[holdoutEventsSeen];
@@ -513,6 +550,7 @@ public static class Harness
                     {
                         if (litSince.TryGetValue(e.Holdout, out var from))
                             toFree.Add(Math.Round((t - from) * SimConstants.TickSeconds, 1));
+                        freedSince = standFrom is not null;
                         string by = clients.FirstOrDefault(c => c.Session.PlayerId == e.By).Bot?.Name ?? $"player {e.By}";
                         freedBy[by] = freedBy.GetValueOrDefault(by) + 1;
                     }
@@ -732,7 +770,8 @@ public static class Harness
             Holdouts = host.World.Holdouts is null ? null : new HoldoutReport(litCount,
                 host.HoldoutEvents.Count(e => e.Kind == Sim.Run.HoldoutEventKind.Assigned), breached,
                 host.HoldoutEvents.Count(e => e.Kind == Sim.Run.HoldoutEventKind.Freed),
-                host.HoldoutEvents.Count(e => e.Kind == Sim.Run.HoldoutEventKind.Released), toFree, freedBy),
+                host.HoldoutEvents.Count(e => e.Kind == Sim.Run.HoldoutEventKind.Released), toFree, freedBy)
+            { StandSeconds = stands },
             Falls = falls.Falls,
             Dawn = dawn ?? (lineAt is { } la ? new DawnReport(la, atLine ?? [], -1, -1, -1, [], double.IsFinite(closest) ? Math.Round(closest, 1) : -1) : null),
             Reckonings = clients.Select(c => c.Bot).OfType<ConductorBot>().FirstOrDefault()?.Stops?.Reckonings,

@@ -51,14 +51,17 @@ public sealed record PowerhouseTuning(double[] Size, double[] Throat, double[] O
 /// <summary>Where Holdouts go (GDD App. D.4, D.13). Field docs in stops.json.</summary>
 public sealed record HoldoutPlacementTuning
 {
-    public required double[] FacilityDistance { get; init; }
+    /// <summary>m from the track's centreline to a Holdout's near face (note 650): beside the line, never fouling it.</summary>
+    public required double[] Beside { get; init; }
+    /// <summary>m either side of where the consist stops, along its track, that a Holdout stands (note 650).</summary>
+    public required double Along { get; init; }
+    /// <summary>m a facility's Holdout stands clear of every loading container (note 650: beside the loading face, it stood in
+    /// the hands' way and frontier:6's switchyard loading ran 90 → 270 s).</summary>
+    public required double LoadingClear { get; init; }
     public required double SecondPadScale { get; init; }
     public required double HaltDistance { get; init; }
-    public required double VillageDistance { get; init; }
     public required double VillageLockup { get; init; }
     public required HoldoutApproach Approach { get; init; }
-    public required double LoadingClear { get; init; }
-    public required double LoadingAngle { get; init; }
     public required double PrisonCar { get; init; }
     public required double Preferred { get; init; }
     public required string[] Prefers { get; init; }
@@ -66,7 +69,6 @@ public sealed record HoldoutPlacementTuning
     /// <summary>[length, width] by <see cref="BuildingKind"/> in stops.json's camelCase (looked up, never iterated).</summary>
     public required Dictionary<string, double[]> Sizes { get; init; }
     public required double Siding { get; init; }
-    public required double[] ByTrack { get; init; }
     public required double[] LockupBehind { get; init; }
     public required int Candidates { get; init; }
     public required double WalkCell { get; init; }

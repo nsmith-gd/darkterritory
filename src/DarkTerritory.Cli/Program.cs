@@ -215,6 +215,8 @@ object RunHarness(string[] args)
     {
         Observe = observe,
         Bots = (int)Opt(args, "--bots", 8),
+        // --kill-at s: the last bot dies that many seconds in, back up the line, for a rescue to measure (note 650).
+        KillAt = Opt(args, "--kill-at", 0) is var killAt and > 0 ? killAt : null,
         // --express [m/s]: the driver runs hot (21 m/s if no speed's given) and takes no stops (note 376): the hound run's night.
         Express = Array.IndexOf(args, "--express") is var ex and >= 0
             ? ex + 1 < args.Length && double.TryParse(args[ex + 1], System.Globalization.CultureInfo.InvariantCulture, out double fast) ? fast : 21
@@ -1722,6 +1724,9 @@ static object Screenshot(TrainTuning t, string content, string[] args)
             if (lockersOpen == "all" || lockersOpen == "kit" && bay.Index == kitLocker.Bay.Index
                 || lockersOpen.Split(',').Contains(bay.Name, StringComparer.OrdinalIgnoreCase))
                 train.Vehicles[kitLocker.Car].LockersOpen |= 1u << bay.Index;
+    // --tool-in-locker: a wrench left on the repair kit's locker's free shelf (note 649), with the stores aboard (--stocked).
+    if (args.Contains("--tool-in-locker"))
+        args = [.. args, "--stocked"];
     // --eaten f: the rear car that much eaten by a Car Hugger (App. A.3 FEED; 1 is eaten through), as if from sound.
     if (args.Contains("--eaten"))
     {
@@ -1785,7 +1790,7 @@ static object Screenshot(TrainTuning t, string content, string[] args)
         // --stocked: the train as it leaves, its stores and every car's extinguisher aboard (--charge 0..1: theirs).
         Bodies = shouldered is { } carried ? carried.Bodies.All
             : args.Contains("--bodies") ? Staging.Bodies(train, content).All
-            : args.Contains("--stocked") ? Staging.Stocked(train, content, Opt(args, "--charge", 1)).All : cargo,
+            : args.Contains("--stocked") ? WithToolInLocker(Staging.Stocked(train, content, Opt(args, "--charge", 1)), train, args).All : cargo,
         // --crew: three on car 2's roof, one reaching up, one holding out both hands, one with a keyboard (T47's arms).
         // --working: the crew at work (X1): carrying, at a hatch and a brake wheel on car 2's roof, sat at the last gun.
         // --act smash,pry,pick,...: a row of the crew down car 2's roof, each at one of those acts (CrewPose names).
@@ -2992,6 +2997,18 @@ static IReadOnlyList<DarkTerritory.Game.ListedGame> DemoLobbies(int protocol, in
 }
 
 // A frame as the game draws it: a solo session stepped for a while, seen first person, with the HUD (T23).
+// --tool-in-locker (note 649): a wrench on the repair kit's locker's free shelf, as one left there.
+static DarkTerritory.Sim.Physics.Bodies WithToolInLocker(DarkTerritory.Sim.Physics.Bodies bodies, TrainOnLine train, string[] args)
+{
+    if (args.Contains("--tool-in-locker") && DarkTerritory.Sim.World.KitLocker(train) is { } at)
+    {
+        var b = bodies.Put(train, at.Car, DarkTerritory.Sim.Physics.BodyKind.Tool, at.Bay.Box.Centre, 0.1, 0.5, 0);
+        b.Tools = DarkTerritory.Sim.Player.Kit.With(0, 0, DarkTerritory.Sim.Player.Tool.Wrench);
+        bodies.Stow(b, train, at.Car, at.Bay.Index);
+    }
+    return bodies;
+}
+
 static object HudShot(string content, string[] args)
 {
     Hud.Tuning = DataFile.Load<HudTuning>(Path.Combine(content, HudTuning.File));

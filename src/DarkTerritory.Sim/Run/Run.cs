@@ -848,7 +848,9 @@ public sealed partial class Run
         // GDD §19, B.9: a rescued child home (in a car still on the engine, or in someone's arms) is the night's best pay.
         int children = delivered ? world.Bodies.All.Count(b => b.Kind == Physics.BodyKind.Child && (b.Carrier >= 0 || attached.Contains(b.Parent))) : 0;
         double childPay = Math.Round(children * e.ChildPay * perCar);
-        double gross = delivered ? freightPay + childPay + Scavenged + Mail : 0;
+        // The finds stowed aboard, and those on a locker's shelf in a car still on the engine (note 649).
+        double scavenged = Scavenged + LockerFinds(world, attached);
+        double gross = delivered ? freightPay + childPay + scavenged + Mail : 0;
         double coal = Math.Max(0, _tenderAtDeparture + _coalLoaded - train.Boiler.Tender) * e.CoalPerUnit;
         double ammo = Math.Max(0, _ammoAtDeparture - train.Vehicles.Sum(v => v.Gun.Ammo)) * e.RoundsPerRound;
         // A derelict was battered before the night began (note 294): not the crew's to mend.
@@ -884,7 +886,7 @@ public sealed partial class Run
         var (lines, shown) = MarkBookmarks(world, ReportLines(world, attached, delivered, feeEach, refundEach, broughtEach));
         return new RunReport(End, Math.Round(Seconds, 1), Math.Round(engine.Distance / 1000, 2), home.Count, cargo.Count - home.Count,
             Math.Round(cargoValue, 2), Math.Round(gross), Math.Round(coal), Math.Round(ammo), Math.Round(repairs),
-            Math.Round(gross - coal - ammo - repairs - fees + refunds - recovery - broughtFees), crewHome, crew.Count - crewHome, delivered ? Math.Round(Scavenged) : 0,
+            Math.Round(gross - coal - ammo - repairs - fees + refunds - recovery - broughtFees), crewHome, crew.Count - crewHome, delivered ? Math.Round(scavenged) : 0,
             deaths, bodiesHome, fees, refunds, Math.Round(delivered ? Mail : 0), recovery, stranded ? Kit.Loss : KitLoss.None)
         {
             Lines = lines,

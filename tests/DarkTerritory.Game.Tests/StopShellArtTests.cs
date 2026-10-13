@@ -19,9 +19,9 @@ public class StopShellArtTests
     static readonly string Content = DataFile.FindContentRoot();
     static readonly Look Look = Look.Load(Content);
 
-    /// <summary>frontier:39 has sheds, a hero, a pump house, prison cars and lockups; frontier:1 signal boxes and lamp rooms (frontier:13
-    /// and frontier:2 had them on their 24 km lines).</summary>
-    public static TheoryData<string> Nights => ["frontier:39", "frontier:1"];
+    /// <summary>frontier:39 has sheds, a hero, a pump house, prison cars and lockups; frontier:13 signal boxes and lamp rooms (frontier:1
+    /// had them till note 650 put the Holdouts beside the line).</summary>
+    public static TheoryData<string> Nights => ["frontier:39", "frontier:13"];
 
     /// <summary>Every shelled building of a night, drawn alone, its triangles relative to an eye at its middle.</summary>
     static IEnumerable<(RouteFeature Feature, int Index, Double3 Eye, List<(Vector3, Vector3, Vector3)> Triangles, RailLine Line)> Shells(string spec)

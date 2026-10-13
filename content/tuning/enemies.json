@@ -583,7 +583,7 @@
   // the loading's not called done; else it's left (D1: "a body never costs the night"), and put down if it's in the arms.
   "crewBots": {
     "mournersWithin": 30, "mournersLeash": 20, "towerJawWithin": 25, "towerJawClearFrom": 0.9, "towerJawClearBy": 2.5,
-    "wreckWithin": 250, "wreckStopShort": 15, "wreckHoldWithin": 60, "beetleWithin": 15, "brakemanStandOff": 1.5,
+    "wreckWithin": 250, "wreckStopShort": 15, "wreckHoldWithin": 60, "beetleWithin": 15, "ribbitWithin": 12, "brakemanStandOff": 1.5,
     "brakemanWaitPast": 1, "standGiveUp": 240, "gateClearShort": 30, "gateClearWithin": 1500, "gateClearGiveUp": 240, "gateClearMargin": 45,
     "sixDawnMargin": 45, "mournersCarryWithin": 60, "mournersCarrySeconds": 60
   },

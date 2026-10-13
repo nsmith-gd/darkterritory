@@ -708,6 +708,8 @@ public static partial class Hud
             _ => "THE TOY",
         },
         BodyKind.Extinguisher => "THE EXTINGUISHER",
+        // A tool on a locker's shelf (note 649).
+        BodyKind.Tool => $"THE {ToolName(Kit.At(b.Tools, 0))}",
         BodyKind.Loot => world.Run?.FindName(b)?.ToUpperInvariant() ?? "THE FIND",
         // What else is carried, for the hotbar's IN HANDS (note 264).
         BodyKind.Crate or BodyKind.Cargo => "A CRATE",
