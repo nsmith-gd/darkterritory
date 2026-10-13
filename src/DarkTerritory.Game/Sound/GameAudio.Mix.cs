@@ -69,7 +69,7 @@ public sealed partial class GameAudio
     /// <summary>Each tick: the listener's space into the mixer, and the drone on while the work's under way.</summary>
     void MixAround(World world, Listener listener)
     {
-        if (_spaces!.Refresh())
+        if (_reloadNow && _spaces!.Refresh())
             PrepareSpaces();
         Space = SpaceOf(world, listener.Position, ref _spaceHint, out _earRoom);
         if (SpaceOverride is { } staged)
@@ -86,7 +86,7 @@ public sealed partial class GameAudio
                 RoomsNear(route, world.Train.Line, listener.Position, _roomsHint, RoomsReach, _roomsNear);
             }
         }
-        Mixer.Space = _spaces.Value.Spaces.GetValueOrDefault(Space);
+        Mixer.Space = _spaces!.Value.Spaces.GetValueOrDefault(Space);
 
         // While the work's under way: from the moment a run leaves the yard until the night's over or the train's off the
         // rails (then it's the opera's, GDD v1.4 App. E.1, or E.9's silence), flat (install.py writes ui- sounds flat), on
