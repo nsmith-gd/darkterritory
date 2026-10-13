@@ -210,9 +210,9 @@ public class TownsfolkTests
         var knock = door + (door - town.World(quiet.S, quiet.D, 1.2)).Normalized * 1.6;
         Assert.Equal(new TownTarget(TownTargetKind.Door, plan.Buildings.ToList().IndexOf(quiet)), town.Target(knock with { Y = door.Y + 0.4 }, (door - knock).Normalized));
 
-        // A small town keeps the yard: its laws and its flag, its dead and its day on the square's far wall, and a green in
+        // A small town (a hamlet: more than houses.lineRow houses is a town with streets, note 668) keeps the yard: its laws and its flag, its dead and its day on the square's far wall, and a green in
         // the square's rear end (note 490), its tree, its lamp garden and a bench on it, clear of everything else there.
-        var small = Plan("frontier:7", 60);
+        var small = Plan("frontier:7", 20);
         var sg = Assert.IsType<TownGreen>(small.Plan.Green);
         Assert.Equal(small.Plan.Square.Side, sg.Side);
         Assert.True(small.Plan.Square.Holds(sg.S0, sg.Side) && small.Plan.Square.Holds(sg.S1, sg.Side), "the small town's green isn't in its square");
