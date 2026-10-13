@@ -813,7 +813,7 @@ written here instead is moved out by `tools/coord/notes.py split`; the Coordinat
 - [631. A dawn cushion for the run home: measured, and not kept (queue #361, D1.2 for D1; D1's ask after #826, from D1.2's own flag on note 628:…](notes/631.md)
 - [632. A train taken at dawn ends the campaign (D1.4, queue #362; the director, the inbox, 12 Oct: `D1-eaten-at-dawn`, "c, The campaign ends",…](notes/632.md)
 - [633. Lit and shut keeps the Climbers out (D1.4, queue #363; the director, the inbox, 12 Oct: `D1-lit-shut-keeps-climbers-out`, "b"; note 629's…](notes/633.md)
-- [634. Bots fight a fully burning car together (D1.4, queue #364, the director, the inbox, 12 Oct)](notes/634.md)
+- [634. Bots fight a burning car together: two hands, before it's well alight (D1.4, queue #364, the director, the inbox, 12 Oct)](notes/634.md)
 - [635. The director's creature calls of 12 Oct: the Knotter once or twice a night, the night things run at dawn, and the Creature Tweaker (D1,…](notes/635.md)
 - [636. The tiers' pay raised, each harder tier paying more (D1.5, queue #366; the director, the inbox, 12 Oct)](notes/636.md)
 - [637. A contract is just a route (D1.5, queue #367; the director's answer to `D1.5-contracts`: "Just a route", the director, the inbox, 12 Oct)](notes/637.md)

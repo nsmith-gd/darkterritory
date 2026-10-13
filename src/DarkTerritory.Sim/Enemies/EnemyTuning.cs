@@ -381,6 +381,12 @@ public sealed record CarFireTuning
     public double ChargeSeconds { get; init; } = 10;
     public double RechargeSeconds { get; init; } = 90;
     public double BurnReach { get; init; } = 4;
+    /// <summary>
+    /// Note 634: how far round a burning cell's centre its boards burn you as if you stood on them (m), the fire's reach
+    /// counted from there. Half the 1.5 m cells the burn was tuned on; with bigger cells (the director's 15 a car), half a
+    /// cell put the walls of the stretch a walker stood in on top of it.
+    /// </summary>
+    public double BurnPatch { get; init; } = 0.75;
     /// <summary>Note 265: the burn at full blaze once you've stood in it <see cref="BurnRampSeconds"/> (health a second).</summary>
     public double BurnPerSecond { get; init; } = 10;
     /// <summary>Note 265: the share of <see cref="BurnPerSecond"/> a brush against it burns at, from the first moment.</summary>
