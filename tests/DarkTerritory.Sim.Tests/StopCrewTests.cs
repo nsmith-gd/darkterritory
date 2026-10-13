@@ -577,6 +577,34 @@ public class StopCrewTests
     }
 
     [Fact]
+    public void WithFreightStandingOnThePickUpTheOwnTracksLoadingIsCalledDoneInTimeForIt()
+    {
+        // Note 656: note 621 never called a loading done for a pick-up, so a switchyard loaded its own track on till it was late
+        // and the cars standing on its siding were passed (frontier:6, its hands back from a rescue sooner: 0.8 car-loads
+        // given up for 0.5). With freight standing there, the own track's loading is called done as for any stop ahead. The
+        // dawn is set so the loading starts 110 s past what the pick-up and the leaving want, as in the test above.
+        const double over = 110;
+        ModuleKind[] yard = [ModuleKind.Rakes, ModuleKind.Crates];
+        var open = new Night(cars: 8, walkers: 0, dawn: 1e6, modules: yard);
+        var openStops = open.Driver.Stops!;
+        double spare = double.NaN;
+        open.Until(() => !double.IsNaN(spare), 900, () => spare = openStops.SpareAtLoading);
+        Assert.False(double.IsNaN(spare), $"never began loading: driver {openStops.Doing}");
+        var own = openStops.Plan!;
+        Assert.False(own.PickUp, "the yard's own track first");
+        var pickUp = StopPlan.Ahead(open.World, own.Hold + 50, new HashSet<int> { own.Key }, open.Calls);
+        Assert.True(pickUp is { PickUp: true }, "a siding with cars standing on it past the own track");
+        Assert.True(pickUp!.StandingFreight(open.Train) >= 0.5, $"{pickUp.StandingFreight(open.Train):0.00} car-loads standing");
+        var night = new Night(cars: 8, walkers: 0, dawn: 1e6 - (spare - (StopDriver.Allowance(pickUp, open.World) + over)), modules: yard);
+        var stops = night.Driver.Stops!;
+        night.Until(() => stops.Log.Count >= 2, 2400);
+        string legs = string.Join("; ", stops.Log.Select(r => $"{r.Kind} {r.Seconds:0} s: {string.Join(", ", r.Legs.Select(l => $"{l.Key} {l.Value:0}"))}"));
+        Assert.True(stops.Log.Count >= 2, $"no pick-up: driver {stops.Doing}; stops {legs}");
+        Assert.True(stops.Log[0].Legs["Loading"] < 140, $"loaded {stops.Log[0].Legs["Loading"]:0} s; stops {legs}");
+        Assert.StartsWith(nameof(FacilityKind.Switchyard) + "PickUp", stops.Log[1].Kind);
+    }
+
+    [Fact]
     public void TwoWithTheShuntersPartSettleOnOne()
     {
         // Note 628: frontier:7 seed 11's shunter burned and the gunner stood in (CrewCalls.StandIn); broken out of a Holdout, the

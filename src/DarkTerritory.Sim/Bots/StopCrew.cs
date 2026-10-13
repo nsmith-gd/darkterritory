@@ -582,6 +582,11 @@ public sealed record StopPlan(int Facility, Site Site, Branch Spur, double Hold,
     /// </summary>
     public bool PickUp { get; init; }
 
+    /// <summary>Note 656: the freight in the cars standing on this stop's siding (car-loads, as the report counts them).</summary>
+    public double StandingFreight(TrainOnLine train) =>
+        train.Rakes.Where(r => r.Path == Spur.Index && train.Standing(r))
+            .Sum(r => r.Consist.Vehicles.Where(v => !v.Derelict && v.Kind == VehicleKind.Cargo).Sum(v => v.Load * v.CargoIntegrity));
+
     /// <summary>What a crew member says it's done: the facility for its own stop, the siding for a pick-up.</summary>
     public int Key => PickUp ? PickUpKeys + Spur.Index : Facility;
     const int PickUpKeys = 1 << 16;
@@ -1042,6 +1047,8 @@ public sealed class StopDriver(CrewCalls calls)
     const double PickUpNoise = 100;
     /// <summary>Note 609: a stop's loading isn't cut short for the next stop (<see cref="Onward"/>) unless this much of it's to be had first.</summary>
     const double OnwardLoading = 90;
+    /// <summary>Note 656: a pick-up with this much freight standing (car-loads) is worth a loading called done for it.</summary>
+    const double PickUpWorth = 0.5;
     /// <summary>Note 609: past the next stop's allowance, a stop's loading is called done this much early (the leaving takes less than reckoned).</summary>
     const double OnwardMargin = 30;
     /// <summary>Note 609: the next stop is one whose hold is at least this far past this one's (m).</summary>
@@ -1062,9 +1069,11 @@ public sealed class StopDriver(CrewCalls calls)
         double from = p.Hold + OnwardBeyond;
         for (int i = 0; i < 16 && StopPlan.Ahead(world, from, done, calls) is { } next; i++)
         {
-            // Note 621: not for a pick-up. Called done for Renwick Yard's after the Foundry, the Foundry's loading came to 1.0
-            // car-loads instead of 1.5 on most of frontier:7's nights, for a pick-up of little or nothing.
-            if (!next.PickUp)
+            // Note 621: not for a pick-up of little or nothing. Called done for Renwick Yard's after the Foundry, the Foundry's
+            // loading came to 1.0 car-loads instead of 1.5 on most of frontier:7's nights. Note 656: for one with freight
+            // standing, worth more than the loading it cuts, it is (frontier:6's switchyard, its hands back from a rescue
+            // sooner, loaded on past the time its pick-up needed: 0.8 car-loads given up for 0.5).
+            if (!next.PickUp || next.StandingFreight(world.Train) >= PickUpWorth)
                 least = Math.Min(least ?? double.MaxValue, Allowance(next, world));
             done.Add(next.Key);
         }
@@ -1102,7 +1111,7 @@ public sealed class StopDriver(CrewCalls calls)
     {
         if (world.Run is not { } r || p.PickUp)
             return false;
-        double spare = Deadline(world, r) - Home(world, r, p.Hold) - LateSpare;
+        double spare = Deadline(world, r) - Home(world, r, p.Hold, Leaving(world, p)) - LateSpare;
         if (double.IsNaN(_spareAtLoading))
         {
             _spareAtLoading = spare;
@@ -1129,13 +1138,13 @@ public sealed class StopDriver(CrewCalls calls)
     /// here, whichever's the longer, each with <see cref="LatePace"/>'s margin. The pace alone flattered a Dead Lines route,
     /// whose back half is slower than its front: both deadLines crews of eight made their stop and missed the dawn (T77).
     /// </summary>
-    double Home(World world, Run.Run run, double at)
+    double Home(World world, Run.Run run, double at, double? aboard = null)
     {
         double end = HomeAt(world, run);
         double home = (end - at) / (Pace(world, run, at) * LatePace);
         if (world.TrackPlan is { } plan)
             home = Math.Max(home, LineGen.LineAuthority.For(plan, world.Train.Line).SecondsTo(at, end, _cruiseTop) / LatePace);
-        return home * CargoPressure(world);
+        return home * CargoPressure(world, aboard);
     }
 
     /// <summary>
@@ -1145,7 +1154,19 @@ public sealed class StopDriver(CrewCalls calls)
     /// </summary>
     const double CargoPressurePerLoad = 0.09;
 
-    double CargoPressure(World world) => 1 + CargoPressurePerLoad * Math.Max(0, Aboard(world) - _loadAtUnderway);
+    double CargoPressure(World world, double? aboard = null) => 1 + CargoPressurePerLoad * Math.Max(0, (aboard ?? Aboard(world)) - _loadAtUnderway);
+
+    /// <summary>
+    /// Note 656: the cargo the train leaves a stop with (car-loads, as <see cref="Aboard"/> counts it): its own cars wherever
+    /// they stand (a cut left on the main line, the cars loaded down the spur) and the cars standing on the stop's track it
+    /// couples up. Only the engine's rake is aboard during the stop.
+    /// </summary>
+    static double Leaving(World world, StopPlan p)
+    {
+        var train = world.Train;
+        return train.Rakes.Where(r => !train.Standing(r) || r.Path == p.Spur.Index)
+            .Sum(r => r.Consist.Vehicles.Where(v => v.Kind == VehicleKind.Cargo).Sum(v => v.Load));
+    }
 
     /// <summary>
     /// The cargo aboard when the night got under way (car-loads): the pace kept since is already the pace with that much aboard,
