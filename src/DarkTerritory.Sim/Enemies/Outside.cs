@@ -851,7 +851,7 @@ public sealed class SootChildren(int id) : Enemy(id)
         var t = ctx.Tuning.SootChildren;
         var them = PlayerMotor.WorldPosition(freed, ctx.Train);
         var away = (Local - them) with { Y = 0 };
-        var dir = away.Length > 1e-6 ? away.Normalized : new Double3(Math.Cos(Id), 0, Math.Sin(Id));
+        var dir = away.Length > 1e-6 ? away.Normalized : new Double3(DMath.Cos(Id), 0, DMath.Sin(Id));
         var to = them + dir * (t.LungeWithin + 1.5);
         double hint = ctx.Train.Dynamics.Distance;
         Local = to with { Y = PlayerMotor.GroundAt(to, ctx.Train.Line, ref hint) };
