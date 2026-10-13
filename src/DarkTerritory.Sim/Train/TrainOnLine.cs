@@ -263,10 +263,16 @@ public sealed class TrainOnLine
     /// a car stood just inside the branch is over the blades as much as one on the main line (note 289: only the main
     /// line's leg was counted, so the points went over under a car left at the mouth of a spur).
     /// </summary>
-    public bool PointsOccupied(int branch, double pointsLength)
+    public bool PointsOccupied(int branch, double pointsLength) => OnThePoints(branch, pointsLength) is not null;
+
+    /// <summary>
+    /// The rake with a wheel on a switch's points (<see cref="PointsOccupied"/>), or null: the train's own, or cars standing
+    /// there (note 665: the cab said "POINTS HELD", and the director couldn't tell what was holding them).
+    /// </summary>
+    public TrainDynamics? OnThePoints(int branch, double pointsLength)
     {
         double toe = Line.Branches[branch].Toe;
-        return _rakes.Any(r => On(r, RailLine.MainPath) is { } o && o.Rear < toe + pointsLength && o.Front > toe - pointsLength
+        return _rakes.FirstOrDefault(r => On(r, RailLine.MainPath) is { } o && o.Rear < toe + pointsLength && o.Front > toe - pointsLength
             || On(r, branch) is { } d && d.Rear < pointsLength);
     }
 

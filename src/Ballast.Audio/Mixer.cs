@@ -130,6 +130,12 @@ public sealed class Mixer
     }
 
     public MixDef Mix { get; set; }
+    /// <summary>
+    /// Held while a block renders and while anything adds, steals or lists voices (note 667): the device is fed from a
+    /// thread of its own (<see cref="AudioPump"/>), not the game's frame. A block takes it, renders and lets go, so the game
+    /// waits one block at most, and the game holds it only as long as it takes to start a voice.
+    /// </summary>
+    public object Gate { get; } = new();
     /// <summary>The player's volumes, over the mix's own levels.</summary>
     public MixVolumes Volumes { get; set; } = new();
     public Listener Listener;
@@ -145,11 +151,24 @@ public sealed class Mixer
     /// <summary>Synthesises (once) and keeps a space's response, so entering the space later doesn't build it on the mixing thread.</summary>
     public ImpulseResponse Prepare(ReverbDef def)
     {
-        if (!_responses.TryGetValue(def, out var ir))
-            _responses[def] = ir = ImpulseResponse.Synthesize(def);
-        return ir;
+        ImpulseResponse? ir;
+        lock (Gate)
+            if (_responses.TryGetValue(def, out ir))
+                return ir;
+        // Built outside the gate: a long response takes a while, and the device mustn't wait for it.
+        ir = ImpulseResponse.Synthesize(def);
+        lock (Gate)
+            return _responses.TryAdd(def, ir) ? ir : _responses[def];
     }
-    public IReadOnlyList<SoundInstance> Voices => _voices;
+    /// <summary>The voices as of now: a copy, so it can be gone through while the device's thread renders.</summary>
+    public IReadOnlyList<SoundInstance> Voices
+    {
+        get
+        {
+            lock (Gate)
+                return [.. _voices];
+        }
+    }
     public MeterTap? Tap { get; set; }
     /// <summary>Voices rendered in the last block (the rest were virtualised).</summary>
     public int RenderedVoices { get; private set; }
@@ -172,18 +191,22 @@ public sealed class Mixer
     {
         if (_bank.Get(name) is not { } def)
             return null;
-        var same = _voices.Where(v => v.Name == name && !v.Finished).ToList();
-        for (int i = 0; i <= same.Count - Math.Max(1, def.MaxInstances); i++)
-            same[i].Stop();
-        var voice = new SoundInstance(_nextId++, name, def, _seed++, _bank.Samples) { Position = position, Volume = volume };
-        _voices.Add(voice);
-        return voice;
+        lock (Gate)
+        {
+            var same = _voices.Where(v => v.Name == name && !v.Finished).ToList();
+            for (int i = 0; i <= same.Count - Math.Max(1, def.MaxInstances); i++)
+                same[i].Stop();
+            var voice = new SoundInstance(_nextId++, name, def, _seed++, _bank.Samples) { Position = position, Volume = volume };
+            _voices.Add(voice);
+            return voice;
+        }
     }
 
     public void StopAll()
     {
-        foreach (var v in _voices)
-            v.Stop();
+        lock (Gate)
+            foreach (var v in _voices)
+                v.Stop();
     }
 
     /// <summary>Renders interleaved stereo. Length must be a whole number of blocks.</summary>
@@ -192,7 +215,8 @@ public sealed class Mixer
         if (stereo.Length % (Audio.Block * 2) != 0)
             throw new ArgumentException($"render length must be a multiple of {Audio.Block * 2} floats");
         for (int offset = 0; offset < stereo.Length; offset += Audio.Block * 2)
-            RenderBlock(stereo.Slice(offset, Audio.Block * 2));
+            lock (Gate)
+                RenderBlock(stereo.Slice(offset, Audio.Block * 2));
     }
 
     void RenderBlock(Span<float> output)

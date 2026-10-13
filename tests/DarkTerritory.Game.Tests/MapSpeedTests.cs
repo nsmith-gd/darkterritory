@@ -18,6 +18,8 @@ public class MapSpeedTests
     [Theory]
     [InlineData(RouteTier.Local, 3UL)]
     [InlineData(RouteTier.Frontier, 7UL)]
+    // Note 665: an S-bend's first curve under a limit that runs on over the second (7.3 km) was bare.
+    [InlineData(RouteTier.Frontier, 15UL)]
     [InlineData(RouteTier.DeadLines, 5UL)]
     [InlineData(RouteTier.DeepTerritory, 2UL)]
     public void EveryStretchThatDerailsUnderTopSpeedHasItsFigureOnTheMap(RouteTier tier, ulong seed)
