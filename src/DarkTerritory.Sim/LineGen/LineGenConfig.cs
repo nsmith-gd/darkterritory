@@ -314,10 +314,67 @@ public sealed record PoiScale(double[] PadRadiusM, double[] SpurScale);
 // ---------------------------------------------------------------- signage.json
 
 public sealed record SignageFile(Dictionary<string, BoardDef> Boards, double KmPostEveryM, double MinorPostEveryM, double SideOffsetM,
-    Dictionary<string, double> StateWeights, double RepeatBoardGapM, double WhistleBeforeM, double GradientPostMinShare);
+    Dictionary<string, double> StateWeights, double RepeatBoardGapM, double WhistleBeforeM, double GradientPostMinShare)
+{
+    /// <summary>How the lettered boards stand, read and shine (signage.json "billboard", note 560).</summary>
+    public BillboardRules Billboard { get; init; } = new();
+}
 
-/// <summary>A kind of lineside board (§9.5, §18 signage kit).</summary>
-public sealed record BoardDef(string Text, double HeightM, double WidthM, double VisibleM, bool Reflective);
+/// <summary>
+/// A kind of lineside board (§9.5, §18 signage kit). <see cref="HeightM"/>: a tunnel plate's top on its portal, a board's
+/// bottom edge over the rail; <see cref="WidthM"/> its least width (a plate's most). Lettered <see cref="LetterM"/> tall, at
+/// most <see cref="LineChars"/> to a line (note 560).
+/// </summary>
+public sealed record BoardDef(string Text, double HeightM, double WidthM, double VisibleM, bool Reflective)
+{
+    public double LetterM { get; init; } = 1;
+    public int LineChars { get; init; } = 9;
+    /// <summary>It warns of what's ahead (a limit, a closed line): moved to be seen, it's only ever moved back toward the train.</summary>
+    public bool Warns { get; init; }
+    /// <summary>
+    /// The side it stands on, if not the billboards' (1 the right, as the train coming sees it): the km posts by the poles,
+    /// low, out of the billboards' way (`pt13-signs`). 0: billboard.side.
+    /// </summary>
+    public int Side { get; init; }
+    /// <summary>It stands where the plan puts it (a km post marks its km): never moved, and the billboards keep clear of it instead.</summary>
+    public bool Fixed { get; init; }
+    /// <summary>How far its bottom stands over the land at its foot at least (m), if not billboard.overGroundM (0): a km post low, under the eye line.</summary>
+    public double OverGroundM { get; init; }
+}
+
+/// <summary>Mirror of signage.json's <c>billboard</c> (note 560): field docs live in that file.</summary>
+public sealed record BillboardRules
+{
+    public int Side { get; init; } = -1;
+    public double StackM { get; init; } = 60;
+    public double StackGapM { get; init; } = 0.5;
+    public double StackMaxM { get; init; } = 24;
+    public double PostClearM { get; init; } = 20;
+    public double InnerM { get; init; } = 4.5;
+    public double PostsFromM { get; init; } = 6.5;
+    public double OverGroundM { get; init; } = 2.5;
+    public double TowardDeg { get; init; } = 10;
+    public double MarginLetters { get; init; } = 0.3;
+    public double EyeM { get; init; } = 3.2;
+    public double EyeAcrossM { get; init; } = 1.1;
+    public IReadOnlyList<double> CabBlindDeg { get; init; } = [8.6, 14.2, -35.3, -32];
+    public double ClearFromM { get; init; } = 250;
+    public double ReadToM { get; init; } = 40;
+    public double SightStepM { get; init; } = 15;
+    public double SeenShare { get; init; } = 0.75;
+    public double LampConeDeg { get; init; } = 18;
+    public double StepBackM { get; init; } = 15;
+    public double MaxBackM { get; init; } = 150;
+    public double ClearOfM { get; init; } = 1;
+    public double CrownShare { get; init; } = 0.2;
+    public double DrawM { get; init; } = 400;
+    public double Emissive { get; init; } = 0.9;
+    public double PlainShare { get; init; } = 0.3;
+    public double DarkGlow { get; init; } = 0.06;
+    public double LitGlow { get; init; } = 0.8;
+    public double FarGlow { get; init; } = 2.0;
+    public double GlowConeDeg { get; init; } = 24;
+}
 
 // ---------------------------------------------------------------- names.json
 

@@ -76,8 +76,10 @@ public static class Protocol
     // 54: a tool on a crew locker's shelf (note 649): a body kind of its own, its tool in the body record's ninth field.
     // 55: a car's load as what's in it (note 659): the vehicle record carries how much of it is things lying there as
     //     themselves (its 31st field; the fire cells after it), the rest its heap.
-    // 56: a third byte of buttons on every intent, after the voice level (note 664: crouch, and pushing the gun on its own key).
-    public const int Version = 56;
+    // 56: what's lying in a car is solid (note 659): the body record carries a thing's size (its twelfth field, the particles
+    //     after it), so every client walks into the same things.
+    // 57: a third byte of buttons on every intent, after the voice level (note 664: crouch, and pushing the gun on its own key).
+    public const int Version = 57;
 }
 
 public enum MessageType : byte

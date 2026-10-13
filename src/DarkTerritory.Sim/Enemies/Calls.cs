@@ -46,7 +46,7 @@ public static class Calls
                 return "the marsh coming up under a car";
             case EnemyKind.Sleepers:
                 // Track debris on the main line ahead (§22): past the lamp's reveal, for the train to run onto.
-                world.AddEnemy(i => new Sleepers(i) { LineDistance = train.Dynamics.Distance + Math.Max(max, t.Sleepers.LampRevealDistance + 30), Height = 0.2 });
+                world.AddEnemy(i => new Sleepers(i) { LineDistance = train.Dynamics.Distance + Math.Min(max - Inside, t.Sleepers.LampRevealDistance + 30), Height = 0.2 });
                 return "debris on the line ahead: drive onto it";
             case EnemyKind.Choir:
                 return world.CallChoir() ? "gathering: it comes within 20 s, and it hears you" : "this night has no guns or loudness meter";
@@ -80,7 +80,25 @@ public static class Calls
                     return "fishing (no water here: on the bank of nothing)";
                 }
             case EnemyKind.Lodger or EnemyKind.Householder or EnemyKind.HollowHouse or EnemyKind.Hanger:
-                return House(world, kind, you, t);
+                return House(world, kind, you, max, t);
+            // What stands where its rule finds it is taken only within the gym's reach (the director, 13 Oct: "nothing should
+            // spawn more than 200m off").
+            case EnemyKind.Switchman:
+                return Points(world, you, min, max, t);
+            case EnemyKind.TrackDoll:
+                {
+                    // On the rail ahead, inside the reach: she shows in the headlamp at its reveal distance, and a train standing
+                    // when she does is her answer (she goes), so she's met moving.
+                    double hint = train.Dynamics.Distance;
+                    var (_, mine) = train.Line.Nearest(you, ref hint);
+                    double ahead = Math.Max(20, max - Inside - (train.Dynamics.Distance - mine));
+                    world.AddEnemy(i => TrackDoll.Ahead(i, train, ahead, t.TrackDoll));
+                    return train.Dynamics.Speed < 0.3 ? "on the rail ahead: a standing train answers her as she shows, so be moving when you call her" : "on the rail ahead";
+                }
+            case EnemyKind.TowerJaw:
+                return Tower(world, you, max, t);
+            case EnemyKind.Grumbler:
+                return Castings(world, you, max, t);
             case EnemyKind.Pickers:
                 {
                     var crates = Crates(world, you, min, max, 3);
@@ -129,9 +147,6 @@ public static class Calls
         return kind switch
         {
             EnemyKind.Ribbit => Warren(world, you, t),
-            EnemyKind.Switchman => Points(world, t),
-            EnemyKind.TowerJaw => Tower(world, t),
-            EnemyKind.Grumbler => Castings(world, t),
             EnemyKind.CarHugger => Hugger(world, t),
             EnemyKind.Follower => "it rides whoever's off the train: step down and call it again (only the others ever see it)",
             EnemyKind.Passenger => "it needs a car with a room, and a crewmate",
@@ -159,21 +174,30 @@ public static class Calls
         return "out of the stop's warren";
     }
 
-    /// <summary>The Switchman at the first points ahead: a dead line's if there's one, else any branch's (a yard's spur).</summary>
-    static string Points(World world, EnemyTuning t)
+    /// <summary>
+    /// The Switchman at points ahead of the engine, between <paramref name="min"/> and <paramref name="max"/> of you (a dead
+    /// line's before a yard's spur): it waits for the train to come over them, so points behind are no use to it.
+    /// </summary>
+    static string Points(World world, Double3 you, double min, double max, EnemyTuning t)
     {
         var train = world.Train;
         double front = train.Dynamics.Distance;
-        var ahead = train.Line.Branches.Where(b => !train.Diverging(b.Index) && b.Toe - front >= 60).ToList();
-        var branch = ahead.Where(b => b.Kind == Rail.BranchKind.DeadLine).OrderBy(b => b.Toe).FirstOrDefault() ?? ahead.OrderBy(b => b.Toe).FirstOrDefault();
+        double Off(Rail.Branch b) => Flat(train.Line.Sample(Rail.RailLine.MainPath, b.Toe).Position - you);
+        var ahead = train.Line.Branches.Where(b => !train.Diverging(b.Index) && b.Toe - front >= 20).ToList();
+        var branch = ahead.Where(b => Off(b) >= min && Off(b) <= max)
+            .OrderBy(b => b.Kind == Rail.BranchKind.DeadLine ? 0 : 1).ThenBy(b => b.Toe).FirstOrDefault();
         if (branch is null)
-            return "no points ahead on this line";
+        {
+            double nearest = ahead.Select(b => b.Toe - front).DefaultIfEmpty(double.PositiveInfinity).Min();
+            return double.IsInfinity(nearest) ? "no points ahead on this line"
+                : $"the next points are {nearest:0} m ahead, past the gym's {max:0} m: drive to within it and call again";
+        }
         world.AddEnemy(i => Switchman.At(i, branch, t.Switchman, world.Switches?.Tuning.LeverOffset ?? 2.6, false));
-        return $"at the {(branch.Kind == Rail.BranchKind.DeadLine ? "dead line's" : "branch's")} points {branch.Toe - front:0} m ahead: drive towards them";
+        return $"at the {(branch.Kind == Rail.BranchKind.DeadLine ? "dead line's" : "branch's")} points ahead: drive towards them";
     }
 
-    /// <summary>Tower Jaw at the nearest coaling tower or standing crane along the line, here or not.</summary>
-    static string Tower(World world, EnemyTuning t)
+    /// <summary>Tower Jaw at the nearest coaling tower or standing crane within <paramref name="max"/> of you, here or not.</summary>
+    static string Tower(World world, Double3 you, double max, EnemyTuning t)
     {
         if (world.Run is not { } run)
             return "no stops on this line";
@@ -181,22 +205,25 @@ public static class Calls
         var down = world.ActiveEnemies.OfType<TowerJaw>().Where(j => j.Mode == TowerJawMode.Wreck).Select(j => j.FacilityIndex).ToHashSet();
         foreach (int i in Enumerable.Range(0, run.Facilities.Count).Where(i => !down.Contains(i)).OrderBy(i => Math.Abs((run.Facilities[i].Start + run.Facilities[i].End) / 2 - front)))
         {
+            Enemy? jaw = null;
             if (run.Facilities[i].Facility == Route.FacilityKind.CoalingTower && run.ChuteLeft(i) > 0)
-            {
-                world.AddEnemy(n => TowerJaw.AtCoalingTower(n, world, i, t.TowerJaw, t.TowerJaw.StartGnawed));
-                return $"gnawing the coaling tower's leg, {Math.Abs(run.Facilities[i].Start - front):0} m along";
-            }
-            if (run.Sites.ElementAtOrDefault(i)?.Crane is { Wrecked: false } crane)
-            {
-                world.AddEnemy(n => TowerJaw.AtGantry(n, world, i, crane, t.TowerJaw, t.TowerJaw.StartGnawed));
-                return "gnawing the stop's crane's leg";
-            }
+                jaw = world.AddEnemy(n => TowerJaw.AtCoalingTower(n, world, i, t.TowerJaw, t.TowerJaw.StartGnawed));
+            else if (run.Sites.ElementAtOrDefault(i)?.Crane is { Wrecked: false } crane)
+                jaw = world.AddEnemy(n => TowerJaw.AtGantry(n, world, i, crane, t.TowerJaw, t.TowerJaw.StartGnawed));
+            if (jaw is null)
+                continue;
+            double off = Flat(jaw.WorldPosition(world.Train) - you);
+            if (off <= max)
+                return run.Facilities[i].Facility == Route.FacilityKind.CoalingTower ? "gnawing the coaling tower's leg" : "gnawing the stop's crane's leg";
+            // The nearest standing structure is past the gym's reach: it doesn't come.
+            jaw.Dismiss();
+            return $"the nearest crane or tower is {off:0} m off: past the gym's {max:0} m";
         }
         return "no coaling tower or crane standing on this line";
     }
 
-    /// <summary>The Grumbler on the castings stacked by the nearest crane, whether the train's in its yard or not.</summary>
-    static string Castings(World world, EnemyTuning t)
+    /// <summary>The Grumbler on castings stacked by a crane within <paramref name="max"/> of you, whether the train's in its yard or not.</summary>
+    static string Castings(World world, Double3 you, double max, EnemyTuning t)
     {
         if (world.Run is not { } run)
             return "no stops on this line";
@@ -204,10 +231,13 @@ public static class Calls
         foreach (int i in Enumerable.Range(0, run.Facilities.Count).OrderBy(i => Math.Abs((run.Facilities[i].Start + run.Facilities[i].End) / 2 - front)))
             if (run.Sites.ElementAtOrDefault(i)?.Crane is { } crane)
             {
-                var stacked = Enumerable.Range(0, crane.Castings.Length).Where(c => crane.Castings[c].State == CastingState.Stacked).ToList();
+                var stacked = Enumerable.Range(0, crane.Castings.Length).Where(c => crane.Castings[c].State == CastingState.Stacked)
+                    .OrderBy(c => Flat(crane.Castings[c].At - you)).ToList();
                 if (stacked.Count == 0)
                     continue;
                 int on = stacked[0];
+                if (Flat(crane.Castings[on].At - you) > max)
+                    return $"the nearest castings are {Flat(crane.Castings[on].At - you):0} m off: past the gym's {max:0} m";
                 var at = crane.Castings[on].At;
                 world.AddEnemy(n => Grumbler.OnCrates(n, at + Double3.Up * 0.8, on, t.Grumbler));
                 return "gnawing the castings by the crane: leave it be, or hit it";
@@ -219,12 +249,12 @@ public static class Calls
     static string Hugger(World world, EnemyTuning t)
     {
         var train = world.Train;
-        world.AddEnemy(i => CarHugger.Lurking(i, train.Dynamics.Distance + 300, 1, t.CarHugger));
+        world.AddEnemy(i => CarHugger.Lurking(i, train.Dynamics.Distance + 120, 1, t.CarHugger));
         return "lurking under the line ahead: run the train over it";
     }
 
     /// <summary>What lives in a house, in the open house nearest you that you're not in (a house creature acts only on who comes in).</summary>
-    static string House(World world, EnemyKind kind, Double3 you, EnemyTuning t)
+    static string House(World world, EnemyKind kind, Double3 you, double max, EnemyTuning t)
     {
         if (world.Route is not { } route || world.Train.Walls is not { } walls)
             return "no open houses here";
@@ -235,6 +265,8 @@ public static class Calls
         if (houses.Count == 0)
             return kind == EnemyKind.Householder ? "no open house with its things in it" : "every open house is taken";
         var house = houses[0];
+        if (Flat(house.Middle - you) > max)
+            return $"the nearest open house is {Flat(house.Middle - you):0} m off: past the gym's {max:0} m";
         world.AddEnemy<Enemy>(i => kind switch
         {
             EnemyKind.Lodger => Lodger.In(i, house, walls, t.Lodger),
@@ -307,6 +339,49 @@ public static class Calls
     /// than <paramref name="min"/> is moved out to it, along the way it already lay from you. The rest stays where its rule
     /// put it: on the train its rule picked the car, on the line it's ahead or behind by its rule, in a house it's its house.
     /// </summary>
+    /// <summary>How far inside the gym's reach what's brought in is put (m): a pack's width, so it's in by its farthest.</summary>
+    const double Inside = 10;
+
+    /// <summary>
+    /// What a call put farther from you than <paramref name="max"/> is brought in (the director, 13 Oct 2026: "nothing should
+    /// spawn more than 200m off"): what's on the line along it, ahead staying ahead and behind behind; what's on the ground
+    /// along the way it lay. A pack moves together, so it stays a pack. What's on the train is within its length; what stands
+    /// where its rule found it was chosen within reach (<see cref="Put"/>). The hidden (the Tippy Toesie, nowhere till it's
+    /// behind someone) and the ridden (a Follower, on someone's back) are left be.
+    /// </summary>
+    public static void KeepIn(World world, IReadOnlyList<Enemy> came, Double3 you, double max)
+    {
+        var train = world.Train;
+        double lim = max - Inside;
+        var free = came.Where(e => e.Kind is not (EnemyKind.TippyToesie or EnemyKind.Follower or EnemyKind.Switchman)).ToList();
+        // On the line: the farthest of those ahead of you brought to lim, the rest by the same; the same behind.
+        double hint = train.Dynamics.Distance;
+        var (_, mine) = train.Line.Nearest(you, ref hint);
+        var line = free.Where(e => e.Attached == -1).ToList();
+        foreach (int side in (int[])[1, -1])
+        {
+            var those = line.Where(e => Math.Sign(e.LineDistance - mine) == side || e.LineDistance == mine && side == 1).ToList();
+            if (those.Count == 0)
+                continue;
+            double far = those.Max(e => Math.Abs(e.LineDistance - mine));
+            if (far > lim)
+                foreach (var e in those)
+                    e.LineDistance -= side * (far - lim);
+        }
+        // On the ground: the farthest brought to lim along its bearing, the rest moved with it.
+        var ground = free.Where(e => e.Attached == Enemy.Loose).ToList();
+        if (ground.Count > 0 && ground.MaxBy(e => Flat(e.Local - you)) is { } farthest && Flat(farthest.Local - you) is var off && off > lim)
+        {
+            var toward = ((you - farthest.Local) with { Y = 0 }) * (1 / off) * (off - lim);
+            foreach (var e in ground)
+            {
+                var to = e.Local + toward;
+                double h = train.Dynamics.Distance;
+                e.Local = to with { Y = PlayerMotor.GroundAt(to, train.Line, ref h) };
+            }
+        }
+    }
+
     public static void KeepOff(World world, Enemy e, Double3 you, double min)
     {
         if (e.Attached != Enemy.Loose || e.Kind is not (EnemyKind.Ribbit or EnemyKind.Gaunt or EnemyKind.SootChildren or EnemyKind.Moose))

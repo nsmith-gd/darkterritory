@@ -9,9 +9,10 @@
   // Nothing called comes nearer you than this (metres), whatever its own rule would do: past every creature's reach, so
   // it never sets itself off as it arrives. A creature whose own reach is longer keeps that.
   "minDistance": 45,
-  // And no farther than this from you, so it's in sight to be watched (where its rule allows: the Track Doll on the line
-  // ahead, the Cinder Hounds behind the train).
-  "maxDistance": 140,
+  // And nothing farther than this (the director, 13 Oct 2026: "nothing should spawn more than 200m off"): what its rule
+  // would put farther off is brought in (the Track Doll, the Cinder Hounds, the Wakers on the line; a pack on the ground),
+  // and what stands where its rule finds it (the points, a crane or tower, a house) is taken only from those within it.
+  "maxDistance": 200,
   // Seconds from the killing blow to standing up again: long enough to see and hear it done.
   "respawnSeconds": 4,
   // The safe spot: a ring on the ground beside the engine, this far out from the track's centre on the side away from
@@ -40,7 +41,7 @@
   "notes": {
     "sleepers": { "from": "Debris on the line ahead (a hazard, off on real nights)", "answer": "Brake before it: over 40 km/h it derails the train" },
     "cinderHound": { "from": "A pack running up behind the train", "answer": "Run fast, or a round from the guns sends them off; aboard, beat them off" },
-    "switchman": { "from": "At the points ahead, at the lever", "answer": "It throws them as you come: go and throw them back" },
+    "switchman": { "from": "At the points ahead (within 200 m: drive near them first), at the lever", "answer": "It throws them as you come: go and throw them back" },
     "sootChildren": { "from": "A child calling out of the dark beyond the stop", "answer": "A real child or soot: go and see, and don't stand within reach" },
     "dragger": { "from": "Under a car's roof edge", "answer": "Keep off that roof's edge; at speed it pulls you over" },
     "stoker": { "from": "Boarding at the tender, for the firebox", "answer": "Drive it off on the way in; in the firebox, cool it out; never open the door on it" },
@@ -50,7 +51,7 @@
     "passenger": { "from": "In the rearmost car with a room", "answer": "Never be alone on the cars: it takes the lone one" },
     "follower": { "from": "On the back of whoever steps off at the stop", "answer": "Only the others see it: they have to tell you" },
     "drift": { "from": "The marsh's ground, under the cars", "answer": "Stand still and it loses you" },
-    "trackDoll": { "from": "On the rail 700 m ahead", "answer": "Stop for her or not; left alone aboard she gets worse, up to the brake" },
+    "trackDoll": { "from": "On the rail ahead (be moving when you call her: a standing train answers her)", "answer": "Stop for her or not; left alone aboard she gets worse, up to the brake" },
     "carHugger": { "from": "Under the line ahead, at a bridge or marsh", "answer": "It clamps the last car: pull a friend out of its mouth" },
     "whistler": { "from": "In a coupling gap", "answer": "Go about in pairs: it takes whoever passes the gap alone" },
     "tippyToesie": { "from": "Behind whoever stands still, alone", "answer": "Keep moving, keep together, and turn round" },

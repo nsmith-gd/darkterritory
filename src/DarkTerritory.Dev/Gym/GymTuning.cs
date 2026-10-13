@@ -15,8 +15,8 @@ public sealed record GymTuning
     public string Stop { get; init; } = "yardAndVillage";
     /// <summary>Nothing called comes nearer you than this (m), nor than its own reach.</summary>
     public double MinDistance { get; init; } = 45;
-    /// <summary>And no farther than this (m), where its own rule allows: in sight, to be watched.</summary>
-    public double MaxDistance { get; init; } = 140;
+    /// <summary>And nothing farther than this (m): brought in, or only chosen within it.</summary>
+    public double MaxDistance { get; init; } = 200;
     /// <summary>Seconds from the killing blow to standing up again.</summary>
     public double RespawnSeconds { get; init; } = 4;
     public RingTuning SafeRing { get; init; } = new();

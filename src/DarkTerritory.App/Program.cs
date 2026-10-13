@@ -1648,7 +1648,12 @@ CampaignState? Play(IPlaySession session, CampaignState? campaign)
         dev.Draw(overlay, UiWidth, UiHeight);
         // F1 hides it with the HUD (for filming).
         if (gym is not null && !menuShown && showHud)
+        {
             gym.Draw(overlay, UiWidth, UiHeight, now);
+            // And the pointer to what was called (note 676, part 2), as this machine draws the world.
+            if (vr is null)
+                gym.Pointer(overlay, UiWidth, UiHeight, camera, session.World);
+        }
 #endif
         if (vr is null)
         {
