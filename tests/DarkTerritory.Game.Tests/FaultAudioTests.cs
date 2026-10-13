@@ -101,6 +101,9 @@ public class FaultAudioTests
             Health = P.Health,
             Yaw = Math.PI,
             LineHint = Train.Cars[car].FrontDistance,
+            // The starting kit, the wrench in hand (note 301: it's what boards a breach up).
+            Kit = P.StartingKit,
+            HeldSlot = 1,
         };
     }
 
@@ -204,7 +207,8 @@ public class FaultAudioTests
         b.Crew[1] = b.Inside(car, 0) with { Position = Breaches.StandAt(b.Train, car) };
         b.Step();
         var hole = b.Train.Frames[car].ToWorld(b.Train.Vehicles[car].BreachAt);
-        // A board up, the first nails, then let go: the next hold puts up a board again.
+        // A board up, the first nails, then let go: the wrench still in hand at the hole, the work's kept (note 301), so the
+        // next hold goes on nailing the same board.
         b.Run(2, Use);
         Assert.Equal(1, b.Count(BoardPlace));
         Assert.True((b.Heard.Single(h => h.Name == BoardPlace).At - hole).Length < 1e-6);
@@ -215,7 +219,7 @@ public class FaultAudioTests
         Assert.Equal(nails, b.Count(Hammer));
         b.Run(T.Breach.BoardSeconds + 0.2, Use);
         Assert.False(b.Train.Vehicles[car].Breached);
-        Assert.Equal(2, b.Count(BoardPlace));
+        Assert.Equal(1, b.Count(BoardPlace));
         // A nail every half second or so, the length of the hold.
         Assert.InRange(b.Count(Hammer) - nails, 10, 18);
         var done = Assert.Single(b.Heard, h => h.Name == Done);

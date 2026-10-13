@@ -34,7 +34,7 @@ DRESS = {
     "skin.choir_face": (lambda: make.flat("choir_lips", (0.13, 0.115, 0.135), rough=0.15), 3),
     "skin.choir_frill": (lambda: make.flat("choir_frill", (0.24, 0.255, 0.27), rough=0.35), 2),
     "skin.choir_teeth": (lambda: make.flat("choir_teeth", (0.34, 0.31, 0.24), rough=0.4), 1),
-    "skin.choir": (lambda: make.flat("choir_skin", (0.17, 0.19, 0.21), rough=0.35), 2),
+    "skin.choir": (lambda: make.flat("choir_skin", (0.22, 0.25, 0.28), rough=0.35), 2),
     "tar.choir_hole": (lambda: make.flat("choir_hole", (0.004, 0.003, 0.003), rough=0.1), 1),
 }
 

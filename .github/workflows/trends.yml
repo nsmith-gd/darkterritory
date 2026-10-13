@@ -1,0 +1,65 @@
+# The trends (ARCHITECTURE §8 note 523): each push to main measured on the same bot nights, `dt trends measure` (4-bot full
+# nights with the enemies and the upkeep on frontier:7, seeds 1-8, the nights D1 measured by hand; and `dt perf`'s counts
+# and CPU phases). Its line goes onto trends/main.jsonl on the `trends` branch, the last ten values of every metric and any
+# fall go in the run's summary, and a fall is said on the pull request the commit came from, with the numbers and the
+# bisect to run. Docs-only pushes measure nothing (as CI: the nights read content/, never docs/).
+name: Trends
+on:
+  push:
+    branches: [main]
+    paths-ignore: ['docs/**', 'CLAUDE.md', 'README.md']
+  workflow_dispatch:
+permissions:
+  contents: write
+  pull-requests: write
+# One run at a time, never cancelled, so each line's history is the lines before it. GitHub holds one run waiting per group:
+# when main moves faster than a run takes (about 20 minutes), the waiting run gives way to the newer push's, and that line
+# then covers the commits between (tools/trends/bisect.sh finds which of them, if a fall's among them).
+concurrency:
+  group: trends
+  cancel-in-progress: false
+jobs:
+  measure:
+    runs-on: ubuntu-latest
+    timeout-minutes: 50
+    env:
+      DT: dotnet run --project src/DarkTerritory.Cli -c Release --no-build --
+      DOTNET_CLI_TELEMETRY_OPTOUT: "1"
+    steps:
+      - uses: actions/checkout@v4
+      - name: Software Vulkan (lavapipe), for dt perf
+        run: sudo apt-get update -qq && sudo apt-get install -y -qq mesa-vulkan-drivers libvulkan1
+      - uses: actions/setup-dotnet@v4
+        with:
+          global-json-file: global.json
+      - run: dotnet build src/DarkTerritory.Cli -c Release
+      - name: This commit's nights (eight, four at a time) and a frame's cost
+        run: |
+          mkdir -p out/trends
+          $DT trends measure --perf > out/trends/line.json
+          jq -c '{commit, pr, wallSeconds, balance: (.metrics | with_entries(select(.key | startswith("balance."))))}' out/trends/line.json
+      - name: The line onto trends/main.jsonl (the trends branch)
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898283+github-actions[bot]@users.noreply.github.com"
+          tools/trends/append.sh out/trends/line.json out/trends/main.jsonl
+      - name: The last ten, and any fall, in the summary
+        run: $DT trends show out/trends/main.jsonl --last 10 --markdown >> "$GITHUB_STEP_SUMMARY"
+      - name: A fall, said on the pull request it came from
+        env:
+          GH_TOKEN: ${{ github.token }}
+          RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+        run: |
+          $DT trends show out/trends/main.jsonl --comment --run "$RUN_URL" > out/trends/comment.md
+          if [ ! -s out/trends/comment.md ]; then echo "No falls at ${GITHUB_SHA::10}."; exit 0; fi
+          cat out/trends/comment.md
+          # Its pull request: a squash's "(#NNN)" or a merge's "Merge pull request #NNN", else the commit's own on GitHub.
+          pr=$(jq -r '.pr // empty' out/trends/line.json)
+          [ -n "$pr" ] || pr=$(gh api "repos/$GITHUB_REPOSITORY/commits/$GITHUB_SHA/pulls" --jq '.[0].number // empty' || true)
+          if [ -z "$pr" ]; then echo "::warning::A fall at ${GITHUB_SHA::10}, and no pull request to say it on: see the summary"; exit 0; fi
+          gh api --method POST "repos/$GITHUB_REPOSITORY/issues/$pr/comments" -f body="$(cat out/trends/comment.md)" --jq .html_url
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: trends-${{ github.run_number }}
+          path: out/trends/

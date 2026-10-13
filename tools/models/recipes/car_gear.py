@@ -160,9 +160,10 @@ def truck_archbar(m):
 # ----------------------------------------------------------------------------------------------------------------
 # The coupler
 
-def coupler_knuckle(m, open_=False):
+def coupler_knuckle(m, open_=False, knuckle=True, jaw=False):
     """`open_`: cut (T91, spec B.4): the cut lever lifted the lock, the knuckle swung wide open on its pin, the hose parted
-    at its glad hand and hanging straight down."""
+    at its glad hand and hanging straight down. `knuckle` False: the head without its knuckle (the game swings that on its
+    pin, note 402); `jaw`: the knuckle alone, shut, in the same frame (its pin at x 0.1, y 0.47, 0.9 up)."""
     p = []
     H = 0.9
     # The knuckle turns about its pin (x 0.1, y 0.47, vertical): -18 degrees shut, swung out 80 more open.
@@ -171,15 +172,23 @@ def coupler_knuckle(m, open_=False):
     def turned(c):
         pin = Vector((0.1, 0.47, H))
         return tuple(pin + swing.to_3x3() @ (Vector(c) - pin))
+    if jaw:
+        p.append(make.box(turned((0.05, 0.54, H)), (0.08, 0.035, 0.12), m["cast"], bevel=0.015, name="knuckle",
+                          rot=swing @ Matrix.Rotation(math.radians(-18), 4, "Z")))
+        p.append(make.box(turned((0.12, 0.575, H)), (0.035, 0.03, 0.11), m["cast"], bevel=0.012, name="knuckle_nose", rot=swing))
+        # The pin's boss turns with it about its own axis (it looks the same at any swing).
+        p.append(make.cyl((0.1, 0.47, H - 0.13), (0.1, 0.47, H + 0.13), 0.05, m["cast"], n=14, bevel=0.008, name="pin_boss", low=8))
+        return p
     # The striker casting on the end beam's face, the yoke behind it, the shank out through it.
     p.append(make.box((0, 0.03, H), (0.24, 0.03, 0.17), m["cast"], bevel=0.015, name="striker"))
     p.append(make.box((0, 0.2, H), (0.075, 0.17, 0.065), m["cast"], bevel=0.012, name="shank"))
     # The head: its body, the knuckle turned on its pin to the right, the guard arm on the left, the lock's lift.
     p.append(make.box((0, 0.42, H), (0.13, 0.07, 0.13), m["cast"], bevel=0.02, name="head"))
-    p.append(make.cyl((0.1, 0.47, H - 0.13), (0.1, 0.47, H + 0.13), 0.05, m["cast"], n=14, bevel=0.008, name="pin_boss", low=8))
-    p.append(make.box(turned((0.05, 0.54, H)), (0.08, 0.035, 0.12), m["cast"], bevel=0.015, name="knuckle",
-                      rot=swing @ Matrix.Rotation(math.radians(-18), 4, "Z")))
-    p.append(make.box(turned((0.12, 0.575, H)), (0.035, 0.03, 0.11), m["cast"], bevel=0.012, name="knuckle_nose", rot=swing))
+    if knuckle:
+        p.append(make.cyl((0.1, 0.47, H - 0.13), (0.1, 0.47, H + 0.13), 0.05, m["cast"], n=14, bevel=0.008, name="pin_boss", low=8))
+        p.append(make.box(turned((0.05, 0.54, H)), (0.08, 0.035, 0.12), m["cast"], bevel=0.015, name="knuckle",
+                          rot=swing @ Matrix.Rotation(math.radians(-18), 4, "Z")))
+        p.append(make.box(turned((0.12, 0.575, H)), (0.035, 0.03, 0.11), m["cast"], bevel=0.012, name="knuckle_nose", rot=swing))
     p.append(make.box((-0.11, 0.53, H), (0.03, 0.06, 0.12), m["cast"], bevel=0.012, name="guard_arm"))
     p.append(make.cyl((0.1, 0.47, H + 0.13), (0.1, 0.47, H + 0.16), 0.022, m["iron"], n=10, name="pin_head", low=0))
     lift = 0.07 if open_ else 0.0
@@ -243,4 +252,8 @@ def brake_gear(m):
 build("truck_archbar", truck_archbar, "a freight car's arch-bar truck", budget=4000)
 build("coupler_knuckle", coupler_knuckle, "a knuckle coupler, its cut lever and air hose", budget=1500)
 build("coupler_open", lambda m: coupler_knuckle(m, open_=True), "a cut knuckle coupler: the knuckle open, the hose parted", budget=1500)
+# The knuckle on its own and the heads without it (note 402): the game swings the knuckle open on its pin as it's cut.
+build("coupler_head_shut", lambda m: coupler_knuckle(m, knuckle=False), "a knuckle coupler's head without its knuckle", budget=1400)
+build("coupler_head_open", lambda m: coupler_knuckle(m, open_=True, knuckle=False), "a cut coupler's head without its knuckle", budget=1400)
+build("coupler_jaw", lambda m: coupler_knuckle(m, jaw=True), "a knuckle coupler's knuckle, shut, on its pin", size=512, budget=300)
 build("brake_gear", brake_gear, "a car's brake gear", budget=1500)

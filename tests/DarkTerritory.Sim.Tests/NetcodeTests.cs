@@ -85,6 +85,94 @@ public class NetcodeTests
     }
 
     [Fact]
+    public void AClientPacesItselfToAHostThatsBehind()
+    {
+        // Note 532: a host whose frames can't hold 30 Hz used to throw the oldest of a client's queued inputs away (rubber
+        // banding on the host's frame rate). Now the snapshot says how many it's holding, and the client stretches its own clock
+        // until the host has caught up: the night runs at the host's pace for everyone.
+        var (net, host, clients) = Session(1);
+        var c = clients[0];
+        Run(net, host, clients, 30, _ => default);
+        Assert.True(c.Connected);
+        Assert.Equal(1, c.Pace);
+        Assert.InRange(c.HostQueued, 0, 2);
+        // The host steps on two ticks in three; the client on every one. Its queue on the host grows, past link.paceQueued
+        // for link.paceSeconds, and the client's pace goes up.
+        for (int t = 0; t < 60; t++)
+        {
+            net.Advance(SimConstants.TickSeconds);
+            if (t % 3 != 2)
+                host.Step();
+            c.Step(default);
+        }
+        Assert.True(c.HostQueued > P.Link.PaceQueued, $"host holds {c.HostQueued}");
+        Assert.Equal(1 + P.Link.PaceSlow, c.Pace);
+        // The host catches up (the app would be stepping the client more slowly meanwhile; here it just stops sending for a
+        // while, as a stretched clock sends fewer inputs a second): the queue drains, and the pace is a tick again.
+        for (int t = 0; t < 30; t++)
+        {
+            net.Advance(SimConstants.TickSeconds);
+            host.Step();
+            if (t % 3 == 0)
+                c.Step(default);
+        }
+        Assert.InRange(c.HostQueued, 0, 1);
+        Assert.Equal(1, c.Pace);
+    }
+
+    [Fact]
+    public void AClientOnAThinDownlinkIsSentEveryOtherSnapshotAndStopsLosingThem()
+    {
+        // Note 549: a client's downlink that can't carry 30 snapshots a second loses a share of them, and tells the host so in
+        // its inputs; the host sends it every other one instead, which fits, and the loss goes.
+        var (net, host, clients) = Session(1);
+        var c = clients[0];
+        Run(net, host, clients, 2 * SimConstants.TickRate + 1, _ => default);
+        // Room for about two thirds of what 30 Hz needs (a second's worth measured): a third lost; 15 Hz fits with room to spare.
+        Assert.True(host.UpKbps > 0);
+        net.Conditions = new LinkConditions(0.03, 0.005, 0) { DownKbps = host.UpKbps * 0.66 };
+        Run(net, host, clients, (int)(P.Link.ThinSeconds * SimConstants.TickRate) + 10 * SimConstants.TickRate, _ => default);
+        Assert.True(host.IsThinned(c.PlayerId!.Value), $"not thinned: the client reported {host.ReportedLoss(c.PlayerId!.Value)}%");
+        Assert.True(c.Thinned);
+        Assert.True(host.SnapshotsThinned > 0);
+        // Thinned, the snapshots fit: the loss the client counts (the withheld ticks aren't lost) is back under the threshold.
+        Run(net, host, clients, 12 * SimConstants.TickRate, _ => default);
+        Assert.True(host.ReportedLoss(c.PlayerId!.Value) < P.Link.ThinLossPct, $"still reporting {host.ReportedLoss(c.PlayerId!.Value)}%");
+        Assert.True(c.MaxCorrection < 0.5, $"corrected by {c.MaxCorrection} m");
+        // The thinning is held for link.thinHoldSeconds of quiet (the 12 s just run count), then let go, whatever the link.
+        net.Conditions = LinkConditions.Perfect;
+        Run(net, host, clients, 2 * SimConstants.TickRate, _ => default);
+        Assert.True(host.IsThinned(c.PlayerId!.Value));
+        Run(net, host, clients, (int)(P.Link.ThinHoldSeconds * SimConstants.TickRate), _ => default);
+        Assert.False(host.IsThinned(c.PlayerId!.Value));
+        // A link that carries everything is never thinned.
+        var (perfectNet, perfectHost, perfectClients) = Session(1);
+        Run(perfectNet, perfectHost, perfectClients, 15 * SimConstants.TickRate, _ => default);
+        Assert.Equal(0, perfectHost.SnapshotsThinned);
+        Assert.False(perfectHost.IsThinned(perfectClients[0].PlayerId!.Value));
+    }
+
+    [Fact]
+    public void TheHostIsToldWhenItsUploadCantCarryTheCrew()
+    {
+        // Note 549: three clients, and a host upload that carries a third of what they need between them: the crew report thin
+        // downlinks at once (a starved one, hearing nothing, reports all of it lost), which only the host's own link explains.
+        // The cap lifted, the word goes.
+        var (net, host, clients) = Session(3);
+        Run(net, host, clients, 2 * SimConstants.TickRate + 1, _ => default);
+        Assert.False(host.UploadStrained);
+        Assert.True(host.UpKbps > 0);
+        net.Conditions = new LinkConditions(0.03, 0.005, 0) { HostUpKbps = host.UpKbps * 0.33 };
+        Run(net, host, clients, (int)(P.Link.StrainSeconds * SimConstants.TickRate) + 10 * SimConstants.TickRate, _ => default);
+        Assert.True(host.UploadStrained, string.Join(" | ", clients.Select(cl => $"{cl.PlayerId}: reported {host.ReportedLoss(cl.PlayerId!.Value)}%")));
+        Assert.True(host.UpKbps > 0);
+        Assert.Equal(0, clients.Count(cl => !cl.Connected));
+        net.Conditions = LinkConditions.Perfect;
+        Run(net, host, clients, 15 * SimConstants.TickRate, _ => default);
+        Assert.False(host.UploadStrained);
+    }
+
+    [Fact]
     public void OnlySomeoneOnTheEngineCanDrive()
     {
         var (net, host, clients) = Session(2);
@@ -196,6 +284,35 @@ public class NetcodeTests
     }
 
     [Fact]
+    public void AClientMendingADentIsPredictedExactly()
+    {
+        // Note 301: a battered car mended at its dent with the wrench; the mender's client predicts it like any hold.
+        var (net, host, clients) = Session(2);
+        Run(net, host, clients, 10, _ => default);
+        const int car = 3;
+        host.Train.Vehicles[car].Integrity = 0.5;
+        var dent = Repairs.DentAt(host.Train.Frames[car].Shape)!.Value;
+        HostTeleport(host, clients[1].PlayerId!.Value, new PlayerState
+        {
+            Parent = car,
+            Surface = Surface.Deck,
+            Position = new Ballast.Double3(T.Geometry.Interior!.DoorX, T.Geometry.Interior.FloorHeight, dent.Z),
+            Yaw = Math.PI,
+            Health = 100,
+            Kit = Kit.Of([Tool.Crowbar, Tool.Wrench]),
+            HeldSlot = 1,
+        });
+        Run(net, host, clients, 5, _ => default);
+        foreach (var c in clients)
+            c.ResetStats();
+        Run(net, host, clients, 120, i => i == 1 ? new PlayerIntent { Buttons = PlayerButtons.Use } : default);
+        Run(net, host, clients, 3, _ => default);
+        Assert.True(host.Train.Vehicles[car].Integrity > 0.5 + T.Repair.IntegrityPerSecond);
+        Assert.All(clients, c => Assert.Equal(host.Train.Vehicles[car].Integrity, c.Train.Vehicles[car].Integrity, 4));
+        Assert.All(clients, c => Assert.Equal(0, c.MaxCorrection));
+    }
+
+    [Fact]
     public void AClientBoardingUpABreachIsPredictedExactly()
     {
         // Decided 1 Oct: a breached car is boarded up from inside, Use held at the hole; the boarder's client predicts it.
@@ -211,6 +328,9 @@ public class NetcodeTests
             Position = new Ballast.Double3(T.Geometry.Interior!.DoorX, T.Geometry.Interior.FloorHeight, room.Max.Z - 0.7),
             Yaw = Math.PI,
             Health = 100,
+            // The wrench in hand (note 301: it's what boards it up).
+            Kit = Kit.Of([Tool.Crowbar, Tool.Wrench]),
+            HeldSlot = 1,
         });
         Run(net, host, clients, 5, _ => default);
         Assert.All(clients, c => Assert.True(c.Train.Vehicles[car].Breached));
@@ -531,7 +651,7 @@ public class SessionRulesTests
     {
         // GDD v1.1 App. A.6: "its host can't see it; their friends can, if they look".
         var (net, host, clients, _) = Session(2);
-        host.EnableEnemies(Tuning.Enemies with { Director = Tuning.Enemies.Director with { GraceSeconds = 1e9 } }, null, 1, 2);
+        host.EnableEnemies(Tuning.Enemies with { Director = Tuning.Enemies.Director with { GraceMinSeconds = 1e9, GraceMaxSeconds = 1e9 } }, null, 1, 2);
         Run(net, host, clients, 10);
         byte carrier = clients[1].PlayerId!.Value;
         var near = host.Train.Line.Sample(host.Train.Dynamics.Distance - 30);

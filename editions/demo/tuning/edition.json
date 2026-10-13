@@ -6,5 +6,8 @@
   "campaign": false,
   "maxCars": 8,
   "tag": "DEMO",
-  "afterNight": "The full line runs farther out. Wishlist Dark Territory on Steam."
+  "afterNight": "The full line runs farther out. Wishlist Dark Territory on Steam.",
+  // Note 434: the full game's Steam app id, whose store page WISHLIST ON STEAM on the title opens (the overlay's, or the
+  // browser's). 0 until the store page is up: the entry's hidden until then.
+  "storeAppId": 0
 }

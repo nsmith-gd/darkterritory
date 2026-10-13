@@ -18,9 +18,23 @@ public static class NovaKit
         new(0.78f, 0.76f, 0.70f), new(0.46f, 0.16f, 0.12f), new(0.62f, 0.50f, 0.26f), new(0.36f, 0.42f, 0.46f), new(0.20f, 0.28f, 0.22f),
     ];
 
+    /// <summary>
+    /// How a spruce, fir or tamarack has grown or been broken (note 395; the director: "the same three things over and over
+    /// again"): plain; flagged, the barrens' and the coast's wind-cut spruce, its growth all on the lee side and its lower
+    /// trunk bare; broken, its top snapped off in a storm and a bare splintered snag left standing; forked, two leaders
+    /// from halfway up. (Leaning is the placing's, not the piece's: PlanArt.)
+    /// </summary>
+    public enum TreeForm : byte { Plain, Flagged, Broken, Forked }
+
     /// <summary>A spruce (<paramref name="width"/> 0.3 of its height) or a fir (0.45): crossed cards round a faceted trunk, darker and bluer than the pines.</summary>
-    public static MeshAsset Conifer(Look? look, int variant, float height, float width)
+    public static MeshAsset Conifer(Look? look, int variant, float height, float width) => Conifer(look, variant, height, width, TreeForm.Plain);
+
+    /// <summary>The same in a <paramref name="form"/> (<see cref="TreeForm"/>): the trunk at the foot always the plain one's, so the
+    /// Sim's wall (LinesideProp.Radius) is the same tree.</summary>
+    public static MeshAsset Conifer(Look? look, int variant, float height, float width, TreeForm form)
     {
+        if (form != TreeForm.Plain)
+            return ConiferForm(look, variant, height, width, form);
         var k = new Kit(look, 2100 + variant);
         k.Use("pine_bark", Palette.DeepBrown, 0.6f, 0, tile: 1.5f);
         k.Cylinder(Vector3.Zero, new Vector3(0, height * 0.7f, 0), height * 0.018f, 5, caps: false, radiusB: height * 0.006f);
@@ -48,6 +62,183 @@ public static class NovaKit
                     Vector2.Zero, new Vector2(1, 0.3f), twoSided: true);
             }
         return k.Build($"conifer-{variant}-{height:0}-{width:0.00}");
+    }
+
+    static MeshAsset ConiferForm(Look? look, int variant, float height, float width, TreeForm form)
+    {
+        var k = new Kit(look, 2150 + variant * 7 + (int)form);
+        var rng = new Random(2150 + variant * 7 + (int)form);
+        bool spire = width < 0.4f && look?.Layer("spruce_card") >= 0;
+        if (spire)
+            width = 0.32f;
+        float r0 = height * 0.018f;
+        bool flip = variant % 2 == 1;
+        void Bark() => k.Use("pine_bark", Palette.DeepBrown, 0.6f, 0, tile: 1.5f);
+        void Needles()
+        {
+            k.Use(spire ? "spruce_card" : "pine_card", Palette.PineDark, 0.3f, 0, tile: 1);
+            k.Baked = 0;
+            k.Tint = spire ? new Vector3(0.75f, 0.85f, 0.85f) : new Vector3(0.62f, 0.72f, 0.74f);
+        }
+        // Crossed cards for a crown from y0 to y1 (the card's own top cropped off to `top` of it), centred at `at`.
+        void Crown(Vector3 at, float y0, float y1, float w, float top, int cards)
+        {
+            for (int i = 0; i < cards; i++)
+            {
+                float a = variant * 0.8f + i * MathF.PI / cards;
+                var n = new Vector3(MathF.Sin(a), 0, MathF.Cos(a));
+                Vector2 t0 = flip ? new Vector2(1, top) : new Vector2(0, top), t1 = flip ? new Vector2(0, 1) : Vector2.One;
+                k.Panel(at + new Vector3(0, (y0 + y1) / 2, 0), n, Vector3.UnitY, w, y1 - y0, t0, t1, twoSided: true);
+            }
+        }
+        switch (form)
+        {
+            case TreeForm.Flagged:
+                {
+                    // Wind-cut: the trunk bare up its lower half, the growth all flung to the lee (+X), narrow and ragged.
+                    Bark();
+                    k.Cylinder(Vector3.Zero, new Vector3(0.1f, height * 0.9f, 0), r0, 5, caps: false, radiusB: height * 0.005f);
+                    for (float y = height * 0.15f; y < height * 0.5f; y += height * 0.09f)
+                    {
+                        float a = (float)rng.NextDouble() * MathF.Tau, len = height * (0.04f + 0.04f * (float)rng.NextDouble());
+                        k.Rod(new Vector3(0, y, 0), new Vector3(MathF.Sin(a) * len, y - len * 0.3f, MathF.Cos(a) * len), 0.02f, 3);
+                    }
+                    Needles();
+                    float w = height * width * 0.75f;
+                    Crown(new Vector3(w * 0.32f, 0, 0), height * 0.42f, height, w, 0, 2);
+                    break;
+                }
+            case TreeForm.Broken:
+                {
+                    // Snapped at two thirds: the crown below the break, a bare splintered snag over it, a dead stub or two.
+                    float snap = height * (0.58f + 0.12f * (float)rng.NextDouble());
+                    Bark();
+                    k.Cylinder(Vector3.Zero, new Vector3(0, snap, 0), r0, 5, caps: false, radiusB: height * 0.009f);
+                    k.Use("wood_grey", Palette.BlueGrey, 0.9f, 0.05f, tile: 1);
+                    k.Tint = new Vector3(1.1f, 1.08f, 1.05f);
+                    for (int i = 0; i < 3; i++)
+                    {
+                        float a = i * 2.1f + variant;
+                        k.Rod(new Vector3(0, snap - 0.05f, 0), new Vector3(MathF.Sin(a) * 0.08f, snap + 0.35f + 0.3f * (float)rng.NextDouble(), MathF.Cos(a) * 0.08f), 0.04f, 3);
+                    }
+                    Needles();
+                    float cut = 1 - snap / height;
+                    Crown(Vector3.Zero, 0, snap * 0.97f, height * width, cut, 3);
+                    break;
+                }
+            case TreeForm.Forked:
+                {
+                    // Two leaders from halfway: the trunk splits, each crown smaller and leant out from the other.
+                    float split = height * 0.42f;
+                    var lean = new Vector3(height * 0.07f, 0, 0);
+                    Bark();
+                    k.Cylinder(Vector3.Zero, new Vector3(0, split, 0), r0, 5, caps: false, radiusB: r0 * 0.75f);
+                    foreach (int side in new[] { -1, 1 })
+                        k.Cylinder(new Vector3(0, split * 0.98f, 0), lean * side + new Vector3(0, height * 0.85f, 0), r0 * 0.7f, 5, caps: false, radiusB: height * 0.004f);
+                    Needles();
+                    Crown(Vector3.Zero, height * 0.12f, split + height * 0.08f, height * width, 0.72f, 3);
+                    foreach (int side in new[] { -1, 1 })
+                        Crown(lean * side * 1.05f, split * 0.9f, height * (side > 0 ? 1 : 0.9f), height * width * 0.62f, 0, 2);
+                    break;
+                }
+        }
+        return k.Build($"conifer-{variant}-{height:0}-{width:0.00}-{form}");
+    }
+
+    /// <summary>
+    /// The forest floor beside the line (note 395), low and passable as the tufts and the alder are: a fallen trunk with its
+    /// root plate torn up and stub branches, a stump, a mat of juniper, a patch of blueberry gone red in the fall.
+    /// </summary>
+    public enum FloorKind : byte { Deadfall, Stump, Juniper, Blueberry }
+
+    public static MeshAsset Floor(Look? look, FloorKind kind, int variant)
+    {
+        var k = new Kit(look, 2400 + (int)kind * 16 + variant);
+        var rng = new Random(2400 + (int)kind * 16 + variant);
+        switch (kind)
+        {
+            case FloorKind.Deadfall:
+                {
+                    // Down along −Z: the trunk lying a little off the ground at its root end, the root plate stood on edge.
+                    float len = 5 + variant * 1.2f, r = 0.16f + 0.03f * variant;
+                    k.Use("wood_grey", Palette.BlueGrey, 0.9f, 0.05f, tile: 1);
+                    k.Tint = new Vector3(0.95f, 0.92f, 0.88f);
+                    k.Cylinder(new Vector3(0, r + 0.12f, 0), new Vector3(0.15f, r * 0.8f, -len), r, 6, caps: true, radiusB: r * 0.35f);
+                    for (float z = -1.2f; z > -len + 0.5f; z -= 0.6f + (float)rng.NextDouble() * 0.6f)
+                    {
+                        float a = (float)rng.NextDouble() * MathF.PI - MathF.PI / 2, l = 0.3f + 0.5f * (float)rng.NextDouble();
+                        var from = new Vector3(0, r + 0.1f, z);
+                        k.Rod(from, from + new Vector3(MathF.Sin(a) * l, MathF.Cos(a) * l * 0.6f + 0.1f, -l * 0.3f), 0.025f, 3);
+                    }
+                    // The root plate: earth and roots torn up with it, a dark disc stood on edge, roots out of its rim.
+                    k.Use("ground_mud", Palette.DeepBrown, 0.95f, 0, tile: 0.7f);
+                    k.Tint = new Vector3(0.55f, 0.48f, 0.42f);
+                    k.Disc(new Vector3(0, 0.75f, 0.12f), Vector3.UnitZ, 0.8f + 0.15f * variant, 9);
+                    k.Disc(new Vector3(0, 0.75f, 0.1f), -Vector3.UnitZ, 0.8f + 0.15f * variant, 9);
+                    k.Use("pine_bark", Palette.DeepBrown, 0.6f, 0, tile: 1.5f);
+                    for (int i = 0; i < 7; i++)
+                    {
+                        float a = i * MathF.Tau / 7 + (float)rng.NextDouble() * 0.4f, rr = 0.75f + 0.15f * variant;
+                        var from = new Vector3(MathF.Cos(a) * rr * 0.8f, 0.75f + MathF.Sin(a) * rr * 0.8f, 0.12f);
+                        k.Rod(from, from + new Vector3(MathF.Cos(a) * 0.45f, MathF.Sin(a) * 0.45f, 0.2f), 0.03f, 3);
+                    }
+                    break;
+                }
+            case FloorKind.Stump:
+                {
+                    // Cut or snapped: a short trunk, its top ragged (a saw cut gone grey, or splinters), a root or two over the ground.
+                    float h = 0.35f + 0.25f * variant, r = 0.2f + 0.05f * variant;
+                    k.Use("pine_bark", Palette.DeepBrown, 0.6f, 0, tile: 1.5f);
+                    k.Cylinder(Vector3.Zero, new Vector3(0, h, 0), r * 1.15f, 7, caps: false, radiusB: r);
+                    k.Use("wood_grey", Palette.BlueGrey, 0.9f, 0.05f, tile: 0.5f);
+                    k.Disc(new Vector3(0, h, 0), Vector3.UnitY, r, 7);
+                    if (variant % 2 == 1)
+                        for (int i = 0; i < 4; i++)
+                        {
+                            float a = i * 1.6f;
+                            k.Rod(new Vector3(MathF.Sin(a) * r * 0.5f, h - 0.02f, MathF.Cos(a) * r * 0.5f), new Vector3(MathF.Sin(a) * r * 0.4f, h + 0.18f + 0.1f * i % 2, MathF.Cos(a) * r * 0.4f), 0.03f, 3);
+                        }
+                    k.Use("pine_bark", Palette.DeepBrown, 0.6f, 0, tile: 1.5f);
+                    for (int i = 0; i < 3; i++)
+                    {
+                        float a = i * 2.2f + variant;
+                        k.Rod(new Vector3(MathF.Sin(a) * r, 0.12f, MathF.Cos(a) * r), new Vector3(MathF.Sin(a) * (r + 0.55f), -0.05f, MathF.Cos(a) * (r + 0.55f)), 0.05f, 4);
+                    }
+                    break;
+                }
+            case FloorKind.Juniper:
+                {
+                    // A low mat, wider than it's high: dark blue-green cards laid out flat-ish round the centre.
+                    k.Use("pine_card", Palette.PineDark, 0.3f, 0, tile: 1);
+                    k.Baked = 0;
+                    k.Tint = new Vector3(0.45f, 0.6f, 0.62f);
+                    int n = 4 + variant;
+                    for (int i = 0; i < n; i++)
+                    {
+                        float a = i * MathF.Tau / n + (float)rng.NextDouble() * 0.5f, d = 0.35f + 0.4f * (float)rng.NextDouble();
+                        var at = new Vector3(MathF.Sin(a) * d, 0.22f, MathF.Cos(a) * d);
+                        var normal = Vector3.Normalize(new Vector3(MathF.Cos(a), 0.6f, -MathF.Sin(a)));
+                        k.Panel(at, normal, Vector3.UnitY, 1.1f, 0.5f, new Vector2(0, 0.5f), new Vector2(1, 1), twoSided: true);
+                    }
+                    break;
+                }
+            default:
+                {
+                    // Lowbush blueberry, the barrens' and the burns' red: knee-high crossed cards of twigs, tinted crimson.
+                    k.Use("dead_tree_card", Palette.SootBlack, 0.3f, 0, tile: 1);
+                    k.Baked = 0;
+                    k.Tint = new Vector3(1.4f, 0.32f, 0.22f);
+                    int n = 3 + variant;
+                    for (int i = 0; i < n; i++)
+                    {
+                        float a = (float)rng.NextDouble() * MathF.PI, d = 0.5f * (float)rng.NextDouble(), b = (float)rng.NextDouble() * MathF.Tau;
+                        k.Panel(new Vector3(MathF.Sin(b) * d, 0.2f, MathF.Cos(b) * d), new Vector3(MathF.Sin(a), 0, MathF.Cos(a)), Vector3.UnitY, 0.9f, 0.42f,
+                            new Vector2(0, 0.6f), new Vector2(1, 1), twoSided: true);
+                    }
+                    break;
+                }
+        }
+        return k.Build($"floor-{kind}-{variant}");
     }
 
     /// <summary>A white birch, leafless: a pale trunk leaning a little, the bare crown in crossed cards, paler than the dead pines.</summary>

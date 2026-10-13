@@ -189,6 +189,57 @@ public static partial class StopGenerator
         return new YardPlan(side, form, Toe(0), faceEnd);
     }
 
+    /// <summary>
+    /// The director, 8 Oct 2026 (queue #89; ARCHITECTURE §8 note 352): "I spent all this work pulling into a yard switch line
+    /// that had no loot ... Loot should spawn in all yard lines in early game and mid game." Where the tier says so
+    /// (stops.json `everyTrack`), every yard track has something to load beside its loading face: a crane bay of its own, or
+    /// a container in a shed it stands beside, on its side of the shed. A track with none gets a crate stack in the bay of
+    /// such a shed nearest the middle of its face, on its side (a hero shed only if there's no other). No dice, and the
+    /// stack is the last container laid, so the rest of the stop, and what the economy deals into it, is what it was.
+    /// </summary>
+    static void StockEveryTrack(StopDraft g, StopTuning t)
+    {
+        foreach (var tr in g.Tracks)
+        {
+            if (g.Containers.Any(c => Beside(g, c, tr)))
+                continue;
+            double mid = (tr.FaceStart.S + tr.FaceEnd.S) / 2, best = double.MaxValue;
+            (int Building, Pt At)? pick = null;
+            for (int bi = 0; bi < g.Buildings.Count; bi++)
+            {
+                var b = g.Buildings[bi];
+                if (b.Zone != StopZone.Yard || b.Kind is not (BuildingKind.Shed or BuildingKind.Hero) || !b.Tracks.Contains(tr.Index))
+                    continue;
+                int count = Math.Max(1, (int)(b.Length / t.Crane.BayEvery));
+                for (int q = 0; q < count; q++)
+                    foreach (int y in (int[])[-1, 1])
+                    {
+                        var at = Plan.World(b, -b.Length / 2 + (q + 0.5) * b.Length / count, y * (b.Width / 2 - t.Crane.BayInset));
+                        double score = Math.Abs(at.S - mid) + (b.Kind == BuildingKind.Hero ? 1e4 : 0);
+                        if (score >= best || NearestTrack(g, b.Tracks, at) != tr.Index || g.Containers.Any(c => Pt.Distance(c.At, at) < 2.5))
+                            continue;
+                        (best, pick) = (score, (bi, at));
+                    }
+            }
+            if (pick is { } p)
+                g.Contain(ContainerKind.CrateStack, StopZone.Yard, p.At, 1, g.Buildings[p.Building].Tracks.Min() + 1, p.Building);
+        }
+    }
+
+    /// <summary>
+    /// Note 352: whether a yard container is beside a track. Its crane bay is; so is one in a shed the track stands beside,
+    /// on the track's side of it (nearer it than the shed's other track).
+    /// </summary>
+    static bool Beside(StopDraft g, StopContainer c, YardTrack tr)
+    {
+        if (c.Kind == ContainerKind.CraneBay)
+            return c.Track == tr.Index;
+        return c.Zone == StopZone.Yard && c.Building >= 0 && g.Buildings[c.Building].Tracks.Contains(tr.Index)
+            && NearestTrack(g, g.Buildings[c.Building].Tracks, c.At) == tr.Index;
+    }
+
+    static int NearestTrack(StopDraft g, IReadOnlyList<int> tracks, Pt p) => tracks.MinBy(i => Plan.PolylineDistance(p, g.Tracks[i].Path));
+
     /// <param name="faceAt">Distance along the track to its straight; <paramref name="loading"/> past that, the middle of the shared face.</param>
     /// <param name="before">Straight before the shared face begins: an outer track reaches its straight sooner.</param>
     static void AddTrack(StopDraft g, StopTuning t, in StopContext cx, int index, int side, double toe, double offset, List<TrackSegment> segments,

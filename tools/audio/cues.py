@@ -105,6 +105,11 @@ CUES = {
         O("stow", "Back into the hotbar", need="Not in the game yet: there's no hotbar (an extinguisher is carried or dropped) in the sim, so nothing plays this. Ready for when there is."),
         O("drop", "Dropped, or thrown and landing: a steel cylinder hitting", mats=DROP,
           cand={"wood": K("impactWood_heavy"), "grate": K("impactMetal_heavy")}),
+        # On the fire (queue #205, note 469; the director, 8 Oct: holding it on a fire "doesnt feel like its doing anything"):
+        # where the jet meets the flames, a patch of the fire going out, and the whole fire out.
+        L("on-fire", "The jet on burning boards: the water flashing to steam, the flames beaten down"),
+        O("cell-out", "A patch of the fire put out: the flames collapsing in a hissing gasp", vars=3),
+        O("fire-out", "The fire out: a long sigh of steam, the boards dripping and ticking as they cool", vars=2),
     ],
     "crew-melee": [
         *[c for tool in ("shovel", "wrench", "crowbar") for c in (
@@ -120,6 +125,9 @@ CUES = {
             O(f"{tool}-drop", f"{tool.title()} dropped: let go as a crewmate holding it goes down", mats=DROP,
               cand={"wood": K("impactWood_medium"), "grate": K("impactMetal_medium")}),
         )],
+        # Note 275: the fireman's shovel lives on an iron rack in the cab.
+        O("shovel-rack-off", "The shovel lifted off its iron rack in the cab", vars=2),
+        O("shovel-rack-on", "The shovel hung back on its rack: iron on iron", vars=2),
     ],
     "crew-carry": [
         O("crate-lift", "A crate picked up"),
@@ -169,6 +177,12 @@ CUES = {
         O("locker-open", "Locker or tool rack opened"),
         O("locker-shut", "Locker or tool rack shut"),
     ],
+    # The village houses' doors (B4's note 401; queue #145, note 409): a held Use at an open house's doorway shuts its door,
+    # or opens it again. The Choir's rule ("behind a closed door"): the shut must be heard and trusted from either side.
+    "crew-house-door": [
+        O("shut", "A house door shut: a swollen plank door shoved home into its frame, the thumb latch dropping", vars=3),
+        O("open", "A house door opened: the latch lifted, the leaf jerked free and creaking in on its strap hinges", vars=3),
+    ],
     "crew-lamps": [
         O("car-lamp-on", "A car's lamp switched on", cand={"_": S("switch_01", "switch_02")}),
         O("car-lamp-off", "A car's lamp switched off", cand={"_": S("switch_01", "switch_02")}),
@@ -215,6 +229,16 @@ CUES = {
         O("knuckle-close", "Knuckles slamming together on a recouple", vars=3),
         O("pin-drop", "Coupling pin dropping home", vars=3),
     ],
+    # The upkeep (queue #95, note 358; D1's notes 331 and 346): the hands on the jobs the train makes as it runs.
+    "crew-upkeep": [
+        L("grease", "Greasing a hot axle box: the grease gun worked, the grease spitting on hot iron (held while at it)"),
+        O("greased", "The box greased: the last of it hissing off as the iron cools", vars=3),
+        O("trim", "A guttering lamp trimmed: the wick screwed up a few clicks, the flame catching steady", vars=3),
+        # A coupling working loose (D1's note 356; queue #122, note 385): the wrench on the pin's nut while Use is held, and
+        # the pin seated home.
+        L("tighten", "Tightening a loose coupling: the wrench worked on the pin's nut in the gap (held while at it)"),
+        O("tightened", "The pin seated home: a solid iron clunk, the knocking gone", vars=3),
+    ],
     "crew-repair": [
         O("kit-open", "Repair kit opened"),
         L("ratchet", "Wrench ratcheting on the boiler, held", cand={"_": S("misc_20")}),
@@ -222,6 +246,10 @@ CUES = {
         O("hammer", "A nail hammered", vars=6, cand={"_": S("wood_hit_03", "misc_19")}),
         O("done", "The last nail: boarded up (a mechanic confirmation)"),
         O("kit-shut", "Repair kit shut"),
+        # The wrench's other mends (note 301's slice 2; queue #122, note 385): a dent beaten out of a car's wall or the
+        # engine's boiler flank, and the smashed headlamp put right from the cab's front window.
+        L("dent", "A dent beaten out: a hammer on iron plate, dull and heavy, the plate easing (held while at it)"),
+        L("lamp", "The headlamp mended: the wrench on its bracket, glass seated, the lamp's tin ticking (held while at it)"),
     ],
     "crew-cannon-fire": [
         O("ignite", "Linstock to the touch hole (a short flash, no fizz)", vars=2),
@@ -235,6 +263,25 @@ CUES = {
         L("powder", "Powder charge pushed down the muzzle, for the 1.5 s hold (stops clean if abandoned)"),
         O("powder-done", "Charge seated"),
     ],
+    # Powder to the guns (D1's note 374; queue #122, note 385): a charge taken out of the guard van's powder locker, and
+    # the gun's ready rack filled with it while Use is held.
+    "crew-powder": [
+        O("take", "A charge taken from the powder locker: the iron-bound lid, the canvas bag hefted out", vars=3),
+        L("fill", "The ready rack filled: canvas charges pushed into the rack's slots (held while at it)"),
+        O("filled", "The rack full: its bar dropped across", vars=3),
+    ],
+    # Searching an open house's hiding spots (note 326; queue #148, note 412): held while the replicated search is under way,
+    # each kind about its loot.json `search.seconds`, cut when the hands come off; and the find coming out.
+    "crew-search": [
+        O("cupboard", "A cupboard gone through: its door pulled open, its shelves rummaged (about 2.5 s)", vars=3),
+        O("cabinet", "A cabinet's drawers pulled out, rattled through and shoved back (about 2 s)", vars=3),
+        O("cellar", "A cellar's hatch lifted and laid back, the steps down, crates shifted in the stone below (about 4 s)", vars=3),
+        O("boards", "Floorboards prised up: the bar's bite, the nails squealing out, laid aside (about 5 s)", vars=3),
+        # B4's #153 (note 417): a barn's hayloft and a shed's workbench, searched as a house's spots are.
+        O("hayloft", "A hayloft gone through: up the ladder, hay shoved about, a tin knocked", vars=3),
+        O("bench", "A workbench gone through: tools rattled, a drawer of nails, the vice", vars=3),
+        O("found", "The spot gone through: the find lifted out and set down", vars=3),
+    ],
     "crew-cannon-ball": [
         O("ball-in", "The ball dropped into the muzzle", vars=2),
         O("ball-roll", "The ball rolling down the bore, iron on iron", vars=2, cand={"_": [old("audio/crew-cannon-ball--ball.mp3")]}),
@@ -242,6 +289,24 @@ CUES = {
     "crew-cannon-ram": [
         L("ram", "Rammer strokes, for the 1.5 s hold"),
         O("ram-home", "Rammed home: the gun is ready", vars=2, cand={"_": [old("audio/crew-cannon-ram--ram.mp3")]}),
+    ],
+    # Synthesised on main first; recorded candidates replace them through install.py's SWAPS, level-matched.
+    "crew-gun-lay": [
+        L("lay", "The seated gunner laying the gun: the steam motor and its worm gear, quicker as it turns faster"),
+    ],
+    "crew-cannon-impact": [
+        O("ground", "A ball coming down on earth: the boom, then earth and splinters pattering after (heard a long way)", vars=3),
+        O("water", "A ball into water: the plunge, the column of spray falling back", vars=3),
+        O("doll", "A ball through the Track Doll: porcelain bursting, the one sound that says she's gone for good", vars=2),
+        # Note 290: a ball meets bodies and walls now, not only the ground.
+        O("flesh", "A ball landing in a creature: a heavy wet thud, nothing like earth", vars=3),
+        O("structure", "A ball striking a fort's or a building's stone: the crack and the rubble falling", vars=3),
+        O("train", "A ball striking the train's own iron: a deep clang, rivets and plate ringing", vars=2),
+    ],
+    "crew-noisy-toys": [
+        L("squeaker", "A rubber squeaker toy squeezed in the hand as it's carried"),
+        L("music-box", "A music box's tune, wound and playing as it's carried"),
+        L("drummer", "A wind-up tin drummer beating its drum as it's carried"),
     ],
     "crew-hurt": [
         O("hit", "Struck: the blow landing on the body", vars=4, cand={"_": K("impactPunch_medium")}),
@@ -340,6 +405,22 @@ CUES = {
     "state-brake-fade": [
         L("fade", "Hot brakes glazing and losing their bite (replaces drag-hot as they go)"),
     ],
+    # The train's faults while it runs (queue #95, note 358): D1's hot box (note 331) and lamp guttering (note 346), the
+    # synths `hotbox` and `lamp-gutter` swapped for these (install.py TELL_SOUNDS), their params kept ("heat", "gutter").
+    "state-hotbox": [
+        L("squeal", "A car's axle box running dry: the bearing's dry squeal, catching once a wheel turn, rising as it heats"),
+        L("smoke", "The box smoking: the grease in it cooking off, crackling, a thin hiss (from halfway hot)"),
+    ],
+    "state-gutter": [
+        L("sputter", "A car's lamp guttering: the wick spitting, quick and uneven, worse as it goes"),
+        L("flutter", "The flame fluttering low and tearing as it starves"),
+    ],
+    # A coupling working loose (D1's note 356; queue #122, note 385): the pin knocking in its knuckle, iron on iron. Each
+    # knock is a take, fired faster and harder as it works out (GameAudio paces it off the car's Loose), where D1's synth
+    # was a loop.
+    "state-coupling-loose": [
+        O("knock", "The pin knocking in its knuckle: a dull iron clank with a ring over it", vars=4),
+    ],
     "state-derail": [
         L("flange-scream", "Flanges screaming on a curve taken too fast (the warning)"),
         O("climb", "A wheel climbing the rail", vars=2),
@@ -351,6 +432,16 @@ CUES = {
         O("collide", "One car slamming into another as the train piles up", vars=4),
         L("rail-scrape", "Steel dragged along a rail head (a car body or a truck sliding on the rail)"),
         O("tear", "Metal and wood ripping apart under force (a car body or frame torn open)", vars=4),
+    ],
+    # The line's warnings (notes 260, 265): synthesised on main first, replaced through install.py's SWAPS, level-matched.
+    "warn-overspeed": [
+        O("bell", "The communication bell over the driver, struck twice: a bend ahead this speed would derail the train on", vars=3),
+    ],
+    "warn-curve": [
+        O("chatter", "The roof irons chattering in their sockets as the car starts to lean on a bend taken too fast", vars=3),
+    ],
+    "warn-low-clearance": [
+        O("telltales", "The telltale cords slapping across the roof ahead of you: a tunnel's mouth coming", vars=3),
     ],
     "state-breach": [
         O("breach", "A car's shell giving way: iron wrenched open", vars=3),
@@ -377,6 +468,14 @@ CUES = {
         O("exit", "Coming out of the tunnel", vars=2),
         L("inside", "Inside the tunnel (the bed itself gets the tunnel reverb)"),
         O("drip", "Water dripping in the tunnel", vars=4),
+    ],
+    # The line plan's water (maritime-rules.md §2-5; queue #165, note 429): a river under its span and up its valley, a
+    # lake beside the line, the Atlantic's surf on its rock and shingle, Fundy's tide over the red mud.
+    "world-water": [
+        L("river", "A river running: its wash over the stones, gurgling where it folds, the fizz of its surface"),
+        L("lake", "A lake lapping at its stony shore"),
+        L("surf", "The sea's surf breaking on the shore, the shingle dragged back"),
+        L("tide", "Fundy's tide far out over the mud, the flats seeping and trickling"),
     ],
     "world-bridges": [
         L("iron-drum", "Wheels drumming on an iron bridge"),
@@ -435,28 +534,98 @@ CUES = {
         O("shift", "Wreckage shifting", vars=3),
         L("cargo-pull", "Cargo dragged out of a wreck"),
     ],
+    # The capstan winch wherever it stands (spec D.2, T43; queue #204, note 468): the foundry's, the mine head's, the
+    # depot's and the wreck yard's (whose cargo dragged out of a wreck is place-wreck's).
+    "place-winch": [
+        L("capstan", "The capstan turning: the pawl over its ratchet, the cranks, the rope winding on"),
+        L("drag", "A sled of cargo hauled in over the ground"),
+        O("stall", "Out of rhythm: the drum snatched to a stop, the pawl catching", vars=3),
+        O("in", "A sled hauled in to its stop by the track", vars=2),
+    ],
     "place-slaughterhouse": [
         L("inside", "Inside the slaughterhouse"),
         O("hook-chain", "Hooks and chains moving", vars=3),
+    ],
+    # The foundry's cupola, banked and burning in the casting shed with nobody to tend it (C1's note 420; queue #161, note 425).
+    "place-foundry": [
+        L("furnace", "The foundry's furnace burning on its own: the stack's draught roaring, coke, hot iron ticking"),
+        O("slump", "The charge slumping in the cupola: a heavy rumble, sparks up the stack", vars=3),
     ],
     "place-villages": [
         L("dead-town", "A dead town at night"),
         O("shutter", "A shutter banging", vars=3),
         O("sign", "A sign creaking", vars=3),
     ],
+    # The walled town (queue #151, note 415): its fires, its lived-in houses' ranges and the custom's things in them, and its
+    # people, held where they are (World.Town's plan) while the ear is near.
+    "place-town": [
+        L("fire", "A fire barrel or a brazier burning in the square"),
+        L("range", "A kitchen range lit in a lived-in house: the fire shut in iron, a kettle on the hob"),
+        L("clock", "A clock ticking in a house"),
+        L("radio", "A wireless left on in a house: static, a far station fading in and out"),
+        L("murmur", "Townsfolk talking low among themselves through their masks, no words"),
+        O("cough", "A townsperson coughing into their mask", vars=3),
+        # On their rounds (B2's #389; queue #182, note 446): each kind of breathing gear heard close to, and the watch's lantern.
+        L("gear-respirator", "Someone breathing through a rubber respirator, its valves"),
+        L("gear-oxygen", "Someone breathing in an oxygen cup, the gas hissing"),
+        L("gear-rebreather", "Someone breathing on a rebreather, its bag and valves"),
+        L("gear-wrap", "Someone breathing through a wool wrap with a tin can sewn in"),
+        L("lantern", "The watch's lantern swinging on its bail as they walk"),
+    ],
     "place-mine": [
         L("underground", "Underground at the mine head"),
         O("drip", "Water dripping", vars=4),
         O("timber", "Pit props creaking", vars=3),
+    ],
+    # The steam lift at the mine head (A1's note 368; queue #122, note 385): the engine's vented steam winds the skip up the
+    # headframe, and each skip tips its ore down the chute into the car under it.
+    "place-mine-lift": [
+        L("winding", "The winding engine on the engine's steam: a small engine's quick beat, the drum turning, the rope"),
+        O("tip", "A skip tipped: ore roaring down the steel chute into the car", vars=3),
+    ],
+    # The grain elevator's conveyor line (A1's #446, note 400; queue #202, note 466): started at its drive house (an oil engine
+    # off the yard's power), the belt carrying grain into the car under its head, jamming, cleared by hand, stalling.
+    "place-conveyor": [
+        L("cranking", "The starter held: its motor whining against the engine's compression"),
+        O("catch", "The engine catching, the clutch in and the belt taking up", vars=3),
+        L("engine", "The belt's drive running: a big single-cylinder oil engine's slow beat, the flywheel"),
+        L("labour", "Jammed: the belt slipping on the drive drum, squealing, the engine bogged down"),
+        O("stall", "The drive stalling under a jam: the engine dragged down, the flywheel coasting", vars=2),
+        L("belt", "The belt running on its idlers, grain riding it"),
+        L("pour", "Grain off the belt's head down its chute into the car"),
+        O("jam", "The belt jamming: grain heaping, the belt bunching onto the stringer", vars=3),
+        L("clearing", "Clearing a jam by hand: grain dug out, the belt hauled at"),
+        O("free", "The jam cleared: the belt jerking free and running on", vars=3),
+    ],
+    # The tipple at the mine head (A1's #458, note 423; queue #216, note 480): a car clamped in its cradle, rolled over to the
+    # ore bin's chute and back; a bad clamp throws it off its rails, and the wrench puts it back.
+    "place-tipple": [
+        L("clamping", "The clamp wound down while the lever's held"),
+        O("clamp", "Clamped: the beam and platen biting on the car", vars=3),
+        L("roll", "The cradle rolling the car over (and back)"),
+        O("pour", "At the top: ore down the bin's chute into the car", vars=2),
+        O("release", "Rolled back and let go", vars=2),
+        O("derail", "A bad clamp: the car off its rails in the cradle", vars=2),
+        L("rerail", "Putting it back on its rails with the wrench"),
+        O("rerailed", "Back on its rails", vars=2),
     ],
     "place-chemical": [
         L("leak", "A leak hissing in the works"),
         O("drip", "Something dripping", vars=3),
     ],
     "place-breach": [
-        O("smash", "A lock smashed (3 s of it: loud as a cannon)", vars=4),
-        L("pry", "A barricade pried (6 s: loud as machinery)"),
+        # On the crew's clips' beats (queue #234, note 497; C1's #200): each blow, each heave, each board off as it goes.
+        O("smash", "One blow of the sledge on a lock (3 s of them: loud as a cannon), on the smash clip's beat", vars=5),
+        O("smash-give", "The last blow: the hasp torn out, the lock clattering down", vars=2),
+        O("pry", "One heave on the bar at a barricade (6 s of them: loud as machinery), on the pry clip's beat", vars=4),
+        O("board", "A board torn off the barricade, at each fifth of the breach", vars=3),
         O("pry-give", "The barricade giving way", vars=2),
+        # A lock opened quietly with the wrench (D.7; note 301's slice 2; queue #122, note 385): it was heard as the smash.
+        L("pick", "A lock worked open with a wrench: the hasp levered, the wards scraping, quiet (held while at it)"),
+        O("pick-give", "The lock giving: a click and the hasp swung free", vars=2),
+    ],
+    "place-depot": [
+        O("powder-blast", "A powder keg or powder car going up: a slow whump, the powder's roar, wreckage raining down", vars=2),
     ],
 
     # ---- Voice & comms (the device, not the voices) --------------------------------------------------------------------
@@ -477,11 +646,16 @@ CUES = {
         O("vanish", "Vanishing when approached", vars=2, cand={"_": [old("audio/cs-track-doll--vanish.mp3")]}),
         O("crack", "Porcelain cracking when cornered and clubbed", vars=3, cand={"_": [old("audio/cs-track-doll--cornered.mp3")]}),
         O("take-toy", "A toy taken", vars=2),
+        # Restless (her next stage coming; queue #236, note 499): her own, now and then, and her own rattle of the brake.
+        O("restless", "Restless: heels drumming on the woodwork, a hum through her teeth, her head turning", vars=4),
+        O("rattle", "At stage 2, restless: her small hand shaking the brake handle without turning it", vars=3),
     ],
     "cs-car-hugger": [
         O("swallow", "The swallow closing round a player", vars=2, cand={"_": [old("audio/cs-car-hugger--swallow.mp3")]}),
         O("hit", "A hit from the rear platform landing on it", vars=4),
         O("break-away", "The eaten car breaking away with it", vars=1),
+        # Note 310: the crew pull a swallowed crewmate back out of its mouth (the grab let go, Held cleared).
+        O("spit-out", "A swallowed crewmate pulled free: the mouth forced open, a wet heave, the body sliding out", vars=2),
     ],
     "cs-whistler": [
         O("snatch", "The snatch at the gap", vars=2, cand={"_": [old("audio/cs-whistler--snatch.mp3")]}),
@@ -509,8 +683,13 @@ CUES = {
         O("disperse", "Leaving once quiet holds", vars=2),
     ],
     "cs-hounds": [
-        O("paw", "One paw fall (fired at the gallop's tempo)", vars=6, mats=["ground", "grate", "roof"]),
+        O("paw", "One paw fall (fired at the gallop's tempo; aboard, at its walk: note 478)", vars=6, mats=["ground", "grate", "roof", "wood"]),
         O("leap", "The leap onto the rear car", vars=2),
+        # On patrol aboard (D1's #208; queue #226, note 489): springing off a roof (over a gap, or down in at a door),
+        # stopped to sniff, and climbing back out at an open door.
+        O("spring", "Springing off a roof: hind feet driving off the tin, a huff", vars=3),
+        L("sniff", "Stopped to sniff on patrol: quick sniffs, a snort, a rumble"),
+        O("climb", "Climbing out at an open door: claws up the car's side, onto the roof", vars=3),
         O("snarl", "A snarl", vars=4),
         O("bite", "A bite", vars=4),
         O("yelp", "Driven off by a hit", vars=3),
@@ -525,6 +704,9 @@ CUES = {
         L("scrabble", "The victim's boots scrabbling on the car side"),
         O("haul-up", "Hauled back up", vars=2),
         O("under", "Dragged under", vars=2),
+        # A truss Dragger's drop (D1's #171, note 435; queue #180, note 444): onto a roof with someone on it, or the ballast.
+        O("drop", "It drops off the truss onto the car's roof", vars=3),
+        O("fall", "It drops off the truss onto the ballast behind the train", vars=3),
     ],
     "cs-stoker": [
         L("in-fire", "Something moving in the fire"),
@@ -534,18 +716,24 @@ CUES = {
     "cs-gaunt": [
         O("blow", "Its blow landing (nothing before it: silence is the tell)", vars=3),
         O("death", "Its death"),
+        # Note 290: pain sounds for a ball are the audio chat's.
+        O("hit", "A ball or a blow landing on it and not killing it: a dry, hollow grunt from something too big", vars=3),
     ],
     "cs-followers": [
         O("clubbed-off", "Clubbed off a back", vars=3),
         # The director (2 Oct): smashing a nest is held, so its sound is a loop, with the nest's end its own one-shot.
         L("nest-smash", "A nest being smashed, for as long as someone's at it"),
         O("nest-burst", "The nest finally destroyed", vars=2),
+        # Note 290: pain sounds for a ball are the audio chat's.
+        O("hit", "A ball or a blow landing on one that isn't on a back (on the boards or the nest): a chittering squeal", vars=3),
     ],
     "cs-soot-children": [
         O("turn", "Turning inhuman"),
         O("lunge", "The lunge", vars=2),
         L("drink", "The pin and the drinking"),
         O("death", "Its death"),
+        # Note 290: pain sounds for a ball are the audio chat's.
+        O("hit", "A ball or a blow landing on it: a puff of soot and a hiss, no child's cry", vars=3),
     ],
     "cs-passenger": [
         O("step", "Its footsteps: the crew's own, so silence stays the only tell (plays crew-footsteps)", vars=1,
@@ -557,11 +745,17 @@ CUES = {
         O("throw", "The switch thrown as you pass: its grip and its lamp, over the stand's own lever (crew-switch)", vars=3),
         O("flicker", "The lamp flickering as it grips the lever", vars=2),
         O("death", "Its death"),
+        # Note 290: pain sounds for a ball are the audio chat's.
+        O("hit", "A ball or a blow landing on it: its lamp rattling, a cracked-glass shriek", vars=3),
     ],
     "cs-grumbler": [
         O("scuttle", "Scuttling over the crane", vars=4),
         O("feral", "Going feral at whoever hit it last", vars=2),
         L("eat", "Eating cargo aboard"),
+        # Note 290: pain sounds for a ball are the audio chat's.
+        O("hit", "A ball or a blow landing on it before it turns: an indignant bark", vars=3),
+        # Its healing (App. A.8, queue #231, note 494; E1's #224 shows it): held while its health climbs.
+        L("heal", "Healing a lone crewmate's blow: wet sucks drawn back in, tissue knitting, his muttering"),
     ],
 
     # ---- Enemy tells (the warning sounds; the director's In review stands) --------------------------------------------
@@ -576,6 +770,135 @@ CUES = {
     "tell-track-debris": [O("writhe", "One brief wet writhe (the game fires them at uneven intervals)", vars=4)],
     "tell-marsh": [L("reeds", "Reeds rustling")],
     "tell-grumbler": [L("gnaw", "Gnawing on the crates")],
+    # The Moose (G1's design, docs/design/creatures/moose.md §4; queue #73, note 334): heard before it's seen, and nothing
+    # it does may sound like another creature's tell (spec A.1, A.4). Its lines and cue ids are G1's, as on the checklist.
+    "tell-moose-grazing": [
+        O("browse", "Tearing browse", vars=3),
+        L("chew", "Slow chewing"),
+        O("creak", "A sac's wet creak", vars=4),
+        O("grunt", "The occasional low grunt", vars=3),
+    ],
+    "tell-moose-listening": [O("none", "The chewing stops: the silence is the tell", vars=1, silent=True)],
+    "tell-moose-warning": [
+        O("grunt", "A cough-like grunt", vars=3),
+        O("clack", "A run of teeth clacks", vars=4),
+        O("hoof-drag", "A hoof raked back through the ground (pawing)", vars=3),
+    ],
+    "tell-moose-square-up": [
+        O("stamp", "A hoof stamp (two in a row)", vars=4),
+        O("snort", "A snort", vars=3),
+    ],
+    "tell-moose-charge": [
+        L("hooves", "Hooves at a charge, on ballast and ground"),
+        L("wheeze", "A wheeze"),
+        O("brush", "Brush breaking", vars=3),
+    ],
+    "cs-moose-snag": [
+        O("groan", "Wood groaning", vars=3),
+        L("grind", "The rack grinding"),
+        O("bellow", "A bellow of rage", vars=3),
+    ],
+    "cs-moose-search": [
+        # Breathing and sniffing, not snorting: the snort is the square-up's tell (AU1.6).
+        L("breath", "Heavy breathing and sniffing, close"),
+        O("knock", "The rack knocking on a wall", vars=4),
+    ],
+    "cs-moose-ram": [
+        O("boom", "A deep iron boom through the whole car", vars=4),
+        O("scrape", "The rack scraping the plates", vars=3),
+    ],
+    "cs-moose-train-pass": [
+        O("bellow", "A long carrying call after the train, no grunts (the grunt is the warning's)", vars=3),
+        O("thrash", "Hooves thrashing the verge", vars=3),
+    ],
+    # The Gannet (G1's note 340, docs/design/creatures/gannet.md §4; queue #121, note 384): one enormous corrupted seabird
+    # riding a fast train. Its calls overhead stop when it hangs over a walker (the silence is the tell); the fold is a crack
+    # of wings and a rising whistle of air, 2-5 kHz for its 1.6 s (not the Whistler's 200-800 Hz, steady); the bank is the
+    # scream and the wingbeats closing (2.5 s: get inside). Its strike is the creature's own: the stab, the beak stuck in
+    # the planks, the pin and its pecks on the sim's 3 s beat (GameAudio.GannetSounds).
+    "tell-gannet-calls": [
+        O("call", "A harsh guttural call overhead, slowed and enormous (a gannet's arrr-arrr)", vars=4),
+        O("wings", "The creak and rush of one great wingbeat overhead", vars=3),
+    ],
+    "tell-gannet-fold": [
+        O("crack", "Wings snapping back", vars=3),
+        O("whistle", "The air whistling up as it drops beak-first (1.6 s, rising 2-5 kHz)", vars=3),
+    ],
+    "tell-gannet-bank": [
+        O("scream", "A long rising scream as it comes round for its mark", vars=3),
+        L("wingbeats", "Heavy wingbeats closing low along the train"),
+    ],
+    "cs-gannet-strike": [
+        O("stab", "The beak's stab into a body", vars=3),
+        O("thunk", "A deep thunk into the roof planks (a miss)", vars=3),
+        L("thrash", "Stuck: wings beating the roof, the planks creaking, a hiss"),
+        O("tear", "Tearing free, the planks splintering", vars=3),
+        O("land", "Its weight landing on its mark", vars=3),
+        O("windup", "A peck's wind-up: a rattle in the throat", vars=3),
+        O("peck", "The peck: ringing on a helmet or wet on a cap", vars=4),
+        O("driven", "Driven off its pin: a screech as it lurches up", vars=3),
+        O("hit", "A blow or a ball landing on it", vars=3),
+        O("death", "Killed: crashing across the roof", vars=2),
+    ],
+    # G1's six new creatures (queue #125, note 388; #99-#104, G1's requests on the audio checklist): candidates ahead of their
+    # sims, hooked as each lands. Each in its own sound, none like another's tell (A.1): the Mourners' keening is never in
+    # unison (not the Choir's chorus, not the Soot Children's call); Hotbox's knock is low and dull, once a wheel turn (never
+    # the hot box's squeal, state-hotbox).
+    "tell-mourners": [
+        L("keening", "After a death: a soft keening from the dark beyond the body, several voices never in unison"),
+        O("clicks", "Startled: dry clicks", vars=3),
+    ],
+    "cs-mourners-drag": [
+        L("drag", "A body hauled away in tugs: cloth and gravel, breathless keening"),
+    ],
+    "tell-tower-jaw": [
+        L("gnaw", "Deep rhythmic chiselling, wood splitting off in chunks, carrying across a stop"),
+        O("creak", "The tower creaking, from half gnawed", vars=3),
+        L("groan", "The tower's groan in its last 5 s"),
+        O("crack", "A crack like a shot as it goes", vars=2),
+    ],
+    "cs-tower-jaw": [
+        O("tail-slap", "Its threat: a flat, heavy tail whack on the ground", vars=3),
+        O("lunge", "The lunge: a snarl and a bite", vars=3),
+        O("fall", "The tower crashing down across the line", vars=2),
+    ],
+    "tell-brakeman": [
+        O("ratchet", "A brake wheel wound on: the ratchet's click-click-click", vars=3),
+        L("squeal", "The brake shoes' long squeal from the car he's on"),
+        O("step", "Iron-shod, uneven steps on the roofs", vars=4),
+        L("chain", "A chain dragged along the roofs"),
+    ],
+    "cs-brakeman": [
+        L("wheeze", "Cornered: a low wheeze"),
+        O("chain-up", "The chain rattling up", vars=2),
+        O("lash", "The chain's lash", vars=3),
+    ],
+    "tell-knotter": [
+        L("creep", "Wet creaking: rope under load at a coupling (4 s: cut it now)"),
+        O("stretch", "A long groaning stretch, the buffers parting and a jolt down the train", vars=2),
+        O("hawser", "Taut: a hawser's creak as the speed changes", vars=3),
+    ],
+    "cs-freight-beetle": [
+        L("push", "A crate pushed: its scrape on gravel or boards in time with heavy strides, a chitinous creak", mats=["ground", "wood"]),
+        O("startle", "Startled: a clatter of plates and a hiss", vars=2),
+    ],
+    "tell-hotbox": [
+        O("knock", "A heavy, dull metallic knock, once a wheel turn of its axle (a hammer on a casting)", vars=4),
+        L("sizzle", "The glow: the knock gone ragged and wet, a sizzle"),
+        L("grind", "Seized: a long grinding scrape"),
+    ],
+    # Signs off the train (D1.1's note 327; queue #79, note 342): a crewmate afoot is shown a pair of eyes at the lamp's edge,
+    # toward where a creature lives here. Its sound says something's out there, never that it's coming: quieter than its
+    # tell and nothing like it (GameAudio.Watched plays "sign.<kind>", Director.Key's names). The Gaunt and the Followers
+    # are silent till they're on you: their sign is the eyes alone.
+    "sign": [
+        O("ribbits", "A Ribbit out in the dark: a wet shift in the grass and one soft hop away, not its croak", vars=3),
+        O("sootChildren", "A Soot Child out there: small bare feet running off over cinders, a breath of soot, never its call", vars=3),
+        O("whistler", "The Whistler out there: something long-legged moving off fast through brush, never its whistle", vars=3),
+        O("grumbler", "A Grumbler out there: a heavy scuttle behind a wall and a low mutter, not its gnaw", vars=3),
+        O("gaunt", "The Gaunt: silent, the eyes alone (its silence is its tell)", vars=1, silent=True),
+        O("followers", "The Followers: silent, the eyes alone", vars=1, silent=True),
+    ],
     "tell-hounds": [O("howl-far", "A distant howl", vars=4, cand={"_": [old("audio/tell-hounds--far.mp3")]}),
                     O("howl-near", "The pack howling close behind (40-100 m), as it closes", vars=4)],
     "tell-climbers": [O("scrabble", "Scrabbling at the gap", vars=4)],
@@ -590,12 +913,47 @@ CUES = {
 
     # ---- Music, UI, voice sets, the trailer -------------------------------------------------------------------------
     # UI sounds are things on the train's paperwork and brass: a waybill, a ticket punch, a stamp, a switch.
+    # Main's features since 7 Oct (queue #61, note 322).
+    "crew-heal": [
+        # Note 272: a find that heals, used with Use held standing (loot.json healing).
+        L("apply", "Using a healing find while Use is held: a bandage torn and wound tight, a medicine bottle uncorked and "
+          "swallowed, a morphine syrette's cap off and the plunger pressed", mats=["bandages", "medicine", "morphine"]),
+        O("done", "The find used up and the hurt eased: a long breath let out", vars=3),
+    ],
+    "crew-emotes": [
+        # Note 298: the emote wheel (J). Dancing moves nobody, so its feet are its own.
+        O("dance", "A jig on the spot: boots stamping in time and a clap", vars=2),
+        O("wave", "An arm raised and waved: a coat sleeve's swish", vars=3),
+        O("point", "An arm thrown out to point: a sharp coat rustle", vars=3),
+        O("outfit", "Trying an outfit on in the yard: a coat shrugged into, buttons done up", vars=2),
+    ],
+    "state-starved": [
+        # Note 319: an engine short of steam holds the train back.
+        L("labour", "The engine short of steam, dragging its train: the exhaust thin and gasping, the motion labouring"),
+    ],
+    "place-derelict": [
+        # Note 294: derelict cars on a yard's siding, cleared by shunting them out.
+        L("roll", "A seized, rusted derelict car moving: dry axles grinding, flat wheels thumping, the body groaning"),
+    ],
+    "ui-film": [
+        # Note 315: each player skips their own film.
+        O("skip", "Skipping the film: a cut, a projector's shutter snapping shut", vars=1),
+    ],
+    "ui-panels": [
+        # Note 316: the roster, the supplies and the route card, opened and closed.
+        O("open", "A panel opened: a card or a ledger drawn out", vars=3),
+        O("close", "A panel put away", vars=3),
+        O("page", "A page turned on the route card", vars=3),
+    ],
     "ui-menus": [
         O("move", "Moving between menu items", vars=4),
         O("select", "Choosing an item", vars=3),
         O("back", "Backing out", vars=2),
         L("title", "The title screen's sound, under the title"),
         O("end-card", "The demo's wishlist end card coming up", vars=1),
+        # Note 320: a crew renamed and deleted from the fortress.
+        O("type", "A letter typed into a name", vars=4),
+        O("delete", "A crew deleted for good: a heavy stamp", vars=1),
     ],
     "ui-prompts": [
         L("hold", "A held action ticking on (a reload step, a breach, a repair)"),
@@ -613,6 +971,10 @@ CUES = {
         O("queue", "The respawn queue moving up", vars=2),
         O("vote", "A creature vote locked in", vars=2),
         O("bookmark", "A bookmark taken", vars=2),
+    ],
+    "ui-stranded-outro": [
+        L("boiler-tick", "The dead boiler ticking and pinging as it cools (slower as it goes cold)"),
+        O("lamp-out", "A car's lamp guttering out, last car first", vars=3),
     ],
     "ui-music": [
         L("drone", "Music while the crew is at work: low, ambient, almost a drone, under everything"),

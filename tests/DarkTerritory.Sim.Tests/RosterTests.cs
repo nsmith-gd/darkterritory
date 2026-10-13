@@ -36,14 +36,17 @@ public class RosterTests
         }
     }
 
-    static EnemyTuning With(string[] roster, Dictionary<string, double>? costs = null) => Tuning.Enemies with
+    static EnemyTuning With(string[] roster, Dictionary<string, double>? costs = null) => EveryKind.Enemies with
     {
-        Director = Tuning.Enemies.Director with
+        Director = EveryKind.Enemies.Director with
         {
-            GraceSeconds = 0,
+            GraceMinSeconds = 0,
+            GraceMaxSeconds = 0,
+            Pressure = Tuning.Eager,
+            Draw = Tuning.Unheld,
             CooldownSeconds = [1, 1],
             Roster = roster,
-            Costs = costs is null ? Tuning.Enemies.Director.Costs : Tuning.Enemies.Director.Costs.ToDictionary(c => c.Key, c => costs.GetValueOrDefault(c.Key, 1e9)),
+            Costs = costs is null ? EveryKind.Enemies.Director.Costs : EveryKind.Enemies.Director.Costs.ToDictionary(c => c.Key, c => costs.GetValueOrDefault(c.Key, 1e9)),
         },
     };
 

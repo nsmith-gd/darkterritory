@@ -183,4 +183,36 @@ public class LinesideArtTests
         Assert.False(Nested(t.NestDistance / t.RunSpeed * 0.5));
         Assert.True(Nested(t.NestDistance / t.RunSpeed + 1));
     }
+
+    [Fact]
+    public void TheLeavingsBesideTheLineAreDealtSoNoKindComesRoundAgainSoon()
+    {
+        // Note 325 (the director, GDD App. F.3: "the same three things over and over again"): what the railway left beside
+        // its line is dealt from a deck of every kind, so a kind never comes up again within a few stretches, even across
+        // a join between decks, and a few kilometres show nearly every kind there is.
+        foreach (int seed in new[] { 1, 7, 42, 1234 })
+        {
+            var dealt = WorldArt.LeavingsAlong(0, 60_000, seed).ToList();
+            Assert.True(dealt.Count > 400, $"seed {seed}: {dealt.Count} in 60 km");
+            var last = new Dictionary<string, int>();
+            foreach (var l in dealt)
+            {
+                if (last.TryGetValue(l.Kind, out int before))
+                    Assert.True(l.Slot - before > 4, $"seed {seed}: {l.Kind} at stretch {before}, then again at {l.Slot}");
+                last[l.Kind] = l.Slot;
+                Assert.InRange(Math.Abs(l.Lateral), 3.1, 14.5);
+            }
+            Assert.True(dealt.Where(l => l.Along < 5000).Select(l => l.Kind).Distinct().Count() >= 12, $"seed {seed}: few kinds in 5 km");
+        }
+    }
+
+    [Fact]
+    public void EveryLeavingIsWithinItsBudget()
+    {
+        // The leavings' own pieces (JunkKit) are small props, a hut a medium one (GDD §27's budgets, as dt art check).
+        var pieces = ArtCatalog.Entries(Look, Tuning).Where(e => e.Name.StartsWith("junk-", StringComparison.Ordinal)).ToList();
+        Assert.True(pieces.Count >= 21, $"{pieces.Count} junk pieces in the catalog");
+        foreach (var e in pieces)
+            Assert.True(e.Make().Triangles <= e.Class.MaxTriangles, $"{e.Name} over its {e.Class.MaxTriangles}");
+    }
 }

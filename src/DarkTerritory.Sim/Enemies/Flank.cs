@@ -30,6 +30,21 @@ public sealed class Dragger(int id) : Enemy(id)
     public int Side => Local.X >= 0 ? 1 : -1;
     public int? Target => Extra >= 0 ? (int)Extra : null;
 
+    /// <summary>On a through-truss's top chord (note 435), waiting for the train to pass under it.</summary>
+    public bool Perched { get; private set; }
+    /// <summary>A truss is on the main line (note 435).</summary>
+    public override bool OnMainLine => Perched;
+
+    /// <summary>Perched on a truss's top chord at <paramref name="along"/> on the main line, on a side (note 435).</summary>
+    public static Dragger OnTruss(int id, double along, int side, DraggerDropTuning t) => new(id)
+    {
+        Perched = true,
+        LineDistance = along,
+        Lateral = side * t.Lateral,
+        Height = t.Height,
+        Extra = -1,
+    };
+
     public static Dragger Under(int id, TrainOnLine train, int car, int side, double along)
     {
         var shape = train.Frames[car].Shape;
@@ -58,6 +73,11 @@ public sealed class Dragger(int id) : Enemy(id)
     {
         var t = ctx.Tuning.Draggers;
         var train = ctx.Train;
+        if (Perched)
+        {
+            OnTheChord(ctx, t);
+            return;
+        }
         if (Attached < 0 || Attached >= train.Frames.Count)
         {
             Enter(ctx, SpinePhase.Gone);
@@ -112,6 +132,59 @@ public sealed class Dragger(int id) : Enemy(id)
         }
     }
 
+    /// <summary>
+    /// Perched on the truss (note 435): the scrape from tellSeconds before the train's under it, then onto the roof of each
+    /// car passing under in turn until one has someone on it: down on them, at that car's edge, hanging them over the side.
+    /// The train gone by with nobody up there, onto the ballast and gone.
+    /// </summary>
+    void OnTheChord(EnemyContext ctx, DraggerTuning t)
+    {
+        var train = ctx.Train;
+        var d = train.Dynamics;
+        double speed = Math.Max(0.1, d.Speed);
+        if (Phase == SpinePhase.Dormant)
+        {
+            if (LineDistance - d.Distance <= speed * t.Drop.TellSeconds && d.Distance > LineDistance - 400)
+                Enter(ctx, SpinePhase.Telegraph); // the scrape on the steel above
+            else if (PhaseSeconds >= t.LingerSeconds)
+                Enter(ctx, SpinePhase.Gone);
+            return;
+        }
+        if (Phase != SpinePhase.Telegraph)
+            return;
+        if (d.RearDistance > LineDistance + 2 || PhaseSeconds >= t.LingerSeconds)
+        {
+            Enter(ctx, SpinePhase.BreakOff); // nobody up there: onto the ballast behind, and gone
+            Enter(ctx, SpinePhase.Gone);
+            return;
+        }
+        if (PhaseSeconds < ctx.Tuning.MinReactionSeconds)
+            return;
+        var chord = WorldPosition(train);
+        foreach (var v in d.Consist.Vehicles)
+        {
+            var f = train.Frames[v.Id];
+            if (Math.Abs(f.ToLocal(chord).Z) > f.Shape.HalfLength)
+                continue;
+            // The car passing under: whoever's on its roof, the nearest the chord's side.
+            int side = Lateral >= 0 ? 1 : -1;
+            var under = ctx.Crew.Where(c => c.Player.State is { Alive: true, Surface: Surface.Roof } s && s.Parent == v.Id && !s.Has(PlayerFlags.Held))
+                .OrderBy(c => Math.Abs(c.Player.State.Position.X - side * f.Shape.HalfWidth)).ToList();
+            if (under.Count == 0)
+                return;
+            var victim = under[0].Player;
+            int toward = Math.Sign(victim.State.Position.X + side * 1e-9);
+            Perched = false;
+            Attached = v.Id;
+            Local = new Double3(toward * (f.Shape.HalfWidth + 0.1), f.Shape.RoofHeight - 0.35,
+                Math.Clamp(victim.State.Position.Z, -f.Shape.HalfLength + 0.5, f.Shape.HalfLength - 0.5));
+            Extra = victim.Id;
+            if (Enter(ctx, SpinePhase.Commit))
+                Grab(ctx, victim.Id, t.HangSeconds * Rails(train, r => r.DraggerHang));
+            return;
+        }
+    }
+
     void Creep(double z, DraggerTuning t, CarShape shape)
     {
         double step = t.CreepSpeed * SimConstants.TickSeconds;
@@ -160,9 +233,6 @@ public sealed class Whistler(int id) : Enemy(id)
     Double3 _nest;
 
     public override EnemyKind Kind => EnemyKind.Whistler;
-    /// <summary>On its feet on the ground off the train (note 266).</summary>
-    public override bool OnFoot => true;
-    protected override PlayerMotor.Cylinder Body => new(0.4, 1.4, 0.35);
     public override PressureZone Zone => PressureZone.Flank;
     public override Sense Sense => Sense.Absence;
     public override Want Want => Want.Kill;
@@ -238,13 +308,18 @@ public sealed class Whistler(int id) : Enemy(id)
                             continue;
                         if (ctx.LivingCrew().Any(o => o.Player.Id != p.Id && (o.World - w).Length <= t.PairRadius))
                             continue;
-                        var away = train.Frames[Attached].DirToWorld(new Double3(train.Frames[Attached].ToLocal(w).X >= 0 ? 1 : -1, 0, 0)) with { Y = 0 };
-                        _nest = Nest(ctx.World, gap, away.Normalized, t);
+                        int side = train.Frames[Attached].ToLocal(w).X >= 0 ? 1 : -1;
+                        // At a generated stop, the nest its layout has (level-design H.2, note 314); otherwise out from the gap.
+                        var sites = CreatureSites.Of(ctx.World, Stops.LairKind.WhistlerNest, ctx.Tuning.Sites.Around).Select(s => s.At).ToList();
+                        var (nest, run) = NestSite(train, gap, train.Frames[Attached].Right, side, t, sites);
+                        _nest = nest;
                         var victim = p.Id;
                         Local = w;
-                        Attached = Loose;
                         LineDistance = train.Dynamics.Distance;
-                        Grab(ctx, victim, ((_nest - w) with { Y = 0 }).Length / t.RunSpeed + t.NestSeconds);
+                        Attached = Loose;
+                        // How long the run to it takes (replicated: the nest's drawn under it once it's there).
+                        Extra2 = run / t.RunSpeed;
+                        Grab(ctx, victim, run / t.RunSpeed + t.NestSeconds);
                         return;
                     }
                     return;
@@ -252,7 +327,7 @@ public sealed class Whistler(int id) : Enemy(id)
             case SpinePhase.Grab:
                 {
                     // Carried off at a run to the nest; there, paralysed.
-                    // Over the ground, not through it: on its surface every step of the way.
+                    // Over the land, not through it (T128): it runs on the ground, whatever the ground does.
                     var to = (_nest - Local) with { Y = 0 };
                     double step = t.RunSpeed * SimConstants.TickSeconds;
                     var next = to.Length > step ? Local + to.Normalized * step : _nest;
@@ -269,40 +344,77 @@ public sealed class Whistler(int id) : Enemy(id)
     }
 
     /// <summary>
-    /// Where it carries its victim (the director's note of 2026-10-06, GDD App. F.1: "he's taking me to a spot in a mountain";
-    /// note 266): a den out from the gap, on the victim's side first, as far as <see cref="WhistlerTuning.NestDistance"/>, where
-    /// the way there is never steeper than <see cref="WhistlerTuning.NestGrade"/> and it ends within
-    /// <see cref="WhistlerTuning.NestClimb"/> of the rail: the ditch, the treeline, the flat beside the line, somewhere a
-    /// rescuer can run after it. Never inside a fort's walls. If nowhere out from the line will do (a cutting's walls both
-    /// sides), it's the ditch beside the track. The same from the same ground on every machine.
+    /// Where it carries someone (T128, build 1121: "a creature carried the director up a mountainside"; note 273): straight
+    /// out from its gap across the line, the side they were taken from first, as far as <see cref="WhistlerTuning.NestDistance"/>
+    /// (inside Line Plan §12.6's walkable corridor, so a friend can follow and a body can be found), shorter if it must,
+    /// never under <see cref="WhistlerTuning.NestMinDistance"/>. The way there has to be land a person can run over: no
+    /// stretch of it steeper than <see cref="WhistlerTuning.NestMaxSlope"/>, never more than <see cref="WhistlerTuning.NestMaxRise"/>
+    /// above or below the rail (not up a mountainside, not down a ravine, not into a cutting's wall or a tunnel's hill), and
+    /// no water. Nowhere on either side is: the formation's edge on the side they were on, the nearest walkable point there
+    /// is. Returns the nest (on the ground) and how far it runs to it.
+    /// <para>
+    /// At a generated stop the layout has already placed its nest, out on the stop's emptiest side (level-design H.2's
+    /// "least built-up side", note 314): the nearest of <paramref name="sites"/> within <see cref="WhistlerTuning.NestSiteReach"/>
+    /// that it can run to by the same rules, through no building, is where it goes. A stop's ground is laid level for the
+    /// stop, so it's walkable past the line's corridor.
+    /// </para>
     /// </summary>
-    public static Double3 Nest(World world, Double3 gap, Double3 side, WhistlerTuning t)
+    public static (Double3 Nest, double Run) NestSite(TrainOnLine train, Double3 gap, Double3 right, int side, WhistlerTuning t,
+        IReadOnlyList<Double3>? sites = null)
     {
-        var line = world.Train.Line;
-        double start = world.Train.Dynamics.Distance;
-        double rail = PlayerMotor.GroundAt(gap, line, ref start);
-        Double3 Ground(Double3 at)
+        var across = (right with { Y = 0 }).Normalized;
+        double hint = train.Dynamics.Distance;
+        double rail = PlayerMotor.GroundAt(gap, train.Line, ref hint);
+        var water = (train.Line.Conditions as LineGen.PlanConditions)?.Terrain;
+        double Flat(Double3 a) => ((a - gap) with { Y = 0 }).Length;
+        foreach (var site in (sites ?? []).Where(a => Flat(a) >= t.NestMinDistance && Flat(a) <= t.NestSiteReach).OrderBy(Flat))
         {
-            double h = start;
-            return at with { Y = PlayerMotor.GroundAt(at, line, ref h) };
+            var dir = ((site - gap) with { Y = 0 }).Normalized;
+            if (Runnable(train, gap, dir, Flat(site), rail, water, t, ref hint) is { } nest)
+                return (nest, Flat(site));
         }
-        const double Step = 5;
-        foreach (var dir in (ReadOnlySpan<Double3>)[side, side * -1])
-            for (double d = t.NestDistance; d >= t.NestMin - 1e-9; d -= Step)
-            {
-                bool fits = true;
-                var prev = Ground(gap);
-                for (double r = Math.Min(Step, d); r <= d + 1e-9 && fits; r += Step)
-                {
-                    var here = Ground(gap + dir * r);
-                    fits = Math.Abs(here.Y - prev.Y) <= t.NestGrade * Step && Math.Abs(here.Y - rail) <= t.NestClimb
-                        && world.Forts?.Inside(here) != true;
-                    prev = here;
-                }
-                if (fits)
-                    return Ground(gap + dir * d);
-            }
-        return Ground(gap + side * 4);
+        foreach (int s in new[] { side, -side })
+            for (double d = t.NestDistance; d >= t.NestMinDistance - 1e-6; d -= Math.Max(1, t.NestStep))
+                if (Runnable(train, gap, across * s, d, rail, water, t, ref hint) is { } nest)
+                    return (nest, ((nest - gap) with { Y = 0 }).Length);
+        var edge = gap + across * (side * train.Dynamics.Tuning.Recovery.EdgeM);
+        return (edge with { Y = PlayerMotor.GroundAt(edge, train.Line, ref hint) }, train.Dynamics.Tuning.Recovery.EdgeM);
+    }
+
+    static Double3? Runnable(TrainOnLine train, Double3 gap, Double3 dir, double distance, double rail, LineGen.TerrainField? water, WhistlerTuning t, ref double hint)
+    {
+        const double Pace = 2, WallPace = 0.5;
+        double last = rail;
+        for (double x = Pace; x <= distance + 1e-6; x += Pace)
+        {
+            var at = gap + dir * Math.Min(x, distance);
+            double ground = PlayerMotor.GroundAt(at, train.Line, ref hint);
+            if (Math.Abs(ground - rail) > t.NestMaxRise || Math.Abs(ground - last) > t.NestMaxSlope * Pace
+                || water?.WaterNear(at.X, at.Z, 1) is not null)
+                return null;
+            // The walls at a finer pace than the land: a shed's or a Holdout's wall is 0.3 m thick (note 279), so a pace's
+            // samples could step either side of one.
+            for (double y = x - Pace + WallPace; y <= Math.Min(x, distance) + 1e-6; y += WallPace)
+                if (InWall(train, gap + dir * y))
+                    return null;
+            last = ground;
+        }
+        var nest = gap + dir * distance;
+        return nest with { Y = last };
+    }
+
+    /// <summary>Whether a point is in (or within half a metre of) a stop's or a fort's walls: it runs round buildings, not through them.</summary>
+    static bool InWall(TrainOnLine train, Double3 at)
+    {
+        if (train.Walls is not { } walls)
+            return false;
+        foreach (var w in walls.Near(at))
+        {
+            var l = w.ToLocal(at);
+            if (Math.Abs(l.X) <= w.HalfLength + 0.5 && Math.Abs(l.Z) <= w.HalfWidth + 0.5)
+                return true;
+        }
+        return false;
     }
 
     protected override void Punish(EnemyContext ctx, int victim)
@@ -327,6 +439,14 @@ public sealed class Whistler(int id) : Enemy(id)
 /// engine, then into the first car that's unlit or has nobody in it, where it's an interior threat: it takes a lone player
 /// in there (a grab a friend can club it off). Rule: outnumber them at the gaps. Bludgeon any that mount. "Scales brutally
 /// with train length": more gaps to hold with the same crew.
+/// <para>
+/// Driven off by its rule (note 288, enemies.json <c>climbers.drivenOff</c>; the director's clarification of 7 Oct 2026):
+/// up on the roofs or in a car, outnumbered where it is (more of the crew than Climbers within <c>countRadius</c> of it)
+/// with no gang striking it, it drops back off the train after <c>outnumberedSeconds</c> (letting go of anyone it holds)
+/// and makes for another gap it hasn't tried: a break, not the night. A lone blow knocks it off a friend it holds and does
+/// no more. Killed only by the crew together: blows from two or more crewmates inside <c>coordinatedKill</c>'s window wear it
+/// down; killed, it's gone for good (the rest of its pack, and the director, aren't put off).
+/// </para>
 /// </summary>
 /// <remarks>
 /// <see cref="Enemy.Extra"/> is the vehicle ahead of the gap it's making for (pacing and mounting), <see cref="Enemy.Extra2"/>
@@ -334,7 +454,7 @@ public sealed class Whistler(int id) : Enemy(id)
 /// </remarks>
 public sealed class Climber(int id) : Enemy(id)
 {
-    double _bored, _bite;
+    double _bored, _bite, _outnumbered;
     int _tries;
     readonly List<int> _tried = [];
 
@@ -345,7 +465,8 @@ public sealed class Climber(int id) : Enemy(id)
     /// <summary>On the roofs or in a car, a tool can reach it.</summary>
     public override double MeleeRadius => Attached >= 0 ? 0.6 : 0;
     /// <summary>Out on the roofs (or scrabbling at the gap), it's in the open: the guns can take it.</summary>
-    public override double HitRadius => Phase is SpinePhase.Telegraph or SpinePhase.Commit && Extra >= 0 ? 0.55 : 0;
+    public override bool Exposed => Phase is SpinePhase.Telegraph or SpinePhase.Commit && Extra >= 0;
+    public override bool GunAnswers => true;
 
     public int Gap => (int)Extra;
     public int Side => Extra2 < 0 ? -1 : 1;
@@ -402,6 +523,9 @@ public sealed class Climber(int id) : Enemy(id)
             Enter(ctx, SpinePhase.Gone);
             return;
         }
+        if (t.DrivenOff && Attached >= 0 && (Phase is SpinePhase.Grab || Phase is SpinePhase.Commit || Phase is SpinePhase.Telegraph && Extra < 0)
+            && Outnumbered(ctx, t))
+            return;
         switch (Phase)
         {
             case SpinePhase.Dormant:
@@ -422,6 +546,18 @@ public sealed class Climber(int id) : Enemy(id)
                     }
                     if (PhaseSeconds >= t.PaceSeconds && Math.Abs(want - LineDistance) <= 1.5)
                     {
+                        // Boarding-first (GDD App. F.1, note 286): "slowing opens the doors". Too fast to get a grip, it
+                        // runs on alongside (the telegraph: a pack pacing the train, waiting for it to slow), and gives it
+                        // up after a while.
+                        if (train.Dynamics.Speed >= t.MountBelow)
+                        {
+                            if (PhaseSeconds >= t.PaceSeconds + t.WaitForSlowSeconds)
+                            {
+                                Enter(ctx, SpinePhase.BreakOff);
+                                Enter(ctx, SpinePhase.Gone);
+                            }
+                            break;
+                        }
                         if (Held(ctx, Gap, Brought(ctx), t))
                         {
                             Retry(ctx, t);
@@ -441,8 +577,9 @@ public sealed class Climber(int id) : Enemy(id)
                     Enter(ctx, SpinePhase.Commit);
                 break;
             case SpinePhase.Telegraph:
-                // Enough of the crew get to the gap as it scrabbles: outnumbered, it drops back and tries another.
-                if (Held(ctx, Gap, Brought(ctx), t))
+                // Enough of the crew get to the gap as it scrabbles: outnumbered, it drops back and tries another. So it
+                // does if the train picks up past what it can hold on at (note 286).
+                if (Held(ctx, Gap, Brought(ctx), t) || train.Dynamics.Speed >= t.MountBelow)
                 {
                     Retry(ctx, t);
                     break;
@@ -466,6 +603,27 @@ public sealed class Climber(int id) : Enemy(id)
                 Enter(ctx, SpinePhase.Gone);
                 break;
         }
+    }
+
+    /// <summary>
+    /// OUTNUMBER THEM (note 288): more of the crew than Climbers within <see cref="ClimberTuning.CountRadius"/> of it, and no
+    /// gang striking it: held for <see cref="ClimberTuning.OutnumberedSeconds"/>, it lets go and drops back off the train for
+    /// another gap (<see cref="Retry"/>). True the tick it does.
+    /// </summary>
+    bool Outnumbered(EnemyContext ctx, ClimberTuning t)
+    {
+        var at = WorldPosition(ctx.Train);
+        int climbers = ctx.World.ActiveEnemies.Count(e => e is Climber c && !c.Gone && c.Attached >= 0 && (c.WorldPosition(ctx.Train) - at).Length <= t.CountRadius);
+        bool beaten = CrewSense.Near(ctx, at, t.CountRadius) > Math.Max(1, climbers) && !Ganged(ctx);
+        _outnumbered = beaten ? _outnumbered + SimConstants.TickSeconds : 0;
+        if (_outnumbered < t.OutnumberedSeconds)
+            return false;
+        _outnumbered = 0;
+        // In a car it has no gap of its own: it goes out over the one behind the car it's in.
+        if (Extra < 0)
+            Extra = Attached;
+        Retry(ctx, t);
+        return true;
     }
 
     /// <summary>Blocked or lost its gap: drop back off the train and make for another it hasn't tried, or give up.</summary>
@@ -503,7 +661,9 @@ public sealed class Climber(int id) : Enemy(id)
         double z = Local.Z - t.TraverseSpeed * SimConstants.TickSeconds;
         // Over the middle of a car with a room in it, unlit or with nobody inside (App. A.4 ENTER): in it goes. Shut up and
         // dark, it forces its way in through the roof (the hatch torn off): the car's breached (decided 1 Oct).
-        if (Local.Z > 0 && z <= 0 && shape.Interior is { } room && (!train.Vehicles[car].LampLit || !Occupied(ctx, car)))
+        // Boarding-first (note 286): a lit car shut up tight keeps it out; it forces only a dark one.
+        bool keptOut = train.Vehicles[car].LampLit && t.LitShutCarKeepsOut && !t.BreachLitCars && Boarding.ShutUp(train, car);
+        if (Local.Z > 0 && z <= 0 && shape.Interior is { } room && (!train.Vehicles[car].LampLit || !Occupied(ctx, car)) && !keptOut)
         {
             var v = train.Vehicles[car];
             if (v.DoorsOpen == 0 && (!v.LampLit || t.BreachLitCars) && Breaches.Roof(shape) is { } roof)
@@ -576,6 +736,43 @@ public sealed class Climber(int id) : Enemy(id)
         Kill(ctx, victim, DeathCause.Climbed);
         Enter(ctx, SpinePhase.BreakOff);
         Enter(ctx, SpinePhase.Gone);
+    }
+
+    /// <summary>
+    /// Struck with a tool. Old rule (<c>drivenOff</c> false): hurt by any blow. Note 288: only the gang's blows hurt it (two or
+    /// more crewmates inside the window); a lone blow knocks it off a friend it holds and does no more.
+    /// </summary>
+    public override void Struck(EnemyContext ctx, int by, double damage)
+    {
+        if (!ctx.Tuning.Climbers.DrivenOff)
+        {
+            base.Struck(ctx, by, damage);
+            return;
+        }
+        Marked(ctx, by);
+        if (Ganged(ctx, except: Holding))
+        {
+            Health -= damage;
+            if (Health <= 0)
+            {
+                Slay(ctx, forTheNight: false);
+                return;
+            }
+        }
+        if (Phase == SpinePhase.Grab && by != Holding)
+            Rescued(ctx, by);
+    }
+
+    /// <summary>
+    /// A ball (note 290: a blow by the gunner). Note 288: it rides the blow's rule, and one that doesn't kill it knocks it off
+    /// the roof or the gap where the gun found it: driven off, back alongside for another gap.
+    /// </summary>
+    public override bool Hit(EnemyContext ctx, int by, double damage)
+    {
+        if (!base.Hit(ctx, by, damage) && ctx.Tuning.Climbers.DrivenOff && Exposed && Attached >= 0 && Extra >= 0
+            && Phase is SpinePhase.Telegraph or SpinePhase.Commit)
+            Retry(ctx, ctx.Tuning.Climbers);
+        return Gone;
     }
 
     /// <summary>Clubbed off: back to lurking in its car (the committed interior threat).</summary>

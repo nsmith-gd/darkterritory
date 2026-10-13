@@ -9,21 +9,34 @@ namespace DarkTerritory.Sim.LineGen;
 /// Stage 0 (plan §5): what a line is generated for. The consist is the departing one, planned for fully loaded (§3.4);
 /// crew size is for the director and harness only, never geometry.
 /// </summary>
-/// <param name="Severity">The route's place in its tier, [0, 1): route length and known grades on the route card.</param>
+/// <param name="Severity">The route's place in its tier, [0, 1): its challenges' density and known grades on the route card (never its length, note 270).</param>
 /// <param name="Cars">N_plan: the departing consist's car count.</param>
 /// <param name="Contracts">Facility types the crew's contracts need (§11.1): each is guaranteed to appear.</param>
 public sealed record RunParameters(RouteTier Tier, ulong Seed, double Severity, int Cars, IReadOnlyList<FacilityKind> Contracts, int Crew = 4)
 {
+    /// <summary>
+    /// The town the night departs from when it's the one the crew arrived at last night (note 591): its name and trade in
+    /// place of the ones drawn, and its seed for its people. The line itself is the spec's either way.
+    /// </summary>
+    public Towns.TownAt? From { get; init; }
+
     /// <summary>§3.1: D = tier index + severity, 0 to just under 4.</summary>
     public double D => (int)Tier + Severity;
 
     public string RouteId => $"{char.ToLowerInvariant(Tier.ToString()[0])}{Tier.ToString()[1..]}-{Seed}";
 
     /// <summary>
-    /// Parses a route spec, "tier:seed" or "tier:seed:severity" (e.g. "frontier:7"). Without a severity, it's the seed's
-    /// own (a route's place in its tier is part of the route, so the same spec is the same line everywhere).
+    /// Parses a route spec, "tier:seed" or "tier:seed:severity" (e.g. "frontier:7"), and after an "@" the town it departs
+    /// from (<see cref="Towns.TownAt.Spec"/>, note 591). Without a severity, it's the seed's own (a route's place in its tier
+    /// is part of the route, so the same spec is the same line everywhere).
     /// </summary>
     public static RunParameters Parse(string spec, int cars, int crew = 4)
+    {
+        var (line, from) = Towns.TownAt.Split(spec);
+        return ParseLine(line, cars, crew) with { From = from };
+    }
+
+    static RunParameters ParseLine(string spec, int cars, int crew)
     {
         var parts = spec.Split(':');
         var tier = Enum.Parse<RouteTier>(parts[0], ignoreCase: true);
@@ -85,7 +98,9 @@ public sealed class Limits
         Column = a;
         D = p.D;
         Tier = p.Tier;
-        LengthKm = L(c => c.LengthKm);
+        // Spec B.8 (the director's decision of 6 Oct 2026, note 270): every tier's night is the same length; the tier is in
+        // the columns' counts over it.
+        LengthKm = content.Route.NightLengthKm;
         Facilities = L(c => c.Facilities);
         MomentumGrade = a.MomentumGrade <= 0 ? 0 : L(c => c.MomentumGrade);
         BranchGrade = L(c => c.BranchGrade);
@@ -107,6 +122,10 @@ public sealed class Limits
         WeakBridges = R(c => c.WeakBridges);
         MomentumBanks = R(c => c.MomentumBanks);
         BrassFields = R(c => c.BrassFields);
+        Bends = R(c => c.Bends);
+        BendDerail = R(c => c.BendDerail);
+        // None on a tier without them (Local's one or two teach the board), however near the next tier it lerps.
+        SBends = a.SBends <= 0 ? 0 : L(c => c.SBends);
         if (cfg.Demo.Enabled)
         {
             if (cfg.Demo.NoWashouts)
@@ -178,6 +197,11 @@ public sealed class Limits
     public double[] WeakBridges { get; }
     public double[] MomentumBanks { get; }
     public double[] BrassFields { get; }
+    /// <summary>Note 278: hard bends a night carries, and the speeds (m/s) they derail at.</summary>
+    public double[] Bends { get; }
+    public double[] BendDerail { get; }
+    /// <summary>Note 359: the chance a hard bend is an S-bend.</summary>
+    public double SBends { get; }
     public double BudgetPerKm { get; }
     public double Corruption { get; }
     public double[] Fog { get; }

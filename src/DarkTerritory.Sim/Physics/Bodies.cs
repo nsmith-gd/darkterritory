@@ -16,9 +16,11 @@ namespace DarkTerritory.Sim.Physics;
 /// </summary>
 /// <summary>
 /// <see cref="RepairKit"/> is the engineer's toolbox (GDD §12 "the repair kit is an item, not a station"): whoever carries
-/// it opens a Holdout's lock quietly (App. D.7), and when they die it's lying where they fell.
+/// it opens a Holdout's lock quietly (App. D.7), and when they die it's lying where they fell. <see cref="Powder"/> is a charge
+/// for a gun's ready rack (note 374), taken from a powder locker and carried up to the gun. A tool is one left on a crew
+/// locker's shelf (note 649): it's only ever there, its tool in <see cref="Body.Tools"/>; taken, it's back in a slot.
 /// </summary>
-public enum BodyKind : byte { Crate = 1, Lamp = 2, Ragdoll = 3, Cargo = 4, Radio = 5, Heavy = 6, Toy = 7, Loot = 8, Child = 9, Extinguisher = 10, RepairKit = 11 }
+public enum BodyKind : byte { Crate = 1, Lamp = 2, Ragdoll = 3, Cargo = 4, Radio = 5, Heavy = 6, Toy = 7, Loot = 8, Child = 9, Extinguisher = 10, RepairKit = 11, Powder = 12, Tool = 13 }
 
 /// <summary>
 /// What a toy sounds like while it's carried (GDD v1.4 §19, App. C.7): most are quiet; a squeaker, a music box and a wind-up
@@ -68,6 +70,11 @@ public sealed class Body
     public bool DroppedOut { get; set; }
     /// <summary>Facing, for drawing single-point bodies (crates, lamps); tumbles in flight.</summary>
     public double Yaw { get; set; }
+    /// <summary>
+    /// Drawn only: its up (world) when it isn't its parent frame's, as a load thrown into the wreck film tumbles (note 370);
+    /// zero for upright. <see cref="Yaw"/> turns it about this.
+    /// </summary>
+    public Double3 Tilt { get; set; }
     public double Spin { get; set; }
     /// <summary>An extinguisher's charge, 0..1 (App. C.5: limited, and it recharges slowly on its mount).</summary>
     public double Charge { get; set; } = 1;
@@ -82,7 +89,8 @@ public sealed class Body
     public bool Broken { get; set; }
     /// <summary>
     /// A broken radio being mended with the repair kit (note 201): how many ticks Use has been held at it, 0 when nobody is.
-    /// On the body record, so the mender's HUD shows how far it's got.
+    /// On the body record, so the mender's HUD shows how far it's got. A healing find being used from the hands (note 272):
+    /// how many ticks it's been held at it, standing.
     /// </summary>
     public int MendTicks { get; set; }
     /// <summary>A toy's noise (App. C.7): <see cref="ToyNoise.None"/> for a quiet one and everything that isn't a toy.</summary>
@@ -102,6 +110,16 @@ public sealed class Body
     /// <summary>Which shelf of its locker, from the bottom.</summary>
     public int Slot { get; set; }
     public bool Stowed => Locker >= 0;
+    /// <summary>
+    /// Note 594: the slot of its carrier's hotbar it's in (a hand-sized thing carried, <see cref="Bodies.Slotted"/>), or −1:
+    /// lying about, or held two-handed in the arms.
+    /// </summary>
+    public int Pocket { get; set; } = -1;
+    /// <summary>
+    /// Note 594: in a slot that isn't the one in hand, put away on its carrier: still theirs (<see cref="Carrier"/>) and going
+    /// where they go, but not in their hands (<see cref="Bodies.CarriedBy"/>), not drawn, and not lit or working.
+    /// </summary>
+    public bool Stashed { get; set; }
     /// <summary>
     /// The crew's: stocked aboard at the fortress, or in someone's hands since. A repair kit found at a stop is the crew's
     /// once it's been picked up (GDD v1.4 §23.2 counts the kits the crew have; one lying unfound in a village isn't one).
@@ -130,12 +148,30 @@ public sealed class Bodies
     // Who's holding Use with the repair kit at a broken radio (note 201): which radio, and for how many ticks from the press
     // (a tap puts the kit down; a hold mends).
     readonly Dictionary<int, (int Radio, int Ticks)> _mending = new();
+    // Who's holding Use on a healing find in their hands (note 272): which find, and for how many ticks from the press (a tap
+    // puts it down; a hold uses it).
+    readonly Dictionary<int, (int Find, int Ticks)> _dosing = new();
+    // Health given back this tick by a find used up (host), by player, for the world to add (World.CrewAct).
+    readonly Dictionary<int, int> _doses = new();
     int _nextId = 1;
     const double Dt = SimConstants.TickSeconds;
     const double NearbyCar = 40;
 
     public IReadOnlyList<Body> All => _bodies;
     public HandsTuning Hands { get; set; } = new(1.6, 9, 4, 1.15, 0.6);
+
+    /// <summary>
+    /// How much health a body gives back used from the hands (GDD App. F.1's rare healing loot: a stop's bandages, medicine,
+    /// morphine; note 272), 0 for anything else. The world sets it with the run's loot (<see cref="Run.Run.HealOf"/>).
+    /// </summary>
+    public Func<Body, int>? Heals { get; set; }
+    /// <summary>How long Use is held, standing, to use a healing find (loot.json <c>healing.useSeconds</c>).</summary>
+    public double HealSeconds { get; set; } = 2;
+    /// <summary>A player's full health (player.json <c>health</c>): a find isn't used on a player who's whole.</summary>
+    public int FullHealth { get; set; } = 100;
+
+    /// <summary>Host: the health a find used up this tick gives <paramref name="playerId"/> (0 for none), taken once.</summary>
+    public int TakeDose(int playerId) => _doses.Remove(playerId, out int amount) ? amount : 0;
 
     /// <summary>
     /// The radios are things (T41): only someone wearing one talks or hears on the radio. False until the train's
@@ -146,8 +182,101 @@ public sealed class Bodies
     /// <summary>Whether a player can use the radio: wearing one, or everyone while radios aren't things.</summary>
     public bool HasRadio(int playerId) => !RadiosCarried || _bodies.Any(b => b.Kind == BodyKind.Radio && b.Carrier == playerId && !b.Broken);
 
-    /// <summary>What a player carries in their hands (a radio's on the belt, not in them).</summary>
-    public Body? CarriedBy(int playerId) => _bodies.FirstOrDefault(b => b.HeldBy(playerId) && b.Kind != BodyKind.Radio);
+    /// <summary>What a player carries in their hands (a radio's on the belt, not in them; a thing put away in a slot, note 594, isn't either).</summary>
+    public Body? CarriedBy(int playerId) => _bodies.FirstOrDefault(b => b.HeldBy(playerId) && b.Kind != BodyKind.Radio && !b.Stashed);
+
+    /// <summary>Note 594: the things a player carries in their slots, the one in hand among them, by slot.</summary>
+    public IEnumerable<Body> Slotted(int playerId) => _bodies.Where(b => b.Carrier == playerId && b.Pocket >= 0).OrderBy(b => b.Pocket);
+
+    /// <summary>
+    /// Note 594 ("Lethal Company's four shared slots", the director, the inbox, 12 Oct): what goes in a slot is what goes in a
+    /// crew locker, hand-sized (train.json <c>kit.lockers.holds</c>), but the radio, which has its belt.
+    /// </summary>
+    public static bool Pocketable(TrainOnLine train, BodyKind kind) => kind is not (BodyKind.Radio or BodyKind.Tool) && Lockers.Holds(train, kind);
+
+    /// <summary>
+    /// Note 649 (the director's `D1.5-loot-slots`: "leave a tool in your locker to carry more loot"): the tool in hand onto a
+    /// locker's first free shelf, its slot freed, there for anyone to take. False with nothing to put, or the locker full.
+    /// </summary>
+    bool StowTool(ref PlayerState s, TrainOnLine train, int car, int locker)
+    {
+        var tool = Player.Kit.Held(s);
+        if (tool == Tool.None || !Lockers.Holds(train, BodyKind.Tool) || Lockers.FreeSlot(this, train, car, locker) < 0)
+            return false;
+        var b = Put(train, car, BodyKind.Tool, train.Frames[car].Shape.Lockers[locker].Box.Centre, 0.1, 0.5, 0);
+        b.Tools = Player.Kit.With(0, 0, tool);
+        b.Claimed = true;
+        if (!Stow(b, train, car, locker))
+        {
+            _bodies.Remove(b);
+            return false;
+        }
+        s.Kit = Player.Kit.With(s.Kit, s.HeldSlot, Tool.None);
+        return true;
+    }
+
+    /// <summary>Note 649: a tool off a locker's shelf, back into the slot it's taken into (in hand); the body's gone.</summary>
+    void TakeTool(ref PlayerState s, Body b)
+    {
+        int slot = Player.Kit.SlotFor(s);
+        var tool = Player.Kit.At(b.Tools, 0);
+        _bodies.Remove(b);
+        if (slot < 0 || tool == Tool.None)
+            return;
+        s.Kit = Player.Kit.With(s.Kit, slot, tool);
+        s.HeldSlot = (byte)slot;
+    }
+
+    /// <summary>
+    /// Host, every tick (note 594): the thing in the slot in hand comes out into the hands, and one in hand from another slot
+    /// is put away, so the hotbar's choice (<see cref="Player.Kit.Select"/>, predicted) decides what's held. Arms full of
+    /// something two-handed, nothing comes out. <see cref="PlayerState.Pockets"/> is set from what's in the slots.
+    /// </summary>
+    void SyncSlots(ref PlayerState s, int playerId)
+    {
+        byte pockets = 0;
+        bool armsFull = _bodies.Any(b => b.HeldBy(playerId) && b.Kind != BodyKind.Radio && b.Pocket < 0);
+        foreach (var b in _bodies)
+        {
+            if (b.Carrier != playerId || b.Pocket < 0)
+                continue;
+            pockets |= (byte)(1 << b.Pocket);
+            b.Stashed = armsFull || b.Pocket != s.HeldSlot;
+        }
+        s.Pockets = pockets;
+    }
+
+    /// <summary>
+    /// Note 594: a hand-sized thing into a slot (the one in hand if it's empty, else the first empty one) and into the hands,
+    /// that slot taken in hand. False, and it's not taken, if every slot's full.
+    /// </summary>
+    bool IntoSlot(ref PlayerState s, int playerId, Body b)
+    {
+        int slot = Player.Kit.SlotFor(s);
+        if (slot < 0)
+            return false;
+        b.Carrier = playerId;
+        b.Pocket = slot;
+        b.Stashed = false;
+        s.HeldSlot = (byte)slot;
+        s.Pockets |= (byte)(1 << slot);
+        foreach (var other in _bodies)
+            if (other != b && other.Carrier == playerId && other.Pocket >= 0)
+                other.Stashed = true;
+        return true;
+    }
+
+    /// <summary>Note 594: everything in a dead player's slots falls where they are.</summary>
+    void DropSlots(in PlayerState s, int playerId, TrainOnLine train)
+    {
+        foreach (var b in _bodies.Where(b => b.Carrier == playerId && b.Pocket >= 0).ToList())
+            Release(b, s, train, 0);
+    }
+
+    // Ticks Use has been held at a car's door with arms full, by player (note 581): a tap puts it down, a hold is the door's.
+    readonly Dictionary<int, int> _doorHeld = new();
+
+    static double DoorSeconds(TrainOnLine train) => train.Dynamics.Tuning.Geometry.Interior?.DoorSeconds ?? 0.4;
 
     /// <summary>A heavy crate's span (T43): its carriers this far apart at most, hands to hands, or it's down.</summary>
     public double HeavySpan { get; set; } = 2.4;
@@ -159,6 +288,18 @@ public sealed class Bodies
         var pbd = new PbdBody([new Particle(local + Double3.Up * radius, 1, radius)]) { Friction = 0.2, Bounce = 0.1 };
         // Stocked aboard: the crew's from the start.
         var b = new Body(_nextId++, kind, car, pbd) { LineHint = train.Cars[Math.Max(0, car)].FrontDistance, Claimed = true };
+        _bodies.Add(b);
+        return b;
+    }
+
+    /// <summary>
+    /// A thing put back in a car where it was (a resumed night's, note 500): its middle at <paramref name="centre"/> in the car's
+    /// frame, at rest, sized and lying as it was saved.
+    /// </summary>
+    public Body Put(TrainOnLine train, int car, BodyKind kind, Double3 centre, double radius, double friction, double bounce)
+    {
+        var pbd = new PbdBody([new Particle(centre, 1, radius)]) { Friction = friction, Bounce = bounce };
+        var b = new Body(_nextId++, kind, car, pbd) { LineHint = train.Cars[Math.Max(0, car)].FrontDistance };
         _bodies.Add(b);
         return b;
     }
@@ -183,6 +324,8 @@ public sealed class Bodies
             ToCar(b, train, car);
         }
         b.Carrier = b.Second = -1;
+        b.Pocket = -1;
+        b.Stashed = false;
         b.Locker = locker;
         b.Slot = slot;
         b.Airborne = 0;
@@ -314,7 +457,8 @@ public sealed class Bodies
 
     /// <summary>
     /// Lifting a body takes the tools off it, into the lifter's empty slots (GDD v1.4 §12: "they go looking for the
-    /// engineer", and whoever finds the engineer has the kit). The wrench first; what doesn't fit stays on the body.
+    /// engineer", and whoever finds the engineer has the kit). The wrench and the shovel first (note 275); what doesn't fit
+    /// stays on the body.
     /// </summary>
     public static void TakeTools(ref PlayerState s, Body body)
     {
@@ -322,10 +466,10 @@ public sealed class Bodies
             return;
         ulong kit = s.Kit, left = 0;
         foreach (var tool in Enumerable.Range(0, Player.Kit.Slots).Select(i => Player.Kit.At(body.Tools, i)).Where(t => t != Tool.None)
-            .OrderBy(t => t == Tool.Wrench ? 0 : 1))
+            .OrderBy(t => t is Tool.Wrench or Tool.Shovel ? 0 : 1))
         {
-            // A spare crowbar isn't worth a slot; the wrench (there's the one) always is.
-            if (tool != Tool.Wrench && Player.Kit.Has(kit, tool) || !Player.Kit.TryAdd(ref kit, tool))
+            // A spare crowbar isn't worth a slot; the wrench and the shovel (there's the one of each) always are.
+            if (tool is not (Tool.Wrench or Tool.Shovel) && Player.Kit.Has(kit, tool) || !Player.Kit.TryAdd(ref kit, tool, s.Pockets))
                 Player.Kit.TryAdd(ref left, tool);
         }
         s.Kit = kit;
@@ -402,8 +546,19 @@ public sealed class Bodies
     /// Use is working what's carried, not putting it down: the repair kit at a Holdout's lock (App. D.7) or a ruptured
     /// boiler's firebox (T109). The press isn't taken, so the work goes on from this tick, the same on a predicting client.
     /// </param>
-    public bool Handle(in PlayerState s, in PlayerIntent intent, int playerId, TrainOnLine train, HandTuning? hand = null, bool keep = false)
+    /// <param name="lever">
+    /// At a switch's lever, a stand's or the cab's thrower's (queue #94, note 357): Use is the lever's, so what's carried stays
+    /// carried and nothing lying by it is picked up. Throw still lets go.
+    /// </param>
+    /// <param name="fetch">Empty hands here take a new one of these on a Use press (a powder locker's charge, note 374).</param>
+    /// <summary>The same, for a player whose state the caller keeps (tests): the slots it chooses aren't written back.</summary>
+    public bool Handle(PlayerState s, in PlayerIntent intent, int playerId, TrainOnLine train, HandTuning? hand = null, bool keep = false,
+        bool lever = false, BodyKind? fetch = null) => Handle(ref s, intent, playerId, train, hand, keep, lever, fetch);
+
+    public bool Handle(ref PlayerState s, in PlayerIntent intent, int playerId, TrainOnLine train, HandTuning? hand = null, bool keep = false,
+        bool lever = false, BodyKind? fetch = null)
     {
+        SyncSlots(ref s, playerId);
         bool use = intent.Has(PlayerButtons.Use), thrown = intent.Has(PlayerButtons.Throw);
         bool usePressed = use && !_useWas.GetValueOrDefault(playerId);
         bool throwPressed = thrown && !_throwWas.GetValueOrDefault(playerId);
@@ -417,10 +572,21 @@ public sealed class Bodies
                 Release(carried, s, train, 0);
             if (worn is not null)
                 Release(worn, s, train, 0);
+            DropSlots(s, playerId, train);
+            s.Pockets = 0;
             return false;
         }
-        if (carried is not null && keep && !throwPressed)
+        if (carried is not null && (keep || lever) && !throwPressed)
             return false;
+        // Note 649: at a locker with a tool in hand and nothing else, Throw puts the tool on a shelf (a tap of Use still takes
+        // what's there: everyone has the crowbar in hand most of the night, and the repair kit is fetched that way).
+        if (throwPressed && carried is null && Player.Kit.Held(s) != Tool.None && Lockers.AtHand(s, train, hand) is { } shelf)
+        {
+            var v = train.Vehicles[shelf.Car];
+            if (!v.LockerOpen(shelf.Bay.Index))
+                v.ToggleLocker(shelf.Bay.Index);
+            return StowTool(ref s, train, shelf.Car, shelf.Bay.Index);
+        }
         // At a locker's door (note 173), Use is the locker's: tapped, what's in your hands goes on a shelf (or the top thing
         // comes off one); held, CrewActions works the door. So the hands wait for the release to know which it was, and
         // never take the press (the door's hold is worked the same on a predicting client, which has no hands).
@@ -440,16 +606,53 @@ public sealed class Bodies
                     v.ToggleLocker(locker.Bay.Index);
                 if (carried is not null)
                     Stow(carried, train, locker.Car, locker.Bay.Index);
-                else if (open)
-                    Take(train, locker.Car, locker.Bay.Index, playerId);
+                else if (open && Player.Kit.SlotFor(s) >= 0 && Take(train, locker.Car, locker.Bay.Index, playerId) is { } taken)
+                {
+                    if (taken.Kind == BodyKind.Tool)
+                        TakeTool(ref s, taken);
+                    else if (Pocketable(train, taken.Kind))
+                        IntoSlot(ref s, playerId, taken);
+                }
             }
             return false;
         }
         _lockerHeld.Remove(playerId);
+        // At a car's door with your arms full (note 581; the director, 9 Oct 2026: "extremely difficult to get loot into the
+        // cars, the game should be more forgiving"): Use is the door's, held, as it is empty-handed (CrewActions works it),
+        // and a tap still puts down what you carry, as at a locker. It used to put it down on the press, so a crate couldn't
+        // be got through a shut door without setting it down to open it.
+        if (carried is not null && !throwPressed && CrewActions.NearestInteractable(s, train, hand) is { Thing.Kind: InteractableKind.Door })
+        {
+            if (usePressed)
+                _doorHeld[playerId] = 1;
+            else if (use && _doorHeld.ContainsKey(playerId))
+                _doorHeld[playerId]++;
+            else if (!use && _doorHeld.Remove(playerId, out int held) && held * Dt < DoorSeconds(train) - Dt / 2)
+                Release(carried, s, train, 0);
+            return false;
+        }
+        _doorHeld.Remove(playerId);
         if (Mend(s, intent, playerId, train, hand, carried, use, usePressed, throwPressed))
             return false;
+        if (Dose(s, intent, playerId, train, hand, carried, use, usePressed, throwPressed))
+            return false;
+        // Note 594: a find in hand off the train and another hand-sized thing in reach, with a slot free: Use takes it into that
+        // slot, the one in hand put away (Lethal Company's E). Aboard, Use puts the find down, as it always has: that's where
+        // finds are unloaded, and the one put down a moment before is still lying in reach.
+        if (carried is { Pocket: >= 0 } inHand && usePressed && !lever && intent.MoveZ <= 0.5 && s.Parent == PlayerState.World
+            && Player.Kit.SlotFor(s) >= 0 && CrewActions.NearestInteractable(s, train, hand) is null
+            && InReach(s, train, hand, wearingRadio: worn is not null, playerId) is { Carrier: < 0 } another && Pocketable(train, another.Kind))
+        {
+            inHand.Stashed = true;
+            IntoSlot(ref s, playerId, another);
+            another.Claimed = true;
+            another.Pbd.Wake();
+            return true;
+        }
         if (carried is not null && (throwPressed || usePressed))
         {
+            if (carried.Pocket >= 0)
+                s.Pockets &= (byte)~(1 << carried.Pocket);
             // Nobody throws a heavy crate: either of you lets go, and it's down.
             double speed = !throwPressed || carried.Kind == BodyKind.Heavy ? 0 : carried.Kind == BodyKind.Ragdoll ? Hands.RagdollThrowSpeed : Hands.ThrowSpeed;
             Release(carried, s, train, speed);
@@ -460,7 +663,17 @@ public sealed class Bodies
             Release(worn, s, train, 0);
             return false;
         }
-        if (!usePressed || carried is not null || intent.MoveZ > 0.5 || CrewActions.NearestInteractable(s, train, hand) is not null)
+        if (!usePressed || carried is not null || lever || intent.MoveZ > 0.5)
+            return false;
+        // A charge from the powder locker (note 374): into the hands, in the car's frame where they are.
+        if (fetch is { } kind)
+        {
+            var taken = SpawnItem(PlayerMotor.WorldPosition(s, train) + Double3.Up * 1.0, s.LineHint, kind);
+            taken.Carrier = playerId;
+            taken.Claimed = true;
+            return true;
+        }
+        if (CrewActions.NearestInteractable(s, train, hand) is not null)
             return false;
         if (InReach(s, train, hand, wearingRadio: worn is not null, playerId) is not { } nearest)
             return false;
@@ -474,8 +687,20 @@ public sealed class Bodies
             else
                 nearest.Carrier = playerId;
         }
+        else if (Pocketable(train, nearest.Kind))
+        {
+            // Note 594: into a slot, the thing that was in hand (a tool) put away; not taken with every slot full.
+            if (!IntoSlot(ref s, playerId, nearest))
+                return false;
+        }
         else
+        {
+            // Two-handed (a crate, freight, a body, a child): in the arms, and the slots wait till it's down.
             nearest.Carrier = playerId;
+            foreach (var other in _bodies)
+                if (other.Carrier == playerId && other.Pocket >= 0)
+                    other.Stashed = true;
+        }
         nearest.Claimed = true;
         nearest.Pbd.Wake();
         return true;
@@ -486,11 +711,13 @@ public sealed class Bodies
     /// anything Use works, and a broken radio on your belt or lying in reach. Use held there, standing, for train.json
     /// <c>kit.radioMendSeconds</c> mends it; moving or letting go starts it over. Like a locker's tap and hold, the hands
     /// wait for the release: a tap still puts the kit down. Returns whether it had the hands this tick.
+    /// <para>Note 301: where the wrench is the repair tool, it's the wrench in empty hands that mends it (<see cref="Mends"/>),
+    /// and a tap does nothing.</para>
     /// </summary>
     bool Mend(in PlayerState s, in PlayerIntent intent, int playerId, TrainOnLine train, HandTuning? hand, Body? carried,
         bool use, bool usePressed, bool throwPressed)
     {
-        var radio = carried is { Kind: BodyKind.RepairKit } && !throwPressed ? MendableRadio(s, train, hand, playerId) : null;
+        var radio = Mends(s, train, carried) && !throwPressed ? MendableRadio(s, train, hand, playerId) : null;
         bool had = _mending.TryGetValue(playerId, out var was);
         if (had && (radio is null || radio.Id != was.Radio))
         {
@@ -509,9 +736,9 @@ public sealed class Bodies
         {
             _mending.Remove(playerId);
             radio.MendTicks = 0;
-            // A tap: it was the hands', putting the kit down.
-            if (was.Ticks * Dt < Lockers.DoorSeconds(train) - Dt / 2)
-                Release(carried!, s, train, 0);
+            // A tap: it was the hands', putting the kit down (the wrench stays in hand).
+            if (carried is not null && was.Ticks * Dt < Lockers.DoorSeconds(train) - Dt / 2)
+                Release(carried, s, train, 0);
             return true;
         }
         if (!use || !_mending.ContainsKey(playerId))
@@ -525,6 +752,60 @@ public sealed class Bodies
         }
         return true;
     }
+
+    /// <summary>
+    /// GDD App. F.1's rare healing loot, used (note 272): a find that heals (<see cref="Heals"/>) in the hands of a player
+    /// short of full health, not at anything Use works. Use held there, standing, for <see cref="HealSeconds"/> uses it up:
+    /// the find's gone and its health is the carrier's (<see cref="TakeDose"/>); moving starts it over. Like the kit at a
+    /// radio, the hands wait for the release: a tap still puts it down. Returns whether it had the hands this tick.
+    /// </summary>
+    bool Dose(in PlayerState s, in PlayerIntent intent, int playerId, TrainOnLine train, HandTuning? hand, Body? carried,
+        bool use, bool usePressed, bool throwPressed)
+    {
+        var find = carried is { Kind: BodyKind.Loot } && !throwPressed && s.Health < FullHealth && Heals?.Invoke(carried) > 0
+            && CrewActions.NearestInteractable(s, train, hand) is null ? carried : null;
+        bool had = _dosing.TryGetValue(playerId, out var was);
+        if (had && (find is null || find.Id != was.Find))
+        {
+            _dosing.Remove(playerId);
+            if (_bodies.FirstOrDefault(b => b.Id == was.Find) is { } left)
+                left.MendTicks = 0;
+            had = false;
+        }
+        if (find is null)
+            return false;
+        if (usePressed)
+            _dosing[playerId] = (find.Id, 1);
+        else if (use && had)
+            _dosing[playerId] = (find.Id, was.Ticks + 1);
+        else if (!use && had)
+        {
+            _dosing.Remove(playerId);
+            find.MendTicks = 0;
+            // A tap: it was the hands', putting it down.
+            if (was.Ticks * Dt < Lockers.DoorSeconds(train) - Dt / 2)
+                Release(find, s, train, 0);
+            return true;
+        }
+        if (!use || !_dosing.ContainsKey(playerId))
+            return true;
+        bool still = Math.Abs(intent.MoveX) <= 0.1 && Math.Abs(intent.MoveZ) <= 0.1;
+        find.MendTicks = still ? find.MendTicks + 1 : 0;
+        if (find.MendTicks * Dt >= HealSeconds - Dt / 2)
+        {
+            _doses[playerId] = _doses.GetValueOrDefault(playerId) + Heals!(find);
+            _dosing.Remove(playerId);
+            Remove(find);
+        }
+        return true;
+    }
+
+    /// <summary>
+    /// Whether these hands mend a broken radio (note 201): the wrench in otherwise empty hands where it's the repair tool
+    /// (note 301), else the repair kit carried.
+    /// </summary>
+    public static bool Mends(in PlayerState s, TrainOnLine train, Body? carried) =>
+        Repairs.ByWrench(train) ? carried is null && Repairs.WrenchInHand(s) : carried is { Kind: BodyKind.RepairKit };
 
     /// <summary>
     /// The broken radio a player with the repair kit would mend (note 201): their own, on their belt, or else the nearest one
@@ -593,6 +874,8 @@ public sealed class Bodies
     void Release(Body b, in PlayerState s, TrainOnLine train, double speed)
     {
         b.Carrier = b.Second = -1;
+        b.Pocket = -1;
+        b.Stashed = false;
         var p = b.Pbd.Particles;
         foreach (int held in Grips(b))
             p[held].InverseMass = 1;
@@ -603,7 +886,72 @@ public sealed class Bodies
             p[i].SetVelocity(throwVelocity, Dt);
         b.Spin = speed > 0 ? 6 : 0;
         b.Airborne = speed > 0 ? 3 : 0;
+        if (speed <= 0)
+            TakeIn(b, train);
         b.Pbd.Wake();
+    }
+
+    /// <summary>How far outside a car's open doorway (m) a find or a crate set down is taken in through it (note 581).</summary>
+    public double DoorTakeIn { get; set; } = 1.0;
+
+    /// <summary>
+    /// A find or a crate set down just outside a car's open doorway, from its steps or the ground or the plates (note 581; the
+    /// director, 9 Oct 2026: "it's extremely difficult to get loot into the cars, the game should be more forgiving"): it's
+    /// taken in, onto the floor a step inside the doorway, where it loads or is stowed as anything put down inside does.
+    /// </summary>
+    void TakeIn(Body b, TrainOnLine train)
+    {
+        if (b.Kind is not (BodyKind.Loot or BodyKind.Cargo or BodyKind.Heavy) || DoorTakeIn <= 0)
+            return;
+        var at = WorldCentre(b, train);
+        // Already inside a room: nothing to take in.
+        if (b.Parent > 0 && b.Parent < train.Frames.Count && train.Frames[b.Parent].Shape.Interior is { } own && own.Contains(b.Centre))
+            return;
+        double floor = train.Dynamics.Tuning.Geometry.Interior?.FloorHeight ?? 1.1;
+        (int Car, Double3 Inside, double Off)? best = null;
+        foreach (var frame in train.Frames)
+        {
+            if (frame.Index == 0 || frame.Shape.Interior is not { } room || train.StandingCar(frame.Index))
+                continue;
+            var local = frame.ToLocal(at);
+            if (local.Y < floor - 1.6 || local.Y > room.Max.Y)
+                continue;
+            foreach (var door in frame.Shape.DoorList)
+            {
+                if (!train.Vehicles[frame.Index].DoorOpen(door.Index))
+                    continue;
+                var box = door.Box;
+                double dx = Math.Max(0, Math.Max(box.Min.X - local.X, local.X - box.Max.X));
+                double dz = Math.Max(0, Math.Max(box.Min.Z - local.Z, local.Z - box.Max.Z));
+                double off = Math.Sqrt(dx * dx + dz * dz);
+                if (off > DoorTakeIn || best is { } b0 && b0.Off <= off)
+                    continue;
+                // A step in from the doorway, square to it: a side door's across the car, an end door's along it.
+                var mid = box.Centre;
+                bool side = box.HalfSize.Z >= box.HalfSize.X;
+                var inward = side ? new Double3(-Math.Sign(mid.X), 0, 0) : new Double3(0, 0, -Math.Sign(mid.Z));
+                var inside = new Double3(side ? mid.X : Math.Clamp(local.X, box.Min.X + 0.2, box.Max.X - 0.2), floor,
+                    side ? Math.Clamp(local.Z, box.Min.Z + 0.2, box.Max.Z - 0.2) : mid.Z) + inward * 0.7;
+                if (room.Contains(inside + Double3.Up * 0.3))
+                    best = (frame.Index, inside, off);
+            }
+        }
+        if (best is not { } took)
+            return;
+        if (b.Parent != took.Car)
+        {
+            if (b.Parent != PlayerState.World)
+                ToWorld(b, train, b.Parent);
+            ToCar(b, train, took.Car);
+        }
+        var p = b.Pbd.Particles;
+        var shift = took.Inside + Double3.Up * p[0].Radius - b.Centre;
+        for (int i = 0; i < p.Length; i++)
+        {
+            p[i].Position += shift;
+            p[i].Previous = p[i].Position;
+        }
+        b.Airborne = 0;
     }
 
     /// <summary>Host: one physics step for everything loose, after the train and players have moved.</summary>
@@ -875,6 +1223,27 @@ public sealed class Bodies
             foreach (var door in g.Shape.DoorList)
                 if (!vehicle.DoorOpen(door.Index))
                     Consider(Collide.SphereBox(local, r, door.Box.Min, door.Box.Max), g, local, ref best, ref bestDepth, ref touchedCar);
+        }
+        // The stops' and the fortresses' buildings (T124): a body thrown or dropped against one comes to rest at it.
+        if (train.Walls is { } walls)
+            foreach (var w in walls.Near(world))
+            {
+                var local = w.ToLocal(world);
+                if (Collide.SphereBox(local, r, w.Box.Min, w.Box.Max) is not { } touch)
+                    continue;
+                double depth = (touch.Position - local).Length;
+                if (best is not null && depth <= bestDepth)
+                    continue;
+                best = new Contact(w.ToWorld(touch.Position), w.DirToWorld(touch.Normal));
+                bestDepth = depth;
+                touchedCar = -2; // the world's, as the ground is
+            }
+        // Note 279: down in a tunnel, its lining.
+        if (train.Line.Conditions is { } land && land.Confine(world, r) is var held && (held - world).Length is var into and > 1e-9 && into > bestDepth)
+        {
+            best = new Contact(held, (held - world) * (1 / into));
+            bestDepth = into;
+            touchedCar = -2;
         }
         double hint = b.LineHint;
         double ground = PlayerMotor.GroundAt(world, train.Line, ref hint) + r;

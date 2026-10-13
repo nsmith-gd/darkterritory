@@ -20,7 +20,13 @@ public struct GunState
     public double Z;
     /// <summary>Which way it faces along the train: −1 forward (the engine's), +1 back (the guard van's).</summary>
     public sbyte Facing;
+    /// <summary>The gun's rounds for the night, at it and in the powder lockers (combat.json <c>ammo</c>).</summary>
     public int Ammo;
+    /// <summary>
+    /// Of <see cref="Ammo"/>, the rounds in its ready rack at the gun (note 374, orchestrator.md §5.1 U4; combat.json
+    /// <c>rack</c>): what it fires. The rest are down in the powder lockers, carried up a charge at a time (<see cref="Combat.Guns"/>).
+    /// </summary>
+    public int Rack;
     /// <summary>Ticks until it can fire again.</summary>
     public int Cooldown;
     /// <summary>GDD §23: "Gun jams: someone repairs it by hand, under fire."</summary>
@@ -92,6 +98,11 @@ public sealed class Vehicle(int id, VehicleKind kind, double load)
     /// same loss, remembered as eaten rather than battered, so the car is drawn gnawed away from its rear end (and stays
     /// so once the thing is killed) rather than dented.
     /// </summary>
+    /// <summary>
+    /// How charred each of its <see cref="Enemies.FireGrid"/> cells is, 0..15 (App. F.1: "burnt cells char the textures";
+    /// note 267). Empty until it first burns; it never comes back the same night, and a fire there again has less to burn.
+    /// </summary>
+    public byte[] Char { get; set; } = [];
     public double Eaten { get; set; }
     /// <summary>
     /// The Territory has it (GDD v1.4 §23.2): a car the Car Hugger finished, or a caboose the Passenger rolled away. Gone,
@@ -110,6 +121,13 @@ public sealed class Vehicle(int id, VehicleKind kind, double load)
     /// WP15b, note 187), not the crew's: coupled up and brought home, it's theirs and it pays. Fixed for the night.
     /// </summary>
     public bool YardCar { get; init; }
+
+    /// <summary>
+    /// Bad-order stock blocking a yard's siding (level-design D.1, D.2; note 294), one of the <see cref="YardCar"/>s: empty,
+    /// battered, and whatever's loaded into it pays only facilities.json <c>derelicts.pays</c>. Never the crew's: wherever it's
+    /// left, it isn't a car lost. Fixed for the night.
+    /// </summary>
+    public bool Derelict { get; init; }
 
     /// <summary>
     /// A blow to the car's shell (a Car Hugger's bite, a hard knock at the couplers): what's left of it after the plate, if
@@ -139,6 +157,29 @@ public sealed class Vehicle(int id, VehicleKind kind, double load)
     /// not the cold, not the night's sound, not the Choir.
     /// </summary>
     public bool Breached { get; set; }
+    /// <summary>Seconds its rear axle box has run hot (note 331, <see cref="HotBoxes"/>); 0 running cool.</summary>
+    public double HotBox { get; set; }
+    /// <summary>Seconds its lamp has been guttering (note 346, <see cref="Gutters"/>); 0 burning steady.</summary>
+    public double Gutter { get; set; }
+    /// <summary>Seconds the coupling behind it has been working loose (note 356, <see cref="Couplings"/>); 0 tight.</summary>
+    public double Loose { get; set; }
+    /// <summary>
+    /// Its handbrake wound on by the Brakeman (note 364): in the engine's rake, its own handbrake's drag on the train (train.json
+    /// <c>handbrakeDecel</c> of its mass), until a crewmate unwinds it at its wheel.
+    /// </summary>
+    public bool Wound { get; set; }
+    /// <summary>
+    /// Metres the Knotter has forced the coupling behind it apart (note 365), past the coupling's own gap: its body is the
+    /// coupling, and the cars behind ride that much further back. 0, a coupling as any.
+    /// </summary>
+    public double Knot { get; set; }
+    /// <summary>An axle seized by Hotbox (note 367): the car drags badly (the train held to enemies.json <c>hotbox.seizedTopSpeed</c>) until it's repaired or cut.</summary>
+    public bool Seized { get; set; }
+    /// <summary>
+    /// Off its rails (the tipple's bad clamp, spec D.2; note 423): it holds its rake fast, nothing pulls it, until it's put back on
+    /// with a wrench.
+    /// </summary>
+    public bool OffRails { get; set; }
     /// <summary>Where the hole is (car frame): what's boarded up (<see cref="Breaches"/>).</summary>
     public Double3 BreachAt { get; set; }
 
@@ -269,8 +310,9 @@ public sealed class Consist
     }
 
     /// <summary>
-    /// The night's freight from the fortress (GDD §9 "choose freight contracts"; note 182): every loaded cargo car carries the
-    /// contract's cargo. Goods (or none) leaves it as it is.
+    /// A freight from the fortress (note 182): every loaded cargo car carries it. Goods (or none) leaves it as it is. No
+    /// contract names one any more (note 637: a contract is just a route). A train that leaves empty (run.json departureLoad 0, note 575)
+    /// has none to carry: this only marks what a save or a test put aboard.
     /// </summary>
     public Consist Carrying(CargoKind cargo)
     {
@@ -321,7 +363,7 @@ public sealed class Consist
     {
         double d = 0;
         for (int i = 0; i < index; i++)
-            d += _vehicles[i].Length(Tuning) + Tuning.Geometry.CouplingGap;
+            d += _vehicles[i].Length(Tuning) + Tuning.Geometry.CouplingGap + _vehicles[i].Knot;
         return d;
     }
 
@@ -333,5 +375,7 @@ public sealed class Consist
     public static double LoadedMassTonnes(TrainTuning t, int cars) => t.Mass.EngineTonnes + cars * t.Mass.LoadedCarTonnes;
 
     /// <summary>Front face of the first vehicle to rear face of the last, couplings included (spec B.4).</summary>
-    public double LengthMetres => _vehicles.Sum(v => v.Length(Tuning)) + Math.Max(0, _vehicles.Count - 1) * Tuning.Geometry.CouplingGap;
+    public double LengthMetres => _vehicles.Sum(v => v.Length(Tuning)) + Math.Max(0, _vehicles.Count - 1) * Tuning.Geometry.CouplingGap
+        // A Knotter's gap (note 365) inside the rake.
+        + _vehicles.Take(Math.Max(0, _vehicles.Count - 1)).Sum(v => v.Knot);
 }

@@ -1,0 +1,20 @@
+// Healing finds used: Using a healing find while Use is held: a bandage torn and wound tight, a medicine bottle uncorked and swallowed, a morphine syrette's cap off and the plunger pressed (bandages). Written by tools/audio/install.py from the audio checklist (first); edit the cue, not this.
+{
+ "tier": 4,
+ "loop": true,
+ "maxInstances": 8,
+ "minDistance": 1,
+ "maxDistance": 40,
+ "rolloff": 1.0,
+ "gainDb": 2,
+ "flat": false,
+ "layers": [
+  {
+   "source": "sample",
+   "sample": "crew-heal/apply/bandages",
+   "gain": 1,
+   "pitchJitter": 0,
+   "gainJitter": 0
+  }
+ ]
+}

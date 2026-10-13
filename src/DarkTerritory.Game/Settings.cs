@@ -3,6 +3,9 @@ using Ballast;
 
 namespace DarkTerritory.Game;
 
+/// <summary>The HUD's palette (note 348).</summary>
+public enum HudColours { Standard, Colourblind }
+
 /// <summary>
 /// A player's settings (roadmap M6 "settings"): sound, voice, the HUD, VR comfort, the mouse, and the display (T83). One small text
 /// file in the user's app data, beside the save slots; the front end's settings screen writes it as you change things.
@@ -27,6 +30,12 @@ public sealed record Settings
     /// <summary>Hold V to talk, rather than an open mic that opens on your voice.</summary>
     public bool PushToTalk { get; init; }
     public bool Hud { get; init; } = true;
+    /// <summary>
+    /// The keys in the HUD's corner for what you're holding or driving (note 285, the director: "a setting to hide corner
+    /// controls"). Off, the corner keeps only what it's about (the speed, what's in your hands); the prompts at the
+    /// crosshair stay.
+    /// </summary>
+    public bool ControlHints { get; init; } = true;
     public VrTurn VrTurn { get; init; } = VrTurn.Snap;
     public bool VrVignette { get; init; } = true;
     /// <summary>The name the crew and the incident report know you by (GDD v1.4 App. D.12); empty, your online or system name.</summary>
@@ -38,8 +47,73 @@ public sealed record Settings
     public bool PublicLobby { get; init; } = true;
     /// <summary>What the host calls the lobby in the browser; empty, "&lt;name&gt;'S RUN".</summary>
     public string LobbyName { get; init; } = "";
+    /// <summary>
+    /// A private run's password (note 450; the director, 8 Oct 2026: "Private matches should be password gated"), the host
+    /// screen's PASSWORD, remembered so a crew's usual one needn't be typed each night.
+    /// </summary>
+    public string LobbyPassword { get; init; } = "";
+    /// <summary>
+    /// Who you're playing for (note 450): HERE FOR LAUGHS, FEELING COMPETITIVE or EITHER. One setting on the host and join
+    /// screens alike: a host's run is listed with it, and the join list puts runs of it first.
+    /// </summary>
+    public RunMood Mood { get; init; }
     /// <summary>A multiplier on mouse look.</summary>
     public double MouseSpeed { get; init; } = 1;
+    /// <summary>Note 297: the mouse pushed forward looks down, as a flight stick does.</summary>
+    public bool InvertMouse { get; init; }
+    /// <summary>
+    /// Note 297: your eyes' vertical field of view, in degrees, one of <see cref="FieldsOfView"/> (75 as the game was drawn and
+    /// its frame cost measured, tuning/perf.json's views). Wider sees more of the dark, and draws more of it.
+    /// </summary>
+    public double FieldOfView { get; init; } = 75;
+    /// <summary>
+    /// Note 297: how much of the boiler's shake and a strained car's judder reaches your eyes (notes 263, 277), 0 to 1. The
+    /// world says it otherwise too (the gauges, the squeal, the sparks); only the eyes are spared.
+    /// </summary>
+    public double CameraShake { get; init; } = 1;
+    /// <summary>
+    /// Note 298 (GDD §9: in the yard the crew "try on outfits"): which of the crew's looks you wear (look.json crewColours,
+    /// with the cap or helmet and scarf that go with it), or −1 for your player id's. Sent as you join; tried on in the yard.
+    /// </summary>
+    public int Outfit { get; init; } = -1;
+    /// <summary>
+    /// Note 347: how big the HUD's and the menus' print is, one of <see cref="TextSizes"/>. The overlay's canvas is drawn smaller
+    /// and scaled up to the window (<see cref="Canvas"/>), so everything on it grows together and keeps its layout.
+    /// </summary>
+    public double TextSize { get; init; } = 1;
+    /// <summary>
+    /// Note 348: the HUD's colours that mean something, as drawn or told apart without red against green (hud.json's
+    /// <see cref="HudTuning.Standard"/> and <see cref="HudTuning.Colourblind"/>).
+    /// </summary>
+    public HudColours Colours { get; init; } = HudColours.Standard;
+    /// <summary>
+    /// Note 350: a tip on the loading screen, and for a new player's first nights the core controls on a card in the yard
+    /// (content/ui/tips.json). Off, neither.
+    /// </summary>
+    public bool FirstNights { get; init; } = true;
+    /// <summary>
+    /// Note 349: the sounds worth hearing named as they're heard, and where ("[TIPTOEING, BEHIND]"; content/ui/captions.json).
+    /// Off by default: the game is made to be listened to, and the caption says only what a hearing player hears.
+    /// </summary>
+    public bool Captions { get; init; }
+
+    /// <summary>
+    /// Note 383: HOLD KEYS, HOLD or TOGGLE. With TOGGLE a press of one of <see cref="Toggleable"/> latches it on and another
+    /// lets go (<see cref="HoldLatch"/>). Use stays a hold either way: its taps and its holds mean different things.
+    /// </summary>
+    public bool ToggleHolds { get; init; }
+
+    /// <summary>
+    /// Note 404: TEXT BACKING, a dim band behind the HUD's print in play (hud.json <see cref="HudTuning.TextBacking"/>), so a
+    /// caption or a prompt reads over a fire's glare, fog or snow. Off by default: note 285 puts no frames in play.
+    /// </summary>
+    public bool TextBacking { get; init; }
+
+    /// <summary>The holds HOLD KEYS can make toggles: run, the brake, talk, the radio and the crew roster.</summary>
+    public static readonly Control[] Toggleable = [Control.Run, Control.Brake, Control.Talk, Control.Radio, Control.Roster];
+
+    /// <summary>The outfit as the wire has it (note 298): none for −1 or anything off the end.</summary>
+    public byte OutfitByte(int outfits) => Outfit >= 0 && Outfit < outfits ? (byte)Outfit : Sim.Net.Messages.NoOutfit;
     /// <summary>T83: the whole screen (borderless, the desktop's own mode) rather than a window.</summary>
     public bool Fullscreen { get; init; }
     /// <summary>T83: wait for the monitor between frames (no tearing); off, frames go out as soon as they're drawn.</summary>
@@ -53,6 +127,27 @@ public sealed record Settings
 
     /// <summary>The resolutions on offer (16:9, the HUD's own shape: ARCHITECTURE §8 note 57's 720p is the least).</summary>
     public static readonly string[] Resolutions = ["1280x720", "1600x900", "1920x1080", "2560x1440"];
+    /// <summary>The fields of view on offer (note 297), vertical degrees: 75 is about 107 across a 16:9 screen.</summary>
+    public static readonly double[] FieldsOfView = [60, 65, 70, 75, 80, 85, 90];
+    /// <summary>The camera shake on offer (note 297): off, a quarter, half, three quarters, all of it.</summary>
+    public static readonly double[] CameraShakes = [0, 0.25, 0.5, 0.75, 1];
+    /// <summary>The text sizes on offer (note 347): 100%, 125% and 150%, whole steps of the canvas's pixel at 1080p (4, 5, 6).</summary>
+    public static readonly double[] TextSizes = [1, 1.25, 1.5];
+    /// <summary>The overlay's canvas at 100% (the HUD's and the menus' own size; note 57's 720p shows each of its pixels as 2.66).</summary>
+    public const int CanvasWidth = 480, CanvasHeight = 270;
+
+    /// <summary>The overlay's canvas for <see cref="TextSize"/> (note 347): smaller, so the same print is bigger on the screen.</summary>
+    public (int Width, int Height) Canvas
+    {
+        get
+        {
+            return ((int)Math.Round(CanvasWidth / TextScale), (int)Math.Round(CanvasHeight / TextScale));
+        }
+    }
+
+    /// <summary>The text size the print is drawn at: the setting if it's one on offer, else 100%.</summary>
+    public double TextScale => TextSizes.Contains(TextSize) ? TextSize : 1;
+
     /// <summary>The render scales on offer.</summary>
     public static readonly double[] RenderScales = [0.5, 0.75, 1];
 
@@ -130,16 +225,23 @@ public sealed record Settings
     }
 
     /// <summary>Settings are the same when every choice is, the keys by what's in them (a record compares a dictionary by reference).</summary>
-    public bool Equals(Settings? other) => other is not null && Mute == other.Mute && PushToTalk == other.PushToTalk && Hud == other.Hud
+    public bool Equals(Settings? other) => other is not null && Mute == other.Mute && PushToTalk == other.PushToTalk && Hud == other.Hud && ControlHints == other.ControlHints
         && MasterVolume == other.MasterVolume && EffectsVolume == other.EffectsVolume && MusicVolume == other.MusicVolume
         && VoiceVolume == other.VoiceVolume && MicDevice == other.MicDevice && MicLevel == other.MicLevel
         && VrTurn == other.VrTurn && VrVignette == other.VrVignette && MouseSpeed == other.MouseSpeed
+        && InvertMouse == other.InvertMouse && FieldOfView == other.FieldOfView && CameraShake == other.CameraShake && Outfit == other.Outfit
+        && TextSize == other.TextSize && Colours == other.Colours && FirstNights == other.FirstNights && Captions == other.Captions && ToggleHolds == other.ToggleHolds && TextBacking == other.TextBacking
         && Fullscreen == other.Fullscreen && VSync == other.VSync && Resolution == other.Resolution && RenderScale == other.RenderScale
         && PlayerName == other.PlayerName && PublicLobby == other.PublicLobby && LobbyName == other.LobbyName
+        && LobbyPassword == other.LobbyPassword && Mood == other.Mood
         && Keys.Count == other.Keys.Count && Keys.All(k => other.Keys.GetValueOrDefault(k.Key) == k.Value);
 
     public override int GetHashCode() => HashCode.Combine(Mute, PushToTalk, Hud, VrTurn, VrVignette, MouseSpeed, Keys.Count,
-        HashCode.Combine(Fullscreen, VSync, Resolution, RenderScale, PublicLobby, LobbyName, HashCode.Combine(MasterVolume, EffectsVolume, MusicVolume, VoiceVolume, MicDevice, MicLevel)));
+        HashCode.Combine(Fullscreen, VSync, Resolution, RenderScale, PublicLobby, LobbyName, HashCode.Combine(MasterVolume, EffectsVolume, MusicVolume, VoiceVolume, MicDevice, MicLevel),
+            HashCode.Combine(InvertMouse, FieldOfView, CameraShake, Outfit, ControlHints, TextSize, Colours, HashCode.Combine(FirstNights, Captions, ToggleHolds, TextBacking, LobbyPassword, Mood))));
+
+    /// <summary>The field of view the eyes are drawn at (note 297): the setting if it's one on offer, else 75.</summary>
+    public float EyeFov => (float)(FieldsOfView.Contains(FieldOfView) ? FieldOfView : 75);
 
     /// <summary>The volumes as the mixer takes them.</summary>
     public Ballast.Audio.MixVolumes Volumes => new((float)MasterVolume, (float)EffectsVolume, (float)VoiceVolume, (float)MusicVolume);

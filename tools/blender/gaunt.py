@@ -22,7 +22,8 @@ up out of it, the ears opening, once), follow (the stilts stepping in slow diago
 ahead, ears forward), listen (stood over you, the neck let down to you, the head on one side, the ears cupped at you,
 quivering; the engine lets it further down and tips the head over as its anger climbs), attack (it rears up on its hind
 legs, the forelegs high, and drives them down into you, too fast), crawl (aboard: low, the legs folded, creeping),
-squat (aboard: folded up tight, listening), smash (aboard: the forelegs stabbed out from the squat), hit.
+squat (aboard: folded up tight, listening), smash (aboard: the forelegs stabbed out from the squat), hit; carry and carry_low
+(leaving with what it took: the load under it in its mouth, note 505).
 
     tools/models/build.sh gaunt        # this, its high copy and the bake -> content/art/models/gaunt.glb
 """
@@ -211,17 +212,75 @@ for s, sx in (("r", 1), ("l", -1)):
             pts.append(c + R @ q)
         head.tube(pts, [0.011, 0.008, 0.003], 5, KNOT, f"ear_{s}", ref=(0, 1, 0))
 
-# --- the legs: poles, knotted at the joints, ending in spikes --------------------------------------------------
+# --- the legs: dead branches, gnarled at the joints, ending in spikes -----------------------------------------
+# (Their rings and sides are few: the Gaunt is drawn in the perf views' line-side, whose VR frame sits at the 1.5M
+# triangle budget, tuning/perf.json, PerfBudgetTests.)
+# (Note 548: they were dowels of one taper with a ball at every joint, a wooden toy's. Asleep it's to be a heap of dead
+# branches, note 132, so each bone's length is a branch: bent and uneven along it, the bark split in fissures, the joints
+# gnarled lumps grown over, a broken-off twig's stub here and there, the cannons drawn down to a splintered spike.)
 legs = kit.part("legs")
+
+
+def branch(a, b, r0, r1, bone, seed, rings=9, sides=10, bend=0.04, mat=None, fmat=None, splinter=False):
+    """A branch from a to b: bowed off its line (most in its middle), its girth swelling and pinching along it, the bark
+    fissured deep along its length."""
+    d = (b - a).normalized()
+    side = d.cross(Vector((0, 0, 1)) if abs(d.z) < 0.9 else Vector((1, 0, 0))).normalized()
+    up = d.cross(side).normalized()
+    ph = noise3(Vector((seed * 1.7, 0.3, 0.9)), 92, 1.0) * 3.14
+    bow = side * math.cos(ph) + up * math.sin(ph)
+    pts, rr = [], []
+    for k in range(rings + 1):
+        t = k / rings
+        wob = 0.35 * noise3(Vector((seed * 2.1, t * 3.0, 0.5)), 93, 1.0)
+        pts.append(a.lerp(b, t) + bow * (bend * math.sin(math.pi * t) + 0.012 * wob * math.sin(math.pi * t)))
+        r = r0 + (r1 - r0) * t
+        r *= 1 + 0.18 * noise3(Vector((seed * 3.3, t * 5.0, 1.7)), 94, 1.0)
+        rr.append(max(0.002, r))
+
+    def shape(i, j, aa, p, fr):
+        p = Vector(p)
+        out = fr[0] * math.sin(aa) + fr[1] * math.cos(aa)
+        # Fissured: deep cracks running along it between ridges of bark, wandering a little.
+        crack = abs(math.sin(aa * 4 + i * 0.35 + seed + 1.2 * noise3(p * 6, 95, 1.0)))
+        off = 0.01 * (crack ** 0.5 - 0.6) + 0.004 * noise3(p * 22, 91, 1.0)
+        if splinter and i == len(pts) - 2:
+            off -= 0.006 * max(0.0, math.sin(aa * 3 + seed))
+        return p + out * off * (rr[i] / 0.05)
+    return legs.tube(pts, [(r, r) for r in rr], sides, mat or BARK, bone, ref=(0, 1, 0), shape=shape, fmat=fmat, cap1="point" if splinter else False)
+
+
+def gnarl(c, size, bones, seed):
+    """A joint grown over: a lump of knotted wood, wider one way than the other, its burls standing."""
+    def jag(i, j, aa, th, p):
+        q = Vector(p) - c
+        k = 1 + 0.32 * noise3(Vector(p), seed, 24.0) + 0.18 * max(0.0, math.sin(aa * 3 + th * 2 + seed)) ** 3
+        return c + q * k
+    legs.blob(c, size, 10, 7, KNOT, bones, shape=jag)
+
+
+def stub(a, d, ln, r, bone, seed):
+    """A twig broken off short: out of the branch at a, along d."""
+    d = d.normalized()
+    legs.tube([a, a + d * ln * 0.6, a + d * ln], [r, r * 0.7, r * 0.45], 6, BARK, bone, ref=(0, 0, 1), cap1=True,
+              shape=lambda i, j, aa, p, fr: Vector(p) + (fr[0] * math.sin(aa) + fr[1] * math.cos(aa)) * 0.002 * noise3(Vector(p) * 30, seed, 1.0))
+
+
 for s, sx in (("r", 1), ("l", -1)):
-    for leg in LEGS:
+    for n, leg in enumerate(LEGS):
+        seed = n * 2 + (s == "l") + 1
         th, sh, ca = f"thigh_{leg}{s}", f"shin_{leg}{s}", f"cannon_{leg}{s}"
-        legs.tube([H(th) + (H(th) - T(th)).normalized() * 0.05, H(th).lerp(T(th), 0.5), T(th)], [0.07, 0.055, 0.048], 10, BARK, th, ref=(0, 1, 0), shape=bark)
-        legs.blob(T(th), (0.075, 0.07, 0.08), 10, 7, KNOT, {th: 0.5, sh: 0.5})
-        legs.tube([H(sh), H(sh).lerp(T(sh), 0.5), T(sh)], [0.046, 0.034, 0.03], 10, BARK, sh, ref=(0, 1, 0), shape=bark)
-        legs.blob(T(sh), (0.05, 0.05, 0.056), 10, 6, KNOT, {sh: 0.5, ca: 0.5})
-        legs.tube([H(ca), H(ca).lerp(T(ca), 0.6), T(ca) + Vector((0, 0, 0.08)), T(ca)], [0.028, 0.022, 0.014, 0.002], 6, BARK, ca, ref=(0, 1, 0),
-                  fmat=lambda pts, n: SPIKE if sum(pts, Vector()).z / len(pts) < 0.14 else BARK, shape=bark)
+        branch(H(th) + (H(th) - T(th)).normalized() * 0.05, T(th), 0.072, 0.046, th, seed, rings=7, sides=8, bend=0.05)
+        gnarl(T(th), (0.072, 0.064, 0.082), {th: 0.5, sh: 0.5}, 96 + seed)
+        branch(H(sh), T(sh), 0.047, 0.029, sh, seed + 10, rings=7, sides=8, bend=-0.045)
+        gnarl(T(sh), (0.048, 0.044, 0.056), {sh: 0.5, ca: 0.5}, 106 + seed)
+        branch(H(ca), T(ca), 0.029, 0.006, ca, seed + 20, rings=6, sides=6, bend=0.03, splinter=True,
+               fmat=lambda pts, nn: SPIKE if sum(pts, Vector()).z / len(pts) < 0.14 else BARK)
+        # A twig's stub or two off the thigh and the shin, pointing out and up, away from the body, and back (a forward
+        # one stands out ahead among the head's: GauntTests reads the head as what's foremost).
+        out = Vector((sx, 0, 0.6))
+        stub(H(th).lerp(T(th), 0.4 + 0.1 * (seed % 3)), out + Vector((0, -0.3, 0)), 0.15, 0.018, th, 120 + seed)
+        stub(H(sh).lerp(T(sh), 0.3 + 0.15 * (seed % 2)), Vector((sx, -0.2, -0.2)), 0.11, 0.013, sh, 130 + seed)
 
 
 # ----------------------------------------------------------------------------------------------------------------
@@ -462,6 +521,89 @@ hit.key(14, LISTEN, "CONSTANT")
 
 
 
+# Carrying off what it took (App. A.6: "it carries the body out at walking pace, in full view"; note 505): the sim holds
+# the load under its body (Gaunt.Carry: carryHigh 1.7 m over its feet, aboard carryLow 0.55), so the neck goes down
+# and back under it and the mouth clamps on the load's top, as a cat carries a kitten. The neck has no IK of its own:
+# mouth_to searches its three bends and the head's for the mouth's place.
+NECKS = ["neck_01", "neck_02", "neck_03", "head"]
+
+
+def mouth_to(pose, target, aim=(0.0, -0.35, -1.0)):
+    """The neck curled and the head set so the head's tip (the mouth) is at `target` (armature space), the head
+    pointing along `aim`: a coordinate search over the four bends (pitch only), from a spread of starts."""
+    target, aim = Vector(target), Vector(aim).normalized()
+
+    def posed(a):
+        return over(pose, **{n: (a[k], 0, 0) for k, n in enumerate(NECKS)})
+
+    def seg(p, a, b):
+        ab = b - a
+        u = max(0.0, min(1.0, (p - a).dot(ab) / max(1e-9, ab.dot(ab))))
+        return (p - (a + ab * u)).length
+
+    def cost(a):
+        tip, base, n0, n1, jaw = rig.pose_points(sk, posed(a), [("head", "tail"), ("head", "head"), ("neck_01", "head"), ("neck_01", "tail"),
+                                                               ("jaw", "tail")])
+        # Not folded back into its own neck (art clearance): the head and the jaw kept a hand's breadth off its root.
+        near = min(seg(q, n0, n1) for q in (tip, (tip + base) / 2, jaw))
+        return (tip - target).length + 0.05 * (1 - (tip - base).normalized().dot(aim)) + 2.0 * max(0.0, 0.2 - near)
+    best = None
+    for start in ((-60, -40, -30, -20), (-100, -50, -20, -10), (-40, -70, -60, -30), (-130, -40, 0, 10), (-90, -90, -60, -40),
+                  (-150, -80, -40, -20), (-120, -110, -30, 0), (-178, -90, -90, -30), (40, -170, -100, -40), (-60, -178, -100, 0)):
+        a, c, step = list(start), cost(start), 16.0
+        while step > 0.25:
+            moved = False
+            for k in range(4):
+                for dv in (step, -step):
+                    t = list(a)
+                    t[k] = max(-178.0, min(90.0, t[k] + dv))
+                    ct = cost(t)
+                    if ct < c:
+                        a, c, moved = t, ct, True
+            if not moved:
+                step /= 2
+        if best is None or c < best[0]:
+            best = (c, a)
+    return posed(best[1]), best[0]
+
+
+CARRY_HIGH, CARRY_LOW = 1.7, 0.55   # enemies.json gaunt.carryHigh, carryLow
+# Where on the load the mouth takes hold: in front of it, under the chest, where the neck's seen hanging down to it (the
+# load's centre is under the body; a crewmate's draped over its underside, a crate's face is a quarter metre ahead).
+GRIP_HIGH = Vector((0.0, 0.36, CARRY_HIGH - 0.15))
+AIM_HIGH = (0.0, -1.0, -0.25)
+GRIP_LOW = Vector((0.0, 0.5, CARRY_LOW + 0.1))
+JAW_SHUT = (-14, 0, 0)
+
+# Carry (1.6 s, loop): the follow's stalk, slower to lift its feet, the body let down under the weight, the neck down
+# under it and the load in its mouth, swaying with it.
+CARRY_BODY = over(FOLLOW_BODY, root__loc=(0, 0, -0.14), spine_03=(2, 0, 0), jaw=JAW_SHUT)
+carry = Clip("carry")
+carry_worst = 0.0
+for f, phase in ((0, 0.0), (12, 0.25), (24, 0.5), (36, 0.75)):
+    sway, bob = 0.03 * math.sin(phase * 2 * math.pi), 0.03 * math.cos(phase * 4 * math.pi)
+    body = over(CARRY_BODY, root__loc=(sway, 0, -0.14 + bob), spine_02=(0, 3 * math.sin(phase * 2 * math.pi), 0))
+    body, miss = mouth_to(body, GRIP_HIGH + Vector((sway, 0, bob)), aim=AIM_HIGH)
+    carry_worst = max(carry_worst, miss)
+    print(f"[dt] gaunt carry {f}: {miss:.3f}")
+    carry.key(f, done(stand_on(body, gait(rest_feet(), phase, 0.32, 0.28)), (-4, 10)), "LINEAR")
+carry.close(48)
+
+# Carry low (1.3 s, loop): aboard, the crawl's fold, the load dragged under its chest in its mouth.
+CARRY_LOW_BODY = over(CRAWL_BODY, jaw=JAW_SHUT)
+carry_low = Clip("carry_low")
+for f, phase in ((0, 0.0), (10, 0.25), (20, 0.5), (30, 0.75)):
+    bob = 0.02 * math.cos(phase * 4 * math.pi)
+    body = over(CARRY_LOW_BODY, root__loc=(0, 0, -1.28 + bob))
+    body, miss = mouth_to(body, GRIP_LOW + Vector((0, 0, bob)), aim=(0.0, 0.2, -1.0))
+    carry_worst = max(carry_worst, miss)
+    print(f"[dt] gaunt carry_low {f}: {miss:.3f}")
+    p = stand_on(body, gait(low_feet(0.85, 2.2), phase, 0.26, 0.18), hocks={k: 0.35 for k in ALL}, **{k: {"knee_low": 1.5} for k in ALL})
+    carry_low.key(f, done(p, (30, 20)), "LINEAR")
+carry_low.close(40)
+print(f"[dt] gaunt carry: the mouth within {carry_worst:.3f} of its hold")
+
+
 def tops(name, p):
     """(Checked against GauntTests: its highest joint in a pose, the ears' tips included.)"""
     pts = rig.pose_points(sk, p, [(b.name, "tail") for b in sk.bones] + [(b.name, "head") for b in sk.bones])
@@ -471,6 +613,6 @@ def tops(name, p):
 for name, p in (("squat", SQUAT), ("crawl", crawl_probe), ("listen", LISTEN), ("sleep", SLEEP)):
     tops(name, p)
 kit.build()
-rig.bake(sk, [sleep, stir, follow, listen, attack, crawl, squat, smash, hit])
+rig.bake(sk, [sleep, stir, follow, listen, attack, crawl, squat, smash, hit, carry, carry_low])
 print("[dt] gaunt", {p.name: p.tris() for p in kit.parts}, "total", kit.tris(), "bones", len(sk.bones))
 rig.export(rig.args()[0] if rig.args() else "gaunt.glb", kit)

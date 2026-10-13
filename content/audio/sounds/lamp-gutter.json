@@ -1,0 +1,48 @@
+// The tell's takes from the audio checklist, kept or the first candidate under review
+// (state-gutter/sputter, state-gutter/flutter), in place of its synth definition
+// (tools/audio/synth-defs/lamp-gutter.json), keeping its tier, range and level. Written by
+// tools/audio/install.py; edit the cue or that file, not this one.
+{
+ "tier": 5,
+ "loop": true,
+ "maxInstances": 8,
+ "minDistance": 1,
+ "maxDistance": 18,
+ "layers": [
+  {
+   "source": "sample",
+   "sample": "state-gutter/sputter",
+   "gain": {
+    "param": "gutter",
+    "points": [
+     [
+      0,
+      0.35
+     ],
+     [
+      1,
+      1
+     ]
+    ]
+   }
+  },
+  {
+   "source": "sample",
+   "sample": "state-gutter/flutter",
+   "gain": {
+    "param": "gutter",
+    "points": [
+     [
+      0,
+      0.5
+     ],
+     [
+      1,
+      1
+     ]
+    ]
+   }
+  }
+ ],
+ "gainDb": -16
+}

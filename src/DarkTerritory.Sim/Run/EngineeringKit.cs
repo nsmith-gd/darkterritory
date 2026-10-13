@@ -70,6 +70,44 @@ public static class EngineeringKit
     }
 
     /// <summary>
+    /// The wrenches, as §23.2 reads them where the wrench is the repair tool (note 301; the director, 8 Oct 2026: "If every
+    /// crew member drops their wrench off the train then leaves them behind and then the train breaks down they could be
+    /// stranded"). A wrench is aboard in a living crewmate's kit, on the cab's rack, or on a body (a fallen crewmate keeps
+    /// their tools, D.2) in a car that's still reachable or lying on the line within <see cref="StrandedTuning.KitLostBeyond"/>
+    /// of a living crewmate. One in a car the Territory took, or cut loose and left behind, or on a body left that far back on
+    /// the line, or carried off with it, is lost. <see cref="KitWhere.Body"/> is the body's id for one on a body, else -1;
+    /// <see cref="KitWhere.Vehicle"/> where it lies or was lost.
+    /// </summary>
+    public static KitWhere Wrench(World world, IEnumerable<PlayerState> crew, StrandedTuning t)
+    {
+        var train = world.Train;
+        var living = crew.Where(c => c.Alive).ToList();
+        if (living.Any(c => Kit.Has(c.Kit, Tool.Wrench)))
+            return new KitWhere(KitPlace.Carried);
+        if (train.BoilerTuning is not null && !train.Boiler.WrenchOut)
+            return new KitWhere(KitPlace.Lying, Vehicle: 0);
+        KitWhere? lost = null;
+        foreach (var body in world.Bodies.All.Where(b => b.HasTool(Tool.Wrench)).OrderBy(b => b.Id))
+        {
+            int car = body.Parent;
+            if (car >= 0 && car < train.Vehicles.Count)
+            {
+                if (train.Vehicles[car].Taken)
+                    lost ??= new KitWhere(KitPlace.Lost, body.Id, car, KitLoss.CarTaken);
+                else if (Behind(world, crew, car, t))
+                    lost ??= new KitWhere(KitPlace.Lost, body.Id, car, KitLoss.LeftBehind);
+                else
+                    return new KitWhere(KitPlace.Lying, body.Id, car);
+            }
+            else if (living.Any(c => (PlayerMotor.WorldPosition(c, train) - Bodies.WorldCentre(body, train)).Length <= t.KitLostBeyond))
+                return new KitWhere(KitPlace.Lying, body.Id);
+            else
+                lost ??= new KitWhere(KitPlace.Lost, body.Id, PlayerState.World, KitLoss.LeftBehind);
+        }
+        return lost ?? new KitWhere(KitPlace.Lost, Loss: KitLoss.Taken);
+    }
+
+    /// <summary>
     /// A car cut loose on the main line, beyond reach of every living crewmate: gone into the Territory (§24). A car on a
     /// branch (a facility's pad or siding) is exempt: it's parked, not lost.
     /// </summary>
@@ -85,8 +123,14 @@ public static class EngineeringKit
         return !crew.Any(c => c.Alive && (PlayerMotor.WorldPosition(c, train) - at).Length <= t.KitLostBeyond);
     }
 
-    /// <summary>The end screen's line for how it was lost.</summary>
-    public static string Line(KitLoss loss) => loss switch
+    /// <summary>The end screen's line for how it was lost (<paramref name="wrench"/>: the last wrench, note 301).</summary>
+    public static string Line(KitLoss loss, bool wrench = false) => wrench ? loss switch
+    {
+        KitLoss.CarTaken => "THE LAST WRENCH WENT WITH THE CAR",
+        KitLoss.Taken => "THE LAST WRENCH WAS CARRIED OFF",
+        KitLoss.LeftBehind => "THE LAST WRENCH WAS LEFT BEHIND ON THE LINE",
+        _ => "THERE'S NO WRENCH LEFT",
+    } : loss switch
     {
         KitLoss.CarTaken => "THE REPAIR KIT WENT WITH THE CAR",
         KitLoss.Taken => "THE REPAIR KIT WAS CARRIED OFF",

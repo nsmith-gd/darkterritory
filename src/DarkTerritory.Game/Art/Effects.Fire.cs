@@ -25,6 +25,35 @@ public sealed partial class Effects
     }
 
     /// <summary>
+    /// A hot axle box (note 331): smoke curling off the bogie, thin as it starts to squeal and thick and dark as it's about to
+    /// catch (<paramref name="heat"/> 0..1), the train's wind dragging it back along the car; and the box glowing dull red
+    /// from a third of the way. <paramref name="box"/> the box, <paramref name="u"/>/<paramref name="b"/> the car's up and back.
+    /// </summary>
+    public void HotBoxSmoke(MeshBuilder mesh, Vector3 box, Vector3 u, Vector3 b, float heat, float speed, double t, int seed)
+    {
+        if (_smoke < 0 || heat <= 0.12f)
+            return;
+        float thick = Math.Clamp((heat - 0.12f) / 0.6f, 0, 1);
+        int puffs = 4 + (int)(thick * 10);
+        for (int k = 0; k < puffs; k++)
+        {
+            float h = Hash(k * 1.71f + seed * 5.3f), period = 1.8f + h;
+            float age = (float)((t * (0.9 + 0.3 * h) + h * 7) % period), s = age / period;
+            var p = box + u * (age * 0.7f) + b * (MathF.Abs(speed) * age * 0.5f)
+                + new Vector3(MathF.Sin(age * 2.1f + h * 6) * 0.15f, 0, MathF.Cos(age * 1.7f + h * 4) * 0.15f) * s;
+            float a = (0.35f + 0.45f * thick) * MathF.Sin(MathF.PI * MathF.Min(1, s * 1.3f + 0.05f));
+            float grey = 0.72f - 0.22f * thick;
+            mesh.Billboard(p, 0.25f + s * (0.9f + thick * 1.1f), h * 6.28f + age * 0.3f, new Vector4(new Vector3(grey, grey * 0.97f, grey * 0.94f), a),
+                _smoke, FxBlend.Alpha, (int)(s * 15.99f), 4);
+        }
+        if (heat > 0.35f && _spark >= 0)
+        {
+            float glow = (heat - 0.35f) / 0.65f * (0.75f + 0.25f * MathF.Sin((float)t * 7 + seed));
+            mesh.Billboard(box, 0.9f, 0, new Vector4(1.0f, 0.35f, 0.08f, 0.8f * glow), _spark, FxBlend.Additive, 0, 2);
+        }
+    }
+
+    /// <summary>
     /// A breath in the cold (GDD §26): every few seconds (quicker when they're working) a puff out of the mouth, out the
     /// way they face, spreading and rising and gone. <paramref name="amount"/> how much it shows (the night's cold).
     /// </summary>
@@ -229,7 +258,7 @@ public sealed partial class Effects
         // some up on the crates' tops and in the gaps between, in and out from the face. (On one line, side by side, their
         // roots joined into a straight bright edge: a row of cards.)
         int tongues = 4 + (int)(9 * burnF);
-        for (int rank = 0; rank < 2; rank++)
+        for (int rank = 0; rank < (CellFlames ? 0 : 2); rank++)
             for (int i = 0; i < tongues; i++)
             {
                 float h = Hash(i * 3.17f + rank * 9.1f), h2 = Hash(i * 7.31f + rank * 2.3f + 0.5f);
@@ -246,7 +275,7 @@ public sealed partial class Effects
             }
         // The creep (the spread): flames out along the floor and licking up the walls toward the car's ends, further the
         // nearer it is to jumping, lower and patchier at the front of it, each tongue on its own beat.
-        if (spread > 0)
+        if (spread > 0 && !CellFlames)
         {
             float front = 1.2f + 3.6f * Math.Clamp(spread, 0, 1);
             int creep = (int)(4 + 22 * Math.Clamp(spread, 0, 1));
@@ -286,6 +315,167 @@ public sealed partial class Effects
             mesh.PointLights.Add(new PointLight(L(-0.45f, 0.7f + 0.3f * k, (k - 0.5f) * 1.2f), Palette.FurnaceOrange * (1.2f + 2.2f * burnF) * flicker,
                 3.5f + 5f * burnF));
         }
+    }
+
+    /// <summary>
+    /// Whether a car fire's flames are drawn cell by cell (<see cref="FireCell"/>; note 267), so <see cref="CarFire"/> draws
+    /// only its smoke, glow, cinders and light at the heart of it. Set by the scene each frame.
+    /// </summary>
+    public bool CellFlames { get; set; }
+
+    /// <summary>
+    /// One cell of a car fire's grid alight (GDD App. F.1, "Fire is a grid"; note 267), camera-relative: tongues off the floor
+    /// standing up, up a wall licking up it, and on the roof rolling along under it, flat; a cell short of alight (smoulder)
+    /// is a red glow in the boards. <paramref name="along"/> and <paramref name="across"/> span the cell's patch (half-sizes),
+    /// <paramref name="normal"/> faces into the car.
+    /// </summary>
+    public void FireCell(MeshBuilder mesh, Vector3 at, Vector3 along, Vector3 across, Vector3 normal, Sim.Enemies.FireFace face, float heat, bool alight,
+        double t, int seed)
+    {
+        if (heat <= 0.02f)
+            return;
+        var up = Vector3.UnitY;
+        if (!alight)
+        {
+            float breathe = 0.55f + 0.45f * MathF.Sin((float)t * 1.3f + seed);
+            mesh.Billboard(at + normal * 0.05f, 0.5f + 0.6f * heat, 0, new Vector4(Palette.FurnaceOrange * 0.5f * heat * breathe, 1), -1, FxBlend.Additive, stretch: 0.5f);
+            return;
+        }
+        int tongues = 1 + (int)(3.99f * heat);
+        for (int i = 0; i < tongues; i++)
+        {
+            float h = Hash(seed * 1.73f + i * 3.17f), h2 = Hash(seed * 2.91f + i * 7.31f + 0.5f);
+            // On a wall, rooted in the lower part of its patch and licking up over the rest: from the boards, not hung on them.
+            bool wall = face is Sim.Enemies.FireFace.Left or Sim.Enemies.FireFace.Right;
+            var foot = at + along * (h * 2 - 1) * 0.8f + across * (wall ? h2 * 0.9f - 0.95f : (h2 * 2 - 1) * 0.8f) + normal * 0.08f;
+            int frame = (int)((t * 20 + seed * 1.7 + i * 5.3) % 16);
+            float glow = 0.75f + 0.35f * h;
+            if (face == Sim.Enemies.FireFace.Ceiling)
+            {
+                // Rolling along under the roof: wide, flat, hanging down from it.
+                float wide = 0.6f + 0.9f * heat;
+                mesh.Billboard(foot + normal * (0.1f + 0.15f * heat), wide, (h - 0.5f) * 0.6f, new Vector4(0.85f, 0.5f, 0.3f, glow * 0.8f), _flame, FxBlend.Additive, frame, 4,
+                    stretch: 0.45f);
+                continue;
+            }
+            // Off the floor and up the walls, standing up; on a wall, licking up it from where it's caught.
+            float tall = (face == Sim.Enemies.FireFace.Floor ? 0.35f + 1.2f * heat : 0.3f + 0.9f * heat) * (0.75f + 0.4f * h);
+            float width = tall * 0.6f;
+            mesh.Billboard(foot + up * (tall * 0.46f), width, (h - 0.5f) * 0.3f, new Vector4(0.85f, 0.55f, 0.32f, glow), _flame, FxBlend.Additive, frame, 4,
+                stretch: tall / width);
+        }
+        // The cell's heat on its boards: a broad soft glow over its patch.
+        mesh.Billboard(at + normal * 0.06f, 1.0f + 0.8f * heat, 0, new Vector4(Palette.FurnaceOrange * 0.22f * heat, 1), -1, FxBlend.Additive, stretch: 0.6f);
+    }
+
+    /// <summary>
+    /// A house alight (ARCHITECTURE §8 note 608): one a creature brought in through a town's gate set burning, the night it
+    /// was fought in the yard. Flames out of its front, two rows up the wall, and standing along its roof; a thick column of
+    /// smoke off it; its light thrown out over the street. Camera-relative: <paramref name="front"/> the middle of its front
+    /// wall on the ground, <paramref name="along"/> across that front, <paramref name="into"/> back into the house.
+    /// </summary>
+    public void HouseFire(MeshBuilder mesh, Vector3 front, Vector3 along, Vector3 into, float width, float depth, float height, double t, int seed)
+    {
+        var up = Vector3.UnitY;
+        // Tongues out of its windows and door, two storeys of them, licking up the front: a storey high, not a stove's.
+        int across = Math.Max(2, (int)(width / 2.0f));
+        for (int i = 0; i < across; i++)
+            for (int row = 0; row < 2; row++)
+            {
+                float h = Hash(seed * 1.31f + i * 3.17f + row * 7.7f), h2 = Hash(seed * 2.9f + i * 5.3f + row);
+                float u = ((i + 0.5f) / across - 0.5f) * width * 0.9f;
+                float tall = 2.4f + 2.0f * h + 0.5f * MathF.Sin((float)t * (5 + 3 * h) + h2 * 6.28f);
+                var foot = front + along * u + up * (0.8f + row * 3.0f) - into * 0.6f;
+                int frame = (int)((t * 18 + h * 16 + i * 5.3) % 16);
+                mesh.Billboard(foot + up * (tall * 0.45f), tall * 0.7f, (h - 0.5f) * 0.3f, new Vector4(1.1f, 0.62f, 0.3f, 1f), _flame, FxBlend.Additive, frame, 4,
+                    stretch: 1.5f);
+            }
+        // Out of the roof: a sheet of it along the ridge, three to six metres up.
+        var ridge = front + into * (depth / 2) + up * height;
+        int crown = Math.Max(3, (int)(width / 1.6f));
+        for (int i = 0; i < crown; i++)
+        {
+            float h = Hash(seed * 4.1f + i * 2.37f);
+            float tall = 3.0f + 3.0f * h + 0.8f * MathF.Sin((float)t * (4 + 2 * h) + i);
+            var foot = ridge + along * (((i + 0.5f) / crown - 0.5f) * width) + into * ((h - 0.5f) * depth * 0.5f);
+            int frame = (int)((t * 16 + h * 16 + i * 3.1) % 16);
+            mesh.Billboard(foot + up * (tall * 0.42f), tall * 0.6f, (h - 0.5f) * 0.25f, new Vector4(0.95f, 0.6f, 0.32f, 1f), _flame, FxBlend.Additive, frame, 4,
+                stretch: 1.6f);
+        }
+        // The column of smoke off it: thick, dark, lit from under, climbing high over the town.
+        if (_smoke >= 0)
+        {
+            const float life = 12f, rate = 4f;
+            double emitted = Math.Floor(t * rate);
+            var wind = new Vector3(0.6f, 0, 0.35f);
+            for (int k = 0; k < (int)(life * rate); k++)
+            {
+                double index = emitted - k;
+                float age = (float)(t - index / rate);
+                if (age < 0 || age > life)
+                    continue;
+                float h = Hash((float)(index * 0.618 + seed * 1.7)), a = age / life;
+                var at = ridge + up * (2.5f + 2.2f * age) + wind * age * (0.7f + 0.6f * h)
+                    + along * ((h - 0.5f) * width * 0.6f) + into * ((Hash((float)index + seed) - 0.5f) * depth * 0.5f);
+                float size = 3.0f + 9f * MathF.Sqrt(a);
+                float alpha = 0.75f * MathF.Pow(1 - a, 1.2f) * MathF.Min(1, age * 2);
+                // Under-lit by the fire close to it, sooty above.
+                var tint = Vector3.Lerp(new Vector3(0.42f, 0.24f, 0.13f), new Vector3(0.09f, 0.085f, 0.08f), MathF.Min(1, a * 3));
+                mesh.Billboard(at, size, h * 6.28f + age * 0.1f, new Vector4(tint, alpha), _smoke, FxBlend.Alpha, (int)(a * 15.99f), 4);
+            }
+        }
+        // Cinders up off it, and the glow on the street.
+        for (int k = 0; k < 14; k++)
+        {
+            float h = Hash(seed * 0.7f + k * 1.93f), period = 2.5f + 2 * h;
+            float age = (float)((t + h * 9) % period);
+            var spark = ridge + up * (age * 3.5f) + along * ((h - 0.5f) * width + MathF.Sin(age * 3 + k) * 0.8f) + into * ((Hash(k + seed) - 0.5f) * depth);
+            mesh.Billboard(spark, 0.12f, 0, new Vector4(Palette.FurnaceOrange * (1.6f * (1 - age / period)), 1), -1, FxBlend.Additive);
+        }
+        float flicker = 0.85f + 0.15f * MathF.Sin((float)t * 9.1f + seed);
+        // Out on the street, so the light falls on the ground and the houses opposite, not flat on its own front.
+        mesh.PointLights.Add(new PointLight(front - into * 7 + up * 2, Palette.FurnaceOrange * (1.8f * flicker), 22));
+        mesh.PointLights.Add(new PointLight(ridge + up * 4, Palette.FurnaceOrange * (2.0f * flicker), 30));
+    }
+
+    /// <summary>
+    /// What a fire left of a cell (App. F.1: "burnt cells char the textures"; note 267): its boards scorched brown, then black
+    /// the more of it's burnt, in a ragged patch a little bigger than the cell so charred cells run together. Camera-relative,
+    /// laid on the surface by <paramref name="along"/> and <paramref name="across"/> (half-sizes), just off it into the car.
+    /// Solid, not an effect: the blended effects only ever add light, and soot takes it away.
+    /// </summary>
+    public static void Char(MeshBuilder mesh, Vector3 at, Vector3 along, Vector3 across, Vector3 normal, float amount, int seed)
+    {
+        if (amount <= 0.02f)
+            return;
+        // Neighbours overlap; each a hair further off the boards than the last, so they don't fight.
+        var c = at + normal * (0.01f + 0.004f * (seed % 4));
+        var colour = Vector3.Lerp(new Vector3(0.045f, 0.03f, 0.02f), new Vector3(0.012f, 0.011f, 0.01f), Math.Clamp(amount * 1.3f, 0, 1));
+        const int Sides = 12;
+        Span<Vector3> rim = stackalloc Vector3[Sides];
+        for (int k = 0; k < Sides; k++)
+        {
+            float a = k * MathF.Tau / Sides;
+            float r = (0.95f + 0.35f * Hash(seed * 3.1f + k * 1.7f)) * (0.75f + 0.35f * amount);
+            rim[k] = c + along * (MathF.Cos(a) * r * 1.05f) + across * (MathF.Sin(a) * r * 1.05f);
+        }
+        float emissive = mesh.Emissive;
+        var style = mesh.Style;
+        // Flat soot: the art style would pick a texture by the colour (and soot's no material it knows).
+        mesh.Emissive = 0;
+        mesh.Style = null;
+        // Wound to face the eye (the origin), as every solid is drawn.
+        bool flip = Vector3.Dot(Vector3.Cross(rim[0] - c, rim[1] - c), c) > 0;
+        for (int k = 0; k < Sides; k++)
+        {
+            var (p, q) = (rim[k], rim[(k + 1) % Sides]);
+            if (flip)
+                mesh.Triangle(c, q, p, colour);
+            else
+                mesh.Triangle(c, p, q, colour);
+        }
+        mesh.Emissive = emissive;
+        mesh.Style = style;
     }
 
     /// <summary>

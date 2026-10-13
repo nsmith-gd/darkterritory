@@ -24,23 +24,10 @@ public sealed class Ribbit(int id, int pack) : Enemy(id)
     public override Sense Sense => Sense.Sight;
     public override Want Want => Want.Kill;
     public override double MeleeRadius => 0.7;
-    public override bool OnFoot => true;
-    protected override PlayerMotor.Cylinder Body => new(0.45, 0.9, 0.4);
     public int Pack { get; } = pack;
     public int? Target => Extra >= 0 ? (int)Extra : null;
 
     public static Ribbit At(int id, int pack, Double3 world, RibbitTuning t) => new(id, pack) { Attached = Loose, Local = world, Extra = -1, Health = t.Health };
-
-    /// <summary>A pack the director's sent after one player the train left behind (<see cref="Abandonment"/>, note 266).</summary>
-    public static Ribbit Hunting(int id, int pack, Double3 world, int quarry, RibbitTuning t) =>
-        new(id, pack) { Attached = Loose, Local = world, Extra = -1, Extra2 = quarry + 1, Health = t.Health };
-
-    /// <summary>Who it's hunting (<see cref="Enemy.Extra2"/> − 1, replicated), or −1 for a pack after whoever's outnumbered.</summary>
-    public override int Quarry => Extra2 >= 1 ? (int)Math.Round(Extra2) - 1 : -1;
-
-    /// <summary>Its hop: past the abandonment's deadly mark, its quarry can't outrun it (enemies.json abandoned.deadlyHop).</summary>
-    double HopSpeed(EnemyContext ctx) =>
-        ctx.Tuning.Ribbits.HopSpeed * (Quarry >= 0 && ctx.World.Abandonment is { } a && a.DreadOf(Quarry) == Dread.Deadly ? a.Tuning.DeadlyHop : 1);
 
     List<Ribbit> Members(EnemyContext ctx) => [.. ctx.World.ActiveEnemies.OfType<Ribbit>().Where(r => r.Pack == Pack && !r.Gone)];
 
@@ -65,10 +52,11 @@ public sealed class Ribbit(int id, int pack) : Enemy(id)
         }
         var to = (target.World - Local) with { Y = 0 };
         double d = to.Length;
+        var (way, apart) = Place(target.World, members, leader, t);
         switch (Phase)
         {
             case SpinePhase.Dormant:
-                Hop(to, HopSpeed(ctx));
+                Hop(way, apart, t.HopSpeed, members, t.Spacing);
                 // TONGUE: the pack outnumbers them and the leader's within reach: halt, line up, throats swell.
                 if (leader == this && d <= t.TongueReach)
                     foreach (var m in members)
@@ -86,7 +74,15 @@ public sealed class Ribbit(int id, int pack) : Enemy(id)
                     return;
                 }
                 if (leader == this && PhaseSeconds >= ctx.Tuning.MinReactionSeconds && Enter(ctx, SpinePhase.Commit))
+                {
                     Grab(ctx, who, t.DevourSeconds);
+                    // And the rest of the pack's tongues are out to them too, and in they hop to eat (App. A.6: "their
+                    // tongues freeze the target in place while the pack hops in to eat"; note 558: they'd stayed lined up
+                    // where they swelled).
+                    foreach (var m in members)
+                        if (m != this && m.Phase == SpinePhase.Telegraph)
+                            m.Enter(ctx, SpinePhase.Commit);
+                }
                 return;
             case SpinePhase.Grab:
                 // Friends arriving even the count: the tongue lets go.
@@ -95,11 +91,18 @@ public sealed class Ribbit(int id, int pack) : Enemy(id)
                     Rescued(ctx, -1);
                     return;
                 }
-                Hop(to, HopSpeed(ctx) * 0.25);
+                Hop(way, apart, t.HopSpeed * 0.25, members, t.Spacing);
                 return;
             default:
-                // The pack's slow hop in on a frozen target.
-                Hop(to, leader.Phase == SpinePhase.Grab ? HopSpeed(ctx) * 0.25 : HopSpeed(ctx));
+                // The pack's slow hop in on a frozen target; let go of (a friend evened the count, they struggled free), the
+                // rest of the pack breaks off with the leader.
+                if (leader != this && Phase == SpinePhase.Commit && leader.Phase is not (SpinePhase.Commit or SpinePhase.Grab or SpinePhase.Punish))
+                {
+                    Enter(ctx, SpinePhase.BreakOff);
+                    Enter(ctx, SpinePhase.Dormant);
+                    return;
+                }
+                Hop(way, apart, leader.Phase == SpinePhase.Grab ? t.HopSpeed * 0.5 : t.HopSpeed, members, t.Spacing);
                 return;
         }
     }
@@ -116,14 +119,6 @@ public sealed class Ribbit(int id, int pack) : Enemy(id)
         double best = double.MaxValue;
         foreach (var (p, w) in ctx.LivingCrew())
         {
-            // Sent after one of them (note 266): them, as long as they're out there alone and in its range, and nobody else.
-            if (Quarry >= 0 && (p.Id != Quarry || ((w - centre) with { Y = 0 }).Length > (ctx.World.Abandonment?.Tuning.HuntRange ?? t.GiveUpBeyond)))
-                continue;
-            if (Quarry >= 0 && CrewSense.OnGround(p.State) && CrewSense.Group(ctx, p.Id, t.GroupRadius).Count < size)
-            {
-                pick = p.Id;
-                break;
-            }
             if (!CrewSense.OnGround(p.State) || CrewSense.Group(ctx, p.Id, t.GroupRadius).Count >= size)
                 continue;
             double d = ((w - centre) with { Y = 0 }).Length;
@@ -136,13 +131,78 @@ public sealed class Ribbit(int id, int pack) : Enemy(id)
         Extra = pick ?? -1;
     }
 
-    /// <summary>In bursts: a leap, a sit, averaging <paramref name="average"/>.</summary>
-    void Hop(Double3 to, double average)
+    /// <summary>
+    /// Where this one makes for (note 558; the director, 9 Oct: "they overlapped each other a lot"), and the push off any
+    /// packmate too near. Each hopped straight at the catch and nothing kept them apart, so a pack closed into one heap.
+    /// Now the leader comes straight in and the rest fan out either side of it, <c>fan</c>° a place apart round the catch
+    /// from the side the pack comes from; within <c>fanFrom</c> m of the catch they make for those places,
+    /// <c>ringOut</c> m from it (the leader to the hop's own 0.8); and none comes nearer a packmate than <c>spacing</c>.
+    /// (By ids and positions only, so every client's the same.)
+    /// </summary>
+    (Double3 Way, Double3 Apart) Place(Double3 catchAt, List<Ribbit> members, Ribbit leader, RibbitTuning t)
+    {
+        var to = (catchAt - Local) with { Y = 0 };
+        double d = to.Length;
+        var apart = Double3.Zero;
+        foreach (var m in members)
+        {
+            if (m == this)
+                continue;
+            var off = (Local - m.Local) with { Y = 0 };
+            double s = off.Length;
+            if (s >= t.Spacing)
+                continue;
+            var dir = s > 1e-6 ? off * (1 / s) : new Double3(Id < m.Id ? -1 : 1, 0, 0);
+            apart += dir * ((t.Spacing - s) / t.Spacing);
+        }
+        if (this == leader || d < 1e-6)
+            return (to, apart);
+        // Its place: the leader's in the middle, the rest by id out to either side of it in turn.
+        int rank = members.Count(m => m != leader && m.Id < Id);
+        double side = (rank / 2 + 1) * (rank % 2 == 0 ? 1 : -1);
+        var centre = members.Aggregate(Double3.Zero, (a, m) => a + m.Local) * (1.0 / members.Count);
+        var from = (centre - catchAt) with { Y = 0 };
+        if (from.Length < 1e-6)
+            from = to * -1;
+        double a0 = DMath.Atan2(from.X, from.Z) + side * t.Fan * Math.PI / 180;
+        var place = catchAt + new Double3(DMath.Sin(a0), 0, DMath.Cos(a0)) * t.RingOut;
+        double k = Math.Clamp(1 - (d - t.RingOut) / t.FanFrom, 0, 1);
+        var goal = catchAt + (place - catchAt) * k;
+        return ((goal - Local) with { Y = 0 }, apart);
+    }
+
+    /// <summary>
+    /// In bursts: a leap, a sit, averaging <paramref name="average"/>, along <paramref name="to"/> (the leader stopping 0.8 m
+    /// short of its catch) and
+    /// off any packmate too near (<paramref name="apart"/>, from <see cref="Place"/>); and a leap never lands it nearer a
+    /// packmate than <paramref name="spacing"/> (they leap on alternate half seconds, so one would land on a sitter): it
+    /// slides round it instead.
+    /// </summary>
+    void Hop(Double3 to, Double3 apart, double average, List<Ribbit> members, double spacing)
     {
         bool leaping = (int)(PhaseSeconds * 2 + Id) % 2 == 0;
         double step = (leaping ? 2 * average : 0) * SimConstants.TickSeconds;
-        if (to.Length > 0.9)
-            Local += to.Normalized * Math.Min(step, to.Length - 0.8);
+        if (step <= 0)
+            return;
+        // The leader's way is to the catch, and it stops 0.8 m short (on them); the rest go to their places.
+        double stop = members.MinBy(m => m.Id) == this ? 0.8 : 0.05;
+        var dir = (to.Length > stop + 0.1 ? to.Normalized : Double3.Zero) + apart * 4;
+        if (dir.Length < 1e-6)
+            return;
+        double most = to.Length > stop + 0.1 ? Math.Min(step, to.Length - stop) : step * 0.5;
+        var next = Local + dir.Normalized * Math.Max(0, most);
+        foreach (var m in members)
+        {
+            if (m == this)
+                continue;
+            var off = (next - m.Local) with { Y = 0 };
+            if (off.Length >= spacing)
+                continue;
+            // Out to the spacing from it: so it slides round a packmate in its way instead of landing on it.
+            var dirOut = off.Length > 1e-6 ? off * (1 / off.Length) : new Double3(Id < m.Id ? -1 : 1, 0, 0);
+            next = m.Local + dirOut * spacing + Double3.Up * (next.Y - m.Local.Y);
+        }
+        Local = next;
     }
 
     protected override void Punish(EnemyContext ctx, int victim)
@@ -169,6 +229,15 @@ public sealed class Ribbit(int id, int pack) : Enemy(id)
 /// closer, head tilting, the telegraph), and at its threshold it attacks the nearest player, hard. Talking to it holds it
 /// off. Kill it (a group job: it hits hard), or lead it to a car, where it takes the most valuable thing and leaves for the
 /// run. Rule: keep talking to it. It punishes silence while the Choir punishes noise.
+/// <para>
+/// Driven off by its rule (note 288, enemies.json <c>gaunt.drivenOff</c>; the director's clarification of 7 Oct 2026). With
+/// <c>talkingCalms</c>, talk brings its anger down as silence raises it (a step every <c>silenceSeconds</c>: GDD Part Eleven
+/// Q9's "does talking lower its aggro", answered yes for now); calmed under its threshold it stops attacking and follows
+/// again, and kept calm and talked to for <c>talkedDownSeconds</c> it loses interest and leaves, empty-handed (it may wake
+/// again somewhere else tonight). Killed only by the crew together while someone keeps talking to it: blows from two or
+/// more crewmates inside <c>coordinatedKill</c>'s window, with a voice near it; a blow struck in silence angers it instead.
+/// Killed, it drops what it carried and is gone for the night. A lone player's blows only break its crush on a friend.
+/// </para>
 /// </summary>
 /// <remarks>
 /// <see cref="Enemy.Extra"/> is its waker (−1 asleep), <see cref="Enemy.Extra2"/> its anger (the lean). Leaving
@@ -178,20 +247,31 @@ public sealed class Ribbit(int id, int pack) : Enemy(id)
 /// </remarks>
 public sealed class Gaunt(int id) : Enemy(id)
 {
-    double _silence, _hit;
+    double _silence, _hit, _talk, _calm;
 
     public override EnemyKind Kind => EnemyKind.Gaunt;
-    /// <summary>On its feet on the ground off the train (note 266).</summary>
-    public override bool OnFoot => true;
-    protected override PlayerMotor.Cylinder Body => new(0.5, 2.2, 0.4);
     public override PressureZone Zone => PressureZone.Outside;
     public override Sense Sense => Sense.Sound;
     public override Want Want => Want.Split;
     public override double MeleeRadius => Phase == SpinePhase.Dormant ? 0 : 0.8;
+    /// <summary>Asleep and curled up, or awake and following, or leaving with what it took: a body in the open (note 290).</summary>
+    public override bool Exposed => !Gone;
+    public override double Stoop(EnemyTuning t) => Phase is SpinePhase.Dormant or SpinePhase.Alert ? t.GauntAsleep : 1;
     public int? Waker => Extra >= 0 ? (int)Extra : null;
     public int Anger => (int)Extra2;
 
     public static Gaunt Asleep(int id, Double3 world, GauntTuning t) => new(id) { Attached = Loose, Local = world, Extra = -1, Health = t.Health };
+
+    /// <summary>
+    /// Already awake and after <paramref name="waker"/> (note 296: one sent at a crewmate left behind): it follows them from
+    /// where it's put down, as if they'd come too close to it there.
+    /// </summary>
+    public static Gaunt WokenBy(int id, Double3 world, int waker, GauntTuning t)
+    {
+        var g = Asleep(id, world, t);
+        g.Restore(SpinePhase.Telegraph, 0, t.Health, Loose, world, 0, 0, 0, waker, 0);
+        return g;
+    }
 
     protected override void Tick(EnemyContext ctx)
     {
@@ -232,17 +312,16 @@ public sealed class Gaunt(int id) : Enemy(id)
                     Follow(ctx, w, t);
                     if (Phase == SpinePhase.Telegraph && Takes(ctx, w, t))
                         return;
-                    // LISTEN: silence near it, and the anger climbs; a voice holds it where it is.
-                    var at = WorldPosition(train);
-                    bool talked = ctx.Crew.Any(c => c.Player.State.Alive && c.Intent.Voice >= t.TalkingAbove
-                        && (t.AnyVoiceCounts || c.Player.Id == who)
-                        && (PlayerMotor.WorldPosition(c.Player.State, train) - at).Length <= t.ListenRadius);
+                    // LISTEN: silence near it, and the anger climbs; a voice holds it where it is (and talks it down: TalkedDown).
+                    bool talked = Talked(ctx, t);
                     _silence = talked ? 0 : _silence + SimConstants.TickSeconds;
                     if (_silence >= t.SilenceSeconds)
                     {
                         _silence = 0;
                         Extra2 = Math.Min(t.AttackAt, Extra2 + 1);
                     }
+                    if (t.DrivenOff && t.TalkingCalms && TalkedDown(ctx, t, talked))
+                        return;
                     if (Phase == SpinePhase.Telegraph && Extra2 >= t.AttackAt && PhaseSeconds >= ctx.Tuning.MinReactionSeconds)
                         Enter(ctx, SpinePhase.Commit);
                     if (Phase == SpinePhase.Commit)
@@ -258,6 +337,41 @@ public sealed class Gaunt(int id) : Enemy(id)
                 Enter(ctx, SpinePhase.Gone);
                 return;
         }
+    }
+
+    /// <summary>LISTEN: someone (its waker, unless <c>anyVoiceCounts</c>) talking within its listening radius this tick.</summary>
+    bool Talked(EnemyContext ctx, GauntTuning t)
+    {
+        var train = ctx.Train;
+        var at = WorldPosition(train);
+        int who = Waker ?? -1;
+        return ctx.Crew.Any(c => c.Player.State.Alive && c.Intent.Voice >= t.TalkingAbove
+            && (t.AnyVoiceCounts || c.Player.Id == who)
+            && (PlayerMotor.WorldPosition(c.Player.State, train) - at).Length <= t.ListenRadius);
+    }
+
+    /// <summary>
+    /// KEEP TALKING (note 288): talk brings its anger down a step every <see cref="GauntTuning.SilenceSeconds"/>; calmed under
+    /// its threshold it stops attacking; held calm and talked to for <see cref="GauntTuning.TalkedDownSeconds"/>, it leaves
+    /// with nothing. True the tick it goes.
+    /// </summary>
+    bool TalkedDown(EnemyContext ctx, GauntTuning t, bool talked)
+    {
+        _talk = talked ? _talk + SimConstants.TickSeconds : 0;
+        if (_talk >= t.SilenceSeconds)
+        {
+            _talk = 0;
+            Extra2 = Math.Max(0, Extra2 - 1);
+        }
+        if (Phase == SpinePhase.Commit && Extra2 < t.AttackAt)
+            Enter(ctx, SpinePhase.Telegraph);
+        _calm = talked && Extra2 <= 0 && Phase == SpinePhase.Telegraph ? _calm + SimConstants.TickSeconds : Extra2 > 0 ? 0 : _calm;
+        if (_calm < t.TalkedDownSeconds)
+            return false;
+        Extra = -1; // carrying nothing
+        ctx.World.DrivenOff.Add(Kind);
+        Enter(ctx, SpinePhase.BreakOff);
+        return true;
     }
 
     /// <summary>
@@ -352,17 +466,36 @@ public sealed class Gaunt(int id) : Enemy(id)
             ctx.World.Bodies.LetGo(b);
     }
 
+    /// <summary>
+    /// Struck with a tool. Old rule (<c>drivenOff</c> false): hurt by any blow. Note 288: hurt only by the gang (two or more
+    /// crewmates inside the window) while someone's talking to it; a blow in silence angers it; a friend's blow breaks its crush.
+    /// </summary>
     public override void Struck(EnemyContext ctx, int by, double damage)
     {
-        base.Struck(ctx, by, damage);
-        DropIfGone(ctx);
-    }
-
-    public override bool Hit(EnemyContext ctx, double damage)
-    {
-        bool killed = base.Hit(ctx, damage);
-        DropIfGone(ctx);
-        return killed;
+        var t = ctx.Tuning.Gaunt;
+        if (!t.DrivenOff)
+        {
+            base.Struck(ctx, by, damage);
+            DropIfGone(ctx);
+            return;
+        }
+        Marked(ctx, by);
+        bool talked = Talked(ctx, t);
+        if (talked && Ganged(ctx, except: Holding))
+        {
+            Health -= damage;
+            if (Health <= 0)
+            {
+                ctx.World.DrivenOff.Remove(Kind);
+                Slay(ctx);
+                DropIfGone(ctx);
+                return;
+            }
+        }
+        else if (!talked && Phase is SpinePhase.Telegraph or SpinePhase.Commit)
+            Extra2 = Math.Min(t.AttackAt, Extra2 + 1);
+        if (Phase == SpinePhase.Grab && by != Holding)
+            Rescued(ctx, by);
     }
 
     /// <summary>At its waker's back, at arm's length: in their car's frame aboard, loose in the world off it.</summary>
@@ -370,7 +503,9 @@ public sealed class Gaunt(int id) : Enemy(id)
     {
         var train = ctx.Train;
         var behind = new Double3(DMath.Sin(w.Yaw), 0, DMath.Cos(w.Yaw)) * t.FollowAt;
-        if (w.Parent >= 0)
+        // Onto the train with them only from at their back: one still walking up after them (note 296: woken from far off)
+        // comes the rest of the way on foot, and is left standing if the train pulls away.
+        if (w.Parent >= 0 && (PlayerMotor.WorldPosition(w, train) - WorldPosition(train)).Length <= t.FollowAt * 3)
         {
             Attached = w.Parent;
             Local = w.Position + behind;
@@ -460,9 +595,6 @@ public sealed class Follower(int id) : Enemy(id)
     int _carriedBy = -1;
 
     public override EnemyKind Kind => EnemyKind.Follower;
-    /// <summary>Off its carrier's back and crawling to its car (note 266): on the ground, and up the car's side.</summary>
-    public override bool OnFoot => Carrier < 0;
-    protected override bool Solid => false;
     public override PressureZone Zone => PressureZone.Outside;
     public override Sense Sense => Sense.Scent;
     public override Want Want => Want.Trust;
@@ -633,9 +765,6 @@ public sealed class Follower(int id) : Enemy(id)
 public sealed class SootChildren(int id) : Enemy(id)
 {
     public override EnemyKind Kind => EnemyKind.SootChildren;
-    /// <summary>On its feet on the ground off the train (note 266).</summary>
-    public override bool OnFoot => true;
-    protected override PlayerMotor.Cylinder Body => new(0.3, 1.1, 0.35);
     public override PressureZone Zone => PressureZone.Outside;
     public override Sense Sense => Sense.Sound;
     public override Want Want => Want.Trust;

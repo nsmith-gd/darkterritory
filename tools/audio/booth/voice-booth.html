@@ -1,0 +1,502 @@
+<title>Dark Territory Voice Booth</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Archivo:wght@400;500;600;700&family=Big+Shoulders+Display:wght@700;800&family=IBM+Plex+Mono:wght@500;600&family=Special+Elite&display=swap">
+<style>
+/* A yard office's call sheet: one reading column of script cards, the words set in the clerk's typewriter, each card's
+   takes and disguised versions under it. The GDD's palette: grey daylight, the Territory's night, the lamp's amber. */
+:root {
+  --ground: #e2e5e6; --ground-2: #eef0f0; --ground-3: #d5d9db; --rule: #c0c6c9;
+  --ink: #14181b; --ink-2: #414a50; --ink-3: #5f6a70;
+  --lamp: #93500a; --lamp-ink: #fff7ea; --ember: #a12f1f; --bile: #4f5a12; --steel: #3a5a72;
+  --f-display: 'Big Shoulders Display', 'Arial Narrow', 'Roboto Condensed', sans-serif;
+  --f-body: 'Archivo', system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
+  --f-mono: 'IBM Plex Mono', ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  --f-clerk: 'Special Elite', 'Courier Prime', 'Courier New', monospace;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --ground: #0b0d0f; --ground-2: #12161a; --ground-3: #1a2025; --rule: #2a3137;
+    --ink: #e0dcd3; --ink-2: #a3aaaf; --ink-3: #7d868c;
+    --lamp: #f0a63a; --lamp-ink: #1b1206; --ember: #e2705a; --bile: #a6b053; --steel: #8fb0c6;
+    color-scheme: dark;
+  }
+}
+:root[data-theme="dark"] {
+  --ground: #0b0d0f; --ground-2: #12161a; --ground-3: #1a2025; --rule: #2a3137;
+  --ink: #e0dcd3; --ink-2: #a3aaaf; --ink-3: #7d868c;
+  --lamp: #f0a63a; --lamp-ink: #1b1206; --ember: #e2705a; --bile: #a6b053; --steel: #8fb0c6;
+  color-scheme: dark;
+}
+* { box-sizing: border-box; }
+body { background: var(--ground); color: var(--ink); font: 400 1rem/1.55 var(--f-body); margin: 0; padding-inline: 16px; overflow-x: hidden; }
+button, input, select, textarea { font: inherit; color: inherit; }
+:focus-visible { outline: 2px solid var(--lamp); outline-offset: 2px; border-radius: 3px; }
+.wrap { max-width: 46rem; margin: 0 auto; padding-block: 0 5rem; }
+
+/* the sheet's head */
+.top { position: sticky; top: env(safe-area-inset-top, 0px); z-index: 10; margin-inline: -16px; padding: .7rem 16px; background: color-mix(in srgb, var(--ground) 92%, transparent);
+  backdrop-filter: blur(8px); -webkit-backdrop-filter: blur(8px); border-bottom: 1px solid var(--rule); }
+.top-in { max-width: 46rem; margin: 0 auto; display: flex; flex-wrap: wrap; align-items: baseline; gap: .3rem 1.2rem; }
+.mark { font: 800 1.15rem/1 var(--f-display); letter-spacing: .06em; text-transform: uppercase; }
+.mark span { color: var(--lamp); }
+.tally { display: flex; flex-wrap: wrap; gap: .2rem 1rem; font: 500 .74rem/1.3 var(--f-mono); color: var(--ink-2); font-variant-numeric: tabular-nums; }
+.tally b { color: var(--ink); font-weight: 600; }
+.tally .hot b { color: var(--lamp); }
+
+.intro { padding-top: 2.2rem; }
+h1 { font: 800 clamp(2.4rem, 8vw, 3.6rem)/.9 var(--f-display); text-transform: uppercase; letter-spacing: .02em; margin: 0 0 .9rem; text-wrap: balance; }
+.lede { font-size: 1.06rem; color: var(--ink-2); margin: 0 0 1.4rem; max-width: 38rem; }
+.steps { list-style: none; margin: 0 0 1rem; padding: 0; display: grid; grid-template-columns: repeat(auto-fit, minmax(10rem, 1fr)); gap: .6rem; counter-reset: step; }
+.steps li { counter-increment: step; border-top: 2px solid var(--ink); padding: .55rem 0 0; font-size: .92rem; color: var(--ink-2); min-width: 0; }
+.steps li::before { content: counter(step); display: block; font: 800 1.5rem/1 var(--f-display); color: var(--lamp); margin-bottom: .3rem; }
+.steps b { color: var(--ink); font-weight: 600; }
+.tips { font: 500 .78rem/1.5 var(--f-mono); color: var(--ink-3); margin: 0; }
+
+/* filters */
+.filters { display: grid; gap: .5rem; margin: 2.2rem 0 1rem; }
+.frow { display: flex; flex-wrap: wrap; gap: .35rem; align-items: center; }
+.frow > span { font: 600 .66rem/1 var(--f-mono); letter-spacing: .1em; text-transform: uppercase; color: var(--ink-3); width: 3.6rem; }
+.chip { border: 1px solid var(--rule); background: var(--ground-2); border-radius: 999px; padding: .34rem .7rem; font: 600 .7rem/1 var(--f-mono); letter-spacing: .03em; cursor: pointer; color: var(--ink-2); }
+.chip[aria-pressed="true"] { background: var(--ink); border-color: var(--ink); color: var(--ground); }
+.chip sup { font-size: .6rem; margin-left: .25rem; opacity: .75; }
+
+/* groups and cards */
+.group { margin-top: 2.6rem; }
+.group > header { border-top: 2px solid var(--ink); padding-top: .7rem; margin-bottom: 1rem; }
+.group h2 { font: 800 1.6rem/1 var(--f-display); text-transform: uppercase; letter-spacing: .03em; margin: 0 0 .35rem; }
+.group p { margin: 0; color: var(--ink-2); font-size: .95rem; max-width: 38rem; }
+.card { border: 1px solid var(--rule); border-radius: 6px; background: var(--ground-2); padding: 1rem 1.1rem 1.1rem; margin: 0 0 .9rem; min-width: 0; }
+.card-top { display: flex; flex-wrap: wrap; align-items: center; gap: .3rem .7rem; font: 600 .68rem/1.2 var(--f-mono); letter-spacing: .06em; text-transform: uppercase; color: var(--ink-3); }
+.card-top .for { text-transform: none; letter-spacing: 0; font-weight: 500; overflow-wrap: anywhere; }
+.pill { margin-left: auto; border-radius: 999px; padding: .22rem .55rem; border: 1px solid currentColor; white-space: nowrap; }
+.pill.s-record { color: var(--ink-3); }
+.pill.s-wait { color: var(--steel); }
+.pill.s-judge { color: var(--lamp); background: color-mix(in srgb, var(--lamp) 12%, transparent); }
+.pill.s-done { color: var(--bile); }
+.words { font: 400 clamp(1.25rem, 3.6vw, 1.6rem)/1.35 var(--f-clerk); margin: .7rem 0 .5rem; white-space: pre-line; overflow-wrap: anywhere; }
+.dir { margin: 0 0 .6rem; color: var(--ink-2); font-size: .95rem; }
+.meta { display: grid; grid-template-columns: 6.2rem minmax(0, 1fr); gap: .25rem .8rem; margin: 0 0 .9rem; font-size: .88rem; }
+.meta dt { font: 600 .64rem/1.7 var(--f-mono); letter-spacing: .08em; text-transform: uppercase; color: var(--ink-3); }
+.meta dd { margin: 0; color: var(--ink-2); min-width: 0; }
+.sub { font: 600 .66rem/1 var(--f-mono); letter-spacing: .1em; text-transform: uppercase; color: var(--ink-3); margin: 1rem 0 .45rem; }
+.rows { display: grid; gap: .45rem; }
+.row { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: .35rem .7rem; align-items: center; border-top: 1px solid var(--rule); padding-top: .45rem; min-width: 0; }
+.row .what { min-width: 0; font-size: .88rem; }
+.row .what b { font-weight: 600; }
+.row .what small { display: block; color: var(--ink-3); font: 500 .72rem/1.4 var(--f-mono); overflow-wrap: anywhere; }
+.row audio { grid-column: 1 / -1; width: 100%; height: 2.2rem; }
+.row .acts { display: flex; gap: .3rem; flex-wrap: wrap; justify-content: flex-end; }
+.btn { border: 1px solid var(--rule); background: var(--ground); border-radius: 4px; padding: .38rem .65rem; font: 600 .7rem/1 var(--f-mono); letter-spacing: .05em; text-transform: uppercase; cursor: pointer; color: var(--ink-2); white-space: nowrap; }
+.btn:hover { border-color: var(--lamp); color: var(--ink); }
+.btn.keep[aria-pressed="true"] { background: var(--bile); border-color: var(--bile); color: var(--ground); }
+.btn.redo[aria-pressed="true"] { background: var(--ember); border-color: var(--ember); color: var(--ground); }
+.btn.go { background: var(--ink); border-color: var(--ink); color: var(--ground); }
+.btn.go:hover { background: var(--lamp); border-color: var(--lamp); color: var(--lamp-ink); }
+.btn.quiet { border-color: transparent; background: none; }
+.note { grid-column: 1 / -1; width: 100%; border: 1px solid var(--rule); background: var(--ground); border-radius: 4px; padding: .4rem .55rem; font-size: .86rem; }
+.drop { display: flex; flex-wrap: wrap; align-items: center; gap: .5rem .8rem; margin-top: .8rem; border: 1.5px dashed var(--rule); border-radius: 6px; padding: .7rem .8rem; font-size: .88rem; color: var(--ink-3); }
+.drop.over { border-color: var(--lamp); background: color-mix(in srgb, var(--lamp) 8%, transparent); }
+.drop input { position: absolute; width: 1px; height: 1px; opacity: 0; }
+.msg { font: 500 .78rem/1.4 var(--f-mono); color: var(--ink-2); margin: .5rem 0 0; }
+.msg.err { color: var(--ember); }
+.edit { display: grid; gap: .5rem; margin-top: .6rem; }
+.edit label { font: 600 .64rem/1 var(--f-mono); letter-spacing: .08em; text-transform: uppercase; color: var(--ink-3); display: grid; gap: .3rem; }
+.edit input, .edit textarea, .paste textarea { width: 100%; border: 1px solid var(--rule); background: var(--ground); border-radius: 4px; padding: .5rem .6rem; font: 400 .95rem/1.4 var(--f-body); }
+.edit textarea.w, .paste textarea { font-family: var(--f-clerk); }
+.edit .acts, .paste .acts { display: flex; gap: .4rem; flex-wrap: wrap; }
+.empty { border: 1px dashed var(--rule); border-radius: 6px; padding: 1.2rem; color: var(--ink-2); font-size: .95rem; margin-top: 1.5rem; }
+.paste { margin-top: 3rem; border-top: 2px solid var(--ink); padding-top: .8rem; display: grid; gap: .6rem; }
+.paste h2 { font: 800 1.6rem/1 var(--f-display); text-transform: uppercase; letter-spacing: .03em; margin: 0; }
+.paste p { margin: 0; color: var(--ink-2); font-size: .95rem; }
+.paste textarea { min-height: 9rem; }
+@media (max-width: 480px) { .meta { grid-template-columns: minmax(0, 1fr); gap: 0; } .meta dd { margin-bottom: .35rem; } .frow > span { width: 100%; } }
+@media (prefers-reduced-motion: reduce) { * { transition: none !important; animation: none !important; } }
+</style>
+
+<header class="top">
+  <div class="top-in">
+    <div class="mark">Dark Territory <span>Voice Booth</span></div>
+    <div class="tally" id="tally" aria-live="polite"><span>Loading the script…</span></div>
+  </div>
+</header>
+
+<main class="wrap">
+  <section class="intro">
+    <h1>The voice booth</h1>
+    <p class="lede">Lines where the game is better with a real voice than a stand-in. Read each one into your phone, add the file to its card, and Claude makes it into the game's voice, so it doesn't sound like you. Then you listen and keep or redo each version.</p>
+    <ol class="steps">
+      <li><b>Record</b> the line in your phone's voice memo app. Do the takes the card asks for in one file, with a beat of silence between them.</li>
+      <li><b>Add the file</b> to the line's card: tap Add recording, or drop it on the card.</li>
+      <li><b>Tell Claude</b> in the audio chat that takes are waiting. Each comes back as one or more disguised versions.</li>
+      <li><b>Listen</b> to each version and mark it Keep or Redo, with a note if you like. Kept versions go into the game.</li>
+    </ol>
+    <p class="tips">A quiet room, the phone about 20 cm away, a second of silence before and after. Voice memo (.m4a), .wav, .mp3 or .webm, up to 15 MB a file.</p>
+  </section>
+
+  <nav class="filters" aria-label="Filter lines">
+    <div class="frow" id="groupChips"><span>Group</span></div>
+    <div class="frow" id="statusChips"><span>Status</span></div>
+  </nav>
+
+  <div id="list"><p class="empty" id="empty">Loading the script…</p></div>
+
+  <section class="paste" id="paste" hidden>
+    <h2>Add lines from your script</h2>
+    <p>Paste a script here, one line to record per line of text. Each becomes a card under Your script. You can edit its direction afterwards.</p>
+    <textarea id="pasteBox" aria-label="Script lines, one per line" placeholder="Help! Somebody, help us!&#10;Yard to consist. Manifest follows."></textarea>
+    <div class="acts"><button class="btn go" type="button" id="pasteAdd">Add these lines</button></div>
+    <p class="msg" id="pasteMsg" role="status"></p>
+  </section>
+</main>
+
+<script>
+(function () {
+  "use strict";
+  // The script's groups, in order: what each is for in the game, and how its takes get disguised.
+  const GROUPS = [
+    { key: "prisoners", title: "Holdout prisoners", blurb: "Adults locked in a Holdout, calling through the walls (GDD App. D.7). The game needs eight different prisoners: each of your takes is made into several voices, deeper and higher, bigger and smaller, older and rougher, so none of them is you." },
+    { key: "children", title: "Soot Children", blurb: "A child calling for help out in the dark. Half the time it's a real survivor, half a Soot Child, and they must sound the same. Read it as a frightened adult would; Claude makes it child-sized." },
+    { key: "clerk", title: "The yard clerk", blurb: "The yard's voice on the radio: the manifest, the tally, the derailment's cause card. The game strings single words and phrases together, so each is read on its own. Made an older, flatter man's voice, crushed through the radio set." },
+    { key: "crew", title: "The crew", blurb: "The crew's own breath in the cold. Lightly disguised: breath is nobody's in particular." },
+    { key: "creatures", title: "Creature sources", blurb: "Your voice as raw material for the monsters. Perform it big and committed; Claude pitches, layers and mangles it into something that never had a human throat." },
+    { key: "script", title: "Your script", blurb: "Lines you've added from your own script." },
+  ];
+  const STATUSES = [
+    { key: "all", label: "All" },
+    { key: "record", label: "To record" },
+    { key: "wait", label: "Waiting for Claude" },
+    { key: "judge", label: "To judge" },
+    { key: "done", label: "Kept" },
+  ];
+  const PILL = { record: "To record", wait: "Waiting for Claude", judge: "To judge", done: "Kept", redo: "All redo" };
+  const MAX_BYTES = 15 * 1024 * 1024;
+
+  const state = { lines: new Map(), takes: new Map(), versions: new Map(), loaded: { lines: false, takes: false, versions: false } };
+  let db = null, assets = null, me = null, canWrite = true;
+  let filter = { group: "all", status: "all" };
+  try { const saved = JSON.parse(localStorage.getItem("booth-filter") || "null"); if (saved) filter = { ...filter, ...saved }; } catch (e) {}
+
+  const $ = (id) => document.getElementById(id);
+  const el = (tag, cls, text) => { const n = document.createElement(tag); if (cls) n.className = cls; if (text != null) n.textContent = text; return n; };
+
+  function takesOf(lineId) { return [...state.takes.values()].filter((t) => t.line === lineId).sort((a, b) => String(a.at).localeCompare(String(b.at))); }
+  function versionsOf(lineId) { return [...state.versions.values()].filter((v) => v.line === lineId).sort((a, b) => (a.order ?? 0) - (b.order ?? 0) || String(a.at).localeCompare(String(b.at))); }
+  function statusOf(lineId) {
+    const t = takesOf(lineId), v = versionsOf(lineId);
+    if (!t.length && !v.length) return "record";
+    if (t.some((x) => x.status === "new")) return "wait";
+    if (v.some((x) => !x.verdict)) return "judge";
+    if (v.some((x) => x.verdict === "keep")) return "done";
+    if (v.length) return "redo";
+    return "wait";
+  }
+  const when = (iso) => { try { return new Date(iso).toLocaleString([], { month: "short", day: "numeric", hour: "2-digit", minute: "2-digit" }); } catch (e) { return ""; } };
+  const kb = (n) => n > 1048576 ? (n / 1048576).toFixed(1) + " MB" : Math.max(1, Math.round(n / 1024)) + " KB";
+
+  // ---- playing a take: a native file plays from its asset; a wrapped one (any other format) is unwrapped first.
+  function player(item) {
+    if (!item.wrapped) { const a = el("audio"); a.controls = true; a.preload = "none"; a.src = "/_blob/" + item.asset; return a; }
+    const b = el("button", "btn", "Load to play");
+    b.type = "button";
+    b.addEventListener("click", async () => {
+      b.disabled = true; b.textContent = "Loading…";
+      try {
+        const res = await fetch("/_blob/" + item.asset);
+        const w = await res.json();
+        const bin = atob(w.data), bytes = new Uint8Array(bin.length);
+        for (let i = 0; i < bin.length; i++) bytes[i] = bin.charCodeAt(i);
+        const a = el("audio"); a.controls = true; a.src = URL.createObjectURL(new Blob([bytes], { type: w.type || "audio/wav" }));
+        b.replaceWith(a); a.play().catch(() => {});
+      } catch (e) { b.disabled = false; b.textContent = "Couldn't load: try again"; }
+    });
+    return b;
+  }
+
+  // ---- adding a recording
+  function extType(name) {
+    const ext = (name.split(".").pop() || "").toLowerCase();
+    return { m4a: "video/mp4", mp4: "video/mp4", m4v: "video/mp4", webm: "video/webm", weba: "video/webm" }[ext] || null;
+  }
+  function asBase64(file) {
+    return new Promise((ok, fail) => { const r = new FileReader(); r.onload = () => ok(String(r.result).split(",")[1] || ""); r.onerror = () => fail(r.error); r.readAsDataURL(file); });
+  }
+  async function addFiles(line, files, msg) {
+    if (!assets || !db) { msg.className = "msg err"; msg.textContent = "Only the page's editors can add recordings."; return; }
+    for (const file of files) {
+      if (file.size > MAX_BYTES) { msg.className = "msg err"; msg.textContent = `${file.name} is ${kb(file.size)}; the limit is 15 MB. Save it as a voice memo (.m4a) or .mp3 and add that.`; continue; }
+      msg.className = "msg"; msg.textContent = `Adding ${file.name}…`;
+      let up = null, wrapped = false;
+      const native = extType(file.name);
+      try {
+        if (native) up = await assets.upload(file, { type: native });
+      } catch (e) { if (!e || e.code !== "unsupported_type") { fail(e, file, msg); continue; } }
+      if (!up) {
+        try {
+          const data = await asBase64(file);
+          const body = JSON.stringify({ kind: "dt-voice-booth-take", name: file.name, type: file.type || "", size: file.size, data });
+          up = await assets.upload(new Blob([body], { type: "application/json" }), { type: "application/json" });
+          wrapped = true;
+        } catch (e) { fail(e, file, msg); continue; }
+      }
+      try {
+        await db.collection("takes").doc().set({ line: line.id, asset: up.id, wrapped, name: file.name, type: file.type || "", size: file.size, status: "new", by: me || "", at: new Date().toISOString() });
+        msg.className = "msg"; msg.textContent = `Added ${file.name}. Tell Claude in the audio chat that it's waiting.`;
+      } catch (e) { fail(e, file, msg); }
+    }
+  }
+  function fail(e, file, msg) {
+    const code = e && e.code;
+    msg.className = "msg err";
+    msg.textContent = code === "too_large" ? `${file.name} is too large; the limit is 15 MB.`
+      : code === "quota_or_state" ? "The booth's storage is full. Remove takes you don't need, then add this again."
+      : code === "rate_limited" ? "Too many at once. Wait a moment and add it again."
+      : code === "not_granted" || code === "invalid_argument" ? "Only the page's editors can add recordings."
+      : `${file.name} didn't upload (${code || "error"}). Try again.`;
+  }
+
+  // ---- one card
+  function card(line) {
+    const st = statusOf(line.id);
+    const c = el("article", "card"); c.dataset.id = line.id;
+    const top = el("div", "card-top");
+    top.append(el("span", null, line.code || ""));
+    if (line.forCue) top.append(el("span", "for", "for " + line.forCue));
+    top.append(el("span", "pill s-" + (st === "redo" ? "record" : st), PILL[st]));
+    c.append(top, el("p", "words", line.words || ""));
+    if (line.direction) c.append(el("p", "dir", line.direction));
+    const meta = el("dl", "meta");
+    if (line.takes) meta.append(el("dt", null, "Takes"), el("dd", null, typeof line.takes === "number" ? `${line.takes} different deliveries` : String(line.takes)));
+    if (line.process) meta.append(el("dt", null, "Made into"), el("dd", null, line.process));
+    if (meta.childElementCount) c.append(meta);
+
+    const takes = takesOf(line.id);
+    if (takes.length) {
+      c.append(el("p", "sub", "Your takes"));
+      const rows = el("div", "rows");
+      for (const t of takes) rows.append(takeRow(t));
+      c.append(rows);
+    }
+    const versions = versionsOf(line.id);
+    if (versions.length) {
+      c.append(el("p", "sub", "Disguised versions"));
+      const rows = el("div", "rows");
+      for (const v of versions) rows.append(versionRow(v));
+      c.append(rows);
+    }
+    const msg = el("p", "msg"); msg.setAttribute("role", "status");
+    if (assets) {
+      const drop = el("label", "drop");
+      const input = el("input"); input.type = "file"; input.multiple = true; input.accept = "audio/*,video/mp4,video/webm,.m4a,.wav,.mp3,.webm,.ogg,.flac,.aac";
+      input.id = "file-" + line.id;
+      const pick = el("span", "btn go", "Add recording");
+      drop.append(input, pick, el("span", null, "or drop the file on this card"));
+      input.addEventListener("change", () => { if (input.files.length) addFiles(line, [...input.files], msg); input.value = ""; });
+      c.addEventListener("dragover", (e) => { e.preventDefault(); drop.classList.add("over"); });
+      c.addEventListener("dragleave", (e) => { if (!c.contains(e.relatedTarget)) drop.classList.remove("over"); });
+      c.addEventListener("drop", (e) => { e.preventDefault(); drop.classList.remove("over"); if (e.dataTransfer.files.length) addFiles(line, [...e.dataTransfer.files], msg); });
+      c.append(drop);
+    }
+    c.append(msg);
+    if (canWrite && db) c.append(editor(line, takes.length + versions.length));
+    return c;
+  }
+
+  function takeRow(t) {
+    const r = el("div", "row");
+    const what = el("div", "what");
+    what.append(el("b", null, t.name || "Recording"), el("small", null, [when(t.at), t.size ? kb(t.size) : "", t.status === "new" ? "waiting for Claude" : "disguised"].filter(Boolean).join(" · ")));
+    const acts = el("div", "acts");
+    if (assets && db) {
+      const rm = el("button", "btn quiet", "Remove"); rm.type = "button";
+      rm.addEventListener("click", () => {
+        acts.replaceChildren(el("span", "msg", "Remove this take?"));
+        const yes = el("button", "btn", "Remove"), no = el("button", "btn quiet", "Keep it");
+        yes.type = no.type = "button";
+        no.addEventListener("click", () => acts.replaceChildren(rm));
+        yes.addEventListener("click", async () => {
+          yes.disabled = true;
+          try { await db.collection("takes").doc(t.id).delete(); await assets.delete(t.asset).catch(() => {}); }
+          catch (e) { acts.replaceChildren(el("span", "msg err", "Couldn't remove it."), rm); }
+        });
+        acts.append(yes, no);
+      });
+      acts.append(rm);
+    }
+    r.append(what, acts, player(t));
+    return r;
+  }
+
+  function versionRow(v) {
+    const r = el("div", "row");
+    const what = el("div", "what");
+    what.append(el("b", null, v.label || "Version"), el("small", null, v.how || ""));
+    const acts = el("div", "acts");
+    for (const [verdict, text] of [["keep", "Keep"], ["redo", "Redo"]]) {
+      const b = el("button", "btn " + verdict, text); b.type = "button";
+      b.setAttribute("aria-pressed", String(v.verdict === verdict));
+      b.disabled = !(canWrite && db);
+      b.addEventListener("click", async () => {
+        const next = v.verdict === verdict ? null : verdict;
+        b.disabled = true;
+        try { await db.collection("versions").doc(v.id).update({ verdict: next, verdictBy: me || "", verdictAt: new Date().toISOString() }); }
+        catch (e) { b.disabled = false; }
+      });
+      acts.append(b);
+    }
+    r.append(what, acts, player(v));
+    if (canWrite && db) {
+      const note = el("input", "note"); note.type = "text"; note.placeholder = "A note for Claude (what to change)"; note.value = v.note || ""; note.id = "note-" + v.id;
+      note.setAttribute("aria-label", "Note on " + (v.label || "this version"));
+      const save = async () => { if (note.value !== (v.note || "")) { try { await db.collection("versions").doc(v.id).update({ note: note.value }); } catch (e) {} } };
+      note.addEventListener("change", save);
+      note.addEventListener("keydown", (e) => { if (e.key === "Enter") note.blur(); });
+      r.append(note);
+    } else if (v.note) r.append(el("p", "msg", "Note: " + v.note));
+    return r;
+  }
+
+  function editor(line, used) {
+    const wrap = el("div");
+    const open = el("button", "btn quiet", "Edit line"); open.type = "button";
+    wrap.append(open);
+    open.addEventListener("click", () => {
+      const f = el("div", "edit");
+      const field = (label, value, cls) => { const l = el("label", null, label); const t = el("textarea", cls); t.rows = cls ? 2 : 3; t.value = value || ""; l.append(t); f.append(l); return t; };
+      const words = field("Words to say", line.words, "w");
+      const dir = field("Direction", line.direction);
+      const tl = el("label", null, "Takes"); const takes = el("input"); takes.type = "number"; takes.min = "1"; takes.max = "20"; takes.value = String(line.takes || 3); tl.append(takes); f.append(tl);
+      const acts = el("div", "acts");
+      const save = el("button", "btn go", "Save"), cancel = el("button", "btn quiet", "Cancel"), del = el("button", "btn quiet", "Delete line");
+      save.type = cancel.type = del.type = "button";
+      const msg = el("p", "msg");
+      save.addEventListener("click", async () => {
+        save.disabled = true;
+        try { await db.collection("lines").doc(line.id).update({ words: words.value.trim(), direction: dir.value.trim(), takes: Math.max(1, Math.min(20, parseInt(takes.value, 10) || 1)) }); }
+        catch (e) { save.disabled = false; msg.className = "msg err"; msg.textContent = "Couldn't save. Try again."; }
+      });
+      cancel.addEventListener("click", () => f.replaceWith(open));
+      del.addEventListener("click", async () => {
+        if (used) { msg.className = "msg err"; msg.textContent = "Remove its takes first; a line with recordings can't be deleted."; return; }
+        acts.replaceChildren(el("span", "msg", "Delete this line?"));
+        const yes = el("button", "btn", "Delete"), no = el("button", "btn quiet", "Keep it"); yes.type = no.type = "button";
+        no.addEventListener("click", () => acts.replaceChildren(save, cancel, del));
+        yes.addEventListener("click", async () => { try { await db.collection("lines").doc(line.id).delete(); } catch (e) { msg.className = "msg err"; msg.textContent = "Couldn't delete it."; } });
+        acts.append(yes, no);
+      });
+      acts.append(save, cancel, del);
+      f.append(acts, msg);
+      open.replaceWith(f);
+      words.focus();
+    });
+    return wrap;
+  }
+
+  // ---- the sheet, kept in step with the store: a card is rebuilt only when its own data changed, so a take that's
+  // playing keeps playing when something elsewhere on the sheet moves.
+  const built = new Map();
+  let queued = false;
+  function schedule() { if (!queued) { queued = true; requestAnimationFrame(() => { queued = false; render(); }); } }
+  function sig(line) { return JSON.stringify([line, takesOf(line.id), versionsOf(line.id), !!assets, canWrite]); }
+  function render() {
+    const lines = [...state.lines.values()];
+    const ready = state.loaded.lines;
+    // tally
+    const tally = $("tally");
+    if (ready) {
+      const recorded = lines.filter((l) => statusOf(l.id) !== "record").length;
+      const waiting = [...state.takes.values()].filter((t) => t.status === "new").length;
+      const judge = [...state.versions.values()].filter((v) => !v.verdict).length;
+      const kept = [...state.versions.values()].filter((v) => v.verdict === "keep").length;
+      tally.replaceChildren(...[
+        [`${recorded} of ${lines.length}`, " lines recorded", false], [String(waiting), " takes waiting for Claude", waiting > 0],
+        [String(judge), " versions to judge", judge > 0], [String(kept), " kept", false]].map(([n, t, hot]) => { const s = el("span", hot ? "hot" : null); s.append(el("b", null, n), t); return s; }));
+    }
+    // chips
+    const counts = {}; for (const l of lines) counts[l.group || "script"] = (counts[l.group || "script"] || 0) + 1;
+    const gc = $("groupChips"); gc.replaceChildren(gc.firstElementChild);
+    for (const g of [{ key: "all", title: "All" }, ...GROUPS.filter((g) => counts[g.key])]) {
+      const b = el("button", "chip", g.title); b.type = "button"; b.setAttribute("aria-pressed", String(filter.group === g.key));
+      const n = el("sup", null, String(g.key === "all" ? lines.length : counts[g.key])); b.append(n);
+      b.addEventListener("click", () => { filter.group = g.key; remember(); schedule(); });
+      gc.append(b);
+    }
+    const sc = $("statusChips"); sc.replaceChildren(sc.firstElementChild);
+    for (const s of STATUSES) {
+      const b = el("button", "chip", s.label); b.type = "button"; b.setAttribute("aria-pressed", String(filter.status === s.key));
+      b.addEventListener("click", () => { filter.status = s.key; remember(); schedule(); });
+      sc.append(b);
+    }
+    // groups and cards
+    const list = $("list");
+    const shown = lines.filter((l) => (filter.group === "all" || (l.group || "script") === filter.group)
+      && (filter.status === "all" || statusOf(l.id) === filter.status || (filter.status === "record" && statusOf(l.id) === "redo")));
+    const wanted = [];
+    for (const g of [...GROUPS, { key: "_other", title: "Other", blurb: "" }]) {
+      const mine = shown.filter((l) => (GROUPS.some((x) => x.key === (l.group || "script")) ? (l.group || "script") : "_other") === g.key)
+        .sort((a, b) => (a.order ?? 0) - (b.order ?? 0) || String(a.code || "").localeCompare(String(b.code || "")));
+      if (!mine.length) continue;
+      let sec = built.get("group:" + g.key);
+      if (!sec) {
+        sec = { el: el("section", "group"), sig: "" };
+        const h = el("header"); h.append(el("h2", null, g.title)); if (g.blurb) h.append(el("p", null, g.blurb));
+        sec.el.append(h, el("div")); built.set("group:" + g.key, sec);
+      }
+      const holder = sec.el.lastElementChild, cards = [];
+      for (const l of mine) {
+        const s = sig(l); let b = built.get(l.id);
+        if (!b || b.sig !== s) {
+          const fresh = card(l);
+          if (b && b.el.isConnected) {
+            // A take playing in the old card keeps playing if its row is untouched: carry the element across.
+            for (const a of b.el.querySelectorAll("audio")) if (!a.paused) { const mate = [...fresh.querySelectorAll("audio")].find((x) => x.src === a.src); if (mate) mate.replaceWith(a); }
+          }
+          b = { el: fresh, sig: s }; built.set(l.id, b);
+        }
+        cards.push(b.el);
+      }
+      holder.replaceChildren(...cards);
+      wanted.push(sec.el);
+    }
+    const empty = $("empty");
+    if (!ready) { list.replaceChildren(empty); }
+    else if (!wanted.length) {
+      empty.textContent = lines.length ? "No lines match these filters." : "No lines yet. Paste your script below, or ask Claude in the audio chat to load the draft script.";
+      list.replaceChildren(empty);
+    } else list.replaceChildren(...wanted);
+  }
+  function remember() { try { localStorage.setItem("booth-filter", JSON.stringify(filter)); } catch (e) {} }
+
+  // ---- pasting lines from a script
+  $("pasteAdd").addEventListener("click", async () => {
+    const box = $("pasteBox"), msg = $("pasteMsg");
+    const lines = box.value.split(/\n+/).map((s) => s.trim()).filter(Boolean);
+    if (!lines.length) { msg.className = "msg err"; msg.textContent = "Paste at least one line first."; return; }
+    msg.className = "msg"; msg.textContent = `Adding ${lines.length} line${lines.length > 1 ? "s" : ""}…`;
+    const base = Date.now(); let n = [...state.lines.values()].filter((l) => l.group === "script").length;
+    try {
+      for (let i = 0; i < lines.length; i++) {
+        n++;
+        await db.collection("lines").doc().set({ group: "script", code: "Script " + String(n).padStart(2, "0"), order: base + i, words: lines[i], direction: "", takes: 3, forCue: "", process: "", by: me || "", at: new Date().toISOString() });
+      }
+      box.value = ""; msg.textContent = `Added ${lines.length} line${lines.length > 1 ? "s" : ""} under Your script.`;
+    } catch (e) { msg.className = "msg err"; msg.textContent = "Couldn't add them. Only the page's editors can add lines."; }
+  });
+
+  // ---- light up from the store
+  render();
+  (async () => {
+    const [d, a, u] = await Promise.all([claude.use("db"), claude.use("assets"), claude.use("user")]);
+    db = d; assets = a;
+    if (u) { try { me = await u.id(); } catch (e) {} try { const w = await u.can("data.write"); if (w === false) canWrite = false; } catch (e) {} }
+    if (!db) { $("empty").textContent = "Open this page in Claude, signed in, to see the script and add recordings."; $("tally").replaceChildren(el("span", null, "Not connected")); return; }
+    $("paste").hidden = !(canWrite && assets);
+    for (const name of ["lines", "takes", "versions"]) {
+      db.collection(name).onSnapshot((snap) => {
+        const m = new Map(); for (const doc of snap.docs) m.set(doc.id, { ...doc.data(), id: doc.id });
+        state[name] = m; state.loaded[name] = true; schedule();
+      }, () => { $("empty").textContent = "The script couldn't load. Reload the page."; });
+    }
+  })();
+})();
+</script>

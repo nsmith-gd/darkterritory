@@ -19,7 +19,15 @@ sealed partial class LineBuilder
             foreach (var item in e.Items)
             {
                 var (left, right) = IntentsFor(item, e, ref rng);
-                spans.Add(new PlanIntent(e.Id, R(item.S0), R(item.S1), left, right, BiomeFor(e, item.S0)));
+                // An S-bend's hill is on its first turn's inside, then on its second's (note 359): its land changes sides
+                // halfway along the straight between.
+                if (item.All().FirstOrDefault(i => i.Params.ContainsKey("sBend")) is { } sBend && SBendMiddle(sBend) is { } mid)
+                {
+                    spans.Add(new PlanIntent(e.Id, R(item.S0), R(mid), left, right, BiomeFor(e, item.S0)));
+                    spans.Add(new PlanIntent(e.Id, R(mid), R(item.S1), right, left, BiomeFor(e, mid)));
+                }
+                else
+                    spans.Add(new PlanIntent(e.Id, R(item.S0), R(item.S1), left, right, BiomeFor(e, item.S0)));
                 foreach (var piece in item.All())
                     Structures(piece, e, ref rng, ref tunnels, ref bridges, spans);
             }
@@ -34,7 +42,20 @@ sealed partial class LineBuilder
             double len = Math.Round(rng.Range(_t.Hazards.WashoutLengthM));
             if (w.WashoutOnMain)
             {
+                // Clear of whatever the main line crosses or goes through there (a weak trestle in the window was laid over
+                // it, and the train for the bridge's limit ran onto the washout): past it, or failing that, short of it.
                 double s = w.T + _t.Hazards.WashoutAfterJunctionM;
+                var onIt = _structures.Where(x => x.Edge == "main" && x.Type is not (StructureType.Washout or StructureType.BrassField))
+                    .Where(x => x.S0 < w.J && x.S1 > w.T).ToList();
+                bool Fouls(double at) => onIt.Any(x => at - 20 < x.S1 && at + len + 20 > x.S0);
+                for (int guard = 0; Fouls(s) && guard < onIt.Count; guard++)
+                    s = onIt.Where(x => s - 20 < x.S1 && s + len + 20 > x.S0).Max(x => x.S1) + 20;
+                if (Fouls(s) || s + len > w.J - _t.Junctions.PadM)
+                {
+                    s = w.T + _t.Junctions.PadM + 20;
+                    for (int guard = 0; Fouls(s) && guard < onIt.Count; guard++)
+                        s = onIt.Where(x => s - 20 < x.S1 && s + len + 20 > x.S0).Max(x => x.S1) + 20;
+                }
                 _structures.Add(new PlanStructure($"{w.Edge}-washout", StructureType.Washout, "main", R(s), R(s + len)));
             }
             else if (w.WashoutOnAlt && _edges.TryGetValue(w.Edge, out var alt))
@@ -75,8 +96,9 @@ sealed partial class LineBuilder
         var pad = new SideIntent(IntentType.Pad, 0);
         if (item.Type is "fortress" or "pad" or "holding" or "stand" or "departure" or "home" or "arrival" or "turnout" or "spur")
             return (pad, pad);
-        var top = item.All().FirstOrDefault(i => i.Kind is "tunnel" or "blindThroat" or "ledge" or "trestle" or "river" or "causeway") ?? item;
-        switch (top.Kind)
+        var top = item.All().FirstOrDefault(i => i.Kind is "tunnel" or "blindThroat" or "ledge" or "bend" or "trestle" or "river" or "causeway") ?? item;
+        // A climb or descent laid round a hill carries a hard bend's land (note 278).
+        switch (top.Params.ContainsKey("hardBend") ? "bend" : top.Kind)
         {
             case "blindThroat":
                 {
@@ -90,6 +112,16 @@ sealed partial class LineBuilder
                     var drop = new SideIntent(IntentType.LedgeDrop, -top.Params.GetValueOrDefault("dropM", 35));
                     bool leftTurn = top.Prims.Sum(p => p.Deflection) > 0;
                     return leftTurn ? (up, drop) : (drop, up);
+                }
+            case "bend":
+                {
+                    // Note 278: the land says why the line bends: a hill it goes round on the inside (which also hides the
+                    // way out of it), and the fall it would go off into on the outside.
+                    var spur = new SideIntent(IntentType.LedgeUp, top.Params.GetValueOrDefault("spurM", 12));
+                    var fall = new SideIntent(IntentType.Embankment, -top.Params.GetValueOrDefault("fallM", 3));
+                    // An S-bend's by its first turn (its two cancel): the caller swaps them for its second.
+                    bool leftTurn = top.Params.ContainsKey("sBend") ? top.Prims.FirstOrDefault(p => p.Deflection != 0).Deflection > 0 : top.Prims.Sum(p => p.Deflection) > 0;
+                    return leftTurn ? (spur, fall) : (fall, spur);
                 }
             case "tunnel":
                 return (new SideIntent(IntentType.Mountain, _t.Terrain.TunnelCoverM), new SideIntent(IntentType.Mountain, _t.Terrain.TunnelCoverM));
@@ -114,6 +146,23 @@ sealed partial class LineBuilder
             "settlement" => (pad, pad),
             _ => (Plain(ref rng), Plain(ref rng)),
         };
+    }
+
+    /// <summary>Halfway along an S-bend's straight between its turns (note 359); null if it was laid straight after all.</summary>
+    static double? SBendMiddle(Item sBend)
+    {
+        double at = sBend.S0;
+        bool turned = false;
+        for (int i = 0; i < sBend.Prims.Count; i++)
+        {
+            var p = sBend.Prims[i];
+            bool curved = p.K0 != 0 || p.K1 != 0;
+            if (!curved && turned && sBend.Prims.Skip(i + 1).Any(q => q.K0 != 0 || q.K1 != 0))
+                return at + p.Length / 2;
+            turned |= curved;
+            at += p.Length;
+        }
+        return null;
     }
 
     /// <summary>The structures a piece carries (§12.3), and the extra intents they want over part of it.</summary>

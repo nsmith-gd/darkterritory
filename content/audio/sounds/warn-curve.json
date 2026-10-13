@@ -1,26 +1,18 @@
-// The roof warning for a bend the train's taking too fast (note 260; GDD App. A.1; sight.json roofWarning): the roof irons
-// chattering. The handrail stanchions and the roof's iron fittings rattle in their sockets as the car starts to lean, in
-// two slow rocking swells, before the lean that throws you. Tier 1 (spec A.3). Its band (spec A.4) is 2.5-4.5 kHz, shared
-// with the Draggers' scrape and the Climbers' scrabble and told from them by its rhythm: a metal chatter rocking in and
-// out, not one rasp or a clatter at a gap. Played to whoever's up top as the warning goes up, and again every
-// repeatSeconds while it's up (GameAudio.Lineside.cs). A synth definition; a recorded take can replace it through the audio
-// checklist.
+// The cue's takes from the audio checklist, kept or the first candidate under review
+// (warn-curve/chatter), in place of its synth definition
+// (tools/audio/synth-defs/warn-curve.json), keeping its tier, range and level. Written by
+// tools/audio/install.py; edit the cue or that file, not this one.
 {
-  "tier": 1, "duration": 1.8, "maxInstances": 2, "minDistance": 2, "maxDistance": 30, "gainDb": 6,
-  "layers": [
-    // The chatter: iron on iron, fast clicks through two ringing metal bands, rocking in and out.
-    { "source": "impulse", "frequency": 26, "gain": 1.0, "pitchJitter": 1,
-      "filters": [{ "type": "bandPass", "frequency": 3100, "q": 7 }],
-      "tremolo": { "rate": 1.4, "depth": 0.85, "jitter": 0.3 },
-      "envelope": [[0, 0], [0.08, 1], [1.4, 0.8], [1.75, 0]] },
-    { "source": "impulse", "frequency": 19, "gain": 0.8, "pitchJitter": 1,
-      "filters": [{ "type": "bandPass", "frequency": 3900, "q": 9 }],
-      "tremolo": { "rate": 1.4, "depth": 0.8, "jitter": 0.4 },
-      "envelope": [[0, 0], [0.12, 1], [1.4, 0.7], [1.75, 0]] },
-    // The rattle's grit between the rings.
-    { "source": "noise", "gain": 0.4,
-      "filters": [{ "type": "bandPass", "frequency": 3400, "q": 1.6 }],
-      "tremolo": { "rate": 14, "depth": 0.9, "duty": 0.35, "jitter": 0.8 },
-      "envelope": [[0, 0], [0.1, 1], [1.5, 0]] }
-  ]
+ "tier": 1,
+ "maxInstances": 2,
+ "minDistance": 2,
+ "maxDistance": 30,
+ "gainDb": 0,
+ "layers": [
+  {
+   "source": "sample",
+   "sample": "warn-curve/chatter",
+   "gain": 1
+  }
+ ]
 }

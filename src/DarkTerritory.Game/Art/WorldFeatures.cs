@@ -3,8 +3,14 @@ using Ballast;
 using Ballast.Render;
 using DarkTerritory.Sim.Rail;
 using DarkTerritory.Sim.Route;
+using DarkTerritory.Sim.Towns;
+using Fortresses = DarkTerritory.Sim.Run.Fortresses;
 
 namespace DarkTerritory.Game.Art;
+
+/// <summary>A coaling tower as Tower Jaw's left it (note 363): standing (leaning as it's gnawed), fallen across the line
+/// (its wreck the creature's: CreatureArt.TowerWreck), or fallen and its heap cleared off the rails.</summary>
+public enum TowerDown : byte { Standing, Fallen, Cleared }
 
 /// <summary>The line's set pieces as the art pass places them: bridges, tunnels, fortresses, facilities, branches.</summary>
 public sealed partial class WorldArt
@@ -136,9 +142,16 @@ public sealed partial class WorldArt
         {
             if (s + step < from || s > to)
                 continue;
+            // Each length laid on the chord between its ends, so on a curve consecutive lengths meet on the line, not a
+            // tangent's sag apart (12 cm at 400 m); and long enough to close the wedge that opens between them on the
+            // curve's outer wall, or the sky shows through the joint (note 433).
+            double end = Math.Min(s + step, f.End);
             var t = line.Sample(s);
-            float len = (float)Math.Min(step, f.End - s) + 0.05f;
-            mesh.Instances.Add(new MeshInstance(Piece($"tunnel-{len:0.0}", () => StructureKit.TunnelLining(_look, len)), Basis(t.Tangent, t.Position, eye, 0)));
+            var t1 = line.Sample(end);
+            var chord = (t1.Position - t.Position).Normalized;
+            double turn = Math.Acos(Math.Clamp(Double3.Dot(t.Tangent.Normalized, t1.Tangent.Normalized), -1, 1));
+            float len = (float)Math.Round(end - s + 0.05 + (StructureKit.TunnelHalf + 0.5) * turn, 2);
+            mesh.Instances.Add(new MeshInstance(Piece($"tunnel-{len:0.00}", () => StructureKit.TunnelLining(_look, len)), Basis(chord, t.Position, eye, 0)));
         }
         // Faces in the walls (tools/models wall_face): deep in the bore, one on each side, where the brick has bulged
         // round a face pushing out through it at a man's height. The headlamp finds one as the train goes by.
@@ -173,51 +186,69 @@ public sealed partial class WorldArt
     /// </summary>
     /// <param name="lit">A town that has stopped answering (linegen plan §22.4) stands dark: its lamps are out.</param>
     /// <param name="time">Seconds, for the searchlights' sweep.</param>
+    /// <param name="square">The town's square (note 281): the walls on its side step back round it (<see cref="Square"/>
+    /// draws those), and the town's houses are its own (<see cref="Houses"/>), not note 107's village.</param>
     public void Fortress(MeshBuilder mesh, RailLine line, Double3 eye, double from, double to, double start, double end, double gateAt, bool platform, bool lit = true,
-        double time = 0)
+        double time = 0, TownSquare? square = null, TownBounds? bounds = null)
     {
         double a = Math.Max(start, from), b = Math.Min(end, to);
         if (a >= b)
             return;
-        foreach (int side in new[] { -1, 1 })
+        // A walled town's wall goes round it (queue #74, note 335); the gatehouse and the platform are the yard's still.
+        if (bounds is not null)
+            TownWall(mesh, line, eye, bounds, from, to, lit);
+        else
         {
-            var wall = Piece($"wall-{side}", () => StructureKit.Wall(_look, side));
-            for (double s = Math.Floor(a / 10) * 10; s < b; s += 10)
+            foreach (int side in new[] { -1, 1 })
             {
-                var t = line.Sample(s);
-                var r = Double3.Cross(t.Tangent, Double3.Up).Normalized;
-                mesh.Instances.Add(new MeshInstance(wall, Basis(t.Tangent, t.Position + r * (side * 14.8), eye, 0)));
-            }
-            var tower = Piece($"tower-{side}", () => StructureKit.Tower(_look, side));
-            for (double s = Math.Ceiling(a / 120) * 120; s < b; s += 120)
-            {
-                var t = line.Sample(s);
-                var r = Double3.Cross(t.Tangent, Double3.Up).Normalized;
-                var at = t.Position + r * (side * 14.8);
-                mesh.Instances.Add(new MeshInstance(tower, Basis(t.Tangent, at, eye, 0)));
-                // The tower's lamp over the line, a lit pool on the tracks below it.
-                var lamp = (at + r * (-side * 2.2) + Double3.Up * 14.1).RelativeTo(eye);
-                if (!lit)
-                    continue;
-                mesh.PointLights.Add(new PointLight(lamp, Palette.LampAmber * 1.4f, 16));
-                mesh.Billboard(lamp, 2.2f, 0, new Vector4(Palette.LampAmber * 0.6f, 1), -1, FxBlend.Additive);
-                // Every other tower a searchlight on its outer face (the checklist's fortress: its searchlights): a hard
-                // cold beam sweeping slowly over the ground outside the walls, each tower's on its own beat.
-                if (((int)(s / 120) + (side > 0 ? 1 : 0)) % 2 == 0)
+                var wall = Piece($"wall-{side}", () => StructureKit.Wall(_look, side));
+                if (square is { } sq && sq.Side == side)
                 {
-                    var lens = (at + r * (side * 1.6) + Double3.Up * 15.2).RelativeTo(eye);
-                    float phase = (float)(s * 0.013) + side;
-                    float sweep = 0.9f * MathF.Sin((float)time * 0.22f + phase);
-                    var outward = new Vector3((float)(r.X * side), 0, (float)(r.Z * side));
-                    var along = Vector3.Normalize(new Vector3((float)t.Tangent.X, 0, (float)t.Tangent.Z));
-                    var dir = Vector3.Normalize(outward * MathF.Cos(sweep) + along * MathF.Sin(sweep) - Vector3.UnitY * 0.2f);
-                    Effects.Beam(mesh, lens, dir, 5.5f, 110, new Vector3(0.55f, 0.6f, 0.7f) * 0.2f);
-                    mesh.Billboard(lens, 1.3f, 0, new Vector4(0.9f, 0.95f, 1.0f, 1), -1, FxBlend.Additive);
-                    mesh.Billboard(lens, 4.5f, 0, new Vector4(0.3f, 0.33f, 0.4f, 1), -1, FxBlend.Additive);
+                    // Up to the square and on from it, on the same bay grid (the last piece past the gate as the other side's).
+                    WallRun(mesh, line, eye, wall, start, sq.S0, side * WallOut, from, to);
+                    WallRun(mesh, line, eye, wall, sq.S1, Math.Ceiling(end / Fortresses.WallBay) * Fortresses.WallBay, side * WallOut, from, to);
+                }
+                else
+                    for (double s = Math.Floor(a / Fortresses.WallBay) * Fortresses.WallBay; s < b; s += Fortresses.WallBay)
+                    {
+                        var t = line.Sample(s);
+                        var r = Double3.Cross(t.Tangent, Double3.Up).Normalized;
+                        mesh.Instances.Add(new MeshInstance(wall, Basis(t.Tangent, t.Position + r * (side * WallOut), eye, 0)));
+                    }
+                var tower = Piece($"tower-{side}", () => StructureKit.Tower(_look, side));
+                for (double s = Math.Ceiling(a / Fortresses.TowerEvery) * Fortresses.TowerEvery; s < b; s += Fortresses.TowerEvery)
+                {
+                    if (Fortresses.InTheSquare(square, s, side, 3))
+                        continue;
+                    var t = line.Sample(s);
+                    var r = Double3.Cross(t.Tangent, Double3.Up).Normalized;
+                    var at = t.Position + r * (side * WallOut);
+                    mesh.Instances.Add(new MeshInstance(tower, Basis(t.Tangent, at, eye, 0)));
+                    // The tower's lamp over the line, a lit pool on the tracks below it.
+                    var lamp = (at + r * (-side * 2.2) + Double3.Up * 14.1).RelativeTo(eye);
+                    if (!lit)
+                        continue;
+                    mesh.PointLights.Add(new PointLight(lamp, Palette.LampAmber * 1.4f, 16));
+                    mesh.Billboard(lamp, 2.2f, 0, new Vector4(Palette.LampAmber * 0.6f, 1), -1, FxBlend.Additive);
+                    // Every other tower a searchlight on its outer face (the checklist's fortress: its searchlights): a hard
+                    // cold beam sweeping slowly over the ground outside the walls, each tower's on its own beat.
+                    if (((int)(s / 120) + (side > 0 ? 1 : 0)) % 2 == 0)
+                    {
+                        var lens = (at + r * (side * 1.6) + Double3.Up * 15.2).RelativeTo(eye);
+                        float phase = (float)(s * 0.013) + side;
+                        float sweep = 0.9f * MathF.Sin((float)time * 0.22f + phase);
+                        var outward = new Vector3((float)(r.X * side), 0, (float)(r.Z * side));
+                        var along = Vector3.Normalize(new Vector3((float)t.Tangent.X, 0, (float)t.Tangent.Z));
+                        var dir = Vector3.Normalize(outward * MathF.Cos(sweep) + along * MathF.Sin(sweep) - Vector3.UnitY * 0.2f);
+                        Effects.Beam(mesh, lens, dir, 5.5f, 110, new Vector3(0.55f, 0.6f, 0.7f) * 0.2f);
+                        mesh.Billboard(lens, 1.3f, 0, new Vector4(0.9f, 0.95f, 1.0f, 1), -1, FxBlend.Additive);
+                        mesh.Billboard(lens, 4.5f, 0, new Vector4(0.3f, 0.33f, 0.4f, 1), -1, FxBlend.Additive);
+                    }
                 }
             }
         }
-        if (lit)
+        // A town (note 281) has its own houses, its plan's (Houses); a fortress that isn't one has note 107's village.
+        if (lit && square is null)
             FortVillage(mesh, line, eye, a, b, start, end, gateAt, platform);
         if (gateAt >= from && gateAt <= to)
         {
@@ -271,16 +302,13 @@ public sealed partial class WorldArt
         }
     }
 
-    /// <summary>How far apart the houses inside a fortress's walls stand along it, and how far out from the line.</summary>
-    const double HouseEvery = 15, HouseOut = 10.9;
+    // Where the fortress's pieces stand is the sim's (Sim.Run.Fortresses, T124), so its walls, towers and houses are solid
+    // where they're drawn.
+    const double HouseEvery = Fortresses.HouseEvery, HouseOut = Fortresses.HouseOut, WallOut = Fortresses.WallOut;
 
-    /// <summary>Along a fortress's line, clear of its gate: where its houses stand.</summary>
-    static bool InTheVillage(double s, double start, double end, double gateAt) =>
-        s > start + 25 && s < end - 25 && Math.Abs(s - gateAt) > 30;
+    static bool InTheVillage(double s, double start, double end, double gateAt) => Fortresses.InTheVillage(s, start, end, gateAt);
 
-    /// <summary>The home fortress's platform, right of the line behind its gate (<see cref="Fortress"/>), which no house stands on.</summary>
-    static bool OnThePlatform(double s, int side, double start, double gateAt, bool platform) =>
-        platform && side > 0 && s > start + 50 && s < gateAt - 20;
+    static bool OnThePlatform(double s, int side, double start, double gateAt, bool platform) => Fortresses.OnThePlatform(s, side, start, gateAt, platform);
 
     /// <summary>
     /// The village the walls keep (T100 playtest: "fort villages should look like protected villages btw with people
@@ -300,10 +328,9 @@ public sealed partial class WorldArt
             var r = Double3.Cross(t.Tangent, Double3.Up).Normalized;
             foreach (int side in new[] { -1, 1 })
             {
-                int h = (int)(s / HouseEvery) * 7 + (side > 0 ? 3 : 0);
-                if (h % 5 == 0 || OnThePlatform(s, side, start, gateAt, platform))
+                if (Fortresses.HouseAt(s, side, start, end, gateAt, platform) is not { } v)
                     continue;
-                int v = h % 6;
+                int h = (int)(s / HouseEvery) * 7 + (side > 0 ? 3 : 0);
                 var at = t.Position + r * (side * HouseOut);
                 mesh.Instances.Add(new MeshInstance(Piece($"lived-house-{v}", () => TownKit.LivedHouse(_look, v)), Basis(t.Tangent, at, eye, side * MathF.PI / 2)));
                 if (h % 3 != 0)
@@ -343,7 +370,7 @@ public sealed partial class WorldArt
             if (n * 37 % 11 > 2)
                 continue;
             int side = n % 2 == 0 ? -1 : 1;
-            if (OnThePlatform(s, side, start, gateAt, platform) || (n * 7 + (side > 0 ? 3 : 0)) % 5 == 0)
+            if (Fortresses.HouseAt(s, side, start, end, gateAt, platform) is null)
                 continue;
             var t = line.Sample(s);
             var r = Double3.Cross(t.Tangent, Double3.Up).Normalized;
@@ -354,7 +381,17 @@ public sealed partial class WorldArt
     }
 
     /// <summary>A facility's buildings beside a track (the main line or its spur) at <paramref name="mid"/>, and its one working lamp.</summary>
-    public void Facility(MeshBuilder mesh, RailLine line, Double3 eye, FacilityKind? kind, double mid, double side, double push)
+    /// <summary>How far out from the line a coaling tower's near stilts stand (StructureKit.Facility; enemies.json towerJaw
+    /// towerLegOut, the one Tower Jaw gnaws): what it leans over about.</summary>
+    public const float TowerPivotOut = 3.5f;
+
+    /// <param name="lean">A coaling tower gnawed by Tower Jaw (note 363): how far it leans over toward the line (radians),
+    /// about the foot of its stilts on the line's side.</param>
+    /// <param name="down">A coaling tower Tower Jaw's brought down: not standing. <see cref="TowerDown.Fallen"/> it's drawn
+    /// as the creature's wreck (CreatureArt.TowerWreck, across the line); <see cref="TowerDown.Cleared"/> here, its heap
+    /// dragged off the rails.</param>
+    public void Facility(MeshBuilder mesh, RailLine line, Double3 eye, FacilityKind? kind, double mid, double side, double push, float lean = 0,
+        TowerDown down = TowerDown.Standing)
     {
         side = side == 0 ? 1 : side;
         var t = line.Sample(Math.Clamp(mid, 0, line.Length));
@@ -362,7 +399,22 @@ public sealed partial class WorldArt
             return;
         var r = Double3.Cross(t.Tangent, Double3.Up).Normalized;
         var at = t.Position + r * (side * push);
-        mesh.Instances.Add(new MeshInstance(Piece($"facility-{kind}-{side}", () => StructureKit.Facility(_look, kind, (int)side)), Basis(t.Tangent, at, eye, 0)));
+        var basis = Basis(t.Tangent, at, eye, 0);
+        if (kind == FacilityKind.CoalingTower && down != TowerDown.Standing)
+        {
+            // Its wreck's in the frame the tower's drawn in for the right-hand side: turned round for the left.
+            if (down == TowerDown.Cleared)
+                mesh.Instances.Add(new MeshInstance(Piece("coaling-fallen-cleared", () => StructureKit.CoalingTowerFallen(_look, cleared: true)),
+                    side < 0 ? Matrix4x4.CreateRotationY(MathF.PI) * basis : basis));
+            return;
+        }
+        if (kind == FacilityKind.CoalingTower && lean != 0)
+        {
+            // Over toward the line about its near stilts' feet (StructureKit.Facility: 3.5 m out from the line).
+            var pivot = new Vector3((float)side * TowerPivotOut, 0, 0);
+            basis = Matrix4x4.CreateTranslation(-pivot) * Matrix4x4.CreateRotationZ((float)side * lean) * Matrix4x4.CreateTranslation(pivot) * basis;
+        }
+        mesh.Instances.Add(new MeshInstance(Piece($"facility-{kind}-{side}", () => StructureKit.Facility(_look, kind, (int)side)), basis));
         var lamp = (at + r * (side * 4) + Double3.Up * 5.1).RelativeTo(eye);
         mesh.PointLights.Add(new PointLight(lamp, Palette.LampAmber * 1.3f, 12));
         mesh.Billboard(lamp, 1.4f, 0, new Vector4(Palette.LampAmber * 0.6f, 1), -1, FxBlend.Additive);

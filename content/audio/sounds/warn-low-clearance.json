@@ -1,27 +1,18 @@
-// The roof warning for a tunnel's mouth (note 260; GDD App. A.1, "TELEGRAPH always precedes COMMIT"; sight.json
-// roofWarning): the telltales. A run of cords slapping across the roof just ahead of you, quick and uneven, then gone; the old
-// railways hung them before a low bridge or a tunnel so a brakeman up top felt them before the portal did. Tier 1 (spec
-// A.3): a warning that can be drowned out is a bug. Its band (spec A.4) is 4-7 kHz, over the doll's giggle and under the
-// fire's crackle, and told from both by its rhythm: a sweep of slaps, not a laugh or a crackle. Played to whoever's up top
-// as the warning goes up, and again every repeatSeconds while it's up (GameAudio.Lineside.cs). A synth definition, as
-// every tell started; a recorded take can replace it through the audio checklist.
+// The cue's takes from the audio checklist, kept or the first candidate under review
+// (warn-low-clearance/telltales), in place of its synth definition
+// (tools/audio/synth-defs/warn-low-clearance.json), keeping its tier, range and level. Written by
+// tools/audio/install.py; edit the cue or that file, not this one.
 {
-  "tier": 1, "duration": 1.7, "maxInstances": 2, "minDistance": 2, "maxDistance": 30, "gainDb": 6,
-  "layers": [
-    // The slaps: short bursts of bright noise in an uneven run, the cords' snap.
-    { "source": "noise", "gain": 1.0, "gainJitter": 1.5,
-      "filters": [{ "type": "bandPass", "frequency": 5200, "q": 1.1 }, { "type": "highPass", "frequency": 3600 }],
-      "tremolo": { "rate": 9, "depth": 1, "duty": 0.22, "jitter": 0.6 },
-      "envelope": [[0, 0], [0.04, 1], [0.9, 0.85], [1.5, 0]] },
-    // Each slap's crack on the roof sheet: a click through a ringing band.
-    { "source": "impulse", "frequency": 9, "gain": 0.7, "pitchJitter": 1,
-      "filters": [{ "type": "bandPass", "frequency": 6200, "q": 4 }],
-      "tremolo": { "rate": 3, "depth": 0.5, "jitter": 0.7 },
-      "envelope": [[0, 0], [0.05, 1], [1.2, 0.6], [1.6, 0]] },
-    // The cords' hiss as they drag over after, softer and higher.
-    { "source": "noise", "gain": 0.35, "delay": 0.1,
-      "filters": [{ "type": "highPass", "frequency": 5000 }, { "type": "lowPass", "frequency": 7500 }],
-      "tremolo": { "rate": 5, "depth": 0.6, "jitter": 0.8 },
-      "envelope": [[0, 0], [0.1, 1], [1.4, 0]] }
-  ]
+ "tier": 1,
+ "maxInstances": 2,
+ "minDistance": 2,
+ "maxDistance": 30,
+ "gainDb": 8,
+ "layers": [
+  {
+   "source": "sample",
+   "sample": "warn-low-clearance/telltales",
+   "gain": 1
+  }
+ ]
 }

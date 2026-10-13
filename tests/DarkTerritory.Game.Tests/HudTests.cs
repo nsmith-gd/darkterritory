@@ -2,7 +2,9 @@ using System.Numerics;
 using Ballast;
 using Ballast.Render;
 using DarkTerritory.Game;
+using DarkTerritory.Sim.Combat;
 using DarkTerritory.Sim.Enemies;
+using DarkTerritory.Sim.Physics;
 using DarkTerritory.Sim.Player;
 using DarkTerritory.Sim.Run;
 using DarkTerritory.Sim.Train;
@@ -43,6 +45,27 @@ public class HudTests
     }
 
     [Fact]
+    public void ARackRunDryAndThePowderLockerSayWhereThePowderIs()
+    {
+        // Note 374: the gun's rack empty, the prompt says where its powder is; at the guard van's locker, take a charge; with
+        // one in hand at the gun, hold Use to fill the rack.
+        var s = new PrototypeSession(Content, "test-loop", 4);
+        var train = s.Train;
+        var g = s.World.Combat!.Guns;
+        int van = train.Dynamics.Consist.Vehicles[^1].Id;
+        var mount = Guns.Mount(train, van)!.Value;
+        s.Player = PlayerMotor.SpawnOnRoof(train, van, mount.Position.Z - mount.Facing.Z * 0.8, s.PlayerTuning);
+        train.Vehicles[van].Gun.Rack = 0;
+        Assert.Equal("THE RACK'S EMPTY: POWDER FROM THE GUARD VAN", Hud.Prompt(s));
+        var locker = Guns.Locker(train.Frames[van].Shape)!.Value;
+        s.Player = new PlayerState { Parent = van, Surface = Surface.Deck, Health = 100, Position = locker + new Double3(0.6, 0.05, 0.4) };
+        Assert.Equal($"TAKE A CHARGE : [E]   {Guns.Stowed(train, g)} ROUNDS", Hud.Prompt(s));
+        foreach (var v in train.Vehicles.Where(v => v.HasGun))
+            v.Gun.Ammo = Guns.Ready(v.Gun, g);
+        Assert.Equal("THE POWDER LOCKER'S EMPTY", Hud.Prompt(s));
+    }
+
+    [Fact]
     public void AFouledGunAndABreachedCarSayHowToPutThemRight()
     {
         var s = new PrototypeSession(Content, "test-loop", 4);
@@ -50,16 +73,27 @@ public class HudTests
         // GDD §23: at a fouled gun, clear it by hand.
         var mount = train.Frames[0].Shape.Gun!.Value;
         s.Player = PlayerMotor.SpawnOnRoof(train, 0, mount.Position.Z - mount.Facing.Z * 0.7, s.PlayerTuning);
-        Assert.Equal("[E] SIT AT THE GUN   [E] + WALK: PUSH IT ALONG THE RAIL", Hud.Prompt(s));
+        Assert.Equal("SIT : [E]   PUSH ALONG : [E] + WALK", Hud.Prompt(s));
         train.Vehicles[0].Gun.Jammed = true;
-        Assert.Equal("GUN FOULED: [E] HOLD: CLEAR IT (0%)", Hud.Prompt(s));
+        // Note 344: nothing done yet, no percentage; part done, how far.
+        Assert.Equal("CLEAR THE GUN : HOLD [E]", Hud.Prompt(s));
+        train.Vehicles[0].Gun.ReloadProgress = s.World.Combat!.Guns.ClearSeconds / 4;
+        Assert.Equal("CLEAR THE GUN : HOLD [E] (25%)", Hud.Prompt(s));
         // Decided 1 Oct: in a breached car, board up the hole; at it, hold Use.
         var room = train.Frames[2].Shape.Interior!.Value;
         train.Vehicles[2].Breach(Breaches.EndWall(train.Frames[2].Shape)!.Value);
-        s.Player = new PlayerState { Parent = 2, Surface = Surface.Deck, Health = 100, Position = new Double3(-0.45, room.Min.Y, room.Min.Z + 1) };
-        Assert.Equal("THE CAR'S BREACHED: BOARD UP THE HOLE", Hud.Prompt(s));
+        s.Player = new PlayerState { Parent = 2, Surface = Surface.Deck, Health = 100, Position = new Double3(-0.45, room.Min.Y, room.Min.Z + 1), Kit = s.PlayerTuning.StartingKit };
+        Assert.Equal("THE CAR'S BREACHED", Hud.Prompt(s));
+        // At it with the crowbar in hand: the key that puts the wrench in hand (note 301); with the wrench, hold Use.
         s.Player = s.Player with { Position = Breaches.StandAt(train, 2) };
-        Assert.Equal("[E] HOLD: BOARD UP THE BREACH (0%)", Hud.Prompt(s));
+        Assert.Equal("THE CAR'S BREACHED   WRENCH : [2]", Hud.Prompt(s));
+        s.Player = s.Player with { HeldSlot = 1 };
+        Assert.Equal("BOARD IT UP : HOLD [E]", Hud.Prompt(s));
+        // A battered car: mended at its dent (note 301).
+        train.Vehicles[3].Integrity = 0.5;
+        var dent = Repairs.DentAt(train.Frames[3].Shape)!.Value;
+        s.Player = s.Player with { Parent = 3, Position = new Double3(-0.45, room.Min.Y, dent.Z) };
+        Assert.Equal("MEND THE CAR : HOLD [E] (50%)", Hud.Prompt(s));
     }
 
     [Fact]
@@ -71,17 +105,23 @@ public class HudTests
         {
             var p = PlayerMotor.SpawnInCab(train, s.PlayerTuning);
             var thing = train.Frames[0].Shape.Interactables.First(i => i.Kind == kind).Position;
-            p.Position = thing with { Y = p.Position.Y, Z = thing.Z + 0.4 };
+            // On the cab's side of it (note 280: the firebox at the front, the cab behind it).
+            double into = Math.Sign(train.Frames[0].Shape.Cab!.Value.Centre.Z - thing.Z);
+            p.Position = thing with { Y = p.Position.Y, Z = thing.Z + 0.4 * into };
             return p;
         }
         s.Player = At(InteractableKind.Firebox);
-        Assert.Equal("[E] HOLD: SHOVEL COAL (FASTER)", Hud.Prompt(s));
+        Assert.Equal("SHOVEL COAL : HOLD [E]", Hud.Prompt(s));
         s.Player = At(InteractableKind.Vent);
-        Assert.Equal("[E] HOLD: VENT STEAM (SLOWER)   OR [VENT] ANYWHERE IN THE CAB", Hud.Prompt(s));
+        Assert.Equal("VENT STEAM : HOLD [E]", Hud.Prompt(s));
+        // At the controls looking at nothing (note 285): nothing at the crosshair; driving them is the corner's.
         s.Player = PlayerMotor.SpawnInCab(train, s.PlayerTuning);
-        Assert.StartsWith(s.Train.BoilerTuning?.SteamDrive == true ? "[R] RELEASE BRAKE" : "[R/F] REGULATOR", Hud.Prompt(s));
+        Assert.Null(Hud.Prompt(s));
+        Assert.Equal(s.Train.BoilerTuning?.SteamDrive == true ? "RELEASE BRAKE : [R]" : "REGULATOR UP : [R]", Hud.Hints(s).Lines[0]);
         s.Player = s.Player with { Health = 0, Death = DeathCause.Cold };
         Assert.Null(Hud.Prompt(s));
+        Assert.Null(Hud.Hints(s).Head);
+        Assert.Empty(Hud.Hints(s).Lines);
     }
 
     /// <summary>Stood in the cab at <paramref name="at"/>, looking at <paramref name="kind"/>'s handle.</summary>
@@ -99,32 +139,155 @@ public class HudTests
     [Fact]
     public void TheCabSaysTheCordTheVentAndTheBrakeAndLittleElse()
     {
-        // Note 267 (the director's notes on build 1121): the whistle cord, looked at, says what it is and that it's loud;
-        // the vent's one key is on the driving prompt with the brake's, and held, the prompt says it's working.
+        // Note 267 (the director's notes on build 1121): the whistle cord, looked at, says to pull it (note 285: "PULL CORD :
+        // [E]", and not that it's loud: that's learned); the vent's one key is in the corner with the brake's, and held, the
+        // prompt says it's venting.
         var s = new PrototypeSession(Content, "test-loop", 4);
-        var firebox = s.Train.Frames[0].Shape.Interactables.First(i => i.Kind == InteractableKind.Firebox);
-        var at = new Double3(0.55, 0, firebox.Position.Z + 0.6);
-        s.Player = LookingAt(s, at, InteractableKind.Whistle);
-        Assert.Equal("[E] HOLD: WHISTLE (LOUD: THE CHOIR HEARS IT)   OR [H]", Hud.Prompt(s));
-        s.Player = LookingAt(s, at, InteractableKind.Firebox);
-        Assert.Equal("[E] HOLD: SHOVEL COAL (FASTER)", Hud.Prompt(s));
+        // (Note 280: the cord in the driver's front corner, the firebox at the front beside it; each read where it's worked.)
+        var shape = s.Train.Frames[0].Shape;
+        var firebox = shape.Interactables.First(i => i.Kind == InteractableKind.Firebox);
+        var cord = shape.Interactables.First(i => i.Kind == InteractableKind.Whistle);
+        s.Player = LookingAt(s, cord.Position + new Double3(-0.3, 0, 0.4), InteractableKind.Whistle);
+        Assert.Equal("PULL CORD : [E]", Hud.Prompt(s));
+        s.Player = LookingAt(s, firebox.Position + new Double3(0.15, 0, 0.45), InteractableKind.Firebox);
+        Assert.Equal("SHOVEL COAL : HOLD [E]", Hud.Prompt(s));
         s.Player = PlayerMotor.SpawnInCab(s.Train, s.PlayerTuning);
-        Assert.Contains("[VENT] HOLD: VENT", Hud.Prompt(s));
-        Assert.DoesNotContain("REVERSER", Hud.Prompt(s));
-        Assert.Contains("[LEFT CTRL]", Hud.Bound(Hud.Prompt(s)!));
+        var (head, lines) = Hud.Hints(s);
+        Assert.Contains("VENT : HOLD [VENT]", lines);
+        // Forward goes without saying; the reverser's said only when it's back.
+        Assert.DoesNotContain(lines, l => l.Contains("REVERSE"));
+        s.Controls.Reverser = -1;
+        Assert.Contains("IN REVERSE : [X]", Hud.Hints(s).Lines);
+        s.Controls.Reverser = 1;
+        Assert.Contains("[LEFT CTRL]", Hud.Bound(string.Join("   ", lines)));
+        // The corner's head is the speed, for the driver to read against the boards.
+        Assert.Equal($"{Math.Abs(s.Train.Dynamics.Speed) * 3.6:0} KM/H", head?.Split("  ")[0]);
         s.Train.Boiler.Vented = true;
-        Assert.StartsWith("VENTING STEAM: PRESSURE", Hud.Prompt(s));
+        Assert.Equal("VENTING", Hud.Prompt(s));
         s.Train.Boiler.Vented = false;
 
-        // The engine's panel in the cab is the speed and the levers, two lines; out of the cab, the boiler's read-out too.
-        static int TopLeft(Overlay o) => o.Vertices.Count(v => v.Position.X < 160 && v.Position.Y < 46);
+        // The corner is the cab's alone (hud-look: "too much UI ... not enough in world"): on a roof with empty hands, it
+        // says nothing, and nothing's drawn at the bottom right.
+        static int BottomRight(Overlay o) => o.Vertices.Count(v => v.Position.X > 360 && v.Position.Y > 200);
         var hud = new Overlay();
         Hud.Build(hud, 480, 270, s);
-        int cab = TopLeft(hud);
+        int cab = BottomRight(hud);
         s.Player = PlayerMotor.SpawnOnRoof(s.Train, 1, 0, s.PlayerTuning);
+        Assert.Null(Hud.Hints(s).Head);
+        Assert.Empty(Hud.Hints(s).Lines);
         Hud.Build(hud, 480, 270, s);
-        int roof = TopLeft(hud);
-        Assert.True(cab < roof * 0.7, $"the cab's engine panel ({cab} vertices) isn't lighter than the roof's ({roof})");
+        int roof = BottomRight(hud);
+        Assert.True(cab > 0, "the cab's controls are in the corner");
+        Assert.Equal(0, roof);
+    }
+
+    /// <summary>
+    /// The director, 7 Oct (note 285): prompts are short, Lethal Company's "PULL CORD : [E]", and never foretell what an
+    /// action does: "consequences need to be learned". Every key is the action's (after " : "), and nothing says loud, quiet,
+    /// faster, slower, what mends what, or who hears.
+    /// </summary>
+    static void AssertShort(string? prompt) => AssertForm(prompt, 48);
+
+    /// <summary>Note 285's form: every key an action's (or a choice's) and nothing foretold; at most <paramref name="longest"/> characters.</summary>
+    static void AssertForm(string? prompt, int longest)
+    {
+        if (prompt is null)
+            return;
+        foreach (System.Text.RegularExpressions.Match key in System.Text.RegularExpressions.Regex.Matches(prompt, @"\["))
+        {
+            string before = prompt[..key.Index];
+            Assert.True(before.EndsWith(" : ", StringComparison.Ordinal) || before.EndsWith(" : HOLD ", StringComparison.Ordinal)
+                || before.EndsWith(" OR ", StringComparison.Ordinal) || before.EndsWith("LET GO OF ", StringComparison.Ordinal), $"a key that isn't an action's: {prompt}");
+        }
+        foreach (string foretold in new[] { "LOUD", "QUIET", "SILENT", "FASTER", "SLOWER", "NEEDS", "MENDS", "HEARS", "KEEP AT IT", "GET CLEAR", "BRING", "WHEN THE" })
+            Assert.DoesNotContain(foretold, prompt);
+        Assert.True(prompt.Length <= longest, $"too long ({prompt.Length}): {prompt}");
+    }
+
+    [Fact]
+    public void TheCommendationPickerAndTheSkipSayTheActionAndItsKey()
+    {
+        // Note 369: the last two lines that put the key first, in note 285's form.
+        var pick = ("ADA", "CAME BACK FOR ME", false);
+        Assert.Equal("ADA : [LEFT/RIGHT]   CAME BACK FOR ME : [UP/DOWN]   COMMEND : [SPACE]", Hud.CommendLine(pick, headset: false));
+        Assert.Equal("ADA : [STICK LEFT/RIGHT]   CAME BACK FOR ME : [STICK UP/DOWN]   COMMEND : [CLICK STICK]", Hud.CommendLine(pick, headset: true));
+        Assert.Equal("YOU COMMENDED ADA: CAME BACK FOR ME", Hud.CommendLine(pick with { Item3 = true }, headset: false));
+        foreach (bool headset in new[] { false, true })
+            AssertForm(Hud.CommendLine(pick, headset), 96);
+        // Along the foot of the report in fine print, at every TEXT SIZE's canvas (480, 384, 320 wide) in a 720p and a 1080p
+        // window, and on a headset's panel (480 wide at two pixels, whatever the TEXT SIZE): every line inside the frame, a
+        // name with the most letters a name can have (Messages.NameLength) cut short or on two lines, given or not.
+        var o = new Overlay();
+        var bart = ("BARTHOLOMEW FENWICKE", "LAST ONE STANDING", false);
+        Assert.Equal(DarkTerritory.Sim.Net.Messages.NameLength, bart.Item1.Length);
+        var screens = new[] { 480, 384, 320 }.SelectMany(c => new[] { (c, 1280f / c, false), (c, 1920f / c, false) }).Append((480, 2f, true));
+        foreach (var (canvas, pixels, headset) in screens)
+            foreach (var who in new[] { pick, bart, bart with { Item3 = true } })
+            {
+                float fine = Hud.PromptScaleAt(pixels);
+                var lines = Hud.CommendLines(o, who, headset, canvas, fine);
+                Assert.InRange(lines.Count, 1, 2);
+                foreach (string line in lines)
+                {
+                    Assert.True(UiStyle.MeasureKeyed(o, line, fine) <= canvas - 12, $"{canvas} wide at {fine}: {line}");
+                    AssertForm(line, 128);
+                }
+            }
+        // A short name whole on one line at 1080p, and at 720p; the longest cut short at 720p, on one line at 100% (the
+        // report's room kept) and over COMMEND at 125%, where no name would go on one.
+        Assert.Equal([Hud.CommendLine(pick, false)], Hud.CommendLines(o, pick, false, 480, Hud.PromptScaleAt(4)));
+        Assert.Equal([Hud.CommendLine(pick, false)], Hud.CommendLines(o, pick, false, 480, Hud.PromptScaleAt(1280f / 480)));
+        Assert.Equal(["BARTHOLOMEW. : [LEFT/RIGHT]   LAST ONE STANDING : [UP/DOWN]   COMMEND : [SPACE]"],
+            Hud.CommendLines(o, bart, false, 480, Hud.PromptScaleAt(1280f / 480)));
+        var narrow = Hud.CommendLines(o, bart, false, 384, Hud.PromptScaleAt(1280f / 384));
+        Assert.Equal(2, narrow.Count);
+        Assert.StartsWith("BARTHOLOMEW", narrow[0]);
+        Assert.Equal("COMMEND : [SPACE]", narrow[1]);
+
+        var s = new PrototypeSession(Content, "test-loop", 4);
+        Assert.Equal("SKIP : HOLD [SPACE]", Hud.SkipLine(s));
+        AssertShort(Hud.SkipLine(s));
+        // Under the crew's vote (wreck.json skip.own false), the votes so far.
+        s.World.WreckTuning = s.World.WreckTuning with { Skip = s.World.WreckTuning.Skip with { Own = false } };
+        s.World.FilmVotes = (2, 5);
+        Assert.Equal("SKIP : HOLD [SPACE]   2/5", Hud.SkipLine(s));
+        AssertShort(Hud.SkipLine(s));
+    }
+
+    [Fact]
+    public void PromptsNameTheActionAndItsKeyAndNeverWhatItDoes()
+    {
+        var s = new PrototypeSession(Content, "test-loop", 4);
+        // Every control in the cab, looked at from where it's worked.
+        foreach (var thing in s.Train.Frames[0].Shape.Interactables.DistinctBy(i => i.Kind))
+        {
+            s.Player = LookingAt(s, thing.Position + new Double3(0.35, 0, 0.45), thing.Kind);
+            AssertShort(Hud.Prompt(s));
+            foreach (string line in Hud.Hints(s).Lines)
+                AssertShort(line);
+        }
+        s.Train.Boiler.Vented = true;
+        AssertShort(Hud.Prompt(s));
+        s.Train.Boiler.Vented = false;
+        // The kit's locker, shut and open, and the kit carried.
+        var (car, bay) = DarkTerritory.Sim.World.KitLocker(s.Train)!.Value;
+        s.Player = new PlayerState
+        {
+            Parent = car,
+            Surface = Surface.Deck,
+            Health = 100,
+            Position = new Double3(bay.Front.X + bay.Facing * 0.42, bay.Front.Y, bay.Front.Z),
+            Yaw = bay.Facing * Math.PI / 2,
+        };
+        AssertShort(Hud.Prompt(s));
+        s.Train.Vehicles[car].ToggleLocker(bay.Index);
+        AssertShort(Hud.Prompt(s));
+        // The wrench in hand (note 301: the kit's gone).
+        s.Player = s.Player with { Kit = s.PlayerTuning.StartingKit, HeldSlot = 1 };
+        AssertShort(Hud.Prompt(s));
+        Assert.All(Hud.Hints(s).Lines, AssertShort);
+        // Note 649: and the corner says it can be left there.
+        Assert.Contains("STOW : [RMB]", Hud.Hints(s).Lines);
     }
 
     [Fact]
@@ -144,12 +307,11 @@ public class HudTests
             Yaw = bay.Facing * Math.PI / 2,
         };
         Assert.False(s.Train.Vehicles[car].LockerOpen(bay.Index));
-        Assert.Equal("THE FITTER'S LOCKER: THE REPAIR KIT   [E] OPEN", Hud.Prompt(s));
-        s.Train.Vehicles[car].ToggleLocker(bay.Index);
-        Assert.Equal("[E] TAKE THE REPAIR KIT INTO YOUR HANDS   HOLD: SHUT", Hud.Prompt(s));
-        var lamp = Assert.Single(Lockers.Contents(s.World.Bodies, car, s.Train.Frames[car].Shape.Lockers.First(b => b.Name == "DRIVER").Index));
+        // Note 301: the kit's gone, so locker 8 stands empty.
+        Assert.Equal("LOCKER 8: EMPTY   OPEN : [E]", Hud.Prompt(s));
+        var lamp = Assert.Single(Lockers.Contents(s.World.Bodies, car, s.Train.Frames[car].Shape.Lockers.First(b => b.Name == "1").Index));
         Assert.Equal(DarkTerritory.Sim.Physics.BodyKind.Lamp, lamp.Kind);
-        Assert.Equal("THE LAMP", Hud.Holding(s.World, car, s.Train.Frames[car].Shape.Lockers.First(b => b.Name == "DRIVER").Index));
+        Assert.Equal("THE LAMP", Hud.Holding(s.World, car, s.Train.Frames[car].Shape.Lockers.First(b => b.Name == "1").Index));
     }
 
     [Fact]
@@ -158,8 +320,8 @@ public class HudTests
         // The director's decision of 2026-10-06 (note 264): one panel, toggled on, of the supplies aboard.
         var s = new PrototypeSession(Content, "test-loop", 4);
         var rows = Hud.SuppliesLines(s.World, ((IPlaySession)s).PlayerId);
-        Assert.Equal(["COAL", "REPAIR KIT", "EXTINGUISHERS", "CARGO", "STORES"], rows.Select(r => r.Item).Take(5));
-        Assert.Equal("THE FITTER'S LOCKER, CAR 1", rows.Single(r => r.Item == "REPAIR KIT").Value);
+        // Note 301: no repair kit row; the wrench everyone carries is the repair tool.
+        Assert.Equal(["COAL", "EXTINGUISHERS", "CARGO", "STORES"], rows.Select(r => r.Item).Take(4));
         Assert.Contains("TOYS", rows.Single(r => r.Item == "STORES").Value);
         var hud = new Overlay();
         Hud.Supplies(hud, 480, 270, s);
@@ -181,12 +343,217 @@ public class HudTests
         var toe = line.Sample(line.Branches[0].Toe);
         var right = Double3.Cross(toe.Tangent, Double3.Up).Normalized;
         s.Player = PlayerMotor.SpawnOnGround(lever - Double3.Up * 0.9 + right * (line.Branches[0].Side * 0.8), line, line.Branches[0].Toe, s.PlayerTuning);
-        Assert.Equal("[E] HOLD: THROW THE SWITCH TO THE DEAD LINE", Hud.Prompt(s));
+        Assert.Equal("THROW TO THE DEAD LINE : HOLD [E]", Hud.Prompt(s));
 
         for (int i = 0; i < (stands.Tuning.ThrowSeconds + 0.2) * DarkTerritory.Sim.SimConstants.TickRate; i++)
             s.Step(new PlayerIntent { Buttons = PlayerButtons.Use });
         Assert.True(s.Train.Diverging(0));
-        Assert.Equal("[E] HOLD: THROW THE SWITCH TO THE MAIN LINE", Hud.Prompt(s));
+        Assert.Equal("THROW TO THE MAIN LINE : HOLD [E]", Hud.Prompt(s));
+    }
+
+    [Fact]
+    public void AtAStandThePromptIsTheLeversWhateversInYourHandsOrLyingByIt()
+    {
+        // Queue #94 (note 357): Use is the lever's at a stand, so the prompt was wrong to offer the crate lying by it, and
+        // to say nothing while a lamp was in hand.
+        var route = Enumerable.Range(1, 20).Select(seed => DarkTerritory.Sim.Route.RouteGenerator.Generate(
+            DarkTerritory.Sim.Route.RouteTuning.Load(Content),
+            DarkTerritory.Sim.Route.RouteTier.Frontier, (ulong)seed)).First(r => r.Branches.Count > 0);
+        var s = new PrototypeSession(Content, route, 4, enemies: false);
+        var stands = s.World.Switches!;
+        var line = s.Train.Line;
+        var lever = stands.LeverAt(line, 0);
+        var toe = line.Sample(line.Branches[0].Toe);
+        var right = Double3.Cross(toe.Tangent, Double3.Up).Normalized;
+        s.Player = PlayerMotor.SpawnOnGround(lever - Double3.Up * 0.9 + right * (line.Branches[0].Side * 0.8), line, line.Branches[0].Toe, s.PlayerTuning);
+        int me = ((IPlaySession)s).PlayerId;
+        var feet = PlayerMotor.WorldPosition(s.Player, s.Train);
+
+        var crate = s.World.Bodies.SpawnCargo(feet + new Double3(0, 0, -0.6), line.Branches[0].Toe);
+        Assert.Same(crate, s.World.Bodies.InReach(s.Player, s.Train));
+        Assert.Equal("THROW TO THE DEAD LINE : HOLD [E]", Hud.Prompt(s));
+
+        crate.Pbd.Particles[0].Position = feet + right * 40;
+        var lamp = s.World.Bodies.SpawnItem(feet, line.Branches[0].Toe, BodyKind.Lamp);
+        lamp.Carrier = me;
+        Assert.Equal("THROW TO THE DEAD LINE : HOLD [E]", Hud.Prompt(s));
+        for (int i = 0; i < (stands.Tuning.ThrowSeconds + 0.2) * DarkTerritory.Sim.SimConstants.TickRate; i++)
+            s.Step(new PlayerIntent { Buttons = PlayerButtons.Use });
+        Assert.True(s.Train.Diverging(0));
+        Assert.Equal(me, lamp.Carrier);
+    }
+
+    [Fact]
+    public void AtTheCranesControlsTheCornerNamesTheHookBothWaysAndTheBrakeKeyLowersIt()
+    {
+        // The director, 8 Oct: "Crane hooks only go up with space, no obvious way for them to go down". The brake key lowers
+        // the hook (Crane.Drive); the corner said only "HOOK : [SPACE]", and the solo session's brake key never reached the
+        // crane (the app took it off to the cab alone).
+        var (route, facility) = DarkTerritory.Sim.Bots.FacilityWork.Find(DarkTerritory.Sim.Route.RouteTuning.Load(Content), DarkTerritory.Sim.Route.FacilityKind.Foundry)!.Value;
+        var s = new PrototypeSession(Content, route, 4, enemies: false);
+        var site = s.World.Run!.Sites[facility]!;
+        var crane = site.Crane!;
+        // Stood down the foundry's spur, the engine up at the buffer stop: the stop the crane works at.
+        var spur = s.Train.Line.Branches[site.Spur];
+        var state = s.Train.Capture();
+        s.Train.Restore(state with { Rakes = [state.Rakes[0] with { Path = site.Spur, Distance = spur.End - 0.5, Velocity = 0 }] });
+        s.Train.RefreshFrames();
+        s.Player = PlayerMotor.SpawnOnGround(crane.Controls, s.Train.Line, site.MainDistance, s.PlayerTuning);
+        for (int i = 0; i < 10; i++)
+            s.Step(default);
+        Assert.Same(site, s.World.Run.CurrentSite);
+        // Not a hold (the director, 8 Oct): Use's press at the stand (sent as the seat's) takes the controls.
+        Assert.Equal("THE CRANE : [E]", Hud.Prompt(s));
+        s.Step(new PlayerIntent { Actions = PlayerActions.Seat });
+        Assert.True(s.Player.Has(PlayerFlags.Operating));
+        var use = new PlayerIntent();
+        var lines = Hud.Hints(s).Lines;
+        Assert.Contains("HOOK UP : [SPACE]", lines);
+        Assert.Contains("HOOK DOWN : [B]", lines);
+        Assert.Contains("STEP DOWN : [E]", lines);
+        // Held, the brake key brings the hook down, as the app now sends it in a solo session too.
+        double hook = crane.Hook;
+        for (int i = 0; i < DarkTerritory.Sim.SimConstants.TickRate; i++)
+            s.Step(use with { Buttons = PlayerButtons.Use | PlayerButtons.Brake });
+        Assert.True(crane.Hook < hook - 0.5, $"the hook went from {hook:0.00} to {crane.Hook:0.00}");
+        hook = crane.Hook;
+        for (int i = 0; i < DarkTerritory.Sim.SimConstants.TickRate; i++)
+            s.Step(use with { Buttons = PlayerButtons.Use | PlayerButtons.Jump });
+        Assert.True(crane.Hook > hook + 0.5, $"the hook went from {hook:0.00} to {crane.Hook:0.00}");
+        // Pressed again, the controls are let go.
+        s.Step(new PlayerIntent { Actions = PlayerActions.Seat });
+        Assert.False(s.Player.Has(PlayerFlags.Operating));
+    }
+
+    [Fact]
+    public void AtTheSteamLiftsLeverThePromptSaysTheCarUnderTheChuteAndTheCabSaysWhereTheSteamsGoing()
+    {
+        // Queue #105 (note 368): the lever, the car under the chute, the skip winding while the engine vents into it.
+        var (route, facility) = DarkTerritory.Sim.Bots.FacilityWork.Find(DarkTerritory.Sim.Route.RouteTuning.Load(Content), DarkTerritory.Sim.Route.FacilityKind.MineHead)!.Value;
+        var s = new PrototypeSession(Content, route, 4, enemies: false);
+        var site = s.World.Run!.Sites[facility]!;
+        var spur = s.Train.Line.Branches[site.Spur];
+        var consist = s.Train.Dynamics.Consist;
+        var state = s.Train.Capture();
+        s.Train.Restore(state with { Rakes = [state.Rakes[0] with { Path = site.Spur, Distance = spur.Toe + site.LiftAlong + consist.OffsetOf(1) + consist.Vehicles[1].Length(s.TrainTuning) / 2, Velocity = 0 }] });
+        s.Train.RefreshFrames();
+        consist.Vehicles[1].Load = 0.25;
+        s.Player = PlayerMotor.SpawnOnGround(site.LiftLever - Double3.Up * 0.9, s.Train.Line, site.MainDistance, s.PlayerTuning);
+        Assert.Equal("LIFT : HOLD [E]   CAR 25% FULL", Hud.Prompt(s));
+        site.Mirror(site.State with { Winding = true });
+        Assert.Equal("WINDING   CAR 25% FULL", Hud.Prompt(s));
+        // In the cab with the vent open, the steam's said to be going to the lift, not into the air.
+        s.World.Run.Mirror(DarkTerritory.Sim.Run.RunPhase.AtFacility, DarkTerritory.Sim.Run.RunEnd.None, 900, facility, false,
+            [.. Enumerable.Repeat(0.0, s.World.Run.FacilityCount)], [.. s.World.Run.Sites.Select(x => x?.State ?? default)]);
+        s.Player = PlayerMotor.SpawnInCab(s.Train, s.PlayerTuning);
+        s.Train.Boiler.Vented = true;
+        Assert.Equal("STEAM TO THE LIFT", Hud.Prompt(s));
+    }
+
+    [Fact]
+    public void AtTheConveyorThePromptsSayStartItClearTheJamAndWhereTheJamIs()
+    {
+        // Queue #136 (note 400): the drive house's starter, a jam beside you, and along the belt where the jam is or that it's
+        // stalled (spec D.3: "someone has to roam").
+        var (route, facility) = DarkTerritory.Sim.Bots.FacilityWork.Find(DarkTerritory.Sim.Route.RouteTuning.Load(Content), DarkTerritory.Sim.Route.FacilityKind.GrainElevator)!.Value;
+        var s = new PrototypeSession(Content, route, 4, enemies: false);
+        var site = s.World.Run!.Sites[facility]!;
+        var c = s.World.Run.FacilityTuning!.Conveyor;
+        PlayerState At(Double3 p) => PlayerMotor.SpawnOnGround(p, s.Train.Line, site.MainDistance, s.PlayerTuning);
+        s.Player = At(site.ConveyorStarter - Double3.Up * 0.9);
+        Assert.Equal("START THE BELT : HOLD [E]", Hud.Prompt(s));
+        site.Mirror(site.State with { Start = c.StartSeconds / 2 });
+        Assert.Equal("STARTING THE BELT : KEEP HOLDING [E] (50%)", Hud.Prompt(s));
+        // Note 582 (the director, 9 Oct: "I started the belt hold and it wasnt clear what was happening"): started, the drive
+        // house says what it's doing, not nothing. No car under the head yet: it runs and carries nothing.
+        site.Mirror(site.State with { Start = 0, Running = true });
+        Assert.Null(s.World.Run.CarUnderHead(s.Train, site));
+        Assert.Equal("THE BELT'S RUNNING   NO CAR UNDER ITS HEAD", Hud.Prompt(s));
+        site.Mirror(site.State with { Grain = 0 });
+        Assert.Equal("THE BELT'S RUNNING   NO GRAIN LEFT", Hud.Prompt(s));
+        site.Mirror(site.State with { Grain = c.Grain, Running = false });
+        // Running and jammed halfway along its low run: beside the jam, clearing it.
+        site.Mirror(site.State with { Start = 0, Running = true, Jam = 0.5 });
+        var toTrack = ((site.ConveyorKnee - site.ConveyorTail) with { Y = 0 }).Normalized;
+        var across = new Double3(-toTrack.Z, 0, toTrack.X);
+        s.Player = At(site.JamAt - Double3.Up * c.BeltHeight + across * 0.6);
+        Assert.Equal("BELT JAMMED : HOLD [E]", Hud.Prompt(s));
+        site.Mirror(site.State with { Clear = c.ClearSeconds / 2 });
+        Assert.Equal("CLEARING THE JAM (50%)", Hud.Prompt(s));
+        // Down at the knee, out of reach of it: how far off it is.
+        s.Player = At(site.ConveyorKnee - Double3.Up * c.BeltHeight);
+        double away = ((site.JamAt - PlayerMotor.WorldPosition(s.Player, s.Train)) with { Y = 0 }).Length;
+        Assert.Equal($"THE BELT'S JAMMED, {away:0} M AWAY", Hud.Prompt(s));
+        // Stalled with grain still to carry: back to the drive house.
+        site.Mirror(site.State with { Running = false, Jam = -1, Clear = 0, Grain = c.Grain - 0.5 });
+        Assert.Equal("THE BELT'S STALLED : START IT AT THE DRIVE HOUSE", Hud.Prompt(s));
+    }
+
+    [Fact]
+    public void AtTheTippleThePromptsSayHowTrueTheCarStandsAndPutItBackOnItsRails()
+    {
+        // Queue #159 (note 423): at the lever, how far the car in the cradle stands off its mark before the clamp (spec D.3: "a
+        // sloppy clamp costs you"), the roll once it's clamped; beside a car off its rails, the wrench that puts it back.
+        var (route, facility) = DarkTerritory.Sim.Bots.FacilityWork.Find(DarkTerritory.Sim.Route.RouteTuning.Load(Content), DarkTerritory.Sim.Route.FacilityKind.MineHead,
+            // Its whole list: the night's draw (note 449) may have left the tipple out of this one.
+            modules: DataFile.Load<FacilityTuning>(Path.Combine(Content, FacilityTuning.File)).ModulesOf(DarkTerritory.Sim.Route.FacilityKind.MineHead))!.Value;
+        var s = new PrototypeSession(Content, route, 4, enemies: false);
+        var site = s.World.Run!.Sites[facility]!;
+        var t = s.World.Run.FacilityTuning!.Tipple;
+        PlayerState At(Double3 p) => PlayerMotor.SpawnOnGround(p, s.Train.Line, site.MainDistance, s.PlayerTuning);
+        s.Player = At(site.TippleLever - Double3.Up * 0.9);
+        Assert.Equal("NO CAR IN THE CRADLE", Hud.Prompt(s));
+        // A cargo car stood in the cradle, a little off its mark and then further.
+        var car = s.Train.Vehicles.First(v => v.Kind == VehicleKind.Cargo);
+        var spur = s.Train.Line.Branches[site.Spur];
+        void Stand(double off)
+        {
+            var consist = s.Train.Dynamics.Consist;
+            int i = consist.IndexOf(car.Id);
+            var state = s.Train.Capture();
+            s.Train.Restore(state with { Rakes = [state.Rakes[0] with { Path = spur.Index, Distance = spur.Toe + site.TippleAlong + consist.OffsetOf(i) + car.Length(consist.Tuning) / 2 + off, Velocity = 0 }, .. state.Rakes.Skip(1)] });
+            s.Train.RefreshFrames();
+        }
+        car.Load = 0;
+        Stand(0);
+        Assert.Equal("CLAMP : HOLD [E]   CAR STOOD TRUE", Hud.Prompt(s));
+        Stand(1.0);
+        Assert.Equal("CLAMP : HOLD [E]   CAR 1.0 M OFF ITS MARK", Hud.Prompt(s));
+        Stand(0);
+        site.Mirror(site.State with { Clamp = t.ClampSeconds / 2 });
+        Assert.Equal("CLAMP : HOLD [E] (50%)   CAR STOOD TRUE", Hud.Prompt(s));
+        site.Mirror(site.State with { Clamp = 0, Clamped = car.Id, GoodClamp = true, Roll = 0.25 });
+        Assert.Equal("TIP IT : HOLD [E] (25%)", Hud.Prompt(s));
+        site.Mirror(site.State with { RollingBack = true });
+        Assert.Equal("ROLLING BACK", Hud.Prompt(s));
+        // Off its rails: beside it, the wrench's key; with it in hand, the hold and how far it's got.
+        site.Mirror(site.State with { Clamped = -1, Roll = 0, RollingBack = false, Rerail = t.RerailSeconds / 4 });
+        car.OffRails = true;
+        Assert.Equal("THE CAR'S OFF ITS RAILS : WRENCH IT BACK ON", Hud.Prompt(s));
+        var across = ((site.TippleBin - site.Cradle) with { Y = 0 }).Normalized;
+        s.Player = At(s.Train.Frames[car.Id].Origin with { Y = site.Cradle.Y } + across * 1.6);
+        Assert.Equal($"THE CAR'S OFF ITS RAILS   WRENCH : [{Repairs.WrenchKey(s.Player)}]", Hud.Prompt(s));
+        s.Player = s.Player with { HeldSlot = (byte)(Repairs.WrenchKey(s.Player) - 1) };
+        Assert.Equal("PUT IT BACK ON ITS RAILS : HOLD [E] (25%)", Hud.Prompt(s));
+    }
+
+    [Fact]
+    public void AtAnAlternatesStandThePromptNamesTheRouteCardsLineNotADeadLine()
+    {
+        // Note 289: on the line generator's nights (the ones the game plays) every branch that wasn't a spur was "the dead
+        // line", so the crew choosing the route card's high line at its junction was told it was throwing the train away.
+        // (frontier:7's; the 7 km nights of note 554 seldom have an alternate, and frontier:31 has one.)
+        var route = DarkTerritory.Sim.LineGen.Routes.Generate(Content, "frontier:31", 4);
+        var s = new PrototypeSession(Content, route, 4, enemies: false);
+        var line = s.Train.Line;
+        var alt = line.Branches.First(b => b.Kind == DarkTerritory.Sim.Rail.BranchKind.Alternate);
+        var lever = s.World.Switches!.LeverAt(line, alt.Index);
+        var toe = line.Sample(alt.Toe);
+        var right = Double3.Cross(toe.Tangent, Double3.Up).Normalized;
+        s.Player = PlayerMotor.SpawnOnGround(lever - Double3.Up * 0.9 + right * (alt.Side * 0.8), line, alt.Toe, s.PlayerTuning);
+        string name = route.Plan!.RouteCard.KnownGrades.Single(k => k.Route.EndsWith(")", StringComparison.Ordinal) && k.Route != "main line").Route;
+        name = name[..name.LastIndexOf(" (", StringComparison.Ordinal)].ToUpperInvariant();
+        Assert.Equal($"THROW TO THE {name} : HOLD [E]", Hud.Prompt(s));
     }
 
     [Fact]
@@ -255,30 +622,33 @@ public class HudTests
     {
         // GDD §22 deep cold (note 201): from the line's conditions, which every machine builds from the night's seed.
         var s = new PrototypeSession(Content, "test-loop", 4);
-        Assert.Null(Hud.ColdLine(s.Player, s.Train, s.PlayerTuning));
+        Assert.Null(Hud.ColdLine(s.Player, s.Train));
         DarkTerritory.Sim.Net.HazardConditions.Apply(s.Train.Line, DarkTerritory.Sim.Net.HazardSet.Clear with { Name = "cold", ColdStep = 2 });
-        Assert.Equal("BITTER COLD: OUTSIDE, IT COMES ON 1.5X FASTER", Hud.ColdLine(s.Player, s.Train, s.PlayerTuning));
+        // Its name only (note 369): how much faster it comes on outside is learned out in it.
+        Assert.Equal("BITTER COLD", Hud.ColdLine(s.Player, s.Train));
+        AssertShort(Hud.ColdLine(s.Player, s.Train));
         var deeper = new PrototypeSession(Content, "test-loop", 4);
         DarkTerritory.Sim.Net.HazardConditions.Apply(deeper.Train.Line, DarkTerritory.Sim.Net.HazardSet.Clear with { Name = "deep", ColdStep = 1 });
-        Assert.StartsWith("DEEP COLD", Hud.ColdLine(deeper.Player, deeper.Train, deeper.PlayerTuning));
-        Assert.True(BitmapFont.Default.Measure(Hud.ColdLine(s.Player, s.Train, s.PlayerTuning)!) < 480 - 12);
+        Assert.Equal("DEEP COLD", Hud.ColdLine(deeper.Player, deeper.Train));
     }
 
     [Fact]
-    public void TheKitInHandOffersToMendABrokenRadio()
+    public void TheWrenchInHandOffersToMendABrokenRadio()
     {
-        // GDD §23 "radio breaks" (note 201): the repair kit mends it, held; how far it's got from the body record.
+        // GDD §23 "radio breaks" (note 201): mended, held; how far it's got from the body record. Note 301: with the wrench in
+        // hand (the kit's gone), and there's nothing to put down.
         var s = new PrototypeSession(Content, "test-loop", 4);
         s.Player = PlayerMotor.SpawnOnRoof(s.Train, 2, 3, s.PlayerTuning);
         var bodies = s.World.Bodies;
         var radio = bodies.All.First(b => b.Kind == DarkTerritory.Sim.Physics.BodyKind.Radio);
-        var kit = bodies.All.First(b => b.Kind == DarkTerritory.Sim.Physics.BodyKind.RepairKit);
-        (radio.Carrier, radio.Broken, kit.Carrier, kit.Locker) = (1, true, 1, -1);
-        Assert.Equal($"[E] HOLD: MEND YOUR RADIO WITH THE KIT ({s.TrainTuning.Kit.RadioMendSeconds:0}S)   [E] PUT DOWN", Hud.Prompt(s));
+        (radio.Carrier, radio.Broken) = (1, true);
+        Assert.Null(Hud.Prompt(s)); // the crowbar in hand
+        s.Player = s.Player with { HeldSlot = 1 };
+        Assert.Equal("MEND YOUR RADIO : HOLD [E]", Hud.Prompt(s));
         radio.MendTicks = (int)(s.TrainTuning.Kit.RadioMendSeconds * DarkTerritory.Sim.SimConstants.TickRate / 2);
-        Assert.Equal("[E] HOLD: MENDING YOUR RADIO WITH THE KIT (50%)", Hud.Prompt(s));
+        Assert.Equal("MENDING YOUR RADIO (50%)", Hud.Prompt(s));
         radio.Broken = false;
-        Assert.StartsWith("THE REPAIR KIT:", Hud.Prompt(s));
+        Assert.Null(Hud.Prompt(s));
     }
 
     [Fact]
@@ -387,4 +757,159 @@ public class HudTests
         }
     }
 
+    [Fact]
+    public void AHitFlashesTheEdgeByItsSizeAndFades()
+    {
+        // GDD App. F.1 (note 272): "damage feedback is minimal: an edge flash and a sound".
+        var s = new PrototypeSession(Content, "test-loop", 4);
+        Assert.Equal(0, Hud.HurtStrength(s));
+        s.Player = s.Player with { Health = s.Player.Health - (int)Hud.HurtFlashFullAt };
+        Assert.Equal(1, Hud.HurtStrength(s), 6);
+        for (int i = 0; i < Hud.HurtFlashSeconds / 2 * DarkTerritory.Sim.SimConstants.TickRate; i++)
+            s.Step(default);
+        double half = Hud.HurtStrength(s);
+        Assert.InRange(half, 0.05, 0.5);
+        for (int i = 0; i < Hud.HurtFlashSeconds * DarkTerritory.Sim.SimConstants.TickRate; i++)
+            s.Step(default);
+        Assert.Equal(0, Hud.HurtStrength(s));
+        // A smaller hit, a smaller flash; healing none.
+        s.Player = s.Player with { Health = s.Player.Health - 20 };
+        double small = Hud.HurtStrength(s);
+        Assert.InRange(small, Hud.HurtFlashLeast, 0.5);
+        var other = new PrototypeSession(Content, "test-loop", 4) { };
+        other.Player = other.Player with { Health = 40 };
+        Hud.HurtStrength(other);
+        other.Player = other.Player with { Health = 90 };
+        Assert.Equal(0, Hud.HurtStrength(other));
+        // Drawn round the rim only, and nothing at all unhurt.
+        var o = new Overlay();
+        Hud.EdgeFlash(o, 480, 270, 0);
+        Assert.Equal(0, o.Count);
+        Hud.EdgeFlash(o, 480, 270, 1);
+        Assert.True(o.Count > 0);
+    }
+
+    [Fact]
+    public void ACrateCarriedIntoAFullCarSaysTheCarsFull()
+    {
+        // Note 324: a crate put down in a full car never loads (Run: Load < 1), which stops you; said as a short state in the
+        // corner, the car by its stencilled number. Room to spare, and nothing's said.
+        var route = DarkTerritory.Sim.Route.RouteGenerator.Generate(DarkTerritory.Sim.Route.RouteTuning.Load(Content), DarkTerritory.Sim.Route.RouteTier.Frontier, 1);
+        var s = new PrototypeSession(Content, route, 4, enemies: false);
+        var run = s.World.Run!;
+        for (int k = 0; k < run.Stops.Count; k++)
+            run.Stock(s.World.Bodies, k, searched: true);
+        var crate = s.World.Bodies.All.First(b => b.Kind == DarkTerritory.Sim.Physics.BodyKind.Cargo);
+        crate.Carrier = ((IPlaySession)s).PlayerId;
+        int car = Enumerable.Range(1, s.Train.Vehicles.Count - 1).First(i => s.Train.Vehicles[i].Kind == VehicleKind.Cargo);
+        var room = s.Train.Frames[car].Shape.Interior!.Value;
+        var middle = (room.Min + room.Max) * 0.5;
+        s.Player = PlayerMotor.SpawnOnRoof(s.Train, car, middle.Z, s.PlayerTuning) with { Position = middle with { Y = room.Min.Y + 0.1 }, Surface = Surface.Deck };
+        Assert.True(PlayerMotor.Indoors(s.Player, s.Train));
+        s.Train.Vehicles[car].Load = 0.5;
+        Assert.DoesNotContain(Hud.Hints(s).Lines, l => l.Contains("FULL"));
+        s.Train.Vehicles[car].Load = 1;
+        Assert.Equal($"CAR {car} IS FULL", Hud.Hints(s).Lines[0]);
+        // Empty-handed, or carrying what isn't freight, a full car is nothing to say.
+        crate.Carrier = -1;
+        Assert.DoesNotContain(Hud.Hints(s).Lines, l => l.Contains("FULL"));
+    }
+
+    [Fact]
+    public void AHealingFindInHandSaysHoldUseWhenYoureHurt()
+    {
+        // Note 272 in note 285's form: the find's name and keys are the corner's, "USE : HOLD [E]" only when hurt; what it
+        // gives back isn't said (learned). At the crosshair, only the use under way.
+        var route = DarkTerritory.Sim.Route.RouteGenerator.Generate(DarkTerritory.Sim.Route.RouteTuning.Load(Content), DarkTerritory.Sim.Route.RouteTier.Frontier, 1);
+        var s = new PrototypeSession(Content, route, 4, enemies: false);
+        var run = s.World.Run!;
+        for (int k = 0; k < run.Stops.Count; k++)
+            run.Stock(s.World.Bodies, k, searched: true);
+        var find = s.World.Bodies.All.First(b => run.HealOf(b) > 0);
+        find.Carrier = ((IPlaySession)s).PlayerId;
+        // Whole: a find like any other.
+        Assert.False(Hud.CanHeal(s, find));
+        Assert.Null(Hud.Prompt(s));
+        Assert.Equal(["PUT DOWN : [E]", "THROW : [RMB]"], Hud.Hints(s).Lines);
+        // Hurt, out on the ballast beside the train (at nothing Use works).
+        double along = s.Train.Dynamics.Distance - 20, hint = along;
+        var t = s.Train.Line.Sample(along);
+        var at = t.Position + Double3.Cross(t.Tangent, Double3.Up).Normalized * 8;
+        s.Player = PlayerMotor.SpawnOnGround(at with { Y = PlayerMotor.GroundAt(at, s.Train.Line, ref hint) }, s.Train.Line, along, s.PlayerTuning) with { Health = 40 };
+        Assert.Null(CrewActions.NearestInteractable(s.Player, s.Train, s.World.Hand));
+        Assert.True(Hud.CanHeal(s, find));
+        Assert.Equal(["USE : HOLD [E]", "PUT DOWN : [E]", "THROW : [RMB]"], Hud.Hints(s).Lines);
+        Assert.Null(Hud.Prompt(s));
+        find.MendTicks = (int)(DarkTerritory.Sim.SimConstants.TickRate * run.Healing!.UseSeconds / 2);
+        Assert.Equal("USING IT (50%)", Hud.Prompt(s));
+        Assert.DoesNotContain(Hud.Hints(s).Lines.Concat([Hud.Prompt(s)!]), l => l.Contains('+') || l.Contains("WHEN HURT"));
+        // Anything else isn't medicine.
+        Assert.Null(Hud.HealPrompt(s, s.World.Bodies.All.First(b => run.HealOf(b) == 0)));
+    }
+
+    [Fact]
+    public void AnOpenHousesCupboardSaysSearchItAndHowFarThrough()
+    {
+        // Note 326: at a hiding spot empty-handed, the prompt is the search; under way, how far through; searched, nothing.
+        var route = DarkTerritory.Sim.Route.RouteGenerator.Generate(DarkTerritory.Sim.Route.RouteTuning.Load(Content), DarkTerritory.Sim.Route.RouteTier.Frontier, 1);
+        var s = new PrototypeSession(Content, route, 4, enemies: false);
+        var run = s.World.Run!;
+        var spot = run.HidingSpots[0];
+        run.Stock(s.World.Bodies, spot.Stop);
+        double hint = run.Stops[spot.Stop].Start;
+        s.Player = PlayerMotor.SpawnOnGround(spot.At with { Y = PlayerMotor.GroundAt(spot.At, s.Train.Line, ref hint) }, s.Train.Line, hint, s.PlayerTuning);
+        string name = spot.Container.Kind switch
+        {
+            DarkTerritory.Sim.Stops.ContainerKind.Cupboard => "CUPBOARD",
+            DarkTerritory.Sim.Stops.ContainerKind.Cabinet => "CABINET",
+            DarkTerritory.Sim.Stops.ContainerKind.Cellar => "CELLAR",
+            _ => "LOOSE BOARDS",
+        };
+        Assert.Equal($"SEARCH THE {name} : HOLD [E]", Hud.Prompt(s));
+        var use = new DarkTerritory.Sim.Player.PlayerIntent { Buttons = DarkTerritory.Sim.Player.PlayerButtons.Use };
+        var me = s.Player;
+        for (int i = 0; i < Math.Round(spot.Seconds / 2 * DarkTerritory.Sim.SimConstants.TickRate); i++)
+        {
+            s.World.BeginTick();
+            s.World.CrewAct(ref me, use, ((IPlaySession)s).PlayerId);
+        }
+        s.Player = me;
+        Assert.Equal($"SEARCHING THE {name} (50%)", Hud.Prompt(s));
+        // Something in hand: not a search.
+        var toy = s.World.Bodies.SpawnItem(spot.At, hint, DarkTerritory.Sim.Physics.BodyKind.Toy);
+        toy.Carrier = ((IPlaySession)s).PlayerId;
+        Assert.DoesNotContain("SEARCH", Hud.Prompt(s) ?? "");
+    }
+
+    /// <summary>Note 576: a battered car or engine let go is said where it's felt, and how far gone.</summary>
+    [Fact]
+    public void FailingIsSaidWhereItsFelt()
+    {
+        var tuning = DataFile.Load<TrainTuning>(Path.Combine(Content, TrainTuning.File));
+        var boiler = DataFile.Load<BoilerTuning>(Path.Combine(Content, BoilerTuning.File));
+        var player = DataFile.Load<PlayerTuning>(Path.Combine(Content, PlayerTuning.File));
+        var line = new Sim.Rail.RailLine(new Sim.Rail.LineDefinition("t", [new Sim.Rail.TrackSegment(20_000)]));
+        var train = new TrainOnLine(new TrainDynamics(Consist.Uniform(tuning, 5, 1)), line, 2_000, boiler);
+        var cab = PlayerMotor.SpawnInCab(train, player);
+        var inCar = new PlayerState { Parent = 2, Health = player.Health };
+        // Sound: nothing said.
+        Assert.Empty(Hud.FailingLines(train, inCar));
+        Assert.Empty(Hud.FailingLines(train, cab));
+        // Car 2 under the line: in it, it's coming apart and its freight's going; in the cab, which car.
+        train.Vehicles[2].Integrity = 0.4;
+        Assert.Equal(["THE CAR'S COMING APART   THE FREIGHT'S SPILLING"], Hud.FailingLines(train, inCar).Select(l => l.Text));
+        Assert.Equal(["CAR 2 COMING APART"], Hud.FailingLines(train, cab).Select(l => l.Text));
+        // Nearly gone: breaking up, and the cab hears the worst.
+        train.Vehicles[3].Integrity = 0.1;
+        Assert.Equal((FailStage.Breaking, "CAR 3 BREAKING UP"), Hud.FailingLines(train, cab).Select(l => (l.Stage, l.Text)).Single());
+        // The engine, from on it.
+        train.Vehicles[0].Integrity = 0.3;
+        Assert.Contains("THE ENGINE'S FAILING", Hud.FailingLines(train, cab).Select(l => l.Text));
+        train.Vehicles[0].Integrity = 0;
+        Assert.Contains((FailStage.Broken, "THE ENGINE'S BROKEN DOWN"), Hud.FailingLines(train, cab).Select(l => (l.Stage, l.Text)));
+        // And the rules off, nothing.
+        var off = new TrainOnLine(new TrainDynamics(Consist.Uniform(tuning with { Failing = new FailingTuning() }, 5, 1)), line, 2_000, boiler);
+        off.Vehicles[2].Integrity = 0.1;
+        Assert.Empty(Hud.FailingLines(off, inCar));
+    }
 }

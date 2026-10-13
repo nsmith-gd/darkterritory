@@ -26,6 +26,9 @@ What each is for (CrewActs, from the sim's state; GDD/spec where the act is):
   lantern, _walk      the hand lamp held out low, swinging with the step
   haul                down on a knee, both hands on a friend's collar, hauling them free (App. A.1's rescue)
   haul_up             stood at the edge, leant back, hauling a friend up over it hand over hand (the Draggers, App. A.4)
+  pull_mouth          a friend half down the Car Hugger's mouth: braced, leant far back, heaved out hand over hand (note 378)
+  pry_off             the Tippy Toesie's fingers over a friend's mouth, prised off and wrenched aside (note 378)
+  haul_down           a friend being lifted away (the Whistler, the Choir): reached up for the legs, hauled down with the weight (note 378)
   gap_step            across the coupling plate: short wide steps, arms out, eyes on the gap (GDD §32)
   drive, whistle      at the controls, the hands on the regulator and brake; the left up on the whistle cord (GDD §12)
   smash, pry, pick    breaching a Holdout (App. D.7): the lock smashed, the barricade pried, the lock picked with the kit
@@ -33,6 +36,10 @@ What each is for (CrewActs, from the sim's state; GDD/spec where the act is):
   take_down, hang_up  the extinguisher lifted off its bracket into the hands, and hung back on it (App. C.5)
   hurry               running under stress: hunched, arms pumping (GDD §31)
   stagger             a blow taken: rocked back a step, and back (App. C.2)
+  shuffle             a freed prisoner's walk (App. D.8, note 407): short dragging steps, hunched, the hands kept together in front
+                      as if the irons were still on
+  jump                off the roof on a jump: the spring, then the leap tucked, arms reaching for the far roof (note 375)
+  stumble             on a car straining on a bend: thrown one way and the other, arms out, a foot stepped wide (note 375)
   throw, chute, spout a ground switch lever heaved over; the coaling chute's lever hauled down; a spout swung round (C.6, D.3)
   cradle, _walk       the child in the arms, clinging (App. C.4; soot_child's clutch)
   shoulder, _walk     a body over the left shoulder, the arm round its legs (App. C.4; the sim's Bodies.Shoulder)
@@ -41,6 +48,8 @@ What each is for (CrewActs, from the sim's state; GDD/spec where the act is):
   reload              the cannon's reload from the seat: powder, ram, prime (note 137)
   fp_hold, fp_walk    first person (X3): the tool held up in view, the eye at EYE (CreatureArt.OwnArms puts it at the camera)
   fp_swing            first person: the blow, as long as the melee's recovery (enemies.json melee.swingSeconds, 0.8 s)
+  wave, point, dance  the yard's emotes (GDD §9, note 298's wheel): a wave over the shoulder, a point straight ahead at the
+                      shoulder's height, a workman's jig (queue #44, note 306)
 In place, 30 fps, like crew.py's; the root never travels (the sim moves the crewmate).
 
     blender -b --python tools/blender/crew_clips.py -- content/art/models/crew_clips.glb
@@ -537,6 +546,28 @@ lantern.key(30, arm_to(over(STAND, head=(-3, 0, 6)), "r", at(LAMP_AT, dz=0.02, d
 lantern.close(60)
 clips.append(lantern)
 
+# --- toolbox: the repair kit (the engineer's toolbox, App. C.4) carried by its handle in the right hand, down at the side,
+# the arm straight with the weight of it and the body leant away from it, the free arm out a little against it; walking,
+# it swings a little against the leg (note 513; it was held out in front in both hands, as a crate is).
+KIT_AT = (0.27, 0.03, 0.79)
+KIT_BODY = over(STAND, pelvis=(0, 0, -3), spine_01=(0, 0, -3), spine_02=(0, 0, -2), neck=(0, 0, 3), head=(0, 0, 2))
+
+
+def toolbox_upper(f, side):
+    a = math.cos(2 * math.pi * f / 30)  # +1 at the right heel's strike: the left arm forward
+    body = over(KIT_BODY, spine_02=(-2, 0, -2 + 1.5 * a))
+    p = arm_to(body, "r", at(KIT_AT, dy=-0.04 * a, dz=-0.01 * abs(a)), grip=95)
+    return arm_to(p, "l", (-0.27, 0.04 + 0.15 * a, 0.9 + 0.02 * abs(a)), grip=30, elbow=(0.35, -0.25, 1.1))
+
+
+clips.append(walking("toolbox_walk", toolbox_upper, cycle=30, short=0.95))
+toolbox = Clip("toolbox")
+toolbox.key(0, arm_to(arm_to(KIT_BODY, "r", KIT_AT, grip=95), "l", (-0.26, 0.04, 0.9), grip=30, elbow=(0.35, -0.25, 1.1)))
+toolbox.key(30, arm_to(arm_to(over(KIT_BODY, head=(-3, 0, 6)), "r", at(KIT_AT, dz=0.01), grip=95), "l", (-0.26, 0.05, 0.91), grip=30,
+                       elbow=(0.35, -0.25, 1.1)))
+toolbox.close(60)
+clips.append(toolbox)
+
 # --- haul: down on a knee, both hands on a friend's coat collar, hauling them back (the rescue, App. A.1) -------------
 HAUL = over(STAND, pelvis__loc=(0, -0.12, 0), pelvis=(-18, 0, 0), spine_01=(-14, 0, 0), spine_02=(-8, 0, 0),
             spine_03=(-4, 0, 0), neck=(18, 0, 0), head=(6, 0, 0),
@@ -566,6 +597,55 @@ haul_up.key(18, hands(HAUL_BACK, (0.14, 0.34, 0.86), (-0.14, 0.34, 0.86), grip=9
 haul_up.key(24, hands(HAUL_BACK, (0.14, 0.36, 0.84), (-0.14, 0.36, 0.84), grip=90))
 haul_up.close(36)
 clips.append(haul_up)
+
+# --- the rescue matched to the grab (App. A.1; note 378): CrewActs picks by what has the friend ---------------------------
+# pull_mouth: a friend half down the Car Hugger's mouth (D1's swallowed rescue, note 310). Feet braced, the front leg
+# out straight against the pull and the back one bent under, the whole body leant far back; both fists on their belt and
+# legs at the waist's height, heaved in, then the right hand thrown forward for a fresh grip, hand over hand.
+PULL_REACH = over(STAND, pelvis__loc=(0, 0.04, -0.06), pelvis=(-8, 0, 0), spine_01=(-10, 0, 0), spine_02=(-6, 0, 0), neck=(14, 0, 0),
+                  head=(4, 0, 0), thigh_r=(30, 0, 0), calf_r=(-24, 0, 0), foot_r=(8, 0, -6), thigh_l=(-16, 0, 0), calf_l=(-22, 0, 0),
+                  foot_l=(-10, 0, 6))
+PULL_HEAVE = over(STAND, pelvis__loc=(0, -0.2, -0.14), pelvis=(16, 0, 0), spine_01=(14, 0, 0), spine_02=(10, 0, 0), spine_03=(6, 0, 0),
+                  neck=(4, 0, 0), head=(-10, 0, 0), thigh_r=(44, 0, 0), calf_r=(-10, 0, 0), foot_r=(-6, 0, -6),
+                  thigh_l=(-8, 0, 0), calf_l=(-62, 0, 0), foot_l=(-24, 0, 6))
+pull_mouth = Clip("pull_mouth")
+pull_mouth.key(0, hands(PULL_REACH, (0.12, 0.64, 0.92), (-0.12, 0.62, 0.9), grip=95))
+pull_mouth.key(12, hands(PULL_HEAVE, (0.12, 0.34, 1.0), (-0.12, 0.32, 0.98), grip=95), "LINEAR")
+pull_mouth.key(18, hands(over(PULL_HEAVE, spine_02=(12, 0, -4)), (0.12, 0.3, 1.02), (-0.12, 0.3, 1.0), grip=95))
+pull_mouth.key(26, hands(over(PULL_REACH, pelvis__loc=(0, -0.08, -0.1), pelvis=(4, 0, 0), spine_01=(0, 0, 0), spine_02=(0, 0, 4)),
+                         (0.14, 0.66, 0.94), (-0.12, 0.36, 0.98), grip=60))
+pull_mouth.close(36)
+clips.append(pull_mouth)
+
+# pry_off: the Tippy Toesie stood behind a friend, its 0.3 m fingers over their mouth (App. A.5's smother). Squared up
+# to them, feet wide, both hands up at the face: the fingers gripped and wrenched off to the one side, the body leant into
+# it, then back for them and wrenched to the other.
+PRY_STAND = over(STAND, pelvis__loc=(0, 0, -0.06), spine_01=(-6, 0, 0), spine_02=(-4, 0, 0), neck=(6, 0, 0), head=(0, 0, 0),
+                 thigh_r=(8, -12, 0), calf_r=(-16, 0, 0), foot_r=(4, 0, -10), thigh_l=(8, 12, 0), calf_l=(-16, 0, 0), foot_l=(4, 0, 10))
+FACE = (0.0, 0.52, 1.54)
+pry_off = Clip("pry_off")
+pry_off.key(0, hands(PRY_STAND, at(FACE, dx=0.1), at(FACE, dx=-0.1, dz=-0.02), grip=90))
+pry_off.key(8, hands(over(PRY_STAND, spine_02=(-4, 0, 10), spine_03=(-2, 0, 6), head=(0, 0, -6)),
+                     at(FACE, dx=0.38, dy=-0.1, dz=-0.18), at(FACE, dx=-0.14, dy=0.04, dz=-0.04), grip=95), "LINEAR")
+pry_off.key(14, hands(PRY_STAND, at(FACE, dx=0.1), at(FACE, dx=-0.1), grip=90))
+pry_off.key(22, hands(over(PRY_STAND, spine_02=(-4, 0, -10), spine_03=(-2, 0, -6), head=(0, 0, 6)),
+                      at(FACE, dx=0.14, dy=0.04, dz=-0.04), at(FACE, dx=-0.38, dy=-0.1, dz=-0.18), grip=95), "LINEAR")
+pry_off.close(30)
+clips.append(pry_off)
+
+# haul_down: a friend being lifted off the roof (the Whistler's carry, the Choir's seizing): reached up for their legs
+# overhead, then the whole weight dropped onto them, knees bending, the fists hauled down to the chest; and up again.
+HD_UP = look_at(over(STAND, pelvis__loc=(0, 0, 0.04), spine_01=(4, 0, 0), spine_02=(6, 0, 0), thigh_r=(-4, 0, 0), thigh_l=(10, 0, 0),
+                     calf_l=(-8, 0, 0), foot_r=(-14, 0, -6), foot_l=(-10, 0, 6)), (0, 0.8, 2.6))
+HD_DOWN = look_at(over(STAND, pelvis__loc=(0, -0.06, -0.26), pelvis=(-6, 0, 0), spine_01=(-8, 0, 0), spine_02=(-4, 0, 0),
+                       thigh_r=(56, -6, 0), calf_r=(-84, 0, 0), foot_r=(26, 0, -6), thigh_l=(40, 6, 0), calf_l=(-70, 0, 0), foot_l=(28, 0, 6)),
+                  (0, 0.8, 2.4))
+haul_down = Clip("haul_down")
+haul_down.key(0, hands(HD_UP, (0.16, 0.36, 2.04), (-0.16, 0.32, 1.98), grip=95))
+haul_down.key(12, hands(HD_DOWN, (0.2, 0.38, 1.38), (-0.2, 0.36, 1.34), grip=95), "LINEAR")
+haul_down.key(18, hands(HD_DOWN, (0.2, 0.38, 1.34), (-0.2, 0.36, 1.32), grip=95))
+haul_down.close(32)
+clips.append(haul_down)
 
 # --- gap_step: across the coupling plate, a short wide careful step, arms out, eyes down at the gap (GDD §32) ----------
 def gap_upper(f, side):
@@ -760,6 +840,79 @@ stagger.key(4, hands(STAG, (0.34, 0.2, 1.5), (-0.4, 0.1, 1.42), fist=False), "LI
 stagger.key(10, hands(over(STAG, spine_02=(6, 0, -3), head=(-6, 0, 4)), (0.3, 0.24, 1.2), (-0.34, 0.16, 1.15), fist=False))
 stagger.key(20, STAND)
 clips.append(stagger)
+
+# --- shuffle: a freed prisoner's walk (App. D.8, the checklist's survivor-prisoner; note 407). Years in irons: short,
+# flat, dragging steps that barely clear the ground, hunched over them, the head down, the hands held together low in
+# front where the cuffs kept them, the shoulders rounded in; it nods a little with each step.
+def shuffle_upper(f, side):
+    nod = 3 if side == "r" else -3
+    body = over(STAND, pelvis__loc=(0, 0, -0.04), spine_01=(-16, 0, 0), spine_02=(-16, 0, nod * 0.5), spine_03=(-12, 0, 0), neck=(30, 0, 0),
+                head=(12 + abs(nod), 0, -nod), clavicle_r=(0, 2, 14), clavicle_l=(0, 2, -14))
+    return hands(body, (0.07, 0.34, 0.9 + 0.01 * nod), (-0.07, 0.35, 0.9 - 0.01 * nod), grip=60)
+
+
+def shuffle_legs(f, pose):
+    # The feet barely lifted: the passing knee's bend and the toe-off halved, the knees kept soft.
+    for k in ("calf_r", "calf_l"):
+        x = pose.get(k, (0, 0, 0))
+        pose[k] = (max(x[0] * 0.5, -40) - 6, x[1], x[2])
+    for k in ("foot_r", "foot_l"):
+        x = pose.get(k, (0, 0, 0))
+        pose[k] = (x[0] * 0.4, x[1], x[2])
+    return pose
+
+
+clips.append(walking("shuffle", shuffle_upper, cycle=40, short=0.42, tweak=shuffle_legs))
+
+# --- jump: off the roof on a jump, between cars (the checklist's crew-gap: "a jump between roofs"; note 375). Played once
+# from the spring (CrewActs: rising), held over the top (SceneArt) until they're falling or down. The push off the back
+# foot with the arms swung up and forward, then gathered: both knees drawn up under the chest, leant into it, the arms
+# reaching ahead for the far roof's edge, the eyes on it.
+JUMP_SPRING = over(STAND, pelvis__loc=(0, 0.04, 0.02), pelvis=(-8, 0, 0), spine_01=(-10, 0, 0), spine_02=(-8, 0, 0), spine_03=(-4, 0, 0),
+                   neck=(10, 0, 0), head=(4, 0, 0), thigh_r=(48, 0, 0), calf_r=(-72, 0, 0), foot_r=(16, 0, -6),
+                   thigh_l=(-24, 0, 0), calf_l=(-18, 0, 0), foot_l=(-34, 0, 6))
+JUMP_TUCK = over(STAND, pelvis__loc=(0, 0.02, 0.1), pelvis=(-14, 0, 0), spine_01=(-14, 0, 0), spine_02=(-10, 0, 0), spine_03=(-6, 0, 0),
+                 neck=(14, 0, 0), head=(6, 0, 0), thigh_r=(74, 6, 0), calf_r=(-104, 0, 0), foot_r=(20, 0, -6),
+                 thigh_l=(58, -6, 0), calf_l=(-96, 0, 0), foot_l=(14, 0, 6))
+JUMP_TUCK = look_at(JUMP_TUCK, (0, 3.0, 0.9))
+jump = Clip("jump", loop=False)
+jump.key(0, hands(over(STAND, pelvis__loc=(0, 0, -0.08), thigh_r=(20, 0, 0), calf_r=(-36, 0, 0), thigh_l=(14, 0, 0), calf_l=(-30, 0, 0)),
+                  (0.32, -0.24, 0.98), (-0.32, -0.24, 0.98), fist=False))
+jump.key(5, hands(JUMP_SPRING, (0.3, 0.42, 1.62), (-0.3, 0.38, 1.56), fist=False), "LINEAR")
+jump.key(12, hands(JUMP_TUCK, (0.34, 0.6, 1.36), (-0.34, 0.56, 1.32), fist=False))
+jump.key(22, hands(over(JUMP_TUCK, thigh_r=(66, 6, 0), calf_r=(-88, 0, 0), thigh_l=(62, -6, 0), calf_l=(-90, 0, 0)),
+                   (0.36, 0.62, 1.3), (-0.36, 0.6, 1.28), fist=False))
+clips.append(jump)
+
+# --- stumble: on a car straining on a bend taken too fast (App. F.1's overspeed telegraph: "the cars straining and
+# leaning"; note 375), past halfway to off: thrown towards the outside of the bend and caught on a foot stepped wide, the
+# arms flung out for balance, then back over the other way as the car snatches; low, knees soft, the eyes on the roof.
+STUM = over(STAND, pelvis__loc=(0, 0, -0.1), spine_01=(-8, 0, 0), spine_02=(-6, 0, 0), neck=(18, 0, 0), head=(8, 0, 0),
+            thigh_r=(14, -14, 0), calf_r=(-30, 0, 0), foot_r=(8, 0, -10), thigh_l=(14, 14, 0), calf_l=(-30, 0, 0), foot_l=(8, 0, 10))
+
+
+def stumble_key(lean, step):
+    # Thrown towards `lean` (+1 the right): the body tipped over that way and the head kept level against it, the foot
+    # on that side stepped out wide and taking the weight (knee buckled), the other leg light and long; the arm on the
+    # thrown side low and out to catch, the other high and wide.
+    side, other = ("r", "l") if lean > 0 else ("l", "r")
+    body = over(STUM, pelvis__loc=(0.1 * lean * step, 0, -0.13), pelvis=(0, 0, 12 * lean), spine_01=(-8, 0, 14 * lean),
+                spine_02=(-6, 0, 18 * lean), spine_03=(-4, 0, 10 * lean), head=(8, 0, -24 * lean),
+                **{f"thigh_{side}": (18, -36 * step, 0) if side == "r" else (18, 36 * step, 0), f"calf_{side}": (-50, 0, 0),
+                   f"thigh_{other}": (6, -4, 0) if other == "r" else (6, 4, 0), f"calf_{other}": (-12, 0, 0)})
+    low = (0.62 * lean, 0.12, 0.86)
+    high = (-0.56 * lean, 0.06, 1.62)
+    r, l = (low, high) if lean > 0 else (high, low)
+    return hands(body, r, l, fist=False)
+
+
+stumble = Clip("stumble")
+stumble.key(0, stumble_key(1, 1.0))
+stumble.key(9, hands(STUM, (0.5, 0.2, 1.1), (-0.5, 0.2, 1.1), fist=False))
+stumble.key(16, stumble_key(-1, 0.8))
+stumble.key(25, hands(over(STUM, pelvis__loc=(0, 0, -0.14)), (0.48, 0.24, 1.0), (-0.52, 0.18, 1.14), fist=False))
+stumble.close(34)
+clips.append(stumble)
 
 # --- throw: a ground switch lever by the line (spec C.6's junctions), gripped low and heaved up and over ----------------
 THROW_LOW = over(STAND, pelvis__loc=(0, -0.06, -0.12), pelvis=(-14, 0, 0), spine_01=(-18, 0, 0), spine_02=(-14, 0, 0),
@@ -1062,12 +1215,85 @@ reload_.key(122, hands(over(SEATED, head=(10, 0, 0), neck=(20, 0, 0)), (0.06, 0.
 reload_.key(135, hands(SEATED, WHEEL_KNOB, TILLER))
 clips.append(reload_)
 
+# --- emotes (GDD §9: in the yard "the crew wait for friends, hang out, dance"; note 298's wheel, queue #44, note 306) ----------
+# The game loops each from a beat of its own per crewmate (CreatureArt.Crewmate: time + the variant's offset), so the wave
+# and the point are holds that loop anywhere, not a start and an end.
+SHOULDER_R, SHOULDER_L = rig.pose_points(sk, STAND, [("upperarm_r", "head"), ("upperarm_l", "head")])
+
+
+def bounce(pose, k):
+    """The weight dropped into the knees by `k` (0..1), both knees bent the same."""
+    return over(pose, **{"pelvis@loc": (0, 0, -0.06 * k), "thigh_r": (14 * k, 0, 0), "calf_r": (-28 * k, 0, 0), "foot_r": (14 * k, 0, -6),
+                         "thigh_l": (14 * k, 0, 0), "calf_l": (-28 * k, 0, 0), "foot_l": (14 * k, 0, 6)})
+
+
+# Wave (1 s, loop): the right hand up over the shoulder, open, waved side to side from the elbow; the weight on one hip,
+# the head tipped to whoever it's for.
+WAVE_BODY = over(STAND, spine_02=(-2, 0, 4), spine_03=(-4, 0, 6), neck=(8, 4, 6), head=(-2, 6, 4), pelvis=(0, 0, -4))
+wave = Clip("wave")
+for f, x in ((0, 0.0), (7, 1.0), (15, 0.0), (22, -1.0)):
+    wrist = (SHOULDER_R.x + 0.16 + 0.11 * x, SHOULDER_R.y + 0.12, SHOULDER_R.z + 0.36 - 0.03 * abs(x))
+    p = arm_to(WAVE_BODY, "r", wrist, fist=False, elbow=(0.45, 0.0, 1.3))
+    p["hand_r"] = (0, 6, -14 * x)
+    p["fingers_r"], p["thumb_r"] = (0, 6, 0), (0, 4, 0)
+    wave.key(f, p)
+wave.close(30)
+clips.append(wave)
+
+# Point (2 s, loop): the right arm straight out ahead at the shoulder's height, the hand flat along it, the eyes down it;
+# the left hand on the hip; a jab of emphasis, once a second, the body leant into it.
+POINT_AT = (SHOULDER_R.x + 0.04, SHOULDER_R.y + 0.66, SHOULDER_R.z - 0.02)
+POINT_BODY = look_at(over(STAND, spine_02=(-4, 0, 0), spine_03=(-4, 0, 0)), (0.3, 6.0, 1.4))
+HIP_L = (-0.24, 0.02, 1.0)
+point = Clip("point")
+for f, jab in ((0, 0.0), (5, 1.0), (12, 0.2), (30, 0.0), (35, 1.0), (42, 0.2)):
+    body = over(POINT_BODY, spine_02=(-4 - 3 * jab, 0, 0), pelvis=(0, 0, -2))
+    p = arm_to(body, "r", (POINT_AT[0], POINT_AT[1] + 0.06 * jab, POINT_AT[2]), fist=False, elbow=(0.3, 0.0, 1.45))
+    p["hand_r"] = (0, 0, 0)
+    p["fingers_r"], p["thumb_r"] = (0, 4, 0), (0, 20, 0)
+    p = arm_to(p, "l", HIP_L, grip=40, elbow=(0.45, -0.2, 1.15))
+    point.key(f, p, "LINEAR" if jab == 1.0 else "BEZIER")
+point.close(60)
+clips.append(point)
+
+# Dance (4 s, loop, played twice over the emote's 8 s): a workman's jig in heavy boots, goofy and in earnest (§31's
+# weight: it's all in the knees). Two bars of stomping knee-lifts with the fists pumped up over the head on the beat
+# ("raise the roof"), then two of a side-to-side shuffle, the hips swinging, the elbows out flapping like a hen's, the
+# head bobbing a beat behind.
+DANCE = over(STAND, spine_02=(-4, 0, 0), spine_03=(-6, 0, 0))
+dance = Clip("dance")
+for f in range(0, 120, 3):
+    beat = (f % 15) / 15                                    # 2 beats a second
+    down = 0.5 + 0.5 * math.cos(2 * math.pi * beat)        # 1 on the beat: weight down
+    if f < 60:
+        side = "r" if (f // 15) % 2 == 0 else "l"
+        lift = math.sin(math.pi * beat) ** 1.5             # the knee up between the beats, stomped down on them
+        p = bounce(DANCE, 0.4 * down)
+        p = over(p, **{f"thigh_{side}": (50 * lift, 0, 0), f"calf_{side}": (-70 * lift, 0, 0), f"foot_{side}": (10 * lift, 0, 0),
+                       "spine_03": (-6 + 4 * down, 0, 0), "neck": (8 - 6 * down, 0, 0)})
+        up = 0.5 + 0.5 * math.cos(2 * math.pi * beat)
+        h = SHOULDER_R.z + 0.18 + 0.32 * up
+        p = hands(p, (0.2, 0.1, h), (-0.2, 0.1, h), grip=90, elbow=(0.45, 0.0, SHOULDER_R.z))
+    else:
+        sway = math.sin(2 * math.pi * (f - 60) / 30)        # a bar each way
+        p = bounce(DANCE, 0.5 * down)
+        p = over(p, **{"pelvis@loc": (0.06 * sway, 0, -0.03 * down), "pelvis": (0, 0, 10 * sway), "spine_02": (-4, 0, -6 * sway),
+                       "spine_03": (-6, 6 * sway, -4 * sway), "neck": (8, -6 * sway, 4 * math.sin(2 * math.pi * (beat - 0.25))),
+                       "thigh_r": (14 * down + 10 * max(0.0, sway), 0, 4), "thigh_l": (14 * down + 10 * max(0.0, -sway), 0, -4)})
+        flap = math.sin(2 * math.pi * beat)
+        # Fists up before the chest, clear of the coat (dt art clearance), the elbows out and flapping.
+        p = hands(p, (0.25, 0.32, SHOULDER_R.z - 0.16), (-0.25, 0.32, SHOULDER_R.z - 0.16), grip=90,
+                  elbow=(0.55, -0.1, SHOULDER_R.z - 0.1 + 0.12 * flap))
+    dance.key(f, p, "LINEAR")
+dance.close(120)
+clips.append(dance)
+
 kit.build()
-rig.bake(sk, clips, plant=rig.feet_planter(sk, clips={"carry", "carry_walk", "drag", "drag_fwd", "shovel", "door", "handbrake", "hatch",
+rig.bake(sk, clips, plant=rig.feet_planter(sk, clips={"wave", "point", "dance", "carry", "carry_walk", "drag", "drag_fwd", "shovel", "door", "handbrake", "hatch",
                                                         "uncouple", "vent", "lever", "push", "swing", "mend",
                                                         "gap", "extinguish", "spray", "lantern", "lantern_walk", "haul",
                                                         "haul_up", "drive", "whistle", "smash", "pry", "pick", "take_down", "hang_up",
                                                         "stagger", "throw", "chute", "spout", "shoulder", "cradle", "firedoor", "held_cover", "held_frozen",
-                                                        "held_seized", "held_mouth"}))
+                                                        "held_seized", "held_mouth", "stumble", "pull_mouth", "pry_off", "haul_down"}))
 rig.export(rig.args()[0] if rig.args() else "crew_clips.glb", kit)
 print(f"[dt] crew clips {[c.name + ':' + str(c.length) for c in clips]}")

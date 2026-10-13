@@ -22,7 +22,8 @@ public readonly record struct RakeContact(int Front, int Rear, double ClosingSpe
 /// <param name="Path">The track the rake's front is on: <see cref="RailLine.MainPath"/>, or a branch index.</param>
 public readonly record struct RakeState(int[] Vehicles, double Distance, double Velocity, double BrakeEfficiency, bool Handbrake, bool FrontCouplerLocked, int Path = RailLine.MainPath);
 public readonly record struct VehicleState(int Id, double Load, double Integrity, double CargoIntegrity, GunState Gun = default, byte DoorsOpen = 0,
-    CargoKind Cargo = CargoKind.None, bool LampLit = true, double Eaten = 0, uint LockersOpen = 0, bool Breached = false, Double3 BreachAt = default);
+    CargoKind Cargo = CargoKind.None, bool LampLit = true, double Eaten = 0, uint LockersOpen = 0, bool Breached = false, Double3 BreachAt = default, byte[]? Char = null, double HotBox = 0, double Gutter = 0, double Loose = 0, bool Wound = false, bool Seized = false, double Knot = 0,
+    bool OffRails = false);
 
 /// <summary>Everything about the train that the host owns and clients re-simulate from.</summary>
 public sealed record TrainState(RakeState[] Rakes, VehicleState[] Vehicles, Boiler Boiler);
@@ -101,12 +102,31 @@ public sealed class TrainOnLine
     /// along <paramref name="path"/>, uncoupled, its handbrakes on. Its cars take the ids after every vehicle there is, so a
     /// host and its clients, standing the same cars from the same route, agree on them. Done before the night begins.
     /// </summary>
-    public IReadOnlyList<Vehicle> Stand(int path, double distance, IReadOnlyList<(double Load, CargoKind Cargo)> cars)
+    public IReadOnlyList<Vehicle> Stand(int path, double distance, IReadOnlyList<(double Load, CargoKind Cargo)> cars) =>
+        Stand(path, distance, cars, null);
+
+    /// <summary>
+    /// Stands a blocked siding's derelict cars (level-design D.2; note 294) as <see cref="Stand(int, double, IReadOnlyList{ValueTuple{double, CargoKind}})"/>
+    /// does a switchyard's: <paramref name="count"/> empty cars, their shells at <paramref name="integrity"/> and anything loaded
+    /// into them paying <paramref name="pays"/> of itself.
+    /// </summary>
+    public IReadOnlyList<Vehicle> StandDerelicts(int path, double distance, int count, double integrity, double pays) =>
+        Stand(path, distance, [.. Enumerable.Repeat((0.0, CargoKind.None), count)], (integrity, pays));
+
+    IReadOnlyList<Vehicle> Stand(int path, double distance, IReadOnlyList<(double Load, CargoKind Cargo)> cars, (double Integrity, double Pays)? derelict)
     {
         var consist = new Consist(Tuning);
         int id = _vehicles.Length;
         foreach (var (load, cargo) in cars)
-            consist.Add(new Vehicle(id++, VehicleKind.Cargo, load) { YardCar = true, Cargo = load > 0 ? cargo : CargoKind.None, LampLit = false });
+            consist.Add(new Vehicle(id++, VehicleKind.Cargo, load)
+            {
+                YardCar = true,
+                Derelict = derelict is not null,
+                Cargo = load > 0 ? cargo : CargoKind.None,
+                LampLit = false,
+                Integrity = derelict?.Integrity ?? 1,
+                CargoIntegrity = derelict?.Pays ?? 1,
+            });
         if (consist.Vehicles.Count == 0)
             return [];
         Array.Resize(ref _vehicles, id);
@@ -121,11 +141,12 @@ public sealed class TrainOnLine
 
     /// <summary>
     /// A rake still standing as the night found it (note 187): a switchyard's cars and nothing else, on a siding, the engine
-    /// not in it. Not part of the train until it's coupled up, so not "cars left behind" either.
+    /// not in it. Not part of the train until it's coupled up, so not "cars left behind" either. Derelicts alone (note 294)
+    /// are never the train's, wherever they've been put away.
     /// </summary>
     public bool Standing(TrainDynamics rake) =>
-        !rake.Consist.HasEngine && rake.Path >= 0 && rake.Path < Line.Branches.Count && Line.Branches[rake.Path].Kind == BranchKind.Spur
-        && rake.Consist.Vehicles.All(v => v.YardCar);
+        !rake.Consist.HasEngine && (rake.Consist.Vehicles.All(v => v.Derelict)
+            || rake.Path >= 0 && rake.Path < Line.Branches.Count && Line.Branches[rake.Path].Kind == BranchKind.Spur && rake.Consist.Vehicles.All(v => v.YardCar));
 
     /// <summary>A vehicle in a rake still standing as the night found it (note 187).</summary>
     public bool StandingCar(int vehicleId) =>
@@ -136,6 +157,12 @@ public sealed class TrainOnLine
     public int TrainRakes => _rakes.Count(r => !Standing(r));
 
     public BoilerTuning? BoilerTuning { get; set; }
+    /// <summary>The hot boxes' tuning (note 331), when the night has them: their seconds count, and they drag.</summary>
+    public HotBoxTuning? HotBoxTuning { get; set; }
+    /// <summary>The lamps' guttering tuning (note 346), when the night has it: for how near a guttering lamp is to going out.</summary>
+    public GutterTuning? Gutter { get; set; }
+    /// <summary>The couplings' working loose (note 356), when the night has it: for where a loose one's tightened, and how near it is to parting.</summary>
+    public LooseTuning? Loose { get; set; }
     public Boiler Boiler;
     /// <summary>True for the one tick on which the boiler ruptured.</summary>
     public bool RupturedThisTick { get; private set; }
@@ -200,6 +227,12 @@ public sealed class TrainOnLine
     /// cranes). Asked the same on host and client, from replicated state.
     /// </summary>
     public Func<int, bool>? HatchBlocked { get; set; }
+    /// <summary>
+    /// The engine's forward lamp, smashed (note 301, slice 2): the seconds of glass work left before it can be lit again
+    /// (<see cref="World.LampOutSeconds"/>), and the wrench's work on it. The world's, lent to the crew's hands.
+    /// </summary>
+    public Func<double>? LampOut { get; set; }
+    public Action<double>? MendLamp { get; set; }
     /// <summary>How much of the grip sanding has brought back on greased rail, 0 to 1 (App. A.2).</summary>
     public double Sand { get; set; }
     /// <summary>
@@ -217,11 +250,16 @@ public sealed class TrainOnLine
     /// <summary>Whether a branch's switch is set for the branch (true) or for the main line (false, as they start).</summary>
     public bool Diverging(int branch) => _diverging[branch];
 
-    /// <summary>A wheel is on a switch's points (within <paramref name="pointsLength"/> of the toe): they won't move.</summary>
+    /// <summary>
+    /// A wheel is on a switch's points (within <paramref name="pointsLength"/> of the toe): they won't move. On either leg:
+    /// a car stood just inside the branch is over the blades as much as one on the main line (note 289: only the main
+    /// line's leg was counted, so the points went over under a car left at the mouth of a spur).
+    /// </summary>
     public bool PointsOccupied(int branch, double pointsLength)
     {
         double toe = Line.Branches[branch].Toe;
-        return _rakes.Any(r => On(r, RailLine.MainPath) is { } o && o.Rear < toe + pointsLength && o.Front > toe - pointsLength);
+        return _rakes.Any(r => On(r, RailLine.MainPath) is { } o && o.Rear < toe + pointsLength && o.Front > toe - pointsLength
+            || On(r, branch) is { } d && d.Rear < pointsLength);
     }
 
     /// <summary>Throws a switch, unless a wheel is on its points. Returns whether it moved.</summary>
@@ -241,6 +279,18 @@ public sealed class TrainOnLine
     }
     public double RearDistance => Dynamics.RearDistance;
     TrainTuning Tuning => _engineRake.Tuning;
+
+    /// <summary>A rake with a car off its rails (note 423) is held by this much (m/s²): far past what any engine pulls or grade drives.</summary>
+    public const double OffRailsDrag = 1000;
+
+    static bool AnyOffRails(TrainDynamics rake)
+    {
+        var vehicles = rake.Consist.Vehicles;
+        for (int i = 0; i < vehicles.Count; i++)
+            if (vehicles[i].OffRails)
+                return true;
+        return false;
+    }
 
     double DragOn(TrainDynamics rake) =>
         DraggedVehicle >= 0 && rake.Consist.IndexOf(DraggedVehicle) >= 0 ? DragFactor * _engineRake.MaxTractiveForce / rake.Consist.MassTonnes : 0;
@@ -272,7 +322,9 @@ public sealed class TrainOnLine
             return false;
         var front = rake.Consist;
         var rear = front.SplitAfter(index);
-        double shift = front.LengthMetres + Tuning.Geometry.CouplingGap;
+        // (Cut at a Knotter's gap, note 365, the rear rake stands where its body held it, and the gap's its no more.)
+        double shift = front.LengthMetres + Tuning.Geometry.CouplingGap + front.Vehicles[^1].Knot;
+        front.Vehicles[^1].Knot = 0;
         var cut = new TrainDynamics(rear)
         {
             // Behind the front half on the same track: the path only matters past a branch's points, where it's the front half's.
@@ -302,7 +354,7 @@ public sealed class TrainOnLine
 
     public TrainState Capture() => new(
         _rakes.Select(r => new RakeState(r.Consist.Vehicles.Select(v => v.Id).ToArray(), r.Distance, r.Velocity, r.BrakeEfficiency, r.Handbrake, r.FrontCouplerLocked, r.Path)).ToArray(),
-        _vehicles.Select(v => new VehicleState(v.Id, v.Load, v.Integrity, v.CargoIntegrity, v.Gun, v.DoorsOpen, v.Cargo, v.LampLit, v.Eaten, v.LockersOpen, v.Breached, v.BreachAt)).ToArray(),
+        _vehicles.Select(v => new VehicleState(v.Id, v.Load, v.Integrity, v.CargoIntegrity, v.Gun, v.DoorsOpen, v.Cargo, v.LampLit, v.Eaten, v.LockersOpen, v.Breached, v.BreachAt, v.Char, v.HotBox, v.Gutter, v.Loose, v.Wound, v.Seized, v.Knot, v.OffRails)).ToArray(),
         Boiler);
 
     /// <summary>Adopts host state and rebuilds rakes and poses; clients then re-simulate forward from it.</summary>
@@ -322,18 +374,70 @@ public sealed class TrainOnLine
             vehicle.LockersOpen = v.LockersOpen;
             vehicle.Breached = v.Breached;
             vehicle.BreachAt = v.BreachAt;
+            vehicle.Char = v.Char is { } c ? (byte[])c.Clone() : [];
+            vehicle.HotBox = v.HotBox;
+            vehicle.Gutter = v.Gutter;
+            vehicle.Loose = v.Loose;
+            vehicle.Wound = v.Wound;
+            vehicle.Seized = v.Seized;
+            vehicle.Knot = v.Knot;
+            vehicle.OffRails = v.OffRails;
         }
+        Rebuild(state.Rakes);
+        Boiler = state.Boiler;
+        UpdatePoses();
+    }
+
+    /// <summary>
+    /// A resumed night's train as its save left it (spec E "rolls back to last POI autosave"; note 481): the rakes as they
+    /// were, each vehicle in the one it was in and in its order, the engine's with a switchyard's picked-up cars ahead of
+    /// it, every rake at rest. Returns false and changes nothing if they aren't this train's (each vehicle in exactly one,
+    /// one with the engine): a save from another build of the night.
+    /// </summary>
+    public bool Resume(IReadOnlyList<RakeState> rakes)
+    {
+        var seen = new bool[_vehicles.Length];
+        int engines = 0;
+        foreach (var r in rakes)
+        {
+            if (r.Vehicles is not { Length: > 0 } || r.Path < RailLine.MainPath || r.Path >= Line.Branches.Count)
+                return false;
+            foreach (int id in r.Vehicles)
+            {
+                if (id < 0 || id >= seen.Length || seen[id])
+                    return false;
+                seen[id] = true;
+                if (_vehicles[id].IsEngine)
+                    engines++;
+            }
+        }
+        if (engines != 1 || seen.Any(s => !s))
+            return false;
+        Rebuild(rakes.Select(r => r with { Velocity = 0, BrakeEfficiency = 1 }));
+        foreach (var rake in _rakes)
+            rake.PreviousDistance = rake.Distance;
+        UpdatePoses();
+        return true;
+    }
+
+    void Rebuild(IEnumerable<RakeState> rakes)
+    {
         var previous = _rakes.ToDictionary(r => r.Consist.Vehicles[0].Id);
         _rakes.Clear();
-        foreach (var r in state.Rakes)
+        foreach (var r in rakes)
         {
             var consist = new Consist(Tuning);
             foreach (int id in r.Vehicles)
                 consist.Add(_vehicles[id]);
             // Reuse the engine rake object so references to Dynamics stay valid, and any rake that still
-            // exists so its render interpolation carries on.
-            var rake = consist.HasEngine ? _engineRake : previous.GetValueOrDefault(r.Vehicles[0]) ?? new TrainDynamics(consist);
-            bool known = previous.ContainsKey(r.Vehicles[0]);
+            // exists so its render interpolation carries on. Never the engine's for a rake without it: the engine's rake can
+            // lead with cars a switchyard put ahead of it (note 481), and those cut off again (note 613's three nights) would
+            // otherwise take the engine's object with them, leaving the train no engine at all.
+            var before = previous.GetValueOrDefault(r.Vehicles[0]);
+            if (!consist.HasEngine && before == _engineRake)
+                before = null;
+            var rake = consist.HasEngine ? _engineRake : before ?? new TrainDynamics(consist);
+            bool known = consist.HasEngine ? previous.ContainsKey(r.Vehicles[0]) : before is not null;
             rake.Consist = consist;
             rake.Restore(r.Distance, r.Velocity, r.BrakeEfficiency);
             if (!known)
@@ -343,8 +447,6 @@ public sealed class TrainOnLine
             rake.Path = r.Path;
             _rakes.Add(rake);
         }
-        Boiler = state.Boiler;
-        UpdatePoses();
     }
 
     /// <summary>
@@ -352,6 +454,13 @@ public sealed class TrainOnLine
     /// (run.json yardIsSafe, note 263). The boiler and its fire hold: no pressure gained or lost, no coal burned, no rupture.
     /// </summary>
     public bool HeldInYard { get; set; }
+
+    /// <summary>
+    /// Where on the main line the engine's front has the night home in through a town terminus's gate (note 600;
+    /// <see cref="Run.Run.TownHome"/>): a driver pulls up there, not at the end of the track. The world sets it every step
+    /// from the run; none without one, or where home is the end of line's terminus zone.
+    /// </summary>
+    public double HomeAt { get; set; } = double.PositiveInfinity;
 
     public void Step(double dt, in TrainControls controls)
     {
@@ -362,6 +471,11 @@ public sealed class TrainOnLine
             v?.EndTick();
         foreach (var rake in _rakes)
             rake.PreviousDistance = rake.Distance;
+        // A hot box runs on hotter (note 331), on every machine alike, so its drag is predicted as the host has it.
+        if (HotBoxTuning is not null)
+            foreach (var v in _vehicles)
+                if (v is { HotBox: > 0 })
+                    v.HotBox += dt;
 
         foreach (var rake in _rakes)
         {
@@ -386,6 +500,13 @@ public sealed class TrainOnLine
                         RupturedThisTick = !HeldInYard && Boiler.Step(bt, dt, controls.Throttle, rake.Consist.CarCount);
                     }
                 }
+                // A failing engine's pull and brake go with its shell (note 576); broken down, it pulls nothing.
+                if (Dynamics.Tuning.Failing is { Enabled: true } ft && _vehicles.Length > 0 && _vehicles[0] is not null)
+                {
+                    effective.Throttle *= Failing.Power(ft, _vehicles[0]);
+                    effective.Brake *= Failing.Brake(ft, _vehicles[0]);
+                }
+                _pulling = rake.Speed < 0.05 ? 0 : effective.Throttle;
                 double before = rake.Speed;
                 rake.Step(dt, effective, Conditions(rake));
                 BrakeShock(rake, before, dt);
@@ -418,8 +539,19 @@ public sealed class TrainOnLine
             TakeSwitches(rake); // shoved through the points by a collision
             Readdress(rake);
         }
+        // Battered shells let go work themselves apart as they run (note 576), on every machine alike.
+        Failing.Step(this, _rakes, _engineRake, _pulling, dt);
         UpdatePoses();
     }
+
+    /// <summary>
+    /// The vehicles worn through by running failing (note 576, <see cref="Failing.Step"/>): what comes apart. On the host it
+    /// decides; a client's is only its prediction's, and unused.
+    /// </summary>
+    public HashSet<int> WornThrough { get; } = [];
+
+    /// <summary>How hard the engine pulled this tick (its effective throttle, 0 standing): what works a failing engine apart.</summary>
+    double _pulling;
 
     /// <summary>
     /// Keeps each rake addressed along the track it's on (see <see cref="RailLine"/>'s paths): backed out through a
@@ -460,8 +592,43 @@ public sealed class TrainOnLine
         Traction = Traction * (Line.Conditions?.Adhesion(rake.Path, rake.Distance) ?? 1),
         // The Weight's drag on the rake it holds (App. A.3); and a ruptured engine's seized cylinders (T109) on its own, hard
         // down to a coast.
-        Drag = DragOn(rake) + (rake == _engineRake && Boiler.Ruptured && BoilerTuning is { } bt && rake.Speed > bt.RuptureCoastBelow ? bt.RuptureDecel : 0),
+        Drag = DragOn(rake) + (rake == _engineRake && Boiler.Ruptured && BoilerTuning is { } bt && rake.Speed > bt.RuptureCoastBelow ? bt.RuptureDecel : 0)
+            // And an engine short of steam holds back the speed its steam can't make (boiler.json starvedDecel, note 319).
+            + (rake == _engineRake && BoilerTuning is { } st ? st.StarvedDrag(Boiler, rake.Speed, rake.Tuning.MaxSpeed) : 0)
+            // And its hot boxes run dry (upkeep.json hotBox, note 331): each takes some top speed off it.
+            + (HotBoxTuning is { } ht ? HotBoxes.Drag(ht, rake, rake.Tuning.MaxSpeed, _engineRake.MaxTractiveForce / rake.Consist.MassTonnes) : 0)
+            // And what the creatures have done to its cars: brakes the Brakeman wound on, an axle Hotbox seized (notes 364, 367).
+            + CreatureDrag(rake)
+            // And a car off its rails (the tipple's bad clamp, note 423) holds its whole rake fast: more than anything can pull.
+            + (AnyOffRails(rake) ? OffRailsDrag : 0),
     };
+
+    /// <summary>The top speed a car with a seized axle holds the train to (enemies.json <c>hotbox.seizedTopSpeed</c>, set with the enemies).</summary>
+    public double SeizedTopSpeed { get; set; } = 7;
+    /// <summary>Over it, the drag as a share of what the engine can pull (enemies.json <c>hotbox.seizedHold</c>).</summary>
+    public double SeizedHold { get; set; } = 1.1;
+    /// <summary>How a seized axle's repaired (enemies.json <c>hotbox</c>), when the creatures are on; null, nothing seizes.</summary>
+    public Enemies.HotboxTuning? SeizedRepair { get; set; }
+
+    /// <summary>
+    /// A rake's drag from its wound handbrakes (each car's handbrake on its own mass, as a standing rake's are: note 364) and
+    /// its seized axles (over <see cref="SeizedTopSpeed"/>, more than the engine can pull: note 367). The same on every machine.
+    /// </summary>
+    double CreatureDrag(TrainDynamics rake)
+    {
+        double wound = 0;
+        bool seized = false;
+        foreach (var v in rake.Consist.Vehicles)
+        {
+            if (v.Wound)
+                wound += v.MassTonnes(rake.Tuning);
+            seized |= v.Seized;
+        }
+        double drag = wound > 0 ? rake.Tuning.Couplings.HandbrakeDecel * wound / rake.Consist.MassTonnes : 0;
+        if (seized && rake.Speed > SeizedTopSpeed)
+            drag += SeizedHold * _engineRake.MaxTractiveForce / rake.Consist.MassTonnes;
+        return drag;
+    }
 
     /// <summary>A rake's front running forward through a branch's points goes where the switch is set.</summary>
     void TakeSwitches(TrainDynamics rake)
@@ -688,7 +855,7 @@ public sealed class TrainOnLine
             double len = v.Length(t), m = v.MassTonnes(t);
             weighted += m * Line.Sample(rake.Path, front - len / 2).GradePercent;
             mass += m;
-            front -= len + t.Geometry.CouplingGap;
+            front -= len + t.Geometry.CouplingGap + v.Knot;
         }
         return mass > 0 ? weighted / mass : 0;
     }
@@ -726,8 +893,9 @@ public sealed class TrainOnLine
                 var forward = (fb - rb).Length > 1e-9 ? (fb - rb).Normalized : Line.Sample(rake.Path, front).Tangent;
                 var pose = new CarPose(v.Id, Double3.Lerp(fb, rb, 0.5), forward, length, front);
                 poses[v.Id] = pose;
-                frames[v.Id] = CarFrame.From(pose, rake.Velocity, Shape(g, v.Kind, i < vehicles.Count - 1, v.Id == _kitCar));
-                front -= length + g.CouplingGap;
+                bool behind = i < vehicles.Count - 1;
+                frames[v.Id] = CarFrame.From(pose, rake.Velocity, Shape(g, v.Kind, behind, v.Id == _kitCar, behind ? v.Knot : 0));
+                front -= length + g.CouplingGap + (behind ? v.Knot : 0);
             }
         }
         if (Wreck is { } wreck)
@@ -743,12 +911,13 @@ public sealed class TrainOnLine
                 }
     }
 
-    readonly Dictionary<(VehicleKind, bool, bool), CarShape> _shapes = new();
+    readonly Dictionary<(VehicleKind, bool, bool, int), CarShape> _shapes = new();
     GeometryTuning? _shapeGeometry;
     int? _kitCar;
 
     /// <param name="lockers">The kit's car: it has the crew lockers (ARCHITECTURE §8 note 173).</param>
-    CarShape Shape(GeometryTuning g, VehicleKind kind, bool hasCarBehind, bool lockers)
+    /// <param name="knot">A Knotter's gap behind it (note 365): its body across the gap in place of the coupler plate.</param>
+    CarShape Shape(GeometryTuning g, VehicleKind kind, bool hasCarBehind, bool lockers, double knot = 0)
     {
         if (!ReferenceEquals(g, _shapeGeometry))
         {
@@ -756,8 +925,15 @@ public sealed class TrainOnLine
             _shapeGeometry = g;
         }
         lockers &= Tuning.Kit.Lockers is { Names.Count: > 0 };
-        if (!_shapes.TryGetValue((kind, hasCarBehind, lockers), out var shape))
-            _shapes[(kind, hasCarBehind, lockers)] = shape = CarShape.Build(g, kind, hasCarBehind, lockers ? Tuning.Kit.Lockers : null);
+        // (Its body across the gap, to a tenth of a metre: a handful of shapes while it forces the cars apart.)
+        int tenths = hasCarBehind ? (int)Math.Round(knot * 10) : 0;
+        if (!_shapes.TryGetValue((kind, hasCarBehind, lockers, tenths), out var shape))
+        {
+            shape = CarShape.Build(g, kind, hasCarBehind, lockers ? Tuning.Kit.Lockers : null);
+            if (tenths > 0)
+                shape = CarShape.Knotted(shape, g, tenths / 10.0);
+            _shapes[(kind, hasCarBehind, lockers, tenths)] = shape;
+        }
         return shape;
     }
 }

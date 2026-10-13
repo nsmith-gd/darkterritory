@@ -20,7 +20,7 @@ public class DerailCauseTests
         int branch = Enumerable.Range(0, line.Branches.Count).OrderBy(i => Math.Abs(line.Branches[i].Toe - 6850)).First();
         var train = new TrainOnLine(new TrainDynamics(Consist.Uniform(Tuning.Train, 4, 1)), line, line.Branches[branch].Toe - 600);
         var world = new World(train, Tuning.Combat);
-        var quiet = Tuning.Enemies with { Director = Tuning.Enemies.Director with { GraceSeconds = 1e9 } };
+        var quiet = Tuning.Enemies with { Director = Tuning.Enemies.Director with { GraceMinSeconds = 1e9, GraceMaxSeconds = 1e9 } };
         world.EnableEnemies(quiet, route: null, 1, crew: 2, authority: true);
         world.AddEnemy(i => Switchman.At(i, line.Branches[branch], quiet.Switchman, 2.6, derail: true));
         train.Dynamics.Velocity = speed;

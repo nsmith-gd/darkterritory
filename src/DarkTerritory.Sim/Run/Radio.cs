@@ -6,7 +6,11 @@ namespace DarkTerritory.Sim.Run;
 /// <param name="Manifest">
 /// Whether the dispatcher reads the manifest at the gate at all (note 264: the director dropped it, run.json says false).
 /// </param>
-public sealed record RadioTuning(double LineSeconds = 1.6, double PauseSeconds = 0.5, bool Manifest = true);
+/// <param name="KitLost">
+/// GDD App. E.12 question 5, answered by the director on 7 Oct 2026 (note 308): the clerk says it on the radio, once, when
+/// the train's last engineering kit is lost. False: the fitter's empty shelf is the only tell, as before.
+/// </param>
+public sealed record RadioTuning(double LineSeconds = 1.6, double PauseSeconds = 0.5, bool Manifest = true, bool KitLost = true);
 
 /// <summary>
 /// The fortress on the radio (GDD v1.4 §9, WP9; ARCHITECTURE §8 note 178): at the gate the yard dispatcher reads the crew
@@ -70,6 +74,18 @@ public static class Radio
     /// (note 242).
     /// </summary>
     public static string Stranded(double km) => $"Consist reported stranded at km {km:0}. Recovery at first light. Recovery is chargeable.";
+
+    /// <summary>
+    /// GDD App. E.12 question 5 (note 308): the train's last engineering kit lost, the yard says so, flat, once. It says what's
+    /// known (gone with a car, by its number), not what follows from it.
+    /// </summary>
+    public static List<string> KitLost(KitWhere kit) =>
+    [
+        "Yard to consist.",
+        kit.Loss is KitLoss.CarTaken or KitLoss.LeftBehind && kit.Vehicle > 0
+            ? $"Engineering kit reported lost with car {kit.Vehicle}." : "Engineering kit reported lost.",
+        "Yard out.",
+    ];
 
     /// <summary>
     /// How many of <paramref name="lines"/> are on the air <paramref name="seconds"/> in, and the newest's share typed. With

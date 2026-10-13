@@ -24,6 +24,16 @@ public sealed record FacilityWorkReport(string Facility, bool Departed, double S
     public IReadOnlyList<int> Order { get; init; } = [];
     /// <summary>The wreck yard's heaps (note 187): found by a lamp or not, salvage left unfound, how often each shifted.</summary>
     public IReadOnlyList<(bool Found, int Unfound, int Shifts, double Stability)> Heaps { get; init; } = [];
+    /// <summary>Hand lamps lying loose on the ground when it ended (note 492): what a bot crew took out to the heaps comes back aboard.</summary>
+    public int LampsLeft { get; init; }
+    /// <summary>The conveyor line's (note 400): the grain left for it, and how often it jammed.</summary>
+    public double Grain { get; init; }
+    public int Jams { get; init; }
+    /// <summary>The tipple's (note 423): the ore left in its bin, and the cars off their rails when the drill ended.</summary>
+    public double TippleOre { get; init; }
+    public int OffRails { get; init; }
+    /// <summary>The stop's modules, as drawn (note 449).</summary>
+    public IReadOnlyList<ModuleKind> Modules { get; init; } = [];
     /// <summary>Every stop the driver made (a switchyard's pick-ups are stops of their own).</summary>
     public IReadOnlyList<StopRecord> Stops { get; init; } = [];
 }
@@ -37,7 +47,8 @@ public sealed record FacilityWorkReport(string Facility, bool Departed, double S
 public static class FacilityWork
 {
     public static FacilityWorkReport Run(Route.Route route, int facility, TrainTuning t, PlayerTuning p, BoilerTuning? boiler, RunTuning run,
-        FacilityTuning facilities, JunctionTuning junctions, int cars = 8, int hands = 2, double seconds = 1500, double yardLength = 600)
+        FacilityTuning facilities, JunctionTuning junctions, int cars = 8, int hands = 2, double seconds = 1500, double yardLength = 600,
+        bool stock = false)
     {
         var features = route.Of(FeatureKind.Facility).ToList();
         var line = route.Build();
@@ -48,6 +59,9 @@ public static class FacilityWork
         world.EnableBodies();
         world.EnableSwitches(junctions);
         world.EnableRun(run, route, yardLength, authority: true, facilities);
+        // As a night leaves the fortress (note 492): the guard van's hand lamps, the radios, the extinguishers and the lockers.
+        if (stock)
+            world.Stock();
         var site = world.Run!.Sites[facility]!;
         var bots = new List<IWorldBot>();
         var crew = new List<PlayerState>();
@@ -113,6 +127,12 @@ public static class FacilityWork
             StillStanding = world.Run.YardTracks(facility).Sum(b => Sim.Run.Run.StandingOn(train, b)),
             Order = [.. train.Dynamics.Consist.Vehicles.Select(v => v.Id)],
             Heaps = [.. site.Heaps.Select(h => (h.Found, h.Salvage, h.Shifts, Math.Round(h.Stability, 2)))],
+            LampsLeft = world.Bodies.All.Count(b => b.Kind == Physics.BodyKind.Lamp && b.Parent == PlayerState.World && b.Carrier < 0),
+            Grain = Math.Round(site.Grain, 3),
+            Jams = site.JamCount,
+            TippleOre = Math.Round(site.TippleOre, 3),
+            OffRails = train.Vehicles.Count(v => v.OffRails),
+            Modules = site.Modules,
             Stops = driver.Stops?.Log ?? [],
         };
     }
@@ -122,7 +142,8 @@ public static class FacilityWork
     /// frontier night's first live facility down a spur, made that kind (any spur facility's track and layout will do, and
     /// the deeper tiers' kinds don't come up on a frontier night).
     /// </summary>
-    public static (Route.Route Route, int Facility)? Find(RouteTuning tuning, FacilityKind kind, int seeds = 200)
+    /// <param name="modules">The stop's modules, as a route's own (T44): pinned past the night's draw (note 449). Null: the draw's.</param>
+    public static (Route.Route Route, int Facility)? Find(RouteTuning tuning, FacilityKind kind, int seeds = 200, IReadOnlyList<ModuleKind>? modules = null)
     {
         for (ulong seed = 1; seed < (ulong)seeds; seed++)
         {
@@ -132,7 +153,7 @@ public static class FacilityWork
                 && (f.Stop?.Power ?? Stops.PowerState.Live) == Stops.PowerState.Live && route.Branches.Any(b => b.Kind == BranchKind.Spur && f.Contains(b.Toe)));
             if (i < 0)
                 continue;
-            features[i] = features[i] with { Facility = kind };
+            features[i] = features[i] with { Facility = kind, Modules = modules is null ? null : [.. modules.Select(m => m.ToString())] };
             var made = route with { Features = features };
             return (made, made.Of(FeatureKind.Facility).ToList().IndexOf(features[i]));
         }

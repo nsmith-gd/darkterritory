@@ -52,18 +52,32 @@ public enum PlayerActions : byte
     Ladder = 16,
     /// <summary>On the wire only: this intent carries a hotbar choice (<see cref="PlayerIntent.Select"/>, <see cref="PlayerIntent.Cycle"/>).</summary>
     Tool = 32,
-    /// <summary>Sit at the gun you're at (T112): sent on the press. Sitting only, so a repeated intent is harmless; Jump gets up.</summary>
+    /// <summary>
+    /// Sit at the gun you're at (T112): sent on the press. Sitting only, so a repeated intent is harmless; Jump gets up. At
+    /// the crane's stand the same press takes the controls, and the next lets them go (<see cref="Run.Crane.Operates"/>): the
+    /// host never repeats it for a lost intent.
+    /// </summary>
     Seat = 64,
     /// <summary>
     /// The dead's key (the last free bit, so two names for one context each; note 176, note 177). <see cref="Bookmark"/>: while
     /// the run's under way, a bookmark of the view you're following (GDD v1.4 App. D.10's UI, D.12), sent on the press; the host
     /// takes one on the tick it first sees it held. <see cref="Skip"/>: once the night's over, a held vote to skip the derailment
     /// film to its cause card (App. E.5) or the Stranded outro (E.9); the host counts heads, and a majority, or the host, skips.
+    /// With each player's own skip (wreck.json "skip", note 315) the client keeps it and never sends it.
     /// The two never overlap: a run under way has no film or outro, and a night that's over takes no bookmarks.
     /// </summary>
     Bookmark = 128,
     Skip = 128,
 }
+
+/// <summary>
+/// A crewmate's emote (GDD §9: in the yard "the crew wait for friends, hang out, dance"; note 298), sent on the press. The
+/// crew see it; nothing in the sim acts on it.
+/// </summary>
+public enum Emote : byte { None, Dance, Wave, Point }
+
+/// <summary>An emote as the crew see it (note 298): unique for the night (its record's key), the host tick it began, whose, which.</summary>
+public readonly record struct EmoteEvent(int Id, uint Tick, int By, Emote Kind);
 
 /// <summary>The forward lamp's switch in the cab (T52): set it on or off (a setting, not a toggle, so a held key or a resent intent is harmless).</summary>
 public enum LampSwitch : byte { None, On, Off }
@@ -102,6 +116,8 @@ public struct PlayerIntent
     public byte Select;
     /// <summary>T108: the wheel, a step to the next (+1) or previous (−1) slot with a tool in it; 0 for none.</summary>
     public sbyte Cycle;
+    /// <summary>Note 298: an emote picked this tick (its wheel let go), or none. Sent once, on the pick.</summary>
+    public Emote Emote;
     /// <summary>
     /// With <see cref="PlayerButtons.Hand"/>: a VR player's reaching hand, in metres from their feet in the frame they face
     /// (x right, y up, z behind, so ahead is −Z as ever). Reach is tested from it instead of from the body (T29).
@@ -172,12 +188,22 @@ public enum DeathCause : byte
     // GDD §18 (WP15, note 185): a powder keg at the depot going up; a chemical works' hose leaking.
     Keg, Leak,
     // GDD §18 (WP15b, note 187): a wreck yard's heap shifting on whoever was by it.
-    Wreckage
+    Wreckage,
+    // GDD §21, App. A.6 (note 339): pinned under the Moose's rack and ground into the peat.
+    Trampled,
+    // GDD §21, App. A.4 (note 340): the Gannet's fourth peck, pinned under its foot.
+    Pecked,
+    // GDD §3.2 (note 570): struck Dave five times; he took them by the neck.
+    Dave,
+    // GDD §8 (note 588): still out at dawn, and a Waker caught the train.
+    Woken,
+    // Note 573: came down from too high (off a bridge's deck, down a bank's drop).
+    Fell
 }
 
 /// <summary>Conditions a player carries.</summary>
 [Flags]
-public enum PlayerFlags : byte
+public enum PlayerFlags : ushort
 {
     None = 0,
     /// <summary>
@@ -211,6 +237,12 @@ public enum PlayerFlags : byte
     /// they carry, so a predicting client mends as the host does.
     /// </summary>
     RepairKit = 128,
+    /// <summary>
+    /// In the air off the ground's own footing (note 573): over the lip of a dip or down a bank on open ground, not off
+    /// anything moving. Its landing counts none of the crewmate's own run (spec B.3's knock is for leaving the train), only
+    /// what's over it. Set as they leave their footing, cleared once they have one again.
+    /// </summary>
+    OffTheGround = 256,
 }
 
 /// <summary>
@@ -261,6 +293,11 @@ public struct PlayerState
     public ulong Kit;
     /// <summary>The hotbar slot in hand, 0..<see cref="Player.Kit.Slots"/> − 1.</summary>
     public byte HeldSlot;
+    /// <summary>
+    /// Note 594: the slots holding a thing (a find, a toy, a lamp), a bit a slot; the host's (<see cref="Physics.Bodies"/>
+    /// keeps it with the things themselves), so a tool taken up or the wheel's step sees them on a predicting client too.
+    /// </summary>
+    public byte Pockets;
 
     public readonly bool Alive => Death == DeathCause.None;
     public readonly bool Has(PlayerFlags flag) => (Flags & flag) != 0;
@@ -297,17 +334,36 @@ public static class PlayerMotor
     /// <summary>Stands a player on the cab floor, facing forward: where the conductor and fireman work.</summary>
     public static PlayerState SpawnInCab(TrainOnLine train, PlayerTuning p, double localX = 0)
     {
-        var cab = train.Frames[0].Shape.Cab ?? throw new InvalidOperationException("engine has no cab");
+        var shape = train.Frames[0].Shape;
+        var cab = shape.Cab ?? throw new InvalidOperationException("engine has no cab");
         return new PlayerState
         {
             Parent = 0,
-            Position = new Double3(localX, cab.Min.Y + 0.1, cab.Centre.Z),
+            Position = new Double3(localX, cab.Min.Y + 0.1, CabFloorZ(shape)),
             Surface = Surface.Deck,
             Health = p.Health,
             LineHint = train.Cars[0].FrontDistance,
             Kit = p.StartingKit,
         };
     }
+
+    /// <summary>
+    /// Where along the cab a crewmate's put in it: on the footplate's open floor, clear across the cab's width, so a spawn
+    /// to either side lands on the boards. Cab forward with its work at the front (note 280), that's the open floor just
+    /// behind the coal bunker's end, a step back from the fire.
+    /// </summary>
+    public static double CabFloorZ(CarShape shape)
+    {
+        var cab = shape.Cab!.Value;
+        double front = cab.Min.Z;
+        foreach (var solid in shape.Solids)
+            if (solid.Part is PartKind.Tender or PartKind.Firebox && cab.ContainsXZ(solid.Box.Centre))
+                front = Math.Max(front, solid.Box.Max.Z);
+        return front + StandOff;
+    }
+
+    /// <summary>How far behind the cab's work a crewmate's put (m): clear of the bunker's end and a body's breadth.</summary>
+    const double StandOff = 0.55;
 
     /// <summary>True when standing inside the engine's cab.</summary>
     public static bool InCab(in PlayerState s, TrainOnLine train) =>
@@ -317,10 +373,14 @@ public static class PlayerMotor
     /// The enclosed space a player is in: <see cref="Outside"/>, the engine cab (vehicle 0), or a car's
     /// interior with every door shut (that car's id). A car with a door open is part of the outside: sound,
     /// voice and the Choir come in through it (GDD §26: protected versus exposed). So is a breached car until it's boarded
-    /// up (decided 1 Oct: "a breached car no longer counts as behind a closed door"; <see cref="Vehicle.Breached"/>).
+    /// up (decided 1 Oct: "a breached car no longer counts as behind a closed door"; <see cref="Vehicle.Breached"/>). On foot
+    /// inside a village house with every door shut, that house's own (<see cref="HouseSpace"/>, note 401).
     /// </summary>
     public static int Space(in PlayerState s, TrainOnLine train)
     {
+        // On foot in a village house with every door shut (note 401): a space of its own, as a shut car is.
+        if (s.Parent == PlayerState.World && train.Walls?.ShutIn(s.Position) is >= 0 and var house)
+            return HouseSpace(house);
         if (s.Parent == PlayerState.World || s.Parent >= train.Frames.Count)
             return Outside;
         if (InCab(s, train))
@@ -332,6 +392,9 @@ public static class PlayerMotor
     }
 
     public const int Outside = -1;
+
+    /// <summary>A shut-up house's space (note 401): below <see cref="Outside"/>, never a car's.</summary>
+    public static int HouseSpace(int house) => -2 - house;
 
     /// <summary>Inside a car's walls, doors open or not.</summary>
     public static bool Indoors(in PlayerState s, TrainOnLine train) =>
@@ -445,6 +508,18 @@ public static class PlayerMotor
     /// <param name="applyLook">False when look was already applied this tick (the world's crew step does it).</param>
     public static void Step(ref PlayerState s, in PlayerIntent input, TrainOnLine train, PlayerTuning p, TrainTuning t, double dt, bool applyLook = true)
     {
+        // Note 573: what they're leaving, if they leave it this tick: the ground's own footing, or something else.
+        bool onGround = s.Parent == PlayerState.World && s.Surface == Surface.Ground;
+        bool aloft = s.Surface == Surface.Air;
+        Move(ref s, input, train, p, t, dt, applyLook);
+        if (s.Surface != Surface.Air)
+            s.Flags &= ~PlayerFlags.OffTheGround;
+        else if (!aloft)
+            s.Flags = onGround ? s.Flags | PlayerFlags.OffTheGround : s.Flags & ~PlayerFlags.OffTheGround;
+    }
+
+    static void Move(ref PlayerState s, in PlayerIntent input, TrainOnLine train, PlayerTuning p, TrainTuning t, double dt, bool applyLook)
+    {
         var intent = input;
         if (!s.Alive)
             return;
@@ -485,7 +560,8 @@ public static class PlayerMotor
                 speed = 0;
             var wish = WishDirection(s.Yaw, intent) * speed;
             // GDD §22 wind on a roof (note 201): a sideways push across the car, on top of where you're going.
-            s.Velocity = new Double3(wish.X + WindPush(s, intent, train, p, t), 0, wish.Z);
+            double wind = WindPush(s, intent, train, p, t);
+            s.Velocity = new Double3(wish.X + wind, 0, wish.Z);
             // Jump in the gun's seat is getting up out of it (T112), not a leap off the carriage.
             if (s.Has(PlayerFlags.Seated))
             {
@@ -500,6 +576,9 @@ public static class PlayerMotor
                 s.Velocity = s.Velocity with { Y = p.JumpVelocity };
                 s.Surface = Surface.Air;
             }
+            // T128 (note 273): walking, the edge holds you unless you mean to go over it. A jump goes where it goes.
+            if (s.Surface != Surface.Air)
+                HoldAtEdge(ref s, wish, wind, train, p, dt);
         }
         else if (s.Parent == PlayerState.World)
         {
@@ -507,27 +586,23 @@ public static class PlayerMotor
         }
 
         // Integrate in the parent frame: a car parent carries the player with it for free.
+        var prevWorld = ToWorld(s, train, s.Position);
         int pushedOn = s.Has(PlayerFlags.Pushing) && s.Grounded ? s.Parent : PlayerState.World;
         double pushedFrom = s.Position.Z;
-        var start = s;
-        Integrate(ref s, train, p, t, dt);
-        // The director's decision of 2026-10-06 (GDD App. F.1, "way too easy to fall off the train"): walking on a moving
-        // car never takes you off it. A step that would leaves you at the edge, sliding along it; off you go only by a jump,
-        // a hit, a grab, or walking off a side you're facing (player.json edge).
-        if (EdgeHolds(start, s, intent, train, p))
+        s.Position += s.Velocity * dt;
+        var world = ToWorld(s, train, s.Position);
+
+        world = Collide(world, train, p, out bool ceiling);
+        // The world is solid (note 279): down in a tunnel you stay inside its lining; on the land you don't walk up a cliff.
+        if (s.Parent == PlayerState.World && train.Line.Conditions is { } land)
         {
-            s = start with { Velocity = default };
-            foreach (var along in (ReadOnlySpan<Double3>)[start.Velocity with { X = 0 }, start.Velocity with { Z = 0 }])
-            {
-                var slide = start with { Velocity = along };
-                Integrate(ref slide, train, p, t, dt);
-                if (!LeftTheCar(start, slide))
-                {
-                    s = slide;
-                    break;
-                }
-            }
+            world = land.Confine(world, p.Radius);
+            if (s.Grounded && s.Surface == Surface.Ground)
+                world = Walkable(world, prevWorld, land, p);
         }
+        if (ceiling && s.Velocity.Y > 0)
+            s.Velocity = s.Velocity with { Y = 0 };
+        UpdateSupport(ref s, world, prevWorld, train, p, t);
         // The gun you're pushing goes along its rail as far as you went along the car (T93).
         if (pushedOn != PlayerState.World && s.Parent == pushedOn)
             Combat.Guns.Slide(train, pushedOn, s.Position.Z - pushedFrom);
@@ -549,65 +624,67 @@ public static class PlayerMotor
         }
     }
 
-    /// <summary>One tick's move in the parent frame: integrate, push out of the train's solids, then find what's underfoot.</summary>
-    static void Integrate(ref PlayerState s, TrainOnLine train, PlayerTuning p, TrainTuning t, double dt)
-    {
-        var prevWorld = ToWorld(s, train, s.Position);
-        s.Position += s.Velocity * dt;
-        var world = ToWorld(s, train, s.Position);
-        world = Collide(world, train, p, out bool ceiling);
-        if (ceiling && s.Velocity.Y > 0)
-            s.Velocity = s.Velocity with { Y = 0 };
-        UpdateSupport(ref s, world, prevWorld, train, p, t);
-    }
-
-    /// <summary>Stood on a car before the move, and over the side of it into the air or down on the ground after.</summary>
-    static bool LeftTheCar(in PlayerState before, in PlayerState after) =>
-        before.Grounded && before.Parent != PlayerState.World && (after.Parent == PlayerState.World || after.Surface == Surface.Air);
-
     /// <summary>
-    /// The edge holds (player.json edge; the director's decision of 2026-10-06): a walk that would take someone off a car
-    /// moving faster than <see cref="EdgeTuning.GuardAbove"/>, not held, and not a deliberate step: off a side (a roof's
-    /// edge, an open door) they're facing, pushing forward. The wind on a roof and a sidestep never do it, and a car's end
-    /// (the coupling gap) is crossed by a jump or a ladder, never walked off. From the state and intent alone, so a client
-    /// predicts it exactly as the host has it.
+    /// T128 (build 1121: "far too easy to fall off the train"; note 273): on a roof or a coupler plate, a step that would take
+    /// your feet within <see cref="EdgeTuning.Lip"/> of where the footing ends is held there, across the car and along it
+    /// separately (so you slide along the edge). Over the side only if you mean it: walking at it within
+    /// <see cref="EdgeTuning.StepOffDegrees"/> of straight out. Off an end only by a jump or a ladder, unless there's more of
+    /// the train under it to step down onto (a coupler plate, a platform, the tender). The wind (unless
+    /// <see cref="EdgeTuning.WindOverLip"/>) brings you to the lip and no further. A pull, a throw or a jump isn't walking: they
+    /// put you in the air and this never sees them.
     /// </summary>
-    static bool EdgeHolds(in PlayerState before, in PlayerState after, in PlayerIntent intent, TrainOnLine train, PlayerTuning p)
+    static void HoldAtEdge(ref PlayerState s, Double3 wish, double wind, TrainOnLine train, PlayerTuning p, double dt)
     {
         var e = p.Edge;
-        if (!e.On || !LeftTheCar(before, after) || before.Has(PlayerFlags.Held) || before.Parent >= train.Frames.Count
-            || Math.Abs(train.RakeOf(before.Parent).Speed) <= e.GuardAbove)
-            return false;
-        var frame = train.Frames[before.Parent];
-        var world = ToWorld(after, train, after.Position);
-        var local = frame.ToLocal(world);
-        bool side = Math.Abs(local.X) / Math.Max(0.1, frame.Shape.HalfWidth) > Math.Abs(local.Z) / Math.Max(0.1, frame.Shape.HalfLength);
-        // Off an end down onto more of the train (a roof's end onto the coupler plate, a guard van's onto its platform):
-        // still aboard, not falling off it.
-        if (!side)
-            return !TrainBelow(world, train);
-        if (intent.MoveZ <= 0.5)
-            return true;
-        var forward = new Double3(-DMath.Sin(before.Yaw), 0, -DMath.Cos(before.Yaw));
-        return forward.X * Math.Sign(local.X) < DMath.Cos(e.FacingDegrees * Math.PI / 180);
+        if (e.Lip <= 0 || s.Parent < 0 || s.Parent >= train.Frames.Count || s.Surface is not (Surface.Roof or Surface.Coupler))
+            return;
+        var v = s.Velocity;
+        if (v.X == 0 && v.Z == 0)
+            return;
+        var frame = train.Frames[s.Parent];
+        var at = s.Position;
+        if (v.X != 0 && !Footing(train, frame, at + new Double3(v.X * dt + Math.Sign(v.X) * e.Lip, 0, 0), e.CatchDrop))
+        {
+            double length = Math.Sqrt(wish.X * wish.X + wish.Z * wish.Z);
+            bool meant = length > 1e-6 && wish.X * Math.Sign(v.X) >= DMath.Cos(e.StepOffDegrees * Math.PI / 180) * length;
+            if (!meant)
+                v = v with { X = e.WindOverLip && Math.Sign(wind) == Math.Sign(v.X) ? wind : 0 };
+        }
+        if (v.Z != 0 && !Footing(train, frame, at + new Double3(0, 0, v.Z * dt + Math.Sign(v.Z) * e.Lip), e.CatchDrop))
+            v = v with { Z = 0 };
+        s.Velocity = v;
     }
 
-    /// <summary>Something of the train to stand on straight below a point (within a fall of it): a plate, a deck, a roof.</summary>
-    static bool TrainBelow(Double3 world, TrainOnLine train)
+    /// <summary>
+    /// Whether there's footing under a point in a car's frame, given at the height of the feet: this car's or a neighbour's,
+    /// no higher than a step up, and a roof or a plate no further down than <paramref name="drop"/> (beyond that it's the
+    /// ballast).
+    /// </summary>
+    static bool Footing(TrainOnLine train, CarFrame frame, Double3 local, double drop)
     {
-        const double Drop = 4.5;
-        foreach (var frame in train.Frames)
+        if (Catches(frame.Shape.TopAt(local.X, local.Z, local.Y + 0.05), local.Y, drop))
+            return true;
+        var world = frame.ToWorld(local);
+        foreach (var other in train.Frames)
         {
-            if ((frame.Origin - world).Length > NearbyCar)
+            if (other.Index == frame.Index || (other.Origin - world).Length > NearbyCar)
                 continue;
-            var local = frame.ToLocal(world);
-            var vehicle = train.Vehicles[frame.Index];
-            foreach (var solid in frame.Shape.Solids)
-                if (solid.Present(vehicle) && solid.Box.ContainsXZ(local) && solid.Box.Max.Y <= local.Y + 0.05 && solid.Box.Max.Y >= local.Y - Drop)
-                    return true;
+            var there = other.ToLocal(world);
+            if (Catches(other.Shape.TopAt(there.X, there.Z, there.Y + 0.05), there.Y, drop))
+                return true;
         }
         return false;
     }
+
+    /// <summary>How far down a step off a roof's footing is still just a step (anything of the train's at all).</summary>
+    const double EdgeStepDown = 0.5;
+
+    /// <summary>
+    /// Footing at a step's height, or a roof or a plate further down to step onto. Not a door's steps, a running board or the
+    /// chassis a long way below: dropped onto from a roof at speed, they're no catch.
+    /// </summary>
+    static bool Catches((double Top, SurfaceKind Kind)? top, double feet, double drop) =>
+        top is { } t && (t.Top >= feet - EdgeStepDown || t.Kind != SurfaceKind.Deck && t.Top >= feet - drop);
 
     /// <summary>Whether the ladder key would take hold of a ladder from here (T94: the HUD says so).</summary>
     public static bool LadderInReach(in PlayerState s, TrainOnLine train, PlayerTuning p)
@@ -748,19 +825,7 @@ public static class PlayerMotor
     /// Pushes the player's cylinder out of every car body, wall, shut door and coupler plate nearby. A head
     /// that rises into something overhead (a car's ceiling) stops there instead of being shoved sideways.
     /// </summary>
-    static Double3 Collide(Double3 world, TrainOnLine train, PlayerTuning p, out bool ceiling) =>
-        Collide(world, train, new Cylinder(p.Radius, p.Height, p.StepUp), out ceiling);
-
-    /// <summary>An upright body's cylinder: its radius, height, and the step it can take up onto something.</summary>
-    public readonly record struct Cylinder(double Radius, double Height, double StepUp);
-
-    /// <summary>
-    /// Something on foot in the world (a creature, note 266) pushed out of the train's bodies, its shut doors and the stops'
-    /// walls, as a player is: the same solids, the same rule. Its height is kept; the ground is the caller's.
-    /// </summary>
-    public static Double3 Clear(Double3 world, TrainOnLine train, Cylinder body) => Collide(world, train, body, out _);
-
-    static Double3 Collide(Double3 world, TrainOnLine train, Cylinder p, out bool ceiling)
+    static Double3 Collide(Double3 world, TrainOnLine train, PlayerTuning p, out bool ceiling)
     {
         ceiling = false;
         foreach (var frame in train.Frames)
@@ -782,19 +847,55 @@ public static class PlayerMotor
                     local = PushOut(local, door.Box, p);
             world = frame.ToWorld(local);
         }
-        // The stops' buildings (T114): pushed out of each wall in its own frame.
+        // The stops' buildings (T114) and the fortresses' (T124): pushed out of each wall in its own frame. Out of one can
+        // be into the next, in an inside corner or a doorway's jamb (note 326's open houses), so round again until nothing
+        // moves (a few passes; the walls in their fixed order, so every machine settles the same).
         if (train.Walls is { } walls)
-            foreach (var w in walls.Near(world))
+        {
+            var near = walls.Near(world).ToList();
+            for (int pass = 0; pass < 4; pass++)
             {
-                var local = w.ToLocal(world);
-                var box = new Box(new Double3(-w.HalfLength, w.Bottom, -w.HalfWidth), new Double3(w.HalfLength, w.Top, w.HalfWidth));
-                world = w.ToWorld(PushOut(local, box, p));
+                var was = world;
+                foreach (var w in near)
+                    world = w.ToWorld(PushOut(w.ToLocal(world), w.Box, p));
+                if ((world - was).Length < 1e-9)
+                    break;
             }
+        }
         return world;
     }
 
+    /// <summary>
+    /// Note 279: a step that would take someone up land steeper than <see cref="PlayerTuning.ClimbSlope"/> isn't climbed.
+    /// What's left of it goes across the slope (along its contour) while that stays walkable, else nowhere. Down is free.
+    /// </summary>
+    static Double3 Walkable(Double3 to, Double3 from, ITrackConditions land, PlayerTuning p)
+    {
+        double dx = to.X - from.X, dz = to.Z - from.Z, run = Math.Sqrt(dx * dx + dz * dz);
+        if (run < 1e-6)
+            return to;
+        double here = land.Ground(from);
+        if (land.Ground(to) - here <= p.ClimbSlope * run + 1e-4)
+            return to;
+        const double H = 0.25;
+        double gx = (land.Ground(to with { X = to.X + H }) - land.Ground(to with { X = to.X - H })) / (2 * H);
+        double gz = (land.Ground(to with { Z = to.Z + H }) - land.Ground(to with { Z = to.Z - H })) / (2 * H);
+        double g = Math.Sqrt(gx * gx + gz * gz);
+        if (g > 1e-9)
+        {
+            double ux = gx / g, uz = gz / g, up = dx * ux + dz * uz;
+            if (up > 0)
+                (dx, dz) = (dx - up * ux, dz - up * uz);
+            var across = new Double3(from.X + dx, to.Y, from.Z + dz);
+            double left = Math.Sqrt(dx * dx + dz * dz);
+            if (left > 1e-6 && land.Ground(across) - here <= p.ClimbSlope * left + 1e-4)
+                return across;
+        }
+        return new Double3(from.X, to.Y, from.Z);
+    }
+
     /// <summary>Head up into the underside of a box whose footprint we're under: stop at it.</summary>
-    static Double3 Ceiling(Double3 feet, Box box, Cylinder p, ref bool hit)
+    static Double3 Ceiling(Double3 feet, Box box, PlayerTuning p, ref bool hit)
     {
         double head = feet.Y + p.Height;
         if (head <= box.Min.Y || feet.Y >= box.Min.Y || head - box.Min.Y > 0.5 || !box.ContainsXZ(feet))
@@ -803,7 +904,7 @@ public static class PlayerMotor
         return feet with { Y = box.Min.Y - p.Height };
     }
 
-    static Double3 PushOut(Double3 feet, Box box, Cylinder p)
+    static Double3 PushOut(Double3 feet, Box box, PlayerTuning p)
     {
         if (feet.Y >= box.Max.Y || feet.Y + p.Height <= box.Min.Y)
             return feet;
@@ -922,18 +1023,38 @@ public static class PlayerMotor
     static void Land(ref PlayerState s, Double3 worldVelocity, PlayerTuning p, TrainTuning t)
     {
         double horizontal = Math.Sqrt(worldVelocity.X * worldVelocity.X + worldVelocity.Z * worldVelocity.Z);
+        // Note 573: off the ground's own footing (a dip, a bank on open ground), the knock is for what's over their own run, not
+        // the run: spec B.3's table is for leaving the train, at its speed. frontier:7 seed 4's driver, running beside the train
+        // at a stand, took 29 coming down off a dip on the bank. Off a car, a ladder or a platform it's as ever.
+        if (s.Has(PlayerFlags.OffTheGround))
+            horizontal = Math.Max(0, horizontal - p.Run);
         var l = p.Landing;
+        // Note 573: and by the height it came down from (the speed it lands at): whichever knock is the worse.
+        double fell = worldVelocity.Y < 0 ? worldVelocity.Y * worldVelocity.Y / (2 * p.Gravity) : 0;
+        if (l.FallLethalFrom > 0 && fell >= l.FallLethalFrom)
+        {
+            s.Health = 0;
+            s.Death = DeathCause.Fell;
+            return;
+        }
+        int fallKnock = l.FallLethalFrom > l.FallHurtFrom && fell >= l.FallHurtFrom
+            ? (int)Math.Round(l.RollDamage + (p.Health - l.RollDamage) * (fell - l.FallHurtFrom) / (l.FallLethalFrom - l.FallHurtFrom)) : 0;
         double lethal = l.LethalAbove > 0 ? l.LethalAbove : t.SpeedBands.JumpOffLethal;
         if (horizontal > lethal)
         {
             s.Health = 0;
             s.Death = DeathCause.JumpedAtSpeed;
         }
-        else if (horizontal > l.RollAbove)
+        else
         {
-            double k = Math.Clamp((horizontal - l.RollAbove) / Math.Max(1e-6, lethal - l.RollAbove), 0, 1);
-            int damage = (int)Math.Round(l.RollDamage + (Math.Max(l.DamageAtLethal, l.RollDamage) - l.RollDamage) * k);
-            s.Health = Math.Max(1, s.Health - damage);
+            int damage = fallKnock;
+            if (horizontal > l.RollAbove)
+            {
+                double k = Math.Clamp((horizontal - l.RollAbove) / Math.Max(1e-6, lethal - l.RollAbove), 0, 1);
+                damage = Math.Max(damage, (int)Math.Round(l.RollDamage + (Math.Max(l.DamageAtLethal, l.RollDamage) - l.RollDamage) * k));
+            }
+            if (damage > 0)
+                s.Health = Math.Max(1, s.Health - damage);
         }
     }
 
@@ -987,7 +1108,7 @@ public static class PlayerMotor
     static void StepLadder(ref PlayerState s, in PlayerIntent intent, TrainOnLine train, PlayerTuning p, TrainTuning t, double dt)
     {
         var frame = train.Frames[s.Parent];
-        var ladder = NearestLadder(frame.Shape, s.Position);
+        var ladder = HeldLadder(frame.Shape, s.Position);
         var inward = ladder.Inward;
         if (intent.Has(PlayerButtons.Jump) || intent.Has(PlayerButtons.Use) && intent.MoveZ < -0.5)
         {
@@ -1005,8 +1126,8 @@ public static class PlayerMotor
         if (y >= top)
         {
             // Over the top onto whatever the ladder serves, just inside the edge: the highest footing at the top rung, not
-            // whatever's overhead (the cab steps come up under the cab roof).
-            var onto = s.Position + inward * (p.Radius + 0.45);
+            // whatever's overhead (the cab steps come up under the cab roof), and across the board the cab steps hang off.
+            var onto = s.Position + inward * (p.Radius + 0.45 + ladder.Over);
             var surface = frame.Shape.TopAt(onto.X, onto.Z, top + 0.05);
             s.Position = onto with { Y = surface?.Top ?? top };
             s.Surface = ToSurface(surface?.Kind ?? SurfaceKind.Roof);
@@ -1038,6 +1159,26 @@ public static class PlayerMotor
         double dx = hand.X - ladder.Foot.X, dz = hand.Z - ladder.Foot.Z;
         return dx * dx + dz * dz <= grab * grab && hand.Y >= ladder.Foot.Y && hand.Y <= ladder.Top + 0.4;
     }
+
+    /// <summary>
+    /// The ladder a climber is on: the nearest, where it still is. Note 438: a car's shape changes under a climber when the car
+    /// behind it goes (the last car has no rear end ladder: there's no gap to go down to). The gunner on car 9's went over the
+    /// top by the nearest one left, a side ladder facing across, so sideways past the car's end onto nothing at 20 m/s. The
+    /// end it's on is still in its hands: a ladder there, up the face it's on, over the top onto the roof.
+    /// </summary>
+    static Ladder HeldLadder(CarShape shape, Double3 p)
+    {
+        var nearest = NearestLadder(shape, p);
+        double dx = nearest.Foot.X - p.X, dz = nearest.Foot.Z - p.Z;
+        if (dx * dx + dz * dz <= HeldReach * HeldReach)
+            return nearest;
+        var inward = Math.Abs(p.Z) > shape.HalfLength ? new Double3(0, 0, -Math.Sign(p.Z))
+            : Math.Abs(p.X) > shape.HalfWidth ? new Double3(-Math.Sign(p.X), 0, 0) : nearest.Inward;
+        return new Ladder(p with { Y = 0 }, shape.RoofHeight, inward);
+    }
+
+    /// <summary>How far a climber can be from a ladder's foot and still be on it (m): it's put at the foot's x and z.</summary>
+    const double HeldReach = 0.05;
 
     static Ladder NearestLadder(CarShape shape, Double3 p)
     {

@@ -19,6 +19,8 @@ public sealed record StopTuning
     public required PowerhouseTuning Powerhouse { get; init; }
     public required HoldoutPlacementTuning Holdouts { get; init; }
     public required LairTuning Lairs { get; init; }
+    public required DerelictTuning Derelict { get; init; }
+    public required DeadTownTuning DeadTown { get; init; }
     public required ScoreTuning Score { get; init; }
     public required int MaxAttempts { get; init; }
     public required StopTierTable Tiers { get; init; }
@@ -36,20 +38,30 @@ public sealed record TrackLayoutTuning
     public required double[] SplitToe { get; init; }
 }
 
+/// <summary>Derelict cars on a blocked siding (level-design D.1, D.2; ARCHITECTURE §8 note 294). Field docs in stops.json.</summary>
+public sealed record DerelictTuning(int[] Cars);
+/// <summary>A dead town's railway side (linegen plan §11.3; note 302). Field docs in stops.json.</summary>
+public sealed record DeadTownTuning(StationTuning Station, GoodsYardTuning Goods);
+public sealed record StationTuning(double[] Size, double Gap, double[] FromLane, bool Open = false);
+public sealed record GoodsYardTuning(double[] Beyond, double[] Length, double Margin, double Reach, int[] Cars, double[] Car, double CarGap, double[] Shed, double Find);
+
 /// <summary>A yard's powerhouse at its throat (level-design P6, D.2). Field docs in stops.json.</summary>
-public sealed record PowerhouseTuning(double[] Size, double[] Throat, double[] Offset);
+public sealed record PowerhouseTuning(double[] Size, double[] Throat, double[] Offset, bool Open = false);
 
 /// <summary>Where Holdouts go (GDD App. D.4, D.13). Field docs in stops.json.</summary>
 public sealed record HoldoutPlacementTuning
 {
-    public required double[] FacilityDistance { get; init; }
+    /// <summary>m from the track's centreline to a Holdout's near face (note 650): beside the line, never fouling it.</summary>
+    public required double[] Beside { get; init; }
+    /// <summary>m either side of where the consist stops, along its track, that a Holdout stands (note 650).</summary>
+    public required double Along { get; init; }
+    /// <summary>m a facility's Holdout stands clear of every loading container (note 650: beside the loading face, it stood in
+    /// the hands' way and frontier:6's switchyard loading ran 90 → 270 s).</summary>
+    public required double LoadingClear { get; init; }
     public required double SecondPadScale { get; init; }
     public required double HaltDistance { get; init; }
-    public required double VillageDistance { get; init; }
     public required double VillageLockup { get; init; }
     public required HoldoutApproach Approach { get; init; }
-    public required double LoadingClear { get; init; }
-    public required double LoadingAngle { get; init; }
     public required double PrisonCar { get; init; }
     public required double Preferred { get; init; }
     public required string[] Prefers { get; init; }
@@ -57,7 +69,6 @@ public sealed record HoldoutPlacementTuning
     /// <summary>[length, width] by <see cref="BuildingKind"/> in stops.json's camelCase (looked up, never iterated).</summary>
     public required Dictionary<string, double[]> Sizes { get; init; }
     public required double Siding { get; init; }
-    public required double[] ByTrack { get; init; }
     public required double[] LockupBehind { get; init; }
     public required int Candidates { get; init; }
     public required double WalkCell { get; init; }
@@ -75,6 +86,8 @@ public sealed record LairTuning
     public required FollowerGroundTuning Followers { get; init; }
     public required double[] SootCall { get; init; }
     public required double[] WhistlerNest { get; init; }
+    /// <summary>How far along the line from where the train stands the nest may be; 0 anywhere in the zone (note 314).</summary>
+    public double WhistlerNestAlong { get; init; }
 }
 
 public sealed record WarrenTuning(double Radius, double Clear, double FromTrain, double FromMain);
@@ -111,6 +124,8 @@ public sealed record VillageTuning
     public required int[] Outliers { get; init; }
     public required double OutlierFindBonus { get; init; }
     public required double SecondFindChance { get; init; }
+    /// <summary>Note 593: a house with two finds has a third at this chance. Unset, never.</summary>
+    public double ThirdFindChance { get; init; }
     public required int[] Outbuildings { get; init; }
     public required double WellChance { get; init; }
     public required double SetbackExtra { get; init; }
@@ -121,6 +136,10 @@ public sealed record VillageTuning
     public required FarmsteadsTuning Farmsteads { get; init; }
     public required double[] Extent { get; init; }
     public required HaltTuning Halt { get; init; }
+    /// <summary>Whether the plain houses (a rectangle or a square) stand open to walk into and search (note 326).</summary>
+    public bool OpenHouses { get; init; }
+    /// <summary>Whether the barns, outbuildings and a dead town's goods shed stand open to walk into, their finds inside to search (note 417).</summary>
+    public bool OpenSheds { get; init; }
 }
 
 public sealed record BlocksTuning
@@ -177,6 +196,7 @@ public sealed record ScoreTuning
     public required double HandCar { get; init; }
     public required double MetresPerPoint { get; init; }
     public required double BlockedCrossing { get; init; }
+    public required double Clearance { get; init; }
     public required double VillageMetresPerPoint { get; init; }
     public required double FindOdds { get; init; }
     public required double PerHouse { get; init; }
@@ -218,10 +238,17 @@ public sealed record StopTier
     public required int[] Halts { get; init; }
     public required IReadOnlyList<Choice> Forms { get; init; }
     public required int[] Sidings { get; init; }
+    /// <summary>Sidings with derelict cars standing on them, [min, max] (level-design D.2).</summary>
+    public required int[] Blocked { get; init; }
     public required int[] FaceCars { get; init; }
     public required double Crane { get; init; }
     public required double[] Runway { get; init; }
     public required double[] Stock { get; init; }
+    /// <summary>
+    /// Note 352 (the director, 8 Oct 2026: "loot should spawn in all yard lines in early game and mid game"): every yard
+    /// track has something to load beside its loading face. Unset, the stock lies where the dice put it, and a siding can be bare.
+    /// </summary>
+    public bool EveryTrack { get; init; }
     public required IReadOnlyList<Choice> Villages { get; init; }
     public required IReadOnlyList<Choice> Arrangements { get; init; }
     public required double[] VillageOffset { get; init; }

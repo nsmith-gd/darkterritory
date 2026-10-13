@@ -22,12 +22,23 @@ public enum CrewPose
     Cradle, CradleWalk,
     // The firehole's door hauled open or shut (GDD §12).
     FireDoor,
+    // The repair kit by its handle at the side, stood and walking (note 513).
+    Toolbox, ToolboxWalk,
     // Held, one per GRAB (App. A.1): by a Dragger, a Car Hugger, the Whistler, Tippy Toesie, Ribbits, a Soot Child, the Choir, the Passenger.
     HeldHang, HeldMouth, HeldCarried, HeldCover, HeldFrozen, HeldPinned, HeldSeized, HeldDragged,
     // At the cannon's breech from the seat (note 137): played by the reload's progress, not a clock.
     Reload,
     // The extinguisher at work on a fire, braced, kicking (App. C.5); hung back on its bracket (SceneArt.Crewmate).
     Spray, HangUp,
+    // Emotes (GDD §9's yard, note 298): a dance, a wave, a point. Clips of their own when crew_clips has them ("dance",
+    // "wave", "point"); until then posed by the arms' IK over a stepping or standing clip (CreatureArt.EmoteArms).
+    Dance, Wave, Point,
+    // Off the roof on a jump, rising, the leap between cars (the checklist's crew-gap: "a jump between roofs"); stood on a
+    // car straining on a bend taken too fast, fighting for footing (App. F.1's overspeed telegraph; note 375).
+    Jump, Stumble,
+    // A friend hauled free by what has them (App. A.1's rescue, note 378): out of the Car Hugger's mouth, the Tippy Toesie's
+    // fingers prised off, hauled down from the Whistler or the Choir.
+    PullMouth, PryOff, HaulDown,
 }
 
 /// <summary>
@@ -43,7 +54,7 @@ public enum CrewPose
 /// greybox instead. Clips play at 30 fps, stepped (no blending between frames): the era's look (GDD §25). Nothing here
 /// reads a clock or a random number: the pose is a pure function of what's passed in.
 /// </remarks>
-public sealed class CreatureArt
+public sealed partial class CreatureArt
 {
     public const string Folder = "art/models";
     /// <summary>The Drift's mat, drawn from a car's roof: past this half-width (m) it's on the ground, this far down.</summary>
@@ -51,7 +62,8 @@ public sealed class CreatureArt
     /// <summary>The models this draws, by file name (content/art/models/&lt;name&gt;.glb).</summary>
     public static readonly string[] Names = ["crew", "cinder_hound", "sleeper", "clinger", "hollow", "switchman", "soot_child", "dragger", "husk", "weight",
         "track_doll", "car_hugger", "tippy_toesie", "whistler", "ribbit", "choir", "gaunt", "grumbler", "stoker", "follower", "climber", "fire_fly", "passenger",
-        "survivor_prisoner", "survivor_wildlander", "sheep"];
+        "survivor_prisoner", "survivor_wildlander", "sheep", "moose", "gannet", "mourner", "freight_beetle", "tower_jaw", "brakeman", "knotter", "hotbox", "hanger",
+        "picker", "lodger", "householder"];
 
     /// <summary>
     /// The figure a crewmate plays as (GDD App. D.8): the crew's own, or, freed from a Holdout, its occupant's for the rest
@@ -95,7 +107,9 @@ public sealed class CreatureArt
     /// Who a Tippy Toesie is after (GreyboxScene, for its target: the crewmate whose id is its Extra), camera-relative:
     /// their feet and the way they face. It faces them; on them, it's stood tight behind with a hand over their mouth.
     /// </summary>
-    public readonly record struct Prey(Vector3 Feet, Vector3 Forward)
+    /// <param name="Down">Laid on their back (a Ribbit pack eating them, note 558): <see cref="Forward"/> is then the way
+    /// they're laid, their head behind their feet (<see cref="At"/>'s z), as <see cref="Pins"/> has it.</param>
+    public readonly record struct Prey(Vector3 Feet, Vector3 Forward, bool Down = false)
     {
         public Vector3 Right => Vector3.Normalize(Vector3.Cross(Forward, Vector3.UnitY));
         /// <summary>A point in their frame (x right, y up, z back), camera-relative.</summary>
@@ -105,9 +119,8 @@ public sealed class CreatureArt
     // Set by Enemy(e, prey) for the one draw it makes, as _biteGrip.
     Prey? _prey;
 
-    // A Ribbit's tongue goes to its catch's chest (a crewmate's 1.8 m, tools/blender/crew.py), this high, this thick at the
-    // root (m), sagging this much of its length.
-    const float RibbitTongueAt = 1.15f, RibbitTongueThick = 0.035f, RibbitTongueSag = 0.06f;
+    // A Ribbit's tongue goes to its catch's chest (a crewmate's 1.8 m, tools/blender/crew.py), this high (m).
+    const float RibbitTongueAt = 1.15f;
 
     // The cold about a Choir ghost: a faint light, the colour of its skin, so they're seen at night but never glow (§26).
     const float ChoirCold = 0.25f;
@@ -118,39 +131,133 @@ public sealed class CreatureArt
     /// <summary>
     /// The clip a Ribbit on the attack plays, <paramref name="near"/> metres from the one its pack is after: its tongue out at
     /// them (COMMIT), then, with them frozen (GRAB), creeping in on them low on the sim's quarter-speed hop, and close to, on
-    /// them, devouring (App. A.6).
+    /// them, devouring (App. A.6). The pack's others ride COMMIT through it (note 558): close to, they're on them too, devouring.
     /// </summary>
     public static string RibbitClip(SpinePhase phase, float near) =>
-        phase is SpinePhase.Grab or SpinePhase.Punish ? near > RibbitDevourReach ? "creep" : "devour" : "tongue";
+        phase is SpinePhase.Grab or SpinePhase.Punish ? near > RibbitDevourReach ? "creep" : "devour"
+        : phase == SpinePhase.Commit && near <= RibbitDevourReach ? "devour" : "tongue";
+
+    /// <summary>
+    /// Whether <paramref name="e"/> is a Ribbit holding its catch and on them, eating (note 558): GRAB or PUNISH, within
+    /// <see cref="RibbitDevourReach"/> across the ground of their feet (<paramref name="feet"/>; it's at <paramref name="at"/>).
+    /// Then they're pulled down onto their back (GreyboxScene's Pins), the pack stoops onto them, there's blood, and their
+    /// own eyes go down with them (Eyes.Devoured).
+    /// </summary>
+    public static bool RibbitEating(Enemy e, Double3 at, Double3 feet) =>
+        e.Kind == EnemyKind.Ribbit && !e.Gone && e.Holding >= 0 && e.Phase is SpinePhase.Grab or SpinePhase.Punish
+        && Math.Sqrt((feet.X - at.X) * (feet.X - at.X) + (feet.Z - at.Z) * (feet.Z - at.Z)) <= RibbitDevourReach;
+
+    /// <summary>
+    /// How far up their body from where the sim has them a Ribbit pack's catch is laid (m, note 558): held_pinned's origin is
+    /// at the hips (the head 0.6 m behind it, the boots 1.3 m in front), so this puts the sim's point at their knees, the
+    /// leader (the hop's 0.8 m off) at their shins and the others either side of their legs and middle.
+    /// </summary>
+    public const double RibbitLaid = 0.7;
+
+    /// <summary>How far a Ribbit eating someone down on their back pitches forward over them from its feet (rad), its
+    /// mouth down to their body instead of at a standing chest (the devour clip's).</summary>
+    const float RibbitStoop = 0.95f;
 
     /// <summary>The toy the Track Doll being drawn has in its hand, or null (GreyboxScene: the one it was given, as it goes).</summary>
     public MeshAsset? DollHolding { get; set; }
 
     /// <summary>How long one of the Choir's ghosts is seen going when the swarm's driven off (GreyboxScene.Leaving).</summary>
     public const double ChoirLeaveSeconds = 3.0;
+    /// <summary>How long a scattered Cinder Hound is seen running off before it's lost in the dark (s; note 451).</summary>
+    public const double HoundRunOffSeconds = 4.0;
+
+    /// <summary>
+    /// How the ones the sim lets go of in sight are seen going (GreyboxScene.Retreating, note 458): off the train or the
+    /// ground they stood on, out from the line at <c>Out</c> m/s, facing away, for <c>Seconds</c>; then lost in the dark. What
+    /// flies lifts at <c>Rise</c> m/s instead of falling, and what goes down into the ground sinks at −<c>Rise</c>.
+    /// Null: one that isn't drawn going this way (killed ones fall, the Choir disperses, the Track Doll flickers, the Car
+    /// Hugger rides its car away, a hound on the line runs off; the rest aren't seen go, or have no body to see).
+    /// </summary>
+    public static (double Out, double Seconds, double Rise)? Retreat(EnemyKind kind) => kind switch
+    {
+        EnemyKind.Gannet => (7.0, 3.0, 3.0), // struck into giving up (note 458): it flies off for the run, up and away
+        EnemyKind.Climber => (5.0, 3.0, 0),        // outnumbered, held off, or given up on a fast train: down off it and away
+        EnemyKind.Whistler => (8.0, 2.0, 0),       // found in its gap (A.4: "flees"): gone fast, low, into the field
+        EnemyKind.Ribbit => (4.0, 3.0, 0),         // the pack's eaten: off in hops
+        EnemyKind.Gaunt => (1.5, 6.0, 0),          // its loot taken or talked down: on walking, out past its 30 m
+        EnemyKind.Switchman => (4.0, 3.0, 0),      // the points thrown back, or the train gone by: off from the lever
+        EnemyKind.TippyToesie => (5.0, 2.5, 0),
+        EnemyKind.SootChildren => (3.0, 3.0, 0),
+        EnemyKind.Passenger => (3.0, 3.0, 0),      // unmasked, off the back of the train
+        EnemyKind.Follower => (4.0, 3.0, 0),
+        EnemyKind.CinderHound => (6.0, 3.0, 0),    // one aboard (its car cut, or its kill made): over the side and away
+        // The night things going to ground at dawn (note 642; wakers.md §2: "boarders drop off and run for the trees"), and any
+        // of these let go of otherwise: none of them is drawn just gone. (A Dragger sinks back under the edge as it always
+        // has, and the Fire Flies' swarm goes with its lamp: neither is seen going.)
+        EnemyKind.Brakeman => (3.0, 3.5, 0),       // down off the roof, walking away
+        EnemyKind.Grumbler => (3.0, 3.0, 0),
+        EnemyKind.Moose => (5.0, 4.0, 0),          // trotting off into the trees
+        EnemyKind.FreightBeetle => (2.5, 3.5, 0),
+        EnemyKind.TowerJaw => (2.5, 3.5, 0),
+        EnemyKind.Mourners => (1.5, 5.0, 0),       // walking off, slow
+        // The stops' own (note 645): the Pickers down into the ground where they stand (their descend, head first); the Lodger
+        // slinking off into the dark, and the Householder walking off, stiff; the Hanger drawn up into its roof. (The Hollow
+        // House stays: it's the house itself, note 585.)
+        EnemyKind.Pickers => (0.4, 0.6, -1.2),
+        EnemyKind.Lodger => (2.0, 3.0, 0),
+        EnemyKind.Householder => (1.2, 4.0, 0),
+        EnemyKind.Hanger => (0, 1.2, 0.8),
+        _ => null,
+    };
 
     // "Giant toad-rabbits" (GDD §21): the model's a big dog's size, drawn this much bigger (its head at a crewmate's waist).
     const float RibbitScale = 1.4f;
 
     /// <summary>
-    /// The tongue, out from the mouth <paramref name="a"/> to its catch at <paramref name="b"/> (camera-relative): wet,
-    /// dark red, thinning to its tip, sagging a little, and twitching taut as it reels (GDD App. A.6 TONGUE).
+    /// The Ribbit's own tongue (tools/blender/ribbit.py: <c>tongue_01</c> its length, <c>tongue_02</c> the club at its end),
+    /// out of its mouth to its catch's chest at <paramref name="target"/> (model space; GDD App. A.6 TONGUE): turned on its
+    /// root to point at them, then stretched along itself until the club's on them, the club carried out unstretched. With
+    /// nobody to reach (<paramref name="target"/> null), it's drawn back in to the length it lies in the mouth.
     /// </summary>
-    void Tongue(MeshBuilder mesh, Vector3 a, Vector3 b, float t)
+    static void Lash(Entry e, Vector3? target)
     {
-        var k = new Kit(Look, mesh);
-        k.Use("flesh", new Vector3(0.22f, 0.05f, 0.05f), 0.2f, 0.85f);
-        const int n = 8;
-        float len = Vector3.Distance(a, b);
-        float sag = RibbitTongueSag * len * (0.7f + 0.3f * MathF.Sin(t * 9));
-        Vector3 At(float u) => Vector3.Lerp(a, b, u) - Vector3.UnitY * (sag * 4 * u * (1 - u));
-        for (int i = 0; i < n; i++)
+        var sk = e.Model.Skeleton;
+        int root = sk.IndexOf("tongue_01"), club = sk.IndexOf("tongue_02");
+        if (root < 0 || club < 0)
+            return;
+        var pose = e.Pose;
+        if (target is { } aim)
+            Skinner.Aim(e.Model, pose, root, club, aim);
+        var head = pose.World[root].Translation;
+        var along = pose.World[club].Translation - head;
+        float now = along.Length();
+        if (now < 1e-5f)
+            return;
+        var d = along / now;
+        // Its length at rest: the club's head from the root's in the bind pose.
+        float rest = Vector3.Distance(Inverse(sk.InverseBind[club]).Translation, Inverse(sk.InverseBind[root]).Translation);
+        float want = target is { } t ? Vector3.Distance(head, t) : rest;
+        float k = want / now;
+        // Stretch along d about the root: x -> x + (k-1)(x-head).d d (row vectors, so x * M).
+        float s = k - 1;
+        var outer = Matrix4x4.Identity + new Matrix4x4(s * d.X * d.X, s * d.X * d.Y, s * d.X * d.Z, 0, s * d.Y * d.X, s * d.Y * d.Y,
+            s * d.Y * d.Z, 0, s * d.Z * d.X, s * d.Z * d.Y, s * d.Z * d.Z, 0, 0, 0, 0, 0);
+        var stretch = Matrix4x4.CreateTranslation(-head) * outer * Matrix4x4.CreateTranslation(head);
+        var carry = Matrix4x4.CreateTranslation(along * (k - 1));
+        for (int b = 0; b < sk.Count; b++)
         {
-            float u0 = i / (float)n, u1 = (i + 1) / (float)n;
-            k.Cylinder(At(u0), At(u1), RibbitTongueThick * (1 - 0.55f * u0), 8, caps: false, radiusB: RibbitTongueThick * (1 - 0.55f * u1));
+            if (b == root)
+                pose.World[b] *= stretch;
+            else if (Below(sk, b, club))
+                pose.World[b] *= carry;
+            else
+                continue;
+            pose.Skin[b] = sk.InverseBind[b] * pose.World[b];
         }
-        // Its tip spread over them, a pad.
-        k.Cylinder(b - Vector3.Normalize(b - a) * 0.02f, b + Vector3.Normalize(b - a) * 0.02f, RibbitTongueThick * 1.4f, 8);
+
+        static Matrix4x4 Inverse(Matrix4x4 m) => Matrix4x4.Invert(m, out var i) ? i : Matrix4x4.Identity;
+        static bool Below(Skeleton sk, int b, int ancestor)
+        {
+            for (; b >= 0; b = sk.Parents[b])
+                if (b == ancestor)
+                    return true;
+            return false;
+        }
     }
     Room _room;
 
@@ -176,6 +283,9 @@ public sealed class CreatureArt
 
     // The Stoker's own fire, in its mouth and its splits: the sick green of a fire with it in (GreyboxScene.FireColour).
     static readonly Vector3 StokerFire = new(0.35f, 0.6f, 0.22f);
+    // A Cinder Hound's own light (note 337): its cracks' ember, redder than a firebox, and how far it reaches.
+    static readonly Vector3 HoundEmber = new Vector3(1.0f, 0.38f, 0.12f) * 2.4f;
+    const float HoundLightRange = 4.2f;
 
     const float Going = 0.4f, GauntLeanPerAnger = 0.25f, GauntLean = 0.32f, GauntTilt = 0.6f;
 
@@ -196,6 +306,18 @@ public sealed class CreatureArt
     static readonly Vector3 SwitchLeverPivot = new(0.34f, 0.32f, -0.3f);
 
     const int FireFlyMost = 22;
+    // T131 (the director, build 1121: "what were the bubbles?"): the wings' smouldering rims, lit all round against the
+    // lamp, drew each moth as a hollow orange ring: a bubble. The rims go to the charred paper (unlit), and the burning tail
+    // carries the light instead, shedding FireFlySparks sparks of FireFlyEmber behind each on the wing.
+    const int FireFlySparks = 3;
+    static readonly Vector3 FireFlyEmber = new(1.0f, 0.55f, 0.18f);
+
+    static MaterialLook FireFlyLook(ModelMaterial m, MaterialLook l) => m.Name switch
+    {
+        _ when m.Name.Contains("firefly_rim") => l with { Emissive = 0, Colour = new Vector3(0.13f, 0.11f, 0.1f) },
+        _ when m.Name.StartsWith("ember_core") => l with { Emissive = Math.Max(l.Emissive, 1) * 1.6f },
+        _ => l,
+    };
     const float FireFlySwarmFills = 20, FireFlyGlass = 0.085f, FireFlyGlassBelow = 0.07f, FireFlyGlassAbove = 0.08f, FireFlyOrbit = 0.45f;
 
     /// <summary>
@@ -251,6 +373,11 @@ public sealed class CreatureArt
     const float TippyFleeShow = 0.5f, TippyFleeSpeed = 4f, TippyBehind = 0.42f, PreyMouthY = 1.6f, PreyMouthFore = 0.12f;
 
     /// <summary>How long a Tippy Toesie pulled off or seen is held in its recoil before it scuttles (s): its clip's length.</summary>
+    bool HasClip(string model, string clip) => _models.TryGetValue(model, out var m) && m.Model.Clips.ContainsKey(clip);
+
+    // A Cinder Hound aboard's patrol (note 472), set for the one being drawn by the Enemy overload that has it.
+    (HoundMode Mode, double Seconds) _houndAboard;
+
     double TippyRecoil => _models.TryGetValue("tippy_toesie", out var tippy) && tippy.Model.Clips.TryGetValue("recoil", out var c) ? c.Duration : 0;
 
     static float SmoothStep(float a, float b, float x)
@@ -304,6 +431,9 @@ public sealed class CreatureArt
     readonly float _texels;
 
     /// <param name="contentRoot">The content folder; by default the one <paramref name="look"/>'s textures came from.</param>
+    DaveKit? _dave;
+    JacobKit? _jacob;
+
     public CreatureArt(Look look, string? contentRoot = null)
     {
         Look = look;
@@ -335,10 +465,27 @@ public sealed class CreatureArt
                     ? new Entry(lod, [.. lod.Materials.Select(m => Resolve(m, wear))]) : null,
             };
         }
+        Dress(DaveKit.Figure, DaveKit.Clothes);
+        Dress(NickiKit.Figure, NickiKit.Clothes, NickiKit.Shape);
+        Dress(JacobKit.Figure, JacobKit.Clothes, growths: JacobKit.Growths);
     }
 
     public Look Look { get; }
     public string ContentRoot { get; }
+
+    /// <summary>
+    /// The figures met out in the Territory (GDD §3.2), dressed from the survivors' (<see cref="Redress"/>): on its rig and
+    /// clips, with no file of their own. Called once the files are loaded.
+    /// </summary>
+    void Dress(string name, IReadOnlyDictionary<Cloth, Dye> clothes, Func<Vector3, string, Vector3>? shape = null, IReadOnlyList<Growth>? growths = null)
+    {
+        // A figure modelled for them (content/art/models/<name>.glb, the art sessions') is theirs: the dressed one is the fallback.
+        if (_models.ContainsKey(name) || !_models.TryGetValue("survivor_prisoner", out var figure))
+            return;
+        var model = Redress.Of(figure.Model, name, clothes, shape, growths);
+        float wear = WearOf.GetValueOrDefault("survivor_prisoner", 0.5f);
+        _models[name] = new Entry(model, [.. model.Materials.Select(m => Resolve(m, wear))]);
+    }
 
     /// <summary>A model's distance copy (tools/models overbake `lod`), its joints renumbered by name to the full model's so
     /// the full model's pose skins it; null when there's none or a bone of it isn't the full model's.</summary>
@@ -364,6 +511,8 @@ public sealed class CreatureArt
     const double HoundBoardSeconds = 1.1;
     Sim.Enemies.WhistlerTuning? _whistler;
     Sim.Enemies.CarFireTuning? _carFire;
+    /// <summary>The car fire's tuning, as the content has it (its grid's cell size, its spread clock; note 267).</summary>
+    public Sim.Enemies.CarFireTuning CarFire => _carFire ??= DataFile.Load<Sim.Enemies.EnemyTuning>(Path.Combine(ContentRoot, Sim.Enemies.EnemyTuning.File)).CarFire;
     readonly Dictionary<int, MeshAsset> _debris = new();
     MeshAsset? _fallenPine;
     MeshAsset[]? _reeds;
@@ -452,9 +601,12 @@ public sealed class CreatureArt
         // Struck: its own hit clip over whatever it was doing, while that runs (Enemy's hitAge).
         if (_hit >= 0 && clip != "hit" && m.Model.Clips.TryGetValue("hit", out var hit) && _hit < hit.Duration)
             (clip, c, time, loop) = ("hit", hit, _hit, false);
-        // Dead: held at the end of its flinch, or still where it was.
+        // Dead: its own fall where it has one (the Gannet's crash across the roof), played from the blow and held at its end;
+        // else held at the end of its flinch, or still where it was.
         if (_dying)
-            (clip, c, time, loop) = m.Model.Clips.TryGetValue("hit", out var last)
+            (clip, c, time, loop) = m.Model.Clips.TryGetValue("death", out var fall)
+                ? ("death", fall, Math.Min(Math.Max(_hit, 0), fall.Duration - 1e-3), false)
+                : m.Model.Clips.TryGetValue("hit", out var last)
                 ? ("hit", last, Math.Min(Math.Max(_hit, 0), last.Duration - 1e-3), false)
                 : (clip, c, 0, false);
         _skinner.Evaluate(m.Model, c, time, loop, m.Pose);
@@ -549,6 +701,9 @@ public sealed class CreatureArt
     /// <summary>The crew clip (tools/blender/crew_clips.py, crew.py) a pose plays.</summary>
     public static string ClipOf(CrewPose pose) => pose switch
     {
+        CrewPose.Dance => "dance",
+        CrewPose.Wave => "wave",
+        CrewPose.Point => "point",
         CrewPose.Walk => "walk",
         CrewPose.Run => "run",
         CrewPose.Climb => "climb",
@@ -574,6 +729,8 @@ public sealed class CreatureArt
         CrewPose.Extinguish => "extinguish",
         CrewPose.Lantern => "lantern",
         CrewPose.LanternWalk => "lantern_walk",
+        CrewPose.Toolbox => "toolbox",
+        CrewPose.ToolboxWalk => "toolbox_walk",
         CrewPose.Haul => "haul",
         CrewPose.HaulUp => "haul_up",
         CrewPose.GapStep => "gap_step",
@@ -606,6 +763,11 @@ public sealed class CreatureArt
         CrewPose.HeldSeized => "held_seized",
         CrewPose.HeldDragged => "held_dragged",
         CrewPose.Reload => "reload",
+        CrewPose.Jump => "jump",
+        CrewPose.Stumble => "stumble",
+        CrewPose.PullMouth => "pull_mouth",
+        CrewPose.PryOff => "pry_off",
+        CrewPose.HaulDown => "haul_down",
         _ => "idle",
     };
 
@@ -628,26 +790,39 @@ public sealed class CreatureArt
     /// the hands are reached for from where the shoulders have gone.</param>
     public bool Crewmate(MeshBuilder mesh, in Matrix4x4 model, CrewPose pose, double time, int variant,
         Vector3? left = null, Vector3? right = null, Vector3 leftPole = default, Vector3 rightPole = default, MeshAsset? inHand = null,
-        MeshAsset? hanging = null, string figure = "crew", VrBodyPose? body = null)
+        MeshAsset? hanging = null, string figure = "crew", VrBodyPose? body = null, MeshAsset? carried = null)
     {
         if (!_models.ContainsKey(figure))
             figure = "crew";
         // Each crewmate breathes and steps on their own beat: a fixed offset by variant, not a random one.
         double offset = (variant & 7) * 0.41;
         string clip = ClipOf(pose);
+        // A freed prisoner walks their own way (note 407): the irons' shuffle.
+        if (figure == "survivor_prisoner" && clip == "walk")
+            clip = "shuffle";
         // A build without crew_clips.glb (or an older one, short of a clip) stands them idle rather than in the greybox.
         if (_models.TryGetValue(figure, out var has) && !has.Model.Clips.ContainsKey(clip))
             clip = clip.StartsWith("held_", StringComparison.Ordinal) && has.Model.Clips.ContainsKey("held") ? "held"
                 : clip == "hurry" && has.Model.Clips.ContainsKey("run") ? "run" : clip == "reload" && has.Model.Clips.ContainsKey("gunner") ? "gunner"
-                : clip == "spray" && has.Model.Clips.ContainsKey("extinguish") ? "extinguish" : clip == "hang_up" && has.Model.Clips.ContainsKey("take_down") ? "take_down" : "idle";
+                : clip == "spray" && has.Model.Clips.ContainsKey("extinguish") ? "extinguish" : clip == "hang_up" && has.Model.Clips.ContainsKey("take_down") ? "take_down"
+                : clip is "toolbox" or "toolbox_walk" && has.Model.Clips.ContainsKey("carry") ? clip == "toolbox" ? "carry" : "carry_walk"
+                // An emote with no clip of its own (note 298): the dance steps on the spot, the wave and the point stand.
+                : clip is "dance" or "shuffle" && has.Model.Clips.ContainsKey("walk") ? "walk" : "idle";
+        // ... and the arms are posed over it (EmoteArms).
+        bool emoteByHand = pose is CrewPose.Dance or CrewPose.Wave or CrewPose.Point && clip != ClipOf(pose);
         var Paint = PaintOf(variant);
         if (!_models.TryGetValue(figure, out var m) || !m.Model.Clips.TryGetValue(clip, out var c))
             return false;
-        // Played once from their start (SceneArt passes the time since the act began): getting up, a thing off its bracket.
-        bool fromStart = pose is CrewPose.GetUp or CrewPose.TakeDown or CrewPose.HangUp or CrewPose.Stagger or CrewPose.Reload or CrewPose.FireDoor;
+        // Played once from their start (SceneArt passes the time since the act began): getting up, a thing off its bracket,
+        // a blow of the tool in hand (note 275: without it a swing was put off by the variant's beat, up to 2.9 s into a
+        // 0.8 s clip, and most of the crew were drawn at its end).
+        bool fromStart = pose is CrewPose.GetUp or CrewPose.TakeDown or CrewPose.HangUp or CrewPose.Stagger or CrewPose.Reload or CrewPose.FireDoor
+            or CrewPose.Swing or CrewPose.Jump;
         _skinner.Evaluate(m.Model, c, fromStart ? time : time + offset, pose is not (CrewPose.Dead or CrewPose.Swing) && !fromStart, m.Pose);
         if (body is { } vr)
             HeadsetBody(m, vr);
+        if (emoteByHand)
+            EmoteArms(m, pose, time);
         if (left is { } l)
             Reach(m, "l", l, leftPole);
         if (right is { } r)
@@ -665,15 +840,115 @@ public sealed class CreatureArt
         if (inHand is not null && OneHanded(pose))
             mesh.Append(inHand, ToolGrip * Skinner.Socket(m.Model, m.Pose, "hand_r_weapon", model));
         if (hanging is not null)
-        {
-            var fist = Skinner.Socket(m.Model, m.Pose, "hand_r_weapon", model).Translation;
-            var up = Vector3.Normalize(new Vector3(model.M21, model.M22, model.M23));
-            var hung = model with { M41 = 0, M42 = 0, M43 = 0, M44 = 1 };
-            hung.Translation = fist - up * LanternRing;
-            mesh.Append(hanging, hung);
-            LastHanging = fist - up * (LanternRing - LanternFlame);
-        }
+            Hung(mesh, m, hanging, model);
+        if (carried is not null)
+            Handled(mesh, m, carried, model);
         return true;
+    }
+
+    /// <summary>
+    /// <paramref name="carried"/> by its handle in the right fist (the repair kit, note 513): its origin at its foot and its
+    /// handle at its top, hung upright under the fist whatever the wrist does, turned with the body. Where it hangs is
+    /// <see cref="LastCarried"/>.
+    /// </summary>
+    void Handled(MeshBuilder mesh, Entry m, MeshAsset carried, in Matrix4x4 model)
+    {
+        var fist = Skinner.Socket(m.Model, m.Pose, "hand_r_weapon", model).Translation;
+        var up = Vector3.Normalize(new Vector3(model.M21, model.M22, model.M23));
+        // Its length along the way they walk (the kit's is across its X), so it swings by the leg, not into it.
+        var at = Matrix4x4.CreateRotationY(MathF.PI / 2) * (model with { M41 = 0, M42 = 0, M43 = 0, M44 = 1 });
+        at.Translation = fist - up * (HandleOf(carried) - HandleIn);
+        mesh.Append(carried, at);
+        LastCarried = at.Translation;
+    }
+
+    /// <summary>How far down into the fist a handle sits (m): the grip closes round it, not over it.</summary>
+    const float HandleIn = 0.03f;
+
+    /// <summary>A carried thing's handle over its foot: its top (m, cached by the asset).</summary>
+    static float HandleOf(MeshAsset a)
+    {
+        lock (Handles)
+        {
+            if (!Handles.TryGetValue(a, out float h))
+                Handles[a] = h = a.Vertices.Length == 0 ? 0 : a.Vertices.Max(v => v.Position.Y);
+            return h;
+        }
+    }
+
+    static readonly Dictionary<MeshAsset, float> Handles = new(ReferenceEqualityComparer.Instance);
+
+    /// <summary>Where the last thing carried by its handle was set down under the fist (its foot, the draw's space).</summary>
+    public Vector3 LastCarried { get; private set; }
+
+    /// <summary>
+    /// Hangs <paramref name="hanging"/> from the right fist of the figure last drawn as <paramref name="figure"/> by
+    /// <see cref="Draw(MeshBuilder, string, string, double, bool, in Matrix4x4, int, float, float, Func{ModelMaterial, MaterialLook, MaterialLook}?)"/>
+    /// at <paramref name="model"/>, as <see cref="Crewmate"/>'s hanging does (a town's lamp-carriers, note 281); its flame
+    /// is then <see cref="LastHanging"/>. False when that figure isn't built.
+    /// </summary>
+    public bool Hang(MeshBuilder mesh, MeshAsset hanging, in Matrix4x4 model, string figure = "crew")
+    {
+        if (!_models.TryGetValue(figure, out var m))
+            return false;
+        Hung(mesh, m, hanging, model);
+        return true;
+    }
+
+    /// <summary>
+    /// Appends <paramref name="piece"/>, made in the figure's bind pose (model space), riding <paramref name="bone"/> of the
+    /// figure last drawn as <paramref name="figure"/> at <paramref name="model"/>: a townsperson's mask on their head, their
+    /// bottle on their back (note 353). False when that figure or bone isn't built.
+    /// </summary>
+    public bool Wear(MeshBuilder mesh, MeshAsset piece, string bone, in Matrix4x4 model, string figure = "crew")
+    {
+        if (!_models.TryGetValue(figure, out var m) || m.Model.Skeleton.IndexOf(bone) is var b && b < 0)
+            return false;
+        mesh.Append(piece, m.Pose.Skin[b] * model);
+        return true;
+    }
+
+    /// <summary>Where <paramref name="bind"/> (a point of the figure's bind pose, carried by <paramref name="bone"/>) is on the
+    /// figure last drawn as <paramref name="figure"/> at <paramref name="model"/>: a hose's ends, one on the head and one on the back.</summary>
+    public Vector3 Posed(string bone, Vector3 bind, in Matrix4x4 model, string figure = "crew") =>
+        _models.TryGetValue(figure, out var m) && m.Model.Skeleton.IndexOf(bone) is var b && b >= 0
+            ? Vector3.Transform(bind, m.Pose.Skin[b] * model) : Vector3.Transform(bind, model);
+
+    readonly Dictionary<(string, string), float> _feetOver = [];
+
+    /// <summary>
+    /// How far a clip's feet stand off the floor at its start (m, the lowest foot or ball joint over <see cref="Planted"/>):
+    /// what a figure set down on its feet is lowered by. crew_clips.py plants most clips' feet on the floor, but not
+    /// crouch_idle's, which is drawn ~0.5 m up (a town's resident crouched at the range, note 353).
+    /// </summary>
+    public float FeetOver(string name, string clip)
+    {
+        if (_feetOver.TryGetValue((name, clip), out float over))
+            return over;
+        if (_models.TryGetValue(name, out var m) && m.Model.Clips.TryGetValue(clip, out var c))
+        {
+            _skinner.Evaluate(m.Model, c, 0, true, m.Pose);
+            float low = float.MaxValue;
+            foreach (string bone in (string[])["foot_l", "foot_r", "ball_l", "ball_r"])
+                if (m.Model.Skeleton.IndexOf(bone) is var b && b >= 0)
+                    low = Math.Min(low, m.Pose.World[b].Translation.Y);
+            over = low < float.MaxValue ? Math.Max(0, low - Planted) : 0;
+        }
+        return _feetOver[(name, clip)] = over;
+    }
+
+    /// <summary>The ball joints' height over the floor standing (the idle's: the sole under them).</summary>
+    const float Planted = 0.03f;
+
+    void Hung(MeshBuilder mesh, Entry m, MeshAsset hanging, in Matrix4x4 model)
+    {
+        var fist = Skinner.Socket(m.Model, m.Pose, "hand_r_weapon", model).Translation;
+        var up = Vector3.Normalize(new Vector3(model.M21, model.M22, model.M23));
+        var hung = model with { M41 = 0, M42 = 0, M43 = 0, M44 = 1 };
+        hung.Translation = fist - up * LanternRing;
+        // Casting nothing: its light's inside it (the hand lamp's cube shadow, GreyboxScene), and its cage would shut it in.
+        mesh.Instances.Add(new MeshInstance(hanging, hung, Shadowless: true));
+        LastHanging = fist - up * (LanternRing - LanternFlame);
     }
 
     /// <summary>The hand lamp's ring and flame over its foot (tools/models/recipes/hand_lantern.py's sockets, 0.36 m tall).</summary>
@@ -690,7 +965,7 @@ public sealed class CreatureArt
     /// <summary>What a crewmate can do with a tool still in their fist: get about, crouch, fall, swing it, mend with it, smash or pry a Holdout open.</summary>
     static bool OneHanded(CrewPose pose) =>
         pose is CrewPose.Idle or CrewPose.Walk or CrewPose.Run or CrewPose.Crouch or CrewPose.Fall or CrewPose.Swing or CrewPose.Mend or CrewPose.Door
-            or CrewPose.Smash or CrewPose.Pry;
+            or CrewPose.Smash or CrewPose.Pry or CrewPose.Jump or CrewPose.Stumble;
 
     /// <summary>
     /// A hand tool's axes (tools/models hand_tools: its haft along −Z through the fist, its face up +Y) onto the
@@ -750,7 +1025,7 @@ public sealed class CreatureArt
     {
         if (!_models.TryGetValue("crew", out var m))
             return false;
-        bool working = act is { } a && a is not (CrewPose.Idle or CrewPose.Walk or CrewPose.Run or CrewPose.Crouch);
+        bool working = act is { } a && a is not (CrewPose.Idle or CrewPose.Walk or CrewPose.Run or CrewPose.Crouch or CrewPose.Jump or CrewPose.Stumble);
         (string clip, double t, bool loop, bool follow) = swing >= 0 ? ("fp_swing", swing, false, true)
             : working ? (ClipOf(act!.Value), time, act != CrewPose.Swing, false)
             : inHand is not null ? (moving ? "fp_walk" : "fp_hold", time, true, true)
@@ -961,6 +1236,25 @@ public sealed class CreatureArt
         return m;
     }
 
+    /// <summary>
+    /// A creature drawn on its clip with its head turned over it (note 455: a sheep looking round at whoever's come in):
+    /// <paramref name="yaw"/> (radians, left positive) shared down the neck and head, the head tipped up by
+    /// <paramref name="pitch"/>. For four-legged models with a neck_01, neck_02, head chain (sheep.py).
+    /// </summary>
+    public bool DrawTurned(MeshBuilder mesh, string name, string clip, double time, bool loop, in Matrix4x4 at, float yaw, float pitch, int seed = 0) =>
+        Draw(mesh, name, clip, time, loop, at, m =>
+        {
+            if (MathF.Abs(yaw) + MathF.Abs(pitch) < 1e-3f)
+                return;
+            Bend(m, "head", Matrix4x4.CreateRotationX(pitch));
+            Bend(m, "neck_01", Matrix4x4.CreateRotationY(yaw * 0.4f));
+            Bend(m, "neck_02", Matrix4x4.CreateRotationY(yaw * 0.25f));
+            Bend(m, "head", Matrix4x4.CreateRotationY(yaw * 0.35f));
+        }, seed: seed);
+
+    /// <summary>The Follower's nest built up as it builds it (note 460): the follower_nest model's own pieces, grown in turn.</summary>
+    readonly NestBuild Nest = new();
+
     /// <summary>A posed bone and everything hung off it turned by <paramref name="rotation"/> (model space) about the bone's head.</summary>
     static void Bend(Entry m, string bone, in Matrix4x4 rotation)
     {
@@ -1095,6 +1389,34 @@ public sealed class CreatureArt
         Skinner.Aim(m.Model, m.Pose, lower, hand, shoulder + dir * reach);
     }
 
+    /// <summary>
+    /// An emote with no clip of its own (note 298), posed by the arms' IK in the model's space (x right, y up, z behind, from
+    /// the feet) over the clip under it: the dance a jig, stepping on the spot with the hips swaying and both fists pumped
+    /// over the head in turn; the wave a hand up high, rocking side to side; the point an arm straight out ahead at the
+    /// shoulder. Placeholders for the art pass's clips, in the crew's stiff, heavy manner (GDD §31).
+    /// </summary>
+    static void EmoteArms(Entry m, CrewPose pose, double time)
+    {
+        float t = (float)time;
+        switch (pose)
+        {
+            case CrewPose.Dance:
+                {
+                    float beat = MathF.Sin(t * MathF.Tau * 1.1f);
+                    Bend(m, "spine_01", Matrix4x4.CreateRotationZ(0.14f * beat));
+                    Reach(m, "l", new Vector3(-0.26f, 1.78f + 0.16f * beat, -0.12f), new Vector3(-1, -0.4f, 0.2f));
+                    Reach(m, "r", new Vector3(0.26f, 1.78f - 0.16f * beat, -0.12f), new Vector3(1, -0.4f, 0.2f));
+                    break;
+                }
+            case CrewPose.Wave:
+                Reach(m, "r", new Vector3(0.34f + 0.11f * MathF.Sin(t * MathF.Tau * 1.8f), 1.94f, -0.06f), new Vector3(1, -0.6f, 0.3f));
+                break;
+            case CrewPose.Point:
+                Reach(m, "r", new Vector3(0.17f, 1.47f, -0.66f), new Vector3(0.6f, -1, 0));
+                break;
+        }
+    }
+
     /// <summary>How many joints a ragdoll has (Sim.Physics.Bodies' skeleton), in the order <see cref="Corpse"/> reads them.</summary>
     public const int RagdollJoints = 11;
 
@@ -1169,6 +1491,21 @@ public sealed class CreatureArt
     // The enemies
 
     /// <summary>
+    /// The Gaunt's clip (tools/blender/gaunt.py) by what it's doing: asleep, stirring, striking (aboard, from the squat),
+    /// going (above <see cref="Going"/>) or stood listening, aboard folded <paramref name="low"/>; and leaving with what it
+    /// took (App. A.6, note 505; <paramref name="extra"/> the body's id, −1 empty-handed) the load under it in its mouth.
+    /// </summary>
+    public static string GauntClip(SpinePhase phase, double extra, float pace, bool low) => phase switch
+    {
+        SpinePhase.BreakOff when extra >= 0 => low ? "carry_low" : "carry",
+        SpinePhase.Dormant => "sleep",
+        SpinePhase.Alert => "stir",
+        SpinePhase.Commit or SpinePhase.Grab or SpinePhase.Punish => low ? "smash" : "attack",
+        _ when pace > Going => low ? "crawl" : "follow",
+        _ => low ? "squat" : "listen",
+    };
+
+    /// <summary>
     /// An enemy at its basis (GreyboxScene.DrawEnemy's o, r, u, b), its clip chosen by kind and spine phase.
     /// <list type="bullet">
     /// <item>Cinder hound: feet at the origin (on the ballast, or the roof when boarded: no extra lift). Dormant and alert
@@ -1193,11 +1530,18 @@ public sealed class CreatureArt
         if (kind is EnemyKind.CarFire)
         {
             // Its spread: the sim's blaze (extra2) over the seconds it takes to jump (enemies.json carFire.spreadSeconds).
-            _carFire ??= DataFile.Load<Sim.Enemies.EnemyTuning>(Path.Combine(ContentRoot, Sim.Enemies.EnemyTuning.File)).CarFire;
+            _carFire ??= CarFire;
             return IncidentArt.Draw(mesh, model.Translation, Vector3.Normalize(Vector3.TransformNormal(Vector3.UnitX, model)),
                 Vector3.Normalize(Vector3.TransformNormal(Vector3.UnitY, model)), Vector3.Normalize(Vector3.TransformNormal(Vector3.UnitZ, model)),
                 kind, phase, t, extra, health, _fx, Math.Clamp(extra2 / Math.Max(1e-6, _carFire.SpreadSeconds), 0, 1));
         }
+        // The Mourners, the Freight Beetle and Tower Jaw (notes 362, 363, 366), the Pickers, the Lodger and the Householder
+        // (notes 574, 583, 584) (CreatureArt.Outside.cs).
+        if (Outside(mesh, model, kind, phase, t, extra, extra2) is { } outside)
+            return outside;
+        // The house creatures (notes 585, 586; CreatureArt.Houses.cs).
+        if (Houses(mesh, model, kind, phase, t) is { } houses)
+            return houses;
         float pulse = (float)(0.5 + 0.5 * Math.Sin(t * 9));
         switch (kind)
         {
@@ -1210,6 +1554,8 @@ public sealed class CreatureArt
                         SpinePhase.Commit when aboard => 1.1f + 0.3f * pulse,
                         SpinePhase.Commit => 1.25f + 0.25f * (float)Math.Sin(t * 5),
                         SpinePhase.Telegraph => 1.05f,
+                        // Scattered, running off (note 451, GreyboxScene.Fleeing): its embers going out as it goes.
+                        SpinePhase.BreakOff => 1.05f * (float)Math.Max(0, 1 - t / HoundRunOffSeconds),
                         _ => 0.75f,
                     };
                     string clip;
@@ -1218,6 +1564,28 @@ public sealed class CreatureArt
                     if (phase is SpinePhase.Grab or SpinePhase.Punish)
                         // On someone: the leap, then the jaws clamped on them and the head wrenching (the pack fight's bite).
                         (clip, ct, loop) = t < 0.6 ? ("lunge", t, false) : ("bite", t - 0.6, true);
+                    else if (aboard && _houndAboard.Mode != HoundMode.Still)
+                    {
+                        // Its patrol (note 472, E1's clips, note 477): along the roof or the boards, over a gap, down in at a
+                        // side door and up out of one, and stopping to sniff; from when it began each.
+                        (clip, loop) = _houndAboard.Mode switch
+                        {
+                            HoundMode.Leap => ("leap", false),
+                            HoundMode.Drop => ("drop", false),
+                            HoundMode.Climb => ("climb", false),
+                            HoundMode.Sniff => ("sniff", true),
+                            _ => ("patrol", true),
+                        };
+                        ct = _houndAboard.Seconds;
+                        if (!HasClip("cinder_hound", clip))
+                            (clip, loop) = _houndAboard.Mode switch
+                            {
+                                HoundMode.Leap => ("lunge", false),
+                                HoundMode.Drop or HoundMode.Climb => ("board", false),
+                                HoundMode.Sniff => ("crouch", true),
+                                _ => ("prowl", true),
+                            };
+                    }
                     else if (aboard)
                     {
                         // Onto the rear car (its board: up off the ballast, scrabbling up the car's end, over the roof's lip), then
@@ -1232,7 +1600,16 @@ public sealed class CreatureArt
                     }
                     else
                         clip = phase is SpinePhase.Telegraph or SpinePhase.Commit or SpinePhase.BreakOff ? "run" : "prowl";
-                    return Draw(mesh, "cinder_hound", clip, ct, loop, model, glow: glow, seed: (float)extra);
+                    if (!Draw(mesh, "cinder_hound", clip, ct, loop, model, glow: glow, seed: (float)extra))
+                        return false;
+                    // A light of its own (note 209's "not yet", note 337): its cracks' heat, under the keel, lighting its legs
+                    // and a pool of the ground it runs over orange. At night, in the rear lamp or past it, a pack reads as
+                    // the pools moving behind the train, each a hound, before their shapes do. (Not on itself: the light's
+                    // inside its hide's normals, so its char stays black and its cracks are what glow on it.)
+                    float flick = 0.85f + 0.15f * (float)Math.Sin(t * 13.0 + extra * 2.1 + Math.Sin(t * 4.7) * 1.5);
+                    var keel = BoneAt("cinder_hound", "belly", model) - Basis(model).Up * 0.16f;
+                    mesh.PointLights.Add(new PointLight(keel, HoundEmber * (glow * flick), HoundLightRange));
+                    return true;
                 }
             case EnemyKind.Sleepers:
                 {
@@ -1402,11 +1779,15 @@ public sealed class CreatureArt
                     string clip = nesting ? "nest" : phase == SpinePhase.Commit ? "crawl" : "cling";
                     // The nest it's built over the car's loot (tools/models follower_nest), grown with it, the Follower in
                     // its hollow on top: a heap you can find and bludgeon (A.6).
+                    // (Built up, not scaled up, note 460: the loot there from the start, the strands down to the floor, the
+                    // lobes swelling up out of the heap one after another, the hollow last.)
                     if (nesting && PropArt.Of(Look).Get("follower_nest") is { } heap)
                     {
-                        float grown = 0.25f + 0.75f * swell;
-                        mesh.Append(heap, Matrix4x4.CreateScale(grown, grown * (0.6f + 0.4f * swell), grown) * model);
-                        at = Matrix4x4.CreateTranslation(0, FollowerNestTop * grown * (0.6f + 0.4f * swell), 0) * at;
+                        var (built, top) = Nest.At(heap, swell);
+                        mesh.Append(built, model);
+                        // (Swollen about itself, then set on the heap: lifted after the swell's scale, its 0.6 m went up
+                        // with it to 1.5 m, the Follower hanging in the air over its own nest.)
+                        at = Matrix4x4.CreateScale(1 + FollowerSwell * swell) * Matrix4x4.CreateTranslation(0, FollowerNestTop * top, 0) * model;
                     }
                     return Draw(mesh, "follower", clip, t, true, at, seed: 29);
                 }
@@ -1458,14 +1839,7 @@ public sealed class CreatureArt
                     _pace = 0;
                     bool low = room.Indoors || room.Doorway;
                     float anger = Math.Clamp((float)extra2 * GauntLeanPerAnger, 0, 1);
-                    string clip = phase switch
-                    {
-                        SpinePhase.Dormant => "sleep",
-                        SpinePhase.Alert => "stir",
-                        SpinePhase.Commit or SpinePhase.Grab or SpinePhase.Punish => low ? "smash" : "attack",
-                        _ when pace > Going => low ? "crawl" : "follow",
-                        _ => low ? "squat" : "listen",
-                    };
+                    string clip = GauntClip(phase, extra, pace, low);
                     Action<Entry>? lean = anger > 0 && clip is "listen" or "squat" ? m => LeanIn(m, anger) : null;
                     // (Stirring it comes up once and stays up, watching.)
                     return Draw(mesh, "gaunt", clip, t, clip != "stir", model, lean, seed: 47);
@@ -1531,7 +1905,7 @@ public sealed class CreatureArt
                 {
                     // The porcelain doll (GDD v1.2 §21, App. A.2; tools/blender/track_doll.py). On the rail it stands stock
                     // still. Aboard it stands over the cargo admiring it and then giggles, by turns; at the empty cab's
-                    // controls (extra2) it tampers; cornered (extra) it cowers. Its face and glass eyes draw under a material of
+                    // controls (extra2 over 0: her escalation, note 268) it tampers; cornered (extra, in a car) it cowers. Its face and glass eyes draw under a material of
                     // their own, lit a little from within, so the white face reads in the lamp out to 200 m through the fog
                     // (§21); aboard, close to, it's barely there.
                     // Whatever it's doing, its head turns to the one looking at it (the eye: the model's translation is from
@@ -1544,8 +1918,9 @@ public sealed class CreatureArt
                     if (phase == SpinePhase.Punish)
                     {
                         double turn = t % (DollAdmires + DollGiggles);
-                        (clip, ct) = extra > 0.5 ? ("cower", t)
-                            : extra2 > 0.5 ? ("tamper", t)
+                        // At the controls extra is how long she's been there (note 268), so the cab's checked first.
+                        (clip, ct) = extra2 > 0.5 ? ("tamper", t)
+                            : extra > 0.5 ? ("cower", t)
                             : turn < DollAdmires ? ("admire", turn) : ("giggle", turn - DollAdmires);
                         watch = clip switch { "cower" => false, "admire" => dist < DollNotices, "tamper" => t % 5 < 1.2, _ => true };
                     }
@@ -1711,22 +2086,20 @@ public sealed class CreatureArt
                         case SpinePhase.Commit or SpinePhase.Grab or SpinePhase.Punish:
                             {
                                 // With its catch frozen (GRAB), the leader creeps in on them low, the tongue still out (the sim's
-                                // quarter-speed hop), and close to, it's on them, devouring (the tongue's in them, not drawn).
+                                // quarter-speed hop), and close to, it's on them, devouring (the tongue's in them, its own clip's).
+                                // The tongue is the model's own, aimed at their chest and stretched to it (Lash).
                                 float near = prey is { } q ? new Vector2(q.Feet.X - model.Translation.X, q.Feet.Z - model.Translation.Z).Length() : float.MaxValue;
                                 string clip = RibbitClip(phase, near);
-                                Vector3? mouth = null;
-                                var at = model;
-                                void Mouth(Entry e)
+                                Vector3? chest = null;
+                                if (prey is { } p && Matrix4x4.Invert(model, out var toModel))
+                                    chest = Vector3.Transform(p.Feet + Vector3.UnitY * RibbitTongueAt, toModel);
+                                void Reach(Entry e)
                                 {
-                                    int jaw = e.Model.Skeleton.IndexOf("tongue_02");
-                                    if (jaw >= 0)
-                                        mouth = Vector3.Transform(e.Pose.World[jaw].Translation, at);
+                                    if (clip != "devour")
+                                        Lash(e, chest);
                                 }
-                                bool drawn = Draw(mesh, "ribbit", clip, t, true, at, Mouth, seed: (float)extra2)
-                                    || (clip = "tongue") == "tongue" && Draw(mesh, "ribbit", "tongue", t, true, at, Mouth, seed: (float)extra2);
-                                if (drawn && clip != "devour" && mouth is { } a && prey is { } p)
-                                    Tongue(mesh, a, p.Feet + Vector3.UnitY * RibbitTongueAt, (float)t);
-                                return drawn;
+                                return Draw(mesh, "ribbit", clip, t, true, model, Reach, seed: (float)extra2)
+                                    || (clip = "tongue") == "tongue" && Draw(mesh, "ribbit", "tongue", t, true, model, Reach, seed: (float)extra2);
                             }
                         default:
                             return Draw(mesh, "ribbit", hunting && phase == SpinePhase.Dormant ? "hop" : "sit", t, true, model, seed: (float)extra2);
@@ -1812,6 +2185,82 @@ public sealed class CreatureArt
                     }
                     return drawn;
                 }
+            case EnemyKind.Dave when _models.ContainsKey(DaveKit.Figure):
+                {
+                    // DAVE (note 570): his figure in a hat, waistcoat, glasses and sandals, at his easel (GreyboxScene.Painter
+                    // draws him so in the world, turned to whoever he's warned; here, as he is in this phase).
+                    _dave ??= new DaveKit(Look);
+                    var (hat, vest) = DaveKit.Outfit(extra2 * 1000);
+                    if (!Draw(mesh, DaveKit.Figure, DaveKit.Clip(phase), t, true, model, 2, seed: 47))
+                        return false;
+                    mesh.Append(_dave.Easel(0), model);
+                    _dave.Dress(this, mesh, model, hat, vest);
+                    return true;
+                }
+            case EnemyKind.Jacob when _models.ContainsKey(JacobKit.Figure):
+                {
+                    // JACOB (note 572): his figure in his cap, shades, beard and flannel, rod out, lantern by him (GreyboxScene.Fisherman).
+                    _jacob ??= new JacobKit(Look);
+                    if (!Draw(mesh, JacobKit.Figure, JacobKit.Clip, t, true, model, 0, seed: 53))
+                        return false;
+                    mesh.Append(_jacob.Gear, model);
+                    _jacob.Dress(this, mesh, model);
+                    return true;
+                }
+            case EnemyKind.Moose when _models.ContainsKey("moose"):
+                {
+                    // THE MOOSE (note 339; tools/blender/moose.py; docs/design/creatures/moose.md §3, §5). Its meter is its
+                    // ears and its posture, never the HUD: grazing, head down; listening (aggro over listenAt), the head up and
+                    // the ears forward; warning (over warnAt), the ears pinned flat and the sac ridge stood up, a hoof dragged.
+                    // Riled it trots after them, squares up (the rack levelled at them, two stamps), charges, skids and wheels
+                    // round, jams its rack in what it can't get through, searches where it lost them, rams the car they're
+                    // in, and pins whoever it ran down under the rack. Its mode is the sim's (Moose.Mode); how long it's
+                    // been at it, GreyboxScene's (its clips start with it).
+                    var mode = _mooseMode ?? MooseModeOf(phase);
+                    double since = _mooseSince >= 0 ? _mooseSince : t;
+                    float pace = _pace;
+                    (_mooseMode, _mooseSince, _pace) = (null, -1, 0);
+                    var (clip, at, loop) = MooseClip(mode, extra2, pace, t, since, MooseTuning, TrainPassing);
+                    TrainPassing = false;
+                    return Draw(mesh, "moose", clip, at, loop, model, seed: 311);
+                }
+            case EnemyKind.Gannet when _models.ContainsKey("gannet"):
+                {
+                    // THE GANNET (note 340; tools/blender/gannet.py; docs/design/creatures/gannet.md §3, §5). Over a fast
+                    // train it soars in the smoke, wings spread, now and then banking round; over a walker it hangs head
+                    // down (the calls stop), folds into a dart, sacs swollen, and drops down its line; it stabs and climbs, or
+                    // misses and is stuck, the spear in the roof, thrashing, then tears free; marked, it banks round
+                    // screaming, swoops, lands on its mark and pins them under a foot, mantled, pecking on the sim's 3 s beat
+                    // (Gannet.PecksLanded); driven off, it lurches up. Its mode is the sim's (Gannet.Mode); how long it's been
+                    // at it and what it did before, GreyboxScene's (its clips start with it).
+                    var mode = _gannetMode ?? GannetModeOf(phase);
+                    var was = _gannetWas;
+                    double since = _gannetSince >= 0 ? _gannetSince : t;
+                    (_gannetMode, _gannetWas, _gannetSince) = (null, null, -1);
+                    // Gone off (a slow train, a tunnel, a still roof): not there at all.
+                    if (mode == Sim.Enemies.GannetMode.Away)
+                        return true;
+                    var tune = GannetTuning;
+                    var (clip, at, loop) = GannetClip(mode, was, since, phase == SpinePhase.Grab ? t : since, tune);
+                    bool drawn = Draw(mesh, "gannet", clip, at, loop, model, glow: GannetGlow(clip, at), seed: 340);
+                    // Lit from below (§3: "its belly catches the firebox glow and the sparks"): in the air over the train
+                    // it's in the plume the fire lights, so its underside and its wings' are orange against the black sky
+                    // (Part Eleven Q6). The fire's light, not its own: none down on a roof.
+                    if (drawn && mode is not (Sim.Enemies.GannetMode.Stuck or Sim.Enemies.GannetMode.Pin))
+                    {
+                        var (_, up, _) = Basis(model);
+                        mesh.PointLights.Add(new PointLight(model.Translation - up * GannetUnderlight, Palette.LampAmber * 0.75f, GannetUnderlight * 3f));
+                    }
+                    return drawn;
+                }
+            // The train's own (notes 364, 365, 367; CreatureArt.Train): the Brakeman on the roofs, the Knotter across a
+            // coupling, Hotbox in a truck.
+            case EnemyKind.Brakeman when _models.ContainsKey("brakeman"):
+                return Brakeman(mesh, model, phase, t);
+            case EnemyKind.Knotter when _models.ContainsKey("knotter"):
+                return Knotter(mesh, model, phase, t);
+            case EnemyKind.Hotbox when _models.ContainsKey("hotbox"):
+                return Hotbox(mesh, model, phase, t, extra2);
             case EnemyKind.Choir:
                 {
                     // (No model: the Hollow's figure, child-sized and pale, bobbing in the air with a cold light of its own.)
@@ -1890,12 +2339,23 @@ public sealed class CreatureArt
                 fwd = v.LengthSquared() > 1e-10f ? Vector3.Normalize(v) : r;
                 up = Vector3.Normalize(u - fwd * Vector3.Dot(u, fwd));
                 clip = "flutter";
+                // T131 (the director: "what were the bubbles?"): the sparks it sheds off its burning tail, a short trail
+                // behind it on its loop, falling and dimming, so a swarm on the wing reads as embers round the lamp.
+                mesh.Emissive = 1;
+                for (int j = 1; j <= FireFlySparks; j++)
+                {
+                    double back = j * 0.07;
+                    var spark = Where(t - back) - u * (float)(0.05 * back * j);
+                    float fade = 1 - (j - 1f) / FireFlySparks;
+                    mesh.Box(spark, r, u, b, new Vector3(0.005f * fade + 0.002f), FireFlyEmber * (0.6f + 0.8f * fade) * (0.8f + 0.2f * MathF.Sin((float)t * 17 + i + j)));
+                }
+                mesh.Emissive = 0;
             }
             // The model faces -Z with its back +Y: its rows are where X, Y and Z go.
             var z = -fwd;
             var x = Vector3.Cross(up, z);
             var m = new Matrix4x4(x.X, x.Y, x.Z, 0, up.X, up.Y, up.Z, 0, z.X, z.Y, z.Z, 0, at.X, at.Y, at.Z, 1);
-            Draw(mesh, "fire_fly", clip, t + k * 7.3, true, Matrix4x4.CreateScale(size) * m, seed: i + (float)seed);
+            Draw(mesh, "fire_fly", clip, t + k * 7.3, true, Matrix4x4.CreateScale(size) * m, seed: i + (float)seed, adjust: FireFlyLook);
         }
         // The lamp's light through them: brighter, and redder, the more there are.
         float flick = 0.85f + 0.15f * MathF.Sin((float)t * 13 + 1.7f) * MathF.Sin((float)t * 5.3f);
@@ -1908,11 +2368,19 @@ public sealed class CreatureArt
     /// checklist's hit reacts), except while it has hold of someone.
     /// </summary>
     /// <param name="dying">Killed (GreyboxScene.Deaths): held in its hit pose at the end of it (or, with no hit clip, still).</param>
+    /// <param name="modeSeconds">How long a Moose has been in its <see cref="Sim.Enemies.MooseMode"/> (GreyboxScene keeps it;
+    /// −1: its phase's time): its square-up, its skid and wheel play from when they began.</param>
     public bool Enemy(MeshBuilder mesh, in Matrix4x4 model, Enemy e, Bite bite = default, Prey? prey = null, Room? room = null, float pace = 0,
-        double hitAge = -1, bool dying = false)
+        double hitAge = -1, bool dying = false, double modeSeconds = -1)
     {
-        _hit = !dying && e.Phase is SpinePhase.Grab or SpinePhase.Punish ? -1 : hitAge;
+        // (A Gannet's flinch is a flying one: stuck in the roof or folded into its dive, it's thrashing or a dart already.)
+        _hit = !dying && (e.Phase is SpinePhase.Grab or SpinePhase.Punish || e is Sim.Enemies.Gannet { Mode: Sim.Enemies.GannetMode.Stuck or Sim.Enemies.GannetMode.Fold })
+            ? -1 : hitAge;
         _dying = dying;
+        _mooseSince = modeSeconds;
+        _gannetSince = modeSeconds;
+        _outsideSince = modeSeconds;
+        _trainSince = modeSeconds;
         try
         {
             return EnemyIn(mesh, model, e, bite, prey, room, pace);
@@ -1921,8 +2389,193 @@ public sealed class CreatureArt
         {
             _hit = -1;
             _dying = false;
+            ForgetOutside();
+            (_mooseMode, _mooseSince) = (null, -1);
+            (_gannetMode, _gannetWas, _gannetSince) = (null, null, -1);
+            GannetWas = null;
+            ForgetTrainfolk();
         }
     }
+
+    // Set by Enemy(e) for a Gannet's one draw: what it's doing, what it did before, and how long it's been at it (s, or −1).
+    Sim.Enemies.GannetMode? _gannetMode, _gannetWas;
+    double _gannetSince = -1;
+    Sim.Enemies.GannetTuning? _gannet;
+
+    /// <summary>What the Gannet about to be drawn was doing before what it's doing now (GreyboxScene keeps it; the wire
+    /// doesn't): out of a dive it's stabbed, off a pin it's been driven. Used once.</summary>
+    public Sim.Enemies.GannetMode? GannetWas { get; set; }
+
+    /// <summary>The Gannet's tuning, as the content has it (its fold, its stuck, its bank, its pecks).</summary>
+    public Sim.Enemies.GannetTuning GannetTuning => _gannet ??= DataFile.Load<Sim.Enemies.EnemyTuning>(Path.Combine(ContentRoot, Sim.Enemies.EnemyTuning.File)).Gannet;
+
+    /// <summary>A Gannet's mode as its phase has it, for a draw without the sim's (a test's, the greybox's).</summary>
+    public static Sim.Enemies.GannetMode GannetModeOf(SpinePhase phase) => phase switch
+    {
+        SpinePhase.Alert => Sim.Enemies.GannetMode.Hang,
+        SpinePhase.Telegraph => Sim.Enemies.GannetMode.Fold,
+        SpinePhase.Commit => Sim.Enemies.GannetMode.Stuck,
+        SpinePhase.Grab or SpinePhase.Punish => Sim.Enemies.GannetMode.Pin,
+        SpinePhase.BreakOff => Sim.Enemies.GannetMode.Climb,
+        _ => Sim.Enemies.GannetMode.Soar,
+    };
+
+    // The clips' lengths (tools/blender/gannet.py; CreatureArtTests pins them to the model): its fold into the dart, the stab
+    // and the tear free, the swoop and the landing, the peck's wind-up and its strike (its contact a few frames in), the lurch
+    // off a pin; and the soar's hold between banking round (a circle's one turn).
+    public const double GannetFoldSeconds = 0.4, GannetStabSeconds = 0.5, GannetTearFreeSeconds = 0.8, GannetSwoopSeconds = 0.8,
+        GannetLandSeconds = 0.6, GannetWindupSeconds = 0.9, GannetPeckSeconds = 0.5, GannetPeckStrike = 0.1, GannetDrivenSeconds = 0.8,
+        GannetSoarHold = 8, GannetCircleSeconds = 4;
+
+    /// <summary>How far under a flying Gannet the fire's light on its belly comes from (m): the plume's glow below it.</summary>
+    const float GannetUnderlight = 3.2f;
+
+    /// <summary>
+    /// The clip a Gannet plays (tools/blender/gannet.py), how far into it, and whether it loops: by its mode (the sim's),
+    /// how long it's been in it (<paramref name="modeSeconds"/>) and what it was doing before (<paramref name="was"/>).
+    /// Soaring it holds still, banking round now and then (a circle); folding, the fold then the dive; stuck, thrashing,
+    /// then the tear free to end on the sim's stuckSeconds; climbing out of a dive it stabs first, off a pin it's driven off
+    /// first; banking, the swoop to end on the bank's bankSeconds; pinning, it lands, then pecks on the sim's beat
+    /// (<paramref name="grabSeconds"/>, the spine's grab time Gannet.PecksLanded counts: each peck's strike lands on a
+    /// peckEvery, the wind-up before it).
+    /// </summary>
+    public static (string Clip, double Time, bool Loop) GannetClip(Sim.Enemies.GannetMode mode, Sim.Enemies.GannetMode? was, double modeSeconds,
+        double grabSeconds, Sim.Enemies.GannetTuning t)
+    {
+        switch (mode)
+        {
+            case Sim.Enemies.GannetMode.Hang:
+                return ("hang", modeSeconds, true);
+            case Sim.Enemies.GannetMode.Fold:
+                return modeSeconds < GannetFoldSeconds ? ("fold", modeSeconds, false) : ("dive", modeSeconds - GannetFoldSeconds, true);
+            case Sim.Enemies.GannetMode.Stuck:
+                {
+                    double free = Math.Max(0, t.StuckSeconds - GannetTearFreeSeconds);
+                    return modeSeconds < free ? ("stuck", modeSeconds, true) : ("tearFree", modeSeconds - free, false);
+                }
+            case Sim.Enemies.GannetMode.Bank:
+                {
+                    double swoop = Math.Max(0, t.BankSeconds - GannetSwoopSeconds);
+                    return modeSeconds < swoop ? ("bank", modeSeconds, true) : ("swoop", modeSeconds - swoop, false);
+                }
+            case Sim.Enemies.GannetMode.Pin:
+                {
+                    if (modeSeconds < GannetLandSeconds)
+                        return ("land", modeSeconds, false);
+                    for (int k = 1; k <= t.Pecks; k++)
+                    {
+                        double start = k * t.PeckEvery - GannetPeckStrike;
+                        if (grabSeconds >= start && grabSeconds < start + GannetPeckSeconds)
+                            return ("peck", grabSeconds - start, false);
+                        if (grabSeconds >= start - GannetWindupSeconds && grabSeconds < start)
+                            return ("peckWindup", grabSeconds - (start - GannetWindupSeconds), false);
+                    }
+                    return ("pin", modeSeconds, true);
+                }
+            case Sim.Enemies.GannetMode.Climb:
+                if (was == Sim.Enemies.GannetMode.Fold && modeSeconds < GannetStabSeconds)
+                    return ("stab", modeSeconds, false);
+                if (was == Sim.Enemies.GannetMode.Pin && modeSeconds < GannetDrivenSeconds)
+                    return ("driven", modeSeconds, false);
+                return ("climb", modeSeconds, true);
+            default:
+                {
+                    double u = modeSeconds % (GannetSoarHold + GannetCircleSeconds);
+                    return u < GannetSoarHold ? ("soar", u, true) : ("circle", u - GannetSoarHold, false);
+                }
+        }
+    }
+
+    /// <summary>How bright the Gannet's sacs are through its skin (its emissive surfaces' glow): swollen tight in the fold and
+    /// the dive, the wind-up and the scream of the bank; throbbing while it pins; as they are otherwise.</summary>
+    static float GannetGlow(string clip, double time) => clip switch
+    {
+        "fold" or "dive" or "peckWindup" => 1.7f,
+        "bank" or "swoop" or "stuck" => 1.3f,
+        "pin" or "land" or "peck" => 1.15f + 0.3f * (float)Math.Max(0, Math.Sin(time * 5.2)),
+        _ => 1f,
+    };
+
+    /// <summary>
+    /// Where the one a Gannet pins has their chest, from it (m: across to its right, and ahead): under its right foot's web
+    /// (gannet.py PIN_FOOT). Laid on their back along its heading, their head ahead of it where the pecks land and their feet
+    /// back under it (crew_clips.py held_pinned: the chest <see cref="PinnedChest"/> behind where they are).
+    /// </summary>
+    public static readonly Vector2 GannetPinChest = new(0.3f, 0.82f);
+
+    /// <summary>How far behind where they are someone laid on their back (held_pinned) has their chest (m, along their
+    /// facing: their feet are a metre ahead of it, their head half a metre behind).</summary>
+    public const float PinnedChest = 0.21f;
+
+    // Set by Enemy(e) for a Moose's one draw, as _pace: what it's doing and how long it's been at it (s, or −1).
+    Sim.Enemies.MooseMode? _mooseMode;
+    double _mooseSince = -1;
+    Sim.Enemies.MooseTuning? _moose;
+
+    /// <summary>The train's going by the Moose about to be drawn, within its trainPassAt (GreyboxScene sets it for each one):
+    /// grazing, it takes the train for a rival, tossing its head and bellowing after it (moose.py trainPass). Used once.</summary>
+    public bool TrainPassing { get; set; }
+
+    /// <summary>The Moose's tuning, as the content has it (its tells' thresholds, its speeds).</summary>
+    public Sim.Enemies.MooseTuning MooseTuning => _moose ??= DataFile.Load<Sim.Enemies.EnemyTuning>(Path.Combine(ContentRoot, Sim.Enemies.EnemyTuning.File)).Moose;
+
+    Sim.Enemies.WakersTuning? _wakers;
+
+    /// <summary>The Wakers' tuning (note 588): how long one takes to rise, for its stand-in and its effects (note 599).</summary>
+    public Sim.Enemies.WakersTuning WakersTuning => _wakers ??= DataFile.Load<Sim.Enemies.EnemyTuning>(Path.Combine(ContentRoot, Sim.Enemies.EnemyTuning.File)).Wakers;
+
+    /// <summary>A Moose's mode as its phase has it, for a draw without the sim's (a test's, the greybox's): grazing, after
+    /// someone, squaring up, charging, pinning, going home.</summary>
+    public static Sim.Enemies.MooseMode MooseModeOf(SpinePhase phase) => phase switch
+    {
+        SpinePhase.Alert => Sim.Enemies.MooseMode.Hunt,
+        SpinePhase.Telegraph => Sim.Enemies.MooseMode.SquareUp,
+        SpinePhase.Commit => Sim.Enemies.MooseMode.Charge,
+        SpinePhase.Grab or SpinePhase.Punish => Sim.Enemies.MooseMode.Pin,
+        SpinePhase.BreakOff => Sim.Enemies.MooseMode.Home,
+        _ => Sim.Enemies.MooseMode.Graze,
+    };
+
+    /// <summary>
+    /// The clip a Moose plays (tools/blender/moose.py), and how far into it: by its mode, its aggro (grazing: <c>graze</c>,
+    /// then <c>listen</c> over listenAt, <c>warn</c> over warnAt) and how fast it's going (<paramref name="pace"/>, m/s: a
+    /// walk, a trot over halfway from its search pace to its hunting one; stood, it glares or listens); grazing with the train
+    /// going by (<paramref name="trainPassing"/>), short of warning, <c>trainPass</c>. The square-up, the
+    /// skid and the wheel play once from when its mode began (<paramref name="modeSeconds"/>); grazing keeps its phase's time.
+    /// </summary>
+    public static (string Clip, double Time, bool Loop) MooseClip(Sim.Enemies.MooseMode mode, double aggro, float pace, double phaseSeconds,
+        double modeSeconds, Sim.Enemies.MooseTuning t, bool trainPassing = false)
+    {
+        double trotFrom = (t.SearchSpeed + t.HuntSpeed) / 2;
+        string Moving(string stood) => pace > trotFrom ? "trot" : pace > Going ? "walk" : stood;
+        return mode switch
+        {
+            Sim.Enemies.MooseMode.Graze => (trainPassing && aggro < t.WarnAt ? "trainPass" : aggro >= t.WarnAt ? "warn" : aggro >= t.ListenAt ? "listen" : "graze",
+                phaseSeconds, true),
+            Sim.Enemies.MooseMode.Home => (pace > Going ? "strut" : "graze", modeSeconds, true),
+            Sim.Enemies.MooseMode.Hunt => (Moving("warn"), modeSeconds, true),
+            Sim.Enemies.MooseMode.Search => (pace > Going ? "search" : "listen", modeSeconds, true),
+            // Ramming the car they're in: a ram each ramEvery seconds (the clip's length) once it's stood at its side.
+            Sim.Enemies.MooseMode.Ram => (Moving("ram"), modeSeconds, true),
+            Sim.Enemies.MooseMode.SquareUp => ("squareUp", modeSeconds, false),
+            Sim.Enemies.MooseMode.Charge => ("charge", modeSeconds, true),
+            Sim.Enemies.MooseMode.Wheel => ("overrun", modeSeconds, false),
+            Sim.Enemies.MooseMode.Snag => ("snag", modeSeconds, true),
+            _ => ("pin", modeSeconds, true),
+        };
+    }
+
+    /// <summary>How far in front of a pinning Moose the one under its rack has their feet (m, along its heading): on their
+    /// back, their head toward it, the muzzle over their face and the palms either side of their chest (moose.py's pin, its
+    /// muzzle down at the ground 1.4 m out, its knees a metre out; crew_clips.py held_pinned, the head 1.6 m behind the feet).</summary>
+    public const float MoosePinReach = 2.0f;
+
+    /// <summary>
+    /// Who each Moose drawn this frame has pinned (the player's id): where their feet are (camera-relative) and the way
+    /// they're laid (their facing: away from it, so they lie with their head under its rack). GreyboxScene turns them so, and
+    /// clears it each frame with <see cref="Clutches"/>.
+    /// </summary>
+    public Dictionary<int, (Vector3 Feet, Vector3 Forward)> Pins { get; } = new();
 
     // Drawing the dead: no clip runs on (Draw holds the hit clip's last frame, or the clip's first).
     bool _dying;
@@ -2022,8 +2675,11 @@ public sealed class CreatureArt
                     return true;
                 }
             case EnemyKind.Stoker when _models.ContainsKey("stoker") && FireDoorOpen is { } door:
-                // At the open door, looking out of it into the cab (the model faces −Z: turned to the engine's +Z, back).
-                m = Matrix4x4.CreateRotationY(MathF.PI) * Matrix4x4.CreateTranslation(door) * model;
+                // At the open door, looking out of it into the cab: the firebox stands against the cab's front wall (note
+                // 280), so the cab's behind it (+Z), and the model (facing −Z) is turned round to it. Its peer clip was made
+                // for a door 0.7 m over the floor; this one's lower (TrainKit.FireDoorUp), so it's lifted the difference, its
+                // hands on the floor and its head in the top of the hole.
+                m = Matrix4x4.CreateRotationY(MathF.PI) * Matrix4x4.CreateTranslation(door + new Vector3(0, TrainKit.StokerDoorLift, 0)) * model;
                 break;
             case EnemyKind.Follower when _models.ContainsKey("follower") && prey is { } carrier && e.Phase is SpinePhase.Dormant or SpinePhase.Telegraph:
                 {
@@ -2033,6 +2689,45 @@ public sealed class CreatureArt
                     var f = carrier.Forward;
                     var o = carrier.At(0, FollowerUp, FollowerBack);
                     m = new Matrix4x4(r.X, r.Y, r.Z, 0, -f.X, -f.Y, -f.Z, 0, 0, -1, 0, 0, o.X, o.Y, o.Z, 1);
+                    break;
+                }
+            case EnemyKind.Moose when _models.ContainsKey("moose"):
+                {
+                    // It faces its heading (GreyboxScene turns its basis to the sim's Moose.Yaw), going as fast as it's been
+                    // going. Pinning someone (App. A.6 GRAB), it's stood over them: turned to them where the sim has them, its
+                    // rack on them, and they're laid on their back under it with their head toward it (Pins).
+                    _mooseMode = (e as Sim.Enemies.Moose)?.Mode;
+                    _pace = pace;
+                    if (e.Phase is SpinePhase.Grab or SpinePhase.Punish && e.Holding >= 0 && prey is { } held)
+                    {
+                        var (_, up, _) = Basis(model);
+                        var to = (held.Feet - model.Translation) with { Y = 0 };
+                        var f = to.LengthSquared() > 1e-6f ? Vector3.Normalize(to) : Vector3.Normalize(-Vector3.TransformNormal(Vector3.UnitZ, model) with { Y = 0 });
+                        var right = Vector3.Normalize(Vector3.Cross(up, -f));
+                        var stood = held.Feet - f * MoosePinReach;
+                        m = Basis(stood with { Y = model.Translation.Y }, right, up, -f);
+                        Pins[e.Holding] = (held.Feet, f);
+                    }
+                    break;
+                }
+            case EnemyKind.Gannet when _models.ContainsKey("gannet"):
+                {
+                    // It faces its heading (GreyboxScene turns its basis to the sim's Lateral in the frame it's in). Pinning
+                    // someone (App. A.6 GRAB), it's stood on them: its right foot's web on their chest where the sim has them,
+                    // and they're laid on their back along its heading, their head out in front of it where the pecks land
+                    // (Pins; their feet back under it).
+                    _gannetMode = (e as Sim.Enemies.Gannet)?.Mode;
+                    _gannetWas = GannetWas;
+                    GannetWas = null;
+                    if (e.Phase is SpinePhase.Grab or SpinePhase.Punish && e.Holding >= 0 && prey is { } held)
+                    {
+                        var (_, up, b) = Basis(model);
+                        var f = Vector3.Normalize(-b with { Y = 0 });
+                        var right = Vector3.Normalize(Vector3.Cross(f, up));
+                        var stood = held.Feet + f * (PinnedChest - GannetPinChest.Y) - right * GannetPinChest.X;
+                        m = Basis(stood with { Y = held.Feet.Y }, right, up, -f);
+                        Pins[e.Holding] = (held.Feet, -f);
+                    }
                     break;
                 }
             case EnemyKind.Grumbler when _models.ContainsKey("grumbler"):
@@ -2060,8 +2755,12 @@ public sealed class CreatureArt
                     // the half seconds its id puts it on).
                     if (prey is { } p)
                     {
+                        // Down on their back (note 558), it goes for the nearest of their body (the leader at their feet
+                        // their shins, the others either side of them their legs and middle), stooped right over onto
+                        // them, not at the air where a standing chest would be.
                         var (r, _, b) = Basis(model);
-                        var to = p.Feet - model.Translation;
+                        float along = Math.Clamp(Vector3.Dot(model.Translation - p.Feet, -p.Forward), -0.3f, 1.0f);
+                        var to = (p.Down ? p.At(0, 0, along) : p.Feet) - model.Translation;
                         float x = Vector3.Dot(to, r), z = Vector3.Dot(to, b);
                         if (x * x + z * z > 1e-6f)
                         {
@@ -2070,6 +2769,9 @@ public sealed class CreatureArt
                             m.Translation = at;
                         }
                         _prey = p;
+                        float near = new Vector2(p.Feet.X - model.Translation.X, p.Feet.Z - model.Translation.Z).Length();
+                        if (p.Down && RibbitClip(e.Phase, near) == "devour")
+                            m = Matrix4x4.CreateRotationX(-RibbitStoop) * m;
                     }
                     return Enemy(mesh, Matrix4x4.CreateScale(RibbitScale) * m, e.Kind, e.Phase, e.PhaseSeconds + (e.Id & 1) * 0.5, e.Extra, e.Health,
                         aboard: false, extra2: e.Id);
@@ -2082,10 +2784,11 @@ public sealed class CreatureArt
                     if (e.Attached < 0)
                     {
                         m = Matrix4x4.CreateRotationY(MathF.PI) * model;
-                        // There with its victim (the run to it done: enemies.json whistler nestDistance at runSpeed), its
+                        // There with its victim (the run to it done: Extra2's seconds, T128's nest where the land allows;
+                        // without one, enemies.json whistler nestDistance at runSpeed), its
                         // nest under it on the land (GreyboxScene puts the carry on the ground, and its trail behind it) (tools/models whistler_nest: the hollow, the sleepers, the bones, the strands).
                         _whistler ??= DataFile.Load<Sim.Enemies.EnemyTuning>(Path.Combine(ContentRoot, Sim.Enemies.EnemyTuning.File)).Whistler;
-                        if (e.Phase is SpinePhase.Grab or SpinePhase.Punish && e.PhaseSeconds >= _whistler.NestDistance / _whistler.RunSpeed)
+                        if (e.Phase is SpinePhase.Grab or SpinePhase.Punish && e.PhaseSeconds >= (e.Extra2 > 0 ? e.Extra2 : _whistler.NestDistance / _whistler.RunSpeed))
                         {
                             if (PropArt.Of(Look).Get("whistler_nest") is { } nest)
                                 mesh.Instances.Add(new MeshInstance(nest, model));
@@ -2131,9 +2834,17 @@ public sealed class CreatureArt
                     _prey = p;
                     break;
                 }
+            case EnemyKind.Brakeman or EnemyKind.Knotter or EnemyKind.Hotbox:
+                // The train's own (CreatureArt.Train): its mode, and where and which way it's drawn.
+                m = Trainfolk(e, model, prey);
+                break;
             case EnemyKind.CarHugger when bite.Any:
                 m = Matrix4x4.CreateTranslation(0, 0, -bite.Advance) * model;
                 _biteGrip = bite.Grip;
+                break;
+            case EnemyKind.Dragger when e.Attached < 0:
+                // On a truss's top chord (note 435): upside down on the steel, its limb reaching down for the roofs.
+                m = Matrix4x4.CreateRotationZ(MathF.PI) * (e.Lateral > 0 ? Matrix4x4.Identity : Matrix4x4.CreateRotationY(MathF.PI)) * model;
                 break;
             case EnemyKind.Dragger when e.Local.X > 0:
                 m = Matrix4x4.CreateRotationY(MathF.PI) * model;
@@ -2151,10 +2862,21 @@ public sealed class CreatureArt
                 // Face back down the line at the train, turned in towards the track.
                 m = Matrix4x4.CreateRotationY(MathF.PI - Math.Sign(e.Lateral) * 0.6f) * model;
                 break;
+            case EnemyKind.Mourners or EnemyKind.FreightBeetle or EnemyKind.TowerJaw or EnemyKind.Pickers or EnemyKind.Lodger or EnemyKind.Householder:
+                // What it's doing (the sim's mode) and how fast it's going (CreatureArt.Outside.cs).
+                m = OutsideIn(e, model, pace);
+                break;
+            case EnemyKind.CinderHound when e is Sim.Enemies.CinderHound { Attached: >= 0 } hound:
+                // Aboard (note 472): turned the way the sim has it facing in its car (up or down the car, or to a side door),
+                // and doing what it's doing there, E1's clips (#213, note 477).
+                m = Matrix4x4.CreateRotationY(hound.Facing switch { 1 => MathF.PI, 2 => -MathF.PI / 2, 3 => MathF.PI / 2, _ => 0f }) * model;
+                _houndAboard = (hound.Aboard, hound.ModeSeconds);
+                break;
         }
         _clutch = null;
         bool drawn = Enemy(mesh, m, e.Kind, e.Phase, e.PhaseSeconds, e.Extra, e.Health, aboard: e.Attached >= 0,
-            extra2: e.Kind == EnemyKind.Sleepers ? e.Id : e.Extra2);
+            extra2: e.Kind is EnemyKind.Sleepers or EnemyKind.Mourners or EnemyKind.Pickers ? e.Id : e.Extra2);
+        _houndAboard = default;
         if (_clutch is { } clutch && e.Holding >= 0)
             Clutches[e.Holding] = clutch;
         _clutch = null;

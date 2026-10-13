@@ -257,22 +257,37 @@ wait.key(98, {"lantern": (9, 2.7, 0), "neck": (0, 0, 20), "head": (8, 12, 38)}, 
 wait.key(100, {"lantern": (9, 2.7, 0)})
 wait.close(112)
 
-# The flee: lurching, pitched forward from the chest, rolling from side to side as the hem drags, the lantern
-# swinging wide, the head held still (it doesn't look where it goes).
-lurch = []
-for i, side in enumerate((1, -1)):
-    lurch.append({
-        "spine_02": (-10, side * 6, 0), "spine_03": (-12, side * 4, side * 6), "neck": (14, 0, -side * 6), "head": (8, 0, 0),
-        f"thigh_{'l' if side > 0 else 'r'}": (26, 0, 0), f"calf_{'l' if side > 0 else 'r'}": (-30, 0, 0),
-        f"thigh_{'r' if side > 0 else 'l'}": (-14, 0, 0),
-        "upperarm_r": (-side * 18, 0, 0), "lantern": (side * 28, side * 6, 0), "root@loc": (0, 0, 0.0),
-    })
+# The flee (2.1 s, loop: two long strides): slow and deliberate, not a scurry (the Look Review, 6 Oct: "more fluid,
+# slow, and intentioned"). Pitched forward from the chest, each foot set down heavy and the weight rolled over it before
+# the other's dragged through under the hem; the hips and the shoulders turning against each other, the free arm
+# swinging long, the lantern swinging behind the walk; once a cycle the head turns all the way round over its shoulder,
+# unhurried, to look back at the train, holds it, and turns away again. Eased all through.
+FLEE_FRAMES = 64
+
+
+def flee_pose(u):
+    w = 2 * math.pi * u
+    s, c = math.sin(w), math.cos(w)
+    # (The look back: up from 0.3 of the cycle, held to 0.55, away by 0.75.)
+    look = min(1.0, max(0.0, (u - 0.3) / 0.12)) * min(1.0, max(0.0, (0.75 - u) / 0.15))
+    look = look * look * (3 - 2 * look)
+    return {
+        "root@loc": (0.025 * s, 0, -0.02 + 0.025 * math.cos(2 * w)),
+        "pelvis": (0, 0, 7 * s), "spine_01": (-4, 0, -2 * s), "spine_02": (-10, 3 * s, -4 * s), "spine_03": (-10, 2 * s, -5 * s + 8 * look),
+        "neck": (10 - 4 * look, 0, -2 * s + 26 * look), "head": (6 - 4 * look, 6 * look, 34 * look),
+        "thigh_l": (24 * s, 0, 0), "thigh_r": (-24 * s, 0, 0),
+        # The knee bends through the swing (the thigh going forward), straight under the weight.
+        "calf_l": (-6 - 36 * max(0.0, c) ** 1.4, 0, 0), "calf_r": (-6 - 36 * max(0.0, -c) ** 1.4, 0, 0),
+        "foot_l": (8 * max(0.0, c), 0, 0), "foot_r": (8 * max(0.0, -c), 0, 0),
+        "upperarm_r": (-20 * s, 0, 4), "lowerarm_r": (14 + 8 * max(0.0, s), 0, 0),
+        "lantern": (24 * math.sin(w - 0.9), 6 * math.sin(w - 0.9), 0),
+    }
+
+
 flee = Clip("flee")
-flee.key(0, lurch[0], "LINEAR")
-flee.key(5, over(lurch[0], root__loc=(0, 0, 0.045)), "LINEAR")
-flee.key(10, lurch[1], "LINEAR")
-flee.key(15, over(lurch[1], root__loc=(0, 0, 0.045)), "LINEAR")
-flee.close(20)
+for f in range(0, FLEE_FRAMES, 4):
+    flee.key(f, flee_pose(f / FLEE_FRAMES), "BEZIER")
+flee.close(FLEE_FRAMES)
 
 # Grip (1.6 s, loop; the derailer's tell, COMMIT): its right hand down on the lever at its side and gripping, leant to
 # it, the arm locked; the hand trembling on it in pops, waiting for the train to be over the points; the head turned

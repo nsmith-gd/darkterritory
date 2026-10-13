@@ -20,6 +20,9 @@ public readonly record struct BendStress(double Stress, bool Warning, double Ahe
 
 public static class TrackRules
 {
+    /// <summary>How far on into a bend <see cref="Assess"/> looks for its tightest point (a 90° turn at 400 m is 630 m).</summary>
+    const double MaxBendM = 800;
+
     /// <summary>What ended it, for the report and the HUD; null while the train's on the rails.</summary>
     public static string? Step(World world, LinePlan plan, double dt)
     {
@@ -34,7 +37,7 @@ public static class TrackRules
         foreach (var car in train.Cars)
             if (rake.Consist.IndexOf(car.Index) >= 0)
             {
-                double mid = car.FrontDistance - car.Length / 2, kc = Math.Abs(train.Line.Sample(rake.Path, mid).Curvature);
+                double mid = car.FrontDistance - car.Length / 2, kc = Curvature(train, mid);
                 if (kc > k)
                     (k, at) = (kc, mid);
             }
@@ -118,31 +121,66 @@ public static class TrackRules
         double kOn = 0;
         foreach (var car in train.Cars)
             if (rake.Consist.IndexOf(car.Index) >= 0)
-                kOn = Math.Max(kOn, Math.Abs(train.Line.Sample(rake.Path, car.FrontDistance - car.Length / 2).Curvature));
+                kOn = Math.Max(kOn, Curvature(train, car.FrontDistance - car.Length / 2));
         double pull = v * v * kOn / r.ADerail;
         double stress = kOn < 1e-9 ? 0 : Math.Clamp((pull - postShare) / (1 - postShare), 0, 1);
-        var found = kOn > 1e-9 && pull > 1 ? new BendStress(stress, true, 0, Math.Sqrt(r.ADerail / kOn), Math.Floor(Math.Sqrt(r.APost / kOn)), true) : default;
-        if (found.Warning)
-            return found;
-        // Ahead, the way it's going, out to where a bend that would take any speed short of a stop needs telling.
         int travel = Math.Sign(rake.Velocity);
         double from = travel > 0 ? rake.Distance : rake.RearDistance, length = train.Line.PathLength(rake.Path);
-        double rated = rake.RatedBrakeDecel, reach = t.WarnDistance(v, 0, rated, t.LeadSeconds);
         const double Step = 5;
+        // Note 278: what's told is the bend's tightest point, not where the speed now first comes off on its way in (on a
+        // sharp bend that's early in its easing, which read "derails over 78" on a bend that derails at 65).
+        double Tightest(double k, double s)
+        {
+            for (double x = Step; x <= MaxBendM; x += Step)
+            {
+                double at = s + travel * x;
+                if (at < 0 || at > length)
+                    break;
+                double kx = Curvature(train, at);
+                if (kx < 1e-9)
+                    break;
+                k = Math.Max(k, kx);
+            }
+            return k;
+        }
+        if (kOn > 1e-9 && pull > 1)
+        {
+            double k = Tightest(kOn, from);
+            return new BendStress(stress, true, 0, Math.Sqrt(r.ADerail / k), Math.Floor(Math.Sqrt(r.APost / k)), true);
+        }
+        // Ahead, the way it's going, out to where a bend that would take any speed short of a stop needs telling.
+        double rated = rake.RatedBrakeDecel, reach = t.WarnDistance(v, 0, rated, t.LeadSeconds);
         for (double x = Step; x <= reach; x += Step)
         {
             double s = from + travel * x;
             if (s < 0 || s > length)
                 break;
-            double k = Math.Abs(train.Line.Sample(rake.Path, s).Curvature);
+            double k = Curvature(train, s);
             if (k < 1e-9)
                 continue;
             double vd = Math.Sqrt(r.ADerail / k);
             if (v > vd && x <= t.WarnDistance(v, vd, rated, t.LeadSeconds))
-                return new BendStress(stress, true, x, vd, Math.Floor(Math.Sqrt(r.APost / k)), false);
+            {
+                k = Tightest(k, s);
+                return new BendStress(stress, true, x, Math.Sqrt(r.ADerail / k), Math.Floor(Math.Sqrt(r.APost / k)), false);
+            }
         }
         return new BendStress(stress, false, 0, 0, 0, false);
     }
+
+    /// <summary>
+    /// The bend the train's on at <paramref name="s"/> along its path, as a derailment counts it: none on a yard's track (a
+    /// facility's spur, its turnout's S-curve off the main line included). The director, 8 Oct 2026: "When turning into a
+    /// yard, derailment is way too easy. Don't allow derailments when turning into and leaving a yard." (note 470). The main
+    /// line's bends, an alternate's and a dead line's still take a train taken over them too fast.
+    /// </summary>
+    static double Curvature(TrainOnLine train, double s) =>
+        InYard(train.Line, train.Dynamics.Path, s) ? 0 : Math.Abs(train.Line.Sample(train.Dynamics.Path, s).Curvature);
+
+    /// <summary>Whether <paramref name="s"/> along <paramref name="path"/> is on a yard's track (a <see cref="BranchKind.Spur"/>), off the main line.</summary>
+    public static bool InYard(RailLine line, int path, double s) =>
+        path >= 0 && path < line.Branches.Count && line.Branches[path].Definition.Kind == BranchKind.Spur
+        && double.IsNaN(line.MainDistance(path, s));
 
     static string Derail(World world, string why)
     {

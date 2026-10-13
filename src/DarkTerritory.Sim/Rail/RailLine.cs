@@ -88,6 +88,17 @@ public interface ITrackConditions
     int ColdStep(int path, double distance) => 0;
     /// <summary>How exposed to the wind it is there (GDD §22 "wind"; 0 sheltered, 1 a normal night's wind; note 183).</summary>
     double Wind(int path, double distance) => 0;
+    /// <summary>
+    /// How thick the fog is there against the night's (1 the night's; linegen plan §14's ×1.3 low ground, ×0.8 crests),
+    /// blended along the track so it never steps. For the eye only: authority plans at the night's thickest (note 313).
+    /// </summary>
+    double Fog(int path, double distance) => 1;
+    /// <summary>The world is solid (note 279): a point held inside what it's in (a tunnel's lining), for something of <paramref name="radius"/>.</summary>
+    Double3 Confine(Double3 world, double radius) => world;
+    /// <summary>Note 279: how far either side of the rail something beside the train can be there (a tunnel's bore, a bridge's deck).</summary>
+    double LateralRoom(int path, double distance) => double.PositiveInfinity;
+    /// <summary>Note 279: how far out from the rail the ground stays at rail height (the formation).</summary>
+    double FormationM => double.PositiveInfinity;
 }
 
 /// <summary>A built branch: its own line, laid from the main line's points onwards.</summary>
@@ -243,6 +254,38 @@ public sealed class RailLine
                     pieceStart += def.Segments[k++].Length;
             }
         }
+    }
+
+    RailLine(string name, Double3[] points, double[] grade, double[] curvature, double length)
+    {
+        _branches = [];
+        Name = name;
+        Segments = [new TrackSegment(length)];
+        Length = length;
+        _points = points;
+        _grade = grade;
+        _curvature = curvature;
+    }
+
+    /// <summary>
+    /// This line turned round from <paramref name="at"/>: distance 0 there, running back down it for <paramref name="length"/>
+    /// (its tangents the other way, its grades and curves turned with them). A terminus's town stands in it (ARCHITECTURE §8
+    /// note 600): the frame a departure town stands in from its yard's start, laid out from the terminus's far end instead.
+    /// </summary>
+    public RailLine Turned(double at, double length)
+    {
+        int n = (int)Math.Ceiling(length / Step - 1e-9) + 1;
+        var points = new Double3[n];
+        var grade = new double[n];
+        var curvature = new double[n];
+        for (int i = 0; i < n; i++)
+        {
+            var t = Sample(at - Math.Min(i * Step, length));
+            points[i] = t.Position;
+            grade[i] = -t.GradePercent;
+            curvature[i] = -t.Curvature;
+        }
+        return new RailLine(Name + " (turned)", points, grade, curvature, length);
     }
 
     public string Name { get; }

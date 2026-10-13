@@ -29,6 +29,26 @@ public static class StopMap
             Dashed(px, size, tr.Path, At, 0.9 * k, 3, 3, 225, 220, 205);
         foreach (var r in l.Roads)
             Line(px, size, r.Points, At, (r.Kind == RoadKind.Through ? 1.3 : 1.0) * k, r.Kind == RoadKind.Lane ? (byte)150 : (byte)225, 222, 210);
+        // Blocked sidings (D.2; note 294): their derelicts in rust, back from the buffer stop, a car's pitch each with a gap.
+        foreach (var tr in l.Tracks.Where(tr => tr.Blocked))
+        {
+            double pitch = 15.5, along = 0;
+            for (int i = tr.Path.Count - 1; i > 0; i--)
+            {
+                double seg = Pt.Distance(tr.Path[i], tr.Path[i - 1]);
+                for (double u = 0; u < seg; u += 0.5)
+                {
+                    double m = along + u;
+                    if (m >= 1 && m < 1 + tr.Derelicts * pitch && (m - 1) % pitch < pitch - 1.5)
+                    {
+                        var a = tr.Path[i];
+                        var b = tr.Path[i - 1];
+                        Disc(px, size, At(new Pt(a.S + (b.S - a.S) * u / seg, a.D + (b.D - a.D) * u / seg)), 1.6 * k, 150, 72, 44);
+                    }
+                }
+                along += seg;
+            }
+        }
         foreach (var tr in l.Tracks)
             if (tr.Crane is { } rw)
             {
@@ -36,6 +56,9 @@ public static class StopMap
                 foreach (double e in new[] { -rw.Reach, rw.Reach })
                     Line(px, size, [new Pt(rw.From, d + e), new Pt(rw.To, d + e)], At, 0.5 * k, 200, 196, 182);
             }
+        // A dead town's goods siding (note 302), its points lifted.
+        foreach (var siding in l.Sidings)
+            Dashed(px, size, siding, At, 0.9 * k, 2, 2, 150, 146, 136);
         // A prison car's spare siding, under it.
         foreach (var ho in l.Holdouts)
             if (ho.Siding.Count > 1)
@@ -49,6 +72,10 @@ public static class StopMap
                 BuildingKind.Lockup => (104, 108, 116),
                 BuildingKind.SignalBox or BuildingKind.LampRoom or BuildingKind.WaterTower => (70, 66, 72),
                 // The powerhouse: lit amber when it's live, grey when it's low, black when it's dead.
+                // A dead town's railway side (note 302): the station in brick, the goods shed in timber, derelicts in rust.
+                BuildingKind.Station => (150, 92, 72),
+                BuildingKind.GoodsShed => (128, 104, 80),
+                BuildingKind.Derelict => (150, 72, 44),
                 BuildingKind.Powerhouse => l.Power switch { PowerState.Live => (214, 170, 60), PowerState.Low => (120, 110, 90), _ => (40, 40, 40) },
                 BuildingKind.Shed => (139, 94, 58),
                 BuildingKind.Hero => (176, 120, 64),

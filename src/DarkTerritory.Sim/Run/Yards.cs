@@ -74,11 +74,30 @@ public sealed partial class Run
                 stood += n;
             }
         }
+        // Then every yard's blocked sidings (level-design D.2; note 294): its layout's derelicts at the buffer stop. After
+        // all the switchyards' cars, so theirs keep their ids.
+        var d = t.Derelicts;
+        foreach (var site in _sites)
+        {
+            if (site?.Feature.Stop is not { } stop || site.Spur < 0)
+                continue;
+            var branches = YardTracks(site.Index).Select(b => train.Line.Branches[b]).ToList();
+            foreach (var track in stop.Tracks.Where(tr => tr.Blocked))
+            {
+                double toe = site.Feature.Start + track.Toe;
+                if (branches.FirstOrDefault(b => Math.Abs(b.Toe - toe) < 0.01 && b.Definition.Side == track.Side) is { } branch)
+                    train.StandDerelicts(branch.Index, branch.End - d.Back, track.Derelicts, d.Integrity, d.Pays);
+            }
+        }
     }
 
-    /// <summary>A switchyard's cars still standing on one of its sidings, as the night found them (note 187).</summary>
+    /// <summary>A switchyard's cars still standing on one of its sidings, as the night found them (note 187); not derelicts.</summary>
     public static int StandingOn(TrainOnLine train, int branch) =>
-        train.Rakes.Where(r => r.Path == branch && train.Standing(r)).Sum(r => r.Consist.Vehicles.Count);
+        train.Rakes.Where(r => r.Path == branch && train.Standing(r)).Sum(r => r.Consist.Vehicles.Count(v => !v.Derelict));
+
+    /// <summary>Derelict cars still on a siding (level-design D.2; note 294): what has to come out before it's any use.</summary>
+    public static int DerelictsOn(TrainOnLine train, int branch) =>
+        train.Rakes.Where(r => r.Path == branch && !r.Consist.HasEngine).Sum(r => r.Consist.Vehicles.Count(v => v.Derelict));
 
     /// <summary>
     /// Lit (GDD §18 "unlit": the crew's lamps are all the light there is): a hand lamp within <c>wreck.lampReach</c>, carried or

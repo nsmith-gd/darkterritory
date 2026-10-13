@@ -11,7 +11,33 @@ public enum EnemyKind : byte
     // Ferryman, the Long Whistle, the Weight, the loose load and the Gnawers) aren't reused.
     Sleepers = 1, CinderHound = 2, Switchman = 5, SootChildren = 6, Dragger = 7, Stoker = 11, Climber = 14, Gaunt = 16,
     CarFire = 17, Passenger = 20, Follower = 21, Drift = 22,
-    TrackDoll = 23, CarHugger = 24, Whistler = 25, TippyToesie = 26, FireFlies = 27, Ribbit = 28, Grumbler = 29, Choir = 30
+    TrackDoll = 23, CarHugger = 24, Whistler = 25, TippyToesie = 26, FireFlies = 27, Ribbit = 28, Grumbler = 29, Choir = 30,
+    // The Moose (GDD §21, the director's decisions of 7 Oct 2026; note 339).
+    Moose = 31,
+    // The Gannet (GDD §21, the director's decisions of 7 Oct 2026; note 340).
+    Gannet = 32,
+    // The Mourners (GDD §21, the director's brief of 8 Oct 2026; note 362).
+    Mourners = 33,
+    // Tower Jaw (GDD §21, the director's brief of 8 Oct 2026; note 363).
+    TowerJaw = 34,
+    // The Brakeman (GDD §21, the director's brief of 8 Oct 2026; note 364).
+    Brakeman = 35,
+    // The Knotter (GDD §21, the director's brief of 8 Oct 2026; note 365).
+    Knotter = 36,
+    // The Freight Beetle (GDD §21, the director's brief of 8 Oct 2026; note 366).
+    FreightBeetle = 37,
+    // Hotbox (GDD §21, the director's brief of 8 Oct 2026; note 367).
+    Hotbox = 38,
+    // Dave, the wandering painter (GDD §3.2, the director, 8 Oct 2026; note 570): not a creature, and nobody's quarry.
+    Dave = 39,
+    // Jacob, the fisherman (GDD §3.2, the director, 8 Oct 2026; note 572): rarer still, and he mends the train.
+    Jacob = 40,
+    // The Wakers, what gets up at dawn (GDD §8, the director, 9 Oct 2026; note 588): not the night's, and nobody's quarry.
+    Waker = 41,
+    // The Pickers (GDD §21, the director's pick to prototype, 9 Oct 2026; note 592).
+    Pickers = 42,
+    // The house creatures (GDD §21, the director, 9 Oct 2026; notes 583–586).
+    Lodger = 43, Householder = 44, HollowHouse = 45, Hanger = 46
 }
 
 /// <summary>
@@ -55,6 +81,8 @@ public abstract class Enemy
     public virtual bool Hazard => false;
     /// <summary>The want it attacks (App. B.1), for the director's budget shares.</summary>
     public virtual Want Want => Want.Kill;
+    /// <summary>What the clerk calls it in the incident report ("the Gaunt"; Dave is just Dave).</summary>
+    public virtual string Called => "the " + Run.IncidentLog.Spoken(Kind.ToString());
 
     public SpinePhase Phase { get; private set; } = SpinePhase.Dormant;
     public double PhaseSeconds { get; private set; }
@@ -72,13 +100,43 @@ public abstract class Enemy
     public double LineDistance { get; set; }
     public double Lateral { get; set; }
     public double Height { get; set; }
-    /// <summary>Hit volume radius; 0 means it can't be shot (Clingers, Sleepers, the Hollow in the stack).</summary>
-    public virtual double HitRadius => 0;
-    /// <summary>How far over where it stands its hit volume is centred (the Track Doll's body, over the rail she stands on).</summary>
-    public virtual double HitHeight => 0;
+    /// <summary>
+    /// Whether its body stands in the open now, where a cannonball can find it (GDD App. F.1 "the guns do nothing"; note
+    /// 290): by default wherever a tool's blow can land on it. Its body is enemies.json <c>bodies</c>; a ball that finds it
+    /// lands as a blow (<see cref="Hit"/>). From replicated state, so a client's prediction finds the same bodies.
+    /// </summary>
+    public virtual bool Exposed => MeleeRadius > 0 && !Gone;
 
-    /// <summary>The centre of its hit volume (world): what's aimed at, and what a round has to pass through.</summary>
-    public Double3 HitCentre(TrainOnLine train) => WorldPosition(train) + Double3.Up * HitHeight;
+    /// <summary>How much of its body's height it stands at now (a sleeping Gaunt, curled up); 1 upright.</summary>
+    public virtual double Stoop(EnemyTuning t) => 1;
+
+    /// <summary>
+    /// Its body as a ball finds it now (world): enemies.json <c>bodies</c>' spheres over where it stands, or none when it
+    /// isn't <see cref="Exposed"/> (or its kind has no body).
+    /// </summary>
+    public IEnumerable<Combat.HitTarget> Body(TrainOnLine train, EnemyTuning t)
+    {
+        if (!Exposed)
+            yield break;
+        var at = WorldPosition(train);
+        double stoop = Stoop(t);
+        foreach (var (radius, height) in t.Body(Kind))
+            yield return new Combat.HitTarget(Id, at + Double3.Up * (height * stoop), radius);
+    }
+
+    /// <summary>Where a gunner lays on it: the middle of its body (world); where it stands, with no body.</summary>
+    public Double3 AimPoint(TrainOnLine train, EnemyTuning t)
+    {
+        var body = t.Body(Kind);
+        double height = body.Length == 0 ? 0 : body.Average(s => s.Height) * Stoop(t);
+        return WorldPosition(train) + Double3.Up * height;
+    }
+
+    /// <summary>
+    /// The cannon is its answer (GDD §21, App. A): the gunner's own work, laid on whenever it's in range (a bot gunner's
+    /// targets). Anything else a ball can still find, but the gun is no answer to it, save to free a crewmate it holds.
+    /// </summary>
+    public virtual bool GunAnswers => false;
     /// <summary>
     /// Lies on the main line wherever the train is (Sleepers across the rail). Everything else off the train is
     /// placed along the engine's path: it's after the train, down a branch too.
@@ -114,14 +172,13 @@ public abstract class Enemy
     /// From replicated state, so a client's prompt and whiff agree with the host.
     /// </summary>
     public virtual bool Reachable(World world) => true;
-    /// <summary>
-    /// The one player it's hunting for the director's abandonment of them (note 266), or −1: sent for nobody in particular.
-    /// What hunts a player the train left is theirs alone: not the crew's budget, caps or pacing.
-    /// </summary>
-    public virtual int Quarry => -1;
-
     /// <summary>A crewmate holding Use at the victim pulls them free of this grab (Draggers, the Car Hugger, Tippy Toesie).</summary>
     public virtual bool PullsFree => false;
+    /// <summary>
+    /// Host: it stays until the crew deals with it, so the director never dismisses it for want of company (Cinder Hounds
+    /// aboard: GDD App. F, 6 Oct 2026, note 269).
+    /// </summary>
+    public virtual bool StaysAboard => false;
 
     /// <summary>
     /// A vehicle it drags on while the train's over <see cref="DragAbove"/> (the Car Hugger's speed cap), or −1. From
@@ -135,9 +192,61 @@ public abstract class Enemy
     /// <summary>Plays with the cab's controls (the Track Doll in an empty cab). From replicated state, on clients too.</summary>
     public virtual void Tamper(World world, ref TrainControls controls) { }
 
+    /// <summary>
+    /// Whether its <see cref="Tamper"/> may let a standing train off the brake it's held on, where enemies.json
+    /// <c>tamperReleasesStandingBrake</c> otherwise keeps it on (note 263): only the Track Doll at her last stage (note 268).
+    /// From replicated state, so a predicting client lets it off as the host does.
+    /// </summary>
+    public virtual bool ReleasesStandingBrake(World world) => false;
+
     /// <summary>Free per-kind values that are replicated (drill progress, pry progress, pack id).</summary>
     public double Extra { get; set; }
     public double Extra2 { get; set; }
+
+    /// <summary>
+    /// A new one of <paramref name="kind"/> with <paramref name="id"/>, to be <see cref="Restore"/>d: the snapshot's, and the
+    /// scene's copies of what it's still drawing after the sim's done with it (note 458). <paramref name="extra"/> is its
+    /// <see cref="Extra"/>, which a Cinder Hound is built from (its pack).
+    /// </summary>
+    public static Enemy Blank(EnemyKind kind, int id, double extra = 0) => kind switch
+    {
+        EnemyKind.Sleepers => new Sleepers(id),
+        EnemyKind.CinderHound => new CinderHound(id, (int)extra),
+        EnemyKind.Switchman => new Switchman(id),
+        EnemyKind.SootChildren => new SootChildren(id),
+        EnemyKind.Dragger => new Dragger(id),
+        EnemyKind.Stoker => new Stoker(id),
+        EnemyKind.CarFire => new CarFire(id),
+        EnemyKind.Climber => new Climber(id),
+        EnemyKind.Gaunt => new Gaunt(id),
+        EnemyKind.Passenger => new Passenger(id),
+        EnemyKind.Follower => new Follower(id),
+        EnemyKind.Drift => new Drift(id),
+        EnemyKind.TrackDoll => new TrackDoll(id),
+        EnemyKind.CarHugger => new CarHugger(id),
+        EnemyKind.Whistler => new Whistler(id),
+        EnemyKind.TippyToesie => new TippyToesie(id),
+        EnemyKind.FireFlies => new FireFlies(id),
+        EnemyKind.Ribbit => new Ribbit(id, 0),
+        EnemyKind.Grumbler => new Grumbler(id),
+        EnemyKind.Moose => new Moose(id),
+        EnemyKind.Gannet => new Gannet(id),
+        EnemyKind.Mourners => new Mourner(id),
+        EnemyKind.TowerJaw => new TowerJaw(id),
+        EnemyKind.FreightBeetle => new FreightBeetle(id),
+        EnemyKind.Brakeman => new Brakeman(id),
+        EnemyKind.Hotbox => new Hotbox(id),
+        EnemyKind.Knotter => new Knotter(id),
+        EnemyKind.Dave => new Dave(id),
+        EnemyKind.Jacob => new Jacob(id),
+        EnemyKind.Waker => new Waker(id),
+        EnemyKind.Pickers => new Picker(id),
+        EnemyKind.Lodger => new Lodger(id),
+        EnemyKind.Householder => new Householder(id),
+        EnemyKind.HollowHouse => new HollowHouse(id),
+        EnemyKind.Hanger => new Hanger(id),
+        _ => new ChoirGhost(id),
+    };
 
     public Double3 WorldPosition(TrainOnLine train)
     {
@@ -147,73 +256,21 @@ public abstract class Enemy
             return Local;
         var t = OnMainLine ? train.Line.Sample(LineDistance) : train.Line.Sample(train.Dynamics.Path, LineDistance);
         var right = Double3.Cross(t.Tangent, Double3.Up).Normalized;
-        return t.Position + right * Lateral + Double3.Up * Height;
-    }
-
-    /// <summary>
-    /// On foot in the world (the director's decision of 2026-10-06, GDD App. F.1: "in the world we're always going to have to
-    /// be able to interact with basically everything"; note 266): loose off the train (or, free on the line, beside it), it
-    /// walks on the ground and is stopped by what's solid, never through a hill, a cutting's bank, a building or a car.
-    /// </summary>
-    public virtual bool OnFoot => false;
-    /// <summary>On foot, whether the train's bodies and the stops' walls stop it too (a crawler going up a car's side: no).</summary>
-    protected virtual bool Solid => true;
-    /// <summary>On foot, its body for the solids: radius, height, the step it takes up onto something.</summary>
-    protected virtual PlayerMotor.Cylinder Body => new(0.4, 1.6, 0.35);
-    /// <summary>On foot, how far over the ground its <see cref="Height"/> or <see cref="Local"/> stands (where it's drawn from).</summary>
-    protected virtual double GroundOffset => 0;
-
-    double _groundHint = double.NaN;
-
-    /// <summary>
-    /// Where it is on its feet (note 266): the ground under it, pushed out of the solids, on the ground again. The same rule
-    /// as a player's footing (PlayerMotor), from the route and the train alone, so the host has it the same every time.
-    /// </summary>
-    public static Double3 Settle(TrainOnLine train, Double3 at, PlayerMotor.Cylinder body, bool solid, ref double hint)
-    {
-        if (double.IsNaN(hint))
-            hint = train.Dynamics.Distance;
-        var p = at with { Y = PlayerMotor.GroundAt(at, train.Line, ref hint) };
-        if (!solid)
-            return p;
-        p = PlayerMotor.Clear(p, train, body);
-        return p with { Y = PlayerMotor.GroundAt(p, train.Line, ref hint) };
-    }
-
-    /// <summary>After its tick: on its feet on the ground (<see cref="OnFoot"/>), and whoever it carries with it.</summary>
-    void Footing(EnemyContext ctx)
-    {
-        if (!OnFoot || Gone)
-            return;
-        var train = ctx.Train;
-        if (Attached == Loose)
+        double lateral = Lateral, lift = 0;
+        // The world is solid (note 279): beside the train in a tunnel it runs inside the bore, on a bridge on the deck (not in
+        // the rock or the air), and out past the formation on the land (not through a cutting's wall).
+        if (Lateral != 0 && train.Line.Conditions is { } land)
         {
-            Local = Settle(train, Local, Body, Solid, ref _groundHint) + Double3.Up * GroundOffset;
-            // A carry goes where it goes, on the ground with it.
-            for (int i = 0; i < ctx.Carries.Count; i++)
-                if (ctx.Carries[i].Player == Holding)
-                    ctx.Carries[i] = (Holding, Local - Double3.Up * GroundOffset);
+            double room = land.LateralRoom(OnMainLine ? Rail.RailLine.MainPath : train.Dynamics.Path, LineDistance);
+            lateral = Math.Clamp(Lateral, -room, room);
+            if (Math.Abs(lateral) > land.FormationM)
+                lift = land.Ground(t.Position + right * lateral) - t.Position.Y;
         }
-        else if (Attached == -1 && !OnMainLine)
-        {
-            // Free on the line beside it (the hounds running after the train): its height over the rail is the ground's there.
-            var t = train.Line.Sample(train.Dynamics.Path, LineDistance);
-            var right = Double3.Cross(t.Tangent, Double3.Up).Normalized;
-            var at = t.Position + right * Lateral;
-            if (double.IsNaN(_groundHint))
-                _groundHint = LineDistance;
-            Height = PlayerMotor.GroundAt(at, train.Line, ref _groundHint) - t.Position.Y + GroundOffset;
-        }
+        return t.Position + right * lateral + Double3.Up * (Height + lift);
     }
 
     /// <summary>Advances the enemy one tick. A grab's rescue and its end are the spine's, the same for every enemy (App. A.9).</summary>
     public void Step(EnemyContext ctx)
-    {
-        StepSpine(ctx);
-        Footing(ctx);
-    }
-
-    void StepSpine(EnemyContext ctx)
     {
         PhaseSeconds += SimConstants.TickSeconds;
         if (Phase == SpinePhase.Grab)
@@ -271,7 +328,7 @@ public abstract class Enemy
         // App. A.9: every GRAB start writes an attribution record (and, with D.12's bookmarks, a still).
         if (ctx.World.Run is not null && ctx.Crew.FirstOrDefault(c => c.Player.Id == victim) is { Player.State: var held })
         {
-            string what = $"Grabbed by the {Run.IncidentLog.Spoken(Kind.ToString())}";
+            string what = $"Grabbed by {Called}";
             ctx.World.Attribution.Add(Run.IncidentLog.Grab(ctx.World, victim, held, what));
             ctx.World.Bookmarks.Grab(ctx.World, victim, what, CrewOf(ctx));
         }
@@ -324,7 +381,7 @@ public abstract class Enemy
     {
         var at = WorldPosition(ctx.Train);
         var (actor, action) = Run.IncidentLog.Nearest(ctx.World, at, CrewOf(ctx));
-        return Run.IncidentLog.Event(ctx.World, Run.IncidentKind.Punished, $"Punished by the {Run.IncidentLog.Spoken(Kind.ToString())}", actor, action, at);
+        return Run.IncidentLog.Event(ctx.World, Run.IncidentKind.Punished, $"Punished by {Called}", actor, action, at);
     }
 
     /// <summary>The rescue window ran out (App. A.1 PUNISH): what it does to its victim. The default is death.</summary>
@@ -339,6 +396,14 @@ public abstract class Enemy
         if (Phase != SpinePhase.Punish || victim != Holding)
             throw new InvalidOperationException($"{Kind} {Id} tried to kill {victim} without holding them first");
         ctx.Kill(victim, cause);
+    }
+
+    /// <summary>Who struck it, and when: what <see cref="Struck"/> notes first, for a creature that does the rest itself.</summary>
+    protected void Marked(EnemyContext ctx, int by)
+    {
+        LastHitBy = by;
+        LastHitTick = ctx.Tick;
+        Noted(ctx, by);
     }
 
     /// <summary>Struck with a tool by a crew member (App. C.2). By default it's hurt, and a friend's blow breaks its grab.</summary>
@@ -361,6 +426,61 @@ public abstract class Enemy
         Health -= damage;
         if (Health <= 0)
             Enter(ctx, SpinePhase.Gone);
+    }
+
+    // Blows by crewmates, and when (the world's tick): the coordinated kill's count (note 288). Host-only, as the spine is.
+    readonly List<(int By, uint Tick)> _blows = [];
+
+    /// <summary>Notes a crewmate's blow on it, for <see cref="Strikers"/>.</summary>
+    protected void Noted(EnemyContext ctx, int by) => _blows.Add((by, ctx.Tick));
+
+    /// <summary>
+    /// How many different crewmates have struck it in the last <paramref name="window"/> seconds (not counting
+    /// <paramref name="except"/>, its victim). The coordinated kill (the director's clarification of 7 Oct 2026, GDD App. F.1;
+    /// note 288): it takes the crew's gang, several at once, never one player swinging.
+    /// </summary>
+    protected int Strikers(EnemyContext ctx, double window, int except = -1)
+    {
+        uint ticks = (uint)Math.Round(window * SimConstants.TickRate);
+        _blows.RemoveAll(h => ctx.Tick - h.Tick > ticks);
+        int n = 0;
+        for (int i = 0; i < _blows.Count; i++)
+        {
+            int by = _blows[i].By;
+            if (by == except)
+                continue;
+            bool seen = false;
+            for (int j = 0; j < i && !seen; j++)
+                seen = _blows[j].By == by;
+            if (!seen)
+                n++;
+        }
+        return n;
+    }
+
+    /// <summary>Whether the crew's gang is on it now: enemies.json <c>coordinatedKill</c>'s count of strikers in its window.</summary>
+    protected bool Ganged(EnemyContext ctx, int except = -1) =>
+        Strikers(ctx, ctx.Tuning.CoordinatedKill.WindowSeconds, except) >= ctx.Tuning.CoordinatedKill.Gang;
+
+    /// <summary>
+    /// Killed by the crew together (note 288): gone, and (<paramref name="forTheNight"/>) its kind for the rest of the night
+    /// (<see cref="World.Slain"/>: the director doesn't send it again), with a line in the incident report naming the gang
+    /// (App. C.9, D.12: a moment worth a commendation). Driven off instead, a creature can come back.
+    /// </summary>
+    /// <param name="forTheNight">False for one of many (a Climber of a pack, a ghost of the swarm): only this one is done.</param>
+    protected void Slay(EnemyContext ctx, bool forTheNight = true)
+    {
+        Holding = -1;
+        Enter(ctx, SpinePhase.Gone);
+        if (forTheNight)
+            ctx.World.Slain.Add(Kind);
+        if (ctx.World.Run is null)
+            return;
+        uint ticks = (uint)Math.Round(ctx.Tuning.CoordinatedKill.WindowSeconds * SimConstants.TickRate);
+        var gang = _blows.Where(h => ctx.Tick - h.Tick <= ticks).Select(h => h.By).Distinct().ToList();
+        string names = string.Join(", ", gang.Select(id => Run.IncidentLog.NameOf(ctx.World, id)));
+        ctx.World.Attribution.Add(Run.IncidentLog.Event(ctx.World, Run.IncidentKind.Slain, $"Killed {Called} together",
+            gang.Count > 0 ? gang[0] : -1, gang.Count > 0 ? $"By {names}." : "", WorldPosition(ctx.Train)));
     }
 
     /// <summary>Moves the spine. Commit is only reachable from a telegraph at least the reaction window long.</summary>
@@ -389,16 +509,17 @@ public abstract class Enemy
         return true;
     }
 
-    /// <summary>Takes damage from a round; returns true if that killed it.</summary>
-    public virtual bool Hit(EnemyContext ctx, double damage)
+    /// <summary>
+    /// A cannonball fired by <paramref name="by"/> found its body (note 290): it lands as a heavy blow, answered by the
+    /// creature's own rule for one (<see cref="Struck"/>: hurt, a friend's blow breaking its grab, a Grumbler gone feral on
+    /// whoever struck it). Returns true if that finished it.
+    /// </summary>
+    public virtual bool Hit(EnemyContext ctx, int by, double damage)
     {
-        if (HitRadius <= 0 || Gone)
+        if (!Exposed)
             return false;
-        Health -= damage;
-        if (Health > 0)
-            return false;
-        Enter(ctx, SpinePhase.Gone);
-        return true;
+        Struck(ctx, by, damage);
+        return Gone;
     }
 
     /// <summary>Copies replicated state onto a client-side stand-in.</summary>

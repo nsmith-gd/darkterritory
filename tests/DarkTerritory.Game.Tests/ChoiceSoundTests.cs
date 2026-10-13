@@ -30,6 +30,7 @@ public class ChoiceSoundTests
         public (IReadOnlyList<EnemyKind> Options, EnemyKind? Cast)? Ballot { get; set; }
         public BallotPicker? Picker { get; } = new();
         public (string To, string What, bool Given)? CommendPick { get; set; }
+        public double SkipHold { get; set; }
         public int PlayerId => 3;
         public Sim.Route.Route? Route => null;
         public PlayerState Player => default;
@@ -44,6 +45,35 @@ public class ChoiceSoundTests
     }
 
     static int Count(GameAudio audio, string name) => audio.Mixer.Voices.Count(v => v.Name == name);
+
+    [Fact]
+    public void YourOwnFilmSkippedIsTheCutAndALetGoHoldIsNothing()
+    {
+        // Note 315: each player skips their own film by holding the key to its end (the session's SkipHold, 0 to 1, back
+        // to 0 as it's done). The skip is heard as the cut (note 322); let go short of the end, nothing is.
+        var audio = new GameAudio(Content);
+        audio.Bank.Add(UiCue.FilmSkip, new SoundDef(4, [new LayerDef(SourceKind.Sine, 0.3, Frequency: 440)], Duration: 0.1));
+        var s = new Choosing();
+        audio.Choices(s);
+        foreach (double held in new[] { 0.3, 0.6 })
+        {
+            s.SkipHold = held;
+            audio.Choices(s);
+        }
+        s.SkipHold = 0;
+        audio.Choices(s);
+        Assert.Equal(0, Count(audio, UiCue.FilmSkip));
+        foreach (double held in new[] { 0.3, 0.6, 0.95 })
+        {
+            s.SkipHold = held;
+            audio.Choices(s);
+        }
+        s.SkipHold = 0;
+        audio.Choices(s);
+        Assert.Equal(1, Count(audio, UiCue.FilmSkip));
+        audio.Choices(s);
+        Assert.Equal(1, Count(audio, UiCue.FilmSkip));
+    }
 
     [Fact]
     public void TheBallotsPickCastAndLockAreEachHeardOnce()

@@ -34,7 +34,7 @@ public class DriftTests
             var train = new TrainOnLine(new TrainDynamics(Consist.Uniform(Tuning.Train, 5, 1)), Line, at);
             train.Dynamics.Velocity = Speed;
             World = new World(train, Tuning.Combat);
-            var quiet = Tuning.Enemies with { Director = Tuning.Enemies.Director with { GraceSeconds = 1e9 } };
+            var quiet = Tuning.Enemies with { Director = Tuning.Enemies.Director with { GraceMinSeconds = 1e9, GraceMaxSeconds = 1e9 } };
             World.EnableEnemies(enemies ?? quiet, route ?? Marsh(0, 80_000), 1, crew: 3, authority: true);
         }
 
@@ -120,10 +120,17 @@ public class DriftTests
         var d = night.Over(2, -1);
         night.Run(4, () => night.Pace(walker, 1.2));
         Assert.Equal(SpinePhase.Punish, d.Phase);
+        // On them, it bites a hit every damageSeconds (note 272, no chip damage): keep moving till the first lands.
+        night.Run(D.DamageSeconds, () =>
+        {
+            if (night.Crew[walker - 1].Health == Tuning.Player.Health)
+                night.Pace(walker, 1.2);
+        });
         int hurt = night.Crew[walker - 1].Health;
-        Assert.True(hurt < Tuning.Player.Health);
-        // Still now. It eats a little more while it's losing them, and then it has.
+        Assert.Equal(Tuning.Player.Health - D.Damage, hurt);
+        // Still now. It may bite once more while it's losing them (stillSeconds is longer than its gap), and then it has.
         night.Run(D.StillSeconds + 0.5);
+        Assert.InRange(hurt - night.Crew[walker - 1].Health, 0, D.Damage);
         Assert.Equal(SpinePhase.Dormant, d.Phase);
         Assert.Equal(0, d.Target);
         Assert.Contains(night.Events, e => e.EnemyId == d.Id && e.To == SpinePhase.BreakOff);

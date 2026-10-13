@@ -41,11 +41,26 @@ static class StopChecks
                 }
             Add("Tracks never cross", closest >= 4.5, closest == double.MaxValue ? "one track a side" : $"closest {closest:0.0} m apart past the points (P6)");
 
+            // Blocked sidings (D.2 "never all"): the facility's own track is always open.
+            int blocked = l.Tracks.Count(tr => tr.Blocked);
+            Add("Blocked sidings leave a way in", l.Tracks.All(tr => !tr.Primary || !tr.Blocked) && (blocked == 0 || blocked < l.Tracks.Count),
+                $"{blocked} of {l.Tracks.Count} tracks blocked by derelicts, the facility's own open (D.2)");
+
             bool inZone = l.Tracks.All(tr => tr.Toe > 0 && tr.Path.All(p => p.S >= 0 && p.S <= cx.ZoneLength));
             Add("The yard is inside the level zone", inZone, "switches and track on the zone's straight, level main line");
         }
         else
             Skip("Yard checks", "no yard at this stop");
+
+        if (cx.DeadTown)
+        {
+            // Linegen plan §11.3 (note 302): a dead town has its station building and a goods yard with derelict stock.
+            int derelicts = l.Buildings.Count(b => b.Kind == BuildingKind.Derelict);
+            Add("A dead town has its railway side", l.Buildings.Any(b => b.Kind == BuildingKind.Station) && derelicts > 0 && l.Sidings.Count == 1,
+                $"station {(l.Buildings.Any(b => b.Kind == BuildingKind.Station) ? "built" : "missing")}, {derelicts} derelicts on {l.Sidings.Count} goods siding");
+        }
+        else
+            Skip("A dead town has its railway side", "not a dead town");
 
         int inBuffer = l.Containers.Count(c => c.Zone == StopZone.Village && Math.Abs(c.At.D) < tt.Buffer);
         Add("No loot in the rail buffer", inBuffer == 0, $"nothing within {tt.Buffer:0} m of the main line outside the yard (P13, P19)");
@@ -85,41 +100,38 @@ static class StopChecks
                     clash++;
         foreach (var b in l.Buildings)
         {
-            if (g.TouchesRail(b, 1))
+            // A dead town's derelicts stand on their own goods siding (note 302): only the main line is in their way.
+            if (b.Kind == BuildingKind.Derelict ? StopDraft.NearMain(b, 1) : g.TouchesRail(b, 1))
                 clash++;
             if (b.Zone == StopZone.Village && g.TouchesRoad(b, 0.5))
                 clash++;
         }
         Add("Nothing overlaps", clash == 0, $"{l.Buildings.Count} buildings against each other, the track and the roads");
 
-        // GDD App. D.4, D.14: a Holdout for every site, where D.4 puts it, reachable, lit to the approach, off the loading.
+        // GDD App. D.4, D.14: a Holdout for every site, where D.4 puts it (beside the consist's track, note 650), reachable,
+        // lit to the approach.
         var h = t.Holdouts;
         int want = l.HasYard ? (l.Holdouts.Count(x => x.Second) > 0 ? 2 : 1) : l.Halt is not null ? 1 : 0;
         Add("A Holdout for the site", l.Holdouts.Count == want && want > 0,
             $"{l.Holdouts.Count} ({string.Join(", ", l.Holdouts.Select(x => x.Kind))}) at a {(l.HasYard ? "facility" : "halt")} (App. D.4)");
         var walk = new StopWalk(l.Buildings, l.ZoneLength, cx.MaxLateral, h.WalkCell).From(l.StopPoint);
-        int unreached = 0, unsited = 0, unseen = 0, onWalk = 0;
-        var loading = l.Containers.Where(c => c.Zone == StopZone.Yard).Select(c => c.At).ToList();
-        Pt? nearest = loading.Count > 0 ? loading.MinBy(p => Pt.Distance(p, l.StopPoint)) : null;
+        int unreached = 0, unsited = 0, unseen = 0;
         foreach (var ho in l.Holdouts)
         {
             var b = l.Buildings[ho.Building];
             if (walk.To(ho.Door) is null)
                 unreached++;
-            if (!StopGenerator.Sited(h, b, ho.Site, l.StopPoint))
+            if (!StopGenerator.Sited(h, b, ho.Site, l.StopPoint, g) || ho.Site == HoldoutSite.Facility && !StopGenerator.ClearOfTheLoading(h, b, g))
                 unsited++;
             var board = new Pt(-(ho.Site == HoldoutSite.Facility ? h.Approach.Facility : h.Approach.Halt), 0);
             if (!StopWalk.Seen(board, ho.Lamp, l.Buildings, ho.Building, l.ZoneLength))
                 unseen++;
-            if (ho.Site == HoldoutSite.Facility && !StopGenerator.OffTheLoadingWalk(h, b.Centre, l.StopPoint, nearest, loading))
-                onWalk++;
         }
         Add("Every Holdout is where App. D.4 puts it", unsited == 0,
-            $"a facility's {h.FacilityDistance[0]:0}–{h.FacilityDistance[1]:0} m from the consist; a halt's within {h.HaltDistance:0} m, a dead town's {h.VillageDistance:0} m, of the line");
+            $"beside the consist's track ({h.Beside[0]:0}–{h.Beside[1]:0} m off it), within {h.Along:0} m of where it stops, {h.LoadingClear:0} m clear of the loading; a halt's lockup within {h.HaltDistance:0} m of the line (note 650)");
         Add("Every Holdout can be walked to from the consist", unreached == 0,
             l.Holdouts.Count == 0 ? "none" : $"{string.Join(", ", l.Holdouts.Select(x => $"{x.Walk:0} m"))} on foot (App. D.14)");
         Add("Every Holdout lamp is seen from the approach", unseen == 0, $"from the {(l.HasYard ? "1 km" : "whistle")} board, past every building (App. D.4)");
-        Add("No Holdout on the walk to the loading", onWalk == 0, $"{h.LoadingClear:0} m clear of it, {h.LoadingAngle:0}° off the nearest (App. D.4)");
 
         // GDD B.6: the outside creatures have somewhere to be.
         int warrens = l.Lairs.Count(x => x.Kind == LairKind.Warren), roosts = l.Lairs.Count(x => x.Kind == LairKind.GauntRoost),

@@ -41,7 +41,8 @@ CANDIDATES = [(385, "a low, even man's voice"), (518, "a deep man's voice, slowe
 
 # Phrases read whole, so they keep a phrase's run (the game matches the longest first); then single words. Every word
 # Sim.Run.Radio's lines can hold: ClerkTests fails on one that isn't here.
-PHRASES = ["yard to consist", "manifest follows", "gates open", "yard out", "yard clerk", "consist received",
+# "engineering kit reported lost" and "with car": the kit lost (GDD App. E.12 q.5; note 308).
+PHRASES = ["engineering kit reported lost", "with car", "yard to consist", "manifest follows", "gates open", "yard out", "yard clerk", "consist received",
            "tally follows", "powder and shot", "cars delivered", "cars lost", "child survivor", "child survivors",
            "body recovered", "body not recovered", "gunpowder and shot", "machine parts", "comet-derived material"]
 WORDS = ["crew", "coal", "cars", "freight", "cargo", "paid", "fee", "refund", "mail", "salvage", "repairs", "net", "next",

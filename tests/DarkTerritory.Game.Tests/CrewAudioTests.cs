@@ -135,10 +135,13 @@ public class CrewAudioTests
         Assert.Equal(0, b.Count("crew-footsteps.run.roof"));
         Assert.All(b.Heard.Where(h => h.Name == "crew-footsteps.walk.roof"), h => Assert.True((h.At - at[h.Tick - 1]).Length < 0.01));
 
-        // Standing still: nothing.
+        // Standing still: nothing. Nor turning on the spot (App. F.1, build 1121; note 355): a full turn in a second.
         int before = b.Heard.Count;
         for (int i = 0; i < 30; i++)
+        {
+            s.Yaw += 2 * Math.PI / 30;
             b.Step((1, s));
+        }
         Assert.Equal(before, b.Heard.Count);
 
         // Off the train beside it, running on the ballast; stopping short scuffs.
@@ -511,6 +514,79 @@ public class CrewAudioTests
     }
 
     [Fact]
+    public void TheExtinguishersJetIsHeardOnTheFireItsCellsGoingOutAndTheFireOut()
+    {
+        // Note 469 (the director, 8 Oct: holding it on a fire "doesnt feel like its doing anything"): where the jet meets the
+        // flames, off the fire's cells as a client has them and the sprayer's aim as the host's Spraying finds it. The jet on
+        // a burning cell is heard there; a cell knocked out under it once; the fire out once; and a fire's cell burning out
+        // with no jet on it is the fire's own, and quiet.
+        var b = new Bench("crew-extinguisher.spray-start", "crew-extinguisher.cell-out", "crew-extinguisher.fire-out");
+        b.Audio.Bank.Add("crew-extinguisher.on-fire", new SoundDef(4, [new LayerDef(SourceKind.Sine, 0.3, Frequency: 440)], Loop: true, MaxInstances: 64));
+        b.Audio.Bank.Add("crew-extinguisher.spray", new SoundDef(4, [new LayerDef(SourceKind.Sine, 0.3, Frequency: 440)], Loop: true, MaxInstances: 64));
+        b.World.EnableBodies();
+        // A client's night with creatures: the fire's tuning as the host has it (enemies.json: its sprayReach, its cells).
+        var enemies = DataFile.Load<Sim.Enemies.EnemyTuning>(Path.Combine(Content, Sim.Enemies.EnemyTuning.File));
+        b.World.EnableEnemies(enemies, null, 1, 1, authority: false);
+        int car = 2;
+        var t = enemies.CarFire;
+        var room = b.Train.Frames[car].Shape.Interior!.Value;
+        var grid = Sim.Enemies.FireGrid.Of(b.Train, car, t.CellSize)!;
+        var fire = Sim.Enemies.CarFire.In(100, b.Train, car, 2, t);
+        int cell = grid.FloorAt(fire.Local), other = grid.Next[cell][0];
+        var heat = new double[grid.Count];
+        heat[cell] = heat[other] = 0.8;
+        heat[grid.Next[other].First(j => j != cell)] = 0.5;
+        fire.RestoreHeat((double[])heat.Clone());
+        b.World.MirrorEnemies([fire]);
+        var ext = b.World.Bodies.SpawnCrate(b.Train, car, new Double3(room.Centre.X, room.Min.Y + 1, grid.Centre[cell].Z - 2), Sim.Physics.BodyKind.Extinguisher);
+        ext.Carrier = 1;
+        var at = grid.Centre[cell];
+        var s = new PlayerState { Parent = car, Position = new Double3(room.Centre.X, room.Min.Y, at.Z - 2), Surface = Surface.Deck, Health = P.Health };
+        PlayerState Aim(Double3 to)
+        {
+            var d = to - (s.Position + Double3.Up * b.Train.Dynamics.Tuning.Pick.EyeHeight);
+            return s with { Yaw = Math.Atan2(-d.X, -d.Z), Pitch = Math.Atan2(d.Y, Math.Sqrt(d.X * d.X + d.Z * d.Z)) };
+        }
+        void Step(PlayerState who, int ticks = 1, bool spray = true)
+        {
+            for (int i = 0; i < ticks; i++)
+            {
+                if (spray)
+                    ext.Charge = Math.Max(0.05, ext.Charge - 0.005);
+                b.Step((1, who));
+            }
+        }
+        bool OnFire() => b.Audio.Mixer.Voices.Any(v => v.Name == "crew-extinguisher.on-fire" && !v.Finished);
+        // Not sprayed: a cell burning out on its own goes quietly.
+        Step(Aim(at), 3, spray: false);
+        heat[grid.Next[other].First(j => j != cell)] = 0;
+        fire.RestoreHeat((double[])heat.Clone());
+        Step(Aim(at), 3, spray: false);
+        Assert.Equal(0, b.Count("crew-extinguisher.cell-out"));
+        Assert.False(OnFire());
+        // The jet on the burning cell: heard where it lands.
+        Step(Aim(at), 10);
+        Assert.True(OnFire());
+        var jet = b.Audio.Mixer.Voices.First(v => v.Name == "crew-extinguisher.on-fire" && !v.Finished);
+        Assert.True((jet.Position - b.Train.Frames[car].ToWorld(at)).Length < 1e-6);
+        // Knocked out under it: once, there; and the jet on a cell that's out sizzles on nothing.
+        heat[cell] = 0;
+        fire.RestoreHeat((double[])heat.Clone());
+        Step(Aim(at), 10);
+        Assert.Equal(1, b.Count("crew-extinguisher.cell-out"));
+        Assert.True((b.Heard.Single(h => h.Name == "crew-extinguisher.cell-out").At - b.Train.Frames[car].ToWorld(at)).Length < 1e-6);
+        Assert.False(OnFire());
+        // On to the last cell and out: the fire's gone the tick its last cell is (CarFire.Out), and heard out once.
+        Step(Aim(grid.Centre[other]), 10);
+        Assert.True(OnFire());
+        b.World.MirrorEnemies([]);
+        Step(Aim(grid.Centre[other]), 10);
+        Assert.Equal(1, b.Count("crew-extinguisher.fire-out"));
+        Assert.Equal(1, b.Count("crew-extinguisher.cell-out"));
+        Assert.False(OnFire());
+    }
+
+    [Fact]
     public void LivestockAreStartledByAHardJoltAndNotAgainStraightAway()
     {
         var b = new Bench("crew-mishaps.startle-cattle", "crew-mishaps.startle-pigs", "crew-mishaps.startle-sheep");
@@ -684,17 +760,105 @@ public class CrewAudioTests
         Assert.All(new[] { "ballast", "concrete", "cobbles", biome.Ground }, t => Assert.NotEqual("ground", Footing.OfTexture(t)));
     }
 
+    [Theory]
+    [InlineData("crew-footsteps.walk.cobbles")]
+    [InlineData("crew-footsteps.run.cobbles")]
+    [InlineData("crew-footsteps.land.cobbles")]
+    [InlineData("crew-footsteps.walk.concrete")]
+    [InlineData("crew-footsteps.run.concrete")]
+    public void BootsOnStoneCrackRatherThanSquish(string sound)
+    {
+        // Note 354 (the director, 8 Oct 2026: "a super weird squishy footstep sound when I walk on the stones in the town"):
+        // the stones' steps were the packs' soft-soled concrete steps, all of it under 1 kHz, a 250 Hz wobble a step. A hard
+        // boot on stone cracks: there's as much of it over 1 kHz as in its low mids (the soft ones were 7 to 17 dB under).
+        var (report, mix) = AudioBench.RenderSound(Content, sound);
+        Assert.Null(report.Error);
+        double crack = Meter.BandDb(mix, 1000, 8000), body = Meter.BandDb(mix, 100, 500);
+        Assert.True(crack > body - 3, $"{sound}: {crack:0.0} dB over 1 kHz, {body:0.0} dB at 100-500 Hz");
+    }
+
+    [Theory]
+    [InlineData("crew-footsteps.walk.roof")]
+    [InlineData("crew-footsteps.run.roof")]
+    [InlineData("crew-footsteps.land.roof")]
+    public void BootsOnTheRoofsTinAreTheSheetNotABoom(string sound)
+    {
+        // Note 419 (AU1's audit of the installed sets, after note 354's cobbles): the roof's steps were the car's hollow under
+        // the tin, centred near 300 Hz with a slow wobble a step. Boots on a nailed tin sheet are the sheet buckling and
+        // rattling, the hollow under it: as much over 1 kHz as in the low mids (the old roof was 8 dB under).
+        var (report, mix) = AudioBench.RenderSound(Content, sound);
+        Assert.Null(report.Error);
+        double sheet = Meter.BandDb(mix, 1000, 8000), body = Meter.BandDb(mix, 100, 500);
+        Assert.True(sheet > body - 3, $"{sound}: {sheet:0.0} dB over 1 kHz, {body:0.0} dB at 100-500 Hz");
+    }
+
+    [Theory]
+    [InlineData("crew-footsteps.walk.dirt", 8)]
+    [InlineData("crew-footsteps.run.dirt", 8)]
+    [InlineData("crew-footsteps.walk.grass", 8)]
+    [InlineData("crew-footsteps.walk.ballast", 8)]
+    [InlineData("crew-footsteps.land.ballast", 8)]
+    [InlineData("crew-footsteps.walk.mud", 3)]
+    public void TheGroundUnderfootIsAStepNotABoom(string sound, double under)
+    {
+        // Note 354 and App. F.1 (build 1121: "footsteps on the ground sound wrong; on wood and grates they're good"). Dirt
+        // and grass were the packs' steps lowpassed, two slow swings under 60 Hz a step, and the crunches' pad of weight
+        // and the mud were half sub: a boom under every step. A step on the ground is its contact and what's on it: what's
+        // under 120 Hz well under the step itself (the car's boards, which the director likes, are 10 dB under; mud's
+        // squelch is allowed its weight).
+        var (report, mix) = AudioBench.RenderSound(Content, sound);
+        Assert.Null(report.Error);
+        double boom = Meter.BandDb(mix, 20, 120), step = Meter.BandDb(mix, 250, 4000);
+        Assert.True(boom < step - under, $"{sound}: {boom:0.0} dB under 120 Hz, {step:0.0} dB at 250 Hz-4 kHz");
+    }
+
+    [Fact]
+    public void AWalledTownsStreetsAreItsStonesUnderfootAndItsLanesItsMud()
+    {
+        // Note 354 (the director, 8 Oct 2026: "a super weird squishy footstep sound when I walk on the stones in the town"): a
+        // walled town's streets are drawn in beaten stones and its lanes in mud (WorldArt.Streets), and underfoot they were
+        // the land under them, its grass or the shore's red mud. A town of 3000, as World.EnableTown stands it.
+        var towns = Sim.Towns.TownContent.Load(Content)!;
+        towns = towns with { Tuning = towns.Tuning with { Population = [3000, 3000] } };
+        var route = Sim.LineGen.Routes.Generate(Content, "frontier:7", 6);
+        double gate = route.GateOr(RouteTuning.Load(Content).YardLength);
+        var world = new World(new TrainOnLine(new TrainDynamics(Consist.Uniform(T, 6, 1)), route.Build(), gate - 8), C);
+        world.EnableRun(DataFile.Load<Sim.Run.RunTuning>(Path.Combine(Content, Sim.Run.RunTuning.File)), route, gate, authority: true);
+        world.EnableTown(towns, route, gate, []);
+        var town = world.Town!;
+        var bounds = town.Plan.Bounds!;
+        var line = world.Train.Line;
+        string Under(double s, double d)
+        {
+            double hint = s;
+            var p = town.World(s, d);
+            return Footing.Ground(world, p with { Y = line.Conditions!.Ground(p) }, ref hint);
+        }
+        Assert.NotEmpty(bounds.Streets);
+        foreach (var st in bounds.Streets)
+            foreach (double s in new[] { st.S0 + 2, (st.S0 + st.S1) / 2, st.S1 - 2 })
+                Assert.Equal("ballast", Under(s, st.D));
+        var lane = bounds.Lanes[0];
+        Assert.Equal("mud", Under(lane.At(lane.D0 + 10), lane.D0 + 10));
+        // Off them, the land: what the streets were heard as.
+        var first = bounds.Streets[0];
+        Assert.NotEqual("ballast", Under((first.S0 + first.S1) / 2, first.D + Math.Sign(first.D) * (first.Width / 2 + 3)));
+    }
+
     [Fact]
     public void ABotCrewIsHeardOverTheNetworkAsTheAppHearsIt()
     {
         // A night with a bot crew, each a client over loopback, heard as the app hears it: the client world, the crew from
         // the session (crewmates as drawn), every tick. Their feet on the roofs, the driver's regulator.
-        using var night = NetPlaySession.HostGame(Content, new SessionSetup(Route: "frontier:7", Cars: 4, Enemies: false), port: null, bots: 3);
+        // The bank is loaded before the night is hosted, as the app does: loading it decodes every sample (seconds, more
+        // under a full suite's load), and a host not stepped for the transport's silence timeout (8 s) drops its bots
+        // (note 321: the flake A1.2, A1.4 and A1.7 saw, 1 of 4 aboard).
         var audio = new GameAudio(Content);
         string[] feet = ["wood", "grate", "plate", "roof", "coal", "ballast", "dirt", "grass", "mud", "cobbles", "concrete"];
         foreach (var cue in feet.SelectMany(m => new[] { $"crew-footsteps.walk.{m}", $"crew-footsteps.run.{m}" })
             .Append("crew-cab-controls.regulator-notch").Append("crew-ladder.rung-up").Append("crew-ladder.grab"))
             audio.Bank.Add(cue, new SoundDef(4, [new LayerDef(SourceKind.Sine, 0.3, Frequency: 440)], Duration: 0.1, MaxInstances: 64));
+        using var night = NetPlaySession.HostGame(Content, new SessionSetup(Route: "frontier:7", Cars: 4, Enemies: false), port: null, bots: 3);
         var heard = new Dictionary<string, int>();
         var seen = new HashSet<int>();
         for (int t = 0; t < SimConstants.TickRate * 30; t++)

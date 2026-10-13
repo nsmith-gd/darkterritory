@@ -164,7 +164,7 @@ static class FilmCommands
             DerailSequence.Fog(ref lighting, shown);
             scene.Build(mesh, session.Train.Line, frames, session.Train.Dynamics.Distance, camera.Position);
             overlay.Clear();
-            Hud.Build(overlay, UiWidth, UiHeight, session);
+            Hud.Build(overlay, UiWidth, UiHeight, session, pixels: (float)height / UiHeight);
             var pixels = renderer.Render(mesh, camera, lighting, lighting.FogColor, overlay);
             PngWriter.Write(Path.Combine(dir, $"frame_{frame:0000}.png"), pixels, width, height, 1);
             if (shown.Filming is { Shot: { Kind: ShotKind.Player } subjectShot } && shown.Film is { } shooting
@@ -319,6 +319,8 @@ static class FilmCommands
         scene.LampLit = session.World.LampShining;
         scene.Venting = train.Boiler.Vented;
         scene.SafetyValve = train.Boiler.SafetyValveLifting;
+        scene.Ruptured = train.Boiler.Ruptured;
+        scene.DriversLocked = scene.Ruptured && train.BoilerTuning is { } rt && train.Dynamics.Speed > rt.RuptureCoastBelow;
         scene.Controls = session.Controls;
         if (session.Watching >= 0)
             scene.Crew = [.. (scene.Crew ?? []).Where(c => c.Id != session.Watching)];
@@ -327,7 +329,8 @@ static class FilmCommands
     /// <summary>The app's lighting for the frame: the engine's lamp, the night's weather, dawn if it's coming.</summary>
     static FrameLighting Lighting(NetPlaySession session, Look look, IReadOnlyList<CarFrame> frames)
     {
-        var lighting = Views.Lighting(frames[0], look, session.World.Run is { } run ? look.DawnOf(run.DawnIn) : 0);
+        var lighting = Views.Lighting(frames[0], look, session.World.Run is { } run ? look.DawnOf(run.DawnIn) : 0,
+            DawnStir.Sky(session.World), DawnStir.SkyFrom(session.World, frames));
         lighting.Time = session.Tick * SimConstants.TickSeconds;
         if (!session.World.LampShining)
         {
@@ -336,7 +339,7 @@ static class FilmCommands
         }
         if (session.Route is { } r)
         {
-            lighting.FogDensity = (float)r.Weather.FogDensity;
+            lighting.FogDensity = Views.FogDensity(r, session.Train);
             lighting.Wetness = r.Weather.Wet ? 1 : 0;
             lighting.Frost = look.Tuning.Atmosphere.Cold.Frost(r.Weather.Cold);
             if (look.Tuning.Atmosphere.Wind is { } wind)
@@ -366,7 +369,7 @@ static class FilmCommands
         return (mp4, File.Exists(sheet) ? sheet : null, null);
     }
 
-    static (bool Ok, string Error) Ffmpeg(string exe, string[] args)
+    internal static (bool Ok, string Error) Ffmpeg(string exe, string[] args)
     {
         var psi = new ProcessStartInfo(exe) { RedirectStandardError = true };
         foreach (var a in args)
@@ -377,7 +380,7 @@ static class FilmCommands
         return (p.ExitCode == 0, error);
     }
 
-    static string? FindFfmpeg()
+    internal static string? FindFfmpeg()
     {
         foreach (var d in (Environment.GetEnvironmentVariable("PATH") ?? "").Split(Path.PathSeparator))
             if (d.Length > 0 && File.Exists(Path.Combine(d, "ffmpeg")))

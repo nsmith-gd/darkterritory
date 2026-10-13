@@ -43,15 +43,21 @@ public sealed class EnemyContext
     public void Hold(int playerId) => Held.Add(playerId);
 
     /// <summary>Held players being carried off, and to where in the world (the Whistler at a run, the Passenger to the caboose).</summary>
-    public List<(int Player, Double3 To)> Carries { get; } = new();
+    public List<(int Player, Double3 To, bool Up)> Carries { get; } = new();
 
-    public void Carry(int playerId, Double3 to) => Carries.Add((playerId, to));
+    public void Carry(int playerId, Double3 to) => Carries.Add((playerId, to, false));
+
+    /// <summary>A held player hung up off the ground at <paramref name="to"/> (the Hanger's strand, note 586): in the air, not stood.</summary>
+    public void Lift(int playerId, Double3 to) => Carries.Add((playerId, to, true));
 
     /// <summary>Pulls a player off the train over the side (App. A.4, the Draggers): at speed, that's death.</summary>
     public void Pull(int playerId, Double3 outward) => Damage.Add(new DamageEvent(playerId, 0, DeathCause.Dragged, outward));
 
     /// <summary>Rounds fired lately (tick, muzzle), newest last, for enemies that react to sustained fire.</summary>
     public IReadOnlyList<(uint Tick, Double3 Muzzle)> RecentRounds { get; init; } = [];
+
+    /// <summary>Where this tick's cannonballs came down (world): the hound run's runners scatter from one landing near (note 328).</summary>
+    public List<Double3> Landed { get; } = new();
 
     /// <summary>Rounds fired within <paramref name="seconds"/> from a gun within <paramref name="range"/> of a point.</summary>
     public int RoundsNear(Double3 at, double range, double seconds)

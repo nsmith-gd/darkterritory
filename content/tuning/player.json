@@ -13,12 +13,14 @@
   "pushGun": 1.2,
   "jumpGap": 2.2,
   // How high a standing jump lifts your feet. Playtest (T90): the 0.48 m that a flat 2.2 m gap jump at roof run needs was
-  // too weak to feel like a jump at all; at this height a roof-run jump carries about 2.8 m, clearing the gap easily.
-  "jumpHeight": 0.8,
+  // too weak to feel like a jump at all, and it went to 0.8 m. The director, 8 Oct 2026 (note 473): "our base jump is too
+  // weak as well": 1.2 m, about a fifth longer in the air, so a roof-run jump carries about 3.4 m.
+  "jumpHeight": 1.2,
   "health": 100,
   // T108 (GDD §1322: the tools on the train are the weapons): what every crewmate carries from the start of the night, and
-  // after every respawn, slot by slot from 1. Tools: crowbar, shovel, wrench.
-  "kit": ["crowbar"],
+  // after every respawn, slot by slot from 1. Tools: crowbar, shovel, wrench. Note 301: the wrench is the repair tool
+  // (train.json repair), so everyone has one, in slot 2.
+  "kit": ["crowbar", "wrench"],
   // What the bots go by (GDD v1.4 App. D.12: the incident report names everyone): a crew's names, in the order they board.
   "botNames": ["Dunmore", "Okafor", "Reyes", "Halloran", "Petrov", "Achebe", "Lindqvist", "Moreau"],
   "gravity": 9.81,
@@ -32,7 +34,14 @@
     "rollAbove": 1.5,
     "rollDamage": 10,
     "lethalAbove": 16.5,
-    "damageAtLethal": 80
+    "damageAtLethal": 80,
+    // Note 573 (the director, 9 Oct: off Stroud Bridge's deck, 8 m over the river, and lived): spec B.3 has no fall table, so
+    // a fall hurts by its height (the speed it comes down at): from fallHurtFrom, rollDamage rising to death at fallLethalFrom
+    // (7.5, so the bridge's 8 m is death however the tick falls).
+    // From fallHurtFrom down it's the speed table alone: a car's roof is 4 m over the ballast and a jump's apex 1.2 more, so
+    // the leap off the train stays B.3's; a 1.5 m step off a landing is nothing.
+    "fallHurtFrom": 5.5,
+    "fallLethalFrom": 7.5
   },
   "ladder": {
     "grabRange": 0.7,
@@ -63,24 +72,38 @@
     // makes it come on this much faster. A step-3 night on an exposed crest: about twice as fast.
     "perColdStep": 0.25
   },
-  // The director's decision of 2026-10-06 (GDD App. F.1, "way too easy to fall off the train"; ARCHITECTURE §8 note 266):
-  // on a car moving faster than guardAbove m/s, a walk never takes you off it. A step that would stops you at the edge and
-  // slides you along it; the wind on a roof and a sidestep never do it. Off you go by a jump, a hit, a grab, or walking
-  // forward off a side (a roof's edge, an open door) you're facing within facingDegrees; a car's end, the coupling gap, is
-  // jumped or climbed down, never walked off. on: false is the old free edge.
-  "edge": { "on": true, "guardAbove": 1.0, "facingDegrees": 60 },
   // GDD §22 wind, spec B.2's "roof run: wind and balance penalty" (ARCHITECTURE §8 note 201). Up on a roof, the wind
   // (the route's conditions: the night's, ×1.5 on exposed track) pushes you sideways: drift m/s at wind 1 with the train
   // at its maxSpeed, still of that with it stopped (it's the wind across a moving train), in gusts that swing from one
   // side to the other over gustMetres of line. walking: walking or standing, this of what it is at a roof run (balance).
   // The roof handrails take it to train.json composition.rails.wind of that; a gun's seat is out of it. At the worst
-  // (exposed track, full speed, running) about 0.45 m/s: walking against it holds you, but stood at the edge in a gust
-  // it walks you off. It's seen as the drift itself: no camera roll, which a headset would feel in the stomach.
+  // (exposed track, full speed, running) about 0.45 m/s: walking against it holds you, and stood at the edge in a gust it
+  // walks you to the lip (edge, below), not over it (T128). It's seen as the drift itself: no camera roll, which a headset
+  // would feel in the stomach.
   "wind": {
     "drift": 0.3,
     "still": 0.4,
     "walking": 0.5,
     "gustMetres": 120
+  },
+  // T128 (build 1121: "far too easy to fall off the train"; ARCHITECTURE §8 note 273). Not in the spec. Measured by
+  // FallTests' careless walker (a wandering aim, a glance aside every few seconds with the key held, half the cars at a
+  // run, the gaps jumped, a normal night's wind): 54 falls in 20 minutes before, nearly all of them walking off a side
+  // while looking somewhere else. A roof's edge (and a coupler plate's) now holds you when you're only walking: your feet
+  // stop `lip` m short of where the footing ends. You go over the side if you mean to, walking at it within
+  // stepOffDegrees of straight out; off a roof's end only by a jump, a ladder, or onto the train below it (the coupler
+  // plate, a platform, the tender: any of it within catchDrop m under the edge). What still takes you off is real: a
+  // creature's pull (the Draggers), a bend you were warned of taken too fast (sight.json throwOver), a jump that falls
+  // short, and walking off on purpose. windOverLip: true is the old wind, which the lip doesn't hold.
+  // The world is solid (the director, 6 Oct 2026; ARCHITECTURE §8 note 279): on foot on the land, nobody walks up ground
+  // steeper than climbSlope (rise over run; 1.25 is about 51°). A cutting's walls (2:1), a ledge's upslope and a cliff
+  // over the sea stop you; the line plan's walkable ground (§12.6, slope 1 with its noise) never does.
+  "climbSlope": 1.25,
+  "edge": {
+    "lip": 0.3,
+    "stepOffDegrees": 30,
+    "catchDrop": 3.5,
+    "windOverLip": false
   },
   // Spec E drop-out, GDD v1.4 App. D.2 (ARCHITECTURE §8 note 253): a player whose link drops mid-night leaves an inert body
   // (no bot takes over), and the host holds their place (id, name, a token issued at the welcome) for reserveSeconds.
@@ -96,7 +119,40 @@
     "reclaimBody": true,
     "greetSeconds": 1,
     "retries": 5,
-    "retrySeconds": 3
+    "retrySeconds": 3,
+    // The crew goes on together (ARCHITECTURE §8 note 606): told the host's going on from a delivered campaign night's town,
+    // a joiner waits on its card and dials the host again, retrySeconds apart, for up to followSeconds while the host picks
+    // the next night at its board; past that it's back to its menu.
+    "followSeconds": 600
+  },
+  // The links in play (ARCHITECTURE §8 note 532). timeoutSeconds: silence from the other end for this long and the link's
+  // gone (a joiner then redials, rejoin above; it was the transport's own 8 s, note 18, which a wifi blip could reach).
+  // keepaliveSeconds: a ping at least this often, which is also how the round trip's measured. pumpMilliseconds: the app's
+  // transports are kept by a thread of their own between the frames, waking at least this often, so a stalled frame loop
+  // (a village loading, the film compiling) neither drops its links nor is dropped. A client paces itself to its host: the
+  // host says in each snapshot how many of the client's inputs it's holding beyond the one it applied; over paceQueued
+  // for paceSeconds and the client's clock stretches by paceSlow (its ticks take 5 % longer) until the host has caught up
+  // (one or none held), so a host that's behind slows the night for everyone instead of throwing inputs away. A host whose
+  // own frames can't hold the tick rate (its clock threw time away) is told YOUR MACHINE IS HOLDING THE CREW BACK, for
+  // heldBackSeconds after the last time it did.
+  "link": {
+    "timeoutSeconds": 15,
+    "keepaliveSeconds": 1,
+    "pumpMilliseconds": 4,
+    "paceQueued": 4,
+    "paceSlow": 0.05,
+    "paceSeconds": 1,
+    "heldBackSeconds": 5,
+    // Note 549: each client tells the host what share of its snapshots it isn't getting; one losing thinLossPct or more for
+    // thinSeconds is sent every other snapshot (fewer, whole), held for thinHoldSeconds and let go once the loss has been under
+    // half that for all of it (thinning cures the loss it's for, so without the hold it would come and go). The share counts a
+    // snapshot that came stale as lost (a jittery link reads a few percent), so the threshold sits well above that. When strainCrew or more of the
+    // crew report that much at once for strainSeconds, it's the host's own upload that can't carry them, and the host is told.
+    "thinLossPct": 12,
+    "thinSeconds": 2,
+    "thinHoldSeconds": 20,
+    "strainCrew": 2,
+    "strainSeconds": 5
   },
   // The crew cap (GDD §1 "Players: 2–8", §15's largest crew; ARCHITECTURE §8 note 254). The host turns a joiner away once
   // the crew, living and dead, those waiting to board at a stop and the places held for the dropped (rejoin above) come to
@@ -108,5 +164,14 @@
   "crew": {
     "cap": 8,
     "refuseLingerSeconds": 3
+  },
+  // Emotes (GDD §9: the yard's a safe space where "the crew wait for friends, hang out, dance"; ARCHITECTURE §8 note 298).
+  // Seconds each lasts, unless its player moves first: the host keeps the event this long for the crew to see. cooldown:
+  // how soon after one another can be picked. Presentation only: nothing in the sim acts on an emote.
+  "emotes": {
+    "dance": 8,
+    "wave": 2.5,
+    "point": 2.5,
+    "cooldown": 0.5
   }
 }

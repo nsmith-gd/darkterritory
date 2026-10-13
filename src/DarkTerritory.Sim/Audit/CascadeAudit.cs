@@ -154,7 +154,7 @@ public static class CascadeAudit
                 }
             case "stoker":
                 {
-                    // App. A.5: "open the firebox and club it to kill it ... ignored, the train runs away and derails".
+                    // Stoker v3 (note 271): vent and starve it out (or hose it); ignored, the train runs away or the boiler goes.
                     double? gone = null;
                     var r = Night(c, seed, trace, t.StokerWithinSeconds, (tick, w) =>
                     {

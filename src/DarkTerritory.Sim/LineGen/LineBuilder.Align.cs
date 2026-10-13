@@ -24,8 +24,10 @@ sealed partial class LineBuilder
         foreach (var w in _alts)
             if (w.MainBow != 0 && s > w.T && s < w.J)
             {
+                // MainBow is a side, right +1 like the alternate's own; a heading turns left for positive. Added, the main
+                // line bowed round toward the alternate and crossed it 300 m past the toe on most nights (note 278).
                 double f = (s - w.T) / (w.J - w.T);
-                h += w.MainBow * BowFor(w) * DMath.Sin(2 * Math.PI * f);
+                h -= w.MainBow * BowFor(w) * DMath.Sin(2 * Math.PI * f);
             }
         double band = _t.Alignment.BandDeg * Math.PI / 180 * 0.8;
         return Math.Clamp(h, -band, band);
@@ -137,10 +139,14 @@ sealed partial class LineBuilder
                 }
             case HShape.Turn:
                 {
-                    double d = item.Deflection * toward;
+                    // A hard bend by a branch turns away from it (note 278), as far as the world band lets it.
+                    bool away = item.Params.TryGetValue("turn", out var forced) && forced != 0;
+                    double d = item.Deflection * (away ? Math.Sign(forced) : toward);
                     double maxD = Geometry.MaxDeflection(c, len - 20, item.Radius, speed);
                     d = Math.Sign(d) * Math.Min(Math.Abs(d), maxD);
-                    if (Math.Abs(pose.Heading + d) > band)
+                    if (away)
+                        d = Math.Clamp(pose.Heading + d, -band, band) - pose.Heading;
+                    else if (Math.Abs(pose.Heading + d) > band)
                         d = -d;
                     turn = Geometry.Turn(c, d, item.Radius, speed);
                     before = (len - turn.Sum(p => p.Length)) / 2;
@@ -148,11 +154,23 @@ sealed partial class LineBuilder
                 }
             case HShape.Reverse:
                 {
-                    double d = item.Deflection * toward;
+                    // A hard S-bend (note 359): its first turn away from a branch where one's near, as a hard bend's is, and the
+                    // way the world band has room for; its straight between as the piece says.
+                    bool hard = item.Params.TryGetValue("gapM", out var between);
+                    bool away = hard && item.Params.TryGetValue("turn", out var forced) && forced != 0;
+                    double d = item.Deflection * (away ? Math.Sign(item.Params["turn"]) : toward);
+                    if (hard)
+                    {
+                        d = Math.Sign(d) * Math.Min(Math.Abs(d), Geometry.MaxDeflection(c, (len - between - 20) / 2, item.Radius, speed));
+                        if (away)
+                            d = Math.Clamp(pose.Heading + d, -band, band) - pose.Heading;
+                        else if (Math.Abs(pose.Heading + d) > band)
+                            d = -d;
+                    }
                     var out1 = Geometry.Turn(c, d, item.Radius, speed);
                     var back = Geometry.Turn(c, -d, item.Radius, speed);
                     double gap = Math.Max(0, len - out1.Sum(p => p.Length) - back.Sum(p => p.Length) - 20);
-                    turn = [.. out1, HPrim.Tangent(Math.Min(gap, 60)), .. back];
+                    turn = [.. out1, HPrim.Tangent(hard ? between : Math.Min(gap, 60)), .. back];
                     before = Math.Max(0, (len - turn.Sum(p => p.Length)) / 2);
                     break;
                 }

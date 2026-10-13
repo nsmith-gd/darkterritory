@@ -53,6 +53,10 @@ public sealed class UdpTransport : DatagramTransport<EndPoint>
 
     sealed class Carrier(Socket socket) : IDatagramCarrier<EndPoint>
     {
+        // Straight to the address: nothing in between to relay it.
+        static readonly CarrierLink Direct = new("", Relayed: false);
+        public CarrierLink? Describe(EndPoint peer) => Direct;
+
         public void Send(EndPoint to, ReadOnlySpan<byte> datagram)
         {
             try
@@ -88,6 +92,19 @@ public sealed class UdpTransport : DatagramTransport<EndPoint>
             length = 0;
             from = null;
             return false;
+        }
+
+        /// <summary>The pump's wait (note 532): on the socket itself, so a datagram wakes it at once.</summary>
+        public void Wait(int milliseconds)
+        {
+            try
+            {
+                socket.Poll(milliseconds * 1000, SelectMode.SelectRead);
+            }
+            catch (Exception e) when (e is SocketException or ObjectDisposedException)
+            {
+                Thread.Sleep(milliseconds);
+            }
         }
 
         public void Dispose() => socket.Dispose();

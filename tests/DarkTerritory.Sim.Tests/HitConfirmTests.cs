@@ -1,6 +1,7 @@
 using Ballast;
 using DarkTerritory.Sim.Combat;
 using DarkTerritory.Sim.Enemies;
+using DarkTerritory.Sim.LineGen;
 using DarkTerritory.Sim.Net;
 using DarkTerritory.Sim.Player;
 using DarkTerritory.Sim.Train;
@@ -42,18 +43,19 @@ public class HitConfirmTests
         return s with { Yaw = yaw, Pitch = pitch };
     }
 
-    /// <summary>Fires the engine's gun once at an enemy's hit volume (where the last tick's targets have it), loaded or not.</summary>
+    /// <summary>Fires the engine's gun once at an enemy's body (where the last tick's targets have it), loaded or not.</summary>
     static void FireAt(Night n, Enemy e)
     {
         ref var gun = ref n.Train.Vehicles[0].Gun;
         (gun.Cooldown, gun.ReloadNeeded) = (0, 0);
         // Where the gunner saw it: the targets as the world last had them (as it's just been put there, without a tick of its
         // own first: a Switchman with no junction to wait at, or a hound with no train to chase, wouldn't stay).
-        var target = new HitTarget(e.Id, e.HitCentre(n.Train), e.HitRadius);
-        n.World.Targets.Add(target);
-        // Laid on its upper half: the stack's in the way of anything lower on the rail nearer than about 60 m (the engine's
+        var body = e.Body(n.Train, E).ToList();
+        n.World.Targets.AddRange(body);
+        // Laid on the top of it: the stack's in the way of anything lower on the rail nearer than about 60 m (the engine's
         // gun stands behind it, GunTests' RoundsStopAtTheTrainsOwnBody).
-        n.Crew[1] = LaidOn(n, n.Crew.GetValueOrDefault(1, Gunner(n)), target.Position + Double3.Up * (target.Radius * 0.5));
+        var top = body.MaxBy(t => t.Position.Y);
+        n.Crew[1] = LaidOn(n, n.Crew.GetValueOrDefault(1, Gunner(n)), top.Position + Double3.Up * (top.Radius * 0.5));
         n.Run(1.0 / SimConstants.TickRate, id => id == 1 ? Fire : default);
     }
 
@@ -72,10 +74,10 @@ public class HitConfirmTests
         bool fired = false;
         for (int i = 0; i < 10 * SimConstants.TickRate && !doll.Gone; i++)
         {
-            n.Crew[1] = LaidOn(n, n.Crew[1], doll.HitCentre(n.Train));
+            n.Crew[1] = LaidOn(n, n.Crew[1], doll.AimPoint(n.Train, E));
             var muzzle = n.Train.Frames[0].ToWorld(Guns.Mount(n.Train, 0)!.Value.Position);
             // (A few ticks in: the world's targets are last tick's, and she's only just been put there.)
-            bool inRange = (doll.HitCentre(n.Train) - muzzle).Length < G.Range - 2 && i >= 3;
+            bool inRange = (doll.AimPoint(n.Train, E) - muzzle).Length < G.Range - 2 && i >= 3;
             n.Run(1.0 / SimConstants.TickRate, id => id == 1 && inRange ? Fire : default);
             fired |= n.Shots.Count > 0;
         }
@@ -108,7 +110,7 @@ public class HitConfirmTests
         var doll = n.World.AddEnemy(id => TrackDoll.Ahead(id, n.Train, 60, E.TrackDoll));
         n.Run(8);
         Assert.True(doll.Haunting);
-        Assert.Equal(0, doll.HitRadius);
+        Assert.False(doll.Exposed);
         Assert.DoesNotContain(n.World.Targets, t => t.Id == doll.Id);
     }
 
@@ -123,7 +125,8 @@ public class HitConfirmTests
     [
         EnemyKind.CinderHound, EnemyKind.Switchman, EnemyKind.SootChildren, EnemyKind.Dragger, EnemyKind.Stoker, EnemyKind.Climber,
         EnemyKind.Gaunt, EnemyKind.Passenger, EnemyKind.Follower, EnemyKind.TrackDoll, EnemyKind.CarHugger, EnemyKind.Whistler,
-        EnemyKind.TippyToesie, EnemyKind.FireFlies, EnemyKind.Ribbit, EnemyKind.Grumbler, EnemyKind.Choir,
+        EnemyKind.TippyToesie, EnemyKind.FireFlies, EnemyKind.Ribbit, EnemyKind.Grumbler, EnemyKind.Choir, EnemyKind.Moose, EnemyKind.Gannet, EnemyKind.Mourners, EnemyKind.TowerJaw, EnemyKind.FreightBeetle, EnemyKind.Brakeman, EnemyKind.Hotbox, EnemyKind.Knotter,
+        EnemyKind.Pickers, EnemyKind.Lodger, EnemyKind.Householder, EnemyKind.Hanger,
     ];
 
     static Enemy Make(EnemyKind kind, int id) => kind switch
@@ -145,6 +148,18 @@ public class HitConfirmTests
         EnemyKind.Ribbit => new Ribbit(id, 0),
         EnemyKind.Grumbler => new Grumbler(id),
         EnemyKind.Choir => new ChoirGhost(id),
+        EnemyKind.Moose => new Moose(id),
+        EnemyKind.Gannet => new Gannet(id),
+        EnemyKind.Mourners => new Mourner(id),
+        EnemyKind.TowerJaw => new TowerJaw(id),
+        EnemyKind.FreightBeetle => new FreightBeetle(id),
+        EnemyKind.Brakeman => new Brakeman(id),
+        EnemyKind.Hotbox => new Hotbox(id),
+        EnemyKind.Knotter => new Knotter(id),
+        EnemyKind.Pickers => new Picker(id),
+        EnemyKind.Lodger => new Lodger(id),
+        EnemyKind.Householder => new Householder(id),
+        EnemyKind.Hanger => new Hanger(id),
         _ => throw new ArgumentException($"{kind} isn't a creature"),
     };
 
@@ -152,16 +167,31 @@ public class HitConfirmTests
     public void TheCreatureListIsTheWholeRosterBarTheHazardsAndFire()
     {
         // A kind added to the roster has to come here too, with a way to be struck.
-        var all = Enum.GetValues<EnemyKind>().Except([EnemyKind.Sleepers, EnemyKind.Drift, EnemyKind.CarFire]);
+        // (Dave and Jacob aren't creatures: DaveTests strikes Dave, notes 570, 572. The Wakers are the day's, nothing a crew
+        // can strike: note 588. The Hollow House is a house, and no blow lands on it, note 585.)
+        var all = Enum.GetValues<EnemyKind>().Except([EnemyKind.Sleepers, EnemyKind.Drift, EnemyKind.CarFire, EnemyKind.Dave, EnemyKind.Jacob, EnemyKind.Waker, EnemyKind.HollowHouse]);
         Assert.Equal(all.OrderBy(k => k), Creatures.OrderBy(k => k));
     }
+
+    /// <summary>
+    /// The height a creature's staged at, for those whose height is their mode: a Gannet <paramref name="gannet"/>, Hotbox half
+    /// out of its truck, the Brakeman cornered (where each can be struck).
+    /// </summary>
+    static double Stance(EnemyKind kind, GannetMode gannet) => kind switch
+    {
+        EnemyKind.Gannet => (double)gannet,
+        EnemyKind.Hotbox => (double)HotboxMode.Unfolded,
+        EnemyKind.Brakeman => (double)BrakemanMode.Cornered,
+        EnemyKind.Knotter => (double)KnotterMode.Slack,
+        _ => 0,
+    };
 
     /// <summary>
     /// A creature where a blow can land on it (App. C.2): on car 2's roof, a pace and a half in front of a crewmate there,
     /// in the phase its rule says it can be struck in (the Track Doll cornered, a Soot Child a Soot Child, the Whistler
     /// come out of its gap).
     /// </summary>
-    static (Night Night, Enemy Enemy) Staged(EnemyKind kind)
+    internal static (Night Night, Enemy Enemy) Staged(EnemyKind kind)
     {
         var n = new Night(4, speed: 0);
         const int car = 2;
@@ -173,13 +203,14 @@ public class HitConfirmTests
             EnemyKind.Whistler => SpinePhase.Commit,
             _ => SpinePhase.Telegraph,
         };
-        double extra = kind switch { EnemyKind.TrackDoll => 1, EnemyKind.Follower or EnemyKind.Ribbit or EnemyKind.Gaunt or EnemyKind.Choir or EnemyKind.TippyToesie => -1, _ => 0 };
+        double extra = kind switch { EnemyKind.TrackDoll => 1, EnemyKind.Follower or EnemyKind.Ribbit or EnemyKind.Gaunt or EnemyKind.Choir or EnemyKind.TippyToesie or EnemyKind.Moose or EnemyKind.Gannet => -1, _ => 0 };
         // A Stoker on its way in from the tender (note 263): in the open, where a blow lands (in the fire, only with the door open).
         double extra2 = kind is EnemyKind.SootChildren or EnemyKind.Stoker ? 1 : 0;
         var e = n.World.AddEnemy(id =>
         {
             var made = Make(kind, id);
-            made.Restore(phase, 0.5, 5, car, s.Position + new Double3(0, 0, -1.5), 0, 0, 0, extra, extra2);
+            // (A Gannet's height is its mode: down in the planks, stuck, where a blow can land.)
+            made.Restore(phase, 0.5, 5, car, s.Position + new Double3(0, 0, -1.5), 0, 0, Stance(kind, GannetMode.Stuck), extra, extra2);
             return made;
         });
         return (n, e);
@@ -204,6 +235,57 @@ public class HitConfirmTests
         var mirrored = Assert.Single(client.Hits);
         Assert.Equal((hit.Id, hit.Tick, hit.EnemyId, hit.Kind, hit.By, hit.Source, hit.Killed), (mirrored.Id, mirrored.Tick, mirrored.EnemyId, mirrored.Kind, mirrored.By, mirrored.Source, mirrored.Killed));
         Assert.InRange((mirrored.At - hit.At).Length, 0, 1e-3);
+    }
+
+    [Fact]
+    public void AGannetStruckIntoGivingUpIsntConfirmedKilled()
+    {
+        // Note 458 (D1): under giveUpBelow, it leaves for the run (Gannet.Struck): gone, not dead. No kill confirm (its sound,
+        // the HUD's red mark), and the scene has it fly off rather than fall.
+        var (n, e) = Staged(EnemyKind.Gannet);
+        e.Restore(e.Phase, e.PhaseSeconds, E.Gannet.GiveUpBelow + 0.5, e.Attached, e.Local, e.LineDistance, e.Lateral, e.Height, e.Extra, e.Extra2);
+        n.Run(1.0 / SimConstants.TickRate, id => new PlayerIntent { Actions = PlayerActions.Swing });
+        var hit = Assert.Single(n.World.Hits);
+        Assert.True(e.Gone && e.Health > 0, $"gone {e.Gone} at {e.Health}");
+        Assert.False(hit.Killed);
+    }
+
+    [Fact]
+    public void AGannetStruckDeadIsConfirmedKilled()
+    {
+        var (n, e) = Staged(EnemyKind.Gannet);
+        e.Restore(e.Phase, e.PhaseSeconds, 0.5, e.Attached, e.Local, e.LineDistance, e.Lateral, e.Height, e.Extra, e.Extra2);
+        n.Run(1.0 / SimConstants.TickRate, id => new PlayerIntent { Actions = PlayerActions.Swing });
+        Assert.True(Assert.Single(n.World.Hits).Killed);
+    }
+
+    [Fact]
+    public void AWhistlerClubbedOffWhoItCarriesIsntConfirmedKilled()
+    {
+        // Note 458: a friend's blow on the Whistler carrying someone off (App. A.4) drops them, and it runs: gone, not dead.
+        var (n, e) = Staged(EnemyKind.Whistler);
+        n.Crew[2] = PlayerMotor.SpawnOnRoof(n.Train, 2, 2, P);
+        e.Restore(SpinePhase.Grab, 0.5, 5, e.Attached, e.Local, e.LineDistance, e.Lateral, e.Height, e.Extra, e.Extra2, holding: 2);
+        n.Run(1.0 / SimConstants.TickRate, id => id == 1 ? new PlayerIntent { Actions = PlayerActions.Swing } : default);
+        var hit = Assert.Single(n.World.Hits);
+        Assert.True(e.Gone && e.Health > 0, $"gone {e.Gone} at {e.Health}");
+        Assert.False(hit.Killed);
+    }
+
+    [Fact]
+    public void AClimberKnockedOffOnItsLastTryIsGoneButNotDead()
+    {
+        // Note 458: a ball that doesn't kill it knocks it off (Climber.Hit, note 288), and with no gap left to try it's gone for
+        // the night, alive: World.Confirm's Killed is dead only, so no kill confirm for it. (A one-gap train: none left.)
+        var n = new Night(2, speed: 0);
+        int car = n.Train.Dynamics.Consist.Vehicles[^1].Id;
+        Assert.Single(Climber.Gaps(n.Train));
+        var climber = n.World.AddEnemy(id => new Climber(id));
+        climber.Restore(SpinePhase.Commit, 1, 3, car, new Double3(0, n.Train.Frames[car].Shape.RoofHeight, 0), 0, 0, 0, Climber.Gaps(n.Train)[0], 1);
+        Assert.True(climber.Exposed);
+        var ctx = new EnemyContext { Tuning = E, World = n.World };
+        climber.Hit(ctx, 1, 1);
+        Assert.True(climber.Gone && climber.Health > 0, $"gone {climber.Gone} at {climber.Health}");
     }
 
     public static TheoryData<EnemyKind> CreatureKinds() => [.. Creatures];
@@ -250,22 +332,37 @@ public class HitConfirmTests
         Assert.Empty(n.World.Hits);
     }
 
-    /// <summary>The creatures a ball can find (the rest are aboard, under the cars, in the gaps or out of the arcs: §21).</summary>
-    public static TheoryData<EnemyKind> Shootable() => [EnemyKind.CinderHound, EnemyKind.Switchman, EnemyKind.Climber, EnemyKind.TrackDoll];
+    /// <summary>
+    /// Every creature with a body (note 290: GDD App. F.1, "the guns do nothing"): all but a swarm and the ghosts. Where a ball
+    /// can reach it is the gun's arcs and the train's own body (§13, §21): under the cars, in the gaps and aboard it can't.
+    /// </summary>
+    public static TheoryData<EnemyKind> Shootable() => [.. Creatures.Except([EnemyKind.FireFlies, EnemyKind.Choir])];
+
+    /// <summary>On the line ahead of the engine, in the lamp, in the open: the phase each is out in (the Whistler come out of its gap).</summary>
+    static Enemy Ahead(Night n, EnemyKind kind, double health = 2)
+    {
+        var phase = kind == EnemyKind.Whistler ? SpinePhase.Commit : SpinePhase.Telegraph;
+        double extra = kind is EnemyKind.Follower or EnemyKind.Ribbit or EnemyKind.Gaunt or EnemyKind.TippyToesie or EnemyKind.Moose or EnemyKind.Gannet ? -1 : 0;
+        double extra2 = kind is EnemyKind.SootChildren or EnemyKind.Stoker ? 1 : 0;
+        return n.World.AddEnemy(id =>
+        {
+            var made = Make(kind, id);
+            // (A Gannet's height is its mode: in the air, soaring.)
+            made.Restore(phase, 0.5, health, -1, default, n.Train.Dynamics.Distance + 64, 0, Stance(kind, GannetMode.Soar), extra, extra2);
+            return made;
+        });
+    }
 
     [Theory]
     [MemberData(nameof(Shootable))]
     public void EveryCreatureABallCanFindConfirmsTheHit(EnemyKind kind)
     {
+        // Build 1121: "Rounds don't collide where they land and have no visible effect on the monsters". In the open, every
+        // creature's body stops a ball, and the hit is told to every client (the flinch, the flash, the marker).
         var n = new Night(4, speed: 6);
-        var e = n.World.AddEnemy(id =>
-        {
-            var made = Make(kind, id);
-            // On the line ahead of the engine, in the lamp, as each is when it can be shot.
-            made.Restore(SpinePhase.Telegraph, 0.5, 2, -1, default, n.Train.Dynamics.Distance + 64, 0, kind == EnemyKind.TrackDoll ? 0 : 0.6, 0, 0);
-            return made;
-        });
-        Assert.True(e.HitRadius > 0, $"{kind} has no hit volume where it's staged");
+        var e = Ahead(n, kind);
+        Assert.True(e.Exposed, $"{kind} isn't in the open where it's staged");
+        Assert.NotEmpty(e.Body(n.Train, E));
         FireAt(n, e);
         var shot = Assert.Single(n.Shots);
         Assert.Equal(e.Id, shot.HitTargetId);
@@ -274,6 +371,76 @@ public class HitConfirmTests
         var impact = Assert.Single(n.World.Impacts);
         Assert.Equal((ImpactSurface.Creature, kind), (impact.Surface, impact.Struck));
         Assert.InRange((impact.At - hit.At).Length, 0, 1e-9);
+        // On its body, not past it: within its tallest reach of where it stands.
+        var stood = e.WorldPosition(n.Train);
+        Assert.InRange((impact.At - stood).Length, 0, E.Body(kind).Max(s => s.Height + s.Radius) + 0.05);
+    }
+
+    [Theory]
+    [InlineData(EnemyKind.FireFlies)]
+    [InlineData(EnemyKind.Choir)]
+    public void ABallGoesThroughASwarmAndAGhost(EnemyKind kind)
+    {
+        // No body to stop at (note 290): the Fire Flies part round it, a ghost isn't there to it. Every round still feeds the
+        // Choir's meter.
+        var n = new Night(4, speed: 6);
+        var e = Ahead(n, kind);
+        Assert.False(e.Exposed);
+        Assert.Empty(E.Body(kind));
+        n.Run(1.0 / SimConstants.TickRate);
+        Assert.DoesNotContain(n.World.Targets, t => t.Id == e.Id);
+    }
+
+    [Fact]
+    public void EveryBodyIsUprightOverWhereItStands()
+    {
+        // enemies.json bodies: a stack of spheres over the creature's feet, none below the ground it stands on, each its own size.
+        Assert.Equal(Shootable().Select(r => r.Data).OrderBy(k => k), E.Bodies.Keys.Select(k => Enum.Parse<EnemyKind>(k, true)).OrderBy(k => k));
+        foreach (var kind in Creatures)
+            foreach (var (radius, height) in E.Body(kind))
+            {
+                Assert.InRange(radius, 0.25, 1.5);
+                Assert.InRange(height, 0, 3.5);
+            }
+    }
+
+    [Fact]
+    public void ASleepingGauntIsCurledUpLowAndWakingItStandsTall()
+    {
+        var n = new Night(4, speed: 0);
+        var g = n.World.AddEnemy(id => Gaunt.Asleep(id, n.Train.Line.Sample(n.Train.Dynamics.Distance + 60).Position, E.Gaunt));
+        Assert.True(g.Exposed);
+        double asleep = g.Body(n.Train, E).Max(t => t.Position.Y);
+        g.Restore(SpinePhase.Telegraph, 0, g.Health, g.Attached, g.Local, 0, 0, 0, 1, 0);
+        double awake = g.Body(n.Train, E).Max(t => t.Position.Y);
+        Assert.InRange(asleep - g.Local.Y, 0.5, 1.5);
+        Assert.InRange(awake - g.Local.Y, 2.5, 3.5);
+    }
+
+    [Fact]
+    public void ABallOnAGrumblerMaulingACrewmateFreesThemAndTurnsItOnTheGunner()
+    {
+        // A ball lands as a friend's blow (note 290), answered by the Grumbler's own rule (App. A.8): the maul is broken, and
+        // it's FERAL now, after whoever struck it: the gunner. Its health (6) takes more than one ball (combat.json 4).
+        var n = new Night(4, speed: 0);
+        n.Crew[1] = Gunner(n);
+        var sample = n.Train.Line.Sample(n.Train.Dynamics.Distance + 60);
+        var right = Double3.Cross(sample.Tangent, Double3.Up).Normalized;
+        n.Crew[2] = PlayerMotor.SpawnOnGround(sample.Position + right * 6, n.Train.Line, n.Train.Dynamics.Distance + 60, P);
+        n.Run(0.2);
+        var grumbler = n.World.AddEnemy(id => Grumbler.OnCrates(id, sample.Position + right * 6.8, -1, E.Grumbler));
+        // Its maul: committed on the crewmate, and holding them.
+        grumbler.Restore(SpinePhase.Grab, 0.5, E.Grumbler.Health, Enemy.Loose, grumbler.Local, 0, 0, 0, -1, 1, holding: 2, grabWindow: 8);
+        n.Run(1.0 / SimConstants.TickRate);
+        FireAt(n, grumbler);
+        var hit = Assert.Single(n.World.Hits, h => h.Source == HitSource.Cannon);
+        Assert.Equal((grumbler.Id, 1, false), (hit.EnemyId, hit.By, hit.Killed));
+        Assert.NotEqual(SpinePhase.Grab, grumbler.Phase);
+        Assert.Equal(-1, grumbler.Holding);
+        Assert.Equal(1, grumbler.LastHitBy);
+        Assert.False(grumbler.Gone);
+        // Note 288: a gunner alone is one striker, and only a gang wears a Grumbler down; the old rule's ball took 4 of its 6.
+        Assert.Equal(E.Grumbler.Health, grumbler.Health, 1);
     }
 
     // ---- Where every ball comes down.
@@ -305,11 +472,16 @@ public class HitConfirmTests
     [Fact]
     public void ABallIntoTheTrainsOwnBodyLandsOnTheTrain()
     {
-        // As GunTests' RoundsStopAtTheTrainsOwnBody: down over the boiler.
+        // As GunTests' RoundsStopAtTheTrainsOwnBody: the rear gun at the front of its rail, laid back down along its roof.
         var n = new Night(4, speed: 0);
-        var s = Gunner(n);
+        int last = n.Train.Frames.Count - 1;
+        n.Train.Vehicles[last].Gun.Z = n.Train.Frames[last].Shape.RoofRail!.Value.Front;
+        var mount = Guns.Mount(n.Train, last)!.Value;
+        var s = PlayerMotor.SpawnOnRoof(n.Train, last, mount.Position.Z - mount.Facing.Z * 0.7, P);
+        s.Yaw = Math.PI;
+        s.Flags |= PlayerFlags.Seated;
         n.Crew[1] = s with { Pitch = -11 * Math.PI / 180 };
-        n.Train.Vehicles[0].Gun.Elevation = -11 * Math.PI / 180;
+        n.Train.Vehicles[last].Gun.Elevation = -11 * Math.PI / 180;
         n.Run(1.0 / SimConstants.TickRate, id => Fire);
         var shot = Assert.Single(n.Shots);
         Assert.True(shot.BlockedByTrain);
@@ -329,5 +501,38 @@ public class HitConfirmTests
         Assert.Single(n.World.Impacts);
         n.Run(2);
         Assert.Empty(n.World.Impacts);
+    }
+
+    [Fact]
+    public void ABallFiredAtTheFortWallStopsAtItWithAnImpact()
+    {
+        // T124 (build 1121: "gun shots hit nothing"): in the home fortress's yard, laid on the wall 50 m ahead and to the side
+        // (a house between may take it first): the ball strikes a building, short of the wall's far face, where a ball's
+        // impact is told to everyone, and the stone isn't passed through to the ground beyond.
+        var route = Routes.Generate(DataFile.FindContentRoot(), "frontier:7", 6);
+        var n = new Night(4, speed: 0, route);
+        n.World.EnableRun(Tuning.Run, route, 600, authority: true);
+        Assert.InRange(n.Train.Dynamics.Distance, 100, 500);
+        n.Crew[1] = Gunner(n);
+        foreach (int side in new[] { -1, 1 })
+        {
+            var t = n.Train.Line.Sample(n.Train.Dynamics.Distance + 50);
+            var right = Double3.Cross(t.Tangent, Double3.Up).Normalized;
+            var wall = t.Position + right * (side * Run.Fortresses.WallOut) + Double3.Up * 3;
+            (n.Train.Vehicles[0].Gun.Cooldown, n.Train.Vehicles[0].Gun.ReloadNeeded) = (0, 0);
+            int before = n.World.Impacts.Count;
+            n.Crew[1] = LaidOn(n, n.Crew[1], wall);
+            n.Run(1.0 / SimConstants.TickRate, id => Fire);
+            var impact = Assert.Single(n.World.Impacts.Skip(before));
+            Assert.Equal(ImpactSurface.Structure, impact.Surface);
+            var muzzle = n.Train.Frames[0].ToWorld(Guns.Mount(n.Train, 0)!.Value.Position);
+            Assert.True((impact.At - muzzle).Length <= (wall - muzzle).Length + Run.Fortresses.WallHalf / Math.Abs(Double3.Dot((wall - muzzle).Normalized, right)) + 0.1,
+                $"the ball went {(impact.At - muzzle).Length:0.0} m, past the wall at {(wall - muzzle).Length:0.0} m");
+            Assert.Contains(n.Train.Walls!.Near(impact.At), w =>
+            {
+                var l = w.ToLocal(impact.At);
+                return Math.Abs(l.X) <= w.HalfLength + 0.05 && Math.Abs(l.Z) <= w.HalfWidth + 0.05;
+            });
+        }
     }
 }

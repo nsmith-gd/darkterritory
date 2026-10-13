@@ -2,9 +2,12 @@ using Ballast;
 using Ballast.Audio;
 using DarkTerritory.Game.Sound;
 using DarkTerritory.Sim;
+using DarkTerritory.Sim.Combat;
+using DarkTerritory.Sim.Enemies;
 using DarkTerritory.Sim.Player;
 using DarkTerritory.Sim.Route;
 using DarkTerritory.Sim.Run;
+using DarkTerritory.Sim.Stops;
 using DarkTerritory.Sim.Train;
 
 namespace DarkTerritory.Game.Tests;
@@ -255,6 +258,797 @@ public class WorldSoundTests
     }
 
     [Fact]
+    public void ACapstanWinchIsHeardTurningHaulingStallingAndBringingItsSledIn()
+    {
+        // Spec D.2's capstan winch (T43; queue #204, note 468), at a foundry (the wreck yard's is place-wreck's), off its site's
+        // record as a client has it: the drum while it's cranked in rhythm, the sled hauled in over the ground, the stall as
+        // the cranks fall out of rhythm, once, and a sled brought up to its stop, once, where it stops.
+        var (world, foundry) = Night(f => f.Facility == FacilityKind.Foundry, from: 20);
+        var audio = new GameAudio(Content);
+        Stand(audio, "place-winch.stall", "place-winch.in");
+        Held(audio, "place-winch.capstan", "place-winch.drag");
+        var run = world.Run!;
+        run.EnableSites(DataFile.Load<FacilityTuning>(Path.Combine(Content, FacilityTuning.File)), world.Train.Line);
+        int index = run.Route.Of(FeatureKind.Facility).ToList().IndexOf(foundry);
+        var site = run.Sites[index]!;
+        Assert.True(site.Has(ModuleKind.Winch));
+        double[] left = new double[run.FacilityCount];
+        double seconds = 900;
+        void Set(bool turning = false, bool outOfRhythm = false, double progress = 0, int sleds = 2) =>
+            run.Mirror(RunPhase.AtFacility, RunEnd.None, seconds++, index, false, left, [.. run.Sites.Select(x => x != site
+                ? new SiteState(true, 0, x?.SledsLeft ?? 0, false, false, 0) { Bin = x?.Bin ?? 0 }
+                : new SiteState(true, progress, sleds, turning, outOfRhythm, 0))]);
+        bool Playing(string cue) => WorldSoundTests.Playing(audio, cue);
+        var ears = new Ears(audio, world);
+        var ear = site.Capstan + new Double3(0, 0.9, 2);
+        Set();
+        ears.Tick(ear, 5);
+        Assert.False(Playing("place-winch.capstan") || Playing("place-winch.drag"));
+        // Cranked in rhythm: the drum, and the sled coming in.
+        Set(turning: true, progress: 0.3);
+        ears.Tick(ear, 10);
+        Assert.True(Playing("place-winch.capstan") && Playing("place-winch.drag"));
+        // Out of rhythm: the stall, once, and the drum and the sled still.
+        Set(outOfRhythm: true, progress: 0.4);
+        ears.Tick(ear, 10);
+        Assert.Single(ears.Started, v => v.Name == "place-winch.stall");
+        Assert.False(Playing("place-winch.capstan") || Playing("place-winch.drag"));
+        // In rhythm again and the sled in: brought up to its stop, once, and the next one waiting out at the far end.
+        Set(turning: true, progress: 0.98);
+        ears.Tick(ear, 10);
+        Set(turning: true, progress: 0, sleds: 1);
+        ears.Tick(ear, 10);
+        var stop = Assert.Single(ears.Started, v => v.Name == "place-winch.in");
+        Assert.True((stop.Position - site.SledTo).Length < 1e-6);
+        Assert.Single(ears.Started, v => v.Name == "place-winch.stall");
+        // Far off, nothing.
+        ears.Tick(site.Capstan + new Double3(400, 0, 0), SimConstants.TickRate);
+        Assert.False(Playing("place-winch.capstan") || Playing("place-winch.drag"));
+    }
+
+    [Fact]
+    public void TheConveyorIsHeardStartedRunningJammedClearedAndStalled()
+    {
+        // The grain elevator's conveyor line (A1's note 400; queue #202, note 466), off its site's record as a client has it:
+        // the starter cranking its engine while held, the engine catching as it starts and running once it's up, the belt
+        // and the grain off its head while it carries; a jam where it is, the drive labouring under it and not running
+        // free, the hands at it, the belt jerking free as it's cleared; and a jam left, the engine dying.
+        var (world, elevator) = Night(f => f.Facility == FacilityKind.GrainElevator, from: 20);
+        var audio = new GameAudio(Content);
+        string[] once = ["place-conveyor.catch", "place-conveyor.stall", "place-conveyor.jam", "place-conveyor.free"];
+        string[] held = ["place-conveyor.cranking", "place-conveyor.engine", "place-conveyor.labour", "place-conveyor.belt",
+            "place-conveyor.pour", "place-conveyor.clearing"];
+        Stand(audio, once);
+        Held(audio, held);
+        var run = world.Run!;
+        run.EnableSites(DataFile.Load<FacilityTuning>(Path.Combine(Content, FacilityTuning.File)), world.Train.Line);
+        int index = run.Route.Of(FeatureKind.Facility).ToList().IndexOf(elevator);
+        var site = run.Sites[index]!;
+        Assert.True(site.Has(ModuleKind.Conveyor));
+        double[] left = new double[run.FacilityCount];
+        double seconds = 900;
+        void Set(bool running = false, bool carrying = false, double jam = -1, double jamFor = 0, double start = 0, double clear = 0) =>
+            run.Mirror(RunPhase.AtFacility, RunEnd.None, seconds++, index, false, left, [.. run.Sites.Select(x => x != site
+                ? new SiteState(true, 0, x?.SledsLeft ?? 0, false, false, 0) { Bin = x?.Bin ?? 0, Grain = x?.Grain ?? 0 }
+                : new SiteState(true, 0, 0, false, false, 0) { Bin = site.Bin, Grain = 2, Running = running, Carrying = carrying,
+                    Jam = jam, JamFor = jamFor, Start = start, Clear = clear })]);
+        string[] Now() => [.. held.Where(c => Playing(audio, c))];
+        var ears = new Ears(audio, world);
+        var ear = site.ConveyorStarter + new Double3(0, 0.7, 1.5);
+        Set();
+        ears.Tick(ear, 5);
+        Assert.Empty(Now());
+        // Someone at the starter: the engine cranked over while they hold it.
+        Set(start: 1.5);
+        ears.Tick(ear, 10);
+        Assert.Equal(["place-conveyor.cranking"], Now());
+        // It starts: it catches, once, and the running engine takes over as the catch comes up to its beat.
+        Set(running: true);
+        ears.Tick(ear, 10);
+        Assert.Single(ears.Started, v => v.Name == "place-conveyor.catch");
+        Assert.DoesNotContain("place-conveyor.cranking", Now());
+        ears.Tick(ear, SimConstants.TickRate * 4);
+        Assert.Contains("place-conveyor.engine", Now());
+        Assert.Contains("place-conveyor.belt", Now());
+        Assert.DoesNotContain("place-conveyor.pour", Now());
+        // Carrying into the car under its head: the grain going in.
+        Set(running: true, carrying: true);
+        ears.Tick(ear, 10);
+        Assert.Contains("place-conveyor.pour", Now());
+        // Jammed half-way down its low run: the belt bunching there, and the drive labouring instead of running free.
+        Set(running: true, jam: 0.5);
+        ears.Tick(ear, 10);
+        var jammed = Assert.Single(ears.Started, v => v.Name == "place-conveyor.jam");
+        var jamAt = site.JamAt;
+        Assert.True((jammed.Position - jamAt).Length < 1e-6);
+        Assert.Equal(["place-conveyor.labour"], Now());
+        // Someone clearing it, then cleared: the belt jerks free where it was jammed and runs on.
+        Set(running: true, jam: 0.5, jamFor: 3, clear: 1);
+        ears.Tick(ear, 10);
+        Assert.Contains("place-conveyor.clearing", Now());
+        Set(running: true);
+        ears.Tick(ear, 10);
+        var free = Assert.Single(ears.Started, v => v.Name == "place-conveyor.free");
+        Assert.True((free.Position - jamAt).Length < 1e-6);
+        Assert.Contains("place-conveyor.engine", Now());
+        Assert.DoesNotContain("place-conveyor.labour", Now());
+        // Jammed again and left: the engine dies under it, and nothing of the line goes on.
+        Set(running: true, jam: 0.2, jamFor: 10);
+        ears.Tick(ear, 10);
+        Set(jam: 0.2);
+        ears.Tick(ear, SimConstants.TickRate);
+        Assert.Single(ears.Started, v => v.Name == "place-conveyor.stall");
+        Assert.Single(ears.Started, v => v.Name == "place-conveyor.free");
+        Assert.Empty(Now());
+    }
+
+    [Fact]
+    public void TheTippleIsHeardClampingRollingTippingAndDerailingABadClamp()
+    {
+        // The mine head's tipple (A1's note 423; queue #216, note 480), off its site's record and the car's OffRails as a
+        // client has them: the clamp wound down while held and biting once; the cradle rolling while it moves; the ore at the
+        // top once; rolled back and let go once; a bad clamp's derailment once (no release with it), the wrench at it, and
+        // the car back on its rails once.
+        var (world, mine) = Night(f => f.Facility == FacilityKind.MineHead, from: 20);
+        var audio = new GameAudio(Content);
+        Stand(audio, "place-tipple.clamp", "place-tipple.pour", "place-tipple.release", "place-tipple.derail", "place-tipple.rerailed");
+        Held(audio, "place-tipple.clamping", "place-tipple.roll", "place-tipple.rerail");
+        var run = world.Run!;
+        var facilities = DataFile.Load<FacilityTuning>(Path.Combine(Content, FacilityTuning.File));
+        run.EnableSites(facilities with { Draw = facilities.Draw with { Enabled = false } }, world.Train.Line);
+        int index = run.Route.Of(FeatureKind.Facility).ToList().IndexOf(mine);
+        var site = run.Sites[index]!;
+        Assert.True(site.Has(ModuleKind.Tipple));
+        double[] left = new double[run.FacilityCount];
+        double seconds = 900;
+        // The car in the cradle: the one the test derails, stood on the cradle's mark.
+        var car = world.Train.Vehicles.First(v => v.Kind == VehicleKind.Cargo);
+        void Set(int clamped = -1, double roll = 0, bool back = false, double clamp = 0, double rerail = 0) =>
+            run.Mirror(RunPhase.AtFacility, RunEnd.None, seconds++, index, false, left, [.. run.Sites.Select(x => x != site
+                ? new SiteState(true, 0, x?.SledsLeft ?? 0, false, false, 0) { Bin = x?.Bin ?? 0 }
+                : new SiteState(true, 0, site.SledsLeft, false, false, 0) { TippleOre = 2, Clamped = clamped, GoodClamp = true, Roll = roll,
+                    RollingBack = back, Clamp = clamp, Rerail = rerail })]);
+        var ears = new Ears(audio, world);
+        bool Playing(string cue) => WorldSoundTests.Playing(audio, cue);
+        int Count(string cue) => ears.Started.Count(v => v.Name == cue);
+        var ear = site.TippleLever + new Double3(0, 0.8, 0);
+        Set();
+        ears.Tick(ear, 5);
+        // The lever held: the clamp wound down; then clamped, once.
+        Set(clamp: 0.7);
+        ears.Tick(ear, 5);
+        Assert.True(Playing("place-tipple.clamping"));
+        Set(clamped: car.Id);
+        ears.Tick(ear, 5);
+        Assert.Equal(1, Count("place-tipple.clamp"));
+        Assert.False(Playing("place-tipple.clamping"));
+        // Rolling over: heard while it moves, still while it's held still; the ore at the top, once.
+        for (int i = 1; i <= 20; i++)
+        {
+            Set(clamped: car.Id, roll: i / 20.0);
+            ears.Tick(ear, 3);
+        }
+        Assert.True(Playing("place-tipple.roll"));
+        Assert.Equal(1, Count("place-tipple.pour"));
+        Set(clamped: car.Id, roll: 1);
+        ears.Tick(ear, SimConstants.TickRate);
+        Assert.False(Playing("place-tipple.roll"));
+        // Back by itself and let go: once.
+        Set(clamped: car.Id, roll: 0.5, back: true);
+        ears.Tick(ear, 3);
+        Assert.True(Playing("place-tipple.roll"));
+        Set();
+        ears.Tick(ear, 5);
+        Assert.Equal(1, Count("place-tipple.release"));
+        // A bad clamp: off its rails (its clamp let go with it, not a release), the wrench at it, back on, once each.
+        Set(clamped: car.Id, roll: 0.3);
+        ears.Tick(ear, 5);
+        car.OffRails = true;
+        Set();
+        ears.Tick(ear, 5);
+        Assert.Equal(1, Count("place-tipple.derail"));
+        Assert.Equal(1, Count("place-tipple.release"));
+        Set(rerail: 5);
+        ears.Tick(ear, 3);
+        Set(rerail: 6);
+        ears.Tick(ear, 3);
+        Assert.True(Playing("place-tipple.rerail"));
+        car.OffRails = false;
+        Set();
+        ears.Tick(ear, 5);
+        Assert.Equal(1, Count("place-tipple.rerailed"));
+        Assert.Equal(1, Count("place-tipple.derail"));
+    }
+
+    [Fact]
+    public void ALockWorkedOpenWithTheWrenchIsQuietAndOneSmashedIsSmashed()
+    {
+        // D.7 (note 301's slice 2; queue #122, note 385): the wrench at a lock opens it quietly (Holdout.Quiet, replicated), and
+        // it was heard as the smash, "loud as a cannon".
+        var (world, site) = Night(f => f.Stop is { } stop && stop.Holdouts.Any(x => x.Kind != Sim.Stops.HoldoutKind.Shelter), from: -200);
+        var audio = new GameAudio(Content);
+        Stand(audio, "place-breach.smash", "place-breach.smash-give", "place-breach.pick-give");
+        Held(audio, "place-breach.pick");
+        var h = world.Holdouts!.All.First(x => x.Site == site && x.Lockable);
+        var ears = new Ears(audio, world);
+        var ear = h.Door + new Double3(1, 1.6, 0);
+        ears.Tick(ear);
+        double progress = 0;
+        void Breach(bool quiet, double seconds)
+        {
+            for (int i = 0; i < seconds * SimConstants.TickRate; i++)
+            {
+                world.Holdouts.Mirror(h.Index, HoldoutState.Breaching, 1, progress += SimConstants.TickSeconds, quiet);
+                ears.Tick(ear);
+            }
+        }
+        Breach(quiet: true, 2);
+        Assert.True(Playing(audio, "place-breach.pick"));
+        Assert.DoesNotContain(ears.Started, v => v.Name == "place-breach.smash");
+        // It gives (Free clears Quiet the tick it does): a click and the hasp, not a smash.
+        world.Holdouts.Mirror(h.Index, HoldoutState.Freed, 1, 0);
+        ears.Tick(ear, SimConstants.TickRate);
+        Assert.Single(ears.Started, v => v.Name == "place-breach.pick-give");
+        Assert.DoesNotContain(ears.Started, v => v.Name == "place-breach.smash");
+        Assert.False(Playing(audio, "place-breach.pick"));
+        // Without the wrench, it's smashed, and smashed open.
+        world.Holdouts.Mirror(h.Index, HoldoutState.Occupied, 1, progress = 0);
+        Breach(quiet: false, 2);
+        Assert.True(ears.Started.Count(v => v.Name == "place-breach.smash") >= 2);
+        Assert.False(Playing(audio, "place-breach.pick"));
+        world.Holdouts.Mirror(h.Index, HoldoutState.Freed, 1, 0);
+        ears.Tick(ear, SimConstants.TickRate);
+        Assert.Single(ears.Started, v => v.Name == "place-breach.pick-give");
+        Assert.Single(ears.Started, v => v.Name == "place-breach.smash-give");
+    }
+
+    [Fact]
+    public void ABreachIsHeardOnTheCrewsBeatsEachBlowEachHeaveAndEachBoardOff()
+    {
+        // Note 497 (C1's #200, note 464): the lock jumps at each blow of the crew's smash clip (a blow every 0.8 s, frame 9
+        // of 24, on the scene's clock) and each blow is heard as it lands, one at a time; it gives with the last. A
+        // barricade's board flexes out at each heave of the pry clip (every 1.33 s) and comes off at each fifth of the
+        // breach; each heave and each board is heard, and the barricade giving way.
+        var (world, site) = Night(f => f.Stop is { } stop && stop.Holdouts.Any(x => x.Kind != Sim.Stops.HoldoutKind.Shelter)
+            && stop.Holdouts.Any(x => x.Kind == Sim.Stops.HoldoutKind.Shelter), from: -200);
+        var audio = new GameAudio(Content);
+        Stand(audio, "place-breach.smash", "place-breach.smash-give", "place-breach.pry", "place-breach.board", "place-breach.pry-give");
+        var ears = new Ears(audio, world);
+        double clock = 100;
+        List<(string Name, double At)> Breach(Holdout h, double seconds, bool freed = true)
+        {
+            var heard = new List<(string, double)>();
+            var ear = h.Door + new Double3(1, 1.6, 0);
+            double progress = 0;
+            for (int i = 0; i < seconds * SimConstants.TickRate; i++)
+            {
+                clock += SimConstants.TickSeconds;
+                audio.SceneClock = clock;
+                world.Holdouts!.Mirror(h.Index, HoldoutState.Breaching, 1, progress += SimConstants.TickSeconds);
+                int before = ears.Started.Count;
+                ears.Tick(ear);
+                heard.AddRange(ears.Started.Skip(before).Select(v => (v.Name, clock)));
+            }
+            if (freed)
+            {
+                world.Holdouts!.Mirror(h.Index, HoldoutState.Freed, 1, 0);
+                int before = ears.Started.Count;
+                ears.Tick(ear, 5);
+                heard.AddRange(ears.Started.Skip(before).Select(v => (v.Name, clock)));
+            }
+            return heard;
+        }
+        // The lock: 3 s of blows (holdouts.json smash), each on the clip's beat; then the last tearing it out.
+        var lockup = world.Holdouts!.All.First(x => x.Site == site && x.Lockable && x.Layout.Kind != Sim.Stops.HoldoutKind.Shelter);
+        var smashed = Breach(lockup, 3);
+        var blows = smashed.Where(x => x.Name == "place-breach.smash").Select(x => x.At).ToList();
+        Assert.InRange(blows.Count, 3, 4);
+        Assert.All(blows, t => Assert.InRange(((t - 9 / 30.0) % 0.8 + 0.8) % 0.8, 0, SimConstants.TickSeconds + 1e-9));
+        Assert.Equal(1, smashed.Count(x => x.Name == "place-breach.smash-give"));
+        Assert.DoesNotContain(smashed, x => x.Name is "place-breach.pry" or "place-breach.board");
+        // The barricade: 6 s of heaves (holdouts.json pry), one each 1.33 s at the clip's haul; four boards off as it goes,
+        // the fifth with the barricade giving way.
+        var shelter = world.Holdouts!.All.First(x => x.Site == site && x.Layout.Kind == Sim.Stops.HoldoutKind.Shelter);
+        var pried = Breach(shelter, 6);
+        var heaves = pried.Where(x => x.Name == "place-breach.pry").Select(x => x.At).ToList();
+        Assert.InRange(heaves.Count, 4, 5);
+        Assert.All(heaves, t => Assert.InRange((t % (40 / 30.0) + 40 / 30.0) % (40 / 30.0), 0, SimConstants.TickSeconds + 1e-9));
+        Assert.Equal(4, pried.Count(x => x.Name == "place-breach.board"));
+        Assert.Equal(1, pried.Count(x => x.Name == "place-breach.pry-give"));
+        Assert.DoesNotContain(pried, x => x.Name is "place-breach.smash" or "place-breach.smash-give");
+    }
+
+    [Fact]
+    public void TheSteamLiftsWindingEngineRunsWhileItWindsAndEachSkipTipsDownTheChute()
+    {
+        // The mine head's steam lift (note 368; queue #122, note 385), off the site's replicated state: winding, the ore left.
+        var (world, mine) = Night(f => f.Facility == FacilityKind.MineHead, from: 20);
+        var audio = new GameAudio(Content);
+        Stand(audio, "place-mine-lift.tip");
+        Held(audio, "place-mine-lift.winding");
+        var run = world.Run!;
+        run.EnableSites(DataFile.Load<FacilityTuning>(Path.Combine(Content, FacilityTuning.File)), world.Train.Line);
+        var site = run.Sites[run.Route.Of(FeatureKind.Facility).ToList().IndexOf(mine)]!;
+        Assert.True(site.Has(ModuleKind.Lift));
+        var ear = site.LiftLever + Double3.Up * 1.6;
+        var ears = new Ears(audio, world);
+        ears.Tick(ear, 5);
+        Assert.False(Playing(audio, "place-mine-lift.winding"));
+        site.Mirror(site.State with { Winding = true, Wind = 0.5 });
+        ears.Tick(ear, SimConstants.TickRate);
+        Assert.True(Playing(audio, "place-mine-lift.winding"));
+        Assert.DoesNotContain(ears.Started, v => v.Name == "place-mine-lift.tip");
+        // A skip wound and tipped: its ore off the shaft's, down the chute, once.
+        site.Mirror(site.State with { Ore = site.Ore - 0.25, Wind = 0 });
+        ears.Tick(ear, SimConstants.TickRate);
+        var tip = Assert.Single(ears.Started, v => v.Name == "place-mine-lift.tip");
+        Assert.True((tip.Position - site.LiftChute).Length < 1);
+        // The lever let go, or the steam stopped: the engine stops.
+        site.Mirror(site.State with { Winding = false });
+        ears.Tick(ear, SimConstants.TickRate);
+        Assert.False(Playing(audio, "place-mine-lift.winding"));
+    }
+
+    [Fact]
+    public void InsideAStopsBuildingTheListenerIsInItsRoomAndUnderfootIsTheFloorItsDrawnWith()
+    {
+        // Queue #129 (note 392): the yard's sheds and the Holdouts drawn walk-in (note 387) and the open houses (note 326) were
+        // the open night inside, and every building's floor concrete.
+        static bool Boarded(Sim.Stops.BuildingKind k) =>
+            k is Sim.Stops.BuildingKind.SignalBox or Sim.Stops.BuildingKind.LampRoom or Sim.Stops.BuildingKind.WaterTower;
+        var (world, f) = Night(f => f.Stop is { } st && st.Holdouts.Any(h => Boarded(st.Buildings[h.Building].Kind))
+            && st.Buildings.Any(b => b.Kind is Sim.Stops.BuildingKind.Shed or Sim.Stops.BuildingKind.Hero), from: -200);
+        var stop = f.Stop!;
+        var line = world.Train.Line;
+        // A point in a building's first part (an open house's outline isn't its middle), in the stop's (S, D).
+        Sim.Stops.Pt In(Sim.Stops.StopBuilding b)
+        {
+            var (x, y) = b.Parts.Count > 0 ? (b.Parts[0].X, b.Parts[0].Y) : (0, 0);
+            double c = Math.Cos(b.Yaw), n = Math.Sin(b.Yaw);
+            return new Sim.Stops.Pt(b.S + x * c - y * n, b.D + x * n + y * c);
+        }
+        string SpaceAt(Sim.Stops.Pt p)
+        {
+            double hint = double.NaN;
+            return GameAudio.SpaceOf(world, Run.StopWorld(line, f, p, 1.6), ref hint);
+        }
+        string FloorAt(Sim.Stops.Pt p)
+        {
+            double hint = f.Start + p.S;
+            return Footing.Ground(world, Run.StopWorld(line, f, p, 0.1), ref hint);
+        }
+        var shed = stop.Buildings.First(b => b.Kind is Sim.Stops.BuildingKind.Shed or Sim.Stops.BuildingKind.Hero);
+        Assert.Equal("shed", SpaceAt(In(shed)));
+        Assert.Equal("concrete", FloorAt(In(shed)));
+        var room = stop.Buildings[stop.Holdouts.First(h => Boarded(stop.Buildings[h.Building].Kind)).Building];
+        Assert.Equal("room", SpaceAt(In(room)));
+        Assert.Equal("wood", FloorAt(In(room)));
+        // Out on the line beside them, the night as before.
+        Assert.DoesNotContain(SpaceAt(new Sim.Stops.Pt(shed.S, 0)), new[] { "shed", "room" });
+        // A village's open house: a room on its boards.
+        static bool Open(Sim.Stops.StopLayout st, int i) => st.Buildings[i].Open && Sim.Run.StopWalls.Walled(st, i);
+        (world, f) = Night(f => f.Stop is { } st && Enumerable.Range(0, st.Buildings.Count).Any(i => Open(st, i)), from: -200);
+        (stop, line) = (f.Stop!, world.Train.Line);
+        var house = stop.Buildings[Enumerable.Range(0, stop.Buildings.Count).First(i => Open(stop, i))];
+        Assert.Equal("room", SpaceAt(In(house)));
+        Assert.Equal("wood", FloorAt(In(house)));
+    }
+
+    [Fact]
+    public void FromInsideAStopsBuildingWhatsOutsideComesThroughItsWalls()
+    {
+        // Note 396 (note 392's "not yet"): in a Holdout's room or a shed, a sound out on the line is behind its walls (walls.json:
+        // a room's one door lets less through than a shed's open bays); one in the room with you isn't; out of the building,
+        // the same sound is clear.
+        var walls = DataFile.Load<WallsTuning>(Path.Combine(Content, WallsTuning.File));
+        static bool Boarded(Sim.Stops.BuildingKind k) =>
+            k is Sim.Stops.BuildingKind.SignalBox or Sim.Stops.BuildingKind.LampRoom or Sim.Stops.BuildingKind.WaterTower;
+        var (world, f) = Night(f => f.Stop is { } st && st.Holdouts.Any(h => Boarded(st.Buildings[h.Building].Kind))
+            && st.Buildings.Any(b => b.Kind is Sim.Stops.BuildingKind.Shed or Sim.Stops.BuildingKind.Hero), from: -200);
+        var stop = f.Stop!;
+        var line = world.Train.Line;
+        Double3 At(Sim.Stops.StopBuilding b) => Run.StopWorld(line, f, new Sim.Stops.Pt(b.S, b.D), 1.6);
+        var room = stop.Buildings[stop.Holdouts.First(h => Boarded(stop.Buildings[h.Building].Kind)).Building];
+        var shed = stop.Buildings.First(b => b.Kind is Sim.Stops.BuildingKind.Shed or Sim.Stops.BuildingKind.Hero);
+        var audio = new GameAudio(Content);
+        Held(audio, "out-on-the-line", "in-the-room");
+        var ears = new Ears(audio, world);
+        var outside = audio.Mixer.Play("out-on-the-line", Run.StopWorld(line, f, new Sim.Stops.Pt(room.S, 0), 1.6))!;
+        var inside = audio.Mixer.Play("in-the-room", At(room) + new Double3(0.3, 0, 0.3))!;
+        ears.Tick(At(room));
+        Assert.Equal("room", audio.Space);
+        Assert.Equal((float)walls.RoomWall, outside.Walls, 3);
+        Assert.Equal(0, inside.Walls);
+        ears.Tick(At(shed));
+        Assert.Equal("shed", audio.Space);
+        Assert.True(walls.ShedWall < walls.RoomWall);
+        Assert.Equal((float)walls.ShedWall, outside.Walls, 3);
+        ears.Tick(Run.StopWorld(line, f, new Sim.Stops.Pt(room.S, 2), 1.6));
+        Assert.Equal(0, outside.Walls);
+    }
+
+    [Theory]
+    [InlineData("local:60", "world-water.surf", "sea")]
+    [InlineData("local:4", "world-water.river", "river")]
+    [InlineData("frontier:271", "world-water.tide", "fundy")]
+    [InlineData("local:15", "world-water.river", "tidal")]
+    [InlineData("frontier:7", "world-water.lake", "lake")]
+    public void TheLinesWaterIsHeardWhereItsWaterIs(string id, string cue, string kind)
+    {
+        // Note 429: each kind of the plan's water, by an ear beside it, held on its water (the terrain has water there, of
+        // that kind); and nothing of it a kilometre up.
+        var route = Sim.LineGen.Routes.Generate(Content, id, 4);
+        double gate = route.GateOr(RouteTuning.Load(Content).YardLength);
+        var world = new World(new TrainOnLine(new TrainDynamics(Consist.Uniform(Trains, 4, 1)), route.Build(), gate, Boilers));
+        world.EnableRun(Runs, route, gate, authority: false);
+        var plan = world.TrackPlan ?? route.Plan!;
+        var line = world.Train.Line;
+        var terrain = ((line.Conditions is Sim.Net.HazardConditions h ? h.Inner : line.Conditions) as Sim.LineGen.PlanConditions)!.Terrain;
+        Double3 OnLine(double s) => line.Sample(s).Position + Double3.Up * 1.6;
+        Double3 ear;
+        if (kind == "lake")
+        {
+            // 15 m out from a lake's shore, on the land.
+            var lake = plan.Lakes.First(l => !l.Crossed);
+            double r = 0;
+            while (Sim.LineGen.TerrainField.LakeMetric(lake, lake.X + r, lake.Z) < 1)
+                r += 0.5;
+            double x = lake.X + r + 15;
+            ear = new Double3(x, terrain.Height(x, lake.Z) + 1.6, lake.Z);
+        }
+        else if (kind == "tidal")
+        {
+            var river = plan.Water.First(w => w.Type == "tidal");
+            ear = OnLine((river.S0 + river.S1) / 2);
+        }
+        else
+        {
+            var shore = plan.Shores.First(s => s.Kind.ToString().Equals(kind, StringComparison.OrdinalIgnoreCase));
+            ear = OnLine((shore.S0 + shore.S1) / 2);
+        }
+        var audio = new GameAudio(Content);
+        Held(audio, cue);
+        var ears = new Ears(audio, world);
+        ears.Tick(ear, SimConstants.TickRate / 2);
+        var voice = audio.Mixer.Voices.Single(v => v.Name == cue && !v.Finished);
+        var p = voice.Position;
+        Assert.True(terrain.WaterAt(p.X, p.Z) is not null || terrain.WaterNear(p.X, p.Z, 3)?.Kind == kind,
+            $"{cue} at ({p.X:0}, {p.Y:0}, {p.Z:0}), {(p - ear).Length:0} m from the ear, isn't on {kind} water");
+        ears.Tick(ear + Double3.Up * 1000, SimConstants.TickRate / 2);
+        Assert.False(Playing(audio, cue));
+    }
+
+    [Fact]
+    public void AStopsBuildingsWallsAreBetweenAnEarOutsideItAndASoundInIt()
+    {
+        // Note 428 (note 396's not-yets): a sound in a Holdout's room comes out through its walls to an ear on the line, and to
+        // one in the shed through the room's (more than the shed's own); one at the room's face on the ear's side is at its
+        // door and heard out of it. The night's own air, played at the ear, is behind the room's walls once the ear's in it.
+        var walls = DataFile.Load<WallsTuning>(Path.Combine(Content, WallsTuning.File));
+        static bool Boarded(Sim.Stops.BuildingKind k) =>
+            k is Sim.Stops.BuildingKind.SignalBox or Sim.Stops.BuildingKind.LampRoom or Sim.Stops.BuildingKind.WaterTower;
+        var (world, f) = Night(f => f.Stop is { } st && st.Holdouts.Any(h => Boarded(st.Buildings[h.Building].Kind))
+            && st.Buildings.Any(b => b.Kind is Sim.Stops.BuildingKind.Shed or Sim.Stops.BuildingKind.Hero), from: -200);
+        var stop = f.Stop!;
+        var line = world.Train.Line;
+        Double3 At(Sim.Stops.StopBuilding b) => Run.StopWorld(line, f, new Sim.Stops.Pt(b.S, b.D), 1.6);
+        var room = stop.Buildings[stop.Holdouts.First(h => Boarded(stop.Buildings[h.Building].Kind)).Building];
+        var shed = stop.Buildings.Where(b => b.Kind is Sim.Stops.BuildingKind.Shed or Sim.Stops.BuildingKind.Hero)
+            .MinBy(b => (At(b) - At(room)).Length)!;
+        Assert.True((At(shed) - At(room)).Length < 120, $"the shed's {(At(shed) - At(room)).Length:0} m from the room");
+        var onTheLine = Run.StopWorld(line, f, new Sim.Stops.Pt(room.S, 0), 1.6);
+        // The room's face toward the line, walked out to from its middle.
+        var footprint = GameAudio.RoomAt(world.Run!.Route, line, At(room), f.Start + room.S)!.Value;
+        var toLine = new Double3(onTheLine.X - At(room).X, 0, onTheLine.Z - At(room).Z).Normalized;
+        var face = At(room);
+        while (footprint.Holds(face + toLine * 0.05))
+            face += toLine * 0.05;
+        Assert.True((face - At(room)).Length > 1.5);
+        var audio = new GameAudio(Content);
+        Held(audio, "in-the-room", "at-its-door", "out-on-the-line", "world-night.night");
+        var ears = new Ears(audio, world);
+        var inside = audio.Mixer.Play("in-the-room", face - toLine * 1.2)!;
+        var door = audio.Mixer.Play("at-its-door", face - toLine * 0.2)!;
+        var outside = audio.Mixer.Play("out-on-the-line", onTheLine + new Double3(0, 0, 3))!;
+        ears.Tick(onTheLine, SimConstants.TickRate / 2);
+        Assert.DoesNotContain(audio.Space, new[] { "room", "shed" });
+        Assert.Equal((float)walls.RoomWall, inside.Walls, 3);
+        Assert.Equal(0, door.Walls);
+        Assert.Equal(0, outside.Walls);
+        var night = audio.Mixer.Voices.Single(v => v.Name == "world-night.night" && !v.Finished);
+        Assert.Equal(0, Math.Max(night.Occlusion, night.Walls));
+        // From the shed, the room's walls and the shed's: the room's, the more.
+        ears.Tick(At(shed), SimConstants.TickRate / 2);
+        Assert.Equal("shed", audio.Space);
+        Assert.Equal((float)walls.RoomWall, inside.Walls, 3);
+        Assert.Equal((float)walls.ShedWall, night.Occlusion, 3);
+        // In the room with it: clear, and the night's air behind the room's walls.
+        ears.Tick(At(room), SimConstants.TickRate / 2);
+        Assert.Equal("room", audio.Space);
+        Assert.Equal(0, inside.Walls);
+        Assert.Equal((float)walls.RoomWall, night.Occlusion, 3);
+    }
+
+    [Fact]
+    public void TheWalledTownIsHeardItsFiresItsRoomsAndItsPeople()
+    {
+        // Note 415: the departure town's fires held where they burn, a lived-in house's range clear inside it and through its
+        // walls from the street, its people out of doors heard talking low where they are, and coughing now and then; and
+        // nothing of it away from the town. A town of 3000, as World.EnableTown stands it.
+        var towns = Sim.Towns.TownContent.Load(Content)!;
+        towns = towns with { Tuning = towns.Tuning with { Population = [3000, 3000] } };
+        var route = Sim.LineGen.Routes.Generate(Content, "frontier:7", 6);
+        double gate = route.GateOr(RouteTuning.Load(Content).YardLength);
+        var world = new World(new TrainOnLine(new TrainDynamics(Consist.Uniform(Trains, 6, 1)), route.Build(), gate - 8, Boilers));
+        world.EnableRun(Runs, route, gate, authority: false);
+        world.EnableTown(towns, route, gate, []);
+        var town = world.Town!;
+        var audio = new GameAudio(Content);
+        Held(audio, "place-town.fire", "place-town.range", "place-town.clock", "place-town.radio", "place-town.murmur");
+        Stand(audio, "place-town.cough");
+        bool Sounding(string name) => audio.Mixer.Voices.Any(v => v.Name == name && !v.Finished && !v.Stopped);
+        SoundInstance VoiceAt(string name, Double3 at) =>
+            audio.Mixer.Voices.Where(v => v.Name == name && !v.Finished && !v.Stopped).MinBy(v => (v.Position - at).Length)!;
+        var ears = new Ears(audio, world);
+
+        // The town is looked round every quarter second (GameAudio.TownLook): half a second at each place.
+        // Beside a fire barrel in the square: it burns there, nothing between.
+        var barrel = town.Plan.Fixtures.First(f => f.Kind == "barrel");
+        var fire = town.World(barrel.S, barrel.D, Sim.Towns.TownFixtures.Size("barrel").Height);
+        var street = town.World(barrel.S + 2.5, barrel.D, 1.6);
+        Assert.Equal(-1, GameAudio.TownHouseAt(town, street));
+        ears.Tick(street, SimConstants.TickRate / 2);
+        Assert.True(Sounding("place-town.fire"));
+        Assert.Contains(audio.Mixer.Voices, v => v.Name == "place-town.fire" && !v.Stopped && (v.Position - fire).Length < 1e-6 && v.Occlusion == 0);
+
+        // A lived-in house's range: clear in its kitchen, through its walls from out in front.
+        var stove = town.Plan.Fixtures.First(f => f.Kind == "stove" && f.House >= 0);
+        var house = town.Plan.Houses.First(h => h.Id == stove.House);
+        var kitchen = town.World(stove.S, stove.D, 1.6) + (town.World(house.S, house.D) - town.World(stove.S, stove.D)) * 0.3;
+        Assert.Equal(house.Id, GameAudio.TownHouseAt(town, kitchen));
+        ears.Tick(kitchen, SimConstants.TickRate / 2);
+        var hob = town.World(stove.S, stove.D, Math.Max(0.5, stove.Height));
+        Assert.True(Sounding("place-town.range"));
+        Assert.True((VoiceAt("place-town.range", hob).Position - hob).Length < 1e-6);
+        Assert.Equal(0, VoiceAt("place-town.range", hob).Occlusion);
+        var front = house.Rail(0, -2.5);
+        var outside = town.World(front.S, front.D, 1.6);
+        Assert.Equal(-1, GameAudio.TownHouseAt(town, outside));
+        ears.Tick(outside, SimConstants.TickRate / 2);
+        Assert.True(Sounding("place-town.range"));
+        Assert.True(VoiceAt("place-town.range", hob).Occlusion > 0.5f);
+
+        // Where the townsfolk stand: their murmur, and in a minute or so a cough.
+        var person = town.Plan.People.First(p => p.House < 0);
+        var among = town.Feet(person) + new Double3(1.5, 1.6, 0);
+        int coughs = ears.Started.Count(v => v.Name == "place-town.cough");
+        ears.Tick(among, SimConstants.TickRate * 90);
+        Assert.True(Sounding("place-town.murmur"));
+        Assert.True(ears.Started.Count(v => v.Name == "place-town.cough") > coughs);
+
+        // Away from the town: none of it.
+        ears.Tick(world.Train.Line.Sample(gate + 3_000).Position + Double3.Up * 1.6, SimConstants.TickRate / 2);
+        Assert.DoesNotContain(audio.Mixer.Voices, v => v.Name.StartsWith("place-town.") && !v.Finished && !v.Stopped);
+    }
+
+    [Fact]
+    public void TheTownsfolkAreHeardOnTheirRoundsTheirStepsTheirGearAndTheWatchsLanterns()
+    {
+        // Note 446 (B2's #389): somebody out of doors walking their round is heard step by step beside them, on the street;
+        // close to somebody out of doors, the breathing gear they wear; near the watch, their lantern. A town of 3000, its
+        // clock run here as World.Step would run it.
+        var towns = Sim.Towns.TownContent.Load(Content)!;
+        towns = towns with { Tuning = towns.Tuning with { Population = [3000, 3000] } };
+        var route = Sim.LineGen.Routes.Generate(Content, "frontier:7", 6);
+        double gate = route.GateOr(RouteTuning.Load(Content).YardLength);
+        var world = new World(new TrainOnLine(new TrainDynamics(Consist.Uniform(Trains, 6, 1)), route.Build(), gate - 8, Boilers));
+        world.EnableRun(Runs, route, gate, authority: false);
+        world.EnableTown(towns, route, gate, []);
+        var town = world.Town!;
+        var audio = new GameAudio(Content);
+        Held(audio, "place-town.gear-respirator", "place-town.gear-oxygen", "place-town.gear-rebreather", "place-town.gear-wrap", "place-town.lantern");
+        Stand(audio, [.. new[] { "cobbles", "dirt", "grass", "concrete", "wood", "ballast", "mud", "coal", "plate", "grate" }.Select(m => $"crew-footsteps.walk.{m}")]);
+        var ears = new Ears(audio, world);
+        void Run(double seconds, Func<Double3> ear)
+        {
+            for (int i = 0; i < seconds * SimConstants.TickRate; i++)
+            {
+                town.Clock += SimConstants.TickSeconds;
+                ears.Tick(ear());
+            }
+        }
+
+        // Somebody out of doors three seconds into a walk of four or more: followed a pace off, their steps heard there.
+        double start = town.Clock;
+        (Sim.Towns.Townsperson P, double At)? walk = null;
+        foreach (var p in town.Plan.People.Where(p => p.House < 0 && town.Rounds[p.Id] is not null).Take(200))
+        {
+            for (double t = start; t < start + 600 && walk is null; t += 0.5)
+            {
+                town.Clock = t;
+                if (!town.Now(p).Walking)
+                    continue;
+                bool on = true;
+                for (double u = t; u <= t + 4 && on; u += 0.25)
+                {
+                    town.Clock = u;
+                    on = town.Now(p).Walking;
+                }
+                if (on)
+                    walk = (p, t);
+            }
+            if (walk is not null)
+                break;
+        }
+        Assert.NotNull(walk);
+        var (walker, from) = walk.Value;
+        town.Clock = from;
+        int before = ears.Started.Count;
+        var path = new List<Double3>();
+        Run(4, () =>
+        {
+            path.Add(town.Feet(walker));
+            return path[^1] + new Double3(1.2, 1.6, 0);
+        });
+        // Theirs are the steps on their own way (others walking near are heard too): about a step each 0.7 m they cover.
+        var theirs = ears.Started.Skip(before).Where(v => v.Name.StartsWith("crew-footsteps.walk.") && path.Min(f => (v.Position - f).Length) < 0.2).ToList();
+        double covered = path.Zip(path.Skip(1), (a, b) => (b - a).Length).Sum();
+        Assert.InRange(theirs.Count, (int)(covered / 0.7) - 1, (int)(covered / 0.7) + 1);
+
+        // A pace from somebody out of doors, going along with them: their gear's breathing, whichever it is.
+        var close = town.Plan.People.First(p => p.House < 0 && p.Id != walker.Id);
+        Run(0.5, () => town.Feet(close) + new Double3(1.0, 1.6, 0));
+        Assert.Contains(audio.Mixer.Voices, v => v.Name == $"place-town.gear-{close.Gear}" && !v.Finished && !v.Stopped);
+
+        // Near the watch, or a lamp-carrier: their lantern.
+        var watch = town.Plan.People.First(p => p.Pose == "lantern");
+        Run(0.5, () => town.Feet(watch) + new Double3(3, 1.6, 0));
+        Assert.Contains(audio.Mixer.Voices, v => v.Name == "place-town.lantern" && !v.Finished && !v.Stopped && (v.Position - town.Feet(watch)).Length < 3);
+    }
+
+    [Fact]
+    public void AnOpenHousesHidingSpotIsHeardWhileItsSearchedAndItsFindOnceWhenItsGoneThrough()
+    {
+        // Note 412 (note 326): each kind of hiding spot its own sound, held where it's kept while the search is under way as
+        // the host has it (a client's view: Run.MirrorSearch), cut when the hands come off; the find once, as it's gone through.
+        var route = RouteGenerator.Generate(RouteTuning.Load(Content), RouteTier.Frontier, 1);
+        var train = new TrainOnLine(new TrainDynamics(Consist.Uniform(Trains, 4, 1)), route.Build(), 900, Boilers);
+        var world = new World(train);
+        world.EnableRun(Runs, route, 600, authority: false, loot: DataFile.Load<Sim.Stops.LootTuning>(Path.Combine(Content, Sim.Stops.LootTuning.File)));
+        var run = world.Run!;
+        Assert.NotEmpty(run.HidingSpots);
+        var audio = new GameAudio(Content);
+        static string CueOf(Sim.Stops.ContainerKind kind) => kind switch
+        {
+            Sim.Stops.ContainerKind.Cupboard => "crew-search.cupboard",
+            Sim.Stops.ContainerKind.Cabinet => "crew-search.cabinet",
+            Sim.Stops.ContainerKind.Cellar => "crew-search.cellar",
+            // A barn's hayloft and a shed's workbench, searchable since B4's #153 (note 417).
+            Sim.Stops.ContainerKind.Hayloft => "crew-search.hayloft",
+            Sim.Stops.ContainerKind.Bench => "crew-search.bench",
+            _ => "crew-search.boards",
+        };
+        Held(audio, "crew-search.cupboard", "crew-search.cabinet", "crew-search.cellar", "crew-search.boards", "crew-search.hayloft", "crew-search.bench");
+        Stand(audio, "crew-search.found");
+        bool Sounding(string name) => audio.Mixer.Voices.Any(v => v.Name == name && !v.Finished && !v.Stopped);
+        var ears = new Ears(audio, world);
+        var kinds = run.HidingSpots.GroupBy(h => h.Container.Kind).Select(g => g.First()).ToList();
+        Assert.True(kinds.Count >= 3, $"only {kinds.Count} kinds of hiding spot on the night");
+        foreach (var spot in kinds)
+        {
+            string cue = CueOf(spot.Container.Kind);
+            var ear = spot.Kept + spot.Facing * 1.5 + Double3.Up * 1.6;
+            ears.Tick(ear);
+            Assert.False(Sounding(cue));
+            // Under way: held where it's kept.
+            run.MirrorSearch(spot.Stop, [], [(spot.Container.Index, 0.3)]);
+            ears.Tick(ear, 5);
+            Assert.True(Sounding(cue), cue);
+            Assert.True((audio.Mixer.Voices.First(v => v.Name == cue && !v.Stopped).Position - spot.Kept).Length < 1.5);
+            // Hands off: cut.
+            run.MirrorSearch(spot.Stop, [], []);
+            ears.Tick(ear, 2);
+            Assert.False(Sounding(cue));
+            // Gone through: the find, once.
+            int found = ears.Started.Count(v => v.Name == "crew-search.found");
+            run.MirrorSearch(spot.Stop, [spot.Container.Index], []);
+            ears.Tick(ear, SimConstants.TickRate);
+            Assert.Equal(found + 1, ears.Started.Count(v => v.Name == "crew-search.found"));
+            Assert.False(Sounding(cue));
+        }
+    }
+
+    [Fact]
+    public void AVillageHouseDoorIsHeardShutAndOpenedInTheDoorwayAndTheChoirBeatsOnItWhenItsShutUp()
+    {
+        // Note 409 (B4's note 401): a house door shut or opened, off the replicated state, once a change, in its doorway: in
+        // the room with an ear inside the house (no walls, nothing muffled) and clear from the street. A house shut up with
+        // someone in it is a space of its own, and the Choir's BESIEGE beats on its door as on a shut car's.
+        var routes = RouteTuning.Load(Content);
+        var combat = DataFile.Load<CombatTuning>(Path.Combine(Content, CombatTuning.File));
+        World? world = null;
+        HouseDoor door = default;
+        for (ulong seed = 1; world is null; seed++)
+        {
+            Assert.True(seed <= 40, "no open house with one door on 40 nights");
+            var route = RouteGenerator.Generate(routes, RouteTier.Frontier, seed);
+            var train = new TrainOnLine(new TrainDynamics(Consist.Uniform(Trains, 4, 1)), route.Build(), 900, Boilers);
+            train.Walls = StopWalls.Of(route, train.Line, tuning: Runs.Walls);
+            var single = train.Walls.HouseDoors.Where(d => train.Walls.HouseDoors.Count(o => o.House == d.House) == 1).ToList();
+            if (single.Count == 0)
+                continue;
+            door = single[0];
+            world = new World(train, combat);
+            world.EnableRun(Runs, route, 600, authority: false);
+        }
+        var walls = world.Train.Walls!;
+        var audio = new GameAudio(Content);
+        Stand(audio, "crew-house-door.shut", "crew-house-door.open", "cs-choir.bang-door.wood", "cs-choir.disperse");
+        Held(audio, "cs-choir.arrive");
+        var heard = new List<SoundInstance>();
+        var seen = new HashSet<int>();
+        void Tick(Double3 ear, int ticks = 1, params Enemy[] enemies)
+        {
+            for (int i = 0; i < ticks; i++)
+            {
+                world.BeginTick();
+                world.MirrorEnemies(enemies);
+                var state = new PlayerState { Parent = PlayerState.World, Position = ear };
+                audio.Update(world, world.Controls, Listener.At(ear + Double3.Up * 1.6, 0), exposed: true, SimConstants.TickSeconds,
+                    PlayerMotor.Space(state, world.Train));
+                audio.Mixer.Render(new float[Audio.Block * 2]);
+                heard.AddRange(audio.Mixer.Voices.Where(v => seen.Add(v.Id) && v.Name.StartsWith("crew-house-door") | v.Name.StartsWith("cs-choir.bang")));
+            }
+        }
+        var street = door.At + door.Out * 5;
+        var inside = door.At - door.Out * 2.5;
+        Tick(street, 3);
+        Assert.Empty(heard);
+
+        // Shut from the street (the host's word, as a client gets it): once, in the doorway, clear.
+        walls.MirrorShut([door.Key]);
+        Tick(street, SimConstants.TickRate);
+        var shut = Assert.Single(heard);
+        Assert.Equal("crew-house-door.shut", shut.Name);
+        Assert.True((shut.Position - GameAudio.DoorSound(door)).Length < 1e-6);
+        Assert.Equal(0, shut.Occlusion);
+        Assert.Equal(0, shut.Walls);
+
+        // And from along the street, off to the door's side (note 428's walls round a house): still the door itself, clear.
+        heard.Clear();
+        walls.MirrorShut([]);
+        var along = street + Double3.Cross(door.Out, Double3.Up).Normalized * 4;
+        Tick(along, 2);
+        walls.MirrorShut([door.Key]);
+        Tick(along, 2);
+        Assert.All(heard, v => Assert.Equal(0, Math.Max(v.Occlusion, v.Walls)));
+        Assert.Equal(["crew-house-door.open", "crew-house-door.shut"], heard.Select(v => v.Name));
+
+        // Opened again and shut from inside: in the room with the ear, nothing between them.
+        heard.Clear();
+        walls.MirrorShut([]);
+        Tick(inside, 2);
+        walls.MirrorShut([door.Key]);
+        Tick(inside, 2);
+        Assert.Equal(["crew-house-door.open", "crew-house-door.shut"], heard.Select(v => v.Name));
+        Assert.Equal(PlayerMotor.HouseSpace(door.House), PlayerMotor.Space(new PlayerState { Parent = PlayerState.World, Position = inside }, world.Train));
+        Assert.Equal("room", audio.Space);
+        Assert.All(heard, v => Assert.Equal(0, Math.Max(v.Occlusion, v.Walls)));
+
+        // Shut up in it while the Choir besieges: they beat on its door, now and then.
+        heard.Clear();
+        audio.CrewStates = [(1, new PlayerState { Parent = PlayerState.World, Position = inside, Health = 100 })];
+        world.Choir = new ChoirState { Present = true, Build = 1 };
+        var ghost = new ChoirGhost(70);
+        ghost.Restore(SpinePhase.Commit, 2, 6, Enemy.Loose, inside + Double3.Up * 6, 0, 0, 0, -1, 0, -1, 0);
+        Tick(inside, 90, ghost);
+        Assert.InRange(heard.Count, 2, 5);
+        Assert.All(heard, v => Assert.Equal("cs-choir.bang-door.wood", v.Name));
+        Assert.All(heard, v => Assert.True((v.Position - GameAudio.DoorSound(door)).Length < 1e-6));
+        Assert.All(heard, v => Assert.Equal(0, Math.Max(v.Occlusion, v.Walls)));
+    }
+
+    [Fact]
     public void AWreckYardHeapGroansForItsWholeWarningThenShifts()
     {
         // GDD §18's wreck yard (note 187): a heap about to shift onto whoever's beside it groans for the 3 s it gives them
@@ -280,5 +1074,32 @@ public class WorldSoundTests
         ears.Tick(ear, SimConstants.TickRate / 2);
         Assert.False(Playing(audio, "heap-groan"));
         Assert.Single(ears.Started, v => v.Name == "place-wreck.shift");
+    }
+
+    [Fact]
+    public void TheFoundrysFurnaceBurnsInItsShedWithNobodyToTendIt()
+    {
+        // C1's casting shed (note 420), heard (queue #161, note 425): the cupola banked and roaring under its own draught,
+        // held at the works while the ear's near them, gone when it's well away.
+        var (world, foundry) = Night(f => f.Facility == FacilityKind.Foundry, from: 20);
+        var audio = new GameAudio(Content);
+        Held(audio, "place-foundry.furnace");
+        Stand(audio, "place-foundry.slump");
+        var line = world.Train.Line;
+        // Where the sound places the works: the yard's sheds of a laid-out stop, or off the line's side mid-zone.
+        Double3 works;
+        if (foundry.Stop?.Buildings.FirstOrDefault(b => b.Zone == StopZone.Yard && b.Kind is BuildingKind.Shed or BuildingKind.Hero) is { } shed)
+            works = DarkTerritory.Sim.Run.Run.StopWorld(line, foundry, shed.Centre);
+        else
+        {
+            var t = line.Sample((foundry.Start + foundry.End) / 2);
+            works = t.Position + Double3.Cross(t.Tangent, Double3.Up).Normalized * ((foundry.Side == 0 ? 1 : foundry.Side) * 25);
+        }
+        var ears = new Ears(audio, world);
+        ears.Tick(works + new Double3(6, 1.6, 0), SimConstants.TickRate);
+        var furnace = audio.Mixer.Voices.Single(v => v.Name == "place-foundry.furnace" && !v.Finished);
+        Assert.True((furnace.Position - (works + Double3.Up * 6)).Length < 1);
+        ears.Tick(works + new Double3(400, 1.6, 0), SimConstants.TickRate);
+        Assert.False(Playing(audio, "place-foundry.furnace"));
     }
 }

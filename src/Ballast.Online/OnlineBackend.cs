@@ -71,6 +71,11 @@ public interface IOnlineBackend : IDisposable
     string Platform { get; }
     UserId Me { get; }
     string NameOf(UserId user);
+    /// <summary>
+    /// The user is on this account's friends list (Steam's immediate friends): a private run lets them in without its
+    /// password, as it would an invite (note 450).
+    /// </summary>
+    bool IsFriend(UserId user);
 
     /// <summary>
     /// Datagrams to and from other users, relayed by the platform: no ports to open and no IP addresses shown.
@@ -108,6 +113,11 @@ public interface IOnlineBackend : IDisposable
     void ShowInviteDialog(LobbyId lobby);
     /// <summary>Invites one user directly.</summary>
     void Invite(LobbyId lobby, UserId user);
+    /// <summary>
+    /// The platform's store page for <paramref name="app"/> over the game (the Steam overlay's, with its wishlist button).
+    /// False if it can't be shown there (the overlay's off), for the caller to open it some other way.
+    /// </summary>
+    bool ShowStorePage(uint app);
 }
 
 /// <summary>What a platform passes a game it launches to accept an invite.</summary>

@@ -28,8 +28,11 @@ from overbake import bell, fine, smooth01
 class Style:
     def __init__(self, head=None, dress=None, shapes=None, masks=None, grade=None, preview="CREW_PREVIEW",
                  what="the crew's clothes and kit, modelled over tools/blender/crew.py", lamp=True, mask=None, figure="helm",
-                 gear=None, views=None, hats=True):
+                 gear=None, views=None, hats=True, low_shapes=None):
         self.head, self.dress, self.shapes = head, dress or {}, shapes or {}
+        # Displacement of a game part itself before its high copy's made from it (note 407: the silhouette, which the
+        # bake's normals can't give): {part: fn(positions, normals) -> metres}, the coat's shell signed as its sculpt is.
+        self.low_shapes = low_shapes or {}
         self.masks, self.grade, self.preview, self.what = masks or {}, grade, preview, what
         # The chest lamp lit (crew_atlas's glass, kept as a pure light), or dead and baked with the rest (a dress entry
         # for "crew_atlas.lamp" then says what it's made of).
@@ -515,6 +518,8 @@ def build(name, style):
             return fn(p, n) * np.where(out == 0, 1.0, out)
         return signed
     SHELL = {k: shell(f) for k, f in SHAPE.items()}
+    for part, fn in style.low_shapes.items():
+        overbake.displace(parts[part], shell(fn) if part == "coat" else fn)
     highs = {part: overbake.high_of(parts[part], dress, SHELL if part == "coat" else SHAPE) for part in BAKED if part != "frame"}
     highs["frame"] = overbake.high_of(g["FRAME_HIGH"], dress, SHAPE, dense=True)
     # The respirator and goggles (Style.mask), modelled on the scan's landmarks, their game mesh on the head bone.

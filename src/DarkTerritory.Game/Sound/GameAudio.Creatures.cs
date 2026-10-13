@@ -1,4 +1,5 @@
 using Ballast;
+using Ballast.Audio;
 using DarkTerritory.Game.Art;
 using DarkTerritory.Sim;
 using DarkTerritory.Sim.Enemies;
@@ -46,18 +47,24 @@ public sealed partial class GameAudio
     World? _creatureWorld;
     double _creatureTime, _lastShot = double.NegativeInfinity;
 
+    /// <summary>A truss Dragger's landing on the roof before its grab is heard (note 444): it gathers itself and reaches the edge.</summary>
+    const double DropToGrab = 0.3;
+
     /// <summary>What a creature's record said last tick, and its own clocks for steps and irregular calls.</summary>
     sealed class Creature
     {
         public EnemyKind Kind;
         public SpinePhase Phase;
-        public double PhaseSeconds, Health, Extra, Extra2, GrabWindow, LineDistance;
+        public double PhaseSeconds, Health, Extra, Extra2, GrabWindow, LineDistance, Lateral, Height;
         public int Id, Attached, Holding, Space;
         public Double3 Local, At;
         // Kept across ticks (not last tick's record): distance toward the next step, the next irregular call, when it last
-        // moved and was last hit, and whether its car's breaking away has been heard.
-        public double Stride, Next, MovedAt = double.NegativeInfinity, HitAt = double.NegativeInfinity;
-        public bool CutAway;
+        // moved, was last hit and last healed, and whether its car's breaking away has been heard.
+        public double Stride, Next, MovedAt = double.NegativeInfinity, HitAt = double.NegativeInfinity, ModeAt,
+            HealAt = double.NegativeInfinity;
+        public bool CutAway, Passing;
+        // A one-shot that goes where it goes (the Gannet's dive whistle, down its line).
+        public SoundInstance? Moving;
 
         public void Take(Enemy e, Double3 at, int space)
         {
@@ -69,6 +76,8 @@ public sealed partial class GameAudio
             Extra2 = e.Extra2;
             GrabWindow = e.GrabWindow;
             LineDistance = e.LineDistance;
+            Lateral = e.Lateral;
+            Height = e.Height;
             Attached = e.Attached;
             Holding = e.Holding;
             Local = e.Local;
@@ -152,6 +161,10 @@ public sealed partial class GameAudio
                 // Bludgeoned from the rear platform (it heals between blows: only a real drop is a blow).
                 if (struck)
                     Cue("cs-car-hugger.hit", at, occ);
+                // Note 310: the crew pull the swallowed crewmate back out. Eaten or pulled free, its grab ends the same way on
+                // the wire (back to grinding on the car), so it's the one it held still alive that says they got out.
+                if (was.Phase == SpinePhase.Grab && e.Phase != SpinePhase.Grab && Crewmate(was.Holding) is { Health: > 0 })
+                    Cue("cs-car-hugger.spit-out", at, occ);
                 BreakAway(world.Train, e.Attached, was, at);
                 break;
             case Whistler:
@@ -200,14 +213,19 @@ public sealed partial class GameAudio
                 // are heard from the crew's records (Mauled).
                 if (grabbed)
                     Cue("cs-gaunt.blow", Victim(world.Train, e.Holding, 1.2) ?? at, occ);
+                Pained("cs-gaunt.hit", e, at, occ, struck);
                 break;
             case Follower:
                 // App. A.6: its nest being beaten in, for as long as the blows keep coming (the swing is 0.8 s).
                 if (e.Phase == SpinePhase.Punish && _time - was.HitAt <= 1.2)
                     Hold("cs-followers.nest-smash", e.Id, at, occ);
+                // A blow on its nest is the nest's (above); one on the creature itself, off a back, is its own.
+                else
+                    Pained("cs-followers.hit", e, at, occ, struck);
                 break;
             case SootChildren soot:
                 SootSounds(soot, was, at, occ, grabbed);
+                Pained("cs-soot-children.hit", e, at, occ, struck);
                 break;
             case Passenger:
                 PassengerSounds(e, was, at, occ);
@@ -219,35 +237,80 @@ public sealed partial class GameAudio
                     Cue("cs-switchman.flicker", Lamp(world, sw.Branch, at), Occlusion(PlayerMotor.Outside));
                     was.Next = _time + 0.25 + 0.55 * _creatureRng.Next();
                 }
+                Pained("cs-switchman.hit", e, at, occ, struck);
                 break;
             case Grumbler g:
                 GrumblerSounds(g, was, at, occ);
+                // The blow that turns it feral is heard as it turning (GrumblerSounds); one before that, or after, is a hurt.
+                if (!(g.Feral && was.Extra2 <= 0.5))
+                    Pained("cs-grumbler.hit", e, at, occ, struck);
+                break;
+            case Moose m:
+                MooseSounds(world, m, was, at, occ);
+                break;
+            case Gannet g:
+                GannetSounds(world, g, was, at, occ, dt);
+                Pained("cs-gannet-strike.hit", e, at, occ, struck);
                 break;
         }
+    }
+
+    /// <summary>
+    /// A ball or a blow landing on a creature and not killing it (note 290: the gun hits what it's laid on now, and per-creature
+    /// pain is the audio chat's). One that kills it is its death, when its record goes (Vanished).
+    /// </summary>
+    void Pained(string cue, Enemy e, Double3 at, float occ, bool struck)
+    {
+        if (struck && e.Health > 0)
+            Cue(cue, at, occ);
     }
 
     // ---- The kinds ------------------------------------------------------------------------------------------------------
 
     /// <summary>
-    /// The Track Doll haunting (App. A.2). At the controls of an empty cab it moves the regulator and the brake in beats of
-    /// three seconds (TrackDoll.Tamper); those moves only reach the train through World.Step's own copy of the controls, never
-    /// the replicated ones, so the crew's lever hooks can't hear them: they're heard here, as the crew's own levers. Come at,
-    /// it vanishes to another car; cornered and clubbed, its porcelain cracks.
+    /// The Track Doll haunting (App. A.2). At the controls of an empty cab it moves the regulator (and at its last stage the
+    /// brake) in beats of three seconds (TrackDoll.Tamper; note 268); those moves only reach the train through World.Step's
+    /// own copy of the controls, never the replicated ones, so the crew's lever hooks can't hear them: they're heard here, as
+    /// the crew's own levers. Restless at stage 2 (her last stage coming), she rattles the brake handle on the beat she'd
+    /// take it, without moving it, with her own rattle (note 499). Restless at any stage, now and then her own restlessness.
+    /// Come at, it vanishes to another car; cornered and clubbed, its porcelain cracks.
     /// </summary>
+    // Restless (note 499): her own first 1-2 s after she becomes so, then every 4-8 s while she is (30 s, warnSeconds).
+    const double DollRestlessFirst = 1, DollRestlessEvery = 4;
+
     void DollSounds(World world, TrackDoll e, Creature was, Double3 at, float occ, bool struck)
     {
         var train = world.Train;
         bool wasTampering = was.Phase == SpinePhase.Punish && was.Attached == 0 && was.Extra2 > 0.5;
         if (e.Tampering)
         {
-            var (throttle, brake) = DollHands(DollBeat(e.PhaseSeconds));
-            var (before, held) = wasTampering ? DollHands(DollBeat(was.PhaseSeconds)) : (world.Controls.Throttle, world.Controls.Brake);
+            double nudge = (world.Enemies?.TrackDoll ?? new()).NudgeThrottle;
+            var set = world.Controls;
+            var now = TrackDoll.Hands(e.Escalation, e.PhaseSeconds, nudge, set);
+            var before = wasTampering ? TrackDoll.Hands(Math.Abs(was.Extra2), was.PhaseSeconds, nudge, set) : set;
             var levers = train.Frames[0].Shape.Levers;
-            if (Math.Abs(throttle - before) > 0.01)
-                Tamper("regulator-notch", levers is { } l ? train.Frames[0].ToWorld(l.RegulatorAt(throttle)) : at);
-            if (Math.Abs(brake - held) > 0.01)
-                Tamper("brake-handle", levers is { } k ? train.Frames[0].ToWorld(k.BrakeAt(brake)) : at);
+            if (Math.Abs(now.Throttle - before.Throttle) > 0.01)
+                Tamper("regulator-notch", levers is { } l ? train.Frames[0].ToWorld(l.RegulatorAt(now.Throttle)) : at);
+            bool rattle = e.Stage == 2 && e.Restless && DollBeat(e.PhaseSeconds) == 2 && (!wasTampering || DollBeat(was.PhaseSeconds) != 2);
+            var brake = levers is { } k ? train.Frames[0].ToWorld(k.BrakeAt(now.Brake)) : at;
+            // Her own rattle of it (note 499), a small hand shaking the handle; until she has one, the crew's lever.
+            if (rattle && Cue("cs-track-doll.rattle", brake, Occlusion(0)) is null || Math.Abs(now.Brake - before.Brake) > 0.01)
+                Tamper("brake-handle", brake);
         }
+        // Restless, her next stage coming (note 268's telegraph; note 499): now and then her own, between the giggles (which
+        // come twice as often, GameAudio.Tells): her heels drumming, a hum through her teeth, her head turning.
+        if (e.Restless)
+        {
+            if (was.Next <= 0)
+                was.Next = _time + DollRestlessFirst * (1 + _creatureRng.Next());
+            else if (_time >= was.Next)
+            {
+                Cue("cs-track-doll.restless", at, occ);
+                was.Next = _time + DollRestlessEvery * (1 + _creatureRng.Next());
+            }
+        }
+        else
+            was.Next = 0;
         // Gone from where it stood to another car (or to the cab's controls): approached, or bored of the car.
         if (was.Phase == SpinePhase.Punish && e.Phase == SpinePhase.Punish && (e.Attached != was.Attached || (e.Local - was.Local).Length > 0.75))
             Cue("cs-track-doll.vanish", was.At, Occlusion(was.Space));
@@ -257,8 +320,6 @@ public sealed partial class GameAudio
     }
 
     static int DollBeat(double phaseSeconds) => (int)(phaseSeconds / 3) % 3;
-    /// <summary>Where TrackDoll.Tamper puts the regulator and brake on each beat.</summary>
-    static (double Throttle, double Brake) DollHands(int beat) => (beat == 0 ? 1 : 0, beat == 2 ? 1 : 0);
 
     /// <summary>A cab lever moved by nobody: the doll's own cue once it has one (the director kept one), else the crew's lever.</summary>
     void Tamper(string lever, Double3 where)
@@ -329,6 +390,9 @@ public sealed partial class GameAudio
 
     /// <summary>Where in a gallop's stride each paw falls: the hind pair, then the fore pair.</summary>
     static readonly double[] PawFalls = [0, 0.1, 0.4, 0.5];
+    // Aboard (note 478): slower than this it's standing (a pack fight's shuffle isn't a walk); a step further than this in
+    // a tick is a jump or a correction, not a walk.
+    const double HoundAboardMoving = 0.3, HoundAboardJump = 1.5;
 
     static bool HopLeaping(double phaseSeconds, int id) => (int)(phaseSeconds * 2 + id) % 2 == 0;
 
@@ -354,6 +418,8 @@ public sealed partial class GameAudio
                 was.Stride = to - Math.Floor(to);
             }
         }
+        if (e is CinderHound h && e.Attached >= 0 && was.Attached >= 0 && e.Attached < train.Frames.Count && was.Attached < train.Frames.Count)
+            HoundAboard(train, h, was, at, dt);
         if (e.Attached >= 0 && was.Attached < 0)
         {
             // LEAP onto the rear car (CinderHound.Board), and it lands on the roof a moment later.
@@ -372,9 +438,10 @@ public sealed partial class GameAudio
             Later(struck ? 0.5 : 0, () => Cue("cs-hounds.snarl", snarl, occ));
             was.Next = _time + 2.5 + 3.5 * _creatureRng.Next();
         }
-        else if (e.Attached >= 0 && e.Phase == SpinePhase.Commit && _time >= was.Next)
+        else if (e.Attached >= 0 && e.Phase == SpinePhase.Commit && _time >= was.Next && e is CinderHound { Aboard: HoundMode.Still or HoundMode.Patrol })
         {
-            // The pack fight: a snarl now and then, never on a beat.
+            // The pack fight (and its patrol, note 472): a snarl now and then, never on a beat; not in the middle of a move
+            // or its sniffing (note 489), which have their own breath.
             Cue("cs-hounds.snarl", at, occ);
             was.Next = _time + 2.5 + 3.5 * _creatureRng.Next();
         }
@@ -382,6 +449,100 @@ public sealed partial class GameAudio
         if (grabbed)
             Cue("cs-hounds.bite", Victim(train, e.Holding, 0.8) ?? at, occ);
     }
+
+    /// <summary>
+    /// A hound aboard on its feet (note 478; D1's #208: patrolling the roofs, jumping the gaps it can make, in and out of
+    /// cars whose doors stand open): its paws on what it's on as it walks (the roof's tin, or a car's boards inside), at
+    /// its walk's stride. Its moves are heard off its replicated mode (note 489, <see cref="CinderHound.Aboard"/>): over a
+    /// gap, the spring off the roof and its paws landing on the next one's; down in at a door, the spring off the roof's
+    /// edge and its landing on the boards; out again, its climb up the car's side; stopped to sniff, its sniffing. Heard
+    /// from inside the car it's on or over as the Climbers' steps are (that car's own space, clear in there).
+    /// </summary>
+    void HoundAboard(TrainOnLine train, CinderHound h, Creature was, Double3 at, double dt)
+    {
+        var mode = h.Aboard;
+        float occ = Occlusion(h.Attached);
+        if (mode != CinderHound.Decode(was.Lateral).Mode)
+        {
+            HoundMove(h, mode);
+            was.Stride = 0;
+        }
+        if (mode == HoundMode.Sniff)
+            HoldLevel("cs-hounds.sniff", h.Id, at + Double3.Up * HoundNose, occ, 1);
+        // Only walking is stepped: in the air, at a door and sniffing its moves are their own sounds; over to another car
+        // other than by a leap is the record catching up, not a step.
+        if (mode is HoundMode.Leap or HoundMode.Drop or HoundMode.Climb or HoundMode.Sniff || h.Attached != was.Attached)
+            return;
+        double run = (h.Local - was.Local).Length, speed = run / dt;
+        if (speed < HoundAboardMoving || run > HoundAboardJump)
+            return;
+        string on = Inside(train, h.Attached, h.Local) ? "wood" : "roof";
+        // A walk's stride is shorter than a gallop's (a metre at a prowl), the paws at the same fractions of it.
+        double stride = Math.Clamp(speed * 0.3, 0.7, 6), from = was.Stride, to = from + run / stride;
+        foreach (double paw in PawFalls)
+            for (double k = Math.Floor(from - paw) + 1; k + paw <= to; k++)
+                Cue("cs-hounds.paw", on, at, occ, (float)(0.7 + 0.25 * _creatureRng.Next()));
+        was.Stride = to - Math.Floor(to);
+    }
+
+    // Note 489: where in its moves a hound's sounds fall, from when it began each. Its leap's are the sim's (it's carried
+    // across between leapFrom and leapTo of leapSeconds, enemies.json cinderHounds.patrol; E1's clip drives off and lands
+    // with it). The drop's are E1's clip's (cinder_hound.py drop, 30 fps: off the roof's edge at frame 13, on the sill at
+    // 28), and where: the record has it on the floor from the start, the clip up on the roof over the door (DROP_UP).
+    const double HoundDropSpring = 13 / 30.0, HoundDropLand = 28 / 30.0, HoundDropUp = 2.9;
+    // How late a move's sound can still come (the record arrives in snapshots; joining mid-move, it's missed), the forefeet
+    // to the hind feet landing, and its nose's height sniffing.
+    const double HoundMoveLate = 0.25, HoundHindAfter = 0.09, HoundNose = 0.3;
+
+    /// <summary>A hound aboard begun on <paramref name="mode"/> (note 489): its move's sounds, each when it comes.</summary>
+    void HoundMove(CinderHound h, HoundMode mode)
+    {
+        var p = _creatureWorld?.Enemies?.CinderHounds.Patrol ?? new HoundPatrolTuning();
+        double into = h.ModeSeconds;
+        switch (mode)
+        {
+            case HoundMode.Leap:
+                HoundAfter(h.Id, p.LeapFrom * p.LeapSeconds - into, c => Cue("cs-hounds.spring", c.At, Occlusion(c.Attached)));
+                HoundLands(h.Id, p.LeapTo * p.LeapSeconds - into, "roof");
+                break;
+            case HoundMode.Drop:
+                HoundAfter(h.Id, HoundDropSpring - into, c => Cue("cs-hounds.spring", c.At + Double3.Up * HoundDropUp, Occlusion(c.Attached)));
+                HoundLands(h.Id, HoundDropLand - into, "wood");
+                break;
+            case HoundMode.Climb:
+                // The whole climb is the one sound, from the trot to the sill to its weight onto the roof (E1's clip).
+                HoundAfter(h.Id, -into, c => Cue("cs-hounds.climb", c.At + Double3.Up * HoundDropUp * 0.5, Occlusion(c.Attached)));
+                break;
+        }
+    }
+
+    /// <summary>Its forefeet, then its hind feet a beat behind, landing on <paramref name="on"/>.</summary>
+    void HoundLands(int id, double after, string on)
+    {
+        HoundAfter(id, after, c => Cue("cs-hounds.paw", on, c.At, Occlusion(c.Attached), 0.85f));
+        HoundAfter(id, after + 0.025, c => Cue("cs-hounds.paw", on, c.At, Occlusion(c.Attached), 0.8f));
+        HoundAfter(id, after + HoundHindAfter, c => Cue("cs-hounds.paw", on, c.At, Occlusion(c.Attached), 1f));
+        HoundAfter(id, after + HoundHindAfter + 0.02, c => Cue("cs-hounds.paw", on, c.At, Occlusion(c.Attached), 0.95f));
+    }
+
+    /// <summary>
+    /// <paramref name="play"/> on hound <paramref name="id"/> <paramref name="after"/> s from now, where it is then (its last
+    /// record): now if it's a little late, not at all if it's long past or the hound's gone.
+    /// </summary>
+    void HoundAfter(int id, double after, Action<Creature> play)
+    {
+        if (after < -HoundMoveLate)
+            return;
+        Later(Math.Max(0, after), () =>
+        {
+            if (_creatures.TryGetValue(id, out var c) && c.Attached >= 0 && _creatureWorld is { } w && c.Attached < w.Train.Frames.Count)
+                play(c);
+        });
+    }
+
+    /// <summary>Whether a point on a car (its frame) is inside it: within the room its walls and roof shut in.</summary>
+    static bool Inside(TrainOnLine train, int car, Double3 local) =>
+        train.Frames[car].Shape.Interior is { } room && room.Contains(local);
 
     /// <summary>
     /// Climbers (App. A.4): along the roofs toward the engine, each step heard by whoever's in the car under it (the cue is
@@ -411,12 +572,19 @@ public sealed partial class GameAudio
 
     /// <summary>
     /// Draggers (App. A.4): the grab over the side, the victim's boots on the car side while they hang, and how it ended:
-    /// hauled back up (or the limb clubbed off), or dragged under.
+    /// hauled back up (or the limb clubbed off), or dragged under. One off a truss (note 435) lands on the roof first.
     /// </summary>
     void DraggerSounds(TrainOnLine train, Enemy e, Creature was, Double3 at, bool grabbed)
     {
         float outside = Occlusion(PlayerMotor.Outside);
-        if (grabbed)
+        // Off a truss's top chord (D1's #171; queue #180, note 444): perched with no car of its own, then on one. Its whole
+        // weight comes down on that car's roof, heard clear under it, and the grab a moment after, as it reaches the edge.
+        bool dropped = was.Attached < 0 && e.Attached >= 0;
+        if (dropped)
+            Cue("cs-draggers.drop", at + Double3.Up * 0.35, Occlusion(e.Attached));
+        if (grabbed && dropped)
+            CueLater(DropToGrab, "cs-draggers.grab", at, outside);
+        else if (grabbed)
             Cue("cs-draggers.grab", at, outside);
         if (e.Phase == SpinePhase.Grab)
             Hold("cs-draggers.scrabble", e.Id, Victim(train, e.Holding, 0.2) ?? at - Double3.Up * 1.2, outside);
@@ -482,12 +650,26 @@ public sealed partial class GameAudio
             Hold(drag, e.Id, at, occ);
     }
 
+    // A Grumbler's still heard healing this long after its health last rose (a snapshot's gap and more, as E1's knit is
+    // seen: GreyboxScene.HealingFor), from this high over its feet (down on all fours).
+    const double GrumblerHealing = 0.35, GrumblerMiddle = 0.45;
+
     /// <summary>
     /// The Grumbler (App. A.8): scuttling about the crane it gnaws on (now and then) and after whoever hit it (as it runs);
-    /// going feral; eating the cargo of a car it was craned aboard in.
+    /// going feral; eating the cargo of a car it was craned aboard in; healing a lone crewmate's blow.
     /// </summary>
     void GrumblerSounds(Grumbler e, Creature was, Double3 at, float occ)
     {
+        // Healing (App. A.8 "heals if only one player has hit it"; note 494, E1's #224 shows it): held while its health
+        // climbs (replicated, so every machine hears it), louder the further down it is, as the knit is drawn. A gang's
+        // blows, which it doesn't heal, are never heard healing.
+        if (e.Health > was.Health + 1e-4)
+            was.HealAt = _time;
+        if (_time - was.HealAt < GrumblerHealing)
+        {
+            double full = _creatureWorld?.Enemies?.Grumbler.Health ?? new GrumblerTuning().Health;
+            HoldLevel("cs-grumbler.heal", e.Id, at + Double3.Up * GrumblerMiddle, occ, Math.Clamp(0.35 + 1.3 * (1 - e.Health / full), 0, 1));
+        }
         if (e.Phase == SpinePhase.Commit && e.Attached == was.Attached)
         {
             was.Stride += (e.Local - was.Local).Length;
@@ -508,6 +690,175 @@ public sealed partial class GameAudio
         if (e.Attached >= 0 && e.Phase == SpinePhase.Telegraph && !e.Feral)
             Hold("cs-grumbler.eat", e.Id, at, occ);
     }
+
+    static readonly string[] MooseGrazing = ["tell-moose-grazing.browse", "tell-moose-grazing.creak", "tell-moose-grazing.grunt"];
+    static readonly string[] MooseWarning = ["tell-moose-warning.grunt", "tell-moose-warning.clack", "tell-moose-warning.hoof-drag"];
+
+    /// <summary>
+    /// The Moose (note 339; queue #73, note 334), read off its record as G1 answered on #247: its <see cref="MooseMode"/> in
+    /// Height, its aggro in Extra2 against <see cref="MooseTuning.ListenAt"/> and <see cref="MooseTuning.WarnAt"/>, its rams in
+    /// Health. Grazing it chews (held) and browses, creaks and grunts now and then; listening, the chewing stops dead (the
+    /// silence is the tell, so nothing plays); warning, a cough-like grunt, teeth clacks and a hoof raked back. Squaring up,
+    /// two stamps and a snort; charging, its hooves and its wheeze held and brush breaking; snagged, the wood groaning and a
+    /// bellow, then the rack grinding; searching, its breath held and the rack knocking now and then; a boom on each ram,
+    /// landed on the shudder, the rack scraping after. Grazing as the train goes by (the art's trainPass rule), a call after
+    /// it and the verge thrashed: the sim's +25 on the same condition, so sound, clip and temper agree.
+    /// </summary>
+    void MooseSounds(World world, Moose m, Creature was, Double3 at, float occ)
+    {
+        var t = world.Enemies?.Moose ?? new MooseTuning();
+        var mode = m.Mode;
+        bool began = mode != (MooseMode)(int)was.Height;
+        if (began)
+            was.Next = 0;
+        string Pick(string[] of) => of[(int)(_creatureRng.Next() * of.Length) % of.Length];
+        switch (mode)
+        {
+            case MooseMode.Graze when m.Aggro < t.ListenAt:
+                Hold("tell-moose-grazing.chew", m.Id, at, occ);
+                if (_time >= was.Next)
+                {
+                    if (was.Next > 0)
+                        Cue(Pick(MooseGrazing), at, occ);
+                    was.Next = _time + 3 + 5 * _creatureRng.Next();
+                }
+                break;
+            case MooseMode.Graze when m.Aggro >= t.WarnAt:
+                if (_time >= was.Next)
+                {
+                    Cue(Pick(MooseWarning), at, occ);
+                    was.Next = _time + 1.2 + 1.6 * _creatureRng.Next();
+                }
+                break;
+            case MooseMode.SquareUp when began:
+                Cue("tell-moose-square-up.stamp", at, occ);
+                CueLater(0.38, "tell-moose-square-up.stamp", at, occ);
+                CueLater(1.1, "tell-moose-square-up.snort", at, occ);
+                break;
+            case MooseMode.Charge:
+                Hold("tell-moose-charge.hooves", m.Id, at, occ);
+                Hold("tell-moose-charge.wheeze", m.Id, at, occ);
+                if (_time >= was.Next)
+                {
+                    if (was.Next > 0)
+                        Cue("tell-moose-charge.brush", at, occ);
+                    was.Next = _time + 0.8 + 1.4 * _creatureRng.Next();
+                }
+                break;
+            case MooseMode.Snag:
+                if (began)
+                {
+                    Cue("cs-moose-snag.groan", at, occ);
+                    CueLater(0.5, "cs-moose-snag.bellow", at, occ);
+                }
+                Hold("cs-moose-snag.grind", m.Id, at, occ);
+                break;
+            case MooseMode.Search:
+                Hold("cs-moose-search.breath", m.Id, at, occ);
+                if (_time >= was.Next)
+                {
+                    if (was.Next > 0)
+                        Cue("cs-moose-search.knock", at, occ);
+                    was.Next = _time + 3 + 4 * _creatureRng.Next();
+                }
+                break;
+        }
+        // A ram, on the shudder (RamCount, replicated in Health).
+        if (m.RamCount > Math.Max(0, (int)Math.Round(was.Health) - 1))
+        {
+            Cue("cs-moose-ram.boom", at, occ);
+            CueLater(0.2, "cs-moose-ram.scrape", at, occ);
+        }
+        var train = world.Train;
+        bool passing = mode == MooseMode.Graze && m.Aggro < t.WarnAt && Math.Abs(train.Dynamics.Speed) > 1 && train.Frames.Count > 0
+            && train.Frames.Min(f => ((f.Origin - at) with { Y = 0 }).Length - f.Shape.HalfLength) <= t.TrainPassAt;
+        if (passing && !was.Passing)
+        {
+            Cue("cs-moose-train-pass.bellow", at, occ);
+            CueLater(0.6, "cs-moose-train-pass.thrash", at, occ);
+        }
+        was.Passing = passing;
+    }
+
+    /// <summary>
+    /// The Gannet (note 340; queue #121, note 384; docs/design/creatures/gannet.md §4), read off its record: its
+    /// <see cref="GannetMode"/> in Height, the spine's phase and time (its pecks on the sim's beat, <see cref="Gannet.PecksLanded"/>),
+    /// its Health. Soaring or climbing over the train, its calls now and then and a great wingbeat between; hanging over a
+    /// walker, nothing (the calls stop: the silence is the tell). The fold, a crack of wings and the air whistling up as it
+    /// drops, following it down its line. A stab that landed (a crewmate hurt under the beak as it climbs out of the dive);
+    /// a miss, the thunk into the planks, thrashing held while it's stuck, and the tear free as the art's tearFree starts.
+    /// The bank, the scream and the wingbeats closing (held, coming with it). The pin, its weight landing, then each peck's
+    /// wind-up and blow as <see cref="CreatureArt.GannetClip"/> draws them; driven off it with its victim alive, a screech.
+    /// </summary>
+    void GannetSounds(World world, Gannet g, Creature was, Double3 at, float occ, double dt)
+    {
+        var t = world.Enemies?.Gannet ?? new GannetTuning();
+        var mode = g.Mode;
+        var before = (GannetMode)(int)was.Height;
+        bool began = mode != before;
+        if (began)
+            was.ModeAt = _time;
+        if (mode != GannetMode.Fold)
+            was.Moving = null;
+        else if (was.Moving is { } whistle)
+            whistle.Position = at;
+        switch (mode)
+        {
+            case GannetMode.Soar or GannetMode.Climb:
+                if (began && before == GannetMode.Fold && _hurts.Any(h => (h.At - at).Length <= GannetStabReach))
+                    Cue("cs-gannet-strike.stab", at, occ);
+                if (began && before == GannetMode.Pin && Crewmate(was.Holding) is { Health: > 0 })
+                    Cue("cs-gannet-strike.driven", at, occ);
+                // Overhead: a call, or a wingbeat, every few seconds; the first a while after it's come or climbed away.
+                if (began && before is not (GannetMode.Soar or GannetMode.Climb))
+                    was.Next = _time + 1.5 + 2 * _creatureRng.Next();
+                if (_time >= was.Next)
+                {
+                    if (was.Next > 0)
+                        Cue(_creatureRng.Next() < 0.7 ? "tell-gannet-calls.call" : "tell-gannet-calls.wings", at, occ);
+                    was.Next = _time + 2.5 + 3.5 * _creatureRng.Next();
+                }
+                break;
+            case GannetMode.Fold when began:
+                Cue("tell-gannet-fold.crack", at, occ);
+                was.Moving = Cue("tell-gannet-fold.whistle", at, occ);
+                break;
+            case GannetMode.Stuck:
+                if (began)
+                    Cue("cs-gannet-strike.thunk", at, occ);
+                double tear = was.ModeAt + Math.Max(0, t.StuckSeconds - CreatureArt.GannetTearFreeSeconds);
+                if (_time < tear)
+                    Hold("cs-gannet-strike.thrash", g.Id, at, occ);
+                else if (_time - dt < tear)
+                    Cue("cs-gannet-strike.tear", at, occ);
+                break;
+            case GannetMode.Bank:
+                if (began)
+                    Cue("tell-gannet-bank.scream", at, occ);
+                Hold("tell-gannet-bank.wingbeats", g.Id, at, occ);
+                break;
+            case GannetMode.Pin:
+                if (began)
+                    Cue("cs-gannet-strike.land", at, occ);
+                // Each peck as the art draws it (GannetClip): its wind-up, then the blow on the peckEvery beat.
+                if (g.Phase == SpinePhase.Grab && was.Phase == SpinePhase.Grab)
+                    for (int k = 1; k <= t.Pecks; k++)
+                    {
+                        double strike = k * t.PeckEvery - CreatureArt.GannetPeckStrike;
+                        if (Crossed(was.PhaseSeconds, g.PhaseSeconds, strike - CreatureArt.GannetWindupSeconds))
+                            Cue("cs-gannet-strike.windup", at, occ);
+                        if (Crossed(was.PhaseSeconds, g.PhaseSeconds, strike))
+                            Cue("cs-gannet-strike.peck", Victim(world.Train, g.Holding, 0.3) ?? at, occ);
+                    }
+                break;
+        }
+    }
+
+    /// <summary>How near a crewmate hurt as the Gannet climbs out of its dive was to it: the stab's (its strikeRadius, and the
+    /// beak's reach down to them).</summary>
+    const double GannetStabReach = 3;
+
+    static bool Crossed(double from, double to, double mark) => from < mark && to >= mark;
 
     // ---- Records gone -----------------------------------------------------------------------------------------------------
 
@@ -592,7 +943,34 @@ public sealed partial class GameAudio
                 // Its limb clubbed off the one it held (one blow kills it): they're free, hauled back up.
                 DraggerLetGo(train, c);
                 break;
+            case EnemyKind.Dragger when c.Attached < 0 && c.Phase == SpinePhase.Telegraph:
+                // Still on the truss's chord when it went (note 444): the train went under with nobody on the roofs, and it
+                // dropped onto the ballast behind it. Under the chord, at the line.
+                Cue("cs-draggers.fall", c.At - Double3.Up * c.Height, Occlusion(PlayerMotor.Outside));
+                break;
+            case EnemyKind.Gannet when killed:
+                GannetDown(train, c, occ);
+                break;
         }
+    }
+
+    /// <summary>
+    /// A Gannet killed: its crash across the roof (gannet.py's death). Shot out of the air over a car it falls to that roof
+    /// first, as GreyboxScene draws it (dead weight from where it was), so the crash is heard when it lands there, where the
+    /// car will be by then.
+    /// </summary>
+    void GannetDown(TrainOnLine train, Creature c, float occ)
+    {
+        if (c.Attached < 0 || c.Attached >= train.Frames.Count)
+        {
+            Cue("cs-gannet-strike.death", c.At, occ);
+            return;
+        }
+        var f = train.Frames[c.Attached];
+        double roof = f.Shape.RoofHeight, drop = Math.Max(0, c.Local.Y - roof);
+        double fall = Math.Sqrt(2 * drop / 9.81);
+        var lands = f.ToWorld(c.Local with { Y = roof }) - f.Back * (train.Dynamics.Speed * fall);
+        CueLater(fall, "cs-gannet-strike.death", lands, occ);
     }
 
     /// <summary>
@@ -615,7 +993,7 @@ public sealed partial class GameAudio
             return false;
         var melee = world.Enemies?.Melee ?? new MeleeTuning();
         bool shot = _time - _lastShot <= ShotKills;
-        double blow = Math.Max(melee.Damage, shot ? world.Combat?.Guns.DamagePerRound ?? 4 : 0);
+        double blow = Math.Max(melee.Hardest, shot ? world.Combat?.Guns.DamagePerRound ?? 4 : 0);
         if (c.Health <= 0 || c.Health > blow + 1e-3)
             return false;
         if (shot || CrewStates.Count == 0)
@@ -678,11 +1056,12 @@ public sealed partial class GameAudio
             _bangs.Clear();
             return;
         }
+        // A village house shut up is such a space too (note 401's "behind a closed door"; note 409): they beat on its door.
         var shut = new SortedSet<int>();
-        if (_space >= 0)
+        if (_space != PlayerMotor.Outside)
             shut.Add(_space);
         foreach (var (_, s) in CrewStates)
-            if (s.Alive && PlayerMotor.Space(s, train) is >= 0 and var space)
+            if (s.Alive && PlayerMotor.Space(s, train) is not PlayerMotor.Outside and var space)
                 shut.Add(space);
         foreach (int space in shut)
         {
@@ -691,6 +1070,13 @@ public sealed partial class GameAudio
             if (_bangs.TryGetValue(space, out double next) && _time < next)
                 continue;
             _bangs[space] = _time + 0.6 + 1.6 * _creatureRng.Next();
+            if (space < 0)
+            {
+                int house = -2 - space; // PlayerMotor.HouseSpace, undone
+                if (train.Walls?.HouseDoors.Where(d => d.House == house).ToList() is { Count: > 0 } doors)
+                    AtADoor(Cue("cs-choir.bang-door", "wood", DoorSound(doors[(int)(_creatureRng.Next() * doors.Count) % doors.Count]), Occlusion(space)));
+                continue;
+            }
             var frame = train.Frames[space];
             if (space == 0 && frame.Shape.Cab is { } cab)
             {
@@ -871,4 +1257,71 @@ public sealed partial class GameAudio
     /// <summary>The junction lamp on top of a switch stand.</summary>
     static Double3 Lamp(World world, int branch, Double3 fallback) =>
         branch >= 0 && branch < world.Train.Line.Branches.Count ? Lever(world, branch) + Double3.Up * 0.6 : fallback;
+
+    bool _answerHeard;
+
+    /// <summary>The sound hook for the dark's answer to a draw (note 287), for the audio chat: tell-draw.whistle, .cannon, ….</summary>
+    public static string AnswerCue(DrawCause cause) => $"tell-draw.{DrawLedger.Key(cause)}";
+
+    /// <summary>
+    /// The dark answering what the crew did (note 287; World.Answer, replicated): once, as it starts, a call from out past the
+    /// lamp where it's heard. Its own cue (<see cref="AnswerCue"/>, the audio chat's to make) once installed; until then the
+    /// pack's howl, distant: something out there heard you. The eyes at the lamp's edge are Art/Effects.Eyes.
+    /// </summary>
+    void Answer(World world)
+    {
+        var answer = world.Answer;
+        if (!answer.Showing)
+        {
+            _answerHeard = false;
+            return;
+        }
+        if (_answerHeard)
+            return;
+        _answerHeard = true;
+        string cue = HasCue(AnswerCue(answer.Cause)) ? AnswerCue(answer.Cause) : "hound-howl";
+        Mixer.Play(cue, answer.At)?.Also(v => v.Occlusion = Occlusion(PlayerMotor.Outside));
+    }
+
+    bool _signHeard;
+
+    /// <summary>The sound hook for a sign shown a crewmate afoot (note 327), for the audio chat: sign.ribbits, sign.gaunt, ….</summary>
+    public static string SignCue(EnemyKind kind) => $"sign.{Director.Key(kind)}";
+
+    /// <summary>
+    /// Until the audio chat makes its own (<see cref="SignCue"/>): each creature's own movement, heard from where it is, never
+    /// its tell (a tell means it's coming; a sign means only that it's there). The Gaunt and the Followers make no sound of
+    /// their own until they're on you: their sign is the eyes alone.
+    /// </summary>
+    static string? SignFallback(EnemyKind kind) => kind switch
+    {
+        EnemyKind.Ribbit => "cs-ribbits.hop-land.ground",
+        EnemyKind.Grumbler => "cs-grumbler.scuttle",
+        EnemyKind.SootChildren => "cs-soot-children.turn",
+        EnemyKind.Whistler => "cs-whistler.run",
+        _ => null,
+    };
+
+    /// <summary>
+    /// A sign shown a crewmate afoot off the train (note 327; World.Watcher, replicated): once, as it starts, the sound of
+    /// what lives there, from where its eyes are, a little under full (it's something moving out there, not something on
+    /// you). The eyes are Art/Effects.Eyes.
+    /// </summary>
+    void Watched(World world)
+    {
+        var sign = world.Watcher;
+        if (!sign.Showing)
+        {
+            _signHeard = false;
+            return;
+        }
+        if (_signHeard)
+            return;
+        _signHeard = true;
+        string? cue = HasCue(SignCue(sign.Kind)) ? SignCue(sign.Kind) : SignFallback(sign.Kind);
+        if (cue is not null)
+            Cue(cue, sign.At, Occlusion(PlayerMotor.Outside), SignVolume);
+    }
+
+    const float SignVolume = 0.7f;
 }

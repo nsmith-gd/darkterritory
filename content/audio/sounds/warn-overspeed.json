@@ -1,24 +1,19 @@
-// The cab's overspeed warning (ARCHITECTURE §8 note 265; train.json overspeed): a bend ahead, or under the train, that the
-// speed now would derail it on. The communication bell on the cab's roof plate, the one the guard's cord rings from the
-// van: two hard strokes, a struck brass bell with its inharmonic partials (a hum, the strike note, and the bright pair
-// over it), rung again every overspeed.repeatSeconds while the warning's up. Tier 3, critical train state (spec A.3): over
-// the bed, under any tell (the tells duck it 9 dB). Its strike note sits at 1.2 kHz with its partials at 2.6 and 4.1 kHz,
-// a ring the bed doesn't make; it's heard best in the cab, faintly down the first cars. A synth definition; a recorded
-// take can replace it through the audio checklist.
+// The cue's takes from the audio checklist, kept or the first candidate under review
+// (warn-overspeed/bell), in place of its synth definition
+// (tools/audio/synth-defs/warn-overspeed.json), keeping its tier, range and level. Written by
+// tools/audio/install.py; edit the cue or that file, not this one.
 {
-  "tier": 3, "duration": 1.3, "maxInstances": 2, "minDistance": 3, "maxDistance": 60, "rolloff": 1.0, "gainDb": 0,
-  "layers": [
-    // First stroke: the strike note and its partials, a hard attack, a ring that dies.
-    { "source": "sine", "frequency": 1210, "gain": 0.55, "envelope": [[0, 0], [0.004, 1], [0.12, 0.45], [0.6, 0.08], [0.9, 0]] },
-    { "source": "sine", "frequency": 2630, "gain": 0.3, "envelope": [[0, 0], [0.003, 1], [0.08, 0.3], [0.4, 0]] },
-    { "source": "sine", "frequency": 4090, "gain": 0.16, "envelope": [[0, 0], [0.002, 1], [0.05, 0.2], [0.25, 0]] },
-    { "source": "sine", "frequency": 605, "gain": 0.25, "envelope": [[0, 0], [0.01, 1], [0.5, 0.4], [0.9, 0]] },
-    // Second stroke, a beat on: the same bell struck again.
-    { "source": "sine", "frequency": 1210, "gain": 0.55, "delay": 0.34, "envelope": [[0, 0], [0.004, 1], [0.12, 0.45], [0.6, 0.08], [0.95, 0]] },
-    { "source": "sine", "frequency": 2630, "gain": 0.3, "delay": 0.34, "envelope": [[0, 0], [0.003, 1], [0.08, 0.3], [0.4, 0]] },
-    { "source": "sine", "frequency": 4090, "gain": 0.16, "delay": 0.34, "envelope": [[0, 0], [0.002, 1], [0.05, 0.2], [0.25, 0]] },
-    // The clapper's tick on each.
-    { "source": "noise", "gain": 0.25, "filters": [{ "type": "bandPass", "frequency": 3000, "q": 2 }], "envelope": [[0, 1], [0.012, 0]] },
-    { "source": "noise", "gain": 0.25, "delay": 0.34, "filters": [{ "type": "bandPass", "frequency": 3000, "q": 2 }], "envelope": [[0, 1], [0.012, 0]] }
-  ]
+ "tier": 3,
+ "maxInstances": 2,
+ "minDistance": 3,
+ "maxDistance": 60,
+ "rolloff": 1.0,
+ "gainDb": 5,
+ "layers": [
+  {
+   "source": "sample",
+   "sample": "warn-overspeed/bell",
+   "gain": 1
+  }
+ ]
 }

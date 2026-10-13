@@ -19,6 +19,30 @@ public sealed record MaterialTuning
     public float? Tile { get; init; }
 }
 
+/// <summary>
+/// The water (look.json <c>water</c>; ARCHITECTURE §8 note 424): each kind's current and how open it lies to the wind,
+/// which its surface carries to the shader (PlanArt.WaterSheet), and how wide the lap along its waterline is.
+/// </summary>
+public sealed record WaterTuning
+{
+    /// <summary>By kind: sea, fundy, dyke, river, tidal, lake, marsh.</summary>
+    public Dictionary<string, WaterKind> Kinds { get; init; } = new();
+    public float LapM { get; init; } = 5;
+
+    public WaterKind Of(string kind) => Kinds.TryGetValue(kind, out var k) ? k : new();
+}
+
+/// <summary>
+/// A kind of water: its current (m/s), how open it lies to the wind (0 a still pool, 1 the open sea), and its murk (0
+/// clear dark water, giving back only the sky; 1 silty, its own colour lit as well).
+/// </summary>
+public sealed record WaterKind
+{
+    public float Current { get; init; }
+    public float Open { get; init; } = 0.4f;
+    public float Murk { get; init; }
+}
+
 /// <summary>The night's light and air (GDD §28): the cold moon, the headlamp, the height fog.</summary>
 public sealed record AtmosphereTuning
 {
@@ -41,6 +65,35 @@ public sealed record AtmosphereTuning
     public ChoirColdTuning? ChoirCold { get; init; }
     /// <summary>What the night's wind does to the foliage: how hard it blows, from where, how gusty.</summary>
     public WindTuning Wind { get; init; } = new();
+    /// <summary>The light indoors (queue #211, note 475): a room's own fill, the houses' candles and lamps, the hand lamp, the sheds' lanterns.</summary>
+    public InteriorTuning Interiors { get; init; } = new();
+}
+
+/// <summary>
+/// The light indoors (the director, 8 Oct: "it feels almost impossible to see anything ... we do need interior lighting to
+/// be functional"; GDD §28 "inside = warm, human, temporary safety"; ARCHITECTURE §8 note 475). Inside a Room (a car, an open
+/// house, an open barn or shed, a yard's shed) the moon and sky are kept out; what's left is the room's own fill, which
+/// was the night's ambient (0.1) times a warm tint, and the practical lights. The defaults are those old numbers.
+/// </summary>
+public sealed record InteriorTuning
+{
+    /// <summary>A room's fill (rgb), lamplight off the boards: what a corner no lamp reaches is lit by. Null: the old, the night's ambient times (0.55, 0.42, 0.3).</summary>
+    public Vector3? Fill { get; init; }
+    /// <summary>An open house's candle stub: its strength (times the lamp amber) and reach (m).</summary>
+    public float Candle { get; init; } = 0.9f;
+    public float CandleRange { get; init; } = 5.5f;
+    /// <summary>An open house's oil lamp turned down: its strength and reach (m).</summary>
+    public float Lamp { get; init; } = 0.8f;
+    public float LampRange { get; init; } = 6.5f;
+    /// <summary>A crewmate's hand lamp: its strength and reach (m).</summary>
+    public float HandLamp { get; init; } = 1.8f;
+    public float HandLampRange { get; init; } = 7f;
+    /// <summary>A hurricane lantern turned low, hung in each open barn or shed and each roofed length of a yard shed: its strength (0: none), reach (m), and how high it hangs over the floor (m; under the eaves at the most).</summary>
+    public float ShedLantern { get; init; }
+    public float ShedLanternRange { get; init; } = 9f;
+    public float ShedLanternHeight { get; init; } = 3.2f;
+    /// <summary>A long yard shed has one each this far along it (m).</summary>
+    public float ShedLanternSpacing { get; init; } = 10f;
 }
 
 /// <summary>
@@ -68,6 +121,15 @@ public sealed record ColdTuning
     public float FrostFrom { get; init; } = 0.35f;
     public float FrostFull { get; init; } = 0.85f;
     public float BreathFrom { get; init; } = 0.15f;
+    /// <summary>How far in from its frame the frost on the cab's glass reaches at its full (m, note 485).</summary>
+    public float PaneReach { get; init; } = 0.16f;
+    /// <summary>The frost on the glass: its colour (as the effects are, unlit) and how thick at the frame (0..1).</summary>
+    public Vector3 PaneColour { get; init; } = new(0.5f, 0.57f, 0.64f);
+    public float PaneDensity { get; init; } = 0.9f;
+    /// <summary>How near the glass a mouth fogs it (m), and the fog's colour and thickness at the glass (0..1).</summary>
+    public float FogReach { get; init; } = 0.7f;
+    public Vector3 FogColour { get; init; } = new(0.42f, 0.45f, 0.48f);
+    public float FogDensity { get; init; } = 0.8f;
 
     /// <summary>How heavy the frost is at <paramref name="cold"/>, 0..1.</summary>
     public float Frost(double cold) => Math.Clamp(((float)cold - FrostFrom) / Math.Max(1e-3f, FrostFull - FrostFrom), 0, 1);
@@ -92,6 +154,23 @@ public sealed record DawnTuning
     public float Ambient { get; init; } = 0.3f;
     /// <summary>The glow low on the sky on the sun's side as it comes up (the sky shader's dawn band).</summary>
     public Vector3 HorizonGlow { get; init; } = new(0.28f, 0.16f, 0.11f);
+    /// <summary>The Wakers' stir (note 599): the cold line low behind the train before dawn, where they'll rise.</summary>
+    public StirLook Stir { get; init; } = new();
+}
+
+/// <summary>
+/// The stir's sky (docs/design/creatures/wakers.md §2: "the horizon behind the train goes from black to a bruise to a thin
+/// cold line. The light comes from where the Wakers will rise"; ARCHITECTURE §8 note 599). Over the stir it grows from
+/// nothing, a wide dim <see cref="Bruise"/> low behind the train narrowing to a thin grey <see cref="Line"/> by dawn.
+/// </summary>
+public sealed record StirLook
+{
+    /// <summary>Its colour as it first shows (rgb, added to the sky).</summary>
+    public Vector3 Bruise { get; init; } = new(0.10f, 0.05f, 0.09f);
+    /// <summary>Its colour at dawn.</summary>
+    public Vector3 Line { get; init; } = new(0.34f, 0.37f, 0.42f);
+    /// <summary>How bright it gets, at dawn.</summary>
+    public float Strength { get; init; } = 1;
 }
 
 /// <summary>
@@ -168,6 +247,8 @@ public sealed record LookTuning
     public float Baked { get; init; } = 0.35f;
     /// <summary>The crew's paint by player id, in turn (the flying cap and the scarf: CreatureArt.Crewmate), as multipliers.</summary>
     public float[][] CrewColours { get; init; } = [[1, 1, 1]];
+    /// <summary>Each of <see cref="CrewColours"/> by name, for the settings' OUTFIT (note 298).</summary>
+    public string[] CrewColourNames { get; init; } = [];
 
     /// <summary>A crewmate's paint colour.</summary>
     public System.Numerics.Vector3 CrewColour(int id)
@@ -181,6 +262,7 @@ public sealed record LookTuning
     public ColourGrade Grade { get; init; } = new();
     public PostSettings Post { get; init; } = new();
     public AtmosphereTuning Atmosphere { get; init; } = new();
+    public WaterTuning Water { get; init; } = new();
     public DamageTuning Damage { get; init; } = new();
     public BiteTuning Bite { get; init; } = new();
 }
@@ -238,6 +320,11 @@ public sealed class Look
     public DoorwayTuning Doorway { get; init; } = new();
     /// <summary>A headset crewmate's body (vr.json <c>body</c>, T82): everyone draws it, headset or not.</summary>
     public VrBodyTuning VrBody { get; init; } = new();
+    /// <summary>
+    /// The stops' walls as the sim stands them (run.json <c>walls</c>, note 279): the art draws a shed's, the hero's and a
+    /// Holdout's shell from <see cref="Sim.Run.StopWalls.Shell"/> with these, so its doors are where you walk in (note 387).
+    /// </summary>
+    public Sim.Run.WallTuning Walls { get; init; } = new();
 
     static Dictionary<string, Vector3> PaletteColours() =>
         typeof(Palette).GetFields(BindingFlags.Public | BindingFlags.Static).Where(f => f.FieldType == typeof(Vector3))
@@ -258,10 +345,12 @@ public sealed class Look
         var doorway = System.IO.File.Exists(trainFile) ? DataFile.Load<TrainTuning>(trainFile).Geometry.Doorway : new DoorwayTuning();
         string vrFile = Path.Combine(content, VrTuning.File);
         var body = System.IO.File.Exists(vrFile) ? DataFile.Load<VrTuning>(vrFile).Body : new VrBodyTuning();
+        string runFile = Path.Combine(content, Sim.Run.RunTuning.File);
+        var walls = System.IO.File.Exists(runFile) ? DataFile.Load<Sim.Run.RunTuning>(runFile).Walls : new Sim.Run.WallTuning();
         string root = Path.Combine(content, "art", "textures");
         string index = Path.Combine(root, "index.json");
         if (!System.IO.File.Exists(index))
-            return new Look(tuning) { Doorway = doorway, VrBody = body };
+            return new Look(tuning) { Doorway = doorway, VrBody = body, Walls = walls };
         var entries = JsonSerializer.Deserialize<List<TextureEntry>>(System.IO.File.ReadAllText(index), DataFile.Options) ?? [];
         // The sourced props' own layers (tools/models writes them beside the library, index.models.json), after it.
         string models = Path.Combine(root, "index.models.json");
@@ -270,7 +359,7 @@ public sealed class Look
         // A texture named in the index but not on disk is skipped (and so is its material's texture): the look degrades
         // to flat colour rather than failing to start.
         entries = [.. entries.Where(e => System.IO.File.Exists(Path.Combine(root, e.Diffuse)))];
-        return new Look(tuning, entries) { TextureRoot = root, Doorway = doorway, VrBody = body };
+        return new Look(tuning, entries) { TextureRoot = root, Doorway = doorway, VrBody = body, Walls = walls };
     }
 
     /// <summary>The texture layer called <paramref name="name"/>, or −1 when it isn't there.</summary>
@@ -293,8 +382,29 @@ public sealed class Look
     /// <summary>Loads the look's textures, backdrop, grade and post settings into a renderer.</summary>
     public void Dress(GreyboxRenderer renderer) => renderer.Load(Sky is { } sky ? (_assets ??= Assets()) with { Backdrop = sky } : _assets ??= Assets());
 
+    /// <summary>
+    /// Only <see cref="Sky"/> taken up, on a renderer this look has already dressed (note 517: a batch of screenshots over
+    /// many nights): the far horizon replaced, the material layers left as they are.
+    /// </summary>
+    public void DressSky(GreyboxRenderer renderer) => renderer.LoadBackdrop(Sky ?? (_assets ??= Assets()).Backdrop);
+
     /// <summary>A night's own far horizon in place of the look's band (a generated line's, <see cref="Art.PlanSky"/>); null for the look's.</summary>
     public Image? Sky { get; set; }
+
+    // Every look loaded in a process shares the textures it decodes (about a gigabyte and a quarter of them, note 367): the
+    // tests load a look a class, and each one's own copy, kept for the run, took the Linux CI runner past its memory. A
+    // file that changes on disk (a hot reload, a rebuilt atlas) is read again; nothing writes into a decoded image.
+    static readonly System.Collections.Concurrent.ConcurrentDictionary<string, (DateTime At, long Length, Image Image)> DecodedFiles = new();
+
+    static Image Decoded(string path)
+    {
+        var file = new FileInfo(path);
+        if (DecodedFiles.TryGetValue(path, out var had) && had.At == file.LastWriteTimeUtc && had.Length == file.Length)
+            return had.Image;
+        var image = ImageFile.Load(path);
+        DecodedFiles[path] = (file.LastWriteTimeUtc, file.Length, image);
+        return image;
+    }
 
     /// <summary>Everything the renderer needs: the material maps, the backdrop, the grade and the post settings.</summary>
     public RenderAssets Assets()
@@ -302,26 +412,37 @@ public sealed class Look
         var layers = new List<MaterialLayer>();
         Image? backdrop = null;
         if (TextureRoot is not null)
-            foreach (var t in Textures)
+        {
+            // A texture that won't read (half-written, corrupt) becomes flat grey, keeping every layer where the
+            // materials expect it, rather than stopping the game.
+            static Image Read(string path, Image fallback)
             {
-                // A texture that won't read (half-written, corrupt) becomes flat grey, keeping every layer where the
-                // materials expect it, rather than stopping the game.
-                static Image Read(string path, Image fallback)
+                try { return Decoded(path); }
+                catch (Exception e) when (e is InvalidOperationException or IOException)
                 {
-                    try { return ImageFile.Load(path); }
-                    catch (Exception e) when (e is InvalidOperationException or IOException)
-                    {
-                        Console.Error.WriteLine($"look: {Path.GetFileName(path)} unreadable ({e.Message}); drawing it flat");
-                        return fallback;
-                    }
+                    Console.Error.WriteLine($"look: {Path.GetFileName(path)} unreadable ({e.Message}); drawing it flat");
+                    return fallback;
                 }
-                var diffuse = Read(Path.Combine(TextureRoot, t.Diffuse), Image.Solid(4, 80, 80, 80));
-                var spec = t.Spec is { } s && System.IO.File.Exists(Path.Combine(TextureRoot, s)) ? Read(Path.Combine(TextureRoot, s), Image.Solid(4, 20, 60, 0)) : Image.Solid(4, 20, 60, 0);
-                var normal = t.Normal is { } n && System.IO.File.Exists(Path.Combine(TextureRoot, n)) ? Read(Path.Combine(TextureRoot, n), Image.Solid(4, 128, 128, 255)) : null;
-                layers.Add(new MaterialLayer(t.Name, diffuse, spec, t.AlphaTest, normal));
-                if (t.Family == "sky")
-                    backdrop = diffuse;
             }
+            // Each texture's maps decoded side by side, one texture to a core (note 517), then laid out in the look's order.
+            var textures = Textures.ToList();
+            var read = new MaterialLayer[textures.Count];
+            string root = TextureRoot;
+            Parallel.For(0, textures.Count, i =>
+            {
+                var t = textures[i];
+                var diffuse = Read(Path.Combine(root, t.Diffuse), Image.Solid(4, 80, 80, 80));
+                var spec = t.Spec is { } s && System.IO.File.Exists(Path.Combine(root, s)) ? Read(Path.Combine(root, s), Image.Solid(4, 20, 60, 0)) : Image.Solid(4, 20, 60, 0);
+                var normal = t.Normal is { } n && System.IO.File.Exists(Path.Combine(root, n)) ? Read(Path.Combine(root, n), Image.Solid(4, 128, 128, 255)) : null;
+                read[i] = new MaterialLayer(t.Name, diffuse, spec, t.AlphaTest, normal);
+            });
+            for (int i = 0; i < textures.Count; i++)
+            {
+                layers.Add(read[i]);
+                if (textures[i].Family == "sky")
+                    backdrop = read[i].Diffuse;
+            }
+        }
         return new RenderAssets { LayerSize = Tuning.LayerSize, HeroSize = Tuning.HeroLayerSize, BigHeroSize = Tuning.BigHeroLayerSize, Layers = layers, Backdrop = backdrop, Lut = Tuning.Grade.Bake(), Post = Tuning.Post };
     }
 
@@ -346,12 +467,32 @@ public sealed class Look
             light.LampColour = lc;
         if (a.LampIntensity is { } li)
             light.LampIntensity = li;
+        if (a.Interiors.Fill is { } fill)
+            light.IndoorFill = fill;
         return light;
     }
 
     /// <summary>How far the dawn's come up (0 night .. 1 dawn) <paramref name="dawnIn"/> seconds before it (the run's dawn clock).</summary>
     public float DawnOf(double dawnIn) =>
         Tuning.Atmosphere.Dawn is { } d ? (float)Math.Clamp(1 - dawnIn / Math.Max(1, d.LeadSeconds), 0, 1) : 0;
+
+    /// <summary>
+    /// <paramref name="light"/> with the Wakers' stir <paramref name="t"/> of the way to dawn (0..1, note 599), lying low on
+    /// the sky toward <paramref name="from"/> (world, flattened: behind the train, where they'll rise).
+    /// </summary>
+    public FrameLighting Stir(FrameLighting light, float t, Vector3 from)
+    {
+        if (Tuning.Atmosphere.Dawn is not { } d || t <= 0)
+            return light;
+        t = Math.Clamp(t, 0, 1);
+        var flat = new Vector3(from.X, 0, from.Z);
+        if (flat.LengthSquared() < 1e-6f)
+            return light;
+        light.Stir = t * d.Stir.Strength;
+        light.StirDirection = Vector3.Normalize(flat);
+        light.StirColour = Vector3.Lerp(d.Stir.Bruise, d.Stir.Line, t * t);
+        return light;
+    }
 
     /// <summary>
     /// <paramref name="light"/> with the dawn <paramref name="t"/> of the way up (0..1, eased): the fog lightening to the

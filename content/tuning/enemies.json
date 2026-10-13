@@ -1,4 +1,4 @@
-// Enemies (GDD v1.1 §21, App. A behaviour, App. B spawn rules, App. C shared systems): the v1.1 roster of sixteen and the
+// Enemies (GDD v1.1 §21, App. A behaviour, App. B spawn rules, App. C shared systems): the v1.1 roster of sixteen, the Moose (note 339), the Gannet (note 340) and the
 // Choir, plus two hazards (§22: track debris, formerly the Sleepers; marsh, formerly the Drift). First pass. Speeds in m/s; the GDD's Sleeper thresholds (40 / 20) are km/h, converted here.
 {
   // App. A.1: every telegraph gives at least this long before a commit.
@@ -9,6 +9,25 @@
   // engine off its brake pulls away, so a Stoker took a train left braked in the yard away with nobody in the cab. Under way
   // they still take it off the brake; a train at a stand stays where its driver left it.
   "tamperReleasesStandingBrake": false,
+
+  // The damage model (the director's decision of 6 Oct 2026, GDD App. F.1; ARCHITECTURE §8 note 272): "Lethal Company
+  // style. Health exists, but damage comes in a few big hits, never chip damage." Every creature's hit on a player is an
+  // int field named ...Damage below, and DamageModelTests holds each to at least minHit (of player.json's 100) and the gap
+  // between a creature's hits to at least minGapSeconds: a hit (35) or a heavy hit (60), so a creature on you is two or
+  // three hits from death (its grab is the last, App. A.1) and a clean escape costs one. Not held to it: the train's own
+  // continuous dangers (a car fire's burn, note 263's "a brush hurts, standing in it kills"; a hose's gas; a landing's
+  // knock by its speed). The Stoker's door (stoker.doorBurn, then doorKill; Stoker v3, note 271) is held to minHit too.
+  "damage": { "minHit": 30, "minGapSeconds": 2.5 },
+
+  // Driven off by their rules, killed by the crew together (GDD App. F.1: "creatures mostly don't take damage; they're
+  // driven off by their rules"; the director's clarification of 7 Oct 2026: "They should be driven off by rules but they
+  // should also be able to be killed like in Lethal Company if the team coordinates effectively"; ARCHITECTURE §8 note 288).
+  // The Grumbler, the Gaunt, the Passenger, Climbers and the Choir's ghosts (each block's drivenOff; false is the old
+  // health fight): following the rule drives one off, a break that can come back; blows wear it down only while gang or
+  // more different crewmates have struck it within windowSeconds (and, per creature, the setup its rule asks for). A lone
+  // player's swinging never kills one. Killed, it's done for the night (a Climber or a ghost: that one), with a line in the
+  // incident report naming the gang.
+  "coordinatedKill": { "gang": 2, "windowSeconds": 5 },
 
   // Enemies farther than this from a player aren't sent to that player's machine (ARCHITECTURE §8 note 23).
   // It must cover the farthest tell anyone can hear, the hound howl's 500 m (audio/sounds/hound-howl.json);
@@ -46,10 +65,30 @@
     "spawnBehind": 180,
     "howlSeconds": 4,
     "leapDistance": 30,
-    "biteDamage": 45,
-    "biteEverySeconds": 2.5,
+    // A hit, and a long gap (note 272; were 45 every 2.5 s): bitten twice, they're pinned (maulSeconds).
+    "biteDamage": 35,
+    "biteEverySeconds": 4,
     "reach": 4,
-    // A boarded hound with nobody near for this long drops off.
+    // GDD App. F (the director, 6 Oct 2026): "Cinder Hounds that board stay aboard. They keep setting the car alight while
+    // they eat the supplies, which forces the crew to confront them" (ARCHITECTURE §8 note 269). Aboard with nobody near,
+    // each eats cargoPerSecond of its car's cargo, and sets the car alight (carFire below) every igniteEverySeconds it's
+    // left alone. They go only dead, or with their car cut loose. stayAboard false: v1.1's drop-off after boredSeconds.
+    "stayAboard": true,
+    "cargoPerSecond": 0.002,
+    "igniteEverySeconds": 20,
+    // Note 472 (the director, 8 Oct 2026: "It matters that they dont just stand there and howl, they should either patrol
+    // between cars that have doors open or patrol the roofs of the cars, jumping between them if they can make the jump").
+    // Aboard with nobody it can reach (note 471), a hound patrols its roof at walk m/s, and the next car's at its end: a leap
+    // of leapSeconds across the coupling gap (carried across between leapFrom and leapTo of it; never onto the engine, which
+    // is hooded, note 338), turning back at the ends of its ground. Its ground: the car it boarded, every car behind it, and
+    // carsAhead cars ahead of it (never the car right behind the engine), so the coupling ahead of that still cuts the pack
+    // loose wherever its patrol has it (note 269). Every sniffEvery s (from its own dice) it stops for sniffSeconds to sniff.
+    // Over a car with a side door open, inChance of the time it drops in (dropSeconds), patrols the car inside for
+    // insideSeconds, and climbs out again (climbSeconds) at an open door. Someone it can reach within chaseFrom m, it goes
+    // for at chase m/s, the gaps leapt. It still eats and lights the car it's on (note 269).
+    "patrol": { "on": true, "walk": 1.6, "chase": 3.5, "chaseFrom": 20, "leapSeconds": 0.9, "leapFrom": 0.25, "leapTo": 0.65,
+      "sniffEvery": [8, 15], "sniffSeconds": 3, "dropSeconds": 1.0, "climbSeconds": 1.2, "inChance": 0.5, "insideSeconds": [8, 15],
+      "carsAhead": 1 },
     "boredSeconds": 6,
     // App. B.3: needs sustained speed first.
     "minTrainSpeed": 8,
@@ -66,15 +105,66 @@
   // the GDD has no solo rule (ARCHITECTURE §8 note 92, a tuning flag).
   "grab": { "pullReach": 1.6, "soloStruggleOn": true, "soloStruggle": 6 },
 
-  // App. C.2 melee with train tools: any tool (shovel, bar, lamp) swings; a blow is 1 health. Enemy health below is in blows.
-  // T108: the tools are the shovel, wrench and crowbar (GDD §1322), carried on the hotbar; with nothing in hand, a fist does
-  // barehanded of a blow.
-  "melee": { "reach": 2.2, "coneDegrees": 70, "swingSeconds": 0.8, "damage": 1, "barehanded": 0.25 },
+  // App. C.2 melee with train tools: the shovel, the crowbar and the wrench (GDD §12, §1322) swing; enemy health below is in
+  // blows of the crowbar, the tool everyone starts with (player.json kit). App. C.2: "the boiler player's shovel doubling as
+  // the crew's best club is intended tension": it's the shovel's blow that's the best (note 275), and there's the one, by the
+  // firebox (boiler.json shovelInHand). The wrench in the cab is short in the haft, "nothing but a wrench" (§13). T108: with
+  // nothing in hand, a fist does barehanded of a blow. DESIGN-TODO: the GDD gives no numbers; these are a first pass that
+  // keeps every creature's health a whole number of crowbar blows and takes a 3-health one in two of the shovel's.
+  "melee": { "reach": 2.2, "coneDegrees": 70, "swingSeconds": 0.8, "shovel": 1.5, "crowbar": 1, "wrench": 0.75, "barehanded": 0.25 },
+
+  // Every creature's body as a cannonball finds it (GDD App. F.1, build 1121: "the guns do nothing. Rounds don't collide
+  // where they land and have no visible effect on the monsters"; ARCHITECTURE §8 note 290). A stack of spheres, each
+  // [radius, height of its centre over where the creature stands] in m, fitted to its model as drawn (content/art/models:
+  // the Ribbit at its 1.4 scale; a long, low body, the Whistler's, the Climber's, a hound's, by one sphere round its
+  // middle). The body stands while the creature is in the open (Enemy.Exposed: by default wherever a tool's blow can land
+  // on it), and a ball that finds it lands on it as a blow of combat.json guns.damagePerRound by the gunner, answered by
+  // the creature's own rule for a blow. No body (a ball goes through): the Fire Flies (a swarm) and the Choir's ghosts.
+  // A sleeping Gaunt is curled to gauntAsleep of its height.
+  "bodies": {
+    "cinderHound": [[0.75, 0.4]],
+    "switchman": [[0.4, 0.5], [0.4, 1.15], [0.3, 1.6]],
+    "climber": [[0.65, 0.3]],
+    "trackDoll": [[0.55, 0.7], [0.4, 1.6]],
+    "ribbit": [[0.6, 0.55]],
+    "gaunt": [[0.5, 0.6], [0.5, 1.5], [0.45, 2.4], [0.35, 3.1]],
+    "grumbler": [[0.55, 0.55], [0.55, 1.3], [0.35, 1.8]],
+    "whistler": [[0.6, 0.3]],
+    "dragger": [[0.45, 0]],
+    "follower": [[0.3, 0.05]],
+    "sootChildren": [[0.35, 0.4], [0.3, 0.9]],
+    "carHugger": [[1.3, 0.6], [1.2, 1.9]],
+    "passenger": [[0.4, 0.5], [0.4, 1.15], [0.3, 1.6]],
+    "stoker": [[0.45, 0.45], [0.4, 1.1]],
+    "tippyToesie": [[0.4, 0.6], [0.4, 1.4], [0.3, 2.0]],
+    // The barrel and the hump (note 339); its rack stops nothing, a round in it is a miss.
+    "moose": [[0.9, 1.6], [0.9, 2.1], [0.6, 2.6]],
+    // Its breast and sacs, and the head over them (note 340): standing on a roof 2.3 m tall; in the air, about where it flies.
+    "gannet": [[1.0, 0.7], [0.6, 1.6]],
+    // Child-high, hunched over (note 362).
+    "mourners": [[0.35, 0.45], [0.3, 0.9]],
+    // Knee-high, a crate over its head when it carries (note 592).
+    "pickers": [[0.3, 0.3]],
+    // The house creatures (notes 583–586): the Lodger and the Householder man-sized; the Hanger's sac, up in the roof.
+    "lodger": [[0.35, 0.5], [0.3, 1.2]],
+    "householder": [[0.35, 0.5], [0.3, 1.3]],
+    "hanger": [[0.45, 0]],
+    // A bear-sized beaver, its shoulders over its head (note 363).
+    "towerJaw": [[0.8, 0.7], [0.6, 1.3]],
+    // Its plated back, a handcart's bulk (note 366).
+    "freightBeetle": [[0.75, 0.7], [0.6, 0.7]],
+    // A stooped man (note 364); Hotbox half out of its truck, low (note 367).
+    "brakeman": [[0.4, 0.5], [0.4, 1.1], [0.3, 1.55]],
+    "hotbox": [[0.45, 0.2]],
+    // Its body across the gap, low (note 365).
+    "knotter": [[0.35, 0]]
+  },
+  "gauntAsleep": 0.35,
 
   // TRACK DOLL · sight · forward (App. A.2, B.2). Revealed in the lamp at lampRevealDistance, or in the dark only this close.
   // Stopped (below stoppedBelow m/s) short of it: gone for the run. Hit: it haunts. Cornered (players within cornerWithin at
   // both ends of its car) it can be clubbed; approached from one side it vanishes when anyone's within vanishNear and moves
-  // car every hauntMoveSeconds. An empty cab for tamperAfterEmpty s and it's at the controls. A toy within toyReach: it
+  // car every hauntMoveSeconds. Past stage 1 (below), an empty cab for tamperAfterEmpty s and it's at the controls. A toy within toyReach: it
   // takes it and leaves. DESIGN-TODO: how much cargo "admiring" costs is unstated; cargoPerSecond is a guess.
   "trackDoll": {
     "lampRevealDistance": 200, "darkRevealDistance": 25, "spawnAhead": 700, "stoppedBelow": 0.3, "health": 2,
@@ -85,9 +175,23 @@
     // T121 playtest ("I shot the track doll and it did nothing while she was on the track"): a forward cannon's ball that
     // hits her on the rail shatters her, gone for the run, the same outcome as stopping short (App. A.2's VANISH), so the
     // train no longer strikes her. The GDD gives the brakes as the answer and doesn't say a cannon isn't one; it's loud and
-    // costs the reload, which keeps it a cost. Her hit volume on the rail: railHitRadius round a point railHitHeight over it
-    // (her body, a large porcelain doll). cannonShatters off: the ball goes through her (ARCHITECTURE §8 note 171).
-    "cannonShatters": true, "railHitRadius": 0.55, "railHitHeight": 0.7
+    // costs the reload, which keeps it a cost. Her body on the rail is in bodies, above (a large porcelain doll; note 290).
+    // cannonShatters off: the ball goes through her (ARCHITECTURE §8 note 171).
+    "cannonShatters": true,
+    // The director's decision of 6 Oct 2026 (GDD App. F.1, "The Track Doll escalates if ignored"; ARCHITECTURE §8 note
+    // 268): aboard, she's no problem at first and gets worse only for being left alone. Her neglect clock runs a second a
+    // second while no living crewmate is in her car or within attendRadius m of her, and attended it winds back at
+    // attendedEase a second. Stage 1 (from the strike): she haunts the cars, admires the cargo and giggles; she never goes
+    // to the cab. Stage 2 at controlsAfter s of neglect: an empty cab (tamperAfterEmpty) and she's at the controls, but
+    // only nudging the regulator up to nudgeThrottle on one beat in three; she never touches the brake. Stage 3 at
+    // releaseAfter s: the full tampering (the regulator open, the brake on and off), and once she's been at the controls
+    // releaseAfterAtControls s at that stage on a visit, a standing train's held brake too (finalStageReleasesBrake; the
+    // one exception to tamperReleasesStandingBrake above). A haunting doll is never dismissed for want of company (the
+    // director's lingerSeconds). Each stage is telegraphed warnSeconds before it comes (she's restless: replicated,
+    // her giggle quickens, and at stage 2 she rattles the brake handle without moving it). Getting her off the train (a
+    // toy, or cornered and clubbed) ends it; a new doll starts at stage 1.
+    "controlsAfter": 120, "releaseAfter": 300, "warnSeconds": 30, "attendRadius": 8, "attendedEase": 0.5,
+    "nudgeThrottle": 0.25, "releaseAfterAtControls": 12, "finalStageReleasesBrake": true
   },
 
   // CAR HUGGER · vibration · rear (App. A.3, B.3). Latched: the train's top speed capped at speedCap m/s (the train drags
@@ -107,15 +211,31 @@
   // whistle for whistleSeconds (it feeds the loudness meter). A player passing within passReach of its gap with nobody
   // else within pairRadius is snatched and carried off at runSpeed to a nest nestDistance m out, eaten nestSeconds after.
   // Two players within spotReach of the gap and it flees. B.4: stopWeight: it's weighted toward routes with stops.
+  // T128 (build 1121: "a creature carried the director up a mountainside"; ARCHITECTURE §8 note 273): the nest is straight
+  // out from the gap across the line, on the side they were taken from if it can be, at nestDistance (60 → 30: inside
+  // train.json recovery.corridorM, Line Plan §12.6's walkable corridor; it went 60 m out in a straight line at rail height,
+  // and wherever the land rose the player was stood up on the hillside when it let go), shorter by nestStep down to
+  // nestMinDistance where the land won't have it. Its run there is over the ground, and the way has to be land a person can
+  // run: no 2 m of it steeper than nestMaxSlope (rise over run), never more than nestMaxRise m above or below the rail, no
+  // water. Neither side has any: the formation's edge. At a generated stop it runs to the nest the layout put out on the
+  // stop's emptiest side (level-design H.2; note 314), the nearest within nestSiteReach of its gap that the same rules allow
+  // and whose way there misses every building. Nowhere does its run go through a wall.
   "whistler": {
     "stoppedBelow": 0.3, "whistleAfterStop": 4, "whistleSeconds": 2.5, "passReach": 1.6, "pairRadius": 3, "spotReach": 2.5,
-    "runSpeed": 4.5, "nestDistance": 40, "nestSeconds": 20, "health": 3, "stopWeight": 0.3, "minCars": 2,
-    // The director's note of 2026-10-06 (GDD App. F.1, "he's taking me to a spot in a mountain"; ARCHITECTURE §8 note 266):
-    // the nest is a den a rescuer can run to, over the ground. Up to nestDistance out (cut from 60: linegen keeps the land
-    // walkable 40 m out, §12.6) and no nearer than nestMin, the victim's side first, where the way is never steeper than
-    // nestGrade (rise over run, every 5 m) and it ends within nestClimb m of the rail; if nowhere fits, the ditch beside the
-    // track. Never inside a fort.
-    "nestMin": 15, "nestGrade": 0.35, "nestClimb": 4
+    "runSpeed": 4.5, "nestDistance": 30, "nestMinDistance": 8, "nestStep": 4, "nestMaxSlope": 0.4, "nestMaxRise": 6, "nestSiteReach": 110,
+    "nestSeconds": 20, "health": 3, "stopWeight": 0.3, "minCars": 2
+  },
+
+  // The world is solid (the director, 6 Oct 2026: "creatures, carries and players must respect the terrain and geometry";
+  // ARCHITECTURE §8 note 279). Once the creatures have stepped, what's loose in the world is held out of the stops' and the
+  // fortresses' buildings and inside a tunnel's lining, by the widest sphere of its body (bodies, above). By kind: "ground"
+  // walks on the land (a Ribbit's hop, a Gaunt walking up after its waker, a feral Grumbler), but within climbM of a car it
+  // may be up its side; "air" flies, never lower than airClearM over the land (the Choir); "none" goes its own way (the
+  // Whistler's run is laid clear of walls, above, a Follower crawls along the cars, the Soot Children answer a voice).
+  "solidity": {
+    "climbM": 2.5, "airClearM": 0.2,
+    "kinds": { "ribbit": "ground", "gaunt": "ground", "grumbler": "ground", "choir": "air", "whistler": "none", "follower": "none", "sootChildren": "none",
+      "mourners": "ground", "freightBeetle": "ground", "towerJaw": "ground", "pickers": "ground" }
   },
 
   // TIPPY TOESIE · absence · interior (App. A.5, B.5). Picks a player idle (moving under idleBelow m/s) for idleSeconds with
@@ -125,41 +245,399 @@
   "tippyToesie": {
     "idleSeconds": 5, "idleBelow": 0.3, "aloneRadius": 8, "startBehind": 9, "approachSpeed": 0.6, "approachSpeedCrewOfTwo": 0.4,
     "seenDegrees": 50, "reach": 0.8, "suffocateSeconds": 20, "waitAfterSeen": 20, "maxFlees": 3, "health": 2, "minCrew": 2,
-    "perIdleWeight": 1
+    "perIdleWeight": 1,
+    // Boarding-first (GDD App. F.1, note 286): "nothing acts inside the train unless it boarded". It slips aboard only with
+    // the train under boardBelow (m/s: a stop), and stays hidden aboard after it until it's fled maxFlees times. Shut doors
+    // don't stop it: it opens them without a sound.
+    "boardBelow": 0.3
   },
 
   // FIRE FLIES · light · interior (App. A.5, B.5). On a lit car lamp in a dark section; left igniteSeconds, the car
   // catches (carFire below). Break off: the lamp out, or the train over pullAwaySpeed m/s for pullAwaySeconds.
-  "fireFlies": { "igniteSeconds": 20, "pullAwaySpeed": 15, "pullAwaySeconds": 8, "depthWeight": 2 },
+  // GDD App. F (the director, 6 Oct 2026): "Car lamps start lit. Their pull on Fire Flies is rare, and only while the car
+  // is stopped." The director sends them only while the train's under stoppedBelow m/s, at stoppedWeight of their B.5
+  // weight; and A.5's "pulls away at speed" is getting under way: pullAwaySpeed was 15 (ARCHITECTURE §8 note 269).
+  "fireFlies": {
+    "igniteSeconds": 20, "pullAwaySpeed": 2, "pullAwaySeconds": 8, "depthWeight": 2, "stoppedBelow": 0.3, "stoppedWeight": 0.5,
+    // Boarding-first (GDD App. F.1, note 286): "shut doors stop some boarders". A lit car with every door and its hatch shut
+    // (and no breach) keeps them off its lamp: at a stop, it's the cars left open with their lamps lit that draw them.
+    "shutCarKeepsOut": true
+  },
+
+  // WHERE THE OUTSIDE CREATURES START (level-design H.2; GDD B.6; ARCHITECTURE §8 note 309). A generated stop's layout says
+  // where each lives; the director still says when. At the stops within `around` m of the train: Ribbits come out of the
+  // warren nearest the ground crew within `warrenReach` (a stop whose warrens are all further has none to send); the Gaunt
+  // sleeps in its roost if it's within `roostReach`; a child calls from its call within `callReach`; a Follower takes only a
+  // crewmate standing in one of its grounds (its radius and `groundMargin`). Nothing comes out closer than `minOut` m. A
+  // hand-laid route's stops have no layouts: there they come from out in the dark round the ground crew, as before.
+  "sites": { "around": 300, "minOut": 12, "warrenReach": 70, "roostReach": 400, "callReach": 160, "groundMargin": 4 },
 
   // RIBBITS · sight · outside (App. A.6, B.6). A pack of packSize (never more than the crew) hops at hopSpeed toward the
   // nearest group smaller than it (players within groupRadius of each other: App. C.6); in tongueReach it freezes one and
   // eats for devourSeconds. They lose interest past giveUpBeyond m.
+  // Note 558 (the director, 9 Oct: "they overlapped each other a lot"): the leader comes straight in, the rest fan out
+  // either side of it, fan degrees a place apart round the catch, ringOut m from them (the leader to the hop's own 0.8);
+  // within the last fanFrom m of the catch they make for those places; and none comes nearer a packmate than spacing m.
+  // Past a right angle, so with the catch down on their back (laid away from the leader) the others are at their sides.
   "ribbits": {
     "packSize": [2, 4], "hopSpeed": 4, "groupRadius": 8, "tongueReach": 4, "devourSeconds": 8, "giveUpBeyond": 45,
-    "spawnOut": 35, "health": 2, "perGroundWeight": 0.5
+    "spawnOut": 35, "health": 2, "perGroundWeight": 0.5, "fan": 100, "ringOut": 1.05, "fanFrom": 10, "spacing": 1.15
   },
 
   // GRUMBLER · sound · corrupted human (App. A.8, B.8). Gnaws the food crates at a facility; hit, it hunts the last to hit
   // it at huntSpeed. It regenerates regenPerSecond blows a second unless two players have hit it within gangSeconds.
   // Aboard with a crate, it eats cargoPerSecond. B.8: foodWeight more with food aboard.
+  // Note 272 (App. F.1, no chip damage): a hit every 3 s (were 15 every 1.5 s), and it mauls once it's bitten you twice
+  // (grabBelowHealth was 30).
+  // Note 288 (drivenOff; "gang up or leave it alone"): feral, with gangOf (coordinatedKill.gang) of the crew within
+  // gangRadius m of it and no gang striking it, it breaks off after outnumberedSeconds (letting go of a maul) and scuttles
+  // off for fleeSeconds, then back to gnawing, calmed. Only the gang's blows take its health (and it fights them).
   "grumbler": {
-    "health": 6, "regenPerSecond": 1.5, "gangSeconds": 5, "huntSpeed": 3.5, "reach": 1.4, "biteDamage": 15, "biteEvery": 1.5,
-    "grabBelowHealth": 30, "maulSeconds": 8, "cargoPerSecond": 0.004, "foodWeight": 2
+    "health": 6, "regenPerSecond": 1.5, "gangSeconds": 5, "huntSpeed": 3.5, "reach": 1.4, "biteDamage": 35, "biteEvery": 3,
+    "grabBelowHealth": 35, "maulSeconds": 8, "cargoPerSecond": 0.004, "foodWeight": 2,
+    "drivenOff": true, "gangRadius": 3, "outnumberedSeconds": 2, "fleeSeconds": 8
   },
 
   // THE CHOIR's swarm (App. A.7): ghosts come when the meter's gathered (combat.json "choir"). Each seizes anyone outside
   // or behind no shut door for seizeSeconds (broken only by killing it); hit, it hits back. It flies flySpeed m/s faster
-  // than the train. Quiet for
-  // disperseQuietSeconds and they go.
-  "choir": { "ghosts": 4, "health": 6, "seizeSeconds": 12, "flySpeed": 6, "hitBackDamage": 15, "disperseQuietSeconds": 10, "around": 12 },
+  // than the train. Quiet for disperseQuietSeconds and they go. Note 272 (App. F.1, no chip damage): a ghost's hit back is a
+  // hit, at most once every hitBackEvery s however fast it's struck (was 15 for every blow).
+  // Note 288 (drivenOff; "hush, and shut every door"): a seize breaks when the meter's under its threshold for
+  // hushBreakSeconds (the ghost goes) or its catch is behind a shut door (it goes back to the doors); blows don't break it.
+  // Only the gang's blows with the crew holding quiet take a ghost's health; the last of the swarm killed, it's spent.
+  "choir": {
+    "ghosts": 4, "health": 6, "seizeSeconds": 12, "flySpeed": 6, "hitBackDamage": 35, "hitBackEvery": 3, "disperseQuietSeconds": 10,
+    "around": 12, "drivenOff": true, "hushBreakSeconds": 3
+  },
 
-  // THE SWITCHMAN · vibration · corrupted (App. A.8, B.8). At a junction ahead[0]-[1] m out; seen at revealAt m. A
-  // derailing one (derailChance) grips the lever at gripAt m, always in time to brake or fire. One cannon round (4 blows)
-  // or three blows kills it. B.8: minJunctions on the route, deadLineWeight more with dead lines about.
+  // THE MOOSE · movement (trespass), sound · outside (GDD §21, App. A.6, B.6; the director's decisions of 7 Oct 2026;
+  // ARCHITECTURE §8 note 339; docs/design/creatures/moose.md). A hyper-aggressive, territorial moose, too big to get on the
+  // train. Grazing beside a stop, its aggro (0-100) rises crowdPerSecond with anyone on the ground within crowdAt m
+  // (closePerSecond within closeAt), voicePerSecond at full voice (by the Voice byte, over talkingAbove of 255) with anyone
+  // talking within hearVoice m, and by trainPass once as a train goes by within trainPassAt m; a hit fills it. It falls
+  // calmPerSecond with nobody crowding or talking. listenAt (head up, ears turning) and warnAt (ears flat, the sac ridge up)
+  // are its tells. Full, its target is whoever put the most in (whoever hits it, from then on). In sight (sightRange, no
+  // building or car between) it closes at huntSpeed, squares up squareUpSeconds within squareUpAt[1] m (its heading locks
+  // at the end) and charges at chargeSpeed, overrunning overrun m, then wheels round in wheelSeconds. Its body is rackSpan
+  // across: nothing narrower lets it in. A building in the way snags it snagSeconds; a car or the track's clearance pulls it
+  // up; blockedCharges of those without reaching its target and it gives up. A charge through anyone on the ground (within
+  // hitReach of its rack) is a hit of chargeDamage; on someone at or under grabBelowHealth it pins them for pinSeconds, and
+  // a blow from anyone else takes it off them (they're its target then). Out of sight it searches at searchSpeed where it
+  // lost them, searchSeconds; a voice within hearVoice gives anyone away. Lost within lostAtCar m of a car they're aboard,
+  // it rams the car every ramEvery s for ramSeconds (a ram is only a sound and a shudder). It gives up past leashRadius from
+  // its ground, and when the train pulls away. It can't be killed. Never within trackClearance m of a track's centre
+  // (movingClearance while the train moves): it's never on the rail. Gone past goneBeyond m from the train.
+  // Spawns (B.6): at a stop, groundAt m out from the consist's middle; every tier, tierWeights by tier; biomeWeights by the
+  // line's biome (1 unlisted); perGroundWeight more per player on the ground; minCrew (1: a lone player struggles free, the
+  // solo rule, as from every grab). Beside the line on the run, lineside per 10 km by tier (times the biome's weight),
+  // linesideAhead m ahead and linesideOut m out: the line's own, not the director's.
+  "moose": {
+    "crowdAt": 20, "crowdPerSecond": 25, "closeAt": 12, "closePerSecond": 70,
+    "hearVoice": 15, "talkingAbove": 40, "voicePerSecond": 40,
+    "trainPassAt": 25, "trainPass": 25, "calmPerSecond": 15,
+    "listenAt": 20, "warnAt": 50,
+    "squareUpAt": [12, 30], "squareUpSeconds": 2.5, "huntSpeed": 4.5,
+    "chargeSpeed": 11, "overrun": 8, "wheelSeconds": 2.5, "rackSpan": 3.2, "hitReach": 0.5, "snagSeconds": 4, "blockedCharges": 3,
+    "chargeDamage": 60, "grabBelowHealth": 40, "pinSeconds": 12,
+    "sightRange": 60, "searchSpeed": 2.5, "searchSeconds": 25, "leashRadius": 80,
+    "lostAtCar": 5, "ramEvery": 3, "ramSeconds": 15,
+    "trackClearance": 3.2, "movingClearance": 6, "goneBeyond": 600,
+    "groundAt": [30, 60], "minCrew": 1, "perGroundWeight": 0.5,
+    "tierWeights": { "local": 1, "frontier": 1.5, "deadLines": 2, "deepTerritory": 2.5 },
+    "lineside": { "local": 2, "frontier": 3, "deadLines": 4, "deepTerritory": 5 },
+    "linesideOut": [8, 22], "linesideAhead": 300,
+    "biomeWeights": { "marsh": 2, "plains": 1.5, "contaminatedMarsh": 1.5, "coast": 0.5, "blackForest": 1, "forestEdge": 1, "mountain": 1,
+      "deadTown": 0.5, "industrialRuin": 0.3, "slag": 0.3 }
+  },
+
+  // THE GANNET · sight · flank (GDD §21, App. A.4, B.4; the director's decisions of 7 Oct 2026; ARCHITECTURE §8 note 340;
+  // docs/design/creatures/gannet.md; the orchestrator's S3). One enormous corrupted seabird that rides a fast train: the
+  // train over arriveAbove m/s for arriveSeconds, out of a tunnel, and it comes, soaring soarRadius m round a car soarHeight
+  // m up at flySpeed. Someone walking a roof (over preyAbove m/s on it, not seated) is its prey: it hangs over them
+  // hangSeconds, then folds: its line locks on where they'll be foldSeconds on, and it strikes there at the end. Within
+  // strikeRadius of the strike, a stab of stabDamage (it can't kill) and up again; nobody there, on the roof: stuck
+  // stuckSeconds (a blow lands only now, or in a pin). A pass every diveEvery s. Whoever hits it (a blow, a ball) is its
+  // mark: when it's next due, it banks round bankSeconds (the telegraph: inside a car or the cab is shelter) and comes down
+  // on them, on a roof or on the ground within markReach, and pecks pecks times, peckEvery s apart, the last their death;
+  // driveOffBlows blows from friends in the pin drive it off (the last of them its mark). health in blows; under
+  // giveUpBelow it leaves for the run; killed, its head is a trophy (loot.json trophies.gannet). Under stallBelow for
+  // stallSeconds, in a tunnel, or quietSeconds with nobody walking the roofs and its mark inside, it peels off, back after
+  // returnSeconds once the train's run fast again. Spawns (B.4): every tier, tierWeights; biomeWeights by the line's biome
+  // (1 unlisted); perRoofWeight more per player on the roofs; minCars. Once a run (it comes back on its own).
+  "gannet": {
+    "arriveAbove": 18, "arriveSeconds": 30, "stallBelow": 12, "stallSeconds": 6, "quietSeconds": 60, "returnSeconds": 180,
+    "soarHeight": [20, 35], "soarRadius": 14, "flySpeed": 12,
+    "preyAbove": 0.8, "hangSeconds": 2, "foldSeconds": 1.6, "diveEvery": [8, 12],
+    "strikeRadius": 0.9, "stabDamage": 35, "stuckSeconds": 4,
+    "bankSeconds": 2.5, "pecks": 4, "peckEvery": 3, "driveOffBlows": 3,
+    "health": 12, "giveUpBelow": 4, "markReach": 200, "minCars": 2, "perRoofWeight": 1,
+    "tierWeights": { "local": 1, "frontier": 1.5, "deadLines": 2, "deepTerritory": 2.5 },
+    "biomeWeights": { "coast": 3, "dykeland": 3, "plains": 1.5, "marsh": 1.5, "contaminatedMarsh": 1.5, "blackForest": 0.3,
+      "forestEdge": 0.5, "mountain": 1, "deadTown": 1.5 }
+  },
+
+  // THE MOURNERS · absence · outside (GDD §21, App. A.6, B.6; the director's brief of 8 Oct 2026; ARCHITECTURE §8 note 362;
+  // docs/design/creatures/mourners.md). Small ash-pale scavengers that come only after a crewmate dies: a body lying off
+  // the train (not carried, not in a car the engine pulls) for "after" s brings a group, "count" of them by tier, arriveAt m
+  // off it on the side away from the line, edging in over comeSeconds and waiting waitAt m off. They never touch the
+  // living. Anyone within shy m of one starts it back to startleTo m off them (at scatter m/s), and it edges in again after
+  // returnAfter s. Nobody within shy m of the body, the two nearest it creep in (creep m/s; from far off they come at approach m/s) and take it (within takeReach):
+  // one hauls it straight away from the nearest track at drag m/s, held holdAt m in front of it holdHeight m up, the other
+  // beside. A crewmate within dropWithin m of the body, or a blow on any of them, and it's dropped; a blow kills one (health
+  // in blows) and the rest scatter for scatterOnDeath s. A body carried is followed, never touched; one brought home (in a
+  // car the engine pulls) sends them off; one hauled lostAt m from the track is gone (its refund and its kit), and they go.
+  // Leaving, they're gone once well off or after leaveSeconds. Not the director's: they cost it nothing and come for every
+  // body ("enabled" off: never).
+  "mourners": {
+    "enabled": true, "after": 15,
+    "count": { "local": 3, "frontier": 4, "deadLines": 5, "deepTerritory": 6 },
+    "arriveAt": 40, "comeSeconds": 6, "waitAt": 10, "shy": 6, "startleTo": 12, "dropWithin": 3, "takeReach": 0.9,
+    "creep": 1.4, "approach": 3, "drag": 1.6, "scatter": 4, "holdAt": 0.7, "holdHeight": 0.5,
+    "returnAfter": 4, "scatterOnDeath": 6, "lostAt": 120, "leaveSeconds": 30, "health": 1
+  },
+
+  // THE PICKERS · sight · outside (GDD §21, App. A.6, B.6; the director's pick to prototype, 9 Oct 2026; ARCHITECTURE §8
+  // note 592; docs/design/creatures/pickers.md). Knee-high scavengers in a yard's drains. "after" s once the train stands at a
+  // facility with loose crates within facilityReach m, a group comes up out of the drains at the foot of the yard's sheds (up
+  // to "drains" of them, drainOff m out from a shed's wall on the track's side), "count" by tier and perTwoCrew more for
+  // every two of the crew past two, one drain to each in turn, each a moment coming up (emergeSeconds). Each runs (run m/s) for
+  // the nearest loose crate on the ground nobody's guarding (a living crewmate within guardWithin m) and no other Picker has (a
+  // heavy crate takes two), takes it up (within takeReach) over its head (holdHeight m up) and carries it to its drain (carry
+  // m/s; a heavy crate carryHeavy m/s, with a second heaveBeside m beside), and down it goes with it within atDrain m: the
+  // crate's gone, and it comes up again downSeconds later. Unladen, anyone within shyWithin m sends it back down its drain for
+  // shySeconds (stood over its drain, you keep it down). Laden, a crewmate within
+  // biteWithin m is bitten (bite, never a kill; once in biteEvery s) and it drops the crate and scatters. A blow kills one
+  // (health in blows), and every one within scatterWithin m drops what it has and runs to its drain for scatterSeconds. The
+  // train gone from the stop (not shunting at it), they all go down their drains
+  // (gone after leaveSeconds, whether or not they got there). Not the director's: they cost it nothing, and come to
+  // every yard stop with loose crates ("enabled" off: never).
+  "pickers": {
+    "enabled": true, "after": 20,
+    "count": { "local": 3, "frontier": 4, "deadLines": 6, "deepTerritory": 8 }, "perTwoCrew": 1,
+    "facilityReach": 80, "drains": 3, "drainOff": 1.2, "emergeSeconds": 0.8, "downSeconds": 3,
+    "guardWithin": 4, "shyWithin": 3, "shySeconds": 4, "run": 4.8, "carry": 2.6, "carryHeavy": 1.6, "takeReach": 0.9, "holdHeight": 1.0,
+    "heaveBeside": 0.9, "atDrain": 1.0, "biteWithin": 1.2, "bite": 8, "biteEvery": 2,
+    "scatterWithin": 10, "scatterSeconds": 6, "leaveSeconds": 12, "health": 1
+  },
+
+  // THE HOUSE CREATURES (GDD §21; the director, 9 Oct 2026: "Every time I go into a house, it should feel like there could
+  // be something lurking in there that wants to kill me, wants to chase me"; ARCHITECTURE §8 notes 583–586). Which of a
+  // stop's open houses something lives in: "share" of them by tier, each house's own dice (the route's seed, the stop and the
+  // building: nothing else's change), never the Gaunt's roost; what lives there by "weights" (a Householder only in a house
+  // with something to find). Put in their houses, asleep, once the train's within placeWithin m of the stop, and gone once
+  // it's forgetPast m past it. Not the director's: they cost it nothing ("enabled" off: none).
+  "dwellings": {
+    "enabled": true,
+    "share": { "local": 0.2, "frontier": 0.25, "deadLines": 0.33, "deepTerritory": 0.5 },
+    "weights": { "lodger": 3, "householder": 2, "hollowHouse": 1.5, "hanger": 3 },
+    "placeWithin": 500, "forgetPast": 800
+  },
+  // THE LODGER · sound · outside (note 583; docs/design/creatures/lodger.md). Folded in the house's darkest corner (the spot
+  // furthest from its doors, hideInset m off the walls), breathing. Someone in its house noticeSeconds, or within
+  // shriekWithin m of it, and it SHRIEKS for shriekSeconds (the telegraph: the spine's least, minReactionSeconds), then lunges at where they were, at lungeSpeed m/s
+  // up to lungeReach m: within killWithin m of them and it has them (a grab of killWindow s: the one-hit kill, the director's
+  // call). Missed, it chases (chase m/s) and shrieks again before every lunge; a shut door in its way it breaks open in
+  // breakSeconds; anyone further than pursuitRadius m from its house's middle it gives up on, and walks back (walk m/s) to
+  // its corner, resting there restSeconds. Only blows from behind as it walks back hurt it (health in blows).
+  "lodger": {
+    "hideInset": 0.6, "noticeSeconds": 2.5, "shriekWithin": 4.5, "shriekSeconds": 1.5,
+    "lungeSpeed": 9, "lungeReach": 4.5, "killWithin": 0.9, "killWindow": 0.25,
+    "chase": 5.0, "pursuitRadius": 25, "breakSeconds": 2, "walk": 1.6, "restSeconds": 3, "health": 4
+  },
+  // THE HOUSEHOLDER · sight · outside (note 584; docs/design/creatures/householder.md). Sat at its set table, watching whoever's
+  // in its house; harmless to guests. Everything lying in its house is its own. Anything of yours left lying on its table
+  // (within tableReach m of it) pays for one of its things. One of its things carried out of the house unpaid, it rises
+  // (riseSeconds) and hunts whoever carries it at hunt m/s, to the train if it must: within grabReach m it has them (a grab of
+  // grabSeconds a friend can break). Dropped, it takes the thing back home and sits again; carried off more than
+  // giveUpBeyond m from its house, it gives up. Blows hurt it (health).
+  "householder": {
+    "tableReach": 1.0, "riseSeconds": 1.5, "hunt": 3.4, "grabReach": 1.0, "grabSeconds": 6, "giveUpBeyond": 200,
+    "walk": 1.4, "health": 6
+  },
+  // THE HOLLOW HOUSE · vibration · outside (note 585; docs/design/creatures/hollow-house.md). The house is the creature.
+  // Someone inside waitSeconds and the ground rumbles under it (the tell) for rumbleSeconds; then its doors slam shut one
+  // every shutEvery s, held shut, and it sinks sinkDepth m over sinkSeconds and comes down on whoever's still inside (a crush
+  // of "crush": a structure coming down kills, as a fall does). Then it stays as it fell. The answer is knowing the house.
+  "hollowHouse": {
+    "waitSeconds": 1.5, "rumbleSeconds": 3, "shutEvery": 0.35, "sinkSeconds": 3, "sinkDepth": 2.4, "crush": 1000
+  },
+  // THE HANGER · movement · outside (note 586; docs/design/creatures/hanger.md). In the roof space; "strands" strands hang
+  // from the ceiling (2.6 m) to 0.9 m off the floor, spread over the house (Hanger.Strands). Walk into one (within
+  // touchWithin m of it) and it has you (a grab of grabSeconds; a friend holding Use beside you, or a blow on it, frees you),
+  // hauling you haulTo m up over haulSeconds (your feet off the floor, your head against the ceiling: a friend beside you can
+  // still reach you). Freed, it draws back into the roof for retreatSeconds. Blows hurt it (health).
+  "hanger": {
+    "strands": 6, "touchWithin": 0.35, "haulSeconds": 2.5, "haulTo": 0.7, "grabSeconds": 10, "retreatSeconds": 25, "health": 3
+  },
+
+  // TOWER JAW · vibration · outside (GDD §21, App. A.6, B.6; the director's brief of 8 Oct 2026; ARCHITECTURE §8 note 363;
+  // docs/design/creatures/tower-jaw.md). A corrupted beaver gnawing a structure's support: a coaling tower's leg (towerLegOut
+  // m out from the line, on the lever's side: the drawn tower's middle stilt there, StructureKit) or the loading crane's gantry
+  // leg; never a bridge. It's at work when the train comes (startGnawed through, the train within approachReach m of the
+  // facility or stopped at it), gnawAt m off the leg;
+  // through in gnawSeconds (by tier). The structure leans from leanFrom gnawed and groans its last groanSeconds. A crewmate
+  // within notice m: it rears (threatSeconds, the telegraph); within lungeWithin m, a bite of bite (never a kill). driveOffBlows
+  // blows inside driveOffSeconds drive it awayTo m off (lope m/s) for awaySeconds, its gnawing kept; health in blows. Through:
+  // the structure falls; anyone within crushRadius m of where takes crush (never a kill); a coaling tower's chute is empty and
+  // its wreck closes the main line wreckHalf m either side of the spout (a train run into it stops there, the end car hurt
+  // (speed − safeSpeed)² × damagePerSpeed); the gantry's crane is dead. Use held within clearReach m clears the wreck:
+  // clearCrewSeconds of the crew's seconds in all. Spawns (B.6): every tier, tierWeights; one at a stop.
+  "towerJaw": {
+    "gnawSeconds": { "local": 150, "frontier": 120, "deadLines": 100, "deepTerritory": 90 },
+    "startGnawed": 0.2, "approachReach": 800, "towerLegOut": 3.5, "gnawAt": 0.9, "leanFrom": 0.5, "groanSeconds": 5,
+    "notice": 10, "lungeWithin": 3, "threatSeconds": 1.5, "bite": 35,
+    "driveOffBlows": 4, "driveOffSeconds": 15, "awaySeconds": 120, "awayTo": 40, "lope": 4, "health": 12,
+    "crush": 45, "crushRadius": 3.5, "clearCrewSeconds": 30, "clearReach": 4, "wreckHalf": 3, "safeSpeed": 1, "damagePerSpeed": 0.06,
+    "tierWeights": { "local": 1, "frontier": 1.5, "deadLines": 2, "deepTerritory": 2 }
+  },
+
+  // THE FREIGHT BEETLE · sight · outside (GDD §21, App. A.6, B.6; the director's brief of 8 Oct 2026; ARCHITECTURE §8 note
+  // 366; docs/design/creatures/freight-beetle.md). A big pushing beetle at a facility. A player within notice m and it takes
+  // the loose freight nearest it (a crate, cargo or heavy crate on the ground, within freightReach m), gets behind it (walk
+  // m/s) and braces (the telegraph, the reaction window), then pushes it DIRECTLY AWAY FROM THE NEAREST PLAYER, at push m/s
+  // (a heavy crate pushHeavy), its push turning toward that way at turnDegrees a second: two players steer it. The crate's
+  // own physics carries it (off an edge it falls; at rest in a car it's loaded). A player within startleWithin m of its head
+  // (headAt m in front of it) and it rears back startleSeconds. driveOffBlows blows inside driveOffSeconds drive it off its
+  // load for awaySeconds; health in blows. It never attacks. Spawns (B.6): stopped at a facility with loose freight within
+  // facilityReach m of the train, every tier, tierWeights; one at a stop.
+  "freightBeetle": {
+    "notice": 25, "freightReach": 30, "headAt": 1.1, "pushReach": 0.35, "walk": 2, "push": 1.2, "pushHeavy": 0.8, "turnDegrees": 90,
+    "startleWithin": 1.5, "startleSeconds": 2, "driveOffBlows": 3, "driveOffSeconds": 10, "awaySeconds": 30, "health": 6,
+    "facilityReach": 80,
+    "tierWeights": { "local": 1, "frontier": 1.25, "deadLines": 1.5, "deepTerritory": 1.5 }
+  },
+
+  // THE BRAKEMAN · sight · corrupted human (GDD §21, App. A.8, B.8; the director's brief of 8 Oct 2026; ARCHITECTURE §8 note 364;
+  // docs/design/creatures/brakeman.md). A dead railwayman winding the brakes on. He climbs up (climbSeconds) at the end of
+  // the moving train furthest from the crew on the roofs and works toward the other end at walk m/s, winding each car's
+  // handbrake on at its wheel (windSeconds): a wound car's own handbrake drags the train (train.json couplings.handbrakeDecel
+  // of its mass), until a crewmate unwinds it there (Use held handbrakeSeconds). A crewmate on the roofs within spook m and
+  // he runs from them at flee m/s (a roof run is 3.5) and ducks their blows; at the train's end, or lose m clear of them all,
+  // he drops out of sight for hide s and comes up again at the far end. Crewmates on the roofs within cornerSpan m on both
+  // sides of him corner him: blows land (health in blows), and he lashes the nearer within lashReach every lashEvery s for
+  // lashDamage (never a kill). Spawns (B.4): never with fewer than minCrew alive (the brief: "never spawns solo"), at least
+  // minCars cars, the train over movingAbove m/s; every tier, tierWeights; up with the train's length (cars / perCarsWeight)
+  // and climbWeight times with a climb of climbPercent % or more within climbAhead m.
+  "brakeman": {
+    "minCrew": 2, "minCars": 4, "movingAbove": 3, "climbSeconds": 2, "walk": 2.5, "flee": 5, "windSeconds": 4,
+    "spook": 12, "lose": 20, "hide": [30, 60], "cornerSpan": 10, "lashEvery": 2.5, "lashReach": 2.5, "lashDamage": 30, "health": 4,
+    "perCarsWeight": 6, "climbWeight": 2, "climbAhead": 1000, "climbPercent": 2,
+    "tierWeights": { "local": 1, "frontier": 1.5, "deadLines": 2, "deepTerritory": 2.5 }
+  },
+
+  // HOTBOX · vibration · train (GDD §21, App. A.3, B.3; the director's brief of 8 Oct 2026; ARCHITECTURE §8 note 367;
+  // docs/design/creatures/hotbox.md). An axle parasite in one truck, one side, of a car of the engine's rake. Over
+  // boardAbove m/s it takes a truck bogieInset m in from the car's end, inboard m in from its side, axleHeight m up. It heats
+  // a second a second at refSpeed m/s (in proportion to the speed): knocking (once a turn of a wheelDiameter m wheel) for
+  // knockSeconds, then glowing and smoking glowSeconds, then the axle's seized: the train's held to seizedTopSpeed m/s (over
+  // it a drag of seizedHold times what the engine can pull) while the car's in it. Never fire, never a derailment. Stood
+  // under stoodBelow m/s for exposeAfter s it half unfolds (a blow lands; health in blows; it bites snapDamage (the damage model's least hit, note 272) at anyone
+  // within snapReach every snapEvery s, never a kill); Use held priseSeconds within priseReach with a crowbar or a wrench
+  // prises it out (it scuttles off over scuttleSeconds). Moving again it folds back. A seized axle stays seized once it's
+  // out: a wrench held repairSeconds within repairReach of one of the car's trucks frees it (or cut the car). Spawns (B.3):
+  // every tier, tierWeights; one at a time.
+  "hotbox": {
+    "boardAbove": 10, "refSpeed": 18, "knockSeconds": 90, "glowSeconds": 90, "wheelDiameter": 0.9,
+    "seizedTopSpeed": 7, "seizedHold": 1.5, "stoodBelow": 0.3, "exposeAfter": 2, "health": 6,
+    "priseSeconds": 4, "priseReach": 1.8, "scuttleSeconds": 3, "snapReach": 1.2, "snapDamage": 30, "snapEvery": 3,
+    "repairSeconds": 10, "repairReach": 2.2, "bogieInset": 1.6, "inboard": 0.35, "axleHeight": 0.5,
+    "tierWeights": { "local": 1, "frontier": 1.25, "deadLines": 1.5, "deepTerritory": 1.75 }
+  },
+
+  // THE KNOTTER · vibration · structural (GDD §21, App. A.3, B.3; the director's brief of 8 Oct 2026; ARCHITECTURE §8 note
+  // 365; docs/design/creatures/knotter.md). A rope-bodied parasite that becomes a coupling. Over boardAbove m/s, a train of
+  // minCars or more, it comes up into a coupling of the engine's rake that nobody's at (never the engine's own): creepSeconds
+  // of creaking at the gap (cut the coupling now and it drops off), then it forces the cars apart over forceSeconds till the
+  // gap is gap m (a roof jump carries about 2.8). Taut over slackBelow m/s: blows don't land, and whoever's on its back at
+  // over slipAbove m/s slips slipPerSecond a second (a hash of the tick and who): it coils round them (the grab) for
+  // coilSeconds, a friend's hand or blow frees them, else they're pulled under. Slack at a stand: its back is safe and blows
+  // land (health in blows); killed, the cars stand uncoupled where it held them. Spawns (B.3): every tier, tierWeights; one
+  // at a time.
+  "knotter": {
+    "boardAbove": 8, "minCars": 3, "creepSeconds": 4, "gap": 5, "forceSeconds": 6, "slackBelow": 0.3,
+    "slipAbove": 2, "slipPerSecond": 0.45, "coilSeconds": 1.5, "health": 8,
+    "tierWeights": { "local": 1, "frontier": 1.5, "deadLines": 2, "deepTerritory": 2.5 }
+  },
+
+  // The crew bots' answers to the six of 8 Oct (ARCHITECTURE §8 note 367; notes 362–367; not the creatures' own numbers, the
+  // bots' judgement of them). A bot not driving goes to a body the Mourners are about within mournersWithin m of it, stands
+  // over it and clubs them, chasing none further than mournersLeash m from it. On foot within towerJawWithin m of Tower Jaw
+  // at its post it clubs it; gnawed past towerJawClearFrom it keeps crushRadius + towerJawClearBy m from where it falls. A
+  // wreck across the line within wreckWithin m of a standing train is cleared (Use held at it); the driver stops
+  // wreckStopShort m short of its near edge, braking hard from wreckHoldWithin m out. On foot within beetleWithin m of the
+  // Freight Beetle it clubs it. Cornering the Brakeman, each of the pair closes to brakemanStandOff m off him on its side;
+  // one with the other further off than brakeman.spook + 2 brakemanWaitPast m waits brakemanWaitPast m past his spook, and
+  // cornered, one off his car within his cornerSpan less brakemanWaitPast keeps its place while the other is on it (note 610).
+  // The driver stands for a seized axle or a wreck no longer than standGiveUp s.
+  // Note 605 (queue #337; the director, 9 Oct: "plan a little extra time at the end of the run to stop the train, clear the
+  // monsters, and then bring it in"): with something aboard a town's gate would charge for (note 589), within gateClearWithin
+  // m of the gate the driver pulls up gateClearShort m short of it, in the quiet zone (note 590's spawnBanM), and stands while
+  // the crew clears the train, no longer than gateClearGiveUp s, nor once the time in hand runs out: dawn, the Wakers' run up
+  // to the train's rear (wakers.riseBehind at their speeds) where it isn't past their wall (wakers.stopShort short of the gate),
+  // less the run in and gateClearMargin s. No time, it runs straight in: a fee beats being eaten.
+  // Note 615 (queue #347): from dawn, the driver stands for a Knotter, a Hotbox or its seized axle only while the Wakers' run
+  // up to the train (note 607's reckoning) covers what's left of the stand, the run in to their wall at the night's cruise
+  // and sixDawnMargin s; and waits for everyone aboard after only while it covers the run in. Short of that, it goes on.
+  // Note 623: a body the Mourners are about is carried home into a car (up its side door's steps) when the foot of one's
+  // within mournersCarryWithin m, and only while the dawn's time in hand covers mournersCarrySeconds and sixDawnMargin s and
+  // the loading's not called done; else it's left (D1: "a body never costs the night"), and put down if it's in the arms.
+  "crewBots": {
+    "mournersWithin": 30, "mournersLeash": 20, "towerJawWithin": 25, "towerJawClearFrom": 0.9, "towerJawClearBy": 2.5,
+    "wreckWithin": 250, "wreckStopShort": 15, "wreckHoldWithin": 60, "beetleWithin": 15, "ribbitWithin": 12, "brakemanStandOff": 1.5,
+    "brakemanWaitPast": 1, "standGiveUp": 240, "gateClearShort": 30, "gateClearWithin": 1500, "gateClearGiveUp": 240, "gateClearMargin": 45,
+    "sixDawnMargin": 45, "mournersCarryWithin": 60, "mournersCarrySeconds": 60
+  },
+
+  // DAVE (GDD §3.2; the director, 8 Oct 2026: "a special NPC that shows up randomly in places ... If a player hits Dave 5
+  // times Dave will grab them, say 'You should be nicer in a dark world.' and snap their neck immediately"; note 570). Not a
+  // creature: the director never spends on him and nothing hunts him. On "chance" of nights he's at his easel out past one
+  // of the line's stops beyond "pastGate" m of the gate: "out" m to the side away from its village or yard and "along" m
+  // either way of where the train stops, "trackClearance" m clear of any track and "room" m of any wall. "blows" from one
+  // crewmate and he takes them (the last but one turns him: his telegraph, held the reaction window at least), holding
+  // them "grabSeconds" before the end. "meleeRadius": how far a swing finds him.
+  "dave": { "chance": 0.3, "pastGate": 1500, "out": [14, 26], "along": [-30, 30], "trackClearance": 9, "room": 3, "blows": 5,
+    "grabSeconds": 0.4, "meleeRadius": 0.7 },
+
+  // JACOB (GDD §3.2; the director, 8 Oct 2026: "an NPC named Jacob who can be found randomly in the world near water edges,
+  // fishing ... if found and talked to will cast magic over the train and repair everything instantly, restoring it to brand
+  // new condition without affecting your loot count. He spawns very rarely"; note 572). On "chance" of nights, at a water's
+  // edge beside the main line past "pastGate" m of the gate and "shortOfEnd" m short of its end: sampled every "step" m along
+  // it and out "out" m to either side, dry ground with water "edge" m further out, "trackClearance" m off any track. Holding
+  // Use within "reach" m of him for "holdSeconds" is a word with him: once a night, he mends the train.
+  "jacob": { "chance": 0.05, "pastGate": 1500, "shortOfEnd": 800, "step": 40, "out": [10, 45], "edge": 3, "trackClearance": 8,
+    "reach": 3, "holdSeconds": 0.5 },
+
+  // THE WAKERS · what gets up at dawn (GDD §8; docs/design/creatures/wakers.md; note 588; the director, 9 Oct 2026: "The new
+  // Dawn ending design is excellent ... The gargantuan creatures, the picking up of the train, especially with you in it").
+  // enabled false is v1's dawn (the line goes live; the run fails run.json dawnGraceSeconds later). At dawn, count[tier] of
+  // them rise (Local, Frontier, DeadLines, DeepTerritory): the first riseBehind m behind the train's rear on its path, the
+  // rest riseAside m off either side and asideBack m further back, closing on the line over joinSeconds. Up after
+  // riseSeconds, each runs startSpeed rising to topSpeed m/s over rampSeconds (faster than the engine's 22), over everything,
+  // and stops stopShort m short of the terminus's gate (the guns). The first one to reach the last car has the train: it
+  // drags at dragFactor x the engine's pull, lifts a car every liftSeconds from the rear, and from eatAfter s eats one every
+  // eatSeconds, whoever's in it with it; anyone off the train is taken groundSeconds in. The engine eaten, the run's over:
+  // "taken at dawn". stirSeconds: the tension before dawn (the sky, the ground, their calls; presentation and audio).
+  "wakers": { "enabled": true, "stirSeconds": 180, "count": [1, 1, 2, 3], "riseBehind": 1200, "riseAside": 600, "asideBack": 300,
+    "joinSeconds": 90, "riseSeconds": 8, "startSpeed": 6, "topSpeed": 26, "rampSeconds": 45, "stopShort": 300,
+    "dragFactor": 3, "liftSeconds": 2.5, "eatAfter": 6, "eatSeconds": 4, "groundSeconds": 8,
+    // wakers.md §2, the night things run (note 635; the director, the inbox, 12 Oct 2026: "creatures should leave all except
+    // the knotter and the hotbox who are parasites that have train functions"): nightFleesSeconds before dawn the night's
+    // creatures let go and are gone, and the director sends none of them after; negative, they stay. Those staysAtDawn names
+    // (as in the director's "costs") stay aboard through it. The director's Creature Tweaker sets each one's tick, and the
+    // seconds (35, note 652).
+    "nightFleesSeconds": 35, "staysAtDawn": ["knotter", "hotbox"] },
+
+  // THE SWITCHMAN · vibration · corrupted (App. A.8, B.8). At a junction ahead[0]-[1] m out; seen at revealAt m. It throws
+  // the points for the dead line, and the train goes down a line that leads nowhere (the clock's cost: stop, back out, set
+  // them back by hand). Killed before the train's over them (killedSetsBack), the lever falls back to the main line. One
+  // cannon round (4 blows) or three blows kills it. B.8: minJunctions on the route, deadLineWeight more with dead lines about.
+  // The director's decision of 7 Oct 2026 (note 286): "The switch itself shouldn't cause derail, it should be lines that
+  // lead nowhere." throwsUnderTrain false: it never throws points under a train. True (a mod) brings back v1.1's derailing
+  // kind: derailChance of them grip the lever at gripAt m and throw it under the engine. A derailment comes only from
+  // running off the dead line's end (train.json overspeed.deadEndDerailAbove, warned in the cab a full lead ahead).
   "switchman": {
     "ahead": [500, 1200], "standBeside": 1.2, "revealAt": 300, "derailChance": 0.3, "gripAt": 250, "health": 3,
-    "lingerSeconds": 20, "minJunctions": 3, "deadLineWeight": 1.5,
+    "lingerSeconds": 20, "minJunctions": 3, "deadLineWeight": 1.5, "throwsUnderTrain": false, "killedSetsBack": true,
     // T121 playtest (derailed "at a very low speed"): points thrown under a train at or under derailAbove (m/s, 25 km/h)
     // split under it instead: the engine takes runThroughDamage and stops hard. Over it, the Switchman derails it.
     "derailAbove": 6.9, "runThroughDamage": 0.25
@@ -178,7 +656,20 @@
   "draggers": {
     "grabRange": 1.0, "fastFrom": 14, "fastAt": 22, "fastGrabScale": 1.5, "reachAlong": 1.5, "creepSpeed": 1.2,
     "telegraphSeconds": 1.0, "allyRadius": 4, "freeSeconds": 2, "freeReach": 1.5, "aloneSeconds": 0.4, "pullSpeed": 3,
-    "rearmSeconds": 8, "stampDamage": 0.5, "hangSeconds": 8, "lingerSeconds": 180, "minCars": 2, "maxAttached": 2
+    "rearmSeconds": 8, "stampDamage": 0.5, "hangSeconds": 8, "lingerSeconds": 180, "minCars": 2, "maxAttached": 2,
+    // Boarding-first (GDD App. F.1, note 286): they get under a car only with the train under boardBelow (m/s, 50 km/h: a
+    // stop, a slow bend), with or without anyone up top, and wait there lingerSeconds for someone to walk its roof; a train
+    // at speed never takes one on. bendWeight: as often again on a tight bend (climbers.tightBendRadius).
+    "boardBelow": 14, "bendWeight": 2,
+    // Off a truss (note 435; orchestrator.md §5.2 S4, "dropping onto the roofs from an overbridge or a tunnel mouth"): a train
+    // run at fromSpeed m/s or more coming up on a through-truss (its top chord is 7 m over the rail) finds a Dragger perched
+    // on the chord, chance in each such crossing, put there ahead m before the train reaches it. From tellSeconds before
+    // the train's under it, a scraping on the steel above (the tell, never under minReactionSeconds); as each car passes
+    // under, it drops on whoever's on that car's roof (the nearest the chord's side) and hangs them over the side, the
+    // Dragger's grab (App. A.4: haul them back up, or they're dragged under). Nobody up there as the train passes and it
+    // drops onto the ballast behind and is gone. The counter: off the roofs over a truss. Not tunnel mouths: a mouth already
+    // takes anyone standing on a roof (the low-clearance board, Lineside). Not from the budget, not on the caps, as the run.
+    "drop": { "on": true, "chance": 0.6, "fromSpeed": 14, "ahead": 500, "tellSeconds": 3, "height": 7.2, "lateral": 2.7 }
   },
 
   // STOKER · heat · interior (App. A.5, B.5; the Hollow merged in). The director's decision of 6 Oct 2026 (build 1121
@@ -189,17 +680,25 @@
   // - Boards at the tender: on the coal, scraping, with a sick glow, then across the footplate to the fire door over
   //   boardSeconds (the telegraph; never under minReactionSeconds). A fireman at the fire can catch it there: a blow on the
   //   way in counts tenderBlowScale times over and doesn't burn (health 4: one blow drives it off).
-  // - In: it eats the fire (eatPerSecond of the firebox a second), and the heat it puts in swings: feedRate, plus or minus
-  //   swing, over swingSeconds (the gauge lurching up toward the 100 that ruptures it; swing under feedRate, so it never
-  //   falls back and lets the rupture clock reset), the safety valve held shut; the brake comes off and the speed climbs
-  //   over runawayRampSeconds. From the working band the boiler's gone in about half
-  //   a minute: drop what you're doing. Vent to buy time; open the firebox (a shovelful) and club it, burnPerBlow a blow.
+  // - In (Stoker v3, the director's decision of 6 Oct 2026, GDD App. F.1; note 271): territorial. The heat it puts in swings:
+  //   feedRate, plus or minus swing, over swingSeconds (the gauge lurching up toward the 100 that ruptures it), the safety
+  //   valve held shut; the brake comes off and the speed climbs over runawayRampSeconds. eatPerSecond: of the fire it eats
+  //   (0: it doesn't; v3 has the crew starve it). Whoever opens the door on it (a shovelful, within doorReach m of the door)
+  //   takes doorBurn, and the second time doorKill: the mistake you learn from. No chip damage: it isn't clubbed in there.
+  // - The counter: vent and starve. No coal, the blow-off held (the vent outruns its heat), until the fire's under
+  //   starveFirebox; then it goes back over the footplate the way it came (boardSeconds) and is gone, and the break begins.
+  // - The hose: Fire held into the firebox within doorReach for hoseSeconds opens the door without a burn and kills it, and
+  //   hoseFireCost of the fire goes with it. cabHose (note 648; the director, the inbox, 12 Oct, "b"): the cab has its own,
+  //   off the injector at the door, so the fireman kills it from the footplate with nothing fetched; off, an extinguisher
+  //   from car 1 stands in (note 271).
   // - fireDoorShutSeconds: the door swings shut after a shovelful with someone in the cab. sootSeconds: the telegraph of one
   //   put straight into the firebox (tests, audits).
   "stoker": {
     "heatFirebox": 4.5, "heatSeconds": 20, "boardSeconds": 8, "tenderBlowScale": 4,
-    "feedRate": 4, "swing": 3, "swingSeconds": 3, "eatPerSecond": 0.2, "runawayRampSeconds": 20,
-    "fireDoorShutSeconds": 6, "sootSeconds": 4, "health": 4, "burnPerBlow": 12, "breakSeconds": 150
+    "feedRate": 4, "swing": 3, "swingSeconds": 3, "eatPerSecond": 0, "runawayRampSeconds": 20,
+    "fireDoorShutSeconds": 6, "sootSeconds": 4, "health": 4, "breakSeconds": 150,
+    "doorBurn": 60, "doorKill": 1000, "doorReach": 1.8, "starveFirebox": 2, "hoseSeconds": 2, "hoseFireCost": 0.6,
+    "cabHose": true
   },
 
   // CLIMBERS · movement · flank (App. A.4, B.4). A pack of packSize paces paceOut m out for paceSeconds, then mounts any gap
@@ -207,15 +706,32 @@
   // at traverseSpeed and go into the first unlit or empty car; a lone player in there is taken over takeSeconds. Into an
   // unlit car with every door and its hatch shut, they force their way in through the roof (the hatch torn off, on a cargo
   // car): the car's breached (spec B.9, train.json breach). breachLitCars: a lit car they get into because nobody's in it
-  // too (the decision named only the unlit car; ARCHITECTURE §8).
+  // too (the decision named only the unlit car; ARCHITECTURE §8). Note 272 (App. F.1, no chip damage): inside, a hit every
+  // 3 s (were 25 every 1.5 s).
   "climbers": {
     // GDD §23 "lights fail" (note 183): coming over the engine's end into the cab, it smashes the forward lamp for this
     // long (s). Lamp armour (campaign.json, F.3) shortens it.
     "lampOutSeconds": 45,
     "paceOut": 2.5, "paceSeconds": 6, "catch": 1.2, "maxSpeed": 18, "loseBehind": 60, "scrabbleSeconds": 2.5, "holdReach": 2,
-    "maxTries": 3, "traverseSpeed": 2.2, "reach": 1.8, "biteDamage": 25, "biteEvery": 1.5, "boredSeconds": 120, "health": 3,
+    "maxTries": 3, "traverseSpeed": 2.2, "reach": 1.8, "biteDamage": 35, "biteEvery": 3, "boredSeconds": 120, "health": 3,
     "minGaps": 2, "minSpeed": 5, "perGapWeight": 0.5, "packSize": [2, 3], "countRadius": 8, "takeSeconds": 10,
-    "breachLitCars": false
+    "breachLitCars": false,
+    // Note 288 (drivenOff; "outnumber them at the gaps"): up on the roofs or in a car, outnumbered where it is (more crew than
+    // Climbers within countRadius) with no gang striking it, it drops back off after outnumberedSeconds (letting go) for
+    // another gap. A lone blow knocks it off a friend; only the gang's blows take its health.
+    "drivenOff": true, "outnumberedSeconds": 2,
+    // Boarding-first (the director's decisions of 6 Oct 2026, GDD App. F.1; ARCHITECTURE §8 note 286): "slowing opens the
+    // doors ... tight curves are where things board". They get a grip at the gap only with the train under mountBelow (m/s,
+    // 50 km/h). Faster, they run on alongside, pacing it (the telegraph: a pack beside the train, waiting for it to slow),
+    // and give it up waitForSlowSeconds after their pace; and the director sends them at speed at atSpeedWeight of their
+    // weight. Slow on a tight bend (radius tightBendRadius m or less under the train or within bendAheadM ahead: a frontier
+    // line's tightest, 300 m, is boarded at 14 m/s) they come bendWeight times as often. The counter: keep her over 50, or
+    // hold the gaps as she takes the bend. Their door rule stands as decided 1 Oct: shut doors don't stop them; a dark car
+    // they force through the roof, an empty lit one they open. litShutCarKeepsOut (the director, the inbox, 12 Oct, "b"; note
+    // 633; was off, note 286): a lit car with every door and its hatch shut keeps them out, and they go on over it (to the
+    // cab, with every car lit and shut as the train leaves the yard). The bots shut what they open behind them (note 633).
+    "mountBelow": 14, "waitForSlowSeconds": 30, "atSpeedWeight": 0.25, "tightBendRadius": 350, "bendAheadM": 300, "bendWeight": 3,
+    "litShutCarKeepsOut": true
   },
 
   // THE GAUNT · sound (silence) · outside (App. A.6, B.6). Asleep; stirs at stirAt m, wakes at wakeAt m and follows its
@@ -226,19 +742,27 @@
   // and carryLow as it creeps aboard (the sac's underside in each, tools/blender/gaunt.py); it's gone with it once it's
   // clearedAt m from the train. Kill it before then and it drops it.
   // anyVoiceCounts: whose voice holds it off (GDD Part Eleven Q9, open): anyone's (true) or only its waker's.
+  // Note 272 (App. F.1, no chip damage): its blows are heavy hits, 60 every 4 s (were 35 every 2): two, then the crush.
   "gaunt": {
     "stirAt": 9, "wakeAt": 4, "followAt": 1.2, "followSpeed": 3, "listenRadius": 8, "silenceSeconds": 5, "talkingAbove": 40,
-    "anyVoiceCounts": true, "attackAt": 4, "reach": 1.6, "hitDamage": 35, "hitEvery": 2, "grabBelowHealth": 35,
+    "anyVoiceCounts": true, "attackAt": 4, "reach": 1.6, "hitDamage": 60, "hitEvery": 4, "grabBelowHealth": 35,
     "crushSeconds": 8, "health": 8, "lootCargo": 0.3, "lingerSeconds": 900, "minCrew": 2, "spawnOut": 25,
     "longStopWeight": 2, "longStopSeconds": 120, "leaveSpeed": 1.4, "clearedAt": 30, "carryHigh": 1.7,
-    "carryLow": 0.55
+    "carryLow": 0.55,
+    // Note 288 (drivenOff; "keep talking to it"). talkingCalms: talk brings its anger down a step every silenceSeconds (Part
+    // Eleven Q9's "does talking lower its aggro", answered yes for now; false: talk only holds it); calmed under attackAt it
+    // stops attacking; calm and talked to for talkedDownSeconds, it leaves empty-handed. Only the gang's blows with someone
+    // talking to it take its health; a blow in silence angers it a step.
+    "drivenOff": true, "talkingCalms": true, "talkedDownSeconds": 45
   },
 
   // MARSH (§22 hazard, formerly the Drift): something in the reeds surges toward motion; stand still stillSeconds and it
-  // loses you. Level content: placed by linegen at marsh features, never drawn by the director.
+  // loses you. Level content: placed by linegen at marsh features, never drawn by the director. Note 272 (App. F.1, no chip
+  // damage): what's in the reeds bites, a hit every damageSeconds while it's on you (was 6 a second), so freezing the
+  // moment it reaches you costs one hit before it loses you.
   "drift": {
     "startRadius": 4, "maxRadius": 9, "spreadSpeed": 0.15, "stillSpeed": 0.3, "surgeSpeed": 2.2, "contactReach": 1.2,
-    "damage": 6, "damageSeconds": 1, "stillSeconds": 4, "exitMargin": 60, "lingerSeconds": 600, "chemicalSpread": 2
+    "damage": 35, "damageSeconds": 2.5, "stillSeconds": 4, "exitMargin": 60, "lingerSeconds": 600, "chemicalSpread": 2
   },
 
   // FOLLOWERS · scent · outside (App. A.6, B.6). Latches onto a player's back over latchSeconds on facility grounds; off
@@ -253,8 +777,13 @@
   // uncoupleSeconds. B.8: minCrew, and splitWeight more when the crew is spread over splitPlaces or more places.
   "passenger": {
     "walkSpeed": 1.3, "aloneRadius": 8, "stalkSeconds": 5, "reach": 1.2, "dragSpeed": 1.3, "uncoupleSeconds": 4, "health": 5,
-    "lingerSeconds": 1500, "minCrew": 3, "splitPlaces": 3, "splitWeight": 2
+    "lingerSeconds": 1500, "minCrew": 3, "splitPlaces": 3, "splitWeight": 2,
+    // Note 288 (drivenOff; "make everyone speak"): found out, it's done: a crewmate's blow (not its victim's) makes it let go,
+    // stand unmaskedSeconds facing them, and bolt off the back of the train at fleeSpeed; it may board again at a later stop.
+    // Only the gang's blows (on it as it's found out, or run down before it's off) take its health.
+    "drivenOff": true, "fleeSpeed": 2.2, "unmaskedSeconds": 2.5
   },
+
 
   // CAR FIRE (App. C.5, a supporting system: Fire Flies start it, as can a lamp dropped in a car). It grows; past
   // burnFrom it burns anyone within burnReach and the car's cargo and integrity; past spreadFrom for spreadSeconds it
@@ -268,50 +797,51 @@
   // takes explodeDamage (killed), less with distance out to explodeRadius; the cars either side catch. DESIGN-TODO: not in
   // the GDD's numbers: the kill radius is the powder car's own length and its neighbours' near ends.
   "carFire": {
-    "startIntensity": 0.1, "growPerSecond": 0.006, "growWithSize": 0.02, "burnFrom": 0.35, "sprayReach": 2.5,
-    "sprayPerSecond": 0.06, "chargeSeconds": 15, "rechargeSeconds": 90, "burnReach": 4,
+    "startIntensity": 0.1, "growPerSecond": 0.006, "growWithSize": 0.02, "burnFrom": 0.35, "sprayReach": 3.5,
+    // sprayPerSecond: the director, the inbox, 12 Oct (`D1.4-burning-car-beatable`, "b": "make it 15 and have the extinguisher
+    // extinguish far more of the fire. A car should be extinguished from full blaze within 20 seconds."; note 634): 2, twice
+    // what it was, and with 16 cells (cellSize below) one extinguisher has a car at full blaze out in about 10.5 s (FireCellsTests).
+    "sprayPerSecond": 2.0, "chargeSeconds": 15, "rechargeSeconds": 90, "burnReach": 1.6,
+    // Note 587 (the director, 9 Oct 2026, playtesting: "I point at fire, I click, I hold, it should stay there"): the spray
+    // goes where the look lands on fire; where it lands on none (looking at the flames over a burning cell, the ray goes on
+    // to the boards beyond), on the burning cell whose flames are nearest the middle of a sprayConeDeg cone along the look,
+    // within sprayReach: its flames as tall as they're drawn, sprayAimLift + sprayAimLiftPerHeat x its heat (m) off its
+    // surface. With none burning in it, on what the look hits.
+    "sprayConeDeg": 25, "sprayAimLift": 0.4, "sprayAimLiftPerHeat": 1.2,
     // App. C.5: it burns "whoever's in it", and says no more. The director's decision of 6 Oct 2026 (note 263: "if I stay in
     // the fire too long, then yeah, I die, but I just barely touched it"): it burns by the second, not in lumps. Within
     // burnReach of it you take burnPerSecond x its intensity, at burnBrushShare of that the moment you're in it, rising to the
     // whole over burnRampSeconds; step out and it starts again from a brush. At full blaze a second in it is about 6 health,
     // and standing in it kills in about 11 s.
     "burnPerSecond": 10, "burnBrushShare": 0.5, "burnRampSeconds": 3,
-    "cargoPerSecond": 0.003, "integrityPerSecond": 0.0015, "spreadFrom": 0.8, "spreadSeconds": 30,
+    "cargoPerSecond": 0.003, "integrityPerSecond": 0.0015, "spreadFrom": 0.8, "spreadSeconds": 15,
     "chemicalSpread": 2, "chemicalGrowth": 1.3, "powderGrowth": 1.6, "fuelGrowth": 1.4, "fuelSpread": 2,
-    "explodeAt": 1, "explodeRadius": 14, "explodeKillRadius": 5, "explodeDamage": 150,
-    "burnOutPerSecond": 0.05, "maxActive": 3
-  },
-
-  // THE FORTS ARE SAFE (the director's decision of 2026-10-06, GDD App. F.1 and §9: "we're not letting monsters in the home
-  // bases in any of the forts ... it should be a safe space"; ARCHITECTURE §8 note 266). The home fortress (the back of its
-  // yard to the outer gate) and the terminus (its gate to the end of the line), halfWidth m either side of the track (the
-  // walls stand 14.8 m out). Nothing is sent or drawn out of the stack while the engine's inside one, nobody inside one is
-  // seen or hunted, anything inside is put back out over the walls, and anything within turnBackWithin m of them stands there
-  // loseInterestSeconds and goes. On a car the train takes in, or free on the line, it drops off at the walls. A silent
-  // settlement terminus has walls and no people (note 107); silentTerminus: it counts as a fort too.
-  "forts": { "on": true, "halfWidth": 16.5, "turnBackWithin": 15, "loseInterestSeconds": 4, "silentTerminus": true },
-
-  // A PLAYER LEFT BEHIND (the director's decision of 2026-10-06, GDD App. F.1 and §23 "getting left behind: cold and
-  // distance do the rest"; ARCHITECTURE §8 note 266): "the world should basically close in on them ... the difficulty should
-  // spike for that particular person right away". Alive, on the ground and outside a fort, with the train strandBeyond m
-  // off (nearest car, edge to edge) and pulling away faster than awayAbove m/s, or goneBeyond m off whatever it's doing
-  // (§23.2's 400 m: gone into the Territory). From then, the clock: the dark closes in at once (sounds near them), figures
-  // stand at the edge of their lamp from figuresFrom s (up to `figures` of them, from figuresFar in to figuresNear m by
-  // deadlyAt, each somewhere new every shiftSeconds), their hand lamp goes out at lampOutAt, and the cold comes on faster:
-  // coldExtra more seconds of exposure a second by deadlyAt (spec B.2's 1200 s clock: frozen about 4 minutes in, if nothing
-  // else has them). At huntAt a pack of `hunters` (huntPack, at least two: a lone player is always outnumbered) comes at
-  // them from huntOut m on the side away from the train, through its own TELEGRAPH and GRAB (App. A.1: the tongue, 8 s to
-  // struggle or be pulled free); it follows them up to huntRange m. Past deadlyAt it hops deadlyHop times as fast (outruns
-  // a run), and another pack comes huntEvery s after the last is gone. 45 s to run back, signal or be fetched (T96: the bot
-  // driver sets back up to 1500 m), then it's hunting; by 90 s it's deadly.
-  // Let go, and the clock's back to nothing and the hunters lose them: aboard again, inside a fort, or the train back within
-  // releaseWithin m. While the train's closing on them (setting back for them) the clock holds. None of it is the crew's:
-  // no budget, no caps, no pacing, dice of its own.
-  "abandoned": {
-    "on": true, "strandBeyond": 60, "goneBeyond": 400, "awayAbove": 0.5, "releaseWithin": 25,
-    "figuresFrom": 10, "lampOutAt": 30, "huntAt": 45, "deadlyAt": 90, "coldExtra": 5,
-    "hunters": "ribbits", "huntPack": [2, 3], "huntOut": 30, "huntRange": 150, "huntEvery": 20, "deadlyHop": 1.5,
-    "figures": 5, "figuresFar": 18, "figuresNear": 9, "shiftSeconds": 2.5
+    "explodeAt": 0.6, "explodeRadius": 14, "explodeKillRadius": 5, "explodeDamage": 150,
+    "burnOutPerSecond": 0.05, "maxActive": 3,
+    // The director's decision of 6 Oct 2026 (App. F.1, note 267): "Fire is a grid". Each car's floor, walls and roof are cut
+    // into cells of cellSize m; each has its own heat, 0..1. A cell starts at startIntensity, grows at growPerSecond +
+    // growWithSize x its heat (the floor's cells x the cargo's growth: it's the cargo that's burning there), and burns up
+    // charPerSecond x its heat of itself, charring; burnt out, it dies down at burnOutPerSecond. A cell at catchFrom or more
+    // heats each cell sharing an edge with it at catchPerSecond x its heat, climb x that upward (up the walls, onto the roof).
+    // The extinguisher (sprayReach from the eye, along the look) cools the cell it's aimed at by sprayPerSecond (1: a cell at
+    // full blaze is out after a second of it, the director, 8 Oct 2026: "should be 1s per grid to put out"; note 467; it was
+    // 0.35, three seconds and more a cell, and holding it on a fire didn't feel like it did anything), and the cells
+    // round it by sprayShare of that, and wets it for dampSeconds: it won't catch again from round it until it dries. It's
+    // alight (the commit) when a cell's at burnFrom; the car's fire, for the explosion, damage and the sound, is the mean of
+    // its cells (explodeAt: more than half the powder car well alight). It jumps the coupling from a cell against an end
+    // wall at spreadFrom for spreadSeconds. It burns whoever's within burnReach m of a burning cell's patch (half a cell
+    // round its centre; from their feet to bodyHeight up), by that cell's heat less with distance, the roof's at
+    // ceilingBurnShare. A cell below outBelow is embers: it doesn't grow on its own, and goes out unless a cell round it
+    // is heating it (a sprayed cell doesn't creep back from a spark). DESIGN-TODO: the GDD has no numbers; these keep
+    // one crewmate who gets to a fire in its first half minute able to put it out with one extinguisher, a fire left a
+    // minute needing two, and a car left alone taking the next in about a minute and a half.
+    // cellSize 3.5 (the director, 12 Oct, "72 patches of fire per car is far too many, make it 15"; note 634): 16 cells in a
+    // cargo car (4 along, the floor, the roof and each wall one across), the nearest the grid comes to 15; it was 1.5, 72.
+    // burnPatch: the boards round a burning cell's centre that burn you as if you stood on them, the reach counted from there
+    // (note 634): 0.75, half the 1.5 m cells it was tuned on, so the bigger cells don't burn further.
+    "burnPatch": 0.75,
+    "cellSize": 3.5, "catchFrom": 0.5, "catchPerSecond": 0.04, "climb": 2, "charPerSecond": 0.01,
+    "sprayShare": 0.4, "dampSeconds": 3, "ceilingBurnShare": 0.5, "bodyHeight": 1.8, "outBelow": 0.05
   },
 
   "choirSwarm": {
@@ -325,29 +855,250 @@
     // could send now, each vote ×perVote to its creature's weight, to at most ×cap, within its want tag. A dead bot votes
     // botSeconds after its ballot's offered (note 202: not a GDD number, the bots' deliberation, so harness nights vote).
     "vote": { "perVote": 1.2, "cap": 1.5, "options": 3, "botSeconds": 6 },
+    // The draw (ARCHITECTURE §8 note 287; GDD §14 "Noise", §23.1 "Owned", App. B.1, App. F.1 "Run start: nothing makes the
+    // player feel they've done something that draws a monster"): the night's first threat answers something the crew did.
+    // Every draw is credited to whoever made it on a ledger that halves every halfLifeSeconds (what drew most, lately). After
+    // the grace, the first time one crewmate's draw of one kind stands at answerAt or more, the dark answers it out loud (a
+    // call from answerDistance m ahead and answerLateral m off the line, at the lamp's edge; eyes there at answerHeight for
+    // showSeconds) and the first threat follows leadSeconds later, pressed for (the cooldown and the curve give way as at
+    // pressAt). With no draw that big the pressure, past its threshold, waits ("listening") up to holdUntil, and then the
+    // biggest draw standing takes the blame: a quiet crew buys itself time (holdFirst false: the pressure model as before).
+    // The Stoker is the firebox's own draw (note 263); the Choir the loudest's. Nothing here runs in the safe yard.
+    "draw": {
+      "enabled": true,
+      "halfLifeSeconds": 30, "answerAt": 3, "holdFirst": true, "holdUntil": 16, "leadSeconds": 5,
+      "showSeconds": 7, "answerDistance": 60, "answerLateral": 12, "answerHeight": 0.7,
+      // Raised voices only: the mic level (0..1) above voiceFloor, scaled to the rest (the bots' working chatter is 0.27).
+      // The firebox above fireboxFrom (of 6; the Stoker's heatFirebox). The engine at engineFullSpeed m/s or more.
+      "voiceFloor": 0.4, "fireboxFrom": 4.5, "engineFullSpeed": 20,
+      // A second of: the whistle 1.5 (a proper blast answers, a toot doesn't), voices 0.5 at full shout, a noisy toy carried
+      // 0.15, the firebox 0.25 full, the engine 0.03 at speed (it never answers alone: at most about 1.3 stands). An act of:
+      // a cannon round 3 (one shot answers), a car lamp lit 2, cargo aboard 4 a car-load × pressure.cargoValue.
+      "weights": { "whistle": 1.5, "voices": 0.5, "toy": 0.15, "firebox": 0.25, "engine": 0.03, "cannon": 3, "lamp": 2, "cargo": 4 },
+      // What answers each draw: these kinds weigh this much more for the first threat (only what the night could send anyway).
+      "answers": {
+        "whistle": { "whistler": 3, "cinderHounds": 2 },
+        "cannon": { "cinderHounds": 2, "ribbits": 2, "climbers": 2 },
+        "voices": { "sootChildren": 3, "tippyToesie": 2, "followers": 2 },
+        "toy": { "trackDoll": 4 },
+        "firebox": { "cinderHounds": 2 },
+        "lamp": { "fireFlies": 3 },
+        "cargo": { "carHugger": 3, "grumbler": 2, "cinderHounds": 2 }
+      }
+    },
     // App. B.1.
     "baseBudget": { "local": 90, "frontier": 150, "deadLines": 230, "deepTerritory": 330 },
     "lengthPerCarBeyondThird": 0.15,
     "crewBase": 0.7,
     "crewPerPlayer": 0.12,
     "crewCap": 1.6,
-    // After the 100-night playtest ("a reward or a problem every 30 s at most, 20 s ideally"): out of the gate in 20 s, and
-    // quiet for paceSeconds anywhere out on the line, the director sends something whatever its cooldown, overdrawing the
-    // budget's curve by up to pacedCost. Budgets are about twice App. B.1's to pay for it. A kind among the last
-    // varietyWindow spawns has its weight halved for each.
-    "graceSeconds": 20,
+    // GDD App. B.1 "Grace period" (design decision, 2026-10): the quiet spell at the start of a night is a range, picked per
+    // night from its seed, shorter on the harder tiers (pressure.graceTierScale scales the draw above the minimum).
+    "graceMinSeconds": 20,
+    "graceMaxSeconds": 90,
     // A generated line's grace stretch (linegen plan §4: gate to 2 km, "covers the GDD 90 s grace period") bans spawns only
-    // this far into the run (s); after that, graceSeconds above is the rule. -1 keeps the ban for the whole stretch.
-    "lineGraceSeconds": 20,
-    "paceSeconds": 18,
+    // this far into the run (s), or to the end of the night's own grace if that's later. -1 keeps the ban for the whole stretch.
+    "lineGraceSeconds": 0,
+    // GDD App. B.1 "Pacing rules" (design decision, 2026-10; ARCHITECTURE §8 note 266): when the director spends is
+    // algorithmic, not a timer. Once a second after the grace its pressure builds by
+    //   tier × conditions × relief × busy × escalation × (basePerSecond + quiet + loud + cargo)
+    // and past threshold it sends what its weights pick (the budget's curve, caps, gates, saving up, pairs, variety, wants
+    // and the dead's votes all as before); each spawn takes reliefPerCost × its cost off.
+    "pressure": {
+      // The level that spends; where it starts when the grace is over; the most it banks (held at the caps or under a ban it
+      // doesn't pile up); and pressAt: this high, the cooldown gives way and the budget's curve may be overdrawn by pacedCost.
+      "threshold": 10, "start": 4, "max": 18, "pressAt": 16,
+      // A cost-3 threat takes 9 off: the trough after a spawn is the pressure building again.
+      "reliefPerCost": 3,
+      // The night's own rise: everything × (1 + escalation × progress^escalationPower), progress being how far along the line
+      // or toward dawn, whichever is further (×4 at the end: fewer threats early, more toward the terminus); and a base
+      // that builds whatever else is going on.
+      "basePerSecond": 0.03, "escalation": 3, "escalationPower": 1,
+      // Quiet builds pressure: + quietPerSecond × (seconds since a threat was engaged (telegraphing, committing, grabbing,
+      // punishing) or sent / quietRampSeconds, to 1), so no
+      // stretch goes much past a minute and a half without something, even at the gate.
+      // GDD App. F.1 (the director, 6 Oct 2026; note 270): "quiet stretches are counted in kilometres, not seconds." With
+      // quietRampMetres set, the ramp is the line run since then over quietRampMetres (1,260 m: the old 90 s at spec B.3's
+      // 14 m/s cruise), or the seconds over quietBackstopSeconds if that's sooner, so a stopped train can't wait it out.
+      // quietRampSeconds is the ramp only with quietRampMetres 0.
+      "quietPerSecond": 0.1, "quietRampSeconds": 90, "quietRampMetres": 1260, "quietBackstopSeconds": 120,
+      // The crew's loudness (App. C.7, the Choir meter): + loudPerSecond × (meter / the Choir's threshold, to at most loudCap).
+      "loudPerSecond": 0.1, "loudCap": 1.5,
+      // Cargo aboard (App. B.9): + cargoPerLoad per car-load (load × cargo integrity × cargoValue, 1 for what isn't listed).
+      // What's lost or spoiled stops drawing them.
+      "cargoPerLoad": 0.01,
+      "cargoValue": { "comet": 2, "livestock": 1.5, "food": 1.3, "medicine": 1.3, "ammunition": 1.2 },
+      // The tier's rate, and how much of the grace range above its minimum the tier keeps.
+      "tier": { "local": 0.8, "frontier": 1, "deadLines": 1.2, "deepTerritory": 1.4 },
+      "graceTierScale": { "local": 1, "frontier": 0.85, "deadLines": 0.7, "deepTerritory": 0.55 },
+      // Conditions (GDD §22, §23): 1 + dark (the forward lamp out) + cold × the night's cold (0..1) + coldPerStep per deep-cold
+      // step + wet (rain) + wind × the night's wind (0..1). Modest: §22's hazards take tools away, they don't make the rules.
+      "dark": 0.15, "cold": 0.1, "coldPerStep": 0.05, "wet": 0.05, "wind": 0.05,
+      // The relief valve: × (alive / crew)^downPower, and × (1 − hurtRelief × the share of the living under hurtBelow health,
+      // the bots' own "too hurt to fight"), so a crew that's losing isn't fed faster; and busy: × 1 / (1 + busy × threats
+      // engaged × (1 − busyFade × progress)) while they're fighting: late in the night it stops waiting for them.
+      "downPower": 2, "hurtBelow": 35, "hurtRelief": 0.25, "busy": 0.5, "busyFade": 1,
+      // By the crew and the train (note 646; the director, the inbox, 9 Oct: "Scale by both, higher numbers on both readings
+      // should increase threat level"; orchestrator.md §8 question 1): the rate × (1 + crewScale × (crew − scaleCrew)) ×
+      // (1 + lengthScale × (cars − scaleCars)), each at least scaleFloor; 1 at a crew of four and eight cars (a Frontier
+      // train). The budget scales by both too (crewPerPlayer, lengthPerCarBeyondThird), but on a 7 km night it never binds:
+      // this is what does. 0.18 and 0.06: the director's on the Creature Tweaker (note 652, 13 Oct).
+      "crewScale": 0.18, "lengthScale": 0.06, "scaleCrew": 4, "scaleCars": 8, "scaleFloor": 0.5
+    },
+    // T128 (build 1121: "a player left behind by the train should feel the world close in: tension, monsters coming, the
+    // difficulty spiking for that player. They needn't die at once"; GDD §7, §23; ARCHITECTURE §8 note 273). Not in the spec.
+    // A crewmate alive on the ground, further than behindM (m) along the line from the nearest end of the train and not in a
+    // fort (run.json forts), has a pressure of their own, built once a second by
+    //   tier × conditions (the night's pressure terms, above) × (perSecond + rampPerSecond × min(1, seconds left / rampSeconds)
+    //   + perKm × km from the train)
+    // and past threshold the director sends a hunt at them alone: a Ribbit pack (App. A.6: it hops in on whoever it
+    // outnumbers on the ground, and can be outrun) of pack[0] the first time, one more each time after to pack[1], and always
+    // more than the group they're in; put down spawnOut[0] m from them the first time, closer each time to spawnOut[1]. Each
+    // takes relief off; while one's still after them, no other comes. Outside the budget, the caps and the night's own
+    // pressure (it's theirs, not the train's): about 45 s left behind to the first, then every half minute or so, bigger.
+    // Back aboard (or in a fort), it's gone.
+    // Note 296 (T128's caveat, "only the Ribbits hunt so far"): from the hunt numbered gauntFrom (0 the first) on, a Gaunt
+    // comes with the pack, woken on them (App. A.6: it follows its waker at arm's length and attacks after enough silence;
+    // talking holds it off, and it follows them home onto the train, where the crew deals with it by its rule). One at a time
+    // per crewmate, never at a crew under gaunt.minCrew, put down gaunt.spawnOut m off. -1: Ribbits only.
+    "abandoned": {
+      "on": true, "behindM": 150, "perSecond": 0.05, "rampPerSecond": 0.15, "rampSeconds": 60, "perKm": 0.3,
+      "threshold": 6, "relief": 6, "pack": [2, 5], "spawnOut": [35, 18], "gauntFrom": 2
+    },
+    // The orchestrator's live crew (ARCHITECTURE §8 note 336; docs/design/orchestrator.md §3.2 1, 3 and 5; GDD App. F.3, the
+    // director, 7 Oct 2026: "a threat orchestrator that takes into account how many players are on and then orchestrates
+    // threats based on the number of active players in the game currently"). Not in the spec; first pass. Active is the crew
+    // alive now, counted each second. liveCrew: App. B.1's crew multiplier (crewBase + crewPerPlayer × crew, to crewCap) takes
+    // the crew active now, not the crew the night started with, so a crew that's lost players spends like the smaller crew
+    // it is (the relief valve's alive-share squared still applies on top). on: the engaged cap is the least of App. B.1's flat
+    // cap (maxConcurrentSmallCrew / LargeCrew), ceil(active × engagedPerActive) and perPlayer × active, and at least 1: 1 at
+    // crew 1, 2 at crew 2, 3 at crew 3 and 4, 6 at crew 8. The hound run (below) waits while the crew is at it, so a crew of
+    // one never meets two things at once. The left-behind's hunts and the Stoker stay outside it, as before.
+    "orchestrator": {
+      "on": true, "liveCrew": true, "engagedPerActive": 0.75, "perPlayer": 1,
+      // A longer train has more of the crew under a threat at once (note 646; the director, 9 Oct: "Scale by both"):
+      // engagedPerActive + engagedPerCar a car over pressure.scaleCars (8), up to perPlayer: one each from 13 cars.
+      "engagedPerCar": 0.05,
+      // A long train, two threats each (note 647; the director, the inbox, 12 Oct: "b"): from longTrainCars cars a crewmate
+      // may have perPlayerLong threats on them at once, perTarget's rule with it, and the hard caps (maxConcurrent*) grow
+      // in step. 8, a Frontier train and longer: the director's roster on the Creature Tweaker (note 652, 13 Oct).
+      "longTrainCars": 8, "perPlayerLong": 2,
+      // The census of posts and slack (ARCHITECTURE §8 note 345; orchestrator.md §3.1, §3.2 items 2–4). Once a second, each
+      // crewmate alive: their post (cab, gunner, walker on the roofs, a ladder or a gap, rider inside a car, ground off the
+      // train near it, or left behind past abandoned.behindM, whose own hunt answers them); which engaged threats are on whom
+      // (holding them; else the nearest crewmate within onRadius m; else the nearest at a post that answers it below: a pack
+      // running behind is the gunner's); and their slack, the seconds on the run between stops (the train moving faster than
+      // drivingAbove, past the grace, out of the forts and facilities, short of the final approach) since they last had something to
+      // answer (a threat on them; an upkeep job on their car: an open hot box, note 331, or a guttering lamp, note 346; a hot box
+      // anywhere for a walker, a guttering lamp anywhere for a rider; or, in the
+      // cab, the train moving faster than drivingAbove m/s: the line and the fire are the driver's to answer). It
+      // counts whenever "on" is (the harness reports it); with census on too and minCrew or more alive it steers (a crew of
+      // one is App. B.1's as it was):
+      // - who's next: the free crewmate with the most slack, minSlack s or more; a kind answered at their post weighs
+      //   ×slackWeight; a kind answered only at posts nobody holds ×emptyPostWeight (not those in emptyPostExempt, whose
+      //   rule is the empty post: the Track Doll's cab);
+      // - slack presses: + slackPerSecond to the pressure each second for each crewmate at slackPress s or more;
+      // - perTarget: one threat on any one player: a kind whose every answering crewmate (at a post that answers it) has a
+      //   threat on them already weighs nothing (with all of them so, nothing comes that second).
+      "census": true, "minCrew": 2, "onRadius": 20, "drivingAbove": 0.5, "slackWeight": 2, "emptyPostWeight": 0.5, "emptyPostExempt": ["trackDoll"],
+      "minSlack": 30, "slackPress": 150, "slackPerSecond": 0.05, "perTarget": true,
+      // Which post answers what (orchestrator.md §3.1's table), by the names in "costs" (carFire: the trouble in the cars).
+      "answers": {
+        "cab": ["trackDoll", "switchman", "stoker"],
+        "gunner": ["cinderHounds", "climbers", "trackDoll", "switchman"],
+        "walker": ["climbers", "draggers", "fireFlies", "whistler", "carHugger", "cinderHounds", "carFire"],
+        "rider": ["tippyToesie", "fireFlies", "passenger", "carHugger", "carFire"],
+        "ground": ["ribbits", "gaunt", "followers", "sootChildren", "grumbler"]
+      }
+    },
+    // Note 327 (GDD App. F.3, the director, 7 Oct 2026: "ideally, we want people to be feeling like when they leave, there is
+    // this presence of threat at all times"). Not in the spec. A crewmate alive on the ground further than fromTrainM (m) from
+    // the train, and not in a fort, is afoot. While anyone is, the night's pressure builds by + perSecond × the share of the
+    // living afoot (inside the pressure model's other factors: tier, conditions, relief, busy, escalation), so encounters come
+    // sooner off the train; and what it sends then is more often met out there: the outside creatures, and whatever lives at
+    // the stops' sites, weigh × (1 + (outsideWeight − 1) × that share). And the crew is watched: firstSign s after someone
+    // first steps off, and every signEvery [min, max] s after while anyone's afoot, one of them (in turn) is shown a sign: a
+    // pair of eyes for signSeconds out at signOut [min, max] m (the hand lamp's edge; nearer if a wall's in the way), within
+    // signSpread degrees of the bearing of a creature that lives at this stop (one kind drawn from those with a site, note
+    // 309's lairs, within signReach m; its nearest site), at that creature's eye height (signHeight by its tuning name, else
+    // signHeightDefault), and its sound from there. Honest: only what lives here and the night could send; with no site in
+    // reach, a Ribbit's (they come for whoever's on the ground anywhere), from away from the train. A sign is never a spawn:
+    // nothing's there when you walk up to it.
+    "afoot": {
+      "on": true, "fromTrainM": 20, "perSecond": 0.08, "outsideWeight": 2.5,
+      "signEvery": [12, 24], "firstSign": 6, "signOut": [14, 22], "signReach": 160, "signSeconds": 3.5, "signSpread": 35,
+      "signHeight": { "ribbits": 0.35, "gaunt": 2.3, "followers": 1.6, "sootChildren": 1.0, "grumbler": 1.5, "whistler": 2.0 },
+      "signHeightDefault": 0.7
+    },
+    // The hound run (ARCHITECTURE §8 note 328; docs/design/orchestrator.md §5.3 and §6.1; GDD App. F.3, the director, 7 Oct
+    // 2026: "more threats that can board the train at speed ... tower defense style that gives our gunners things to do").
+    // Not in the spec; first pass. fromSpeed is the director's packs' own maxSpeed: under it they can board, and outrunning
+    // them is their counter (App. F.1, Decided; note 286); the run is what answers a train run faster than that (App. F.1:
+    // "a fast ... class may come later to answer the top-speed strategy"). A train that has run afterMetres at fromSpeed m/s or more (×hotShorter with the boiler
+    // over its working band: the heat draws them, App. B.3) since it last slowed under stopSpeed, since the last run, or
+    // since the grace, draws a run: round(base + perActive × the crew alive) Cinder Hounds, to between size[0] and size[1],
+    // in pairs spacing s apart, alternating flanks, put down spawnBehind m behind the rear car and lateral m off the line.
+    // A runner closes at the train's speed + closing m/s, whatever the train's speed (they are faster than it: a hot train
+    // can't outrun them), and leaps aboard the rear car from the pack's leapDistance as the director's hounds do (App.
+    // A.3; then they stay aboard, note 269). Answered one at a time: a ball landing within scatter m of a runner sends it
+    // off (one landing between a pair takes both); a ball on it kills it (note 290). A round fired anywhere near doesn't
+    // send a runner off (the director's packs keep suppressRounds). Not from the budget, not on the caps (it's the fast
+    // train's, as the left-behind's hunts are theirs); never in the grace, a fort, the final approach or at a stop, and
+    // one run at a time. Its own dice, so the night's other draws are as they were.
+    "run": {
+      "on": true, "fromSpeed": 19, "stopSpeed": 2, "afterMetres": 2400, "hotShorter": 0.75,
+      "base": 1.4, "perActive": 0.6, "size": [2, 6], "spacing": 6, "spawnBehind": 200, "lateral": [4, 8],
+      "closing": 5, "scatter": 5,
+      // The lane ahead (note 405; orchestrator.md §5.3 6, "lanes ahead: runners crossing the line in the lamp, for the forward
+      // gun"): of a run's pairs, every aheadEvery-th from the second on comes from in front instead, to a train with a gun laid
+      // forward on the engine's rake. Put down aheadMetres in front of the engine and aheadLateral m out to a flank, they howl
+      // in the lamp, then run in at aheadSpeed m/s to meet the train, across the line to aheadCross m out on its other side,
+      // and leap aboard the first car behind the engine as it comes alongside. The forward gun has them from its range (220 m)
+      // in to the stack's mask (about 60 m): at 21 m/s, about seven seconds, one shot laid early or two quick. A ball landing
+      // within scatter m sends them off, as the run's; aboard, they're the pack fight at the front of the train.
+      "aheadEvery": 3, "aheadMetres": 330, "aheadLateral": [12, 16], "aheadSpeed": 3, "aheadCross": 3,
+      // The flank lanes (note 418; orchestrator.md §5.3 6, "lanes on the flanks from the open country's sides"): of a run's
+      // pairs, every flankEvery-th (the third; a pair that's the lane ahead's stays ahead) comes in from the open country
+      // instead, to a train whose last car has its gun, where the line runs through one of flankBiomes (all but the forests,
+      // blackForest and forestEdge, in linegen's biomes.json) and the land's open that far out. Put down flankOut m off to its
+      // side, abeam the guard van's gun (flankAbeam m ahead of the train's rear end: a gun traverses 100 degrees either side of
+      // its facing, so abeam its own car is the flank it has; abeam the middle of the train, neither gun reaches) and keeping
+      // pace with the train, it howls, then runs in at flankSpeed m/s across the open ground and leaps onto the car it comes
+      // alongside. The guard van's gun has it for about fifteen seconds from the howl.
+      // Of the night's flank pairs, every flankEngineEvery-th (the second of each two; note 443) comes abeam the engine's gun
+      // instead, to a train with a gun laid forward (with none laid back, every one does): the forward gun's flank, as abeam
+      // the guard van is the guard gun's. It runs in falling back along the engine, and leaps onto the first car behind it.
+      "flankEvery": 3, "flankOut": 70, "flankAbeam": 4, "flankSpeed": 6, "flankEngineEvery": 2,
+      "flankBiomes": ["farmland", "plains", "hills", "mountain", "coast", "marsh", "dykeland", "contaminatedMarsh", "slag",
+        "deadTown", "industrialRuin"]
+    },
+    // A spawn pressed for (pressure at pressAt) may overdraw the budget's curve by up to pacedCost. Budgets are about twice
+    // App. B.1's to pay for it. A kind among the last varietyWindow spawns has its weight halved for each.
     "pacedCost": 3,
     "varietyWindow": 4,
+    // The most of a kind the director sends a night, and the chance it's about at all tonight (drawn from the seed), by the
+    // names in "costs"; a kind not named has no cap and is always about. Note 635, the director, the inbox, 12 Oct 2026, of
+    // the Knotter: "They should show up once or twice a run. Sometimes never. We need more monster variety." Every kind's
+    // chance is the director's roster on the Creature Tweaker (note 652, 13 Oct).
+    "perNight": { "knotter": 2 },
+    // The most of any kind perNight doesn't name (note 654): null, no cap. For the director's D1-roster-piles-up: with few
+    // kinds about on a night (nightChance), those about come again and again (note 652); this holds each to a few.
+    "perNightDefault": null,
+    "nightChance": { "knotter": 0.66, "hotbox": 0.4, "brakeman": 0.6, "climbers": 0.35, "draggers": 0.65,
+      "cinderHounds": 0.7, "fireFlies": 0.42, "carHugger": 0.51, "whistler": 0.65, "trackDoll": 0.22,
+      "tippyToesie": 0.7, "stoker": 0.4, "switchman": 0.12, "followers": 0.66, "ribbits": 0.66, "gaunt": 0.21,
+      "sootChildren": 0.36, "grumbler": 0.11, "passenger": 0.1, "moose": 0.19, "gannet": 0.72, "freightBeetle": 0.63,
+      "towerJaw": 0.53, "pickers": 0.28, "lodger": 0.06, "householder": 0.68, "hollowHouse": 0.13, "hanger": 0.53 },
+    // How often each kind comes against the rest: its weight among what could come, times this (×1 not named).
+    "weights": {},
     // The in-car incidents' weight each (the others weigh 1): trouble in the cars is some of the night, not most of it.
     "incidentWeight": 0.5,
     // ...at full weight with this many hands besides the driver, proportionally less with fewer (a crew of two: a third).
     "incidentFullCrew": 3,
     "facilityLullSeconds": 20,
-    "cooldownSeconds": [30, 60],
+    // GDD App. B.1 "Post-event cooldown" (design decision, 2026-10): the least trough after a spawn; the pressure's relief
+    // makes the rest of it, and well past the threshold (pressAt) it gives way.
+    "cooldownSeconds": [25, 45],
     // T114 playtest ("where are all the monsters"): a threat that goes lingerSeconds with nobody alive within lingerRadius m
     // of it (and has nobody in its grip) gives up and goes, so what nobody's answering doesn't hold the caps below full.
     "lingerSeconds": 120,
@@ -361,7 +1112,7 @@
     // App. B.1 v1.1's cost table (the Choir costs nothing: it isn't spawned; hazards are level content).
     "costs": { "followers": 2, "draggers": 2, "fireFlies": 2, "switchman": 2, "trackDoll": 3, "cinderHounds": 3, "climbers": 3,
       "whistler": 3, "stoker": 3, "ribbits": 3, "carHugger": 4, "tippyToesie": 4, "gaunt": 4, "sootChildren": 4, "grumbler": 4,
-      "passenger": 5 },
+      "passenger": 5, "moose": 3, "gannet": 4, "freightBeetle": 1, "towerJaw": 3, "brakeman": 3, "hotbox": 2, "knotter": 3 },
     // App. B.3/B.8 weights.
     "houndsLivestockWeight": 2.5,
     "houndsHotBoilerWeight": 1.5,
@@ -387,6 +1138,37 @@
     // pairs from a conflict table": read as a spawn that would complete a pair with what's there now weighing this much
     // more, and this much more again past halfway on a run short of its pairs.
     "conflicts": [
+      // The Moose (note 339): talk to the Gaunt vs. the moose hears every word; never be outnumbered vs. whoever it chases
+      // ends up alone; the coupling gaps hide you from it and hold the Whistler; the loading needs everyone vs. someone
+      // keeps it busy.
+      ["gaunt", "moose"],
+      ["ribbits", "moose"],
+      ["whistler", "moose"],
+      ["moose", "facilityLoading"],
+      // The Gannet (note 340): outrun the hounds by running fast vs. a fast train brings it; walk the centreline (the
+      // Draggers) vs. step aside when it folds; the gun is the quick answer vs. every ball feeds the Choir and marks the gunner.
+      ["cinderHounds", "gannet"],
+      ["draggers", "gannet"],
+      ["choir", "gannet"],
+      // The Freight Beetle (note 366): load fast vs. it pushes the freight off; steer it to the car vs. the crane's castings
+      // overhead.
+      ["freightBeetle", "facilityLoading"],
+      ["grumbler", "freightBeetle"],
+      // Tower Jaw (note 363): crowd the beaver to drive it off vs. crowding is what the Moose minds; load and go vs. the
+      // coaling tower's coming down.
+      ["moose", "towerJaw"],
+      ["towerJaw", "facilityLoading"],
+      // The Brakeman (note 364): up on the roofs after him vs. walking the roofs is what the Gannet dives at; run the roofs vs.
+      // the edges the Draggers hold; keep the speed up for the hounds vs. he's winding the brakes on.
+      ["brakeman", "gannet"],
+      ["draggers", "brakeman"],
+      ["cinderHounds", "brakeman"],
+      // Hotbox (note 367): run fast for the hounds vs. stop to pull it before it seizes.
+      ["cinderHounds", "hotbox"],
+      // The Knotter (note 365): never stop with the pack behind vs. it's killed only at a stand; cut the Car Hugger's car vs.
+      // the coupling you'd cut across is the Knotter.
+      ["cinderHounds", "knotter"],
+      ["carHugger", "knotter"],
       ["choir", "cinderHounds"],
       ["choir", "gaunt"],
       ["fireFlies", "trackDoll"],

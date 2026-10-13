@@ -33,6 +33,12 @@ public sealed partial class Run
     /// <summary>A find's body's owner: the stop, and the container in its layout.</summary>
     public static int LootOwner(int stop, int container) => stop << 12 | container;
 
+    /// <summary>The "stop" a creature's trophy's owner names (note 340): past any line's stops, its container the creature's kind.</summary>
+    public const int TrophyStop = 0xFFF;
+
+    /// <summary>A creature's trophy's owner (the Gannet's head, note 340): a find that's the kind's, not a stop's.</summary>
+    public static int TrophyOwner(Enemies.EnemyKind kind) => LootOwner(TrophyStop, (int)kind);
+
     /// <summary>
     /// Fills the stops from the economy and builds their yards' cranes. Host and clients both do this (after
     /// <see cref="EnableSites"/>), so a client can name a find from its body.
@@ -48,6 +54,7 @@ public sealed partial class Run
                 _stopLoot.Add((_route.Features[i], i, stop, StopLoot.Village(t, stop, _route.Seed, i, perCar), StopLoot.Kits(t, stop, _route.Seed, i),
                     StopLoot.Toys(t, stop, _route.Seed, i)));
         _stocked = new bool[_stopLoot.Count];
+        FindHidingSpots();
         if (facilities is not null)
             BuildYardCranes(facilities.Crane);
     }
@@ -94,6 +101,12 @@ public sealed partial class Run
         if (b.Kind != Physics.BodyKind.Loot)
             return null;
         int stop = b.Owner >> 12, container = b.Owner & 0xFFF;
+        // A creature's trophy (the director, 7 Oct 2026: "a dead Gannet can be worth a good deal"; note 340): loot.json
+        // trophies, by the kind, paying its share of the tier's car-load. The same on every machine.
+        if (stop == TrophyStop)
+            return _loot is { } lt && _route is { } r && lt.Trophies.TryGetValue(Enemies.Director.Key((Enemies.EnemyKind)container), out var trophy)
+                ? new LootFind(container, trophy.Item, trophy.PerCar * Tuning.Economy.PerCar.GetValueOrDefault(StopLoot.TierKey(r.Tier), 700))
+                : null;
         if (stop < 0 || stop >= _stopLoot.Count)
             return null;
         foreach (var f in _stopLoot[stop].Finds)
@@ -105,23 +118,37 @@ public sealed partial class Run
     /// <summary>A find's name for the HUD.</summary>
     public string? FindName(Physics.Body b) => FindOf(b) is { } f && _loot is { } t ? t.Name(f.Item) : null;
 
+    /// <summary>
+    /// How much health a find gives back used (GDD App. F.1's rare healing loot, loot.json <c>healing</c>; note 272), 0 for
+    /// anything that doesn't heal. From the run's seed, so a client (its HUD, a bot) knows as well as the host.
+    /// </summary>
+    public int HealOf(Physics.Body b) => _loot?.Healing is { } h && FindOf(b) is { } f ? h.Of(f.Item) : 0;
+
+    /// <summary>The healing tuning (loot.json), or null when no find heals.</summary>
+    public HealingTuning? Healing => _loot?.Healing;
+
+    /// <summary>
+    /// Note 649 (the director's `D1.5-loot-slots`: "a find in a crew locker stays there, on its shelf, and pays at the gates
+    /// with the rest, like Lethal Company's ship. A locker lost with its car is lost"): what the finds on the lockers' shelves
+    /// of <paramref name="attached"/> cars are worth.
+    /// </summary>
+    public double LockerFinds(World world, IReadOnlySet<int> attached) =>
+        world.Bodies.All.Where(b => b.Kind == Physics.BodyKind.Loot && b.Stowed && attached.Contains(b.Parent)).Sum(b => FindOf(b)?.Value ?? 0);
+
     void StepLoot(World world, double dt)
     {
         if (_loot is not { } t || _lootLine is not { } line)
             return;
         var train = world.Train;
         var engine = EngineRake(train);
-        if (engine.Speed < Tuning.StopBelowSpeed)
-            for (int k = 0; k < _stopLoot.Count; k++)
-            {
-                var f = _stopLoot[k].Feature;
-                if (!_stocked[k] && engine.Distance >= f.Start && engine.Distance <= f.End + 100)
-                    Stock(world.Bodies, line, t, k);
-            }
+        for (int k = 0; k < _stopLoot.Count; k++)
+            if (!_stocked[k] && Due(_stopLoot[k].Feature, train, engine, t.StockAhead))
+                Stock(world.Bodies, line, t, k);
 
         // A find put down inside a car, and lying still there, is stowed. (Only a stop's finds: other hand loot, the salvage
-        // the Gaunt and the Followers go for, stays a body.)
-        foreach (var b in world.Bodies.All.Where(b => b.Kind == Physics.BodyKind.Loot).ToList())
+        // the Gaunt and the Followers go for, stays a body.) One on a crew locker's shelf stays there, and pays at the gates
+        // if its car's still on the train (note 649: LockerFinds).
+        foreach (var b in world.Bodies.All.Where(b => b.Kind == Physics.BodyKind.Loot && !b.Stowed).ToList())
         {
             if (FindOf(b) is not { } find)
                 continue;
@@ -141,13 +168,30 @@ public sealed partial class Run
     }
 
     /// <summary>
-    /// Puts stop <paramref name="stop"/>'s loot out into <paramref name="bodies"/> now, as the host does when the train
-    /// first stops there (for tools: `dt screenshot --site`). Does nothing before <see cref="EnableLoot"/>.
+    /// Whether a stop's loot is due out. Note 352 (the director, 8 Oct 2026: "[I] watched the loot spawn in the yard after I'd
+    /// already stopped the train"): with the engine on the main line within <paramref name="ahead"/> m of the stop's zone,
+    /// whatever its speed, before anyone's near enough to be sent it (enemies.json interestRadius). With no look-ahead, once
+    /// the train first stops there.
     /// </summary>
-    public void Stock(Physics.Bodies bodies, int stop)
+    bool Due(RouteFeature f, TrainOnLine train, TrainDynamics engine, double ahead) => ahead > 0
+        ? train.OnMain && engine.Distance >= f.Start - ahead && engine.Distance <= f.End + ahead
+        : engine.Speed < Tuning.StopBelowSpeed && engine.Distance >= f.Start && engine.Distance <= f.End + 100;
+
+    /// <summary>
+    /// Puts stop <paramref name="stop"/>'s loot out into <paramref name="bodies"/> now, as the host does as the train comes
+    /// up to it (for tools: `dt screenshot --site`). Does nothing before <see cref="EnableLoot"/>.
+    /// </summary>
+    /// <param name="searched">Its open houses searched too (note 326), every find out where it was kept (and only that, if its
+    /// loot's already out).</param>
+    public void Stock(Physics.Bodies bodies, int stop, bool searched = false)
     {
-        if (_loot is { } t && _lootLine is { } line && stop >= 0 && stop < _stopLoot.Count)
+        if (_loot is not { } t || _lootLine is not { } line || stop < 0 || stop >= _stopLoot.Count)
+            return;
+        if (!searched || !_stocked[stop])
             Stock(bodies, line, t, stop);
+        if (searched)
+            foreach (var spot in _spots.Where(x => x.Stop == stop).ToList())
+                Reveal(bodies, stop, spot.Container);
     }
 
     /// <summary>The containers at stop <paramref name="stop"/> with a repair kit in them (E.12 question 4), for tools and tests.</summary>
@@ -168,8 +212,7 @@ public sealed partial class Run
             // A repair kit (E.12 question 4), lying beside what the container holds: not the crew's until one of them picks it up.
             if (kits.Contains(c.Index))
             {
-                var put = c.Building >= 0 && c.Building < stop.Buildings.Count && StopWalls.Walled(stop, c.Building)
-                    ? StopWalls.Doorstep(stop.Buildings[c.Building], c.Index) : c.At;
+                var put = StopWalls.FindAt(stop, c);
                 bodies.SpawnItem(StopWorld(line, f, put + new Pt(0.4, 0.3)), hint, Physics.BodyKind.RepairKit);
             }
             switch (c.Kind)
@@ -186,9 +229,12 @@ public sealed partial class Run
                 case ContainerKind.CraneBay:
                     break;
                 default:
-                    // A find in a shut house is put out on its step (T114: the houses are walls now, with no way in).
-                    var put = c.Building >= 0 && c.Building < stop.Buildings.Count && StopWalls.Walled(stop, c.Building)
-                        ? StopWalls.Doorstep(stop.Buildings[c.Building], c.Index) : c.At;
+                    // In an open house's cupboard, cabinet, cellar or floor, it's there to be searched for (note 326).
+                    if (Hidden(k, c))
+                        break;
+                    // A find in a shut house is put out on its step (T114: the houses are walls, with no way in); in an open
+                    // one it's inside, where it'd be kept (note 326).
+                    var put = StopWalls.FindAt(stop, c);
                     if (finds.Any(x => x.Container == c.Index))
                         bodies.SpawnLoot(StopWorld(line, f, put), f.Start + put.S, LootOwner(k, c.Index), t.Radius);
                     // A toy with it (note 264), beside the find: GDD §19's hand loot, for the Track Doll or the meter.

@@ -156,6 +156,8 @@ public sealed partial class GameAudio
         Choir(world, train);
         Actions(world);
         Whistle(world, train);
+        Answer(world);
+        Watched(world);
         Cues(world);
         RoofWarning(world);
         Toys(world, train);
@@ -209,19 +211,63 @@ public sealed partial class GameAudio
 
     /// <summary>
     /// The walls between the ear and each sound (spec A.5, A.7; <see cref="Sound.Walls"/>, note 248), from where both are
-    /// this frame. Not the train's bed (tier 5): that's the car itself, which the space (spaces.json) has. Not a sound a
+    /// this frame, and in a stop's building its walls (note 396). Not the train's bed (tier 5) through the train's walls: that's the
+    /// car itself, which the space (spaces.json) has. Not a sound a
     /// caller put part-way behind something (a shout through a holdout's door): that's its own judgement.
     /// </summary>
     static readonly WallsTuning DefaultWalls = new();
 
+    // The voices of a house's door (its shutting and opening, the Choir beating on it): heard at the doorway, so no building's
+    // walls are between them and anyone (note 409); let go of as they finish.
+    readonly HashSet<SoundInstance> _atADoor = [];
+
+    void AtADoor(SoundInstance? door)
+    {
+        if (door is not null)
+            _atADoor.Add(door);
+    }
+
     void HearWalls(World world)
     {
         _walls?.Refresh();
+        _atADoor.RemoveWhere(v => v.Finished);
         var tuning = _walls?.Value ?? DefaultWalls;
         var ear = Mixer.Listener.Position;
+        var room = _earRoom;
         foreach (var v in Mixer.Voices)
-            v.Walls = v.Def.Flat || v.Def.Tier is 5 or Mixer.MusicTier || v.Occlusion is > 0 and < 1 ? 0
-                : Sound.Walls.Between(world.Train, ear, v.Position, tuning);
+        {
+            if (v.Def.Flat || v.Def.Tier == Mixer.MusicTier || v.Occlusion is > 0 and < 1)
+            {
+                v.Walls = 0;
+                continue;
+            }
+            float walls = v.Def.Tier == 5 ? 0 : Sound.Walls.Between(world.Train, ear, v.Position, tuning);
+            // In a stop's building (note 396): what's outside it comes in through its walls, the train's bed too (that's
+            // not the car around you here). A shed's bays stand open; a room has its one door.
+            if (room is { } r && !r.Holds(v.Position))
+                walls = Math.Max(walls, (float)(r.Shed ? tuning.ShedWall : tuning.RoomWall));
+            // And what's in one the ear isn't in comes out through its walls (note 428): a crewmate going through a house's
+            // cupboard heard from the street, boots in a shed from the yard. Not the train's bed: the train's never in one;
+            // nor a house's door, which is the house and the street both (note 409), from whichever way along the street.
+            if (v.Def.Tier != 5 && !_atADoor.Contains(v))
+                foreach (var other in _roomsNear)
+                    if (!ReferenceEquals(other.Building, room?.Building) && other.ShutsIn(v.Position, ear, tuning.RoomEdge))
+                    {
+                        walls = Math.Max(walls, (float)(other.Shed ? tuning.ShedWall : tuning.RoomWall));
+                        break;
+                    }
+            v.Walls = walls;
+        }
+    }
+
+    /// <summary>
+    /// The night's own air, played at the ear (the night, the gale and its gusts, a dead town's quiet; note 428): behind the
+    /// walls of the stop's room or shed the ear's in, as anything else outside it is. Out of one, nothing.
+    /// </summary>
+    float AirWalls()
+    {
+        var tuning = _walls?.Value ?? DefaultWalls;
+        return _earRoom is { } r ? (float)(r.Shed ? tuning.ShedWall : tuning.RoomWall) : 0;
     }
 
     readonly Dictionary<int, SoundInstance> _toys = [];
@@ -592,7 +638,8 @@ public sealed partial class GameAudio
                     break;
                 case EnemyKind.TrackDoll when e.Phase == SpinePhase.Punish:
                     // Haunting: it giggles in the car it's in, or in the cab at the controls (App. A.2). T118: now and then, a
-                    // little demon boy's giggle, never twice alike in pitch or spacing.
+                    // little demon boy's giggle, never twice alike in pitch or spacing. Restless (her next stage coming,
+                    // note 268) the giggles come twice as often: the telegraph that she's been left alone too long.
                     if (entered || _time >= s.Next)
                     {
                         Mixer.Play("doll-giggle", at)?.Also(v =>
@@ -600,7 +647,7 @@ public sealed partial class GameAudio
                             v.Occlusion = occlusion;
                             v.Params.Set("pitch", 0.92 + 0.18 * _rng.Next());
                         });
-                        s.Next = _time + 7 + 9 * _rng.Next();
+                        s.Next = _time + (7 + 9 * _rng.Next()) * (((TrackDoll)e).Restless ? 0.5 : 1);
                     }
                     break;
                 case EnemyKind.TippyToesie when e.Phase is SpinePhase.Telegraph or SpinePhase.Commit:
@@ -686,10 +733,45 @@ public sealed partial class GameAudio
         // The shots are heard from the guns' replicated state, everyone's (GameAudio.Crew.cs, CrewGuns): world.Shots is only
         // ever this machine's own predicted one.
         Strikes(world);
+        Gestures(world);
     }
 
-    readonly HashSet<int> _heardHits = [], _heardImpacts = [];
-    bool _strikesPrimed;
+    readonly HashSet<int> _heardHits = [], _heardImpacts = [], _heardEmotes = [];
+    readonly Dictionary<int, byte> _outfitsHeard = [];
+    bool _strikesPrimed, _gesturesPrimed;
+
+    /// <summary>
+    /// The crew's gestures (note 298), each once where its player stands (note 322): an emote from the wheel (a dance's feet
+    /// are its own: it moves nobody, so there are no footsteps), and an outfit tried on in the yard. What's there on the first
+    /// update is old news, as with the strikes.
+    /// </summary>
+    void Gestures(World world)
+    {
+        bool primed = _gesturesPrimed;
+        foreach (var e in world.Emotes)
+        {
+            if (!_heardEmotes.Add(e.Id) || !primed)
+                continue;
+            string? cue = e.Kind switch
+            {
+                Emote.Dance => "crew-emotes.dance",
+                Emote.Wave => "crew-emotes.wave",
+                Emote.Point => "crew-emotes.point",
+                _ => null,
+            };
+            if (cue is not null && Crewmate(e.By) is { } s && At(world.Train, s) is { } at)
+                Cue(cue, at + Double3.Up * 1.1, OccludedAt(world.Train, s.Parent, s.Position));
+        }
+        if (_heardEmotes.Count > 64)
+            _heardEmotes.IntersectWith(world.Emotes.Select(e => e.Id));
+        foreach (var (id, outfit) in world.Outfits)
+        {
+            if (_outfitsHeard.TryGetValue(id, out byte was) && was != outfit && Crewmate(id) is { } s && At(world.Train, s) is { } at)
+                Cue("crew-emotes.outfit", at + Double3.Up * 1.2, OccludedAt(world.Train, s.Parent, s.Position));
+            _outfitsHeard[id] = outfit;
+        }
+        _gesturesPrimed = true;
+    }
 
     /// <summary>
     /// What landed (T121), from the replicated world, each once: a ball's boom where it came down (a splash in water, and the
@@ -704,8 +786,18 @@ public sealed partial class GameAudio
             if (!_heardImpacts.Add(i.Id) || !_strikesPrimed)
                 continue;
             // Nobody's shot (World.Blast: a powder keg or a powder car going up, notes 182 and 185) is its own, bigger blast.
+            // Note 290: a ball meets bodies and walls, and each lands as what it struck (note 322): into a creature (the doll's
+            // porcelain is its own, below), on a fort's stone, on the train's own iron. Not installed, it's the boom.
+            string? on = i.Surface switch
+            {
+                ImpactSurface.Creature when i.Struck != Sim.Enemies.EnemyKind.TrackDoll => "crew-cannon-impact.flesh",
+                ImpactSurface.Structure => "crew-cannon-impact.structure",
+                ImpactSurface.Train => "crew-cannon-impact.train",
+                _ => null,
+            };
             string boom = i.Shooter < 0 && Bank.Get("powder-blast") is not null ? "powder-blast"
-                : i.Surface == ImpactSurface.Water ? "cannon-splash" : "cannon-impact";
+                : i.Surface == ImpactSurface.Water ? "cannon-splash"
+                : on is not null && Bank.Get(on) is not null ? on : "cannon-impact";
             Mixer.Play(boom, i.At)?.Also(v => v.Occlusion = Occlusion(PlayerMotor.Outside));
             if (i.Struck == Sim.Enemies.EnemyKind.TrackDoll)
                 Mixer.Play("doll-shatter", i.At)?.Also(v => v.Occlusion = Occlusion(PlayerMotor.Outside));
@@ -784,7 +876,9 @@ public sealed partial class GameAudio
         _toys.Clear();
         _heardHits.Clear();
         _heardImpacts.Clear();
-        _strikesPrimed = false;
+        _heardEmotes.Clear();
+        _outfitsHeard.Clear();
+        _strikesPrimed = _gesturesPrimed = false;
         _cooling = null;
         _lampsOut = 0;
         _wasRuptured = false;

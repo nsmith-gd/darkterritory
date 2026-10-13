@@ -292,7 +292,7 @@ public class EffectsTests
         Fx.Corruption(dust, new Double3(100, 5, 200), 3, Effects.Air.Brass);
         Assert.NotEmpty(dust.AdditiveFx);
         Assert.Empty(dust.AlphaFx);
-        var route = Sim.LineGen.Routes.Generate(DataFile.FindContentRoot(), "deadlines:4", 6);
+        var route = Sim.LineGen.Routes.Generate(DataFile.FindContentRoot(), "deadLines:1", 6);
         var line = route.Build();
         var field = route.Plan!.Structures.First(s => s.Type == Sim.LineGen.StructureType.BrassField && s.Edge == "main");
         var over = line.Sample((field.S0 + field.S1) / 2).Position + Double3.Up * 3;
@@ -300,5 +300,61 @@ public class EffectsTests
         var away = line.Sample(Math.Min(line.Length - 1, field.S1 + 400)).Position + Double3.Up * 3;
         Assert.DoesNotContain(route.Plan.Structures, s => s.Type == Sim.LineGen.StructureType.BrassField && s.S0 < field.S1 + 500 && s.S1 > field.S1 + 300);
         Assert.False(WorldArt.NearBrass(route, away));
+    }
+
+    static readonly Sim.Train.TrainTuning TrainTuning = DataFile.Load<Sim.Train.TrainTuning>(Path.Combine(DataFile.FindContentRoot(), Sim.Train.TrainTuning.File));
+    static readonly Sim.Train.CarShape EngineShape = Sim.Train.CarShape.Build(TrainTuning.Geometry, Sim.Train.VehicleKind.Engine, hasCarBehind: true);
+
+    static Sim.Train.CarFrame Engine(double speed) =>
+        new(0, new Double3(0, 0, -10), new Double3(1, 0, 0), new Double3(0, 1, 0), new Double3(0, 0, 1), new Double3(0, 0, -speed), EngineShape);
+
+    [Fact]
+    public void TheBoilerTearsInItsFlankAndTheBurstBlowsOutOfItThenHisses()
+    {
+        // Spec B.6, GDD §23 "loud, spectacular": the seam is on the engine's left side behind the cab. The boiler's cased in
+        // the armoured hood (note 338), so the tear is through the hood's plate (note 360): on its outer face, just proud
+        // of its straps, between its deck and roof, where it's seen from the line.
+        var seam = TrainKit.RuptureSeam(EngineShape);
+        var boiler = EngineShape.Solids.First(s => s.Part == Sim.Train.PartKind.Boiler).Box;
+        var hood = EngineShape.Solids.Where(s => s.Part == Sim.Train.PartKind.CabWall && s.Box.Max.X < -boiler.Max.X)
+            .Select(s => s.Box).First(b => seam.Z >= b.Min.Z && seam.Z <= b.Max.Z && b.Max.Y - b.Min.Y > 2);
+        Assert.InRange(seam.X, hood.Min.X - 0.06, hood.Min.X - 0.01);
+        Assert.InRange(seam.Y, hood.Min.Y + 0.4, hood.Max.Y - 0.4);
+        Assert.InRange(seam.Z, EngineShape.Cab!.Value.Max.Z, boiler.Max.Z);
+        // The burst: out of the tear, away from the boiler (−X), at its height a big cloud; half a minute on, a hiss.
+        static float Out(MeshBuilder m) => m.AlphaFx.Count == 0 ? 0 : -m.AlphaFx.ToArray().Min(v => v.Position.X);
+        var blast = Mesh();
+        Fx.Rupture(blast, Engine(0), default, 0.8, locked: false);
+        var later = Mesh();
+        Fx.Rupture(later, Engine(0), default, 30, locked: false);
+        Assert.NotEmpty(later.AlphaFx);
+        Assert.True(blast.AlphaFx.Count > later.AlphaFx.Count, "the burst's a cloud, the hiss a jet");
+        Assert.True(Out(blast) > 4 && Out(blast) > Out(later) + 1.5, $"blown {Out(blast):0.0} m out, {Out(later):0.0} hissing");
+        // Seized and still dragging, the drivers slide in sparks; coasting, they turn again and don't.
+        var sliding = Mesh();
+        Fx.Rupture(sliding, Engine(15), default, 30, locked: true);
+        var coasting = Mesh();
+        Fx.Rupture(coasting, Engine(3), default, 30, locked: false);
+        Assert.True(sliding.AdditiveFx.Count > coasting.AdditiveFx.Count + 16, "sparks off the tyres");
+    }
+
+    [Fact]
+    public void ABendTakenTooFastGrindsSparksOffTheOuterRailHarderTheNearerItIsToOff()
+    {
+        // App. F.1's overspeed telegraph: seen before it has you off, and on the side it's crowding.
+        var frames = new[] { Engine(15) };
+        var easy = Mesh();
+        Fx.Flanges(easy, frames, default, 3, [(0.2f, 1)]);
+        var hard = Mesh();
+        Fx.Flanges(hard, frames, default, 3, [(0.95f, 1)]);
+        Assert.True(hard.AdditiveFx.Count > easy.AdditiveFx.Count * 2, $"{hard.AdditiveFx.Count} sparks hard, {easy.AdditiveFx.Count} easy");
+        Assert.NotEmpty(hard.PointLights);
+        var left = Mesh();
+        Fx.Flanges(left, frames, default, 3, [(0.95f, -1)]);
+        Assert.True(hard.AdditiveFx.ToArray().Average(v => v.Position.X) > 0, "on the right, its outer rail");
+        Assert.True(left.AdditiveFx.ToArray().Average(v => v.Position.X) < 0);
+        var none = Mesh();
+        Fx.Flanges(none, frames, default, 3, [(0f, 1)]);
+        Assert.Empty(none.AdditiveFx);
     }
 }

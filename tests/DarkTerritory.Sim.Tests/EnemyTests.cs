@@ -17,13 +17,15 @@ sealed class Night
     public readonly List<GunShot> Shots = new();
     public TrainControls Controls = new() { Reverser = 1 };
 
-    public Night(int cars, double speed, Route.Route? route = null, bool boiler = false, ulong seed = 1)
+    /// <param name="front">Where the engine's front stands (m along the line); by default 2 km in, or 400 m on a route.</param>
+    public Night(int cars, double speed, Route.Route? route = null, bool boiler = false, ulong seed = 1, EnemyTuning? enemies = null, RailLine? line = null,
+        double? front = null)
     {
-        var line = route?.Build() ?? new RailLine(new LineDefinition("t", [new TrackSegment(40_000)]));
-        var train = new TrainOnLine(new TrainDynamics(Consist.Uniform(Tuning.Train, cars, 1)), line, route is null ? 2_000 : 400, boiler ? Tuning.Boiler : null);
+        line ??= route?.Build() ?? new RailLine(new LineDefinition("t", [new TrackSegment(40_000)]));
+        var train = new TrainOnLine(new TrainDynamics(Consist.Uniform(Tuning.Train, cars, 1)), line, front ?? (route is null ? 2_000 : 400), boiler ? Tuning.Boiler : null);
         train.Dynamics.Velocity = speed;
         World = new World(train, Tuning.Combat);
-        World.EnableEnemies(Tuning.Enemies, route, seed, crew: 4, authority: true);
+        World.EnableEnemies(enemies ?? Tuning.Enemies, route, seed, crew: 4, authority: true);
     }
 
     public TrainOnLine Train => World.Train;
@@ -228,10 +230,14 @@ public class EnemyTests
             // Held, they do nothing (a Use held would be a solo struggle).
             if (n.Crew[id].Has(PlayerFlags.Held))
                 return default;
+            // Its rack kept fed (note 374): a walker bringing the powder up as it goes.
+            if (Guns.Ready(n.Train.Vehicles[guard].Gun, Tuning.Combat.Guns) == 0)
+                Guns.Fill(n.Train, guard, Tuning.Combat.Guns);
             // GDD v1.1 App. C.3: powder, ball, ram between shots (Use held at the gun).
             if (n.Train.Vehicles[guard].Gun.ReloadNeeded > 0 || n.Train.Vehicles[guard].Gun.Jammed)
                 return new PlayerIntent { Buttons = PlayerButtons.Use };
-            var target = pack.Where(h => !h.Gone && h.Attached < 0).OrderByDescending(h => h.LineDistance).FirstOrDefault();
+            // Any running hound: the director's own pack too (its dice can send one in the 90 s).
+            var target = n.World.ActiveEnemies.OfType<CinderHound>().Where(h => !h.Gone && h.Attached < 0).OrderByDescending(h => h.LineDistance).FirstOrDefault();
             // Nothing to shoot at: a gunner with no restraint fires anyway.
             if (target is null)
                 return fireAtRange(double.PositiveInfinity) ? new PlayerIntent { Buttons = PlayerButtons.Fire } : default;
@@ -265,7 +271,8 @@ public class EnemyTests
         // Gathered and out over the train; a fouled bore or two (GDD §23, note 183) can hold the swarm off past the 90 s.
         if (n.Crew[1].Alive && n.World.Choir.Present)
             n.Run(30, _ => default);
-        Assert.True(n.Crew[1].Death == DeathCause.Seized, $"{n.Crew[1].Death}: build {n.World.Choir.Build:0.00} present {n.World.Choir.Present} spent {n.World.Choir.Spent} loud {n.World.Choir.Loudness:0.00} ammo {n.Train.Vehicles[guard].Gun.Ammo} ghosts {n.World.ActiveEnemies.Count(e => e is ChoirGhost)}");
+        // It seized him. (Note 288: held, he stops firing, and his quiet is what lets him go; under the old rule it took him.)
+        Assert.True(n.Events.Any(e => e.Kind == EnemyKind.Choir && e.To == SpinePhase.Grab) || n.Crew[1].Death == DeathCause.Seized, $"{n.Crew[1].Death}: build {n.World.Choir.Build:0.00} present {n.World.Choir.Present} spent {n.World.Choir.Spent} loud {n.World.Choir.Loudness:0.00} ammo {n.Train.Vehicles[guard].Gun.Ammo} ghosts {n.World.ActiveEnemies.Count(e => e is ChoirGhost)}");
     }
 
     [Fact]
@@ -296,7 +303,7 @@ public class EnemyTests
     public void TheChoirSeizesOnlyWhoeverIsExposed()
     {
         // GDD v1.1 App. A.7: it seizes "anyone outside, on the roofs, or behind no closed door"; a seize is a grab, and
-        // nobody kills the one holding them, so it's a death.
+        // nobody kills the one holding them, so it's a death. Note 288: the crew stay loud (a hush would break the seize).
         var n = new Night(6, speed: 10);
         var inside = new PlayerState { Parent = 3, Position = new Double3(-0.45, Tuning.Train.Geometry.Interior!.FloorHeight, 0), Surface = Surface.Deck, Health = P.Health };
         n.Crew[1] = inside;
@@ -305,7 +312,7 @@ public class EnemyTests
         n.Run(0.2);
         Assert.True(n.World.Choir.Present);
         Assert.Equal(E.Choir.Ghosts, n.World.ActiveEnemies.Count(e => e is ChoirGhost));
-        n.Run(E.Choir.SeizeSeconds + 15);
+        n.Run(E.Choir.SeizeSeconds + 15, _ => new PlayerIntent { Voice = 255 });
         Assert.Equal(P.Health, n.Crew[1].Health);
         Assert.Equal(DeathCause.Seized, n.Crew[2].Death);
         // One taken and it's gone for the run.
@@ -371,16 +378,20 @@ public class EnemyTests
             Assert.NotEmpty(d.Log);
             // The condition-triggered ones (App. B.5) come whenever their condition holds, grace or no: here, nobody's
             // minding the fire.
-            // Paced spawns (quiet too long) come when they must, cooldown or not.
+            // Nothing of the director's own before the night's grace, pressed or not (note 266).
+            Assert.All(d.Log.Where(l => l.Kind is not EnemyKind.Stoker), l => Assert.True(l.Tick * SimConstants.TickSeconds >= d.Grace, $"spawn at {l.Tick / 30} s"));
+            // Pressed spawns (the pressure at pressAt) come when they must, cooldown or not.
             var spawns = d.Log.Where(l => l.Kind is not EnemyKind.Stoker && !l.Paced).ToList();
-            Assert.All(spawns, l => Assert.True(l.Tick * SimConstants.TickSeconds >= E.Director.GraceSeconds, $"spawn at {l.Tick / 30} s"));
             for (int i = 1; i < spawns.Count; i++)
                 Assert.True((spawns[i].Tick - spawns[i - 1].Tick) * SimConstants.TickSeconds >= E.Director.CooldownSeconds[0] - 1);
-            // The caps are on what's engaged; the condition-triggered ones aren't capped (App. B.5).
+            // The caps are on what's engaged; the condition-triggered ones aren't capped (App. B.5). A long train's two each
+            // (note 647; from 8 cars in the director's roster, note 652) grows the hard cap in step.
+            var o = E.Director.Orchestrator;
+            int hard = (int)Math.Round(E.Director.MaxConcurrentSmallCrew * o.PerPlayerFor(10) / o.PerPlayer);
             Assert.All(d.Log.Where(l => l.Kind is not EnemyKind.Stoker),
-                l => Assert.True(l.ActiveInZone <= E.Director.MaxConcurrentZone && l.ActiveTotal <= E.Director.MaxConcurrentSmallCrew, $"{l}"));
+                l => Assert.True(l.ActiveInZone <= E.Director.MaxConcurrentZone && l.ActiveTotal <= hard, $"{l}"));
             Assert.All(d.Log, l => Assert.True(l.TrainDistance <= route.Length - 500));
-            // The budget holds for what's spent on its curve; a paced spawn may overdraw it (a quiet night's worse).
+            // The budget holds for what's spent on its curve; a pressed spawn may overdraw it (a quiet night's worse).
             Assert.True(d.Log.Where(l => !l.Paced).Sum(l => l.Cost) <= d.Budget + 1e-9);
             n.AssertFair();
         }

@@ -38,6 +38,7 @@ public static class GrabAudit
     [
         EnemyKind.CarHugger, EnemyKind.Dragger, EnemyKind.Whistler, EnemyKind.TippyToesie, EnemyKind.Ribbit, EnemyKind.SootChildren,
         EnemyKind.Choir, EnemyKind.Passenger, EnemyKind.Climber, EnemyKind.Gaunt, EnemyKind.CinderHound, EnemyKind.Grumbler,
+        EnemyKind.Moose, EnemyKind.Gannet, EnemyKind.Knotter,
     ];
 
     const int Cars = 6;
@@ -66,7 +67,7 @@ public static class GrabAudit
         PlayerIntent Act(int id, PlayerState s) =>
             id == rig.Victim ? rig.VictimIntent(n, s)
             : !friendsHelp ? stir
-            : (Holder() is not null ? rig.Friend?.Invoke(id, s) : null) ?? Heed.Rescue(stir, s, n.World, id);
+            : (Holder() is not null ? rig.Friend?.Invoke(id, s) : null) ?? Heed.Rescue(stir, s, n.World, id, [.. n.Crew.Select(x => (x.Key, x.Value))]);
         Enemy? Holder() => n.World.ActiveEnemies.FirstOrDefault(x => x.Kind == kind && x.Phase == SpinePhase.Grab && x.Holding >= 0);
         n.Run(t.GrabWithinSeconds, Act, () => Holder() is not null);
         if (Holder() is not { } holder)
@@ -219,6 +220,8 @@ public static class GrabAudit
                     // it takes a lone player), so the friends are up on the roof of the car behind; when it grabs they come down
                     // onto the plate and in at the car's rear door, as the bots go in to a fire (WarmUp.Into), then at it.
                     var n = new AuditNight(c, Cars, 12, crew);
+                    // Car 3's door left open: a lit car shut up tight they'd pass over, to the cab (note 633).
+                    n.Train.Vehicles[3].ToggleDoor(0);
                     var climber = n.World.AddEnemy(id => Climber.Pacing(id, n.Train, 3, 1, e.Climbers));
                     n.Run(e.Climbers.PaceSeconds + e.Climbers.ScrabbleSeconds + 30, (_, _) => default, () => climber.Inside);
                     int car = climber.Attached >= 1 ? climber.Attached : 3;
@@ -251,6 +254,32 @@ public static class GrabAudit
                     double off = Off(c, e.Gaunt.StirAt);
                     Friends(n, crew, off, (d, i) => n.Ground(2, 4 + (i % 2) * 1.5, -d - i / 2 * 1.2));
                     return new(n, v, "woken, hurt, and nobody talking", Still);
+                }
+            case EnemyKind.Gannet:
+                {
+                    // A crewmate who's hit it, out on car 2's roof at speed; friends along the same roof (note 340).
+                    var n = new AuditNight(c, Cars, 20, crew);
+                    int v = n.Add(n.Roof(2, 0));
+                    n.World.AddEnemy(id => Gannet.Marking(id, n.Train, e.Gannet, e.Gannet.SoarHeight[0], v));
+                    double off = Off(c, 0);
+                    Friends(n, crew, off, (d, i) => n.Roof(2, (i % 2 == 0 ? 1 : -1) * (d + i / 2 * 0.7)));
+                    return new(n, v, "on the roofs at 20 m/s, its mark", Still);
+                }
+            case EnemyKind.Moose:
+                {
+                    // At a stop, a crewmate already hurt out on the ground, the moose riled at them from further out (note 339);
+                    // friends along the train, out of its path.
+                    var n = new AuditNight(c, Cars, 0, crew);
+                    var s = n.Ground(2, 8);
+                    s.Health = (int)e.Moose.GrabBelowHealth;
+                    int v = n.Add(s);
+                    var at = n.Where(v);
+                    var frame = n.Train.Frames[2];
+                    var outward = (at - frame.Origin) with { Y = 0 };
+                    n.World.AddEnemy(id => Moose.Enraged(id, at + outward.Normalized * 18, n.Train.Dynamics.Distance, v));
+                    double off = Off(c, 0);
+                    Friends(n, crew, off, (d, i) => n.Ground(2, 3, (i % 2 == 0 ? 1 : -1) * (d + i / 2 * 1.2)));
+                    return new(n, v, "hurt on the ground at a stop, the moose riled at them", Still);
                 }
             case EnemyKind.CinderHound:
                 {
@@ -285,6 +314,26 @@ public static class GrabAudit
                         double yaw = DMath.Atan2(-to.X, -to.Z);
                         return new PlayerIntent { Actions = PlayerActions.Swing, LookYaw = (float)Math.IEEERemainder(yaw - self.Yaw, 2 * Math.PI) };
                     });
+                }
+            case EnemyKind.Knotter:
+                {
+                    // Taut at speed, its gap behind car 2 forced; out on its back, the friends along it either side (note 365:
+                    // "broken by a friend at the gap", and its coil's too short for anyone further to come). Whoever slips
+                    // first is the one held; the rest are at the gap (note 367's KnotRescue).
+                    var n = new AuditNight(c, Cars, 12, crew);
+                    n.World.AddEnemy(id => Knotter.Into(id, n.Train, 2, e.Knotter));
+                    n.Run(e.Knotter.CreepSeconds + e.Knotter.ForceSeconds + 0.5, (_, _) => default);
+                    double l = n.Train.Frames[2].Shape.HalfLength, length = n.Train.Dynamics.Tuning.Geometry.CouplingGap + n.Train.Vehicles[2].Knot;
+                    PlayerState Rope(double along)
+                    {
+                        var g = n.Train.Dynamics.Tuning.Geometry;
+                        var s = n.Gap(2);
+                        s.Position = new Double3(g.PlateX, g.CouplerHeight, l + Math.Clamp(along, 0.4, length - 0.4));
+                        return s;
+                    }
+                    int v = n.Add(Rope(length / 2));
+                    Friends(n, crew, 0, (_, i) => Rope(length / 2 + (i % 2 == 0 ? 1 : -1) * (0.7 + i / 2 * 0.5)));
+                    return new(n, v, "on its back, taut at 12 m/s", Still);
                 }
             default:
                 throw new ArgumentOutOfRangeException(nameof(kind), $"{kind} has no grab");

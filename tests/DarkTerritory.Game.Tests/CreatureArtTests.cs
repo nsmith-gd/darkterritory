@@ -14,7 +14,7 @@ namespace DarkTerritory.Game.Tests;
 /// without a pop, and skins the same way every time. The turntables render each clip at 480×270, lantern-lit in the
 /// night's fog, into out/shots/creatures/ for a person to look at (CLAUDE.md: "look at your visual changes").
 /// </summary>
-public class CreatureArtTests
+public class CreatureArtTests(CreatureArtTests.TurntableRig rig) : IClassFixture<CreatureArtTests.TurntableRig>
 {
     static readonly string Repo = Path.GetDirectoryName(DataFile.FindContentRoot())!;
     // DT_CONTENT lets a turntable run against a content folder with textures not yet checked in.
@@ -30,7 +30,9 @@ public class CreatureArtTests
         // Characters (GDD §27: 4-10k; the crew brief: at most 9k, aim for chunky 3-5k). SK_Human: at most 60 bones.
         // Its actions come from crew_clips.glb, merged on load (note 145).
         ["crew"] = new(2500, 9000, 20, 60, ["idle", "walk", "run", "climb", "shovel", "crouch_idle", "carry", "carry_walk", "drag", "drag_fwd", "door",
-            "handbrake", "hatch", "uncouple", "vent", "lever", "push", "held", "gunner", "fall", "mend", "fp_hold", "fp_walk"], ["dead", "swing", "fp_swing"]),
+            "handbrake", "hatch", "uncouple", "vent", "lever", "push", "held", "gunner", "fall", "mend", "fp_hold", "fp_walk",
+            // (Note 375's stumble; note 378's rescues by the grab; note 407's prisoner's shuffle.)
+            "stumble", "pull_mouth", "pry_off", "haul_down", "shuffle"], ["dead", "swing", "fp_swing", "jump"]),
         // The crew figure gone wrong (the Climbers and the Deadman): the crew's own rig and clips.
         ["husk"] = new(2500, 9000, 20, 60, ["idle", "walk", "run", "climb", "shovel", "crouch_idle"], ["dead"]),
         ["switchman"] = new(2000, 9000, 20, 60, ["wait", "flee", "grip"], ["throw"]),
@@ -42,7 +44,7 @@ public class CreatureArtTests
         // Livestock (GDD §19): a prop's budget, packed a dozen to a car; its own small quadruped rig.
         ["sheep"] = new(600, 3000, 12, 30, ["idle", "shuffle", "bleat"], ["startle"]),
         // SK_Quad: 40-55 bones.
-        ["cinder_hound"] = new(4000, 8000, 40, 55, ["prowl", "run", "crouch", "bite"], ["lunge", "board", "hit"]),
+        ["cinder_hound"] = new(4000, 8000, 40, 55, ["prowl", "run", "crouch", "bite", "patrol", "sniff"], ["lunge", "board", "hit", "leap", "drop", "climb"]),
         // A chain of 8-12, plus a root.
         ["sleeper"] = new(400, 3000, 8, 13, ["dormant", "writhe"], ["lift"]),
         ["clinger"] = new(1500, 6000, 10, 45, ["cling", "drill"], ["punish"]),
@@ -63,7 +65,7 @@ public class CreatureArtTests
         // A swarm's (App. A.7): several at once, so light; SK_Human at a child's size, the legs hidden in its strips.
         ["choir"] = new(1000, 3000, 20, 60, ["drift", "swoop", "seize", "besiege"], ["hit"]),
         // A character (App. A.6), SK_Human stretched to near three metres: down on its arms and squatted aboard (note 118).
-        ["gaunt"] = new(3000, 9000, 20, 60, ["sleep", "follow", "listen", "attack", "crawl", "squat", "smash"], ["stir", "hit"]),
+        ["gaunt"] = new(3000, 9000, 20, 60, ["sleep", "follow", "listen", "attack", "crawl", "squat", "smash", "carry", "carry_low"], ["stir", "hit"]),
         // A character's (App. A.8), SK_Human with a jaw and a second pair of arms out of its ribs: down like a spider.
         ["grumbler"] = new(3000, 9000, 30, 60, ["gnaw", "scuttle", "bite", "maul"], ["hit"]),
         // A character's (App. A.5), SK_Human shrunk with a jaw: only ever seen at the firebox door, so light.
@@ -76,6 +78,39 @@ public class CreatureArtTests
         ["fire_fly"] = new(600, 1500, 10, 20, ["flutter", "settle"], []),
         // A character's (App. A.8), SK_Human at a man's height: it passes for crew, so it's dressed as one.
         ["passenger"] = new(3000, 9000, 20, 60, ["stand", "walk", "drag", "pin"], ["hit"]),
+        // A large monster (GDD §27: 8-16k; docs/design/creatures/moose.md §3), on its own quadruped rig (SK_Moose: the rack a bone
+        // a side, the velvet, the sac ridge, the bell); every clip the brief asks for.
+        ["moose"] = new(8000, 16000, 30, 55, ["graze", "listen", "warn", "walk", "strut", "search", "trot", "charge", "snag", "ram", "pin", "trainPass"],
+            ["squareUp", "overrun", "hit"]),
+        // A large monster (GDD §27: 8-16k; docs/design/creatures/gannet.md §3), on its own bird rig (SK_Gannet: five bones a
+        // wing, three sacs that swell, a jaw that gapes, the spear's tip a socket); every clip the brief asks for.
+        ["gannet"] = new(8000, 16000, 25, 45, ["soar", "circle", "hang", "dive", "stuck", "climb", "bank", "pin"],
+            ["fold", "stab", "tearFree", "swoop", "land", "peckWindup", "peck", "driven", "hit", "death"]),
+        // A character's, light (docs/design/creatures/mourners.md §3: three to six at a body), on its own rig (SK_Mourner:
+        // three two-boned hooked fingers a hand, the veil a bone); every clip the brief asks for.
+        ["mourner"] = new(3000, 7500, 30, 45, ["wait", "creep", "drag", "scatter"], ["startle", "hit", "death"]),
+        // A beast's, between a character and a large monster (freight-beetle.md §3: a handcart's bulk), on its own rig
+        // (SK_Beetle: six four-boned legs, two palps).
+        ["freight_beetle"] = new(6000, 14000, 28, 40, ["idle", "walk", "brace", "push", "turn"], ["startle", "hit", "death"]),
+        // A large monster (GDD §27: 8-16k; tower-jaw.md §3), on its own rig (SK_TowerJaw: a jaw, a three-boned tail).
+        ["tower_jaw"] = new(8000, 16000, 22, 34, ["gnaw", "turn", "threat", "retreat"], ["lunge", "hit", "death"]),
+        // The train's own (the director's brief of 8 Oct 2026; docs/design/creatures/brakeman.md, knotter.md, hotbox.md §3).
+        // The Brakeman a character (GDD §27: 4-10k), SK_Human with the lash's chain and the lamp's bone.
+        ["brakeman"] = new(4000, 10000, 28, 40, ["walk", "wind", "flee", "cornered"], ["jump", "drop", "climb", "lash", "hit", "death"]),
+        // The Knotter 5 m of rope as thick as a thigh: a large monster's (8-16k) lower half; SK_Knotter's segments and claws.
+        ["knotter"] = new(6000, 14000, 40, 60, ["creep", "force", "taut", "coil", "exposed"], ["clamp", "slip", "hit", "death"]),
+        // Hotbox a beast's (2-8k), the size of a dog; SK_Hotbox's plates, belly and sixteen legs.
+        ["hotbox"] = new(2000, 8000, 35, 55, ["clamped", "knock", "glow", "out", "scuttle"], ["unfold", "snap", "prised", "hit", "death"]),
+        // The Hanger (note 586; the director, 9 Oct 2026), a beast's (2-8k): a sac and ten thin legs on its own rig (SK_Hanger: three
+        // bones a leg, the sac breathing by scale, the mouth, two palps); a clip for each of its modes (HangerMode) and its death.
+        ["hanger"] = new(2000, 8000, 30, 45, ["hidden", "haul", "hold", "retreat"], ["grab", "hit", "death"]),
+        // The Pickers (pickers.md §3): a beast's (GDD §27: 2-8k), a group of up to eight at once, so kept light; their own rig
+        // (SK_Picker: three three-boned fingers and a thumb a hand, a jaw, the ears).
+        ["picker"] = new(3000, 7000, 40, 55, ["idle", "scuttle", "carry", "heave", "scatter"], ["grab", "bite", "emerge", "descend", "hit", "death"]),
+        // The house creatures (notes 583, 584): characters (GDD §27: 4-10k), each on its own rig. The Lodger's SK_Lodger: a
+        // jaw that drops open, three three-boned fingers a hand. The Householder's SK_Householder: four three-boned fingers.
+        ["lodger"] = new(5000, 10000, 40, 55, ["hidden", "chase", "break", "return"], ["shriek", "lunge", "hit", "death"]),
+        ["householder"] = new(6000, 10000, 45, 60, ["sit", "watch", "hunt", "grab", "return"], ["rise", "hit", "death"]),
     };
 
     public static TheoryData<string> Models() => [.. CreatureArt.Names];
@@ -106,7 +141,9 @@ public class CreatureArtTests
         // car hugger's at its mouth on the rear platform, its body down to the rail; a Choir ghost flies, its strips hanging
         // below where it is; the Stoker's is the firebox door, its body in the fire behind and below it; a Fire Fly's is its
         // body's middle, its legs under it, for the glass it settles on).
-        if (name is not ("clinger" or "dragger" or "weight" or "car_hugger" or "choir" or "stoker" or "fire_fly"))
+        // (The Knotter's is the gap's middle at the coupler's height, the rope through it; the Hanger's the underside of the beams
+        // it hangs from, all of it below but its feet's hooks.)
+        if (name is not ("clinger" or "dragger" or "weight" or "car_hugger" or "choir" or "stoker" or "fire_fly" or "knotter" or "hanger"))
         {
             Assert.InRange(m.Min.Y, -0.02f, 0.05f);
             Assert.InRange((m.Min.X + m.Max.X) / 2, -0.25f, 0.25f);
@@ -125,6 +162,60 @@ public class CreatureArtTests
         var hound = Get("cinder_hound");
         Assert.InRange(hound.Max.Z - hound.Min.Z, 1.25f, 1.9f); // nose to tail's root and beyond
         Assert.True(hound.Min.Z < -0.5f, "the hound's head is forward (−Z)");
+        // The Gannet (gannet.md §3): a 7 m wingspan, the widest thing in the roster, and 2.3 m tall stood on a roof; its
+        // metre of spear forward (−Z).
+        var gannet = Get("gannet");
+        Assert.InRange(gannet.Max.X - gannet.Min.X, 6.8f, 7.2f);
+        Assert.InRange(Height(gannet), 2.2f, 2.45f);
+        Assert.True(gannet.Min.Z < -2.1f, "the gannet's spear is forward (−Z)");
+        // The Moose (moose.md §3): 2.4 m at the shoulder, about 3.4 m to the top of its rack, and the rack 3.2 m across, the
+        // widest thing on the ground; its head forward (−Z).
+        var moose = Get("moose");
+        Assert.InRange(Height(moose), 3.2f, 3.5f);
+        Assert.InRange(moose.Max.X - moose.Min.X, 3.1f, 3.35f);
+        Assert.True(moose.Min.Z < -1.5f, "the moose's head is forward (−Z)");
+        // The Mourners (mourners.md §3): about 1.2 m stood, but never stood: stooped to about a metre; their hands (hooked)
+        // forward of them (−Z).
+        var mourner = Get("mourner");
+        Assert.InRange(Height(mourner), 0.95f, 1.25f);
+        Assert.True(mourner.Min.Z < -0.3f, "the mourner's hands are forward (−Z)");
+        // The Freight Beetle (freight-beetle.md §3): 2.4 m long, 1.4 m to the top of its back; its shovel forward (−Z).
+        var beetle = Get("freight_beetle");
+        Assert.InRange(Height(beetle), 1.3f, 1.55f);
+        Assert.InRange(beetle.Max.Z - beetle.Min.Z, 2.3f, 2.6f);
+        Assert.True(beetle.Min.Z < -1.0f, "the beetle's shovel is forward (−Z)");
+        // Tower Jaw (tower-jaw.md §3): about 1.6 m at the shoulder (its spines over that), its incisors forward (−Z), its
+        // tail out behind.
+        var jaw = Get("tower_jaw");
+        Assert.InRange(Height(jaw), 1.75f, 2.35f);
+        Assert.True(jaw.Min.Z < -1.5f && jaw.Max.Z > 2.0f, "tower jaw's teeth forward (−Z), its tail behind");
+        // The Brakeman (brakeman.md §3): a tall gaunt man stood up in his cap (he stoops in every clip), the wheel on his back.
+        Assert.InRange(Height(Get("brakeman")), 1.85f, 2.0f);
+        // The Knotter (knotter.md §3): 5 m across a forced coupling, claw to claw (CreatureArt lays it along the gap), its
+        // body thick as a thigh; along −Z.
+        var knotter = Get("knotter");
+        Assert.InRange(knotter.Max.Z - knotter.Min.Z, 5.3f, 5.8f);
+        Assert.InRange(Height(knotter), 0.15f, 0.5f);
+        // Hotbox (hotbox.md §3): about 1.1 m long and 0.4 m high under its carapace, its legs splayed out past it fore and aft.
+        var hotbox = Get("hotbox");
+        Assert.InRange(hotbox.Max.Z - hotbox.Min.Z, 1.3f, 1.65f);
+        Assert.InRange(Height(hotbox), 0.3f, 0.5f);
+        // The Hanger (note 586): hung upside down from the beams at its origin, its body and its knees below, its feet's hooks
+        // just up over them; about 2.3 m across its braced legs, a pale sac half a metre deep; its head forward (−Z).
+        var hanger = Get("hanger");
+        Assert.InRange(hanger.Max.Y, 0f, 0.06f);
+        Assert.InRange(hanger.Min.Y, -0.8f, -0.45f);
+        Assert.InRange(hanger.Max.X - hanger.Min.X, 2.0f, 2.6f);
+        Assert.True(hanger.Min.Z < -0.9f, "the hanger's front legs reach forward (−Z)");
+        // The Pickers (pickers.md §3): knee-high, about 0.5 m at the shoulder and 0.9 m long, crouched on all fours at rest; the
+        // head and the long hands forward (−Z).
+        var picker = Get("picker");
+        Assert.InRange(Height(picker), 0.45f, 0.62f);
+        Assert.InRange(picker.Max.Z - picker.Min.Z, 0.75f, 1.0f);
+        Assert.True(picker.Min.Z < -0.4f, "the picker's head and hands are forward (−Z)");
+        // The Lodger (lodger.md): about 2.1 m stood up; the Householder tall and thin, about 1.95 m.
+        Assert.InRange(Height(Get("lodger")), 2.0f, 2.2f);
+        Assert.InRange(Height(Get("householder")), 1.88f, 2.02f);
         var sleeper = Get("sleeper");
         Assert.InRange(sleeper.Max.X - sleeper.Min.X, 2.5f, 3.1f);
         Assert.InRange(Height(sleeper), 0.2f, 0.45f);
@@ -196,6 +287,76 @@ public class CreatureArtTests
         Assert.InRange(b, a / 4, a * 6 / 10);
         Assert.Equal(full.Materials.Length, lod.Materials.Length);
         Assert.All(lod.Parts, p => Assert.All(p.Joints, j => Assert.InRange(j, 0, full.Skeleton.Count - 1)));
+    }
+
+    /// <summary>
+    /// The Pickers, the Lodger and the Householder (notes 574, 583, 584): no part of one through another beyond touching in
+    /// any clip (Clearance.Mesh, as the demo's), and a distance copy two fifths or so of it on the same bones (a group of
+    /// Pickers is eight at once).
+    /// </summary>
+    [Theory]
+    [InlineData("picker")]
+    [InlineData("lodger")]
+    [InlineData("householder")]
+    public void TheYardAndHouseCreaturesStayOutOfThemselvesAndHaveADistanceCopy(string name)
+    {
+        var full = Get(name);
+        var through = Clearance.Mesh(full).Where(o => o.Depth > Clearance.Touching).ToList();
+        Assert.True(through.Count == 0, string.Join("; ", through.Select(o => $"{o.Clip} {o.Pair} {o.Depth:0.000} at {o.At:0.00} s")));
+        var lod = Art.LodOf(name);
+        Assert.NotNull(lod);
+        int a = full.Parts.Sum(p => p.Triangles), b = lod.Parts.Sum(p => p.Triangles);
+        Assert.InRange(b, a / 4, a * 6 / 10);
+        Assert.Equal(full.Materials.Length, lod.Materials.Length);
+    }
+
+    /// <summary>
+    /// Every mode the sim gives a Picker, the Lodger and the Householder has a clip of its own (CreatureArt.PickerClip,
+    /// LodgerClip, HouseholderClip), and is drawn from the enemy's own state; a Picker down its drain isn't drawn.
+    /// </summary>
+    [Fact]
+    public void TheYardAndHouseCreaturesDrawEveryModeFromTheSimsState()
+    {
+        var picker = Get("picker");
+        foreach (var mode in Enum.GetValues<PickerMode>())
+            foreach (double t in new[] { 0.0, 0.2, 3.0 })
+                if (CreatureArt.PickerClip(mode, null, t, 2.5f) is { } play)
+                    Assert.Contains(play.Clip, picker.ClipNames);
+        Assert.Null(CreatureArt.PickerClip(PickerMode.Down, PickerMode.Down, 1.0, 0));
+        Assert.Equal("bite", CreatureArt.PickerClip(PickerMode.Scatter, PickerMode.Bite, 0.1, 4)?.Clip);
+        Assert.Equal("grab", CreatureArt.PickerClip(PickerMode.Carry, PickerMode.Scuttle, 0.1, 2)?.Clip);
+        foreach (var mode in Enum.GetValues<LodgerMode>())
+            foreach (double t in new[] { 0.0, 0.7, 3.0 })
+                Assert.Contains(CreatureArt.LodgerClip(mode, t, 3).Clip, Get("lodger").ClipNames);
+        foreach (var mode in Enum.GetValues<HouseholderMode>())
+            Assert.Contains(CreatureArt.HouseholderClip(mode, 0.5).Clip, Get("householder").ClipNames);
+
+        var mesh = new MeshBuilder();
+        var model = Matrix4x4.CreateTranslation(0, 0, -6);
+        int Drawn(Enemy e)
+        {
+            mesh.Clear();
+            Assert.True(Art.Enemy(mesh, model, e, modeSeconds: 0.6));
+            return mesh.Flattened().Length + mesh.Instances.Count;
+        }
+        foreach (var mode in Enum.GetValues<PickerMode>())
+        {
+            var p = new Picker(1);
+            p.Restore(SpinePhase.Telegraph, 0.6, 1, Enemy.Loose, default, 0, 0, (double)mode, -1, 0);
+            Assert.True(mode == PickerMode.Down ? Drawn(p) == 0 : Drawn(p) > 0, $"picker {mode}");
+        }
+        foreach (var mode in Enum.GetValues<LodgerMode>())
+        {
+            var l = new Lodger(2);
+            l.Restore(SpinePhase.Alert, 0.6, 1, Enemy.Loose, default, 0, 0, (double)mode, -1, 0);
+            Assert.True(Drawn(l) > 0, $"lodger {mode}");
+        }
+        foreach (var mode in Enum.GetValues<HouseholderMode>())
+        {
+            var h = new Householder(3);
+            h.Restore(SpinePhase.Alert, 0.6, 1, Enemy.Loose, default, 0, 0, (double)mode, -1, 0);
+            Assert.True(Drawn(h) > 0, $"householder {mode}");
+        }
     }
 
     [Theory]
@@ -279,7 +440,9 @@ public class CreatureArtTests
                     // mound sunk in the low ground by the line, App. A.3 LURK.)
                     bool hidden = kind == EnemyKind.Dragger && phase is not (SpinePhase.Telegraph or SpinePhase.Grab or SpinePhase.Punish)
                         || kind == EnemyKind.Stoker
-                        || kind == EnemyKind.FireFlies && phase == SpinePhase.Dormant;
+                        || kind == EnemyKind.FireFlies && phase == SpinePhase.Dormant
+                        // The Hollow House is its house (GreyboxScene.Houses moves the house's own drawing): nothing of its own.
+                        || kind == EnemyKind.HollowHouse;
                     // A car fire is an effect (Effects.CarFire): smoke and flame billboards, no triangles of its own.
                     if (kind == EnemyKind.CarFire)
                         Assert.True(mesh.AlphaFx.Count + mesh.AdditiveFx.Count > 0, $"{kind} {phase} drew no smoke or flame");
@@ -374,6 +537,32 @@ public class CreatureArtTests
     }
 
     [Fact]
+    public void ACinderHoundCarriesItsOwnLightUnderItsKeel()
+    {
+        // Note 320: at night a pack reads by the pools of ember light each hound runs in, so every hound drawn brings its
+        // light, under its body (where it lights its legs and the ground, not its char), not off on its own somewhere.
+        var tuning = DataFile.Load<Sim.Train.TrainTuning>(Path.Combine(Content, Sim.Train.TrainTuning.File));
+        var line = Sim.Rail.RailLine.Load(Path.Combine(Content, "lines", "test-loop.json"));
+        var train = new Sim.Train.TrainOnLine(new Sim.Train.TrainDynamics(Sim.Train.Consist.Uniform(tuning, 6, 1)), line, 1200);
+        var pack = Staging.Threats(train).Where(e => e.Kind == EnemyKind.CinderHound && e.Attached < 0).ToList();
+        Assert.Equal(3, pack.Count);
+        var eye = pack[0].WorldPosition(train) + new Double3(4, 3, 6);
+        var scene = new GreyboxScene { Look = Look, Time = 0.37, Enemies = [.. pack] };
+        var mesh = new MeshBuilder();
+        scene.Build(mesh, train, eye);
+        foreach (var hound in pack)
+        {
+            var at = hound.WorldPosition(train) - eye;
+            var feet = new Vector3((float)at.X, (float)at.Y, (float)at.Z);
+            var own = mesh.PointLights.Where(l => new Vector2(l.Position.X - feet.X, l.Position.Z - feet.Z).Length() < 0.6f).ToList();
+            Assert.True(own.Count == 1, $"hound {hound.Id}: {own.Count} lights over it");
+            float up = own[0].Position.Y - feet.Y;
+            Assert.InRange(up, 0.15f, 0.6f);
+            Assert.True(own[0].Range >= 3, $"reach {own[0].Range}");
+        }
+    }
+
+    [Fact]
     public void TheChoirDrivenOffIsSeenGoingUpAndAwayThenIsGone()
     {
         // GreyboxScene.Leaving: the sim dismisses the swarm the tick it's driven off (World: quiet held); the scene that saw
@@ -406,6 +595,273 @@ public class CreatureArtTests
     }
 
     [Fact]
+    public void AHoundScatteredByABallRunsOffTheLineIntoTheDarkThenIsGone()
+    {
+        // GreyboxScene.Fleeing (note 451): a ball landing near a runner has it gone from the sim that tick; the scene that saw
+        // it last frame draws it running on, falling behind a running train and peeling off on its own side, turned the way
+        // it's going, until CreatureArt.HoundRunOffSeconds, then not.
+        var tuning = DataFile.Load<Sim.Train.TrainTuning>(Path.Combine(Content, Sim.Train.TrainTuning.File));
+        var line = Sim.Rail.RailLine.Load(Path.Combine(Content, "lines", "test-loop.json"));
+        var train = new Sim.Train.TrainOnLine(new Sim.Train.TrainDynamics(Sim.Train.Consist.Uniform(tuning, 6, 1)), line, 1200);
+        var pack = Staging.Run(train);
+        var hound = pack.OfType<CinderHound>().First(h => h.Phase == SpinePhase.Commit);
+        var near = train.Line.Sample(hound.LineDistance);
+        var start = hound.WorldPosition(train);
+        var eye = start + new Double3(0, 6, 0) + Double3.Cross(near.Tangent, Double3.Up).Normalized * (Math.Sign(hound.Lateral) * -12);
+        var scene = new GreyboxScene { Look = Look, Time = 0.37, Enemies = pack, Tick = Staging.StrikeTick };
+        // The hounds drawn, each by where it stands (each is one model instance) and the way it faces (its model's −Z).
+        List<(Vector3 At, Vector3 Facing)> Hounds(double after)
+        {
+            scene.Tick = Staging.StrikeTick + 1 + (long)Math.Round(after * Sim.SimConstants.TickRate);
+            var mesh = new MeshBuilder();
+            scene.Build(mesh, train, eye);
+            return [.. mesh.Instances.Where(i => i.Asset.Name.Contains("cinder_hound", StringComparison.OrdinalIgnoreCase))
+                .Select(i => (i.Model.Translation, Vector3.Normalize(-Vector3.TransformNormal(Vector3.UnitZ, i.Model) with { Y = 0 })))];
+        }
+        var there = Hounds(-1.0 / Sim.SimConstants.TickRate);
+        Assert.Equal(pack.Count(e => e is CinderHound), there.Count);
+        // Running with the train, it faces along the line: that's the model's −Z.
+        var rel = start - eye;
+        var was = there.MinBy(h => (h.At - new Vector3((float)rel.X, (float)rel.Y, (float)rel.Z)).Length());
+        var along = Vector3.Normalize(new Vector3((float)near.Tangent.X, 0, (float)near.Tangent.Z));
+        var outward = Vector3.Normalize(new Vector3((float)(start.X - near.Position.X), 0, (float)(start.Z - near.Position.Z)));
+        Assert.True(Vector3.Dot(was.Facing, along) > 0.9f, $"facing {was.Facing} along {along}");
+        // Scattered at 21 m/s (the scene's speed is the train's: this one's standing, so it runs on ahead of where it was).
+        pack.Remove(hound);
+        scene.Scattered(hound, Staging.StrikeTick + 1, 21);
+        var off = Hounds(2).Except(there).ToList();
+        var gone = Assert.Single(off);
+        var moved = gone.At - was.At;
+        Assert.True(Vector3.Dot(moved, outward) > 9, $"out across the line: {Vector3.Dot(moved, outward)} m");
+        Assert.True(Vector3.Dot(moved, along) > 20, $"on along it, slowing: {Vector3.Dot(moved, along)} m");
+        Assert.True(Vector3.Dot(gone.Facing, outward) > 0.5f, $"turned off the line: facing {gone.Facing}, out {outward}");
+        Assert.Equal(there.Count - 1, Hounds(CreatureArt.HoundRunOffSeconds + 0.2).Count);
+    }
+
+    [Theory]
+    [InlineData(EnemyKind.Climber, "climber", true)]
+    [InlineData(EnemyKind.Whistler, "whistler", true)]
+    [InlineData(EnemyKind.CinderHound, "cinder_hound", true)]
+    [InlineData(EnemyKind.Ribbit, "ribbit", false)]
+    [InlineData(EnemyKind.Gaunt, "gaunt", false)]
+    [InlineData(EnemyKind.Switchman, "switchman", false)]
+    [InlineData(EnemyKind.Gannet, "gannet", true)]
+    // The night things going to ground at dawn (note 642), and any of these let go of otherwise.
+    [InlineData(EnemyKind.Brakeman, "brakeman", true)]
+    [InlineData(EnemyKind.Grumbler, "grumbler", false)]
+    [InlineData(EnemyKind.Moose, "moose", false)]
+    [InlineData(EnemyKind.FreightBeetle, "freight_beetle", false)]
+    [InlineData(EnemyKind.TowerJaw, "tower_jaw", false)]
+    [InlineData(EnemyKind.Mourners, "mourner", false)]
+    // The stops' own walking off (note 645).
+    [InlineData(EnemyKind.Lodger, "lodger", false)]
+    [InlineData(EnemyKind.Householder, "householder", false)]
+    public void OneLetGoOfInSightIsSeenGoingOffIntoTheDarkThenIsGone(EnemyKind kind, string asset, bool aboard)
+    {
+        // GreyboxScene.Retreating (note 458): the sim has one gone the tick it's done with it (a Climber outnumbered, a Whistler
+        // found in its gap, a hound over the side, a pack that's eaten, the Gaunt with its loot, a Switchman at the lever). The
+        // scene that saw it last frame draws it going: down off the train, out from the line, until CreatureArt.Retreat's time.
+        var tuning = DataFile.Load<Sim.Train.TrainTuning>(Path.Combine(Content, Sim.Train.TrainTuning.File));
+        var line = Sim.Rail.RailLine.Load(Path.Combine(Content, "lines", "test-loop.json"));
+        var train = new Sim.Train.TrainOnLine(new Sim.Train.TrainDynamics(Sim.Train.Consist.Uniform(tuning, 6, 1)), line, 1200);
+        int car = 2;
+        var f = train.Frames[car];
+        var e = Enemy.Blank(kind, 90, kind == EnemyKind.Ribbit ? 60 : 0);
+        if (aboard)
+            // (A Gannet's height is its mode: down in the planks, stuck, where a blow lands.)
+            e.Restore(SpinePhase.Commit, 1, 3, car, new Double3(0.3, f.Shape.RoofHeight, 2), 0, 0, kind == EnemyKind.Gannet ? (double)GannetMode.Stuck : 0, 0, 0);
+        else
+        {
+            var at = f.ToWorld(new Double3(f.Shape.HalfWidth + 4, 0, 0));
+            double hint = train.Cars[car].FrontDistance;
+            e.Restore(SpinePhase.Telegraph, 1, 3, Enemy.Loose, at with { Y = Sim.Player.PlayerMotor.GroundAt(at, line, ref hint) }, 0, 0, 0, -1, 0);
+        }
+        var start = e.WorldPosition(train);
+        var eye = f.ToWorld(new Double3(-12, 6, 0));
+        var staged = new List<Enemy> { e };
+        var scene = new GreyboxScene { Look = Look, Time = 0.37, Enemies = staged, Tick = Staging.StrikeTick };
+        List<Vector3> Drawn(double after)
+        {
+            scene.Tick = Staging.StrikeTick + 1 + (long)Math.Round(after * Sim.SimConstants.TickRate);
+            var mesh = new MeshBuilder();
+            scene.Build(mesh, train, eye);
+            return [.. mesh.Instances.Where(i => i.Asset.Name.Contains(asset, StringComparison.OrdinalIgnoreCase)).Select(i => i.Model.Translation)];
+        }
+        // Where it's drawn: its model's place (the middle of them, were it several).
+        static Vector3 At(List<Vector3> drawn)
+        {
+            Assert.NotEmpty(drawn);
+            return drawn.Aggregate(Vector3.Zero, (a, b) => a + b) / drawn.Count;
+        }
+        var was = At(Drawn(-1.0 / Sim.SimConstants.TickRate));
+        staged.Remove(e);
+        scene.Retreated(e, (uint)(Staging.StrikeTick + 1), 0);
+        var going = At(Drawn(1));
+        // Out from the line on its own side (the eye's on the train's other side): further from the eye, and off the train.
+        var rel = start - eye;
+        var from = new Vector3((float)rel.X, (float)rel.Y, (float)rel.Z);
+        double outward = CreatureArt.Retreat(kind)!.Value.Out;
+        Assert.True((going - from).Length() > 0.8 * outward, $"{kind}: moved {(going - from).Length():0.0} m from where it was");
+        Assert.True(going.Length() > was.Length() + 0.5 * outward, $"{kind}: away from the eye: {was.Length():0.0} → {going.Length():0.0} m");
+        Assert.Empty(Drawn(CreatureArt.Retreat(kind)!.Value.Seconds + 0.2));
+    }
+
+    [Theory]
+    [InlineData(EnemyKind.Pickers, "picker", 0.0)]
+    [InlineData(EnemyKind.Hanger, "hanger", 2.3)]
+    public void APickerLetGoOfGoesDownIntoTheGroundAndAHangerUpIntoItsRoof(EnemyKind kind, string asset, double up)
+    {
+        // Note 645: at dawn (note 635) the stops' own are let go of like the rest; a Picker isn't seen walk off but go down,
+        // head first, where it stands, and a Hanger is drawn up into the roof it hangs in. Both are then gone.
+        var tuning = DataFile.Load<Sim.Train.TrainTuning>(Path.Combine(Content, Sim.Train.TrainTuning.File));
+        var line = Sim.Rail.RailLine.Load(Path.Combine(Content, "lines", "test-loop.json"));
+        var train = new Sim.Train.TrainOnLine(new Sim.Train.TrainDynamics(Sim.Train.Consist.Uniform(tuning, 6, 1)), line, 1200);
+        var f = train.Frames[2];
+        var at = f.ToWorld(new Double3(f.Shape.HalfWidth + 6, 0, 0));
+        double hint = train.Cars[2].FrontDistance;
+        at = at with { Y = Sim.Player.PlayerMotor.GroundAt(at, line, ref hint) + up };
+        var e = Enemy.Blank(kind, 92, 0);
+        e.Restore(SpinePhase.Telegraph, 1, 1, Enemy.Loose, at, 0, 0, 0, 0, 7);
+        var eye = f.ToWorld(new Double3(-10, 4, 0));
+        var scene = new GreyboxScene { Look = Look, Time = 0.37, Enemies = [], Tick = Staging.StrikeTick };
+        scene.Retreated(e, (uint)(Staging.StrikeTick + 1), 0);
+        List<Vector3> Drawn(double after)
+        {
+            scene.Tick = Staging.StrikeTick + 1 + (long)Math.Round(after * Sim.SimConstants.TickRate);
+            var mesh = new MeshBuilder();
+            scene.Build(mesh, train, eye);
+            return [.. mesh.Instances.Where(i => i.Asset.Name.Contains(asset, StringComparison.OrdinalIgnoreCase)).Select(i => i.Model.Translation)];
+        }
+        var go = CreatureArt.Retreat(kind)!.Value;
+        // Where it's drawn: its model's place (the middle of them, were it several).
+        static float Height(List<Vector3> drawn)
+        {
+            Assert.NotEmpty(drawn);
+            return drawn.Average(d => d.Y);
+        }
+        var start = Height(Drawn(0.05));
+        var later = Height(Drawn(go.Seconds * 0.6));
+        if (go.Rise < 0)
+            Assert.True(later < start - 0.2f, $"{kind}: down into the ground: {start:0.00} → {later:0.00}");
+        else
+            Assert.True(later > start + 0.2f, $"{kind}: up into its roof: {start:0.00} → {later:0.00}");
+        Assert.Empty(Drawn(go.Seconds + 0.2));
+    }
+
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public void AClimberTheSimLetsGoOfIsSeenGoingAndOneKilledFallsInstead(bool killed)
+    {
+        // GreyboxScene.Remember (note 458): gone from the sim between frames and not killed, it's let go of (Retreating);
+        // killed by a blow (a HitConfirm that says so), it falls where it was (Deaths) and doesn't also run off.
+        var tuning = DataFile.Load<Sim.Train.TrainTuning>(Path.Combine(Content, Sim.Train.TrainTuning.File));
+        var line = Sim.Rail.RailLine.Load(Path.Combine(Content, "lines", "test-loop.json"));
+        var train = new Sim.Train.TrainOnLine(new Sim.Train.TrainDynamics(Sim.Train.Consist.Uniform(tuning, 6, 1)), line, 1200);
+        var f = train.Frames[2];
+        var climber = new Climber(91);
+        climber.Restore(SpinePhase.Commit, 1, 1, 2, new Double3(0.3, f.Shape.RoofHeight, 2), 0, 0, 0, 2, -1);
+        var eye = f.ToWorld(new Double3(-12, 6, 0));
+        var staged = new List<Enemy> { climber };
+        var scene = new GreyboxScene { Look = Look, Time = 0.37, Enemies = staged, Tick = Staging.StrikeTick };
+        int Drawn(long tick)
+        {
+            scene.Tick = tick;
+            var mesh = new MeshBuilder();
+            scene.Build(mesh, train, eye);
+            return mesh.Instances.Count(i => i.Asset.Name.Contains("climber", StringComparison.OrdinalIgnoreCase));
+        }
+        Assert.Equal(1, Drawn(Staging.StrikeTick));
+        staged.Clear();
+        if (killed)
+            scene.Hits = [new Sim.Combat.HitConfirm(1, (uint)Staging.StrikeTick + 1, climber.Id, EnemyKind.Climber, 1, Sim.Combat.HitSource.Melee, climber.WorldPosition(train), eye, true)];
+        Assert.Equal(1, Drawn(Staging.StrikeTick + 1));
+        // The beat the scene saw begin that frame: one, and the right one.
+        Assert.Equal(killed ? "killed" : "retreated", Assert.Single(scene.NewBeats).Beat);
+        scene.Hits = null;
+        // A second on, it's still seen: falling, or going.
+        Assert.Equal(1, Drawn(Staging.StrikeTick + 1 + (long)Sim.SimConstants.TickRate));
+    }
+
+    [Fact]
+    public void ACarHuggerClubbedToDeathDropsOffItsCarsEndAndIsLeftThere()
+    {
+        // Note 458: killed (from the rear platform, the guard van's door), it isn't one Deaths rolled where it was (Falls
+        // leaves it out: it's latched on the car's end), and it vanished 1-2 m from the crew. Now its grip's gone: it's left
+        // where it was in the world, clear of the car's end, and drops onto the track as the train runs on.
+        var tuning = DataFile.Load<Sim.Train.TrainTuning>(Path.Combine(Content, Sim.Train.TrainTuning.File));
+        var line = Sim.Rail.RailLine.Load(Path.Combine(Content, "lines", "test-loop.json"));
+        var train = new Sim.Train.TrainOnLine(new Sim.Train.TrainDynamics(Sim.Train.Consist.Uniform(tuning, 6, 1)), line, 1200);
+        int rear = train.Dynamics.Consist.Vehicles[^1].Id;
+        var f = train.Frames[rear];
+        var hugger = new CarHugger(46);
+        hugger.Restore(SpinePhase.Commit, 4, 12, rear, new Double3(0, 1.0, f.Shape.HalfLength + 0.4), 0, 0, 0, 0, 0);
+        var eye = f.ToWorld(new Double3(-8, 3, f.Shape.HalfLength + 6));
+        var staged = new List<Enemy> { hugger };
+        var scene = new GreyboxScene { Look = Look, Time = 0.37, Enemies = staged, Tick = Staging.StrikeTick };
+        List<Vector3> Drawn(double after)
+        {
+            scene.Tick = Staging.StrikeTick + (long)Math.Round(after * Sim.SimConstants.TickRate);
+            var mesh = new MeshBuilder();
+            scene.Build(mesh, train, eye);
+            return [.. mesh.Instances.Where(i => i.Asset.Name.Contains("car_hugger", StringComparison.OrdinalIgnoreCase)).Select(i => i.Model.Translation)];
+        }
+        var was = Assert.Single(Drawn(-1.0 / Sim.SimConstants.TickRate));
+        staged.Clear();
+        scene.Killed(hugger, (uint)Staging.StrikeTick, new Vector3(0, 0, 1));
+        var down = Assert.Single(Drawn(0.8));
+        Assert.True(down.Y < was.Y - 0.5, $"dropped: {was.Y:0.00} → {down.Y:0.00}");
+        // Clear of the car's end: further back from the car's middle than it hung.
+        var middle = f.ToWorld(default) - eye;
+        var mid = new Vector3((float)middle.X, (float)middle.Y, (float)middle.Z);
+        Assert.True((down - mid).Length() > (was - mid).Length() + 1, $"clear of the end: {(was - mid).Length():0.0} → {(down - mid).Length():0.0} m");
+        Assert.Empty(Drawn(Effects.DeathSeconds + 0.2));
+    }
+
+    [Theory]
+    [InlineData(true)]
+    [InlineData(false)]
+    public void ACarCutLooseBurningBurnsOnAsItRollsAway(bool cut)
+    {
+        // Note 458 (GreyboxScene.Riding): the sim's done with a fire the tick its car's off the train, and its flames went
+        // out the moment the car was cut. Cut loose, it burns on, on the car, as the Car Hugger rides its car away. Not cut,
+        // a fire gone is one put out: nothing's left of it.
+        var tuning = DataFile.Load<Sim.Train.TrainTuning>(Path.Combine(Content, Sim.Train.TrainTuning.File));
+        var line = Sim.Rail.RailLine.Load(Path.Combine(Content, "lines", "test-loop.json"));
+        var train = new Sim.Train.TrainOnLine(new Sim.Train.TrainDynamics(Sim.Train.Consist.Uniform(tuning, 6, 1)), line, 1200);
+        int car = 4;
+        var fire = CarFire.In(24, train, car, 1.5, new CarFireTuning());
+        fire.Restore(SpinePhase.Punish, 5, 1, car, fire.Local, 0, 0, 0, 0.7, 0);
+        var eye = train.Frames[car].ToWorld(new Double3(-6, 3, 0));
+        var staged = new List<Enemy> { fire };
+        var scene = new GreyboxScene { Look = Look, Time = 0.37, Enemies = staged, Tick = Staging.StrikeTick };
+        int Flames(long tick)
+        {
+            scene.Tick = tick;
+            var mesh = new MeshBuilder();
+            scene.Build(mesh, train, eye);
+            return mesh.AdditiveFx.Count;
+        }
+        int burning = Flames(Staging.StrikeTick);
+        staged.Clear();
+        int none = Flames(Staging.StrikeTick + 1000);
+        Assert.True(burning > none, $"burning {burning}, no fire {none}");
+        // Again, the fire there; then its car's cut from the train (its front end open: the car ahead's in another rake),
+        // and the sim's done with it.
+        scene = new GreyboxScene { Look = Look, Time = 0.37, Enemies = staged = [fire], Tick = Staging.StrikeTick };
+        Flames(Staging.StrikeTick);
+        if (cut)
+            Assert.True(train.Uncouple(train.VehicleAhead(car)));
+        staged.Clear();
+        int after = Flames(Staging.StrikeTick + 1);
+        int later = Flames(Staging.StrikeTick + 2 * (long)Sim.SimConstants.TickRate);
+        if (cut)
+            Assert.True(after > none && later > none, $"cut loose: {after}, then {later}, against {none}");
+        else
+            Assert.Equal(none, later);
+    }
+
+    [Fact]
     public void TheOneTheCarHuggerSwallowsIsBentIntoItsMouthWhereverTheyWereCaught()
     {
         // GreyboxScene.Hung: the sim holds them wherever in reach they were caught; the scene stands them SwallowReach in
@@ -428,6 +884,162 @@ public class CreatureArtTests
         var local = rear.ToLocal(feet);
         Assert.InRange(local.X, -0.9, 0.1);
         Assert.InRange(rear.Shape.HalfLength - local.Z, 0.2, 1.6);
+    }
+
+    /// <summary>
+    /// The Moose (note 339, docs/design/creatures/moose.md): no HUD shows its meter, its ears and its posture do. Grazing, it
+    /// browses; past listenAt its head's up (listen), past warnAt the ears are flat and the ridge up (warn). Riled, it goes as
+    /// fast as it's going (a walk, a trot), squares up, charges, skids round, jams its rack, rams, pins; and none of it puts
+    /// a part of it through another (its rack is its own two bones, fitted as capsules from its mesh).
+    /// </summary>
+    [Fact]
+    public void TheMooseShowsItsTemperAndStaysOutOfItself()
+    {
+        var t = Art.MooseTuning;
+        string Clip(MooseMode mode, double aggro = 100, double pace = 0) => CreatureArt.MooseClip(mode, aggro, (float)pace, 1, 1, t).Clip;
+        Assert.Equal("graze", Clip(MooseMode.Graze, 0));
+        Assert.Equal("graze", Clip(MooseMode.Graze, t.ListenAt - 1));
+        Assert.Equal("listen", Clip(MooseMode.Graze, t.ListenAt));
+        Assert.Equal("warn", Clip(MooseMode.Graze, t.WarnAt));
+        // A train going by, a rival: it tosses its head after it.
+        Assert.Equal("trainPass", CreatureArt.MooseClip(MooseMode.Graze, 0, 0, 1, 1, t, trainPassing: true).Clip);
+        Assert.Equal("trot", Clip(MooseMode.Hunt, pace: t.HuntSpeed));
+        Assert.Equal("walk", Clip(MooseMode.Hunt, pace: t.SearchSpeed));
+        Assert.Equal("warn", Clip(MooseMode.Hunt));
+        Assert.Equal("search", Clip(MooseMode.Search, pace: t.SearchSpeed));
+        Assert.Equal("strut", Clip(MooseMode.Home, 0, t.SearchSpeed));
+        Assert.Equal("ram", Clip(MooseMode.Ram));
+        Assert.Equal(("squareUp", 1.7, false), CreatureArt.MooseClip(MooseMode.SquareUp, 100, 0, 3, 1.7, t));
+        Assert.Equal(("overrun", 0.4, false), CreatureArt.MooseClip(MooseMode.Wheel, 100, 0, 3, 0.4, t));
+        Assert.Equal("charge", Clip(MooseMode.Charge, pace: t.ChargeSpeed));
+        Assert.Equal("snag", Clip(MooseMode.Snag));
+        Assert.Equal("pin", Clip(MooseMode.Pin));
+        // A ram's clip is one ram: the sim's ramEvery.
+        Assert.Equal(t.RamEvery, Get("moose").Clip("ram")!.Duration, 2);
+        var model = Get("moose");
+        foreach (var mode in Enum.GetValues<MooseMode>())
+            foreach (double pace in new[] { 0, t.SearchSpeed, t.HuntSpeed })
+                foreach (double aggro in new[] { 0, t.ListenAt, t.WarnAt })
+                    Assert.Contains(CreatureArt.MooseClip(mode, aggro, (float)pace, 0, 0, t).Clip, model.ClipNames);
+        var through = Clearance.Mesh(model).Where(o => o.Depth > Clearance.Touching).ToList();
+        Assert.True(through.Count == 0, string.Join("; ", through.Select(o => $"{o.Clip} {o.Pair} {o.Depth:0.000} at {o.At:0.00} s")));
+    }
+
+    [Fact]
+    public void TheOneTheMoosePinsIsUnderItsRack()
+    {
+        // GreyboxScene: the sim holds them where it ran them down; the scene stands the Moose over them (MoosePinReach back,
+        // facing them) and lays them on their back with their head toward it (CreatureArt.Pins, held_pinned).
+        var tuning = DataFile.Load<Sim.Train.TrainTuning>(Path.Combine(Content, Sim.Train.TrainTuning.File));
+        var line = Sim.Rail.RailLine.Load(Path.Combine(Content, "lines", "test-loop.json"));
+        var train = new Sim.Train.TrainOnLine(new Sim.Train.TrainDynamics(Sim.Train.Consist.Uniform(tuning, 6, 1)), line, 1200);
+        var threats = Staging.Moose([], train, "pin");
+        var pinned = Staging.MooseCrewmate(train, "pin");
+        var eye = pinned.Feet + new Double3(4, 1.6, 1);
+        var scene = new GreyboxScene { Look = Look, Time = 0.37, Enemies = threats, Crew = [pinned with { Act = null }] };
+        var mesh = new MeshBuilder();
+        scene.Build(mesh, train, eye);
+        Assert.True(Look.Art.Creatures!.Pins.TryGetValue(pinned.Id, out var pin));
+        var moose = (Moose)threats.Single();
+        var to = new Vector3((float)(pinned.Feet.X - moose.Local.X), 0, (float)(pinned.Feet.Z - moose.Local.Z));
+        Assert.True(Vector3.Dot(Vector3.Normalize(to), pin.Forward) > 0.99f, "laid facing away from it, their head toward it");
+        Assert.Equal(CrewPose.HeldPinned, CrewActs.HeldPose(EnemyKind.Moose));
+    }
+
+    /// <summary>
+    /// The Gannet (note 340, docs/design/creatures/gannet.md §5): what it does is the sim's mode, and its clips play it out.
+    /// Folding, the fold then the dive, its spear's tip the sim's dive point; stuck, thrashing with the spear in the planks,
+    /// then the tear free ending with stuckSeconds; out of a dive it stabs, off a pin it's driven, else it climbs; the bank
+    /// ends in the swoop; and pinning, each peck strikes on the beat Gannet.PecksLanded counts, its wind-up before it. No
+    /// part of it goes through another in any clip.
+    /// </summary>
+    [Fact]
+    public void TheGannetFoldsStrikesAndPecksOnTheSimsBeat()
+    {
+        var t = Art.GannetTuning;
+        var model = Get("gannet");
+        string Clip(GannetMode mode, double seconds, GannetMode? was = null) => CreatureArt.GannetClip(mode, was, seconds, seconds, t).Clip;
+        // The lengths GannetClip times things by are the clips'.
+        foreach (var (clip, seconds) in new[] { ("fold", CreatureArt.GannetFoldSeconds), ("stab", CreatureArt.GannetStabSeconds),
+            ("tearFree", CreatureArt.GannetTearFreeSeconds), ("swoop", CreatureArt.GannetSwoopSeconds), ("land", CreatureArt.GannetLandSeconds),
+            ("peckWindup", CreatureArt.GannetWindupSeconds), ("peck", CreatureArt.GannetPeckSeconds), ("driven", CreatureArt.GannetDrivenSeconds),
+            ("circle", CreatureArt.GannetCircleSeconds) })
+            Assert.Equal(seconds, model.Clip(clip)!.Duration, 3);
+        foreach (var mode in Enum.GetValues<GannetMode>().Where(m => m != GannetMode.Away))
+            foreach (var was in new GannetMode?[] { null, GannetMode.Fold, GannetMode.Pin })
+                foreach (double s in new[] { 0, 0.3, 1, 2.9, 3.0, 5.95, 11.95, 20 })
+                    Assert.Contains(CreatureArt.GannetClip(mode, was, s, s, t).Clip, model.ClipNames);
+        Assert.Equal("soar", Clip(GannetMode.Soar, 1));
+        Assert.Equal("circle", Clip(GannetMode.Soar, CreatureArt.GannetSoarHold + 1));
+        Assert.Equal("hang", Clip(GannetMode.Hang, 1));
+        Assert.Equal("fold", Clip(GannetMode.Fold, 0.1));
+        Assert.Equal("dive", Clip(GannetMode.Fold, t.FoldSeconds - 0.1));
+        Assert.Equal("stuck", Clip(GannetMode.Stuck, 1));
+        Assert.Equal("tearFree", Clip(GannetMode.Stuck, t.StuckSeconds - 0.1));
+        Assert.Equal("stab", Clip(GannetMode.Climb, 0.1, GannetMode.Fold));
+        Assert.Equal("driven", Clip(GannetMode.Climb, 0.1, GannetMode.Pin));
+        Assert.Equal("climb", Clip(GannetMode.Climb, 0.1, GannetMode.Stuck));
+        Assert.Equal("bank", Clip(GannetMode.Bank, 1));
+        Assert.Equal("swoop", Clip(GannetMode.Bank, t.BankSeconds - 0.1));
+        Assert.Equal("land", Clip(GannetMode.Pin, 0.1));
+        Assert.Equal("pin", Clip(GannetMode.Pin, 1.5));
+        var g = new Gannet(1);
+        for (int k = 1; k <= t.Pecks; k++)
+        {
+            double beat = k * t.PeckEvery;
+            g.Restore(SpinePhase.Grab, beat + 0.01, t.Health, 2, default, 0, 0, (double)GannetMode.Pin, -1, 1, holding: 1);
+            Assert.Equal(k, g.PecksLanded(t));
+            // The strike's contact frame lands on the beat the sim counts the peck on; the wind-up's before it.
+            var (clip, at, loop) = CreatureArt.GannetClip(GannetMode.Pin, null, beat, beat, t);
+            Assert.Equal(("peck", CreatureArt.GannetPeckStrike, false), (clip, Math.Round(at, 6), loop));
+            Assert.Equal("peckWindup", Clip(GannetMode.Pin, beat - CreatureArt.GannetPeckStrike - 0.3));
+        }
+        // The spear's tip is where the sim has it in the dive (its origin) and buried in the planks under it when stuck.
+        int tip = model.Skeleton.IndexOf("beak_tip");
+        Vector3 Tip(string clip, double time, bool loop = true) => Art.Joints("gannet", clip, time, loop).ElementAt(tip);
+        Assert.InRange(Tip("dive", 0.2).Length(), 0, 0.06f);
+        Assert.InRange(Tip("fold", CreatureArt.GannetFoldSeconds, loop: false).Length(), 0, 0.06f);
+        Assert.InRange(Tip("stuck", 0.5).Y, -0.45f, -0.2f);
+        var through = Clearance.Mesh(model).Where(o => o.Depth > Clearance.Touching).ToList();
+        Assert.True(through.Count == 0, string.Join("; ", through.Select(o => $"{o.Clip} {o.Pair} {o.Depth:0.000} at {o.At:0.00} s")));
+    }
+
+    [Fact]
+    public void TheOneTheGannetPinsIsUnderItsFootAndItsPecksLandOnTheirHead()
+    {
+        // GreyboxScene: the sim has it stood on them where it came down; the scene stands it with its right foot's web on their
+        // chest, turned along their car, and lays them on their back along its heading, their head out in front of it
+        // (CreatureArt.Pins, held_pinned).
+        var tuning = DataFile.Load<Sim.Train.TrainTuning>(Path.Combine(Content, Sim.Train.TrainTuning.File));
+        var line = Sim.Rail.RailLine.Load(Path.Combine(Content, "lines", "test-loop.json"));
+        var train = new Sim.Train.TrainOnLine(new Sim.Train.TrainDynamics(Sim.Train.Consist.Uniform(tuning, 6, 1)), line, 1200);
+        var threats = Staging.Gannet([], train, "pin");
+        var pinned = Staging.GannetWalker(train, "pin");
+        var eye = pinned.Feet + new Double3(4, 2, 1);
+        var scene = new GreyboxScene { Look = Look, Time = 0.37, Enemies = threats, Crew = [pinned with { Act = null }] };
+        var mesh = new MeshBuilder();
+        scene.Build(mesh, train, eye);
+        Assert.True(Look.Art.Creatures!.Pins.TryGetValue(pinned.Id, out var pin));
+        var ahead = train.Frames[Staging.GannetCar].Back * -1;
+        Assert.True(Vector3.Dot(pin.Forward, -new Vector3((float)ahead.X, (float)ahead.Y, (float)ahead.Z)) > 0.99f,
+            "laid along the car, their head out ahead of it under its spear");
+        Assert.Equal(CrewPose.HeldPinned, CrewActs.HeldPose(EnemyKind.Gannet));
+        // Their chest and head as held_pinned lays them (behind where the sim has them, their feet ahead): under the web of
+        // its right foot, and their face where the peck's strike lands.
+        var crew = Get("crew");
+        var lying = Art.Joints("crew", "held_pinned", 0.3, true).ToList();
+        float chest = lying[crew.Skeleton.IndexOf("spine_03")].Z, head = lying[crew.Skeleton.IndexOf("head")].Z;
+        Assert.InRange(chest, CreatureArt.PinnedChest - 0.05f, CreatureArt.PinnedChest + 0.05f);
+        var model = Get("gannet");
+        var foot = Art.Joints("gannet", "pin", 0.5, true).ElementAt(model.Skeleton.IndexOf("toes_r"));
+        Assert.InRange(foot.X, CreatureArt.GannetPinChest.X - 0.05f, CreatureArt.GannetPinChest.X + 0.05f);
+        Assert.InRange(-foot.Z, CreatureArt.GannetPinChest.Y - 0.25f, CreatureArt.GannetPinChest.Y + 0.05f);
+        var strike = Art.Joints("gannet", "peck", CreatureArt.GannetPeckStrike, false).ElementAt(model.Skeleton.IndexOf("beak_tip"));
+        // (The face a hand on from the head's joint, at the skull's base.)
+        float headAhead = CreatureArt.GannetPinChest.Y + (head - chest) + 0.1f;
+        Assert.InRange(strike.X, CreatureArt.GannetPinChest.X - 0.1f, CreatureArt.GannetPinChest.X + 0.1f);
+        Assert.InRange(-strike.Z, headAhead - 0.15f, headAhead + 0.15f);
+        Assert.InRange(strike.Y, 0, 0.4f);
     }
 
     [Fact]
@@ -505,7 +1117,10 @@ public class CreatureArtTests
         }
         Assert.Equal("creep", CreatureArt.RibbitClip(SpinePhase.Grab, Leader("tongue")));
         Assert.Equal("devour", CreatureArt.RibbitClip(SpinePhase.Grab, Leader("devour")));
-        Assert.Equal("tongue", CreatureArt.RibbitClip(SpinePhase.Commit, Leader("devour")));
+        // The pack's others ride COMMIT through the leader's devour (note 558): close to, they're on them too; out of
+        // reach, it's the tongue's strike.
+        Assert.Equal("devour", CreatureArt.RibbitClip(SpinePhase.Commit, Leader("devour")));
+        Assert.Equal("tongue", CreatureArt.RibbitClip(SpinePhase.Commit, Leader("tongue")));
         // Where the sim's hop stops is close enough to be on them.
         Assert.Equal("devour", CreatureArt.RibbitClip(SpinePhase.Grab, 0.8f));
     }
@@ -663,6 +1278,39 @@ public class CreatureArtTests
     const int W = 480, H = 270;
 
     /// <summary>
+    /// One renderer for every model's turntable, made on the first and let go after the class's last: a GPU context and
+    /// the shaders compiled for each of thirty-odd models cost most of each one's time, and a renderer held past the class
+    /// keeps every texture on the GPU for the rest of the run, which the Linux CI runner hasn't the memory for (note 367).
+    /// A shot is the frame's whole state, so they share it.
+    /// </summary>
+    public sealed class TurntableRig : IDisposable
+    {
+        readonly Lock _lock = new();
+        GpuContext? _gpu;
+        GreyboxRenderer? _renderer;
+
+        public GreyboxRenderer Renderer()
+        {
+            lock (_lock)
+            {
+                if (_renderer is null)
+                {
+                    _gpu = Gpu();
+                    _renderer = new GreyboxRenderer(_gpu, W, H);
+                    Look.Dress(_renderer);
+                }
+                return _renderer;
+            }
+        }
+
+        public void Dispose()
+        {
+            _renderer?.Dispose();
+            _gpu?.Dispose();
+        }
+    }
+
+    /// <summary>
     /// One PNG per clip: three angles on the top row, three moments of the clip on the middle row, and the same thing
     /// walked back through the fog on the bottom (8, 15, 25 m), all lit by a single warm lantern near it.
     /// </summary>
@@ -671,9 +1319,7 @@ public class CreatureArtTests
     public void Turntable(string name)
     {
         var m = Get(name);
-        using var gpu = Gpu();
-        using var renderer = new GreyboxRenderer(gpu, W, H);
-        Look.Dress(renderer);
+        var renderer = rig.Renderer();
         string dir = Path.Combine(Repo, "out", "shots", "creatures");
         Directory.CreateDirectory(dir);
         var b = Budgets[name];
@@ -724,6 +1370,8 @@ public class CreatureArtTests
         "follower" => (Vector3.Zero, 0.3f),
         "climber" => (Vector3.Zero, 1.9f),
         "fire_fly" => (Vector3.Zero, 0.16f),
+        "moose" => (Vector3.Zero, 3.4f),
+        "gannet" => (Vector3.Zero, 3.6f),
         _ => (Vector3.Zero, 1.9f),
     };
 
@@ -764,5 +1412,66 @@ public class CreatureArtTests
         lighting.LampIntensity = 0;
         lighting.LampPosition = new Double3(0, -100, 0);
         return renderer.Render(mesh, camera, lighting, lighting.FogColor);
+    }
+
+    /// <summary>
+    /// The train's own (notes 364, 365, 367; CreatureArt.Train): every mode of each plays a clip its model has, its one-shot
+    /// clips are the lengths the art times them by, the Brakeman's lash strikes on the sim's beat, the Knotter's body is laid
+    /// along a line as long as the curve it's given (sagging when longer than its gap, coiled round whoever slipped), Hotbox
+    /// knocks once a wheel turn; and none of them puts a part through another (capsules fitted to their own meshes).
+    /// </summary>
+    [Fact]
+    public void TheTrainsOwnPlayTheirClipsAndStayOutOfThemselves()
+    {
+        var bt = Art.BrakemanTuning;
+        var brakeman = Get("brakeman");
+        foreach (var mode in Enum.GetValues<BrakemanMode>())
+            foreach (var was in new BrakemanMode?[] { null, BrakemanMode.Walk })
+                foreach (double s in new[] { 0.1, 0.9, 3.0 })
+                    if (CreatureArt.BrakemanClip(mode, was, s, s, bt).Clip is { Length: > 0 } clip)
+                        Assert.Contains(clip, brakeman.ClipNames);
+        Assert.Equal(CreatureArt.BrakemanClimbSeconds, brakeman.Clip("climb")!.Duration, 2);
+        Assert.Equal(CreatureArt.BrakemanDropSeconds, brakeman.Clip("drop")!.Duration, 2);
+        Assert.Equal(CreatureArt.BrakemanLashSeconds, brakeman.Clip("lash")!.Duration, 2);
+        // The lash's strike on the bite (the telegraph's lashEvery), and hidden he's gone once he's down the side.
+        Assert.Equal(("lash", CreatureArt.BrakemanLashStrike, false), CreatureArt.BrakemanClip(BrakemanMode.Cornered, null, 9, bt.LashEvery, bt));
+        Assert.Equal("", CreatureArt.BrakemanClip(BrakemanMode.Hidden, BrakemanMode.Walk, 5, 5, bt).Clip);
+        Assert.Equal("drop", CreatureArt.BrakemanClip(BrakemanMode.Hidden, BrakemanMode.Flee, 0.4, 0.4, bt).Clip);
+
+        var knotter = Get("knotter");
+        foreach (var mode in Enum.GetValues<KnotterMode>())
+            foreach (double s in new[] { 0.1, 2.0 })
+                Assert.Contains(CreatureArt.KnotterClip(mode, s).Clip, knotter.ClipNames);
+        // Taut it's the gap's own length, straight; coming up under it, a U longer than the gap; coiled, round its catch.
+        static float Length(List<Vector3> c) => c.Zip(c.Skip(1), Vector3.Distance).Sum();
+        var taut = CreatureArt.KnotterCurve(KnotterMode.Taut, 5, CreatureArt.KnotterLength(KnotterMode.Taut, 5), null);
+        Assert.Equal(5 - 2 * CreatureArt.KnotterInset, Length(taut), 2);
+        Assert.All(taut, p => Assert.InRange(p.Y, -0.001f, 0.001f));
+        var creep = CreatureArt.KnotterCurve(KnotterMode.Creep, 1.5f, CreatureArt.KnotterLength(KnotterMode.Creep, 1.5f), null);
+        Assert.Equal(CreatureArt.KnotterCoiled, Length(creep), 1);
+        Assert.True(creep.Min(p => p.Y) < -0.6f, "it hangs down under the coupling");
+        var coil = CreatureArt.KnotterCurve(KnotterMode.Coil, 5, 4.8f, new Vector3(0, 0, 0.8f));
+        Assert.True(Length(coil) > 6, "coiled round them, it's longer than the gap");
+        Assert.True(coil.Any(p => p.Y > 0.6f && MathF.Abs(p.Z - 0.8f) < 0.4f), "it climbs them");
+
+        var ht = Art.HotboxTuning;
+        var hotbox = Get("hotbox");
+        foreach (var mode in Enum.GetValues<HotboxMode>())
+            foreach (double s in new[] { 0.1, 2.5, 6.0 })
+                foreach (float v in new[] { 0f, 12f })
+                    Assert.Contains(CreatureArt.HotboxClip(mode, s, s, v, ht).Clip, hotbox.ClipNames);
+        // Once a wheel turn: a second's knocking at 18 m/s is that many turns of its knock.
+        var (_, knocked, _, _) = CreatureArt.HotboxClip(HotboxMode.Knock, 1.0, 1.0, 18, ht);
+        Assert.Equal(18 / (Math.PI * ht.WheelDiameter) * CreatureArt.HotboxKnockSeconds, knocked, 3);
+        Assert.Equal(CreatureArt.HotboxKnockSeconds, hotbox.Clip("knock")!.Duration, 2);
+        // The belly brighter as it heats: knocking, glowing, seized.
+        float Glow(HotboxMode m) => CreatureArt.HotboxClip(m, 0, 0, 12, ht).Glow;
+        Assert.True(Glow(HotboxMode.Knock) < Glow(HotboxMode.Glow) && Glow(HotboxMode.Glow) < Glow(HotboxMode.Seized));
+
+        foreach (var name in new[] { "brakeman", "knotter", "hotbox" })
+        {
+            var through = Clearance.Mesh(Get(name)).Where(o => o.Depth > Clearance.Touching).ToList();
+            Assert.True(through.Count == 0, $"{name}: " + string.Join("; ", through.Select(o => $"{o.Clip} {o.Pair} {o.Depth:0.000} at {o.At:0.00} s")));
+        }
     }
 }

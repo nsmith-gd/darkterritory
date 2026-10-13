@@ -1,0 +1,69 @@
+// The tell's takes from the audio checklist, kept or the first candidate under review
+// (state-hotbox/squeal, state-hotbox/smoke), in place of its synth definition
+// (tools/audio/synth-defs/hotbox.json), keeping its tier, range and level. Written by
+// tools/audio/install.py; edit the cue or that file, not this one.
+{
+ "tier": 5,
+ "loop": true,
+ "maxInstances": 8,
+ "minDistance": 3,
+ "maxDistance": 70,
+ "layers": [
+  {
+   "source": "sample",
+   "sample": "state-hotbox/squeal",
+   "gain": {
+    "param": "heat",
+    "points": [
+     [
+      0,
+      0.45
+     ],
+     [
+      0.5,
+      0.75
+     ],
+     [
+      1,
+      1
+     ]
+    ]
+   },
+   "rate": {
+    "param": "heat",
+    "points": [
+     [
+      0,
+      0.94
+     ],
+     [
+      1,
+      1.08
+     ]
+    ]
+   }
+  },
+  {
+   "source": "sample",
+   "sample": "state-hotbox/smoke",
+   "gain": {
+    "param": "heat",
+    "points": [
+     [
+      0,
+      0
+     ],
+     [
+      0.45,
+      0
+     ],
+     [
+      1,
+      1
+     ]
+    ]
+   }
+  }
+ ],
+ "gainDb": 4
+}

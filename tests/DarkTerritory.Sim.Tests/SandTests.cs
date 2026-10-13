@@ -56,11 +56,12 @@ public class SandTests
         Assert.Equal(2, boxes.Count);
         foreach (var box in boxes)
         {
-            // Out past the cab side, on a board at deck height, ahead of the cab.
+            // Out past the body's side, on a board at deck height, behind the cab over the drivers (cab forward, note 276:
+            // nothing of the engine's ahead of the cab).
             Assert.True(Math.Abs(box.Position.X) > shape.HalfWidth);
             var top = shape.TopAt(box.Position.X, box.Position.Z);
             Assert.Equal((T.Geometry.Engine.DeckHeight, SurfaceKind.Deck), top);
-            Assert.True(box.Position.Z < shape.Cab!.Value.Min.Z);
+            Assert.True(box.Position.Z > shape.Cab!.Value.Max.Z);
         }
     }
 

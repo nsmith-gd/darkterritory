@@ -44,7 +44,8 @@ public readonly record struct SurfaceMaterial(float Wear, float Shine, int Layer
 /// </summary>
 public sealed record SurfaceStyle(float TexelsPerMetre, float Baked, Func<Vector3, SurfaceMaterial> Material);
 
-/// <summary>A practical light (a car's lamp, the firebox, a hand lantern). Lit per pixel, unshadowed.</summary>
+/// <summary>A practical light (a car's lamp, the firebox, a hand lantern). Lit per pixel, unshadowed (but for
+/// <see cref="MeshBuilder.ShadowLight"/>).</summary>
 /// <param name="Position">In the same (camera-relative) space as the geometry.</param>
 public readonly record struct PointLight(Vector3 Position, Vector3 Colour, float Range);
 
@@ -85,8 +86,10 @@ public readonly record struct Room(Vector3 Centre, Vector3 Right, Vector3 Up, Ve
 /// drawn or shadowed, and along it it's gnawed. Its ragged edge is seeded by <see cref="Scar"/>.y.
 /// </param>
 /// <param name="BiteFloor">Below this height (the piece's own y) nothing is eaten.</param>
+/// <param name="Shadowless">Drawn in the scene but casting no shadow (the lamp's or the moon's): fine dressing over a piece
+/// that casts its own (a train's pipes, rivets and grilles), which a shadow map wouldn't resolve, at a third of the cost.</param>
 public readonly record struct MeshInstance(MeshAsset Asset, Matrix4x4 Model, float Glow = 1, Vector3 Tint = default, Vector2 Scar = default,
-    int Bones = -1, Vector3 SurfaceOffset = default, Vector4 Bite = default, float BiteFloor = 0);
+    int Bones = -1, Vector3 SurfaceOffset = default, Vector4 Bite = default, float BiteFloor = 0, bool Shadowless = false);
 
 /// <summary>A skinned vertex's bones (indices into its model's skeleton, as floats) and their weights.</summary>
 public struct SkinWeights(Vector4 joints, Vector4 weights)
@@ -148,6 +151,13 @@ public sealed class MeshBuilder
 
     /// <summary>The practical lights this frame. Cleared with the mesh.</summary>
     public List<PointLight> PointLights { get; } = new();
+
+    /// <summary>
+    /// The one practical light that casts shadows (a hand lamp near the eye, GDD §31: its shadows swing as it swings): lit
+    /// like <see cref="PointLights"/> (not also in them), and shadowed through a cube map of its own round it, out to its
+    /// range.
+    /// </summary>
+    public PointLight? ShadowLight { get; set; }
 
     /// <summary>Enclosed spaces this frame (up to 16 are lit as such, the nearest). Cleared with the mesh.</summary>
     public List<Room> Rooms { get; } = new();
@@ -269,6 +279,7 @@ public sealed class MeshBuilder
     {
         _vertices.Clear();
         PointLights.Clear();
+        ShadowLight = null;
         Instances.Clear();
         Bones.Clear();
         Rooms.Clear();
@@ -281,6 +292,20 @@ public sealed class MeshBuilder
     {
         if (count < _vertices.Count)
             _vertices.RemoveRange(count, _vertices.Count - count);
+    }
+
+    /// <summary>
+    /// Moves the vertices added since there were <paramref name="from"/> (<see cref="Count"/> then) by <paramref name="m"/>,
+    /// their normals with them: what was drawn where it stood, then carried with what it belongs to (a sinking house's door).
+    /// </summary>
+    public void Move(int from, in Matrix4x4 m)
+    {
+        var span = CollectionsMarshal.AsSpan(_vertices);
+        for (int i = Math.Max(0, from); i < span.Length; i++)
+        {
+            span[i].Position = Vector3.Transform(span[i].Position, m);
+            span[i].Normal = Vector3.Normalize(Vector3.TransformNormal(span[i].Normal, m));
+        }
     }
 
     /// <summary>Appends a vertex exactly as given (the kit builders make their own UVs and materials).</summary>

@@ -4,6 +4,17 @@
   // curves and the trouble in the cars wouldn't fit in it, and missing dawn was a night's commonest failure).
   "dawnAverageSpeed": 11,
   "dawnSlack": 0.4,
+  // Note 554 (the director, 9 Oct 2026: "the average run has 3 full stops it can make and lasts roughly 13 minutes
+  // total"): each facility on the night adds this to its dawn timer, so a crew has the time to make all three.
+  "dawnPerFacilitySeconds": 180,
+  // Spec B.8 and GDD §11 (the director's decision of 6 Oct 2026, ARCHITECTURE §8 note 270): "the time a run takes should
+  // always be the same. Difficulty scales not by time but by monsters and density of challenges." Every tier's line is
+  // this long, gate to terminus, so every night's dawn timer is the same (7 km: 14.9 min, and 3 min for each of its three
+  // facilities, 23.9 min). 7 km is the director's shorter night (9 Oct 2026, note 554: an average run of about 17 min);
+  // it was 24 km (51 min) from 6 Oct, and 18-22 / 24-30 / 30-36 / 36-40 km by tier before that. The line generator (the
+  // game's nights) reads it; its content/linegen/tiers.json columns carry the tiers' counts, which over one length are
+  // their density.
+  "nightLengthKm": 7,
   // Flat straight track at each end: the fortress yard, and the terminus approach where nothing spawns (App. B.1).
   "yardLength": 600,
   "terminusApproach": 800,
@@ -26,6 +37,10 @@
     "leverOffset": 2.6,
     "leverReach": 2.2,
     "throwSeconds": 1.5,
+    // The director, 9 Oct 2026 (note 595): "someone should be able to throw a switch by shooting it with the cannon if their
+    // aim is good enough". A ball passing within shotReach m of a stand's lever throws it over, as a hand on it would (and
+    // no more than a hand: not with a wheel on the points).
+    "shotReach": 0.6,
     // The points won't move with a wheel on them: this far either side of the toe.
     "pointsLength": 12,
     // GDD §17: "Most [facilities] cannot accommodate a full armoured freight train, so the crew must break the
@@ -38,6 +53,9 @@
     "spurLength": 100
   },
 
+  // The legacy prototype generator's tiers ("routes": "legacy" in content/linegen/tiers.json; the game's nights are the
+  // line generator's, at nightLengthKm above). lengthKm is the legacy routes' own, left as it was: they are the test
+  // fixtures much of the sim's suite is pinned to, not nights anyone plays (note 270).
   "tiers": {
     "local":         { "lengthKm": [18, 22], "maxGrade": 2.0, "gradeChance": 0.35, "minRadius": 420, "curveChance": 0.30, "pois": [3, 4], "tunnels": [0, 1], "bridges": [1, 2], "weakBridgeChance": 0.10, "junctions": [1, 3], "sleepersPerKm": 0.15, "greasePerKm": 0.08, "fog": [0.010, 0.016], "wetChance": 0.2, "cold": [0.0, 0.3], "wind": [0.0, 0.4] },
     "frontier":      { "lengthKm": [24, 30], "maxGrade": 3.0, "gradeChance": 0.45, "minRadius": 320, "curveChance": 0.38, "pois": [3, 5], "tunnels": [1, 2], "bridges": [1, 3], "weakBridgeChance": 0.25, "junctions": [2, 4], "sleepersPerKm": 0.30, "greasePerKm": 0.12, "fog": [0.012, 0.022], "wetChance": 0.3, "cold": [0.1, 0.5], "wind": [0.1, 0.6] },

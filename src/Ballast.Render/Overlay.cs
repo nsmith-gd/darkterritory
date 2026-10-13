@@ -21,6 +21,19 @@ public sealed class Overlay
     public BitmapFont Font { get; init; } = BitmapFont.Default;
     public int Count => Vertices.Count;
 
+    /// <summary>
+    /// A band drawn behind each piece of shadowed text while this is set (alpha 0: none), a line at a time, as a subtitle's
+    /// background: the HUD sets it for its build when the player asks for it, and the plates it draws text on unset it.
+    /// </summary>
+    public Vector4 Backing { get; set; }
+
+    /// <summary>The band <see cref="Backing"/> puts behind a line of text <paramref name="w"/> wide at (x, y), at that scale.</summary>
+    public void Back(float x, float y, float w, float scale)
+    {
+        if (Backing.W > 0 && w > 0)
+            Rect(x - 2 * scale, y - 2 * scale, w + 5 * scale, (Font.Height + 5) * scale, Backing);
+    }
+
     public void Clear() => Vertices.Clear();
 
     public void Rect(float x, float y, float w, float h, Vector4 colour)
@@ -130,13 +143,26 @@ public sealed class Overlay
     }
 
     /// <summary>Draws text with its top-left at (x, y); a one-pixel shadow keeps it readable over anything. Returns its width.</summary>
-    public float Text(float x, float y, string text, Vector4 colour, int scale = 1, bool shadow = true)
+    public float Text(float x, float y, string text, Vector4 colour, int scale = 1, bool shadow = true) =>
+        Text(x, y, text, colour, (float)scale, shadow);
+
+    /// <summary>
+    /// Text at a fractional scale: 0.5 is fine print, a canvas pixel's half per font pixel (a 480-wide canvas on a 1080p
+    /// screen still gives each font pixel two screen pixels).
+    /// </summary>
+    public float Text(float x, float y, string text, Vector4 colour, float scale, bool shadow = true)
     {
         if (shadow)
+        {
+            Back(x, y, Measure(text, scale), scale);
             Glyphs(x + scale, y + scale, text, new Vector4(0, 0, 0, colour.W * 0.8f), scale);
+        }
         Glyphs(x, y, text, colour, scale);
-        return Font.Measure(text, scale);
+        return Measure(text, scale);
     }
+
+    /// <summary>The width of <paramref name="text"/> at <paramref name="scale"/>.</summary>
+    public float Measure(string text, float scale = 1) => text.Length == 0 ? 0 : (text.Length * Font.Advance - 1) * scale;
 
     /// <summary>Text centred on x.</summary>
     public float TextCentred(float x, float y, string text, Vector4 colour, int scale = 1) =>
@@ -146,7 +172,22 @@ public sealed class Overlay
     public float TextRight(float x, float y, string text, Vector4 colour, int scale = 1) =>
         Text(x - Font.Measure(text, scale), y, text, colour, scale);
 
-    void Glyphs(float x, float y, string text, Vector4 colour, int scale)
+    /// <summary>Text centred on x at a fractional scale, its left edge on that scale's own grid so fine print stays crisp.</summary>
+    public float TextCentred(float x, float y, string text, Vector4 colour, float scale) =>
+        Text(Snap(x - Measure(text, scale) / 2f, scale), y, text, colour, scale);
+
+    /// <summary>Text ending at x at a fractional scale, its left edge on that scale's own grid.</summary>
+    public float TextRight(float x, float y, string text, Vector4 colour, float scale) =>
+        Text(Snap(x - Measure(text, scale), scale), y, text, colour, scale);
+
+    /// <summary>Rounds to a font pixel at this scale: a canvas pixel, or half of one in fine print.</summary>
+    public static float Snap(float v, float scale)
+    {
+        float grid = MathF.Min(1, scale);
+        return MathF.Round(v / grid) * grid;
+    }
+
+    void Glyphs(float x, float y, string text, Vector4 colour, float scale)
     {
         for (int i = 0; i < text.Length; i++)
         {

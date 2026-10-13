@@ -1,6 +1,6 @@
 // How each space sounds to whoever's in it (spec A.6: "convolution with cheap impulse responses", car
 // interiors, tunnels, facility spaces). GameAudio picks the space from where the listener is: inside a car,
-// in the cab, in a tunnel (the route's), down the mine spur, at a facility, or outside. The mixer convolves everything
+// in the cab, in a tunnel (the route's), down the mine spur, in a stop's shed or a small room, at a facility, or outside. The mixer convolves everything
 // positioned with the space's response, each tier at its send; flat sounds (the UI, music, the radio)
 // stay dry.
 //
@@ -57,6 +57,25 @@
       "sends": [0.35, 0.9, 0.6, 0.9, 0.6, 0.5, 0],
       "muted": ["wind", "bed-wind", "world-night", "world-wind", "world-rain.rain-out", "world-rain.thunder"],
       "voice": { "thresholdDb": -26, "ratio": 3, "attackSeconds": 0.005, "releaseSeconds": 0.2, "makeupDb": 8 }
+    },
+
+    // In a yard's shed or its hero (note 387, queue #129, note 392): an iron-roofed hall 20 to 40 m long and 10 to 15 m
+    // across on a concrete floor, its bays open. The walls answer within 20 to 100 ms, then a long, brightish tail off the
+    // iron; the night still comes in at the bays, so nothing's shut out.
+    "shed": {
+      "reverb": { "decay": 1.5, "length": 1.2, "highDecay": 0.45, "crossover": 1400, "predelay": 0.012, "lowcut": 120,
+                  "early": [[0.018, 0.34], [0.031, 0.26], [0.047, 0.2], [0.072, 0.14], [0.1, 0.09]],
+                  "wetDb": -8, "width": 1, "seed": 71 },
+      "sends": [0.3, 0.85, 0.5, 0.85, 0.5, 0.45, 0]
+    },
+
+    // A small room (note 392): a Holdout's signal box, lamp room, pump house, prison van or lockup, or an open house. Brick
+    // or boards 3 to 6 m across, a step up off the ground: a short, close room, darker than the cab's steel.
+    "room": {
+      "reverb": { "decay": 0.45, "length": 0.4, "highDecay": 0.55, "crossover": 1600, "predelay": 0.004, "lowcut": 180,
+                  "early": [[0.006, 0.3], [0.011, 0.24], [0.017, 0.18], [0.026, 0.11]],
+                  "wetDb": -11, "width": 0.8, "seed": 83 },
+      "sends": [0.3, 0.8, 0.5, 0.8, 0.4, 0.3, 0]
     },
 
     // Out in a facility's yard: sheds and walls 15 to 50 m off, so slapback first, then a modest tail.

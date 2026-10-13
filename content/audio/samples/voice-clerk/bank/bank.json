@@ -256,6 +256,11 @@
    "said": "emory",
    "seconds": 0.405
   },
+  "engineering kit reported lost": {
+   "file": "engineering-kit-reported-lost",
+   "said": "engineering kit reported lost",
+   "seconds": 1.509
+  },
   "fee": {
    "file": "fee",
    "said": "fee",
@@ -1015,6 +1020,11 @@
    "file": "whitlow",
    "said": "whitlow",
    "seconds": 0.364
+  },
+  "with car": {
+   "file": "with-car",
+   "said": "with car",
+   "seconds": 0.513
   },
   "wold": {
    "file": "wold",

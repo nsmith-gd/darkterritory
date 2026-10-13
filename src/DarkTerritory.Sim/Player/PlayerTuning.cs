@@ -24,7 +24,10 @@ public sealed record PlayerTuning(
     /// <summary>GDD §22 wind, and spec B.2's "roof run: wind and balance penalty", on a roof's footing (note 201).</summary>
     public WindTuning Wind { get; init; } = new();
 
-    /// <summary>The edge of a moving car holds a walker (the director's decision of 2026-10-06, GDD App. F.1).</summary>
+    /// <summary>Note 279: the steepest land (rise over run) someone on foot walks up. Docs in player.json.</summary>
+    public double ClimbSlope { get; init; } = 1.25;
+
+    /// <summary>T128 (note 273): a roof's edge holds whoever's only walking at it. Field docs live in player.json <c>edge</c>.</summary>
     public EdgeTuning Edge { get; init; } = new();
 
     /// <summary>A dropped player's place on the host, and the client's retries (spec E drop-out, GDD v1.4 App. D.2; note 253).</summary>
@@ -32,6 +35,12 @@ public sealed record PlayerTuning(
 
     /// <summary>How many the crew can be, and how a joiner past it is turned away (GDD §1 "2–8"; note 254).</summary>
     public CrewTuning Crew { get; init; } = new();
+
+    /// <summary>The links in play: their timeout, keepalive and pump, and a client's pacing to its host (note 532).</summary>
+    public LinkTuning Link { get; init; } = new();
+
+    /// <summary>The emotes' lengths (GDD §9's yard, "dance"; note 298). Field docs live in player.json <c>emotes</c>.</summary>
+    public EmoteTuning Emotes { get; init; } = new();
 
     public string BotName(int i) => i < BotNames.Count ? BotNames[i] : $"Crew {i + 1}";
 
@@ -50,16 +59,24 @@ public sealed record ColdTuning(double OnsetSeconds, double DeathSeconds, double
 /// GDD §22 wind on a roof (note 201): the wind across a moving train pushes whoever's up top sideways, in gusts from
 /// either side. Field docs live in player.json <c>wind</c>.
 /// </summary>
-/// <summary>
-/// A moving car's edge holds whoever walks on it (the director's decision of 2026-10-06, GDD App. F.1: "way too easy to fall
-/// off the train"; note 266). Field docs live in player.json <c>edge</c>.
-/// </summary>
-public sealed record EdgeTuning(bool On = true, double GuardAbove = 1.0, double FacingDegrees = 60);
 public sealed record WindTuning(double Drift = 0.3, double Still = 0.4, double Walking = 0.5, double GustMetres = 120);
+/// <summary>
+/// T128 (build 1121: "far too easy to fall off the train"; note 273): the edge of a roof (or a coupler plate) holds a player
+/// walking at it, unless they mean to go over. Field docs live in player.json <c>edge</c>.
+/// </summary>
+public sealed record EdgeTuning(double Lip = 0.3, double StepOffDegrees = 30, double CatchDrop = 3.5, bool WindOverLip = false);
 /// <summary>
 /// Rejoining a night after a drop (note 253). Field docs live in player.json <c>rejoin</c>.
 /// </summary>
-public sealed record RejoinTuning(double ReserveSeconds = 180, bool ReclaimBody = true, double GreetSeconds = 1, int Retries = 5, double RetrySeconds = 3);
+public sealed record RejoinTuning(double ReserveSeconds = 180, bool ReclaimBody = true, double GreetSeconds = 1, int Retries = 5, double RetrySeconds = 3,
+    double FollowSeconds = 600);
+/// <summary>
+/// The links in play (note 532). Field docs live in player.json <c>link</c>. A test's transports keep their own
+/// <c>DatagramOptions</c>; these are the app's.
+/// </summary>
+public sealed record LinkTuning(double TimeoutSeconds = 15, double KeepaliveSeconds = 1, int PumpMilliseconds = 4,
+    int PaceQueued = 4, double PaceSlow = 0.05, double PaceSeconds = 1, double HeldBackSeconds = 5,
+    int ThinLossPct = 12, double ThinSeconds = 2, double ThinHoldSeconds = 20, int StrainCrew = 2, double StrainSeconds = 5);
 /// <summary>
 /// The crew cap (note 254). Field docs live in player.json <c>crew</c>. Never under one: the host's own player always fits.
 /// </summary>
@@ -67,9 +84,21 @@ public sealed record CrewTuning(int Cap = 8, double RefuseLingerSeconds = 3)
 {
     public int Places => Math.Max(1, Cap);
 }
+/// <summary>
+/// How long each emote lasts (note 298), in seconds, unless its player moves first. Field docs live in player.json
+/// <c>emotes</c>. Presentation only: the host keeps the event this long for the crew to see; nothing in the sim acts on it.
+/// </summary>
+public sealed record EmoteTuning(double Dance = 8, double Wave = 2.5, double Point = 2.5, double Cooldown = 0.5)
+{
+    public double Seconds(Emote e) => e switch { Emote.Dance => Dance, Emote.Wave => Wave, Emote.Point => Point, _ => 0 };
+    public double Longest => Math.Max(Dance, Math.Max(Wave, Point));
+}
 /// <param name="LethalAbove">Speed over the ground on landing that kills (spec B.3 after T90); 0 for the train's jump-off band.</param>
 /// <param name="DamageAtLethal">A landing's knock rises from <paramref name="RollDamage"/> to this at the lethal edge.</param>
-public sealed record LandingTuning(double RollAbove, int RollDamage, double LethalAbove = 0, int DamageAtLethal = 0);
+/// <param name="FallHurtFrom">Note 573: a fall from at least this high (m, by the speed it lands at) knocks, from <paramref name="RollDamage"/>
+/// rising to death at <paramref name="FallLethalFrom"/>; 0 for no fall knock.</param>
+public sealed record LandingTuning(double RollAbove, int RollDamage, double LethalAbove = 0, int DamageAtLethal = 0, double FallHurtFrom = 0,
+    double FallLethalFrom = 0);
 public sealed record LadderTuning(double GrabRange, double GrabMaxRelativeSpeed);
 /// <summary>A VR player's reaching hand (T29). Field docs live in player.json.</summary>
 public sealed record HandTuning(double Arm, double Overhead, double Grab);

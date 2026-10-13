@@ -60,6 +60,141 @@ public sealed partial class Run
         return null;
     }
 
+    /// <summary>The cargo car (in any rake) whose middle is under the steam lift's chute, within its tolerance; null if none.</summary>
+    public Vehicle? CarUnderChute(TrainOnLine train, Site site) =>
+        _facilityTuning is not { } t || !site.Has(ModuleKind.Lift) ? null
+        : train.Vehicles.Where(v => v.Kind == VehicleKind.Cargo && v.Id < train.Frames.Count && Flat(train.Frames[v.Id].Origin - site.LiftChute) <= t.Lift.Tolerance)
+            .OrderBy(v => Flat(train.Frames[v.Id].Origin - site.LiftChute)).FirstOrDefault();
+
+    /// <summary>A steam lift with ore left down its shaft, within reach of its lever (on foot).</summary>
+    public Site? LiftLeverInReach(in PlayerState s, TrainOnLine train, HandTuning? hand = null)
+    {
+        if (Over || !s.Alive || s.Parent != PlayerState.World || _facilityTuning is not { } t)
+            return null;
+        var at = PlayerMotor.WorldPosition(s, train);
+        foreach (var site in _sites)
+            if (site is { Ore: > 0 } && site.Has(ModuleKind.Lift)
+                && PlayerMotor.Grips(s, train, hand, site.LiftLever, (at - site.LiftLever).Length <= t.Lift.LeverReach))
+                return site;
+        return null;
+    }
+
+    /// <summary>
+    /// Whether the engine stands near enough the steam lift for its steam line (spec D.2 "the locomotive coupled nearby"): its
+    /// middle within facilities.json <c>lift.steamReach</c> of the chute. Its steam comes when the cab's vent is held open.
+    /// </summary>
+    public bool EngineInReach(TrainOnLine train, Site site) =>
+        _facilityTuning is { } t && site.Has(ModuleKind.Lift) && train.Vehicles.FirstOrDefault(v => v.Kind == VehicleKind.Engine) is { } engine
+        && engine.Id < train.Frames.Count && Flat(train.Frames[engine.Id].Origin - site.LiftChute) <= t.Lift.SteamReach;
+
+    /// <summary>The cargo car (in any rake) whose middle is under the conveyor's head, within its tolerance; null if none.</summary>
+    public Vehicle? CarUnderHead(TrainOnLine train, Site site) =>
+        _facilityTuning is not { } t || !site.Has(ModuleKind.Conveyor) ? null
+        : train.Vehicles.Where(v => v.Kind == VehicleKind.Cargo && v.Id < train.Frames.Count && Flat(train.Frames[v.Id].Origin - site.ConveyorHead) <= t.Conveyor.Tolerance)
+            .OrderBy(v => Flat(train.Frames[v.Id].Origin - site.ConveyorHead)).FirstOrDefault();
+
+    /// <summary>A conveyor line with grain left, stopped, within reach of its drive house's starter (on foot).</summary>
+    public Site? StarterInReach(in PlayerState s, TrainOnLine train, HandTuning? hand = null)
+    {
+        if (Over || !s.Alive || s.Parent != PlayerState.World || _facilityTuning is not { } t)
+            return null;
+        var at = PlayerMotor.WorldPosition(s, train);
+        foreach (var site in _sites)
+            if (site is { Grain: > 0, Running: false } && site.Has(ModuleKind.Conveyor)
+                && PlayerMotor.Grips(s, train, hand, site.ConveyorStarter, (at - site.ConveyorStarter).Length <= t.Conveyor.StarterReach))
+                return site;
+        return null;
+    }
+
+    /// <summary>
+    /// A conveyor's drive house within reach of its starter (on foot), whatever the belt's doing: the HUD says there what it's
+    /// doing once it's started (note 582; the director, 9 Oct 2026: "I started the belt hold and it wasnt clear what was happening").
+    /// </summary>
+    public Site? DriveInReach(in PlayerState s, TrainOnLine train, HandTuning? hand = null)
+    {
+        if (Over || !s.Alive || s.Parent != PlayerState.World || _facilityTuning is not { } t)
+            return null;
+        var at = PlayerMotor.WorldPosition(s, train);
+        foreach (var site in _sites)
+            if (site is not null && site.Has(ModuleKind.Conveyor)
+                && PlayerMotor.Grips(s, train, hand, site.ConveyorStarter, (at - site.ConveyorStarter).Length <= t.Conveyor.StarterReach))
+                return site;
+        return null;
+    }
+
+    /// <summary>A jammed conveyor belt within reach of its jam, standing on the ground beside it (on foot).</summary>
+    public Site? JamInReach(in PlayerState s, TrainOnLine train)
+    {
+        if (Over || !s.Alive || s.Parent != PlayerState.World || _facilityTuning is not { } t)
+            return null;
+        var at = PlayerMotor.WorldPosition(s, train);
+        foreach (var site in _sites)
+            if (site is { Jam: >= 0 } && site.Has(ModuleKind.Conveyor) && Flat(at - site.JamAt) <= t.Conveyor.ClearReach)
+                return site;
+        return null;
+    }
+
+    /// <summary>On foot within <see cref="ConveyorTuning.NearBelt"/> of a conveyor's low run (where its jams are): the HUD's "where".</summary>
+    public Site? BeltNear(in PlayerState s, TrainOnLine train)
+    {
+        if (Over || !s.Alive || s.Parent != PlayerState.World || _facilityTuning is not { } t)
+            return null;
+        var at = PlayerMotor.WorldPosition(s, train);
+        foreach (var site in _sites)
+        {
+            if (site is null || !site.Has(ModuleKind.Conveyor))
+                continue;
+            var run = (site.ConveyorKnee - site.ConveyorTail) with { Y = 0 };
+            double u = Math.Clamp(Double3.Dot((at - site.ConveyorTail) with { Y = 0 }, run) / Math.Max(1e-9, Double3.Dot(run, run)), 0, 1);
+            if (Flat(at - Double3.Lerp(site.ConveyorTail, site.ConveyorKnee, u)) <= t.Conveyor.NearBelt)
+                return site;
+        }
+        return null;
+    }
+
+    /// <summary>The cargo car (in any rake) whose middle stands in the tipple's cradle, within its tolerance; null if none.</summary>
+    public Vehicle? CarInCradle(TrainOnLine train, Site site) =>
+        _facilityTuning is not { } t || !site.Has(ModuleKind.Tipple) ? null
+        : train.Vehicles.Where(v => v.Kind == VehicleKind.Cargo && v.Id < train.Frames.Count && Flat(train.Frames[v.Id].Origin - site.Cradle) <= t.Tipple.Tolerance)
+            .OrderBy(v => Flat(train.Frames[v.Id].Origin - site.Cradle)).FirstOrDefault();
+
+    /// <summary>How far a car's middle stands off the tipple's cradle (m, flat): a clamp shut past <see cref="TippleTuning.GoodClamp"/> is a bad one.</summary>
+    public static double OffCradle(TrainOnLine train, Site site, Vehicle car) => Flat(train.Frames[car.Id].Origin - site.Cradle);
+
+    /// <summary>Whether a car in the tipple's cradle stands true enough in it for a good clamp (the bots clamp only one that does).</summary>
+    public bool StoodTrue(TrainOnLine train, Site site, Vehicle car) =>
+        _facilityTuning is { } t && OffCradle(train, site, car) <= t.Tipple.GoodClamp * 0.9;
+
+    /// <summary>A car off its rails at the tipple (note 423), if there is one: the one the bad clamp derailed.</summary>
+    public Vehicle? OffRailsAt(TrainOnLine train, Site site) =>
+        _facilityTuning is not { } t || !site.Has(ModuleKind.Tipple) ? null
+        : train.Vehicles.FirstOrDefault(v => v.OffRails && v.Id < train.Frames.Count && Flat(train.Frames[v.Id].Origin - site.Cradle) <= t.Tipple.Tolerance * 3);
+
+    /// <summary>A tipple with ore in its bin, within reach of its lever (on foot).</summary>
+    public Site? TippleLeverInReach(in PlayerState s, TrainOnLine train, HandTuning? hand = null)
+    {
+        if (Over || !s.Alive || s.Parent != PlayerState.World || _facilityTuning is not { } t)
+            return null;
+        var at = PlayerMotor.WorldPosition(s, train);
+        foreach (var site in _sites)
+            if (site is { TippleOre: > 0 } && site.Has(ModuleKind.Tipple)
+                && PlayerMotor.Grips(s, train, hand, site.TippleLever, (at - site.TippleLever).Length <= t.Tipple.LeverReach))
+                return site;
+        return null;
+    }
+
+    /// <summary>On foot within reach of a car off its rails at a tipple (note 423): where a wrench puts it back.</summary>
+    public (Site Site, Vehicle Car)? OffRailsInReach(in PlayerState s, TrainOnLine train)
+    {
+        if (Over || !s.Alive || s.Parent != PlayerState.World || _facilityTuning is not { } t)
+            return null;
+        var at = PlayerMotor.WorldPosition(s, train);
+        foreach (var site in _sites)
+            if (site is not null && site.Has(ModuleKind.Tipple) && OffRailsAt(train, site) is { } car && Flat(at - train.Frames[car.Id].Origin) <= t.Tipple.RerailReach)
+                return (site, car);
+        return null;
+    }
+
     /// <summary>In the pen of a herd with head left in it (on foot): where you drive them from.</summary>
     public Site? InPen(in PlayerState s, TrainOnLine train)
     {
@@ -108,6 +243,18 @@ public sealed partial class Run
         bool use = intent.Has(PlayerButtons.Use) && intent.MoveZ <= 0.5;
         if (use && SpoutLeverInReach(s, train, hand) is { } spout && (spout.Pourer < 0 || playerId < spout.Pourer))
             spout.Pourer = playerId;
+        if (use && LiftLeverInReach(s, train, hand) is { } lift && (lift.Winder < 0 || playerId < lift.Winder))
+            lift.Winder = playerId;
+        if (use && StarterInReach(s, train, hand) is { } drive && (drive.Starter < 0 || playerId < drive.Starter))
+            drive.Starter = playerId;
+        if (use && TippleLeverInReach(s, train, hand) is { } tipple && (tipple.Tippler < 0 || playerId < tipple.Tippler))
+            tipple.Tippler = playerId;
+        // A wrench to a car off its rails at the tipple (note 423): each at it puts it back that much faster. (The repair kit
+        // carried where the wrench isn't the repair tool, as at the burst boiler.)
+        if (use && Repairs.MendsBoiler(s, train) && OffRailsInReach(s, train) is { } derailed)
+            derailed.Site.Rerailers++;
+        if (use && JamInReach(s, train) is { } jammed && (jammed.Clearer < 0 || playerId < jammed.Clearer))
+            jammed.Clearer = playerId;
         if (use && InPen(s, train) is { } pen)
             pen.Herders.Add(playerId);
         if (AtHoseStand(s, train) is not { } stand)
@@ -197,6 +344,12 @@ public sealed partial class Run
             var cargo = site.Feature.Facility is { } kind ? t.CargoOf(kind) : CargoKind.Goods;
             if (site.Has(ModuleKind.Spout))
                 Pour(train, site, t.Spout, cargo, dt);
+            if (site.Has(ModuleKind.Lift))
+                Lift(train, site, t.Lift, cargo);
+            if (site.Has(ModuleKind.Conveyor))
+                Convey(world, site, t, cargo, dt);
+            if (site.Has(ModuleKind.Tipple))
+                Tipple(train, site, t.Tipple, cargo, dt);
             if (site.Has(ModuleKind.Ramp))
                 Drive(train, site, t.Ramp, cargo, dt);
             if (site.Has(ModuleKind.Hose))
@@ -231,6 +384,232 @@ public sealed partial class Run
         }
         car.Integrity = Math.Max(0, car.Integrity - (pour - taken) * sp.OverfillDamagePerLoad);
     }
+
+    /// <summary>
+    /// The steam lift (spec D.2: "requires the locomotive coupled nearby and venting pressure to power it. 2 crew. Ties loading
+    /// directly to the boiler; you're at zero pressure while it runs"; note 368). With someone holding its lever, the engine
+    /// in its steam line's reach and the cab's vent held open, the vented steam winds the skip up the shaft instead of into the
+    /// air: every point of pressure is 1/<c>steamPerSkip</c> of a wind. Wound, the skip tips its ore down the chute: into the car
+    /// under it, if there's one with room; onto the ballast if not; a full car under it overflows, which strains it, as the
+    /// spout's does. The boiler pays the vent's own rate (boiler.json <c>ventRate</c>), so loading empties it.
+    /// </summary>
+    void Lift(TrainOnLine train, Site site, LiftTuning l, CargoKind cargo)
+    {
+        // This tick's venting (the boiler's step has run): the vent's full rate while there's pressure, and with the gauge run down
+        // to nothing, what the fire's making ("you're at zero pressure while it runs", and it runs at the fire's pace).
+        double steam = train.BoilerTuning is not null && train.Boiler.Vented ? train.Boiler.VentedSteam : 0;
+        site.LeverHeld = !Over && site.Winder >= 0;
+        site.Winding = site.LeverHeld && site.Ore > 1e-9 && steam > 0 && EngineInReach(train, site);
+        site.Winder = -1;
+        if (!site.Winding)
+            return;
+        site.Wind += steam / l.SteamPerSkip;
+        if (site.Wind < 1)
+            return;
+        site.Wind = 0;
+        double skip = Math.Min(l.PerSkip, site.Ore);
+        site.Ore = Math.Max(0, site.Ore - skip);
+        if (CarUnderChute(train, site) is not { } car)
+            return; // on the ballast
+        double taken = Math.Min(skip, Math.Max(0, 1 - car.Load));
+        if (taken > 0)
+        {
+            car.Load += taken;
+            car.Cargo = cargo;
+        }
+        car.Integrity = Math.Max(0, car.Integrity - (skip - taken) * l.OverfillDamagePerLoad);
+    }
+
+    /// <summary>
+    /// The conveyor line (spec D.2: "start machinery at a powerhouse, then clear jams as they occur. 1 + 1 roaming. Jams every
+    /// 30–60s; unattended jam stops the line"; note 400). Someone holding its drive house's starter long enough starts it, the
+    /// yard's power on. Running, it carries grain into the car under its head (the head's gate opens only over a car with
+    /// room), the slower on Low power. Every so many seconds of carrying (drawn from the night's seed) it jams somewhere along
+    /// its low run and carries nothing till someone holds Use beside the jam long enough; a jam left too long stalls the drive,
+    /// and it has to be started again.
+    /// </summary>
+    void Convey(World world, Site site, FacilityTuning ft, CargoKind cargo, double dt)
+    {
+        var c = ft.Conveyor;
+        var train = world.Train;
+        int starter = site.Starter, clearer = site.Clearer;
+        site.Starter = site.Clearer = -1;
+        site.Carrying = false;
+        if (Over)
+        {
+            site.Running = false;
+            return;
+        }
+        // Started at the drive house, while the yard's powerhouse is going (a dead yard's restarted first, spec D.1). Letting go
+        // starts it over.
+        if (!site.Running && starter >= 0 && site.Grain > 0 && site.Power != Sim.Stops.PowerState.Dead)
+        {
+            site.Start += dt;
+            if (world.Combat is { } cb)
+                world.Choir.Loud(cb.Choir, c.StartRounds, dt);
+            if (site.Start >= c.StartSeconds)
+            {
+                site.Running = true;
+                site.Start = 0;
+                site.JamFor = 0;
+            }
+        }
+        else
+            site.Start = 0;
+        // A jam's cleared by someone beside it, running or stalled.
+        if (site.Jam >= 0 && clearer >= 0)
+        {
+            site.Clear += dt;
+            if (site.Clear >= c.ClearSeconds)
+            {
+                site.Jam = -1;
+                site.JamFor = 0;
+                site.Clear = 0;
+            }
+        }
+        else
+            site.Clear = 0;
+        if (!site.Running)
+            return;
+        if (site.Jam >= 0)
+        {
+            // Left too long, the jam stalls the drive: back to the drive house (D.2 "unattended jam stops the line").
+            site.JamFor += dt;
+            if (site.JamFor >= c.StallSeconds)
+            {
+                site.Running = false;
+                site.JamFor = 0;
+            }
+            return;
+        }
+        if (site.Grain <= 1e-9 || site.Power == Sim.Stops.PowerState.Dead)
+            return;
+        if (CarUnderHead(train, site) is not { } car || car.Load >= 1 - 1e-9)
+            return; // the head's gate stays shut
+        if (site.NextJam < 0)
+            site.NextJam = JamIn(site, c);
+        double rate = c.PerSecond * (site.Power == Sim.Stops.PowerState.Low ? ft.Power.LowSpeed : 1);
+        double carried = Math.Min(Math.Min(rate * dt, site.Grain), 1 - car.Load);
+        site.Grain = Math.Max(0, site.Grain - carried);
+        car.Load += carried;
+        car.Cargo = cargo;
+        site.Carrying = true;
+        site.NextJam -= dt;
+        if (site.NextJam <= 0)
+        {
+            site.Jam = JamWhere(site, c);
+            site.JamFor = 0;
+            site.Jams++;
+            site.NextJam = -1;
+        }
+    }
+
+    /// <summary>
+    /// The tipple (spec D.2: "Clamp the car, rotate it to load. 1 crew. Bad clamp derails the car on the spur"; note 423). With
+    /// the train standing and a car with room in the cradle, someone holding the lever clamps it; held on, the cradle rolls it
+    /// over toward the bin and the chute tips a share of a car-load in at the top, then it rolls back by itself and lets go. A
+    /// clamp shut on a car stood off the cradle's middle is a bad one: rolled, the car comes off its rails in the cradle, and so
+    /// does a clamped car the train moves. Off its rails it holds its rake fast till a wrench puts it back.
+    /// </summary>
+    void Tipple(TrainOnLine train, Site site, TippleTuning tp, CargoKind cargo, double dt)
+    {
+        int tippler = site.Tippler, rerailers = site.Rerailers;
+        site.Tippler = -1;
+        site.Rerailers = 0;
+        if (OffRailsAt(train, site) is { } off)
+        {
+            // The wrench work keeps (presses add up, as at any break); done, it's back on its rails.
+            site.Rerail += dt * rerailers;
+            if (site.Rerail >= tp.RerailSeconds)
+            {
+                off.OffRails = false;
+                site.Rerail = 0;
+            }
+            return;
+        }
+        site.Rerail = 0;
+        if (site.Clamped < 0)
+        {
+            var inCradle = CarInCradle(train, site);
+            bool clamping = !Over && tippler >= 0 && inCradle is { OffRails: false } && inCradle.Load < 1 - 1e-6 && site.TippleOre > 1e-9
+                && Math.Abs(train.RakeOf(inCradle.Id).Velocity) < 0.05;
+            site.Clamp = clamping ? site.Clamp + dt : 0;
+            if (clamping && site.Clamp >= tp.ClampSeconds)
+            {
+                site.Clamped = inCradle!.Id;
+                site.GoodClamp = OffCradle(train, site, inCradle) <= tp.GoodClamp;
+                site.Clamp = 0;
+                site.Roll = 0;
+                site.RollingBack = false;
+            }
+            return;
+        }
+        var car = site.Clamped < train.Vehicles.Count ? train.Vehicles[site.Clamped] : null;
+        if (car is null)
+        {
+            Unclamp(site);
+            return;
+        }
+        // The train moving with a car clamped takes it off its rails at once, as a bad clamp's roll does.
+        if (Math.Abs(train.RakeOf(car.Id).Velocity) >= 0.05 || OffCradle(train, site, car) > tp.Tolerance)
+        {
+            Derail(site, car, tp);
+            return;
+        }
+        if (site.RollingBack)
+        {
+            site.Roll -= dt / tp.BackSeconds;
+            if (site.Roll <= 0)
+                Unclamp(site);
+            return;
+        }
+        if (Over || tippler < 0)
+            return; // the cradle holds where it is
+        site.Roll = Math.Min(1, site.Roll + dt / tp.RollSeconds);
+        if (!site.GoodClamp && site.Roll >= tp.BadAt)
+        {
+            Derail(site, car, tp);
+            return;
+        }
+        if (site.Roll < 1)
+            return;
+        // Over at the top: the chute tips the ore in, and what the car can't take goes on the ballast.
+        double tip = Math.Min(tp.PerRoll, site.TippleOre);
+        site.TippleOre = Math.Max(0, site.TippleOre - tip);
+        double taken = Math.Min(tip, Math.Max(0, 1 - car.Load));
+        if (taken > 0)
+        {
+            car.Load += taken;
+            car.Cargo = cargo;
+        }
+        site.RollingBack = true;
+    }
+
+    static void Unclamp(Site site)
+    {
+        site.Clamped = -1;
+        site.Roll = 0;
+        site.RollingBack = false;
+        site.Clamp = 0;
+    }
+
+    /// <summary>A bad clamp (note 423): the car comes off its rails in the cradle, spilling some of its load and knocked about.</summary>
+    static void Derail(Site site, Vehicle car, TippleTuning tp)
+    {
+        car.OffRails = true;
+        car.Load = Math.Max(0, car.Load - tp.Spill);
+        car.Integrity = Math.Max(0, car.Integrity - tp.DerailDamage);
+        site.Rerail = 0;
+        Unclamp(site);
+    }
+
+    /// <summary>Seconds of carrying till a conveyor's next jam (spec D.2 "every 30–60s"), from the night's seed and the jam's count.</summary>
+    double JamIn(Site site, ConveyorTuning c) =>
+        new Pcg32(_route.Seed ^ 0xC0E7E1, (ulong)(site.Index * 1024 + site.Jams * 2)).Range(c.JamEvery[0], c.JamEvery[^1]);
+
+    /// <summary>Where along its low run the jam is (0 the tail, 1 the knee), from the night's seed and the jam's count.</summary>
+    double JamWhere(Site site, ConveyorTuning c) =>
+        new Pcg32(_route.Seed ^ 0xC0E7E1, (ulong)(site.Index * 1024 + site.Jams * 2 + 1)).Range(c.JamFrom, c.JamTo);
 
     /// <summary>
     /// The livestock ramp (spec D.2: "herd animals up a ramp into a stock car. 2–3 crew"): with enough in the pen driving

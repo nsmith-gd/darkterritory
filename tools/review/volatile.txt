@@ -1,0 +1,3 @@
+# Shots that change from run to run on their own (ARCHITECTURE §8 note 517): the review packet lists them apart, never as
+# changed. One path a line (as in out/shots/), then why. Fix the shot and take it off.
+hud-spectating.png  a real host and joiner over UDP with sleeps between ticks: what the watcher's HUD shows depends on packet timing

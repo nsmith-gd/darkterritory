@@ -30,6 +30,12 @@ public sealed class HostSession
         public bool Bookmarking;
         public PlayerState State;
         public int MissedInputs;
+        /// <summary>This client's inputs getting through, by the newest each datagram carries (netcode-audit.md gap 3).</summary>
+        public LinkLoss InputLoss = new(10 * SimConstants.TickRate);
+        /// <summary>Note 549: the downlink loss this client last reported of itself, in percent, and the thinning it's earned.</summary>
+        public byte ReportedLoss;
+        public int ThinFor, ThinHeld;
+        public bool Thin;
         /// <summary>What this client was sent at each tick: its own delta baselines, since interest differs per client.</summary>
         public readonly Dictionary<uint, List<WireRecord>> Sent = new();
     }
@@ -71,6 +77,8 @@ public sealed class HostSession
         {
             _playerTuning = value;
             World.Hand = value.Hand;
+            World.EmoteTuning = value.Emotes;
+            World.Bodies.FullHealth = value.Health; // a healing find is used only short of it (note 272)
         }
     }
     PlayerTuning _playerTuning = null!;
@@ -83,6 +91,26 @@ public sealed class HostSession
 
     public IEnumerable<PlayerSnapshot> Players => _crew.Select(c => new PlayerSnapshot(c.Id, c.State));
     public int MissedInputs(byte id) => _crew.First(c => c.Id == id).MissedInputs;
+
+    /// <summary>
+    /// Each crewmate's link as the host sees it (netcode-audit.md gap 3), for the lobby panel: their peer (for the round trip
+    /// and the route, the transport's) and the share of their inputs lost or stale over the window.
+    /// </summary>
+    public IReadOnlyList<(byte Id, PeerId Peer, double? InputLoss)> Links =>
+        [.. _crew.Select(c => (c.Id, c.Peer, c.InputLoss.Settled))];
+
+    /// <summary>The window the crew's input loss is counted over, in ticks (hud.json <c>lossWindowSeconds</c>).</summary>
+    public int LossWindowTicks
+    {
+        get => _lossWindow;
+        set
+        {
+            _lossWindow = value;
+            foreach (var c in _crew)
+                c.InputLoss = new(value);
+        }
+    }
+    int _lossWindow = 10 * SimConstants.TickRate;
 
     /// <summary>Starts the night's threats: the director, the route's Sleepers, the Hollow's watch (host authority).</summary>
     public void EnableEnemies(Enemies.EnemyTuning tuning, Route.Route? route, ulong seed, int expectedCrew)
@@ -101,6 +129,19 @@ public sealed class HostSession
 
     /// <summary>Every Holdout assigned, freed, released or called out from this session, oldest first (GDD App. D).</summary>
     public List<Run.HoldoutEvent> HoldoutEvents { get; } = new();
+
+    /// <summary>
+    /// The crew goes on together (note 606): tells everyone aboard and waiting that the host's going on to the next night from
+    /// <paramref name="town"/>, as it leaves a delivered campaign night. Each dials back in for it rather than going to its menu.
+    /// </summary>
+    public void CarryOn(Towns.TownAt town)
+    {
+        Messages.WriteCarryOn(_writer, town);
+        foreach (var c in _crew)
+            _transport.Send(c.Peer, _writer.Written, Delivery.ReliableOrdered);
+        foreach (var (_, peer) in _waiting)
+            _transport.Send(peer, _writer.Written, Delivery.ReliableOrdered);
+    }
 
     public void Step()
     {
@@ -124,15 +165,17 @@ public sealed class HostSession
         // does and as a predicting client assumes.
         // A train that stops on it stands on it (T97: with steam driving, off the brake a standing engine pulls away) until
         // the driver lets it off (a notch up: CabControls.ReleasesBrake).
-        if (_crew.Any(c => CabControls.CanDrive(c.State, Train)) && CabControls.Clears(Controls, Train, _crew.Any(c => CabControls.ReleasesBrake(c.ThisTick, c.State, Train))))
+        HoldTheControls();
+        if (_crew.Any(c => CabControls.CanDrive(c.State, Train)) && CabControls.Clears(Controls, Train, _crew.Any(c => AtTheControls(c) && CabControls.ReleasesBrake(c.ThisTick, c.State, Train))))
             Controls.Brake = 0;
         foreach (var c in _crew)
         {
             // App. C.9 "who was on the throttle": whoever's working the cab's controls, or failing that anyone at them.
-            if (CabControls.CanDrive(c.State, Train) && (c.ThisTick.ThrottleNotch != 0 || c.ThisTick.Has(PlayerButtons.Brake) || World.Attribution.Driver < 0
+            if (AtTheControls(c) && CabControls.CanDrive(c.State, Train) && (c.ThisTick.ThrottleNotch != 0 || c.ThisTick.Has(PlayerButtons.Brake) || World.Attribution.Driver < 0
                 || !_crew.Any(o => o.Id == World.Attribution.Driver && CabControls.CanDrive(o.State, Train))))
                 World.Attribution.Drove(c.Id);
-            CabControls.Apply(ref Controls, c.ThisTick, c.State, Train);
+            if (AtTheControls(c))
+                CabControls.Apply(ref Controls, c.ThisTick, c.State, Train);
             // Lag compensation: check this player's shots against where targets were on their screen.
             uint? view = c.AckedSnapshot > ClientSession.InterpolationTicks ? c.AckedSnapshot - ClientSession.InterpolationTicks : null;
             World.CrewAct(ref c.State, c.ThisTick, c.Id, view);
@@ -142,8 +185,9 @@ public sealed class HostSession
         Votes();
         // E.5 "Skipping": a majority of the session, or the host, skips the film to the cause card, or the Stranded outro
         // (E.9). When a vote counts at all is the clients' to say: they only offer it after the first player's shot, or three
-        // seconds into the outro. Once skipped, it stays skipped.
-        if ((World.Film is not null || World.Run?.End == Run.RunEnd.Stranded) && _crew.Count > 0)
+        // seconds into the outro. Once skipped, it stays skipped. With each player's own skip (wreck.json "skip", note 315)
+        // there's no vote: each client skips its own, and the host has nothing to count.
+        if (!World.WreckTuning.Skip.Own && (World.Film is not null || World.Run?.End == Run.RunEnd.Stranded) && _crew.Count > 0)
         {
             int votes = _crew.Count(c => c.ThisTick.Has(PlayerActions.Skip));
             World.FilmVotes = (votes, _crew.Count);
@@ -172,8 +216,59 @@ public sealed class HostSession
         foreach (var p in _snapshotScratch)
             _crew.First(c => c.Id == p.Id).State = p.State;
 
+        StepLinks();
         Broadcast(records);
     }
+
+    /// <summary>
+    /// Note 549: a client whose own downlink is losing link.thinLossPct of the snapshots for link.thinSeconds is sent every
+    /// other one (15 Hz) until it's down to half that: fewer, whole pictures beat more with holes, and the client's
+    /// interpolation window (100 ms) spans two of them. And when link.strainCrew or more of the crew report that much loss at
+    /// once for link.strainSeconds, the one thing they share is this host's upload: <see cref="UploadStrained"/>.
+    /// </summary>
+    void StepLinks()
+    {
+        var t = PlayerTuning.Link;
+        int thinTicks = (int)Math.Max(1, t.ThinSeconds * SimConstants.TickRate), holdTicks = (int)Math.Max(1, t.ThinHoldSeconds * SimConstants.TickRate);
+        int strained = 0;
+        foreach (var c in _crew)
+        {
+            if (c.ReportedLoss >= t.ThinLossPct)
+                strained++;
+            if (c.Thin)
+            {
+                // Thinned, the loss it was thinned for goes, so the thinning is held a while and let go only once the link has
+                // been quiet for all of it: otherwise it would come and go every few seconds.
+                c.ThinHeld = c.ReportedLoss * 2 <= t.ThinLossPct ? c.ThinHeld + 1 : 0;
+                if (c.ThinHeld >= holdTicks)
+                    (c.Thin, c.ThinFor, c.ThinHeld) = (false, 0, 0);
+                continue;
+            }
+            c.ThinFor = c.ReportedLoss >= t.ThinLossPct ? c.ThinFor + 1 : 0;
+            if (c.ThinFor >= thinTicks)
+                (c.Thin, c.ThinHeld) = (true, 0);
+        }
+        _strainedFor = strained >= t.StrainCrew ? _strainedFor + 1 : 0;
+        UploadStrained = _strainedFor >= Math.Max(1, t.StrainSeconds * SimConstants.TickRate);
+        if (Tick % SimConstants.TickRate == 0)
+        {
+            UpKbps = _bytesOut * 8 / 1000.0;
+            _bytesOut = 0;
+        }
+    }
+
+    int _strainedFor;
+    long _bytesOut;
+    /// <summary>Note 549: at least link.strainCrew of the crew have been reporting a thin downlink at once for link.strainSeconds.</summary>
+    public bool UploadStrained { get; private set; }
+    /// <summary>Note 549: what this host sent in snapshots over the last whole second, kbit/s (the voice rides on top).</summary>
+    public double UpKbps { get; private set; }
+    /// <summary>Note 549: snapshots withheld from thin links (every other one), for the harness and tests.</summary>
+    public int SnapshotsThinned { get; private set; }
+    /// <summary>Note 549: whether this client is being sent every other snapshot.</summary>
+    public bool IsThinned(byte id) => _crew.FirstOrDefault(c => c.Id == id)?.Thin ?? false;
+    /// <summary>Note 549: the downlink loss this client last reported of itself, in percent.</summary>
+    public int ReportedLoss(byte id) => _crew.FirstOrDefault(c => c.Id == id)?.ReportedLoss ?? 0;
 
     PlayerIntent NextIntent(Crew c)
     {
@@ -195,6 +290,8 @@ public sealed class HostSession
         held.LookYaw = held.LookPitch = 0;
         held.ThrottleNotch = 0;
         held.Buttons &= ~(PlayerButtons.Jump | PlayerButtons.Reverser);
+        // The seat's press too: at the crane it takes the controls and the next lets them go, so a repeated one would undo it.
+        held.Actions &= ~PlayerActions.Seat;
         return held;
     }
 
@@ -284,15 +381,31 @@ public sealed class HostSession
     public int Refusals { get; private set; }
     public int Leaves { get; private set; }
 
+    /// <summary>
+    /// A private run's password, as its key (note 450, <see cref="Messages.PasswordKey"/>): a new joiner whose Hello doesn't
+    /// carry it is turned away, WRONG PASSWORD. Null: an open run. Host-only, never sim state.
+    /// </summary>
+    public byte[]? PasswordKey { get; set; }
+    /// <summary>
+    /// Who gets into a private run without the password (note 450): the host's friends on the platform it came in on. A held
+    /// place's token always does (they were let in once). Null: nobody.
+    /// </summary>
+    public Func<PeerId, bool>? Trusted { get; set; }
+    /// <summary>Joiners turned away from a private run for the wrong password, or none.</summary>
+    public int WrongPasswords { get; private set; }
+
     /// <summary>Links turned away (note 254), kept open till their Refused has had time to get there, then hung up on.</summary>
     readonly List<(PeerId Peer, uint Until)> _refused = [];
     /// <summary>Links turned away and not yet hung up on.</summary>
     public int TurnedAway => _refused.Count;
 
-    void Refuse(PeerId peer)
+    void Refuse(PeerId peer, RefusalReason why = RefusalReason.CrewFull)
     {
-        Refusals++;
-        Messages.WriteRefused(_writer, new Refusal(RefusalReason.CrewFull, Occupied, Cap));
+        if (why == RefusalReason.Password)
+            WrongPasswords++;
+        else
+            Refusals++;
+        Messages.WriteRefused(_writer, new Refusal(why, Occupied, Cap));
         _transport.Send(peer, _writer.Written, Delivery.ReliableOrdered);
         _refused.Add((peer, Tick + (uint)TicksOf(PlayerTuning.Crew.RefuseLingerSeconds)));
     }
@@ -354,6 +467,9 @@ public sealed class HostSession
         public bool Late;
         public string Name = "";
         public ulong Token;
+        public byte Outfit = Messages.NoOutfit;
+        public byte[]? Key;
+        public bool Bot;
     }
 
     readonly List<Greeting> _greeting = [];
@@ -434,6 +550,12 @@ public sealed class HostSession
             // whose place ran out) needs room. The greeting line itself takes no place: a connection that never speaks is
             // never counted, so it can't fill the crew or shut the lobby.
             byte? back = g.Token != 0 ? Return(g.Peer, g.Token) : null;
+            // Note 450: a private run asks a new joiner for its password before it takes a place, so a guess fills nothing.
+            if (back is null && !Admitted(g))
+            {
+                Refuse(g.Peer, RefusalReason.Password);
+                continue;
+            }
             if (back is null && Full)
             {
                 Refuse(g.Peer);
@@ -441,8 +563,52 @@ public sealed class HostSession
             }
             byte id = back ?? Join(g.Peer);
             Name(id, g.Name);
+            Wear(id, g.Outfit, any: true);
+            Botness(id, g.Bot);
         }
     }
+
+    /// <summary>Who said in their Hello they're a bot (note 574): they never take the cab's controls off someone playing.</summary>
+    readonly HashSet<int> _bots = [];
+
+    void Botness(int id, bool bot)
+    {
+        if (bot)
+            _bots.Add(id);
+        else
+            _bots.Remove(id);
+    }
+
+    /// <summary>
+    /// Note 574 (the director, 9 Oct 2026, on the short-nights test build: "yes the bot was still fighting me for the
+    /// controls"): the cab's controls are whoever's working them. Someone alive in the cab who works one (the regulator's
+    /// notch, the brake, the reverser) takes them, and while they hold them nobody else's hand on them counts. Someone
+    /// playing takes them off a bot; a bot only takes them up when nobody alive in the cab holds them. Out of the cab or
+    /// dead, the holder lets them go.
+    /// </summary>
+    void HoldTheControls()
+    {
+        var holder = _crew.Find(c => c.Id == World.ControlsHolder);
+        if (holder is null || !CabControls.CanDrive(holder.State, Train))
+            World.HoldControls(-1, false);
+        foreach (var c in _crew)
+        {
+            if (!CabControls.CanDrive(c.State, Train) || !CabControls.Works(c.ThisTick) || c.Id == World.ControlsHolder)
+                continue;
+            bool bot = _bots.Contains(c.Id);
+            if (World.ControlsHolder < 0 || !bot && World.ControlsHolderBot)
+                World.HoldControls(c.Id, bot);
+        }
+    }
+
+    /// <summary>Whether this crewmate's hands on the controls count this tick (note 574).</summary>
+    bool AtTheControls(Crew c) => World.ControlsHolder < 0 || World.ControlsHolder == c.Id;
+
+    /// <summary>Note 450: an open run, the private run's password, or someone the host trusts (a friend).</summary>
+    bool Admitted(Greeting g) =>
+        PasswordKey is not { } key
+        || g.Key is { } given && System.Security.Cryptography.CryptographicOperations.FixedTimeEquals(given, key)
+        || Trusted?.Invoke(g.Peer) == true;
 
     /// <summary>
     /// Note 253: a player back with their slot's token. Held for them, they get it back; still live on another connection
@@ -460,7 +626,7 @@ public sealed class HostSession
                 Admit(seat.Id, peer);
                 return seat.Id;
             }
-            var c = new Crew(seat.Id, peer) { LastApplied = seat.LastApplied, MissedInputs = seat.MissedInputs };
+            var c = new Crew(seat.Id, peer) { LastApplied = seat.LastApplied, MissedInputs = seat.MissedInputs, InputLoss = new(_lossWindow) };
             if (Back(seat) is { } state)
             {
                 state.Placed = (byte)(seat.State.Placed + 1);
@@ -552,7 +718,7 @@ public sealed class HostSession
 
     void Board(byte id, PeerId peer)
     {
-        var c = new Crew(id, peer);
+        var c = new Crew(id, peer) { InputLoss = new(_lossWindow) };
         // First aboard takes the cab; everyone else spreads down the train.
         int car = 1 + (_crew.Count - 1) % Math.Max(1, Train.OwnVehicles - 1);
         c.State = BoardAt is { } at && _crew.Count > 0 ? at(_crew.Count)
@@ -639,6 +805,9 @@ public sealed class HostSession
             Messages.WriteLooks(_writer, World.Looks);
             foreach (var p in peers)
                 _transport.Send(p, _writer.Written, Delivery.ReliableOrdered);
+            Messages.WriteOutfits(_writer, World.Outfits);
+            foreach (var p in peers)
+                _transport.Send(p, _writer.Written, Delivery.ReliableOrdered);
         }
         // D.12: each bookmark as it's made, so every machine takes its still from the world as it is now.
         for (; _bookmarksSent < World.Bookmarks.All.Count; _bookmarksSent++)
@@ -723,17 +892,21 @@ public sealed class HostSession
             {
                 var hr = new NetReader(payload);
                 hr.U8();
-                var (name, token) = Messages.ReadHello(ref hr);
+                var (name, token, outfit, key, bot) = Messages.ReadHello(ref hr);
                 // Note 253: a joiner's first word, before it's welcomed. It's let in in the order it connected (first aboard
                 // takes the cab), so it waits its turn in the greeting line.
                 if (_greeting.Find(g => g.Peer == peer) is { } greeting)
                 {
-                    (greeting.Said, greeting.Name, greeting.Token) = (true, name, token);
+                    (greeting.Said, greeting.Name, greeting.Token, greeting.Outfit, greeting.Key, greeting.Bot) = (true, name, token, outfit, key, bot);
                     return;
                 }
                 int id = _crew.Find(x => x.Peer == peer)?.Id ?? _waiting.Where(w => w.Peer == peer).Select(w => (int)w.Id).DefaultIfEmpty(-1).First();
                 if (id >= 0)
+                {
                     Name(id, name);
+                    Wear(id, outfit, any: true);
+                    Botness(id, bot);
+                }
             }
             catch (Exception ex) when (ex is EndOfStreamException or InvalidDataException)
             {
@@ -743,6 +916,12 @@ public sealed class HostSession
         var c = _crew.Find(x => x.Peer == peer);
         if (c is null)
             return;
+        // Note 298: trying an outfit on, in the yard.
+        if (payload.Length == 2 && payload[0] == (byte)MessageType.Wear)
+        {
+            Wear(c.Id, payload[1], any: false);
+            return;
+        }
         try
         {
             var r = new NetReader(payload);
@@ -755,8 +934,11 @@ public sealed class HostSession
             if (type != MessageType.Input)
                 return;
             _frames.Clear();
-            Messages.ReadInput(ref r, _frames, out uint ackedSnapshot);
+            Messages.ReadInput(ref r, _frames, out uint ackedSnapshot, out byte reportedLoss);
             c.AckedSnapshot = Math.Max(c.AckedSnapshot, ackedSnapshot);
+            c.ReportedLoss = reportedLoss;
+            if (_frames.Count > 0)
+                c.InputLoss.Heard(_frames[^1].Sequence);
             foreach (var f in _frames)
                 if (f.Sequence > c.LastApplied)
                     c.Pending.TryAdd(f.Sequence, Sanitise(f.Intent));
@@ -777,6 +959,31 @@ public sealed class HostSession
         if (World.LooksByName.TryGetValue(name, out var look))
             World.Looks[id] = look;
     }
+
+    /// <summary>
+    /// A player's outfit (note 298): the one they came in (<paramref name="any"/>, from their Hello), or one tried on, which
+    /// only takes in the yard before the gate (GDD §9: the yard is where the crew "try on outfits"). Out of range, it's
+    /// their id's look.
+    /// </summary>
+    void Wear(int id, byte outfit, bool any)
+    {
+        if (!any && World.Run is { Phase: not Sim.Run.RunPhase.Yard })
+            return;
+        bool had = World.Outfits.TryGetValue(id, out byte was);
+        if (outfit >= MaxOutfits)
+        {
+            if (had && World.Outfits.Remove(id))
+                _namesChanged = true;
+            return;
+        }
+        if (had && was == outfit)
+            return;
+        World.Outfits[id] = outfit;
+        _namesChanged = true;
+    }
+
+    /// <summary>The outfits there can be (note 298): the art draws as many as it has looks, round again past them.</summary>
+    public const int MaxOutfits = 64;
 
     readonly NetWriter _voiceWriter = new();
 
@@ -883,15 +1090,24 @@ public sealed class HostSession
 
     void Broadcast(List<WireRecord> records)
     {
-        foreach (var c in _crew)
+        // Note 549: a saturated upload drops the last of each tick's burst, so the crew are sent in a different order each tick
+        // and no one is always last; a thinned link gets every other snapshot, on the ticks of its id's parity so the thinned
+        // aren't all sent together.
+        for (int i = 0; i < _crew.Count; i++)
         {
+            var c = _crew[(int)((Tick + i) % _crew.Count)];
+            if (c.Thin && ((Tick + c.Id) & 1) == 1)
+            {
+                SnapshotsThinned++;
+                continue;
+            }
             var mine = Interest(records, c);
             // Delta against the newest snapshot the client has confirmed; full if that's gone from history.
             uint baseTick = c.AckedSnapshot;
             var baseline = baseTick > 0 ? c.Sent.GetValueOrDefault(baseTick) : null;
             if (baseline is null)
                 baseTick = 0;
-            Messages.WriteSnapshot(_writer, Tick, c.LastApplied, baseTick, mine, baseline);
+            Messages.WriteSnapshot(_writer, Tick, c.LastApplied, baseTick, mine, baseline, c.Pending.Count, c.Thin ? Messages.SnapshotThinned : (byte)0);
             if (_writer.Length > MaxSnapshotBytes)
             {
                 mine = Budget(mine, baseline, c, baseTick);
@@ -901,6 +1117,7 @@ public sealed class HostSession
             c.Sent.Remove(Tick - HistoryTicks);
             LastSnapshotBytes = _writer.Length;
             MaxSnapshotBytesSent = Math.Max(MaxSnapshotBytesSent, _writer.Length);
+            _bytesOut += _writer.Length;
             _transport.Send(c.Peer, _writer.Written, Delivery.Unreliable);
         }
     }
@@ -944,7 +1161,7 @@ public sealed class HostSession
         {
             bool had = sent.TryGetValue(r.Key, out var was);
             sent[r.Key] = r;
-            Messages.WriteSnapshot(_writer, Tick, c.LastApplied, baseTick, [.. sent.Values], baseline);
+            Messages.WriteSnapshot(_writer, Tick, c.LastApplied, baseTick, [.. sent.Values], baseline, c.Pending.Count, c.Thin ? Messages.SnapshotThinned : (byte)0);
             if (_writer.Length <= MaxSnapshotBytes)
                 continue;
             // That one didn't fit: back to what the client has, and the rest wait for the next snapshot.
@@ -955,7 +1172,7 @@ public sealed class HostSession
             break;
         }
         var list = sent.Values.ToList();
-        Messages.WriteSnapshot(_writer, Tick, c.LastApplied, baseTick, list, baseline);
+        Messages.WriteSnapshot(_writer, Tick, c.LastApplied, baseTick, list, baseline, c.Pending.Count, c.Thin ? Messages.SnapshotThinned : (byte)0);
         return list;
     }
 

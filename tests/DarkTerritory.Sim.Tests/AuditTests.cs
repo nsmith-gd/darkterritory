@@ -35,6 +35,7 @@ public class AuditTests
     [InlineData(EnemyKind.Dragger)]
     [InlineData(EnemyKind.Whistler)]
     [InlineData(EnemyKind.SootChildren)]
+    [InlineData(EnemyKind.Knotter)]
     public void WithFriendsWhoOnlyWatchTheGrabRunsItsCourse(EnemyKind kind)
     {
         // The control: the same rig with the friends standing by. The check isn't passed by the rig, only by the rescue.
@@ -70,10 +71,10 @@ public class AuditTests
     [Fact]
     public void EveryPairAndTripleOfTheRoster()
     {
-        Assert.Equal(17, Combinations.Roster.Count);
-        Assert.Equal(17 * 16 / 2, Combinations.Of(Combinations.Roster, 2).Count);
+        Assert.Equal(20, Combinations.Roster.Count);
+        Assert.Equal(20 * 19 / 2, Combinations.Of(Combinations.Roster, 2).Count);
         var triples = Combinations.Of(Combinations.Roster, 3);
-        Assert.Equal(17 * 16 * 15 / 6, triples.Count);
+        Assert.Equal(20 * 19 * 18 / 6, triples.Count);
         Assert.Equal(triples.Count, triples.Select(t => string.Join("+", t)).Distinct().Count());
         // A sample is the same sample every time, and a sample of the whole.
         var a = Combinations.Of(Combinations.Roster, 3, sample: 40, seed: 5);
@@ -211,7 +212,9 @@ public class AuditTests
         Assert.NotNull(report.Threats);
         Assert.All(report.Threats!.Spawned.Keys, k => Assert.Contains(k, kinds.Select(x => x.ToString())));
         Assert.All(report.Threats.Engaged.Keys, k => Assert.Contains(k, kinds.Select(x => x.ToString())));
-        Assert.Contains("FireFlies", report.Threats.Spawned.Keys);
+        // Fire Flies come only to a lit car with a way in (a door or the hatch open: note 286), so whether they come here is
+        // up to the crew's doors; the Dragger gets under a car at the stand it starts from.
+        Assert.Contains("Dragger", report.Threats.Spawned.Keys);
     }
 
     [Fact]
@@ -223,11 +226,12 @@ public class AuditTests
         var line = route.Build();
         EnemyKind[] kinds = [EnemyKind.Gaunt, EnemyKind.Dragger];
         var stage = Combinations.Stage(route, line, kinds, Tuning.Enemies, route.GateOr(Tuning.Route.YardLength), 20, atStops: false);
+        // Note 286: a Dragger that got on with nobody up top waits under any car, a longer walk for the look-out.
         HarnessReport Night(Bots.LookTuning? look) => Harness.Run(route.Build(), Tuning.Train, Tuning.Player, new HarnessOptions
         {
             Bots = 4,
             Cars = 6,
-            Seconds = 30,
+            Seconds = look is null ? 30 : 60,
             Seed = 1,
             Link = new Ballast.Net.LinkConditions(0, 0, 0),
             StartDistance = stage.StartM,
@@ -257,11 +261,12 @@ public class AuditTests
         var line = route.Build();
         EnemyKind[] kinds = [EnemyKind.Gaunt, EnemyKind.Dragger];
         var stage = Combinations.Stage(route, line, kinds, Tuning.Enemies, route.GateOr(Tuning.Route.YardLength), 20, atStops: false);
+        // Note 286: a Dragger that got on with nobody up top waits under any car, a longer walk for the look-out.
         HarnessReport Night(Bots.LookTuning? look) => Harness.Run(route.Build(), Tuning.Train, Tuning.Player, new HarnessOptions
         {
             Bots = 2,
             Cars = 6,
-            Seconds = 30,
+            Seconds = look is null ? 30 : 60,
             Seed = 1,
             Link = new Ballast.Net.LinkConditions(0, 0, 0),
             StartDistance = stage.StartM,
@@ -285,7 +290,9 @@ public class AuditTests
     [Fact]
     public void TheCarHuggerIsStagedShortOfItsMarsh()
     {
-        var route = LineGen.Routes.Generate(Content, "frontier:7", 6);
+        // A night with water for it to lurk in (frontier:7's on its 24 km line; on the 7 km nights of note 554, frontier:26's
+        // trestle).
+        var route = LineGen.Routes.Generate(Content, "frontier:26", 6);
         var line = route.Build();
         var stage = Combinations.Stage(route, line, [EnemyKind.CarHugger], Tuning.Enemies, route.GateOr(Tuning.Route.YardLength), 20);
         Assert.Empty(stage.Unstaged);

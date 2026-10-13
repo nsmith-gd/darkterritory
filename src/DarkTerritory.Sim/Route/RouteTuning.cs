@@ -4,12 +4,19 @@ namespace DarkTerritory.Sim.Route;
 
 /// <summary>Mirror of content/tuning/route.json. Two-element arrays are [min, max] ranges.</summary>
 public sealed record RouteTuning(
-    double DawnAverageSpeed, double DawnSlack, double YardLength, double TerminusApproach, double NoSpawnFinalApproach,
+    double DawnAverageSpeed, double DawnSlack, double NightLengthKm, double YardLength, double TerminusApproach, double NoSpawnFinalApproach,
     double NoSleepersFirst, double PoiZoneHalfLength, double PoiMinSpacing, double PoiMinFromEnds,
     TierTable Tiers, IReadOnlyList<FacilityEntry> Facilities)
 {
     public const string File = "tuning/route.json";
     public JunctionTuning Junctions { get; init; } = new();
+
+    /// <summary>
+    /// Seconds each of the night's facilities adds to its dawn timer, over the transit's (note 554: the director's short
+    /// nights, three stops in about 13 minutes; spec B.8's formula is the transit alone, and on a 6 km line that left no
+    /// time for a stop). 0: the formula as it was.
+    /// </summary>
+    public double DawnPerFacilitySeconds { get; init; }
 
     /// <summary>
     /// The stops' yards and villages (content/tuning/stops.json), laid out with the route. Without it (a tuning built by
@@ -45,6 +52,8 @@ public sealed record JunctionTuning
     public double LeverReach { get; init; } = 2.2;
     /// <summary>Seconds of holding Use to throw it over.</summary>
     public double ThrowSeconds { get; init; } = 1.5;
+    /// <summary>A cannonball passing this close to a stand's lever throws it over (note 595); 0, a ball never does.</summary>
+    public double ShotReach { get; init; } = 0.6;
     /// <summary>The points won't move with a wheel within this of the toe.</summary>
     public double PointsLength { get; init; } = 12;
 

@@ -36,7 +36,7 @@ public class BookmarkTests
             World.EnableRun(Tuning.Run, Route, 600, authority: true);
             World.Run!.Resume(900, -1, Train.Boiler.Tender, 0);
             if (enemies)
-                World.EnableEnemies(Tuning.Enemies with { Director = Tuning.Enemies.Director with { GraceSeconds = 1e9 } }, route: null, 1, crew: 3, authority: true);
+                World.EnableEnemies(Tuning.Enemies with { Director = Tuning.Enemies.Director with { GraceMinSeconds = 1e9, GraceMaxSeconds = 1e9 } }, route: null, 1, crew: 3, authority: true);
             foreach (var (id, name) in new[] { (1, "Dave"), (2, "Priya"), (3, "Sam"), (4, "Okafor") })
                 World.Names[id] = name;
         }

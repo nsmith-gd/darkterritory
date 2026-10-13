@@ -49,7 +49,8 @@ public static class KitCarry
     {
         var train = world.Train;
         var consist = train.Dynamics.Consist;
-        if (consist.Vehicles.Count < 3 || !consist.Vehicles[0].IsEngine)
+        // Note 301: the wrench mends the boiler; the kit's nobody's to bring.
+        if (consist.Vehicles.Count < 3 || !consist.Vehicles[0].IsEngine || Repairs.ByWrench(train))
             return null;
         Body? best = null;
         int bestAt = int.MaxValue;
@@ -144,7 +145,7 @@ public static class KitCarry
     {
         down = null;
         var train = world.Train;
-        if (!self.Alive || train.BoilerTuning is null || self.Has(PlayerFlags.Held))
+        if (!self.Alive || train.BoilerTuning is null || self.Has(PlayerFlags.Held) || Repairs.ByWrench(train))
             return null;
         bool carrying = self.Has(PlayerFlags.RepairKit);
         if (!train.Boiler.Ruptured)
@@ -188,7 +189,7 @@ public static class KitCarry
         if (self.Parent == 0 || self.Parent == vehicles[1].Id)
         {
             var firebox = train.Frames[0].Shape.Interactables.First(i => i.Kind == InteractableKind.Firebox).Position;
-            return KitRun.Decide(self, world, new Double3(0, 0, firebox.Z + 0.5), tick);
+            return KitRun.Decide(self, world, ConductorBot.FiringSpot(firebox, 0), tick);
         }
         int slot = Slot(self, train), x = self.Parent;
         if (slot < 2)

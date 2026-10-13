@@ -16,24 +16,38 @@ public class CraneTests
     static readonly FacilityTuning F = FacilityTests.F;
     static readonly CraneTuning C = F.Crane;
     static readonly PlayerIntent Hold = new() { Buttons = PlayerButtons.Use };
+    /// <summary>Use's press at the stand, as the app sends it (the gun seat's): it takes the controls, and the next lets them go.</summary>
+    static readonly PlayerIntent Press = new() { Actions = PlayerActions.Seat };
 
-    static (FacilityTests.Stop Stop, Crane Crane) AtTheCrane()
+    /// <summary>A foundry's crane with someone at its stand: pressed in at its controls unless <paramref name="take"/> is false.</summary>
+    static (FacilityTests.Stop Stop, Crane Crane) AtTheCrane(bool take = true)
     {
         var stop = new FacilityTests.Stop(ModuleKind.Crane);
         var crane = Assert.IsType<Crane>(stop.Site.Crane);
         stop.Crew.Add(stop.OnTheGround(crane.Controls));
+        if (take)
+        {
+            stop.Step(SimConstants.TickSeconds, [Press]);
+            Assert.True(stop.Crew[0].Has(PlayerFlags.Operating));
+        }
         return (stop, crane);
     }
 
     static PlayerIntent Drive(float x = 0, float z = 0, PlayerButtons also = PlayerButtons.None) =>
-        new() { MoveX = x, MoveZ = z, Buttons = PlayerButtons.Use | also };
+        new() { MoveX = x, MoveZ = z, Buttons = also };
 
     [Fact]
     public void TheOperatorDrivesItFromTheControlsAndStaysPut()
     {
-        var (stop, crane) = AtTheCrane();
+        // The director, 8 Oct: "Cranes should also enter with E and exit with E, it shouldn't be a hold function".
+        var (stop, crane) = AtTheCrane(take: false);
         var stand = stop.Crew[0].Position;
         double bridge = crane.Bridge, trolley = crane.Trolley, hook = crane.Hook;
+        // Use held at the stand doesn't take the controls: its press does, and they're kept with nothing held.
+        stop.Step(1, [Hold]);
+        Assert.False(stop.Crew[0].Has(PlayerFlags.Operating));
+        stop.Step(SimConstants.TickSeconds, [Press]);
+        Assert.True(stop.Crew[0].Has(PlayerFlags.Operating));
         stop.Step(2, [Drive(z: 1)]);
         Assert.Equal(bridge + 2 * C.BridgeSpeed, crane.Bridge, 1);
         Assert.True(stop.Crew[0].Has(PlayerFlags.Operating));
@@ -43,7 +57,10 @@ public class CraneTests
         Assert.Equal(trolley - C.TrolleySpeed, crane.Trolley, 1);
         stop.Step(1, [Drive(also: PlayerButtons.Brake)]);
         Assert.Equal(hook - C.HoistSpeed, crane.Hook, 1);
-        // Let go of the controls and it stops where it is; walking away is walking again.
+        Assert.True(stop.Crew[0].Has(PlayerFlags.Operating));
+        // Pressed again, the controls are let go: it stops where it is, and walking away is walking again.
+        stop.Step(SimConstants.TickSeconds, [Press]);
+        Assert.False(stop.Crew[0].Has(PlayerFlags.Operating));
         bridge = crane.Bridge;
         stop.Step(1, [new PlayerIntent { MoveZ = 1 }]);
         Assert.Equal(bridge, crane.Bridge, 6);
@@ -121,7 +138,7 @@ public class CraneTests
     [Fact]
     public void NobodyAtTheControlsNothingMoves()
     {
-        var (stop, crane) = AtTheCrane();
+        var (stop, crane) = AtTheCrane(take: false);
         // Standing at the stand without a hand on the controls.
         double bridge = crane.Bridge;
         stop.Step(1, [new PlayerIntent { Buttons = PlayerButtons.Jump }]);
@@ -164,7 +181,7 @@ public class PowerTests
     static readonly FacilityTuning F = FacilityTests.F;
     static readonly PowerTuning W = F.Power;
 
-    static PlayerIntent Drive(float z) => new() { MoveZ = z, Buttons = PlayerButtons.Use };
+    static PlayerIntent Drive(float z) => new() { MoveZ = z };
 
     [Theory]
     [InlineData(Stops.PowerState.Low)]
@@ -175,6 +192,9 @@ public class PowerTests
         var crane = stop.Site.Crane!;
         Assert.Equal(power, stop.Site.Power);
         stop.Crew.Add(stop.OnTheGround(crane.Controls));
+        // The controls taken with a press of Use (Crane.Operates), whatever the power.
+        stop.Step(SimConstants.TickSeconds, [new PlayerIntent { Actions = PlayerActions.Seat }]);
+        Assert.True(stop.Crew[0].Has(PlayerFlags.Operating));
         double bridge = crane.Bridge;
         stop.Step(2, [Drive(1)]);
         double scale = power == Stops.PowerState.Low ? W.LowSpeed : 0;

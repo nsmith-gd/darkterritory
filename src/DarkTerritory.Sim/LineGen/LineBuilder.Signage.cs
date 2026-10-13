@@ -72,8 +72,10 @@ sealed partial class LineBuilder
                 if (start < 0)
                     continue;
                 double posted = Math.Floor(Math.Sqrt(c.APost * minR));
-                // A lower limit already over it has its own board (a demand's).
-                if (!_limits.Any(l => l.Edge == e.Id && l.Source == LimitSource.Curve && l.S0 <= start + 5 && l.S1 >= start && l.VMs <= posted + 1e-6))
+                // A lower limit already over it has its own board (a demand's). Not when a lower restriction before it took
+                // the demand (a blind bend, the hill on its inside): that's told as R, or only on Form 19.
+                if (!_limits.Any(l => l.Edge == e.Id && l.Source == LimitSource.Curve && l.S0 <= start + 5 && l.S1 >= start && l.VMs <= posted + 1e-6
+                        && _demands.Any(d => d.Edge == e.Id && d.Type is DemandType.Curve or DemandType.WeakBridge or DemandType.Brass && Math.Abs(l.S0 - d.SReq) < 1)))
                     Sign("speedBoard", e.Id, start - _t.Authority.BoardBeforeM, Kmh(posted), true, posted, null, ref rng);
                 start = -1;
                 minR = double.MaxValue;
@@ -128,7 +130,8 @@ sealed partial class LineBuilder
                 case DemandType.FacilityStop:
                     {
                         var slot = _facilities.First(f => Math.Abs((f.OnSpur ? f.S - 10 : f.S) - d.SReq) < 1);
-                        // 2 km and 1 km out, and the far one farther if a heavy train needs more warning than that.
+                        // boardFarM and boardNearM out (1 km and 500 m), and the far one farther if a heavy train needs more
+                        // warning than that.
                         foreach (double before in new[] { _c.Config.Facilities.Slots.BoardFarM, _c.Config.Facilities.Slots.BoardNearM })
                         {
                             double at = before == _c.Config.Facilities.Slots.BoardFarM ? Math.Min(slot.S - before, board) : slot.S - before;
@@ -170,11 +173,18 @@ sealed partial class LineBuilder
                     if (g >= sg.GradientPostMinShare * _l.MainGrade || -g >= sg.GradientPostMinShare * _l.DescentGrade)
                         Sign("gradientPost", e.Id, s - 20, $"{(g > 0 ? "UP" : "DOWN")} {Math.Abs(g):0.0}", true, g, p.Id, ref rng);
                 }
-        // Whistle boards before tunnels and dead settlements; bridge plates; station name boards; dead signals.
+        // Whistle boards before tunnels and dead settlements; tunnel and bridge plates; station name boards; dead signals.
         foreach (var st in _structures)
         {
             if (st.Type == StructureType.Tunnel)
                 Sign("whistle", st.Edge, st.S0 - sg.WhistleBeforeM, "W", false, null, st.Id, ref rng);
+            // §13.3 "Tunnel 2 — Blackwell", plate on both portals: over the arch, cut in the stone, so always there. A plate's
+            // side is the way it faces, not the side of the line: +1 the train coming in (s rising), −1 the far portal's.
+            if (st.Type == StructureType.Tunnel && st.Name is not null)
+            {
+                Sign("tunnelPlate", st.Edge, st.S0, st.Name, true, null, st.Id, ref rng, 1);
+                Sign("tunnelPlate", st.Edge, st.S1, st.Name, true, null, st.Id, ref rng, -1);
+            }
             if (st.Name is not null && st.Type != StructureType.Tunnel)
             {
                 Sign("bridge", st.Edge, st.S0 - 8, st.Name, false, null, st.Id, ref rng);

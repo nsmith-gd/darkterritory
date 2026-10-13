@@ -57,8 +57,14 @@ public sealed partial class GameAudio
     // Presentation, not design: how long a footstep is at a speed (a brisk walk's 0.9 m, a run's 1.6 m), and below what speed
     // someone's standing.
     const double StrideBase = 0.45, StridePerSpeed = 0.2, StrideMin = 0.6, StrideMax = 1.7, Standing = 0.4;
-    /// <summary>Turning on the spot this far (rad) shuffles the feet; not more often than <see cref="ScuffGap"/>.</summary>
-    const double ScuffTurn = 1.2, ScuffGap = 0.6;
+    /// <summary>
+    /// Stopping short from a run scuffs the feet, not more often than this (s). Turning on the spot makes no sound (App. F.1,
+    /// build 1121: "turning on the spot shouldn't make a sound; only walking should"; note 355).
+    /// </summary>
+    const double ScuffGap = 0.6;
+    // A stumble on a straining car (note 375's clip): thrown onto a foot stepped wide, then back over the other way this long
+    // after; and again so often while the car's past SceneArt.StumbleAt.
+    const double StumbleBack = 0.38, StumbleEvery = 1.1;
     /// <summary>A handbrake wheel clicks this often while it's wound.</summary>
     const double RatchetEvery = 0.2;
     /// <summary>A sliding door rolls this long before it hits its stop; it latches this long after it's slammed.</summary>
@@ -86,7 +92,8 @@ public sealed partial class GameAudio
         public int Parent;
         public Double3 Position;
         public Surface Surface;
-        public double Yaw, Action, Cold, Stride, Turn, LastScuff = double.NegativeInfinity, MovingFor, Speed, NextRatchet, NextSwing, TumbleUntil, NextBreath;
+        public double Yaw, Action, Cold, Stride, LastScuff = double.NegativeInfinity, MovingFor, Speed, NextRatchet, NextSwing, TumbleUntil, NextBreath,
+            NextStumble;
         public int Health;
         public byte Placed;
         public bool Alive, Moving, Shovelful, LeftTrain, BreathIn = true;
@@ -103,13 +110,14 @@ public sealed partial class GameAudio
     {
         public byte Doors;
         public bool Lamp;
+        public double Gutter;
         public readonly double[] RollUntil = new double[8];
     }
 
     sealed class CrewGun
     {
         public bool Mounted, BallIn, Traversing, Laying;
-        public int Ammo, Needed;
+        public int Ammo, Needed, Rack;
         public double Z, Progress, LastMove, Traverse, Elevation, LastLaid;
     }
 
@@ -122,14 +130,17 @@ public sealed partial class GameAudio
         public int Still, MendTicks;
         public int? CarrierSpace;
         public bool Broken;
+        // A healing find being used: where it was last heard, so its end is heard there once it's gone (note 322).
+        public Double3 At;
+        public float Occlusion;
     }
 
-    // Hold owners for a radio's mending, clear of the players' ids (the boiler's ratchet is held by player).
-    const int RadioMendOwner = 20_000;
+    // Hold owners for a radio's mending and a find's dose, clear of the players' ids (the boiler's ratchet is held by player).
+    const int RadioMendOwner = 20_000, HealOwner = 21_000, PowderOwner = 22_000;
 
     sealed class CrewEngine
     {
-        public bool FireDoor, Vented, Lamp, WrenchOut, Ruptured, Sanding, Released, MendedSinceWrench;
+        public bool FireDoor, Vented, Lamp, WrenchOut, ShovelOut, Ruptured, Sanding, Released, MendedSinceWrench;
         public double Tender, SinceShovel, Throttle, Brake, Sand, SandTrend, Whistle, WhistleLow, LampOut;
         public int Reverser, WhistleFalling, SandIdle;
     }
@@ -142,17 +153,23 @@ public sealed partial class GameAudio
         _crewCars.Clear();
         _crewGuns.Clear();
         _crewBodies.Clear();
+        _crewBodiesPrimed = false;
         _crewRakes.Clear();
         _crewSwitches = null;
         _crewCouplings = null;
         _crewEngine = null;
         _crewLater.Clear();
+        _jets.Clear();
+        _fireWas.Clear();
+        _jetOnCar.Clear();
     }
 
     readonly Dictionary<int, CrewMember> _crewMembers = new();
     readonly Dictionary<int, CrewCar> _crewCars = new();
     readonly Dictionary<int, CrewGun> _crewGuns = new();
     readonly Dictionary<int, CrewBody> _crewBodies = new();
+    // Past the night's first look at its bodies: what's new after that came into being (a charge out of the locker).
+    bool _crewBodiesPrimed;
     readonly Dictionary<int, (int Count, bool On)> _crewRakes = new();
     HashSet<(int, int)>? _crewCouplings;
     bool[]? _crewSwitches;
@@ -175,6 +192,7 @@ public sealed partial class GameAudio
         CrewCouplings(world);
         CrewSwitchStands(world);
         CrewCarried(world, firePressed);
+        FireDoused(world);
     }
 
     /// <summary>Plays what was put off till now (a latch after a slam, a pin after the knuckles).</summary>
@@ -345,24 +363,38 @@ public sealed partial class GameAudio
                             c.Stride = Math.Min(c.Stride - stride, stride * 0.5);
                             Cue(Running(s.Surface, speed) ? "crew-footsteps.run" : "crew-footsteps.walk", Footing.Under(s, world) ?? "ground", feet, occlusion);
                         }
-                        c.Turn = 0;
                     }
                     else
                     {
-                        // Stopping short from a run, or turning on the spot.
+                        // Stopping short from a run (turning on the spot is silent: note 355).
                         bool stopped = c.Moving && c.MovingFor > 0.3 && Running(s.Surface, c.Speed);
                         c.Moving = false;
                         c.MovingFor = c.Stride = 0;
-                        c.Turn += Math.Abs(Math.IEEERemainder(s.Yaw - c.Yaw, 2 * Math.PI));
-                        if ((stopped || c.Turn > ScuffTurn) && _time - c.LastScuff > ScuffGap)
+                        if (stopped && _time - c.LastScuff > ScuffGap)
                         {
                             Cue("crew-footsteps.scuff", Footing.Under(s, world) ?? "ground", feet, occlusion);
                             c.LastScuff = _time;
-                            c.Turn = 0;
                         }
                     }
                 }
             }
+
+            // ---- a stumble (note 375; queue #122, note 385): stood or walking on a car straining on a bend taken too fast,
+            // past SceneArt.StumbleAt, hands free: a boot scuffed out wide one way, then back the other, as the clip throws them.
+            if (s.Grounded && onTrain && s.ActionProgress <= 0 && !s.Has(PlayerFlags.Held)
+                && _carStress.GetValueOrDefault(s.Parent) >= SceneArt.StumbleAt)
+            {
+                if (_time >= c.NextStumble)
+                {
+                    string under = Footing.Under(s, world) ?? "ground";
+                    Cue("crew-footsteps.scuff", under, feet, occlusion);
+                    if (Surfaced("crew-footsteps.scuff", under) is { } back)
+                        CrewAfter(StumbleBack, back, feet, occlusion);
+                    c.NextStumble = _time + StumbleEvery + 0.5 * _creatureRng.Next();
+                }
+            }
+            else
+                c.NextStumble = 0;
 
             // ---- ladders: hands on, a rung at a time, off.
             var hands = feet + Double3.Up * HandsUp;
@@ -686,7 +718,7 @@ public sealed partial class GameAudio
             var shape = frame.Shape;
             if (!_crewCars.TryGetValue(v.Id, out var car))
             {
-                _crewCars[v.Id] = new CrewCar { Doors = v.DoorsOpen, Lamp = v.LampLit };
+                _crewCars[v.Id] = new CrewCar { Doors = v.DoorsOpen, Lamp = v.LampLit, Gutter = v.Gutter };
                 continue;
             }
             int changed = v.DoorsOpen ^ car.Doors;
@@ -739,6 +771,21 @@ public sealed partial class GameAudio
                 Cue(v.LampLit ? "crew-lamps.car-lamp-on" : "crew-lamps.car-lamp-off", frame.ToWorld(local), OccludedAt(train, v.Id, local));
             }
             car.Lamp = v.LampLit;
+            // Guttering (note 346): the wick sputtering by the ceiling lamps, quick and uneven, worse as it goes.
+            if (v.LampLit && v.Gutter > 0 && shape.Interior is { } lit)
+            {
+                var local = new Double3(0, lit.Max.Y - 0.2, lit.Centre.Z);
+                Hold("lamp-gutter", v.Id, frame.ToWorld(local), OccludedAt(train, v.Id, local))?
+                    .Params.Set("gutter", Math.Clamp(v.Gutter / (train.Gutter?.OutAfter ?? 45), 0, 1));
+            }
+            // Trimmed (note 358): the guttering stopped with the lamp still lit, the wick wound up and the flame steadying.
+            // Gone out instead, it's the lamp going off, above.
+            if (car.Gutter > 0 && v.Gutter <= 0 && v.LampLit && shape.Interior is { } trimmed)
+            {
+                var local = new Double3(0, trimmed.Max.Y - 0.2, trimmed.Centre.Z);
+                Cue("crew-upkeep.trim", frame.ToWorld(local), OccludedAt(train, v.Id, local));
+            }
+            car.Gutter = v.Gutter;
         }
     }
 
@@ -770,6 +817,7 @@ public sealed partial class GameAudio
                 Vented = boiler.Vented,
                 Lamp = world.LampLit,
                 WrenchOut = boiler.WrenchOut,
+                ShovelOut = boiler.ShovelOut,
                 Ruptured = boiler.Ruptured,
                 Tender = boiler.Tender,
                 SinceShovel = sinceShovel,
@@ -891,12 +939,16 @@ public sealed partial class GameAudio
         }
         if (!boiler.WrenchOut && e.WrenchOut)
             Cue(e.MendedSinceWrench || boiler.Ruptured ? "crew-repair.kit-shut" : "crew-doors.locker-shut", rack, cab);
+        // The fireman's shovel stands by the same rack (note 275): lifted off its iron, and hung back on it (note 322).
+        if (boiler.ShovelOut != e.ShovelOut)
+            Cue(boiler.ShovelOut ? "crew-melee.shovel-rack-off" : "crew-melee.shovel-rack-on", rack, cab);
 
         e.FireDoor = boiler.FireDoorOpen;
         e.Vented = boiler.Vented;
         e.Lamp = world.LampLit;
         e.LampOut = world.LampOutSeconds;
         e.WrenchOut = boiler.WrenchOut;
+        e.ShovelOut = boiler.ShovelOut;
         e.Ruptured = boiler.Ruptured;
         e.Tender = boiler.Tender;
         e.SinceShovel = sinceShovel;
@@ -1054,6 +1106,7 @@ public sealed partial class GameAudio
                 {
                     Mounted = g.Mounted,
                     Ammo = g.Ammo,
+                    Rack = g.Rack,
                     Z = g.Z,
                     Needed = g.ReloadNeeded,
                     Progress = g.ReloadProgress,
@@ -1076,6 +1129,9 @@ public sealed partial class GameAudio
                     Cue("crew-cannon-fire.ignite", frame.ToWorld(mount.Position - mount.Facing * 0.55 + Double3.Up * 0.15), outside);
                     Cue("crew-cannon-fire.recoil", frame.ToWorld(mount.Position), outside);
                 }
+                // Its ready rack filled from a charge carried up (note 374; queue #122, note 385): the bar dropped across it.
+                if (m.Mounted && g.Rack > m.Rack)
+                    Cue("crew-powder.filled", frame.ToWorld(mount.Position), outside);
                 // Pushed along its rail (T93), or over the coupling onto this car.
                 bool moving = !m.Mounted || Math.Abs(g.Z - m.Z) > 1e-4;
                 if (moving)
@@ -1092,7 +1148,8 @@ public sealed partial class GameAudio
                 }
                 // Laid by its seated gunner (T112): the steam motor and its gear while it turns or lifts, faster the faster it
                 // goes (combat.json's traverse rate is full), and the gear's clunk as it stops.
-                double laid = Math.Abs(g.Traverse - m.Traverse) + Math.Abs(g.Elevation - m.Elevation);
+                // (The short way round: the forward gun turns the full circle past its back, note 596.)
+                double laid = Math.Abs(Math.IEEERemainder(g.Traverse - m.Traverse, 2 * Math.PI)) + Math.Abs(g.Elevation - m.Elevation);
                 if (laid > 1e-5)
                 {
                     m.LastLaid = _time;
@@ -1135,6 +1192,7 @@ public sealed partial class GameAudio
                 m.Traversing = false;
             m.Mounted = g.Mounted;
             m.Ammo = g.Ammo;
+            m.Rack = g.Rack;
             m.Z = g.Z;
             m.Traverse = g.Traverse;
             m.Elevation = g.Elevation;
@@ -1165,6 +1223,9 @@ public sealed partial class GameAudio
             bool lifted = b.Kind == BodyKind.Heavy ? b.Lifted : b.Carrier >= 0;
             if (!_crewBodies.TryGetValue(b.Id, out var m))
             {
+                // A charge taken out of the powder locker (note 374): it comes into the hands there, already carried.
+                if (b.Kind == BodyKind.Powder && lifted && _crewBodiesPrimed)
+                    Cue("crew-powder.take", centre, occlusion);
                 _crewBodies[b.Id] = new CrewBody
                 {
                     Carrier = b.Carrier,
@@ -1251,7 +1312,8 @@ public sealed partial class GameAudio
             // The extinguisher at work (App. C.5).
             if (b.Kind == BodyKind.Extinguisher)
             {
-                bool carried = b.Carrier >= 0;
+                // Put away in a slot (note 594), it's on them, not at work.
+                bool carried = b.Carrier >= 0 && !b.Stashed;
                 if (carried && b.Charge < m.Charge - 1e-9)
                     m.LastDrain = _time;
                 var carrier = carried ? CrewStates.FirstOrDefault(x => x.Id == b.Carrier) : default;
@@ -1267,7 +1329,12 @@ public sealed partial class GameAudio
                 if (spraying && !m.Spraying)
                     Cue("crew-extinguisher.spray-start", at, occlusion);
                 if (spraying)
+                {
                     Hold("crew-extinguisher.spray", b.Id, at, occlusion);
+                    // Where the jet lands on a fire (note 469): GameAudio.Douse, once every carried thing's been heard.
+                    if (carried)
+                        _jets.Add((b.Carrier, b.Id));
+                }
                 else if (m.Spraying)
                 {
                     Cue(b.Charge <= 0 ? "crew-extinguisher.run-dry" : "crew-extinguisher.spray-stop", at, occlusion);
@@ -1278,6 +1345,12 @@ public sealed partial class GameAudio
                     Cue("crew-extinguisher.dry-trigger", at, occlusion);
                 m.Spraying = spraying;
             }
+            // A charge at a gun with Use held (note 374; World.Charge counts the hold in its MendTicks): the rack filled with it.
+            // Done, the charge is gone and the gun's rack is up (CrewGuns: filled).
+            if (b.Kind == BodyKind.Powder && b.MendTicks > m.MendTicks)
+                Hold("crew-powder.fill", PowderOwner + b.Id, centre, occlusion);
+            if (b.Kind == BodyKind.Powder)
+                m.MendTicks = b.MendTicks;
             // A broken radio mended with the repair kit (note 201): the kit opened at it as the hands go to work, the
             // ratchet's small turns while they stay at it, and once it's whole the kit shut and the set coming back to
             // life with a squelch, so the crew hear their radio's back (note 241).
@@ -1295,6 +1368,16 @@ public sealed partial class GameAudio
                 m.MendTicks = b.MendTicks;
                 m.Broken = b.Broken;
             }
+            // A healing find used with Use held standing (note 272): its own sound while the hands are at it, a bandage wound,
+            // medicine drunk, morphine pressed home (loot.json healing's finds; note 322). Its end is heard when it's gone.
+            if (b.Kind == BodyKind.Loot)
+            {
+                if (b.MendTicks > 0 && world.Run?.FindOf(b) is { } find)
+                    Hold("crew-heal.apply." + find.Item, HealOwner + b.Id, centre, occlusion);
+                m.MendTicks = b.MendTicks;
+                m.At = centre;
+                m.Occlusion = occlusion;
+            }
             m.Carrier = b.Carrier;
             m.Lifted = lifted;
             m.Parent = b.Parent;
@@ -1304,7 +1387,13 @@ public sealed partial class GameAudio
                 m.OnMount = OnMount(train, b);
         }
         foreach (var gone in _crewBodies.Keys.Where(k => !live.Contains(k)).ToList())
+        {
+            // A find gone while it was being used was used up (Bodies.Dose takes it the tick the dose is done): the hurt eased.
+            if (_crewBodies[gone] is { MendTicks: > 0, Broken: false } used && used.At != default)
+                Cue("crew-heal.done", used.At, used.Occlusion);
             _crewBodies.Remove(gone);
+        }
+        _crewBodiesPrimed = true;
     }
 
     /// <summary>A body come to rest after it left someone's hands: set down, or thrown and landed, on what it lies on.</summary>

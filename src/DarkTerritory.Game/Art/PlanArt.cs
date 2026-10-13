@@ -68,7 +68,35 @@ public sealed partial class WorldArt
         public string BiomeAt(double s) => BiomeOf(Plan, s);
 
         public BiomeDef? Biome(double s) => Plan.Rules.Biomes.GetValueOrDefault(BiomeAt(s));
+
+        /// <summary>
+        /// Where a lake wants the land finer than the line's own columns (note 424): the stretch of the main line it lies
+        /// beside and its laterals, its shore and its rim's bank with them. Out there the columns are 30-50 m apart, wider
+        /// than many a lake's shore is long, so the land couldn't follow its shoreline and the water's edge stood over it.
+        /// </summary>
+        public IReadOnlyList<LakeBand> LakeBands => _lakeBands ??= [.. Plan.Lakes.Select(Band).OfType<LakeBand>()];
+        LakeBand[]? _lakeBands;
+
+        LakeBand? Band(PlanLake lake)
+        {
+            var rules = Plan.Rules.Terrain.Lakes;
+            double reach = lake.RadiusM * lake.Stretch * (1 + lake.Wobble) + rules.RimCrestM + 10;
+            double s0 = double.MaxValue, s1 = double.MinValue, l0 = double.MaxValue, l1 = double.MinValue;
+            for (int i = 0; i < 36; i++)
+            {
+                double a = i * Math.Tau / 36, x = lake.X + Math.Cos(a) * reach, z = lake.Z + Math.Sin(a) * reach;
+                var near = Terrain.Nearby(x, z, reach + 400).Where(q => q.Edge == Main).ToList();
+                if (near.Count == 0)
+                    continue;
+                var q = near[0];
+                (s0, s1, l0, l1) = (Math.Min(s0, q.S), Math.Max(s1, q.S), Math.Min(l0, q.Lateral), Math.Max(l1, q.Lateral));
+            }
+            return s0 > s1 ? null : new LakeBand(s0 - 10, s1 + 10, (float)l0, (float)l1);
+        }
     }
+
+    /// <summary>A stretch of the main line (s) and laterals across it where a lake wants the land finer (<see cref="PlanScene.LakeBands"/>).</summary>
+    readonly record struct LakeBand(double S0, double S1, float Lat0, float Lat1);
 
     /// <summary>A plan's biome at a main-line distance (§13.1).</summary>
     static string BiomeOf(LinePlan plan, double s)
@@ -194,18 +222,11 @@ public sealed partial class WorldArt
         return Stand(t.Position + r * lateral, cover);
     }
 
-    /// <summary>A biome's stand cover (its tree density as a share of the land under forest).</summary>
-    static float Cover(BiomeDef def) => def.TreeDensity <= 0 ? 0 : Math.Clamp((float)def.TreeDensity * 0.85f + 0.08f, 0.04f, 0.92f);
+    /// <summary>A biome's stand cover (its tree density as a share of the land under forest; the sim's, note 371).</summary>
+    static float Cover(BiomeDef def) => (float)Sim.Run.LinesideProps.Cover(def);
 
-    /// <summary><see cref="Stand(RailLine, double, double, float)"/> at a world point.</summary>
-    static float Stand(Double3 w, float cover)
-    {
-        float x = (float)(w.X % 8192), z = (float)(w.Z % 8192);
-        float n = Noise(x * 0.0065f + 11.7f, z * 0.0065f - 3.3f) * 0.7f + Noise(x * 0.028f - 7.1f, z * 0.028f + 1.9f) * 0.3f;
-        // The noise sits about its middle (two value noises), so the threshold is set there: about cover of the land.
-        float edge = 0.5f + (0.5f - cover) * 0.45f;
-        return SmoothStep(edge - 0.012f, edge + 0.012f, n);
-    }
+    /// <summary><see cref="Stand(RailLine, double, double, float)"/> at a world point: the sim's stands (note 371), where its trees are.</summary>
+    static float Stand(Double3 w, float cover) => (float)Sim.Run.LinesideProps.Stand(w, cover);
 
     /// <summary>The land's tint at a world point: broad light and dark swathes, a little warmer and cooler, over the tiles.</summary>
     static Vector3 Macro(Vector3 world)
@@ -217,10 +238,13 @@ public sealed partial class WorldArt
     }
 
     /// <summary>How steep the land is at one vertex of a row across the line: rise over run to its neighbours.</summary>
-    static float SlopeAt(Vector3[] row, int i)
+    static float SlopeAt(Vector3[] row, int i) => SlopeAt(row, Math.Max(0, i - 1), Math.Min(row.Length - 1, i + 1));
+
+    /// <summary>The slope across a row between two of its columns.</summary>
+    static float SlopeAt(Vector3[] row, int before, int after)
     {
-        var a = row[Math.Max(0, i - 1)];
-        var b = row[Math.Min(row.Length - 1, i + 1)];
+        var a = row[before];
+        var b = row[after];
         float run = MathF.Sqrt((b.X - a.X) * (b.X - a.X) + (b.Z - a.Z) * (b.Z - a.Z));
         return run < 1e-3f ? 0 : MathF.Abs(b.Y - a.Y) / run;
     }
@@ -249,99 +273,132 @@ public sealed partial class WorldArt
         bool Free(double s, double lateral) => !onBranch(s, lateral) && !p.InClearing(s, lateral) && PlanClear(route, line, s, lateral);
         // Near the line (within the chase camera's and a roof's reach), the spruce is modelled like the pine; out in the fog,
         // the crossed cards.
-        MeshAsset Tree(string kind, int v, bool near) => kind switch
+        MeshAsset Tree(string kind, int v, bool near, NovaKit.TreeForm form) => kind switch
         {
-            "fir" => Piece($"fir-{v}", () => NovaKit.Conifer(_look, v, 12, 0.46f)),
+            "fir" => Piece($"fir-{v}-{form}", () => NovaKit.Conifer(_look, v, 12, 0.46f, form)),
             "birch" => Piece($"birch-{v % 3}", () => NovaKit.Birch(_look, v % 3)),
             "pine" => Piece($"pine-{v}", () => WorldKit.Pine(_look, v, 12)),
-            "tamarack" => Piece($"tamarack-{v}", () => NovaKit.Conifer(_look, v, 12, 0.26f)),
-            _ when near => Piece($"spruce3d-{v}", () => WorldKit.Spruce(_look, v, 12)),
-            _ => Piece($"spruce-{v}", () => NovaKit.Conifer(_look, v, 12, 0.3f)),
+            "tamarack" => Piece($"tamarack-{v}-{form}", () => NovaKit.Conifer(_look, v, 12, 0.26f, form)),
+            _ when near => Piece($"spruce3d-{v}-{form}", () => WorldKit.Spruce(_look, v, 12, form)),
+            _ => Piece($"spruce-{v}-{form}", () => NovaKit.Conifer(_look, v, 12, 0.3f, form)),
         };
 
+        // The trees, boulders and the rest beside the line are the sim's (notes 371, 389): it deals them from the night's
+        // seed, alike on every machine, and stands them as walls, so what's drawn here is what's walked into. What's only
+        // seen of each (its tint, a ghost or a dead spruce) is drawn from its own seed.
+        var lineside = Sim.Run.LinesideProps.Of(route, line);
+        var forts = Forts(line);
+        foreach (var prop in lineside?.Props(from, to) ?? [])
+        {
+            if (prop.Kind == Sim.Run.LinesideKind.Pole || Sim.Run.LinesideProps.InsideAFort(forts, prop.Along, prop.Lateral))
+                continue;
+            var rng = new Random(unchecked((int)prop.Seed));
+            double along = prop.Along, offset = prop.Lateral;
+            float yaw = (float)prop.Yaw;
+            int variant = prop.Variant;
+            if (prop.Kind == Sim.Run.LinesideKind.Piece)
+            {
+                // A homestead and its barn, woodpile and fence; a road's pole, a car; a fish shed, a wharf, a lighthouse; a
+                // biome's buildings and stone walls (LinesideFootprints: the piece by the sim's name).
+                if (!LinesideFootprints.ByName.TryGetValue(prop.Species, out var made))
+                    continue;
+                var built = Piece(made.Cached(variant), () => made.Make(_look, variant));
+                var at = Place(along, offset, yaw, (float)prop.Size, (float)prop.Sink).M;
+                if (made.Instanced)
+                    mesh.Instances.Add(new MeshInstance(built, at));
+                else
+                    mesh.Append(built, at);
+                continue;
+            }
+            if (prop.Kind == Sim.Run.LinesideKind.Rock)
+            {
+                // The woods' boulders; an erratic, paler than the ledge; an outcrop's slab; the Atlantic's granite ledges and
+                // its weed-black rocks at the tide line; boulders along an edge, granite or Fundy's red sandstone.
+                var rock = Piece($"rock-{variant}", () => WorldKit.Rock(_look, variant, 1));
+                var stretch = Sim.Run.LinesideProps.RockStretch(prop.Species);
+                float size = (float)prop.Size, sink = (float)prop.Sink;
+                var laid = stretch.X == 1 && stretch.Z == 1 ? Place(along, offset, yaw, size, sink).M
+                    : Place(along, offset, yaw, 1, sink, new Vector3((float)stretch.X, (float)stretch.Y, (float)stretch.Z) * size).M;
+                var shade = prop.Species switch
+                {
+                    "erratic" => new Vector3(1.35f, 1.35f, 1.3f),
+                    "outcrop" => new Vector3(1.2f, 1.2f, 1.15f),
+                    "ledge" => new Vector3(1.3f, 1.28f, 1.22f),
+                    "weed" => new Vector3(0.28f, 0.25f, 0.18f),
+                    "redBoulder" => new Vector3(1.2f, 0.75f, 0.6f),
+                    _ => Vector3.One,
+                };
+                mesh.Append(rock, laid, shade);
+                continue;
+            }
+            float height = (float)prop.Height;
+            if (prop.Species == "fieldSpruce")
+            {
+                // Pasture spruce (maritime-rules.md §5): an old field grown in solid, all of an age and a height.
+                mesh.Append(Piece($"spruce-{variant}", () => NovaKit.Conifer(_look, variant, 12, 0.3f)), Place(along, offset, yaw, height / 12, (float)prop.Sink).M,
+                    new Vector3(0.85f, 0.95f, 0.9f));
+                continue;
+            }
+            if (prop.Species == "apple")
+            {
+                // An orchard gone to ruin: small, gnarled dead apple trees in their rows.
+                mesh.Append(Piece($"dead-{variant}", () => WorldKit.DeadTree(_look, variant, 10)), Place(along, offset, yaw, height / 10, (float)prop.Sink).M,
+                    new Vector3(0.9f, 0.85f, 0.8f));
+                continue;
+            }
+            bool dead = prop.Dead, corrupted = prop.Corrupted;
+            string kind = prop.Species;
+            var (m, _) = Place(along, offset, yaw, height / 12, 0.15f);
+            // Its form and lean (note 395), from a stream of its own off its art seed, so the draws below are as they were.
+            var (form, lean) = Form(prop.Seed, p.Biome(along));
+            MeshAsset piece = dead
+                ? rng.Next(2) == 0 ? Piece($"ghost-{variant}", () => NovaKit.GhostSpruce(_look, variant)) : Piece($"dead-{variant % 2}", () => WorldKit.DeadTree(_look, variant % 2, 10))
+                : Tree(kind, variant, Math.Abs(offset) < NearSpruce, form);
+            if (dead)
+                (m, _) = Place(along, offset, yaw, height / (piece.Name.StartsWith("ghost") ? 8 + variant * 2.5f : 10) * 0.9f, 0.15f);
+            if (kind == "birch" && !dead)
+                (m, _) = Place(along, offset, yaw, height / 11, 0.1f);
+            // Leant, about its foot (where the Sim's wall stands): a few degrees, any way.
+            if (lean.Angle > 0)
+                m = Matrix4x4.CreateRotationZ(lean.Angle) * Matrix4x4.CreateRotationY(lean.Toward) * m;
+            // Tamarack goes gold in the fall, before its needles drop (the bog's one colour).
+            var tint = kind == "tamarack" && !dead ? new Vector3(1.55f, 1.2f, 0.55f) * (0.85f + 0.3f * (float)rng.NextDouble()) : new Vector3(0.8f + 0.3f * (float)rng.NextDouble());
+            // The corruption's trees (GDD §30): charred black and sweating, the brass breaking out through the bark up
+            // the trunk as well as heaped at the foot.
+            if (corrupted)
+                tint = new Vector3(0.32f, 0.24f, 0.2f);
+            mesh.Append(piece, m, tint);
+            if (corrupted)
+            {
+                // Brighter than a brass field's growths, a sick glow in them: what the eye should catch in the dead wood.
+                var brass = Piece($"growth-{variant % 3}", () => BrassCluster(_look, variant % 3, glow: 0.4f));
+                var glint = new Vector3(1.6f, 1.35f, 0.8f);
+                mesh.Append(brass, Place(along + 0.6, offset, yaw, 2.6f, 0.05f).M, glint);
+                var trunk = Place(along, offset, yaw, 1, 0.05f).M;
+                for (int b = 0; b < 3; b++)
+                {
+                    float up = height * (0.2f + 0.22f * b), turn = yaw + b * 2.1f;
+                    mesh.Append(brass, Matrix4x4.CreateScale(2.2f - 0.4f * b) * Matrix4x4.CreateRotationZ(1.2f) * Matrix4x4.CreateRotationY(turn)
+                        * Matrix4x4.CreateTranslation(0, up, 0) * trunk, glint);
+                }
+            }
+        }
         for (double s = Math.Ceiling(from / 12) * 12; s < to; s += 12)
         {
             if (!Clear(s) || p.Biome(s) is not { } def)
                 continue;
             var rng = new Random(unchecked(seed * 73856093 ^ (int)(s / 12) * 19349663));
-            // The forest comes in stands (maritime-rules.md §5, "the spruce wall"): world-space patches with hard
-            // edges, as much of the land as the biome's density says, planted solid; out of them only the odd tree.
-            // The line runs through them with the alder between: that's the Maritime view, not trees dotted on heath.
             float cover = Cover(def);
-            bool dense = def.TreeDensity >= 0.8;
-            double near = def.TreeDensity >= 1.2 ? 6 : dense ? 7 : 9;
-            int count = def.TreeDensity <= 0 ? 0 : 50;
-            double floraTotal = def.Flora.Values.Sum();
-            for (int k = 0; k < count; k++)
-            {
-                double side = rng.Next(2) == 0 ? -1 : 1;
-                double offset = side * (near + Math.Pow(rng.NextDouble(), 0.8) * (90 - near));
-                double along = s + rng.NextDouble() * 12;
-                float standing = Stand(line, along, offset, cover);
-                if (rng.NextDouble() > (standing > 0.5f ? 1 : 0.035))
-                    continue;
-                bool dead = rng.NextDouble() < def.DeadTrees;
-                bool corrupted = dead && def.Trees.Contains("corrupted") && rng.NextDouble() < 0.35;
-                int variant = rng.Next(4);
-                float yaw = (float)rng.NextDouble() * MathF.Tau;
-                // Which kind, by the biome's flora weights.
-                string kind = "spruce";
-                double pick = rng.NextDouble() * floraTotal;
-                foreach (var (name, w) in def.Flora)
-                    if ((pick -= w) < 0)
-                    {
-                        kind = name;
-                        break;
-                    }
-                // Stunted on the barrens and the highland (krummholz), tall in the forest.
-                float height = def.Verge == "barrens" ? 3 + (float)rng.NextDouble() * 5 : (dead ? 7 : 11) + (float)rng.NextDouble() * (dense ? 11 : 8);
-                // White pine stands out over the spruce (maritime-rules.md §5: to 35 m over a 20-30 m canopy), even on the barrens.
-                if (kind == "pine" && !dead)
-                    height = (def.Verge == "barrens" ? 9 : 20) + (float)rng.NextDouble() * 9;
-                if (!Free(along, offset))
-                    continue;
-                var (m, slope) = Place(along, offset, yaw, height / 12, 0.15f);
-                if (slope > 1.1f)
-                    continue; // nothing grows on the crag
-                MeshAsset piece = dead
-                    ? rng.Next(2) == 0 ? Piece($"ghost-{variant}", () => NovaKit.GhostSpruce(_look, variant)) : Piece($"dead-{variant % 2}", () => WorldKit.DeadTree(_look, variant % 2, 10))
-                    : Tree(kind, variant, Math.Abs(offset) < NearSpruce);
-                if (dead)
-                    (m, _) = Place(along, offset, yaw, height / (piece.Name.StartsWith("ghost") ? 8 + variant * 2.5f : 10) * 0.9f, 0.15f);
-                if (kind == "birch" && !dead)
-                    (m, _) = Place(along, offset, yaw, height / 11, 0.1f);
-                // Tamarack goes gold in the fall, before its needles drop (the bog's one colour).
-                var tint = kind == "tamarack" && !dead ? new Vector3(1.55f, 1.2f, 0.55f) * (0.85f + 0.3f * (float)rng.NextDouble()) : new Vector3(0.8f + 0.3f * (float)rng.NextDouble());
-                // The corruption's trees (GDD §30): charred black and sweating, the brass breaking out through the bark up
-                // the trunk as well as heaped at the foot.
-                if (corrupted)
-                    tint = new Vector3(0.32f, 0.24f, 0.2f);
-                mesh.Append(piece, m, tint);
-                if (corrupted)
-                {
-                    // Brighter than a brass field's growths, a sick glow in them: what the eye should catch in the dead wood.
-                    var brass = Piece($"growth-{variant % 3}", () => BrassCluster(_look, variant % 3, glow: 0.4f));
-                    var glint = new Vector3(1.6f, 1.35f, 0.8f);
-                    mesh.Append(brass, Place(along + 0.6, offset, yaw, 2.6f, 0.05f).M, glint);
-                    var trunk = Place(along, offset, yaw, 1, 0.05f).M;
-                    for (int b = 0; b < 3; b++)
-                    {
-                        float up = height * (0.2f + 0.22f * b), turn = yaw + b * 2.1f;
-                        mesh.Append(brass, Matrix4x4.CreateScale(2.2f - 0.4f * b) * Matrix4x4.CreateRotationZ(1.2f) * Matrix4x4.CreateRotationY(turn)
-                            * Matrix4x4.CreateTranslation(0, up, 0) * trunk, glint);
-                    }
-                }
-            }
             // The stand's mass behind the single trees: walls of packed spires where a stand runs on out from the
             // line, one at its near edge's depth and one deep in it, so the forest has a body and a serrated top.
             // (On the barrens and the coast the stands are stunted: the wind-cut white spruce of the headlands.)
             bool stunted = def.Verge == "barrens";
             if (def.TreeDensity >= 0.3 && s % 24 < 12)
-                foreach (int side in new[] { -1, 1 })
+                foreach (int sideOf in new[] { -1, 1 })
                     foreach (double depth in new[] { 55 + rng.NextDouble() * 30, 125 + rng.NextDouble() * 40 })
                     {
-                        double lateral = side * depth, along = s + rng.NextDouble() * 4;
-                        if (Stand(line, along, lateral, cover) < 0.5f || Stand(line, along, lateral + side * 20, cover) < 0.5f || !Free(along, lateral))
+                        double lateral = sideOf * depth, along = s + rng.NextDouble() * 4;
+                        if (Stand(line, along, lateral, cover) < 0.5f || Stand(line, along, lateral + sideOf * 20, cover) < 0.5f || !Free(along, lateral))
                             continue;
                         var (m, slope) = Place(along, lateral, (float)(rng.NextDouble() - 0.5) * 0.25f, 1, 0.5f);
                         if (slope > 0.9f)
@@ -350,19 +407,32 @@ public sealed partial class WorldArt
                         float th = stunted ? 6 + (float)rng.NextDouble() * 4 : 13 + (float)rng.NextDouble() * 6;
                         mesh.Append(Piece($"treeline-{tv}-{th:0}", () => NovaKit.Treeline(_look, tv, 26, th)), m, new Vector3(0.8f + 0.25f * (float)rng.NextDouble()));
                     }
-            // Boulders where the land is rough, bigger and more of them the rougher it is, sunk into the slope.
-            for (int k = 0; k < (int)(def.Rocks + rng.NextDouble()); k++)
+        }
+        // The forest floor (note 395): deadfall, stumps and juniper under the stands; juniper and red blueberry on the
+        // barrens and the burns. Low and passable, the art's alone, as the tufts and the alder are.
+        for (double s = Math.Ceiling(from / 12) * 12; s < to; s += 12)
+        {
+            if (!Clear(s) || p.Biome(s) is not { } def)
+                continue;
+            bool barrens = def.Verge == "barrens", woods = def.TreeDensity >= 0.3;
+            if (!barrens && !woods)
+                continue;
+            var rng = new Random(unchecked(seed * 48271 ^ (int)(s / 12) * 69621));
+            int count = barrens ? 2 + rng.Next(2) : 1 + rng.Next(2);
+            for (int i = 0; i < count; i++)
             {
-                double offset = (rng.Next(2) == 0 ? -1 : 1) * (6 + rng.NextDouble() * 80);
-                double along = s + rng.NextDouble() * 12;
+                double offset = (rng.Next(2) == 0 ? -1 : 1) * (FloorNear + rng.NextDouble() * (barrens ? 40 : 30)), along = s + rng.NextDouble() * 12;
+                double pick = rng.NextDouble();
+                var kind = barrens
+                    ? pick < 0.45 ? NovaKit.FloorKind.Juniper : pick < 0.9 ? NovaKit.FloorKind.Blueberry : NovaKit.FloorKind.Stump
+                    : pick < 0.4 ? NovaKit.FloorKind.Deadfall : pick < 0.7 ? NovaKit.FloorKind.Stump : NovaKit.FloorKind.Juniper;
+                int v = rng.Next(3);
+                float yaw = (float)rng.NextDouble() * 6.28f, scale = 0.85f + 0.3f * (float)rng.NextDouble();
                 if (!Free(along, offset))
                     continue;
-                int v = rng.Next(3);
-                float size = 0.8f + (float)rng.NextDouble() * (float)(1.2 + def.NoiseScale * 1.6);
-                var (_, slope) = Place(along, offset, 0, 1, 0);
-                size *= slope > 0.6f ? 1.6f : 1;
-                var (m, _) = Place(along, offset, (float)rng.NextDouble() * 6.28f, size, size * (0.3f + 1.1f * Math.Min(slope, 1.5f)));
-                mesh.Append(Piece($"rock-{v}", () => WorldKit.Rock(_look, v, 1)), m);
+                var (m, slope) = Place(along, offset, yaw, scale, kind == NovaKit.FloorKind.Deadfall ? 0.12f : 0.04f);
+                if (slope < 0.7f)
+                    mesh.Append(Piece($"floor-{kind}-{v}", () => NovaKit.Floor(_look, kind, v)), m, new Vector3(0.8f + 0.3f * (float)rng.NextDouble()));
             }
         }
         // Low growth along the verge: dead grass, the bog's reeds thick out to its water, the barrens' heath and lichen.
@@ -462,233 +532,11 @@ public sealed partial class WorldArt
                         Place(at, Lat(at) + side * (rr.HalfWidthM + 1.2), side > 0 ? MathF.PI / 2 : -MathF.PI / 2, 1, 0.2f).M));
                 }
             }
-            // Homesteads and poles, hashed on the road and the stretch so a cell's always the same.
-            for (double at = Math.Ceiling(a0 / 45) * 45; at < a1; at += 45)
-            {
-                double l = Lat(at);
-                if (Math.Abs(l) < 10 || !Clear(at))
-                    continue;
-                int away = Math.Sign(l);
-                var rng = new Random(unchecked(road.Id.Aggregate(17, (h, ch) => h * 31 + ch) * 31 ^ (int)(at / 45) * 7919));
-                // The road's poles, leaning, on its far side.
-                if (Free(at, l + away * (rr.HalfWidthM + 2.5)))
-                    mesh.Instances.Add(new MeshInstance(Piece($"pole-{(int)(at / 45) % 3}", () => WorldKit.Pole(_look, (int)(at / 45) % 3)),
-                        Place(at, l + away * (rr.HalfWidthM + 2.5), (float)(rng.NextDouble() - 0.5) * 0.3f, 0.85f, 0.2f).M));
-                if (rng.NextDouble() < 0.22)
-                {
-                    // A homestead: the house facing the road, a barn behind now and then, the woodpile, a fence along the front.
-                    double back = l + away * (rr.HalfWidthM + 12 + rng.NextDouble() * 10);
-                    float face = away > 0 ? -MathF.PI / 2 : MathF.PI / 2;
-                    int v = rng.Next(8);
-                    if (Free(at, back) && Free(at + 8, back) && Free(at - 8, back))
-                    {
-                        mesh.Instances.Add(new MeshInstance(Piece($"saltbox-{v}", () => NovaKit.Saltbox(_look, v)), Place(at, back, face + (float)(rng.NextDouble() - 0.5) * 0.2f, 1, 0.3f).M));
-                        int wv = rng.Next(3);
-                        if (Free(at + 11, back))
-                            mesh.Append(Piece($"woodpile-{wv}", () => NovaKit.Woodpile(_look, wv)), Place(at + 11, back - away * 2, 0, 1, 0.05f).M);
-                        if (rng.NextDouble() < 0.45 && Free(at - 4, back + away * 22))
-                        {
-                            int bv = rng.Next(2);
-                            mesh.Instances.Add(new MeshInstance(Piece($"barn-{bv}", () => NovaKit.Barn(_look, bv)), Place(at - 4, back + away * 22, face, 1, 0.3f).M));
-                        }
-                        for (double f = at - 14; f < at + 14; f += 2.4)
-                            if (rng.NextDouble() > 0.15 && Free(f, l + away * (rr.HalfWidthM + 4.5)))
-                                mesh.Append(Piece("fencepost-0", () => WorldKit.FencePost(_look, 0)), Place(f, l + away * (rr.HalfWidthM + 4.5), (float)(rng.NextDouble() - 0.5) * 0.4f, 1, 0.1f).M);
-                    }
-                }
-                else if (rng.NextDouble() < 0.05)
-                {
-                    int cv = rng.Next(4);
-                    mesh.Instances.Add(new MeshInstance(Piece($"car-{cv}", () => NovaKit.Car(_look, cv)),
-                        Place(at, l + away * (rr.HalfWidthM + 0.5), (float)(rng.NextDouble() - 0.5) * 0.6f, 1, 0.12f).M));
-                }
-            }
+            // Its homesteads, poles and cars are the sim's (note 389): drawn with the rest of the lineside, above.
         }
-        // The shore's own (maritime-rules.md §6): fish sheds on their stilts at the head of a cove, a crib wharf run out
-        // from them, and a lighthouse out on a headland; all at the water's edge, wherever it wanders.
-        foreach (var sh in p.Plan.Shores.Where(x => x.Kind != ShoreKind.Dyke && x.S1 > from && x.S0 < to))
-        {
-            for (double s = Math.Max(sh.S0 + 60, Math.Ceiling(from / 20) * 20); s < Math.Min(sh.S1 - 60, to); s += 20)
-            {
-                if (!Clear(s))
-                    continue;
-                double e0 = p.Terrain.ShoreEdge(sh, s - 40), e = p.Terrain.ShoreEdge(sh, s), e1 = p.Terrain.ShoreEdge(sh, s + 40);
-                var rng = new Random(unchecked(seed * 7919 ^ (int)(s / 20) * 104729 ^ sh.Id.Length));
-                float seaward = sh.Side > 0 ? MathF.PI / 2 : -MathF.PI / 2;
-                if (e > e0 && e >= e1 && sh.Kind == ShoreKind.Sea && rng.NextDouble() < 0.7)
-                {
-                    // A cove's head: two or three sheds along the waterline, a wharf out from the first.
-                    int sheds = 2 + rng.Next(2);
-                    for (int i = 0; i < sheds; i++)
-                    {
-                        double along = s + (i - sheds / 2.0) * 9, lateral = sh.Side * (p.Terrain.ShoreEdge(sh, along) - 2);
-                        if (Free(along, lateral * 0.85))
-                            mesh.Instances.Add(new MeshInstance(Piece($"fishshed-{i % 3}", () => NovaKit.FishShed(_look, i % 3)),
-                                Place(along, lateral, seaward + (float)(rng.NextDouble() - 0.5) * 0.4f, 1, 0.9f).M));
-                    }
-                    int wv = rng.Next(2);
-                    mesh.Instances.Add(new MeshInstance(Piece($"wharf-{wv}", () => NovaKit.Wharf(_look, wv)),
-                        Place(s + 4, sh.Side * (e + 1), seaward + MathF.PI, 1, 0).M));
-                }
-                else if (e < e0 && e <= e1 && sh.Kind == ShoreKind.Sea && rng.NextDouble() < 0.18)
-                {
-                    int lv = rng.Next(2);
-                    double lateral = sh.Side * Math.Max(12, e - 10);
-                    if (Free(s, lateral))
-                        mesh.Instances.Add(new MeshInstance(Piece($"lighthouse-{lv}", () => NovaKit.Lighthouse(_look, lv)), Place(s, lateral, seaward, 1, 0.3f).M));
-                }
-                // The Atlantic's edge (maritime-rules.md §3): granite ledges, broad pale whalebacks the ice smoothed,
-                // running down into the water; weed-black rocks at the tide line; and the surf, a broken pale line where
-                // the swell breaks on them.
-                if (sh.Kind == ShoreKind.Sea)
-                {
-                    for (int i = 0; i < 2; i++)
-                    {
-                        double along = s + rng.NextDouble() * 20, lateral = sh.Side * (p.Terrain.ShoreEdge(sh, along) - 3 + rng.NextDouble() * 7);
-                        float size = 3 + (float)rng.NextDouble() * 5;
-                        int v = rng.Next(3);
-                        mesh.Append(Piece($"rock-{v}", () => WorldKit.Rock(_look, v, 1)),
-                            Place(along, lateral, (float)rng.NextDouble() * 6.28f, 1, size * 0.2f, new Vector3(size * 1.6f, size * 0.35f, size * 1.1f)).M, new Vector3(1.3f, 1.28f, 1.22f));
-                    }
-                    for (int i = 0; i < 3; i++)
-                    {
-                        double along = s + rng.NextDouble() * 20, lateral = sh.Side * (p.Terrain.ShoreEdge(sh, along) + 1 + rng.NextDouble() * 6);
-                        int v = rng.Next(3);
-                        float size = 0.6f + (float)rng.NextDouble();
-                        mesh.Append(Piece($"rock-{v}", () => WorldKit.Rock(_look, v, 1)), Place(along, lateral, (float)rng.NextDouble() * 6.28f, size, size * 0.5f).M, new Vector3(0.28f, 0.25f, 0.18f));
-                    }
-                    var foam = new Kit(_look, mesh) { SurfaceOrigin = new Vector3(W(eye.X), W(eye.Y), W(eye.Z)), Baked = 0 };
-                    foam.Use("plaster_ruin", new Vector3(0.8f), 0.9f, 0.3f, tile: 2);
-                    foam.Tint = new Vector3(1.5f, 1.55f, 1.6f);
-                    for (double f = s; f < s + 20; f += 2.5)
-                    {
-                        if (Noise((float)(f * 0.11), sh.Side * 3.1f) < 0.45f)
-                            continue;
-                        Vector3 Surf(double at, double out_)
-                        {
-                            var t = line.Sample(Math.Clamp(at, 0, line.Length));
-                            var r = Double3.Cross(t.Tangent, Double3.Up).Normalized * sh.Side;
-                            return (new Double3(t.Position.X, sh.LevelM + 0.06, t.Position.Z) + r * (p.Terrain.ShoreEdge(sh, at) + out_)).RelativeTo(eye);
-                        }
-                        var q0 = Surf(f, 0.5);
-                        var q1 = Surf(f, 2.2);
-                        var q2 = Surf(f + 2.3, 2.4);
-                        var q3 = Surf(f + 2.3, 0.4);
-                        foam.Quad(q0, q1, q2, q3, new Vector2(q0.X, q0.Z), new Vector2(q1.X, q1.Z), new Vector2(q2.X, q2.Z), new Vector2(q3.X, q3.Z), twoSided: true);
-                    }
-                }
-                // Boulders along the tide line, granite or sandstone; in a river, across its bed (the rapids).
-                for (int i = 0; i < (sh.Kind == ShoreKind.River ? 4 : 2); i++)
-                {
-                    double along = s + rng.NextDouble() * 20;
-                    double lateral = sh.Side * (p.Terrain.ShoreEdge(sh, along) + (sh.Kind == ShoreKind.River ? rng.NextDouble() * sh.FlatM : (rng.NextDouble() - 0.6) * 10));
-                    int v = rng.Next(3);
-                    float size = 0.7f + (float)rng.NextDouble() * 1.6f;
-                    mesh.Append(Piece($"rock-{v}", () => WorldKit.Rock(_look, v, 1)), Place(along, lateral, (float)rng.NextDouble() * 6.28f, size, size * 0.4f).M,
-                        sh.Kind == ShoreKind.Fundy ? new Vector3(1.2f, 0.75f, 0.6f) : Vector3.One);
-                }
-            }
-        }
-        // What people left, and what the ice left: by the block, each piece as the biome has it (biomes.json props).
-        const double block = 150;
-        for (double b = Math.Floor(from / block) * block; b < to; b += block)
-        {
-            if (b < from || !Clear(b) || p.Biome(b) is not { } def)
-                continue;
-            var rng = new Random(unchecked(seed * 486187739 ^ (int)(b / block) * 6700417));
-            foreach (var (name, rule) in def.Props.OrderBy(kv => kv.Key, StringComparer.Ordinal))
-                for (int n = 0; n < rule.Count; n++)
-                {
-                    if (rng.NextDouble() > rule.Chance)
-                        continue;
-                    double lateral = (rng.Next(2) == 0 ? -1 : 1) * (rule.OutM[0] + rng.NextDouble() * (rule.OutM[1] - rule.OutM[0]));
-                    double along = b + rng.NextDouble() * block;
-                    int v = rng.Next(12);
-                    Prop(name, along, lateral, v, rng);
-                }
-        }
-
-        void Prop(string name, double along, double lateral, int v, Random rng)
-        {
-            float face = lateral > 0 ? MathF.PI / 2 : -MathF.PI / 2, jitter = (float)(rng.NextDouble() - 0.5);
-            void Put(MeshAsset piece, float yaw, float sink = 0.3f, Vector3? stretch = null)
-            {
-                if (Free(along, lateral) && Free(along, lateral * 0.8) && Free(along + 8, lateral) && Free(along - 8, lateral))
-                    mesh.Instances.Add(new MeshInstance(piece, Place(along, lateral, yaw, 1, sink, stretch).M));
-            }
-            switch (name)
-            {
-                case "saltbox": Put(Piece($"saltbox-{v % 8}", () => NovaKit.Saltbox(_look, v % 8)), face + jitter * 0.6f); break;
-                case "barn": Put(Piece($"barn-{v % 2}", () => NovaKit.Barn(_look, v % 2)), face + jitter * 0.5f); break;
-                case "church": Put(Piece("nova-church", () => NovaKit.Church(_look)), face + jitter * 0.2f); break;
-                case "buryingGround": Put(Piece($"burying-{v % 3}", () => NovaKit.BuryingGround(_look, v % 3)), face + jitter * 0.3f, 0.1f); break;
-                case "fishShed": Put(Piece($"fishshed-{v % 3}", () => NovaKit.FishShed(_look, v % 3)), face + jitter * 0.8f, 0.2f); break;
-                case "ruin": Put(Piece($"ruin-{v % 3}", () => SettingKit.RuinWall(_look, v % 3)), face + jitter, 0.2f); break;
-                case "chimney": Put(Piece($"chimney-{v % 3}", () => SettingKit.Chimney(_look, v % 3)), jitter); break;
-                case "tank": Put(Piece($"tank-{v % 3}", () => SettingKit.Tank(_look, v % 3)), jitter * 6); break;
-                case "headframe": Put(Piece("headframe", () => SettingKit.Headframe(_look)), face + jitter * 0.4f); break;
-                case "erratic":
-                    {
-                        // A granite erratic: a house-sized boulder the ice left sitting in the open, paler than the ledge.
-                        float size = 2.2f + (float)rng.NextDouble() * 3;
-                        if (Free(along, lateral))
-                            mesh.Append(Piece($"rock-{v % 3}", () => WorldKit.Rock(_look, v % 3, 1)), Place(along, lateral, jitter * 6, size, size * 0.25f).M, new Vector3(1.35f, 1.35f, 1.3f));
-                        break;
-                    }
-                case "outcrop":
-                    {
-                        // Granite ledge breaking through the thin soil: a broad, low slab.
-                        float size = 2 + (float)rng.NextDouble() * 4;
-                        if (Free(along, lateral))
-                            mesh.Append(Piece($"rock-{v % 3}", () => WorldKit.Rock(_look, v % 3, 1)),
-                                Place(along, lateral, jitter * 6, 1, size * 0.18f, new Vector3(size * 1.8f, size * 0.45f, size * 1.3f)).M, new Vector3(1.2f, 1.2f, 1.15f));
-                        break;
-                    }
-                case "stoneWall":
-                    {
-                        // A field's wall, run along the line for a stretch, gaps where it's fallen.
-                        int lengths = 6 + rng.Next(12);
-                        for (int i = 0; i < lengths; i++)
-                        {
-                            double s = along + i * 8;
-                            if (s > line.Length || !Clear(s) || !Free(s, lateral) || rng.NextDouble() < 0.12)
-                                continue;
-                            mesh.Instances.Add(new MeshInstance(Piece($"stonewall-{i % 3}", () => NovaKit.StoneWall(_look, i % 3)), Place(s + 8, lateral, 0, 1, 0.1f).M));
-                        }
-                        break;
-                    }
-                case "oldField":
-                    {
-                        // Pasture spruce (maritime-rules.md §5): a farm field given up, grown in solid with white spruce all of
-                        // an age and a height, a dark block with a hard edge where the field's edge was.
-                        float h = 4 + (float)rng.NextDouble() * 4;
-                        for (int i = 0; i < 30; i++)
-                        {
-                            double s = along + (rng.NextDouble() - 0.5) * 36, l = lateral + (rng.NextDouble() - 0.5) * 24;
-                            if (!Free(s, l))
-                                continue;
-                            int tv = rng.Next(4);
-                            mesh.Append(Piece($"spruce-{tv}", () => NovaKit.Conifer(_look, tv, 12, 0.3f)),
-                                Place(s, l, (float)rng.NextDouble() * 6.28f, h * (0.85f + 0.3f * (float)rng.NextDouble()) / 12, 0.1f).M, new Vector3(0.85f, 0.95f, 0.9f));
-                        }
-                        break;
-                    }
-                case "orchard":
-                    {
-                        // An orchard gone to ruin: rows of small, gnarled dead apple trees.
-                        for (int row = 0; row < 4; row++)
-                            for (int i = 0; i < 6; i++)
-                            {
-                                double s = along + i * 6, l = lateral + Math.Sign(lateral) * row * 6;
-                                if (!Free(s, l) || rng.NextDouble() < 0.15)
-                                    continue;
-                                mesh.Append(Piece($"dead-{(i + row) % 2}", () => WorldKit.DeadTree(_look, (i + row) % 2, 10)),
-                                    Place(s, l, (float)rng.NextDouble() * 6.28f, 0.42f + 0.1f * (float)rng.NextDouble(), 0.1f).M, new Vector3(0.9f, 0.85f, 0.8f));
-                            }
-                        break;
-                    }
-            }
-        }
+        // The shore's surf is the water's own lap now (scene.frag, note 424). Its sheds, wharves, lighthouses, ledges and
+        // boulders are the sim's (note 389), drawn with the rest of the lineside.
+        // What people left, and what the ice left (biomes.json props): the sim's too (note 389), drawn with the rest above.
     }
 
     /// <summary>Whether the track's bed and rails are there at <paramref name="s"/> on the main line (not across a washout).</summary>
@@ -726,7 +574,7 @@ public sealed partial class WorldArt
     {
         if (Scene(route) is not { } p)
             return;
-        BranchLand(mesh, p, eye, drawDistance);
+        BranchLand(mesh, p, route, eye, drawDistance);
         Signs(mesh, p, eye, drawDistance);
         Hazards(mesh, p, eye, drawDistance, time);
         Banks(mesh, p, route, eye, drawDistance);
@@ -748,7 +596,7 @@ public sealed partial class WorldArt
 
     static readonly float[] BranchLateral = [3.7f, 5.5f, 8, 12, 17, 24, 33, 45, 60, 78];
 
-    void BranchLand(MeshBuilder mesh, PlanScene p, Double3 eye, float drawDistance)
+    void BranchLand(MeshBuilder mesh, PlanScene p, Route route, Double3 eye, float drawDistance)
     {
         if (!ReferenceEquals(_branchScene, p))
         {
@@ -768,7 +616,7 @@ public sealed partial class WorldArt
                     continue;
                 }
                 if (!_branchCells.TryGetValue((a.Branch, i), out var cell))
-                    _branchCells[(a.Branch, i)] = cell = BranchCell(p, a.Branch, local, i);
+                    _branchCells[(a.Branch, i)] = cell = BranchCell(p, route, a.Branch, local, i);
                 var at = Matrix4x4.CreateTranslation(cell.Origin.RelativeTo(eye));
                 mesh.Instances.Add(new MeshInstance(cell.Soup, at));
                 foreach (var (piece, m) in cell.Pieces)
@@ -779,9 +627,9 @@ public sealed partial class WorldArt
 
     /// <summary>
     /// One 100 m cell of a branch's land either side of its bed, out to 78 m, where the main line's own land doesn't
-    /// already reach (it runs 300 m out); a stand of trees on it.
+    /// already reach (it runs 300 m out); a stand of pines on it where the sim stands them (LinesideProps.BranchTrees).
     /// </summary>
-    Cell BranchCell(PlanScene p, int branch, RailLine local, long index)
+    Cell BranchCell(PlanScene p, Route route, int branch, RailLine local, long index)
     {
         double a = index * CellLength, b = Math.Min((index + 1) * CellLength, local.Length);
         var origin = local.Sample(a).Position;
@@ -828,23 +676,16 @@ public sealed partial class WorldArt
                 prev = next;
             }
         }
-        // A stand of pines out beyond the verge, fewer where the land is open.
-        var rng = new Random(unchecked(branch * 7919 + (int)index * 104729));
-        for (int k = 0; k < 10; k++)
-        {
-            double s = a + rng.NextDouble() * (b - a);
-            double lateral = (rng.Next(2) == 0 ? -1 : 1) * (12 + rng.NextDouble() * 55);
-            var t = local.Sample(s);
-            var w = t.Position + Double3.Cross(t.Tangent, Double3.Up).Normalized * lateral;
-            if (Covered(w) || p.Terrain.WaterAt(w.X, w.Z) is not null || p.Terrain.Nearby(w.X, w.Z, 12).Any(n => Math.Abs(n.Lateral) < 9))
-                continue;
-            w = w with { Y = p.Terrain.Height(w.X, w.Z) - 0.15 };
-            int variant = rng.Next(4);
-            float height = 7 + (float)rng.NextDouble() * 10;
-            var piece = Piece($"pine-{variant}", () => WorldKit.Pine(_look, variant, 12));
-            var m = Matrix4x4.CreateScale(height / 12) * Matrix4x4.CreateRotationY((float)rng.NextDouble() * MathF.Tau) * Matrix4x4.CreateTranslation(w.RelativeTo(origin));
-            built.Instances.Add(new MeshInstance(piece, m));
-        }
+        // A stand of pines out beyond the verge: the sim's (note 432), so what's seen is what's walked into.
+        if (Sim.Run.LinesideProps.Of(route, p.Line) is { } lineside)
+            foreach (var tree in lineside.BranchTrees(branch, a, b))
+            {
+                var t = local.Sample(tree.Along);
+                var w = (t.Position + Double3.Cross(t.Tangent, Double3.Up).Normalized * tree.Lateral) with { Y = tree.Ground };
+                var piece = Piece($"pine-{tree.Variant}", () => WorldKit.Pine(_look, tree.Variant, 12));
+                var m = Matrix4x4.CreateScale((float)(tree.Height / 12)) * Matrix4x4.CreateRotationY((float)tree.Yaw) * Matrix4x4.CreateTranslation(w.RelativeTo(origin));
+                built.Instances.Add(new MeshInstance(piece, m));
+            }
         return new Cell(MeshAsset.From($"branch-{branch}-{index}", built), [.. built.Instances.Select(x => (x.Asset, x.Model))], [.. built.PointLights], origin);
     }
 
@@ -871,9 +712,11 @@ public sealed partial class WorldArt
             var board = rules.Boards.GetValueOrDefault(sign.Type);
             float width = (float)(board?.WidthM ?? 0.8), height = (float)(board?.HeightM ?? 2.2);
             var piece = Piece($"sign-{sign.Type}-{sign.Text}", () => SignKit.Board(_look, sign.Type, sign.Text, width, height));
-            var at = sign.Type == "tunnelPlate" ? t.Position : t.Position + right * (sign.Side * rules.SignOffsetM) - Double3.Up * 0.25;
-            // Turned a little toward the track, so the lamp catches it square.
-            var m = Basis(t.Tangent, at, eye, -sign.Side * 0.18f);
+            bool plate = sign.Type == "tunnelPlate";
+            var at = plate ? t.Position : t.Position + right * (sign.Side * rules.SignOffsetM) - Double3.Up * 0.25;
+            // Turned a little toward the track, so the lamp catches it square; a tunnel's plate square on its portal's face, the
+            // far portal's turned round as its portal is (WorldFeatures.Tunnel).
+            var m = Basis(t.Tangent, at, eye, plate ? sign.Side > 0 ? 0 : MathF.PI : -sign.Side * 0.18f);
             if (sign.State == SignState.Fallen)
                 m = Matrix4x4.CreateRotationZ(sign.Side * 1.35f) * Matrix4x4.CreateTranslation(0, 0.15f, 0) * m;
             mesh.Instances.Add(new MeshInstance(piece, m));
@@ -939,6 +782,26 @@ public sealed partial class WorldArt
 
     // How far off the line the spruce is modelled (WorldKit.Spruce), not crossed cards: as WorldArt's NearTrees for its pines.
     const double NearSpruce = 40;
+
+    /// <summary>How far out from the line the forest floor's pieces start (m): past the walk beside the train.</summary>
+    const double FloorNear = 7;
+
+    /// <summary>
+    /// A tree's form and lean (note 395), from a stream of its own off its art seed (LinesideProp.Seed): mostly plain; on the
+    /// barrens and the coast often flagged by the wind; now and then broken-topped or forked; one in six leant 4–10°.
+    /// </summary>
+    static (NovaKit.TreeForm Form, (float Angle, float Toward) Lean) Form(uint seed, Sim.LineGen.BiomeDef? biome)
+    {
+        var rng = new Random(unchecked((int)(seed * 2654435761u) ^ 0x5f3759df));
+        bool windy = biome is { Verge: "barrens" } || biome?.Shore > 0.2;
+        double pick = rng.NextDouble();
+        var form = pick < (windy ? 0.4 : 0.07) ? NovaKit.TreeForm.Flagged
+            : pick < (windy ? 0.52 : 0.2) ? NovaKit.TreeForm.Broken
+            : pick < (windy ? 0.58 : 0.28) ? NovaKit.TreeForm.Forked
+            : NovaKit.TreeForm.Plain;
+        float lean = rng.NextDouble() < 1 / 6.0 ? (float)(4 + 6 * rng.NextDouble()) * MathF.PI / 180 : 0;
+        return (form, (lean, (float)(rng.NextDouble() * MathF.Tau)));
+    }
     // The causeway's bank, along: a stretch at a time.
     const double BankStep = 5;
     // (WorldArt's ground laterals from the bed's shoulder out: the pitching lies on the same facets the land's mesh has.)
@@ -1175,174 +1038,7 @@ public sealed partial class WorldArt
         return k.Build($"brass-{variant}");
     }
 
-    // ------------------------------------------------------------------ water
-
-    /// <summary>§12.4's water: a river's flat surface where it runs under its bridge, a marsh's standing water off the bed.</summary>
-    void Water(MeshBuilder mesh, PlanScene p, Double3 eye, float drawDistance)
-    {
-        var k = new Kit(_look, mesh) { SurfaceOrigin = new Vector3(W(eye.X), W(eye.Y), W(eye.Z)), Baked = 0 };
-        k.Use(_look?.Layer("water_dark") >= 0 ? "water_dark" : "tar", new Vector3(0.05f, 0.06f, 0.07f), 0.05f, 0.9f, tile: 29);
-        k.Tint = new Vector3(0.35f, 0.4f, 0.45f);
-        // The water's colour (maritime-rules.md §2-5): the upland lakes and rivers tea-dark with tannin, the sea slate,
-        // Fundy's tidal water red-brown with the mud it carries.
-        var peat = new Vector3(1.2f, 0.95f, 0.7f);
-        var slate = new Vector3(0.85f, 1.0f, 1.1f);
-        var mud = new Vector3(2.2f, 1.3f, 0.9f);
-        foreach (var w in p.Plan.Water)
-        {
-            var line = p.EdgeLine(w.Edge);
-            var mid = line.Sample(Math.Clamp((w.S0 + w.S1) / 2, 0, line.Length));
-            if ((mid.Position - eye).Length > drawDistance + 150)
-                continue;
-            // The tar ponds (biomes.json contaminatedMarsh, GDD §30): not water. Black pitch, glossy as a mirror,
-            // an oil film's colours on it and its slow bubbles: a marsh you'd not wade.
-            bool tar = w.Type == "contaminatedMarsh" || p.BiomeAt((w.S0 + w.S1) / 2) == "contaminatedMarsh";
-            if (tar)
-                k.Use(_look?.Layer("tar") >= 0 ? "tar" : "water_dark", new Vector3(0.02f, 0.02f, 0.02f), PitchWear, 0.55f, tile: 9).Shade(0.3f);
-            else
-                k.Tint = w.Type == "tidal" ? mud : w.Type == "river" ? peat : new Vector3(0.9f, 0.95f, 0.9f);
-            bool river = w.Type is "river" or "tidal";
-            // A river runs across under the span and on down its valley either way into the far land (note 138); a marsh
-            // lies beside the bed.
-            double reach = river ? 1200 : 90, inner = river ? -1200 : 5;
-            for (double s = w.S0; s < w.S1; s += 10)
-            {
-                double s1 = Math.Min(s + 10, w.S1);
-                var a = line.Sample(s);
-                var b = line.Sample(s1);
-                var ra = Double3.Cross(a.Tangent, Double3.Up).Normalized;
-                var rb = Double3.Cross(b.Tangent, Double3.Up).Normalized;
-                foreach (int side in river ? new[] { 1 } : new[] { -1, 1 })
-                {
-                    Vector3 P(TrackSample t, Double3 r, double l) => (new Double3(t.Position.X, w.LevelM, t.Position.Z) + r * (side * l)).RelativeTo(eye);
-                    var q0 = P(a, ra, inner);
-                    var q1 = P(a, ra, reach);
-                    var q2 = P(b, rb, reach);
-                    var q3 = P(b, rb, inner);
-                    k.Quad(q0, q1, q2, q3, new Vector2(q0.X, q0.Z), new Vector2(q1.X, q1.Z), new Vector2(q2.X, q2.Z), new Vector2(q3.X, q3.Z), twoSided: true);
-                    if (tar)
-                        TarFilm(k, a, ra, side, w.LevelM, s, eye);
-                }
-            }
-            if (tar)
-                k.Use(_look?.Layer("water_dark") >= 0 ? "water_dark" : "tar", new Vector3(0.05f, 0.06f, 0.07f), 0.05f, 0.9f, tile: 29);
-        }
-        // Lakes: a disc a little past the shore at the water's level; the land's own shore hides what's outside it.
-        k.Tint = peat;
-        foreach (var lake in p.Plan.Lakes)
-        {
-            var c = new Double3(lake.X, lake.LevelM, lake.Z);
-            double reach = lake.RadiusM * lake.Stretch * (1 + lake.Wobble);
-            if ((c - eye).Length > drawDistance + reach)
-                continue;
-            const int n = 40;
-            var centre = c.RelativeTo(eye);
-            // A lake in the tar ponds' country is one of them: pitch, not peat water.
-            var near = p.Terrain.Nearby(lake.X, lake.Z, 700).Where(q => q.Edge == 0).OrderBy(q => Math.Abs(q.Lateral)).FirstOrDefault();
-            bool tar = p.BiomeAt(near.S) == "contaminatedMarsh";
-            if (tar)
-                k.Use(_look?.Layer("tar") >= 0 ? "tar" : "water_dark", new Vector3(0.02f, 0.02f, 0.02f), PitchWear, 0.55f, tile: 9).Shade(0.3f);
-            Vector3 Rim(int i)
-            {
-                double a = i * Math.Tau / n, u = Math.Cos(a) * lake.RadiusM * lake.Stretch, v = Math.Sin(a) * lake.RadiusM;
-                double grow = 1 + lake.Wobble * 1.1 + 0.08;
-                return new Double3(lake.X + (u * lake.Cos - v * lake.Sin) * grow, lake.LevelM, lake.Z + (u * lake.Sin + v * lake.Cos) * grow).RelativeTo(eye);
-            }
-            for (int i = 0; i < n; i++)
-            {
-                var a = Rim(i);
-                var b = Rim(i + 1);
-                k.Quad(centre, a, b, centre, new Vector2(centre.X, centre.Z), new Vector2(a.X, a.Z), new Vector2(b.X, b.Z), new Vector2(centre.X, centre.Z), twoSided: true);
-            }
-            if (tar)
-            {
-                var sheen = k.Tint;
-                var rng = new Random(lake.Id.GetHashCode(StringComparison.Ordinal) & 0xffff);
-                for (int i = 0; i < 6; i++)
-                {
-                    double a = rng.NextDouble() * Math.Tau, d = Math.Sqrt(rng.NextDouble()) * lake.RadiusM * 0.8;
-                    var at = new Double3(lake.X + Math.Cos(a) * d, lake.LevelM, lake.Z + Math.Sin(a) * d);
-                    TarSpot(k, at, rng, eye);
-                }
-                k.Tint = sheen;
-                k.Use(_look?.Layer("water_dark") >= 0 ? "water_dark" : "tar", new Vector3(0.05f, 0.06f, 0.07f), 0.05f, 0.9f, tile: 29);
-                k.Tint = peat;
-            }
-        }
-        // Shores: the sea from just inside the water's edge out into the fog, along the shore and past its tapered ends.
-        foreach (var sh in p.Plan.Shores)
-        {
-            var line = p.EdgeLine(sh.Edge);
-            double taper = p.Plan.Rules.Terrain.Shore.TaperM;
-            var tint = sh.Kind == ShoreKind.Sea ? slate : sh.Kind == ShoreKind.River ? peat : mud;
-            k.Tint = tint;
-            // Where it runs through the tar ponds' country the shore's water is pitch out into the fog, filmed and blistered.
-            bool pitch = false;
-            void Pitch(double s)
-            {
-                bool tar = p.BiomeAt(Math.Clamp(s, 0, line.Length)) == "contaminatedMarsh";
-                if (tar == pitch)
-                    return;
-                pitch = tar;
-                if (tar)
-                    k.Use(_look?.Layer("tar") >= 0 ? "tar" : "water_dark", new Vector3(0.02f, 0.02f, 0.02f), PitchWear, 0.55f, tile: 9).Shade(0.3f);
-                else
-                {
-                    k.Use(_look?.Layer("water_dark") >= 0 ? "water_dark" : "tar", new Vector3(0.05f, 0.06f, 0.07f), 0.05f, 0.9f, tile: 29);
-                    k.Tint = tint;
-                }
-            }
-            if (sh.Kind == ShoreKind.River)
-            {
-                // A river: a ribbon between its banks, falling with the rail, along its meander.
-                for (double s = sh.S0 - taper * 0.5; s < sh.S1 + taper * 0.5; s += 10)
-                {
-                    double s1 = Math.Min(s + 10, sh.S1 + taper * 0.5);
-                    var a = line.Sample(Math.Clamp(s, 0, line.Length));
-                    var b = line.Sample(Math.Clamp(s1, 0, line.Length));
-                    if ((a.Position - eye).Length > drawDistance + 200)
-                        continue;
-                    var ra = Double3.Cross(a.Tangent, Double3.Up).Normalized * sh.Side;
-                    var rb = Double3.Cross(b.Tangent, Double3.Up).Normalized * sh.Side;
-                    double da = p.Terrain.ShoreEdge(sh, s), db = p.Terrain.ShoreEdge(sh, s1);
-                    Vector3 R(TrackSample t, Double3 r, double l) => (new Double3(t.Position.X, t.Position.Y - sh.LevelM, t.Position.Z) + r * l).RelativeTo(eye);
-                    var q0 = R(a, ra, da - 4);
-                    var q1 = R(a, ra, da + sh.FlatM + 4);
-                    var q2 = R(b, rb, db + sh.FlatM + 4);
-                    var q3 = R(b, rb, db - 4);
-                    Pitch(s);
-                    k.Quad(q0, q1, q2, q3, new Vector2(q0.X, q0.Z), new Vector2(q1.X, q1.Z), new Vector2(q2.X, q2.Z), new Vector2(q3.X, q3.Z), twoSided: true);
-                }
-                continue;
-            }
-            for (double s = sh.S0 - taper; s < sh.S1 + taper; s += 20)
-            {
-                double s1 = Math.Min(s + 20, sh.S1 + taper);
-                var a = line.Sample(Math.Clamp(s, 0, line.Length));
-                var b = line.Sample(Math.Clamp(s1, 0, line.Length));
-                if ((a.Position - eye).Length > drawDistance + 1500)
-                    continue;
-                var ra = Double3.Cross(a.Tangent, Double3.Up).Normalized * sh.Side;
-                var rb = Double3.Cross(b.Tangent, Double3.Up).Normalized * sh.Side;
-                double inner = Math.Max(sh.NearM * 0.5, 12);
-                Vector3 P(TrackSample t, Double3 r, double l) => (new Double3(t.Position.X, sh.LevelM, t.Position.Z) + r * l).RelativeTo(eye);
-                Pitch(s);
-                if (pitch && (a.Position - eye).Length < drawDistance)
-                    for (int i = 0; i < 2; i++)
-                        TarFilm(k, a, ra, 1, sh.LevelM, s + i * 10, eye);
-                foreach (var (l0, l1) in new[] { (inner, 300.0), (300.0, 1500.0) })
-                {
-                    var q0 = P(a, ra, l0);
-                    var q1 = P(a, ra, l1);
-                    var q2 = P(b, rb, l1);
-                    var q3 = P(b, rb, l0);
-                    k.Quad(q0, q1, q2, q3, new Vector2(q0.X, q0.Z), new Vector2(q1.X, q1.Z), new Vector2(q2.X, q2.Z), new Vector2(q3.X, q3.Z), twoSided: true);
-                }
-            }
-            if (pitch)
-                k.Use(_look?.Layer("water_dark") >= 0 ? "water_dark" : "tar", new Vector3(0.05f, 0.06f, 0.07f), 0.05f, 0.9f, tile: 29);
-        }
-    }
+    // ------------------------------------------------------------------ water (WorldArt.Water.cs)
 
     /// <summary>Tar's wear: the band below 0.015 scene.frag reads as pitch, which no frost rimes.</summary>
     const float PitchWear = 0.01f;
@@ -1395,9 +1091,13 @@ public sealed partial class WorldArt
     // across a bay or a tidal river its far shore, so the water has a far side and the sky's band of distant highland
     // stands on land, not on haze. Laterals out from the line, and the hills' heights over the plan's own land there (m:
     // the first tucked under the corridor ground's edge); the far shore's distance for each kind of water (null: the
-    // open sea, no far side), and its heights over the water.
+    // open sea, no far side), and its heights over the water. The first is well under the corridor's edge, 3 m: the far
+    // land's rows are straight between FarStep's, and in a hollow along the line that chord rode over the corridor's own
+    // ground at its edge, open under it to the sky (`dt holes`, note 433: frontier:3 at 12.2 km).
     static readonly double[] FarLateral = [292, 340, 420, 560, 800, 1150, 1700];
-    static readonly double[] FarRise = [-0.6, 3, 8, 16, 26, 38, 50];
+    static readonly double[] FarRise = [-3, 3, 8, 16, 26, 38, 50];
+    /// <summary>The far land's rows along the line (m): 40 left a chord a few metres over a hollow.</summary>
+    const double FarStep = 20;
     static double? FarShore(ShoreKind kind) => kind switch { ShoreKind.Fundy => 1100, ShoreKind.Dyke => 520, _ => null };
     static readonly double[] ShoreLateral = [-30, 0, 40, 140, 380, 900];
     static readonly double[] ShoreRise = [-2, 1.2, 4, 14, 32, 46];
@@ -1409,7 +1109,7 @@ public sealed partial class WorldArt
         k.Tint = new Vector3(0.55f, 0.55f, 0.5f);
         var terrain = p.Terrain;
         double corridor = p.Plan.Rules.Terrain.CorridorM, taper = p.Plan.Rules.Terrain.Shore.TaperM;
-        const double step = 40, reach = 900;
+        const double step = FarStep, reach = 900;
         double from = Math.Max(0, centre - drawDistance - reach), to = Math.Min(line.Length, centre + drawDistance + reach);
         // The shore (not a river: that has its banks in the corridor) on a side at s, if any.
         PlanShore? ShoreAt(double s, int side) => p.Plan.Shores.FirstOrDefault(sh => sh.Kind != ShoreKind.River && sh.Side == side

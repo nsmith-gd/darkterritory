@@ -90,7 +90,9 @@ public sealed class TerrainField
     static long Key(double x, double z) => ((long)Math.Floor(x / Cell) << 32) ^ ((long)Math.Floor(z / Cell) & 0xFFFFFFFF);
 
     /// <summary>A track near a point: which edge, how far along, how far out (positive right), and the rail's height there.</summary>
-    public readonly record struct Near(int Edge, double S, double Lateral, double Rail);
+    /// <param name="Past">The point lies off the edge's end, not beside it (past its start or its end along the tangent there):
+    /// the projection clamps to the end and finds it "beside" the line, so it stands no formation (note 317).</param>
+    public readonly record struct Near(int Edge, double S, double Lateral, double Rail, bool Past = false);
 
     /// <summary>For each edge within reach of (x, z), its nearest point.</summary>
     public List<Near> Nearby(double x, double z, double reach)
@@ -138,7 +140,11 @@ public sealed class TerrainField
         double rx = -at.Tangent.Z, rz = at.Tangent.X;
         double norm = Math.Sqrt(rx * rx + rz * rz);
         double lateral = ((x - Q(at.Position.X)) * rx + (z - Q(at.Position.Z)) * rz) / Math.Max(1e-9, norm);
-        return new Near(e.Index, s, lateral, Q(at.Position.Y));
+        // Off the end: a branch's toe 230 m on from a lake on frontier:5 laid its formation back along main's centreline
+        // and filled the lake under a trestle there (note 317).
+        double past = (x - Q(at.Position.X)) * at.Tangent.X + (z - Q(at.Position.Z)) * at.Tangent.Z;
+        bool off = s <= 0 && past < -1 || s >= e.Line.Length && past > 1;
+        return new Near(e.Index, s, lateral, Q(at.Position.Y), off);
     }
 
     /// <summary>The height of the land at (x, z) (plan §12.2).</summary>
@@ -164,7 +170,7 @@ public sealed class TerrainField
             // Inside an edge's formation that edge wins outright, blended over 2 m (§12.2 step 4). Inside two at once (an
             // alternate climbing up alongside main to rejoin it), the nearer rail's: the first edge's won before, and on
             // frontier:3 main's formation stood 2.8 m over the alternate's rail beside it (T107).
-            if (a < _r.ShoulderM + 2 && !Disabled(e, n.S))
+            if (a < _r.ShoulderM + 2 && !n.Past && !Disabled(e, n.S))
             {
                 double w = a <= _r.ShoulderM ? 1 : 1 - (a - _r.ShoulderM) / 2;
                 if (w > formationW || w == formationW && a < formationA)
@@ -259,7 +265,8 @@ public sealed class TerrainField
         double h = height;
         foreach (var lake in _lakes)
         {
-            double reach = lake.RadiusM * lake.Stretch * (1 + lake.Wobble) + 40;
+            // (Out as far as its rim's bank can reach down a 12 m fall to the land, note 424.)
+            double reach = lake.RadiusM * lake.Stretch * (1 + lake.Wobble) + Math.Max(40, _r.Lakes.RimCrestM + 12 / Math.Max(_r.Lakes.RimSlope, 0.05));
             if (Math.Abs(x - lake.X) > reach || Math.Abs(z - lake.Z) > reach)
                 continue;
             // Metres past the shore, near enough (the metric is in radii).
@@ -268,6 +275,9 @@ public sealed class TerrainField
                 ? lake.LevelM + 0.35 + past * _r.Lakes.ShoreSlope
                 : lake.LevelM + 0.35 - (lake.DepthM + 0.35) * Smooth(0, 14, -past);
             h = Math.Min(h, target);
+            // Its rim (note 424): where the land outside its shore lies lower than its water, a bank holds the water in.
+            if (past >= 0 && _r.Lakes.RimM > 0)
+                h = Math.Max(h, lake.LevelM + _r.Lakes.RimM - Math.Max(0, past - _r.Lakes.RimCrestM) * _r.Lakes.RimSlope);
         }
         if (_shores.Length > 0 && MainOf(near) is { } n)
         {
@@ -288,7 +298,7 @@ public sealed class TerrainField
         double fill = double.NegativeInfinity;
         foreach (var q in near)
         {
-            if (Disabled(_edges[q.Edge], q.S))
+            if (q.Past || Disabled(_edges[q.Edge], q.S))
                 continue;
             double a = Math.Abs(q.Lateral);
             fill = Math.Max(fill, a <= _r.ShoulderM ? q.Rail : q.Rail - (a - _r.ShoulderM) * _r.Lakes.FillSlope);
@@ -375,7 +385,13 @@ public sealed class TerrainField
     /// The water nearest (x, z) and whether it's near enough to shape the shore's ground: a lake's or a shore's level
     /// and kind (lake, sea, fundy, dyke), within <paramref name="margin"/> metres of its edge. For the art's shore materials.
     /// </summary>
-    public (double Level, string Kind)? WaterNear(double x, double z, double margin)
+    public (double Level, string Kind)? WaterNear(double x, double z, double margin) => WaterNear(x, z, margin, null);
+
+    /// <summary>
+    /// <see cref="WaterNear(double, double, double)"/> where the main line's nearest point is already known (the art's
+    /// land, laid out by the line's own distance and lateral: note 424), which saves finding it.
+    /// </summary>
+    public (double Level, string Kind)? WaterNear(double x, double z, double margin, Near? main)
     {
         foreach (var lake in _lakes)
         {
@@ -388,7 +404,7 @@ public sealed class TerrainField
         bool tidal = false;
         foreach (var w in _plan.Water)
             tidal |= w.Type == "tidal";
-        if ((_shores.Length == 0 && !tidal) || MainOf(Nearby(x, z, _r.CorridorM + 60)) is not { } n)
+        if ((_shores.Length == 0 && !tidal) || (main ?? MainOf(Nearby(x, z, _r.CorridorM + 60))) is not { } n)
             return null;
         foreach (var sh in _shores)
         {
@@ -424,24 +440,35 @@ public sealed class TerrainField
     {
         double rail = n.Rail, a = Math.Abs(n.Lateral), s = n.S;
         // Structures: the hill over a bore, the ravine or river under a span (formation disabled, §12.3).
+        double into = -1;
         foreach (var st in e.Structures)
         {
             if (s < st.S0 - 1 || s > st.S1 + 1)
                 continue;
             if (st.Type == StructureType.Tunnel)
-                return rail + _r.TunnelCoverM + Noise(x, z) * 3 + Math.Min(a, 60) * 0.25;
+            {
+                // From the portal's face in, not a metre short of it: the cutting runs right up to the face (note 433).
+                if (s < st.S0 || s > st.S1)
+                    continue;
+                // How far in from the nearer portal: the hill over a bore is the land the cutting was going up into,
+                // its walls carried on in over the bore as if the cut went that much further out (note 433). It was a
+                // mound of tunnelCoverM whatever the land round it, so a bore through a mountain had a trench 100 m
+                // deep cut over it, open to the sky above its portal.
+                into = Math.Max(0, Math.Min(s - st.S0, st.S1 - s));
+                break;
+            }
             double depth = st.H;
             // The valley's floor, rising at the abutments (fill slopes to the ends).
             double toEnd = Math.Min(s - st.S0, st.S1 - s);
             double floor = Math.Min(depth, 4 + toEnd * 0.9);
             return rail - floor + Noise(x, z) * 1.5;
         }
-        if (a <= _r.ShoulderM)
+        if (into < 0 && a <= _r.ShoulderM)
             return rail;
         var (type, h, up, down, land) = IntentAt(e, s, n.Lateral >= 0);
         double noise = Noise(x, z) * _r.NoiseAmplitudeM * Smooth(_r.ShoulderM, 30, a) * BiomeNoise(type);
         double target = h + noise;
-        double run = a - _r.ShoulderM;
+        double run = Math.Max(0, a - _r.ShoulderM) + Math.Max(0, into);
         double slope = type switch
         {
             IntentType.Cutting => h > 6 ? 2.0 : 1 / 1.5,
@@ -460,7 +487,9 @@ public sealed class TerrainField
             delta = Math.Max(target, -_r.WalkableWithinM * _r.WalkableSlope - (run - _r.WalkableWithinM) * 1.4);
         // Past the corridor, down under the fog.
         double skirt = _r.SkirtDropM * Smooth(_r.CorridorM, _r.CorridorM + 70, a);
-        return rail + delta + Relief(x, z, a, up, down, land) - skirt;
+        double ground = rail + delta + Relief(x, z, into > 0 ? a + into : a, up, down, land) - skirt;
+        // And never less than the bore's cover over it.
+        return into >= 0 ? Math.Max(ground, rail + _r.TunnelCoverM + Noise(x, z) * 3 + Math.Min(a, 60) * 0.25) : ground;
     }
 
     /// <summary>
@@ -601,6 +630,9 @@ public sealed class TerrainField
     /// <summary>
     /// Flattened pads (§12.1 "pad"): the fortress, the facilities, the settlements, blended in over 30 m. A box pad (a stop's
     /// ground) ends square at its zone's ends and leaves the rail's formation its own, since the line past a stop may climb.
+    /// So does a long pad laid along the line (a halt's or a town's, the fortress's, the terminus's): its 30 m blend past the
+    /// end held the ballast at the halt's level where the line had already started down (frontier:3's Mile 13 Halt, 8 cm
+    /// over the rail 20 m on). A round pad (a facility's) too, where the approach to it is still on its grade.
     /// </summary>
     double Pads(double x, double z, double height, double formation, double formationW)
     {
@@ -627,7 +659,9 @@ public sealed class TerrainField
             if (d >= p.RadiusM + 30)
                 continue;
             double w = 1 - Smooth(p.RadiusM, p.RadiusM + 30, d);
-            if (p.Box && !double.IsNaN(formation))
+            // Every pad leaves a rail's formation its own: a facility's round pad blended out over the approach's grade held
+            // the ballast up to 0.24 m over the rail short of the stop (deadLines:3, local:1, frontier:3).
+            if (!double.IsNaN(formation))
                 w *= 1 - formationW;
             height = height * (1 - w) + p.ElevM * w;
         }
@@ -688,7 +722,7 @@ public sealed class TerrainField
             foreach (var st in e.Structures)
                 if (n.S >= st.S0 && n.S <= st.S1)
                 {
-                    double width = st.Type == StructureType.Tunnel ? 4.5 : 2.6;
+                    double width = st.Type == StructureType.Tunnel ? 4.5 : _r.DeckHalfM;
                     // Inside the bore or on the deck (not up on the hill above it).
                     if (Math.Abs(n.Lateral) <= width && p.Y < n.Rail + 6)
                         return n.Rail;
@@ -696,6 +730,55 @@ public sealed class TerrainField
         }
         return Height(p.X, p.Z);
     }
+
+    /// <summary>
+    /// The world is solid (note 279): someone or something of <paramref name="radius"/> down in a tunnel's bore is held
+    /// inside its lining, not walked through it (and then stood on the hill 18 m over it, the old way). Elsewhere, as is.
+    /// </summary>
+    public Double3 Confine(Double3 p, double radius)
+    {
+        foreach (var n in Nearby(p.X, p.Z, _r.BoreHalfM + 2))
+        {
+            var e = _edges[n.Edge];
+            foreach (var st in e.Structures)
+            {
+                if (st.Type != StructureType.Tunnel || n.S < st.S0 || n.S > st.S1 || p.Y > n.Rail + _r.BoreCrownM || p.Y < n.Rail - 2)
+                    continue;
+                double room = Math.Max(0, _r.BoreHalfM - radius);
+                if (Math.Abs(n.Lateral) <= room)
+                    return p;
+                var t = e.Line.Sample(n.S);
+                double rx = -t.Tangent.Z, rz = t.Tangent.X, norm = Math.Max(1e-9, Math.Sqrt(rx * rx + rz * rz));
+                double by = Math.Sign(n.Lateral) * room - n.Lateral;
+                return new Double3(p.X + rx / norm * by, p.Y, p.Z + rz / norm * by);
+            }
+        }
+        return p;
+    }
+
+    /// <summary>
+    /// Note 279: how far either side of the rail something running beside the train can be at <paramref name="s"/> on an
+    /// edge (by its index): inside the bore in a tunnel, on the deck on a bridge (each less besideClearM), anywhere elsewhere.
+    /// </summary>
+    public double LateralRoom(int edge, double s)
+    {
+        foreach (var st in _edges[edge].Structures)
+            if (s >= st.S0 && s <= st.S1)
+                switch (st.Type)
+                {
+                    case StructureType.Tunnel:
+                        return Math.Max(0, _r.BoreHalfM - _r.BesideClearM);
+                    case StructureType.Trestle or StructureType.Girder or StructureType.Truss or StructureType.Viaduct:
+                        return Math.Max(0, _r.DeckHalfM - _r.BesideClearM);
+                }
+        return double.PositiveInfinity;
+    }
+
+    /// <summary>An edge's index in this field, by its plan id (−1 if none).</summary>
+    public int EdgeIndex(string id) => Array.FindIndex(_edges, e => e.Id == id);
+
+    /// <summary>Note 279: the formation's half-width beside the rail (it stays at rail height, §12.2).</summary>
+    public double ShoulderM => _r.ShoulderM;
 
     // ------------------------------------------------------------------ tiles
 
@@ -761,7 +844,10 @@ public sealed class TerrainField
     }
 
     /// <summary>The water planes (§12.4) near a point: the level of the one it's in, or null.</summary>
-    public double? WaterAt(double x, double z)
+    public double? WaterAt(double x, double z) => WaterAt(x, z, null);
+
+    /// <summary><see cref="WaterAt(double, double)"/> where the land's <paramref name="height"/> there is already known (the lineside's, note 371).</summary>
+    public double? WaterAt(double x, double z, double? height)
     {
         foreach (var w in _plan.Water)
         {
@@ -773,10 +859,10 @@ public sealed class TerrainField
                 continue;
             if (w.Type is "river" or "tidal" && Math.Abs(near.S - (w.S0 + w.S1) / 2) > w.WidthM / 2 + (w.S1 - w.S0) / 2)
                 continue;
-            if (Height(x, z) < w.LevelM)
+            if ((height ??= Height(x, z)) < w.LevelM)
                 return w.LevelM;
         }
-        if (WaterNear(x, z, 0) is { } water && Height(x, z) < water.Level)
+        if (WaterNear(x, z, 0) is { } water && (height ??= Height(x, z)) < water.Level)
             return water.Level;
         return null;
     }

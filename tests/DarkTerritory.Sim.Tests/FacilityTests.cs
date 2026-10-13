@@ -14,7 +14,10 @@ public class FacilityTests
 {
     static readonly TrainTuning T = Tuning.Train;
     static readonly PlayerTuning P = Tuning.Player;
-    internal static readonly FacilityTuning F = DataFile.Load<FacilityTuning>(Path.Combine(DataFile.FindContentRoot(), FacilityTuning.File));
+    internal static readonly FacilityTuning F = Whole(DataFile.Load<FacilityTuning>(Path.Combine(DataFile.FindContentRoot(), FacilityTuning.File)));
+
+    /// <summary>The tuning with every stop given its kind's whole list (note 449's draw off): what these tests pin.</summary>
+    internal static FacilityTuning Whole(FacilityTuning t) => t with { Draw = t.Draw with { Enabled = false } };
 
     /// <summary>A route with a facility that has the module, and that facility.</summary>
     /// <param name="power">The yard's power (level-design D.2): live unless a test is about it.</param>
@@ -53,11 +56,11 @@ public class FacilityTests
         }
 
         /// <summary>Stopped down a facility of this kind's spur, as above.</summary>
-        public Stop(FacilityKind kind) : this(With(kind))
+        public Stop(FacilityKind kind, FacilityTuning? tuning = null) : this(With(kind), tuning)
         {
         }
 
-        Stop((Route.Route Route, RouteFeature Facility) at)
+        Stop((Route.Route Route, RouteFeature Facility) at, FacilityTuning? tuning = null)
         {
             var (route, f) = at;
             var line = route.Build();
@@ -68,7 +71,7 @@ public class FacilityTests
             train.Restore(state with { Rakes = [state.Rakes[0] with { Path = spur.Index }] });
             World = new World(train, Tuning.Combat);
             World.EnableBodies();
-            World.EnableRun(Tuning.Run, route, 600, authority: true, F);
+            World.EnableRun(Tuning.Run, route, 600, authority: true, tuning ?? F);
             Step(0.2, []);
             Assert.Equal(RunPhase.AtFacility, World.Run!.Phase);
             Site = World.Run.CurrentSite!;
@@ -559,6 +562,73 @@ public class FacilityTests
         var report = world.Run!.Tally(world, [PlayerMotor.SpawnInCab(train, P)]);
         Assert.Equal(train.Dynamics.Consist.Vehicles.Count(v => v.Kind == VehicleKind.Cargo), report.CarsDelivered);
         Assert.Equal(0, report.CarsLost);
+    }
+
+    // Blocked sidings (level-design D.1, D.2; ARCHITECTURE §8 note 294).
+
+    /// <summary>A world on a route with a yard whose layout blocks a siding, the train short of it on the main line.</summary>
+    static (World World, RouteFeature Feature, int Facility, Stops.YardTrack Blocked) BlockedYard()
+    {
+        foreach (var tier in new[] { RouteTier.DeadLines, RouteTier.DeepTerritory, RouteTier.Frontier })
+            for (ulong seed = 1; seed < 200; seed++)
+            {
+                var route = RouteGenerator.Generate(Tuning.Route, tier, seed);
+                var facilities = route.Of(FeatureKind.Facility).ToList();
+                int i = facilities.FindIndex(f => f.Stop?.Tracks.Any(t => t.Blocked) == true);
+                if (i < 0)
+                    continue;
+                var f = facilities[i];
+                var train = new TrainOnLine(new TrainDynamics(Consist.Uniform(T, 6, 0.5)), route.Build(), f.Start - 50, Tuning.Boiler);
+                var world = new World(train, Tuning.Combat);
+                world.EnableBodies();
+                world.EnableRun(Tuning.Run, route, 600, authority: true, F);
+                return (world, f, i, f.Stop!.Tracks.First(t => t.Blocked));
+            }
+        throw new InvalidOperationException("no route has a blocked siding");
+    }
+
+    [Fact]
+    public void ABlockedSidingsDerelictsStandAtItsBufferStopAndArentTheTrains()
+    {
+        var (world, f, i, track) = BlockedYard();
+        var train = world.Train;
+        var run = world.Run!;
+        // On the siding the layout blocked, at its buffer stop, handbrakes on: empty, battered, paying little, not lit.
+        var branch = train.Line.Branches[run.YardTracks(i).Single(b => Math.Abs(train.Line.Branches[b].Toe - (f.Start + track.Toe)) < 0.01)];
+        var rake = train.Rakes.Single(r => r.Path == branch.Index && r.Consist.Vehicles.All(v => v.Derelict));
+        Assert.True(rake.Handbrake);
+        Assert.Equal(branch.End - F.Derelicts.Back, rake.Distance, 6);
+        Assert.Equal(track.Derelicts, rake.Consist.Vehicles.Count);
+        Assert.Equal(track.Derelicts, Run.Run.DerelictsOn(train, branch.Index));
+        Assert.All(rake.Consist.Vehicles, v => Assert.True(v.YardCar && v.Id >= train.OwnVehicles && v.Load == 0 && v.Cargo == CargoKind.None
+            && !v.LampLit && v.Integrity == F.Derelicts.Integrity && v.CargoIntegrity == F.Derelicts.Pays));
+        // Not a switchyard's cars to fetch: the bots' stop crew don't go in for them.
+        Assert.Equal(0, Run.Run.StandingOn(train, branch.Index));
+        Assert.True(train.Standing(rake));
+        Assert.Equal(1, train.TrainRakes);
+        // A client stands the same cars, with the same ids, from the route alone.
+        var client = new World(new TrainOnLine(new TrainDynamics(Consist.Uniform(T, 6, 0.5)), train.Line, f.Start - 50, Tuning.Boiler), Tuning.Combat);
+        client.EnableBodies();
+        client.EnableRun(Tuning.Run, run.Route, 600, authority: false, F);
+        Assert.Equal(train.Capture().Rakes.Select(r => (string.Join(",", r.Vehicles), r.Path, r.Distance)),
+            client.Train.Capture().Rakes.Select(r => (string.Join(",", r.Vehicles), r.Path, r.Distance)));
+
+        // Coupled up, they come away ahead of the engine; cut off again wherever, they stand, and nobody's lost a car.
+        var derelicts = rake.Consist.Vehicles.Select(v => v.Id).ToList();
+        var state = train.Capture();
+        int e = Array.FindIndex(state.Rakes, r => r.Vehicles.Contains(0));
+        state.Rakes[e] = state.Rakes[e] with { Path = rake.Path, Distance = rake.RearDistance - T.Geometry.CouplingGap - 1, Velocity = 0.8 };
+        train.Restore(state);
+        for (int t = 0; t < 5 * SimConstants.TickRate && train.Rakes.Contains(rake); t++)
+            train.Step(SimConstants.TickSeconds, new TrainControls { Reverser = 1 });
+        Assert.Equal(derelicts, train.Dynamics.Consist.Vehicles.Take(derelicts.Count).Select(v => v.Id));
+        var crew = new[] { PlayerMotor.SpawnInCab(train, P) };
+        Assert.Equal(0, run.Tally(world, crew).CarsLost);
+        train.Uncouple(derelicts[^1]);
+        Assert.Equal(1, train.TrainRakes);
+        var report = run.Tally(world, crew);
+        Assert.Equal(0, report.CarsLost);
+        Assert.DoesNotContain(report.Lines, l => l.Kind == IncidentKind.CarLost);
     }
 
     [Fact]

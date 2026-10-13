@@ -110,7 +110,7 @@ Each run has a terrain budget `B = budgetPerKm(D) × mainLineLengthKm`. It is sp
 | Opening | 2 km → first facility | 15% | Single features only, no stacks |
 | Middle | first → last facility | 45% | Stacks allowed up to the tier cap |
 | Final approach | last facility → terminus home straight | 40% | Contains the run's terminal spike (§11.4) |
-| Home straight | last 1.5 km | 0% | Level, straight or R ≥ 1000 m. Director spawn ban applies to the final 500 m. |
+| Home straight | last 1.5 km | 0% | Level, straight or R ≥ 1000 m. Director spawn ban applies to the final 1,200 m (was 500; note 590). |
 | Facility lulls | 1 km before each facility junction, 0.5 km after rejoin | 0% | Level approach, holding track (§11.1) |
 
 The final approach carries a disproportionate share on purpose: it is the stretch where the crew is carrying the most cargo and the most damage.
@@ -251,6 +251,7 @@ All pieces live in `setpieces.json` with tier gates, parameter ranges, cost and 
 | **Brass Field** | 1.0 | Growth across the rail for 50–200 m | Lineside growth ramps up over the approach | 1 | `brass` |
 | **Momentum Bank** | 1.3 | Level run-up, then a short grade above g_main | Length ≤ 0.7 × the length the consist can carry momentum over | 4 | `climb`, `momentum` |
 | **Dead Settlement** | 0 | Abandoned halt or dead town (§11.3) | 300–900 m | 0 | `dead_settlement`, `landmark` |
+| **Hard Bend** | 0 | Straight, one curve of 40–90°, straight; or an S-bend: two turns of 30–50° either way, 20–50 m of straight between | Radius from the tier's derailing speeds (`bendDerail`), never under its minimum; laid only by the tier's count (`bends`), never by the budget. Where its stretch is full, cut into a connector or laid on a climb or descent (ARCHITECTURE §8 note 278; level-design.md Part B). An S-bend by the tier's `sBends` chance, held as one limit over both turns: one board, one demand (note 359) | 2 | `curve_tight`, `pre_curve` |
 
 **Terrain-gated enemy requirements are geometry rules, not spawn rules.** The Weight cannot spawn on grades, so Causeways and River Crossing approaches are level. The Ferryman needs a long clear straight, so Open Plains produce `straight_long`. The Gaunt watches tunnel exits, so every tunnel emits `tunnel_exit`.
 
@@ -322,7 +323,7 @@ For a curve of radius `R`:
 - **Derail threshold:** `v_derail = √(a_derail × R)`, with `a_derail = 1.0 m/s²`
 - **Posted limit:** `v_posted = floor(√(a_post × R))`, with `a_post = 0.7 m/s²`
 
-At these values a curve under ~480 m radius has a derail speed below the train's 22 m/s maximum. A curve gets a speed board when its posted limit is below the communicated speed approaching it. For example, R = 150 m posts 10 m/s (derails at 12.2), and R = 300 m posts 14 m/s (derails at 17.3). Both constants are tunable in `tiers.json`.
+At these values a curve under ~480 m radius has a derail speed below the train's 22 m/s maximum. **Every night carries its tier's count of these** (the Hard Bend, §7.2; ARCHITECTURE §8 note 278): Local 1–2, Frontier 3–4, Dead Lines 3–4, Deep 4–5 (5–6 at its deepest), and the validator holds it to the least (§16.3). A curve gets a speed board when its posted limit is below the communicated speed approaching it. For example, R = 150 m posts 10 m/s (derails at 12.2), and R = 300 m posts 14 m/s (derails at 17.3). Both constants are tunable in `tiers.json`.
 
 ## 8.6 Output
 
@@ -518,8 +519,8 @@ The arrival mirrors the threshold in reverse, with the run's biggest terrain mom
 | 4 → 1.5 km | **Terminal spike:** the final approach's largest stack, placed deliberately. Pairs with the director's "one deliberate spike" (GDD B.1). |
 | ~3 km | **Sky glow** above the fog: floodlight glow and sweeping searchlight beams, visible as light before anything is visible as shape. "Eventually the crew sees lights." |
 | 1.5 km | **Home straight** begins: level, straight or R ≥ 1000 m, long sightline. Budget cost 0. |
+| 1.2 km | Director spawn ban begins (`terminus_safe` tag; was 500 m, note 590: past the yard-limit board, where a crew stops to clear the train) |
 | 1.0 km | "YARD LIMIT" board (demand: 2.5 m/s at the gate) |
-| 500 m | Director spawn ban begins (`terminus_safe` tag) |
 | ~300 m | Walls and gun towers resolve out of the fog |
 | 0 | Outer gate. Arrival yard with a stop road long enough for the consist. |
 
@@ -544,7 +545,7 @@ Every piece writes a **relief intent** for each side of the track over its chain
 | `ravine` | −15 to −50 m under bridges | Channel under the span, abutment fill slopes to the ends |
 | `river` | −3 to −8 m, water plane | Channel perpendicular to the track, extending to corridor edge |
 | `marsh` | Water level −0.3 m with pools | Causeway formation +1.5 m above water, fill 1:2 |
-| `mountain` | ≥ rail + 18 m over tunnels | Cover over the bore; steep faces at portals |
+| `mountain` | ≥ rail + 18 m over tunnels | Cover over the bore; steep faces at portals. Over a bore the land is the hill the cutting goes into: its walls carried on in over the bore as if the cut went that much further out (metres in from the nearer portal), never under the 18 m cover, from the portal's face in (ARCHITECTURE §8 note 433) |
 | `pad` | Flat at pad elevation | Flattened area for facilities, fortress, junctions, settlements |
 
 Intents are blended over 60 m at piece boundaries so the land never steps.
@@ -657,7 +658,7 @@ The run rolls one weather profile (fog distance, rain probability, temperature, 
 
 | Modifier | Terrain rule |
 |---|---|
-| **Fog density** | ×1.3 in `low_ground` and `marsh`, ×0.8 on crests |
+| **Fog density** | ×1.3 in `low_ground` and `marsh`, and beside water (a shore, or within 40 m of a lake), ×0.8 on crests. The renderer's fog follows it along the line, blended over 150 m either side (ARCHITECTURE §8 note 313) |
 | **Wet rail (adhesion)** | Rain lowers adhesion everywhere; `wet_bias` segments (cuttings, forest, near portals) are worse |
 | **Wind exposure** | ×1.5 on `exposed` segments (bridges, ledges, crests, open plains). Gunfire carries further there (GDD §22). |
 | **Cold** | Deeper with altitude above the departure fortress (one step per 150 m) and on `exposed` segments |
@@ -679,6 +680,7 @@ Every edge carries tag intervals by chainage. The director queries tags ahead of
 | `straight_long` | The Ferryman, Sleepers |
 | `blind_curve_exit` | Sleepers |
 | `pre_grade`, `pre_curve` (400–900 m before either) | The Long Whistle |
+| `curve_tight` (every bend that derails the train under its top speed; ARCHITECTURE §8 note 278) | The places a train slows, where things board (GDD App. F: "slowing opens the doors"); nothing reads it yet |
 | `climb`, `climb_long` | Cinder Hounds (gain on grades), The Drift + grade pair, Clingers + grade pair |
 | `descent` | Grease preference |
 | `marsh`, `low_ground`, `water_crossing` | The Weight, The Drift |
@@ -747,6 +749,8 @@ Drives at communicated speed +10% with `t_react = 6 s`. It must still survive ev
 | Dawn | Ideal transit + 4 min per facility slot ≤ dawn timer (see §22.1). Taking every facility is allowed to run late; that is the slack decision the GDD wants. |
 | Coaling | Coaling tower present when required |
 | Quotas | Affordance quotas met |
+| Hard bends | At least the tier's least count of main-line bends that derail the train under its top speed (`bends`; ARCHITECTURE §8 note 278) |
+| Crossings | No alternate or dead line crosses to the main line's other side away from its turnouts (each is refused when laid; ARCHITECTURE §8 note 278) |
 | Separation | No corridor overlap except at shared junctions |
 | Walkability | Ledge and ravine drop sides meet §12.6 |
 

@@ -27,7 +27,8 @@
   "breachReach": 1.8,
   // D.8: the freed player's health (of player.json's 100).
   "freedHealth": 80,
-  // D.9 bodies as loot: every in-run death costs the crew this share of the tier's per-car value (run.json economy),
+  // D.9 bodies as loot: every in-run death costs the crew this share of the tier's fee value (run.json economy.feeValue,
+  // note 636: the per-car value it was before the pay was raised),
   // and every body brought home refunds this share of its fee. The refund must stay under 1 (no farming, D.14).
   "crewLossFee": 0.5,
   "bodyRefund": 0.75

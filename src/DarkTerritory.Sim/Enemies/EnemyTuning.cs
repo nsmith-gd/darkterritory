@@ -25,17 +25,85 @@ public sealed record EnemyTuning(
     public TippyToesieTuning TippyToesie { get; init; } = new();
     public FireFliesTuning FireFlies { get; init; } = new();
     public RibbitTuning Ribbits { get; init; } = new();
+    public CreatureSitesTuning Sites { get; init; } = new();
     public GrumblerTuning Grumbler { get; init; } = new();
     public ChoirSwarmV11 Choir { get; init; } = new();
+    public MooseTuning Moose { get; init; } = new();
+    public GannetTuning Gannet { get; init; } = new();
+    public MournersTuning Mourners { get; init; } = new();
+    public PickersTuning Pickers { get; init; } = new();
+    public DwellingsTuning Dwellings { get; init; } = new();
+    public LodgerTuning Lodger { get; init; } = new();
+    public HouseholderTuning Householder { get; init; } = new();
+    public HollowHouseTuning HollowHouse { get; init; } = new();
+    public HangerTuning Hanger { get; init; } = new();
+    public FreightBeetleTuning FreightBeetle { get; init; } = new();
+    public BrakemanTuning Brakeman { get; init; } = new();
+    public HotboxTuning Hotbox { get; init; } = new();
+    public KnotterTuning Knotter { get; init; } = new();
+    public TowerJawTuning TowerJaw { get; init; } = new();
+    /// <summary>How the crew bots answer the six creatures of 8 Oct (notes 362–367; note 367). Field docs live in enemies.json.</summary>
+    public CrewBotsTuning CrewBots { get; init; } = new();
+    /// <summary>Dave, the wandering painter (note 570).</summary>
+    public DaveTuning Dave { get; init; } = new();
+    /// <summary>Jacob, the fisherman (note 572).</summary>
+    public JacobTuning Jacob { get; init; } = new();
+    /// <summary>The Wakers, what gets up at dawn (note 588).</summary>
+    public WakersTuning Wakers { get; init; } = new();
+    /// <summary>The damage model (GDD App. F.1, the director's decision of 6 Oct 2026; note 272): no creature's hit is chip.</summary>
+    public DamageModelTuning Damage { get; init; } = new();
+    /// <summary>
+    /// The coordinated kill (the director's clarification of 7 Oct 2026, GDD App. F.1; note 288): blows wear down one of the
+    /// creatures driven off by its rules only with this many crewmates on it at once.
+    /// </summary>
+    public CoordinatedKillTuning CoordinatedKill { get; init; } = new();
+    /// <summary>Note 279: what holds a creature loose in the world (enemies.json <c>solidity</c>).</summary>
+    public SolidityTuning Solidity { get; init; } = new();
     /// <summary>
     /// Whether a creature at the controls (the Stoker's runaway, the Track Doll's tampering) may let a standing train off its
     /// held brake (enemies.json; build 1121 playtest, note 263). False: a train nobody's driving never moves off by itself.
     /// </summary>
     public bool TamperReleasesStandingBrake { get; init; }
-    /// <summary>The forts are safe ground (the director's decision of 2026-10-06; note 266).</summary>
-    public Run.FortTuning Forts { get; init; } = new();
-    /// <summary>A player the train has left behind: the world closes in on them (the director's decision of 2026-10-06; note 266).</summary>
-    public AbandonedTuning Abandoned { get; init; } = new();
+    /// <summary>
+    /// Every creature's body as a cannonball finds it (note 290, enemies.json <c>bodies</c>): a stack of spheres, each
+    /// [radius, height of its centre over where it stands], keyed by <see cref="EnemyKind"/>'s name.
+    /// </summary>
+    public Dictionary<string, double[][]> Bodies { get; init; } = new();
+    /// <summary>A sleeping Gaunt's body, curled up: this share of its height (note 290).</summary>
+    public double GauntAsleep { get; init; } = 0.35;
+
+    Dictionary<EnemyKind, (double Radius, double Height)[]>? _bodies;
+
+    /// <summary>The spheres of a kind's body; none for a kind that has no body (a ball goes through it).</summary>
+    public (double Radius, double Height)[] Body(EnemyKind kind)
+    {
+        _bodies ??= Bodies.ToDictionary(
+            b => Enum.Parse<EnemyKind>(b.Key, ignoreCase: true),
+            b => b.Value.Select(s => (s[0], s[1])).ToArray());
+        return _bodies.TryGetValue(kind, out var body) ? body : [];
+    }
+}
+
+/// <summary>
+/// enemies.json <c>damage</c> (GDD App. F.1, "a few big hits, never chip damage"; note 272): the least a creature's hit on a
+/// player may be, and the least gap between its hits. Not read by the creatures: DamageModelTests holds every creature's
+/// <c>...Damage</c> and its interval to them, so a chip number fails CI.
+/// </summary>
+public sealed record DamageModelTuning
+{
+    public int MinHit { get; init; } = 30;
+    public double MinGapSeconds { get; init; } = 2.5;
+}
+
+/// <summary>
+/// enemies.json <c>coordinatedKill</c> (note 288): a creature driven off by its rules is killed only by the crew together,
+/// <see cref="Gang"/> different crewmates striking it within <see cref="WindowSeconds"/> (and, per creature, the setup its
+/// rule asks for). A lone player's blows never wear it down.
+/// </summary>
+public sealed record CoordinatedKillTuning
+{
+    public int Gang { get; init; } = 2;
+    public double WindowSeconds { get; init; } = 5;
 }
 
 /// <summary>App. C.2 melee: the tools already on the train. Field docs live in enemies.json.</summary>
@@ -44,12 +112,27 @@ public sealed record MeleeTuning
     public double Reach { get; init; } = 2.2;
     public double ConeDegrees { get; init; } = 70;
     public double SwingSeconds { get; init; } = 0.8;
-    public double Damage { get; init; } = 1;
+    /// <summary>
+    /// What a blow does with each tool in hand, in blows (App. C.2: "the boiler player's shovel doubling as the crew's best
+    /// club"; note 275). Enemy health is counted in the crowbar's.
+    /// </summary>
+    public double Shovel { get; init; } = 1.5;
+    public double Crowbar { get; init; } = 1;
+    public double Wrench { get; init; } = 0.75;
     /// <summary>T108: a blow with nothing in hand (enemies.json).</summary>
     public double Barehanded { get; init; } = 0.25;
 
-    /// <summary>A blow with this in hand: any tool a full one, nothing a fraction.</summary>
-    public double Blow(Player.Tool held) => held == Player.Tool.None ? Barehanded : Damage;
+    /// <summary>The hardest blow any tool lands (note 275): what a client takes to be within one blow of a kill.</summary>
+    public double Hardest => Math.Max(Shovel, Math.Max(Crowbar, Wrench));
+
+    /// <summary>A blow with this in hand: the shovel the best of the train's tools, a fist a fraction of one.</summary>
+    public double Blow(Player.Tool held) => held switch
+    {
+        Player.Tool.Shovel => Shovel,
+        Player.Tool.Crowbar => Crowbar,
+        Player.Tool.Wrench => Wrench,
+        _ => Barehanded,
+    };
 }
 
 /// <summary>The Track Doll (v1.1 App. A.2, B.2). Field docs live in enemies.json.</summary>
@@ -70,8 +153,18 @@ public sealed record TrackDollTuning
     public double EmptyCabWeight { get; init; } = 2;
     /// <summary>T121: a cannonball shatters her on the rail (gone for the run, as stopped short); off, it goes through her.</summary>
     public bool CannonShatters { get; init; } = true;
-    public double RailHitRadius { get; init; } = 0.55;
-    public double RailHitHeight { get; init; } = 0.7;
+    /// <summary>Her escalation when ignored (the director, 6 Oct 2026; note 268): stage 2's neglect, stage 3's, the warning before each.</summary>
+    public double ControlsAfter { get; init; } = 120;
+    public double ReleaseAfter { get; init; } = 300;
+    public double WarnSeconds { get; init; } = 30;
+    /// <summary>A crewmate this close (or in her car) is attending her: the neglect clock winds back at <see cref="AttendedEase"/>.</summary>
+    public double AttendRadius { get; init; } = 8;
+    public double AttendedEase { get; init; } = 0.5;
+    /// <summary>Stage 2 at the controls: the regulator nudged up to this, never the brake.</summary>
+    public double NudgeThrottle { get; init; } = 0.25;
+    /// <summary>Stage 3: this long at the controls at that stage, on a visit, before a standing train's held brake goes too.</summary>
+    public double ReleaseAfterAtControls { get; init; } = 12;
+    public bool FinalStageReleasesBrake { get; init; } = true;
 }
 
 /// <summary>The Car Hugger (v1.1 App. A.3, B.3). Field docs live in enemies.json.</summary>
@@ -105,14 +198,14 @@ public sealed record WhistlerTuning
     public double PairRadius { get; init; } = 3;
     public double SpotReach { get; init; } = 2.5;
     public double RunSpeed { get; init; } = 4.5;
-    public double NestDistance { get; init; } = 40;
+    public double NestDistance { get; init; } = 30;
+    public double NestMinDistance { get; init; } = 8;
+    public double NestStep { get; init; } = 4;
+    /// <summary>How far from its gap a stop's own nest may be and still be where it runs (note 314).</summary>
+    public double NestSiteReach { get; init; } = 110;
+    public double NestMaxSlope { get; init; } = 0.4;
+    public double NestMaxRise { get; init; } = 6;
     public double NestSeconds { get; init; } = 20;
-    /// <summary>The nest no nearer than this (m): short of it, the ditch beside the line (note 266).</summary>
-    public double NestMin { get; init; } = 15;
-    /// <summary>The steepest the way to the nest may be (rise over run, sampled every 5 m), so a rescuer can follow on foot.</summary>
-    public double NestGrade { get; init; } = 0.35;
-    /// <summary>The nest at most this far above or below the rail (m): a den, a ditch, the treeline, not up a hillside.</summary>
-    public double NestClimb { get; init; } = 4;
     public double Health { get; init; } = 3;
     public double StopWeight { get; init; } = 0.3;
     public int MinCars { get; init; } = 2;
@@ -135,6 +228,8 @@ public sealed record TippyToesieTuning
     public double Health { get; init; } = 2;
     public int MinCrew { get; init; } = 2;
     public double PerIdleWeight { get; init; } = 1;
+    /// <summary>Boarding-first (GDD App. F.1, note 286): it slips aboard only while the train is under this (m/s): a stop.</summary>
+    public double BoardBelow { get; init; } = double.MaxValue;
 }
 
 /// <summary>Fire Flies (v1.1 App. A.5, B.5). Field docs live in enemies.json.</summary>
@@ -144,6 +239,12 @@ public sealed record FireFliesTuning
     public double PullAwaySpeed { get; init; } = 15;
     public double PullAwaySeconds { get; init; } = 8;
     public double DepthWeight { get; init; } = 2;
+    /// <summary>GDD App. F, 6 Oct 2026 (note 269): the director sends them only while the train is under this (m/s).</summary>
+    public double StoppedBelow { get; init; } = 0.3;
+    /// <summary>Note 269: "their pull … is rare": their weight at a stop, against the rest of the table.</summary>
+    public double StoppedWeight { get; init; } = 0.5;
+    /// <summary>Boarding-first (GDD App. F.1, note 286): a lit car with every door and its hatch shut (and no breach) keeps them out.</summary>
+    public bool ShutCarKeepsOut { get; init; }
 }
 
 /// <summary>Ribbits (v1.1 App. A.6, B.6). Field docs live in enemies.json.</summary>
@@ -158,6 +259,10 @@ public sealed record RibbitTuning
     public double SpawnOut { get; init; } = 35;
     public double Health { get; init; } = 2;
     public double PerGroundWeight { get; init; } = 0.5;
+    public double Fan { get; init; } = 100;
+    public double RingOut { get; init; } = 1.05;
+    public double FanFrom { get; init; } = 10;
+    public double Spacing { get; init; } = 1.15;
 }
 
 /// <summary>The Grumbler (v1.1 App. A.8, B.8). Field docs live in enemies.json.</summary>
@@ -168,12 +273,17 @@ public sealed record GrumblerTuning
     public double GangSeconds { get; init; } = 5;
     public double HuntSpeed { get; init; } = 3.5;
     public double Reach { get; init; } = 1.4;
-    public int BiteDamage { get; init; } = 15;
-    public double BiteEvery { get; init; } = 1.5;
-    public double GrabBelowHealth { get; init; } = 30;
+    public int BiteDamage { get; init; } = 35;
+    public double BiteEvery { get; init; } = 3;
+    public double GrabBelowHealth { get; init; } = 35;
     public double MaulSeconds { get; init; } = 8;
     public double CargoPerSecond { get; init; } = 0.004;
     public double FoodWeight { get; init; } = 2;
+    /// <summary>Note 288: driven off by its rule (gang up), killed only by a gang. False: the old health-and-regen fight.</summary>
+    public bool DrivenOff { get; init; } = true;
+    public double GangRadius { get; init; } = 3;
+    public double OutnumberedSeconds { get; init; } = 2;
+    public double FleeSeconds { get; init; } = 8;
 }
 
 /// <summary>The Choir's swarm (v1.1 App. A.7): the ghosts it sends. Field docs live in enemies.json.</summary>
@@ -183,9 +293,14 @@ public sealed record ChoirSwarmV11
     public double Health { get; init; } = 6;
     public double SeizeSeconds { get; init; } = 12;
     public double FlySpeed { get; init; } = 6;
-    public int HitBackDamage { get; init; } = 15;
+    public int HitBackDamage { get; init; } = 35;
+    /// <summary>Note 272 (App. F.1, no chip damage): a ghost hits back at most once in this long, however fast it's struck.</summary>
+    public double HitBackEvery { get; init; } = 3;
     public double DisperseQuietSeconds { get; init; } = 10;
     public double Around { get; init; } = 12;
+    /// <summary>Note 288: a seize broken by quiet or a shut door; a ghost killed only by a gang while the crew holds quiet. False: the old health fight.</summary>
+    public bool DrivenOff { get; init; } = true;
+    public double HushBreakSeconds { get; init; } = 3;
 }
 
 /// <summary>The shared GRAB rescue state (GDD v1.1 App. A.1, C.1). Field docs live in enemies.json.</summary>
@@ -205,8 +320,8 @@ public sealed record DriftTuning
     public double StillSpeed { get; init; } = 0.3;
     public double SurgeSpeed { get; init; } = 2.2;
     public double ContactReach { get; init; } = 1.2;
-    public int Damage { get; init; } = 6;
-    public double DamageSeconds { get; init; } = 1;
+    public int Damage { get; init; } = 35;
+    public double DamageSeconds { get; init; } = 2.5;
     public double StillSeconds { get; init; } = 4;
     public double ExitMargin { get; init; } = 60;
     public double LingerSeconds { get; init; } = 600;
@@ -241,6 +356,10 @@ public sealed record PassengerTuning
     public int MinCrew { get; init; } = 3;
     public int SplitPlaces { get; init; } = 3;
     public double SplitWeight { get; init; } = 2;
+    /// <summary>Note 288: a blow finds it out and drives it off; killed only by a gang. False: the old five blows to kill.</summary>
+    public bool DrivenOff { get; init; } = true;
+    public double FleeSpeed { get; init; } = 2.2;
+    public double UnmaskedSeconds { get; init; } = 2.5;
 }
 
 /// <summary>A car fire (the in-car incidents). Field docs live in enemies.json.</summary>
@@ -252,9 +371,22 @@ public sealed record CarFireTuning
     public double BurnFrom { get; init; } = 0.35;
     public double SprayReach { get; init; } = 2.5;
     public double SprayPerSecond { get; init; } = 0.035;
+    /// <summary>
+    /// The spray's cone (degrees either side of the look, note 587): it goes on the burning cell nearest the middle of it,
+    /// seen anywhere up its flames, <see cref="SprayAimLift"/> + <see cref="SprayAimLiftPerHeat"/> x its heat tall (as drawn).
+    /// </summary>
+    public double SprayConeDeg { get; init; } = 25;
+    public double SprayAimLift { get; init; } = 0.4;
+    public double SprayAimLiftPerHeat { get; init; } = 1.2;
     public double ChargeSeconds { get; init; } = 10;
     public double RechargeSeconds { get; init; } = 90;
     public double BurnReach { get; init; } = 4;
+    /// <summary>
+    /// Note 634: how far round a burning cell's centre its boards burn you as if you stood on them (m), the fire's reach
+    /// counted from there. Half the 1.5 m cells the burn was tuned on; with bigger cells (the director's 15 a car), half a
+    /// cell put the walls of the stretch a walker stood in on top of it.
+    /// </summary>
+    public double BurnPatch { get; init; } = 0.75;
     /// <summary>Note 265: the burn at full blaze once you've stood in it <see cref="BurnRampSeconds"/> (health a second).</summary>
     public double BurnPerSecond { get; init; } = 10;
     /// <summary>Note 265: the share of <see cref="BurnPerSecond"/> a brush against it burns at, from the first moment.</summary>
@@ -276,6 +408,23 @@ public sealed record CarFireTuning
     public int ExplodeDamage { get; init; } = 150;
     public double BurnOutPerSecond { get; init; } = 0.05;
     public int MaxActive { get; init; } = 3;
+    /// <summary>Note 267: the fire grid's cell size (m; App. F.1 "large cells of 1–2 m").</summary>
+    public double CellSize { get; init; } = 1.5;
+    /// <summary>Note 267: a cell this hot heats the cells round it, at <see cref="CatchPerSecond"/> x its heat, upward x <see cref="Climb"/>.</summary>
+    public double CatchFrom { get; init; } = 0.5;
+    public double CatchPerSecond { get; init; } = 0.04;
+    public double Climb { get; init; } = 2;
+    /// <summary>Note 267: what a cell burns of itself a second at full heat (1: all of it); it chars as it goes.</summary>
+    public double CharPerSecond { get; init; } = 0.01;
+    /// <summary>Note 267: of the spray on a cell, the share the cells round it get; and how long a sprayed cell stays wet (s).</summary>
+    public double SprayShare { get; init; } = 0.4;
+    public double DampSeconds { get; init; } = 3;
+    /// <summary>Note 267: the roof's burn on whoever's under it, of a floor or wall cell's as near.</summary>
+    public double CeilingBurnShare { get; init; } = 0.5;
+    /// <summary>Note 267: how tall a crewmate is to the fire (m): what of them a burning cell can reach.</summary>
+    public double BodyHeight { get; init; } = 1.8;
+    /// <summary>Note 267: a cell cooler than this doesn't burn on its own, and goes out unless a cell round it heats it.</summary>
+    public double OutBelow { get; init; } = 0.05;
 }
 
 /// <summary>The Gaunt (App. A.4, B.4). Field docs live in enemies.json.</summary>
@@ -291,8 +440,8 @@ public sealed record GauntTuning
     public bool AnyVoiceCounts { get; init; } = true;
     public int AttackAt { get; init; } = 4;
     public double Reach { get; init; } = 1.6;
-    public int HitDamage { get; init; } = 35;
-    public double HitEvery { get; init; } = 2;
+    public int HitDamage { get; init; } = 60;
+    public double HitEvery { get; init; } = 4;
     public double GrabBelowHealth { get; init; } = 35;
     public double CrushSeconds { get; init; } = 8;
     public double Health { get; init; } = 8;
@@ -306,6 +455,10 @@ public sealed record GauntTuning
     public double ClearedAt { get; init; } = 30;
     public double CarryHigh { get; init; } = 1.7;
     public double CarryLow { get; init; } = 0.55;
+    /// <summary>Note 288: talked down, it leaves; killed only by a gang while someone talks to it. False: the old health fight.</summary>
+    public bool DrivenOff { get; init; } = true;
+    public bool TalkingCalms { get; init; } = true;
+    public double TalkedDownSeconds { get; init; } = 45;
 }
 
 /// <summary>Climbers (App. A.4, B.4). Field docs live in enemies.json.</summary>
@@ -323,8 +476,8 @@ public sealed record ClimberTuning
     public int MaxTries { get; init; } = 3;
     public double TraverseSpeed { get; init; } = 2.2;
     public double Reach { get; init; } = 1.8;
-    public int BiteDamage { get; init; } = 25;
-    public double BiteEvery { get; init; } = 1.5;
+    public int BiteDamage { get; init; } = 35;
+    public double BiteEvery { get; init; } = 3;
     public double BoredSeconds { get; init; } = 120;
     public double Health { get; init; } = 3;
     public int MinGaps { get; init; } = 2;
@@ -335,6 +488,25 @@ public sealed record ClimberTuning
     public double TakeSeconds { get; init; } = 10;
     /// <summary>Getting into a shut car that's lit (with nobody in it) breaches it too; unset, only an unlit one (ARCHITECTURE §8).</summary>
     public bool BreachLitCars { get; init; }
+    /// <summary>Note 288: outnumbered where it is, it drops back off; killed only by a gang that outnumbers it. False: the old three blows.</summary>
+    public bool DrivenOff { get; init; } = true;
+    public double OutnumberedSeconds { get; init; } = 2;
+    /// <summary>
+    /// Boarding-first (GDD App. F.1, note 286): a lit car with every door and its hatch shut keeps them out (they pass over
+    /// it, as over a car with crew in it); unset, an empty lit car lets them in whatever its doors.
+    /// </summary>
+    public bool LitShutCarKeepsOut { get; init; }
+    /// <summary>Note 286 ("slowing opens the doors"): at the gap they get a grip only with the train under this (m/s).</summary>
+    public double MountBelow { get; init; } = double.MaxValue;
+    /// <summary>Note 286: pacing a train too fast to mount, they give it up this long (s) after their pace.</summary>
+    public double WaitForSlowSeconds { get; init; } = 30;
+    /// <summary>Note 286: the director's weight for them with the train at or over <see cref="MountBelow"/>.</summary>
+    public double AtSpeedWeight { get; init; } = 1;
+    /// <summary>Note 286: a bend this sharp (radius, m) under the train or within <see cref="BendAheadM"/> ahead is a tight one.</summary>
+    public double TightBendRadius { get; init; } = 350;
+    public double BendAheadM { get; init; } = 300;
+    /// <summary>Note 286: their weight on a tight bend, slow.</summary>
+    public double BendWeight { get; init; } = 1;
 }
 
 /// <summary>The Stoker (App. A.5, B.5). Field docs live in enemies.json.</summary>
@@ -348,17 +520,49 @@ public sealed record StokerTuning
     public double FeedRate { get; init; } = 4;
     public double Swing { get; init; } = 3;
     public double SwingSeconds { get; init; } = 3;
-    public double EatPerSecond { get; init; } = 0.2;
+    public double EatPerSecond { get; init; } = 0;
     public double FireDoorShutSeconds { get; init; } = 6;
     public double SootSeconds { get; init; } = 4;
     public double RunawayRampSeconds { get; init; } = 20;
     public double Health { get; init; } = 4;
-    public int BurnPerBlow { get; init; } = 12;
+    /// <summary>Note 268 (Stoker v3): the door opened on it burns whoever's at it this much, and the second time this much.</summary>
+    public int DoorBurn { get; init; } = 60;
+    public int DoorKill { get; init; } = 1000;
+    /// <summary>Note 268: starved under this much fire (of the firebox's 6), it leaves.</summary>
+    public double StarveFirebox { get; init; } = 2;
+    /// <summary>Note 268: an extinguisher held into the firebox this long kills it, taking this share of the fire.</summary>
+    public double HoseSeconds { get; init; } = 2;
+    public double HoseFireCost { get; init; } = 0.6;
+    /// <summary>
+    /// The cab's own hose (note 648; the director, the inbox, 12 Oct, `D1-stoker-hose-in-the-cab`, "b"): Fire held at the door
+    /// with nothing fetched. Off, an extinguisher from car 1 stands in (note 271).
+    /// </summary>
+    public bool CabHose { get; init; }
+    /// <summary>Note 268: how near the fire door (m, across the cab floor) counts as at it, to open it or hose it.</summary>
+    public double DoorReach { get; init; } = 1.8;
     /// <summary>Note 265 (the director's decision of 6 Oct 2026): once one's gone, none comes back for this long (s).</summary>
     public double BreakSeconds { get; init; } = 150;
 }
 
 /// <summary>The Draggers (App. A.4, B.4, spec B.3). Field docs live in enemies.json.</summary>
+/// <summary>
+/// Draggers off a truss (note 435, orchestrator.md §5.2 S4): a Dragger perched on a through-truss's top chord, put there
+/// <see cref="Ahead"/> m before the train comes to it with a chance of <see cref="Chance"/>, and only to a train at
+/// <see cref="FromSpeed"/> or more (at speed is when the director's never put one under a car: note 286). It scrapes on the
+/// steel from <see cref="TellSeconds"/> before the train's under it, at <see cref="Height"/> m, and drops on whoever's on the
+/// roof of the car passing under it.
+/// </summary>
+public sealed record DraggerDropTuning
+{
+    public bool On { get; init; } = true;
+    public double Chance { get; init; } = 0.6;
+    public double FromSpeed { get; init; } = 14;
+    public double Ahead { get; init; } = 500;
+    public double TellSeconds { get; init; } = 3;
+    public double Height { get; init; } = 7.2;
+    public double Lateral { get; init; } = 2.7;
+}
+
 public sealed record DraggerTuning
 {
     public double GrabRange { get; init; } = 1.0;
@@ -379,6 +583,15 @@ public sealed record DraggerTuning
     public double LingerSeconds { get; init; } = 180;
     public int MinCars { get; init; } = 2;
     public int MaxAttached { get; init; } = 2;
+    /// <summary>
+    /// Boarding-first (GDD App. F.1, note 286): they get under a car only with the train under this (m/s), at a stop or a
+    /// slow bend, and wait there for someone on the roofs. Unset (the old rule): under a walked car at any speed.
+    /// </summary>
+    public double BoardBelow { get; init; } = double.MaxValue;
+    /// <summary>Note 286: their weight on a tight bend (<see cref="ClimberTuning.TightBendRadius"/>), slow.</summary>
+    public double BendWeight { get; init; } = 1;
+    /// <summary>Off a truss (note 435, orchestrator.md §5.2 S4): one perched on a through-truss's top chord, dropping at speed.</summary>
+    public DraggerDropTuning Drop { get; init; } = new();
 
     /// <summary>The grab range at a train speed (spec B.3: +50% at max).</summary>
     public double GrabAt(double speed) => GrabRange * (1 + (FastGrabScale - 1) * Math.Clamp((speed - FastFrom) / Math.Max(1e-6, FastAt - FastFrom), 0, 1));
@@ -416,6 +629,14 @@ public sealed record SwitchmanTuning
     /// </summary>
     public double DerailAbove { get; init; } = 6.9;
     public double RunThroughDamage { get; init; } = 0.25;
+    /// <summary>
+    /// The director's decision of 7 Oct 2026 (note 286): "the switch itself shouldn't cause derail, it should be lines that
+    /// lead nowhere". Off (the default), it never throws points under a train: every Switchman throws the junction ahead
+    /// down a dead line. On, <see cref="DerailChance"/> of them throw under the train as v1.1 had it (for a mod).
+    /// </summary>
+    public bool ThrowsUnderTrain { get; init; }
+    /// <summary>Note 286: killed before the train reaches its points, its lever falls back and the points go back to the main line.</summary>
+    public bool KilledSetsBack { get; init; } = true;
     public int MinJunctions { get; init; } = 3;
     public double DeadLineWeight { get; init; } = 1.5;
 }
@@ -433,13 +654,46 @@ public sealed record HoundTuning(int[] PackSize, double Health, double Radius, d
 {
     /// <summary>A crewmate pinned in the pack fight has this long for a friend to club it off (v1.1 App. A.1 GRAB).</summary>
     public double MaulSeconds { get; init; } = 8;
+    /// <summary>
+    /// GDD App. F, 6 Oct 2026 (note 269): "Cinder Hounds that board stay aboard." Off restores the v1.1 drop-off after
+    /// <see cref="BoredSeconds"/> with nobody near.
+    /// </summary>
+    public bool StayAboard { get; init; } = true;
+    /// <summary>Note 269: aboard with nobody near, each eats this share of its car's cargo a second.</summary>
+    public double CargoPerSecond { get; init; } = 0.002;
+    /// <summary>Note 269: and sets its car alight this long after it's left alone (and again, after it's put out).</summary>
+    public double IgniteEverySeconds { get; init; } = 20;
+    /// <summary>Note 472: aboard with nobody in reach, it patrols (enemies.json cinderHounds.patrol).</summary>
+    public HoundPatrolTuning Patrol { get; init; } = new();
+}
+
+/// <summary>
+/// Note 472 (the director, 8 Oct 2026: "they should either patrol between cars that have doors open or patrol the roofs of the
+/// cars, jumping between them if they can make the jump"). Field docs live in enemies.json cinderHounds.patrol.
+/// </summary>
+public sealed record HoundPatrolTuning
+{
+    public bool On { get; init; } = true;
+    public double Walk { get; init; } = 1.6;
+    public double Chase { get; init; } = 3.5;
+    public double ChaseFrom { get; init; } = 20;
+    public double LeapSeconds { get; init; } = 0.9;
+    public double LeapFrom { get; init; } = 0.25;
+    public double LeapTo { get; init; } = 0.65;
+    public double[] SniffEvery { get; init; } = [8, 15];
+    public double SniffSeconds { get; init; } = 3;
+    public double DropSeconds { get; init; } = 1.0;
+    public double ClimbSeconds { get; init; } = 1.2;
+    public double InChance { get; init; } = 0.5;
+    public double[] InsideSeconds { get; init; } = [8, 15];
+    public int CarsAhead { get; init; } = 1;
 }
 
 public sealed record ChoirSwarmTuning(int ExposedDamage, double EverySeconds);
 
 public sealed record DirectorTuning(
     Dictionary<string, double> BaseBudget, double LengthPerCarBeyondThird, double CrewBase, double CrewPerPlayer, double CrewCap,
-    double GraceSeconds, double FacilityLullSeconds, double[] CooldownSeconds, int MaxConcurrentZone,
+    double FacilityLullSeconds, double[] CooldownSeconds, int MaxConcurrentZone,
     int MaxConcurrentSmallCrew, int MaxConcurrentLargeCrew, double[] PhaseShares, Dictionary<string, double> Costs,
     double HoundsLivestockWeight, double HoundsHotBoilerWeight)
 {
@@ -457,11 +711,47 @@ public sealed record DirectorTuning(
     /// </summary>
     public double LingerSeconds { get; init; } = 120;
     public double LingerRadius { get; init; } = 12;
-    /// <summary>Quiet this long (nothing showing itself, no board, no bag) and the director sends something, cooldown or not.</summary>
-    public double PaceSeconds { get; init; } = 18;
+    /// <summary>
+    /// The quiet spell at the start of a night (GDD App. B.1 "Grace period", design decision 2026-10): a range, picked per night
+    /// from its seed (<see cref="PressureTuning.GraceTierScale"/> shortens it at the harder tiers).
+    /// </summary>
+    public double GraceMinSeconds { get; init; } = 20;
+    public double GraceMaxSeconds { get; init; } = 90;
+    /// <summary>The pressure model (GDD App. B.1, design decision 2026-10; ARCHITECTURE §8 note 266).</summary>
+    public PressureTuning Pressure { get; init; } = new();
+    /// <summary>T128 (note 273): the pressure on a crewmate the train has left behind.</summary>
+    public AbandonedTuning Abandoned { get; init; } = new();
+    /// <summary>Note 327 (GDD App. F.3): the crew on foot off the train, watched: the pressure they draw, and the signs they're shown.</summary>
+    public AfootTuning Afoot { get; init; } = new();
+    /// <summary>The hound run (note 328): a fast train's wave of Cinder Hounds, answered by the guns one hound at a time.</summary>
+    public HoundRunTuning Run { get; init; } = new();
+    /// <summary>The orchestrator's live crew and caps (note 336; orchestrator.md §3.2).</summary>
+    public OrchestratorTuning Orchestrator { get; init; } = new();
     /// <summary>The last this many spawns: each of a kind among them halves that kind's weight (variety).</summary>
     public int VarietyWindow { get; init; } = 4;
-    /// <summary>A paced spawn may overdraw the budget's curve by up to this much: enough for a threat of this cost.</summary>
+    /// <summary>
+    /// The most of a kind the director sends a night (note 635; the director, the inbox, 12 Oct 2026, of the Knotter: "once or
+    /// twice a run"), by its name in <see cref="Costs"/>; a kind not named has no cap.
+    /// </summary>
+    public Dictionary<string, int> PerNight { get; init; } = new();
+    /// <summary>
+    /// The most of any kind <see cref="PerNight"/> doesn't name (note 654, for the director's `D1-roster-piles-up`: with few
+    /// kinds about on a night, those about come again and again, note 652); null, no cap.
+    /// </summary>
+    public int? PerNightDefault { get; init; }
+    /// <summary>The kind's most a night: its own (<see cref="PerNight"/>), else <see cref="PerNightDefault"/>; null, none.</summary>
+    public int? CapFor(string key) => PerNight.TryGetValue(key, out int cap) ? cap : PerNightDefault;
+    /// <summary>
+    /// The chance a kind is about at all tonight (note 635; of the Knotter: "Sometimes never"), drawn once a night from the
+    /// seed; a kind not named is always about.
+    /// </summary>
+    public Dictionary<string, double> NightChance { get; init; } = new();
+    /// <summary>
+    /// How often, against the rest (note 635; the director's Creature Tweaker): each kind's weight among what could come is
+    /// multiplied by this; a kind not named weighs as its own rule says (×1).
+    /// </summary>
+    public Dictionary<string, double> Weights { get; init; } = new();
+    /// <summary>A spawn pressed for (pressure at <see cref="PressureTuning.PressAt"/>) may overdraw the budget's curve by up to this much: enough for a threat of this cost.</summary>
     public double PacedCost { get; init; } = 3;
     /// <summary>The in-car incidents' weight, each, against the other threats' 1.</summary>
     public double IncidentWeight { get; init; } = 0.5;
@@ -477,8 +767,9 @@ public sealed record DirectorTuning(
     public string[] SaveFor { get; init; } = [];
     public double SaveFrom { get; init; } = 0.2;
     /// <summary>
-    /// A generated line's grace stretch (linegen plan §4) bans spawns only this far into the run; after, the director's own
-    /// grace (after the playtest, "out of the gate in 20 s") is the rule. Negative: the whole stretch, as the plan has it.
+    /// A generated line's grace stretch (linegen plan §4) bans spawns only this far into the run, or to the end of the night's own
+    /// grace (<see cref="GraceMinSeconds"/>..<see cref="GraceMaxSeconds"/>) if that's later. Negative: the whole stretch, as the
+    /// plan has it.
     /// </summary>
     public double LineGraceSeconds { get; init; } = 20;
     /// <summary>
@@ -492,6 +783,209 @@ public sealed record DirectorTuning(
     public int MaxCorrupted { get; init; } = 1;
     /// <summary>GDD v1.4 App. D.11, the dead's creature vote (enemies.json director.vote; note 180).</summary>
     public VoteTuning Vote { get; init; } = new();
+    /// <summary>What draws the night's first threat, and the dark's answer (enemies.json director.draw; note 287).</summary>
+    public DrawTuning Draw { get; init; } = new();
+}
+
+/// <summary>
+/// The director's pressure (GDD App. B.1, design decision 2026-10; note 266): once a second after the grace it builds by
+/// <c>tier × conditions × crew relief × busy × escalation × (base + quiet + loudness + cargo)</c>, banks to at most
+/// <see cref="Max"/>, and past <see cref="Threshold"/> the director spends on what its weights pick, each spawn taking
+/// <see cref="ReliefPerCost"/> × its cost off. Mirror of enemies.json <c>director.pressure</c>; field docs live there.
+/// </summary>
+public sealed record PressureTuning
+{
+    public double Threshold { get; init; } = 10;
+    public double Start { get; init; } = 4;
+    public double Max { get; init; } = 18;
+    public double PressAt { get; init; } = 16;
+    public double ReliefPerCost { get; init; } = 3;
+    public double BasePerSecond { get; init; } = 0.03;
+    public double Escalation { get; init; } = 3;
+    public int EscalationPower { get; init; } = 1;
+    public double QuietPerSecond { get; init; } = 0.1;
+    public double QuietRampSeconds { get; init; } = 90;
+    /// <summary>
+    /// GDD App. F.1 (the director, 6 Oct 2026; note 270): quiet counted in line run, not seconds. Over 0, the quiet ramps over
+    /// this many metres run since a threat was engaged, or over <see cref="QuietBackstopSeconds"/> if that's sooner (a
+    /// stopped train can't wait it out); 0 keeps the ramp in seconds (<see cref="QuietRampSeconds"/>).
+    /// </summary>
+    public double QuietRampMetres { get; init; }
+    public double QuietBackstopSeconds { get; init; } = 120;
+    public double LoudPerSecond { get; init; } = 0.1;
+    public double LoudCap { get; init; } = 1.5;
+    public double CargoPerLoad { get; init; } = 0.01;
+    public Dictionary<string, double> CargoValue { get; init; } = new();
+    public Dictionary<string, double> Tier { get; init; } = new();
+    public Dictionary<string, double> GraceTierScale { get; init; } = new();
+    public double Dark { get; init; } = 0.15;
+    public double Cold { get; init; } = 0.1;
+    public double ColdPerStep { get; init; } = 0.05;
+    public double Wet { get; init; } = 0.05;
+    public double Wind { get; init; } = 0.05;
+    public int DownPower { get; init; } = 2;
+    public int HurtBelow { get; init; } = 35;
+    public double HurtRelief { get; init; } = 0.25;
+    public double Busy { get; init; } = 0.5;
+    public double BusyFade { get; init; } = 1;
+    /// <summary>
+    /// The threat scales by the crew and by the train (note 646; the director, the inbox, 9 Oct: "Scale by both, higher
+    /// numbers on both readings should increase threat level"): the rate × (1 + crewScale × (crew − scaleCrew)) × (1 +
+    /// lengthScale × (cars − scaleCars)), each at least scaleFloor. 0 for either leaves it as the tier's alone.
+    /// </summary>
+    public double CrewScale { get; init; }
+    public double LengthScale { get; init; }
+    public int ScaleCrew { get; init; } = 4;
+    public int ScaleCars { get; init; } = 8;
+    public double ScaleFloor { get; init; } = 0.5;
+
+    /// <summary>The rate's scale for a crew of <paramref name="crew"/> and a train of <paramref name="cars"/> cars.</summary>
+    public double Scale(int crew, int cars) =>
+        Math.Max(ScaleFloor, 1 + CrewScale * (crew - ScaleCrew)) * Math.Max(ScaleFloor, 1 + LengthScale * (cars - ScaleCars));
+}
+
+/// <summary>
+/// T128 (build 1121: "a player left behind by the train should feel the world close in"; note 273): a pressure of its own
+/// on each crewmate on the ground further than <see cref="BehindM"/> along the line from the train, built once a second on
+/// top of the night's (its tier and conditions), and past <see cref="Threshold"/> a hunt sent at them alone, each bigger
+/// and closer than the last. Mirror of enemies.json <c>director.abandoned</c>; field docs live there.
+/// </summary>
+public sealed record AbandonedTuning
+{
+    public bool On { get; init; } = true;
+    public double BehindM { get; init; } = 150;
+    public double PerSecond { get; init; } = 0.05;
+    public double RampPerSecond { get; init; } = 0.15;
+    public double RampSeconds { get; init; } = 60;
+    public double PerKm { get; init; } = 0.3;
+    public double Threshold { get; init; } = 6;
+    public double Relief { get; init; } = 6;
+    public int[] Pack { get; init; } = [2, 5];
+    public double[] SpawnOut { get; init; } = [35, 18];
+    /// <summary>From this hunt (0 the first) a Gaunt woken on them comes too (note 296); −1 never.</summary>
+    public int GauntFrom { get; init; } = 2;
+}
+
+/// <summary>
+/// The orchestrator's census and caps (ARCHITECTURE §8 note 336; docs/design/orchestrator.md §3.2 1, 3, 5): the budget's crew
+/// multiplier from the crew alive now, and the engaged cap by it. Mirror of enemies.json <c>director.orchestrator</c>; field
+/// docs live there.
+/// </summary>
+public sealed record OrchestratorTuning
+{
+    public bool On { get; init; } = true;
+    public bool LiveCrew { get; init; } = true;
+    public double EngagedPerActive { get; init; } = 0.75;
+    public double PerPlayer { get; init; } = 1;
+    /// <summary>
+    /// Note 646 (the director, 9 Oct: "Scale by both"): each car over <see cref="PressureTuning.ScaleCars"/> raises
+    /// <see cref="EngagedPerActive"/> by this, up to <see cref="PerPlayer"/>: a longer train has more of the crew under a threat
+    /// at once, never more than one each.
+    /// </summary>
+    public double EngagedPerCar { get; init; }
+
+    /// <summary>
+    /// A long train, two threats each (note 647; the director, the inbox, 12 Oct, `D1-long-train-two-each`, "b"): from this
+    /// many cars a crewmate may have <see cref="PerPlayerLong"/> threats on them at once, and the director's hard caps grow
+    /// with it. 0: never.
+    /// </summary>
+    public int LongTrainCars { get; init; }
+    public double PerPlayerLong { get; init; } = 2;
+
+    /// <summary>The most threats on one crewmate at once with a train of <paramref name="cars"/>.</summary>
+    public double PerPlayerFor(int cars) => LongTrainCars > 0 && cars >= LongTrainCars ? PerPlayerLong : PerPlayer;
+
+    /// <summary>The share of the crew that may be engaged at once with a train of <paramref name="cars"/> (notes 646, 647).</summary>
+    public double EngagedShare(int cars, int scaleCars) => LongTrainCars > 0 && cars >= LongTrainCars ? PerPlayerLong
+        : Math.Min(PerPlayer, EngagedPerActive + EngagedPerCar * Math.Max(0, cars - scaleCars));
+    // The census (note 345; orchestrator.md §3.1, §3.2 items 2 and 4).
+    public bool Census { get; init; } = true;
+    public int MinCrew { get; init; } = 2;
+    public double OnRadius { get; init; } = 20;
+    public double DrivingAbove { get; init; } = 0.5;
+    public double SlackWeight { get; init; } = 2;
+    public double EmptyPostWeight { get; init; } = 0.5;
+    public string[] EmptyPostExempt { get; init; } = ["trackDoll"];
+    public double MinSlack { get; init; } = 30;
+    public double SlackPress { get; init; } = 150;
+    public double SlackPerSecond { get; init; } = 0.05;
+    public bool PerTarget { get; init; } = true;
+    public Dictionary<string, string[]> Answers { get; init; } = new();
+}
+
+/// <summary>
+/// Note 327 (GDD App. F.3, the director, 7 Oct 2026: "when they leave, there is this presence of threat at all times"). Field
+/// docs in enemies.json director.afoot.
+/// </summary>
+public sealed record AfootTuning
+{
+    public bool On { get; init; } = true;
+    public double FromTrainM { get; init; } = 20;
+    public double PerSecond { get; init; } = 0.08;
+    public double OutsideWeight { get; init; } = 2.5;
+    public double[] SignEvery { get; init; } = [12, 24];
+    public double FirstSign { get; init; } = 6;
+    public double[] SignOut { get; init; } = [14, 22];
+    public double SignReach { get; init; } = 160;
+    public double SignSeconds { get; init; } = 3.5;
+    public double SignSpread { get; init; } = 35;
+    /// <summary>Eye height off the ground, by the creature's tuning name (default <see cref="SignHeightDefault"/>).</summary>
+    public Dictionary<string, double> SignHeight { get; init; } = new();
+    public double SignHeightDefault { get; init; } = 0.7;
+}
+
+/// <summary>
+/// The hound run (ARCHITECTURE §8 note 328; docs/design/orchestrator.md §5.3, §6.1; GDD App. F.3, the director, 7 Oct 2026:
+/// "things that are trying to attack the train sort of like tower defense style that gives our gunners things to do"): a
+/// train run fast long enough draws a stream of Cinder Hounds faster than it is, sized to the crew active, that the guns
+/// answer one hound at a time. Mirror of enemies.json <c>director.run</c>; field docs live there.
+/// </summary>
+public sealed record HoundRunTuning
+{
+    public bool On { get; init; } = true;
+    public double FromSpeed { get; init; } = 19;
+    public double StopSpeed { get; init; } = 2;
+    public double AfterMetres { get; init; } = 2400;
+    public double HotShorter { get; init; } = 0.75;
+    public double Base { get; init; } = 1.4;
+    public double PerActive { get; init; } = 0.6;
+    public int[] Size { get; init; } = [2, 6];
+    public double Spacing { get; init; } = 6;
+    public double SpawnBehind { get; init; } = 200;
+    public double[] Lateral { get; init; } = [4, 8];
+    public double Closing { get; init; } = 5;
+    public double Scatter { get; init; } = 5;
+    /// <summary>
+    /// The lane ahead (note 405, orchestrator.md §5.3 6): every this many pairs, the second of them comes from in front, for the
+    /// forward gun (0: none; 1: every pair). Only to a train with a gun laid forward on the engine's rake.
+    /// </summary>
+    public int AheadEvery { get; init; } = 3;
+    /// <summary>How far in front of the engine an ahead pair is put down (m), and how far off the line to a flank (m).</summary>
+    public double AheadMetres { get; init; } = 330;
+    public double[] AheadLateral { get; init; } = [12, 16];
+    /// <summary>Running in to meet the train (m/s, against it), across the line to this far out on the other side (m).</summary>
+    public double AheadSpeed { get; init; } = 3;
+    public double AheadCross { get; init; } = 3;
+    /// <summary>
+    /// The flank lanes (note 418, orchestrator.md §5.3 6): every this many pairs, the last of them comes in from the open country
+    /// abeam the guard van's gun (0: none; 1: every pair), to a train whose last car has its gun. Only where the line's biome is one of <see cref="FlankBiomes"/>
+    /// (any, on a line with no plan) and the land's open <see cref="FlankOut"/> m out (not a tunnel's bore or a bridge's deck).
+    /// </summary>
+    public int FlankEvery { get; init; } = 3;
+    /// <summary>
+    /// How far out to the side a flank pair is put down (m), how far ahead of the train's rear end (abeam the guard van's gun,
+    /// the flank its arc has), and how fast it runs in across the open ground (m/s, keeping pace).
+    /// </summary>
+    public double FlankOut { get; init; } = 70;
+    public double FlankAbeam { get; init; } = 4;
+    public double FlankSpeed { get; init; } = 6;
+    /// <summary>
+    /// Of the night's flank pairs, every this many (the last of each) comes abeam the engine's gun instead, for the forward
+    /// gun (note 443; 0: never, 1: every one). To a train with a gun laid forward; with no gun laid back, all of them.
+    /// </summary>
+    public int FlankEngineEvery { get; init; } = 2;
+    /// <summary>The open country (linegen biomes.json's few-treed ones).</summary>
+    public string[] FlankBiomes { get; init; } = [];
 }
 
 /// <summary>
@@ -500,3 +994,404 @@ public sealed record DirectorTuning(
 /// A dead bot, a crewmate like any other, casts its vote <paramref name="BotSeconds"/> after it's offered (note 202).
 /// </summary>
 public sealed record VoteTuning(double PerVote = 1.2, double Cap = 1.5, int Options = 3, double BotSeconds = 6);
+
+/// <summary>The Moose (GDD §21, App. A.6, B.6; ARCHITECTURE §8 note 339). Field docs live in enemies.json.</summary>
+public sealed record MooseTuning
+{
+    public double CrowdAt { get; init; } = 20;
+    public double CrowdPerSecond { get; init; } = 25;
+    public double CloseAt { get; init; } = 12;
+    public double ClosePerSecond { get; init; } = 70;
+    public double HearVoice { get; init; } = 15;
+    public int TalkingAbove { get; init; } = 40;
+    public double VoicePerSecond { get; init; } = 40;
+    public double TrainPassAt { get; init; } = 25;
+    public double TrainPass { get; init; } = 25;
+    public double CalmPerSecond { get; init; } = 15;
+    public double ListenAt { get; init; } = 20;
+    public double WarnAt { get; init; } = 50;
+    public double[] SquareUpAt { get; init; } = [12, 30];
+    public double SquareUpSeconds { get; init; } = 2.5;
+    public double HuntSpeed { get; init; } = 4.5;
+    public double ChargeSpeed { get; init; } = 11;
+    public double Overrun { get; init; } = 8;
+    public double WheelSeconds { get; init; } = 2.5;
+    public double RackSpan { get; init; } = 3.2;
+    public double HitReach { get; init; } = 0.5;
+    public double SnagSeconds { get; init; } = 4;
+    public int BlockedCharges { get; init; } = 3;
+    public int ChargeDamage { get; init; } = 60;
+    public double GrabBelowHealth { get; init; } = 40;
+    public double PinSeconds { get; init; } = 12;
+    public double SightRange { get; init; } = 60;
+    public double SearchSpeed { get; init; } = 2.5;
+    public double SearchSeconds { get; init; } = 25;
+    public double LeashRadius { get; init; } = 80;
+    public double LostAtCar { get; init; } = 5;
+    public double RamEvery { get; init; } = 3;
+    public double RamSeconds { get; init; } = 15;
+    public double TrackClearance { get; init; } = 3.2;
+    public double MovingClearance { get; init; } = 6;
+    public double GoneBeyond { get; init; } = 600;
+    public double[] GroundAt { get; init; } = [30, 60];
+    public int MinCrew { get; init; } = 1;
+    public double PerGroundWeight { get; init; } = 0.5;
+    public Dictionary<string, double> TierWeights { get; init; } = new() { ["local"] = 1, ["frontier"] = 1.5, ["deadLines"] = 2, ["deepTerritory"] = 2.5 };
+    public Dictionary<string, double> Lineside { get; init; } = new() { ["local"] = 2, ["frontier"] = 3, ["deadLines"] = 4, ["deepTerritory"] = 5 };
+    public double[] LinesideOut { get; init; } = [8, 22];
+    public double LinesideAhead { get; init; } = 300;
+    public Dictionary<string, double> BiomeWeights { get; init; } = new();
+
+    /// <summary>A tier's weight in a table keyed by its camel-cased name (1 where it isn't listed).</summary>
+    public static double ByTier(IReadOnlyDictionary<string, double> table, Route.RouteTier tier) =>
+        table.GetValueOrDefault(char.ToLowerInvariant(tier.ToString()[0]) + tier.ToString()[1..], 1);
+}
+
+/// <summary>Where the outside creatures start: their sites in the stops' layouts (level-design H.2; note 309). Field docs in enemies.json.</summary>
+public sealed record CreatureSitesTuning
+{
+    public double Around { get; init; } = 300;
+    public double MinOut { get; init; } = 12;
+    public double WarrenReach { get; init; } = 70;
+    public double RoostReach { get; init; } = 400;
+    public double CallReach { get; init; } = 160;
+    public double GroundMargin { get; init; } = 4;
+}
+
+/// <summary>How a creature loose in the world is held by it (note 279): on the land, in the air over it, or its own way.</summary>
+public enum Solid : byte { None, Ground, Air }
+
+/// <summary>The world is solid for the creatures (note 279). Field docs live in enemies.json <c>solidity</c>.</summary>
+public sealed record SolidityTuning
+{
+    public double ClimbM { get; init; } = 2.5;
+    public double AirClearM { get; init; } = 0.2;
+    public Dictionary<string, string> Kinds { get; init; } = new();
+
+    Dictionary<EnemyKind, Solid>? _kinds;
+
+    public Solid Of(EnemyKind kind)
+    {
+        _kinds ??= Kinds.ToDictionary(k => Enum.Parse<EnemyKind>(k.Key, ignoreCase: true), k => Enum.Parse<Solid>(k.Value, ignoreCase: true));
+        return _kinds.TryGetValue(kind, out var s) ? s : Solid.None;
+    }
+}
+
+/// <summary>The Gannet (GDD §21, App. A.4, B.4; ARCHITECTURE §8 note 340). Field docs live in enemies.json.</summary>
+public sealed record GannetTuning
+{
+    public double ArriveAbove { get; init; } = 18;
+    public double ArriveSeconds { get; init; } = 30;
+    public double StallBelow { get; init; } = 12;
+    public double StallSeconds { get; init; } = 6;
+    public double QuietSeconds { get; init; } = 60;
+    public double ReturnSeconds { get; init; } = 180;
+    public double[] SoarHeight { get; init; } = [20, 35];
+    public double SoarRadius { get; init; } = 14;
+    public double FlySpeed { get; init; } = 12;
+    public double PreyAbove { get; init; } = 0.8;
+    public double HangSeconds { get; init; } = 2;
+    public double FoldSeconds { get; init; } = 1.6;
+    public double[] DiveEvery { get; init; } = [8, 12];
+    public double StrikeRadius { get; init; } = 0.9;
+    public int StabDamage { get; init; } = 35;
+    public double StuckSeconds { get; init; } = 4;
+    public double BankSeconds { get; init; } = 2.5;
+    public int Pecks { get; init; } = 4;
+    public double PeckEvery { get; init; } = 3;
+    public int DriveOffBlows { get; init; } = 3;
+    public double Health { get; init; } = 12;
+    public double GiveUpBelow { get; init; } = 4;
+    public double MarkReach { get; init; } = 200;
+    public int MinCars { get; init; } = 2;
+    public double PerRoofWeight { get; init; } = 1;
+    public Dictionary<string, double> TierWeights { get; init; } = new() { ["local"] = 1, ["frontier"] = 1.5, ["deadLines"] = 2, ["deepTerritory"] = 2.5 };
+    public Dictionary<string, double> BiomeWeights { get; init; } = new();
+}
+
+/// <summary>The Mourners (GDD §21, App. A.6, B.6; ARCHITECTURE §8 note 362). Field docs live in enemies.json.</summary>
+public sealed record MournersTuning
+{
+    public bool Enabled { get; init; } = true;
+    public double After { get; init; } = 15;
+    public Dictionary<string, int> Count { get; init; } = new() { ["local"] = 3, ["frontier"] = 4, ["deadLines"] = 5, ["deepTerritory"] = 6 };
+    public double ArriveAt { get; init; } = 40;
+    public double ComeSeconds { get; init; } = 6;
+    public double WaitAt { get; init; } = 10;
+    public double Shy { get; init; } = 6;
+    public double StartleTo { get; init; } = 12;
+    public double DropWithin { get; init; } = 3;
+    public double TakeReach { get; init; } = 0.9;
+    public double Creep { get; init; } = 1.4;
+    public double Approach { get; init; } = 3;
+    public double Drag { get; init; } = 1.6;
+    public double Scatter { get; init; } = 4;
+    public double HoldAt { get; init; } = 0.7;
+    public double HoldHeight { get; init; } = 0.5;
+    public double ReturnAfter { get; init; } = 4;
+    public double ScatterOnDeath { get; init; } = 6;
+    public double LostAt { get; init; } = 120;
+    public double LeaveSeconds { get; init; } = 30;
+    public double Health { get; init; } = 1;
+
+    /// <summary>How many come, by tier (3 where the tier isn't listed).</summary>
+    public int CountFor(Route.RouteTier tier) =>
+        Count.GetValueOrDefault(char.ToLowerInvariant(tier.ToString()[0]) + tier.ToString()[1..], 3);
+}
+
+/// <summary>The Pickers (GDD §21, App. A.6, B.6; ARCHITECTURE §8 note 592). Field docs live in enemies.json.</summary>
+public sealed record PickersTuning
+{
+    public bool Enabled { get; init; } = true;
+    public double After { get; init; } = 20;
+    public Dictionary<string, int> Count { get; init; } = new() { ["local"] = 3, ["frontier"] = 4, ["deadLines"] = 6, ["deepTerritory"] = 8 };
+    public int PerTwoCrew { get; init; } = 1;
+    public double FacilityReach { get; init; } = 80;
+    public int Drains { get; init; } = 3;
+    public double DrainOff { get; init; } = 1.2;
+    public double EmergeSeconds { get; init; } = 0.8;
+    public double DownSeconds { get; init; } = 3;
+    public double GuardWithin { get; init; } = 4;
+    public double ShyWithin { get; init; } = 3;
+    public double ShySeconds { get; init; } = 4;
+    public double Run { get; init; } = 4.8;
+    public double Carry { get; init; } = 2.6;
+    public double CarryHeavy { get; init; } = 1.6;
+    public double TakeReach { get; init; } = 0.9;
+    public double HoldHeight { get; init; } = 1.0;
+    public double HeaveBeside { get; init; } = 0.9;
+    public double AtDrain { get; init; } = 1.0;
+    public double BiteWithin { get; init; } = 1.2;
+    public int Bite { get; init; } = 8;
+    public double BiteEvery { get; init; } = 2;
+    public double ScatterWithin { get; init; } = 10;
+    public double ScatterSeconds { get; init; } = 6;
+    public double LeaveSeconds { get; init; } = 12;
+    public double Health { get; init; } = 1;
+
+    /// <summary>How many come to a crew of <paramref name="crew"/> at a stop of <paramref name="tier"/>: the tier's count, and
+    /// <c>perTwoCrew</c> more for every two of the crew past two (3 where the tier isn't listed).</summary>
+    public int CountFor(Route.RouteTier tier, int crew) =>
+        Count.GetValueOrDefault(char.ToLowerInvariant(tier.ToString()[0]) + tier.ToString()[1..], 3) + Math.Max(0, crew - 2) / 2 * PerTwoCrew;
+}
+
+/// <summary>Which village houses something lives in (notes 583–586). Field docs live in enemies.json.</summary>
+public sealed record DwellingsTuning
+{
+    public bool Enabled { get; init; } = true;
+    public Dictionary<string, double> Share { get; init; } = new() { ["local"] = 0.2, ["frontier"] = 0.25, ["deadLines"] = 0.33, ["deepTerritory"] = 0.5 };
+    public Dictionary<string, double> Weights { get; init; } = new() { ["lodger"] = 3, ["householder"] = 2, ["hollowHouse"] = 1.5, ["hanger"] = 3 };
+    public double PlaceWithin { get; init; } = 500;
+    public double ForgetPast { get; init; } = 800;
+
+    /// <summary>The share of a stop's open houses with something in them, at <paramref name="tier"/> (0.25 where it isn't listed).</summary>
+    public double ShareFor(Route.RouteTier tier) =>
+        Share.GetValueOrDefault(char.ToLowerInvariant(tier.ToString()[0]) + tier.ToString()[1..], 0.25);
+}
+
+/// <summary>The Lodger (GDD §21; ARCHITECTURE §8 note 583). Field docs live in enemies.json.</summary>
+public sealed record LodgerTuning
+{
+    public double HideInset { get; init; } = 0.6;
+    public double NoticeSeconds { get; init; } = 2.5;
+    public double ShriekWithin { get; init; } = 4.5;
+    public double ShriekSeconds { get; init; } = 1.5;
+    public double LungeSpeed { get; init; } = 9;
+    public double LungeReach { get; init; } = 4.5;
+    public double KillWithin { get; init; } = 0.9;
+    public double KillWindow { get; init; } = 0.25;
+    public double Chase { get; init; } = 5.0;
+    public double PursuitRadius { get; init; } = 25;
+    public double BreakSeconds { get; init; } = 2;
+    public double Walk { get; init; } = 1.6;
+    public double RestSeconds { get; init; } = 3;
+    public double Health { get; init; } = 4;
+}
+
+/// <summary>The Householder (GDD §21; ARCHITECTURE §8 note 584). Field docs live in enemies.json.</summary>
+public sealed record HouseholderTuning
+{
+    public double TableReach { get; init; } = 1.0;
+    public double RiseSeconds { get; init; } = 1.5;
+    public double Hunt { get; init; } = 3.4;
+    public double GrabReach { get; init; } = 1.0;
+    public double GrabSeconds { get; init; } = 6;
+    public double GiveUpBeyond { get; init; } = 200;
+    public double Walk { get; init; } = 1.4;
+    public double Health { get; init; } = 6;
+}
+
+/// <summary>The Hollow House (GDD §21; ARCHITECTURE §8 note 585). Field docs live in enemies.json.</summary>
+public sealed record HollowHouseTuning
+{
+    public double WaitSeconds { get; init; } = 1.5;
+    public double RumbleSeconds { get; init; } = 3;
+    public double ShutEvery { get; init; } = 0.35;
+    public double SinkSeconds { get; init; } = 3;
+    public double SinkDepth { get; init; } = 2.4;
+    public int Crush { get; init; } = 1000;
+}
+
+/// <summary>The Hanger (GDD §21; ARCHITECTURE §8 note 586). Field docs live in enemies.json.</summary>
+public sealed record HangerTuning
+{
+    public int Strands { get; init; } = 6;
+    public double TouchWithin { get; init; } = 0.35;
+    public double HaulSeconds { get; init; } = 2.5;
+    public double HaulTo { get; init; } = 0.7;
+    public double GrabSeconds { get; init; } = 10;
+    public double RetreatSeconds { get; init; } = 25;
+    public double Health { get; init; } = 3;
+}
+
+/// <summary>The Freight Beetle (GDD §21, App. A.6, B.6; ARCHITECTURE §8 note 366). Field docs live in enemies.json.</summary>
+public sealed record FreightBeetleTuning
+{
+    public double Notice { get; init; } = 25;
+    public double FreightReach { get; init; } = 30;
+    public double HeadAt { get; init; } = 1.1;
+    public double PushReach { get; init; } = 0.35;
+    public double Walk { get; init; } = 2;
+    public double Push { get; init; } = 1.2;
+    public double PushHeavy { get; init; } = 0.8;
+    public double TurnDegrees { get; init; } = 90;
+    public double StartleWithin { get; init; } = 1.5;
+    public double StartleSeconds { get; init; } = 2;
+    public int DriveOffBlows { get; init; } = 3;
+    public double DriveOffSeconds { get; init; } = 10;
+    public double AwaySeconds { get; init; } = 30;
+    public double Health { get; init; } = 6;
+    public double FacilityReach { get; init; } = 80;
+    public Dictionary<string, double> TierWeights { get; init; } = new() { ["local"] = 1, ["frontier"] = 1.25, ["deadLines"] = 1.5, ["deepTerritory"] = 1.5 };
+}
+
+/// <summary>The Brakeman (GDD §21, App. A.8, B.8; ARCHITECTURE §8 note 364). Field docs live in enemies.json.</summary>
+public sealed record BrakemanTuning
+{
+    public int MinCrew { get; init; } = 2;
+    public int MinCars { get; init; } = 4;
+    public double MovingAbove { get; init; } = 3;
+    public double ClimbSeconds { get; init; } = 2;
+    public double Walk { get; init; } = 2.5;
+    public double Flee { get; init; } = 5;
+    public double WindSeconds { get; init; } = 4;
+    public double Spook { get; init; } = 12;
+    public double Lose { get; init; } = 20;
+    public double[] Hide { get; init; } = [30, 60];
+    public double CornerSpan { get; init; } = 10;
+    public double LashEvery { get; init; } = 2.5;
+    public double LashReach { get; init; } = 2.5;
+    public int LashDamage { get; init; } = 30;
+    public double Health { get; init; } = 4;
+    public double PerCarsWeight { get; init; } = 6;
+    public double ClimbWeight { get; init; } = 2;
+    public double ClimbAhead { get; init; } = 1000;
+    public double ClimbPercent { get; init; } = 2;
+    public Dictionary<string, double> TierWeights { get; init; } = new() { ["local"] = 1, ["frontier"] = 1.5, ["deadLines"] = 2, ["deepTerritory"] = 2.5 };
+}
+
+/// <summary>Hotbox (GDD §21, App. A.3, B.3; ARCHITECTURE §8 note 367). Field docs live in enemies.json.</summary>
+public sealed record HotboxTuning
+{
+    public double BoardAbove { get; init; } = 10;
+    public double RefSpeed { get; init; } = 18;
+    public double KnockSeconds { get; init; } = 90;
+    public double GlowSeconds { get; init; } = 90;
+    public double WheelDiameter { get; init; } = 0.9;
+    public double SeizedTopSpeed { get; init; } = 7;
+    public double SeizedHold { get; init; } = 1.5;
+    public double StoodBelow { get; init; } = 0.3;
+    public double ExposeAfter { get; init; } = 2;
+    public double Health { get; init; } = 6;
+    public double PriseSeconds { get; init; } = 4;
+    public double PriseReach { get; init; } = 1.8;
+    public double ScuttleSeconds { get; init; } = 3;
+    public double SnapReach { get; init; } = 1.2;
+    public int SnapDamage { get; init; } = 30;
+    public double SnapEvery { get; init; } = 3;
+    public double RepairSeconds { get; init; } = 10;
+    public double RepairReach { get; init; } = 2.2;
+    public double BogieInset { get; init; } = 1.6;
+    public double Inboard { get; init; } = 0.35;
+    public double AxleHeight { get; init; } = 0.5;
+    public Dictionary<string, double> TierWeights { get; init; } = new() { ["local"] = 1, ["frontier"] = 1.25, ["deadLines"] = 1.5, ["deepTerritory"] = 1.75 };
+}
+
+/// <summary>The Knotter (GDD §21, App. A.3, B.3; ARCHITECTURE §8 note 365). Field docs live in enemies.json.</summary>
+public sealed record KnotterTuning
+{
+    public double BoardAbove { get; init; } = 8;
+    public int MinCars { get; init; } = 3;
+    public double CreepSeconds { get; init; } = 4;
+    public double Gap { get; init; } = 5;
+    public double ForceSeconds { get; init; } = 6;
+    public double SlackBelow { get; init; } = 0.3;
+    public double SlipAbove { get; init; } = 2;
+    public double SlipPerSecond { get; init; } = 0.45;
+    public double CoilSeconds { get; init; } = 1.5;
+    public double Health { get; init; } = 8;
+    public Dictionary<string, double> TierWeights { get; init; } = new() { ["local"] = 1, ["frontier"] = 1.5, ["deadLines"] = 2, ["deepTerritory"] = 2.5 };
+}
+
+/// <summary>Tower Jaw (GDD §21, App. A.6, B.6; ARCHITECTURE §8 note 363). Field docs live in enemies.json.</summary>
+public sealed record TowerJawTuning
+{
+    public Dictionary<string, double> GnawSeconds { get; init; } = new() { ["local"] = 150, ["frontier"] = 120, ["deadLines"] = 100, ["deepTerritory"] = 90 };
+    public double StartGnawed { get; init; } = 0.2;
+    public double ApproachReach { get; init; } = 800;
+    public double TowerLegOut { get; init; } = 3.5;
+    public double GnawAt { get; init; } = 0.9;
+    public double LeanFrom { get; init; } = 0.5;
+    public double GroanSeconds { get; init; } = 5;
+    public double Notice { get; init; } = 10;
+    public double LungeWithin { get; init; } = 3;
+    public double ThreatSeconds { get; init; } = 1.5;
+    public int Bite { get; init; } = 35;
+    public int DriveOffBlows { get; init; } = 4;
+    public double DriveOffSeconds { get; init; } = 15;
+    public double AwaySeconds { get; init; } = 120;
+    public double AwayTo { get; init; } = 40;
+    public double Lope { get; init; } = 4;
+    public double Health { get; init; } = 12;
+    public int Crush { get; init; } = 45;
+    public double CrushRadius { get; init; } = 3.5;
+    public double ClearCrewSeconds { get; init; } = 30;
+    public double ClearReach { get; init; } = 4;
+    public double WreckHalf { get; init; } = 3;
+    public double SafeSpeed { get; init; } = 1;
+    public double DamagePerSpeed { get; init; } = 0.06;
+    public Dictionary<string, double> TierWeights { get; init; } = new() { ["local"] = 1, ["frontier"] = 1.5, ["deadLines"] = 2, ["deepTerritory"] = 2 };
+
+    /// <summary>Seconds to gnaw through, by tier (120 where the tier isn't listed).</summary>
+    public double GnawFor(Route.RouteTier tier) =>
+        GnawSeconds.GetValueOrDefault(char.ToLowerInvariant(tier.ToString()[0]) + tier.ToString()[1..], 120);
+}
+
+/// <summary>
+/// The crew bots' answers to the Mourners, Tower Jaw, the Brakeman, the Knotter, the Freight Beetle and Hotbox (note 367):
+/// how near is near enough to go, and where to stand. Not the creatures' own numbers. Field docs live in enemies.json.
+/// </summary>
+public sealed record CrewBotsTuning
+{
+    public double MournersWithin { get; init; } = 30;
+    public double MournersLeash { get; init; } = 20;
+    public double TowerJawWithin { get; init; } = 25;
+    public double TowerJawClearFrom { get; init; } = 0.9;
+    public double TowerJawClearBy { get; init; } = 2.5;
+    public double WreckWithin { get; init; } = 250;
+    public double WreckStopShort { get; init; } = 15;
+    public double WreckHoldWithin { get; init; } = 60;
+    public double BeetleWithin { get; init; } = 15;
+    /// <summary>Note 658: a Ribbit this near (m, flat), a bot on the ground goes at it and clubs it.</summary>
+    public double RibbitWithin { get; init; } = 12;
+    public double BrakemanStandOff { get; init; } = 1.5;
+    public double BrakemanWaitPast { get; init; } = 1;
+    public double StandGiveUp { get; init; } = 240;
+    public double GateClearShort { get; init; } = 30;
+    public double GateClearWithin { get; init; } = 1500;
+    public double GateClearGiveUp { get; init; } = 240;
+    public double GateClearMargin { get; init; } = 45;
+    public double SixDawnMargin { get; init; } = 45;
+    public double MournersCarryWithin { get; init; } = 60;
+    public double MournersCarrySeconds { get; init; } = 60;
+}

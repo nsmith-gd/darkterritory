@@ -101,8 +101,10 @@ public static class IncidentLog
     }
 
     /// <summary>The failure, as the clerk reads it, for each way to die.</summary>
-    public static string What(DeathCause cause) => cause switch
+    /// <param name="aboard">Died on the train (a car or the engine): the cold took them there, not left behind (note 547).</param>
+    public static string What(DeathCause cause, bool aboard = false) => cause switch
     {
+        DeathCause.Cold when aboard => "Froze on the train",
         DeathCause.JumpedAtSpeed => "Jumped from the moving train",
         DeathCause.Derailed => "Killed in the derailment",
         DeathCause.Cold => "Froze, left behind",
@@ -131,13 +133,20 @@ public static class IncidentLog
         DeathCause.Gnawed => "Eaten by the gnawers",
         DeathCause.Replaced => "Replaced",
         DeathCause.Nested => "Killed by Followers nested aboard",
-        DeathCause.Drift => "Fell from the moving train",
+        // The Marsh (GDD v1.1 §22, the code's Drift): not a fall, though v1.0's cause read as one (note 553: on deepTerritory's
+        // marsh nights the falls audit found ten "fell from the moving train" that were the reeds' work).
+        DeathCause.Drift => "Taken by the Marsh",
         DeathCause.Eaten => "Swallowed by the Car Hugger",
         DeathCause.Suffocated => "Smothered by Tippy Toesie",
         DeathCause.Devoured => "Eaten by the Ribbits",
         DeathCause.Drained => "Drained by a Soot Child",
         DeathCause.Carried => "Carried off to the Whistler's nest",
         DeathCause.Uncoupled => "Taken with the caboose by the Passenger",
+        DeathCause.Trampled => "Trampled by the Moose",
+        DeathCause.Pecked => "Pecked to death by the Gannet",
+        DeathCause.Woken => "Taken at dawn by a Waker",
+        DeathCause.Dave => "Struck Dave once too often",
+        DeathCause.Fell => "Fell to their death",
         _ => cause.ToString(),
     };
 
@@ -151,17 +160,21 @@ public static class IncidentLog
         var a = world.Attribution;
         var train = world.Train;
         var at = PlayerMotor.WorldPosition(s, train);
+        // On the train: in its frame, on a car or the engine still in the rake (a car cut loose isn't the train).
+        bool aboard = s.Parent >= 0 && s.Parent < train.Frames.Count && train.Dynamics.Consist.IndexOf(s.Parent) >= 0;
         int actor = -1;
         string action;
         switch (s.Death)
         {
-            case DeathCause.JumpedAtSpeed or DeathCause.Drift:
+            case DeathCause.JumpedAtSpeed:
                 actor = victim;
                 action = $"The train at {Kmh(train.Dynamics.Speed)}.";
                 break;
-            case DeathCause.Cold:
+            case DeathCause.Cold when !aboard:
                 {
-                    double back = train.Dynamics.Consist.Vehicles.Min(v => (train.Frames[v.Id].Origin - at).Length);
+                    // Left behind (B.2's cold off the train): how far from the train, to its nearest end, not a car's middle (an
+                    // end of a car is half its length from it: on the roof, "8 m from the train", note 547).
+                    double back = train.Dynamics.Consist.Vehicles.Min(v => Math.Max(0, (train.Frames[v.Id].Origin - at).Length - train.Frames[v.Id].Shape.HalfLength));
                     actor = a.Driver;
                     action = $"Throttle: {{actor}}. {back:0} m from the train.";
                     break;
@@ -186,7 +199,8 @@ public static class IncidentLog
                 break;
             case DeathCause.Burned or DeathCause.Exploded:
                 actor = s.Parent > 0 ? a.LampLitBy(s.Parent) : -1;
-                action = actor >= 0 ? "Lamp lit by {actor}." : "Nobody lit that lamp.";
+                action = actor >= 0 ? "Lamp lit by {actor}." : s.Parent > 0 && s.Parent < train.Vehicles.Count && train.Vehicles[s.Parent].LampLit
+                    ? "Lamp lit since the yard." : "Lamp out.";
                 break;
             case DeathCause.Poisoned:
                 actor = a.Gasser;
@@ -214,6 +228,16 @@ public static class IncidentLog
                         : $"{share}% of the noise. Loudest on the line: {{actor}}.";
                     break;
                 }
+            case DeathCause.Woken:
+                // Note 588: the night's clock was the driver's to beat.
+                actor = a.Driver;
+                action = actor >= 0 ? "At the controls at dawn: {actor}." : "Nobody at the controls.";
+                break;
+            case DeathCause.Dave:
+                // Their own doing (note 570): the five blows were theirs.
+                actor = victim;
+                action = "Struck him five times: {actor}.";
+                break;
             case DeathCause.Stoker:
                 actor = a.Fireman;
                 action = actor >= 0 ? $"Last fired: {{actor}}, {Math.Max(0, Seconds(world) - a.FiredAt):0} s before." : "Nobody had fired it.";
@@ -225,11 +249,11 @@ public static class IncidentLog
                     break;
                 }
         }
-        return new Incident(IncidentKind.Death, Seconds(world), victim, What(s.Death), Where(world, s), actor, action, s.Death, body?.Id ?? -1);
+        return new Incident(IncidentKind.Death, Seconds(world), victim, What(s.Death, aboard), Where(world, s), actor, action, s.Death, body?.Id ?? -1);
     }
 
     /// <summary>A record of C.9's that isn't about a crewmate's death, rescue or the night's end: a creature's or the line's doing.</summary>
-    public static bool IsEvent(IncidentKind kind) => kind >= IncidentKind.Struck;
+    public static bool IsEvent(IncidentKind kind) => kind >= IncidentKind.Struck && kind != IncidentKind.Drawn;
 
     /// <summary>
     /// A record of something that happened to the train, not to a crewmate (note 190: C.9's rows that aren't deaths): what,
@@ -254,6 +278,29 @@ public static class IncidentLog
         int driver = world.Attribution.Driver;
         string speed = Kmh(world.Train.Dynamics.Speed);
         return Event(world, IncidentKind.Struck, what, driver, driver >= 0 ? $"Throttle: {{actor}}, {speed}." : $"Nobody on the throttle, {speed}.");
+    }
+
+    /// <summary>
+    /// C.9's Fire Flies row, in the clerk's flat voice (T131, the director: "'Nobody lit that lamp' set car 2 alight": car lamps
+    /// start lit, note 269, so it always said that): what drew them, the car's lamp, and whether it had burned since the yard
+    /// or who relit it; and, as a shut car keeps them out (note 286), the way in it was left with. Returns the actor (who
+    /// relit it, or −1) and the line.
+    /// </summary>
+    public static (int Actor, string Action) FireFliesDrawn(World world, int car)
+    {
+        var train = world.Train;
+        int lit = world.Attribution.LampLitBy(car);
+        string drawn = lit >= 0 ? "Drawn by the car's lamp, relit by {actor}." : "Drawn by the car's lamp, lit since the yard.";
+        if (car <= 0 || car >= train.Vehicles.Count)
+            return (lit, drawn);
+        var v = train.Vehicles[car];
+        int doors = v.DoorsOpen & ~(1 << Train.CarShape.HatchBit);
+        // Note 619: and who left it open, if a crewmate opened it.
+        int opener = Enumerable.Range(0, Train.CarShape.HatchBit).Where(d => (doors & (1 << d)) != 0).Select(d => world.Attribution.DoorOpenedBy(car, d))
+            .FirstOrDefault(p => p >= 0, -1);
+        string left = opener >= 0 ? $" Door left open by {NameOf(world, opener)}." : " Door left open.";
+        string way = v.Breached ? " In through the breach." : doors != 0 ? left : (v.DoorsOpen & (1 << Train.CarShape.HatchBit)) != 0 ? " Hatch left open." : "";
+        return (lit, drawn + way);
     }
 
     /// <summary>

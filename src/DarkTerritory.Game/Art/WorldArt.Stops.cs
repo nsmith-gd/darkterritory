@@ -19,7 +19,7 @@ public sealed partial class WorldArt
     /// <summary>How far past a stop's zone its levelled ground eases back into the hills.</summary>
     const double FlatEase = 60;
     /// <summary>The clearance mask's cell (m): trees stay out of any cell a building, road or track comes near.</summary>
-    const double ClearCell = 6;
+    const double ClearCell = Sim.Run.LinesideProps.ClearCell;
 
     /// <summary>How levelled the ground is at <paramref name="s"/>: 1 across a stop's zone, easing out past its ends.</summary>
     public static float Flat(Route? route, double s)
@@ -51,61 +51,8 @@ public sealed partial class WorldArt
         return _clear.Contains(((long)Math.Floor(along / ClearCell), (long)Math.Floor(offset / ClearCell)));
     }
 
-    /// <summary>
-    /// The cells of every stop's ground: round each building, along each road and track, and the yard's whole throat
-    /// and the facility's own ground beyond its outermost track (where its modules and works stand, Site).
-    /// </summary>
-    static HashSet<(long, long)> Clearance(Route route)
-    {
-        var cells = new HashSet<(long, long)>();
-        void Disc(double s, double d, double r)
-        {
-            for (long i = (long)Math.Floor((s - r) / ClearCell); i <= (long)Math.Floor((s + r) / ClearCell); i++)
-                for (long j = (long)Math.Floor((d - r) / ClearCell); j <= (long)Math.Floor((d + r) / ClearCell); j++)
-                {
-                    double cs = (i + 0.5) * ClearCell, cd = (j + 0.5) * ClearCell;
-                    if (double.Hypot(cs - s, cd - d) <= r + ClearCell * 0.71)
-                        cells.Add((i, j));
-                }
-        }
-        void Line(double start, IReadOnlyList<Pt> points, double r)
-        {
-            for (int i = 0; i + 1 < points.Count; i++)
-            {
-                var a = points[i];
-                var b = points[i + 1];
-                int n = Math.Max(1, (int)Math.Ceiling(Pt.Distance(a, b) / 3));
-                for (int k = 0; k <= n; k++)
-                {
-                    var p = a + (b - a) * ((double)k / n);
-                    Disc(start + p.S, p.D, r);
-                }
-            }
-        }
-        foreach (var f in route.Features)
-        {
-            if (f.Stop is not { } stop)
-                continue;
-            foreach (var b in stop.Buildings)
-                Disc(f.Start + b.S, b.D, double.Hypot(b.Length, b.Width) / 2 + 4);
-            foreach (var road in stop.Roads)
-                Line(f.Start, road.Points, 5);
-            foreach (var track in stop.Tracks)
-                Line(f.Start, track.Path, 8);
-            if (stop.Tracks.Count > 0)
-            {
-                double s0 = stop.Tracks.Min(t => t.Toe) - 10, s1 = stop.Tracks.Max(t => t.FaceEnd.S) + 15;
-                var yard = stop.Tracks.Where(t => !t.Across).ToList();
-                double far = (yard.Count > 0 ? yard.Max(t => t.Offset) : 0) + 45;
-                for (double s = s0; s <= s1; s += ClearCell)
-                    for (double d = 0; d <= far; d += ClearCell)
-                        Disc(f.Start + s, stop.YardSide * d, 0);
-            }
-            if (stop.Halt is { } h)
-                Line(f.Start, [h - new Pt(stop.HaltLength / 2, 0), h + new Pt(stop.HaltLength / 2, 0)], 6);
-        }
-        return cells;
-    }
+    /// <summary>The cells of every stop's ground (the sim's, note 371: what its lineside keeps off too).</summary>
+    static HashSet<(long, long)> Clearance(Route route) => Sim.Run.LinesideProps.StopGround(route);
 
     /// <summary>
     /// Every stop building whose centre is in [<paramref name="from"/>, <paramref name="to"/>), each road stretch that
@@ -116,8 +63,9 @@ public sealed partial class WorldArt
         if (route is null)
             return;
         var k = new Kit(_look, mesh) { SurfaceOrigin = new Vector3(W(eye.X), W(eye.Y), W(eye.Z)) };
-        foreach (var f in route.Features)
+        for (int fi = 0; fi < route.Features.Count; fi++)
         {
+            var f = route.Features[fi];
             if (f.Stop is not { } stop || f.End + 250 < from || f.Start - 250 > to)
                 continue;
             Roads(mesh, line, route, f, stop, eye, from, to, valleyDepth);
@@ -125,13 +73,18 @@ public sealed partial class WorldArt
             {
                 var b = stop.Buildings[i];
                 double along = f.Start + b.S;
-                if (along < from || along >= to)
+                // (A house a creature lives in is drawn by the scene, moved as it moves: WorldArt.Houses.)
+                if (along < from || along >= to || Lifted(route, fi, i))
                     continue;
                 k.Reseed(b.Variant * 7.1f + (float)(b.S * 0.13));
                 Building(k, line, route, f, stop, i, eye, valleyDepth);
+                YardLeavings(mesh, line, route, f, stop, i, eye, valleyDepth);
             }
             if (stop.Halt is { } halt && f.Start + halt.S >= from && f.Start + halt.S < to)
                 Halt(k, line, f, halt, stop.HaltLength, eye);
+            foreach (var siding in stop.Sidings)
+                if (siding.Count > 1 && f.Start + siding[0].S >= from && f.Start + siding[0].S < to)
+                    GoodsSiding(k, line, route, f, siding, eye, valleyDepth);
             OpenRooms(mesh, line, route, f, stop, eye, from, to, valleyDepth);
         }
     }
@@ -167,6 +120,15 @@ public sealed partial class WorldArt
         }
     }
 
+    /// <summary>One of a stop's buildings alone, as <see cref="Stops"/> draws it (for the tests: note 387's doors).</summary>
+    public void StopBuilding(MeshBuilder mesh, RailLine line, Route route, RouteFeature f, int index, Double3 eye, float valleyDepth)
+    {
+        var k = new Kit(_look, mesh) { SurfaceOrigin = new Vector3(W(eye.X), W(eye.Y), W(eye.Z)) };
+        var b = f.Stop!.Buildings[index];
+        k.Reseed(b.Variant * 7.1f + (float)(b.S * 0.13));
+        Building(k, line, route, f, f.Stop, index, eye, valleyDepth);
+    }
+
     /// <summary>
     /// One building, standing on the levelled ground at its footprint: sheds and the hero as works buildings with their
     /// doors to the track they serve (P5, P7); houses one per part of the footprint, each roofed along its longer side
@@ -190,37 +152,60 @@ public sealed partial class WorldArt
                     int door = towards >= b.D ? 1 : -1;
                     bool hero = b.Kind == BuildingKind.Hero;
                     string wall = hero ? "brick_soot" : (b.Variant % 3) switch { 1 => "rust_heavy", _ => "wood_grey" };
-                    float height = hero ? 10 + b.Variant : 6.5f + b.Variant * 0.8f;
+                    float height = YardShedHeight(b);
                     // Where a yard gantry works this shed's bays (P18), its runway is an open bay cut through it: the
                     // castings lie in the open under the hook, the gantry's legs at the ends, the shed either side.
                     var gap = CraneBay(stop, index);
                     k.With(frame, () =>
                     {
-                        double a = -b.Length / 2;
-                        foreach (var (g0, g1) in gap is { } g ? new[] { (a, g.From - b.S), (g.To - b.S, b.Length / 2) } : [(a, b.Length / 2)])
-                        {
-                            double lo = Math.Max(g0, a), hi = Math.Min(g1, b.Length / 2);
-                            if (hi - lo < 3)
-                                continue;
-                            k.With(Kit.At(0, 0, (float)-(lo + hi) / 2), () => StructureKit.Shed(k, width, (float)(hi - lo), height, wall, door));
-                        }
+                        // The shed as the sim stands it, its bay doors open to walk in by (note 387).
+                        ShedShell(k, stop, index, height, wall);
                         if (gap is { } open)
                         {
-                            // The cut: its floor, and the shell of the walls, roofless and below the gantry's rails.
-                            double lo = Math.Max(open.From - b.S, a), hi = Math.Min(open.To - b.S, b.Length / 2);
-                            float z0 = (float)-hi, z1 = (float)-lo, back = -door * width / 2, shell = 4.5f;
+                            // The cut: its floor, and the old wall's footing along its back, flush, where the crew walk and
+                            // the gantry's operator stands (the sim leaves it open, note 279).
+                            double a = -b.Length / 2, lo = Math.Max(open.From - b.S, a), hi = Math.Min(open.To - b.S, b.Length / 2);
+                            float z0 = (float)-hi, z1 = (float)-lo, back = -door * width / 2;
                             k.Use("concrete_stain", Palette.BlueGrey, 0.9f, 0.1f, tile: 2.5f);
                             k.Box(new Vector3(-width / 2, -0.4f, z0), new Vector3(width / 2, 0.15f, z1), Kit.Faces.All & ~Kit.Faces.NegY);
-                            k.Use(wall, wall == "brick_soot" ? Palette.RustRed : Palette.DeepBrown, 0.9f, 0.1f, tile: 1.5f);
-                            k.Box(new Vector3(MathF.Min(back, back + door * 0.3f), 0.15f, z0), new Vector3(MathF.Max(back, back + door * 0.3f), shell, z1));
-                            // An end wall where the cut reaches the shed's end (elsewhere the roofed part's gable closes it).
-                            foreach (var (edge, reaches) in new[] { (z0, hi >= b.Length / 2 - 0.01), (z1, lo <= a + 0.01) })
-                                if (reaches)
-                                    k.Box(new Vector3(-width / 2, 0.15f, edge - 0.15f), new Vector3(width / 2, shell * 0.7f, edge + 0.15f));
+                            k.Use("stone_block", Palette.Charcoal, 0.8f, 0.1f, tile: 2.5f);
+                            k.Box(new Vector3(MathF.Min(back, back + door * 0.3f), 0.15f, z0), new Vector3(MathF.Max(back, back + door * 0.3f), 0.2f, z1),
+                                Kit.Faces.All & ~Kit.Faces.NegY);
                         }
                     });
                     break;
                 }
+            case BuildingKind.Barn or BuildingKind.Outbuilding or BuildingKind.GoodsShed or BuildingKind.Station or BuildingKind.Powerhouse
+                when Sim.Run.StopWalls.OpenShed(b) && Sim.Run.StopWalls.Shelled(stop, index) && stop.Holdouts.All(h => h.Building != index):
+                // Open (note 417): walked into by its wide door, its hayloft or workbench inside; a station (note 493) its
+                // booking hall, the booking office's counter at the back, and its canopy kept over the door to the line; a
+                // powerhouse (note 509) its engine and switchboard at the back, the engine's stack up through the roof.
+                {
+                    // The ground climbs away from the line (the valley's sides): its floor is laid over the highest of it under
+                    // the footprint, so the far side's earth doesn't come up through it.
+                    float centre = Ground(route, along, (float)b.D, valleyDepth), rise = 0;
+                    foreach (double cx in new[] { -0.5, 0.5 })
+                        foreach (double cy in new[] { -0.5, 0.5 })
+                        {
+                            var p = Sim.Run.StopWalls.InHouse(b, cx * b.Length, cy * b.Width);
+                            rise = MathF.Max(rise, Ground(route, f.Start + p.S, (float)p.D, valleyDepth) - centre);
+                        }
+                    string wall = b.Kind == BuildingKind.Powerhouse ? "brick_soot" : b.Kind == BuildingKind.Station ? b.Variant == 1 ? "wood_grey" : "brick_soot"
+                        : b.Kind == BuildingKind.Outbuilding && b.Variant == 1 || b.Kind == BuildingKind.GoodsShed && b.Variant == 1 ? "rust_heavy" : "wood_grey";
+                    k.With(frame, () => OpenShed(k, stop, index, OpenShedHeight(b.Kind), wall, rise));
+                    if (b.Kind == BuildingKind.Station)
+                        k.With(frame, () => StationCanopy(k, width, length, Sim.Run.StopWalls.ShedDoorSide(b)));
+                    if (b.Kind == BuildingKind.Powerhouse)
+                        k.With(frame, () =>
+                        {
+                            // The stack over the engine (a quarter along, the back wall's side), from the roof up.
+                            int door = Sim.Run.StopWalls.ShedDoorSide(b);
+                            k.Use("brick_soot", Palette.RustRed, 0.9f, 0.1f, tile: 1.2f);
+                            k.Cylinder(new Vector3(-door * (width / 2 - 1.2f), OpenShedHeight(b.Kind) - 0.4f, length / 4),
+                                new Vector3(-door * (width / 2 - 1.2f), 14, length / 4), 0.7f, 8, radiusB: 0.5f);
+                        });
+                }
+                break;
             case BuildingKind.Barn:
                 k.With(frame, () => StructureKit.Shed(k, width, length, 6.5f, "wood_grey", b.Variant % 2 == 0 ? 1 : -1));
                 break;
@@ -230,6 +215,22 @@ public sealed partial class WorldArt
                 break;
             case BuildingKind.Well:
                 k.With(frame, () => Well(k));
+                break;
+            case BuildingKind.Station:
+                // A dead town's station (note 302), shut: a brick booking hall behind the platform, its door and a canopy to the line.
+                k.With(frame, () =>
+                {
+                    int door = b.D > 0 ? -1 : 1;
+                    StructureKit.Shed(k, width, length, 5.2f, b.Variant == 1 ? "wood_grey" : "brick_soot", door);
+                    StationCanopy(k, width, length, door);
+                });
+                break;
+            case BuildingKind.GoodsShed:
+                // The goods shed: a tall timber shed, its doors to the siding (and the line beyond it).
+                k.With(frame, () => StructureKit.Shed(k, width, length, 7f, b.Variant == 1 ? "rust_heavy" : "wood_grey", b.D > 0 ? -1 : 1));
+                break;
+            case BuildingKind.Derelict:
+                k.With(frame, () => DerelictVan(k, length, b.Variant));
                 break;
             case BuildingKind.Powerhouse:
                 // The yard's powerhouse (level-design D.2): a brick engine house, its door to the main line, a tall
@@ -248,13 +249,20 @@ public sealed partial class WorldArt
                     // Which way its door faces in the kit's frame (the building's axis is −Z, across it +X).
                     var (dx, dy) = Local(b, holdout.Door);
                     var facing = Math.Abs(dx) / b.Length > Math.Abs(dy) / b.Width ? new Vector3(0, 0, (float)-Math.Sign(dx)) : new Vector3((float)Math.Sign(dy), 0, 0);
-                    k.With(frame, () => Holdout(k, b, facing));
+                    k.With(frame, () => Holdout(k, stop, index, facing));
                     var lampAt = Sim.Run.Run.StopWorld(line, f, holdout.Lamp, Ground(route, f.Start + holdout.Lamp.S, (float)holdout.Lamp.D, valleyDepth) + LampHeight(b.Kind));
                     k.With(Basis(t.Tangent, lampAt, eye, 0), () => LampFixture(k, (float)LampHeight(b.Kind)));
                 }
                 break;
             default:
                 {
+                    // An open house (note 326): its walls, its door and what's inside, as the sim stands them.
+                    if (b.Open)
+                    {
+                        k.With(frame, () => TownKit.OpenHouse(k, b, stop.Containers.Where(c => c.Building == index),
+                            Sim.Run.StopWalls.ClutterOf(stop, index), Sim.Run.StopWalls.Nest(stop, index)));
+                        break;
+                    }
                     // The layout's footprint parts are (x along its axis, y across); the kit's frame has its axis on −Z.
                     var parts = b.Parts.Count > 0 ? b.Parts : [new FootprintPart(0, 0, b.Length, b.Width)];
                     for (int i = 0; i < parts.Count; i++)
@@ -288,6 +296,14 @@ public sealed partial class WorldArt
         return null;
     }
 
+    /// <summary>A station's iron canopy over its side to the line (<paramref name="door"/>, ±1 across it in the kit's frame).</summary>
+    static void StationCanopy(Kit k, float width, float length, int door)
+    {
+        k.Use("rust_heavy", Palette.IronGrey, 0.9f, 0.3f);
+        float edge = door * width / 2;
+        k.Box(new Vector3(MathF.Min(edge, edge + door * 2.6f), 3.3f, -length / 2 + 1), new Vector3(MathF.Max(edge, edge + door * 2.6f), 3.45f, length / 2 - 1));
+    }
+
     /// <summary>A village well: a round stone kerb, two posts and the winding bar across.</summary>
     static void Well(Kit k)
     {
@@ -318,6 +334,63 @@ public sealed partial class WorldArt
         });
         if (_props.Get("lamp_post") is { } post)
             k.Append(post, Basis(t.Tangent, t.Position + Double3.Cross(t.Tangent, Double3.Up).Normalized * (side * ((float)Math.Abs(halt.D) + 1.6)) - t.Tangent * (half - 2), eye, 0));
+    }
+
+    /// <summary>
+    /// A dead town's goods siding (note 302): sleepers and two rusted rails, its points long lifted, a buffer stop at its far
+    /// end (up the line), where the derelicts stand.
+    /// </summary>
+    void GoodsSiding(Kit k, RailLine line, Route route, RouteFeature f, IReadOnlyList<Pt> siding, Double3 eye, float valleyDepth)
+    {
+        var a = siding[0];
+        var b = siding[^1];
+        var mid = new Pt((a.S + b.S) / 2, (a.D + b.D) / 2);
+        var t = line.Sample(Math.Clamp(f.Start + mid.S, 0, line.Length));
+        var at = Sim.Run.Run.StopWorld(line, f, mid, Ground(route, f.Start + mid.S, (float)mid.D, valleyDepth) - 0.1);
+        float half = (float)(b.S - a.S) / 2;
+        k.With(Basis(t.Tangent, at, eye, 0), () =>
+        {
+            k.Use("wood_sleeper", Palette.DeepBrown, 0.8f, 0, tile: 1.3f);
+            for (float z = -half + 0.4f; z < half; z += 0.75f)
+                k.Box(new Vector3(-1.3f, -0.05f, z - 0.12f), new Vector3(1.3f, 0.07f, z + 0.12f), Kit.Faces.All & ~Kit.Faces.NegY);
+            k.Use("rust_heavy", Palette.IronGrey, 0.9f, 0.4f);
+            foreach (int side in new[] { -1, 1 })
+                k.Box(new Vector3(side * TrainKit.HalfGauge - 0.035f, 0.07f, -half), new Vector3(side * TrainKit.HalfGauge + 0.035f, 0.19f, half));
+            // The buffer stop at its far end (−Z is up the line): a timber beam on two posts.
+            k.Use("wood_grey", Palette.DeepBrown, 0.9f, 0.1f, tile: 1);
+            k.Box(new Vector3(-1.2f, 0.6f, -half - 0.4f), new Vector3(1.2f, 1.1f, -half));
+            foreach (int side in new[] { -1, 1 })
+                k.Box(new Vector3(side * 0.9f - 0.15f, 0, -half - 0.6f), new Vector3(side * 0.9f + 0.15f, 1.1f, -half - 0.3f));
+        });
+    }
+
+    /// <summary>
+    /// A derelict van on a dead town's goods siding (linegen plan §11.3 "derelict stock"; note 302): a box van left where it
+    /// stood, its paint gone to rust, a door hanging open on the dark inside (variant 1), or slid off its runner (2).
+    /// </summary>
+    static void DerelictVan(Kit k, float length, int variant)
+    {
+        float half = length / 2, w = 1.5f, floor = 1.1f, top = 3.5f;
+        k.Use("wheel_iron", Palette.IronGrey, 0.8f, 0.4f, tile: 0.5f);
+        foreach (float z in new[] { -half + 2.2f, half - 2.2f })
+        {
+            k.Box(new Vector3(-1.1f, 0.3f, z - 1.2f), new Vector3(1.1f, 0.9f, z + 1.2f));
+            foreach (float dz in new[] { -0.8f, 0.8f })
+                foreach (int side in new[] { -1, 1 })
+                    k.Cylinder(new Vector3(side * TrainKit.HalfGauge - 0.06f, 0.5f, z + dz), new Vector3(side * TrainKit.HalfGauge + 0.06f, 0.5f, z + dz), 0.45f, 10);
+        }
+        k.Use(variant == 2 ? "wood_grey" : "rust_heavy", variant == 2 ? Palette.DeepBrown : Palette.RustRed, 0.95f, 0.2f, tile: 1.5f);
+        k.Box(new Vector3(-w, floor, -half), new Vector3(w, top, half), Kit.Faces.All & ~Kit.Faces.NegY);
+        // The sliding door's opening on each side: dark, a leaf hanging or gone.
+        k.Use("paint_black", Palette.SootBlack, 0.95f, 0);
+        k.Shade(0.25f);
+        foreach (int side in new[] { -1, 1 })
+            if (variant != 0 || side > 0)
+                k.Panel(new Vector3(side * (w + 0.005f), floor + 1.15f, 0), new Vector3(side, 0, 0), Vector3.UnitY, 2.2f, 2.1f);
+        k.Use("rust_heavy", Palette.IronGrey, 0.9f, 0.4f);
+        if (variant == 2)
+            // Slid off its runner: lying against the side, top out.
+            k.With(Matrix4x4.CreateRotationZ(0.35f) * Matrix4x4.CreateTranslation(w + 0.45f, 0.1f, 1.6f), () => k.Box(new Vector3(-0.04f, 0, -1.1f), new Vector3(0.04f, 2.2f, 1.1f)));
     }
 
     /// <summary>

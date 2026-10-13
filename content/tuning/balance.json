@@ -8,9 +8,10 @@
   // "...non-trivial at 8": an eight-crew's night sees at least this many punishes (a threat landing) on average.
   "nonTrivialCrew": 8,
   "nonTrivialPunishes": 5,
-  // The pace (after the 100-night playtest: "a reward or a problem every 30 s at most, ideally 20"): no night quiet out on
-  // the line longer than this, and quiet stretches no longer than this on average.
-  "maxQuietSeconds": 30,
+  // The pace: no night quiet out on the line longer than this, and quiet stretches no longer than meanQuietSeconds on
+  // average. The 100-night playtest's "a reward or a problem every 30 s at most, ideally 20" gave way to the director's
+  // decision of 6 Oct 2026 (note 266): a quiet spell is 20–90 s (enemies.json director.graceMaxSeconds).
+  "maxQuietSeconds": 90,
   "meanQuietSeconds": 20,
 
   // GDD §34 "Combination fairness: every pair and triple in the roster against every hazard set. Flag unwinnable or
@@ -45,8 +46,11 @@
     // for what's sent at a crew on foot, then walks to within gauntM of a sleeping Gaunt (it wakes at enemies.json wakeAt 4)
     // or ribbitM of a Ribbit pack (away from the others: outnumbered), if it's within seekM; up on the roofs it stays out
     // there (not in for a bag) and stands edgeM in from the lip over a Dragger (it reaches draggers.grabRange 1.0 in). Once
-    // each, then back to its post. DESIGN-TODO: first pass; a curious player, roughly.
-    "look": { "waitSeconds": 12, "seekM": 80, "gauntM": 3, "ribbitM": 5, "edgeM": 0.6 },
+    // each, then back to its post. A Moose (note 339) it walks up to mooseM of, inside its crowding, and stands gawking
+    // (a curious player who won't give it room). Tower Jaw at its post it walks to towerJawM of, and the Freight Beetle to
+    // beetleM of: inside where the crew's answer takes over (enemies.json crewBots, note 367). DESIGN-TODO: first pass; a
+    // curious player, roughly.
+    "look": { "waitSeconds": 12, "seekM": 80, "gauntM": 3, "ribbitM": 5, "mooseM": 10, "towerJawM": 20, "beetleM": 12, "edgeM": 0.6 },
     // §22: "hazards remove your tools. They never change enemy rules." What each set takes away, laid over the line:
     // adhesion (wet rail; 0.75 is the generator's wettest, linegen tiers.json wetBiasAdhesion), coldStep (deep cold, added
     // to the line's), wind (gunfire carries; 1 is Deep Territory's worst night), lampsOut (§23 "lights fail": the forward
@@ -84,5 +88,18 @@
   // note 186): each creature's grab at each of crews, the friends standing standOffM off, or beyondAloneM past the
   // creature's own "alone" radius where it has one (so it still takes the victim), with what players carry. The grab has to
   // begin within grabWithinSeconds of the rig being set.
-  "grabs": { "crews": [2, 3, 4, 5, 6, 7, 8], "standOffM": 4, "beyondAloneM": 1, "grabWithinSeconds": 75 }
+  "grabs": { "crews": [2, 3, 4, 5, 6, 7, 8], "standOffM": 4, "beyondAloneM": 1, "grabWithinSeconds": 75 },
+
+  // GDD App. F.1 (the director, 6 Oct 2026): "a solo player can finish one to three runs before it gets seriously hard and
+  // they realise they need friends ... you can't really advance solo" (note 300; dt balance --crews 1). Judged on a sweep's
+  // crew-of-one nights: the first runs' line and train (Systems Spec F.4 "Early": startTier, startCars) get home at least
+  // startDelivered of the time; where a crew advances to (F.4 "Establishing": hardTier, hardCars) at most hardDelivered.
+  // DESIGN-TODO: first pass, and the bot's a diligent solo player (it never forgets the fire); people will find it harder.
+  "solo": { "startTier": "local", "startCars": 3, "startDelivered": 0.66, "hardTier": "frontier", "hardCars": 6, "hardDelivered": 0.34 },
+
+  // The orchestrator's pacing targets (docs/design/orchestrator.md §4; ARCHITECTURE §8 note 379), first pass, advisory: flagged
+  // in the report, never failing the sweep, until the director sets them. P1: no crewmate spends more than slackOverSeconds
+  // a night at or past the census's slackPress (enemies.json director.orchestrator; note 345), on the run between stops. P3:
+  // something engaged for engaged[0]..engaged[1] of the night out on the line (1 - the harness's pacing quietShare).
+  "pacing": { "advisory": true, "slackOverSeconds": 30, "engaged": [0.45, 0.60] }
 }

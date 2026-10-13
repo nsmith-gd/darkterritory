@@ -4,7 +4,8 @@ using DarkTerritory.Sim.Train;
 namespace DarkTerritory.Game.Sound;
 
 /// <summary>The walls' numbers (<c>content/audio/walls.json</c>; field docs there).</summary>
-public sealed record WallsTuning(double OpenWall = 0.6, double OpeningMargin = 0.15, double BreachRadius = 0.9)
+public sealed record WallsTuning(double OpenWall = 0.6, double OpeningMargin = 0.15, double BreachRadius = 0.9, double ShedWall = 0.35,
+    double RoomWall = 0.8, double RoomEdge = 0.5)
 {
     public const string File = "audio/walls.json";
 }

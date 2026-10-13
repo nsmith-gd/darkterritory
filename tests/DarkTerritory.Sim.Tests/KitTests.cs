@@ -23,7 +23,8 @@ public class KitTests
         foreach (var s in new[] { PlayerMotor.SpawnInCab(train, p), PlayerMotor.SpawnOnRoof(train, 2, 0, p), PlayerMotor.SpawnOnGround(train.Line.Sample(RailLine.MainPath, 480).Position + new Double3(3, 0, 0), train.Line, 480, p) })
         {
             Assert.Equal(Tool.Crowbar, Kit.Held(s));
-            Assert.Equal(Kit.Of([Tool.Crowbar]), s.Kit);
+            // And a wrench beside it (note 301: the repair tool).
+            Assert.Equal(Kit.Of([Tool.Crowbar, Tool.Wrench]), s.Kit);
         }
     }
 
@@ -36,7 +37,7 @@ public class KitTests
         Kit.Select(ref s, new PlayerIntent { Select = 2 });
         Assert.Equal(Tool.Shovel, Kit.Held(s));
         // An empty slot by its key: hands free.
-        Kit.Select(ref s, new PlayerIntent { Select = 6 });
+        Kit.Select(ref s, new PlayerIntent { Select = 4 });
         Assert.Equal(Tool.None, Kit.Held(s));
         // The wheel skips empty slots, both ways, round the end.
         Kit.Select(ref s, new PlayerIntent { Cycle = 1 });
@@ -50,10 +51,10 @@ public class KitTests
     [Fact]
     public void AToolIsAWholeBlowAndAFistAFractionOfOne()
     {
+        // Note 275: each tool its own blow (MeleeTests); every one of them more than a fist.
         var melee = Tuning.Enemies.Melee;
-        Assert.Equal(melee.Damage, melee.Blow(Tool.Crowbar));
-        Assert.Equal(melee.Damage, melee.Blow(Tool.Shovel));
-        Assert.True(melee.Blow(Tool.None) < melee.Damage);
+        foreach (var tool in new[] { Tool.Crowbar, Tool.Shovel, Tool.Wrench })
+            Assert.True(melee.Blow(Tool.None) < melee.Blow(tool));
     }
 
     [Fact]

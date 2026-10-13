@@ -30,7 +30,8 @@ public class HoldoutTests
         public readonly List<HoldoutEvent> Events = [];
         public PlayerIntent[] Intents = [];
 
-        public Night(Func<RouteFeature, bool> pick, double engineFrom, RouteTier tier = RouteTier.Frontier)
+        /// <param name="wrench">Note 301's <c>repair.wrench</c>: the wrench in hand opens a lock quietly. Off, the repair kit does (D.7).</param>
+        public Night(Func<RouteFeature, bool> pick, double engineFrom, RouteTier tier = RouteTier.Frontier, bool wrench = true)
         {
             for (ulong seed = 1; ; seed++)
             {
@@ -39,7 +40,8 @@ public class HoldoutTests
                     continue;
                 Site = site;
                 Route = route;
-                Train = new TrainOnLine(new TrainDynamics(Consist.Uniform(Tuning.Train, 3, 0)), route.Build(), site.Start + engineFrom, Tuning.Boiler);
+                var t = Tuning.Train with { Repair = Tuning.Train.Repair with { Wrench = wrench } };
+                Train = new TrainOnLine(new TrainDynamics(Consist.Uniform(t, 3, 0)), route.Build(), site.Start + engineFrom, Tuning.Boiler);
                 World = new World(Train, Tuning.Combat);
                 World.EnableBodies();
                 World.EnableRun(Tuning.Run, route, 600, authority: true);
@@ -157,6 +159,78 @@ public class HoldoutTests
         // D.14 "no open-world spawns": inside the Holdout, never out in the open.
         Assert.True((back.Position - h.Inside).Length < 0.01);
         Assert.DoesNotContain(n.World.Holdouts!.Queue, e => e.PlayerId == dead);
+    }
+
+    [Theory]
+    [InlineData(270)]
+    [InlineData(-60)]
+    public void ACrewmateBrokenOutWalksRoundTheHoldoutsWallsAndBackAboard(double engineFrom)
+    {
+        // Note 533 (frontier:7 seed 13): a walker freed from the Holdout at km 10, with no stop's part to go back aboard by,
+        // took the walker's own way to the nearest ladder, a straight line, and ran into the Holdout's wall for two minutes.
+        // The driver went on, and the Ribbits had it on the line.
+        var n = new Night(AHalt, engineFrom);
+        int living = n.Add(alive: true), dead = n.Add(alive: false);
+        n.Step(0.2);
+        var h = Assert.Single(n.Here);
+        n.Stand(living, h.Door);
+        n.Hold(living, PlayerButtons.Use);
+        n.Step(h.Breach(H).Seconds + 0.2);
+        Assert.Equal(HoldoutState.Freed, h.State);
+
+        var calls = new Bots.CrewCalls();
+        var bot = new Bots.RoofWalkerBot(21, P.Cold, new Bots.StopHand(Bots.StopJob.Crates, calls, 1, P.Cold)) { Me = dead };
+        var s = n[dead];
+        var from = s.Position;
+        double bound = 30 + ((h.Door - n.Train.Frames[1].Origin) with { Y = 0 }).Length / P.Walk * 1.5;
+        for (uint tick = 0; tick < bound * SimConstants.TickRate && s.Parent == PlayerState.World; tick++)
+        {
+            n.World.BeginTick();
+            var intent = bot.Decide(s, n.World, tick, out _);
+            n.World.CrewAct(ref s, intent, dead);
+            n.World.Step(new TrainControls { Brake = 1 });
+            PlayerMotor.Step(ref s, intent, n.Train, P, Tuning.Train, SimConstants.TickSeconds, applyLook: false);
+            Assert.True(s.Alive, $"died of {s.Death}");
+        }
+        Assert.True(s.Parent != PlayerState.World,
+            $"still on the ground after {bound:0} s, {(s.Position - from).Length:0.0} m from the Holdout's inside; doing {bot.Job!.Doing}");
+    }
+
+    /// <summary>
+    /// Note 620 (deadLines:7 seed 4): within 10 m of a Holdout's door, a hand going to breach it took the track-side walk,
+    /// which keeps to the track's own across and along. With the door on the far side of the house it walked into the wall
+    /// and stood there, 6.7 m short, while the driver stood its give-up out and the crewmate in it was left. A door well off
+    /// the track is gone to by the foot path, round the walls, from however near.
+    /// </summary>
+    [Fact]
+    public void FromBehindTheHoldoutAHandGoesRoundToItsDoorAndBreachesIt()
+    {
+        var n = new Night(AHalt, 270);
+        int living = n.Add(alive: true), dead = n.Add(alive: false);
+        n.Step(0.2);
+        var h = Assert.Single(n.Here);
+        Assert.True(h.Lit);
+        // Behind the house from its door, on the ground, nearer than the foot path's 10 m.
+        var into = (h.Inside - h.Door) with { Y = 0 };
+        double depth = into.Length;
+        var behind = h.Door + into.Normalized * (depth * 2 + 1.5);
+        Assert.InRange(((behind - h.Door) with { Y = 0 }).Length, 2, 10);
+        n.Stand(living, behind);
+        var hand = new Bots.StopHand(Bots.StopJob.Crates, new Bots.CrewCalls(), living, P.Cold);
+        var s = n[living];
+        double closest = double.MaxValue;
+        for (uint tick = 0; tick < 60 * SimConstants.TickRate && h.State != HoldoutState.Freed; tick++)
+        {
+            var intent = hand.Breach(s, n.World, h) ?? default;
+            n.Intents = new PlayerIntent[n.Crew.Count];
+            n.Intents[living] = intent;
+            PlayerMotor.Step(ref s, intent, n.Train, P, Tuning.Train, SimConstants.TickSeconds, applyLook: false);
+            n[living] = s;
+            n.Step(SimConstants.TickSeconds);
+            s = n[living];
+            closest = Math.Min(closest, ((s.Position - h.Door) with { Y = 0 }).Length);
+        }
+        Assert.True(h.State == HoldoutState.Freed, $"{h.State} after 60 s; the hand came within {closest:0.0} m of the door");
     }
 
     [Fact]
@@ -372,7 +446,7 @@ public class HoldoutTests
     public void TheRepairKitOpensALockSilentlyAndSlowerThanASmash()
     {
         // D.7 "open lock: repair kit in hand, 6 s, no noise". Held at the door, Use works the lock and the kit stays in hand.
-        var n = new Night(ALock, engineFrom: -300);
+        var n = new Night(ALock, engineFrom: -300, wrench: false);
         var (living, h, kit) = KitAtTheDoor(n);
         double loud = n.World.Choir.Loudness;
         n.Hold(living, PlayerButtons.Use);
@@ -392,7 +466,7 @@ public class HoldoutTests
     public void TheKitIsNoHelpAtABarricade()
     {
         // A shelter's barricade is pried, loud, kit or no kit; and it stays in hand.
-        var n = new Night(ABarricade, engineFrom: -300);
+        var n = new Night(ABarricade, engineFrom: -300, wrench: false);
         var (living, h, kit) = KitAtTheDoor(n);
         double loud = n.World.Choir.Loudness;
         n.Hold(living, PlayerButtons.Use);
@@ -404,10 +478,127 @@ public class HoldoutTests
         Assert.True(n.World.Choir.Loudness > loud);
     }
 
+    [Theory]
+    [InlineData(true)]
+    [InlineData(false)]
+    public void EmptyHandsSmashNoLockAndPryNoBarricade(bool lockUp)
+    {
+        // D.7: smash and pry are "any melee tool: shovel, wrench, crowbar" (note 275). A slot picked with nothing in it is
+        // empty hands: Use at the door does nothing.
+        var n = new Night(lockUp ? ALock : ABarricade, engineFrom: -300);
+        int living = n.Add(alive: true);
+        n.Add(alive: false);
+        n.Step(0.2);
+        var h = n.Here.Single();
+        n.Stand(living, h.Door);
+        n[living] = n[living] with { HeldSlot = 3 };
+        Assert.Equal(Tool.None, Kit.Held(n[living]));
+        n.Hold(living, PlayerButtons.Use);
+        n.Step(1);
+        Assert.Equal(HoldoutState.Occupied, h.State);
+        Assert.Equal(0, h.Progress);
+    }
+
+    [Theory]
+    [InlineData(Tool.Shovel)]
+    [InlineData(Tool.Wrench)]
+    [InlineData(Tool.Crowbar)]
+    public void AnyMeleeToolBreaches(Tool tool)
+    {
+        var n = new Night(ALock, engineFrom: -300);
+        int living = n.Add(alive: true);
+        n.Add(alive: false);
+        n.Step(0.2);
+        var h = n.Here.Single();
+        n.Stand(living, h.Door);
+        n[living] = n[living] with { Kit = Kit.Of([tool]), HeldSlot = 0 };
+        n.Hold(living, PlayerButtons.Use);
+        // The wrench opens it quietly instead, and slower (note 301: what the kit did).
+        n.Step((tool == Tool.Wrench ? H.Open.Seconds : H.Smash.Seconds) + 0.2);
+        Assert.Equal(HoldoutState.Freed, h.State);
+    }
+
+    [Fact]
+    public void TheWrenchOpensALockSilentlyAndTheCrowbarSmashesIt()
+    {
+        // Note 301: the kit's gone; the wrench in hand is what opens a lock quietly (D.7's "open lock ... 6 s, no noise").
+        var n = new Night(ALock, engineFrom: -300);
+        int living = n.Add(alive: true);
+        n.Add(alive: false);
+        n.Step(0.2);
+        var h = n.Here.Single();
+        n.Stand(living, h.Door);
+        n[living] = n[living] with { HeldSlot = 1 };
+        Assert.Equal(Tool.Wrench, Kit.Held(n[living]));
+        double loud = n.World.Choir.Loudness;
+        n.Hold(living, PlayerButtons.Use);
+        n.Step(H.Smash.Seconds + 0.2);
+        Assert.Equal(HoldoutState.Breaching, h.State);
+        Assert.True(h.Quiet);
+        Assert.Equal(loud, n.World.Choir.Loudness);
+        n.Step(H.Open.Seconds - H.Smash.Seconds);
+        Assert.Equal(HoldoutState.Freed, h.State);
+        Assert.Equal(loud, n.World.Choir.Loudness);
+        // The crowbar (slot 1) smashes it: quicker, and loud.
+        var c = new Night(ALock, engineFrom: -300);
+        int smasher = c.Add(alive: true);
+        c.Add(alive: false);
+        c.Step(0.2);
+        var lockUp = c.Here.Single();
+        c.Stand(smasher, lockUp.Door);
+        Assert.Equal(Tool.Crowbar, Kit.Held(c[smasher]));
+        c.Hold(smasher, PlayerButtons.Use);
+        c.Step(0.5);
+        Assert.False(lockUp.Quiet);
+        Assert.Equal(H.Smash, lockUp.Breach(H));
+    }
+
+    [Fact]
+    public void TheKitOpensALockInEmptyHandsButIsNoToolForABarricade()
+    {
+        // The kit's silent breach is the kit's (D.7): no melee tool needed for it. At a barricade it's a pry, and that is.
+        var n = new Night(ALock, engineFrom: -300, wrench: false);
+        var (living, h, _) = KitAtTheDoor(n);
+        n[living] = n[living] with { HeldSlot = 3 };
+        n.Hold(living, PlayerButtons.Use);
+        n.Step(H.Open.Seconds + 0.2);
+        Assert.Equal(HoldoutState.Freed, h.State);
+        var b = new Night(ABarricade, engineFrom: -300, wrench: false);
+        var (prier, barricade, _) = KitAtTheDoor(b);
+        b[prier] = b[prier] with { HeldSlot = 3 };
+        b.Hold(prier, PlayerButtons.Use);
+        b.Step(1);
+        Assert.Equal(HoldoutState.Occupied, barricade.State);
+    }
+
+    [Fact]
+    public void ABotAtTheDoorWithEmptyHandsTakesItsToolUpAndBreaches()
+    {
+        var n = new Night(ALock, engineFrom: -300);
+        int living = n.Add(alive: true);
+        n.Add(alive: false);
+        n.Step(0.2);
+        var h = n.Here.Single();
+        n.Stand(living, h.Door);
+        n[living] = n[living] with { HeldSlot = 3 };
+        var hand = new Bots.StopHand(Bots.StopJob.None, new Bots.CrewCalls(), living);
+        for (int t = 0; t < (H.Smash.Seconds + 1) * SimConstants.TickRate && h.State != HoldoutState.Freed; t++)
+        {
+            var intent = hand.Breach(n[living], n.World, h) ?? default;
+            n.Intents = [.. Enumerable.Range(0, n.Crew.Count).Select(i => i == living ? intent : default)];
+            n.Step(1.0 / SimConstants.TickRate);
+            var s = n[living];
+            Kit.Select(ref s, intent);
+            n[living] = s;
+        }
+        Assert.Equal(Tool.Crowbar, Kit.Held(n[living]));
+        Assert.Equal(HoldoutState.Freed, h.State);
+    }
+
     [Fact]
     public void PutDownPartWayTheLockIsSmashedFromTheStart()
     {
-        var n = new Night(ALock, engineFrom: -300);
+        var n = new Night(ALock, engineFrom: -300, wrench: false);
         var (living, h, kit) = KitAtTheDoor(n);
         n.Hold(living, PlayerButtons.Use);
         n.Step(H.Open.Seconds * 0.8);
@@ -445,7 +636,7 @@ public class HoldoutTests
     [Fact]
     public void AClientSeesTheLockOpenedQuietly()
     {
-        var n = new Night(ALock, engineFrom: -300);
+        var n = new Night(ALock, engineFrom: -300, wrench: false);
         var (living, h, _) = KitAtTheDoor(n);
         n.Hold(living, PlayerButtons.Use);
         n.Step(1);
@@ -463,7 +654,9 @@ public class HoldoutTests
     public void TheTrainLeavesWithItsRepairKitInCarOne()
     {
         // A guard van and all: the kit rides in the first car behind the engine (train.json kit.repairKitCar), not with the stores.
-        var world = new World(new TrainOnLine(new TrainDynamics(Consist.Uniform(Tuning.Train, 6, 1)),
+        // (Where the kit's still the repair tool: note 301's repair.wrench off.)
+        var kitRule = Tuning.Train with { Repair = Tuning.Train.Repair with { Wrench = false } };
+        var world = new World(new TrainOnLine(new TrainDynamics(Consist.Uniform(kitRule, 6, 1)),
             new Rail.RailLine(new Rail.LineDefinition("t", [new Rail.TrackSegment(50_000)])), 1_000));
         world.EnableBodies();
         world.Stock();
@@ -473,7 +666,7 @@ public class HoldoutTests
         var shape = world.Train.Frames[1].Shape;
         Assert.True(shape.Interior!.Value.Contains(kit.Centre));
         // In the fitter's locker (note 173): inside its cabinet, and no other solid.
-        Assert.Equal("FITTER", shape.Lockers[kit.Locker].Name);
+        Assert.Equal("8", shape.Lockers[kit.Locker].Name);
         Assert.DoesNotContain(shape.Solids, s => s.Box.Contains(kit.Centre) && s.Box != shape.Lockers[kit.Locker].Box);
     }
 
@@ -530,7 +723,7 @@ public class HoldoutTests
             var report = Deliver(n);
             Assert.Equal(deaths, report.Deaths);
             Assert.Equal(recovered, report.BodiesHome);
-            double fee = H.CrewLossFee * Tuning.Run.Economy.PerCar["frontier"];
+            double fee = H.CrewLossFee * Tuning.Run.Economy.FeeFor("frontier");
             Assert.Equal(Math.Round(deaths * fee), report.CrewLossFees);
             Assert.Equal(Math.Round(recovered * H.BodyRefund * fee), report.BodyRefunds);
             clean ??= report.Net;
@@ -569,13 +762,14 @@ public class HoldoutTests
         readonly Bots.CrewCalls _calls = new();
         uint _t;
 
-        public BotNight(int bots)
+        /// <param name="pick">The stop to come to (by default a Halt), with nothing just short of it to stop for first.</param>
+        public BotNight(int bots, Func<RouteFeature, bool>? pick = null)
         {
             for (ulong seed = 1; ; seed++)
             {
                 var route = RouteGenerator.Generate(Tuning.Route, RouteTier.Frontier, seed);
                 // A Halt with nothing just short of it to stop for first.
-                if (route.Features.FirstOrDefault(f => f.Stop is not null && AHalt(f) && f.Start > 2_000
+                if (route.Features.FirstOrDefault(f => f.Stop is not null && (pick ?? AHalt)(f) && f.Start > 2_000
                         && !route.Features.Any(o => o != f && o.End > f.Start - 1_000 && o.Start < f.End)) is not { } site)
                     continue;
                 Route = route;
@@ -603,7 +797,7 @@ public class HoldoutTests
         }
 
         public byte PlayerId => Player.PlayerId!.Value;
-        public Holdout Lockup => Host.World.Holdouts!.All.Single(h => h.Site == Site);
+        public Holdout Lockup => Host.World.Holdouts!.All.First(h => h.Site == Site);
         public PlayerState Of(byte id) => Host.Players.First(p => p.Id == id).State;
 
         /// <summary>Runs the night on, each tick calling <paramref name="watch"/>; stops early once <paramref name="until"/> holds.</summary>
@@ -699,6 +893,34 @@ public class HoldoutTests
         Assert.True((back.Position - lockup.Inside).Length < 1);
         // And the driver's back up in the cab and away (the one playing climbs aboard as they like; it waits a while for them).
         n.Run(300, until: () => n.Host.Train.Dynamics.Distance > outAt + 50);
+        Assert.True(PlayerMotor.InCab(n.Of(driverId), n.Host.Train), "back in the cab");
+        Assert.False(driver.BreachingAlone);
+        Assert.True(n.Host.Train.Dynamics.Distance > outAt + 50, $"drove on: {n.Host.Train.Dynamics.Distance - outAt:0} m from where it stood");
+    }
+
+    [Fact]
+    public void ALoneDriverGoesRoundTheTreesToALockupFarOffTheLineAndBackToTheCab()
+    {
+        // Note 406 (queue #142): a Holdout's door off the line, behind the lineside spruce (note 371). The driver went at it by
+        // the track-side walk, which keeps to the line's own along and across: into the trees, along them the wrong way, and
+        // out there till the dawn with the train on its brake (frontier:7, seed 2, a facility's lockup 160 m off). By the
+        // foot path, round the trees, and back by it to the cab. Note 650: a facility's Holdout now stands beside its yard
+        // track, so the furthest off the main line is that track's way off it (60 m and more).
+        var n = new BotNight(bots: 1, f => f.Kind == FeatureKind.Facility && Math.Abs(f.Stop!.Holdouts[0].Door.D) > 60);
+        n.KillThePlayer();
+        var driver = (Bots.ConductorBot)n.Crew[0].Bot;
+        byte driverId = n.Crew[0].Session.PlayerId!.Value;
+        double outAt = double.NaN;
+        n.Run(500, until: () => n.Lockup.State == HoldoutState.Freed, watch: () =>
+        {
+            if (double.IsNaN(outAt) && driver.BreachingAlone)
+                outAt = n.Host.Train.Dynamics.Distance;
+        });
+        Assert.False(double.IsNaN(outAt), "the driver got down");
+        Assert.True(Math.Abs(n.Lockup.Site.Stop!.Holdouts[0].Door.D) > 60);
+        var freed = Assert.Single(n.Host.HoldoutEvents, e => e.Kind == HoldoutEventKind.Freed);
+        Assert.Equal(driverId, freed.By);
+        n.Run(400, until: () => n.Host.Train.Dynamics.Distance > outAt + 50);
         Assert.True(PlayerMotor.InCab(n.Of(driverId), n.Host.Train), "back in the cab");
         Assert.False(driver.BreachingAlone);
         Assert.True(n.Host.Train.Dynamics.Distance > outAt + 50, $"drove on: {n.Host.Train.Dynamics.Distance - outAt:0} m from where it stood");

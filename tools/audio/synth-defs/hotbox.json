@@ -1,0 +1,21 @@
+// Train fault (tier 5; note 331, orchestrator.md §5.1 U1): a car's axle box running dry, at its rear bogie. The tell: the
+// bearing's dry squeal, wavering as the wheel turns, rising and harsher as it heats ("heat": 0 just come on, 1 about to
+// catch), and from halfway the smoke's crackle and hiss under it. Held while it's hot; greased, it stops.
+{
+  "tier": 5, "loop": true, "maxInstances": 8, "minDistance": 3, "maxDistance": 70,
+  "layers": [
+    // The squeal: steel on dry steel.
+    { "source": "sine", "frequency": { "param": "heat", "points": [[0, 1250], [1, 1650]] },
+      "gain": { "param": "heat", "points": [[0, 0.06], [0.5, 0.12], [1, 0.2]] },
+      "vibrato": { "rate": 4.5, "depth": 0.02 },
+      "tremolo": { "rate": 2.2, "depth": 0.5, "jitter": 0.4 } },
+    { "source": "saw", "frequency": { "param": "heat", "points": [[0, 1250], [1, 1650]] },
+      "gain": { "param": "heat", "points": [[0, 0.0], [0.5, 0.03], [1, 0.07]] },
+      "filters": [{ "type": "bandPass", "frequency": 2400, "q": 2 }],
+      "vibrato": { "rate": 4.5, "depth": 0.02 } },
+    // The box smoking: a crackle and a hiss, from halfway.
+    { "source": "noise", "gain": { "param": "heat", "points": [[0, 0], [0.45, 0], [1, 0.1]] },
+      "filters": [{ "type": "bandPass", "frequency": 1100, "q": 0.8 }],
+      "tremolo": { "rate": 9, "depth": 0.6, "jitter": 0.8 } }
+  ]
+}

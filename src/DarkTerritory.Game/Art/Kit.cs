@@ -327,6 +327,112 @@ public sealed class Kit(Look? look, float seed = 0)
         }
     }
 
+    /// <summary>
+    /// A skin through <paramref name="rings"/>: each ring a row of points (all the same count), joined to the next by quads,
+    /// for shapes no box or extrusion makes (the engine's raked prow, its helmet roof). Ring i's point j, the next ring's
+    /// and the next point wind counter-clockwise seen from outside, unless <paramref name="flip"/>. Texture runs round each
+    /// ring (u, metres) and from ring to ring (v). Smooth shading averages each point's faces' normals.
+    /// </summary>
+    /// <param name="closed">Each ring's last point joins back to its first (a tube, a closed section).</param>
+    /// <param name="facing">Which way the skin's outside faces, to wind it that way whichever order the points come in: a
+    /// direction (its middle quad's normal is turned to agree with it), or <see cref="Vector3.Zero"/> for away from each
+    /// ring's middle (a closed section). Null: as the points wind (<paramref name="flip"/>).</param>
+    public void Loft(IReadOnlyList<Vector3[]> rings, bool closed = false, bool smooth = true, bool flip = false, bool twoSided = false, Vector3? facing = null)
+    {
+        int m = rings.Count, n = rings[0].Length, spans = closed ? n : n - 1;
+        if (m < 2 || n < 2)
+            return;
+        if (facing is { } want)
+        {
+            int mi = (m - 1) / 2, mj = spans / 2;
+            var a0 = rings[mi][mj];
+            var raw = Vector3.Cross(rings[mi + 1][mj] - a0, rings[mi][(mj + 1) % n] - a0);
+            var middle = Vector3.Zero;
+            foreach (var p in rings[mi])
+                middle += p;
+            var dir = want == Vector3.Zero ? a0 - middle / n : want;
+            flip = Vector3.Dot(raw, dir) < 0;
+        }
+        // Each point's normal: the sum of the faces round it (or each face its own, unsmoothed).
+        var normal = new Vector3[m, n];
+        Vector3 Face(int i, int j)
+        {
+            var a = rings[i][j];
+            var nf = Vector3.Cross(rings[i + 1][j] - a, rings[i][(j + 1) % n] - a) + Vector3.Cross(rings[i + 1][(j + 1) % n] - rings[i + 1][j], rings[i][(j + 1) % n] - rings[i + 1][j]);
+            return flip ? -nf : nf;
+        }
+        for (int i = 0; i < m - 1; i++)
+            for (int j = 0; j < spans; j++)
+            {
+                var f = Face(i, j);
+                normal[i, j] += f;
+                normal[i + 1, j] += f;
+                normal[i, (j + 1) % n] += f;
+                normal[i + 1, (j + 1) % n] += f;
+            }
+        // Texture: u round each ring, v down each line of points from ring to ring, both in metres.
+        var u = new float[m, n];
+        var v = new float[m, n];
+        for (int i = 0; i < m; i++)
+            for (int j = 1; j < n; j++)
+                u[i, j] = u[i, j - 1] + (rings[i][j] - rings[i][j - 1]).Length();
+        for (int j = 0; j < n; j++)
+            for (int i = 1; i < m; i++)
+                v[i, j] = v[i - 1, j] + (rings[i][j] - rings[i - 1][j]).Length();
+        for (int i = 0; i < m - 1; i++)
+            for (int j = 0; j < spans; j++)
+            {
+                int j1 = (j + 1) % n;
+                // The wrap's closing span takes its u from the ring's length so far.
+                float uj1 = j1 == 0 ? u[i, j] + (rings[i][0] - rings[i][j]).Length() : u[i, j1];
+                float uj1b = j1 == 0 ? u[i + 1, j] + (rings[i + 1][0] - rings[i + 1][j]).Length() : u[i + 1, j1];
+                var (a, b, c, d) = (rings[i][j], rings[i + 1][j], rings[i + 1][j1], rings[i][j1]);
+                Vector2 ua = new(u[i, j], v[i, j]), ub = new(u[i + 1, j], v[i + 1, j]), uc = new(uj1b, v[i + 1, j1]), ud = new(uj1, v[i, j1]);
+                var f = Vector3.Normalize(Face(i, j));
+                Vector3 N(int ii, int jj) => smooth && normal[ii, jj].LengthSquared() > 1e-12f ? Vector3.Normalize(normal[ii, jj]) : f;
+                var (na, nb, nc, nd) = (N(i, j), N(i + 1, j), N(i + 1, j1), N(i, j1));
+                if (!flip)
+                {
+                    Tri(a, b, c, na, nb, nc, ua, ub, uc);
+                    Tri(a, c, d, na, nc, nd, ua, uc, ud);
+                }
+                else
+                {
+                    Tri(a, c, b, na, nc, nb, ua, uc, ub);
+                    Tri(a, d, c, na, nd, nc, ua, ud, uc);
+                }
+                if (twoSided)
+                {
+                    if (!flip)
+                    {
+                        Tri(a, c, b, -na, -nc, -nb, ua, uc, ub);
+                        Tri(a, d, c, -na, -nd, -nc, ua, ud, uc);
+                    }
+                    else
+                    {
+                        Tri(a, b, c, -na, -nb, -nc, ua, ub, uc);
+                        Tri(a, c, d, -na, -nc, -nd, ua, uc, ud);
+                    }
+                }
+            }
+    }
+
+    /// <summary>A fan closing a ring of points round their middle, facing <paramref name="facing"/> (a loft's open end).</summary>
+    public void Cap(IReadOnlyList<Vector3> ring, Vector3 facing)
+    {
+        var centre = Vector3.Zero;
+        foreach (var p in ring)
+            centre += p;
+        centre /= ring.Count;
+        for (int j = 0; j < ring.Count; j++)
+        {
+            var a = ring[j];
+            var b = ring[(j + 1) % ring.Count];
+            var (pa, pb) = Vector3.Dot(Vector3.Cross(a - centre, b - centre), facing) >= 0 ? (a, b) : (b, a);
+            Tri(centre, pa, pb);
+        }
+    }
+
     /// <summary>A regular polygon of <paramref name="sides"/> round the origin, counter-clockwise, first vertex on a flat's edge.</summary>
     public static Vector2[] Polygon(int sides, float radius, float rotate = 0.5f)
     {

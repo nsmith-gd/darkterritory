@@ -23,6 +23,8 @@
   "baked": 0.35,
   // Each crewmate's flying cap and scarf are dyed their own colour (by player id, in turn), so eight masked heads can still
   // be told apart on a roof: multipliers over the cap's pale neutral leather (tools/models/crewfigure.py).
+  // The looks' names on the settings' OUTFIT (note 298), in the colours' order.
+  "crewColourNames": ["RED", "BLUE", "OCHRE", "TEAL", "GREEN", "VIOLET", "ORANGE", "WHITE"],
   "crewColours": [
     [1.35, 0.36, 0.26], [0.3, 0.55, 1.75], [1.35, 1.05, 0.3], [0.25, 1.1, 1.15],
     [0.45, 1.15, 0.32], [1.1, 0.38, 1.35], [1.45, 0.62, 0.2], [1.05, 1.05, 1.05]
@@ -108,6 +110,25 @@
     "ambient": 0.1,
     "lampColour": [1.0, 0.74, 0.42],
     "lampIntensity": 3.2,
+    // The light indoors (the director, 8 Oct: "it feels almost impossible to see anything ... we do need interior lighting
+    // to be functional"; §28 "inside = warm, human, temporary safety"; note 475). Inside a room (a car, an open house, an
+    // open barn or shed, a yard's shed) the moon is kept out: "fill" is what lights a corner no lamp reaches, lamplight off
+    // the boards (it was the night's ambient times a warm tint, about 0.055, which left a room black). A house's candle and
+    // lamp, and the hand lamp, reach across a room; each open barn or shed and each roofed length of a yard shed has a
+    // hurricane lantern turned low, hung "shedLanternHeight" over its floor on a beam. The Gaunt's house stays dark: its dark is the tell.
+    "interiors": {
+      "fill": [0.16, 0.12, 0.08],
+      "candle": 2.0,
+      "candleRange": 9,
+      "lamp": 2.0,
+      "lampRange": 10,
+      "handLamp": 2.2,
+      "handLampRange": 10,
+      "shedLantern": 1.1,
+      "shedLanternRange": 10,
+      "shedLanternHeight": 3.2,
+      "shedLanternSpacing": 10
+    },
     // The dawn (GDD §21, the run's race to it): over the last leadSeconds of the dawn clock the night goes over to a low
     // grey light coming up in the east, the fog paling, the dark pockets filling. The fog stays (it's the line's).
     "dawn": {
@@ -118,14 +139,27 @@
       "sunStrength": 0.9,
       "ambient": 0.3,
       // The glow low on the sky on the sun's side as it comes up, under the grey (the sun never clears the fog).
-      "horizonGlow": [0.28, 0.16, 0.11]
+      "horizonGlow": [0.28, 0.16, 0.11],
+      // The Wakers' stir (note 599; wakers.md §2: "the horizon behind the train goes from black to a bruise to a thin cold
+      // line"): over enemies.json wakers.stirSeconds before dawn, low on the sky behind the train, from a wide dim bruise
+      // to a thin grey line, up to strength (the sky shader adds it).
+      "stir": { "bruise": [0.16, 0.08, 0.14], "line": [0.50, 0.55, 0.62], "strength": 1.3 }
     },
     // The cold (the night's route weather cold, 0..1; GDD §26 "survival time outside is short"): a rime of frost comes on
     // the metal, the roofs and the glass from frostFrom and is full by frostFull; breath shows as vapour from breathFrom.
     "cold": {
       "frostFrom": 0.35,
       "frostFull": 0.85,
-      "breathFrom": 0.15
+      "breathFrom": 0.15,
+      // On the cab's glass (§22, §26 "frost on windows"; note 485): the frost creeps in from each pane's frame as the
+      // frost comes on, this far at its full (m), never near the middle of the driver's view; and whoever's face is
+      // within fogReach of a pane fogs it on each breath out, the fog going as they breathe in.
+      "paneReach": 0.16,
+      "paneColour": [0.5, 0.57, 0.64],
+      "paneDensity": 0.9,
+      "fogReach": 0.7,
+      "fogColour": [0.42, 0.45, 0.48],
+      "fogDensity": 0.8
     },
     // The Choir's cold, coming before it (App. A.7's arrival beat): from halfway through its gathering the night goes over
     // to these as it nears, all of it once it's here. The air paler and colder, the moon bluer, a rime of frost on the
@@ -143,6 +177,22 @@
       "from": [-0.7, 0, -0.4],
       "gusts": 0.7
     }
+  },
+  // The water (ARCHITECTURE §8 note 424): how each kind of it moves. Its current (m/s: a river's down its valley, the
+  // tide's along Fundy's red shore) and how open it lies to the wind (0 a marsh's still pool, 1 the open Atlantic: its
+  // swell and how hard the wind chops it); its murk (0 clear dark water, which gives back next to nothing but the sky,
+  // 1 Fundy's, thick with the red mud it carries); its lap (m: how far out from the waterline its foam comes and goes).
+  "water": {
+    "kinds": {
+      "sea": { "current": 0.1, "open": 1.0, "murk": 0.1 },
+      "fundy": { "current": 0.9, "open": 0.75, "murk": 1.0 },
+      "dyke": { "current": 0.5, "open": 0.55, "murk": 1.0 },
+      "river": { "current": 0.8, "open": 0.3, "murk": 0.2 },
+      "tidal": { "current": 0.9, "open": 0.5, "murk": 1.0 },
+      "lake": { "current": 0, "open": 0.45, "murk": 0 },
+      "marsh": { "current": 0, "open": 0.12, "murk": 0.3 }
+    },
+    "lapM": 5
   },
   // The consist's wear and tear (pipeline plan, consist kit: "3 damage states per car; scars persist between runs").
   // Read off each car's integrity, which the campaign keeps, so a car comes back scarred where it was (ARCHITECTURE §8).

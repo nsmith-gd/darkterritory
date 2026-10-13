@@ -17,6 +17,7 @@ import dsp
 import synth
 from dsp import samples, lp, hp, bp, env, mix
 from recipes import crew_kit as ck
+from recipes import world_kit as W
 from recipes.crew_kit import recipe, R, S, K
 from recipes.crew_items import hit_of, tool_ring
 
@@ -547,14 +548,25 @@ def coupling():
         return ck.place([(0, iron(rng, k, -3, 0.02, 0.6), -6), (0.03, scr, -6), (0.15, iron(rng, k + 1, -2, 0.015, 0.6), -8),
                          (0.22, clink, -10)])
 
-    @recipe(L, "knuckle-release", "knuckle", "The coupler knuckle swinging open as the cars part",
-            """The heavy cast-steel knuckle swinging open on its pin (a heavy iron clank, pitched well down, choked), its
-            lock rattling, and the slack coming out of the car with a low knock through the frame.""",
-            sources=PLATE_H + METAL_H + MINING, takes=3, lufs=-17)
+    # Queue #238 (note 501): it was a thud (a choked iron hit pitched down 8 semitones under a sub, the lock's rattle at
+    # -16 dB, its three takes centred at 127-136 Hz) where the cut's own moment wants the clank of cast steel.
+    @recipe(L, "knuckle-release", "clank", "The coupler knuckle swinging open as the cars part: a cast-steel clank that rings",
+            """The heavy cast-steel knuckle let go: a short squeal of steel on its pin as it swings, then the clank as it
+            fetches up against its stop (the packs' heavy plate and metal hits pitched only a little down, barely choked, so
+            the iron rings), the knuckle's own ring under it (a cast bar's inharmonic modes, a few hundred hertz, a quarter
+            second), its lock rattling loose and the lifted pin clinking on its chain, and the slack coming out of the car
+            with a low knock through the frame, a beat after.""",
+            sources=PLATE_H + METAL_H + MINING + S("metal_02", "metal_06"), takes=3, lufs=-17)
     def release(rng, k):
-        sub = hit_of(MINING[k % 5], 0, 0.4)
-        return ck.place([(0, iron(rng, k, -8, 0.06, 0.4), 0), (0.02, ck.grains(rng, 5, 0.1, 600, 2200, q=(8, 15)), -16),
-                         (0.08, lp(sub, 300), -8)])
+        squeal = synth.creak(0.08, rng.uniform(250, 400), rng, body=[900, 2100, 3400], q=18) * env([(0, 0), (0.015, 1), (0.08, 0)], 0.08)
+        clank = iron(rng, k, rng.uniform(-3.5, -2), 0.12, 0.9)
+        ring = ck.choke(ck.norm(W.body(rng, rng.uniform(380, 520), W.BAR, decay=0.25, contact=0.0003)), 0.03, 0.12)   # cast: it rings, then the mass kills it
+        rattle = ck.grains(rng, int(rng.integers(5, 8)), 0.14, 900, 3200, q=(10, 18))
+        clink = dsp.vari(hit_of(S("metal_02", "metal_06")[k % 2], 1, 0.12), rng.uniform(-3, -1))
+        sub = lp(hit_of(MINING[k % 5], 0, 0.4), 260)
+        t = rng.uniform(0.06, 0.09)
+        return ck.place([(0, squeal, -14), (t, clank, 0), (t, ring, -12), (t + 0.02, rattle, -9),
+                         (t + rng.uniform(0.08, 0.12), clink, -12), (t + rng.uniform(0.1, 0.16), sub, -12)])
 
     @recipe(L, "hose-part", "hose", "Stand-in: the brake hoses pulled apart: rubber stretching, the glad hands parting",
             """Stand-in for a real rubber recording: the two hoses stretched (a low, damped rubbery creak: a slow

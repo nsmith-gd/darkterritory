@@ -50,33 +50,62 @@ public static class UiStyle
     }
 
     /// <summary>A keycap with <paramref name="key"/> on it, its top-left at (x, y); returns its width.</summary>
-    public static float Keycap(Overlay o, float x, float y, string key)
+    public static float Keycap(Overlay o, float x, float y, string key, float scale = 1)
     {
-        float w = o.Font.Measure(key) + 6, h = o.Font.Height + 5;
-        x = MathF.Round(x);
-        y = MathF.Round(y);
-        o.Rect(x, y + 1, w, h, Shadow);
-        o.Rect(x, y, w, h - 1, Enamel with { W = 0.92f });
-        o.Rect(x, y, w, 1, new Vector4(1, 0.97f, 0.88f, 0.95f));
-        o.Rect(x, y + h - 2, w, 1, new Vector4(0.5f, 0.47f, 0.4f, 1));
-        o.Text(x + 3, y + 2, key, EnamelInk, shadow: false);
+        float w = o.Measure(key, scale) + 6 * scale, h = (o.Font.Height + 5) * scale;
+        x = Snap(x, scale);
+        y = Snap(y, scale);
+        o.Rect(x, y + scale, w, h, Shadow);
+        o.Rect(x, y, w, h - scale, Enamel with { W = 0.92f });
+        o.Rect(x, y, w, scale, new Vector4(1, 0.97f, 0.88f, 0.95f));
+        o.Rect(x, y + h - 2 * scale, w, scale, new Vector4(0.5f, 0.47f, 0.4f, 1));
+        o.Text(x + 3 * scale, y + 2 * scale, key, EnamelInk, scale, shadow: false);
         return w;
     }
+
+    /// <summary>
+    /// TEXT BACKING (note 404) set aside while a plate's drawn: what's written on a plate, a card or a strip has its own ground,
+    /// and a band a line on it would only patch it. <c>using var plate = UiStyle.OnPlate(o);</c> puts it back at the scope's end.
+    /// </summary>
+    public static PlateScope OnPlate(Overlay o) => new(o);
+
+    /// <summary><see cref="OnPlate"/>'s scope.</summary>
+    public readonly struct PlateScope : IDisposable
+    {
+        readonly Overlay _o;
+        readonly Vector4 _was;
+
+        public PlateScope(Overlay o)
+        {
+            (_o, _was) = (o, o.Backing);
+            o.Backing = default;
+        }
+
+        public void Dispose() => _o.Backing = _was;
+    }
+
+    /// <summary>Rounds to the font's pixel at this scale (half a canvas pixel in fine print), so glyphs stay crisp.</summary>
+    static float Snap(float v, float scale) => MathF.Round(v / MathF.Min(1, scale)) * MathF.Min(1, scale);
 
     /// <summary>
     /// Text with its keys as keycaps: each "[KEY]" in <paramref name="text"/> drawn as a keycap, the rest as text. Returns
     /// the width; <see cref="MeasureKeyed"/> measures it without drawing.
     /// </summary>
-    public static float Keyed(Overlay o, float x, float y, string text, Vector4 colour)
+    public static float Keyed(Overlay o, float x, float y, string text, Vector4 colour, float scale = 1)
     {
+        // TEXT BACKING (note 404): one band behind the whole line, keycaps and all, rather than one a piece of text.
+        var backing = o.Backing;
+        o.Back(x, y, MeasureKeyed(o, text, scale) - scale, scale);
+        o.Backing = default;
         float at = x;
         foreach (var (part, key) in Parts(text))
-            at += key ? Keycap(o, at, y - 2, part) + 3 : o.Text(at, y, part, colour) + 1;
+            at += key ? Keycap(o, at, y - 2 * scale, part, scale) + 3 * scale : o.Text(at, y, part, colour, scale) + scale;
+        o.Backing = backing;
         return at - x;
     }
 
-    public static float MeasureKeyed(Overlay o, string text) =>
-        Parts(text).Sum(p => p.Key ? o.Font.Measure(p.Text) + 6 + 3 : o.Font.Measure(p.Text) + 1);
+    public static float MeasureKeyed(Overlay o, string text, float scale = 1) =>
+        Parts(text).Sum(p => p.Key ? o.Measure(p.Text, scale) + 9 * scale : o.Measure(p.Text, scale) + scale);
 
     static IEnumerable<(string Text, bool Key)> Parts(string text)
     {
@@ -173,5 +202,46 @@ public static class UiStyle
         }
         o.Text(x + pad * 2, y + pad, title, Enamel, scale, shadow: false);
         return h;
+    }
+
+    /// <summary>
+    /// <paramref name="text"/> in lines no wider than <paramref name="width"/>, broken between words. A word wider than the
+    /// line on its own (a crash report's path, note 411) is broken too, after a slash where one fits, so nothing runs off.
+    /// </summary>
+    public static IEnumerable<string> Wrap(Overlay o, string text, float width)
+    {
+        string line = "";
+        foreach (var whole in text.Split(' ', StringSplitOptions.RemoveEmptyEntries))
+        {
+            foreach (var word in Pieces(o, whole, width))
+            {
+                string wider = line.Length == 0 ? word : line + " " + word;
+                if (line.Length > 0 && o.Font.Measure(wider) > width)
+                {
+                    yield return line;
+                    line = word;
+                }
+                else
+                    line = wider;
+            }
+        }
+        if (line.Length > 0)
+            yield return line;
+    }
+
+    /// <summary>A word in pieces that each fit <paramref name="width"/>: after the last slash that fits, or where it has to.</summary>
+    static IEnumerable<string> Pieces(Overlay o, string word, float width)
+    {
+        while (word.Length > 1 && o.Font.Measure(word) > width)
+        {
+            int fit = 1;
+            while (fit < word.Length && o.Font.Measure(word[..(fit + 1)]) <= width)
+                fit++;
+            int slash = word.LastIndexOfAny(['/', '\\'], fit - 1);
+            int cut = slash > 0 ? slash + 1 : fit;
+            yield return word[..cut];
+            word = word[cut..];
+        }
+        yield return word;
     }
 }

@@ -1,0 +1,15 @@
+// Train bed (tier 5, GDD v1.4 App. E.9 Stranded outro "wind and the boiler ticking as it cools"): the dead boiler's iron
+// contracting, a tick and a tink at uneven moments, slowing as it cools. A loop the game holds over the outro, at the
+// firebox, its "cool" (0 hot, 1 nearly cold) spacing the ticks out. Each tick is a sliver of noise rung through the
+// shell's narrow resonances, gated at a jittered rate so no two gaps match.
+{
+  "tier": 5, "loop": true, "maxInstances": 1, "minDistance": 6, "maxDistance": 220, "gainDb": 6,
+  "layers": [
+    { "source": "noise", "gain": 1.4,
+      "filters": [{ "type": "bandPass", "frequency": 3400, "q": 14 }, { "type": "peak", "frequency": 5200, "q": 12, "gainDb": 8 }],
+      "tremolo": { "rate": { "param": "cool", "points": [[0, 3.2], [1, 0.9]] }, "depth": 1, "duty": 0.03, "jitter": 0.85 } },
+    { "source": "noise", "gain": 1.1,
+      "filters": [{ "type": "bandPass", "frequency": 1250, "q": 18 }],
+      "tremolo": { "rate": { "param": "cool", "points": [[0, 1.1], [1, 0.35]] }, "depth": 1, "duty": 0.04, "jitter": 0.9 } }
+  ]
+}

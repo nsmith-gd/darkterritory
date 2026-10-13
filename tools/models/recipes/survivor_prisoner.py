@@ -16,6 +16,7 @@ import sys
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 import numpy as np  # noqa: E402
 
+import cook  # noqa: E402
 import crewfigure  # noqa: E402
 from overbake import smooth01  # noqa: E402
 
@@ -36,6 +37,13 @@ def number(p):
 
 
 
+def scars(p):
+    """Where the irons were (note 407): a raw band round each wrist, ragged at its edges, between the cuff and the hand."""
+    x, z = np.abs(p[:, 0]), p[:, 2]
+    ring = smooth01(0.655, 0.67, x) * smooth01(0.72, 0.705, x) * (np.abs(z - 1.44) < 0.09)
+    return (ring * np.clip(cook.noise_np(p, 71, 90) * 0.6 + 0.7, 0, 1)).astype(np.float32)
+
+
 def grade(base, atlas, face):
     grey = base.mean(-1, keepdims=True)
     # Washed out toward grey: what's left of the issue's dye.
@@ -44,6 +52,9 @@ def grade(base, atlas, face):
     out = out * (1 - 0.45 * b)
     n = atlas.maps["number"][..., None]
     out = out * (1 - n) + np.array([0.46, 0.45, 0.42], np.float32) * n
+    # The irons' scars: raw red-brown, crusted darker at their middle.
+    sc = atlas.maps["scars"][..., None]
+    out = out * (1 - 0.8 * sc) + np.array([0.34, 0.12, 0.09], np.float32) * (0.8 * sc)
     return out
 
 
@@ -57,5 +68,5 @@ DRESS = {
 }
 
 crewfigure.build("survivor_prisoner", crewfigure.Style(
-    dress=DRESS, masks={"bands": bands, "number": number}, grade=grade, preview="PRISONER_PREVIEW", figure="bare", hats=False,
+    dress=DRESS, masks={"bands": bands, "number": number, "scars": scars}, grade=grade, preview="PRISONER_PREVIEW", figure="bare", hats=False,
     what="a freed prisoner in penal greys, modelled over tools/blender/crew.py"))

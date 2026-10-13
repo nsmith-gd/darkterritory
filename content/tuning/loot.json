@@ -11,10 +11,19 @@
     "strongroom": { "heavy": 1 }
   },
 
+  // When a stop's loot comes out (ARCHITECTURE §8 note 352). The director, 8 Oct 2026: "[I] watched the loot spawn in the
+  // yard after I'd already stopped the train." It's out once the engine is on the main line within this many metres of the
+  // stop's zone, whatever its speed: further than enemies.json interestRadius (520), the furthest a client is sent a body
+  // from, and the lamp and the fog, so nobody sees it appear. A facility's own crates (facilities.json) come out with it.
+  // 0: when the train first stops there (the old rule). Stops passed at speed keep theirs lying out, asleep and unsent.
+  "stockAhead": 800,
+
   // Village finds are small things a player carries aboard by hand, and they pay on the spot (GDD §19's medicine,
   // tools and treats). A stop's finds are worth this many of the tier's value per car (run.json economy.perCar)
   // between them, split by each container's weight; an outlier's weigh this much more (P11).
-  "villageBudget": [0.3, 0.6],
+  // Note 593: doubled from [0.3, 0.6] with the villages' finds (about twice as many houses hold something), so each find is
+  // worth what it was.
+  "villageBudget": [0.6, 1.2],
   "outlierWeight": 1.8,
   // Stowed: lying still inside any car for this long.
   "settleSeconds": 1.0,
@@ -22,6 +31,7 @@
   // GDD v1.4 App. E.12 question 4, answered: repair kits turn up as loot, not just in the fortress's stores. Each container
   // at a stop (a village's cupboards and cellars, a yard's crate stacks and strongroom) has this chance of a kit lying
   // beside what it holds: rare, about one a night on a long line. Brought home, a found kit is kept as a spare.
+  // Note 301: where the wrench is the repair tool (train.json repair.wrench), no kit is found: this is read as 0.
   "repairKitChance": 0.03,
   // Note 267 (the director's notes on build 1121: the guard van's toys "are things that we should definitely find out in
   // the world"): GDD §19's hand-carried loot, found at the stops, not stocked from the fortress. Each village container of
@@ -35,20 +45,63 @@
     "noises": ["none", "none", "squeaker", "musicBox", "drummer"]
   },
 
-  // What each kind of container can hold, and how much of the budget it draws.
+  // Searching an open house (GDD App. F.3, "searchable for finds"; level-design P14 "hiding spots ... that take time to
+  // search"; ARCHITECTURE §8 note 326): what a plain village house keeps in a cupboard, a cabinet, its cellar or under its
+  // boards (and a toy with it) isn't there to see until a crewmate on foot, empty-handed and within `reach` of the spot,
+  // holds Use there for that kind's `seconds`; let go and it starts again. A shut house's finds stay out on its step. An
+  // open barn's hayloft (up the ladder, through the hay) and an open shed's workbench (its drawers, its tool rack) are
+  // searched the same way (note 417). Not in the spec's numbers: a cupboard or a cabinet is opened and
+  // gone through, a cellar's hatch lifted and the steps gone down, boards prised up one by one; a house's few spots take a
+  // crewmate about ten seconds, a village a few minutes alone, which is what splitting up buys back. Unset, no search:
+  // the finds lie out.
+  "search": {
+    "reach": 1.0,
+    "seconds": { "cupboard": 2.5, "cabinet": 2, "cellar": 4, "underFloor": 5, "hayloft": 4, "bench": 2.5 }
+  },
+
+  // The damage model (the director's decision of 6 Oct 2026, GDD App. F.1; ARCHITECTURE §8 note 272): "Healing items are
+  // rare loot." A find in `heals` is used, not just sold: carried, with Use held standing for useSeconds (a tap still puts
+  // it down), it gives its carrier that much health back, up to full (player.json health), and it's gone, its scrip with
+  // it. A bot uses one it's carrying below botBelow. Not in the spec's numbers: a bandage is about a hit (enemies.json
+  // damage), medicine more, morphine near the whole bar.
+  "healing": {
+    "useSeconds": 2,
+    "heals": { "bandages": 30, "medicine": 50, "morphine": 80 },
+    "botBelow": 50
+  },
+
+  // What each kind of container can hold (drawn evenly from the list, so an item named twice is twice as likely), and how
+  // much of the budget it draws. Note 272 ("healing items are rare loot"): a cabinet was all medicine, bandages and
+  // morphine and a floor's cache a third medicine, about six on a frontier night, a quarter of every find. Now a cabinet
+  // holds them one time in four, bandages the likeliest, and nothing else does: about one a frontier night (the
+  // DamageModelTests pin it). Note 593, with about twice the village finds: one cabinet in eight (6 of its 48), so still
+  // about one a frontier night.
   "kinds": {
     "cupboard":   { "weight": 1.0, "items": ["treats", "tinnedFood", "candles"] },
-    "cabinet":    { "weight": 1.3, "items": ["medicine", "bandages", "morphine"] },
+    "cabinet":    { "weight": 1.3, "items": ["bandages", "bandages", "bandages", "medicine", "medicine", "morphine", "candles", "candles",
+      "candles", "candles", "candles", "candles", "candles", "candles", "candles", "candles", "lampOil",
+      "lampOil", "lampOil", "lampOil", "lampOil", "lampOil", "lampOil", "lampOil", "pocketWatch",
+      "pocketWatch", "pocketWatch", "pocketWatch", "pocketWatch", "pocketWatch", "treats", "treats",
+      "treats", "treats", "treats", "treats", "treats", "treats", "tinnedFood", "tinnedFood", "tinnedFood",
+      "tinnedFood", "rope", "rope", "rope", "rope", "lampParts", "lampParts"] },
     "cellar":     { "weight": 1.2, "items": ["preserves", "treats", "tools"] },
-    "underFloor": { "weight": 1.6, "items": ["valuableTools", "medicine", "pocketWatch"] },
+    "underFloor": { "weight": 1.6, "items": ["valuableTools", "pocketWatch", "preserves"] },
     "bench":      { "weight": 0.9, "items": ["tools", "lampParts"] },
     "hayloft":    { "weight": 1.0, "items": ["tools", "lampOil", "rope"] }
+  },
+
+  // A creature's trophy when it's killed (note 340; the director, 7 Oct 2026: "a dead Gannet can be worth a good deal"):
+  // the find it drops, and what it pays stowed aboard, in the tier's car-loads (run.json economy.perCar; a rescued child
+  // pays 3).
+  "trophies": {
+    "gannet": { "item": "gannetHead", "perCar": 1.5 }
   },
 
   // Names for the HUD.
   "items": {
     "treats": "Treats", "tinnedFood": "Tinned food", "candles": "Candles", "medicine": "Medicine", "bandages": "Bandages",
     "morphine": "Morphine", "preserves": "Preserves", "tools": "Tools", "valuableTools": "Valuable tools",
-    "pocketWatch": "Pocket watch", "lampParts": "Lamp parts", "lampOil": "Lamp oil", "rope": "Rope"
+    "pocketWatch": "Pocket watch", "lampParts": "Lamp parts", "lampOil": "Lamp oil", "rope": "Rope",
+    "gannetHead": "The Gannet's head"
   }
 }

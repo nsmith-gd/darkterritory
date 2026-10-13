@@ -7,6 +7,8 @@ using DarkTerritory.Sim.Run;
 namespace DarkTerritory.Game.Tests;
 
 /// <summary>The front door and the fortress screen (T30): what each choice does, and that it's all saved.</summary>
+// Hud.Keys is the HUD's settings, static: the tests that set it don't run beside the one that compares two builds (note 390).
+[Collection("Hud.Keys")]
 public sealed class FrontEndTests : IDisposable
 {
     static readonly string Content = DataFile.FindContentRoot();
@@ -26,8 +28,10 @@ public sealed class FrontEndTests : IDisposable
 
     static void Pick(FrontEnd m, string label)
     {
-        int i = m.Items.ToList().FindIndex(x => x.Label.StartsWith(label, StringComparison.Ordinal));
+        int i = m.Items.ToList().FindIndex(x => !x.Heading && x.Label.StartsWith(label, StringComparison.Ordinal));
         Assert.True(i >= 0, $"no '{label}' on {m.Screen}: {string.Join(" | ", m.Items.Select(x => x.Label))}");
+        // The keys pass over a greyed row, so waiting to land on one would never end.
+        Assert.True(m.Items[i].Enabled, $"'{label}' is greyed on {m.Screen}");
         while (m.Selected != i)
             m.Down();
     }
@@ -47,8 +51,11 @@ public sealed class FrontEndTests : IDisposable
         m.Music = music;
         Choose(m, "CREDITS");
         Assert.Equal(Screen.Credits, m.Screen);
-        Assert.Equal(music.Length + 1, m.Items.Count);
-        foreach (var (t, item) in music.Zip(m.Items))
+        // Under the opera's heading (greyed: the selection starts on the first track), then BACK; no other credits loaded.
+        Assert.Equal(music.Length + 2, m.Items.Count);
+        Assert.False(m.Items[0].Enabled);
+        Assert.Equal(1, m.Selected);
+        foreach (var (t, item) in music.Zip(m.Items.Skip(1)))
         {
             Assert.Contains(t.Work, item.Label);
             Assert.Contains(t.Composer, item.Label);
@@ -116,6 +123,133 @@ public sealed class FrontEndTests : IDisposable
             m.Items.Single(i => i.Label.StartsWith(u.Name.ToUpperInvariant(), StringComparison.Ordinal)).Detail ?? ""));
         m.Back();
         Assert.Equal(Screen.Fortress, m.Screen);
+    }
+
+    [Fact]
+    public void TheFortressRenamesTheCrewAndDeletesItOnlyOnceAskedTwice()
+    {
+        var m = Menu();
+        Choose(m, "CAMPAIGN");
+        Choose(m, "SLOT 2: EMPTY");
+        // Note 320: the crew's name is a field (note 267: typed into only once entered), kept to the slot at once.
+        Pick(m, "NAME");
+        Assert.Equal("NAME: CREW 2", m.Items[m.Selected].Label);
+        m.Type("wasd");
+        Assert.Equal("Crew 2", m.Open!.Name);
+        Assert.Null(m.Select());
+        Assert.Equal(TextField.CrewName, m.Editing);
+        for (int i = 0; i < 6; i++)
+            m.Erase();
+        m.Type("The Night Shift");
+        Assert.Equal("NAME: THE NIGHT SHIFT_", m.Items[m.Selected].Label);
+        Assert.Equal("The Night Shift", Saves.Load(2)!.Name);
+        Assert.Null(m.Select());
+        Assert.False(m.WantsText);
+        Assert.Equal(Screen.Fortress, m.Screen);
+        // Erased to nothing and left, it's the slot's name again.
+        m.Select();
+        for (int i = 0; i < 30; i++)
+            m.Erase();
+        Assert.Equal("NAME: _", m.Items[m.Selected].Label);
+        m.Back();
+        Assert.Equal(Screen.Fortress, m.Screen);
+        Assert.Equal("Crew 2", Saves.Load(2)!.Name);
+        // Typed into again, it carries on from the name shown, as the lobby's does.
+        m.Select();
+        m.Type("s");
+        Assert.Equal("Crew 2s", m.Open!.Name);
+        for (int i = 0; i < 7; i++)
+            m.Erase();
+        m.Type("Nightjars");
+        m.Select();
+        m.Back();
+        Assert.Contains(m.Items, i => i.Label == "SLOT 2: NIGHTJARS");
+
+        // Deleting asks first, KEEP IT selected; keeping it, or backing out, leaves the slot as it was.
+        m.ShowFortress(2);
+        Assert.Null(Choose(m, "DELETE THIS CREW"));
+        Assert.Equal(Screen.DeleteCrew, m.Screen);
+        Assert.Equal(["KEEP IT", "DELETE NIGHTJARS"], m.Items.Select(i => i.Label));
+        Assert.Equal(0, m.Selected);
+        Assert.Contains("gone for good", m.Items[1].Detail);
+        Assert.Null(m.Select());
+        Assert.Equal(Screen.Fortress, m.Screen);
+        Choose(m, "DELETE THIS CREW");
+        m.Back();
+        Assert.Equal(Screen.Fortress, m.Screen);
+        Assert.NotNull(Saves.Load(2));
+        // Confirmed, the slot's empty and the list says so.
+        Choose(m, "DELETE THIS CREW");
+        Assert.Null(Choose(m, "DELETE NIGHTJARS"));
+        Assert.Equal(Screen.Slots, m.Screen);
+        Assert.Null(m.Open);
+        Assert.Null(Saves.Load(2));
+        Assert.Equal("Slot 2 is empty.", m.Message);
+        Assert.Contains(m.Items, i => i.Label == "SLOT 2: EMPTY");
+    }
+
+    /// <summary>
+    /// Note 632 (the director, the inbox, 12 Oct: "the campaign ends"): a crew whose train was taken at dawn is over. Its slot
+    /// says so, its fortress has no board and nothing to buy, only a new crew from the fortress in the same slot.
+    /// </summary>
+    [Fact]
+    public void ACampaignTakenAtDawnIsOverAndItsSlotStartsANewCrew()
+    {
+        var taken = Campaign.Settle(Campaign.Begin(Campaign.New(C, 1, "Nightjars", 7), new Contract(Sim.Route.RouteTier.Local, 5, 450)),
+            new RunReport(RunEnd.DawnMissed, 1200, 0, 0, 0, 0, 0, 40, 20, 0, -60, 3, 0), C);
+        Saves.Save(taken);
+        var m = Menu();
+        Choose(m, "CAMPAIGN");
+        Assert.Contains(m.Items, i => i.Label == "SLOT 1: NIGHTJARS, TAKEN AT DAWN");
+        Choose(m, "SLOT 1: NIGHTJARS");
+        Assert.Equal(Screen.Fortress, m.Screen);
+        Assert.Equal(Hud.CampaignOver, m.Items[0].Label);
+        Assert.True(m.Items[0].Heading);
+        Assert.DoesNotContain(m.Items, i => i.Label.StartsWith("TONIGHT", StringComparison.Ordinal) || i.Label.StartsWith("BUY", StringComparison.Ordinal));
+        Assert.Null(Choose(m, "A NEW CREW"));
+        var fresh = Saves.Load(1)!;
+        Assert.False(fresh.Over);
+        Assert.Equal(0, fresh.Runs);
+        Assert.Equal(C.StartingCars, fresh.Cars);
+        Assert.Equal(Screen.Fortress, m.Screen);
+        Assert.Contains(m.Items, i => i.Label.StartsWith("TONIGHT", StringComparison.Ordinal));
+    }
+
+    [Fact]
+    public void TheModsScreenListsWhatsInstalledInOrderAndWhatCouldntLoad()
+    {
+        // Note 323: nothing installed, and the title has no MODS.
+        var m = Menu();
+        Assert.DoesNotContain(m.Items, i => i.Label == "MODS");
+
+        m = Menu();
+        m.InstalledMods = [new("LateDispatch", "1.0.0", "Dispatch holds the main line ten minutes past dawn."), new("Fog_Banks", "0.3.1", "")];
+        m.ModProblems = ["Nightjar-LongerNights isn't loaded: it needs Nightjar-SharedCore-1.2.0, which isn't installed"];
+        Pick(m, "MODS");
+        Assert.Equal("2 laid over the game, 1 problem.", m.Items[m.Selected].Detail);
+        Assert.Null(m.Select());
+        Assert.Equal(Screen.Mods, m.Screen);
+        Assert.Equal(["LATE DISPATCH 1.0.0", "FOG BANKS 0.3.1", "NIGHTJAR-LONGER NIGHTS: NOT LOADED", "BACK"], m.Items.Select(i => i.Label));
+        Assert.Equal("Dispatch holds the main line ten minutes past dawn.", m.Items[0].Detail);
+        Assert.Equal("No description.", m.Items[1].Detail);
+        // A long description (Thunderstore allows 250 characters) wraps inside the frame.
+        var wordy = Menu();
+        wordy.InstalledMods = [new("LateDispatch", "1.0.0", string.Join(' ', Enumerable.Repeat("Dispatch holds the main line past dawn.", 6)))];
+        wordy.Show(Screen.Mods);
+        var o = new Overlay();
+        wordy.Draw(o, 480, 270);
+        Assert.All(o.Vertices, v => Assert.InRange(v.Position.X, -2, 482));
+        Assert.Contains("SharedCore", m.Items[2].Detail);
+        // Read, not changed: Enter on a mod does nothing; BACK and Esc go back to the title.
+        Assert.Null(m.Select());
+        Assert.Equal(Screen.Mods, m.Screen);
+        m.Back();
+        Assert.Equal(Screen.Title, m.Screen);
+
+        // Started with --no-mods: listed, and said to be off.
+        m.ModsOff = true;
+        Pick(m, "MODS");
+        Assert.Equal("2 installed, all off tonight (--no-mods), 1 problem.", m.Items[m.Selected].Detail);
     }
 
     [Fact]
@@ -203,14 +337,17 @@ public sealed class FrontEndTests : IDisposable
     [Fact]
     public void TheHostChoosesPublicOrPrivateAndItsRemembered()
     {
-        // The user's playtest: "I can join it if its public. If it's a private lobby its not listed."
+        // The user's playtest: "I can join it if its public." Note 450: a private run is listed with a lock, behind its password.
         var m = Menu();
         Choose(m, "HOST");
         Assert.Contains("VISIBILITY: PUBLIC", m.Items.Select(i => i.Label));
         Pick(m, "VISIBILITY");
         m.Right();
         Assert.Equal("VISIBILITY: PRIVATE", m.Items[m.Selected].Label);
-        Assert.False(Assert.IsType<Launch.Night>(Choose(m, "OPEN THE LOBBY")).Public);
+        Choose(m, "PASSWORD");
+        m.Type("owls");
+        m.Select();
+        Assert.Equal("OWLS", Assert.IsType<Launch.Night>(Choose(m, "OPEN THE LOBBY")).Password);
         // Saved: the next start of the game has it so.
         var again = Menu();
         Choose(again, "HOST");
@@ -275,7 +412,7 @@ public sealed class FrontEndTests : IDisposable
         Assert.False(m.WantsText);
         // WASD moves, as on every other screen.
         Assert.Null(MenuInput.Apply(m, MenuInput.Keys(k => k == "S", m.WantsText)));
-        Assert.StartsWith("SOUND", m.Items[m.Selected].Label);
+        Assert.StartsWith("OUTFIT", m.Items[m.Selected].Label); // the next row under YOU (note 386)
         Assert.Null(MenuInput.Apply(m, MenuInput.Keys(k => k == "W", m.WantsText)));
         Assert.Null(MenuInput.Apply(m, MenuKey.Select));
         Assert.True(m.WantsText);
@@ -295,7 +432,7 @@ public sealed class FrontEndTests : IDisposable
         // The row called that, or else the first that starts so (the controls have a BACK: S as well as BACK).
         int item = m.Items.ToList().FindIndex(x => x.Label == label);
         if (item < 0)
-            item = m.Items.ToList().FindIndex(x => x.Label.StartsWith(label, StringComparison.Ordinal));
+            item = m.Items.ToList().FindIndex(x => !x.Heading && x.Label.StartsWith(label, StringComparison.Ordinal));
         Assert.True(item >= 0, $"no '{label}' on {m.Screen}");
         var hits = new List<System.Numerics.Vector2>();
         for (int y = 0; y < 270; y++)
@@ -422,13 +559,14 @@ public sealed class FrontEndTests : IDisposable
         var rows = m.Items.Select(i => i.Label).ToList();
         Assert.StartsWith("LOBBY", rows[0]);
         Assert.Equal(["OLD'S RUN", "NICK'S RUN", "PACKED'S RUN", "PRIYA'S RUN"], rows.Skip(1).Take(4).Select(r => r[..25].TrimEnd()));
-        Assert.Matches(@"^NICK'S RUN +1/12 +FRONTIER +3 MS$", rows[2]);
-        Assert.Matches(@"^PRIYA'S RUN +3/12 +DEAD LINES +41 MS$", rows[4]);
-        // Greyed, with the reason on the row: another version, a full crew.
+        // Every row says its ping (note 450), and who the run's for ("-": the host said either).
+        Assert.Matches(@"^NICK'S RUN +1/12 +FRONTIER +- +3 MS$", rows[2]);
+        Assert.Matches(@"^PRIYA'S RUN +3/12 +DEAD LINES +- +41 MS$", rows[4]);
+        // Greyed, with the reason on the row where the tier would be: another version, a full crew.
         Assert.False(m.Items[1].Enabled);
-        Assert.EndsWith("OTHER VERSION", rows[1]);
+        Assert.Matches(@"^OLD'S RUN +1/12 +OTHER VERSION +- +2 MS$", rows[1]);
         Assert.False(m.Items[3].Enabled);
-        Assert.EndsWith("FULL", rows[3]);
+        Assert.Matches(@"^PACKED'S RUN +12/12 +FULL +- +5 MS$", rows[3]);
         // The first you can join is chosen; a network game joins by address, a Steam one by its lobby.
         Assert.Equal(2, m.Selected);
         Assert.Equal(new Launch.Join("192.168.1.20:27450"), m.Select());
@@ -481,11 +619,15 @@ public sealed class FrontEndTests : IDisposable
         Choose(m, "SETTINGS");
         Choose(m, "VOICE");
         Choose(m, "VR TURNING");
+        // Note 285: the corner's control hints, on unless turned off.
+        Assert.True(m.Settings.ControlHints);
+        Choose(m, "CONTROL HINTS");
         Pick(m, "MOUSE SPEED");
         m.Right();
         m.Right();
         Assert.True(m.Settings.PushToTalk);
         Assert.Equal(VrTurn.Smooth, m.Settings.VrTurn);
+        Assert.False(m.Settings.ControlHints);
         Assert.Equal(1.2, m.Settings.MouseSpeed, 6);
         // A new session reads them back, and they reach the VR comfort tuning.
         var again = Settings.Load(SettingsPath);
@@ -635,5 +777,82 @@ public sealed class FrontEndTests : IDisposable
         Assert.Equal(Controls.Defaults.Count, Controls.Defaults.Values.Distinct().Count());
         Assert.All(Controls.Defaults.Values, k => Assert.True(Enum.TryParse<Ballast.Platform.Key>(k, out _), k));
         Assert.DoesNotContain(Controls.Defaults.Values, Controls.Reserved.Contains);
+    }
+
+    [Fact]
+    public void TheJoinListPutsRunsOfYourMoodFirstAndALockedRunAsksItsPassword()
+    {
+        // Note 450 (the director, 8 Oct 2026): "a setting called 'Here for Laughs' ... that will automatically sort lowest
+        // ping, here for laughs servers"; "Private matches should be password gated", listed with a lock.
+        var m = Menu();
+        Ballast.Net.LanGame Lan(string ip, string name, double ping, string mood, bool locked) =>
+            new(new System.Net.IPEndPoint(System.Net.IPAddress.Parse(ip), 27450), "host", "FRONTIER:7, 6 CARS, IN THE YARD", 1, m.Protocol, "darkterritory")
+            { Name = name, Max = 8, Tier = "Frontier", PingMs = ping, Mood = mood, Locked = locked };
+        m.Games = ListedGame.Merge([Lan("10.0.0.1", "GIGGLES", 30, "laughs", false), Lan("10.0.0.2", "LONG HAUL", 5, "competitive", false),
+            Lan("10.0.0.3", "FRIENDS ONLY", 10, "", true)], [], "Steam");
+        Choose(m, "JOIN");
+        List<string> Names() => [.. m.Items.Skip(1).Take(3).Select(i => i.Label[..26].TrimStart(Ballast.Render.BitmapFont.Lock).Trim())];
+        // Looking for either: nearest first.
+        Assert.Equal(["LONG HAUL", "FRIENDS ONLY", "GIGGLES"], Names());
+        Assert.Matches(@"^LONG HAUL +1/8 +FRONTIER +COMPETE +5 MS$", m.Items[1].Label);
+        Assert.Matches(@"^GIGGLES +1/8 +FRONTIER +LAUGHS +30 MS$", m.Items[3].Label);
+        // The private run's row starts with the lock, and says why on its detail line.
+        Assert.StartsWith($"{Ballast.Render.BitmapFont.Lock} FRIENDS ONLY", m.Items[2].Label);
+        Assert.StartsWith("Private:", m.Items[2].Detail);
+        // HERE FOR LAUGHS: the laughing run first, however far; then the rest, nearest first. One setting, kept.
+        Assert.Equal("MOOD: EITHER", m.Items.First(i => i.Label.StartsWith("MOOD", StringComparison.Ordinal)).Label);
+        Choose(m, "MOOD");
+        Assert.Equal(RunMood.Laughs, m.Settings.Mood);
+        Assert.Equal(["GIGGLES", "LONG HAUL", "FRIENDS ONLY"], Names());
+        Pick(m, "MOOD");
+        m.Right();
+        Assert.Equal(RunMood.Competitive, m.Settings.Mood);
+        Assert.Equal(["LONG HAUL", "FRIENDS ONLY", "GIGGLES"], Names());
+        Assert.Equal(RunMood.Competitive, Settings.Load(SettingsPath).Mood);
+
+        // Picking the locked run asks for its password, typing at once; Enter joins with it.
+        Assert.Null(Choose(m, $"{Ballast.Render.BitmapFont.Lock} FRIENDS ONLY"));
+        Assert.Equal(Screen.Password, m.Screen);
+        Assert.Equal(TextField.JoinPassword, m.Editing);
+        Assert.False(m.Items[1].Enabled);
+        m.Type("lantern");
+        Assert.Equal("PASSWORD: *******_", m.Items[0].Label);
+        Assert.Equal(new Launch.Join("10.0.0.3:27450") { Password = "LANTERN" }, m.Select());
+        // Turned away, WRONG PASSWORD: asked again, saying so; Esc and BACK go back to the list.
+        m.AskPassword(new Launch.Join("10.0.0.3:27450") { Password = "LANTERN" }, "FRIENDS ONLY", "WRONG PASSWORD");
+        Assert.Equal("WRONG PASSWORD", m.Message);
+        Assert.Equal("LANTERN", m.JoinPassword);
+        m.Back();
+        m.Back();
+        Assert.Equal(Screen.Join, m.Screen);
+        // An open run joins straight away.
+        Assert.Equal(new Launch.Join("10.0.0.1:27450"), Choose(m, "GIGGLES"));
+    }
+
+    [Fact]
+    public void APrivateRunNeedsAPasswordToOpen()
+    {
+        var m = Menu();
+        Choose(m, "HOST");
+        Assert.DoesNotContain(m.Items, i => i.Label.StartsWith("PASSWORD", StringComparison.Ordinal));
+        Assert.Equal(new Launch.Night("frontier:7", 6, Host: true) { LobbyName = m.LobbyName }, Choose(m, "OPEN THE LOBBY"));
+        Choose(m, "VISIBILITY");
+        Assert.Contains("Listed with a lock", m.Items[m.Selected].Detail);
+        // No password yet: it can't be opened, and says why.
+        var open = m.Items.First(i => i.Label == "OPEN THE LOBBY");
+        Assert.False(open.Enabled);
+        Assert.StartsWith("Type a password first", open.Detail);
+        Choose(m, "PASSWORD");
+        Assert.Equal(TextField.LobbyPassword, m.Editing);
+        m.Type("Night Owls");
+        m.Select();
+        Assert.Equal("PASSWORD: NIGHT OWLS", m.Items[m.Selected].Label);
+        Choose(m, "MOOD");
+        Choose(m, "MOOD");
+        var night = Assert.IsType<Launch.Night>(Choose(m, "OPEN THE LOBBY"));
+        Assert.Equal(("NIGHT OWLS", RunMood.Competitive, true), (night.Password, night.Mood, night.Public));
+        // Kept for next time, and not in the console's log.
+        Assert.Equal("NIGHT OWLS", Settings.Load(SettingsPath).LobbyPassword);
+        Assert.DoesNotContain("NIGHT OWLS", night.Redacted().ToString());
     }
 }

@@ -53,6 +53,15 @@ public sealed class Crane
     public int Operator { get; internal set; } = -1;
     /// <summary>How fast it runs, of its full speed: its yard's power (level-design D.2), 0 when the power's dead.</summary>
     public double SpeedScale { get; internal set; } = 1;
+    /// <summary>Its gantry brought down (Tower Jaw, note 363): dead for the night, whatever powers it.</summary>
+    public bool Wrecked { get; private set; }
+
+    /// <summary>Brought down: it moves no more.</summary>
+    public void Wreck()
+    {
+        Wrecked = true;
+        SpeedScale = 0;
+    }
     public double Rigging { get; internal set; }
     internal int Rigger = -1;
     bool _releaseWas;
@@ -76,10 +85,18 @@ public sealed class Crane
     /// <summary>The casting's half-height (it hangs this far under the hook, its middle).</summary>
     public double CastingHalf => _t.CastingSize[1] * 0.5;
 
-    /// <summary>A player's hands on the controls: standing at the stand, holding Use. Deterministic, so a client predicts it too.</summary>
-    public bool AtControls(in PlayerState s, in PlayerIntent intent, TrainOnLine train) =>
-        s.Alive && s.Parent == PlayerState.World && intent.Has(PlayerButtons.Use)
-        && ((PlayerMotor.WorldPosition(s, train) - Controls) with { Y = 0 }).Length <= _t.ControlsReach;
+    /// <summary>Standing at the control stand, on the ground and alive: where the controls are taken.</summary>
+    public bool AtStand(in PlayerState s, TrainOnLine train) =>
+        s.Alive && s.Parent == PlayerState.World && ((PlayerMotor.WorldPosition(s, train) - Controls) with { Y = 0 }).Length <= _t.ControlsReach;
+
+    /// <summary>
+    /// A player's hands on the controls this tick (the director, 8 Oct: "Cranes should also enter with E and exit with E, it
+    /// shouldn't be a hold function"). At the stand, the press (<see cref="PlayerActions.Seat"/>, sent on the Use key's press
+    /// as at a gun) takes the controls and the next press lets them go; dying or the run moving on lets them go too. From
+    /// the player's state before this tick's update, so the run and the world agree; deterministic, so a client predicts it.
+    /// </summary>
+    public bool Operates(in PlayerState s, in PlayerIntent intent, TrainOnLine train) =>
+        AtStand(s, train) && s.Has(PlayerFlags.Operating) != intent.Has(PlayerActions.Seat);
 
     /// <summary>
     /// What's under the hook: a car it's over (and that car's roof height, or, down through its open roof hatch, what's
@@ -166,6 +183,50 @@ public sealed class Crane
         Trolley = Math.Clamp(Trolley + intent.MoveX * _t.TrolleySpeed * dt, _t.Span[0] + 0.5, _t.Span[1] - 0.5);
         double lift = (intent.Has(PlayerButtons.Jump) ? 1 : 0) - (intent.Has(PlayerButtons.Brake) ? 1 : 0);
         Hook = Math.Clamp(Hook + lift * _t.HoistSpeed * dt, Lowest(train), _t.Height);
+        // Note 581 (the director, 9 Oct 2026: "extremely difficult to get loot into the cars, the game should be more
+        // forgiving"): a casting brought low over an open hatch that it overlaps but doesn't clear is eased over the opening,
+        // the bridge and trolley drawn to where it goes in, as a hand on the rope would steady it.
+        if (Hooked is not null && _t.GuideSpeed > 0 && Guided(train) is { } fit)
+        {
+            var (b, x, _) = Over(fit);
+            double step = _t.GuideSpeed * dt;
+            Bridge = Math.Clamp(Bridge + Math.Clamp(b - Bridge, -step, step), _t.Along - 0.5 * _t.Length, _t.Along + 0.5 * _t.Length);
+            Trolley = Math.Clamp(Trolley + Math.Clamp(x - Trolley, -step, step), _t.Span[0] + 0.5, _t.Span[1] - 0.5);
+        }
+    }
+
+    /// <summary>
+    /// Where the hook would put the casting through an open hatch it's low over (within <see cref="CraneTuning.GuideAbove"/>
+    /// of the roof) and overlaps but doesn't clear: the nearest place it clears (world, at the hook's height). Null when it
+    /// clears already, isn't over one, or is too big for it whatever its place.
+    /// </summary>
+    public Double3? Guided(TrainOnLine train)
+    {
+        if (Hooked is null)
+            return null;
+        var hook = HookAt;
+        foreach (var frame in train.Frames)
+        {
+            var shape = frame.Shape;
+            if (shape.Hatch is not { } hatch || !train.Vehicles[frame.Index].DoorOpen(CarShape.HatchBit))
+                continue;
+            var local = frame.ToLocal(hook);
+            if (local.Y - 2 * CastingHalf - shape.RoofHeight > _t.GuideAbove)
+                continue;
+            var (hx, hz) = Footprint(frame);
+            bool over = Math.Abs(local.X - hatch.Centre.X) < hatch.HalfSize.X + hx && Math.Abs(local.Z - hatch.Centre.Z) < hatch.HalfSize.Z + hz;
+            if (!over || hx > hatch.HalfSize.X || hz > hatch.HalfSize.Z)
+                continue;
+            if (local.X - hx >= hatch.Min.X && local.X + hx <= hatch.Max.X && local.Z - hz >= hatch.Min.Z && local.Z + hz <= hatch.Max.Z)
+                return null;
+            // Aimed a little inside the opening's edges: the bridge and trolley put the hook within a few centimetres of a
+            // point (Over's search), so it lands clear of them, not on them.
+            double margin = Math.Min(0.08, Math.Min(hatch.HalfSize.X - hx, hatch.HalfSize.Z - hz));
+            double x = Math.Clamp(local.X, hatch.Min.X + hx + margin, hatch.Max.X - hx - margin);
+            double z = Math.Clamp(local.Z, hatch.Min.Z + hz + margin, hatch.Max.Z - hz - margin);
+            return frame.ToWorld(new Double3(x, local.Y, z));
+        }
+        return null;
     }
 
     /// <summary>
@@ -220,6 +281,13 @@ public sealed class Crane
     {
         if (Hooked is not { } c)
             return null;
+        // Let go low over an open hatch it overlaps but doesn't clear (note 581): it's put through where it does and set down
+        // inside, not kept on the hook with nothing said.
+        if (Guided(train) is { } fit)
+        {
+            (Bridge, Trolley, _) = Over(fit);
+            Hook = Lowest(train);
+        }
         var (car, floor) = Under(train);
         // Hung over an open hatch it won't go in through, it's kept on the hook: set down there, it would stand in the
         // opening (T99).

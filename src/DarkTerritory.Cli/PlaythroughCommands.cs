@@ -18,11 +18,6 @@ using DarkTerritory.Sim.Train;
 /// the app builds it: when each enemy is first there, and as it telegraphs, grabs and punishes, from beside it (or down
 /// the aisle, if it's in a car). A chase shot every --every seconds shows the line between. Frames go to
 /// out/playthrough with index.json (what, when, where), for the Look Review and the audit.
-/// <para>
-/// --strand km (solo): the player steps off the back of the train at that km past the gate and is left there (note 266),
-/// and the world closing in on them is photographed from their own eyes every --strand-every seconds (the figures at the
-/// edge of the lamp, the lamp going out, the pack), as well as each beat of the hunt.
-/// </para>
 /// </summary>
 static class PlaythroughCommands
 {
@@ -66,7 +61,7 @@ static class PlaythroughCommands
             var train = world.Train;
             double seconds = world.Tick * SimConstants.TickSeconds;
             var lighting = Views.Lighting(train, look);
-            lighting.FogDensity = (float)route.Weather.FogDensity;
+            lighting.FogDensity = Views.FogDensity(route, train);
             lighting.Frost = look.Tuning.Atmosphere.Cold.Frost(route.Weather.Cold);
             lighting = look.Chill(lighting, GreyboxScene.ChoirCold(world.Choir.Present ? 1 : (float)world.Choir.Build));
             scene.Signs = world.Lineside?.Signs;
@@ -87,13 +82,25 @@ static class PlaythroughCommands
             scene.Wreck = train.Wreck;
             scene.Derailed = world.Derailed;
             scene.FireDoorOpen = train.Boiler.FireDoorOpen;
+            scene.Ruptured = train.Boiler.Ruptured;
+            // Every break to mend, called out (note 301).
+            var breaks = RepairCallouts.Of(train);
+            Couplings.Callouts(train, breaks);
+            scene.Breaks = breaks;
+            scene.Failings = Failing.Of(train);
+            scene.BendStrain = world.TrackPlan is { } bent ? DarkTerritory.Game.BendStrain.PerCar(train, bent.Rules) : null;
+            scene.DriversLocked = scene.Ruptured && train.BoilerTuning is { } rt && train.Dynamics.Speed > rt.RuptureCoastBelow;
             scene.SinceShovel = train.Boiler.SinceShovel;
             scene.ChoirGathering = world.Choir.Present ? 1 : (float)world.Choir.Build;
+            scene.Answer = world.Answer;
+            scene.AnswerShowSeconds = world.Director?.Tuning.Draw.ShowSeconds ?? 7;
+            // Watched afoot (note 327): eyes toward what lives at the stop.
+            scene.Watcher = world.Watcher;
+            scene.WatcherShowSeconds = world.Director?.Tuning.Afoot.SignSeconds ?? 3.5;
             scene.FireGlow = train.BoilerTuning is { } bt ? GreyboxScene.FireLook(train.Boiler.Firebox, bt.FireboxCapacity) : 0.7f;
             scene.StokerLowFor = stokerSince < 0 ? -1 : seconds - stokerSince;
             scene.StokerDownAt = world.Enemies?.Stoker.HeatSeconds ?? 20;
             scene.LampLit = world.LampShining;
-            scene.Abandoned = world.Abandonment;
             scene.Cut = DarkTerritory.Game.Art.SceneArt.Cuts(train);
             // Each as the app draws them, doing what they're doing (CrewActs): ids in join order, as the host gave them.
             scene.Crew = [.. crew.Select((s, i) => CrewActs.Crewmate((byte)(i + 1), s, world, train.Frames, crew))];
@@ -194,6 +201,8 @@ static class PlaythroughCommands
             }
         }
 
+        int signsShot = 0, encountersAfoot = 0;
+
         // After each tick: each enemy as it arrives and at each beat of its spine that a crew would be watching for, and the
         // line between.
         void Watch(World world, IReadOnlyList<PlayerState> crew)
@@ -238,6 +247,17 @@ static class PlaythroughCommands
                     continue;
                 Shoot(world, crew, $"{e.Kind}-{e.To}".ToLowerInvariant(), Beside(train, enemy), $"{e.Kind} {e.From} -> {e.To}");
             }
+            // Note 327: each sign shown a crewmate afoot, photographed from their eyes once its eyes are open; and every
+            // threat that showed itself while anyone was out.
+            if (world.Watcher is { Showing: true } sign && world.Director is { } wd && sign.Seconds <= wd.Tuning.Afoot.SignSeconds - 0.8
+                && signsShot < wd.Signs.Count && world.CrewThisTick.FirstOrDefault(c => c.Id == sign.Player) is { State.Alive: true } watched)
+            {
+                signsShot = wd.Signs.Count;
+                var eye = PlayerMotor.WorldPosition(watched.State, train) + Double3.Up * 1.6;
+                Shoot(world, crew, $"sign-{sign.Kind}".ToLowerInvariant(), Camera.LookAt(eye, sign.At, 70), $"watched afoot: {sign.Kind}");
+            }
+            if (world.Director is { AfootShare: > 0 })
+                encountersAfoot += world.EnemyEvents.Count(e => e.To == SpinePhase.Telegraph);
             if (now - lastChase >= every)
             {
                 lastChase = now;
@@ -246,7 +266,6 @@ static class PlaythroughCommands
         }
 
         World last;
-        object? strandReport = null;
         if (bots > 0)
             last = Crewed(content, route, cars, bots, minutes, args, Watch);
         else
@@ -256,40 +275,8 @@ static class PlaythroughCommands
             var session = new PrototypeSession(content, route, cars, enemies: true, crew: (int)Opt(args, "--crew", 1));
             var train = session.Train;
             int ticks = (int)(minutes * 60 * SimConstants.TickRate);
-            double strandKm = Opt(args, "--strand", -1), strandEvery = Opt(args, "--strand-every", 8), strandShot = 0;
-            double gate = route.GateOr(DarkTerritory.Sim.Route.RouteTuning.Load(content).YardLength);
-            bool left = false;
-            double leftAt = -1;
-            var dreadSeen = DarkTerritory.Sim.Enemies.Dread.None;
-            bool lampSeen = false;
             for (int t = 0; t < ticks && session.World.Run?.Over != true; t++)
             {
-                // Note 266: stepped off the back as the train ran on, and left.
-                if (strandKm >= 0 && !left && train.Dynamics.RearDistance >= gate + strandKm * 1000)
-                {
-                    left = true;
-                    double at = train.Dynamics.RearDistance - 4;
-                    leftAt = Math.Round(session.World.Tick * SimConstants.TickSeconds, 1);
-                    var ts = train.Line.Sample(at);
-                    var kit = session.Player.Kit;
-                    var beside = ts.Position + Double3.Cross(ts.Tangent, Double3.Up).Normalized * 3;
-                    session.Player = PlayerMotor.SpawnOnGround(beside, train.Line, at, session.PlayerTuning) with { Kit = kit };
-                }
-                if (left && session.World.Abandonment is { } abandonment && session.Player.Alive)
-                {
-                    double s = abandonment.SecondsOf(1);
-                    var dread = abandonment.DreadOf(1);
-                    bool lamp = abandonment.LampOut(1);
-                    bool due = s > 0 && (s - strandShot >= strandEvery || dread != dreadSeen || lamp != lampSeen);
-                    if (due)
-                    {
-                        strandShot = s;
-                        dreadSeen = dread;
-                        lampSeen = lamp;
-                        Shoot(session.World, [], $"abandoned-{dread}-{s:000}".ToLowerInvariant(), Abandoned(session, abandonment),
-                            $"left behind {s:0} s: {dread}{(lamp ? ", lamp out" : "")}, {abandonment.All.Count} figure set(s), hunters {session.World.ActiveEnemies.Count(e => !e.Gone && e.Quarry == 1)}");
-                    }
-                }
                 if (route.Plan is { } plan)
                     DarkTerritory.Game.LineGen.Ride.Drive(train, plan, ref session.Controls);
                 if (train.Dynamics.Speed > cap)
@@ -302,7 +289,6 @@ static class PlaythroughCommands
                 Watch(session.World, [session.Player]);
             }
             last = session.World;
-            strandReport = new { gate = Math.Round(gate), left, at = leftAt, abandoned = Math.Round(session.World.Abandonment?.SecondsOf(1) ?? -1, 1), alive = session.Player.Alive, parent = session.Player.Parent, phase = session.World.Run?.Phase.ToString(), gap = Math.Round(DarkTerritory.Sim.Enemies.Abandonment.GapTo(train, PlayerMotor.WorldPosition(session.Player, train))) };
         }
         string index = Path.Combine(dir, "index.json");
         File.WriteAllText(index, System.Text.Json.JsonSerializer.Serialize(shots, new System.Text.Json.JsonSerializerOptions { WriteIndented = true }));
@@ -334,8 +320,6 @@ static class PlaythroughCommands
                 carsLitAtEnd = last.Train.Dynamics.Consist.Vehicles.Count(v => v.LampLit && v.Id > 0),
                 cars = last.Train.Dynamics.Consist.Vehicles.Count - 1,
             },
-            // --strand (note 266): where the gate is, and when the player was left.
-            strand = strandReport,
             // Note 260: the line's own kills against their warning (sight.json roofWarning.leadSeconds).
             roofWarning = new
             {
@@ -347,6 +331,26 @@ static class PlaythroughCommands
                 spared = last.Lineside?.Spared ?? 0,
                 deaths = roofDeaths,
             },
+            // Note 327 (App. F.3): the crew afoot off the train, watched. Crew-seconds out, the signs shown them (by kind, and how
+            // many from a site at the stop), the director's spawns made while anyone was out, and threats telegraphing then.
+            afoot = last.Director is { } ld ? new
+            {
+                seconds = ld.AfootSeconds,
+                signs = ld.Signs.Count,
+                fromSites = ld.Signs.Count(x => x.FromSite),
+                kinds = ld.Signs.GroupBy(x => x.Kind.ToString()).ToDictionary(g => g.Key, g => g.Count()),
+                spawns = ld.SpawnsAfoot,
+                spawnsAll = ld.Log.Count,
+                telegraphs = encountersAfoot,
+            } : null,
+            // Note 326: what the crew found at the stops (with --loot): the hiding spots searched, the finds stowed and their scrip.
+            loot = last.Run is { } lr ? new
+            {
+                searched = lr.HidingSpots.Count(h => lr.Searched(h.Stop, h.Container.Index)),
+                spots = lr.HidingSpots.Count,
+                stowed = lr.Stowed.Count,
+                scavenged = Math.Round(lr.Scavenged),
+            } : null,
             index = Path.GetFullPath(index),
             renderSeconds = Math.Round(watch.Elapsed.TotalSeconds),
         };
@@ -380,6 +384,8 @@ static class PlaythroughCommands
             Holdouts = DataFile.Load<DarkTerritory.Sim.Run.HoldoutTuning>(Path.Combine(content, DarkTerritory.Sim.Run.HoldoutTuning.File)),
             Sight = DataFile.Load<SightTuning>(Path.Combine(content, SightTuning.File)),
             YardLength = yard,
+            // --loot: the stops' loot as the game has it (note 326: a bot crew searches the village's houses with it).
+            Loot = args.Contains("--loot") ? DataFile.Load<DarkTerritory.Sim.Stops.LootTuning>(Path.Combine(content, DarkTerritory.Sim.Stops.LootTuning.File)) : null,
             Insist = Str(args, "--insist", "") is { Length: > 0 } insist ? [.. insist.Split(',').Select(k => Enum.Parse<EnemyKind>(k, ignoreCase: true))] : null,
             InsistEvery = Opt(args, "--insist-every", 20),
             Observe = (_, crew, world) =>
@@ -390,26 +396,6 @@ static class PlaythroughCommands
             Until = world => world.Run?.Over == true,
         }, c.Boiler);
         return last ?? throw new InvalidOperationException("the night never started");
-    }
-
-    /// <summary>
-    /// Note 266: through the left-behind player's own eyes, at whatever's nearest out there (a hunter, else a figure at the
-    /// edge of the lamp, else back down the line after the train).
-    /// </summary>
-    static Camera Abandoned(PrototypeSession session, DarkTerritory.Sim.Enemies.Abandonment abandonment)
-    {
-        var train = session.Train;
-        var eye = PlayerMotor.WorldPosition(session.Player, train) + Double3.Up * 1.6;
-        var hunter = session.World.ActiveEnemies.Where(e => !e.Gone && e.Quarry == 1).Select(e => e.WorldPosition(train)).OrderBy(p => (p - eye).Length).FirstOrDefault();
-        Double3 target;
-        if (hunter != default)
-            target = hunter + Double3.Up * 0.6;
-        else if (abandonment.All.FirstOrDefault(a => a.Player == 1) is { Player: 1 } a
-            && DarkTerritory.Sim.Enemies.Abandonment.FiguresOf(a, abandonment.Tuning, train.Line) is { Count: > 0 } figures)
-            target = figures[0].Feet + Double3.Up * 1.0;
-        else
-            target = train.Frames[^1].Origin + Double3.Up * 1.5;
-        return Camera.LookAt(eye, target, 70);
     }
 
     /// <summary>

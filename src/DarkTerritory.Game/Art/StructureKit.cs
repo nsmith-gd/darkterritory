@@ -347,10 +347,13 @@ public static class StructureKit
     /// A tunnel portal facing +Z (the way into it): a dressed stone face with the bore's opening, a ring of voussoirs
     /// and a keystone, a coping along the top, wing walls raked back into the hill.
     /// </summary>
+    /// <summary>A portal's face: <see cref="PortalHalf"/> either side of the rail, up to its coping at <see cref="PortalTop"/> over it.</summary>
+    public const float PortalHalf = 10, PortalTop = 11.5f;
+
     public static MeshAsset Portal(Look? look)
     {
         var k = new Kit(look, 930);
-        const float w = 10, top = 11.5f, t = 1.6f;
+        const float w = PortalHalf, top = PortalTop, t = 1.6f;
         var bore = Bore(0.02f);
         k.Use("stone_block", Palette.Charcoal, 0.7f, 0.1f, tile: 2.5f);
         // The face at z = 0: from each point of the opening's outline out to the rectangle's edge.
@@ -430,8 +433,11 @@ public static class StructureKit
         k.Use("stone_block", Palette.Charcoal, 0.8f, 0.1f, tile: 2.5f);
         k.Box(new Vector3(-t / 2 - 0.3f, -0.5f, -len), new Vector3(t / 2 + 0.3f, 1.2f, 0), Kit.Faces.All & ~Kit.Faces.NegY);
         k.Box(new Vector3(-t / 2, 1.2f, -len), new Vector3(t / 2, h, 0), Kit.Faces.All & ~Kit.Faces.NegY);
+        // The merlons on the outer half (away from the line: +x on the right-hand wall), the walk behind them open, so the
+        // watch walking it shows over the parapet from inside (B2's towns, note 335).
+        float out0 = side > 0 ? 0 : -t / 2, out1 = side > 0 ? t / 2 : 0;
         for (float z = -0.3f; z > -len; z -= 1.25f)
-            k.Box(new Vector3(-t / 2, h, z - 0.7f), new Vector3(t / 2, h + 0.9f, z), Kit.Faces.All & ~Kit.Faces.NegY);
+            k.Box(new Vector3(out0, h, z - 0.7f), new Vector3(out1, h + 0.9f, z), Kit.Faces.All & ~Kit.Faces.NegY);
         // Soot and seep stains run down it from the walk: the texture's, darkened low on the side facing the line.
         k.Use("iron_plate", Palette.IronGrey, 0.9f, 0.3f);
         for (float z = -2.5f; z > -len; z -= 5f)
@@ -554,11 +560,20 @@ public static class StructureKit
         {
             case FacilityKind.CoalingTower:
                 {
-                    // A concrete bunker up on timber stilts, its chute arm reaching over the track.
+                    // A concrete bunker up on timber stilts, its chute arm reaching over the track. The modelled tower where
+                    // it's built (facility_pieces coaling_tower, note 422): its braced trestle, the bunker, the hopper and the
+                    // chute hung from its jib, its mouth where GreyboxScene.Chute pours, the stop's lamp on its chain. Without
+                    // it, the kit's own: three stilts a side, the middle one on the line's side the leg Tower Jaw gnaws
+                    // (enemies.json towerJaw towerLegOut; note 363).
+                    if (k.Look is { } built && PropArt.Of(built).Get("coaling_tower") is not null)
+                    {
+                        Piece(k, "coaling_tower", s * 7, 0, Facing(s));
+                        break;
+                    }
                     float x = s * 7;
                     k.Use("wood_grey", Palette.DeepBrown, 0.9f, 0, tile: 1.5f);
                     foreach (float dx in new[] { -3.5f, 3.5f })
-                        foreach (float dz in new[] { -4.5f, 4.5f })
+                        foreach (float dz in new[] { -4.5f, 0, 4.5f })
                             k.Rod(new Vector3(x + dx, -0.3f, dz), new Vector3(x + dx * 0.9f, 12, dz * 0.9f), 0.25f);
                     for (float y = 3; y < 12; y += 3.2f)
                         foreach (float dz in new[] { -4.5f, 4.5f })
@@ -576,7 +591,14 @@ public static class StructureKit
                 }
             case FacilityKind.GrainElevator:
                 {
-                    // Three silos and a headhouse over them: the tallest thing for miles.
+                    // The modelled elevator where it's built (facility_pieces grain_elevator, note 381): four slip-formed
+                    // silos, the bin-floor gallery and the leg house over them, the tallest thing for miles; its spout
+                    // swung down to 2.5 m off the track. Without it, the kit's own: three silos and a headhouse.
+                    if (k.Look is { } built && PropArt.Of(built).Get("grain_elevator") is not null)
+                    {
+                        Piece(k, "grain_elevator", s * 15, 0, Facing(s));
+                        break;
+                    }
                     float x = s * 15;
                     k.Use("concrete_stain", Palette.BlueGrey, 0.9f, 0.1f, tile: 3);
                     for (int i = 0; i < 3; i++)
@@ -594,7 +616,15 @@ public static class StructureKit
                 {
                     // Long brick sheds with sawtooth roofs, a tall stack, and the dim glow of a furnace nobody tends. Where the
                     // greybox's block was, 14-30 m out: the yard between it and the spur is the gantry crane's (its far leg
-                    // and the castings' stack stand at 7.5-9 m, facilities.json "crane").
+                    // and the castings' stack stand at 7.5-9 m, facilities.json "crane"). The modelled casting shed where it's
+                    // built (facility_pieces foundry_shed, note 420): its north lights, the furnace's light in its windows
+                    // (an emissive layer), a great doorway at each end of its front so one faces the crane's yard from either
+                    // side of the spur, the cupola through its roof and the stack behind.
+                    if (k.Look is { } built && PropArt.Of(built).Get("foundry_shed") is not null)
+                    {
+                        Piece(k, "foundry_shed", s * 22, 0, Facing(s));
+                        break;
+                    }
                     float x0 = s * 22 - 8, x1 = s * 22 + 8;
                     var (a, b) = (MathF.Min(x0, x1), MathF.Max(x0, x1));
                     k.Use("brick_soot", Palette.RustRed, 0.9f, 0.1f, tile: 1.2f);
@@ -612,24 +642,44 @@ public static class StructureKit
                 }
             case FacilityKind.MineHead:
                 {
-                    // The headframe over the shaft, its back-stays raking away from the line to the winding house; the
-                    // house's chimney; the spoil heap behind (GDD §18: the mine head's winch hauls from it).
-                    // Up by half again: the prop is modelled to a small colliery's frame, and next to the winding house it
-                    // should be the tallest thing on the site.
+                    // The headframe over the shaft (the sim's lift frame, facilities.json "lift"), its back-stays raking
+                    // away from the line to the winding house. Up by half again: the prop is modelled to a small colliery's
+                    // frame, and it should be the tallest thing on the site.
                     Piece(k, "headframe", s * 12, 0, Facing(s), 1.5f);
-                    WorksHouse(k, s * 25, 0, 10, 14, 8, "brick_soot");
+                    // The winding house 38 m out, its gable to the headframe, the ropes off the sheaves coming in high on it to
+                    // the drum; its boiler house and chimney behind. The tip off its +Z end, where the winch's sleds don't
+                    // run (they come in at -33), its incline climbing away from the house whichever side the house is on.
+                    // The modelled ones where they're built (facility_pieces winding_house, spoil_heap, note 410); else the
+                    // kit's works box, chimney and cone of slag where they stand.
+                    if (k.Look is { } built && PropArt.Of(built).Get("winding_house") is not null)
+                    {
+                        Piece(k, "winding_house", s * 38, 0, Facing(s));
+                        Piece(k, "spoil_heap", s * 36, 33, Facing(-1));
+                        break;
+                    }
+                    WorksHouse(k, s * 38, 0, 12, 15, 9.5f, "brick_soot");
                     k.Use("brick_soot", Palette.RustRed, 0.9f, 0.1f, tile: 1.2f);
-                    k.Cylinder(new Vector3(s * 29, -0.5f, -5), new Vector3(s * 29, 26, -5), 1.4f, 10, radiusB: 1.0f);
+                    k.Cylinder(new Vector3(s * 54.8f, -0.5f, s * 2.5f), new Vector3(s * 54.8f, 30, s * 2.5f), 1.3f, 10, radiusB: 0.85f);
                     k.Use("slag", Palette.Charcoal, 0.9f, 0, tile: 2);
-                    k.Cylinder(new Vector3(s * 34, -1, 26), new Vector3(s * 34, 11, 26), 16, 12, radiusB: 1.5f);
+                    k.Cylinder(new Vector3(s * 36, -1, 33), new Vector3(s * 36, 11, 33), 16, 12, radiusB: 1.5f);
                     break;
                 }
             case FacilityKind.ChemicalWorks:
                 {
                     // Storage tanks in a row, a pipe rack along the front on its trestles, the works behind with two
-                    // tall thin stacks.
+                    // tall thin stacks. The modelled works and rack where they're built (facility_pieces chem_works,
+                    // pipe_rack, note 410): the process house, its stacks and acid tower, its pipe bridges out over the
+                    // tanks onto the rack; the rack in 12 m bays, its last one's pipes turned down into the ground.
                     foreach (float z in new[] { -16f, 0, 16 })
                         Piece(k, "chem_tank", s * 13, z, Facing(s));
+                    if (k.Look is { } built && PropArt.Of(built).Get("chem_works") is not null)
+                    {
+                        Piece(k, "chem_works", s * 26, 0, Facing(s));
+                        foreach (float z in new[] { -18f, -6, 6 })
+                            Piece(k, "pipe_rack", s * 7, s * z, Facing(s));
+                        Piece(k, "pipe_rack_end", s * 7, s * 18, Facing(s));
+                        break;
+                    }
                     k.Use("rust_heavy", Palette.IronGrey, 0.8f, 0.4f);
                     for (float z = -24; z <= 24; z += 6)
                     {
@@ -647,10 +697,25 @@ public static class StructureKit
             case FacilityKind.MilitaryDepot:
                 {
                     // A watchtower at the gate end, sandbag walls along the front, Nissen huts behind, a line of
-                    // barbed-wire posts between the depot and the line.
+                    // barbed-wire posts between the depot and the line. The modelled ones where they're built
+                    // (facility_pieces nissen_hut, wire_fence, powder_magazine, note 461): the huts' corrugated half-rounds,
+                    // their doors behind blast walls; the wire on cranked pickets, its cranks to the line, its gate by the
+                    // watchtower 12 m wide where the crates are stacked (facilities.json "crates": the stack at -10 to -13,
+                    // 3 m out, and the heavy ones at -4), clear of the winch's sled run at -33; and behind the huts,
+                    // banked round with earth, the powder magazine its cargo comes out of ("best payout, worst cargo").
                     Piece(k, "watchtower", s * 6, -20, Facing(s));
                     for (float z = -12; z <= 12; z += 3)
                         Piece(k, "sandbags", s * 5, z, MathF.PI / 2);
+                    if (k.Look is { } built && PropArt.Of(built).Get("nissen_hut") is not null)
+                    {
+                        foreach (float z in new[] { -18f, 0, 18 })
+                            Piece(k, "nissen_hut", s * 17, z, Facing(s));
+                        for (float z = -27; z <= 27; z += 6)
+                            if (z is not (-15 or -9))
+                                Piece(k, "wire_fence", s * 3.5f, z, Facing(s));
+                        Piece(k, "powder_magazine", s * 31, 10, Facing(s));
+                        break;
+                    }
                     k.Use("corrugated_iron", Palette.IronGrey, 0.9f, 0.3f, tile: 1.5f);
                     var hut = new List<Vector2>();
                     for (int i = 0; i <= 10; i++)
@@ -670,9 +735,14 @@ public static class StructureKit
                 }
             case FacilityKind.Slaughterhouse:
                 {
-                    // The killing hall, long and windowless, and in front of it the pens and the ramp the cattle came
-                    // up out of the cars by.
-                    WorksHouse(k, s * 22, 0, 14, 44, 9, "brick_soot");
+                    // The killing hall, and in front of it the pens and the ramp the cattle came up out of the cars by. The
+                    // modelled hall where it's built (facility_pieces slaughterhouse, note 393): soot-black brick, its
+                    // windows small and high, a clerestory, the dressing rail out over the yard, the boiler house and its
+                    // chimney behind; without it, the kit's long windowless works box.
+                    if (k.Look is { } built && PropArt.Of(built).Get("slaughterhouse") is not null)
+                        Piece(k, "slaughterhouse", s * 22, 0, Facing(s));
+                    else
+                        WorksHouse(k, s * 22, 0, 14, 44, 9, "brick_soot");
                     for (float x = 8; x <= 14; x += 3)
                         for (float z = -18; z <= -3; z += 3)
                             Piece(k, "cattle_pen", s * x, z + 1.5f, MathF.PI / 2);
@@ -686,16 +756,44 @@ public static class StructureKit
             case FacilityKind.Switchyard:
                 {
                     // The signal box that ran the yard, looking out over it, and a water tower with its spout swung
-                    // out over the track; a goods shed behind.
+                    // out over the track; a goods shed behind. The modelled shed where it's built (facility_pieces
+                    // goods_shed, note 461): weatherboard and slate, its dock along the front under a canopy, doors open,
+                    // half across and barred, the office's lamp still lit.
                     Piece(k, "signal_box", s * 9, -6, Facing(s));
                     Piece(k, "water_tower", s * 6, 22, Facing(s));
-                    WorksHouse(k, s * 24, -4, 10, 30, 7, "wood_grey");
+                    if (k.Look is { } built && PropArt.Of(built).Get("goods_shed") is not null)
+                        Piece(k, "goods_shed", s * 24, -4, Facing(s));
+                    else
+                        WorksHouse(k, s * 24, -4, 10, 30, 7, "wood_grey");
                     break;
                 }
             case FacilityKind.WreckYard:
                 {
                     // Heaps of what's left of trains: carbodies on their sides and on each other, wheelsets, scrap; the
-                    // sheds behind, rusted through.
+                    // sheds behind, rusted through. The modelled ones where they're built (facility_pieces dead_boxcar,
+                    // dead_gondola, loose_truck, yard_shed, note 427): the yard's older dead, from before the train's time
+                    // (the heaps the crew work are the train's own, SceneArt.Wreckage), off their trucks, tipped, one across
+                    // another, one on its side; trucks loose among them; the engine shed rusted through. Laid out clear of
+                    // the sim's heaps (facilities.json "wreck": their facility-frame z is fixed, whichever side the yard is
+                    // on) and of the winch's sled run at z -33.
+                    if (k.Look is { } built && PropArt.Of(built).Get("yard_shed") is not null)
+                    {
+                        Lying(k, "dead_boxcar", s * 11, 0, -20, 0.15f, 0.35f, 1.45f);
+                        Lying(k, "dead_gondola", s * 12.5f, 0, -6, -0.2f, 0, 1.5f);
+                        // Dumped half across the gondola: its -Z end up on the gondola's side, the other in the ground.
+                        Lying(k, "dead_boxcar", s * 14.5f, 0.75f, -1.5f, -0.55f, 0.12f, 1.45f, 0.24f);
+                        Lying(k, "dead_boxcar", s * 17, 0, 6, -0.1f, 1.45f, 1.45f);
+                        Lying(k, "dead_gondola", s * 20, 0, 18, 0.3f, -0.3f, 1.5f);
+                        Lying(k, "dead_boxcar", s * 9.5f, 0, 14, -0.1f, -0.5f, 1.45f);
+                        Piece(k, "loose_truck", s * 7, 20, 0.3f);
+                        Piece(k, "loose_truck", s * 23, -14, -0.8f);
+                        Piece(k, "loose_truck", s * 15, 26, 1.2f);
+                        Piece(k, "loose_truck", s * 6.5f, -12, 0.6f);
+                        // Its open end (+X: the rails in, a door down) toward +Z on either side, off the sleds' run at -33: turned
+                        // as for the right side wherever it is (its long walls are alike).
+                        Piece(k, "yard_shed", s * 34, 0, Facing(1));
+                        break;
+                    }
                     for (int i = 0; i < 6; i++)
                     {
                         float x = s * (10 + (i % 3) * 5.5f), z = -22 + i * 8.5f;
@@ -743,8 +841,118 @@ public static class StructureKit
         return k.Build($"facility-{kind}-{side}");
     }
 
+    /// <summary>
+    /// The coaling tower brought down by Tower Jaw (note 363; docs/design/creatures/tower-jaw.md §5 COLLAPSE), in the frame
+    /// its standing self is drawn in for side +1 (+X out to its side, Z along the line, the origin on the line at its spout):
+    /// its stilts snapped off at the stumps (the gnawed one at the line's side an hourglass of tooth marks), the bunker gone
+    /// over beyond the line and lying on its side, broken open, and between them across the rails the heap the crew must
+    /// clear by hand: the stilts and their braces fallen every way, the chute arm bent over the rails, the hopper's cone, and
+    /// the coal out of the bunker spilled over all of it. <paramref name="cleared"/>: the same once the crew's cleared the
+    /// line (Use held at it): the timbers dragged off the rails to either side and the coal shovelled back off them.
+    /// </summary>
+    public static MeshAsset CoalingTowerFallen(Look? look, bool cleared)
+    {
+        var k = new Kit(look, 990);
+        static float H(int i, int j = 0) => 0.5f + 0.5f * MathF.Sin(i * 12.9898f + j * 78.233f + 0.7f) * MathF.Cos(i * 4.1414f - j * 1.618f);
+        // The stumps where it stood: the far row snapped high, the near row low, and the gnawed one cut through like an
+        // hourglass, raw where the teeth went in.
+        k.Use("wood_grey", Palette.DeepBrown, 0.9f, 0, tile: 1.5f);
+        foreach (float dz in new[] { -4.5f, 0, 4.5f })
+        {
+            float far = 1.6f + 1.8f * H((int)(dz * 3) + 5);
+            k.Rod(new Vector3(10.5f, -0.3f, dz), new Vector3(10.45f, far, dz), 0.25f);
+            k.Rod(new Vector3(10.45f, far, dz), new Vector3(10.2f, far + 0.6f, dz + 0.1f), 0.08f);
+            k.Rod(new Vector3(10.55f, far, dz - 0.05f), new Vector3(10.7f, far + 0.4f, dz - 0.15f), 0.06f);
+            if (dz == 0)
+            {
+                k.Cylinder(new Vector3(3.5f, -0.3f, 0), new Vector3(3.5f, 0.45f, 0), 0.25f, 8, radiusB: 0.1f);
+                k.Use("wood_crate", Palette.TarnishedBrass, 0.6f, 0, tile: 0.6f);
+                k.Cylinder(new Vector3(3.5f, 0.45f, 0), new Vector3(3.48f, 0.55f, 0.02f), 0.1f, 8, radiusB: 0.04f);
+                k.Use("wood_grey", Palette.DeepBrown, 0.9f, 0, tile: 1.5f);
+            }
+            else
+                k.Rod(new Vector3(3.5f, -0.3f, dz), new Vector3(3.52f, 0.5f + 0.7f * H((int)(dz * 3) + 9), dz), 0.25f);
+        }
+        // The bunker: over on its side beyond the line and broken in two where it hit, sooted, the roof's sheet torn half
+        // off it.
+        float beyond = cleared ? -11.5f : -10.5f;
+        k.Use("concrete_stain", Palette.BlueGrey, 0.95f, 0.1f, tile: 2.5f).Shade(0.55f);
+        k.With(Matrix4x4.CreateRotationZ(1.36f) * Matrix4x4.CreateRotationY(0.14f) * Kit.At(beyond, 4.9f, -2.4f),
+            () => k.Box(new Vector3(-4, -5, -3.0f), new Vector3(4, 5, 2.6f)));
+        k.With(Matrix4x4.CreateRotationZ(1.22f) * Matrix4x4.CreateRotationY(0.34f) * Matrix4x4.CreateRotationX(0.12f) * Kit.At(beyond + 0.6f, 4.4f, 3.6f),
+            () => k.Box(new Vector3(-4, -4.6f, -2.4f), new Vector3(4, 4.6f, 2.4f)));
+        k.Use("corrugated_iron", Palette.IronGrey, 0.9f, 0.3f, tile: 1.5f);
+        k.With(Matrix4x4.CreateRotationZ(1.1f) * Matrix4x4.CreateRotationY(0.4f) * Kit.At(beyond - 4.6f, 2.2f, -2.5f),
+            () => k.Box(new Vector3(-0.3f, -4.3f, -5.8f), new Vector3(0, 4.3f, 2.5f)));
+        // The coal out of it: heaped where it burst, spilling toward the line and (till it's cleared) over the rails.
+        k.Use("coal", Palette.Charcoal, 0.7f, 0.2f, tile: 1);
+        k.Cylinder(new Vector3(beyond + 3.5f, -0.3f, 0.5f), new Vector3(beyond + 3.8f, 1.6f, 0.4f), 3.4f, 10, radiusB: 0.6f);
+        k.Cylinder(new Vector3(beyond + 6.5f, -0.3f, -1.4f), new Vector3(beyond + 6.6f, 0.9f, -1.2f), 2.4f, 9, radiusB: 0.4f);
+        if (!cleared)
+        {
+            k.Cylinder(new Vector3(-1.2f, -0.3f, 0.6f), new Vector3(-1.1f, 0.8f, 0.5f), 2.8f, 9, radiusB: 0.5f);
+            k.Cylinder(new Vector3(1.4f, -0.3f, -1.8f), new Vector3(1.5f, 0.5f, -1.7f), 1.9f, 8, radiusB: 0.4f);
+        }
+        for (int i = 0; i < (cleared ? 10 : 34); i++)
+        {
+            float lx = cleared ? beyond + 5 + 3 * H(i, 1) : -6.5f + 9 * H(i, 1), lz = -3.5f + 7 * H(i, 2), sz = 0.18f + 0.35f * H(i, 3);
+            k.With(Matrix4x4.CreateRotationY(6.28f * H(i, 4)) * Matrix4x4.CreateRotationX(0.8f * H(i, 5)) * Kit.At(lx, 0.1f + sz * 0.4f, lz),
+                () => k.Box(new Vector3(-sz, -sz * 0.7f, -sz * 0.8f), new Vector3(sz, sz * 0.7f, sz * 0.8f)));
+        }
+        // The stilts and braces, fallen: across the rails in a jumble (each snapped in two, lying on what fell first),
+        // or once cleared, dragged off along either side of the line.
+        k.Use("wood_grey", Palette.DeepBrown, 0.95f, 0, tile: 1.5f).Shade(0.55f);
+        for (int i = 0; i < 6; i++)
+        {
+            float z0 = -4.5f + 4.5f * (i % 3) + 0.8f * (H(i, 6) - 0.5f);
+            if (cleared)
+            {
+                float x0 = i % 2 == 0 ? 3.2f : -3.4f - 0.5f * H(i, 7), y0 = 0.15f + 0.45f * (i / 2);
+                k.Rod(new Vector3(x0, y0, -9 + 2 * H(i, 8)), new Vector3(x0 + 0.3f * (H(i, 9) - 0.5f), y0, 2 + 3 * H(i, 10)), 0.25f);
+                continue;
+            }
+            float a = 0.35f * (H(i, 11) - 0.5f), y0b = 0.25f + 0.9f * H(i, 12);
+            var foot = new Vector3(3.2f - 0.6f * H(i, 13), 0.2f + 0.3f * H(i, 14), z0);
+            var bend = foot + new Vector3(-6.2f, y0b, 6.2f * a);
+            var end = bend + new Vector3(-5.2f, 0.4f - 0.9f * H(i, 15), 5.2f * (a + 0.3f * (H(i, 16) - 0.5f)));
+            k.Rod(foot, bend, 0.25f);
+            k.Rod(bend + new Vector3(-0.15f, 0.05f, 0), end with { Y = Math.Max(0.2f, end.Y) }, 0.24f);
+        }
+        for (int i = 0; i < (cleared ? 6 : 12); i++)
+        {
+            float x0 = cleared ? (i % 2 == 0 ? 4 : -4.6f) : -5 + 8 * H(i, 17), z0 = -5 + 10 * H(i, 18), len = 2 + 2.5f * H(i, 19);
+            float a = 6.28f * H(i, 20);
+            var c = new Vector3(x0, 0.2f + (cleared ? 0 : 1.3f * H(i, 21)), z0);
+            var d = cleared ? new Vector3(0, 0.05f, 1) : new Vector3(MathF.Cos(a), 0.3f * (H(i, 22) - 0.5f), MathF.Sin(a));
+            k.Rod(c - d * len * 0.5f, c + d * len * 0.5f, 0.1f);
+        }
+        // The chute arm, its iron bent where it came down across the rails, and the hopper's cone rolled off beside it.
+        k.Use("rust_heavy", Palette.IronGrey, 0.9f, 0.3f).Shade(0.45f);
+        float cx = cleared ? 4.4f : 1.2f;
+        k.Rod(new Vector3(cx + 3.5f, 0.6f, -1.2f), new Vector3(cx, 0.35f, 0.4f), 0.3f);
+        k.Rod(new Vector3(cx, 0.35f, 0.4f), new Vector3(cx - (cleared ? 0 : 3.2f), 0.25f, cleared ? 3.5f : 1.9f), 0.28f);
+        k.Cylinder(new Vector3(cleared ? 5.5f : -3.2f, 1.1f, -2.6f), new Vector3(cleared ? 6.2f : -4.4f, 0.6f, -0.8f), 2.0f, 8, radiusB: 0.6f);
+        return k.Build(cleared ? "coaling-fallen-cleared" : "coaling-fallen");
+    }
+
     /// <summary>The yaw that turns a modelled piece (its front the model's +Z) to face the line from side <paramref name="s"/>.</summary>
     static float Facing(float s) => -s * MathF.PI / 2;
+
+    /// <summary>
+    /// A modelled piece lying wrecked: long along the line (its +X turned to Z), rolled about its length by
+    /// <paramref name="lean"/> onto its low edge (dug in a little), its -Z end tipped up by <paramref name="pitch"/> (one end
+    /// on the ground, the other up on something), turned by <paramref name="yaw"/>, at <paramref name="y"/> over the ground.
+    /// <paramref name="halfWidth"/> is how far its low edge is from its middle.
+    /// </summary>
+    static void Lying(Kit k, string name, float x, float y, float z, float yaw, float lean, float halfWidth, float pitch = 0)
+    {
+        if (k.Look is { } look && PropArt.Of(look).Get(name) is { } piece)
+        {
+            float lift = MathF.Abs(MathF.Sin(lean)) * halfWidth - 0.15f;
+            k.Append(piece, Matrix4x4.CreateRotationY(MathF.PI / 2) * Matrix4x4.CreateRotationZ(lean) * Matrix4x4.CreateRotationX(pitch)
+                * Matrix4x4.CreateRotationY(yaw) * Kit.At(x, y + lift - 0.3f, z));
+        }
+    }
 
     /// <summary>A modelled piece (tools/models facility_pieces) set among a facility's buildings where it's built.</summary>
     static void Piece(Kit k, string name, float x, float z, float yaw, float scale = 1)
@@ -771,8 +979,9 @@ public static class StructureKit
         k.Box(new Vector3(a, -0.5f, z0), new Vector3(b, 0.8f, z1), Kit.Faces.All & ~Kit.Faces.NegY);
         k.Use(wall, wall == "brick_soot" ? Palette.RustRed : Palette.DeepBrown, 0.9f, 0.1f, tile: wall == "brick_soot" ? 1.2f : 1.5f);
         k.Box(new Vector3(a, 0.8f, z0), new Vector3(b, height, z1), Kit.Faces.Sides);
-        foreach (float zz in new[] { z0, z1 })
-            k.Tri(new Vector3(a, height, zz), new Vector3(b, height, zz), new Vector3(mid, height + width * 0.3f, zz), new(a, -height), new(b, -height), new(mid, -height - width * 0.3f));
+        // Both gables facing out (the −Z one was wound inwards, so from outside it wasn't there: note 387).
+        foreach (var (zz, l, r) in new[] { (z0, b, a), (z1, a, b) })
+            k.Tri(new Vector3(l, height, zz), new Vector3(r, height, zz), new Vector3(mid, height + width * 0.3f, zz), new(l, -height), new(r, -height), new(mid, -height - width * 0.3f));
         k.Use("corrugated_iron", Palette.IronGrey, 0.9f, 0.3f, tile: 1.5f);
         k.Quad(new Vector3(a - 0.4f, height - 0.1f, z1 + 0.4f), new Vector3(a - 0.4f, height - 0.1f, z0 - 0.4f), new Vector3(mid, height + width * 0.3f, z0 - 0.4f), new Vector3(mid, height + width * 0.3f, z1 + 0.4f), twoSided: true);
         k.Quad(new Vector3(mid, height + width * 0.3f, z1 + 0.4f), new Vector3(mid, height + width * 0.3f, z0 - 0.4f), new Vector3(b + 0.4f, height - 0.1f, z0 - 0.4f), new Vector3(b + 0.4f, height - 0.1f, z1 + 0.4f), twoSided: true);

@@ -32,10 +32,13 @@ public class WreckDeathTests
         var later = Centre(film.Frames[45].Ragdolls[0]);
         // Carried and thrown on ahead of the car, the way it was going: well past where it stood (it only hopped by itself).
         Assert.True(later.Z < first.Z - 5, $"from z {first.Z:0.0} to {later.Z:0.0}");
-        // Never inside the car: every joint stays ahead of its front face (or over its roof).
+        // Never inside the car while it ploughs on upright: every joint stays ahead of its front face (or over its roof).
+        // When its wheels drop it goes over (note 330), and a car coming down on a body crushes it (note 258's point 4).
         for (int f = 0; f < film.Frames.Count; f++)
         {
             var (o, right, carUp, back) = film.Frames[f].Cars[0];
+            if (carUp.Y < 0.95)
+                break;
             foreach (var j in film.Frames[f].Ragdolls[0])
             {
                 double along = Double3.Dot(j - o, back), up = Double3.Dot(j - o, carUp), across = Double3.Dot(j - o, right);
@@ -47,6 +50,61 @@ public class WreckDeathTests
         var death = film.Deaths[7];
         Assert.NotEqual(FilmDeathKind.Settle, death.Kind);
         Assert.Contains(film.Frames[(int)Math.Round(death.At * WreckFilm.Rate)].Landings, l => l.Doll == 0);
+    }
+
+    [Theory]
+    [InlineData(FilmTask.Driving)]
+    [InlineData(FilmTask.Firing)]
+    [InlineData(FilmTask.Carrying)]
+    public void EachGoesIntoTheWreckFromWhatTheyWereDoing(FilmTask task)
+    {
+        // App. F.2 take 4: "people mid-task", not every body from the one arms-up brace. Its pose keeps the skeleton's bones,
+        // and the film's first frame is it (turned to their yaw), held a moment before the brace takes over.
+        var pose = WreckFilm.TaskPose(task);
+        var stood = WreckFilm.TaskPose(FilmTask.None);
+        foreach (var (a, b) in new[] { (0, 1), (1, 2), (1, 3), (3, 4), (1, 5), (5, 6), (2, 7), (7, 8), (2, 9), (9, 10) })
+            Assert.Equal((stood[a] - stood[b]).Length, (pose[a] - pose[b]).Length, 6);
+        // Hands out in front at the work (−Z), not up over the head.
+        Assert.True(pose[4].Z < -0.2 && pose[6].Z < -0.2, $"{task}: the hands at {pose[4]}, {pose[6]}");
+        Assert.True(pose[4].Y < pose[0].Y && pose[6].Y < pose[0].Y, $"{task}: the hands under the head");
+        if (task == FilmTask.Firing)
+            Assert.True(pose[0].Z < -0.4 && pose[0].Y < 1.4, "bent into the shovel's swing");
+        var player = new FilmPlayer(5, "Ada", "at work", new Double3(0, 1.1, -1), new Double3(0, 0, -12), 0, 0, Task: task);
+        var film = WreckFilm.Shoot(W, new FilmStart(3, [Car(12)], [], [player], "test", 12), Flat);
+        var first = film.Frames[0].Ragdolls[0];
+        for (int j = 0; j < 11; j++)
+            Assert.True((first[j] - (player.Position + pose[j])).Length < 0.25, $"{task}: joint {j} starts at {first[j]}, its pose has {player.Position + pose[j]}");
+    }
+
+    [Fact]
+    public void ACarriedCrateGoesIntoTheWreckInTheirArmsAndIsThrownFree()
+    {
+        // Note 370 (the checklist: "a carried crate isn't in the ragdoll's hands"): held till they let go of their work, then
+        // on its own, falling and tumbling to rest on the ground; and nothing of the bodies' film changes for it.
+        var carrying = new FilmPlayer(5, "Ada", "carrying", new Double3(0, 1.1, -1), new Double3(0, 0, -12), 0, 0, Task: FilmTask.Carrying,
+            Carried: Physics.BodyKind.Crate);
+        var film = WreckFilm.Shoot(W, new FilmStart(3, [Car(12)], [], [carrying], "test", 12), Flat);
+        var without = WreckFilm.Shoot(W, new FilmStart(3, [Car(12)], [], [carrying with { Carried = null }], "test", 12), Flat);
+        Assert.Equal(without.Deaths, film.Deaths);
+        for (int f = 0; f < film.Frames.Count; f++)
+            Assert.Equal(without.Frames[f].Ragdolls[0], film.Frames[f].Ragdolls[0]);
+        Assert.All(without.Frames, f => Assert.Null(f.Loads));
+        // In the arms at the start, and still while the work's pose is held.
+        int held = (int)(W.Film.TaskHold * WreckFilm.Rate) - 1;
+        foreach (int f in new[] { 0, held })
+        {
+            var load = Assert.Single(film.Frames[f].Loads!);
+            Assert.Equal(0, load.Doll);
+            Assert.True((load.At - WreckFilm.InArms(film.Frames[f].Ragdolls[0]).At).Length < 1e-6, $"frame {f}: in the arms");
+        }
+        // Let go, it goes its own way: away from the hands, down on the ground by the end, at rest and lying flat.
+        var last = film.Frames[^1];
+        var end = Assert.Single(last.Loads!);
+        Assert.True((end.At - WreckFilm.InArms(last.Ragdolls[0]).At).Length > 0.3, "not still in the hands");
+        Assert.InRange(end.At.Y, 0.1, 0.6);
+        Assert.True(end.Up.Y > 0.95, $"settled flat: up {end.Up}");
+        // It tumbled on the way: its up was well off the vertical somewhere in the air.
+        Assert.Contains(film.Frames, f => f.Loads is [var l] && l.Up.Y < 0.7);
     }
 
     [Fact]

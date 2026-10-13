@@ -20,17 +20,18 @@ namespace DarkTerritory.Game;
 /// <param name="Stressed">Something's after the train close by them (an enemy past its dormant phase within
 /// <see cref="CrewActs.StressRange"/>): their run is a hurried one (GDD §31).</param>
 /// <param name="Health">Their health, for the stagger when it drops (App. C.2).</param>
-/// <param name="Phase">How far through a timed act they are, in its clip's seconds (the cannon's reload: steps done plus this one's progress).</param>
+/// <param name="Phase">How far through a timed act they are, in its clip's seconds (the cannon's reload: steps done plus this one's progress; a staged swing, note 275).</param>
 /// <param name="Death">How they died, if they have: a burned body is drawn charred (spec C.1).</param>
 /// <param name="Headset">A headset player's head and where they stand (T82): their body leans, crouches, twists and steps
 /// under it. Null for a keyboard or a bot.</param>
 /// <param name="Car">The car whose frame they stand in (their replicated <see cref="PlayerState.Parent"/>), or
 /// <see cref="PlayerState.World"/> on the ground: their gait is paced over it, not over the ground it carries them across (note 211).</param>
 /// <param name="Local">Their feet in that car's frame (<see cref="PlayerState.Position"/>); unused on the ground.</param>
+/// <param name="Emote">An emote they're at (note 298), stood still with nothing else to do, and how far into it they are (s).</param>
 public readonly record struct Crewmate(byte Id, Double3 Feet, double Yaw, bool Alive, Double3 Hand = default, Double3 Other = default, int? Looks = null,
     CrewPose? Act = null, Tool Holding = Tool.None, (Double3 A, Double3 B)? Reach = null, bool Lamp = false, Survivor Survivor = Survivor.None,
     bool Stressed = false, int Health = 0, double Phase = 0, DeathCause Death = DeathCause.None, int Car = PlayerState.World,
-    Double3 Local = default, HeadsetBody? Headset = null)
+    Double3 Local = default, HeadsetBody? Headset = null, Sim.Player.Emote Emote = Sim.Player.Emote.None, double EmoteSeconds = 0)
 {
     public int Variant => Looks ?? Id;
 }
@@ -73,8 +74,13 @@ public interface IPlaySession
     /// <see cref="WreckFilm.FirstPersonOf"/>), so the replay, the cut and the opera follow on from it.
     /// </summary>
     WreckTuning SequenceTuning => DerailSequence.TuningFor(World.WreckTuning, Film, PlayerId);
-    /// <summary>A vote to skip counts now (E.5: after the first player's shot; E.9: three seconds into the outro).</summary>
+    /// <summary>
+    /// The skip counts now. Each player's own (note 315): from the train coming off to the cause card; under the crew's vote,
+    /// after the first player's shot (E.5). E.9: three seconds into the outro.
+    /// </summary>
     bool Skippable => false;
+    /// <summary>How far through holding their own skip this player is, 0 to 1 (note 315).</summary>
+    double SkipHold => 0;
     /// <summary>What derailed it, in the boards' km/h (T121): the host's own, or the incident report's line on a client.</summary>
     string? DerailCause => World.DerailCause is { Length: > 0 } c ? c
         : World.Run?.Report?.Lines.LastOrDefault(l => l.Kind == Sim.Run.IncidentKind.Derailed)?.Text;
@@ -114,6 +120,16 @@ public interface IPlaySession
     Camera EyeCamera(IReadOnlyList<CarFrame> frames, double alpha, double pendingYaw, double pendingPitch);
     /// <summary>Everyone else aboard, for drawing.</summary>
     IReadOnlyList<Crewmate> Crew(IReadOnlyList<CarFrame> frames, double alpha);
+    /// <summary>
+    /// You, getting up inside the Holdout you came back in, while the camera's on you from in by its door (note 529,
+    /// <see cref="Eyes.CameBack"/>); null otherwise (your own figure isn't drawn round your eyes).
+    /// </summary>
+    Crewmate? CameBackFigure(IReadOnlyList<CarFrame> frames, double alpha) => null;
+    /// <summary>
+    /// You, where you are this frame: not drawn round your own eyes, but who a creature after you faces and reaches for
+    /// (note 558, <see cref="GreyboxScene.Self"/>); null when there's nobody (dead, watching someone else).
+    /// </summary>
+    Crewmate? Self(IReadOnlyList<CarFrame> frames, double alpha) => null;
     PlayerTuning PlayerTuning { get; }
     /// <summary>This machine's player id in the world (bodies record who carries them).</summary>
     int PlayerId => 1;
@@ -131,6 +147,9 @@ public interface IPlaySession
     /// </summary>
     IReadOnlyList<(int Id, PlayerState State)> CrewStates(double alpha) => [(PlayerId, Player)];
 }
+
+/// <summary>A crewmate's link as their host sees it (note 534): the round trip, their inputs lost or stale, and the route.</summary>
+public readonly record struct CrewLink(byte Id, double PingMs, double? Loss, Ballast.Net.CarrierLink? Via);
 
 /// <summary>What the HUD shows about the connection (spec E: ping to host "shown prominently", non-optional).</summary>
 /// <param name="PingMs">Round trip to the host; null for the host itself.</param>
@@ -151,6 +170,25 @@ public readonly record struct LinkInfo(string Role, double? PingMs, int Aboard, 
     public bool Full => Cap > 0 && Places >= Cap;
     /// <summary>Lost, and turned away on the way back (note 254): what the host said, "CREW FULL (8/8)".</summary>
     public string? Refused { get; init; }
+    /// <summary>
+    /// A joiner: the share of the host's snapshots lost or stale over hud.json's window (note 534; netcode-audit.md gap 3),
+    /// 0..1; null before there's been long enough to say.
+    /// </summary>
+    public double? Loss { get; init; }
+    /// <summary>A joiner: how the host is reached (relayed through Steam, or direct); null when the transport can't say.</summary>
+    public Ballast.Net.CarrierLink? Via { get; init; }
+    /// <summary>Hosting: each crewmate's link as the host sees it (note 534), in player-id order; bots and the host aren't on it.</summary>
+    public IReadOnlyList<CrewLink> Crew { get; init; } = [];
+    /// <summary>Hosting a private run (note 450): listed with a lock, joined with its password.</summary>
+    public bool Locked { get; init; }
+    /// <summary>Hosting, and this machine's frames can't hold the tick rate (note 532): the crew's night runs at its pace.</summary>
+    public bool HeldBack { get; init; }
+    /// <summary>Joined, and this client's clock is stretched to a host that's behind (note 532).</summary>
+    public bool Paced { get; init; }
+    /// <summary>Hosting, and enough of the crew report a thin downlink at once that it's this host's upload (note 557).</summary>
+    public bool UploadStrained { get; init; }
+    /// <summary>Hosting: what this machine sent in snapshots over the last second, kbit/s (note 557).</summary>
+    public double UpKbps { get; init; }
 }
 
 /// <summary>First-person eye from a player's state, interpolated in their own frame so riding a car at speed is smooth.</summary>
@@ -159,8 +197,12 @@ public static class Eyes
     /// <summary>How far over the feet the eyes are, alive. A headset's tracking space hangs from here (<see cref="VrLocomotion"/>).</summary>
     public const double Height = 1.65;
 
-    /// <summary>In the gun's seat (T112): the eyes at the shield's aiming slot (the seat 0.48 m over the roof, note 137).</summary>
-    public const double Seated = 1.26;
+    /// <summary>
+    /// In the gun's seat (T112): the eyes just over the shield's top (the seat 0.48 m over the roof, note 137). They were at
+    /// its aiming slot, and the director, 9 Oct 2026 (note 596), on the forward gun: its plate blocked the view ahead, the
+    /// line a letterbox through the slot. Over it, the gunner sees the line and the land, and lays the barrel under them.
+    /// </summary>
+    public const double Seated = 1.56;
 
     /// <summary>
     /// Up in the crane's cab while at its controls (T48): looking along the gantry at the bridge and trolley, not down at the
@@ -190,6 +232,84 @@ public static class Eyes
             Near = 0.05f,
             Far = 2000,
         };
+    }
+
+    /// <summary>
+    /// Come back (GDD App. D.8, note 529): freed, you're up off the Holdout's floor (<paramref name="inside"/>, its door
+    /// <paramref name="door"/>) on crew_clips' <c>getup</c> (1.87 s, as the
+    /// others see you, CrewActs). For the first <see cref="CutIn"/> seconds the camera is a held shot from inside the
+    /// Holdout, by its door, of you getting up; then it cuts into your eyes for the rest of it, the eye coming up with the
+    /// clip's head (<see cref="GettingUp"/>). Null once you're up.
+    /// </summary>
+    public static Camera? CameBack(Double3 inside, Double3 door, double seconds, Camera eyes)
+    {
+        if (seconds < 0 || seconds >= GetUpSeconds)
+            return null;
+        if (seconds < CutIn)
+        {
+            var toDoor = (door - inside) with { Y = 0 };
+            var outward = toDoor.Length > 0.1 ? toDoor.Normalized : new Double3(1, 0, 0);
+            var across = Double3.Cross(Double3.Up, outward);
+            // In by the door, a step to one side, a little over them: the way the crew coming in will find you.
+            double back = Math.Clamp(toDoor.Length - 0.35, 1.2, 2.2);
+            var shot = Camera.LookAt(inside + outward * back + across * 0.45 + Double3.Up * 1.45, inside + Double3.Up * 0.45, 62);
+            return shot with { Near = eyes.Near, Far = eyes.Far };
+        }
+        return eyes with { Position = eyes.Position - Double3.Up * (Height - GettingUp(seconds)) };
+    }
+
+    /// <summary>
+    /// Eaten (note 558; the director: "There was no blood or lay down of me when they started eating me"): a Ribbit pack's
+    /// on you (<see cref="Art.CreatureArt.RibbitEating"/>), so you're down on your back as the others see you (held_pinned,
+    /// your head <see cref="DownHead"/> from your feet, away from the one holding you at <paramref name="holder"/>), and your
+    /// eyes go down with you over <see cref="GoDown"/> seconds: low over the ground, looking down yourself at them on you.
+    /// </summary>
+    public static Camera Devoured(Double3 feet, Double3 holder, double seconds, Camera eyes)
+    {
+        var away = (feet - holder) with { Y = 0 };
+        var head = away.Length > 1e-3 ? away.Normalized : new Double3(-Math.Sin(eyes.Yaw), 0, -Math.Cos(eyes.Yaw));
+        var down = Camera.LookAt(feet + head * DownHead + Double3.Up * 0.3, holder + Double3.Up * 0.45, (float)eyes.FovYDegrees);
+        double u = Math.Clamp(seconds / GoDown, 0, 1);
+        u = u * u * (3 - 2 * u);
+        double yaw = eyes.Yaw + Math.IEEERemainder(down.Yaw - eyes.Yaw, Math.Tau) * u;
+        return eyes with
+        {
+            Position = Double3.Lerp(eyes.Position, down.Position, u),
+            Yaw = yaw,
+            Pitch = eyes.Pitch + (down.Pitch - eyes.Pitch) * u,
+        };
+    }
+
+    /// <summary>How long you take going down when a Ribbit pack gets onto you (s).</summary>
+    public const double GoDown = 0.7;
+
+    /// <summary>How far from where the sim has you your head lies, down on your back (m): laid <see cref="Art.CreatureArt.RibbitLaid"/>
+    /// up from there, held_pinned's head 0.6 m behind its origin.</summary>
+    public const double DownHead = Art.CreatureArt.RibbitLaid + 0.6;
+
+    /// <summary>crew_clips' getup: 56 frames at 30 fps.</summary>
+    public const double GetUpSeconds = 56 / 30.0;
+
+    /// <summary>How long the held shot of you getting up is before it cuts into your eyes (s): up on a knee by then.</summary>
+    public const double CutIn = 1.0;
+
+    /// <summary>
+    /// Your eyes' height over your feet <paramref name="seconds"/> into the getup: up on an elbow off the floor, a knee,
+    /// up, as the clip's head comes up (crew_clips' getup, sampled). <c>EyesCameBackTests</c> holds it to the clip's own
+    /// head, within 0.15 m.
+    /// </summary>
+    public static double GettingUp(double seconds)
+    {
+        ReadOnlySpan<(double T, double Eye)> keys = [(0, 0.67), (0.5, 0.87), (1.0, 1.10), (1.4, 1.32), (1.6, 1.51), (1.75, 1.62), (GetUpSeconds, Height)];
+        if (seconds <= 0)
+            return keys[0].Eye;
+        for (int i = 1; i < keys.Length; i++)
+            if (seconds <= keys[i].T)
+            {
+                double u = (seconds - keys[i - 1].T) / (keys[i].T - keys[i - 1].T);
+                return keys[i - 1].Eye + (keys[i].Eye - keys[i - 1].Eye) * u;
+            }
+        return Height;
     }
 
     /// <summary>The world heading of the frame a player's state is in (0 for the ground).</summary>

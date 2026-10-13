@@ -139,13 +139,16 @@ public static class Guns
         ref var gun = ref train.Vehicles[gunVehicle!.Value].Gun;
         var mount = Mount(train, gunVehicle.Value)!.Value;
         // The view stays inside what the gun can be laid on: its traverse either side of its facing, its pitch limits.
-        double half = t.TraverseDegrees / 2 * Math.PI / 180, face = FacingYaw(mount);
+        double half = t.Traverse(Facing(mount)) / 2 * Math.PI / 180, face = FacingYaw(mount);
         double off = Math.Clamp(Wrap(s.Yaw - face), -half, half);
         s.Yaw = face + off;
         s.Pitch = Math.Clamp(s.Pitch, t.MinPitchDegrees * Math.PI / 180, t.MaxPitchDegrees * Math.PI / 180);
-        // The gun after it, at its pace.
+        // The gun after it, at its pace: the full circle (note 596) the short way round, past its back.
         double turn = t.TraverseDegreesPerSecond * Math.PI / 180 * dt, lift = t.ElevateDegreesPerSecond * Math.PI / 180 * dt;
-        gun.Traverse += Math.Clamp(off - gun.Traverse, -turn, turn);
+        if (half >= Math.PI - 1e-9)
+            gun.Traverse = Wrap(gun.Traverse + Math.Clamp(Wrap(off - gun.Traverse), -turn, turn));
+        else
+            gun.Traverse += Math.Clamp(off - gun.Traverse, -turn, turn);
         gun.Elevation += Math.Clamp(s.Pitch - gun.Elevation, -lift, lift);
         var seat = SeatAt(mount, gun, t, s.Position.Y);
         s.Position = seat;
@@ -155,6 +158,9 @@ public static class Guns
     /// <summary>Whether a gun's barrel is laid on <paramref name="aim"/> (car frame), within the tuning's tolerance (bots fire on it).</summary>
     public static bool Laid(GunMount mount, in GunState g, Double3 aim, GunTuning t) =>
         DMath.Acos(Math.Clamp(Double3.Dot(BarrelAim(mount, g), aim.Normalized), -1, 1)) * 180 / Math.PI <= t.LaidDegrees;
+
+    /// <summary>Whether a mount faces ahead (the engine's forward gun) or back down the train.</summary>
+    public static GunMountFacing Facing(GunMount mount) => mount.Facing.Z < 0 ? GunMountFacing.Ahead : GunMountFacing.Back;
 
     static double Wrap(double a)
     {
@@ -177,7 +183,7 @@ public static class Guns
             return AimResult.PitchLimit;
         flat = flat.Normalized;
         double bearing = DMath.Acos(Math.Clamp(Double3.Dot(flat, mount.Facing), -1, 1)) * 180 / Math.PI;
-        if (bearing > t.TraverseDegrees / 2)
+        if (bearing > t.Traverse(Facing(mount)) / 2)
             return AimResult.OutOfTraverse;
         // The train's body runs away from the gun opposite its facing; nothing fires along it.
         double alongBody = DMath.Acos(Math.Clamp(Double3.Dot(flat, mount.Facing * -1), -1, 1)) * 180 / Math.PI;
@@ -196,7 +202,7 @@ public static class Guns
             return null;
         var vehicle = train.Vehicles[gunVehicle];
         ref var gun = ref vehicle.Gun;
-        if (gun.Jammed || gun.Ammo <= 0 || gun.Cooldown > 0 || gun.ReloadNeeded > 0)
+        if (gun.Jammed || Ready(gun, t) <= 0 || gun.Cooldown > 0 || gun.ReloadNeeded > 0)
             return null;
         if (train.BoilerTuning is not null && train.Boiler.Pressure < t.MinPressure)
             return null;
@@ -207,10 +213,12 @@ public static class Guns
             return null;
 
         gun.Ammo--;
+        gun.Rack = Math.Max(0, gun.Rack - 1);
         gun.Cooldown = t.TicksPerRound;
         gun.LastShotTick = tick;
-        // The cannon's full manual reload before the next (GDD v1.1 App. C.3): powder, ball, ram.
-        gun.ReloadNeeded = gun.Ammo > 0 ? t.ReloadSteps : 0;
+        // The cannon's full manual reload before the next (GDD v1.1 App. C.3): powder, ball, ram. The rack run dry (note
+        // 374), there's nothing to load until a charge comes up from the lockers.
+        gun.ReloadNeeded = Ready(gun, t) > 0 ? t.ReloadSteps : 0;
         gun.ReloadProgress = 0;
         // GDD §22 wind (note 183): out where the wind takes it, a shot carries further, and feeds the meter more.
         double wind = train.Line.Conditions?.Wind(train.Dynamics.Path, train.Dynamics.Distance) ?? 0;
@@ -298,7 +306,7 @@ public static class Guns
         return null;
     }
 
-    static double? Water(TrainOnLine train, Double3 p) =>
+    internal static double? Water(TrainOnLine train, Double3 p) =>
         (train.Line.Conditions is Net.HazardConditions h ? h.Inner : train.Line.Conditions) is LineGen.PlanConditions plan ? plan.Terrain.WaterAt(p.X, p.Z) : null;
 
     /// <summary>Straight down from a point to what's under it: the ground, or water over it.</summary>
@@ -369,12 +377,94 @@ public static class Guns
                 v.Gun.Cooldown--;
     }
 
-    /// <summary>Loads every gun with a full belt (spec B.7: 200 rounds, resupply at a POI).</summary>
+    /// <summary>Stocks every gun for the night (App. C.3, combat.json <c>ammo</c>), its ready rack full (note 374).</summary>
     public static void Arm(TrainOnLine train, GunTuning t)
     {
         foreach (var v in train.Vehicles)
             if (v.HasGun)
-                v.Gun = new GunState { Mounted = true, Z = v.Gun.Z, Facing = v.Gun.Facing, Ammo = t.Ammo };
+                v.Gun = new GunState { Mounted = true, Z = v.Gun.Z, Facing = v.Gun.Facing, Ammo = t.Ammo, Rack = Math.Min(t.Rack, t.Ammo) };
+    }
+
+    // ------------------------------------------------------------------ powder to the guns (note 374, orchestrator.md §5.1 U4)
+
+    /// <summary>
+    /// The rounds a gun can fire before more powder comes up: its ready rack (never more than its stock: a stock set by a
+    /// save or a restock is the bound), or with no rack (<see cref="GunTuning.Rack"/> 0) its whole stock.
+    /// </summary>
+    public static int Ready(in GunState gun, GunTuning t) => t.Rack > 0 ? Math.Min(gun.Rack, gun.Ammo) : gun.Ammo;
+
+    /// <summary>A gun's rounds down in the powder lockers: its stock less what's in its rack.</summary>
+    public static int Stowed(in GunState gun, GunTuning t) => t.Rack > 0 ? Math.Max(0, gun.Ammo - Ready(gun, t)) : 0;
+
+    /// <summary>
+    /// Where a car's powder locker stands (its frame; the shot locker the art draws, App. C.3: "an iron-bound chest in the
+    /// gun car's front corner"): on the floor along the left wall in the room's front corner. Only a car built for a gun
+    /// (the guard van) with a room has one; null for any other.
+    /// </summary>
+    public static Double3? Locker(CarShape shape) =>
+        shape.Gun is not null && shape.Interior is { } room && shape.Cab is null
+            ? new Double3(room.Min.X + 0.42, room.Min.Y, room.Min.Z + 0.55) : null;
+
+    /// <summary>
+    /// The powder all the guns of the engine's rake have down in the lockers (a pool: the guard van's locker holds the
+    /// engine gun's share too, so its powder is a walk down the train).
+    /// </summary>
+    public static int Stowed(TrainOnLine train, GunTuning t)
+    {
+        int n = 0;
+        foreach (var v in train.Dynamics.Consist.Vehicles)
+            if (v.HasGun && !v.Taken)
+                n += Stowed(v.Gun, t);
+        return n;
+    }
+
+    /// <summary>
+    /// The powder locker this player's hands are at (its car), if any: inside its car, standing, within
+    /// <see cref="GunTuning.LockerReach"/> of it; a car in the engine's rake (a car cut loose takes its locker with it).
+    /// </summary>
+    public static int? AtLocker(in PlayerState s, TrainOnLine train, GunTuning t)
+    {
+        if (t.Rack <= 0 || !s.Alive || s.Parent <= 0 || s.Parent >= train.Frames.Count || !PlayerMotor.Indoors(s, train)
+            || train.Dynamics.Consist.IndexOf(s.Parent) < 0 || Locker(train.Frames[s.Parent].Shape) is not { } at)
+            return null;
+        var d = s.Position - at;
+        return d.X * d.X + d.Z * d.Z <= t.LockerReach * t.LockerReach ? s.Parent : null;
+    }
+
+    /// <summary>
+    /// A charge carried up to <paramref name="gunVehicle"/>'s gun: its rack filled from the lockers, from its own stock first
+    /// and then from the other guns' (the pool; their stocks move with it). Emptied, the gun's ready to load again (powder,
+    /// ball, ram). Returns the rounds it took (0: the rack was full or the lockers empty, and the charge isn't used).
+    /// </summary>
+    public static int Fill(TrainOnLine train, int gunVehicle, GunTuning t)
+    {
+        ref var gun = ref train.Vehicles[gunVehicle].Gun;
+        int want = t.Rack - Ready(gun, t);
+        if (want <= 0)
+            return 0;
+        int took = Math.Min(want, Stowed(gun, t));
+        // Short, from the other guns' stocks in the lockers, in the order they stand.
+        foreach (var other in train.Dynamics.Consist.Vehicles)
+        {
+            if (took >= want)
+                break;
+            if (other.Id == gunVehicle || !other.HasGun || other.Taken)
+                continue;
+            int give = Math.Min(want - took, Stowed(other.Gun, t));
+            other.Gun.Ammo -= give;
+            gun.Ammo += give;
+            took += give;
+        }
+        if (took <= 0)
+            return 0;
+        bool empty = Ready(gun, t) <= 0;
+        gun.Rack = Ready(gun, t) + took;
+        if (empty && gun.ReloadNeeded <= 0)
+        {
+            gun.ReloadNeeded = t.ReloadSteps;
+            gun.ReloadProgress = 0;
+        }
+        return took;
     }
 
     /// <summary>Distance along the ray to the first solid of any car, or +∞.</summary>

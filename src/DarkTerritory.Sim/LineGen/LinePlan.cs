@@ -240,8 +240,22 @@ public sealed record PlanRouteCard(string Title, IReadOnlyList<CardLine> Timetab
 public sealed record PlanMarker(string Type, string Edge, double S);
 
 public sealed record PlanFortress(string Name, string Identity, double DepartureRoadM, double InnerGateM, double OuterGateM, int ThroatSwitches,
-    IReadOnlyList<double[]> Lights);
-public sealed record PlanTerminus(string Name, bool Silent, bool GateSafe, double GateM, double SkyGlowFromM, double HomeStraightFromM, IReadOnlyList<double[]> Lights);
+    IReadOnlyList<double[]> Lights)
+{
+    /// <summary>The seed of the town it is, when it's the one arrived at last night (note 591); null, the route's own.</summary>
+    public ulong? TownSeed { get; init; }
+    /// <summary>How many of that town's houses are burnt out (note 608): the creatures the crew brought in on earlier nights.</summary>
+    public int TownBurnt { get; init; }
+}
+public sealed record PlanTerminus(string Name, bool Silent, bool GateSafe, double GateM, double SkyGlowFromM, double HomeStraightFromM, IReadOnlyList<double[]> Lights)
+{
+    /// <summary>
+    /// Where the night's run ends, for its pacing (note 600): the gate and tiers.json's <c>arrivalYardM</c>, where the line
+    /// ended before a town terminus's yard ran on to the departure's length. The director's arc and the crew's reckoning of
+    /// the dawn go by it, so a longer yard isn't a later night. Null in a plan from before.
+    /// </summary>
+    public double? RunEndM { get; init; }
+}
 
 /// <summary>
 /// §8.5 and §9.2's lethal checks and hazards as the sim applies them, and the terrain rules the height field is built
@@ -254,6 +268,10 @@ public sealed record PlanRules(double ADerail, double BrassCuttingSpeed, double 
     public double APost { get; init; } = 0.7;
     /// <summary>How far out from the track the boards stand (signage.json sideOffsetM).</summary>
     public double SignOffsetM { get; init; } = 3.2;
+    /// <summary>How far either side the fog factor is averaged as the eye sees it (tiers.json weather.fogBlendM; note 313).</summary>
+    public double FogBlendM { get; init; }
+    /// <summary>Whether the eye's fog follows §14's factor along the line at all (tiers.json weather.fogAlongLine; note 313).</summary>
+    public bool FogAlongLine { get; init; }
     /// <summary>The biomes as their dressing reads them (biomes.json): the ground, the trees, the water.</summary>
     public IReadOnlyDictionary<string, BiomeDef> Biomes { get; init; } = new Dictionary<string, BiomeDef>();
     /// <summary>Each biome's landform mix (biomes.json "landform"), by biome.</summary>
@@ -262,6 +280,8 @@ public sealed record PlanRules(double ADerail, double BrassCuttingSpeed, double 
     public IReadOnlyDictionary<string, double> BiomeRelief { get; init; } = new Dictionary<string, double>();
     /// <summary>Each kind of board as the signage kit builds it (signage.json "boards"), by type.</summary>
     public IReadOnlyDictionary<string, BoardDef> Boards { get; init; } = new Dictionary<string, BoardDef>();
+    /// <summary>What each lineside kit piece stands on (footprints.json; note 389), by piece: each variant's boxes.</summary>
+    public IReadOnlyDictionary<string, double[][][]> Footprints { get; init; } = new Dictionary<string, double[][][]>();
 }
 
 public sealed record PlanCheck(string Name, bool Pass, string Detail);

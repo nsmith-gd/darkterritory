@@ -123,6 +123,8 @@ public sealed class SoundInstance
     // The music bus's low-pass on the rest of the game (App. E.6), two stages for a clear muffle.
     internal Biquad GameFilterA, GameFilterB;
     internal float LastAudibleGain;
+    /// <summary>How loud the mixer last heard this at the listener (distance, walls and its own gain; before the buses): 0 until it's rendered.</summary>
+    public float AudibleGain => LastAudibleGain;
     // The listener's space: shut out by it (ramped, not cut), and a voice's compressor (its level at the ear in dB, and the
     // gain it's giving, makeup included).
     internal float SpaceGain = 1;

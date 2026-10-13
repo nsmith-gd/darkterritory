@@ -21,6 +21,16 @@ public static class UiCue
     public const string Back = "ui-menus.back";
     public const string Title = "ui-menus.title";
     public const string EndCard = "ui-menus.end-card";
+    /// <summary>A letter typed into a name, or one rubbed out (note 320's crew names, the player's and the lobby's).</summary>
+    public const string Type = "ui-menus.type";
+    /// <summary>A crew deleted for good (note 320): the stamp in place of the choice's select.</summary>
+    public const string Delete = "ui-menus.delete";
+    // ui-panels: the roster, the supplies and the route card (note 316), opened, put away and paged (App/Program.cs).
+    public const string PanelOpen = "ui-panels.open";
+    public const string PanelClose = "ui-panels.close";
+    public const string PanelPage = "ui-panels.page";
+    /// <summary>This player's own film skipped (note 315).</summary>
+    public const string FilmSkip = "ui-film.skip";
     // ui-prompts: a hold-to-interact action (GameAudio.Interface).
     public const string Hold = "ui-prompts.hold";
     public const string Complete = "ui-prompts.complete";
@@ -110,6 +120,7 @@ public sealed partial class GameAudio
     }
 
     int _ballotPick = -1;
+    double _skipHold;
     bool _ballotSent, _ballotLocked, _commendGiven, _choicesPrimed;
     readonly HashSet<int> _heardBookmarks = [];
 
@@ -139,6 +150,12 @@ public sealed partial class GameAudio
         if (primed && given && !_commendGiven)
             Ui(UiCue.Commendation);
         _commendGiven = given;
+        // This player's own film skipped (note 315): their hold came to its end and went, the film cut (note 322). Let go
+        // short of the end, it falls back from further down and nothing's heard.
+        double skip = s.SkipHold, end = 1 - 1.5 * SimConstants.TickSeconds / Math.Max(s.World.WreckTuning.Skip.HoldSeconds, 1e-6);
+        if (primed && _skipHold >= end && skip <= 0)
+            Ui(UiCue.FilmSkip);
+        _skipHold = skip;
         _choicesPrimed = true;
     }
 
@@ -159,12 +176,13 @@ public sealed partial class GameAudio
         _uiWorld = null;
         _ballotPick = -1;
         _ballotSent = _ballotLocked = _commendGiven = _choicesPrimed = false;
+        _skipHold = 0;
         _heardBookmarks.Clear();
     }
 
-    enum HoldKind : byte { Reload, Repair, Handbrake, Hatch, Uncouple, Breach, Restart, Rig, ClearFoul, BoardUp }
+    enum HoldKind : byte { Reload, Repair, Handbrake, Hatch, Uncouple, Breach, Restart, Rig, ClearFoul, BoardUp, StartBelt, Unjam, Clamp, Rerail }
 
-    /// <param name="Id">What it's at: the gun's or the car's vehicle, the Holdout, the facility, the crane.</param>
+    /// <param name="Id">What it's at: the gun's or the car's vehicle, the Holdout, the facility, the crane, the conveyor's site.</param>
     /// <param name="Fraction">How far along: 1 is done.</param>
     readonly record struct Held(HoldKind Kind, int Id, double Fraction);
 
@@ -204,7 +222,9 @@ public sealed partial class GameAudio
     /// The hold the player's working, as the HUD prompts it ("[E] HOLD: ..." with an end to it), or null: a step of the
     /// cannon's reload (App. C.3), mending the boiler (T109), a handbrake, a roof hatch (T99), cutting the coupling (T91),
     /// breaking a Holdout open (App. D.7), restarting a yard's generator (level-design D.2), rigging a casting (T48), clearing a
-    /// fouled gun (GDD §23), boarding up a breached car (decided 1 Oct). Not the
+    /// fouled gun (GDD §23), boarding up a breached car (decided 1 Oct), starting the conveyor and clearing its jam (note 400),
+    /// the tipple's clamp and putting a car back on its rails (note 423).
+    /// Not the
     /// holds that only go on while held (the vent, sand, a crank, the chute lever), nor the shovel (every shovelful is the
     /// crew-shovel sounds'), nor a switch lever (its progress is the host's alone, SwitchStands.Progress).
     /// </summary>
@@ -261,6 +281,22 @@ public sealed partial class GameAudio
             for (int i = 0; i < cranes.Count; i++)
                 if (cranes[i].Rigging > 0 && cranes[i].Riggable(at) is not null)
                     return new(HoldKind.Rig, i, cranes[i].Rigging);
+            // The conveyor line (note 400): clearing a jam beside it, and its drive house's starter (the HUD's order).
+            if (run.FacilityTuning?.Conveyor is { } belt)
+            {
+                if (run.JamInReach(me, train) is { Clear: > 0 } jam)
+                    return new(HoldKind.Unjam, jam.Index, jam.Clear / belt.ClearSeconds);
+                if (run.StarterInReach(me, train, world.Hand) is { Start: > 0 } drive)
+                    return new(HoldKind.StartBelt, drive.Index, drive.Start / belt.StartSeconds);
+            }
+            // The tipple (note 423): a car off its rails put back with the wrench, and the lever's clamp (the HUD's order).
+            if (run.FacilityTuning?.Tipple is { } tip)
+            {
+                if (run.OffRailsInReach(me, train) is { Site.Rerail: > 0 } derailed)
+                    return new(HoldKind.Rerail, derailed.Site.Index, derailed.Site.Rerail / tip.RerailSeconds);
+                if (run.TippleLeverInReach(me, train, world.Hand) is { Clamped: < 0, Clamp: > 0 } lever)
+                    return new(HoldKind.Clamp, lever.Index, lever.Clamp / tip.ClampSeconds);
+            }
         }
         return null;
     }
@@ -278,6 +314,10 @@ public sealed partial class GameAudio
         HoldKind.Breach => world.Holdouts?.All.ElementAtOrDefault(h.Id)?.State == HoldoutState.Freed ? 1 : 0,
         HoldKind.Restart => world.Run?.CurrentSite?.Power == PowerState.Live ? 1 : 0,
         HoldKind.Rig => world.Run?.CurrentSite?.Cranes.ElementAtOrDefault(h.Id)?.Castings.Count(c => c.State != CastingState.Stacked) ?? 0,
+        HoldKind.StartBelt => world.Run?.Sites.FirstOrDefault(s => s?.Index == h.Id) is { Running: true } ? 1 : 0,
+        HoldKind.Unjam => world.Run?.Sites.FirstOrDefault(s => s?.Index == h.Id) is { Jam: < 0 } ? 1 : 0,
+        HoldKind.Clamp => world.Run?.Sites.FirstOrDefault(s => s?.Index == h.Id) is { Clamped: >= 0 } ? 1 : 0,
+        HoldKind.Rerail => world.Run is { } r && r.Sites.FirstOrDefault(s => s?.Index == h.Id) is { } site && r.OffRailsAt(world.Train, site) is null ? 1 : 0,
         _ => 0,
     };
 

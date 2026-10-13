@@ -68,13 +68,33 @@ sealed partial class LineBuilder
             else if (start >= 0)
             {
                 double v = Math.Floor(Math.Sqrt(c.APost * minR));
-                // The whole train is held to it until its tail is round (the resume board a train's length on).
-                _limits.Add(new PlanLimit(e.Id, R(start - 5), R(Math.Min(line.Length, s + _l.ConsistLength + _t.Authority.ResumeAfterExtraM)), v, LimitSource.Curve,
-                    $"curve R {minR:0} m, derails at {Math.Sqrt(c.ADerail * minR):0.0} m/s"));
+                // The whole train is held to it until its tail is round (the resume board a train's length on); in an S-bend,
+                // round its second turn too (note 359), so the pair is one demand over both.
+                var (held, sBend) = HeldTo(e, start);
+                _limits.Add(new PlanLimit(e.Id, R(start - 5), R(Math.Min(line.Length, Math.Max(s, held) + _l.ConsistLength + _t.Authority.ResumeAfterExtraM)), v, LimitSource.Curve,
+                    $"{(sBend ? "S-bend" : "curve")} R {minR:0} m, derails at {Math.Sqrt(c.ADerail * minR):0.0} m/s"));
                 start = -1;
                 minR = double.MaxValue;
             }
         }
+    }
+
+    /// <summary>Note 359: where the S-bend over <paramref name="s"/> stops turning (its second turn's end), or <paramref name="s"/> where there's none.</summary>
+    static (double End, bool SBend) HeldTo(EdgeDraft e, double s)
+    {
+        foreach (var item in e.Items.SelectMany(i => i.All()))
+            if (item.Params.ContainsKey("sBend") && s >= item.S0 && s <= item.S1)
+            {
+                double at = item.S0, end = s;
+                foreach (var p in item.Prims)
+                {
+                    at += p.Length;
+                    if (p.K0 != 0 || p.K1 != 0)
+                        end = Math.Max(end, at);
+                }
+                return (end, true);
+            }
+        return (s, false);
     }
 
     /// <summary>§9.2: weak bridges at their crossing speed, brass fields at cutting speed, the whole train's length over.</summary>

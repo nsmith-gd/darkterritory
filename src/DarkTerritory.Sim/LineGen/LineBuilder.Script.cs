@@ -115,7 +115,104 @@ sealed partial class LineBuilder
             all.AddRange(filled);
         }
         all.Sort((x, y) => x.S0.CompareTo(y.S0));
+        CarveBends(all);
         Main.Items = all;
+    }
+
+    /// <summary>
+    /// Note 278: any share of the night still without its hard bend (the stretches were too full when the bends were
+    /// handed out: each must reserves a whole recovery it seldom uses) gets one where the line already is: cut into a
+    /// plain connector, with straight track either side, or laid on a climb, descent, summit or roller as the line
+    /// going round a hill. Nearest the share's middle; the longest there. A share with no room borrows the nearest, which
+    /// can be in the next share, and that one's then counted laid: what's still owed after the shares goes where the line
+    /// has room, as far from the bends already laid as it can be (deepTerritory:4 was one short on its first attempt).
+    /// </summary>
+    void CarveBends(List<Item> all)
+    {
+        var rng = Rng("script", "carve");
+        var def = Def("hardBend");
+        // The straights either side as short as BendShape takes them where room is short.
+        double from = _gate + _t.Budget.GraceM, to = _terminus - _t.Budget.HomeStraightM, run = def.Range("tangentM")[0] * 0.5;
+        double least = 2 * run + def.LengthM[0];
+        int n = _bendsWanted;
+        double share = (to - from) / Math.Max(1, n);
+        static bool Plain(Item c) => c is { Type: "recovery", Kind: "straight", H: HShape.Free or HShape.Straight } && !c.Params.ContainsKey("window");
+        static bool Carries(Item c) => c is { IsPiece: true, Kind: "climb" or "descent" or "summit" or "roller", H: HShape.Free, Signature: null, Overlays.Count: 0 }
+            && !c.Params.ContainsKey("hardBend");
+        bool Room(Item c) => (Plain(c) || Carries(c)) && c.Length >= least && c.S0 >= from && c.S1 <= to;
+        bool Lay(Item best, ref Pcg32 rng)
+        {
+            if (BendShape(def, best.Length - 2 * run, best.S0, ref rng) is not { } fit)
+                return false;
+            if (Carries(best))
+            {
+                // The climb or descent goes round its hill: its grades as they were, its line one hard turn.
+                Bend(best, fit);
+                best.Cost += def.Cost;
+            }
+            else
+            {
+                var bend = Make(def, best.S0 + (best.Length - fit.Length) / 2, fit.Length);
+                Bend(bend, fit);
+                var after = new Item
+                {
+                    Id = $"c{_itemCounter++}",
+                    Type = best.Type,
+                    Kind = best.Kind,
+                    Def = best.Def,
+                    S0 = bend.S1,
+                    S1 = best.S1,
+                    H = best.H,
+                    Wander = best.Wander,
+                    MinRadius = best.MinRadius,
+                    Params = new(best.Params),
+                    Tags = new(best.Tags),
+                    DriftCap = best.DriftCap,
+                };
+                best.S1 = bend.S0;
+                all.InsertRange(all.IndexOf(best) + 1, [bend, after]);
+            }
+            _budgetSpent += def.Cost;
+            return true;
+        }
+        int laid = all.Count(x => x.Params.ContainsKey("hardBend"));
+        for (int i = 0; i < n && laid < n; i++)
+        {
+            double a = from + i * share, b = a + share, mid = (a + b) / 2;
+            if (all.Any(x => x.Params.ContainsKey("hardBend") && (x.S0 + x.S1) / 2 >= a && (x.S0 + x.S1) / 2 < b))
+                continue;
+            Item? best = null;
+            double bestScore = double.MaxValue;
+            foreach (var c in all.Where(Room))
+            {
+                double off = Math.Max(0, Math.Max(c.S0 - mid, mid - c.S1)), score = Math.Max(0, off - share / 2) - c.Length * 0.01;
+                if (score < bestScore)
+                    (best, bestScore) = (c, score);
+            }
+            if (best is null)
+            {
+                Warn($"nowhere to lay a hard bend near km {Km(mid):0.0}");
+                continue;
+            }
+            if (Lay(best, ref rng))
+                laid++;
+        }
+        // Still owed: as far from the others as there's room, never nearer one than a share's third.
+        while (laid < n)
+        {
+            var bends = all.Where(x => x.Params.ContainsKey("hardBend")).Select(x => (x.S0 + x.S1) / 2).ToList();
+            Item? best = null;
+            double far = share / 3;
+            foreach (var c in all.Where(Room))
+            {
+                double d = bends.Count == 0 ? double.MaxValue : bends.Min(x => Math.Abs(x - (c.S0 + c.S1) / 2));
+                if (d > far)
+                    (best, far) = (c, d);
+            }
+            if (best is null || !Lay(best, ref rng))
+                break;
+            laid++;
+        }
     }
 
     List<Stretch> Stretches(List<Item> fixedItems)
@@ -169,7 +266,6 @@ sealed partial class LineBuilder
         var must = new List<(string Name, string[] Chain, Func<Stretch, bool> Fits, double MinLength)>();
         double D = _p.D;
         bool Allowed(string id) => Def(id.Split('+')[0]).MinD <= D && id.Split('+').All(x => Def(x).MinD <= D);
-        double MinLen(string[] chain) => chain.Sum(c => c.Split('+').Max(x => Def(x).LengthM[0])) + 200;
 
         // §11.4: the run's largest stack, deliberately, in the spike window.
         var spike = stretches.FirstOrDefault(s => s.Spike);
@@ -194,36 +290,49 @@ sealed partial class LineBuilder
         // A causeway from D 2 is contaminated marsh: one serves both quotas.
         bool causewayContaminated = D >= Def("causeway").Param("contaminatedFromD");
         if (quotas.Any(q => q.Tags.ContainsKey("marsh_or_water")))
-            must.Add(("water", [Def("causeway").MinD <= D && (contaminated && causewayContaminated || rng.Chance(0.5)) ? "causeway" : "riverCrossing"], _ => true, 900));
+            must.Add(("water", [Def("causeway").MinD <= D && (contaminated && causewayContaminated || rng.Chance(0.5)) ? "causeway" : "riverCrossing"], _ => true, MinLen(["riverCrossing"])));
         if (contaminated && !(causewayContaminated && must.Any(m => m.Chain[0] == "causeway")))
-            must.Add(("contaminated", ["causeway"], _ => true, 900));
+            must.Add(("contaminated", ["causeway"], _ => true, MinLen(["causeway"])));
         // The quotas are placed for themselves: what the spike carries is on top (its pieces may not all fit).
         int tunnels = quotas.Count == 0 ? 0 : quotas.Max(q => q.Tunnels);
         for (int i = 0; i < tunnels && Allowed("tunnel"); i++)
-            must.Add(("tunnel", ["tunnel"], _ => true, 800));
+            must.Add(("tunnel", ["tunnel"], _ => true, MinLen(["tunnel"])));
         int climbLong = quotas.Count == 0 ? 0 : quotas.Max(q => q.Tags.GetValueOrDefault("climb_long"));
         for (int i = 0; i < climbLong; i++)
             must.Add(("climb_long", ["climb"], _ => true, 1500));
         if (quotas.Any(q => q.Tags.ContainsKey("climb")) && climbLong <= 0)
-            must.Add(("climb", ["climb"], _ => true, 800));
+            must.Add(("climb", ["climb"], _ => true, MinLen(["climb"])));
+        // What the validator holds the night to (§15.3's quotas) is handed out first, then the hard bends, then the hazards
+        // and signatures where there's room left (on the 7 km nights of note 554 the stretches between the stops are
+        // short: handed out first, those left the bends nowhere).
+        int validated = must.Count;
         foreach (var _ in _mainWeakBridges)
-            must.Add(("weakTrestle", ["trestle"], _ => true, 700));
+            must.Add(("weakTrestle", ["trestle"], _ => true, MinLen(["trestle"])));
         int momentum = D >= Def("momentumBank").MinD && _l.MomentumGrade > 0 ? rng.Count(_l.MomentumBanks[0], _l.MomentumBanks[1]) - (spikeChain.Any(c => c.Contains("momentumBank")) ? 1 : 0) : 0;
         for (int i = 0; i < momentum; i++)
-            must.Add(("momentumBank", ["momentumBank"], s => s.Zone != "opening", 1600));
+            must.Add(("momentumBank", ["momentumBank"], s => s.Zone != "opening", MinLen(["momentumBank"])));
         int brass = D >= Def("brassField").MinD ? rng.Count(_l.BrassFields[0], _l.BrassFields[1]) : 0;
         for (int i = 0; i < brass; i++)
-            must.Add(("brassField", ["brassField"], _ => true, 700));
+            must.Add(("brassField", ["brassField"], _ => true, MinLen(["brassField"])));
         foreach (var g in sigs)
         {
+            // A signature's weight is the chance a night tries it (setpieces.json): 1, every night (§7.4's "at least once a
+            // run where the tier allows"); less, on a short night where it would take what little room there is.
+            if (g.Weight < 1 && !rng.Chance(g.Weight))
+                continue;
             Func<Stretch, bool> fits = g.AfterFacility ? s => s.AfterFacility
                 : g.Id == "junctionAtTheBottom" ? s => s.BeforeStop
                 : _ => true;
             must.Add((g.Id, g.Chain, s => fits(s) && Depth(g.Chain) <= StackCapAt(s), MinLen(g.Chain)));
         }
 
-        foreach (var m in must)
+        for (int k = 0; k <= must.Count; k++)
         {
+            if (k == validated)
+                AssignBends(stretches);
+            if (k == must.Count)
+                break;
+            var m = must[k];
             var candidates = stretches.Where(s => !s.Spike && m.Fits(s) && s.Length - s.Reserved - (s.Must.Count + 1) * RecoveryLength() >= m.MinLength).ToList();
             if (candidates.Count == 0)
                 candidates = stretches.Where(s => m.Fits(s) && s.Length - s.Reserved >= m.MinLength).ToList();
@@ -244,6 +353,65 @@ sealed partial class LineBuilder
             best.Reserved += m.MinLength + RecoveryLength();
         }
     }
+
+    /// <summary>
+    /// Note 278: the night's hard bends, bends that derail the train under its top speed, spread along it: one in each
+    /// equal share of the line between the threshold and the home straight, in the stretch with room nearest the
+    /// share's middle. After the §15.3 quotas and before the hazards and signatures (the bends and quotas are what the
+    /// validator holds the night to; the rest only goes where there's room: on the 7 km nights of note 554, handed out
+    /// after them the bends had nowhere left). Counted on their own stream: how many a night has is the tier's, whatever
+    /// else the script rolled.
+    /// </summary>
+    void AssignBends(List<Stretch> stretches)
+    {
+        var rng = Rng("script", "bends");
+        _bendsWanted = rng.Count(_l.Bends[0], _l.Bends[1]);
+        // The piece, and the shortest connector Fill leads into it with.
+        double from = _gate + _t.Budget.GraceM, to = _terminus - _t.Budget.HomeStraightM, least = MinLen(["hardBend"]) + 150;
+        for (int i = 0; i < _bendsWanted; i++)
+        {
+            double target = from + (i + 0.5) * (to - from) / _bendsWanted;
+            var candidates = stretches.Where(s => !s.Spike && s.Length - s.Reserved - (s.Must.Count + 1) * RecoveryLength() >= least).ToList();
+            if (candidates.Count == 0)
+                candidates = stretches.Where(s => s.Length - s.Reserved >= least).ToList();
+            // None: CarveBends lays it where the line already is.
+            if (candidates.Count == 0)
+                continue;
+            Stretch best = candidates[0];
+            double bestOff = double.MaxValue;
+            foreach (var c in candidates)
+                if (Math.Max(0, Math.Max(c.S0 - target, target - c.S1)) + rng.NextDouble() is var off && off < bestOff)
+                    (best, bestOff) = (c, off);
+            best.Must.Add(["hardBend"]);
+            best.MustIds.Add("hardBend");
+            // The run-up a crowded stretch still gives before a piece (Fill's recovery shortens to a floor before a must is
+            // squeezed out); the bend isn't a crunch, so it owes no recovery after it.
+            best.Reserved += least + Math.Min(RecoveryLength(), 400);
+        }
+    }
+
+    /// <summary>
+    /// Note 278: which way a hard bend over <paramref name="s0"/>..<paramref name="s1"/> must turn, or 0 for either. Past a
+    /// dead line's toe, away from it: the main line leaves it behind. In an alternate's window, towards the alternate's side:
+    /// a line that turns only one way lies the other side of its chord, and the alternate bows out on its own side of that
+    /// chord, so the two stay apart; turned away, the main line bowed over towards the alternate and crossed its way back in
+    /// (frontier:7). The separation check lets track be within 2 km of a junction two edges share, so <see cref="CrossesMain"/>
+    /// refuses what this misses. A branch's side, right +1 (its turnout first bends right); turning away from the right is a
+    /// left turn, a positive deflection. An S-bend (<paramref name="s"/>, note 359) comes out on the side it first turns to,
+    /// as its heading was: in a window it first turns away from the alternate, so it steps the main line away from it.
+    /// </summary>
+    int AwayFromBranches(double s0, double s1, bool s = false)
+    {
+        foreach (var w in _alts)
+            if (s1 > w.T - 200 && s0 < w.J + 200)
+                return s ? w.Side : w.MainBow != 0 ? w.MainBow : -w.Side;
+        foreach (var d in _deads)
+            if (s1 > d.Toe - 200 && s0 < d.Toe + _t.Curves.BendDeadLineClearM)
+                return d.Side;
+        return 0;
+    }
+
+    double MinLen(string[] chain) => chain.Sum(c => c.Split('+').Max(x => Def(x).LengthM[0])) + 200;
 
     List<QuotaRow> QuotaRows()
     {
@@ -300,22 +468,25 @@ sealed partial class LineBuilder
         {
             double room = end - s;
             // Recovery: a connector long enough to outrun what's chasing (§7.1), shorter only when the stretch is.
-            double rec = Math.Min(room, list.Count == 0 && first.Chain is null ? rng.Range(200, 700) : rng.Range(RecoveryLength(), RecoveryLength() * 1.5));
+            double rec = Math.Min(room, list.Count == 0 && first.Chain is null ? rng.Range(0.2, 0.7) * RecoveryLength() : rng.Range(RecoveryLength(), RecoveryLength() * 1.5));
             // What must still go in this stretch keeps its room: recovery shortens (to a floor) before a must is squeezed out.
             double owed = Owed(queue);
             if (queue.Count > 0)
                 rec = Math.Max(Math.Min(rec, room - owed), Math.Min(room, 150));
             bool anyLeft = queue.Count > 0 || budget > 0.4;
-            if (!anyLeft || room < rec + 400 && queue.Count == 0)
+            if (!anyLeft || room < rec + Math.Min(400, RecoveryLength()) && queue.Count == 0)
                 rec = room;
             list.Add(Connector(s, s + rec, st, ref rng));
             s += rec;
-            if (end - s < 300)
+            if (end - s < Math.Min(300, RecoveryLength()))
                 break;
-            // Dead settlements every 4-8 km (§11.3), and one within 2 km of a facility from the Frontier on (§15.3).
+            // Dead settlements every so often (§11.3; setpieces.json everyKm), and one within 2 km of a facility from the
+            // Frontier on (§15.3). Ahead of the stretch's hazards and signatures, but in what a hard bend or the spike's stack
+            // leaves it: on the 7 km nights of note 554 a settlement laid ahead of those took the room they were handed.
             if (s >= _nextSettlement && st.Window is null)
             {
-                if (Settlement(s, end - s, ref rng) is { } town)
+                bool held = st.Spike || queue.Any(q => q.Id == "hardBend");
+                if (Settlement(s, end - s - (held ? Owed(queue) : 0), ref rng) is { } town)
                 {
                     Place([town], list, ref s, ref budget);
                     _nextSettlement = NextSettlement(s, ref rng);
@@ -423,7 +594,7 @@ sealed partial class LineBuilder
     /// <summary>§7.2 Dark Forest / Open Plain over part of a stretch: at least one somewhere on every line (§15.3 Local).</summary>
     void LayRegion(Stretch st, ref Pcg32 rng)
     {
-        if (st.Length < 1200 || (_regions.Count > 0 && !rng.Chance(0.4)))
+        if (st.Length < 1.2 * Math.Min(Def("darkForest").LengthM[0], Def("openPlain").LengthM[0]) || (_regions.Count > 0 && !rng.Chance(0.4)))
             return;
         string biome = BiomeAt((st.S0 + st.S1) / 2);
         double forest = Bias(biome, "darkForest"), open = Bias(biome, "openPlain");
@@ -482,10 +653,11 @@ sealed partial class LineBuilder
         var def = Def("deadSettlement");
         bool town = rng.Chance(def.Param("townChance"));
         double len = town ? rng.Range(def.Range("townM")) : def.Param("haltM");
-        // A town that won't fit is a halt.
-        if (town && len + 200 > room)
+        // A town that won't fit is a halt; either leaves the stretch a recovery after it.
+        double after = Math.Min(200, RecoveryLength());
+        if (town && len + after > room)
             (town, len) = (false, def.Param("haltM"));
-        if (len + 200 > room)
+        if (len + after > room)
             return null;
         var item = Make(def, s, len);
         item.Params["town"] = town ? 1 : 0;
@@ -684,6 +856,14 @@ sealed partial class LineBuilder
                         item.Grades = null;
                     break;
                 }
+            case "bend":
+                {
+                    if (BendShape(def, max, s, ref rng) is not { } bend)
+                        return null;
+                    item = Make(def, s, bend.Length);
+                    Bend(item, bend);
+                    break;
+                }
             case "ledge":
                 {
                     item = Make(def, s, len);
@@ -831,6 +1011,88 @@ sealed partial class LineBuilder
     }
 
     int _weakBridgesUsed;
+    int _bendsWanted;
+
+    /// <summary>A hard bend's shape (note 278): its radius, its turn, and the length it takes with its straights; an S-bend's
+    /// straight between its two turns (note 359), 0 for one turn.</summary>
+    readonly record struct BendFit(double Radius, double Deflection, double Length, double Spur, double Fall, double Gap = 0);
+
+    /// <summary>
+    /// A bend that derails the train under its top speed, at a radius from the tier's derailing speeds (never under its
+    /// minimum radius), with straight track either side so it's seen coming, in no more than <paramref name="room"/>.
+    /// Where room is short, shorter straights first, then a smaller turn, and no bend at all under 60% of the least.
+    /// </summary>
+    BendFit? BendShape(PieceDef def, double room, double at, ref Pcg32 rng)
+    {
+        var c = _t.Curves;
+        double v = rng.Range(_l.BendDerail);
+        double radius = Math.Max(Math.Ceiling(_l.MinRadius), Math.Ceiling(v * v / c.ADerail));
+        var degrees = def.Range("deflectionDeg");
+        double deflection = rng.Range(degrees) * Math.PI / 180;
+        double tangent = rng.Range(def.Range("tangentM"));
+        double spur = Math.Round(rng.Range(def.Range("spurM")), 1), fall = Math.Round(rng.Range(def.Range("fallM")), 1);
+        // Note 359: on a tier with them, some are S-bends, rolled on a stream of their own by where the bend is, so a night
+        // without one lays as it did.
+        var roll = Rng("sBend", "", (long)Math.Round(at));
+        if (_l.SBends > 0 && roll.Chance(_l.SBends) && SBend(def, room, radius, tangent, ref roll) is { } s)
+            return s with { Spur = spur, Fall = fall };
+        double turn = Geometry.TurnLength(c, deflection, radius, _l.LineSpeed);
+        if (turn + 2 * tangent > room)
+        {
+            tangent = Math.Max(def.Range("tangentM")[0] * 0.5, Math.Min(tangent, (room - turn) / 2));
+            deflection = Math.Min(deflection, Geometry.MaxDeflection(c, room - 2 * tangent, radius, _l.LineSpeed));
+            if (deflection < degrees[0] * 0.6 * Math.PI / 180)
+                return null;
+            turn = Geometry.TurnLength(c, deflection, radius, _l.LineSpeed);
+        }
+        return new BendFit(radius, deflection, turn + 2 * tangent, spur, fall);
+    }
+
+    /// <summary>
+    /// An S-bend (note 359): two turns of the same radius either way, a short straight between, its straights either side,
+    /// in no more than <paramref name="room"/>. Shorter straights where room is short, then smaller turns; none under its
+    /// least turn (a single bend is laid instead). The authority holds the first turn's limit on till the train's tail is
+    /// round the second, so the pair is one demand, not two inside a braking distance (the lethal spacing check, §7.3).
+    /// </summary>
+    BendFit? SBend(PieceDef def, double room, double radius, double tangent, ref Pcg32 rng)
+    {
+        var c = _t.Curves;
+        var degrees = def.Range("sDeflectionDeg");
+        double deflection = rng.Range(degrees) * Math.PI / 180, gap = Math.Round(rng.Range(def.Range("sGapM")));
+        double turn = Geometry.TurnLength(c, deflection, radius, _l.LineSpeed);
+        if (2 * turn + gap + 2 * tangent > room)
+        {
+            tangent = Math.Max(def.Range("tangentM")[0] * 0.5, Math.Min(tangent, (room - 2 * turn - gap) / 2));
+            double each = (room - 2 * tangent - gap) / 2;
+            if (each <= 0)
+                return null;
+            deflection = Math.Min(deflection, Geometry.MaxDeflection(c, each, radius, _l.LineSpeed));
+            if (deflection < degrees[0] * Math.PI / 180)
+                return null;
+            turn = Geometry.TurnLength(c, deflection, radius, _l.LineSpeed);
+        }
+        return new BendFit(radius, deflection, 2 * turn + gap + 2 * tangent, 0, 0, gap);
+    }
+
+    /// <summary>Gives <paramref name="item"/> a hard bend's turn: its own piece, or a climb or descent laid round a hill.</summary>
+    void Bend(Item item, BendFit bend)
+    {
+        item.H = bend.Gap > 0 ? HShape.Reverse : HShape.Turn;
+        item.Radius = bend.Radius;
+        item.Deflection = bend.Deflection;
+        item.Params["hardBend"] = 1;
+        item.Params["radius"] = bend.Radius;
+        item.Params["derailMs"] = Math.Round(Math.Sqrt(_t.Curves.ADerail * bend.Radius), 1);
+        item.Params["spurM"] = bend.Spur;
+        item.Params["fallM"] = bend.Fall;
+        if (bend.Gap > 0)
+        {
+            item.Params["sBend"] = 1;
+            item.Params["gapM"] = bend.Gap;
+        }
+        if (AwayFromBranches(item.S0, item.S1, bend.Gap > 0) is var turn and not 0)
+            item.Params["turn"] = turn;
+    }
 
     /// <summary>How far the loaded consist carries up a grade from line speed before it stalls, on the real train sim.</summary>
     double CarryDistance(double gradePercent)

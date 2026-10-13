@@ -50,7 +50,12 @@ public class FollowerTests
         var crawling = Drawn(SpinePhase.Commit, -1, 0);
         Assert.True(crawling.Max(p => p.Position.Y) < 0.15f, "it's down on its legs");
         static float Span(Vertex[] v) => v.Max(p => p.Position.Z) - v.Min(p => p.Position.Z);
-        float building = Span(Drawn(SpinePhase.Commit, -1, 0.5)), built = Span(Drawn(SpinePhase.Punish, -1, 1));
-        Assert.True(building > Span(crawling) * 1.3f && built > building * 1.2f, $"crawling {Span(crawling)}, half a nest {building}, a nest {built}");
+        static float Top(Vertex[] v) => v.Max(p => p.Position.Y);
+        // (Built up, not scaled up, note 460: its strands are down to the floor early, so the heap's spread is soon its
+        // full spread; what the build adds after that is the heap itself, more of it and higher, the Follower on top.)
+        Vertex[] building = Drawn(SpinePhase.Commit, -1, 0.5), built = Drawn(SpinePhase.Punish, -1, 1);
+        Assert.True(Span(building) > Span(crawling) * 1.3f, $"crawling {Span(crawling)}, half a nest {Span(building)}");
+        Assert.True(built.Length > building.Length && Top(built) > Top(building) * 1.1f,
+            $"half a nest {building.Length / 3} triangles {Top(building)} high, a nest {built.Length / 3} triangles {Top(built)} high");
     }
 }

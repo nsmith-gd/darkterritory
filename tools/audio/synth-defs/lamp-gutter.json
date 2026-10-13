@@ -1,0 +1,15 @@
+// Train fault (tier 5; note 346, orchestrator.md §5.1 U3): a car's lamp guttering, by its ceiling lamps. The tell: the wick
+// sputtering, quick and uneven crackles over a low wavering flutter of the flame, faster and harsher as it nears going out
+// ("gutter": 0 just started, 1 about to go out). Held while it gutters; trimmed or out, it stops.
+{
+  "tier": 5, "loop": true, "maxInstances": 8, "minDistance": 1, "maxDistance": 18,
+  "layers": [
+    // The sputter: a crackle of the wick.
+    { "source": "impulse", "frequency": { "param": "gutter", "points": [[0, 4], [1, 11]] }, "gain": { "param": "gutter", "points": [[0, 0.12], [1, 0.3]] },
+      "filters": [{ "type": "bandPass", "frequency": 1400, "q": 1.2 }] },
+    // The flame's flutter.
+    { "source": "noise", "gain": { "param": "gutter", "points": [[0, 0.04], [1, 0.09]] },
+      "filters": [{ "type": "lowPass", "frequency": 700, "q": 0.7 }],
+      "tremolo": { "rate": { "param": "gutter", "points": [[0, 3], [1, 7]] }, "depth": 0.7, "jitter": 0.6 } }
+  ]
+}

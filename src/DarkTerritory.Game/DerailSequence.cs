@@ -130,7 +130,7 @@ public sealed class DerailSequence
         Camera? camera = !wrecking ? null
             : eye >= 0 ? FilmEye(film!, eye, ownAt, _worldEye.FovYDegrees > 0 ? _worldEye.FovYDegrees : 70)
             : beat == DerailBeat.FirstPerson && ownEyes ? FirstPerson(frames)
-            : replay is { } shot ? ReplayCamera(shot.Frames, session.Train.StandingCar, shot.Off)
+            : replay is { } shot ? ReplayCamera(shot.Frames, session.Train.StandingCar, shot.Off, Ground(session.Train))
             : filming is { } f ? FilmCamera(f.Shot, f.Into, film)
             : Views.Wreck(wreck!, OrbitSeconds(t, seconds));
         double distance = filming is { } framed ? (framed.Shot.Camera - framed.Shot.Look).Length
@@ -259,6 +259,77 @@ public sealed class DerailSequence
             bodies.Add(new Sim.Physics.Body(-1 - d, Sim.Physics.BodyKind.Ragdoll, Sim.Player.PlayerState.World, new Ballast.Physics.PbdBody(joints))
             {
                 Owner = film.Start.Players[d].Id,
+            });
+        }
+        // What they were carrying (note 370): in their hands till they let go, then thrown free and tumbling.
+        if (a.Loads is { } loads && b.Loads is { } next)
+            foreach (var load in loads)
+            {
+                if (load.Doll >= film.Start.Players.Count || film.Start.Players[load.Doll] is not { Carried: { } kind } p)
+                    continue;
+                var to = next.FirstOrDefault(l => l.Doll == load.Doll, load);
+                var at = Double3.Lerp(load.At, to.At, u);
+                var up = Double3.Lerp(load.Up, to.Up, u);
+                double turn = Math.IEEERemainder(to.Yaw - load.Yaw, Math.Tau);
+                bodies.Add(new Sim.Physics.Body(-100 - load.Doll, kind, Sim.Player.PlayerState.World,
+                    new Ballast.Physics.PbdBody([new Ballast.Physics.Particle(at, 1, 0.3)]))
+                {
+                    Owner = -1,
+                    Cargo = p.CarriedCargo,
+                    Yaw = load.Yaw + turn * u,
+                    Tilt = up.Length > 1e-6 ? up.Normalized : Double3.Up,
+                });
+            }
+        // The extras (App. E.3; note 373): the stowed dead, each in its owner's look, and the loose things aboard, tumbling.
+        var extras = film.Start.Extras ?? [];
+        if (a.Dead is { } dead && b.Dead is { } deadNext)
+        {
+            var bodiesOf = extras.Where(x => x.Kind == Sim.Physics.BodyKind.Ragdoll && x.Joints.Count > 2 && !x.Rides).ToList();
+            for (int d = 0; d < dead.Count && d < deadNext.Count && d < bodiesOf.Count; d++)
+            {
+                var joints = dead[d].Select((p, j) => new Ballast.Physics.Particle(Double3.Lerp(p, deadNext[d][j], u), 1, 0.1)).ToArray();
+                bodies.Add(new Sim.Physics.Body(-200 - d, Sim.Physics.BodyKind.Ragdoll, Sim.Player.PlayerState.World, new Ballast.Physics.PbdBody(joints))
+                {
+                    Owner = bodiesOf[d].Owner,
+                });
+            }
+        }
+        if (a.Items is { } items && b.Items is { } itemsNext)
+            foreach (var item in items)
+            {
+                if (item.Doll < 0 || item.Doll >= extras.Count)
+                    continue;
+                var x = extras[item.Doll];
+                var to = itemsNext.FirstOrDefault(l => l.Doll == item.Doll, item);
+                var at = Double3.Lerp(item.At, to.At, u);
+                var up = Double3.Lerp(item.Up, to.Up, u);
+                double turn = Math.IEEERemainder(to.Yaw - item.Yaw, Math.Tau);
+                bodies.Add(new Sim.Physics.Body(-1000 - item.Doll, x.Kind, Sim.Player.PlayerState.World,
+                    new Ballast.Physics.PbdBody([new Ballast.Physics.Particle(at, 1, 0.3)]))
+                {
+                    Owner = x.Owner,
+                    Cargo = x.Cargo,
+                    Yaw = item.Yaw + turn * u,
+                    Tilt = up.Length > 1e-6 ? up.Normalized : Double3.Up,
+                });
+            }
+        // Past the budget (E.3: "freeze in place"; note 373): where it was in its car, wherever the car goes.
+        for (int e = 0; e < extras.Count; e++)
+        {
+            if (!extras[e].Rides)
+                continue;
+            var x = extras[e];
+            var from = WreckFilm.Riding(film.Start, a, x);
+            var to = WreckFilm.Riding(film.Start, b, x);
+            var joints = from.Select((p, j) => new Ballast.Physics.Particle(Double3.Lerp(p, to[j], u), 1, from.Length > 1 ? 0.1 : 0.3)).ToArray();
+            int car = film.Start.Cars.ToList().FindIndex(c => c.Vehicle == x.Inside);
+            var (_, _, carUp, back) = car >= 0 && car < a.Cars.Count ? a.Cars[car] : (default, default, Double3.Up, new Double3(0, 0, 1));
+            bodies.Add(new Sim.Physics.Body(-3000 - e, x.Kind, Sim.Player.PlayerState.World, new Ballast.Physics.PbdBody(joints))
+            {
+                Owner = x.Owner,
+                Cargo = x.Cargo,
+                Yaw = Math.Atan2(-back.X, -back.Z),
+                Tilt = carUp.Length > 1e-6 ? carUp.Normalized : Double3.Up,
             });
         }
         return bodies;
@@ -503,16 +574,40 @@ public sealed class DerailSequence
     /// <param name="off">The frame shown is from the moment it came off or after (<see cref="ReplayAt"/>'s Off); before it,
     /// the camera rides with the train. (It used to be held from the replay's first frame, so the train ran in from behind
     /// it and the whole run-in was lost in the fog: note 251.)</param>
-    public Camera ReplayCamera(CarFrame[] now, Func<int, bool> standing, bool off = true)
+    /// <param name="ground">The land's height at (x, z), to keep the wide off a hillside; null, not checked.</param>
+    public Camera ReplayCamera(CarFrame[] now, Func<int, bool> standing, bool off = true, Func<double, double, double>? ground = null)
     {
         now = Views.Train(now, standing);
         var mid = now[now.Length / 2].ToWorld(new Double3(0, 2, 0));
         if (!off || _shots.FindLast(s => s.At < _derailedAt) is not { Frames.Length: > 0 } before)
             return Camera.LookAt(Views.Chase(now).Position, mid, 60);
-        // Off the rails: from where the chase view was as it came off, carried along with the middle of the train as it
-        // ploughs on (its travel, not the cars' tumbling), so the pile-up stays in frame rather than running off into the fog.
+        // Off the rails (note 579; the director, 9 Oct 2026: "show the derailment happening in slow motion ... cars basically
+        // being blasted off the tracks"): cut in from the chase view, 80 m back in the fog, to a wide side on, out on the side
+        // the train's thrown and a little ahead of where it came off, on the front of the train going up in the air. It's
+        // carried along with the front's travel (not its tumbling), so the pile-up stays in frame.
         var then = Views.Train(before.Frames, standing);
-        var midThen = then[then.Length / 2].ToWorld(new Double3(0, 2, 0));
-        return Camera.LookAt(Views.Chase(then).Position + (mid - midThen), mid, 60);
+        int front = Math.Max(1, then.Length / 3);
+        Double3 Front(CarFrame[] f) => Enumerable.Range(0, Math.Min(front, f.Length)).Aggregate(Double3.Zero, (a, i) => a + f[i].Origin) * (1.0 / Math.Min(front, f.Length));
+        var frontThen = Front(then);
+        var frontNow = Front(now);
+        var along = then[0].Back * -1;
+        var across = then[0].Right;
+        // The side it went: where the front's gone across its line since; on the right if it hasn't yet.
+        double thrown = Double3.Dot(frontNow - frontThen, across);
+        var outward = thrown < -0.5 ? across * -1 : across;
+        var eye = frontThen + outward * ReplayWideOut + along * ReplayWideAhead + Double3.Up * ReplayWideUp + (frontNow - frontThen) with { Y = 0 };
+        if (ground is not null)
+            eye = eye with { Y = Math.Max(eye.Y, ground(eye.X, eye.Z) + 3) };
+        var look = Double3.Lerp(frontNow, mid, 0.3) + Double3.Up * 2;
+        return Camera.LookAt(eye, look, 55);
     }
+
+    static Func<double, double, double> Ground(TrainOnLine train)
+    {
+        double hint = train.Dynamics.Distance;
+        return (x, z) => Sim.Player.PlayerMotor.GroundAt(new Double3(x, 0, z), train.Line, ref hint);
+    }
+
+    /// <summary>The replay's wide once the train's off (note 579): this far out from the front of the train, ahead, and up (m).</summary>
+    const double ReplayWideOut = 30, ReplayWideAhead = 12, ReplayWideUp = 9;
 }

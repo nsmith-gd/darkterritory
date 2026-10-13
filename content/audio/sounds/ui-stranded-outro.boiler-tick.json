@@ -1,0 +1,20 @@
+// Stranded outro: The dead boiler ticking and pinging as it cools (slower as it goes cold). Written by tools/audio/install.py from the audio checklist (first); edit the cue, not this.
+{
+ "tier": 4,
+ "loop": true,
+ "maxInstances": 8,
+ "minDistance": 1,
+ "maxDistance": 30,
+ "rolloff": 1.0,
+ "gainDb": 0,
+ "flat": true,
+ "layers": [
+  {
+   "source": "sample",
+   "sample": "ui-stranded-outro/boiler-tick",
+   "gain": 1,
+   "pitchJitter": 0,
+   "gainJitter": 0
+  }
+ ]
+}

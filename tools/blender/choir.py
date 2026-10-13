@@ -97,7 +97,8 @@ def smooth01(a, b, x):
 RIM_NAMES = [n for n, _ in RIMS]
 
 # --- the bell: a hood of membrane, its underside drawn up into it, veined ridges down it; the mouth's socket in front ---
-body = kit.part("bell")
+# (The bell and the tendrils are ghost parts: the engine draws them screen-door transparent, Skinner.GhostWear.)
+body = kit.part("ghost_bell")
 
 
 def hood(i, j, a, th, p):
@@ -156,7 +157,7 @@ for k in range(12):
     mouth.blob(at, (0.009, 0.008, 0.012), 6, 4, TEETH, "mouth", rot=Vector((0, 0, 1)).rotation_difference(-up if math.sin(t) > 0 else up).to_matrix().to_4x4())
 
 # --- the tendrils, and the curtains under the bell -------------------------------------------------------------
-hang = kit.part("tendrils")
+hang = kit.part("ghost_tendrils")
 for names, a in TENDRILS:
     pts = [H(names[0])] + [H(n).lerp(T(n), f) for n in names for f in (0.5, 1.0)]
     rr = [0.022 - 0.019 * (i / (len(pts) - 1)) ** 0.7 for i in range(len(pts))]
@@ -246,9 +247,10 @@ drift = Clip("drift")
 for f in range(0, 120, 6):
     ph = 2 * math.pi * f / 60
     c = max(0.0, math.sin(ph)) ** 2
+    # (Ethereal, the Look Review asked: the tendrils in slow wide waves, and the bell turning a little as it drifts.)
     turn = 0 if f < 84 else (32 if f < 102 else 0)
-    p = {"root@loc": (0, 0, 0.05 * c), "root": (0, 0, turn)}
-    p = trail(sing(pulse(p, c), 0.5 + 0.4 * math.sin(f / 120 * 2 * math.pi * 3 + 1)), ph)
+    p = {"root@loc": (0, 0, 0.05 * c), "root": (3 * math.sin(f / 120 * 2 * math.pi), 0, turn + 8 * math.sin(f / 120 * 2 * math.pi + 0.6))}
+    p = trail(sing(pulse(p, c), 0.5 + 0.4 * math.sin(f / 120 * 2 * math.pi * 3 + 1)), ph, sway=0.1)
     drift.key(f, done(p), "CONSTANT" if f in (84, 102) else "BEZIER")
 drift.close(120)
 

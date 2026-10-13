@@ -75,6 +75,8 @@ public sealed class SteamBackend : IOnlineBackend
 
     public string NameOf(UserId user) => user == Me ? SteamFriends.GetPersonaName() : SteamFriends.GetFriendPersonaName(Steam(user));
 
+    public bool IsFriend(UserId user) => user != Me && SteamFriends.HasFriend(Steam(user), EFriendFlags.k_EFriendFlagImmediate);
+
     public void Poll(List<OnlineEvent> into)
     {
         SteamAPI.RunCallbacks();
@@ -157,6 +159,14 @@ public sealed class SteamBackend : IOnlineBackend
 
     public void ShowInviteDialog(LobbyId lobby) => SteamFriends.ActivateGameOverlayInviteDialog(Steam(lobby));
     public void Invite(LobbyId lobby, UserId user) => SteamMatchmaking.InviteUserToLobby(Steam(lobby), Steam(user));
+
+    public bool ShowStorePage(uint app)
+    {
+        if (!SteamUtils.IsOverlayEnabled())
+            return false;
+        SteamFriends.ActivateGameOverlayToStore(new AppId_t(app), EOverlayToStoreFlag.k_EOverlayToStoreFlag_None);
+        return true;
+    }
 
     void OnCreated(LobbyCreated_t e, bool ioFailure)
     {
@@ -269,6 +279,21 @@ public sealed class SteamBackend : IOnlineBackend
         {
             var id = Identity(peer);
             SteamNetworkingMessages.CloseSessionWithUser(ref id);
+        }
+
+        /// <summary>
+        /// Steam's own view of the session (netcode-audit.md gap 3): relayed through Valve's network or punched through
+        /// direct, its ping, and the share of packets reaching us (quality, 1 = nothing lost).
+        /// </summary>
+        public CarrierLink? Describe(UserId peer)
+        {
+            var id = Identity(peer);
+            var state = SteamNetworkingMessages.GetSessionConnectionInfo(ref id, out var info, out var status);
+            if (state != ESteamNetworkingConnectionState.k_ESteamNetworkingConnectionState_Connected)
+                return null;
+            bool relayed = (info.m_nFlags & Constants.k_nSteamNetworkConnectionInfoFlags_Relayed) != 0;
+            return new CarrierLink("Steam", relayed, status.m_nPing >= 0 ? status.m_nPing : null,
+                status.m_flConnectionQualityLocal >= 0 ? status.m_flConnectionQualityLocal : null);
         }
 
         static SteamNetworkingIdentity Identity(UserId user)

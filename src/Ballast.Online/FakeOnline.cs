@@ -36,6 +36,15 @@ public sealed class FakeOnline
         return user;
     }
 
+    readonly HashSet<(UserId, UserId)> _friends = new();
+
+    /// <summary>Makes two accounts friends, both ways, as accepting a friend request does.</summary>
+    public void Befriend(IOnlineBackend a, IOnlineBackend b)
+    {
+        _friends.Add((a.Me, b.Me));
+        _friends.Add((b.Me, a.Me));
+    }
+
     sealed class Room(UserId owner, int max, LobbyVisibility visibility)
     {
         public readonly LobbyVisibility Visibility = visibility;
@@ -64,7 +73,10 @@ public sealed class FakeOnline
         public UserId Me => me;
         public string NameOf(UserId user) => cloud._users.TryGetValue(user, out var u) ? u.Name : "someone";
         public string Name => name;
+        public bool IsFriend(UserId user) => cloud._friends.Contains((me, user));
         public IDatagramCarrier<UserId> Carrier => this;
+        // As Steam's datagrams go, through the platform's relays (netcode-audit.md gap 3).
+        public CarrierLink? Describe(UserId peer) => new(Platform, Relayed: true);
 
         public void Poll(List<OnlineEvent> into)
         {
@@ -80,6 +92,12 @@ public sealed class FakeOnline
         }
 
         public void JoinLobby(LobbyId lobby)
+        {
+            lock (cloud)
+                Join(lobby);
+        }
+
+        void Join(LobbyId lobby)
         {
             string? why = !cloud._lobbies.TryGetValue(lobby, out var room) ? "that lobby is gone"
                 : !room.Joinable ? "the lobby is closed"
@@ -99,6 +117,12 @@ public sealed class FakeOnline
         }
 
         public void LeaveLobby(LobbyId lobby)
+        {
+            lock (cloud)
+                Leave(lobby);
+        }
+
+        void Leave(LobbyId lobby)
         {
             if (!cloud._lobbies.TryGetValue(lobby, out var room) || !room.Members.Remove(me))
                 return;
@@ -166,6 +190,14 @@ public sealed class FakeOnline
         public int InviteDialogsShown { get; private set; }
         public void ShowInviteDialog(LobbyId lobby) => InviteDialogsShown++;
 
+        /// <summary>The store pages shown over the game, in order.</summary>
+        public List<uint> StorePagesShown { get; } = [];
+        public bool ShowStorePage(uint app)
+        {
+            StorePagesShown.Add(app);
+            return true;
+        }
+
         /// <summary>The fake's friend accepts at once: they see what Steam shows after they click the invite.</summary>
         public void Invite(LobbyId lobby, UserId user)
         {
@@ -176,7 +208,15 @@ public sealed class FakeOnline
         bool Accepts(UserId from) =>
             _sentTo.Contains(from) || cloud._lobbies.Values.Any(r => r.Members.Contains(me) && r.Members.Contains(from));
 
+        // Send, TryReceive and the lobbies' members they read are under the cloud's lock: a transport's pump thread sends and
+        // receives while the test's thread steps its own session (a plain Queue torn between them threw in TryReceive).
         public void Send(UserId to, ReadOnlySpan<byte> datagram)
+        {
+            lock (cloud)
+                Carry(to, datagram);
+        }
+
+        void Carry(UserId to, ReadOnlySpan<byte> datagram)
         {
             _sentTo.Add(to);
             if (!cloud._users.TryGetValue(to, out var u) || u._signedOut)
@@ -192,7 +232,11 @@ public sealed class FakeOnline
 
         public bool TryReceive(Span<byte> buffer, out int length, [MaybeNullWhen(false)] out UserId from)
         {
-            if (!_inbox.TryDequeue(out var d))
+            (UserId From, byte[] Datagram) d;
+            bool got;
+            lock (cloud)
+                got = _inbox.TryDequeue(out d);
+            if (!got)
             {
                 length = 0;
                 from = default;
@@ -205,6 +249,12 @@ public sealed class FakeOnline
         }
 
         public void Dispose()
+        {
+            lock (cloud)
+                SignOut();
+        }
+
+        void SignOut()
         {
             if (_signedOut)
                 return;

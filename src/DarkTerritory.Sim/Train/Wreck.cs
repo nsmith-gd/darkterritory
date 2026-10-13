@@ -6,11 +6,18 @@ namespace DarkTerritory.Sim.Train;
 /// <param name="RackSeconds">E.9 "the rack": on the empty engineering-kit rack, in the cab.</param>
 /// <param name="PullBackSeconds">E.9 "the pull-back": up and back over the stopped consist to a high wide, the lamps going out from the last car forward, the engine last.</param>
 /// <param name="HeightM">How high the wide ends, and <paramref name="BackM"/> how far out behind and beside the train's middle.</param>
-/// <param name="SkipAfterSeconds">E.10's stranded skip delay: a majority (or the host) can skip it from here.</param>
+/// <param name="SkipAfterSeconds">E.10's stranded skip delay: it can be skipped from here (<see cref="SkipTuning"/>).</param>
 public sealed record StrandedOutroTuning(double RackSeconds = 1.5, double PullBackSeconds = 6, double HeightM = 42, double BackM = 55, double SkipAfterSeconds = 3)
 {
     public double Seconds => RackSeconds + PullBackSeconds;
 }
+
+/// <summary>
+/// GDD v1.4 App. E.5 "Skipping", after the director's answer to E.12 question 2 (note 315).
+/// </summary>
+/// <param name="Own">Each player skips the film (and the Stranded outro) on their own screen, whenever they want; false: the old majority-or-host vote.</param>
+/// <param name="HoldSeconds">How long the key's held to skip your own.</param>
+public sealed record SkipTuning(bool Own = true, double HoldSeconds = 0.5);
 
 public sealed record WreckTuning
 {
@@ -21,6 +28,8 @@ public sealed record WreckTuning
     public Music.MusicTuning Music { get; init; } = new();
     /// <summary>GDD v1.4 App. E: the derailment film's physics and shots.</summary>
     public FilmTuning Film { get; init; } = new();
+    /// <summary>GDD v1.4 App. E.5 "Skipping": each player's own, or the crew's vote (note 315).</summary>
+    public SkipTuning Skip { get; init; } = new();
     public int Substeps { get; init; } = 6;
     public double Gravity { get; init; } = 9.81;
     public double Restitution { get; init; } = 0.12;
@@ -32,6 +41,24 @@ public sealed record WreckTuning
     public double KickLateral { get; init; } = 0.22;
     public double KickYaw { get; init; } = 0.55;
     public double KickRoll { get; init; } = 0.9;
+    /// <summary>Note 330 (#69): the first car's sideways throw is never under this (m/s), however slow it came off.</summary>
+    public double KickMin { get; init; }
+    /// <summary>... and, that slow, it's popped up this much (m/s) as its flange climbs the rail.</summary>
+    public double KickUp { get; init; }
+    /// <summary>The rest: each is thrown sideways at least this (m/s) as its wheels drop, ...</summary>
+    public double JostleMin { get; init; }
+    /// <summary>... hops up this much (m/s), and tips this much (rad/s) the way it's thrown.</summary>
+    public double JostleUp { get; init; }
+    public double JostleRoll { get; init; }
+    /// <summary>
+    /// Note 579 (the director, 9 Oct 2026: "cars basically being blasted off the tracks in a comedic way"): every car, the first
+    /// included, is popped up about this (m/s) as its wheels come off, each by its own draw within <see cref="BlastSpread"/>
+    /// of it, ...
+    /// </summary>
+    public double BlastUp { get; init; }
+    public double BlastSpread { get; init; }
+    /// <summary>... and set tumbling end over end and about its length up to this (rad/s), each its own way.</summary>
+    public double BlastRoll { get; init; }
     public double Jostle { get; init; } = 0.06;
     public double JostleYaw { get; init; } = 0.35;
     public double DigIn { get; init; } = 2.0;
@@ -216,9 +243,14 @@ public sealed class Wreck
             double speed = b.Velocity.Length;
             if (b.Vehicle == first)
             {
-                b.Velocity += b.Right * (side * t.KickLateral * speed);
-                // Rolling over the way it slides (about +Back a car's top swings to its left, so the roll is the other sign).
-                b.Spin += b.Up * (-side * t.KickYaw) + b.Back * (-side * t.KickRoll);
+                // A slow derail's share is nothing (note 330): thrown at kickMin instead, and popped up off the rail.
+                bool slow = t.KickLateral * speed < t.KickMin;
+                double up = Math.Max(slow ? t.KickUp : 0, w.Blast(out var tumble));
+                b.Velocity += b.Right * (side * Math.Max(t.KickLateral * speed, t.KickMin)) + b.Up * up;
+                // Rolling over the way it slides (about +Back a car's top swings to its left, so the roll is the other sign). Its
+                // blast only rolls it the harder: tumbling end over end too, a slow one (note 330's 30 km/h) came down on its
+                // wheels and slid on upright (the end-over-end spin taken by its ends in the ground before it went over).
+                b.Spin += b.Up * (-side * t.KickYaw) + b.Back * (-side * (t.KickRoll + Math.Abs(tumble.Roll)));
             }
             else
             {
@@ -286,8 +318,29 @@ public sealed class Wreck
     void Drop(WreckBody b)
     {
         double speed = b.Velocity.Length;
-        b.Velocity += b.Right * ((_rng.NextDouble() * 2 - 1) * _t.Jostle * speed);
-        b.Spin += b.Up * ((_rng.NextDouble() * 2 - 1) * _t.JostleYaw);
+        // Note 330 (#69): however slow, it's thrown, not set down: at least jostleMin sideways, a hop, and a tip that way.
+        double draw = _rng.NextDouble() * 2 - 1;
+        double sideways = draw * _t.Jostle * speed;
+        int way = draw < 0 ? -1 : 1;
+        if (Math.Abs(sideways) < _t.JostleMin)
+            sideways = way * _t.JostleMin;
+        double up = Math.Max(_t.JostleUp, Blast(out var tumble));
+        b.Velocity += b.Right * sideways + b.Up * up;
+        b.Spin += b.Up * ((_rng.NextDouble() * 2 - 1) * _t.JostleYaw) + b.Back * (-way * (_t.JostleRoll + Math.Abs(tumble.Roll))) + b.Right * tumble.Pitch;
+    }
+
+    /// <summary>
+    /// A car's blast off the rails (note 579): how hard it's popped up (m/s), and its tumble, end over end and about its
+    /// length (rad/s), each drawn for it. Nothing drawn with no blast, so a wreck without one is the wreck it was.
+    /// </summary>
+    double Blast(out (double Pitch, double Roll) tumble)
+    {
+        tumble = default;
+        if (_t.BlastUp <= 0 && _t.BlastRoll <= 0)
+            return 0;
+        double up = _t.BlastUp * (1 + (_rng.NextDouble() * 2 - 1) * _t.BlastSpread);
+        tumble = ((_rng.NextDouble() * 2 - 1) * _t.BlastRoll, (_rng.NextDouble() * 2 - 1) * _t.BlastRoll);
+        return up;
     }
 
     /// <summary>The points a box meets the ground by: its bottom and top edges, every quarter of its length.</summary>

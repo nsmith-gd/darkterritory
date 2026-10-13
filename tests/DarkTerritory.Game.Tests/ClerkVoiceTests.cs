@@ -117,7 +117,7 @@ public class ClerkVoiceTests
     }
 
     [Fact]
-    public void EveryCauseCardAndTheStrandedLineAreSaidWithNothingBreakingUp()
+    public void EveryCauseCardTheStrandedLineAndTheKitLostAreSaidWithNothingBreakingUp()
     {
         // Note 242: the cause card (E.5) reads the derail's cause and C.9's blame through IncidentLog.CauseCard, and the
         // causes are the sim's templates (Lineside's bends, the Sleepers, the Switchman, TrackRules' washouts and bridges, the
@@ -149,6 +149,10 @@ public class ClerkVoiceTests
                 Assert.DoesNotContain(clerk.Pieces(card), p => p.Kind == ClerkVoice.PieceKind.Breakup);
             }
         Assert.DoesNotContain(clerk.Pieces(Radio.Stranded(14)), p => p.Kind == ClerkVoice.PieceKind.Breakup);
+        // Note 308: the last engineering kit lost, with its car's number or without (note 321: the bank read them).
+        foreach (var kit in new[] { new KitWhere(KitPlace.Lost, 7, 3, KitLoss.CarTaken), new KitWhere(KitPlace.Lost, Loss: KitLoss.Taken) })
+            foreach (string said in Radio.KitLost(kit))
+                Assert.DoesNotContain(clerk.Pieces(said), p => p.Kind == ClerkVoice.PieceKind.Breakup);
         // Units as they're said.
         Assert.Contains(clerk.Pieces("Consist derailed at km 14, 68 km/h."), p => p is { Kind: ClerkVoice.PieceKind.Word, Text: "kilometres an hour" });
         Assert.Contains(clerk.Pieces("Consist derailed at km 14, 68 km/h."), p => p is { Kind: ClerkVoice.PieceKind.Word, Text: "kilometre" });

@@ -1,5 +1,6 @@
 using Ballast;
 using Ballast.Audio;
+using DarkTerritory.Game.Art;
 using DarkTerritory.Sim;
 using DarkTerritory.Sim.Enemies;
 using DarkTerritory.Sim.LineGen;
@@ -24,16 +25,30 @@ public sealed partial class GameAudio
     /// <summary>The radio (voice chat), for its clicks, squelch and static; none in a game without the network.</summary>
     public VoiceChat? Voice { get; set; }
 
+    /// <summary>
+    /// The scene's clock (<c>GreyboxScene.Time</c>) when the app draws one. The crew's clips play on it, and the sounds that
+    /// land on their beats are timed by it (the breach's blows and heaves, note 497). Unset, this one's own clock.
+    /// </summary>
+    public double? SceneClock { get; set; }
+
     readonly Pcg32Ish _outsideRng = new(20261003);
     readonly Dictionary<int, double> _sleepersSeen = new();
-    readonly Dictionary<int, double> _smashAt = new();
+    // Each Holdout being breached: the clip's beat it was last heard on, how many of its barricade's boards were off, and
+    // when its progress last moved (the record comes in snapshots).
+    readonly Dictionary<int, long> _breachBeat = new();
+    readonly Dictionary<int, int> _boardsOff = new();
+    readonly Dictionary<int, double> _breachMoved = new();
+    // The Holdouts whose lock was last being worked open with the wrench (Free clears Quiet the tick it gives).
+    readonly HashSet<int> _pickedQuiet = new();
     readonly Dictionary<int, double> _craneMoved = new();
     readonly Dictionary<(int, int), CastingState> _castings = new();
     double _earHint = double.NaN, _outsideClock = double.NaN, _engineFrontWas = double.NaN, _engineSpeedWas, _nextFar, _tenderAtPour, _rammedAgain;
     bool _outsidePrimed, _radioWas;
     // Where the grain spout's mouth was while it poured: it's cut off there when the train moves off and it's nowhere.
     // HoldLevel owners for a site's set pieces, clear of the vehicles' ids.
-    const int HerdOwner = 10_000, HoseOwner = 11_000, HeapOwner = 12_000, GustOwner = 13_000;
+    const int HerdOwner = 10_000, HoseOwner = 11_000, HeapOwner = 12_000, GustOwner = 13_000, LiftOwner = 14_000;
+    // How far from its drum a winch is listened for (the capstan's and the stall's maxDistance, install.py CUE_DEF; note 468).
+    const double WinchReach = 60;
     // The line's gust where the ear was last tick (PlayerMotor.Gust), for the gust cue as one rises.
     double _gustWas;
     Double3 _spoutAt;
@@ -56,16 +71,26 @@ public sealed partial class GameAudio
 
     partial void EndNightOutside()
     {
-        _abandonedHeard.Clear();
         _sleepersSeen.Clear();
-        _smashAt.Clear();
+        _breachBeat.Clear();
+        _boardsOff.Clear();
+        _breachMoved.Clear();
+        _pickedQuiet.Clear();
         _startledUntil.Clear();
         _livestockAccel = double.NaN;
         _craneMoved.Clear();
         _castings.Clear();
+        _beltStarted.Clear();
+        _jamWas.Clear();
+        _tippleRolled.Clear();
+        _tippleRerailed.Clear();
+        _tippleOffAt.Clear();
+        _tippleCar.Clear();
         _earHint = _outsideClock = _engineFrontWas = double.NaN;
         _engineSpeedWas = _nextFar = _tenderAtPour = _rammedAgain = 0;
         _outsidePrimed = _radioWas = false;
+        _waterNear.Clear();
+        _waterLookAt = double.NegativeInfinity;
         _spoutAt = default;
         _places = null;
     }
@@ -102,20 +127,23 @@ public sealed partial class GameAudio
             || run is not null && run.Underground(earState, train, reach);
         RadioDevice(ear, radioDead, primed);
         RoofGust(train);
+        TownSounds(world, ear, dt);
         if (_places is { } places)
         {
             WorldNight(world, run, ear, tunnel, underground, dt);
             WorldTunnels(train, places, ear, front, tunnel, dt, primed);
             WorldBridges(train, places, ear, dt);
             WorldWeather(world, train, places, ear, earMain, tunnel, underground, dt);
+            WaterSounds(places, ear, earMain, tunnel, underground);
             WorldBrass(train, places, primed);
             PlaceThreshold(run, train, places, front, primed);
             PlaceWorks(world, run, train, places, ear, underground, dt, primed);
         }
         HoldoutCalls(world, _places, primed);
-        AbandonedSounds(world, ear);
+        HouseDoors(world, primed);
         WorldDebris(world, train, front);
         WorldLivestock(train, ear);
+        HouseSearch(world, primed);
         _engineFrontWas = engine.Distance;
         _engineSpeedWas = engine.Speed;
         _outsidePrimed = true;
@@ -233,7 +261,7 @@ public sealed partial class GameAudio
         if (run is null || run.Phase is not (RunPhase.Underway or RunPhase.AtFacility))
             return;
         double dawn = Math.Clamp(run.DawnIn / 300, 0.35, 1);
-        HoldLevel("world-night.night", 0, ear + Double3.Up * 3, Occlusion(PlayerMotor.Outside), (tunnel || underground ? 0.2 : 1) * dawn);
+        HoldLevel("world-night.night", 0, ear + Double3.Up * 3, Math.Max(Occlusion(PlayerMotor.Outside), AirWalls()), (tunnel || underground ? 0.2 : 1) * dawn);
         if (tunnel || underground || _time < _nextFar)
             return;
         if (_nextFar > 0)
@@ -243,50 +271,6 @@ public sealed partial class GameAudio
                 (float)(0.5 + 0.5 * OutsideOdds()));
         }
         _nextFar = _time + 10 + 20 * OutsideOdds();
-    }
-
-    // Who's been left behind, as heard: the beat of their clock last heard, and whether their lamp's out.
-    readonly Dictionary<int, (long Beat, bool LampOut)> _abandonedHeard = [];
-
-    /// <summary>
-    /// The dark closing in on someone the train's left (note 266, Sim.Enemies.Abandonment), heard by whoever's near them
-    /// (them, and anyone come back for them): footsteps out in the dark twice a figure's shift, from where the figures
-    /// stand once there are any, and something far off coming nearer every other one; louder and closer as the clock
-    /// runs; their lamp guttering out at its mark. All from the replicated clock and where they are, so every machine
-    /// hears the same steps from the same places.
-    /// </summary>
-    void AbandonedSounds(World world, Double3 ear)
-    {
-        if (world.Abandonment is not { } left)
-        {
-            _abandonedHeard.Clear();
-            return;
-        }
-        var t = left.Tuning;
-        var line = world.Train.Line;
-        float occ = Occlusion(PlayerMotor.Outside);
-        foreach (var a in left.All)
-        {
-            if ((a.At - ear).Length > 60)
-                continue;
-            var was = _abandonedHeard.TryGetValue(a.Player, out var w) ? w : (Beat: -1L, LampOut: false);
-            long beat = (long)(a.Seconds / Math.Max(0.1, t.ShiftSeconds / 2));
-            double level = Abandonment.Level(a.Seconds, t);
-            if (beat != was.Beat && !a.Held)
-            {
-                var figures = Abandonment.FiguresOf(a, t, line);
-                double angle = beat * 2.39996;
-                var round = new Double3(Math.Cos(angle), 0, Math.Sin(angle));
-                var step = figures.Count > 0 ? figures[(int)(beat % figures.Count)].Feet : a.At + round * (t.FiguresFar + 10);
-                Cue("crew-footsteps.walk.dirt", step, occ, (float)(0.35 + 0.65 * level));
-                if (beat % 2 == 0)
-                    Cue("world-night.far", a.At + round * -(60 - 45 * level) + Double3.Up * 2, occ, (float)(0.6 + 0.4 * level));
-            }
-            bool lampOut = left.LampOut(a.Player);
-            if (lampOut && !was.LampOut)
-                Cue("lamp-out", a.At + Double3.Up * 1.2, 0, 1);
-            _abandonedHeard[a.Player] = (beat, lampOut);
-        }
     }
 
     /// <summary>world-tunnels: the engine going in at one portal and out of the other, the bore around you, and water dripping in it.</summary>
@@ -368,7 +352,8 @@ public sealed partial class GameAudio
         {
             if (!tunnel)
             {
-                if (_exposed)
+                // Under a stop building's roof (note 392) it's on the roof over you, as in a car.
+                if (_exposed && Space is not ("shed" or "room"))
                     HoldLevel("world-rain.rain-out", 0, ear, 0, 1);
                 else
                     HoldLevel("world-rain.rain-roof", 0, ear + Double3.Up * 2.5, 0, 1);
@@ -404,18 +389,18 @@ public sealed partial class GameAudio
                 }
         double wind = weather.Wind * exposure;
         if (wind > 0.4)
-            HoldLevel("world-wind.gale", 0, ear + Double3.Up, 0, Math.Clamp((wind - 0.4) / 0.5, 0.25, 1));
+            HoldLevel("world-wind.gale", 0, ear + Double3.Up, AirWalls(), Math.Clamp((wind - 0.4) / 0.5, 0.25, 1));
         if (train.Line.Conditions is not null && PlayerTuning is { } pt && !double.IsNaN(earMain))
         {
             // The line's own gusts (note 201: the same field the sim pushes roof standers with), each heard as it rises,
             // from the side it blows from: a gust from the left comes off the train's left (note 241).
             double gust = PlayerMotor.Gust(earMain, pt.Wind.GustMetres);
             if (wind > 0.15 && Math.Abs(gust) > GustRises && Math.Abs(_gustWas) <= GustRises)
-                Cue("world-wind.gust", ear - train.Frames[0].Right * (Math.Sign(gust) * 4) + Double3.Up, 0, (float)Math.Clamp((0.5 + 0.5 * wind) * Math.Abs(gust), 0.4, 1));
+                Cue("world-wind.gust", ear - train.Frames[0].Right * (Math.Sign(gust) * 4) + Double3.Up, AirWalls(), (float)Math.Clamp((0.5 + 0.5 * wind) * Math.Abs(gust), 0.4, 1));
             _gustWas = gust;
         }
         else if (wind > 0.15 && Sometimes(0.02 + 0.15 * wind, dt))
-            Cue("world-wind.gust", ear + Mixer.Listener.Right * (OutsideOdds() < 0.5 ? -4 : 4) + Double3.Up, 0, (float)Math.Clamp(0.5 + 0.5 * wind, 0.5, 1));
+            Cue("world-wind.gust", ear + Mixer.Listener.Right * (OutsideOdds() < 0.5 ? -4 : 4) + Double3.Up, AirWalls(), (float)Math.Clamp(0.5 + 0.5 * wind, 0.5, 1));
     }
 
     // How strong (of PlayerMotor.Gust's ±1) a gust is as it's heard rising.
@@ -543,9 +528,10 @@ public sealed partial class GameAudio
     }
 
     /// <summary>
-    /// The facilities at work: the coaling chute (place-coaling), the grain elevator's spout (place-grain), the cranes
-    /// (place-crane), the wreck yard's winch and its wrecks (place-wreck), the slaughterhouse and the chemical works near their
-    /// buildings, the dead towns (place-villages), and the mine underground (place-mine).
+    /// The facilities at work: the coaling chute (place-coaling), the grain elevator's spout (place-grain) and conveyor line
+    /// (place-conveyor, note 466), the mine head's tipple (place-tipple, note 480), the cranes (place-crane), the wreck yard's
+    /// winch and its wrecks (place-wreck), the slaughterhouse and the chemical works near their buildings, the dead towns
+    /// (place-villages), and the mine underground (place-mine).
     /// </summary>
     void PlaceWorks(World world, Run? run, TrainOnLine train, Places places, Double3 ear, bool underground, double dt, bool primed)
     {
@@ -598,8 +584,15 @@ public sealed partial class GameAudio
                 Cue("place-grain.spout-stop", _spoutAt, outside);
 
             foreach (var site in run.Sites)
-                if (site is not null)
-                    PlaceSite(site, train, ear, dt, primed);
+            {
+                if (site is null)
+                    continue;
+                PlaceSite(site, train, ear, dt, primed);
+                if (site.Has(ModuleKind.Conveyor))
+                    ConveyorSounds(site, run.FacilityTuning?.Conveyor, ear, outside, primed);
+                if (site.Has(ModuleKind.Tipple))
+                    TippleSounds(site, train, ear, outside, primed);
+            }
             if (underground)
             {
                 HoldLevel("place-mine.underground", 0, ear, 0, 1);
@@ -610,8 +603,10 @@ public sealed partial class GameAudio
             }
         }
 
-        // Near their buildings: the slaughterhouse inside (and its hooks and chains), the chemical works leaking and dripping.
-        foreach (var (kind, at) in places.Works.Where(w => w.Kind is FacilityKind.Slaughterhouse or FacilityKind.ChemicalWorks).OrderBy(w => (w.At - ear).Length).Take(1))
+        // Near their buildings: the slaughterhouse inside (and its hooks and chains), the chemical works leaking and dripping,
+        // the foundry's furnace burning in its casting shed with nobody to tend it (note 425).
+        foreach (var (kind, at) in places.Works.Where(w => w.Kind is FacilityKind.Slaughterhouse or FacilityKind.ChemicalWorks or FacilityKind.Foundry)
+            .OrderBy(w => (w.At - ear).Length).Take(1))
         {
             double far = (at - ear).Length;
             if (kind == FacilityKind.Slaughterhouse && far < 70)
@@ -619,6 +614,13 @@ public sealed partial class GameAudio
                 HoldLevel("place-slaughterhouse.inside", 0, at + Double3.Up * 2, 0.5f, 1);
                 if (Sometimes(0.15, dt))
                     Cue("place-slaughterhouse.hook-chain", at + Double3.Up * 3, 0.5f, (float)(0.5 + 0.5 * OutsideOdds()));
+            }
+            if (kind == FacilityKind.Foundry && far < 90)
+            {
+                // The cupola up through the shed's roof (C1's note 420), and now and then its charge slumping in the shaft.
+                HoldLevel("place-foundry.furnace", 0, at + Double3.Up * 6, outside, 1);
+                if (Sometimes(1 / 40.0, dt))
+                    Cue("place-foundry.slump", at + Double3.Up * 9, outside, (float)(0.7 + 0.3 * OutsideOdds()));
             }
             if (kind == FacilityKind.ChemicalWorks && far < 90)
             {
@@ -632,12 +634,39 @@ public sealed partial class GameAudio
         var houses = places.Houses.Where(h => (h - ear).Length < 120).ToList();
         if (houses.Count > 0 || world.InSettlement)
         {
-            HoldLevel("place-villages.dead-town", 0, ear + Double3.Up * 2, outside, houses.Count > 0 ? 1 : 0.6);
+            HoldLevel("place-villages.dead-town", 0, ear + Double3.Up * 2, Math.Max(outside, AirWalls()), houses.Count > 0 ? 1 : 0.6);
             if (houses.Count > 0 && Sometimes(0.08, dt))
                 Cue("place-villages.shutter", houses[(int)(OutsideOdds() * houses.Count) % houses.Count] + Double3.Up * 2.5, outside, (float)(0.5 + 0.5 * OutsideOdds()));
             if (houses.Count > 0 && Sometimes(0.06, dt))
                 Cue("place-villages.sign", houses[(int)(OutsideOdds() * houses.Count) % houses.Count] + Double3.Up * 3, outside, (float)(0.5 + 0.5 * OutsideOdds()));
         }
+    }
+
+    /// <summary>
+    /// The capstan winch (spec D.2 "two players hand-crank in rhythm to drag cargo from distance ... Desync stalls"; T43;
+    /// note 468), off the site's replicated record: the drum while it's cranked in rhythm, the stall as the cranks fall out
+    /// of it, and the sled hauled in over the ground and brought up to its stop. At a wreck yard the sled comes out of a
+    /// wreck, and that's place-wreck's (its cargo dragged out, the wreckage shifting as it comes in). The edges are read
+    /// wherever the ear is, so a stall or a sled in out of earshot plays nothing late.
+    /// </summary>
+    void WinchSounds(Site site, Double3 ear, float outside, bool primed)
+    {
+        int key = site.Index;
+        int stalled = Flipped("place-winch.stall", key, site.OutOfRhythm, primed);
+        bool came = Moved("place-winch.sleds", key, site.SledsLeft) < 0 && primed;
+        if ((site.Capstan - ear).Length > WinchReach)
+            return;
+        var drum = site.Capstan + Double3.Up * 0.8;
+        if (site.Turning)
+            HoldLevel("place-winch.capstan", key, drum, outside, 1);
+        if (stalled > 0)
+            Cue("place-winch.stall", drum, outside);
+        if (site.Feature.Facility == FacilityKind.WreckYard)
+            return;
+        if (site.Turning && site.Progress < 1)
+            HoldLevel("place-winch.drag", key, site.Sled, outside, 1);
+        if (came)
+            Cue("place-winch.in", site.SledTo, outside);
     }
 
     /// <summary>
@@ -681,6 +710,18 @@ public sealed partial class GameAudio
         // they're being driven.
         if (site.Has(ModuleKind.Ramp) && site.Stirred && (site.Pen - ear).Length < 150)
             HoldLevel("world-livestock.cattle", HerdOwner + site.Index, (site.Pen + site.RampTop) * 0.5 + Double3.Up, outside, site.Herding ? 1 : 0.6);
+        // The steam lift at the mine head (note 368; queue #122, note 385): the winding engine while the engine's steam winds
+        // the skip (someone on the lever and the vent open), and each skip tipped down the chute, its ore off the shaft's.
+        if (site.Has(ModuleKind.Lift) && (site.Headframe - ear).Length < 300)
+        {
+            if (site.Winding)
+                HoldLevel("place-mine-lift.winding", LiftOwner + site.Index, site.Headframe + Double3.Up * 3, outside, 1);
+            if (Moved("place-mine-lift.ore", site.Index, site.Ore) < -1e-6 && primed)
+                Cue("place-mine-lift.tip", site.LiftChute, outside);
+        }
+        // The capstan winch wherever it stands (spec D.2, T43; note 468).
+        if (site.Has(ModuleKind.Winch))
+            WinchSounds(site, ear, outside, primed);
         // The chemical works' hose (note 185): its leak hissing at the stand while the pressure's over or the hose is torn.
         if (site.Has(ModuleKind.Hose) && site.Leaking && (site.HoseStand - ear).Length < 150)
             HoldLevel("place-chemical.leak", HoseOwner + site.Index, site.HoseStand + Double3.Up * 1.5, outside, 1);
@@ -716,6 +757,73 @@ public sealed partial class GameAudio
     }
 
     /// <summary>
+    /// Searching the open houses (note 326; queue #148, note 412): a hiding spot under way heard where it's kept, held off the
+    /// replicated search (<see cref="Run.SearchProgress"/>: the host's furthest hand on it, a client's as the host has it), so
+    /// every crewmate hears a cupboard gone through, and cut when the hands come off. Each kind's sound runs about its search.
+    /// The find coming out, once, as the spot's gone through. What's searched on the first update is old news.
+    /// </summary>
+    void HouseSearch(World world, bool primed)
+    {
+        if (world.Run is not { HidingSpots.Count: > 0 } run)
+            return;
+        foreach (var spot in run.HidingSpots)
+        {
+            bool searched = run.Searched(spot.Stop, spot.Container.Index);
+            if (Flipped("crew-search.found", spot.Key, searched, primed) > 0)
+                Cue("crew-search.found", spot.At + Double3.Up * 0.3, OccludedInHouse(world, spot.At));
+            if (searched || run.SearchProgress(spot) <= 0)
+                continue;
+            // Kept high (a cupboard's shelves, a cabinet's drawers) or low (a cellar's hatch, the boards).
+            var (cue, up) = spot.Container.Kind switch
+            {
+                ContainerKind.Cupboard => ("crew-search.cupboard", 1.2),
+                ContainerKind.Cabinet => ("crew-search.cabinet", 0.8),
+                ContainerKind.Cellar => ("crew-search.cellar", 0.2),
+                ContainerKind.UnderFloor => ("crew-search.boards", 0.2),
+                // A barn's hayloft (up its ladder) and a shed's workbench, once they're searched (B4's #153, note 417).
+                ContainerKind.Hayloft => ("crew-search.hayloft", 2.5),
+                ContainerKind.Bench => ("crew-search.bench", 1.0),
+                _ => (null, 0.0),
+            };
+            if (cue is not null)
+                Hold(cue, spot.Key, spot.Kept + Double3.Up * up, OccludedInHouse(world, spot.Kept));
+        }
+    }
+
+    /// <summary>
+    /// A sound in a village house (note 412): in the house's own space when it's shut up (note 401), so an ear shut in there
+    /// with it hears it clear and one shut in anywhere else through the walls; else the outside's.
+    /// </summary>
+    float OccludedInHouse(World world, Double3 at) =>
+        Occlusion(world.Train.Walls?.ShutIn(at) is >= 0 and var house ? PlayerMotor.HouseSpace(house) : PlayerMotor.Outside);
+
+    /// <summary>
+    /// The village houses' doors (B4's note 401; queue #145, note 409): a door shut or opened where it hangs, from the sim's
+    /// state (host and client alike: the doors shut replicate), so everyone hears a crewmate work one. Played just inside
+    /// the doorway (<see cref="DoorSound"/>): from inside the house it's in the room with the ear, from the street it's at
+    /// the door, never behind its own walls; from a shut car or another house shut up, through those. What's shut on the
+    /// first update is old news.
+    /// </summary>
+    void HouseDoors(World world, bool primed)
+    {
+        if (world.Train.Walls is not { HouseDoors.Count: > 0 } walls)
+            return;
+        foreach (var d in walls.HouseDoors)
+            if (Flipped("crew-house-door", d.Key, walls.Shut(d.Key), primed) is not 0 and var flip)
+                AtADoor(Cue(flip > 0 ? "crew-house-door.shut" : "crew-house-door.open", DoorSound(d), DoorOcclusion(d)));
+    }
+
+    /// <summary>
+    /// Where a house door is heard (note 409): its leaf, a hand's height up, half a metre in from the doorway's outside edge
+    /// (<see cref="HouseDoor.At"/>), so the door is in the house's footprint (<see cref="EarRoom.Holds"/>) and a room's
+    /// walls don't stand between it and an ear inside.
+    /// </summary>
+    public static Double3 DoorSound(HouseDoor d) => d.At - d.Out * 0.5 + Double3.Up * 1.1;
+
+    /// <summary>A house door is part of its house's space and of the outside both: muffled only to an ear shut in somewhere else.</summary>
+    float DoorOcclusion(HouseDoor d) => _space == PlayerMotor.HouseSpace(d.House) ? 0 : Occlusion(PlayerMotor.Outside);
+
+    /// <summary>
     /// The Holdouts (GDD App. D.7): a lock smashed again and again while it's breached, or a barricade pried and giving
     /// way; and a dead player calling out from one, played where it is from its replicated count of calls (Holdout.Calls):
     /// a call or a shout in that prisoner's own voice for the run (voice-prisoner-sets), or a bout of banging on the walls
@@ -729,16 +837,26 @@ public sealed partial class GameAudio
         foreach (var h in holdouts.All)
         {
             bool shelter = h.Layout.Kind == HoldoutKind.Shelter;
-            bool breaking = h.State == HoldoutState.Breaching && Moved("place-breach.progress", h.Index, h.Progress) > 0;
-            if (breaking && shelter)
-                HoldLevel("place-breach.pry", h.Index, h.Door, outside, 1);
-            if (breaking && !shelter && _time >= _smashAt.GetValueOrDefault(h.Index))
+            if (h.State == HoldoutState.Breaching && Moved("place-breach.progress", h.Index, h.Progress) > 0)
+                _breachMoved[h.Index] = _time;
+            bool breaking = h.State == HoldoutState.Breaching && _time - _breachMoved.GetValueOrDefault(h.Index, double.NegativeInfinity) < BreachStill;
+            // A lock opened with the wrench is quiet (D.7, Holdout.Quiet; note 301's slice 2): worked open, never smashed.
+            if (h.Quiet)
+                _pickedQuiet.Add(h.Index);
+            else if (h.State == HoldoutState.Breaching)
+                _pickedQuiet.Remove(h.Index);
+            bool quiet = _pickedQuiet.Contains(h.Index) && !shelter;
+            if (breaking && quiet)
+                HoldLevel("place-breach.pick", h.Index, h.Door, outside, 1);
+            if (breaking && !quiet)
+                BreachBeats(h, holdouts.Tuning, shelter, outside);
+            else
             {
-                Cue("place-breach.smash", h.Door, outside, (float)(0.8 + 0.2 * OutsideOdds()));
-                _smashAt[h.Index] = _time + 0.45 + 0.25 * OutsideOdds();
+                _breachBeat.Remove(h.Index);
+                _boardsOff.Remove(h.Index);
             }
             if (Flipped("place-breach.freed", h.Index, h.State == HoldoutState.Freed, primed) > 0)
-                Cue(shelter ? "place-breach.pry-give" : "place-breach.smash", h.Door, outside);
+                Cue(shelter ? "place-breach.pry-give" : quiet ? "place-breach.pick-give" : "place-breach.smash-give", h.Door, outside);
 
             if (Moved("voice-callout.calls", h.Index, h.Calls) <= 0 || !primed)
                 continue;
@@ -764,5 +882,29 @@ public sealed partial class GameAudio
                     CueLater(b * (0.28 + 0.06 * (b % 2)), "voice-callout.bang", inside, 0.35f, b == 0 ? 1 : 0.85f);
             }
         }
+    }
+
+    // How long after a breach's progress last moved it's still being worked (a snapshot's gap and more).
+    const double BreachStill = 0.25;
+
+    /// <summary>
+    /// A lock smashed or a barricade pried, on the crew's clips' beats (note 497; C1's #200, note 464, which draws the lock
+    /// jumping at each blow and the board being worked flexing out at each heave, on the scene's clock): each blow of the
+    /// smash, each heave of the pry, and each of the barricade's boards torn off as it goes (a fifth of the breach each, the
+    /// last at the barricade giving way).
+    /// </summary>
+    void BreachBeats(Holdout h, HoldoutTuning tuning, bool shelter, float outside)
+    {
+        double clock = SceneClock ?? _time;
+        long beat = shelter ? (long)Math.Floor(clock / WorldArt.PryCycle) : (long)Math.Floor((clock - WorldArt.SmashBlow) / WorldArt.SmashCycle);
+        if (_breachBeat.TryGetValue(h.Index, out long was) && beat != was)
+            Cue(shelter ? "place-breach.pry" : "place-breach.smash", h.Door, outside, (float)(0.85 + 0.15 * OutsideOdds()));
+        _breachBeat[h.Index] = beat;
+        if (!shelter)
+            return;
+        int off = WorldArt.BoardsOff(Math.Clamp(h.Progress / Math.Max(1e-6, h.Breach(tuning).Seconds), 0, 1));
+        if (_boardsOff.TryGetValue(h.Index, out int had) && off > had)
+            Cue("place-breach.board", h.Door, outside);
+        _boardsOff[h.Index] = off;
     }
 }

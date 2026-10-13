@@ -33,9 +33,12 @@ public sealed partial class Effects(Look look)
     /// <param name="safety">The safety valve's lifting: a column of steam straight up off the boiler.</param>
     /// <param name="whistle">The whistle's blowing (a crewmate on the cord, or the Whistler on it): a hard white jet straight up
     /// off the whistle on the boiler's top, ahead of the cab, rolling back over the roof with the going.</param>
+    /// <param name="dead">The boiler's ruptured (Effects.Rupture draws the burst): no steam, no draught, the fire out; the
+    /// stack gives a last thin grey wisp and nothing else does.</param>
+    /// <param name="lamp">The headlamp's lit (World.LampShining): out, no halo and no beam (the tail lamp's its own).</param>
     /// <param name="tailBite">What a Car Hugger's eaten of the last car (Art/BiteKit): its tail lamp goes with its corner.</param>
     public void Train(MeshBuilder mesh, IReadOnlyList<CarFrame> frames, Double3 eye, double time, TrainControls controls, float fire, bool emergency,
-        bool vent = false, bool safety = false, Bite tailBite = default, bool whistle = false)
+        bool vent = false, bool safety = false, Bite tailBite = default, bool whistle = false, bool dead = false, bool lamp = true)
     {
         if (frames.Count == 0 || (frames[0].Origin - eye).Length > 400)
             return;
@@ -51,7 +54,7 @@ public sealed partial class Effects(Look look)
 
         // Smoke: puffs at a rate the regulator sets, each drifting up and left behind where the stack was. The wind
         // leans it off the line a little. Dark, sooty, lit only by the night (and faintly by the fire underneath).
-        float work = (float)Math.Clamp(controls.Throttle, 0, 1);
+        float work = dead ? 0 : (float)Math.Clamp(controls.Throttle, 0, 1);
         float rate = 3.5f + 7f * work;
         const float life = 5.5f;
         int count = (int)(rate * life);
@@ -67,8 +70,9 @@ public sealed partial class Effects(Look look)
             float t = age / life;
             var drift = -velocity * age + wind * age + up * (2.2f * MathF.Pow(age, 0.6f) * (1 + work)) + (right * (h - 0.5f) + back * (Hash((float)index + 3.3f) - 0.5f)) * (0.4f + age * 0.5f);
             float size = 0.9f + 3.6f * MathF.Sqrt(t) * (0.8f + 0.4f * h);
-            float alpha = 0.6f * MathF.Pow(1 - t, 1.4f) * MathF.Min(1, age * 6) * (0.6f + 0.4f * work);
-            var colour = new Vector4(new Vector3(0.05f, 0.046f, 0.044f) * (0.9f + 0.3f * h) + FurnaceTint(fire) * MathF.Max(0, 0.4f - t), alpha);
+            float alpha = 0.6f * MathF.Pow(1 - t, 1.4f) * MathF.Min(1, age * 6) * (0.6f + 0.4f * work) * (dead ? 0.18f : 1);
+            var soot = dead ? new Vector3(0.2f, 0.2f, 0.21f) : new Vector3(0.05f, 0.046f, 0.044f);
+            var colour = new Vector4(soot * (0.9f + 0.3f * h) + FurnaceTint(dead ? 0 : fire) * MathF.Max(0, 0.4f - t), alpha);
             mesh.Billboard(stackTop + drift, size, h * 6.28f + age * 0.3f, colour, _smoke, FxBlend.Alpha, (int)(t * 15.99f), 4);
         }
         // Cinders when she's worked hard: sparks up through the smoke, falling back.
@@ -87,7 +91,8 @@ public sealed partial class Effects(Look look)
         if (work > 0.05f && speed < 6)
         {
             float amount = work * (1 - speed / 6);
-            var front = engine.ToWorld(new Double3(0, 0.55, -shape.HalfLength + 1.6)).RelativeTo(eye);
+            var front = shape.Cab is null ? engine.ToWorld(new Double3(0, 0.55, -shape.HalfLength + 1.6)).RelativeTo(eye)
+                : engine.ToWorld(new Double3(0, 0.55, TrainKit.CylinderZ(shape))).RelativeTo(eye);
             for (int k = 0; k < 18; k++)
             {
                 float h = Hash(k * 3.71f);
@@ -117,11 +122,12 @@ public sealed partial class Effects(Look look)
                     mesh.Billboard(p, 0.35f + t * 2.6f, h * 6.28f, new Vector4(0.62f, 0.63f, 0.66f, 0.7f * (1 - t)), _steam, FxBlend.Alpha, (int)(t * 15.99f), 4);
                 }
             }
-        // The whistle: a thin hard jet up off it, opening into a plume and laid back over the cab by the train's going.
-        if (whistle && shape.Cab is { } wcab)
+        // The whistle: a thin hard jet up off it, opening into a plume and laid back down the boiler by the train's going
+        // (cab forward, note 276: it stands on the boiler just behind the cab).
+        if (whistle && shape.Cab is not null)
         {
-            var boiler = shape.Solids.First(s => s.Part == PartKind.Boiler).Box;
-            var at = engine.ToWorld(new Double3(0.25, boiler.Max.Y + 0.45, wcab.Min.Z - 0.4)).RelativeTo(eye);
+            // (On the hood's roof, note 338.)
+            var at = engine.ToWorld(new Double3(0.35, shape.Bounds.Max.Y + 0.45, TrainKit.WhistleZ(shape))).RelativeTo(eye);
             for (int k = 0; k < 22; k++)
             {
                 float h = Hash(k * 4.43f);
@@ -132,11 +138,10 @@ public sealed partial class Effects(Look look)
                 mesh.Billboard(p, 0.25f + t * 2.6f, h * 6.28f, new Vector4(0.78f, 0.79f, 0.82f, 0.9f * (1 - t)), _steam, FxBlend.Alpha, (int)(t * 15.99f), 4);
             }
         }
-        // The safety valve lifting: straight up off the boiler ahead of the cab.
-        if (safety && shape.Cab is { } cab)
+        // The safety valve lifting: straight up off the boiler behind the cab.
+        if (safety && shape.Cab is not null)
         {
-            var boiler = shape.Solids.First(s => s.Part == PartKind.Boiler).Box;
-            var at = engine.ToWorld(new Double3(0, boiler.Max.Y + 0.35, cab.Min.Z - 1.2)).RelativeTo(eye);
+            var at = engine.ToWorld(new Double3(0, shape.Bounds.Max.Y + 0.35, TrainKit.SafetyValveZ(shape))).RelativeTo(eye);
             for (int k = 0; k < 18; k++)
             {
                 float h = Hash(k * 2.17f);
@@ -174,13 +179,16 @@ public sealed partial class Effects(Look look)
             return;
         // The headlamp: a halo round the lens, and the beam through the fog (the one light that reaches out; §28's
         // "headlamp and lantern cones"). Additive and faint, strongest at the lamp.
-        var lamp = Views.Lighting(engine, look);
-        var at0 = lamp.LampPosition.RelativeTo(eye);
+        var head = Views.Lighting(engine, look);
+        var at0 = head.LampPosition.RelativeTo(eye);
         // The halo is glare seen from afar; close to, it would hide the lamp it's round, so it fades in with distance.
         float glare = Math.Clamp((at0.Length() - 4) / 16, 0, 1);
-        mesh.Billboard(at0 - lamp.LampDirection * 0.2f, 2.6f, 0, new Vector4(lamp.LampColour * 0.5f * glare, 1), -1, FxBlend.Additive);
-        mesh.Billboard(at0 - lamp.LampDirection * 0.25f, 0.9f, 0, new Vector4(lamp.LampColour * (0.3f + 0.7f * glare), 1), -1, FxBlend.Additive);
-        Beam(mesh, at0, lamp.LampDirection, lamp.LampConeDegrees * 0.8f, 40, lamp.LampColour * 0.07f);
+        if (lamp)
+        {
+            mesh.Billboard(at0 - head.LampDirection * 0.2f, 2.6f, 0, new Vector4(head.LampColour * 0.5f * glare, 1), -1, FxBlend.Additive);
+            mesh.Billboard(at0 - head.LampDirection * 0.25f, 0.9f, 0, new Vector4(head.LampColour * (0.3f + 0.7f * glare), 1), -1, FxBlend.Additive);
+            Beam(mesh, at0, head.LampDirection, head.LampConeDegrees * 0.8f, 40, head.LampColour * 0.07f);
+        }
         // The tail lamp's glow at the back of the train.
         var last = frames[^1];
         var corner = new Double3(-last.Shape.HalfWidth + 0.25, last.Shape.RoofHeight - 0.3, last.Shape.HalfLength + 0.15);
@@ -316,6 +324,36 @@ public sealed partial class Effects(Look look)
     /// Sparks off steel being chewed (the Car Hugger feeding on its car, App. A.3: "the teeth grinding"): spat out of the
     /// mouth at <paramref name="at"/> in bursts, flying out and falling, around <paramref name="back"/> (the way out of it).
     /// </summary>
+    /// <summary>
+    /// Wood smoke from a lived-in house's chimney (App. F.3: the fortresses feel static): thin, pale, a puff a second or so
+    /// rising slowly and leaning off with the air, gone at a few metres. <paramref name="top"/> is the chimney's mouth,
+    /// relative to the eye; <paramref name="seed"/> keeps each chimney's puffs its own.
+    /// </summary>
+    public void Chimney(MeshBuilder mesh, Vector3 top, double time, int seed)
+    {
+        if (_smoke < 0)
+            return;
+        float rate = 0.9f + Hash(seed * 0.37f) * 0.6f;
+        const float life = 7f;
+        int count = (int)(rate * life);
+        double emitted = Math.Floor(time * rate);
+        var wind = new Vector3(0.35f, 0, 0.2f);
+        for (int k = 0; k < count; k++)
+        {
+            double index = emitted - k;
+            float age = (float)(time - index / rate);
+            if (age < 0 || age > life)
+                continue;
+            float h = Hash((float)(index * 0.618 + seed * 1.7)), t = age / life;
+            var drift = Vector3.UnitY * (0.6f * age + 0.9f * MathF.Sqrt(age)) + wind * age * (0.6f + 0.6f * h)
+                + new Vector3(h - 0.5f, 0, Hash((float)index + seed) - 0.5f) * (0.2f + age * 0.25f);
+            float size = 0.45f + 2.3f * MathF.Sqrt(t);
+            float alpha = 0.5f * MathF.Pow(1 - t, 1.5f) * MathF.Min(1, age * 3);
+            var colour = new Vector4(new Vector3(0.46f, 0.45f, 0.44f) * (0.9f + 0.25f * h), alpha);
+            mesh.Billboard(top + drift, size, h * 6.28f + age * 0.15f, colour, _smoke, FxBlend.Alpha, (int)(t * 15.99f), 4);
+        }
+    }
+
     public void Grind(MeshBuilder mesh, Vector3 at, Vector3 up, Vector3 back, double time, int seed)
     {
         var right = Vector3.Normalize(Vector3.Cross(up, back));
@@ -404,6 +442,8 @@ public sealed partial class Effects(Look look)
             if (s < 0 || s > line.Length)
                 continue;
             float h = Hash((float)(s * 0.071));
+            // Each bank as thick as the fog where it lies (note 313): the low ground ahead is seen filling before the train's in it.
+            float local = density * (float)(line.Conditions?.Fog(Sim.Rail.RailLine.MainPath, s) ?? 1);
             for (int k = 0; k < 3; k++)
             {
                 float hk = Hash((float)s + k * 13.1f);
@@ -416,7 +456,7 @@ public sealed partial class Effects(Look look)
                 if (dist < 6)
                     continue;
                 // Faint up close (a card in your face reads as a card), strongest mid-distance.
-                float a = 0.16f * density / 0.016f * Math.Clamp((dist - 6) / 20, 0, 1) * (0.5f + 0.5f * h);
+                float a = 0.16f * local / 0.016f * Math.Clamp((dist - 6) / 20, 0, 1) * (0.5f + 0.5f * h);
                 mesh.Billboard(p, 12 + hk * 10, hk * 0.5f - 0.25f, new Vector4(fogColour * 1.25f, MathF.Min(a, 0.28f)), _fog, FxBlend.Alpha, stretch: 0.45f);
             }
         }

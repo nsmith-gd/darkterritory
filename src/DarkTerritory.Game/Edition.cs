@@ -24,6 +24,14 @@ public sealed record EditionTuning
     /// <summary>Under the title ("DEMO"), and said once a night's over; empty for nothing.</summary>
     public string Tag { get; init; } = "";
     public string AfterNight { get; init; } = "";
+    /// <summary>
+    /// Note 434: the full game's Steam app, whose store page WISHLIST ON STEAM opens from the demo's title; 0 (no store page
+    /// yet) hides it.
+    /// </summary>
+    public uint StoreAppId { get; init; }
+
+    /// <summary>The store page's address, for a browser when the Steam overlay can't show it; null with no app.</summary>
+    public string? StoreUrl => StoreAppId > 0 ? $"https://store.steampowered.com/app/{StoreAppId}/" : null;
 
     public static EditionTuning Load(string content)
     {

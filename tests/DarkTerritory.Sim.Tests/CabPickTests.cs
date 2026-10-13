@@ -61,20 +61,31 @@ public class CabPickTests
     [Fact]
     public void WhereTwoAreInReachTheOneLookedAtIsWorked()
     {
+        // Cab forward (note 276) the cord's at the driver's end and the firebox at the fireman's, a cab apart: the
+        // neighbours now are the tool rack and the points lever on the driver's wall.
+        var world = World();
+        var rack = Thing(world, InteractableKind.ToolRack);
+        var points = Thing(world, InteractableKind.Points);
+        var at = new Double3(rack.Position.X - 0.2, 0, (rack.Position.Z + points.Position.Z) / 2 + 0.15);
+        Assert.True(((at - rack.Position) with { Y = 0 }).Length < rack.Radius);
+        Assert.True(((at - points.Position) with { Y = 0 }).Length < points.Radius);
+        Assert.Equal(InteractableKind.ToolRack, CrewActions.Nearest(Looking(world, at, rack), world.Train));
+        Assert.Equal(InteractableKind.Points, CrewActions.Nearest(Looking(world, at, points), world.Train));
+    }
+
+    [Fact]
+    public void TheCordIsOnlyEverPulledLookedAt()
+    {
+        // In the cord's reach at the driver's place but looking down the cab, Use works whatever's nearest, never the cord.
         var world = World();
         var cord = Thing(world, InteractableKind.Whistle);
-        var firebox = Thing(world, InteractableKind.Firebox);
-        // Between the firebox and the cord, in reach of both.
-        var at = new Double3(0.55, 0, firebox.Position.Z + 0.6);
+        var at = new Double3(cord.Position.X - 0.3, 0, cord.Position.Z + 0.4);
         Assert.True(((at - cord.Position) with { Y = 0 }).Length < cord.Radius);
-        Assert.True(((at - firebox.Position) with { Y = 0 }).Length < firebox.Radius);
         Assert.Equal(InteractableKind.Whistle, CrewActions.Nearest(Looking(world, at, cord), world.Train));
-        Assert.Equal(InteractableKind.Firebox, CrewActions.Nearest(Looking(world, at, firebox), world.Train));
-        // Looking at neither (back down the cab), the nearest, as ever; and never the cord, which is only pulled looked at.
-        var away = Looking(world, at, firebox);
+        var away = Looking(world, at, cord);
         away.Yaw += Math.PI;
         away.Pitch = 0;
-        Assert.Equal(InteractableKind.Firebox, CrewActions.Nearest(away, world.Train));
+        Assert.NotEqual(InteractableKind.Whistle, CrewActions.Nearest(away, world.Train));
     }
 
     [Fact]
@@ -83,7 +94,7 @@ public class CabPickTests
         var world = World();
         var cord = Thing(world, InteractableKind.Whistle);
         var firebox = Thing(world, InteractableKind.Firebox);
-        var s = Looking(world, new Double3(0.55, 0, firebox.Position.Z + 0.6), cord);
+        var s = Looking(world, new Double3(cord.Position.X - 0.3, 0, cord.Position.Z + 0.4), cord);
         double fire = world.Train.Boiler.Firebox, tender = world.Train.Boiler.Tender;
         Hold(world, ref s, 0.5, new PlayerIntent { Buttons = PlayerButtons.Use });
         Assert.True(world.WhistleSeconds > 0);
@@ -94,14 +105,15 @@ public class CabPickTests
         var controls = new TrainControls();
         WorldRecords.Apply(WorldRecords.Capture(world, controls, []), client, ref controls, []);
         Assert.Equal(1, client.WhistleBy);
-        // Looking at the firebox instead, the same press shovels, and the whistle's let go.
+        // At the firebox instead (cab forward, note 276: across the cab at the fireman's end), the same press shovels, and
+        // the whistle's let go.
         for (int i = 0; i < 2 * SimConstants.TickRate; i++)
         {
             world.BeginTick();
             world.Step(new TrainControls { Reverser = 1, Brake = 1 });
         }
         Assert.Equal(0, world.WhistleSeconds);
-        s = Looking(world, s.Position, firebox);
+        s = Looking(world, firebox.Position + new Double3(0, 0, -0.45), firebox);
         Hold(world, ref s, 2 * Tuning.Boiler.ShovelSeconds + 0.1, new PlayerIntent { Buttons = PlayerButtons.Use });
         Assert.Equal(0, world.WhistleSeconds);
         Assert.True(world.Train.Boiler.Tender < tender);

@@ -19,6 +19,7 @@ import hashlib
 import json
 import os
 import shutil
+import struct
 import subprocess
 import sys
 
@@ -60,7 +61,7 @@ CUE_GAIN_DB = {
     "bed-wheel-rail.roll-slow": -17,
     "bed-wheel-rail.roll-fast": -17,
     "bed-wheel-rail.joint": -16,
-    "bed-wheel-rail.flange": -10,
+    "bed-wheel-rail.flange": -2,
     "bed-wind.wind-slow": -10,
     "bed-wind.wind-fast": -16,
     "bed-wind.gust": -10,
@@ -101,13 +102,61 @@ SEQUENCES = {"audio/cs-ribbits--hops.mp3": (0.06, -26), "audio/cs-passenger--boo
              "audio/cs-climbers--roof.mp3": (0.08, -30)}
 
 
-def encode(x, path):
-    """A take as Ogg Opus. Byte-identical for identical audio, so rebuilds don't churn the repo."""
-    os.makedirs(os.path.dirname(path), exist_ok=True)
-    raw = np.clip(x, -1, 1).astype(np.float32).tobytes()
+# Note 421 (queue #157): the engine decodes a take to 16-bit (Ballast.Audio.OggOpus), and a take levelled with its peaks at
+# full scale can overshoot through the codec (up to ~2 dB), so its transients were clipped. A take that would is put through
+# the codec HEADROOM_DB under full scale instead, and the Opus header's output gain (which the engine applies, in float,
+# after decoding) puts its level back: nothing clips, nothing's quieter. Every other take is encoded as it always was.
+HEADROOM_DB = -3.0
+# How near full scale a decoded take may come (16-bit saturates at 1.0).
+DECODED_PEAK = 0.995
+
+
+def _ogg_crc_table():
+    table = []
+    for i in range(256):
+        r = i << 24
+        for _ in range(8):
+            r = ((r << 1) ^ 0x04C11DB7) if r & 0x80000000 else r << 1
+        table.append(r & 0xFFFFFFFF)
+    return table
+
+
+OGG_CRC = _ogg_crc_table()
+
+
+def set_output_gain(path, gain_db):
+    """Write an Ogg Opus file's header output gain (OpusHead's Q7.8 dB at byte 16) and its first page's CRC again."""
+    b = bytearray(open(path, "rb").read())
+    segments = b[26]
+    head = 27 + segments
+    assert b[:4] == b"OggS" and b[head:head + 8] == b"OpusHead", path
+    struct.pack_into("<h", b, head + 16, int(round(gain_db * 256)))
+    b[22:26] = bytes(4)
+    crc = 0
+    for byte in bytes(b[:head + sum(b[27:head])]):
+        crc = ((crc << 8) ^ OGG_CRC[((crc >> 24) ^ byte) & 0xFF]) & 0xFFFFFFFF
+    struct.pack_into("<I", b, 22, crc)
+    open(path, "wb").write(bytes(b))
+
+
+def _opus(x, path):
     subprocess.run(["ffmpeg", "-v", "error", "-y", "-f", "f32le", "-ar", str(dsp.SR), "-ac", "1", "-i", "-",
                     "-c:a", "libopus", "-b:a", f"{OPUS_KBPS}k", "-application", "audio", "-map_metadata", "-1",
-                    "-fflags", "+bitexact", "-flags:a", "+bitexact", path], input=raw, check=True)
+                    "-fflags", "+bitexact", "-flags:a", "+bitexact", path], input=x.astype(np.float32).tobytes(), check=True)
+
+
+def encode(x, path):
+    """A take as Ogg Opus. Byte-identical for identical audio, so rebuilds don't churn the repo. One that would clip once
+    decoded goes through with headroom and its level put back in the header (HEADROOM_DB)."""
+    os.makedirs(os.path.dirname(path), exist_ok=True)
+    x = np.clip(x, -1, 1).astype(np.float32)
+    _opus(x, path)
+    if len(x) == 0 or float(np.max(np.abs(dsp.load(path)))) < DECODED_PEAK:
+        return
+    peak = float(np.max(np.abs(x)))
+    under = 10 ** (HEADROOM_DB / 20)
+    _opus(x * (under / peak), path)
+    set_output_gain(path, 20 * np.log10(peak / under))
 
 
 def split_events(x, n, gap=0.12, db=-38):
@@ -184,8 +233,36 @@ def candidates(line, cue, stored):
 
 
 # Which candidate plays while nothing's kept, where the director's brief already says which (rather than the first): the
-# tunnel's hit is to be a bonk, not a thock (3 Oct), and the clean bonk is the one that says so.
-FIRST_CHOICE = {"crew-mishaps.tunnel-bonk": "coconut"}
+# tunnel's hit is to be a bonk, not a thock (3 Oct), and the clean bonk is the one that says so. The bend's stress is to be
+# heard building (build 1121, note 265): the squeal that holds and the shriek that climbs were made for that, where the
+# first squeal dropped out most of its loop (`dt audio render --scenario bend`: -42 dB in the cab at the bend's board).
+# Gameplay foley is the real thing where there's a choice: the wind-up drummer from real tin over the modelled one; the
+# lamp guttering from its flame over cloth whooshes.
+FIRST_CHOICE = {"place-town.fire": "drum", "place-town.murmur": "masks",  # note 415: the square's barrels; the folk about
+                "crew-mishaps.tunnel-bonk": "coconut", "bed-wheel-rail.flange": "sing", "state-derail.flange-scream": "shriek",
+                "crew-noisy-toys.drummer": "tin", "ui-stranded-outro.lamp-out": "gutter",
+                # Note 322: the chuff already beats, so the starved engine's struggle under it is the beatless one.
+                "state-starved.labour": "drag",
+                # Note 384: the croak's voice is a tenth of a second (the roar it's cut from has no more); the squawk's is a cry.
+                "cs-gannet-strike.hit": "squawk",
+                # Note 385: a real plate's knock first (the casting's is the synth's tone again); the engine house's beat over
+                # the headframe's rope, whose tones can read as a whine.
+                "state-coupling-loose.knock": "clank", "place-mine-lift.winding": "engine",
+                # Note 409: the shut's the Choir's rule, so the one that bangs home and drops its latch last; the open's long creak.
+                "crew-house-door.shut": "sag", "crew-house-door.open": "creak",
+                # Note 429: the quick river over its stones, the deep one a candidate; the Atlantic's shingle beaches drag
+                # their stones back, the rocky ledges' surf a candidate.
+                "world-water.river": "run", "world-water.surf": "shingle",
+                # Note 431: the joint's crack, short and hard under 2 kHz; the old clack and the battered joint candidates.
+                "bed-wheel-rail.joint": "crack",
+                # Note 444: the truss Dragger's whole weight on the roof (limbs, lighter, a candidate).
+                "cs-draggers.drop": "slam"}
+
+
+# A first choice for one surface of a cue (note 419): the car roof's tin rebuilt, the old boots kept beside it. The plank
+# floor's rebuild is a candidate only: the director likes the car's boards as they are (build 1121, App. F.1: "on wood and
+# grates they're good").
+SURFACE_CHOICE = {f"crew-footsteps.{cue}.roof": "tin" for cue in ("walk", "run", "jump", "land", "scuff")}
 
 
 def pick(cands, mat, line_level, cue_name=None):
@@ -196,7 +273,9 @@ def pick(cands, mat, line_level, cue_name=None):
     # Nothing kept yet: the first candidate not marked Redo, on every line, so every cue the game's hooks name has a sound
     # of its own (a tell's takes go under its game name: tell_sounds).
     ok = [k for k in here if k.get("verdict") != "redo"]
-    ok.sort(key=lambda k: (k.get("key") != FIRST_CHOICE.get(cue_name), not k.get("built"), not k.get("old"), k.get("mat") is None))
+    # (A cue with no first choice leaves the order alone: a library candidate has no key, and None isn't a choice.)
+    want = SURFACE_CHOICE.get(f"{cue_name}.{mat}") or FIRST_CHOICE.get(cue_name)
+    ok.sort(key=lambda k: (want is not None and k.get("key") != want, not k.get("built"), not k.get("old"), k.get("mat") is None))
     return ok[:1], "first"
 
 
@@ -211,6 +290,13 @@ TELL_SOUNDS = {
     "tell-choir": ("choir-voice", [("voices", {"rate": {"param": "pitch", "points": [[0.75, 0.985], [1.25, 1.015]]}})]),
     "tell-car-fire": ("car-fire", [("smoulder", {"gain": {"param": "progress", "points": [[0, 1], [0.5, 0.7], [1, 0]]}}),
                                    ("alight", {"gain": {"param": "progress", "points": [[0, 0], [0.4, 0.25], [1, 1]]}})]),
+    # The upkeep's faults (queue #95, note 358), for D1's synths (notes 331, 346), their params kept: the hot box's squeal
+    # rising in pitch and level as it heats and its smoke from halfway; the lamp's sputter and flame worse as it gutters.
+    "state-hotbox": ("hotbox", [("squeal", {"rate": {"param": "heat", "points": [[0, 0.94], [1, 1.08]]},
+                                            "gain": {"param": "heat", "points": [[0, 0.45], [0.5, 0.75], [1, 1]]}}),
+                                ("smoke", {"gain": {"param": "heat", "points": [[0, 0], [0.45, 0], [1, 1]]}})]),
+    "state-gutter": ("lamp-gutter", [("sputter", {"gain": {"param": "gutter", "points": [[0, 0.35], [1, 1]]}}),
+                                     ("flutter", {"gain": {"param": "gutter", "points": [[0, 0.5], [1, 1]]}})]),
     # T118: the game plays the giggle now and then, each at its own "pitch" (0.92-1.10), so the take follows it.
     # A presence lift on the porcelain's ring: the kept giggle has less in its 3-6 kHz tell band than T118's synth, and the
     # cab's din buries it there (AudioTests); lifting the band, not the whole giggle, keeps it from being loud and crazy (T115).
@@ -242,6 +328,41 @@ PACED = {"climber-scrabble", "tippy-tiptoe", "child-call"}
 # the kept whistle 4.6 at the middle car).
 TELL_GAIN_DB = {"choir-voice": 11, "train-whistle": 3}
 SYNTH_DEFS = os.path.join(HERE, "synth-defs")
+# Sounds main put in as synth definitions outside the tells (the line's warnings, notes 260 and 265; the gun's laying, the
+# cannon's landings, the toys, the depot's blast, the stranded ending): each cue's picked takes replace its sound the same
+# way, keeping its tier and range. line.cue -> (sound, layer extras): the extras put the param the game drives on the
+# takes (the turn's speed on the gun's motor, the boiler's cooling on its ticks).
+SWAPS = {
+    "warn-overspeed.bell": ("warn-overspeed", {}),
+    "warn-curve.chatter": ("warn-curve", {}),
+    "warn-low-clearance.telltales": ("warn-low-clearance", {}),
+    # The gun's laying: the director heard "a weird high repeated sound" when the cannon turns (GDD App. F.3, note 329), and
+    # the first candidates were that too, so it's HELD (below) on main's low, slow synth until a candidate is kept.
+    "crew-gun-lay.lay": ("gun-lay", {"rate": {"param": "speed", "points": [[0, 0.8], [1, 1.2]]},
+                                     "gain": {"param": "speed", "points": [[0, 0.45], [1, 1]]}}),
+    "crew-cannon-impact.ground": ("cannon-impact", {}),
+    "crew-cannon-impact.water": ("cannon-splash", {}),
+    "crew-cannon-impact.doll": ("doll-shatter", {}),
+    "crew-noisy-toys.squeaker": ("toy-squeaker", {}),
+    "crew-noisy-toys.music-box": ("toy-musicbox", {}),
+    "crew-noisy-toys.drummer": ("toy-drummer", {}),
+    "place-depot.powder-blast": ("powder-blast", {}),
+    "ui-stranded-outro.boiler-tick": ("boiler-tick", {"rate": {"param": "cool", "points": [[0, 1], [1, 0.8]]},
+                                                      "gain": {"param": "cool", "points": [[0, 1], [1, 0.6]]}}),
+    "ui-stranded-outro.lamp-out": ("lamp-out", {}),
+}
+# Level on top of each swapped synth definition's, so the takes sit where the synth did (main tuned the mix against
+# it): the synth's loudness less the takes', both through `dt audio render sound:<name>`. The toys instead by note 174's
+# test (AudioTests' toys bench: carried on a roof, each 6 dB over the wind and the three within 4 dB): a squeaker that
+# squeaks now and then and a music box's decaying plucks measure quieter than their loudness says.
+# Cues held out of the game until the director keeps one of their candidates (no first-candidate install): the game's
+# sound stays what main has meanwhile. The gun's laying (note 333): its first candidates were the high repeated sound the
+# director heard (note 329), so the low, slow ones wait for a Keep, on main's low, slow synth.
+HELD = {"crew-gun-lay.lay"}
+
+SWAP_GAIN_DB = {"boiler-tick": -4, "cannon-impact": -1, "cannon-splash": -4, "doll-shatter": 0, "hotbox": 4, "lamp-gutter": -16, "lamp-out": -14,
+                "powder-blast": -3, "toy-drummer": -10, "toy-musicbox": 11, "toy-squeaker": 5, "warn-curve": -6,
+                "warn-low-clearance": 2, "warn-overspeed": 5}
 
 # Lines whose candidates are alternatives the game uses all of, one per instance (a prisoner's whole voice).
 SETS_LINES = {"voice-prisoner-sets"}
@@ -258,6 +379,9 @@ VOICE_LINES = {"voice-prisoner-sets", "voice-callout"}
 # ui-prompts.hold: the hold-to-interact loop hurries as the held action gets there (GameAudio.Ui.cs sets "progress", 0-1).
 LAYER_EXTRAS = {
     "ui-prompts.hold": {"rate": {"param": "progress", "points": [[0, 1], [1, 1.4]]}},
+    # A derelict's flat wheels thump once a turn, built at 1.2 s a turn (a 0.9 m wheel at 2.4 m/s): faster or slower with
+    # the car (GameAudio.BedWheels sets "speed"; note 322).
+    "place-derelict.roll": {"rate": {"param": "speed", "points": [[0.6, 0.6], [2.4, 1.0], [4.0, 1.35]]}},
     # The bed's air and wheels kept under the tells' bands, as the synths they replace were (wind.json lowpassed at 650 Hz,
     # wheel-rail.json under 420 Hz): recorded, their hiss over 2 kHz buried the Climbers' scrabble (AudioTests' chaos bench).
     "bed-wind.wind-slow": {"filters": [{"type": "lowPass", "frequency": 1500}]},
@@ -267,6 +391,9 @@ LAYER_EXTRAS = {
     # The safety valve's blow kept over the writhe's band, as the synth's was (safety-valve.json: highpassed at 2.8 kHz): its
     # roar under 2 kHz buried the Sleepers for the cab.
     "state-valve.blow": {"filters": [{"type": "highPass", "frequency": 2000}]},
+    # The scream climbs as the bend pulls harder (note 265: the stress telegraph; GameAudio.BedWheels sets "stress", the
+    # scream's share of the stress's last half): two semitones from where it starts to where the train comes off.
+    "state-derail.flange-scream": {"rate": {"param": "stress", "points": [[0, 0.94], [1, 1.06]]}},
 }
 
 
@@ -274,11 +401,66 @@ LAYER_EXTRAS = {
 # heard as far, as the Whistler's tell is: spec A.4); the livestock are the world's, out along the train; the casting's bong
 # carries across a yard.
 CUE_DEF = {
+    # Note 409: a house door shut is heard across the village street, from inside the house and out (the Choir's rule).
+    "crew-house-door.shut": {"maxDistance": 60, "gainDb": 3},
     "crew-mishaps.whistle-wheeze": {"tier": 1, "minDistance": 20, "maxDistance": 1500, "rolloff": 0.45, "gainDb": 2},
     "crew-mishaps.startle-cattle": {"tier": 6, "minDistance": 6, "maxDistance": 200, "rolloff": 0.8},
     "crew-mishaps.startle-pigs": {"tier": 6, "minDistance": 6, "maxDistance": 200, "rolloff": 0.8},
     "crew-mishaps.startle-sheep": {"tier": 6, "minDistance": 6, "maxDistance": 200, "rolloff": 0.8},
     "crew-mishaps.crushed": {"maxDistance": 120, "rolloff": 0.8},
+    # A loose coupling's knock is heard where D1's synth was (note 356): from the gap, its ladders and the ground beside.
+    "state-coupling-loose.knock": {"minDistance": 3, "maxDistance": 60},
+    # The walled town (note 415): a fire barrel warms a few metres of the square, a range and a clock a room; the townsfolk
+    # are heard across a street or two.
+    "place-town.fire": {"minDistance": 1.5, "maxDistance": 30, "rolloff": 1.0},
+    "place-town.range": {"minDistance": 1, "maxDistance": 14, "rolloff": 1.0},
+    "place-town.clock": {"minDistance": 1, "maxDistance": 10, "rolloff": 1.0},
+    "place-town.radio": {"minDistance": 1, "maxDistance": 14, "rolloff": 1.0},
+    "place-town.murmur": {"minDistance": 3, "maxDistance": 35, "rolloff": 1.0},
+    "place-town.cough": {"minDistance": 1.5, "maxDistance": 35, "rolloff": 1.0},
+    # Note 446: a townsperson's breathing gear is heard close to, a step or two off; the watch's lantern across a street.
+    "place-town.gear-respirator": {"minDistance": 0.5, "maxDistance": 6, "rolloff": 1.0},
+    "place-town.gear-oxygen": {"minDistance": 0.5, "maxDistance": 6, "rolloff": 1.0},
+    "place-town.gear-rebreather": {"minDistance": 0.5, "maxDistance": 6, "rolloff": 1.0},
+    "place-town.gear-wrap": {"minDistance": 0.5, "maxDistance": 6, "rolloff": 1.0},
+    "place-town.lantern": {"minDistance": 1, "maxDistance": 25, "rolloff": 1.0},
+    # The water (note 429): a river heard from its bank or the span over it, a lake's lap only near its shore, the sea's
+    # surf a long way inland, the tide's flats across their width.
+    "world-water.river": {"minDistance": 6, "maxDistance": 120, "rolloff": 0.9},
+    "world-water.lake": {"minDistance": 3, "maxDistance": 50, "rolloff": 1.0},
+    "world-water.surf": {"minDistance": 15, "maxDistance": 400, "rolloff": 0.6},
+    "world-water.tide": {"minDistance": 10, "maxDistance": 250, "rolloff": 0.7},
+    # Note 444: a truss Dragger's fall into the ballast, heard from the train drawing away from it.
+    "cs-draggers.fall": {"minDistance": 4, "maxDistance": 150, "rolloff": 0.8},
+    # The capstan winch (note 468): the drum and its stall heard across the yard from the cranks (GameAudio.WinchReach),
+    # the sled out along its 40 m haul; the stall is the crew's to put right (tier 4, as their actions are).
+    "place-winch.capstan": {"minDistance": 2, "maxDistance": 60, "rolloff": 1.0},
+    "place-winch.drag": {"minDistance": 2, "maxDistance": 60, "rolloff": 1.0},
+    "place-winch.stall": {"tier": 4, "minDistance": 2, "maxDistance": 60, "rolloff": 1.0},
+    "place-winch.in": {"minDistance": 2, "maxDistance": 60, "rolloff": 1.0},
+    # The conveyor line (note 466): its drive is machinery heard across the yard, started loudly (note 400); starting it,
+    # its jam and the drive labouring under one, and clearing it are the crew's work (tier 4, as their actions are); the
+    # engine running, the belt and the grain off its head are the yard's (tier 6), heard beside them.
+    "place-conveyor.cranking": {"tier": 4, "minDistance": 2, "maxDistance": 80, "rolloff": 0.9},
+    "place-conveyor.catch": {"tier": 4, "minDistance": 4, "maxDistance": 250, "rolloff": 0.7},
+    "place-conveyor.engine": {"tier": 6, "minDistance": 4, "maxDistance": 150, "rolloff": 0.8},
+    "place-conveyor.labour": {"tier": 4, "minDistance": 4, "maxDistance": 180, "rolloff": 0.8},
+    "place-conveyor.stall": {"tier": 4, "minDistance": 4, "maxDistance": 150, "rolloff": 0.8},
+    "place-conveyor.belt": {"tier": 6, "minDistance": 1.5, "maxDistance": 30, "rolloff": 1.0},
+    "place-conveyor.pour": {"tier": 6, "minDistance": 2, "maxDistance": 60, "rolloff": 1.0},
+    "place-conveyor.jam": {"tier": 4, "minDistance": 2, "maxDistance": 60, "rolloff": 1.0},
+    "place-conveyor.clearing": {"tier": 4, "minDistance": 1, "maxDistance": 25, "rolloff": 1.0},
+    "place-conveyor.free": {"tier": 4, "minDistance": 2, "maxDistance": 50, "rolloff": 1.0},
+    # The tipple (note 480): the crew's work at it (tier 4, as the line's), the roll loud machinery heard across the yard, a
+    # car off its rails train state that holds the train (tier 3, as the alarms are).
+    "place-tipple.clamping": {"minDistance": 1.5, "maxDistance": 40, "rolloff": 1.0},
+    "place-tipple.clamp": {"minDistance": 2, "maxDistance": 80, "rolloff": 1.0},
+    "place-tipple.roll": {"minDistance": 4, "maxDistance": 200, "rolloff": 0.8},
+    "place-tipple.pour": {"minDistance": 4, "maxDistance": 150, "rolloff": 0.8},
+    "place-tipple.release": {"minDistance": 2, "maxDistance": 80, "rolloff": 1.0},
+    "place-tipple.derail": {"tier": 3, "minDistance": 4, "maxDistance": 250, "rolloff": 0.8},
+    "place-tipple.rerail": {"minDistance": 1, "maxDistance": 40, "rolloff": 1.0},
+    "place-tipple.rerailed": {"minDistance": 2, "maxDistance": 80, "rolloff": 1.0},
 }
 
 
@@ -318,8 +500,33 @@ def _read_def(path):
     return head, json.loads(body)
 
 
+def _write_def(path, head, d):
+    """Write a sound definition, unless the file already says the same (comments and layout aside): what's been tidied
+    by hand on main keeps its notes until the definition itself changes."""
+    if os.path.exists(path):
+        try:
+            if _read_def(path)[1] == json.loads(json.dumps(d)):
+                return False
+        except ValueError:
+            pass
+    with open(path, "w") as f:
+        f.write(head)
+        json.dump(d, f, indent=1)
+        f.write("\n")
+    return True
+
+
+def swapped():
+    """TELL_SOUNDS and SWAPS as one list: (line, the game's sound, [(cue, layer extras)])."""
+    out = [(line, sound, cues) for line, (sound, cues) in TELL_SOUNDS.items()]
+    for name, (sound, extra) in SWAPS.items():
+        line, cue = name.split(".", 1)
+        out.append((line, sound, [(cue, extra)]))
+    return out
+
+
 def tell_sounds(chosen):
-    """Swap each tell's game sound to the takes the checklist picked for it: kept ones, or while it's still under review
+    """Swap each tell's game sound (and each of SWAPS') to the takes the checklist picked for it: kept ones, or while it's still under review
     its first candidate (the director's call, 3 Oct: what's made goes in the game without waiting for a verdict). Back
     to its synth definition only where nothing's picked (no candidate yet, or every one marked Redo).
 
@@ -327,7 +534,7 @@ def tell_sounds(chosen):
     GameAudio picks by what the creature's on (the nearest one otherwise); the sound itself plays the first of them.
     """
     os.makedirs(SYNTH_DEFS, exist_ok=True)
-    for line, (sound, cues) in TELL_SOUNDS.items():
+    for line, sound, cues in swapped():
         path = os.path.join(SOUNDS, sound + ".json")
         backup = os.path.join(SYNTH_DEFS, sound + ".json")
         if not os.path.exists(backup):
@@ -361,19 +568,18 @@ def tell_sounds(chosen):
                 layer.update(extra)
                 layers.append(layer)
             d["layers"] = layers
-            d["gainDb"] = d.get("gainDb", 0) + TELL_GAIN_DB.get(sound, 0)
+            d["gainDb"] = d.get("gainDb", 0) + TELL_GAIN_DB.get(sound, 0) + SWAP_GAIN_DB.get(sound, 0)
             if sound in ONCE or sound in PACED:
                 d["loop"] = False
             if not d.get("loop"):
                 d.pop("duration", None)    # a one-shot of takes ends with its take
-            with open(os.path.join(SOUNDS, name + ".json"), "w") as f:
-                f.write(f"// The tell's takes from the audio checklist, kept or the first candidate under review\n"
-                        f"// ({', '.join(fo for fo, _ in folders)}), in place of its synth definition\n"
-                        f"// (tools/audio/synth-defs/{sound}.json), keeping its tier, range and level. Written by\n"
-                        f"// tools/audio/install.py; edit the cue or that file, not this one.\n")
-                json.dump(d, f, indent=1)
-                f.write("\n")
-            print(f"{name}: now the takes of {', '.join(fo for fo, _ in folders)}")
+            d.pop("cycleSeconds", None)    # the synth's envelopes' period: the takes have none
+            if _write_def(os.path.join(SOUNDS, name + ".json"),
+                          f"// The {'tell' if line in TELL_SOUNDS else 'cue'}'s takes from the audio checklist, kept or the first candidate under review\n"
+                          f"// ({', '.join(fo for fo, _ in folders)}), in place of its synth definition\n"
+                          f"// (tools/audio/synth-defs/{sound}.json), keeping its tier, range and level. Written by\n"
+                          f"// tools/audio/install.py; edit the cue or that file, not this one.\n", d):
+                print(f"{name}: now the takes of {', '.join(fo for fo, _ in folders)}")
 
 
 def main():
@@ -410,6 +616,8 @@ def main():
         for cue in cues:
             if cue["silent"] or cue["id"] not in stored:
                 continue
+            if f"{line}.{cue['id']}" in HELD and not any(k.get("verdict") == "keep" for k in stored[cue["id"]].get("cands") or []):
+                continue
             cands = candidates(line, cue, stored[cue["id"]])
             # Prisoner voice sets: every set not marked Redo goes in, each its own folder and sound (setN), since the game
             # gives each prisoner a different voice for the run (D.7).
@@ -438,11 +646,10 @@ def main():
                 for i, x in enumerate(takes):
                     encode(x, os.path.join(folder, f"{i:02d}.opus"))
                 name = f"{line}.{cue['id']}" + (f".{mat}" if mat else "")
-                with open(os.path.join(SOUNDS, name + ".json"), "w") as f:
-                    f.write(f"// {item['name']}: {cue['event']}" + (f" ({C.MATERIALS.get(mat, mat)})" if mat else "") +
-                            f". Written by tools/audio/install.py from the audio checklist ({why}); edit the cue, not this.\n")
-                    json.dump(sound_def(item, cue, rel, line), f, indent=1)
-                    f.write("\n")
+                _write_def(os.path.join(SOUNDS, name + ".json"),
+                           f"// {item['name']}: {cue['event']}" + (f" ({C.MATERIALS.get(mat, mat)})" if mat else "") +
+                           f". Written by tools/audio/install.py from the audio checklist ({why}); edit the cue, not this.\n",
+                           sound_def(item, cue, rel, line))
                 index[rel] = {"cue": f"{line}.{cue['id']}", "surface": mat, "picked": why,
                               "candidates": [{"label": k.get("label"), "key": k.get("key") or k.get("libkey") or k["src"],
                                               "sources": k.get("sources") or ([k["libkey"]] if k.get("libkey") else []),

@@ -21,7 +21,9 @@ public enum Arrangement : byte { Single, Opposite, Setback, Along }
 
 public enum StopZone : byte { Yard, Village }
 
-public enum BuildingKind : byte { Shed, Hero, House, Outbuilding, Barn, Well, PrisonCar, SignalBox, LampRoom, WaterTower, Lockup, Powerhouse }
+/// <remarks>A dead town's railway side (linegen plan §11.3; note 302): <see cref="Station"/> behind its platform, a goods
+/// yard's <see cref="GoodsShed"/>, and <see cref="Derelict"/> stock standing on the goods siding.</remarks>
+public enum BuildingKind : byte { Shed, Hero, House, Outbuilding, Barn, Well, PrisonCar, SignalBox, LampRoom, WaterTower, Lockup, Powerhouse, Station, GoodsShed, Derelict }
 
 /// <summary>A yard's power (level-design D.2): its cranes at full speed, at half, or not at all until it's restarted.</summary>
 public enum PowerState : byte { Live, Low, Dead }
@@ -72,6 +74,11 @@ public sealed record StopBuilding(BuildingKind Kind, StopZone Zone, double S, do
     public IReadOnlyList<int> Tracks { get; init; } = [];
     /// <summary>A house at the end of a stub road: better odds, furthest from the engine (P11).</summary>
     public bool Outlier { get; init; }
+    /// <summary>
+    /// A house you can walk into and search (GDD App. F.3; ARCHITECTURE §8 note 326): its walls stand with a door in the
+    /// face toward the line, and its finds are inside where they'd be kept, not put out on the step.
+    /// </summary>
+    public bool Open { get; init; }
     [JsonIgnore] public Pt Centre => new(S, D);
 }
 
@@ -107,6 +114,12 @@ public sealed record YardTrack(int Index, int Side, double Toe, double Offset, I
     public bool Primary { get; init; }
     /// <summary>On the far side of the main line (a split yard).</summary>
     public bool Across { get; init; }
+    /// <summary>
+    /// Derelict cars standing at the buffer stop when the night begins (level-design D.1, D.2 "blocked sidings"; note 294):
+    /// bad-order stock nobody moved, handbrakes on, on the loading face. The crew pull them clear before the track's any use.
+    /// </summary>
+    public int Derelicts { get; init; }
+    [JsonIgnore] public bool Blocked => Derelicts > 0;
     [JsonIgnore] public double Length => Segments.Sum(s => s.Length);
 }
 
@@ -152,6 +165,8 @@ public sealed record StopMoves
     public int Throws { get; init; }
     public int Couplings { get; init; }
     public int Reversals { get; init; }
+    /// <summary>Blocked sidings the crew clear to use (D.1): each also costs two throws and a reversal, counted in those.</summary>
+    public int Clearances { get; init; }
     public int BlindMoves { get; init; }
     public int Respots { get; init; }
     public int HandCars { get; init; }
@@ -203,6 +218,8 @@ public sealed record StopLayout
     /// <summary>Where the consist stops to work the stop (a yard's first loading face, or the halt): what D.4 measures from.</summary>
     public Pt StopPoint { get; init; }
     public IReadOnlyList<StopHoldout> Holdouts { get; init; } = [];
+    /// <summary>A dead town's goods siding (note 302): derelict track, its points long lifted, the derelicts standing on it.</summary>
+    public IReadOnlyList<IReadOnlyList<Pt>> Sidings { get; init; } = [];
     /// <summary>The yard's power and its powerhouse at the throat (a building index; −1 for none), level-design D.2.</summary>
     public PowerState Power { get; init; }
     public int Powerhouse { get; init; } = -1;

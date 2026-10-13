@@ -21,6 +21,9 @@ public sealed record FumesTuning(int Cars = 1, double GasM = 8, int Damage = 150
 /// The crude cannons (GDD v1.1 §12, App. C.3): arc-limited, loud, and every shot a timed decision. After each shot a full
 /// manual reload (powder, ball, ram) at the gun before it fires again. Field docs live in combat.json.
 /// </summary>
+/// <summary>Which way a gun faces at rest: ahead (the engine's forward gun) or back down the train (every car's).</summary>
+public enum GunMountFacing : byte { Ahead, Back }
+
 public sealed record GunTuning(double RoundsPerSecond, double Range, double TraverseDegrees, double DeadZoneDegrees,
     double MinPitchDegrees, double MaxPitchDegrees, int Ammo, double Reach, double DamagePerRound, double MinPressure)
 {
@@ -29,6 +32,18 @@ public sealed record GunTuning(double RoundsPerSecond, double Range, double Trav
     public int ReloadSteps { get; init; } = 3;
     /// <summary>Seconds of Use held at the gun per step.</summary>
     public double ReloadStepSeconds { get; init; } = 1.5;
+    /// <summary>
+    /// The engine's forward gun's whole traverse (note 596; the director's in-game notes, 9 Oct 2026: it should turn all the
+    /// way round): 360 turns it the full circle, the short way. Unset, it's <see cref="TraverseDegrees"/> as every gun's.
+    /// </summary>
+    public double? ForwardTraverseDegrees { get; init; }
+
+    /// <summary>
+    /// A gun's whole traverse: the forward gun's (the one that faces ahead, on the engine's cab roof) or every other's. Its
+    /// dead zone along the train's own body is the same either way (spec B.7).
+    /// </summary>
+    public double Traverse(GunMountFacing facing) => facing == GunMountFacing.Ahead ? ForwardTraverseDegrees ?? TraverseDegrees : TraverseDegrees;
+
     /// <summary>How far behind the pivot the gunner's seat is (T112).</summary>
     public double SeatBehind { get; init; } = 0.75;
     /// <summary>How fast the seated gunner can turn the carriage, and lift or drop the barrel (T112).</summary>
@@ -38,6 +53,40 @@ public sealed record GunTuning(double RoundsPerSecond, double Range, double Trav
     public double LaidDegrees { get; init; } = 2.5;
     /// <summary>How finely a ball's path is searched for the ground, water or a wall it lands on (m; T121).</summary>
     public double ImpactStep { get; init; } = 0.5;
+    /// <summary>
+    /// The ready rack at the gun (note 374, orchestrator.md §5.1 U4): how many of its rounds it holds; the rest are in the
+    /// powder lockers. 0: no rack, the gun's whole stock is at it (the gun before note 374).
+    /// </summary>
+    public int Rack { get; init; }
+    /// <summary>Seconds of Use held at the gun with a charge in hand to fill its rack.</summary>
+    public double ChargeSeconds { get; init; } = 2;
+    /// <summary>How near the powder locker a crewmate's hands must be to take a charge from it (m).</summary>
+    public double LockerReach { get; init; } = 1.3;
+    /// <summary>
+    /// Bots bring the powder (note 377, orchestrator.md §5.1 U4): a manned gun's ready rack down to this many rounds or fewer
+    /// sends a walker for a charge, so it's up before the gunner fires the last. -1: no walker goes (the gunner fetches its own).
+    /// </summary>
+    public int FeedAt { get; init; } = 2;
+    /// <summary>
+    /// <see cref="FeedAt"/> for a gun on another car than the powder locker's (the engine's forward gun): a walk the length of
+    /// the train each way, so the walker goes sooner.
+    /// </summary>
+    public int FeedAtFar { get; init; } = 5;
+    /// <summary>
+    /// A gunner bot whose rack's run dry keeps its seat this long (s) for the walker bringing a charge (note 377), then goes
+    /// for its own: up out of the seat, the gun's unmanned and no walker's sent to it.
+    /// </summary>
+    public double GunnerWaits { get; init; } = 30;
+    /// <summary>
+    /// A gun that's fired in the last this many seconds is in action (note 377): any round short of a full rack sends a walker
+    /// for a charge, to stand by at the gun with it, so a wave doesn't wait on a walk the train's length.
+    /// </summary>
+    public double FeedWhileFiring { get; init; } = 20;
+    /// <summary>
+    /// A bot crew this big or bigger (bots and all) has a second gunner on the engine's forward gun (note 414), for the lane
+    /// ahead (note 405), the Track Doll and the Switchman: its last place. 0: never.
+    /// </summary>
+    public int ForwardGunnerFrom { get; init; } = 6;
     /// <summary>
     /// GDD §23 "gun jams: someone repairs it by hand, under fire" (note 183): the chance a shot fouls the bore, times
     /// <see cref="FoulWetFactor"/> on wet rail (rain); then <see cref="ClearSeconds"/> of Use held at the gun clears it.

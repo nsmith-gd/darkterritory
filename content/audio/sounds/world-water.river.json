@@ -1,0 +1,20 @@
+// Water: A river running: its wash over the stones, gurgling where it folds, the fizz of its surface. Written by tools/audio/install.py from the audio checklist (first); edit the cue, not this.
+{
+ "tier": 6,
+ "loop": true,
+ "maxInstances": 8,
+ "minDistance": 6,
+ "maxDistance": 120,
+ "rolloff": 0.9,
+ "gainDb": 2,
+ "flat": false,
+ "layers": [
+  {
+   "source": "sample",
+   "sample": "world-water/river",
+   "gain": 1,
+   "pitchJitter": 0,
+   "gainJitter": 0
+  }
+ ]
+}

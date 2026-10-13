@@ -20,23 +20,40 @@ public sealed class FixedStepClock
     public long Tick { get; private set; }
 
     /// <summary>Fraction of a tick elapsed since the last simulated tick, in [0, 1).</summary>
-    public double Alpha => _accumulator / TickSeconds;
+    public double Alpha => _accumulator / Step;
 
-    double _accumulator;
+    /// <summary>
+    /// How much real time a tick takes, as a multiple of <see cref="TickSeconds"/>: 1 normally; a little over it slows the
+    /// simulation against the wall clock (note 532: a client pacing itself to a host that's behind). Never under 1.
+    /// </summary>
+    public double Stretch
+    {
+        get => _stretch;
+        set => _stretch = Math.Max(1, value);
+    }
+
+    /// <summary>Real time the guard below threw away because the frames couldn't simulate it, in seconds, since the start.</summary>
+    public double DroppedSeconds { get; private set; }
+
+    double _accumulator, _stretch = 1;
+    double Step => TickSeconds * _stretch;
 
     /// <summary>Adds real elapsed time and returns how many ticks to simulate now.</summary>
     public int Advance(double elapsedSeconds)
     {
         _accumulator += Math.Max(0, elapsedSeconds);
         int ticks = 0;
-        while (_accumulator >= TickSeconds && ticks < MaxTicksPerFrame)
+        while (_accumulator >= Step && ticks < MaxTicksPerFrame)
         {
-            _accumulator -= TickSeconds;
+            _accumulator -= Step;
             ticks++;
         }
         // Spiral-of-death guard: drop time we could not simulate.
-        if (ticks == MaxTicksPerFrame)
-            _accumulator = Math.Min(_accumulator, TickSeconds);
+        if (ticks == MaxTicksPerFrame && _accumulator > Step)
+        {
+            DroppedSeconds += _accumulator - Step;
+            _accumulator = Step;
+        }
         Tick += ticks;
         return ticks;
     }

@@ -1,5 +1,6 @@
 using Ballast;
 using DarkTerritory.Sim.Net;
+using DarkTerritory.Sim.Physics;
 using DarkTerritory.Sim.Player;
 using DarkTerritory.Sim.Rail;
 using DarkTerritory.Sim.Route;
@@ -221,6 +222,56 @@ public class SwitchTests
                 throws.Add(t);
         Assert.False(Assert.Single(throws).Moved);
         Assert.False(over.Diverging(0));
+    }
+
+    [Fact]
+    public void AtAStandUseIsTheLeversNotTheHands()
+    {
+        // Queue #94 (note 357): holding Use at a stand threw it and put down the lamp you'd carried out to it on the press,
+        // or picked up whatever lay by the stand.
+        var world = new World(Train(Line(), front: Toe - 300));
+        world.EnableSwitches(J);
+        world.EnableBodies();
+        var lever = world.Switches!.LeverAt(world.Train.Line, 0);
+        var s = PlayerMotor.SpawnOnGround(lever with { X = lever.X + 0.8 } - Double3.Up * 0.9, world.Train.Line, Toe, Tuning.Player);
+        var feet = PlayerMotor.WorldPosition(s, world.Train);
+        void Hold(double seconds, PlayerIntent intent)
+        {
+            for (int i = 0; i < seconds * SimConstants.TickRate; i++)
+                world.CrewAct(ref s, intent, 1);
+        }
+        var use = new PlayerIntent { Buttons = PlayerButtons.Use };
+
+        // A lamp in hand stays in hand, and the switch goes over.
+        var lamp = world.Bodies.SpawnItem(feet, Toe, BodyKind.Lamp);
+        lamp.Carrier = 1;
+        Hold(J.ThrowSeconds + 0.1, use);
+        Assert.True(world.Train.Diverging(0));
+        Assert.Equal(1, lamp.Carrier);
+        Hold(0.1, default);
+
+        // Empty-handed, a crate lying by the stand stays down, and the switch goes back.
+        lamp.Carrier = -1;
+        lamp.Pbd.Particles[0].Position = feet + new Double3(30, 0, 0);
+        var crate = world.Bodies.SpawnCargo(feet + new Double3(0, 0, -0.6), Toe);
+        Assert.Same(crate, world.Bodies.InReach(s, world.Train));
+        Hold(J.ThrowSeconds + 0.1, use);
+        Assert.False(world.Train.Diverging(0));
+        Assert.Equal(-1, crate.Carrier);
+        Hold(0.1, default);
+
+        // Throw still lets go of what's carried there.
+        crate.Carrier = 1;
+        Hold(2 * SimConstants.TickSeconds, new PlayerIntent { Buttons = PlayerButtons.Throw });
+        Assert.Equal(-1, crate.Carrier);
+
+        // And away from the stand, Use picks it up as it always did.
+        s = s with { Position = s.Position + new Double3(4, 0, 0) };
+        Assert.Null(world.Switches.InReach(s, world.Train));
+        var far = world.Bodies.SpawnCargo(PlayerMotor.WorldPosition(s, world.Train) + new Double3(0, 0, -0.6), Toe);
+        Assert.Same(far, world.Bodies.InReach(s, world.Train));
+        Hold(2 * SimConstants.TickSeconds, use);
+        Assert.Equal(1, far.Carrier);
     }
 
     [Fact]

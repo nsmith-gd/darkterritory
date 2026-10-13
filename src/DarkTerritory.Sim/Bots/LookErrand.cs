@@ -11,6 +11,9 @@ public sealed record LookTuning
     public double SeekM { get; init; } = 80;
     public double GauntM { get; init; } = 3;
     public double RibbitM { get; init; } = 5;
+    public double MooseM { get; init; } = 10;
+    public double TowerJawM { get; init; } = 20;
+    public double BeetleM { get; init; } = 12;
     public double EdgeM { get; init; } = 0.6;
 }
 
@@ -18,7 +21,8 @@ public sealed record LookTuning
 /// GDD §34's combination sweep (note 212): in an insisted night only, one walker is the look-out, and goes and looks at what
 /// lies in wait for a crew that never comes near it. Bots keep to their posts, and the Gaunt asleep in the yard, a Dragger
 /// under a roof's lip and a Ribbit pack out on the ballast were put there and never came on (note 186's "dormant"). The
-/// look-out walks over the ballast to the sleeping Gaunt, or toward the pack, away from the others, before boarding; up on
+/// look-out walks over the ballast to the sleeping Gaunt, toward the pack, away from the others, or up to a grazing Moose
+/// (note 339), before boarding; up on
 /// the roofs, it stays out there and walks to the lip over a Dragger. It's only feet and a facing (intent, as a player's):
 /// what's there wakes by its own rules, and the bot answers it with its normal counters (talks to the Gaunt, steps back from
 /// the lip and swings, runs from the tongues and is hauled free). Each thing it looks at once; then it's back to its post.
@@ -26,7 +30,7 @@ public sealed record LookTuning
 public sealed class LookErrand(IReadOnlyList<EnemyKind> insisted, LookTuning t)
 {
     readonly HashSet<int> _looked = [];
-    readonly bool _ground = insisted.Contains(EnemyKind.Gaunt) || insisted.Contains(EnemyKind.Ribbit);
+    readonly bool _ground = insisted.Any(k => k is EnemyKind.Gaunt or EnemyKind.Ribbit or EnemyKind.Moose or EnemyKind.TowerJaw or EnemyKind.FreightBeetle);
     readonly bool _roof = insisted.Contains(EnemyKind.Dragger);
     bool _metDragger;
 
@@ -44,7 +48,10 @@ public sealed class LookErrand(IReadOnlyList<EnemyKind> insisted, LookTuning t)
         foreach (var e in world.ActiveEnemies)
         {
             // Gone unmet (lingered out) isn't met.
-            if (e.Gone || !insisted.Contains(e.Kind) || e.Kind is not (EnemyKind.Gaunt or EnemyKind.Ribbit or EnemyKind.Dragger))
+            // Tower Jaw at its post and the Freight Beetle by its freight too (note 367): what comes to the train, or only after
+            // a death (the Mourners, the Brakeman, the Knotter, Hotbox), needs nobody to go and look.
+            if (e.Gone || !insisted.Contains(e.Kind) || e.Kind is not (EnemyKind.Gaunt or EnemyKind.Ribbit or EnemyKind.Dragger or EnemyKind.Moose
+                    or EnemyKind.TowerJaw or EnemyKind.FreightBeetle))
                 continue;
             if (!Lying(e))
             {
@@ -75,13 +82,20 @@ public sealed class LookErrand(IReadOnlyList<EnemyKind> insisted, LookTuning t)
         {
             // Out on the ballast: over to the nearest thing asleep or waiting out there, by its kind's distance.
             var me = self.Position;
-            var near = waiting.Where(e => e.Kind is EnemyKind.Gaunt or EnemyKind.Ribbit)
+            var near = waiting.Where(e => e.Kind is EnemyKind.Gaunt or EnemyKind.Ribbit or EnemyKind.Moose or EnemyKind.TowerJaw or EnemyKind.FreightBeetle)
                 .Select(e => (e, At: e.WorldPosition(train))).Select(x => (x.e, x.At, D: ((x.At - me) with { Y = 0 }).Length))
                 .Where(x => x.D <= t.SeekM).OrderBy(x => x.D).ThenBy(x => x.e.Id).FirstOrDefault();
             if (near.e is not null)
             {
                 Doing = $"look:{near.e.Kind}";
-                double stop = near.e.Kind == EnemyKind.Gaunt ? t.GauntM : t.RibbitM;
+                double stop = near.e.Kind switch
+                {
+                    EnemyKind.Gaunt => t.GauntM,
+                    EnemyKind.Moose => t.MooseM,
+                    EnemyKind.TowerJaw => t.TowerJawM,
+                    EnemyKind.FreightBeetle => t.BeetleM,
+                    _ => t.RibbitM,
+                };
                 return Walk(self, near.At, near.D, stop);
             }
             // Nothing out there yet that it's for: it waits on the ballast a while for it (it's sent once someone's down).

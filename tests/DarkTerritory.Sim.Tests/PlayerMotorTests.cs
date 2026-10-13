@@ -76,22 +76,10 @@ public class PlayerMotorTests
     }
 
     [Fact]
-    public void SidesteppingOffTheSideAtSpeedHoldsAtTheEdge()
-    {
-        // The director's decision of 2026-10-06 (note 266): walking never takes you off a moving car by accident.
-        var rig = OnRoof(6, 12, car: 2);
-        rig.Run(4, Move(1, 0));
-        Assert.Equal(2, rig.Player.Parent);
-        Assert.Equal(Surface.Roof, rig.Player.Surface);
-    }
-
-    [Fact]
     public void WalkingOffTheSideAtMaxSpeedKills()
     {
         var rig = OnRoof(6, T.MaxSpeed, car: 2);
-        // Facing the side and walking off it (note 266: a sidestep holds at the edge; walking off a side you face doesn't).
-        rig.Player.Yaw = -Math.PI / 2;
-        rig.Run(4, Move(0, 1));
+        rig.Run(4, Move(1, 0));
         Assert.Equal(DeathCause.JumpedAtSpeed, rig.Player.Death);
         Assert.Equal(Surface.Ground, rig.Player.Surface);
     }
@@ -101,9 +89,7 @@ public class PlayerMotorTests
     {
         // T90 (playtest): only three times run speed kills; the working band is a hard landing, and the train goes on.
         var rig = OnRoof(6, 12, car: 2);
-        // Facing the side and walking off it (note 266: a sidestep holds at the edge; walking off a side you face doesn't).
-        rig.Player.Yaw = -Math.PI / 2;
-        rig.Run(4, Move(0, 1));
+        rig.Run(4, Move(1, 0));
         Assert.True(rig.Player.Alive);
         Assert.Equal(Surface.Ground, rig.Player.Surface);
         Assert.InRange(rig.Player.Health, P.Health - P.Landing.DamageAtLethal, P.Health - P.Landing.RollDamage - 1);
@@ -113,9 +99,7 @@ public class PlayerMotorTests
     public void SteppingOffAtYardSpeedIsARoll()
     {
         var rig = OnRoof(6, 2, car: 2);
-        // Facing the side and walking off it (note 266: a sidestep holds at the edge; walking off a side you face doesn't).
-        rig.Player.Yaw = -Math.PI / 2;
-        rig.Run(4, Move(0, 1));
+        rig.Run(4, Move(1, 0));
         Assert.True(rig.Player.Alive);
         Assert.Equal(Surface.Ground, rig.Player.Surface);
         Assert.InRange(rig.Player.Health, P.Health - P.Landing.RollDamage - 10, P.Health - P.Landing.RollDamage);
@@ -216,36 +200,42 @@ public class PlayerMotorTests
     }
 
     [Fact]
-    public void FromTheFirstCarsCouplerTheGangwayLeadsIntoTheCab()
+    public void FromTheFirstCarsCouplerTheRunningBoardLeadsIntoTheCab()
     {
-        // T90 (playtest): there was no way into the cab from the train. Off the plate behind the tender, left onto the
-        // gangway down its side, and forward into the cab, at speed.
+        // T90 (playtest): there was no way into the cab from the train. Cab forward (note 276), car 1 couples on behind the
+        // smokebox: off the plate onto the footplate, out onto the left running board, forward along it beside the boiler,
+        // and in at the cab's left doorway, at speed.
         var rig = OnRoof(3, 14, car: 1);
         var engine = rig.Train.Frames[0];
-        double l = engine.Shape.HalfLength, cabBack = l - T.Geometry.Engine.TenderLength, w = engine.Shape.HalfWidth;
+        var plan = EnginePlan.Of(T.Geometry);
+        double l = engine.Shape.HalfLength, w = engine.Shape.HalfWidth;
+        double board = -w - T.Geometry.Engine.RunningBoardWidth / 2, door = plan.DoorFront + T.Geometry.Doorway.Width * 0.75;
         rig.Player = PlayerMotor.SpawnOnRoof(rig.Train, 0, l + T.Geometry.CouplingGap / 2, P);
         Assert.Equal(Surface.Coupler, rig.Player.Surface);
-        double aisle = -w + T.Geometry.Engine.TenderGangway / 2;
-        rig.Run(1, r => Toward(r, new Double3(aisle, 0, l + 0.3)));
-        rig.Run(1, r => Toward(r, new Double3(aisle, 0, l - 0.4)));
-        rig.Run(4, r => Toward(r, new Double3(aisle, 0, cabBack - 1.2)));
+        rig.Run(1, r => Toward(r, new Double3(-w + 0.3, 0, l + 0.3)));
+        rig.Run(1, r => Toward(r, new Double3(board, 0, l - 0.6)));
+        rig.Run(8, r => Toward(r, new Double3(board, 0, door)));
+        rig.Run(2, r => Toward(r, new Double3(-w + 0.5, 0, door)));
         Assert.True(PlayerMotor.InCab(rig.Player, rig.Train), $"on {rig.Player.Surface} of {rig.Player.Parent} at {rig.Player.Position}");
     }
 
     [Fact]
-    public void UpTheTendersFrontLadderToTheCabRoofAndItsGun()
+    public void AlongTheHoodsRoofYouWalkOntoTheCabRoofAndItsGun()
     {
-        // Walking into a ladder's foot takes hold (no Use), climbing carries you over its top onto the cab roof.
+        // The hood (note 338): the engine's roof is one level from its back to the cab's front, so from the top of the train
+        // (up the engine's back ladder) you walk forward onto the cab roof and its gun, no ladder up the cab's back.
         var rig = OnRoof(3, 14, car: 1);
         var engine = rig.Train.Frames[0];
-        var ladder = engine.Shape.Ladders.Single(x => x.Foot.Y > T.Geometry.Engine.DeckHeight + 1);
-        rig.Player = PlayerMotor.SpawnOnRoof(rig.Train, 0, ladder.Foot.Z + 0.6, P, ladder.Foot.X);
+        var plan = EnginePlan.Of(T.Geometry);
+        Assert.DoesNotContain(engine.Shape.Ladders, x => x.Foot.Y > T.Geometry.Engine.DeckHeight + 1);
+        rig.Player = PlayerMotor.SpawnOnRoof(rig.Train, 0, plan.CabBack + 3, P, 0);
         Assert.Equal(Surface.Roof, rig.Player.Surface);
-        rig.Run(4, r => r.Player.Surface == Surface.Roof && r.Player.Position.Y > ladder.Foot.Y + 0.5 ? default : Move(0, 1));
+        Assert.Equal(T.Geometry.EngineHeight, rig.Player.Position.Y, 3);
+        rig.Run(3, _ => Move(0, 1));
         Assert.Equal(0, rig.Player.Parent);
         Assert.Equal(Surface.Roof, rig.Player.Surface);
         Assert.Equal(T.Geometry.EngineHeight, rig.Player.Position.Y, 3);
-        Assert.True(rig.Player.Position.Z < ladder.Foot.Z - 0.3, "over the top onto the cab roof");
+        Assert.True(rig.Player.Position.Z < plan.CabBack - 1, $"onto the cab roof: at {rig.Player.Position}");
     }
 
     [Fact]
