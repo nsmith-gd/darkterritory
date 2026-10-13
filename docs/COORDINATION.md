@@ -26,6 +26,14 @@ source of truth for who owns what**; chat with one session isn't seen by the oth
    docs/log/README.md). Give yourself an agent id when you start (the table below).
 8. **Follow CLAUDE.md.** Design numbers in `content/tuning`, a deterministic Sim, everything verifiable headless, visual
    changes looked at.
+9. **Leave your work where another agent can pick it up** (the director, 13 Oct 2026: "Make sure your delegates are
+   posting their work in the coordinator md so that if we run out of tokens here other agents can pick it up"). For every
+   item you hold: push your branch at each working step, even WIP, and name it in the item's queue row; keep a
+   **Handoff** block in its note (`docs/notes/<n>.md`) current on main: what's done (commits, PRs), what's left in order,
+   what you found (causes, seeds, the commands that reproduce it), open questions; and keep the row's status true
+   (claimed, in progress, in review with its PR, done, dropped and why). Land those docs updates on main promptly, as
+   small docs PRs: a note only on your branch helps nobody once your session ends. An item whose session is gone is
+   anyone's to carry on from its handoff, saying so in its row and their log.
 
 ## Who's who
 
