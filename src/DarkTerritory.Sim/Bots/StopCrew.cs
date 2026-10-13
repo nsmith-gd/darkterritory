@@ -825,9 +825,10 @@ public sealed record StopPlan(int Facility, Site Site, Branch Spur, double Hold,
             return false;
         // A heavy crate while two have it up or it's down inside a car; held by one, while there's a hand to lend; lying
         // loose, while there are two to take it (T45). Otherwise it doesn't keep the train.
+        // Loaded (note 659), one lies in its car for good: no work in that.
         return world.Bodies.All.Any(b => b.Kind == Physics.BodyKind.Cargo
-            && (b.Carrier >= 0 || room.Contains(b.Parent) && Inside(train, b) || Loose(world, b))
-            || b.Kind == Physics.BodyKind.Heavy && (b.Lifted || room.Contains(b.Parent) && Inside(train, b)
+            && (b.Carrier >= 0 || room.Contains(b.Parent) && Inside(train, b) && !b.Banked || Loose(world, b))
+            || b.Kind == Physics.BodyKind.Heavy && (b.Lifted || room.Contains(b.Parent) && Inside(train, b) && !b.Banked
                 || b.Carrier >= 0 && hands >= 1 || hands >= 2 && Loose(world, b)));
     }
 
@@ -3241,7 +3242,8 @@ public sealed partial class StopHand(StopJob job, CrewCalls calls, int member, C
     {
         var train = world.Train;
         // Put down inside a car and settling: that room's taken. One left on a car's steps isn't in it (T50).
-        var pending = world.Bodies.All.Where(b => b.Kind == Physics.BodyKind.Cargo && b.Carrier < 0 && b.Parent > 0 && StopPlan.Inside(train, b))
+        // (Loaded, note 659, it's in the car's load already.)
+        var pending = world.Bodies.All.Where(b => b.Kind == Physics.BodyKind.Cargo && b.Carrier < 0 && !b.Banked && b.Parent > 0 && StopPlan.Inside(train, b))
             .GroupBy(b => b.Parent).ToDictionary(g => g.Key, g => g.Count());
         var stack = p.Site.CrateStack.Length > 0 ? p.Site.CrateStack[0] : train.Frames[0].Origin;
         return StopPlan.WithRoom(train).Select(v => (v.Id, Room: 1 - v.Load - p.Site.LoadPerCrate * (pending.GetValueOrDefault(v.Id) + calls.BoundFor(v.Id, member))))

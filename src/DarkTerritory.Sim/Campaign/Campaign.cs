@@ -89,11 +89,12 @@ public sealed record RakeSave(int[] Vehicles, int Path, double Distance, bool Ha
 /// <summary>
 /// A thing aboard at the autosave (note 500): its kind, the car it's in and where its middle is in that car's frame, its size
 /// and how it lies, the locker it's on a shelf of and which shelf (−1: none), and what's its own: a crate's cargo, a find's
-/// owner (which find), an extinguisher's mount and charge, a toy's noise, a radio broken, a shelved tool's tool (note 649).
+/// owner (which find), an extinguisher's mount and charge, a toy's noise, a radio broken, a shelved tool's tool (note 649),
+/// a crate loaded (in its car's saved load already, note 659).
 /// </summary>
 public sealed record ThingAboard(BodyKind Kind, int Car, Double3 At, double Radius, double Friction, double Bounce, double Yaw = 0, int Locker = -1,
     int Slot = 0, bool Claimed = true, CargoKind Cargo = CargoKind.None, int Owner = -1, int Home = -1, double Charge = 1,
-    ToyNoise Noise = ToyNoise.None, bool Broken = false, ulong Tools = 0);
+    ToyNoise Noise = ToyNoise.None, bool Broken = false, ulong Tools = 0, bool Loaded = false);
 
 /// <summary>
 /// Spec E "autosave per POI, on successful departure": enough of a night to start it again from the facility the
