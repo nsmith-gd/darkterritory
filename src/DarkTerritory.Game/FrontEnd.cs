@@ -1668,16 +1668,17 @@ public sealed class FrontEnd
             o.Text(x, y, Clip(o, $"LAST NIGHT: {last.Route.ToUpperInvariant()}, {last.End.ToString().ToUpperInvariant()}, {(last.Net >= 0 ? "+" : "")}{last.Net:0} SCRIP", width - x - 8), Faint);
             y += 10;
         }
-        if (Screen == Screen.Upgrades)
-        {
-            o.Text(x, y, "BOUGHT FROM THE BLACKSMITH, AT THE FORGE IN THE YARD", Faint);
-            y += 10;
-        }
-        if (Screen == Screen.Smithy && Smithy is { } selling)
-        {
-            o.Text(x, y, selling.CanBuy ? "A SHARE OF THE NEXT CAR. FITTED BEFORE THE GATE" : $"THE HOST PAYS: ASK {(selling.Payer ?? "THEM").ToUpperInvariant()}", Faint);
-            y += 10;
-        }
+        // (Wrapped, as the heading is, at a bigger TEXT SIZE: note 347.)
+        string? under = Screen == Screen.Upgrades ? "BOUGHT FROM THE BLACKSMITH, AT THE FORGE IN THE YARD"
+            : Screen == Screen.Smithy && Smithy is { } selling
+                ? selling.CanBuy ? "A SHARE OF THE NEXT CAR. FITTED BEFORE THE GATE" : $"THE HOST PAYS: ASK {(selling.Payer ?? "THEM").ToUpperInvariant()}"
+            : null;
+        if (under is not null)
+            foreach (var row in UiStyle.Wrap(o, under, width - x - 8))
+            {
+                o.Text(x, y, row, Faint);
+                y += 10;
+            }
         if (Screen == Screen.Stores)
         {
             o.Text(x, y, "STORES FOR TONIGHT: SPENT WITH THE NIGHT", Faint);
