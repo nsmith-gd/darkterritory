@@ -315,6 +315,85 @@ public class StopCrewTests
     }
 
     [Fact]
+    public void AReliefClaimNobodySaysAgainIsTakenOver()
+    {
+        // Note 655 (deepTerritory:7 seed 8): a crewmate claimed the relief for a Climber in the cab with the driver alive, then
+        // went back to its own work; the driver died and the claim kept everyone else back, and the train stood till dawn. A
+        // claim not said again for a second is nobody's: the next walker takes it.
+        var train = new TrainOnLine(new TrainDynamics(Consist.Uniform(T, 4, 1)), new RailLine(new LineDefinition("t", [new TrackSegment(4000)])), 600);
+        var world = new World(train, Tuning.Combat);
+        world.EnableBodies();
+        var calls = new CrewCalls();
+        var cab = PlayerMotor.SpawnInCab(train, P);
+        calls.Say(0, StopJob.Driver, cab);
+        var self = PlayerMotor.SpawnOnRoof(train, 2, 0, P);
+        var other = PlayerMotor.SpawnOnRoof(train, 3, 0, P);
+        var bot = new RoofWalkerBot(21, P.Cold) { Me = 2, Calls = calls, Crew = [(2, self), (9, other)] };
+        world.Tick = 100;
+        bot.Decide(self, world, world.Tick, out _);
+        calls.Say(0, StopJob.Driver, cab with { Health = 0, Death = DeathCause.Climbed });
+        // Claimed by 9, and said this tick: theirs.
+        (calls.Relief, calls.ReliefSaid) = (9, ++world.Tick);
+        bot.Decide(self, world, world.Tick, out _);
+        Assert.False(bot.Relieving);
+        Assert.Equal(9, calls.Relief);
+        // Not said again for over a second: the walker takes it.
+        world.Tick += (uint)SimConstants.TickRate + 1;
+        bot.Decide(self, world, world.Tick, out _);
+        Assert.True(bot.Relieving);
+        Assert.Equal(2, calls.Relief);
+    }
+
+    [Fact]
+    public void AGunnersLegsLeaveTheReliefToAWalker()
+    {
+        // Note 655 (deepTerritory:7 seed 6): the gunner gives its legs only some of its turns, and claimed on one it held the
+        // relief at its gun while nobody went. With a walker alive it's the walker's; with none, the gunner's.
+        var train = new TrainOnLine(new TrainDynamics(Consist.Uniform(T, 4, 1)), new RailLine(new LineDefinition("t", [new TrackSegment(4000)])), 600);
+        var world = new World(train, Tuning.Combat);
+        world.EnableBodies();
+        var calls = new CrewCalls();
+        var cab = PlayerMotor.SpawnInCab(train, P);
+        calls.Say(0, StopJob.Driver, cab);
+        var self = PlayerMotor.SpawnOnRoof(train, 4, 0, P);
+        var walker = PlayerMotor.SpawnOnRoof(train, 2, 0, P);
+        calls.Gunning(2, false, true);
+        var legs = new RoofWalkerBot(21, P.Cold) { Me = 2, Calls = calls, Gunner = true, Crew = [(2, self), (3, walker)] };
+        legs.Decide(self, world, world.Tick, out _);
+        calls.Say(0, StopJob.Driver, cab with { Health = 0, Death = DeathCause.Climbed });
+        world.Tick++;
+        legs.Decide(self, world, world.Tick, out _);
+        Assert.False(legs.Relieving);
+        Assert.Null(calls.Relief);
+        legs.Crew = [(2, self), (3, walker with { Health = 0, Death = DeathCause.Climbed })];
+        world.Tick++;
+        legs.Decide(self, world, world.Tick, out _);
+        Assert.True(legs.Relieving);
+        Assert.Equal(2, calls.Relief);
+    }
+
+    [Fact]
+    public void WithThePointsSetAndTheShunterLostBeforeTheCutTheStopIsCalledOff()
+    {
+        // Note 655 (deepTerritory:7 seed 7): the points went over and the shunter was taken off the coupling before it cut
+        // the train. The stop gave up only with the points unset, so the train stood there till dawn. Now it's called off:
+        // the driver sets the points back itself, and the train goes on.
+        var night = new Night(cars: 10, walkers: 0, hands: 1);
+        var train = night.Train;
+        var spur = train.Line.Branches.First(b => b.Kind == BranchKind.Spur && night.Site.Feature.Contains(b.Toe));
+        night.Until(() => night.Driver.Stops!.Doing == StopDriver.Leg.Held, 300);
+        Assert.Equal(StopDriver.Leg.Held, night.Driver.Stops!.Doing);
+        Assert.True(night.Driver.Stops.Plan!.CutBehind >= 0, "a train the spur takes whole: no cut to make");
+        Assert.Null(night.Driver.Stops.Plan!.NearRake(train));
+        night.World.SetSwitch(spur.Index, true);
+        night.Crew[1] = night.Crew[1] with { Health = 0, Death = DeathCause.Carried };
+        var legs = new List<string>();
+        night.Until(() => train.OnMain && train.Dynamics.Distance > spur.Toe + 150, 600, () => { string l = $"{night.Driver.Stops!.Doing}/{train.Diverging(spur.Index)}/{night.Driver.Stops.Plan?.NearRake(train) is not null}"; if (legs.Count == 0 || legs[^1] != l) legs.Add(l); });
+        Assert.True(train.OnMain && train.Dynamics.Distance > spur.Toe + 150, $"stuck at {train.Dynamics.Distance:0} on {train.Dynamics.Path}: {string.Join(" > ", legs)}");
+        Assert.False(train.Diverging(spur.Index));
+    }
+
+    [Fact]
     public void WithTheShunterDeadTheFirstHandLeftTakesItOver()
     {
         var calls = new CrewCalls();
