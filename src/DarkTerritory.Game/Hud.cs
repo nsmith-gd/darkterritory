@@ -822,9 +822,11 @@ public static partial class Hud
             double left = place.At - s.Train.Dynamics.Distance;
             o.TextCentred(cx, y, place.Name.ToUpperInvariant(), Ink with { W = a }, 1);
             y += line;
-            o.TextCentred(cx, y, left > 50 ? $"IN {left / 1000:0.0} KM" : "HERE", Dim with { W = a }, k);
+            // The distance alone (note 671): "0.6 KM" under a place's name says how far.
+            o.TextCentred(cx, y, left > 50 ? $"{left / 1000:0.0} KM" : "HERE", Dim with { W = a }, k);
             y += (line + 2) * k;
         }
+        y = MailTop(o, s, m, cx, y, line, k);
         if (s.Player.Alive && Shown(Since(s, m.ColdTick), Tuning.ColdSeconds) is > 0 and var c
             && ColdLine(s.Player, s.Train) is { } cold)
             o.TextCentred(cx, y + 2, cold, Amber with { W = c }, k);
@@ -2130,6 +2132,9 @@ public static partial class Hud
                     if ((d.WorldPosition(train) - PlayerMotor.WorldPosition(p, train)).Length <= et.Draggers.FreeReach + 1)
                         return "PULL THEM FREE : HOLD [E]";
                 }
+        // A mail crane's last seconds, in the open door on its side (note 673): the hook, before anything else in reach.
+        if (MailPrompt(s) is { } hook)
+            return hook;
         // The repair kit at a Holdout's door: held, Use works the lock (GDD App. D.7), not the hands; at a ruptured boiler's
         // firebox, it mends it (T109).
         if (world.Bodies.CarriedBy(s.PlayerId) is { Kind: BodyKind.RepairKit })

@@ -14,6 +14,11 @@
   "placeAheadMetres": 1200,
   "placeSeconds": 4.5,
 
+  // A mail crane (note 673): once the lamp reads its board, "MAIL CRANE >" (its side) and how far come up as a place does;
+  // in its last seconds before your car (s), the line stays up for anyone in a car, and the open side door on its side
+  // says the hook (hold fire as the car goes by). A bag caught says what was in it.
+  "mailLeadSeconds": 12,
+
   // Going out into a deeper step of the cold (GDD §22, note 201): its line, for this long (s). Getting chilled says how
   // long you've got for as long as it lasts.
   "coldSeconds": 5,

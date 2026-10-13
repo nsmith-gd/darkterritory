@@ -939,6 +939,9 @@ public sealed class FrontEnd
             Cue?.Invoke(UiCue.Move);
     }
 
+    /// <summary>Alt+Enter (note 672): a window to the whole screen or back, kept like any other setting.</summary>
+    public void AltEnter() => Change(Settings.AltEnter());
+
     void Change(Settings settings)
     {
         Settings = settings;
@@ -1088,7 +1091,10 @@ public sealed class FrontEnd
             new(new($"CONTROL HINTS: {(Settings.ControlHints ? "ON" : "OFF")}", "The keys in the corner for what you're holding or driving."),
                 Toggle(s => s with { ControlHints = !s.ControlHints }), _ => Change(Settings with { ControlHints = !Settings.ControlHints })),
             // T83: the display.
-            new(new($"DISPLAY: {(Settings.Fullscreen ? "FULLSCREEN" : "WINDOWED")}"), Toggle(s => s with { Fullscreen = !s.Fullscreen }), _ => Change(Settings with { Fullscreen = !Settings.Fullscreen })),
+            // Note 672: WINDOWED, BORDERLESS or FULLSCREEN (exclusive); Alt+Enter anywhere, a window or the whole screen.
+            new(new($"DISPLAY: {Settings.Display.ToString().ToUpperInvariant()}", "Left and right to change. Alt+Enter in the game as well."),
+                Toggle(s => s with { Display = Settings.Cycle(Enum.GetValues<DisplayMode>(), s.Display, 1) }),
+                by => Change(Settings with { Display = Settings.Cycle(Enum.GetValues<DisplayMode>(), Settings.Display, by) })),
             new(new($"RESOLUTION: {Settings.Resolution}", "Left and right to change."), Toggle(s => s with { Resolution = Settings.Cycle(Settings.Resolutions, s.Resolution, 1) }),
                 by => Change(Settings with { Resolution = Settings.Cycle(Settings.Resolutions, Settings.Resolution, by) })),
             new(new($"RENDER SCALE: {Settings.RenderScale * 100:0}%", "Draws the scene smaller and scales it up: faster, softer."), Toggle(s => s with { RenderScale = Settings.Cycle(Settings.RenderScales, s.RenderScale, 1) }),
