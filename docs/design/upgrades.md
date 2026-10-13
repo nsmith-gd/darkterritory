@@ -268,3 +268,166 @@ Nothing, or a little the wrong way. The clerk reads every one.
 | **Monogrammed towels** | In the crew car. Nobody washes | "Towels: monogrammed." |
 | **Neon OPEN sign** | In the guard van's window, lit. Open for what | "Sign: open." |
 | **Extra-long whistle cord** | Reaches through every car, so anyone can blow the whistle from anywhere | "Cord: long." Everyone will |
+
+## 8. The director's answers (13 Oct 2026)
+
+*"I really think that all of these are going to need hard signs and feedback for the player to understand what the
+consequence is and why they want to purchase this thing."* And, item by item, which of §4 and §7 go ahead. Queue rows for
+the approved ones are taken as each is built.
+
+### 8.1 Every upgrade says what it did (the rule)
+
+An upgrade is only worth buying if the crew can see it working, and only fair if they can see what it costs them. So every
+upgrade, on the shelf or to come, has three tells, and an upgrade isn't done until it has all three (U1's call on their form):
+
+1. **On the train, where it is.** It's a thing you can see and point at: the speed recorder's bell on the backhead, the
+   oil cups on the axles, the bigger bottles in their brackets, the gold whistle gleaming in the cab. An upgrade with no
+   object (the feedwater heater, the booster) gets one: a pipe run, a plate, a stencilled name.
+2. **When it works, at the moment.** A sound and a word where it happened, the HUD's way (`ACTION : [KEY]`'s short state,
+   never what it will do): the recorder's bell ringing early is its own sound, not the overspeed's; a breach boarded with
+   pre-cut boards says "PRE-CUT: BOARDED"; a hot box held off by the oilers smokes thinner and its knock is slower. The
+   honk honks.
+3. **After, in the tally.** What it saved or what it cost, read by the clerk as flat as the coal: "Speed recorder: three
+   bends rung early." "Grill: hounds drawn, two." "Gold whistle: heard by the Choir, eleven times." The incident report's
+   causes name an upgrade when it was one (C.9): "Drawn by the barbecue: Dave."
+
+And the shop's card says the consequence, both halves, before you pay: what it does, and what it brings.
+
+| On the shelf | On the train | When it works | In the tally |
+|---|---|---|---|
+| Speed recorder | A brass bell and a dial on the backhead | Its own bell, early, and "BEND" on the dial | Bends rung early |
+| Composition shoes | Grey shoes on the wheels, a stencil on the frame | Less shriek on a long descent; the brake gauge's needle holds | Fade saved on the grades |
+| Sprung cradles | Spring racks in a medicine car | The medicine crates rock instead of jolt | Medicine kept that a stop would have spoiled |
+| Pre-cut boards | A stack of cut planks by every car's door | "PRE-CUT: BOARDED" and a quicker hammer | Breaches boarded |
+| Spare radios | Two more sets on the guard van's shelf | (They're radios) | — |
+| Big extinguishers | Fat red bottles in the brackets | A longer spray | Fires out |
+| Axle oilers | Oil cups on the axle boxes, a drip | A slower knock, thinner smoke | Hot boxes caught before they seized |
+| Feedwater heater | A pipe run along the boiler, a plate | The pressure holds in the cold (the gauge) | Steam the cold didn't take |
+| Gun rammers | A sprung rammer and a brass measure at each gun | A quicker clack on each step | — |
+| Trailing-truck booster | A second set of cylinders under the tender | A second exhaust beat pulling away | — |
+| The honk | A bulb horn where the whistle was | It honks | Honks |
+| Lucky horseshoe | Over the cab door, points up | A glint when a foul didn't happen | Fouls dodged (the dice's, honestly) |
+| Gold-plated whistle | It gleams | A brighter note | Heard by the Choir |
+| Framed commendation | On the cab wall | — | Read every night |
+| The BBQ deck | It's the deck | The grill's smoke and glow; a hound's howl that's its answer | Sausages, beers, hounds drawn |
+
+### 8.2 What goes ahead
+
+**Yes** (the director's words where there are some):
+
+| | Approved |
+|---|---|
+| Fun | Livery · engine nameplate · the hat rack · more emotes · the yard photographer · the disco ball ("classic") |
+| Whimsy | Gerald · the canary · the calliope · the gramophone · the human cannonball (§8.3: "needs strong feedback and consent") · the yard cat ("great") · the hot tub ("fantastic") · the tennis-ball launcher · the garden gnomes · the dog ("fantastic. Great design there") · the fishing rod ("brilliant") · the hammock · the accordion, and a band of instruments (§8.4) |
+| Silly | The stuffed moose head · the dining car, with a bar (§8.5) · fuzzy dice · bumper stickers, all puns (§8.6) · flames · spinner hubcaps ("hilarious") · the tiny toy caboose ("super funny") · the La Cucaracha horn · the pine-tree air freshener · participation ribbons · monogrammed towels, their monograms jokes and tiny insults (§8.7) |
+| Tools | The cowcatcher · the rear searchlight · the flare pistol ("fantastic") · speaking tubes ("funny") · the armoured cab, with full sight of the line (§8.8) · armour II and III · all of §7.3's |
+
+**The cold.** *"I don't find that crews end up really feeling the cold that much and I'm okay with that now."* So the
+cold's not a reason to buy anything: the feedwater heater, car insulation, a beer's warmth and the hot tub's heat are
+small comforts, not answers. The hot tub's case is that it's a hot tub. (U1's call: nothing's re-priced; the shop's cards
+don't sell the cold.)
+
+**Not mentioned, so parked** (not built until asked): the pigeon loft, the three-chime whistle, festoon lamps, the brass
+bell, the velvet seat, the spittoon, the second stack, the bubble machine, the Tannoy, the piano, wind chimes, the
+paddling pool, the mayor's bobblehead, the doorbell, trophy plaques, the neon sign, the extra-long whistle cord.
+
+### 8.3 The human cannonball: consent and feedback
+
+Nobody is fired who didn't climb in, and everyone knows what's about to happen.
+
+- **Consent.** Only a living crewmate gets in, and only themselves: Use at the guard van's cannon's muzzle, with it loaded
+  with powder and no shot, "CLIMB IN : HOLD [E]". Nobody can put anyone else in: not a body, not someone held, not a bot
+  that wasn't asked (a bot climbs in only when the gunner says so on the radio, and the bots' answer is "absolutely not",
+  the first time). In the barrel, Jump climbs out, any time before the shot.
+- **Feedback, before.** The one in the barrel sees out of the muzzle and "IN THE CANNON   CLIMB OUT : [SPACE]". The gunner
+  sees "LOADED: SAM" and the arc: a dotted line to where they'll land, red where the landing kills (over 16.5 m/s across
+  the ground, §23: fired from a train at speed, it does). Firing at a red arc asks again: "FIRE SAM ANYWAY : HOLD [MOUSE]".
+- **Feedback, after.** The radio says it to everyone ("Sam's been fired from the rear cannon"), the camera follows Sam a
+  moment for the crew who look, and the incident report owns it: "Fired from the rear cannon by Dave."
+
+### 8.4 The band: instruments that play together
+
+*"You shouldn't automatically make the crew dance. That should be ... a function. People can participate by dancing. We
+should also add more instruments ... all play together should create some sort of public domain song ... synced up by the
+first person who starts playing. It will be the song that is selected from a repertoire. And then as people play
+different instruments or the same instrument, they should sync up to whoever played first. And then that should all stop
+once the last person stops playing."*
+
+- **Instruments**, each bought from the blacksmith (who knows a man), each a carried thing played with Use held: the
+  accordion, a fiddle, a banjo, a harmonica, a washboard, the spoons, a jug, and the BBQ deck's cooler lid as a drum
+  (free). Each plays its part of every song: the tune (accordion, fiddle, harmonica), the chords (banjo, accordion's left
+  hand), the bass (jug), the beat (washboard, spoons, the lid). Two of the same play in unison.
+- **The repertoire** (public domain tunes, our own arrangements, played by the game's own instrument samples; the audio
+  chat's): *The Wabash Cannonball*, *She'll Be Coming 'Round the Mountain*, *Casey Jones*, *Oh My Darling, Clementine*,
+  *Red River Valley*, *Drunken Sailor*, *Shenandoah*, *The Parting Glass*, *Auld Lang Syne*. (Not the minstrel songs:
+  no *Camptown Races*, no *Turkey in the Straw*.)
+- **The sync.** The first to start playing starts the song: the next in the repertoire, its first bar on the host's tick.
+  Anyone who starts after comes in on the next bar of that song, on their instrument's part, wherever they are on the
+  train (in earshot or not: the radio carries it). When the last player stops, the song stops; the next to start begins
+  the next song. It's the host's clock, so every machine hears the same bar.
+- **Dancing is a choice.** Nobody's made to dance. The emote wheel's DANCE (note 298), near a song playing, dances to its
+  beat; anyone can join or not.
+- **The night hears it.** A band is loud: each instrument is a noisy toy to the Choir; a Gaunt in earshot hears it as
+  talk and is calmed (the gramophone's rule); the Moose stops to listen (the calliope's).
+
+### 8.5 The dining car's bar
+
+*"If we have a dining car, we should be able to order drinks at the bar. If you drink one of those drinks, though, your
+vision should get blurry ... [it should] make you sort of tip over a bit. Of course, that wouldn't happen in VR."*
+
+- **The bar** is the dining car's far end: a counter, bottles behind it in a rack, a bell on the counter. Use at the
+  counter: "ORDER A DRINK : [E]", and a drink's poured into your hands (a few a night: what the fortress's cellar sold
+  the crew, U1's call: eight). Held Use drinks it, as a beer.
+- **A drink** blurs the drinker's view a while (a minute, a little more with each), and leans it: the horizon tilts a few
+  degrees one way and the other, slowly, as if the floor's moving more than it is. It's only the drinker's camera and only
+  this machine's (presentation, never the sim: the walk is straight, so the netcode doesn't care), and never in a headset
+  (VR comfort; VR's on the back burner).
+- **Feedback**: the drinker sees it; the crew see the drinker's head loll (the art's); the tally reads "Bar: eight
+  drinks. Repairs: one window."
+
+### 8.6 Bumper stickers: all puns
+
+On the guard van's end, three at a time, a new set from the blacksmith's drawer each night (U1's call). Never about the
+Soot Children or the Passenger: those stay straight (GDD §23.1).
+
+- TENDER IS THE NIGHT
+- GAUGE YOUR EXPECTATIONS
+- COAL HARD CASH
+- STEAM HAPPENS
+- TRAIN OF THOUGHT: DERAILED
+- SOME LIKE IT HOTBOX
+- RIBBIT OR LEAVE IT
+- GAUNT TELL ME WHAT TO DO
+- MOOSE-T WE DO THIS EVERY NIGHT
+- WHISTLE WHILE YOU LURK
+- STOKER? I HARDLY KNOW HER
+- COUPLE GOALS (UNCOUPLING IS ALSO AN OPTION)
+- I BRAKE FOR NOBODY
+- LOCO-MOTIVATED
+- RAIL AGAINST THE MACHINE
+- KEEP CALM AND CARRY COAL
+- ALL ABOARD THE NOPE TRAIN
+- SWITCH HAPPENS
+- BOILER ALERT
+- HOW'S MY DRIVING? SHOUT IT, THE CHOIR'S LISTENING
+- IF YOU CAN READ THIS, YOU'VE BEEN LEFT BEHIND
+- I'M NOT LATE, DAWN IS EARLY
+- MY OTHER CAR IS A CABOOSE
+- THIS IS FINE (THE CAR IS ON FIRE)
+
+### 8.7 Monogrammed towels
+
+In the crew car, a stack of good towels, each embroidered. Some with a joke, some with a small insult, some with a crewmate's
+name and an opinion of them (filled in from the crew's names each night, as the clerk reads them):
+
+- MOSTLY DRY · STILL DAMP · NOT YOURS · SPARE · THE OTHER ONE · IOU · PROBABLY FINE · BACKUP · RETURN TO SENDER
+- WASH ME · FOR EMERGENCIES ONLY · DO NOT USE THIS ONE · YES, THAT ONE · FLOOR
+- {NAME}: SHOWERS RARELY · {NAME}: TRIED · {NAME}: FAVOURITE (OF NOBODY) · {NAME}: SECOND BEST · {NAME}: ASK THE OTHERS
+
+### 8.8 The armoured cab: full sight of the line
+
+*"Armoured cab has the right idea. But I don't like the slits for the windows. You still want full visibility of the
+track."* The cab's windows stay whole: the armour is thick glass in heavy riveted frames, and a grille of a few thin bars
+outside it (the bars the art already draws over the front windows, note 338). What comes over the front is slowed at the
+glass (it cracks before it gives; the Climbers' smash takes twice as long), and the driver sees the whole line through it,
+cracks and all, until it's mended with the wrench.
