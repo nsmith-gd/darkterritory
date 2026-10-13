@@ -31,11 +31,12 @@ public class WakerArtTests
 
     /// <summary>
     /// A planted foot is carried back under him at the speed his cycle covers the ground: walk and run alike, so played at
-    /// <see cref="WakerGait"/>'s rate (his speed over the cycle's metres) the foot stays still on the ground.
+    /// <see cref="WakerGait"/>'s rate (his speed over the cycle's metres) the foot stays still on the ground (from the right
+    /// foot's coming down, at 0, till its heel lifts, seven tenths of its stance on).
     /// </summary>
     [Theory]
-    [InlineData("walk", WakerGait.WalkCycleMetres, WakerGait.WalkCycleSeconds, 0.05, 0.5)]
-    [InlineData("run", WakerGait.RunCycleMetres, WakerGait.RunCycleSeconds, 0.03, 0.3)]
+    [InlineData("walk", WakerGait.WalkCycleMetres, WakerGait.WalkCycleSeconds, 0.05, 0.4)]
+    [InlineData("run", WakerGait.RunCycleMetres, WakerGait.RunCycleSeconds, 0.03, 0.22)]
     public void APlantedFootIsCarriedBackAtTheSpeedTheCycleCovers(string clip, double metres, double seconds, double from, double to)
     {
         var m = Waker;
