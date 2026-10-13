@@ -845,6 +845,10 @@ public static class PlayerMotor
             foreach (var door in frame.Shape.DoorList)
                 if (!vehicle.DoorOpen(door.Index))
                     local = PushOut(local, door.Box, p);
+            // What's lying in it (note 659): walked round, or stepped up onto.
+            foreach (var (car, thing) in train.Lying)
+                if (car == frame.Index)
+                    local = PushOut(local, thing, p);
             world = frame.ToWorld(local);
         }
         // The stops' buildings (T114) and the fortresses' (T124): pushed out of each wall in its own frame. Out of one can
@@ -982,6 +986,20 @@ public static class PlayerMotor
                 bestTop = worldTop;
                 bestParent = frame.Index;
                 bestSurface = ToSurface(solid.Top);
+                bestLocal = local with { Y = top };
+            }
+            // On top of what's lying in it (note 659): a crate stood on, a stack climbed a step at a time.
+            foreach (var (car, box) in train.Lying)
+            {
+                double top = box.Max.Y;
+                if (car != frame.Index || !box.ContainsXZ(local) || local.Y > top + snap || local.Y < top - below)
+                    continue;
+                double worldTop = frame.ToWorld(local with { Y = top }).Y;
+                if (worldTop <= bestTop)
+                    continue;
+                bestTop = worldTop;
+                bestParent = frame.Index;
+                bestSurface = Surface.Deck;
                 bestLocal = local with { Y = top };
             }
         }

@@ -163,6 +163,8 @@ public sealed class BotCrew(CrewCalls? calls) : IDisposable
         intent = Heed.Drift(intent, session.Predicted, session.World, me);
         intent = Heed.Gannet(intent, session.Predicted, session.World, me);
         intent = Heed.Heal(intent, session.Predicted, session.World, me);
+        // Note 659: round what's lying in a car, last, whatever it was going there for.
+        intent = Heed.Lying(intent, session.Predicted, session.World, session.PlayerTuning);
         return Vote(intent, session, me);
     }
 

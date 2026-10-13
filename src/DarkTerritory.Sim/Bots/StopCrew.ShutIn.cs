@@ -66,8 +66,20 @@ public sealed partial class StopHand
                     {
                         // What it carries, down in here facing the car's middle, clear of the door (a crate in a car is loaded);
                         // then the doors.
-                        if (world.Bodies.CarriedBy(PlayerId!.Value) is not null)
+                        if (world.Bodies.CarriedBy(PlayerId!.Value) is { } held)
                         {
+                            // A crate where it's stowed (note 659: it stays, and down by the door it's in the way of the door).
+                            if (held.Kind == Physics.BodyKind.Cargo
+                                && StopPlan.Stow(train, _hidingCar, side, held.Pbd.Particles[0].Radius, heavy: false) is { } stow)
+                            {
+                                int wall = Math.Sign(stow.X);
+                                double toWall = wall > 0 ? -Math.PI / 2 : Math.PI / 2;
+                                var stand = stow with { X = stow.X - wall * world.Bodies.Hands.CarryForward };
+                                if (!Near(self, stand, 0.25) || !Aligned(self, toWall))
+                                    return Walk(self, stand, toWall, "putting it down for the Choir");
+                                Doing = "putting it down for the Choir";
+                                return Press();
+                            }
                             if (!Aligned(self, facingIn))
                                 return new PlayerIntent { LookYaw = Turn(self, facingIn) };
                             Doing = "putting it down for the Choir";

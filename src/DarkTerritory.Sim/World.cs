@@ -423,6 +423,7 @@ public sealed class World
             if (Run is not null && !_countedAhead.Remove(id))
                 Attribution.Add(Sim.Run.IncidentLog.Death(this, id, s, body, crew));
         Bodies.Step(Train, Train.Dynamics.Tuning, id => crew.FirstOrDefault(c => c.Id == id) is { State: var s } pair && pair.Id == id ? s : null);
+        Train.Lying = Bodies.Lying(Train);
         Recover();
         BreakRadios(crew);
     }

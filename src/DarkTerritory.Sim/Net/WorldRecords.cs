@@ -38,7 +38,7 @@ public static class WorldRecords
     /// what it shows (an extinguisher's charge to the percent, its sight glass, App. C.5; a crate's cargo, GDD §19), and the
     /// crew locker and shelf it's on (note 173: locker × 256 + shelf, or −1), and the thing carrying it off (App. A.6, or −1).
     /// </summary>
-    const int BodyParticles = 11;
+    const int BodyParticles = 12;
     // The Run record's header (phase, end, clock, facility, chute, scavenged), and room in a crane (or wreck heap) record's id for
     // each of a site's cranes (heaps).
     const int RunHead = 9, CranesPerSite = 16;
@@ -290,6 +290,8 @@ public static class WorldRecords
             f[9] = body.Locker >= 0 ? body.Locker * 256 + body.Slot : body.Pocket >= 0 ? -2 - 2 * body.Pocket - (body.Stashed ? 1 : 0) : -1;
             // What's carrying it off, if a thing is (the Gaunt leaving with it, App. A.6).
             f[10] = body.TakenBy;
+            // How big it is, a single particle's radius (note 659: a thing lying in a car is as solid on every client, its size and all).
+            f[11] = ps.Length == 1 ? Q(ps[0].Radius, Cm) : 0;
             for (int i = 0; i < ps.Length; i++)
             {
                 f[BodyParticles + i * 3] = Q(ps[i].Position.X, Pos);
@@ -529,6 +531,7 @@ public static class WorldRecords
             world.MirrorEnemies(enemies);
             world.MirrorHits(hits, impacts, swings, emotes);
             world.Bodies.Mirror(bodies);
+            world.Train.Lying = world.Bodies.Lying(world.Train);
             // Seen a radio once, a client knows they're things tonight (T41): no radio on you, no radio.
             if (bodies.Any(b => b.Kind == Physics.BodyKind.Radio))
                 world.Bodies.RadiosCarried = true;
@@ -542,7 +545,8 @@ public static class WorldRecords
         int n = (int)f[6];
         var particles = new Ballast.Physics.Particle[n];
         for (int i = 0; i < n; i++)
-            particles[i] = new Ballast.Physics.Particle(new Ballast.Double3(D(f[BodyParticles + i * 3], Pos), D(f[BodyParticles + 1 + i * 3], Pos), D(f[BodyParticles + 2 + i * 3], Pos)), 1, 0.1);
+            particles[i] = new Ballast.Physics.Particle(new Ballast.Double3(D(f[BodyParticles + i * 3], Pos), D(f[BodyParticles + 1 + i * 3], Pos), D(f[BodyParticles + 2 + i * 3], Pos)), 1,
+                n == 1 && f[11] > 0 ? D(f[11], Cm) : 0.1);
         var pbd = new Ballast.Physics.PbdBody(particles);
         // At rest on the host, at rest here: a bot's hand picks up a crate left on a car's steps once it's lain still (T50).
         if (f[4] != 0)
