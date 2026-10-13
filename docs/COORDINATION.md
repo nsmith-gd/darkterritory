@@ -168,7 +168,7 @@ per creature in its store's `creatures` (id: the creature's name in `enemies.jso
   (`director.perNight`, null no cap), `nightChance` (`director.nightChance`, 1 not named), `abandonAtDawn` (not in
   `wakers.staysAtDawn`; not for a row with `staysAlways`), `tierWeights` (the creature's own block, where it has one);
   `settings/night` `want`: `nightFleesSeconds` (`wakers`), `crewScale` and `lengthScale` (`director.pressure`),
-  `longTrainCars` (`director.orchestrator`, 0 off; note 651), and its `rules`, the game's fixed numbers the page's crew ×
+  `longTrainCars` (`director.orchestrator`, 0 off; note 651), `perNightDefault` (`director`, null no cap; note 654), and its `rules`, the game's fixed numbers the page's crew ×
   cars grid is worked from (`apply.py --game-out` keeps them current). `game` is what main has. `note` is a written answer (`noteAt` when it changed).
 - **Whoever works the enemies' tuning** (D1's, unless the queue says otherwise) reads `creatures` at each check-in. Where
   `want` differs from `game`, or `noteAt` is later than `replyAt`: claim it, put it into `content/tuning/enemies.json`,
