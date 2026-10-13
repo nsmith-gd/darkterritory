@@ -308,7 +308,9 @@ public sealed record GrabTuning
 {
     public double PullReach { get; init; } = 1.6;
     public bool SoloStruggleOn { get; init; } = true;
-    public double SoloStruggle { get; init; } = 6;
+    public double SoloStruggle { get; init; } = 4;
+    /// <summary>A lone struggle's chance of breaking the hold (App. C.1, the director, 13 Oct: "at best a 15% chance"): one try a grab.</summary>
+    public double SoloStruggleChance { get; init; } = 0.15;
 }
 
 /// <summary>The Drift (App. A.4, B.4). Field docs live in enemies.json.</summary>
