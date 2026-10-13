@@ -94,6 +94,12 @@ string Arg(string name, string fallback)
 // Mods (T49) laid over the base content, unless --no-mods plays the base game.
 // A mod manager's profile (Thunderstore, T78) comes in as --mods-dir.
 args = Mods.TakeArgs(args);
+// Content's hot reload (note 687): on in a dev build, and for a mod author launching with --hot-reload; a player's game loads
+// its content once and asks the disk nothing per frame. Set before any content loads: a reloading file takes its watch then.
+HotReload.Enabled = args.Contains("--hot-reload");
+#if DEVTOOLS
+HotReload.Enabled = true;
+#endif
 var content = Mods.Mount(DataFile.FindContentRoot(Environment.CurrentDirectory), enabled: !args.Contains("--no-mods"));
 // The figures out in the Territory and their words (note 570): Dave.
 FigureTalk.Words = FigureWords.Load(content);

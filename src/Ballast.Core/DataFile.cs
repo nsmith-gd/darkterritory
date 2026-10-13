@@ -45,7 +45,8 @@ public static class DataFile
 
 /// <summary>
 /// A data file that reloads itself when changed on disk, so designers (and agents) can
-/// tweak numbers while the game runs. Poll <see cref="Refresh"/> once per frame.
+/// tweak numbers while the game runs. Call <see cref="Refresh"/> once per frame: with <see cref="HotReload"/> off (a
+/// player's game) it does nothing, and on it reads the disk only when its folder's watch says something changed (note 687).
 /// </summary>
 public sealed class HotData<T> where T : class
 {
@@ -54,6 +55,7 @@ public sealed class HotData<T> where T : class
         Path = path;
         _stamp = File.GetLastWriteTimeUtc(path);
         Value = DataFile.Load<T>(path);
+        _watch = HotReload.Enabled ? HotReload.Watch(System.IO.Path.GetDirectoryName(System.IO.Path.GetFullPath(path))!) : null;
     }
 
     public string Path { get; }
@@ -61,10 +63,15 @@ public sealed class HotData<T> where T : class
     public event Action<T>? Reloaded;
 
     DateTime _stamp;
+    // The folder's watch, when hot reload was on as this was made (it's set once, at startup, before any content loads).
+    readonly FileWatch? _watch;
+    HotCheck _check;
 
     /// <summary>Reloads if the file changed. A malformed edit keeps the previous value.</summary>
     public bool Refresh(Action<Exception>? onError = null)
     {
+        if (_watch is null || !_check.Due(_watch))
+            return false;
         var stamp = File.GetLastWriteTimeUtc(Path);
         if (stamp == _stamp)
             return false;
