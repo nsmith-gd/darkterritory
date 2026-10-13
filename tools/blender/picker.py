@@ -370,24 +370,40 @@ def palm_on(pose, s, up, inward):
 
 CROUCH = {"ear_r": (0, 0, 0), "ear_l": (0, 0, 0), "jaw": (-3, 0, 0)}
 
-# Idle (2 s, loop): crouched on all fours, dead still, then the head snapping round to a sound and held, the ears
-# swivelling after it; a sniff; the jaw working on nothing.
-idle = Clip("idle")
-for f, look, tilt, ears, jaw in ((0, 0, 0, 0, -3), (12, 0, 0, 0, -3), (14, 34, 6, 1, -3), (26, 34, 6, 1, -10), (28, 34, 6, 1, -3),
-                                 (38, -26, -4, -1, -3), (48, -26, -4, -1, -3), (50, 6, 10, 0, -8), (54, 6, 10, 0, -2)):
-    idle.key(f, with_(CROUCH, {
-        "neck": (2 + tilt * 0.3, 0, look * 0.35), "head": (tilt, 0, look * 0.65), "jaw": (jaw, 0, 0),
-        "ear_r": (0, 0, -18 * ears + 8), "ear_l": (0, 0, -18 * ears - 8),
-        "spine_02": (0, 0, look * 0.08), "root@loc": (0, 0, -0.004 * abs(ears))}),
-        "CONSTANT" if f in (14, 28, 38, 50) else "BEZIER")
-idle.close(60)
+# Idle (3.3 s, loop): crouched on all fours, dead still, like a bird: the head jerked round to a sound in two frames
+# and frozen there, the ears swivelling after it (one late); a tick further and cocked over; snapped the other way; the
+# jaw chattering on nothing; dropped low to sniff; cocked up, listening; slowly back. No two beats the same length.
+def alert(look=0.0, tilt=0.0, cock=0.0, ear_r=0.0, ear_l=0.0, jaw=-3.0, low=0.0):
+    return with_(CROUCH, {
+        "neck": (2 + tilt * 0.3 - 8 * low, cock * 0.3, look * 0.35), "head": (tilt - 6 * low, cock * 0.7, look * 0.65), "jaw": (jaw, 0, 0),
+        "ear_r": (0, 0, -18 * ear_r + 8), "ear_l": (0, 0, -18 * ear_l - 8),
+        "spine_02": (0, 0, look * 0.08), "root@loc": (0, 0.01 * low, -0.004 * abs(ear_r) - 0.02 * low)})
 
-# Scuttle (0.27 s, loop): all fours at a rotary gallop (the sim's 4.8 m/s: a stride of 1.28 m a loop), the long arms
-# reaching far out in front and the short legs driving under, the back flexing, the head held level.
-scuttle = Clip("scuttle")
-RUN = with_(CROUCH, {"pelvis": (-6, 0, 0), "neck": (-6, 0, 0), "head": (6, 0, 0), "ear_r": (-24, 0, -10), "ear_l": (-24, 0, 10)})
-for f, k, gather in ((0, 1, 0), (2, 0, 1), (4, -1, 0), (6, 0, -1)):
-    scuttle.key(f, with_(RUN, {
+
+idle = Clip("idle")
+for f, pose_, ip in (
+        (0, alert(), "BEZIER"), (10, alert(), "LINEAR"),
+        (12, alert(36, 6, 0, 1, 0.4), "LINEAR"), (14, alert(36, 6, 0, 1, 1), "LINEAR"),          # snapped round; an ear late
+        (23, alert(36, 6, 0, 1, 1), "LINEAR"), (24, alert(42, 8, 24, 1, 1), "LINEAR"),           # a tick further, cocked
+        (32, alert(42, 8, 24, 1, 1), "LINEAR"), (34, alert(-30, -4, -8, -1, -1), "LINEAR"),      # the other way
+        (37, alert(-30, -4, -8, -1, -1), "LINEAR"), (38, alert(-30, -4, -8, -1, -1, jaw=-14), "LINEAR"),  # chattering
+        (39, alert(-30, -4, -8, -1, -1), "LINEAR"), (40, alert(-30, -4, -8, -1, -1, jaw=-12), "LINEAR"),
+        (41, alert(-30, -4, -8, -1, -1), "LINEAR"), (49, alert(-30, -4, -8, -1, -1), "LINEAR"),
+        (51, alert(-6, 14, 0, 0.3, -0.5, low=1), "LINEAR"),                                       # down, sniffing
+        (57, alert(-6, 14, 0, 0.3, -0.5, low=1), "LINEAR"), (58, alert(-6, 14, 0, 0.3, -0.5, jaw=-8, low=1), "LINEAR"),
+        (59, alert(-6, 14, 0, 0.3, -0.5, low=1), "LINEAR"), (66, alert(-6, 14, 0, 0.3, -0.5, low=1), "LINEAR"),
+        (68, alert(12, 10, 30, 0.8, 0.8), "BEZIER"),                                              # up, cocked, listening
+        (80, alert(12, 10, 32, 0.8, 0.8), "BEZIER"), (92, alert(2, 2, 4, 0.1, 0.1), "BEZIER")):
+    idle.key(f, pose_, ip)
+idle.close(100)
+
+
+# Scuttle (0.53 s, loop, two strides): all fours at a rotary gallop (the sim's 4.8 m/s: a stride of 1.28 m every
+# 0.27 s), the long arms reaching far out in front and the short legs driving under, the back flexing, the head held
+# level; on the second stride the head jerks aside and back.
+def run_pose(k, gather, look=0.0):
+    RUN = with_(CROUCH, {"pelvis": (-6, 0, 0), "neck": (-6, 0, look * 0.4), "head": (6, 0, look * 0.6), "ear_r": (-24, 0, -10), "ear_l": (-24, 0, 10)})
+    return with_(RUN, {
         "upperarm_r": (-34 * k + 10 * gather, 0, 0), "upperarm_l": (-34 * k - 10 * gather + 8, 0, 0),
         "lowerarm_r": (22 * max(0, -k) + 10, 0, 0), "lowerarm_l": (22 * max(0, -k) + 14, 0, 0),
         "hand_r": (18 * k, 0, 0), "hand_l": (18 * k, 0, 0),
@@ -395,8 +411,14 @@ for f, k, gather in ((0, 1, 0), (2, 0, 1), (4, -1, 0), (6, 0, -1)):
         "calf_r": (-26 * max(0, k), 0, 0), "calf_l": (-26 * max(0, k) - 6, 0, 0),
         "foot_r": (-14 * k, 0, 0), "foot_l": (-14 * k, 0, 0),
         "spine_01": (8 * k, 0, 0), "pelvis": (-6 - 6 * k, 0, 0), "spine_02": (-4 * k, 0, 0),
-        "root@loc": (0, 0, 0.035 * (1 - abs(k)) - 0.01)}), "LINEAR")
-scuttle.close(8)
+        "root@loc": (0, 0, 0.035 * (1 - abs(k)) - 0.01)})
+
+
+scuttle = Clip("scuttle")
+for o, looks in ((0, (0, 0, 0, 0)), (8, (0, 26, 22, 0))):
+    for i, (k, gather) in enumerate(((1, 0), (0, 1), (-1, 0), (0, -1))):
+        scuttle.key(o + 2 * i, run_pose(k, gather, looks[i]), "LINEAR")
+scuttle.close(16)
 
 # Scatter (0.27 s, loop): the startled bolt: flatter and lower, bounding, the ears pinned flat back, the head down.
 scatter = Clip("scatter")
@@ -415,7 +437,7 @@ for f, k in ((0, 1), (2, 0.3), (4, -1), (6, -0.3)):
 scatter.close(8)
 
 
-# Carry (0.27 s, loop): up on its hind legs under the crate, hunched forward with its back to the crate's underside and
+# Carry (0.53 s, loop, two of its strides): up on its hind legs under the crate, hunched forward with its back to the crate's underside and
 # its head out under the front edge, the long arms up the crate's sides and the big hands flat on them, the fingers
 # spread; the little legs pattering under it (the sim's 2.6 m/s: two quick steps a loop). (The sim holds the crate's
 # middle holdHeight over its feet: its underside's at 0.56 m, as high as the Picker's shoulders, so it can't stand
@@ -434,9 +456,11 @@ def carry_pose(step=0.0, bob=0.0):
 
 
 carry = Clip("carry")
-for f, step, bob in ((0, 1, 0.0), (2, 0, 0.012), (4, -1, 0.0), (6, 0, 0.012)):
-    carry.key(f, carry_pose(step, bob), "LINEAR")
-carry.close(8)
+# (Two of its loops: on the second the head under the crate's edge jerks aside, and back.)
+for f, step, bob, look in ((0, 1, 0.0, 0), (2, 0, 0.012, 0), (4, -1, 0.0, 0), (6, 0, 0.012, 0),
+                           (8, 1, 0.0, 0), (10, 0, 0.012, 22), (12, -1, 0.0, 18), (14, 0, 0.012, 0)):
+    carry.key(f, with_(carry_pose(step, bob), {"head": (-2, 0, look), "neck": (-30, 0, look * 0.3)}), "LINEAR")
+carry.close(16)
 
 
 # Heave (0.4 s, loop): the second under a heavy crate (its edge on its left), leant into it, both hands up under the
@@ -464,38 +488,44 @@ for f, step, strain in ((0, 1, 0), (3, 0, 1), (6, -1, 0), (9, 0, 1)):
     heave.key(f, heave_pose(step, strain), "BEZIER")
 heave.close(12)
 
-# Grab (0.4 s): taking a crate up: crouched to it, the hands under its edges, then up on its hind legs with it in one
-# heave (the sim has it up at once: this is it getting under it).
+# Grab (0.4 s: CreatureArt.PickerGrabSeconds): taking a crate up: crouched to it, the hands under its edges, a frozen
+# beat; then up on its hind legs with it in one heave (the sim has it up at once: this is it getting under it).
 grab = Clip("grab", loop=False)
 REACH = with_(CROUCH, {"root@loc": (0, 0.05, -0.04), "pelvis": (8, 0, 0), "neck": (-10, 0, 0), "head": (-6, 0, 0),
                        "upperarm_r": (40, 0, 10), "upperarm_l": (40, 0, -10), "lowerarm_r": (-10, 0, 0), "lowerarm_l": (-10, 0, 0),
                        "hand_r": (-30, 0, 0), "hand_l": (-30, 0, 0), **curl(30, 20)})
 grab.key(0, REACH, "LINEAR")
-grab.key(4, rig.blend(REACH, carry_pose(0, -0.02), 0.5), "LINEAR")
-grab.key(9, carry_pose(0, 0.02), "BEZIER")
+grab.key(3, with_(REACH, {"head": (-2, 0, 10)}), "LINEAR")
+grab.key(5, rig.blend(REACH, carry_pose(0, -0.02), 0.5), "LINEAR")
+grab.key(8, carry_pose(0, 0.025), "BEZIER")
 grab.key(12, carry_pose(0, 0.0), "BEZIER")
 
-# Bite (0.4 s): someone's come right up to it: it drops down off the crate at them, a lunge, the jaw gaping wide, and a
-# snap; back on all fours.
+# Bite (0.4 s: CreatureArt.PickerBiteSeconds): someone's come right up to it: it drops off the crate onto all fours,
+# low, drawn back, its head squared on them and the jaw coming open, the ears pinned: held, three frames; then the lunge,
+# in two, the jaw gaping wide, and the snap shut, held; it jerks back (open to a blow) and bolts.
+COILED = with_(CROUCH, {"root@loc": (0, -0.04, -0.05), "pelvis": (4, 0, 0), "spine_01": (-6, 0, 0), "neck": (-12, 0, 0),
+                        "head": (16, 0, 0), "jaw": (-26, 0, 0), "upperarm_r": (30, 0, 0), "upperarm_l": (30, 0, 0),
+                        "ear_r": (-60, 0, -20), "ear_l": (-60, 0, 20)})
+LUNGED = with_(CROUCH, {"root@loc": (0, 0.22, 0.02), "pelvis": (6, 0, 0), "spine_01": (4, 0, 0), "neck": (10, 0, 0), "head": (20, 0, 0),
+                        "jaw": (-62, 0, 0), "upperarm_r": (50, 0, 6), "upperarm_l": (50, 0, -6), "lowerarm_r": (10, 0, 0),
+                        "lowerarm_l": (10, 0, 0), "ear_r": (-60, 0, -10), "ear_l": (-60, 0, 10), **curl(-20, -10)})
 bite = Clip("bite", loop=False)
 bite.key(0, carry_pose(0, 0.0), "LINEAR")
-bite.key(2, with_(CROUCH, {"root@loc": (0, 0.06, -0.02), "pelvis": (10, 0, 0), "upperarm_r": (40, 0, 0), "upperarm_l": (40, 0, 0),
-                           "jaw": (-20, 0, 0), "ear_r": (-50, 0, -10), "ear_l": (-50, 0, 10)}), "LINEAR")
-bite.key(4, with_(CROUCH, {"root@loc": (0, 0.2, 0.02), "pelvis": (6, 0, 0), "spine_01": (4, 0, 0), "neck": (10, 0, 0), "head": (20, 0, 0),
-                           "jaw": (-58, 0, 0), "upperarm_r": (50, 0, 6), "upperarm_l": (50, 0, -6), "lowerarm_r": (10, 0, 0),
-                           "lowerarm_l": (10, 0, 0), "ear_r": (-50, 0, -10), "ear_l": (-50, 0, 10), **curl(-20, -10)}), "LINEAR")
-bite.key(6, with_(CROUCH, {"root@loc": (0, 0.26, -0.01), "neck": (2, 0, 0), "head": (6, 0, 0), "jaw": (0, 0, 0),
-                           "ear_r": (-50, 0, -10), "ear_l": (-50, 0, 10)}), "CONSTANT")
-bite.key(9, with_(CROUCH, {"root@loc": (0, 0.2, 0), "head": (-4, 0, 6), "jaw": (-25, 0, 0)}), "LINEAR")
+bite.key(2, COILED, "LINEAR")
+bite.key(5, with_(COILED, {"jaw": (-32, 0, 0), "root@loc": (0, -0.05, -0.055)}), "LINEAR")  # held, squared on them
+bite.key(7, LUNGED, "LINEAR")
+bite.key(8, with_(LUNGED, {"root@loc": (0, 0.26, 0.0), "jaw": (0, 0, 0), "head": (12, 0, 0)}), "CONSTANT")  # snap
+bite.key(10, with_(CROUCH, {"root@loc": (0, 0.19, 0), "head": (-4, 0, 6), "jaw": (-20, 0, 0), "ear_r": (-40, 0, -10), "ear_l": (-40, 0, 10)}), "LINEAR")
 bite.key(12, with_(CROUCH, {"root@loc": (0, 0.16, 0)}), "BEZIER")
 
-# Emerge (0.8 s: the sim's emergeSeconds): up out of a drain: the hands first, over the rim, then the head, the ears
-# up, and it hauls itself out onto all fours.
-def hauling(rootz, pitch, reach=0.3):
+
+# Emerge (0.8 s: the sim's emergeSeconds): up out of a drain: the hands first, over the rim in a snap, then the head,
+# which stops dead, jerks round and freezes; then it hauls itself out onto all fours.
+def hauling(rootz, pitch, reach=0.3, look=0.0):
     """Coming up out of the drain: the body pitched up by `pitch`, `rootz` under the ground, the hands flat on the ground
     in front (`reach` ahead), hauling."""
-    p = with_(CROUCH, {"root@loc": (0, -0.05, rootz), "pelvis": (pitch, 0, 0), "spine_01": (6, 0, 0), "neck": (-pitch * 0.5, 0, 0),
-                       "head": (-pitch * 0.2, 0, 0), "thigh_r": (-pitch, 0, 0), "thigh_l": (-pitch, 0, 0),
+    p = with_(CROUCH, {"root@loc": (0, -0.05, rootz), "pelvis": (pitch, 0, 0), "spine_01": (6, 0, 0), "neck": (-pitch * 0.5, 0, look * 0.35),
+                       "head": (-pitch * 0.2, 0, look * 0.65), "thigh_r": (-pitch, 0, 0), "thigh_l": (-pitch, 0, 0),
                        "ear_r": (-30, 0, -10), "ear_l": (-30, 0, 10)})
     for s, sx in (("r", 1), ("l", -1)):
         p = reach_arm(p, s, (sx * 0.15, reach, 0.04), (sx * 0.4, -0.2, 0.3))
@@ -508,8 +538,10 @@ emerge.key(0, with_(CROUCH, {"root@loc": (0, -0.1, -0.95), "pelvis": (70, 0, 0),
                              "upperarm_r": (150, 0, 0), "upperarm_l": (150, 0, 0), "lowerarm_r": (10, 0, 0), "lowerarm_l": (10, 0, 0),
                              "ear_r": (-60, 0, -20), "ear_l": (-60, 0, 20), **curl(-10, 0)}), "LINEAR")
 emerge.key(5, hauling(-0.62, 64, 0.32), "CONSTANT")
-emerge.key(12, hauling(-0.4, 52, 0.36), "LINEAR")
-emerge.key(18, hauling(-0.14, 26, 0.34), "LINEAR")
+emerge.key(9, hauling(-0.46, 56, 0.35), "LINEAR")
+emerge.key(10, hauling(-0.44, 55, 0.35, look=30), "LINEAR")                    # the head up: jerked round, frozen
+emerge.key(14, hauling(-0.44, 55, 0.35, look=30), "LINEAR")
+emerge.key(19, hauling(-0.14, 26, 0.34), "LINEAR")
 emerge.key(24, CROUCH, "BEZIER")
 
 # Descend (0.5 s): down its drain head first, the long arms going in before it, the hind legs last, kicking.

@@ -339,110 +339,168 @@ def flat_hand(pose, s, forward=(0, 1, -0.08)):
 STAND = curl(8, 4)
 
 
-# Sit (4 s, loop): sat at its table, upright, the long hands flat on the cloth, still; now and then one long finger lifts
-# and sets down again.
-def seated(lean=0.0, tap=0.0, press=0.0):
-    p = with_(STAND, {"root@loc": (0, -0.03, SEAT + 0.09 - 0.98 + 0.03 * press), "pelvis": (-4 - 8 * lean - 10 * press, 0, 0),
-                      "spine_01": (2, 0, 0), "spine_02": (2 - 2 * lean, 0, 0), "spine_03": (2, 0, 0), "neck": (-4 - 4 * lean, 0, 0),
-                      "head": (-4, 0, 0), "clavicle_r": (0, 0, -4)})
+# Sit (5 s, loop): sat at its table, upright, the long hands flat on the cloth, utterly still (CreatureArt turns its head
+# after you in ticks). Long stillness, then: one long finger of the right hand lifts in two frames, held, and sets down as
+# fast; later the left hand's fingers lift one after another, the little finger first; one slow breath.
+def seated(lean=0.0, tap=0.0, press=0.0, breath=0.0, hunch=0.0, grip=0.0, drum=(0, 0, 0, 0)):
+    p = with_(STAND, {"root@loc": (0, -0.03 - 0.03 * press, SEAT + 0.09 - 0.98 + 0.06 * press), "pelvis": (-4 - 8 * lean - 10 * press, 0, 0),
+                      "spine_01": (2, 0, 0), "spine_02": (2 - 2 * lean + 1.5 * breath, 0, 0), "spine_03": (2 + 1.5 * breath, 0, 0),
+                      "neck": (-4 - 4 * lean, 0, 0), "head": (-4, 0, 0), "clavicle_r": (0, -7 * hunch - 1.5 * breath, -4)})
     p = plant(p, "r", (0.13, 0.48, 0.1), (0.15, 0.9, 0.7))
     p = reach_arm(p, "r", (0.19, 0.4 + 0.02 * lean, TABLE_TOP + 0.03 + 0.03 * press), (0.5, -0.2, 0.9))
     p = flat_hand(p, "r")
-    p.update({f"finger_{f}_r_0{k}": (6 if k == 1 else -4, 0, 0) for f in FINGERS for k in (1, 2, 3)})
+    # (Flat on the cloth; gripping, the knuckles rise and the nails dig in.)
+    p.update({f"finger_{f}_r_0{k}": ((6 + 14 * grip) if k == 1 else (-4 - 16 * grip), 0, 0) for f in FINGERS for k in (1, 2, 3)})
     p = mirrored(p)
     if tap:
         p["finger_b_r_01"] = (6 + 22 * tap, 0, 0)
         p["finger_b_r_02"] = (-4 - 6 * tap, 0, 0)
+    for f, d in zip(FINGERS, drum):
+        if d:
+            p[f"finger_{f}_l_01"] = (6 + 14 * grip + 24 * d, 0, 0)
+            p[f"finger_{f}_l_02"] = (-4 - 16 * grip - 8 * d, 0, 0)
     return p
 
 
 sit = Clip("sit")
-for f, tap in ((0, 0), (60, 0), (64, 1), (74, 1), (76, 0), (120, 0)):
-    sit.key(f, seated(tap=tap), "CONSTANT" if f in (64, 76) else "BEZIER")
+sit.key(0, seated(), "BEZIER")
+sit.key(70, seated(), "LINEAR")
+sit.key(72, seated(tap=1), "LINEAR")                                           # a finger up, in two frames
+sit.key(82, seated(tap=1), "LINEAR")
+sit.key(84, seated(), "BEZIER")                                                # and down as fast
+sit.key(104, seated(), "BEZIER")
+for f, dr in ((107, (0, 0, 0, 1)), (110, (0, 0, 1, 0.3)), (113, (0, 1, 0.3, 0)), (116, (1, 0.3, 0, 0)), (119, (0.3, 0, 0, 0)), (122, (0, 0, 0, 0))):
+    sit.key(f, seated(drum=dr), "BEZIER")                                      # the left hand's fingers, one by one
+sit.key(134, seated(breath=1), "BEZIER")                                       # one slow breath
+sit.close(150)
 
-# Watch (2 s, loop): sat, leant a little toward whoever it's watching (CreatureArt turns the head after them), quite still.
+# Watch (3 s, loop): sat, leant toward whoever it's watching (CreatureArt turns the head after them): creeping further in,
+# the long fingers drawing into the cloth; the shoulders ticking up, held; settling back. Its beats uneven.
 watch = Clip("watch")
-for f, lean in ((0, 0.8), (30, 1.0), (60, 0.8)):
-    watch.key(f, seated(lean=lean), "BEZIER")
+watch.key(0, seated(lean=0.8), "BEZIER")
+watch.key(26, seated(lean=1.0, grip=0.3), "BEZIER")
+watch.key(40, seated(lean=1.08, grip=0.5), "LINEAR")
+watch.key(42, seated(lean=1.08, grip=0.5, hunch=0.6), "LINEAR")               # a tick
+watch.key(60, seated(lean=1.08, grip=0.55, hunch=0.6), "BEZIER")
+watch.close(90)
 
 
-# Rise (1.5 s: enemies.json householder riseSeconds): getting up, slowly: it leans in and presses its hands on the table,
-# draws its feet back under it, and comes up off the chair, straight, its eyes never leaving you.
+# Rise (1.5 s: enemies.json householder riseSeconds; the telegraph): in two frames its hands slam flat on the table and its
+# shoulders come up; held; then it pushes itself up off the chair (the chair scraping back), bent over the table on its
+# straight arms, the head held level on you; held there a beat; then up, straight, in three frames: stood, dead still.
 def standing_at(y, bend=0.0):
     p = with_(STAND, {"root@loc": (0, y, -0.02 * bend), "pelvis": (-6 * bend, 0, 0), "neck": (-4, 0, 0)})
     return mirrored(legs(p, (0.125, y - 0.01, 0.09), (0.125, y - 0.01, 0.09)))
 
 
+def up_over(thrust=0.0):
+    p = with_(STAND, {"root@loc": (0, 0.1, -0.3), "pelvis": (-30, 0, 0), "spine_02": (4, 0, 0), "neck": (10 + 6 * thrust, 0, 0),
+                      "head": (6 + 8 * thrust, 0, 0), "clavicle_r": (0, -5, -4)})
+    p = plant(p, "r", (0.12, 0.22, 0.09), (0.15, 0.8, 0.7))
+    p = reach_arm(p, "r", (0.19, 0.42, TABLE_TOP + 0.03), (0.5, -0.2, 0.9))
+    return mirrored(flat_hand(p, "r"))
+
+
 rise = Clip("rise", loop=False)
-rise.key(0, seated(), "BEZIER")
-rise.key(12, seated(lean=1.0, press=0.3), "BEZIER")
-UP = with_(STAND, {"root@loc": (0, 0.1, -0.3), "pelvis": (-30, 0, 0), "spine_02": (4, 0, 0), "neck": (10, 0, 0), "head": (6, 0, 0)})
-UP = plant(UP, "r", (0.12, 0.22, 0.09), (0.15, 0.8, 0.7))
-UP = reach_arm(UP, "r", (0.19, 0.42, TABLE_TOP + 0.03), (0.5, -0.2, 0.9))
-UP = mirrored(flat_hand(UP, "r"))
-rise.key(27, UP, "BEZIER")
-rise.key(38, standing_at(0.16, 0.3), "BEZIER")
+rise.key(0, seated(), "LINEAR")
+rise.key(2, seated(lean=0.6, press=0.15, hunch=1, grip=0.2), "LINEAR")         # slammed flat, the shoulders up
+rise.key(8, seated(lean=0.6, press=0.15, hunch=1, grip=0.2), "BEZIER")         # held
+rise.key(19, seated(lean=1.0, press=1.0, hunch=0.6), "BEZIER")                 # pushing up, the chair scraping
+rise.key(28, up_over(), "BEZIER")
+rise.key(33, up_over(1), "LINEAR")                                             # bent over the table, held on you
+rise.key(36, standing_at(0.16, 0.3), "BEZIER")                                 # up, too fast
+rise.key(40, standing_at(0.16, -0.2), "BEZIER")
 rise.key(45, standing_at(0.16), "BEZIER")
 
 
-# Hunt (0.47 s, loop: enemies.json householder hunt, 3.4 m/s): a stiff, relentless stride: the knees hardly bending, the
-# arms held a little out and still, the shoulders level, the head steady (on whoever it's after).
-def stiff(k, rise_):
-    return with_(STAND, {"root@loc": (0, 0, -0.03 + 0.02 * rise_), "pelvis": (-4, 0, 2 * k), "spine_02": (0, 0, -2 * k),
-                         "upperarm_r": (10, -8, 0), "upperarm_l": (10, 8, 0), "lowerarm_r": (14, 0, 0), "lowerarm_l": (14, 0, 0),
-                         **curl(20, 10)})
+# Hunt (0.93 s, loop, two strides: enemies.json householder hunt, 3.4 m/s): a stiff, relentless, too-even stride: the knees
+# hardly bending, no bob to it, the arms held out a little in front and never swinging, the long fingers half open and
+# ready, the shoulders level, the head steady (on whoever it's after: CreatureArt); once, a twitch of the fingers.
+def stiff(k, rise_, twitch=0.0):
+    p = with_(STAND, {"root@loc": (0, 0, -0.03 + 0.008 * rise_), "pelvis": (-4, 0, 2 * k), "spine_02": (0, 0, -2 * k),
+                      "spine_03": (-2, 0, 0), "upperarm_r": (24, -8, 0), "upperarm_l": (24, 8, 0), "lowerarm_r": (22, 0, 0),
+                      "lowerarm_l": (22, 0, 0), **curl(12, 6)})
+    if twitch:
+        p.update({f"finger_{f}_r_0{j}": (-12 - 40 * twitch, 0, 0) for f in FINGERS for j in (1, 2)})
+    return p
 
 
 hunt = Clip("hunt")
-hunt.key(0, legs(stiff(1, 0), (0.1, 0.42, 0.09), (0.1, -0.42, 0.11)), "LINEAR")
-hunt.key(4, legs(stiff(0, 1), (0.1, 0.0, 0.09), (0.1, 0.02, 0.17), knee=0.3), "LINEAR")
-hunt.key(7, legs(stiff(-1, 0), (0.1, -0.42, 0.11), (0.1, 0.42, 0.09)), "LINEAR")
-hunt.key(11, legs(stiff(0, 1), (0.1, 0.02, 0.17), (0.1, 0.0, 0.09), knee=0.3), "LINEAR")
-hunt.close(14)
+for o in (0, 14):
+    hunt.key(o + 0, legs(stiff(1, 0), (0.1, 0.42, 0.09), (0.1, -0.42, 0.11)), "LINEAR")
+    hunt.key(o + 4, legs(stiff(0, 1, twitch=1 if o else 0), (0.1, 0.0, 0.09), (0.1, 0.02, 0.17), knee=0.3), "LINEAR")
+    hunt.key(o + 7, legs(stiff(-1, 0), (0.1, -0.42, 0.11), (0.1, 0.42, 0.09)), "LINEAR")
+    hunt.key(o + 11, legs(stiff(0, 1), (0.1, 0.02, 0.17), (0.1, 0.0, 0.09), knee=0.3), "LINEAR")
+hunt.close(28)
 
-# Grab (0.8 s, loop): both hands out in front at a man's chest, the long fingers locked on them, wrenching them about.
-grab = Clip("grab")
-for f, k in ((0, 0), (6, 1), (12, -1), (18, 0.5), (24, 0)):
+
+# Grab (0.8 s, loop): both hands out in front at a man's chest, the long fingers locked on them, wrenching them about:
+# held, then wrenched hard one way in two frames, held, the other.
+def gripping(k):
     g_ = with_(STAND, {"root@loc": (0, 0.02, -0.04), "pelvis": (-8, 0, 4 * k), "spine_02": (-4, 0, 6 * k), "neck": (-6, 0, -4 * k)})
     g_ = legs(g_, (0.12, 0.12, 0.09), (0.12, -0.16, 0.09))
     for s, sx in (("r", 1), ("l", -1)):
         g_ = reach_arm(g_, s, (sx * (0.2 - 0.03 * k * sx), 0.5, 1.32 + 0.04 * k * sx), (sx * 0.7, 0.1, 1.1))
     g_.update(curl(70, 40))
-    grab.key(f, g_, "LINEAR")
+    return g_
 
 
-# Return (0.73 s, loop: householder walk, 1.4 m/s): walking back to its chair, its business done: looser, the arms
-# hanging.
-def easy(k, rise_):
-    return with_(STAND, {"root@loc": (0, 0, -0.03 + 0.02 * rise_), "pelvis": (-2, 0, 3 * k), "spine_02": (0, 0, -3 * k),
-                         "upperarm_r": (4 - 8 * k, -4, 0), "upperarm_l": (4 + 8 * k, 4, 0), "lowerarm_r": (8, 0, 0),
-                         "lowerarm_l": (8, 0, 0), "neck": (-6, 0, 0)})
+grab = Clip("grab")
+for f, k, ip in ((0, 0, "LINEAR"), (4, 0.15, "LINEAR"), (6, 1.2, "BEZIER"), (11, 0.9, "LINEAR"), (13, -1.1, "BEZIER"), (19, -0.7, "BEZIER")):
+    grab.key(f, gripping(k), ip)
+grab.close(24)
+
+
+# Return (1.47 s, loop, two of its strides: householder walk, 1.4 m/s): walking back to its chair, its business done: looser,
+# the arms hanging; on the second stride its head turns back over its shoulder at you, sudden, and holds there as it walks.
+def easy(k, rise_, look=0.0):
+    return with_(STAND, {"root@loc": (0, 0, -0.03 + 0.02 * rise_), "pelvis": (-2, 0, 3 * k), "spine_02": (0, 0, -3 * k + 0.1 * look),
+                         "upperarm_r": (4 - 8 * k, -4, 0), "upperarm_l": (4 + 8 * k, 4, 0), "lowerarm_r": (8 + 3 * k, 0, 0),
+                         "lowerarm_l": (8 - 3 * k, 0, 0), "neck": (-6, 0, 0.35 * look), "head": (0, 0, 0.55 * look)})
 
 
 ret = Clip("return")
-ret.key(0, legs(easy(1, 0), (0.1, 0.26, 0.09), (0.1, -0.26, 0.1)), "BEZIER")
-ret.key(5, legs(easy(0, 1), (0.1, 0.0, 0.09), (0.1, 0.02, 0.15), knee=0.3), "BEZIER")
-ret.key(11, legs(easy(-1, 0), (0.1, -0.26, 0.1), (0.1, 0.26, 0.09)), "BEZIER")
-ret.key(16, legs(easy(0, 1), (0.1, 0.02, 0.15), (0.1, 0.0, 0.09), knee=0.3), "BEZIER")
-ret.close(22)
+for o, looks in ((0, (0, 0, 0, 0)), (22, (0, -70, -70, -66))):
+    ret.key(o + 0, legs(easy(1, 0, looks[0]), (0.1, 0.26, 0.09), (0.1, -0.26, 0.1)), "BEZIER")
+    ret.key(o + 5, legs(easy(0, 1, looks[1]), (0.1, 0.0, 0.09), (0.1, 0.02, 0.15), knee=0.3), "BEZIER")
+    ret.key(o + 11, legs(easy(-1, 0, looks[2]), (0.1, -0.26, 0.1), (0.1, 0.26, 0.09)), "BEZIER")
+    ret.key(o + 16, legs(easy(0, 1, looks[3]), (0.1, 0.02, 0.15), (0.1, 0.0, 0.09), knee=0.3), "BEZIER")
+# (The look round: in two frames, from the stride's start.)
+ret.key(25, legs(easy(0.5, 0.5, 0), (0.1, 0.13, 0.09), (0.1, -0.12, 0.13), knee=0.3), "LINEAR")
+ret.keys.sort(key=lambda k: k[0])
+ret.close(44)
 
+# Hit: knocked aside, held two frames; then back upright too fast, all at once, as if nothing happened.
 hit = Clip("hit", loop=False)
 hit.key(0, STAND, "CONSTANT")
 hit.key(2, mirrored(with_(STAND, {"pelvis": (6, 0, 6), "spine_02": (6, 0, 8), "neck": (8, 0, 10), "head": (10, 0, 12),
                                   "upperarm_r": (20, -14, 0), "root@loc": (0, -0.05, 0.0)})), "CONSTANT")
-hit.key(8, with_(STAND, {"pelvis": (1, 0, -2), "head": (2, 0, -3)}), "LINEAR")
+hit.key(6, mirrored(with_(STAND, {"pelvis": (5, 0, 5), "spine_02": (5, 0, 7), "neck": (7, 0, 9), "head": (8, 0, 10),
+                                  "upperarm_r": (18, -12, 0), "root@loc": (0, -0.045, 0.0)})), "LINEAR")
+hit.key(8, with_(STAND, {"pelvis": (1, 0, -2), "head": (2, 0, -3)}), "CONSTANT")
 hit.key(12, STAND, "CONSTANT")
 
-# Death (1 s): it goes over backward, stiff as a board, the long hands still open, and lies there.
+# Death (1.2 s): it stiffens, held a beat, then goes over backward, stiff as a board, faster and faster, and lands with a
+# jolt; the long hands still open; the fingers close, one after another, and it's still.
 death = Clip("death", loop=False)
 death.key(0, STAND, "CONSTANT")
-death.key(4, with_(STAND, {"root": (6, 0, 0), "head": (6, 0, 0), "upperarm_r": (10, -10, 0), "upperarm_l": (10, 10, 0)}), "LINEAR")
-death.key(16, with_(STAND, {"root": (84, 0, 0), "root@loc": (0, 0.0, 0.1), "head": (-14, 0, 6), "upperarm_r": (16, -14, 0),
-                            "upperarm_l": (14, 14, 0), **curl(20, 10)}), "LINEAR")
+death.key(3, with_(STAND, {"root": (4, 0, 0), "head": (8, 0, 0), "upperarm_r": (8, -10, 0), "upperarm_l": (8, 10, 0)}), "CONSTANT")
+death.key(9, with_(STAND, {"root": (6, 0, 0), "head": (6, 0, 0), "upperarm_r": (10, -10, 0), "upperarm_l": (10, 10, 0)}), "LINEAR")
+death.key(14, with_(STAND, {"root": (28, 0, 0), "root@loc": (0, 0.0, 0.02), "head": (-2, 0, 2), "upperarm_r": (12, -12, 0),
+                            "upperarm_l": (12, 12, 0)}), "LINEAR")
+death.key(17, with_(STAND, {"root": (66, 0, 0), "root@loc": (0, 0.0, 0.07), "head": (-8, 0, 4), "upperarm_r": (14, -13, 0),
+                            "upperarm_l": (13, 13, 0), **curl(14, 8)}), "LINEAR")
 death.key(19, with_(STAND, {"root": (90, 0, 0), "root@loc": (0, 0.0, 0.1), "head": (-20, 0, 10), "upperarm_r": (24, -20, 0),
                             "upperarm_l": (20, 20, 0), **curl(30, 10)}), "LINEAR")
-death.key(30, with_(STAND, {"root": (90, 0, 0), "root@loc": (0, 0.0, 0.1), "head": (-16, 0, 12), "upperarm_r": (20, -18, 0),
-                            "upperarm_l": (18, 18, 0), **curl(40, 20)}), "BEZIER")
+death.key(22, with_(STAND, {"root": (86, 0, 0), "root@loc": (0, 0.0, 0.1), "head": (-12, 0, 10), "upperarm_r": (20, -18, 0),
+                            "upperarm_l": (18, 18, 0), **curl(30, 10)}), "BEZIER")
+LAID = with_(STAND, {"root": (90, 0, 0), "root@loc": (0, 0.0, 0.1), "head": (-16, 0, 12), "upperarm_r": (20, -18, 0),
+                     "upperarm_l": (18, 18, 0), **curl(30, 10)})
+death.key(25, LAID, "BEZIER")
+for i, f in enumerate(FINGERS):
+    LAID = with_(LAID, {f"finger_{f}_r_0{j}": (-55 * (0.7 if j == 1 else 1), 0, 0) for j in (1, 2, 3)})
+    death.key(28 + 2 * i, LAID, "BEZIER")
+death.key(36, with_(LAID, curl(40, 20), {k: v for k, v in LAID.items() if k.startswith("finger_") and "_r_" in k}), "BEZIER")
 
 CLIPS = [sit, watch, rise, hunt, grab, ret, hit, death]
 

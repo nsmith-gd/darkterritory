@@ -78,7 +78,8 @@ public sealed partial class CreatureArt
                         return ("lash", phaseSeconds - windup, false);
                     if (since > t.LashEvery && phaseSeconds < BrakemanLashSeconds - BrakemanLashStrike)
                         return ("lash", phaseSeconds + BrakemanLashStrike, false);
-                    return ("cornered", since, true);
+                    // (On the lash's beat, as the lash is: its telegraph builds to the lash, the head locked on at its end.)
+                    return ("cornered", phaseSeconds, true);
                 }
             case BrakemanMode.Hidden:
                 return was is BrakemanMode.Walk or BrakemanMode.Flee or BrakemanMode.Wind && since < BrakemanDropSeconds
