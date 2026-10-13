@@ -190,7 +190,7 @@ public static partial class StopGenerator
             var h = g.Buildings[hi];
             if (!R.Chance(tt.Find + (h.Outlier ? v.OutlierFindBonus : 0)))
                 continue;
-            int count = R.Chance(v.SecondFindChance) ? 2 : 1;
+            int count = R.Chance(v.SecondFindChance) ? R.Chance(v.ThirdFindChance) ? 3 : 2 : 1;
             for (int q = 0; q < count; q++)
                 g.Contain(R.Pick(HouseKinds), StopZone.Village, Plan.World(h, R.Range(-0.28, 0.28) * h.Length, R.Range(-0.28, 0.28) * h.Width), Band(h.D), 0, hi, outlier: h.Outlier);
         }

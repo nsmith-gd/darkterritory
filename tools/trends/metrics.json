@@ -1,0 +1,48 @@
+// The trends' metrics (ARCHITECTURE §8 note 523): for each, which way is worse and how far one commit's step may move it
+// before `dt trends show` calls it a fall. A step is judged against the median of the `window` lines before it; its band's
+// half-width is the larger of `abs` and `rel` times that level. The first entry whose `match` fits a metric is its band
+// (`*` matches any run of characters). `bad`: up, down, either (a balance that's wrong both ways), none (tracked only).
+//
+// These are the tool's thresholds, set by how noisy the numbers are, not design numbers (those are in content/tuning). A bot
+// night's numbers move with any change to the sim: on D1's frontier:7 nights one seed's km went 23.2 -> 16.4 and another's
+// 18.5 -> 21.7 on one change (note 511), so a seed moves some 4 km. The mean of eight moves about a third of that, ~1.5 km
+// of ~19, and a band about twice that keeps an unlucky shuffle from being called a fall. Counts (perf's triangles and draws,
+// the bandwidth) are the same on every run of a commit and move only when something changed, so theirs are tight.
+{
+  "window": 5,
+  "minHistory": 3,
+  "metrics": [
+    // How the night went (the run's report, spec F.1; the threats' report, GDD §34).
+    { "match": "balance.km", "bad": "down", "rel": 0.15, "abs": 1.0, "what": "km run, the mean of the seeds' nights" },
+    { "match": "balance.delivered", "bad": "down", "abs": 0.25, "what": "the share of nights that got home (one in four more failing is a fall)" },
+    { "match": "balance.deaths", "bad": "up", "rel": 0.3, "abs": 1.0, "what": "deaths a night (the run's, App. D.9: each one, brought back or not)" },
+    { "match": "balance.carsLost", "bad": "up", "rel": 0.3, "abs": 2.0, "what": "cars lost a night" },
+    { "match": "balance.carsDelivered", "bad": "down", "rel": 0.3, "abs": 2.0, "what": "cars still on the engine at the end" },
+    { "match": "balance.cargo", "bad": "down", "rel": 0.3, "abs": 0.75, "what": "cargo delivered" },
+    { "match": "balance.net", "bad": "down", "rel": 0.3, "abs": 150, "what": "the night's net scrip (income less coal, ammunition, repairs, fees)" },
+    { "match": "balance.crewHome", "bad": "down", "abs": 1.0, "what": "crew home at the end" },
+    { "match": "balance.grabs", "bad": "either", "rel": 0.5, "abs": 1.5, "what": "GRABs begun (App. A.1): fewer, the creatures land nothing; more, they land too much" },
+    { "match": "balance.rescues", "bad": "none", "what": "GRABs a crewmate broke" },
+    { "match": "balance.fairness", "bad": "up", "abs": 0.1, "what": "App. A.1's fairness rule broken by the director: any night of eight is a fall" },
+    { "match": "balance.packFires", "bad": "up", "rel": 0.5, "abs": 5, "what": "fires boarded hound packs set (note 437)" },
+    { "match": "balance.hotBoxesCaught", "bad": "up", "rel": 0.5, "abs": 1.0, "what": "hot boxes that caught (note 331)" },
+    { "match": "balance.couplingsParted", "bad": "up", "rel": 0.5, "abs": 1.0, "what": "loose couplings that parted (note 356)" },
+    // How often something happened (the playtest: "a reward or a problem every 30 s at most, ideally 20").
+    { "match": "pacing.beatsPerMinute", "bad": "down", "rel": 0.2, "abs": 0.3, "what": "the world's beats a minute" },
+    { "match": "pacing.longestQuietSeconds", "bad": "up", "rel": 0.3, "abs": 20, "what": "the longest stretch out on the line with nothing going on" },
+    { "match": "pacing.quietOver30", "bad": "up", "rel": 0.4, "abs": 2.0, "what": "stretches quiet over 30 s" },
+    // The link (the harness's rough link: 90 ms ±20, 3 % loss).
+    { "match": "net.downKbps", "bad": "up", "rel": 0.1, "abs": 2.0, "what": "kbit/s down to each client" },
+    { "match": "net.upKbps", "bad": "up", "rel": 0.1, "abs": 2.0, "what": "kbit/s up from each client" },
+    { "match": "net.maxCorrectionM", "bad": "up", "rel": 0.5, "abs": 0.25, "what": "the worst correction a client took (m)" },
+    // Queue #256's moments (note 519), once the harness reports them: more is better. Absent until then, and skipped.
+    { "match": "moments.*", "bad": "down", "rel": 0.25, "abs": 1.0, "what": "clip-worthy moments a night (#256)" },
+    // The CPU the nights cost, measured by `dt trends measure` itself: a runner's speed varies, so its band is wide.
+    { "match": "sim.cpuMsPerTick", "bad": "up", "rel": 0.3, "what": "CPU ms a tick, the host's and every bot client's, four nights at once" },
+    // A frame (`dt perf`, tuning/perf.json's targets): the counts are the same on any machine; the CPU phases are timed on
+    // the runner's CPU, with lavapipe drawing, so theirs are wide.
+    { "match": "perf.*.triangles", "bad": "up", "rel": 0.1, "what": "triangles a frame" },
+    { "match": "perf.*.draws", "bad": "up", "rel": 0.1, "abs": 10, "what": "draw calls a frame, every pass and eye" },
+    { "match": "perf.*Ms", "bad": "up", "rel": 0.35, "abs": 0.3, "what": "the CPU's share of a frame (the worst view's; the build, prepare and record phases averaged over the views)" }
+  ]
+}

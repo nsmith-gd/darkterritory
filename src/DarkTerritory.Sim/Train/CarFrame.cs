@@ -61,8 +61,12 @@ public readonly record struct Solid(Box Box, SurfaceKind Top, PartKind Part)
     public bool Present(Vehicle v) => Part != PartKind.Hatch || !v.DoorOpen(CarShape.HatchBit);
 }
 
-/// <summary>A ladder fixed to a face: its foot, how high it goes, and which way is "onto" what it serves.</summary>
-public readonly record struct Ladder(Double3 Foot, double Top, Double3 Inward);
+/// <summary>
+/// A ladder fixed to a face: its foot, how high it goes, and which way is "onto" what it serves. <see cref="Over"/> is how
+/// much further than a step past its top its climber is set down: the engine's cab steps hang off the running board's outer
+/// edge (note 559) and still come up into the cab, across the board.
+/// </summary>
+public readonly record struct Ladder(Double3 Foot, double Top, Double3 Inward, double Over = 0);
 
 /// <summary>
 /// <see cref="Coal"/> is the tender's coal face, where a hand fills the shovel (T29). <see cref="Locker"/> is a crew locker's
@@ -255,6 +259,22 @@ public sealed record CarShape(Box Bounds, IReadOnlyList<Solid> Solids, IReadOnly
         ? new Solid(new Box(new Double3(g.PlateX - g.CouplerWidth / 2, g.CouplerHeight - 0.1, halfLength), new Double3(g.PlateX + g.CouplerWidth / 2, g.CouplerHeight, halfLength + g.CouplingGap)),
             SurfaceKind.Coupler, PartKind.Coupler)
         : null;
+
+    /// <summary>
+    /// A car whose coupling behind is a Knotter (note 365): its plate gone, its body across the wider gap instead: a rope's
+    /// width (<see cref="KnotWidth"/>) on the plate's line, from the car's end to the next car's, the same height.
+    /// </summary>
+    public static CarShape Knotted(CarShape shape, GeometryTuning g, double knot)
+    {
+        double l = shape.HalfLength;
+        var solids = shape.Solids.Where(s => s.Part != PartKind.Coupler).ToList();
+        solids.Add(new Solid(new Box(new Double3(g.PlateX - KnotWidth / 2, g.CouplerHeight - 0.1, l), new Double3(g.PlateX + KnotWidth / 2, g.CouplerHeight, l + g.CouplingGap + knot)),
+            SurfaceKind.Coupler, PartKind.Coupler));
+        return shape with { Solids = solids };
+    }
+
+    /// <summary>The Knotter's back, as a foot finds it (note 365).</summary>
+    public const double KnotWidth = 0.4;
 
     static CarShape Car(GeometryTuning g, bool hasCarBehind) =>
         g.Interior is { } i ? Shell(g, i, hasCarBehind, cargo: true) : SolidCar(g, hasCarBehind);
@@ -475,9 +495,10 @@ public sealed record CarShape(Box Bounds, IReadOnlyList<Solid> Solids, IReadOnly
         }
         solids.Add(new(new Box(new Double3(-w - 0.1, roof, cabBack), new Double3(w + 0.1, g.EngineHeight, hoodBack)), SurfaceKind.Roof, PartKind.CabRoof));
         // The running boards (App. A.2 GREASE: "sends someone onto the running boards at speed"): a walkway each side at
-        // deck height, out past the body's side, from partway across the cab's doorway (out of it and back onto it) back
-        // along the boiler to the engine's rear. Its front stops short of the doorway's front, where the cab steps come up.
-        double board = e.RunningBoardWidth, boardFront = doorFront + g.Doorway.Width * 0.6;
+        // deck height, out past the body's side, from ahead of the cab's doorway (the director, 9 Oct 2026, note 559: "the
+        // platform on the outer edge of the train really should extend to be in front of the cab doors and extend a bit
+        // wider") back along the boiler to the engine's rear. Out of the doorway is onto it; the cab steps hang off its edge.
+        double board = e.RunningBoardWidth, boardFront = doorFront - e.RunningBoardAhead;
         foreach (int side in new[] { -1, 1 })
         {
             var (x0, x1) = side < 0 ? (-w - board, -w) : (w, w + board);
@@ -494,9 +515,10 @@ public sealed record CarShape(Box Bounds, IReadOnlyList<Solid> Solids, IReadOnly
         double doorZ = doorFront + g.Doorway.Width / 2;
         var ladders = new List<Ladder>
         {
-            // Cab steps up from the ballast on both sides, at the doorways.
-            new(new Double3(w + 0.15, 0, doorZ), deck, new Double3(-1, 0, 0)),
-            new(new Double3(-w - 0.15, 0, doorZ), deck, new Double3(1, 0, 0)),
+            // Cab steps up from the ballast on both sides, at the doorways: hung off the running board's outer edge (note
+            // 559), and up them is across the board and in at the doorway, as it was when they hung off the cab's side.
+            new(new Double3(w + board + 0.15, 0, doorZ), deck, new Double3(-1, 0, 0), Over: board),
+            new(new Double3(-w - board - 0.15, 0, doorZ), deck, new Double3(1, 0, 0), Over: board),
         };
         // Up the engine's back onto the hood's roof (note 338: level with the cab's, and its gun, from the top of the train;
         // before the hood it went onto the boiler's top, and another ladder up the cab's back wall from there).

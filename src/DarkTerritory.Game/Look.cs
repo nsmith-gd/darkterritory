@@ -154,6 +154,23 @@ public sealed record DawnTuning
     public float Ambient { get; init; } = 0.3f;
     /// <summary>The glow low on the sky on the sun's side as it comes up (the sky shader's dawn band).</summary>
     public Vector3 HorizonGlow { get; init; } = new(0.28f, 0.16f, 0.11f);
+    /// <summary>The Wakers' stir (note 599): the cold line low behind the train before dawn, where they'll rise.</summary>
+    public StirLook Stir { get; init; } = new();
+}
+
+/// <summary>
+/// The stir's sky (docs/design/creatures/wakers.md §2: "the horizon behind the train goes from black to a bruise to a thin
+/// cold line. The light comes from where the Wakers will rise"; ARCHITECTURE §8 note 599). Over the stir it grows from
+/// nothing, a wide dim <see cref="Bruise"/> low behind the train narrowing to a thin grey <see cref="Line"/> by dawn.
+/// </summary>
+public sealed record StirLook
+{
+    /// <summary>Its colour as it first shows (rgb, added to the sky).</summary>
+    public Vector3 Bruise { get; init; } = new(0.10f, 0.05f, 0.09f);
+    /// <summary>Its colour at dawn.</summary>
+    public Vector3 Line { get; init; } = new(0.34f, 0.37f, 0.42f);
+    /// <summary>How bright it gets, at dawn.</summary>
+    public float Strength { get; init; } = 1;
 }
 
 /// <summary>
@@ -365,8 +382,29 @@ public sealed class Look
     /// <summary>Loads the look's textures, backdrop, grade and post settings into a renderer.</summary>
     public void Dress(GreyboxRenderer renderer) => renderer.Load(Sky is { } sky ? (_assets ??= Assets()) with { Backdrop = sky } : _assets ??= Assets());
 
+    /// <summary>
+    /// Only <see cref="Sky"/> taken up, on a renderer this look has already dressed (note 517: a batch of screenshots over
+    /// many nights): the far horizon replaced, the material layers left as they are.
+    /// </summary>
+    public void DressSky(GreyboxRenderer renderer) => renderer.LoadBackdrop(Sky ?? (_assets ??= Assets()).Backdrop);
+
     /// <summary>A night's own far horizon in place of the look's band (a generated line's, <see cref="Art.PlanSky"/>); null for the look's.</summary>
     public Image? Sky { get; set; }
+
+    // Every look loaded in a process shares the textures it decodes (about a gigabyte and a quarter of them, note 367): the
+    // tests load a look a class, and each one's own copy, kept for the run, took the Linux CI runner past its memory. A
+    // file that changes on disk (a hot reload, a rebuilt atlas) is read again; nothing writes into a decoded image.
+    static readonly System.Collections.Concurrent.ConcurrentDictionary<string, (DateTime At, long Length, Image Image)> DecodedFiles = new();
+
+    static Image Decoded(string path)
+    {
+        var file = new FileInfo(path);
+        if (DecodedFiles.TryGetValue(path, out var had) && had.At == file.LastWriteTimeUtc && had.Length == file.Length)
+            return had.Image;
+        var image = ImageFile.Load(path);
+        DecodedFiles[path] = (file.LastWriteTimeUtc, file.Length, image);
+        return image;
+    }
 
     /// <summary>Everything the renderer needs: the material maps, the backdrop, the grade and the post settings.</summary>
     public RenderAssets Assets()
@@ -374,26 +412,37 @@ public sealed class Look
         var layers = new List<MaterialLayer>();
         Image? backdrop = null;
         if (TextureRoot is not null)
-            foreach (var t in Textures)
+        {
+            // A texture that won't read (half-written, corrupt) becomes flat grey, keeping every layer where the
+            // materials expect it, rather than stopping the game.
+            static Image Read(string path, Image fallback)
             {
-                // A texture that won't read (half-written, corrupt) becomes flat grey, keeping every layer where the
-                // materials expect it, rather than stopping the game.
-                static Image Read(string path, Image fallback)
+                try { return Decoded(path); }
+                catch (Exception e) when (e is InvalidOperationException or IOException)
                 {
-                    try { return ImageFile.Load(path); }
-                    catch (Exception e) when (e is InvalidOperationException or IOException)
-                    {
-                        Console.Error.WriteLine($"look: {Path.GetFileName(path)} unreadable ({e.Message}); drawing it flat");
-                        return fallback;
-                    }
+                    Console.Error.WriteLine($"look: {Path.GetFileName(path)} unreadable ({e.Message}); drawing it flat");
+                    return fallback;
                 }
-                var diffuse = Read(Path.Combine(TextureRoot, t.Diffuse), Image.Solid(4, 80, 80, 80));
-                var spec = t.Spec is { } s && System.IO.File.Exists(Path.Combine(TextureRoot, s)) ? Read(Path.Combine(TextureRoot, s), Image.Solid(4, 20, 60, 0)) : Image.Solid(4, 20, 60, 0);
-                var normal = t.Normal is { } n && System.IO.File.Exists(Path.Combine(TextureRoot, n)) ? Read(Path.Combine(TextureRoot, n), Image.Solid(4, 128, 128, 255)) : null;
-                layers.Add(new MaterialLayer(t.Name, diffuse, spec, t.AlphaTest, normal));
-                if (t.Family == "sky")
-                    backdrop = diffuse;
             }
+            // Each texture's maps decoded side by side, one texture to a core (note 517), then laid out in the look's order.
+            var textures = Textures.ToList();
+            var read = new MaterialLayer[textures.Count];
+            string root = TextureRoot;
+            Parallel.For(0, textures.Count, i =>
+            {
+                var t = textures[i];
+                var diffuse = Read(Path.Combine(root, t.Diffuse), Image.Solid(4, 80, 80, 80));
+                var spec = t.Spec is { } s && System.IO.File.Exists(Path.Combine(root, s)) ? Read(Path.Combine(root, s), Image.Solid(4, 20, 60, 0)) : Image.Solid(4, 20, 60, 0);
+                var normal = t.Normal is { } n && System.IO.File.Exists(Path.Combine(root, n)) ? Read(Path.Combine(root, n), Image.Solid(4, 128, 128, 255)) : null;
+                read[i] = new MaterialLayer(t.Name, diffuse, spec, t.AlphaTest, normal);
+            });
+            for (int i = 0; i < textures.Count; i++)
+            {
+                layers.Add(read[i]);
+                if (textures[i].Family == "sky")
+                    backdrop = read[i].Diffuse;
+            }
+        }
         return new RenderAssets { LayerSize = Tuning.LayerSize, HeroSize = Tuning.HeroLayerSize, BigHeroSize = Tuning.BigHeroLayerSize, Layers = layers, Backdrop = backdrop, Lut = Tuning.Grade.Bake(), Post = Tuning.Post };
     }
 
@@ -426,6 +475,24 @@ public sealed class Look
     /// <summary>How far the dawn's come up (0 night .. 1 dawn) <paramref name="dawnIn"/> seconds before it (the run's dawn clock).</summary>
     public float DawnOf(double dawnIn) =>
         Tuning.Atmosphere.Dawn is { } d ? (float)Math.Clamp(1 - dawnIn / Math.Max(1, d.LeadSeconds), 0, 1) : 0;
+
+    /// <summary>
+    /// <paramref name="light"/> with the Wakers' stir <paramref name="t"/> of the way to dawn (0..1, note 599), lying low on
+    /// the sky toward <paramref name="from"/> (world, flattened: behind the train, where they'll rise).
+    /// </summary>
+    public FrameLighting Stir(FrameLighting light, float t, Vector3 from)
+    {
+        if (Tuning.Atmosphere.Dawn is not { } d || t <= 0)
+            return light;
+        t = Math.Clamp(t, 0, 1);
+        var flat = new Vector3(from.X, 0, from.Z);
+        if (flat.LengthSquared() < 1e-6f)
+            return light;
+        light.Stir = t * d.Stir.Strength;
+        light.StirDirection = Vector3.Normalize(flat);
+        light.StirColour = Vector3.Lerp(d.Stir.Bruise, d.Stir.Line, t * t);
+        return light;
+    }
 
     /// <summary>
     /// <paramref name="light"/> with the dawn <paramref name="t"/> of the way up (0..1, eased): the fog lightening to the

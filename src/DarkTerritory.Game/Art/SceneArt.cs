@@ -24,6 +24,14 @@ public sealed partial class SceneArt(Look look)
 
     /// <summary>A town's people's breathing gear and hats (note 353).</summary>
     public TownsfolkKit Townsfolk { get; } = new(look);
+    /// <summary>Dave's things: his hats and waistcoats, glasses and sandals, his easel and canvas (note 570).</summary>
+    public DaveKit Dave { get; } = new(look);
+    /// <summary>Nicki's things: her hair, earrings and camisole (note 571).</summary>
+    public NickiKit Nicki { get; } = new(look);
+    /// <summary>Jacob's things: his cap, shades, beard, flannel and chain; his rod, pail and lantern (note 572).</summary>
+    public JacobKit Jacob { get; } = new(look);
+    /// <summary>The house creatures' houses: the Householder's table, chair and stove, the Hanger's ceiling (notes 584, 586).</summary>
+    public HouseholdKit Household { get; } = new(look);
 
     CreatureArt? _creatures;
     readonly Dictionary<byte, (Double3 At, int Car, double Time, float Speed)> _crewMotion = new();
@@ -63,6 +71,7 @@ public sealed partial class SceneArt(Look look)
             CrewPose.Shoulder => speed < 0.4f ? CrewPose.Shoulder : CrewPose.ShoulderWalk,
             CrewPose.Cradle => speed < 0.4f ? CrewPose.Cradle : CrewPose.CradleWalk,
             CrewPose.Lantern => speed < 0.4f ? CrewPose.Lantern : CrewPose.LanternWalk,
+            CrewPose.Toolbox => speed < 0.4f ? CrewPose.Toolbox : CrewPose.ToolboxWalk,
             // Across the plate, short careful steps; stood on it, balancing (GDD §32).
             CrewPose.Gap => speed < 0.4f ? CrewPose.Gap : CrewPose.GapStep,
             { } act => act,
@@ -97,7 +106,7 @@ public sealed partial class SceneArt(Look look)
         if (_crewHealth.TryGetValue(c.Id, out int was) && c.Health < was && c.Alive)
             _staggered[c.Id] = time;
         _crewHealth[c.Id] = c.Health;
-        bool free = c.Act is null or CrewPose.Carry or CrewPose.Lantern;
+        bool free = c.Act is null or CrewPose.Carry or CrewPose.Lantern or CrewPose.Toolbox;
         if (free && _staggered.TryGetValue(c.Id, out double hit) && time - hit < StaggerSeconds)
             pose = CrewPose.Stagger;
         // At the firehole as its door moves: the one who swung it (whoever's stood there; the sim doesn't say who).
@@ -112,7 +121,9 @@ public sealed partial class SceneArt(Look look)
             _crewActSince[c.Id] = since = (pose, time);
         double clipTime = pose switch
         {
-            CrewPose.GetUp or CrewPose.TakeDown or CrewPose.HangUp => time - since.Time,
+            // (A staged getting up says how far into it they are: dt screenshot --cameback, note 529.)
+            CrewPose.GetUp => c.Phase > 0 ? c.Phase : time - since.Time,
+            CrewPose.TakeDown or CrewPose.HangUp => time - since.Time,
             CrewPose.Stagger => time - _staggered.GetValueOrDefault(c.Id, since.Time),
             CrewPose.FireDoor => FireDoorSince >= 0 ? FireDoorSince : time - since.Time,
             // A staged swing (dt screenshot --act swing) says how far into it they are; a played one, from its blow.
@@ -157,8 +168,14 @@ public sealed partial class SceneArt(Look look)
                 rightHand = ToF(r);
         }
         var lamp = c.Lamp ? PropArt.Of(Look).Get("hand_lantern") : null;
+        // The repair kit by its handle (note 513): drawn in the fist, not where the sim holds it (Body skips it).
+        var kit = pose is CrewPose.Toolbox or CrewPose.ToolboxWalk ? PropArt.Of(Look).Get("repair_kit") : null;
         bool drawn = Creatures.Crewmate(mesh, m, pose, clipTime, c.Variant, left, rightHand, ToF(Arms.Pole(-1)), ToF(Arms.Pole(1)), ToolProp(c.Holding),
-            hanging: lamp, figure: CreatureArt.FigureOf(c.Survivor), body: HeadsetBody(c, pose, time));
+            hanging: lamp, figure: CreatureArt.FigureOf(c.Survivor), body: HeadsetBody(c, pose, time), carried: kit);
+        if (drawn && kit is not null)
+            _kitHands[c.Id] = time;
+        else
+            _kitHands.Remove(c.Id);
         // Their breath in the cold (GDD §26): out on the beat of their breathing, a puff of vapour from the mouth that
         // goes out the way they face and rises, gone in a second and a half; harder breathing (running, hauling) quicker.
         bool hard = pose is CrewPose.Run or CrewPose.Haul or CrewPose.HaulUp or CrewPose.Shovel or CrewPose.Smash or CrewPose.Pry;
@@ -389,6 +406,11 @@ public sealed partial class SceneArt(Look look)
         _lampHands.TryGetValue(carrier, out var h) && time - h.Time < 0.5 ? h.At : null;
 
     readonly Dictionary<byte, (CrewPose Pose, double Time)> _crewActSince = new();
+
+    /// <summary>Whether crewmate <paramref name="carrier"/> was drawn with the repair kit in their fist (note 513) this half second.</summary>
+    public bool KitInHand(int carrier, double time) => _kitHands.TryGetValue(carrier, out var at) && time - at < 0.5;
+
+    readonly Dictionary<int, double> _kitHands = new();
 
     /// <summary>The crew whose extinguisher is at work on a fire this frame (GreyboxScene: a fire going down with it in reach).</summary>
     public IReadOnlySet<int>? Spraying { get; set; }
@@ -625,7 +647,9 @@ public sealed partial class SceneArt(Look look)
     }
 
     static string ShapeKey(CarShape s) =>
-        $"{s.HalfWidth:0.###}x{s.HalfLength:0.###}x{s.RoofHeight:0.###}:{s.Solids.Count}:{s.Solids.Any(x => x.Part == PartKind.Coupler)}";
+        $"{s.HalfWidth:0.###}x{s.HalfLength:0.###}x{s.RoofHeight:0.###}:{s.Solids.Count}:{s.Solids.Any(x => x.Part == PartKind.Coupler)}" +
+        // (A Knotter's back where the plate was, CarShape.Knotted: no plate drawn.)
+        (s.Solids.Any(x => x.Part == PartKind.Coupler && x.Box.Max.X - x.Box.Min.X <= CarShape.KnotWidth + 1e-3) ? ":knot" : "");
 
     /// <summary>
     /// A loose body that isn't a ragdoll (crates, freight, a lamp, a radio) as its prop, turned by its yaw in its parent's
@@ -674,8 +698,11 @@ public sealed partial class SceneArt(Look look)
             return true;
         if (b.Kind == Sim.Physics.BodyKind.Ragdoll)
             return Corpse(mesh, frames, b, eye, onCar, time);
-        // A hand lamp someone's carrying is drawn in their fist (Crewmate), not where the sim holds it.
+        // A hand lamp someone's carrying is drawn in their fist (Crewmate), not where the sim holds it; so is the repair kit,
+        // by its handle (note 513).
         if (b.Kind == Sim.Physics.BodyKind.Lamp && b.Carrier >= 0 && LampInHand(b.Carrier, time) is not null)
+            return true;
+        if (b.Kind == Sim.Physics.BodyKind.RepairKit && b.Carrier >= 0 && KitCarriers?.Contains(b.Carrier) == true && Creatures.Get("crew") is not null)
             return true;
         var local = b.Pbd.Particles[0].Position;
         var at = onCar ? frames[b.Parent].ToWorld(local) : local;
@@ -731,6 +758,8 @@ public sealed partial class SceneArt(Look look)
             Sim.Physics.BodyKind.RepairKit => props.Get("repair_kit") ?? Piece("prop-crate", () => PropKit.Crate(Look)),
             // A charge for a gun's rack (note 374): a powder bag from the shot locker.
             Sim.Physics.BodyKind.Powder => props.Get("powder_bag") ?? Piece("prop-crate", () => PropKit.Crate(Look)),
+            // A tool left on a locker's shelf (note 649): its own model, as it's drawn in hand.
+            Sim.Physics.BodyKind.Tool when ToolProp(Sim.Player.Kit.At(b.Tools, 0)) is { } tool => tool,
             // A village find as what it is (FindKit; the director, 8 Oct: finds that stand out by their texture).
             Sim.Physics.BodyKind.Loot when FindItem?.Invoke(b) is { } item => Piece($"find-{item}", () => FindKit.Find(Look, item, 0.15f)),
             Sim.Physics.BodyKind.Loot => Piece("prop-loot", () => PropKit.Loot(Look, 0.15f)),
@@ -902,6 +931,10 @@ public sealed partial class SceneArt(Look look)
     /// <summary>Whose bodies died by fire (the Stoker, a burning car, powder going up): drawn charred, still smouldering.</summary>
     public IReadOnlySet<int>? Burned { get; set; }
 
+    /// <summary>The crew carrying the repair kit by its handle this frame (note 513: GreyboxScene, from their acts): it's drawn in
+    /// their fist (Crewmate), so Body leaves it out.</summary>
+    public IReadOnlySet<int>? KitCarriers { get; set; }
+
     /// <summary>A ragdoll as the crew model lying as its joints lie; false (the greybox's bones) if the model isn't there.</summary>
     bool Corpse(MeshBuilder mesh, IReadOnlyList<CarFrame> frames, Sim.Physics.Body b, Double3 eye, bool onCar, double time)
     {
@@ -984,11 +1017,12 @@ public sealed partial class SceneArt(Look look)
     /// lighting. One whose ceiling a Car Hugger's eaten (<paramref name="bite"/>) has gone with it.
     /// </summary>
     /// <param name="lit">The lamps are lit: out, the lanterns hang dark (their glass unlit, no glow round them).</param>
-    public void CarLamps(MeshBuilder mesh, in CarFrame frame, Double3 eye, bool emergency, Bite bite = default, bool lit = true)
+    /// <param name="sway">How far they're swung on their chains (radians about the car's length, from the ceiling; note 599).</param>
+    public void CarLamps(MeshBuilder mesh, in CarFrame frame, Double3 eye, bool emergency, Bite bite = default, bool lit = true, float sway = 0)
     {
         if (frame.Shape.Interior is not { } room || (frame.Origin - eye).Length > 80)
             return;
-        var m = FrameMatrix(frame, eye);
+        var m = LampSwing(room, sway) * FrameMatrix(frame, eye);
         var lamps = Piece($"lamps:{room.Min.Y:0.00}:{room.Max.Y:0.00}:{room.HalfSize.Z:0.00}:{room.Centre.Z:0.00}", () =>
         {
             var k = new Kit(Look, 71);
@@ -1019,6 +1053,15 @@ public sealed partial class SceneArt(Look look)
         foreach (var at in LampPositions(room))
             if (!bite.Eats(at with { Y = (float)room.Max.Y - 0.05f }))
                 mesh.Billboard(Vector3.Transform(at, m), 0.6f, 0, new Vector4(glow, 1), -1, FxBlend.Additive);
+    }
+
+    /// <summary>The lanterns swung on their chains (note 599), in the car's frame: about its length, from the ceiling.</summary>
+    public static Matrix4x4 LampSwing(Box room, float sway)
+    {
+        if (sway == 0)
+            return Matrix4x4.Identity;
+        var pivot = new Vector3(0, (float)room.Max.Y, 0);
+        return Matrix4x4.CreateTranslation(-pivot) * Matrix4x4.CreateRotationZ(sway) * Matrix4x4.CreateTranslation(pivot);
     }
 
     /// <summary>Where a car's lanterns' flames are, in its frame: the Fire Flies gather on the nearer (GreyboxScene).</summary>
@@ -1260,7 +1303,7 @@ public sealed partial class SceneArt(Look look)
         // The engine's drivers and rods are drawn apart, turning (Gear), where their modelled parts are there to turn.
         bool turning = engine && GearParts is not null;
         var body = Piece(loadApart ? key + ":empty" : turning ? key + ":turning" : key,
-            () => engine ? TrainKit.Engine(Look, shape, 0, gear: !turning) : TrainKit.Car(Look, shape, livery, variant, load: !loadApart));
+            () => engine ? TrainKit.Engine(Look, shape, 0, gear: !turning) : TrainKit.Car(Look, shape, livery, variant, load: !loadApart, wheel: false));
         // Wear and tear off the car's integrity (look.json "damage"): the scar mask over the body and doors, seeded by
         // the car so its scars stay where they are, and past the first state the torn plate the mask can't draw.
         // What a Car Hugger ate of it (App. A.3 FEED) is gone, not battered: the scars and torn plate are the rest of the loss.
@@ -1308,6 +1351,18 @@ public sealed partial class SceneArt(Look look)
                 mesh.Instances.Add(new MeshInstance(props.Get("coupler_jaw")!, jaw * at * m, emergency ? 0.06f : 1, Scar: scar));
             }
         }
+        // Its brake wheel on its staff (TrainKit.BrakeWheelPiece), turned as far as its brake's wound: wound on by the Brakeman
+        // (note 364), turned round and its chain taken up round the staff's foot.
+        if (!engine && (frame.Origin - eye).Length < 160)
+            foreach (var brake in shape.Interactables.Where(i => i.Kind == InteractableKind.Handbrake))
+            {
+                bool wound = vehicle is { Wound: true };
+                var foot = Matrix4x4.CreateTranslation((float)brake.Position.X, (float)brake.Position.Y, (float)brake.Position.Z) * m;
+                mesh.Instances.Add(new MeshInstance(Piece("brake-wheel", () => TrainKit.BrakeWheelPiece(Look)),
+                    Matrix4x4.CreateRotationY(wound ? TrainKit.WoundTurn : 0) * foot, emergency ? 0.06f : 1, Scar: scar));
+                if (wound)
+                    mesh.Instances.Add(new MeshInstance(Piece("brake-wound", () => TrainKit.WoundChain(Look)), foot, emergency ? 0.06f : 1, Scar: scar));
+            }
         // Its number, the vehicle's id (the cars counted back from the engine as they left; a car keeps its number when
         // the ones ahead of it are cut away), worn and eaten with the body.
         // A utility car (GDD §10): fitted out for the crew where a load would go (TrainKit.UtilityFit).

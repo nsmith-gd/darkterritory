@@ -345,6 +345,105 @@ public static class Spawns
             }
             return false;
         }),
+        // B.6 · Tower Jaw (note 363): at work on a facility's coaling tower or crane gantry as the train comes to it (or stands
+        // at it); every tier, more the harder; one at a stop, and not at a structure already down.
+        new(EnemyKind.TowerJaw, c =>
+        {
+            var t = c.Tuning.TowerJaw;
+            if (!c.None(EnemyKind.TowerJaw) || TowerJaw.Structure(c.World, t) is null)
+                return null;
+            return MooseTuning.ByTier(t.TierWeights, c.Tier);
+        }, c =>
+        {
+            var t = c.Tuning.TowerJaw;
+            if (TowerJaw.Structure(c.World, t) is not { } at)
+                return false;
+            c.Add(i => at.Crane is { } crane ? TowerJaw.AtGantry(i, c.World, at.Facility, crane, t, t.StartGnawed)
+                : TowerJaw.AtCoalingTower(i, c.World, at.Facility, t, t.StartGnawed));
+            return true;
+        }),
+        // B.6 · The Freight Beetle (note 366): at a facility the train's stopped at, among its loose freight; every tier, more
+        // the harder; one at a stop.
+        new(EnemyKind.FreightBeetle, c =>
+        {
+            var t = c.Tuning.FreightBeetle;
+            if (!c.Stopped || !c.AtFacility || !c.None(EnemyKind.FreightBeetle) || FreightBeetle.Freight(c.World, t).Count == 0)
+                return null;
+            return MooseTuning.ByTier(t.TierWeights, c.Tier);
+        }, c =>
+        {
+            var t = c.Tuning.FreightBeetle;
+            var freight = FreightBeetle.Freight(c.World, t);
+            if (freight.Count == 0)
+                return false;
+            // Settled beside one of the loads, on the side away from the train.
+            var load = freight[(int)c.Director.NextRange(0, freight.Count - 1e-9)];
+            var at = load.Centre;
+            double hint = c.Front;
+            var (path, d) = c.Train.Line.Nearest(at, ref hint);
+            var away = (at - c.Train.Line.Sample(path, d).Position) with { Y = 0 };
+            away = away.Length > 1e-3 ? away.Normalized : new Double3(1, 0, 0);
+            var spot = at + away * 2.5;
+            spot = spot with { Y = PlayerMotor.GroundAt(spot, c.Train.Line, ref hint) };
+            double yaw = DMath.Atan2(away.X, away.Z);
+            c.Add(i => FreightBeetle.At(i, spot, hint, yaw, t));
+            return true;
+        }),
+        // B.8 · The Brakeman (note 364): up at the far end of a moving train; never with a crew of one; every tier, more the
+        // harder, the longer the train and with a climb ahead.
+        new(EnemyKind.Brakeman, c =>
+        {
+            var t = c.Tuning.Brakeman;
+            if (c.Living.Count() < t.MinCrew || c.Train.Dynamics.Consist.CarCount < t.MinCars || c.Train.Dynamics.Speed < t.MovingAbove
+                || !c.None(EnemyKind.Brakeman) || c.World.Slain.Contains(EnemyKind.Brakeman) || c.World.TrainInFort
+                || c.World.Route?.Features.Any(f => f.Kind == FeatureKind.Tunnel && f.Contains(c.Front)) == true)
+                return null;
+            bool climb = false;
+            for (double at = c.Front; at <= c.Front + t.ClimbAhead && !climb; at += 50)
+                climb = c.Train.Line.Sample(c.Train.Dynamics.Path, at).GradePercent >= t.ClimbPercent;
+            return MooseTuning.ByTier(t.TierWeights, c.Tier) * c.Train.Dynamics.Consist.CarCount / t.PerCarsWeight * (climb ? t.ClimbWeight : 1);
+        }, c =>
+        {
+            c.Add(i => Brakeman.AtFarEnd(i, c.Train, c.Living, c.Tuning.Brakeman));
+            return true;
+        }),
+        // B.3 · Hotbox (note 367): into a truck of a car of the engine's rake, the train running over its speed; every tier,
+        // more the harder; one at a time; a car whose axle's already seized isn't taken again.
+        new(EnemyKind.Hotbox, c =>
+        {
+            var t = c.Tuning.Hotbox;
+            if (c.Train.Dynamics.Speed < t.BoardAbove || !c.None(EnemyKind.Hotbox) || c.World.TrainInFort || Hotbox.Cars(c.Train).Count == 0)
+                return null;
+            return MooseTuning.ByTier(t.TierWeights, c.Tier);
+        }, c =>
+        {
+            var cars = Hotbox.Cars(c.Train);
+            if (cars.Count == 0)
+                return false;
+            int car = cars[(int)c.Director.NextRange(0, cars.Count - 1e-9)];
+            bool rear = c.Director.NextRange(0, 1) < 0.5;
+            int side = c.Director.NextRange(0, 1) < 0.5 ? -1 : 1;
+            c.Add(i => Hotbox.In(i, c.Train, car, rear, side, c.Tuning.Hotbox));
+            return true;
+        }),
+        // B.3 · The Knotter (note 365): into a coupling of the engine's rake at speed, one nobody's at; every tier, more the
+        // harder; one at a time.
+        new(EnemyKind.Knotter, c =>
+        {
+            var t = c.Tuning.Knotter;
+            if (c.Train.Dynamics.Speed < t.BoardAbove || c.Train.Dynamics.Consist.CarCount < t.MinCars || !c.None(EnemyKind.Knotter)
+                || c.World.TrainInFort || Knotter.Joints(c.Train, c.Living).Count == 0)
+                return null;
+            return MooseTuning.ByTier(t.TierWeights, c.Tier);
+        }, c =>
+        {
+            var joints = Knotter.Joints(c.Train, c.Living);
+            if (joints.Count == 0)
+                return false;
+            int car = joints[(int)c.Director.NextRange(0, joints.Count - 1e-9)];
+            c.Add(i => Knotter.Into(i, c.Train, car, c.Tuning.Knotter));
+            return true;
+        }),
         // B.4 · The Gannet (note 340; the orchestrator's S3): over a train run fast a while in open country (not a tunnel), a
         // train of two or more; every tier, more the harder; by the line's biome; up per walker on the roofs. Once a run:
         // it peels off and comes back on its own, until it's killed or gives up.

@@ -50,14 +50,36 @@ def dress(m):
     return fn(), subdiv
 
 
-def ridged(p, seed, scale):
-    return 1 - np.abs(cook.noise_np(p, seed, scale))
+def cells(p, scale, seed):
+    """F2 - F1 of a jittered grid's points (tools/blender/stoker.py's `cells`, the same hash): 0 on a block's edge."""
+    q = p.astype(np.float64) * scale
+    b = np.floor(q)
+    f1 = np.full(len(q), 9.0)
+    f2 = np.full(len(q), 9.0)
+    for dx in (-1, 0, 1):
+        for dy in (-1, 0, 1):
+            for dz in (-1, 0, 1):
+                c = b + np.array((dx, dy, dz), np.float64)
+                h = [np.sin(c[:, 0] * 127.1 + c[:, 1] * 311.7 + c[:, 2] * 74.7 + seed * 13.13 + k * 91.3) * 43758.5453 for k in range(3)]
+                fp = c + np.stack([x - np.floor(x) for x in h], axis=1)
+                d = np.linalg.norm(q - fp, axis=1)
+                f2 = np.where(d < f1, f1, np.minimum(f2, d))
+                f1 = np.minimum(f1, d)
+    return (f2 - f1).astype(np.float32)
+
+
+CELL, CELL_SEED = g["CELL"], g["CELL_SEED"]
 
 
 def char(p, n):
-    """Burnt wood's crazing: a fine network of cracks, blisters between them."""
-    crack = smooth01(0.9, 0.97, ridged(p, 1501, 60.0))
-    return -0.0012 * crack + 0.0009 * np.maximum(0, cook.noise_np(p, 1502, 45.0)) ** 2 + fine(p, 0.00015, 500, 1503)
+    """Burnt wood's alligatoring (note 536): the game mesh's blocks (the same cells) cut sharp, their edges a narrow deep
+    crack, each block's top domed and crazed finer still, blistered."""
+    e = cells(p, CELL, CELL_SEED)
+    crack = 1 - smooth01(0.0, 0.07, e)
+    dome = smooth01(0.05, 0.5, e)
+    craze = 1 - smooth01(0.0, 0.05, cells(p, CELL * 3.2, CELL_SEED + 1))
+    return (-0.0028 * crack + 0.0012 * dome - 0.0006 * craze * dome + 0.0005 * np.maximum(0, cook.noise_np(p, 1502, 45.0)) ** 2
+            + fine(p, 0.00015, 500, 1503))
 
 
 def rags(p, n):
@@ -71,10 +93,13 @@ print("[dt] stoker highs", {k: sum(len(h.data.polygons) for h in v) for k, v in 
 
 
 def marks(p, kind):
-    """R: the ash on the char's high points and crazing; G: the rags' scorching."""
+    """R: the ash on the char's blocks; G: the rags' scorching; B: the cracks between the blocks."""
     out = np.zeros((len(p), 3), np.float32)
     if kind.startswith("tar.stoker") and not kind.startswith("tar.stoker_teeth"):
-        out[:, 0] = np.clip(0.5 * smooth01(0.3, 0.8, cook.noise_np(p, 1521, 9.0)) + 0.5 * smooth01(0.9, 0.97, ridged(p, 1501, 60.0)), 0, 1)
+        # Ash grey on the blocks' domed tops where they stand proudest; the cracks between them black.
+        e = cells(p, CELL, CELL_SEED)
+        out[:, 0] = np.clip(0.35 * smooth01(0.3, 0.8, cook.noise_np(p, 1521, 9.0)) + 0.65 * smooth01(0.35, 0.75, e), 0, 1)
+        out[:, 2] = 1 - smooth01(0.0, 0.08, e)
     if kind.startswith("wool.stoker"):
         out[:, 1] = np.clip(smooth01(0.0, 0.7, cook.noise_np(p, 1522, 6.0)), 0, 1)
     return out
@@ -103,6 +128,9 @@ def paint(base, colour, k):
     return base * (1 - k) + np.array(colour, np.float32) * k
 
 
-base = paint(base, (0.075, 0.07, 0.065), mk[..., 0] * 0.5)    # ash on the char
+base = paint(base, (0.11, 0.1, 0.092), mk[..., 0] * 0.75)    # ash on the char's blocks
 base = paint(base, (0.035, 0.022, 0.012), mk[..., 1] * 0.5)   # the rags scorched brown
-atlas.finish(base, kit, arm, made=make.provenance("stoker", "the Stoker, modelled over tools/blender/stoker.py"))
+base = paint(base, (0.004, 0.0035, 0.003), mk[..., 2] * 0.9)  # the cracks black (the lit ones are their own faces)
+# Dry and matte all over (burnt wood has no sheen but on a crack's glassy edge), so the fire's light doesn't slide off it
+# like oilcloth.
+atlas.finish(base, kit, arm, rough=0.93 - 0.2 * mk[..., 2], made=make.provenance("stoker", "the Stoker, modelled over tools/blender/stoker.py"))

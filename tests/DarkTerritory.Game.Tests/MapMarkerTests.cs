@@ -17,7 +17,8 @@ public class MapMarkerTests
     [Fact]
     public void TheRunMapMarksEachStopWhereTheTrainStandsAtIt()
     {
-        var route = Routes.Generate(Content, "frontier:7", 6);
+        // Yards and a halt (frontier:7's first stop is a coaling tower on the 7 km nights of note 554, which has no layout).
+        var route = Routes.Generate(Content, "frontier:1", 6);
         var line = route.Build();
         double length = line.PathLength(RailLine.MainPath);
         var stops = route.Features.Where(f => f.Kind is FeatureKind.Facility or FeatureKind.Village).ToList();

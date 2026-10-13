@@ -14,16 +14,29 @@ namespace DarkTerritory.Sim.LineGen;
 /// <param name="Contracts">Facility types the crew's contracts need (§11.1): each is guaranteed to appear.</param>
 public sealed record RunParameters(RouteTier Tier, ulong Seed, double Severity, int Cars, IReadOnlyList<FacilityKind> Contracts, int Crew = 4)
 {
+    /// <summary>
+    /// The town the night departs from when it's the one the crew arrived at last night (note 591): its name and trade in
+    /// place of the ones drawn, and its seed for its people. The line itself is the spec's either way.
+    /// </summary>
+    public Towns.TownAt? From { get; init; }
+
     /// <summary>§3.1: D = tier index + severity, 0 to just under 4.</summary>
     public double D => (int)Tier + Severity;
 
     public string RouteId => $"{char.ToLowerInvariant(Tier.ToString()[0])}{Tier.ToString()[1..]}-{Seed}";
 
     /// <summary>
-    /// Parses a route spec, "tier:seed" or "tier:seed:severity" (e.g. "frontier:7"). Without a severity, it's the seed's
-    /// own (a route's place in its tier is part of the route, so the same spec is the same line everywhere).
+    /// Parses a route spec, "tier:seed" or "tier:seed:severity" (e.g. "frontier:7"), and after an "@" the town it departs
+    /// from (<see cref="Towns.TownAt.Spec"/>, note 591). Without a severity, it's the seed's own (a route's place in its tier
+    /// is part of the route, so the same spec is the same line everywhere).
     /// </summary>
     public static RunParameters Parse(string spec, int cars, int crew = 4)
+    {
+        var (line, from) = Towns.TownAt.Split(spec);
+        return ParseLine(line, cars, crew) with { From = from };
+    }
+
+    static RunParameters ParseLine(string spec, int cars, int crew)
     {
         var parts = spec.Split(':');
         var tier = Enum.Parse<RouteTier>(parts[0], ignoreCase: true);

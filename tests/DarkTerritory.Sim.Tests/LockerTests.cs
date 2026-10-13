@@ -186,6 +186,67 @@ public class LockerTests
         Assert.False(client.Bodies.All.Single(b => b.Id == lamp.Id).Stowed);
     }
 
+    /// <summary>A button pressed for a tick and let go; the world and its bodies stepped each tick.</summary>
+    static void Press(World world, ref PlayerState s, PlayerIntent intent, int id = 1)
+    {
+        foreach (var i in new[] { intent, default })
+        {
+            world.BeginTick();
+            Kit.Select(ref s, i);
+            world.CrewAct(ref s, i, id);
+            world.Step(new TrainControls { Reverser = 1, Brake = 1 });
+            world.StepBodies([(id, s)]);
+        }
+    }
+
+    [Fact]
+    public void AToolLeftInALockerFreesItsSlotAndAnyoneCanTakeIt()
+    {
+        // Note 649 (the director's `D1.5-loot-slots`: "leave a tool in your locker to carry more loot"): Throw at a locker with a
+        // tool in hand puts it on a shelf, its slot empty; a tap of Use with that slot in hand takes it back, by anyone.
+        var world = Stocked();
+        int car = World.RepairKitCar(world.Train)!.Value;
+        var bay = KitCarShape(world).Lockers.First(b => b.Name == "11");
+        var s = Facing(world, bay) with { Kit = Kit.Of([Tool.Crowbar, Tool.Wrench]), HeldSlot = 1 };
+        Press(world, ref s, new PlayerIntent { Buttons = PlayerButtons.Throw });
+        Assert.Equal(Tool.None, Kit.At(s.Kit, 1));
+        Assert.Equal(Tool.Crowbar, Kit.At(s.Kit, 0));
+        Assert.True(world.Train.Vehicles[car].LockerOpen(bay.Index));
+        var shelf = Assert.Single(Lockers.Contents(world.Bodies, car, bay.Index));
+        Assert.Equal(BodyKind.Tool, shelf.Kind);
+        Assert.Equal(Tool.Wrench, Kit.At(shelf.Tools, 0));
+        Assert.True(bay.Box.Contains(shelf.Centre));
+        // It replicates, as what it is.
+        var client = new World(new TrainOnLine(new TrainDynamics(Consist.Uniform(Tuning.Train, 4, 1)), Line, 1_000));
+        var controls = new TrainControls();
+        WorldRecords.Apply(WorldRecords.Capture(world, controls, []), client, ref controls, []);
+        var mirrored = client.Bodies.All.Single(b => b.Id == shelf.Id);
+        Assert.Equal((BodyKind.Tool, bay.Index, Tool.Wrench), (mirrored.Kind, mirrored.Locker, Kit.At(mirrored.Tools, 0)));
+        // Someone else, with a slot free in hand, taps it out: the wrench in their hand, the shelf empty.
+        var other = Facing(world, bay) with { Kit = Kit.Of([Tool.Crowbar]), HeldSlot = 2 };
+        Use(world, ref other, Tap, id: 2);
+        Assert.Equal(Tool.Wrench, Kit.Held(other));
+        Assert.Empty(Lockers.Contents(world.Bodies, car, bay.Index));
+        Assert.DoesNotContain(world.Bodies.All, b => b.Kind == BodyKind.Tool);
+    }
+
+    [Fact]
+    public void ATapWithAToolInHandStillTakesWhatsInTheLocker()
+    {
+        // Everyone has the crowbar in hand most of the night: a tap at the fitter's locker still fetches the repair kit, into
+        // a free slot, and the crowbar stays with them.
+        var world = Stocked();
+        var kit = world.Bodies.All.Single(b => b.Kind == BodyKind.RepairKit);
+        var bay = KitCarShape(world).Lockers[kit.Locker];
+        var s = Facing(world, bay) with { Kit = Kit.Of([Tool.Crowbar, Tool.Wrench]), HeldSlot = 0 };
+        Use(world, ref s, Tap);
+        Use(world, ref s, Tap);
+        Assert.Same(kit, world.Bodies.CarriedBy(1));
+        Assert.Equal(2, kit.Pocket);
+        Assert.Equal(Tool.Crowbar, Kit.At(s.Kit, 0));
+        Assert.DoesNotContain(world.Bodies.All, b => b.Kind == BodyKind.Tool);
+    }
+
     [Fact]
     public void TheLockersStartStockedAsTheTuningSays()
     {

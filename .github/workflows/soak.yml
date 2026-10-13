@@ -20,6 +20,11 @@ jobs:
         with:
           global-json-file: global.json
       - run: dotnet build src/DarkTerritory.Cli -c Release
+      - name: Two machines, virtually (note 450, queue #276): the app hosting in one network namespace, joining from another
+        run: |
+          sudo apt-get update -qq && sudo apt-get install -y -qq mesa-vulkan-drivers libvulkan1 xvfb iproute2
+          dotnet build src/DarkTerritory.App -c Release
+          tools/net/two-machines.sh 40
       - name: Eight clients, rough link (90 ms ±20, 3 % loss), 30 minutes
         env:
           SECONDS_TO_RUN: ${{ inputs.seconds || '1800' }}

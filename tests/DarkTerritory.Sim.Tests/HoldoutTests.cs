@@ -161,6 +161,78 @@ public class HoldoutTests
         Assert.DoesNotContain(n.World.Holdouts!.Queue, e => e.PlayerId == dead);
     }
 
+    [Theory]
+    [InlineData(270)]
+    [InlineData(-60)]
+    public void ACrewmateBrokenOutWalksRoundTheHoldoutsWallsAndBackAboard(double engineFrom)
+    {
+        // Note 533 (frontier:7 seed 13): a walker freed from the Holdout at km 10, with no stop's part to go back aboard by,
+        // took the walker's own way to the nearest ladder, a straight line, and ran into the Holdout's wall for two minutes.
+        // The driver went on, and the Ribbits had it on the line.
+        var n = new Night(AHalt, engineFrom);
+        int living = n.Add(alive: true), dead = n.Add(alive: false);
+        n.Step(0.2);
+        var h = Assert.Single(n.Here);
+        n.Stand(living, h.Door);
+        n.Hold(living, PlayerButtons.Use);
+        n.Step(h.Breach(H).Seconds + 0.2);
+        Assert.Equal(HoldoutState.Freed, h.State);
+
+        var calls = new Bots.CrewCalls();
+        var bot = new Bots.RoofWalkerBot(21, P.Cold, new Bots.StopHand(Bots.StopJob.Crates, calls, 1, P.Cold)) { Me = dead };
+        var s = n[dead];
+        var from = s.Position;
+        double bound = 30 + ((h.Door - n.Train.Frames[1].Origin) with { Y = 0 }).Length / P.Walk * 1.5;
+        for (uint tick = 0; tick < bound * SimConstants.TickRate && s.Parent == PlayerState.World; tick++)
+        {
+            n.World.BeginTick();
+            var intent = bot.Decide(s, n.World, tick, out _);
+            n.World.CrewAct(ref s, intent, dead);
+            n.World.Step(new TrainControls { Brake = 1 });
+            PlayerMotor.Step(ref s, intent, n.Train, P, Tuning.Train, SimConstants.TickSeconds, applyLook: false);
+            Assert.True(s.Alive, $"died of {s.Death}");
+        }
+        Assert.True(s.Parent != PlayerState.World,
+            $"still on the ground after {bound:0} s, {(s.Position - from).Length:0.0} m from the Holdout's inside; doing {bot.Job!.Doing}");
+    }
+
+    /// <summary>
+    /// Note 620 (deadLines:7 seed 4): within 10 m of a Holdout's door, a hand going to breach it took the track-side walk,
+    /// which keeps to the track's own across and along. With the door on the far side of the house it walked into the wall
+    /// and stood there, 6.7 m short, while the driver stood its give-up out and the crewmate in it was left. A door well off
+    /// the track is gone to by the foot path, round the walls, from however near.
+    /// </summary>
+    [Fact]
+    public void FromBehindTheHoldoutAHandGoesRoundToItsDoorAndBreachesIt()
+    {
+        var n = new Night(AHalt, 270);
+        int living = n.Add(alive: true), dead = n.Add(alive: false);
+        n.Step(0.2);
+        var h = Assert.Single(n.Here);
+        Assert.True(h.Lit);
+        // Behind the house from its door, on the ground, nearer than the foot path's 10 m.
+        var into = (h.Inside - h.Door) with { Y = 0 };
+        double depth = into.Length;
+        var behind = h.Door + into.Normalized * (depth * 2 + 1.5);
+        Assert.InRange(((behind - h.Door) with { Y = 0 }).Length, 2, 10);
+        n.Stand(living, behind);
+        var hand = new Bots.StopHand(Bots.StopJob.Crates, new Bots.CrewCalls(), living, P.Cold);
+        var s = n[living];
+        double closest = double.MaxValue;
+        for (uint tick = 0; tick < 60 * SimConstants.TickRate && h.State != HoldoutState.Freed; tick++)
+        {
+            var intent = hand.Breach(s, n.World, h) ?? default;
+            n.Intents = new PlayerIntent[n.Crew.Count];
+            n.Intents[living] = intent;
+            PlayerMotor.Step(ref s, intent, n.Train, P, Tuning.Train, SimConstants.TickSeconds, applyLook: false);
+            n[living] = s;
+            n.Step(SimConstants.TickSeconds);
+            s = n[living];
+            closest = Math.Min(closest, ((s.Position - h.Door) with { Y = 0 }).Length);
+        }
+        Assert.True(h.State == HoldoutState.Freed, $"{h.State} after 60 s; the hand came within {closest:0.0} m of the door");
+    }
+
     [Fact]
     public void ABreachThatStopsStartsOver()
     {
@@ -651,7 +723,7 @@ public class HoldoutTests
             var report = Deliver(n);
             Assert.Equal(deaths, report.Deaths);
             Assert.Equal(recovered, report.BodiesHome);
-            double fee = H.CrewLossFee * Tuning.Run.Economy.PerCar["frontier"];
+            double fee = H.CrewLossFee * Tuning.Run.Economy.FeeFor("frontier");
             Assert.Equal(Math.Round(deaths * fee), report.CrewLossFees);
             Assert.Equal(Math.Round(recovered * H.BodyRefund * fee), report.BodyRefunds);
             clean ??= report.Net;
@@ -829,11 +901,12 @@ public class HoldoutTests
     [Fact]
     public void ALoneDriverGoesRoundTheTreesToALockupFarOffTheLineAndBackToTheCab()
     {
-        // Note 406 (queue #142): a Holdout's door can be most of Heed.HoldoutRange off the line, behind the lineside spruce
-        // (note 371). The driver went at it by the track-side walk, which keeps to the line's own along and across: into the
-        // trees, along them the wrong way, and out there till the dawn with the train on its brake (frontier:7, seed 2, a
-        // facility's lockup 160 m off). By the foot path, round the trees, and back by it to the cab.
-        var n = new BotNight(bots: 1, f => f.Kind == FeatureKind.Facility && Math.Abs(f.Stop!.Holdouts[0].Door.D) > 100);
+        // Note 406 (queue #142): a Holdout's door off the line, behind the lineside spruce (note 371). The driver went at it by
+        // the track-side walk, which keeps to the line's own along and across: into the trees, along them the wrong way, and
+        // out there till the dawn with the train on its brake (frontier:7, seed 2, a facility's lockup 160 m off). By the
+        // foot path, round the trees, and back by it to the cab. Note 650: a facility's Holdout now stands beside its yard
+        // track, so the furthest off the main line is that track's way off it (60 m and more).
+        var n = new BotNight(bots: 1, f => f.Kind == FeatureKind.Facility && Math.Abs(f.Stop!.Holdouts[0].Door.D) > 60);
         n.KillThePlayer();
         var driver = (Bots.ConductorBot)n.Crew[0].Bot;
         byte driverId = n.Crew[0].Session.PlayerId!.Value;
@@ -844,7 +917,7 @@ public class HoldoutTests
                 outAt = n.Host.Train.Dynamics.Distance;
         });
         Assert.False(double.IsNaN(outAt), "the driver got down");
-        Assert.True(Math.Abs(n.Lockup.Site.Stop!.Holdouts[0].Door.D) > 100);
+        Assert.True(Math.Abs(n.Lockup.Site.Stop!.Holdouts[0].Door.D) > 60);
         var freed = Assert.Single(n.Host.HoldoutEvents, e => e.Kind == HoldoutEventKind.Freed);
         Assert.Equal(driverId, freed.By);
         n.Run(400, until: () => n.Host.Train.Dynamics.Distance > outAt + 50);

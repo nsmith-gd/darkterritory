@@ -98,8 +98,11 @@ public class FiremanTests
         // In the cab where it comes down (App. A.4): the middle of it, where the driver was standing.
         var climber = cab.World.AddEnemy(id => new Climber(id));
         climber.Restore(SpinePhase.Commit, 0, Tuning.Enemies.Climbers.Health, 0, cabBox.Centre, 0, 0, 0, -1, 1);
-        cab.Run(20);
-        Assert.True(climber.Inside);
+        cab.Run(1);
+        Assert.True(climber.Inside && climber.Attached == 0);
+        // Outnumbered in there, it drops back off the train after a while (note 288); with every car lit and shut there's
+        // nowhere else aboard it gets into (note 633). Either way, the two keep out of its reach.
+        cab.Run(19);
         Assert.True(cab.DriverState.Alive && cab.FiremanState.Alive);
         Assert.Equal(P.Health, cab.DriverState.Health);
         // Still in the cab, both of them (an empty cab's the Track Doll's), and out of its reach.

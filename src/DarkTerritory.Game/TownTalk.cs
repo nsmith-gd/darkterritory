@@ -17,11 +17,13 @@ public sealed record TownCard(TownCardKind Kind, string Heading, string Text, st
 /// </summary>
 public sealed class TownTalk
 {
-    /// <summary>How many times each person has been talked to (by id): the next line is theirs to say, round again.</summary>
-    readonly Dictionary<int, int> _heard = [];
+    /// <summary>How many times each person has been talked to (by town and id): the next line is theirs to say, round again.</summary>
+    readonly Dictionary<(string Town, int Id), int> _heard = [];
 
     /// <summary>What's being read or listened to; null for nothing.</summary>
     public TownTarget? Open { get; private set; }
+    /// <summary>The town it's in (the departure's, or the terminus's once the night's delivered, note 603); null for nothing open.</summary>
+    public Town? In { get; private set; }
     /// <summary>The line being said (a person), or the notice being read (the board).</summary>
     public int Page { get; private set; }
     /// <summary>When the card opened or turned (seconds), for a line typing out.</summary>
@@ -31,8 +33,10 @@ public sealed class TownTalk
     /// The prompt for a thing in the town in front of you: what it is, and the action and its key, never what the action
     /// will do (GDD §32, the director's decisions of 7 Oct on #206: <c>ACTION : [KEY]</c>).
     /// </summary>
-    public static string Prompt(Town town, TownTarget t) => t.Kind switch
+    /// <param name="wine">Nicki has a glass for you in reach (note 571): her prompt says the hold that takes it.</param>
+    public static string Prompt(Town town, TownTarget t, bool wine = false) => t.Kind switch
     {
+        TownTargetKind.Person when wine && town.Plan.People[t.Index].Hosting => $"{town.Plan.People[t.Index].Name.ToUpperInvariant()}   TALK : [E]   A GLASS : HOLD [E]",
         TownTargetKind.Person => $"{town.Plan.People[t.Index].Name.ToUpperInvariant()}   TALK : [E]",
         TownTargetKind.Board => $"THE BOARD ({town.Notices.Count} {(town.Notices.Count == 1 ? "NOTICE" : "NOTICES")})   READ : [E]",
         TownTargetKind.Paper => $"{town.Plan.Papers[t.Index].Title.ToUpperInvariant()}   READ : [E]",
@@ -54,12 +58,16 @@ public sealed class TownTalk
             return false;
         }
         Since = now;
+        // A card open in the other town is closed by a press in this one (note 603: the same thing's index in each).
+        if (In != town)
+            Open = null;
+        In = town;
         if (Open == t)
         {
             switch (t.Kind)
             {
                 case TownTargetKind.Person:
-                    Page = Next(town.Plan.People[t.Index]);
+                    Page = Next(town, town.Plan.People[t.Index]);
                     return true;
                 case TownTargetKind.Board when Page + 1 < town.Notices.Count:
                     Page++;
@@ -70,17 +78,17 @@ public sealed class TownTalk
             }
         }
         Open = t;
-        Page = t.Kind == TownTargetKind.Person ? Next(town.Plan.People[t.Index]) : 0;
+        Page = t.Kind == TownTargetKind.Person ? Next(town, town.Plan.People[t.Index]) : 0;
         return true;
     }
 
     /// <summary>A house by its family: theirs, or for one nobody lives in now, the old one.</summary>
     public static string HouseName(TownHouse h) => h.Kind is HouseKind.Lived or HouseKind.Open ? $"the {h.Family} house" : $"the old {h.Family} house";
 
-    int Next(Townsperson p)
+    int Next(Town town, Townsperson p)
     {
-        int heard = _heard.GetValueOrDefault(p.Id);
-        _heard[p.Id] = heard + 1;
+        int heard = _heard.GetValueOrDefault((town.Plan.Name, p.Id));
+        _heard[(town.Plan.Name, p.Id)] = heard + 1;
         return p.Lines.Count == 0 ? 0 : heard % p.Lines.Count;
     }
 

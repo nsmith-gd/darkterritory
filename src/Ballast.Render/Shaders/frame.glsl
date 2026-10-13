@@ -29,6 +29,8 @@ layout(set = 0, binding = 0) uniform Frame {
     mat4 handViewProj[6]; // its cube's faces (+X, -X, +Y, -Y, +Z, -Z), one layer each of handShadow
     vec4 indoor;       // rgb = the fill inside a room, in the moon's place (FrameLighting.IndoorFill)
     vec4 probe;        // x < 0: the sky painted magenta where it shows steeper below the horizon than this; y = 1: untextured surfaces cyan (dt holes, note 433)
+    vec4 stir;         // xyz towards the Wakers' stir on the horizon (flat), w = how strong (note 599)
+    vec4 stirColour;   // rgb its colour
 } frame;
 
 // This invocation's eye's view (the only one, drawing a single view).

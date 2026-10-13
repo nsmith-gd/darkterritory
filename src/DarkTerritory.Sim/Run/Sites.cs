@@ -159,6 +159,10 @@ public sealed record CraneTuning
     public double RigSeconds { get; init; } = 2;
     public double DropAbove { get; init; } = 0.6;
     public double CrushRadius { get; init; } = 1.4;
+    /// <summary>Note 581: a casting this low over an open hatch's roof (m, its base) that overlaps it is eased over the opening ...</summary>
+    public double GuideAbove { get; init; }
+    /// <summary>... at this speed (m/s); 0: never.</summary>
+    public double GuideSpeed { get; init; }
 }
 
 /// <summary>Who works a facility stop (note 261; spec D.2's "Crew" column). Field docs in facilities.json.</summary>
@@ -418,6 +422,12 @@ public readonly record struct SiteState(bool Stocked, double Progress, int Sleds
     public double Ore { get; init; }
     public double Wind { get; init; }
     public bool Winding { get; init; }
+    /// <summary>
+    /// Whether someone's on the lift's lever (note 638): the bot driver's signal to vent for it, on a client as on the host.
+    /// Unsent, a client's driver never saw it held, never vented, and the skip never wound: no mine head loaded a car-load
+    /// on a bot night (deadLines:3, 16 nights).
+    /// </summary>
+    public bool LeverHeld { get; init; }
     /// <summary>
     /// The conveyor line's (note 400): the grain left in the elevator for it, whether its drive's running and whether it's
     /// carrying grain into a car, where along its low run it's jammed (0..1 from the tail; −1 not), how long it's been jammed,
@@ -843,7 +853,8 @@ public sealed class Site
 
     /// <summary>
     /// The yard's power (level-design D.2): live, low (the cranes at half speed) or dead (not at all) until someone's
-    /// restarted it at the powerhouse door, <see cref="Powerhouse"/>; <see cref="Restart"/> is the seconds held so far.
+    /// restarted it at the powerhouse door, or an open powerhouse's switchboard inside (note 509), <see cref="Powerhouse"/>;
+    /// <see cref="Restart"/> is the seconds held so far.
     /// </summary>
     public Stops.PowerState Power { get; internal set; }
     public Double3? Powerhouse { get; internal set; }
@@ -864,6 +875,7 @@ public sealed class Site
         Ore = Ore,
         Wind = Wind,
         Winding = Winding,
+        LeverHeld = LeverHeld,
         Grain = Grain,
         Running = Running,
         Carrying = Carrying,
@@ -902,6 +914,7 @@ public sealed class Site
         Ore = s.Ore;
         Wind = s.Wind;
         Winding = s.Winding;
+        LeverHeld = s.LeverHeld;
         Grain = s.Grain;
         Running = s.Running;
         Carrying = s.Carrying;

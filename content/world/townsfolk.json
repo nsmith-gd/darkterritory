@@ -226,5 +226,43 @@
         "Do you ever get used to it out there? I'd get used to it. I know I would."
       ]
     }
+  },
+
+  // NICKI'S PARTY (the director, 8 Oct 2026: "an NPC you can find some times in one of the houses. Her name is Nicki and
+  // she's the only house late at night that is partying. She offers you wine and says kind things about people needing to
+  // enjoy life more even if its the end of the world"; GDD §3.2, note 571). Some towns (tuning/towns.json "nicki"), one open
+  // house is lit up with a party: Nicki (just Nicki) at the door with a glass for you, her guests dancing. She's warm and
+  // glad and a little defiant: the dark isn't a reason to stop living. Never the town's custom: she keeps it, she just
+  // doesn't let it keep her. "offer" is what she says first; "host" the rest; "guests" her guests'.
+  "party": {
+    "name": "Nicki",
+    "title": "having a few people over",
+    "guestTitle": "at Nicki's",
+    "offer": [
+      "Come in, come in! You look frozen. Here, there's wine. Real wine, from before. I was saving it for nobody, so it's yours.",
+      "Glass of red? The last of the old inn's cellar. No sense keeping it for a better night. This is the better night.",
+      "There you are! Take a glass. No, take it. You've the face of somebody who needs one."
+    ],
+    "host": [
+      "Everyone says wait till it's over. Wait for what? I'm not waiting to be happy. I've waited long enough to be scared.",
+      "The end of the world's no reason to stop living in it. If anything, it's the reason to start.",
+      "Dance with somebody tonight. Out there, in here, I don't mind. Just once. It does you good.",
+      "They think I'm mad, the rest of the street. Maybe. But I'm the only one they can hear laughing.",
+      "We light every lamp in the house. Let something out there see people having a nice time, for once.",
+      "Sit a minute. The train'll still be there. Life's short, love, and it's shorter out there. Enjoy a bit of it.",
+      "Bring your crew next time. All of them. There's always room, and there's always another bottle somewhere."
+    ],
+    "guests": [
+      "First time at Nicki's? You'll be back. Everyone comes back.",
+      "I hadn't danced since the fall. Nicki dragged me out of my chair. I'd forgotten my feet could do this.",
+      "Don't tell the warden. ... Oh, he's here somewhere. Under the table, last I saw.",
+      "She says if we're going to be frightened, we might as well be frightened together, in good company.",
+      "My husband would have loved this. I'm dancing for the both of us.",
+      "When did you last hear a whole house laughing? Go on. Stand still and listen.",
+      "Another glass and I'll tell you about my wedding, before all this. It was a lovely wedding.",
+      "Out there's for the dark. In here's for us. Nicki's rule."
+    ],
+    "wine": { "kind": "wine", "name": "the wine",
+      "text": "A bottle of red from a vineyard that isn't there any more, half gone, and a row of odd glasses poured and waiting. One has a lipstick mark and a note: YOURS." }
   }
 }

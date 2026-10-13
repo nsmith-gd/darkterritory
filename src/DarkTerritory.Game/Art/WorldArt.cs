@@ -523,14 +523,24 @@ public sealed partial class WorldArt(Look look)
     /// from its gate, the town's square and walled extent), for the lineside the sim deals (note 371): nothing of it stands inside.
     /// </summary>
     IReadOnlyList<Sim.Run.Fort> Forts(RailLine line) => Walls is { } w
-        ? [new Sim.Run.Fort(0, w.YardEnd, w.YardEnd, true, true, TownSquare, TownBounds), new Sim.Run.Fort(w.HomeGate, line.Length, w.HomeGate, false, true)]
+        ? [new Sim.Run.Fort(0, w.YardEnd, w.YardEnd, true, true, TownSquare, TownBounds), Terminus(w.HomeGate, line.Length)]
         : [];
+
+    /// <summary>The terminus's town (note 600), standing turned round in its own frame: nothing wild grows inside it either.</summary>
+    public Sim.Towns.Town? Arrival { get; set; }
+
+    /// <summary>The terminus's fortress as the sim stands it: its town's, turned round, if it's one (note 600).</summary>
+    Sim.Run.Fort Terminus(double gate, double end) => Arrival is { Turn: { } turn } a
+        ? new Sim.Run.Fort(gate, end, gate, false, true, a.Plan.Square.Turned(turn), a.Plan.Bounds, turn)
+        : new Sim.Run.Fort(gate, end, gate, false, true);
 
     /// <summary>Inside a fortress's walls (<see cref="Walls"/>, which stand 14.8 m out, or a walled town's), with a little room.</summary>
     bool InsideWalls(double along, double offset) =>
         Walls is { } w && Math.Abs(offset) < 16.5 && (along < w.YardEnd + 2 || along > w.HomeGate - 2)
         || TownSquare is { } sq && Math.Sign(offset) == sq.Side && Math.Abs(offset) < Math.Abs(sq.WallD) + 2 && along > sq.S0 - 2 && along < sq.S1 + 2
-        || TownBounds is { } town && town.Holds(along, offset, 3);
+        || TownBounds is { } town && town.Holds(along, offset, 3)
+        || Arrival is { Turn: { } turn } a && (a.Plan.Bounds?.Holds(turn - along, -offset, 3) == true
+            || a.Plan.Square.Turned(turn) is var asq && Math.Sign(offset) == asq.Side && Math.Abs(offset) < Math.Abs(asq.WallD) + 2 && along > asq.S0 - 2 && along < asq.S1 + 2);
 
     public void Lineside(MeshBuilder mesh, RailLine line, Route? route, Double3 eye, double from, double to, int seed, float valleyDepth)
     {

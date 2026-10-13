@@ -30,6 +30,10 @@ make.USED.clear()
 make._mats.clear()
 make.LOW.clear()
 
+# Where tools/blender/passenger.py puts the eyes and the mouth (its HC, HR, EYE_U, EYE_W, MOUTH_W at rest).
+HC = np.array(tuple(g["HC"]), np.float32)
+HR = np.array(tuple(g["HR"]), np.float32)
+
 DRESS = {
     "wool.passenger_coat": (lambda: make.flat("passenger_coat", (0.03, 0.032, 0.04), rough=0.95), 2),
     "wool.passenger_cap": (lambda: make.flat("passenger_cap", (0.022, 0.023, 0.028), rough=0.9), 2),
@@ -63,8 +67,12 @@ def wool(p, n):
 
 
 def skin(p, n):
-    # Dry, fine-wrinkled, the pores.
-    return 0.00025 * smooth01(0.88, 0.97, ridged(p, 1803, 160.0)) + fine(p, 0.00005, 2000, 1804)
+    """Dry, the pores; and drawn tight (note 538): creased across the forehead, cracked fine all over like old paper."""
+    u, w = (p[:, 0] - HC[0]) / HR[0], (p[:, 2] - HC[2]) / HR[2]
+    front = smooth01(HC[1] + 0.02, HC[1] + 0.07, p[:, 1])
+    brow = front * smooth01(0.3, 0.45, w) * smooth01(0.95, 0.75, w) * (0.5 + 0.5 * np.cos(w * 70.0 + 0.3 * np.sin(u * 6.0))) ** 4
+    return (0.00045 * smooth01(0.88, 0.97, ridged(p, 1803, 160.0)) - 0.0007 * brow + fine(p, 0.00006, 2000, 1804)
+            - 0.0003 * smooth01(0.93, 0.98, ridged(p, 1808, 90.0)))
 
 
 SHAPE = {"wool.passenger": wool, "leather.passenger_peak": lambda p, n: -0.0004 * smooth01(0.92, 0.98, ridged(p, 1805, 60.0)),
@@ -89,9 +97,6 @@ def marks(p, kind):
     return out
 
 
-# Where tools/blender/passenger.py puts the eyes and the mouth (its HC, HR, EYE_U, EYE_W, MOUTH_W at rest).
-HC = np.array([0.0, 0.018, 1.669], np.float32)
-HR = np.array([0.077, 0.095, 0.11], np.float32)
 
 
 def face(p, kind):
@@ -100,7 +105,7 @@ def face(p, kind):
     if kind.startswith("flesh.passenger") and not kind.startswith("flesh.passenger_eye"):
         u, w = (p[:, 0] - HC[0]) / HR[0], (p[:, 2] - HC[2]) / HR[2]
         front = p[:, 1] > HC[1] + 0.03
-        for eu in (-0.43, 0.43):
+        for eu in (-g["EYE_U"], g["EYE_U"]):
             d = np.hypot((u - eu) / 0.3, (w - 0.1) / 0.24)
             out[:, 0] = np.maximum(out[:, 0], smooth01(1.0, 0.35, d) * front)
         d = np.hypot(u / 0.42, (w + 0.52) / 0.14)

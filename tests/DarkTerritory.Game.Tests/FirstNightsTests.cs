@@ -90,6 +90,14 @@ public sealed class FirstNightsTests : IDisposable
     }
 
     [Fact]
+    public void TheCardSaysHowToCloseItAndNoControlCanTakeThatKey()
+    {
+        // The director, 9 Oct (note 527): "we need a way to close the 'first time controls' overlay".
+        Assert.Contains(Onboarding.Card(new Settings()), r => r.Contains($"HIDE THIS CARD : [{Onboarding.HideKey}]", StringComparison.Ordinal));
+        Assert.Contains(Onboarding.HideKey, Controls.Reserved);
+    }
+
+    [Fact]
     public void TheProfileCountsTheNightsSeenToTheirEnd()
     {
         var profile = new PlayerProfile(Path.Combine(_dir, "profile.json"));

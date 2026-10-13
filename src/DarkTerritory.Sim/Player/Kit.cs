@@ -9,11 +9,14 @@ public enum Tool : byte { None, Crowbar, Shovel, Wrench }
 /// <summary>
 /// A player's hotbar: <see cref="Slots"/> slots packed a byte each into <see cref="PlayerState.Kit"/>, and the one in hand
 /// (<see cref="PlayerState.HeldSlot"/>). Packed so it replicates as two numbers and compares by value: a predicting client
-/// selects from the same intent the host does.
+/// selects from the same intent the host does. Note 594 (the director, the inbox, 12 Oct: "Lethal Company's four shared
+/// slots"): a slot holds a tool or a hand-sized thing (a find, a toy, a lamp: <see cref="PlayerState.Pockets"/> marks which
+/// hold a thing, the thing itself a body with its <see cref="Physics.Body.Pocket"/>), so the tools carried are slots a find
+/// can't have. Four: the number keys and the wire are built round it, so it's the game's shape, not a tuning number.
 /// </summary>
 public static class Kit
 {
-    public const int Slots = 8;
+    public const int Slots = 4;
 
     public static Tool At(ulong kit, int slot) => slot is >= 0 and < Slots ? (Tool)((kit >> (slot * 8)) & 0xFF) : Tool.None;
 
@@ -31,11 +34,11 @@ public static class Kit
         return kit;
     }
 
-    /// <summary>Into the first empty slot; false if the bar's full.</summary>
-    public static bool TryAdd(ref ulong kit, Tool tool)
+    /// <summary>Into the first empty slot (no tool, and no thing in it: <paramref name="pockets"/>); false if the bar's full.</summary>
+    public static bool TryAdd(ref ulong kit, Tool tool, byte pockets = 0)
     {
         for (int i = 0; i < Slots; i++)
-            if (At(kit, i) == Tool.None)
+            if (At(kit, i) == Tool.None && (pockets & (1 << i)) == 0)
             {
                 kit = With(kit, i, tool);
                 return true;
@@ -57,7 +60,8 @@ public static class Kit
     /// </summary>
     public static byte ToolToHand(in PlayerState s)
     {
-        if (Held(s) != Tool.None)
+        // A thing in the slot in hand (note 594) is hands full, as anything carried is.
+        if (Held(s) != Tool.None || (s.Pockets & (1 << s.HeldSlot)) != 0)
             return 0;
         for (int i = 0; i < Slots; i++)
             if (At(s.Kit, i) != Tool.None)
@@ -67,6 +71,20 @@ public static class Kit
 
     /// <summary>What's in hand.</summary>
     public static Tool Held(in PlayerState s) => At(s.Kit, s.HeldSlot);
+
+    /// <summary>Note 594: a slot with neither a tool nor a thing in it.</summary>
+    public static bool Empty(in PlayerState s, int slot) => At(s.Kit, slot) == Tool.None && (s.Pockets & (1 << slot)) == 0;
+
+    /// <summary>Note 594: where a thing picked up goes: the slot in hand if it's empty, else the first empty one; −1 if all are full.</summary>
+    public static int SlotFor(in PlayerState s)
+    {
+        if (s.HeldSlot < Slots && Empty(s, s.HeldSlot))
+            return s.HeldSlot;
+        for (int i = 0; i < Slots; i++)
+            if (Empty(s, i))
+                return i;
+        return -1;
+    }
 
     /// <summary>
     /// This tick's choice of slot: a number key picks that slot (empty or not, so you can put your hands free), the wheel
@@ -82,7 +100,7 @@ public static class Kit
         for (int i = 1; i <= Slots; i++)
         {
             int slot = ((s.HeldSlot + step * i) % Slots + Slots) % Slots;
-            if (At(s.Kit, slot) != Tool.None)
+            if (!Empty(s, slot))
             {
                 s.HeldSlot = (byte)slot;
                 return;
