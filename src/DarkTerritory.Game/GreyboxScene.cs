@@ -4325,6 +4325,14 @@ public sealed partial class GreyboxScene
         // A wound brake's shoes and a seized axle's dragged wheel (notes 364, 367).
         TrainCar(mesh, frame, vehicle, eye);
         bool utility = Utility?.Invoke(frame.Index) == true || vehicle is { Kind: VehicleKind.Utility };
+        // The BBQ deck's grill lit (note 688): smoke off its chimney, and its glow on the deck and whoever's round it.
+        if (Look is not null && frame.Shape.Bbq is not null && vehicle is { Grill: > 0 })
+        {
+            var chimney = Art.TrainKit.GrillChimney(frame.Shape);
+            Look.Art.Effects.StoveSmoke(mesh, o + right * chimney.X + up * chimney.Y + back * chimney.Z, up, back, (float)_speed, Time, frame.Index + 97);
+            var glow = chimney - new Vector3(0.24f, 0.45f, 0.1f);
+            mesh.PointLights.Add(new PointLight(o + right * glow.X + up * glow.Y + back * glow.Z, Palette.FurnaceOrange * 1.6f, 5));
+        }
         // A lived-in car's stove smoking through its pipe: a utility car's, and the guard van's (TrainKit).
         if (Look is not null && frame.Shape.Interior is { } inside && frame.Shape.Cab is null && (utility || frame.Shape.Gun is not null))
         {

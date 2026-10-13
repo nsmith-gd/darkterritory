@@ -1899,6 +1899,14 @@ static object Screenshot(TrainTuning t, string content, string[] args)
                 own == "none" ? Tool.None : Enum.Parse<Tool>(own, true))
             : null,
     };
+    // --bbq (note 688; with --upgrades bbqDeck): the party at the front, the grill lit, a beer and a sausage going.
+    if (args.Contains("--bbq") && Staging.BbqParty(train, content) is var (party, partyBodies))
+    {
+        train.Vehicles[0].Grill = 120;
+        scene.Vehicles = train.Vehicles;
+        scene.Crew = party;
+        scene.Bodies = partyBodies;
+    }
     if (cameBack is { } risen)
         scene.Crew = [.. scene.Crew ?? [], risen];
     // Note 301's callouts, every break the crew can mend: --breached i[,j,...] those cars' end walls eaten through (dents are

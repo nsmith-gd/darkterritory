@@ -584,6 +584,38 @@ public static partial class Staging
     /// A driver at the engine's controls (note 445; dt screenshot --driver [--whistle] [--reverser s], views fireman, cab):
     /// stood between the regulator and the brake, facing forward, hands on them, or up on the whistle cord.
     /// </summary>
+    /// <summary>
+    /// The BBQ deck's party (note 688; `dt screenshot --upgrades bbqDeck --bbq`, the director: "a tiny party at the front ...
+    /// the BBQ Dads at the end of the world"): two of the crew sat back in the chairs, one with a beer; one at the grill with
+    /// a sausage off it; one by the cooler with a beer, turned to the others. Empty when the train has no deck.
+    /// </summary>
+    public static (List<Crewmate> Crew, IReadOnlyList<Sim.Physics.Body> Bodies) BbqParty(TrainOnLine train, string content)
+    {
+        var engine = train.Frames[0];
+        var bodies = new Sim.Physics.Bodies();
+        if (engine.Shape.Bbq is not { } deck)
+            return ([], bodies.All);
+        Crewmate At(byte id, Double3 local, double yaw, Art.CrewPose act, Sim.Physics.BodyKind? holding = null, Double3? hold = null)
+        {
+            var feet = engine.ToWorld(local);
+            if (holding is { } kind)
+            {
+                var b = bodies.SpawnCrate(train, 0, local + (hold ?? new Double3(0, 1.1, -0.35)), kind);
+                b.Carrier = id;
+            }
+            return new Crewmate(id, feet, engine.Heading + yaw, true, Act: act, Car: 0, Local: local);
+        }
+        double lift = Art.CrewActs.ChairPan - Art.CrewActs.GunnerPan;
+        var crew = new List<Crewmate>
+        {
+            At(40, deck.Chairs[0] + new Double3(0, lift, 0), 0, Art.CrewPose.Gunner),
+            At(41, deck.Chairs[1] + new Double3(0, lift, 0), 0, Art.CrewPose.Gunner, Sim.Physics.BodyKind.Beer, new Double3(0.42, 0.68 - lift, -0.25)),
+            At(42, deck.Grill + new Double3(0, 0, 0.6), 0, Art.CrewPose.Carry, Sim.Physics.BodyKind.Sausage, new Double3(0, 1.1, -0.3)),
+            At(43, deck.Cooler + new Double3(0.9, 0, 0.9), Math.PI * 0.75, Art.CrewPose.Carry, Sim.Physics.BodyKind.Beer, new Double3(-0.25, 1.15, -0.25)),
+        };
+        return (crew, bodies.All);
+    }
+
     public static Crewmate Driver(TrainOnLine train, bool whistling)
     {
         var cab = train.Frames[0];

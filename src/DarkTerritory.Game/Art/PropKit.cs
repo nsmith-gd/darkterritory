@@ -55,6 +55,34 @@ public static class PropKit
     /// A village find (level-design P12): a small bundle tied up in sacking, the size of its body (loot.json radius),
     /// with a strap to carry it by; what's in it the HUD says.
     /// </summary>
+    /// <summary>
+    /// A beer from the BBQ deck's cooler (note 688): a can, red with a white band, its top bright. Larger than life, a little,
+    /// to read in a hand at night.
+    /// </summary>
+    public static MeshAsset Beer(Look? look)
+    {
+        var k = new Kit(look, 1688);
+        k.Use("bbq_plastic", new Vector3(0.75f, 0.1f, 0.08f), 0.2f, 0.5f);
+        k.Cylinder(new Vector3(0, -0.08f, 0), new Vector3(0, 0.08f, 0), 0.042f, 10);
+        k.Use("bbq_plastic", new Vector3(0.92f, 0.9f, 0.86f), 0.2f, 0.3f);
+        k.Cylinder(new Vector3(0, -0.015f, 0), new Vector3(0, 0.02f, 0), 0.0425f, 10, caps: false);
+        k.Use("rust_heavy", new Vector3(0.75f, 0.75f, 0.78f), 0.3f, 0.9f);
+        k.Cylinder(new Vector3(0, 0.08f, 0), new Vector3(0, 0.09f, 0), 0.036f, 10);
+        return k.Build("prop-beer");
+    }
+
+    /// <summary>A sausage off the BBQ deck's grill (note 688), in its bun.</summary>
+    public static MeshAsset Sausage(Look? look)
+    {
+        var k = new Kit(look, 1689);
+        k.Use("sac", new Vector3(0.78f, 0.58f, 0.32f), 0.9f, 0, tile: 1);
+        k.Box(new Vector3(-0.09f, -0.03f, -0.035f), new Vector3(0.09f, 0.015f, -0.005f));
+        k.Box(new Vector3(-0.09f, -0.03f, 0.005f), new Vector3(0.09f, 0.015f, 0.035f));
+        k.Use("leather", new Vector3(0.45f, 0.18f, 0.1f), 0.6f, 0, tile: 1);
+        k.Cylinder(new Vector3(-0.11f, 0.0f, 0), new Vector3(0.11f, 0.0f, 0), 0.022f, 8);
+        return k.Build("prop-sausage");
+    }
+
     public static MeshAsset Loot(Look? look, float radius)
     {
         var k = new Kit(look, 1130);

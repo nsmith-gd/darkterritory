@@ -184,7 +184,7 @@ turning loot into scrip in the town itself, not the menu"). Note 687 has how it'
 - **Who.** Every fortress town has one: the town's blacksmith, who does the trains. A forge by the line a little in from
   the gate, where the train stands in the yard: an anvil, a quench barrel, the forge's glow, and a painted board over it,
   **BLACKSMITH · TRAIN UPGRADES**, lit so it reads from the cab. Their name over the door like everyone's ("Agnes Anvil").
-- **How.** Look at them: "THE BLACKSMITH   TALK : [E]   UPGRADES : HOLD [E]". Talk and they say what they'd fit next;
+- **How.** Look at them: "ARCHIE MACNEIL, BLACKSMITH   TALK : [E]   UPGRADES : HOLD [E]". Talk and they say what they'd fit next;
   hold and the catalogue opens, shelved as the menu was (TOOLS, WHIMSY, FUN, SILLY), the crew's scrip at the top. Anyone
   in the crew can buy: one wallet (§11). What's bought is fitted before the gate, and the clerk reads it at the next tally.
 - **When.** In the yard, where the town's a safe space (§9). Past the gate the forge is shut.
@@ -200,8 +200,10 @@ railed, ahead of the smokebox. On the deck:
 | **A plastic cooler of beers** | Use: take a beer; Use with it in hand: drink it | A beer warms you a little (the cold's onset held off a while) and the crew cheers. A two-four a night (24) | The cans. A dropped empty rattles about like a noisy toy |
 | **A BBQ on a stand** | Use: light it, or turn it off; hold Use at a lit one: grill | A sausage off the grill heals (the damage model's rare healing, note 272), one at a time, a while each | Lit, it glows like a lamp (the Fire Flies) and smells (the Cinder Hounds and the Followers come to a hot, smelly train: `houndsHotBoilerWeight`'s kin) |
 
-It also does a cowcatcher's job (§4's tools): debris struck on the line costs less. Priced as a whimsy that's also a
-tool: about 0.6 of the next car, from Local (U1's call).
+Priced as a whimsy that's also a tool: 0.6 of the next car, from Local (U1's call). **Built** (note 688): the deck is
+walked to along the running boards, which run on past the cab; a beer warms (30 s off the cold) rather than heals; the
+grill's lit for a bag of charcoal (5 minutes) and a sausage takes 6 s and heals 20. The cowcatcher's own job (debris) is
+still §4's tool.
 
 ### 7.3 Brainstorm: tools
 

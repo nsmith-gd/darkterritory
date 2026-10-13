@@ -29,7 +29,8 @@ public static class CrewActs
     public static Crewmate Crewmate(byte id, in PlayerState s, World world, IReadOnlyList<CarFrame> frames, IReadOnlyList<PlayerState>? others = null)
     {
         var act = Of(s, id, world, others);
-        var placed = act is CrewPose.Gunner or CrewPose.Reload && Guns.Mount(world.Train, s.Parent) is { } gun ? Seated(s, gun) : s;
+        var placed = s.Has(PlayerFlags.Lounging) ? Lounging(s)
+            : act is CrewPose.Gunner or CrewPose.Reload && Guns.Mount(world.Train, s.Parent) is { } gun ? Seated(s, gun) : s;
         var (feet, yaw) = Eyes.World(placed, frames);
         var (emote, emoteSeconds) = act is null ? EmoteOf(id, s, world) : (Emote.None, 0);
         int outfit = world.OutfitOf(id);
@@ -163,6 +164,15 @@ public static class CrewActs
         };
     }
 
+    /// <summary>
+    /// <paramref name="s"/> sat in a Muskoka chair (note 688): the seated clip's pan let down to the chair's slung seat
+    /// (<see cref="ChairPan"/> over its feet), facing down the line as the chair does.
+    /// </summary>
+    public static PlayerState Lounging(in PlayerState s) => s with { Position = s.Position with { Y = s.Position.Y + ChairPan - GunnerPan } };
+
+    /// <summary>How high a Muskoka chair's seat is over the deck under it (m): low and slung, TrainKit.MuskokaChair's.</summary>
+    public const double ChairPan = 0.34;
+
     /// <summary>How close a crewmate who's held has to be for someone to be hauling at them (m).</summary>
     const double HaulReach = 1.6;
 
@@ -255,6 +265,9 @@ public static class CrewActs
             return CrewPose.Push;
         if (s.Has(PlayerFlags.Operating))
             return CrewPose.Lever;
+        // Sat back in a Muskoka chair on the BBQ deck (note 688), a beer in hand or not: the gunner's seated clip, in the chair.
+        if (s.Has(PlayerFlags.Lounging))
+            return CrewPose.Gunner;
         if (world.Bodies.CarriedBy(id) is { } carried)
             return carried.Kind switch
             {

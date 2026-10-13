@@ -653,6 +653,8 @@ public sealed partial class SceneArt(Look look)
 
     static string ShapeKey(CarShape s) =>
         $"{s.HalfWidth:0.###}x{s.HalfLength:0.###}x{s.RoofHeight:0.###}:{s.Solids.Count}:{s.Solids.Any(x => x.Part == PartKind.Coupler)}" +
+        // (The BBQ deck's engine, note 688.)
+        (s.Bbq is not null ? ":bbq" : "") +
         // (A Knotter's back where the plate was, CarShape.Knotted: no plate drawn.)
         (s.Solids.Any(x => x.Part == PartKind.Coupler && x.Box.Max.X - x.Box.Min.X <= CarShape.KnotWidth + 1e-3) ? ":knot" : "");
 
@@ -768,6 +770,9 @@ public sealed partial class SceneArt(Look look)
             // A village find as what it is (FindKit; the director, 8 Oct: finds that stand out by their texture).
             Sim.Physics.BodyKind.Loot when FindItem?.Invoke(b) is { } item => Piece($"find-{item}", () => FindKit.Find(Look, item, 0.15f)),
             Sim.Physics.BodyKind.Loot => Piece("prop-loot", () => PropKit.Loot(Look, 0.15f)),
+            // The BBQ deck's (note 688).
+            Sim.Physics.BodyKind.Beer => Piece("prop-beer", () => PropKit.Beer(Look)),
+            Sim.Physics.BodyKind.Sausage => Piece("prop-sausage", () => PropKit.Sausage(Look)),
             // The hand lamp: the sourced lantern (tools/models hand_lantern) where it's built.
             _ => PropArt.Of(Look).Get("hand_lantern") ?? Piece("prop-lantern", () => PropKit.Lantern(Look)),
         };
@@ -1323,6 +1328,13 @@ public sealed partial class SceneArt(Look look)
         {
             mesh.Instances.Add(new MeshInstance(Piece($"engine-dress:{ShapeKey(shape)}", () => TrainKit.EngineDress(Look, shape)), m, lamps, Tint: soot,
                 Scar: scar, Shadowless: true));
+            // The BBQ deck (note 688): its planks, rails, chairs, cooler and grill; the grill's coals while it's lit.
+            if (shape.Bbq is not null)
+            {
+                mesh.Instances.Add(new MeshInstance(Piece($"bbq-deck:{ShapeKey(shape)}", () => TrainKit.BbqDeck(Look, shape)), m, lamps));
+                if (vehicle is { Grill: > 0 })
+                    mesh.Instances.Add(new MeshInstance(Piece($"bbq-coals:{ShapeKey(shape)}", () => TrainKit.BbqCoals(Look, shape)), m, 1, Shadowless: true));
+            }
             // A lamp in each corridor under the hood (note 338), lit with the train's lamps, close enough to matter.
             if ((frame.Origin - eye).Length < 60 && lamps > 0.5f)
                 foreach (var lamp in TrainKit.CorridorLamps(shape))

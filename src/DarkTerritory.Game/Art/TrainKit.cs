@@ -14,7 +14,7 @@ namespace DarkTerritory.Game.Art;
 /// Everything here is a cooked <see cref="MeshAsset"/> in the car's frame. What moves (doors, levers, the gun's facing,
 /// the firebox's glow) is drawn per frame by <see cref="SceneArt"/>.
 /// </remarks>
-public static class TrainKit
+public static partial class TrainKit
 {
     /// <summary>Half the track gauge: where the wheels' treads run (GreyboxScene draws the rails there).</summary>
     public const float HalfGauge = 0.72f;
@@ -490,11 +490,19 @@ public static class TrainKit
         // front and a cheek either side angled back to the engine's corners, all of it in heavy upright slats with dark
         // gaps between, each slat's edges standing proud; two bands across and a rail-iron stem at each fold.
         float reach = PloughAhead, foot = 0.06f, crest = PloughCrest, half = PloughFront;
+        // The BBQ deck (note 688) is on an extended cowcatcher: the plough pushed out under the deck's front, its crest under
+        // the planks, its cheeks run back to the engine's corners under the deck.
+        float pushed = 0;
+        if (shape.Bbq is { } bbq)
+        {
+            pushed = MathF.Max(0, (float)(-l - bbq.Front) - reach + 0.3f);
+            crest = MathF.Min(crest, (float)shape.Solids.First(s => s.Part == PartKind.BbqDeck).Box.Min.Y - 0.35f);
+        }
         // A point on the plough's face: across from −1 (the left corner) to 1, up from the foot to the crest.
         Vector3 Plough(float across, float y)
         {
             float f = (y - foot) / (crest - foot);
-            float zFront = -l - reach + (reach - 0.08f) * f;
+            float zFront = -l - pushed - reach + (reach - 0.08f) * f;
             float ax = MathF.Abs(across);
             // Across the front face to ±half, then the cheek back to the engine's side.
             float x = ax <= 0.5f ? across * 2 * half : MathF.Sign(across) * (half + (w + 0.08f - half) * (ax - 0.5f) * 2);
