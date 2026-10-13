@@ -53,10 +53,18 @@ using CrewActs = DarkTerritory.Game.Art.CrewActs;
 // A crash leaves a report (the exception, and the last things the game said) in the user's app data (--crashes dir
 // elsewhere), and the next launch opens on a notice that says where it is (note 411).
 int crashesAt = Array.IndexOf(args, "--crashes");
-var crashes = CrashReports.Install(crashesAt >= 0 && crashesAt + 1 < args.Length ? args[crashesAt + 1] : null);
+string? crashesDir = crashesAt >= 0 && crashesAt + 1 < args.Length ? args[crashesAt + 1] : null;
+string? logsDir = null;
+#if DEVTOOLS
+// A developer build keeps its logs and reports in the game's own folder, where the director finds them (GDD §34.2, note
+// 677); one that can't write there keeps them in the app data, as a player's does.
+if (crashesDir is null && DarkTerritory.Dev.TestReports.GameLogs() is { } gameLogs)
+    (crashesDir, logsDir) = (Path.Combine(gameLogs, "reports"), gameLogs);
+#endif
+var crashes = CrashReports.Install(crashesDir, logs: logsDir);
 #if DEVTOOLS
 // A developer build's tools (note 514): reached only here and under the other DEVTOOLS hooks; a player's build has none of it.
-var dev = DarkTerritory.Dev.DevTools.Start(args, crashes);
+var dev = DarkTerritory.Dev.DevTools.Start(args, crashes, logsDir);
 // The creature gym (GDD §34.1, note 676): the night it's on, while it's on.
 DarkTerritory.Dev.Gym.CreatureGym? gym = null;
 #endif
