@@ -167,3 +167,102 @@ Each needs its art (C1, E1); the moose head's temper is one multiplier in the Si
    the gold whistle's joke. A flat price would make it trivial late. U1's call: off the next car.
 3. **Do the old seventeen want tiers?** Gating them would hold the early game back; they stay from Local.
 4. **Whimsy first?** U1's order to build next: the human cannonball (it's the clip), Gerald, the pigeon loft, the canary.
+
+## 7. The second round (the director, 13 Oct 2026)
+
+*"Upgrades need to be purchasable in the fortress towns from a vendor who is clearly marked as the vendor blacksmith of the
+town who does train upgrades. Also one of the upgrades needs to be an extended front car cow catcher that has a deck, a
+couple muskoka chairs that can be sat in, a plastic cooler with beers, and a BBQ mounted on a stand on the deck. Each
+character needs to be able to interact with each object so they can have a tiny "party" at the front. That kind of complex
+add on is great whimsy, its the BBQ Dads at the end of the world. Brainstorm more Tools, Whimsy's, and Sillies."*
+
+### 7.1 The blacksmith (queue #419, note 687)
+
+The catalogue is bought in the town, from its blacksmith, not from a menu (GDD §3.1 already says "buying, upgrading and
+turning loot into scrip in the town itself, not the menu"). Note 687 has how it's built.
+
+- **Who.** Every fortress town has one: the town's blacksmith, who does the trains. A forge by the line a little in from
+  the gate, where the train stands in the yard: an anvil, a quench barrel, the forge's glow, and a painted board over it,
+  **BLACKSMITH · TRAIN UPGRADES**, lit so it reads from the cab. Their name over the door like everyone's ("Agnes Anvil").
+- **How.** Look at them: "THE BLACKSMITH   TALK : [E]   UPGRADES : HOLD [E]". Talk and they say what they'd fit next;
+  hold and the catalogue opens, shelved as the menu was (TOOLS, WHIMSY, FUN, SILLY), the crew's scrip at the top. Anyone
+  in the crew can buy: one wallet (§11). What's bought is fitted before the gate, and the clerk reads it at the next tally.
+- **When.** In the yard, where the town's a safe space (§9). Past the gate the forge is shut.
+
+### 7.2 The BBQ deck (queue #420, note 688): the flagship whimsy
+
+**"The BBQ Dads at the end of the world."** An extended cowcatcher on the front of the engine with a plank deck on it,
+railed, ahead of the smokebox. On the deck:
+
+| Thing | Use | What it does | What it costs |
+|---|---|---|---|
+| **Two Muskoka chairs** | Use: sit; Use again or move: get up | The best seat on the train: the line ahead, first. Sat, you're still, and Tippy Toesie comes for a crewmate standing still (App. A.5) | Out front in the cold and the wind, at the first thing the train hits |
+| **A plastic cooler of beers** | Use: take a beer; Use with it in hand: drink it | A beer warms you a little (the cold's onset held off a while) and the crew cheers. A two-four a night (24) | The cans. A dropped empty rattles about like a noisy toy |
+| **A BBQ on a stand** | Use: light it, or turn it off; hold Use at a lit one: grill | A sausage off the grill heals (the damage model's rare healing, note 272), one at a time, a while each | Lit, it glows like a lamp (the Fire Flies) and smells (the Cinder Hounds and the Followers come to a hot, smelly train: `houndsHotBoilerWeight`'s kin) |
+
+It also does a cowcatcher's job (§4's tools): debris struck on the line costs less. Priced as a whimsy that's also a
+tool: about 0.6 of the next car, from Local (U1's call).
+
+### 7.3 Brainstorm: tools
+
+Each answers a trouble that grows with the tiers (§2); none removes one.
+
+| Upgrade | Trouble | Does |
+|---|---|---|
+| **The handcar** (major) | Crew left behind; a village far off the line | A pump handcar on a flatcar, set on the rails at a stand. Two pump it, back for whoever's left behind or out to a far stop and home |
+| **Communication cord** | "Half the crew can't hear the other half" (§15) | A cord the length of the train: pulled anywhere, the cab's bell rings with the car's number |
+| **End-of-train telltale** | The Passenger, the Knotter, a coupling let go | A lamp in the cab that goes out when the train parts behind it |
+| **Fusees** (stores) | Getting lost in a village at a stop | Red flares dropped on the line: the way back to the train glows for a few minutes |
+| **Stretcher** | Bodies home pay 75% (App. D) | Carry a body at walking pace, and up a ladder |
+| **Roof gangplanks** | The gaps (§13) | Plates over the first two couplings back from the cab: walked, not jumped |
+| **Rope ladders** | Boarding from the ground at speed | A ladder caught at a third more speed (`ladder.grabMaxRelativeSpeed`) |
+| **Coal pusher** | The driver alone at the fire (§12) | The tender's coal slides to the fire door: a shovel a fifth quicker |
+| **Safety valve, larger** | Rupture (§23) | Lifts harder: pressure pins at 100 a third as often (`safetyValveCapacity`) |
+| **Pyrometer** | Overfiring | A gauge on the backhead: the redline's warning sooner |
+| **Roof steam lines** | Climbers and Draggers on the roofs | A scald valve at each car end, fed off the boiler: knocks a creature off a roof, costs pressure |
+| **Sanders** | Rain (weather) on the grades | Wet rails pull and brake as dry |
+| **Lookout cupola** (major) | The blind middle (§13) | A cupola on the guard van or crew car: the whole roofline from one seat |
+| **Hose car** (major, Dead lines) | Fires on powder and chemicals | A water car with a pump and hoses reaching two cars either way |
+| **Swivel headlamp** | Bends at night | The driver aims the lamp into a bend |
+| **Anti-climb skirts** | Climbers | Sheet iron along the car sides: Climbers take longer to get over |
+
+### 7.4 Brainstorm: whimsy
+
+Each works, and each is funny; most do one useful thing and one stupid thing.
+
+| Upgrade | Does | And |
+|---|---|---|
+| **The BBQ deck** | §7.2 | The BBQ Dads |
+| **Tennis-ball launcher** | On the guard van: fire a ball off the back and the Cinder Hounds chase it (they're hounds) | Fetch. They bring it back |
+| **Bubble machine** | On the tender: a stream of bubbles behind the train, and the hounds snap at those instead | It's very loud to the Choir, in a way |
+| **The Tannoy** | Horns on every car: the driver's voice through the whole train, for a long train's callouts | It's the loudest thing in the Territory and the Choir loves it |
+| **The piano** | In the crew car, playable, badly. A Gaunt in earshot hears it as talk and is calmed | The Choir hears it as a piano |
+| **Garden gnomes** | Bolted along the roofs; the Gannet dives on a gnome now and then | "Gnome: not recovered." |
+| **The dog** | A yard dog that rides the train, barks at what boards (a tell) and fetches toys | Sometimes it fetches the Track Doll's toy back from her |
+| **Fishing rod** | At a stand by water (the line's lakes), fish; a fish grilled on the BBQ heals more | Requires patience at a stop, which is when things come |
+| **Wind chimes** | In every car: they ring when a door opens (an interior tell) | Constantly, a little, to the Choir |
+| **Hammock** | Strung across a car end: lie in it, swinging, warm-ish | Lying down is standing still (Tippy Toesie) |
+| **The accordion** | Carried: playing it counts as talking (calms the Gaunt), and the crew dances | Loud |
+| **Disco ball** | In the crew car, turning, the stove's light thrown round the walls | The Fire Flies come to dance |
+| **Paddling pool of ice** | Beside the cooler: beers stay cold, and a crewmate's ankles in it warm up somehow | Nobody can explain this either |
+
+### 7.5 Brainstorm: silly
+
+Nothing, or a little the wrong way. The clerk reads every one.
+
+| Upgrade | What | The clerk |
+|---|---|---|
+| **Fuzzy dice** | In the cab, swinging on the bends | "Dice: fuzzy." |
+| **Bumper stickers** | On the guard van's end: HOW'S MY DRIVING? CALL THE YARD · MY OTHER TRAIN IS ALSO A TRAIN · HONK IF YOU'RE CORRUPTED | "Stickers: three." |
+| **Flames** | Painted down the smokebox. It goes faster (it doesn't) | "Flames: painted." |
+| **Spinner hubcaps** | On the driving wheels, still spinning at a stand | "Hubcaps: spinning." |
+| **The tiny caboose** | A toy caboose towed off the back of the real one. It derails at every bend and is dragged | "Caboose: small." |
+| **La Cucaracha horn** | The whistle plays it. Every pull, all of it | "Horn: musical." |
+| **The mayor's bobblehead** | On the backhead, nodding at every gauge | "Bobblehead: nodding." |
+| **A doorbell** | On the cab door | "Doorbell: fitted." |
+| **Pine-tree air freshener** | In the cab. The Territory already smells of pine | "Air freshener: pine." |
+| **Trophy plaques** | A brass plaque in the crew car for each kind of creature the crew has killed | "Plaques: eleven." |
+| **A participation ribbon** | From the town, for the guard van's door. It costs a lot | "Ribbon: participation." |
+| **Monogrammed towels** | In the crew car. Nobody washes | "Towels: monogrammed." |
+| **Neon OPEN sign** | In the guard van's window, lit. Open for what | "Sign: open." |
+| **Extra-long whistle cord** | Reaches through every car, so anyone can blow the whistle from anywhere | "Cord: long." Everyone will |
