@@ -116,7 +116,8 @@ public sealed record Settings
     public bool TextBacking { get; init; }
 
     /// <summary>The holds HOLD KEYS can make toggles: run, the brake, talk, the radio and the crew roster.</summary>
-    public static readonly Control[] Toggleable = [Control.Run, Control.Brake, Control.Talk, Control.Radio, Control.Roster];
+    // Note 664: crouch too, a hold that HOLD KEYS on TOGGLE makes a press down and a press up.
+    public static readonly Control[] Toggleable = [Control.Run, Control.Brake, Control.Talk, Control.Radio, Control.Roster, Control.Crouch];
 
     /// <summary>The outfit as the wire has it (note 298): none for −1 or anything off the end.</summary>
     public byte OutfitByte(int outfits) => Outfit >= 0 && Outfit < outfits ? (byte)Outfit : Sim.Net.Messages.NoOutfit;

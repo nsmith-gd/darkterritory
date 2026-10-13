@@ -78,7 +78,8 @@ public static class Protocol
     //     themselves (its 31st field; the fire cells after it), the rest its heap.
     // 56: what's lying in a car is solid (note 659): the body record carries a thing's size (its twelfth field, the particles
     //     after it), so every client walks into the same things.
-    public const int Version = 56;
+    // 57: a third byte of buttons on every intent, after the voice level (note 664: crouch, and pushing the gun on its own key).
+    public const int Version = 57;
 }
 
 public enum MessageType : byte
@@ -216,6 +217,8 @@ public static class Messages
         bool tool = i.Select != 0 || i.Cycle != 0 || i.Emote != Emote.None;
         w.U8((byte)(tool ? i.Actions | PlayerActions.Tool : i.Actions & ~PlayerActions.Tool));
         w.U8(i.Voice);
+        // Note 664: the third byte (crouch, push the gun along).
+        w.U8((byte)i.Moves);
         if (i.Watch != 0)
             w.U8(i.Watch);
         // A hotbar choice (T108), only on the tick it's made: the slot in the low nibble, the wheel's step in the high; an
@@ -259,6 +262,7 @@ public static class Messages
         i.Lamp = (LampSwitch)((notch >> 5) & 3);
         i.Actions = (PlayerActions)r.U8();
         i.Voice = r.U8();
+        i.Moves = (PlayerMoves)r.U8();
         if ((notch & 0x80) != 0)
             i.Watch = r.U8();
         if (i.Has(PlayerActions.Tool))
