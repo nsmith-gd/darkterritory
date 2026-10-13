@@ -632,14 +632,26 @@ public static partial class Hud
             double off = train.Line.Branches[ahead].Toe - train.Line.MainDistance(train.Dynamics.Path, train.Dynamics.Distance);
             // The thrower's limit is a speed figure, which the director keeps (7 Oct): the lever works under it.
             return !lever.Slow ? $"POINTS IN {off:0} M: UNDER {thrower.MaxSpeed * 3.6:0} KM/H"
-                : train.PointsOccupied(ahead, stands.Tuning.PointsLength) ? "POINTS HELD"
+                : PointsHeld(train, ahead, stands.Tuning.PointsLength) is { } onIt ? onIt
                 : $"THROW TO {SwitchTo(world, train, ahead)} : HOLD [E]";
         }
         // Which way it'll go, and when it won't: the points don't move with a wheel on them.
         return stands.InReach(p, train, hand) is not { } branch ? null
-            : train.PointsOccupied(branch, stands.Tuning.PointsLength) ? "POINTS HELD"
+            : PointsHeld(train, branch, stands.Tuning.PointsLength) is { } held ? held
             : $"THROW TO {SwitchTo(world, train, branch)} : HOLD [E]";
     }
+
+    /// <summary>
+    /// What's stopping the points moving, or null: a wheel on them, the train's own or cars standing there (note 665, the
+    /// director: "it says points held ... it's not clear what it's indicating. We should just tell the player at that point
+    /// something is on the track").
+    /// </summary>
+    static string? PointsHeld(TrainOnLine train, int branch, double pointsLength) => train.OnThePoints(branch, pointsLength) switch
+    {
+        null => null,
+        { } r when train.Standing(r) => "CARS ON THE POINTS",
+        _ => "TRAIN ON THE POINTS",
+    };
 
     /// <summary>What the route card calls a generated line's alternate (its known grades: "high line (alt1)"), if it says.</summary>
     static string? CardName(Sim.World world, int branch)
