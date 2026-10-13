@@ -362,6 +362,8 @@ public sealed record BillboardRules
     public double EyeAcrossM { get; init; } = 1.1;
     public IReadOnlyList<double> CabBlindDeg { get; init; } = [8.6, 14.2, -35.3, -32];
     public double ClearFromM { get; init; } = 250;
+    /// <summary>How far from the track a board stands back where it can't be read by the line on either side (note 693): past a dead line alongside.</summary>
+    public double BackInnerM { get; init; } = 18;
     /// <summary>A through truss's sides as the sight test has them (note 686; StructureKit.TrussSpan's): off the centreline, and from under the rail to over it.</summary>
     public double TrussHalfM { get; init; } = 2.7;
     public double TrussLowM { get; init; } = -0.55;

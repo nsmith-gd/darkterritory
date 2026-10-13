@@ -72,11 +72,13 @@
   // stackMaxM tall, and if together they can't be read (one on a ledge round a hillside) each stands on its own.
   // Note 686: a through truss's sides stand in a sight line as walls, trussHalfM off the centreline from trussLowM to
   // trussHighM over the rail (StructureKit.TrussSpan's lattice, which fills in at the glancing angles a board's read at):
-  // a board just past a truss stands where it's read clear of it, not through it.
+  // a board just past a truss stands where it's read clear of it, not through it. Note 693: where a board's read on neither
+  // side by the line (a dead line alongside keeps posts 16 m off one side, a rock wall's curve hides the other), it stands
+  // back backInnerM from the track, past what's in the way (a billboard, not a post with a side of its own or a fixed one).
   "billboard": {
     "side": -1, "stackM": 60, "stackGapM": 0.5, "stackMaxM": 24, "postClearM": 20,
     "innerM": 4.5, "postsFromM": 6.5, "overGroundM": 2.5, "towardDeg": 10, "marginLetters": 0.3,
-    "eyeM": 3.2, "eyeAcrossM": 1.1, "cabBlindDeg": [8.6, 14.2, -35.3, -32], "clearFromM": 250, "trussHalfM": 2.7, "trussLowM": -0.55, "trussHighM": 7.0, "readToM": 40, "sightStepM": 15, "seenShare": 0.75, "lampConeDeg": 18, "stepBackM": 15, "maxBackM": 150,
+    "eyeM": 3.2, "eyeAcrossM": 1.1, "cabBlindDeg": [8.6, 14.2, -35.3, -32], "clearFromM": 250, "backInnerM": 18, "trussHalfM": 2.7, "trussLowM": -0.55, "trussHighM": 7.0, "readToM": 40, "sightStepM": 15, "seenShare": 0.75, "lampConeDeg": 18, "stepBackM": 15, "maxBackM": 150,
     "clearOfM": 1, "crownShare": 0.2, "drawM": 400,
     "emissive": 0.9, "plainShare": 0.3, "darkGlow": 0.06, "litGlow": 0.8, "farGlow": 2.0, "glowConeDeg": 24
   },

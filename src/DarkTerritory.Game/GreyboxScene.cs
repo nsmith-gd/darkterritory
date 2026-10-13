@@ -346,8 +346,20 @@ public sealed partial class GreyboxScene
     readonly System.Diagnostics.Stopwatch _lap = new();
     int _lapCount, _lapInstances;
 
+    /// <summary>The app's frame watch (note 691, 695): each part of the build is a part of its frame, timed with what it
+    /// allocated, so a night's report says which of the scene's parts its frames went to.</summary>
+    public FrameWatch? Watch { get; set; }
+
+    readonly Dictionary<string, string> _watchNames = new(StringComparer.Ordinal);
+
     void Lap(MeshBuilder mesh, string part)
     {
+        if (Watch is { } watch)
+        {
+            if (!_watchNames.TryGetValue(part, out var named))
+                _watchNames[part] = named = "scene: " + part;
+            watch.Mark(named);
+        }
         if (Timings is null)
             return;
         Timings.TryGetValue(part, out var sum);
@@ -3464,8 +3476,8 @@ public sealed partial class GreyboxScene
                 Lap(mesh, "town streets");
                 // A town that's lived in (App. F.3, the director: the fortresses feel static): smoke from its chimneys, and
                 // its watch walking the wall with their lanterns.
-                foreach (var top in Look.Art.World.Chimneys(line, eye, town, 160))
-                    Look.Art.Effects.Chimney(mesh, top, Time, (int)(top.X * 7 + top.Z * 13));
+                foreach (var (top, seed) in Look.Art.World.Chimneys(line, eye, town, 160))
+                    Look.Art.Effects.Chimney(mesh, top, Time, seed);
                 // Its lights on the fog over it (note 490): what a crew coming home sees over the wall long before any lamp, and
                 // looks back at as it leaves. Faint from inside, where the lamps themselves are the light.
                 foreach (var (at, size, colour, strength) in Art.WorldArt.Glow(town))
@@ -3474,9 +3486,9 @@ public sealed partial class GreyboxScene
                     mesh.Billboard(V(at, eye), size, 0, new Vector4(colour * strength * (0.06f + 1.2f * far), 1), -1, FxBlend.Additive);
                 }
                 // And the works' (note 353): the foundry's stack and the winding house's chimney, thicker.
-                foreach (var top in Look.Art.World.Stacks(line, eye, town, 420))
+                foreach (var (top, seed) in Look.Art.World.Stacks(line, eye, town, 420))
                     for (int plume = 0; plume < 3; plume++)
-                        Look.Art.Effects.Chimney(mesh, top + new Vector3(0, plume * 0.6f, 0), Time + plume * 1.7, (int)(top.X * 7 + top.Z * 13) + plume * 31);
+                        Look.Art.Effects.Chimney(mesh, top + new Vector3(0, plume * 0.6f, 0), Time + plume * 1.7, seed + plume * 31);
                 Lap(mesh, "town smoke");
                 foreach (var (feet, facing, variant) in Art.WorldArt.Watch(town, gateAt, Time))
                     if ((feet - eye).Length < 260)
