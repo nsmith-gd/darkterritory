@@ -400,12 +400,25 @@ public sealed partial class WorldArt
                         double lateral = sideOf * depth, along = s + rng.NextDouble() * 4;
                         if (Stand(line, along, lateral, cover) < 0.5f || Stand(line, along, lateral + sideOf * 20, cover) < 0.5f || !Free(along, lateral))
                             continue;
-                        var (m, slope) = Place(along, lateral, (float)(rng.NextDouble() - 0.5) * 0.25f, 1, 0.5f);
+                        var (_, slope) = Place(along, lateral, (float)(rng.NextDouble() - 0.5) * 0.25f, 1, 0.5f);
                         if (slope > 0.9f)
                             continue;
                         int tv = rng.Next(5);
                         float th = stunted ? 6 + (float)rng.NextDouble() * 4 : 13 + (float)rng.NextDouble() * 6;
-                        mesh.Append(Piece($"treeline-{tv}-{th:0}", () => NovaKit.Treeline(_look, tv, 26, th)), m, new Vector3(0.8f + 0.25f * (float)rng.NextDouble()));
+                        // A stand of spruce, not a card (note 670; the director, 13 Oct, from the cab: "We got some
+                        // billboarded stuff back there that looks pretty bad"): the one flat wall of painted spires showed
+                        // as a cut-out wherever the line turned past it or you looked back at it. Six crossed-card spruces
+                        // over its 26 m in two staggered ranks, each stood on the ground where it is, keep the mass and
+                        // its serrated top from any side.
+                        float tint = 0.8f + 0.25f * (float)rng.NextDouble();
+                        for (int k = 0; k < 6; k++)
+                        {
+                            double dAlong = -11 + k * 4.4 + (rng.NextDouble() - 0.5) * 2.4, dOut = (k % 2 == 0 ? -2.5 : 2.5) + (rng.NextDouble() - 0.5) * 2;
+                            float tall = th * (0.72f + 0.28f * (float)rng.NextDouble());
+                            int sv = (tv + k * 3) % 8;
+                            var (tm, _) = Place(along + dAlong, lateral + sideOf * dOut, (float)(rng.NextDouble() * Math.Tau), tall / 12, 0.5f);
+                            mesh.Append(Piece($"spruce-{sv}", () => NovaKit.Conifer(_look, sv, 12, 0.3f)), tm, new Vector3(tint));
+                        }
                     }
         }
         // The forest floor (note 395): deadfall, stumps and juniper under the stands; juniper and red blueberry on the

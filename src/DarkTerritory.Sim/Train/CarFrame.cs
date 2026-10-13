@@ -57,8 +57,26 @@ public readonly record struct GunMount(Double3 Position, Double3 Facing);
 
 public readonly record struct Solid(Box Box, SurfaceKind Top, PartKind Part)
 {
-    /// <summary>There to stand on and bump into on this vehicle now: everything but an open roof hatch's lid (T99).</summary>
-    public bool Present(Vehicle v) => Part != PartKind.Hatch || !v.DoorOpen(CarShape.HatchBit);
+    /// <summary>
+    /// There to stand on and bump into on this vehicle now: everything but an open roof hatch's lid (T99), and a cargo car's
+    /// heap when nothing's been poured in (note 659).
+    /// </summary>
+    public bool Present(Vehicle v) => Part switch
+    {
+        PartKind.Hatch => !v.DoorOpen(CarShape.HatchBit),
+        PartKind.Cargo => v.Bulk > HeapFrom,
+        _ => true,
+    };
+
+    /// <summary>
+    /// Where it is on this vehicle now: a cargo car's heap (note 659: what was poured, tipped or driven in, <see cref="Vehicle.Bulk"/>)
+    /// as high up its load side as the car's that full; everything else where it's built.
+    /// </summary>
+    public Box BoxIn(Vehicle v) => Part != PartKind.Cargo ? Box
+        : new Box(Box.Min, Box.Max with { Y = Box.Min.Y + (Box.Max.Y - Box.Min.Y) * Math.Min(1, v.Bulk) });
+
+    /// <summary>Under this much of a load poured in, there's no heap to speak of (a few shovelfuls).</summary>
+    public const double HeapFrom = 0.02;
 }
 
 /// <summary>
@@ -356,7 +374,8 @@ public sealed record CarShape(Box Bounds, IReadOnlyList<Solid> Solids, IReadOnly
                     solids.Add(new(new Box(new Double3(o0, 0, z1 - i.StepDepth), new Double3(o1, floor * (rises - k) / rises, z1)), SurfaceKind.Deck, PartKind.Steps));
                 }
             }
-            // The load stands down the right-hand side, either side of its door.
+            // The load stands down the right-hand side, either side of its door: what's poured in heaps there, as high as the car's
+            // that full (note 659, Solid.BoxIn); what's put in by hand or hook lies where it's put.
             double c0 = w - t - i.CargoDepth, c1 = w - t, top = floor + i.CargoHeight;
             solids.Add(new(new Box(new Double3(c0, floor, -l + 1.2), new Double3(c1, top, -sd - 0.3)), SurfaceKind.Deck, PartKind.Cargo));
             solids.Add(new(new Box(new Double3(c0, floor, sd + 0.3), new Double3(c1, top, l - 1.2)), SurfaceKind.Deck, PartKind.Cargo));

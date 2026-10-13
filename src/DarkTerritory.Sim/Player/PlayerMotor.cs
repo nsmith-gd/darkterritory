@@ -867,10 +867,10 @@ public static class PlayerMotor
             // ballast beside the engine passes under (up to the cab steps, along to the points), and nobody bumps into.
             foreach (var solid in frame.Shape.Solids)
                 if (solid.Part != PartKind.RunningBoard && solid.Present(vehicle))
-                    local = Ceiling(local, solid.Box, height, ref ceiling);
+                    local = Ceiling(local, solid.BoxIn(vehicle), height, ref ceiling);
             foreach (var solid in frame.Shape.Solids)
                 if (solid.Part != PartKind.RunningBoard && solid.Present(vehicle))
-                    local = PushOut(local, solid.Box, p, height);
+                    local = PushOut(local, solid.BoxIn(vehicle), p, height);
             foreach (var door in frame.Shape.DoorList)
                 if (!vehicle.DoorOpen(door.Index))
                     local = PushOut(local, door.Box, p, height);
@@ -947,8 +947,8 @@ public static class PlayerMotor
             var local = frame.ToLocal(feet);
             var vehicle = train.Vehicles[frame.Index];
             foreach (var solid in frame.Shape.Solids)
-                if (solid.Part != PartKind.RunningBoard && solid.Present(vehicle) && solid.Box.ContainsXZ(local)
-                    && solid.Box.Min.Y > local.Y + p.StepUp && solid.Box.Min.Y < local.Y + p.Height)
+                if (solid.Part != PartKind.RunningBoard && solid.Present(vehicle) && solid.BoxIn(vehicle) is var box && box.ContainsXZ(local)
+                    && box.Min.Y > local.Y + p.StepUp && box.Min.Y < local.Y + p.Height)
                     return false;
         }
         return true;
@@ -1022,7 +1022,7 @@ public static class PlayerMotor
             {
                 if (!solid.Present(vehicle))
                     continue;
-                var box = solid.Box;
+                var box = solid.BoxIn(vehicle);
                 double top = box.Max.Y;
                 if (!box.ContainsXZ(local) || local.Y > top + snap || local.Y < top - below)
                     continue;

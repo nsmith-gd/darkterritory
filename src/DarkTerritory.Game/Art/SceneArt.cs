@@ -236,7 +236,7 @@ public sealed partial class SceneArt(Look look)
     /// pen (tools/blender/sheep.py), each on its own beat: mostly shifting and shuffling, every few seconds one bleating,
     /// now and then one startled by the noise. The noise is seen as well as heard.
     /// </summary>
-    void Livestock(MeshBuilder mesh, in CarFrame frame, Double3 eye, long tick)
+    void Livestock(MeshBuilder mesh, in CarFrame frame, Double3 eye, long tick, double bulk)
     {
         var m = FrameMatrix(frame, eye);
         double t = (tick < 0 ? 0 : tick) / (double)Sim.SimConstants.TickRate;
@@ -246,7 +246,9 @@ public sealed partial class SceneArt(Look look)
             var box = solid.Box;
             int count = Math.Max(1, (int)((box.Max.Z - box.Min.Z) / 0.95));
             double step = (box.Max.Z - box.Min.Z) / count;
-            for (int i = 0; i < count; i++, n++)
+            // As many as were driven in (note 659: the ramp's head count is the car's poured load), from the front of each pen.
+            int penned = (int)Math.Ceiling(count * Math.Min(1, bulk));
+            for (int i = 0; i < penned; i++, n++)
             {
                 uint h = (uint)(n * 2654435761u ^ (uint)frame.Index * 40503u);
                 double z = box.Min.Z + step * (i + 0.5);
@@ -645,6 +647,9 @@ public sealed partial class SceneArt(Look look)
             (float)frame.Back.X, (float)frame.Back.Y, (float)frame.Back.Z, 0,
             o.X, o.Y, o.Z, 1);
     }
+
+    /// <summary>A car's heap as drawn (note 659): its poured load to the nearest eighth, so a car filling has a handful of meshes.</summary>
+    static float HeapFill(Vehicle v) => (float)Math.Clamp(Math.Round(v.Bulk * 8) / 8, 0.125, 1);
 
     static string ShapeKey(CarShape s) =>
         $"{s.HalfWidth:0.###}x{s.HalfLength:0.###}x{s.RoofHeight:0.###}:{s.Solids.Count}:{s.Solids.Any(x => x.Part == PartKind.Coupler)}" +
@@ -1369,13 +1374,15 @@ public sealed partial class SceneArt(Look look)
         if (utility && !engine)
             mesh.Instances.Add(new MeshInstance(Piece($"utility:{ShapeKey(shape)}", () => TrainKit.UtilityFit(Look, shape)), m,
                 emergency ? 0.06f : 1, Scar: scar, Bite: cut, BiteFloor: floor));
-        else if (loadApart)
+        else if (loadApart && vehicle!.Bulk > Solid.HeapFrom)
         {
-            var cargo = vehicle!.Cargo;
-            mesh.Instances.Add(new MeshInstance(Piece($"load:{ShapeKey(shape)}:{cargo}:{variant}", () => TrainKit.Load(Look, shape, cargo, variant)), m,
+            // Its heap (note 659): only what's been poured in, as high as the sim has it, in eighths for the meshes kept.
+            var cargo = vehicle.Cargo;
+            float fill = HeapFill(vehicle);
+            mesh.Instances.Add(new MeshInstance(Piece($"load:{ShapeKey(shape)}:{cargo}:{variant}:{fill}", () => TrainKit.Load(Look, shape, cargo, variant, fill)), m,
                 emergency ? 0.06f : 1, Scar: scar, Bite: cut, BiteFloor: floor));
             if (cargo == CargoKind.Livestock && (frame.Origin - eye).Length < 120)
-                Livestock(mesh, frame, eye, tick);
+                Livestock(mesh, frame, eye, tick, vehicle.Bulk);
             // Comet-derived material (GDD §19 "attracts everything; should look like it"): a sick green light from the cracks
             // in its caskets, breathing slowly, out through the car's gaps and doors, and a glow over each stack.
             if (cargo == CargoKind.Comet && (frame.Origin - eye).Length < 220)

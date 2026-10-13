@@ -74,8 +74,10 @@ public static class Protocol
     // 53: four shared slots (note 594): the player record's held slot carries the slots holding a thing over it, and the body
     //     record's locker field a thing's slot and whether it's put away.
     // 54: a tool on a crew locker's shelf (note 649): a body kind of its own, its tool in the body record's ninth field.
-    // 55: a third byte of buttons on every intent, after the voice level (note 664: crouch, and pushing the gun on its own key).
-    public const int Version = 55;
+    // 55: a car's load as what's in it (note 659): the vehicle record carries how much of it is things lying there as
+    //     themselves (its 31st field; the fire cells after it), the rest its heap.
+    // 56: a third byte of buttons on every intent, after the voice level (note 664: crouch, and pushing the gun on its own key).
+    public const int Version = 56;
 }
 
 public enum MessageType : byte
