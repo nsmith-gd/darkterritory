@@ -780,9 +780,14 @@ public sealed partial class GreyboxScene
                     // The train's own: their clips by their mode's time and what came before (notes 364, 365, 367).
                     if (e.Kind is EnemyKind.Brakeman or EnemyKind.Knotter or EnemyKind.Hotbox)
                         modeSeconds = Trainfolk(e, frames, Look?.Art.Creatures);
+                    // A Waker (note 679): stood at the walls, or holding the train, the end of the car he's eating at his mouth.
+                    if (e is Sim.Enemies.Waker titan && Look?.Art.Creatures is { } wakerArt)
+                        wakerArt.WakerIn = WakerIn(titan, line, frames, eye);
                     DrawEnemy(mesh, line, frames, e, eye, from, to, Look?.Art.Creatures, bite, prey, room,
                         e.Kind is EnemyKind.Gaunt or EnemyKind.Grumbler or EnemyKind.Moose || outside ? Pace(e) : 0, Flinch(e), HitAge(e),
                         modeSeconds: modeSeconds, place: e is Sim.Enemies.TowerJaw { Mode: Sim.Enemies.TowerJawMode.Wreck } ? TowerPlace(line, e.Local) : null);
+                    if (e.Kind == EnemyKind.Waker && Look?.Art.Creatures is { } drawnWaker)
+                        drawnWaker.WakerIn = default;
                     // A Waker getting up (note 599): the earth it throws off rising, and the dust it raises on the move.
                     if (e.Kind == EnemyKind.Waker && Look?.Art.Effects is { } wake)
                         WakerDust(mesh, wake, e, line, eye);
@@ -1946,9 +1951,56 @@ public sealed partial class GreyboxScene
         new(v.X * Math.Cos(yaw) + v.Z * Math.Sin(yaw), v.Y, -v.X * Math.Sin(yaw) + v.Z * Math.Cos(yaw));
 
     /// <summary>Where <paramref name="e"/> stands in the world: in its car's frame aboard, as it is loose.</summary>
+    /// <summary>Where the Wakers stop short of the terminus's gate (note 588): under the town's guns.</summary>
+    double WakerWall(RailLine line, Sim.Enemies.WakersTuning t) =>
+        (Route?.Plan?.Terminus.GateM ?? line.Length - (Run?.Tuning.TerminusZone ?? 400)) - t.StopShort;
+
+    /// <summary>How long after he's bitten a car off he's onto the next (s): his mouth carried down the ramp to its end.</summary>
+    const double WakerNextCar = 1.2;
+
     /// <summary>
-    /// A Waker's earth and dust (note 599): rising, the clods it heaves up and the bank of dust it breaks out of; running,
-    /// what its feet raise, a stride as long as its pace makes it (the stir's thuds keep the same beat, <see cref="DawnStir"/>).
+    /// What a Waker's art needs of the scene (note 679): whether he's stood at the walls; and, the one holding the train, the end
+    /// of the rearmost car he hasn't eaten (the top of <see cref="WakerLift"/>'s ramp, which the lift has drawn the frames up
+    /// to), where his mouth goes. Just after a bite, his mouth is carried on from where the car he bit off had its end.
+    /// </summary>
+    Art.WakerScene WakerIn(Sim.Enemies.Waker e, RailLine line, IReadOnlyList<CarFrame> frames, Double3 eye)
+    {
+        var t = Look?.Art.Creatures?.WakersTuning ?? new Sim.Enemies.WakersTuning();
+        bool walls = e.Phase == SpinePhase.Commit && e.LineDistance >= WakerWall(line, t) - 1;
+        if (!e.Holds || !e.Lead || frames.Count == 0)
+            return new Art.WakerScene(walls);
+        // The rearmost car not yet eaten (an eaten one's drawn far under the ground, WakerLift).
+        double floor = frames[0].Origin.Y - 100;
+        CarFrame? car = null;
+        for (int i = frames.Count - 1; i >= 0; i--)
+            if (frames[i].Origin.Y > floor)
+            {
+                car = frames[i];
+                break;
+            }
+        if (car is not { } held)
+            return new Art.WakerScene(walls);
+        double half = held.Shape.HalfLength;
+        var end = held.ToWorld(new Double3(0, WakerMouthHeight, half));
+        int eaten = e.EatenCars(t, frames.Count);
+        double since = eaten > 0 ? e.Extra - t.EatAfter - (eaten - 1) * t.EatSeconds : double.PositiveInfinity;
+        if (since < WakerNextCar)
+        {
+            // The car he's just bitten off had its end a car further back up the ramp.
+            var was = end + held.Back * (2 * half + 1);
+            double k = since / WakerNextCar;
+            end = was + (end - was) * (k * k * (3 - 2 * k));
+        }
+        return new Art.WakerScene(walls, V(end, eye));
+    }
+
+    /// <summary>How high up a car's end (m over its floor's frame) a Waker takes it in his mouth: the middle of its body.</summary>
+    const double WakerMouthHeight = 2.6;
+
+    /// <summary>
+    /// A Waker's earth and dust (note 599): rising, the clods it heaves up and the bank of dust it breaks out of; running, the
+    /// dust where each of his feet comes down, where it came down (note 679: his stride, <see cref="WakerGait"/>; the stir's
+    /// thuds are the same footfalls, <see cref="DawnStir"/>).
     /// </summary>
     void WakerDust(MeshBuilder mesh, Art.Effects fx, Enemy e, RailLine line, Double3 eye)
     {
@@ -1962,13 +2014,31 @@ public sealed partial class GreyboxScene
             return;
         fx.WakerRise(mesh, V(feet, eye), r, b, since, t.RiseSeconds, WakerRise.Up(e.Phase, e.PhaseSeconds, t.RiseSeconds), e.Id);
         // Stopped short of the terminus's gate, it stands there under the town's guns (wakers.md §4); else it's coming on.
-        double wall = (Route?.Plan?.Terminus.GateM ?? line.Length - (Run?.Tuning.TerminusZone ?? 400)) - t.StopShort;
+        double wall = WakerWall(line, t);
         if (e.Phase == SpinePhase.Commit && e.LineDistance >= wall - 1)
             fx.WallGuns(mesh, Arrival is { Plan.Bounds: not null } walled ? WallGuns(walled, eye) : WallGuns(line, wall + t.StopShort, eye),
-                V(feet + Double3.Up * 12, eye), V(feet, eye), Time, e.Id);
+                V(feet + Double3.Up * WakerBack, eye), V(feet, eye), Time, e.Id);
         else if (e.Phase == SpinePhase.Commit)
-            fx.WakerStride(mesh, V(feet, eye), r, b, Time, 1.4, e.Id);
+        {
+            // Each foot's last footfall: where it came down (ahead of where he was then), and how long ago.
+            double v = WakerGait.Speed(e.PhaseSeconds, t), cycles = WakerGait.Cycles(e.PhaseSeconds, t);
+            double cycle = WakerGait.CycleSeconds(v), reach = WakerGait.Reach(v);
+            for (int foot = 0; foot < 2; foot++)
+            {
+                double c = cycles - foot * 0.5;
+                if (c < 0)
+                    continue;
+                double ago = (c - Math.Floor(c)) * cycle;
+                var down = line.Sample(e.LineDistance - v * ago + reach);
+                var side = Double3.Cross(down.Tangent, Double3.Up).Normalized;
+                var p = down.Position + side * (e.Lateral + (foot == 0 ? 1 : -1) * WakerGait.FootOut) + Double3.Up * e.Height;
+                fx.WakerFootfall(mesh, V(p, eye), r, b, ago, e.Id * 2 + foot);
+            }
+        }
     }
+
+    /// <summary>How high a Waker's back is over his feet stood (m): where the town's shots land on him.</summary>
+    const double WakerBack = 40;
 
     /// <summary>
     /// The terminus's guns that bear on what's stopped outside its gate (note 599): one on each of the gatehouse's towers and on
@@ -2527,7 +2597,8 @@ public sealed partial class GreyboxScene
                 {
                     // What gets up at dawn (note 588; docs/design/creatures/wakers.md): the land standing up, a car a mouthful.
                     // Rising (TELEGRAPH) it heaves up out of the ground; running, it's bent over the line, long arms reaching;
-                    // holding the train, the arms are up at the last car and its head down to it. Its model is C1/E1's.
+                    // holding the train, the arms are up at the last car and its head down to it. With the art, the Peat Man
+                    // is drawn instead (note 679; CreatureArt.Waker.cs).
                     var earth = Palette.DeepBrown * 0.55f;
                     double sink = WakerRise.Sink(e.Phase, e.PhaseSeconds, creatures?.WakersTuning.RiseSeconds ?? new Sim.Enemies.WakersTuning().RiseSeconds);
                     bool holds = e.Phase == SpinePhase.Punish;
