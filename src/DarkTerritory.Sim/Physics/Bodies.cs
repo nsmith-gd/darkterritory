@@ -126,6 +126,11 @@ public sealed class Body
     /// Host only.
     /// </summary>
     public bool Claimed { get; set; }
+    /// <summary>
+    /// A find lying still in a car and banked by the run (note 659: it stays there, where it used to be taken out of the
+    /// world). Host only. What takes loot passes it over (<see cref="Bodies.Prey"/>), as it did when it was gone.
+    /// </summary>
+    public bool Banked { get; set; }
     internal int Airborne;
     internal double LineHint;
     public Double3 Centre => Pbd.Centre;
@@ -376,7 +381,7 @@ public sealed class Bodies
     /// but nothing for a rescued child, who "cannot be harmed" (GDD App. A.6 REAL; note 182). It's the most valuable thing
     /// aboard, and no creature carries it off or nests over it.
     /// </summary>
-    public static double Prey(Body b) => b.Kind == BodyKind.Child ? 0 : Value(b);
+    public static double Prey(Body b) => b.Kind == BodyKind.Child || b.Banked ? 0 : Value(b);
 
     /// <summary>A small thing on the ground at a facility (a toy, salvage, a child), in the world frame.</summary>
     public Body SpawnItem(Double3 world, double lineHint, BodyKind kind)

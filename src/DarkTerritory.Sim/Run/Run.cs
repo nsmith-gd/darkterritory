@@ -112,8 +112,10 @@ public enum RunEnd : byte { None, Delivered, Derailed, CrewLost, DawnMissed, Str
 /// the scrip for the finds stowed (<see cref="Run.Scavenged"/>) and the finds themselves, the mail caught
 /// (<see cref="Run.Mail"/>), the coal and rounds it left the fortress with, and the coal it's loaded at towers since.
 /// </summary>
+/// <param name="Banked">Note 659: the owners (<see cref="Run.LootOwner"/>) of the finds banked and still lying aboard, so the
+/// resumed night's own bodies of them (put back where they lay) aren't banked twice. Null in an older save.</param>
 public sealed record RunTakings(double Scavenged, IReadOnlyList<LootFind> Stowed, double Mail, double TenderAtDeparture, double CoalLoaded,
-    int AmmoAtDeparture);
+    int AmmoAtDeparture, IReadOnlyList<int>? Banked = null);
 
 /// <summary>What a night came to (spec F.1): everything still attached to the locomotive counts.</summary>
 /// <param name="Scavenged">Scrip for village finds stowed aboard (level-design P12), paid with the cargo on delivery and in Gross.</param>
@@ -321,7 +323,7 @@ public sealed partial class Run
     /// What the night's taken and spent so far, for the autosave (note 500): the finds stowed, the mail caught, and the coal
     /// and rounds it left the fortress with and the coal it's loaded since.
     /// </summary>
-    public RunTakings Takings => new(Scavenged, [.. _stowed], Mail, _tenderAtDeparture, _coalLoaded, _ammoAtDeparture);
+    public RunTakings Takings => new(Scavenged, [.. _stowed], Mail, _tenderAtDeparture, _coalLoaded, _ammoAtDeparture, [.. _banked.Values.Select(b => b.Owner)]);
 
     public void Step(World world, IReadOnlyCollection<PlayerState> crew, double dt)
     {
@@ -1035,6 +1037,9 @@ public sealed partial class Run
             Scavenged = takings.Scavenged;
             _stowed.Clear();
             _stowed.AddRange(takings.Stowed);
+            _banked.Clear();
+            _alreadyBanked.Clear();
+            _alreadyBanked.AddRange(takings.Banked ?? []);
         }
         // Note 500: the stop just left was still in the stocking's look-ahead, and its finds came out again behind the train,
         // to be fetched and paid for twice.
