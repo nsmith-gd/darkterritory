@@ -805,10 +805,11 @@
     // to point at it ... one grid ahead of me. I should be able to hold. And it should dissipate within five seconds. And then
     // I should be able to continue walking forward to the next grid"): sprayWorksAcross, the spray works all round the car
     // where it's aimed (its floor, walls and roof there, a 3.5 m stretch of it), each of those cells at sprayPerSecond. At
-    // 0.6 the stretch dies from full blaze to out in about 1.6 s, its flames shrinking as it goes, and stays out while it's
-    // wet (dampSeconds); one aimed at the floor alone went out under walls and a roof still burning over it.
+    // 1 the stretch dies from full blaze to out in about a second, its flames shrinking as it goes (the director's "1s per
+    // grid" of 8 Oct, note 467, a grid now all round the car), and stays out while it's wet (dampSeconds); one cell aimed at
+    // on the floor alone went out under walls and a roof still burning over it.
     "sprayWorksAcross": true,
-    "sprayPerSecond": 0.6, "chargeSeconds": 15, "rechargeSeconds": 90, "burnReach": 1.6,
+    "sprayPerSecond": 1.0, "chargeSeconds": 15, "rechargeSeconds": 90, "burnReach": 1.6,
     // Note 587 (the director, 9 Oct 2026, playtesting: "I point at fire, I click, I hold, it should stay there"): the spray
     // goes where the look lands on fire; where it lands on none (looking at the flames over a burning cell, the ray goes on
     // to the boards beyond), on the burning cell whose flames are nearest the middle of a sprayConeDeg cone along the look,
