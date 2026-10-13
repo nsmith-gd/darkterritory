@@ -45,9 +45,11 @@ public static class Radio
 
     /// <summary>
     /// The clerk at the terminus: the cars and their cargo, then each death body by body (its fee, and the refund if the body
-    /// came home), the mail, the costs, and the net. Every figure as flat as the last.
+    /// came home), the mail, the costs, and the net. Every figure as flat as the last. <paramref name="owned"/> are what the
+    /// crew's catalogue purchases have the clerk say (note 678; <see cref="Campaign.Campaign.TallyLines"/>): a gold whistle
+    /// read like the coal, before the costs.
     /// </summary>
-    public static List<string> Tally(RunReport report)
+    public static List<string> Tally(RunReport report, IReadOnlyList<string>? owned = null)
     {
         var lines = new List<string> { "Yard clerk. Consist received. Tally follows." };
         lines.Add($"Cars delivered: {report.CarsDelivered}. Cargo: {report.Gross:0}.");
@@ -64,6 +66,8 @@ public static class Radio
             lines.Add($"Mail: {report.Mail:0}.");
         if (report.Scavenged > 0)
             lines.Add($"Salvage: {report.Scavenged:0}.");
+        if (owned is not null)
+            lines.AddRange(owned);
         lines.Add($"Coal: {report.CoalCost:0}. Powder and shot: {report.AmmoCost:0}. Repairs: {report.RepairCost:0}.");
         lines.Add($"Net: {report.Net:0}. Next.");
         return lines;

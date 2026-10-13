@@ -50,6 +50,20 @@
   // boiler.json repairSeconds), radioReach (metres added to how far into a tunnel or a mine spur the radio still carries:
   // train.json kit.radioReach) and switchThrower (fitted to the cab: train.json composition.thrower says what it does).
   // Every upgrade here does something; an effect name nothing models would change nothing, so give each one an effect.
+  // The catalogue (ARCHITECTURE §8 note 678; docs/design/upgrades.md, the director, 13 Oct: "Some upgrades need to be simply
+  // for fun, some purchases need to be silly, some purchases need to have comedic whimsy, and some purchases need to be
+  // legitimate tools that will push runs further"): "kind" is tool (the default), fun, silly or whimsy, and the shop shelves
+  // them by it. "fromTier" holds a tool back until the consist works that tier (spec F.4: the cars set it), so a tool comes
+  // to the crew with the trouble it answers and not before. "excludes" names upgrades it won't go with. "line" is its card
+  // in the shop; "tally", what the yard clerk reads into every night's tally while the crew owns it (GDD §9: the clerk isn't
+  // impressed either). An upgrade with a tally and no effect does something: the clerk says so, every night.
+  // The note's effects: overspeedLead (train.json overspeed.leadSeconds: the cab's bell before a bend, and how long it rings
+  // before a bend can take the train), brakeFade (brakeFade.fadePerSecond), fragile (fragile.shockShare and
+  // brakeShockPerSecond: what knocks spoil of medicine), boardUp (breach.boardSeconds), radios (kit.radios, added), accel
+  // (each performance row's accel), coldBoiler (boiler.json coldEfficiencyPerStep), reload (combat.json
+  // guns.reloadStepSeconds), whistle (choir.whistleLoudness), hotboxKnock (enemies.json hotbox.knockSeconds and
+  // glowSeconds: how long a Hotbox's axle knocks and glows before it seizes), hotboxMend (hotbox.repairSeconds) and
+  // extinguisher (carFire.chargeSeconds times it, rechargeSeconds over it).
   "upgrades": [
     { "id": "lampBrightness", "name": "Lamp brightness", "size": "small", "costShare": 0.15, "effect": { "lamp": 1.25 } },
     // F.3 "lamp armour": the Climbers still smash the forward lamp coming into the cab (§23 "lights fail"), but the guard
@@ -86,7 +100,65 @@
     // F.3 "removes the ground excursion at junctions": points thrown from the cab (train.json composition.thrower).
     { "id": "poweredSwitchThrower", "name": "Powered switch thrower", "size": "major", "costShare": 1.6, "effect": { "switchThrower": 1 } },
     // F.3 "uncouple under load": cutting a working train's coupling takes no longer than a slack one (6 s to 3 s).
-    { "id": "reinforcedCouplings", "name": "Reinforced couplings", "size": "major", "costShare": 1.8, "effect": { "underLoad": 0.5 } }
+    { "id": "reinforcedCouplings", "name": "Reinforced couplings", "size": "major", "costShare": 1.8, "effect": { "underLoad": 0.5 } },
+
+    // Tools that keep pace with the tiers (note 678). Each answers a trouble that grows past the tier it's stocked from, and
+    // takes a share of it, never all of it: a warning sooner, a job done faster, a window held open longer.
+    // The deeper lines' bends (GDD §11: "harder grades and bends"): the bell rings 6 s out, not 4, and a bend has to have
+    // been rung that long before it can take the train (note 266).
+    { "id": "speedRecorder", "name": "Speed recorder", "size": "small", "costShare": 0.15, "fromTier": "frontier", "effect": { "overspeedLead": 1.5 },
+      "line": "A bell in the cab that rings before the bend does. Six seconds' warning, not four." },
+    // The grades (spec B.5's fade, on a descent): half as fast.
+    { "id": "compositionShoes", "name": "Composition brake shoes", "size": "small", "costShare": 0.2, "fromTier": "frontier", "effect": { "brakeFade": 0.5 },
+      "line": "Shoes that fade half as fast on a long descent." },
+    // Medicine (GDD §19 "fragile, high value"): knocks and hard braking spoil 40% of what they did.
+    { "id": "sprungCradles", "name": "Sprung cradles", "size": "small", "costShare": 0.15, "effect": { "fragile": 0.4 },
+      "line": "Racks on springs for the medicine. A hard stop spoils less of it." },
+    // Breaches (spec B.9; the Car Hugger and the Climbers, more of both on every tier down): boarded up in 4 s, not 8.
+    { "id": "precutBoards", "name": "Pre-cut boards", "size": "small", "costShare": 0.15, "fromTier": "frontier", "effect": { "boardUp": 0.5 },
+      "line": "Planks cut to a breach's size, stacked in every car. Boarded up in half the time." },
+    // GDD §15: "half the crew can't hear the other half". Two more radios in the guard van.
+    { "id": "spareRadios", "name": "Spare radios", "size": "small", "costShare": 0.15, "effect": { "radios": 2 },
+      "line": "Two more sets in the guard van, for a train too long to shout down." },
+    // The Hotbox (App. A.3; weighted up each tier, enemies.json hotbox.tierWeights): its axle knocks and glows half again
+    // as long before it seizes, and is mended in half the time.
+    { "id": "axleOilers", "name": "Axle oilers", "size": "small", "costShare": 0.2, "fromTier": "deadLines", "effect": { "hotboxKnock": 1.5, "hotboxMend": 0.5 },
+      "line": "Oil cups on every axle. A hot box knocks longer before it seizes, and cools quicker under the wrench." },
+    // Car fires (App. C.5; powder, chemicals and fuel grow them, and the deeper yards load them): half again the spray, and
+    // back to full on the bracket in half the time.
+    { "id": "bigExtinguishers", "name": "Big extinguishers", "size": "small", "costShare": 0.2, "fromTier": "frontier", "effect": { "extinguisher": 1.5 },
+      "line": "Bigger bottles: half again the spray, and full again on the bracket in half the time." },
+    // The cold (player.json cold): each step of it costs the boiler half what it did.
+    { "id": "feedwaterHeater", "name": "Feedwater heater", "size": "small", "costShare": 0.25, "fromTier": "deadLines", "effect": { "coldBoiler": 0.5 },
+      "line": "Warms the water before it reaches the boiler. The cold takes half as much off the steam." },
+    // More creatures at the rear and flanks each tier down: a reload step in 1.2 s, not 1.5.
+    { "id": "gunRammers", "name": "Gun rammers", "size": "small", "costShare": 0.25, "fromTier": "deadLines", "effect": { "reload": 0.8 },
+      "line": "Sprung rammers and a powder measure at every gun. Each step of a reload a fifth quicker." },
+    // The longest trains (spec B.5: 0.18 m/s² at 20 cars) get going again after a stop a fifth harder.
+    { "id": "boosterEngine", "name": "Trailing-truck booster", "size": "major", "costShare": 1.5, "fromTier": "deadLines", "effect": { "accel": 1.2 },
+      "line": "A second engine under the tender's trucks. A long train pulls away a fifth harder." },
+
+    // Whimsy (note 678): it works, and it's funny. A real use and a joke in the same purchase.
+    // The whistle swapped for a clown's bulb horn: a third as loud to the Choir (combat.json choir.whistleLoudness; it still
+    // draws the night's first threat as a whistle does, note 287). Its honk is the audio chat's (asked on the PR). Not with
+    // the gold one.
+    { "id": "theHonk", "name": "The honk", "kind": "whimsy", "size": "small", "costShare": 0.05, "effect": { "whistle": 0.35 }, "excludes": [ "goldWhistle" ],
+      "line": "A bulb horn off a clown's bicycle where the whistle was. The Territory doesn't take it seriously.",
+      "tally": "Horn: comedic." },
+    // Nailed points up over the cab door: the guns foul a little less (with gun cooling too: they multiply).
+    { "id": "luckyHorseshoe", "name": "Lucky horseshoe", "kind": "whimsy", "size": "small", "costShare": 0.1, "effect": { "foul": 0.85 },
+      "line": "Nailed over the cab door, points up. The guns foul a little less. Nobody can say why.",
+      "tally": "Horseshoe: still up." },
+
+    // Silly (note 678): bought because it's silly. The price is the joke, and the clerk reads it out every night.
+    // Costs more than a major and is still a whistle: louder, which isn't better (the Choir hears it a quarter further).
+    { "id": "goldWhistle", "name": "Gold-plated whistle", "kind": "silly", "size": "major", "costShare": 2.5, "effect": { "whistle": 1.25 }, "excludes": [ "theHonk" ],
+      "line": "Costs more than a car. It's a whistle. It's louder, and that isn't better.",
+      "tally": "Whistle: gold." },
+    // Does nothing at all, and the clerk says so, every night, for good.
+    { "id": "commendation", "name": "Framed commendation", "kind": "silly", "size": "small", "costShare": 0.5, "effect": { },
+      "line": "\"For Services to the Railway\", signed by a council nobody's met, framed, for the cab. Read into every tally.",
+      "tally": "Commendation: framed." }
   ],
   // GDD v1.4 App. E.12 question 4 had the fortress sell spare repair kits ("spareKit": { "cost": 325, "most": 3 }: each
   // started the night in a crew locker, and losing every kit stranded a ruptured night, §23.2). Note 301 (queue #39, the

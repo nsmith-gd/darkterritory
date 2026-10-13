@@ -1357,18 +1357,38 @@ public sealed class FrontEnd
         if (Open is not { } s)
             return [BackTo(Screen.Fortress)];
         var list = new List<Entry>();
-        foreach (var u in _campaign.Upgrades)
+        // The catalogue by what it's for (note 678): the tools first, then the rest of the chandler's shelves.
+        foreach (var kind in new[] { UpgradeKind.Tool, UpgradeKind.Whimsy, UpgradeKind.Fun, UpgradeKind.Silly })
         {
-            bool owned = s.Upgrades.Contains(u.Id);
-            double cost = Campaign.UpgradeCost(_campaign, s, u);
-            // The shop says which upgrades the night doesn't model yet (ARCHITECTURE §8 note 29).
-            string detail = $"{(u.Size == UpgradeSize.Major ? "Major" : "Small")}{(u.Effect.Count == 0 ? ", not modelled yet" : "")}.";
-            list.Add(new(new(owned ? $"{u.Name.ToUpperInvariant()}: OWNED" : $"{u.Name.ToUpperInvariant()}: {cost:0}", detail, !owned),
-                () => Buy(Campaign.BuyUpgrade(_campaign, s, u.Id), $"{u.Name} bought.")));
+            var shelf = _campaign.Upgrades.Where(u => u.Kind == kind).ToList();
+            if (shelf.Count == 0)
+                continue;
+            list.Add(new(new(KindHeading(kind), Heading: true)));
+            foreach (var u in shelf)
+            {
+                bool owned = s.Upgrades.Contains(u.Id);
+                double cost = Campaign.UpgradeCost(_campaign, s, u);
+                string? why = owned ? null : Campaign.Unavailable(_campaign, s, u);
+                // The shop says which upgrades the night doesn't model yet (ARCHITECTURE §8 note 29).
+                string detail = u.Line ?? $"{(u.Size == UpgradeSize.Major ? "Major" : "Small")}{(u.Effect.Count == 0 && u.Tally is null ? ", not modelled yet" : "")}.";
+                string label = owned ? $"{u.Name.ToUpperInvariant()}: OWNED"
+                    : why is not null && Campaign.TierFor(_campaign, s.Cars) < u.FromTier ? $"{u.Name.ToUpperInvariant()}: {Name(u.FromTier)} AND ON"
+                    : $"{u.Name.ToUpperInvariant()}: {cost:0}";
+                list.Add(new(new(label, why is null ? detail : $"{why}.", !owned && why is null),
+                    () => Buy(Campaign.BuyUpgrade(_campaign, s, u.Id), $"{u.Name} bought.")));
+            }
         }
         list.Add(BackTo(Screen.Fortress));
         return list;
     }
+
+    static string KindHeading(UpgradeKind kind) => kind switch
+    {
+        UpgradeKind.Tool => "TOOLS",
+        UpgradeKind.Whimsy => "WHIMSY",
+        UpgradeKind.Fun => "FUN",
+        _ => "SILLY",
+    };
 
     static string StoresLine(Stores st) => st.Any
         ? $"Bought for tonight: {st.Powder} powder, {st.Lamps} lamps, {st.Extinguishers} extinguishers."

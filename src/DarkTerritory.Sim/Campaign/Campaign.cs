@@ -52,7 +52,26 @@ public sealed record CarCostTuning(double Base, double Growth, int FromCar);
 public sealed record SpareKitTuning(double Cost, int Most);
 public sealed record TierStep(RouteTier Tier, int FromCars);
 public enum UpgradeSize : byte { Small, Major }
-public sealed record UpgradeDef(string Id, string Name, UpgradeSize Size, double CostShare, Dictionary<string, double> Effect);
+/// <summary>
+/// What an upgrade is for (ARCHITECTURE §8 note 678; docs/design/upgrades.md): a tool that pushes a night further, a bit of
+/// fun, something silly bought because it's silly, or a whimsy that works and is funny with it.
+/// </summary>
+public enum UpgradeKind : byte { Tool, Fun, Silly, Whimsy }
+
+/// <summary>
+/// One line of the fortress's catalogue (campaign.json <c>upgrades</c>; spec F.3). Field docs live in that file.
+/// <see cref="FromTier"/> holds a tool back until the consist works the tier whose trouble it answers (note 678: the town
+/// stocks what the line needs); <see cref="Excludes"/> names the ones it won't go with; <see cref="Line"/> is the shop's
+/// card and <see cref="Tally"/> what the yard clerk reads into every night's tally while the crew owns it.
+/// </summary>
+public sealed record UpgradeDef(string Id, string Name, UpgradeSize Size, double CostShare, Dictionary<string, double> Effect)
+{
+    public UpgradeKind Kind { get; init; }
+    public RouteTier FromTier { get; init; }
+    public string[] Excludes { get; init; } = [];
+    public string? Line { get; init; }
+    public string? Tally { get; init; }
+}
 /// <summary>The yardstick crew for <see cref="Campaign.Simulate"/>; <c>Loads</c> is the car-loads a competent delivered night
 /// brings home on each tier (note 636: the train leaves empty, note 575, and a night earns what its stops load), and a tier
 /// it doesn't name loads every car but the guard.</summary>
@@ -245,8 +264,44 @@ public static class Campaign
             return new(s, $"no upgrade called '{id}'");
         if (s.Upgrades.Contains(id))
             return new(s, $"you already have {u.Name}");
+        if (Unavailable(t, s, u) is { } why)
+            return new(s, why);
         double cost = UpgradeCost(t, s, u);
         return s.Scrip < cost ? new(s, $"{u.Name} costs {cost:0} scrip; you have {s.Scrip:0}") : new(s with { Upgrades = [.. s.Upgrades, id], Scrip = s.Scrip - cost }, null);
+    }
+
+    /// <summary>
+    /// Why the fortress won't sell <paramref name="u"/> to this crew yet (note 678), or null: a tool held back until the
+    /// consist works the tier it answers (spec F.4: the cars set the tier), or one that won't go with something already fitted
+    /// (either side naming the other).
+    /// </summary>
+    public static string? Unavailable(CampaignTuning t, CampaignState s, UpgradeDef u)
+    {
+        if (TierFor(t, s.Cars) < u.FromTier)
+            return $"{u.Name} is stocked for {TierWords(u.FromTier)} work: a train of {t.Tiers.Where(x => x.Tier == u.FromTier).Select(x => x.FromCars).DefaultIfEmpty(0).First()} cars";
+        foreach (var other in s.Upgrades)
+            if (other != u.Id && t.Upgrades.FirstOrDefault(o => o.Id == other) is { } o && (u.Excludes.Contains(other) || o.Excludes.Contains(u.Id)))
+                return $"{u.Name} won't go with the {o.Name.ToLowerInvariant()}";
+        return null;
+    }
+
+    /// <summary>A tier as the fortress says it ("dead lines").</summary>
+    public static string TierWords(RouteTier tier) => tier switch
+    {
+        RouteTier.Local => "local",
+        RouteTier.Frontier => "frontier",
+        RouteTier.DeadLines => "dead lines",
+        _ => "deep territory",
+    };
+
+    /// <summary>
+    /// What the yard clerk adds to the tally for what the crew owns (note 678): each owned upgrade's <see cref="UpgradeDef.Tally"/>,
+    /// in the catalogue's order, read as flat as the coal. "The settlement does not mourn" (GDD §9), and it isn't impressed.
+    /// </summary>
+    public static IReadOnlyList<string> TallyLines(CampaignTuning t, IEnumerable<string> upgrades)
+    {
+        var owned = upgrades.ToHashSet();
+        return [.. t.Upgrades.Where(u => u.Tally is { Length: > 0 } && owned.Contains(u.Id)).Select(u => u.Tally!)];
     }
 
     /// <summary>A spare repair kit from the fortress's stores (E.12 question 4, answered: it sells them).</summary>
@@ -421,6 +476,20 @@ public static class Campaign
                     "repair" => l with { Boiler = l.Boiler with { RepairSeconds = l.Boiler.RepairSeconds * k } },
                     "radioReach" => l with { Train = l.Train with { Kit = l.Train.Kit with { RadioReach = l.Train.Kit.RadioReach + k } } },
                     "switchThrower" => Fit(l, c => c with { SwitchThrower = c.SwitchThrower || k > 0 }),
+                    // The catalogue's (note 678; docs/design/upgrades.md): tools that keep pace with the tiers, and the silly.
+                    "overspeedLead" => l with { Train = l.Train with { Overspeed = l.Train.Overspeed with { LeadSeconds = l.Train.Overspeed.LeadSeconds * k } } },
+                    "brakeFade" => l with { Train = l.Train with { BrakeFade = l.Train.BrakeFade with { FadePerSecond = l.Train.BrakeFade.FadePerSecond * k } } },
+                    "fragile" when l.Train.Fragile is { } f => l with { Train = l.Train with { Fragile = f with { ShockShare = f.ShockShare * k, BrakeShockPerSecond = f.BrakeShockPerSecond * k } } },
+                    "boardUp" => l with { Train = l.Train with { Breach = l.Train.Breach with { BoardSeconds = l.Train.Breach.BoardSeconds * k } } },
+                    "radios" => l with { Train = l.Train with { Kit = l.Train.Kit with { Radios = l.Train.Kit.Radios + (int)Math.Round(k) } } },
+                    "accel" => l with { Train = l.Train with { Performance = [.. l.Train.Performance.Select(r => r with { Accel = r.Accel * k })] } },
+                    "coldBoiler" => l with { Boiler = l.Boiler with { ColdEfficiencyPerStep = l.Boiler.ColdEfficiencyPerStep * k } },
+                    "reload" => l with { Combat = l.Combat with { Guns = l.Combat.Guns with { ReloadStepSeconds = l.Combat.Guns.ReloadStepSeconds * k } } },
+                    "whistle" => l with { Combat = l.Combat with { Choir = l.Combat.Choir with { WhistleLoudness = l.Combat.Choir.WhistleLoudness * k } } },
+                    "hotboxKnock" when l.Enemies is { } e => l with { Enemies = e with { Hotbox = e.Hotbox with { KnockSeconds = e.Hotbox.KnockSeconds * k, GlowSeconds = e.Hotbox.GlowSeconds * k } } },
+                    "hotboxMend" when l.Enemies is { } e => l with { Enemies = e with { Hotbox = e.Hotbox with { RepairSeconds = e.Hotbox.RepairSeconds * k } } },
+                    // A bigger extinguisher: k times the spray in it, and back to full on its bracket in 1/k the time.
+                    "extinguisher" when l.Enemies is { } e => l with { Enemies = e with { CarFire = e.CarFire with { ChargeSeconds = e.CarFire.ChargeSeconds * k, RechargeSeconds = e.CarFire.RechargeSeconds / k } } },
                     _ => l,
                 };
         }

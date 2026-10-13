@@ -285,6 +285,15 @@ public sealed class NetPlaySession : IPlaySession, IDisposable
         Lobby = lobby;
     }
 
+    /// <summary>
+    /// What the crew's catalogue purchases have the yard clerk add to the tally (note 678): the gold whistle, read like the
+    /// coal. The same on every machine, from the setup's upgrades.
+    /// </summary>
+    public IReadOnlyList<string> OwnedTally { get; init; } = [];
+
+    static IReadOnlyList<string> TallyOf(string content, SessionSetup setup) => setup.Upgrades.Count == 0 ? []
+        : Sim.Campaign.Campaign.TallyLines(DataFile.Load<Sim.Campaign.CampaignTuning>(Path.Combine(content, Sim.Campaign.CampaignTuning.File)), setup.Upgrades);
+
     /// <summary>The platform lobby this game is hosted in or was joined through, if any.</summary>
     public Lobby? Lobby { get; }
     public HostSession? Host { get; }
@@ -480,7 +489,7 @@ public sealed class NetPlaySession : IPlaySession, IDisposable
             _bulletinSeconds += SimConstants.TickSeconds;
         if (_tally is null && run.Report is { End: Sim.Run.RunEnd.Delivered } report)
         {
-            _tally = Sim.Run.Radio.Tally(report);
+            _tally = Sim.Run.Radio.Tally(report, OwnedTally);
             _tallyTimes = RadioTimesOf(_tally);
             _tallySeconds = 0;
         }
@@ -601,6 +610,7 @@ public sealed class NetPlaySession : IPlaySession, IDisposable
             BotCrew = crew,
             Listed = listed,
             LobbyName = name,
+            OwnedTally = TallyOf(content, setup),
             Tier = tier,
             Locked = key is not null,
             Mood = mood,
@@ -897,7 +907,7 @@ public sealed class NetPlaySession : IPlaySession, IDisposable
         var client = new ClientSession(new Replay(transport, early), world,
             setup.Loadout(content).Train, DataFile.Load<PlayerTuning>(Path.Combine(content, PlayerTuning.File)))
         { Name = LocalName(lobby), Outfit = Outfit, PasswordKey = key, SnapshotLoss = new(Hud.Tuning.LossWindowTicks) };
-        return new NetPlaySession(null, null, null, client, transport, setup, route, lobby) { Redial = redial };
+        return new NetPlaySession(null, null, null, client, transport, setup, route, lobby) { Redial = redial, OwnedTally = TallyOf(content, setup) };
     }
 
     /// <summary>A new link to the host this joiner reached (by address, or through the lobby), for coming back after a drop.</summary>

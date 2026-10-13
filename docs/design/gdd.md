@@ -426,6 +426,8 @@ Successful deliveries earn money. Money buys capability. Capability allows more 
 
 **Difficulty is produced by success rather than selected from a menu.**
 
+**The fortress's catalogue** *(the director, 13 Oct 2026: "Some upgrades need to be simply for fun, some purchases need to be silly, some purchases need to have comedic whimsy, and some purchases need to be legitimate tools that will push runs further"; note 678, docs/design/upgrades.md)*. The shop shelves upgrades by what they're for. **Tools** push a run further, each stocked from the tier whose trouble it answers (a town on local work doesn't sell gun rammers) and taking a share of that trouble, never all of it. **Whimsy** works and is funny: the honk, a clown's bulb horn where the whistle was, quieter to the Choir. **Fun** is the train as home: paint, a nameplate, lanterns in the yard. **Silly** is bought because it's silly: a gold-plated whistle that costs more than a car, and a framed commendation the yard clerk reads into every tally, flat, forever. Everything's priced off the next car, so it all competes with growing the train; and it all goes down with the train at dawn (note 632).
+
 **One wallet.** The whole crew shares a single wallet for every purchase and upgrade. Nobody holds their own money. More crew means more hands and more loot, faster, which is why getting people back into a run matters (Appendix D).
 
 ### Route tiers

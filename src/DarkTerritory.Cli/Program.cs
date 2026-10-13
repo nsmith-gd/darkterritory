@@ -633,7 +633,7 @@ object CampaignCommand(string content, string verb, string[] args)
         contracts = DarkTerritory.Sim.Campaign.Campaign.Offers(t, runTuning, s).Select((c, i) => new { index = i, route = c.Route, perCar = c.PerCar }),
         stores = s.Stores,
         sellBack = DarkTerritory.Sim.Campaign.Campaign.SellBack(t, s),
-        shop = t.Upgrades.Where(u => !s.Upgrades.Contains(u.Id)).Select(u => new { u.Id, u.Name, size = u.Size.ToString(), cost = DarkTerritory.Sim.Campaign.Campaign.UpgradeCost(t, s, u), modelled = u.Effect.Count > 0 }),
+        shop = t.Upgrades.Where(u => !s.Upgrades.Contains(u.Id)).Select(u => new { u.Id, u.Name, kind = u.Kind.ToString(), size = u.Size.ToString(), cost = DarkTerritory.Sim.Campaign.Campaign.UpgradeCost(t, s, u), modelled = u.Effect.Count > 0 || u.Tally is not null, refused = DarkTerritory.Sim.Campaign.Campaign.Unavailable(t, s, u) }),
         underway = s.Current?.Route,
         autosave = s.Checkpoint is { } c ? $"left facility {c.Facility} at {c.Seconds / 60:0.0} min" : null,
         s.History,
