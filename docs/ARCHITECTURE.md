@@ -824,4 +824,5 @@ written here instead is moved out by `tools/coord/notes.py split`; the Coordinat
 - [644. The Pickers and the house creatures under the night's rules and on the Creature Tweaker (D1, queue #374; after G1's #721, note 635)](notes/644.md)
 - [645. The Pickers and the house creatures seen going at dawn (G1, queue #375; D1's ask on #374; notes 635, 642)](notes/645.md)
 - [646. The threat scales by the crew and by the train (D1, queue #376; the director, the inbox, 9 Oct, orchestrator.md §8 question 1: "Scale by…](notes/646.md)
+- [650. Holdouts right beside the line, for the shortest rescue (queue #380, D1.2 for D1; the director, the inbox, 12 Oct, `D1-holdout-cost`:…](notes/650.md)
 <!-- end of the notes index -->

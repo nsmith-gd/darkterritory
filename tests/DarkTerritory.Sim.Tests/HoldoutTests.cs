@@ -901,11 +901,12 @@ public class HoldoutTests
     [Fact]
     public void ALoneDriverGoesRoundTheTreesToALockupFarOffTheLineAndBackToTheCab()
     {
-        // Note 406 (queue #142): a Holdout's door can be most of Heed.HoldoutRange off the line, behind the lineside spruce
-        // (note 371). The driver went at it by the track-side walk, which keeps to the line's own along and across: into the
-        // trees, along them the wrong way, and out there till the dawn with the train on its brake (frontier:7, seed 2, a
-        // facility's lockup 160 m off). By the foot path, round the trees, and back by it to the cab.
-        var n = new BotNight(bots: 1, f => f.Kind == FeatureKind.Facility && Math.Abs(f.Stop!.Holdouts[0].Door.D) > 100);
+        // Note 406 (queue #142): a Holdout's door off the line, behind the lineside spruce (note 371). The driver went at it by
+        // the track-side walk, which keeps to the line's own along and across: into the trees, along them the wrong way, and
+        // out there till the dawn with the train on its brake (frontier:7, seed 2, a facility's lockup 160 m off). By the
+        // foot path, round the trees, and back by it to the cab. Note 650: a facility's Holdout now stands beside its yard
+        // track, so the furthest off the main line is that track's way off it (60 m and more).
+        var n = new BotNight(bots: 1, f => f.Kind == FeatureKind.Facility && Math.Abs(f.Stop!.Holdouts[0].Door.D) > 60);
         n.KillThePlayer();
         var driver = (Bots.ConductorBot)n.Crew[0].Bot;
         byte driverId = n.Crew[0].Session.PlayerId!.Value;
@@ -916,7 +917,7 @@ public class HoldoutTests
                 outAt = n.Host.Train.Dynamics.Distance;
         });
         Assert.False(double.IsNaN(outAt), "the driver got down");
-        Assert.True(Math.Abs(n.Lockup.Site.Stop!.Holdouts[0].Door.D) > 100);
+        Assert.True(Math.Abs(n.Lockup.Site.Stop!.Holdouts[0].Door.D) > 60);
         var freed = Assert.Single(n.Host.HoldoutEvents, e => e.Kind == HoldoutEventKind.Freed);
         Assert.Equal(driverId, freed.By);
         n.Run(400, until: () => n.Host.Train.Dynamics.Distance > outAt + 50);
