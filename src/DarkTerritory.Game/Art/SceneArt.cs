@@ -420,6 +420,18 @@ public sealed partial class SceneArt(Look look)
     /// <summary>Each car's strain on a bend taken too fast (GreyboxScene's, BendStrain.PerCar), by frame: the crew on it stumble.</summary>
     public IReadOnlyList<(float Stress, int Outer)>? BendStrain { get; set; }
 
+    /// <summary>
+    /// The car a Waker's eating this frame (note 679; GreyboxScene sets it): its index among the frames and how far through
+    /// its eating he is (0..1). It's bitten off where it's drawn (<see cref="Bite.Waker"/>), not dropped out of sight.
+    /// </summary>
+    public (int Car, double Through)? WakerEating { get; set; }
+
+    /// <summary>What's eaten of a car as it's drawn: a Waker's bites into the car he's eating, else a Car Hugger's.</summary>
+    public Bite BiteOf(CarShape shape, Vehicle? vehicle, int index) =>
+        WakerEating is { } w && w.Car == index
+            ? Bite.Waker(shape, w.Through, Bite.ScarSeed(vehicle?.Id ?? index))
+            : Bite.For(Look.Tuning.Bite, shape, vehicle, index);
+
     // How strained a car is before the crew on it stumble: past halfway to derailing, where the eye's judder is plain
     // (BendStrain.Offset starts at 0.2) and the flanges' haze comes on. GameAudio's scuffs go by it too.
     internal const float StumbleAt = 0.5f;
@@ -1313,7 +1325,7 @@ public sealed partial class SceneArt(Look look)
         int seed = vehicle?.Id ?? frame.Index;
         // A fire's char scars it as hard as the burn went, whatever the integrity says (it's the boards that went).
         var scar = new Vector2(MathF.Max(damage.ScarOf(integrity), charred * 0.85f), Bite.ScarSeed(seed));
-        var bite = Bite.For(Look.Tuning.Bite, shape, vehicle, frame.Index);
+        var bite = BiteOf(shape, vehicle, frame.Index);
         var (cut, floor) = bite.Any ? (bite.Shader, bite.Floor) : (Vector4.Zero, 0f);
         var soot = charred > 0 ? Vector3.Lerp(Vector3.One, CharTint, charred) : default;
         // Under emergency lighting the headlamp and tail lamp have no power.
