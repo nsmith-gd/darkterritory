@@ -865,4 +865,6 @@ written here instead is moved out by `tools/coord/notes.py split`; the Coordinat
 - [684. A moved board says its distance from where it stands (B4, queue #416; note 560's handoff, not yet (1); the director, 13 Oct, `pt13-signs`)](notes/684.md)
 - [686. A board past a truss isn't read through the truss (B4, queue #418; note 560's handoff, not yet (2); the director, 13 Oct, `pt13-signs`:…](notes/686.md)
 - [687. Hot reload out of a player's build, and watched not polled in a dev one (D1, queue #419; the director, 13 Oct, on note 666's suggestions:…](notes/687.md)
+- [688. Chimney smoke runs faster as the player moves (D1, queue #420; the director, 13 Oct evening, `docs/playtest/2026-10-13-evening.md` line 4)](notes/688.md)
+- [689. The guns said NO STEAM after coaling, and wouldn't fire (D1, queue #421; the director, 13 Oct evening,…](notes/689.md)
 <!-- end of the notes index -->

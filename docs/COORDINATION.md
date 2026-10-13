@@ -150,7 +150,14 @@ based on notes. When work is assigned to an agent, the agent should mark it in t
 
 The director's notes from playing a Test build are tracked line by line in `docs/playtest/<date>.md`: each note in the
 director's words, its owner, queue item, PR and status. Whoever holds a line updates it there when its PR merges (rule 9).
-D1 keeps the file current and starts the next Test build once every line is merged. Now: `docs/playtest/2026-10-13.md`.
+D1 keeps the file current and starts the next Test build once every line is merged.
+
+**The latest director feedback review session: `docs/playtest/2026-10-13-evening.md`** (the director, 13 Oct evening,
+playing Test build 22, main at 33ee8d5e). 27 lines. Performance comes first (lines 1–6: "the frame drops are constant"),
+then the broken cannon (line 22). D1 holds lines 4, 6 and 22 only (D1 is low on tokens). **Every other line is open:**
+any agent may take one. Claim a queue item and a note number here first, then put your id, item and PR on the line
+(rule 9). Each line names the area it's in, as a pointer, not a claim. The morning's file (`2026-10-13.md`, all 29 lines
+merged, built as run 38452292454) is done.
 
 ## The director's inbox (W1, 9 Oct 2026; note 520)
 
@@ -618,6 +625,8 @@ Status: **open**, **claimed**, **in review** (a PR is up), **done** (merged).
 | 416 | **A moved board says its distance from where it stands (note 560's handoff, not yet (1); the director, 13 Oct, `pt13-signs`: "I still can't read the signs"):** a facility's or junction's distance board ("RENWICK 0.5 KM", "J2 1.0 KM") that the sight test moves off its plan's spot, to where it can be read, still says the plan's distance (frontier:7: a 0.5 KM board stood 118 m on). Re-lettered from where it stands to what it counts to; a test over the generated routes holds every distance board to its own distance. **Overlaps:** none (note 560's boards are B4's since #835) | B4 | `b4-board-distance-416`, [#950](https://github.com/nsmith-gd/darkterritory/pull/950) | 684 | done |
 | 418 | **A board past a truss isn't read through the truss (note 560's handoff, not yet (2); the director, 13 Oct, `pt13-signs`: "there's no clear enough sight lines"):** the sight test (note 560) asks the land and the stops' buildings, not structures, so a board just past a through truss is stood where the cab reads it through the truss's side. The truss's sides taken as walls in the sight test, the board stood where it's read clear of them; a test that none is read through a truss. **Overlaps:** none (note 560's boards are B4's since #835) | B4 | `b4-truss-sight-418` | 686 | claimed |
 | 419 | **Hot reload out of a player's build, and watched not polled in a dev one (the director, 13 Oct, on note 666: "Clear to do this once I get a build to test"):** a shipped game asks the disk nothing per frame: content's hot reload (the sound bank's 681 files, mix, spaces and walls, the session's train, player, boiler and combat tuning) is off unless it's a dev build (DEVTOOLS) or launched with `--hot-reload` (mod authors). When on, a file watcher on each content folder says when something changed, and only then is it read; a slow poll (5 s, 1 s if the watcher fails) catches what a watcher misses. **Overlaps:** AU1's `GameAudio` (the reload's call site only); N1 none (Sim untouched) | D1 | `claude/relaxed-franklin-xkfjgb` | 687 | claimed |
+| 420 | **Chimney smoke runs faster as the player moves (the director, 13 Oct evening, `docs/playtest/2026-10-13-evening.md` line 4: "When I'm moving, the smoke out of the chimney stacks is speeding up. So that might be a hint ... quite dramatic when I start running"):** find what ties the smoke's rate to the listener or the camera (a dt per frame, a step per camera move, the particles' frame), and make it the world's time; whether it's a cost in the frame too (line 1-3's drops). **Overlaps:** the towns' smoke (B2/P1's houses), effects | D1 | `claude/relaxed-franklin-xkfjgb` | 688 | claimed |
+| 421 | **The guns said NO STEAM after coaling, and wouldn't fire (the director, 13 Oct evening, line 22: "No steam, so I can't fire without steam ... Why am I getting a no steam? ... I have no way right now of defending against them"):** after venting a lot of pressure, then coaling, the cannon still said no steam: whether that's the boiler's pressure not back over the guns' threshold yet (then the HUD has to say what it needs and how long), or a bug in where the guns read steam. **Overlaps:** D1.2's turret (line 23), the boiler (line 19) | D1 | `claude/relaxed-franklin-xkfjgb` | 689 | claimed |
 
 The GDD artifact (claude.ai/artifact/PrfaZjyZb1rWcWWuiPm1Dx) was republished from main's docs/design/gdd.md on 8 Oct at
 00:20 UTC (D1, main at e345c64, version 18), with G1's open #247 (the Moose) merged on top, as the live page already
