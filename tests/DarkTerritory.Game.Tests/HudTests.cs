@@ -154,11 +154,17 @@ public class HudTests
         s.Player = PlayerMotor.SpawnInCab(s.Train, s.PlayerTuning);
         var (head, lines) = Hud.Hints(s);
         Assert.Contains("VENT : HOLD [VENT]", lines);
-        // Forward goes without saying; the reverser's said only when it's back.
-        Assert.DoesNotContain(lines, l => l.Contains("REVERSE"));
+        // Note 664 (the director, 13 Oct: the reverser "readily identifiable"): stopped, it's the first thing said, which way
+        // it throws. On the move forward goes without saying, and the reverser's said only when it's back.
+        Assert.True(s.Train.Dynamics.Speed < DarkTerritory.Sim.Net.CabControls.ReverserBelow);
+        Assert.Equal("THROW INTO REVERSE : [X]", lines[0]);
         s.Controls.Reverser = -1;
+        Assert.Equal("THROW INTO FORWARD : [X]", Hud.Hints(s).Lines[0]);
+        s.Train.Dynamics.Velocity = 5;
         Assert.Contains("IN REVERSE : [X]", Hud.Hints(s).Lines);
         s.Controls.Reverser = 1;
+        Assert.DoesNotContain(Hud.Hints(s).Lines, l => l.Contains("REVERSE"));
+        s.Train.Dynamics.Velocity = 0;
         Assert.Contains("[LEFT CTRL]", Hud.Bound(string.Join("   ", lines)));
         // The corner's head is the speed, for the driver to read against the boards.
         Assert.Equal($"{Math.Abs(s.Train.Dynamics.Speed) * 3.6:0} KM/H", head?.Split("  ")[0]);

@@ -235,6 +235,13 @@ public static partial class Hud
         }
         if (CabControls.CanDrive(p, train))
         {
+            // Note 664 (the director, 13 Oct: "the throw into reverse when the train is stopped button readily identifiable"):
+            // stopped, the reverser's the first thing said, which way it throws; on the move only when it's back (forward goes
+            // without saying, and going backwards shouldn't).
+            if (train.Dynamics.Speed < CabControls.ReverserBelow)
+                lines.Add(s.Controls.Reverser < 0 ? "THROW INTO FORWARD : [X]" : "THROW INTO REVERSE : [X]");
+            else if (s.Controls.Reverser < 0)
+                lines.Add("IN REVERSE : [X]");
             // T97: steam drives it. At a stand on the brake, R lets it off; otherwise B brakes (coal and the vent do the rest).
             bool steam = train.BoilerTuning?.SteamDrive == true;
             if (!steam)
@@ -245,9 +252,6 @@ public static partial class Hud
             if (train.BoilerTuning is not null)
                 lines.Add("VENT : HOLD [VENT]");
             lines.Add(world.LampOutSeconds > 0 ? "LAMP SMASHED" : $"LAMP {(world.LampLit ? "OFF" : "ON")} : [L]");
-            // The reverser only when it's back: forward goes without saying, and going backwards shouldn't.
-            if (s.Controls.Reverser < 0)
-                lines.Add("IN REVERSE : [X]");
             // The speed stays a figure (the director, 7 Oct: "keep speed numbers"): it's read against the boards.
             string speed = $"{Math.Abs(train.Dynamics.Speed) * 3.6:0} KM/H";
             return (steam ? speed : $"{speed}  REG {s.Controls.Throttle * 100:0}%", lines);
