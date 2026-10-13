@@ -367,7 +367,7 @@ public class StopGeneratorTests
         body.Pbd.Particles[0].Position = new Double3(0, room.Min.Y + 0.3, 0);
         body.Pbd.Particles[0].Previous = body.Pbd.Particles[0].Position;
         Tick(world, L.SettleSeconds + 1);
-        Assert.DoesNotContain(body, world.Bodies.All);
+        Assert.True(body.Banked, "never stowed"); // note 659: still lying where it was put, paid for
         Assert.Equal(find.Value, world.Run.Scavenged, 6);
         Assert.Equal(find, Assert.Single(world.Run.Stowed));
     }

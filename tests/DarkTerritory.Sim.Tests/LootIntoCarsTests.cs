@@ -11,7 +11,7 @@ namespace DarkTerritory.Sim.Tests;
 /// <summary>
 /// Note 581 (queue #313; the director, 9 Oct 2026: "There's no way it seems to actually unhook loot when its in the car
 /// finally. Also it's extremely difficult to get loot into the cars, the game should be more forgiving with this"): a find
-/// put down anywhere in a car's aisle is stowed; one put down at an open door from outside is taken in; and at a door with
+/// put down anywhere in a car's aisle is stowed; one put down outside an open door stays outside (note 659); and at a door with
 /// your arms full, a held Use works the door (a tap still puts it down). The crane's half is HatchTests'.
 /// </summary>
 public class LootIntoCarsTests
@@ -143,8 +143,10 @@ public class LootIntoCarsTests
     }
 
     [Fact]
-    public void AFindPutDownOutsideAnOpenDoorIsTakenIn()
+    public void AFindPutDownOutsideAnOpenDoorStaysWhereItWasPut()
     {
+        // Note 659 (the director, 13 Oct 2026: "we want the loot we put in the cars to persist once in there"): nothing is
+        // pulled in through the doorway any more (note 581's take-in is gone). Set down outside, it lies outside, there.
         var (world, model) = AtAHalt();
         var train = world.Train;
         var f = train.Frames.First(c => c.Index > 0 && c.Shape.Interior is not null && c.Shape.DoorList.Any(d => d.Box.HalfSize.Z > d.Box.HalfSize.X));
@@ -161,18 +163,11 @@ public class LootIntoCarsTests
         Wait(world, ref s, 0.1);
         Use(world, ref s, Tap);
         Assert.Null(world.Bodies.CarriedBy(1));
-        Assert.Equal(f.Index, body.Parent);
-        Assert.True(f.Shape.Interior!.Value.Contains(body.Centre), $"set down at {body.Centre}, not in the car");
         Wait(world, ref s, L.SettleSeconds + 1);
-        Assert.True(body.Banked, "never stowed"); // note 659: banked, and still lying where it was put
-        Assert.True(world.Run.Scavenged > before);
-
-        // Shut, it isn't: it's outside, on the steps or the ground.
-        train.Vehicles[f.Index].ToggleDoor(door.Index);
-        var again = Carried(world, model, s);
-        Wait(world, ref s, 0.1);
-        Use(world, ref s, Tap);
-        Assert.False(again.Parent == f.Index && f.Shape.Interior!.Value.Contains(again.Centre), "taken in through a shut door");
+        Assert.Contains(body, world.Bodies.All);
+        Assert.False(body.Parent == f.Index && f.Shape.Interior!.Value.Contains(body.Centre), $"taken in, to {body.Centre}");
+        Assert.False(body.Banked, "paid for, lying outside");
+        Assert.Equal(before, world.Run.Scavenged);
     }
 
     [Fact]
