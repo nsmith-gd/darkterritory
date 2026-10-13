@@ -63,7 +63,7 @@ public sealed partial class CreatureArt
     public static readonly string[] Names = ["crew", "cinder_hound", "sleeper", "clinger", "hollow", "switchman", "soot_child", "dragger", "husk", "weight",
         "track_doll", "car_hugger", "tippy_toesie", "whistler", "ribbit", "choir", "gaunt", "grumbler", "stoker", "follower", "climber", "fire_fly", "passenger",
         "survivor_prisoner", "survivor_wildlander", "sheep", "moose", "gannet", "mourner", "freight_beetle", "tower_jaw", "brakeman", "knotter", "hotbox", "hanger",
-        "picker", "lodger", "householder"];
+        "picker", "lodger", "householder", "waker"];
 
     /// <summary>
     /// The figure a crewmate plays as (GDD App. D.8): the crew's own, or, freed from a Holdout, its occupant's for the rest
@@ -468,7 +468,8 @@ public sealed partial class CreatureArt
             _models[name] = new Entry(model, [.. model.Materials.Select(m => Resolve(m, wear))])
             {
                 Lod = far is null ? null : new Entry(far, [.. far.Materials.Select(m => Resolve(m, wear))]),
-                LodFrom = authored is not null ? look.Tuning.CreatureLodMetres : look.Tuning.ClusteredLodMetres,
+                // (The Waker's drawn thirty times his size: his distance copy from thirty times as far, note 679.)
+                LodFrom = (authored is not null ? look.Tuning.CreatureLodMetres : look.Tuning.ClusteredLodMetres) * (name == "waker" ? WakerGait.Scale : 1),
             };
         }
         Dress(DaveKit.Figure, DaveKit.Clothes);

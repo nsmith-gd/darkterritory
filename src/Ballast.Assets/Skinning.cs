@@ -116,6 +116,41 @@ public sealed class Skinner
     }
 
     /// <summary>
+    /// Poses the skeleton between two clips: <paramref name="a"/> at <paramref name="timeA"/> and <paramref name="b"/> at
+    /// <paramref name="timeB"/>, <paramref name="weight"/> of the way from the one to the other (a gait's walk and its run, by
+    /// how fast it's going). Each clip's frame is held as <see cref="Evaluate(Model, AnimationClip?, double, bool, Pose, bool)"/>
+    /// holds it; the two are blended joint by joint (positions and scales lerped, rotations slerped).
+    /// </summary>
+    public void Evaluate(Model model, AnimationClip a, double timeA, AnimationClip b, double timeB, float weight, bool loop, Pose into)
+    {
+        var sk = model.Skeleton;
+        int n = sk.Count;
+        if (_local.Length < n)
+            _local = new Matrix4x4[n];
+        int fa = Held(a, timeA, loop), fb = Held(b, timeB, loop);
+        float w = Math.Clamp(weight, 0, 1);
+        for (int bone = 0; bone < n; bone++)
+        {
+            int ia = fa * n + bone, ib = fb * n + bone;
+            _local[bone] = ModelLoader.Compose(Vector3.Lerp(a.Translation[ia], b.Translation[ib], w),
+                Quaternion.Slerp(a.Rotation[ia], b.Rotation[ib], w), Vector3.Lerp(a.Scale[ia], b.Scale[ib], w));
+        }
+        for (int bone = 0; bone < n; bone++)
+        {
+            int p = sk.Parents[bone];
+            into.World[bone] = p < 0 ? _local[bone] * sk.Outer[bone] : _local[bone] * sk.Outer[bone] * into.World[p];
+            into.Skin[bone] = sk.InverseBind[bone] * into.World[bone];
+        }
+    }
+
+    /// <summary>The frame of <paramref name="clip"/> held at <paramref name="time"/>.</summary>
+    static int Held(AnimationClip clip, double time, bool loop)
+    {
+        int f = (int)Math.Floor(FrameAt(clip, time, loop) + 1e-6);
+        return f >= clip.Frames - 1 ? (loop ? 0 : clip.Frames - 1) : f;
+    }
+
+    /// <summary>
     /// Appends the posed model's triangles to <paramref name="mesh"/>, placed by <paramref name="model"/> (object to
     /// camera-relative). <paramref name="looks"/> is per material (<see cref="Model.Materials"/>). Returns triangles added.
     /// </summary>
