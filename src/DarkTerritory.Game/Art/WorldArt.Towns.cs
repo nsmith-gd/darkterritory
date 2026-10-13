@@ -13,12 +13,30 @@ namespace DarkTerritory.Game.Art;
 /// </summary>
 public sealed partial class WorldArt
 {
+    readonly Matrix4x4[] _flagPose = new Matrix4x4[FlagKit.Bones];
+
+    /// <summary>
+    /// The town's own flag on its pole (queue #405, note 674): its custom's charge on its trade's field (<see cref="FlagBook.For"/>),
+    /// flying in the wind from its hoist at <paramref name="hoist"/> (camera-relative).
+    /// </summary>
+    void Flag(MeshBuilder mesh, Town town, Vector3 hoist, Vector3 wind, float gusts, double time)
+    {
+        var tuning = _look.Tuning.Atmosphere.Flag;
+        var cell = _look.Flags.For(town.Plan.Culture, town.Plan.Industry, town.Plan.Name);
+        var cloth = Piece($"flag-cloth-{cell?.Cell ?? -1}", () => FlagKit.Cloth(_look, cell, _look.Flags, tuning));
+        FlagKit.Pose(tuning, wind, gusts, time, town.Plan.Name.Length * 0.37f, _flagPose);
+        mesh.Skinned(cloth, Matrix4x4.CreateTranslation(hoist), _flagPose);
+    }
+
     /// <summary>
     /// A walled town's green and what its people have put up (note 353): the grass and paths and their lamps, the statue's
     /// plinth, the wall of names, the bandstand, the lamp gardens, the trees, the flag, the laws' board, the day painted on
     /// the walls; each drawn where it is, near enough the view (the green's across the street, the murals at the back wall).
     /// </summary>
-    public void Civic(MeshBuilder mesh, RailLine line, Double3 eye, Town town, double from, double to)
+    /// <param name="wind">The wind (m/s, world axes: <see cref="WindTuning.Of"/>) and its <paramref name="gusts"/>, and the
+    /// scene's clock (<paramref name="time"/>, s): the flag flies in them (note 674).</param>
+    public void Civic(MeshBuilder mesh, RailLine line, Double3 eye, Town town, double from, double to, Vector3 wind = default, float gusts = 0,
+        double time = 0)
     {
         var plan = town.Plan;
         int side = plan.Square.Side;
@@ -29,6 +47,8 @@ public sealed partial class WorldArt
             var m = Place(line, eye, town.World(f.S, f.D), f.S, f.FaceS, f.FaceD);
             int variant = CivicKit.Variant(f.Kind, f.Name);
             mesh.Instances.Add(new MeshInstance(Piece($"civic-{f.Kind}-{variant}", () => CivicKit.Piece(_look, f.Kind, variant)), m));
+            if (f.Kind == "flag")
+                Flag(mesh, town, Vector3.Transform(new Vector3(0.07f, (float)Sim.Towns.TownFixtures.Size("flag").Height - 0.2f, 0), m), wind, gusts, time);
             if (f.Kind == "garden")
                 foreach (var lamp in CivicKit.GardenLamps())
                     mesh.PointLights.Add(new PointLight(Vector3.Transform(lamp, m), Palette.LampAmber * 1.4f, 6));

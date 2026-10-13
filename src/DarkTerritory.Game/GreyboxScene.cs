@@ -245,6 +245,10 @@ public sealed partial class GreyboxScene
     /// <summary>How cold the night is (0..1): the route weather's, or a still frame's (<c>dt screenshot --cold c</c>).</summary>
     public double Cold => StagedCold ?? Route?.Weather.Cold ?? 0;
     public double? StagedCold { get; set; }
+
+    /// <summary>How windy the night is (0..1): the route weather's, or a still frame's (<c>dt screenshot --wind w</c>); the towns' flags fly in it (note 674).</summary>
+    public double Wind => StagedWind ?? Route?.Weather.Wind ?? 0;
+    public double? StagedWind { get; set; }
     /// <summary>For a still frame (<c>dt screenshot --mail s</c>): a bag caught is that many seconds into its snatch.</summary>
     public double StagedCatch { get; set; }
 
@@ -3347,7 +3351,7 @@ public sealed partial class GreyboxScene
             if (town is not null)
             {
                 Look.Art.World.Square(mesh, line, eye, town, from, to);
-                Look.Art.World.Civic(mesh, line, eye, town, from, to);
+                Look.Art.World.Civic(mesh, line, eye, town, from, to, Look.Tuning.Atmosphere.Wind.Of(Wind), Look.Tuning.Atmosphere.Wind.Gusts, Time);
                 Look.Art.World.Works(mesh, line, eye, town, from, to);
                 Look.Art.World.Houses(mesh, line, eye, town, from, to);
                 if (town == Arrival)
