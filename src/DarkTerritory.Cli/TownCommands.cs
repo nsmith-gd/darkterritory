@@ -20,7 +20,18 @@ static class TownCommands
         string spec = Str(args, "--route", "frontier:7");
         var route = Routes.Generate(content, spec, (int)Opt(args, "--cars", 6));
         double gate = route.GateOr(RouteTuning.Load(content).YardLength);
-        var plan = TownGenerator.Generate(towns, TownSite.Of(route, gate, roster, towns, Str(args, "--last", "") is { Length: > 0 } last ? last : null));
+        var site = TownSite.Of(route, gate, roster, towns, Str(args, "--last", "") is { Length: > 0 } last ? last : null);
+        // --form: the town made as that type (note 692; "street" the street town of note 335), whatever its trade draws.
+        if (Str(args, "--form", "") is { Length: > 0 } formArg)
+            site = site with { Form = formArg == "street" ? "" : formArg };
+        var plan = TownGenerator.Generate(towns, site);
+        // `dt town map`: the town's plan top-down as a PNG (note 692).
+        if (args.Length > 1 && args[1] == "map")
+        {
+            string png = Str(args, "--out", $"out/towns/{spec.Replace(':', '-')}{(plan.Form.Length > 0 ? "-" + plan.Form : "")}.png");
+            DarkTerritory.Game.TownMap.Save(plan, png, (int)Opt(args, "--width", 1800));
+            return new { png, plan.Name, plan.Form, plan.Population, houses = plan.Houses.Count, plan.Frame, districts = plan.Districts.Select(d => $"{d.Kind} {d.Id} {d.Name}") };
+        }
         return new
         {
             route = spec,

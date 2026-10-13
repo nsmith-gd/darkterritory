@@ -44,6 +44,53 @@ public sealed record TownTuning
     public double LingerSeconds { get; init; } = 6;
     /// <summary>Their rounds (note 353).</summary>
     public RoundTuning Rounds { get; init; } = new();
+    /// <summary>The town types (note 692): see <see cref="FormTuning"/>.</summary>
+    public FormTuning Forms { get; init; } = new();
+}
+
+/// <summary>
+/// The town types (towns.json <c>forms</c>; queue #424, note 692; the director, 13 Oct 2026: "multiple different town
+/// types ... that give the world a bit more flavor and a bit more meaning"): the yard every one keeps for the longest
+/// consist, and each form's weight by the town's trade. Field docs live in towns.json.
+/// </summary>
+public sealed record FormTuning
+{
+    public bool Enabled { get; init; }
+    /// <summary>The longest consist's length (m), and how far short of the way out its engine stands (run.json departShortOfGateM).</summary>
+    public double YardM { get; init; } = 330;
+    public double ShortOfGate { get; init; } = 8;
+    /// <summary>Each form's weight by trade (trade → form → weight; "" the street town).</summary>
+    public Dictionary<string, Dictionary<string, double>> ByTrade { get; init; } = [];
+    /// <summary>Each form's size and ground (form → shape).</summary>
+    public Dictionary<string, FormShape> Shapes { get; init; } = [];
+}
+
+/// <summary>
+/// One town type's size and ground (towns.json <c>forms.shapes</c>, note 692): its length along the line between its two
+/// gates, how far its wall reaches either side, its lots' frontage and depth and how far a house stands back from its
+/// way, its water's level and its terraces' rise (m against the yard's level), and a quarry's benches.
+/// </summary>
+public sealed record FormShape
+{
+    public double Length { get; init; } = 520;
+    public double Left { get; init; } = 150;
+    public double Right { get; init; } = 150;
+    public double[] Lot { get; init; } = [12, 16];
+    public double LotDepth { get; init; } = 9;
+    public double Setback { get; init; } = 3;
+    public double WaterLevel { get; init; } = -1.5;
+    public double TerraceLevel { get; init; } = 5;
+    public int Benches { get; init; } = 3;
+}
+
+/// <summary>A town type's words (world/towns.json <c>forms</c>, note 692): its name ("a harbour town") and the names its
+/// quarters go by, by district id, one picked a town.</summary>
+public sealed record TownFormWords
+{
+    public string Name { get; init; } = "";
+    public Dictionary<string, string[]> Districts { get; init; } = [];
+    /// <summary>What its landmarks are called and what looking at one tells you, by kind ("lighthouse", "chapel", "lift").</summary>
+    public Dictionary<string, TownText> Landmarks { get; init; } = [];
 }
 
 /// <summary>
@@ -174,6 +221,8 @@ public sealed record TownWriting
     public const string File = "world/towns.json";
 
     public required string[] FirstNames { get; init; }
+    /// <summary>The town types' words (note 692): what each is called, and its quarters' names, by form.</summary>
+    public Dictionary<string, TownFormWords> Forms { get; init; } = [];
     /// <summary>The townspeople's surnames (the province's: Gaelic, Acadian, Irish, Lunenburg); linegen's when unset.</summary>
     public string[] Surnames { get; init; } = [];
     /// <summary>Other towns, for {other}.</summary>

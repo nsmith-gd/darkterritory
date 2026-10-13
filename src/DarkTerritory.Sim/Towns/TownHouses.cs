@@ -48,6 +48,10 @@ public sealed record TownHouse(int Id, double S, double D, int Side, double Widt
     /// <summary>Nicki's party is on in it (note 571): its people keep their places, dancing, and it's lit up.</summary>
     public bool Party { get; init; }
 
+    /// <summary>The ground it stands on, in metres over the yard's level (note 692): a terrace's, a quarry bench's, a drowned
+    /// ward's bed.</summary>
+    public double Level { get; init; }
+
     /// <summary>Everything of it that stops you: <see cref="Parts"/>, and its yard's solid things.</summary>
     public IEnumerable<(double U0, double U1, double V0, double V1, double Height)> Solids() =>
         Parts().Concat(Yard.Where(y => y.Solid).Select(y => (y.U0, y.U1, y.V0, y.V1, y.Height)));

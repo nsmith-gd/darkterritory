@@ -110,5 +110,35 @@
   // "slots" of "slot" seconds, their own post and somewhere about the square in turn (a bench, a fire barrel, the board,
   // a stall, the centrepiece, a neighbour), a pacer "pace" m either way of their post; at home, a household goes round
   // its rooms' places, "homeSlot" seconds at each. They walk between at "walk" m/s, and stop for whoever talks to them.
-  "rounds": { "slot": 45, "slots": 4, "homeSlot": 38, "walk": 1.2, "pace": 3.5, "street": [10, 24] }
+  "rounds": { "slot": 45, "slots": 4, "homeSlot": 38, "walk": 1.2, "pace": 3.5, "street": [10, 24] },
+
+  // The town types (queue #424, ARCHITECTURE §8 note 692; the director, 13 Oct 2026, with five renders of town layouts:
+  // "we want for the world building to have multiple different town types ... interesting culture, interesting looks,
+  // interesting development", "the towns don't necessarily need to be this big ... they still need to be able to fit the
+  // twenty-car maximum train length for the yard, but it's okay if the towns stretch a little bit more", "a town needs a
+  // gate that is the entrance from the previous run, and then it also needs a gate that is the exit to the next run").
+  // Off, every town is the street town of note 335. Each town's form is drawn from its trade (byTrade: trade -> form ->
+  // weight; "" the street town) on its own stream, so the town arrived at and the town left from are the same.
+  // yardM: the longest consist (train.json: an engine of 20 m, 20 cars of 14 m, 1.5 m between: 330 m), which stands in
+  // the yard back from shortOfGate m inside the way out (run.json departShortOfGateM) and every form's length holds with
+  // room to spare. shapes: each form's length between its two gates, its wall's reach left (the square's side) and right
+  // (the platform's), its lots' frontage, depth and setback from their way, its water's level and its terraces' rise
+  // (m against the yard's level), and a quarry's benches. All inside the yard's level pad (linegen fortress padM, 200).
+  "forms": {
+    "enabled": true,
+    "yardM": 330,
+    "shortOfGate": 8,
+    "byTrade": {
+      "coal": { "quarry": 3, "harbour": 1, "": 1 },
+      "farm": { "glasshouse": 2, "dykeland": 2, "harbour": 1, "": 1 },
+      "foundry": { "tidewater": 2, "harbour": 1, "quarry": 1, "": 1 }
+    },
+    "shapes": {
+      "harbour":    { "length": 560, "left": 150, "right": 175, "lot": [11, 15], "lotDepth": 9,  "setback": 2.5, "waterLevel": -2.4, "terraceLevel": 6 },
+      "dykeland":   { "length": 540, "left": 160, "right": 160, "lot": [12, 16], "lotDepth": 9,  "setback": 1.5, "waterLevel": -0.9, "terraceLevel": 0 },
+      "quarry":     { "length": 600, "left": 190, "right": 120, "lot": [11, 14], "lotDepth": 8,  "setback": 2.0, "waterLevel": -2.0, "terraceLevel": 5, "benches": 3 },
+      "tidewater":  { "length": 560, "left": 160, "right": 180, "lot": [11, 15], "lotDepth": 9,  "setback": 2.5, "waterLevel": -1.4, "terraceLevel": 4 },
+      "glasshouse": { "length": 520, "left": 170, "right": 170, "lot": [12, 15], "lotDepth": 9,  "setback": 2.5, "waterLevel": -1.8, "terraceLevel": 0 }
+    }
+  }
 }

@@ -11,6 +11,9 @@ namespace DarkTerritory.Sim.Towns;
 /// <para><see cref="Burnt"/>: how many of its houses are burnt out (note 608), the nearest its gate (<see cref="TownGenerator.Harmed"/>).</para>
 public sealed record TownSite(string Name, string Industry, double Gate, ulong Seed, IReadOnlyList<string> Roster, string? Last = null, int Burnt = 0)
 {
+    /// <summary>The town type to make it (note 692; "" the street town), or null to draw it from its trade and seed.</summary>
+    public string? Form { get; init; }
+
     /// <summary>The departure fortress of a route: the plan's, or for a hand-laid line one named from the seed.</summary>
     public static TownSite Of(Route.Route route, double gate, IReadOnlyList<string> roster, TownContent content, string? last = null)
     {
@@ -126,7 +129,12 @@ public static partial class TownGenerator
         // The houses down the yard's street, and the households in the open ones (TownGenerator.Houses).
         // Who the people are and what they're called (note 474), when the content has the townsfolk's matrix.
         var folk = content.Folk is { } fc ? new TownFolk(fc, w, site, culture.Id, seed) : null;
-        var homes = Houses(content, site, square, population, former, Rng, folk);
+        // What kind of town it is (note 692; the director, 13 Oct: "multiple different town types"), from its trade and its
+        // own stream, and its ground plan: a harbour, a dykeland, a quarry, a tidewater or a glasshouse town, or the
+        // street town of note 335.
+        string formId = site.Form ?? TownForms.Pick(t.Forms, site.Industry, Rng("form"));
+        var form = TownForms.Make(t, w, formId, site.Gate, square, Rng);
+        var homes = Houses(content, site, square, population, former, Rng, folk, form);
 
         // The council's laws posted by the clerk's door, and the town's flag in the square; a walled town's green across the
         // street with its statue, its wall of names, its bandstand, its garden under lamps and its trees; and the day painted
@@ -162,6 +170,19 @@ public static partial class TownGenerator
                 Fix("tree", trees[i % trees.Count].Title, trees[i % trees.Count].Text, corners[i].S, side * corners[i].D, 0, -side);
             foreach (double along in (double[])[-6, 6])
                 Fix("bench", "a bench", "", gs + along, gd - side * 3.5, 0, -side);
+        }
+        // A town type's landmarks (note 692), standing where its form put them.
+        // (Its own words for one; one of many, its works' words of that kind in turn: a glasshouse town's ranges.)
+        var many = new Dictionary<string, int>();
+        foreach (var (kind, _, ls, ld, lfs, lfd) in form?.Landmarks ?? [])
+        {
+            var words = w.Forms.GetValueOrDefault(form!.Form)?.Landmarks.GetValueOrDefault(kind);
+            if (words is null && (w.Works.GetValueOrDefault(form.Form) ?? []).Where(x => x.Kind == kind).ToList() is { Count: > 0 } kinds)
+            {
+                int n = many[kind] = many.GetValueOrDefault(kind) + 1;
+                words = new TownText(kinds[(n - 1) % kinds.Count].Title, kinds[(n - 1) % kinds.Count].Text);
+            }
+            Fix(kind, words?.Title.Replace("{town}", site.Name) ?? kind, words?.Text.Replace("{town}", site.Name) ?? "", ls, ld, lfs, lfd);
         }
         if (homes.Works is { } works)
         {
@@ -498,8 +519,23 @@ public static partial class TownGenerator
             homes.Green, homes.Works)
         {
             Gate = site.Gate,
+            Frame = FrameOf(t, site.Gate, homes.Bounds),
+            Form = form?.Form ?? "",
+            Districts = form?.Districts ?? [],
+            Ways = form?.Ways ?? [],
         };
         return Remember(plan, site.Burnt, w, Rng("remember"));
+    }
+
+    /// <summary>
+    /// Where the town's two gates and its yard are (note 692): in at the rear wall from the last night, out at the gate to
+    /// the next, the longest consist (towns.json <c>forms.yardM</c>) standing back from the way out.
+    /// </summary>
+    static TownFrame FrameOf(TownTuning t, double gate, TownBounds? bounds)
+    {
+        double exit = gate, entry = bounds?.Rear ?? 0;
+        double front = exit - t.Forms.ShortOfGate;
+        return new TownFrame(entry, exit, Math.Max(entry, front - t.Forms.YardM), front);
     }
 
     /// <summary>
@@ -675,6 +711,16 @@ public static class TownFixtures
         "pigs" => (2.2, 1.2, 1.1),
         "warehouse" => (5.5, 7.5, 7.5),
         "watertower" => (2.2, 3.2, 10.2),
+        // The town types' landmarks (note 692): the harbour's lighthouse on its head and the beacon at the breakwater's end,
+        // its boat shed on the slip; a chapel on a hummock or a hill; a watch tower; a quarry's lift and crane; the seed house.
+        "lighthouse" => (3.2, 3.2, 22),
+        "beacon" => (1.2, 1.2, 6),
+        "boatshed" => (9.0, 6.0, 7.5),
+        "chapel" => (5.5, 9.0, 12),
+        "watchtower" => (2.7, 2.7, 16),
+        "lift" => (3.0, 3.0, 30),
+        "crane" => (2.0, 2.0, 14),
+        "seedhouse" => (6.0, 4.0, 6.0),
         // In the houses (their furniture is the layout's): only the cradle stands on its own feet.
         "cradle" => (0.45, 0.3, 0.7),
         "table" or "letters" or "anklebell" or "timetable" or "boots" or "boards" or "suitcase" or "radio" or "clock"

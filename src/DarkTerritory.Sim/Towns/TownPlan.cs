@@ -33,6 +33,19 @@ public sealed record TownPlan(
 
     /// <summary>How many of its houses were burnt by creatures brought in on earlier nights (note 608).</summary>
     public int Burnt { get; init; }
+
+    /// <summary>What kind of town it is (towns.json <c>forms</c>, note 692): "" the street town of note 335, or a harbour,
+    /// a dykeland, a quarry, a tidewater or a glasshouse town.</summary>
+    public string Form { get; init; } = "";
+
+    /// <summary>Its ground plan's pieces past the streets (note 692): quarters, water, decks, terraces, plots.</summary>
+    public IReadOnlyList<TownDistrict> Districts { get; init; } = [];
+
+    /// <summary>Its ways other than the streets beside the line (note 692): quays, boardwalks, ramps, causeways.</summary>
+    public IReadOnlyList<TownWay> Ways { get; init; } = [];
+
+    /// <summary>Its gates in from the last night and out to the next, and the yard between (note 692).</summary>
+    public TownFrame Frame { get; init; } = new(0, 0, 0, 0);
 }
 
 /// <summary>
@@ -67,7 +80,36 @@ public sealed record TownWorks(double S0, double S1, double Near, double Far, in
 public sealed record TownBounds(double Rear, double Gate, double Left, double Right, IReadOnlyList<TownStreet> Streets, IReadOnlyList<TownLane> Lanes)
 {
     /// <summary>Whether a point (along the line, across it) is inside the wall, give or take <paramref name="pad"/>.</summary>
-    public bool Holds(double s, double d, double pad = 0) => s >= Rear - pad && s <= Gate + pad && d >= -Left - pad && d <= Right + pad;
+    public bool Holds(double s, double d, double pad = 0)
+    {
+        if (s < Rear - pad || s > Gate + pad || d < -Left - pad || d > Right + pad)
+            return false;
+        if (Outline is not { Count: > 2 } o)
+            return true;
+        // A town type's wall (note 692) goes round its outline: inside it, or within pad of it.
+        bool inside = false;
+        double near = double.MaxValue;
+        for (int i = 0, j = o.Count - 1; i < o.Count; j = i++)
+        {
+            var (a, b) = (o[i], o[j]);
+            if ((a.D > d) != (b.D > d) && s < (b.S - a.S) * (d - a.D) / (b.D - a.D) + a.S)
+                inside = !inside;
+            if (pad > 0)
+            {
+                double es = b.S - a.S, ed = b.D - a.D, len2 = es * es + ed * ed;
+                double k = len2 < 1e-9 ? 0 : Math.Clamp(((s - a.S) * es + (d - a.D) * ed) / len2, 0, 1);
+                double x = a.S + es * k - s, y = a.D + ed * k - d;
+                near = Math.Min(near, x * x + y * y);
+            }
+        }
+        return inside || pad > 0 && near <= pad * pad;
+    }
+
+    /// <summary>
+    /// A town type's wall (note 692): its outline in the rail frame, round from the entry gate's left side, the two gates
+    /// where it crosses the line at <see cref="Rear"/> and <see cref="Gate"/>; null for the street town's rectangle.
+    /// </summary>
+    public IReadOnlyList<(double S, double D)>? Outline { get; init; }
 }
 
 /// <summary>
