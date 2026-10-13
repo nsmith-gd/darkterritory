@@ -297,6 +297,7 @@ public sealed partial class WorldArt
             return hit.Mesh;
         }
         var made = make();
+        FrameCounts.Add("house meshes built");
         _housePieces[key] = (made, _houseFrame);
         if (_housePieces.Count > HousePieceLimit)
             foreach (string old in _housePieces.Where(kv => kv.Value.Used < _houseFrame).OrderBy(kv => kv.Value.Used).ThenBy(kv => kv.Key, StringComparer.Ordinal)

@@ -346,8 +346,20 @@ public sealed partial class GreyboxScene
     readonly System.Diagnostics.Stopwatch _lap = new();
     int _lapCount, _lapInstances;
 
+    /// <summary>The app's frame watch (note 691, 695): each part of the build is a part of its frame, timed with what it
+    /// allocated, so a night's report says which of the scene's parts its frames went to.</summary>
+    public FrameWatch? Watch { get; set; }
+
+    readonly Dictionary<string, string> _watchNames = new(StringComparer.Ordinal);
+
     void Lap(MeshBuilder mesh, string part)
     {
+        if (Watch is { } watch)
+        {
+            if (!_watchNames.TryGetValue(part, out var named))
+                _watchNames[part] = named = "scene: " + part;
+            watch.Mark(named);
+        }
         if (Timings is null)
             return;
         Timings.TryGetValue(part, out var sum);

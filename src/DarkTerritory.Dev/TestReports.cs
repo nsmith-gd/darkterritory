@@ -7,7 +7,7 @@ namespace DarkTerritory.Dev;
 /// The director's test reports (GDD §34.2, ARCHITECTURE §8 note 677; the director, 13 Oct: "all bundled together into a single
 /// .txt file ... so I don't have to manually drag and drop each of them"): every report a developer build writes (a note typed
 /// with F8 or spoken with F9, REPORT A PROBLEM, a crash) goes on the end of one text file, each as its report reads, under a
-/// numbered rule. A session's notes are sent as that one file.
+/// numbered rule. A session's notes are sent as that one file. Each night's performance goes on it too (GDD §34.3, note 691).
 /// </summary>
 public sealed class TestReports(string path)
 {
@@ -67,10 +67,17 @@ public sealed class TestReports(string path)
 
     /// <summary>
     /// <paramref name="report"/> on the end of the file, under its rule: its number, its time and <paramref name="what"/> it is
-    /// ("a typed note (F8)"), and the folder that holds the rest of it (a note's frame and voice) when there is one. Returns
-    /// its number, or 0 if the file couldn't be written: the report's own file is still there.
+    /// ("a typed note (F8)"), and the folder that holds the rest of it (a note's frame and voice) when there is one;
+    /// <paramref name="more"/> after it (a note's frames, note 691). Returns its number, or 0 if the file couldn't be written:
+    /// the report's own file is still there.
     /// </summary>
-    public int Add(Report report, string what, string? folder = null)
+    public int Add(Report report, string what, string? folder = null, string? more = null) =>
+        Append(report.Time, what, folder, more is null ? report.ToText() : report.ToText().TrimEnd() + Environment.NewLine + Environment.NewLine + more);
+
+    /// <summary>A report that isn't a crash report's (the night's performance, GDD §34.3, note 691), on the end of the file.</summary>
+    public int Add(DateTime time, string what, string text) => Append(time, what, null, text);
+
+    int Append(DateTime time, string what, string? folder, string text)
     {
         lock (_lock)
         {
@@ -80,10 +87,10 @@ public sealed class TestReports(string path)
                 var t = new StringBuilder();
                 if (n == 1)
                     t.AppendLine("DARK TERRITORY TEST REPORTS").AppendLine("Every note and report this build wrote, oldest first (GDD §34.2). Send this file as it is.").AppendLine();
-                t.AppendLine($"{Rule}{n} · {report.Time:yyyy-MM-dd HH:mm:ss} · {what} =====");
+                t.AppendLine($"{Rule}{n} · {time:yyyy-MM-dd HH:mm:ss} · {what} =====");
                 if (folder is not null)
                     t.AppendLine($"folder    {folder}");
-                t.AppendLine(report.ToText());
+                t.AppendLine(text.TrimEnd()).AppendLine();
                 Directory.CreateDirectory(System.IO.Path.GetDirectoryName(System.IO.Path.GetFullPath(path))!);
                 File.AppendAllText(path, t.ToString());
                 return n;
