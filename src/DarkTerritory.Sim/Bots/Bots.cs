@@ -2945,8 +2945,13 @@ public sealed partial class ConductorBot(CrewCalls? calls = null, int member = 0
         if (Mend(self, world, tick) is { } mending)
             return mending with { Lamp = lamp };
         // A smashed headlamp (note 301, slice 2): mended with the wrench from where the driver stands, at the front windows.
-        if (MendLamp(self, world) is { } glazing)
-            return glazing with { Lamp = lamp };
+        // Note 641: not while a stop's leg has the train moving under the driver's hand: the mending is Use held, no brake, and
+        // the brake lets go of a moving train each tick it isn't held (CabControls.Clears). On seed 16's night a Climber came
+        // into the cab at Kessel's conveyor, smashing the lamp, and the driver mended it mid-shunt: the train ran on unbraked
+        // from 1.5 to 12.6 m/s, struck at 5.7, and the engine broke down there. At a stand it mends on the brake.
+        bool glazingStood = train.Dynamics.Speed < Net.CabControls.StandingBelow;
+        if ((glazingStood || Stops is not { Doing: not StopDriver.Leg.Cruise }) && MendLamp(self, world) is { } glazing)
+            return glazingStood ? glazing with { Lamp = lamp, Buttons = glazing.Buttons | PlayerButtons.Brake, ThrottleNotch = -4 } : glazing with { Lamp = lamp };
         // On a generated line, no faster than its authority allows here (linegen plan §9, §16.1): what the boards say.
         double cruise = OpenCruise(world);
         // The Track Doll on the rail ahead in the lamp (v1.1 App. A.2): stop before you hit the doll. Braking to a stand

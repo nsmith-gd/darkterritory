@@ -820,7 +820,7 @@ written here instead is moved out by `tools/coord/notes.py split`; the Coordinat
 - [638. The steam lift's lever reaches the clients: a bot driver vents for it (D1.5, queue #368; found under #366, the tiers' pay)](notes/638.md)
 - [639. The bots restart a yard's powerhouse (D1.5, queue #369; found under #366, the tiers' pay)](notes/639.md)
 - [640. A pin works loose only from a cause the crew can name (queue #370, D1.2 for D1; the director, the inbox, 12 Oct, `D1-pins-under-a-pack`:…](notes/640.md)
-- [641. The cab keeps a Climber pack out (D1.4, queue #371, note 633's not-yet, at D1's ask: "the engine shouldn't break down to a pack the crew…](notes/641.md)
+- [641. A smashed lamp waits while the driver moves the train at a stop (D1.4, queue #371, at D1's ask)](notes/641.md)
 - [642. The night things seen going at dawn (D1, queue #372; note 635's not-yet; wakers.md §2: "boarders drop off and run for the trees, packs…](notes/642.md)
 - [643. The Creature Tweaker's values into the game without hand edits (D1, queue #373; note 635's not-yet)](notes/643.md)
 - [644. The Pickers and the house creatures under the night's rules and on the Creature Tweaker (D1, queue #374; after G1's #721, note 635)](notes/644.md)
@@ -831,4 +831,6 @@ written here instead is moved out by `tools/coord/notes.py split`; the Coordinat
 - [649. The lockers hold what the slots let go (D1.5, queue #379; the director, the inbox, 12 Oct)](notes/649.md)
 - [651. The threat's scaling on the Creature Tweaker (D1, queue #381; the director, 12 Oct: "Let's get this all set up as a matrix so we can see…](notes/651.md)
 - [652. The director's roster from the Creature Tweaker (D1, queue #382; the director, on the Tweaker, the evening of 12 Oct, and "Measure my…](notes/652.md)
+- [652. The director's roster from the Creature Tweaker (D1, queue #382)](notes/652.md)
+- [653. Cars left behind after a parting are gone back for (D1.4, queue #383)](notes/653.md)
 <!-- end of the notes index -->
