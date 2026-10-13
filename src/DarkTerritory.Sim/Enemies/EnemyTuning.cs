@@ -1382,6 +1382,8 @@ public sealed record CrewBotsTuning
     public double WreckStopShort { get; init; } = 15;
     public double WreckHoldWithin { get; init; } = 60;
     public double BeetleWithin { get; init; } = 15;
+    /// <summary>Note 658: a Ribbit this near (m, flat), a bot on the ground goes at it and clubs it.</summary>
+    public double RibbitWithin { get; init; } = 12;
     public double BrakemanStandOff { get; init; } = 1.5;
     public double BrakemanWaitPast { get; init; } = 1;
     public double StandGiveUp { get; init; } = 240;
