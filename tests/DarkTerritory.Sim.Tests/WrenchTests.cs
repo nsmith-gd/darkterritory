@@ -125,8 +125,9 @@ public class WrenchTests
         Hold(world, ref s, 1.2);
         Assert.False(train.Boiler.Ruptured);
         Assert.Equal(0, train.Boiler.Pressure);
-        // Held on past it, the shovel's next: into hand to fire her back up from nothing.
-        Assert.Equal(Tool.Shovel, Kit.Held(s));
+        // Held on past it, coal goes on to fire her back up from nothing, by hand: the wrench stays in it (note 664, the
+        // director: no tool to shovel coal; it was the shovel taken into hand).
+        Assert.Equal(Tool.Wrench, Kit.Held(s));
     }
 
     [Fact]

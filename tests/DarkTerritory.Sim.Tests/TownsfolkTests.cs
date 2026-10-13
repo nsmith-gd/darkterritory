@@ -210,18 +210,26 @@ public class TownsfolkTests
         var knock = door + (door - town.World(quiet.S, quiet.D, 1.2)).Normalized * 1.6;
         Assert.Equal(new TownTarget(TownTargetKind.Door, plan.Buildings.ToList().IndexOf(quiet)), town.Target(knock with { Y = door.Y + 0.4 }, (door - knock).Normalized));
 
-        // A small town keeps the yard: no green, but its laws and its flag, and its dead and its day on the square's far wall.
+        // A small town keeps the yard: its laws and its flag, its dead and its day on the square's far wall, and a green in
+        // the square's rear end (note 490), its tree, its lamp garden and a bench on it, clear of everything else there.
         var small = Plan("frontier:7", 60);
-        Assert.Null(small.Plan.Green);
+        var sg = Assert.IsType<TownGreen>(small.Plan.Green);
+        Assert.Equal(small.Plan.Square.Side, sg.Side);
+        Assert.True(small.Plan.Square.Holds(sg.S0, sg.Side) && small.Plan.Square.Holds(sg.S1, sg.Side), "the small town's green isn't in its square");
+        foreach (string kind in (string[])["tree", "garden", "bench"])
+            Assert.Contains(small.Plan.Fixtures, f => f.Kind == kind && sg.Holds(f.S, f.D));
+        Assert.All(small.Plan.Fixtures.Where(f => f.Kind is not ("tree" or "garden" or "bench") && f.House < 0), f =>
+            Assert.False(sg.Holds(f.S, f.D, Math.Max(f.SolidS, f.SolidD)), $"{f.Name} ({f.Kind}) stands on the small town's green"));
+        Assert.All(small.Plan.Buildings, b => Assert.False(sg.Holds(b.S, b.D, Math.Max(b.Length, b.Depth) / 2), $"{b.Name} stands on the small town's green"));
         Assert.Contains(small.Plan.Fixtures, f => f.Kind == "laws");
         Assert.DoesNotContain(small.Plan.Buildings, b => b.Kind == "quiet");
-        foreach (string kind in (string[])["memorial", "mural"])
+        foreach (string kind in (string[])["memorial", "mural", "tree", "garden"])
         {
             var f = Assert.Single(small.Plan.Fixtures, x => x.Kind == kind);
             Assert.True(small.Plan.Square.Holds(f.S, Math.Sign(f.D)), $"the small town's {kind} isn't in its square");
             var face = small.Direction(f.S, f.FaceS, f.FaceD);
             var lookAt = small.LookAt(f);
-            var stand = lookAt + face * (kind == "mural" ? 3.0 : f.SolidD + 1.0);
+            var stand = lookAt + face * (kind == "mural" ? 3.0 : Math.Max(f.SolidS, f.SolidD) + 1.0);
             var eye = new Double3(stand.X, small.World(f.S, f.D).Y + 1.6, stand.Z);
             Assert.Equal(new TownTarget(TownTargetKind.Fixture, f.Id), small.Target(eye, (lookAt - eye).Normalized));
         }

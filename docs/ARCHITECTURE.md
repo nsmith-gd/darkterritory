@@ -692,6 +692,7 @@ written here instead is moved out by `tools/coord/notes.py split`; the Coordinat
 - [487. The Grumbler's healing seen (queue #224, E1; the art checklist's `grumbler-anim` "still to do": "a tell for its healing"; GDD App. A.8 "It…](notes/487.md)
 - [488. The Gaunt's barn or shed is dark too (B4, queue #225; note 475's lanterns; level-design H.2 "the Gaunt's roost"; GDD §28)](notes/488.md)
 - [489. The hounds' patrol heard by its moves (AU1, queue #226; D1's #208, note 472, the mode replicated as `CinderHound.Aboard`; E1's #213 clips,…](notes/489.md)
+- [490. Towns, a third pass: nothing ruled straight, a small town's green, the town seen from outside, a fishing town's yards, the guns on the…](notes/490.md)
 - [492. A bot crew takes a hand lamp out to the wreck yard's dark heaps (A1, queue #229; note 187's "not yet"; GDD §18 wreck yard "unstable, unlit")](notes/492.md)
 - [493. A dead town's station stands open (B4, queue #230; note 417's "not yet": "the station, the derelicts and the powerhouse stay shut"; linegen…](notes/493.md)
 - [494. The Grumbler's healing heard (AU1, queue #231; E1's #224, note 487, its healing seen; GDD App. A.8 "REGEN heals if only one player has hit…](notes/494.md)
