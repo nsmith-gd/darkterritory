@@ -103,7 +103,9 @@ public static partial class Hud
         if (!over)
         {
             TopCentre(o, width, s, memory, line);
-            Situation(o, s);
+            // The news's line is wide enough to run into the top left's fine print (F1, note 663): its few seconds have it.
+            if (NewsUp(s.World) is null)
+                Situation(o, s);
         }
         Alerts(o, width, height, s, line);
         if (captions is { Count: > 0 } && !over)

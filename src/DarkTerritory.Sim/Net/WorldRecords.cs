@@ -3,8 +3,8 @@ using Ballast.Net;
 using DarkTerritory.Sim.Combat;
 using DarkTerritory.Sim.Enemies;
 using DarkTerritory.Sim.Player;
-using DarkTerritory.Sim.Train;
 using DarkTerritory.Sim.Run;
+using DarkTerritory.Sim.Train;
 
 namespace DarkTerritory.Sim.Net;
 
