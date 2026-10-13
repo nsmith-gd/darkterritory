@@ -1507,6 +1507,7 @@ public sealed class RoofWalkerBot(int seed, ColdTuning? cold = null, StopHand? j
         if (shape.Interior is not { } room || train.Dynamics.Tuning.Geometry.Interior is not { } layout)
             return null;
         double floor = layout.FloorHeight, r = Clearance;
+        var vehicle = train.Vehicles[car];
         var spots = new List<Double3>();
         foreach (double off in new[] { 0.5, 0.7 })
             for (int k = 0; k < 8; k++)
@@ -1516,7 +1517,7 @@ public sealed class RoofWalkerBot(int seed, ColdTuning? cold = null, StopHand? j
             if (p.X - r < room.Min.X || p.X + r > room.Max.X || p.Z - r < room.Min.Z || p.Z + r > room.Max.Z)
                 continue;
             bool Hits(Box b) => b.Max.Y > floor + 0.35 && b.Min.Y < floor + 1.8 && p.X + r > b.Min.X && p.X - r < b.Max.X && p.Z + r > b.Min.Z && p.Z - r < b.Max.Z;
-            if (shape.Solids.Any(solid => Hits(solid.Box)) || shape.DoorList.Any(door => Hits(door.Box)))
+            if (shape.Solids.Any(solid => solid.Present(vehicle) && Hits(solid.BoxIn(vehicle))) || shape.DoorList.Any(door => Hits(door.Box)))
                 continue;
             if (Facing(train, car, p, at, DMath.Atan2(p.X - at.X, p.Z - at.Z)) is { } face)
                 return (p with { Y = 0 }, face);
