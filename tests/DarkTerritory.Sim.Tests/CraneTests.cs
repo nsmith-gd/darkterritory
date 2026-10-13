@@ -152,8 +152,14 @@ public class CraneTests
 
         // Up on the car's roof beside it: nobody holding, it stays on the hook; held for the rig's time, it's let go there.
         var beside = frame.ToLocal(crane.HookAt) with { Y = frame.Shape.RoofHeight };
-        var hand = new PlayerState { Parent = car.Id, Position = beside + new Double3(0, 0, 0.9), Surface = Surface.Roof, Health = Tuning.Player.Health,
-            LineHint = stop.Train.Cars[car.Id].FrontDistance };
+        var hand = new PlayerState
+        {
+            Parent = car.Id,
+            Position = beside + new Double3(0, 0, 0.9),
+            Surface = Surface.Roof,
+            Health = Tuning.Player.Health,
+            LineHint = stop.Train.Cars[car.Id].FrontDistance
+        };
         stop.Crew.Add(hand);
         Assert.True(crane.Unriggable(stop.Train, PlayerMotor.WorldPosition(hand, stop.Train)));
         stop.Step(C.RigSeconds * 0.5, [default, default, Hold]);
