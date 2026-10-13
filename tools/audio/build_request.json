@@ -1,0 +1,7 @@
+{
+ "build": ["crew-footsteps"],
+ "install": ["crew-footsteps"],
+ "surface": "wood",
+ "store": "tools/audio/build_store/items",
+ "why": "note 667: the car's and the cab's plank floor, rebuilt (planks) and installed"
+}
