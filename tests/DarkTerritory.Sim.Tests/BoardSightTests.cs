@@ -72,10 +72,13 @@ public class BoardSightTests
             Assert.True(posts.Count(b => b.Value.Side == route.Plan.Rules.Boards[b.Key.Type].Side) >= posts.Count * 0.8,
                 $"{spec}: {posts.Count(b => b.Value.Side == route.Plan.Rules.Boards[b.Key.Type].Side)} of {posts.Count} posts on their own side");
             // Read in the lamp, past the land, over most of the line's approaches (a board on a bend has its lamp on it
-            // late; one in a cutting is moved back to where it's seen).
+            // late; one in a cutting is moved back to where it's seen). Since `pt13-signs` "seen" is also clear of the cab's
+            // own frame across all its words (a board on the right goes behind the right front pillar for 40 m or so) and
+            // of any other board in front of it: 85% of the approaches over a night, and no more than one board in six
+            // under seenShare (frontier:7's half-km post 3.5 can't be seen anywhere near its km).
             double seen = standing.Sum(b => b.Value.SeenM), approach = standing.Sum(b => b.Value.ApproachM);
-            Assert.True(seen >= 0.9 * approach, $"{spec}: boards seen over {seen / approach:P0} of their approaches");
-            Assert.True(standing.Count(b => b.Value.SeenM < rules.SeenShare * b.Value.ApproachM) <= standing.Count / 10,
+            Assert.True(seen >= 0.85 * approach, $"{spec}: boards seen over {seen / approach:P0} of their approaches");
+            Assert.True(standing.Count(b => b.Value.SeenM < rules.SeenShare * b.Value.ApproachM) <= standing.Count / 6,
                 $"{spec}: {string.Join(", ", standing.Where(b => b.Value.SeenM < rules.SeenShare * b.Value.ApproachM).Select(b => $"{b.Key.Type} {b.Key.Text} {b.Value.SeenM}/{b.Value.ApproachM}"))}");
         }
     }
@@ -231,8 +234,9 @@ public class BoardSightTests
             Assert.Same(site, side.SightBoard(b));
             Assert.Equal(LinesideProps.SightLettering(b).Text, site.Text);
         }
-        // (One on frontier:7 is on a ledge round a hillside, seen from nowhere within its reach.)
-        Assert.True(boards.Sum(b => side.SightBoard(b).SeenM) >= 0.85 * boards.Sum(b => side.SightBoard(b).ApproachM));
+        // (One on frontier:7 is on a ledge round a hillside, seen from nowhere within its reach; the mail boards on the
+        // right lose a stretch behind the cab's right front pillar.)
+        Assert.True(boards.Sum(b => side.SightBoard(b).SeenM) >= 0.8 * boards.Sum(b => side.SightBoard(b).ApproachM));
     }
 
     static double Distance(double x, double z, double ax, double az, double bx, double bz)
