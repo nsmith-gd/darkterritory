@@ -894,8 +894,13 @@ CampaignState? Play(IPlaySession session, CampaignState? campaign)
     if (voice is not null)
         voice.MicLevel = (float)settings.MicLevel;
     var clock = new FixedStepClock(SimConstants.TickRate);
-    // Note 549: the night's slow frames, to the launch log.
+    // Note 549: the night's slow frames, to the launch log; note 691: its hitches and frames, for its performance report.
     var frameWatch = new FrameWatch();
+#if DEVTOOLS
+    // A note (F8, F9) carries the last minute's frames (GDD §34.3).
+    if (dev.Notes is { } frameNotes)
+        frameNotes.Frames = () => frameWatch.Story(timer.Elapsed.TotalSeconds);
+#endif
     var locomotion = vr is null ? null : new VrLocomotion(settings.Apply(DataFile.Load<VrTuning>(Path.Combine(content, VrTuning.File))));
     var levers = vr is null ? null : new VrLevers();
     // The HUD in the headset (T36), drawn as for the window but without the aiming cross.
@@ -1667,6 +1672,7 @@ CampaignState? Play(IPlaySession session, CampaignState? campaign)
         {
             renderer.Prepare(mesh, showHud || menuShown ? overlay : null);
             frameWatch.Mark("hud, upload");
+            FrameCounts.Add("meshes uploaded", renderer.Uploaded);
             Present(camera, lighting);
             frameWatch.Mark("render, present");
         }
@@ -1710,7 +1716,9 @@ CampaignState? Play(IPlaySession session, CampaignState? campaign)
         // Note 667: past the night's first frames (its scene built, its first collections done), a gap grows the speaker's lead.
         if (pump is not null)
             pump.Adapt = frameWatch.Frames >= FrameWatch.Window;
-        // Note 549: a frame well over the night's run, written down with what it spent and where the night was.
+        // Note 549: a frame well over the night's run, written down with what it spent and where the night was; note 691:
+        // every hitch kept for the night's report, with how fast the view was turning.
+        frameWatch.View(camera.Yaw, camera.Pitch);
         if (frameWatch.End(timer.Elapsed.TotalSeconds, () => $"at {session.Train.Dynamics.Distance / 1000:0.00} km, {session.Train.Dynamics.Speed:0.0} m/s, {session.World.Run?.Phase.ToString() ?? "no run"}, {session.World.ActiveEnemies.Count()} enemies{Gaps()}") is { } slow)
             Console.WriteLine(slow);
     }
@@ -1718,6 +1726,16 @@ CampaignState? Play(IPlaySession session, CampaignState? campaign)
         pump.Adapt = false;
     Console.WriteLine($"night's frames: {frameWatch.Summary()}" + (pump is null ? "" : $"; audio ran dry {pump.Underruns} times, "
         + $"its longest block {pump.LongestBlock * 1000:0.0} ms, its longest stall {pump.LongestStall * 1000:0} ms, its lead {pump.Lead * 1000:0} ms"));
+    // Note 691 (GDD §34.3): the night's performance report, in the launch log in every build (a player's REPORT A PROBLEM
+    // carries its last lines), and on the end of a developer build's test reports, where the director sends it from.
+    string performance = frameWatch.Report($"{session.Route?.Name ?? "a night"} · {(session.World.Run?.Over == true ? "to the night's end" : "left during the night")}",
+        pump is null ? null : [$"audio     ran dry {pump.Underruns} times; its longest stall {pump.LongestStall * 1000:0} ms"]);
+    Console.Write(performance);
+#if DEVTOOLS
+    dev.Tests?.Add(DateTime.Now, "the night's performance", performance);
+    if (dev.Notes is { } nightNotes)
+        nightNotes.Frames = null;
+#endif
 
     // Note 350: a night seen to its end is one of the player's nights.
     if (session.World.Run?.Over == true)

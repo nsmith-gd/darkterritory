@@ -46,6 +46,10 @@ public sealed class FeedbackNotes(string directory, NightRecorder? recorder, Cra
     /// <summary>The build's test reports (note 677): every note kept goes on the end of them too.</summary>
     public TestReports? Tests { get; init; }
 
+    /// <summary>The night's last minute of frames (<c>FrameWatch.Story</c>, GDD §34.3, note 691), asked as a note's kept; null
+    /// between nights.</summary>
+    public Func<string>? Frames { get; set; }
+
     /// <summary>The last note kept: its bundle's folder.</summary>
     public string? Last { get; private set; }
 
@@ -163,6 +167,8 @@ public sealed class FeedbackNotes(string directory, NightRecorder? recorder, Cra
         };
         var frame = _frame;
         _frame = null;
+        // The frames now, on the frame's own thread (the watch is the frame's).
+        string? frames = Frames?.Invoke();
         _made++;
         // Its mark in the night's recording, at the moment it was begun (a dropped note leaves none).
         if (note.Recording is not null && recorder?.Current is { } recording && Path.GetFileName(recording) == note.Recording)
@@ -174,7 +180,7 @@ public sealed class FeedbackNotes(string directory, NightRecorder? recorder, Cra
         _sending.RemoveAll(t => t.IsCompleted);
         _sending.Add(Task.Run(async () =>
         {
-            string dir = FeedbackBundle.Write(directory, note, frame, voice, sampleRate, reports, Tests);
+            string dir = FeedbackBundle.Write(directory, note, frame, voice, sampleRate, reports, Tests, frames);
             Last = dir;
             if (upload is not null)
                 await upload.SendAsync(dir, null).ConfigureAwait(false);

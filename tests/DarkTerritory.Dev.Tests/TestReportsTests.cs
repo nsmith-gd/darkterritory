@@ -82,4 +82,42 @@ public class TestReportsTests
             Directory.Delete(logs, recursive: true);
         }
     }
+
+    [Fact]
+    public void ANoteCarriesTheLastMinutesFramesAndTheNightsPerformanceGoesOnTheEnd()
+    {
+        // GDD §34.3, note 691: a note's frames beside it and in the file; the night's report under its own rule.
+        string logs = Scratch();
+        try
+        {
+            var crashes = new CrashReports(Path.Combine(logs, "reports"));
+            var tests = new TestReports(Path.Combine(logs, TestReports.FileName));
+            var watch = new FrameWatch();
+            for (int i = 0; i < 600; i++)
+            {
+                watch.Begin();
+                double ms = i == 500 ? 45 : 11;
+                watch.Part("scene", ms);
+                watch.Frame(ms, i / 60.0, () => "at 0.40 km, 0.0 m/s, AtStop");
+            }
+            var note = new FeedbackNote { Id = "fb-test-frames", At = DateTime.UtcNow, Kind = "typed", Text = "it's stuttering here in the town" };
+            string bundle = FeedbackBundle.Write(Path.Combine(logs, "notes"), note, null, null, 48000, crashes, tests, watch.Story(599 / 60.0));
+            Assert.StartsWith("FRAMES · the last ", File.ReadAllText(Path.Combine(bundle, FeedbackBundle.FramesFile)));
+            Assert.Equal(2, tests.Add(DateTime.Now, "the night's performance", watch.Report("frontier:7 · to the night's end")));
+            string text = File.ReadAllText(tests.Path);
+            int two = text.IndexOf($"{TestReports.Rule}2 · ", StringComparison.Ordinal);
+            Assert.True(two > 0);
+            // The note's own report, then its frames: the hitch at 8.3 s, in the town.
+            Assert.Contains("it's stuttering here in the town", text[..two]);
+            Assert.Contains("FRAMES · the last ", text[..two]);
+            Assert.Contains("45 ms (median 11), led by scene", text[..two]);
+            Assert.Contains("the night's performance =====", text[two..]);
+            Assert.Contains("PERFORMANCE · frontier:7 · to the night's end", text[two..]);
+            Assert.Contains("hitches   1 ", text[two..]);
+        }
+        finally
+        {
+            Directory.Delete(logs, recursive: true);
+        }
+    }
 }
