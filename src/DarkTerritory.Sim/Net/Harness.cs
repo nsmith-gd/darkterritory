@@ -12,6 +12,11 @@ namespace DarkTerritory.Sim.Net;
 public sealed record HarnessOptions
 {
     public int Bots { get; init; } = 8;
+    /// <summary>
+    /// Note 650: the last bot dies this many seconds in, 200 m back up the line (as the Holdout tests kill a player), so the
+    /// night has a rescue to measure; null, nobody's killed.
+    /// </summary>
+    public double? KillAt { get; init; }
     /// <summary>The driver runs hot at this speed and takes no stops (note 376, <see cref="Bots.ConductorBot.Express"/>); null as usual.</summary>
     public double? Express { get; init; }
     public int Cars { get; init; } = 10;
@@ -132,9 +137,12 @@ public sealed record RejoinReport(string Bot, int Was, int Back, double DroppedA
 /// Dawn on a harness night (note 607). <paramref name="LineAt"/>: when the dawn line came up (wakers.stirSeconds before dawn)
 /// and <paramref name="AtLine"/> the crew then (the trace's words); <paramref name="TakenAt"/>: when the lead Waker took the
 /// train (−1, it didn't), <paramref name="Short"/> how far short of the terminus's gate (m), <paramref name="Speed"/> the
-/// train's then, and <paramref name="AtTaking"/> where everyone was.
+/// train's then, and <paramref name="AtTaking"/> where everyone was. <paramref name="Closest"/> (note 631): the night's closest
+/// call, the fewest seconds before the lead Waker would have had the train had it stood just then
+/// (<see cref="Enemies.Waker.SecondsInHand"/> at a stand), from the dawn line until it was in under the guns; −1, never reckoned.
 /// </summary>
-public sealed record DawnReport(double LineAt, IReadOnlyList<string> AtLine, double TakenAt, double Short, double Speed, IReadOnlyList<string> AtTaking);
+public sealed record DawnReport(double LineAt, IReadOnlyList<string> AtLine, double TakenAt, double Short, double Speed, IReadOnlyList<string> AtTaking,
+    double Closest = -1);
 
 public sealed record CrewCapReport(int Cap, int Occupied, int Refusals, IReadOnlyList<string> Refused);
 
@@ -191,7 +199,14 @@ public sealed record HarnessReport(int Ticks, double Seconds, string Link, doubl
 /// <paramref name="SecondsToFree"/>: from lighting to out, each one freed. <paramref name="FreedBy"/>: who broke them out, by bot.
 /// </summary>
 public sealed record HoldoutReport(int Lit, int Assigned, int Breached, int Freed, int Released, IReadOnlyList<double> SecondsToFree,
-    IReadOnlyDictionary<string, int> FreedBy);
+    IReadOnlyDictionary<string, int> FreedBy)
+{
+    /// <summary>
+    /// Note 650: each rescue's stand, from the train first standing with a Holdout lit to its moving on after the freeing (s);
+    /// a facility's own work stood out alongside it is in it.
+    /// </summary>
+    public IReadOnlyList<double> StandSeconds { get; init; } = [];
+}
 
 /// <summary>
 /// How often something happened (after the playtest: "a reward or a problem every 30 s at most, ideally 20"): the moments
@@ -226,6 +241,8 @@ public sealed record ThreatReport(double Budget, double Spent, IReadOnlyDictiona
     public string? DerailCause { get; init; }
     /// <summary>The conflict-table pairs the director put together (App. B.1).</summary>
     public IReadOnlyList<string> Pairs { get; init; } = [];
+    /// <summary>The night's creatures gone to ground before dawn (note 635; <see cref="World.FledAtDawn"/>).</summary>
+    public int FledAtDawn { get; init; }
     /// <summary>Seconds out on the line by what the director did each second: sent something, or why it held back (T114).</summary>
     public IReadOnlyDictionary<string, int> Director { get; init; } = new Dictionary<string, int>();
     /// <summary>While it held back at the cap: the engaged threats that filled it, by kind and phase, in seconds.</summary>
@@ -276,6 +293,8 @@ public sealed record UpkeepReport(int HotBoxes, int Caught, int Lamps, int WentO
 {
     /// <summary>Rounds the guns fired (note 377).</summary>
     public int Rounds { get; init; }
+    /// <summary>Note 640: each pin worked loose, its cause, the train's speed and what the driver was doing then.</summary>
+    public IReadOnlyList<string> Loosened { get; init; } = [];
     /// <summary>Who carried each charge up to fill a rack, by bot (note 377: the gunner's own, or a walker's).</summary>
     public IReadOnlyDictionary<string, int> FilledBy { get; init; } = new Dictionary<string, int>();
     /// <summary>Seconds a gun that's fired stood with its rack dry while there was powder below (note 377), its gunner waiting or gone for it.</summary>
@@ -438,12 +457,17 @@ public static class Harness
         var breachBegun = new HashSet<int>();
         int litCount = 0, breached = 0, holdoutEventsSeen = 0;
         var toFree = new List<double>();
+        var stands = new List<double>();
+        uint? standFrom = null;
+        bool freedSince = false;
         var freedBy = new SortedDictionary<string, int>(StringComparer.Ordinal);
         var falls = new FallWatch();
         // Note 607: the crew at the dawn line, and when the lead Waker took the train.
         double? lineAt = null;
         IReadOnlyList<string>? atLine = null;
         DawnReport? dawn = null;
+        double closest = double.PositiveInfinity;
+        var loosened = new List<string>();
         for (uint t = 0; t < ticks; t++)
         {
             if (host.World.Run is { Over: true } || o.Until?.Invoke(host.World) == true)
@@ -454,8 +478,31 @@ public static class Harness
             net.Advance(SimConstants.TickSeconds);
             o.Network?.Pump();
             o.Script?.Invoke(t, host.World);
+            if (o.KillAt is { } killAt && t == (uint)Math.Round(killAt * SimConstants.TickRate) && host.Players.LastOrDefault() is { } dying)
+            {
+                // Note 650: as the Holdout tests' KillThePlayer: dead 200 m back up the line, not to wait where they died.
+                double upLine = host.Train.Dynamics.RearDistance - 200;
+                host.SetPlayerState(dying.Id, dying.State with
+                {
+                    Parent = PlayerState.World,
+                    Health = 0,
+                    Death = DeathCause.Mauled,
+                    LineHint = upLine,
+                    Position = host.Train.Line.Sample(upLine).Position,
+                });
+            }
             host.Step();
             events.AddRange(host.World.EnemyEvents);
+            // Note 640: what worked each pin loose, and what the driver was at.
+            while (loosened.Count < host.World.Loosenings.Count)
+            {
+                var (cause, at) = host.World.Loosenings[loosened.Count];
+                string doing = "";
+                foreach (var p in host.Players)
+                    if (clients.FirstOrDefault(c => c.Session.PlayerId == p.Id).Bot is ConductorBot cb)
+                        doing = " " + Describe(cb, p.State);
+                loosened.Add($"{t * SimConstants.TickSeconds:0}s {cause} {at:0.0} m/s{doing}");
+            }
             foreach (var p in host.Players)
                 falls.Watch(t, host.Train, p.Id, p.State, clients.FirstOrDefault(c => c.Session.PlayerId == p.Id).Bot);
             if (host.World.Run is { } dawnRun && host.World.Enemies is { Wakers.Enabled: true } dawnTuning)
@@ -463,11 +510,14 @@ public static class Harness
                 List<string> Crew() => [.. host.Players.Select(p => clients.FirstOrDefault(c => c.Session.PlayerId == p.Id).Bot is { } b ? Describe(b, p.State) : $"player {p.Id}")];
                 if (lineAt is null && dawnRun.DawnIn <= dawnTuning.Wakers.StirSeconds)
                     (lineAt, atLine) = (Math.Round(t * SimConstants.TickSeconds, 1), Crew());
+                // Note 631: how near a stand came to being one too many, from the dawn line till it's in under the guns.
+                if (lineAt is not null && dawn is null && t % 15 == 0 && Waker.SecondsToShelter(host.World) > 0)
+                    closest = Math.Min(closest, Waker.SecondsInHand(host.World, speed: 0));
                 if (dawn is null && host.World.ActiveEnemies.OfType<Waker>().Any(w => w.Lead && w.Holds))
                 {
                     double gate = dawnRun.Route.Plan?.Terminus.GateM ?? dawnRun.Route.Length;
                     dawn = new DawnReport(lineAt ?? -1, atLine ?? [], Math.Round(t * SimConstants.TickSeconds, 1),
-                        Math.Round(gate - host.Train.Dynamics.Distance), Math.Round(host.Train.Dynamics.Speed, 1), Crew());
+                        Math.Round(gate - host.Train.Dynamics.Distance), Math.Round(host.Train.Dynamics.Speed, 1), Crew(), 0);
                 }
             }
             if (host.World.Holdouts is { } hs)
@@ -482,6 +532,15 @@ public static class Harness
                     if (h.State == Sim.Run.HoldoutState.Breaching && litSince.ContainsKey(h.Index) && breachBegun.Add(h.Index))
                         breached++;
                 }
+                // Note 650: the rescue's stand, from standing with a Holdout lit till moving on after it's freed.
+                bool standing = Math.Abs(host.Train.Dynamics.Velocity) < 0.05;
+                if (standFrom is null && standing && hs.All.Any(h => h.Lit))
+                    standFrom = t;
+                if (standFrom is { } sf && freedSince && Math.Abs(host.Train.Dynamics.Velocity) > 0.5)
+                {
+                    stands.Add(Math.Round((t - sf) * SimConstants.TickSeconds, 1));
+                    (standFrom, freedSince) = (null, false);
+                }
                 for (; holdoutEventsSeen < host.HoldoutEvents.Count; holdoutEventsSeen++)
                 {
                     var e = host.HoldoutEvents[holdoutEventsSeen];
@@ -491,6 +550,7 @@ public static class Harness
                     {
                         if (litSince.TryGetValue(e.Holdout, out var from))
                             toFree.Add(Math.Round((t - from) * SimConstants.TickSeconds, 1));
+                        freedSince = standFrom is not null;
                         string by = clients.FirstOrDefault(c => c.Session.PlayerId == e.By).Bot?.Name ?? $"player {e.By}";
                         freedBy[by] = freedBy.GetValueOrDefault(by) + 1;
                     }
@@ -634,12 +694,15 @@ public static class Harness
                 deaths[p.State.Death.ToString()] = deaths.GetValueOrDefault(p.State.Death.ToString()) + 1;
             int unfair = events.Count(e => e.To == SpinePhase.Commit && (e.From != SpinePhase.Telegraph || e.SecondsInFrom < o.Enemies!.MinReactionSeconds - 1e-9));
             threats = new ThreatReport(Math.Round(d.Budget, 1), Math.Round(d.Spent, 1),
-                d.Log.GroupBy(l => l.Kind.ToString()).ToDictionary(g => g.Key, g => g.Count()),
+                // The director's own sends, and those come their own way (note 644: a group of Pickers, a house creature).
+                d.Log.Select(l => l.Kind).Concat(d.OwnWay.SelectMany(o => Enumerable.Repeat(o.Key, o.Value)))
+                    .GroupBy(k => k.ToString()).OrderBy(g => g.Key, StringComparer.Ordinal).ToDictionary(g => g.Key, g => g.Count()),
                 events.Where(e => e.To == SpinePhase.Punish).GroupBy(e => e.Kind.ToString()).ToDictionary(g => g.Key, g => g.Count()),
                 deaths, unfair, host.World.Derailed, Math.Round(choirPeak, 1),
                 Math.Round(host.Train.Vehicles.Where(v => v.Kind == VehicleKind.Cargo).DefaultIfEmpty().Average(v => v?.CargoIntegrity ?? 1), 3), rounds)
             {
                 Pairs = [.. d.Pairs],
+                FledAtDawn = host.World.FledAtDawn,
                 DerailCause = host.World.DerailCause,
                 Director = held,
                 AtTheCap = capped,
@@ -681,6 +744,7 @@ public static class Harness
             host.World.GutterCount.Came, host.World.GutterCount.WentOut, host.World.LooseCount.Came, host.World.LooseCount.Parted, host.World.RacksFilled)
         {
             Rounds = rounds,
+            Loosened = loosened,
             FilledBy = host.World.RacksFilledBy.GroupBy(f => clients.FirstOrDefault(c => c.Session.PlayerId == f.Key).Bot?.Name ?? $"player {f.Key}")
                 .ToDictionary(g => g.Key, g => g.Sum(f => f.Value)),
             DrySeconds = Math.Round(dryTicks * SimConstants.TickSeconds, 1),
@@ -706,9 +770,10 @@ public static class Harness
             Holdouts = host.World.Holdouts is null ? null : new HoldoutReport(litCount,
                 host.HoldoutEvents.Count(e => e.Kind == Sim.Run.HoldoutEventKind.Assigned), breached,
                 host.HoldoutEvents.Count(e => e.Kind == Sim.Run.HoldoutEventKind.Freed),
-                host.HoldoutEvents.Count(e => e.Kind == Sim.Run.HoldoutEventKind.Released), toFree, freedBy),
+                host.HoldoutEvents.Count(e => e.Kind == Sim.Run.HoldoutEventKind.Released), toFree, freedBy)
+            { StandSeconds = stands },
             Falls = falls.Falls,
-            Dawn = dawn ?? (lineAt is { } la ? new DawnReport(la, atLine ?? [], -1, -1, -1, []) : null),
+            Dawn = dawn ?? (lineAt is { } la ? new DawnReport(la, atLine ?? [], -1, -1, -1, [], double.IsFinite(closest) ? Math.Round(closest, 1) : -1) : null),
             Reckonings = clients.Select(c => c.Bot).OfType<ConductorBot>().FirstOrDefault()?.Stops?.Reckonings,
         };
     }

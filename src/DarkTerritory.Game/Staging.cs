@@ -1447,7 +1447,7 @@ public static partial class Staging
         {
             lines = [.. lines.Where(l => l.Kind is Sim.Run.IncidentKind.Slain or Sim.Run.IncidentKind.Rescue)];
             var t = run.Tuning.BroughtIn;
-            brigade = Math.Round(t.Fee * run.Tuning.Economy.PerCar.GetValueOrDefault("frontier", 700));
+            brigade = Math.Round(t.Fee * run.Tuning.Economy.FeeFor("frontier"));
             string town = run.Route.Plan?.Terminus.Name ?? "the town";
             lines.Add(Sim.Run.Run.BroughtInLine(new Sim.Run.BroughtIn(90, EnemyKind.CinderHound, "the Cinder Hound", 2, 1702), town, t, brigade));
             lines.Add(Sim.Run.Run.BroughtInLine(new Sim.Run.BroughtIn(91, EnemyKind.Grumbler, "the Grumbler", 3, 1706), town, t, brigade));

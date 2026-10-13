@@ -522,7 +522,7 @@ public sealed class World
         {
             var p = b.Pbd.Particles[0];
             return new Campaign.ThingAboard(b.Kind, b.Parent, p.Position, p.Radius, b.Pbd.Friction, b.Pbd.Bounce, b.Yaw, b.Locker, b.Slot, b.Claimed,
-                b.Cargo, b.Owner, b.Home, b.Charge, b.Noise, b.Broken);
+                b.Cargo, b.Owner, b.Home, b.Charge, b.Noise, b.Broken, b.Tools);
         })];
 
     /// <summary>
@@ -551,6 +551,8 @@ public sealed class World
             b.Charge = t.Charge;
             b.Noise = t.Noise;
             b.Broken = t.Broken;
+            // A tool left on a locker's shelf (note 649) is which tool it is.
+            b.Tools = t.Tools;
             // A full shelf (the save's from a train with other lockers) leaves it where it lay: at its shelf, out of the way.
             if (t.Locker >= 0)
                 Bodies.Stow(b, Train, t.Car, t.Locker);
@@ -1083,6 +1085,11 @@ public sealed class World
     public bool WakerHolds => _enemies.Any(e => e is Waker { Holds: true });
     /// <summary>Host: a Waker has eaten the train to the engine (note 588). The run ends "taken at dawn".</summary>
     public bool TakenAtDawn { get; set; }
+    /// <summary>
+    /// This night is a campaign's, and a train taken at dawn ends the campaign (note 632; the director, the inbox, 12 Oct):
+    /// every machine's end card says so. Set from the night's setup, the same on every machine; nothing in the sim reads it.
+    /// </summary>
+    public bool DawnEndsCampaign { get; set; }
 
     /// <summary>Puts an enemy into the world directly (tests, the editor, scripted set pieces). Host only.</summary>
     public T AddEnemy<T>(Func<int, T> make) where T : Enemy
@@ -1326,6 +1333,9 @@ public sealed class World
     public SortedDictionary<int, int> RacksFilledBy { get; } = [];
     /// <summary>Host: the night's loose couplings so far (note 356): how many worked loose, and how many parted.</summary>
     public (int Came, int Parted) LooseCount => _couplings is { } c ? (c.Came, c.Parted) : (0, 0);
+    /// <summary>Host: each pin worked loose tonight, what did it and the train's speed then (note 640; the harness's).</summary>
+    public IReadOnlyList<(LooseCause Cause, double Speed)> Loosenings => _loosenings;
+    readonly List<(LooseCause Cause, double Speed)> _loosenings = [];
     /// <summary>Host: the night's guttering lamps so far (note 346): how many started, and how many went out.</summary>
     public (int Came, int WentOut) GutterCount => _gutters is { } g ? (g.Came, g.WentOut) : (0, 0);
     /// <summary>Host: the night's hot boxes so far (note 331): how many came on, and how many caught.</summary>
@@ -1392,7 +1402,7 @@ public sealed class World
         // lever, which takes Use whatever's in your hands (queue #94, note 357): the lamp you carried out to a stand stays lit
         // in your hand while you throw it, and a crate lying by it stays down.
         bool lever = Authority && Switches?.InReach(s, Train, Hand) is not null;
-        bool handsTookIt = Authority && Bodies.Handle(s, intent, playerId, Train, Hand,
+        bool handsTookIt = Authority && Bodies.Handle(ref s, intent, playerId, Train, Hand,
             keep: kit && (breaching || CrewActions.AtTheRupture(s, Train, Hand)) || charging, lever: lever, fetch: fetch);
         if (charging && gunTuning is not null)
             Charge(s, intent, playerId, gunTuning);
@@ -1420,7 +1430,8 @@ public sealed class World
         {
             // Freight in your arms slows you and keeps you off ladders (spec B.2); the motor reads the flag.
             // GDD v1.4 App. C.4 and D.9 (note 181): hand-carried loot is carried the same way: a toy, a find, the child, a body.
-            bool heavy = Bodies.All.Any(b => b.HeldBy(playerId) && b.Kind is Physics.BodyKind.Cargo or Physics.BodyKind.Heavy
+            // Note 594: in the hands; one put away in a slot doesn't slow you (Lethal Company's slots: "grab a few pieces of loot").
+            bool heavy = Bodies.All.Any(b => b.HeldBy(playerId) && !b.Stashed && b.Kind is Physics.BodyKind.Cargo or Physics.BodyKind.Heavy
                 or Physics.BodyKind.Toy or Physics.BodyKind.Loot or Physics.BodyKind.Child or Physics.BodyKind.Ragdoll);
             s.Flags = heavy ? s.Flags | PlayerFlags.Heavy : s.Flags & ~PlayerFlags.Heavy;
             // D.9's solo remainer: the last one alive, with a body, may still climb (slowly).
@@ -1769,14 +1780,25 @@ public sealed class World
             _gutters = new Gutters(gt, (Route?.Seed ?? 0) ^ 0x6077UL);
         if (Authority && _couplings is null && Train.Loose is { } ct)
             _couplings = new Couplings(ct, (Route?.Seed ?? 0) ^ 0xC0091UL);
-        // The couplings (note 356): one loose for each crewmate at most, none in the yard or a fort; one left too long drops
-        // its pin, and the rake parts behind it.
-        if (Authority && !Derailed && _couplings is { } pins
-            && pins.Step(Train, Math.Max(1, _actors.Count(a => a.State.Alive)), SafeYard || TrainInFort) >= 0)
+        // The couplings (notes 356 and 640): one loose for each crewmate at most, from a run-in or a knock, none in the yard or a
+        // fort nor with a pack aboard; one left too long drops its pin, and the rake parts behind it.
+        if (Authority && !Derailed && _couplings is { } pins)
+        {
+            bool pack = ActiveEnemies.Any(e => e.Kind == EnemyKind.CinderHound && !e.Gone && e.Attached >= 0);
+            int parted = pins.Step(Train, Math.Max(1, _actors.Count(a => a.State.Alive)), SafeYard || TrainInFort, pack);
+            if (pins.Loosened is { } l)
+            {
+                Attribution.Loosened(l.Car, l.Cause, l.Speed);
+                _loosenings.Add((l.Cause, l.Speed));
+            }
             // Note 511: what it parted is in the report as the pin's, not a cut nobody's named for.
-            foreach (var v in Train.Rakes.Where(r => r != Train.Dynamics).SelectMany(r => r.Consist.Vehicles))
-                if (Attribution.CouplerPulledBy(v.Id) < 0)
-                    Attribution.PartedAt(v.Id);
+            // The rake that isn't the engine's: ahead of it, the parted pin's own car's (note 653: seed 7's pair carried ahead).
+            if (parted >= 0 && pins.PartedFrom >= 0)
+            {
+                int cut = Train.RakeOf(pins.PartedFrom) == Train.Dynamics ? parted : pins.PartedFrom;
+                Attribution.PartedAt(parted, Train.RakeOf(cut).Consist.Vehicles.Select(v => v.Id));
+            }
+        }
         // A car battered and let go comes apart (note 576): its freight spilled, off its rails, the train parted ahead of it.
         if (Authority && !Derailed && Failing.Apart(Train) is var apart and >= 0)
             Attribution.CameApart(apart);
@@ -2001,6 +2023,27 @@ public sealed class World
 
     readonly Dictionary<int, double> _unmet = [];
 
+    /// <summary>The night's creatures gone to ground before dawn tonight (note 635).</summary>
+    public int FledAtDawn { get; private set; }
+
+    /// <summary>
+    /// The night things run (wakers.md §2; note 635; the director, the inbox, 12 Oct 2026: "creatures should leave all except
+    /// the knotter and the hotbox who are parasites that have train functions"): from <c>wakers.nightFleesSeconds</c> before
+    /// dawn every night creature but those <c>wakers.staysAtDawn</c> names lets go and is gone, as one driven out of a fort
+    /// is, and the director sends no more of them (<see cref="Sim.Enemies.Director.Tonight"/>).
+    /// </summary>
+    void NightFlees(WakersTuning t)
+    {
+        if (!Sim.Enemies.Waker.NightFleeing(this, t))
+            return;
+        foreach (var e in _enemies)
+            if (!e.Gone && Sim.Enemies.Waker.NightThing(e) && t.Flees(e.Kind))
+            {
+                e.Dismiss();
+                FledAtDawn++;
+            }
+    }
+
     /// <summary>
     /// Once a second: what's gone <see cref="DirectorTuning.LingerSeconds"/> with nobody near it, holding nobody, goes (T114).
     /// Alone, a Climber settled in a car nobody walked into, or hounds trailing a train nobody shot from, held the caps full
@@ -2089,6 +2132,7 @@ public sealed class World
         // The director thinks once a second; the Stoker comes whenever its condition holds, charged when it does (App. B.5).
         // Not in the safe yard (note 263): nothing comes before the run begins.
         Wake(t.Wakers);
+        NightFlees(t.Wakers);
         if (Tick % SimConstants.TickRate == 0 && Director is { } d && !Derailed && !SafeYard)
         {
             d.Present(_context?.Crew.Count ?? 0);
@@ -2110,7 +2154,7 @@ public sealed class World
                 Answer = new DrawAnswer(t.Director.Draw.ShowSeconds, cause, AnswerAt(t.Director.Draw), actor);
             // Drawn by the heat (note 263): it boards at the tender, to cross to the firebox.
             bool homeStretch = HomeStretch;
-            if (d.Allows(EnemyKind.Stoker) && _hotFor >= t.Stoker.HeatSeconds && Train.BoilerTuning is not null
+            if (d.Allows(EnemyKind.Stoker) && d.Tonight(EnemyKind.Stoker, this) && _hotFor >= t.Stoker.HeatSeconds && Train.BoilerTuning is not null
                 && !_enemies.Any(e => !e.Gone && e.Kind == EnemyKind.Stoker) && !TrainInFort && !homeStretch)
             {
                 d.Charge(this, EnemyKind.Stoker, _enemies);
@@ -2135,11 +2179,23 @@ public sealed class World
                     _enemies.Add(Sim.Enemies.Jacob.At(_nextEnemyId++, jacob.At, jacob.Along, jacob.Yaw));
             }
             // The lineside moose (note 339): grazing beside the line ahead, as the line's own; they cost the director nothing.
-            if (Insist is null && d.Allows(EnemyKind.Moose) && Route is { } route && Train.Dynamics.Speed > 3 && !TrainInFort && !homeStretch)
+            if (Insist is null && d.Allows(EnemyKind.Moose) && d.Tonight(EnemyKind.Moose, this) && Route is { } route && Train.Dynamics.Speed > 3 && !TrainInFort && !homeStretch)
                 LinesideMoose(t.Moose, route);
             // The Mourners (note 362): a crewmate's body left lying off the train brings a group for it, the director's or not.
             if (t.Mourners.Enabled)
                 _mourning.Step(this, t.Mourners, Route?.Tier ?? Sim.Route.RouteTier.Local, ref _nextEnemyId, _enemies, 1);
+            // The Pickers (note 592): a train standing at a yard with loose crates brings a group up out of its drains.
+            // Each group counts against their night's cap, and none come up on a night they're out (note 644).
+            if (t.Pickers.Enabled && d.Allows(EnemyKind.Pickers) && (_picking.Up || d.Tonight(EnemyKind.Pickers, this)))
+            {
+                bool wereUp = _picking.Up;
+                _picking.Step(this, t.Pickers, Route?.Tier ?? Sim.Route.RouteTier.Local, ctx.Crew.Count, ref _nextEnemyId, _enemies, 1);
+                if (!wereUp && _picking.Up)
+                    d.Counted(EnemyKind.Pickers);
+            }
+            // The house creatures (notes 583–586): what lives in the stops' open houses, put in as the train comes up to them.
+            if (t.Dwellings.Enabled)
+                _dwelling.Step(this, t, d, ref _nextEnemyId, _enemies);
             // T128 (note 273): whoever the train's left behind has a pressure of their own, and the hunts that come of it.
             d.Abandoned(this, _enemies);
             // Note 328: a train run fast draws the hound run, the guns' wave.
@@ -2166,14 +2222,23 @@ public sealed class World
                         e.Dismiss();
                 }
 
+        // What one gone was carrying off (a Picker's crate, the Householder's thing, the Mourners' dead) is dropped where it is
+        // (note 645): let go of at dawn (note 635) or driven out of a fort, nothing holds it any more, and it isn't left hanging.
+        if (_enemies.Any(e => e.Gone))
+        {
+            var gone = _enemies.Where(e => e.Gone).Select(e => e.Id).ToHashSet();
+            foreach (var b in Bodies.All)
+                if (b.TakenBy >= 0 && gone.Contains(b.TakenBy))
+                    Bodies.LetGo(b);
+        }
         _enemies.RemoveAll(e => e.Gone);
         EnemyEvents.AddRange(ctx.Events);
         Damage.AddRange(ctx.Damage);
         _heldThisTick.Clear();
         _heldThisTick.UnionWith(ctx.Held);
         _carries.Clear();
-        foreach (var (id, at) in ctx.Carries)
-            _carries[id] = at;
+        foreach (var (id, at, up) in ctx.Carries)
+            _carries[id] = (at, up);
     }
 
     /// <summary>The Choir insisted on comes this many seconds after the meter's held up (note 186).</summary>
@@ -2215,7 +2280,7 @@ public sealed class World
 
     readonly List<(uint Tick, Ballast.Double3 Muzzle)> _recentRounds = new();
     readonly HashSet<int> _heldThisTick = new();
-    readonly Dictionary<int, Ballast.Double3> _carries = new();
+    readonly Dictionary<int, (Ballast.Double3 To, bool Up)> _carries = new();
     /// <summary>The marsh (its start) the Drift last came up over: once a marsh.</summary>
     double _driftMarsh = double.NaN;
 
@@ -2223,6 +2288,10 @@ public sealed class World
     public double FastSeconds { get; private set; }
 
     readonly Sim.Enemies.Mourning _mourning = new();
+    readonly Sim.Enemies.Picking _picking = new();
+    readonly Sim.Enemies.Dwelling _dwelling = new();
+    /// <summary>Crates the Pickers carried down their drains (note 592): the stops' loot the less.</summary>
+    public int PickersTook { get; set; }
     /// <summary>Structures Tower Jaw brought down tonight, and their wrecks the crew cleared (note 363).</summary>
     public int TowersDown { get; set; }
     public int TowersCleared { get; set; }
@@ -2364,8 +2433,9 @@ public sealed class World
                 {
                     bool held = _heldThisTick.Contains(id);
                     var flags = held ? h.Flags | PlayerFlags.Held : h.Flags & ~PlayerFlags.Held;
+                    // Carried along the ground (the Whistler's run), or hung up off it (the Hanger's strand, note 586).
                     if (held && _carries.TryGetValue(id, out var to))
-                        h = h with { Parent = PlayerState.World, Position = to, Velocity = Ballast.Double3.Zero, Surface = Surface.Ground };
+                        h = h with { Parent = PlayerState.World, Position = to.To, Velocity = Ballast.Double3.Zero, Surface = to.Up ? Surface.Air : Surface.Ground };
                     if (flags != h.Flags || held && _carries.ContainsKey(id))
                         set(id, h with { Flags = flags });
                 }

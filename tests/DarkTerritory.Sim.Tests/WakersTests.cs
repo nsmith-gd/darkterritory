@@ -143,6 +143,19 @@ public class WakersTests
     }
 
     [Fact]
+    public void TheSecondsInHandReckonedAtAStandAreTheSoonest()
+    {
+        // Note 631: the harness's closest call is a train's seconds in hand had it stood just then (speed 0), the soonest they
+        // catch it; reckoned running, later, and never at their top speed.
+        var n = new Night(front: 4000);
+        n.Step(1);
+        double stood = Waker.SecondsInHand(n.World);
+        Assert.Equal(stood, Waker.SecondsInHand(n.World, speed: 0), 1e-9);
+        Assert.True(Waker.SecondsInHand(n.World, speed: 10) > stood + 20);
+        Assert.True(double.IsPositiveInfinity(Waker.SecondsInHand(n.World, speed: W.TopSpeed)));
+    }
+
+    [Fact]
     public void UnderTheGunsTheShelterIsReachedAndOutOnTheLineItIsnt()
     {
         var home = new Night(front: Frontier.Length - 20);

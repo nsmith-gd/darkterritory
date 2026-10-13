@@ -64,6 +64,17 @@ public sealed record EconomyTuning(Dictionary<string, double> PerCar, double Coa
     /// <summary>A rescued child brought home (GDD §19, App. B.9 "highest payout"), in the tier's per-car values.</summary>
     public double ChildPay { get; init; }
 
+    /// <summary>
+    /// What the night's fees are priced in, by tier (run.json <c>economy.feeValue</c>; note 636): a death's crew-loss fee
+    /// (holdouts.json <c>crewLossFee</c>, GDD App. D.9) and a creature's monster brigade fee (<c>broughtIn.fee</c>, note 589)
+    /// are shares of it. Once they were shares of the per-car value, so a raise in pay was a raise in what a death cost, and on
+    /// the dead lines (a death a night) more pay was less money. A fee prices a death, not the freight (D1). Unset: the per-car value.
+    /// </summary>
+    public Dictionary<string, double>? FeeValue { get; init; }
+
+    /// <summary>The tier's fee value (<see cref="FeeValue"/>), or its per-car value where it has none.</summary>
+    public double FeeFor(string tier) => FeeValue is { } f && f.TryGetValue(tier, out double v) ? v : PerCar.GetValueOrDefault(tier, 700);
+
     public double Rate(CargoKind cargo) => CargoRates.GetValueOrDefault(Cargoes.Key(cargo is CargoKind.None ? CargoKind.Goods : cargo), 1);
 }
 
@@ -798,6 +809,21 @@ public sealed partial class Run
         Report = Tally(world, crew);
     }
 
+    /// <summary>
+    /// Note 640 (the director, the inbox, 12 Oct: "a clear identifiable cause of a decouple"): what worked the pin loose that
+    /// parted these cars, and who was driving, in the clerk's words.
+    /// </summary>
+    static string PinParted(World world, int car)
+    {
+        string driving(int d) => d >= 0 ? $" Driving: {IncidentLog.NameOf(world, d)}." : "";
+        return world.Attribution.LooseOf(car) switch
+        {
+            { Cause: LooseCause.RunIn } l => $"A hard brake at {Kmh(l.Speed)} worked the coupling's pin loose, and it parted.{driving(l.Driver)} ",
+            { Cause: LooseCause.Knock } l => $"Coupled up at {Kmh(l.Speed)}, the knock worked the coupling's pin loose, and it parted.{driving(l.Driver)} ",
+            _ => "The coupling worked loose and parted. ",
+        };
+    }
+
     static string Kmh(double metresPerSecond) => $"{Math.Abs(metresPerSecond) * 3.6:0} km/h";
     static string Capital(string s) => s.Length == 0 ? s : char.ToUpperInvariant(s[0]) + s[1..];
 
@@ -822,7 +848,9 @@ public sealed partial class Run
         // GDD §19, B.9: a rescued child home (in a car still on the engine, or in someone's arms) is the night's best pay.
         int children = delivered ? world.Bodies.All.Count(b => b.Kind == Physics.BodyKind.Child && (b.Carrier >= 0 || attached.Contains(b.Parent))) : 0;
         double childPay = Math.Round(children * e.ChildPay * perCar);
-        double gross = delivered ? freightPay + childPay + Scavenged + Mail : 0;
+        // The finds stowed aboard, and those on a locker's shelf in a car still on the engine (note 649).
+        double scavenged = Scavenged + LockerFinds(world, attached);
+        double gross = delivered ? freightPay + childPay + scavenged + Mail : 0;
         double coal = Math.Max(0, _tenderAtDeparture + _coalLoaded - train.Boiler.Tender) * e.CoalPerUnit;
         double ammo = Math.Max(0, _ammoAtDeparture - train.Vehicles.Sum(v => v.Gun.Ammo)) * e.RoundsPerRound;
         // A derelict was battered before the night began (note 294): not the crew's to mend.
@@ -843,7 +871,7 @@ public sealed partial class Run
         if (world.Holdouts?.Tuning is { } ht)
         {
             deaths = world.Bodies.Deaths;
-            double fee = ht.CrewLossFee * perCar;
+            double fee = ht.CrewLossFee * e.FeeFor(tier);
             feeEach = Math.Round(fee);
             refundEach = Math.Round(ht.BodyRefund * fee);
             bodiesHome = delivered ? world.Bodies.All.Count(b => b.Kind == Physics.BodyKind.Ragdoll && !b.DroppedOut
@@ -852,13 +880,13 @@ public sealed partial class Run
             refunds = Math.Round(bodiesHome * ht.BodyRefund * fee);
         }
         // Note 589: every creature brought into town is the brigade's fee, and some of the town's people hurt.
-        double broughtEach = Math.Round(Tuning.BroughtIn.Fee * perCar);
+        double broughtEach = Math.Round(Tuning.BroughtIn.Fee * e.FeeFor(tier));
         double broughtFees = delivered ? broughtEach * _broughtIn.Count : 0;
         int hurt = delivered ? Tuning.BroughtIn.Hurt * _broughtIn.Count : 0;
         var (lines, shown) = MarkBookmarks(world, ReportLines(world, attached, delivered, feeEach, refundEach, broughtEach));
         return new RunReport(End, Math.Round(Seconds, 1), Math.Round(engine.Distance / 1000, 2), home.Count, cargo.Count - home.Count,
             Math.Round(cargoValue, 2), Math.Round(gross), Math.Round(coal), Math.Round(ammo), Math.Round(repairs),
-            Math.Round(gross - coal - ammo - repairs - fees + refunds - recovery - broughtFees), crewHome, crew.Count - crewHome, delivered ? Math.Round(Scavenged) : 0,
+            Math.Round(gross - coal - ammo - repairs - fees + refunds - recovery - broughtFees), crewHome, crew.Count - crewHome, delivered ? Math.Round(scavenged) : 0,
             deaths, bodiesHome, fees, refunds, Math.Round(delivered ? Mail : 0), recovery, stranded ? Kit.Loss : KitLoss.None)
         {
             Lines = lines,
@@ -908,7 +936,7 @@ public sealed partial class Run
                 inside.Add($"the body of {IncidentLog.NameOf(world, b.Owner)}");
             int puller = taken is null ? world.Attribution.CouplerPulledBy(ids.Min()) : -1;
             // Note 511: or nobody's: the coupling worked loose and its pin dropped (note 356).
-            string cause = puller >= 0 ? $"Coupler: {IncidentLog.NameOf(world, puller)}. " : taken is null && world.Attribution.Parted(ids.Min()) ? "The coupling worked loose and parted. "
+            string cause = puller >= 0 ? $"Coupler: {IncidentLog.NameOf(world, puller)}. " : taken is null && world.Attribution.Parted(ids.Min()) ? PinParted(world, ids.Min())
                 // Note 576: battered and let go, it came apart and its freight's on the line.
                 : taken is null && world.Attribution.Apart(ids.Min()) ? "Battered and never mended, it came apart; its freight spilled on the line. " : "";
             string action = cause + (inside.Count > 0 ? $"Inside: {string.Join(", ", inside)}." : "Empty.");

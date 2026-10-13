@@ -444,6 +444,8 @@ public static partial class Hud
     public const string HeldBackLine = "YOUR MACHINE IS HOLDING THE CREW BACK";
     /// <summary>Note 532: a joiner's, while its clock is stretched to a host that's behind.</summary>
     public const string PacedLine = "THE HOST'S BEHIND: THE NIGHT RUNS AT ITS PACE";
+    /// <summary>A campaign's train taken at dawn (note 632; the director, the inbox, 12 Oct: "the campaign ends").</summary>
+    public const string CampaignOver = "THE COMPANY HAS NO MORE TRAINS FOR YOU";
     /// <summary>Note 549: the host's, while its upload can't carry the crew: what it's sending, so the figure can be taken to a router.</summary>
     public static string StrainedLine(double upKbps) => $"YOUR UPLOAD CAN'T CARRY THE CREW: {upKbps:0} KBIT/S OUT";
 
@@ -686,6 +688,11 @@ public static partial class Hud
         return car > 0 ? $"REPAIR KIT: CAR {car}" : car == 0 ? "REPAIR KIT: ON THE ENGINE" : "REPAIR KIT: OFF THE TRAIN";
     }
 
+    /// <summary>Note 594: a hand-sized thing lying in reach, offered to a hand holding another: TAKE it : [E].</summary>
+    static string? TakePrompt(Sim.World world, in PlayerState p, TrainOnLine train, int playerId) =>
+        world.Bodies.InReach(p, train, world.Hand, world.Bodies.RadiosCarried && world.Bodies.HasRadio(playerId), playerId) is { Carrier: < 0 } thing
+        && Bodies.Pocketable(train, thing.Kind) ? $"TAKE {Called(world, thing)} : [E]" : null;
+
     /// <summary>A hand-sized thing by name, for the lockers' prompts.</summary>
     static string Called(Sim.World world, Body b) => b.Kind switch
     {
@@ -701,6 +708,8 @@ public static partial class Hud
             _ => "THE TOY",
         },
         BodyKind.Extinguisher => "THE EXTINGUISHER",
+        // A tool on a locker's shelf (note 649).
+        BodyKind.Tool => $"THE {ToolName(Kit.At(b.Tools, 0))}",
         BodyKind.Loot => world.Run?.FindName(b)?.ToUpperInvariant() ?? "THE FIND",
         // What else is carried, for the hotbar's IN HANDS (note 264).
         BodyKind.Crate or BodyKind.Cargo => "A CRATE",
@@ -774,6 +783,13 @@ public static partial class Hud
     /// Past dawn: with the Wakers up (note 588), how far behind the one on the line is, or that it has the train; without them
     /// (a mod, v1's dawn), the line gone live.
     /// </summary>
+    /// <summary>
+    /// The night things going to ground before dawn (note 642; wakers.md §2: "the clearest sign the night's over"), beside the
+    /// dawn clock: from the run's clock, so every machine shows it alike.
+    /// </summary>
+    public static string DawnFlight(Sim.World world) =>
+        world.Enemies?.Wakers is { } w && Sim.Enemies.Waker.NightFleeing(world, w) ? " · THE NIGHT THINGS ARE GOING" : "";
+
     public static string DawnLine(Sim.World world, Sim.Train.TrainOnLine train)
     {
         if (world.Enemies?.Wakers is not { Enabled: true })
@@ -797,7 +813,7 @@ public static partial class Hud
             if (dawn <= 0)
                 o.TextCentred(cx, y, DawnLine(s.World, s.Train), Red, 1);
             else if (dawn <= Tuning.DawnClockSeconds)
-                o.TextCentred(cx, y, $"DAWN {(int)dawn / 60}:{(int)dawn % 60:00}", dawn <= 120 ? Red : Amber, 1);
+                o.TextCentred(cx, y, $"DAWN {(int)dawn / 60}:{(int)dawn % 60:00}{DawnFlight(s.World)}", dawn <= 120 ? Red : Amber, 1);
             if (dawn <= Tuning.DawnClockSeconds)
                 y += line + 4;
         }
@@ -903,6 +919,9 @@ public static partial class Hud
             {
                 Big("RUN LOST", Red);
                 Small(r.End switch { RunEnd.Derailed => "DERAILED", RunEnd.CrewLost => "THE WHOLE CREW IS DEAD", _ when world.Enemies?.Wakers.Enabled == true => "TAKEN AT DAWN", _ => "STILL OUT WHEN THE LINE WENT LIVE" }, Ink, fine: false);
+                // Note 632 (the director, the inbox, 12 Oct: "the campaign ends"): a campaign's train taken at dawn is its last.
+                if (r.End == RunEnd.DawnMissed && world.DawnEndsCampaign)
+                    Small(CampaignOver, Red, fine: false);
             }
             // GDD v1.4 App. D.12: the incident report, every line in the clerk's voice, under the result; the night's
             // commendations under it.
@@ -2135,6 +2154,11 @@ public static partial class Hud
         }
         // Carried, Use puts it down: nothing else in reach is offered. What it is, and how to be rid of it, is the corner's;
         // here only a healing find's use under way (note 272, in note 285's form).
+        // Note 594: a thing in hand from a slot, off the train, a slot free and another hand-sized thing in reach: Use takes it
+        // into a slot (aboard, Use puts the one in hand down).
+        if (world.Bodies.CarriedBy(s.PlayerId) is { Pocket: >= 0 } slotted && p.Parent == PlayerState.World && Kit.SlotFor(p) >= 0
+            && SwitchPrompt(world, p, train, world.Hand) is null && HealPrompt(s, slotted) is null && TakePrompt(world, p, train, s.PlayerId) is { } another)
+            return another;
         if (world.Bodies.CarriedBy(s.PlayerId) is { } inHands)
             return PowderPrompt(s, inHands) ?? SwitchPrompt(world, p, train, world.Hand) ?? HealPrompt(s, inHands);
         // T112: the gun's seat and its own controls.
@@ -2234,7 +2258,8 @@ public static partial class Hud
             return Guns.Stowed(train, powder.Guns) > 0 ? $"TAKE A CHARGE : [E]   {Guns.Stowed(train, powder.Guns)} ROUNDS" : "THE POWDER LOCKER'S EMPTY";
         bool wearing = world.Bodies.RadiosCarried && world.Bodies.HasRadio(s.PlayerId);
         if (world.Bodies.InReach(p, train, hand, wearing, s.PlayerId) is { } thing)
-            return thing.Kind switch
+            // Note 594: every slot full, a hand-sized thing isn't taken.
+            return Bodies.Pocketable(train, thing.Kind) && Kit.SlotFor(p) < 0 ? "HANDS FULL" : thing.Kind switch
             {
                 BodyKind.Ragdoll => "PICK UP THE BODY : [E]",
                 BodyKind.Radio => "TAKE THE RADIO : [E]",

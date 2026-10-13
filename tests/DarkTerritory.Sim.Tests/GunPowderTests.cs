@@ -151,7 +151,7 @@ public class GunPowderTests
     {
         var n = new Night(seated ? 4 : 8, 10, enemies: Quiet);
         var loose = DataFile.Load<UpkeepTuning>(Path.Combine(DataFile.FindContentRoot(), UpkeepTuning.File)).Coupling;
-        n.World.Upkeep = new UpkeepTuning { HotBox = new() { Enabled = false }, Lamp = new() { Enabled = false }, Coupling = loose with { FirstAfterMetres = 1e9 } };
+        n.World.Upkeep = new UpkeepTuning { HotBox = new() { Enabled = false }, Lamp = new() { Enabled = false }, Coupling = loose };
         int van = Rear(n);
         var cars = n.Train.Dynamics.Consist.Vehicles;
         var kit = Kit.Of([Tool.Crowbar, Tool.Wrench]);

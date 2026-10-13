@@ -215,6 +215,8 @@ object RunHarness(string[] args)
     {
         Observe = observe,
         Bots = (int)Opt(args, "--bots", 8),
+        // --kill-at s: the last bot dies that many seconds in, back up the line, for a rescue to measure (note 650).
+        KillAt = Opt(args, "--kill-at", 0) is var killAt and > 0 ? killAt : null,
         // --express [m/s]: the driver runs hot (21 m/s if no speed's given) and takes no stops (note 376): the hound run's night.
         Express = Array.IndexOf(args, "--express") is var ex and >= 0
             ? ex + 1 < args.Length && double.TryParse(args[ex + 1], System.Globalization.CultureInfo.InvariantCulture, out double fast) ? fast : 21
@@ -613,6 +615,8 @@ object CampaignCommand(string content, string verb, string[] args)
     {
         slot = s.Slot,
         s.Name,
+        // Note 632: taken at dawn, the campaign's over (no board; a new crew with dt campaign new).
+        over = s.Over,
         cars = s.Cars,
         scrip = Math.Round(s.Scrip),
         runs = s.Runs,
@@ -678,6 +682,8 @@ object CampaignCommand(string content, string verb, string[] args)
             {
                 // A night on a contract from the board, crewed by bots (they drive, shoot, and load at winch stops), settled.
                 var s = Load();
+                if (s.Over)
+                    return new { error = $"slot {slot}'s campaign is over (taken at dawn): the company has no more trains for {s.Name}. dt campaign new --slot {slot}", board = Board(s) };
                 var contract = DarkTerritory.Sim.Campaign.Campaign.Offers(t, runTuning, s)[(int)Opt(args, "--contract", 0)];
                 s = DarkTerritory.Sim.Campaign.Campaign.Begin(s, contract);
                 // The night as the app hosts it (note 616): the slot's setup (HostedAsApp.Campaign), the train at the gate, the crew
@@ -710,7 +716,7 @@ object CampaignCommand(string content, string verb, string[] args)
                     : null;
                 var fromTown = s.Town;
                 // As the app settles it (note 591): delivered to a town, the crew's in it for the next night.
-                s = DarkTerritory.Sim.Campaign.Campaign.Arrived(DarkTerritory.Sim.Campaign.Campaign.Settle(s, night), night,
+                s = DarkTerritory.Sim.Campaign.Campaign.Arrived(DarkTerritory.Sim.Campaign.Campaign.Settle(s, night, t), night,
                     DarkTerritory.Sim.Towns.TownAt.Terminus(route, DarkTerritory.Sim.LineGen.LineGenContent.Cached(content).Config.Tiers.Fortress.Identities));
                 s = s with { LastTown = departed ?? s.LastTown };
                 saves.Save(s);
@@ -1030,7 +1036,7 @@ static object Screenshot(TrainTuning t, string content, string[] args)
     // stages it gnawing, the tower leaning over the line; towerjawfall, the tower down across it.
     string towerJawMode = Str(args, "--towerjaw", view switch { "towerjaw" => "lean", "towerjawfall" => "wreck", _ => "" });
     // --route tier:seed generates the night in memory; --coaling stops the train at its coaling tower, chute pouring.
-    Route? generated = Str(args, "--route", towerJawMode.Length > 0 ? "frontier:3" : "") is { Length: > 0 } spec
+    Route? generated = Str(args, "--route", towerJawMode.Length > 0 ? "frontier:3" : Staging.IsHouseView(view) ? "frontier:7" : "") is { Length: > 0 } spec
         ? DarkTerritory.Sim.LineGen.Routes.Generate(content, spec, cars)
         : null;
     var line = generated?.Build() ?? RailLine.Load(Path.Combine(content, "lines", lineName + ".json"));
@@ -1732,6 +1738,9 @@ static object Screenshot(TrainTuning t, string content, string[] args)
             if (lockersOpen == "all" || lockersOpen == "kit" && bay.Index == kitLocker.Bay.Index
                 || lockersOpen.Split(',').Contains(bay.Name, StringComparer.OrdinalIgnoreCase))
                 train.Vehicles[kitLocker.Car].LockersOpen |= 1u << bay.Index;
+    // --tool-in-locker: a wrench left on the repair kit's locker's free shelf (note 649), with the stores aboard (--stocked).
+    if (args.Contains("--tool-in-locker"))
+        args = [.. args, "--stocked"];
     // --eaten f: the rear car that much eaten by a Car Hugger (App. A.3 FEED; 1 is eaten through), as if from sound.
     if (args.Contains("--eaten"))
     {
@@ -1795,7 +1804,7 @@ static object Screenshot(TrainTuning t, string content, string[] args)
         // --stocked: the train as it leaves, its stores and every car's extinguisher aboard (--charge 0..1: theirs).
         Bodies = shouldered is { } carried ? carried.Bodies.All
             : args.Contains("--bodies") ? Staging.Bodies(train, content).All
-            : args.Contains("--stocked") ? Staging.Stocked(train, content, Opt(args, "--charge", 1)).All : cargo,
+            : args.Contains("--stocked") ? WithToolInLocker(Staging.Stocked(train, content, Opt(args, "--charge", 1)), train, args).All : cargo,
         // --crew: three on car 2's roof, one reaching up, one holding out both hands, one with a keyboard (T47's arms).
         // --working: the crew at work (X1): carrying, at a hatch and a brake wheel on car 2's roof, sat at the last gun.
         // --act smash,pry,pick,...: a row of the crew down car 2's roof, each at one of those acts (CrewPose names).
@@ -1980,6 +1989,34 @@ static object Screenshot(TrainTuning t, string content, string[] args)
         if (beetleMode is "walk" or "push")
             scene.StagedPaces = new Dictionary<int, float>(scene.StagedPaces ?? new Dictionary<int, float>()) { [Staging.BeetleId] = beetleMode == "walk" ? 1.5f : 1.2f };
     }
+    // --pickers yard|carry: the staged Pickers off the line's left (note 574; Staging.Pickers): carrying crates off, racing for
+    // one, coming up out of a drain (the pickers view's); close to, under a crate and two under a heavy one (pickerscarry's).
+    if (Str(args, "--pickers", view switch { "pickers" => "yard", "pickerscarry" => "carry", _ => "" }) is { Length: > 0 } pickersMode)
+    {
+        scene.Enemies = Staging.Pickers(scene.Enemies is List<DarkTerritory.Sim.Enemies.Enemy> others ? others : [], train, content, pickersMode,
+            out var crates, out var pickerPaces);
+        scene.Bodies = [.. scene.Bodies ?? [], .. crates.All];
+        var paces = new Dictionary<int, float>(scene.StagedPaces ?? new Dictionary<int, float>());
+        foreach (var (id, pace) in pickerPaces)
+            paces[id] = pace;
+        scene.StagedPaces = paces;
+    }
+    // --lodger hidden|shriek|lunge|chase|break|return: the staged Lodger off the line's left (note 583; Staging.Lodger): folded
+    // in its crouch (the lodger view's), shrieking (lodgershriek's).
+    if (Str(args, "--lodger", view switch { "lodger" => "hidden", "lodgershriek" => "shriek", _ => "" }) is { Length: > 0 } lodgerMode)
+    {
+        scene.Enemies = Staging.Lodger(scene.Enemies is List<DarkTerritory.Sim.Enemies.Enemy> others ? others : [], train, lodgerMode, out float lodgerPace);
+        scene.StagedPaces = new Dictionary<int, float>(scene.StagedPaces ?? new Dictionary<int, float>()) { [Staging.LodgerId] = lodgerPace };
+    }
+    // --householder watch|sit|rise|hunt|grab|return: the staged Householder at its chair and table off the line's left (note 584;
+    // Staging.Householder), watching whoever's looking (the householder view's).
+    if (!Staging.IsHouseView(view) && Str(args, "--householder", view == "householder" ? "watch" : "") is { Length: > 0 } householderMode)
+    {
+        scene.Enemies = Staging.Householder(scene.Enemies is List<DarkTerritory.Sim.Enemies.Enemy> others ? others : [], train, householderMode,
+            out var furniture, out float householderPace);
+        scene.StagedClutter = furniture;
+        scene.StagedPaces = new Dictionary<int, float>(scene.StagedPaces ?? new Dictionary<int, float>()) { [Staging.HouseholderId] = householderPace };
+    }
     if (towerJawMode.Length > 0 && run is not null && tower is not null)
     {
         scene.Enemies = Staging.TowerJaw(scene.Enemies is List<DarkTerritory.Sim.Enemies.Enemy> others ? others : [], train, content, run, tower, towerJawMode);
@@ -2031,6 +2068,29 @@ static object Screenshot(TrainTuning t, string content, string[] args)
         if (args.Contains("--doors-shut"))
             foreach (var d in scene.Walls.HouseDoors)
                 scene.Walls.SetShut(d.Key, true);
+    }
+    // G1's house creatures (notes 584-586; Staging.House) in the night's first plain open house (frontier:7 unless --route says;
+    // --house n the nth such): the hanger view's Hanger hidden in its roof space over its strands, hangergrab's hauling crewmate
+    // 4 up on one (--hanger mode: hidden, grab, haul, hold, hit, retreat); the hollowhouse view's Hollow House sinking,
+    // hollowcollapse's come down (--hollow mode: still, rumble, shut, sink, collapse, settled); householderhouse, the
+    // Householder's house kept, its table set (--householder mode). Each lit by a hand lamp at the eye.
+    if (Staging.IsHouseView(view) && generated is not null && scene.Walls is { } houseWalls)
+    {
+        string houseMode = Str(args, view.StartsWith("hanger", StringComparison.Ordinal) ? "--hanger" : view.StartsWith("hollow", StringComparison.Ordinal) ? "--hollow" : "--householder", "");
+        var (houseThreats, houseCamera, caught, seat) = Staging.House(scene.Enemies is List<DarkTerritory.Sim.Enemies.Enemy> others ? others : [], view, houseMode,
+            generated, line, houseWalls, DataFile.Load<DarkTerritory.Sim.Enemies.EnemyTuning>(Path.Combine(content, DarkTerritory.Sim.Enemies.EnemyTuning.File)).Hanger,
+            (int)Opt(args, "--house", 0), args.Contains("--inside"));
+        scene.Enemies = houseThreats;
+        if (Str(args, "--cam", "") is not { Length: > 0 })
+            camera = houseCamera;
+        if (seat is var (chairAt, chairYaw))
+            scene.Seat(Staging.HouseholderHouseId, chairAt, chairYaw);
+        if (caught is { } hung)
+            scene.Crew = [.. (scene.Crew ?? []).Where(c => c.Id != hung.Id), hung];
+        // (The hollowhouse views' shut doors: the Sim shuts them at its Shut.)
+        if (view is "hollowhouse" or "hollowcollapse")
+            foreach (int key in houseWalls.OpenHouses.First(h => h.Index == (int)houseThreats[^1].Extra2).Doors)
+                houseWalls.SetShut(key, true);
     }
     scene.Wreck = train.Wreck;
     // --impact ground|water|structure|train|creature|doll [--impact-at ahead,lateral] [--impact-age s] (T121): a cannonball
@@ -2256,7 +2316,7 @@ static object Screenshot(TrainTuning t, string content, string[] args)
         scene.Build(mesh, train, camera.Position, leaned);
     double buildMs = buildClock.Elapsed.TotalMilliseconds / builds;
     // --lantern: a hand lamp held just under the eye (the scene is eye-relative), the light you'd have in a dark car.
-    if (args.Contains("--lantern"))
+    if (args.Contains("--lantern") || Staging.IsHouseView(view))
         mesh.PointLights.Add(new PointLight(new System.Numerics.Vector3(0.15f, -0.35f, 0), DarkTerritory.Game.Palette.LampAmber * 1.6f, 6));
     // --dawn t: the dawn that far up (0 night .. 1 dawn; look.json atmosphere.dawn). --stir t: the Wakers' stir that far to
     // dawn (0..1, note 599), its cold line low behind the train.
@@ -2951,6 +3011,18 @@ static IReadOnlyList<DarkTerritory.Game.ListedGame> DemoLobbies(int protocol, in
 }
 
 // A frame as the game draws it: a solo session stepped for a while, seen first person, with the HUD (T23).
+// --tool-in-locker (note 649): a wrench on the repair kit's locker's free shelf, as one left there.
+static DarkTerritory.Sim.Physics.Bodies WithToolInLocker(DarkTerritory.Sim.Physics.Bodies bodies, TrainOnLine train, string[] args)
+{
+    if (args.Contains("--tool-in-locker") && DarkTerritory.Sim.World.KitLocker(train) is { } at)
+    {
+        var b = bodies.Put(train, at.Car, DarkTerritory.Sim.Physics.BodyKind.Tool, at.Bay.Box.Centre, 0.1, 0.5, 0);
+        b.Tools = DarkTerritory.Sim.Player.Kit.With(0, 0, DarkTerritory.Sim.Player.Tool.Wrench);
+        bodies.Stow(b, train, at.Car, at.Bay.Index);
+    }
+    return bodies;
+}
+
 static object HudShot(string content, string[] args)
 {
     Hud.Tuning = DataFile.Load<HudTuning>(Path.Combine(content, HudTuning.File));
@@ -3034,6 +3106,16 @@ static object HudShot(string content, string[] args)
             (radio.Carrier, radio.Broken, radio.MendTicks) = (((IPlaySession)solo).PlayerId, true, (int)(Opt(args, "--mend", 0) * SimConstants.TickRate));
             if (bodies.All.FirstOrDefault(b => b.Kind == DarkTerritory.Sim.Physics.BodyKind.RepairKit) is { } kit)
                 (kit.Carrier, kit.Locker) = (((IPlaySession)solo).PlayerId, -1);
+        }
+        // --slots (note 594): the four shared slots with things in them: the crowbar and the wrench, a hand-sized thing in hand
+        // from slot 3 (its name over the bar) and another put away in slot 4, as the hotbar shows it.
+        if (args.Contains("--slots"))
+        {
+            int me = ((IPlaySession)solo).PlayerId;
+            var things = solo.World.Bodies.All.Where(b => DarkTerritory.Sim.Physics.Bodies.Pocketable(solo.Train, b.Kind) && b.Carrier < 0).Take(2).ToList();
+            for (int i = 0; i < things.Count; i++)
+                (things[i].Carrier, things[i].Locker, things[i].Pocket, things[i].Stashed) = (me, -1, 2 + i, i > 0);
+            solo.Player = solo.Player with { HeldSlot = 2, Pockets = (byte)(things.Count > 1 ? 0b1100 : things.Count > 0 ? 0b0100 : 0) };
         }
         // --lockers [NAME] (note 264): stood at a crew locker (the fitter's if none named), facing it, with what it holds on
         // its door's tag; --carrying kit: the repair kit in hands (from the fitter's), as the hotbar shows it.
@@ -3133,6 +3215,9 @@ static object HudShot(string content, string[] args)
         var json = doc.RootElement.TryGetProperty("night", out var n) ? n : doc.RootElement;
         played.MirrorReport(json.Deserialize<DarkTerritory.Sim.Run.RunReport>(DataFile.Options)!);
     }
+    // --campaign: a campaign's night, so a train taken at dawn ends it and the end card says so (note 632).
+    if (args.Contains("--campaign"))
+        session.World.DawnEndsCampaign = true;
     var frames = session.InterpolatedFrames(1);
     var camera = session.EyeCamera(frames, 1, 0, 0);
     // --loading [built]: the next night's loading card over the town the crew's in (note 604), from its square; "built", the

@@ -188,7 +188,7 @@ public static class WorldRecords
                 f[Head + 1 + i * Each] = (site?.Stocked == true ? 1 : 0) | (site?.Turning == true ? 2 : 0) | (site?.OutOfRhythm == true ? 4 : 0)
                     | (site?.Pouring == true ? 8 : 0) | (site?.Herding == true ? 16 : 0) | (site?.Winding == true ? 32 : 0)
                     | (site?.Running == true ? 64 : 0) | (site?.Carrying == true ? 128 : 0)
-                    | (site?.GoodClamp == true ? 256 : 0) | (site?.RollingBack == true ? 512 : 0);
+                    | (site?.GoodClamp == true ? 256 : 0) | (site?.RollingBack == true ? 512 : 0) | (site?.LeverHeld == true ? 1024 : 0);
                 f[Head + 2 + i * Each] = Q(site?.Progress ?? 0, Fine);
                 f[Head + 3 + i * Each] = site?.SledsLeft ?? 0;
                 f[Head + 4 + i * Each] = Q(site?.Crank ?? 0, Ang);
@@ -276,7 +276,7 @@ public static class WorldRecords
             f[8] = body.Kind switch
             {
                 Physics.BodyKind.Extinguisher => Q(body.Charge, Hint),
-                Physics.BodyKind.Ragdoll => (long)body.Tools,
+                Physics.BodyKind.Ragdoll or Physics.BodyKind.Tool => (long)body.Tools,
                 Physics.BodyKind.Toy => (long)body.Noise,
                 // Broken, and how far the kit's got mending it (note 201): 0 whole, 1 + ticks broken.
                 Physics.BodyKind.Radio => body.Broken ? 1 + body.MendTicks : 0,
@@ -284,7 +284,8 @@ public static class WorldRecords
                 Physics.BodyKind.Loot => body.MendTicks,
                 _ => (long)body.Cargo,
             };
-            f[9] = body.Locker < 0 ? -1 : body.Locker * 256 + body.Slot;
+            // On a locker's shelf (note 173), or in a carrier's slot and whether it's put away (note 594: −2 − 2 × slot − stashed).
+            f[9] = body.Locker >= 0 ? body.Locker * 256 + body.Slot : body.Pocket >= 0 ? -2 - 2 * body.Pocket - (body.Stashed ? 1 : 0) : -1;
             // What's carrying it off, if a thing is (the Gaunt leaving with it, App. A.6).
             f[10] = body.TakenBy;
             for (int i = 0; i < ps.Length; i++)
@@ -306,8 +307,8 @@ public static class WorldRecords
                 Q(s.Cold, Fine), (long)s.Flags, s.Placed,
                 // A VR player's hands, on the centimetre grid they came in on (T47): the rest of the crew see their arms.
                 Q(s.Hand.X, Cm), Q(s.Hand.Y, Cm), Q(s.Hand.Z, Cm), Q(s.OtherHand.X, Cm), Q(s.OtherHand.Y, Cm), Q(s.OtherHand.Z, Cm),
-                // The hotbar (T108): what they carry, and which is in hand.
-                (long)s.Kit, s.HeldSlot,
+                // The hotbar (T108): what they carry, and which is in hand; over it, the slots holding a thing (note 594).
+                (long)s.Kit, s.HeldSlot | s.Pockets << 8,
                 // A headset's head height over the feet (T82): zero, so free, for a keyboard or a bot.
                 Q(s.Head, Cm),
             ]));
@@ -497,6 +498,7 @@ public static class WorldRecords
                             Start = D(f[Head + 18 + i * Each], Fine), Clear = D(f[Head + 19 + i * Each], Fine),
                             TippleOre = D(f[Head + 20 + i * Each], Fine), Clamped = (int)f[Head + 21 + i * Each],
                             GoodClamp = (f[Head + 1 + i * Each] & 256) != 0, RollingBack = (f[Head + 1 + i * Each] & 512) != 0,
+                            LeverHeld = (f[Head + 1 + i * Each] & 1024) != 0,
                             Roll = D(f[Head + 22 + i * Each], Fine), Clamp = D(f[Head + 23 + i * Each], Fine), Rerail = D(f[Head + 24 + i * Each], Fine),
                         })], D(f[5], Fine), new Run.KitWhere((Run.KitPlace)f[6], -1, (int)f[7], (Run.KitLoss)f[8]));
                     break;
@@ -550,14 +552,16 @@ public static class WorldRecords
             Owner = (int)f[3],
             Yaw = D(f[5], Ang),
             Charge = (Physics.BodyKind)f[0] == Physics.BodyKind.Extinguisher ? D(f[8], Hint) : 1,
-            Tools = (Physics.BodyKind)f[0] == Physics.BodyKind.Ragdoll ? (ulong)f[8] : 0,
-            Cargo = (Physics.BodyKind)f[0] is Physics.BodyKind.Extinguisher or Physics.BodyKind.Ragdoll or Physics.BodyKind.Toy or Physics.BodyKind.Radio or Physics.BodyKind.Loot
+            Tools = (Physics.BodyKind)f[0] is Physics.BodyKind.Ragdoll or Physics.BodyKind.Tool ? (ulong)f[8] : 0,
+            Cargo = (Physics.BodyKind)f[0] is Physics.BodyKind.Extinguisher or Physics.BodyKind.Ragdoll or Physics.BodyKind.Toy or Physics.BodyKind.Radio or Physics.BodyKind.Loot or Physics.BodyKind.Tool
                 ? CargoKind.None : (CargoKind)f[8],
             Noise = (Physics.BodyKind)f[0] == Physics.BodyKind.Toy ? (Physics.ToyNoise)f[8] : Physics.ToyNoise.None,
             Broken = (Physics.BodyKind)f[0] == Physics.BodyKind.Radio && f[8] != 0,
             MendTicks = (Physics.BodyKind)f[0] == Physics.BodyKind.Radio && f[8] > 1 ? (int)(f[8] - 1) : (Physics.BodyKind)f[0] == Physics.BodyKind.Loot ? (int)f[8] : 0,
             Locker = f[9] < 0 ? -1 : (int)(f[9] / 256),
             Slot = f[9] < 0 ? 0 : (int)(f[9] % 256),
+            Pocket = f[9] <= -2 ? (int)((-f[9] - 2) / 2) : -1,
+            Stashed = f[9] <= -2 && (-f[9] - 2) % 2 == 1,
             TakenBy = (int)f[10],
         };
     }
@@ -677,7 +681,8 @@ public static class WorldRecords
             Hand = f.Length > 22 ? new Double3(D(f[17], Cm), D(f[18], Cm), D(f[19], Cm)) : default,
             OtherHand = f.Length > 22 ? new Double3(D(f[20], Cm), D(f[21], Cm), D(f[22], Cm)) : default,
             Kit = f.Length > 24 ? (ulong)f[23] : 0,
-            HeldSlot = f.Length > 24 ? (byte)f[24] : (byte)0,
+            HeldSlot = f.Length > 24 ? (byte)(f[24] & 0xFF) : (byte)0,
+            Pockets = f.Length > 24 ? (byte)(f[24] >> 8) : (byte)0,
             Head = f.Length > 25 ? D(f[25], Cm) : 0,
         });
     }

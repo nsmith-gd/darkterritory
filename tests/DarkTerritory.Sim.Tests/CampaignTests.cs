@@ -25,16 +25,17 @@ public class CampaignTests
         Assert.InRange(Campaign.Campaign.CarCost(C, car), cost * 0.99, cost * 1.01);
 
     [Theory]
-    [InlineData(3, RouteTier.Local, 765)]
-    [InlineData(6, RouteTier.Frontier, 2975)]
-    [InlineData(10, RouteTier.Frontier, 5355)]
-    [InlineData(15, RouteTier.DeadLines, 13090)]
-    [InlineData(20, RouteTier.DeepTerritory, 27455)]
+    [InlineData(3, RouteTier.Local, 855)]
+    [InlineData(6, RouteTier.Frontier, 2556.45)]
+    [InlineData(10, RouteTier.Frontier, 2556.45)]
+    [InlineData(15, RouteTier.DeadLines, 7889.75)]
+    [InlineData(20, RouteTier.DeepTerritory, 19446.5)]
     public void NetIncomeByConsistMatchesSpecF1(int cars, RouteTier tier, double net)
     {
         Assert.Equal(tier, Campaign.Campaign.TierFor(C, cars));
-        // F.1's table is gross less the average 15% running costs, with no losses.
-        Assert.Equal(net, Campaign.Campaign.NetFor(C, R, cars, C.StandardCrew with { LossFraction = 0 }), 0);
+        // F.1's table (note 636): what a night's stop loads on the tier, never more than all but the guard, less the 5%
+        // its costs and fees come to.
+        Assert.Equal(net, Campaign.Campaign.NetFor(C, R, cars, C.StandardCrew), 0);
     }
 
     [Fact]
@@ -102,6 +103,35 @@ public class CampaignTests
         var log = Assert.Single(after.History);
         Assert.Equal("frontier:7", log.Route);
         Assert.Equal(RunEnd.Delivered, log.End);
+    }
+
+    /// <summary>
+    /// Note 632 (the director, the inbox, 12 Oct: "c, The campaign ends", roguelike): a train taken at dawn is settled, so its
+    /// night is in the history, and the campaign's over: no board, and no night begun on it. Any other lost night, the crew
+    /// goes on. With campaign.json dawnEndsCampaign off (a mod's), a dawn loss is just a lost night again.
+    /// </summary>
+    [Fact]
+    public void ATrainTakenAtDawnEndsTheCampaign()
+    {
+        Assert.True(C.DawnEndsCampaign);
+        var s = Campaign.Campaign.Begin(Campaign.Campaign.New(C, 1, "test", 1), new Contract(RouteTier.Local, 5, 450));
+        static RunReport Lost(RunEnd end) => new(end, 1200, 0, 0, 0, 0, 0, 40, 20, 0, -60, 3, 0);
+
+        var taken = Campaign.Campaign.Settle(s, Lost(RunEnd.DawnMissed), C);
+        Assert.True(taken.Over);
+        Assert.Equal(RunEnd.DawnMissed, Assert.Single(taken.History).End);
+        Assert.Empty(Campaign.Campaign.Offers(C, R, taken));
+        Assert.Throws<InvalidOperationException>(() => Campaign.Campaign.Begin(taken, new Contract(RouteTier.Local, 6, 450)));
+
+        foreach (var end in new[] { RunEnd.Derailed, RunEnd.CrewLost, RunEnd.Stranded, RunEnd.Delivered })
+        {
+            var on = Campaign.Campaign.Settle(s, Lost(end), C);
+            Assert.False(on.Over, end.ToString());
+            Assert.NotEmpty(Campaign.Campaign.Offers(C, R, on));
+        }
+        Assert.False(Campaign.Campaign.Settle(s, Lost(RunEnd.DawnMissed), C with { DawnEndsCampaign = false }).Over);
+        // A new crew in the slot starts afresh.
+        Assert.False(Campaign.Campaign.New(C, 1, "next", 2).Over);
     }
 
     [Fact]

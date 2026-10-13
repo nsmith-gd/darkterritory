@@ -143,6 +143,12 @@
     "gannet": [[1.0, 0.7], [0.6, 1.6]],
     // Child-high, hunched over (note 362).
     "mourners": [[0.35, 0.45], [0.3, 0.9]],
+    // Knee-high, a crate over its head when it carries (note 592).
+    "pickers": [[0.3, 0.3]],
+    // The house creatures (notes 583–586): the Lodger and the Householder man-sized; the Hanger's sac, up in the roof.
+    "lodger": [[0.35, 0.5], [0.3, 1.2]],
+    "householder": [[0.35, 0.5], [0.3, 1.3]],
+    "hanger": [[0.45, 0]],
     // A bear-sized beaver, its shoulders over its head (note 363).
     "towerJaw": [[0.8, 0.7], [0.6, 1.3]],
     // Its plated back, a handcart's bulk (note 366).
@@ -229,7 +235,7 @@
   "solidity": {
     "climbM": 2.5, "airClearM": 0.2,
     "kinds": { "ribbit": "ground", "gaunt": "ground", "grumbler": "ground", "choir": "air", "whistler": "none", "follower": "none", "sootChildren": "none",
-      "mourners": "ground", "freightBeetle": "ground", "towerJaw": "ground" }
+      "mourners": "ground", "freightBeetle": "ground", "towerJaw": "ground", "pickers": "ground" }
   },
 
   // TIPPY TOESIE · absence · interior (App. A.5, B.5). Picks a player idle (moving under idleBelow m/s) for idleSeconds with
@@ -390,6 +396,80 @@
     "returnAfter": 4, "scatterOnDeath": 6, "lostAt": 120, "leaveSeconds": 30, "health": 1
   },
 
+  // THE PICKERS · sight · outside (GDD §21, App. A.6, B.6; the director's pick to prototype, 9 Oct 2026; ARCHITECTURE §8
+  // note 592; docs/design/creatures/pickers.md). Knee-high scavengers in a yard's drains. "after" s once the train stands at a
+  // facility with loose crates within facilityReach m, a group comes up out of the drains at the foot of the yard's sheds (up
+  // to "drains" of them, drainOff m out from a shed's wall on the track's side), "count" by tier and perTwoCrew more for
+  // every two of the crew past two, one drain to each in turn, each a moment coming up (emergeSeconds). Each runs (run m/s) for
+  // the nearest loose crate on the ground nobody's guarding (a living crewmate within guardWithin m) and no other Picker has (a
+  // heavy crate takes two), takes it up (within takeReach) over its head (holdHeight m up) and carries it to its drain (carry
+  // m/s; a heavy crate carryHeavy m/s, with a second heaveBeside m beside), and down it goes with it within atDrain m: the
+  // crate's gone, and it comes up again downSeconds later. Unladen, anyone within shyWithin m sends it back down its drain for
+  // shySeconds (stood over its drain, you keep it down). Laden, a crewmate within
+  // biteWithin m is bitten (bite, never a kill; once in biteEvery s) and it drops the crate and scatters. A blow kills one
+  // (health in blows), and every one within scatterWithin m drops what it has and runs to its drain for scatterSeconds. The
+  // train gone from the stop (not shunting at it), they all go down their drains
+  // (gone after leaveSeconds, whether or not they got there). Not the director's: they cost it nothing, and come to
+  // every yard stop with loose crates ("enabled" off: never).
+  "pickers": {
+    "enabled": true, "after": 20,
+    "count": { "local": 3, "frontier": 4, "deadLines": 6, "deepTerritory": 8 }, "perTwoCrew": 1,
+    "facilityReach": 80, "drains": 3, "drainOff": 1.2, "emergeSeconds": 0.8, "downSeconds": 3,
+    "guardWithin": 4, "shyWithin": 3, "shySeconds": 4, "run": 4.8, "carry": 2.6, "carryHeavy": 1.6, "takeReach": 0.9, "holdHeight": 1.0,
+    "heaveBeside": 0.9, "atDrain": 1.0, "biteWithin": 1.2, "bite": 8, "biteEvery": 2,
+    "scatterWithin": 10, "scatterSeconds": 6, "leaveSeconds": 12, "health": 1
+  },
+
+  // THE HOUSE CREATURES (GDD §21; the director, 9 Oct 2026: "Every time I go into a house, it should feel like there could
+  // be something lurking in there that wants to kill me, wants to chase me"; ARCHITECTURE §8 notes 583–586). Which of a
+  // stop's open houses something lives in: "share" of them by tier, each house's own dice (the route's seed, the stop and the
+  // building: nothing else's change), never the Gaunt's roost; what lives there by "weights" (a Householder only in a house
+  // with something to find). Put in their houses, asleep, once the train's within placeWithin m of the stop, and gone once
+  // it's forgetPast m past it. Not the director's: they cost it nothing ("enabled" off: none).
+  "dwellings": {
+    "enabled": true,
+    "share": { "local": 0.2, "frontier": 0.25, "deadLines": 0.33, "deepTerritory": 0.5 },
+    "weights": { "lodger": 3, "householder": 2, "hollowHouse": 1.5, "hanger": 3 },
+    "placeWithin": 500, "forgetPast": 800
+  },
+  // THE LODGER · sound · outside (note 583; docs/design/creatures/lodger.md). Folded in the house's darkest corner (the spot
+  // furthest from its doors, hideInset m off the walls), breathing. Someone in its house noticeSeconds, or within
+  // shriekWithin m of it, and it SHRIEKS for shriekSeconds (the telegraph: the spine's least, minReactionSeconds), then lunges at where they were, at lungeSpeed m/s
+  // up to lungeReach m: within killWithin m of them and it has them (a grab of killWindow s: the one-hit kill, the director's
+  // call). Missed, it chases (chase m/s) and shrieks again before every lunge; a shut door in its way it breaks open in
+  // breakSeconds; anyone further than pursuitRadius m from its house's middle it gives up on, and walks back (walk m/s) to
+  // its corner, resting there restSeconds. Only blows from behind as it walks back hurt it (health in blows).
+  "lodger": {
+    "hideInset": 0.6, "noticeSeconds": 2.5, "shriekWithin": 4.5, "shriekSeconds": 1.5,
+    "lungeSpeed": 9, "lungeReach": 4.5, "killWithin": 0.9, "killWindow": 0.25,
+    "chase": 5.0, "pursuitRadius": 25, "breakSeconds": 2, "walk": 1.6, "restSeconds": 3, "health": 4
+  },
+  // THE HOUSEHOLDER · sight · outside (note 584; docs/design/creatures/householder.md). Sat at its set table, watching whoever's
+  // in its house; harmless to guests. Everything lying in its house is its own. Anything of yours left lying on its table
+  // (within tableReach m of it) pays for one of its things. One of its things carried out of the house unpaid, it rises
+  // (riseSeconds) and hunts whoever carries it at hunt m/s, to the train if it must: within grabReach m it has them (a grab of
+  // grabSeconds a friend can break). Dropped, it takes the thing back home and sits again; carried off more than
+  // giveUpBeyond m from its house, it gives up. Blows hurt it (health).
+  "householder": {
+    "tableReach": 1.0, "riseSeconds": 1.5, "hunt": 3.4, "grabReach": 1.0, "grabSeconds": 6, "giveUpBeyond": 200,
+    "walk": 1.4, "health": 6
+  },
+  // THE HOLLOW HOUSE · vibration · outside (note 585; docs/design/creatures/hollow-house.md). The house is the creature.
+  // Someone inside waitSeconds and the ground rumbles under it (the tell) for rumbleSeconds; then its doors slam shut one
+  // every shutEvery s, held shut, and it sinks sinkDepth m over sinkSeconds and comes down on whoever's still inside (a crush
+  // of "crush": a structure coming down kills, as a fall does). Then it stays as it fell. The answer is knowing the house.
+  "hollowHouse": {
+    "waitSeconds": 1.5, "rumbleSeconds": 3, "shutEvery": 0.35, "sinkSeconds": 3, "sinkDepth": 2.4, "crush": 1000
+  },
+  // THE HANGER · movement · outside (note 586; docs/design/creatures/hanger.md). In the roof space; "strands" strands hang
+  // from the ceiling (2.6 m) to 0.9 m off the floor, spread over the house (Hanger.Strands). Walk into one (within
+  // touchWithin m of it) and it has you (a grab of grabSeconds; a friend holding Use beside you, or a blow on it, frees you),
+  // hauling you haulTo m up over haulSeconds (your feet off the floor, your head against the ceiling: a friend beside you can
+  // still reach you). Freed, it draws back into the roof for retreatSeconds. Blows hurt it (health).
+  "hanger": {
+    "strands": 6, "touchWithin": 0.35, "haulSeconds": 2.5, "haulTo": 0.7, "grabSeconds": 10, "retreatSeconds": 25, "health": 3
+  },
+
   // TOWER JAW · vibration · outside (GDD §21, App. A.6, B.6; the director's brief of 8 Oct 2026; ARCHITECTURE §8 note 363;
   // docs/design/creatures/tower-jaw.md). A corrupted beaver gnawing a structure's support: a coaling tower's leg (towerLegOut
   // m out from the line, on the lever's side: the drawn tower's middle stilt there, StructureKit) or the loading crane's gantry
@@ -503,7 +583,7 @@
   // the loading's not called done; else it's left (D1: "a body never costs the night"), and put down if it's in the arms.
   "crewBots": {
     "mournersWithin": 30, "mournersLeash": 20, "towerJawWithin": 25, "towerJawClearFrom": 0.9, "towerJawClearBy": 2.5,
-    "wreckWithin": 250, "wreckStopShort": 15, "wreckHoldWithin": 60, "beetleWithin": 15, "brakemanStandOff": 1.5,
+    "wreckWithin": 250, "wreckStopShort": 15, "wreckHoldWithin": 60, "beetleWithin": 15, "ribbitWithin": 12, "brakemanStandOff": 1.5,
     "brakemanWaitPast": 1, "standGiveUp": 240, "gateClearShort": 30, "gateClearWithin": 1500, "gateClearGiveUp": 240, "gateClearMargin": 45,
     "sixDawnMargin": 45, "mournersCarryWithin": 60, "mournersCarrySeconds": 60
   },
@@ -539,7 +619,13 @@
   // "taken at dawn". stirSeconds: the tension before dawn (the sky, the ground, their calls; presentation and audio).
   "wakers": { "enabled": true, "stirSeconds": 180, "count": [1, 1, 2, 3], "riseBehind": 1200, "riseAside": 600, "asideBack": 300,
     "joinSeconds": 90, "riseSeconds": 8, "startSpeed": 6, "topSpeed": 26, "rampSeconds": 45, "stopShort": 300,
-    "dragFactor": 3, "liftSeconds": 2.5, "eatAfter": 6, "eatSeconds": 4, "groundSeconds": 8 },
+    "dragFactor": 3, "liftSeconds": 2.5, "eatAfter": 6, "eatSeconds": 4, "groundSeconds": 8,
+    // wakers.md §2, the night things run (note 635; the director, the inbox, 12 Oct 2026: "creatures should leave all except
+    // the knotter and the hotbox who are parasites that have train functions"): nightFleesSeconds before dawn the night's
+    // creatures let go and are gone, and the director sends none of them after; negative, they stay. Those staysAtDawn names
+    // (as in the director's "costs") stay aboard through it. The director's Creature Tweaker sets each one's tick, and the
+    // seconds (35, note 652).
+    "nightFleesSeconds": 35, "staysAtDawn": ["knotter", "hotbox"] },
 
   // THE SWITCHMAN · vibration · corrupted (App. A.8, B.8). At a junction ahead[0]-[1] m out; seen at revealAt m. It throws
   // the points for the dead line, and the train goes down a line that leads nowhere (the clock's cost: stop, back out, set
@@ -601,16 +687,18 @@
   //   takes doorBurn, and the second time doorKill: the mistake you learn from. No chip damage: it isn't clubbed in there.
   // - The counter: vent and starve. No coal, the blow-off held (the vent outruns its heat), until the fire's under
   //   starveFirebox; then it goes back over the footplate the way it came (boardSeconds) and is gone, and the break begins.
-  // - The hose: an extinguisher held into the firebox (Fire, within doorReach) for hoseSeconds opens the door without a burn
-  //   and kills it, and hoseFireCost of the fire goes with it. DESIGN-TODO: the GDD says a water hose; the cab has none yet,
-  //   so the extinguisher stands in for it (one from car 1).
+  // - The hose: Fire held into the firebox within doorReach for hoseSeconds opens the door without a burn and kills it, and
+  //   hoseFireCost of the fire goes with it. cabHose (note 648; the director, the inbox, 12 Oct, "b"): the cab has its own,
+  //   off the injector at the door, so the fireman kills it from the footplate with nothing fetched; off, an extinguisher
+  //   from car 1 stands in (note 271).
   // - fireDoorShutSeconds: the door swings shut after a shovelful with someone in the cab. sootSeconds: the telegraph of one
   //   put straight into the firebox (tests, audits).
   "stoker": {
     "heatFirebox": 4.5, "heatSeconds": 20, "boardSeconds": 8, "tenderBlowScale": 4,
     "feedRate": 4, "swing": 3, "swingSeconds": 3, "eatPerSecond": 0, "runawayRampSeconds": 20,
     "fireDoorShutSeconds": 6, "sootSeconds": 4, "health": 4, "breakSeconds": 150,
-    "doorBurn": 60, "doorKill": 1000, "doorReach": 1.8, "starveFirebox": 2, "hoseSeconds": 2, "hoseFireCost": 0.6
+    "doorBurn": 60, "doorKill": 1000, "doorReach": 1.8, "starveFirebox": 2, "hoseSeconds": 2, "hoseFireCost": 0.6,
+    "cabHose": true
   },
 
   // CLIMBERS · movement · flank (App. A.4, B.4). A pack of packSize paces paceOut m out for paceSeconds, then mounts any gap
@@ -639,11 +727,11 @@
     // weight. Slow on a tight bend (radius tightBendRadius m or less under the train or within bendAheadM ahead: a frontier
     // line's tightest, 300 m, is boarded at 14 m/s) they come bendWeight times as often. The counter: keep her over 50, or
     // hold the gaps as she takes the bend. Their door rule stands as decided 1 Oct: shut doors don't stop them; a dark car
-    // they force through the roof, an empty lit one they open. litShutCarKeepsOut (off; the director's call, note 286): a lit
-    // car with every door and its hatch shut keeps them out, and they go on over it (to the cab, with every car lit and shut
-    // as the train leaves the yard).
+    // they force through the roof, an empty lit one they open. litShutCarKeepsOut (the director, the inbox, 12 Oct, "b"; note
+    // 633; was off, note 286): a lit car with every door and its hatch shut keeps them out, and they go on over it (to the
+    // cab, with every car lit and shut as the train leaves the yard). The bots shut what they open behind them (note 633).
     "mountBelow": 14, "waitForSlowSeconds": 30, "atSpeedWeight": 0.25, "tightBendRadius": 350, "bendAheadM": 300, "bendWeight": 3,
-    "litShutCarKeepsOut": false
+    "litShutCarKeepsOut": true
   },
 
   // THE GAUNT · sound (silence) · outside (App. A.6, B.6). Asleep; stirs at stirAt m, wakes at wakeAt m and follows its
@@ -710,7 +798,10 @@
   // the GDD's numbers: the kill radius is the powder car's own length and its neighbours' near ends.
   "carFire": {
     "startIntensity": 0.1, "growPerSecond": 0.006, "growWithSize": 0.02, "burnFrom": 0.35, "sprayReach": 3.5,
-    "sprayPerSecond": 1.0, "chargeSeconds": 15, "rechargeSeconds": 90, "burnReach": 1.6,
+    // sprayPerSecond: the director, the inbox, 12 Oct (`D1.4-burning-car-beatable`, "b": "make it 15 and have the extinguisher
+    // extinguish far more of the fire. A car should be extinguished from full blaze within 20 seconds."; note 634): 2, twice
+    // what it was, and with 16 cells (cellSize below) one extinguisher has a car at full blaze out in about 10.5 s (FireCellsTests).
+    "sprayPerSecond": 2.0, "chargeSeconds": 15, "rechargeSeconds": 90, "burnReach": 1.6,
     // Note 587 (the director, 9 Oct 2026, playtesting: "I point at fire, I click, I hold, it should stay there"): the spray
     // goes where the look lands on fire; where it lands on none (looking at the flames over a burning cell, the ray goes on
     // to the boards beyond), on the burning cell whose flames are nearest the middle of a sprayConeDeg cone along the look,
@@ -744,7 +835,12 @@
     // is heating it (a sprayed cell doesn't creep back from a spark). DESIGN-TODO: the GDD has no numbers; these keep
     // one crewmate who gets to a fire in its first half minute able to put it out with one extinguisher, a fire left a
     // minute needing two, and a car left alone taking the next in about a minute and a half.
-    "cellSize": 1.5, "catchFrom": 0.5, "catchPerSecond": 0.04, "climb": 2, "charPerSecond": 0.01,
+    // cellSize 3.5 (the director, 12 Oct, "72 patches of fire per car is far too many, make it 15"; note 634): 16 cells in a
+    // cargo car (4 along, the floor, the roof and each wall one across), the nearest the grid comes to 15; it was 1.5, 72.
+    // burnPatch: the boards round a burning cell's centre that burn you as if you stood on them, the reach counted from there
+    // (note 634): 0.75, half the 1.5 m cells it was tuned on, so the bigger cells don't burn further.
+    "burnPatch": 0.75,
+    "cellSize": 3.5, "catchFrom": 0.5, "catchPerSecond": 0.04, "climb": 2, "charPerSecond": 0.01,
     "sprayShare": 0.4, "dampSeconds": 3, "ceilingBurnShare": 0.5, "bodyHeight": 1.8, "outBelow": 0.05
   },
 
@@ -841,7 +937,13 @@
       // The relief valve: × (alive / crew)^downPower, and × (1 − hurtRelief × the share of the living under hurtBelow health,
       // the bots' own "too hurt to fight"), so a crew that's losing isn't fed faster; and busy: × 1 / (1 + busy × threats
       // engaged × (1 − busyFade × progress)) while they're fighting: late in the night it stops waiting for them.
-      "downPower": 2, "hurtBelow": 35, "hurtRelief": 0.25, "busy": 0.5, "busyFade": 1
+      "downPower": 2, "hurtBelow": 35, "hurtRelief": 0.25, "busy": 0.5, "busyFade": 1,
+      // By the crew and the train (note 646; the director, the inbox, 9 Oct: "Scale by both, higher numbers on both readings
+      // should increase threat level"; orchestrator.md §8 question 1): the rate × (1 + crewScale × (crew − scaleCrew)) ×
+      // (1 + lengthScale × (cars − scaleCars)), each at least scaleFloor; 1 at a crew of four and eight cars (a Frontier
+      // train). The budget scales by both too (crewPerPlayer, lengthPerCarBeyondThird), but on a 7 km night it never binds:
+      // this is what does. 0.18 and 0.06: the director's on the Creature Tweaker (note 652, 13 Oct).
+      "crewScale": 0.18, "lengthScale": 0.06, "scaleCrew": 4, "scaleCars": 8, "scaleFloor": 0.5
     },
     // T128 (build 1121: "a player left behind by the train should feel the world close in: tension, monsters coming, the
     // difficulty spiking for that player. They needn't die at once"; GDD §7, §23; ARCHITECTURE §8 note 273). Not in the spec.
@@ -874,6 +976,13 @@
     // one never meets two things at once. The left-behind's hunts and the Stoker stay outside it, as before.
     "orchestrator": {
       "on": true, "liveCrew": true, "engagedPerActive": 0.75, "perPlayer": 1,
+      // A longer train has more of the crew under a threat at once (note 646; the director, 9 Oct: "Scale by both"):
+      // engagedPerActive + engagedPerCar a car over pressure.scaleCars (8), up to perPlayer: one each from 13 cars.
+      "engagedPerCar": 0.05,
+      // A long train, two threats each (note 647; the director, the inbox, 12 Oct: "b"): from longTrainCars cars a crewmate
+      // may have perPlayerLong threats on them at once, perTarget's rule with it, and the hard caps (maxConcurrent*) grow
+      // in step. 8, a Frontier train and longer: the director's roster on the Creature Tweaker (note 652, 13 Oct).
+      "longTrainCars": 8, "perPlayerLong": 2,
       // The census of posts and slack (ARCHITECTURE §8 note 345; orchestrator.md §3.1, §3.2 items 2–4). Once a second, each
       // crewmate alive: their post (cab, gunner, walker on the roofs, a ladder or a gap, rider inside a car, ground off the
       // train near it, or left behind past abandoned.behindM, whose own hunt answers them); which engaged threats are on whom
@@ -967,6 +1076,21 @@
     // App. B.1's to pay for it. A kind among the last varietyWindow spawns has its weight halved for each.
     "pacedCost": 3,
     "varietyWindow": 4,
+    // The most of a kind the director sends a night, and the chance it's about at all tonight (drawn from the seed), by the
+    // names in "costs"; a kind not named has no cap and is always about. Note 635, the director, the inbox, 12 Oct 2026, of
+    // the Knotter: "They should show up once or twice a run. Sometimes never. We need more monster variety." Every kind's
+    // chance is the director's roster on the Creature Tweaker (note 652, 13 Oct).
+    "perNight": { "knotter": 2 },
+    // The most of any kind perNight doesn't name (note 654): null, no cap. For the director's D1-roster-piles-up: with few
+    // kinds about on a night (nightChance), those about come again and again (note 652); this holds each to a few.
+    "perNightDefault": null,
+    "nightChance": { "knotter": 0.66, "hotbox": 0.4, "brakeman": 0.6, "climbers": 0.35, "draggers": 0.65,
+      "cinderHounds": 0.7, "fireFlies": 0.42, "carHugger": 0.51, "whistler": 0.65, "trackDoll": 0.22,
+      "tippyToesie": 0.7, "stoker": 0.4, "switchman": 0.12, "followers": 0.66, "ribbits": 0.66, "gaunt": 0.21,
+      "sootChildren": 0.36, "grumbler": 0.11, "passenger": 0.1, "moose": 0.19, "gannet": 0.72, "freightBeetle": 0.63,
+      "towerJaw": 0.53, "pickers": 0.28, "lodger": 0.06, "householder": 0.68, "hollowHouse": 0.13, "hanger": 0.53 },
+    // How often each kind comes against the rest: its weight among what could come, times this (×1 not named).
+    "weights": {},
     // The in-car incidents' weight each (the others weigh 1): trouble in the cars is some of the night, not most of it.
     "incidentWeight": 0.5,
     // ...at full weight with this many hands besides the driver, proportionally less with fewer (a crew of two: a third).

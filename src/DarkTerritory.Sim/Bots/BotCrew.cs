@@ -149,6 +149,9 @@ public sealed class BotCrew(CrewCalls? calls) : IDisposable
         // engine's roof (out of reach from inside it), the driver never came back, and the fire went out under it.
         if (!hunted && !(bot is ConductorBot { Driving: true } && session.Train.Dynamics.Speed > Net.CabControls.StandingBelow))
             intent = Heed.Rescue(intent, session.Predicted, session.World, me, others);
+        // Note 658: the Ribbits near, clubbed by whoever's on the ground (a rescue alone only evens the count).
+        if (!hunted)
+            intent = Heed.Ribbits(intent, session.Predicted, session.World, me);
         intent = Heed.Hounds(intent, session.Predicted, session.World, me);
         intent = Heed.Backs(intent, session.Predicted, session.World, me, t);
         intent = Heed.Voice(intent, session.Predicted, session.World, me, t);

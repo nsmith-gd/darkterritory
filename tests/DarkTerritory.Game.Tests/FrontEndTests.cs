@@ -188,6 +188,33 @@ public sealed class FrontEndTests : IDisposable
         Assert.Contains(m.Items, i => i.Label == "SLOT 2: EMPTY");
     }
 
+    /// <summary>
+    /// Note 632 (the director, the inbox, 12 Oct: "the campaign ends"): a crew whose train was taken at dawn is over. Its slot
+    /// says so, its fortress has no board and nothing to buy, only a new crew from the fortress in the same slot.
+    /// </summary>
+    [Fact]
+    public void ACampaignTakenAtDawnIsOverAndItsSlotStartsANewCrew()
+    {
+        var taken = Campaign.Settle(Campaign.Begin(Campaign.New(C, 1, "Nightjars", 7), new Contract(Sim.Route.RouteTier.Local, 5, 450)),
+            new RunReport(RunEnd.DawnMissed, 1200, 0, 0, 0, 0, 0, 40, 20, 0, -60, 3, 0), C);
+        Saves.Save(taken);
+        var m = Menu();
+        Choose(m, "CAMPAIGN");
+        Assert.Contains(m.Items, i => i.Label == "SLOT 1: NIGHTJARS, TAKEN AT DAWN");
+        Choose(m, "SLOT 1: NIGHTJARS");
+        Assert.Equal(Screen.Fortress, m.Screen);
+        Assert.Equal(Hud.CampaignOver, m.Items[0].Label);
+        Assert.True(m.Items[0].Heading);
+        Assert.DoesNotContain(m.Items, i => i.Label.StartsWith("TONIGHT", StringComparison.Ordinal) || i.Label.StartsWith("BUY", StringComparison.Ordinal));
+        Assert.Null(Choose(m, "A NEW CREW"));
+        var fresh = Saves.Load(1)!;
+        Assert.False(fresh.Over);
+        Assert.Equal(0, fresh.Runs);
+        Assert.Equal(C.StartingCars, fresh.Cars);
+        Assert.Equal(Screen.Fortress, m.Screen);
+        Assert.Contains(m.Items, i => i.Label.StartsWith("TONIGHT", StringComparison.Ordinal));
+    }
+
     [Fact]
     public void TheModsScreenListsWhatsInstalledInOrderAndWhatCouldntLoad()
     {

@@ -70,7 +70,11 @@ public static class Protocol
     // 50: the crew goes on together (note 606): CarryOn, host to client, carries the town the crew's going on from.
     // 51: the towns remember (notes 608, 612): a town's burnt houses ride on the route spec after its seed, and the
     // campaign's in the session's setup, so every machine builds both towns with them.
-    public const int Version = 51;
+    // 52: the Pickers and the house creatures (notes 583–586, 592): five enemy kinds of their own.
+    // 53: four shared slots (note 594): the player record's held slot carries the slots holding a thing over it, and the body
+    //     record's locker field a thing's slot and whether it's put away.
+    // 54: a tool on a crew locker's shelf (note 649): a body kind of its own, its tool in the body record's ninth field.
+    public const int Version = 54;
 }
 
 public enum MessageType : byte

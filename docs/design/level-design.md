@@ -399,18 +399,17 @@ A Holdout is the only way back into a run. What goes where:
 
 | Site | Holdouts | Types | Where |
 |---|---|---|---|
-| **Facility yard** | 1, plus a second on a pad 200 m or longer, and at every switchyard | Prison car on a spare siding (commonest at switchyards, wreck yards and military depots); a barricaded signal box, lamp room or water tower; always the lamp room at a mine head | 60–200 m from where the consist stops, clear of the loading |
-| **Village halt** | 1 | The halt's lockup, or a shelter in the village | The lockup is behind the platform, within 40 m of the line. A shelter is within 80 m |
+| **Facility yard** | 1, plus a second on a pad 200 m or longer, and at every switchyard | Prison car on a spare siding (commonest at switchyards, wreck yards and military depots); a barricaded signal box, lamp room or water tower; always the lamp room at a mine head | Beside a track by the consist (the one it stands on first), 3.5–7 m off it, within 100 m of where it stops, 30 m clear of the loading |
+| **Village halt** | 1 | The halt's lockup, or a shelter in the village | The lockup is behind the platform, within 40 m of the line. A shelter is beside the main line, within 100 m of the halt |
 
-A Holdout is *searched for*, not laid out. Candidates are drawn where its type stands (a signal box or water tower by a track, a lockup behind the platform, anything else round the site), and the first one that meets every rule is kept:
+A Holdout is *searched for*, not laid out. Candidates are drawn where its type stands (a lockup behind the platform; anything else beside the track the consist stands on, near where it stops), and the first one that meets every rule is kept:
 
 1. It fits: clear of buildings, track and roads.
-2. It's at D.4's distance from the consist, or from the line.
-3. **It doesn't share the walk to the loading.** It's 30 m clear of every loading container, and at least 45° off the direction of the nearest one, seen from the consist. Rescue competes with loading for people.
-4. **It can be walked to** from the stopped consist, round the buildings (D.14 "recoverability").
-5. **Its lamp is seen from the approach**: the 1 km board at a facility, the whistle board at a halt, past every building.
+2. **It's right beside the line** (the director, the inbox, 12 Oct: "Holdouts should never be on the line but should be essentially right next to the line. Minimum rescue time"; note 650): its near face 3.5–7 m off a track, within 100 m of where the consist stops, and at a facility 30 m clear of every loading container (in the hands' way at the loading face it slowed the loading: note 650). A halt's lockup is within 40 m of the line. The old rule that kept a Holdout off the walk to the loading, so rescue competed with it for people, is gone.
+3. **It can be walked to** from the stopped consist, round the buildings (D.14 "recoverability").
+4. **Its lamp is seen from the approach**: the 1 km board at a facility, the whistle board at a halt, past every building.
 
-The stop's checks verify all five again on the finished layout. A stop where none can be placed is rerolled.
+The stop's checks verify all four again on the finished layout. A stop where none can be placed is rerolled.
 
 ## H.2 Where the outside creatures live
 - **Ribbits' warrens (B.6 "yards and villages"):** on open ground in the yard and in the village, clear of buildings and track, 40 m from the train and 20 m from the main line. There are more at deeper tiers (1 at local, up to 4 in deep territory).

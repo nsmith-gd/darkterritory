@@ -127,6 +127,14 @@ public sealed partial class Run
     /// <summary>The healing tuning (loot.json), or null when no find heals.</summary>
     public HealingTuning? Healing => _loot?.Healing;
 
+    /// <summary>
+    /// Note 649 (the director's `D1.5-loot-slots`: "a find in a crew locker stays there, on its shelf, and pays at the gates
+    /// with the rest, like Lethal Company's ship. A locker lost with its car is lost"): what the finds on the lockers' shelves
+    /// of <paramref name="attached"/> cars are worth.
+    /// </summary>
+    public double LockerFinds(World world, IReadOnlySet<int> attached) =>
+        world.Bodies.All.Where(b => b.Kind == Physics.BodyKind.Loot && b.Stowed && attached.Contains(b.Parent)).Sum(b => FindOf(b)?.Value ?? 0);
+
     void StepLoot(World world, double dt)
     {
         if (_loot is not { } t || _lootLine is not { } line)
@@ -138,8 +146,9 @@ public sealed partial class Run
                 Stock(world.Bodies, line, t, k);
 
         // A find put down inside a car, and lying still there, is stowed. (Only a stop's finds: other hand loot, the salvage
-        // the Gaunt and the Followers go for, stays a body.)
-        foreach (var b in world.Bodies.All.Where(b => b.Kind == Physics.BodyKind.Loot).ToList())
+        // the Gaunt and the Followers go for, stays a body.) One on a crew locker's shelf stays there, and pays at the gates
+        // if its car's still on the train (note 649: LockerFinds).
+        foreach (var b in world.Bodies.All.Where(b => b.Kind == Physics.BodyKind.Loot && !b.Stowed).ToList())
         {
             if (FindOf(b) is not { } find)
                 continue;

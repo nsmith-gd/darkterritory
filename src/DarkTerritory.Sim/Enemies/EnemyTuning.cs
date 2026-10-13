@@ -31,6 +31,12 @@ public sealed record EnemyTuning(
     public MooseTuning Moose { get; init; } = new();
     public GannetTuning Gannet { get; init; } = new();
     public MournersTuning Mourners { get; init; } = new();
+    public PickersTuning Pickers { get; init; } = new();
+    public DwellingsTuning Dwellings { get; init; } = new();
+    public LodgerTuning Lodger { get; init; } = new();
+    public HouseholderTuning Householder { get; init; } = new();
+    public HollowHouseTuning HollowHouse { get; init; } = new();
+    public HangerTuning Hanger { get; init; } = new();
     public FreightBeetleTuning FreightBeetle { get; init; } = new();
     public BrakemanTuning Brakeman { get; init; } = new();
     public HotboxTuning Hotbox { get; init; } = new();
@@ -375,6 +381,12 @@ public sealed record CarFireTuning
     public double ChargeSeconds { get; init; } = 10;
     public double RechargeSeconds { get; init; } = 90;
     public double BurnReach { get; init; } = 4;
+    /// <summary>
+    /// Note 634: how far round a burning cell's centre its boards burn you as if you stood on them (m), the fire's reach
+    /// counted from there. Half the 1.5 m cells the burn was tuned on; with bigger cells (the director's 15 a car), half a
+    /// cell put the walls of the stretch a walker stood in on top of it.
+    /// </summary>
+    public double BurnPatch { get; init; } = 0.75;
     /// <summary>Note 265: the burn at full blaze once you've stood in it <see cref="BurnRampSeconds"/> (health a second).</summary>
     public double BurnPerSecond { get; init; } = 10;
     /// <summary>Note 265: the share of <see cref="BurnPerSecond"/> a brush against it burns at, from the first moment.</summary>
@@ -521,6 +533,11 @@ public sealed record StokerTuning
     /// <summary>Note 268: an extinguisher held into the firebox this long kills it, taking this share of the fire.</summary>
     public double HoseSeconds { get; init; } = 2;
     public double HoseFireCost { get; init; } = 0.6;
+    /// <summary>
+    /// The cab's own hose (note 648; the director, the inbox, 12 Oct, `D1-stoker-hose-in-the-cab`, "b"): Fire held at the door
+    /// with nothing fetched. Off, an extinguisher from car 1 stands in (note 271).
+    /// </summary>
+    public bool CabHose { get; init; }
     /// <summary>Note 268: how near the fire door (m, across the cab floor) counts as at it, to open it or hose it.</summary>
     public double DoorReach { get; init; } = 1.8;
     /// <summary>Note 265 (the director's decision of 6 Oct 2026): once one's gone, none comes back for this long (s).</summary>
@@ -712,6 +729,28 @@ public sealed record DirectorTuning(
     public OrchestratorTuning Orchestrator { get; init; } = new();
     /// <summary>The last this many spawns: each of a kind among them halves that kind's weight (variety).</summary>
     public int VarietyWindow { get; init; } = 4;
+    /// <summary>
+    /// The most of a kind the director sends a night (note 635; the director, the inbox, 12 Oct 2026, of the Knotter: "once or
+    /// twice a run"), by its name in <see cref="Costs"/>; a kind not named has no cap.
+    /// </summary>
+    public Dictionary<string, int> PerNight { get; init; } = new();
+    /// <summary>
+    /// The most of any kind <see cref="PerNight"/> doesn't name (note 654, for the director's `D1-roster-piles-up`: with few
+    /// kinds about on a night, those about come again and again, note 652); null, no cap.
+    /// </summary>
+    public int? PerNightDefault { get; init; }
+    /// <summary>The kind's most a night: its own (<see cref="PerNight"/>), else <see cref="PerNightDefault"/>; null, none.</summary>
+    public int? CapFor(string key) => PerNight.TryGetValue(key, out int cap) ? cap : PerNightDefault;
+    /// <summary>
+    /// The chance a kind is about at all tonight (note 635; of the Knotter: "Sometimes never"), drawn once a night from the
+    /// seed; a kind not named is always about.
+    /// </summary>
+    public Dictionary<string, double> NightChance { get; init; } = new();
+    /// <summary>
+    /// How often, against the rest (note 635; the director's Creature Tweaker): each kind's weight among what could come is
+    /// multiplied by this; a kind not named weighs as its own rule says (×1).
+    /// </summary>
+    public Dictionary<string, double> Weights { get; init; } = new();
     /// <summary>A spawn pressed for (pressure at <see cref="PressureTuning.PressAt"/>) may overdraw the budget's curve by up to this much: enough for a threat of this cost.</summary>
     public double PacedCost { get; init; } = 3;
     /// <summary>The in-car incidents' weight, each, against the other threats' 1.</summary>
@@ -789,6 +828,20 @@ public sealed record PressureTuning
     public double HurtRelief { get; init; } = 0.25;
     public double Busy { get; init; } = 0.5;
     public double BusyFade { get; init; } = 1;
+    /// <summary>
+    /// The threat scales by the crew and by the train (note 646; the director, the inbox, 9 Oct: "Scale by both, higher
+    /// numbers on both readings should increase threat level"): the rate × (1 + crewScale × (crew − scaleCrew)) × (1 +
+    /// lengthScale × (cars − scaleCars)), each at least scaleFloor. 0 for either leaves it as the tier's alone.
+    /// </summary>
+    public double CrewScale { get; init; }
+    public double LengthScale { get; init; }
+    public int ScaleCrew { get; init; } = 4;
+    public int ScaleCars { get; init; } = 8;
+    public double ScaleFloor { get; init; } = 0.5;
+
+    /// <summary>The rate's scale for a crew of <paramref name="crew"/> and a train of <paramref name="cars"/> cars.</summary>
+    public double Scale(int crew, int cars) =>
+        Math.Max(ScaleFloor, 1 + CrewScale * (crew - ScaleCrew)) * Math.Max(ScaleFloor, 1 + LengthScale * (cars - ScaleCars));
 }
 
 /// <summary>
@@ -824,6 +877,27 @@ public sealed record OrchestratorTuning
     public bool LiveCrew { get; init; } = true;
     public double EngagedPerActive { get; init; } = 0.75;
     public double PerPlayer { get; init; } = 1;
+    /// <summary>
+    /// Note 646 (the director, 9 Oct: "Scale by both"): each car over <see cref="PressureTuning.ScaleCars"/> raises
+    /// <see cref="EngagedPerActive"/> by this, up to <see cref="PerPlayer"/>: a longer train has more of the crew under a threat
+    /// at once, never more than one each.
+    /// </summary>
+    public double EngagedPerCar { get; init; }
+
+    /// <summary>
+    /// A long train, two threats each (note 647; the director, the inbox, 12 Oct, `D1-long-train-two-each`, "b"): from this
+    /// many cars a crewmate may have <see cref="PerPlayerLong"/> threats on them at once, and the director's hard caps grow
+    /// with it. 0: never.
+    /// </summary>
+    public int LongTrainCars { get; init; }
+    public double PerPlayerLong { get; init; } = 2;
+
+    /// <summary>The most threats on one crewmate at once with a train of <paramref name="cars"/>.</summary>
+    public double PerPlayerFor(int cars) => LongTrainCars > 0 && cars >= LongTrainCars ? PerPlayerLong : PerPlayer;
+
+    /// <summary>The share of the crew that may be engaged at once with a train of <paramref name="cars"/> (notes 646, 647).</summary>
+    public double EngagedShare(int cars, int scaleCars) => LongTrainCars > 0 && cars >= LongTrainCars ? PerPlayerLong
+        : Math.Min(PerPlayer, EngagedPerActive + EngagedPerCar * Math.Max(0, cars - scaleCars));
     // The census (note 345; orchestrator.md §3.1, §3.2 items 2 and 4).
     public bool Census { get; init; } = true;
     public int MinCrew { get; init; } = 2;
@@ -1065,6 +1139,111 @@ public sealed record MournersTuning
         Count.GetValueOrDefault(char.ToLowerInvariant(tier.ToString()[0]) + tier.ToString()[1..], 3);
 }
 
+/// <summary>The Pickers (GDD §21, App. A.6, B.6; ARCHITECTURE §8 note 592). Field docs live in enemies.json.</summary>
+public sealed record PickersTuning
+{
+    public bool Enabled { get; init; } = true;
+    public double After { get; init; } = 20;
+    public Dictionary<string, int> Count { get; init; } = new() { ["local"] = 3, ["frontier"] = 4, ["deadLines"] = 6, ["deepTerritory"] = 8 };
+    public int PerTwoCrew { get; init; } = 1;
+    public double FacilityReach { get; init; } = 80;
+    public int Drains { get; init; } = 3;
+    public double DrainOff { get; init; } = 1.2;
+    public double EmergeSeconds { get; init; } = 0.8;
+    public double DownSeconds { get; init; } = 3;
+    public double GuardWithin { get; init; } = 4;
+    public double ShyWithin { get; init; } = 3;
+    public double ShySeconds { get; init; } = 4;
+    public double Run { get; init; } = 4.8;
+    public double Carry { get; init; } = 2.6;
+    public double CarryHeavy { get; init; } = 1.6;
+    public double TakeReach { get; init; } = 0.9;
+    public double HoldHeight { get; init; } = 1.0;
+    public double HeaveBeside { get; init; } = 0.9;
+    public double AtDrain { get; init; } = 1.0;
+    public double BiteWithin { get; init; } = 1.2;
+    public int Bite { get; init; } = 8;
+    public double BiteEvery { get; init; } = 2;
+    public double ScatterWithin { get; init; } = 10;
+    public double ScatterSeconds { get; init; } = 6;
+    public double LeaveSeconds { get; init; } = 12;
+    public double Health { get; init; } = 1;
+
+    /// <summary>How many come to a crew of <paramref name="crew"/> at a stop of <paramref name="tier"/>: the tier's count, and
+    /// <c>perTwoCrew</c> more for every two of the crew past two (3 where the tier isn't listed).</summary>
+    public int CountFor(Route.RouteTier tier, int crew) =>
+        Count.GetValueOrDefault(char.ToLowerInvariant(tier.ToString()[0]) + tier.ToString()[1..], 3) + Math.Max(0, crew - 2) / 2 * PerTwoCrew;
+}
+
+/// <summary>Which village houses something lives in (notes 583–586). Field docs live in enemies.json.</summary>
+public sealed record DwellingsTuning
+{
+    public bool Enabled { get; init; } = true;
+    public Dictionary<string, double> Share { get; init; } = new() { ["local"] = 0.2, ["frontier"] = 0.25, ["deadLines"] = 0.33, ["deepTerritory"] = 0.5 };
+    public Dictionary<string, double> Weights { get; init; } = new() { ["lodger"] = 3, ["householder"] = 2, ["hollowHouse"] = 1.5, ["hanger"] = 3 };
+    public double PlaceWithin { get; init; } = 500;
+    public double ForgetPast { get; init; } = 800;
+
+    /// <summary>The share of a stop's open houses with something in them, at <paramref name="tier"/> (0.25 where it isn't listed).</summary>
+    public double ShareFor(Route.RouteTier tier) =>
+        Share.GetValueOrDefault(char.ToLowerInvariant(tier.ToString()[0]) + tier.ToString()[1..], 0.25);
+}
+
+/// <summary>The Lodger (GDD §21; ARCHITECTURE §8 note 583). Field docs live in enemies.json.</summary>
+public sealed record LodgerTuning
+{
+    public double HideInset { get; init; } = 0.6;
+    public double NoticeSeconds { get; init; } = 2.5;
+    public double ShriekWithin { get; init; } = 4.5;
+    public double ShriekSeconds { get; init; } = 1.5;
+    public double LungeSpeed { get; init; } = 9;
+    public double LungeReach { get; init; } = 4.5;
+    public double KillWithin { get; init; } = 0.9;
+    public double KillWindow { get; init; } = 0.25;
+    public double Chase { get; init; } = 5.0;
+    public double PursuitRadius { get; init; } = 25;
+    public double BreakSeconds { get; init; } = 2;
+    public double Walk { get; init; } = 1.6;
+    public double RestSeconds { get; init; } = 3;
+    public double Health { get; init; } = 4;
+}
+
+/// <summary>The Householder (GDD §21; ARCHITECTURE §8 note 584). Field docs live in enemies.json.</summary>
+public sealed record HouseholderTuning
+{
+    public double TableReach { get; init; } = 1.0;
+    public double RiseSeconds { get; init; } = 1.5;
+    public double Hunt { get; init; } = 3.4;
+    public double GrabReach { get; init; } = 1.0;
+    public double GrabSeconds { get; init; } = 6;
+    public double GiveUpBeyond { get; init; } = 200;
+    public double Walk { get; init; } = 1.4;
+    public double Health { get; init; } = 6;
+}
+
+/// <summary>The Hollow House (GDD §21; ARCHITECTURE §8 note 585). Field docs live in enemies.json.</summary>
+public sealed record HollowHouseTuning
+{
+    public double WaitSeconds { get; init; } = 1.5;
+    public double RumbleSeconds { get; init; } = 3;
+    public double ShutEvery { get; init; } = 0.35;
+    public double SinkSeconds { get; init; } = 3;
+    public double SinkDepth { get; init; } = 2.4;
+    public int Crush { get; init; } = 1000;
+}
+
+/// <summary>The Hanger (GDD §21; ARCHITECTURE §8 note 586). Field docs live in enemies.json.</summary>
+public sealed record HangerTuning
+{
+    public int Strands { get; init; } = 6;
+    public double TouchWithin { get; init; } = 0.35;
+    public double HaulSeconds { get; init; } = 2.5;
+    public double HaulTo { get; init; } = 0.7;
+    public double GrabSeconds { get; init; } = 10;
+    public double RetreatSeconds { get; init; } = 25;
+    public double Health { get; init; } = 3;
+}
+
 /// <summary>The Freight Beetle (GDD §21, App. A.6, B.6; ARCHITECTURE §8 note 366). Field docs live in enemies.json.</summary>
 public sealed record FreightBeetleTuning
 {
@@ -1203,6 +1382,8 @@ public sealed record CrewBotsTuning
     public double WreckStopShort { get; init; } = 15;
     public double WreckHoldWithin { get; init; } = 60;
     public double BeetleWithin { get; init; } = 15;
+    /// <summary>Note 658: a Ribbit this near (m, flat), a bot on the ground goes at it and clubs it.</summary>
+    public double RibbitWithin { get; init; } = 12;
     public double BrakemanStandOff { get; init; } = 1.5;
     public double BrakemanWaitPast { get; init; } = 1;
     public double StandGiveUp { get; init; } = 240;

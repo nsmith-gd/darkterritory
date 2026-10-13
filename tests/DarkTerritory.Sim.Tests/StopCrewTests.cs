@@ -2,6 +2,7 @@ using Ballast;
 using DarkTerritory.Sim.Bots;
 using DarkTerritory.Sim.Enemies;
 using DarkTerritory.Sim.Net;
+using DarkTerritory.Sim.Physics;
 using DarkTerritory.Sim.Player;
 using DarkTerritory.Sim.Rail;
 using DarkTerritory.Sim.Route;
@@ -238,6 +239,22 @@ public class StopCrewTests
     }
 
     [Fact]
+    public void ASmashedLampWaitsForTheTrainToStandWhileTheDriverMovesItAtAStop()
+    {
+        // Note 641 (seed 16's night): a Climber into the cab at Kessel's conveyor smashed the forward lamp, and the driver mended
+        // it from the front windows mid-shunt, Use held and no brake: the train ran on from 1.5 to 12.6 m/s, struck at 5.7, and
+        // the engine broke down. Moving the train at a stop, the driver drives; the glass waits till it's standing.
+        var n = new Night(5);
+        n.Until(() => n.Driver.Stops!.Doing == StopDriver.Leg.SpurIn && n.Train.Dynamics.Speed > 1, 900);
+        Assert.Equal(StopDriver.Leg.SpurIn, n.Driver.Stops!.Doing);
+        n.World.SmashLamp(Tuning.Enemies.Climbers.LampOutSeconds);
+        double top = 0;
+        n.Until(() => !Repairs.LampSmashed(n.Train), 120, () => top = Math.Max(top, n.Train.Dynamics.Speed));
+        Assert.True(top < 8, $"ran to {top:0.0} m/s with the lamp smashed");
+        Assert.False(Repairs.LampSmashed(n.Train), "never mended");
+    }
+
+    [Fact]
     public void AGunnerLeftOnTheBallastClimbsBackAboardAndADeadOneIsNotWaitedFor()
     {
         // The 100-night rerun: a gunner down on the ballast after a stop only ever borrowed the walker's legs on a car, so it
@@ -298,6 +315,85 @@ public class StopCrewTests
     }
 
     [Fact]
+    public void AReliefClaimNobodySaysAgainIsTakenOver()
+    {
+        // Note 655 (deepTerritory:7 seed 8): a crewmate claimed the relief for a Climber in the cab with the driver alive, then
+        // went back to its own work; the driver died and the claim kept everyone else back, and the train stood till dawn. A
+        // claim not said again for a second is nobody's: the next walker takes it.
+        var train = new TrainOnLine(new TrainDynamics(Consist.Uniform(T, 4, 1)), new RailLine(new LineDefinition("t", [new TrackSegment(4000)])), 600);
+        var world = new World(train, Tuning.Combat);
+        world.EnableBodies();
+        var calls = new CrewCalls();
+        var cab = PlayerMotor.SpawnInCab(train, P);
+        calls.Say(0, StopJob.Driver, cab);
+        var self = PlayerMotor.SpawnOnRoof(train, 2, 0, P);
+        var other = PlayerMotor.SpawnOnRoof(train, 3, 0, P);
+        var bot = new RoofWalkerBot(21, P.Cold) { Me = 2, Calls = calls, Crew = [(2, self), (9, other)] };
+        world.Tick = 100;
+        bot.Decide(self, world, world.Tick, out _);
+        calls.Say(0, StopJob.Driver, cab with { Health = 0, Death = DeathCause.Climbed });
+        // Claimed by 9, and said this tick: theirs.
+        (calls.Relief, calls.ReliefSaid) = (9, ++world.Tick);
+        bot.Decide(self, world, world.Tick, out _);
+        Assert.False(bot.Relieving);
+        Assert.Equal(9, calls.Relief);
+        // Not said again for over a second: the walker takes it.
+        world.Tick += (uint)SimConstants.TickRate + 1;
+        bot.Decide(self, world, world.Tick, out _);
+        Assert.True(bot.Relieving);
+        Assert.Equal(2, calls.Relief);
+    }
+
+    [Fact]
+    public void AGunnersLegsLeaveTheReliefToAWalker()
+    {
+        // Note 655 (deepTerritory:7 seed 6): the gunner gives its legs only some of its turns, and claimed on one it held the
+        // relief at its gun while nobody went. With a walker alive it's the walker's; with none, the gunner's.
+        var train = new TrainOnLine(new TrainDynamics(Consist.Uniform(T, 4, 1)), new RailLine(new LineDefinition("t", [new TrackSegment(4000)])), 600);
+        var world = new World(train, Tuning.Combat);
+        world.EnableBodies();
+        var calls = new CrewCalls();
+        var cab = PlayerMotor.SpawnInCab(train, P);
+        calls.Say(0, StopJob.Driver, cab);
+        var self = PlayerMotor.SpawnOnRoof(train, 4, 0, P);
+        var walker = PlayerMotor.SpawnOnRoof(train, 2, 0, P);
+        calls.Gunning(2, false, true);
+        var legs = new RoofWalkerBot(21, P.Cold) { Me = 2, Calls = calls, Gunner = true, Crew = [(2, self), (3, walker)] };
+        legs.Decide(self, world, world.Tick, out _);
+        calls.Say(0, StopJob.Driver, cab with { Health = 0, Death = DeathCause.Climbed });
+        world.Tick++;
+        legs.Decide(self, world, world.Tick, out _);
+        Assert.False(legs.Relieving);
+        Assert.Null(calls.Relief);
+        legs.Crew = [(2, self), (3, walker with { Health = 0, Death = DeathCause.Climbed })];
+        world.Tick++;
+        legs.Decide(self, world, world.Tick, out _);
+        Assert.True(legs.Relieving);
+        Assert.Equal(2, calls.Relief);
+    }
+
+    [Fact]
+    public void WithThePointsSetAndTheShunterLostBeforeTheCutTheStopIsCalledOff()
+    {
+        // Note 655 (deepTerritory:7 seed 7): the points went over and the shunter was taken off the coupling before it cut
+        // the train. The stop gave up only with the points unset, so the train stood there till dawn. Now it's called off:
+        // the driver sets the points back itself, and the train goes on.
+        var night = new Night(cars: 10, walkers: 0, hands: 1);
+        var train = night.Train;
+        var spur = train.Line.Branches.First(b => b.Kind == BranchKind.Spur && night.Site.Feature.Contains(b.Toe));
+        night.Until(() => night.Driver.Stops!.Doing == StopDriver.Leg.Held, 300);
+        Assert.Equal(StopDriver.Leg.Held, night.Driver.Stops!.Doing);
+        Assert.True(night.Driver.Stops.Plan!.CutBehind >= 0, "a train the spur takes whole: no cut to make");
+        Assert.Null(night.Driver.Stops.Plan!.NearRake(train));
+        night.World.SetSwitch(spur.Index, true);
+        night.Crew[1] = night.Crew[1] with { Health = 0, Death = DeathCause.Carried };
+        var legs = new List<string>();
+        night.Until(() => train.OnMain && train.Dynamics.Distance > spur.Toe + 150, 600, () => { string l = $"{night.Driver.Stops!.Doing}/{train.Diverging(spur.Index)}/{night.Driver.Stops.Plan?.NearRake(train) is not null}"; if (legs.Count == 0 || legs[^1] != l) legs.Add(l); });
+        Assert.True(train.OnMain && train.Dynamics.Distance > spur.Toe + 150, $"stuck at {train.Dynamics.Distance:0} on {train.Dynamics.Path}: {string.Join(" > ", legs)}");
+        Assert.False(train.Diverging(spur.Index));
+    }
+
+    [Fact]
     public void WithTheShunterDeadTheFirstHandLeftTakesItOver()
     {
         var calls = new CrewCalls();
@@ -342,6 +438,35 @@ public class StopCrewTests
         // One of the two dies: the next hand takes their place at it.
         calls.Say(2, StopJob.Crates, alive with { Health = 0, Death = DeathCause.Gnawed });
         Assert.True(new StopHand(StopJob.Crates, calls, 4).TakesTrouble);
+    }
+
+    /// <summary>
+    /// Note 639: the yard's power dead (level-design D.1: "the cranes wait on a walk to the powerhouse and a restart"), the
+    /// crane's operator walks to the powerhouse and restarts it, then the pair run the crane as before. Nobody did: dead, the
+    /// crane never moved, and deep territory's foundry (dead four yards in five) loaded no casting on 8 nights of 8.
+    /// </summary>
+    [Fact]
+    public void WithTheYardsPowerDeadTheOperatorRestartsItAndTheCastingsGoOn()
+    {
+        var night = new Night(cars: 8, walkers: 0, modules: [ModuleKind.Crane, ModuleKind.Winch, ModuleKind.Crates]);
+        var run = night.World.Run!;
+        var crane = Assert.IsType<Crane>(night.Site.Crane);
+        Assert.NotNull(night.Site.Powerhouse);
+        night.Site.Mirror(night.Site.State with { Power = Stops.PowerState.Dead });
+        Assert.Equal(Stops.PowerState.Dead, night.Site.Power);
+        var doing = new HashSet<string>();
+        night.Until(() => run.Departures > 0, 1500, () =>
+        {
+            foreach (var b in night.Bots)
+                if (b is RoofWalkerBot { Job: { } hand } && hand.Doing.Length > 0)
+                    doing.Add(hand.Doing);
+        });
+        Assert.True(run.Departures > 0, $"never left the stop: driver {night.Driver.Stops!.Doing}; did {string.Join(", ", doing)}");
+        Assert.Contains("restarting the power", doing);
+        Assert.Equal(Stops.PowerState.Live, night.Site.Power);
+        Assert.True(crane.Castings.All(c => c.State == CastingState.Loaded),
+            $"castings {string.Join(", ", crane.Castings.Select(c => $"{c.State} car {c.Car}"))}; did {string.Join(", ", doing)}");
+        Assert.All(night.Crew, c => Assert.True(c.Alive, $"died of {c.Death}"));
     }
 
     [Fact]
@@ -890,6 +1015,37 @@ public class StopCrewTests
         Assert.All(night.Crew, c => Assert.True(c.Alive, $"died of {c.Death}; crew {where}"));
         Assert.All(night.Crew, c => Assert.NotEqual(Surface.Ground, c.Surface));
         Assert.Equal(1, train.TrainRakes);
+    }
+
+    [Fact]
+    public void AHandOutInTheVillageFillsItsSlotsBeforeItWalksBack()
+    {
+        // Note 594 (the director, 9 Oct: "I'm able to kind of hold on to it so I can grab a few pieces of loot at a time"): a
+        // hand puts each find away and searches on while it has a slot free, then carries them home one after another.
+        var night = new Night(cars: 8, walkers: 3, crateHands: true, ids: true, loot: true, modules: ModuleKind.Crates);
+        var run = night.World.Run!;
+        int k = run.Stops.ToList().IndexOf(night.Site.Feature);
+        var hands = night.Bots.OfType<RoofWalkerBot>().Select(b => b.Job).OfType<StopHand>().ToList();
+        int most = 0;
+        var doing = new HashSet<string>();
+        night.Until(() => run.Departures > 0, 1800, () =>
+        {
+            foreach (var h in hands)
+            {
+                if (h.PlayerId is int id)
+                    most = Math.Max(most, night.World.Bodies.Slotted(id).Count(b => b.Kind == BodyKind.Loot));
+                if (h.Doing.Length > 0)
+                    doing.Add(h.Doing);
+            }
+        });
+        string trace = $"spots {run.HidingSpots.Count(h => h.Stop == k)}, stowed {run.Stowed.Count}, most carried {most}; {string.Join(", ", doing)}";
+        Assert.True(run.Departures > 0, trace);
+        Assert.True(most >= 2, trace);
+        Assert.True(run.Stowed.Count >= most, trace);
+        // Nothing left in anyone's slots as the train goes.
+        string left = string.Join("; ", hands.Where(h => h.PlayerId is int id && night.World.Bodies.Slotted(id).Any(b => b.Kind == BodyKind.Loot))
+            .Select(h => $"{h.Job} '{h.Doing}' slots {string.Join(",", night.World.Bodies.Slotted(h.PlayerId!.Value).Select(b => $"{b.Pocket}{(b.Stashed ? "s" : "")}"))}"));
+        Assert.True(left.Length == 0, $"finds left in slots: {left}; {trace}");
     }
 
     [Fact]

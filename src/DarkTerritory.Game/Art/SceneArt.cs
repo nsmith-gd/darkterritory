@@ -30,6 +30,8 @@ public sealed partial class SceneArt(Look look)
     public NickiKit Nicki { get; } = new(look);
     /// <summary>Jacob's things: his cap, shades, beard, flannel and chain; his rod, pail and lantern (note 572).</summary>
     public JacobKit Jacob { get; } = new(look);
+    /// <summary>The house creatures' houses: the Householder's table, chair and stove, the Hanger's ceiling (notes 584, 586).</summary>
+    public HouseholdKit Household { get; } = new(look);
 
     CreatureArt? _creatures;
     readonly Dictionary<byte, (Double3 At, int Car, double Time, float Speed)> _crewMotion = new();
@@ -756,6 +758,8 @@ public sealed partial class SceneArt(Look look)
             Sim.Physics.BodyKind.RepairKit => props.Get("repair_kit") ?? Piece("prop-crate", () => PropKit.Crate(Look)),
             // A charge for a gun's rack (note 374): a powder bag from the shot locker.
             Sim.Physics.BodyKind.Powder => props.Get("powder_bag") ?? Piece("prop-crate", () => PropKit.Crate(Look)),
+            // A tool left on a locker's shelf (note 649): its own model, as it's drawn in hand.
+            Sim.Physics.BodyKind.Tool when ToolProp(Sim.Player.Kit.At(b.Tools, 0)) is { } tool => tool,
             // A village find as what it is (FindKit; the director, 8 Oct: finds that stand out by their texture).
             Sim.Physics.BodyKind.Loot when FindItem?.Invoke(b) is { } item => Piece($"find-{item}", () => FindKit.Find(Look, item, 0.15f)),
             Sim.Physics.BodyKind.Loot => Piece("prop-loot", () => PropKit.Loot(Look, 0.15f)),

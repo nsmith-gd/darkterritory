@@ -62,7 +62,8 @@ public sealed partial class CreatureArt
     /// <summary>The models this draws, by file name (content/art/models/&lt;name&gt;.glb).</summary>
     public static readonly string[] Names = ["crew", "cinder_hound", "sleeper", "clinger", "hollow", "switchman", "soot_child", "dragger", "husk", "weight",
         "track_doll", "car_hugger", "tippy_toesie", "whistler", "ribbit", "choir", "gaunt", "grumbler", "stoker", "follower", "climber", "fire_fly", "passenger",
-        "survivor_prisoner", "survivor_wildlander", "sheep", "moose", "gannet", "mourner", "freight_beetle", "tower_jaw", "brakeman", "knotter", "hotbox"];
+        "survivor_prisoner", "survivor_wildlander", "sheep", "moose", "gannet", "mourner", "freight_beetle", "tower_jaw", "brakeman", "knotter", "hotbox", "hanger",
+        "picker", "lodger", "householder"];
 
     /// <summary>
     /// The figure a crewmate plays as (GDD App. D.8): the crew's own, or, freed from a Holdout, its occupant's for the rest
@@ -168,7 +169,7 @@ public sealed partial class CreatureArt
     /// <summary>
     /// How the ones the sim lets go of in sight are seen going (GreyboxScene.Retreating, note 458): off the train or the
     /// ground they stood on, out from the line at <c>Out</c> m/s, facing away, for <c>Seconds</c>; then lost in the dark. What
-    /// flies lifts at <c>Rise</c> m/s instead of falling.
+    /// flies lifts at <c>Rise</c> m/s instead of falling, and what goes down into the ground sinks at −<c>Rise</c>.
     /// Null: one that isn't drawn going this way (killed ones fall, the Choir disperses, the Track Doll flickers, the Car
     /// Hugger rides its car away, a hound on the line runs off; the rest aren't seen go, or have no body to see).
     /// </summary>
@@ -185,6 +186,22 @@ public sealed partial class CreatureArt
         EnemyKind.Passenger => (3.0, 3.0, 0),      // unmasked, off the back of the train
         EnemyKind.Follower => (4.0, 3.0, 0),
         EnemyKind.CinderHound => (6.0, 3.0, 0),    // one aboard (its car cut, or its kill made): over the side and away
+        // The night things going to ground at dawn (note 642; wakers.md §2: "boarders drop off and run for the trees"), and any
+        // of these let go of otherwise: none of them is drawn just gone. (A Dragger sinks back under the edge as it always
+        // has, and the Fire Flies' swarm goes with its lamp: neither is seen going.)
+        EnemyKind.Brakeman => (3.0, 3.5, 0),       // down off the roof, walking away
+        EnemyKind.Grumbler => (3.0, 3.0, 0),
+        EnemyKind.Moose => (5.0, 4.0, 0),          // trotting off into the trees
+        EnemyKind.FreightBeetle => (2.5, 3.5, 0),
+        EnemyKind.TowerJaw => (2.5, 3.5, 0),
+        EnemyKind.Mourners => (1.5, 5.0, 0),       // walking off, slow
+        // The stops' own (note 645): the Pickers down into the ground where they stand (their descend, head first); the Lodger
+        // slinking off into the dark, and the Householder walking off, stiff; the Hanger drawn up into its roof. (The Hollow
+        // House stays: it's the house itself, note 585.)
+        EnemyKind.Pickers => (0.4, 0.6, -1.2),
+        EnemyKind.Lodger => (2.0, 3.0, 0),
+        EnemyKind.Householder => (1.2, 4.0, 0),
+        EnemyKind.Hanger => (0, 1.2, 0.8),
         _ => null,
     };
 
@@ -1518,10 +1535,13 @@ public sealed partial class CreatureArt
                 Vector3.Normalize(Vector3.TransformNormal(Vector3.UnitY, model)), Vector3.Normalize(Vector3.TransformNormal(Vector3.UnitZ, model)),
                 kind, phase, t, extra, health, _fx, Math.Clamp(extra2 / Math.Max(1e-6, _carFire.SpreadSeconds), 0, 1));
         }
-        // The Mourners, the Freight Beetle and Tower Jaw (notes 362, 363, 366), and the roster's newest still to be modelled
-        // (CreatureArt.Outside.cs).
+        // The Mourners, the Freight Beetle and Tower Jaw (notes 362, 363, 366), the Pickers, the Lodger and the Householder
+        // (notes 574, 583, 584) (CreatureArt.Outside.cs).
         if (Outside(mesh, model, kind, phase, t, extra, extra2) is { } outside)
             return outside;
+        // The house creatures (notes 585, 586; CreatureArt.Houses.cs).
+        if (Houses(mesh, model, kind, phase, t) is { } houses)
+            return houses;
         float pulse = (float)(0.5 + 0.5 * Math.Sin(t * 9));
         switch (kind)
         {
@@ -2842,7 +2862,7 @@ public sealed partial class CreatureArt
                 // Face back down the line at the train, turned in towards the track.
                 m = Matrix4x4.CreateRotationY(MathF.PI - Math.Sign(e.Lateral) * 0.6f) * model;
                 break;
-            case EnemyKind.Mourners or EnemyKind.FreightBeetle or EnemyKind.TowerJaw:
+            case EnemyKind.Mourners or EnemyKind.FreightBeetle or EnemyKind.TowerJaw or EnemyKind.Pickers or EnemyKind.Lodger or EnemyKind.Householder:
                 // What it's doing (the sim's mode) and how fast it's going (CreatureArt.Outside.cs).
                 m = OutsideIn(e, model, pace);
                 break;
@@ -2855,7 +2875,7 @@ public sealed partial class CreatureArt
         }
         _clutch = null;
         bool drawn = Enemy(mesh, m, e.Kind, e.Phase, e.PhaseSeconds, e.Extra, e.Health, aboard: e.Attached >= 0,
-            extra2: e.Kind is EnemyKind.Sleepers or EnemyKind.Mourners ? e.Id : e.Extra2);
+            extra2: e.Kind is EnemyKind.Sleepers or EnemyKind.Mourners or EnemyKind.Pickers ? e.Id : e.Extra2);
         _houndAboard = default;
         if (_clutch is { } clutch && e.Holding >= 0)
             Clutches[e.Holding] = clutch;

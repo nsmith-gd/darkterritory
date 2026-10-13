@@ -371,17 +371,17 @@ A car fire burns on cells (decided 6 Oct, GDD App. F.1; ARCHITECTURE note 267). 
 
 | Parameter | Value |
 |---|---|
-| Cell size | 1.5 m (`cellSize`): 72 cells in a cargo car |
+| Cell size | 3.5 m (`cellSize`): 16 cells in a cargo car, 4 along, the floor, the roof and each wall one across (the director, the inbox, 12 Oct: "make it 15"; it was 1.5 m, 72 cells; note 634) |
 | A cell's growth | `growPerSecond` 0.006 + `growWithSize` 0.02 × its heat; the floor's cells × the cargo's growth (powder 1.6, chemicals 1.3, coal and timber 1.4) |
 | Catching | A cell at 0.5 or more heats each cell sharing an edge at 0.04 × its heat a second, ×2 upward (fire climbs) |
 | Burning out | A cell burns 0.01 × its heat of its fuel a second, charring as it goes; burnt out, it dies down at 0.05/s. Embers below 0.05 go out unless a neighbour is heating them |
-| Extinguisher | 3.5 m from the eye along the look; the cell hit cools 0.35/s, the cells round it 40% of that, and it stays wet (won't catch) for 3 s; 15 s of charge |
+| Extinguisher | 3.5 m from the eye along the look; the cell hit cools 2/s (`sprayPerSecond`; the director, 12 Oct: "extinguish far more of the fire"), the cells round it 40% of that, and it stays wet (won't catch) for 3 s; 15 s of charge |
 | Alight | When any cell reaches 0.35 (the commit, after the smoke) |
 | The car's fire | The mean of its cells: the explosion (powder car at 0.6), the cargo and car damage, the sound |
 | Jumping the coupling | A cell against an end wall at 0.8 for 15 s (chemicals ×2, coal and timber ×2 as fast), into the next car's near end |
 | Burns | Within 1.6 m of a burning cell's patch (feet to 1.8 m up), its heat × the falloff; the roof at half |
-| Left alone (goods) | Alight at 25 s, the roof caught by about 55 s, half the car by 70 s, the next car by 85 s; burnt out by about 6 min |
-| One extinguisher | Puts out a fire found in its first 40 s; not one left a minute (about 60% of the car alight) |
+| Left alone (goods) | At 1.5 m cells: alight at 25 s, the roof caught by about 55 s, half the car by 70 s, the next car by 85 s; burnt out by about 6 min. Not yet measured again at 3.5 m (note 634) |
+| One extinguisher | Puts out a car at full blaze in about 10.5 s, a little under two-thirds of its charge left, the one spraying it hardly burned (the director, 12 Oct: "from full blaze within 20 seconds"; `FireCellsTests`) |
 
 ---
 
@@ -633,22 +633,27 @@ Contracts pay on **delivered cargo that survives**. Nothing else. A contract is 
 | Tier | Value per delivered car |
 |---|---|
 | Local | 450 |
-| Frontier | 700 |
-| Dead lines | 1,100 |
-| Deep territory | 1,700 |
+| Frontier | 900 |
+| Dead lines | 5,500 |
+| Deep territory | 23,000 |
 
-**Running costs** — coal, ammunition, repairs — average **15% of gross.**
-**Expected loss** — roughly one car's cargo per run at competent play.
+*Note 636 (the director, the inbox, 12 Oct: "each successful run should help players towards earning and spending to upgrade so they can go further the next run when the difficulty goes up").* The train leaves empty (note 575) and a night earns what its one stop loads, and the harder yards load less: 2.7 car-loads on Local, 3.0 on Frontier, 1.5 on Dead lines, 0.9 in Deep territory (64 nights of four bots). So each tier's car-load is priced for a delivered night to net about **the tier's next car ÷ 1.5** (F.2): about 1,100 on Local, 2,650 on Frontier, 7,800 on Dead lines and 20,000 in Deep territory. (Was 450 / 700 / 1,100 / 1,700 a car, priced for full trains.)
+
+**Running costs** — coal, ammunition, repairs — are fixed sums, not a share: they came to 15% of gross at the old pay, and with the deaths' fees and less the mail they come to about **5% of gross** now.
+**Fees don't follow the pay.** A death's crew-loss fee and a creature's monster brigade fee are halves of the tier's **fee value** (450 / 700 / 1,100 / 1,700, run.json `economy.feeValue`), so a raise in the pay isn't a raise in what a death costs (GDD App. D).
+**Expected loss** is already out of the car-loads above: they're what came home.
 
 ### Net income by consist
 
-| Consist | Tier | Loaded | Gross | Net |
+| Consist | Tier | Car-loads home | Gross | Net |
 |---|---|---|---|---|
-| 3 | Local | 2 | 900 | **765** |
-| 6 | Frontier | 5 | 3,500 | **2,975** |
-| 10 | Frontier | 9 | 6,300 | **5,355** |
-| 15 | Dead lines | 14 | 15,400 | **13,090** |
-| 20 | Deep | 19 | 32,300 | **27,455** |
+| 3 | Local | 2 | 900 | **855** |
+| 6 | Frontier | 3.0 | 2,690 | **2,556** |
+| 10 | Frontier | 3.0 | 2,690 | **2,556** |
+| 15 | Dead lines | 1.5 | 8,305 | **7,890** |
+| 20 | Deep | 0.9 | 20,470 | **19,447** |
+
+A longer train doesn't earn more on the same tier: it carries home what the stop loads. It earns more by going further (F.4).
 
 ## F.2 Car costs
 
@@ -686,10 +691,12 @@ Armoured car conversion · second guard car (a **third gun**, but it costs a car
 
 | Phase | Consist | Tier | Runs |
 |---|---|---|---|
-| Early | 3–6 | Local | 1–8 |
-| Establishing | 6–10 | Frontier | 9–20 |
-| Committed | 10–15 | Dead lines | 21–38 |
-| Behemoth | 15–20 | Deep territory | 39–60 |
+| Early | 3–6 | Local | 1–9 |
+| Establishing | 6–10 | Frontier | 9–21 |
+| Committed | 10–15 | Dead lines | 21–40 |
+| Behemoth | 15–20 | Deep territory | 40–56 |
+
+*Note 636: `dt campaign sim`'s standard crew on F.1's nets (campaign.json `standardCrew`) reaches 6 cars on run 9, 10 on 21, 15 on 40 and 20 on 56.*
 
 **Roughly 55–60 successful runs to reach 20 cars**, which at 35 minutes average is around 33 hours of successful play — considerably more with failures. That's a healthy campaign length for the genre and leaves room for post-launch route and enemy additions without inflating the ceiling.
 

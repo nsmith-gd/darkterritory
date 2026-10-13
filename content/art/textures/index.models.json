@@ -7246,6 +7246,26 @@
     ]
   },
   {
+    "name": "hanger_0",
+    "diffuse": "models/hanger_0.png",
+    "spec": "models/hanger_0_s.png",
+    "normal": "models/hanger_0_n.png",
+    "size": 1024,
+    "tileMetres": null,
+    "tiling": false,
+    "family": "creature",
+    "alphaTest": false,
+    "sources": [
+      {
+        "generator": "tools/models/recipes/hanger.py",
+        "what": "the Hanger, modelled in tools/blender/hanger.py, its colour painted here",
+        "author": "Dark Territory",
+        "license": "CC0-1.0",
+        "attribution": "Dark Territory (modelled in tools/models from the texture library)"
+      }
+    ]
+  },
+  {
     "name": "headframe_0",
     "diffuse": "models/headframe_0.png",
     "spec": "models/headframe_0_s.png",
@@ -8329,6 +8349,26 @@
     ]
   },
   {
+    "name": "householder_0",
+    "diffuse": "models/householder_0.png",
+    "spec": "models/householder_0_s.png",
+    "normal": "models/householder_0_n.png",
+    "size": 1024,
+    "tileMetres": null,
+    "tiling": false,
+    "family": "creature",
+    "alphaTest": false,
+    "sources": [
+      {
+        "generator": "tools/models/recipes/householder.py",
+        "what": "the Householder, modelled in tools/blender/householder.py, its colour painted here",
+        "author": "Dark Territory",
+        "license": "CC0-1.0",
+        "attribution": "Dark Territory (modelled in tools/models from the texture library)"
+      }
+    ]
+  },
+  {
     "name": "husk_0",
     "diffuse": "models/husk_0.png",
     "spec": "models/husk_0_s.png",
@@ -9020,6 +9060,26 @@
         "path": "mini_texture/textures/fabric_canvas_diffuse.jpg",
         "license": "CC0-1.0",
         "attribution": "Mini Texture (CC0-1.0), via the library's wool"
+      }
+    ]
+  },
+  {
+    "name": "lodger_0",
+    "diffuse": "models/lodger_0.png",
+    "spec": "models/lodger_0_s.png",
+    "normal": "models/lodger_0_n.png",
+    "size": 1024,
+    "tileMetres": null,
+    "tiling": false,
+    "family": "creature",
+    "alphaTest": false,
+    "sources": [
+      {
+        "generator": "tools/models/recipes/lodger.py",
+        "what": "the Lodger, modelled in tools/blender/lodger.py, its colour painted here",
+        "author": "Dark Territory",
+        "license": "CC0-1.0",
+        "attribution": "Dark Territory (modelled in tools/models from the texture library)"
       }
     ]
   },
@@ -9989,6 +10049,26 @@
       {
         "generator": "tools/models/recipes/passenger.py",
         "what": "the Passenger, modelled over tools/blender/passenger.py",
+        "author": "Dark Territory",
+        "license": "CC0-1.0",
+        "attribution": "Dark Territory (modelled in tools/models from the texture library)"
+      }
+    ]
+  },
+  {
+    "name": "picker_0",
+    "diffuse": "models/picker_0.png",
+    "spec": "models/picker_0_s.png",
+    "normal": "models/picker_0_n.png",
+    "size": 1024,
+    "tileMetres": null,
+    "tiling": false,
+    "family": "creature",
+    "alphaTest": false,
+    "sources": [
+      {
+        "generator": "tools/models/recipes/picker.py",
+        "what": "the Pickers, modelled in tools/blender/picker.py, their colour painted here",
         "author": "Dark Territory",
         "license": "CC0-1.0",
         "attribution": "Dark Territory (modelled in tools/models from the texture library)"

@@ -293,6 +293,11 @@ public struct PlayerState
     public ulong Kit;
     /// <summary>The hotbar slot in hand, 0..<see cref="Player.Kit.Slots"/> − 1.</summary>
     public byte HeldSlot;
+    /// <summary>
+    /// Note 594: the slots holding a thing (a find, a toy, a lamp), a bit a slot; the host's (<see cref="Physics.Bodies"/>
+    /// keeps it with the things themselves), so a tool taken up or the wheel's step sees them on a predicting client too.
+    /// </summary>
+    public byte Pockets;
 
     public readonly bool Alive => Death == DeathCause.None;
     public readonly bool Has(PlayerFlags flag) => (Flags & flag) != 0;
