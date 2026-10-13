@@ -385,14 +385,15 @@ public sealed partial class LinesideProps
             foreach (var whole in together)
             {
                 // (Two boards saying the same thing hung together, the sim's limit and the plan's: the plan's isn't stood.)
+                // And a plan board whose words already stand within its reading back down the line (a bridge's plate at each
+                // end, both now facing the train coming) isn't stood again: the second would only stand in front of what's next.
                 var run = whole.Where((x, i) => x.Plan is null || !whole.Where((y, j) => j != i && (y.Plan is null || j < i))
-                    .Any(y => y.Type == x.Type && y.Text == x.Text)).ToList();
-                var line = LineOf(run[0].Edge)!;
-                // A board whose words already stand within its reading back down the line (a bridge's plate at each end,
-                // both now facing the train coming) isn't stood again: the second would only stand in front of what's next.
-                if (run.All(x => x.Plan is not null && _placed.Any(p => p.Edge == x.Edge && p.Type == x.Type && p.Text == x.Text
-                    && x.S - p.S >= -1e-9 && x.S - p.S <= (rules.Boards.GetValueOrDefault(x.Type)?.VisibleM ?? 150))))
+                    .Any(y => y.Type == x.Type && y.Text == x.Text)
+                    && !_placed.Any(p => p.Edge == x.Edge && p.Type == x.Type && p.Text == x.Text
+                        && x.S - p.S >= -1e-9 && x.S - p.S <= (rules.Boards.GetValueOrDefault(x.Type)?.VisibleM ?? 150))).ToList();
+                if (run.Count == 0)
                     continue;
+                var line = LineOf(run[0].Edge)!;
                 var sites = StandRun(run, line);
                 // A board moved to stand beside its twin (a bridge's far plate, moved back over the bridge to where it could
                 // stand) isn't stood twice.
