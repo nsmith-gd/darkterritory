@@ -20,7 +20,13 @@ namespace DarkTerritory.Sim.Physics;
 /// for a gun's ready rack (note 374), taken from a powder locker and carried up to the gun. A tool is one left on a crew
 /// locker's shelf (note 649): it's only ever there, its tool in <see cref="Body.Tools"/>; taken, it's back in a slot.
 /// </summary>
-public enum BodyKind : byte { Crate = 1, Lamp = 2, Ragdoll = 3, Cargo = 4, Radio = 5, Heavy = 6, Toy = 7, Loot = 8, Child = 9, Extinguisher = 10, RepairKit = 11, Powder = 12, Tool = 13 }
+/// <remarks>A beer and a sausage are the BBQ deck's (note 688): a beer from its cooler, a sausage off its grill, each used up
+/// in the hands as a healing find is (<see cref="Bodies.BeerHeals"/>, <see cref="Bodies.SausageHeals"/>).</remarks>
+public enum BodyKind : byte
+{
+    Crate = 1, Lamp = 2, Ragdoll = 3, Cargo = 4, Radio = 5, Heavy = 6, Toy = 7, Loot = 8, Child = 9, Extinguisher = 10, RepairKit = 11, Powder = 12, Tool = 13,
+    Beer = 14, Sausage = 15
+}
 
 /// <summary>
 /// What a toy sounds like while it's carried (GDD v1.4 §19, App. C.7): most are quiet; a squeaker, a music box and a wind-up
@@ -170,6 +176,9 @@ public sealed class Bodies
     /// morphine; note 272), 0 for anything else. The world sets it with the run's loot (<see cref="Run.Run.HealOf"/>).
     /// </summary>
     public Func<Body, int>? Heals { get; set; }
+    /// <summary>The BBQ deck's beer and sausage (note 688): what each gives back used (train.json composition.bbq).</summary>
+    public int BeerHeals { get; set; }
+    public int SausageHeals { get; set; }
     /// <summary>How long Use is held, standing, to use a healing find (loot.json <c>healing.useSeconds</c>).</summary>
     public double HealSeconds { get; set; } = 2;
     /// <summary>A player's full health (player.json <c>health</c>): a find isn't used on a player who's whole.</summary>
@@ -177,6 +186,11 @@ public sealed class Bodies
 
     /// <summary>Host: the health a find used up this tick gives <paramref name="playerId"/> (0 for none), taken once.</summary>
     public int TakeDose(int playerId) => _doses.Remove(playerId, out int amount) ? amount : 0;
+
+    readonly SortedSet<int> _drunk = [];
+
+    /// <summary>Whether this player finished a beer this tick (note 688): the world warms them for it.</summary>
+    public bool TakeDrink(int playerId) => _drunk.Remove(playerId);
 
     /// <summary>
     /// The radios are things (T41): only someone wearing one talks or hears on the radio. False until the train's
@@ -792,8 +806,12 @@ public sealed class Bodies
     bool Dose(in PlayerState s, in PlayerIntent intent, int playerId, TrainOnLine train, HandTuning? hand, Body? carried,
         bool use, bool usePressed, bool throwPressed)
     {
-        var find = carried is { Kind: BodyKind.Loot } && !throwPressed && s.Health < FullHealth && Heals?.Invoke(carried) > 0
-            && CrewActions.NearestInteractable(s, train, hand) is null ? carried : null;
+        // A beer or a sausage (note 688) is had whatever your health: it's a party.
+        bool party = carried is { Kind: BodyKind.Beer or BodyKind.Sausage };
+        // And anywhere on the deck, by its chairs, its cooler or its grill (whatever's nearest a Use would work), and sat down.
+        var near = CrewActions.NearestInteractable(s, train, hand)?.Thing.Kind;
+        var find = (party || carried is { Kind: BodyKind.Loot } && s.Health < FullHealth && Heals?.Invoke(carried) > 0) && !throwPressed
+            && (near is null || party && near is InteractableKind.Chair or InteractableKind.Cooler or InteractableKind.Grill) ? carried : null;
         bool had = _dosing.TryGetValue(playerId, out var was);
         if (had && (find is null || find.Id != was.Find))
         {
@@ -823,7 +841,14 @@ public sealed class Bodies
         find.MendTicks = still ? find.MendTicks + 1 : 0;
         if (find.MendTicks * Dt >= HealSeconds - Dt / 2)
         {
-            _doses[playerId] = _doses.GetValueOrDefault(playerId) + Heals!(find);
+            _doses[playerId] = _doses.GetValueOrDefault(playerId) + find.Kind switch
+            {
+                BodyKind.Beer => BeerHeals,
+                BodyKind.Sausage => SausageHeals,
+                _ => Heals!(find),
+            };
+            if (find.Kind == BodyKind.Beer)
+                _drunk.Add(playerId);
             _dosing.Remove(playerId);
             Remove(find);
         }

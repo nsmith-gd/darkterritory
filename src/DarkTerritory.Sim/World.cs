@@ -509,6 +509,13 @@ public sealed class World
     public void Stock()
     {
         MountExtinguishers();
+        // The BBQ deck (note 688): its cooler full, its grill cold, what a beer and a sausage give back.
+        var bbq = Train.Dynamics.Tuning.Composition.Bbq;
+        Bodies.BeerHeals = bbq.BeerHeals;
+        Bodies.SausageHeals = bbq.SausageHeals;
+        foreach (var v in Train.Vehicles)
+            if (v is not null && Bbq.On(Train, v.Id) is not null)
+                (v.Beers, v.Grill) = (bbq.Beers, 0);
         // The radios (T41, train.json kit): one on the cab floor against its back wall right of the middle, out of the reach
         // of a crewmate arriving in the cab and of all the work at its front (note 280), and against the plate over the
         // boiler's end, clear of the corridor in beside it (note 338); the rest in the guard van.
@@ -1453,14 +1460,23 @@ public sealed class World
         bool charging = Authority && gunTuning is { Rack: > 0 } && Bodies.CarriedBy(playerId) is { Kind: Physics.BodyKind.Powder } && Charging(s, gunTuning) is not null;
         var fetch = Authority && gunTuning is { Rack: > 0 } && Guns.AtLocker(s, Train, gunTuning) is not null && Guns.Stowed(Train, gunTuning) > 0
             ? Physics.BodyKind.Powder : (Physics.BodyKind?)null;
+        // The BBQ deck's cooler (note 688): empty hands at it, and there's a beer left, take one.
+        int? cooler = Authority && fetch is null && CrewActions.NearestInteractable(s, Train, Hand) is ({ Kind: InteractableKind.Cooler }, var coolerCar)
+            && Train.Vehicles[coolerCar].Beers > 0 ? coolerCar : null;
+        if (cooler is not null)
+            fetch = Physics.BodyKind.Beer;
         // Hands first: a Use press that picks something up (or puts it down) isn't also working a lever. Except at a switch's
         // lever, which takes Use whatever's in your hands (queue #94, note 357): the lamp you carried out to a stand stays lit
         // in your hand while you throw it, and a crate lying by it stays down.
         bool lever = Authority && Switches?.InReach(s, Train, Hand) is not null;
+        // Sitting down in a Muskoka chair or getting up (note 688): what's in your hands (a beer) stays there.
+        bool sitting = intent.Has(PlayerActions.Seat) && (s.Has(PlayerFlags.Lounging) || CrewActions.Nearest(s, Train, Hand) == InteractableKind.Chair);
         bool handsTookIt = Authority && Bodies.Handle(ref s, intent, playerId, Train, Hand,
-            keep: kit && (breaching || CrewActions.AtTheRupture(s, Train, Hand)) || charging, lever: lever, fetch: fetch);
+            keep: kit && (breaching || CrewActions.AtTheRupture(s, Train, Hand)) || charging || sitting, lever: lever, fetch: fetch);
         if (charging && gunTuning is not null)
             Charge(s, intent, playerId, gunTuning);
+        if (cooler is { } fromCooler && handsTookIt && Bodies.CarriedBy(playerId) is { Kind: Physics.BodyKind.Beer })
+            Train.Vehicles[fromCooler].Beers--;
         if (handsTookIt && Bodies.CarriedBy(playerId) is { Kind: Physics.BodyKind.Ragdoll } lifted)
             Physics.Bodies.TakeTools(ref s, lifted);
         // Searching an open house's hiding spot (note 326), empty-handed, with a Use the hands didn't take.
@@ -1474,6 +1490,9 @@ public sealed class World
         // A healing find used up in the hands this tick (GDD App. F.1; note 272): its health back, up to full.
         if (Authority && Bodies.TakeDose(playerId) is > 0 and var dose && s.Alive)
             s.Health = Math.Min(Bodies.FullHealth, s.Health + dose);
+        // A beer finished (note 688): it takes the edge off the cold.
+        if (Authority && Bodies.TakeDrink(playerId))
+            s.Cold = Math.Max(0, s.Cold - Train.Dynamics.Tuning.Composition.Bbq.BeerWarmth);
         // At the crane's controls, the stick drives the crane, not your feet (T48); taken and let go with a press of Use at
         // the stand (Crane.Operates). Worked out the same everywhere, so a client predicts standing still at the stand.
         bool operating = false;
@@ -1506,7 +1525,18 @@ public sealed class World
             // Note 619: the doors as they were, to say who opened one (only a Use works a door).
             var doors = Authority && intent.Buttons.HasFlag(PlayerButtons.Use) ? Train.Vehicles.Select(v => v.DoorsOpen).ToArray() : null;
             int partings = Train.Partings.Count;
+            int cooked = Train.Vehicles.Sum(v => v?.Cooked ?? 0);
             CrewActions.Apply(ref s, intent, Train, SimConstants.TickSeconds, Hand);
+            // A sausage off the BBQ deck's grill (note 688), into the cook's hands (or at their feet, hands full).
+            if (Authority && Train.Vehicles.Sum(v => v?.Cooked ?? 0) > cooked)
+            {
+                var sausage = Bodies.SpawnItem(PlayerMotor.WorldPosition(s, Train) + Double3.Up * 1.0, s.LineHint, Physics.BodyKind.Sausage);
+                if (Bodies.CarriedBy(playerId) is null)
+                {
+                    sausage.Carrier = playerId;
+                    sausage.Claimed = true;
+                }
+            }
             // Note 663: whose hand cut it, for the news.
             for (int i = partings; i < Train.Partings.Count; i++)
                 if (Train.Partings[i] is { Cause: Parting.Crew, Who: < 0 } cut)
@@ -1532,6 +1562,8 @@ public sealed class World
         // The gun's seat (T112): sat in or got up from, the view held to the gun's arc and the gun laid after it, before it fires.
         if (Combat is { } cs)
             Guns.Sit(ref s, intent, Train, cs.Guns, SimConstants.TickSeconds);
+        // A Muskoka chair on the BBQ deck (note 688): sat in with the same press, got up from with it again.
+        Bbq.Sit(ref s, intent, Train, LastCrew.Where(c => c.Id != playerId).Select(c => c.State), Hand);
         var targets = viewTick is { } vt && _targetHistory.TryGetValue(vt, out var then) ? then : Targets;
         if (Combat is { } c && Guns.TryFire(s, intent, Train, c.Guns, ref Choir, c.Choir, targets, Tick, playerId) is { } shot)
         {
@@ -1968,6 +2000,8 @@ public sealed class World
             if (Train.Boiler.FireDoorOpen && Train.Boiler.SinceShovel >= st.Stoker.FireDoorShutSeconds && CabEmptySeconds <= 0)
                 Train.Boiler.FireDoorOpen = false;
         }
+        // The BBQ deck's charcoal burning down (note 688), on every machine (the host's is what's sent).
+        Bbq.Burn(Train, SimConstants.TickSeconds);
         // Extinguishers left in their own car recharge, slowly (App. C.5).
         if (Authority && Enemies is { } ft)
             foreach (var b in Bodies.All)

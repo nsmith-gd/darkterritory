@@ -204,6 +204,9 @@ public static class Eyes
     /// </summary>
     public const double Seated = 1.56;
 
+    /// <summary>Sat back in a Muskoka chair on the BBQ deck (note 688): low, the line coming at you over your knees.</summary>
+    public const double Lounging = 1.05;
+
     /// <summary>
     /// Up in the crane's cab while at its controls (T48): looking along the gantry at the bridge and trolley, not down at the
     /// hook. Spec D.2: "the crane operator cannot see the ground crew", who have to call the position.
@@ -224,7 +227,7 @@ public static class Eyes
         double crouchDrop = 0)
     {
         var local = prev.Parent == cur.Parent ? Double3.Lerp(prev.Position, cur.Position, alpha) : cur.Position;
-        var eyeLocal = local + Double3.Up * (!cur.Alive ? 0.3 : cur.Has(PlayerFlags.Seated) ? Seated
+        var eyeLocal = local + Double3.Up * (!cur.Alive ? 0.3 : cur.Has(PlayerFlags.Seated) ? Seated : cur.Has(PlayerFlags.Lounging) ? Lounging
             : cur.Has(PlayerFlags.Crouched) && cur.Head <= 0 ? Height - crouchDrop : Height);
         bool onCar = cur.Parent != PlayerState.World && cur.Parent < frames.Count;
         var eye = onCar ? frames[cur.Parent].ToWorld(eyeLocal) : eyeLocal;

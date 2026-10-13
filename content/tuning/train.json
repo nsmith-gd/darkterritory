@@ -289,7 +289,20 @@
     // km/h: slowed for the junction as the crew would for a ground throw, but nobody steps down). The points still won't
     // move with a wheel on them.
     "switchThrower": false,
-    "thrower": { "reach": 200, "maxSpeed": 5 }
+    "thrower": { "reach": 200, "maxSpeed": 5 },
+    // The BBQ deck (ARCHITECTURE §8 note 688; the director, 13 Oct 2026: "an extended front car cow catcher that has a deck, a
+    // couple muskoka chairs that can be sat in, a plastic cooler with beers, and a BBQ mounted on a stand on the deck ... its
+    // the BBQ Dads at the end of the world"): fitted (campaign.json bbqDeck), a plank deck deckLength m long on a cowcatcher
+    // ahead of the engine's pilot, railed railHeight m high, as wide as the running boards, which run on forward along the
+    // cab's sides onto it. On it, two Muskoka chairs (sat in with Use, got up from with Jump or Use), a cooler with `beers`
+    // in it a night (Use takes one; Use held drinks it, as a healing find's used: a beer takes beerWarmth s off the cold and
+    // gives beerHeals), and a BBQ on a stand: Use held lightSeconds lights it, and it burns burnSeconds of charcoal; Use held
+    // at it lit cooks for grillSeconds and a sausage comes off into your hands (eaten the same way: sausageHeals). Lit, it
+    // warms whoever's within grillReach m (the cold recovers as at the firebox), and its heat and smell are a hot boiler's
+    // to the Cinder Hounds (enemies.json director.houndsHotBoilerWeight).
+    "bbqDeck": false,
+    "bbq": { "deckLength": 3.0, "railHeight": 1.0, "beers": 24, "beerWarmth": 30, "beerHeals": 0, "lightSeconds": 0.6, "burnSeconds": 300,
+      "grillSeconds": 6, "sausageHeals": 20, "grillReach": 2.0 }
   },
   // GDD §19 "medicine: fragile, high value" (note 182). A car of medicine takes the knocks the rest of the train shrugs off:
   // any contact (coupling, a collision, a buffer stop) closing faster than safeContactSpeed spoils it by

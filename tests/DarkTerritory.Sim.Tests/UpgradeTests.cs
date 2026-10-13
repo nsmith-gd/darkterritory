@@ -117,10 +117,10 @@ public class UpgradeTests
     public void TheCataloguesPricesKeepSpecF3sBands()
     {
         // Spec F.3: a small tool 15-25% of the next car, a major 100-180%. The whimsy sits under a tool; the silly may be
-        // priced past anything, which is its joke (note 678).
+        // priced past anything, which is its joke (note 678). A major whimsy (the BBQ deck, note 688) under a major tool.
         Assert.All(C.Upgrades.Where(u => u.Kind == UpgradeKind.Tool), u =>
             Assert.InRange(u.CostShare, u.Size == UpgradeSize.Small ? 0.15 : 1.0, u.Size == UpgradeSize.Small ? 0.25 : 1.8));
-        Assert.All(C.Upgrades.Where(u => u.Kind == UpgradeKind.Whimsy), u => Assert.InRange(u.CostShare, 0.01, 0.15));
+        Assert.All(C.Upgrades.Where(u => u.Kind == UpgradeKind.Whimsy), u => Assert.InRange(u.CostShare, 0.01, u.Size == UpgradeSize.Small ? 0.15 : 1.0));
         Assert.Contains(C.Upgrades, u => u.Kind == UpgradeKind.Silly && u.CostShare > 1.8);
     }
 

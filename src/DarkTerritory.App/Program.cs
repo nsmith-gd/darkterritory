@@ -987,7 +987,8 @@ CampaignState? Play(IPlaySession session, CampaignState? campaign)
             refitWanted = true;
         }
         return bought;
-    } : null;
+    }
+    : null;
     // Dave's words and his card (note 570): on this machine, as a town's are.
     var figureTalk = new FigureTalk();
     bool useKept = false;
@@ -1259,6 +1260,11 @@ CampaignState? Play(IPlaySession session, CampaignState? campaign)
         if (Hit(Control.Use) && !session.Player.Has(PlayerFlags.Seated) && session.World.Combat is { } gc
             && DarkTerritory.Sim.Combat.Guns.MannedGun(session.Player, session.Train, gc.Guns) is { } atGun && session.Train.Vehicles[atGun].Gun.ReloadNeeded <= 0
             && !Held(Control.Forward) && !Held(Control.Back) && !Held(Control.Left) && !Held(Control.Right))
+            pendingSeat = true;
+        // A Muskoka chair on the BBQ deck (note 688): Use pressed at one sits you in it (a beer in hand stays there), and pressed
+        // again with empty hands gets you up (the gun's seat's press, Bbq.Sit); sat with a beer, Use held drinks it.
+        if (Hit(Control.Use) && (session.Player.Has(PlayerFlags.Lounging) ? session.World.Bodies.CarriedBy(session.PlayerId) is null
+            : CrewActions.Nearest(session.Player, session.Train, session.World.Hand) == InteractableKind.Chair))
             pendingSeat = true;
         // The crane's controls (T48): Use pressed at its stand takes them, and pressed again lets them go (the director, 8 Oct:
         // "enter with E and exit with E, it shouldn't be a hold function"), the same press as the gun's seat (Crane.Operates).

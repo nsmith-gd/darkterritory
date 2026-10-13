@@ -730,6 +730,9 @@ public static partial class Hud
         BodyKind.Heavy => "AN END OF THE HEAVY CRATE",
         BodyKind.Ragdoll => "A BODY",
         BodyKind.Child => "THE CHILD",
+        // The BBQ deck's (note 688).
+        BodyKind.Beer => "A BEER",
+        BodyKind.Sausage => "A SAUSAGE",
         _ => "IT",
     };
 
@@ -2056,6 +2059,14 @@ public static partial class Hud
             : Hold("FILL THE RACK", carried.MendTicks * Sim.SimConstants.TickSeconds / combat.Guns.ChargeSeconds);
     }
 
+    /// <summary>The BBQ deck's beer or sausage in hand (note 688): had with Use held, as a healing find's used.</summary>
+    static string? PartyPrompt(Body carried) => carried.Kind switch
+    {
+        BodyKind.Beer => carried.MendTicks > 0 ? "DRINKING" : "DRINK : HOLD [E]",
+        BodyKind.Sausage => carried.MendTicks > 0 ? "EATING" : "EAT : HOLD [E]",
+        _ => null,
+    };
+
     public static string? HealPrompt(IPlaySession s, Body carried) =>
         CanHeal(s, carried) && carried.MendTicks > 0 && s.World.Run?.Healing is { } h
             ? $"USING IT ({Math.Min(1, carried.MendTicks * Sim.SimConstants.TickSeconds / h.UseSeconds) * 100:0}%)"
@@ -2201,7 +2212,7 @@ public static partial class Hud
             && SwitchPrompt(world, p, train, world.Hand) is null && HealPrompt(s, slotted) is null && TakePrompt(world, p, train, s.PlayerId) is { } another)
             return another;
         if (world.Bodies.CarriedBy(s.PlayerId) is { } inHands)
-            return PowderPrompt(s, inHands) ?? SwitchPrompt(world, p, train, world.Hand) ?? HealPrompt(s, inHands);
+            return PowderPrompt(s, inHands) ?? SwitchPrompt(world, p, train, world.Hand) ?? HealPrompt(s, inHands) ?? PartyPrompt(inHands);
         // T112: the gun's seat and its own controls.
         if (world.Combat is { } combat && Guns.MannedGun(p, train, combat.Guns) is { } manned)
         {
@@ -2234,6 +2245,9 @@ public static partial class Hud
                 : Repairs.WrenchKey(p) is var wrench and > 0 ? $"THE COUPLING'S LOOSE   WRENCH : [{wrench}]" : "THE COUPLING'S LOOSE   NO WRENCH";
         if (p.Parent > 0 && p.Parent < train.Frames.Count && train.Vehicles[p.Parent].Breached && PlayerMotor.Indoors(p, train))
             return "THE CAR'S BREACHED";
+        // Sat in a Muskoka chair on the BBQ deck (note 688): getting up is all there is to do.
+        if (p.Has(PlayerFlags.Lounging))
+            return "GET UP : [E]";
         var near = CrewActions.Nearest(p, train, hand);
         // T94: a ladder in reach, and the key that takes you onto it.
         if (PlayerMotor.LadderInReach(p, train, s.PlayerTuning))
@@ -2285,6 +2299,14 @@ public static partial class Hud
             // Spec F.3's powered switch thrower (note 196).
             case InteractableKind.Points when SwitchPrompt(world, p, train, hand) is { } cabLever:
                 return cabLever;
+            // The BBQ deck (note 688): a chair, the cooler, the grill.
+            case InteractableKind.Chair:
+                return "SIT : [E]";
+            case InteractableKind.Cooler:
+                return train.Vehicles[p.Parent].Beers is > 0 and var beers ? $"A BEER : [E]   {beers} LEFT" : "THE COOLER'S EMPTY";
+            case InteractableKind.Grill when train.Dynamics.Tuning.Composition.Bbq is var bbq:
+                return Bbq.Lit(train.Vehicles[p.Parent]) ? Hold("GRILL A SAUSAGE", p.ActionProgress / bbq.GrillSeconds)
+                    : Hold("LIGHT THE GRILL", p.ActionProgress / bbq.LightSeconds);
         }
         // A switch stand's lever (queue #94, note 357): Use is the lever's there, so it's offered before what's lying by it.
         if (SwitchPrompt(world, p, train, hand) is { } atStand)

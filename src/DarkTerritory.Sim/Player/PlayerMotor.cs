@@ -268,6 +268,11 @@ public enum PlayerFlags : ushort
     /// once let go and there's the headroom (<see cref="DarkTerritory.Sim.World.Crouching"/>).
     /// </summary>
     Crouched = 512,
+    /// <summary>
+    /// Sat in one of the BBQ deck's Muskoka chairs (note 688): still, low, looking down the line. Jump, or Use again, gets you
+    /// up. Not <see cref="Seated"/>, which is a gun's (the census, the Gannet and the bots read that as on the gun).
+    /// </summary>
+    Lounging = 1024,
 }
 
 /// <summary>
@@ -585,7 +590,7 @@ public static class PlayerMotor
                 speed = Math.Min(speed, p.CarryHeavy);
             if (s.Has(PlayerFlags.Pushing))
                 speed = Math.Min(speed, p.PushGun);
-            if (s.Has(PlayerFlags.Operating) || s.Has(PlayerFlags.Seated))
+            if (s.Has(PlayerFlags.Operating) || s.Has(PlayerFlags.Seated) || s.Has(PlayerFlags.Lounging))
                 speed = 0;
             var wish = WishDirection(s.Yaw, intent) * speed;
             // GDD §22 wind on a roof (note 201): a sideways push across the car, on top of where you're going.
@@ -596,6 +601,12 @@ public static class PlayerMotor
             {
                 if (intent.Has(PlayerButtons.Jump))
                     s.Flags &= ~PlayerFlags.Seated;
+            }
+            // Out of a Muskoka chair the same way (note 688): up, and a step forward out of it.
+            else if (s.Has(PlayerFlags.Lounging))
+            {
+                if (intent.Has(PlayerButtons.Jump))
+                    Bbq.GetUp(ref s);
             }
             else if (intent.Has(PlayerButtons.Jump) && !s.Has(PlayerFlags.Heavy) && !s.Has(PlayerFlags.Operating) && !crouched)
             {
@@ -810,7 +821,7 @@ public static class PlayerMotor
     /// <summary>Warm enough to recover: see <see cref="StepCold"/>.</summary>
     public static bool NearHeat(in PlayerState s, TrainOnLine train)
     {
-        if (BesideStove(s, train))
+        if (BesideStove(s, train) || Bbq.ByTheGrill(s, train))
             return true;
         int space = Space(s, train);
         if (space == Outside)

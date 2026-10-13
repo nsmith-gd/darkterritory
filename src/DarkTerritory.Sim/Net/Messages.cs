@@ -80,7 +80,10 @@ public static class Protocol
     //     after it), so every client walks into the same things.
     // 57: a third byte of buttons on every intent, after the voice level (note 664: crouch, and pushing the gun on its own key).
     // 58: the news (note 663): cars lost and the engine failing, with what did it, a record kind of its own.
-    public const int Version = 58;
+    // 59: the BBQ deck (note 688): the vehicle record carries its grill's charcoal and its cooler's beers (its 32nd and 33rd
+    //     fields; the fire cells after them), a beer and a sausage are body kinds of their own, and a crewmate sat in a
+    //     Muskoka chair is a player flag.
+    public const int Version = 59;
 }
 
 public enum MessageType : byte

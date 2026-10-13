@@ -46,7 +46,12 @@ public enum SurfaceKind : byte { Roof, Deck, Coupler }
 /// <summary>What a solid is, so presentation can draw and colour it. Collision ignores this, but for an open roof hatch (T99).</summary>
 /// <summary><see cref="CrewLocker"/> is one of the kit car's row of crew lockers (ARCHITECTURE §8 note 173); <see cref="Locker"/> the guard van's tool locker.</summary>
 /// <summary><see cref="Stove"/> and <see cref="Bunk"/> are a crew car's (note 184): its stove, and the berths down its right side.</summary>
-public enum PartKind : byte { Body, Chassis, Boiler, Stack, CabWall, CabRoof, Tender, Coupler, GunMount, Wall, Cargo, Locker, Steps, RunningBoard, Hatch, CrewLocker, Stove, Bunk, Firebox }
+/// <summary><see cref="BbqDeck"/>, <see cref="Rail"/>, <see cref="Cooler"/> and <see cref="Grill"/> are the BBQ deck's (note 688).</summary>
+public enum PartKind : byte
+{
+    Body, Chassis, Boiler, Stack, CabWall, CabRoof, Tender, Coupler, GunMount, Wall, Cargo, Locker, Steps, RunningBoard, Hatch, CrewLocker, Stove, Bunk, Firebox,
+    BbqDeck, Rail, Cooler, Grill
+}
 
 /// <summary>Where a gun is bolted on, and which way it faces in the car's frame (−Z forward, +Z back).</summary>
 /// <summary>
@@ -95,7 +100,11 @@ public readonly record struct Ladder(Double3 Foot, double Top, Double3 Inward, d
 /// <see cref="Whistle"/> is the whistle cord's handle (GDD §12; note 264): Use held there blows the engine's whistle, and
 /// only when it's looked at (<see cref="CrewActions.NearestInteractable"/>), so nobody pulls it reaching for the firebox.
 /// </remarks>
-public enum InteractableKind : byte { Firebox, Vent, Handbrake, Door, Coal, Sandbox, Hatch, ToolRack, Locker, Points, Whistle }
+/// <remarks>
+/// <see cref="Chair"/>, <see cref="Cooler"/> and <see cref="Grill"/> are on the BBQ deck (note 688): a Muskoka chair to sit in
+/// (<see cref="Interactable.Index"/> which), the cooler of beers, the BBQ on its stand.
+/// </remarks>
+public enum InteractableKind : byte { Firebox, Vent, Handbrake, Door, Coal, Sandbox, Hatch, ToolRack, Locker, Points, Whistle, Chair, Cooler, Grill }
 
 /// <summary>
 /// A thing a player uses by standing near it and holding Use. <see cref="Index"/> says which door. <see cref="Aim"/> is how
@@ -138,6 +147,12 @@ public readonly record struct LockerBay(int Index, Box Box, string Name)
     public Double3 Front => new(Facing > 0 ? Box.Max.X : Box.Min.X, Box.Min.Y, (Box.Min.Z + Box.Max.Z) / 2);
 }
 
+/// <summary>
+/// The BBQ deck's things in the engine's frame (note 688): each chair's seat (where its sitter's feet are; they face down
+/// the line, −Z), the cooler's middle and the grill's, on the deck; and the deck's front edge (Z).
+/// </summary>
+public sealed record BbqLayout(IReadOnlyList<Double3> Chairs, Double3 Cooler, Double3 Grill, double Front);
+
 /// <summary>A hinged door: solid while shut. <see cref="Index"/> is its bit in <see cref="Vehicle.DoorsOpen"/>.</summary>
 public readonly record struct Door(Box Box, int Index);
 
@@ -173,6 +188,8 @@ public sealed record CarShape(Box Bounds, IReadOnlyList<Solid> Solids, IReadOnly
     public const double HatchLookDegrees = 35;
     /// <summary>A crew car's stove (note 184), standing on its floor: the heat a crew car has of its own.</summary>
     public Box? Stove { get; init; }
+    /// <summary>The BBQ deck on the engine's front (note 688), where it's fitted: its chairs, its cooler and its grill.</summary>
+    public BbqLayout? Bbq { get; init; }
 
     public double HalfLength => Bounds.Max.Z;
     public double HalfWidth => Bounds.Max.X;
@@ -286,7 +303,53 @@ public sealed record CarShape(Box Bounds, IReadOnlyList<Solid> Solids, IReadOnly
     /// A car whose coupling behind is a Knotter (note 365): its plate gone, its body across the wider gap instead: a rope's
     /// width (<see cref="KnotWidth"/>) on the plate's line, from the car's end to the next car's, the same height.
     /// </summary>
-    public static CarShape Knotted(CarShape shape, GeometryTuning g, double knot)
+    public static CarShape Knotted(CarShape shape, GeometryTuning g, double knot) => KnottedShape(shape, g, knot);
+
+    /// <summary>
+    /// The engine with the BBQ deck on its front (ARCHITECTURE §8 note 688; the director, 13 Oct 2026: "an extended front car
+    /// cow catcher that has a deck, a couple muskoka chairs that can be sat in, a plastic cooler with beers, and a BBQ mounted
+    /// on a stand on the deck"): a plank deck <see cref="BbqTuning.DeckLength"/> m long ahead of the pilot, as wide as the
+    /// running boards and at their height, railed round its front and sides; the running boards run on forward along the
+    /// cab's sides onto it, the way out to it from the cab doorways, outside, at speed. The cooler and the grill are solid
+    /// (a walk round them); the chairs aren't (sat in, you're set in one). It lies beyond the engine's bounds, as the guard
+    /// van's rear platform does: the train's length is the train's (spec B.4).
+    /// </summary>
+    public static CarShape WithBbqDeck(CarShape shape, GeometryTuning g, BbqTuning bbq)
+    {
+        var e = g.Engine;
+        double w = g.RoofWidth / 2, l = shape.HalfLength, deck = e.DeckHeight, hw = w + e.RunningBoardWidth, front = -l - bbq.DeckLength;
+        double rail = bbq.RailHeight, post = 0.06;
+        var plan = EnginePlan.Of(g);
+        double boardFront = plan.DoorFront - e.RunningBoardAhead;
+        var solids = shape.Solids.ToList();
+        // The deck on its cowcatcher, and the running boards run on to it past the cab's front.
+        solids.Add(new(new Box(new Double3(-hw, deck - 0.15, front), new Double3(hw, deck, -l)), SurfaceKind.Deck, PartKind.BbqDeck));
+        foreach (int side in new[] { -1, 1 })
+        {
+            var (x0, x1) = side < 0 ? (-hw, -w) : (w, hw);
+            solids.Add(new(new Box(new Double3(x0, deck - 0.1, -l), new Double3(x1, deck, boardFront)), SurfaceKind.Deck, PartKind.RunningBoard));
+            // Its side rail, from the front back to a step short of the running board's way on.
+            solids.Add(new(new Box(new Double3(side < 0 ? -hw : hw - post, deck, front), new Double3(side < 0 ? -hw + post : hw, deck + rail, -l - 0.6)), SurfaceKind.Deck, PartKind.Rail));
+        }
+        solids.Add(new(new Box(new Double3(-hw, deck, front), new Double3(hw, deck + rail, front + post)), SurfaceKind.Deck, PartKind.Rail));
+        // The two chairs out front, facing down the line; the cooler between them; the grill on its stand back by the cab, on
+        // the left, clear of the right-hand board's way on and of the chairs.
+        double seatZ = front + 1.0;
+        Double3[] chairs = [new(-0.95, deck, seatZ), new(0.95, deck, seatZ)];
+        var cooler = new Double3(0, deck, seatZ - 0.05);
+        var grill = new Double3(-1.15, deck, -l - 1.2);
+        solids.Add(new(Box.FromCentre(cooler + new Double3(0, 0.22, 0), new Double3(0.3, 0.22, 0.2)), SurfaceKind.Deck, PartKind.Cooler));
+        solids.Add(new(Box.FromCentre(grill + new Double3(0, 0.5, 0), new Double3(0.35, 0.5, 0.28)), SurfaceKind.Deck, PartKind.Grill));
+        var interactables = shape.Interactables.ToList();
+        for (int i = 0; i < chairs.Length; i++)
+            interactables.Add(new(InteractableKind.Chair, chairs[i], 0.75, i, Aim: 0.45));
+        // The cooler's lid from behind it, and the grill from behind it, facing down the line.
+        interactables.Add(new(InteractableKind.Cooler, cooler + new Double3(0, 0, 0.55), 0.7, Aim: 0.45));
+        interactables.Add(new(InteractableKind.Grill, grill + new Double3(0, 0, 0.6), 0.75, Aim: 1.0));
+        return shape with { Solids = solids, Interactables = interactables, Bbq = new BbqLayout(chairs, cooler, grill, front) };
+    }
+
+    static CarShape KnottedShape(CarShape shape, GeometryTuning g, double knot)
     {
         double l = shape.HalfLength;
         var solids = shape.Solids.Where(s => s.Part != PartKind.Coupler).ToList();
