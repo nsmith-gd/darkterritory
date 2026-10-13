@@ -213,7 +213,7 @@ public sealed class Knotter(int id) : Enemy(id)
             return;
         var train = ctx.Train;
         if (ctx.World.Authority && Coupled(train, Attached))
-            train.Uncouple(Attached);
+            train.Uncouple(Attached, Parting.Knotter);
         if (Attached >= 0 && Attached < train.Vehicles.Count)
             train.Vehicles[Attached].Knot = 0;
         Slay(ctx, forTheNight: false);

@@ -280,6 +280,7 @@ public sealed class CarFire(int id) : Incident(id)
         }
         car.CargoIntegrity = Math.Max(0, car.CargoIntegrity - t.CargoPerSecond * Extra * dt);
         car.Integrity = Math.Max(0, car.Integrity - t.IntegrityPerSecond * Extra * dt);
+        car.Knock = (KnockCause.Fire, 0);
         Burn(ctx, grid, t, dt);
         Jump(ctx, grid, car, t, dt);
     }

@@ -111,7 +111,7 @@ public sealed class Passenger(int id) : Enemy(id)
                             {
                                 int ahead = train.VehicleAhead(rear);
                                 if (ahead >= 0)
-                                    train.Uncouple(ahead);
+                                    train.Uncouple(ahead, Parting.Passenger);
                                 train.Vehicles[rear].Taken = true;
                                 int victim = Holding;
                                 Enter(ctx, SpinePhase.Punish);
@@ -371,6 +371,7 @@ public sealed class Switchman(int id) : Enemy(id)
                         // Run through at a crawl: the points split, the engine's wrenched about and brought up short.
                         var front = train.Vehicles[engine.Consist.Vehicles[0].Id];
                         front.Integrity = Math.Max(0, front.Integrity - t.RunThroughDamage);
+                        front.Knock = (KnockCause.Points, v);
                         foreach (var rake in train.Rakes)
                             rake.Velocity = 0;
                     }
