@@ -69,7 +69,7 @@ public sealed partial class GameAudio
     /// <summary>Each tick: the listener's space into the mixer, and the drone on while the work's under way.</summary>
     void MixAround(World world, Listener listener)
     {
-        if (_reloadNow && _spaces!.Refresh())
+        if (_spaces!.Refresh())
             PrepareSpaces();
         Space = SpaceOf(world, listener.Position, ref _spaceHint, out _earRoom);
         if (SpaceOverride is { } staged)

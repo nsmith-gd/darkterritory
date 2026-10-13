@@ -33,6 +33,11 @@ public sealed record GunTuning(double RoundsPerSecond, double Range, double Trav
     /// <summary>Seconds of Use held at the gun per step.</summary>
     public double ReloadStepSeconds { get; init; } = 1.5;
     /// <summary>
+    /// A shot takes nothing from the gun's stock or rack (the director, 13 Oct evening, note 689: "let them fire and reload
+    /// as much as they want, infinite ammo"): the reload is the cost. False: the night's stock and the rack (note 374).
+    /// </summary>
+    public bool InfiniteAmmo { get; init; }
+    /// <summary>
     /// The engine's forward gun's whole traverse (note 596; the director's in-game notes, 9 Oct 2026: it should turn all the
     /// way round): 360 turns it the full circle, the short way. Unset, it's <see cref="TraverseDegrees"/> as every gun's.
     /// </summary>
