@@ -192,7 +192,10 @@ public enum SignState : byte { Intact, Fallen, Missing }
 
 /// <param name="Side">+1 right, −1 left of the direction of travel.</param>
 /// <param name="For">The demand or place it tells of.</param>
-public sealed record PlanSign(string Type, string Edge, double S, int Side, string Text, SignState State, bool Required, double? Value = null, string? For = null);
+/// <param name="To">Where along <paramref name="Edge"/> the distance it reads counts to (a facility's or junction's board, "0.5 KM"):
+/// a board stood elsewhere than <paramref name="S"/> says its own distance from there (note 684).</param>
+public sealed record PlanSign(string Type, string Edge, double S, int Side, string Text, SignState State, bool Required, double? Value = null, string? For = null,
+    double? To = null);
 
 /// <summary>A facility slot (§11.1) as handed to the POI generator.</summary>
 public sealed record PlanPoi(string Id, FacilityKind Type, string Name, string Junction, double S, int Side, PlanRange Approach, PlanRange Holding,
