@@ -133,6 +133,13 @@ public sealed partial class GameAudio
         public double Next;
     }
 
+    // The audio content's hot reload (the sounds, the mix, the spaces, the walls) is looked for once a second, not every
+    // frame: the bank's look lists the sounds' folder and reads every file's time (681 of them), which every frame was some
+    // 60,000 calls to the file system a second, a stall behind any scanner on Windows (note 666).
+    const double ReloadEverySeconds = 1;
+    double _sinceReload = ReloadEverySeconds;
+    bool _reloadNow;
+
     /// <summary>
     /// Call once per sim tick (or per frame with the frame's dt). <paramref name="exposed"/>: the listener is
     /// outside (roof, ladder, ground), so hears the wind. <paramref name="space"/>: the enclosed space they're
@@ -142,9 +149,14 @@ public sealed partial class GameAudio
     {
         _space = space;
         _time += dt;
-        if (_mix.Refresh())
-            Mixer.Mix = _mix.Value;
-        Bank.Refresh();
+        _reloadNow = (_sinceReload += dt) >= ReloadEverySeconds;
+        if (_reloadNow)
+        {
+            _sinceReload = 0;
+            if (_mix.Refresh())
+                Mixer.Mix = _mix.Value;
+            Bank.Refresh();
+        }
         Mixer.Listener = listener;
         MixAround(world, listener);
         var train = world.Train;
@@ -229,7 +241,8 @@ public sealed partial class GameAudio
 
     void HearWalls(World world)
     {
-        _walls?.Refresh();
+        if (_reloadNow)
+            _walls?.Refresh();
         _atADoor.RemoveWhere(v => v.Finished);
         var tuning = _walls?.Value ?? DefaultWalls;
         var ear = Mixer.Listener.Position;

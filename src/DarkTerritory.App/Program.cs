@@ -313,10 +313,13 @@ static AudioOut? Warn(string? error)
     Console.WriteLine($"audio: no output device ({error}); running silent");
     return null;
 }
-// Keep ~60 ms queued at the device; muted in the settings, it gets silence.
+// Keep ~80 ms queued at the device; muted in the settings, it gets silence. Fed from the frame (the mixer is the game
+// thread's), so it's topped up between the frame's long parts too (after the scene, after the upload): a frame that ran
+// past what was queued was an audible skip (note 666, the director, 13 Oct: "I'm getting audio skips"). A mixer on a
+// thread of its own is AU1's (#398).
 void FeedSpeaker()
 {
-    while (speaker is not null && speaker.QueuedSeconds < 0.06)
+    while (speaker is not null && speaker.QueuedSeconds < 0.08)
     {
         sound.Mixer.Volumes = frontEnd.Settings.Volumes;
         sound.Mixer.Render(audioBlock);
@@ -1517,6 +1520,7 @@ CampaignState? Play(IPlaySession session, CampaignState? campaign)
         scene.Fog = lighting;
         frameWatch.Mark("audio, hud");
         scene.Build(mesh, session.Train.Line, frames, session.Train.Dynamics.Distance, camera.Position);
+        FeedSpeaker();
         frameWatch.Mark("scene");
         // GDD v1.4 App. D.12: a bookmark that's due is drawn from its camera now, off screen, with what this machine has of
         // the world (everyone but whoever's eyes it is), and kept small for the run-end screen. Rare, so a stall's fine.
@@ -1593,6 +1597,7 @@ CampaignState? Play(IPlaySession session, CampaignState? campaign)
         if (vr is null)
         {
             renderer.Prepare(mesh, showHud || menuShown ? overlay : null);
+            FeedSpeaker();
             frameWatch.Mark("hud, upload");
             Present(camera, lighting);
             frameWatch.Mark("render, present");
