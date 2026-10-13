@@ -233,6 +233,12 @@ public sealed partial class Run
     FacilityTuning? _facilityTuning;
     // How long each loose cargo crate has lain still inside a cargo car.
     readonly Dictionary<int, double> _settling = new();
+    /// <summary>
+    /// Note 659 (the director, 13 Oct 2026: "we want the loot we put in the cars to persist once in there"): the crates loaded
+    /// and still lying in their car, by body: the car and the share of its load they are. A crate used to be taken out of the
+    /// world once it was loaded; now it stays where it was put, and it's unloaded again if it leaves.
+    /// </summary>
+    readonly Dictionary<int, (int Car, double Share)> _loaded = new();
 
     /// <summary>Lays out every facility's loading modules from the route. Host and clients both do this; the host runs them.</summary>
     public void EnableSites(FacilityTuning t, RailLine line)
@@ -493,11 +499,27 @@ public sealed partial class Run
                 s.HandAngle[0] = s.HandAngle[1] = null;
             }
 
-        // A crate put down (or thrown) inside a cargo car's walls, and lying still there, is loaded.
+        // A crate put down (or thrown) inside a cargo car's walls, and lying still there, is loaded: it stays where it lies (note
+        // 659), its share in the car's load for as long as it's there. Picked up, thrown out, carried off, blown up or its car
+        // gone, it's unloaded. One put back by a resumed night (Banked already) is in the saved load, and only kept track of.
         foreach (var b in world.Bodies.All.Where(b => b.Kind is Physics.BodyKind.Cargo or Physics.BodyKind.Heavy).ToList())
         {
-            bool stowed = b.Carrier < 0 && b.Parent > 0 && b.Parent < train.Vehicles.Count && train.Vehicles[b.Parent].Kind == VehicleKind.Cargo
-                && train.Vehicles[b.Parent].Load < 1 && train.Frames[b.Parent].Shape.Interior is { } room && room.Contains(b.Pbd.Particles[0].Position);
+            bool inside = b.Carrier < 0 && b.TakenBy < 0 && b.Parent > 0 && b.Parent < train.Vehicles.Count && train.Vehicles[b.Parent].Kind == VehicleKind.Cargo
+                && train.Frames[b.Parent].Shape.Interior is { } room && room.Contains(b.Pbd.Particles[0].Position);
+            if (b.Banked)
+            {
+                if (!_loaded.TryGetValue(b.Id, out var at))
+                {
+                    if (inside)
+                        _loaded[b.Id] = (b.Parent, 0);
+                    else
+                        b.Banked = false;
+                }
+                else if (!inside || at.Car != b.Parent)
+                    Unload(world, b.Id);
+                continue;
+            }
+            bool stowed = inside && train.Vehicles[b.Parent].Load < 1;
             double still = stowed ? _settling.GetValueOrDefault(b.Id) + dt : 0;
             if (still < t.Crates.SettleSeconds)
             {
@@ -505,10 +527,27 @@ public sealed partial class Run
                 continue;
             }
             var vehicle = train.Vehicles[b.Parent];
+            double was = vehicle.Load;
             vehicle.Load = Math.Min(1, vehicle.Load + (b.Kind == Physics.BodyKind.Heavy ? t.Crates.Heavy.LoadPerCrate : t.Crates.LoadPerCrate));
-            world.Bodies.Remove(b);
+            _loaded[b.Id] = (b.Parent, vehicle.Load - was);
+            b.Banked = true;
             _settling.Remove(b.Id);
         }
+        // Gone from the world (a powder keg gone up): its share goes with it.
+        foreach (int id in _loaded.Keys.Where(id => world.Bodies.All.All(b => b.Id != id)).ToList())
+            Unload(world, id);
+    }
+
+    /// <summary>A loaded crate (<see cref="_loaded"/>) out of its car: its share off the car's load, and it's a crate again.</summary>
+    void Unload(World world, int id)
+    {
+        if (_loaded.Remove(id, out var was) && was.Car < world.Train.Vehicles.Count)
+        {
+            var car = world.Train.Vehicles[was.Car];
+            car.Load = Math.Max(0, car.Load - was.Share);
+        }
+        if (world.Bodies.All.FirstOrDefault(b => b.Id == id) is { } body)
+            body.Banked = false;
     }
 
     PlayerIntent _craneIntent;
