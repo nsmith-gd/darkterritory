@@ -2993,6 +2993,9 @@ public sealed partial class ConductorBot(CrewCalls? calls = null, int member = 0
         // Note 367: the six of 8 Oct. Short of Tower Jaw's wreck; stood for a Hotbox or a Knotter, and coupled up after.
         if (ForTheSix(self, world, ref cruise) is { } six)
             return Work(self, train, six) with { Lamp = lamp };
+        // Note 653: the cars a dropped pin parted, ahead of the engine or behind it, gone for and coupled back on.
+        if (ForTheParted(self, world, cruise) is { } parted)
+            return Work(self, train, parted) with { Lamp = lamp };
         // Note 258: out of the cab breaking a crewmate out of a Holdout nobody else could, or back up into it after.
         if (_outToBreach && BreachAlone(self, world) is { } outBreaching)
             return outBreaching with { Lamp = lamp };
