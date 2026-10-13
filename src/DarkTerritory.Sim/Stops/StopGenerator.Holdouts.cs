@@ -162,6 +162,9 @@ public static partial class StopGenerator
     internal static Pt DoorOf(StopBuilding b, Pt towards)
     {
         var (x, y) = Plan.Local(towards, b);
+        // A prison car's door is in its side, as any car's (note 650: beside the track, the consist can be off its end).
+        if (b.Kind == BuildingKind.PrisonCar)
+            return Plan.World(b, 0, (y >= 0 ? 1 : -1) * (b.Width / 2 + 1.2));
         return Math.Abs(x) / b.Length > Math.Abs(y) / b.Width
             ? Plan.World(b, Math.Sign(x) * (b.Length / 2 + 1.2), 0)
             : Plan.World(b, 0, Math.Sign(y) * (b.Width / 2 + 1.2));
