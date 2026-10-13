@@ -207,6 +207,10 @@ public static partial class Hud
                 lines.AddRange(["PUT DOWN : [E]", "THROW : [RMB]"]);
             return (Called(world, carried), lines);
         }
+        // Note 649: at a crew locker with a tool in hand, Throw puts it on a shelf (the prompt's line is the locker's Use).
+        if (Kit.Held(p) is var tool && tool != Tool.None && Lockers.Holds(train, BodyKind.Tool) && Lockers.AtHand(p, train, world.Hand) is { } locker
+            && Lockers.FreeSlot(world.Bodies, train, locker.Car, locker.Bay.Index) >= 0)
+            return ($"THE {ToolName(tool)}", ["STOW : [RMB]"]);
         // T112: sat at the gun, its own controls.
         if (world.Combat is { } combat && p.Has(PlayerFlags.Seated) && Guns.MannedGun(p, train, combat.Guns) is { } manned)
         {

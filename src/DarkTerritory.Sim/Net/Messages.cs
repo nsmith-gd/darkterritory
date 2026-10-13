@@ -73,7 +73,8 @@ public static class Protocol
     // 52: the Pickers and the house creatures (notes 583–586, 592): five enemy kinds of their own.
     // 53: four shared slots (note 594): the player record's held slot carries the slots holding a thing over it, and the body
     //     record's locker field a thing's slot and whether it's put away.
-    public const int Version = 53;
+    // 54: a tool on a crew locker's shelf (note 649): a body kind of its own, its tool in the body record's ninth field.
+    public const int Version = 54;
 }
 
 public enum MessageType : byte

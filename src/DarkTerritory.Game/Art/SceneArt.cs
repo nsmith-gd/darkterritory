@@ -758,6 +758,8 @@ public sealed partial class SceneArt(Look look)
             Sim.Physics.BodyKind.RepairKit => props.Get("repair_kit") ?? Piece("prop-crate", () => PropKit.Crate(Look)),
             // A charge for a gun's rack (note 374): a powder bag from the shot locker.
             Sim.Physics.BodyKind.Powder => props.Get("powder_bag") ?? Piece("prop-crate", () => PropKit.Crate(Look)),
+            // A tool left on a locker's shelf (note 649): its own model, as it's drawn in hand.
+            Sim.Physics.BodyKind.Tool when ToolProp(Sim.Player.Kit.At(b.Tools, 0)) is { } tool => tool,
             // A village find as what it is (FindKit; the director, 8 Oct: finds that stand out by their texture).
             Sim.Physics.BodyKind.Loot when FindItem?.Invoke(b) is { } item => Piece($"find-{item}", () => FindKit.Find(Look, item, 0.15f)),
             Sim.Physics.BodyKind.Loot => Piece("prop-loot", () => PropKit.Loot(Look, 0.15f)),

@@ -522,7 +522,7 @@ public sealed class World
         {
             var p = b.Pbd.Particles[0];
             return new Campaign.ThingAboard(b.Kind, b.Parent, p.Position, p.Radius, b.Pbd.Friction, b.Pbd.Bounce, b.Yaw, b.Locker, b.Slot, b.Claimed,
-                b.Cargo, b.Owner, b.Home, b.Charge, b.Noise, b.Broken);
+                b.Cargo, b.Owner, b.Home, b.Charge, b.Noise, b.Broken, b.Tools);
         })];
 
     /// <summary>
@@ -551,6 +551,8 @@ public sealed class World
             b.Charge = t.Charge;
             b.Noise = t.Noise;
             b.Broken = t.Broken;
+            // A tool left on a locker's shelf (note 649) is which tool it is.
+            b.Tools = t.Tools;
             // A full shelf (the save's from a train with other lockers) leaves it where it lay: at its shelf, out of the way.
             if (t.Locker >= 0)
                 Bodies.Stow(b, Train, t.Car, t.Locker);

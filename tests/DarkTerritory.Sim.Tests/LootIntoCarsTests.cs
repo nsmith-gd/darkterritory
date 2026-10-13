@@ -93,7 +93,8 @@ public class LootIntoCarsTests
                     Use(world, ref s, Tap);
                     Wait(world, ref s, L.SettleSeconds + 1);
                     Assert.True(world.Bodies.CarriedBy(1) is null, $"car {f.Index} at ({x:0.0}, {z:0.0}): still in the hands");
-                    Assert.False(world.Bodies.All.Contains(body), $"car {f.Index} at ({x:0.0}, {z:0.0}): put down and never stowed");
+                    // At a crew locker the tap puts it on a shelf, where it stays and pays at the gates (note 649).
+                    Assert.True(!world.Bodies.All.Contains(body) || body.Stowed, $"car {f.Index} at ({x:0.0}, {z:0.0}): put down and never stowed");
                     tried++;
                 }
         }
@@ -198,6 +199,33 @@ public class LootIntoCarsTests
         Assert.Same(body, world.Bodies.CarriedBy(1));
         Use(world, ref s, Tap);
         Assert.Null(world.Bodies.CarriedBy(1));
+    }
+
+    [Fact]
+    public void AFindOnALockersShelfStaysThereAndPaysAtTheGatesWithItsCar()
+    {
+        // Note 649 (the director's `D1.5-loot-slots`: "a find in a crew locker stays there, on its shelf, and pays at the gates
+        // with the rest, like Lethal Company's ship. A locker lost with its car is lost"): stowed, it isn't cashed as one put down
+        // in the aisle is; it's counted at the gates if its car's still on the engine.
+        var (world, model) = AtAHalt();
+        var train = world.Train;
+        int car = World.RepairKitCar(train)!.Value;
+        var bay = train.Frames[car].Shape.Lockers.First(b => Lockers.FreeSlot(world.Bodies, train, car, b.Index) >= 0);
+        var s = new PlayerState { Parent = car, Position = new Double3(0, 1.1, 0), Surface = Surface.Deck, Health = Tuning.Player.Health };
+        var find = Carried(world, model, s);
+        Assert.True(world.Bodies.Stow(find, train, car, bay.Index));
+        double before = world.Run!.Scavenged;
+        Wait(world, ref s, L.SettleSeconds + 1);
+        Assert.Contains(find, world.Bodies.All);
+        Assert.True(find.Stowed);
+        Assert.Equal(before, world.Run.Scavenged);
+        double worth = world.Run.FindOf(find) is { } f ? f.Value : 0;
+        Assert.True(worth > 0);
+        var all = train.Vehicles.Select(v => v.Id).ToHashSet();
+        Assert.Equal(worth, world.Run.LockerFinds(world, all));
+        // Its car lost (not on the engine at the gates): it's lost with it.
+        all.Remove(car);
+        Assert.Equal(0, world.Run.LockerFinds(world, all));
     }
 
     static class Unsafe

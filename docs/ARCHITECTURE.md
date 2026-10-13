@@ -828,7 +828,7 @@ written here instead is moved out by `tools/coord/notes.py split`; the Coordinat
 - [646. The threat scales by the crew and by the train (D1, queue #376; the director, the inbox, 9 Oct, orchestrator.md §8 question 1: "Scale by…](notes/646.md)
 - [647. A long train: two threats each (D1, queue #377; the director, the inbox, 12 Oct, `D1-long-train-two-each`, "b"; with "Couplings never…](notes/647.md)
 - [648. The Stoker's hose in the cab (D1, queue #378; the director, the inbox, 12 Oct, `D1-stoker-hose-in-the-cab`, "b": "A hose fitting in the…](notes/648.md)
-- [649. The lockers hold what the slots let go (D1.5, queue #379; the director, the inbox, 12 Oct)](notes/649.md)
+- [649. The lockers hold what the slots let go: a tool left frees its slot, a find on a shelf pays at the gates (D1.5, queue #379; the director, the inbox, 12 Oct)](notes/649.md)
 - [651. The threat's scaling on the Creature Tweaker (D1, queue #381; the director, 12 Oct: "Let's get this all set up as a matrix so we can see…](notes/651.md)
 - [652. The director's roster from the Creature Tweaker (D1, queue #382; the director, on the Tweaker, the evening of 12 Oct, and "Measure my…](notes/652.md)
 - [653. Cars left behind after a parting are gone back for (D1.4, queue #383; D1's ask after #371)](notes/653.md)
