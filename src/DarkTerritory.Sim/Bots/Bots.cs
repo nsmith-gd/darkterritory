@@ -568,14 +568,24 @@ public sealed class RoofWalkerBot(int seed, ColdTuning? cold = null, StopHand? j
             }
             return self.Surface == Surface.Roof ? ReliefDriver.OffTheEngine(self, train) : KitRun.BackToTheTrain(self, train);
         }
+        // Note 655: a gunner's legs leave it to a walker while there's one alive. The gunner gives its legs only some of its
+        // turns: claimed on one, it held the claim at its gun, and nobody went (deepTerritory:7 seed 6, the train stood from
+        // 567 s till dawn).
+        if (Gunner && Crew.Any(c => c.Id != Me && c.State.Alive && c.Id != calls.Gunner(false) && c.Id != calls.Gunner(true)))
+        {
+            if (calls.Relief == Me)
+                calls.Relief = null;
+            return null;
+        }
         _cameForward = true;
         if (calls.Relief != Me)
         {
-            // Someone living's gone already: theirs.
-            if (calls.Relief is { } other && Crew.Any(c => c.Id == other && c.State.Alive))
+            // Someone living's gone already, and still saying so (note 655): theirs.
+            if (calls.Relief is { } other && Crew.Any(c => c.Id == other && c.State.Alive) && tick - calls.ReliefSaid <= SimConstants.TickRate)
                 return null;
             calls.Relief = Me;
         }
+        calls.ReliefSaid = tick;
         Relieving = true;
         if (PlayerMotor.InCab(self, train))
         {

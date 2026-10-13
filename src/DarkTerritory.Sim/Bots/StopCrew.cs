@@ -498,6 +498,12 @@ public sealed partial class CrewCalls
     /// Instant, like the claims: it's who goes where.
     /// </summary>
     public int? Relief { get; set; }
+    /// <summary>
+    /// The tick the walker gone forward last said so (note 655): a claim not said again for a second is nobody's. A gunner's
+    /// legs claimed it for a Climber in the cab with the driver, then stood at the gun, and with the driver dead nobody else
+    /// went (deepTerritory:7 seed 8, the train stood from 507 s till dawn).
+    /// </summary>
+    public uint ReliefSaid { get; set; }
 
     readonly int?[] _gunner = new int?[2];
     readonly bool[] _gunHeard = new bool[2];
@@ -1409,6 +1415,15 @@ public sealed class StopDriver(CrewCalls calls)
                         // still on its way to the stand throws nothing (note 550).
                         calls.Leave(true);
                         Begin(p.NearRake(train) is not null ? Leg.BackOut : Leg.Clear);
+                        return Hold(world);
+                    }
+                    // Note 655: set, but the cut never made and nobody to make it (deepTerritory:7 seed 7: the shunter grabbed off
+                    // the coupling by a Whistler after the points went over, and the train stood there till dawn with the other
+                    // three in the cab). Called off as above: the driver throws the points back itself (SetBackAlone), and on.
+                    if (set && !cut && (!calls.Has(StopJob.Shunter) && Waited > AloneAfter || Waited > HeldGiveUp))
+                    {
+                        calls.Leave(true);
+                        Begin(Leg.Clear);
                         return Hold(world);
                     }
                     // Everyone with a part aboard the engine's rake, or long enough waiting that someone isn't coming (kept off
