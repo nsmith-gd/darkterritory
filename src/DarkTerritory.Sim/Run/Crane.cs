@@ -300,7 +300,10 @@ public sealed class Crane
         bool fell = above > _t.DropAbove;
         if (car >= 0 && train.Vehicles[car] is { Kind: VehicleKind.Cargo } v && v.Load < 1)
         {
+            double was = v.Load;
             v.Load = Math.Min(1, v.Load + _t.LoadPerCasting);
+            // It lies in the car as itself (note 659), not in its heap.
+            v.Placed += v.Load - was;
             c.State = CastingState.Loaded;
             c.Car = car;
             c.At = train.Frames[car].ToLocal(landed);

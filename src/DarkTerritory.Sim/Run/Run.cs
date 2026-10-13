@@ -510,8 +510,14 @@ public sealed partial class Run
             {
                 if (!_loaded.TryGetValue(b.Id, out var at))
                 {
+                    // Put back by a resumed night: its share's in the car's saved load; it's a thing lying there again.
                     if (inside)
-                        _loaded[b.Id] = (b.Parent, 0);
+                    {
+                        var car = train.Vehicles[b.Parent];
+                        double share = Math.Min(car.Load - car.Placed, b.Kind == Physics.BodyKind.Heavy ? t.Crates.Heavy.LoadPerCrate : t.Crates.LoadPerCrate);
+                        car.Placed += Math.Max(0, share);
+                        _loaded[b.Id] = (b.Parent, Math.Max(0, share));
+                    }
                     else
                         b.Banked = false;
                 }
@@ -530,6 +536,7 @@ public sealed partial class Run
             double was = vehicle.Load;
             vehicle.Load = Math.Min(1, vehicle.Load + (b.Kind == Physics.BodyKind.Heavy ? t.Crates.Heavy.LoadPerCrate : t.Crates.LoadPerCrate));
             _loaded[b.Id] = (b.Parent, vehicle.Load - was);
+            vehicle.Placed += vehicle.Load - was;
             b.Banked = true;
             _settling.Remove(b.Id);
         }
@@ -545,6 +552,7 @@ public sealed partial class Run
         {
             var car = world.Train.Vehicles[was.Car];
             car.Load = Math.Max(0, car.Load - was.Share);
+            car.Placed = Math.Clamp(car.Placed - was.Share, 0, car.Load);
         }
         if (world.Bodies.All.FirstOrDefault(b => b.Id == id) is { } body)
             body.Banked = false;

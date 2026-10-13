@@ -1557,6 +1557,14 @@ static object Screenshot(TrainTuning t, string content, string[] args)
         foreach (var v in train.Vehicles.Where(v => v.Kind == VehicleKind.Cargo))
             v.Cargo = each[Math.Min(k++, each.Length - 1)];
     }
+    // --fill a[,b,...]: each cargo car's poured load, front to back, the last repeating (note 659: its heap, Solid.BoxIn).
+    if (Str(args, "--fill", "") is { Length: > 0 } fills)
+    {
+        var each = fills.Split(',').Select(x => double.Parse(x, System.Globalization.CultureInfo.InvariantCulture)).ToArray();
+        int k = 0;
+        foreach (var v in train.Vehicles.Where(v => v.Kind == VehicleKind.Cargo))
+            v.Load = Math.Clamp(each[Math.Min(k++, each.Length - 1)], 0, 1);
+    }
     // --stand n: close by branch n's switch stand, looking at its lever and lamp (--diverge: set for the branch).
     if (Opt(args, "--stand", -1) is var standIx and >= 0 && standIx < line.Branches.Count)
     {

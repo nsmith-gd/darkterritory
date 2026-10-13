@@ -838,10 +838,10 @@ public static class PlayerMotor
             // ballast beside the engine passes under (up to the cab steps, along to the points), and nobody bumps into.
             foreach (var solid in frame.Shape.Solids)
                 if (solid.Part != PartKind.RunningBoard && solid.Present(vehicle))
-                    local = Ceiling(local, solid.Box, p, ref ceiling);
+                    local = Ceiling(local, solid.BoxIn(vehicle), p, ref ceiling);
             foreach (var solid in frame.Shape.Solids)
                 if (solid.Part != PartKind.RunningBoard && solid.Present(vehicle))
-                    local = PushOut(local, solid.Box, p);
+                    local = PushOut(local, solid.BoxIn(vehicle), p);
             foreach (var door in frame.Shape.DoorList)
                 if (!vehicle.DoorOpen(door.Index))
                     local = PushOut(local, door.Box, p);
@@ -972,7 +972,7 @@ public static class PlayerMotor
             {
                 if (!solid.Present(vehicle))
                     continue;
-                var box = solid.Box;
+                var box = solid.BoxIn(vehicle);
                 double top = box.Max.Y;
                 if (!box.ContainsXZ(local) || local.Y > top + snap || local.Y < top - below)
                     continue;
