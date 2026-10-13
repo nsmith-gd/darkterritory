@@ -117,7 +117,9 @@ public class HudTests
         // At the controls looking at nothing (note 285): nothing at the crosshair; driving them is the corner's.
         s.Player = PlayerMotor.SpawnInCab(train, s.PlayerTuning);
         Assert.Null(Hud.Prompt(s));
-        Assert.Equal(s.Train.BoilerTuning?.SteamDrive == true ? "RELEASE BRAKE : [R]" : "REGULATOR UP : [R]", Hud.Hints(s).Lines[0]);
+        // Stood, the reverser first (note 664), then the controls.
+        Assert.Equal("THROW INTO REVERSE : [X]", Hud.Hints(s).Lines[0]);
+        Assert.Equal(s.Train.BoilerTuning?.SteamDrive == true ? "RELEASE BRAKE : [R]" : "REGULATOR UP : [R]", Hud.Hints(s).Lines[1]);
         s.Player = s.Player with { Health = 0, Death = DeathCause.Cold };
         Assert.Null(Hud.Prompt(s));
         Assert.Null(Hud.Hints(s).Head);
