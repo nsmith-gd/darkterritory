@@ -861,4 +861,5 @@ written here instead is moved out by `tools/coord/notes.py split`; the Coordinat
 - [677. Test reports in one file, in the game's folder (A1, queue #409; the director, 13 Oct 2026: "I want them stored as logs in the game folder…](notes/677.md)
 - [679. The Wakers' model (queue #411, C1; docs/design/creatures/wakers.md §8.3, note 588; the director, 13 Oct 2026: "propose some model designs…](notes/679.md)
 - [680. The gym's calls, from the director's run-through (A1, queue #412; GDD §34.1, App. F.5; the director, 13 Oct 2026, from inside the gym: "The…](notes/680.md)
+- [681. Grabs alone: Use is the struggle's, a chance at best, and the holder stays (A1, queue #413; GDD App. C.1, App. F.5; the director, 13 Oct…](notes/681.md)
 <!-- end of the notes index -->

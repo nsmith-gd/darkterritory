@@ -231,6 +231,7 @@ public sealed class Whistler(int id) : Enemy(id)
     double _stopped;
     bool _whistled;
     Double3 _nest;
+    int _gap = -1;
 
     public override EnemyKind Kind => EnemyKind.Whistler;
     public override PressureZone Zone => PressureZone.Flank;
@@ -309,6 +310,7 @@ public sealed class Whistler(int id) : Enemy(id)
                         if (ctx.LivingCrew().Any(o => o.Player.Id != p.Id && (o.World - w).Length <= t.PairRadius))
                             continue;
                         int side = train.Frames[Attached].ToLocal(w).X >= 0 ? 1 : -1;
+                        _gap = Attached;
                         // At a generated stop, the nest its layout has (level-design H.2, note 314); otherwise out from the gap.
                         var sites = CreatureSites.Of(ctx.World, Stops.LairKind.WhistlerNest, ctx.Tuning.Sites.Around).Select(s => s.At).ToList();
                         var (nest, run) = NestSite(train, gap, train.Frames[Attached].Right, side, t, sites);
@@ -424,10 +426,27 @@ public sealed class Whistler(int id) : Enemy(id)
         Enter(ctx, SpinePhase.Gone);
     }
 
-    /// <summary>Clubbed while carrying: it drops them and runs.</summary>
+    /// <summary>
+    /// Clubbed while carrying: it drops them and runs. Struggled free of alone, it drops them and is back in its gap, to
+    /// whistle again (App. C.1; the director, 13 Oct: "monsters like the whistler should not disappear entirely if I hold e
+    /// to escape"; note 681).
+    /// </summary>
     protected override void Rescued(EnemyContext ctx, int by)
     {
+        int victim = Holding;
         base.Rescued(ctx, by);
+        var train = ctx.Train;
+        if (by == victim && _gap >= 0 && _gap < train.Frames.Count && train.Dynamics.Consist.IndexOf(_gap) >= 0 && train.VehicleBehind(_gap) >= 0)
+        {
+            Attached = _gap;
+            Local = CrewSense.GapLocal(train, _gap);
+            Extra = 0;
+            Extra2 = 0;
+            _whistled = false;
+            _stopped = 0;
+            Enter(ctx, SpinePhase.Dormant);
+            return;
+        }
         Enter(ctx, SpinePhase.Gone);
     }
 }
