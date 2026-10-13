@@ -56,6 +56,8 @@ public abstract record Launch
     /// </summary>
     public sealed record CampaignNight(int Slot, int Contract, bool Resume, bool Host) : Launch
     {
+        /// <summary>The same night again from its yard, the train as the blacksmith's just fitted it (note 687).</summary>
+        public bool Refit { get; init; }
         /// <summary>
         /// The crew's bots (note 611; T89): the fortress board's CREW, or <c>--bots</c>. The host going on to the next night
         /// from the town (note 606) keeps them: the board's next contract carries the same.
@@ -106,7 +108,14 @@ public abstract record Launch
 public sealed record NightMenu(bool Hosting = true, int Others = 0, bool Campaign = false, bool Invites = false, string? JoinAt = null, bool Over = false,
     bool Yard = false);
 
-public enum Screen { Title, Slots, Fortress, Upgrades, QuickNight, Join, Settings, Controls, Host, Stores, Credits, Night, Leave, Profile, DeleteCrew, Mods, Crashed, Password }
+public enum Screen { Title, Slots, Fortress, Upgrades, QuickNight, Join, Settings, Controls, Host, Stores, Credits, Night, Leave, Profile, DeleteCrew, Mods, Crashed, Password, Smithy }
+
+/// <summary>
+/// The blacksmith's catalogue, open over the yard (ARCHITECTURE §8 note 687): who's selling, the crew's campaign as it stands
+/// (its scrip, its cars, what's fitted), and whether this player pays (the host owns the campaign and its wallet, spec E;
+/// otherwise <paramref name="Payer"/> is who to ask).
+/// </summary>
+public sealed record SmithyShop(string Smith, CampaignState State, bool CanBuy, string? Payer = null);
 
 /// <summary>A mod laid over the game (note 323), as the MODS screen lists it: the app's scan of what's installed.</summary>
 public sealed record InstalledMod(string Name, string Version, string? Description);
@@ -184,6 +193,12 @@ public sealed class FrontEnd
     public string? Message { get; private set; }
     /// <summary>The campaign open at the fortress.</summary>
     public CampaignState? Open { get; private set; }
+    /// <summary>The blacksmith's catalogue open over the yard (note 687), or null.</summary>
+    public SmithyShop? Smithy { get; private set; }
+    /// <summary>
+    /// The host's purchase at the forge (note 687): the app buys it on its own campaign, saves it, and fits it before the gate.
+    /// </summary>
+    public Func<string, Purchase>? SmithyBuy { get; set; }
     public Settings Settings { get; private set; }
     public EditionTuning Edition => _edition;
     /// <summary>
@@ -390,8 +405,9 @@ public sealed class FrontEnd
         // From the title there's nowhere to back out to.
         if (Screen != Screen.Title)
             Cue?.Invoke(UiCue.Back);
-        // In a night (note 292): Escape on the menu's first page closes it, as Escape opened it; the rest back up to it.
-        if (Night is not null && Screen == Screen.Night)
+        // In a night (note 292): Escape on the menu's first page closes it, as Escape opened it; the rest back up to it. The
+        // blacksmith's catalogue (note 687) is a first page of its own.
+        if (Night is not null && Screen is Screen.Night or Screen.Smithy)
         {
             CloseNight();
             return;
@@ -577,7 +593,7 @@ public sealed class FrontEnd
     public void Show(Screen screen)
     {
         // The in-night menu's pages are only there over a night (note 292).
-        if (screen is Screen.Night or Screen.Leave && Night is null)
+        if (screen is Screen.Night or Screen.Leave && Night is null || screen is Screen.Smithy && (Night is null || Smithy is null))
             screen = Screen.Title;
         if (screen is Screen.DeleteCrew && Open is null)
             screen = Screen.Slots;
@@ -634,12 +650,27 @@ public sealed class FrontEnd
             Selected = Math.Max(0, count - 1);
     }
 
+    /// <summary>
+    /// Opens the blacksmith's catalogue over the yard (note 687): Use held on the town's blacksmith. It's the in-night menu's
+    /// kind of page, the night going on behind it, and Escape or DONE shuts it.
+    /// </summary>
+    public void OpenSmithy(NightMenu night, SmithyShop shop)
+    {
+        _before ??= (Screen, Selected, Message);
+        Night = night;
+        Smithy = shop;
+        Message = null;
+        Show(Screen.Smithy);
+        Cue?.Invoke(UiCue.Select);
+    }
+
     /// <summary>Shuts the in-night menu (RESUME, or Escape on its first page): back to the night.</summary>
     public void CloseNight()
     {
         if (Night is null)
             return;
         Night = null;
+        Smithy = null;
         Editing = null;
         Capturing = null;
         if (_before is var (screen, selected, message))
@@ -992,6 +1023,7 @@ public sealed class FrontEnd
         Screen.Slots => [.. _saves.List().Select(x => SlotEntry(x.Slot, x.State)), BackTo(Screen.Title)],
         Screen.Fortress => FortressEntries(),
         Screen.Upgrades => UpgradeEntries(),
+        Screen.Smithy when Smithy is { } shop => SmithyEntries(shop),
         Screen.Stores => StoreEntries(),
         Screen.QuickNight =>
         [
@@ -1320,7 +1352,8 @@ public sealed class FrontEnd
         }
         if (_campaign.Stores is not null)
             list.Add(new(new("STORES", StoresLine(s.Stores), s.Current is null), () => { Show(Screen.Stores); return null; }));
-        list.Add(new(new("UPGRADES", null, s.Current is null), () => { Show(Screen.Upgrades); return null; }));
+        // Bought from the town's blacksmith, in the yard (note 687): here, what's on their shelves, to plan the night's buying.
+        list.Add(new(new("UPGRADES", "What the blacksmith sells. Buy it at their forge, in the yard."), () => { Show(Screen.Upgrades); return null; }));
         list.Add(new(new($"PLAY: {(_host ? "HOST FOR FRIENDS" : "ALONE")}", "Left and right to change."), () => { _host = !_host; return null; }, _ => _host = !_host));
         // Note 320 (note 33's "not yet": renaming a crew or deleting a slot was `dt campaign`'s alone).
         bool naming = Editing == TextField.CrewName;
@@ -1356,8 +1389,39 @@ public sealed class FrontEnd
     {
         if (Open is not { } s)
             return [BackTo(Screen.Fortress)];
+        // Note 687: bought from the town's blacksmith, not the menu; here it's to look at.
+        var list = CatalogueEntries(s, _ => () => { Message = "Buy it from the blacksmith, at the forge in the yard."; return null; });
+        list.Add(BackTo(Screen.Fortress));
+        return list;
+    }
+
+    /// <summary>The blacksmith's catalogue (note 687): the shelves as the menu's, bought on the host's word.</summary>
+    List<Entry> SmithyEntries(SmithyShop shop)
+    {
+        var list = CatalogueEntries(shop.State, u => () =>
+        {
+            if (!shop.CanBuy || SmithyBuy is not { } buy)
+            {
+                Message = $"The host keeps the crew's scrip: ask {shop.Payer ?? "them"} to buy it.";
+                return null;
+            }
+            var p = buy(u.Id);
+            if (p.Ok)
+                Smithy = shop with { State = p.State };
+            Message = p.Ok ? $"{u.Name}: fitted before the gate." : p.Refused;
+            return null;
+        });
+        list.Add(new(new("DONE", "Back to the yard."), () => { CloseNight(); return null; }, Back: true));
+        return list;
+    }
+
+    /// <summary>
+    /// The catalogue by what it's for (note 678), for <paramref name="s"/>: the tools first, then the rest of the shelves, each
+    /// with its line, and why one isn't for sale (a tier the train doesn't work yet, or a fitting it won't go with).
+    /// </summary>
+    List<Entry> CatalogueEntries(CampaignState s, Func<UpgradeDef, Func<Launch?>> select)
+    {
         var list = new List<Entry>();
-        // The catalogue by what it's for (note 678): the tools first, then the rest of the chandler's shelves.
         foreach (var kind in new[] { UpgradeKind.Tool, UpgradeKind.Whimsy, UpgradeKind.Fun, UpgradeKind.Silly })
         {
             var shelf = _campaign.Upgrades.Where(u => u.Kind == kind).ToList();
@@ -1374,11 +1438,9 @@ public sealed class FrontEnd
                 string label = owned ? $"{u.Name.ToUpperInvariant()}: OWNED"
                     : why is not null && Campaign.TierFor(_campaign, s.Cars) < u.FromTier ? $"{u.Name.ToUpperInvariant()}: {Name(u.FromTier)} AND ON"
                     : $"{u.Name.ToUpperInvariant()}: {cost:0}";
-                list.Add(new(new(label, why is null ? detail : $"{why}.", !owned && why is null),
-                    () => Buy(Campaign.BuyUpgrade(_campaign, s, u.Id), $"{u.Name} bought.")));
+                list.Add(new(new(label, why is null ? detail : $"{why}.", !owned && why is null), select(u)));
             }
         }
-        list.Add(BackTo(Screen.Fortress));
         return list;
     }
 
@@ -1582,6 +1644,8 @@ public sealed class FrontEnd
             Screen.Fortress or Screen.Upgrades or Screen.Stores when Open is { } s =>
                 $"{CrewName(s).ToUpperInvariant()}{(s.Town is { } town ? $" IN {town.Name.ToUpperInvariant()}" : "")}: {s.Cars} CARS, {s.Scrip:0} SCRIP, NIGHT {s.Runs + 1}, {Name(Campaign.TierFor(_campaign, s.Cars))}",
             Screen.Upgrades => "UPGRADES",
+            // Note 687: who's selling, and what the crew has to spend.
+            Screen.Smithy when Smithy is { } shop => $"{shop.Smith.ToUpperInvariant()}, BLACKSMITH: TRAIN UPGRADES. {shop.State.Scrip:0} SCRIP",
             Screen.QuickNight => "QUICK NIGHT",
             Screen.Join => "JOIN",
             Screen.Password when _locked is { } locked => $"{locked.Name.ToUpperInvariant()} IS PRIVATE",
@@ -1606,7 +1670,12 @@ public sealed class FrontEnd
         }
         if (Screen == Screen.Upgrades)
         {
-            o.Text(x, y, "UPGRADES COST A SHARE OF THE NEXT CAR", Faint);
+            o.Text(x, y, "BOUGHT FROM THE BLACKSMITH, AT THE FORGE IN THE YARD", Faint);
+            y += 10;
+        }
+        if (Screen == Screen.Smithy && Smithy is { } selling)
+        {
+            o.Text(x, y, selling.CanBuy ? "A SHARE OF THE NEXT CAR. FITTED BEFORE THE GATE" : $"THE HOST PAYS: ASK {(selling.Payer ?? "THEM").ToUpperInvariant()}", Faint);
             y += 10;
         }
         if (Screen == Screen.Stores)

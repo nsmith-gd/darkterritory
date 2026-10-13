@@ -427,6 +427,8 @@ LobbyId? Invited(NetPlaySession? net)
 bool menuOpened = false;
 // Note 604: after a delivered campaign night, the town the crew arrived in, behind the front end in place of the stand-in yard.
 TownBackdrop? inTown = null;
+// The blacksmith's fitted something in the yard (note 687): the night's hosted again from its yard, the train as it's fitted.
+bool refitting = false;
 bool QuitNow() => quitAfter > 0 && timer.Elapsed.TotalSeconds >= quitAfter;
 
 // The town the crew's in behind the menus and the loading card (notes 604, 606): built into the mesh, the view and light its.
@@ -736,6 +738,18 @@ while (!window.CloseRequested && !QuitNow())
     inTown = (leaving is Launch.CampaignNight && campaign?.Town is not null || following is not null) && delivered
         && session.Route is { } arrivedOn && session.World.Arrival is { } arrival
         ? new TownBackdrop(arrivedOn, session.Train, session.World.Run, arrival, session.World.Town) : null;
+    // Note 687: the blacksmith's refit. The crew's told, as for the next night (note 606), and follows the host back into the
+    // same yard, the train as it's now fitted.
+    if (refitting && leaving is Launch.CampaignNight && session is NetPlaySession { Host: not null } refitHost)
+    {
+        refitHost.CarryOn(DarkTerritory.Sim.Towns.TownAt.Split(refitHost.Setup.Route ?? "").From
+            ?? new DarkTerritory.Sim.Towns.TownAt(session.World.Town?.Plan.Name ?? "the fortress", "", 0));
+        for (var told = Stopwatch.StartNew(); told.Elapsed.TotalSeconds < NetPlaySession.CarryOnSeconds;)
+        {
+            window.PumpEvents();
+            Thread.Sleep(15);
+        }
+    }
     // Note 606: the host's going on from the town; its crew's told, and given a moment to hear it before it hangs up.
     if (leaving is Launch.CampaignNight && delivered && campaign?.Town is { } goingOn && session is NetPlaySession { Host: not null } goingHost)
     {
@@ -769,6 +783,14 @@ while (!window.CloseRequested && !QuitNow())
         fromCommandLine = false;
         continue;
     }
+    // Note 687: the same night again from its yard, fitted (its contract's the campaign's Current: Resume takes it).
+    if (refitting && leaving is Launch.CampaignNight refitted)
+    {
+        refitting = false;
+        launch = refitted with { Resume = true, Refit = true };
+        continue;
+    }
+    refitting = false;
     // Note 606: after the host, to its next night, on the town's card over the town (no menu in between).
     if (following is not null)
     {
@@ -801,9 +823,12 @@ return 0;
     // Note 604: a campaign night from the town the crew's in is that town's card: its name, the night ahead; a joiner
     // following its host (note 606) has the same card, the host picking the night meanwhile.
     bool follow = chosen is Launch.Follow;
+    // Note 687: the blacksmith's fitting the train, and it's the same yard again.
+    bool refit = chosen is Launch.CampaignNight { Refit: true } or Launch.Follow { Going.Refit: true };
     string? town = chosen switch
     {
         Launch.CampaignNight { Resume: false } from => saves.Load(from.Slot)?.Town?.Name,
+        Launch.CampaignNight { Refit: true } fitting => saves.Load(fitting.Slot)?.Town?.Name ?? "the yard",
         Launch.Follow after => after.Going.Town.Name,
         _ => null,
     };
@@ -818,7 +843,7 @@ return 0;
         // Note 350: with FIRST NIGHTS on, the night's tip under it (a new one each of the player's nights).
         if (town is not null)
         {
-            var (heading, under) = TownBackdrop.Card(town, null, follow);
+            var (heading, under) = TownBackdrop.Card(town, null, follow, refit);
             Onboarding.DrawLoading(overlay, UiWidth, UiHeight, heading, under + dots, Onboarding.Tip(onboarding, frontEnd.Settings, nightsOver));
         }
         else
@@ -947,6 +972,22 @@ CampaignState? Play(IPlaySession session, CampaignState? campaign)
     // Talking and reading in the fortress town (note 281): on this machine alone. A press the town took isn't sent to the
     // host while the key's still down (nothing in a town changes the night; a lamp at somebody's feet stays where it is).
     var townTalk = new TownTalk();
+    // The blacksmith (note 687): how long Use's been held on them (-1: their catalogue's been opened by this hold), and whether
+    // something's been bought to fit. The host's purchase is the campaign's, saved at once; the yard's hosted again to fit it.
+    double smithHeld = 0;
+    bool refitWanted = false;
+    var smithy = campaignTuning.Upgrades.Length > 0 ? DataFile.Load<DarkTerritory.Sim.Towns.TownTuning>(Path.Combine(content, DarkTerritory.Sim.Towns.TownTuning.File)).Smithy : null;
+    frontEnd.SmithyBuy = net is { Host: not null } && campaign is not null ? id =>
+    {
+        var bought = Campaign.BuyUpgrade(campaignTuning, campaign!, id);
+        if (bought.Ok)
+        {
+            campaign = bought.State;
+            saves.Save(campaign);
+            refitWanted = true;
+        }
+        return bought;
+    } : null;
     // Dave's words and his card (note 570): on this machine, as a town's are.
     var figureTalk = new FigureTalk();
     bool useKept = false;
@@ -1107,6 +1148,13 @@ CampaignState? Play(IPlaySession session, CampaignState? campaign)
                     profile.Record(session.World.Commendations, net.PlayerId);
                 break;
             }
+            // The blacksmith's done (note 687): what was bought is fitted, the yard hosted again with it.
+            if (frontEnd.Night is null && refitWanted)
+            {
+                window.TextInput = false;
+                refitting = true;
+                break;
+            }
             // RESUME, or Escape on the menu's first page: back in the night, the mouse its again.
             if (frontEnd.Night is null)
             {
@@ -1180,6 +1228,32 @@ CampaignState? Play(IPlaySession session, CampaignState? campaign)
             useKept = true;
         if (!Held(Control.Use))
             useKept = false;
+        // The blacksmith (note 687): Use held on them opens their catalogue over the yard. Only a campaign night's yard sells.
+        if (!inMenu && smithy is not null && Held(Control.Use) && TownTalk.Selling(session) && session.World.TownOf(session.Player) is { } forgeTown
+            && Hud.TownTarget(session) is { Kind: DarkTerritory.Sim.Towns.TownTargetKind.Person } smithT && TownTalk.IsSmith(forgeTown.Plan.People[smithT.Index]))
+        {
+            if (smithHeld >= 0 && (smithHeld += dt) >= smithy.HoldSeconds)
+            {
+                smithHeld = -1;
+                var smith = forgeTown.Plan.People[smithT.Index];
+                var stock = campaign ?? (net is not null ? Campaign.New(campaignTuning, 0, "", 1) with
+                {
+                    Cars = net.Setup.Cars,
+                    Scrip = net.Setup.Scrip,
+                    Upgrades = net.Setup.Upgrades,
+                } : null);
+                if (stock is not null)
+                {
+                    townTalk.Close();
+                    frontEnd.OpenSmithy(NightNow(), new SmithyShop(smith.Name, stock, frontEnd.SmithyBuy is not null, "the host"));
+                    window.MouseCaptured = false;
+                    window.CaptureOnClick = false;
+                    inMenu = true;
+                }
+            }
+        }
+        else if (!Held(Control.Use))
+            smithHeld = 0;
         // The gun's seat (T112): Use pressed standing still at a loaded gun sits you in it (Use held at one waiting on its
         // reload loads it, walking with it pushes it). Seated, Jump gets you up.
         if (Hit(Control.Use) && !session.Player.Has(PlayerFlags.Seated) && session.World.Combat is { } gc

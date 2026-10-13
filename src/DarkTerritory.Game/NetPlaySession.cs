@@ -79,6 +79,11 @@ public sealed record SessionSetup(string? Route = null, string Line = "test-loop
     /// </summary>
     [System.Text.Json.Serialization.JsonIgnore(Condition = System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingDefault)]
     public bool CampaignNight { get; init; }
+    /// <summary>
+    /// The crew's scrip as the night was hosted (note 687): what the blacksmith's catalogue shows a joiner (the host owns the
+    /// wallet, spec E, so only the host buys).
+    /// </summary>
+    public double Scrip { get; init; }
     /// <summary>The host's line's fingerprint: a joiner whose own generated line differs (another generator version) is refused.</summary>
     public string? PlanPrint { get; init; }
     /// <summary>The host's terrain's fingerprint (linegen plan §17.3): a joiner whose ground comes out differently is refused.</summary>
@@ -941,10 +946,12 @@ public sealed class NetPlaySession : IPlaySession, IDisposable
     public const double CarryOnSeconds = 0.5;
 
     /// <summary>Who a joiner dials to follow its host to the next night (note 606): the same host, the same way, with the run's key.</summary>
-    public sealed record Following(Func<ITransport> Dial, byte[]? Key, string? Left, Sim.Towns.TownAt Town);
+    /// <param name="Fitted">How many upgrades the night left had (note 687): a refit's night is the same route, fitted with one more.</param>
+    /// <param name="Refit">The host left the yard for the blacksmith's refit (note 687), not for the next night.</param>
+    public sealed record Following(Func<ITransport> Dial, byte[]? Key, string? Left, Sim.Towns.TownAt Town, int Fitted = 0, bool Refit = false);
 
     /// <summary>A joiner told its host is going on (note 606), with a host to dial: whom, and from which town; else null.</summary>
-    public Following? GoingOn => Host is null && Redial is { } dial && Client.CarryingOn is { } town ? new Following(dial, Client.PasswordKey, Setup.Route, town) : null;
+    public Following? GoingOn => Host is null && Redial is { } dial && Client.CarryingOn is { } town ? new Following(dial, Client.PasswordKey, Setup.Route, town, Setup.Upgrades.Count, World.Run is { Over: false }) : null;
 
     /// <summary>
     /// The crew goes on together (note 606), a joiner's end: dials the host it followed until the host's next night welcomes
@@ -961,7 +968,8 @@ public sealed class NetPlaySession : IPlaySession, IDisposable
             try
             {
                 var joined = Connect(content, going.Dial(), "the host", null, whileWaiting, going.Dial, going.Key);
-                if (joined.Setup.Route != going.Left)
+                // The next night's a new route; the blacksmith's refit (note 687) is the same one with an upgrade more.
+                if (joined.Setup.Route != going.Left || joined.Setup.Upgrades.Count != going.Fitted)
                     return joined;
                 joined.Dispose();
             }

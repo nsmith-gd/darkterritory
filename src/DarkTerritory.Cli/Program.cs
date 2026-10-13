@@ -2956,8 +2956,12 @@ static (DarkTerritory.Game.FrontEnd Menu, DarkTerritory.Game.Screen Screen) Demo
         reports.Write(new InvalidOperationException("the boiler burst"), new DateTime(2026, 10, 8, 3, 15, 22));
         menu.Crash = DarkTerritory.Game.CrashReports.Unseen(reports.Directory);
     }
-    if (screen is DarkTerritory.Game.Screen.Fortress or DarkTerritory.Game.Screen.Upgrades or DarkTerritory.Game.Screen.Stores or DarkTerritory.Game.Screen.DeleteCrew)
+    if (screen is DarkTerritory.Game.Screen.Fortress or DarkTerritory.Game.Screen.Upgrades or DarkTerritory.Game.Screen.Stores or DarkTerritory.Game.Screen.DeleteCrew
+        or DarkTerritory.Game.Screen.Smithy)
         menu.ShowFortress((int)Opt(args, "--slot", 1));
+    // --menu smithy (note 687): the blacksmith's catalogue over the yard, the slot's campaign (--joined: a joiner's, who asks the host).
+    if (screen == DarkTerritory.Game.Screen.Smithy && menu.Open is { } stock)
+        menu.OpenSmithy(new(Yard: true), new DarkTerritory.Game.SmithyShop("Archie MacNeil", stock, !args.Contains("--joined"), "the host"));
     // --menu night|leave (note 292): the in-night menu over a night hosted on the network for --others n (3), or with
     // --joined, someone else's.
     if (screen is DarkTerritory.Game.Screen.Night or DarkTerritory.Game.Screen.Leave)
