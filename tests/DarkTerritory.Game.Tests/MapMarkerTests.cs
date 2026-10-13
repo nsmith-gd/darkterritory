@@ -52,4 +52,24 @@ public class MapMarkerTests
             Assert.True(Math.Abs(pencil - tick) * line.Length <= 60, $"{l.Name}: ticked {(tick - pencil) * line.Length:0} m from the train there");
         }
     }
+
+    [Theory]
+    [InlineData("frontier:7")]
+    [InlineData("deepTerritory:2")]
+    [InlineData("deadLines:3")]
+    public void TheMapAndTheCardPrintABendsNumberAndNothingElse(string name)
+    {
+        // Note 671 (the director, 13 Oct: "we just show the number. We don't say or off rails or any text there"): the
+        // board's own painted figure, digits only, and red where it'd have you off.
+        var route = Routes.Generate(Content, name, 6);
+        var line = route.Build();
+        var bends = PostedSpeeds.Of(route.Plan!, line, line.PathLength(RailLine.MainPath));
+        Assert.NotEmpty(bends);
+        foreach (var (_, _, kmh, why) in bends)
+        {
+            string figure = PostedSpeeds.Figure(kmh);
+            Assert.True(figure.All(char.IsAsciiDigit), $"\"{figure}\" for a {why ?? "bend"}");
+            Assert.Equal(why != "BRASS", PostedSpeeds.Derails(why));
+        }
+    }
 }

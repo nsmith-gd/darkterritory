@@ -80,6 +80,11 @@ public abstract record Launch
     /// </summary>
     public sealed record Wishlist(uint App, string Url) : Launch;
     /// <summary>
+    /// A developer tool's own night (a developer build's, note 514), by name: the creature gym (GDD §34.1, note 676). Only a
+    /// developer build offers one (<see cref="FrontEnd.DevEntries"/>), and only its hooks start it.
+    /// </summary>
+    public sealed record DevTool(string Name) : Launch;
+    /// <summary>
     /// A report to the studio (note 452): the player's mail program on <paramref name="MailTo"/> (a mailto: link with the
     /// subject and a summary filled in), and <paramref name="Folder"/> in the file browser beside it, to attach the report.
     /// The menu stays up.
@@ -203,6 +208,11 @@ public sealed class FrontEnd
     /// </summary>
     public IReadOnlyList<InstalledMod> InstalledMods { get; set; } = [];
     public IReadOnlyList<string> ModProblems { get; set; } = [];
+    /// <summary>
+    /// A developer build's own lines on the title screen (note 514), above QUIT: the creature gym's (GDD §34.1, note 676). A
+    /// player's build sets none.
+    /// </summary>
+    public IReadOnlyList<(string Label, string Hint, Launch Launch)> DevEntries { get; set; } = [];
     /// <summary>Started with <c>--no-mods</c>: the mods are listed, and the base game is what's playing.</summary>
     public bool ModsOff { get; set; }
     /// <summary>
@@ -929,6 +939,9 @@ public sealed class FrontEnd
             Cue?.Invoke(UiCue.Move);
     }
 
+    /// <summary>Alt+Enter (note 672): a window to the whole screen or back, kept like any other setting.</summary>
+    public void AltEnter() => Change(Settings.AltEnter());
+
     void Change(Settings settings)
     {
         Settings = settings;
@@ -973,6 +986,7 @@ public sealed class FrontEnd
             new(new("PROFILE", "What your crews have commended you for."), () => { Show(Screen.Profile); return null; }),
             .. InstalledMods.Count + ModProblems.Count > 0 ? [new Entry(new("MODS", ModsLine()), Go(Screen.Mods))] : (Entry[])[],
             new(new("CREDITS", "Whose work is in the game: the opera, the models, the sounds, the code."), () => { Show(Screen.Credits); return null; }),
+            .. DevEntries.Select(d => new Entry(new(d.Label, d.Hint), () => d.Launch)),
             new(new("QUIT"), () => new Launch.Quit()),
         ],
         Screen.Slots => [.. _saves.List().Select(x => SlotEntry(x.Slot, x.State)), BackTo(Screen.Title)],
@@ -1077,7 +1091,10 @@ public sealed class FrontEnd
             new(new($"CONTROL HINTS: {(Settings.ControlHints ? "ON" : "OFF")}", "The keys in the corner for what you're holding or driving."),
                 Toggle(s => s with { ControlHints = !s.ControlHints }), _ => Change(Settings with { ControlHints = !Settings.ControlHints })),
             // T83: the display.
-            new(new($"DISPLAY: {(Settings.Fullscreen ? "FULLSCREEN" : "WINDOWED")}"), Toggle(s => s with { Fullscreen = !s.Fullscreen }), _ => Change(Settings with { Fullscreen = !Settings.Fullscreen })),
+            // Note 672: WINDOWED, BORDERLESS or FULLSCREEN (exclusive); Alt+Enter anywhere, a window or the whole screen.
+            new(new($"DISPLAY: {Settings.Display.ToString().ToUpperInvariant()}", "Left and right to change. Alt+Enter in the game as well."),
+                Toggle(s => s with { Display = Settings.Cycle(Enum.GetValues<DisplayMode>(), s.Display, 1) }),
+                by => Change(Settings with { Display = Settings.Cycle(Enum.GetValues<DisplayMode>(), Settings.Display, by) })),
             new(new($"RESOLUTION: {Settings.Resolution}", "Left and right to change."), Toggle(s => s with { Resolution = Settings.Cycle(Settings.Resolutions, s.Resolution, 1) }),
                 by => Change(Settings with { Resolution = Settings.Cycle(Settings.Resolutions, Settings.Resolution, by) })),
             new(new($"RENDER SCALE: {Settings.RenderScale * 100:0}%", "Draws the scene smaller and scales it up: faster, softer."), Toggle(s => s with { RenderScale = Settings.Cycle(Settings.RenderScales, s.RenderScale, 1) }),

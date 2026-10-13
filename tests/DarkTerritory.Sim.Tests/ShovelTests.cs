@@ -16,7 +16,8 @@ public class ShovelTests
     static World World()
     {
         var line = new RailLine(new LineDefinition("t", [new TrackSegment(50_000)]));
-        return new World(new TrainOnLine(new TrainDynamics(Consist.Uniform(Tuning.Train, 3, 1)), line, 1_000, Tuning.Boiler));
+        // The rule on (note 664 took it off in boiler.json): these pin how it works when it is.
+        return new World(new TrainOnLine(new TrainDynamics(Consist.Uniform(Tuning.Train, 3, 1)), line, 1_000, Tuning.Boiler with { ShovelInHand = true }));
     }
 
     /// <summary>
@@ -52,7 +53,8 @@ public class ShovelTests
         // player.json: everyone's crowbar, and a wrench (note 301: it's the repair tool). The shovel isn't anyone's: it starts
         // the night home, on the cab's rack.
         Assert.Equal(Kit.Of([Tool.Crowbar, Tool.Wrench]), Tuning.Player.StartingKit);
-        Assert.True(Tuning.Boiler.ShovelInHand);
+        // Note 664 (the director, 13 Oct: "We shouldn't need a tool to do that"): coal goes on by hand, the shovel's a club.
+        Assert.False(Tuning.Boiler.ShovelInHand);
         Assert.False(World().Train.Boiler.ShovelOut);
     }
 
