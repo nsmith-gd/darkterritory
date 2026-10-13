@@ -125,14 +125,17 @@ public static class FlagKit
         {
             float f = i / (float)(Bones - 1);
             // Hanging: the fly falls toward the pole, more the further out; lifted, it streams out nearly level.
-            float droop = t.Droop * (1 - lift) * MathF.Pow(f, 0.8f) + 0.08f * lift * f;
+            // (Slack, it still stirs: the hang swings a little on its own slow breath.)
+            float droop = t.Droop * (1 - lift) * MathF.Pow(f, 0.8f) * (1 + 0.1f * MathF.Sin(s * 1.1f + f * 1.5f)) + 0.08f * lift * f;
+            // Flying, it billows up and down as well as side to side, the wave a little behind the snake.
+            float billow = t.Flutter * lift * f * MathF.Sin(f * t.Waves * MathF.Tau - s * pace + 0.9f);
             // The ripple runs out from the hoist (phase back along the chain), nothing at the pole, widest at the fly.
             float phase = f * t.Waves * MathF.Tau - s * pace;
             float snake = ripple * f * MathF.Sin(phase);
             // A lift and fall across it as the wave passes, and the fly's flick.
             float roll = 0.12f * lift * f * MathF.Sin(phase + 1.1f);
             float flick = f > 0.75f ? 0.15f * (0.3f + lift) * MathF.Sin(s * pace * 1.7f + seed) * (f - 0.75f) * 4 : 0;
-            var r = Matrix4x4.CreateRotationX(roll) * Matrix4x4.CreateRotationY(snake + flick) * Matrix4x4.CreateRotationZ(-droop) * turn;
+            var r = Matrix4x4.CreateRotationX(roll) * Matrix4x4.CreateRotationY(snake + flick) * Matrix4x4.CreateRotationZ(billow - droop) * turn;
             var pose = r with { Translation = at };
             skin[i] = Matrix4x4.CreateTranslation(-seg * i, 0, 0) * pose;
             // The next bone a segment on along this one.

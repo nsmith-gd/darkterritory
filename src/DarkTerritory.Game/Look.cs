@@ -117,8 +117,9 @@ public sealed record WindTuning
 /// <summary>
 /// A town's flag in the wind (queue #405, note 674; the director, 13 Oct: "it needs to be waving if it's going to be
 /// there"): its cloth (m), the wind (m/s) it starts to lift in and streams out flat by, how far its fly hangs down when
-/// there's none (rad, at the fly), how far it snakes side to side (rad at the fly, calm to full), how fast the ripple
-/// runs out along it (rad/s, calm to full) and how many waves are on it at once.
+/// there's none (rad, at the fly), how far it snakes side to side (rad at the fly, calm to full) and billows up and down
+/// in its own plane (rad at the fly, flying), how fast the ripple runs out along it (rad/s, calm to full) and how many
+/// waves are on it at once.
 /// </summary>
 public sealed record FlagTuning
 {
@@ -126,12 +127,13 @@ public sealed record FlagTuning
     public float Height { get; init; } = 1.2f;
     public float LiftFrom { get; init; } = 1.5f;
     public float LiftFull { get; init; } = 10f;
-    public float Droop { get; init; } = 1.35f;
-    public float Ripple { get; init; } = 0.16f;
-    public float RippleFull { get; init; } = 0.42f;
-    public float Pace { get; init; } = 1.4f;
+    public float Droop { get; init; } = 1.9f;
+    public float Ripple { get; init; } = 0.22f;
+    public float RippleFull { get; init; } = 0.6f;
+    public float Flutter { get; init; } = 0.22f;
+    public float Pace { get; init; } = 2.2f;
     public float PaceFull { get; init; } = 10f;
-    public float Waves { get; init; } = 1.3f;
+    public float Waves { get; init; } = 1.6f;
 
     /// <summary>How far out of its hang the flag's lifted in a wind of <paramref name="speed"/> m/s, 0 (slack) to 1 (flying flat).</summary>
     public float Lift(float speed)

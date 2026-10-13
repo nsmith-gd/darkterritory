@@ -59,6 +59,18 @@ public static partial class Staging
     /// hall's door; "gate" by the gatekeeper, looking back down the yard; "street" out on the track side, the square across
     /// the train.
     /// </summary>
+    /// <summary>
+    /// Side on to a flag flying from its <paramref name="hoist"/> in look.json's wind (blowing away from its <c>from</c>,
+    /// −0.7, 0, −0.4): a little below it and across the wind, so the cloth's face is seen, not its edge (note 674).
+    /// </summary>
+    static Ballast.Render.Camera FlagAcrossTheWind(Double3 hoist)
+    {
+        var down = new Double3(0.7, 0, 0.4).Normalized;
+        var across = new Double3(-down.Z, 0, down.X);
+        var middle = hoist + down * 0.9 - Double3.Up * 0.5;
+        return Ballast.Render.Camera.LookAt(middle + across * 6.5 - Double3.Up * 1.4, middle, 50);
+    }
+
     public static Ballast.Render.Camera TownCamera(Sim.Towns.Town town, string where)
     {
         var plan = town.Plan;
@@ -104,6 +116,14 @@ public static partial class Staging
                     => Ballast.Render.Camera.LookAt(town.World(lane.S + 45, -side * 20, 55), town.World(lane.S, -side * 70, 0), 66),
                 _ => Ballast.Render.Camera.LookAt(town.World(mid + 30, st.D, 1.7), town.World(mid - 40, st.D, 1.6), 72),
             };
+        }
+        // The town's flag (note 674): from across the square, up at it on its pole; "flagclose", nearer, the cloth filling the view.
+        if (where is "flag" or "flagclose" && plan.Fixtures.FirstOrDefault(f => f.Kind == "flag") is { } flag)
+        {
+            double top = Sim.Towns.TownFixtures.Size("flag").Height;
+            return where == "flag"
+                ? Ballast.Render.Camera.LookAt(town.World(flag.S + 13, flag.D + side * 4, 1.7), town.World(flag.S, flag.D, top - 2.0), 62)
+                : FlagAcrossTheWind(town.World(flag.S, flag.D, top - 0.9));
         }
         // The quiet house by the gate, the council house in the square, a small town's far wall (note 353).
         if (where is "quiet" or "council" or "farwall")
