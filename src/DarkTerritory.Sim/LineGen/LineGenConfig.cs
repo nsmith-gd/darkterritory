@@ -338,6 +338,8 @@ public sealed record BoardDef(string Text, double HeightM, double WidthM, double
     public int Side { get; init; }
     /// <summary>It stands where the plan puts it (a km post marks its km): never moved, and the billboards keep clear of it instead.</summary>
     public bool Fixed { get; init; }
+    /// <summary>How far its bottom stands over the land at its foot at least (m), if not billboard.overGroundM (0): a km post low, under the eye line.</summary>
+    public double OverGroundM { get; init; }
 }
 
 /// <summary>Mirror of signage.json's <c>billboard</c> (note 560): field docs live in that file.</summary>
@@ -346,7 +348,8 @@ public sealed record BillboardRules
     public int Side { get; init; } = -1;
     public double StackM { get; init; } = 60;
     public double StackGapM { get; init; } = 0.5;
-    public double StackMaxM { get; init; } = 20;
+    public double StackMaxM { get; init; } = 24;
+    public double PostClearM { get; init; } = 20;
     public double InnerM { get; init; } = 4.5;
     public double PostsFromM { get; init; } = 6.5;
     public double OverGroundM { get; init; } = 2.5;
@@ -355,7 +358,7 @@ public sealed record BillboardRules
     public double EyeM { get; init; } = 3.2;
     public double EyeAcrossM { get; init; } = 1.1;
     public IReadOnlyList<double> CabBlindDeg { get; init; } = [8.6, 14.2, -35.3, -32];
-    public double ClearFromM { get; init; } = 150;
+    public double ClearFromM { get; init; } = 250;
     public double ReadToM { get; init; } = 40;
     public double SightStepM { get; init; } = 15;
     public double SeenShare { get; init; } = 0.75;
