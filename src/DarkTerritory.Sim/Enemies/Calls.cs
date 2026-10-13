@@ -95,6 +95,44 @@ public static class Calls
                     world.AddEnemy(i => TrackDoll.Ahead(i, train, ahead, t.TrackDoll));
                     return train.Dynamics.Speed < 0.3 ? "on the rail ahead: a standing train answers her as she shows, so be moving when you call her" : "on the rail ahead";
                 }
+            // What couldn't be tried at a standing train (the director's run-through, 13 Oct, GDD App. F.5) comes so it can be.
+            case EnemyKind.CinderHound:
+                {
+                    // Close behind the rear car, to come up and board it: a standing train's pack runs only at its closing
+                    // speed, so from the rule's 180 m back it never got there.
+                    var h = t.CinderHounds;
+                    int pack = world.NextEnemyId;
+                    int size = Math.Clamp(AsCrew, h.PackSize[0], h.PackSize[^1]);
+                    double rear = train.Dynamics.RearDistance;
+                    for (int n = 0; n < size; n++)
+                    {
+                        int k = n;
+                        world.AddEnemy(i => new CinderHound(i, pack)
+                        {
+                            LineDistance = rear - min - k * 6,
+                            Lateral = (k % 2 == 0 ? 1 : -1) * (3 + k % 3),
+                            Height = 0.6,
+                            Health = h.Health,
+                        });
+                    }
+                    return "close behind the rear car: they board it, and go for whoever's out on the train (climb up to meet them)";
+                }
+            case EnemyKind.TippyToesie:
+                world.AddEnemy(i => TippyToesie.Hiding(i, t.TippyToesie));
+                return $"hidden: stand still and alone {t.TippyToesie.IdleSeconds:0} s and it comes up behind you; turn and it runs";
+            case EnemyKind.Dragger:
+                {
+                    // Under the roof's edge of the car nearest you, on your side, along where you are: the panel names it, as
+                    // it waits unseen for whoever walks that edge.
+                    int car = NearestCar(world, you);
+                    if (car < 0)
+                        return "no car for it to wait under";
+                    var shape = train.Frames[car].Shape;
+                    var local = train.Frames[car].ToLocal(you);
+                    int side = local.X < 0 ? -1 : 1;
+                    world.AddEnemy(i => Dragger.Under(i, train, car, side, Math.Clamp(local.Z, -shape.HalfLength, shape.HalfLength)));
+                    return $"waiting under car {car}'s {(side < 0 ? "left" : "right")} roof edge, unseen: walk that roof along that edge";
+                }
             case EnemyKind.TowerJaw:
                 return Tower(world, you, max, t);
             case EnemyKind.Grumbler:
@@ -217,7 +255,7 @@ public static class Calls
                 return run.Facilities[i].Facility == Route.FacilityKind.CoalingTower ? "gnawing the coaling tower's leg" : "gnawing the stop's crane's leg";
             // The nearest standing structure is past the gym's reach: it doesn't come.
             jaw.Dismiss();
-            return $"the nearest crane or tower is {off:0} m off: past the gym's {max:0} m";
+            return $"the nearest crane or tower is {off:0} m off, past the gym's {max:0} m: walk towards it and call again";
         }
         return "no coaling tower or crane standing on this line";
     }
@@ -237,7 +275,7 @@ public static class Calls
                     continue;
                 int on = stacked[0];
                 if (Flat(crane.Castings[on].At - you) > max)
-                    return $"the nearest castings are {Flat(crane.Castings[on].At - you):0} m off: past the gym's {max:0} m";
+                    return $"the nearest castings are {Flat(crane.Castings[on].At - you):0} m off, past the gym's {max:0} m: walk towards them and call again";
                 var at = crane.Castings[on].At;
                 world.AddEnemy(n => Grumbler.OnCrates(n, at + Double3.Up * 0.8, on, t.Grumbler));
                 return "gnawing the castings by the crane: leave it be, or hit it";
@@ -266,7 +304,7 @@ public static class Calls
             return kind == EnemyKind.Householder ? "no open house with its things in it" : "every open house is taken";
         var house = houses[0];
         if (Flat(house.Middle - you) > max)
-            return $"the nearest open house is {Flat(house.Middle - you):0} m off: past the gym's {max:0} m";
+            return $"the nearest open house is {Flat(house.Middle - you):0} m off, past the gym's {max:0} m: walk towards the village and call again";
         world.AddEnemy<Enemy>(i => kind switch
         {
             EnemyKind.Lodger => Lodger.In(i, house, walls, t.Lodger),
@@ -283,6 +321,14 @@ public static class Calls
         var train = world.Train;
         return train.Dynamics.Consist.Vehicles.Where(v => v.Id > 0 && (!interior || train.Frames[v.Id].Shape.Interior is not null))
             .OrderByDescending(v => Flat(train.Frames[v.Id].Origin - you)).Select(v => v.Id).DefaultIfEmpty(-1).First();
+    }
+
+    /// <summary>The car (not the engine or tender) nearest you, or -1.</summary>
+    static int NearestCar(World world, Double3 you)
+    {
+        var train = world.Train;
+        return train.Dynamics.Consist.Vehicles.Where(v => v.Id > 0 && !v.IsEngine)
+            .OrderBy(v => Flat(train.Frames[v.Id].Origin - you)).Select(v => v.Id).DefaultIfEmpty(-1).First();
     }
 
     /// <summary>A body lying off the train that nothing's come for, or null.</summary>
