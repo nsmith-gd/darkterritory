@@ -287,10 +287,12 @@ def mourning(f):
     rock, sway, wring = _at(W_ROCK, f), _at(W_SWAY, f), _at(W_WRING, f)
     look, tilt = next((lk, tl) for fr, lk, tl in reversed(W_LOOK) if fr <= f)
     p = with_(STOOP, {
-        "pelvis": (2 * rock, 2.5 * sway, 0), "spine_01": (2 * rock, 1.5 * sway, 0), "spine_02": (-1.5 * rock, -2 * sway, 0),
-        "neck": (-6, -1.5 * sway, look * 0.25), "head": (-10 + tilt, -3 * sway, look), "veil": (-3 * rock, 0, -look * 0.15),
+        "pelvis": (3 * rock, 5 * sway, 0), "spine_01": (3 * rock, 3 * sway, 0), "spine_02": (-2 * rock, -3 * sway, 0),
+        "neck": (-6, -2 * sway, look * 0.25), "head": (-10 + tilt, -4 * sway, look), "veil": (-4 * rock, 0, -look * 0.15),
         "clavicle_r": (0, 4, 0), "clavicle_l": (0, -4, 0),
-        "upperarm_r": (3 * rock, 0, 2 * sway), "upperarm_l": (3 * rock, 0, 2 * sway), "root@loc": (0.012 * sway, -0.01 * rock, 0)})
+        "upperarm_r": (3 * rock, 0, 2 * sway), "upperarm_l": (3 * rock, 0, 2 * sway),
+        # (The legs stood where they are: the sway is the body over them.)
+        "thigh_r": (-3 * rock, -5 * sway, 0), "thigh_l": (-3 * rock, -5 * sway, 0)})
     for i, fn in enumerate(FINGERS):
         k = 22 + 18 * _at(W_WRING, f - 4 * i)
         p[f"finger_{fn}_r_01"] = (-k * (0.8 + 0.1 * i), 0, 0)
