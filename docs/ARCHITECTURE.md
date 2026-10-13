@@ -834,4 +834,5 @@ written here instead is moved out by `tools/coord/notes.py split`; the Coordinat
 - [653. Cars a dropped pin parts off are gone for and coupled back on (D1.4, queue #383; D1's ask after #371: "the crew coupled car 2 back but…](notes/653.md)
 - [653. Cars left behind after a parting are gone back for (D1.4, queue #383; D1's ask after #371)](notes/653.md)
 - [654. A most-a-night for every creature without its own (D1, queue #384; for the director's `D1-roster-piles-up`, note 652)](notes/654.md)
+- [655. The crew keep the train moving on a Dragger-heavy night (D1.4, queue #385; D1's ask after #882)](notes/655.md)
 <!-- end of the notes index -->
