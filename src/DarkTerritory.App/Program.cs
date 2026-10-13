@@ -298,10 +298,24 @@ void ApplyDisplay()
 Console.WriteLine($"GPU: {gpu.DeviceName}, window {w}x{h}, internal {renderer.Width}x{renderer.Height}");
 
 var sound = new GameAudio(content);
+// Note 667: no take decodes where it's played, on the frame or the mixing thread; a first play starts a decode's few
+// milliseconds late instead.
+sound.Bank.Samples.InlineBytes = 0;
 // The menus' sounds (ui-menus): flat, through the same mixer the speaker's fed from in the menus too.
 frontEnd.Cue = sound.Ui;
 using var speaker = args.Contains("--mute") ? null : AudioOut.Open(Audio.SampleRate, out var audioError) is { } s ? s : Warn(audioError);
-var audioBlock = new float[Audio.Block * 2];
+// Note 667 (the director, 13 Oct: "I'm getting audio skips"): the speaker's fed from a thread of its own, not the frame, so
+// a slow frame is late on screen and never a gap in the ears. Disposed before the speaker (declared after it).
+using var pump = speaker is null ? null : new AudioPump(sound.Mixer, () => speaker.QueuedSeconds, block => speaker.Write(block), sound.Mixer.Mix.DeviceLead,
+    sound.Mixer.Mix.DeviceLeadMax);
+int gapsLogged = 0;
+// Since the last slow frame's line: the times the device ran dry (FrameWatch's lines, note 549).
+string Gaps()
+{
+    int now = pump?.Underruns ?? 0, since = now - gapsLogged;
+    gapsLogged = now;
+    return since == 0 ? "" : $"; audio ran dry {since} times";
+}
 var micSamples = new float[4800];
 static AudioIn? NoMic(string? error)
 {
@@ -313,17 +327,12 @@ static AudioOut? Warn(string? error)
     Console.WriteLine($"audio: no output device ({error}); running silent");
     return null;
 }
-// Keep ~60 ms queued at the device; muted in the settings, it gets silence.
-void FeedSpeaker()
+// The settings' volumes and mute to the speaker's thread; muted, it gets silence.
+void SpeakerSettings()
 {
-    while (speaker is not null && speaker.QueuedSeconds < 0.06)
-    {
-        sound.Mixer.Volumes = frontEnd.Settings.Volumes;
-        sound.Mixer.Render(audioBlock);
-        if (frontEnd.Settings.Mute)
-            Array.Clear(audioBlock);
-        speaker.Write(audioBlock);
-    }
+    sound.Mixer.Volumes = frontEnd.Settings.Volumes;
+    if (pump is not null)
+        pump.Mute = frontEnd.Settings.Mute;
 }
 
 var input = window.Input;
@@ -534,7 +543,7 @@ Launch? MenuLoop()
             return new Launch.Quit();
         else
             Mirror();
-        FeedSpeaker();
+        SpeakerSettings();
         input.EndFrame();
         frameCount++;
     }
@@ -1335,7 +1344,7 @@ CampaignState? Play(IPlaySession session, CampaignState? campaign)
         }
         else
             voiceLevel = Held(Control.Talk) ? 0.5 : 0;
-        FeedSpeaker();
+        SpeakerSettings();
 
         var frames = session.InterpolatedFrames(clock.Alpha);
         // Off the rails (T117, T121): first in your own eyes riding it, then the chase view replaying it from a few seconds
@@ -1632,11 +1641,17 @@ CampaignState? Play(IPlaySession session, CampaignState? campaign)
         }
         input.EndFrame();
         frameCount++;
+        // Note 667: past the night's first frames (its scene built, its first collections done), a gap grows the speaker's lead.
+        if (pump is not null)
+            pump.Adapt = frameWatch.Frames >= FrameWatch.Window;
         // Note 549: a frame well over the night's run, written down with what it spent and where the night was.
-        if (frameWatch.End(timer.Elapsed.TotalSeconds, () => $"at {session.Train.Dynamics.Distance / 1000:0.00} km, {session.Train.Dynamics.Speed:0.0} m/s, {session.World.Run?.Phase.ToString() ?? "no run"}, {session.World.ActiveEnemies.Count()} enemies") is { } slow)
+        if (frameWatch.End(timer.Elapsed.TotalSeconds, () => $"at {session.Train.Dynamics.Distance / 1000:0.00} km, {session.Train.Dynamics.Speed:0.0} m/s, {session.World.Run?.Phase.ToString() ?? "no run"}, {session.World.ActiveEnemies.Count()} enemies{Gaps()}") is { } slow)
             Console.WriteLine(slow);
     }
-    Console.WriteLine($"night's frames: {frameWatch.Summary()}");
+    if (pump is not null)
+        pump.Adapt = false;
+    Console.WriteLine($"night's frames: {frameWatch.Summary()}" + (pump is null ? "" : $"; audio ran dry {pump.Underruns} times, "
+        + $"its longest block {pump.LongestBlock * 1000:0.0} ms, its longest stall {pump.LongestStall * 1000:0} ms, its lead {pump.Lead * 1000:0} ms"));
 
     // Note 350: a night seen to its end is one of the player's nights.
     if (session.World.Run?.Over == true)
