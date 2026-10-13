@@ -31,6 +31,8 @@ public sealed record TrainTuning
     public PickTuning Pick { get; init; } = new();
     /// <summary>A bend taken too fast: its warning, its stress, and the lead it must give (train.json <c>overspeed</c>; note 265).</summary>
     public OverspeedTuning Overspeed { get; init; } = new();
+    /// <summary>What running into a branch's buffer stop does (train.json <c>bufferStop</c>; note 661).</summary>
+    public BufferStopTuning BufferStop { get; init; } = new();
 
     public const string File = "tuning/train.json";
 }
@@ -319,5 +321,8 @@ public sealed record SpeedBandTuning(double Yard, double JumpOffLethal, double S
 /// </summary>
 /// <summary>train.json <c>fragile</c>: how coupling and brake shocks spoil a car of medicine (GDD §19). Field docs live in that file.</summary>
 public sealed record FragileTuning(double SafeContactSpeed = 0.3, double ShockShare = 3, double BrakeShockDecel = 1.2, double BrakeShockPerSecond = 0.02);
+
+/// <summary>train.json <c>bufferStop</c> (note 661): a buffer stop's knock. Field docs live in that file.</summary>
+public sealed record BufferStopTuning(double SafeSpeed = 2.5, double DamagePerSpeedSquared = 0.02);
 
 public sealed record RecoveryTuning(double CorridorM = 40, double DropM = 15, double EdgeM = 3.5);

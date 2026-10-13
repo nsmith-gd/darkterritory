@@ -223,7 +223,9 @@ if (Path.Combine(content, "art", "ui", "icon.png") is var iconPath && File.Exist
     var icon = Ballast.Render.ImageFile.Load(iconPath);
     window.SetIcon(icon.Width, icon.Height, icon.Rgba);
 }
-window.Fullscreen = startSettings.Fullscreen && windowSize.Width == 0;
+// Note 672: a window, or the whole screen borderless or exclusive; --window is always a window.
+static WindowMode ModeOf(DisplayMode d) => d switch { DisplayMode.Borderless => WindowMode.Borderless, DisplayMode.Fullscreen => WindowMode.Fullscreen, _ => WindowMode.Windowed };
+window.Mode = windowSize.Width == 0 ? ModeOf(startSettings.Display) : WindowMode.Windowed;
 // --vr: the headset makes the GPU (it has to pick the device and the extensions), and the window mirrors the flat view.
 using var vr = args.Contains("--vr") ? StartVr() : null;
 VrView? StartVr()
@@ -274,11 +276,11 @@ void ApplyDisplay()
         (UiWidth, UiHeight) = now.Canvas;
         renderer.OverlaySize = new Vector2(UiWidth, UiHeight);
     }
-    if (vr is not null || now.Fullscreen == shownSettings.Fullscreen && now.Resolution == shownSettings.Resolution
+    if (vr is not null || now.Display == shownSettings.Display && now.Resolution == shownSettings.Resolution
         && now.RenderScale == shownSettings.RenderScale && now.VSync == shownSettings.VSync)
         return;
-    window.Fullscreen = now.Fullscreen;
-    if (!now.Fullscreen && (now.Resolution != shownSettings.Resolution || now.Fullscreen != shownSettings.Fullscreen))
+    window.Mode = ModeOf(now.Display);
+    if (now.Display == DisplayMode.Windowed && (now.Resolution != shownSettings.Resolution || now.Display != shownSettings.Display))
         window.SetSize(now.WindowSize.Width, now.WindowSize.Height);
     if (now.VSync != swapchain.VSync)
     {
@@ -346,6 +348,9 @@ LobbyId? relaunch = null;
 
 void Present(in Camera camera, in FrameLighting lighting)
 {
+    // Alt+Enter (note 672), in the menus and in a night alike; a headset has no window to fill.
+    if (window.Input.AltEnter && vr is null)
+        frontEnd.AltEnter();
     ApplyDisplay();
     if (window.Resized)
     {
@@ -1515,6 +1520,8 @@ CampaignState? Play(IPlaySession session, CampaignState? campaign)
         scene.Controls = session.Controls;
         if (!session.World.LampShining)
             lighting.LampRange = 0.01f; // not 0: the shader divides by it
+        // The night's fog as it's drawn: what's past it is cooked off the frame (note 479).
+        scene.Fog = lighting;
         frameWatch.Mark("audio, hud");
         scene.Build(mesh, session.Train.Line, frames, session.Train.Dynamics.Distance, camera.Position);
         frameWatch.Mark("scene");
