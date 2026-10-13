@@ -864,4 +864,5 @@ written here instead is moved out by `tools/coord/notes.py split`; the Coordinat
 - [680. The gym's calls, from the director's run-through (A1, queue #412; GDD §34.1, App. F.5; the director, 13 Oct 2026, from inside the gym: "The…](notes/680.md)
 - [684. A moved board says its distance from where it stands (B4, queue #416; note 560's handoff, not yet (1); the director, 13 Oct, `pt13-signs`)](notes/684.md)
 - [686. A board past a truss isn't read through the truss (B4, queue #418; note 560's handoff, not yet (2); the director, 13 Oct, `pt13-signs`:…](notes/686.md)
+- [687. Hot reload out of a player's build, and watched not polled in a dev one (D1, queue #419; the director, 13 Oct, on note 666's suggestions:…](notes/687.md)
 <!-- end of the notes index -->
