@@ -860,4 +860,5 @@ written here instead is moved out by `tools/coord/notes.py split`; the Coordinat
 - [675. Car roofs and loading: the roof hatch's lid worked looking at it, from anywhere along it on the roof and from the floor under it (D1.4, queue #406; the director, 13 Oct, playing the morning build)](notes/675.md)
 - [676. The creature gym (A1, queue #407; the director, 13 Oct 2026: "make a dev gym for me to test all the creatures functions and make sure all…](notes/676.md)
 - [679. The Wakers' model (queue #411, C1; docs/design/creatures/wakers.md §8.3, note 588; the director, 13 Oct 2026: "propose some model designs…](notes/679.md)
+- [684. A moved board says its distance from where it stands (B4, queue #416; note 560's handoff, not yet (1); the director, 13 Oct,…](notes/684.md)
 <!-- end of the notes index -->
