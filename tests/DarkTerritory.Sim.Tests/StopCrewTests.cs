@@ -595,7 +595,9 @@ public class StopCrewTests
         var pickUp = StopPlan.Ahead(open.World, own.Hold + 50, new HashSet<int> { own.Key }, open.Calls);
         Assert.True(pickUp is { PickUp: true }, "a siding with cars standing on it past the own track");
         Assert.True(pickUp!.StandingFreight(open.Train) >= 0.5, $"{pickUp.StandingFreight(open.Train):0.00} car-loads standing");
-        var night = new Night(cars: 8, walkers: 0, dawn: 1e6 - (spare - (StopDriver.Allowance(pickUp, open.World) + over)), modules: yard);
+        // Weighed at its allowance and the run home slowed by what it fetches.
+        Assert.True(openStops.OnwardAllowance is { } next && next > StopDriver.Allowance(pickUp, open.World), $"weighed {openStops.OnwardAllowance}");
+        var night = new Night(cars: 8, walkers: 0, dawn: 1e6 - (spare - (openStops.OnwardAllowance!.Value + over)), modules: yard);
         var stops = night.Driver.Stops!;
         night.Until(() => stops.Log.Count >= 2, 2400);
         string legs = string.Join("; ", stops.Log.Select(r => $"{r.Kind} {r.Seconds:0} s: {string.Join(", ", r.Legs.Select(l => $"{l.Key} {l.Value:0}"))}"));

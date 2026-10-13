@@ -1074,8 +1074,16 @@ public sealed class StopDriver(CrewCalls calls)
             // pick-up it was cut for was missed as often as made (note 656). Note 656: for its own siding's, with freight
             // standing, it is: frontier:6's switchyard, its hands back from a rescue sooner, loaded on past the time its
             // pick-up needed, 0.8 car-loads given up for 0.5.
-            if (!next.PickUp || next.Site.Index == p.Site.Index && next.StandingFreight(world.Train) >= PickUpWorth)
+            if (!next.PickUp)
                 least = Math.Min(least ?? double.MaxValue, Allowance(next, world));
+            else if (next.Site.Index == p.Site.Index && next.StandingFreight(world.Train) is var freight && freight >= PickUpWorth
+                && world.Run is { } r)
+            {
+                // And the run home slowed by what it fetches (CargoPressure): weighed at its allowance alone, frontier:6's
+                // pick-up was made with 30–150 s in hand after it and a night in twelve was taken at the dawn.
+                double slower = Home(world, r, next.Hold) / CargoPressure(world) * CargoPressurePerLoad * freight;
+                least = Math.Min(least ?? double.MaxValue, Allowance(next, world) + slower);
+            }
             done.Add(next.Key);
         }
         return least;
@@ -1085,6 +1093,8 @@ public sealed class StopDriver(CrewCalls calls)
     /// traces); NaN before the loading.
     /// </summary>
     public double SpareAtLoading => _spareAtLoading;
+    /// <summary>Note 656: the least allowance of the stops ahead this stop's loading was weighed against (<see cref="NextAllowance"/>; for tests and traces).</summary>
+    public double? OnwardAllowance => _onwardAllowance;
     /// <summary>
     /// Note 617: the spare the driver reckoned it had when it last weighed a stop, cruising (the lesser of the run home at cruise
     /// and at the pace kept, <see cref="Home"/>), to the dawn and its grace since note 621 (<see cref="Deadline"/>; for tests and
