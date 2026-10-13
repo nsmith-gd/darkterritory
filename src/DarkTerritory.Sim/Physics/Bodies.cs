@@ -127,8 +127,8 @@ public sealed class Body
     /// </summary>
     public bool Claimed { get; set; }
     /// <summary>
-    /// A find lying still in a car and banked by the run (note 659: it stays there, where it used to be taken out of the
-    /// world). Host only. What takes loot passes it over (<see cref="Bodies.Prey"/>), as it did when it was gone.
+    /// A find lying still in a car and banked by the run, or a crate loaded (note 659: it stays there, where it used to be
+    /// taken out of the world). Host only. What takes loot passes it over (<see cref="Bodies.Prey"/>), as it did when it was gone.
     /// </summary>
     public bool Banked { get; set; }
     internal int Airborne;
@@ -1158,8 +1158,8 @@ public sealed class Bodies
             var local = g.ToLocal(world);
             var vehicle = train.Vehicles[g.Index];
             foreach (var solid in g.Shape.Solids)
-                if (solid.Present(vehicle))
-                    Consider(Collide.SphereBox(local, r, solid.Box.Min, solid.Box.Max), g, local, ref best, ref bestDepth, ref touchedCar);
+                if (solid.Present(vehicle) && solid.BoxIn(vehicle) is var box)
+                    Consider(Collide.SphereBox(local, r, box.Min, box.Max), g, local, ref best, ref bestDepth, ref touchedCar);
             foreach (var door in g.Shape.DoorList)
                 if (!vehicle.DoorOpen(door.Index))
                     Consider(Collide.SphereBox(local, r, door.Box.Min, door.Box.Max), g, local, ref best, ref bestDepth, ref touchedCar);

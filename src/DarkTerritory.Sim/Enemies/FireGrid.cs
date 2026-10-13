@@ -20,6 +20,8 @@ public sealed class FireGrid
     public readonly FireFace[] Face;
     /// <summary>The cells a cell sets alight: those sharing an edge with it, on its own surface or round a corner onto the next.</summary>
     public readonly int[][] Next;
+    /// <summary>The cells round the car where a cell is along it (note 662): its floor, walls and roof there, itself among them.</summary>
+    public readonly int[][] Slice;
     /// <summary>How many cells along the car (Z), across it (X) and up its walls (Y).</summary>
     public readonly int Along, Across, Up;
     public readonly Box Room;
@@ -79,6 +81,12 @@ public sealed class FireGrid
         var index = new Dictionary<(FireFace, int, int), int>();
         for (int i = 0; i < key.Count; i++)
             index[key[i]] = i;
+        Slice = new int[Count][];
+        for (int i = 0; i < Count; i++)
+        {
+            int along = key[i].A;
+            Slice[i] = [.. Enumerable.Range(0, Count).Where(j => key[j].A == along)];
+        }
         Next = new int[Count][];
         for (int i = 0; i < Count; i++)
         {

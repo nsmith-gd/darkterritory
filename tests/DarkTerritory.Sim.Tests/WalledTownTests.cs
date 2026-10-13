@@ -42,8 +42,41 @@ public class WalledTownTests
         Assert.InRange(Math.Max(b.Left, b.Right), 60, Towns.Tuning.Walled.First + Towns.Tuning.Walled.MaxStreets * Towns.Tuning.Walled.Every);
         // Its households all housed (more to a house only where there aren't houses enough).
         Assert.True(big.Plan.Houses.Count(h => h.Kind is HouseKind.Lived or HouseKind.Open) >= 3000 / 6);
-        var (_, small) = Night("frontier:7", 40);
+        var (_, small) = Night("frontier:7", 20);
         Assert.Null(small.Plan.Bounds);
+    }
+
+    /// <summary>
+    /// A town of more houses than a hamlet's isn't a row down the track (note 668; the director, 13 Oct, of frontier:7's
+    /// departure town, 97 people: "a long row of houses. It doesn't feel like a town"): it keeps houses.lineRow on the
+    /// line's own street, the nearest its square, and the rest stand either side of streets of its own, facing across them.
+    /// </summary>
+    [Theory]
+    [InlineData("frontier:7", 97)]
+    [InlineData("frontier:7", 50)]
+    [InlineData("local:1", 140)]
+    public void ATownOfMoreThanAHamletHasStreetsOfItsOwnNotOneRowDownTheTrack(string spec, int people)
+    {
+        var (_, town) = Night(spec, people);
+        var plan = town.Plan;
+        var b = Assert.IsType<TownBounds>(plan.Bounds);
+        var st = Towns.Tuning.Houses;
+        double firstRow = Towns.Tuning.Walled.First / 2;
+        var onTheLine = plan.Houses.Where(h => Math.Abs(h.D) < firstRow).ToList();
+        Assert.True(onTheLine.Count <= st.LineRow, $"{onTheLine.Count} houses on the line's own street");
+        // The rest face across a street of their own (a house's Side is the way its back lies from its front): on each
+        // side of the line, its street's near row and far row are both built on.
+        var off = plan.Houses.Where(h => Math.Abs(h.D) >= firstRow).ToList();
+        Assert.True(off.Count >= plan.Houses.Count - st.LineRow);
+        foreach (var street in b.Streets.Where(s => off.Any(h => Math.Sign(h.D) == Math.Sign(s.D))))
+        {
+            var mine = off.Where(h => Math.Sign(h.D) == Math.Sign(street.D)).ToList();
+            Assert.Contains(mine, h => Math.Abs(h.D) < Math.Abs(street.At(h.S)) && h.Side == -Math.Sign(street.D));
+            Assert.Contains(mine, h => Math.Abs(h.D) > Math.Abs(street.At(h.S)) && h.Side == Math.Sign(street.D));
+        }
+        // And they're the square's neighbours, not strung out to the gate: the town grows from its heart.
+        double heart = (plan.Square.S0 + plan.Square.S1) / 2;
+        Assert.True(plan.Houses.Average(h => Math.Abs(h.S - heart)) < 160, "the houses aren't round the square");
     }
 
     [Theory]
