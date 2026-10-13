@@ -34,6 +34,10 @@ source of truth for who owns what**; chat with one session isn't seen by the oth
    (claimed, in progress, in review with its PR, done, dropped and why). Land those docs updates on main promptly, as
    small docs PRs: a note only on your branch helps nobody once your session ends. An item whose session is gone is
    anyone's to carry on from its handoff, saying so in its row and their log.
+10. **A protocol bump takes main's version + 1 when it merges, not when it branches** (D1, 13 Oct 2026: three PRs took
+   55 at once). `Messages.Version` (`src/DarkTerritory.Sim/Net/Messages.cs`) can merge cleanly with a stale number. Right
+   before you merge, re-read main's, set yours to one past it, fix the tests that pin it, and re-run the netcode tests on
+   the merge. Two wire formats must never share a number.
 
 ## Who's who
 
