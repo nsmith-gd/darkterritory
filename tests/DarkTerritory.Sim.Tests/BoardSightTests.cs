@@ -16,6 +16,8 @@ public class BoardSightTests
 {
     static readonly string Content = DataFile.FindContentRoot();
     static readonly string[] Nights = ["frontier:7", "deadLines:2", "deepTerritory:2"];
+    /// <summary>Nights with a through truss on the main line (deadLines:2 at 1.7 km, local:3 at 1.75 km).</summary>
+    static readonly string[] TrussNights = ["deadLines:2", "local:3"];
 
     static RailLine LineOf(Route.Route route, RailLine main, string edge) =>
         edge == "main" ? main : main.Branches[route.Plan!.Edge(edge).Branch].Local;
@@ -194,6 +196,71 @@ public class BoardSightTests
             // And where a board couldn't be stood clear of the others, it's said (none on these nights).
             Assert.All(standing, b => Assert.Equal(0, b.BoardsInWay));
         }
+    }
+
+    [Fact]
+    public void NoBoardIsReadThroughATruss()
+    {
+        // Note 686 (`pt13-signs`, "no clear enough sight lines"): a through truss's sides (StructureKit.TrussSpan: a lattice
+        // either side of the track, from its bottom chord to its top) stand between the cab and a board off to the side,
+        // the cab in the truss or the sight line leaving it through a side. Wherever a board's said to be seen from, no
+        // sight line to it passes through a truss's side.
+        int trusses = 0, lines = 0;
+        foreach (var spec in TrussNights)
+        {
+            var route = Routes.Generate(Content, spec, 6);
+            var line = route.Build();
+            var side = LinesideProps.Of(route, line)!;
+            var rules = route.Plan!.Rules.Billboard;
+            var walls = new List<(Double3 A, Double3 B)>();
+            foreach (var st in route.Plan.Structures.Where(x => x is { Type: StructureType.Truss, Edge: "main" }))
+            {
+                trusses++;
+                int n = Math.Max(1, (int)Math.Ceiling((st.S1 - st.S0) / 5));
+                for (int i = 0; i < n; i++)
+                    foreach (int hand in new[] { -1, 1 })
+                    {
+                        Double3 At(double s)
+                        {
+                            var t = line.Sample(s);
+                            var across = Double3.Cross(new Double3(t.Tangent.X, 0, t.Tangent.Z).Normalized, Double3.Up).Normalized;
+                            return t.Position + across * (hand * rules.TrussHalfM);
+                        }
+                        walls.Add((At(st.S0 + (st.S1 - st.S0) * i / n), At(st.S0 + (st.S1 - st.S0) * (i + 1) / n)));
+                    }
+            }
+            foreach (var board in Standing(route, side).Where(b => b.Edge == "main"))
+                foreach (double a in board.SeenFrom)
+                {
+                    var t = line.Sample(a);
+                    var dir = new Double3(t.Tangent.X, 0, t.Tangent.Z).Normalized;
+                    var eye = t.Position + Double3.Up * rules.EyeM + Double3.Cross(dir, Double3.Up).Normalized * rules.EyeAcrossM;
+                    foreach (var target in board.SightTargets())
+                    {
+                        lines++;
+                        foreach (var (wa, wb) in walls)
+                            Assert.False(ThroughWall(eye, target, wa, wb, rules),
+                                $"{spec}: the {board.Type} {board.Text} at {board.Along:0} is read through a truss from {a:0}");
+                    }
+                }
+        }
+        Assert.True(trusses > 0, "no truss on these nights");
+        Assert.True(lines > 100);
+    }
+
+    /// <summary>Whether a sight line passes through a truss's side between two points along it (the rail's height at each), chord to chord.</summary>
+    static bool ThroughWall(Double3 eye, Double3 target, Double3 a, Double3 b, BillboardRules r)
+    {
+        double rx = target.X - eye.X, rz = target.Z - eye.Z, wx = b.X - a.X, wz = b.Z - a.Z;
+        double den = rx * wz - rz * wx;
+        if (Math.Abs(den) < 1e-12)
+            return false;
+        double ex = a.X - eye.X, ez = a.Z - eye.Z;
+        double t = (ex * wz - ez * wx) / den, u = (ex * rz - ez * rx) / den;
+        if (t <= 1e-6 || t >= 1 - 1e-6 || u < 0 || u > 1)
+            return false;
+        double h = eye.Y + t * (target.Y - eye.Y), rail = a.Y + u * (b.Y - a.Y);
+        return h >= rail + r.TrussLowM && h <= rail + r.TrussHighM;
     }
 
     [Fact]

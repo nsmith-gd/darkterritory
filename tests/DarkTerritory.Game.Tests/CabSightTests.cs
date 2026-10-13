@@ -76,6 +76,17 @@ public class CabSightTests
     }
 
     [Fact]
+    public void TheLinesideBoardsKnowWhereATrusssSidesStand()
+    {
+        // Note 686: the sim keeps a board's sight lines off a through truss's sides (signage.json billboard.trussHalfM,
+        // trussLowM, trussHighM), so those are the truss's as the art builds it (StructureKit.TrussSpan).
+        var r = DataFile.Load<DarkTerritory.Sim.LineGen.SignageFile>(Path.Combine(Content, "linegen", "signage.json")).Billboard;
+        Assert.Equal(StructureKit.TrussHalf, r.TrussHalfM, 3);
+        Assert.Equal(StructureKit.TrussLow, r.TrussLowM, 3);
+        Assert.Equal(StructureKit.TrussHigh, r.TrussHighM, 3);
+    }
+
+    [Fact]
     public void TheLinesideBoardsKnowWhatTheCabsFrameHidesFromTheDriver()
     {
         // `pt13-signs` (the director, 13 Oct: "there's no clear enough sight lines to see them"): the sim stands the line's

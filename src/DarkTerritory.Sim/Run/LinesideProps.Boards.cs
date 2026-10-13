@@ -256,9 +256,70 @@ public sealed partial class LinesideProps
         var key = ((long)Math.Round(eye.X * 100), (long)Math.Round(eye.Y * 100), (long)Math.Round(eye.Z * 100),
             (long)Math.Round(target.X * 100), (long)Math.Round(target.Y * 100), (long)Math.Round(target.Z * 100));
         if (!_sees.TryGetValue(key, out bool seen))
-            _sees[key] = seen = Sees(eye, target, Ground, Shelter);
+            _sees[key] = seen = Sees(eye, target, Ground, Shelter) && !ThroughTruss(eye, target);
         return seen;
     }
+
+    /// <summary>
+    /// The through trusses' sides (note 686), each a run of walls along the span either side of the track
+    /// (billboard.trussHalfM off the centreline; the rail's height at each end): the lattice, at the glancing angles a board's
+    /// read at, fills in. With each truss's extent on the ground, to ask only those a sight line comes near.
+    /// </summary>
+    List<(double MinX, double MinZ, double MaxX, double MaxZ, List<(Double3 A, Double3 B)> Walls)>? _trusses;
+
+    /// <summary>Whether a sight line passes through a truss's side, chord to chord (the cab in the truss, or the line leaving it).</summary>
+    bool ThroughTruss(Double3 eye, Double3 target)
+    {
+        var r = _plan.Rules.Billboard;
+        if (_trusses is null)
+        {
+            _trusses = [];
+            foreach (var st in _plan.Structures)
+            {
+                if (st.Type != StructureType.Truss || LineOf(st.Edge) is not { } line)
+                    continue;
+                var walls = new List<(Double3, Double3)>();
+                int n = Math.Max(1, (int)Math.Ceiling((st.S1 - st.S0) / TrussWallM));
+                foreach (int hand in new[] { -1, 1 })
+                {
+                    Double3 At(double s)
+                    {
+                        var t = line.Sample(Math.Clamp(s, 0, line.Length));
+                        var across = Double3.Cross(new Double3(t.Tangent.X, 0, t.Tangent.Z).Normalized, Double3.Up).Normalized;
+                        return t.Position + across * (hand * r.TrussHalfM);
+                    }
+                    for (int i = 0; i < n; i++)
+                        walls.Add((At(st.S0 + (st.S1 - st.S0) * i / n), At(st.S0 + (st.S1 - st.S0) * (i + 1) / n)));
+                }
+                _trusses.Add((walls.Min(w => Math.Min(w.Item1.X, w.Item2.X)), walls.Min(w => Math.Min(w.Item1.Z, w.Item2.Z)),
+                    walls.Max(w => Math.Max(w.Item1.X, w.Item2.X)), walls.Max(w => Math.Max(w.Item1.Z, w.Item2.Z)), walls));
+            }
+        }
+        double loX = Math.Min(eye.X, target.X), hiX = Math.Max(eye.X, target.X), loZ = Math.Min(eye.Z, target.Z), hiZ = Math.Max(eye.Z, target.Z);
+        foreach (var (minX, minZ, maxX, maxZ, walls) in _trusses)
+        {
+            if (hiX < minX || loX > maxX || hiZ < minZ || loZ > maxZ)
+                continue;
+            foreach (var (a, b) in walls)
+            {
+                double rx = target.X - eye.X, rz = target.Z - eye.Z, wx = b.X - a.X, wz = b.Z - a.Z;
+                double den = rx * wz - rz * wx;
+                if (Math.Abs(den) < 1e-12)
+                    continue;
+                double ex = a.X - eye.X, ez = a.Z - eye.Z;
+                double t = (ex * wz - ez * wx) / den, u = (ex * rz - ez * rx) / den;
+                if (t <= 1e-6 || t >= 1 - 1e-6 || u < 0 || u > 1)
+                    continue;
+                double h = eye.Y + t * (target.Y - eye.Y), rail = a.Y + u * (b.Y - a.Y);
+                if (h >= rail + r.TrussLowM && h <= rail + r.TrussHighM)
+                    return true;
+            }
+        }
+        return false;
+    }
+
+    /// <summary>How long each of a truss side's walls is (m): a curve's span followed closely enough.</summary>
+    const double TrussWallM = 5;
 
     RailLine? LineOf(string edge) => edge == "main" ? _line
         : _plan.Edge(edge).Branch is int b && b >= 0 && b < _line.Branches.Count ? _line.Branches[b].Local : null;
