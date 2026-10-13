@@ -14,6 +14,8 @@ public sealed record TownCharacter(string Id, string Name, string[] Roles, IRead
 {
     /// <summary>Their dressed figure's name (CreatureArt's dressed figures).</summary>
     public string Figure => "town." + Id;
+    /// <summary>Their modelled figure's (tools/models/recipes/townsfolk_&lt;id&gt;.py, its clothes baked on), once it's built.</summary>
+    public string Modelled => "townsfolk_" + Id;
 }
 
 /// <summary>
@@ -170,6 +172,23 @@ public sealed class LookbookKit(Look? look)
         _ => [],
     };
 
+    /// <summary>What each one's modelled figure has baked on of what they wear (the rest is still worn: a gauze veil, a lit lamp).</summary>
+    static string[] Baked(string id) => id switch
+    {
+        "trapper" => ["bucket", "snout"],
+        "watchman" => ["ushanka", "binoculars"],
+        "market" => ["redscarf", "shawl", "skirt", "apron"],
+        // (His mask's facepiece is baked; its lamp, lit, and the hose to his bottles are still worn: "masklamp".)
+        "lamplighter" => ["hood", "bottles"],
+        "linesman" => ["capgoggles", "wrap", "toolbelt", "coil"],
+        "preacher" => ["widehat", "stole", "cross"],
+        "butcher" => ["beanie", "snout", "bibapron"],
+        "harbourmaster" => ["captcap", "buttons"],
+        "drifter" => ["flatcap", "redwrap"],
+        "teacher" => ["bun", "longskirt"],
+        _ => [],
+    };
+
     /// <summary>What each carries: in the left fist or the right, standing upright from it (a pole) or on the hand's socket.</summary>
     static (string Piece, bool Left, bool Upright)[] Held(string id) => id switch
     {
@@ -200,12 +219,16 @@ public sealed class LookbookKit(Look? look)
     /// </summary>
     public void Dress(CreatureArt creatures, MeshBuilder mesh, in Matrix4x4 model, TownCharacter c, bool hands = true, bool far = false, bool lamp = false)
     {
+        // A modelled figure has what it wears baked on: only what it carries (and what the bake can't make) is added.
+        string figure = creatures.FigureFor(c);
+        bool modelled = figure == c.Modelled;
         foreach (var (piece, bone) in Worn(c.Id))
-            creatures.Wear(mesh, Get(piece, c), bone, model, c.Figure, instanced: far);
+            if (!modelled || !Baked(c.Id).Contains(piece))
+                creatures.Wear(mesh, Get(modelled && piece == "lampmask" ? "masklamp" : piece, c), bone, model, figure, instanced: far);
         if (hands)
             foreach (var (piece, left, upright) in Held(c.Id))
                 if (left || !lamp)
-                    creatures.Hold(mesh, Get(piece, c), model, c.Figure, left, upright);
+                    creatures.Hold(mesh, Get(piece, c), model, figure, left, upright);
         if (c.Id != "lamplighter")
             return;
         var mask = creatures.Posed("head", MaskFlame, model, c.Figure);
@@ -279,6 +302,7 @@ public sealed class LookbookKit(Look? look)
             case "crate": Crate(k); break;
             case "hood": Hood(k, f); break;
             case "lampmask": LampMask(k, f); break;
+            case "masklamp": LampMask(k, f, facepiece: false); break;
             case "bottles": Bottles(k, f); break;
             case "lamppole": LampPole(k); break;
             case "capgoggles": FlatCap(k, f, new Vector3(0.3f, 0.3f, 0.26f), goggles: true); break;
@@ -309,7 +333,7 @@ public sealed class LookbookKit(Look? look)
 
     /// <summary>Every piece the lookbook makes, built for whoever wears or carries it (for the tests' triangle counts).</summary>
     public IEnumerable<(string Key, MeshAsset Piece)> All() =>
-        Characters.SelectMany(c => Worn(c.Id).Select(w => w.Piece).Concat(Held(c.Id).Select(h => h.Piece)).Distinct()
+        Characters.SelectMany(c => Worn(c.Id).Select(w => w.Piece).Concat(Held(c.Id).Select(h => h.Piece)).Concat(c.Id == "lamplighter" ? ["masklamp"] : []).Distinct()
             .Select(key => (c.Id + "." + key, Get(key, c))));
 
     // ------------------------------------------------------------------ shapes
@@ -1090,10 +1114,11 @@ public sealed class LookbookKit(Look? look)
     /// The lamplighter's mask: a black facepiece with a little brass lamp before it, its glass burning (lit by
     /// <see cref="Dress"/>), and a hose from it over his shoulder to the bottles on his back.
     /// </summary>
-    void LampMask(Kit k, Fit f)
+    void LampMask(Kit k, Fit f, bool facepiece = true)
     {
         Rubber(k);
-        Facepiece(k, f, 1.7f, 1.51f, 0.95f, 0.012f, snout: 0.02f);
+        if (facepiece)
+            Facepiece(k, f, 1.7f, 1.51f, 0.95f, 0.012f, snout: 0.02f);
         // The lamp: a brass cage, its glass glowing, a little chimney and its cap.
         var c = MaskFlame;
         Brass(k);

@@ -269,11 +269,13 @@ else:
 # Modelled, retopologised and weighted by tools/blender/crewbody.py after the kit is built (it needs the kit's
 # materials): the coat, the sleeves, the gloves, the belt, the bandolier and the satchel, the trousers and the boots.
 
-# The chest lamp, clipped to the strap: iron box, amber lens. It's emissive: the one warm point on a crewmate.
-body.box((-0.04, 0.178, 1.315), (0.038, 0.026, 0.048), IRON, "spine_02")
-body.box((-0.04, 0.203, 1.315), (0.03, 0.004, 0.036), LAMP, "spine_02",
-         uv=lambda ax, sg, l: in_cell("lantern_glass", 0.5 + l.x / 0.07, 0.55 - l.z / 0.08))
-body.box((-0.04, 0.178, 1.372), (0.02, 0.018, 0.01), IRON, "spine_02")
+# The chest lamp, clipped to the strap: iron box, amber lens. It's emissive: the one warm point on a crewmate. (Left
+# off a figure that goes without, DT_CREW_OFF "lamp": the townsfolk, note 694.)
+if "LAMP" not in os.environ.get("DT_CREW_OFF", "").upper().split(","):
+    body.box((-0.04, 0.178, 1.315), (0.038, 0.026, 0.048), IRON, "spine_02")
+    body.box((-0.04, 0.203, 1.315), (0.03, 0.004, 0.036), LAMP, "spine_02",
+             uv=lambda ax, sg, l: in_cell("lantern_glass", 0.5 + l.x / 0.07, 0.55 - l.z / 0.08))
+    body.box((-0.04, 0.178, 1.372), (0.02, 0.018, 0.01), IRON, "spine_02")
 
 # --- hats and scarf (variants) -------------------------------------------------------------------------------
 if not HELM:

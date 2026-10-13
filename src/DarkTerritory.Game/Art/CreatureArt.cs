@@ -444,7 +444,8 @@ public sealed partial class CreatureArt
         contentRoot ??= look.TextureRoot is { } t ? Path.GetDirectoryName(Path.GetDirectoryName(t)) : null;
         contentRoot ??= DataFile.FindContentRoot();
         ContentRoot = contentRoot!;
-        foreach (var name in Names)
+        // (The townsfolk lookbook's modelled figures, note 694, where they've been baked: a character without one is dressed.)
+        foreach (var name in Names.Concat(LookbookKit.Characters.Select(c => c.Modelled)))
         {
             var path = Path.Combine(ContentRoot, Folder, name + ".glb");
             if (!File.Exists(path))
@@ -458,7 +459,7 @@ public sealed partial class CreatureArt
                 model = ModelLoader.WithClips(model, ModelLoader.Load(extra), replace: true);
             // The survivors are the crew figure redressed: the crew's actions are theirs too.
             var crewClips = Path.Combine(ContentRoot, Folder, "crew_clips.glb");
-            if (name.StartsWith("survivor_", StringComparison.Ordinal) && File.Exists(crewClips))
+            if ((name.StartsWith("survivor_", StringComparison.Ordinal) || name.StartsWith("townsfolk_", StringComparison.Ordinal)) && File.Exists(crewClips))
                 model = ModelLoader.WithClips(model, ModelLoader.Load(crewClips), replace: true);
             float wear = WearOf.GetValueOrDefault(name, 0.5f);
             // Its distance copy: its own, else (the survivors, the crew: a town's people are hundreds of thousands of
@@ -537,6 +538,10 @@ public sealed partial class CreatureArt
 
     /// <summary>A loaded model by name, or null.</summary>
     public Model? Get(string name) => _models.TryGetValue(name, out var m) ? m.Model : null;
+
+    /// <summary>The figure a lookbook character's drawn as (note 694): their modelled one (tools/models/recipes/townsfolk_*)
+    /// when it's been baked, else the survivors' dressed in their colours.</summary>
+    public string FigureFor(TownCharacter c) => _models.ContainsKey(c.Modelled) ? c.Modelled : c.Figure;
 
     /// <summary>
     /// Where a model's joints are, in its own frame, at <paramref name="time"/> into a clip: what `dt art reel` frames a

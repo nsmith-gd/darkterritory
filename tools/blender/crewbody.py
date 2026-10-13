@@ -20,6 +20,7 @@ satchel, iron), given to the frame's faces by whichever solid they came from.
     import crewbody; crewbody.build(globals())   # from tools/blender/crew.py, after kit.build()
 """
 import math
+import os
 
 import bmesh
 import bpy
@@ -364,7 +365,12 @@ def build(g):
     # 1. Blocking, each solid its own mesh for the union and for telling the faces' materials after.
     solids = []
     bm_all = bmesh.new()
+    # Solids a figure goes without (tools/models crewfigure Style.body_off, through DT_CREW_OFF): the bandolier, the
+    # satchel, the belt and its buckle. The townsfolk (note 694) aren't the crew: none carry the crew's kit.
+    off = {k for k in os.environ.get("DT_CREW_OFF", "").upper().split(",") if k}
     for key, fn in blocking():
+        if key in off or key == "IRON" and "BELT" in off:
+            continue
         bm = bmesh.new()
         fn(bm)
         bmesh.ops.recalc_face_normals(bm, faces=bm.faces)

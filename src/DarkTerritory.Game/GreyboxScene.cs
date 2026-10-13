@@ -3305,12 +3305,13 @@ public sealed partial class GreyboxScene
         float drab = 1, bool far = false, bool seated = false, bool lamp = false)
     {
         var creatures = Look!.Art.Creatures;
-        if (creatures.Get(who.Figure) is null)
+        string figure = creatures.FigureFor(who);
+        if (creatures.Get(figure) is null)
             return null;
         var back = -Vector3.Normalize(ToF(facing) with { Y = 0 });
-        float lift = seated ? 0 : creatures.FeetOver(who.Figure, clip);
+        float lift = seated ? 0 : creatures.FeetOver(figure, clip);
         var m = Art.CreatureArt.Basis(V(feet, eye) - Vector3.UnitY * lift, Vector3.Cross(Vector3.UnitY, back), Vector3.UnitY, back);
-        if (!creatures.Draw(mesh, who.Figure, clip, Time + variant * 0.73, true, m, 0, seed: variant * 13,
+        if (!creatures.Draw(mesh, figure, clip, Time + variant * 0.73, true, m, 0, seed: variant * 13,
             adjust: (mat, l) => l with { Colour = l.Colour * drab, Emissive = 0 }))
             return null;
         Look.Art.Lookbook.Dress(creatures, mesh, m, who, hands, far, lamp);
@@ -3381,7 +3382,7 @@ public sealed partial class GreyboxScene
             lamp = false;
         if (character is not null && TownCharacter(mesh, eye, feet, facing, character, clip, clip is "idle" or "walk" or "point" or "lantern" or "lantern_walk",
             variant, far: far, seated: pose == "seated", lamp: lamp) is { } dressed)
-            (figure, m) = (character.Figure, dressed);
+            (figure, m) = (creatures.FigureFor(character), dressed);
         else if (gear is not null && Look.Art.Townsfolk.Person(creatures, mesh, V(feet, eye), ToF(facing), clip, pose == "seated", gear, home, variant, who,
             Time + variant * 0.73, drab, far) is { } drawn)
             (figure, m) = drawn;
