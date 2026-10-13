@@ -80,6 +80,11 @@ public abstract record Launch
     /// </summary>
     public sealed record Wishlist(uint App, string Url) : Launch;
     /// <summary>
+    /// A developer tool's own night (a developer build's, note 514), by name: the creature gym (GDD §34.1, note 676). Only a
+    /// developer build offers one (<see cref="FrontEnd.DevEntries"/>), and only its hooks start it.
+    /// </summary>
+    public sealed record DevTool(string Name) : Launch;
+    /// <summary>
     /// A report to the studio (note 452): the player's mail program on <paramref name="MailTo"/> (a mailto: link with the
     /// subject and a summary filled in), and <paramref name="Folder"/> in the file browser beside it, to attach the report.
     /// The menu stays up.
@@ -203,6 +208,11 @@ public sealed class FrontEnd
     /// </summary>
     public IReadOnlyList<InstalledMod> InstalledMods { get; set; } = [];
     public IReadOnlyList<string> ModProblems { get; set; } = [];
+    /// <summary>
+    /// A developer build's own lines on the title screen (note 514), above QUIT: the creature gym's (GDD §34.1, note 676). A
+    /// player's build sets none.
+    /// </summary>
+    public IReadOnlyList<(string Label, string Hint, Launch Launch)> DevEntries { get; set; } = [];
     /// <summary>Started with <c>--no-mods</c>: the mods are listed, and the base game is what's playing.</summary>
     public bool ModsOff { get; set; }
     /// <summary>
@@ -976,6 +986,7 @@ public sealed class FrontEnd
             new(new("PROFILE", "What your crews have commended you for."), () => { Show(Screen.Profile); return null; }),
             .. InstalledMods.Count + ModProblems.Count > 0 ? [new Entry(new("MODS", ModsLine()), Go(Screen.Mods))] : (Entry[])[],
             new(new("CREDITS", "Whose work is in the game: the opera, the models, the sounds, the code."), () => { Show(Screen.Credits); return null; }),
+            .. DevEntries.Select(d => new Entry(new(d.Label, d.Hint), () => d.Launch)),
             new(new("QUIT"), () => new Launch.Quit()),
         ],
         Screen.Slots => [.. _saves.List().Select(x => SlotEntry(x.Slot, x.State)), BackTo(Screen.Title)],

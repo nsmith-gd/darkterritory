@@ -843,7 +843,7 @@ written here instead is moved out by `tools/coord/notes.py split`; the Coordinat
 - [659. Loot never vanishes, and the lockers hold several (D1.5, queue #390; the director, 13 Oct, playing the morning build)](notes/659.md)
 - [660. Stranded with a wrench in a slot (D1.5, queue #391; the director, 13 Oct, playing the morning build)](notes/660.md)
 - [661. The buffer stop strand: a buffer stop run into dents the engine, it doesn't break it down (D1.4, queue #392; the director, 13 Oct, playing…](notes/661.md)
-- [662. A fire worked a cell at a time (D1.4, queue #393; the director, 13 Oct, playing the morning build)](notes/662.md)
+- [662. A fire worked a stretch at a time: held on the floor ahead, the spray puts out the car all round there (D1.4, queue #393; the director, 13…](notes/662.md)
 - [663. A lost car told (D1.4, queue #394; the director, 13 Oct, playing the morning build)](notes/663.md)
 - [664. Controls from the playtest (queue #395, D1.2 for D1; the director, 13 Oct, playing the morning build)](notes/664.md)
 - [665. The cab's readouts, from the director's playtest (queue #396, D1.2 for D1; the director, 13 Oct, playing the morning build)](notes/665.md)
@@ -854,5 +854,6 @@ written here instead is moved out by `tools/coord/notes.py split`; the Coordinat
 - [673. The mail made plain (F1, queue #404; the director, 13 Oct, `pt13-mail`)](notes/673.md)
 - [674. Town flags: the cloth in the wind, and a flag for every town (E1, queue #405; the director, 13 Oct, playing the morning build; the World…](notes/674.md)
 - [675. Car roofs and loading (D1.4, queue #406; the director, 13 Oct, playing the morning build)](notes/675.md)
+- [676. The creature gym (A1, queue #407; the director, 13 Oct 2026: "make a dev gym for me to test all the creatures functions and make sure all…](notes/676.md)
 - [676. The creature gym (A1, queue #407; the director, 13 Oct 2026; GDD §34.1)](notes/676.md)
 <!-- end of the notes index -->

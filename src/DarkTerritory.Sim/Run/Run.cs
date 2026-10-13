@@ -341,7 +341,9 @@ public sealed partial class Run
             _tenderAtDeparture = train.Boiler.Tender;
             _ammoAtDeparture = train.Vehicles.Sum(v => v.Gun.Ammo);
         }
-        Seconds += dt;
+        // The gym's night (GDD §34.1, note 676) stands still: no dawn comes.
+        if (!world.CallOnly)
+            Seconds += dt;
         StopSeconds = Phase == RunPhase.AtFacility ? StopSeconds + dt : 0;
         Pour(train, dt);
         StepSites(world, dt);
@@ -373,17 +375,19 @@ public sealed partial class Run
 
         // Note 588: with the Wakers up, dawn's end is theirs (a train eaten, or its crew), not dawnGraceSeconds' timer.
         bool wakers = world.Enemies?.Wakers.Enabled == true;
-        if (world.Derailed)
+        // And never ends (note 676): the crew lost is the gym's point, and they stand up again.
+        bool ends = !world.CallOnly;
+        if (ends && world.Derailed)
             Finish(world, crew, RunPhase.Failed, RunEnd.Derailed);
-        else if (world.TakenAtDawn || world.WakerHolds && crew.Count > 0 && crew.All(c => !c.Alive))
+        else if (ends && (world.TakenAtDawn || world.WakerHolds && crew.Count > 0 && crew.All(c => !c.Alive)))
             Finish(world, crew, RunPhase.Failed, RunEnd.DawnMissed);
-        else if (crew.Count > 0 && crew.All(c => !c.Alive))
+        else if (ends && crew.Count > 0 && crew.All(c => !c.Alive))
             Finish(world, crew, RunPhase.Failed, RunEnd.CrewLost);
-        else if (stranded)
+        else if (ends && stranded)
             Finish(world, crew, RunPhase.Failed, RunEnd.Stranded);
-        else if (!wakers && Seconds > _route.DawnSeconds + Tuning.DawnGraceSeconds)
+        else if (ends && !wakers && Seconds > _route.DawnSeconds + Tuning.DawnGraceSeconds)
             Finish(world, crew, RunPhase.Failed, RunEnd.DawnMissed);
-        else if (engine.Speed < Tuning.StopBelowSpeed && train.OnMain && front >= HomeFront(train))
+        else if (ends && engine.Speed < Tuning.StopBelowSpeed && train.OnMain && front >= HomeFront(train))
             Finish(world, crew, RunPhase.Arrived, RunEnd.Delivered);
         else
         {
