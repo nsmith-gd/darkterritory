@@ -337,8 +337,9 @@
       "names": ["1", "2", "3", "4", "5", "6", "7", "8", "9", "10", "11", "12"],
       // The repair kit's locker. Spare kits go on its other shelf, then into the lockers after it.
       "kitLocker": "8",
-      // Shelves in each: the locker's floor, and one at chest height.
-      "slots": 2,
+      // Shelves in each: the locker's floor, and three more up to a hand under its top, about 0.4 m apart (note 659; the director,
+      // 13 Oct: "we really should be able to put multiple things in lockers": two filled one with tinned food).
+      "slots": 4,
       // What goes in: hand-sized things, and a tool left to free its slot (note 649). Freight, the train's crates, the heavy,
       // the dead and the living don't.
       "holds": ["lamp", "radio", "toy", "loot", "extinguisher", "repairKit", "tool"],
