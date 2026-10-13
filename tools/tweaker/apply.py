@@ -342,7 +342,36 @@ def self_test():
         except SystemExit as e:
             assert not e.code, "applied, it still differs"
     page_grid(enemies)
+    page_estimate(enemies)
     print("apply.py self-test: ok")
+
+
+def page_estimate(enemies):
+    """The page's estimate against calibrate.py's, every kind with a night's chance (the sampled nights, note 657) and with
+    none: the same numbers both ways, run with node where there is one."""
+    import re, shutil, subprocess
+    import calibrate as C
+    node = shutil.which("node")
+    if not node:
+        print("  (no node: the page's estimate not run)")
+        return
+    page = open(os.path.join(os.path.dirname(os.path.abspath(__file__)), "creature-tweaker.html")).read()
+    code = page[page.index("  const tw = "):page.index("  // Each creature's settings")]
+    st = C.settings(enemies)
+    kinds = [k for k in st if not st[k].get("own") and k not in C.FIXED]
+    cal = {"relief": 30.0, "base": {k: 0.2 + (i % 7) / 5 for i, k in enumerate(sorted(kinds))}, "fixed": {"stoker": 0.5},
+           "own": {k: 1.0 for k in C.OWN}, "ownBase": {k: 0.7 for k in C.OWN}}
+    # Every kind on a chance (sampled, as under the director's roster), and every kind about (counted).
+    for label, chance in (("the sampled nights", lambda v: v["nightChance"] if v["nightChance"] < 1 else 0.5),
+                          ("every kind about", lambda v: 1)):
+        s2 = {k: dict(v, nightChance=chance(v)) for k, v in st.items()}
+        want = C.estimate(s2, cal, "frontier")
+        js = f"const model = {{ own: {json.dumps(C.OWN)} }};\n{code}\nconsole.log(JSON.stringify(estimate({json.dumps(s2)}, 'frontier')));"
+        js = js.replace("const cal = model?.tiers?.[t];", f"const cal = {json.dumps(cal)};")
+        got = json.loads(subprocess.run([node, "-e", js], capture_output=True, text=True, check=True).stdout)
+        bad = {k: (got.get(k), v) for k, v in want.items() if abs(got.get(k, 0) - v) > 1e-6}
+        assert not bad, f"{label}: the page's estimate isn't calibrate.py's: {bad}"
+
 
 
 def page_grid(enemies):
