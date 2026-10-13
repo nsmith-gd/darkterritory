@@ -16,6 +16,12 @@ public enum Cloth
     Shirt,
     Trousers,
     Feet,
+    /// <summary>The figure's long coat, kept and dyed (left off when it isn't given a dye): a greatcoat, a cassock, oilskins.</summary>
+    Coat,
+    /// <summary>The figure's scarf, kept and dyed (left off when it isn't given a dye).</summary>
+    Scarf,
+    /// <summary>The throat and chest under the chin, the head part's (the face's skin when it isn't given a dye): a collar, a shirt front.</summary>
+    Collar,
 }
 
 /// <summary>
@@ -33,8 +39,8 @@ public sealed record Growth(string Name, Func<Vector3, bool> On, float Out, Dye 
 
 /// <summary>
 /// The survivors' figure (tools/models/recipes/survivor_prisoner.py: the crew figure in penal greys) dressed as somebody
-/// else, without a new model (this container builds none: Blender isn't here): the long coat, the scarf and the chest lamp
-/// left off, and what's under them, the figure's frame, cut by the bone each triangle moves with into <see cref="Cloth"/>
+/// else, without a new model (this container builds none: Blender isn't here): the long coat and the scarf left off unless
+/// they're dyed (<see cref="Cloth.Coat"/>, <see cref="Cloth.Scarf"/>), the chest lamp left off, and what's under them, the figure's frame, cut by the bone each triangle moves with into <see cref="Cloth"/>
 /// regions, each in its own <see cref="Dye"/>. Same rig and clips, so it's posed, worn on (<c>CreatureArt.Wear</c>) and
 /// drawn as the survivors are. The figures met out in the Territory (GDD §3.2: Dave, Nicki, Jacob) are dressed this way;
 /// the director's photographs of the people they're for are what they're dressed after.
@@ -43,6 +49,8 @@ public static class Redress
 {
     /// <summary>Where the waist is (m): the pelvis's triangles above it are the shirt's, below it the trousers'.</summary>
     const float Waist = 0.94f;
+    /// <summary>Below this (m) the head part's skin is the collar's (<see cref="Cloth.Collar"/>): under the chin.</summary>
+    const float CollarLine = 1.5f;
     /// <summary>The satchel at the right hip (what's out past this below the arms, m): left off with the coat.</summary>
     const float Satchel = 0.2f;
     /// <summary>The middle of the survivors' head in its bind pose (m): what grows on it grows out from here.</summary>
@@ -74,10 +82,31 @@ public static class Redress
         foreach (var part in figure.Parts)
         {
             string material = figure.Materials[part.Material].Name;
-            if (part.Name.Contains("coat", StringComparison.Ordinal) || part.Name.Contains("scarf", StringComparison.Ordinal)
-                || material.Contains(".lamp", StringComparison.Ordinal) || part.Clip is not null)
+            if (material.Contains(".lamp", StringComparison.Ordinal) || part.Clip is not null)
+                continue;
+            // The coat and the scarf are kept whole in their own dye when a character wears them (the townsfolk's
+            // greatcoats and cassocks, note 694), and left off otherwise.
+            Cloth? whole = part.Name.Contains("coat", StringComparison.Ordinal) ? Cloth.Coat
+                : part.Name.Contains("scarf", StringComparison.Ordinal) ? Cloth.Scarf : null;
+            if (whole is { } w && !dyes.ContainsKey(w))
                 continue;
             var positions = shape is null ? part.Positions : Reshaped(part, bones, shape);
+            if (whole is { } kept)
+            {
+                parts.Add(new MeshPart
+                {
+                    Name = $"{part.Name}.{kept.ToString().ToLowerInvariant()}",
+                    Material = MaterialOf(kept, part.Material),
+                    Positions = positions,
+                    Normals = part.Normals,
+                    Uvs = part.Uvs,
+                    Joints = part.Joints,
+                    Weights = part.Weights,
+                    Indices = part.Indices,
+                    Variants = part.Variants,
+                });
+                continue;
+            }
             // Each triangle to the cloth of the bone that moves it most (its three corners' weights summed).
             var cut = new Dictionary<Cloth, List<int>>();
             var idx = part.Indices;
@@ -88,6 +117,10 @@ public static class Redress
                 var cloth = ClothOf(part, idx, t, bones, positions);
                 if (cloth is not { } c || headOnly && c != Cloth.Face)
                     continue;
+                // The head part's skin runs on down the throat to the chest (1.27 m): under a buttoned coat or a high
+                // collar it's that cloth's, when the clothes name one (note 694).
+                if (headOnly && dyes.ContainsKey(Cloth.Collar) && (positions[idx[t]].Y + positions[idx[t + 1]].Y + positions[idx[t + 2]].Y) / 3 < CollarLine)
+                    c = Cloth.Collar;
                 if (!cut.TryGetValue(c, out var list))
                     cut[c] = list = [];
                 list.Add(idx[t]);

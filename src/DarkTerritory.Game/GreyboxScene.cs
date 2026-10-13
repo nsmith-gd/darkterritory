@@ -862,6 +862,10 @@ public sealed partial class GreyboxScene
             foreach (var frame in frames.Where(f => f.Shape.Cab is not null))
                 Look.Art.CabGlass(mesh, frame, eye, frost, Time, Own is not null || EyeBreathes);
         }
+        if (Lineup is { } lineup)
+            foreach (var (id, feet, facing) in lineup)
+                if (Art.LookbookKit.Of(id) is { } who)
+                    TownCharacter(mesh, eye, feet, facing, who, "idle", hands: true, variant: id.Length);
         Lap(mesh, "bodies and crew");
     }
 
@@ -3287,6 +3291,30 @@ public sealed partial class GreyboxScene
 
     // When this machine first saw Jacob's blessing (the scene's clock), for its glow over the train.
     double _blessedAt = double.NaN;
+
+    /// <summary>The townsfolk lookbook stood in a row (note 694; <c>dt screenshot --view lookbook</c>): who, where, which way they face.</summary>
+    public IReadOnlyList<(string Id, Double3 Feet, Double3 Facing)>? Lineup { get; set; }
+
+    /// <summary>
+    /// A town character from the lookbook (note 694): their dressed figure, playing <paramref name="clip"/> on their own beat
+    /// (<paramref name="variant"/>), what they wear and, with their <paramref name="hands"/> free, what they carry. Always
+    /// the figure's variant 0: the survivors' other variants show other coats and patches over the dyed ones. False when
+    /// the figure isn't built.
+    /// </summary>
+    bool TownCharacter(MeshBuilder mesh, Double3 eye, Double3 feet, Double3 facing, Art.TownCharacter who, string clip, bool hands, int variant,
+        float drab = 1, bool far = false)
+    {
+        var creatures = Look!.Art.Creatures;
+        if (creatures.Get(who.Figure) is null)
+            return false;
+        var back = -Vector3.Normalize(ToF(facing) with { Y = 0 });
+        var m = Art.CreatureArt.Basis(V(feet, eye) - Vector3.UnitY * creatures.FeetOver(who.Figure, clip), Vector3.Cross(Vector3.UnitY, back), Vector3.UnitY, back);
+        if (!creatures.Draw(mesh, who.Figure, clip, Time + variant * 0.73, true, m, 0, seed: variant * 13,
+            adjust: (mat, l) => l with { Colour = l.Colour * drab, Emissive = 0 }))
+            return false;
+        Look.Art.Lookbook.Dress(creatures, mesh, m, who, hands, far);
+        return true;
+    }
 
     /// <summary>How far into Jacob's blessing to draw it (s), for a still (<c>dt screenshot --view jacobblessed</c>); null as it plays.</summary>
     public double? BlessingAge { get; set; }

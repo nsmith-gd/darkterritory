@@ -474,6 +474,9 @@ public sealed partial class CreatureArt
         Dress(DaveKit.Figure, DaveKit.Clothes);
         Dress(NickiKit.Figure, NickiKit.Clothes, NickiKit.Shape);
         Dress(JacobKit.Figure, JacobKit.Clothes, growths: JacobKit.Growths);
+        // The townsfolk lookbook's ten (note 694).
+        foreach (var c in LookbookKit.Characters)
+            Dress(c.Figure, c.Clothes, c.Shape, c.Growths);
     }
 
     public Look Look { get; }
@@ -918,6 +921,33 @@ public sealed partial class CreatureArt
             mesh.Append(piece, m.Pose.Skin[b] * model);
         return true;
     }
+
+    /// <summary>
+    /// Appends <paramref name="piece"/> held in a fist of the figure last drawn as <paramref name="figure"/> at
+    /// <paramref name="model"/> (note 694: the townsfolk's poles, flags, knives and flasks): made with its grip at its origin,
+    /// <paramref name="upright"/> it stands on the figure's own axes from the fist (a staff, a lamp on a pole, a pot hung
+    /// from it), else it rides the hand's socket (its +Y out of the thumb side, as the crew's tools do). False when that
+    /// figure isn't built.
+    /// </summary>
+    public bool Hold(MeshBuilder mesh, MeshAsset piece, in Matrix4x4 model, string figure, bool left = false, bool upright = false)
+    {
+        if (!_models.TryGetValue(figure, out var m))
+            return false;
+        var socket = Skinner.Socket(m.Model, m.Pose, left ? "hand_l_prop" : "hand_r_weapon", model);
+        if (!upright)
+        {
+            mesh.Append(piece, socket);
+            return true;
+        }
+        var at = model with { M41 = 0, M42 = 0, M43 = 0, M44 = 1 };
+        at.Translation = socket.Translation;
+        mesh.Append(piece, at);
+        return true;
+    }
+
+    /// <summary>Where a fist of the figure last drawn as <paramref name="figure"/> at <paramref name="model"/> is (the draw's space), or null.</summary>
+    public Vector3? HoldAt(in Matrix4x4 model, string figure, bool left = false) =>
+        _models.TryGetValue(figure, out var m) ? Skinner.Socket(m.Model, m.Pose, left ? "hand_l_prop" : "hand_r_weapon", model).Translation : null;
 
     /// <summary>Where <paramref name="bind"/> (a point of the figure's bind pose, carried by <paramref name="bone"/>) is on the
     /// figure last drawn as <paramref name="figure"/> at <paramref name="model"/>: a hose's ends, one on the head and one on the back.</summary>

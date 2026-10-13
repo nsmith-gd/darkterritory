@@ -1258,6 +1258,30 @@ public static partial class Staging
 
     /// <summary>A point on the ground <paramref name="ahead"/> m up the line from the engine's front and <paramref name="lateral"/>
     /// m off it (its right +), wherever the line bends.</summary>
+    /// <summary>
+    /// The townsfolk lookbook stood in a row beside the line (note 694; <c>dt screenshot --lookbook all|top|bottom|id,id</c>):
+    /// 9 m out on the right, 1.3 m apart along it, facing the line; and a camera on them from the line, framing them all.
+    /// </summary>
+    public static (List<(string Id, Double3 Feet, Double3 Facing)> Row, Ballast.Render.Camera Camera) Lookbook(TrainOnLine train, IReadOnlyList<string> ids)
+    {
+        const double Out = 9, Apart = 1.3, Ahead = 24;
+        var row = new List<(string, Double3, Double3)>();
+        double first = Ahead - (ids.Count - 1) * Apart / 2;
+        for (int i = 0; i < ids.Count; i++)
+        {
+            // Left to right as the camera sees them, as the lookbook reads.
+            double along = first + (ids.Count - 1 - i) * Apart;
+            var feet = Lineside(train, along, Out);
+            var toward = (Lineside(train, along, 0) - feet) with { Y = 0 };
+            row.Add((ids[i], feet, toward.Normalized));
+        }
+        var mid = Lineside(train, Ahead, Out);
+        var from = (Lineside(train, Ahead, 0) - mid) with { Y = 0 };
+        double distance = 2.2 + ids.Count * 1.05;
+        var camera = Ballast.Render.Camera.LookAt(mid + from.Normalized * distance + Double3.Up * 1.25, mid + Double3.Up * 0.95, 40);
+        return (row, camera);
+    }
+
     public static Double3 Lineside(TrainOnLine train, double ahead, double lateral)
     {
         var t = train.Line.Sample(train.Dynamics.Distance + ahead);
