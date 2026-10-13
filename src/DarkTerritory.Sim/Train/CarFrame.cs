@@ -100,9 +100,11 @@ public enum InteractableKind : byte { Firebox, Vent, Handbrake, Door, Coal, Sand
 /// <summary>
 /// A thing a player uses by standing near it and holding Use. <see cref="Index"/> says which door. <see cref="Aim"/> is how
 /// far over <see cref="Position"/> (its footing) the thing itself is, the point a look picks it by (note 264): where two
-/// are in reach, the one looked at is the one worked.
+/// are in reach, the one looked at is the one worked. <see cref="LookDegrees"/>, when not 0: worked only with the view pitched
+/// at least that far (up, or down when negative), and then it's the one looked at (note 675: a roof hatch's lid).
 /// </summary>
-public readonly record struct Interactable(InteractableKind Kind, Double3 Position, double Radius, int Index = 0, double Aim = 1.0);
+public readonly record struct Interactable(InteractableKind Kind, Double3 Position, double Radius, int Index = 0, double Aim = 1.0,
+    double LookDegrees = 0);
 
 /// <summary>
 /// Where the driver's hands go in the engine's cab (T29): the regulator's handle on the backhead, the brake valve's and
@@ -167,6 +169,8 @@ public sealed record CarShape(Box Bounds, IReadOnlyList<Solid> Solids, IReadOnly
     public Box? Hatch { get; init; }
     /// <summary>The hatch's bit in <see cref="Vehicle.DoorsOpen"/>: after the four doors.</summary>
     public const int HatchBit = 4;
+    /// <summary>How steeply a crewmate looks down at the hatch's lid from the roof, or up at it from the floor, to work it (note 675).</summary>
+    public const double HatchLookDegrees = 35;
     /// <summary>A crew car's stove (note 184), standing on its floor: the heat a crew car has of its own.</summary>
     public Box? Stove { get; init; }
 
@@ -393,9 +397,19 @@ public sealed record CarShape(Box Bounds, IReadOnlyList<Solid> Solids, IReadOnly
         if (hasCarBehind)
             ladders.Add(new Ladder(new Double3(g.EndLadderX, 0, l + 0.1), h, new Double3(0, 0, -1)));
         interactables.Add(new Interactable(InteractableKind.Handbrake, new Double3(BrakeWheelX(g), h, l - 0.5), 0.8));
-        // The hatch's handle: on the roof at its front edge, left of the gun rail, worked from the roof walk.
+        // The hatch's handle: on the roof at its front edge, left of the gun rail, worked from the roof walk. And its lid (note
+        // 675; the director, 13 Oct: "I should be able to open the roof of a car for loading from inside the car ... opening of
+        // the roofs is very inconsistent"): from anywhere along it or a metre off its ends, looking down at it from the roof, or
+        // up at it from the floor under it. Only looked at, so a crewmate walking the roof or working inside isn't offered it.
         if (hatch is { } hb)
+        {
             interactables.Add(new Interactable(InteractableKind.Hatch, new Double3(-0.6, h, hb.Min.Z - 0.35), 0.8, HatchBit));
+            double reach = (hb.Max.Z - hb.Min.Z) / 2 + 1.0;
+            var middle = (hb.Min.Z + hb.Max.Z) / 2;
+            interactables.Add(new Interactable(InteractableKind.Hatch, new Double3(0, h, middle), reach, HatchBit, Aim: 0, LookDegrees: -HatchLookDegrees));
+            interactables.Add(new Interactable(InteractableKind.Hatch, new Double3(0, floor, middle), reach, HatchBit, Aim: ceiling - floor,
+                LookDegrees: HatchLookDegrees));
+        }
         var interior = new Box(new Double3(-w + t, floor - 0.1, -l + t), new Double3(w - t, ceiling, l - t));
         return new CarShape(new Box(new Double3(-w, 0, -l), new Double3(w, h, l)), solids, ladders, interactables, null, Interior: interior, Doors: doors)
         {
