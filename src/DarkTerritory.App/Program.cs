@@ -57,6 +57,8 @@ var crashes = CrashReports.Install(crashesAt >= 0 && crashesAt + 1 < args.Length
 #if DEVTOOLS
 // A developer build's tools (note 514): reached only here and under the other DEVTOOLS hooks; a player's build has none of it.
 var dev = DarkTerritory.Dev.DevTools.Start(args, crashes);
+// The creature gym (GDD §34.1, note 676): the night it's on, while it's on.
+DarkTerritory.Dev.Gym.CreatureGym? gym = null;
 #endif
 
 // The system's file browser on a folder (note 411): Explorer, Finder, or whatever xdg-open hands it to; or, given an address
@@ -139,6 +141,11 @@ var frontEnd = new FrontEnd(campaignTuning, runTuning, saves, Arg("--settings", 
     Reports = ReportsTuning.Load(content),
     ProblemReport = () => crashes.WriteProblem(),
 };
+#if DEVTOOLS
+// The creature gym (GDD §34.1, note 676), on a developer build's title screen.
+frontEnd.DevEntries = [("CREATURE GYM", "Every creature, one at a time, called when you're ready (developer builds).",
+    new Launch.DevTool(DarkTerritory.Dev.Gym.CreatureGym.ToolName))];
+#endif
 // Note 452: every report says what the game is: its edition and mods, whether Steam's up, and (asked as it's written) the
 // settings, the screen or the night and where it had got to.
 crashes.Context("edition", EditionTuning.Load(content).Name);
@@ -160,6 +167,11 @@ if (frontEnd.Crash is not null)
 // A night named on the command line starts straight away; otherwise it's the front end's choice.
 Launch? LaunchFromArgs()
 {
+#if DEVTOOLS
+    // --gym (note 676): straight into the creature gym.
+    if (args.Contains("--gym"))
+        return new Launch.DevTool(DarkTerritory.Dev.Gym.CreatureGym.ToolName);
+#endif
     int cars = int.Parse(Arg("--cars", "6"));
     int? port = !args.Contains("--host") ? null : int.TryParse(Arg("--host", ""), out var p) ? p : NetPlaySession.DefaultPort;
     string? password = Arg("--password", "") is { Length: > 0 } pw ? pw : null;
@@ -557,6 +569,7 @@ static string Doing(Launch chosen) => chosen switch
     Launch.CampaignNight c => $"a campaign night, slot {c.Slot}, contract {c.Contract}{(c.Resume ? ", resumed" : "")}{(c.Host ? ", hosted" : "")}{(c.Bots > 0 ? $", {c.Bots} bots" : "")}",
     Launch.Night n => $"a {(n.Host ? "hosted" : "solo")} night, {n.Route ?? n.RouteFile ?? n.Line}, {n.Cars} cars{(n.Bots > 0 ? $", {n.Bots} bots" : "")}",
     Launch.Join j => $"joined {j.Address}",
+    Launch.DevTool t => $"the {t.Name}",
     Launch.JoinLobby l => $"joined Steam lobby {l.Lobby}",
     _ => chosen.GetType().Name,
 };
@@ -565,6 +578,19 @@ static string Doing(Launch chosen) => chosen switch
 (IPlaySession Session, CampaignState? Campaign) Start(Launch chosen)
 {
     bool enemies = !args.Contains("--no-enemies");
+#if DEVTOOLS
+    // The creature gym (GDD §34.1, note 676): a solo night at its stop, private and on loopback, nothing coming by itself.
+    if (chosen is Launch.DevTool { Name: DarkTerritory.Dev.Gym.CreatureGym.ToolName })
+    {
+        gym = DarkTerritory.Dev.Gym.CreatureGym.Load(content);
+        var gymSetup = gym.Setup() with { MusicBag = musicBags.Load(), FirstChildReal = profile.FirstChildReal };
+        var gymNight = NetPlaySession.HostGame(content, gymSetup, port: null, bots: 0, listed: false);
+        gym.Begin(gymNight.Host!);
+        Console.WriteLine($"the creature gym: {gym.Tuning.Route} at {gym.Stop?.Facility?.ToString() ?? "its stop"}, {gym.Tuning.Cars} cars; F6 picks, F7 calls, F10 clears");
+        return (gymNight, null);
+    }
+    gym = null;
+#endif
     switch (chosen)
     {
         case Launch.JoinLobby lobby when steam is not null:
@@ -1002,6 +1028,9 @@ CampaignState? Play(IPlaySession session, CampaignState? campaign)
         // are the note's (Escape drops it rather than opening the menu).
         if (vr is null && !inMenu)
             dev.Notes?.Keys(window, input, session, net?.Host, now);
+        // The creature gym's keys (note 676): F6 picks, F7 calls, F10 clears.
+        if (gym is not null && vr is null && !inMenu && dev.Notes is not { Typing: true } && net?.Host is { } gymKeys)
+            gym.Keys(input, gymKeys, (byte)net.PlayerId, now);
 #endif
         if (vr is not null)
         {
@@ -1278,6 +1307,11 @@ CampaignState? Play(IPlaySession session, CampaignState? campaign)
             pendingReverser = false;
             pendingYaw = pendingPitch = 0;
             session.Step(intent);
+#if DEVTOOLS
+            // The creature gym (note 676): a death stood up again at the safe ring, after the host's step.
+            if (gym is not null && net?.Host is { } gymHost)
+                gym.Step(gymHost, now);
+#endif
             // The crew's count on the console as it changes (queue #276: the two-machine test reads it from both ends' logs).
             if (net?.Link is { Aboard: var aboardNow } && aboardNow != aboardLogged)
             {
@@ -1468,6 +1502,10 @@ CampaignState? Play(IPlaySession session, CampaignState? campaign)
             if (look?.Tuning.Atmosphere.Wind is { } wind)
                 (lighting.Wind, lighting.Gusts) = (wind.Of(r.Weather.Wind), wind.Gusts);
         }
+#if DEVTOOLS
+        // The creature gym's light and air (note 676), lit for filming.
+        gym?.Light(ref lighting);
+#endif
         // The Choir's cold, coming before it (App. A.7): the frame chills as it gathers (Look.Chill, over the weather's frost).
         if (look is not null)
             lighting = look.Chill(lighting, GreyboxScene.ChoirCold(session.World.Choir.Present ? 1 : (float)session.World.Choir.Build));
@@ -1587,6 +1625,8 @@ CampaignState? Play(IPlaySession session, CampaignState? campaign)
         if (vr is null)
             dev.Notes?.Frame(() => renderer.Render(mesh, camera, lighting, lighting.FogColor, showHud || menuShown ? overlay : null), renderer.Width, renderer.Height);
         dev.Draw(overlay, UiWidth, UiHeight);
+        if (gym is not null && !menuShown)
+            gym.Draw(overlay, UiWidth, UiHeight, now);
 #endif
         if (vr is null)
         {

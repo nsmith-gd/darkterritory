@@ -1,0 +1,39 @@
+// The creature gym (GDD §34.1, ARCHITECTURE §8 note 676): where the director meets each creature on purpose, one at a time.
+// Developer builds only: a player's build can't open it, and nothing on a real night reads this file.
+{
+  // The night it's on: a line, the train's length, and the stop it stands at (the first on the line with a yard and a
+  // village, so the yard's sheds, switches and lamps and the village's houses are all a walk from the train).
+  "route": "frontier:7",
+  "cars": 6,
+  "stop": "yardAndVillage",
+  // Nothing called comes nearer you than this (metres), whatever its own rule would do: past every creature's reach, so
+  // it never sets itself off as it arrives. A creature whose own reach is longer keeps that.
+  "minDistance": 45,
+  // And no farther than this from you, so it's in sight to be watched (where its rule allows: the Track Doll on the line
+  // ahead, the Cinder Hounds behind the train).
+  "maxDistance": 140,
+  // Seconds from the killing blow to standing up again: long enough to see and hear it done.
+  "respawnSeconds": 4,
+  // The safe spot: a ring on the ground beside the engine, this far out from the track's centre on the side away from
+  // the stop's village, kept as a fort keeps its ground (GDD §9): nothing comes into it.
+  "safeRing": { "out": 9, "radius": 5 },
+  // Lamps set down lit about the stop, for the look (each a hand lamp, as on a real night: it can be picked up). Along the
+  // train from its rear to its front, out from the track on alternate sides.
+  "lamps": { "count": 8, "out": [6, 14] },
+  // The gym's own light and air, over the look's (look.json "atmosphere"), lit for filming rather than balanced for play:
+  // the fog heavy and low, the moon low and cold, the lamps warmer against it.
+  "look": {
+    "fogHeightFalloff": 0.11,
+    "fogFloor": 0.3,
+    "fogCurve": 1.7,
+    "fogColour": [0.07, 0.085, 0.105],
+    "moonDirection": [-0.7, 0.16, -0.45],
+    "moonColour": [0.46, 0.56, 0.82],
+    "moonStrength": 0.85,
+    "ambient": 0.06,
+    "lampColour": [1.0, 0.66, 0.34],
+    "lampIntensity": 3.8
+  },
+  // The weather's fog, thicker than the line's own by this much.
+  "fogScale": 1.6
+}

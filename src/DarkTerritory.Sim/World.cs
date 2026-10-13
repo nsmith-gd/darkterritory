@@ -368,6 +368,21 @@ public sealed class World
     public double InsistEvery { get; set; } = 10;
     readonly Dictionary<EnemyKind, double> _insistGone = [];
 
+    /// <summary>
+    /// Host, the creature gym (GDD §34.1, note 676; developer builds only): nothing comes by itself, only what's called. The
+    /// director's spawns and draws (the Stoker's heat, the marsh, the moose, Dave and Jacob, the Mourners, the Pickers, the
+    /// houses, a crewmate left behind), the dawn's Wakers and the night things' flight before them, the lamps, couplings and
+    /// hot boxes that go wrong by themselves, and the sending off of what's been left alone a while: none of it. False on
+    /// every real night.
+    /// </summary>
+    public bool CallOnly { get; set; }
+
+    /// <summary>
+    /// Host, the gym's safe spot (note 676): a ring kept as a fort is (GDD §9): nothing is put down in it, and a creature that
+    /// comes into it is sent off. Null on every real night.
+    /// </summary>
+    public (Ballast.Double3 Centre, double Radius)? SafeRing { get; set; }
+
     public IReadOnlyList<Enemy> ActiveEnemies => _enemies;
     public List<EnemyEvent> EnemyEvents { get; } = new();
     public List<DamageEvent> Damage { get; } = new();
@@ -1697,6 +1712,8 @@ public sealed class World
     /// </summary>
     public bool InFort(Ballast.Double3 world)
     {
+        if (SafeRing is { } ring && ((world - ring.Centre) with { Y = 0 }).Length <= ring.Radius)
+            return true;
         if (Run is not { Tuning.Forts: { Safe: true } forts } run)
             return false;
         double hint = Train.Dynamics.Distance;
@@ -1785,7 +1802,7 @@ public sealed class World
         if (Authority && !Derailed && _couplings is { } pins)
         {
             bool pack = ActiveEnemies.Any(e => e.Kind == EnemyKind.CinderHound && !e.Gone && e.Attached >= 0);
-            int parted = pins.Step(Train, Math.Max(1, _actors.Count(a => a.State.Alive)), SafeYard || TrainInFort, pack);
+            int parted = pins.Step(Train, Math.Max(1, _actors.Count(a => a.State.Alive)), SafeYard || TrainInFort || CallOnly, pack);
             if (pins.Loosened is { } l)
             {
                 Attribution.Loosened(l.Car, l.Cause, l.Speed);
@@ -1804,11 +1821,11 @@ public sealed class World
             Attribution.CameApart(apart);
         // The lamps (note 346): one guttering for each crewmate at most, none in the yard or a fort; one left too long goes out.
         if (Authority && !Derailed && _gutters is { } lamps)
-            lamps.Step(Train, Math.Max(1, _actors.Count(a => a.State.Alive)), SafeYard || TrainInFort);
+            lamps.Step(Train, Math.Max(1, _actors.Count(a => a.State.Alive)), SafeYard || TrainInFort || CallOnly);
         if (Authority && !Derailed && _hotBoxes is { } boxes)
         {
             int open = Math.Max(1, _actors.Count(a => a.State.Alive));
-            if (boxes.Step(Train, open, SafeYard || TrainInFort) is var caught and >= 0 && Enemies is { } ht)
+            if (boxes.Step(Train, open, SafeYard || TrainInFort || CallOnly) is var caught and >= 0 && Enemies is { } ht)
                 AddEnemy(id => CarFire.In(id, Train, caught, Train.Frames[caught].Shape.HalfLength - boxes.Tuning.BogieInset, ht.CarFire));
         }
         if (Authority && Combat?.Fumes is { } fumes)
@@ -1847,7 +1864,10 @@ public sealed class World
                 Choir.Floor = Math.Max(Choir.Floor, Run?.HerdFloor ?? 0);
                 // Insisted on (note 186): it's gathered all but the last few seconds, and the meter's held up till it comes.
                 // Once it's here the crew can hush it off as on any night.
-                if (Insist?.Contains(EnemyKind.Choir) == true && !Choir.Present && !Choir.Spent && Choir.Rest <= 0 && ElapsedSeconds >= InsistAfter)
+                // Called in the gym (note 676) the same.
+                if (Choir.Present)
+                    _choirCalled = false;
+                if ((Insist?.Contains(EnemyKind.Choir) == true || _choirCalled) && !Choir.Present && !Choir.Spent && Choir.Rest <= 0 && ElapsedSeconds >= InsistAfter)
                 {
                     Choir.Build = Math.Max(Choir.Build, 1 - InsistLeadSeconds / c.Choir.BuildSeconds);
                     Choir.Floor = Math.Max(Choir.Floor, c.Choir.Threshold * 1.25);
@@ -2131,9 +2151,13 @@ public sealed class World
             && Train.Boiler.Firebox >= t.Stoker.HeatFirebox ? _hotFor + SimConstants.TickSeconds : 0;
         // The director thinks once a second; the Stoker comes whenever its condition holds, charged when it does (App. B.5).
         // Not in the safe yard (note 263): nothing comes before the run begins.
-        Wake(t.Wakers);
-        NightFlees(t.Wakers);
-        if (Tick % SimConstants.TickRate == 0 && Director is { } d && !Derailed && !SafeYard)
+        // The gym (note 676): nothing comes by itself, the dawn's included.
+        if (!CallOnly)
+        {
+            Wake(t.Wakers);
+            NightFlees(t.Wakers);
+        }
+        if (Tick % SimConstants.TickRate == 0 && Director is { } d && !Derailed && !SafeYard && !CallOnly)
         {
             d.Present(_context?.Crew.Count ?? 0);
             d.Count(this, Run is { Tuning.YardIsSafe: true } rc ? rc.Seconds : ElapsedSeconds, _enemies, NoSpawnFinalApproach);
@@ -2211,14 +2235,15 @@ public sealed class World
         Sim.Enemies.Solidity.Settle(_enemies, Train, t);
         // GDD §9, T128 (note 273): no creature comes into a fort. One that does (riding the train in, running down a crewmate
         // who got back inside the gate, put down there by a spawn) is driven off: it lets go and is gone.
-        if (Run is { Tuning.Forts.Safe: true } run)
+        // The gym's safe ring (note 676) the same.
+        if (Run is { Tuning.Forts.Safe: true } || SafeRing is not null)
             foreach (var e in _enemies)
                 if (!e.Gone && !e.Hazard && e is not Sim.Enemies.Incident && e.WorldPosition(Train) is var at && InFort(at))
                 {
                     // Unless it rode in through a town's gate (note 589): the town fights it in the yard a while first.
                     double hint = Train.Dynamics.Distance;
                     Train.Line.Nearest(at, ref hint);
-                    if (run.BringIn(e, hint) <= 0)
+                    if (Run is not { } run || run.BringIn(e, hint) <= 0)
                         e.Dismiss();
                 }
 
@@ -2276,6 +2301,70 @@ public sealed class World
     {
         _enemies.Add(Stoker.InFirebox(_nextEnemyId++, Train, false, t.Stoker));
         return true;
+    }
+
+    /// <summary>What a call brought (the creature gym's, note 676): whether it came, where (said plainly), and its ids.</summary>
+    public sealed record Called(EnemyKind Kind, bool Came, string Where, IReadOnlyList<int> Ids);
+
+    /// <summary>
+    /// Host, the creature gym (GDD §34.1, note 676): one of <paramref name="kind"/> now, by its own spawn rule (where it
+    /// comes from and how it arrives), with that rule's gates set aside (once a night, the train's speed, the cargo, the
+    /// dice), and never nearer <paramref name="you"/> than <paramref name="min"/> metres: whatever it put down nearer is moved
+    /// out along the way it lay from you. Where its rule needs something the place hasn't got, it says so and nothing comes.
+    /// </summary>
+    public Called Call(EnemyKind kind, Ballast.Double3 you, double min, double max)
+    {
+        if (Enemies is not { } t || Director is not { } d)
+            return new(kind, false, "this night has no threats", []);
+        int from = _nextEnemyId;
+        string? why = Sim.Enemies.Calls.Put(this, kind, you, min, max, t, d);
+        var came = _enemies.Where(e => e.Id >= from && !e.Gone).ToList();
+        if (kind == EnemyKind.Choir && _choirCalled)
+            return new(kind, true, why ?? "gathering", []);
+        if (came.Count == 0)
+            return new(kind, false, why ?? "its rule found nowhere to put it here", []);
+        foreach (var e in came)
+            Sim.Enemies.Calls.KeepOff(this, e, you, min);
+        double nearest = came.Min(e => ((e.WorldPosition(Train) - you) with { Y = 0 }).Length);
+        return new(kind, true, $"{why ?? "by its own rule"}, {nearest:0} m off", [.. came.Select(e => e.Id)]);
+    }
+
+    /// <summary>Host, the gym (note 676): everything about sent off at once; how many.</summary>
+    public int Clear()
+    {
+        int n = 0;
+        foreach (var e in _enemies)
+            if (!e.Gone)
+            {
+                e.Dismiss();
+                n++;
+            }
+        return n;
+    }
+
+    /// <summary>The gym's calls (note 676) for what the director never spends on: the Stoker, the marsh, the Wakers.</summary>
+    internal void CallStoker(EnemyTuning t) => _enemies.Add(Stoker.AtTender(_nextEnemyId++, Train, t.Stoker));
+    internal void CallDrift(EnemyTuning t) => SpawnDrift(t);
+
+    /// <summary>The gym's Choir (note 676): gathered all but its last few seconds, as an insisted one is, its rest and its one taken forgotten.</summary>
+    internal bool CallChoir()
+    {
+        if (Combat is null)
+            return false;
+        Choir.Spent = false;
+        Choir.Rest = 0;
+        _choirCalled = true;
+        return true;
+    }
+    bool _choirCalled;
+    internal bool ChoirCalled => _choirCalled;
+
+    /// <summary>The gym's Mourners (note 676): a group come for <paramref name="body"/>, as for any body left lying.</summary>
+    internal void CallMourners(Physics.Body body, MournersTuning t)
+    {
+        int count = t.CountFor(Route?.Tier ?? Sim.Route.RouteTier.Local);
+        _enemies.AddRange(Mourner.Come(_nextEnemyId, count, body, Train, t));
+        _nextEnemyId += count;
     }
 
     readonly List<(uint Tick, Ballast.Double3 Muzzle)> _recentRounds = new();
