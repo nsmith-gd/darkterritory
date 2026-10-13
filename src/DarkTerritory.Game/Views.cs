@@ -674,10 +674,20 @@ public static class Views
             return Camera.LookAt(rackEye, rackAt, 50);
         double u = Math.Clamp((seconds - t.RackSeconds) / t.PullBackSeconds, 0, 1);
         u = u * u * (3 - 2 * u);
-        var mid = train.Frames[train.Frames.Count / 2];
+        var mid = Middle(train);
         var middle = mid.ToWorld(new Double3(0, 1, 0));
         var wide = middle + mid.Back * t.BackM + mid.Right * (t.BackM * 0.6) + Double3.Up * t.HeightM;
         return Camera.LookAt(Double3.Lerp(rackEye, wide, u), Double3.Lerp(rackAt, middle, Math.Min(1, u * 1.6)), (float)(50 + 10 * u));
+    }
+
+    /// <summary>
+    /// The middle of the crew's own train, the engine's rake (note 661): not of every vehicle on the line, which counts a
+    /// yard's standing cars and the derelicts on sidings and put the director's stranded outro on a train standing in a town.
+    /// </summary>
+    static Sim.Train.CarFrame Middle(TrainOnLine train)
+    {
+        var rake = train.Dynamics.Consist.Vehicles;
+        return train.Frames[rake[rake.Count / 2].Id];
     }
 
     /// <summary>
@@ -689,7 +699,7 @@ public static class Views
 
     /// <summary>E.9's shot distance at <paramref name="seconds"/>: the camera to the middle of the train.</summary>
     public static double StrandedDistance(TrainOnLine train, Sim.Train.StrandedOutroTuning t, double seconds) =>
-        (Stranded(train, t, seconds).Position - train.Frames[train.Frames.Count / 2].Origin).Length;
+        (Stranded(train, t, seconds).Position - Middle(train).Origin).Length;
 
     /// <summary>E.9: how many of the train's lamps are out, from the last car forward (the engine's last of all).</summary>
     public static int StrandedLampsOut(int cars, Sim.Train.StrandedOutroTuning t, double seconds) =>

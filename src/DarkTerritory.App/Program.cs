@@ -1513,6 +1513,8 @@ CampaignState? Play(IPlaySession session, CampaignState? campaign)
         scene.Controls = session.Controls;
         if (!session.World.LampShining)
             lighting.LampRange = 0.01f; // not 0: the shader divides by it
+        // The night's fog as it's drawn: what's past it is cooked off the frame (note 479).
+        scene.Fog = lighting;
         frameWatch.Mark("audio, hud");
         scene.Build(mesh, session.Train.Line, frames, session.Train.Dynamics.Distance, camera.Position);
         frameWatch.Mark("scene");
