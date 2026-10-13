@@ -43,7 +43,7 @@ public static class Onboarding
         string Hold(Control c) => keys.ToggleHolds && HoldLatch.Latches(c) ? "" : "HOLD ";
         return
         [
-            $"MOVE : {K(Control.Forward)}{K(Control.Left)}{K(Control.Back)}{K(Control.Right)}   RUN : {K(Control.Run)}   JUMP : {K(Control.Jump)}",
+            $"MOVE : {K(Control.Forward)}{K(Control.Left)}{K(Control.Back)}{K(Control.Right)}   RUN : {K(Control.Run)}   JUMP : {K(Control.Jump)}   CROUCH : {Hold(Control.Crouch)}{K(Control.Crouch)}",
             $"USE : {K(Control.Use)}   SWING : {K(Control.Swing)}   LADDER : {K(Control.Ladder)}",
             $"TALK : {Hold(Control.Talk)}{K(Control.Talk)}   RADIO : {Hold(Control.Radio)}{K(Control.Radio)}",
             $"CREW : {Hold(Control.Roster)}{K(Control.Roster)}   ROUTE CARD : {K(Control.RouteCard)}   SUPPLIES : {K(Control.Supplies)}",

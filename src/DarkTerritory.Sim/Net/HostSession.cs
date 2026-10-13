@@ -77,6 +77,7 @@ public sealed class HostSession
         {
             _playerTuning = value;
             World.Hand = value.Hand;
+            World.Movement = value;
             World.EmoteTuning = value.Emotes;
             World.Bodies.FullHealth = value.Health; // a healing find is used only short of it (note 272)
         }

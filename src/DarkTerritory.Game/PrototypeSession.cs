@@ -140,6 +140,7 @@ public sealed class PrototypeSession : IPlaySession
         if (_playerTuning.Refresh(e => LastReloadError = e.Message))
             LastReloadError = null;
         World.Hand = _playerTuning.Value.Hand;
+        World.Movement = _playerTuning.Value;
         World.Bodies.FullHealth = _playerTuning.Value.Health; // a healing find is used only short of it (note 272)
         if (_combatTuning.Refresh(e => LastReloadError = e.Message))
         {
@@ -206,7 +207,7 @@ public sealed class PrototypeSession : IPlaySession
 
     /// <summary>First-person eye, interpolated in the player's own frame so riding a car at speed is smooth.</summary>
     public Camera EyeCamera(IReadOnlyList<CarFrame> frames, double alpha, double pendingYaw, double pendingPitch) =>
-        Eyes.Operator(Player, World) ?? Eyes.From(Player, _previousPlayer, frames, alpha, pendingYaw, pendingPitch);
+        Eyes.Operator(Player, World) ?? Eyes.From(Player, _previousPlayer, frames, alpha, pendingYaw, pendingPitch, World.Movement?.Crouch.EyeDrop ?? 0);
 
     public string Status()
     {
