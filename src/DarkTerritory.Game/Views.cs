@@ -232,6 +232,8 @@ public static class Views
             // (Not one of Names.) Up off the engine's left side behind the cab, down onto the running board where it runs on in
             // front of the cab's doorway (the director, 9 Oct: "the platform ... should extend to be in front of the cab doors").
             "cabboard" => CabBoardCamera(train),
+            // The run map on the cab's front wall, square on and close enough to read its figures (note 671).
+            "cabmap" => MapCamera(engine),
             "ahead" => Camera.LookAt(engine.ToWorld(new Double3(1.5, 2.2, -engineHalf - 70)), engine.ToWorld(new Double3(0, 2.2, 0)), 55),
             "gap" => GapCamera(train, car),
             // (Not one of Names.) From a cargo car's right-hand side doorway, down at its steps (the director, 8 Oct: "an
@@ -391,6 +393,13 @@ public static class Views
     /// The left running board at the cab's doorway (note 559): from up off the engine's side behind the cab, at a crewmate's
     /// eye over the hood's eaves, looking forward and down onto the board where it passes the doorway and the steps under it.
     /// </summary>
+    static Camera MapCamera(CarFrame engine)
+    {
+        var (corner, w, h) = Art.TrainKit.MapPlate(engine.Shape);
+        var centre = new Double3(corner.X + w / 2, corner.Y + h / 2, corner.Z);
+        return Camera.LookAt(engine.ToWorld(centre + new Double3(0, -0.05, 0.85)), engine.ToWorld(centre), 70);
+    }
+
     static Camera CabBoardCamera(TrainOnLine train)
     {
         var engine = train.Frames[0];

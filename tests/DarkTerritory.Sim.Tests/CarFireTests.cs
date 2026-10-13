@@ -377,6 +377,25 @@ public class CarFireTests
     }
 
     [Fact]
+    public void HeldOnTheFloorAheadTheSprayPutsOutTheWholeStretchRoundTheCarThere()
+    {
+        // Note 662 (the director, 13 Oct: "point at it ... one grid ahead of me ... hold. And it should dissipate within five
+        // seconds. And then I should be able to continue walking forward to the next grid"). The car at full blaze, the floor
+        // a cell ahead aimed at and held: its floor, walls and roof there are all out, the stretch beyond still burning.
+        var (n, fire, ext, room) = Armed();
+        fire.Ablaze(0.97);
+        var grid = FireGrid.Of(n.Train, 2, Tuning.Enemies.CarFire.CellSize)!;
+        int cell = grid.FloorAt(fire.Local);
+        var at = grid.Centre[cell];
+        n.Crew[1] = Aim(n.Crew[1] with { Position = new Double3(room.Centre.X, room.Min.Y, at.Z - 2) }, at);
+        n.Run(1.5, _ => new PlayerIntent { Buttons = PlayerButtons.Fire });
+        Assert.True(grid.Slice[cell].Length >= 4, "floor, both walls and the roof");
+        Assert.All(grid.Slice[cell], c => Assert.Equal(0, fire.Heat[c]));
+        Assert.Contains(Enumerable.Range(0, grid.Count).Where(c => Array.IndexOf(grid.Slice[cell], c) < 0), c => fire.Heat[c] > 0.5);
+        Assert.False(fire.Gone);
+    }
+
+    [Fact]
     public void TheSprayPutsOutTheCellItsAimedAtAndNotTheFireBehindYou()
     {
         // App. F.1 (the director's decision of 6 Oct 2026): "the extinguisher puts out the cell you aim at". Beside the fire,

@@ -375,13 +375,13 @@ A car fire burns on cells (decided 6 Oct, GDD App. F.1; ARCHITECTURE note 267). 
 | A cell's growth | `growPerSecond` 0.006 + `growWithSize` 0.02 × its heat; the floor's cells × the cargo's growth (powder 1.6, chemicals 1.3, coal and timber 1.4) |
 | Catching | A cell at 0.5 or more heats each cell sharing an edge at 0.04 × its heat a second, ×2 upward (fire climbs) |
 | Burning out | A cell burns 0.01 × its heat of its fuel a second, charring as it goes; burnt out, it dies down at 0.05/s. Embers below 0.05 go out unless a neighbour is heating them |
-| Extinguisher | 3.5 m from the eye along the look; the cell hit cools 2/s (`sprayPerSecond`; the director, 12 Oct: "extinguish far more of the fire"), the cells round it 40% of that, and it stays wet (won't catch) for 3 s; 15 s of charge |
+| Extinguisher | 3.5 m from the eye along the look; the stretch of the car where it's aimed, its floor, walls and roof there, cools 1/s a cell (`sprayWorksAcross`, `sprayPerSecond`; the director, 13 Oct: "one grid ahead of me ... hold. And it should dissipate within five seconds"; 12 Oct: "extinguish far more of the fire"), the cells round it 40% of that, and it stays wet (won't catch) for 3 s; 15 s of charge |
 | Alight | When any cell reaches 0.35 (the commit, after the smoke) |
 | The car's fire | The mean of its cells: the explosion (powder car at 0.6), the cargo and car damage, the sound |
 | Jumping the coupling | A cell against an end wall at 0.8 for 15 s (chemicals ×2, coal and timber ×2 as fast), into the next car's near end |
 | Burns | Within 1.6 m of a burning cell's patch (feet to 1.8 m up), its heat × the falloff; the roof at half |
 | Left alone (goods) | At 1.5 m cells: alight at 25 s, the roof caught by about 55 s, half the car by 70 s, the next car by 85 s; burnt out by about 6 min. Not yet measured again at 3.5 m (note 634) |
-| One extinguisher | Puts out a car at full blaze in about 10.5 s, a little under two-thirds of its charge left, the one spraying it hardly burned (the director, 12 Oct: "from full blaze within 20 seconds"; `FireCellsTests`) |
+| One extinguisher | Puts out a car at full blaze in about 8.6 s, nearly three-quarters of its charge left, the one spraying it unburned (the director, 12 Oct: "from full blaze within 20 seconds"; `FireCellsTests`) |
 
 ---
 

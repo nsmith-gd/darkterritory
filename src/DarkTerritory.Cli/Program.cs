@@ -53,6 +53,12 @@ return args switch
     // dt mcp: live control for agents (note 524): an MCP server on stdio whose tools host a night, step it, read it, insist
     // on what comes, open a recording, draw any of it framed on a subject (subject:gaunt), and run the rest of dt.
     ["mcp", ..] => McpCommands.Run(content, args, noMods),
+    // dt gym [--only ribbit,gaunt] [--seconds 6] [--shots out/gym]: the creature gym (GDD §34.1, note 676) hosted headless, every
+    // creature called in turn: whether it came, where, how far off, and a photograph of each under the gym's light; a death
+    // and where it stood up again; and the safe ring kept.
+    ["gym", ..] => Print(DarkTerritory.Dev.Gym.GymCheck.Run(content,
+        Str(args, "--only", "") is { Length: > 0 } only ? DarkTerritory.Dev.Live.EnemyNames.ParseAll(only.Split(',')) : null,
+        Opt(args, "--seconds", 6), args.Contains("--no-shots") ? null : Str(args, "--shots", "out/gym"))),
     // dt edition bake <name> --into <dir>: the base content with an edition (editions/<name>) baked in, as the demo build
     // ships it (T79). dt [--edition demo] edition: what the content in use is.
     ["edition", "bake", var name, ..] => Print(new { edition = name, content = Path.GetFullPath(Mods.Bake(baseContent, name, Str(args, "--into", $"out/editions/{name}"))) }),
@@ -3079,18 +3085,24 @@ static object HudShot(string content, string[] args)
         // warned. deadLines:1 if no --route (every night has such bends since note 278).
         if (args.Contains("--bend-warning"))
             roofWarning = "bend-cab";
-        var solo = roofWarning == "bend-cab"
+        // --mail-crane [s] (note 673): a mail crane s seconds from the second car (6 if none), its board read, the player in
+        // the open side door on its side (--mid-car: in the middle of the car). frontier:7 if no --route.
+        double? mailCrane = args.Contains("--mail-crane") ? Array.IndexOf(args, "--mail-crane") is var mc && mc + 1 < args.Length
+            && double.TryParse(args[mc + 1], System.Globalization.CultureInfo.InvariantCulture, out double mcs) ? mcs : 6 : null;
+        var solo = mailCrane is { } craneSeconds
+            ? Staging.MailCrane(content, generated ?? DarkTerritory.Sim.LineGen.Routes.Generate(content, "frontier:7", cars), cars, craneSeconds, atDoor: !args.Contains("--mid-car"))
+            : roofWarning == "bend-cab"
             ? Staging.BendWarning(content, generated ?? DarkTerritory.Sim.LineGen.Routes.Generate(content, "deadLines:1", cars), cars, Array.IndexOf(args, "--bend-warning") is var bw && bw + 1 < args.Length && double.TryParse(args[bw + 1], System.Globalization.CultureInfo.InvariantCulture, out double bws) ? bws : 4)
             : roofWarning.Length > 0
             ? Staging.RoofWarning(content, generated ?? DarkTerritory.Sim.LineGen.Routes.Generate(content, "deadLines:1", cars), cars, roofWarning)
             : generated is null ? new PrototypeSession(content, Str(args, "--line", "test-loop"), cars) : new PrototypeSession(content, generated, cars, enemies: false);
-        if (roofWarning.Length == 0)
+        if (roofWarning.Length == 0 && mailCrane is null)
             solo.Controls.Throttle = Opt(args, "--throttle", args.Contains("--talk") ? 0 : 0.6);
         // --hazards name: one of balance.json's hazard sets laid over the line (note 186), e.g. cold: the HUD's cold step (note 201).
         if (Str(args, "--hazards", "") is { Length: > 0 } hz)
             DarkTerritory.Sim.Net.HazardConditions.Apply(solo.Train.Line,
                 DataFile.Load<BalanceTuning>(Path.Combine(content, BalanceTuning.File)).Combinations.HazardSets.First(h => h.Name == hz));
-        for (int i = 0; i < (roofWarning.Length > 0 ? 1 : Opt(args, "--seconds", 6) * SimConstants.TickRate); i++)
+        for (int i = 0; i < (roofWarning.Length > 0 || mailCrane is not null ? 1 : Opt(args, "--seconds", 6) * SimConstants.TickRate); i++)
             solo.Step(new PlayerIntent { LookPitch = i == 0 ? (float)Opt(args, "--pitch", 0) : 0, LookYaw = i == 0 ? (float)Opt(args, "--yaw", 0) : 0 });
         // --mend [t]: the repair kit in hand and a broken radio on the belt (GDD §23; note 201), t seconds into mending it.
         if (args.Contains("--mend"))
