@@ -34,8 +34,14 @@ public sealed class Waker(int id) : Enemy(id)
     /// <summary>It has the train (the lift and the eating, <see cref="Enemy.Extra"/> seconds in).</summary>
     public bool Holds => Phase == SpinePhase.Punish;
 
-    /// <summary>The night's creatures are going to ground (<see cref="WakersTuning.NightFleesSeconds"/> or less to dawn, or past it).</summary>
-    public static bool NightFleeing(World world, WakersTuning t) => t.NightFleesSeconds >= 0 && world.Run is { } run && run.DawnIn <= t.NightFleesSeconds;
+    /// <summary>
+    /// The night's creatures are going to ground (<see cref="WakersTuning.NightFleesSeconds"/> or less to dawn, or past it),
+    /// or the night's over stranded (note 661): the crew alive out on the line, waiting on first light's recovery, and the
+    /// night done with them. The director's crew, stranded at Voss Green on 13 Oct, were "picked up by something, even though
+    /// I'm stranded, but I'm not dead".
+    /// </summary>
+    public static bool NightFleeing(World world, WakersTuning t) => t.NightFleesSeconds >= 0 && world.Run is { } run
+        && (run.DawnIn <= t.NightFleesSeconds || run.End == Sim.Run.RunEnd.Stranded);
 
     /// <summary>
     /// One of the night's creatures, which go to ground at dawn: not a hazard (a car fire, the Drift, the Sleepers, the Wakers

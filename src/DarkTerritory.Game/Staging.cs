@@ -54,6 +54,21 @@ public static partial class Staging
     }
 
     /// <summary>
+    /// The night's departure town (GDD §3.1) as `dt screenshot --town` makes it, and where the train of
+    /// <paramref name="consistLength"/> stands to leave it (<paramref name="depart"/>); null with no towns in the content.
+    /// </summary>
+    public static Sim.Towns.Town? DepartureTown(string content, Sim.Route.Route route, Sim.Rail.RailLine line, double consistLength, out double depart)
+    {
+        var runTuning = DataFile.Load<Sim.Run.RunTuning>(Path.Combine(content, Sim.Run.RunTuning.File));
+        double gate = route.GateOr(Sim.Route.RouteTuning.Load(content).YardLength);
+        depart = runTuning.DepartFrom(gate, consistLength);
+        if (Sim.Towns.TownContent.Load(content) is not { } towns)
+            return null;
+        var roster = DataFile.Load<Sim.Enemies.EnemyTuning>(Path.Combine(content, Sim.Enemies.EnemyTuning.File)).Director.Roster;
+        return new Sim.Towns.Town(Sim.Towns.TownGenerator.Generate(towns, Sim.Towns.TownSite.Of(route, gate, roster, towns)), towns.Tuning, line, towns.Looks);
+    }
+
+    /// <summary>
     /// Standing in a fortress town (note 281, `dt screenshot --town`): "square" at the way in from the engine, looking over
     /// the centrepiece to the hall; "centre" at the centrepiece, close; "board" before the notice board; "hall" at the
     /// hall's door; "gate" by the gatekeeper, looking back down the yard; "street" out on the track side, the square across
@@ -275,6 +290,42 @@ public static partial class Staging
         if (!tunnel && session.World.Lineside is { } lineside)
             speed = Math.Max(speed, lineside.ThrowsAbove(sign, session.Train) + 0.5);
         session.Respawn(Math.Min(2, session.Train.Frames.Count - 1));
+        for (int i = 0; i < Sim.SimConstants.TickRate; i++)
+        {
+            session.Train.Dynamics.Velocity = speed;
+            session.Step(default);
+        }
+        return session;
+    }
+
+    /// <summary>
+    /// A mail crane coming up (note 673, `dt screenshot --hud --mail-crane [s]`): a solo night on <paramref name="route"/>
+    /// with its first crane past the yard about <paramref name="seconds"/> from the second car's side doors, its board read,
+    /// the player in that car: with <paramref name="atDoor"/>, in the open side door on the crane's side, else mid-car.
+    /// </summary>
+    public static PrototypeSession MailCrane(string content, Sim.Route.Route route, int cars, double seconds = 6, bool atDoor = true)
+    {
+        var sight = DataFile.Load<Sim.Route.SightTuning>(Path.Combine(content, Sim.Route.SightTuning.File));
+        var drop = Sim.Route.Lineside.Drops(sight, route).FirstOrDefault(d => d.At > route.Gate + 1500)
+            ?? throw new InvalidOperationException($"{route.Name} has no mail crane past its yard");
+        const double speed = 12;
+        var session = new PrototypeSession(content, route, cars, enemies: false, at: drop.At - speed * (seconds + 1));
+        session.Controls = new Sim.Train.TrainControls { Reverser = 1 };
+        int car = Math.Min(2, session.Train.Frames.Count - 1);
+        var shape = session.Train.Frames[car].Shape;
+        session.Respawn(car);
+        if (shape.Interior is { } room)
+        {
+            if (atDoor && Sim.Bots.StopHand.SideDoor(shape, drop.Side) is { } door && !session.Train.Vehicles[car].DoorOpen(door))
+                session.Train.Vehicles[car].ToggleDoor(door);
+            session.Player = session.Player with
+            {
+                Parent = car,
+                Position = new Double3(atDoor ? drop.Side * (room.HalfSize.X - 0.35) : 0, room.Min.Y, 0),
+                Surface = Sim.Player.Surface.Deck,
+                Yaw = -drop.Side * Math.PI / 2,
+            };
+        }
         for (int i = 0; i < Sim.SimConstants.TickRate; i++)
         {
             session.Train.Dynamics.Velocity = speed;
