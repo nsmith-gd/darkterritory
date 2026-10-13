@@ -361,6 +361,27 @@ public class HudTests
     }
 
     [Fact]
+    public void WithTheTrainOnThePointsThePromptSaysSo()
+    {
+        // Note 665 (the director, 13 Oct: "it says points held ... it's not clear what it's indicating. We should just tell the
+        // player at that point something is on the track"): what's on them, said.
+        var route = Enumerable.Range(1, 20).Select(seed => DarkTerritory.Sim.Route.RouteGenerator.Generate(
+            DarkTerritory.Sim.Route.RouteTuning.Load(Content),
+            DarkTerritory.Sim.Route.RouteTier.Frontier, (ulong)seed)).First(r => r.Branches.Count > 0);
+        var s = new PrototypeSession(Content, route, 4, enemies: false);
+        var stands = s.World.Switches!;
+        var line = s.Train.Line;
+        var lever = stands.LeverAt(line, 0);
+        var toe = line.Sample(line.Branches[0].Toe);
+        var right = Double3.Cross(toe.Tangent, Double3.Up).Normalized;
+        s.Player = PlayerMotor.SpawnOnGround(lever - Double3.Up * 0.9 + right * (line.Branches[0].Side * 0.8), line, line.Branches[0].Toe, s.PlayerTuning);
+        s.Train.Dynamics.Distance = line.Branches[0].Toe + 10;
+        s.Train.RefreshFrames();
+        Assert.True(s.Train.PointsOccupied(0, stands.Tuning.PointsLength));
+        Assert.Equal("TRAIN ON THE POINTS", Hud.Prompt(s));
+    }
+
+    [Fact]
     public void AtAStandThePromptIsTheLeversWhateversInYourHandsOrLyingByIt()
     {
         // Queue #94 (note 357): Use is the lever's at a stand, so the prompt was wrong to offer the crate lying by it, and
