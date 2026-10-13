@@ -374,9 +374,17 @@ public sealed record CarShape(Box Bounds, IReadOnlyList<Solid> Solids, IReadOnly
         if (hasCarBehind)
             ladders.Add(new Ladder(new Double3(g.EndLadderX, 0, l + 0.1), h, new Double3(0, 0, -1)));
         interactables.Add(new Interactable(InteractableKind.Handbrake, new Double3(BrakeWheelX(g), h, l - 0.5), 0.8));
-        // The hatch's handle: on the roof at its front edge, left of the gun rail, worked from the roof walk.
+        // The hatch's handle (note 675; the director, 13 Oct: "I should be able to open the roof of a car for loading from inside
+        // the car ... opening of the roofs is very inconsistent"). On the roof, from anywhere over the hatch or a metre off its
+        // ends: it was one spot at its front edge, 0.8 m round, and a step off it Use did nothing. And from the floor under it,
+        // looking up at it (a pull on the lid's catch), only when it's the thing looked at (CrewActions.NearestInteractable).
         if (hatch is { } hb)
-            interactables.Add(new Interactable(InteractableKind.Hatch, new Double3(-0.6, h, hb.Min.Z - 0.35), 0.8, HatchBit));
+        {
+            double reach = (hb.Max.Z - hb.Min.Z) / 2 + 1.0;
+            var middle = (hb.Min.Z + hb.Max.Z) / 2;
+            interactables.Add(new Interactable(InteractableKind.Hatch, new Double3(0, h, middle), reach, HatchBit));
+            interactables.Add(new Interactable(InteractableKind.Hatch, new Double3(0, floor, middle), reach, HatchBit, Aim: ceiling - floor));
+        }
         var interior = new Box(new Double3(-w + t, floor - 0.1, -l + t), new Double3(w - t, ceiling, l - t));
         return new CarShape(new Box(new Double3(-w, 0, -l), new Double3(w, h, l)), solids, ladders, interactables, null, Interior: interior, Doors: doors)
         {

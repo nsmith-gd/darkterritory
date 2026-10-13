@@ -200,9 +200,9 @@ public static class CrewActions
                 if (before < RackSeconds && s.ActionProgress >= RackSeconds)
                     Rack(ref s, train);
                 break;
-            // A cargo car's roof hatch (T99), from the roof: opened or shut like a door, but not shut down onto a casting the
-            // crane has hanging in it.
-            case InteractableKind.Hatch when s.Surface == Surface.Roof || Hand(s, hand):
+            // A cargo car's roof hatch (T99), from the roof or, looking up at it, from the floor under it (note 675): opened or
+            // shut like a door, but not shut down onto a casting the crane has hanging in it.
+            case InteractableKind.Hatch when s.Surface is Surface.Roof or Surface.Deck || Hand(s, hand):
                 double hatchSeconds = train.Dynamics.Tuning.Geometry.Interior?.DoorSeconds ?? 0.4;
                 s.ActionProgress += dt;
                 var hv = train.Vehicles[near.Value.Vehicle];
@@ -371,6 +371,7 @@ public static class CrewActions
         (Interactable, int)? best = null, looked = null;
         double bestD = double.MaxValue;
         int own = s.Parent;
+        bool onRoof = s.Surface == Surface.Roof;
         // Doors want facing: the coupler plate is in reach of two of them, and Use there also cuts the coupling. So do the
         // crew lockers: a row of them, and you're at the one you face.
         double fx = -DMath.Sin(s.Yaw), fz = -DMath.Cos(s.Yaw);
@@ -405,8 +406,9 @@ public static class CrewActions
                         looked = (i, vehicle);
                     }
                 }
-                // The whistle cord is only ever the one looked at: never pulled by standing near it.
-                if (reaching is null && i.Kind == InteractableKind.Whistle)
+                // The whistle cord is only ever the one looked at: never pulled by standing near it. Nor the roof hatch's catch
+                // from the floor under it (note 675): a car's floor is where everything else inside is worked.
+                if (reaching is null && (i.Kind == InteractableKind.Whistle || i.Kind == InteractableKind.Hatch && !onRoof))
                     continue;
                 if (d < bestD)
                 {

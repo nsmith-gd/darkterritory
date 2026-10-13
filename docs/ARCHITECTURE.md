@@ -849,6 +849,6 @@ written here instead is moved out by `tools/coord/notes.py split`; the Coordinat
 - [666. Skips in the morning build (D1, queue #397; the director, 13 Oct, playing the morning build)](notes/666.md)
 - [667. Audio skips and the floors in the morning build (AU1, queue #398; the director, 13 Oct, playing the morning build at 8fc43b58)](notes/667.md)
 - [674. Town flags: the cloth in the wind, and a flag for every town (E1, queue #405; the director, 13 Oct, playing the morning build; the World…](notes/674.md)
-- [675. Car roofs and loading (D1.4, queue #406; the director, 13 Oct, playing the morning build)](notes/675.md)
+- [675. Car roofs and loading: the roof hatch worked from anywhere along it on the roof, and from the floor under it (D1.4, queue #406; the…](notes/675.md)
 - [676. The creature gym (A1, queue #407; the director, 13 Oct 2026; GDD §34.1)](notes/676.md)
 <!-- end of the notes index -->
