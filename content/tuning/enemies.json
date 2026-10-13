@@ -797,7 +797,10 @@
   // the GDD's numbers: the kill radius is the powder car's own length and its neighbours' near ends.
   "carFire": {
     "startIntensity": 0.1, "growPerSecond": 0.006, "growWithSize": 0.02, "burnFrom": 0.35, "sprayReach": 3.5,
-    "sprayPerSecond": 1.0, "chargeSeconds": 15, "rechargeSeconds": 90, "burnReach": 1.6,
+    // sprayPerSecond: the director, the inbox, 12 Oct (`D1.4-burning-car-beatable`, "b": "make it 15 and have the extinguisher
+    // extinguish far more of the fire. A car should be extinguished from full blaze within 20 seconds."; note 634): 2, twice
+    // what it was, and with 16 cells (cellSize below) one extinguisher has a car at full blaze out in about 10.5 s (FireCellsTests).
+    "sprayPerSecond": 2.0, "chargeSeconds": 15, "rechargeSeconds": 90, "burnReach": 1.6,
     // Note 587 (the director, 9 Oct 2026, playtesting: "I point at fire, I click, I hold, it should stay there"): the spray
     // goes where the look lands on fire; where it lands on none (looking at the flames over a burning cell, the ray goes on
     // to the boards beyond), on the burning cell whose flames are nearest the middle of a sprayConeDeg cone along the look,
@@ -831,7 +834,12 @@
     // is heating it (a sprayed cell doesn't creep back from a spark). DESIGN-TODO: the GDD has no numbers; these keep
     // one crewmate who gets to a fire in its first half minute able to put it out with one extinguisher, a fire left a
     // minute needing two, and a car left alone taking the next in about a minute and a half.
-    "cellSize": 1.5, "catchFrom": 0.5, "catchPerSecond": 0.04, "climb": 2, "charPerSecond": 0.01,
+    // cellSize 3.5 (the director, 12 Oct, "72 patches of fire per car is far too many, make it 15"; note 634): 16 cells in a
+    // cargo car (4 along, the floor, the roof and each wall one across), the nearest the grid comes to 15; it was 1.5, 72.
+    // burnPatch: the boards round a burning cell's centre that burn you as if you stood on them, the reach counted from there
+    // (note 634): 0.75, half the 1.5 m cells it was tuned on, so the bigger cells don't burn further.
+    "burnPatch": 0.75,
+    "cellSize": 3.5, "catchFrom": 0.5, "catchPerSecond": 0.04, "climb": 2, "charPerSecond": 0.01,
     "sprayShare": 0.4, "dampSeconds": 3, "ceilingBurnShare": 0.5, "bodyHeight": 1.8, "outBelow": 0.05
   },
 
