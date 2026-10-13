@@ -65,6 +65,8 @@ public sealed record AtmosphereTuning
     public ChoirColdTuning? ChoirCold { get; init; }
     /// <summary>What the night's wind does to the foliage: how hard it blows, from where, how gusty.</summary>
     public WindTuning Wind { get; init; } = new();
+    /// <summary>A town's flag in that wind (note 674): its cloth, and how it lifts, ripples and hangs.</summary>
+    public FlagTuning Flag { get; init; } = new();
     /// <summary>The light indoors (queue #211, note 475): a room's own fill, the houses' candles and lamps, the hand lamp, the sheds' lanterns.</summary>
     public InteriorTuning Interiors { get; init; } = new();
 }
@@ -110,6 +112,35 @@ public sealed record WindTuning
 
     /// <summary>The wind at <paramref name="wind"/> (0..1): m/s, world axes, blowing away from <see cref="From"/>.</summary>
     public Vector3 Of(double wind) => -Vector3.Normalize(From) * (Calm + (Full - Calm) * Math.Clamp((float)wind, 0, 1));
+}
+
+/// <summary>
+/// A town's flag in the wind (queue #405, note 674; the director, 13 Oct: "it needs to be waving if it's going to be
+/// there"): its cloth (m), the wind (m/s) it starts to lift in and streams out flat by, how far its fly hangs down when
+/// there's none (rad, at the fly), how far it snakes side to side (rad at the fly, calm to full) and billows up and down
+/// in its own plane (rad at the fly, flying), how fast the ripple runs out along it (rad/s, calm to full) and how many
+/// waves are on it at once.
+/// </summary>
+public sealed record FlagTuning
+{
+    public float Length { get; init; } = 1.8f;
+    public float Height { get; init; } = 1.2f;
+    public float LiftFrom { get; init; } = 1.5f;
+    public float LiftFull { get; init; } = 10f;
+    public float Droop { get; init; } = 1.9f;
+    public float Ripple { get; init; } = 0.22f;
+    public float RippleFull { get; init; } = 0.6f;
+    public float Flutter { get; init; } = 0.22f;
+    public float Pace { get; init; } = 2.2f;
+    public float PaceFull { get; init; } = 10f;
+    public float Waves { get; init; } = 1.6f;
+
+    /// <summary>How far out of its hang the flag's lifted in a wind of <paramref name="speed"/> m/s, 0 (slack) to 1 (flying flat).</summary>
+    public float Lift(float speed)
+    {
+        float t = Math.Clamp((speed - LiftFrom) / Math.Max(1e-3f, LiftFull - LiftFrom), 0, 1);
+        return t * t * (3 - 2 * t);
+    }
 }
 
 /// <summary>
@@ -317,6 +348,9 @@ public sealed class Look
     public SurfaceStyle Style { get; }
     /// <summary>The folder the textures were read from, when they were.</summary>
     public string? TextureRoot { get; init; }
+
+    /// <summary>The towns' flags (content/art/flags.json, note 674): which cell of the flag atlas is whose.</summary>
+    public DarkTerritory.Game.Art.FlagBook Flags { get; init; } = DarkTerritory.Game.Art.FlagBook.Empty;
     /// <summary>
     /// The one doorway (train.json <c>doorway</c>, ARCHITECTURE §8 note 110): the train's doors are built to it, and every
     /// door the art draws, on the train or off it, is this tall (<see cref="Art.Kit.Doorway"/>).
@@ -329,6 +363,8 @@ public sealed class Look
     /// Holdout's shell from <see cref="Sim.Run.StopWalls.Shell"/> with these, so its doors are where you walk in (note 387).
     /// </summary>
     public Sim.Run.WallTuning Walls { get; init; } = new();
+    /// <summary>The signage kit (linegen/signage.json, note 560): a hand-laid line's boards are stood and lettered by it, as a generated line's plan's are.</summary>
+    public Sim.LineGen.SignageFile? Signage { get; init; }
 
     static Dictionary<string, Vector3> PaletteColours() =>
         typeof(Palette).GetFields(BindingFlags.Public | BindingFlags.Static).Where(f => f.FieldType == typeof(Vector3))
@@ -351,10 +387,12 @@ public sealed class Look
         var body = System.IO.File.Exists(vrFile) ? DataFile.Load<VrTuning>(vrFile).Body : new VrBodyTuning();
         string runFile = Path.Combine(content, Sim.Run.RunTuning.File);
         var walls = System.IO.File.Exists(runFile) ? DataFile.Load<Sim.Run.RunTuning>(runFile).Walls : new Sim.Run.WallTuning();
+        string signageFile = Path.Combine(content, "linegen", "signage.json");
+        var signage = System.IO.File.Exists(signageFile) ? DataFile.Load<Sim.LineGen.SignageFile>(signageFile) : null;
         string root = Path.Combine(content, "art", "textures");
         string index = Path.Combine(root, "index.json");
         if (!System.IO.File.Exists(index))
-            return new Look(tuning) { Doorway = doorway, VrBody = body, Walls = walls };
+            return new Look(tuning) { Doorway = doorway, VrBody = body, Walls = walls, Signage = signage };
         var entries = JsonSerializer.Deserialize<List<TextureEntry>>(System.IO.File.ReadAllText(index), DataFile.Options) ?? [];
         // The sourced props' own layers (tools/models writes them beside the library, index.models.json), after it.
         string models = Path.Combine(root, "index.models.json");
@@ -363,7 +401,7 @@ public sealed class Look
         // A texture named in the index but not on disk is skipped (and so is its material's texture): the look degrades
         // to flat colour rather than failing to start.
         entries = [.. entries.Where(e => System.IO.File.Exists(Path.Combine(root, e.Diffuse)))];
-        return new Look(tuning, entries) { TextureRoot = root, Doorway = doorway, VrBody = body, Walls = walls };
+        return new Look(tuning, entries) { TextureRoot = root, Doorway = doorway, VrBody = body, Walls = walls, Signage = signage, Flags = DarkTerritory.Game.Art.FlagBook.Load(content) };
     }
 
     /// <summary>The texture layer called <paramref name="name"/>, or −1 when it isn't there.</summary>

@@ -31,6 +31,9 @@
 --route frontier:7 --at 7600 --cam 7860,-45,-3 --target 7900,0,-2 --fov 75 --out out/shots/viaduct.png
 --route deadLines:1 --at 14000 --cam 14100,1.5,3 --target 14224,0,3 --fov 65 --out out/shots/tunnel.png
 --route frontier:7 --at 3300 --cam 3496,1.5,2.4 --target 3510,3.2,1.8 --fov 50 --out out/shots/lg-sign.png
+--route frontier:7 --view cab --board facility --ahead 150 --out out/shots/board-cab.png
+--route frontier:7 --view cab --board speedBoard --ahead 100 --out out/shots/board-speed.png
+--route deadLines:1 --view cab --board tunnelPlate --ahead 80 --out out/shots/board-tunnel.png
 --route frontier:7 --at 11300 --cam 11430,2,3 --target 11480,0,0.3 --fov 60 --out out/shots/lg-brass.png
 --route frontier:7 --at 9700 --cam 9790,-8,3 --target 9830,2,1.5 --fov 65 --out out/shots/lg-halt.png
 --route deadLines:1 --at 16700 --cam 16900,2,3 --target 17000,0,3 --fov 70 --out out/shots/lg-cutting.png

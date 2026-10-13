@@ -2249,8 +2249,9 @@ public static partial class Hud
                     : "TAKE THE WRENCH : [E]";
             case InteractableKind.Handbrake when p.Surface == Surface.Roof:
                 return "HANDBRAKE : HOLD [E]";
-            // T99: a cargo car's roof hatch, for the crane to lower a casting in through.
-            case InteractableKind.Hatch when p.Surface == Surface.Roof:
+            // T99: a cargo car's roof hatch, for the crane to lower a casting in through; from the roof, or the floor under it
+            // looking up (note 675).
+            case InteractableKind.Hatch when p.Surface is Surface.Roof or Surface.Deck:
                 return train.Vehicles[p.Parent].DoorOpen(CarShape.HatchBit)
                     ? train.HatchBlocked?.Invoke(p.Parent) == true ? "THE CASTING'S IN THE HATCH" : "SHUT THE HATCH : HOLD [E]"
                     : "OPEN THE HATCH : HOLD [E]";
@@ -2386,6 +2387,9 @@ public static partial class Hud
                 return "THE CRANE : [E]";
             if (p.Parent == PlayerState.World && crane.Riggable(PlayerMotor.WorldPosition(p, train)) is not null)
                 return crane.Rigging > 0 ? $"RIGGING ({crane.Rigging * 100:0}%)" : "RIG THE CASTING : HOLD [E]";
+            // Set down on the car you're on, still on the hook (note 659): unhooked there.
+            if (p.Parent > 0 && crane.Unriggable(train, PlayerMotor.WorldPosition(p, train)))
+                return crane.Rigging > 0 ? $"UNHOOKING ({crane.Rigging * 100:0}%)" : "UNHOOK THE CASTING : HOLD [E]";
         }
         if (world.Run?.HandleInReach(p, train, hand) is not null && world.Run.CurrentSite is { } site)
             // A headset turns the crank round with the hand (T43): which way is how it's worked, so it's said.
