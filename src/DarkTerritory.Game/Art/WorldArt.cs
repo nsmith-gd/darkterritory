@@ -20,17 +20,25 @@ public sealed partial class WorldArt(Look look)
     readonly PropArt _props = PropArt.Of(look);
     readonly Dictionary<string, MeshAsset> _pieces = new();
 
+    // (Locked: a cell of the line can be cooked on a worker while the frame's built, note 479. Made outside the lock, so a
+    // slow piece doesn't hold the frame up; two made at once keep the first.)
     MeshAsset Piece(string key, Func<MeshAsset> make)
     {
-        if (!_pieces.TryGetValue(key, out var p))
-            _pieces[key] = p = make();
-        return p;
+        lock (_pieces)
+            if (_pieces.TryGetValue(key, out var hit))
+                return hit;
+        var made = make();
+        lock (_pieces)
+            return _pieces.TryAdd(key, made) ? made : _pieces[key];
     }
 
     /// <summary>How long a cell of the line is: its ground, track and lineside cooked together (pipeline "20 m cells"; 100 m here, fewer draws).</summary>
     public const double CellLength = 100;
 
     readonly record struct Cell(MeshAsset Soup, (MeshAsset Piece, Matrix4x4 Local)[] Pieces, PointLight[] Lights, Double3 Origin);
+
+    /// <summary>The frame's fog (GreyboxScene.Fog, note 479), or null.</summary>
+    public FrameLighting? Fog { get; set; }
     readonly Dictionary<long, Cell> _cells = new();
     RailLine? _cellLine;
     Route? _cellRoute;
@@ -40,20 +48,48 @@ public sealed partial class WorldArt(Look look)
     /// lineside don't change, so they're built once, relative to each cell's own origin, and drawn by transform). Cells
     /// fall out of the cache once they're well behind.
     /// </summary>
-    public void Cells(MeshBuilder mesh, RailLine line, Route? route, Double3 eye, double from, double to, int seed, float valleyDepth)
+    /// <param name="centre">Along the line, nearest the eye (the middle of <paramref name="from"/> to <paramref name="to"/> when not given).</param>
+    public void Cells(MeshBuilder mesh, RailLine line, Route? route, Double3 eye, double from, double to, int seed, float valleyDepth, double? centre = null)
     {
         if (!ReferenceEquals(line, _cellLine) || !ReferenceEquals(route, _cellRoute))
         {
             _cells.Clear();
+            _cooking.Clear();
             (_cellLine, _cellRoute) = (line, route);
         }
         long first = (long)Math.Floor(from / CellLength), last = (long)Math.Floor(Math.Min(to, line.Length - 1e-6) / CellLength);
         foreach (var gone in _cells.Keys.Where(k => k < first - 2 || k > last + 2).ToList())
             _cells.Remove(gone);
+        // Cooked on a worker since the last frame (note 479): kept, one a frame, so two never upload in one frame. (One
+        // that's gone out of reach meanwhile is let go.)
+        foreach (var (i, done) in _cooking.Where(c => c.Value.IsCompleted).OrderBy(c => c.Key).Take(1).ToList())
+        {
+            _cooking.Remove(i);
+            if (i >= first - 2 && i <= last + 2 && done.IsCompletedSuccessfully)
+                _cells[i] = done.Result;
+        }
+        // In the fog (note 479): a cell whose nearest is past what the fog shows of its trees and land isn't wanted this
+        // frame; it's cooked on a worker and drawn when it's done, still in the fog. With no fog given, or within its
+        // reach, it's cooked here and now. (A cell's ground is the line's: it reaches nearest along it.)
+        double near = centre ?? (from + to) / 2;
+        double reach = Fog is { } fog ? fog.FogReach(line.Sample(Math.Clamp(near, 0, line.Length)).Position.Y + CellTop - eye.Y, eye.Y) : double.PositiveInfinity;
         for (long i = first; i <= last; i++)
         {
+            double nearest = Math.Max(0, Math.Max(i * CellLength - near, near - (i + 1) * CellLength));
             if (!_cells.TryGetValue(i, out var cell))
-                _cells[i] = cell = BuildCell(line, route, i, seed, valleyDepth);
+            {
+                if (nearest > reach)
+                {
+                    if (!_cooking.ContainsKey(i) && _cooking.Count < CellCooks)
+                    {
+                        long index = i;
+                        _cooking[i] = Task.Run(() => BuildCell(line, route, index, seed, valleyDepth));
+                    }
+                    continue;
+                }
+                // Wanted now: the worker's, if it's on it (waited for), else cooked here.
+                _cells[i] = cell = _cooking.Remove(i, out var started) ? started.Result : BuildCell(line, route, i, seed, valleyDepth);
+            }
             var at = Matrix4x4.CreateTranslation(cell.Origin.RelativeTo(eye));
             mesh.Instances.Add(new MeshInstance(cell.Soup, at));
             foreach (var (piece, local) in cell.Pieces)
@@ -67,6 +103,12 @@ public sealed partial class WorldArt(Look look)
             }
         }
     }
+
+    /// <summary>The cells being cooked on workers (note 479), and how many at once.</summary>
+    readonly Dictionary<long, Task<Cell>> _cooking = new();
+    const int CellCooks = 2;
+    /// <summary>The tallest of a cell's things over the line (m): its trees, the cliffs.</summary>
+    const double CellTop = 25;
 
     Cell BuildCell(RailLine line, Route? route, long index, int seed, float valleyDepth)
     {
