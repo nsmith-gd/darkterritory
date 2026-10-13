@@ -211,7 +211,7 @@ public class TownsfolkTests
         Assert.Equal(new TownTarget(TownTargetKind.Door, plan.Buildings.ToList().IndexOf(quiet)), town.Target(knock with { Y = door.Y + 0.4 }, (door - knock).Normalized));
 
         // A small town keeps the yard: no green, but its laws and its flag, and its dead and its day on the square's far wall.
-        var small = Plan("frontier:7", 60);
+        var small = Plan("frontier:7", 20);
         Assert.Null(small.Plan.Green);
         Assert.Contains(small.Plan.Fixtures, f => f.Kind == "laws");
         Assert.DoesNotContain(small.Plan.Buildings, b => b.Kind == "quiet");

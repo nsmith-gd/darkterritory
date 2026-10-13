@@ -85,6 +85,11 @@ public sealed record StreetTuning
     public double[] GableWidth { get; init; } = [5.4, 7.0];
     public required double[] Depth { get; init; }
     public double FromGate { get; init; } = 30;
+    /// <summary>
+    /// The most houses a town keeps on the line's own street once it has more than that (note 668): the rest stand on
+    /// streets of its own, so a town of forty houses isn't one row down the track.
+    /// </summary>
+    public int LineRow { get; init; } = int.MaxValue;
     public double Burnt { get; init; }
     public double Open { get; init; }
 }
