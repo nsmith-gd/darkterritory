@@ -334,47 +334,116 @@ def pose(*parts):
 
 STAND = {}
 
-# Gnaw (1.6 s, loop): side-on at the post, the head low and turned on its side to it, the jaw working, the whole head
-# wrenching at the wood in jerks; one paw up against the post, the shoulders bunching; chips flying (CreatureArt).
+
+def beats(clip, base, seq):
+    """Keys `clip` from beats (frame, {joint: value} changed at it, interp): each keeps what the ones before it set, so
+    each joint moves only on its own beats (the head first, the neck and the shoulders a few frames after it)."""
+    state = {}
+    for f, changes, interp_ in seq:
+        state.update(changes)
+        clip.key(f, pose(base, state), interp_)
+    return clip
+
+
+# Gnaw (1.6 s, loop): side-on at the post, the head low and turned on its side to it, the whole head wrenching at the
+# wood; one paw up against the post, the shoulders bunching; chips flying (CreatureArt). Obsessive and in no rhythm: a
+# burst of fast chisels, a wrench that twists the head right over, a dead stop with the teeth in the wood, a shorter
+# burst, a tear backwards that hauls the shoulders after it, and straight back in.
 gnaw = Clip("gnaw")
 BITE = pose({"chest": (-6, 0, 0), "neck": (-14, 0, 0), "head": (-10, 34, -8), "upperarm_r": (24, 0, 0), "lowerarm_r": (-30, 0, 0),
              "hand_r": (30, 0, 0), "root@loc": (0, 0.1, -0.04), "tail_01": (0, 0, 0)})
-for f, j, tw in ((0, -14, 0), (5, 0, 10), (8, -12, -6), (13, 0, 12), (16, -16, 0), (21, 0, 8), (24, -12, -10), (29, 0, 14),
-                 (32, -14, 0), (37, 0, 10), (40, -12, -8), (45, 0, 12)):
-    gnaw.key(f, pose(BITE, {"jaw": (j, 0, 0), "head": (-10 - 0.3 * tw, 34 + tw, -8 + 0.5 * tw), "neck": (-14, tw * 0.3, 0),
-                            "chest": (-6, -tw * 0.15, 0)}), "CONSTANT" if j == 0 else "LINEAR")
+
+
+def chew(j, tw=0.0):
+    return {"jaw": (j, 0, 0), "head": (-10 - 0.3 * tw, 34 + tw, -8 + 0.5 * tw)}
+
+
+beats(gnaw, BITE, [
+    (0, chew(-14), "LINEAR"),
+    (2, chew(0, 4), "LINEAR"),
+    (4, chew(-12, 2), "LINEAR"),
+    (6, chew(0, 6), "LINEAR"),
+    (8, chew(-15, 3), "LINEAR"),
+    (10, chew(0, 8), "LINEAR"),
+    (12, {**chew(-6, 8), "neck": (-14, 3, 0)}, "LINEAR"),
+    (15, {**chew(-2, 24), "neck": (-15, 8, 0), "chest": (-6, -4, 0), "fingers_r": (-12, 0, 0)}, "CONSTANT"),   # the wrench
+    (21, {**chew(-2, 22)}, "LINEAR"),                                                    # held, teeth in the wood
+    (23, {**chew(-13, 6), "neck": (-14, 2, 0), "chest": (-6, -1, 0), "fingers_r": (0, 0, 0)}, "LINEAR"),
+    (25, chew(0, 2), "LINEAR"),
+    (27, chew(-14, 4), "LINEAR"),
+    (29, chew(0, 0), "LINEAR"),
+    (31, {**chew(-10, -2), "tail_01": (6, 0, 4)}, "LINEAR"),
+    (34, {**chew(-4, -12), "neck": (-8, -4, 0), "chest": (-4, 2, 0), "root@loc": (0, 0.04, -0.04), "tail_01": (6, 0, -4)}, "BEZIER"),
+    (39, {"neck": (-6, -5, 0), "chest": (-3, 3, 0), "root@loc": (0, 0.0, -0.04), "upperarm_r": (20, 0, 0), "tail_01": (0, 0, 0)}, "LINEAR"),
+    (42, {**chew(-16, 4), "neck": (-14, 0, 0), "chest": (-6, 0, 0), "root@loc": (0, 0.1, -0.04), "upperarm_r": (24, 0, 0)}, "LINEAR"),
+    (45, chew(0, 2), "LINEAR"),
+])
 gnaw.close(48)
 
-# Turn (2 s, loop): head up off the work, listening; it swings round to look, holds, turns back.
+# Turn (2 s, loop): its head snaps up off the work and round (3 frames), the neck after it, the shoulders last; it holds
+# dead still, the head cocked, a twitch; snaps round the other way; holds; and drifts back. The first 0.45 s
+# (CreatureArt.TowerJawTurnSeconds) are the head up and round at whoever came near, before it rears.
 turn = Clip("turn")
-for f, look, up in ((0, 0, 0), (6, 30, 14), (22, 30, 16), (28, -12, 12), (44, -12, 14), (54, 0, 8)):
-    turn.key(f, {"neck": (up * 0.6, 0, look * 0.4), "head": (up, 0, look * 0.6), "chest": (2, 0, look * 0.1), "jaw": (-3, 0, 0)},
-             "CONSTANT" if f in (6, 28) else "BEZIER")
+beats(turn, {}, [
+    (0, {"neck": (0, 0, 0), "head": (0, 0, 0), "chest": (0, 0, 0), "jaw": (-3, 0, 0)}, "LINEAR"),
+    (3, {"head": (16, -10, 22), "jaw": (-8, 0, 0)}, "BEZIER"),
+    (8, {"neck": (9, 0, 12), "head": (14, -12, 20)}, "BEZIER"),
+    (13, {"chest": (2, 0, 4), "pelvis": (0, 0, 2)}, "BEZIER"),
+    (22, {}, "CONSTANT"),
+    (23, {"head": (14, -20, 20)}, "CONSTANT"),                       # a twitch, the head cocked further
+    (25, {"head": (14, -12, 20)}, "BEZIER"),
+    (31, {}, "LINEAR"),
+    (34, {"head": (12, 8, -14), "jaw": (-4, 0, 0)}, "BEZIER"),
+    (39, {"neck": (8, 0, -6), "chest": (2, 0, -2), "pelvis": (0, 0, -1)}, "BEZIER"),
+    (49, {}, "BEZIER"),
+    (55, {"head": (2, 0, 0), "neck": (2, 0, 0), "chest": (0, 0, 0), "pelvis": (0, 0, 0), "jaw": (-3, 0, 0)}, "BEZIER"),
+])
 turn.close(60)
 
-# Threat (1.5 s, loop): reared up on its haunches, the front lifted, the paws up and spread, the head up and the lips
-# drawn back off the incisors; the tail raised and slammed flat on the ground (the slap).
-REAR = {"pelvis": (26, 0, 0), "spine_01": (8, 0, 0), "chest": (4, 0, 0), "neck": (-16, 0, 0), "head": (-12, 0, 0), "jaw": (-16, 0, 0),
-        "thigh_r": (-24, 0, 0), "thigh_l": (-24, 0, 0), "calf_r": (8, 0, 0), "calf_l": (8, 0, 0), "foot_r": (-10, 0, 0), "foot_l": (-10, 0, 0),
+# Threat (1.5 s, loop): reared up on its haunches, the front lifted, the paws up and spread, the head squared at them and
+# the lips drawn back off the incisors. Dead still a beat; then the tail comes up, slowly, high over its back (the claws
+# curling one paw after the other, the lips drawing back further); it freezes at the top; and the tail comes down flat
+# on the ground in two frames, the slap jolting up through the body and snapping the head; it settles, glaring.
+REAR = {"pelvis": (36, 0, 0), "spine_01": (10, 0, 0), "chest": (2, 0, 0), "neck": (-22, 0, 0), "head": (-16, 0, 0), "jaw": (-16, 0, 0),
+        "thigh_r": (-36, 0, 0), "thigh_l": (-36, 0, 0), "calf_r": (8, 0, 0), "calf_l": (8, 0, 0), "foot_r": (-10, 0, 0), "foot_l": (-10, 0, 0),
         "upperarm_r": (36, -16, 0), "upperarm_l": (36, 16, 0), "lowerarm_r": (-44, 0, 0), "lowerarm_l": (-44, 0, 0),
         "hand_r": (-10, 0, 0), "hand_l": (-10, 0, 0), "fingers_r": (-24, 0, 0), "fingers_l": (-24, 0, 0),
         "root@loc": (0, -0.25, 0.0), "tail_01": (-18, 0, 0), "tail_02": (16, 0, 0)}
 threat = Clip("threat")
-threat.key(0, pose(REAR, {"tail_01": (30, 0, 0), "tail_02": (20, 0, 0), "tail_03": (10, 0, 0)}), "BEZIER")
-threat.key(14, pose(REAR, {"tail_01": (44, 0, 0), "tail_02": (24, 0, 0), "tail_03": (14, 0, 0), "jaw": (-20, 0, 0), "head": (-18, 0, 4)}), "LINEAR")
-threat.key(18, pose(REAR, {"tail_01": (-24, 0, 0), "tail_02": (18, 0, 0), "tail_03": (6, 0, 0), "head": (-10, 0, -4)}), "CONSTANT")
-threat.key(30, pose(REAR, {"tail_01": (-14, 0, 0), "tail_02": (16, 0, 0), "jaw": (-12, 0, 0)}), "BEZIER")
+TAIL_DOWN = {"tail_01": (-44, 0, 0), "tail_02": (10, 0, 0), "tail_03": (6, 0, 0)}
+beats(threat, REAR, [
+    (0, TAIL_DOWN, "BEZIER"),
+    (6, {}, "BEZIER"),
+    (12, {"tail_01": (-66, 0, 0), "tail_02": (-6, 0, 0), "tail_03": (-2, 0, 0), "fingers_r": (-40, 0, 0), "jaw": (-19, 0, 0)}, "BEZIER"),
+    (16, {"fingers_l": (-40, 0, 0)}, "BEZIER"),
+    (22, {"tail_01": (-96, 0, 0), "tail_02": (-20, 0, 0), "tail_03": (-14, 0, 0), "jaw": (-22, 0, 0), "head": (-20, 0, 0), "neck": (-24, 0, 0),
+          "pelvis": (38, 0, 0)}, "LINEAR"),
+    (26, {}, "LINEAR"),                                                         # frozen at the top
+    (28, {"tail_01": (-40, 0, 0), "tail_02": (12, 0, 0), "tail_03": (8, 0, 0), "pelvis": (33, 0, 0), "chest": (-1, 0, 0),
+          "head": (-12, 0, 6), "neck": (-19, 0, 2), "fingers_r": (-24, 0, 0), "fingers_l": (-24, 0, 0)}, "CONSTANT"),   # the slap
+    (30, {"tail_01": (-47, 0, 0), "tail_02": (8, 0, 0), "head": (-18, 0, -2), "chest": (3, 0, 0), "pelvis": (37, 0, 0)}, "BEZIER"),
+    (36, {"head": (-16, 0, 0), "neck": (-22, 0, 0), "jaw": (-17, 0, 0), "pelvis": (36, 0, 0), "chest": (2, 0, 0)}, "BEZIER"),
+])
 threat.close(45)
 
-# Lunge (0.8 s): a short charge, the head thrown forward and the incisors driven down in a bite, then back.
+# Lunge (0.8 s): the tell first, sinking back onto its haunches with the head dropped and aimed, a held beat; then the
+# commit straight along the line it was aimed (3 frames), the jaws thrown open and slammed shut on the bite; held there
+# out at full stretch, open to a blow; and back, heavily.
 lunge = Clip("lunge", loop=False)
-lunge.key(0, {"pelvis": (-4, 0, 0), "chest": (-6, 0, 0), "root@loc": (0, -0.1, -0.05)}, "LINEAR")
-lunge.key(6, {"pelvis": (-10, 0, 0), "chest": (-4, 0, 0), "neck": (10, 0, 0), "head": (14, 0, 0), "jaw": (-22, 0, 0),
-              "upperarm_r": (40, 0, 0), "upperarm_l": (30, 0, 0), "thigh_r": (-30, 0, 0), "thigh_l": (-36, 0, 0), "root@loc": (0, 0.8, 0.1)}, "LINEAR")
-lunge.key(9, {"pelvis": (-4, 0, 0), "chest": (-10, 0, 0), "neck": (-16, 0, 0), "head": (-22, 0, 0), "jaw": (0, 0, 0),
-              "upperarm_r": (20, 0, 0), "upperarm_l": (16, 0, 0), "root@loc": (0, 1.0, -0.06)}, "CONSTANT")
-lunge.key(16, {"neck": (-8, 0, 6), "head": (-12, 0, 10), "jaw": (-4, 0, 0), "root@loc": (0, 0.8, -0.04)}, "BEZIER")
-lunge.key(24, {"root@loc": (0, 0, 0)}, "BEZIER")
+beats(lunge, {}, [
+    (0, {"pelvis": (-4, 0, 0), "chest": (-6, 0, 0), "root@loc": (0, -0.1, -0.05)}, "BEZIER"),
+    (4, {"pelvis": (-8, 0, 0), "chest": (-10, 0, 0), "neck": (-6, 0, 0), "head": (-6, 0, 0), "jaw": (-6, 0, 0), "root@loc": (0, -0.22, -0.1),
+         "thigh_r": (14, 0, 0), "thigh_l": (14, 0, 0), "calf_r": (-12, 0, 0), "calf_l": (-12, 0, 0)}, "LINEAR"),
+    (7, {}, "LINEAR"),                                                             # held: aimed
+    (10, {"pelvis": (-10, 0, 0), "chest": (-4, 0, 0), "neck": (10, 0, 0), "head": (14, 0, 0), "jaw": (-24, 0, 0),
+          "upperarm_r": (40, 0, 0), "upperarm_l": (32, 0, 0), "thigh_r": (-30, 0, 0), "thigh_l": (-36, 0, 0), "calf_r": (0, 0, 0),
+          "calf_l": (0, 0, 0), "root@loc": (0, 0.85, 0.1)}, "LINEAR"),
+    (12, {"pelvis": (-4, 0, 0), "chest": (-10, 0, 0), "neck": (-16, 0, 0), "head": (-22, 0, 0), "jaw": (0, 0, 0),
+          "upperarm_r": (20, 0, 0), "upperarm_l": (16, 0, 0), "root@loc": (0, 1.0, -0.06)}, "CONSTANT"),          # the bite
+    (16, {"neck": (-14, 0, 2), "head": (-18, 0, 3)}, "BEZIER"),                   # held out: the opening
+    (24, {"pelvis": (0, 0, 0), "chest": (0, 0, 0), "neck": (0, 0, 0), "head": (0, 0, 0), "jaw": (0, 0, 0), "upperarm_r": (0, 0, 0),
+          "upperarm_l": (0, 0, 0), "thigh_r": (0, 0, 0), "thigh_l": (0, 0, 0), "root@loc": (0, 0, 0)}, "BEZIER"),
+])
 
 
 # Retreat (0.8 s, loop): the heavy lope off, a beaver's humping gallop: the front paws together, then the hind.
@@ -393,7 +462,7 @@ retreat.close(24)
 hit = Clip("hit", loop=False)
 hit.key(0, STAND, "CONSTANT")
 hit.key(2, {"chest": (8, 0, 10), "neck": (10, 0, 14), "head": (14, 0, 20), "jaw": (-14, 0, 0), "root@loc": (0, -0.12, 0.02),
-            "tail_01": (16, 0, 0)}, "CONSTANT")
+            "tail_01": (-16, 0, 0)}, "CONSTANT")
 hit.key(9, {"chest": (-2, 0, -4), "head": (-4, 0, -6)}, "LINEAR")
 hit.key(14, STAND, "CONSTANT")
 
