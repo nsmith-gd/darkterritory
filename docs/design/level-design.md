@@ -466,3 +466,48 @@ The artifact's scores illustrate the rules. The sim is calibrated to its own mea
 - **Bots don't restart a yard's power.** A bot crew at a yard whose power is low or dead never walks to the powerhouse's switchboard (note 509), so its cranes stand idle; its crates are still carried by hand. Dead power is most yards in deep territory.
 - **Bots don't clear a blocked siding.** Their stop crew works a facility's own track and its modules, and a switchyard's standing cars (ARCHITECTURE §8 note 187). They do breach Holdouts (notes 152, 259); once the site's own crates are in, the crate hands fetch the crates lying elsewhere in the yard on foot (note 403), the heavy ones two to a crate (note 440), and then half of them search the village's open houses and bring the finds aboard (note 326); caught out among the houses by the Choir, a hand shuts itself into the nearest one until it's quiet (note 413; a pair's cottages are a home each, note 453), and one loading a car shuts the car up (note 439).
 - **Buildings' interiors are a first slice.** Every stop building is solid now (ARCHITECTURE §8 notes 155, 274, 279, 326): every village house stands open, one floor, the bigger ones in two rooms (an L's wing and a long house's back room, through an inner doorway; a cross its parts together), its doors hanging open until a crewmate shuts them (note 401), ransacked, its finds inside to search (note 326); the barns, outbuildings and a dead town's goods shed open as walk-in shells, a hayloft's or a workbench's find inside to search (note 417); a dead town's station open the same way, nothing in it (note 493); the yard's powerhouse open, its power restarted at the switchboard inside, dark until it runs (note 509); a dead town's derelicts, signal boxes, lamp rooms, water towers, lockups, prison cars and wells shut, a find in one put on its step; the sheds and the hero as their walls with the bay door the art draws, so the crates inside are fetched through it; a Holdout as its walls with its door open where it's breached, its occupant coming back inside and walking out. The art still paints the sheds' and Holdouts' doors on closed boxes: walking in through one shows the inside of nothing (an art row for C1).
+
+# PART T — TOWN TYPES (note 692)
+
+The director's five town renders (13 Oct 2026: "different town types that give the world a bit more flavor and a bit more
+meaning"), turned into ground plans the walled town's houses and people stand on (`Towns.TownForms`; towns.json `forms`).
+`dt town map --route r --form f` draws one top-down.
+
+## T.1 What every town keeps
+
+- **A way in and a way out.** The line comes in at the rear wall's gate from the last night and leaves at the front gate for
+  the next. Both are gatehouses; the wall is open nowhere else. The arrival town stands the same way round as when the next
+  night leaves it, its way in on the terminus's gate, so arriving and leaving are one place, and one frame (seamless-ready).
+- **The yard holds the longest train.** 330 m (20 cars) back from the engine's place 8 m inside the way out, inside the wall,
+  the line and its platform clear. Every form is 520–600 m between its gates: the yard, and a town round it.
+- **The square by the way out, on the left; the platform on the right.** The town's heart is where the night starts.
+- **The same seed, the same town.** A form is drawn from the town's trade on its own stream; every lot, level and wall from
+  the town's seed alone.
+
+## T.2 The forms
+
+| Form | From the render | Its shape | What it asks of the crew |
+| --- | --- | --- | --- |
+| harbour | Breakwater Town | the basin inside the sea wall, piers out over it, the breakwater; lanes behind the square climbing to the head and its lighthouse | long walks along the wharf; the piers are dead ends over the water |
+| dykeland | Fenfolk | salt marsh inside the palisade, the line on its dyke, houses on hummocks along boardwalks | the marsh is waded, slow and open; the boardwalks are the only quick ways |
+| quarry | Pitborn | the pit beside the square, benches stepping down to its floor, houses on every bench, one ramp down | height: the floor is 15 m under the rim, one way down and one way up |
+| tidewater | Drowned Boroughs | the drowned ward under the water, its lost houses standing in it, causeways out to the wharves; terraced hills above | causeways are exposed lines across the water; the high ward looks down on everything |
+| glasshouse | Glass Gardeners | an eight-sided wall, glasshouse ranges, round reservoirs, beds in plots, the gardeners' rows | long sight lines down the beds, cover only in the ranges |
+| street | (note 335) | streets beside the line, lanes between | the grid: many doors, short sight lines |
+
+## T.3 Rules for the generator
+
+- **Lay the frame, then the ground, then the ways, then the lots.** Anything laid later never stands on what's laid before (a
+  1 m grid of what's taken). Every lot is checked against the finished ground: none stands in water, on a deck or a plot, on
+  two levels at once, or under a way.
+- **A drop is walled, deep water is railed.** A step in the ground taller than a stride (0.7 m) has a retaining wall with a
+  parapet; water deeper than 0.75 m has a rail along its walkable edge. Shallower water is waded.
+- **Open houses stand square to the line, on dry ground, nearest the square.** Their rooms are their walls.
+- **Reuse the kit.** A form's landmarks are the game's existing pieces (the lighthouse, the chapel, a wall's tower, the pit's
+  headframe, a fish shed, a glasshouse); its ground is one mesh a town; nothing in it needs walking into but the open houses.
+
+## T.4 Not yet
+
+See note 692's handoff: the forms' own paving and crops, stilts under the marsh's houses, boats at the piers, the town's
+people on its ground, the bots in its streets, the seamless hand-over itself, and whether a form should follow the land (a
+harbour where the plan has a shore) rather than the trade.

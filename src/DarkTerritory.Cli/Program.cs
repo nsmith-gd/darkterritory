@@ -1193,8 +1193,10 @@ static object Screenshot(TrainTuning t, string content, string[] args)
     // the train stopped home inside its gate, the camera standing in it as --town's does in the departure's (TownCamera,
     // the town's own frame). `--arrival depart` is the same town as the next night's departure stands it, for comparing.
     DarkTerritory.Sim.Towns.Town? arrival = null;
-    if (args.Contains("--arrival") && generated is not null && DarkTerritory.Sim.Towns.TownContent.Load(content) is { } arrivalTowns)
+    if (args.Contains("--arrival") && generated is not null && DarkTerritory.Sim.Towns.TownContent.Load(content) is { } loadedArrival)
     {
+        var arrivalTowns = DarkTerritory.Game.PrototypeSession.TownForm is { } arrivalType
+            ? loadedArrival with { Tuning = loadedArrival.Tuning with { Forms = loadedArrival.Tuning.Forms with { Force = arrivalType } } } : loadedArrival;
         var runTuning = DataFile.Load<DarkTerritory.Sim.Run.RunTuning>(Path.Combine(content, DarkTerritory.Sim.Run.RunTuning.File));
         double gate = generated.GateOr(RouteTuning.Load(content).YardLength);
         var roster = DataFile.Load<DarkTerritory.Sim.Enemies.EnemyTuning>(Path.Combine(content, DarkTerritory.Sim.Enemies.EnemyTuning.File)).Director.Roster;
@@ -1213,10 +1215,12 @@ static object Screenshot(TrainTuning t, string content, string[] args)
             if (!args.Contains("--at"))
                 at = runTuning.DepartFrom(nextGate, consist.LengthMetres);
             town.Clock = Opt(args, "--clock", 0);
+            town.Lay(line);
         }
         else
         {
             arrival = DarkTerritory.Sim.Towns.Town.AtTerminus(arrivalTowns, generated, line, gate, roster, departure.Culture, named);
+            arrival?.Lay(line);
             run ??= new DarkTerritory.Sim.Run.Run(runTuning, generated) { YardLength = gate };
             if (!args.Contains("--at") && generated.Plan?.Terminus is { } terminus)
                 at = terminus.GateM + (runTuning.HomeInsideGateM ?? 0) + consist.LengthMetres + 10;

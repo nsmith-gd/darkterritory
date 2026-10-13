@@ -31,7 +31,7 @@ public sealed partial class WorldArt
         {
             if (town is null || town.Ground.Flat)
                 continue;
-            var o = town.Line.Sample(0);
+            var o = town.Anchor();
             var along = new Double3(o.Tangent.X, 0, o.Tangent.Z).Normalized;
             var right = Double3.Cross(along, Double3.Up).Normalized;
             double dx = x - o.Position.X, dz = z - o.Position.Z;
@@ -55,7 +55,8 @@ public sealed partial class WorldArt
             var g = town.Ground;
             double a = g.S0 - FormApron, b = g.S0 + g.Ns * Sim.Towns.TownGround.Cell + FormApron;
             float l0 = (float)(g.D0 - FormApron), l1 = (float)(g.D0 + g.Nd * Sim.Towns.TownGround.Cell + FormApron);
-            yield return town.Turn is { } turn ? new LakeBand(turn - b, turn - a, -l1, -l0) : new LakeBand(a, b, l0, l1);
+            double o = town.Origin ?? 0;
+            yield return new LakeBand(o + a, o + b, l0, l1);
         }
     }
 
@@ -68,7 +69,7 @@ public sealed partial class WorldArt
         var plan = town.Plan;
         if (plan.Form.Length == 0 || plan.Bounds is not { } b || b.Gate < from - 200 || b.Rear > to + 200)
             return;
-        var o = line.Sample(0);
+        var o = town.Anchor();
         var frame = Basis(o.Tangent, o.Position, eye, 0);
         var ground = Piece($"town-form-{plan.Name}-{plan.Form}-{plan.Gate:0}-{plan.Houses.Count}", () => FormGround(town));
         mesh.Instances.Add(new MeshInstance(ground, frame));

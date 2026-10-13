@@ -441,7 +441,8 @@ public sealed partial class WorldArt
     /// </summary>
     void TownWall(MeshBuilder mesh, RailLine line, Double3 eye, TownBounds town, double from, double to, bool lit, double time)
     {
-        var start = line.Sample(0);
+        // Its straight frame through its way in (Fortresses.Anchor, note 692), as the Sim stands it.
+        var start = Sim.Run.Fortresses.Anchor(line, 0, town.Rear);
         var tangent = new Double3(start.Tangent.X, 0, start.Tangent.Z).Normalized;
         var right = Double3.Cross(tangent, Double3.Up).Normalized;
         // A point in the rail frame: the yard is straight, behind its start too.

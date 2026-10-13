@@ -10,14 +10,15 @@ namespace DarkTerritory.Sim.Run;
 /// fortress (GDD §3.1; note 281) has its <see cref="Square"/>: the wall on that side steps back round it (the town's own
 /// walls), and no tower stands in it; its houses are the town's own (Towns.TownHouse), so the village's aren't stood. A
 /// walled town (queue #74, note 335) has its <see cref="Bounds"/>: the wall goes round the town, the line through its gate.
-/// A terminus's town (note 600) stands turned round, its frame laid back from <see cref="Turn"/> (<see cref="RailLine.Turned"/>):
-/// its <see cref="Bounds"/> are in that frame, its <see cref="Square"/> in the line's, as every other fort's.
+/// A terminus's town (notes 600, 692) stands in its own frame from <see cref="Origin"/> along the line, the same way round
+/// as when the next night leaves it (<see cref="RailLine.From"/>): its <see cref="Bounds"/> are in that frame, its
+/// <see cref="Square"/> in the line's, as every other fort's.
 /// </summary>
 public readonly record struct Fort(double Start, double End, double Gate, bool Platform, bool Lived, Towns.TownSquare? Square = null,
-    Towns.TownBounds? Bounds = null, double? Turn = null)
+    Towns.TownBounds? Bounds = null, double? Origin = null)
 {
-    /// <summary>A point beside the line (along it, out to its right) in the town's own frame: turned round from <see cref="Turn"/>.</summary>
-    public (double Along, double Offset) Local(double along, double offset) => Turn is { } t ? (t - along, -offset) : (along, offset);
+    /// <summary>A point beside the line (along it, out to its right) in the town's own frame: from <see cref="Origin"/> on.</summary>
+    public (double Along, double Offset) Local(double along, double offset) => Origin is { } o ? (along - o, offset) : (along, offset);
 
     /// <summary>Whether a point beside the line is inside the fort's walled town, give or take <paramref name="pad"/>.</summary>
     public bool InTown(double along, double offset, double pad)
@@ -132,7 +133,7 @@ public static class Fortresses
         }
         if (fort.Bounds is { } town)
         {
-            foreach (var w in fort.Turn is { } turn ? Round(town, Turned(line.Sample(turn))) : Round(town, line))
+            foreach (var w in Round(town, Anchor(line, fort.Origin ?? 0, town.Rear)))
                 yield return w;
         }
         else
@@ -183,10 +184,19 @@ public static class Fortresses
     /// shut), a tower at each corner and every <see cref="TowerEvery"/> down the sides. Each an upright box on the rail's
     /// height at the yard's start, which is level (linegen's fortress segment) and straight.
     /// </summary>
-    public static IEnumerable<Wall> Round(Towns.TownBounds town, RailLine line) => Round(town, line.Sample(0));
+    public static IEnumerable<Wall> Round(Towns.TownBounds town, RailLine line) => Round(town, Anchor(line, 0, town.Rear));
 
-    /// <summary>A rail sample facing the other way: where a terminus's town's frame starts (note 600).</summary>
-    public static TrackSample Turned(TrackSample t) => t with { Tangent = t.Tangent * -1 };
+    /// <summary>
+    /// A walled town's straight frame (note 692; <see cref="Towns.Town.Anchor"/>): the rail sample at its frame's 0 (main
+    /// <paramref name="origin"/>) on the straight through its way in (<paramref name="rear"/> along its frame).
+    /// </summary>
+    public static TrackSample Anchor(RailLine line, double origin, double rear)
+    {
+        double entry = Math.Max(0, rear);
+        var t = line.Sample(Math.Clamp(origin + entry, 0, line.Length));
+        var along = new Double3(t.Tangent.X, 0, t.Tangent.Z).Normalized;
+        return t with { Position = t.Position - along * entry };
+    }
 
     /// <summary>A walled town's wall (<see cref="Round(Towns.TownBounds, RailLine)"/>) from its frame's start, <paramref name="start"/>.</summary>
     public static IEnumerable<Wall> Round(Towns.TownBounds town, TrackSample start)

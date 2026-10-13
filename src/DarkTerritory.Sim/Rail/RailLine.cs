@@ -288,6 +288,29 @@ public sealed class RailLine
         return new RailLine(Name + " (turned)", points, grade, curvature, length);
     }
 
+    /// <summary>
+    /// This line from <paramref name="at"/> on: distance 0 there, running on along it for <paramref name="length"/> (to its
+    /// end at most). A terminus's town stands in it (ARCHITECTURE §8 notes 600, 692): the frame a departure town stands in
+    /// from its yard's start, laid where the arrival's starts, the same way round, so the train comes in at its way in from
+    /// the last night and the line runs on through it to its way out.
+    /// </summary>
+    public RailLine From(double at, double length)
+    {
+        length = Math.Max(Step, Math.Min(length, Length - at));
+        int n = (int)Math.Ceiling(length / Step - 1e-9) + 1;
+        var points = new Double3[n];
+        var grade = new double[n];
+        var curvature = new double[n];
+        for (int i = 0; i < n; i++)
+        {
+            var t = Sample(at + Math.Min(i * Step, length));
+            points[i] = t.Position;
+            grade[i] = t.GradePercent;
+            curvature[i] = t.Curvature;
+        }
+        return new RailLine(Name + " (from " + at.ToString("0", System.Globalization.CultureInfo.InvariantCulture) + ")", points, grade, curvature, length);
+    }
+
     public string Name { get; }
     public double Length { get; }
     public IReadOnlyList<TrackSegment> Segments { get; }

@@ -867,4 +867,5 @@ written here instead is moved out by `tools/coord/notes.py split`; the Coordinat
 - [687. Hot reload out of a player's build, and watched not polled in a dev one (D1, queue #419; the director, 13 Oct, on note 666's suggestions:…](notes/687.md)
 - [688. Chimney smoke runs faster as the player moves (D1, queue #420; the director, 13 Oct evening, `docs/playtest/2026-10-13-evening.md` line 4)](notes/688.md)
 - [689. The guns said NO STEAM after coaling, and wouldn't fire (D1, queue #421; the director, 13 Oct evening,…](notes/689.md)
+- [692. Town types: five town forms on the walled town, a way in and a way out, the same town arrived at and left from (T1, queue #424; the…](notes/692.md)
 <!-- end of the notes index -->
