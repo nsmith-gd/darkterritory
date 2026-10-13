@@ -130,6 +130,8 @@ public class NightCallsTests
         Assert.False(hound.Gone);
         Assert.False(climber.Gone);
 
+        // No wrench aboard to mend it (note 660: with one, the crew have their time first): stranded at once.
+        n.NoWrench();
         train.Vehicles[0].Integrity = 0;
         n.Step(3);
         Assert.Equal(Sim.Run.RunEnd.Stranded, n.World.Run.End);
@@ -164,6 +166,13 @@ public class NightCallsTests
             World.EnableRun(Tuning.Run, route, 600, authority: true);
             World.EnableEnemies(enemies ?? Quiet, null, 1, crew: 1, authority: true);
             _player = PlayerMotor.SpawnInCab(train, Tuning.Player);
+        }
+
+        /// <summary>The crew's wrench gone, and the cab rack's: nothing aboard to mend the engine with (note 660).</summary>
+        public void NoWrench()
+        {
+            _player = _player with { Kit = Kit.Of([]) };
+            World.Train.Boiler.WrenchOut = true;
         }
 
         public void Step(double seconds)
