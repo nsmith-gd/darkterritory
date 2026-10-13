@@ -730,6 +730,17 @@ public sealed class HostSession
         _crew.Add(c);
     }
 
+    /// <summary>
+    /// Host, between steps: a crewmate put back as given (the creature gym's respawn, GDD §34.1, note 676), off the Holdouts'
+    /// queue. The state's <see cref="PlayerState.Placed"/> should be one on from theirs, so their machine takes it as a move.
+    /// </summary>
+    public void Stand(byte id, PlayerState state)
+    {
+        var c = _crew.First(c => c.Id == id);
+        World.Holdouts?.Forget(id);
+        c.State = state;
+    }
+
     /// <summary>The run's under way with Holdouts: someone joining now joins the respawn queue (GDD App. D.3).</summary>
     bool Lobbying => World.Holdouts is not null && World.Run is { Phase: not Run.RunPhase.Yard };
 

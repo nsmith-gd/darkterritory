@@ -57,6 +57,8 @@ var crashes = CrashReports.Install(crashesAt >= 0 && crashesAt + 1 < args.Length
 #if DEVTOOLS
 // A developer build's tools (note 514): reached only here and under the other DEVTOOLS hooks; a player's build has none of it.
 var dev = DarkTerritory.Dev.DevTools.Start(args, crashes);
+// The creature gym (GDD §34.1, note 676): the night it's on, while it's on.
+DarkTerritory.Dev.Gym.CreatureGym? gym = null;
 #endif
 
 // The system's file browser on a folder (note 411): Explorer, Finder, or whatever xdg-open hands it to; or, given an address
@@ -139,6 +141,11 @@ var frontEnd = new FrontEnd(campaignTuning, runTuning, saves, Arg("--settings", 
     Reports = ReportsTuning.Load(content),
     ProblemReport = () => crashes.WriteProblem(),
 };
+#if DEVTOOLS
+// The creature gym (GDD §34.1, note 676), on a developer build's title screen.
+frontEnd.DevEntries = [("CREATURE GYM", "Every creature, one at a time, called when you're ready (developer builds).",
+    new Launch.DevTool(DarkTerritory.Dev.Gym.CreatureGym.ToolName))];
+#endif
 // Note 452: every report says what the game is: its edition and mods, whether Steam's up, and (asked as it's written) the
 // settings, the screen or the night and where it had got to.
 crashes.Context("edition", EditionTuning.Load(content).Name);
@@ -160,6 +167,11 @@ if (frontEnd.Crash is not null)
 // A night named on the command line starts straight away; otherwise it's the front end's choice.
 Launch? LaunchFromArgs()
 {
+#if DEVTOOLS
+    // --gym (note 676): straight into the creature gym.
+    if (args.Contains("--gym"))
+        return new Launch.DevTool(DarkTerritory.Dev.Gym.CreatureGym.ToolName);
+#endif
     int cars = int.Parse(Arg("--cars", "6"));
     int? port = !args.Contains("--host") ? null : int.TryParse(Arg("--host", ""), out var p) ? p : NetPlaySession.DefaultPort;
     string? password = Arg("--password", "") is { Length: > 0 } pw ? pw : null;
@@ -300,10 +312,24 @@ void ApplyDisplay()
 Console.WriteLine($"GPU: {gpu.DeviceName}, window {w}x{h}, internal {renderer.Width}x{renderer.Height}");
 
 var sound = new GameAudio(content);
+// Note 667: no take decodes where it's played, on the frame or the mixing thread; a first play starts a decode's few
+// milliseconds late instead.
+sound.Bank.Samples.InlineBytes = 0;
 // The menus' sounds (ui-menus): flat, through the same mixer the speaker's fed from in the menus too.
 frontEnd.Cue = sound.Ui;
 using var speaker = args.Contains("--mute") ? null : AudioOut.Open(Audio.SampleRate, out var audioError) is { } s ? s : Warn(audioError);
-var audioBlock = new float[Audio.Block * 2];
+// Note 667 (the director, 13 Oct: "I'm getting audio skips"): the speaker's fed from a thread of its own, not the frame, so
+// a slow frame is late on screen and never a gap in the ears. Disposed before the speaker (declared after it).
+using var pump = speaker is null ? null : new AudioPump(sound.Mixer, () => speaker.QueuedSeconds, block => speaker.Write(block), sound.Mixer.Mix.DeviceLead,
+    sound.Mixer.Mix.DeviceLeadMax);
+int gapsLogged = 0;
+// Since the last slow frame's line: the times the device ran dry (FrameWatch's lines, note 549).
+string Gaps()
+{
+    int now = pump?.Underruns ?? 0, since = now - gapsLogged;
+    gapsLogged = now;
+    return since == 0 ? "" : $"; audio ran dry {since} times";
+}
 var micSamples = new float[4800];
 static AudioIn? NoMic(string? error)
 {
@@ -315,17 +341,12 @@ static AudioOut? Warn(string? error)
     Console.WriteLine($"audio: no output device ({error}); running silent");
     return null;
 }
-// Keep ~60 ms queued at the device; muted in the settings, it gets silence.
-void FeedSpeaker()
+// The settings' volumes and mute to the speaker's thread; muted, it gets silence.
+void SpeakerSettings()
 {
-    while (speaker is not null && speaker.QueuedSeconds < 0.06)
-    {
-        sound.Mixer.Volumes = frontEnd.Settings.Volumes;
-        sound.Mixer.Render(audioBlock);
-        if (frontEnd.Settings.Mute)
-            Array.Clear(audioBlock);
-        speaker.Write(audioBlock);
-    }
+    sound.Mixer.Volumes = frontEnd.Settings.Volumes;
+    if (pump is not null)
+        pump.Mute = frontEnd.Settings.Mute;
 }
 
 var input = window.Input;
@@ -539,7 +560,7 @@ Launch? MenuLoop()
             return new Launch.Quit();
         else
             Mirror();
-        FeedSpeaker();
+        SpeakerSettings();
         input.EndFrame();
         frameCount++;
     }
@@ -562,6 +583,7 @@ static string Doing(Launch chosen) => chosen switch
     Launch.CampaignNight c => $"a campaign night, slot {c.Slot}, contract {c.Contract}{(c.Resume ? ", resumed" : "")}{(c.Host ? ", hosted" : "")}{(c.Bots > 0 ? $", {c.Bots} bots" : "")}",
     Launch.Night n => $"a {(n.Host ? "hosted" : "solo")} night, {n.Route ?? n.RouteFile ?? n.Line}, {n.Cars} cars{(n.Bots > 0 ? $", {n.Bots} bots" : "")}",
     Launch.Join j => $"joined {j.Address}",
+    Launch.DevTool t => $"the {t.Name}",
     Launch.JoinLobby l => $"joined Steam lobby {l.Lobby}",
     _ => chosen.GetType().Name,
 };
@@ -570,6 +592,22 @@ static string Doing(Launch chosen) => chosen switch
 (IPlaySession Session, CampaignState? Campaign) Start(Launch chosen)
 {
     bool enemies = !args.Contains("--no-enemies");
+#if DEVTOOLS
+    // The creature gym (GDD §34.1, note 676): a solo night at its stop, private and on loopback, nothing coming by itself.
+    if (chosen is Launch.DevTool { Name: DarkTerritory.Dev.Gym.CreatureGym.ToolName })
+    {
+        gym = DarkTerritory.Dev.Gym.CreatureGym.Load(content);
+        // --gym-call ribbit,gaunt: those called as the night begins (headless captures, or straight to one).
+        if (Arg("--gym-call", "") is { Length: > 0 } calls)
+            gym.CallAtStart = DarkTerritory.Dev.Live.EnemyNames.ParseAll(calls.Split(','));
+        var gymSetup = gym.Setup() with { MusicBag = musicBags.Load(), FirstChildReal = profile.FirstChildReal };
+        var gymNight = NetPlaySession.HostGame(content, gymSetup, port: null, bots: 0, listed: false);
+        gym.Begin(gymNight.Host!);
+        Console.WriteLine($"the creature gym: {gym.Tuning.Route} at {gym.Stop?.Facility?.ToString() ?? "its stop"}, {gym.Tuning.Cars} cars; F6 picks, F7 calls, F10 clears");
+        return (gymNight, null);
+    }
+    gym = null;
+#endif
     switch (chosen)
     {
         case Launch.JoinLobby lobby when steam is not null:
@@ -1007,6 +1045,9 @@ CampaignState? Play(IPlaySession session, CampaignState? campaign)
         // are the note's (Escape drops it rather than opening the menu).
         if (vr is null && !inMenu)
             dev.Notes?.Keys(window, input, session, net?.Host, now);
+        // The creature gym's keys (note 676): F6 picks, F7 calls, F10 clears.
+        if (gym is not null && vr is null && !inMenu && dev.Notes is not { Typing: true } && net?.Host is { } gymKeys)
+            gym.Keys(input, gymKeys, (byte)net.PlayerId, now);
 #endif
         if (vr is not null)
         {
@@ -1285,6 +1326,11 @@ CampaignState? Play(IPlaySession session, CampaignState? campaign)
             pendingReverser = false;
             pendingYaw = pendingPitch = 0;
             session.Step(intent);
+#if DEVTOOLS
+            // The creature gym (note 676): a death stood up again at the safe ring, after the host's step.
+            if (gym is not null && net?.Host is { } gymHost)
+                gym.Step(gymHost, now);
+#endif
             // The crew's count on the console as it changes (queue #276: the two-machine test reads it from both ends' logs).
             if (net?.Link is { Aboard: var aboardNow } && aboardNow != aboardLogged)
             {
@@ -1342,7 +1388,7 @@ CampaignState? Play(IPlaySession session, CampaignState? campaign)
         }
         else
             voiceLevel = Held(Control.Talk) ? 0.5 : 0;
-        FeedSpeaker();
+        SpeakerSettings();
 
         var frames = session.InterpolatedFrames(clock.Alpha);
         // Off the rails (T117, T121): first in your own eyes riding it, then the chase view replaying it from a few seconds
@@ -1475,6 +1521,10 @@ CampaignState? Play(IPlaySession session, CampaignState? campaign)
             if (look?.Tuning.Atmosphere.Wind is { } wind)
                 (lighting.Wind, lighting.Gusts) = (wind.Of(r.Weather.Wind), wind.Gusts);
         }
+#if DEVTOOLS
+        // The creature gym's light and air (note 676), lit for filming.
+        gym?.Light(ref lighting);
+#endif
         // The Choir's cold, coming before it (App. A.7): the frame chills as it gathers (Look.Chill, over the weather's frost).
         if (look is not null)
             lighting = look.Chill(lighting, GreyboxScene.ChoirCold(session.World.Choir.Present ? 1 : (float)session.World.Choir.Build));
@@ -1596,6 +1646,9 @@ CampaignState? Play(IPlaySession session, CampaignState? campaign)
         if (vr is null)
             dev.Notes?.Frame(() => renderer.Render(mesh, camera, lighting, lighting.FogColor, showHud || menuShown ? overlay : null), renderer.Width, renderer.Height);
         dev.Draw(overlay, UiWidth, UiHeight);
+        // F1 hides it with the HUD (for filming).
+        if (gym is not null && !menuShown && showHud)
+            gym.Draw(overlay, UiWidth, UiHeight, now);
 #endif
         if (vr is null)
         {
@@ -1641,11 +1694,17 @@ CampaignState? Play(IPlaySession session, CampaignState? campaign)
         }
         input.EndFrame();
         frameCount++;
+        // Note 667: past the night's first frames (its scene built, its first collections done), a gap grows the speaker's lead.
+        if (pump is not null)
+            pump.Adapt = frameWatch.Frames >= FrameWatch.Window;
         // Note 549: a frame well over the night's run, written down with what it spent and where the night was.
-        if (frameWatch.End(timer.Elapsed.TotalSeconds, () => $"at {session.Train.Dynamics.Distance / 1000:0.00} km, {session.Train.Dynamics.Speed:0.0} m/s, {session.World.Run?.Phase.ToString() ?? "no run"}, {session.World.ActiveEnemies.Count()} enemies") is { } slow)
+        if (frameWatch.End(timer.Elapsed.TotalSeconds, () => $"at {session.Train.Dynamics.Distance / 1000:0.00} km, {session.Train.Dynamics.Speed:0.0} m/s, {session.World.Run?.Phase.ToString() ?? "no run"}, {session.World.ActiveEnemies.Count()} enemies{Gaps()}") is { } slow)
             Console.WriteLine(slow);
     }
-    Console.WriteLine($"night's frames: {frameWatch.Summary()}");
+    if (pump is not null)
+        pump.Adapt = false;
+    Console.WriteLine($"night's frames: {frameWatch.Summary()}" + (pump is null ? "" : $"; audio ran dry {pump.Underruns} times, "
+        + $"its longest block {pump.LongestBlock * 1000:0.0} ms, its longest stall {pump.LongestStall * 1000:0} ms, its lead {pump.Lead * 1000:0} ms"));
 
     // Note 350: a night seen to its end is one of the player's nights.
     if (session.World.Run?.Over == true)
