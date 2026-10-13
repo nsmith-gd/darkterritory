@@ -3261,5 +3261,95 @@
       }
     ],
     "license": "CC0-1.0"
+  },
+  {
+    "name": "wrack_card",
+    "diffuse": "wrack_card.png",
+    "spec": "wrack_card_s.png",
+    "normal": "wrack_card_n.png",
+    "size": [
+      256,
+      512
+    ],
+    "tileMetres": null,
+    "tiling": false,
+    "family": "foliage",
+    "alphaTest": true,
+    "albedoTarget": 0.05,
+    "sources": [
+      {
+        "generator": "tools/art/textures.py",
+        "what": "wrack ribbons with bladders; beard lichen threads (strokes)",
+        "author": "Dark Territory",
+        "license": "CC0-1.0"
+      }
+    ],
+    "license": "CC0-1.0"
+  },
+  {
+    "name": "leaf_card",
+    "diffuse": "leaf_card.png",
+    "spec": "leaf_card_s.png",
+    "normal": "leaf_card_n.png",
+    "size": [
+      256,
+      512
+    ],
+    "tileMetres": null,
+    "tiling": false,
+    "family": "foliage",
+    "alphaTest": true,
+    "albedoTarget": 0.07,
+    "sources": [
+      {
+        "generator": "tools/art/textures.py",
+        "what": "withered leaves on stalks along a hanging twig (ellipses, strokes)",
+        "author": "Dark Territory",
+        "license": "CC0-1.0"
+      }
+    ],
+    "license": "CC0-1.0"
+  },
+  {
+    "name": "membrane_web",
+    "diffuse": "membrane_web.png",
+    "spec": "membrane_web_s.png",
+    "normal": "membrane_web_n.png",
+    "size": 512,
+    "tileMetres": 1.0,
+    "tiling": true,
+    "family": "flesh",
+    "alphaTest": true,
+    "albedoTarget": 0.14,
+    "sources": [
+      {
+        "generator": "tools/art/textures.py",
+        "what": "veins (strokes), thin fields and holes (fbm)",
+        "author": "Dark Territory",
+        "license": "CC0-1.0"
+      }
+    ],
+    "license": "CC0-1.0"
+  },
+  {
+    "name": "quartz",
+    "diffuse": "quartz.png",
+    "spec": "quartz_s.png",
+    "normal": "quartz_n.png",
+    "size": 512,
+    "tileMetres": 0.5,
+    "tiling": true,
+    "family": "flesh",
+    "alphaTest": false,
+    "albedoTarget": 0.3,
+    "sources": [
+      {
+        "generator": "tools/art/textures.py",
+        "what": "quartz facets (voronoi), cloud and clear (fbm)",
+        "author": "Dark Territory",
+        "license": "CC0-1.0"
+      }
+    ],
+    "license": "CC0-1.0"
   }
 ]

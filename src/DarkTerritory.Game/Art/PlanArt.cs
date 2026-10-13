@@ -351,6 +351,17 @@ public sealed partial class WorldArt
             var (m, _) = Place(along, offset, yaw, height / 12, 0.15f);
             // Its form and lean (note 395), from a stream of its own off its art seed, so the draws below are as they were.
             var (form, lean) = Form(prop.Seed, p.Biome(along));
+            // The Corruption's trees (note 696): one of its eight kinds, as its biome grows them, modelled near the line and
+            // its cards further out; a little lighter or darker each, leant as any tree is.
+            if (corrupted && CorruptedTreeArt.Pick(prop.Seed, p.Biome(along)) is var (blight, bv)
+                && _props.Get(CorruptedTreeArt.Prop(blight, bv, far: Math.Abs(offset) >= CorruptedTreeArt.ModelledWithinM)) is { } blighted)
+            {
+                var (cm, _) = Place(along, offset, yaw, height / CorruptedTreeArt.BuiltHeight, 0.15f);
+                if (lean.Angle > 0)
+                    cm = Matrix4x4.CreateRotationZ(lean.Angle) * Matrix4x4.CreateRotationY(lean.Toward) * cm;
+                mesh.Append(blighted, cm, new Vector3(0.85f + 0.3f * (float)rng.NextDouble()));
+                continue;
+            }
             MeshAsset piece = dead
                 ? rng.Next(2) == 0 ? Piece($"ghost-{variant}", () => NovaKit.GhostSpruce(_look, variant)) : Piece($"dead-{variant % 2}", () => WorldKit.DeadTree(_look, variant % 2, 10))
                 : Tree(kind, variant, Math.Abs(offset) < NearSpruce, form);
@@ -363,8 +374,9 @@ public sealed partial class WorldArt
                 m = Matrix4x4.CreateRotationZ(lean.Angle) * Matrix4x4.CreateRotationY(lean.Toward) * m;
             // Tamarack goes gold in the fall, before its needles drop (the bog's one colour).
             var tint = kind == "tamarack" && !dead ? new Vector3(1.55f, 1.2f, 0.55f) * (0.85f + 0.3f * (float)rng.NextDouble()) : new Vector3(0.8f + 0.3f * (float)rng.NextDouble());
-            // The corruption's trees (GDD §30): charred black and sweating, the brass breaking out through the bark up
-            // the trunk as well as heaped at the foot.
+            // A corrupted tree whose kind isn't built (tools/models/build.sh corrupted_trees) is drawn as they were before
+            // note 696 (GDD §30): charred black and sweating, the brass breaking out through the bark up the trunk as well as
+            // heaped at the foot.
             if (corrupted)
                 tint = new Vector3(0.32f, 0.24f, 0.2f);
             mesh.Append(piece, m, tint);
@@ -417,7 +429,13 @@ public sealed partial class WorldArt
                             float tall = th * (0.72f + 0.28f * (float)rng.NextDouble());
                             int sv = (tv + k * 3) % 8;
                             var (tm, _) = Place(along + dAlong, lateral + sideOf * dOut, (float)(rng.NextDouble() * Math.Tau), tall / 12, 0.5f);
-                            mesh.Append(Piece($"spruce-{sv}", () => NovaKit.Conifer(_look, sv, 12, 0.3f)), tm, new Vector3(tint));
+                            // As many of the stands' trees the Corruption's as of the woods' (note 696): its cards, which
+                            // cost less than the spruce's.
+                            if (CorruptedTreeArt.Blighted(along + dAlong, lateral + sideOf * dOut, def.CorruptedTrees) is { } blightSeed
+                                && CorruptedTreeArt.Pick(blightSeed, def) is var (bk, bkv) && _props.Get(CorruptedTreeArt.Prop(bk, bkv, far: true)) is { } cards)
+                                mesh.Append(cards, tm, new Vector3(tint));
+                            else
+                                mesh.Append(Piece($"spruce-{sv}", () => NovaKit.Conifer(_look, sv, 12, 0.3f)), tm, new Vector3(tint));
                         }
                     }
         }

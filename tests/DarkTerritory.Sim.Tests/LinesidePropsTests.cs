@@ -92,6 +92,30 @@ public class LinesidePropsTests
         }
     }
 
+    /// <summary>
+    /// The Corruption has about three trees in ten (the director, 13 Oct 2026: "Not every tree is corrupted in the world but
+    /// of all the trees we should have a corruption rate of about 30%"; biomes.json corruptedTrees, note 696), living and
+    /// dead alike, on a night of every tier; each stood as its own trunk (its model's, 0.024 h a metre up).
+    /// </summary>
+    [Theory]
+    [InlineData("local:5")]
+    [InlineData("frontier:7")]
+    [InlineData("deadLines:3")]
+    [InlineData("deepTerritory:2")]
+    public void TheCorruptionHasAboutThreeTreesInTen(string spec)
+    {
+        var route = Routes.Generate(Content, spec, 6);
+        var line = route.Build();
+        var trees = LinesideProps.Of(route, line)!.Props(0, line.Length).Where(p => p.Kind == LinesideKind.Tree && OfTheWoods(p)).ToList();
+        Assert.True(trees.Count > 500, $"{spec}: only {trees.Count} trees");
+        double share = trees.Count(t => t.Corrupted) / (double)trees.Count;
+        Assert.InRange(share, 0.26, 0.34);
+        Assert.Contains(trees, t => t.Corrupted && !t.Dead);
+        Assert.All(trees.Where(t => t.Corrupted), t => Assert.Equal(Math.Clamp(t.Height * 0.024, 0.1, 0.55), t.Radius, 9));
+        // The old field's spruce and an orchard's apples are a homestead's, not the woods': none corrupted.
+        Assert.DoesNotContain(LinesideProps.Of(route, line)!.Props(0, line.Length), p => p.Species is "fieldSpruce" or "apple" && p.Corrupted);
+    }
+
     [Theory]
     [InlineData("frontier:7")]
     [InlineData("deepTerritory:2")]

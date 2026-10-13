@@ -29,13 +29,15 @@ public readonly record struct LinesideProp(LinesideKind Kind, double Along, doub
     /// <summary>
     /// Its trunk's radius at the ground, or a rock's across, or a pole's: the art's pieces' own (WorldKit.Boughs 0.015 h for
     /// the pine, NovaKit.Conifer 0.018 h for the spruce, fir and tamarack, NovaKit.Birch 0.13 m at 11 m, NovaKit.GhostSpruce
-    /// 0.16 m; WorldKit.Rock a lump about 1 across and 0.85 deep at size 1; WorldKit.Pole 0.14 m at its foot).
+    /// 0.16 m; a corrupted tree's 0.024 h a metre up, tools/models/recipes/corrupted_trees.py's R; WorldKit.Rock a lump
+    /// about 1 across and 0.85 deep at size 1; WorldKit.Pole 0.14 m at its foot).
     /// </summary>
     public double Radius => Kind switch
     {
         LinesideKind.Pole => LinesideProps.PoleRadius,
         LinesideKind.Rock => Size * 0.9,
         LinesideKind.Piece => 0,
+        _ when Corrupted => Math.Clamp(Height * 0.024, 0.1, 0.55),
         _ when Dead => Math.Clamp(Height * 0.014, 0.1, 0.3),
         _ => Math.Clamp(Height * Species switch { "pine" => 0.015, "birch" => 0.012, _ => 0.018 }, 0.08, 0.45),
     };
@@ -307,7 +309,6 @@ public sealed partial class LinesideProps
         int tries = def.TreeDensity <= 0 ? 0 : TreeTries;
         var flora = def.Flora.OrderBy(f => f.Key, StringComparer.Ordinal).ToArray();
         double floraTotal = flora.Sum(f => f.Value);
-        bool corruptible = def.Trees.Contains("corrupted");
         for (int k = 0; k < tries; k++)
         {
             // Every try draws the same, kept or not, so what's within any reach is dealt alike however far it's asked.
@@ -322,7 +323,9 @@ public sealed partial class LinesideProps
             if (Math.Abs(offset) > reach || keep > (Stand(World(along, offset), cover) > 0.5 ? 1 : 0.035))
                 continue;
             bool dead = deadRoll < def.DeadTrees;
-            bool corrupted = dead && corruptible && corruptRoll < 0.35;
+            // The Corruption's had about three in ten of them, living or dead (biomes.json corruptedTrees; note 696). On the
+            // roll every try draws, so which are corrupted moves no tree.
+            bool corrupted = corruptRoll < def.CorruptedTrees;
             string kind = "spruce";
             foreach (var (name, w) in flora)
                 if ((pick -= w) < 0)

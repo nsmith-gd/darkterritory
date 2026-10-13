@@ -47,6 +47,11 @@ ALBEDO = {
     "stone_block": 0.11, "brick_soot": 0.075, "concrete_stain": 0.13, "plaster_ruin": 0.13, "roof_slate": 0.06,
     # foliage
     "pine_card": 0.04, "pine_bough": 0.04, "dead_tree_card": 0.07, "grass_card": 0.08, "brass_weed_card": 0.08,
+    # the blighted trees' hangings (mat_blight, note 696): wrack and lichen as dark as the boughs they hang among, the dead
+    # leaves a little lighter; the membrane as light as flesh, so the tint it's given (red, white) reads against the bark
+    "wrack_card": 0.05, "leaf_card": 0.07, "membrane_web": 0.14,
+    # quartz: the palest thing in the woods, near the granite's lightest, so the crystal tree reads white under the moon
+    "quartz": 0.3,
     # cloth and crew
     "coat_oilskin": 0.07, "leather": 0.08, "wool": 0.06, "fleece": 0.2, "skin": 0.14, "crew_atlas": 0.09,
     # corruption (flesh/skin already sit right; sac comes down)

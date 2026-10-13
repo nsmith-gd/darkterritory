@@ -865,9 +865,10 @@ written here instead is moved out by `tools/coord/notes.py split`; the Coordinat
 - [681. Grabs alone: Use is the struggle's, a chance at best, and the holder stays (A1, queue #413; GDD App. C.1, App. F.5; the director, 13 Oct…](notes/681.md)
 - [684. A moved board says its distance from where it stands (B4, queue #416; note 560's handoff, not yet (1); the director, 13 Oct, `pt13-signs`)](notes/684.md)
 - [686. A board past a truss isn't read through the truss (B4, queue #418; note 560's handoff, not yet (2); the director, 13 Oct, `pt13-signs`:…](notes/686.md)
-- [693. A board stands back beyond a dead line alongside (B4, queue #425; note 560's handoff, not yet (3); the director, 13 Oct, `pt13-signs`…](notes/693.md)
 - [687. Hot reload out of a player's build, and watched not polled in a dev one (D1, queue #419; the director, 13 Oct, on note 666's suggestions:…](notes/687.md)
 - [688. Chimney smoke runs faster as the player moves (D1, queue #420; the director, 13 Oct evening, `docs/playtest/2026-10-13-evening.md` line 4)](notes/688.md)
 - [689. The guns said NO STEAM after coaling, and wouldn't fire (D1, queue #421; the director, 13 Oct evening,…](notes/689.md)
+- [693. A board stands back beyond a dead line alongside (B4, queue #425; note 560's handoff, not yet (3); the director, 13 Oct, `pt13-signs`: "I…](notes/693.md)
 - [694. The townsfolk lookbook (P1, queue #426; the director, 13 Oct 2026, with a lookbook of ten town characters: "We want to create more NPC…](notes/694.md)
+- [696. The Corruption's trees (queue #428, C1; the director, 13 Oct 2026, eight renders: "of all the trees we should have a corruption rate of…](notes/696.md)
 <!-- end of the notes index -->
