@@ -846,4 +846,7 @@ written here instead is moved out by `tools/coord/notes.py split`; the Coordinat
 - [664. Controls from the playtest (D1.2, queue #395; the director, 13 Oct, playing the morning build)](notes/664.md)
 - [665. The cab's readouts (D1.2, queue #396; the director, 13 Oct, playing the morning build)](notes/665.md)
 - [666. Skips in the morning build (D1, queue #397; the director, 13 Oct, playing the morning build)](notes/666.md)
+- [671. The run map's numbers only, and the HUD's explaining dropped (F1, queue #402; the director, 13 Oct, `pt13-speed-label`)](notes/671.md)
+- [672. A true fullscreen (F1, queue #403; the director, 13 Oct, `pt13-fullscreen`)](notes/672.md)
+- [673. The mail made plain (F1, queue #404; the director, 13 Oct, `pt13-mail`)](notes/673.md)
 <!-- end of the notes index -->
