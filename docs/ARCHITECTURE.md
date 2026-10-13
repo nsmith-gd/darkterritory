@@ -844,7 +844,7 @@ written here instead is moved out by `tools/coord/notes.py split`; the Coordinat
 - [660. Stranded with a wrench in a slot (D1.5, queue #391; the director, 13 Oct, playing the morning build)](notes/660.md)
 - [661. The buffer stop strand: a buffer stop run into dents the engine, it doesn't break it down (D1.4, queue #392; the director, 13 Oct, playing…](notes/661.md)
 - [662. A fire worked a stretch at a time: held on the floor ahead, the spray puts out the car all round there (D1.4, queue #393; the director, 13…](notes/662.md)
-- [663. A lost car told (D1.4, queue #394; the director, 13 Oct, playing the morning build)](notes/663.md)
+- [663. A lost car told, and the engine's failing: the news line to everyone as it happens, with what did it, and the report reading the same events (D1.4, queue #394; the director, 13 Oct, playing the morning build)](notes/663.md)
 - [664. Controls from the playtest (queue #395, D1.2 for D1; the director, 13 Oct, playing the morning build)](notes/664.md)
 - [665. The cab's readouts, from the director's playtest (queue #396, D1.2 for D1; the director, 13 Oct, playing the morning build)](notes/665.md)
 - [666. Skips in the morning build (D1, queue #397; the director, 13 Oct, playing the morning build)](notes/666.md)
