@@ -284,6 +284,42 @@ public static partial class Staging
     }
 
     /// <summary>
+    /// A mail crane coming up (note 673, `dt screenshot --hud --mail-crane [s]`): a solo night on <paramref name="route"/>
+    /// with its first crane past the yard about <paramref name="seconds"/> from the second car's side doors, its board read,
+    /// the player in that car: with <paramref name="atDoor"/>, in the open side door on the crane's side, else mid-car.
+    /// </summary>
+    public static PrototypeSession MailCrane(string content, Sim.Route.Route route, int cars, double seconds = 6, bool atDoor = true)
+    {
+        var sight = DataFile.Load<Sim.Route.SightTuning>(Path.Combine(content, Sim.Route.SightTuning.File));
+        var drop = Sim.Route.Lineside.Drops(sight, route).FirstOrDefault(d => d.At > route.Gate + 1500)
+            ?? throw new InvalidOperationException($"{route.Name} has no mail crane past its yard");
+        const double speed = 12;
+        var session = new PrototypeSession(content, route, cars, enemies: false, at: drop.At - speed * (seconds + 1));
+        session.Controls = new Sim.Train.TrainControls { Reverser = 1 };
+        int car = Math.Min(2, session.Train.Frames.Count - 1);
+        var shape = session.Train.Frames[car].Shape;
+        session.Respawn(car);
+        if (shape.Interior is { } room)
+        {
+            if (atDoor && Sim.Bots.StopHand.SideDoor(shape, drop.Side) is { } door && !session.Train.Vehicles[car].DoorOpen(door))
+                session.Train.Vehicles[car].ToggleDoor(door);
+            session.Player = session.Player with
+            {
+                Parent = car,
+                Position = new Double3(atDoor ? drop.Side * (room.HalfSize.X - 0.35) : 0, room.Min.Y, 0),
+                Surface = Sim.Player.Surface.Deck,
+                Yaw = -drop.Side * Math.PI / 2,
+            };
+        }
+        for (int i = 0; i < Sim.SimConstants.TickRate; i++)
+        {
+            session.Train.Dynamics.Velocity = speed;
+            session.Step(default);
+        }
+        return session;
+    }
+
+    /// <summary>
     /// The cab's bend warning (note 265, `dt screenshot --hud --bend-warning [s]`): a solo night on <paramref name="route"/>
     /// with the train <paramref name="seconds"/> short of its first bend that can derail it, a quarter over that bend's
     /// derailing speed, the player at the controls, warned. <paramref name="seconds"/> 0: on the bend (the flanges' line).
