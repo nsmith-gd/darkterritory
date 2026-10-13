@@ -474,11 +474,7 @@ public sealed class Lineside
                 // The car's middle (its side doors) went by the crane this tick.
                 if (layout is null || moved <= 0 || !(door >= d.At && door - moved < d.At))
                     continue;
-                int? sideDoor = Bots.StopHand.SideDoor(shape, d.Side);
-                bool caught = sideDoor is { } sd && v.DoorOpen(sd) && crew.Any(c => c.State.Alive && c.State.Parent == v.Id
-                    && PlayerMotor.Indoors(c.State, train) && c.Intent.Has(PlayerButtons.Fire)
-                    && d.Side * c.State.Position.X >= shape.HalfWidth - Tuning.CatchReach
-                    && Math.Abs(c.State.Position.Z) <= layout.SideDoorWidth / 2 + 0.3);
+                bool caught = crew.Any(c => c.State.Parent == v.Id && c.Intent.Has(PlayerButtons.Fire) && AtTheDoor(c.State, train, d));
                 if (!caught)
                     continue;
                 _dropped[d.Id] = 1;
@@ -487,6 +483,22 @@ public sealed class Lineside
                 break;
             }
         }
+    }
+
+    /// <summary>
+    /// Where a bag's caught from (and the HUD's prompt to, note 673): inside a car, in the open side door on the crane's side,
+    /// close enough to its edge to reach out.
+    /// </summary>
+    public bool AtTheDoor(in PlayerState s, TrainOnLine train, Drop d)
+    {
+        if (!s.Alive || s.Parent < 0 || s.Parent >= train.Frames.Count || train.Dynamics.Tuning.Geometry.Interior is not { } layout
+            || !PlayerMotor.Indoors(s, train))
+            return false;
+        var shape = train.Frames[s.Parent].Shape;
+        int parent = s.Parent;
+        return Bots.StopHand.SideDoor(shape, d.Side) is { } door && train.Dynamics.Consist.Vehicles.FirstOrDefault(v => v.Id == parent) is { } car
+            && car.DoorOpen(door) && d.Side * s.Position.X >= shape.HalfWidth - Tuning.CatchReach
+            && Math.Abs(s.Position.Z) <= layout.SideDoorWidth / 2 + 0.3;
     }
 
     static void Reward(World world, Drop d)
