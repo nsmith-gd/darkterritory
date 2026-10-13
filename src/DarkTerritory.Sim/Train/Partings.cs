@@ -8,6 +8,6 @@ public readonly record struct PartingMark(int Ahead, int Behind, Parting Cause, 
 
 /// <summary>
 /// What last knocked a vehicle's shell about (note 663), and at what speed: what the crew's told took the engine down
-/// ("THE ENGINE'S FAILING · THE BUFFER STOP AT 21 KM/H").
+/// ("ENGINE FAILING · HIT THE BUFFER STOP AT 21 KM/H").
 /// </summary>
 public enum KnockCause : byte { Unknown, BufferStop, Collision, Wreck, Sleepers, Points, Brass, Bend, Fire, Blast, Worn }

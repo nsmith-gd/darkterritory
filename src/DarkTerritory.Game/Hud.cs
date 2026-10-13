@@ -803,6 +803,9 @@ public static partial class Hud
             : $"A WAKER {Math.Max(0, behind):0} M BEHIND. GET IN";
     }
 
+    /// <summary>The newest news (note 663), or null.</summary>
+    static NewsEvent? NewsUp(Sim.World world) => world.News.Count > 0 ? world.News[^1] : null;
+
     static void TopCentre(Overlay o, int width, IPlaySession s, Memory m, int line)
     {
         float k = Fine, cx = width / 2f, y = 6;
@@ -816,6 +819,18 @@ public static partial class Hud
                 o.TextCentred(cx, y, $"DAWN {(int)dawn / 60}:{(int)dawn % 60:00}{DawnFlight(s.World)}", dawn <= 120 ? Red : Amber, 1);
             if (dawn <= Tuning.DawnClockSeconds)
                 y += line + 4;
+        }
+        // Note 663 (F1's place for it): the news, to everyone alike (the director: "did a coupler break on its own or was that a
+        // creature?"): cars the engine lost and its failing, as it happens and with what did it. Under the clock, which is
+        // the one that kills you; the newest only, fading as a place's name does.
+        if (NewsUp(s.World) is { } news && Shown((s.World.Tick - news.Tick) * SimConstants.TickSeconds, s.World.NewsTuning.Seconds) is > 0 and var n)
+        {
+            foreach (var row in Fitted(o, News.Line(s.World, news), width - 32, 1))
+            {
+                o.TextCentred(cx, y, row, (news.Kind == NewsKind.EngineBroken ? Red : Amber) with { W = n }, 1);
+                y += line;
+            }
+            y += 4;
         }
         if (m.Place is { } place && Shown(Since(s, m.PlaceTick), Tuning.PlaceSeconds) is > 0 and var a)
         {
@@ -985,15 +1000,8 @@ public static partial class Hud
         }
         // Note 576: a battered shell let go is working itself apart, said where it's felt: in the car, on the engine, and to
         // the cab for any car of the train (the driver feels it through the couplings).
-        // Note 663: the news, to everyone alike (the director: "did a coupler break on its own or was that a creature?"): cars
-        // the engine lost and its failing, as it happens and with what did it, the newest line for its few seconds. Its own
-        // line says the engine's stage, so the engine's own line (on it) waits out the news.
-        bool engineNews = false;
-        if (world.News.Count > 0 && world.News[^1] is var news)
-        {
-            engineNews = news.Kind != NewsKind.CarsLost;
-            Small(News.Line(world, news), news.Kind == NewsKind.EngineBroken ? Red : Amber);
-        }
+        // The news under the dawn clock says the engine's stage (note 663), so the engine's own line here waits it out.
+        bool engineNews = NewsUp(world) is { Kind: not NewsKind.CarsLost };
         if (p.Alive)
             foreach (var (text, worst) in FailingLines(world.Train, p))
             {

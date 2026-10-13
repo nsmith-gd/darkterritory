@@ -1686,7 +1686,7 @@ public sealed class World
             Impacts.RemoveAll(i => Tick - i.Tick > keep.ImpactKeepSeconds * SimConstants.TickRate);
             News.RemoveAll(e => Tick - e.Tick > NewsTuning.Seconds * SimConstants.TickRate);
         }
-        if (Authority)
+        if (Hosting)
             TellNews();
         Train.Partings.Clear();
         Shots.Clear();

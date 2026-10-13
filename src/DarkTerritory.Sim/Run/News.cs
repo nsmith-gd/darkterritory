@@ -22,58 +22,53 @@ public readonly record struct NewsEvent(int Id, uint Tick, NewsKind Kind, int[] 
 /// </summary>
 public static class News
 {
-    /// <summary>"CAR 4", "CARS 4–6", "CARS 2, 5".</summary>
+    /// <summary>"CAR 4", "CARS 4-6", "CARS 2, 5" (the HUD's font has no en dash; F1).</summary>
     public static string Cars(IReadOnlyList<int> cars)
     {
         if (cars.Count == 1)
             return $"CAR {cars[0]}";
         var sorted = cars.Order().ToList();
         bool run = sorted[^1] - sorted[0] == sorted.Count - 1;
-        return run ? $"CARS {sorted[0]}–{sorted[^1]}" : $"CARS {string.Join(", ", sorted)}";
+        return run ? $"CARS {sorted[0]}-{sorted[^1]}" : $"CARS {string.Join(", ", sorted)}";
     }
 
     static string Kmh(double metresPerSecond) => $"{Math.Abs(metresPerSecond) * 3.6:0} KM/H";
 
-    /// <summary>The line as the crew read it, in capitals (the HUD's).</summary>
+    /// <summary>
+    /// The line as the crew read it, in capitals (the HUD's): what happened and why, no instructions (note 402's rule; F1's
+    /// wording). What worked a pin loose, and who was driving, is the report's (it's longer than five seconds' reading).
+    /// </summary>
     public static string Line(World world, NewsEvent e)
     {
         if (e.Kind != NewsKind.CarsLost)
-        {
-            string stage = e.Kind == NewsKind.EngineBroken ? "THE ENGINE'S BROKEN DOWN" : "THE ENGINE'S FAILING";
-            return Knock((KnockCause)e.Cause, e.Speed) is { } knock ? $"{stage} · {knock}" : stage;
-        }
+            return $"{(e.Kind == NewsKind.EngineBroken ? "ENGINE BROKEN DOWN" : "ENGINE FAILING")} · {Knock((KnockCause)e.Cause, e.Speed)}";
         string cars = Cars(e.Cars);
-        string them = e.Cars.Length == 1 ? "IT" : "THEM";
+        string it = e.Cars.Length == 1 ? "IT" : "THEM";
         return (Parting)e.Cause switch
         {
-            Parting.Pin => $"{cars} BROKE AWAY · " + (LooseCause)e.Detail switch
-            {
-                LooseCause.RunIn => "A HARD BRAKE WORKED THE PIN LOOSE",
-                LooseCause.Knock => "A HARD COUPLE-UP WORKED THE PIN LOOSE",
-                _ => "THE PIN WORKED LOOSE",
-            },
-            Parting.Knotter => $"{cars} BROKE AWAY · A KNOTTER PARTED {them}",
-            Parting.Crew => $"{cars} CUT LOOSE BY {IncidentLog.NameOf(world, e.Who).ToUpperInvariant()}",
-            Parting.CarHugger => $"{cars} LOST · THE CAR HUGGER TOOK {them}",
-            Parting.Passenger => $"{cars} LOST · THE PASSENGER ROLLED {them} AWAY",
+            Parting.Pin => $"{cars} LOST · THE PIN WORKED LOOSE",
+            Parting.Knotter => $"{cars} LOST · A KNOTTER PARTED {it}",
+            Parting.Crew => $"{cars} LOST · CUT LOOSE BY {IncidentLog.NameOf(world, e.Who).ToUpperInvariant()}",
+            Parting.CarHugger => $"{cars} LOST · THE CAR HUGGER TOOK {it}",
+            Parting.Passenger => $"{cars} LOST · THE PASSENGER ROLLED {it} AWAY",
             Parting.Apart => e.Cars.Length == 1 ? $"{cars} CAME APART" : $"{cars} LOST · CAR {e.Cars[0]} CAME APART",
-            _ => $"{cars} BROKE AWAY",
+            _ => $"{cars} LOST",
         };
     }
 
-    /// <summary>What took the engine down, or null when it isn't known.</summary>
-    static string? Knock(KnockCause cause, double speed) => cause switch
+    /// <summary>What took the engine down: what it hit and how fast, or BATTERED when it isn't known.</summary>
+    static string Knock(KnockCause cause, double speed) => cause switch
     {
-        KnockCause.BufferStop => $"THE BUFFER STOP AT {Kmh(speed)}",
-        KnockCause.Collision => $"RUN INTO CARS AT {Kmh(speed)}",
-        KnockCause.Wreck => $"RUN INTO THE FALLEN TOWER AT {Kmh(speed)}",
-        KnockCause.Sleepers => $"DEBRIS ON THE LINE AT {Kmh(speed)}",
-        KnockCause.Points => "RUN THROUGH THE SWITCHMAN'S POINTS",
+        KnockCause.BufferStop => $"HIT THE BUFFER STOP AT {Kmh(speed)}",
+        KnockCause.Collision => $"HIT CARS AT {Kmh(speed)}",
+        KnockCause.Wreck => $"HIT THE FALLEN TOWER AT {Kmh(speed)}",
+        KnockCause.Sleepers => $"HIT DEBRIS AT {Kmh(speed)}",
+        KnockCause.Points => "RAN THROUGH THE SWITCHMAN'S POINTS",
         KnockCause.Brass => $"THE BRASS FIELD AT {Kmh(speed)}",
-        KnockCause.Bend => $"A BEND TAKEN AT {Kmh(speed)}",
-        KnockCause.Fire => "THE FIRE",
+        KnockCause.Bend => $"TOOK A BEND AT {Kmh(speed)}",
+        KnockCause.Fire => "BURNED",
         KnockCause.Blast => "A KEG'S BLAST",
         KnockCause.Worn => "RUN ON FAILING",
-        _ => null,
+        _ => "BATTERED",
     };
 }

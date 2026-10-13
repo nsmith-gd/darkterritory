@@ -954,8 +954,9 @@ public sealed partial class Run
                 inside.Add($"the body of {IncidentLog.NameOf(world, b.Owner)}");
             int puller = taken is null ? world.Attribution.CouplerPulledBy(ids.Min()) : -1;
             // Note 663: the news that told the crew they'd gone, where there's one; the report says what it said.
+            // (One whose cause wasn't known, the clerk reads from the attribution log, as before.)
             var news = world.NewsLog.LastOrDefault(e => e.Kind == NewsKind.CarsLost && e.Cars.Any(ids.Contains));
-            string cause = news.Cars is not null ? LostCause(world, news)
+            string cause = news.Cars is not null && (Parting)news.Cause != Parting.Unknown ? LostCause(world, news)
                 : puller >= 0 ? $"Coupler: {IncidentLog.NameOf(world, puller)}. "
                 // Note 511: or nobody's: the coupling worked loose and its pin dropped (note 356).
                 : taken is null && world.Attribution.Parted(ids.Min()) ? PinParted(world, ids.Min())
