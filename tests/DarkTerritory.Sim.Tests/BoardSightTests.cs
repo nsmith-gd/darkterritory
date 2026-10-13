@@ -219,6 +219,30 @@ public class BoardSightTests
     }
 
     [Fact]
+    public void ADistanceBoardSaysItsOwnDistanceFromWhereItStands()
+    {
+        // Note 684: a facility's or junction's "0.5 KM" stood off its plan's spot, to where it can be read, is lettered from
+        // there (frontier:7's J1 0.5 KM stands 150 m on and says 0.4 KM); one where the plan put it says the plan's words.
+        int moved = 0;
+        foreach (var spec in Nights)
+        {
+            var route = Routes.Generate(Content, spec, 6);
+            var side = LinesideProps.Of(route, route.Build())!;
+            foreach (var (sign, site) in side.PlanBoards.Where(b => b.Key is { State: SignState.Intact, To: not null }))
+            {
+                string said = $"{Math.Max(0.1, (sign.To!.Value - site.Along) / 1000):0.0} KM";
+                Assert.True(site.Text.EndsWith(" " + said, StringComparison.Ordinal), $"{spec}: {site.Text} stands {sign.To - site.Along:0} m out");
+                Assert.Equal(said, site.Face.Lines[^1]);
+                if (Math.Abs(site.Along - sign.S) < 1e-6)
+                    Assert.Equal(sign.Text, site.Text);
+                else if (site.Text != sign.Text)
+                    moved++;
+            }
+        }
+        Assert.True(moved > 0, "no distance board stood far enough off its spot to say another distance");
+    }
+
+    [Fact]
     public void TheSimsOwnBoardsStandWhereTheirSightLinesWereCleared()
     {
         // The lineside clears for the sim's boards (sight.json's: a bend's advance limit, LOW, MAIL, END) at the default
