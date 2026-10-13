@@ -522,6 +522,7 @@ public static partial class TownGenerator
             Frame = FrameOf(t, site.Gate, homes.Bounds),
             Form = form?.Form ?? "",
             Districts = form?.Districts ?? [],
+            Margin = form?.Margin ?? 0,
             Ways = form?.Ways ?? [],
         };
         return Remember(plan, site.Burnt, w, Rng("remember"));

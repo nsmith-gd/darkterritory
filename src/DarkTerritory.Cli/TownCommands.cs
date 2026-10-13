@@ -30,7 +30,27 @@ static class TownCommands
         {
             string png = Str(args, "--out", $"out/towns/{spec.Replace(':', '-')}{(plan.Form.Length > 0 ? "-" + plan.Form : "")}.png");
             DarkTerritory.Game.TownMap.Save(plan, png, (int)Opt(args, "--width", 1800));
-            return new { png, plan.Name, plan.Form, plan.Population, houses = plan.Houses.Count, plan.Frame, districts = plan.Districts.Select(d => $"{d.Kind} {d.Id} {d.Name}") };
+            // Its climbs (note 692): each stair or ramp's ends along its frame and their levels.
+            var climbs = plan.Ways.Where(w => w.Levels is not null).Select(w => new
+            {
+                from = new[] { Math.Round(w.Points[0].S, 1), Math.Round(w.Points[0].D, 1), Math.Round(w.Levels![0], 1) },
+                to = new[] { Math.Round(w.Points[^1].S, 1), Math.Round(w.Points[^1].D, 1), Math.Round(w.Levels[^1], 1) },
+            });
+            var ground = TownGround.Of(plan);
+            return new
+            {
+                png,
+                plan.Name,
+                plan.Form,
+                plan.Population,
+                houses = plan.Houses.Count,
+                plan.Frame,
+                plan.Margin,
+                climbs,
+                highest = ground.Flat ? 0 : Math.Round(plan.Houses.Max(h => h.Level), 1),
+                lowest = ground.Flat ? 0 : Math.Round(plan.Houses.Min(h => h.Level), 1),
+                districts = plan.Districts.Where(d => d.Name.Length > 0).Select(d => $"{d.Kind} {d.Id} {d.Name}")
+            };
         }
         return new
         {

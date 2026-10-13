@@ -20,9 +20,12 @@ public sealed class TownGround
     /// half-metre more: PlayerMotor's GroundLiftMargin), so a terrace's edge past it is walled. And the rail's and a
     /// retaining wall's parapet over the higher side.</summary>
     public const double Stride = 0.7, Parapet = 1.1;
+    /// <summary>The outer share of a town's margin over which its land eases into the line's (note 692). Not a design number.</summary>
+    const double BlendShare = 0.4;
 
-    readonly float[] _level, _bed, _water;
+    readonly float[] _level, _bed, _water, _blend;
     readonly byte[] _kind;
+    readonly bool[] _inside = [];
 
     public double S0 { get; }
     public double D0 { get; }
@@ -35,39 +38,71 @@ public sealed class TownGround
     static readonly ConditionalWeakTable<TownPlan, TownGround> Cache = [];
 
     /// <summary>The ground of <paramref name="plan"/> (made once a plan).</summary>
-    public static TownGround Of(TownPlan plan) => Cache.GetValue(plan, p => new TownGround(p));
+    public static TownGround Of(TownPlan plan) => Cache.GetValue(plan, p => new TownGround(p.Bounds, p.Districts, p.Ways, p.Margin));
 
-    TownGround(TownPlan plan)
+    /// <summary>The ground a plan's pieces make, before there's a plan (the form's planner asks it, note 692's walks).</summary>
+    public static TownGround Build(TownBounds bounds, IReadOnlyList<TownDistrict> districts, IReadOnlyList<TownWay> ways, double margin) =>
+        new(bounds, districts, ways, margin);
+
+    TownGround(TownBounds? b, IReadOnlyList<TownDistrict> districts, IReadOnlyList<TownWay> ways, double margin)
     {
-        var b = plan.Bounds;
-        if (b is null || plan.Districts.Count == 0 && plan.Ways.All(w => w.Levels is null && !w.Deck))
+        if (b is null || districts.Count == 0 && ways.All(w => w.Levels is null && !w.Deck))
         {
             Flat = true;
-            _level = _bed = _water = [];
+            _level = _bed = _water = _blend = [];
             _kind = [];
             return;
         }
-        S0 = b.Rear - 2;
-        D0 = -b.Left - 2;
-        Ns = (int)Math.Ceiling((b.Gate - b.Rear + 4) / Cell);
-        Nd = (int)Math.Ceiling((b.Left + b.Right + 4) / Cell);
+        Bounds = b;
+        Margin = margin;
+        double m = margin + 2;
+        S0 = b.Rear - m;
+        D0 = -b.Left - m;
+        Ns = (int)Math.Ceiling((b.Gate - b.Rear + 2 * m) / Cell);
+        Nd = (int)Math.Ceiling((b.Left + b.Right + 2 * m) / Cell);
         int n = Ns * Nd;
         _level = new float[n];
         _bed = new float[n];
         _water = new float[n];
+        _blend = new float[n];
         _kind = new byte[n];
+        _inside = new bool[n];
         Array.Fill(_water, float.NaN);
-        // Each district over those before it (a terrace inside a terrace is the deeper bench; a hummock out of the marsh).
-        foreach (var d in plan.Districts)
+        // How much the town's ground is the land's (note 692's landforms): all of it inside the wall and for half its margin
+        // past it, then less to nothing at the margin's edge, where the line plan's land takes over.
+        for (int i = 0; i < Ns; i++)
+            for (int j = 0; j < Nd; j++)
+            {
+                double s = S0 + (i + 0.5) * Cell, dd = D0 + (j + 0.5) * Cell;
+                _inside[i * Nd + j] = b.Holds(s, dd);
+                double out_ = _inside[i * Nd + j] ? 0 : OutsideBy(b, s, dd);
+                _blend[i * Nd + j] = out_ <= 0 ? 1 : margin <= 0 ? 0 : (float)Smooth(Math.Clamp((margin - out_) / (BlendShare * margin), 0, 1));
+            }
+        // Each district over those before it (a terrace inside a terrace is the deeper bench; a hummock out of the marsh). A
+        // landform's (its falloff) eases from what's under it to its own level over its falloff past its outline.
+        foreach (var d in districts)
         {
             var (s0, s1, d0, d1) = Box(d.Outline);
-            for (int i = Math.Max(0, I(s0)); i <= Math.Min(Ns - 1, I(s1)); i++)
-                for (int j = Math.Max(0, J(d0)); j <= Math.Min(Nd - 1, J(d1)); j++)
+            double f = d.Falloff;
+            for (int i = Math.Max(0, I(s0 - f)); i <= Math.Min(Ns - 1, I(s1 + f)); i++)
+                for (int j = Math.Max(0, J(d0 - f)); j <= Math.Min(Nd - 1, J(d1 + f)); j++)
                 {
                     double s = S0 + (i + 0.5) * Cell, dd = D0 + (j + 0.5) * Cell;
-                    if (!d.Holds(s, dd))
-                        continue;
                     int k = i * Nd + j;
+                    // The land outside the wall stays outside it (note 692): the town's ground inside is its own.
+                    if (d.Outside && b.Holds(s, dd))
+                        continue;
+                    if (!d.Holds(s, dd))
+                    {
+                        if (f <= 0 || d.Kind is DistrictKind.Water or DistrictKind.Deck)
+                            continue;
+                        double away = d.Distance(s, dd);
+                        if (away >= f)
+                            continue;
+                        double t = Smooth(1 - away / f);
+                        _level[k] = _bed[k] = (float)(_level[k] + (d.Level - _level[k]) * t);
+                        continue;
+                    }
                     switch (d.Kind)
                     {
                         case DistrictKind.Water:
@@ -91,7 +126,7 @@ public sealed class TownGround
                 }
         }
         // The ways: a ramp's cells at its level along it; a deck's at its deck's; a way on the ground keeps the ground's.
-        foreach (var w in plan.Ways)
+        foreach (var w in ways)
         {
             if (w.Levels is null && !w.Deck)
                 continue;
@@ -129,6 +164,69 @@ public sealed class TownGround
             }
         }
         Flat = _level.All(x => x == 0) && _water.All(float.IsNaN);
+    }
+
+    /// <summary>The wall the ground was laid inside, and how far past it the town shapes the land (m; note 692).</summary>
+    public TownBounds? Bounds { get; }
+    public double Margin { get; }
+
+    static double Smooth(double x) => x * x * (3 - 2 * x);
+
+    /// <summary>How far outside the wall's outline (or rectangle) a point is (m).</summary>
+    static double OutsideBy(TownBounds b, double s, double d)
+    {
+        IReadOnlyList<(double S, double D)> o = b.Outline ?? [(b.Rear, -b.Left), (b.Gate, -b.Left), (b.Gate, b.Right), (b.Rear, b.Right)];
+        double best = double.MaxValue;
+        for (int i = 0, j = o.Count - 1; i < o.Count; j = i++)
+            best = Math.Min(best, TownDistrict.SegDist(s, d, o[j], o[i]));
+        return best;
+    }
+
+    /// <summary>Whether a point is inside the town's wall.</summary>
+    public bool Inside(double s, double d) => !Flat && Index(s, d) is var k and >= 0 && _inside[k];
+
+    /// <summary>How much of a point's ground is the town's (1 inside the wall; easing to 0 at the margin's edge).</summary>
+    public double Blend(double s, double d) => !Flat && Index(s, d) is var k and >= 0 ? _blend[k] : 0;
+
+    /// <summary>
+    /// Where a crewmate can walk to from (<paramref name="s"/>, <paramref name="d"/>) inside the town (note 692; the
+    /// director: "make sure that there's always walkable paths for the player"): every cell reached by steps no taller
+    /// than <see cref="Stride"/>, never into water too deep to wade, never through <paramref name="blocked"/> (the
+    /// buildings' footprints, the walls).
+    /// </summary>
+    public Func<double, double, bool> Walk(double s, double d, Func<double, double, bool>? blocked = null)
+    {
+        if (Flat)
+            return (_, _) => true;
+        var seen = new bool[Ns * Nd];
+        bool Open(int k)
+        {
+            if (_blend[k] < 1 || _kind[k] == 2 && _water[k] - _bed[k] > Wade)
+                return false;
+            return blocked is null || !blocked(S0 + (k / Nd + 0.5) * Cell, D0 + (k % Nd + 0.5) * Cell);
+        }
+        int start = Index(s, d);
+        if (start >= 0)
+        {
+            var queue = new Queue<int>();
+            seen[start] = true;
+            queue.Enqueue(start);
+            while (queue.Count > 0)
+            {
+                int k = queue.Dequeue(), i = k / Nd, j = k % Nd;
+                foreach (var (a, b) in new[] { (i + 1, j), (i - 1, j), (i, j + 1), (i, j - 1) })
+                {
+                    if (a < 0 || b < 0 || a >= Ns || b >= Nd)
+                        continue;
+                    int n = a * Nd + b;
+                    if (seen[n] || !Open(n) || Math.Abs(_level[n] - _level[k]) > Stride)
+                        continue;
+                    seen[n] = true;
+                    queue.Enqueue(n);
+                }
+            }
+        }
+        return (ps, pd) => Index(ps, pd) is var k and >= 0 && seen[k];
     }
 
     int I(double s) => (int)Math.Floor((s - S0) / Cell);
@@ -174,6 +272,9 @@ public sealed class TownGround
         // Across each cell edge (along d between i and i+1; along s between j and j+1), what wall there is, if any.
         (double Bottom, double Top)? Between(int a, int b)
         {
+            // Only inside the wall (outside, the land eases where it falls: note 692's landforms).
+            if (_blend[a] < 1 || _blend[b] < 1)
+                return null;
             bool wetA = !float.IsNaN(_water[a]) && _kind[a] == 2, wetB = !float.IsNaN(_water[b]) && _kind[b] == 2;
             if (wetA != wetB)
             {
@@ -229,44 +330,17 @@ public sealed class TownGround
     List<(double, double, double, double, double, double)>? _edges;
 
     /// <summary>
-    /// The shaped ground as runs of one level along the line (rail frame: a row of cells from S0 to S1 at D, D + 1, its
-    /// level): what the art lays the town's own ground from, the deck cells and the water's bed apart.
-    /// </summary>
-    public IEnumerable<(double S0, double S1, double D, double Level, bool Deck, bool Wet)> Runs(double apron = 0)
-    {
-        if (Flat)
-            yield break;
-        // A cell is drawn where it's shaped, or within the apron of a shaped one (the land's own mesh is left out there).
-        var near = Apron(apron);
-        for (int j = 0; j < Nd; j++)
-        {
-            int start = -1;
-            for (int i = 0; i <= Ns; i++)
-            {
-                int k = i * Nd + j;
-                bool cut = start >= 0 && (i == Ns || !near[k] || Math.Abs(_level[k] - _level[start * Nd + j]) > 1e-3 || _kind[k] != _kind[start * Nd + j]);
-                if (cut)
-                {
-                    int ks = start * Nd + j;
-                    yield return (S0 + start * Cell, S0 + i * Cell, D0 + j * Cell, _kind[ks] == 3 ? _level[ks] : _bed[ks], _kind[ks] == 3, _kind[ks] == 2);
-                    start = -1;
-                }
-                if (i < Ns && near[k] && start < 0)
-                    start = i;
-            }
-        }
-    }
-
-    /// <summary>
     /// The town's own ground as few rectangles as it takes (rail frame: S0 to S1 along, D0 to D1 across, its level, and
     /// what it is: 1 land, 2 a basin's bed, 3 a deck): every shaped cell and those within <paramref name="apron"/> of one,
     /// grown greedily along the line then across it while the level and kind hold. What the art lays the ground from.
     /// </summary>
-    public IReadOnlyList<(double S0, double S1, double D0, double D1, double Level, byte Kind)> Rects(double apron)
+    public IReadOnlyList<(double S0, double S1, double D0, double D1, double Level, byte Kind)> Rects(double apron, bool insideOnly = false)
     {
         if (Flat)
             return [];
         var near = Apron(apron);
+        if (insideOnly)
+            near = [.. near.Select((x, k) => x && _inside[k])];
         var used = new bool[Ns * Nd];
         var rects = new List<(double, double, double, double, double, byte)>();
         float LevelOf(int k) => _kind[k] == 3 ? _level[k] : _bed[k];

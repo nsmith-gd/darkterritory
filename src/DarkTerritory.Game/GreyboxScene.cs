@@ -3373,7 +3373,7 @@ public sealed partial class GreyboxScene
         {
             // The departure fortress is a town (note 281): its square, and its people where note 107's folk stood.
             town ??= start == 0 && lit ? Town : null;
-            Look.Art.World.Fortress(mesh, line, eye, from, to, start, end, gateAt, platform: start == 0, lit, Time, town?.Plan.Square, town?.Plan.Bounds);
+            Look.Art.World.Fortress(mesh, line, eye, from, to, start, end, gateAt, platform: start == 0, lit, Time, town?.Plan.Square, town?.Plan.Bounds, town?.Ground);
             Lap(mesh, "fortress walls");
             if (town is not null)
             {
@@ -3381,7 +3381,7 @@ public sealed partial class GreyboxScene
                 Look.Art.World.Civic(mesh, line, eye, town, from, to, Look.Tuning.Atmosphere.Wind.Of(Wind), Look.Tuning.Atmosphere.Wind.Gusts, Time);
                 Look.Art.World.Works(mesh, line, eye, town, from, to);
                 // A town type's own ground, water and landmarks (note 692).
-                Look.Art.World.Forms(mesh, line, eye, town, from, to, Time);
+                Look.Art.World.Forms(mesh, line, eye, town, from, to, Time, Route);
                 Lap(mesh, "town square, green, works");
                 Look.Art.World.Houses(mesh, line, eye, town, from, to);
                 if (town == Arrival)

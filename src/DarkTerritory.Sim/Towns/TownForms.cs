@@ -35,6 +35,8 @@ public static class TownForms
     {
         public string Form = "";
         public double Entry;
+        /// <summary>How far past its wall it shapes the land (m; note 692's landforms).</summary>
+        public double Margin;
         public readonly List<(double S, double D)> Outline = [];
         public readonly List<TownDistrict> Districts = [];
         public readonly List<TownWay> Ways = [];
@@ -95,6 +97,8 @@ public static class TownForms
     {
         // Not design numbers: room a house's lot keeps off the next lot, its way and the wall (m).
         const double LotPad = 0.6, WallPad = 7, LineClear = 9.5, Cell = 1;
+        /// <summary>A stair street's rise over its run: a steep street's steps (a 24° flight), walked up a stride at a time.</summary>
+        const double StairSlope = 0.45;
         readonly TownTuning _t;
         readonly TownWriting _w;
         readonly FormShape _f;
@@ -112,6 +116,7 @@ public static class TownForms
             (_t, _w, _f, _gate, _sq, _rngFor) = (t, w, f, gate, square, rngFor);
             _l.Form = form;
             _l.Entry = gate - f.Length;
+            _l.Margin = f.Margin;
             _lots = rngFor("form.lots");
         }
 
@@ -203,9 +208,12 @@ public static class TownForms
             Box((s0 + s1) / 2, (d0 + d1) / 2, 1, 0, Math.Abs(s1 - s0) / 2, Math.Abs(d1 - d0) / 2, true);
 
         /// <summary>A piece of ground: added to the plan, and taken where nothing may be built (water, decks, plots, yards).</summary>
-        TownDistrict District(DistrictKind kind, string id, IEnumerable<(double U, double D)> outline, double level = 0, bool named = true)
+        TownDistrict District(DistrictKind kind, string id, IEnumerable<(double U, double D)> outline, double level = 0, bool named = true,
+            double falloff = 0, bool outside = false, double? depth = null)
         {
-            var d = new TownDistrict(kind, id, named ? Name(id) : "", Clip([.. outline.Select(x => P(x.U, x.D))]), level) { Depth = _f.WaterDepth };
+            List<(double S, double D)> pts = [.. outline.Select(x => P(x.U, x.D))];
+            var d = new TownDistrict(kind, id, named ? Name(id) : "", outside ? pts : Clip(pts), level)
+            { Depth = depth ?? _f.WaterDepth, Falloff = falloff, Outside = outside };
             _l.Districts.Add(d);
             // (Water isn't taken: a hummock or a causeway may be raised out of it later. A lot asks the ground it's on.)
             if (kind is DistrictKind.Deck or DistrictKind.Plots or DistrictKind.Yard)
@@ -267,10 +275,55 @@ public static class TownForms
         /// <summary>The level of the ground at a point: the last district laid that holds it (terraces nest inward), else 0.</summary>
         (DistrictKind Kind, double Level) GroundAt(double s, double d)
         {
-            for (int i = _l.Districts.Count - 1; i >= 0; i--)
-                if (_l.Districts[i].Holds(s, d))
-                    return (_l.Districts[i].Kind, _l.Districts[i].Level);
-            return (DistrictKind.Quarter, 0);
+            // Each district over those before it, as TownGround lays them; a landform eases in over its falloff.
+            var kind = DistrictKind.Quarter;
+            double level = 0;
+            bool inside = InWall(s, d);
+            foreach (var x in _l.Districts)
+            {
+                // (The land outside the wall stays outside it: the town's ground inside is its own.)
+                if (x.Outside && inside)
+                    continue;
+                if (x.Holds(s, d))
+                {
+                    (kind, level) = (x.Kind, x.Level);
+                    continue;
+                }
+                if (x.Falloff <= 0 || x.Kind is DistrictKind.Water or DistrictKind.Deck)
+                    continue;
+                double away = x.Distance(s, d);
+                if (away < x.Falloff)
+                {
+                    double t = 1 - away / x.Falloff;
+                    level += (x.Level - level) * t * t * (3 - 2 * t);
+                }
+            }
+            return (kind, level);
+        }
+
+        TownDistrict? _wall;
+
+        bool InWall(double s, double d) => (_wall ??= new TownDistrict(DistrictKind.Quarter, "", "", _l.Outline)).Holds(s, d);
+
+        /// <summary>
+        /// The land the town stands in (note 692; the director, 13 Oct: "integrating the layout of the town with the layout
+        /// of the landscape"): a landform outside the wall, easing over <paramref name="falloff"/> into what's under it and,
+        /// at the margin's edge, into the line plan's land. Never across the line's own way in and out (its approach is
+        /// laid level last, <see cref="Approach"/>).
+        /// </summary>
+        void Land(string id, IEnumerable<(double U, double D)> outline, double level, double falloff) =>
+            District(DistrictKind.Quarter, id, outline, level, named: false, falloff: falloff, outside: true);
+
+        /// <summary>The sea or the flats outside the wall (note 692): water easing to the line's land at the margin's edge.</summary>
+        void Sea(IEnumerable<(double U, double D)> outline, double level, double depth) =>
+            District(DistrictKind.Water, "sea", outline, level, named: false, outside: true, depth: depth);
+
+        /// <summary>The line's way in and out across the margin, level with the yard: an embankment through the landform.</summary>
+        void Approach(double falloff)
+        {
+            double m = _f.Margin + 4, L = _f.Length;
+            Land("approach", Rect(-L - m, -L + 2, -9, 9), 0, falloff);
+            Land("approach", Rect(-2, m, -9, 9), 0, falloff);
         }
 
         /// <summary>A way through the town (its points as u, d), taken on the grid as wide as it is and a little more.</summary>
@@ -455,9 +508,26 @@ public static class TownForms
         /// m from <paramref name="first"/> out to <paramref name="reach"/>, between u0 and u1, a row of lots either side of
         /// each, lanes across every so often (the walled town's pattern, note 335, kept to a quarter of the town).
         /// </summary>
-        void Blocks(int side, double first, double every, double reach, double u0, double u1, bool yards = true)
+        void Blocks(int side, double first, double every, double reach, double u0, double u1, bool yards = true, double rise = 0)
         {
             double width = _t.Walled.Width;
+            var offs = new List<double>();
+            for (double off = first; off <= reach - every / 2; off += every)
+                offs.Add(off);
+            // Terraced (note 692; the director: "the verticality that we're trying to add"): each street's band a tier over
+            // the last, the first (the square's and the green's) the yard's level, a retaining wall along the back line
+            // between two rows' yards, the lanes climbing them as stair streets.
+            double Level(int k) => rise * k;
+            if (rise > 0)
+            {
+                for (int k = 1; k < offs.Count; k++)
+                {
+                    double lo = offs[k] - every / 2, hi = k == offs.Count - 1 ? reach + 80 : offs[k] + every / 2;
+                    District(DistrictKind.Terrace, "tier", Rect(u0 - 6, u1 + 6, side * lo, side * hi), Level(k), named: false);
+                }
+                if (_l.Green is { } g && g.Side == side)
+                    District(DistrictKind.Terrace, "green", Rect(g.S0 - _gate, g.S1 - _gate, side * g.Near, side * g.Far), 0, named: false);
+            }
             var lanes = new List<double>();
             for (double u = u0 + _lots.Range(_t.Walled.LaneEvery[0], _t.Walled.LaneEvery[1]) * 0.6; u < u1 - 30; u += _lots.Range(_t.Walled.LaneEvery[0], _t.Walled.LaneEvery[1]) * 0.7)
                 lanes.Add(Math.Round(u, 1));
@@ -471,11 +541,32 @@ public static class TownForms
                 double from = LineClear;
                 if (_l.Works is { } wk && wk.Side == side && _gate + u > wk.S0 - 6 && _gate + u < wk.S1 + 6)
                     from = wk.Far + 1;
-                Lane(u, side > 0 ? from : -reach, side > 0 ? reach : -from, _t.Walled.LaneWidth);
+                if (rise <= 0)
+                {
+                    Lane(u, side > 0 ? from : -reach, side > 0 ? reach : -from, _t.Walled.LaneWidth);
+                    continue;
+                }
+                // A stair street: level along each band, a flight across each back line (a stair's slope, StairSlope).
+                var pts = new List<(double U, double D)> { (u, side * from) };
+                var levels = new List<double> { 0 };
+                double run = rise / StairSlope / 2;
+                for (int k = 0; k + 1 < offs.Count; k++)
+                {
+                    double back = offs[k] + every / 2;
+                    if (back - run <= from)
+                        continue;
+                    pts.Add((u, side * (back - run)));
+                    levels.Add(Level(k));
+                    pts.Add((u, side * (back + run)));
+                    levels.Add(Level(k + 1));
+                }
+                pts.Add((u, side * reach));
+                levels.Add(Level(offs.Count - 1));
+                Way(pts, _t.Walled.LaneWidth, levels: levels);
             }
-            for (double off = first; off <= reach - every / 2; off += every)
+            foreach (double off in offs)
                 Street(side * off, u0, u1, width);
-            for (double off = first; off <= reach - every / 2; off += every)
+            foreach (double off in offs)
             {
                 double d = side * off;
                 // Both rows front the street: the line-side row's lots on the street's line side, the far row's beyond.
@@ -496,6 +587,13 @@ public static class TownForms
             double L = _f.Length, wl = _f.Left, wr = _f.Right;
             Wall((-L, -wl * 0.75), (-L + 60, -wl), (-L * 0.62, -wl), (-L * 0.5, -wl - 25), (-L * 0.36, -wl), (-70, -wl * 0.9), (0, -wl * 0.6),
                 (0, wr * 0.35), (-50, wr), (-L + 40, wr), (-L, wr * 0.7));
+            // The land it stands in (note 692): the headland climbing behind the town to its crag, the sea under the sea wall.
+            double m = _f.Margin;
+            Land("hill", Rect(-L - m - 40, m + 40, -wl - m - 60, -wl - 30), _f.TerraceLevel + 4, 28);
+            Land("upland", Rect(-L - m - 40, m + 40, -wl - m - 60, -wl - 95), _f.TerraceLevel + 16, 60);
+            Land("crag", Blob(-L * 0.5, -wl - 75, 120, 50, 0.15, 18, "crag"), _f.TerraceLevel + 28, 45);
+            Sea(Rect(-L - m - 40, m + 40, wr + 3, wr + m + 60), -6, 5);
+            Approach(16);
             // The harbour: from the wharf's edge out to the sea wall, its shore ragged.
             double quay = 30, edge = 48;
             var harbour = new List<(double, double)> { (-L + 95, edge), (-75, edge), (-55, wr - 18), (-L * 0.4, wr - 10), (-L + 70, wr - 14), (-L + 95, edge + 30) };
@@ -524,13 +622,15 @@ public static class TownForms
             // The slip and the boat yard by the way in: a hard sloping into the water, the sheds on it.
             District(DistrictKind.Yard, "slip", Rect(-L + 15, -L + 90, 18, wr * 0.6));
             Landmark("boatshed", -L + 52, 30, 0, 1);
-            // Behind the square: the lanes, the green across from the square, and the head above them with its light.
+            // Behind the square: the green across from it, the lanes climbing tier on tier up the headland (note 692), and the
+            // head over them with its light and its chapel, a stair up to it from the top tier.
             Green(_t.Walled.First + _t.Walled.Width / 2, _t.Walled.First + _t.Walled.Every - _t.Walled.Width / 2);
+            Blocks(-1, _t.Walled.First, 29, wl - 40, -L + 20, -8, rise: _f.Rise);
+            double top = _f.Rise * 2;
             District(DistrictKind.Terrace, "head", Blob(-L * 0.5, -wl + 5, 70, 32, 0.12, 18, "head"), _f.TerraceLevel);
             Landmark("lighthouse", -L * 0.5, -wl - 10, 0, 1);
             Landmark("chapel", -L * 0.5 + 40, -wl + 14, 0, 1);
-            Way([(-L * 0.5 - 60, -wl + 30), (-L * 0.5 - 30, -wl + 8), (-L * 0.5 + 20, -wl + 6)], 4, levels: [0, _f.TerraceLevel, _f.TerraceLevel]);
-            Blocks(-1, _t.Walled.First, 29, wl - 40, -L + 20, -8);
+            Way([(-L * 0.5 - 75, -wl + 36), (-L * 0.5 - 40, -wl + 14), (-L * 0.5 + 10, -wl + 8)], 4, levels: [top, _f.TerraceLevel, _f.TerraceLevel]);
             District(DistrictKind.Quarter, "lanes", Rect(-L + 40, -L * 0.6, -wl * 0.4, -wl * 0.8), named: true);
             // A row of net lofts and stores along the wharf's back, fronting it.
             Lots(-L + 100, quay - 2, -L * 0.55 - 4, quay - 2, 0, 2, 7);
@@ -545,6 +645,10 @@ public static class TownForms
         {
             double L = _f.Length, wl = _f.Left, wr = _f.Right, c = 50;
             Wall((-L, -wl + c), (-L + c, -wl), (-c, -wl), (0, -wl + c), (0, wr - c), (-c, wr), (-L + c, wr), (-L, wr - c));
+            // The land it stands in (note 692): the tidal flats all round the palisade, waded at low water, the line in on its dyke.
+            double m = _f.Margin;
+            Sea(Rect(-L - m - 40, m + 40, -wl - m - 60, wr + m + 60), -0.6, 0.6);
+            Approach(5);
             // The marsh everywhere inside, then the dyke the line runs on and the hummocks out of it.
             District(DistrictKind.Water, "marsh", _l.Outline.Select(x => (x.S - _gate, x.D)), _f.WaterLevel);
             District(DistrictKind.Quarter, "dyke", Rect(-L, 0, -16, 16), named: false);
@@ -617,6 +721,11 @@ public static class TownForms
         {
             double L = _f.Length, wl = _f.Left, wr = _f.Right;
             Wall((-L, -wl * 0.7), (-L + 70, -wl), (-90, -wl), (0, -wl * 0.6), (0, wr * 0.5), (-60, wr), (-L + 50, wr), (-L, wr * 0.6));
+            // The land it stands in (note 692): a mesa, its walls on its edge, the ditch they cut round it to build them, the line
+            // in on its embankment across the ditch.
+            double m = _f.Margin;
+            Land("ditch", Rect(-L - m - 60, m + 60, -wl - m - 60, wr + m + 60), -_f.TerraceLevel * 2.4, 0);
+            Approach(26);
             double pu = -L * 0.46, pd = -wl * 0.5, rim = Math.Min(wl * 0.38, L * 0.22);
             int benches = _f.Benches;
             double step = rim / (benches + 1.5), drop = _f.TerraceLevel;
@@ -668,6 +777,12 @@ public static class TownForms
         {
             double L = _f.Length, wl = _f.Left, wr = _f.Right;
             Wall((-L, -wl * 0.8), (-L + 40, -wl), (-L * 0.45, -wl - 10), (-40, -wl), (0, -wl * 0.65), (0, wr * 0.4), (-40, wr), (-L + 30, wr), (-L, wr * 0.8));
+            // The land it stands in (note 692): the ridge the old town climbed, the tide outside the sea wall.
+            double m = _f.Margin;
+            Land("ridge", Rect(-L - m - 40, m + 40, -wl - m - 60, -wl - 25), _f.TerraceLevel * 2, 30);
+            Land("ridge", Rect(-L - m - 40, m + 40, -wl - m - 60, -wl - 90), _f.TerraceLevel * 3.6, 60);
+            Sea(Rect(-L - m - 40, m + 40, wr + 3, wr + m + 60), -4, 3.5);
+            Approach(18);
             var water = Blob(-L * 0.5, wr * 0.62, L * 0.45, wr * 0.45, 0.07, 24, "drowned").Select(x => (x.U, Math.Max(x.D, 26.0))).ToList();
             District(DistrictKind.Water, "drowned", water, _f.WaterLevel);
             // The causeways out across the flood to the wharf islands, and the wharves' decks.
@@ -689,14 +804,14 @@ public static class TownForms
             District(DistrictKind.Terrace, "high", Blob(-L * 0.35, -wl * 0.78, 58, 34, 0.08, 18, "high"), _f.TerraceLevel * 1.6);
             Landmark("chapel", -L * 0.72, -wl * 0.72 - 6, 0, 1);
             Landmark("watchtower", -L * 0.35 - 30, -wl * 0.78 - 14, 0, 1);
-            Way([(-L * 0.72 + 50, -wl * 0.45), (-L * 0.72 + 30, -wl * 0.6), (-L * 0.72 + 10, -wl * 0.66)], 4, levels: [0, _f.TerraceLevel, _f.TerraceLevel]);
-            Way([(-L * 0.35 + 50, -wl * 0.5), (-L * 0.35 + 30, -wl * 0.66), (-L * 0.35 + 10, -wl * 0.72)], 4, levels: [0, _f.TerraceLevel * 1.6, _f.TerraceLevel * 1.6]);
+            Way([(-L * 0.72 + 50, -wl * 0.45), (-L * 0.72 + 30, -wl * 0.6), (-L * 0.72 + 10, -wl * 0.66)], 4, levels: [_f.Rise, _f.TerraceLevel, _f.TerraceLevel]);
+            Way([(-L * 0.35 + 50, -wl * 0.5), (-L * 0.35 + 30, -wl * 0.66), (-L * 0.35 + 10, -wl * 0.72)], 4, levels: [_f.Rise, _f.TerraceLevel * 1.6, _f.TerraceLevel * 1.6]);
             RingLots(-L * 0.72, -wl * 0.72, 22, 4, outside: true);
             RingLots(-L * 0.35, -wl * 0.78, 20, 4, outside: true);
             Works(-L * 0.3, -30, 12, 24, 1, "tidewater");
-            // The hills' own road, round under their edges, then the blocks below it.
+            // The blocks climbing tier on tier toward the hills (note 692), the hills' own road round under their edges.
+            Blocks(-1, 34, 29, wl * 0.5, -L + 20, -10, rise: _f.Rise);
             Way([(-L + 30, -wl * 0.5 - 20), (-24, -wl * 0.5 - 20)], 5);
-            Blocks(-1, 34, 29, wl * 0.5, -L + 20, -10);
             Lots(-L + 30, -wl * 0.5 - 20, -24, -wl * 0.5 - 20, 5, 3);
             Landmark("crane", -60, 22, 0, 1);
         }
@@ -727,6 +842,10 @@ public static class TownForms
         {
             double L = _f.Length, wl = _f.Left, wr = _f.Right, c = Math.Min(L, wl + wr) * 0.22;
             Wall((-L, -wl + c), (-L + c, -wl), (-c, -wl), (0, -wl + c), (0, wr - c), (-c, wr), (-L + c, wr), (-L, wr - c));
+            // The land it stands in (note 692): a valley, the glass in its bottom out of the wind, the ridges either side.
+            double m = _f.Margin;
+            Land("ridge", Rect(-L - m - 60, m + 60, -wl - m - 60, -wl - 30), 30, 70);
+            Land("ridge", Rect(-L - m - 60, m + 60, wr + 30, wr + m + 60), 26, 70);
             // The reservoirs: round tanks of water past the glasshouses, walks round them.
             var rrng = _rngFor("form.reservoirs");
             for (int i = 0; i < 4; i++)
@@ -762,17 +881,88 @@ public static class TownForms
             Lots(-L * 0.1, wr * 0.55, -30, wr * 0.55, 3, 3, 0, false);
         }
 
+        /// <summary>Where a lot's front door is reached from: a step out from its front (its front faces its way).</summary>
+        (double S, double D) Front(Lot x)
+        {
+            double sn = DMath.Sin(x.Turn), cs = DMath.Cos(x.Turn);
+            var (fs, fd) = x.Side > 0 ? (sn, -cs) : (-sn, cs);
+            double out_ = _f.LotDepth / 2 + _f.Setback / 2 + 1.2;
+            return (x.S + fs * out_, x.D + fd * out_);
+        }
+
+        /// <summary>
+        /// Every house reached on foot from the yard (note 692; the director, 13 Oct: "make sure that there's always walkable
+        /// paths for the player"): the town's ground walked from the platform, steps no taller than a stride, no water too
+        /// deep to wade. Where a house's front isn't reached, a stair is laid up the least step between the ground it's on
+        /// and the ground that is, nearest it; once the stairs run out (<see cref="StairRounds"/>), a house still cut off isn't
+        /// built. Drowned houses stand in the water and aren't walked to.
+        /// </summary>
+        void Walkable()
+        {
+            var start = (S: _gate - 60, D: 6.0);
+            for (int round = 0; round <= StairRounds; round++)
+            {
+                var ground = TownGround.Build(_l.Bounds(_gate), _l.Districts, _l.Ways, 0);
+                var walk = ground.Walk(start.S, start.D);
+                var cut = _l.Lots.Where(x => !x.Drowned && Front(x) is var (fs, fd) && !walk(fs, fd)).ToList();
+                if (cut.Count == 0)
+                    return;
+                if (round == StairRounds)
+                {
+                    _l.Lots.RemoveAll(x => cut.Contains(x));
+                    return;
+                }
+                // The first cut off (nearest the square: the lots are in no order yet, so the first laid), its own ground's
+                // reach, and the least step from it to ground the yard reaches, nearest the house.
+                var (ls, ld) = Front(cut[0]);
+                var mine = ground.Walk(ls, ld);
+                (double S, double D, double Ds, double Dd, double From, double To, double Score)? best = null;
+                for (double s = Math.Max(ground.S0, ls - 160) + 0.5; s < Math.Min(ground.S0 + ground.Ns, ls + 160); s += 1)
+                    for (double d = Math.Max(ground.D0, ld - 160) + 0.5; d < Math.Min(ground.D0 + ground.Nd, ld + 160); d += 1)
+                    {
+                        if (!mine(s, d))
+                            continue;
+                        foreach (var (es, ed) in new[] { (1.0, 0.0), (-1.0, 0.0), (0.0, 1.0), (0.0, -1.0) })
+                        {
+                            if (!walk(s + es, d + ed) || ground.Water(s + es, d + ed) is not null)
+                                continue;
+                            double from = ground.Level(s, d), to = ground.Level(s + es, d + ed);
+                            double score = Math.Abs(to - from) * 6 + Math.Sqrt((s - ls) * (s - ls) + (d - ld) * (d - ld));
+                            if (best is null || score < best.Value.Score)
+                                best = (s, d, es, ed, from, to, score);
+                        }
+                    }
+                if (best is not { } b)
+                {
+                    // Nowhere to stair it to (an island of ground): its houses aren't built.
+                    _l.Lots.RemoveAll(x => Front(x) is var (fs, fd) && mine(fs, fd));
+                    continue;
+                }
+                double run = Math.Abs(b.To - b.From) / StairSlope + 3, ms = b.S + b.Ds / 2, md = b.D + b.Dd / 2;
+                Way([(ms - b.Ds * run / 2 - _gate, md - b.Dd * run / 2), (ms + b.Ds * run / 2 - _gate, md + b.Dd * run / 2)], 3, levels: [b.From, b.To]);
+                bool OnTheStair(Lot x) => SegDist(x.S, x.D, _l.Ways[^1].Points[0], _l.Ways[^1].Points[1]) <= 3 / 2.0 + Math.Max(x.Frontage, _f.LotDepth) / 2;
+                _l.Lots.RemoveAll(OnTheStair);
+            }
+        }
+
+        /// <summary>How many stairs the walk may lay before it gives up on what's left cut off. Not a design number.</summary>
+        const int StairRounds = 12;
+
         public Layout Finish()
         {
             // Every lot on its ground as the plan finally has it (a district laid after it may have raised or flooded it):
             // a lot on ground it can't stand on is dropped; a drowned one stands only in the water.
             // And none a way runs through (a way laid after it: its middle within the way's half-width and a step).
             bool OnAWay(Lot x) => _l.Ways.Any(w => Enumerable.Range(1, w.Points.Count - 1).Any(i => SegDist(x.S, x.D, w.Points[i - 1], w.Points[i]) <= w.Width / 2 + 1));
-            var kept = _l.Lots.Where(x => !OnAWay(x) && GroundAt(x.S, x.D) is var (kind, level) && (x.Drowned
+            // Nor one a landmark stands on (laid after it).
+            bool OnALandmark(Lot x) => _l.Landmarks.Any(m => TownFixtures.Size(m.Kind) is var (hs, hd, _)
+                && Math.Abs(x.S - m.S) < hs + x.Frontage / 2 && Math.Abs(x.D - m.D) < hd + _f.LotDepth / 2);
+            var kept = _l.Lots.Where(x => !OnAWay(x) && !OnALandmark(x) && GroundAt(x.S, x.D) is var (kind, level) && (x.Drowned
                 ? kind == DistrictKind.Water && Math.Abs(level - _f.WaterLevel) < 1e-6
                 : kind is not (DistrictKind.Water or DistrictKind.Deck or DistrictKind.Plots or DistrictKind.Yard) && Math.Abs(level - x.Level) < 1e-6)).ToList();
             _l.Lots.Clear();
             _l.Lots.AddRange(kept);
+            Walkable();
             // Nearest the square first: the town grows out from its heart (note 335). Lots that can hold an open house
             // (square to the line, on dry ground) are kept first among equals.
             double hs = (_sq.S0 + _sq.S1) / 2, hd = _sq.Side * 15;

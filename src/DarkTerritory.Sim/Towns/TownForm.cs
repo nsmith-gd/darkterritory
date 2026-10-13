@@ -17,6 +17,36 @@ public sealed record TownDistrict(DistrictKind Kind, string Id, string Name, IRe
     /// <summary>A water district's depth over its bed (m): a harbour's deep, a marsh's waded.</summary>
     public double Depth { get; init; } = 1.6;
 
+    /// <summary>
+    /// A landform's falloff (m; note 692's verticality): past its outline its level eases into what's under it over this far,
+    /// a hill's flank or a pit's lip, not a step. 0: a terrace's crisp edge, walled where it's more than a stride.
+    /// </summary>
+    public double Falloff { get; init; }
+
+    /// <summary>Whether it lies outside the wall (the land the town stands in: a headland, the sea, a valley's sides), not
+    /// clipped to it.</summary>
+    public bool Outside { get; init; }
+
+    /// <summary>How far a point is from its outline (m; 0 inside).</summary>
+    public double Distance(double s, double d)
+    {
+        if (Holds(s, d))
+            return 0;
+        double best = double.MaxValue;
+        for (int i = 0, j = Outline.Count - 1; i < Outline.Count; j = i++)
+            best = Math.Min(best, SegDist(s, d, Outline[j], Outline[i]));
+        return best;
+    }
+
+    /// <summary>How far a point is from a segment (m).</summary>
+    public static double SegDist(double s, double d, (double S, double D) a, (double S, double D) b)
+    {
+        double es = b.S - a.S, ed = b.D - a.D, len2 = es * es + ed * ed;
+        double k = len2 < 1e-9 ? 0 : Math.Clamp(((s - a.S) * es + (d - a.D) * ed) / len2, 0, 1);
+        double x = a.S + es * k - s, y = a.D + ed * k - d;
+        return Math.Sqrt(x * x + y * y);
+    }
+
     /// <summary>Whether a point (along the line, across it) is inside its outline.</summary>
     public bool Holds(double s, double d)
     {

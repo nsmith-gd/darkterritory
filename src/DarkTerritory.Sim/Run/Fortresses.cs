@@ -17,6 +17,9 @@ namespace DarkTerritory.Sim.Run;
 public readonly record struct Fort(double Start, double End, double Gate, bool Platform, bool Lived, Towns.TownSquare? Square = null,
     Towns.TownBounds? Bounds = null, double? Origin = null)
 {
+    /// <summary>A town type's ground (note 692): its wall stands on it, from the lower side up past the higher.</summary>
+    public Towns.TownGround? Ground { get; init; }
+
     /// <summary>A point beside the line (along it, out to its right) in the town's own frame: from <see cref="Origin"/> on.</summary>
     public (double Along, double Offset) Local(double along, double offset) => Origin is { } o ? (along - o, offset) : (along, offset);
 
@@ -133,7 +136,7 @@ public static class Fortresses
         }
         if (fort.Bounds is { } town)
         {
-            foreach (var w in Round(town, Anchor(line, fort.Origin ?? 0, town.Rear)))
+            foreach (var w in Round(town, Anchor(line, fort.Origin ?? 0, town.Rear), fort.Ground))
                 yield return w;
         }
         else
@@ -199,14 +202,17 @@ public static class Fortresses
     }
 
     /// <summary>A walled town's wall (<see cref="Round(Towns.TownBounds, RailLine)"/>) from its frame's start, <paramref name="start"/>.</summary>
-    public static IEnumerable<Wall> Round(Towns.TownBounds town, TrackSample start)
+    public static IEnumerable<Wall> Round(Towns.TownBounds town, TrackSample start, Towns.TownGround? ground = null)
     {
         var tangent = new Double3(start.Tangent.X, 0, start.Tangent.Z).Normalized;
         var right = Double3.Cross(tangent, Double3.Up).Normalized;
         double y = start.Position.Y;
         // A point in the rail frame (the yard is straight, so behind its start too).
         Double3 P(double s, double d) => (start.Position + tangent * s + right * d) with { Y = 0 };
-        Wall Tower(double s, double d) => new(P(s, d), tangent, TowerHalf, TowerHalf, y - 3, y + TowerHeight);
+        // Where a town type's wall stands on its ground (note 692): from the lower of the ground either side of it, up to its
+        // height over the higher (a wall on a terrace's edge or a cliff's).
+        var (low, high) = Footing(town, ground);
+        Wall Tower(double s, double d) => new(P(s, d), tangent, TowerHalf, TowerHalf, y + low(s, d) - 3, y + high(s, d) + TowerHeight);
         // Each run of wall a bay at a time, along its own way (a town type's wall goes round its outline, note 692).
         foreach (var (a, b) in Runs(town))
         {
@@ -216,8 +222,8 @@ public static class Fortresses
             var axis = (tangent * (es / len) + right * (ed / len)).Normalized;
             for (double x = 0; x < len; x += WallBay)
             {
-                double x1 = Math.Min(len, x + WallBay), m = (x + x1) / 2 / len;
-                yield return new Wall(P(a.S + es * m, a.D + ed * m), axis, (x1 - x) / 2 + 0.05, WallHalf, y - 3, y + WallHeight);
+                double x1 = Math.Min(len, x + WallBay), m = (x + x1) / 2 / len, ms = a.S + es * m, md = a.D + ed * m;
+                yield return new Wall(P(ms, md), axis, (x1 - x) / 2 + 0.05, WallHalf, y + low(ms, md) - 3, y + high(ms, md) + WallHeight);
             }
         }
         foreach (var (s, d) in Towers(town))
@@ -228,6 +234,27 @@ public static class Fortresses
         foreach (int side in new[] { -1, 1 })
             yield return new Wall(P(town.Rear, side * mid), tangent, GateHalf, half, y - 3, y + GateHeight);
         yield return new Wall(P(town.Rear, 0), tangent, GateHalf, GateInner, y + ArchBottom, y + ArchTop);
+    }
+
+    /// <summary>
+    /// The lower and the higher of a town type's ground either side of its wall at a point on it (note 692), m over the yard:
+    /// a step in from the wall toward the town's middle, and out from it. Zero both for a town on the yard's level.
+    /// </summary>
+    public static (Func<double, double, double> Low, Func<double, double, double> High) Footing(Towns.TownBounds town, Towns.TownGround? ground)
+    {
+        if (ground is null || ground.Flat)
+            return ((_, _) => 0, (_, _) => 0);
+        var o = Outline(town);
+        double cs = o.Average(p => p.S), cd = o.Average(p => p.D);
+        (double In, double Out) Sides(double s, double d)
+        {
+            double vs = cs - s, vd = cd - d, len = Math.Max(1e-6, Math.Sqrt(vs * vs + vd * vd));
+            (vs, vd) = (vs / len, vd / len);
+            const double step = 2.5;
+            double inside = ground.Level(s + vs * step, d + vd * step), outside = ground.Bed(s - vs * step, d - vd * step);
+            return (inside, outside);
+        }
+        return ((s, d) => Sides(s, d) is var x ? Math.Min(x.In, x.Out) : 0, (s, d) => Sides(s, d) is var x ? Math.Max(x.In, x.Out) : 0);
     }
 
     /// <summary>

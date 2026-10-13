@@ -85,6 +85,9 @@ public sealed record FormShape
     public double WaterDepth { get; init; } = 1.6;
     public double TerraceLevel { get; init; } = 5;
     public int Benches { get; init; } = 3;
+    /// <summary>How far past the wall it shapes the land (m; its landform), and each street band's rise over the last (m).</summary>
+    public double Margin { get; init; } = 120;
+    public double Rise { get; init; }
 }
 
 /// <summary>A town type's words (world/towns.json <c>forms</c>, note 692): its name ("a harbour town") and the names its

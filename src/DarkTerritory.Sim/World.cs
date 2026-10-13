@@ -853,14 +853,14 @@ public sealed class World
         Town = new Towns.Town(plan, content.Tuning, Train.Line, content.Looks);
         // The departure fortress is the town's: its walls stand back round the square (note 281), so they're built again.
         if (Forts is { Count: > 0 } forts)
-            Forts = [forts[0] with { Square = plan.Square, Bounds = plan.Bounds }, .. forts.Skip(1)];
+            Forts = [forts[0] with { Square = plan.Square, Bounds = plan.Bounds, Ground = Towns.TownGround.Of(plan) }, .. forts.Skip(1)];
         // The terminus is the town the next night departs from (note 600): its own site as that night's departure has it
         // (its gate as far from its yard's far end as this one's from its start, and this town's custom the one it won't
         // share), so the same plan, laid out in the line turned round from there and come into through its gate.
         if (Towns.Town.AtTerminus(content, route, Train.Line, gate, roster, plan.Culture, arrival) is { Origin: { } origin } there && Forts is { Count: > 1 } both)
         {
             Arrival = there;
-            Forts = [both[0], both[1] with { Square = there.Plan.Square.From(origin), Bounds = there.Plan.Bounds, Origin = origin }, .. both.Skip(2)];
+            Forts = [both[0], both[1] with { Square = there.Plan.Square.From(origin), Bounds = there.Plan.Bounds, Origin = origin, Ground = there.Ground }, .. both.Skip(2)];
         }
         Train.Walls = ClearSiteWork(LinesideToo(Sim.Run.StopWalls.Of(route, Train.Line, Forts, _walls), route));
         Train.Walls.Add(Town.Walls);

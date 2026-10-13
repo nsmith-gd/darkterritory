@@ -213,7 +213,11 @@ public sealed class TerrainField
             double dx = x - t.Origin.X, dz = z - t.Origin.Z;
             double s = dx * t.Along.X + dz * t.Along.Z, d = dx * t.Right.X + dz * t.Right.Z;
             if (t.Ground.Shaped(s, d))
-                return t.Origin.Y + (standing ? t.Ground.Level(s, d) : t.Ground.Bed(s, d));
+            {
+                // Out in its margin the town's land eases into the plan's (note 692's landforms).
+                double town = t.Origin.Y + (standing ? t.Ground.Level(s, d) : t.Ground.Bed(s, d)), w = t.Ground.Blend(s, d);
+                return w >= 1 ? town : town * w + Height(x, z, true) * (1 - w);
+            }
         }
         return null;
     }

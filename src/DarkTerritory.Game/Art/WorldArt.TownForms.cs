@@ -64,7 +64,7 @@ public sealed partial class WorldArt
     /// A town type's ground, water, ways and landmarks (note 692), from <paramref name="from"/> to <paramref name="to"/>
     /// along its line. The ground is one piece a town (cooked once, drawn by one transform), the water a sheet a frame.
     /// </summary>
-    public void Forms(MeshBuilder mesh, RailLine line, Double3 eye, Town town, double from, double to, double time)
+    public void Forms(MeshBuilder mesh, RailLine line, Double3 eye, Town town, double from, double to, double time, Sim.Route.Route? route = null)
     {
         var plan = town.Plan;
         if (plan.Form.Length == 0 || plan.Bounds is not { } b || b.Gate < from - 200 || b.Rear > to + 200)
@@ -73,6 +73,23 @@ public sealed partial class WorldArt
         var frame = Basis(o.Tangent, o.Position, eye, 0);
         var ground = Piece($"town-form-{plan.Name}-{plan.Form}-{plan.Gate:0}-{plan.Houses.Count}", () => FormGround(town));
         mesh.Instances.Add(new MeshInstance(ground, frame));
+        // The land it stands in past its wall (note 692's landforms), in chunks drawn as they're near enough to see.
+        if (town.Ground.Margin > 0 && Scene(route) is { } scene)
+        {
+            var g = town.Ground;
+            var along0 = new Double3(o.Tangent.X, 0, o.Tangent.Z).Normalized;
+            var right0 = Double3.Cross(along0, Double3.Up).Normalized;
+            for (double cs = g.S0; cs < g.S0 + g.Ns; cs += LandChunk)
+                for (double cd = g.D0; cd < g.D0 + g.Nd; cd += LandChunk)
+                {
+                    var mid = o.Position + along0 * (cs + LandChunk / 2) + right0 * (cd + LandChunk / 2);
+                    if ((mid - eye).Length > 900)
+                        continue;
+                    double a0 = cs, a1 = Math.Min(cs + LandChunk, g.S0 + g.Ns), b0 = cd, b1 = Math.Min(cd + LandChunk, g.D0 + g.Nd);
+                    if (Piece($"town-land-{plan.Name}-{plan.Form}-{plan.Gate:0}-{cs:0}-{cd:0}", () => FormLand(town, scene.Terrain, a0, a1, b0, b1)) is { Vertices.Length: > 0 } land)
+                        mesh.Instances.Add(new MeshInstance(land, frame));
+                }
+        }
         // The water: a sheet over the basins' rectangles, a little under the deck's planks, rippling as a lake's does.
         int layer = _look?.Layer("water_dark") ?? -1;
         if (layer >= 0)
@@ -137,6 +154,62 @@ public sealed partial class WorldArt
         return Math.Sqrt(x * x + y * y);
     }
 
+    /// <summary>A chunk of a town's land past its wall (m), and the grid it's laid on (m).</summary>
+    const double LandChunk = 96, LandGrid = 6;
+
+    /// <summary>
+    /// A chunk of the land a town type stands in, past its wall (note 692's landforms; the director, 13 Oct: "integrating the
+    /// layout of the town with the layout of the landscape"): a grid over what the town shapes there (its headland, the sea's
+    /// bed, a mesa's ditch, a valley's sides), easing into the line plan's land at the margin's edge, rock where it's steep,
+    /// mud under water, heath up high, the land's grass elsewhere. In the town's frame from its anchor, as its ground is.
+    /// </summary>
+    MeshAsset FormLand(Town town, Sim.LineGen.TerrainField terrain, double s0, double s1, double d0, double d1)
+    {
+        var g = town.Ground;
+        var o = town.Anchor();
+        var along = new Double3(o.Tangent.X, 0, o.Tangent.Z).Normalized;
+        var right = Double3.Cross(along, Double3.Up).Normalized;
+        var k = new Kit(_look, 9300 + town.Plan.Name.Length) { Baked = 0 };
+        double H(double s, double d)
+        {
+            double w = g.Blend(s, d), land = g.Inside(s, d) ? g.Level(s, d) : g.Bed(s, d);
+            if (w >= 1)
+                return land;
+            var p = o.Position + along * s + right * d;
+            return w * land + (1 - w) * (terrain.Height(p.X, p.Z) - o.Position.Y);
+        }
+        bool Out(double s, double d) => !g.Inside(s, d) && g.Drawn(s, d, FormApron);
+        static Vector3 V(double s, double y, double d) => new((float)d, (float)y, (float)-s);
+        int ns = (int)Math.Ceiling((s1 - s0) / LandGrid), nd = (int)Math.Ceiling((d1 - d0) / LandGrid);
+        var h = new double[ns + 1, nd + 1];
+        for (int i = 0; i <= ns; i++)
+            for (int j = 0; j <= nd; j++)
+                h[i, j] = H(Math.Min(s1, s0 + i * LandGrid), Math.Min(d1, d0 + j * LandGrid));
+        for (int i = 0; i < ns; i++)
+            for (int j = 0; j < nd; j++)
+            {
+                double sa = s0 + i * LandGrid, sb = Math.Min(s1, sa + LandGrid), da = d0 + j * LandGrid, db = Math.Min(d1, da + LandGrid);
+                if (!Out(sa, da) && !Out(sb, da) && !Out(sa, db) && !Out(sb, db) && !Out((sa + sb) / 2, (da + db) / 2))
+                    continue;
+                double ha = h[i, j], hb = h[i + 1, j], hc = h[i + 1, j + 1], hd = h[i, j + 1];
+                double steep = Math.Max(Math.Max(Math.Abs(ha - hb), Math.Abs(hc - hd)), Math.Max(Math.Abs(ha - hd), Math.Abs(hb - hc))) / LandGrid;
+                double mean = (ha + hb + hc + hd) / 4;
+                bool wet = g.Water((sa + sb) / 2, (da + db) / 2) is { } wl && mean < wl;
+                if (steep > 0.7)
+                    k.Use("rock_cliff", Palette.DeepBrown, 0.8f, 0.05f, tile: 6);
+                else if (wet)
+                    k.Use("ground_mud", Palette.DeepBrown, 0.95f, 0.2f, tile: 4);
+                else if (steep > 0.35)
+                    k.Use("granite_lichen", Palette.DeepBrown, 0.85f, 0.05f, tile: 5);
+                else
+                    k.Use(mean > 8 ? "ground_heath" : "ground_grass", Palette.DeepBrown, 0.9f, 0.04f, tile: 4);
+                var (pa, pb, pc, pd) = (V(sa, ha, da), V(sb, hb, da), V(sb, hc, db), V(sa, hd, db));
+                // Corners as Kit.Box's top (x across, z back down the line), texture in the frame's metres.
+                k.Quad(pa, pb, pc, pd, new(pa.X, pa.Z), new(pb.X, pb.Z), new(pc.X, pc.Z), new(pd.X, pd.Z));
+            }
+        return k.Build($"town-land-{town.Plan.Name}-{s0:0}-{d0:0}");
+    }
+
     /// <summary>The landmarks a town type stands (TownForms' kinds) that the square and the works don't draw.</summary>
     static bool Landmark(string kind) => kind is "lighthouse" or "beacon" or "chapel" or "watchtower" or "lift" or "crane" or "boatshed" or "seedhouse" or "glasshouse";
 
@@ -151,7 +224,7 @@ public sealed partial class WorldArt
         var plan = town.Plan;
         var g = town.Ground;
         var k = new Kit(_look, 9100 + plan.Name.Length);
-        var rects = g.Rects(FormApron);
+        var rects = g.Rects(FormApron, insideOnly: g.Margin > 0);
         double floor = rects.Count > 0 ? rects.Min(r => r.Level) - 1.5 : -2;
         bool quarry = plan.Form == "quarry";
         string land = plan.Form switch { "quarry" => "granite_lichen", "tidewater" => "cobbles", "harbour" => "ground_heath", "dykeland" => "marsh", _ => "ground_mud" };

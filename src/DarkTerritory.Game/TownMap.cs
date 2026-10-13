@@ -27,10 +27,8 @@ public static class TownMap
         double s1 = b?.Gate ?? plan.Gate + 20;
         double dl = b?.Left ?? Math.Max(40, plan.Houses.Select(h => -h.D).Append(-plan.Square.WallD).Max() + 15);
         double dr = b?.Right ?? Math.Max(40, plan.Houses.Select(h => h.D).Append(plan.Square.WallD).Max() + 15);
-        foreach (var d in plan.Districts)
-            foreach (var (s, dd) in d.Outline)
-                (s0, s1, dl, dr) = (Math.Min(s0, s), Math.Max(s1, s), Math.Max(dl, -dd), Math.Max(dr, dd));
-        const double margin = 60;
+        // Out to the land the town shapes past its wall (its margin), or a little past its wall.
+        double margin = Math.Max(40, plan.Margin);
         s0 -= margin;
         s1 += margin;
         dl += margin;
@@ -76,20 +74,48 @@ public static class TownMap
             c.Text((int)Math.Clamp(x - w / 2.0, 4, width - w - 4), (int)y - 4 * scale, text, col, scale);
         }
 
-        // The ground inside the wall, then each quarter's (the town's form, note 692), water first and decks over it.
-        if (b?.Outline is { } outline)
+        // The ground: a town type's as a shaded relief (its levels tinted, lit from the north-west, its water by depth, the
+        // land it stands in out to its margin fading as it eases into the line's: note 692), else the yard's level inside the wall.
+        var relief = TownGround.Of(plan);
+        if (!relief.Flat)
+        {
+            double lo = -20, hi = 30;
+            for (int y = 0; y < height; y++)
+                for (int x = 0; x < width; x++)
+                {
+                    double s = s0 + x / k, d = (y - 40) / k - dl;
+                    double w = relief.Blend(s, d);
+                    if (w <= 0)
+                        continue;
+                    (byte, byte, byte) col;
+                    if (relief.Water(s, d) is { } wl && !relief.Deck(s, d))
+                    {
+                        double depth = Math.Clamp((wl - relief.Bed(s, d)) / 6, 0, 1);
+                        col = Mix(Water, (16, 28, 42), depth);
+                    }
+                    else
+                    {
+                        double h = relief.Level(s, d), t = Math.Clamp((h - lo) / (hi - lo), 0, 1);
+                        double gx = relief.Level(s + 1.5, d) - relief.Level(s - 1.5, d), gy = relief.Level(s, d + 1.5) - relief.Level(s, d - 1.5);
+                        double light = Math.Clamp(1 + (-gx - gy) * 0.08, 0.45, 1.5);
+                        var tint = t < 0.4 ? Mix((40, 38, 36), Ground, t / 0.4) : Mix(Ground, (150, 140, 112), (t - 0.4) / 0.6);
+                        col = Scale(relief.Deck(s, d) ? Deck : tint, light);
+                    }
+                    c.Set(x, y, Mix(Paper, col, w));
+                }
+        }
+        else if (b?.Outline is { } outline)
             Poly(outline, Ground);
         else if (b is not null)
             Box(b.Rear, b.Gate, -b.Left, b.Right, Ground);
-        foreach (var d in plan.Districts.OrderBy(d => d.Kind switch { DistrictKind.Water => 0, DistrictKind.Deck => 2, _ => 1 }))
-            Poly(d.Outline, d.Kind switch
-            {
-                DistrictKind.Water => Water,
-                DistrictKind.Deck => Deck,
-                DistrictKind.Plots => Plot,
-                DistrictKind.Yard => Hard,
-                _ => Shade(Ground, d.Level),
-            });
+        foreach (var d in plan.Districts.Where(d => d.Kind is DistrictKind.Plots or DistrictKind.Yard))
+            Poly(d.Outline, d.Kind == DistrictKind.Plots ? Plot : Hard);
+        if (relief.Flat)
+            foreach (var d in plan.Districts.OrderBy(d => d.Kind switch { DistrictKind.Water => 0, DistrictKind.Deck => 2, _ => 1 }))
+                Poly(d.Outline, d.Kind switch { DistrictKind.Water => Water, DistrictKind.Deck => Deck, _ => Shade(Ground, d.Level) });
+        // The walls the ground needs (retaining walls, rails at deep water), thin and pale.
+        foreach (var (es0, ed0, es1, ed1, _, _) in relief.Edges())
+            Seg(es0, ed0, es1, ed1, (190, 182, 160), 0.5);
         Box(plan.Square.S0, plan.Square.S1, 0, plan.Square.WallD, Square);
         if (plan.Green is { } g)
             Box(g.S0, g.S1, g.Side * g.Near, g.Side * g.Far, Green);
@@ -173,6 +199,15 @@ public static class TownMap
     const int BitmapFontAdvance = 6;
     /// <summary>The gatehouse's opening either side of the line (Fortresses.GateOuter).</summary>
     const double GateGap = 8.5;
+
+    static (byte, byte, byte) Mix((byte R, byte G, byte B) a, (byte R, byte G, byte B) b, double t)
+    {
+        t = Math.Clamp(t, 0, 1);
+        return ((byte)(a.R + (b.R - a.R) * t), (byte)(a.G + (b.G - a.G) * t), (byte)(a.B + (b.B - a.B) * t));
+    }
+
+    static (byte, byte, byte) Scale((byte R, byte G, byte B) c, double f) =>
+        ((byte)Math.Min(255, c.R * f), (byte)Math.Min(255, c.G * f), (byte)Math.Min(255, c.B * f));
 
     static (byte, byte, byte) Shade((byte R, byte G, byte B) c, double level)
     {

@@ -46,6 +46,9 @@ public sealed record TownPlan(
 
     /// <summary>Its gates in from the last night and out to the next, and the yard between (note 692).</summary>
     public TownFrame Frame { get; init; } = new(0, 0, 0, 0);
+
+    /// <summary>How far past its wall it shapes the land it stands in (m; note 692's landforms), easing into the line's land.</summary>
+    public double Margin { get; init; }
 }
 
 /// <summary>

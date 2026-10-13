@@ -133,6 +133,29 @@ public class TownFormTests
     }
 
     /// <summary>
+    /// Every lived-in house's door is walked to from the yard (note 692's verticality; the director, 13 Oct: "make sure that
+    /// there's always walkable paths for the player"): over the town's ground, up its stair streets and stairs, steps no
+    /// taller than a stride, no water too deep to wade; and its tiers and benches give it some height to climb.
+    /// </summary>
+    [Theory]
+    [MemberData(nameof(Cases))]
+    public void EveryDoorIsWalkedToFromTheYard(string form, string spec, int people)
+    {
+        var (_, town) = Night(form, spec, people);
+        var plan = town.Plan;
+        var walk = town.Ground.Walk(plan.Gate - 60, 6);
+        foreach (var h in plan.Houses.Where(h => h.Kind is HouseKind.Lived or HouseKind.Open))
+        {
+            var (s, d) = h.Body(h.Design.DoorU, -1.6);
+            Assert.True(walk(s, d), $"{form}: house {h.Id}'s door at ({s - plan.Gate:0.0}, {d:0.0}), {h.Level} m up, isn't walked to from the yard");
+        }
+        // (A big town reaches up its tiers; a small one is round its square.)
+        if (form is "harbour" or "tidewater" or "quarry" && people >= 1000)
+            Assert.True(plan.Houses.Max(h => h.Level) - plan.Houses.Where(h => !h.Kind.Equals(HouseKind.Burnt)).Min(h => h.Level) >= 6,
+                $"{form}: its houses stand within {plan.Houses.Max(h => h.Level) - plan.Houses.Min(h => h.Level):0.0} m of each other");
+    }
+
+    /// <summary>
     /// Its ground is what's stood on (TownGround laid over the land): a quarry's floor well under its rim, a harbour's
     /// deck over its water and its water railed off, a dykeland's marsh waded; every step of the ground past a stride is
     /// walled, and a ramp goes down a quarry's benches a stride at a time.
@@ -150,7 +173,9 @@ public class TownFormTests
         Assert.False(g.Flat);
         var terrain = ((PlanConditions)world.Train.Line.Conditions!).Terrain;
         // The terrain asks the town's ground where it's shaped.
-        var shaped = Enumerable.Range(0, g.Ns * g.Nd).Select(k => (S: g.S0 + (k / g.Nd + 0.5), D: g.D0 + (k % g.Nd + 0.5))).Where(p => g.Shaped(p.S, p.D)).ToList();
+        // (Inside its wall: past it, out in its margin, the town's land eases into the plan's.)
+        var shaped = Enumerable.Range(0, g.Ns * g.Nd).Select(k => (S: g.S0 + (k / g.Nd + 0.5), D: g.D0 + (k % g.Nd + 0.5)))
+            .Where(p => g.Shaped(p.S, p.D) && g.Inside(p.S, p.D)).ToList();
         Assert.NotEmpty(shaped);
         double rail = world.Train.Line.Sample(plan.Gate - 200).Position.Y;
         foreach (var (s, d) in shaped.Where((_, i) => i % 97 == 0))
