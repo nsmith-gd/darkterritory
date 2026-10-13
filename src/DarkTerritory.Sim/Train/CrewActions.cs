@@ -368,10 +368,10 @@ public static class CrewActions
         if (s.Parent == PlayerState.World)
             return null;
         var reaching = Hand(s, hand) ? PlayerMotor.HandAt(s) : null;
-        (Interactable, int)? best = null, looked = null;
+        (Interactable, int)? best = null, looked = null, lid = null;
         double bestD = double.MaxValue;
         int own = s.Parent;
-        bool onRoof = s.Surface == Surface.Roof;
+        double pitch = s.Pitch;
         // Doors want facing: the coupler plate is in reach of two of them, and Use there also cuts the coupling. So do the
         // crew lockers: a row of them, and you're at the one you face.
         double fx = -DMath.Sin(s.Yaw), fz = -DMath.Cos(s.Yaw);
@@ -396,6 +396,15 @@ public static class CrewActions
                 bool height = reaching is null ? Math.Abs(at.Y - i.Position.Y) < 1.2 : at.Y - i.Position.Y is >= 0.2 and <= 1.8;
                 if (d > i.Radius * i.Radius || !height)
                     continue;
+                // Note 675: a thing worked only looked at steeply enough (a hatch's lid, down from the roof or up from the
+                // floor), and then it's the one looked at; never reached for by hand, nor stood near.
+                if (i.LookDegrees != 0)
+                {
+                    double pitched = i.LookDegrees > 0 ? pitch : -pitch;
+                    if (reaching is null && vehicle == own && pitched >= Math.Abs(i.LookDegrees) * Math.PI / 180)
+                        lid = (i, vehicle);
+                    continue;
+                }
                 if (reaching is null && vehicle == own)
                 {
                     var to = i.Position + Double3.Up * i.Aim - eye;
@@ -406,9 +415,8 @@ public static class CrewActions
                         looked = (i, vehicle);
                     }
                 }
-                // The whistle cord is only ever the one looked at: never pulled by standing near it. Nor the roof hatch's catch
-                // from the floor under it (note 675): a car's floor is where everything else inside is worked.
-                if (reaching is null && (i.Kind == InteractableKind.Whistle || i.Kind == InteractableKind.Hatch && !onRoof))
+                // The whistle cord is only ever the one looked at: never pulled by standing near it.
+                if (reaching is null && i.Kind == InteractableKind.Whistle)
                     continue;
                 if (d < bestD)
                 {
@@ -425,6 +433,6 @@ public static class CrewActions
             var world = train.Frames[s.Parent].ToWorld(from);
             Search(behind, train.Frames[behind].ToLocal(world), doorsOnly: true);
         }
-        return looked ?? best;
+        return lid ?? looked ?? best;
     }
 }

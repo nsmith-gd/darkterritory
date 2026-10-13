@@ -20,11 +20,14 @@ public class HatchTests
     static readonly CraneTuning C = FacilityTests.F.Crane;
     static readonly PlayerIntent Hold = new() { Buttons = PlayerButtons.Use };
 
-    /// <summary>On the roof just behind the hatch, off its lid (note 675: anywhere over it or a metre off its ends works it).</summary>
+    /// <summary>
+    /// On the roof just behind the hatch, off its lid, looking down at it (note 675: from anywhere along it or a metre off its
+    /// ends, looked at, works it).
+    /// </summary>
     static PlayerState AtTheHandle(TrainOnLine train, int car)
     {
         var hatch = train.Frames[car].Shape.Hatch!.Value;
-        return PlayerMotor.SpawnOnRoof(train, car, hatch.Max.Z + 0.5, P, -0.6);
+        return PlayerMotor.SpawnOnRoof(train, car, hatch.Max.Z + 0.5, P, -0.6) with { Pitch = -1.0f };
     }
 
     /// <summary>Inside the car on its floor at <paramref name="z"/>, looking <paramref name="pitch"/> (radians, up positive).</summary>
@@ -44,7 +47,8 @@ public class HatchTests
     {
         // Note 675 (the director, 13 Oct: "I should be able to open the roof of a car for loading from inside the car ...
         // opening of the roofs is very inconsistent"): under the hatch, looking up at it, Use held opens it; looking along the
-        // car it doesn't (the floor's where everything else inside is worked). And on the roof, from either end of it.
+        // car it doesn't (the floor's where everything else inside is worked). And on the roof, looking down at it from either
+        // end of it; walking the roof looking ahead, a crewmate isn't offered it.
         var train = new TrainOnLine(new TrainDynamics(Consist.Uniform(T, 3, 0)), new RailLine(new LineDefinition("t", [new TrackSegment(5_000)])), 2_000);
         var world = new World(train);
         int car = 1;
@@ -59,9 +63,12 @@ public class HatchTests
         Step(world, ref up, Hold, hold);
         Assert.True(train.Vehicles[car].DoorOpen(CarShape.HatchBit));
 
+        var ahead = PlayerMotor.SpawnOnRoof(train, car, hatch.Max.Z + 0.6, P, 0.6);
+        Step(world, ref ahead, Hold, hold);
+        Assert.True(train.Vehicles[car].DoorOpen(CarShape.HatchBit));
         foreach (double z in new[] { hatch.Min.Z - 0.6, hatch.Max.Z + 0.6 })
         {
-            var roof = PlayerMotor.SpawnOnRoof(train, car, z, P, 0.6);
+            var roof = PlayerMotor.SpawnOnRoof(train, car, z, P, 0.6) with { Pitch = -1.0f };
             bool was = train.Vehicles[car].DoorOpen(CarShape.HatchBit);
             Step(world, ref roof, Hold, hold);
             Assert.NotEqual(was, train.Vehicles[car].DoorOpen(CarShape.HatchBit));
