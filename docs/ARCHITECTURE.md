@@ -854,5 +854,5 @@ written here instead is moved out by `tools/coord/notes.py split`; the Coordinat
 - [673. The mail made plain (F1, queue #404; the director, 13 Oct, `pt13-mail`)](notes/673.md)
 - [674. Town flags: the cloth in the wind, and a flag for every town (E1, queue #405; the director, 13 Oct, playing the morning build; the World…](notes/674.md)
 - [675. Car roofs and loading: the roof hatch's lid worked looking at it, from anywhere along it on the roof and from the floor under it (D1.4, queue #406; the director, 13 Oct, playing the morning build)](notes/675.md)
-- [676. The creature gym (A1, queue #407; the director, 13 Oct 2026; GDD §34.1)](notes/676.md)
+- [676. The creature gym (A1, queue #407; the director, 13 Oct 2026: "make a dev gym for me to test all the creatures functions and make sure all…](notes/676.md)
 <!-- end of the notes index -->
