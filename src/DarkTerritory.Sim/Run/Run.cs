@@ -112,8 +112,10 @@ public enum RunEnd : byte { None, Delivered, Derailed, CrewLost, DawnMissed, Str
 /// the scrip for the finds stowed (<see cref="Run.Scavenged"/>) and the finds themselves, the mail caught
 /// (<see cref="Run.Mail"/>), the coal and rounds it left the fortress with, and the coal it's loaded at towers since.
 /// </summary>
+/// <param name="Banked">Note 659: the owners (<see cref="Run.LootOwner"/>) of the finds banked and still lying aboard, so the
+/// resumed night's own bodies of them (put back where they lay) aren't banked twice. Null in an older save.</param>
 public sealed record RunTakings(double Scavenged, IReadOnlyList<LootFind> Stowed, double Mail, double TenderAtDeparture, double CoalLoaded,
-    int AmmoAtDeparture);
+    int AmmoAtDeparture, IReadOnlyList<int>? Banked = null);
 
 /// <summary>What a night came to (spec F.1): everything still attached to the locomotive counts.</summary>
 /// <param name="Scavenged">Scrip for village finds stowed aboard (level-design P12), paid with the cargo on delivery and in Gross.</param>
@@ -321,7 +323,7 @@ public sealed partial class Run
     /// What the night's taken and spent so far, for the autosave (note 500): the finds stowed, the mail caught, and the coal
     /// and rounds it left the fortress with and the coal it's loaded since.
     /// </summary>
-    public RunTakings Takings => new(Scavenged, [.. _stowed], Mail, _tenderAtDeparture, _coalLoaded, _ammoAtDeparture);
+    public RunTakings Takings => new(Scavenged, [.. _stowed], Mail, _tenderAtDeparture, _coalLoaded, _ammoAtDeparture, [.. _banked.Values.Select(b => b.Owner)]);
 
     public void Step(World world, IReadOnlyCollection<PlayerState> crew, double dt)
     {
@@ -339,7 +341,9 @@ public sealed partial class Run
             _tenderAtDeparture = train.Boiler.Tender;
             _ammoAtDeparture = train.Vehicles.Sum(v => v.Gun.Ammo);
         }
-        Seconds += dt;
+        // The gym's night (GDD §34.1, note 676) stands still: no dawn comes.
+        if (!world.CallOnly)
+            Seconds += dt;
         StopSeconds = Phase == RunPhase.AtFacility ? StopSeconds + dt : 0;
         Pour(train, dt);
         StepSites(world, dt);
@@ -371,17 +375,19 @@ public sealed partial class Run
 
         // Note 588: with the Wakers up, dawn's end is theirs (a train eaten, or its crew), not dawnGraceSeconds' timer.
         bool wakers = world.Enemies?.Wakers.Enabled == true;
-        if (world.Derailed)
+        // And never ends (note 676): the crew lost is the gym's point, and they stand up again.
+        bool ends = !world.CallOnly;
+        if (ends && world.Derailed)
             Finish(world, crew, RunPhase.Failed, RunEnd.Derailed);
-        else if (world.TakenAtDawn || world.WakerHolds && crew.Count > 0 && crew.All(c => !c.Alive))
+        else if (ends && (world.TakenAtDawn || world.WakerHolds && crew.Count > 0 && crew.All(c => !c.Alive)))
             Finish(world, crew, RunPhase.Failed, RunEnd.DawnMissed);
-        else if (crew.Count > 0 && crew.All(c => !c.Alive))
+        else if (ends && crew.Count > 0 && crew.All(c => !c.Alive))
             Finish(world, crew, RunPhase.Failed, RunEnd.CrewLost);
-        else if (stranded)
+        else if (ends && stranded)
             Finish(world, crew, RunPhase.Failed, RunEnd.Stranded);
-        else if (!wakers && Seconds > _route.DawnSeconds + Tuning.DawnGraceSeconds)
+        else if (ends && !wakers && Seconds > _route.DawnSeconds + Tuning.DawnGraceSeconds)
             Finish(world, crew, RunPhase.Failed, RunEnd.DawnMissed);
-        else if (engine.Speed < Tuning.StopBelowSpeed && train.OnMain && front >= HomeFront(train))
+        else if (ends && engine.Speed < Tuning.StopBelowSpeed && train.OnMain && front >= HomeFront(train))
             Finish(world, crew, RunPhase.Arrived, RunEnd.Delivered);
         else
         {
@@ -1035,6 +1041,9 @@ public sealed partial class Run
             Scavenged = takings.Scavenged;
             _stowed.Clear();
             _stowed.AddRange(takings.Stowed);
+            _banked.Clear();
+            _alreadyBanked.Clear();
+            _alreadyBanked.AddRange(takings.Banked ?? []);
         }
         // Note 500: the stop just left was still in the stocking's look-ahead, and its finds came out again behind the train,
         // to be fetched and paid for twice.

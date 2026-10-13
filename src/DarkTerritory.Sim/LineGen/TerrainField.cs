@@ -95,8 +95,25 @@ public sealed class TerrainField
     public readonly record struct Near(int Edge, double S, double Lateral, double Rail, bool Past = false);
 
     /// <summary>For each edge within reach of (x, z), its nearest point.</summary>
-    public List<Near> Nearby(double x, double z, double reach)
+    public List<Near> Nearby(double x, double z, double reach) => Nearby(x, z, reach, new List<Near>(2));
+
+    // Height asks Nearby for every point of land the line's built from and the crew stand on: a list a call was 18% of
+    // what a night allocates (note 666). Its lists are reused, a stack of them a thread (Height can call itself, through
+    // the roads, and the line's cooked off the frame on other threads).
+    [ThreadStatic] static Stack<List<Near>>? t_lists;
+
+    static List<Near> RentList() => (t_lists ??= new()).TryPop(out var l) ? l : new List<Near>(4);
+
+    static void ReturnList(List<Near> l)
     {
+        l.Clear();
+        t_lists!.Push(l);
+    }
+
+    /// <summary>As <see cref="Nearby(double, double, double)"/>, into <paramref name="list"/> (cleared first).</summary>
+    public List<Near> Nearby(double x, double z, double reach, List<Near> list)
+    {
+        list.Clear();
         // The coarse samples (every CoarseM) find each edge's nearest stretch; Newton on the edge refines it.
         Span<double> bestD = stackalloc double[_edges.Length];
         Span<double> bestS = stackalloc double[_edges.Length];
@@ -115,7 +132,6 @@ public sealed class TerrainField
                         (bestD[edge], bestS[edge]) = (d2, s);
                 }
             }
-        var list = new List<Near>(2);
         double limit = (reach + CoarseM) * (reach + CoarseM);
         for (int e = 0; e < _edges.Length; e++)
             if (bestD[e] <= limit)
@@ -153,11 +169,23 @@ public sealed class TerrainField
     /// <summary>The land at (x, z), with or without the roads' beds (a road's surface is the land under its centre).</summary>
     double Height(double x, double z, bool roads)
     {
-        var near = Nearby(x, z, _r.CorridorM + 60);
+        var near = Nearby(x, z, _r.CorridorM + 60, RentList());
+        try
+        {
+            return Height(x, z, roads, near);
+        }
+        finally
+        {
+            ReturnList(near);
+        }
+    }
+
+    double Height(double x, double z, bool roads, List<Near> near)
+    {
         if (near.Count == 0)
         {
             // Out past every corridor: the land under the fog, near the line's own level where it was last known.
-            near = Nearby(x, z, 700);
+            Nearby(x, z, 700, near);
             if (near.Count == 0)
                 return Noise(x, z) * 4 - _r.SkirtDropM;
         }

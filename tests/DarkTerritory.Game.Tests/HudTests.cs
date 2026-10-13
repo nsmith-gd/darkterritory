@@ -117,7 +117,9 @@ public class HudTests
         // At the controls looking at nothing (note 285): nothing at the crosshair; driving them is the corner's.
         s.Player = PlayerMotor.SpawnInCab(train, s.PlayerTuning);
         Assert.Null(Hud.Prompt(s));
-        Assert.Equal(s.Train.BoilerTuning?.SteamDrive == true ? "RELEASE BRAKE : [R]" : "REGULATOR UP : [R]", Hud.Hints(s).Lines[0]);
+        // Stood, the reverser first (note 664), then the controls.
+        Assert.Equal("THROW INTO REVERSE : [X]", Hud.Hints(s).Lines[0]);
+        Assert.Equal(s.Train.BoilerTuning?.SteamDrive == true ? "RELEASE BRAKE : [R]" : "REGULATOR UP : [R]", Hud.Hints(s).Lines[1]);
         s.Player = s.Player with { Health = 0, Death = DeathCause.Cold };
         Assert.Null(Hud.Prompt(s));
         Assert.Null(Hud.Hints(s).Head);
@@ -154,11 +156,17 @@ public class HudTests
         s.Player = PlayerMotor.SpawnInCab(s.Train, s.PlayerTuning);
         var (head, lines) = Hud.Hints(s);
         Assert.Contains("VENT : HOLD [VENT]", lines);
-        // Forward goes without saying; the reverser's said only when it's back.
-        Assert.DoesNotContain(lines, l => l.Contains("REVERSE"));
+        // Note 664 (the director, 13 Oct: the reverser "readily identifiable"): stopped, it's the first thing said, which way
+        // it throws. On the move forward goes without saying, and the reverser's said only when it's back.
+        Assert.True(s.Train.Dynamics.Speed < DarkTerritory.Sim.Net.CabControls.ReverserBelow);
+        Assert.Equal("THROW INTO REVERSE : [X]", lines[0]);
         s.Controls.Reverser = -1;
+        Assert.Equal("THROW INTO FORWARD : [X]", Hud.Hints(s).Lines[0]);
+        s.Train.Dynamics.Velocity = 5;
         Assert.Contains("IN REVERSE : [X]", Hud.Hints(s).Lines);
         s.Controls.Reverser = 1;
+        Assert.DoesNotContain(Hud.Hints(s).Lines, l => l.Contains("REVERSE"));
+        s.Train.Dynamics.Velocity = 0;
         Assert.Contains("[LEFT CTRL]", Hud.Bound(string.Join("   ", lines)));
         // The corner's head is the speed, for the driver to read against the boards.
         Assert.Equal($"{Math.Abs(s.Train.Dynamics.Speed) * 3.6:0} KM/H", head?.Split("  ")[0]);
@@ -349,6 +357,27 @@ public class HudTests
             s.Step(new PlayerIntent { Buttons = PlayerButtons.Use });
         Assert.True(s.Train.Diverging(0));
         Assert.Equal("THROW TO THE MAIN LINE : HOLD [E]", Hud.Prompt(s));
+    }
+
+    [Fact]
+    public void WithTheTrainOnThePointsThePromptSaysSo()
+    {
+        // Note 665 (the director, 13 Oct: "it says points held ... it's not clear what it's indicating. We should just tell the
+        // player at that point something is on the track"): what's on them, said.
+        var route = Enumerable.Range(1, 20).Select(seed => DarkTerritory.Sim.Route.RouteGenerator.Generate(
+            DarkTerritory.Sim.Route.RouteTuning.Load(Content),
+            DarkTerritory.Sim.Route.RouteTier.Frontier, (ulong)seed)).First(r => r.Branches.Count > 0);
+        var s = new PrototypeSession(Content, route, 4, enemies: false);
+        var stands = s.World.Switches!;
+        var line = s.Train.Line;
+        var lever = stands.LeverAt(line, 0);
+        var toe = line.Sample(line.Branches[0].Toe);
+        var right = Double3.Cross(toe.Tangent, Double3.Up).Normalized;
+        s.Player = PlayerMotor.SpawnOnGround(lever - Double3.Up * 0.9 + right * (line.Branches[0].Side * 0.8), line, line.Branches[0].Toe, s.PlayerTuning);
+        s.Train.Dynamics.Distance = line.Branches[0].Toe + 10;
+        s.Train.RefreshFrames();
+        Assert.True(s.Train.PointsOccupied(0, stands.Tuning.PointsLength));
+        Assert.Equal("TRAIN ON THE POINTS", Hud.Prompt(s));
     }
 
     [Fact]

@@ -418,6 +418,8 @@ public sealed record CarFireTuning
     public double CharPerSecond { get; init; } = 0.01;
     /// <summary>Note 267: of the spray on a cell, the share the cells round it get; and how long a sprayed cell stays wet (s).</summary>
     public double SprayShare { get; init; } = 0.4;
+    /// <summary>Note 662: the spray works all round the car where it's aimed (its floor, walls and roof there), not one cell.</summary>
+    public bool SprayWorksAcross { get; init; }
     public double DampSeconds { get; init; } = 3;
     /// <summary>Note 267: the roof's burn on whoever's under it, of a floor or wall cell's as near.</summary>
     public double CeilingBurnShare { get; init; } = 0.5;

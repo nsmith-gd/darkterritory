@@ -164,14 +164,15 @@ sealed partial class LineBuilder
             }
         }
 
-        // Gradient posts: at the foot of any climb near g_main, at the top of any descent where fade matters.
+        // Gradient posts: at the foot of any climb near g_main, at the top of any descent where fade matters. With its percent
+        // (note 665: "UP 1.9" coming up to a bend, the director read it as the bend's figure).
         foreach (var e in Routable())
             foreach (var p in e.Items.SelectMany(i => i.All()).Where(i => i.Grades is not null))
                 foreach (var (f0, _, g) in p.Grades!)
                 {
                     double s = p.S0 + f0 * p.Length;
                     if (g >= sg.GradientPostMinShare * _l.MainGrade || -g >= sg.GradientPostMinShare * _l.DescentGrade)
-                        Sign("gradientPost", e.Id, s - 20, $"{(g > 0 ? "UP" : "DOWN")} {Math.Abs(g):0.0}", true, g, p.Id, ref rng);
+                        Sign("gradientPost", e.Id, s - 20, $"{(g > 0 ? "UP" : "DOWN")} {Math.Abs(g):0.0}%", true, g, p.Id, ref rng);
                 }
         // Whistle boards before tunnels and dead settlements; tunnel and bridge plates; station name boards; dead signals.
         foreach (var st in _structures)

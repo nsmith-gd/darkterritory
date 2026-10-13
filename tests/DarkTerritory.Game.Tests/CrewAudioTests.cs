@@ -793,6 +793,41 @@ public class CrewAudioTests
     }
 
     [Theory]
+    [InlineData("crew-footsteps.walk.wood")]
+    [InlineData("crew-footsteps.run.wood")]
+    [InlineData("crew-footsteps.land.wood")]
+    public void BootsOnTheCarsBoardsAreABoardNotAThud(string sound)
+    {
+        // Note 667 (the director, 13 Oct: "The sound on the floor is still a little odd"): the car's and the cab's boards were
+        // the packs' boots centred near 300 Hz, their heel 13 dB under their body. A hard boot on deal is the heel's crack
+        // and the board's knock: the crack within 8 dB of the body (the old boots were 13 under).
+        var (report, mix) = AudioBench.RenderSound(Content, sound);
+        Assert.Null(report.Error);
+        double crack = Meter.BandDb(mix, 1000, 6000), body = Meter.BandDb(mix, 150, 1000);
+        Assert.True(crack > body - 8, $"{sound}: {crack:0.0} dB at 1-6 kHz, {body:0.0} dB at 150 Hz-1 kHz");
+    }
+
+    [Theory]
+    [InlineData(0)]
+    [InlineData(2)]
+    public void EveryFloorsStepReadsOverTheMovingTrain(int listener)
+    {
+        // Note 667: `dt audio render --scenario feet`. In the cab (its boards, the shovelling plate, the gangway's grate) and
+        // inside a car (its boards, a crewmate on the roof overhead), at speed, every step's attack stands over the train in
+        // its crack band, where what it's on is heard; and on the boards the crack isn't lost under the body.
+        var (report, _) = AudioBench.Render(Content, "feet", cars: 6, speed: 22, listenerCar: listener, seconds: 4);
+        var steps = report.Steps!;
+        Assert.NotEmpty(steps);
+        foreach (var crack in steps.Where(s => s.Band == "crack"))
+        {
+            Assert.True(crack.OverBedDb > 6, $"{report.Listener}: {crack.Sound}'s crack {crack.OverBedDb:+0.0;-0.0} dB over the train");
+            var body = steps.Single(s => s.Sound == crack.Sound && s.Band == "body");
+            if (crack.Sound.EndsWith(".wood", StringComparison.Ordinal))
+                Assert.True(crack.StepDb > body.StepDb - 8, $"{report.Listener}: the boards' crack {crack.StepDb:0.0} dB, body {body.StepDb:0.0} dB");
+        }
+    }
+
+    [Theory]
     [InlineData("crew-footsteps.walk.dirt", 8)]
     [InlineData("crew-footsteps.run.dirt", 8)]
     [InlineData("crew-footsteps.walk.grass", 8)]

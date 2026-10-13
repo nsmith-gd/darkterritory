@@ -42,6 +42,9 @@ public sealed class WorldShot : IDisposable
     public int Width { get; }
     public int Height { get; }
 
+    /// <summary>A lighting of its own over the night's (the creature gym's, note 676), applied last.</summary>
+    public Func<FrameLighting, FrameLighting>? Grade { get; init; }
+
     /// <summary>
     /// A camera by name: <c>eye:&lt;id&gt;</c> through that crewmate's eyes (where they look); <c>subject:&lt;who&gt;</c> framed on
     /// someone or something in the world (note 524: an enemy kind, <c>crew:N</c>, <c>car:N</c>, <c>engine</c>; see
@@ -88,6 +91,8 @@ public sealed class WorldShot : IDisposable
             lighting.Frost = _look.Tuning.Atmosphere.Cold.Frost(route.Weather.Cold);
         }
         lighting = _look.Chill(lighting, GreyboxScene.ChoirCold(world.Choir.Present ? 1 : (float)world.Choir.Build));
+        if (Grade is { } grade)
+            lighting = grade(lighting);
         var s = _scene;
         s.Signs = world.Lineside?.Signs;
         s.SignRange = world.Lineside?.Tuning.LampSignRange ?? 350;
