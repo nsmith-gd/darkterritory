@@ -259,7 +259,7 @@ def folded(br=0.0, palp=0.8, adjust=()):
     p = pose(FOLDED, breathe(-0.04 + br), palps(palp))
     for s, k, u, test, sw in adjust:
         # u 0 hooked, 1 off the beams and hanging a little; `test` the tip's feeling about; `sw` where it's put back.
-        p.update(leg(s, k, lift=40 - 30 * u, knee=128 - 50 * u, curl=-162 + 60 * u + 25 * test, swing=sw))
+        p.update(leg(s, k, lift=40 - 40 * u, knee=128 - 38 * u, curl=-162 + 22 * test * u, swing=sw))
     return p
 
 
@@ -279,8 +279,8 @@ hidden.key(108, folded(0.0, adjust=[("r", 1, 0.0, 0, 10)]), "LINEAR")
 hidden.key(110, folded(0.0, palp=1.8, adjust=[("r", 1, 0.0, 0, 10)]), "LINEAR")  # the palps flick
 hidden.key(113, folded(0.0, palp=0.8, adjust=[("r", 1, 0.0, 0, 10)]), "BEZIER")
 hidden.key(130, folded(0.02, adjust=[("r", 1, 0.0, 0, 10), ("l", 3, 0, 0, 0)]), "LINEAR")
-hidden.key(133, folded(0.02, adjust=[("r", 1, 0.0, 0, 10), ("l", 3, 0.8, 1, -6)]), "LINEAR")  # another, quick
-hidden.key(140, folded(0.02, adjust=[("r", 1, 0.0, 0, 10), ("l", 3, 0.8, 1, -6)]), "BEZIER")
+hidden.key(133, folded(0.02, adjust=[("r", 1, 0.0, 0, 10), ("l", 3, 0.5, -0.6, -6)]), "LINEAR")  # another, quick
+hidden.key(140, folded(0.02, adjust=[("r", 1, 0.0, 0, 10), ("l", 3, 0.5, -0.6, -6)]), "BEZIER")
 hidden.key(146, folded(0.025, adjust=[("r", 1, 0.0, 0, 10), ("l", 3, 0.0, 0, -8)]), "BEZIER")
 hidden.key(176, folded(0.01, adjust=[("r", 1, 0.0, 0, 4), ("l", 3, 0.0, 0, -3)]), "BEZIER")
 hidden.close(190)
@@ -414,18 +414,18 @@ retreat.close(30)
 
 # Death (1.5 s): a jerk, every leg flung; then every leg curls in over the body (a spider's death), one side a beat after
 # the other, the sac sagging, and it lets go of the beams and drops, turning over; a last leg twitches.
-CURLED = pose(legs_all(lift=-50, knee=95, curl=70), breathe(-0.08), palps(2))
+CURLED = pose(legs_all(lift=-40, knee=78, curl=24), breathe(-0.08), palps(2))
 death = Clip("death", loop=False)
 death.key(0, BRACED, "CONSTANT")
 death.key(3, pose(BRACED, {"root@loc": (0, 0, 0.04), "head": (-16, 0, 0)}, legs_all(lift=12, knee=-10, curl=-20), breathe(-0.1)), "LINEAR")
 death.key(9, pose(BRACED, {"root@loc": (0, 0, 0.0), "head": (-6, 0, 0)}, legs_all(lift=12, knee=-10, curl=-20),
-                  {k: v for k, v in legs_all(lift=-50, knee=95, curl=70).items() if "_r" in k}, breathe(-0.1)), "BEZIER")
+                  {k: v for k, v in legs_all(lift=-40, knee=78, curl=24).items() if "_r" in k}, breathe(-0.1)), "BEZIER")
 death.key(16, pose(CURLED, {"root@loc": (0, 0.04, -0.25), "root": (20, 0, 10), "head": (14, 0, 0)}), "BEZIER")
 death.key(30, pose(CURLED, {"root@loc": (0, 0.1, -0.85), "root": (60, 0, 24), "head": (20, 0, 0)}), "LINEAR")
-death.key(38, pose(CURLED, {"root@loc": (0, 0.12, -0.95), "root": (70, 0, 26), "head": (20, 0, 0)}, legs_all(lift=-55, knee=100, curl=80)), "LINEAR")
-death.key(40, pose(CURLED, {"root@loc": (0, 0.12, -0.95), "root": (70, 0, 26), "head": (20, 0, 0)}, legs_all(lift=-55, knee=100, curl=80),
+death.key(38, pose(CURLED, {"root@loc": (0, 0.12, -0.95), "root": (70, 0, 26), "head": (20, 0, 0)}, legs_all(lift=-44, knee=84, curl=30)), "LINEAR")
+death.key(40, pose(CURLED, {"root@loc": (0, 0.12, -0.95), "root": (70, 0, 26), "head": (20, 0, 0)}, legs_all(lift=-44, knee=84, curl=30),
                    leg("l", 2, lift=-30, knee=60, curl=40)), "LINEAR")
-death.key(45, pose(CURLED, {"root@loc": (0, 0.12, -0.95), "root": (70, 0, 26), "head": (20, 0, 0)}, legs_all(lift=-55, knee=100, curl=80)), "BEZIER")
+death.key(45, pose(CURLED, {"root@loc": (0, 0.12, -0.95), "root": (70, 0, 26), "head": (20, 0, 0)}, legs_all(lift=-44, knee=84, curl=30)), "BEZIER")
 
 CLIPS = [hidden, grab, haul, hold, hit, retreat, death]
 
