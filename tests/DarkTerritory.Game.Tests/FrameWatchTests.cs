@@ -154,4 +154,29 @@ public class FrameWatchTests
         Assert.DoesNotMatch(new System.Text.RegularExpressions.Regex(@"at frame 600\r?$", System.Text.RegularExpressions.RegexOptions.Multiline), story);
         Assert.Equal("FRAMES · none timed yet", new FrameWatch().Story(5));
     }
+
+    [Fact]
+    public void TheReportSaysWhatEachPartCostsAFramePastTheFirstFrames()
+    {
+        // Note 695's find: a part that allocates megabytes every frame (the town's houses rebuilt) heads the table, and the
+        // first frames' loading doesn't count.
+        var watch = new FrameWatch();
+        for (int i = 0; i < 100; i++)
+        {
+            watch.Begin();
+            watch.Part("scene: town houses", i < 10 ? 500 : 8, i < 10 ? 800L << 20 : 10L << 20);
+            watch.Part("sim (1 ticks)", 2, 0);
+            watch.Frame(i < 10 ? 502 : 10, i / 60.0, () => "");
+        }
+        string report = watch.Report("a town");
+        Assert.Matches(@"scene: town houses\s+8\.00\s+10\.00", report);
+        Assert.Matches(@"\n  sim\s+2\.00\s+0\.00", report.Replace("\r", ""));
+        // A hitch says what its parts allocated.
+        watch.Begin();
+        watch.Part("scene: town houses", 32, 3L << 20);
+        watch.Part("sim (1 ticks)", 2, 0);
+        watch.Frame(34, 2, () => "");
+        Assert.Equal("scene: town houses 32 (3.0 MB), sim (1 ticks) 2", Assert.Single(watch.Kept).Parts);
+        Assert.Equal("scene: town houses", watch.Kept[0].Lead);
+    }
 }

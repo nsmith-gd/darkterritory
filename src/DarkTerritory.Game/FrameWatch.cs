@@ -52,7 +52,11 @@ public sealed class FrameWatch
 
     readonly Stopwatch _frame = new();
     readonly Queue<double> _recent = new();
-    readonly List<(string Part, double Ms)> _parts = [];
+    readonly List<(string Part, double Ms, long Bytes)> _parts = [];
+    /// <summary>The night's allocations by part (its name without its count), and its frames' time in it, for the report.</summary>
+    readonly SortedDictionary<string, (long Bytes, double Ms)> _byPart = new(StringComparer.Ordinal);
+    long _lapBytes;
+    int _timed;
     readonly int[] _histogram = new int[Bins + 1];
     readonly List<Hitch> _hitches = [];
     readonly Dictionary<string, int> _leads = new(StringComparer.Ordinal);
@@ -84,6 +88,7 @@ public sealed class FrameWatch
     {
         _parts.Clear();
         _lap = 0;
+        _lapBytes = GC.GetAllocatedBytesForCurrentThread();
         _gen0 = GC.CollectionCount(0);
         _gen1 = GC.CollectionCount(1);
         _gen2 = GC.CollectionCount(2);
@@ -96,14 +101,15 @@ public sealed class FrameWatch
     public void Mark(string part)
     {
         double at = _frame.Elapsed.TotalMilliseconds;
-        _parts.Add((part, at - _lap));
-        _lap = at;
+        long bytes = GC.GetAllocatedBytesForCurrentThread();
+        _parts.Add((part, at - _lap, bytes - _lapBytes));
+        (_lap, _lapBytes) = (at, bytes);
     }
 
-    /// <summary>A part of the frame of a known length (a replayed frame, a test).</summary>
-    public void Part(string part, double ms)
+    /// <summary>A part of the frame of a known length, and what it allocated (a replayed frame, a test).</summary>
+    public void Part(string part, double ms, long bytes = 0)
     {
-        _parts.Add((part, ms));
+        _parts.Add((part, ms, bytes));
         _lap += ms;
     }
 
@@ -117,8 +123,9 @@ public sealed class FrameWatch
     public string? End(double now, Func<string> where)
     {
         double total = _frame.Elapsed.TotalMilliseconds;
-        if (total - _lap > 0.5)
-            _parts.Add(("other", total - _lap));
+        long bytes = GC.GetAllocatedBytesForCurrentThread() - _lapBytes;
+        if (total - _lap > 0.5 || bytes > 64 * 1024)
+            _parts.Add(("other", Math.Max(0, total - _lap), bytes));
         return Frame(total, now, where);
     }
 
@@ -132,6 +139,15 @@ public sealed class FrameWatch
         Frames++;
         Longest = Math.Max(Longest, total);
         Turning(now);
+        // The night's run, not its loading: the first frames (no median yet) build everything once.
+        if (!double.IsNaN(median))
+            _timed++;
+        foreach (var (part, ms, bytes) in double.IsNaN(median) ? [] : _parts)
+        {
+            string name = Unnumbered(part);
+            var (b, t) = _byPart.GetValueOrDefault(name);
+            _byPart[name] = (b + bytes, t + ms);
+        }
         if (double.IsNaN(_start))
             _start = now;
         int minute = (int)((now - _start) / 60);
@@ -171,7 +187,7 @@ public sealed class FrameWatch
         if (now - _lastLine < QuietSeconds)
             return null;
         _lastLine = now;
-        return Line(total, median, place ?? where());
+        return Line(total, median, place ?? where(), counts);
     }
 
     /// <summary>Whether a frame of <paramref name="ms"/> is slow against a night running at <paramref name="median"/> ms.</summary>
@@ -197,12 +213,18 @@ public sealed class FrameWatch
     {
         if (_parts.Count == 0)
             return "other";
-        string part = _parts.MaxBy(p => p.Ms).Part;
+        return Unnumbered(_parts.MaxBy(p => p.Ms).Part);
+    }
+
+    static string Unnumbered(string part)
+    {
         int paren = part.IndexOf(" (", StringComparison.Ordinal);
         return paren > 0 ? part[..paren] : part;
     }
 
-    string Parts() => string.Join(", ", _parts.Where(p => p.Ms >= 1).Select(p => $"{p.Part} {p.Ms:0}"));
+    /// <summary>The frame's parts: their ms, and what they allocated when it's a megabyte's tenth or more.</summary>
+    string Parts() => string.Join(", ", _parts.Where(p => p.Ms >= 1 || p.Bytes >= 104858).Select(p =>
+        p.Bytes >= 104858 ? $"{p.Part} {p.Ms:0} ({p.Bytes / 1048576.0:0.0} MB)" : $"{p.Part} {p.Ms:0}"));
 
     (string Gc, double Mb) Collected()
     {
@@ -211,11 +233,11 @@ public sealed class FrameWatch
         return (g0 + g1 + g2 == 0 ? "no gc" : $"gc {g0}/{g1}/{g2}", mb);
     }
 
-    string Line(double total, double median, string where)
+    string Line(double total, double median, string where, string counts)
     {
         var (gc, mb) = Collected();
         string run = double.IsNaN(median) ? "the night's first frames" : $"median {median:0}";
-        return $"slow frame {total:0} ms ({run}): {Parts()}; {gc}, {mb:0.0} MB allocated; {where}";
+        return $"slow frame {total:0} ms ({run}): {Parts()}; {gc}, {mb:0.0} MB allocated{(counts.Length > 0 ? "; " + counts : "")}; {where}";
     }
 
     /// <summary>The night's count, for the log at its end.</summary>
@@ -270,6 +292,15 @@ public sealed class FrameWatch
         t.AppendLine(ci, $"memory    {mb:0} MB allocated ({(seconds > 0 ? mb / seconds : 0):0.0} MB/s), collections {g0}/{g1}/{g2} (gen 0/1/2)");
         foreach (var line in more ?? [])
             t.AppendLine(line);
+        if (_byPart.Count > 0 && _timed > 0)
+        {
+            // A frame's parts on average, past the night's first frames: a part that allocates every frame is what keeps
+            // the collector busy (note 695).
+            t.AppendLine();
+            t.AppendLine("part of the frame (a frame's average)      ms       MB");
+            foreach (var (part, (bytes, ms)) in _byPart.OrderByDescending(p => p.Value.Ms))
+                t.AppendLine(ci, $"  {part,-36} {ms / _timed,7:0.00}  {bytes / 1048576.0 / _timed,7:0.00}");
+        }
         t.AppendLine();
         t.AppendLine("frame time        share of frames");
         long all = Math.Max(1, Frames);

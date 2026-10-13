@@ -948,6 +948,8 @@ CampaignState? Play(IPlaySession session, CampaignState? campaign)
         },
         Stands = session.World.Switches,
     };
+    // Its parts are the frame's parts in the night's performance report (note 691).
+    scene.Watch = frameWatch;
     double last = timer.Elapsed.TotalSeconds, titleAt = 0;
     // Talking and reading in the fortress town (note 281): on this machine alone. A press the town took isn't sent to the
     // host while the key's still down (nothing in a town changes the night; a lamp at somebody's feet stays where it is).
