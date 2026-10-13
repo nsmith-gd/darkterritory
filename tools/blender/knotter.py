@@ -352,47 +352,108 @@ class Clip(rig.Clip):
         return super().key(frame, {**REST, **pose}, interp)
 
 
+def claws_each(open_of, end="fb"):
+    """Each claw its own spread: `open_of(end, k)` (as claws_pose's open_), so they can curl one after another."""
+    p = {}
+    for e in end:
+        for k in range(CLAWS):
+            p.update({n: v for n, v in claws_pose(open_of(e, k), e).items() if n == f"claw_{e}{k}"})
+    return p
+
+
+def ripple(at, width=1.6, lo=0.0, hi=1.0, back=False):
+    """Claws curling in turn round each end's ring: claw k is open (`hi`) once the wave at `at` (in claws, 0..CLAWS) has
+    passed it, `lo` before; `width` claws of in-between. The back end's ring runs the other way round."""
+    def fn(e, k):
+        kk = (CLAWS - 1 - k) if (back and e == "b") else k
+        u = max(0.0, min(1.0, (at - kk) / width))
+        u = u * u * (3 - 2 * u)
+        return lo + (hi - lo) * u
+    return fn
+
+
+def frozen_wave(t, holds, **kw):
+    """A travelling wave whose phase stops dead and lurches on: `holds` [(t0, t1)] are spans of the clip (0..1) where the
+    phase doesn't move, the rest of the travel squeezed into what's left (the clip still loops)."""
+    still = sum(b - a for a, b in holds)
+    moved = t - sum(max(0.0, min(t, b) - a) for a, b in holds)
+    return wave(moved / (1 - still), **kw)
+
+
+# Creep (2 s, loop): writhing up out from under, but not smoothly: the lay travels, stops dead (every segment frozen) for
+# a beat, lurches on; the claws feel ahead one after another round each ring, then all freeze half open.
 creep = Clip("creep")
-for f in range(0, 60, 10):
+for f, interp in ((0, "BEZIER"), (6, "BEZIER"), (12, "LINEAR"), (14, "CONSTANT"), (24, "LINEAR"), (30, "BEZIER"), (38, "BEZIER"),
+                  (44, "LINEAR"), (46, "CONSTANT"), (54, "BEZIER")):
     t = f / 60
-    creep.key(f, {**wave(t, 0.09, 0.07, 1.2, 1.0, spin=10), **claws_pose(0.6 + 0.4 * math.sin(2 * math.pi * t), shake=1, t=t)})
+    body = frozen_wave(t, [(14 / 60, 24 / 60), (46 / 60, 54 / 60)], amp_x=0.09, amp_z=0.07, waves=1.2, speed=1.0, spin=10)
+    # The claws: a ripple of feeling (curling in, then reaching out again) round each ring, then held.
+    at = (f - 2) / 2.2 if f < 26 else CLAWS + 2
+    claws = claws_each(ripple(at, 2.0, lo=1.0, hi=0.45, back=True)) if f < 26 else claws_pose(0.45 + (0.2 if f in (30, 38) else 0.0))
+    creep.key(f, {**body, **claws}, interp)
 creep.close(60)
 
+# Clamp (0.6 s, once: CreatureArt.KnotterClampSeconds): the claws spread wide, slowly, as far as they go; held there a
+# beat; then they curl shut over the sills one after another round the ring, fast, and grip.
 clamp = Clip("clamp", loop=False)
 clamp.key(0, claws_pose(1.0), "BEZIER")
-clamp.key(8, claws_pose(1.15), "LINEAR")
-clamp.key(14, claws_pose(-0.05), "CONSTANT")
+clamp.key(6, claws_pose(1.2), "LINEAR")
+clamp.key(8, claws_pose(1.2), "LINEAR")
+for f in (9, 10, 11, 12, 13):
+    clamp.key(f, claws_each(ripple((f - 8) * 2.2, 2.0, lo=1.2, hi=-0.08, back=True)), "LINEAR")
+clamp.key(14, claws_pose(-0.08), "CONSTANT")
 clamp.key(18, claws_pose(0.0), "BEZIER")
 
+# Force (1 s, loop): swelling and twisting, the cars pushed apart; the claws working on the sills, re-gripping one after
+# another in a ripple round each ring and back, never all at once.
 force = Clip("force")
-for f in range(0, 30, 6):
+for f in range(0, 30, 3):
     t = f / 30
-    force.key(f, {**wave(t, 0.02, 0.02, 2.0, 1.0, spin=18, swell=0.16, swell_waves=2.5), **claws_pose(0.0)})
+    force.key(f, {**wave(t, 0.02, 0.02, 2.0, 1.0, spin=18, swell=0.16, swell_waves=2.5),
+                  **claws_each(lambda e, k: 0.22 * max(0.0, math.sin(math.pi * ((t * CLAWS * 1.0 - (k if e == "f" else CLAWS - 1 - k)) / 2.5)))
+                               if 0 <= t * CLAWS - (k if e == "f" else CLAWS - 1 - k) <= 2.5 else 0.0)}, "LINEAR")
 force.close(30)
 
+# Taut (1.5 s, loop): held, the lay creaking round in pops (holds broken by a twist), and once the claws on one end
+# re-grip in a ripple.
 taut = Clip("taut")
-for f, (sp, tr) in ((0, (0, 0)), (12, (7, 0.006)), (20, (-3, -0.004)), (34, (5, 0.003))):
+for f, (sp, tr), grip in ((0, (0, 0), None), (12, (7, 0.006), None), (20, (-3, -0.004), None), (26, (-3, -0.004), 2.0),
+                          (28, (-3, -0.004), 6.0), (30, (-3, -0.004), 12.0), (34, (5, 0.003), None)):
     q = {n + "@spin": sp * math.sin(math.pi * i / (SEGMENTS - 1)) for i, n in enumerate(SEG)}
     q |= {n + "@loc": (tr * math.sin(i * 1.9), 0, tr * math.cos(i * 2.3)) for i, n in enumerate(SEG)}
-    taut.key(f, {**q, **claws_pose(0.0)}, "BEZIER" if f % 2 == 0 else "CONSTANT")
+    claws = claws_pose(0.0) if grip is None else {**claws_pose(0.0), **claws_each(
+        lambda e, k, g=grip: 0.3 * max(0.0, 1 - abs(g - k) / 2.0) if e == "f" else 0.0, end="f")}
+    taut.key(f, {**q, **claws}, "CONSTANT" if f in (12, 20) else "LINEAR" if grip is not None else "BEZIER")
 taut.close(45)
 
+# Slip (0.5 s, once: CreatureArt.KnotterSlipSeconds): still for two frames under the foot, then a strand rolls in three
+# (a snap), overshoots and settles.
 slip = Clip("slip", loop=False)
-slip.key(0, claws_pose(0.0), "BEZIER")
-slip.key(4, {**{n + "@spin": 60 * math.sin(math.pi * i / (SEGMENTS - 1)) for i, n in enumerate(SEG)}, **claws_pose(0.0)}, "LINEAR")
-slip.key(10, {**{n + "@spin": 110 * math.sin(math.pi * i / (SEGMENTS - 1)) for i, n in enumerate(SEG)}, **claws_pose(0.0)}, "BEZIER")
+slip.key(0, claws_pose(0.0), "CONSTANT")
+slip.key(2, claws_pose(0.0), "LINEAR")
+slip.key(5, {**{n + "@spin": 115 * math.sin(math.pi * i / (SEGMENTS - 1)) for i, n in enumerate(SEG)}, **claws_pose(0.1)}, "BEZIER")
+slip.key(10, {**{n + "@spin": 84 * math.sin(math.pi * i / (SEGMENTS - 1)) for i, n in enumerate(SEG)}, **claws_pose(0.0)}, "BEZIER")
 slip.key(15, {**{n + "@spin": 90 * math.sin(math.pi * i / (SEGMENTS - 1)) for i, n in enumerate(SEG)}, **claws_pose(0.0)}, "BEZIER")
 
+# Coil (1 s, loop): squeezing what it's wrapped round, in no steady rhythm: a long squeeze held, a slack, two short hard
+# ones; the claws clenching with each.
 coil = Clip("coil")
-for f in range(0, 30, 5):
+for f, k, interp in ((0, 0.0, "BEZIER"), (5, 1.0, "LINEAR"), (13, 1.0, "BEZIER"), (17, 0.2, "LINEAR"), (20, 0.9, "CONSTANT"),
+                     (22, 0.3, "LINEAR"), (24, 1.0, "BEZIER")):
     t = f / 30
-    coil.key(f, {**wave(t, 0.0, 0.0, 3.0, 1.0, spin=6, swell=0.12, swell_waves=4.0, envelope=False), **claws_pose(0.0)}, "BEZIER")
+    coil.key(f, {**wave(t * 0.5, 0.0, 0.0, 3.0, 1.0, spin=6 + 8 * k, swell=0.05 + 0.12 * k, swell_waves=4.0, envelope=False),
+                 **claws_pose(-0.1 * k)}, interp)
 coil.close(30)
 
+# Exposed (2.4 s, loop): slack at a stand, writhing, but in lurches with dead stops; the claws rattling in ripples round
+# the rings, then frozen open.
 exposed = Clip("exposed")
-for f in range(0, 72, 12):
+for f, interp in ((0, "BEZIER"), (12, "LINEAR"), (18, "CONSTANT"), (30, "LINEAR"), (36, "BEZIER"), (48, "BEZIER"), (56, "CONSTANT"),
+                  (64, "BEZIER")):
     t = f / 72
-    exposed.key(f, {**wave(t, 0.16, 0.08, 1.0, 1.0, spin=16), **claws_pose(0.7 + 0.3 * math.sin(2 * math.pi * t * 2), shake=1.2, t=t)})
+    body = frozen_wave(t, [(18 / 72, 30 / 72), (56 / 72, 64 / 72)], amp_x=0.16, amp_z=0.08, waves=1.0, speed=1.0, spin=16)
+    claws = claws_each(ripple((f % 36) / 2.5, 2.0, lo=1.0, hi=0.55, back=True)) if f % 36 < 30 else claws_pose(0.8)
+    exposed.key(f, {**body, **claws}, interp)
 exposed.close(72)
 
 hit = Clip("hit", loop=False)
