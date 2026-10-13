@@ -32,6 +32,8 @@ public class WaterArtTests
         Assert.Equal(1, GreyboxRenderer.Motion("spruce_card"));
         Assert.Equal(1, GreyboxRenderer.Motion("pine_bough"));
         Assert.Equal(0, GreyboxRenderer.Motion("tar"));
+        Assert.Equal(3, GreyboxRenderer.Motion("tar_drip"));
+        Assert.Equal(4, GreyboxRenderer.Motion("glow_pod"));
         Assert.Equal(0, GreyboxRenderer.Motion("shore_shingle"));
     }
 

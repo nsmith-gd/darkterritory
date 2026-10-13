@@ -24,12 +24,13 @@ public static class CorruptedTreeArt
 
     /// <summary>
     /// How far out from the line they're modelled (m); past it, their cards (tools/models/impostor.py: 8 triangles, a
-    /// picture of the tree from two sides). Nearer in than the spruce's 40 m: a corrupted tree is about 2,000 triangles
-    /// where a modelled spruce is 1,300 and a dead one a card of 8, so modelled to 40 m the black forest's frame put on a
-    /// fifth; to 28 m, its cards cheaper than the spruce cards they stand for, it's 3-6% under what it was without them
-    /// (dt perf --route frontier:7 --at 4700, note 696). The cards hold up from here out in the fog.
+    /// picture of the tree from two sides). Nearer in than the spruce's 40 m: a corrupted tree is 2,000-4,000 triangles
+    /// (the director's second pass made them so: more of the Corruption on them) where a modelled spruce is 1,300 and a dead
+    /// one a card of 8. To 24 m, its cards cheaper than the spruce cards they stand for, the black forest's frame is 2-6%
+    /// under what it was without them (dt perf --route frontier:7 --at 4700, note 696; to 28 m it was 2-4% over). The
+    /// cards hold up from here out in the fog.
     /// </summary>
-    public const double ModelledWithinM = 28;
+    public const double ModelledWithinM = 24;
 
     /// <summary>The prop a kind's variant is (its distance copy when <paramref name="far"/>).</summary>
     public static string Prop(string kind, int variant, bool far) => $"ctree_{kind}_{variant}" + (far ? "_far" : "");

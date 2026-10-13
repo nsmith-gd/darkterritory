@@ -3316,7 +3316,7 @@
     "spec": "membrane_web_s.png",
     "normal": "membrane_web_n.png",
     "size": 512,
-    "tileMetres": 1.0,
+    "tileMetres": 1.5,
     "tiling": true,
     "family": "flesh",
     "alphaTest": true,
@@ -3324,7 +3324,7 @@
     "sources": [
       {
         "generator": "tools/art/textures.py",
-        "what": "veins (strokes), thin fields and holes (fbm)",
+        "what": "skin: pores, wrinkles and stretch marks (fbm), bruises, veins (strokes), tears",
         "author": "Dark Territory",
         "license": "CC0-1.0"
       }
@@ -3346,6 +3346,113 @@
       {
         "generator": "tools/art/textures.py",
         "what": "quartz facets (voronoi), cloud and clear (fbm)",
+        "author": "Dark Territory",
+        "license": "CC0-1.0"
+      }
+    ],
+    "license": "CC0-1.0"
+  },
+  {
+    "name": "wound",
+    "diffuse": "wound.png",
+    "spec": "wound_s.png",
+    "normal": "wound_n.png",
+    "size": 512,
+    "tileMetres": 0.4,
+    "tiling": true,
+    "family": "flesh",
+    "alphaTest": false,
+    "albedoTarget": 0.06,
+    "sources": [
+      {
+        "generator": "tools/art/textures.py",
+        "what": "raw flesh: muscle grain (fbm), fat knots (voronoi), clots",
+        "author": "Dark Territory",
+        "license": "CC0-1.0"
+      }
+    ],
+    "license": "CC0-1.0"
+  },
+  {
+    "name": "glow_pod",
+    "diffuse": "glow_pod.png",
+    "spec": "glow_pod_s.png",
+    "normal": "glow_pod_n.png",
+    "size": 512,
+    "tileMetres": 0.3,
+    "tiling": true,
+    "family": "flesh",
+    "alphaTest": false,
+    "sources": [
+      {
+        "generator": "tools/art/textures.py",
+        "what": "lit cells (voronoi), dark veins (strokes), cloud (fbm); glow in B",
+        "author": "Dark Territory",
+        "license": "CC0-1.0"
+      }
+    ],
+    "license": "CC0-1.0"
+  },
+  {
+    "name": "barnacle_crust",
+    "diffuse": "barnacle_crust.png",
+    "spec": "barnacle_crust_s.png",
+    "normal": "barnacle_crust_n.png",
+    "size": 512,
+    "tileMetres": 0.5,
+    "tiling": true,
+    "family": "flesh",
+    "alphaTest": false,
+    "albedoTarget": 0.11,
+    "sources": [
+      {
+        "generator": "tools/art/textures.py",
+        "what": "barnacles (voronoi cones, plates, mouths), slime, mussels",
+        "author": "Dark Territory",
+        "license": "CC0-1.0"
+      }
+    ],
+    "license": "CC0-1.0"
+  },
+  {
+    "name": "tar_drip",
+    "diffuse": "tar_drip.png",
+    "spec": "tar_drip_s.png",
+    "normal": "tar_drip_n.png",
+    "size": 512,
+    "tileMetres": 0.5,
+    "tiling": true,
+    "family": "flesh",
+    "alphaTest": false,
+    "albedoTarget": 0.035,
+    "sources": [
+      {
+        "generator": "tools/art/textures.py",
+        "what": "runs and strings (stretched fbm), bubbles",
+        "author": "Dark Territory",
+        "license": "CC0-1.0"
+      }
+    ],
+    "license": "CC0-1.0"
+  },
+  {
+    "name": "shroud_card",
+    "diffuse": "shroud_card.png",
+    "spec": "shroud_card_s.png",
+    "normal": "shroud_card_n.png",
+    "size": [
+      256,
+      512
+    ],
+    "tileMetres": null,
+    "tiling": false,
+    "family": "foliage",
+    "alphaTest": true,
+    "albedoTarget": 0.13,
+    "sources": [
+      {
+        "generator": "tools/art/textures.py",
+        "what": "pale lichen threads fanning from a fist (strokes), gathered into locks",
         "author": "Dark Territory",
         "license": "CC0-1.0"
       }

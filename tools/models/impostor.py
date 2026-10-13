@@ -39,15 +39,17 @@ def library():
     return _library
 
 
-def _image(layer):
+def _image(layer, map="diffuse"):
     e = library().get(layer)
-    if e is None:
+    if e is None or map not in e:
         return None
-    name = f"lib_{layer}"
+    name = f"lib_{layer}_{map}"
     img = bpy.data.images.get(name)
     if img is None:
-        img = bpy.data.images.load(os.path.join(LIBRARY, e["diffuse"]))
+        img = bpy.data.images.load(os.path.join(LIBRARY, e[map]))
         img.name = name
+        if map != "diffuse":
+            img.colorspace_settings.name = "Non-Color"
     return img
 
 
@@ -94,16 +96,32 @@ def _shade(mat, mode):
         nt.links.new(shade.outputs[2], emit.inputs["Color"])
     elif mode == "normal":
         # World space: shoot() turns it onto the card's own axes (Cycles' camera space looks down +Z, not -Z).
+        # A hanging card (lichen, leaves) faces whoever looks at it, as it's lit in the world (a card bends, it doesn't
+        # turn its back): its sideways normals would light one side of the far card and leave the other to the cold sky.
         geo = nt.nodes.new("ShaderNodeNewGeometry")
         half = nt.nodes.new("ShaderNodeVectorMath")
         half.operation = "MULTIPLY_ADD"
         half.inputs[1].default_value = (0.5, 0.5, 0.5)
         half.inputs[2].default_value = (0.5, 0.5, 0.5)
-        nt.links.new(geo.outputs["Normal"], half.inputs[0])
+        nt.links.new(geo.outputs["Incoming" if layer.endswith("_card") else "Normal"], half.inputs[0])
         nt.links.new(half.outputs["Vector"], emit.inputs["Color"])
     else:
+        # What glows: the material's own glow, or its layer's emissive mask (the spec map's B: a pod's lit cells, not its
+        # veins), whichever's the more, as scene.frag takes it.
         glow = float(mat.get("dt_emissive", 0.0))
         emit.inputs["Color"].default_value = (glow, glow, glow, 1)
+        spec = _image(layer, "spec")
+        if spec is not None and tex is not None:
+            mask = nt.nodes.new("ShaderNodeTexImage")
+            mask.image = spec
+            mask.interpolation = "Linear"
+            sep = nt.nodes.new("ShaderNodeSeparateColor")
+            nt.links.new(mask.outputs["Color"], sep.inputs["Color"])
+            most = nt.nodes.new("ShaderNodeMath")
+            most.operation = "MAXIMUM"
+            most.inputs[1].default_value = glow
+            nt.links.new(sep.outputs["Blue"], most.inputs[0])
+            nt.links.new(most.outputs[0], emit.inputs["Color"])
     emit.inputs["Strength"].default_value = 1.0
     if tex is not None and e.get("alphaTest"):
         cut = nt.nodes.new("ShaderNodeMath")

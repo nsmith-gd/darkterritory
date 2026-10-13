@@ -9,6 +9,9 @@ like the kit's own trees, in the layers the world already has.
   * Hang: a hanging card, crossed and two-sided, root at v 1 (where scene.vert bends a card from), so it swings.
   * Sheet: a membrane stretched between points, two-sided, sagging in the middle.
   * Hole: a dark oval with a lip, proud of the bark: a hole in the trunk.
+  * The Corruption's (the director's second pass): Drip (tar hanging in a string to a drop, in a "_drip" layer it sags
+    in the vertex shader), Creep (a vein crawling over the bark), Wound (the bark split on the meat), Growth (a tumour),
+    Pustules, Wire (barbed, wound round and bitten in).
 
 Blender's frame: Z up, metres, the tree's foot at the origin. Deterministic (random.Random(seed), no hash order).
 """
@@ -137,9 +140,11 @@ class Tree:
         return self.tube([Vector(base), Vector(tip)], [r, 0.0], sides, mat, tile, point=True, smooth=smooth)
 
     # -- lumps ----------------------------------------------------------------------------------------------------
-    def blob(self, centre, radii, mat, rot=None, seg=6, rings=4, tile=0.5, noise=0.0, seed=0, half=False):
+    def blob(self, centre, radii, mat, rot=None, seg=6, rings=4, tile=0.5, noise=0.0, seed=0, half=False, band=None):
         """An ellipsoid (radii along its own x y z, turned by `rot`), `seg` round and `rings` from pole to pole (`half`:
-        the top half only, a dome on what it grows from). Metre UVs over `tile`."""
+        the top half only, a dome on what it grows from). Metre UVs over `tile`; `band` (an int) puts its u round it all
+        within [band, band + 1), one tile round, so a layer that reads the whole part of u (a "_pod"'s breathing:
+        scene.frag) sees one number on the whole of it."""
         rot = rot or Quaternion()
         c = Vector(centre)
         rx, ry, rz = radii
@@ -158,51 +163,57 @@ class Tree:
             layers.append(ring)
         U = max(1, round(2 * math.pi * max(rx, ry) / tile))
         V = math.pi * rz / tile
+        if band is not None:
+            U = 0.96
+        u0 = 0.0 if band is None else band + 0.02
         for j in range(seg):
             k = j + 1
-            self.face([top, layers[0][j], layers[0][k % seg]], [(U * (j + 0.5) / seg, 0), (U * j / seg, V / rings), (U * k / seg, V / rings)], mat)
+            self.face([top, layers[0][j], layers[0][k % seg]], [(u0 + U * (j + 0.5) / seg, 0), (u0 + U * j / seg, V / rings), (u0 + U * k / seg, V / rings)], mat)
         for i in range(len(layers) - 1):
             a, b = V * (i + 1) / rings, V * (i + 2) / rings
             for j in range(seg):
                 k = j + 1
                 self.face([layers[i][j], layers[i + 1][j], layers[i + 1][k % seg], layers[i][k % seg]],
-                          [(U * j / seg, a), (U * j / seg, b), (U * k / seg, b), (U * k / seg, a)], mat)
+                          [(u0 + U * j / seg, a), (u0 + U * j / seg, b), (u0 + U * k / seg, b), (u0 + U * k / seg, a)], mat)
         if not half:
             bottom = self.bm.verts.new(c + rot @ Vector((0, 0, -rz)))
             i = len(layers) - 1
             for j in range(seg):
                 k = j + 1
-                self.face([layers[i][j], bottom, layers[i][k % seg]], [(U * j / seg, V * (i + 1) / rings), (U * (j + 0.5) / seg, V), (U * k / seg, V * (i + 1) / rings)], mat)
+                self.face([layers[i][j], bottom, layers[i][k % seg]], [(u0 + U * j / seg, V * (i + 1) / rings), (u0 + U * (j + 0.5) / seg, V), (u0 + U * k / seg, V * (i + 1) / rings)], mat)
 
-    def crystal(self, base, direction, length, r, mat, sides=6, tile=0.4):
-        """A quartz point: a prism `length` long, its last third a pyramid; flat-shaded so each facet takes its own light."""
+    def crystal(self, base, direction, length, r, mat, sides=6, tile=0.4, tip=0.3):
+        """A quartz point: a prism `length` long, its last `tip` of it a pyramid; flat-shaded so each facet takes its own
+        light."""
         d = Vector(direction).normalized()
         b = Vector(base)
-        body = b + d * length * 0.7
+        body = b + d * length * (1 - tip)
         self.tube([b - d * r * 0.5, body, b + d * length], [r, r * 0.95, 0.0], sides, mat, tile, point=True, smooth=False)
 
-    def shelf(self, at, out, radius, thick, mat, seg=7, tile=0.4, droop=0.25):
+    def shelf(self, at, out, radius, thick, mat, seg=7, tile=0.4, droop=0.25, under=None):
         """A bracket fungus on a trunk: a half disc `radius` out from `at` toward `out` (horizontal), domed on top, a lip
-        round its edge and flat beneath, its rim drooping a little."""
+        round its edge and flat beneath, its rim drooping a little; `under` its underside's material (the lantern tree's
+        gills, glowing), else the cap's."""
+        under = mat if under is None else under
         o = Vector((out.x, out.y, 0)).normalized()
         side = UP.cross(o).normalized()
         at = Vector(at)
-        rim, under = [], []
+        rim, below = [], []
         for j in range(seg + 1):
             a = math.pi * j / seg
             r = radius * (0.85 + 0.15 * math.sin(a * 3 + radius * 7))
             p = at + (side * math.cos(a) + o * math.sin(a)) * r
             fall = droop * thick * math.sin(a) ** 2
             rim.append(self.bm.verts.new(p + UP * (thick * 0.25 - fall)))
-            under.append(self.bm.verts.new(p - UP * (thick * 0.25 + fall)))
+            below.append(self.bm.verts.new(p - UP * (thick * 0.25 + fall)))
         crown = self.bm.verts.new(at + o * radius * 0.25 + UP * thick)
         foot = self.bm.verts.new(at - UP * thick * 0.3)
         for j in range(seg):
             k = j + 1
             uv = lambda p: ((p - at).dot(side) / tile, (p - at).dot(o) / tile)
             self.face([crown, rim[j], rim[k]], [uv(crown.co), uv(rim[j].co), uv(rim[k].co)], mat)
-            self.face([rim[j], under[j], under[k], rim[k]], [(j * 0.1, 0), (j * 0.1, 0.15), (k * 0.1, 0.15), (k * 0.1, 0)], mat)
-            self.face([foot, under[k], under[j]], [uv(foot.co), uv(under[k].co), uv(under[j].co)], mat)
+            self.face([rim[j], below[j], below[k], rim[k]], [(j * 0.1, 0), (j * 0.1, 0.15), (k * 0.1, 0.15), (k * 0.1, 0)], mat)
+            self.face([foot, below[k], below[j]], [uv(foot.co), uv(below[k].co), uv(below[j].co)], under)
 
     def barnacle(self, at, normal, r, h, mat, sides=5):
         """An acorn barnacle on what it's stuck to: a squat cone `r` round at its foot and `h` high, open at the top in a
@@ -240,6 +251,133 @@ class Tree:
             step = (Vector(path[i + 1]) - Vector(path[i])).length / tile
             self.face([lefts[i], lefts[i + 1], rights[i + 1], rights[i]], [(0, run), (0, run + step), (0.3, run + step), (0.3, run)], mat, smooth=True)
             run += step
+
+    def drip(self, top, length, r, mat, k, sides=4, bulb=0.6, lean=None):
+        """Something thick hanging off a limb in a string (tar): `length` down from `top`, `r` round at its root, thinning
+        to a thread and swelling to a drop at its tip. In a "_drip" layer it sags from its root and draws back up
+        (scene.vert): v runs from 1 at its root (Blender's 0.001) down a quarter of the metres it hangs, and the whole part
+        of u is `k`, which drip it is, so each moves on its own phase and moves as one."""
+        top = Vector(top)
+        lean = Vector(lean) if lean is not None else Vector()
+        tip = top - UP * length + lean
+        a = Vector((1, 0, 0))
+        e1 = UP.cross(a).normalized()
+        e2 = UP.cross(e1)
+        uvz = lambda p: 0.001 + max(0.0, top.z - p.z) / 4.0
+        ring_at = [(0.0, r), (0.3, r * 0.5), (0.7, r * 0.26), (0.86, r * 0.3)]
+        rings = []
+        for f, rr in ring_at:
+            c = top.lerp(tip, f)
+            rings.append([self.bm.verts.new(c + (e1 * math.cos(2 * math.pi * j / sides) + e2 * math.sin(2 * math.pi * j / sides)) * rr)
+                          for j in range(sides)])
+        uu = lambda j: k + 0.02 + 0.96 * j / sides
+        for i in range(len(rings) - 1):
+            for j in range(sides):
+                q = (j + 1) % sides
+                vs = [rings[i][j], rings[i][q], rings[i + 1][q], rings[i + 1][j]]
+                self.face(vs, [(uu(j), uvz(rings[i][j].co)), (uu(j + 1), uvz(rings[i][q].co)), (uu(j + 1), uvz(rings[i + 1][q].co)),
+                               (uu(j), uvz(rings[i + 1][j].co))], mat)
+        # The drop: wider than the thread, hanging under it.
+        rb = r * bulb
+        c = tip + UP * rb * 0.6
+        mid = [self.bm.verts.new(c + (e1 * math.cos(2 * math.pi * (j + 0.5) / sides) + e2 * math.sin(2 * math.pi * (j + 0.5) / sides)) * rb)
+               for j in range(sides)]
+        low = self.bm.verts.new(tip - UP * rb * 0.9)
+        last = rings[-1]
+        for j in range(sides):
+            q = (j + 1) % sides
+            self.face([last[j], last[q], mid[q], mid[j]], [(uu(j), uvz(last[j].co)), (uu(j + 1), uvz(last[q].co)), (uu(j + 1), uvz(mid[q].co)),
+                                                          (uu(j), uvz(mid[j].co))], mat)
+            self.face([mid[j], mid[q], low], [(uu(j), uvz(mid[j].co)), (uu(j + 1), uvz(mid[q].co)), (uu(j + 0.5), uvz(low.co))], mat)
+        return tip
+
+    def creep(self, limb, t0, t1, mat, r=0.03, turns=0.6, angle=0.0, steps=10, sides=3, wobble=0.35, out=0.0, seed=0):
+        """A vein or a tendril of the Corruption crawling over a limb's bark from `t0` to `t1` of it, winding `turns` round
+        it as it goes, swelling and thinning, lying on the bark (`out` proud of it): what makes a tree read as taken from
+        the line, the bark netted over with it."""
+        rng = random.Random(seed)
+        pts, radii = [], []
+        ph = rng.uniform(0, 6.28)
+        for i in range(steps + 1):
+            f = i / steps
+            tt = lerp(t0, t1, f)
+            a = angle + turns * 2 * math.pi * f + wobble * math.sin(f * 7 + ph)
+            p, n = limb.surface(tt, a, out + r * 0.4)
+            pts.append(p)
+            radii.append(r * (0.55 + 0.45 * math.sin(math.pi * min(1.0, f * 1.4))) * (1 + 0.35 * math.sin(f * 11 + ph)))
+        radii[-1] = 0.0
+        return self.tube(pts, radii, sides, mat, 0.4, point=True)
+
+    def wound(self, at, normal, rx, ry, flesh, lip, seg=8, swell=0.05, proud=0.02):
+        """Where the bark's split open on the meat under it: an oval of `flesh` bulging out of the split by `swell`, its
+        lips of bark (`lip`) rolled back and swollen round it."""
+        n = Vector(normal).normalized()
+        side = UP.cross(n)
+        side = side.normalized() if side.length > 1e-6 else Vector((1, 0, 0))
+        up = n.cross(side).normalized()
+        at = Vector(at)
+        inner, roll, outer = [], [], []
+        for j in range(seg):
+            a = 2 * math.pi * j / seg
+            jag = 1 + 0.18 * math.sin(a * 3 + rx * 31) + 0.1 * math.sin(a * 5 + ry * 17)
+            q = (side * math.cos(a) * rx + up * math.sin(a) * ry) * jag
+            inner.append(self.bm.verts.new(at + n * proud + q * 0.92))
+            roll.append(self.bm.verts.new(at + n * (proud + swell * 0.9) + q * 1.12))
+            outer.append(self.bm.verts.new(at - n * proud * 0.4 + q * 1.5))
+        mid = self.bm.verts.new(at + n * (proud + swell))
+        mids = [self.bm.verts.new(at + n * (proud + swell * 0.75) + (side * math.cos(2 * math.pi * j / seg) * rx + up * math.sin(2 * math.pi * j / seg) * ry) * 0.5)
+                for j in range(seg)]
+        uv = lambda p: ((p - at).dot(side) / 0.4 + 0.5, (p - at).dot(up) / 0.4 + 0.5)
+        for j in range(seg):
+            k = (j + 1) % seg
+            self.face([mid, mids[j], mids[k]], [uv(mid.co), uv(mids[j].co), uv(mids[k].co)], flesh)
+            self.face([mids[j], inner[j], inner[k], mids[k]], [uv(mids[j].co), uv(inner[j].co), uv(inner[k].co), uv(mids[k].co)], flesh)
+            self.face([inner[j], roll[j], roll[k], inner[k]], [(j * 0.15, 0), (j * 0.15, 0.08), (j * 0.15 + 0.15, 0.08), (j * 0.15 + 0.15, 0)], lip)
+            self.face([roll[j], outer[j], outer[k], roll[k]], [(j * 0.15, 0.08), (j * 0.15, 0.2), (j * 0.15 + 0.15, 0.2), (j * 0.15 + 0.15, 0.08)], lip)
+
+    def growth(self, at, normal, size, mat, n=4, seed=0, seg=6, rings=4):
+        """A tumour of the Corruption's on a limb: `n` swollen lumps fused into each other and half sunk into what they grow
+        out of, the biggest in the middle."""
+        rng = random.Random(seed)
+        nrm = Vector(normal).normalized()
+        a = Vector((1, 0, 0)) if abs(nrm.x) < 0.9 else Vector((0, 1, 0))
+        e1 = nrm.cross(a).normalized()
+        e2 = nrm.cross(e1)
+        rot = Vector((0, 0, 1)).rotation_difference(nrm)
+        at = Vector(at)
+        for i in range(n):
+            s = size * (1.0 if i == 0 else rng.uniform(0.45, 0.75))
+            off = Vector() if i == 0 else (e1 * rng.gauss(0, 1) + e2 * rng.gauss(0, 1)).normalized() * size * rng.uniform(0.6, 1.0)
+            c = at + off + nrm * s * 0.15
+            self.blob(c, (s, s * rng.uniform(0.8, 1.0), s * rng.uniform(0.7, 0.95)), mat, rot=rot, seg=seg, rings=rings, noise=0.18, seed=seed + i)
+
+    def pustules(self, at, normal, spread, n, mat, size=0.03, seed=0):
+        """A crop of blisters on the bark: domes of a sac, crowded in a patch `spread` across."""
+        rng = random.Random(seed)
+        nrm = Vector(normal).normalized()
+        a = Vector((1, 0, 0)) if abs(nrm.x) < 0.9 else Vector((0, 1, 0))
+        e1 = nrm.cross(a).normalized()
+        e2 = nrm.cross(e1)
+        rot = Vector((0, 0, 1)).rotation_difference(nrm)
+        for _ in range(n):
+            s = size * rng.uniform(0.6, 1.4)
+            c = Vector(at) + (e1 * rng.gauss(0, 0.5) + e2 * rng.gauss(0, 0.5)) * spread - nrm * s * 0.25
+            self.blob(c, (s, s, s * 0.8), mat, rot=rot, seg=5, rings=4, half=True)
+
+    def wire(self, limb, t0, t1, turns, mat, r=0.008, out=0.01, barbs=0, barb_mat=None, steps_per_turn=9, seed=0):
+        """Barbed wire wound round a limb from `t0` to `t1` of it, `turns` times, biting into it, with `barbs` along it."""
+        rng = random.Random(seed)
+        steps = max(4, int(turns * steps_per_turn))
+        pts = []
+        for i in range(steps + 1):
+            f = i / steps
+            p, _ = limb.surface(lerp(t0, t1, f), turns * 2 * math.pi * f + rng.uniform(-0.05, 0.05), out)
+            pts.append(p)
+        self.tube(pts, [r] * len(pts), 3, mat, 0.2, point=False, smooth=True)
+        for i in range(barbs):
+            p, n = limb.surface(lerp(t0, t1, (i + 0.5) / barbs), turns * 2 * math.pi * (i + 0.5) / barbs, out)
+            d = (n + Vector((rng.gauss(0, 0.6), rng.gauss(0, 0.6), rng.gauss(0, 0.6)))).normalized()
+            self.cone(p - d * 0.01, p + d * 0.045, 0.006, 3, barb_mat if barb_mat is not None else mat)
 
     # -- cards and sheets -----------------------------------------------------------------------------------------
     def hang(self, top, length, width, mat, u0=0.0, u1=1.0, turn=0.0, sway=None, crossed=True, taper=0.8):

@@ -565,11 +565,15 @@ public sealed unsafe class GreyboxRenderer : IDisposable
     /// <summary>
     /// How a layer moves, by its name (the frame's per-layer table; Shaders/frame.glsl <c>motionOf</c>): 1 for the
     /// foliage's cards and boughs, which bend in the wind from their root (scene.vert); 2 for water, whose ripples and
-    /// swell run with the wind and its current (scene.frag; ARCHITECTURE §8 note 424); 0 for everything that stands still.
+    /// swell run with the wind and its current (scene.frag; ARCHITECTURE §8 note 424); 3 for drips, which sag slowly
+    /// from their root and draw back up (scene.vert; the tar tree's, note 696); 4 for a living light whose glow breathes
+    /// (scene.frag; the lantern tree's pods, note 696); 0 for everything that stands still.
     /// </summary>
     public static float Motion(string layer) =>
         layer.EndsWith("_card", StringComparison.Ordinal) || layer.EndsWith("_bough", StringComparison.Ordinal) ? 1
         : layer.StartsWith("water_", StringComparison.Ordinal) ? 2
+        : layer.EndsWith("_drip", StringComparison.Ordinal) ? 3
+        : layer.EndsWith("_pod", StringComparison.Ordinal) ? 4
         : 0;
 
     /// <summary>

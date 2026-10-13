@@ -4231,6 +4231,27 @@
       {
         "repo": "https://github.com/amazingsammed/mini_textures",
         "commit": "b080ca4df63813b3b764a8f31b3f418e3d6b6a2a",
+        "path": "mini_texture/textures/Marble012_diffuse.jpg",
+        "license": "CC0-1.0",
+        "attribution": "ambientCG (CC0-1.0), via the library's flesh"
+      },
+      {
+        "repo": "https://github.com/amazingsammed/mini_textures",
+        "commit": "b080ca4df63813b3b764a8f31b3f418e3d6b6a2a",
+        "path": "mini_texture/textures/Marble012_displacement.jpg",
+        "license": "CC0-1.0",
+        "attribution": "ambientCG (CC0-1.0), via the library's flesh"
+      },
+      {
+        "repo": "https://github.com/amazingsammed/mini_textures",
+        "commit": "b080ca4df63813b3b764a8f31b3f418e3d6b6a2a",
+        "path": "mini_texture/textures/Ground111_displacement.jpg",
+        "license": "CC0-1.0",
+        "attribution": "ambientCG (CC0-1.0), via the library's fungal_crust"
+      },
+      {
+        "repo": "https://github.com/amazingsammed/mini_textures",
+        "commit": "b080ca4df63813b3b764a8f31b3f418e3d6b6a2a",
         "path": "mini_texture/textures/Rock064_diffuse.jpg",
         "license": "CC0-1.0",
         "attribution": "ambientCG (CC0-1.0), via the library's mineral_growth"
@@ -4337,6 +4358,20 @@
         "author": "Dark Territory",
         "license": "CC0-1.0",
         "attribution": "Dark Territory (modelled in tools/models from the texture library)"
+      },
+      {
+        "repo": "https://github.com/amazingsammed/mini_textures",
+        "commit": "b080ca4df63813b3b764a8f31b3f418e3d6b6a2a",
+        "path": "mini_texture/textures/Marble012_diffuse.jpg",
+        "license": "CC0-1.0",
+        "attribution": "ambientCG (CC0-1.0), via the library's flesh"
+      },
+      {
+        "repo": "https://github.com/amazingsammed/mini_textures",
+        "commit": "b080ca4df63813b3b764a8f31b3f418e3d6b6a2a",
+        "path": "mini_texture/textures/Marble012_displacement.jpg",
+        "license": "CC0-1.0",
+        "attribution": "ambientCG (CC0-1.0), via the library's flesh"
       },
       {
         "repo": "https://github.com/amazingsammed/mini_textures",
@@ -4465,6 +4500,20 @@
       {
         "repo": "https://github.com/amazingsammed/mini_textures",
         "commit": "b080ca4df63813b3b764a8f31b3f418e3d6b6a2a",
+        "path": "mini_texture/textures/Marble012_diffuse.jpg",
+        "license": "CC0-1.0",
+        "attribution": "ambientCG (CC0-1.0), via the library's flesh"
+      },
+      {
+        "repo": "https://github.com/amazingsammed/mini_textures",
+        "commit": "b080ca4df63813b3b764a8f31b3f418e3d6b6a2a",
+        "path": "mini_texture/textures/Marble012_displacement.jpg",
+        "license": "CC0-1.0",
+        "attribution": "ambientCG (CC0-1.0), via the library's flesh"
+      },
+      {
+        "repo": "https://github.com/amazingsammed/mini_textures",
+        "commit": "b080ca4df63813b3b764a8f31b3f418e3d6b6a2a",
         "path": "mini_texture/textures/Rock064_displacement.jpg",
         "license": "CC0-1.0",
         "attribution": "ambientCG (CC0-1.0), via the library's pine_bark"
@@ -4526,16 +4575,23 @@
       {
         "repo": "https://github.com/amazingsammed/mini_textures",
         "commit": "b080ca4df63813b3b764a8f31b3f418e3d6b6a2a",
-        "path": "mini_texture/textures/Rock064_displacement.jpg",
+        "path": "mini_texture/textures/Marble012_diffuse.jpg",
         "license": "CC0-1.0",
-        "attribution": "ambientCG (CC0-1.0), via the library's pine_bark"
+        "attribution": "ambientCG (CC0-1.0), via the library's flesh"
       },
       {
         "repo": "https://github.com/amazingsammed/mini_textures",
         "commit": "b080ca4df63813b3b764a8f31b3f418e3d6b6a2a",
-        "path": "mini_texture/textures/Marble012_diffuse.jpg",
+        "path": "mini_texture/textures/Marble012_displacement.jpg",
         "license": "CC0-1.0",
-        "attribution": "ambientCG (CC0-1.0), via the library's sac"
+        "attribution": "ambientCG (CC0-1.0), via the library's flesh"
+      },
+      {
+        "repo": "https://github.com/amazingsammed/mini_textures",
+        "commit": "b080ca4df63813b3b764a8f31b3f418e3d6b6a2a",
+        "path": "mini_texture/textures/Rock064_displacement.jpg",
+        "license": "CC0-1.0",
+        "attribution": "ambientCG (CC0-1.0), via the library's pine_bark"
       }
     ]
   },
@@ -4556,6 +4612,20 @@
         "author": "Dark Territory",
         "license": "CC0-1.0",
         "attribution": "Dark Territory (modelled in tools/models from the texture library)"
+      },
+      {
+        "repo": "https://github.com/amazingsammed/mini_textures",
+        "commit": "b080ca4df63813b3b764a8f31b3f418e3d6b6a2a",
+        "path": "mini_texture/textures/Marble012_diffuse.jpg",
+        "license": "CC0-1.0",
+        "attribution": "ambientCG (CC0-1.0), via the library's flesh"
+      },
+      {
+        "repo": "https://github.com/amazingsammed/mini_textures",
+        "commit": "b080ca4df63813b3b764a8f31b3f418e3d6b6a2a",
+        "path": "mini_texture/textures/Marble012_displacement.jpg",
+        "license": "CC0-1.0",
+        "attribution": "ambientCG (CC0-1.0), via the library's flesh"
       },
       {
         "repo": "https://github.com/amazingsammed/mini_textures",

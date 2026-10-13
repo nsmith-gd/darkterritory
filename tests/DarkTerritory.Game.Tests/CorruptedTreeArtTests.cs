@@ -1,5 +1,6 @@
 using System.Numerics;
 using Ballast;
+using Ballast.Render;
 using DarkTerritory.Game.Art;
 using DarkTerritory.Sim.LineGen;
 
@@ -35,8 +36,10 @@ public class CorruptedTreeArtTests
             var far = Props.Get(CorruptedTreeArt.Prop(kind, v, far: true));
             Assert.True(near is not null && far is not null, $"{kind} {v}: tools/models/build.sh corrupted_trees");
             Assert.All(near!.Vertices.Concat(far!.Vertices), x => Assert.True(x.Layer >= 0, $"{kind} {v}: a vertex with no layer"));
-            // Modelled about as a spruce is (WorldKit.Spruce 850-1,850), the cards two crossed quads, both faces.
-            Assert.InRange(near.Triangles, 1000, 2600);
+            // Modelled with the Corruption all over them (the director's second pass: 2,000-4,100), held under 4,500 so the
+            // woods' frame stays under what it was without them (CorruptedTreeArt.ModelledWithinM); the cards two crossed
+            // quads, both faces.
+            Assert.InRange(near.Triangles, 1500, 4500);
             Assert.Equal(8, far.Triangles);
             float top = near.Vertices.Max(x => x.Position.Y), foot = near.Vertices.Min(x => x.Position.Y);
             Assert.InRange(top, 8f, CorruptedTreeArt.BuiltHeight + 1.5f);
@@ -75,8 +78,8 @@ public class CorruptedTreeArtTests
     [Fact]
     public void WhatHangsOffThemSwingsFromWhereItHangs()
     {
-        var hung = new[] { Look.Layer("wrack_card"), Look.Layer("leaf_card") };
-        Assert.All(hung, l => Assert.True(l >= 0, "the hangings' cards are in the library (tools/art/textures.py --only wrack_card,leaf_card)"));
+        var hung = new[] { Look.Layer("wrack_card"), Look.Layer("leaf_card"), Look.Layer("shroud_card") };
+        Assert.All(hung, l => Assert.True(l >= 0, "the hangings' cards are in the library (tools/art/textures.py --only wrack_card,leaf_card,shroud_card)"));
         int cards = 0;
         foreach (var kind in new[] { "barnacle", "webbed", "lattice" })
         {
@@ -96,6 +99,42 @@ public class CorruptedTreeArtTests
             }
         }
         Assert.True(cards > 50);
+    }
+
+    /// <summary>
+    /// The tar's drips sag from where they hang and draw back up, and the lantern's pods breathe, in the shaders alone
+    /// (GreyboxRenderer.Motion 3 and 4): a drip's v is 1 at its root and falls as it hangs, a pod's is any; the whole part of
+    /// u says which drip or pod a vertex is of, so each moves as one, and each on its own (dozens of them a tree).
+    /// </summary>
+    [Fact]
+    public void TheTarsDripsSagFromTheirRootsAndTheLanternsPodsBreatheEachOnItsOwn()
+    {
+        int drip = Look.Layer("tar_drip"), pod = Look.Layer("glow_pod");
+        Assert.True(drip >= 0 && pod >= 0, "tools/art/textures.py --only tar_drip,glow_pod");
+        Assert.Equal(3, GreyboxRenderer.Motion("tar_drip"));
+        Assert.Equal(4, GreyboxRenderer.Motion("glow_pod"));
+        for (int v = 0; v < CorruptedTreeArt.Variants; v++)
+        {
+            var drips = Props.Get(CorruptedTreeArt.Prop("tar", v, far: false))!.Vertices.Where(x => (int)x.Layer == drip)
+                .GroupBy(x => (int)MathF.Floor(x.Uv.X)).ToArray();
+            Assert.True(drips.Length >= 30, $"tar {v}: {drips.Length} drips");
+            foreach (var d in drips)
+            {
+                var root = d.MaxBy(x => x.Position.Y);
+                var tip = d.MinBy(x => x.Position.Y);
+                // Its root the top of it at v ~1; its tip the lowest, a quarter of the metres down in v (scene.vert).
+                Assert.InRange(root.Uv.Y, 0.99f, 1.0f);
+                float hang = root.Position.Y - tip.Position.Y;
+                Assert.InRange(root.Uv.Y - tip.Uv.Y, hang / 4 - 0.02f, hang / 4 + 0.02f);
+                Assert.True(tip.Position.Y - hang * hang / 16 * 1.2f > -0.05f, $"tar {v}: drip {d.Key} sags into the ground");
+                Assert.True(d.Max(x => MathF.Abs(x.Position.X - root.Position.X)) < 0.3f, $"tar {v}: drip {d.Key} is more than one drip");
+            }
+            var pods = Props.Get(CorruptedTreeArt.Prop("lantern", v, far: false))!.Vertices.Where(x => (int)x.Layer == pod)
+                .GroupBy(x => (int)MathF.Floor(x.Uv.X)).ToArray();
+            Assert.True(pods.Length >= 25, $"lantern {v}: {pods.Length} pods");
+            // One pod, or one cluster of bonnets, each.
+            Assert.All(pods, p => Assert.True(p.Max(x => x.Position.Y) - p.Min(x => x.Position.Y) < 0.7f, $"lantern {v}: pod {p.Key}"));
+        }
     }
 
     /// <summary>

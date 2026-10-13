@@ -2575,7 +2575,8 @@ static object ArtHouses(string content, string[] args)
 
 // The Corruption's trees (note 696): each kind's three as a lineup, a row a kind, lamp-lit with a cold fill and the
 // moon, as they stand in the woods; --kind barnacle one kind's; --far their cards (what's drawn past
-// CorruptedTreeArt.ModelledWithinM) in place of their models, to judge them against each other.
+// CorruptedTreeArt.ModelledWithinM) in place of their models, to judge them against each other; --time s the frame's
+// clock (the tar's drips sag and the lantern's pods breathe with it: a run of these is their animation).
 static object ArtTrees(string content, string[] args)
 {
     var look = DarkTerritory.Game.Look.Load(content);
@@ -2614,6 +2615,7 @@ static object ArtTrees(string content, string[] args)
             var light = look.Apply(FrameLighting.Night);
             light.FogDensity = 0.002f;
             light.LampRange = 0.01f;
+            light.Time = Opt(args, "--time", 0);
             var px = renderer.Render(mesh, camera, light, light.FogColor);
             int ox = v * w, oy = r * h;
             for (int y = 0; y < h; y++)
