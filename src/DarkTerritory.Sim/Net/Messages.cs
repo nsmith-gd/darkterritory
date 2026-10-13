@@ -74,7 +74,8 @@ public static class Protocol
     // 53: four shared slots (note 594): the player record's held slot carries the slots holding a thing over it, and the body
     //     record's locker field a thing's slot and whether it's put away.
     // 54: a tool on a crew locker's shelf (note 649): a body kind of its own, its tool in the body record's ninth field.
-    public const int Version = 54;
+    // 55: a third byte of buttons on every intent, after the voice level (note 664: crouch, and pushing the gun on its own key).
+    public const int Version = 55;
 }
 
 public enum MessageType : byte
@@ -212,6 +213,8 @@ public static class Messages
         bool tool = i.Select != 0 || i.Cycle != 0 || i.Emote != Emote.None;
         w.U8((byte)(tool ? i.Actions | PlayerActions.Tool : i.Actions & ~PlayerActions.Tool));
         w.U8(i.Voice);
+        // Note 664: the third byte (crouch, push the gun along).
+        w.U8((byte)i.Moves);
         if (i.Watch != 0)
             w.U8(i.Watch);
         // A hotbar choice (T108), only on the tick it's made: the slot in the low nibble, the wheel's step in the high; an
@@ -255,6 +258,7 @@ public static class Messages
         i.Lamp = (LampSwitch)((notch >> 5) & 3);
         i.Actions = (PlayerActions)r.U8();
         i.Voice = r.U8();
+        i.Moves = (PlayerMoves)r.U8();
         if ((notch & 0x80) != 0)
             i.Watch = r.U8();
         if (i.Has(PlayerActions.Tool))

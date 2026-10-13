@@ -361,7 +361,9 @@ public sealed partial class GameAudio
                         if (c.Stride >= stride)
                         {
                             c.Stride = Math.Min(c.Stride - stride, stride * 0.5);
-                            Cue(Running(s.Surface, speed) ? "crew-footsteps.run" : "crew-footsteps.walk", Footing.Under(s, world) ?? "ground", feet, occlusion);
+                            // Note 664: crouched, a quieter step (player.json crouch.footstepGainDb); nothing else listens for them.
+                            float soft = s.Has(PlayerFlags.Crouched) && world.Movement is { } mt ? (float)Math.Pow(10, mt.Crouch.FootstepGainDb / 20) : 1;
+                            Cue(Running(s.Surface, speed) ? "crew-footsteps.run" : "crew-footsteps.walk", Footing.Under(s, world) ?? "ground", feet, occlusion, soft);
                         }
                     }
                     else

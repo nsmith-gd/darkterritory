@@ -452,7 +452,8 @@ public sealed class GunnerBot(GunTuning guns, ChoirTuning? choir = null, int see
 
     /// <summary>
     /// On the roof of the rear car while the Car Hugger's latched on it, with the gun still on it and room on the car ahead's
-    /// rail: behind the gun, facing up the train, and push it along (Use held, walking) until it's over the coupling.
+    /// rail: behind the gun, facing up the train, and push it along (the push key held, walking: note 664) until it's over
+    /// the coupling.
     /// </summary>
     PlayerIntent? SaveGun(in PlayerState self, World world)
     {
@@ -481,7 +482,7 @@ public sealed class GunnerBot(GunTuning guns, ChoirTuning? choir = null, int see
         {
             MoveZ = 1,
             MoveX = (float)Math.Clamp((self.Position.X - mount.Position.X) * -0.8, -1, 1),
-            Buttons = PlayerButtons.Use,
+            Moves = PlayerMoves.Push,
         };
     }
 }

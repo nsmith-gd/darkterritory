@@ -2173,7 +2173,8 @@ public static partial class Hud
                 : Guns.Ready(gun, combat.Guns) <= 0 ? Guns.Stowed(train, combat.Guns) > 0 ? "THE RACK'S EMPTY: POWDER FROM THE GUARD VAN" : "NO SHOT"
                 : train.BoilerTuning is not null && train.Boiler.Pressure < combat.Guns.MinPressure ? "NO STEAM"
                 : seated ? null
-                : "SIT : [E]   PUSH ALONG : [E] + WALK";
+                // Note 664: pushing it along is its own key (Use's sitting in it; the director: "a different button").
+                : "SIT : [E]   PUSH : HOLD [O] + WALK";
         }
         // A headset player's prompts follow their reaching hand (T29), as the sim's reach does.
         var hand = world.Hand;

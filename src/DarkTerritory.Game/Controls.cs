@@ -23,6 +23,8 @@ public enum Control
     Supplies,
     // Note 298 (GDD §9's yard: "dance"): held, the emote wheel; let go, the one the mouse is on.
     Emote,
+    // Note 664 (the director's playtest, 13 Oct): crouch, held; and pushing the gun along, its own key (Use is sitting in it).
+    Crouch, Push,
 }
 
 /// <summary>The default key for each control, by the key's name (Ballast.Platform's <c>Key</c>), and how the menu says it.</summary>
@@ -55,9 +57,13 @@ public static class Controls
         [Control.Uncouple] = "Z",
         [Control.Ladder] = "F",
         [Control.Bookmark] = "P",
-        [Control.Vent] = "LeftCtrl",
+        // Note 664: the genre's crouch key is LeftCtrl, and the vent (cab only, rare) went to N: one key doing two things in
+        // two places is what the director flagged for E.
+        [Control.Vent] = "N",
         [Control.Supplies] = "I",
         [Control.Emote] = "J",
+        [Control.Crouch] = "LeftCtrl",
+        [Control.Push] = "O",
     };
 
     /// <summary>Keys nothing can be bound to: the menus' own.</summary>
@@ -81,6 +87,8 @@ public static class Controls
         Control.Vent => "VENT STEAM (HOLD, IN THE CAB)",
         Control.Supplies => "SUPPLIES ABOARD (TOGGLE)",
         Control.Emote => "EMOTE (HOLD, THE MOUSE PICKS)",
+        Control.Crouch => "CROUCH (HOLD)",
+        Control.Push => "PUSH THE GUN ALONG (HOLD, WALKING)",
         _ => c.ToString().ToUpperInvariant(),
     };
 

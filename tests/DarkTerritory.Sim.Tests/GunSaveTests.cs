@@ -104,12 +104,13 @@ public class GunSaveTests
     [Fact]
     public void PushingAGunPastAHatchLadderDoesntTakeHoldOfIt()
     {
-        // The guard van's hatch ladder comes up through the roof on the gun's rail: Use and walking is pushing, not climbing.
+        // The guard van's hatch ladder comes up through the roof on the gun's rail: pushing it along (the push key and walking,
+        // note 664) isn't climbing.
         var n = new Night(4, speed: 8);
         int rear = n.Train.Dynamics.Consist.Vehicles[^1].Id;
         var mount = Guns.Mount(n.Train, rear)!.Value;
         n.Crew[1] = PlayerMotor.SpawnOnRoof(n.Train, rear, mount.Position.Z + 0.7, P) with { Yaw = 0 };
-        n.Run(3, _ => new PlayerIntent { MoveZ = 1, Buttons = PlayerButtons.Use });
+        n.Run(3, _ => new PlayerIntent { MoveZ = 1, Moves = PlayerMoves.Push });
         Assert.Equal(Surface.Roof, n.Crew[1].Surface);
         Assert.True(n.Train.Vehicles[rear].Gun.Z < mount.Position.Z - 3, "it pushed the gun on past the ladder");
     }

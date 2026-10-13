@@ -41,7 +41,11 @@ public sealed record TrainTuning
 /// </summary>
 /// <param name="EyeHeight">The eye over the feet (m), where the look is taken from.</param>
 /// <param name="LookDegrees">A thing in reach within this of the view's centre is looked at; the nearest to it wins.</param>
-public sealed record PickTuning(double EyeHeight = 1.6, double LookDegrees = 30);
+public sealed record PickTuning(double EyeHeight = 1.6, double LookDegrees = 30)
+{
+    /// <summary>Note 664: the eye of a crouched player (player.json crouch.eyeDrop under <see cref="EyeHeight"/>).</summary>
+    public double CrouchedEyeHeight { get; init; } = 1.05;
+}
 /// <summary>A bend taken too fast (note 265). Field docs live in train.json <c>overspeed</c>.</summary>
 public sealed record OverspeedTuning
 {

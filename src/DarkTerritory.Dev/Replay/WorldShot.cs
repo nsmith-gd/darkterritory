@@ -66,7 +66,7 @@ public sealed class WorldShot : IDisposable
             return new ShotCamera(framing.Camera, subject.Name, framing.Note);
         }
         if (view.StartsWith("eye:", StringComparison.Ordinal) && byte.TryParse(view[4..], out byte id) && crew.FirstOrDefault(c => c.Id == id) is { Id: > 0 } who)
-            return new ShotCamera(Eyes.Operator(who.State, world) ?? Eyes.From(who.State, who.State, world.Train.Frames, 1, 0, 0));
+            return new ShotCamera(Eyes.Operator(who.State, world) ?? Eyes.From(who.State, who.State, world.Train.Frames, 1, 0, 0, world.Movement?.Crouch.EyeDrop ?? 0));
         return new ShotCamera(Views.Get(view, world.Train, car));
     }
 
