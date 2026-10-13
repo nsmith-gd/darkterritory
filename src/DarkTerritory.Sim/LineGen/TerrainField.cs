@@ -164,7 +164,71 @@ public sealed class TerrainField
     }
 
     /// <summary>The height of the land at (x, z) (plan §12.2).</summary>
-    public double Height(double x, double z) => Height(x, z, true);
+    public double Height(double x, double z) => TownAt(x, z, false) ?? Height(x, z, true);
+
+    /// <summary>
+    /// A town type's ground laid over the land (queue #424, ARCHITECTURE §8 note 692): its terraces, quarry benches, ramps,
+    /// decks and water, in its rail frame from <paramref name="origin"/> (its frame's start, on the rail) along
+    /// <paramref name="tangent"/>. Laid by whoever puts the town down (the world, on every machine alike); laying the same
+    /// town again changes nothing.
+    /// </summary>
+    public void Lay(Towns.TownGround ground, Double3 origin, Double3 tangent)
+    {
+        if (ground.Flat)
+            return;
+        var along = new Double3(tangent.X, 0, tangent.Z).Normalized;
+        var right = Double3.Cross(along, Double3.Up).Normalized;
+        double minX = double.MaxValue, maxX = double.MinValue, minZ = double.MaxValue, maxZ = double.MinValue;
+        foreach (var (s, d) in new[] { (ground.S0, ground.D0), (ground.S0 + ground.Ns, ground.D0), (ground.S0, ground.D0 + ground.Nd), (ground.S0 + ground.Ns, ground.D0 + ground.Nd) })
+        {
+            var p = origin + along * s + right * d;
+            (minX, maxX, minZ, maxZ) = (Math.Min(minX, p.X), Math.Max(maxX, p.X), Math.Min(minZ, p.Z), Math.Max(maxZ, p.Z));
+        }
+        var laid = new LaidTown(ground, origin, along, right, minX, maxX, minZ, maxZ);
+        lock (_townsLock)
+        {
+            if (_towns.Any(t => ReferenceEquals(t.Ground, ground) || t.Origin == origin && t.Along == along && t.Ground.Ns == ground.Ns && t.Ground.Nd == ground.Nd))
+                return;
+            _towns = [.. _towns, laid];
+        }
+    }
+
+    sealed record LaidTown(Towns.TownGround Ground, Double3 Origin, Double3 Along, Double3 Right, double MinX, double MaxX, double MinZ, double MaxZ);
+
+    LaidTown[] _towns = [];
+    readonly Lock _townsLock = new();
+
+    /// <summary>A laid town's ground at (x, z) (absolute height), where it's shaped: what's stood on (<paramref name="standing"/>:
+    /// a deck's planks) or the land itself; null outside every town's shaped ground.</summary>
+    double? TownAt(double x, double z, bool standing)
+    {
+        var towns = _towns;
+        for (int i = 0; i < towns.Length; i++)
+        {
+            var t = towns[i];
+            if (x < t.MinX || x > t.MaxX || z < t.MinZ || z > t.MaxZ)
+                continue;
+            double dx = x - t.Origin.X, dz = z - t.Origin.Z;
+            double s = dx * t.Along.X + dz * t.Along.Z, d = dx * t.Right.X + dz * t.Right.Z;
+            if (t.Ground.Shaped(s, d))
+                return t.Origin.Y + (standing ? t.Ground.Level(s, d) : t.Ground.Bed(s, d));
+        }
+        return null;
+    }
+
+    /// <summary>A laid town's water at (x, z) (its surface's height), or null.</summary>
+    double? TownWater(double x, double z)
+    {
+        foreach (var t in _towns)
+        {
+            if (x < t.MinX || x > t.MaxX || z < t.MinZ || z > t.MaxZ)
+                continue;
+            double dx = x - t.Origin.X, dz = z - t.Origin.Z;
+            if (t.Ground.Water(dx * t.Along.X + dz * t.Along.Z, dx * t.Right.X + dz * t.Right.Z) is { } w)
+                return t.Origin.Y + w;
+        }
+        return null;
+    }
 
     /// <summary>The land at (x, z), with or without the roads' beds (a road's surface is the land under its centre).</summary>
     double Height(double x, double z, bool roads)
@@ -743,6 +807,9 @@ public sealed class TerrainField
     /// </summary>
     public double Ground(Double3 p)
     {
+        // A town type's ground (note 692): its terraces and decks are what's stood on.
+        if (TownAt(p.X, p.Z, true) is { } town)
+            return town;
         var near = Nearby(p.X, p.Z, 12);
         foreach (var n in near)
         {
@@ -877,6 +944,8 @@ public sealed class TerrainField
     /// <summary><see cref="WaterAt(double, double)"/> where the land's <paramref name="height"/> there is already known (the lineside's, note 371).</summary>
     public double? WaterAt(double x, double z, double? height)
     {
+        if (TownWater(x, z) is { } town)
+            return town;
         foreach (var w in _plan.Water)
         {
             var edge = Array.Find(_edges, e => e.Id == w.Edge);

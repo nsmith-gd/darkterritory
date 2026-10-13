@@ -14,6 +14,9 @@ public enum DistrictKind : byte { Quarter, Water, Deck, Terrace, Plots, Yard }
 /// </summary>
 public sealed record TownDistrict(DistrictKind Kind, string Id, string Name, IReadOnlyList<(double S, double D)> Outline, double Level = 0)
 {
+    /// <summary>A water district's depth over its bed (m): a harbour's deep, a marsh's waded.</summary>
+    public double Depth { get; init; } = 1.6;
+
     /// <summary>Whether a point (along the line, across it) is inside its outline.</summary>
     public bool Holds(double s, double d)
     {

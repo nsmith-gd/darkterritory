@@ -20,7 +20,8 @@ public class TownWorksTests
 
     static Town Plan(string spec, int people)
     {
-        var content = Towns with { Tuning = Towns.Tuning with { Population = [people, people] } };
+        // The street town's works (note 353; the town types' are their own, note 692).
+        var content = Towns with { Tuning = Towns.Tuning with { Population = [people, people], Forms = Towns.Tuning.Forms with { Force = "" } } };
         var route = Routes.Generate(Content, spec, 6);
         double gate = route.GateOr(RouteTuning.Load(Content).YardLength);
         var world = new World(new TrainOnLine(new TrainDynamics(Consist.Uniform(Tuning.Train, 6, 1)), route.Build(), gate - 8), Tuning.Combat);

@@ -28,6 +28,7 @@ public sealed class Town
         Tuning = tuning;
         Looks = looks ?? new HouseLooks();
         _line = line;
+        Ground = TownGround.Of(plan);
         Walls = [.. BuildWalls()];
         Index();
         _behind = new double[plan.People.Count];
@@ -274,11 +275,27 @@ public sealed class Town
     /// <summary>The square's walls, its buildings, the solid things in it and its people, as boxes nobody walks through.</summary>
     public IReadOnlyList<Wall> Walls { get; }
 
-    /// <summary>A point in the town's rail frame, in the world: along the line, out to the side, up off the ground.</summary>
+    /// <summary>Its ground (note 692): a town type's terraces, benches, decks and water; the yard's level everywhere else.</summary>
+    public TownGround Ground { get; }
+
+    /// <summary>
+    /// Lays its ground over <paramref name="main"/>'s land (note 692), so what's stood on there is its terraces, decks and
+    /// basins' beds: the world does it as it puts the town down, on every machine alike.
+    /// </summary>
+    public void Lay(RailLine main)
+    {
+        if (Ground.Flat || main.Conditions is not { } c || (c is Net.HazardConditions h ? h.Inner : c) is not LineGen.PlanConditions pc)
+            return;
+        var start = _line.Sample(0);
+        pc.Terrain.Lay(Ground, start.Position, start.Tangent);
+    }
+
+    /// <summary>A point in the town's rail frame, in the world: along the line, out to the side, up off the ground (a town
+    /// type's terrace or deck there, note 692).</summary>
     public Double3 World(double s, double d, double up = 0)
     {
         var t = _line.Sample(s);
-        return t.Position + Right(t) * d + Double3.Up * up;
+        return t.Position + Right(t) * d + Double3.Up * (up + Ground.Level(s, d));
     }
 
     /// <summary>A direction in the rail frame (along the line, across it), level, in the world.</summary>
@@ -452,7 +469,21 @@ public sealed class Town
         foreach (var h in Plan.Houses)
             foreach (var w in HouseWalls(h))
                 yield return w;
+        // A town type's ground (note 692): its terraces' retaining walls, the rails along its deep water's edges.
+        foreach (var (s0, d0, s1, d1, bottom, top) in Ground.Edges())
+        {
+            var t = _line.Sample((s0 + s1) / 2);
+            var at = t.Position + Right(t) * ((d0 + d1) / 2);
+            var along = new Double3(t.Tangent.X, 0, t.Tangent.Z).Normalized;
+            bool acrossLine = Math.Abs(s1 - s0) < 1e-6;
+            var axis = acrossLine ? Right(t) : along;
+            double run = (acrossLine ? Math.Abs(d1 - d0) : Math.Abs(s1 - s0)) / 2;
+            yield return new Wall(at with { Y = 0 }, axis, run + 0.05, EdgeHalf, t.Position.Y + bottom, t.Position.Y + top);
+        }
     }
+
+    /// <summary>A retaining wall's or a rail's half-thickness (m): solid to a ball and a body, thin to the eye.</summary>
+    const double EdgeHalf = 0.2;
 
     /// <summary>
     /// A house's walls: a shut one is a box (a burnt one's knee-high), an open one its own walls with the front door and
@@ -502,6 +533,7 @@ public sealed class Town
         var at = t.Position + Right(t) * d;
         var along = new Double3(t.Tangent.X, 0, t.Tangent.Z).Normalized;
         var axis = turn == 0 ? along : (along * DMath.Cos(turn) + Right(t) * DMath.Sin(turn)).Normalized;
-        return new Wall(at with { Y = 0 }, axis, halfS, halfD, at.Y + up - 0.5, at.Y + up + height);
+        double level = Ground.Level(s, d);
+        return new Wall(at with { Y = 0 }, axis, halfS, halfD, at.Y + level + up - 0.5, at.Y + level + up + height);
     }
 }

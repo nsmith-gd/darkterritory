@@ -356,6 +356,11 @@ public sealed partial class WorldArt(Look look)
                     }
                     continue;
                 }
+                // A town type's shaped ground is the town's to draw (note 692): the land's quad is left out where all of it is.
+                if (MathF.Abs(lat) > 6 && (Departure is not null || Arrival is not null)
+                    && TownHole(left[c].X + eye.X, left[c].Z + eye.Z) && TownHole(left[c + 1].X + eye.X, left[c + 1].Z + eye.Z)
+                    && TownHole(right[c].X + eye.X, right[c].Z + eye.Z) && TownHole(right[c + 1].X + eye.X, right[c + 1].Z + eye.Z))
+                    continue;
                 var (a, b, band) = GroundLayers(lat);
                 bool bridge = (gorgeLeft > 0.5f || gorgeRight > 0.5f) && MathF.Abs(lat) < 3.7f;
                 if (hill && MathF.Abs(lat) < 12)
@@ -464,7 +469,7 @@ public sealed partial class WorldArt(Look look)
         var lateral = plan is null ? Lateral : PlanLateral;
         int columns = lateral.Length;
         float[] own = [.. Enumerable.Range(0, columns * 2 - 1).Select(c => c < columns - 1 ? -lateral[columns - 1 - c] : lateral[c - (columns - 1)])];
-        var bands = plan?.LakeBands.Where(b => b.S0 < to && b.S1 > from).ToArray() ?? [];
+        var bands = (plan?.LakeBands.Where(b => b.S0 < to && b.S1 > from) ?? []).Concat(TownBands().Where(b => b.S0 < to && b.S1 > from)).ToArray();
         var extra = new SortedSet<float>();
         float edge = lateral[^1];
         foreach (var b in bands)

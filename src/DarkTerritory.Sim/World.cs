@@ -866,6 +866,9 @@ public sealed class World
         Train.Walls.Add(Town.Walls);
         if (Arrival is not null)
             Train.Walls.Add(Arrival.Walls);
+        // A town type's ground laid over the land (note 692): its terraces, benches, decks and water are what's stood on.
+        Town.Lay(Train.Line);
+        Arrival?.Lay(Train.Line);
     }
 
     /// <summary>

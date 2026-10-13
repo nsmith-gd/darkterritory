@@ -56,6 +56,8 @@ public sealed record TownTuning
 public sealed record FormTuning
 {
     public bool Enabled { get; init; }
+    /// <summary>Every town this form ("" the street town; null, each its own): for playing or looking at one type.</summary>
+    public string? Force { get; init; }
     /// <summary>The longest consist's length (m), and how far short of the way out its engine stands (run.json departShortOfGateM).</summary>
     public double YardM { get; init; } = 330;
     public double ShortOfGate { get; init; } = 8;
@@ -79,6 +81,8 @@ public sealed record FormShape
     public double LotDepth { get; init; } = 9;
     public double Setback { get; init; } = 3;
     public double WaterLevel { get; init; } = -1.5;
+    /// <summary>How deep its water is over its bed (m): past TownGround.Wade it's railed off; under it, waded.</summary>
+    public double WaterDepth { get; init; } = 1.6;
     public double TerraceLevel { get; init; } = 5;
     public int Benches { get; init; } = 3;
 }

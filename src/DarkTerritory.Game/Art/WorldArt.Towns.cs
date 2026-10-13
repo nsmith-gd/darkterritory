@@ -447,30 +447,40 @@ public sealed partial class WorldArt
         // A point in the rail frame: the yard is straight, behind its start too.
         Double3 P(double s, double d) => start.Position + tangent * s + right * d;
         bool Near(double s, double d) => (P(s, d) - eye).Length < 460;
-        const double bay = Sim.Run.Fortresses.WallBay, every = Sim.Run.Fortresses.TowerEvery, gateOuter = Sim.Run.Fortresses.GateOuter;
-        void Run(int side, double s, double d, double length, float yaw)
+        const double bay = Sim.Run.Fortresses.WallBay;
+        // The wall's runs as the Sim stands them (Fortresses.Runs: round a town type's outline, note 692, open at both
+        // gates), a bay at a time from each run's start along it, the merlons on the side away from the town.
+        double cs = 0, cd = 0;
+        var corners = town.Outline ?? [(town.Rear, -town.Left), (town.Gate, -town.Left), (town.Gate, town.Right), (town.Rear, town.Right)];
+        foreach (var (s0, d0) in corners)
+            (cs, cd) = (cs + s0 / corners.Count, cd + d0 / corners.Count);
+        foreach (var (a, b) in Sim.Run.Fortresses.Runs(town))
         {
-            if (!Near(s, d))
-                return;
-            var wall = Piece($"wall-{side}", () => StructureKit.Wall(_look, side));
-            mesh.Instances.Add(new MeshInstance(wall, Matrix4x4.CreateScale(1, 1, (float)(length / bay)) * Basis(start.Tangent, P(s, d), eye, yaw)));
+            double es = b.S - a.S, ed = b.D - a.D, len = Math.Sqrt(es * es + ed * ed);
+            if (len < 0.05)
+                continue;
+            (es, ed) = (es / len, ed / len);
+            // Its outside: to its right (the piece's +X, variant 1) unless the town's middle is.
+            int outside = (cs - a.S) * -ed + (cd - a.D) * es < 0 ? 1 : -1;
+            float yaw = -(float)Math.Atan2(ed, es);
+            var wall = Piece($"wall-{outside}", () => StructureKit.Wall(_look, outside));
+            for (double x = 0; x < len - 0.05; x += bay)
+            {
+                double ps = a.S + es * x, pd = a.D + ed * x;
+                if (Near(ps, pd))
+                    mesh.Instances.Add(new MeshInstance(wall, Matrix4x4.CreateScale(1, 1, (float)(Math.Min(bay, len - x) / bay)) * Basis(start.Tangent, P(ps, pd), eye, yaw)));
+            }
         }
-        foreach (var (d, side) in new[] { (-town.Left, -1), (town.Right, 1) })
+        // The gatehouse at the way in from the last night (note 692), facing out of the town as the way out's does.
+        if (Near(town.Rear, 0))
+            mesh.Instances.Add(new MeshInstance(Piece("gatehouse", () => StructureKit.Gatehouse(_look)), Basis(start.Tangent, P(town.Rear, 0), eye, MathF.PI)));
         {
-            for (double s = town.Rear; s < town.Gate - 0.05; s += bay)
-                Run(side, s, d, Math.Min(bay, town.Gate - s), 0);
-            // The front wall from the gatehouse's tower out to the corner, and the rear wall's half on this side.
-            double inner = side * gateOuter;
-            for (double x = 0; x < Math.Abs(d) - gateOuter - 0.05; x += bay)
-                Run(1, town.Gate, inner + side * x, Math.Min(bay, Math.Abs(d) - gateOuter - x), side > 0 ? -MathF.PI / 2 : MathF.PI / 2);
-            for (double x = 0; x < Math.Abs(d) - 0.05; x += bay)
-                Run(-1, town.Rear, side * x, Math.Min(bay, Math.Abs(d) - x), side > 0 ? -MathF.PI / 2 : MathF.PI / 2);
-            var towers = new List<double> { town.Rear, town.Gate };
-            for (double s = town.Rear + every; s < town.Gate - every / 2; s += every)
-                towers.Add(s);
+            var towers = Sim.Run.Fortresses.Towers(town).ToList();
+            int side = 0;
             for (int i = 0; i < towers.Count; i++)
             {
-                double s = towers[i];
+                var (s, d) = towers[i];
+                side = d < 0 ? -1 : 1;
                 if (!Near(s, d))
                     continue;
                 var tower = Piece($"tower-{side}", () => StructureKit.Tower(_look, side));
@@ -478,7 +488,7 @@ public sealed partial class WorldArt
                 // Artillery on every other tower down the sides (GDD §3: "watchtowers, artillery"; queue #74, note 335): the
                 // train's own cannon and its shield on the tower's top, laid out over the wall, swinging slowly across the
                 // dark beyond it as if somebody's at it all night.
-                if (i >= 2 && i % 2 == 0 && (P(s, d) - eye).Length < TowerGunReach && TrainKit.Cannon(_look) is { } cannon)
+                if (i % 2 == 1 && (P(s, d) - eye).Length < TowerGunReach && TrainKit.Cannon(_look) is { } cannon)
                 {
                     float sweep = TowerGunSweep * MathF.Sin((float)(time * TowerGunRate + s * 0.013));
                     var gun = Matrix4x4.CreateScale(TowerGunScale) * Basis(start.Tangent, P(s, d) + Double3.Up * TowerGunUp, eye, -side * MathF.PI / 2);

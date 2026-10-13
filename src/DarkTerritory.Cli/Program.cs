@@ -1031,6 +1031,9 @@ static int ScreenshotBatch(TrainTuning t, string content, string file, bool chec
 
 static object Screenshot(TrainTuning t, string content, string[] args)
 {
+    // --form: every town the one type (towns.json forms.force; note 692), "street" the street town of note 335.
+    if (Str(args, "--form", "") is { Length: > 0 } townForm)
+        DarkTerritory.Game.PrototypeSession.TownForm = townForm == "street" ? "" : townForm;
     string view = Str(args, "--view", "trackside");
     string lineName = Str(args, "--line", "test-loop");
     int cars = (int)Opt(args, "--cars", 6);
@@ -1170,8 +1173,10 @@ static object Screenshot(TrainTuning t, string content, string[] args)
     // note 281), the train at the gate as a night starts, the camera standing in it (square: at the way in from the engine,
     // looking at the centrepiece; houses down its street; house, kitchen, parlour: the first open house, outside and in).
     DarkTerritory.Sim.Towns.Town? town = null;
-    if (args.Contains("--town") && generated is not null && DarkTerritory.Sim.Towns.TownContent.Load(content) is { } towns)
+    if (args.Contains("--town") && generated is not null && DarkTerritory.Sim.Towns.TownContent.Load(content) is { } loadedTowns)
     {
+        var towns = DarkTerritory.Game.PrototypeSession.TownForm is { } townType
+            ? loadedTowns with { Tuning = loadedTowns.Tuning with { Forms = loadedTowns.Tuning.Forms with { Force = townType } } } : loadedTowns;
         var runTuning = DataFile.Load<DarkTerritory.Sim.Run.RunTuning>(Path.Combine(content, DarkTerritory.Sim.Run.RunTuning.File));
         double gate = generated.GateOr(RouteTuning.Load(content).YardLength);
         if (!args.Contains("--at"))
@@ -1180,6 +1185,7 @@ static object Screenshot(TrainTuning t, string content, string[] args)
         var roster = DataFile.Load<DarkTerritory.Sim.Enemies.EnemyTuning>(Path.Combine(content, DarkTerritory.Sim.Enemies.EnemyTuning.File)).Director.Roster;
         town = new DarkTerritory.Sim.Towns.Town(DarkTerritory.Sim.Towns.TownGenerator.Generate(towns, DarkTerritory.Sim.Towns.TownSite.Of(generated, gate, roster, towns)),
             towns.Tuning, line, towns.Looks);
+        town.Lay(line);
         // --clock s: that far into the night, the town's people on their rounds (note 353).
         town.Clock = Opt(args, "--clock", 0);
     }

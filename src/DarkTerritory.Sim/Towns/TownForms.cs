@@ -52,7 +52,11 @@ public static class TownForms
     /// <summary>Which form a town of <paramref name="trade"/> is (towns.json <c>forms.byTrade</c>); "" the street town.</summary>
     public static string Pick(FormTuning forms, string trade, Pcg32 rng)
     {
-        if (!forms.Enabled || !forms.ByTrade.TryGetValue(trade, out var weights) && !forms.ByTrade.TryGetValue("any", out weights))
+        if (!forms.Enabled)
+            return "";
+        if (forms.Force is { } force)
+            return force;
+        if (!forms.ByTrade.TryGetValue(trade, out var weights) && !forms.ByTrade.TryGetValue("any", out weights))
             return "";
         var keys = weights.Keys.Order(StringComparer.Ordinal).ToList();
         double total = keys.Sum(k => Math.Max(0, weights[k])), roll = rng.NextDouble() * total;
@@ -201,7 +205,7 @@ public static class TownForms
         /// <summary>A piece of ground: added to the plan, and taken where nothing may be built (water, decks, plots, yards).</summary>
         TownDistrict District(DistrictKind kind, string id, IEnumerable<(double U, double D)> outline, double level = 0, bool named = true)
         {
-            var d = new TownDistrict(kind, id, named ? Name(id) : "", Clip([.. outline.Select(x => P(x.U, x.D))]), level);
+            var d = new TownDistrict(kind, id, named ? Name(id) : "", Clip([.. outline.Select(x => P(x.U, x.D))]), level) { Depth = _f.WaterDepth };
             _l.Districts.Add(d);
             // (Water isn't taken: a hummock or a causeway may be raised out of it later. A lot asks the ground it's on.)
             if (kind is DistrictKind.Deck or DistrictKind.Plots or DistrictKind.Yard)
@@ -613,7 +617,7 @@ public static class TownForms
         {
             double L = _f.Length, wl = _f.Left, wr = _f.Right;
             Wall((-L, -wl * 0.7), (-L + 70, -wl), (-90, -wl), (0, -wl * 0.6), (0, wr * 0.5), (-60, wr), (-L + 50, wr), (-L, wr * 0.6));
-            double pu = -L * 0.46, pd = -wl * 0.55, rim = Math.Min(wl * 0.45, L * 0.24);
+            double pu = -L * 0.46, pd = -wl * 0.5, rim = Math.Min(wl * 0.38, L * 0.22);
             int benches = _f.Benches;
             double step = rim / (benches + 1.5), drop = _f.TerraceLevel;
             // The pit: each bench a ring lower than the last, the floor at the bottom (nested: the deepest is laid last).
@@ -649,7 +653,9 @@ public static class TownForms
             Works(-L * 0.62, -40, 14, 70, 1, "coal");
             Blocks(1, 84, 28, wr - 14, -L + 20, -20);
             Blocks(-1, 34, 26, 62, -L + 20, -L * 0.62 - 10);
-            District(DistrictKind.Quarter, "founders", Rect(pu - 60, pu + 60, -wl + 10, -wl + 40));
+            // The founders' row on the rim's far side, between the pit and the wall.
+            if (pd - rim - 4 > -wl + 14)
+                District(DistrictKind.Quarter, "founders", Rect(pu - 50, pu + 50, -wl + 8, pd - rim - 4));
             District(DistrictKind.Quarter, "cranes", Rect(-L * 0.62, -40, 14, 70));
         }
 
@@ -688,9 +694,9 @@ public static class TownForms
             RingLots(-L * 0.72, -wl * 0.72, 22, 4, outside: true);
             RingLots(-L * 0.35, -wl * 0.78, 20, 4, outside: true);
             Works(-L * 0.3, -30, 12, 24, 1, "tidewater");
-            Blocks(-1, 34, 26, wl * 0.5, -L + 20, -10);
-            // The hills' own roads, round under their edges.
+            // The hills' own road, round under their edges, then the blocks below it.
             Way([(-L + 30, -wl * 0.5 - 20), (-24, -wl * 0.5 - 20)], 5);
+            Blocks(-1, 34, 26, wl * 0.5, -L + 20, -10);
             Lots(-L + 30, -wl * 0.5 - 20, -24, -wl * 0.5 - 20, 5, 3);
             Landmark("crane", -60, 22, 0, 1);
         }
@@ -707,7 +713,7 @@ public static class TownForms
                     if (!area.Holds(cs, cd) || drng.Chance(0.35) || !Box(cs, cd, 1, 0, 5, 4, false))
                         continue;
                     Box(cs, cd, 1, 0, 5.5, 4.5, true);
-                    _l.Lots.Add(new Lot(Math.Round(cs, 3), Math.Round(cd, 3), drng.Chance(0.5) ? 1 : -1, 12, drng.Range(-0.3, 0.3), null, null, _f.WaterLevel - 0.6)
+                    _l.Lots.Add(new Lot(Math.Round(cs, 3), Math.Round(cd, 3), drng.Chance(0.5) ? 1 : -1, 12, drng.Range(-0.3, 0.3), null, null, _f.WaterLevel - _f.WaterDepth)
                     { Drowned = true });
                 }
         }
@@ -758,6 +764,15 @@ public static class TownForms
 
         public Layout Finish()
         {
+            // Every lot on its ground as the plan finally has it (a district laid after it may have raised or flooded it):
+            // a lot on ground it can't stand on is dropped; a drowned one stands only in the water.
+            // And none a way runs through (a way laid after it: its middle within the way's half-width and a step).
+            bool OnAWay(Lot x) => _l.Ways.Any(w => Enumerable.Range(1, w.Points.Count - 1).Any(i => SegDist(x.S, x.D, w.Points[i - 1], w.Points[i]) <= w.Width / 2 + 1));
+            var kept = _l.Lots.Where(x => !OnAWay(x) && GroundAt(x.S, x.D) is var (kind, level) && (x.Drowned
+                ? kind == DistrictKind.Water && Math.Abs(level - _f.WaterLevel) < 1e-6
+                : kind is not (DistrictKind.Water or DistrictKind.Deck or DistrictKind.Plots or DistrictKind.Yard) && Math.Abs(level - x.Level) < 1e-6)).ToList();
+            _l.Lots.Clear();
+            _l.Lots.AddRange(kept);
             // Nearest the square first: the town grows out from its heart (note 335). Lots that can hold an open house
             // (square to the line, on dry ground) are kept first among equals.
             double hs = (_sq.S0 + _sq.S1) / 2, hd = _sq.Side * 15;
