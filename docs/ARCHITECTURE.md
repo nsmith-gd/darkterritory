@@ -857,8 +857,9 @@ written here instead is moved out by `tools/coord/notes.py split`; the Coordinat
 - [672. A true fullscreen (F1, queue #403; the director, 13 Oct, `pt13-fullscreen`)](notes/672.md)
 - [673. The mail made plain (F1, queue #404; the director, 13 Oct, `pt13-mail`)](notes/673.md)
 - [674. Town flags: the cloth in the wind, and a flag for every town (E1, queue #405; the director, 13 Oct, playing the morning build; the World…](notes/674.md)
-- [675. Car roofs and loading: the roof hatch's lid worked looking at it, from anywhere along it on the roof and from the floor under it (D1.4, queue #406; the director, 13 Oct, playing the morning build)](notes/675.md)
+- [675. Car roofs and loading: the roof hatch's lid worked looking at it, from anywhere along it on the roof and from the floor under it (D1.4,…](notes/675.md)
 - [676. The creature gym (A1, queue #407; the director, 13 Oct 2026: "make a dev gym for me to test all the creatures functions and make sure all…](notes/676.md)
+- [677. Test reports in one file, in the game's folder (A1, queue #409; the director, 13 Oct 2026: "I want them stored as logs in the game folder…](notes/677.md)
 - [679. The Wakers' model (queue #411, C1; docs/design/creatures/wakers.md §8.3, note 588; the director, 13 Oct 2026: "propose some model designs…](notes/679.md)
 - [684. A moved board says its distance from where it stands (B4, queue #416; note 560's handoff, not yet (1); the director, 13 Oct,…](notes/684.md)
 <!-- end of the notes index -->
