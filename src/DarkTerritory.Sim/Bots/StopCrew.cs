@@ -213,6 +213,17 @@ public sealed partial class CrewCalls
     /// </summary>
     public bool Leaving { get; private set; }
 
+    /// <summary>
+    /// Note 650: the driver's at a stop with loading to do and still on its moves before it (the approach, held for the
+    /// points). A hand with a part in them doesn't leave it for a Holdout's breach (<see cref="StopHand.OnTheMoves"/>).
+    /// </summary>
+    public bool BeforeTheLoading { get; private set; }
+    public void LoadingAhead(bool ahead)
+    {
+        if (ahead != BeforeTheLoading)
+            Heard(-1, "loading ahead", -1, ahead, () => BeforeTheLoading = ahead);
+    }
+
     // Note 326: the village's hiding spots claimed (by whom), and the hands out at the houses or bringing a find back.
     readonly Dictionary<int, int> _spots = new();
     readonly SortedSet<int> _out = [];
@@ -1244,6 +1255,7 @@ public sealed class StopDriver(CrewCalls calls)
         if (Doing != Leg.Cruise)
             _legs[Doing.ToString()] = Math.Round(_legs.GetValueOrDefault(Doing.ToString()) + Waited, 1);
         Doing = leg;
+        calls.LoadingAhead(leg is Leg.Approach or Leg.Held && Plan is { PickUp: false });
         _legStart = _ticks;
         if (leg == Leg.Loading)
         {
@@ -3545,6 +3557,17 @@ public sealed partial class StopHand(StopJob job, CrewCalls calls, int member, C
     /// A crewmate waiting in a lit Holdout (GDD App. D.5, T96): down off the standing train on its side, along to its door,
     /// and hold Use there until it's breached. Null once it isn't lit.
     /// </summary>
+    /// <summary>
+    /// Note 650: a part in the stop's own moves before its loading (the shunter's, or the points thrown for the shunter,
+    /// note 609), not left for a Holdout's breach. frontier:6's switchyard Holdout, now beside the line in reach of the
+    /// throat: its switch hand went to it instead of the points, the driver stood Held 52 → 63 s, the loading began later,
+    /// and the pick-up after it no longer reckoned to fit (16 nights' 16 → 8). Any other hand breaches at that stand, as
+    /// before (frontier:7's Foundry: kept to the loading's stand, it took a pair's hand off the work there).
+    /// </summary>
+    public bool OnTheMoves(World world) =>
+        calls.BeforeTheLoading && !calls.Leaving && _plan is { } p
+        && (job == StopJob.Shunter && calls.Has(StopJob.Shunter) || ThrowsForTheShunter(world, p));
+
     public PlayerIntent? Breach(in PlayerState self, World world, Run.Holdout h)
     {
         var train = world.Train;
