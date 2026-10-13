@@ -260,6 +260,28 @@ public static partial class Heed
     }
 
     /// <summary>
+    /// The Ribbits (note 658; App. A.6: a pack takes one alone, and "friends arriving even the count" make the tongue let go).
+    /// A bot on the ground with Ribbits within <c>crewBots.ribbitWithin</c> clubs the nearest (health 2: a blow or two each),
+    /// hunting or sitting: one left sitting when the count's against it takes the next hand to walk off alone. A rescue only evened the count: the tongue let go, the rescuer went back to its work, and the
+    /// pack had the same hand again a few seconds later. On deepTerritory:7 seed 2 under note 652's roster one Ribbit pack
+    /// took the Foundry's hand 60 times, and the stop loaded nothing.
+    /// </summary>
+    public static PlayerIntent Ribbits(PlayerIntent intent, in PlayerState self, World world, int selfId)
+    {
+        if (!Free(self) || self.Parent != PlayerState.World || world.Enemies is not { } et)
+            return intent;
+        var train = world.Train;
+        var me = PlayerMotor.WorldPosition(self, train);
+        // Any of them near, hunting or not: one left sitting when the count's against it takes the next hand to walk off alone.
+        var nearest = world.ActiveEnemies.OfType<Ribbit>().Where(r => !r.Gone).Select(r => (r, At: r.WorldPosition(train))).Where(x => Flat(x.At - me) <= et.CrewBots.RibbitWithin)
+            .OrderBy(x => Flat(x.At - me)).ThenBy(x => x.r.Id).FirstOrDefault();
+        return nearest.r is null ? intent : Strike(self, train, nearest.At, RibbitReach) ?? intent;
+    }
+
+    /// <summary>A Ribbit's <c>meleeRadius</c> is 0.7 and a blow reaches 2.2 m past it: this near on the flat, a swing (m).</summary>
+    const double RibbitReach = 1.4;
+
+    /// <summary>
     /// The Knotter (note 365: "don't walk the rope. Stop, kill it, couple up"). Running, a bot never walks its back nor jumps
     /// its gap (<see cref="Knotted"/>, read by the walkers' ways along the train). At a stand it's slack and blows land: a
     /// bot that can get down goes round to the ground beside its gap, on its own side of the train, and clubs it from there
