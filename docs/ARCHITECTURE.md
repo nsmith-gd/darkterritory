@@ -833,5 +833,5 @@ written here instead is moved out by `tools/coord/notes.py split`; the Coordinat
 - [652. The director's roster from the Creature Tweaker (D1, queue #382; the director, on the Tweaker, the evening of 12 Oct, and "Measure my…](notes/652.md)
 - [653. Cars left behind after a parting are gone back for (D1.4, queue #383; D1's ask after #371)](notes/653.md)
 - [654. A most-a-night for every creature without its own (D1, queue #384; for the director's `D1-roster-piles-up`, note 652)](notes/654.md)
-- [655. The crew keep the train moving on a Dragger-heavy night (D1.4, queue #385; D1's ask after #882)](notes/655.md)
+- [655. The crew keep the train moving on a Dragger-heavy night: a stop whose cut can't be made is called off, and a dead driver's controls are…](notes/655.md)
 <!-- end of the notes index -->
