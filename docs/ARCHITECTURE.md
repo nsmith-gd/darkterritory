@@ -836,4 +836,5 @@ written here instead is moved out by `tools/coord/notes.py split`; the Coordinat
 - [654. A most-a-night for every creature without its own (D1, queue #384; for the director's `D1-roster-piles-up`, note 652)](notes/654.md)
 - [655. The crew keep the train moving on a Dragger-heavy night (D1.4, queue #385; D1's ask after #882)](notes/655.md)
 - [657. The Tweaker's estimate under a roster (D1, queue #387; note 654's "not yet")](notes/657.md)
+- [658. A bot walks back into the same Ribbit (D1.5, queue #388)](notes/658.md)
 <!-- end of the notes index -->
