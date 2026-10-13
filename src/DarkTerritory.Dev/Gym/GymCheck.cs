@@ -18,8 +18,10 @@ namespace DarkTerritory.Dev.Gym;
 public static class GymCheck
 {
     /// <param name="Aboard">It came on the train (a car, a gap, the tender): its rule picked the place, and its reach is the car's.</param>
+    /// <param name="About">How many of what came are still about at the end (a Gannet that left, a pack that went, isn't).</param>
+    /// <param name="AboardAfter">Any of them on the train at the end (the Cinder Hounds having come up and boarded).</param>
     public sealed record KindResult(string Kind, bool Came, string Where, int Count, double? NearestAtCall, double? NearestAfter,
-        string? Phase, bool YouAlive, bool Aboard, string? Shot);
+        string? Phase, bool YouAlive, bool Aboard, string? Shot, int About = 0, bool AboardAfter = false);
 
     public sealed record RespawnResult(bool Alive, double Seconds, int Health, double FromRing, bool RunOver);
     public sealed record RingResult(int RibbitPutInRing, bool SentOff);
@@ -69,12 +71,12 @@ public static class GymCheck
             var still = host.World.ActiveEnemies.Where(e => ids.Contains(e.Id) && !e.Gone).ToList();
             results.Add(new KindResult(Live.EnemyNames.Name(kind), called.Came, called.Where, Math.Max(called.Ids.Count, still.Count), Round(at),
                 Round(Nearest(host, [.. still.Select(e => e.Id)], Me(host, you))), still.FirstOrDefault()?.Phase.ToString(),
-                host.Players.First(p => p.Id == you).State.Alive, aboard, shot));
+                host.Players.First(p => p.Id == you).State.Alive, aboard, shot, still.Count, still.Any(e => e.Attached >= 0)));
         }
         host.World.Clear();
         Step(night, gym, host, 0.5);
         return new GymReport(gym.Tuning.Route,
-            gym.Stop is { } s ? new { s.Facility, kind = s.Stop?.Kind.ToString(), start = Math.Round(s.Start), end = Math.Round(s.End) } : null,
+            gym.Stop is { } s ? new { s.Facility, kind = s.Stop?.Kind.ToString(), start = Math.Round(s.Start), end = Math.Round(s.End), points = gym.FirstPoints is { } fp ? Math.Round(fp) : (double?)null, village = Math.Round(gym.Village) } : null,
             Math.Round(gym.Front), Math.Round(host.World.Train.Dynamics.Distance, 1), Math.Round(host.World.Train.Dynamics.Speed, 2),
             host.World.Run?.Phase.ToString(), V(gym.SafeSpot), gym.Tuning.SafeRing.Radius,
             host.World.Bodies.All.Count(b => b.Kind == Sim.Physics.BodyKind.Lamp && b.Parent == PlayerState.World),
@@ -122,7 +124,8 @@ public static class GymCheck
 
     static double? Nearest(HostSession host, IReadOnlyList<int> ids, Double3 me)
     {
-        var at = host.World.ActiveEnemies.Where(e => ids.Contains(e.Id) && !e.Gone).Select(e => ((e.WorldPosition(host.World.Train) - me) with { Y = 0 }).Length).ToList();
+        // A hidden Tippy Toesie is nowhere yet (its place is the line's start), so it isn't counted.
+        var at = host.World.ActiveEnemies.Where(e => ids.Contains(e.Id) && !e.Gone && e is not TippyToesie { Hidden: true }).Select(e => ((e.WorldPosition(host.World.Train) - me) with { Y = 0 }).Length).ToList();
         return at.Count == 0 ? null : at.Min();
     }
 
