@@ -274,8 +274,9 @@ public sealed class Crane
 
     /// <summary>
     /// Fire, pressed: the hook lets go. Set down (its base near what's under it) over a cargo car with room, it's lashed and
-    /// loaded; on the ground, it lies there to be rigged again. Let go of higher, it falls, and it's lost: the point it
-    /// lands at is returned, for whoever's under it.
+    /// loaded; on the ground, it lies there to be rigged again. Let go of higher, it falls (the point it lands at is returned,
+    /// for whoever's under it) and lands as if set down there. Note 659 (the director, 13 Oct: "it just disappeared ... an
+    /// accidental mouse click means it's essentially lost, which we don't want"): a fall used to lose it.
     /// </summary>
     public (Double3 Landed, bool Fell)? Release(TrainOnLine train)
     {
@@ -296,22 +297,18 @@ public sealed class Crane
         var bottom = HookedBase;
         double above = bottom.Y - floor;
         var landed = bottom with { Y = floor };
-        if (above > _t.DropAbove)
-        {
-            c.State = CastingState.Lost;
-            return (landed, true);
-        }
+        bool fell = above > _t.DropAbove;
         if (car >= 0 && train.Vehicles[car] is { Kind: VehicleKind.Cargo } v && v.Load < 1)
         {
             v.Load = Math.Min(1, v.Load + _t.LoadPerCasting);
             c.State = CastingState.Loaded;
             c.Car = car;
             c.At = train.Frames[car].ToLocal(landed);
-            return (landed, false);
+            return (landed, fell);
         }
         c.State = CastingState.Stacked;
         c.At = car >= 0 ? landed : _at(Bridge, Trolley, 0);
-        return (landed, false);
+        return (landed, fell);
     }
 
     /// <summary>A casting a rigger at the hook could hook on: lying within reach of it, the hook low enough to reach.</summary>
