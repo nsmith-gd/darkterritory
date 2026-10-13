@@ -109,6 +109,15 @@ public static partial class TownGenerator
                     continue;
                 lots.Add((s, sd * st.Out, sd, st.Every, 0));
             }
+        // A town with more houses than a hamlet's isn't one row down the track (note 668; the director, 13 Oct: "a long row
+        // of houses. It doesn't feel like a town"): it keeps houses.lineRow on the line's own street, the nearest its square,
+        // and takes streets of its own for the rest, a row either side of each, facing across it. (A town that needs
+        // streets anyway keeps its line's row as it was.)
+        if (needed > st.LineRow && lots.Count >= needed)
+        {
+            double mid = (square.S0 + square.S1) / 2;
+            lots = [.. lots.OrderBy(l => Math.Abs(l.S - mid)).ThenBy(l => l.Side == side ? 0 : 1).ThenBy(l => l.S).Take(st.LineRow)];
+        }
         var wt = t.Walled;
         var lrng = rngFor("houses.lots");
         double s0 = wt.From, s1 = site.Gate - wt.ToGate, depthMax = st.Depth[1];
