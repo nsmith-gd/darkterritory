@@ -844,6 +844,6 @@ written here instead is moved out by `tools/coord/notes.py split`; the Coordinat
 - [662. A fire worked a cell at a time (D1.4, queue #393; the director, 13 Oct, playing the morning build)](notes/662.md)
 - [663. A lost car told (D1.4, queue #394; the director, 13 Oct, playing the morning build)](notes/663.md)
 - [664. Controls from the playtest (D1.2, queue #395; the director, 13 Oct, playing the morning build)](notes/664.md)
-- [665. The cab's readouts (D1.2, queue #396; the director, 13 Oct, playing the morning build)](notes/665.md)
+- [665. The cab's readouts, from the director's playtest (queue #396, D1.2 for D1; the director, 13 Oct, playing the morning build)](notes/665.md)
 - [666. Skips in the morning build (D1, queue #397; the director, 13 Oct, playing the morning build)](notes/666.md)
 <!-- end of the notes index -->
