@@ -57,6 +57,8 @@ public sealed class FrameWatch
     readonly SortedDictionary<string, (long Bytes, double Ms)> _byPart = new(StringComparer.Ordinal);
     long _lapBytes;
     int _timed;
+    TimeSpan _jit;
+    long _jitMethods;
     readonly int[] _histogram = new int[Bins + 1];
     readonly List<Hitch> _hitches = [];
     readonly Dictionary<string, int> _leads = new(StringComparer.Ordinal);
@@ -93,6 +95,7 @@ public sealed class FrameWatch
         _gen1 = GC.CollectionCount(1);
         _gen2 = GC.CollectionCount(2);
         _allocated = GC.GetTotalAllocatedBytes();
+        (_jit, _jitMethods) = (System.Runtime.JitInfo.GetCompilationTime(currentThread: true), System.Runtime.JitInfo.GetCompiledMethodCount(currentThread: true));
         FrameCounts.Take();
         _frame.Restart();
     }
@@ -161,6 +164,10 @@ public sealed class FrameWatch
         _last.Enqueue((now, (float)total));
         while (_last.Count > 0 && _last.Peek().At < now - StorySeconds)
             _last.Dequeue();
+        // Code run for the first time is compiled on the spot (a build that isn't ReadyToRun): a frame's share of it (note 695).
+        double jit = (System.Runtime.JitInfo.GetCompilationTime(currentThread: true) - _jit).TotalMilliseconds;
+        if (jit >= 1)
+            FrameCounts.Add($"jit {jit:0} ms", (int)(System.Runtime.JitInfo.GetCompiledMethodCount(currentThread: true) - _jitMethods));
         string counts = FrameCounts.Take();
         bool slow = IsSlow(total, median);
         string? place = null;
