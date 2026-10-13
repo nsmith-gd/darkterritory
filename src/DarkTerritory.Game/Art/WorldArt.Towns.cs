@@ -137,12 +137,15 @@ public sealed partial class WorldArt
     const double GlowUp = 38;
 
     /// <summary>Where the works' stacks and chimneys smoke (note 353): the foundry's stack, the winding house's chimney.</summary>
-    public IEnumerable<Vector3> Stacks(RailLine line, Double3 eye, Town town, double reach)
+    public IEnumerable<(Vector3 Top, int Seed)> Stacks(RailLine line, Double3 eye, Town town, double reach)
     {
         if (town.Plan.Works is not { } works)
             yield break;
+        // Each stack's smoke seeded by the stack itself, not where it is from the eye (note 688, as Chimneys).
+        int i = -1;
         foreach (var f in town.Plan.Fixtures)
         {
+            i++;
             if (!works.Holds(f.S, f.D, 1) || f.Kind is not ("casting" or "winding") || WorksKit.Prop(f.Kind) is not { } prop
                 || _props.Get(prop.Name) is not { } model)
                 continue;
@@ -152,7 +155,7 @@ public sealed partial class WorldArt
             var m = prop.Along ? Place(line, eye, at, f.S, 1, 0) : Place(line, eye, at, f.S, f.FaceS, f.FaceD);
             var (middle, _) = WorksKit.Footprint(model);
             var top = WorksKit.StackTop(model);
-            yield return Vector3.Transform(Vector3.Transform(top - middle, Matrix4x4.CreateScale(prop.Scale)) + new Vector3(0, -0.3f, 0), m);
+            yield return (Vector3.Transform(Vector3.Transform(top - middle, Matrix4x4.CreateScale(prop.Scale)) + new Vector3(0, -0.3f, 0), m), 7919 + i * 97);
         }
     }
 
@@ -312,21 +315,26 @@ public sealed partial class WorldArt
 
     /// <summary>
     /// Where wood smoke rises in a town (App. F.3, the director: the fortresses feel static): the chimneys of the houses
-    /// lived in (and stood open) within <paramref name="reach"/> of you, relative to the eye. Nobody's fire in a house
-    /// nobody lives in.
+    /// lived in (and stood open) within <paramref name="reach"/> of you, relative to the eye, each with its smoke's seed.
+    /// Nobody's fire in a house nobody lives in. The seed is the chimney's own (its house and which chimney), never its
+    /// place relative to the eye: that changes as you move, and re-seeded every frame the smoke raced as you walked (note
+    /// 688, the director, 13 Oct: "When I'm moving, the smoke out of the chimney stacks is speeding up").
     /// </summary>
-    public IEnumerable<Vector3> Chimneys(RailLine line, Double3 eye, Town town, double reach)
+    public IEnumerable<(Vector3 Top, int Seed)> Chimneys(RailLine line, Double3 eye, Town town, double reach)
     {
-        foreach (var h in town.Plan.Houses)
+        var houses = town.Plan.Houses;
+        for (int i = 0; i < houses.Count; i++)
         {
+            var h = houses[i];
             if (h.Kind is not (HouseKind.Lived or HouseKind.Open))
                 continue;
             var at = town.World(h.S, h.D);
             if ((at - eye).Length > reach)
                 continue;
             var m = HouseAt(line, eye, town, h);
+            int k = 0;
             foreach (var top in MaritimeKit.ChimneyTops(h))
-                yield return Vector3.Transform(top, m);
+                yield return (Vector3.Transform(top, m), i * 8 + k++);
         }
     }
 

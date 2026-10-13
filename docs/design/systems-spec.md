@@ -533,7 +533,7 @@ Revival is possible, expensive, and genuinely capable of ending a run.
 
 - Engine off. No movement.
 - Lights drop to emergency only.
-- Turret traverse dead (no boiler pressure).
+- ~~Turret traverse dead (no boiler pressure).~~ The guns are their own, firing and reloading whatever the boiler's pressure, with endless shot (the director, 13 Oct 2026, note 689; combat.json `minPressure` 0, `infiniteAmmo`). The vent's noise is still theirs to answer.
 - **The vent is deafening.** Choir aggro spikes to maximum instantly, and every noise-triggered spawn weight doubles for the duration.
 - Dawn clock keeps running.
 

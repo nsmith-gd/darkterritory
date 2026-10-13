@@ -235,7 +235,8 @@ public class NetcodeTests
     public void AClientGunnerIsPredictedExactlyAndWakesTheSameChoir()
     {
         var net = new LoopbackNetwork();
-        var combat = Tuning.Combat;
+        // Counted by the gun's stock, so the night's stock of shot (note 374), not note 689's endless shot.
+        var combat = Tuning.Combat with { Guns = Tuning.Combat.Guns with { InfiniteAmmo = false } };
         TrainOnLine NewTrain() => new(new TrainDynamics(Consist.Uniform(T, 6, 1)), TestLoop, 600);
         var host = new HostSession(net.CreateHost(), NewTrain(), T, P, combat);
         var clients = new[] { new ClientSession(net.CreateClient(), NewTrain(), T, P, combat), new ClientSession(net.CreateClient(), NewTrain(), T, P, combat) };
