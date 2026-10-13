@@ -60,6 +60,27 @@ public class NightCallsTests
     }
 
     [Fact]
+    public void ADefaultCapHoldsEveryKindWithoutItsOwn()
+    {
+        // Note 654 (the director's D1-roster-piles-up): off, nothing but the named caps; on, each kind not named stops at it,
+        // the house creatures counted as the director's own are, and a kind's own cap still wins (the Knotter's 2 over 1).
+        Assert.Null(E.Director.PerNightDefault);
+        var n = new Night(dawn: 3600);
+        var d = new Director(E.Director with { PerNight = new() { ["knotter"] = 2 }, PerNightDefault = 1, NightChance = [] }, null, 1, 6, 4);
+        Assert.True(d.Tonight(EnemyKind.Dragger, n.World));
+        d.Log.Add(new DirectorSpawn(0, EnemyKind.Dragger, 2, 0, 0, 0));
+        Assert.False(d.Tonight(EnemyKind.Dragger, n.World));
+        Assert.True(d.Tonight(EnemyKind.Whistler, n.World));
+        Assert.True(d.Tonight(EnemyKind.Lodger, n.World));
+        d.Counted(EnemyKind.Lodger);
+        Assert.False(d.Tonight(EnemyKind.Lodger, n.World));
+        d.Log.Add(new DirectorSpawn(1, EnemyKind.Knotter, 3, 0, 0, 0));
+        Assert.True(d.Tonight(EnemyKind.Knotter, n.World));
+        d.Log.Add(new DirectorSpawn(2, EnemyKind.Knotter, 3, 0, 0, 0));
+        Assert.False(d.Tonight(EnemyKind.Knotter, n.World));
+    }
+
+    [Fact]
     public void AMinuteBeforeDawnTheNightThingsGoToGroundButTheParasitesStay()
     {
         // Every kind about tonight (note 652's roster would leave the Climbers or the Hotbox out on this seed).
