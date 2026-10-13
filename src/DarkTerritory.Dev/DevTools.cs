@@ -15,9 +15,11 @@ public sealed class DevTools
     /// records no nights; <c>--record-voice</c> keeps the crew's voices in them; <c>--recordings dir</c> keeps them there.</param>
     /// <param name="crashes">The app's crash reports: a crash names the night's recording, to replay up to it; a note carries
     /// the report's header (note 516). <c>--feedback dir</c> keeps the notes there; <c>--no-notes</c> turns F8 and F9 off.</param>
-    public static DevTools Start(string[] args, CrashReports? crashes = null) => new(args, crashes);
+    /// <param name="logs">The game's own folder's logs (<see cref="TestReports.GameLogs"/>, GDD §34.2, note 677), when the app
+    /// keeps them there: the notes go in it too. Null, they're in the app data as before.</param>
+    public static DevTools Start(string[] args, CrashReports? crashes = null, string? logs = null) => new(args, crashes, logs);
 
-    DevTools(string[] args, CrashReports? crashes)
+    DevTools(string[] args, CrashReports? crashes, string? logs)
     {
         Marked = !args.Contains("--no-dev-mark");
         var (_, commit) = Report.Build();
@@ -33,18 +35,30 @@ public sealed class DevTools
             // A window closed mid-night ends the process without the night's end: the recording's closed then.
             AppDomain.CurrentDomain.ProcessExit += (_, _) => Recorder.Finish();
         }
+        // Every report this build writes, on the end of one file beside this launch's log (GDD §34.2, note 677): the
+        // director sends that, not a report at a time.
+        if (crashes is not null)
+        {
+            string beside = Path.GetDirectoryName(crashes.LogPath) ?? logs ?? CrashReports.LogsBeside(crashes.Directory);
+            Tests = new TestReports(Path.Combine(beside, TestReports.FileName));
+            crashes.Saved = (report, _) => Tests.Add(report, TestReports.Called(report));
+            Console.WriteLine($"test reports: {Tests.Path}");
+        }
         // The director's notes from inside the night (note 516), sent on when this machine has a token for it.
         if (!args.Contains("--no-notes"))
         {
             int at = Array.IndexOf(args, "--feedback");
-            Notes = new Feedback.FeedbackNotes(at >= 0 && at + 1 < args.Length ? args[at + 1] : Feedback.FeedbackBundle.DefaultDirectory,
-                Recorder, crashes, Feedback.FeedbackUpload.FromEnvironment());
+            string notes = at >= 0 && at + 1 < args.Length ? args[at + 1] : logs is not null ? Path.Combine(logs, "notes") : Feedback.FeedbackBundle.DefaultDirectory;
+            Notes = new Feedback.FeedbackNotes(notes, Recorder, crashes, Feedback.FeedbackUpload.FromEnvironment()) { Tests = Tests };
             if (Recorder is not null)
                 Recorder.Closed += Notes.NightOver;
             // What's still being written or sent gets a moment at the exit (after the recording's closed, above).
             AppDomain.CurrentDomain.ProcessExit += (_, _) => Notes.Settle();
         }
     }
+
+    /// <summary>Every report this build writes, in one file (GDD §34.2, note 677); null without the app's crash reports.</summary>
+    public TestReports? Tests { get; }
 
     /// <summary>The director's notes from inside the night (note 516), or null with <c>--no-notes</c>.</summary>
     public Feedback.FeedbackNotes? Notes { get; }

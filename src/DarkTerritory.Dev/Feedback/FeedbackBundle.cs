@@ -6,7 +6,8 @@ namespace DarkTerritory.Dev.Feedback;
 /// <summary>
 /// A note's folder (note 516): <c>note.json</c>, <c>frame.png</c>, <c>voice.wav</c> when it was spoken, and the report
 /// (<c>report.txt</c>, <c>report.json</c>: the build, the machine, the settings, what the game was doing and its last lines,
-/// as a crash report has them; note 452).
+/// as a crash report has them; note 452). The report goes on the end of the build's test reports too (<see cref="TestReports"/>,
+/// note 677).
 /// </summary>
 public static class FeedbackBundle
 {
@@ -17,7 +18,7 @@ public static class FeedbackBundle
 
     /// <summary>Writes the bundle and returns its folder.</summary>
     public static string Write(string directory, FeedbackNote note, (byte[] Rgba, int Width, int Height)? frame, float[]? voice, int sampleRate,
-        CrashReports? reports)
+        CrashReports? reports, TestReports? tests = null)
     {
         string dir = Path.Combine(directory, note.Id);
         Directory.CreateDirectory(dir);
@@ -30,6 +31,7 @@ public static class FeedbackBundle
             var report = reports.Take(null, note.At.ToLocalTime(), note.Text ?? "(a spoken note)");
             File.WriteAllText(Path.Combine(dir, ReportFile), report.ToText());
             File.WriteAllText(Path.Combine(dir, "report.json"), report.ToJson());
+            tests?.Add(report, note.Kind == "voice" ? $"a spoken note (F9), {note.VoiceSeconds?.ToString(System.Globalization.CultureInfo.InvariantCulture)} s: {VoiceFile}" : "a typed note (F8)", Path.GetFullPath(dir));
         }
         // The note last: a folder with its note.json is whole.
         File.WriteAllText(Path.Combine(dir, NoteFile), note.ToJson());
