@@ -85,8 +85,10 @@
   // night, and "health" on top of what they have for the night that's about to set out (she's only ever in the departure town).
   "wine": { "reach": 2.6, "holdSeconds": 0.8, "health": 25 },
   // Quirks a town has on top of its culture, and its board: notices pinned up, and notes left lying about the square.
+  // Of the board's notices, after the custom's own order, "boardOwn" are the town's own, written for it (note 669).
   "quirks": [1, 2],
   "notices": [3, 4],
+  "boardOwn": 2,
   "looseNotes": [1, 2],
 
   // Talking and reading (Use, looked at, as the cab's controls are picked: train.json "pick"). Reach is from the eye to

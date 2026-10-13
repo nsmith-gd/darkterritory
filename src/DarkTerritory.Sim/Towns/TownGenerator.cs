@@ -458,6 +458,11 @@ public static partial class TownGenerator
         var prng = Rng("papers");
         var board = fixtures.First(f => f.Kind == "board");
         var posted = new List<TownText> { culture.Notes[0] };
+        // Then the town's own notices (note 669; the director, 13 Oct: "actual like custom writing"), two of them, on a
+        // stream of their own so the rest of the board is dealt as it was.
+        var own = new Deck<TownText>(culture.Board, Rng("papers.board"));
+        for (int i = 0; i < t.BoardOwn && own.Next() is { } o; i++)
+            posted.Add(o);
         var more = new Deck<TownText>([.. industry?.Notes ?? [], .. quirks.SelectMany(q => q.Notes), .. w.Notices, .. w.Threads.SelectMany(th => th.Notes)], prng);
         int notices = prng.RangeInclusive(t.Notices[0], t.Notices[1]);
         while (posted.Count < notices && more.Next() is { } p)
