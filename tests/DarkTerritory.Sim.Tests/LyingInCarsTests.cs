@@ -110,8 +110,15 @@ public class LyingInCarsTests
     static PlayerState BotDownTheAisle(World world, double seconds, out int stood)
     {
         double floor = T.Geometry.Interior!.FloorHeight;
-        var s = new PlayerState { Parent = Car, Position = new Double3(0, floor, -3), Surface = Surface.Deck, Health = P.Health, Yaw = Math.PI,
-            LineHint = world.Train.Cars[Car].FrontDistance };
+        var s = new PlayerState
+        {
+            Parent = Car,
+            Position = new Double3(0, floor, -3),
+            Surface = Surface.Deck,
+            Health = P.Health,
+            Yaw = Math.PI,
+            LineHint = world.Train.Cars[Car].FrontDistance
+        };
         stood = 0;
         for (int i = 0; i < seconds * SimConstants.TickRate; i++)
         {
