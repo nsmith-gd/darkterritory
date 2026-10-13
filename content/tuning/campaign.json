@@ -145,7 +145,7 @@
     { "id": "theHonk", "name": "The honk", "kind": "whimsy", "size": "small", "costShare": 0.05, "effect": { "whistle": 0.35 }, "excludes": [ "goldWhistle" ],
       "line": "A bulb horn off a clown's bicycle where the whistle was. The Territory doesn't take it seriously.",
       "tally": "Horn: comedic." },
-    // The BBQ deck (note 688; the director, 13 Oct: "its the BBQ Dads at the end of the world"): train.json composition.bbq.
+    // The BBQ deck (note 698; the director, 13 Oct: "its the BBQ Dads at the end of the world"): train.json composition.bbq.
     // A whimsy that's also a tool (a heal off the grill, a warm spot, the best seat on the train), and it costs like one: the
     // grill's heat and smell bring the Cinder Hounds as a hot boiler does, and the chairs are out front in the cold.
     { "id": "bbqDeck", "name": "The BBQ deck", "kind": "whimsy", "size": "major", "costShare": 0.6, "effect": { "bbqDeck": 1 },

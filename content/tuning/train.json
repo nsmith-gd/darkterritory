@@ -290,7 +290,7 @@
     // move with a wheel on them.
     "switchThrower": false,
     "thrower": { "reach": 200, "maxSpeed": 5 },
-    // The BBQ deck (ARCHITECTURE §8 note 688; the director, 13 Oct 2026: "an extended front car cow catcher that has a deck, a
+    // The BBQ deck (ARCHITECTURE §8 note 698; the director, 13 Oct 2026: "an extended front car cow catcher that has a deck, a
     // couple muskoka chairs that can be sat in, a plastic cooler with beers, and a BBQ mounted on a stand on the deck ... its
     // the BBQ Dads at the end of the world"): fitted (campaign.json bbqDeck), a plank deck deckLength m long on a cowcatcher
     // ahead of the engine's pilot, railed railHeight m high, as wide as the running boards, which run on forward along the

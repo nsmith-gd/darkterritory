@@ -497,7 +497,7 @@ public static class SquareKit
     }
 
     /// <summary>
-    /// The blacksmith's forge (ARCHITECTURE §8 note 687; the director, 13 Oct: "a vendor who is clearly marked as the vendor
+    /// The blacksmith's forge (ARCHITECTURE §8 note 697; the director, 13 Oct: "a vendor who is clearly marked as the vendor
     /// blacksmith of the town who does train upgrades"): an open-fronted shed facing the line, its brick hearth glowing at the
     /// back under an iron hood and a chimney through the roof, an anvil on its stump and a quench barrel out front, and across
     /// the front a board lettered BLACKSMITH over TRAIN UPGRADES, a lantern hung under it, to read from the cab.

@@ -111,6 +111,9 @@ public class CreatureArtTests(CreatureArtTests.TurntableRig rig) : IClassFixture
         // jaw that drops open, three three-boned fingers a hand. The Householder's SK_Householder: four three-boned fingers.
         ["lodger"] = new(5000, 10000, 40, 55, ["hidden", "chase", "break", "return"], ["shriek", "lunge", "hit", "death"]),
         ["householder"] = new(6000, 10000, 45, 60, ["sit", "watch", "hunt", "grab", "return"], ["rise", "hit", "death"]),
+        // The Waker (note 679): a large monster (GDD §27: 8-16k) drawn sixty metres tall, on its own SK_Waker: a jaw, a mouth
+        // socket, the rope's end, four three-boned fingers a hand.
+        ["waker"] = new(8000, 16000, 50, 60, ["lie", "walk", "run", "lift", "eat", "stand"], ["rise", "grab", "roar"]),
     };
 
     public static TheoryData<string> Models() => [.. CreatureArt.Names];
@@ -216,6 +219,11 @@ public class CreatureArtTests(CreatureArtTests.TurntableRig rig) : IClassFixture
         // The Lodger (lodger.md): about 2.1 m stood up; the Householder tall and thin, about 1.95 m.
         Assert.InRange(Height(Get("lodger")), 2.0f, 2.2f);
         Assert.InRange(Height(Get("householder")), 1.88f, 2.02f);
+        // The Waker (GDD §8 "A titan"): modelled a man about 2.07 m tall, drawn thirty times that, at least three times the
+        // greybox stand-in's 17 m; his head forward (−Z).
+        var waker = Get("waker");
+        Assert.InRange(Height(waker), 2.0f, 2.15f);
+        Assert.True(Height(waker) * WakerGait.Scale >= 3 * 17, "a titan, at least three times the stand-in");
         var sleeper = Get("sleeper");
         Assert.InRange(sleeper.Max.X - sleeper.Min.X, 2.5f, 3.1f);
         Assert.InRange(Height(sleeper), 0.2f, 0.45f);

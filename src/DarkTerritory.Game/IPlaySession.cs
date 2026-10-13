@@ -204,7 +204,7 @@ public static class Eyes
     /// </summary>
     public const double Seated = 1.56;
 
-    /// <summary>Sat back in a Muskoka chair on the BBQ deck (note 688): low, the line coming at you over your knees.</summary>
+    /// <summary>Sat back in a Muskoka chair on the BBQ deck (note 698): low, the line coming at you over your knees.</summary>
     public const double Lounging = 1.05;
 
     /// <summary>

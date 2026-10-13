@@ -958,7 +958,7 @@ public sealed class TrainOnLine
         lockers &= Tuning.Kit.Lockers is { Names.Count: > 0 };
         // (Its body across the gap, to a tenth of a metre: a handful of shapes while it forces the cars apart.)
         int tenths = hasCarBehind ? (int)Math.Round(knot * 10) : 0;
-        // The BBQ deck on the engine's front (note 688), where it's fitted.
+        // The BBQ deck on the engine's front (note 698), where it's fitted.
         bool bbq = kind == VehicleKind.Engine && Tuning.Composition.BbqDeck;
         if (!_shapes.TryGetValue((kind, hasCarBehind, lockers, tenths, bbq), out var shape))
         {

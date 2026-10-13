@@ -476,7 +476,7 @@ public static class Campaign
                     "repair" => l with { Boiler = l.Boiler with { RepairSeconds = l.Boiler.RepairSeconds * k } },
                     "radioReach" => l with { Train = l.Train with { Kit = l.Train.Kit with { RadioReach = l.Train.Kit.RadioReach + k } } },
                     "switchThrower" => Fit(l, c => c with { SwitchThrower = c.SwitchThrower || k > 0 }),
-                    // The BBQ deck (note 688): the engine's front, its chairs, cooler and grill.
+                    // The BBQ deck (note 698): the engine's front, its chairs, cooler and grill.
                     "bbqDeck" => Fit(l, c => c with { BbqDeck = c.BbqDeck || k > 0 }),
                     // The catalogue's (note 678; docs/design/upgrades.md): tools that keep pace with the tiers, and the silly.
                     "overspeedLead" => l with { Train = l.Train with { Overspeed = l.Train.Overspeed with { LeadSeconds = l.Train.Overspeed.LeadSeconds * k } } },

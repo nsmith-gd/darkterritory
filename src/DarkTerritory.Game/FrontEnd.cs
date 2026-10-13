@@ -56,7 +56,7 @@ public abstract record Launch
     /// </summary>
     public sealed record CampaignNight(int Slot, int Contract, bool Resume, bool Host) : Launch
     {
-        /// <summary>The same night again from its yard, the train as the blacksmith's just fitted it (note 687).</summary>
+        /// <summary>The same night again from its yard, the train as the blacksmith's just fitted it (note 697).</summary>
         public bool Refit { get; init; }
         /// <summary>
         /// The crew's bots (note 611; T89): the fortress board's CREW, or <c>--bots</c>. The host going on to the next night
@@ -111,7 +111,7 @@ public sealed record NightMenu(bool Hosting = true, int Others = 0, bool Campaig
 public enum Screen { Title, Slots, Fortress, Upgrades, QuickNight, Join, Settings, Controls, Host, Stores, Credits, Night, Leave, Profile, DeleteCrew, Mods, Crashed, Password, Smithy }
 
 /// <summary>
-/// The blacksmith's catalogue, open over the yard (ARCHITECTURE §8 note 687): who's selling, the crew's campaign as it stands
+/// The blacksmith's catalogue, open over the yard (ARCHITECTURE §8 note 697): who's selling, the crew's campaign as it stands
 /// (its scrip, its cars, what's fitted), and whether this player pays (the host owns the campaign and its wallet, spec E;
 /// otherwise <paramref name="Payer"/> is who to ask).
 /// </summary>
@@ -193,10 +193,10 @@ public sealed class FrontEnd
     public string? Message { get; private set; }
     /// <summary>The campaign open at the fortress.</summary>
     public CampaignState? Open { get; private set; }
-    /// <summary>The blacksmith's catalogue open over the yard (note 687), or null.</summary>
+    /// <summary>The blacksmith's catalogue open over the yard (note 697), or null.</summary>
     public SmithyShop? Smithy { get; private set; }
     /// <summary>
-    /// The host's purchase at the forge (note 687): the app buys it on its own campaign, saves it, and fits it before the gate.
+    /// The host's purchase at the forge (note 697): the app buys it on its own campaign, saves it, and fits it before the gate.
     /// </summary>
     public Func<string, Purchase>? SmithyBuy { get; set; }
     public Settings Settings { get; private set; }
@@ -406,7 +406,7 @@ public sealed class FrontEnd
         if (Screen != Screen.Title)
             Cue?.Invoke(UiCue.Back);
         // In a night (note 292): Escape on the menu's first page closes it, as Escape opened it; the rest back up to it. The
-        // blacksmith's catalogue (note 687) is a first page of its own.
+        // blacksmith's catalogue (note 697) is a first page of its own.
         if (Night is not null && Screen is Screen.Night or Screen.Smithy)
         {
             CloseNight();
@@ -651,7 +651,7 @@ public sealed class FrontEnd
     }
 
     /// <summary>
-    /// Opens the blacksmith's catalogue over the yard (note 687): Use held on the town's blacksmith. It's the in-night menu's
+    /// Opens the blacksmith's catalogue over the yard (note 697): Use held on the town's blacksmith. It's the in-night menu's
     /// kind of page, the night going on behind it, and Escape or DONE shuts it.
     /// </summary>
     public void OpenSmithy(NightMenu night, SmithyShop shop)
@@ -1352,7 +1352,7 @@ public sealed class FrontEnd
         }
         if (_campaign.Stores is not null)
             list.Add(new(new("STORES", StoresLine(s.Stores), s.Current is null), () => { Show(Screen.Stores); return null; }));
-        // Bought from the town's blacksmith, in the yard (note 687): here, what's on their shelves, to plan the night's buying.
+        // Bought from the town's blacksmith, in the yard (note 697): here, what's on their shelves, to plan the night's buying.
         list.Add(new(new("UPGRADES", "What the blacksmith sells. Buy it at their forge, in the yard."), () => { Show(Screen.Upgrades); return null; }));
         list.Add(new(new($"PLAY: {(_host ? "HOST FOR FRIENDS" : "ALONE")}", "Left and right to change."), () => { _host = !_host; return null; }, _ => _host = !_host));
         // Note 320 (note 33's "not yet": renaming a crew or deleting a slot was `dt campaign`'s alone).
@@ -1395,7 +1395,7 @@ public sealed class FrontEnd
         return list;
     }
 
-    /// <summary>The blacksmith's catalogue (note 687): the shelves as the menu's, bought on the host's word.</summary>
+    /// <summary>The blacksmith's catalogue (note 697): the shelves as the menu's, bought on the host's word.</summary>
     List<Entry> SmithyEntries(SmithyShop shop)
     {
         var list = CatalogueEntries(shop.State, u => () =>

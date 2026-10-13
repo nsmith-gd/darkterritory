@@ -323,6 +323,8 @@ public abstract class Enemy
         Holding = victim;
         GrabWindow = window;
         _struggle = 0;
+        _struggled = false;
+        _grabbedAt = ctx.World.Tick;
         Enter(ctx, SpinePhase.Grab);
         ctx.Hold(victim);
         // App. A.9: every GRAB start writes an attribution record (and, with D.12's bookmarks, a still).
@@ -336,18 +338,32 @@ public abstract class Enemy
     }
 
     double _struggle;
+    bool _struggled;
+    uint _grabbedAt;
 
     static IEnumerable<(int Id, PlayerState State)> CrewOf(EnemyContext ctx) => ctx.Crew.Select(c => ((int)c.Player.Id, c.Player.State));
 
-    /// <summary>The held player's own struggle, counted by the world at a crew of one (the solo rule): Use presses.</summary>
+    /// <summary>
+    /// The held player's own struggle, counted by the world at a crew of one (the solo rule): Use held. One try a grab, and a
+    /// chance at best (App. C.1; the director, 13 Oct: "holding e shouldn't always result in escape it should at best give me
+    /// a 15% chance of escape"; note 681): rolled on the night's seed, this creature and the tick it took hold, so the host
+    /// rolls it the same however the night is replayed.
+    /// </summary>
     internal void Struggle(EnemyContext ctx, double amount)
     {
-        if (Phase != SpinePhase.Grab)
+        if (Phase != SpinePhase.Grab || _struggled)
             return;
         _struggle += amount;
-        if (_struggle >= ctx.Tuning.Grab.SoloStruggle)
+        if (_struggle < ctx.Tuning.Grab.SoloStruggle)
+            return;
+        _struggled = true;
+        var dice = new Pcg32((ctx.World.Director?.Seed ?? 0) ^ (ulong)Id * 0x9E3779B97F4A7C15UL, 0x5357_0000UL + _grabbedAt);
+        if (dice.NextDouble() < ctx.Tuning.Grab.SoloStruggleChance)
             Rescued(ctx, Holding);
     }
+
+    /// <summary>A grab's one struggle has been tried and failed: it holds on.</summary>
+    public bool StruggledOff => Phase == SpinePhase.Grab && _struggled;
 
     /// <summary>The grab broken by a friend (or, alone, the victim): it lets go and breaks off (App. A.1). Enemies may do more.</summary>
     protected virtual void Rescued(EnemyContext ctx, int by)

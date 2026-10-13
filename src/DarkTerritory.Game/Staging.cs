@@ -585,7 +585,7 @@ public static partial class Staging
     /// stood between the regulator and the brake, facing forward, hands on them, or up on the whistle cord.
     /// </summary>
     /// <summary>
-    /// The BBQ deck's party (note 688; `dt screenshot --upgrades bbqDeck --bbq`, the director: "a tiny party at the front ...
+    /// The BBQ deck's party (note 698; `dt screenshot --upgrades bbqDeck --bbq`, the director: "a tiny party at the front ...
     /// the BBQ Dads at the end of the world"): two of the crew sat back in the chairs, one with a beer; one at the grill with
     /// a sausage off it; one by the cooler with a beer, turned to the others. Empty when the train has no deck.
     /// </summary>

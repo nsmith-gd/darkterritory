@@ -135,13 +135,13 @@ public sealed record CompositionTuning
     public bool SwitchThrower { get; init; }
     /// <summary>How far ahead it reaches, and how slow the train has to be.</summary>
     public ThrowerTuning Thrower { get; init; } = new();
-    /// <summary>The BBQ deck on the engine's front (note 688): its chairs, its cooler and its grill.</summary>
+    /// <summary>The BBQ deck on the engine's front (note 698): its chairs, its cooler and its grill.</summary>
     public bool BbqDeck { get; init; }
     /// <summary>What's on it, and what each does.</summary>
     public BbqTuning Bbq { get; init; } = new();
 }
 
-/// <summary>The BBQ deck (train.json <c>composition.bbq</c>; ARCHITECTURE §8 note 688). Field docs live in that file.</summary>
+/// <summary>The BBQ deck (train.json <c>composition.bbq</c>; ARCHITECTURE §8 note 698). Field docs live in that file.</summary>
 public sealed record BbqTuning
 {
     public double DeckLength { get; init; } = 3.0;

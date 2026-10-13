@@ -8,7 +8,7 @@ using DarkTerritory.Sim.Train;
 namespace DarkTerritory.Sim.Tests;
 
 /// <summary>
-/// The BBQ deck (ARCHITECTURE §8 note 688; the director, 13 Oct 2026: "an extended front car cow catcher that has a deck, a
+/// The BBQ deck (ARCHITECTURE §8 note 698; the director, 13 Oct 2026: "an extended front car cow catcher that has a deck, a
 /// couple muskoka chairs that can be sat in, a plastic cooler with beers, and a BBQ mounted on a stand on the deck. Each
 /// character needs to be able to interact with each object so they can have a tiny "party" at the front"): a deck on the
 /// engine's front, walked to along the running boards; chairs to sit in, beers to take and drink, a grill to light and cook on.

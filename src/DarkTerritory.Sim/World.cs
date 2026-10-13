@@ -509,7 +509,7 @@ public sealed class World
     public void Stock()
     {
         MountExtinguishers();
-        // The BBQ deck (note 688): its cooler full, its grill cold, what a beer and a sausage give back.
+        // The BBQ deck (note 698): its cooler full, its grill cold, what a beer and a sausage give back.
         var bbq = Train.Dynamics.Tuning.Composition.Bbq;
         Bodies.BeerHeals = bbq.BeerHeals;
         Bodies.SausageHeals = bbq.SausageHeals;
@@ -1425,8 +1425,15 @@ public sealed class World
     /// <paramref name="viewTick"/> is when the shooter saw the targets (lag compensation: the host checks
     /// hits against where things were on the shooter's screen).
     /// </summary>
-    public void CrewAct(ref PlayerState s, in PlayerIntent intent, int playerId, uint? viewTick = null)
+    public void CrewAct(ref PlayerState s, in PlayerIntent asked, int playerId, uint? viewTick = null)
     {
+        // While something has hold of you, Use is the struggle's alone (App. C.1; the director, 13 Oct, App. F.5: "struggle is
+        // hold e and when next to the firebox it will also shovel coal into the firebox, we need input prioritization"):
+        // nothing else in reach takes it, the coal, a door, a lever, a body. Prediction runs this too, so a client's held
+        // player works nothing either (note 681).
+        var intent = asked;
+        if (s.Has(PlayerFlags.Held))
+            intent.Buttons &= ~PlayerButtons.Use;
         PlayerMotor.Look(ref s, intent);
         PlayerMotor.TakeHand(ref s, intent, Hand);
         Crouching(ref s, intent);
@@ -1460,7 +1467,7 @@ public sealed class World
         bool charging = Authority && gunTuning is { Rack: > 0 } && Bodies.CarriedBy(playerId) is { Kind: Physics.BodyKind.Powder } && Charging(s, gunTuning) is not null;
         var fetch = Authority && gunTuning is { Rack: > 0 } && Guns.AtLocker(s, Train, gunTuning) is not null && Guns.Stowed(Train, gunTuning) > 0
             ? Physics.BodyKind.Powder : (Physics.BodyKind?)null;
-        // The BBQ deck's cooler (note 688): empty hands at it, and there's a beer left, take one.
+        // The BBQ deck's cooler (note 698): empty hands at it, and there's a beer left, take one.
         int? cooler = Authority && fetch is null && CrewActions.NearestInteractable(s, Train, Hand) is ({ Kind: InteractableKind.Cooler }, var coolerCar)
             && Train.Vehicles[coolerCar].Beers > 0 ? coolerCar : null;
         if (cooler is not null)
@@ -1469,7 +1476,7 @@ public sealed class World
         // lever, which takes Use whatever's in your hands (queue #94, note 357): the lamp you carried out to a stand stays lit
         // in your hand while you throw it, and a crate lying by it stays down.
         bool lever = Authority && Switches?.InReach(s, Train, Hand) is not null;
-        // Sitting down in a Muskoka chair or getting up (note 688): what's in your hands (a beer) stays there.
+        // Sitting down in a Muskoka chair or getting up (note 698): what's in your hands (a beer) stays there.
         bool sitting = intent.Has(PlayerActions.Seat) && (s.Has(PlayerFlags.Lounging) || CrewActions.Nearest(s, Train, Hand) == InteractableKind.Chair);
         bool handsTookIt = Authority && Bodies.Handle(ref s, intent, playerId, Train, Hand,
             keep: kit && (breaching || CrewActions.AtTheRupture(s, Train, Hand)) || charging || sitting, lever: lever, fetch: fetch);
@@ -1490,7 +1497,7 @@ public sealed class World
         // A healing find used up in the hands this tick (GDD App. F.1; note 272): its health back, up to full.
         if (Authority && Bodies.TakeDose(playerId) is > 0 and var dose && s.Alive)
             s.Health = Math.Min(Bodies.FullHealth, s.Health + dose);
-        // A beer finished (note 688): it takes the edge off the cold.
+        // A beer finished (note 698): it takes the edge off the cold.
         if (Authority && Bodies.TakeDrink(playerId))
             s.Cold = Math.Max(0, s.Cold - Train.Dynamics.Tuning.Composition.Bbq.BeerWarmth);
         // At the crane's controls, the stick drives the crane, not your feet (T48); taken and let go with a press of Use at
@@ -1527,7 +1534,7 @@ public sealed class World
             int partings = Train.Partings.Count;
             int cooked = Train.Vehicles.Sum(v => v?.Cooked ?? 0);
             CrewActions.Apply(ref s, intent, Train, SimConstants.TickSeconds, Hand);
-            // A sausage off the BBQ deck's grill (note 688), into the cook's hands (or at their feet, hands full).
+            // A sausage off the BBQ deck's grill (note 698), into the cook's hands (or at their feet, hands full).
             if (Authority && Train.Vehicles.Sum(v => v?.Cooked ?? 0) > cooked)
             {
                 var sausage = Bodies.SpawnItem(PlayerMotor.WorldPosition(s, Train) + Double3.Up * 1.0, s.LineHint, Physics.BodyKind.Sausage);
@@ -1562,7 +1569,7 @@ public sealed class World
         // The gun's seat (T112): sat in or got up from, the view held to the gun's arc and the gun laid after it, before it fires.
         if (Combat is { } cs)
             Guns.Sit(ref s, intent, Train, cs.Guns, SimConstants.TickSeconds);
-        // A Muskoka chair on the BBQ deck (note 688): sat in with the same press, got up from with it again.
+        // A Muskoka chair on the BBQ deck (note 698): sat in with the same press, got up from with it again.
         Bbq.Sit(ref s, intent, Train, LastCrew.Where(c => c.Id != playerId).Select(c => c.State), Hand);
         var targets = viewTick is { } vt && _targetHistory.TryGetValue(vt, out var then) ? then : Targets;
         if (Combat is { } c && Guns.TryFire(s, intent, Train, c.Guns, ref Choir, c.Choir, targets, Tick, playerId) is { } shot)
@@ -1628,11 +1635,11 @@ public sealed class World
             double moving = s.Velocity.Length;
             // Driving a moving train is working it (T115 playtest: the driver, watching the line, was Tippy Toesie's mark).
             bool driving = Net.CabControls.CanDrive(s, Train) && Math.Abs(Train.Dynamics.Speed) > 1;
-            bool idle = moving < ec.Tuning.TippyToesie.IdleBelow && intent.MoveX == 0 && intent.MoveZ == 0 && intent.Buttons == PlayerButtons.None
-                && intent.Actions == PlayerActions.None && !driving;
+            bool idle = moving < ec.Tuning.TippyToesie.IdleBelow && asked.MoveX == 0 && asked.MoveZ == 0 && asked.Buttons == PlayerButtons.None
+                && asked.Actions == PlayerActions.None && !driving;
             IdleSeconds[playerId] = idle ? IdleSeconds.GetValueOrDefault(playerId) + SimConstants.TickSeconds : 0;
             // Alone, there's no friend to act: at a crew of one the held can struggle free (the solo rule, T89).
-            if (s.Has(PlayerFlags.Held) && intent.Has(PlayerButtons.Use) && ec.Tuning.Grab.SoloStruggleOn && _context.Crew.Count(x => x.Player.State.Alive) <= 1)
+            if (s.Has(PlayerFlags.Held) && asked.Has(PlayerButtons.Use) && ec.Tuning.Grab.SoloStruggleOn && _context.Crew.Count(x => x.Player.State.Alive) <= 1)
                 foreach (var holder in _enemies.Where(e => e.Phase == SpinePhase.Grab && e.Holding == playerId).ToList())
                     holder.Struggle(ec, SimConstants.TickSeconds);
         }
@@ -2000,7 +2007,7 @@ public sealed class World
             if (Train.Boiler.FireDoorOpen && Train.Boiler.SinceShovel >= st.Stoker.FireDoorShutSeconds && CabEmptySeconds <= 0)
                 Train.Boiler.FireDoorOpen = false;
         }
-        // The BBQ deck's charcoal burning down (note 688), on every machine (the host's is what's sent).
+        // The BBQ deck's charcoal burning down (note 698), on every machine (the host's is what's sent).
         Bbq.Burn(Train, SimConstants.TickSeconds);
         // Extinguishers left in their own car recharge, slowly (App. C.5).
         if (Authority && Enemies is { } ft)
@@ -2410,7 +2417,11 @@ public sealed class World
         foreach (var e in came)
             Sim.Enemies.Calls.KeepOff(this, e, you, min);
         Sim.Enemies.Calls.KeepIn(this, came, you, max);
-        double nearest = came.Min(e => ((e.WorldPosition(Train) - you) with { Y = 0 }).Length);
+        // A hidden Tippy Toesie is nowhere yet (its place is the line's start): it's not counted as far off (App. F.5).
+        var seen = came.Where(e => e is not Sim.Enemies.TippyToesie { Hidden: true }).ToList();
+        if (seen.Count == 0)
+            return new(kind, true, why ?? "by its own rule", [.. came.Select(e => e.Id)]);
+        double nearest = seen.Min(e => ((e.WorldPosition(Train) - you) with { Y = 0 }).Length);
         return new(kind, true, $"{why ?? "by its own rule"}, {nearest:0} m off", [.. came.Select(e => e.Id)]);
     }
 

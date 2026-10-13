@@ -297,7 +297,7 @@ public static partial class TownGenerator
                 or "elevator" or "warehouse").DistinctBy(f => f.Kind).Take(t.Walled.WorksHands))
                 spots.Add(new("hand", f.S, f.D + f.FaceD * (f.SolidD + 1.2), -f.FaceS, -f.FaceD, 0));
 
-        // The town's blacksmith, who does the trains (note 687; the director, 13 Oct 2026: "a vendor who is clearly marked as
+        // The town's blacksmith, who does the trains (note 697; the director, 13 Oct 2026: "a vendor who is clearly marked as
         // the vendor blacksmith of the town who does train upgrades"): every town has one, at the forge beside the engine as it
         // stands in the yard. Last of everyone, so who everybody else is and what they're called is as it was.
         if (t.Smithy is { } smithy)

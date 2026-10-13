@@ -730,7 +730,7 @@ public static partial class Hud
         BodyKind.Heavy => "AN END OF THE HEAVY CRATE",
         BodyKind.Ragdoll => "A BODY",
         BodyKind.Child => "THE CHILD",
-        // The BBQ deck's (note 688).
+        // The BBQ deck's (note 698).
         BodyKind.Beer => "A BEER",
         BodyKind.Sausage => "A SAUSAGE",
         _ => "IT",
@@ -2059,7 +2059,7 @@ public static partial class Hud
             : Hold("FILL THE RACK", carried.MendTicks * Sim.SimConstants.TickSeconds / combat.Guns.ChargeSeconds);
     }
 
-    /// <summary>The BBQ deck's beer or sausage in hand (note 688): had with Use held, as a healing find's used.</summary>
+    /// <summary>The BBQ deck's beer or sausage in hand (note 698): had with Use held, as a healing find's used.</summary>
     static string? PartyPrompt(Body carried) => carried.Kind switch
     {
         BodyKind.Beer => carried.MendTicks > 0 ? "DRINKING" : "DRINK : HOLD [E]",
@@ -2245,7 +2245,7 @@ public static partial class Hud
                 : Repairs.WrenchKey(p) is var wrench and > 0 ? $"THE COUPLING'S LOOSE   WRENCH : [{wrench}]" : "THE COUPLING'S LOOSE   NO WRENCH";
         if (p.Parent > 0 && p.Parent < train.Frames.Count && train.Vehicles[p.Parent].Breached && PlayerMotor.Indoors(p, train))
             return "THE CAR'S BREACHED";
-        // Sat in a Muskoka chair on the BBQ deck (note 688): getting up is all there is to do.
+        // Sat in a Muskoka chair on the BBQ deck (note 698): getting up is all there is to do.
         if (p.Has(PlayerFlags.Lounging))
             return "GET UP : [E]";
         var near = CrewActions.Nearest(p, train, hand);
@@ -2299,7 +2299,7 @@ public static partial class Hud
             // Spec F.3's powered switch thrower (note 196).
             case InteractableKind.Points when SwitchPrompt(world, p, train, hand) is { } cabLever:
                 return cabLever;
-            // The BBQ deck (note 688): a chair, the cooler, the grill.
+            // The BBQ deck (note 698): a chair, the cooler, the grill.
             case InteractableKind.Chair:
                 return "SIT : [E]";
             case InteractableKind.Cooler:

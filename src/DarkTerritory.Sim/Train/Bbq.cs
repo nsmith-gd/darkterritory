@@ -3,7 +3,7 @@ using DarkTerritory.Sim.Player;
 namespace DarkTerritory.Sim.Train;
 
 /// <summary>
-/// The BBQ deck on the engine's front (ARCHITECTURE §8 note 688; the director, 13 Oct 2026: "a couple muskoka chairs that can
+/// The BBQ deck on the engine's front (ARCHITECTURE §8 note 698; the director, 13 Oct 2026: "a couple muskoka chairs that can
 /// be sat in, a plastic cooler with beers, and a BBQ mounted on a stand on the deck. Each character needs to be able to
 /// interact with each object so they can have a tiny "party" at the front ... its the BBQ Dads at the end of the world").
 /// Its geometry is <see cref="CarShape.WithBbqDeck"/>; its numbers train.json <c>composition.bbq</c>. Worked alike on the host

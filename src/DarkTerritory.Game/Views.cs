@@ -223,7 +223,7 @@ public static class Views
             // left side, the cab's run into the boiler.
             // (Not one of Names.) Close on the headlamp from up the line, a little off its axis: the Stella Maris in its cage (note 338).
             "headlamp" => Camera.LookAt(engine.ToWorld(new Double3(0.8, 2.2, -engineHalf - 3.4)), engine.ToWorld(new Double3(0, 1.95, -engineHalf)), 40),
-            // The BBQ deck (note 688; `--upgrades bbqDeck`): from ahead and to the right, over its rail, the chairs and the grill;
+            // The BBQ deck (note 698; `--upgrades bbqDeck`): from ahead and to the right, over its rail, the chairs and the grill;
             // and from the left-hand chair, sat, down the line.
             "bbq" => Camera.LookAt(engine.ToWorld(new Double3(4.6, 3.3, -engineHalf - 7.5)), engine.ToWorld(new Double3(-0.3, 1.8, -engineHalf - 1.4)), 55),
             "bbqparty" => Camera.LookAt(engine.ToWorld(new Double3(2.6, 3.0, -engineHalf - 4.6)), engine.ToWorld(new Double3(-0.4, 1.9, -engineHalf - 1.4)), 62),

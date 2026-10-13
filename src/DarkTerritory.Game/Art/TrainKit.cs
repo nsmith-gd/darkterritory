@@ -490,7 +490,7 @@ public static partial class TrainKit
         // front and a cheek either side angled back to the engine's corners, all of it in heavy upright slats with dark
         // gaps between, each slat's edges standing proud; two bands across and a rail-iron stem at each fold.
         float reach = PloughAhead, foot = 0.06f, crest = PloughCrest, half = PloughFront;
-        // The BBQ deck (note 688) is on an extended cowcatcher: the plough pushed out under the deck's front, its crest under
+        // The BBQ deck (note 698) is on an extended cowcatcher: the plough pushed out under the deck's front, its crest under
         // the planks, its cheeks run back to the engine's corners under the deck.
         float pushed = 0;
         if (shape.Bbq is { } bbq)

@@ -34,12 +34,12 @@ public sealed class TownTalk
     /// will do (GDD §32, the director's decisions of 7 Oct on #206: <c>ACTION : [KEY]</c>).
     /// </summary>
     /// <param name="wine">Nicki has a glass for you in reach (note 571): her prompt says the hold that takes it.</param>
-    /// <param name="selling">The blacksmith's open for the crew (note 687: a campaign night's yard): their prompt says the hold
+    /// <param name="selling">The blacksmith's open for the crew (note 697: a campaign night's yard): their prompt says the hold
     /// that opens the catalogue.</param>
     public static string Prompt(Town town, TownTarget t, bool wine = false, bool selling = false) => t.Kind switch
     {
         TownTargetKind.Person when wine && town.Plan.People[t.Index].Hosting => $"{town.Plan.People[t.Index].Name.ToUpperInvariant()}   TALK : [E]   A GLASS : HOLD [E]",
-        // Clearly the blacksmith (note 687), whatever the town calls them, and what they sell.
+        // Clearly the blacksmith (note 697), whatever the town calls them, and what they sell.
         TownTargetKind.Person when IsSmith(town.Plan.People[t.Index]) =>
             $"{town.Plan.People[t.Index].Name.ToUpperInvariant()}, BLACKSMITH   TALK : [E]{(selling ? "   UPGRADES : HOLD [E]" : "")}",
         TownTargetKind.Person => $"{town.Plan.People[t.Index].Name.ToUpperInvariant()}   TALK : [E]",
@@ -50,11 +50,11 @@ public sealed class TownTalk
         _ => $"{town.Plan.Fixtures[t.Index].Name.ToUpperInvariant()}   LOOK : [E]",
     };
 
-    /// <summary>The town's blacksmith, who does the trains (note 687).</summary>
+    /// <summary>The town's blacksmith, who does the trains (note 697).</summary>
     public static bool IsSmith(Townsperson p) => p.Role == "blacksmith";
 
     /// <summary>
-    /// Whether the blacksmith's selling to this crew now (note 687): a campaign night (its upgrades are the campaign's), in
+    /// Whether the blacksmith's selling to this crew now (note 697): a campaign night (its upgrades are the campaign's), in
     /// the yard before the gate (GDD §9: the town's a safe space, and what's bought is fitted before the train goes).
     /// </summary>
     public static bool Selling(IPlaySession s) =>
@@ -97,7 +97,7 @@ public sealed class TownTalk
         return true;
     }
 
-    /// <summary>Shuts the card open, if any (the blacksmith's catalogue opening over it, note 687).</summary>
+    /// <summary>Shuts the card open, if any (the blacksmith's catalogue opening over it, note 697).</summary>
     public void Close() => Open = null;
 
     /// <summary>A house by its family: theirs, or for one nobody lives in now, the old one.</summary>

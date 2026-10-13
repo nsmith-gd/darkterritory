@@ -97,7 +97,7 @@ public static class WorldRecords
                     Q(v.Knot, Fine),
                     // How much of its load is things lying in it as themselves (note 659): the rest is its heap, every client's.
                     Q(v.Placed, Fine),
-                    // The BBQ deck's (note 688): the grill's charcoal left (it glows and warms on every client), the cooler's beers.
+                    // The BBQ deck's (note 698): the grill's charcoal left (it glows and warms on every client), the cooler's beers.
                     Q(v.Grill, Fine), v.Beers,
                     // How charred its fire cells are (note 267: every client draws the burnt boards).
                     .. CarFire.Pack([.. v.Char.Select(c => c / (double)((1 << CarFire.Bits) - 1))])]));

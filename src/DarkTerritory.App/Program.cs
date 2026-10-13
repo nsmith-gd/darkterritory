@@ -427,7 +427,7 @@ LobbyId? Invited(NetPlaySession? net)
 bool menuOpened = false;
 // Note 604: after a delivered campaign night, the town the crew arrived in, behind the front end in place of the stand-in yard.
 TownBackdrop? inTown = null;
-// The blacksmith's fitted something in the yard (note 687): the night's hosted again from its yard, the train as it's fitted.
+// The blacksmith's fitted something in the yard (note 697): the night's hosted again from its yard, the train as it's fitted.
 bool refitting = false;
 bool QuitNow() => quitAfter > 0 && timer.Elapsed.TotalSeconds >= quitAfter;
 
@@ -972,7 +972,7 @@ CampaignState? Play(IPlaySession session, CampaignState? campaign)
     // Talking and reading in the fortress town (note 281): on this machine alone. A press the town took isn't sent to the
     // host while the key's still down (nothing in a town changes the night; a lamp at somebody's feet stays where it is).
     var townTalk = new TownTalk();
-    // The blacksmith (note 687): how long Use's been held on them (-1: their catalogue's been opened by this hold), and whether
+    // The blacksmith (note 697): how long Use's been held on them (-1: their catalogue's been opened by this hold), and whether
     // something's been bought to fit. The host's purchase is the campaign's, saved at once; the yard's hosted again to fit it.
     double smithHeld = 0;
     bool refitWanted = false;
@@ -1149,7 +1149,7 @@ CampaignState? Play(IPlaySession session, CampaignState? campaign)
                     profile.Record(session.World.Commendations, net.PlayerId);
                 break;
             }
-            // The blacksmith's done (note 687): what was bought is fitted, the yard hosted again with it.
+            // The blacksmith's done (note 697): what was bought is fitted, the yard hosted again with it.
             if (frontEnd.Night is null && refitWanted)
             {
                 window.TextInput = false;
@@ -1229,7 +1229,7 @@ CampaignState? Play(IPlaySession session, CampaignState? campaign)
             useKept = true;
         if (!Held(Control.Use))
             useKept = false;
-        // The blacksmith (note 687): Use held on them opens their catalogue over the yard. Only a campaign night's yard sells.
+        // The blacksmith (note 697): Use held on them opens their catalogue over the yard. Only a campaign night's yard sells.
         if (!inMenu && smithy is not null && Held(Control.Use) && TownTalk.Selling(session) && session.World.TownOf(session.Player) is { } forgeTown
             && Hud.TownTarget(session) is { Kind: DarkTerritory.Sim.Towns.TownTargetKind.Person } smithT && TownTalk.IsSmith(forgeTown.Plan.People[smithT.Index]))
         {
@@ -1261,7 +1261,7 @@ CampaignState? Play(IPlaySession session, CampaignState? campaign)
             && DarkTerritory.Sim.Combat.Guns.MannedGun(session.Player, session.Train, gc.Guns) is { } atGun && session.Train.Vehicles[atGun].Gun.ReloadNeeded <= 0
             && !Held(Control.Forward) && !Held(Control.Back) && !Held(Control.Left) && !Held(Control.Right))
             pendingSeat = true;
-        // A Muskoka chair on the BBQ deck (note 688): Use pressed at one sits you in it (a beer in hand stays there), and pressed
+        // A Muskoka chair on the BBQ deck (note 698): Use pressed at one sits you in it (a beer in hand stays there), and pressed
         // again with empty hands gets you up (the gun's seat's press, Bbq.Sit); sat with a beer, Use held drinks it.
         if (Hit(Control.Use) && (session.Player.Has(PlayerFlags.Lounging) ? session.World.Bodies.CarriedBy(session.PlayerId) is null
             : CrewActions.Nearest(session.Player, session.Train, session.World.Hand) == InteractableKind.Chair))

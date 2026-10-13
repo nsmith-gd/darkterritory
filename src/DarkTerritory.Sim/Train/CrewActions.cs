@@ -223,7 +223,7 @@ public static class CrewActions
                         train.SetHandbrake(s.Parent, !train.RakeOf(s.Parent).Handbrake);
                 }
                 break;
-            // The BBQ deck's grill (note 688): held, it's lit; lit, held, it cooks, a sausage at a time (the host hands each
+            // The BBQ deck's grill (note 698): held, it's lit; lit, held, it cooks, a sausage at a time (the host hands each
             // over: World).
             case InteractableKind.Grill when s.Parent == near.Value.Vehicle:
                 Bbq.Work(ref s, train, near.Value.Vehicle, before, dt);

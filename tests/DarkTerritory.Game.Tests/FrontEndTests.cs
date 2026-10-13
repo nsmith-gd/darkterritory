@@ -107,7 +107,7 @@ public sealed class FrontEndTests : IDisposable
         Assert.NotNull(m.Message);
         Assert.Equal(C.StartingCars + 1, Saves.Load(1)!.Cars);
 
-        // Upgrades (note 687): the fortress's UPGRADES is the blacksmith's shelves to look at; they're bought at the forge.
+        // Upgrades (note 697): the fortress's UPGRADES is the blacksmith's shelves to look at; they're bought at the forge.
         Saves.Save(m.Open! with { Scrip = 10_000 });
         m.ShowFortress(1);
         Choose(m, "UPGRADES");

@@ -164,13 +164,13 @@ public sealed class Vehicle(int id, VehicleKind kind, double load)
     /// </summary>
     public bool LampLit { get; set; } = true;
     /// <summary>
-    /// The engine's BBQ (note 688): the seconds of charcoal it has left burning, 0 out. Lit, it warms who's by it and brings
+    /// The engine's BBQ (note 698): the seconds of charcoal it has left burning, 0 out. Lit, it warms who's by it and brings
     /// the Cinder Hounds as a hot boiler does.
     /// </summary>
     public double Grill { get; set; }
-    /// <summary>The beers left in the engine's BBQ-deck cooler tonight (note 688).</summary>
+    /// <summary>The beers left in the engine's BBQ-deck cooler tonight (note 698).</summary>
     public int Beers { get; set; }
-    /// <summary>Sausages that have come off its grill this night (note 688): the host hands each one to whoever cooked it.</summary>
+    /// <summary>Sausages that have come off its grill this night (note 698): the host hands each one to whoever cooked it.</summary>
     public int Cooked { get; set; }
     public bool DoorOpen(int index) => (DoorsOpen & (1 << index)) != 0;
 

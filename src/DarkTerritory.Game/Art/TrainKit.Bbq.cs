@@ -7,7 +7,7 @@ namespace DarkTerritory.Game.Art;
 public static partial class TrainKit
 {
     /// <summary>
-    /// The BBQ deck (ARCHITECTURE §8 note 688; the director, 13 Oct 2026: "an extended front car cow catcher that has a deck, a
+    /// The BBQ deck (ARCHITECTURE §8 note 698; the director, 13 Oct 2026: "an extended front car cow catcher that has a deck, a
     /// couple muskoka chairs that can be sat in, a plastic cooler with beers, and a BBQ mounted on a stand on the deck ... its
     /// the BBQ Dads at the end of the world"), in the engine's frame, over <see cref="CarShape.WithBbqDeck"/>'s solids: a deck of
     /// weathered planks on two iron stringers out over the cowcatcher (EngineDress draws it pushed out under the deck's front),
@@ -60,7 +60,7 @@ public static partial class TrainKit
         return k.Build("bbq-deck");
     }
 
-    /// <summary>The grill's coals, glowing through its open front and under its lid, while it's lit (note 688).</summary>
+    /// <summary>The grill's coals, glowing through its open front and under its lid, while it's lit (note 698).</summary>
     public static MeshAsset BbqCoals(Look? look, CarShape shape)
     {
         var k = new Kit(look, 689);
@@ -74,7 +74,7 @@ public static partial class TrainKit
         return k.Build("bbq-coals");
     }
 
-    /// <summary>Where the grill's smoke leaves its chimney, in the engine's frame (note 688).</summary>
+    /// <summary>Where the grill's smoke leaves its chimney, in the engine's frame (note 698).</summary>
     public static Vector3 GrillChimney(CarShape shape) => V(shape.Bbq!.Grill) + new Vector3(0.24f, 1.45f, 0.1f);
 
     static Vector3 V(Ballast.Double3 d) => new((float)d.X, (float)d.Y, (float)d.Z);

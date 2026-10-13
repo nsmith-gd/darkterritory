@@ -34,7 +34,7 @@ public sealed record TownTuning
     public int[] NickiGuests { get; init; } = [2, 4];
     /// <summary>Nicki's wine (note 571): taken by holding Use by her, a glass a crewmate a night.</summary>
     public NickiWine Wine { get; init; } = new();
-    /// <summary>The blacksmith's forge (towns.json <c>smithy</c>; note 687). Unset, a town has none.</summary>
+    /// <summary>The blacksmith's forge (towns.json <c>smithy</c>; note 697). Unset, a town has none.</summary>
     public SmithyTuning? Smithy { get; init; }
     public required int[] Quirks { get; init; }
     public required int[] Notices { get; init; }
@@ -189,7 +189,7 @@ public sealed record TownWriting
     public required TownQuirk[] Quirks { get; init; }
     public required Dictionary<string, TownIndustry> Industries { get; init; }
     public required Dictionary<string, TownRole> Roles { get; init; }
-    /// <summary>The forge (note 687): its name, and what its board says read close to.</summary>
+    /// <summary>The forge (note 697): its name, and what its board says read close to.</summary>
     public TownText? Forge { get; init; }
     public required TownThread[] Threads { get; init; }
     public required TownText[] Notices { get; init; }
@@ -245,7 +245,7 @@ public sealed record TownHousehold
 public sealed record TownText(string Title, string Text);
 
 /// <summary>
-/// Where the blacksmith works (towns.json <c>smithy</c>; ARCHITECTURE §8 note 687): the forge <see cref="FromGate"/> m along
+/// Where the blacksmith works (towns.json <c>smithy</c>; ARCHITECTURE §8 note 697): the forge <see cref="FromGate"/> m along
 /// the line from the gate (back into the yard, beside the engine as it stands there), <see cref="Out"/> m out on the town's
 /// side; the smith <see cref="Stand"/> m in front of it, toward the line. <see cref="HoldSeconds"/>: Use held on them that long
 /// opens the catalogue.

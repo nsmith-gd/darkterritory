@@ -56,7 +56,7 @@ public static class PropKit
     /// with a strap to carry it by; what's in it the HUD says.
     /// </summary>
     /// <summary>
-    /// A beer from the BBQ deck's cooler (note 688): a can, red with a white band, its top bright. Larger than life, a little,
+    /// A beer from the BBQ deck's cooler (note 698): a can, red with a white band, its top bright. Larger than life, a little,
     /// to read in a hand at night.
     /// </summary>
     public static MeshAsset Beer(Look? look)
@@ -71,7 +71,7 @@ public static class PropKit
         return k.Build("prop-beer");
     }
 
-    /// <summary>A sausage off the BBQ deck's grill (note 688), in its bun.</summary>
+    /// <summary>A sausage off the BBQ deck's grill (note 698), in its bun.</summary>
     public static MeshAsset Sausage(Look? look)
     {
         var k = new Kit(look, 1689);

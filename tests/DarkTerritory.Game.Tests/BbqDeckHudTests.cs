@@ -6,7 +6,7 @@ using DarkTerritory.Sim.Train;
 namespace DarkTerritory.Game.Tests;
 
 /// <summary>
-/// The BBQ deck on the HUD (ARCHITECTURE §8 note 688): each thing on it says what Use does there, a chair's sitter sees the
+/// The BBQ deck on the HUD (ARCHITECTURE §8 note 698): each thing on it says what Use does there, a chair's sitter sees the
 /// line low over their knees, and sat, getting up is all there is.
 /// </summary>
 public class BbqDeckHudTests

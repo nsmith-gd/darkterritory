@@ -6,7 +6,7 @@ using DarkTerritory.Sim.Towns;
 namespace DarkTerritory.Sim.Tests;
 
 /// <summary>
-/// The town's blacksmith, who does the trains (ARCHITECTURE §8 note 687; the director, 13 Oct 2026: "Upgrades need to be
+/// The town's blacksmith, who does the trains (ARCHITECTURE §8 note 697; the director, 13 Oct 2026: "Upgrades need to be
 /// purchasable in the fortress towns from a vendor who is clearly marked as the vendor blacksmith of the town who does train
 /// upgrades"): every town has one, at a forge beside the engine as it stands in the yard, always there to buy from.
 /// </summary>
@@ -87,7 +87,7 @@ public class BlacksmithTests
     [Fact]
     public void EverybodyElseIsWhoTheyWereBeforeTheBlacksmithCame()
     {
-        // The blacksmith and the forge come last (note 687), so nobody else's name, place or number changed with them.
+        // The blacksmith and the forge come last (note 697), so nobody else's name, place or number changed with them.
         var withSmith = TownGenerator.Generate(Towns, Site(7));
         var without = TownGenerator.Generate(Towns with { Tuning = Towns.Tuning with { Smithy = null } }, Site(7));
         Assert.Equal(without.People.Count + 1, withSmith.People.Count);

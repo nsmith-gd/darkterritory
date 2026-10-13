@@ -165,7 +165,7 @@ public static class CrewActs
     }
 
     /// <summary>
-    /// <paramref name="s"/> sat in a Muskoka chair (note 688): the seated clip's pan let down to the chair's slung seat
+    /// <paramref name="s"/> sat in a Muskoka chair (note 698): the seated clip's pan let down to the chair's slung seat
     /// (<see cref="ChairPan"/> over its feet), facing down the line as the chair does.
     /// </summary>
     public static PlayerState Lounging(in PlayerState s) => s with { Position = s.Position with { Y = s.Position.Y + ChairPan - GunnerPan } };
@@ -265,7 +265,7 @@ public static class CrewActs
             return CrewPose.Push;
         if (s.Has(PlayerFlags.Operating))
             return CrewPose.Lever;
-        // Sat back in a Muskoka chair on the BBQ deck (note 688), a beer in hand or not: the gunner's seated clip, in the chair.
+        // Sat back in a Muskoka chair on the BBQ deck (note 698), a beer in hand or not: the gunner's seated clip, in the chair.
         if (s.Has(PlayerFlags.Lounging))
             return CrewPose.Gunner;
         if (world.Bodies.CarriedBy(id) is { } carried)

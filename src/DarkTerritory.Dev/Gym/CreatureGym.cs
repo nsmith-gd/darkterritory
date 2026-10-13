@@ -50,6 +50,10 @@ public sealed class CreatureGym
     public double Front { get; private set; }
     public RouteFeature? Stop { get; private set; }
 
+    /// <summary>Where along the line the stop's first points are (its yard's throat), and its village's middle.</summary>
+    public double? FirstPoints { get; private set; }
+    public double Village { get; private set; }
+
     /// <summary>Loads gym.json; the gym's night is <see cref="Setup"/>.</summary>
     public static CreatureGym Load(string content) => new(GymTuning.Load(content), content);
 
@@ -68,6 +72,13 @@ public sealed class CreatureGym
         double length = Sim.Train.Consist.Uniform(train, Tuning.Cars, 1).LengthMetres;
         // The train's middle beside the stop's village (its houses and their creatures a short walk off), else the stop's middle.
         Front = Stop is { } s ? s.Start + Middle(s) + length / 2 : route.Length * 0.25;
+        Village = Stop is { } v ? v.Start + Middle(v) : Front;
+        // Or the engine short of the stop's first points, so the Switchman has some ahead to work (the director, 13 Oct, App.
+        // F.5: "Switchman cannot be tested that far away"); the village is round the yard's throat, so still a walk from the
+        // engine, and if it isn't, the train stays beside it.
+        FirstPoints = Stop is { Stop: { Tracks.Count: > 0 } layout } at ? at.Start + layout.Tracks.Min(x => x.Toe) : null;
+        if (FirstPoints is { } toe && Tuning.PointsAhead > 0 && Math.Abs(Village - (toe - Tuning.PointsAhead)) <= Tuning.MaxDistance * 0.75)
+            Front = toe - Tuning.PointsAhead;
         return new SessionSetup(Route: Tuning.Route, Cars: Tuning.Cars, Enemies: true) { Start = Front };
     }
 

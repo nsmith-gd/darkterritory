@@ -19,16 +19,29 @@ public class CreatureGymTests
     {
         // One of each way in: the director's rules (hounds), a rule from the stop's own places (the Ribbits' warren), the
         // condition kinds (the Stoker, the Choir), a house, the props the gym supplies (crates, a body, a lit car), and the
-        // rules that look further along the line (the Switchman's points, Tower Jaw's crane, the Grumbler's castings), within 200 m.
+        // rules that look further along the line (the Switchman's points, Tower Jaw's crane, the Grumbler's castings), within 200 m;
+        // and what the director couldn't try at the standing train (App. F.5: Tippy Toesie, the Dragger, the Gannet).
         EnemyKind[] kinds = [EnemyKind.CinderHound, EnemyKind.Ribbit, EnemyKind.Stoker, EnemyKind.Choir, EnemyKind.Lodger, EnemyKind.Pickers,
-            EnemyKind.Mourners, EnemyKind.FreightBeetle, EnemyKind.FireFlies, EnemyKind.Switchman, EnemyKind.TowerJaw, EnemyKind.Grumbler, EnemyKind.Moose];
+            EnemyKind.Mourners, EnemyKind.FreightBeetle, EnemyKind.FireFlies, EnemyKind.Switchman, EnemyKind.TowerJaw, EnemyKind.Grumbler, EnemyKind.Moose,
+            EnemyKind.TippyToesie, EnemyKind.Dragger, EnemyKind.Gannet];
         var report = GymCheck.Run(Content, kinds, seconds: 20, shots: null);
 
-        Assert.All(report.Kinds.Where(k => k.Kind != "switchman"), k => Assert.True(k.Came, $"{k.Kind}: {k.Where}"));
-        // The gym's points ahead are past its 200 m: the Switchman doesn't come, and says how far they are.
+        // The yard's crane and castings are a walk from the engine, past the 200 m from the ring: they say so, to be called nearer.
+        string[] walk = ["towerJaw", "grumbler"];
+        Assert.All(report.Kinds.Where(k => !walk.Contains(k.Kind)), k => Assert.True(k.Came, $"{k.Kind}: {k.Where}"));
+        Assert.All(report.Kinds.Where(k => walk.Contains(k.Kind)), k => Assert.True(k.Came || k.Where.Contains("call again", StringComparison.Ordinal), $"{k.Kind}: {k.Where}"));
+        // The engine stands short of the stop's first points (App. F.5: "Switchman cannot be tested that far away").
         var switchman = report.Kinds.Single(k => k.Kind == "switchman");
-        Assert.False(switchman.Came);
-        Assert.Contains("past the gym's 200 m", switchman.Where);
+        Assert.InRange(switchman.NearestAtCall ?? 0, 45, 200);
+        // The hounds come up behind the standing train and board it; Tippy Toesie comes for whoever stands still; the Dragger
+        // waits under a named car's edge; the Gannet stays over a standing train in the gym.
+        var hounds = report.Kinds.Single(k => k.Kind == "cinderHound");
+        Assert.True(hounds.AboardAfter, $"hounds: {hounds.Phase}, {hounds.NearestAfter} m");
+        var tippy = report.Kinds.Single(k => k.Kind == "tippyToesie");
+        Assert.Null(tippy.NearestAtCall);
+        Assert.True(tippy.NearestAfter < 5, $"Tippy Toesie {tippy.NearestAfter} m off after 20 s standing still");
+        Assert.Matches("under car [0-9]+'s (left|right) roof edge", report.Kinds.Single(k => k.Kind == "dragger").Where);
+        Assert.Equal(1, report.Kinds.Single(k => k.Kind == "gannet").About);
         // The Choir gathers before it comes: by twenty seconds it's here.
         Assert.True(report.Kinds.Single(k => k.Kind == "choir").Count > 0);
         Assert.Empty(report.TooNear);
@@ -40,6 +53,26 @@ public class CreatureGymTests
         Assert.True(report.Respawn.FromRing < 1, $"stood up {report.Respawn.FromRing} m from the ring's middle");
         Assert.False(report.Respawn.RunOver);
         Assert.True(report.Ring.SentOff);
+    }
+
+    [Fact]
+    public void TheGannetStaysOverAStandingTrainInTheGym()
+    {
+        // App. F.5 (the director, 13 Oct: "gannet doesn't dive consistently or loop its attacks"): on a real night a train
+        // under 43 km/h sends it away within seconds; the gym's train stands, so there it stays until it's cleared.
+        var gym = CreatureGym.Load(Content);
+        using var night = NetPlaySession.HostGame(Content, gym.Setup(), port: null, bots: 0, listed: false);
+        var host = night.Host!;
+        gym.Begin(host);
+        var called = gym.Call(host, (byte)night.PlayerId, EnemyKind.Gannet);
+        Assert.True(called.Came, called.Where);
+        for (int t = 0; t < 40 * SimConstants.TickRate; t++)
+        {
+            night.Step(default);
+            gym.Step(host, host.Tick * SimConstants.TickSeconds);
+        }
+        var gannet = Assert.IsType<Gannet>(host.World.ActiveEnemies.Single(e => e.Id == called.Ids[0]));
+        Assert.NotEqual(GannetMode.Away, gannet.Mode);
     }
 
     [Fact]

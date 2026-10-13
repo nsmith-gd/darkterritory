@@ -46,7 +46,7 @@ public enum SurfaceKind : byte { Roof, Deck, Coupler }
 /// <summary>What a solid is, so presentation can draw and colour it. Collision ignores this, but for an open roof hatch (T99).</summary>
 /// <summary><see cref="CrewLocker"/> is one of the kit car's row of crew lockers (ARCHITECTURE §8 note 173); <see cref="Locker"/> the guard van's tool locker.</summary>
 /// <summary><see cref="Stove"/> and <see cref="Bunk"/> are a crew car's (note 184): its stove, and the berths down its right side.</summary>
-/// <summary><see cref="BbqDeck"/>, <see cref="Rail"/>, <see cref="Cooler"/> and <see cref="Grill"/> are the BBQ deck's (note 688).</summary>
+/// <summary><see cref="BbqDeck"/>, <see cref="Rail"/>, <see cref="Cooler"/> and <see cref="Grill"/> are the BBQ deck's (note 698).</summary>
 public enum PartKind : byte
 {
     Body, Chassis, Boiler, Stack, CabWall, CabRoof, Tender, Coupler, GunMount, Wall, Cargo, Locker, Steps, RunningBoard, Hatch, CrewLocker, Stove, Bunk, Firebox,
@@ -101,7 +101,7 @@ public readonly record struct Ladder(Double3 Foot, double Top, Double3 Inward, d
 /// only when it's looked at (<see cref="CrewActions.NearestInteractable"/>), so nobody pulls it reaching for the firebox.
 /// </remarks>
 /// <remarks>
-/// <see cref="Chair"/>, <see cref="Cooler"/> and <see cref="Grill"/> are on the BBQ deck (note 688): a Muskoka chair to sit in
+/// <see cref="Chair"/>, <see cref="Cooler"/> and <see cref="Grill"/> are on the BBQ deck (note 698): a Muskoka chair to sit in
 /// (<see cref="Interactable.Index"/> which), the cooler of beers, the BBQ on its stand.
 /// </remarks>
 public enum InteractableKind : byte { Firebox, Vent, Handbrake, Door, Coal, Sandbox, Hatch, ToolRack, Locker, Points, Whistle, Chair, Cooler, Grill }
@@ -148,7 +148,7 @@ public readonly record struct LockerBay(int Index, Box Box, string Name)
 }
 
 /// <summary>
-/// The BBQ deck's things in the engine's frame (note 688): each chair's seat (where its sitter's feet are; they face down
+/// The BBQ deck's things in the engine's frame (note 698): each chair's seat (where its sitter's feet are; they face down
 /// the line, −Z), the cooler's middle and the grill's, on the deck; and the deck's front edge (Z).
 /// </summary>
 public sealed record BbqLayout(IReadOnlyList<Double3> Chairs, Double3 Cooler, Double3 Grill, double Front);
@@ -188,7 +188,7 @@ public sealed record CarShape(Box Bounds, IReadOnlyList<Solid> Solids, IReadOnly
     public const double HatchLookDegrees = 35;
     /// <summary>A crew car's stove (note 184), standing on its floor: the heat a crew car has of its own.</summary>
     public Box? Stove { get; init; }
-    /// <summary>The BBQ deck on the engine's front (note 688), where it's fitted: its chairs, its cooler and its grill.</summary>
+    /// <summary>The BBQ deck on the engine's front (note 698), where it's fitted: its chairs, its cooler and its grill.</summary>
     public BbqLayout? Bbq { get; init; }
 
     public double HalfLength => Bounds.Max.Z;
@@ -306,7 +306,7 @@ public sealed record CarShape(Box Bounds, IReadOnlyList<Solid> Solids, IReadOnly
     public static CarShape Knotted(CarShape shape, GeometryTuning g, double knot) => KnottedShape(shape, g, knot);
 
     /// <summary>
-    /// The engine with the BBQ deck on its front (ARCHITECTURE §8 note 688; the director, 13 Oct 2026: "an extended front car
+    /// The engine with the BBQ deck on its front (ARCHITECTURE §8 note 698; the director, 13 Oct 2026: "an extended front car
     /// cow catcher that has a deck, a couple muskoka chairs that can be sat in, a plastic cooler with beers, and a BBQ mounted
     /// on a stand on the deck"): a plank deck <see cref="BbqTuning.DeckLength"/> m long ahead of the pilot, as wide as the
     /// running boards and at their height, railed round its front and sides; the running boards run on forward along the

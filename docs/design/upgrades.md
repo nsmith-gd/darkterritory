@@ -176,7 +176,7 @@ couple muskoka chairs that can be sat in, a plastic cooler with beers, and a BBQ
 character needs to be able to interact with each object so they can have a tiny "party" at the front. That kind of complex
 add on is great whimsy, its the BBQ Dads at the end of the world. Brainstorm more Tools, Whimsy's, and Sillies."*
 
-### 7.1 The blacksmith (queue #419, note 687)
+### 7.1 The blacksmith (queue #429, note 697)
 
 The catalogue is bought in the town, from its blacksmith, not from a menu (GDD §3.1 already says "buying, upgrading and
 turning loot into scrip in the town itself, not the menu"). Note 687 has how it's built.
@@ -189,7 +189,7 @@ turning loot into scrip in the town itself, not the menu"). Note 687 has how it'
   in the crew can buy: one wallet (§11). What's bought is fitted before the gate, and the clerk reads it at the next tally.
 - **When.** In the yard, where the town's a safe space (§9). Past the gate the forge is shut.
 
-### 7.2 The BBQ deck (queue #420, note 688): the flagship whimsy
+### 7.2 The BBQ deck (queue #430, note 698): the flagship whimsy
 
 **"The BBQ Dads at the end of the world."** An extended cowcatcher on the front of the engine with a plank deck on it,
 railed, ahead of the smokebox. On the deck:
@@ -200,7 +200,7 @@ railed, ahead of the smokebox. On the deck:
 | **A plastic cooler of beers** | Use: take a beer; Use with it in hand: drink it | A beer warms you a little (the cold's onset held off a while) and the crew cheers. A two-four a night (24) | The cans. A dropped empty rattles about like a noisy toy |
 | **A BBQ on a stand** | Use: light it, or turn it off; hold Use at a lit one: grill | A sausage off the grill heals (the damage model's rare healing, note 272), one at a time, a while each | Lit, it glows like a lamp (the Fire Flies) and smells (the Cinder Hounds and the Followers come to a hot, smelly train: `houndsHotBoilerWeight`'s kin) |
 
-Priced as a whimsy that's also a tool: 0.6 of the next car, from Local (U1's call). **Built** (note 688): the deck is
+Priced as a whimsy that's also a tool: 0.6 of the next car, from Local (U1's call). **Built** (note 698): the deck is
 walked to along the running boards, which run on past the cab; a beer warms (30 s off the cold) rather than heals; the
 grill's lit for a bag of charcoal (5 minutes) and a sausage takes 6 s and heals 20. The cowcatcher's own job (debris) is
 still §4's tool.

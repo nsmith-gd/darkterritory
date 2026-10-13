@@ -269,7 +269,7 @@ public enum PlayerFlags : ushort
     /// </summary>
     Crouched = 512,
     /// <summary>
-    /// Sat in one of the BBQ deck's Muskoka chairs (note 688): still, low, looking down the line. Jump, or Use again, gets you
+    /// Sat in one of the BBQ deck's Muskoka chairs (note 698): still, low, looking down the line. Jump, or Use again, gets you
     /// up. Not <see cref="Seated"/>, which is a gun's (the census, the Gannet and the bots read that as on the gun).
     /// </summary>
     Lounging = 1024,
@@ -602,7 +602,7 @@ public static class PlayerMotor
                 if (intent.Has(PlayerButtons.Jump))
                     s.Flags &= ~PlayerFlags.Seated;
             }
-            // Out of a Muskoka chair the same way (note 688): up, and a step forward out of it.
+            // Out of a Muskoka chair the same way (note 698): up, and a step forward out of it.
             else if (s.Has(PlayerFlags.Lounging))
             {
                 if (intent.Has(PlayerButtons.Jump))
