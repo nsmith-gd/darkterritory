@@ -623,8 +623,9 @@
     // wakers.md §2, the night things run (note 635; the director, the inbox, 12 Oct 2026: "creatures should leave all except
     // the knotter and the hotbox who are parasites that have train functions"): nightFleesSeconds before dawn the night's
     // creatures let go and are gone, and the director sends none of them after; negative, they stay. Those staysAtDawn names
-    // (as in the director's "costs") stay aboard through it. The director's Creature Tweaker sets each one's tick.
-    "nightFleesSeconds": 60, "staysAtDawn": ["knotter", "hotbox"] },
+    // (as in the director's "costs") stay aboard through it. The director's Creature Tweaker sets each one's tick, and the
+    // seconds (35, note 652).
+    "nightFleesSeconds": 35, "staysAtDawn": ["knotter", "hotbox"] },
 
   // THE SWITCHMAN · vibration · corrupted (App. A.8, B.8). At a junction ahead[0]-[1] m out; seen at revealAt m. It throws
   // the points for the dead line, and the train goes down a line that leads nowhere (the clock's cost: stop, back out, set
@@ -941,8 +942,8 @@
       // should increase threat level"; orchestrator.md §8 question 1): the rate × (1 + crewScale × (crew − scaleCrew)) ×
       // (1 + lengthScale × (cars − scaleCars)), each at least scaleFloor; 1 at a crew of four and eight cars (a Frontier
       // train). The budget scales by both too (crewPerPlayer, lengthPerCarBeyondThird), but on a 7 km night it never binds:
-      // this is what does.
-      "crewScale": 0.12, "lengthScale": 0.04, "scaleCrew": 4, "scaleCars": 8, "scaleFloor": 0.5
+      // this is what does. 0.18 and 0.06: the director's on the Creature Tweaker (note 652, 13 Oct).
+      "crewScale": 0.18, "lengthScale": 0.06, "scaleCrew": 4, "scaleCars": 8, "scaleFloor": 0.5
     },
     // T128 (build 1121: "a player left behind by the train should feel the world close in: tension, monsters coming, the
     // difficulty spiking for that player. They needn't die at once"; GDD §7, §23; ARCHITECTURE §8 note 273). Not in the spec.
@@ -980,8 +981,8 @@
       "engagedPerCar": 0.05,
       // A long train, two threats each (note 647; the director, the inbox, 12 Oct: "b"): from longTrainCars cars a crewmate
       // may have perPlayerLong threats on them at once, perTarget's rule with it, and the hard caps (maxConcurrent*) grow
-      // in step.
-      "longTrainCars": 13, "perPlayerLong": 2,
+      // in step. 8, a Frontier train and longer: the director's roster on the Creature Tweaker (note 652, 13 Oct).
+      "longTrainCars": 8, "perPlayerLong": 2,
       // The census of posts and slack (ARCHITECTURE §8 note 345; orchestrator.md §3.1, §3.2 items 2–4). Once a second, each
       // crewmate alive: their post (cab, gunner, walker on the roofs, a ladder or a gap, rider inside a car, ground off the
       // train near it, or left behind past abandoned.behindM, whose own hunt answers them); which engaged threats are on whom
@@ -1077,9 +1078,14 @@
     "varietyWindow": 4,
     // The most of a kind the director sends a night, and the chance it's about at all tonight (drawn from the seed), by the
     // names in "costs"; a kind not named has no cap and is always about. Note 635, the director, the inbox, 12 Oct 2026, of
-    // the Knotter: "They should show up once or twice a run. Sometimes never. We need more monster variety."
+    // the Knotter: "They should show up once or twice a run. Sometimes never. We need more monster variety." Every kind's
+    // chance is the director's roster on the Creature Tweaker (note 652, 13 Oct).
     "perNight": { "knotter": 2 },
-    "nightChance": { "knotter": 0.75 },
+    "nightChance": { "knotter": 0.66, "hotbox": 0.4, "brakeman": 0.6, "climbers": 0.35, "draggers": 0.65,
+      "cinderHounds": 0.7, "fireFlies": 0.42, "carHugger": 0.51, "whistler": 0.65, "trackDoll": 0.22,
+      "tippyToesie": 0.7, "stoker": 0.4, "switchman": 0.12, "followers": 0.66, "ribbits": 0.66, "gaunt": 0.21,
+      "sootChildren": 0.36, "grumbler": 0.11, "passenger": 0.1, "moose": 0.19, "gannet": 0.72, "freightBeetle": 0.63,
+      "towerJaw": 0.53, "pickers": 0.28, "lodger": 0.06, "householder": 0.68, "hollowHouse": 0.13, "hanger": 0.53 },
     // How often each kind comes against the rest: its weight among what could come, times this (×1 not named).
     "weights": {},
     // The in-car incidents' weight each (the others weigh 1): trouble in the cars is some of the night, not most of it.

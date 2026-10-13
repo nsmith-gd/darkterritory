@@ -62,7 +62,8 @@ public class NightCallsTests
     [Fact]
     public void AMinuteBeforeDawnTheNightThingsGoToGroundButTheParasitesStay()
     {
-        var n = new Night(dawn: E.Wakers.NightFleesSeconds + 2);
+        // Every kind about tonight (note 652's roster would leave the Climbers or the Hotbox out on this seed).
+        var n = new Night(dawn: E.Wakers.NightFleesSeconds + 2, EveryKind.Of(Quiet));
         var train = n.World.Train;
         var shape = train.Frames[3].Shape;
         var hound = n.World.AddEnemy(id => new CinderHound(id, 900) { Health = E.CinderHounds.Health });

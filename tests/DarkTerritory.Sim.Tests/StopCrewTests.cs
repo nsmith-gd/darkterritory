@@ -239,6 +239,22 @@ public class StopCrewTests
     }
 
     [Fact]
+    public void ASmashedLampWaitsForTheTrainToStandWhileTheDriverMovesItAtAStop()
+    {
+        // Note 641 (seed 16's night): a Climber into the cab at Kessel's conveyor smashed the forward lamp, and the driver mended
+        // it from the front windows mid-shunt, Use held and no brake: the train ran on from 1.5 to 12.6 m/s, struck at 5.7, and
+        // the engine broke down. Moving the train at a stop, the driver drives; the glass waits till it's standing.
+        var n = new Night(5);
+        n.Until(() => n.Driver.Stops!.Doing == StopDriver.Leg.SpurIn && n.Train.Dynamics.Speed > 1, 900);
+        Assert.Equal(StopDriver.Leg.SpurIn, n.Driver.Stops!.Doing);
+        n.World.SmashLamp(Tuning.Enemies.Climbers.LampOutSeconds);
+        double top = 0;
+        n.Until(() => !Repairs.LampSmashed(n.Train), 120, () => top = Math.Max(top, n.Train.Dynamics.Speed));
+        Assert.True(top < 8, $"ran to {top:0.0} m/s with the lamp smashed");
+        Assert.False(Repairs.LampSmashed(n.Train), "never mended");
+    }
+
+    [Fact]
     public void AGunnerLeftOnTheBallastClimbsBackAboardAndADeadOneIsNotWaitedFor()
     {
         // The 100-night rerun: a gunner down on the ballast after a stop only ever borrowed the walker's legs on a car, so it
