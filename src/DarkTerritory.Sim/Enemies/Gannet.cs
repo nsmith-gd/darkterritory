@@ -109,10 +109,13 @@ public sealed class Gannet(int id) : Enemy(id)
             return;
         }
 
-        // It can't stay up: the train slowed (no lift to ride), a tunnel, or a still roof with nobody for it.
-        _slowFor = speed < t.StallBelow ? _slowFor + dt : 0;
+        // It can't stay up: the train slowed (no lift to ride), a tunnel, or a still roof with nobody for it. Not in the
+        // creature gym (GDD §34.1; the director, 13 Oct, App. F.5: "doesn't dive consistently or loop its attacks"): there
+        // the train stands, and it stays over it, diving again and again, until it's cleared.
+        bool gym = ctx.World.CallOnly;
+        _slowFor = speed < t.StallBelow && !gym ? _slowFor + dt : 0;
         bool anyone = Walkers(ctx, t).Any() || Mark is { } m && MarkOut(ctx, m, t);
-        _quietFor = anyone ? 0 : _quietFor + dt;
+        _quietFor = anyone || gym ? 0 : _quietFor + dt;
         if (Phase != SpinePhase.Grab && (tunnel || _slowFor >= t.StallSeconds || _quietFor >= t.QuietSeconds))
         {
             GoAway(ctx);

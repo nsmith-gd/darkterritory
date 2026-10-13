@@ -2329,7 +2329,11 @@ public sealed class World
         foreach (var e in came)
             Sim.Enemies.Calls.KeepOff(this, e, you, min);
         Sim.Enemies.Calls.KeepIn(this, came, you, max);
-        double nearest = came.Min(e => ((e.WorldPosition(Train) - you) with { Y = 0 }).Length);
+        // A hidden Tippy Toesie is nowhere yet (its place is the line's start): it's not counted as far off (App. F.5).
+        var seen = came.Where(e => e is not Sim.Enemies.TippyToesie { Hidden: true }).ToList();
+        if (seen.Count == 0)
+            return new(kind, true, why ?? "by its own rule", [.. came.Select(e => e.Id)]);
+        double nearest = seen.Min(e => ((e.WorldPosition(Train) - you) with { Y = 0 }).Length);
         return new(kind, true, $"{why ?? "by its own rule"}, {nearest:0} m off", [.. came.Select(e => e.Id)]);
     }
 
