@@ -53,14 +53,20 @@
     // end to "worksPast" m past its gate end (no lane crosses them); its pieces "worksMargin" m in from their streets and
     // the works' ends, "worksGap" m apart (world/towns.json "works" says which, in what order); "worksHands" of the town's
     // hands at work there at night.
-    "worksBefore": 30, "worksPast": 6, "worksMargin": 1.5, "worksGap": 3, "worksHands": 3 },
+    "worksBefore": 30, "worksPast": 6, "worksMargin": 1.5, "worksGap": 3, "worksHands": 3,
+    // Nothing ruled straight (note 490): "turnChance" of the shut houses on the streets stand "turn" degrees off true one way
+    // or the other (their yards keep to their lots); the row across the second street from the green turns to it, up to
+    // "crescent" degrees at its ends, a crescent round it. Each turned no further than its lot has room for.
+    "turn": [1, 4], "turnChance": 0.75, "crescent": 16 },
 
   // The square (GDD §3.1): where the walls step back on the side away from the platform (side -1, left of the way out)
   // for the town's heart, beside the engine as the night starts (run.json departShortOfGateM). fromGate: where it runs
   // along the line, in metres from the outer gate (negative is inside); wallOut: how far from the line its far wall
   // stands, inside the yard's level pad (linegen LongPad, 70 m); buildingDepth: the hall, the clerk's and the store,
   // backed onto that wall, fronts to the line.
-  "square": { "side": -1, "fromGate": [-100, -28], "wallOut": 30, "buildingDepth": 6, "hallWidth": 14, "officeWidth": 9 },
+  // A small town's green (note 490), in its square's rear end: "greenAlong" m from that end, "greenOut" m out from the line.
+  "square": { "side": -1, "fromGate": [-100, -28], "wallOut": 30, "buildingDepth": 6, "hallWidth": 14, "officeWidth": 9,
+    "greenAlong": [5, 17], "greenOut": [7, 17] },
 
   // People. "ring": how many stand round the centrepiece, one for every 30 in the town between these; the rest have
   // their places (the gate, the doors, the board, the engine, the platform), more of them in a bigger town, and the

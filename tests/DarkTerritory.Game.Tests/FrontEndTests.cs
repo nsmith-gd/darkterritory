@@ -679,6 +679,35 @@ public sealed class FrontEndTests : IDisposable
     }
 
     [Fact]
+    public void TheWholeScreenIsANewInstallsAndAltEnterGoesToAWindowAndBack()
+    {
+        // Note 672 (the director, 13 Oct: "We need a full screen mode ... notifications popping up ... over the bottom right
+        // information"): exclusive fullscreen from the first launch, BORDERLESS and WINDOWED beside it.
+        var m = Menu();
+        Assert.Equal(DisplayMode.Fullscreen, m.Settings.Display);
+        Choose(m, "SETTINGS");
+        Pick(m, "DISPLAY");
+        Assert.Contains(m.Items, i => i.Label == "DISPLAY: FULLSCREEN");
+        m.Left();
+        Assert.Equal(DisplayMode.Borderless, m.Settings.Display);
+        Assert.Contains(m.Items, i => i.Label == "DISPLAY: BORDERLESS");
+        m.Left();
+        Assert.Equal(DisplayMode.Windowed, m.Settings.Display);
+        // Alt+Enter: a window to the whole screen, exclusive, and back; from borderless, a window. Kept.
+        m.AltEnter();
+        Assert.Equal(DisplayMode.Fullscreen, m.Settings.Display);
+        Assert.Equal(m.Settings, Settings.Load(SettingsPath));
+        m.AltEnter();
+        Assert.Equal(DisplayMode.Windowed, m.Settings.Display);
+        Assert.Equal(DisplayMode.Windowed, new Settings { Display = DisplayMode.Borderless }.AltEnter().Display);
+        // A settings file from before (T83's "fullscreen": true or false) still loads, on the whole screen.
+        File.WriteAllText(SettingsPath, "{ \"fullscreen\": false, \"vSync\": false }");
+        var old = Settings.Load(SettingsPath);
+        Assert.False(old.VSync);
+        Assert.Equal(DisplayMode.Fullscreen, old.Display);
+    }
+
+    [Fact]
     public void TheDisplaySettingsAreSavedAndSayWhatTheGameDrawsAt()
     {
         // T83: fullscreen, the resolution, the render scale, vsync.
@@ -692,7 +721,8 @@ public sealed class FrontEndTests : IDisposable
         Pick(m, "RENDER SCALE");
         m.Left();
         Choose(m, "VSYNC");
-        Assert.True(m.Settings.Fullscreen);
+        // A new install's on the whole screen (note 672); once round, past the last, a window.
+        Assert.Equal(DisplayMode.Windowed, m.Settings.Display);
         Assert.Equal("1920x1080", m.Settings.Resolution);
         Assert.Equal(0.75, m.Settings.RenderScale, 6);
         Assert.False(m.Settings.VSync);

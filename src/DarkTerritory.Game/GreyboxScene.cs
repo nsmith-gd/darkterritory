@@ -17,6 +17,11 @@ namespace DarkTerritory.Game;
 public sealed partial class GreyboxScene
 {
     public float DrawDistance { get; init; } = 400;
+    /// <summary>
+    /// The frame's fog as it's drawn (ARCHITECTURE §8 note 479): what it swallows needn't be there yet, so the line's cells
+    /// past its reach are cooked a few a frame instead of all at once. Null: everything in <see cref="DrawDistance"/> now.
+    /// </summary>
+    public FrameLighting? Fog { get; set; }
     public int Seed { get; init; } = 7;
     /// <summary>How hot the firebox is, 0..1: the glow in the cab is how the Boiler reads the fire.</summary>
     public float FireGlow { get; set; } = 0.7f;
@@ -336,8 +341,10 @@ public sealed partial class GreyboxScene
     /// added up over the builds since it was set: `dt perf`'s breakdown of the main thread's frame.
     /// </summary>
     public Dictionary<string, (double Ms, int Triangles)>? Timings { get; set; }
+    /// <summary>With <see cref="Timings"/>: the triangles each part put in the frame as kit pieces and models (instances).</summary>
+    public Dictionary<string, int>? InstanceTriangles { get; set; }
     readonly System.Diagnostics.Stopwatch _lap = new();
-    int _lapCount;
+    int _lapCount, _lapInstances;
 
     void Lap(MeshBuilder mesh, string part)
     {
@@ -345,7 +352,15 @@ public sealed partial class GreyboxScene
             return;
         Timings.TryGetValue(part, out var sum);
         Timings[part] = (sum.Ms + _lap.Elapsed.TotalMilliseconds, sum.Triangles + (mesh.Count - _lapCount) / 3);
+        if (InstanceTriangles is not null)
+        {
+            int added = 0;
+            for (int i = _lapInstances; i < mesh.Instances.Count; i++)
+                added += mesh.Instances[i].Asset.Triangles;
+            InstanceTriangles[part] = InstanceTriangles.GetValueOrDefault(part) + added;
+        }
         _lapCount = mesh.Count;
+        _lapInstances = mesh.Instances.Count;
         _lap.Restart();
     }
 
@@ -385,6 +400,7 @@ public sealed partial class GreyboxScene
         _hint = hint;
         _lap.Restart();
         _lapCount = 0;
+        _lapInstances = 0;
         // Bare triangles (the ground, the ballast, the trees) take world texels, wrapped every few km so they fit a
         // float; the pattern jumps at a wrap, rarely and far off in the fog.
         const double Wrap = 4096;
@@ -409,6 +425,7 @@ public sealed partial class GreyboxScene
             // A generated line's own land, boards, hazards, water and places (Art/PlanArt, linegen plan §12-13).
             if (Look is not null && Route.Plan is not null)
                 Look.Art.World.Plan(mesh, line, Route, eye, centre, DrawDistance, Time);
+            Lap(mesh, "land");
             if (Run is not null)
                 foreach (var site in Run.Sites)
                 {
@@ -479,6 +496,7 @@ public sealed partial class GreyboxScene
                 }
             // GDD §9: the fortress yard behind the gates, and the terminus: "lights, then walls, then gun towers".
             double yard = Run?.YardLength ?? 600, terminus = Run?.Tuning.TerminusZone ?? 400;
+            Lap(mesh, "route");
             // (Where the sim stands their solids, T124.)
             foreach (var fort in Sim.Run.Fortresses.Of(Route, line, yard, terminus))
                 // The terminus that's a town (note 600) is drawn as the departure's is, in its own frame turned round: the
@@ -487,7 +505,7 @@ public sealed partial class GreyboxScene
                     Fortress(mesh, arrival.Line, eye, turn - to, turn - from, 0, turn - fort.Gate, gateAt: turn - fort.Gate, town: arrival);
                 else
                     Fortress(mesh, line, eye, from, to, fort.Start, fort.End, gateAt: fort.Gate, lit: fort.Lived);
-            Lap(mesh, "route");
+            Lap(mesh, "fortresses and towns");
         }
         // Practical lights first, so everything built after is lit by them: each car's lamps, the firebox,
         // and any hand lamp lying about or being carried.
@@ -2740,8 +2758,9 @@ public sealed partial class GreyboxScene
                 Look.Art.World.Walls = (Run?.YardLength ?? 600, Route.Plan?.Terminus.GateM ?? line.Length - (Run?.Tuning.TerminusZone ?? 400) - 200);
             Look.Art.World.TownSquare = Town?.Plan.Square;
             Look.Art.World.TownBounds = Town?.Plan.Bounds;
+            Look.Art.World.Fog = Fog;
             Look.Art.World.Arrival = Arrival;
-            Look.Art.World.Cells(mesh, line, Route, eye, from, to, Seed, (float)ValleyDepth);
+            Look.Art.World.Cells(mesh, line, Route, eye, from, to, Seed, (float)ValleyDepth, centre);
             return;
         }
         const double step = 5, gauge = 0.72, sleeperPitch = 0.75;
@@ -3179,6 +3198,9 @@ public sealed partial class GreyboxScene
     /// survivors' bare-headed figure, never the crew's masked one; null for note 107's folk in the crew's own.</param>
     /// <param name="home">At home in an open house: some have the mask down on the chest.</param>
     /// <param name="lamp">A town's person carrying a lit hand lamp (out in the street at night).</param>
+    /// <summary>The hand lamp's distance copy, carried by a far figure (note 479).</summary>
+    MeshAsset? _farLantern;
+
     /// <summary>
     /// Dave (note 570): the survivors' figure in full colour, in tonight's hat and waistcoat, his glasses and sandals, at his easel with its lantern
     /// lit. At his canvas he faces it, his brush arm out; turned on whoever's had their last warning (his telegraph) he faces
@@ -3316,10 +3338,12 @@ public sealed partial class GreyboxScene
         var creatures = Look!.Art.Creatures;
         string figure = "crew";
         Matrix4x4 m;
+        // Past where the figure draws its distance copy (note 479), what they wear and carry is drawn cheap too.
+        bool far = (feet - eye).Length > Look.Tuning.ClusteredLodMetres && Look.Tuning.ClusteredLodMetres > 0;
         // A town's people are the survivors' figure, bare-headed, with what they breathe through (note 353), set down on
         // their feet (the director's 8 Oct shots: a resident crouched in the air by the range).
         if (gear is not null && Look.Art.Townsfolk.Person(creatures, mesh, V(feet, eye), ToF(facing), clip, pose == "seated", gear, home, variant, who,
-            Time + variant * 0.73, drab) is { } drawn)
+            Time + variant * 0.73, drab, far) is { } drawn)
             (figure, m) = drawn;
         else
         {
@@ -3330,7 +3354,8 @@ public sealed partial class GreyboxScene
                 return;
         }
         // The street's lamp-carriers: the hand lamp hung from the fist, burning.
-        if ((gear is null ? pose is "lantern" or "walk" : lamp) && Art.PropArt.Of(Look).Get("hand_lantern") is { } lantern && creatures.Hang(mesh, lantern, m, figure))
+        if ((gear is null ? pose is "lantern" or "walk" : lamp) && Art.PropArt.Of(Look).Get("hand_lantern") is { } lantern
+            && creatures.Hang(mesh, far ? _farLantern ??= lantern.Clustered(Look.Tuning.ClusteredLodCell / 4) : lantern, m, figure))
         {
             var flame = creatures.LastHanging;
             mesh.PointLights.Add(new PointLight(flame, Palette.LampAmber * 1.2f, 6));
@@ -3348,26 +3373,39 @@ public sealed partial class GreyboxScene
             // The departure fortress is a town (note 281): its square, and its people where note 107's folk stood.
             town ??= start == 0 && lit ? Town : null;
             Look.Art.World.Fortress(mesh, line, eye, from, to, start, end, gateAt, platform: start == 0, lit, Time, town?.Plan.Square, town?.Plan.Bounds);
+            Lap(mesh, "fortress walls");
             if (town is not null)
             {
                 Look.Art.World.Square(mesh, line, eye, town, from, to);
                 Look.Art.World.Civic(mesh, line, eye, town, from, to, Look.Tuning.Atmosphere.Wind.Of(Wind), Look.Tuning.Atmosphere.Wind.Gusts, Time);
                 Look.Art.World.Works(mesh, line, eye, town, from, to);
+                Lap(mesh, "town square, green, works");
                 Look.Art.World.Houses(mesh, line, eye, town, from, to);
                 if (town == Arrival)
                     HouseFires(mesh, eye, town);
+                Lap(mesh, "town houses");
                 Look.Art.World.Streets(mesh, line, eye, town, from, to);
+                Lap(mesh, "town streets");
                 // A town that's lived in (App. F.3, the director: the fortresses feel static): smoke from its chimneys, and
                 // its watch walking the wall with their lanterns.
                 foreach (var top in Look.Art.World.Chimneys(line, eye, town, 160))
                     Look.Art.Effects.Chimney(mesh, top, Time, (int)(top.X * 7 + top.Z * 13));
+                // Its lights on the fog over it (note 490): what a crew coming home sees over the wall long before any lamp, and
+                // looks back at as it leaves. Faint from inside, where the lamps themselves are the light.
+                foreach (var (at, size, colour, strength) in Art.WorldArt.Glow(town))
+                {
+                    float far = (float)Math.Clamp(((at - eye).Length - 120) / 500, 0, 1);
+                    mesh.Billboard(V(at, eye), size, 0, new Vector4(colour * strength * (0.06f + 1.2f * far), 1), -1, FxBlend.Additive);
+                }
                 // And the works' (note 353): the foundry's stack and the winding house's chimney, thicker.
                 foreach (var top in Look.Art.World.Stacks(line, eye, town, 420))
                     for (int plume = 0; plume < 3; plume++)
                         Look.Art.Effects.Chimney(mesh, top + new Vector3(0, plume * 0.6f, 0), Time + plume * 1.7, (int)(top.X * 7 + top.Z * 13) + plume * 31);
+                Lap(mesh, "town smoke");
                 foreach (var (feet, facing, variant) in Art.WorldArt.Watch(town, gateAt, Time))
                     if ((feet - eye).Length < 260)
                         Folk(mesh, eye, feet, facing, variant, drab: 0.6f, "walk", gear: "respirator", who: variant, lamp: true);
+                Lap(mesh, "town watch");
                 // The statue on the green (note 353): the survivors' figure, frozen in its pose on the plinth, cast in bronze or
                 // cut in stone; the Lamplighter's lamp lit.
                 foreach (var f in town.Plan.Fixtures.Where(f => f.Kind == "statue"))
@@ -3388,6 +3426,10 @@ public sealed partial class GreyboxScene
                 }
                 foreach (var p in town.Plan.People)
                 {
+                    // Nowhere near on their whole round: not asked where they are (note 479).
+                    var (round, radius) = town.Reach(p);
+                    if ((round - eye).Length - radius > 160)
+                        continue;
                     // Where they are on their round now (note 353): walking between stops, or at one doing what's done there.
                     var now = town.Now(p);
                     var feet = now.Feet;
@@ -3409,6 +3451,7 @@ public sealed partial class GreyboxScene
                     if (talking)
                         mesh.PointLights.Add(new PointLight(V(feet + facing * 1.1 + Double3.Up * 1.8, eye), Palette.LampAmber * 1.1f, 4.5f));
                 }
+                Lap(mesh, "town folk");
                 return;
             }
             // Its people (T100): a few about at night, in their own drab, idling on their own beat. A dark town has none.
@@ -4485,14 +4528,21 @@ public sealed partial class GreyboxScene
         // posted stretch inked over in red, and its board's figure in km/h beside it, on the outside of the bend. Where two
         // would print over each other the slower one wins: it's the one that derails you.
         // Note 266 (the director, 6 Oct: every point that can derail the train "clearly identifiable on the cab map as a
-        // derailment point with its limit"): those (a bend, a weak bridge) in red, with a key; a limit that only costs the
-        // engine (brass) in the map's ink, with what it is.
-        var labelled = new List<(double X, double Y)>();
-        bool anyDerails = false;
+        // derailment point with its limit"): those (a bend, a weak bridge) in red; a limit that only costs the engine
+        // (brass) in the map's ink. Note 671 (13 Oct: "we just show the number"): the figure alone, no key and no word
+        // after it; the red says which ones have you off.
+        // What's lettered already: the night's name along the top, the scale's figure bottom right. A figure that'd print
+        // on one of them (or on a slower bend's) goes on the bend's other side, or isn't printed (the red rule stays).
+        var font = BitmapFont.Default;
+        var labelled = new List<(double X0, double Y0, double X1, double Y1)>
+        {
+            (x0 + 0.02, y0 + H - 0.026 - font.Height * MapTitleSize, x0 + 0.028 + font.Measure(MapTitle) * MapTitleSize, y0 + H),
+            (x0 + W * 0.55, y0, x0 + W, y0 + 0.04),
+        };
+        var figured = new List<(double X, double Y)>();
         foreach (var (s0, s1, kmh, why) in PostedBends(line, length).OrderBy(b => b.Kmh))
         {
-            bool derails = why != "BRASS";
-            anyDerails |= derails;
+            bool derails = LineGen.PostedSpeeds.Derails(why);
             var ink = derails ? MapLimit : MapInk;
             int steps = Math.Max(2, (int)((s1 - s0) / (length / 180)));
             for (int i = 0; i <= steps; i++)
@@ -4508,23 +4558,34 @@ public sealed partial class GreyboxScene
             var chord = (On(a.X, a.Z, 0) + On(b.X, b.Z, 0)) * 0.5;
             var outward = new Double3(mid.X - chord.X, mid.Y - chord.Y, 0);
             outward = outward.Length > 0.004 ? outward.Normalized : new Double3(0, 1, 0);
-            string figure = kmh.ToString(System.Globalization.CultureInfo.InvariantCulture) + (why is null ? "" : " " + why);
-            var font = BitmapFont.Default;
+            // A bend hard by one already figured (they come slowest first) shares its figure: the slower one's the one to read.
+            if (figured.Any(f => Math.Abs(f.X - mid.X) < 0.06 && Math.Abs(f.Y - mid.Y) < 0.04))
+                continue;
+            string figure = LineGen.PostedSpeeds.Figure(kmh);
             const double px = 0.0045;
             double w = font.Measure(figure) * px, h = font.Height * px;
-            double cx = mid.X + outward.X * (0.012 + w / 2), cy = mid.Y + outward.Y * (0.012 + h / 2);
-            cx = Math.Clamp(cx, x0 + w / 2 + 0.005, x0 + W - w / 2 - 0.005);
-            cy = Math.Clamp(cy, y0 + h / 2 + 0.005, y0 + H - h / 2 - 0.005);
-            if (labelled.Any(l => Math.Abs(l.X - cx) < w + 0.01 && Math.Abs(l.Y - cy) < h + 0.008))
+            // Out from the bend first, then in, then off its shoulders: the first spot clear of the lettering and of the
+            // line's own ink; failing that, the first clear of the lettering.
+            (double X, double Y)? place = null, crossed = null;
+            var spots = new[] { (outward.X, outward.Y), (-outward.X, -outward.Y), (1.0, 0.0), (-1.0, 0.0), (0.8, -0.6), (-0.8, -0.6), (0.8, 0.6), (-0.8, 0.6) };
+            foreach (var (ox, oy, far) in spots.Select(o => (o.Item1, o.Item2, 1.0)).Concat(spots.Select(o => (o.Item1, o.Item2, 2.0))))
+            {
+                double cx = Math.Clamp(mid.X + ox * (0.012 + w / 2) * far, x0 + w / 2 + 0.015, x0 + W - w / 2 - 0.015);
+                double cy = Math.Clamp(mid.Y + oy * (0.012 + h / 2) * far, y0 + h / 2 + 0.015, y0 + H - h / 2 - 0.015);
+                bool Hits(double px, double py, double pad) => px > cx - w / 2 - pad && px < cx + w / 2 + pad && py > cy - h / 2 - pad && py < cy + h / 2 + pad;
+                if (labelled.Any(l => cx + w / 2 + 0.004 > l.X0 && cx - w / 2 - 0.004 < l.X1 && cy + h / 2 + 0.004 > l.Y0 && cy - h / 2 - 0.004 < l.Y1))
+                    continue;
+                crossed ??= (cx, cy);
+                if (_mapDots.Any(d => On(d.X, d.Z, 0) is var q && Hits(q.X, q.Y, 0.006)))
+                    continue;
+                place = (cx, cy);
+                break;
+            }
+            if ((place ?? crossed) is not { } c)
                 continue;
-            labelled.Add((cx, cy));
-            MapFigure(draw, figure, cx - w / 2, cy + h / 2, z + 0.013, px, ink);
-        }
-        if (anyDerails)
-        {
-            // Top right, under the title: the bottom edge is behind the valve wheels from the driver's seat.
-            const string key = "IN RED: KM/H OR OFF THE RAILS";
-            MapFigure(draw, key, x0 + W - 0.024 - BitmapFont.Default.Measure(key) * 0.0035, y0 + H - 0.064, z + 0.011, 0.0035, MapLimit);
+            labelled.Add((c.X - w / 2, c.Y - h / 2, c.X + w / 2, c.Y + h / 2));
+            figured.Add((mid.X, mid.Y));
+            MapFigure(draw, figure, c.X - w / 2, c.Y + h / 2, z + 0.013, px, ink);
         }
         // A scale bar under it, bottom right: a kilometre (five, if one's too short to read), in ink.
         double km = _mapFit.Scale * 1000 >= 0.04 ? 1 : 5, bar = _mapFit.Scale * 1000 * km;
@@ -4557,6 +4618,15 @@ public sealed partial class GreyboxScene
     // The chart's room above and below the line for its title and its scale bar (m of plate).
     const double MapMargin = 0.11;
 
+    // The title's letter size on the plate (m per font pixel).
+    const double MapTitleSize = 0.005;
+
+    /// <summary>
+    /// The night's name, as the depot lettered it across the map's top (what the font has of it). The name alone (note 671):
+    /// what the sheet is says itself.
+    /// </summary>
+    string MapTitle => new string((Route?.Name ?? "the line").ToUpperInvariant().Select(c => char.IsLetterOrDigit(c) || c == ' ' ? c : ' ').ToArray()).Trim();
+
     /// <summary>
     /// The chart round the line (the art pass on T98's map): a surveyor's sheet, a faint grid ruled over it, a double ink
     /// rule inside its edge, the night's name lettered across the top, and a brass drawing pin in each corner.
@@ -4575,12 +4645,7 @@ public sealed partial class GreyboxScene
             draw(new Box(new Double3(x0 + inset, y0 + inset, z + 0.009), new Double3(x0 + inset + t, y0 + H - inset, z + 0.0095)), MapInk);
             draw(new Box(new Double3(x0 + W - inset - t, y0 + inset, z + 0.009), new Double3(x0 + W - inset, y0 + H - inset, z + 0.0095)), MapInk);
         }
-        // The night's name, as the depot lettered it (what the font has of it).
-        var font = BitmapFont.Default;
-        string name = new((Route?.Name ?? "the line").ToUpperInvariant().Select(c => char.IsLetterOrDigit(c) || c == ' ' ? c : ' ').ToArray());
-        string title = $"RUN OF {name}".Trim();
-        const double tp = 0.005;
-        MapFigure(draw, title, x0 + 0.024, y0 + H - 0.022, z + 0.011, tp, MapInk);
+        MapFigure(draw, MapTitle, x0 + 0.024, y0 + H - 0.022, z + 0.011, MapTitleSize, MapInk);
         foreach (var (px, py) in new[] { (x0 + 0.006, y0 + 0.006), (x0 + W - 0.006, y0 + 0.006), (x0 + 0.006, y0 + H - 0.006), (x0 + W - 0.006, y0 + H - 0.006) })
         {
             draw(Box.FromCentre(new Double3(px, py, z + 0.012), new Double3(0.009, 0.009, 0.004)), Palette.TarnishedBrass);

@@ -19,6 +19,11 @@
   // (tuning/perf.json maxFrameTriangles; ARCHITECTURE §8 note 262). Inside it, as close as a creature gets to anyone, the
   // whole model.
   "creatureLodMetres": 14,
+  // A figure with no distance copy of its own (the survivors, the crew: some 8,400 triangles each, and a walled town's
+  // people and its watch are dozens of them) gets one made at load, its vertices clustered this far apart (m), never across
+  // bones; drawn past this far (m), where a figure is a few pixels tall (ARCHITECTURE §8 note 479).
+  "clusteredLodMetres": 40,
+  "clusteredLodCell": 0.1,
   // The bottoms of things are this much darker: the baked shadow, and the soot and wet that collect low.
   "baked": 0.35,
   // Each crewmate's flying cap and scarf are dyed their own colour (by player id, in turn), so eight masked heads can still

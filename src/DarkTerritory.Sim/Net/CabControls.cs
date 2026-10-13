@@ -14,6 +14,9 @@ public static class CabControls
     /// <summary>Below this a train on its brake is standing on it, and stays on it until let off (T97).</summary>
     public const double StandingBelow = 0.1;
 
+    /// <summary>The reverser's thrown only with the train stopped: under this (m/s).</summary>
+    public const double ReverserBelow = 0.05;
+
     /// <summary>
     /// Whether this tick the held brake is cleared (to be re-applied by whoever's holding it): always while moving; at a
     /// stand only when the driver lets it off, since with steam driving (T97) a standing engine off its brake pulls away.
@@ -40,7 +43,7 @@ public static class CabControls
             controls.Throttle = Math.Clamp(Math.Round(controls.Throttle * 4 + intent.ThrottleNotch) / 4, 0, 1);
         if (intent.Has(PlayerButtons.Brake))
             controls.Brake = 1;
-        if (intent.Has(PlayerButtons.Reverser) && trainSpeed < 0.05)
+        if (intent.Has(PlayerButtons.Reverser) && trainSpeed < ReverserBelow)
             controls.Reverser = controls.Reverser >= 0 ? -1 : 1;
     }
 }

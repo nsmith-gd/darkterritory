@@ -15,6 +15,11 @@ public sealed record HudTuning
     public double PlaceAheadMetres { get; init; } = 1200;
     /// <summary>How long a place's name stays up (s).</summary>
     public double PlaceSeconds { get; init; } = 4.5;
+    /// <summary>
+    /// A mail crane's last seconds (s) before it reaches your car (note 673): its line stays up at the top of the screen for
+    /// anyone in a car, and the open door on its side says the hook.
+    /// </summary>
+    public double MailLeadSeconds { get; init; } = 12;
     /// <summary>How long a deeper step of the cold is said (s).</summary>
     public double ColdSeconds { get; init; } = 5;
     /// <summary>How long before dawn (s) its clock comes up.</summary>

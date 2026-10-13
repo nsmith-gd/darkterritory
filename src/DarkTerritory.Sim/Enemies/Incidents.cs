@@ -342,10 +342,17 @@ public sealed class CarFire(int id) : Incident(id)
         {
             if (cell < 0)
                 continue;
-            next[cell] -= t.SprayPerSecond * dt;
-            _damp[cell] = t.DampSeconds;
-            foreach (int j in grid.Next[cell])
-                next[j] -= t.SprayPerSecond * t.SprayShare * dt;
+            // Note 662: the cell aimed at and, with sprayWorksAcross, all round the car where it is (its floor, walls and
+            // roof there): "one grid ahead of me ... hold ... and it should dissipate".
+            var worked = t.SprayWorksAcross ? grid.Slice[cell] : [cell];
+            foreach (int k in worked)
+            {
+                next[k] -= t.SprayPerSecond * dt;
+                _damp[k] = t.DampSeconds;
+                foreach (int j in grid.Next[k])
+                    if (Array.IndexOf(worked, j) < 0)
+                        next[j] -= t.SprayPerSecond * t.SprayShare * dt;
+            }
         }
         // What's knocked down to embers with nothing round it alight goes out: it doesn't creep back from a spark.
         for (int i = 0; i < grid.Count; i++)

@@ -30,8 +30,10 @@
   // App. C.2 "the boiler player's shovel doubling as the crew's best club is intended tension", GDD §12 (note 275): coal
   // goes on with the shovel in hand. There's the one, on the cab's tool rack beside the wrench; Use at the firebox takes it
   // into hand (from your kit, or off the rack if it's there), and Use at the rack with it in hand hangs it back. Taken out
-  // to fight with, the fire waits. False: coal goes on by hand, as before.
-  "shovelInHand": true,
+  // to fight with, the fire waits. False: coal goes on by hand, as before. False since note 664 (the director, 13 Oct:
+  // "Every crew member should be able to shovel coal regardless of having the shovel in their hand. We shouldn't need a
+  // tool to do that"): the shovel stays on its rack as a club.
+  "shovelInHand": false,
 
   "fireTimeConstant": 30,
   // Draft with the regulator shut (blower only), as a fraction of working draft.

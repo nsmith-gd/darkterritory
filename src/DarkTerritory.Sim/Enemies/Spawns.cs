@@ -16,7 +16,13 @@ public sealed class SpawnContext(World world, EnemyTuning tuning, Director direc
     public Director Director { get; } = director;
     public TrainOnLine Train => World.Train;
     public double Front => Train.Dynamics.Distance;
-    public int Crew => Director.Crew;
+    public int Crew => CrewAs ?? Director.Crew;
+    /// <summary>
+    /// The creature gym's call (note 676): where it was called from, taken as the ground crew's middle whether the caller's
+    /// aboard or not, and the crew it's called as (a pack sized for a crew, not for one). Null on every real night.
+    /// </summary>
+    public Double3? CalledAt { get; init; }
+    public int? CrewAs { get; init; }
     public IEnumerable<(int Id, PlayerState State)> Living => World.CrewThisTick.Where(c => c.State.Alive).Select(c => ((int)c.Id, c.State));
     public IEnumerable<(int Id, PlayerState State)> OnGround => Living.Where(c => CrewSense.OnGround(c.State));
     public bool AtFacility => World.Run is { Phase: RunPhase.AtFacility };
@@ -31,6 +37,8 @@ public sealed class SpawnContext(World world, EnemyTuning tuning, Director direc
     /// <summary>The ground crew's middle, for what comes at them out of a yard.</summary>
     public Double3? GroundCentre()
     {
+        if (CalledAt is { } called)
+            return called;
         var ground = OnGround.Select(c => PlayerMotor.WorldPosition(c.State, Train)).ToList();
         return ground.Count == 0 ? null : ground.Aggregate(Double3.Zero, (a, b) => a + b) * (1.0 / ground.Count);
     }

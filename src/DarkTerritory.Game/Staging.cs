@@ -54,6 +54,21 @@ public static partial class Staging
     }
 
     /// <summary>
+    /// The night's departure town (GDD §3.1) as `dt screenshot --town` makes it, and where the train of
+    /// <paramref name="consistLength"/> stands to leave it (<paramref name="depart"/>); null with no towns in the content.
+    /// </summary>
+    public static Sim.Towns.Town? DepartureTown(string content, Sim.Route.Route route, Sim.Rail.RailLine line, double consistLength, out double depart)
+    {
+        var runTuning = DataFile.Load<Sim.Run.RunTuning>(Path.Combine(content, Sim.Run.RunTuning.File));
+        double gate = route.GateOr(Sim.Route.RouteTuning.Load(content).YardLength);
+        depart = runTuning.DepartFrom(gate, consistLength);
+        if (Sim.Towns.TownContent.Load(content) is not { } towns)
+            return null;
+        var roster = DataFile.Load<Sim.Enemies.EnemyTuning>(Path.Combine(content, Sim.Enemies.EnemyTuning.File)).Director.Roster;
+        return new Sim.Towns.Town(Sim.Towns.TownGenerator.Generate(towns, Sim.Towns.TownSite.Of(route, gate, roster, towns)), towns.Tuning, line, towns.Looks);
+    }
+
+    /// <summary>
     /// Standing in a fortress town (note 281, `dt screenshot --town`): "square" at the way in from the engine, looking over
     /// the centrepiece to the hall; "centre" at the centrepiece, close; "board" before the notice board; "hall" at the
     /// hall's door; "gate" by the gatekeeper, looking back down the yard; "street" out on the track side, the square across
@@ -93,7 +108,7 @@ public static partial class Staging
         }
         // A walled town (queue #74): from over the gate looking back over its roofs, down its first street, and from
         // outside the gate as the train leaves, its front wall either side of the gatehouse.
-        if (plan.Bounds is { } wall && where is "over" or "lane" or "outside" or "watch" or "bend" or "crooked" or "crookedover")
+        if (plan.Bounds is { } wall && where is "over" or "lane" or "outside" or "watch" or "bend" or "crooked" or "crookedover" or "towergun")
         {
             var st = wall.Streets.OrderBy(x => Math.Abs(x.D)).ThenBy(x => x.D).First();
             return where switch
@@ -112,6 +127,10 @@ public static partial class Staging
                 "crooked" when wall.Lanes.OrderBy(l => Math.Abs(l.S - mid)).FirstOrDefault() is { } lane
                     => Ballast.Render.Camera.LookAt(town.World(lane.At(-side * (Math.Abs(st.D) + 12)), -side * (Math.Abs(st.D) + 12), 1.8),
                         town.World(lane.At(-side * (Math.Abs(st.D) + 30)), -side * (Math.Abs(st.D) + 50), 1.4), 70),
+                // Up at the first tower down the far side with a gun on it (note 335), from the street inside the wall.
+                "towergun" when wall.Streets.Where(x => x.D > 0).MaxBy(x => x.D) is { } outer
+                    => Ballast.Render.Camera.LookAt(town.World(wall.Rear + Sim.Run.Fortresses.TowerEvery - 28, outer.At(wall.Rear + Sim.Run.Fortresses.TowerEvery - 28), 1.8),
+                        town.World(wall.Rear + Sim.Run.Fortresses.TowerEvery, wall.Right, 14.5), 40),
                 "crookedover" when wall.Lanes.OrderBy(l => Math.Abs(l.S - mid)).FirstOrDefault() is { } lane
                     => Ballast.Render.Camera.LookAt(town.World(lane.S + 45, -side * 20, 55), town.World(lane.S, -side * 70, 0), 66),
                 _ => Ballast.Render.Camera.LookAt(town.World(mid + 30, st.D, 1.7), town.World(mid - 40, st.D, 1.6), 72),
@@ -124,6 +143,15 @@ public static partial class Staging
             return where == "flag"
                 ? Ballast.Render.Camera.LookAt(town.World(flag.S + 13, flag.D + side * 4, 1.7), town.World(flag.S, flag.D, top - 2.0), 62)
                 : FlagAcrossTheWind(town.World(flag.S, flag.D, top - 0.9));
+        }
+        // A fishing town's net loft or fish flake (note 490): in the first yard that has one, from beside it, along the back.
+        if (where is "loft" or "flake" && plan.Houses.Select(h => (h, y: h.Yard.FirstOrDefault(y => y.Kind == (where == "loft" ? Sim.Towns.YardKind.Loft : Sim.Towns.YardKind.Flake))))
+            .FirstOrDefault(x => x.y is not null) is ({ } yh, { } yt))
+        {
+            double um = (yt.U0 + yt.U1) / 2, vm = (yt.V0 + yt.V1) / 2;
+            var (ts, td) = yh.Rail(um, vm);
+            var (cs, cd) = yh.Rail(um + (um > 0 ? -6.5 : 6.5), vm - 1.5);
+            return Ballast.Render.Camera.LookAt(town.World(cs, cd, 2.2), town.World(ts, td, where == "loft" ? 2.0 : 0.6), 70);
         }
         // The quiet house by the gate, the council house in the square, a small town's far wall (note 353).
         if (where is "quiet" or "council" or "farwall")
@@ -143,7 +171,7 @@ public static partial class Staging
         }
         // A walled town's green and its walls (note 353): over the green from the square's side of the street, at its statue,
         // its wall of names, and down the first street to the day painted on the back wall.
-        if (plan.Green is { } green && where is "green" or "statue" or "memorial" or "mural" or "garden")
+        if (plan.Green is { } green && where is "green" or "statue" or "memorial" or "mural" or "garden" or "greenover")
         {
             double gs = (green.S0 + green.S1) / 2, near = side * green.Near, far = side * green.Far, gd = (near + far) / 2;
             var statue = plan.Fixtures.FirstOrDefault(f => f.Kind == "statue");
@@ -156,6 +184,8 @@ public static partial class Staging
                 "memorial" when names is not null => Ballast.Render.Camera.LookAt(town.World(names.S - 3, names.D - side * 5, 1.7), town.World(names.S, names.D, 1.2), 65),
                 "garden" when garden is not null => Ballast.Render.Camera.LookAt(town.World(garden.S - 3, garden.D - side * 3.5, 1.8), town.World(garden.S, garden.D, 0.5), 65),
                 "mural" when mural is not null => Ballast.Render.Camera.LookAt(town.World(mural.S + 26, mural.D + side * 1.5, 1.7), town.World(mural.S, mural.D, 2.6), 60),
+                // From high over the square, across the green to the row facing it over its far street (note 490: turned to it).
+                "greenover" => Ballast.Render.Camera.LookAt(town.World(gs, near - side * 18, 34), town.World(gs, far + side * 14, 0), 70),
                 _ => Ballast.Render.Camera.LookAt(town.World(green.S0 - 6, near - side * 2, 4.5), town.World(gs + 6, gd, 0.5), 72),
             };
         }
@@ -295,6 +325,42 @@ public static partial class Staging
         if (!tunnel && session.World.Lineside is { } lineside)
             speed = Math.Max(speed, lineside.ThrowsAbove(sign, session.Train) + 0.5);
         session.Respawn(Math.Min(2, session.Train.Frames.Count - 1));
+        for (int i = 0; i < Sim.SimConstants.TickRate; i++)
+        {
+            session.Train.Dynamics.Velocity = speed;
+            session.Step(default);
+        }
+        return session;
+    }
+
+    /// <summary>
+    /// A mail crane coming up (note 673, `dt screenshot --hud --mail-crane [s]`): a solo night on <paramref name="route"/>
+    /// with its first crane past the yard about <paramref name="seconds"/> from the second car's side doors, its board read,
+    /// the player in that car: with <paramref name="atDoor"/>, in the open side door on the crane's side, else mid-car.
+    /// </summary>
+    public static PrototypeSession MailCrane(string content, Sim.Route.Route route, int cars, double seconds = 6, bool atDoor = true)
+    {
+        var sight = DataFile.Load<Sim.Route.SightTuning>(Path.Combine(content, Sim.Route.SightTuning.File));
+        var drop = Sim.Route.Lineside.Drops(sight, route).FirstOrDefault(d => d.At > route.Gate + 1500)
+            ?? throw new InvalidOperationException($"{route.Name} has no mail crane past its yard");
+        const double speed = 12;
+        var session = new PrototypeSession(content, route, cars, enemies: false, at: drop.At - speed * (seconds + 1));
+        session.Controls = new Sim.Train.TrainControls { Reverser = 1 };
+        int car = Math.Min(2, session.Train.Frames.Count - 1);
+        var shape = session.Train.Frames[car].Shape;
+        session.Respawn(car);
+        if (shape.Interior is { } room)
+        {
+            if (atDoor && Sim.Bots.StopHand.SideDoor(shape, drop.Side) is { } door && !session.Train.Vehicles[car].DoorOpen(door))
+                session.Train.Vehicles[car].ToggleDoor(door);
+            session.Player = session.Player with
+            {
+                Parent = car,
+                Position = new Double3(atDoor ? drop.Side * (room.HalfSize.X - 0.35) : 0, room.Min.Y, 0),
+                Surface = Sim.Player.Surface.Deck,
+                Yaw = -drop.Side * Math.PI / 2,
+            };
+        }
         for (int i = 0; i < Sim.SimConstants.TickRate; i++)
         {
             session.Train.Dynamics.Velocity = speed;
