@@ -107,7 +107,11 @@
   // 681). Then raised to a coin flip (the director's playtest, 14 Oct: "hold the struggle when playing solo really should
   // have a higher rate of success. Damn, yeah, run lost"; note 737): 0.15 to 0.5. soloStruggle is shorter than every
   // creature's hold (the Householder's grabSeconds, 6, the shortest), so the try comes before the kill.
-  "grab": { "pullReach": 1.6, "soloStruggleOn": true, "soloStruggle": 4, "soloStruggleChance": 0.5 },
+  // In a crew, a held player with no living crewmate within crewStruggleBeyond m (proximity voice's reach: nobody near enough
+  // to hear and come) can struggle the same way, at crewStruggleChance: lower than alone's, since a friend may still come
+  // (the audit's R3, the director, 14 Oct: "Approved for Grabbed"; note 756). crewStruggleBeyond 0: alone only, as before.
+  "grab": { "pullReach": 1.6, "soloStruggleOn": true, "soloStruggle": 4, "soloStruggleChance": 0.5, "crewStruggleBeyond": 26,
+    "crewStruggleChance": 0.2 },
 
   // App. C.2 melee with train tools: the shovel, the crowbar and the wrench (GDD §12, §1322) swing; enemy health below is in
   // blows of the crowbar, the tool everyone starts with (player.json kit). App. C.2: "the boiler player's shovel doubling as

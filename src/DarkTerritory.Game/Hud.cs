@@ -1041,8 +1041,9 @@ public static partial class Hud
         if (p.Alive && p.Has(PlayerFlags.Held))
         {
             Big("SOMETHING HAS YOU", world.Tick / 10 % 2 == 0 ? Red : Amber);
-            // Alone, Use held struggles free (the solo rule). With a crew, who can help is learned (note 285).
-            if (s.Roster().Count(l => l.Alive) <= 1)
+            // Alone, Use held struggles free (the solo rule); in a crew, so does one with no living crewmate near (note 756).
+            // With a friend near, who can help is learned (note 285).
+            if (CanStruggle(s, p))
                 Small(Bound("STRUGGLE : HOLD [E]"), Ink);
         }
         // Note 260 (T115 playtest, "random death walking outside"; GDD App. A.1): the line's own kills are telegraphed. Up
@@ -2518,5 +2519,22 @@ public static partial class Hud
             o.Text(6, y, t.ToUpperInvariant(), t.StartsWith("STOPPED", StringComparison.Ordinal) ? Amber : Dim, k);
             y += (line + 1) * k;
         }
+    }
+
+    /// <summary>
+    /// Whether a held player's struggle is theirs to try (App. C.1; the world's own test, note 756): alone, or with no living
+    /// crewmate within grab.crewStruggleBeyond.
+    /// </summary>
+    static bool CanStruggle(IPlaySession s, in PlayerState p)
+    {
+        var others = s.CrewStates(1).Where(c => c.Id != s.PlayerId && c.State.Alive).ToList();
+        if (others.Count == 0)
+            return true;
+        double beyond = s.World.Enemies?.Grab.CrewStruggleBeyond ?? 0;
+        if (beyond <= 0)
+            return false;
+        var at = PlayerMotor.WorldPosition(p, s.Train);
+        var train = s.Train;
+        return others.All(c => (PlayerMotor.WorldPosition(c.State, train) - at).Length > beyond);
     }
 }

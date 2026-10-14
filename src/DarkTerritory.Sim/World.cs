@@ -800,6 +800,25 @@ public sealed partial class World
     /// <summary>The crew with their ids as the host last stepped bodies with them: who a night's end bookmarks.</summary>
     internal IReadOnlyList<(int Id, PlayerState State)> LastCrew { get; private set; } = [];
 
+    /// <summary>
+    /// The chance a held player's one struggle frees them (App. C.1), or null when a friend is near enough to be the help:
+    /// alone, grab.soloStruggleChance; in a crew with no living crewmate within grab.crewStruggleBeyond of them,
+    /// grab.crewStruggleChance (note 756). Distances from the whole crew as it acted last tick.
+    /// </summary>
+    double? StruggleChance(GrabTuning t, int playerId, in PlayerState s)
+    {
+        var others = _crewActed.Where(c => c.Id != playerId && c.State.Alive).ToList();
+        if (others.Count == 0)
+            return t.SoloStruggleChance;
+        if (t.CrewStruggleBeyond <= 0)
+            return null;
+        var at = PlayerMotor.WorldPosition(s, Train);
+        foreach (var c in others)
+            if ((PlayerMotor.WorldPosition(c.State, Train) - at).Length <= t.CrewStruggleBeyond)
+                return null;
+        return t.CrewStruggleChance;
+    }
+
     /// <summary>The session's names for its crew by player id (the host's from each joiner's hello; clients are sent them).</summary>
     public Dictionary<int, string> Names { get; } = [];
 
@@ -1646,10 +1665,12 @@ public sealed partial class World
             bool idle = moving < ec.Tuning.TippyToesie.IdleBelow && asked.MoveX == 0 && asked.MoveZ == 0 && asked.Buttons == PlayerButtons.None
                 && asked.Actions == PlayerActions.None && !driving;
             IdleSeconds[playerId] = idle ? IdleSeconds.GetValueOrDefault(playerId) + SimConstants.TickSeconds : 0;
-            // Alone, there's no friend to act: at a crew of one the held can struggle free (the solo rule, T89).
-            if (s.Has(PlayerFlags.Held) && asked.Has(PlayerButtons.Use) && ec.Tuning.Grab.SoloStruggleOn && _context.Crew.Count(x => x.Player.State.Alive) <= 1)
+            // No friend to act: at a crew of one the held can struggle free (the solo rule, T89), and in a crew so can one held
+            // with no living crewmate within grab.crewStruggleBeyond (the director, 14 Oct: "Approved for Grabbed"; note 756),
+            // at the crew's lower chance.
+            if (s.Has(PlayerFlags.Held) && asked.Has(PlayerButtons.Use) && ec.Tuning.Grab.SoloStruggleOn && StruggleChance(ec.Tuning.Grab, playerId, s) is { } chance)
                 foreach (var holder in _enemies.Where(e => e.Phase == SpinePhase.Grab && e.Holding == playerId).ToList())
-                    holder.Struggle(ec, SimConstants.TickSeconds);
+                    holder.Struggle(ec, SimConstants.TickSeconds, chance);
         }
         _context?.Crew.Add((new PlayerSnapshot((byte)playerId, s), intent));
         if (Authority)
@@ -1794,8 +1815,15 @@ public sealed partial class World
         _fumes.Clear();
         Beats.Clear();
         if (Authority && Enemies is { } t)
+        {
+            // The whole crew as it acted last tick, before this tick's actions fill the new context one by one (note 756:
+            // whether a held player has a friend near reads everyone, not just those who've acted so far this tick).
+            _crewActed = _context is { } last ? [.. last.Crew.Select(x => ((int)x.Player.Id, x.Player.State))] : [];
             _context = new EnemyContext { Tuning = t, World = this, RecentRounds = _recentRounds };
+        }
     }
+
+    IReadOnlyList<(int Id, PlayerState State)> _crewActed = [];
 
     /// <summary>Advances the train and the world systems after everyone's crew actions.</summary>
     /// <summary>

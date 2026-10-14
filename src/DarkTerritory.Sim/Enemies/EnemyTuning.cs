@@ -314,6 +314,10 @@ public sealed record GrabTuning
     /// then 14 Oct: "really should have a higher rate of success" (note 737), a coin flip.
     /// </summary>
     public double SoloStruggleChance { get; init; } = 0.5;
+    /// <summary>In a crew, a held player with no living crewmate within this (m) can struggle too (note 756); 0: alone only.</summary>
+    public double CrewStruggleBeyond { get; init; } = 26;
+    /// <summary>That struggle's chance: lower than alone's, since a friend can still come (note 756).</summary>
+    public double CrewStruggleChance { get; init; } = 0.2;
 }
 
 /// <summary>The Drift (App. A.4, B.4). Field docs live in enemies.json.</summary>
