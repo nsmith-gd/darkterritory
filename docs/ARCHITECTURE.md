@@ -872,5 +872,6 @@ written here instead is moved out by `tools/coord/notes.py split`; the Coordinat
 - [693. A board stands back beyond a dead line alongside (B4, queue #425; note 560's handoff, not yet (3); the director, 13 Oct, `pt13-signs`: "I…](notes/693.md)
 - [694. The townsfolk lookbook (P1, queue #426; the director, 13 Oct 2026, with a lookbook of ten town characters: "We want to create more NPC…](notes/694.md)
 - [695. A top-to-bottom performance audit (A1, queue #427; the director, 13 Oct evening, `docs/playtest/2026-10-13-evening.md` lines 1–3)](notes/695.md)
+- [702. The evening playtest's sign lines (B4, queue #434; `docs/playtest/2026-10-13-evening.md` lines 10–12)](notes/702.md)
 - [696. The Corruption's trees (queue #428, C1; the director, 13 Oct 2026, eight renders: "of all the trees we should have a corruption rate of…](notes/696.md)
 <!-- end of the notes index -->
