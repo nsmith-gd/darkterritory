@@ -890,5 +890,9 @@ written here instead is moved out by `tools/coord/notes.py split`; the Coordinat
 - [735. The cab shakes and rocks; still slow (A1, queue #469; the director, 14 Oct, `docs/playtest/2026-10-14.md` lines 6, 20)](notes/735.md)
 - [736. The train blocks the crane operator's view of the loot (A1, queue #470; the director, 14 Oct, `docs/playtest/2026-10-14.md` line 10)](notes/736.md)
 - [737. A lone struggle should free you more often (A1, queue #471; the director, 14 Oct, `docs/playtest/2026-10-14.md` line 13)](notes/737.md)
-- [738. Small finds lying on the floors of the abandoned houses (B4, queue #472; `docs/playtest/2026-10-14.md` lines 15 and 21)](notes/738.md)
+- [738. Small finds lying on the floors of the abandoned houses (B4, queue #472; `docs/playtest/2026-10-14.md` lines 15 and 21, the director on…](notes/738.md)
+- [739. Pinging the bots (A1, queue #473; the director, 14 Oct, `docs/playtest/2026-10-14-second.md` line 1)](notes/739.md)
+- [740. The horn calls the crew aboard; all aboard told to the driver (A1, queue #474; the director, 14 Oct, `docs/playtest/2026-10-14-second.md`…](notes/740.md)
+- [741. The driver dies and no bot takes the cab (A1, queue #475; the director, 14 Oct, `docs/playtest/2026-10-14-second.md` line 5)](notes/741.md)
+- [742. Too few kinds of creature in a night (A1, queue #476; the director, 14 Oct, `docs/playtest/2026-10-14-second.md` line 2)](notes/742.md)
 <!-- end of the notes index -->
