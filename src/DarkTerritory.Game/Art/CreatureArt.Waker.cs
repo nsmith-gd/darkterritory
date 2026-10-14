@@ -11,8 +11,10 @@ namespace DarkTerritory.Game.Art;
 /// </summary>
 /// <param name="AtWalls">Stopped short of the terminus's gate, under its guns (wakers.stopShort).</param>
 /// <param name="Mouth">Holding the train: where he's biting the car he has (camera-relative, as the model matrix is), at the
-/// top of the lifted cars' ramp (<see cref="WakerLift"/>).</param>
-public readonly record struct WakerScene(bool AtWalls = false, Vector3? Mouth = null);
+/// top of the lifted cars' ramp (<see cref="WakerLift"/>). Risen beside who ran: where his hand brings them up to his mouth.</param>
+/// <param name="Picker">One risen beside a crewmate off the train (note 710): his own clock, his quarry's id in his extra.</param>
+/// <param name="Hand">His, holding them: where the one he took is drawn (camera-relative), his right hand reached onto them.</param>
+public readonly record struct WakerScene(bool AtWalls = false, Vector3? Mouth = null, bool Picker = false, Vector3? Hand = null);
 
 /// <summary>
 /// THE WAKER · the Peat Man (GDD §8 "A titan"; docs/design/creatures/wakers.md; ARCHITECTURE §8 note 679; tools/blender/waker.py):
@@ -55,6 +57,23 @@ public sealed partial class CreatureArt
         _ => ("run", 0, true),
     };
 
+    /// <summary>
+    /// The clip one risen beside who ran plays (note 710), by his phase and the seconds in it: up out of the land over
+    /// wakers.pickRiseSeconds; stood (no one left to take: the roar and the stand) or striding over at wakers.pickSpeed; down on
+    /// his knees for them, then lifting them; eating them.
+    /// </summary>
+    public static (string Clip, double Time, bool Loop) WakerPickerClip(SpinePhase phase, double seconds, bool hasQuarry, WakersTuning t) => phase switch
+    {
+        SpinePhase.Dormant => ("lie", seconds, true),
+        SpinePhase.Telegraph => ("rise", Math.Clamp(seconds / Math.Max(0.1, t.PickRiseSeconds), 0, 1) * WakerRiseClipSeconds, false),
+        SpinePhase.Grab when seconds < WakerGrabSeconds => ("grab", seconds, false),
+        SpinePhase.Grab => ("lift", seconds - WakerGrabSeconds, true),
+        SpinePhase.Punish => ("eat", Wrap(seconds, t.PickEatSeconds) * WakerEatClipSeconds / Math.Max(1e-6, t.PickEatSeconds), true),
+        _ when !hasQuarry && seconds % WakerRoarEvery < 4 => ("roar", seconds % WakerRoarEvery, false),
+        _ when !hasQuarry => ("stand", seconds % WakerRoarEvery - 4, true),
+        _ => ("walk", Wrap(seconds * t.PickSpeed / WakerGait.CycleMetres(t.PickSpeed), 1) * WakerGait.WalkCycleSeconds, true),
+    };
+
     static double Wrap(double x, double span) => span <= 0 ? 0 : x - Math.Floor(x / span) * span;
 
     /// <summary>How far under the land he's drawn <paramref name="k"/> (0..1) through his rise (m): all of him at first, out by halfway.</summary>
@@ -69,6 +88,8 @@ public sealed partial class CreatureArt
         var tune = WakersTuning;
         var m = _models["waker"];
         var scale = Matrix4x4.CreateScale(WakerGait.Scale);
+        if (WakerIn.Picker)
+            return DrawWakerPicker(mesh, m, model, phase, t, extra >= 0, tune);
         var (clip, time, loop) = WakerClip(phase, t, extra, WakerIn.AtWalls, tune);
         if (clip == "run")
         {
@@ -93,6 +114,56 @@ public sealed partial class CreatureArt
             at = WakerReach(m, Vector3.Transform(mouth, inv), (float)(k * k * (3 - 2 * k)), model);
         }
         return DrawPosed(mesh, m, clip, at, 679);
+    }
+
+    /// <summary>
+    /// One risen beside who ran (note 710), stood loose where the sim has his feet: sunk while he rises, and from the grab on,
+    /// bowed so his mouth comes down onto the one in his hand as the lift brings them up (all the way by the eating).
+    /// </summary>
+    bool DrawWakerPicker(MeshBuilder mesh, Entry m, in Matrix4x4 model, SpinePhase phase, double t, bool hasQuarry, WakersTuning tune)
+    {
+        var scale = Matrix4x4.CreateScale(WakerGait.Scale);
+        var (clip, time, loop) = WakerPickerClip(phase, t, hasQuarry, tune);
+        if (!m.Model.Clips.TryGetValue(clip, out var c))
+            return false;
+        _skinner.Evaluate(m.Model, c, time, loop, m.Pose);
+        var at = scale * model;
+        if (phase is SpinePhase.Telegraph or SpinePhase.Dormant)
+            at = scale * Matrix4x4.CreateTranslation(0, -(float)(phase == SpinePhase.Dormant ? WakerLieDepth : WakerSink(t / Math.Max(0.1, tune.PickRiseSeconds))), 0) * model;
+        else if (phase is SpinePhase.Grab or SpinePhase.Punish && WakerIn.Mouth is { } mouth && Matrix4x4.Invert(model, out var inv))
+        {
+            double k = phase == SpinePhase.Punish ? 1 : Math.Clamp(t / Math.Max(0.1, tune.PickLiftSeconds), 0, 1);
+            at = WakerReach(m, Vector3.Transform(mouth, inv), (float)(k * k * (3 - 2 * k)), model);
+            // His right hand on the one he's lifting, wherever the lift has them.
+            if (phase == SpinePhase.Grab && WakerIn.Hand is { } hand && Matrix4x4.Invert(at, out var toModel))
+                ReachArm(m, "r", Vector3.Transform(hand, toModel));
+        }
+        return DrawPosed(mesh, m, clip, at, 679);
+    }
+
+    /// <summary>
+    /// His arm on <paramref name="side"/> reached so his hand's at <paramref name="target"/> (his model's frame), as far as it goes:
+    /// a two-bone reach, the elbow bent the way the clip had it.
+    /// </summary>
+    static void ReachArm(Entry m, string side, Vector3 target)
+    {
+        var sk = m.Model.Skeleton;
+        int upper = sk.IndexOf($"upperarm_{side}"), lower = sk.IndexOf($"lowerarm_{side}"), hand = sk.IndexOf($"hand_{side}");
+        if (upper < 0 || lower < 0 || hand < 0)
+            return;
+        var a = m.Pose.World[upper].Translation;
+        var b = m.Pose.World[lower].Translation;
+        var c = m.Pose.World[hand].Translation;
+        float l1 = Vector3.Distance(a, b), l2 = Vector3.Distance(b, c);
+        var to = target - a;
+        float d = Math.Clamp(to.Length(), MathF.Abs(l1 - l2) + 1e-3f, l1 + l2 - 1e-3f);
+        var dir = Vector3.Normalize(to);
+        var bend = b - a - dir * Vector3.Dot(b - a, dir);
+        var pole = bend.LengthSquared() > 1e-8f ? Vector3.Normalize(bend) : Vector3.Normalize(Vector3.Cross(dir, Vector3.UnitX));
+        float x = (l1 * l1 - l2 * l2 + d * d) / (2 * d);
+        var elbow = a + dir * x + pole * MathF.Sqrt(MathF.Max(0, l1 * l1 - x * x));
+        Skinner.Aim(m.Model, m.Pose, upper, lower, elbow);
+        Skinner.Aim(m.Model, m.Pose, lower, hand, a + dir * d);
     }
 
     /// <summary>
@@ -126,6 +197,10 @@ public sealed partial class CreatureArt
     /// <summary>Where his mouth is in the pose last drawn (camera-relative): the catch's tests, and what the lift feeds.</summary>
     public Vector3? WakerMouth(in Matrix4x4 at) =>
         _models.TryGetValue("waker", out var m) && m.Model.Skeleton.IndexOf("mouth") >= 0 ? Skinner.Socket(m.Model, m.Pose, "mouth", at).Translation : null;
+
+    /// <summary>Where his right hand is in the pose last drawn (camera-relative): what he's lifting (note 710's tests).</summary>
+    public Vector3? WakerHand(in Matrix4x4 at) =>
+        _models.TryGetValue("waker", out var m) && m.Model.Skeleton.IndexOf("hand_r") >= 0 ? Skinner.Socket(m.Model, m.Pose, "hand_r", at).Translation : null;
 
     /// <summary>The pose already set on <paramref name="m"/>, drawn (its distance copy far off).</summary>
     bool DrawPosed(MeshBuilder mesh, Entry m, string clip, in Matrix4x4 at, float seed)

@@ -88,8 +88,13 @@ playing."
   in tilts and rises), and can look out at the land falling away and the thing holding them.
 - **No cutaway while you're playing.** Held by a Waker is not D1.4's held camera (#312): that cuts to third person for
   the night creatures' holds. This one stays in your eyes.
-- **Eaten.** From the rear, a car every `eatSeconds`, the crew in it with it. The screen goes when your car goes. Anyone
-  off the train is taken by the other Wakers (or the first, after).
+- **Eaten.** From the rear, a car every `eatSeconds`, the crew in it with it. The screen goes when your car goes.
+- **Whoever ran is taken** (note 710; the director, 14 Oct 2026: "It should capture players who escape the train and eat them
+  too"). While one holds the train, another rises out of the land `pickAside` m beyond each crewmate off it, over
+  `pickRiseSeconds` (the telegraph: the earth heaving up beside you). It strides over at `pickSpeed` and kneels, takes
+  them in its hand within `pickReach`, lifts them `pickLiftSeconds` to its mouth, and eats them. The held stay in their
+  own eyes, rising past its fingers to its face. Up to `pickers` rise at once; the rest of who ran are next. Only in
+  under a fort's guns is anyone left alone.
 - **The end.** When the engine goes, or the last of the crew does, the run ends as "Taken at dawn". The cause card
   names the Waker and the minute. The film (A1's) can show the catch from outside.
 
@@ -107,6 +112,8 @@ playing."
 | `dragDecel` | 3 m/s² once it has the last car |
 | `liftSeconds` | 2.5 a car |
 | `eatSeconds` | 4 a car |
+| `pickers`, `pickAside`, `pickRiseSeconds` | 3 at once, 40 m beyond whoever ran, 4 s up (note 710) |
+| `pickSpeed`, `pickReach`, `pickLiftSeconds` | 12 m/s over, in hand within 18 m, 4 s up to its mouth (22 m up, 10 m out) |
 
 A train stood still at dawn is caught in about 70 s. One at cruise (14 m/s) is caught after about 150 s, so it makes it
 from within ~2.5 km of the gate. One flat out (22 m/s) makes it from within ~3.5 km.
