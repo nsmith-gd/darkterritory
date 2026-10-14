@@ -41,10 +41,10 @@
  "restricted": false,
  "takes": 3,
  "loop": false,
- "seconds": 0.55,
+ "seconds": 0.54,
  "preview": "previews/crew-horseplay--bonk--clang.mp4",
- "previewSeconds": 3.59,
- "sha": "daba11de3c0e5a8f",
- "centroid": 514,
- "lufs": -17.7
+ "previewSeconds": 3.57,
+ "sha": "3c1395ec150ba8d9",
+ "centroid": 785,
+ "lufs": -19.0
 }
