@@ -463,8 +463,12 @@ public sealed partial class GreyboxScene
                         Wreckage(mesh, site, eye, Time);
                     // Its own gantry and the yard's (level-design P18: one over each craned loading face).
                     foreach (var crane in site?.Cranes ?? [])
-                        if ((crane.HookAt - eye).Length < DrawDistance && Look?.Art.Crane(mesh, crane, frames, eye) != true)
-                            Crane(mesh, crane, frames, eye);
+                        if ((crane.HookAt - eye).Length < DrawDistance)
+                        {
+                            if (Look?.Art.Crane(mesh, crane, frames, eye) != true)
+                                Crane(mesh, crane, frames, eye);
+                            CraneLamps(mesh, crane, frames, eye);
+                        }
                 }
             // A yard's powerhouse with its power on (level-design D.2): the lamp over its door burns; an open one's (note 509)
             // hangs over its switchboard inside, so the engine house is dark until the power runs, and lit from its doorway after.
@@ -836,6 +840,7 @@ public sealed partial class GreyboxScene
                 // Who has the repair kit by its handle (note 513): it's drawn in their fist with them, below, not here.
                 Look.Art.KitCarriers = Crew?.Where(c => c.Alive && c.Act == Art.CrewPose.Toolbox).Select(c => (int)c.Id).ToHashSet();
             }
+            GroundFindLights(mesh, frames, eye);
             foreach (var b in Bodies)
             {
                 // Put away in a slot (note 594): on them, not drawn.
@@ -1797,6 +1802,58 @@ public sealed partial class GreyboxScene
 
     static Double3? BodyWorld(Sim.Physics.Body b, IReadOnlyList<CarFrame> frames, Double3 local) =>
         b.Parent == Sim.Player.PlayerState.World ? local : b.Parent < frames.Count ? frames[b.Parent].ToWorld(local) : null;
+
+    WorkLightTuning WorkLight => Look?.Tuning.WorkLight ?? _workLight;
+    static readonly WorkLightTuning _workLight = new();
+
+    /// <summary>
+    /// GDD §28 "What you came for is lit" (note 705): a gantry's work lamp on its cable over the hook, so what's lowered is
+    /// lit all the way into the car; and one over the castings still stacked to load.
+    /// </summary>
+    void CraneLamps(MeshBuilder mesh, Sim.Run.Crane crane, IReadOnlyList<CarFrame> frames, Double3 eye)
+    {
+        var w = WorkLight;
+        var lamp = V(crane.HookAt + Double3.Up * w.HookAbove, eye);
+        mesh.PointLights.Add(new PointLight(lamp, Palette.LampAmber * w.HookIntensity, w.HookRange));
+        mesh.Billboard(lamp, 0.12f, 0, new Vector4(Palette.LampAmber * 1.4f, 1), -1, FxBlend.Additive);
+        Double3 sum = default;
+        int stacked = 0;
+        foreach (var c in crane.Castings)
+            if (c.State == Sim.Run.CastingState.Stacked && crane.Where(c, frames) is { } at)
+            {
+                sum += at;
+                stacked++;
+            }
+        if (stacked > 0)
+            mesh.PointLights.Add(new PointLight(V(sum * (1.0 / stacked) + Double3.Up * w.StackHeight, eye), Palette.LampAmber * w.StackIntensity, w.StackRange));
+    }
+
+    readonly List<(double Distance, Double3 At)> _groundFinds = [];
+
+    /// <summary>
+    /// GDD §28 "What you came for is lit" (note 705): a low warm light round the nearest few crates and finds lying on the
+    /// ground (not carried, not aboard), so a crew can see what it's there for; kept few and small, the dark round them kept.
+    /// </summary>
+    void GroundFindLights(MeshBuilder mesh, IReadOnlyList<CarFrame> frames, Double3 eye)
+    {
+        var w = WorkLight;
+        _groundFinds.Clear();
+        foreach (var b in Bodies ?? [])
+        {
+            if (b.Stashed || b.Carrier >= 0 || b.Parent != Sim.Player.PlayerState.World
+                || b.Kind is not (Sim.Physics.BodyKind.Loot or Sim.Physics.BodyKind.Crate or Sim.Physics.BodyKind.Cargo or Sim.Physics.BodyKind.Heavy))
+                continue;
+            if (BodyWorld(b, frames, b.Pbd.Particles[0].Position) is not { } at)
+                continue;
+            double d = (at - eye).Length;
+            if (d < w.GroundWithin)
+                _groundFinds.Add((d, at));
+        }
+        // Nearest first; a tie by where it lies, so the set doesn't flicker between two at the same distance.
+        _groundFinds.Sort((a, b) => a.Distance != b.Distance ? a.Distance.CompareTo(b.Distance) : a.At.X.CompareTo(b.At.X));
+        for (int i = 0; i < Math.Min(w.GroundCount, _groundFinds.Count); i++)
+            mesh.PointLights.Add(new PointLight(V(_groundFinds[i].At + Double3.Up * w.GroundHeight, eye), Palette.LampAmber * w.GroundIntensity, w.GroundRange));
+    }
 
     /// <summary>Crates and lamps as boxes turned by their yaw; a body as bones between its joints.</summary>
     /// <param name="heavyHalf">A heavy crate's half-size, its body's radius (a client's stand-in bodies don't carry their radius).</param>

@@ -231,5 +231,26 @@
     "advance": 1.4,
     "sideLead": 1.0,
     "platform": 0.08
+  },
+  // GDD §28 "What you came for is lit" (the director's evening playtest, 13 Oct: "We could use a little bit more lighting
+  // around some of the loot. It's sort of just hard to identify what we're even doing"; note 705). Warm lamp-amber pools a
+  // few metres across, kept to the nearest (the renderer keeps the 32 nearest lights of all).
+  "workLight": {
+    // A gantry's work lamp, hung on the cable "hookAbove" m over the hook: what's on the hook is lit all the way down into
+    // the car, and the car's floor under it.
+    "hookIntensity": 2.2,
+    "hookRange": 6.5,
+    "hookAbove": 1.4,
+    // Over the castings still stacked to load, "stackHeight" m up over the middle of the stack.
+    "stackIntensity": 1.6,
+    "stackRange": 7,
+    "stackHeight": 3.2,
+    // Round a crate or a find lying on the ground (not carried, not aboard): the nearest "groundCount" within
+    // "groundWithin" m of the eye, each a low light "groundHeight" m over it.
+    "groundIntensity": 1.1,
+    "groundRange": 3.5,
+    "groundHeight": 1.1,
+    "groundWithin": 30,
+    "groundCount": 6
   }
 }
