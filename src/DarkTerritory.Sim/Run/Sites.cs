@@ -877,6 +877,16 @@ public sealed class Site
     /// <summary>Who's at the powerhouse restarting it this tick (−1 for nobody). Host only.</summary>
     internal int Restarter = -1;
 
+    /// <summary>
+    /// Whether <paramref name="player"/> has their hands on one of this site's modules this tick (note 753, the census's
+    /// commitment): a winch handle, a lever (spout, lift, tipple), the conveyor's starter or its jam, the herd, the powerhouse,
+    /// a crane's controls or its rigging. Host only: these are the hands the run reads, set as the crew act and cleared as it
+    /// steps.
+    /// </summary>
+    internal bool Works(int player) => player >= 0 && (Cranking[0] == player || Cranking[1] == player || Pourer == player || Winder == player
+        || Starter == player || Clearer == player || Tippler == player || Restarter == player || Herders.Contains(player)
+        || Cranes.Any(c => c.Operator == player || c.Rigger == player));
+
     public SiteState State => new(Stocked, Progress, SledsLeft, Turning, OutOfRhythm, Crank, Power, Restart)
     {
         Bin = Bin,

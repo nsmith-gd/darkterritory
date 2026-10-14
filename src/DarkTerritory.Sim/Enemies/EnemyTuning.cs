@@ -798,6 +798,20 @@ public sealed record DirectorTuning(
     public VoteTuning Vote { get; init; } = new();
     /// <summary>What draws the night's first threat, and the dark's answer (enemies.json director.draw; note 287).</summary>
     public DrawTuning Draw { get; init; } = new();
+    /// <summary>A short hold after a crisis (GDD App. B.1 "Aftermath"; note 751): enemies.json director.aftermath.</summary>
+    public AftermathTuning Aftermath { get; init; } = new();
+}
+
+/// <summary>
+/// The aftermath (GDD App. B.1 Pacing rules; note 751; the director, 14 Oct 2026: "The breathing room is good. Don't
+/// necessarily want a lot of it though"): after one of <see cref="Events"/> the director sends nothing of its own for
+/// <see cref="Seconds"/>, pressed or not. Mirror of enemies.json <c>director.aftermath</c>; field docs live there.
+/// </summary>
+public sealed record AftermathTuning
+{
+    public bool On { get; init; } = true;
+    public double Seconds { get; init; } = 12;
+    public string[] Events { get; init; } = ["death", "carLost", "rescue", "holdoutFreed"];
 }
 
 /// <summary>
@@ -924,6 +938,17 @@ public sealed record OrchestratorTuning
     public double SlackPerSecond { get; init; } = 0.05;
     public bool PerTarget { get; init; } = true;
     public Dictionary<string, string[]> Answers { get; init; } = new();
+    // The census reads commitment (note 753; orchestrator.md §3.1 4, §3.2 6; GDD App. B.1 "The orchestrator").
+    /// <summary>
+    /// Who's committed to a job is read (<see cref="CensusEntry.Committed"/>), a facility's loading is its machinery going or a
+    /// crewmate working it, and the pick weighs a collision ×<see cref="CollisionWeight"/>. Off: as before note 753.
+    /// </summary>
+    public bool Commitment { get; init; }
+    public double CollisionWeight { get; init; } = 1;
+    public double CommittedNearM { get; init; } = 20;
+    public double CollisionReachM { get; init; } = 60;
+    /// <summary>A conflict pair made tonight weighs ÷ this for each time it's been made, when it would be made again; 1: off.</summary>
+    public double PairRepeat { get; init; } = 1;
 }
 
 /// <summary>

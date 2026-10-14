@@ -1875,7 +1875,7 @@ NEVER     with a crew of one; never in a yard or a fort; never inside a car
 
 Enemies are not rolled independently. A **pressure director** spends a budget across the run, which is what allows deliberate contradiction stacking instead of random pile-ups.
 
-**The orchestrator** (*proposed, 7 Oct 2026*; App. F.3): a layer over the director that plans threats against the players currently active, where each is and what each is doing, and the threats and upkeep that fill the run between stops. The outline is [orchestrator.md](orchestrator.md) (ARCHITECTURE §8 note 328). *Built so far (7–8 Oct 2026):* the live crew and its caps (note 336). The census of posts and slack (note 345) reads each crewmate's post (the cab, a gun, the roofs, inside a car, the ground) and the seconds on the run between stops since they last had anything to answer. The director's pick favours what the slackest crewmate's post answers, idle crewmates press it, and no player gets a second threat while the first is on them. A crew of one is as it was. The hound run (note 328) is also built.
+**The orchestrator** (*proposed, 7 Oct 2026*; App. F.3): a layer over the director that plans threats against the players currently active, where each is and what each is doing, and the threats and upkeep that fill the run between stops. The outline is [orchestrator.md](orchestrator.md) (ARCHITECTURE §8 note 328). *Built so far (7–8 Oct 2026):* the live crew and its caps (note 336). The census of posts and slack (note 345) reads each crewmate's post (the cab, a gun, the roofs, inside a car, the ground) and the seconds on the run between stops since they last had anything to answer. The director's pick favours what the slackest crewmate's post answers, idle crewmates press it, and no player gets a second threat while the first is on them. A crew of one is as it was. The hound run (note 328) is also built. *It reads commitment (the director, 14 Oct 2026, of the audit's R5: "good"; note 753):* what each crewmate is committed to (the crane, a carry, a timed job, a reload, a stop's lever or winch, a Holdout's door) as well as where they are, at stops as well as on the run. Among what may come, it favours a threat on or beside a committed crewmate that a free one's post answers within reach (×1.75, `collisionWeight`): the free one chooses between their post and their friend's job. Never one with nobody free in reach; only *which* threat, never when or how many. "Facility loading" in the conflict table is the loading going on, not just the stop, and a pair it has already made tonight weighs half as much to make again.
 
 ### Budget
 
@@ -1958,14 +1958,16 @@ Enforced regardless of budget:
 | Concurrent interior threats | 2 |
 | Concurrent outside threats | 2 |
 | Corrupted humans | **1** active at a time |
-| Total concurrent active | 4 at crew ≤4 · 6 at crew ≥6 · and never more than ceil(0.75 × the crew alive), one a player: 1 at crew 1, 2 at crew 2, 3 at crews 3–4 (*the orchestrator, 7 Oct 2026*; note 336) |
+| Total concurrent active | 4 at crew ≤4 · 6 at crew ≥6 · and never more than ceil(0.75 × the crew alive), one a player: 1 at crew 1, 2 at crew 2, 3 at crews 3–4 (*the orchestrator, 7 Oct 2026*; note 336). From eight cars, two a player and the flat caps grow with it (§15; notes 647, 652): alone on a Frontier train, two at once |
 | Same tell type, overlapping range | **1** — tells must stay distinguishable |
 
 ### Pacing rules
 
 **Grace period.** No threats for the first 20–90 seconds past the gate (design decision, 2026-10): the length is picked per night from the night's seed, shorter on the harder tiers, so a crew can't count the seconds. The tonal transition needs room, and the crew needs to settle into stations. Pressure starts building when the grace ends.
 
-**Facility lull.** ~20 seconds of calm on arrival before facility threats activate. Lets the crew commit to a plan before it falls apart.
+**Facility lull.** ~20 seconds of calm on arrival before facility threats activate. Lets the crew commit to a plan before it falls apart. *Built (14 Oct 2026; note 751):* for the first 20 seconds the train stands at a facility, the director sends nothing of its own; shunting in its yard doesn't start it again. The pressure builds through it. What isn't the director's spend keeps its own rules: the Stoker, the Pickers' own wait, a left-behind's hunts (`director.facilityLullSeconds`).
+
+**Aftermath** *(the director, 14 Oct 2026: "The breathing room is good. Don't necessarily want a lot of it though"; note 751)*. After a crewmate's death, cars lost (the crew are told of it), a grab broken with the one held alive, or someone freed from a Holdout, the director sends nothing of its own for 12 seconds, however pressed. It's short on purpose: long enough to say what just happened, no longer. The pressure builds through it, so whatever was due comes after (`director.aftermath`).
 
 **Post-event cooldown.** After a spawn, a trough of at least 25–45 s (design decision, 2026-10; was 30–60 s). Sustained pressure reads as noise; pressure with troughs reads as rhythm. The spawn's relief of the pressure makes the trough; the cooldown gives way only when the pressure is well past its threshold.
 
