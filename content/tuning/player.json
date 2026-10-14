@@ -273,6 +273,13 @@
     // seenWithin (m) of the cab or the van's rear: STOP, it brakes to a stand and stands up to standSeconds (or till GO);
     // GO, it releases and goes on; BACK UP, at a stand it sets back backMetres at backSpeed (m/s) and stands. A STOP shown
     // to a moving train that stands within stoppedWithin (s) is named in the incident report.
-    "lampSignals": { "seconds": 3, "cooldown": 0.5, "seenWithin": 60, "standSeconds": 90, "backMetres": 40, "backSpeed": 1.5, "stoppedWithin": 40 }
+    "lampSignals": { "seconds": 3, "cooldown": 0.5, "seenWithin": 60, "standSeconds": 90, "backMetres": 40, "backSpeed": 1.5, "stoppedWithin": 40 },
+    // A hand over the mouth (GDD App. C.8; note 749; the director, 14 Oct 2026: "A grab should allow players to still use the
+    // radio but their voice should be muffle filtered as if the grab is covering their mouth partially"). While a crewmate is
+    // held, each listener's client plays their voice in the air and on the radio muffled, not cut: gainDb quieter, and
+    // through the sounds' own low-pass on their "covered" parameter (voice.json and voice-radio.json, 1.4 kHz). A creature
+    // that does its own thing to the voice keeps it, alone: Tippy Toesie's hand (muffled) and a Soot Child's draining
+    // (fading). Off: a held voice as it was.
+    "covered": { "on": true, "gainDb": -6 }
   }
 }

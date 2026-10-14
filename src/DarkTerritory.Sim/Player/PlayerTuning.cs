@@ -145,6 +145,19 @@ public sealed record VoicesTuning
     public TubeTuning Tube { get; init; } = new();
     public SingingTuning Singing { get; init; } = new();
     public LampSignalTuning LampSignals { get; init; } = new();
+    /// <summary>Note 749: a held speaker's voice, a hand over the mouth (player.json <c>voices.covered</c>).</summary>
+    public CoveredVoiceTuning Covered { get; init; } = new();
+}
+
+/// <summary>
+/// Note 749 (GDD App. C.8; the director, 14 Oct 2026: "A grab should allow players to still use the radio but their voice
+/// should be muffle filtered as if the grab is covering their mouth partially"). Field docs live in player.json
+/// <c>voices.covered</c>. Off by default: a voice as it was.
+/// </summary>
+public sealed record CoveredVoiceTuning
+{
+    public bool On { get; init; }
+    public double GainDb { get; init; } = -6;
 }
 
 /// <summary>The speaking tube from the cab to the guard van (note 720). Field docs live in player.json <c>voices.tube</c>.</summary>
