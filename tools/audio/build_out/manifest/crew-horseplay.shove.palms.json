@@ -1,0 +1,32 @@
+{
+ "id": "crew-horseplay.shove.palms",
+ "line": "crew-horseplay",
+ "cue": "shove",
+ "key": "palms",
+ "mat": null,
+ "label": "Both hands shoved into a friend: palms slapping a coat, the breath knocked out, a stumble",
+ "how": "Two palms slapping a heavy coat a few hundredths apart (the packs' cloth), the dull weight of a body taking it under them (a soft thud, no flesh: nobody's hurt), the breath going out of whoever was shoved (a short open exhale, modelled), and a beat later their boot scuffing back across the boards as they catch themselves. Three shoves, each a little harder.",
+ "sources": [
+  "kenney_rpg-audio:cloth1",
+  "kenney_rpg-audio:cloth2",
+  "kenney_rpg-audio:cloth3",
+  "kenney_rpg-audio:cloth4",
+  "kenney_impact-sounds:impactSoft_heavy_000",
+  "kenney_impact-sounds:impactSoft_heavy_001",
+  "kenney_impact-sounds:impactSoft_heavy_002",
+  "kenney_impact-sounds:impactSoft_heavy_003",
+  "kenney_impact-sounds:impactSoft_heavy_004",
+  "kenney_rpg-audio:handleSmallLeather",
+  "kenney_rpg-audio:handleSmallLeather2",
+  "kenney_rpg-audio:dropLeather"
+ ],
+ "restricted": false,
+ "takes": 3,
+ "loop": false,
+ "seconds": 0.38,
+ "preview": "previews/crew-horseplay--shove--palms.mp4",
+ "previewSeconds": 3.1,
+ "sha": "3b0574d7cab5fee3",
+ "centroid": 370,
+ "lufs": -19.6
+}

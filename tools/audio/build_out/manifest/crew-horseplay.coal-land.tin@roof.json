@@ -1,0 +1,28 @@
+{
+ "id": "crew-horseplay.coal-land.tin@roof",
+ "line": "crew-horseplay",
+ "cue": "coal-land",
+ "key": "tin",
+ "mat": "roof",
+ "label": "A thrown lump of coal landing on a car roof's tin and breaking",
+ "how": "The lump hitting the roof tin (the panel's hollow boom and its damped sheet crash, small: it's a fist of coal, not a body), then breaking, its pieces clinking and skittering across the tin.",
+ "sources": [
+  "kenney_impact-sounds:impactPlate_light_000",
+  "kenney_impact-sounds:impactPlate_light_001",
+  "kenney_impact-sounds:impactPlate_light_002",
+  "kenney_impact-sounds:impactPlate_light_003",
+  "kenney_impact-sounds:impactPlate_light_004",
+  "sfx_100_v2:stones_01",
+  "sfx_100_v2:stones_02",
+  "sfx_100_v2:stones_03"
+ ],
+ "restricted": false,
+ "takes": 3,
+ "loop": false,
+ "seconds": 0.3,
+ "preview": "previews/crew-horseplay--coal-land--tin--roof.mp4",
+ "previewSeconds": 2.84,
+ "sha": "a7dba8d2150cfaff",
+ "centroid": 683,
+ "lufs": -18.5
+}

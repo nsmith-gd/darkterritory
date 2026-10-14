@@ -1,0 +1,29 @@
+{
+ "id": "crew-horseplay.bump.shoulder",
+ "line": "crew-horseplay",
+ "cue": "bump",
+ "key": "shoulder",
+ "mat": null,
+ "label": "A shoulder knocked in passing: a coat's thump and a grunt",
+ "how": "Two crewmates' shoulders meeting in a crowd: one coat thumping on another (the packs' cloth, a single slap), a little of the body's weight under it, and the short grunt of breath it knocks out. Smaller than a shove: nobody staggers.",
+ "sources": [
+  "kenney_rpg-audio:cloth1",
+  "kenney_rpg-audio:cloth2",
+  "kenney_rpg-audio:cloth3",
+  "kenney_rpg-audio:cloth4",
+  "kenney_impact-sounds:impactSoft_heavy_000",
+  "kenney_impact-sounds:impactSoft_heavy_001",
+  "kenney_impact-sounds:impactSoft_heavy_002",
+  "kenney_impact-sounds:impactSoft_heavy_003",
+  "kenney_impact-sounds:impactSoft_heavy_004"
+ ],
+ "restricted": false,
+ "takes": 3,
+ "loop": false,
+ "seconds": 0.2,
+ "preview": "previews/crew-horseplay--bump--shoulder.mp4",
+ "previewSeconds": 2.55,
+ "sha": "bc1ee192e941fe1c",
+ "centroid": 557,
+ "lufs": -19.0
+}

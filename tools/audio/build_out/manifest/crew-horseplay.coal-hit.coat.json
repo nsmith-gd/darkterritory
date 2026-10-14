@@ -1,0 +1,32 @@
+{
+ "id": "crew-horseplay.coal-hit.coat",
+ "line": "crew-horseplay",
+ "cue": "coal-hit",
+ "key": "coat",
+ "mat": null,
+ "label": "A lump of coal off a friend: a hard thud on a coat, soot puffing, the lump breaking",
+ "how": "A fist of coal thrown hard into a crewmate: a blunt thud on a heavy coat (a short slap of cloth and a soft weight, nothing fleshy), a puff of soot off the coat, and the lump breaking as it drops off them, its pieces clinking bright and glassy on the way down. Three throws.",
+ "sources": [
+  "kenney_rpg-audio:cloth1",
+  "kenney_rpg-audio:cloth2",
+  "kenney_rpg-audio:cloth3",
+  "kenney_rpg-audio:cloth4",
+  "kenney_impact-sounds:impactSoft_heavy_000",
+  "kenney_impact-sounds:impactSoft_heavy_001",
+  "kenney_impact-sounds:impactSoft_heavy_002",
+  "kenney_impact-sounds:impactSoft_heavy_003",
+  "kenney_impact-sounds:impactSoft_heavy_004",
+  "sfx_100_v2:stones_01",
+  "sfx_100_v2:stones_02",
+  "sfx_100_v2:stones_03"
+ ],
+ "restricted": false,
+ "takes": 3,
+ "loop": false,
+ "seconds": 0.24,
+ "preview": "previews/crew-horseplay--coal-hit--coat.mp4",
+ "previewSeconds": 2.67,
+ "sha": "7338901ca6c8ceec",
+ "centroid": 243,
+ "lufs": -18.0
+}
