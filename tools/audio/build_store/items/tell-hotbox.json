@@ -1,0 +1,214 @@
+{
+  "area": "Enemy tells",
+  "band": "",
+  "cues": [
+    {
+      "cands": [
+        {
+          "band": [
+            150,
+            900
+          ],
+          "how": "A hybrid: the first 25 ms of a real heavy strike (Kenney's heavy metal and plate hits, the packs' metal door slam), its grain and its bite, rung through the axle box's casting (close, inharmonic modes from about 190-250 Hz, damped by grease within a tenth of a second), with the box's dull bump under it. Between 'cast' and 'struck': the casting's own sound, struck by something real. One knock a take, about 0.15 s. Held to 150-900 Hz.",
+          "inBand": 0.96,
+          "key": "box",
+          "label": "A heavy, dull knock in the axle box: a real iron strike's first instant rung through the box's casting",
+          "mat": null,
+          "old": false,
+          "restricted": false,
+          "seconds": 0.15,
+          "sources": [
+            "kenney_impact-sounds:impactMetal_heavy_000",
+            "kenney_impact-sounds:impactMetal_heavy_001",
+            "kenney_impact-sounds:impactMetal_heavy_002",
+            "kenney_impact-sounds:impactMetal_heavy_003",
+            "kenney_impact-sounds:impactMetal_heavy_004",
+            "kenney_impact-sounds:impactPlate_heavy_000",
+            "kenney_impact-sounds:impactPlate_heavy_001",
+            "kenney_impact-sounds:impactPlate_heavy_002",
+            "kenney_impact-sounds:impactPlate_heavy_003",
+            "kenney_impact-sounds:impactPlate_heavy_004",
+            "sfx_100_v2:metal_hit_01"
+          ],
+          "src": "/_blob/07185aea30d8d5024e3f696501ecf864",
+          "takes": 4
+        },
+        {
+          "band": [
+            150,
+            900
+          ],
+          "how": "Modelled from the axle box: a heavy blow on cast iron, its close, inharmonic modes from about 190-250 Hz (each take a different box or a different place struck, so different modes come out), the contact long enough (2 ms) that only the low ones sound, all of them damped by the grease and the car's weight within a tenth of a second, with the box's dull bump under it. No ring and nothing above about 1.2 kHz: nothing like the hot box's squeal. One knock a take, about 0.23 s; the game fires one a wheel turn (the preview: 3.5 a second gathering to 7, 10 to 20 m/s). Held to 150-900 Hz.",
+          "inBand": 1,
+          "key": "cast",
+          "label": "A heavy, dull knock in the axle box, modelled: a hammer on a casting, no ring, once a wheel turn",
+          "mat": null,
+          "old": false,
+          "restricted": false,
+          "seconds": 0.23,
+          "sources": [],
+          "src": "/_blob/94a771ab320bdfa7a6ca5dbdd59d3b06",
+          "takes": 4
+        },
+        {
+          "band": [
+            150,
+            900
+          ],
+          "how": "Real heavy iron struck (Kenney's heavy plate, a pick into rock, sfx_100's knock-slam), each take a different one, pitched down two to four semitones for a bigger casting, dulled (the top rolled off above 1.2 kHz) and choked at 40 ms like a loaded box, with a little of the box's own casting resonance under it. Rougher and more real than 'cast'. One knock a take, about 0.22 s. Held to 150-900 Hz.",
+          "inBand": 0.91,
+          "key": "struck",
+          "label": "A heavy, dull knock in the axle box, from real recordings: big iron plate and a pick's blow, pitched down, dulled",
+          "mat": null,
+          "old": false,
+          "restricted": false,
+          "seconds": 0.22,
+          "sources": [
+            "kenney_impact-sounds:impactPlate_heavy_000",
+            "kenney_impact-sounds:impactPlate_heavy_001",
+            "kenney_impact-sounds:impactPlate_heavy_002",
+            "kenney_impact-sounds:impactPlate_heavy_003",
+            "kenney_impact-sounds:impactPlate_heavy_004",
+            "kenney_impact-sounds:impactMining_000",
+            "kenney_impact-sounds:impactMining_001",
+            "kenney_impact-sounds:impactMining_002",
+            "kenney_impact-sounds:impactMining_003",
+            "kenney_impact-sounds:impactMining_004",
+            "sfx_100_v2:misc_36"
+          ],
+          "src": "/_blob/edfe4637698905a3ec8bd16b48a13cd1",
+          "takes": 4
+        }
+      ],
+      "event": "A heavy, dull metallic knock, once a wheel turn of its axle (a hammer on a casting)",
+      "id": "knock",
+      "kind": "oneshot",
+      "mats": [],
+      "need": "",
+      "status": "candidate",
+      "vars": 4
+    },
+    {
+      "cands": [
+        {
+          "band": [
+            150,
+            7000
+          ],
+          "how": "Real heavy plate hits pitched down and dulled for the knock, about five a second but ragged and sometimes doubled, a real wet step's slap in each; the sizzle a real locomotive's steam hiss, its top cut into short grains so it fries and flutters rather than blows, with fat crackling and spitting in it, flaring after each knock. 8 s exact cycle. Held to 150 Hz-7 kHz.",
+          "inBand": 1,
+          "key": "fry",
+          "label": "The glow from real recordings: heavy iron knocks gone ragged and wet, a steam hiss cut into a frying sizzle",
+          "mat": null,
+          "old": false,
+          "restricted": false,
+          "seconds": 8,
+          "sources": [
+            "kenney_impact-sounds:impactPlate_heavy_000",
+            "kenney_impact-sounds:impactPlate_heavy_001",
+            "kenney_impact-sounds:impactPlate_heavy_002",
+            "kenney_impact-sounds:impactPlate_heavy_003",
+            "kenney_impact-sounds:impactPlate_heavy_004",
+            "sfx_100_v2:footstep_wet_01",
+            "sfx_100_v2:footstep_wet_03",
+            "sfx_100_v2:loop_water_03"
+          ],
+          "src": "/_blob/50ce36f186ccb21630485ff6a7a0fdd9",
+          "takes": 1
+        },
+        {
+          "band": [
+            150,
+            7000
+          ],
+          "how": "The casting's knock (as 'cast', duller) gone ragged: about five a second but never even, now and then doubled as it slops back, each with a wet slap and a spit of fat in it; over it a sizzle, something living cooking in the grease (a dense crackle of fat spitting over a fluttering hiss, flaring after each knock squeezes more out). Wet and toneless: nothing like the hot box's dry squeal. 8 s exact cycle. Held to 150 Hz-7 kHz.",
+          "inBand": 1,
+          "key": "glow",
+          "label": "The glow: the knock gone ragged and wet, about five a second, over a sizzle of something cooking, modelled",
+          "mat": null,
+          "old": false,
+          "restricted": false,
+          "seconds": 8,
+          "sources": [],
+          "src": "/_blob/7ffbc6b8a815c7cbc9633c57ae8e151c",
+          "takes": 1
+        }
+      ],
+      "event": "The glow: the knock gone ragged and wet, a sizzle",
+      "id": "sizzle",
+      "kind": "loop",
+      "mats": [],
+      "need": "",
+      "status": "candidate",
+      "vars": 1
+    },
+    {
+      "cands": [
+        {
+          "band": [
+            300,
+            5000
+          ],
+          "how": "A real metal scrape cut into grains and laid end over end, pitched down six to nine semitones for a wheel under a loaded car, juddering as the locked wheel sticks and slips about eleven times a second; real stones scraping cut into grains for the grit; now and then a real heavy plate hit, dulled, as the truck bucks. Noise with a judder, no tone. 10 s exact cycle. Held to 300 Hz-5 kHz.",
+          "inBand": 0.98,
+          "key": "rasp",
+          "label": "Seized: a long grinding scrape from real recordings, a metal scrape and stones pitched down and dragged on",
+          "mat": null,
+          "old": false,
+          "restricted": false,
+          "seconds": 10,
+          "sources": [
+            "sfx_100_v2:misc_10",
+            "sfx_100_v2:stones_03",
+            "kenney_impact-sounds:impactPlate_heavy_000",
+            "kenney_impact-sounds:impactPlate_heavy_001",
+            "kenney_impact-sounds:impactPlate_heavy_002",
+            "kenney_impact-sounds:impactPlate_heavy_003",
+            "kenney_impact-sounds:impactPlate_heavy_004"
+          ],
+          "src": "/_blob/75b0899e8354d92ad22076dd14764575",
+          "takes": 1
+        },
+        {
+          "band": [
+            300,
+            5000
+          ],
+          "how": "Modelled: iron dragged on iron, the locked wheel's tread scraping along the rail head (broadband contact noise roughened by the asperities, rung through the wheel's and rail's modes from 520 Hz), juddering as it sticks and slips about eleven times a second, surging slowly as the car's weight comes and goes, the axle groaning in its seized box (slow, heavy iron slips) and sparks crackling off it. Noise with a judder, no tone: nothing like the hot box's squeal. 10 s exact cycle. Held to 300 Hz-5 kHz.",
+          "inBand": 0.99,
+          "key": "skid",
+          "label": "Seized: the axle locked and the wheel dragged along the rail, a long juddering iron scrape, modelled",
+          "mat": null,
+          "old": false,
+          "restricted": false,
+          "seconds": 10,
+          "sources": [],
+          "src": "/_blob/2627121e339e428747a4b3f226a61b2a",
+          "takes": 1
+        }
+      ],
+      "event": "Seized: a long grinding scrape",
+      "id": "grind",
+      "kind": "loop",
+      "mats": [],
+      "need": "",
+      "status": "candidate",
+      "vars": 1
+    }
+  ],
+  "current": "7 candidates to judge (queue #125, note 388), made from the request above. The creature isn't in the game yet (G1's #99-#104): its sounds are hooked and installed as it lands, and the line goes to L1 then.",
+  "gdd": "§21, A.7, spec B.19, ARCH note 367",
+  "level": 0,
+  "name": "Hotbox: the knock",
+  "need": "A heavy metallic knock once per wheel turn of its axle (3.5 a second at 10 m/s, 7 at 20), from its truck and side: low and dull, a hammer on a casting, never the hot box's high squeal. Then ragged and wet with a sizzle (the glow); seized, a long grinding scrape.",
+  "notes": "",
+  "order": 177.8,
+  "refNote": "388",
+  "scope": "launch",
+  "sound": "",
+  "status": "review",
+  "tier": 1,
+  "type": "tell",
+  "updatedAt": "2026-10-08T09:05:00Z",
+  "updatedBy": null
+}

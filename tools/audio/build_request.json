@@ -1,0 +1,4 @@
+{"build": ["tell-mourners", "cs-mourners-drag", "tell-tower-jaw", "cs-tower-jaw", "tell-brakeman", "cs-brakeman", "tell-knotter", "cs-freight-beetle", "tell-hotbox"],
+ "install": ["tell-mourners", "cs-mourners-drag", "tell-tower-jaw", "cs-tower-jaw", "tell-brakeman", "cs-brakeman", "tell-knotter", "cs-freight-beetle", "tell-hotbox"],
+ "store": "tools/audio/build_store/items",
+ "why": "queue #125, note 388: G1's six creatures heard as their sims land"}

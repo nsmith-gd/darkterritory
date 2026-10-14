@@ -1,0 +1,234 @@
+{
+  "area": "Enemy tells",
+  "band": "",
+  "cues": [
+    {
+      "cands": [
+        {
+          "band": [
+            1500,
+            5000
+          ],
+          "how": "Modelled from the brake staff's ratchet: each tooth is the dog riding up the slope (a short brightening scrape) and dropping off the edge onto the root, iron on iron struck through a casting's close, inharmonic modes from 1.6 kHz (dying in hundredths of a second: cast iron clanks), with the hand wheel's rim ringing faintly. Three pulls, slower and heavier as the chain takes up (links knocking onto the drum), the last one straining taut. A 'zrk-tak' each tooth where 'pawl' is a plain click. 1.4-1.5 s. Held to 1.5-5 kHz.",
+          "inBand": 1,
+          "key": "dog",
+          "label": "A car's brake wheel wound on, modelled: each tooth a scrape up the slope and the iron dog's clack down",
+          "mat": null,
+          "old": false,
+          "restricted": false,
+          "seconds": 1.45,
+          "sources": [],
+          "src": "/_blob/46f4f4c4a648546112a5fec006bee810",
+          "takes": 3
+        },
+        {
+          "band": [
+            1500,
+            5000
+          ],
+          "how": "Hand over hand in three pulls: each tooth is a real ratchet's or lock's pawl dropping, pitched down four to seven semitones for an iron dog the size of a fist, with a real heavy metal hit choked under it, tuned so the cast wheel's ring sits round 2 kHz. The chain winds onto the staff under each pull (real keys jangling, cut into links and pitched down into heavy ones); the pulls come slower and heavier as it takes up, and the last one strains taut (an iron creak). 1.4-1.5 s. Held to 1.5-5 kHz.",
+          "inBand": 1,
+          "key": "pawl",
+          "label": "A car's brake wheel wound on, from real recordings: the pawl's heavy click-click-click, the chain taking up",
+          "mat": null,
+          "old": false,
+          "restricted": false,
+          "seconds": 1.45,
+          "sources": [
+            "sfx_100_v2:misc_20",
+            "sfx_100_v2:lock_open_01",
+            "kenney_impact-sounds:impactMetal_heavy_000",
+            "kenney_impact-sounds:impactMetal_heavy_001",
+            "kenney_impact-sounds:impactMetal_heavy_002",
+            "kenney_impact-sounds:impactMetal_heavy_003",
+            "kenney_impact-sounds:impactMetal_heavy_004",
+            "sfx_100_v2:misc_09",
+            "sfx_100_v2:wood_03",
+            "sfx_100_v2:wood_02"
+          ],
+          "src": "/_blob/204327b2bb71934986d33852c1809b6c",
+          "takes": 3
+        }
+      ],
+      "event": "A brake wheel wound on: the ratchet's click-click-click",
+      "id": "ratchet",
+      "kind": "oneshot",
+      "mats": [],
+      "need": "",
+      "status": "candidate",
+      "vars": 3
+    },
+    {
+      "cands": [
+        {
+          "band": [
+            1500,
+            7000
+          ],
+          "how": "A real metal scrape cut into grains from its strokes and laid end over end so it never stops dragging, pitched down a little for cast iron on steel; the same drag rung through a freight wheel's modes (high-Q resonances at 3.2, 3.9 and 4.7 kHz) so the scrape itself squeals, harsh and gritty, as a binding shoe does; the stick-slip judder through it. Rougher and rawer than 'shoe'; steady, with no catch once a turn (the hot box's). 12 s exact cycle. Held to 1.5-7 kHz.",
+          "inBand": 1,
+          "key": "bind",
+          "label": "The brake shoes binding, from a real scrape: metal dragged without end, rung into a squeal through the wheel",
+          "mat": null,
+          "old": false,
+          "restricted": false,
+          "seconds": 12,
+          "sources": [
+            "sfx_100_v2:misc_10"
+          ],
+          "src": "/_blob/8cff5f8763d542124effe0679bc23942",
+          "takes": 1
+        },
+        {
+          "band": [
+            1500,
+            7000
+          ],
+          "how": "Cast-iron shoes wound hard onto the tread: the contact's broadband grind (noise roughened by the asperities passing, rung through a freight wheel's modes from 1.6 kHz up), a judder of stick-slip through it too fast to hear as beats (the grind's growl), and the wheel's modes locked into squeal at 3.2, 3.4 and 4.6 kHz (several shoes on several wheels, the close two beating into a screech). Steady, binding, never letting go: nothing catches once a turn, as the hot box does, and the squeal sits more than an octave over its. 12 s exact cycle. Held to 1.5-7 kHz.",
+          "inBand": 1,
+          "key": "shoe",
+          "label": "The brake shoes binding on a turning wheel, modelled: a grinding roar with a harsh squeal held in it",
+          "mat": null,
+          "old": false,
+          "restricted": false,
+          "seconds": 12,
+          "sources": [],
+          "src": "/_blob/78b3256882c236f8cdb00781944ee145",
+          "takes": 1
+        }
+      ],
+      "event": "The brake shoes' long squeal from the car he's on",
+      "id": "squeal",
+      "kind": "loop",
+      "mats": [],
+      "need": "",
+      "status": "candidate",
+      "vars": 1
+    },
+    {
+      "cands": [
+        {
+          "band": [
+            600,
+            5000
+          ],
+          "how": "Modelled: a small iron plate struck hard (his heel plate, ringing round 2 kHz and damped by the wood at once) and hobnail ticks, on a roof-walk plank's modes from about 230 Hz with the car's hollow booming under it (kept off the sub), the toe after and the plank creaking where it's nailed. Takes 1 and 3 are his bad leg, the iron toe dragged juddering along the planks and then planted flat and heavy. Fired in his gait it limps (the preview). Held to 600 Hz-5 kHz.",
+          "inBand": 0.86,
+          "key": "heel",
+          "label": "One iron-shod footfall on the roof walk, modelled: an iron heel plate and hobnails on a plank over a hollow",
+          "mat": null,
+          "old": false,
+          "restricted": false,
+          "seconds": 0.58,
+          "sources": [],
+          "src": "/_blob/5312cb78a41869ec2bc545903275a4a0",
+          "takes": 4
+        },
+        {
+          "band": [
+            600,
+            5000
+          ],
+          "how": "His iron heel plate (a real metal hit tuned to ring round 2.2 kHz, choked by the board at once) and hobnails ticking, on a real board's knock pitched down a little with the car's hollow under it, the toe coming down after and the plank creaking. Takes 1 and 3 are his bad leg: the iron toe dragged juddering along the planks first, then planted flat and heavy. Fired in his gait (the preview: long on the good leg, quick on the bad), it limps. Held to 600 Hz-5 kHz.",
+          "inBand": 0.98,
+          "key": "hob",
+          "label": "One iron-shod footfall on the roof walk, from real recordings: the good leg's, or the bad one dragged and planted",
+          "mat": null,
+          "old": false,
+          "restricted": false,
+          "seconds": 0.56,
+          "sources": [
+            "sfx_100_v2:wood_hit_02",
+            "sfx_100_v2:door_03",
+            "sfx_100_v2:footstep_wood_03",
+            "sfx_100_v2:footstep_wood_04",
+            "kenney_impact-sounds:impactMetal_medium_000",
+            "kenney_impact-sounds:impactMetal_medium_001",
+            "kenney_impact-sounds:impactMetal_medium_002",
+            "kenney_impact-sounds:impactMetal_medium_003",
+            "kenney_impact-sounds:impactMetal_medium_004"
+          ],
+          "src": "/_blob/c78244313bf5e9357c05a4a591bd5a86",
+          "takes": 4
+        }
+      ],
+      "event": "Iron-shod, uneven steps on the roofs",
+      "id": "step",
+      "kind": "oneshot",
+      "mats": [],
+      "need": "",
+      "status": "candidate",
+      "vars": 4
+    },
+    {
+      "cands": [
+        {
+          "band": [
+            800,
+            6000
+          ],
+          "how": "Real keys jangling cut into slices at their hits and pitched down five to nine semitones into heavy links, strewn thick as the chain's jerked and thin as it slides; a real metal scrape in grains for the drag along the boards; real light wooden knocks pitched up for links landing on the planks. Jerked as each of his feet lands, a strong jerk off the good leg and a weaker one off the bad, so it limps with him (1.2 s a stride). 12 s exact cycle. Held to 800 Hz-6 kHz.",
+          "inBand": 0.99,
+          "key": "drag",
+          "label": "A heavy chain dragged along the roofs behind him, from real recordings: keys and a scrape, jerked in his limp",
+          "mat": null,
+          "old": false,
+          "restricted": false,
+          "seconds": 12,
+          "sources": [
+            "sfx_100_v2:misc_09",
+            "sfx_100_v2:wood_03",
+            "sfx_100_v2:wood_02",
+            "sfx_100_v2:misc_10",
+            "kenney_impact-sounds:impactWood_light_000",
+            "kenney_impact-sounds:impactWood_light_001",
+            "kenney_impact-sounds:impactWood_light_002",
+            "kenney_impact-sounds:impactWood_light_003",
+            "kenney_impact-sounds:impactWood_light_004"
+          ],
+          "src": "/_blob/e957d65992a534a0c9e0b61d7c927608",
+          "takes": 1
+        },
+        {
+          "band": [
+            800,
+            6000
+          ],
+          "how": "A brake chain's links knocking on each other (each a little ring of iron, 1.4-4.2 kHz) and landing on the roof walk's planks (small hard wooden knocks), sliding over the boards between (a friction drag through the planks), jerked forward as each of his feet lands: a strong jerk off the good leg, a weaker one off the bad, so the chain limps with him (1.2 s a stride). 12 s exact cycle. Held to 800 Hz-6 kHz.",
+          "inBand": 0.96,
+          "key": "links",
+          "label": "A heavy chain dragged along the roofs behind him, modelled: links knocking and sliding, jerked in his limp",
+          "mat": null,
+          "old": false,
+          "restricted": false,
+          "seconds": 12,
+          "sources": [],
+          "src": "/_blob/bc3a29633d7b2eecd59bb1205454717c",
+          "takes": 1
+        }
+      ],
+      "event": "A chain dragged along the roofs",
+      "id": "chain",
+      "kind": "loop",
+      "mats": [],
+      "need": "",
+      "status": "candidate",
+      "vars": 1
+    }
+  ],
+  "current": "8 candidates to judge (queue #125, note 388), made from the request above. The creature isn't in the game yet (G1's #99-#104): its sounds are hooked and installed as it lands, and the line goes to L1 then.",
+  "gdd": "§21, A.8, spec B.16, ARCH note 364",
+  "level": 0,
+  "name": "The Brakeman: winding the brakes on",
+  "need": "A brake wheel's ratchet (click-click-click) then the shoes' long squeal from the car he's on; iron-shod uneven steps and a dragged chain on the roofs.",
+  "notes": "",
+  "order": 177.6,
+  "refNote": "388",
+  "scope": "launch",
+  "sound": "",
+  "status": "review",
+  "tier": 1,
+  "type": "tell",
+  "updatedAt": "2026-10-08T09:05:00Z",
+  "updatedBy": null
+}

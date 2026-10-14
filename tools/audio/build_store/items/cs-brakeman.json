@@ -1,0 +1,151 @@
+{
+  "area": "Creature sounds",
+  "band": "",
+  "cues": [
+    {
+      "cands": [
+        {
+          "how": "Each breath in is a real gasp (sfx_100's gasp-and-sigh) pitched down five to seven semitones and held out to the breath's length, rung through a narrow wavering resonance so it whistles through a crushed windpipe; each breath out is a real sigh-and-groan pitched down an octave and more, a real roar under it smeared low (the voice that can't hold), both gurgling with fluid (wet crackles and small bubbles in the breath's flutter). Six quick, uneven breaths in a 10 s cycle. Kept off the sub.",
+          "key": "gasp",
+          "label": "Cornered: a low, wet wheeze from real breaths, pitched down and held, whistling and gurgling",
+          "mat": null,
+          "old": false,
+          "restricted": false,
+          "seconds": 10,
+          "sources": [
+            "sfx_100_v2:misc_05",
+            "sfx_100_v2:misc_25",
+            "sfx_100_v2:misc_24"
+          ],
+          "src": "/_blob/633b9e2b26991866d3fc0fd1adf4d1aa",
+          "takes": 1
+        },
+        {
+          "how": "Six breaths in a 10 s cycle, quick and uneven as he's cornered. Each dragged in through a crushed windpipe: rough air through a man's throat with a whistle in it (noise through a narrow wavering resonance at 650-800 Hz, climbing as he hauls the breath in) and fluid rattling (wet crackles and small bubbles bursting in the breath's flutter); then let out over a low broken voice in fry (about 85 Hz, period-doubled and rough), breathy and gurgling. Kept off the sub. 10 s exact cycle.",
+          "key": "throat",
+          "label": "Cornered: a low, wet wheeze through a crushed throat, quick and uneven, modelled",
+          "mat": null,
+          "old": false,
+          "restricted": false,
+          "seconds": 10,
+          "sources": [],
+          "src": "/_blob/a6868e64fbc41a598286c93b01751100",
+          "takes": 1
+        }
+      ],
+      "event": "Cornered: a low wheeze",
+      "id": "wheeze",
+      "kind": "loop",
+      "mats": [],
+      "need": "",
+      "status": "candidate",
+      "vars": 1
+    },
+    {
+      "cands": [
+        {
+          "how": "Real keys jangling cut into slices and pitched down six to nine semitones into heavy links, coming quicker and quicker as the chain's hauled up off the roof (a real scrape for it leaving the boards), the slack swinging through the air, and caught: a real leather handling for the glove closing, a real heavy metal hit choked short for the links snapping taut, a few links settling. About a second.",
+          "key": "gather",
+          "label": "The chain rattling up into his hands, from real recordings: keys jangling quickened and pitched down, caught",
+          "mat": null,
+          "old": false,
+          "restricted": false,
+          "seconds": 1.19,
+          "sources": [
+            "sfx_100_v2:misc_09",
+            "sfx_100_v2:wood_03",
+            "sfx_100_v2:wood_02",
+            "sfx_100_v2:misc_10",
+            "kenney_rpg-audio:handleSmallLeather",
+            "kenney_impact-sounds:impactMetal_heavy_000",
+            "kenney_impact-sounds:impactMetal_heavy_001",
+            "kenney_impact-sounds:impactMetal_heavy_002",
+            "kenney_impact-sounds:impactMetal_heavy_003",
+            "kenney_impact-sounds:impactMetal_heavy_004"
+          ],
+          "src": "/_blob/9916d249e501fcf9b0fc60d76921483e",
+          "takes": 2
+        },
+        {
+          "how": "Modelled: the chain dragged up off the roof walk (a scrape and a couple of links knocking on the planks), its links rattling faster and brighter as it comes up into the air hand over hand (link on link, quickening from 25 to 350 knocks a second), the swing of its slack end through the air, and caught: a fistful of links knocking at once, a gloved hand slapping shut, the length between snapping taut with a short iron chunk. About a second.",
+          "key": "haul",
+          "label": "The chain rattling up off the roof into his hands, modelled: links quickening, caught taut",
+          "mat": null,
+          "old": false,
+          "restricted": false,
+          "seconds": 1.21,
+          "sources": [],
+          "src": "/_blob/857ff925b81cccff31577b163d9cb283",
+          "takes": 2
+        }
+      ],
+      "event": "The chain rattling up",
+      "id": "chain-up",
+      "kind": "oneshot",
+      "mats": [],
+      "need": "",
+      "status": "candidate",
+      "vars": 2
+    },
+    {
+      "cands": [
+        {
+          "how": "Kitbashed: a real switch whipping through the air, pitched down five to seven semitones for a chain's weight, with real keys jangling shaken along it (pitched down into heavy links); the landing a real metal slam (sfx_100's door slam or knock-slam, choked short) into a real heavy cloth whack (a coat taking it), a fistful of links jangling as the end wraps round, settling. 0.6-0.9 s.",
+          "key": "switch",
+          "label": "The chain's lash, from real recordings: a switch's whip pitched down, keys shaken, an iron slam into a coat",
+          "mat": null,
+          "old": false,
+          "restricted": false,
+          "seconds": 1.01,
+          "sources": [
+            "sfx_100_v2:switch_01",
+            "sfx_100_v2:switch_02",
+            "sfx_100_v2:misc_09",
+            "sfx_100_v2:wood_03",
+            "sfx_100_v2:wood_02",
+            "sfx_100_v2:metal_hit_01",
+            "sfx_100_v2:misc_36",
+            "kenney_rpg-audio:cloth1",
+            "kenney_rpg-audio:cloth2"
+          ],
+          "src": "/_blob/7703f081b4d4d573900765f5c994a1f5",
+          "takes": 3
+        },
+        {
+          "how": "Modelled: the chain swung round (the air it tears, a band of noise climbing with its speed, whirring with its links and rattling), then landing: a dense slap of links all at once, a dull blow into a body under a coat (a short thud at 150-600 Hz, never a boom), the coat slapped, the end wrapping round a moment after, the links settling. 0.6-0.9 s.",
+          "key": "whirl",
+          "label": "The chain's lash, modelled: whirring through the air and landing, a slap of links and a dull blow",
+          "mat": null,
+          "old": false,
+          "restricted": false,
+          "seconds": 0.97,
+          "sources": [],
+          "src": "/_blob/643e6c049d32081e8877c5751bd4fa9a",
+          "takes": 3
+        }
+      ],
+      "event": "The chain's lash",
+      "id": "lash",
+      "kind": "oneshot",
+      "mats": [],
+      "need": "",
+      "status": "candidate",
+      "vars": 3
+    }
+  ],
+  "current": "6 candidates to judge (queue #125, note 388), made from the request above. The creature isn't in the game yet (G1's #99-#104): its sounds are hooked and installed as it lands, and the line goes to L1 then.",
+  "gdd": "§21, A.8, ARCH note 364",
+  "level": 0,
+  "name": "The Brakeman: cornered and the lash",
+  "need": "A low wheeze, the chain rattling up; the chain's lash.",
+  "notes": "",
+  "order": 164.4,
+  "refNote": "388",
+  "scope": "launch",
+  "sound": "",
+  "status": "review",
+  "tier": null,
+  "type": "sfx",
+  "updatedAt": "2026-10-08T09:05:00Z",
+  "updatedBy": null
+}

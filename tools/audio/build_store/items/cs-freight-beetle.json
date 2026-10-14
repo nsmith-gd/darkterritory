@@ -1,0 +1,119 @@
+{
+  "area": "Creature sounds",
+  "band": "",
+  "cues": [
+    {
+      "cands": [
+        {
+          "how": "The same walk on a loading platform: every half second a tripod of chitin feet on the planks (hard tips striking, a small real wood knock under each, the weight), and the crate lurches on: its runners juddering over the boards (wood on wood, stick-slip at 45-75 slips a second rung through the planks over the void under them), a nail head catching now and then in a short squeak, the crate's joints creaking, its load knocking. The shell creaks on the hardest shoves. 24 steps in a 12 s cycle, seamless.",
+          "key": "boards",
+          "label": "A crate shoved over a platform's boards in surges with a big beetle's strides: wood juddering on wood, its shell creaking",
+          "mat": "wood",
+          "old": false,
+          "restricted": false,
+          "seconds": 12,
+          "sources": [
+            "kenney_impact-sounds:impactWood_medium_000",
+            "kenney_impact-sounds:impactWood_medium_001",
+            "kenney_impact-sounds:impactWood_medium_002",
+            "kenney_impact-sounds:impactWood_medium_003",
+            "kenney_impact-sounds:impactWood_medium_004"
+          ],
+          "src": "/_blob/c5fa1572fcd1743f962faf8b9ae30fff",
+          "takes": 1
+        },
+        {
+          "how": "A beetle the size of a pony walking a crate along: every half second three of its feet come down together (hooked chitin tips striking, a pony's weight, grit crunching under them; the two tripods not quite alike) and the crate lurches on a few inches: its edge ploughing the gravel (stick-slip friction, real gravel shoved and rolling ahead of it and ground down under the weight), the crate's joints creaking now and then and what's in it knocking about. On the hardest shoves its shell creaks (plates and leg joints rubbing, a dry stick-slip through hard chitin modes). 24 steps in a 12 s cycle, seamless, at a facility in the open.",
+          "key": "gravel",
+          "label": "A crate shoved over gravel in surges, one with each tripod of a big beetle's legs, its shell creaking",
+          "mat": "ground",
+          "old": false,
+          "restricted": false,
+          "seconds": 12,
+          "sources": [
+            "sfx_100_v2:stones_01",
+            "sfx_100_v2:stones_02",
+            "sfx_100_v2:stones_03",
+            "sfx_100_v2:footstep_01",
+            "sfx_100_v2:footstep_02",
+            "kenney_impact-sounds:impactWood_medium_000",
+            "kenney_impact-sounds:impactWood_medium_001",
+            "kenney_impact-sounds:impactWood_medium_002",
+            "kenney_impact-sounds:impactWood_medium_003",
+            "kenney_impact-sounds:impactWood_medium_004"
+          ],
+          "src": "/_blob/4b222bb1f0e065c69205bb4399523723",
+          "takes": 1
+        }
+      ],
+      "event": "A crate pushed: its scrape on gravel or boards in time with heavy strides, a chitinous creak",
+      "id": "push",
+      "kind": "loop",
+      "mats": [
+        "ground",
+        "wood"
+      ],
+      "need": "",
+      "status": "candidate",
+      "vars": 1
+    },
+    {
+      "cands": [
+        {
+          "how": "Modelled: the wing cases snap up off its back (a stiff double clack) and its plates clatter edge on edge (many dull chitin knocks at 0.7-2.2 kHz, thick at first and thinning), its six feet scrabble back a step on hooked tips; then it hisses, air driven out through the spiracles along its sides (a broad hiss with a few soft tube resonances in it, a rough flutter), pumped out in two or three pushes like a hissing cockroach's, the last one longest. One short, one with a longer hiss.",
+          "key": "plates",
+          "label": "Startled: a clatter of shell plates as the wing cases flare, its feet scrabbling back, a hiss from its sides",
+          "mat": null,
+          "old": false,
+          "restricted": false,
+          "seconds": 1.33,
+          "sources": [],
+          "src": "/_blob/23d9fcbaf96b3641a4c02fa248138a80",
+          "takes": 2
+        },
+        {
+          "how": "Kitbashed: a real book's pages riffled, dropped half an octave and more so the leaves become shell plates flicking stiffly past each other as the wing cases flare, with real light wood knocks cut small and pitched up strewn through it, thick then thinning, for the plates knocking edge on edge; its feet scrabble back; then a hiss made from a real gasp's breath, stretched and pitched down, rung through the spiracles' small tubes and pumped out in two or three pushes. One short, one with a longer hiss.",
+          "key": "riffle",
+          "label": "Startled, kitbashed: stiff plates rattling like riffled pages dropped down, a real breath torn into a hiss",
+          "mat": null,
+          "old": false,
+          "restricted": false,
+          "seconds": 1.31,
+          "sources": [
+            "kenney_rpg-audio:bookFlip2",
+            "sfx_100_v2:misc_05",
+            "kenney_impact-sounds:impactWood_light_000",
+            "kenney_impact-sounds:impactWood_light_001",
+            "kenney_impact-sounds:impactWood_light_002",
+            "kenney_impact-sounds:impactWood_light_003",
+            "kenney_impact-sounds:impactWood_light_004"
+          ],
+          "src": "/_blob/dbcf55351338869fba54d465e5c9a9c6",
+          "takes": 2
+        }
+      ],
+      "event": "Startled: a clatter of plates and a hiss",
+      "id": "startle",
+      "kind": "oneshot",
+      "mats": [],
+      "need": "",
+      "status": "candidate",
+      "vars": 2
+    }
+  ],
+  "current": "4 candidates to judge (queue #125, note 388), made from the request above. The creature isn't in the game yet (G1's #99-#104): its sounds are hooked and installed as it lands, and the line goes to L1 then.",
+  "gdd": "§21, A.6, spec B.18, ARCH note 366",
+  "level": 0,
+  "name": "The Freight Beetle: pushing",
+  "need": "A crate's scrape on gravel or boards in time with heavy strides, a chitinous creak; startled, a clatter of plates and a hiss.",
+  "notes": "",
+  "order": 164.5,
+  "refNote": "388",
+  "scope": "launch",
+  "sound": "",
+  "status": "review",
+  "tier": null,
+  "type": "sfx",
+  "updatedAt": "2026-10-08T09:05:00Z",
+  "updatedBy": null
+}

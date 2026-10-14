@@ -1,0 +1,116 @@
+{
+  "area": "Enemy tells",
+  "band": "",
+  "cues": [
+    {
+      "cands": [
+        {
+          "band": [
+            600,
+            2500
+          ],
+          "how": "Kitbashed: the steadiest moment of two real door-hinge squeals (a thin, wavering tone near 1.1 kHz) held out into long tones (paulstretched, so they keep the hinge's grain), dropped to each Mourner's pitch (650-1000 Hz), bent along the same keening lines as 'throats' (a scoop up, a wandering, trembling hold, a sob, a fall of four to eight semitones) and coloured by a small mouth's formants. Four voices at 6-20 m, each with its own home pitch and its own breaths (a ragged, shuddering inhale), so they overlap but never agree. Thinner and less human than 'throats'. A 12 s cycle, seamless. Held to 600 Hz-2.5 kHz.",
+          "inBand": 1,
+          "key": "hinges",
+          "label": "The keening from real hinge squeals: thin wavering tones that sob and fall, several out of step, never together",
+          "mat": null,
+          "old": false,
+          "restricted": false,
+          "seconds": 12,
+          "sources": [
+            "kenney_rpg-audio:creak2",
+            "kenney_rpg-audio:creak3"
+          ],
+          "src": "/_blob/f564340ebd0e6c54e2afc6291a1a0456",
+          "takes": 1
+        },
+        {
+          "band": [
+            600,
+            2500
+          ],
+          "how": "Four Mourners at 6-20 m in the dark, synthesised: each a small, breathy throat (650-1000 Hz, through a tract shorter than a child's on a thin 'oo-eh-ee') keening in phrases of two to four seconds: a scoop up into the note, a line that sinks, wanders and trembles on its own, a sob that breaks it upward for an instant, and a long fall away of four to eight semitones. Each voice starts and breathes (a ragged, shuddering inhale) at its own moments and keeps its own home pitch, none a simple ratio from another, so the lines overlap but never line up: heterophony, never a chord or a unison. No scale and no words. A 12 s cycle, seamless. Held to 600 Hz-2.5 kHz.",
+          "inBand": 1,
+          "key": "throats",
+          "label": "Several small, thin throats keening out in the dark, each on its own slow wavering line, never together",
+          "mat": null,
+          "old": false,
+          "restricted": false,
+          "seconds": 12,
+          "sources": [],
+          "src": "/_blob/d8b993a897b4252e09474725add6164d",
+          "takes": 1
+        }
+      ],
+      "event": "After a death: a soft keening from the dark beyond the body, several voices never in unison",
+      "id": "keening",
+      "kind": "loop",
+      "mats": [],
+      "need": "",
+      "status": "candidate",
+      "vars": 1
+    },
+    {
+      "cands": [
+        {
+          "band": [
+            600,
+            4000
+          ],
+          "how": "Each click is a pair of mandibles snapping shut: two hard plates meeting a few milliseconds apart (chitin clicks at 1.8-3.4 kHz) over a real blade's dry tick on a board, pitched up to the size of a small jaw. Faster and harder than 'tongues': runs of three to seven at 14-24 a second, slowing, four to six of them answering one another. The same three takes (all at once; one alarm then the others; two flurries as they scatter). Held to 600 Hz-4 kHz.",
+          "inBand": 1,
+          "key": "mandibles",
+          "label": "A startled group's mandibles clattering: pairs of hard little plates snapping shut, quick and dry",
+          "mat": null,
+          "old": false,
+          "restricted": false,
+          "seconds": 1.12,
+          "sources": [
+            "kenney_rpg-audio:chop"
+          ],
+          "src": "/_blob/60245b64dcbd43d09cd4d5148e00b37e",
+          "takes": 3
+        },
+        {
+          "band": [
+            600,
+            4000
+          ],
+          "how": "Synthesised: each click is a small tongue snapped off the palate (a sharp suck of pressure) and the little mouth ringing for a few milliseconds at 1.3-2.6 kHz, dry. Four to six Mourners click in short runs that slow as they trail off, each at its own pitch and distance. Three takes: the whole group at once; one alarm click and the rest answering, spreading out; a flurry, a pause, and a second flurry farther off as they scatter. Held to 600 Hz-4 kHz.",
+          "inBand": 1,
+          "key": "tongues",
+          "label": "A startled group clicking in alarm: small, dry tongue clicks from several throats, answering each other",
+          "mat": null,
+          "old": false,
+          "restricted": false,
+          "seconds": 1.19,
+          "sources": [],
+          "src": "/_blob/98416ee38ba40a60562bdb6fe3f52b50",
+          "takes": 3
+        }
+      ],
+      "event": "Startled: dry clicks",
+      "id": "clicks",
+      "kind": "oneshot",
+      "mats": [],
+      "need": "",
+      "status": "candidate",
+      "vars": 3
+    }
+  ],
+  "current": "4 candidates to judge (queue #125, note 388), made from the request above. The creature isn't in the game yet (G1's #99-#104): its sounds are hooked and installed as it lands, and the line goes to L1 then.",
+  "gdd": "§21, A.6, spec B.14, ARCH note 362",
+  "level": 0,
+  "name": "The Mourners: the keening",
+  "need": "After a death: a soft keening, several voices never in unison, from the dark beyond the body; dry clicks when startled. Never like the Choir or the Soot Children.",
+  "notes": "",
+  "order": 177.4,
+  "refNote": "388",
+  "scope": "launch",
+  "sound": "",
+  "status": "review",
+  "tier": 1,
+  "type": "tell",
+  "updatedAt": "2026-10-08T09:05:00Z",
+  "updatedBy": null
+}

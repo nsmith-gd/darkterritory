@@ -1,0 +1,75 @@
+{
+  "area": "Creature sounds",
+  "band": "",
+  "cues": [
+    {
+      "cands": [
+        {
+          "how": "Kitbashed, and a different performance from 'tugs': five hauls in a 12 s cycle, each a double heave (the group jerks it, then pulls it on half a metre, the slide nearly a second long). Real cloth cut into grains and dropped for a heavy coat, real gravel crunched and rolling under it and ground down by the weight, small feet scrabbling hard (real grit pitched up), a dull jolt with each heave and a soft settle. Between hauls they gasp (a real gasp pitched up into small mouths and cut into quick pants) and a thin keen rises and falls under the effort, made from the hinge squeals of the tell's 'hinges'. A few metres off on open ground; seamless.",
+          "key": "heaves",
+          "label": "The body hauled off in slow double heaves: a real coat rasping over gravel, feet scrabbling, gasps and a thin keen",
+          "mat": null,
+          "old": false,
+          "restricted": false,
+          "seconds": 12,
+          "sources": [
+            "kenney_rpg-audio:cloth1",
+            "kenney_rpg-audio:cloth2",
+            "kenney_rpg-audio:cloth3",
+            "kenney_rpg-audio:cloth4",
+            "sfx_100_v2:stones_01",
+            "sfx_100_v2:stones_02",
+            "sfx_100_v2:stones_03",
+            "sfx_100_v2:footstep_01",
+            "sfx_100_v2:footstep_02",
+            "sfx_100_v2:misc_05",
+            "kenney_rpg-audio:creak2",
+            "kenney_rpg-audio:creak3"
+          ],
+          "src": "/_blob/3b3dd8541de2430f19607443a9c68163",
+          "takes": 1
+        },
+        {
+          "how": "Eight tugs in a 12 s cycle, every 1.5 s: small feet scrabble for purchase on the cinders (light, quick, several of them), then the dead weight lurches half a metre: a dull jolt as it's taken, the coat rasping on the stones (stick-slip friction that judders with the weave), real gravel shoved and rolling ahead of it and ground down under the weight (the same gravel dropped half an octave), a soft settle as it stops. Between tugs the group pants, breathless (quick huffs through small mouths), and keens under the effort in short, strained snatches: the same thin throats as the tell. A few metres off on open ground; seamless.",
+          "key": "tugs",
+          "label": "The body hauled off in quick nervous tugs: a coat dragged over gravel, small feet scrabbling, panting keening",
+          "mat": null,
+          "old": false,
+          "restricted": false,
+          "seconds": 12,
+          "sources": [
+            "sfx_100_v2:stones_01",
+            "sfx_100_v2:stones_02",
+            "sfx_100_v2:stones_03",
+            "sfx_100_v2:footstep_01",
+            "sfx_100_v2:footstep_02"
+          ],
+          "src": "/_blob/450f41555bbdc8775bef06d4761fc901",
+          "takes": 1
+        }
+      ],
+      "event": "A body hauled away in tugs: cloth and gravel, breathless keening",
+      "id": "drag",
+      "kind": "loop",
+      "mats": [],
+      "need": "",
+      "status": "candidate",
+      "vars": 1
+    }
+  ],
+  "current": "2 candidates to judge (queue #125, note 388), made from the request above. The creature isn't in the game yet (G1's #99-#104): its sounds are hooked and installed as it lands, and the line goes to L1 then.",
+  "gdd": "§21, A.6, ARCH note 362",
+  "level": 0,
+  "name": "The Mourners: dragging a body",
+  "need": "Cloth and gravel, a body's weight hauled in tugs, breathless keening.",
+  "notes": "",
+  "order": 164.2,
+  "refNote": "388",
+  "scope": "launch",
+  "sound": "",
+  "status": "review",
+  "tier": null,
+  "type": "sfx",
+  "updatedAt": "2026-10-08T09:05:00Z",
+  "updatedBy": null
+}

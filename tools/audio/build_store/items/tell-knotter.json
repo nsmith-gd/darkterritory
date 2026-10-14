@@ -1,0 +1,206 @@
+{
+  "area": "Enemy tells",
+  "band": "",
+  "cues": [
+    {
+      "cands": [
+        {
+          "band": [
+            400,
+            4500
+          ],
+          "how": "The Knotter's body as a hawser under load: three strands slipping on each other (stick-slip that quickens from a creak into a groan as each surge of the slack comes on, rung through a thick rope's broad, soft modes from about 370 Hz), the slime between its fibres letting go in wet little peels as it stretches (hundreds a second at the top of a surge), squeezed out as the load comes off, and the coupler's knuckle creaking in its iron under it. A surge every 1.1-1.4 s, so the 4 s warning holds three of them. 8 s exact cycle. Held to 400 Hz-4.5 kHz.",
+          "inBand": 0.94,
+          "key": "fibre",
+          "label": "Wet creaking at a coupling, modelled: a living rope groaning in surges, its slime peeling, the iron straining",
+          "mat": null,
+          "old": false,
+          "restricted": false,
+          "seconds": 8,
+          "sources": [],
+          "src": "/_blob/9f6b60088965cd8a9a6373ad7c6626d0",
+          "takes": 1
+        },
+        {
+          "band": [
+            400,
+            4500
+          ],
+          "how": "Each surge of the load a real creak (a door's hinge or a floor's boards, cut at its loudest) pitched down five to eight semitones and held out over the surge so it groans like a hawser, two at once a little apart for its strands; real wet sounds (a chewing squish, wet steps) cut into grains and strewn thick as it stretches; a real metal scrape pitched well down under it for the coupler's iron bearing the load. A surge every 1.1-1.4 s, so the 4 s warning holds three. 8 s exact cycle. Held to 400 Hz-4.5 kHz.",
+          "inBand": 1,
+          "key": "hemp",
+          "label": "Wet creaking at a coupling, from real recordings: creaks pitched down into a hawser's groan, slime squishing",
+          "mat": null,
+          "old": false,
+          "restricted": false,
+          "seconds": 8,
+          "sources": [
+            "kenney_rpg-audio:creak1",
+            "kenney_rpg-audio:creak2",
+            "kenney_rpg-audio:creak3",
+            "kenney_rpg-audio:doorOpen_2",
+            "kenney_rpg-audio:handleCoins",
+            "sfx_100_v2:footstep_wet_01",
+            "sfx_100_v2:footstep_wet_03",
+            "sfx_100_v2:misc_10"
+          ],
+          "src": "/_blob/5a9ac405a32e3495e955d8c4a146674b",
+          "takes": 1
+        },
+        {
+          "band": [
+            400,
+            4500
+          ],
+          "how": "Modelled as living fibre pulled tight: the slip comes as a steady train with a pitch, gliding up from 35 to 150 a second as each surge of the load comes on, rung through resonances that climb with the tension (a string tightened goes up), so every surge is a creak that tightens as it goes and slackens back; the slime peeling off its fibres in wet little ticks, thickest at the top, squeezed out as it eases; the coupler's iron creaking under it. More pitched and more alive than 'fibre'. A surge every 1.1-1.4 s. 8 s exact cycle. Held to 400 Hz-4.5 kHz.",
+          "inBand": 1,
+          "key": "sinew",
+          "label": "Wet creaking at a coupling, modelled as sinew: each surge a creak that tightens, rising in pitch, slime peeling",
+          "mat": null,
+          "old": false,
+          "restricted": false,
+          "seconds": 8,
+          "sources": [],
+          "src": "/_blob/7b9ebfd0d6ab2884f1598436058a5d7a",
+          "takes": 1
+        }
+      ],
+      "event": "Wet creaking: rope under load at a coupling (4 s: cut it now)",
+      "id": "creep",
+      "kind": "loop",
+      "mats": [],
+      "need": "",
+      "status": "candidate",
+      "vars": 1
+    },
+    {
+      "cands": [
+        {
+          "band": [
+            300,
+            4000
+          ],
+          "how": "The groan is real creaks (a door's hinge, a floor's boards) cut at their loudest and laid end to end, pitched down nine semitones and climbing to five as the load comes on, two strands of it, with real wet squish grains thickening through it; then the buffers part: a real metal scrape, a real metal door slam pitched down a few semitones for the knuckle letting go, a wet thrum and squelch as the rope takes it, and the jolt running down the train in real slams and knock-slams choked short, a car further off each. 2.4-2.8 s. Held to 300 Hz-4 kHz.",
+          "inBand": 1,
+          "key": "iron",
+          "label": "A long groaning stretch, the buffers parting and a jolt down the train, from real recordings",
+          "mat": null,
+          "old": false,
+          "restricted": false,
+          "seconds": 2.81,
+          "sources": [
+            "kenney_rpg-audio:creak1",
+            "kenney_rpg-audio:creak2",
+            "kenney_rpg-audio:creak3",
+            "kenney_rpg-audio:doorOpen_2",
+            "kenney_rpg-audio:handleCoins",
+            "sfx_100_v2:footstep_wet_01",
+            "sfx_100_v2:footstep_wet_03",
+            "sfx_100_v2:misc_10",
+            "sfx_100_v2:metal_hit_01",
+            "sfx_100_v2:misc_36"
+          ],
+          "src": "/_blob/1d9df7b0dde13deb61124f4c31ca3016",
+          "takes": 2
+        },
+        {
+          "band": [
+            300,
+            4000
+          ],
+          "how": "The rope's groan climbing for a second and a half as the Knotter hauls the cars apart (its strands' stick-slip quickening from a creak into a groan, slime peeling off it faster and faster), then the buffers part: the knuckle's iron grinds and lets go with a clank, the rope takes the whole load at once with a wet thrum and squeezes slime, and the jolt runs down the train, a coupler's clank at each of five cars in turn, each further off. 2.4-2.8 s. Held to 300 Hz-4 kHz.",
+          "inBand": 1,
+          "key": "rope",
+          "label": "A long groaning stretch, the buffers parting and a jolt down the train, modelled",
+          "mat": null,
+          "old": false,
+          "restricted": false,
+          "seconds": 2.85,
+          "sources": [],
+          "src": "/_blob/4df522ab3b3dfff78572aa28a99c272a",
+          "takes": 2
+        }
+      ],
+      "event": "A long groaning stretch, the buffers parting and a jolt down the train",
+      "id": "stretch",
+      "kind": "oneshot",
+      "mats": [],
+      "need": "",
+      "status": "candidate",
+      "vars": 2
+    },
+    {
+      "cands": [
+        {
+          "band": [
+            350,
+            4000
+          ],
+          "how": "The Knotter's body as a hawser jerked taut: its strands' slip leaping from a creak to a groan as the jerk comes on and easing back as it settles, a thrum of the whole rope at the snatch, slime squeezed out of it with a wet squelch and peeling off its fibres, the coupler's knuckle knocking once in its iron. One sharp jerk, one slower and longer haul, one jerk and a second harder one. 1.0-1.5 s. Held to 350 Hz-4 kHz.",
+          "inBand": 0.99,
+          "key": "groan",
+          "label": "Taut: a big wet rope groaning under a jerk as the train's speed changes, modelled",
+          "mat": null,
+          "old": false,
+          "restricted": false,
+          "seconds": 1.49,
+          "sources": [],
+          "src": "/_blob/2f2d93f1a8224a81b4a7dfb0d14aa1cf",
+          "takes": 3
+        },
+        {
+          "band": [
+            350,
+            4000
+          ],
+          "how": "Real creaks (a door's hinge, a floor's boards) cut at their loudest, laid end to end and pitched down eight or nine semitones, two strands of them snatched up in pitch by the jerk and sagging back as it settles; real wet squish grains (a chewing squish, wet steps) squeezed out as it pulls taut; a real heavy plate hit choked for the coupler's knuckle knocking. One sharp jerk, one slower and longer haul, one jerk and a second harder one. 1.0-1.5 s. Held to 350 Hz-4 kHz.",
+          "inBand": 1,
+          "key": "strand",
+          "label": "Taut: a big wet rope groaning under a jerk, from real creaks pitched down and wet squish",
+          "mat": null,
+          "old": false,
+          "restricted": false,
+          "seconds": 1.46,
+          "sources": [
+            "kenney_rpg-audio:creak1",
+            "kenney_rpg-audio:creak2",
+            "kenney_rpg-audio:creak3",
+            "kenney_rpg-audio:doorOpen_2",
+            "kenney_rpg-audio:handleCoins",
+            "sfx_100_v2:footstep_wet_01",
+            "sfx_100_v2:footstep_wet_03",
+            "kenney_impact-sounds:impactPlate_heavy_000",
+            "kenney_impact-sounds:impactPlate_heavy_001",
+            "kenney_impact-sounds:impactPlate_heavy_002",
+            "kenney_impact-sounds:impactPlate_heavy_003",
+            "kenney_impact-sounds:impactPlate_heavy_004"
+          ],
+          "src": "/_blob/e60c0004e9e281962306d1c18d6360ed",
+          "takes": 3
+        }
+      ],
+      "event": "Taut: a hawser's creak as the speed changes",
+      "id": "hawser",
+      "kind": "oneshot",
+      "mats": [],
+      "need": "",
+      "status": "candidate",
+      "vars": 3
+    }
+  ],
+  "current": "7 candidates to judge (queue #125, note 388), made from the request above. The creature isn't in the game yet (G1's #99-#104): its sounds are hooked and installed as it lands, and the line goes to L1 then.",
+  "gdd": "§21, A.7, spec B.17, ARCH note 365",
+  "level": 0,
+  "name": "The Knotter: the creep and the force",
+  "need": "Wet creaking, rope under load at a coupling (4 s: cut it now); then a long groaning stretch and the buffers parting, a jolt down the train; taut, a hawser's creak with every change of speed.",
+  "notes": "",
+  "order": 177.7,
+  "refNote": "388",
+  "scope": "launch",
+  "sound": "",
+  "status": "review",
+  "tier": 1,
+  "type": "tell",
+  "updatedAt": "2026-10-08T09:05:00Z",
+  "updatedBy": null
+}
