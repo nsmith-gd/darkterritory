@@ -1,0 +1,1099 @@
+diff --git a/src/DarkTerritory.Cli/Program.cs b/src/DarkTerritory.Cli/Program.cs
+index 735f4023..b7a63819 100644
+--- a/src/DarkTerritory.Cli/Program.cs
++++ b/src/DarkTerritory.Cli/Program.cs
+@@ -1939,6 +1939,10 @@ static object Screenshot(TrainTuning t, string content, string[] args)
+         scene.Crew = party;
+         scene.Bodies = partyBodies;
+     }
++    // --pet-mood idle|walk|sleep|warn|fetch (note 745; with --upgrades yardCat,dog --stocked): the cat and the dog so.
++    if (Str(args, "--pet-mood", "") is { Length: > 0 } petMood && scene.Bodies is { } petBodies)
++        foreach (var pet in petBodies.Where(b => b.Kind is DarkTerritory.Sim.Physics.BodyKind.Cat or DarkTerritory.Sim.Physics.BodyKind.Dog))
++            pet.Tipped = (sbyte)Enum.Parse<DarkTerritory.Sim.PetMood>(petMood, ignoreCase: true);
+     // --lounge (note 744; with --upgrades hammock,hotTub): someone in the hammock, two in the hot tub.
+     if (args.Contains("--lounge") && Staging.Lounging(train) is var (loungers, loungeBodies))
+     {
+diff --git a/src/DarkTerritory.Game/Art/SceneArt.cs b/src/DarkTerritory.Game/Art/SceneArt.cs
+index 6c2963ba..5a038af9 100644
+--- a/src/DarkTerritory.Game/Art/SceneArt.cs
++++ b/src/DarkTerritory.Game/Art/SceneArt.cs
+@@ -834,6 +834,10 @@ public sealed partial class SceneArt(Look look)
+             Sim.Physics.BodyKind.FishingRod => Piece("whimsy-fishing-rod", () => WhimsyKit.FishingRod(Look)),
+             Sim.Physics.BodyKind.Fish => Piece("whimsy-fish", () => WhimsyKit.Fish(Look, false)),
+             Sim.Physics.BodyKind.GrilledFish => Piece("whimsy-grilled-fish", () => WhimsyKit.Fish(Look, true)),
++            // The yard cat, the dog (by their mood) and a tennis ball (note 745).
++            Sim.Physics.BodyKind.Cat => Piece($"whimsy-cat-{(int)b.Tipped}", () => WhimsyKit.Cat(Look, b.Tipped)),
++            Sim.Physics.BodyKind.Dog => Piece($"whimsy-dog-{(int)b.Tipped}", () => WhimsyKit.Dog(Look, b.Tipped)),
++            Sim.Physics.BodyKind.TennisBall => Piece("whimsy-tennis-ball", () => WhimsyKit.TennisBall(Look)),
+             // The band's (note 700).
+             Sim.Physics.BodyKind.Instrument when (InstrumentOf?.Invoke(b) ?? "fiddle") is var id => Piece($"prop-band-{id}", () => PropKit.Instrument(Look, id)),
+             // The hand lamp: the sourced lantern (tools/models hand_lantern) where it's built.
+diff --git a/src/DarkTerritory.Game/Art/WhimsyKit.cs b/src/DarkTerritory.Game/Art/WhimsyKit.cs
+index dbba48ff..0dec06e6 100644
+--- a/src/DarkTerritory.Game/Art/WhimsyKit.cs
++++ b/src/DarkTerritory.Game/Art/WhimsyKit.cs
+@@ -267,6 +267,144 @@ public static class WhimsyKit
+         return k.Build(grilled ? "whimsy-grilled-fish" : "whimsy-fish");
+     }
+ 
++    /// <summary>
++    /// The yard cat (note 745), a ginger tom, by its mood: sat up (idle), walking, curled asleep (on the backhead), or arched,
++    /// its fur and tail up, hissing (warning of what's aboard). Its middle at (0, 0, 0) as its body has it, its feet at −0.15,
++    /// facing −Z.
++    /// </summary>
++    public static MeshAsset Cat(Look? look, int mood)
++    {
++        var k = new Kit(look, 1741 + mood);
++        var fur = new Vector3(0.78f, 0.45f, 0.18f);
++        const float foot = -0.15f;
++        k.Use("dress_fur", fur, 0.9f, 0);
++        switch (mood)
++        {
++            case 2: // asleep: a loaf, the tail round it, the head down on the paws
++                k.With(Matrix4x4.CreateScale(1.1f, 0.6f, 1.4f) * Kit.At(0, foot + 0.09f, 0), () => Ball(k, Vector3.Zero, 0.12f, 10));
++                Ball(k, new Vector3(0, foot + 0.08f, -0.17f), 0.065f, 8);
++                k.Cylinder(new Vector3(0.1f, foot + 0.03f, 0.12f), new Vector3(0.12f, foot + 0.03f, -0.12f), 0.025f, 6);
++                break;
++            case 3: // arched, hissing
++                k.With(Matrix4x4.CreateScale(0.8f, 1.0f, 1.5f) * Kit.At(0, foot + 0.24f, 0), () => Ball(k, Vector3.Zero, 0.11f, 10));
++                foreach (float x in new[] { -0.05f, 0.05f })
++                    foreach (float z in new[] { -0.12f, 0.12f })
++                        k.Cylinder(new Vector3(x, foot, z), new Vector3(x, foot + 0.2f, z * 0.6f), 0.018f, 5);
++                Ball(k, new Vector3(0, foot + 0.2f, -0.2f), 0.06f, 8);
++                k.Cylinder(new Vector3(0, foot + 0.26f, 0.14f), new Vector3(0, foot + 0.48f, 0.18f), 0.035f, 6, radiusB: 0.02f);
++                k.Use("dress_paint", new Vector3(0.75f, 0.25f, 0.25f), 0.4f, 0.4f);
++                k.Box(new Vector3(-0.02f, foot + 0.17f, -0.262f), new Vector3(0.02f, foot + 0.19f, -0.255f));
++                k.Use("dress_fur", fur, 0.9f, 0);
++                break;
++            default: // sat up, or walking
++                bool sat = mood == 0;
++                k.With(Matrix4x4.CreateScale(0.75f, 0.85f, 1.35f) * Kit.At(0, foot + (sat ? 0.13f : 0.16f), sat ? 0.04f : 0), () => Ball(k, Vector3.Zero, 0.1f, 10));
++                foreach (float x in new[] { -0.045f, 0.045f })
++                {
++                    k.Cylinder(new Vector3(x, foot, -0.08f), new Vector3(x, foot + 0.14f, -0.08f), 0.017f, 5);
++                    if (!sat)
++                        k.Cylinder(new Vector3(x, foot, 0.1f), new Vector3(x, foot + 0.14f, 0.1f), 0.017f, 5);
++                }
++                Ball(k, new Vector3(0, foot + (sat ? 0.27f : 0.24f), -0.12f), 0.06f, 8);
++                k.Cylinder(new Vector3(0, foot + 0.12f, 0.14f), new Vector3(0, sat ? foot + 0.02f : foot + 0.3f, sat ? 0.22f : 0.26f), 0.02f, 6);
++                break;
++        }
++        // The ears, and the eyes: green, catching the light.
++        if (mood != 2)
++        {
++            float hy = mood == 3 ? foot + 0.2f : mood == 0 ? foot + 0.27f : foot + 0.24f, hz = mood == 3 ? -0.2f : -0.12f;
++            k.Use("dress_fur", fur * 0.8f, 0.9f, 0);
++            foreach (float x in new[] { -0.03f, 0.03f })
++                k.Cylinder(new Vector3(x, hy + 0.04f, hz), new Vector3(x * 1.4f, hy + 0.1f, hz + 0.005f), 0.02f, 4, radiusB: 0.002f);
++            k.Use("dress_glass", new Vector3(0.6f, 0.95f, 0.35f), 0.05f, 0.9f);
++            k.Emissive = 0.6f;
++            foreach (float x in new[] { -0.022f, 0.022f })
++                Ball(k, new Vector3(x, hy + 0.01f, hz - 0.05f), 0.009f, 5);
++            k.Emissive = 0;
++        }
++        return k.Build($"whimsy-cat-{mood}");
++    }
++
++    /// <summary>
++    /// The dog (note 745), a black-and-white sheepdog, by its mood: sat, walking (or fetching), lying down, or braced and barking
++    /// at what's aboard. Its middle at (0, 0, 0) as its body has it, its feet at −0.25, facing −Z.
++    /// </summary>
++    public static MeshAsset Dog(Look? look, int mood)
++    {
++        var k = new Kit(look, 1746 + mood);
++        var black = new Vector3(0.08f, 0.08f, 0.09f);
++        var white = new Vector3(0.85f, 0.84f, 0.8f);
++        const float foot = -0.25f;
++        bool lying = mood == 2, barking = mood == 3, sat = mood == 0;
++        float body = lying ? foot + 0.14f : sat ? foot + 0.3f : foot + 0.38f;
++        k.Use("dress_fur", black, 0.9f, 0);
++        k.With(Matrix4x4.CreateScale(0.85f, 0.85f, 1.7f) * Kit.At(0, body, sat ? 0.08f : 0), () => Ball(k, Vector3.Zero, 0.14f, 10));
++        if (!lying)
++            foreach (float x in new[] { -0.07f, 0.07f })
++            {
++                k.Use("dress_fur", white, 0.9f, 0);
++                k.Cylinder(new Vector3(x, foot, barking ? -0.2f : -0.16f), new Vector3(x, body, -0.14f), 0.03f, 6);
++                if (!sat)
++                    k.Cylinder(new Vector3(x, foot, 0.2f), new Vector3(x, body, 0.17f), 0.03f, 6);
++            }
++        // The head, white-blazed, the muzzle out; the ears; the tail.
++        float hy = lying ? foot + 0.17f : barking ? body + 0.08f : body + 0.16f, hz = lying ? -0.3f : -0.28f;
++        k.Use("dress_fur", black, 0.9f, 0);
++        Ball(k, new Vector3(0, hy, hz), 0.085f, 10);
++        k.Use("dress_fur", white, 0.9f, 0);
++        k.Cylinder(new Vector3(0, hy - 0.02f, hz - 0.05f), new Vector3(0, hy - 0.03f, hz - 0.15f), 0.045f, 8, radiusB: 0.03f);
++        k.Use("dress_paint", black * 0.5f, 0.3f, 0.6f);
++        Ball(k, new Vector3(0, hy - 0.02f, hz - 0.16f), 0.015f, 5);
++        if (barking)
++        {
++            k.Use("dress_paint", new Vector3(0.7f, 0.25f, 0.28f), 0.4f, 0.3f);
++            k.Box(new Vector3(-0.025f, hy - 0.08f, hz - 0.15f), new Vector3(0.025f, hy - 0.06f, hz - 0.05f));
++        }
++        k.Use("dress_fur", black, 0.9f, 0);
++        foreach (float x in new[] { -0.06f, 0.06f })
++            k.Cylinder(new Vector3(x, hy + 0.05f, hz + 0.02f), new Vector3(x * 1.6f, hy + (barking ? 0.12f : 0.03f), hz + 0.05f), 0.025f, 4, radiusB: 0.008f);
++        k.Cylinder(new Vector3(0, body + 0.04f, 0.22f), new Vector3(0, body + (lying ? 0 : 0.18f), 0.36f), 0.03f, 6, radiusB: 0.015f);
++        return k.Build($"whimsy-dog-{mood}");
++    }
++
++    /// <summary>A tennis ball (note 745): yellow-green felt, 0.035 m round its middle at (0, 0, 0), its seam white.</summary>
++    public static MeshAsset TennisBall(Look? look)
++    {
++        var k = new Kit(look, 1752);
++        k.Use("dress_felt", new Vector3(0.8f, 0.92f, 0.2f), 0.9f, 0);
++        Ball(k, Vector3.Zero, 0.035f, 10);
++        k.Use("dress_paint", new Vector3(0.95f, 0.95f, 0.9f), 0.6f, 0.1f);
++        for (int i = 0; i < 12; i++)
++        {
++            float a0 = MathF.Tau * i / 12, a1 = MathF.Tau * (i + 1) / 12;
++            Vector3 P(float a) => new(0.0355f * MathF.Cos(a), 0.012f * MathF.Sin(2 * a), 0.0355f * MathF.Sin(a));
++            k.Rod(P(a0), P(a1), 0.0025f, 3);
++        }
++        return k.Build("whimsy-tennis-ball");
++    }
++
++    /// <summary>
++    /// The tennis-ball launcher (note 745): a spring-loaded tube on a post clamped to the rear platform's rail, pointed up and
++    /// back over the line, a bucket of balls beside it. Its foot (the platform under it) at (0, 0, 0); back is +Z.
++    /// </summary>
++    public static MeshAsset Launcher(Look? look)
++    {
++        var k = new Kit(look, 1753);
++        k.Use("dress_paint", new Vector3(0.15f, 0.3f, 0.55f), 0.4f, 0.4f);
++        k.Cylinder(new Vector3(0, 0, 0.3f), new Vector3(0, 0.9f, 0.3f), 0.035f, 8);
++        k.Cylinder(new Vector3(0, 0.85f, 0.05f), new Vector3(0, 1.15f, 0.62f), 0.06f, 12);
++        k.Use("dress_paint", new Vector3(0.9f, 0.85f, 0.2f), 0.4f, 0.4f);
++        k.Cylinder(new Vector3(0, 1.15f, 0.62f), new Vector3(0, 1.17f, 0.66f), 0.065f, 12);
++        k.Use("dress_brass", Brass * 0.6f, 0.4f, 0.8f);
++        k.Rod(new Vector3(0, 0.84f, 0.02f), new Vector3(0, 0.75f, -0.12f), 0.012f);
++        k.Use("dress_paint", new Vector3(0.7f, 0.2f, 0.15f), 0.6f, 0.2f);
++        k.Cylinder(new Vector3(0.4f, 0, 0.1f), new Vector3(0.4f, 0.26f, 0.1f), 0.13f, 12, radiusB: 0.15f, capB: false);
++        k.Use("dress_felt", new Vector3(0.8f, 0.92f, 0.2f), 0.9f, 0);
++        foreach (var b in new[] { new Vector3(0.36f, 0.26f, 0.06f), new Vector3(0.44f, 0.27f, 0.12f), new Vector3(0.4f, 0.27f, 0.17f) })
++            Ball(k, b, 0.035f, 8);
++        return k.Build("whimsy-launcher");
++    }
++
+     /// <summary>A white fleck on the record, put where it's got to as it turns (the record playing).</summary>
+     public static MeshAsset Label(Look? look)
+     {
+diff --git a/src/DarkTerritory.Game/GreyboxScene.Dress.cs b/src/DarkTerritory.Game/GreyboxScene.Dress.cs
+index 05418524..84ff226f 100644
+--- a/src/DarkTerritory.Game/GreyboxScene.Dress.cs
++++ b/src/DarkTerritory.Game/GreyboxScene.Dress.cs
+@@ -243,6 +243,10 @@ public sealed partial class GreyboxScene
+                     mesh.Billboard(puff, 0.5f + rise * 0.9f, i, new Vector4(new Vector3(0.75f, 0.76f, 0.78f) * (0.22f * (1 - rise)), 1), -1, FxBlend.Additive);
+                 }
+         }
++        // The tennis-ball launcher on the guard van's platform (note 745).
++        if (Dressed("tennisBalls") && frame.Shape.Platform is { } platform && index == _frames.Count - 1)
++            mesh.Append(art.Piece("whimsy-launcher", () => Art.WhimsyKit.Launcher(Look)),
++                Matrix4x4.CreateTranslation(ToF(Sim.Train.CarShape.Launcher(platform)) + new Vector3(0.35f, 0, -0.25f)) * m);
+         if (Dressed("calliope") && index == 0)
+             mesh.Append(art.Piece("whimsy-calliope", () => Art.WhimsyKit.Calliope(Look)),
+                 Matrix4x4.CreateTranslation(0, (float)frame.Shape.RoofHeight, -2.4f) * m);
+diff --git a/src/DarkTerritory.Game/Hud.cs b/src/DarkTerritory.Game/Hud.cs
+index e4ca21f4..ad49e91f 100644
+--- a/src/DarkTerritory.Game/Hud.cs
++++ b/src/DarkTerritory.Game/Hud.cs
+@@ -737,6 +737,9 @@ public static partial class Hud
+         BodyKind.FishingRod => "THE FISHING ROD",
+         BodyKind.Fish => "A FISH",
+         BodyKind.GrilledFish => "A GRILLED FISH",
++        // The yard cat (note 745): it can be picked up. The dog can't.
++        BodyKind.Cat => "THE CAT",
++        BodyKind.TennisBall => "A TENNIS BALL",
+         // The band's (note 700): band.json's name for it.
+         BodyKind.Instrument => world.BandTuning is { } band && b.Instrument < band.Instruments.Length ? band.Instruments[b.Instrument].Name.ToUpperInvariant() : "THE INSTRUMENT",
+         _ => "IT",
+@@ -2372,6 +2375,9 @@ public static partial class Hud
+                 return "LIE IN THE HAMMOCK : [E]";
+             case InteractableKind.HotTub:
+                 return "GET IN THE HOT TUB : [E]";
++            // The tennis-ball launcher (note 745).
++            case InteractableKind.Launcher:
++                return "FIRE A BALL : [E]";
+             case InteractableKind.Cooler:
+                 return train.Vehicles[p.Parent].Beers is > 0 and var beers ? $"A BEER : [E]   {beers} LEFT" : "THE COOLER'S EMPTY";
+             // The gramophone (note 715).
+diff --git a/src/DarkTerritory.Game/Sound/BandSynth.cs b/src/DarkTerritory.Game/Sound/BandSynth.cs
+index bc410884..9b8c1449 100644
+--- a/src/DarkTerritory.Game/Sound/BandSynth.cs
++++ b/src/DarkTerritory.Game/Sound/BandSynth.cs
+@@ -145,6 +145,49 @@ public static class BandSynth
+         return o;
+     }
+ 
++    /// <summary>The yard cat's hiss (note 745): a long breathy rasp, its top bright, swelling and cut off.</summary>
++    public static float[] Hiss(int seed)
++    {
++        var noise = new Noise((uint)(seed * 7 + 3));
++        var o = new float[Samples(0.9)];
++        var band = new Biquad();
++        band.Set(FilterType.BandPass, 4200, 0.9);
++        for (int i = 0; i < o.Length; i++)
++        {
++            double t = (double)i / Rate;
++            o[i] = band.Process(noise.Next()) * (float)(Math.Min(1, t / 0.08) * Math.Max(0, 1 - Math.Max(0, t - 0.7) / 0.2));
++        }
++        Normalise(o, 0.6f);
++        return o;
++    }
++
++    /// <summary>The yard cat's meow (note 745): a rising then falling cry, nasal.</summary>
++    public static float[] Meow(int seed)
++    {
++        var o = new float[Samples(0.75)];
++        double hz = 520 + seed % 3 * 60;
++        Harmonics(o, hz, k => 1.0 / (k * 0.8), t => 1 + 0.35 * Math.Sin(Math.PI * Math.Min(1, t / 0.6)), t => Held(t, 0.6, 0.06, 0.12), 0.8);
++        Filter(o, (FilterType.Peak, 1600, 1.5, 8), (FilterType.HighPass, 300, 0.7, 0));
++        Normalise(o, 0.5f);
++        return o;
++    }
++
++    /// <summary>The dog's bark (note 745): a short gruff "wuff", a pitch drop under a noisy chest.</summary>
++    public static float[] Bark(int seed)
++    {
++        var noise = new Noise((uint)(seed * 13 + 5));
++        var o = new float[Samples(0.3)];
++        double hz = 210 + seed % 3 * 25;
++        Harmonics(o, hz, k => 1.0 / k, t => 1.25 - 0.5 * Math.Min(1, t / 0.18), t => Held(t, 0.16, 0.01, 0.1), 0.8);
++        var chest = new Biquad();
++        chest.Set(FilterType.BandPass, 900, 1.2);
++        for (int i = 0; i < o.Length; i++)
++            o[i] += chest.Process(noise.Next()) * 0.5f * (float)Held((double)i / Rate, 0.12, 0.005, 0.08);
++        Filter(o, (FilterType.Peak, 700, 1.0, 6), (FilterType.LowPass, 3500, 0.7, 0));
++        Normalise(o, 0.7f);
++        return o;
++    }
++
+     static void Normalise(float[] o, float to)
+     {
+         float peak = 1e-6f;
+diff --git a/src/DarkTerritory.Game/Sound/GameAudio.Whimsy.cs b/src/DarkTerritory.Game/Sound/GameAudio.Whimsy.cs
+index 6104612b..91120792 100644
+--- a/src/DarkTerritory.Game/Sound/GameAudio.Whimsy.cs
++++ b/src/DarkTerritory.Game/Sound/GameAudio.Whimsy.cs
+@@ -22,6 +22,50 @@ public sealed partial class GameAudio
+     {
+         Canary(world, train);
+         Gramophone(world, train);
++        Pets(world, train);
++    }
++
++    // Each pet's mood when last heard, and when it last made a sound (this machine's clock).
++    readonly Dictionary<int, (sbyte Mood, double At)> _petHeard = [];
++    readonly Dictionary<string, AudioClip> _petClips = [];
++
++    /// <summary>
++    /// The yard cat and the dog (note 745): the tells. Warning of what's aboard, the cat hisses (again every few seconds while it
++    /// lasts) and the dog barks, a bark every ~0.6 s; otherwise the cat meows now and then.
++    /// </summary>
++    void Pets(World world, TrainOnLine train)
++    {
++        foreach (var b in world.Bodies.All)
++        {
++            if (b.Kind is not (Sim.Physics.BodyKind.Cat or Sim.Physics.BodyKind.Dog))
++                continue;
++            bool cat = b.Kind == Sim.Physics.BodyKind.Cat;
++            var mood = (PetMood)b.Tipped;
++            var was = _petHeard.GetValueOrDefault(b.Id, ((sbyte)-1, -100));
++            double every = mood == PetMood.Warn ? (cat ? 2.5 : 0.6) : cat ? 23 : double.MaxValue;
++            bool fresh = mood == PetMood.Warn && was.Mood != (sbyte)PetMood.Warn;
++            if (!fresh && _time - was.At < every || mood is PetMood.Sleep || !cat && mood != PetMood.Warn)
++            {
++                _petHeard[b.Id] = (b.Tipped, was.At);
++                continue;
++            }
++            int take = (int)(_time * 7) % 3;
++            string name = cat ? mood == PetMood.Warn ? "hiss" : "meow" : "bark";
++            if (!_petClips.TryGetValue($"{name}{take}", out var clip))
++                _petClips[$"{name}{take}"] = clip = new AudioClip(name switch
++                {
++                    "hiss" => BandSynth.Hiss(take),
++                    "meow" => BandSynth.Meow(take),
++                    _ => BandSynth.Bark(take),
++                }, Audio.SampleRate);
++            var at = Sim.Physics.Bodies.WorldCentre(b, train) + Double3.Up * 0.2;
++            Mixer.Play(WhimsySound($"whimsy-{name}", 3, 1.5, cat ? 22 : 60, cat ? -2 : 0), at)?.Also(v =>
++            {
++                v.Clip = clip;
++                v.Occlusion = Occlusion(PlayerMotor.Space(new PlayerState { Parent = b.Parent, Position = b.Centre }, train));
++            });
++            _petHeard[b.Id] = (b.Tipped, _time);
++        }
+     }
+ 
+     /// <summary>
+diff --git a/src/DarkTerritory.Game/Views.cs b/src/DarkTerritory.Game/Views.cs
+index feeef725..e87ca070 100644
+--- a/src/DarkTerritory.Game/Views.cs
++++ b/src/DarkTerritory.Game/Views.cs
+@@ -252,6 +252,16 @@ public static class Views
+                 train.Frames[^1].ToWorld(new Double3(-0.2, Floor(train) + 0.6, train.Frames[^1].Shape.HalfLength - 1.0)), 65),
+             "hottub" => Camera.LookAt(engine.ToWorld(new Double3(2.6, engine.Shape.RoofHeight + 2.4, Sim.Train.CarShape.TubZ - 3.6)),
+                 engine.ToWorld(new Double3(0, engine.Shape.RoofHeight + 0.6, Sim.Train.CarShape.TubZ)), 55),
++            // The yard cat and the dog (note 745; `--upgrades yardCat,dog --stocked [--pet-mood warn|sleep]`): the cab from its back
++            // corner, the cat by the backhead; the guard van from its middle down to its back end, the dog there; the launcher on
++            // the van's platform from behind, off its side (`--upgrades tennisBalls`).
++            "cat" => engine.Shape.Cab is { } catCab
++                ? Camera.LookAt(engine.ToWorld(new Double3(catCab.Max.X - 0.4, catCab.Min.Y + 1.5, catCab.Max.Z - 0.3)), engine.ToWorld(new Double3(catCab.Min.X + 0.8, catCab.Min.Y + 0.2, catCab.Max.Z - 1.2)), 70)
++                : Camera.LookAt(engine.ToWorld(new Double3(0, 3, 0)), engine.ToWorld(new Double3(0, 2, -1)), 60),
++            "dog" => Camera.LookAt(train.Frames[^1].ToWorld(new Double3(0.8, Floor(train) + 1.3, train.Frames[^1].Shape.HalfLength - 4.6)),
++                train.Frames[^1].ToWorld(new Double3(-0.4, Floor(train) + 0.3, train.Frames[^1].Shape.HalfLength - 2.0)), 60),
++            "launcher" => Camera.LookAt(train.Frames[^1].ToWorld(new Double3(3.2, 2.4, train.Frames[^1].Shape.HalfLength + 4.5)),
++                train.Frames[^1].ToWorld(new Double3(0.2, 1.6, train.Frames[^1].Shape.HalfLength + 0.6)), 50),
+             "gerald" => Camera.LookAt(train.Frames[^1].ToWorld(new Double3(3.0, train.Frames[^1].Shape.RoofHeight + 1.6, -train.Frames[^1].Shape.HalfLength + 5.5)),
+                 train.Frames[^1].ToWorld(new Double3(0.8, train.Frames[^1].Shape.RoofHeight + 0.9, -train.Frames[^1].Shape.HalfLength + 1.6)), 50),
+             "gnomes" => Camera.LookAt(train.Frames[1].ToWorld(new Double3(-2.4, train.Frames[1].Shape.RoofHeight + 1.6, -train.Frames[1].Shape.HalfLength - 1.5)),
+diff --git a/src/DarkTerritory.Sim/Enemies/Rear.cs b/src/DarkTerritory.Sim/Enemies/Rear.cs
+index 9d5bf21d..d21e2dbe 100644
+--- a/src/DarkTerritory.Sim/Enemies/Rear.cs
++++ b/src/DarkTerritory.Sim/Enemies/Rear.cs
+@@ -17,6 +17,9 @@ public sealed class CinderHound(int id, int pack) : Enemy(id)
+     public override Want Want => Want.Kill;
+     double _biteTimer, _boredTimer, _from;
+     bool _stays;
++    // The tennis ball it's after or has in its jaws (note 745), by its body's id; −1 none.
++    int _ball = -1;
++    bool _hasBall;
+ 
+     public override EnemyKind Kind => EnemyKind.CinderHound;
+     public override PressureZone Zone => PressureZone.Rear;
+@@ -83,6 +86,8 @@ public sealed class CinderHound(int id, int pack) : Enemy(id)
+                 if (PhaseSeconds >= t.HowlSeconds)
+                     Enter(ctx, SpinePhase.Commit);
+                 break;
++            case SpinePhase.Telegraph when Fetch(ctx, t):
++                break;
+             case SpinePhase.Telegraph:
+                 Run(ctx, t, closing: 0);
+                 if (PhaseSeconds >= t.HowlSeconds)
+@@ -104,6 +109,8 @@ public sealed class CinderHound(int id, int pack) : Enemy(id)
+                 Run(ctx, t, closing: 0);
+                 RunIn(ctx);
+                 break;
++            case SpinePhase.Commit when Fetch(ctx, t):
++                break;
+             case SpinePhase.Commit:
+                 double gap = train.RearDistance - LineDistance;
+                 if (gap > 250)
+@@ -124,6 +131,64 @@ public sealed class CinderHound(int id, int pack) : Enemy(id)
+         }
+     }
+ 
++    /// <summary>
++    /// The tennis ball (note 745; docs/design/upgrades.md §7.4: "they're hounds ... they bring it back"): running after the train,
++    /// a ball lying on the ground within <see cref="WhimsyTuning.BallSeen"/> m and it goes for that instead, at its own pace,
++    /// while the train runs on; caught, it's in its jaws, and it comes on after the train again. One that catches the train
++    /// up drops it on the guard van's platform before it leaps. True while it's going for one.
++    /// </summary>
++    bool Fetch(EnemyContext ctx, HoundTuning t)
++    {
++        var bodies = ctx.World.Bodies;
++        var train = ctx.Train;
++        var whimsy = train.Dynamics.Tuning.Composition.Whimsy;
++        var at = WorldPosition(train);
++        if (_hasBall)
++        {
++            if (bodies.All.FirstOrDefault(b => b.Id == _ball) is not { } held)
++            {
++                (_ball, _hasBall) = (-1, false);
++                return false;
++            }
++            // In its jaws, as it runs.
++            Physics.Bodies.PlaceIn(held, PlayerState.World, at + Double3.Up * 0.55);
++            if (train.Dynamics.RearDistance - LineDistance <= t.LeapDistance && train.Frames[^1].Shape.Platform is { } platform)
++            {
++                // Brought back: dropped on the platform, and then it's the train it wants.
++                Physics.Bodies.PlaceIn(held, train.Frames.Count - 1, CarShape.Launcher(platform) + Double3.Up * held.Pbd.Particles[0].Radius);
++                held.TakenBy = -1;
++                (_ball, _hasBall) = (-1, false);
++            }
++            return false;
++        }
++        if (Runner || Ahead || Flank || Attached >= 0)
++            return false;
++        var ball = bodies.All.Where(b => b.Kind == Physics.BodyKind.TennisBall && b.Parent == PlayerState.World && !b.Lifted && b.TakenBy < 0
++                && (b.Centre - at).Length <= whimsy.BallSeen)
++            .OrderBy(b => (b.Centre - at).Length).ThenBy(b => b.Id).FirstOrDefault();
++        if (ball is null)
++        {
++            _ball = -1;
++            return false;
++        }
++        _ball = ball.Id;
++        // Along the line and out to it, as fast as it runs.
++        var sample = train.Line.Sample(train.Dynamics.Path, LineDistance);
++        var right = Double3.Cross(sample.Tangent, Double3.Up).Normalized;
++        var off = ball.Centre - at;
++        double along = Double3.Dot(off, sample.Tangent), across = Double3.Dot(off, right);
++        double step = t.MaxSpeed * SimConstants.TickSeconds, d = Math.Sqrt(along * along + across * across);
++        if (d <= whimsy.BallTake)
++        {
++            ball.TakenBy = Id;
++            _hasBall = true;
++            return false;
++        }
++        LineDistance += along * Math.Min(1, step / d);
++        Lateral += across * Math.Min(1, step / d);
++        return true;
++    }
++
+     void Run(EnemyContext ctx, HoundTuning t, double closing)
+     {
+         // A runner keeps up with any train and closes on it (note 328: a hot train can't outrun the run).
+diff --git a/src/DarkTerritory.Sim/Net/WorldRecords.cs b/src/DarkTerritory.Sim/Net/WorldRecords.cs
+index de27158a..1611eae9 100644
+--- a/src/DarkTerritory.Sim/Net/WorldRecords.cs
++++ b/src/DarkTerritory.Sim/Net/WorldRecords.cs
+@@ -296,6 +296,8 @@ public static class WorldRecords
+                 Physics.BodyKind.Instrument => body.Instrument,
+                 // The tiny caboose (note 713): which way it's over (+1; 1 on the rails).
+                 Physics.BodyKind.Caboose => body.Tipped + 1,
++                // The cat's and the dog's mood (note 745: PetMood).
++                Physics.BodyKind.Cat or Physics.BodyKind.Dog => body.Tipped + 1,
+                 // Broken, and how far the kit's got mending it (note 201): 0 whole, 1 + ticks broken.
+                 Physics.BodyKind.Radio => body.Broken ? 1 + body.MendTicks : 0,
+                 // How far its carrier has got using a healing find (note 272), for their HUD.
+@@ -585,7 +587,7 @@ public static class WorldRecords
+             Tools = (Physics.BodyKind)f[0] is Physics.BodyKind.Ragdoll or Physics.BodyKind.Tool ? (ulong)f[8] : 0,
+             Cargo = (Physics.BodyKind)f[0] is Physics.BodyKind.Extinguisher or Physics.BodyKind.Ragdoll or Physics.BodyKind.Toy or Physics.BodyKind.Radio or Physics.BodyKind.Loot or Physics.BodyKind.Tool
+                 or Physics.BodyKind.Instrument or Physics.BodyKind.Caboose ? CargoKind.None : (CargoKind)f[8],
+-            Tipped = (Physics.BodyKind)f[0] == Physics.BodyKind.Caboose ? (sbyte)(f[8] - 1) : (sbyte)0,
++            Tipped = (Physics.BodyKind)f[0] is Physics.BodyKind.Caboose or Physics.BodyKind.Cat or Physics.BodyKind.Dog ? (sbyte)(f[8] - 1) : (sbyte)0,
+             Instrument = (Physics.BodyKind)f[0] == Physics.BodyKind.Instrument ? (byte)f[8] : (byte)0,
+             Noise = (Physics.BodyKind)f[0] == Physics.BodyKind.Toy ? (Physics.ToyNoise)f[8] : Physics.ToyNoise.None,
+             Broken = (Physics.BodyKind)f[0] == Physics.BodyKind.Radio && f[8] != 0,
+diff --git a/src/DarkTerritory.Sim/Physics/Bodies.cs b/src/DarkTerritory.Sim/Physics/Bodies.cs
+index f24437b8..e673b66b 100644
+--- a/src/DarkTerritory.Sim/Physics/Bodies.cs
++++ b/src/DarkTerritory.Sim/Physics/Bodies.cs
+@@ -30,6 +30,8 @@ public enum BodyKind : byte
+     Beer = 14, Sausage = 15, Instrument = 16, Caboose = 17,
+     // The fishing rod, a fish caught with it, and the fish grilled (note 744).
+     FishingRod = 18, Fish = 19, GrilledFish = 20,
++    // The yard cat, the dog and a tennis ball off the launcher (note 745).
++    Cat = 21, Dog = 22, TennisBall = 23,
+ }
+ 
+ /// <summary>
+@@ -321,7 +323,10 @@ public sealed class Bodies
+     public Body SpawnCrate(TrainOnLine train, int car, Double3 local, BodyKind kind = BodyKind.Crate)
+     {
+         // The toolbox is a flat thing (train_stores.py's repair_kit, 0.2 m high): it lies on the floor, not a hand over it.
+-        double radius = kind switch { BodyKind.Crate or BodyKind.Child => 0.35, BodyKind.RepairKit => 0.1, _ => 0.15 };
++        double radius = kind switch
++        {
++            BodyKind.Crate or BodyKind.Child => 0.35, BodyKind.RepairKit => 0.1, BodyKind.Dog => 0.25, BodyKind.TennisBall => 0.035, _ => 0.15,
++        };
+         var pbd = new PbdBody([new Particle(local + Double3.Up * radius, 1, radius)]) { Friction = 0.2, Bounce = 0.1 };
+         // Stocked aboard: the crew's from the start.
+         var b = new Body(_nextId++, kind, car, pbd) { LineHint = train.Cars[Math.Max(0, car)].FrontDistance, Claimed = true };
+@@ -937,7 +942,7 @@ public sealed class Bodies
+         // A heavy crate with one on it is still free at its other end (T43).
+         // What's in a locker is the locker's: taken from it with a tap there, not reached for (note 173).
+         var free = _bodies.Where(b => !b.Stowed && b.TakenBy < 0 && (b.Carrier < 0 || b.Kind == BodyKind.Heavy && b.Second < 0 && b.Carrier != playerId)
+-            && !(wearingRadio && b.Kind == BodyKind.Radio) && b.Kind != BodyKind.Caboose);
++            && !(wearingRadio && b.Kind == BodyKind.Radio) && b.Kind is not (BodyKind.Caboose or BodyKind.Dog));
+         if (hand is not null && PlayerMotor.HandWorld(s, train) is { } h)
+             return free.Select(b => (b, d: Surface(b, train, h))).Where(x => x.d <= hand.Grab).OrderBy(x => x.d).FirstOrDefault().b;
+         var hands = HandsAt(s, train);
+@@ -1422,7 +1427,8 @@ public sealed class Bodies
+     static void Reparent(Body b, TrainOnLine train, int touchedCar)
+     {
+         // The tiny caboose is the world's, always (note 713): it's towed, not carried, and bumps the cars it touches.
+-        if (b.Lifted || b.Kind == BodyKind.Caboose)
++        // The cat and the dog (note 745) walk where they walk: the host puts them in their car's frame (World.StepPets).
++        if (b.Lifted || b.Kind is BodyKind.Caboose or BodyKind.Cat or BodyKind.Dog)
+             return;
+         if (touchedCar >= 0)
+         {
+@@ -1459,6 +1465,23 @@ public sealed class Bodies
+         b.Parent = car;
+     }
+ 
++    /// <summary>
++    /// Puts <paramref name="b"/> at <paramref name="local"/> in <paramref name="car"/>'s frame, standing still there (note 745:
++    /// the cat and the dog, walked by the host; a ball in a hound's jaws).
++    /// </summary>
++    public static void PlaceIn(Body b, int car, Double3 local)
++    {
++        b.Parent = car;
++        var ps = b.Pbd.Particles;
++        var off = local - ps[0].Position;
++        for (int i = 0; i < ps.Length; i++)
++        {
++            ps[i].Position += off;
++            ps[i].Previous = ps[i].Position;
++        }
++        b.Pbd.Wake();
++    }
++
+     public static Double3 WorldCentre(Body b, TrainOnLine train) =>
+         b.Parent == PlayerState.World || b.Parent >= train.Frames.Count ? b.Centre : train.Frames[b.Parent].ToWorld(b.Centre);
+ 
+diff --git a/src/DarkTerritory.Sim/Train/CarFrame.cs b/src/DarkTerritory.Sim/Train/CarFrame.cs
+index 2ecb79a0..ef18a0df 100644
+--- a/src/DarkTerritory.Sim/Train/CarFrame.cs
++++ b/src/DarkTerritory.Sim/Train/CarFrame.cs
+@@ -106,7 +106,7 @@ public readonly record struct Ladder(Double3 Foot, double Top, Double3 Inward, d
+ /// <see cref="Chair"/>, <see cref="Cooler"/> and <see cref="Grill"/> are on the BBQ deck (note 698): a Muskoka chair to sit in
+ /// (<see cref="Interactable.Index"/> which), the cooler of beers, the BBQ on its stand.
+ /// </remarks>
+-public enum InteractableKind : byte { Firebox, Vent, Handbrake, Door, Coal, Sandbox, Hatch, ToolRack, Locker, Points, Whistle, Chair, Cooler, Grill, Gramophone, Hammock, HotTub }
++public enum InteractableKind : byte { Firebox, Vent, Handbrake, Door, Coal, Sandbox, Hatch, ToolRack, Locker, Points, Whistle, Chair, Cooler, Grill, Gramophone, Hammock, HotTub, Launcher }
+ 
+ /// <summary>
+ /// A thing a player uses by standing near it and holding Use. <see cref="Index"/> says which door. <see cref="Aim"/> is how
+@@ -424,6 +424,18 @@ public sealed record CarShape(Box Bounds, IReadOnlyList<Solid> Solids, IReadOnly
+         return shape with { Lounges = lounges, Interactables = interactables };
+     }
+ 
++    /// <summary>
++    /// The guard van with the tennis-ball launcher (note 745) on its rear platform's rail: worked from the platform with a Use
++    /// press, it fires a ball off the back, up the line behind.
++    /// </summary>
++    public static CarShape WithLauncher(CarShape shape) =>
++        shape.Platform is { } p
++            ? shape with { Interactables = [.. shape.Interactables, new Interactable(InteractableKind.Launcher, Launcher(p), 0.9, Aim: 1.0)] }
++            : shape;
++
++    /// <summary>Where a crewmate stands at the launcher: the platform's middle, on its grating.</summary>
++    public static Double3 Launcher(Box platform) => new((platform.Min.X + platform.Max.X) / 2, platform.Max.Y, (platform.Min.Z + platform.Max.Z) / 2);
++
+     /// <summary>Where the hot tub sits on the engine's hood (its middle, m along the engine's frame), and its half-size across and along.</summary>
+     public const double TubZ = 0.8, TubHalf = 0.85;
+ 
+diff --git a/src/DarkTerritory.Sim/Train/TrainOnLine.cs b/src/DarkTerritory.Sim/Train/TrainOnLine.cs
+index 030abaef..d0b991cf 100644
+--- a/src/DarkTerritory.Sim/Train/TrainOnLine.cs
++++ b/src/DarkTerritory.Sim/Train/TrainOnLine.cs
+@@ -965,7 +965,8 @@ public sealed class TrainOnLine
+         bool gramophone = kind == VehicleKind.Guard && !hasCarBehind && Tuning.Composition.Dressed("gramophone");
+         bool hammock = kind == VehicleKind.Guard && !hasCarBehind && Tuning.Composition.Dressed("hammock");
+         bool tub = kind == VehicleKind.Engine && Tuning.Composition.Dressed("hotTub");
+-        bool extras = bbq || gramophone || hammock || tub;
++        bool launcher = kind == VehicleKind.Guard && !hasCarBehind && Tuning.Composition.Dressed("tennisBalls");
++        bool extras = bbq || gramophone || hammock || tub || launcher;
+         if (!_shapes.TryGetValue((kind, hasCarBehind, lockers, tenths, extras), out var shape))
+         {
+             shape = CarShape.Build(g, kind, hasCarBehind, lockers ? Tuning.Kit.Lockers : null);
+@@ -979,6 +980,8 @@ public sealed class TrainOnLine
+                 shape = CarShape.WithHammock(shape);
+             if (tub)
+                 shape = CarShape.WithHotTub(shape);
++            if (launcher)
++                shape = CarShape.WithLauncher(shape);
+             _shapes[(kind, hasCarBehind, lockers, tenths, extras)] = shape;
+         }
+         return shape;
+diff --git a/src/DarkTerritory.Sim/Train/TrainTuning.cs b/src/DarkTerritory.Sim/Train/TrainTuning.cs
+index a3c7cb88..135abe66 100644
+--- a/src/DarkTerritory.Sim/Train/TrainTuning.cs
++++ b/src/DarkTerritory.Sim/Train/TrainTuning.cs
+@@ -160,8 +160,13 @@ public sealed record CompositionTuning
+ /// <summary>The whimsies (train.json <c>composition.whimsy</c>; ARCHITECTURE §8 note 715). Field docs live in that file.</summary>
+ public sealed record WhimsyTuning(int Gnomes = 5, int CanaryCars = 1, double CanaryGasM = 10, double CanaryFumesSeconds = 20,
+     double GramophoneHears = 22, double GramophoneLoudness = 0.25, double CalliopeHears = 80, double HammockCold = 0.5, double TubSteam = 0.15,
+-    double FishReach = 4, double[]? FishSeconds = null, int FishHeals = 40)
++    double FishReach = 4, double[]? FishSeconds = null, int FishHeals = 40, double CatSpeed = 1.1, double DogSpeed = 1.8, double[]? Wander = null,
++    int CatWarnCars = 1, double DogHears = 40, double Fetch = 0.45, double Drop = 1.2, double LaunchSpeed = 14, double LaunchEvery = 2,
++    double BallSeen = 70, double BallTake = 1.5)
+ {
++    /// <summary>How long the cat and the dog stay put before wandering on (s), from the first to the second.</summary>
++    public double[] Idle => Wander ?? [4, 10];
++
+     /// <summary>How long a line in the water waits for a bite (s), from the first to the second, by the tick it's cast.</summary>
+     public double[] Bite => FishSeconds ?? [12, 30];
+ }
+diff --git a/src/DarkTerritory.Sim/World.Pets.cs b/src/DarkTerritory.Sim/World.Pets.cs
+new file mode 100644
+index 00000000..e92574c3
+--- /dev/null
++++ b/src/DarkTerritory.Sim/World.Pets.cs
+@@ -0,0 +1,252 @@
++using Ballast;
++using DarkTerritory.Sim.Enemies;
++using DarkTerritory.Sim.Physics;
++using DarkTerritory.Sim.Player;
++using DarkTerritory.Sim.Train;
++
++namespace DarkTerritory.Sim;
++
++/// <summary>What the yard cat or the dog is doing (note 745), in its body's <see cref="Body.Tipped"/>: every client draws and hears it.</summary>
++public enum PetMood : sbyte { Idle, Walk, Sleep, Warn, Fetch }
++
++// The yard cat and the dog (ARCHITECTURE §8 note 745; docs/design/upgrades.md §4, §7.4): bodies the host walks about the cars
++// in their frames (World.StepPets), their mood in the body record. The cat wanders the car it's in and sleeps on the warm
++// backhead while the fire's lit, and hisses at whatever's aboard its car or the next; the dog wanders, barks at whatever's
++// aboard anywhere or coming at the train, and fetches a toy lying in its car to whoever's nearest.
++public sealed partial class World
++{
++    sealed class PetPlan
++    {
++        public Double3 Target;
++        public double Until;
++        public int Carrying = -1;
++    }
++
++    // Host: each pet's errand, by its body's id.
++    readonly SortedDictionary<int, PetPlan> _pets = [];
++
++    /// <summary>The cat in the cab, the dog in the guard van (note 745), where they're fitted.</summary>
++    void StockPets(int guard)
++    {
++        _pets.Clear();
++        if (Fitted("yardCat") && Train.Frames[0].Shape.Cab is { } cab)
++            Bodies.SpawnCrate(Train, 0, new Double3(cab.Min.X + 0.6, cab.Min.Y, cab.Max.Z - 0.6), BodyKind.Cat);
++        if (Fitted("dog") && guard >= 0 && Train.Frames[guard].Shape.Interior is { } room)
++            Bodies.SpawnCrate(Train, guard, new Double3(-0.4, room.Min.Y + 0.1, room.Max.Z - 2.0), BodyKind.Dog);
++    }
++
++    /// <summary>Where a pet can walk in a car: its floor's box and height (a car's inside, or the engine's cab).</summary>
++    static (Box Room, double Floor)? PetSpace(CarShape shape) =>
++        shape.Interior is { } room ? (room, room.Min.Y + 0.1) : shape.Cab is { } cab ? (cab, cab.Min.Y) : null;
++
++    /// <summary>The cat's spot on the warm backhead (the firebox's door, in the cab), in the engine's frame.</summary>
++    static Double3? Backhead(CarShape engine) =>
++        engine.Cab is { } cab && engine.Solids.FirstOrDefault(s => s.Part == PartKind.Firebox) is { Box: var fire } && fire.Max.Z > fire.Min.Z
++            ? new Double3((fire.Min.X + fire.Max.X) / 2, cab.Min.Y, fire.Max.Z + 0.3) : null;
++
++    /// <summary>
++    /// What's aboard for a pet to warn of (note 745): a creature on or in a car (not a hazard, not dormant), for the cat on its
++    /// own car or within <see cref="WhimsyTuning.CatWarnCars"/>; for the dog anywhere on the train, or out in the open within
++    /// <see cref="WhimsyTuning.DogHears"/> m and coming.
++    /// </summary>
++    Enemy? Boarder(Body pet)
++    {
++        var t = WhimsyTuning;
++        var at = Physics.Bodies.WorldCentre(pet, Train);
++        Enemy? best = null;
++        double nearest = double.MaxValue;
++        foreach (var e in _enemies)
++        {
++            if (e.Gone || e.Hazard || e.Phase == SpinePhase.Dormant)
++                continue;
++            bool aboard = e.Attached >= 0 && e.Attached < Train.Frames.Count;
++            bool warns = pet.Kind == BodyKind.Cat
++                ? aboard && Math.Abs(e.Attached - pet.Parent) <= t.CatWarnCars
++                : aboard || e.Exposed && e.Phase is SpinePhase.Telegraph or SpinePhase.Commit && (e.WorldPosition(Train) - at).Length <= t.DogHears;
++            if (!warns)
++                continue;
++            double d = (e.WorldPosition(Train) - at).Length;
++            if (d < nearest)
++                (best, nearest) = (e, d);
++        }
++        return best;
++    }
++
++    /// <summary>
++    /// Host, each tick after the bodies: the cat and the dog. Carried (the cat can be picked up), they're the carrier's. A
++    /// boarder and they stop and warn of it, facing it; otherwise the cat sleeps on the backhead while the fire's lit (going
++    /// car to car forward to it) and the dog fetches a toy lying in its car to the nearest crewmate; otherwise they wander.
++    /// </summary>
++    void StepPets(IReadOnlyCollection<(int Id, PlayerState State)> crew)
++    {
++        if (!Authority)
++            return;
++        var t = WhimsyTuning;
++        double dt = SimConstants.TickSeconds, now = Tick * dt;
++        // A ball in the jaws of a hound that's gone (shot, or given up): it drops where it was.
++        foreach (var ball in Bodies.All.Where(b => b.Kind == BodyKind.TennisBall && b.TakenBy >= 0))
++            if (_enemies.All(e => e.Id != ball.TakenBy || e.Gone))
++            {
++                ball.TakenBy = -1;
++                ball.Pbd.Wake();
++            }
++        foreach (var pet in Bodies.All.Where(b => b.Kind is BodyKind.Cat or BodyKind.Dog).ToList())
++        {
++            if (!_pets.TryGetValue(pet.Id, out var plan))
++                _pets[pet.Id] = plan = new PetPlan { Target = pet.Centre, Until = now };
++            if (pet.Lifted || pet.Parent < 0 || pet.Parent >= Train.Frames.Count || PetSpace(Train.Frames[pet.Parent].Shape) is not { } space)
++            {
++                pet.Tipped = (sbyte)PetMood.Idle;
++                plan.Until = now;
++                continue;
++            }
++            var frame = Train.Frames[pet.Parent];
++            var feet = pet.Centre with { Y = space.Floor };
++            double speed = pet.Kind == BodyKind.Cat ? t.CatSpeed : t.DogSpeed;
++            // A boarder: stop, face it, warn.
++            if (Boarder(pet) is { } boarder)
++            {
++                var toward = frame.ToLocal(boarder.WorldPosition(Train)) - feet;
++                if (toward.Length > 0.01)
++                    pet.Yaw = Math.Atan2(-toward.X, -toward.Z);
++                Drop(pet, plan, frame, feet);
++                pet.Tipped = (sbyte)PetMood.Warn;
++                Physics.Bodies.PlaceIn(pet, pet.Parent, feet + Double3.Up * pet.Pbd.Particles[0].Radius);
++                continue;
++            }
++            PetMood mood;
++            Double3 goal;
++            if (pet.Kind == BodyKind.Cat && Train.Boiler.Firebox > 0 && Backhead(Train.Frames[0].Shape) is { } warm)
++            {
++                // Forward car by car to the cab, then to the backhead, and asleep there.
++                goal = pet.Parent == 0 ? warm : new Double3(0, space.Floor, space.Room.Min.Z + 0.4);
++                mood = pet.Parent == 0 && (feet - warm).Length < 0.15 ? PetMood.Sleep : PetMood.Walk;
++                if (pet.Parent > 0 && (feet - goal).Length < 0.15)
++                {
++                    HopForward(pet);
++                    continue;
++                }
++            }
++            else if (pet.Kind == BodyKind.Dog && Fetching(pet, plan, crew, frame, feet, out var fetchTo))
++            {
++                goal = fetchTo;
++                mood = PetMood.Fetch;
++            }
++            else
++            {
++                if (now >= plan.Until && (feet - plan.Target).Length < 0.15)
++                {
++                    // Somewhere else on the floor, a while from now: the same on every run of the night.
++                    uint h = (uint)(Tick * 2654435761u) ^ (uint)(pet.Id * 40503);
++                    double u = h % 1000 / 1000.0, v = h / 1000 % 1000 / 1000.0, w = h / 1000000 % 1000 / 1000.0;
++                    var room = space.Room;
++                    plan.Target = new Double3(room.Min.X + 0.3 + (room.Max.X - room.Min.X - 0.6) * u, space.Floor,
++                        room.Min.Z + 0.4 + (room.Max.Z - room.Min.Z - 0.8) * v);
++                    plan.Until = now + t.Idle[0] + (t.Idle[^1] - t.Idle[0]) * w;
++                }
++                goal = plan.Target;
++                mood = (feet - goal).Length < 0.15 ? PetMood.Idle : PetMood.Walk;
++            }
++            var step = (goal - feet) with { Y = 0 };
++            if (step.Length > 0.02)
++            {
++                pet.Yaw = Math.Atan2(-step.X, -step.Z);
++                feet += step * Math.Min(1, speed * dt / step.Length);
++            }
++            pet.Tipped = (sbyte)mood;
++            Physics.Bodies.PlaceIn(pet, pet.Parent, feet + Double3.Up * pet.Pbd.Particles[0].Radius);
++            if (plan.Carrying >= 0 && Bodies.All.FirstOrDefault(b => b.Id == plan.Carrying) is { } toy)
++                Physics.Bodies.PlaceIn(toy, pet.Parent, Mouth(pet, feet));
++        }
++    }
++
++    /// <summary>Where the dog's jaws are, in its car's frame: a toy's carried there.</summary>
++    static Double3 Mouth(Body dog, Double3 feet) => feet + new Double3(-Math.Sin(dog.Yaw), 0, -Math.Cos(dog.Yaw)) * 0.38 + Double3.Up * 0.42;
++
++    /// <summary>The cat through the door into the car ahead (note 745), at its back end, facing on.</summary>
++    void HopForward(Body pet)
++    {
++        int ahead = pet.Parent - 1;
++        if (ahead < 0 || PetSpace(Train.Frames[ahead].Shape) is not { } next)
++            return;
++        var room = next.Room;
++        Physics.Bodies.PlaceIn(pet, ahead, new Double3(0, next.Floor + pet.Pbd.Particles[0].Radius, room.Max.Z - 0.4));
++        pet.Yaw = 0;
++    }
++
++    /// <summary>
++    /// The dog's fetch (note 745): a toy lying loose in its car, it goes for it; carrying one, it takes it to the nearest
++    /// crewmate in the car and drops it at their feet. False when there's nothing to fetch or nobody to bring it to.
++    /// </summary>
++    bool Fetching(Body dog, PetPlan plan, IReadOnlyCollection<(int Id, PlayerState State)> crew, in CarFrame frame, Double3 feet, out Double3 goal)
++    {
++        var t = WhimsyTuning;
++        goal = feet;
++        if (plan.Carrying >= 0)
++        {
++            int car = dog.Parent;
++            var near = crew.Where(c => c.State.Alive && c.State.Parent == car).OrderBy(c => (c.State.Position - feet).Length).ThenBy(c => c.Id).ToList();
++            if (near.Count == 0 || Bodies.All.All(b => b.Id != plan.Carrying))
++            {
++                Drop(dog, plan, frame, feet);
++                return false;
++            }
++            goal = near[0].State.Position with { Y = feet.Y };
++            if ((goal - feet).Length <= t.Drop)
++            {
++                Drop(dog, plan, frame, feet);
++                return false;
++            }
++            return true;
++        }
++        var toy = Bodies.All.Where(b => b.Kind == BodyKind.Toy && b.Parent == dog.Parent && !b.Lifted && b.TakenBy < 0 && !b.Stowed)
++            .OrderBy(b => (b.Centre - feet).Length).ThenBy(b => b.Id).FirstOrDefault();
++        if (toy is null || crew.All(c => !c.State.Alive || c.State.Parent != dog.Parent))
++            return false;
++        goal = toy.Centre with { Y = feet.Y };
++        if ((goal - feet).Length <= t.Fetch)
++            plan.Carrying = toy.Id;
++        return true;
++    }
++
++    /// <summary>The dog lets go of what it's carrying, at its feet.</summary>
++    void Drop(Body dog, PetPlan plan, in CarFrame frame, Double3 feet)
++    {
++        if (plan.Carrying >= 0 && Bodies.All.FirstOrDefault(b => b.Id == plan.Carrying) is { } toy)
++            Physics.Bodies.PlaceIn(toy, dog.Parent, Mouth(dog, feet) with { Y = feet.Y + toy.Pbd.Particles[0].Radius });
++        plan.Carrying = -1;
++    }
++
++    // Who had Use down at the launcher last tick, and when it last fired.
++    readonly HashSet<int> _launchWas = [];
++    uint _launchedAt;
++
++    /// <summary>
++    /// The tennis-ball launcher (note 745): a Use press at it on the guard van's rear platform fires a ball off the back, up the
++    /// line behind, at most every <see cref="WhimsyTuning.LaunchEvery"/> s. The Cinder Hounds running after the train go for it
++    /// (CinderHound.Fetch), and one that catches the train up again drops it on the platform.
++    /// </summary>
++    void Launch(in PlayerState s, in PlayerIntent intent, int playerId)
++    {
++        bool use = intent.Has(PlayerButtons.Use) && s.Alive && Fitted("tennisBalls")
++            && CrewActions.NearestInteractable(s, Train, Hand) is ({ Kind: InteractableKind.Launcher }, var van) && van == s.Parent;
++        bool pressed = use && !_launchWas.Contains(playerId);
++        if (use)
++            _launchWas.Add(playerId);
++        else
++            _launchWas.Remove(playerId);
++        var t = WhimsyTuning;
++        if (!Authority || !pressed || _launchedAt > 0 && (Tick - _launchedAt) * SimConstants.TickSeconds < t.LaunchEvery
++            || Train.Frames[s.Parent].Shape.Platform is not { } platform)
++            return;
++        _launchedAt = Tick;
++        var frame = Train.Frames[s.Parent];
++        var mouth = frame.ToWorld(CarShape.Launcher(platform) + new Double3(0, 1.1, 0.35));
++        var ball = Bodies.SpawnItem(mouth, Train.Dynamics.RearDistance, BodyKind.TennisBall);
++        ball.Claimed = true;
++        var away = frame.DirToWorld(new Double3(0, 0.35, 1).Normalized) * t.LaunchSpeed;
++        ball.Pbd.Particles[0].Position = mouth;
++        ball.Pbd.Particles[0].SetVelocity(frame.Velocity + away, SimConstants.TickSeconds);
++        ball.Pbd.Wake();
++    }
++}
+diff --git a/src/DarkTerritory.Sim/World.cs b/src/DarkTerritory.Sim/World.cs
+index 77dac27a..a53a25fc 100644
+--- a/src/DarkTerritory.Sim/World.cs
++++ b/src/DarkTerritory.Sim/World.cs
+@@ -459,6 +459,7 @@ public sealed partial class World
+             if (Run is not null && !_countedAhead.Remove(id))
+                 Attribution.Add(Sim.Run.IncidentLog.Death(this, id, s, body, crew));
+         Bodies.Step(Train, Train.Dynamics.Tuning, id => crew.FirstOrDefault(c => c.Id == id) is { State: var s } pair && pair.Id == id ? s : null);
++        StepPets(crew);
+         Train.Lying = Bodies.Lying(Train);
+         Recover();
+         BreakRadios(crew);
+@@ -555,6 +556,8 @@ public sealed partial class World
+         }
+         StowRepairKits();
+         var guard = Train.Dynamics.Consist.Vehicles.LastOrDefault(v => v.Kind == VehicleKind.Guard);
++        // The yard cat and the dog (note 745).
++        StockPets(guard?.Id ?? -1);
+         if (guard is null || Train.Frames[guard.Id].Shape.Interior is not { } room)
+             return;
+         double floor = room.Min.Y + 0.1;
+@@ -1531,6 +1534,8 @@ public sealed partial class World
+             Bodies.Rerail(s, Train, Train.Dynamics.Tuning.Composition.Caboose);
+         // The gramophone (note 715): a Use press at it, whatever's in your hands, winds it or lifts the needle off.
+         WindGramophone(s, intent, playerId);
++        // The tennis-ball launcher (note 745), the same press on the guard van's platform.
++        Launch(s, intent, playerId);
+         if (handsTookIt && Bodies.CarriedBy(playerId) is { Kind: Physics.BodyKind.Ragdoll } lifted)
+             Physics.Bodies.TakeTools(ref s, lifted);
+         // Searching an open house's hiding spot (note 326), empty-handed, with a Use the hands didn't take.
+diff --git a/tests/DarkTerritory.Sim.Tests/PetTests.cs b/tests/DarkTerritory.Sim.Tests/PetTests.cs
+new file mode 100644
+index 00000000..a06dd913
+--- /dev/null
++++ b/tests/DarkTerritory.Sim.Tests/PetTests.cs
+@@ -0,0 +1,196 @@
++using Ballast;
++using DarkTerritory.Sim.Campaign;
++using DarkTerritory.Sim.Enemies;
++using DarkTerritory.Sim.Physics;
++using DarkTerritory.Sim.Player;
++using DarkTerritory.Sim.Rail;
++using DarkTerritory.Sim.Train;
++
++namespace DarkTerritory.Sim.Tests;
++
++/// <summary>
++/// The whimsies' third round (ARCHITECTURE §8 note 745; docs/design/upgrades.md §4, §7.4): the yard cat (wanders, sleeps on
++/// the warm backhead, hisses at what's aboard near it), the dog (barks at what's aboard or coming, fetches a toy to whoever's
++/// near) and the tennis-ball launcher (a ball off the back, and the Cinder Hounds chasing the train go for it instead).
++/// </summary>
++public class PetTests
++{
++    static readonly string Content = DataFile.FindContentRoot();
++    static readonly CampaignTuning C = DataFile.Load<CampaignTuning>(Path.Combine(Content, CampaignTuning.File));
++    static readonly Loadout Base = new(Tuning.Train, Tuning.Boiler, Tuning.Combat, Tuning.Enemies);
++    static readonly EnemyTuning E = Tuning.Enemies;
++    static readonly PlayerTuning P = Tuning.Player;
++
++    static TrainTuning Dressed(params string[] ids) => Campaign.Campaign.Apply(C, ids, Base).Train;
++
++    static World World(TrainTuning t)
++    {
++        var line = new RailLine(new LineDefinition("t", [new TrackSegment(20_000)]));
++        var world = new World(new TrainOnLine(new TrainDynamics(Consist.Uniform(t, 4, 1)), line, 2_000, Tuning.Boiler), Tuning.Combat);
++        world.EnableBodies();
++        world.EnableEnemies(E, null, 1, crew: 2, authority: true);
++        world.Stock();
++        return world;
++    }
++
++    static void Settle(World w, double seconds, params (int Id, PlayerState State)[] crew)
++    {
++        for (int i = 0; i < seconds * SimConstants.TickRate; i++)
++        {
++            w.Tick++;
++            w.StepBodies(crew);
++        }
++    }
++
++    static Body Pet(World w, BodyKind kind) => Assert.Single(w.Bodies.All, b => b.Kind == kind);
++
++    static PetMood Mood(Body b) => (PetMood)b.Tipped;
++
++    [Fact]
++    public void EachIsOnTheTrainOnceBought()
++    {
++        foreach (var id in new[] { "yardCat", "dog", "tennisBalls" })
++        {
++            var u = Assert.Single(C.Upgrades, u => u.Id == id);
++            Assert.Equal(UpgradeKind.Whimsy, u.Kind);
++            Assert.NotNull(u.Line);
++            Assert.NotNull(u.Tally);
++            Assert.Contains(id, Dressed(id).Composition.Dress);
++        }
++        var plain = World(Tuning.Train);
++        Assert.DoesNotContain(plain.Bodies.All, b => b.Kind is BodyKind.Cat or BodyKind.Dog);
++        Assert.DoesNotContain(plain.Train.Frames[^1].Shape.Interactables, i => i.Kind == InteractableKind.Launcher);
++        var w = World(Dressed("yardCat", "dog", "tennisBalls"));
++        Assert.Equal(0, Pet(w, BodyKind.Cat).Parent);
++        Assert.Equal(w.Train.Frames.Count - 1, Pet(w, BodyKind.Dog).Parent);
++        Assert.Single(w.Train.Frames[^1].Shape.Interactables, i => i.Kind == InteractableKind.Launcher);
++    }
++
++    [Fact]
++    public void TheCatSleepsOnTheWarmBackheadAndWandersWhenItsCold()
++    {
++        var w = World(Dressed("yardCat"));
++        var cat = Pet(w, BodyKind.Cat);
++        w.Train.Boiler.Firebox = 5;
++        Settle(w, 10);
++        Assert.Equal(PetMood.Sleep, Mood(cat));
++        Assert.Equal(0, cat.Parent);
++        // The fire out, it gets up and wanders the cab.
++        w.Train.Boiler.Firebox = 0;
++        var asleep = cat.Centre;
++        Settle(w, 15);
++        Assert.NotEqual(PetMood.Sleep, Mood(cat));
++        Assert.True((cat.Centre - asleep).Length > 0.2, "it's moved");
++        Assert.True(w.Train.Frames[0].Shape.Cab!.Value.Contains(cat.Centre), "and stayed in the cab");
++    }
++
++    [Fact]
++    public void TheCatHissesAtWhatsAboardNearItAndNotFurther()
++    {
++        foreach (int car in new[] { 1, 3 })
++        {
++            var w = World(Dressed("yardCat"));
++            var cat = Pet(w, BodyKind.Cat);
++            var hound = w.AddEnemy(id => new CinderHound(id, 1) { Health = E.CinderHounds.Health });
++            hound.Restore(SpinePhase.Commit, 1, E.CinderHounds.Health, car, new Double3(0, w.Train.Frames[car].Shape.RoofHeight, 0), 0, 0, 0, 1, 0);
++            Settle(w, 0.5);
++            if (car == 1)
++                Assert.Equal(PetMood.Warn, Mood(cat));
++            else
++                Assert.NotEqual(PetMood.Warn, Mood(cat));
++        }
++    }
++
++    [Fact]
++    public void TheDogBarksAtWhatsComingAndFetchesAToyToWhoeversNear()
++    {
++        var w = World(Dressed("dog"));
++        var dog = Pet(w, BodyKind.Dog);
++        int van = dog.Parent;
++        // A hound running the train down behind, in the open and closing: it barks.
++        var hound = w.AddEnemy(id => new CinderHound(id, 1) { Health = E.CinderHounds.Health });
++        hound.Restore(SpinePhase.Telegraph, 1, E.CinderHounds.Health, -1, default, w.Train.Dynamics.RearDistance - 20, 3, 0, 1, 0);
++        Settle(w, 0.3);
++        Assert.Equal(PetMood.Warn, Mood(dog));
++        // Far back, it doesn't.
++        hound.Restore(SpinePhase.Telegraph, 1, E.CinderHounds.Health, -1, default, w.Train.Dynamics.RearDistance - 400, 3, 0, 1, 0);
++        Settle(w, 0.3);
++        Assert.NotEqual(PetMood.Warn, Mood(dog));
++        hound.Restore(SpinePhase.Gone, 0, 0, -1, default, 0, 0, 0, 1, 0);
++        // A toy on the van's floor and a crewmate at the far end: it's fetched to them.
++        var room = w.Train.Frames[van].Shape.Interior!.Value;
++        var toy = w.Bodies.SpawnCrate(w.Train, van, new Double3(0.5, room.Min.Y + 0.1, room.Min.Z + 2), BodyKind.Toy);
++        var me = PlayerMotor.SpawnInCab(w.Train, P) with { Parent = van, Position = new Double3(-0.3, room.Min.Y + 0.1, room.Max.Z - 1.0) };
++        foreach (var other in w.Bodies.All.Where(b => b.Kind == BodyKind.Toy && b != toy).ToList())
++            w.Bodies.Remove(other);
++        bool fetching = false;
++        for (int i = 0; i < 25 * SimConstants.TickRate; i++)
++        {
++            w.Tick++;
++            w.StepBodies([(1, me)]);
++            fetching |= Mood(dog) == PetMood.Fetch;
++        }
++        Assert.True(fetching);
++        Assert.Equal(van, toy.Parent);
++        Assert.True(((toy.Centre - me.Position) with { Y = 0 }).Length <= w.Train.Dynamics.Tuning.Composition.Whimsy.Drop + 0.6,
++            $"the toy at {toy.Centre}, me at {me.Position}");
++    }
++
++    [Fact]
++    public void TheLauncherFiresABallOffTheBackNoFasterThanItsSpring()
++    {
++        var w = World(Dressed("tennisBalls"));
++        int van = w.Train.Frames.Count - 1;
++        var spot = Assert.Single(w.Train.Frames[van].Shape.Interactables, i => i.Kind == InteractableKind.Launcher);
++        var s = PlayerMotor.SpawnInCab(w.Train, P) with { Parent = van, Position = spot.Position, Yaw = Math.PI, HeldSlot = 0 };
++        void Tick(PlayerIntent intent)
++        {
++            w.BeginTick();
++            w.CrewAct(ref s, intent, 1);
++            w.StepBodies([(1, s)]);
++            w.Step(new TrainControls { Reverser = 1, Brake = 1 });
++        }
++        var use = new PlayerIntent { Buttons = PlayerButtons.Use };
++        Tick(use);
++        var ball = Assert.Single(w.Bodies.All, b => b.Kind == BodyKind.TennisBall);
++        // Off the back, up the line behind.
++        var van0 = w.Train.Frames[van];
++        Tick(default);
++        Tick(default);
++        Assert.True(van0.ToLocal(Bodies.WorldCentre(ball, w.Train)).Z > van0.Shape.HalfLength, "it's gone off the back");
++        // Again at once: nothing; after its spring's reset, another.
++        Tick(use);
++        Assert.Single(w.Bodies.All, b => b.Kind == BodyKind.TennisBall);
++        for (int i = 0; i < w.Train.Dynamics.Tuning.Composition.Whimsy.LaunchEvery * SimConstants.TickRate; i++)
++            Tick(default);
++        Tick(use);
++        Assert.Equal(2, w.Bodies.All.Count(b => b.Kind == BodyKind.TennisBall));
++    }
++
++    [Fact]
++    public void AHoundGoesForTheBallAndFallsBehind()
++    {
++        double Gap(bool ball)
++        {
++            var n = new Night(4, speed: 12, trainTuning: Dressed("tennisBalls"));
++            var hound = n.World.AddEnemy(id => new CinderHound(id, 1)
++            {
++                LineDistance = n.Train.Dynamics.RearDistance - 60,
++                Lateral = 3,
++                Height = 0.6,
++                Health = E.CinderHounds.Health,
++            });
++            Body? thrown = null;
++            if (ball)
++            {
++                var sample = n.Train.Line.Sample(n.Train.Dynamics.RearDistance - 30);
++                thrown = n.World.Bodies.SpawnItem(sample.Position, n.Train.Dynamics.RearDistance - 30, BodyKind.TennisBall);
++            }
++            n.Run(6);
++            if (ball)
++                Assert.Equal(hound.Id, thrown!.TakenBy);
++            return n.Train.Dynamics.RearDistance - hound.LineDistance;
++        }
++        Assert.True(Gap(true) > Gap(false) + 10, "the ball cost it ground");
++    }
++}
