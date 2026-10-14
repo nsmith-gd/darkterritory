@@ -19,6 +19,9 @@ public static class TownForms
     /// <summary>The forms there are, in the order towns.json names them ("" is the street town of note 335).</summary>
     public static readonly string[] All = ["harbour", "dykeland", "quarry", "tidewater", "glasshouse"];
 
+    /// <summary>A breakwater's half-width, its round head's radius, and its walk's height over the yard (m; note 692).</summary>
+    public const double MoleHalf = 4, MoleHead = 7, MoleLevel = 1.0;
+
     /// <summary>
     /// A house's lot (note 692): its middle (S along the line, D across), the side its back is to (as
     /// <see cref="TownHouse.Side"/>), its frontage, how far it's turned (<see cref="TownHouse.Turn"/>: its front faces its way),
@@ -52,7 +55,10 @@ public static class TownForms
         public TownGreen? Green;
         public TownWorks? Works;
 
-        public TownBounds Bounds(double gate) => new(Entry, gate, Outline.Max(p => -p.D), Outline.Max(p => p.D), Streets, Lanes) { Outline = Outline };
+        public TownBounds Bounds(double gate) => new(Entry, gate, Outline.Max(p => -p.D), Outline.Max(p => p.D), Streets, Lanes) { Outline = Outline, Gaps = Gaps };
+        /// <summary>Its wall's open stretches (a harbour's mouth) and its breakwaters (note 692).</summary>
+        public readonly List<((double S, double D) A, (double S, double D) B)> Gaps = [];
+        public readonly List<IReadOnlyList<(double S, double D)>> Moles = [];
     }
 
     /// <summary>Which form a town of <paramref name="trade"/> is (towns.json <c>forms.byTrade</c>); "" the street town.</summary>
@@ -725,6 +731,126 @@ public static class TownForms
             }
         }
 
+        /// <summary>
+        /// A warren wrapped round a hill (note 692; the director, 14 Oct, of Breakwater Town: "the reference image has a lot
+        /// more of like an organic layout ... it feels very [griddy]"): rings of street round its crown at (u, d) on one side
+        /// of the line, each a wandering ellipse (along the line <paramref name="aspect"/> times as long as across), a row of
+        /// houses either side; each ring's band a tier <c>Rise</c> under the one inside it, down to the yard's level, the
+        /// rings past that level; spokes up from the yard to the crown, kinked ring by ring, a flight across each back line.
+        /// Returns the crown's level.
+        /// </summary>
+        double Rings(int side, double cu, double cd, double crown, double aspect, string stream)
+        {
+            var rng = _rngFor("form.rings." + stream);
+            double w = _f.StreetWidth, pitch = w + 2 * (_f.Setback + _f.LotDepth) + BandSlack, wander = _f.Wander;
+            // Where the yard's edge is nearest the crown, as the rings measure it; the rings reach the corners by the gates.
+            double Rho(double u, double d) => Math.Sqrt((u - cu) * (u - cu) / (aspect * aspect) + (d - cd) * (d - cd));
+            double yardRho = Math.Abs(side * _f.Near - cd), far = Math.Max(Rho(-_f.Length, side * _f.Near), Rho(0, side * _f.Near));
+            var radii = new List<double>();
+            for (double r = crown + _f.Setback + _f.LotDepth + w / 2 + BandSlack / 2; r < far; r += pitch)
+                radii.Add(r);
+            // The rings that climb: those whose band is short of the yard's edge; the rest stand on the yard's level.
+            int climbing = radii.Count(r => r + pitch / 2 < yardRho);
+            double crownLevel = _f.Rise * climbing;
+            double Level(int k) => _f.Rise * Math.Max(0, climbing - 1 - k);
+            var phase = (A: rng.Range(0, Math.PI * 2), B: rng.Range(0, Math.PI * 2));
+            var amount = radii.Select(_ => rng.Range(0.7, 1.3)).ToList();
+            double Ring(int k, double a) => radii[k] + wander * amount[k] * (0.6 * DMath.Sin(a * 3 + phase.A) + 0.4 * DMath.Sin(a * 7 + phase.B));
+            double Back(int k, double a) => k < 0 ? crown : k + 1 < radii.Count ? (Ring(k, a) + Ring(k + 1, a)) / 2 : Ring(k, a) + pitch / 2;
+            (double U, double D) At(double rho, double a) => (cu + aspect * rho * DMath.Cos(a), cd + rho * DMath.Sin(a));
+            // Kept on its side of the line, short of the yard.
+            List<(double U, double D)> Ours(IEnumerable<(double U, double D)> poly) =>
+                [.. poly.Select(p => (p.U, side < 0 ? Math.Min(p.D, -_f.Near + 0.5) : Math.Max(p.D, _f.Near - 0.5)))];
+            // The tiers, outermost first, each inner one over it; then the crown.
+            for (int k = climbing - 2; k >= 0; k--)
+                District(DistrictKind.Terrace, k == climbing - 2 ? stream : "tier", Ours(Enumerable.Range(0, 72).Select(i => At(Back(k, i * Math.PI * 2 / 72), i * Math.PI * 2 / 72))),
+                    Level(k), named: k == climbing - 2);
+            District(DistrictKind.Terrace, "head", Ours(Enumerable.Range(0, 48).Select(i => At(crown, i * Math.PI * 2 / 48))), crownLevel);
+            bool OnBand(double u, double d, double level) =>
+                Math.Abs(d) >= _f.Near + 1 && Math.Sign(d) == side && InWall(_gate + u, d) && EdgeDistance(_gate + u, d) >= WallPad
+                && GroundAt(_gate + u, d) is var (kind, lv) && kind is not (DistrictKind.Water or DistrictKind.Deck or DistrictKind.Plots or DistrictKind.Yard)
+                && Math.Abs(lv - level) < 1e-6;
+            // The spokes: from the yard's edge up to the crown, a little off their line ring by ring, toward the yard's side.
+            double toward = side < 0 ? Math.PI / 2 : -Math.PI / 2;
+            for (double a0 = toward - 1.25 + rng.Range(0, 0.15); a0 < toward + 1.25; a0 += rng.Range(0.2, 0.32))
+            {
+                double rho0 = Math.Abs((side * (LineClear + 1) - cd) / Math.Max(1e-6, DMath.Sin(a0)));
+                // (From the yard's edge inside the wall: a spoke too far round to reach it there isn't laid.)
+                if (At(rho0, a0) is var foot && (!InWall(_gate + foot.U, foot.D) || EdgeDistance(_gate + foot.U, foot.D) < WallPad))
+                    continue;
+                var pts = new List<(double U, double D)> { At(rho0, a0) };
+                var levels = new List<double> { 0 };
+                double run = _f.Rise / StairSlope / 2, a = a0;
+                for (int k = radii.Count - 1; k >= 0; k--)
+                {
+                    a += rng.Range(-0.04, 0.04);
+                    var mid = At(Ring(k, a), a);
+                    if (Rho(mid.U, mid.D) >= rho0 - 2)
+                        continue;
+                    if (!OnBand(mid.U, mid.D, Level(k)))
+                    {
+                        if (pts.Count > 1)
+                            break;
+                        continue;
+                    }
+                    pts.Add(mid);
+                    levels.Add(Level(k));
+                    double inner = Back(k - 1, a), up = k > 0 ? Level(k - 1) : crownLevel;
+                    if (Math.Abs(up - Level(k)) < 1e-6)
+                        continue;
+                    var top = At(inner - run, a);
+                    if (!OnBand(top.U, top.D, up) && !(k == 0 && GroundAt(_gate + top.U, top.D).Level == crownLevel))
+                        break;
+                    pts.Add(At(inner + run, a));
+                    levels.Add(Level(k));
+                    pts.Add(top);
+                    levels.Add(up);
+                }
+                if (pts.Count > 2)
+                    Way(pts, 3, levels: levels);
+            }
+            // Each ring where it's on its own band and open, then its rows.
+            for (int k = 0; k < radii.Count; k++)
+            {
+                var run = new List<(double U, double D)>();
+                void Flush()
+                {
+                    if (run.Count >= 3)
+                    {
+                        Way([.. run], w);
+                        LotsAlong(run, w, Level(k));
+                    }
+                    run.Clear();
+                }
+                int n = (int)Math.Ceiling(Math.PI * 2 * radii[k] * aspect / 7);
+                for (int i = 0; i <= n; i++)
+                {
+                    double a = i * Math.PI * 2 / n;
+                    var p = At(Ring(k, a), a);
+                    if (OnBand(p.U, p.D, Level(k)) && Open(_gate + p.U, p.D))
+                        run.Add(p);
+                    else
+                        Flush();
+                }
+                Flush();
+            }
+            return crownLevel;
+        }
+
+        /// <summary>
+        /// A breakwater (note 692; the director's "seawall and breakwater"): a stone mole out from the sea wall into the sea
+        /// along its points (u, d), its top a walk <see cref="MoleLevel"/> over the yard's, a round head at its end with its
+        /// light (<paramref name="light"/>, a landmark's kind, or none). Its ground is an outside district; the art draws it.
+        /// </summary>
+        void Mole(string id, IReadOnlyList<(double U, double D)> pts, string light)
+        {
+            _l.Moles.Add([.. pts.Select(p => P(p.U, p.D))]);
+            District(DistrictKind.Quarter, id, [.. Offset(pts, MoleHalf), .. Enumerable.Reverse(Offset(pts, -MoleHalf))], MoleLevel, named: id == "breakwater", outside: true);
+            District(DistrictKind.Quarter, id + "-head", Circle(pts[^1].U, pts[^1].D, MoleHead, MoleHead, 16), MoleLevel, named: false, outside: true);
+            if (light.Length > 0)
+                Landmark(light, pts[^1].U, pts[^1].D, pts[^1].U - pts[^2].U, pts[^1].D - pts[^2].D, pad: 0.3);
+        }
+
         /// <summary>Whether a street may run here: not across the square, its green, or the works.</summary>
         bool Open(double s, double d) =>
             !(_sq.Holds(s, Math.Sign(d)) && Math.Abs(d) <= Math.Abs(_sq.WallD) + 2)
@@ -917,16 +1043,20 @@ public static class TownForms
             Land("hill", Rect(-L - m - 40, m + 40, -wl - m - 60, -wl - 30), _f.TerraceLevel + 4, 28);
             Land("upland", Rect(-L - m - 40, m + 40, -wl - m - 60, -wl - 95), _f.TerraceLevel + 16, 60);
             Land("crag", Blob(-L * 0.5, -wl - 75, 120, 50, 0.15, 18, "crag"), _f.TerraceLevel + 28, 45);
-            Sea(Rect(-L - m - 40, m + 40, wr + 3, wr + m + 60), -6, 5);
+            Sea(Rect(-L - m - 40, m + 40, wr + 3, wr + m + 60), _f.WaterLevel, 5);
             Approach(16);
-            // The harbour: from the wharf's edge out to the sea wall, its shore ragged.
-            double quay = 30, edge = 48;
+            // The harbour: from the wharf's edge out to the sea wall, its shore ragged, and its mouth through the sea wall to the
+            // open sea (the director, 14 Oct: "the breakwater ... doesn't look like it actually leads out into an ocean").
+            double quay = 30, edge = 48, mu0 = -L * 0.46, mu1 = -L * 0.4;
             var harbour = new List<(double, double)> { (-L + 95, edge), (-75, edge), (-55, wr - 18), (-L * 0.4, wr - 10), (-L + 70, wr - 14), (-L + 95, edge + 30) };
             District(DistrictKind.Water, "harbour", harbour, _f.WaterLevel);
-            // The breakwater: a stone arm out from the sea wall's corner by the way out, round the basin's mouth.
-            District(DistrictKind.Quarter, "breakwater", Rect(-L * 0.5, -60, wr - 34, wr - 22));
-            Way([(-60, wr - 28), (-L * 0.5, wr - 28)], 6);
-            Landmark("beacon", -L * 0.5 + 4, wr - 28, 1, 0);
+            District(DistrictKind.Water, "mouth", Rect(mu0, mu1, wr - 24, wr + 2), _f.WaterLevel, named: false);
+            District(DistrictKind.Water, "mouth", Rect(mu0, mu1, wr - 2, wr + 12), _f.WaterLevel, named: false, outside: true, depth: 5);
+            _l.Gaps.Add((P(mu0, wr), P(mu1, wr)));
+            // The breakwaters (TownPlan.Moles): the long one out from the mouth's far side, round across in front of it, its
+            // light at its head; the short one from the near side, the entrance between them.
+            Mole("breakwater", [(mu1 + 3, wr), (mu1 + 12, wr + 36), (mu1 - 6, wr + 70), (mu0 - 44, wr + 84)], "beacon");
+            Mole("arm", [(mu0 - 3, wr), (mu0 - 14, wr + 34)], "");
             // The wharf along the town, and the fish stores between it and the platform (the works).
             District(DistrictKind.Quarter, "wharf", Rect(-L + 95, -40, quay, edge));
             Way([(-L + 100, (quay + edge) / 2 + 3), (-45, (quay + edge) / 2 + 3)], 7);
@@ -947,17 +1077,13 @@ public static class TownForms
             // The slip and the boat yard by the way in: a hard sloping into the water, the sheds on it.
             District(DistrictKind.Yard, "slip", Rect(-L + 15, -L + 90, 18, wr * 0.6));
             Landmark("boatshed", -L + 52, 30, 0, 1);
-            // Behind the square: the green across from it, the lanes climbing tier on tier up the headland (note 692), and the
-            // head over them with its light and its chapel, a stair up to it from the top tier.
+            // Behind the square: the green across from it, and the town wrapped round the headland ring on ring up to the head
+            // (the director, 14 Oct: "a lot more of like an organic layout"), its light and its chapel on the crown.
             Green(_t.Walled.First + _t.Walled.Width / 2, _t.Walled.First + _t.Walled.Every - _t.Walled.Width / 2);
-            var lanes = Tiers(-1, -L + 20, -8, wl + 30, _f.Rise, "lanes");
-            double top = lanes.Level(lanes.Offs.Count - 1), head = Math.Max(_f.TerraceLevel, top + _f.Rise);
-            District(DistrictKind.Terrace, "head", Blob(-L * 0.5, -wl + 5, 70, 32, 0.12, 18, "head"), head);
-            Landmark("lighthouse", -L * 0.5, -wl - 10, 0, 1);
-            Landmark("chapel", -L * 0.5 + 40, -wl + 14, 0, 1);
-            Climb([(-L * 0.5 - 75, -wl + 36), (-L * 0.5 - 40, -wl + 14), (-L * 0.5 + 10, -wl + 8)], head);
-            Rows(lanes);
-            Fill(-L * 0.5, -wl + 5, 70, 32, head);
+            double head = Rings(-1, -L * 0.5, -wl + 5, 34, 1.9, "lanes");
+            Landmark("lighthouse", -L * 0.5, -wl - 2, 0, 1);
+            Landmark("chapel", -L * 0.5 + 20, -wl + 26, 0, 1);
+            Fill(-L * 0.5, -wl + 5, 64, 34, head);
             // The wharf's side of the yard packed too (the director: "pack and wall both halves much harder"): net lofts and
             // stores in rows between the yard's wall and the quay, round the fish stores.
             Rows(Tiers(1, -L + 96, -40, quay + 8, 0, "wharfside"));

@@ -54,6 +54,12 @@ public sealed record TownPlan(
     public string Laid { get; init; } = "";
 
     /// <summary>
+    /// A harbour's breakwaters (note 692): masonry moles out from its sea wall into the sea, each a line in the rail frame
+    /// (its ground the plan's outside districts, "mole"; drawn as a sea wall with a light at its head).
+    /// </summary>
+    public IReadOnlyList<IReadOnlyList<(double S, double D)>> Moles { get; init; } = [];
+
+    /// <summary>
     /// The yard's walls in a town type's warren (note 692): runs in the rail frame (along, across to along, across) behind
     /// each side's first row, open where a way goes through (Run.Fortresses.WardHalf, WardHeight).
     /// </summary>
@@ -122,6 +128,13 @@ public sealed record TownBounds(double Rear, double Gate, double Left, double Ri
     /// where it crosses the line at <see cref="Rear"/> and <see cref="Gate"/>; null for the street town's rectangle.
     /// </summary>
     public IReadOnlyList<(double S, double D)>? Outline { get; init; }
+
+    /// <summary>
+    /// Stretches of a town type's wall left open (note 692; the director, 14 Oct, of Breakwater Town: "the breakwater ...
+    /// doesn't look like it actually leads out into an ocean"): a harbour's mouth to the sea, each a piece of one of the
+    /// outline's runs, a turret either side.
+    /// </summary>
+    public IReadOnlyList<((double S, double D) A, (double S, double D) B)> Gaps { get; init; } = [];
 }
 
 /// <summary>

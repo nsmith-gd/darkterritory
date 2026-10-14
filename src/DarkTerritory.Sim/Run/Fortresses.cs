@@ -282,13 +282,43 @@ public static class Fortresses
                 (k0, k1) = (Math.Min(k0, k1), Math.Max(k0, k1));
                 (double, double) At(double k) => (a.S + (b.S - a.S) * k, a.D + (b.D - a.D) * k);
                 if (k0 > 0)
-                    yield return (a, At(k0));
+                    foreach (var piece in Open(town, a, At(k0)))
+                        yield return piece;
                 if (k1 < 1)
-                    yield return (At(k1), b);
+                    foreach (var piece in Open(town, At(k1), b))
+                        yield return piece;
                 continue;
             }
-            yield return (a, b);
+            foreach (var piece in Open(town, a, b))
+                yield return piece;
         }
+    }
+
+    /// <summary>A run of wall less the stretches of it left open (<see cref="Towns.TownBounds.Gaps"/>: a harbour's mouth, note 692).</summary>
+    static IEnumerable<((double S, double D) A, (double S, double D) B)> Open(Towns.TownBounds town, (double S, double D) a, (double S, double D) b)
+    {
+        double es = b.S - a.S, ed = b.D - a.D, len2 = es * es + ed * ed;
+        var cuts = new List<(double K0, double K1)>();
+        foreach (var (g0, g1) in town.Gaps)
+        {
+            // A gap on this run: both its ends on the run's line, within it.
+            double Along((double S, double D) p) => len2 < 1e-9 ? 0 : ((p.S - a.S) * es + (p.D - a.D) * ed) / len2;
+            double Off((double S, double D) p) => len2 < 1e-9 ? double.MaxValue : Math.Abs((p.S - a.S) * ed - (p.D - a.D) * es) / Math.Sqrt(len2);
+            double k0 = Along(g0), k1 = Along(g1);
+            if (Off(g0) > 0.5 || Off(g1) > 0.5 || Math.Max(k0, k1) <= 0 || Math.Min(k0, k1) >= 1)
+                continue;
+            cuts.Add((Math.Clamp(Math.Min(k0, k1), 0, 1), Math.Clamp(Math.Max(k0, k1), 0, 1)));
+        }
+        double at = 0;
+        (double, double) P(double k) => (a.S + es * k, a.D + ed * k);
+        foreach (var (k0, k1) in cuts.OrderBy(c => c.K0))
+        {
+            if (k0 > at)
+                yield return (P(at), P(k0));
+            at = Math.Max(at, k1);
+        }
+        if (at < 1)
+            yield return (P(at), b);
     }
 
     /// <summary>A walled town's towers (rail frame): one at each corner of its wall, and every <see cref="TowerEvery"/> along its runs.</summary>
@@ -317,6 +347,12 @@ public static class Fortresses
     {
         if (town.Outline is not { Count: > 2 })
             yield break;
+        // Either side of an opening (a harbour's mouth), its turrets.
+        foreach (var (g0, g1) in town.Gaps)
+        {
+            yield return g0;
+            yield return g1;
+        }
         var towers = Towers(town).ToList();
         foreach (var (a, b) in Runs(town))
         {

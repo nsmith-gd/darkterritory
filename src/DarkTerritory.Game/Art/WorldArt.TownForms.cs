@@ -518,6 +518,41 @@ public sealed partial class WorldArt
                 }
             }
         }
+        // The breakwaters (note 692; Sim TownPlan.Moles): a stone mole from the sea bed to its walk, cobbled, a parapet each
+        // side, its round head at the end where its light stands.
+        double moleFoot = (plan.Districts.Where(x => x.Kind == DistrictKind.Water).Select(x => x.Level - x.Depth).DefaultIfEmpty(-4).Min()) - 1;
+        foreach (var mole in plan.Moles)
+        {
+            const float half = (float)Sim.Towns.TownForms.MoleHalf, top = (float)Sim.Towns.TownForms.MoleLevel;
+            for (int i = 1; i < mole.Count; i++)
+            {
+                var (a, z) = (mole[i - 1], mole[i]);
+                double es = z.S - a.S, ed = z.D - a.D, len = Math.Sqrt(es * es + ed * ed);
+                if (len < 0.2)
+                    continue;
+                float yaw = (float)Math.Atan2(es, ed), l = (float)len / 2 + half * 0.5f;
+                var at = Matrix4x4.CreateRotationY(yaw) * Matrix4x4.CreateTranslation(V((a.S + z.S) / 2, 0, (a.D + z.D) / 2));
+                k.With(at, () =>
+                {
+                    k.Use("stone_block", Palette.DeepBrown, 0.85f, 0.05f, tile: 3);
+                    k.Box(new Vector3(-l, (float)moleFoot, -half), new Vector3(l, top, half), Kit.Faces.Sides);
+                    k.Use("cobbles", Palette.DeepBrown, 0.9f, 0.05f, tile: 2.5f);
+                    k.Box(new Vector3(-l, top - 0.2f, -half), new Vector3(l, top, half), Kit.Faces.PosY);
+                    k.Use("stone_block", Palette.DeepBrown, 0.85f, 0.05f, tile: 2);
+                    foreach (float z0 in new[] { -half, half - 0.5f })
+                        k.Box(new Vector3(-l, top, z0), new Vector3(l, top + 1.0f, z0 + 0.5f), Kit.Faces.Sides | Kit.Faces.PosY);
+                });
+            }
+            // Its head: an eight-sided bastion round the light.
+            var (hs, hd) = mole[^1];
+            const float r = (float)Sim.Towns.TownForms.MoleHead;
+            foreach (float turn in new[] { 0f, MathF.PI / 4 })
+                k.With(Matrix4x4.CreateRotationY(turn) * Matrix4x4.CreateTranslation(V(hs, 0, hd)), () =>
+                {
+                    k.Use("stone_block", Palette.DeepBrown, 0.85f, 0.05f, tile: 3);
+                    k.Box(new Vector3(-r * 0.92f, (float)moleFoot, -r * 0.92f), new Vector3(r * 0.92f, top + 1.2f, r * 0.92f), Kit.Faces.Sides | Kit.Faces.PosY);
+                });
+        }
         return k.Build($"town-form-ground-{plan.Name}");
     }
 }

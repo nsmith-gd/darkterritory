@@ -532,6 +532,7 @@ public static partial class TownGenerator
             Margin = form?.Margin ?? 0,
             Ways = form?.Ways ?? [],
             Wards = form?.Wards ?? [],
+            Moles = form?.Moles ?? [],
         };
         return Remember(plan, site.Burnt, w, Rng("remember"));
     }
