@@ -321,6 +321,11 @@ public sealed record SignageFile(Dictionary<string, BoardDef> Boards, double KmP
 {
     /// <summary>How the lettered boards stand, read and shine (signage.json "billboard", note 560).</summary>
     public BillboardRules Billboard { get; init; } = new();
+    /// <summary>
+    /// How far past a stop a junction's or facility's far board stands, when the stop comes between it and what it counts to
+    /// (note 702: "J1, one kilometer ... came before the Talbot Foundry stop though, so that's a bit confusing").
+    /// </summary>
+    public double PastStopM { get; init; } = 300;
 }
 
 /// <summary>
@@ -341,6 +346,12 @@ public sealed record BoardDef(string Text, double HeightM, double WidthM, double
     public int Side { get; init; }
     /// <summary>It stands where the plan puts it (a km post marks its km): never moved, and the billboards keep clear of it instead.</summary>
     public bool Fixed { get; init; }
+    /// <summary>
+    /// It stands on the side its sign gives, whatever billboard.side, and never moved across the line: a mail board on its
+    /// crane's side, so the board and its arrow say the same side (the director's evening playtest, line 10: "I have a mail
+    /// sign here that's pointing in the wrong direction"; note 702).
+    /// </summary>
+    public bool SignSide { get; init; }
     /// <summary>How far its bottom stands over the land at its foot at least (m), if not billboard.overGroundM (0): a km post low, under the eye line.</summary>
     public double OverGroundM { get; init; }
 }
