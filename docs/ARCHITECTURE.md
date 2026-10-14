@@ -903,4 +903,6 @@ written here instead is moved out by `tools/coord/notes.py split`; the Coordinat
 - [764. The HUD's top lines kept apart (B3, queue #494; the director, 14 Oct, `docs/playtest/2026-10-14.md` line 24)](notes/764.md)
 - [765. Where the run ends, told (B3, queue #495; the director, 13 Oct evening, `docs/playtest/2026-10-13-evening.md` line 26)](notes/765.md)
 - [766. The tally says why it's in the red (B3, queue #496; the director, 13 Oct evening, `docs/playtest/2026-10-13-evening.md` line 27)](notes/766.md)
+- [767. The house creatures heard (AU1, queue #497; G1's #316-#319, notes 583-586; their design docs' §4)](notes/767.md)
+- [768. Horseplay heard (AU1, queue #498; K1's #451, note 717)](notes/768.md)
 <!-- end of the notes index -->
