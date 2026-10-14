@@ -2000,6 +2000,14 @@ public sealed partial class GreyboxScene
     Art.WakerScene WakerIn(Sim.Enemies.Waker e, RailLine line, IReadOnlyList<CarFrame> frames, Double3 eye)
     {
         var t = Look?.Art.Creatures?.WakersTuning ?? new Sim.Enemies.WakersTuning();
+        // One risen beside who ran (note 710): his mouth comes down onto them in his hand, at the top of the lift.
+        if (e.Picker)
+        {
+            // (The one in his hand, as drawn: their middle.)
+            Vector3? hand = e.Phase == SpinePhase.Grab && Crew?.FirstOrDefault(c => c.Id == e.Quarry) is { Alive: true } inHand
+                ? V(inHand.Feet + Double3.Up * 1.0, eye) : null;
+            return new Art.WakerScene(Picker: true, Mouth: V(Sim.Enemies.Waker.Mouth(e.Local, e.Lateral, t), eye), Hand: hand);
+        }
         bool walls = e.Phase == SpinePhase.Commit && e.LineDistance >= WakerWall(line, t) - 1;
         if (WakerEating(frames) is not { } eating || eating.Waker != e)
             return new Art.WakerScene(walls);
@@ -2020,6 +2028,17 @@ public sealed partial class GreyboxScene
     void WakerDust(MeshBuilder mesh, Art.Effects fx, Enemy e, RailLine line, Double3 eye)
     {
         var t = Look?.Art.Creatures?.WakersTuning ?? new Sim.Enemies.WakersTuning();
+        if (e is Sim.Enemies.Waker { Picker: true })
+        {
+            // One risen beside who ran (note 710): the earth thrown off him where he stands, over his own rise.
+            var heading = new Double3(Math.Sin(e.Lateral), 0, Math.Cos(e.Lateral));
+            var side = Double3.Cross(Double3.Up, heading).Normalized;
+            double up = WakerRise.Since(e.Phase, e.PhaseSeconds, t.PickRiseSeconds);
+            if (up >= 0)
+                fx.WakerRise(mesh, V(e.Local, eye), ToF(side), ToF(heading), up, t.PickRiseSeconds,
+                    WakerRise.Up(e.Phase, e.PhaseSeconds, t.PickRiseSeconds), e.Id);
+            return;
+        }
         var at = line.Sample(e.LineDistance);
         var right = Double3.Cross(at.Tangent, Double3.Up).Normalized;
         var feet = at.Position + right * e.Lateral + Double3.Up * e.Height;
@@ -2419,7 +2438,7 @@ public sealed partial class GreyboxScene
             back = Double3.Cross(right, Double3.Up).Normalized;
         }
         else if (e.Kind is EnemyKind.Moose or EnemyKind.Gannet or EnemyKind.Mourners or EnemyKind.FreightBeetle or EnemyKind.TowerJaw
-                     or EnemyKind.Pickers or EnemyKind.Lodger or EnemyKind.Householder && e.Attached == Enemy.Loose)
+                     or EnemyKind.Pickers or EnemyKind.Lodger or EnemyKind.Householder or EnemyKind.Waker && e.Attached == Enemy.Loose)
         {
             // The Moose goes its own way (note 339): it faces its heading (Moose.Yaw, a player's yaw: −Z at 0), not the train.
             // So does a Gannet down on someone on the ground (note 340), and the Mourners, the Freight Beetle and Tower Jaw
