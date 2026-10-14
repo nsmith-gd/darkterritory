@@ -112,7 +112,7 @@ public sealed class Waker(int id) : Enemy(id)
     /// and <c>pickMouthHeight</c> m up. The art bows his mouth onto it (CreatureArt.WakerReach), as it does onto a car.
     /// </summary>
     public static Double3 Mouth(Double3 feet, double heading, WakersTuning t) =>
-        feet + new Double3(-Math.Sin(heading), 0, -Math.Cos(heading)) * t.PickMouthOut + Double3.Up * t.PickMouthHeight;
+        feet + new Double3(-DMath.Sin(heading), 0, -DMath.Cos(heading)) * t.PickMouthOut + Double3.Up * t.PickMouthHeight;
 
     /// <summary>How far it's come in <paramref name="seconds"/> since it rose: <c>startSpeed</c> up to <c>topSpeed</c> over <c>rampSeconds</c>.</summary>
     public static double Covered(double seconds, WakersTuning t)
