@@ -57,6 +57,30 @@ public class CouplingTests
     }
 
     [Fact]
+    public void CarsCutAtSpeedCanBeCaughtByEasingOffTillTheyCloseGently()
+    {
+        // Cuts you can get back (queue #459, note 725; GDD §24, App. F.6): a car cut loose at speed rolls free behind the
+        // engine, and a driver who eases off lets it roll up and couple again at a walking pace, no harm done.
+        var train = Train(6, speed: 14);
+        train.Uncouple(4);
+        Assert.Equal(2, train.Rakes.Count);
+        // The engine pulls on and the cut car drops back, as it does.
+        Run(train, 10, Forward);
+        Assert.True(train.Dynamics.RearDistance - train.Rakes.Single(r => !r.Consist.HasEngine).Distance > 20);
+        for (int i = 0; i < SimConstants.TickRate * 240 && train.Rakes.Count > 1; i++)
+        {
+            var cut = train.Rakes.Single(r => !r.Consist.HasEngine);
+            // Ease off: brake a touch while the cut car's still well back, then hold just ahead of its pace so it closes slowly.
+            double gap = train.Dynamics.RearDistance - cut.Distance, closing = cut.Velocity - train.Dynamics.Velocity;
+            var controls = new TrainControls { Reverser = 1, Brake = gap > 20 && closing < 1 ? 0.2 : 0, Throttle = closing > 1 ? 0.3 : 0 };
+            train.Step(Dt, controls);
+        }
+        Assert.Single(train.Rakes);
+        Assert.Equal(6, train.Dynamics.Consist.CarCount);
+        Assert.All(train.Vehicles, v => Assert.Equal(1, v.Integrity));
+    }
+
+    [Fact]
     public void BackingGentlyIntoParkedCarsCouplesThem()
     {
         var train = Train(6);

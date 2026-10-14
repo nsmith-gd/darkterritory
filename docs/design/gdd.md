@@ -944,6 +944,8 @@ The railway makes these choices physical. **Once the coupler releases, whatever 
 
 Sometimes the Territory decides for you. The Passenger uncouples the caboose to eat in peace, and a Car Hugger can leave you no choice but to cut the rear car.
 
+**Cuts you can get back** *(the director, 14 Oct 2026, App. F.6; ARCHITECTURE §8 note 725)*. A coupling cut is a choice, not always an ending. Cars cut at a stand are parked, handbrakes wound on, and stay where they are; cars cut at speed roll free behind the engine and slow on their own. Either can be had back: the engine backs gently into parked cars, or eases off and lets a rolling cut close on it at a walking pace, and the couplers take (train.json `couplings.coupleMaxSpeed`, 1.5 m/s; faster, it's a collision that dents both ends). Until a cut is more than 400 m from every living crewmate, nothing is lost (§23.2). The chart table in the cab keeps a lamp for each crewmate, lit while they're aboard, so cutting a friend loose is something a crew chooses rather than finds out (§10).
+
 ---
 
 # PART EIGHT — ART DIRECTION
