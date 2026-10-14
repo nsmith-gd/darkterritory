@@ -195,7 +195,11 @@ public sealed class UiSoundTests : IDisposable
         var use = new PlayerIntent { Buttons = PlayerButtons.Use };
         void Tick(in PlayerIntent intent)
         {
-            Guns.Reload(s, intent, w.Train, C.Guns, SimConstants.TickSeconds);
+            // The world's tick (note 752): the hand on it works it; with none, the step starts again.
+            if (Guns.Working(s, intent, w.Train, C.Guns) is { } worked)
+                Guns.Reload(w.Train, worked, C.Guns, SimConstants.TickSeconds, hands: 1);
+            else
+                Guns.Unworked(w.Train, _ => false);
             audio.Interface(w, s, 1);
         }
 

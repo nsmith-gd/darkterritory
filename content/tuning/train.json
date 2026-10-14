@@ -190,7 +190,13 @@
     // Slice 2, the director (8 Oct): a smashed headlamp (enemies.json climbers.lampOutSeconds) no longer comes back by
     // itself; it's mended with the wrench from the cab's front windows, behind it, each second worked taking this many
     // off what's left (45 s of glass is 7.5 s with the wrench; lamp armour halves it again).
-    "lampMendRate": 6
+    "lampMendRate": 6,
+    // GDD §12, one can, two do it faster (note 752; the social collision audit's R4, the director, 14 Oct 2026: "absolutely
+    // the right direction"): a crewmate boarding up the same breach (breach.boardSeconds, spec B.9's 8 s), or mending the
+    // same burst boiler (boiler.json repairSeconds), beside you each works it pairRate times as fast (two: 8 s is 4.4 s);
+    // a third adds nothing. Alone, as ever. A dent, the smashed lamp and a fire (each extinguisher cools its cell) are worked
+    // on the car itself, so two hands there already do twice as much. 1: each alone, as before.
+    "pairRate": 1.8
   },
 
   // Damage with consequences, Sea of Thieves style (the director, 9 Oct 2026, ARCHITECTURE §8 note 576: "If players dont fix

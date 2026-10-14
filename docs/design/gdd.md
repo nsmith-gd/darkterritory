@@ -473,6 +473,11 @@ You aren't picking a difficulty level. You're travelling farther from civilizati
 
 Roles emerge from position. You end up on the cannon because you're standing at the cannon.
 
+**One can, two do it faster** *(the director, 14 Oct 2026, on the social collision audit's R4: "absolutely the right direction"; note 752)*. Anyone can do any job alone, at the pace it always had. A second pair of hands at the same job makes it quicker. *"You can make it a few runs and things are slow ... because you're on your own"*: solo is the way in, and friends are how a crew gets further.
+- **The cannon's loader.** A crewmate standing at a manned gun, holding Use, works the reload (powder, ball, ram) while the gunner stays in the seat and keeps aiming. The gunner can still load it alone. Two on the reload work it about twice as fast between them, so a gun with a loader fires about twice as often. A third adds nothing. A hand meant for something the loader is looking at (a hatch, a locker, a handbrake) works that thing, not the gun. (`combat.json loaderRate`.)
+- **Two at a mend.** Two crewmates boarding up the same breach, or mending the same burst boiler, each work at 1.8 times the pace: 8 s at a breach becomes 4.4 s. A third adds nothing. (`train.json repair.pairRate`.)
+- **Already twice as fast.** A dent, the smashed headlamp and a car fire are worked on the car itself, so two wrenches at a dent or two extinguishers on one cell already do twice as much.
+
 **The cab's ladder goes up to the roof** *(the director's evening playtest, 13 Oct: "This ladder inside the cab should actually go up to the roof so that I can access the roof quickly and vice versa"; note 704)*. Behind the coal bunker, a ladder runs from the cab floor up through an open hatch onto the cab roof, by the forward gun. It's the quick way between the driver's place and the gun.
 - **Going up:** walk to it looking up, or press the ladder key at its foot. Walking past it while working the cab, eyes level, doesn't take it. A car's hatch ladder inside works the same way ("DOWN INSIDE" from its roof).
 - **Going down:** at the open hatch on the roof, the ladder key takes you down into the cab.
@@ -487,6 +492,8 @@ Roles emerge from position. You end up on the cannon because you're standing at 
 ### Weapons
 
 **Guns and bullets are rare in this world.** Crude cannons and crude gunpowder are not. Each mounted cannon has a full manual reload — powder, ball, ram, fire — so every shot is a timed decision. Everyone else fights with the tools they carry: shovel, wrench, crowbar.
+
+**The loader** *(note 752; Fluidity above)*. The reload is one person's job (4.5 s), and goes about twice as fast with a loader working it beside the seated gunner. Each shot is louder for the Choir, so a gun firing twice as often draws it twice as hard (§14).
 
 ## 13. The indefensible middle
 
