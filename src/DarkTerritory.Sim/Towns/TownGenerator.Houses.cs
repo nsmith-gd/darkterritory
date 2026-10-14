@@ -70,6 +70,10 @@ public static partial class TownGenerator
 
     /// <summary>How far in from the square's ends the green across the street from it starts (m).</summary>
     const double GreenIn = 4;
+    /// <summary>The narrowest an open house is drawn on a turned lot (m; note 692): its rooms' least.</summary>
+    const double OpenNarrowest = 5.4;
+    /// <summary>How far turned a lot an open house may stand square on (rad; note 692), when there aren't square lots enough.</summary>
+    const double OpenTurn = 0.15;
 
     static Homes Houses(TownContent content, TownSite site, TownSquare square, int population, int former, Func<string, Pcg32> rngFor,
         TownFolk? folk = null, TownForms.Layout? form = null)
@@ -313,7 +317,12 @@ public static partial class TownGenerator
             dry = form.Lots.Count;
             int want = Math.Min(Math.Clamp((int)Math.Round(population / Math.Max(1, t.Explorable.Per)), t.Explorable.Min, t.Explorable.Max), dry);
             var order = Enumerable.Range(0, form.Lots.Count).ToList();
+            // The open houses' lots: square to the line, nearest the square; short of those (a town that turns its rows round
+            // its hill, note 692), the nearly square, so an open house, which stands square, swings no corner far into its
+            // neighbours.
             var squareLots = order.Where(i => form.Lots[i].Turn == 0).Take(want).ToList();
+            if (squareLots.Count < want)
+                squareLots.AddRange(order.Where(i => form.Lots[i].Turn != 0 && Math.Abs(form.Lots[i].Turn) < OpenTurn).Take(want - squareLots.Count));
             order = [.. squareLots, .. order.Except(squareLots)];
             var formLots = order.Select(i => form.Lots[i]).ToList();
             form.Lots.Clear();
@@ -386,7 +395,7 @@ public static partial class TownGenerator
                 // An open house stands square (its rooms are the rail frame's), so it's narrower by as far as its lot's turn
                 // swings its turned neighbours' corners in.
                 if (i < Math.Min(sizes.Count, open))
-                    width -= 2 * depth * Math.Abs(DMath.Sin(form.Lots[i].Turn)) + 0.3;
+                    width = Math.Max(OpenNarrowest, width - 2 * depth * Math.Abs(DMath.Sin(form.Lots[i].Turn)) - 0.3);
             }
             var layout = kind == HouseKind.Open ? HouseLayout.For(width, depth, looks.Chance(0.5) ? 1 : -1) : null;
             var design = model is not null && character.Uniform
