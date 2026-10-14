@@ -874,4 +874,12 @@ written here instead is moved out by `tools/coord/notes.py split`; the Coordinat
 - [695. A top-to-bottom performance audit (A1, queue #427; the director, 13 Oct evening, `docs/playtest/2026-10-13-evening.md` lines 1–3)](notes/695.md)
 - [696. The Corruption's trees (queue #428, C1; the director, 13 Oct 2026, eight renders: "of all the trees we should have a corruption rate of…](notes/696.md)
 - [699. An animation pass on G1's creatures: creepier movement, telegraphs that read (G1, queue #431; the director, 13 Oct: "Continue an animation…](notes/699.md)
+- [702. The evening playtest's sign lines (B4, queue #434; `docs/playtest/2026-10-13-evening.md` lines 10–12, the director playing the 13 Oct…](notes/702.md)
+- [703. The turret push and the vent off O and N (A1, queue #435; the director, 13 Oct evening, `docs/playtest/2026-10-13-evening.md` lines 8, 9)](notes/703.md)
+- [704. The cab ladder to the roof (A1, queue #436; the director, 13 Oct evening, `docs/playtest/2026-10-13-evening.md` line 13)](notes/704.md)
+- [705. Light round the loot (A1, queue #437; the director, 13 Oct evening, `docs/playtest/2026-10-13-evening.md` line 14)](notes/705.md)
+- [706. The roof hatch out of the way (A1, queue #438; the director, 13 Oct evening, `docs/playtest/2026-10-13-evening.md` line 15)](notes/706.md)
+- [707. The crane's camera (A1, queue #439; the director, 13 Oct evening, `docs/playtest/2026-10-13-evening.md` line 16)](notes/707.md)
+- [708. An unrigged load falls (A1, queue #440; the director, 13 Oct evening, `docs/playtest/2026-10-13-evening.md` line 17)](notes/708.md)
+- [709. Speed feel (A1, queue #441; the director, 13 Oct evening, `docs/playtest/2026-10-13-evening.md` line 20)](notes/709.md)
 <!-- end of the notes index -->
