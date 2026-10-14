@@ -93,7 +93,9 @@ public class TownFormTests
             var corners = new[] { h.Body(-h.Width / 2, 0), h.Body(h.Width / 2, 0), h.Body(h.Width / 2, h.Depth), h.Body(-h.Width / 2, h.Depth) };
             foreach (var (s, d) in corners)
                 Assert.True(b.Holds(s, d), $"house {h.Id}'s corner ({s - b.Gate:0}, {d:0}) is outside the wall");
-            if (h.Kind is HouseKind.Lived or HouseKind.Open)
+            // Lived in: on dry ground, or on a stage built to bear it over the water (the director, 14 Oct: a drowned town's
+            // and a fen town's houses on their platforms, "not just these isolated things"), never in the water or on a walk.
+            if (h.Kind is HouseKind.Lived or HouseKind.Open && !plan.Districts.Any(x => x.Kind == DistrictKind.Stage && x.Holds(h.S, h.D)))
             {
                 Assert.Null(g.Water(h.S, h.D));
                 Assert.False(g.Deck(h.S, h.D), $"house {h.Id} stands on a deck");

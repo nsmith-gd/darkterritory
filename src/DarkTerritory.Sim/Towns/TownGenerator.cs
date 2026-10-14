@@ -315,8 +315,11 @@ public static partial class TownGenerator
         for (int i = 0; i < outdoors; i++)
         {
             var h = lived[i];
-            // Out on the street in front of it, clear of an enclosed porch (HouseDesign.VestibuleDepth).
-            spots.Add(new("", h.S + (i % 3 - 1) * 1.2, h.FrontD - h.Side * 2.6, 0, -h.Side, 0, Street: true, Pose: "lantern"));
+            // Out on the street in front of it, clear of an enclosed porch (HouseDesign.VestibuleDepth); in front of it as it
+            // stands turned (a town type's ring of houses turns them far round, note 692).
+            var (ls, ld) = h.Body((i % 3 - 1) * 1.2, -2.6);
+            var (lfs, lfd) = h.BodyFacing(0, -1);
+            spots.Add(new("", ls, ld, lfs, lfd, 0, Street: true, Pose: "lantern"));
         }
         // The works' hands (note 353), at work all night: in front of a piece with a door or a mouth to it, one a kind.
         if (homes.Works is { } atWork)
@@ -733,6 +736,8 @@ public static class TownFixtures
         // A dory tied at a jetty's foot (note 692): its beam across, its length along its bow's way.
         "dory" => (0.8, 2.6, 0.9),
         "seedhouse" => (6.0, 4.0, 6.0),
+        // A glasshouse town's great glasshouses (note 692): the works' glasshouse at 2.6 times its size, end on to the line.
+        "greathouse" => (9.4, 20.8, 10.1),
         // In the houses (their furniture is the layout's): only the cradle stands on its own feet.
         "cradle" => (0.45, 0.3, 0.7),
         "table" or "letters" or "anklebell" or "timetable" or "boots" or "boards" or "suitcase" or "radio" or "clock"

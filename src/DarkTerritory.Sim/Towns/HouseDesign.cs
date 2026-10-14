@@ -2,8 +2,11 @@ using Ballast;
 
 namespace DarkTerritory.Sim.Towns;
 
-/// <summary>A house's roof: a plain gable, a saltbox's long back slope, a gambrel's two pitches, or a hip.</summary>
-public enum HouseRoof : byte { Gable, Saltbox, Gambrel, Hip }
+/// <summary>
+/// A house's roof: a plain gable, a saltbox's long back slope, a gambrel's two pitches, a hip; or flat, a garden on it (the
+/// director, 14 Oct, of Glass Gardeners: "we should also do things like gardening on roofs for some of the buildings").
+/// </summary>
+public enum HouseRoof : byte { Gable, Saltbox, Gambrel, Hip, Flat }
 
 /// <summary>What breaks a roof's front slope: nothing, gable dormers, one long shed dormer, a Lunenburg bump, the Island's centre gable.</summary>
 public enum HouseDormer : byte { None, Gables, Shed, Bump, CentreGable }
@@ -94,7 +97,7 @@ public sealed record HouseCharacter
     public double CentreGable { get; init; }
     /// <summary>Weights of 1, 1.5, 2 and 2.5 storeys.</summary>
     public double[] Storeys { get; init; } = [2, 4, 4, 1];
-    /// <summary>Weights of a gable, a saltbox, a gambrel and a hip.</summary>
+    /// <summary>Weights of a gable, a saltbox, a gambrel, a hip and (where there's a fifth) a flat roof with its garden.</summary>
     public double[] Roofs { get; init; } = [7, 2, 2, 1];
     /// <summary>The town's own paints (ids), and the share of its houses painted from them.</summary>
     public string[] Paints { get; init; } = [];

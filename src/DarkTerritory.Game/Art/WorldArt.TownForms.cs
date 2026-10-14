@@ -21,18 +21,7 @@ public sealed partial class WorldArt
     /// <summary>How far round its shaped ground a town draws its own (m), so the land's coarser mesh never meets a terrace's foot.</summary>
     const double FormApron = 6;
 
-    /// <summary>A deck's piles (note 692): its corners and along its edges every <see cref="PileEvery"/> m.</summary>
-    static IEnumerable<(double S, double D)> Piles(double s0, double s1, double d0, double d1)
-    {
-        int ns = Math.Max(1, (int)Math.Round((s1 - s0) / PileEvery)), nd = Math.Max(1, (int)Math.Round((d1 - d0) / PileEvery));
-        for (int i = 0; i <= ns; i++)
-            foreach (double d in nd > 0 ? new[] { d0, d1 } : [d0])
-                yield return (s0 + (s1 - s0) * i / ns, d);
-        for (int j = 1; j < nd; j++)
-            foreach (double s in new[] { s0, s1 })
-                yield return (s, d0 + (d1 - d0) * j / nd);
-    }
-
+    /// <summary>How far apart a deck's piles stand along its edges (m; note 692).</summary>
     const double PileEvery = 3.5;
 
     /// <summary>The grid a fen's reeds and dead trees are scattered on (m), each a hash of its cell (the same every frame).</summary>
@@ -200,6 +189,8 @@ public sealed partial class WorldArt
                 "watchtower" => (Piece("tower-1", () => StructureKit.Tower(_look, 1)), 1.1f),
                 "crane" => (Piece("form-crane", () => SettingKit.Headframe(_look)), 0.55f),
                 "boatshed" => (Piece("form-boatshed", () => NovaKit.FishShed(_look, 1)), 1.6f),
+                // A great glasshouse (note 692): the works' glasshouse at 2.6 times its size.
+                "greathouse" => (Piece("works-glasshouse", () => WorksKit.Piece(_look, "glasshouse")), 2.6f),
                 "dory" when ((int)Math.Abs(f.S * 7 + f.D * 13) % 3) is var v => (Piece($"dory-afloat-{v}", () => MaritimeKit.Afloat(_look, v)), 1f),
                 _ => (Piece($"works-{(f.Kind == "seedhouse" ? "glasshouse" : f.Kind)}", () => WorksKit.Piece(_look, f.Kind == "seedhouse" ? "glasshouse" : f.Kind)), 1f),
             };
@@ -287,7 +278,7 @@ public sealed partial class WorldArt
     }
 
     /// <summary>The landmarks a town type stands (TownForms' kinds) that the square and the works don't draw.</summary>
-    static bool Landmark(string kind) => kind is "lighthouse" or "beacon" or "chapel" or "watchtower" or "lift" or "crane" or "boatshed" or "seedhouse" or "glasshouse" or "dory";
+    static bool Landmark(string kind) => kind is "lighthouse" or "beacon" or "chapel" or "watchtower" or "lift" or "crane" or "boatshed" or "seedhouse" or "glasshouse" or "greathouse" or "dory";
 
     /// <summary>
     /// A town type's ground as one piece, in its frame from the line's start (−Z along the line, +X across to its right):
@@ -346,11 +337,7 @@ public sealed partial class WorldArt
                     // A deck: grey planks on a beam, its piles down to the bed at its corners.
                     k.Use("wood_grey", Palette.DeepBrown, 0.8f, 0.05f, tile: 2);
                     k.Box(V(s1, level - 0.25, d0), V(s0, level, d1), true, true);
-                    k.Use("wood_sleeper", Palette.DeepBrown, 0.9f, 0.05f, tile: 2);
-                    // Its piles round its edges, every few metres (a stage of houses stands on them, note 692; what's
-                    // under its middle can't be seen).
-                    foreach (var (ps, pd) in Piles(s0 + 0.3, s1 - 0.3, d0 + 0.3, d1 - 0.3))
-                        k.Box(V(ps + 0.15, g.Bed(ps, pd) - 0.5, pd - 0.15), V(ps - 0.15, level - 0.25, pd + 0.15), false, false);
+
                     break;
                 case 2:
                     // A basin's bed, mud under the water.
@@ -411,6 +398,33 @@ public sealed partial class WorldArt
                     k.Quad(V(pa.Item1, lowA, pa.Item2), V(pz.Item1, lowZ, pz.Item2), V(pz.Item1, highZ, pz.Item2), V(pa.Item1, highA, pa.Item2), twoSided: true);
                 }
             }
+        // The decks' piles (note 692): along each deck walk's line either side and round each deck's and stage's outline,
+        // every few metres, down to the bed (what's under a deck's middle can't be seen).
+        k.Use("wood_sleeper", Palette.DeepBrown, 0.9f, 0.05f, tile: 2);
+        void Pile(double ps, double pd, double top)
+        {
+            if (g.Water(ps, pd) is null && g.Bed(ps, pd) >= top - 0.3)
+                return;
+            k.Box(V(ps + 0.15, g.Bed(ps, pd) - 0.5, pd - 0.15), V(ps - 0.15, top - 0.25, pd + 0.15), false, false);
+        }
+        void PileAlong(IReadOnlyList<(double S, double D)> line, double off, double top, bool closed)
+        {
+            for (int i = closed ? 0 : 1; i < line.Count; i++)
+            {
+                var (a, z) = (line[(i - 1 + line.Count) % line.Count], line[i]);
+                double es = z.S - a.S, ed = z.D - a.D, len = Math.Sqrt(es * es + ed * ed);
+                if (len < 0.5)
+                    continue;
+                double ns = -ed / len * off, nd = es / len * off;
+                for (double x = 0; x < len; x += PileEvery)
+                    Pile(a.S + es * x / len + ns, a.D + ed * x / len + nd, top);
+            }
+        }
+        foreach (var w in plan.Ways.Where(w => w.Deck))
+            foreach (int side in new[] { -1, 1 })
+                PileAlong(w.Points, side * (w.Width / 2 - 0.3), w.Level, false);
+        foreach (var d in plan.Districts.Where(x => x.Kind is DistrictKind.Deck or DistrictKind.Stage))
+            PileAlong(d.Outline, 0, d.Level, true);
         // The rails along the deep water and the parapets along the terraces' edges: along the districts' own outlines, a
         // few long runs where the Sim's walls (TownGround.Edges) step with its raster, each piece where the ground either side
         // of it calls for one (a stride's step, or walkable ground on deep water).
@@ -470,13 +484,10 @@ public sealed partial class WorldArt
                     double la = g.Level(as_, ad), lb = g.Level(bs, bd);
                     if (Math.Abs(la - lb) <= Sim.Towns.TownGround.Stride)
                         continue;
-                    // A deck's edge over the marsh (a fen's stages, note 692): its timber rail, not a terrace's stone.
+                    // A deck's edge over a wadeable marsh (a fen's stages, note 692): open, as the Sim has it (you can step off
+                    // into the reeds), not a terrace's stone parapet.
                     if (g.Deck(as_, ad) || g.Deck(bs, bd))
-                    {
-                        k.Use("wood_grey", Palette.DeepBrown, 0.85f, 0.05f, tile: 2);
-                        Run(a0, a1, Math.Max(la, lb), 1.0, 0.06, true);
                         continue;
-                    }
                     // A step past a stride: the stone parapet on the higher side.
                     k.Use(face, Palette.DeepBrown, 0.8f, 0.05f, tile: 3);
                     Run(a0, a1, Math.Max(la, lb) - 0.3, 1.2, 0.22, false);

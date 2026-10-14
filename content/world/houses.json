@@ -81,7 +81,7 @@
   ],
 
   // The characters. Odds are 0..1 per house; "storeys" weights 1, 1.5, 2 and 2.5; "roofs" weights a gable, a saltbox, a
-  // gambrel and a hip; "paints" is the town's own palette (ids above), from which most of its houses are painted, the
+  // gambrel, a hip and (a fifth, the gardeners', note 692) a flat roof with a garden on it; "paints" is the town's own palette (ids above), from which most of its houses are painted, the
   // rest from anywhere; "uniform" is a company town's: one design for every house, its paint and its wear their own.
   // "yard" (ARCHITECTURE §8 note 335): the share of street houses with a picket fence out front, of back lines with a
   // board fence, how many things a yard keeps, and how often each is picked (woodpile, shed, privy, traps, dory,
@@ -147,7 +147,7 @@
       "yard": { "picket": 0, "boards": 0, "count": [0, 0], "things": {} } },
     { "id": "gardeners", "name": "a walled garden town",
       "shingle": 0.4, "gableFront": 0.35, "dormers": 0.25, "ell": 0, "porch": 0.2, "shutters": 0.15, "fancy": 0, "grime": 0.45, "grimeSpread": 0.12,
-      "storeys": [1, 4, 5, 2], "roofs": [6, 2, 2, 1], "paints": ["kelp", "oldOchre", "drab", "bleached", "sage", "dove", "storm", "rust"], "own": 0.85,
+      "storeys": [1, 4, 5, 2], "roofs": [4, 1, 1, 0, 6], "paints": ["kelp", "oldOchre", "drab", "bleached", "sage", "dove", "storm", "rust"], "own": 0.85,
       "gear": { "respirator": 3, "oxygen": 2, "wrap": 2 },
       "yard": { "picket": 0, "boards": 0, "count": [0, 0], "things": {} } }
   ],

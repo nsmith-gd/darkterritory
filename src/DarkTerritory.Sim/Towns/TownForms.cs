@@ -1371,41 +1371,62 @@ public static class TownForms
             Wall((-L, -wl + c), (-L + c, -wl), (-c, -wl), (0, -wl + c), (0, wr - c), (-c, wr), (-L + c, wr), (-L, wr - c));
             // The land it stands in (note 692): a valley, the glass in its bottom out of the wind, the ridges either side.
             double m = _f.Margin;
-            Land("ridge", Rect(-L - m - 60, m + 60, -wl - m - 60, -wl - 30), 30, 70);
-            Land("ridge", Rect(-L - m - 60, m + 60, wr + 30, wr + m + 60), 26, 70);
-            // The reservoirs: round tanks of water past the glasshouses, walks round them.
-            var rrng = _rngFor("form.reservoirs");
-            for (int i = 0; i < 4; i++)
+            Land("ridge", Rect(-L - m - 60, m + 60, -wl - m - 60, -wl - 60), 30, 90);
+            Land("ridge", Rect(-L - m - 60, m + 60, wr + 60, wr + m + 60), 26, 90);
+            // The great glasshouses (the director, 14 Oct: "the main greenhouse is a concept ... that will be interesting for
+            // players to explore"): three long houses of glass across the line on the platform's side, end to end, walks
+            // round them; the processing works by the way out.
+            var (gs, gd, _) = TownFixtures.Size("greathouse");
+            double gu0 = -L * 0.78, gdd = 16 + gd + 2;
+            for (int i = 0; i < 3; i++)
             {
-                double u = -L * (0.22 + 0.18 * i), d = wr * (i % 2 == 0 ? 0.78 : 0.62), r = rrng.Range(16, 22);
+                double u = gu0 + gs + i * (2 * gs + 8);
+                Landmark("greathouse", u, gdd, 0, -1, pad: 1.5);
+                Way([(u - gs - 4, 16), (u - gs - 4, gdd + gd + 4)], 3);
+            }
+            Way([(gu0 - 4, gdd + gd + 4), (gu0 + 3 * (2 * gs + 8) - 4, gdd + gd + 4)], 3);
+            District(DistrictKind.Quarter, "glass", Rect(gu0 - 6, gu0 + 3 * (2 * gs + 8), 14, gdd + gd + 6));
+            Works(-L * 0.3, -40, 14, wr * 0.42, 1, "glasshouse");
+            // Beds between the glass and the works, walks between them.
+            double bu0 = gu0 + 3 * (2 * gs + 8) + 4, bu1 = -L * 0.3 - 6;
+            for (double u = bu0; u + 20 < bu1; u += 26)
+            {
+                for (double d = 18; d + 22 < wr * 0.5; d += 26)
+                    District(DistrictKind.Plots, "beds", Rect(u + 2, u + 24, d, d + 22), named: false);
+                Way([(u, 16), (u, wr * 0.5)], 2.5);
+            }
+            // The reservoirs: round tanks past the glasshouses, walks round them.
+            var rrng = _rngFor("form.reservoirs");
+            for (int i = 0; i < 3; i++)
+            {
+                double u = gu0 + 30 + i * 70, d = gdd + gd + 30 + (i % 2) * 8, r = rrng.Range(14, 18);
                 District(DistrictKind.Water, i == 1 ? "reservoir" : "tank", Circle(u, d, r, r, 20), _f.WaterLevel, named: i == 1);
                 Way(Circle(u, d, r + 3, r + 3, 20).Append((u + r + 3, d)).ToList(), 2.5);
             }
-            // The glasshouses: the long ranges across the line, end to end in rows with walks between, the works (the pump
-            // tower, the stores) by the way out.
-            double g0 = -L * 0.8, g1 = -L * 0.3;
-            var (ghs, ghd, _) = TownFixtures.Size("glasshouse");
-            for (double d = 16 + ghd; d + ghd < wr * 0.5; d += 2 * ghd + 4)
+            // The gardeners' rows by the square (the director: "mostly integrated growing plots"): every other street a row
+            // of houses facing its beds across it, the beds' far side the next row's backs.
+            Green(34, 56);
+            var rows = Tiers(-1, -L * 0.62, -10, wl + 20, 0, "lanes");
+            for (int k = 0; k < rows.Offs.Count; k++)
             {
-                for (double u = g0 + ghs; u + ghs < g1; u += 2 * ghs)
-                    Landmark("glasshouse", u, d, 0, -1, pad: 0.2);
-                Way([(g0, d + ghd + 2), (g1, d + ghd + 2)], 3);
+                if (k % 2 == 0)
+                    continue;
+                for (double u = rows.U0; u < rows.U1; u += 12)
+                {
+                    double near = rows.Street(k, u + 6, _f.Wander) + _f.StreetWidth / 2 + 0.6, far = rows.Back(k, u + 6, _f.Wander) - 0.3;
+                    if (far - near > 3 && Open(_gate + u, -near) && Open(_gate + u + 12, -far))
+                        District(DistrictKind.Plots, "beds", Rect(u, Math.Min(u + 12, rows.U1), -near, -far), named: false);
+                }
             }
-            District(DistrictKind.Quarter, "glass", Rect(g0, g1, 14, wr * 0.5));
-            Works(-L * 0.3 + 6, -40, 14, wr * 0.42, 1, "glasshouse");
-            // The beds behind the square, in plots with walks between.
-            double pu0 = -L + 40, pu1 = -L * 0.45;
-            for (double u = pu0; u < pu1 - 20; u += 34)
-                for (double d = -40; d > -wl + 40; d -= 30)
-                    District(DistrictKind.Plots, "beds", Rect(u + 2, u + 30, d - 2, d - 26), named: u == pu0 && d == -40);
-            for (double u = pu0; u < pu1; u += 34)
+            Rows(rows);
+            // The open beds toward the way in, in plots with walks between, and the seed house among them.
+            double pu0 = -L + 34, pu1 = -L * 0.62 - 8;
+            for (double u = pu0; u < pu1 - 20; u += 32)
+                for (double d = -22; d > -wl + 36; d -= 28)
+                    District(DistrictKind.Plots, "beds", Rect(u + 2, u + 28, d - 2, d - 24), named: u == pu0 && d == -22);
+            for (double u = pu0; u < pu1; u += 32)
                 Way([(u, -16), (u, -wl + 20)], 2.5);
             Landmark("seedhouse", (pu0 + pu1) / 2, -wl + 26, 0, 1);
-            // The long houses (rows of the same house, the gardeners'), and the square's green.
-            Green(34, 56);
-            Rows(Tiers(-1, -L * 0.45 + 10, -10, wl + 20, 0, "lanes"));
-            Lots(-L + 30, wr * 0.48, -L * 0.8, wr * 0.48, 3, 3, 0, false);
-            Lots(-L * 0.1, wr * 0.55, -30, wr * 0.55, 3, 3, 0, false);
         }
 
         /// <summary>

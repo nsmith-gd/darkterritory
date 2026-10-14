@@ -144,6 +144,11 @@ public static class MaritimeKit
                     b.Profile.AddRange([new(s0, b.Eave), new(sr, b.Ridge), new(s1, b.BackEave)]);
                     break;
                 }
+            case HouseRoof.Flat:
+                // Flat behind its parapet, a hand's fall to drain it, its garden on it (Roof).
+                b.Ridge = b.Eave + 0.2f;
+                b.Profile.AddRange([new(s0, b.Eave), new(0, b.Ridge), new(s1, b.Eave)]);
+                break;
             case HouseRoof.Gambrel:
                 {
                     float rise = pitch * half * 1.1f;
@@ -409,6 +414,41 @@ public static class MaritimeKit
         Roof(k, b, c);
     }
 
+    /// <summary>
+    /// A flat roof's garden (note 692; the gardeners'): tarred felt behind a low brick parapet, raised beds of earth along it
+    /// with their green, a glazed cold frame at one end.
+    /// </summary>
+    static void RoofGarden(Kit k, Block b)
+    {
+        float y = b.Ridge, x0 = b.X0, x1 = b.X1, z0 = b.Z0, z1 = b.Z1;
+        k.Use("tar", Palette.DeepBrown, 0.9f, 0.1f, tile: 2);
+        k.Box(new Vector3(x0 - 0.1f, b.Eave, z0 - 0.1f), new Vector3(x1 + 0.1f, y, z1 + 0.1f), Kit.Faces.PosY | Kit.Faces.Sides);
+        k.Use("brick_soot", Palette.RustRed, 0.9f, 0.05f, tile: 1.2f);
+        foreach (var (lo, hi) in new[] { (new Vector3(x0 - 0.1f, y, z0 - 0.1f), new Vector3(x1 + 0.1f, y + 0.6f, z0 + 0.15f)),
+            (new Vector3(x0 - 0.1f, y, z1 - 0.15f), new Vector3(x1 + 0.1f, y + 0.6f, z1 + 0.1f)),
+            (new Vector3(x0 - 0.1f, y, z0), new Vector3(x0 + 0.15f, y + 0.6f, z1)), (new Vector3(x1 - 0.15f, y, z0), new Vector3(x1 + 0.1f, y + 0.6f, z1)) })
+            k.Box(lo, hi, Kit.Faces.Sides | Kit.Faces.PosY);
+        // The beds, along the roof's long way, a path between; the frame at the end of the last.
+        bool alongX = x1 - x0 >= z1 - z0;
+        float a0 = (alongX ? x0 : z0) + 0.5f, a1 = (alongX ? x1 : z1) - 0.5f, c0 = (alongX ? z0 : x0) + 0.5f, c1 = (alongX ? z1 : x1) - 0.5f;
+        Vector3 P(float a, float h, float c) => alongX ? new Vector3(a, h, c) : new Vector3(c, h, a);
+        int beds = Math.Max(1, (int)((c1 - c0) / 1.6f));
+        float w = (c1 - c0) / beds;
+        for (int i = 0; i < beds; i++)
+        {
+            float bc0 = c0 + i * w + 0.2f, bc1 = c0 + (i + 1) * w - 0.25f;
+            k.Use("wood_grey", Palette.DeepBrown, 0.9f, 0.05f, tile: 1);
+            k.Box(Min(P(a0, y, bc0), P(i == beds - 1 ? a1 - 1.6f : a1, y + 0.4f, bc1)), Max(P(a0, y, bc0), P(i == beds - 1 ? a1 - 1.6f : a1, y + 0.4f, bc1)), Kit.Faces.Sides);
+            k.Use("bog_sphagnum", new Vector3(0.25f, 0.4f, 0.15f), 0.6f, 0.05f, tile: 1.5f);
+            k.Box(Min(P(a0 + 0.1f, y + 0.4f, bc0 + 0.1f), P((i == beds - 1 ? a1 - 1.6f : a1) - 0.1f, y + 0.75f, bc1 - 0.1f)),
+                Max(P(a0 + 0.1f, y + 0.4f, bc0 + 0.1f), P((i == beds - 1 ? a1 - 1.6f : a1) - 0.1f, y + 0.75f, bc1 - 0.1f)), Kit.Faces.Sides | Kit.Faces.PosY);
+        }
+        k.Use("glass_dirty", Palette.IronGrey, 0.3f, 0.6f, tile: 1);
+        k.Box(Min(P(a1 - 1.4f, y, c1 - w + 0.2f), P(a1, y + 0.9f, c1)), Max(P(a1 - 1.4f, y, c1 - w + 0.2f), P(a1, y + 0.9f, c1)), Kit.Faces.Sides | Kit.Faces.PosY);
+        static Vector3 Min(Vector3 a, Vector3 b) => Vector3.Min(a, b);
+        static Vector3 Max(Vector3 a, Vector3 b) => Vector3.Max(a, b);
+    }
+
     /// <summary>A triangle of a wall facing <paramref name="outward"/> (both ways for an open house's), its siding's courses level.</summary>
     static void Face(Kit k, Vector3 a, Vector3 b, Vector3 c, Vector3 outward, bool twoSided)
     {
@@ -424,6 +464,11 @@ public static class MaritimeKit
     /// <summary>The roof: each of its profile's slopes out past the walls at the eaves and the gables, or a hip's four.</summary>
     static void Roof(Kit k, Block b, Coat c)
     {
+        if (b.Roof == HouseRoof.Flat)
+        {
+            RoofGarden(k, b);
+            return;
+        }
         RoofPaint(k, c);
         const float over = 0.35f, rake = 0.28f;
         float a0 = b.A0 - rake, a1 = b.A1 + rake;

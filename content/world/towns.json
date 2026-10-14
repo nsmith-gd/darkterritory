@@ -528,6 +528,7 @@
         "beds": ["the Beds", "the Plots", "the Orchard Rows"],
         "lanes": ["the Long Houses", "the Gardeners' Rows"] },
       "landmarks": {
+        "greathouse": { "title": "the great house of glass", "text": "Three hundred panes to a side, every one washed at the bell. Inside it's summer: the lamps on the rota, the beans up the strings, the warmth coming off the soil. The gardeners sleep in it on the coldest nights. Nobody sleeps near the glass." },
         "seedhouse": { "title": "the seed house", "text": "The town's every seed, in jars, labelled with the bed and the year and the hand that saved it. The door is barred from inside. Someone is always in there. It's the safest room in the territory, they say, and the loneliest." } } }
   },
 
