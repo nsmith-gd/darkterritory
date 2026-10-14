@@ -727,6 +727,7 @@ written here instead is moved out by `tools/coord/notes.py split`; the Coordinat
 - [532. The host's network off its frame loop (N2, queue #270; the netcode audit's gap 2, note 530)](notes/532.md)
 - [533. Two hurt hands on the ballast at Renwick Yard and the driver waiting all night (queue #277, D1.3 for D1; D1.2's trace, frontier:7 seed 6…](notes/533.md)
 - [534. The link's quality shown (F1, UI/UX 3; queue #271; netcode-audit.md gap 3; spec E "ping visibility is load-bearing. Without host migration,…](notes/534.md)
+- [535. Note 450's "not yet": a lobby changed once it's open, a guesser slowed, a crew's record listed (B3, queue #275; netcode-audit.md gap 7)](notes/535.md)
 - [536. The Stoker's char close to (queue #278, E1; the art checklist's `stoker`, its audit of 5 Oct: "the arm it reaches out into the cab with is…](notes/536.md)
 - [537. Warming up clear of the pack (queue #279, D1.2; #208's patrol meeting the warm-up; D1's frontier:7 seed 3 with #265)](notes/537.md)
 - [538. The Passenger wrong up close (queue #280, E1; the art checklist's `passenger`, GDD App. A.8: "passes for crew in the dark; wrong up close")](notes/538.md)
