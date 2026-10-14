@@ -260,6 +260,8 @@ public sealed class NetPlaySession : IPlaySession, IDisposable
     /// run's (<see cref="Moods.Word"/>: "laughs", "competitive", or "" for either).
     /// </summary>
     public const string LockedKey = "locked", MoodKey = "mood";
+    /// <summary>The host's record (note 535): the furthest any of its crews has gone in a campaign, whole km; "" for none.</summary>
+    public const string RecordKey = "record";
 
     /// <summary>The crew cap the content sets (player.json crew.cap, GDD §1 "2–8"; a mod can raise it: note 254).</summary>
     public static int CrewCap(string content) => DataFile.Load<PlayerTuning>(Path.Combine(content, PlayerTuning.File)).Crew.Places;
@@ -513,7 +515,7 @@ public sealed class NetPlaySession : IPlaySession, IDisposable
     /// <param name="tap">Told of the night (note 515): a developer build's recorder. Null for <see cref="Tap"/>'s.</param>
     public static NetPlaySession HostGame(string content, SessionSetup setup, int? port = DefaultPort, int expectedCrew = 4, IOnlineBackend? online = null,
         Sim.Campaign.RunCheckpoint? resume = null, int bots = 0, bool listed = true, string? lobbyName = null, LanBeacon? beacon = null,
-        string? password = null, RunMood mood = RunMood.Either, IHostTap? tap = null, DatagramOptions? options = null)
+        string? password = null, RunMood mood = RunMood.Either, IHostTap? tap = null, DatagramOptions? options = null, double recordKm = 0)
     {
         tap ??= Tap;
         var key = Messages.PasswordKey(password);
@@ -550,6 +552,7 @@ public sealed class NetPlaySession : IPlaySession, IDisposable
                 [FullKey] = 1 + bots >= cap ? "1" : "0",
                 [LockedKey] = key is null ? "0" : "1",
                 [MoodKey] = Moods.Word(mood),
+                [RecordKey] = Record(recordKm),
             });
         // The host reads what the tap hands it, if anything's tapping (a developer build's recorder); the rest of the session
         // keeps the transport itself (the friends' check below needs the group, and it's disposed with the session).
@@ -606,6 +609,7 @@ public sealed class NetPlaySession : IPlaySession, IDisposable
             Tier = tier,
             Locked = key is not null,
             Mood = mood,
+            RecordKm = recordKm,
             _beacon = listed ? beacon : null,
             _tap = tap,
         };
@@ -681,6 +685,11 @@ public sealed class NetPlaySession : IPlaySession, IDisposable
     public bool Locked { get; private set; }
     /// <summary>Who the run is for (note 450).</summary>
     public RunMood Mood { get; private set; }
+    /// <summary>The host's record, km (note 535): what the run's listed with beside its mood. 0: none yet.</summary>
+    public double RecordKm { get; private init; }
+
+    /// <summary>A record as a listing carries it (note 535): whole km, or "" for none.</summary>
+    public static string Record(double km) => km >= 1 ? Invariant((int)km) : "";
 
     /// <summary>
     /// Note 535 (note 450's "not yet"): the host of a listed run says who it's for, now. The platform lobby says it at once,
@@ -1094,6 +1103,7 @@ public sealed class NetPlaySession : IPlaySession, IDisposable
                 Lobby = Lobby is { IsHost: true, Status: Lobby.State.Open, Visibility: LobbyVisibility.Public } l ? l.Id.ToString() : "",
                 Locked = Locked,
                 Mood = Moods.Word(Mood),
+                Record = Record(RecordKm),
             });
         }
         if (Host is { } served && Lobby is { } meeting)

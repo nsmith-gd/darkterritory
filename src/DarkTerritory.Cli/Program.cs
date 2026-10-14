@@ -3081,10 +3081,11 @@ static (DarkTerritory.Game.FrontEnd Menu, DarkTerritory.Game.Screen Screen) Demo
         }.Save(Path.Combine(dir, "settings.json"));
     var menu = new DarkTerritory.Game.FrontEnd(ct, rt, saves, Path.Combine(dir, "settings.json"), () => 7, edition);
     menu.DefaultPlayerName = "Nick";
-    // --menu profile (note 293): a tally as a few nights' crews would leave it, one badge not given yet.
+    // --menu profile (note 293): a tally as a few nights' crews would leave it, one badge not given yet; and a record (note 535).
     menu.Profile = new DarkTerritory.Game.PlayerProfile.Data
     {
         Commendations = new() { ["Came Back For Me"] = 3, ["Held the Switch"] = 1, ["Kept the Fire"] = 5, ["Brought Them Home"] = 2 },
+        RecordKm = 212.4,
     };
     menu.StillsFolder = "C:/Users/Nick/AppData/Local/DarkTerritory/bookmarks";
     menu.Music = DarkTerritory.Sim.Music.MusicManifest.Load(content).Tracks;
@@ -3152,18 +3153,19 @@ static (DarkTerritory.Game.FrontEnd Menu, DarkTerritory.Game.Screen Screen) Demo
 /// </summary>
 static IReadOnlyList<DarkTerritory.Game.ListedGame> DemoLobbies(int protocol, int cap)
 {
-    Ballast.Net.LanGame Lan(string ip, string host, string name, int aboard, string tier, double ping, int protocol, string mood = "", bool locked = false) =>
+    Ballast.Net.LanGame Lan(string ip, string host, string name, int aboard, string tier, double ping, int protocol, string mood = "", bool locked = false, string record = "") =>
         new(new System.Net.IPEndPoint(System.Net.IPAddress.Parse(ip), DarkTerritory.Game.NetPlaySession.DefaultPort), host, $"{tier.ToUpperInvariant()}:7, 6 CARS, IN THE YARD", aboard, protocol,
             DarkTerritory.Game.NetPlaySession.Game)
-        { Name = name, Max = cap, Tier = tier, PingMs = ping, Mood = mood, Locked = locked };
+        { Name = name, Max = cap, Tier = tier, PingMs = ping, Mood = mood, Locked = locked, Record = record };
     var cloud = new Ballast.Online.FakeOnline();
     var me = cloud.SignIn("me");
-    var hosts = new (string Name, string Run, string Tier, (double, double) Where, Ballast.Online.LobbyVisibility Visibility, int Crew, string Mood)[]
+    // Their records (note 535): how far each host's crews have gone, beside the mood.
+    var hosts = new (string Name, string Run, string Tier, (double, double) Where, Ballast.Online.LobbyVisibility Visibility, int Crew, string Mood, string Record)[]
     {
-        ("PRIYA", "PRIYA'S RUN", "DeadLines", (30, 34), Ballast.Online.LobbyVisibility.Public, 3, "competitive"),
-        ("hollowman", "NO SLEEP TILL HOLLIN", "DeepTerritory", (90, 110), Ballast.Online.LobbyVisibility.Public, cap, "competitive"),
-        ("ash", "LOCALS ONLY", "Local", (60, 20), Ballast.Online.LobbyVisibility.Public, 5, "laughs"),
-        ("secret", "SECRET RUN", "Frontier", (5, 5), Ballast.Online.LobbyVisibility.FriendsOnly, 2, ""),
+        ("PRIYA", "PRIYA'S RUN", "DeadLines", (30, 34), Ballast.Online.LobbyVisibility.Public, 3, "competitive", "412"),
+        ("hollowman", "NO SLEEP TILL HOLLIN", "DeepTerritory", (90, 110), Ballast.Online.LobbyVisibility.Public, cap, "competitive", "1206"),
+        ("ash", "LOCALS ONLY", "Local", (60, 20), Ballast.Online.LobbyVisibility.Public, 5, "laughs", "38"),
+        ("secret", "SECRET RUN", "Frontier", (5, 5), Ballast.Online.LobbyVisibility.FriendsOnly, 2, "", ""),
     };
     var lobbies = new List<Ballast.Online.Lobby>();
     foreach (var h in hosts)
@@ -3175,6 +3177,7 @@ static IReadOnlyList<DarkTerritory.Game.ListedGame> DemoLobbies(int protocol, in
                 [DarkTerritory.Game.NetPlaySession.TierKey] = h.Tier,
                 [DarkTerritory.Game.NetPlaySession.RunKey] = $"{h.Tier.ToUpperInvariant()}:12, 6 CARS, IN THE YARD",
                 [DarkTerritory.Game.NetPlaySession.MoodKey] = h.Mood,
+                [DarkTerritory.Game.NetPlaySession.RecordKey] = h.Record,
             });
         lobby.Poll();
         DarkTerritory.Game.NetPlaySession.Advertise(lobby, h.Crew, cap);
@@ -3185,8 +3188,9 @@ static IReadOnlyList<DarkTerritory.Game.ListedGame> DemoLobbies(int protocol, in
     browser.Poll(0, events, search: true);
     me.Poll(events);
     browser.Poll(0, events, search: false);
-    Ballast.Net.LanGame[] lan = [Lan("192.168.1.20", "nick-pc", "THE NIGHT SHIFT", 2, "Frontier", 1.8, protocol, "laughs", locked: true),
-        Lan("192.168.1.31", "sam", "SAM'S RUN", 1, "Frontier", 3.2, protocol + 1), Lan("192.168.1.44", "jo", "JO'S RUN", cap, "DeadLines", 2.4, protocol, "laughs")];
+    Ballast.Net.LanGame[] lan = [Lan("192.168.1.20", "nick-pc", "THE NIGHT SHIFT", 2, "Frontier", 1.8, protocol, "laughs", locked: true, record: "96"),
+        Lan("192.168.1.31", "sam", "SAM'S RUN", 1, "Frontier", 3.2, protocol + 1), Lan("192.168.1.44", "jo", "JO'S RUN", cap, "DeadLines", 2.4, protocol, "laughs"),
+        Lan("192.168.1.52", "mara", "LONG HAUL", 4, "DeepTerritory", 4.1, protocol, "competitive", record: "1873")];
     var games = lan.Select(DarkTerritory.Game.ListedGame.From).Concat(browser.Games);
     foreach (var l in lobbies)
         l.Dispose();

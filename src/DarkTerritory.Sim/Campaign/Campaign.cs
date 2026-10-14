@@ -71,7 +71,14 @@ public sealed record Contract(RouteTier Tier, ulong Seed, double PerCar)
     public string Route => $"{char.ToLowerInvariant(Tier.ToString()[0])}{Tier.ToString()[1..]}:{Seed}";
 }
 
-public sealed record RunLog(int Run, string Route, RunEnd End, double Net, int CarsLost, double ScripAfter);
+public sealed record RunLog(int Run, string Route, RunEnd End, double Net, int CarsLost, double ScripAfter)
+{
+    /// <summary>
+    /// How far the train went that night, km (note 535: the crew's distance is the sum, and a host's record the furthest any
+    /// of its crews has gone). A save from before reads as none.
+    /// </summary>
+    public double Km { get; init; }
+}
 
 /// <summary>One car's condition, to put it back as it was.</summary>
 /// <param name="Cargo">What it's carrying (T68): a save from before cargo types reads as none.</param>
@@ -191,6 +198,9 @@ public sealed record Loadout(TrainTuning Train, BoilerTuning Boiler, CombatTunin
 /// <summary>Spec F.2-F.4: the campaign's rules. Pure: states in, states out.</summary>
 public static class Campaign
 {
+    /// <summary>How far the crew's gone, every night of its campaign together (note 535), km.</summary>
+    public static double Distance(CampaignState s) => s.History.Sum(h => h.Km);
+
     public static CampaignState New(CampaignTuning t, int slot, string name, ulong seed) =>
         new() { Slot = slot, Name = name, Seed = seed, Cars = t.StartingCars, Scrip = t.StartingScrip };
 
@@ -371,7 +381,7 @@ public static class Campaign
     {
         int cars = Math.Max(2, s.Cars - report.CarsLost);
         double scrip = s.Scrip + report.Net;
-        var log = new RunLog(s.Runs + 1, s.Current?.Route ?? "?", report.End, report.Net, report.CarsLost, scrip);
+        var log = new RunLog(s.Runs + 1, s.Current?.Route ?? "?", report.End, report.Net, report.CarsLost, scrip) { Km = report.DistanceKm };
         int spares = report.SpareKitsHome >= 0 ? report.SpareKitsHome : s.SpareKits;
         // D.8: whoever was freed tonight is that survivor from now on; everyone else stays who they were.
         var identities = new Dictionary<string, string>(s.Identities);

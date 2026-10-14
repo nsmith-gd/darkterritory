@@ -231,7 +231,8 @@ public class LobbyBrowserTests
         var carol = cloud.SignIn("carol");
         var dave = cloud.SignIn("dave");
         var me = cloud.SignIn("me");
-        using var host = NetPlaySession.HostGame(Content, Night, port: null, online: alice, listed: true, lobbyName: "NIGHT OWLS", mood: RunMood.Laughs);
+        using var host = NetPlaySession.HostGame(Content, Night, port: null, online: alice, listed: true, lobbyName: "NIGHT OWLS", mood: RunMood.Laughs,
+            recordKm: 212.8);
         // The platform's lobby is made as the host's first steps poll it.
         for (int i = 0; i < 5; i++)
             host.Step(default);
@@ -241,12 +242,14 @@ public class LobbyBrowserTests
 
         host.ChangeMood(RunMood.Competitive);
         host.ChangePassword("tinder");
+        // The record it was hosted with goes on being said beside the mood.
+        Assert.Equal("212", alice.LobbyData(id, NetPlaySession.RecordKey));
         Assert.Equal((true, RunMood.Competitive), (host.Locked, host.Mood));
         using (var browser = new LobbyBrowser(lan: null, me))
         {
             Browse(browser, games => games.Count > 0, me, host);
             var game = Assert.Single(browser.Games);
-            Assert.Equal((true, RunMood.Competitive), (game.Locked, game.Mood));
+            Assert.Equal((true, RunMood.Competitive, (int?)212), (game.Locked, game.Mood, game.RecordKm));
         }
         Assert.DoesNotContain(new[] { NetPlaySession.LockedKey, NetPlaySession.MoodKey }, k => alice.LobbyData(id, k).Contains("TINDER", StringComparison.OrdinalIgnoreCase));
         var e = Assert.Throws<JoinRefusedException>(() => NetPlaySession.JoinLobby(Content, carol, id, () => host.Step(default)));
@@ -278,6 +281,8 @@ public class LobbyBrowserTests
         Browse(browser, games => games is [{ PingMs: not null }], null, host);
         var game = Assert.Single(browser.Games);
         Assert.Equal((true, RunMood.Competitive), (game.Locked, game.Mood));
+        // Note 535: no record given, none said.
+        Assert.Null(game.RecordKm);
         // The host's lobby panel says it's private, listed with a lock (not "your game's listed").
         Assert.True(host.Link!.Value is { Listed: true, Locked: true });
         var at = new IPEndPoint(IPAddress.Loopback, host.Port);

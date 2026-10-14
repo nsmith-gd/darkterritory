@@ -1253,6 +1253,9 @@ One player's machine hosts (a listen server, like *Lethal Company* and *PEAK*). 
 - **Public and private.** A public run is listed for anyone to join. A private run is listed too, with a lock, and needs its password. The host's Steam friends get in without it, as an invite would let them.
 - **Every row shows its ping.** "--" until it's measured.
 - **The run's mood.** One setting, on the host and join screens alike: **Here for Laughs** (sociable, not super competitive), **Feeling Competitive** (out for the longest runs you can make), or either. A host's run is listed with it. Joining, runs of your mood come first, nearest first.
+- **Changed with the lobby open** *(note 535)*. The host of a listed run changes its mood and its password from the in-night menu. Whoever's aboard stays aboard. A crew going on to the next night is let in with the new password.
+- **A guess costs time** *(note 535)*. A wrong password is refused after a second, and each further wrong guess from the same machine or account waits twice as long, up to half a minute. A mistype costs a second; a guesser gets a few tries a minute.
+- **The record.** Each run is listed with its host's record: the furthest any of their crews has gone in a campaign. It sits beside the mood, for players feeling competitive. The PROFILE page shows it too.
 
 ## 34. Agent verification harness
 

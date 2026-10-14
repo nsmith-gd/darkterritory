@@ -1091,11 +1091,11 @@ public sealed class FrontEnd
         ],
         Screen.Join =>
         [
-            new(new(Row("LOBBY", "CREW", "TIER", "MOOD", "PING"), null, false)),
+            new(new(Row("LOBBY", "CREW", "TIER", "MOOD", "RECORD", "PING"), null, false)),
             .. ListedGame.Sort(Games, Settings.Mood).Select(g => new Entry(new(Row((g.Locked ? $"{BitmapFont.Lock} " : "") + g.Name.ToUpperInvariant(), g.Max > 0 ? $"{g.Aboard}/{g.Max}" : $"{g.Aboard}",
                     // What can't be joined says why where its tier would be (the row's width is the frame's).
                     g.Protocol != Protocol ? "OTHER VERSION" : g.Full ? "FULL" : Enum.TryParse<RouteTier>(g.Tier, out var t) ? Name(t) : "-",
-                    Moods.Tag(g.Mood), g.PingMs is { } ms ? $"{ms:0} MS" : "-- MS"),
+                    Moods.Tag(g.Mood), g.RecordKm is { } km ? $"{km} KM" : "-", g.PingMs is { } ms ? $"{ms:0} MS" : "-- MS"),
                     g.Locked ? $"Private: the host's password to join. {g.Where}" : g.Where, g.Protocol == Protocol && !g.Full),
                 () =>
                 {
@@ -1241,10 +1241,12 @@ public sealed class FrontEnd
 
     /// <summary>
     /// The join screen's columns: the font's fixed-width, so spaces line them up under the header. A private run's name
-    /// starts with the font's padlock (note 450); the ping always has a figure, "--" till it's measured.
+    /// starts with the font's padlock (note 450); the ping always has a figure, "--" till it's measured. RECORD (note 535) is
+    /// how far the host's crews have gone, beside who the run's for: what a player feeling competitive looks for. For its room
+    /// the name keeps to a name's longest (a locked one's last two letters give way to the padlock).
     /// </summary>
-    static string Row(string name, string crew, string tier, string mood, string ping) =>
-        $"{(name.Length > MaxLobbyName + 1 ? name[..(MaxLobbyName + 1)] : name),-26}{crew,-6}{tier,-15}{mood,-8}{ping,6}";
+    static string Row(string name, string crew, string tier, string mood, string record, string ping) =>
+        $"{(name.Length > MaxLobbyName ? name[..MaxLobbyName] : name),-25}{crew,-6}{tier,-15}{mood,-8}{record,7}{ping,7}";
 
     /// <summary>A private run with no password yet: it can't be opened (note 450).</summary>
     bool PasswordMissing => !Settings.PublicLobby && Settings.LobbyPassword.Trim().Length == 0;
@@ -1515,6 +1517,12 @@ public sealed class FrontEnd
         [.. Enum.GetValues<UiStyle.Commendation>().Select(c => (c, Profile.Commendations.GetValueOrDefault(Sim.Run.Commendations.StarterSet[(int)c])))];
 
     /// <summary>The line over the PROFILE page's badges: how many in all, or how they're come by.</summary>
+    /// <summary>
+    /// The player's record (note 535), as the PROFILE page says it: the furthest any of their crews has gone, which a run they
+    /// host is listed with beside its mood. Null till a crew's gone a kilometre.
+    /// </summary>
+    public string? RecordLine => Profile.RecordKm is >= 1 and var km ? $"RECORD: {(int)km} KM, THE FURTHEST A CREW OF YOURS HAS GONE" : null;
+
     public string TallyLine => Tally.Sum(t => t.Given) is var total && total == 0
         ? "NO COMMENDATIONS YET: A CREW GIVES THEM AT THE END OF A NIGHT." : $"GIVEN BY YOUR CREWS: {total} IN ALL";
 
@@ -1526,6 +1534,13 @@ public sealed class FrontEnd
     float DrawProfile(Overlay o, float x, float y, int width, int height)
     {
         var tally = Tally;
+        // Note 535: the record a run you host is listed with, over the tally.
+        if (RecordLine is { } record)
+            foreach (var line in UiStyle.Wrap(o, record, width - x - 8))
+            {
+                o.Text(x, y, line, Ink);
+                y += 10;
+            }
         // Wrapped at a bigger TEXT SIZE (note 347).
         foreach (var line in UiStyle.Wrap(o, TallyLine, width - x - 8))
         {

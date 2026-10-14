@@ -669,7 +669,8 @@ static string Doing(Launch chosen) => chosen switch
                 if (night.Bots > 0)
                     Console.WriteLine($"a crew of {night.Bots} bot{(night.Bots == 1 ? "" : "s")} aboard");
                 return (NetPlaySession.HostGame(content, setup, port, online: night.Host ? steam : null, resume: resume, bots: night.Bots,
-                    listed: frontEnd.Settings.PublicLobby || password is not null, lobbyName: frontEnd.LobbyName, password: password, mood: frontEnd.Settings.Mood), campaign);
+                    listed: frontEnd.Settings.PublicLobby || password is not null, lobbyName: frontEnd.LobbyName, password: password, mood: frontEnd.Settings.Mood,
+                    recordKm: profile.Load().RecordKm), campaign);
             }
         // From the menu always the real night (T110: with no bots too, it's the same game alone); the bare prototype is the
         // command line's, for a route or line on its own.
@@ -685,7 +686,7 @@ static string Doing(Launch chosen) => chosen switch
                     FirstChildReal = profile.FirstChildReal,
                 };
                 var session = NetPlaySession.HostGame(content, setup, port, online: hosted.Host ? steam : null, bots: hosted.Bots,
-                    listed: hosted.Public, lobbyName: hosted.LobbyName, password: hosted.Password, mood: hosted.Mood);
+                    listed: hosted.Public, lobbyName: hosted.LobbyName, password: hosted.Password, mood: hosted.Mood, recordKm: profile.Load().RecordKm);
                 if (hosted.Bots > 0)
                     Console.WriteLine($"a crew of {hosted.Bots} bot{(hosted.Bots == 1 ? "" : "s")} aboard");
                 if (port is not null)
@@ -1395,7 +1396,7 @@ CampaignState? Play(IPlaySession session, CampaignState? campaign)
                 Console.WriteLine($"crew: {aboardNow} aboard");
             }
             if (campaign is not null && session is NetPlaySession played)
-                campaign = Autosave(saves, campaign, played, content);
+                campaign = Autosave(saves, profile, campaign, played, content);
             // The ears are where the eyes were last frame; audio follows the sim tick so no shot is missed.
             // Watching a crewmate (App. D.10), you hear what they hear: their shelter, their space.
             var ears = session.Viewpoint;
@@ -1804,7 +1805,7 @@ CampaignState? Play(IPlaySession session, CampaignState? campaign)
 }
 
 // Spec E: autosave on each departure from a facility, and settle the night into the slot when it's over.
-static CampaignState Autosave(SaveSlots saves, CampaignState campaign, NetPlaySession session, string content)
+static CampaignState Autosave(SaveSlots saves, PlayerProfile profile, CampaignState campaign, NetPlaySession session, string content)
 {
     if (campaign.Current is null)
         return campaign;
@@ -1819,6 +1820,8 @@ static CampaignState Autosave(SaveSlots saves, CampaignState campaign, NetPlaySe
             settled = Campaign.Arrived(settled, report, DarkTerritory.Sim.Towns.TownAt.Terminus(arrived,
                 DarkTerritory.Sim.LineGen.LineGenContent.Cached(content).Config.Tiers.Fortress.Identities));
         saves.Save(settled);
+        // Note 535: how far this crew's gone, the player's record if it's the furthest (a run they host is listed with it).
+        profile.Reach(Campaign.Distance(settled));
         Console.WriteLine($"campaign: {report.End}, net {report.Net:0} scrip; now {settled.Cars} cars and {settled.Scrip:0} scrip after {settled.Runs} nights");
         return settled;
     }

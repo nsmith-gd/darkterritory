@@ -21,6 +21,11 @@ public sealed class PlayerProfile(string path)
         public bool ChildCalled { get; init; }
         /// <summary>Nights this player has seen to their end (note 350): the first ones show the yard's controls card.</summary>
         public int Nights { get; init; }
+        /// <summary>
+        /// The furthest any of this player's crews has gone in a campaign, km (note 535): what a run they host is listed with,
+        /// beside its mood, for players feeling competitive.
+        /// </summary>
+        public double RecordKm { get; init; }
     }
 
     public string Path { get; } = path;
@@ -59,6 +64,17 @@ public sealed class PlayerProfile(string path)
     {
         var was = Load();
         var data = was with { Nights = was.Nights + 1 };
+        Save(data);
+        return data;
+    }
+
+    /// <summary>A crew of this player's has gone <paramref name="km"/> in its campaign (note 535): the record, if it's further.</summary>
+    public Data Reach(double km)
+    {
+        var was = Load();
+        if (km <= was.RecordKm)
+            return was;
+        var data = was with { RecordKm = km };
         Save(data);
         return data;
     }
