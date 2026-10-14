@@ -900,4 +900,7 @@ written here instead is moved out by `tools/coord/notes.py split`; the Coordinat
 - [741. The driver dies and no bot takes the cab (A1, queue #475; the director, 14 Oct, `docs/playtest/2026-10-14-second.md` line 5)](notes/741.md)
 - [742. Too few kinds of creature in a night (A1, queue #476; the director, 14 Oct, `docs/playtest/2026-10-14-second.md` line 2)](notes/742.md)
 - [743. The dead's cameras: a wide of the train, over a shoulder, the bodies (A1, queue #477; the director, 14 Oct,…](notes/743.md)
+- [764. The HUD's top lines kept apart (B3, queue #494; the director, 14 Oct, `docs/playtest/2026-10-14.md` line 24)](notes/764.md)
+- [765. Where the run ends, told (B3, queue #495; the director, 13 Oct evening, `docs/playtest/2026-10-13-evening.md` line 26)](notes/765.md)
+- [766. The tally says why it's in the red (B3, queue #496; the director, 13 Oct evening, `docs/playtest/2026-10-13-evening.md` line 27)](notes/766.md)
 <!-- end of the notes index -->
