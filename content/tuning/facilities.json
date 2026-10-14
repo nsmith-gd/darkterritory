@@ -96,7 +96,13 @@
     // a casting with its base this low over an open hatch's roof that overlaps the opening but doesn't clear it is eased over
     // it, the bridge and trolley drawn there at guideSpeed (m/s, about the bridge's own speed); let go there, it's put through.
     "guideAbove": 2.5,
-    "guideSpeed": 1.0
+    "guideSpeed": 1.0,
+    // The operator's view from the cab (GDD §18; the director's evening playtest, 13 Oct: "widen the camera angle a little
+    // bit, maybe even go a little more top down"; note 707): this wide (degrees, vertical; it was 55), looking along the
+    // gantry at the trolley. As the hook comes down from the top, over "lowerFrom" m the look tips down toward it, "down" of
+    // the way from the trolley to the hook (0 to 1), and the eye leans "lean" m out toward it (to the cab's window, under its
+    // roof), so with the hook low it looks down over the load into the car.
+    "view": { "fov": 72, "lowerFrom": 4, "down": 0.75, "lean": 0.6 }
   },
   // GDD §18's set pieces (WP15, ARCHITECTURE §8 note 185).
   // The grain elevator: "one spout, one car at a time. Endless repositioning and switch calls" (spec D.2's gravity chute,
