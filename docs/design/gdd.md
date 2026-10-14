@@ -577,6 +577,8 @@ Cargo is physically represented and **changes the run** rather than just scoring
 | Child survivor | The most valuable cargo there is. Carried by hand to a cargo car |
 | Hand-carried loot | Toys, crates, salvage. Stolen, eaten, and traded to monsters. Some toys are noisy: a squeaker, a music box, a wind-up drummer. They feed the crew loudness meter while carried (Appendix C.7) |
 
+**The mail cranes** *(notes 673, 727; the director, 14 Oct 2026, App. F.6)*. Between the stops, mail cranes stand beside the line, each with a board a way ahead saying which side. Someone in a car's open side door on that side, holding the hook out as the car goes by, catches its bag: pay, coal for the tender, rounds for the guns or spares for the worst car. The board posts the speed the hook holds a bag at ("MAIL > 50"), and a bag hooked faster tears off and is lost, so the one at the door calls the driver down for it.
+
 ---
 
 # PART SIX — ENEMIES

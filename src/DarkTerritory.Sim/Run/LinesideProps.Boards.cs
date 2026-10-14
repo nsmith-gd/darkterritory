@@ -119,7 +119,9 @@ public sealed partial class LinesideProps
     {
         SignKind.SpeedLimit => ("speedBoard", sign.LimitKmh.ToString(System.Globalization.CultureInfo.InvariantCulture)),
         SignKind.LowClearance => ("restricted", "LOW"),
-        SignKind.Drop => ("mailDrop", sign.Drop is { Side: < 0 } ? "< MAIL" : "MAIL >"),
+        // The crane's posted speed for the hook under its MAIL (note 727): over it, a bag hooked tears off.
+        SignKind.Drop => ("mailDrop", (sign.Drop is { Side: < 0 } ? "< MAIL" : "MAIL >")
+            + (sign.Limit > 0 ? " " + sign.LimitKmh.ToString(System.Globalization.CultureInfo.InvariantCulture) : "")),
         SignKind.Terminus => ("lineClosed", "END"),
         _ => ("restricted", "?"),
     };
