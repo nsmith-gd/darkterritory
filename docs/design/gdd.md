@@ -545,6 +545,8 @@ Not a punishment mechanic — the whole tension of the sequence. The person on t
 
 Each stop of a kind has the module it's named for and two to four in all, drawn for the night (spec D.1's module grammar; note 449). One mine head has its lift and a winch, the next its lift, tipple and crates; a switchyard or a slaughterhouse may have a winch; a wreck yard, crates.
 
+**The crane operator's view** *(the director's evening playtest, 13 Oct: "Camera angle for lowering things in when you get close does not make a lot of sense ... widen the camera angle a little bit, maybe even go a little more top down"; note 707)*. At the controls, the operator looks from the crane's cab along the gantry, wide enough to see the bridge, the trolley and the car under them. As the hook comes down, the operator leans to the cab's window and the view tips down after it, until with the hook low the operator looks down over what's on it into the car. The ground crew round the stack and the car's side are still out of sight, and still have to call the position (spec D.2).
+
 **Every facility is optional. Skipping them is safe and pays nothing:** the train leaves the fortress empty, and only what the crew load at the stops and carry out of the villages is paid at the gates (§1 *The fantasy*; the director, 9 Oct 2026, note 575). The payout exists to force bad decisions, not to reward good ones.
 
 ## 19. Cargo
