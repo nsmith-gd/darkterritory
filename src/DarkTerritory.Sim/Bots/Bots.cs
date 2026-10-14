@@ -120,6 +120,9 @@ public sealed class GunnerBot(GunTuning guns, ChoirTuning? choir = null, int see
         // Note 448: a truss Dragger scraping over this gun's car coming under: down its hatch ladder until the car's through.
         if (Duck(self, world) is { } ducking)
             return ducking;
+        // Note 741: nobody driving and nobody else to go: off the gun, forward to the controls (the legs' relief).
+        if (_legs.ReliefWanted(world))
+            return _legs.Decide(self, world, tick, out aimed);
         // T103 (T93 playtest: "so a cannon can be saved before decoupling a car"): a car the Car Hugger has hold of is a car
         // lost, cut loose or eaten through, and its gun with it: first, the gun pushed up the rail onto the car ahead.
         if (SaveGun(self, world) is { } saving)
@@ -532,6 +535,36 @@ public sealed class RoofWalkerBot(int seed, ColdTuning? cold = null, StopHand? j
     bool _cameForward;
 
     /// <summary>
+    /// Nobody's driving: a driver heard and none alive on the calls now (note 399), and nobody playing holding the controls.
+    /// Note 741 (the director, 14 Oct: "I was driving the train and then I died. And the bots did not take over"): someone
+    /// playing at the controls is the driver, though they're never on the calls; while they hold them, nobody goes forward,
+    /// and the moment they let go of them (dead, or out of the cab), the relief does.
+    /// </summary>
+    bool DriverGone(World world, CrewCalls calls)
+    {
+        if (_relief is null)
+            _sawDriver |= calls.Has(StopJob.Driver);
+        if (world.ControlsHolder >= 0 && !world.ControlsHolderBot && world.ControlsHolder != Me)
+            return false;
+        return _relief is not null || _sawDriver && !calls.Has(StopJob.Driver);
+    }
+
+    /// <summary>
+    /// Note 655: a bot walker alive that isn't a gunner, to go forward for the controls instead of a gunner. Note 741: a
+    /// bot, not someone playing: a crewmate playing is no walker to leave it to, and the train ran on with nobody at it.
+    /// </summary>
+    bool AWalkerFor(CrewCalls calls) =>
+        Crew.Any(c => c.Id != Me && c.State.Alive && calls.IsBot(c.Id) && c.Id != calls.Gunner(false) && c.Id != calls.Gunner(true));
+
+    /// <summary>
+    /// Note 741: a gunner's legs wanted forward for the controls: nobody driving, and no walker for it. Its gun gives its
+    /// legs only some of its turns, and seated it gave them none, so with the driver bot dead before someone playing died
+    /// at the controls, nobody went (the gunner sat at its gun on car 4).
+    /// </summary>
+    public bool ReliefWanted(World world) =>
+        Gunner && Calls is { } calls && Me >= 0 && (Relieving || DriverGone(world, calls) && !AWalkerFor(calls));
+
+    /// <summary>
     /// The relief driver (note 399, <see cref="ReliefDriver"/>): a driver heard, and now none alive on the calls, and nobody
     /// living gone forward for it: claimed, and forward to the cab (along the roofs, onto the engine, down its roof hatch),
     /// then the controls as a <see cref="ConductorBot"/> in the dead driver's place (member 0). Null otherwise, or with the
@@ -553,9 +586,7 @@ public sealed class RoofWalkerBot(int seed, ColdTuning? cold = null, StopHand? j
         // A Climber in the cab (App. A.4): it stays while anyone's in there, and only two clubbing it together hurt it (note
         // 288), so the driver alone keeps clear of it, the fire unworked, till the train stands (a harness night's, at km 3.9).
         var climber = world.ActiveEnemies.OfType<Climber>().FirstOrDefault(c => c.Inside && c.Attached == 0 && !c.Gone);
-        if (_relief is null)
-            _sawDriver |= calls.Has(StopJob.Driver);
-        bool driverGone = _relief is not null || _sawDriver && !calls.Has(StopJob.Driver);
+        bool driverGone = DriverGone(world, calls);
         if (!driverGone && climber is null)
         {
             if (calls.Relief == Me)
@@ -572,7 +603,7 @@ public sealed class RoofWalkerBot(int seed, ColdTuning? cold = null, StopHand? j
         // Note 655: a gunner's legs leave it to a walker while there's one alive. The gunner gives its legs only some of its
         // turns: claimed on one, it held the claim at its gun, and nobody went (deepTerritory:7 seed 6, the train stood from
         // 567 s till dawn).
-        if (Gunner && Crew.Any(c => c.Id != Me && c.State.Alive && c.Id != calls.Gunner(false) && c.Id != calls.Gunner(true)))
+        if (Gunner && AWalkerFor(calls))
         {
             if (calls.Relief == Me)
                 calls.Relief = null;
