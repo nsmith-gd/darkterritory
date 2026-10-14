@@ -475,7 +475,7 @@ Roles emerge from position. You end up on the cannon because you're standing at 
 - **Going up:** walk to it looking up, or press the ladder key at its foot. Walking past it while working the cab, eyes level, doesn't take it. A car's hatch ladder inside works the same way ("DOWN INSIDE" from its roof).
 - **Going down:** at the open hatch on the roof, the ladder key takes you down into the cab.
 - **What it says:** at the foot, "UP TO THE ROOF"; at the hatch above, "DOWN INTO THE CAB".
-- **How it looks:** the hatch stands open, its lid up on its hinges, and the night shows through it.
+- **How it looks:** the hatch stands open, a real opening cut through the roof round the climber's way up, its lid folded back over the eave, and the night shows through it. The eye comes up through it, never through the roof *(the director's playtest, 14 Oct: "it looks like we're actually going through ... there's a weird sort of texture that's flashing over top of the hole"; note 734)*.
 
 ### Weapons
 
