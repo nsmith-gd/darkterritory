@@ -1131,11 +1131,10 @@ Clear and slightly rough, never hyper-smooth.
 **VFX supports readability rather than overwhelming it:** steam venting, sparks, smoke trails, cannon flash and powder smoke, cinders, lantern sway, rail grit, furnace flare, drifting fog, subtle corruption particulate. Mechanical first, supernatural second.
 
 **Speed is felt, not just read off the gauge** *(the director's evening playtest, 13 Oct: "It says we're going 27 kilometers an hour. I think by world standards we are, but when I look out the front, it just feels so agonizingly slow"; note 709)*. The train's speeds are what they are; what changes is how they feel aboard:
-- **The view widens with speed:** a few degrees at a walking pace, up to about eight at the line's full speed, eased so the first gain is the one felt.
-- **The rail joints come through the floor:** a small knock at each rail length, two bogies apiece, so the beat quickens as the train does.
-- **The car sways** gently on the track, more as it goes faster.
+- **The view widens with speed:** a few degrees at a walking pace, up to about twelve at the line's full speed, eased so the first gain is the one felt.
+- **The view never shakes for speed** *(the director's playtest, 14 Oct: "it seems like the cab is shaking. I don't like that ... the train feels like it's sort of rocking a little bit as well"; note 735)*. A knock at each rail joint and a sway on the eye were tried (note 709) and taken out: a shaking view reads as the camera, not the train. The rails' rhythm is heard (the rumble by speed), and what passes the window carries the rest.
 
-All of it is aboard only, never in a headset (the view's widening would make a rider sick), and the settings' CAMERA SHAKE turns the knock and the sway down to none.
+All of it is aboard only, and never in a headset (the view's widening would make a rider sick).
 
 ## 32. Art serves the voice channel
 
