@@ -517,6 +517,11 @@ meaning"), turned into ground plans the walled town's houses and people stand on
   bare inside the wall but the square, its green, the works and the water.
 - **Both halves walled.** The yard has a wall each side in front of the first row's backs, open at every stair lane; the
   outer wall has a turret every 45 m between its gun towers. A drop past a storey is rock, a wall over one stands on it.
+- **Nothing stands in the water.** A house over water stands on a stage, a deck built to bear it, reached by a walk
+  from a causeway, a quay or the dyke; one out where the walk ends has a jetty and a boat (the director, 14 Oct: "we
+  can't just have houses floating in the water"). A harbour opens to the sea through its wall, its breakwater out past it.
+- **Organic where the land is.** A hill town wraps its hill in rings, its lanes spokes up to the crown; a flat town's
+  streets wander together like contours.
 - **Weathered Maritime.** The fortress towns' houses are the province's shapes gone grim: tall, weathered shingle, the
   old colours dulled, sooted and salt-bleached.
 - **Open houses stand square to the line, on dry ground, nearest the square.** Their rooms are their walls.
