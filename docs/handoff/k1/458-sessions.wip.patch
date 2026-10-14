@@ -1,0 +1,2378 @@
+diff --git a/content/tuning/player.json b/content/tuning/player.json
+index e0767232..2f3b1a01 100644
+--- a/content/tuning/player.json
++++ b/content/tuning/player.json
+@@ -179,9 +179,24 @@
+   // patch (`{"$patch": true, "crew": {"cap": 12}}`): everyone in a game runs the same content, so they agree on it. The net
+   // budget (ARCHITECTURE §6) has headroom to 12; past that is untested. refuseLingerSeconds: how long the host keeps a
+   // refused link open for the refusal to get there before it hangs up (the client hangs up itself on reading it).
++  //
++  // Sessions (GDD §33.1; ARCHITECTURE §8 note 724; the director, 14 Oct 2026, App. F.6). joinTakesBotSeat: a human joining a
++  // night that bots crew, who'd otherwise wait for a stop, go into the Holdouts' queue or be turned away from a full crew,
++  // takes a bot's place where it stands (its body, its slots and what it carries, its health, its post): a living bot's, the
++  // director's census's least busy, else the newest, the one at the cab's controls last. The bot leaves. false: the old way.
++  // kick: the host puts a player off from the roster (Q held, Shift and their number); in a public lobby (listed, no password)
++  // anyone aboard can call the crew's vote on someone, open voteSeconds, carried by more than `majority` of the living humans
++  // aboard (the one voted on not counted). Put off, a player's told THE CREW PUT YOU OFF AT THE NEXT STOP and can't come back
++  // to that run (barred by their account or address, or by name on a LAN that has none). A private or friends-only run: the
++  // host's kick only.
+   "crew": {
+     "cap": 8,
+-    "refuseLingerSeconds": 3
++    "refuseLingerSeconds": 3,
++    "joinTakesBotSeat": true,
++    "kick": {
++      "voteSeconds": 30,
++      "majority": 0.5
++    }
+   },
+   // Emotes (GDD §9: the yard's a safe space where "the crew wait for friends, hang out, dance"; ARCHITECTURE §8 note 298).
+   // Seconds each lasts, unless its player moves first: the host keeps the event this long for the crew to see. cooldown:
+@@ -205,10 +220,13 @@
+   // can be shoved off of it. And at speed, it kills you"; and the lump of coal "is going to need to be able to work with the
+   // current coal shoveling system". Nothing a crewmate does to another is damage: staggers, soot and knocks only, and a death
+   // only through the world's own rules (the landing, by the train's speed or the height), so the report names who.
+-  // enabled: false turns the shove, the bonk and coal at the crew off (the lobby's "crew mischief" to come); crewmates stay
+-  // solid to each other either way.
++  // enabled: false turns the shove, the bonk and coal at the crew off for every lobby; crewmates stay solid to each other
++  // either way. The lobby's CREW MISCHIEF switch (note 724, GDD §23.4) turns it off for one run: the host sets it on the host
++  // screen or the fortress board, or in the yard from the night's menu. It starts on, but in a public run FEELING COMPETITIVE
++  // with competitiveOff (strangers meet there; among friends and for laughs it's on).
+   "horseplay": {
+     "enabled": true,
++    "competitiveOff": true,
+     // Crewmates are solid to each other: two shoulders of `radius` (m) each, on the ground or in a car, out of each other at
+     // `share` of the overlap a tick each, no faster than maxSpeed (m/s, over a run, so nobody runs through anybody): soft, so
+     // whoever stands in a doorway is squeezed past, pushed along at half the pace of whoever walks into them (an edge holds
+diff --git a/docs/design/gdd.md b/docs/design/gdd.md
+index d0977827..2101acb5 100644
+--- a/docs/design/gdd.md
++++ b/docs/design/gdd.md
+@@ -432,6 +432,8 @@ Successful deliveries earn money. Money buys capability. Capability allows more
+ 
+ **One wallet.** The whole crew shares a single wallet for every purchase and upgrade. Nobody holds their own money. More crew means more hands and more loot, faster, which is why getting people back into a run matters (Appendix D).
+ 
++**The crew's save travels** *(the director, 14 Oct 2026; ARCHITECTURE §8 note 724)*. The campaign is the crew's, not the host's machine's. Each time a night is settled into the save, the host sends it to everyone aboard, and each keeps it among the **crews they've ridden with** (never over their own slots). Under the slots the campaign screen lists them, *"CREW OWLS · NIGHT 8 · LAST HOSTED BY DAVE"*, and any member can host the crew's next night from there, so the crew carries on whoever turns up. Two copies of a crew that differ: the one with more nights settled wins; with as many, the newest settlement. A train taken at dawn (§8) closes every copy: it stays listed, ended.
++
+ ### Route tiers
+ 
+ | Tier | Description |
+@@ -967,7 +969,7 @@ Friends mess with each other. The game lets them, cheaply and recoverably, and k
+ - **The shove** (Left Alt, rebindable): looking at a crewmate within arm's reach, hands off the shovel. They go off their feet the way you shoved, and stagger for a moment: they can look and talk, nothing else. On a roof near its side, that's over the edge; the edge holds a walker, not a shove. Then it's the landing: at a stand, a car's roof is just a drop; at speed, past 16.5 m/s, it kills, and the report reads *"Shoved off the train ... Shoved off by Dave at 65 km/h."* Someone just behind the one you shoved gets bumped too. Bots never shove; they can be shoved.
+ - **Coal off the shovel.** Hold Use at the firebox and the coal is on the shovel halfway through the stroke; keep Use held and turn away, and it's still there. Throw throws it along your view. A friend it hits is staggered and sooty-faced for the rest of the night; a creature takes a quarter of a blow. The fire is a shovelful short (it came out of the tender). Bots never throw coal at the crew.
+ - **The bonk.** A tool's swing that meets a crewmate before a creature lands on them: a clang, a short stagger, no damage. The report counts them for anyone bonked often enough: *"Bonked 14 times, mostly by Priya."*
+-- **The switch.** `horseplay.enabled` turns the shove, the bonk and coal at the crew off, for the lobby's "crew mischief" option to come. Crewmates stay solid either way. All the numbers are in `player.json horseplay`.
++- **The switch: CREW MISCHIEF** *(the director, 14 Oct 2026; ARCHITECTURE §8 note 724)*. A lobby option the host sets on the host screen or the fortress board, or in the yard from the night's menu: ON or OFF for the run. Off, the shove, the bonk and coal thrown at the crew land on nobody; crewmates stay solid either way. It starts on among friends (a private run) and in **Here for Laughs** runs, off in a public run that's **Feeling Competitive** (§33.1), where strangers meet. Every machine has it with the night's setup, and again whenever the host changes it. `horseplay.enabled` turns it all off for every lobby. All the numbers are in `player.json horseplay`.
+ 
+ ## 24. Decoupling
+ 
+@@ -1251,6 +1253,16 @@ One player's machine hosts (a listen server, like *Lethal Company* and *PEAK*).
+ - **Every row shows its ping.** "--" until it's measured.
+ - **The run's mood.** One setting, on the host and join screens alike: **Here for Laughs** (sociable, not super competitive), **Feeling Competitive** (out for the longest runs you can make), or either. A host's run is listed with it. Joining, runs of your mood come first, nearest first.
+ 
++#### Sessions *(the director, 14 Oct 2026; App. F.6; ARCHITECTURE §8 note 724)*
++
++Friend groups break on friction: uneven attendance, slow joins, strangers in public games. Mischief is fine among friends; a public lobby needs kick and mute so horseplay (§23.4) can ship there.
++
++- **The crew's save travels** (§11): any member can host the crew's next night.
++- **A friend takes a bot's seat.** Bots crewing the night, a friend joining mid-night doesn't wait for a stop or the Holdouts' queue (App. D.3), and isn't turned away from a full crew: they take a bot's place where it stands, its body, its slots and what it carries, its health and its post. The bot leaves. Which bot: a living one, the one the director's census rates least busy, else the newest; the one at the cab's controls last. No bot aboard, it's the old way. (`player.json crew.joinTakesBotSeat`.)
++- **Mute,** on your own machine: hold the roster (Q) and press a crewmate's number. MUTED beside their name, and nothing of their voice is played to you, near, on the radio, down the speaking tube or from a Soot Child's mouth.
++- **Kick.** The host puts a player off from the roster: Q held, Shift and their number. In a **public** run anyone aboard can do the same to call the crew's vote, open 30 seconds, carried by a majority of the living humans aboard (not counting the one voted on); others agree the same way, and the vote's said across the top of every screen. Put off, a player goes back to the menu with *"THE CREW PUT YOU OFF AT THE NEXT STOP"*, and can't come back to that run. A private or friends-only run: the host's kick only. (`player.json crew.kick`.)
++- **CREW MISCHIEF** on or off (§23.4).
++
+ ## 34. Agent verification harness
+ 
+ Embodied in-engine agents play the game headlessly. A fixed roster makes this an exhaustive problem rather than an open-ended one.
+diff --git a/docs/notes/724.md b/docs/notes/724.md
+new file mode 100644
+index 00000000..d588dab8
+--- /dev/null
++++ b/docs/notes/724.md
+@@ -0,0 +1,29 @@
++724. **Sessions (K1, queue #458; the director, 14 Oct 2026, `docs/design/friendslop.md`, GDD App. F.6).**
++The audit's Friends goal ("It's extremely important that friends exceeds our target meaningfully") and its guardrail: mischief is fine among friends, and a public lobby needs kick and mute so horseplay (note 717) can ship there. Friend groups break on friction: uneven attendance, slow joins, strangers in public games.
++
++   - **What it was:**
++     - A campaign lived in the host's three slots: a crew whose host didn't turn up couldn't play its next night.
++     - A friend joining mid-night waited at the train for the next stop, or (past the gate, with Holdouts) went dead into the respawn queue (`HostSession.Admit`), with bots crewing the night they could have taken over; a full crew of bots turned them away.
++     - No mute and no kick: the only tool against a stranger was leaving.
++     - Horseplay's switch was `player.json horseplay.enabled`, the same for every lobby.
++   - **Now:**
++     - **The crew's save travels** (GDD §11): as the host settles a night into the save (the app's `Autosave`), it stamps it with who hosted (`CampaignState.LastHost`) and when (`SettledAt`, the host's clock), and sends its bytes to every human aboard or waiting (`HostSession.ShareSave`, `MessageType.CrewSave` in chunks; bots skipped). Each joiner keeps it under the crew's id (`CampaignState.CrewId`: `Crew`, or an older save's seed) in `saves/crews/`, never in a slot (`SaveSlots.Keep`, slot 0). The campaign screen lists them under the slots, "CREW OWLS · NIGHT 8 · LAST HOSTED BY DAVE" (one in your own slots only when the copy has gone further); chosen, it's the fortress board for that crew, and its nights are hosted from it (`Launch.CampaignNight.Crew`; saving goes back to the crew's file). Of two copies, the one with more nights settled wins, then the newer settlement, then the one held (`Campaign.Prefer`); a train taken at dawn (note 632) closes every copy, listed as TAKEN AT DAWN.
++     - **A friend takes a bot's seat** (GDD §33.1; `player.json crew.joinTakesBotSeat: true`): a human joiner who'd wait for a stop, go into the Holdouts' queue or be turned away from a full crew takes a bot's id where it stands, with its body, slots and what it carries, health and post (`HostSession.TakeSeat`): a living bot, the director's census's least busy (fewest threats on it, then most slack), else the newest, the one at the cab's controls last; a full crew takes a dead bot's seat before refusing. The joiner's welcomed into the id with a fresh token and adopts the state as a placement; the bot's link is hung up and its machine's `BotCrew` drops it (`HostSession.BotLeft` → `BotCrew.Retire`). No bot, or the flag off: the old way.
++     - **Mute** (this machine only): Q held, a crewmate's number toggles MUTED beside their name (`NetPlaySession.ToggleMute`, by id and by name for the next nights). `VoiceChat.Muted` drops their frames as they come, on every path: near, radio, the speaking tube, the dead channel, a Soot Child's mimicry (a death's hard-cut still lands).
++     - **Kick** (`player.json crew.kick`): Q held, Shift and the number. The host's own player puts them off outright. In a public lobby (listed, no password: `SessionSetup.VoteKicks`) anyone living and playing calls the crew's vote, or agrees to the one open (`MessageType.Kick`); open `voteSeconds` (30), carried by more than `majority` (0.5) of the living humans aboard, the one voted on not counted; the host and yourself can't be voted on; one vote at a time. The vote's across the top of every screen (`MessageType.KickVote`, `Hud.KickVoteLine`). Put off (`MessageType.Kicked`): their crewmate dropped as for a Leave (the place not held), hung up on after `refuseLingerSeconds`, the menu saying "THE CREW PUT YOU OFF AT THE NEXT STOP", no redial; coming back is refused (`RefusalReason.Kicked`), barred by their Steam account or LAN address, or by name where there's neither. Private and friends-only runs: the host's kick only.
++     - **CREW MISCHIEF** (GDD §23.4): on the host screen and, hosting, the fortress board; in the yard, the host's night menu (`Launch.SetMischief`). It starts on, but in a public run FEELING COMPETITIVE (`player.json horseplay.competitiveOff: true`; `Moods.MischiefByDefault`). It goes to every machine with the night's setup (`SessionSetup.Mischief` → `World.CrewMischief`) and, changed in the yard, as `MessageType.Mischief` (and to every joiner as they're welcomed). `World.MischiefOn` gates the shove, the bonk and coal at the crew (all decided by the host alone) and the HUD's SHOVE prompt.
++   - **Protocol 60:** message types CrewSave, Kick, KickVote, Kicked and Mischief, and `RefusalReason.Kicked`. Nothing in the snapshot or the input changed.
++   - **Checked:**
++     - `SessionsTests` (10): the save to every human in chunks and not to bots, replaced whole by the next; `Prefer` (more nights either way round, the newer settlement, the one held, dawn closing a fork); a joiner mid-night takes the newest bot's seat with its position, slots, health and post, drives it, and the bot crew's one fewer; no bot or the flag off, they wait; a full crew gives a friend a bot's seat and still refuses a bot; a public vote passes two of three, a repeated yes counts once, and the put-off can't come back by token or by name; a vote nobody backs runs out, one at a time, never on the host; a private run's vote does nothing and the host's kick does; mischief off, a shove lands on nobody, a late joiner's told, and on again it lands; the wire's messages.
++     - `SessionsGameTests` (5): the save host→client over loopback, kept in the crews not the slots, listed, its fortress, its night launched with its id and saved back; the copy with more nights stays, an ended crew stays listed ended, bytes that aren't a save are let go, a crew in your own slot isn't listed twice; a muted speaker's frames arrive and nothing is heard near, on the radio or down the tube (`VoiceBench` muted); the roster's MUTED, numbers and keys and the vote's line; mischief's defaults by mood, the host screen and the yard menu, and the setup building every world with it.
++     - `RejoinTests`, `CrewCapTests` (protocol 60), `NetcodeTests`, `HorseplayTests`, `PrivateRunTests`, `ControlsHolderTests`, `FrontEndTests`, `NightMenuTests`, `NetPlayTests`, `VoiceTests`, the whole of `DarkTerritory.Sim.Tests`.
++     - `dt screenshot --view cab --hud --roster`: the roster with MUTED, the numbers and the keys, and a vote across the top; looked at.
++   - **Left for later:**
++     - A headset's mute and kick (the roster's keys are the keyboard's).
++     - Mute's memory past the game closing (it's by name for as long as the game's open).
++     - The fortress board's crew copy can't be renamed or deleted from a joiner's machine (it's the crew's); a FORGET for one nobody hosts any more.
++     - `dt` and the harness don't settle a campaign night over the network; the save's travel is checked in tests.
++
++**Handoff** (14 Oct, K1)
++- Done: built on K1's branch, for K1 to integrate.
++- Next: a headset's roster keys; the playtest's word on the vote's numbers (30 s, a majority).
+diff --git a/src/DarkTerritory.App/Program.cs b/src/DarkTerritory.App/Program.cs
+index e60ba029..ee5c3398 100644
+--- a/src/DarkTerritory.App/Program.cs
++++ b/src/DarkTerritory.App/Program.cs
+@@ -137,6 +137,8 @@ var musicBags = new MusicBagFile(args.Contains("--saves") ? Path.Combine(saves.D
+ var frontEnd = new FrontEnd(campaignTuning, runTuning, saves, Arg("--settings", Settings.DefaultPath), edition: EditionTuning.Load(content))
+ {
+     Protocol = DarkTerritory.Sim.Net.Protocol.Version,
++    // Note 724: where the CREW MISCHIEF switch starts by mood.
++    Horseplay = DataFile.Load<PlayerTuning>(Path.Combine(content, PlayerTuning.File)).Horseplay,
+     DefaultPlayerName = steam?.NameOf(steam.Me) ?? Environment.UserName,
+     // GDD v1.4 App. E.6: the credits screen lists every track's performers (note 194).
+     Music = DarkTerritory.Sim.Music.MusicManifest.Load(content).Tracks,
+@@ -651,7 +653,7 @@ static string Doing(Launch chosen) => chosen switch
+             {
+                 // Spec E: the host owns the campaign, and picks a slot. The night is the contract picked from the board, with
+                 // the slot's cars and upgrades; hosting takes friends as usual.
+-                var campaign = saves.Load(night.Slot) ?? Campaign.New(campaignTuning, night.Slot, $"Crew {night.Slot}", (ulong)Random.Shared.Next(1, 100000));
++                var campaign = saves.Load(night.Slot, night.Crew) ?? Campaign.New(campaignTuning, night.Slot, $"Crew {night.Slot}", (ulong)Random.Shared.Next(1, 100000));
+                 // Resuming: the night that was under way, from the last facility it left (spec E "crash: rolls back to last POI autosave").
+                 var resume = night.Resume && campaign.Current is not null ? campaign.Checkpoint : null;
+                 var contract = night.Resume && campaign.Current is not null ? campaign.Current : Campaign.Offers(campaignTuning, runTuning, campaign)[Math.Max(0, night.Contract)];
+@@ -669,7 +671,7 @@ static string Doing(Launch chosen) => chosen switch
+                 if (night.Bots > 0)
+                     Console.WriteLine($"a crew of {night.Bots} bot{(night.Bots == 1 ? "" : "s")} aboard");
+                 return (NetPlaySession.HostGame(content, setup, port, online: night.Host ? steam : null, resume: resume, bots: night.Bots,
+-                    listed: frontEnd.Settings.PublicLobby || password is not null, lobbyName: frontEnd.LobbyName, password: password, mood: frontEnd.Settings.Mood), campaign);
++                    listed: frontEnd.Settings.PublicLobby || password is not null, lobbyName: frontEnd.LobbyName, password: password, mood: frontEnd.Settings.Mood, mischief: frontEnd.Mischief), campaign);
+             }
+         // From the menu always the real night (T110: with no bots too, it's the same game alone); the bare prototype is the
+         // command line's, for a route or line on its own.
+@@ -685,7 +687,7 @@ static string Doing(Launch chosen) => chosen switch
+                     FirstChildReal = profile.FirstChildReal,
+                 };
+                 var session = NetPlaySession.HostGame(content, setup, port, online: hosted.Host ? steam : null, bots: hosted.Bots,
+-                    listed: hosted.Public, lobbyName: hosted.LobbyName, password: hosted.Password, mood: hosted.Mood);
++                    listed: hosted.Public, lobbyName: hosted.LobbyName, password: hosted.Password, mood: hosted.Mood, mischief: hosted.Mischief);
+                 if (hosted.Bots > 0)
+                     Console.WriteLine($"a crew of {hosted.Bots} bot{(hosted.Bots == 1 ? "" : "s")} aboard");
+                 if (port is not null)
+@@ -756,6 +758,9 @@ while (!window.CloseRequested && !QuitNow())
+             Thread.Sleep(15);
+         }
+     }
++    // Note 724: a crew's save that came in as the night ended, kept before the session goes.
++    if (session is NetPlaySession { Host: null } rode && rode.TakeCrewSave() is { } lastSave)
++        saves.Keep(lastSave);
+     // Left: nothing of the night follows into the menus (its bed, its loops, a hold's tick).
+     sound.EndNight();
+     // What the crew commended you for tonight, on the PROFILE page from now (note 293).
+@@ -790,10 +795,17 @@ while (!window.CloseRequested && !QuitNow())
+     // Started from the command line: done when the night is. Otherwise, back to where it was chosen.
+     if (fromCommandLine)
+         break;
+-    if (leaving is Launch.CampaignNight night)
+-        frontEnd.ShowFortress(night.Slot, campaign is { Over: true } ? $"TAKEN AT DAWN. {Hud.CampaignOver}."
+-            : campaign?.History.LastOrDefault() is { } log && campaign.Current is null
+-            ? $"{log.End}: {(log.Net >= 0 ? "+" : "")}{log.Net:0} scrip" : null);
++    string? howItWent = campaign is { Over: true } ? $"TAKEN AT DAWN. {Hud.CampaignOver}."
++        : campaign?.History.LastOrDefault() is { } log && campaign.Current is null
++        ? $"{log.End}: {(log.Net >= 0 ? "+" : "")}{log.Net:0} scrip" : null;
++    // Note 724: put off by the crew, the menu says so.
++    if (session is NetPlaySession { Kicked: true })
++        frontEnd.NightOver(DarkTerritory.Sim.Net.Messages.PutOff);
++    // Note 724: a crew ridden with, hosted from its copy: back to its board.
++    else if (leaving is Launch.CampaignNight { Crew: { } rodeWith })
++        frontEnd.ShowCrew(rodeWith, howItWent);
++    else if (leaving is Launch.CampaignNight night)
++        frontEnd.ShowFortress(night.Slot, howItWent);
+     else
+         frontEnd.NightOver();
+ }
+@@ -813,7 +825,7 @@ return 0;
+     bool follow = chosen is Launch.Follow;
+     string? town = chosen switch
+     {
+-        Launch.CampaignNight { Resume: false } from => saves.Load(from.Slot)?.Town?.Name,
++        Launch.CampaignNight { Resume: false } from => saves.Load(from.Slot, from.Crew)?.Town?.Name,
+         Launch.Follow after => after.Going.Town.Name,
+         _ => null,
+     };
+@@ -896,7 +908,7 @@ CampaignState? Play(IPlaySession session, CampaignState? campaign)
+     }
+     if (proto is not null)
+         proto.Controls.Throttle = double.Parse(Arg("--throttle", "0"));
+-    var voice = net is null ? null : new VoiceChat(sound.Mixer) { PushToTalk = settings.PushToTalk || args.Contains("--push-to-talk") };
++    var voice = net is null ? null : new VoiceChat(sound.Mixer) { PushToTalk = settings.PushToTalk || args.Contains("--push-to-talk"), Muted = net.IsMuted };
+     // The radio's own clicks, squelch and static (voice-radio-sfx) follow what it's doing.
+     sound.Voice = voice;
+     using var mic = voice is null || settings.Mute || args.Contains("--mute") || args.Contains("--no-mic") ? null
+@@ -1035,7 +1047,11 @@ CampaignState? Play(IPlaySession session, CampaignState? campaign)
+         Invites: net?.Lobby is { Status: Ballast.Online.Lobby.State.Open } && session.Link is not { Full: true },
+         JoinAt: session.Link?.JoinAt,
+         Over: session.World.Run?.Over == true,
+-        Yard: net is { CanWear: true });
++        Yard: net is { CanWear: true })
++    {
++        // Note 724: the host's CREW MISCHIEF switch, in the yard.
++        Mischief = net is { Host: not null, CanWear: true } ? net.Mischief : null,
++    };
+     // The emote wheel (note 298): held on its key, the mouse picks; let go, it's sent on the next tick.
+     var wheel = new EmoteWheel();
+     var pendingEmote = Emote.None;
+@@ -1120,6 +1136,9 @@ CampaignState? Play(IPlaySession session, CampaignState? campaign)
+                 TakeUp(frontEnd.Settings);
+             if (chosen is Launch.Invite)
+                 net?.ShowInviteDialog();
++            // Note 724: the host's CREW MISCHIEF switch, from the in-night menu in the yard.
++            if (chosen is Launch.SetMischief switched)
++                net?.SetMischief(switched.On);
+             if (chosen is Launch.Leave)
+             {
+                 frontEnd.CloseNight();
+@@ -1144,6 +1163,9 @@ CampaignState? Play(IPlaySession session, CampaignState? campaign)
+         // The crew goes on together (note 606): the host's left for the next night; this joiner goes after it.
+         if (net is { Lost: true, GoingOn: not null })
+             break;
++        // Note 724: the crew put this player off; back to the menu, where it's said.
++        if (net is { Kicked: true })
++            break;
+         // The night's over: Enter goes back (to the fortress, for a campaign night).
+         if (session.World.Run?.Over == true && Pressed(Key.Enter))
+         {
+@@ -1214,8 +1236,28 @@ CampaignState? Play(IPlaySession session, CampaignState? campaign)
+             pendingSeat = true;
+         // The hotbar (T108): a number key picks its slot, the wheel steps through the tools (not while they're the ballot's).
+         for (var k = Key.D1; k < Key.D1 + Kit.Slots; k++)
+-            if (Pressed(k) && net is not { Voting: true })
++            if (Pressed(k) && net is not { Voting: true } && !(net is not null && Held(Control.Roster)))
+                 pendingSelect = (byte)(k - Key.D1 + 1);
++        // Note 724: the roster out (Q held), a number mutes or unmutes that crewmate on this machine; with Shift the host puts
++        // them off, and in a public lobby anyone else calls the crew's vote on them, or agrees to it.
++        if (net is not null && Held(Control.Roster))
++        {
++            var others = net.Roster().Where(l => !l.You).ToList();
++            for (var k = Key.D1; k < Key.D1 + Math.Min(9, others.Count); k++)
++            {
++                if (!Pressed(k))
++                    continue;
++                var who = others[k - Key.D1];
++                if (input.Down(Key.LeftShift) || input.Down(Key.RightShift))
++                {
++                    if (net.CanKick)
++                        net.Kick(who.Id);
++                }
++                else
++                    net.ToggleMute(who.Id);
++                sound.Ui(UiCue.Select);
++            }
++        }
+         if (window.MouseCaptured && !inMenu)
+             pendingCycle += input.Wheel;
+         // Held until a tick sends them: at a high frame rate a key press can land on a frame with no tick.
+@@ -1376,6 +1418,9 @@ CampaignState? Play(IPlaySession session, CampaignState? campaign)
+             }
+             if (campaign is not null && session is NetPlaySession played)
+                 campaign = Autosave(saves, campaign, played, content);
++            // Note 724: the crew's save, as the host settled tonight into it, kept among the crews this player's ridden with.
++            if (net?.TakeCrewSave() is { } crewSave && saves.Keep(crewSave) is { } keptCrew)
++                Console.WriteLine($"campaign: the crew's save kept, {keptCrew.Name} after {keptCrew.Runs} nights{(keptCrew.Over ? ", over" : "")}");
+             // The ears are where the eyes were last frame; audio follows the sim tick so no shot is missed.
+             // Watching a crewmate (App. D.10), you hear what they hear: their shelter, their space.
+             var ears = session.Viewpoint;
+@@ -1661,9 +1706,19 @@ CampaignState? Play(IPlaySession session, CampaignState? campaign)
+             signalWheel.Draw(overlay, UiWidth, UiHeight, Hud.PromptScaleAt((float)renderer.Height / UiHeight));
+             // Q held: the crew roster (T69), with who's been heard.
+             if (Held(Control.Roster))
+-                Hud.Roster(overlay, UiWidth, UiHeight, session.Roster(), voice is null ? null : voice.SinceHeard);
++                Hud.Roster(overlay, UiWidth, UiHeight, session.Roster(), voice is null ? null : voice.SinceHeard,
++                    net is null ? null : Hud.RosterKeys(net.Host is not null, net.CanKick));
+             else if (showSupplies && session.World.Run?.Over != true)
+                 Hud.Supplies(overlay, UiWidth, UiHeight, session);
++            // Note 724: the crew's vote to put someone off, across the top while it's open.
++            if (net is { KickVote.Open: true } voting)
++            {
++                var others = voting.Roster().Where(l => !l.You).ToList();
++                int number = others.FindIndex(l => l.Id == voting.KickVote.Target) + 1;
++                string name = others.FirstOrDefault(l => l.Id == voting.KickVote.Target).Name ?? "";
++                if (Hud.KickVoteLine(voting.KickVote, name, voting.KickVote.Target == voting.PlayerId, voting.KickVoteSeconds, number) is { } line)
++                    Hud.KickVoteBanner(overlay, UiWidth, UiHeight, line);
++            }
+             if (session.Route?.Plan is { } shown)
+             {
+                 if (cardPage >= 0)
+@@ -1798,7 +1853,16 @@ static CampaignState Autosave(SaveSlots saves, CampaignState campaign, NetPlaySe
+         if (session.Route is { } arrived)
+             settled = Campaign.Arrived(settled, report, DarkTerritory.Sim.Towns.TownAt.Terminus(arrived,
+                 DarkTerritory.Sim.LineGen.LineGenContent.Cached(content).Config.Tiers.Fortress.Identities));
++        // Note 724: the crew's save travels: who settled it and when (the tie-break between two copies), and off to everyone
++        // aboard, who each keep it among the crews they've ridden with and can host it from there.
++        settled = settled with
++        {
++            Crew = settled.CrewId,
++            LastHost = session.World.Names.GetValueOrDefault(session.PlayerId) is { Length: > 0 } me ? me : NetPlaySession.PlayerName,
++            SettledAt = DateTimeOffset.UtcNow.ToUnixTimeMilliseconds(),
++        };
+         saves.Save(settled);
++        session.ShareSave(SaveSlots.Bytes(settled));
+         Console.WriteLine($"campaign: {report.End}, net {report.Net:0} scrip; now {settled.Cars} cars and {settled.Scrip:0} scrip after {settled.Runs} nights");
+         return settled;
+     }
+diff --git a/src/DarkTerritory.Cli/Program.cs b/src/DarkTerritory.Cli/Program.cs
+index ea08b94a..bf5b2302 100644
+--- a/src/DarkTerritory.Cli/Program.cs
++++ b/src/DarkTerritory.Cli/Program.cs
+@@ -3537,7 +3537,10 @@ static object HudShot(string content, string[] args)
+     if (args.Contains("--roster"))
+     {
+         var (lines, heard) = Staging.Roster(session.Train, content);
+-        Hud.Roster(hud, width, height, lines, heard);
++        // Note 724: as a host in a public run has it: Reyes muted, the keys under the names, and a vote open on Okafor.
++        Hud.Roster(hud, width, height, [.. lines.Select(l => l.Id == 3 ? l with { Muted = true } : l)], heard, Hud.RosterKeys(host: true, vote: true));
++        if (Hud.KickVoteLine(new DarkTerritory.Sim.Net.KickVote(2, 1, 2, 0), "OKAFOR", onYou: false, 21, 2) is { } vote)
++            Hud.KickVoteBanner(hud, width, height, vote);
+     }
+     // --card: the generated line's route card over it; --overlay: the designer's overlay (linegen plan §9.7, §20.2).
+     if (session.Route?.Plan is { } plan)
+diff --git a/src/DarkTerritory.Game/FrontEnd.cs b/src/DarkTerritory.Game/FrontEnd.cs
+index cc6e0d0c..bad1e56c 100644
+--- a/src/DarkTerritory.Game/FrontEnd.cs
++++ b/src/DarkTerritory.Game/FrontEnd.cs
+@@ -34,6 +34,8 @@ public abstract record Launch
+         public string? Password { get; init; }
+         /// <summary>Hosting: who the run is for (note 450), said in its listing.</summary>
+         public RunMood Mood { get; init; }
++        /// <summary>Hosting: the CREW MISCHIEF switch as the host set it (note 724); null, where the mood and visibility have it.</summary>
++        public bool? Mischief { get; init; }
+         public override Launch Redacted() => Password is null ? this : this with { Password = "***" };
+     }
+     /// <summary>Someone else's night, at an address (host[:port]).</summary>
+@@ -61,6 +63,11 @@ public abstract record Launch
+         /// from the town (note 606) keeps them: the board's next contract carries the same.
+         /// </summary>
+         public int Bots { get; init; }
++        /// <summary>
++        /// A crew ridden with (note 724; GDD §11): its id among the crews kept on this machine, and <paramref name="Slot"/> 0.
++        /// Null: the slot's own crew.
++        /// </summary>
++        public string? Crew { get; init; }
+     }
+     /// <summary>
+     /// The crew goes on together (note 606): a joiner whose host left a delivered campaign night to go on to the next, waiting
+@@ -70,6 +77,8 @@ public abstract record Launch
+     public sealed record Quit : Launch;
+     /// <summary>The in-night menu's INVITE (note 292): the platform's invite dialog, over the night.</summary>
+     public sealed record Invite : Launch;
++    /// <summary>The in-night menu's CREW MISCHIEF (note 724), the host's in the yard: the switch set so, for every machine. The menu stays up.</summary>
++    public sealed record SetMischief(bool On) : Launch;
+     /// <summary>The in-night menu's LEAVE, confirmed (note 292): out of the night and back to the menus.</summary>
+     public sealed record Leave : Launch;
+     /// <summary>A folder shown in the system's file browser (note 411: where the crash reports are). The menu stays up.</summary>
+@@ -104,7 +113,11 @@ public abstract record Launch
+ /// <param name="Over">The night's over (the report's up): leaving costs nothing, so it isn't asked twice.</param>
+ /// <param name="Yard">In the yard before the gate (GDD §9), where outfits are tried on (note 298): OUTFIT is on the menu.</param>
+ public sealed record NightMenu(bool Hosting = true, int Others = 0, bool Campaign = false, bool Invites = false, string? JoinAt = null, bool Over = false,
+-    bool Yard = false);
++    bool Yard = false)
++{
++    /// <summary>The host in the yard (note 724): the CREW MISCHIEF switch as it stands, to change; null for anyone else, or past the gate.</summary>
++    public bool? Mischief { get; init; }
++}
+ 
+ public enum Screen { Title, Slots, Fortress, Upgrades, QuickNight, Join, Settings, Controls, Host, Stores, Credits, Night, Leave, Profile, DeleteCrew, Mods, Crashed, Password }
+ 
+@@ -159,6 +172,24 @@ public sealed class FrontEnd
+         set => _bots = Math.Clamp(value, 0, MaxBots);
+     }
+     bool _host;
++    /// <summary>The host screen's CREW MISCHIEF (note 724) as the host set it; null, where the run's mood and visibility have it.</summary>
++    bool? _mischief;
++
++    /// <summary>The CREW MISCHIEF switch as the host set it for the run they open (note 724); null: as its mood and visibility have it.</summary>
++    public bool? Mischief => _mischief;
++
++    /// <summary>Horseplay's tuning (player.json, note 724): where the CREW MISCHIEF switch starts by mood. The app sets the content's.</summary>
++    public Sim.Player.HorseplayTuning Horseplay { get; set; } = new();
++
++    /// <summary>The switch as the host screen shows it: the host's choice, or the run's mood and visibility's.</summary>
++    bool MischiefShown => _mischief ?? Moods.MischiefByDefault(Settings.Mood, !Settings.PublicLobby, Horseplay);
++
++    /// <summary>The host screen's and the fortress board's CREW MISCHIEF row (note 724).</summary>
++    Entry MischiefEntry() =>
++        new(new($"CREW MISCHIEF: {(MischiefShown ? "ON" : "OFF")}", MischiefShown
++                ? "Shoves, bonks and coal at the crew land. Nobody's hurt by them, but a shove off a roof at speed is a fall."
++                : "Shoves, bonks and coal at the crew land on nobody. You can change it in the yard."),
++            () => { _mischief = !MischiefShown; return null; }, _ => _mischief = !MischiefShown);
+ 
+     /// <param name="newSeed">Where a new campaign's seed comes from (tests pin it).</param>
+     /// <param name="edition">Which game this is (T79): the demo has a quick night on its own tiers, and no campaign.</param>
+@@ -664,6 +695,10 @@ public sealed class FrontEnd
+         // In the yard (GDD §9: the crew "try on outfits"; note 298): put one on, and the crew see it.
+         if (n.Yard)
+             list.Add(OutfitEntry("Left and right to try one on: the crew see it."));
++        // Note 724: the host's CREW MISCHIEF, in the yard: every machine has it as it's set.
++        if (n.Mischief is { } on)
++            list.Add(new(new($"CREW MISCHIEF: {(on ? "ON" : "OFF")}", on ? "Shoves, bonks and coal at the crew land." : "Shoves, bonks and coal at the crew land on nobody."),
++                () => new Launch.SetMischief(!on)));
+         // Someone to ask along: a platform lobby that takes invites (its overlay), or a host on the network (its address,
+         // to type on JOIN). A night nobody can join (alone, on this machine only) has no INVITE.
+         if (n.Invites)
+@@ -790,10 +825,11 @@ public sealed class FrontEnd
+     }
+ 
+     /// <summary>Back at the title after a quick night or a join, with the edition's word after a night (the demo's).</summary>
+-    public void NightOver()
++    /// <param name="say">What to say over the edition's word: the crew put this player off (note 724).</param>
++    public void NightOver(string? say = null)
+     {
+         Show(Screen.Title);
+-        Message = _edition.AfterNight is { Length: > 0 } after ? after : null;
++        Message = say ?? (_edition.AfterNight is { Length: > 0 } after ? after : null);
+         // The demo's end card (T79): its wishlist line coming up, and (note 434) WISHLIST ON STEAM lit under it.
+         if (Message is not null)
+             Cue?.Invoke(UiCue.EndCard);
+@@ -801,6 +837,22 @@ public sealed class FrontEnd
+             Selected = wishlist;
+     }
+ 
++    /// <summary>
++    /// Opens a crew ridden with at the fortress (note 724): its save as this machine keeps it, hosted from here. Gone (or one
++    /// that won't read), the slots and crews.
++    /// </summary>
++    public void ShowCrew(string crew, string? message = null)
++    {
++        Open = _saves.LoadCrew(crew);
++        if (Open is null)
++        {
++            Show(Screen.Slots);
++            return;
++        }
++        Show(Screen.Fortress);
++        Message = message;
++    }
++
+     /// <summary>Opens a slot at the fortress (after a night, with how it went).</summary>
+     public void ShowFortress(int slot, string? message = null)
+     {
+@@ -989,7 +1041,7 @@ public sealed class FrontEnd
+             .. DevEntries.Select(d => new Entry(new(d.Label, d.Hint), () => d.Launch)),
+             new(new("QUIT"), () => new Launch.Quit()),
+         ],
+-        Screen.Slots => [.. _saves.List().Select(x => SlotEntry(x.Slot, x.State)), BackTo(Screen.Title)],
++        Screen.Slots => [.. _saves.List().Select(x => SlotEntry(x.Slot, x.State)), .. CrewEntries(), BackTo(Screen.Title)],
+         Screen.Fortress => FortressEntries(),
+         Screen.Upgrades => UpgradeEntries(),
+         Screen.Stores => StoreEntries(),
+@@ -1016,6 +1068,7 @@ public sealed class FrontEnd
+                     Field: TextField.LobbyPassword),
+             ],
+             MoodEntry("Said beside your run on the list, so players looking for the same find it first."),
++            MischiefEntry(),
+             new(new($"{NameLabel}{LobbyName}{(NamingLobby ? "_" : "")}", NamingLobby ? "Type the name; Enter or Esc when it's done." : "Enter to rename it: what the join screen calls it."),
+                 Field: TextField.LobbyName),
+             new(new("OPEN THE LOBBY", PasswordMissing ? "Type a password first: a private run needs one." : "You wait in the yard with the train; you drive out when everyone's in.",
+@@ -1027,6 +1080,7 @@ public sealed class FrontEnd
+                     LobbyName = LobbyName.Trim() is { Length: > 0 } named ? named : DefaultLobbyName,
+                     Password = Settings.PublicLobby ? null : Settings.LobbyPassword.Trim(),
+                     Mood = Settings.Mood,
++                    Mischief = _mischief,
+                 }),
+             BackTo(Screen.Title),
+         ],
+@@ -1241,6 +1295,34 @@ public sealed class FrontEnd
+         return Settings.Cycle(all, Array.IndexOf(all, now) < 0 ? "" : now, by);
+     }
+ 
++    /// <summary>A crew ridden with's id, for its night's launch (note 724); null for a slot's own crew.</summary>
++    static string? RodeWith(CampaignState s) => s.Slot == 0 ? s.CrewId : null;
++
++    /// <summary>
++    /// The crews this player has ridden with (GDD §11; note 724), under the slots: each crew's save as its host last sent it,
++    /// "CREW &lt;NAME&gt; · NIGHT 7 · LAST HOSTED BY DAVE", and any of them hosted from here. A crew in one of this player's own
++    /// slots is listed only when the copy ridden with has gone further. One whose train was taken at dawn stays listed, ended.
++    /// </summary>
++    List<Entry> CrewEntries()
++    {
++        var mine = _saves.List().Where(x => x.State is not null).Select(x => x.State!).ToList();
++        var crews = _saves.Crews().Where(c => !mine.Any(m => m.CrewId == c.CrewId && m.Runs >= c.Runs)).ToList();
++        if (crews.Count == 0)
++            return [];
++        var list = new List<Entry> { new(new("CREWS YOU'VE RIDDEN WITH", null, false, Heading: true)) };
++        foreach (var c in crews)
++        {
++            string host = c.LastHost.Length > 0 ? $" · LAST HOSTED BY {Sim.Net.Messages.CleanName(c.LastHost).ToUpperInvariant()}" : "";
++            string id = c.CrewId;
++            list.Add(c.Over
++                ? new(new($"CREW {CrewName(c).ToUpperInvariant()} · TAKEN AT DAWN{host}", $"{c.Runs} nights. The company has no more trains for them."),
++                    () => { ShowCrew(id); return null; })
++                : new(new($"CREW {CrewName(c).ToUpperInvariant()} · NIGHT {c.Runs + 1}{host}", $"{c.Cars} cars, {c.Scrip:0} scrip. Host its next night from here."),
++                    () => { ShowCrew(id); return null; }));
++        }
++        return list;
++    }
++
+     Entry SlotEntry(int slot, CampaignState? s)
+     {
+         if (s is null)
+@@ -1278,7 +1360,7 @@ public sealed class FrontEnd
+             // Spec E: a night that was under way picks up from its last autosave (or starts again, if it had none).
+             string from = s.Checkpoint is null ? "from the yard" : "from the last facility it left";
+             list.Add(new(new($"CARRY ON: {Name(tonight.Tier)} {tonight.Seed}", $"The night that was under way, {from}."),
+-                () => new Launch.CampaignNight(s.Slot, -1, Resume: true, _host) { Bots = _bots }));
++                () => new Launch.CampaignNight(s.Slot, -1, Resume: true, _host) { Bots = _bots, Crew = RodeWith(s) }));
+         }
+         else
+         {
+@@ -1290,7 +1372,7 @@ public sealed class FrontEnd
+                 // GDD §9 "choose a route" (note 637: a contract is just a route): the train leaves empty, and its cars are paid
+                 // by what its stops load, about the tier's car-load each.
+                 list.Add(new(new($"TONIGHT: {Name(c.Tier)} {c.Seed}, ABOUT {c.PerCar:0} A CAR-LOAD", $"Whatever its stops load. Up to about {c.PerCar * s.Cars:0} on {s.Cars} cars."),
+-                    () => new Launch.CampaignNight(s.Slot, contract, Resume: false, _host) { Bots = _bots }));
++                    () => new Launch.CampaignNight(s.Slot, contract, Resume: false, _host) { Bots = _bots, Crew = RodeWith(s) }));
+             }
+         }
+         // The crew's bots (note 611): who goes out with you tonight, and on to the next night from the town after it.
+@@ -1322,6 +1404,15 @@ public sealed class FrontEnd
+             list.Add(new(new("STORES", StoresLine(s.Stores), s.Current is null), () => { Show(Screen.Stores); return null; }));
+         list.Add(new(new("UPGRADES", null, s.Current is null), () => { Show(Screen.Upgrades); return null; }));
+         list.Add(new(new($"PLAY: {(_host ? "HOST FOR FRIENDS" : "ALONE")}", "Left and right to change."), () => { _host = !_host; return null; }, _ => _host = !_host));
++        // Note 724: hosting, the run's CREW MISCHIEF, as on the host screen.
++        if (_host)
++            list.Add(MischiefEntry());
++        // A crew ridden with (note 724) is the crew's, not this machine's: its name and its file are whoever hosts it last's.
++        if (s.Slot == 0)
++        {
++            list.Add(BackTo(Screen.Slots));
++            return list;
++        }
+         // Note 320 (note 33's "not yet": renaming a crew or deleting a slot was `dt campaign`'s alone).
+         bool naming = Editing == TextField.CrewName;
+         list.Add(new(new($"{NameLabel}{(naming ? s.Name : CrewName(s)).ToUpperInvariant()}{(naming ? "_" : "")}",
+diff --git a/src/DarkTerritory.Game/Hud.cs b/src/DarkTerritory.Game/Hud.cs
+index 7e271bc1..b451a292 100644
+--- a/src/DarkTerritory.Game/Hud.cs
++++ b/src/DarkTerritory.Game/Hud.cs
+@@ -317,20 +317,73 @@ public static partial class Hud
+     /// alive: GDD v1.4 made roll call verbal (open question 2). <paramref name="heard"/>: seconds since a crewmate's voice
+     /// last came in, null for never.
+     /// </summary>
+-    public static void Roster(Overlay o, int width, int height, IReadOnlyList<RosterLine> lines, Func<byte, double?>? heard)
++    /// <param name="keys">
++    /// Note 724: what the roster's keys do, under the names (<see cref="RosterKeys"/>): each crewmate but you numbered for them.
++    /// Null, the roll call alone.
++    /// </param>
++    public static void Roster(Overlay o, int width, int height, IReadOnlyList<RosterLine> lines, Func<byte, double?>? heard, string? keys = null)
+     {
+         using var plate = UiStyle.OnPlate(o);
+         const string title = "THE CREW. ROLL CALL IS SHOUTED";
+         float k = Fine;
+-        float names = lines.Count == 0 ? 0 : lines.Max(l => o.Measure(l.Name, k));
+-        var (x, y, w) = Panel(o, width, height, title, Math.Max(o.Measure(title, k), names + 12 * k + o.Measure("SPEAKING", k)), lines.Count, Ink, k);
+-        foreach (var l in lines)
+-        {
+-            o.Text(x + PanelPad * k, y, l.Name, Ink, k);
+-            if (!l.You && heard?.Invoke(l.Id) is < 2)
++        var names = RosterNames(lines, keys is not null);
++        float widest = names.Count == 0 ? 0 : names.Max(n => o.Measure(n, k));
++        float content = Math.Max(o.Measure(title, k), widest + 12 * k + o.Measure("SPEAKING", k));
++        if (keys is not null)
++            content = Math.Max(content, UiStyle.MeasureKeyed(o, keys, k));
++        var (x, y, w) = Panel(o, width, height, title, content, lines.Count + (keys is null ? 0 : 1), Ink, k);
++        for (int i = 0; i < lines.Count; i++)
++        {
++            var l = lines[i];
++            o.Text(x + PanelPad * k, y, names[i], Ink, k);
++            // Heard lately, they're speaking; muted on this machine (note 724), they're never heard here, and it says so.
++            if (!l.You && l.Muted)
++                o.Text(Overlay.Snap(x + w - PanelPad * k - o.Measure("MUTED", k), k), y, "MUTED", Dim, k);
++            else if (!l.You && heard?.Invoke(l.Id) is < 2)
+                 o.Text(Overlay.Snap(x + w - PanelPad * k - o.Measure("SPEAKING", k), k), y, "SPEAKING", Green, k);
+             y += PanelRow(o, k);
+         }
++        if (keys is not null)
++            UiStyle.Keyed(o, x + PanelPad * k, y, keys, Dim, k);
++    }
++
++    /// <summary>The roster's names, each crewmate but you numbered for its keys when there are any (note 724).</summary>
++    public static List<string> RosterNames(IReadOnlyList<RosterLine> lines, bool numbered)
++    {
++        var names = new List<string>(lines.Count);
++        int n = 0;
++        foreach (var l in lines)
++            names.Add(!numbered ? l.Name : l.You ? $"   {l.Name}" : $"{(++n <= 9 ? n.ToString(System.Globalization.CultureInfo.InvariantCulture) : " ")}  {l.Name}");
++        return names;
++    }
++
++    /// <summary>
++    /// The roster's keys (note 724): a number mutes or unmutes that crewmate on this machine; with Shift, the host puts them off
++    /// and, in a public lobby, anyone else calls the crew's vote on them (or agrees to it). Fixed keys, as the ballot's numbers are.
++    /// </summary>
++    public static string RosterKeys(bool host, bool vote) =>
++        host ? "MUTE : [1-9]   PUT OFF : [SHIFT] [1-9]" : vote ? "MUTE : [1-9]   VOTE TO PUT OFF : [SHIFT] [1-9]" : "MUTE : [1-9]";
++
++    /// <summary>
++    /// The crew's vote to put someone off (note 724), across the top while it's open: on whom, how it stands and how long it has,
++    /// and how to agree. Null with no vote open.
++    /// </summary>
++    public static string? KickVoteLine(KickVote vote, string name, bool onYou, double seconds, int number)
++    {
++        if (!vote.Open)
++            return null;
++        string count = $"{vote.Yes} OF {vote.Needed} · {Math.Ceiling(seconds):0} S";
++        return onYou ? $"THE CREW IS VOTING TO PUT YOU OFF · {count}"
++            : $"PUT {name} OFF AT THE NEXT STOP? {count}{(number is >= 1 and <= 9 ? $"   YES : [Q] [SHIFT] [{number}]" : "")}";
++    }
++
++    /// <summary>The vote's line (<see cref="KickVoteLine"/>), across the top, in amber.</summary>
++    public static void KickVoteBanner(Overlay o, int width, int height, string line)
++    {
++        using var plate = UiStyle.OnPlate(o);
++        float k = Fine;
++        float w = UiStyle.MeasureKeyed(o, line, k);
++        UiStyle.Keyed(o, Overlay.Snap((width - w) / 2, k), MathF.Round(height * 0.12f), line, Amber, k);
+     }
+ 
+     const float PanelPad = 6;
+@@ -2478,7 +2531,7 @@ public static partial class Hud
+         // the shovel, turned from the fire, it's the throw's.
+         if (p.Has(PlayerFlags.Shovelful) && p.Hand == default)
+             return "THROW THE COAL : [RMB]";
+-        if (world.HorseplayTuning.Enabled && Horseplay.ShoveTarget(p, s.PlayerId, s.CrewStates(1), train, s.PlayerTuning) is not null)
++        if (world.MischiefOn && Horseplay.ShoveTarget(p, s.PlayerId, s.CrewStates(1), train, s.PlayerTuning) is not null)
+             return "SHOVE : [LEFT ALT]";
+         return null;
+     }
+diff --git a/src/DarkTerritory.Game/IPlaySession.cs b/src/DarkTerritory.Game/IPlaySession.cs
+index f836c78f..d0deefde 100644
+--- a/src/DarkTerritory.Game/IPlaySession.cs
++++ b/src/DarkTerritory.Game/IPlaySession.cs
+@@ -57,7 +57,11 @@ public readonly record struct OwnView(float Yaw, float Pitch, CrewPose? Act, boo
+ /// is for; a Passenger's line has the id of the face it wears (App. A.7 "appears on the roster"), so it sits beside theirs,
+ /// and it is not <paramref name="Voiced"/>: the voice heard under that id is the real crewmate's, never the thing's.
+ /// </summary>
+-public readonly record struct RosterLine(byte Id, string Name, string Where, bool Alive, bool You = false, bool Voiced = true);
++public readonly record struct RosterLine(byte Id, string Name, string Where, bool Alive, bool You = false, bool Voiced = true)
++{
++    /// <summary>Their voice is muted on this machine (note 724): the roster says so beside the name.</summary>
++    public bool Muted { get; init; }
++}
+ 
+ /// <summary>What the app plays: the single-player prototype, or a networked session (host or client).</summary>
+ public interface IPlaySession
+diff --git a/src/DarkTerritory.Game/LobbyBrowser.cs b/src/DarkTerritory.Game/LobbyBrowser.cs
+index 3fc8bd40..c6d000b4 100644
+--- a/src/DarkTerritory.Game/LobbyBrowser.cs
++++ b/src/DarkTerritory.Game/LobbyBrowser.cs
+@@ -30,6 +30,14 @@ public static class Moods
+         _ => RunMood.Either,
+     };
+ 
++    /// <summary>
++    /// Where the lobby's CREW MISCHIEF switch starts (GDD §23.4; note 724): on among friends (a private run) and for laughs, off
++    /// in a public run that's FEELING COMPETITIVE (player.json <c>horseplay.competitiveOff</c>), where strangers meet. The host
++    /// can set it either way.
++    /// </summary>
++    public static bool MischiefByDefault(RunMood mood, bool isPrivate, Sim.Player.HorseplayTuning t) =>
++        isPrivate || mood != RunMood.Competitive || !t.CompetitiveOff;
++
+     /// <summary>As the menus say it.</summary>
+     public static string Label(RunMood mood) => mood switch
+     {
+diff --git a/src/DarkTerritory.Game/NetPlaySession.cs b/src/DarkTerritory.Game/NetPlaySession.cs
+index 7f9e32d1..b921b4fb 100644
+--- a/src/DarkTerritory.Game/NetPlaySession.cs
++++ b/src/DarkTerritory.Game/NetPlaySession.cs
+@@ -79,6 +79,14 @@ public sealed record SessionSetup(string? Route = null, string Line = "test-loop
+     /// </summary>
+     [System.Text.Json.Serialization.JsonIgnore(Condition = System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingDefault)]
+     public bool CampaignNight { get; init; }
++    /// <summary>
++    /// The lobby's CREW MISCHIEF switch (GDD §23.4; note 724): the shove, the bonk and coal at the crew, on or off for the night.
++    /// Every machine's world is built with it (<see cref="World.CrewMischief"/>); the host's changes in the yard follow it.
++    /// </summary>
++    public bool Mischief { get; init; } = true;
++    /// <summary>A public lobby (note 724): anyone aboard can call the vote to put a player off. Every machine's roster says so.</summary>
++    [System.Text.Json.Serialization.JsonIgnore(Condition = System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingDefault)]
++    public bool VoteKicks { get; init; }
+     /// <summary>The host's line's fingerprint: a joiner whose own generated line differs (another generator version) is refused.</summary>
+     public string? PlanPrint { get; init; }
+     /// <summary>The host's terrain's fingerprint (linegen plan §17.3): a joiner whose ground comes out differently is refused.</summary>
+@@ -190,6 +198,7 @@ public sealed record SessionSetup(string? Route = null, string Line = "test-loop
+         {
+             WreckTuning = DataFile.Load<WreckTuning>(Path.Combine(content, WreckTuning.File)),
+             DawnEndsCampaign = CampaignNight && DataFile.Load<Sim.Campaign.CampaignTuning>(Path.Combine(content, Sim.Campaign.CampaignTuning.File)).DawnEndsCampaign,
++            CrewMischief = Mischief,
+         };
+         if (route is not null)
+         {
+@@ -513,11 +522,14 @@ public sealed class NetPlaySession : IPlaySession, IDisposable
+     /// <param name="tap">Told of the night (note 515): a developer build's recorder. Null for <see cref="Tap"/>'s.</param>
+     public static NetPlaySession HostGame(string content, SessionSetup setup, int? port = DefaultPort, int expectedCrew = 4, IOnlineBackend? online = null,
+         Sim.Campaign.RunCheckpoint? resume = null, int bots = 0, bool listed = true, string? lobbyName = null, LanBeacon? beacon = null,
+-        string? password = null, RunMood mood = RunMood.Either, IHostTap? tap = null, DatagramOptions? options = null)
++        string? password = null, RunMood mood = RunMood.Either, IHostTap? tap = null, DatagramOptions? options = null, bool? mischief = null)
+     {
+         tap ??= Tap;
+         var key = Messages.PasswordKey(password);
+         var playerTuning = DataFile.Load<PlayerTuning>(Path.Combine(content, PlayerTuning.File));
++        // Note 724: a public lobby (listed, no password, others can reach it) puts a player off by the crew's vote; and the
++        // crew mischief switch starts where the run's mood and visibility have it, unless the host chose.
++        bool open = listed && key is null && (online is not null || port is not null);
+         // Bots hold crewmates, so they count against the cap (note 254); the host's own player always has a place.
+         int cap = playerTuning.Crew.Places;
+         bots = Math.Clamp(bots, 0, cap - 1);
+@@ -527,6 +539,8 @@ public sealed class NetPlaySession : IPlaySession, IDisposable
+             Mods = ContentMods.MountedIn(content),
+             Start = resume?.Front ?? setup.Start,
+             Plan = resume?.Plan is { } saved ? Sim.LineGen.LinePlan.Decompress(saved) : setup.Plan,
++            Mischief = mischief ?? (setup.Mischief && Moods.MischiefByDefault(mood, !open, playerTuning.Horseplay)),
++            VoteKicks = open,
+         };
+         // Planned for who'll be there: alone with bots, them and you; hosted online, the friends expected too (T115: a
+         // local night alone was planned for four).
+@@ -560,7 +574,12 @@ public sealed class NetPlaySession : IPlaySession, IDisposable
+         // they came in on (a LAN or address joiner has none, and needs it).
+         if (online is not null && hostTransport is HostGroup group)
+             host.Trusted = peer => group.Route(peer) is (OnlineTransport over, var at) && over.TryGetAddress(at, out var user) && online.IsFriend(user);
++        // Note 724: who a link is, to bar someone put off: their account, or a LAN joiner's address.
++        host.VoteKicks = setup.VoteKicks;
++        host.Identity = peer => IdentityOf(hostTransport, peer);
+         tap?.Hosted(host, night);
++        // Note 724: the night's own crew comes aboard as it always has; a friend takes a bot's seat only after.
++        host.BotSeatsOpen = false;
+         // The bot crew aboard first, so one of them has the cab. Their clients take the host's plan, not a fresh generation.
+         BotCrew? crew = null;
+         if (bots > 0)
+@@ -594,6 +613,10 @@ public sealed class NetPlaySession : IPlaySession, IDisposable
+             client.Step(default);
+             Thread.Sleep(1);
+         }
++        // Note 724: a friend who takes a bot's seat (or a bot put off) takes that bot out of the crew this machine runs.
++        if (crew is not null)
++            host.BotLeft = crew.Retire;
++        host.BotSeatsOpen = true;
+         if (!listed)
+             beacon?.Dispose();
+         return new NetPlaySession(host, hostTransport, port is null ? null : udp, client, clientTransport, setup, route, lobby)
+@@ -918,7 +941,7 @@ public sealed class NetPlaySession : IPlaySession, IDisposable
+     public bool CanReconnect => Lost && Redialable && !_dialing && Attempt >= Attempts;
+     /// <summary>A joiner, with a host to go back to: not hosting, and the host hasn't left its lobby (spec E: that ends it).</summary>
+     /// (Not once the host's said it's going on to the next night, note 606: that's a new night to join, not this one to rejoin.)
+-    bool Redialable => Redial is not null && Lobby is not { HostLeft: true } && Client.CarryingOn is null;
++    bool Redialable => Redial is not null && Lobby is not { HostLeft: true } && Client.CarryingOn is null && !Kicked;
+ 
+     /// <summary>
+     /// The crew goes on together (note 606), the host's end: tells the crew it's going on to the next night from
+@@ -1283,19 +1306,107 @@ public sealed class NetPlaySession : IPlaySession, IDisposable
+         foreach (byte id in Client.RemoteIds)
+             if (Client.TryGetRemote(id, 1, out var s))
+                 remotes.Add((id, s));
+-        return RosterOf((byte)(Client.PlayerId ?? 0), Player, remotes, World);
++        return RosterOf((byte)(Client.PlayerId ?? 0), Player, remotes, World, IsMuted);
++    }
++
++    // ---- Sessions (GDD §33.1, ARCHITECTURE §8 note 724) ----
++
++    /// <summary>
++    /// Who a link is beyond its connection (note 724): a platform account, or a LAN joiner's address (not this machine's own
++    /// loopback, where the host's player and the bots are). Null: by name, then.
++    /// </summary>
++    static string? IdentityOf(ITransport host, PeerId peer)
++    {
++        var (t, p) = host is HostGroup g && g.Route(peer) is { } r ? r : (host, peer);
++        return t switch
++        {
++            OnlineTransport o when o.TryGetAddress(p, out var user) => $"user:{user}",
++            UdpTransport u when u.TryGetAddress(p, out var at) && at is IPEndPoint ip && !IPAddress.IsLoopback(ip.Address) => $"ip:{ip.Address}",
++            _ => null,
++        };
+     }
+ 
++    /// <summary>
++    /// Muted on this machine (note 724), by name, for as long as the game's open: a crewmate muted on one night is muted on the
++    /// next with the same crew. Never sent anywhere.
++    /// </summary>
++    public static HashSet<string> MutedNames { get; } = new(StringComparer.OrdinalIgnoreCase);
++    readonly HashSet<byte> _muted = [];
++
++    /// <summary>Whether this crewmate's voice is kept from this machine's ears (note 724): every path, the tube and the radio too.</summary>
++    public bool IsMuted(byte id) => id != PlayerId && (_muted.Contains(id) || World.Names.TryGetValue(id, out var n) && n.Length > 0 && MutedNames.Contains(n));
++
++    /// <summary>MUTE / UNMUTE beside a name on the roster (note 724): on this machine only.</summary>
++    public void ToggleMute(byte id)
++    {
++        if (id == PlayerId)
++            return;
++        bool now = !IsMuted(id);
++        string? name = World.Names.TryGetValue(id, out var n) && n.Length > 0 ? n : null;
++        if (now)
++        {
++            _muted.Add(id);
++            if (name is not null)
++                MutedNames.Add(name);
++        }
++        else
++        {
++            _muted.Remove(id);
++            if (name is not null)
++                MutedNames.Remove(name);
++        }
++    }
++
++    /// <summary>The host: put a crewmate off outright. A joiner in a public lobby: call the crew's vote on them, or agree to it (note 724).</summary>
++    public void Kick(byte id)
++    {
++        if (id != PlayerId)
++            Client.Kick(id);
++    }
++
++    /// <summary>Whether this player can put someone off from the roster (note 724): the host, or anyone in a public lobby.</summary>
++    public bool CanKick => Host is not null || Setup.VoteKicks;
++
++    /// <summary>The crew's vote to put someone off, as it stands (note 724), or none.</summary>
++    public KickVote KickVote => Client.KickVote;
++
++    /// <summary>Seconds left on the open vote, by the host's clock.</summary>
++    public double KickVoteSeconds => KickVote.Open ? Math.Max(0, (long)KickVote.Until - (long)Client.NewestSnapshotTick) * SimConstants.TickSeconds : 0;
++
++    /// <summary>The crew put this player off (note 724): the night's over for them, and there's no redialling it.</summary>
++    public bool Kicked => Client.Kicked || Client.Refused is { Reason: RefusalReason.Kicked };
++
++    /// <summary>The lobby's crew mischief switch as this machine has it (note 724).</summary>
++    public bool Mischief => World.CrewMischief;
++
++    /// <summary>The host, in the yard: CREW MISCHIEF ON or OFF (note 724), to every machine.</summary>
++    public void SetMischief(bool on)
++    {
++        if (Host is { } host && World.Run is null or { Phase: Sim.Run.RunPhase.Yard })
++            host.Mischief = on;
++    }
++
++    /// <summary>
++    /// The host, settling a campaign night (note 724): the crew's save to everyone aboard, who each keep it among the crews
++    /// they've ridden with.
++    /// </summary>
++    public void ShareSave(byte[] save) => Host?.ShareSave(save);
++
++    /// <summary>A joiner: the crew's save, if the host's sent one since the last take (note 724). The host's own is its slot's.</summary>
++    public byte[]? TakeCrewSave() => Client.TakeCrewSave() is { } save && Host is null ? save : null;
++
+     /// <summary>
+     /// The roster's lines: you and the rest of the session's crew, by name, in player-id order. GDD v1.4 (open question 2)
+     /// made roll call verbal: "there is no aboard indicator for the conductor or anyone else", so a line says nothing of
+     /// where anyone is or whether they're alive, and the Passenger isn't on it: its only tell is silence, heard by ear.
+     /// </summary>
+-    public static IReadOnlyList<RosterLine> RosterOf(byte me, in PlayerState mine, IEnumerable<(byte Id, PlayerState State)> crew, World world)
++    /// <param name="muted">Who's muted on this machine (note 724): the roster says MUTED beside them.</param>
++    public static IReadOnlyList<RosterLine> RosterOf(byte me, in PlayerState mine, IEnumerable<(byte Id, PlayerState State)> crew, World world,
++        Func<byte, bool>? muted = null)
+     {
+         var lines = new List<RosterLine> { new(me, NameOr(world, me, "YOU").ToUpperInvariant(), "", true, You: true) };
+         foreach (var (id, _) in crew)
+-            lines.Add(new RosterLine(id, NameOr(world, id, $"CREW {id}").ToUpperInvariant(), "", true));
++            lines.Add(new RosterLine(id, NameOr(world, id, $"CREW {id}").ToUpperInvariant(), "", true) { Muted = muted?.Invoke(id) == true });
+         return [.. lines.OrderBy(l => l.Id)];
+     }
+ 
+diff --git a/src/DarkTerritory.Game/SaveSlots.cs b/src/DarkTerritory.Game/SaveSlots.cs
+index afa19447..974a63cc 100644
+--- a/src/DarkTerritory.Game/SaveSlots.cs
++++ b/src/DarkTerritory.Game/SaveSlots.cs
+@@ -7,6 +7,9 @@ namespace DarkTerritory.Game;
+ /// <summary>
+ /// Spec E: "3 per host. Slot must be selected when hosting." One text file a slot (JSON, readable, diffable), written
+ /// whole to a temporary file and moved into place, so a crash mid-write leaves the last good save.
++/// <para>And the crews this player has ridden with (GDD §11; ARCHITECTURE §8 note 724): each crew's save as its host last sent
++/// it, one file a crew under <c>crews/</c>, never in a slot. A crew's copy is <see cref="CampaignState.Slot"/> 0, and hosting
++/// it saves back there.</para>
+ /// </summary>
+ public sealed class SaveSlots(string directory, int slots = 3)
+ {
+@@ -30,10 +33,15 @@ public sealed class SaveSlots(string directory, int slots = 3)
+         return File.Exists(path) ? JsonSerializer.Deserialize<CampaignState>(File.ReadAllText(path), DataFile.Options) : null;
+     }
+ 
+-    public void Save(CampaignState state)
++    /// <summary>A slot's save, or (with <paramref name="crew"/>) a crew's ridden with (note 724).</summary>
++    public CampaignState? Load(int slot, string? crew) => crew is null ? Load(slot) : LoadCrew(crew);
++
++    /// <summary>Into its slot; a crew's copy (slot 0, note 724) into the crews ridden with.</summary>
++    public void Save(CampaignState state) => Write(state.Slot == 0 ? CrewPath(state.CrewId) : PathOf(state.Slot), state);
++
++    static void Write(string path, CampaignState state)
+     {
+-        var path = PathOf(state.Slot);
+-        System.IO.Directory.CreateDirectory(Directory);
++        System.IO.Directory.CreateDirectory(Path.GetDirectoryName(path)!);
+         var temp = path + ".tmp";
+         File.WriteAllText(temp, JsonSerializer.Serialize(state, DataFile.Options) + "\n");
+         File.Move(temp, path, overwrite: true);
+@@ -42,4 +50,81 @@ public sealed class SaveSlots(string directory, int slots = 3)
+     public void Delete(int slot) => File.Delete(PathOf(slot));
+ 
+     public IReadOnlyList<(int Slot, CampaignState? State)> List() => [.. Enumerable.Range(1, Count).Select(i => (i, Load(i)))];
++
++    // ---- The crews ridden with (note 724) ----
++
++    /// <summary>Where the crews ridden with are kept: beside the slots.</summary>
++    public string CrewsDirectory => Path.Combine(Directory, "crews");
++
++    /// <summary>A crew's file: its id, kept to the characters a file name can always have.</summary>
++    public string CrewPath(string crew)
++    {
++        var safe = new string([.. crew.ToLowerInvariant().Where(c => c is >= '0' and <= '9' or >= 'a' and <= 'z' or '-')]);
++        return Path.Combine(CrewsDirectory, (safe.Length > 0 ? safe : "crew") + ".json");
++    }
++
++    public CampaignState? LoadCrew(string crew)
++    {
++        var path = CrewPath(crew);
++        try
++        {
++            return File.Exists(path) ? JsonSerializer.Deserialize<CampaignState>(File.ReadAllText(path), DataFile.Options) : null;
++        }
++        catch (JsonException)
++        {
++            return null;
++        }
++    }
++
++    /// <summary>Every crew ridden with, the one last settled first.</summary>
++    public IReadOnlyList<CampaignState> Crews()
++    {
++        if (!System.IO.Directory.Exists(CrewsDirectory))
++            return [];
++        var all = new List<CampaignState>();
++        foreach (var file in System.IO.Directory.GetFiles(CrewsDirectory, "*.json").Order(StringComparer.Ordinal))
++        {
++            try
++            {
++                if (JsonSerializer.Deserialize<CampaignState>(File.ReadAllText(file), DataFile.Options) is { } s)
++                    all.Add(s);
++            }
++            catch (JsonException)
++            {
++                // A file that doesn't read is left alone, and not listed.
++            }
++        }
++        return [.. all.OrderByDescending(s => s.SettledAt).ThenBy(s => s.CrewId, StringComparer.Ordinal)];
++    }
++
++    /// <summary>
++    /// The crew's save as a host sent it (note 724): kept under the crew's id, never in one of this player's slots. Of two
++    /// copies of a crew, the one with more nights settled stays (<see cref="Campaign.Prefer"/>). What's kept, or null for bytes
++    /// that aren't a save.
++    /// </summary>
++    public CampaignState? Keep(byte[] save)
++    {
++        CampaignState? incoming;
++        try
++        {
++            incoming = JsonSerializer.Deserialize<CampaignState>(save, DataFile.Options);
++        }
++        catch (JsonException)
++        {
++            return null;
++        }
++        return incoming is null ? null : Keep(incoming);
++    }
++
++    /// <summary>A crew's save kept among the crews ridden with (note 724), the better of it and the copy held.</summary>
++    public CampaignState Keep(CampaignState incoming)
++    {
++        incoming = incoming with { Slot = 0, Crew = incoming.CrewId };
++        var kept = LoadCrew(incoming.CrewId) is { } held ? Campaign.Prefer(held, incoming) : incoming;
++        Save(kept);
++        return kept;
++    }
++
++    /// <summary>The crew's save as it goes to the crew (note 724): its JSON, as this machine writes it.</summary>
++    public static byte[] Bytes(CampaignState state) => JsonSerializer.SerializeToUtf8Bytes(state, DataFile.Options);
+ }
+diff --git a/src/DarkTerritory.Game/Sound/VoiceBench.cs b/src/DarkTerritory.Game/Sound/VoiceBench.cs
+index ed85e422..0a603525 100644
+--- a/src/DarkTerritory.Game/Sound/VoiceBench.cs
++++ b/src/DarkTerritory.Game/Sound/VoiceBench.cs
+@@ -31,10 +31,11 @@ public static class VoiceBench
+     /// <param name="speakerCar">Car the speaker stands on (0 = in the cab); the listener is on car 3's roof.</param>
+     /// <param name="space">Hear it as if in this space (a tunnel: GDD §22's compressed, close voice); null, where the listener is.</param>
+     /// <param name="dieAt">Seconds into the speech the speaker dies, mid-word (the hard-cut's check).</param>
++    /// <param name="muted">The listener has the speaker muted (note 724): nothing of theirs should be heard, on any path.</param>
+     /// <param name="tube">The speaking tube (note 720): the speaker at the cab's mouthpiece, the listener in the guard van a few
+     /// metres from its horn, the length of the train away (<paramref name="speakerCar"/> and <paramref name="speakerZ"/> unused).</param>
+     public static VoiceBenchReport Run(string content, int speakerCar, double speakerZ, bool radio, double seconds = 2, LinkConditions? link = null,
+-        string? space = null, double? dieAt = null, float micLevel = 1, bool tube = false)
++        string? space = null, double? dieAt = null, float micLevel = 1, bool tube = false, bool muted = false)
+     {
+         var trainTuning = DataFile.Load<TrainTuning>(Path.Combine(content, TrainTuning.File));
+         var playerTuning = DataFile.Load<PlayerTuning>(Path.Combine(content, PlayerTuning.File));
+@@ -47,7 +48,8 @@ public static class VoiceBench
+ 
+         var audio = new GameAudio(content) { SpaceOverride = space };
+         audio.Bank.Samples.InlineBytes = long.MaxValue; // offline: the same every run
+-        var ears = new VoiceChat(audio.Mixer);
++        // Note 724: the listener muted the speaker on their roster.
++        var ears = new VoiceChat(audio.Mixer) { Muted = muted ? id => id == speaker.PlayerId : null };
+         var mouth = new VoiceChat(new Mixer(new SoundBank(), audio.Mixer.Mix)) { RadioHeld = radio, MicLevel = micLevel };
+         var speech = SyntheticSpeech.Generate(seconds);
+         int perTick = VoiceFormat.SampleRate / SimConstants.TickRate;
+diff --git a/src/DarkTerritory.Game/Sound/VoiceChat.cs b/src/DarkTerritory.Game/Sound/VoiceChat.cs
+index 6c21abd9..bd44be7f 100644
+--- a/src/DarkTerritory.Game/Sound/VoiceChat.cs
++++ b/src/DarkTerritory.Game/Sound/VoiceChat.cs
+@@ -87,6 +87,11 @@ public sealed class VoiceChat
+ 
+     public IEnumerable<byte> Speakers => _speakers.Keys;
+ 
++    /// <summary>Who's muted on this machine (note 724, the roster's MUTE): their frames are dropped as they come, on every path.</summary>
++    public Func<byte, bool>? Muted { get; set; }
++    /// <summary>Frames dropped for a mute.</summary>
++    public int FramesMuted { get; private set; }
++
+     /// <summary>
+     /// Seconds since a crewmate was last heard (near or on the radio), or null if never: the roster's speaking marks, which
+     /// is how a crew makes everyone speak and sees who didn't (App. A.7).
+@@ -127,6 +132,13 @@ public sealed class VoiceChat
+         _clock += dt;
+         while (client.VoiceFrames.TryDequeue(out var f))
+         {
++            // Muted on this machine (note 724): nothing of theirs is played here, near, on the radio, down the speaking tube, on
++            // the dead channel or in a Soot Child's mouth. A death's hard-cut still lands, so nothing's left buffered.
++            if (Muted?.Invoke(f.Speaker) == true && !f.Path.HasFlag(VoicePath.Cut))
++            {
++                FramesMuted++;
++                continue;
++            }
+             if (f.Path.HasFlag(VoicePath.Mimic))
+             {
+                 if (!_mimics.TryGetValue(f.Source, out var m))
+diff --git a/src/DarkTerritory.Sim/Bots/BotCrew.cs b/src/DarkTerritory.Sim/Bots/BotCrew.cs
+index d7c8bddd..8f8bd69b 100644
+--- a/src/DarkTerritory.Sim/Bots/BotCrew.cs
++++ b/src/DarkTerritory.Sim/Bots/BotCrew.cs
+@@ -26,6 +26,22 @@ public sealed class BotCrew(CrewCalls? calls) : IDisposable
+             _owned.Add(owned);
+     }
+ 
++    /// <summary>Bots that left the crew (note 724): a friend took their seat, or the host put them off.</summary>
++    public int Retired { get; private set; }
++
++    /// <summary>
++    /// Note 724: the bot playing <paramref name="id"/> leaves the crew (a joiner took its seat, or it was put off): it's no
++    /// longer stepped, and the host has already hung up on its link. Its transport goes with the crew, as ever.
++    /// </summary>
++    public void Retire(byte id)
++    {
++        int i = _bots.FindIndex(b => b.Session.PlayerId == id);
++        if (i < 0)
++            return;
++        _bots.RemoveAt(i);
++        Retired++;
++    }
++
+     public void Dispose()
+     {
+         foreach (var o in _owned)
+diff --git a/src/DarkTerritory.Sim/Campaign/Campaign.cs b/src/DarkTerritory.Sim/Campaign/Campaign.cs
+index ca9d29d9..17321213 100644
+--- a/src/DarkTerritory.Sim/Campaign/Campaign.cs
++++ b/src/DarkTerritory.Sim/Campaign/Campaign.cs
+@@ -177,6 +177,21 @@ public sealed record CampaignState
+     /// trains for this crew. The save is kept to be read, and the slot's next start is a new crew.
+     /// </summary>
+     public bool Over { get; init; }
++    /// <summary>
++    /// The crew's own id (GDD §11, note 724): the same on every machine its save has travelled to, so each keeps one copy of it
++    /// among the crews it's ridden with. Empty in a save from before it: <see cref="CrewId"/> reads the campaign's seed.
++    /// </summary>
++    public string Crew { get; init; } = "";
++    /// <summary>The crew's id: <see cref="Crew"/>, or for an older save its seed's (random to each campaign, kept in the save).</summary>
++    [System.Text.Json.Serialization.JsonIgnore]
++    public string CrewId => Crew.Length > 0 ? Crew : $"{Seed:x16}";
++    /// <summary>Who last hosted a night of it and settled it (note 724): the front end's "LAST HOSTED BY DAVE". Empty before.</summary>
++    public string LastHost { get; init; } = "";
++    /// <summary>
++    /// When its last night was settled (note 724), Unix milliseconds by the settling host's clock: the tie-break between two
++    /// copies with as many nights. 0 before.
++    /// </summary>
++    public long SettledAt { get; init; }
+ }
+ 
+ /// <summary>What a purchase came to: the new state, or why not.</summary>
+@@ -381,6 +396,17 @@ public static class Campaign
+         return s with { Cars = cars, Scrip = scrip, Runs = s.Runs + 1, History = [.. s.History, log], Current = null, Checkpoint = null, SpareKits = spares, Identities = identities, Stores = new(), Over = s.Over || Ends(t, report.End) };
+     }
+ 
++    /// <summary>
++    /// Two copies of one crew's save (GDD §11, note 724): the one with more nights settled wins; with as many, the newer
++    /// settlement; with that too, the one already held (<paramref name="held"/>). A campaign over (note 632) closes every copy:
++    /// whichever wins is over if either is. Deterministic: no clock read here, only what each copy says.
++    /// </summary>
++    public static CampaignState Prefer(CampaignState held, CampaignState incoming)
++    {
++        var win = incoming.Runs > held.Runs || incoming.Runs == held.Runs && incoming.SettledAt > held.SettledAt ? incoming : held;
++        return win.Over || !(held.Over || incoming.Over) ? win : win with { Over = true };
++    }
++
+     /// <summary>The night's tunings with the crew's spare repair kits aboard (E.12 question 4): stocked in the lockers beside the train's own.</summary>
+     public static Loadout WithSpareKits(Loadout l, int spares) =>
+         spares <= 0 ? l : l with { Train = l.Train with { Kit = l.Train.Kit with { SpareKits = spares } } };
+diff --git a/src/DarkTerritory.Sim/Net/ClientSession.cs b/src/DarkTerritory.Sim/Net/ClientSession.cs
+index f391f62b..d5f22375 100644
+--- a/src/DarkTerritory.Sim/Net/ClientSession.cs
++++ b/src/DarkTerritory.Sim/Net/ClientSession.cs
+@@ -152,6 +152,39 @@ public sealed class ClientSession
+     /// <summary>The host turned this connection away instead of welcoming it (a full crew, note 254); null otherwise.</summary>
+     public Refusal? Refused { get; private set; }
+ 
++    readonly Dictionary<int, byte[]> _saveChunks = [];
++    int _saveCount;
++    /// <summary>The crew's save as the host last sent it (note 724), its bytes; null till one's come. <see cref="TakeCrewSave"/> takes it.</summary>
++    public byte[]? CrewSave { get; private set; }
++    /// <summary>How many of the crew's saves have come in this session.</summary>
++    public int CrewSaves { get; private set; }
++
++    /// <summary>The crew's save that's come in since the last take, or null: the game keeps it (note 724).</summary>
++    public byte[]? TakeCrewSave()
++    {
++        var save = CrewSave;
++        CrewSave = null;
++        return save;
++    }
++
++    /// <summary>The vote to put someone off as the host last said it (note 724), or none.</summary>
++    public KickVote KickVote { get; private set; }
++
++    /// <summary>The crew put this player off the run (note 724): the host hangs up in a moment, and they can't come back to it.</summary>
++    public bool Kicked { get; private set; }
++
++    /// <summary>
++    /// Note 724: put <paramref name="target"/> off. The host's own player does it outright; in a public lobby anyone else calls
++    /// the vote on them, or says yes to the one open on them. The host decides.
++    /// </summary>
++    public void Kick(byte target)
++    {
++        if (PlayerId is null)
++            return;
++        Messages.WriteKick(_writer, target);
++        _transport.Send(PeerId.Host, _writer.Written, Delivery.ReliableOrdered);
++    }
++
+     /// <summary>
+     /// Note 254: the player's quitting on purpose. Tells the host, so their place frees now rather than being held for a
+     /// rejoin (note 253), then hangs up (the session's done: don't step it again). If the word's lost on the way, the host
+@@ -396,6 +429,29 @@ public sealed class ClientSession
+                 case MessageType.Wait:
+                     WaitingReason = r.Str();
+                     break;
++                case MessageType.CrewSave:
++                    {
++                        // Note 724: the crew's save, settled on the host's machine, kept among the crews this player rides with.
++                        int index = r.U8();
++                        _saveCount = r.U8();
++                        _saveChunks[index] = r.Rest().ToArray();
++                        if (Messages.ReadCrewSave(_saveChunks, _saveCount) is { } save)
++                        {
++                            CrewSave = save;
++                            CrewSaves++;
++                            _saveChunks.Clear();
++                        }
++                        break;
++                    }
++                case MessageType.KickVote:
++                    KickVote = Messages.ReadKickVote(ref r);
++                    break;
++                case MessageType.Kicked:
++                    Kicked = true;
++                    break;
++                case MessageType.Mischief:
++                    World.CrewMischief = r.Bool();
++                    break;
+                 case MessageType.CarryOn:
+                     CarryingOn = Messages.ReadCarryOn(ref r);
+                     break;
+diff --git a/src/DarkTerritory.Sim/Net/HostSession.Sessions.cs b/src/DarkTerritory.Sim/Net/HostSession.Sessions.cs
+new file mode 100644
+index 00000000..534f90cf
+--- /dev/null
++++ b/src/DarkTerritory.Sim/Net/HostSession.Sessions.cs
+@@ -0,0 +1,297 @@
++using Ballast.Net;
++using DarkTerritory.Sim.Player;
++
++namespace DarkTerritory.Sim.Net;
++
++/// <summary>
++/// Sessions (GDD §33.1; ARCHITECTURE §8 note 724; the director, 14 Oct 2026, App. F.6: friend groups break on friction, uneven
++/// attendance, slow joins and strangers in public games): the crew's save sent to everyone aboard, a friend taking a bot's
++/// seat, kick and the public lobby's vote to put someone off, and the lobby's crew mischief switch. None of it is sim state:
++/// a joiner, a kick and a vote are the session's, and the switch reaches the sim through <see cref="World.CrewMischief"/>.
++/// </summary>
++public sealed partial class HostSession
++{
++    // ---- The crew's save travels (GDD §11, note 724) ----
++
++    /// <summary>Saves sent to the crew (one a night's settling), for tests and the log.</summary>
++    public int SavesShared { get; private set; }
++
++    /// <summary>
++    /// Sends the crew's save (the host machine's file, as bytes; the session never reads it) to every human aboard or waiting
++    /// at a stop, as the night's settled into it (note 724): each keeps it among the crews it's ridden with. Bots are skipped.
++    /// </summary>
++    public void ShareSave(byte[] save)
++    {
++        var messages = Messages.CrewSaveMessages(save);
++        foreach (var peer in HumanPeers())
++            foreach (var m in messages)
++                _transport.Send(peer, m, Delivery.ReliableOrdered);
++        SavesShared++;
++    }
++
++    IEnumerable<PeerId> HumanPeers() =>
++        _crew.Where(c => !_bots.Contains(c.Id)).Select(c => c.Peer).Concat(_waiting.Where(w => !_bots.Contains(w.Id)).Select(w => w.Peer)).Distinct();
++
++    IEnumerable<PeerId> AllPeers() => _crew.Select(c => c.Peer).Concat(_waiting.Select(w => w.Peer)).Distinct();
++
++    // ---- A friend takes a bot's seat (GDD §33.1, note 724) ----
++
++    /// <summary>Joiners who took a bot's seat.</summary>
++    public int BotSeatsTaken { get; private set; }
++
++    /// <summary>
++    /// Told when a bot leaves the crew (note 724): its seat taken by a joiner, or put off by the host. The bot's machine (the
++    /// host's own, <c>BotCrew</c>) stops running it; its link is already hung up.
++    /// </summary>
++    public Action<byte>? BotLeft { get; set; }
++
++    /// <summary>Whether this player said in their Hello they're a bot (note 574).</summary>
++    public bool IsBot(byte id) => _bots.Contains(id);
++
++    /// <summary>
++    /// A new joiner who'd not walk straight aboard alive (note 724): the run's under way with Holdouts (D.3's queue), the train's
++    /// between stops (spec E's wait), or the crew's full. With player.json <c>crew.joinTakesBotSeat</c>.
++    /// </summary>
++    bool WouldWait => PlayerTuning.Crew.JoinTakesBotSeat && BotSeatsOpen && (Full || Lobbying || CanBoard is { } can && !can());
++
++    /// <summary>
++    /// Whether a joiner can take a bot's seat yet (note 724). The game shuts it while it brings the night's own crew aboard
++    /// (its bots, then the host's own player), so a resumed night's host doesn't take its own driver's seat.
++    /// </summary>
++    public bool BotSeatsOpen { get; set; } = true;
++
++    /// <summary>
++    /// The bot whose seat a joiner takes (note 724): a living one, the director's census's least busy (fewest threats on it,
++    /// then the most slack), else the newest; the one at the cab's controls last, so the train isn't left undriven. A crew
++    /// that's full takes a dead bot's seat (the queue's) before it turns a friend away. Null: no bot to take.
++    /// </summary>
++    Crew? BotSeat()
++    {
++        var bots = _crew.Where(c => _bots.Contains(c.Id) && c.State.Alive && !World.Wrecked(c.State)).ToList();
++        if (bots.Count == 0 && Full)
++            bots = [.. _crew.Where(c => _bots.Contains(c.Id))];
++        if (bots.Count == 0)
++            return null;
++        var census = World.Director?.Posts.Entries.ToDictionary(e => e.Player) ?? new Dictionary<int, Enemies.CensusEntry>();
++        return bots
++            .OrderBy(c => c.Id == World.ControlsHolder ? 1 : 0)
++            .ThenBy(c => census.TryGetValue(c.Id, out var e) ? e.On : 0)
++            .ThenByDescending(c => census.TryGetValue(c.Id, out var e) ? e.Slack : 0)
++            .ThenByDescending(c => c.Id)
++            .First();
++    }
++
++    /// <summary>
++    /// The joiner takes <paramref name="bot"/>'s place where it stands (note 724): its id, and with it its body, its slots and
++    /// what it carries, its health and its post. The bot's link is hung up and its machine told (<see cref="BotLeft"/>). The
++    /// joiner is welcomed into the id with a fresh token, and adopts the state as a placement.
++    /// </summary>
++    byte TakeSeat(Crew bot, PeerId peer)
++    {
++        var old = bot.Peer;
++        bot.Peer = peer;
++        bot.Pending.Clear();
++        bot.PendingSeen.Clear();
++        bot.Sent.Clear();
++        (bot.Seen, bot.LastApplied, bot.AckedSnapshot, bot.MissedInputs, bot.ReportedLoss) = (0, 0, 0, 0, 0);
++        (bot.LastIntent, bot.ThisTick, bot.Bookmarking) = (default, default, false);
++        (bot.Thin, bot.ThinFor, bot.ThinHeld) = (false, 0, 0);
++        bot.InputLoss = new(_lossWindow);
++        bot.State.Placed++;
++        // The bot's look (D.8) was its own; the joiner's comes with their name, or their id's.
++        World.Looks.Remove(bot.Id);
++        Botness(bot.Id, false);
++        if (World.ControlsHolder == bot.Id)
++            World.HoldControls(bot.Id, false);
++        _tokens.Remove(bot.Id);
++        ulong token = NewToken();
++        _tokens[bot.Id] = token;
++        _transport.Disconnect(old);
++        BotSeatsTaken++;
++        Welcome(bot.Id, peer, token);
++        BotLeft?.Invoke(bot.Id);
++        return bot.Id;
++    }
++
++    // ---- Kick and the public lobby's vote (GDD §33.1, note 724) ----
++
++    /// <summary>
++    /// A public lobby (listed, no password): anyone aboard can call a vote to put a player off. Off (friends-only, a private
++    /// run, a night alone), only the host's own player can, and does so outright.
++    /// </summary>
++    public bool VoteKicks { get; set; }
++
++    /// <summary>
++    /// Who a link is beyond its connection (note 724): the platform's account, or a LAN joiner's address. Someone put off is
++    /// barred by it; without one (null, or it returns null), by the name they gave.
++    /// </summary>
++    public Func<PeerId, string?>? Identity { get; set; }
++
++    /// <summary>Players put off this run.</summary>
++    public int Kicks { get; private set; }
++
++    /// <summary>The vote to put someone off as it stands, or <see cref="KickVote.None"/>.</summary>
++    public KickVote Vote { get; private set; }
++
++    readonly HashSet<string> _barred = [];
++    readonly HashSet<byte> _kickYes = [];
++    bool _voteChanged, _mischiefChanged;
++
++    /// <summary>The lobby's crew mischief switch (GDD §23.4, note 724): the world's, and every client's once it's sent.</summary>
++    public bool Mischief
++    {
++        get => World.CrewMischief;
++        set
++        {
++            if (World.CrewMischief == value)
++                return;
++            World.CrewMischief = value;
++            _mischiefChanged = true;
++        }
++    }
++
++    /// <summary>
++    /// Puts a player off the run (note 724): told so, their crewmate dropped where they stood as for a Leave (their place not
++    /// held), barred from coming back to this run, and hung up on once the word's had time to get there. Never the host's own
++    /// player. False if there's nobody by that id.
++    /// </summary>
++    public bool Kick(byte id)
++    {
++        if (id == HostPlayer)
++            return false;
++        PeerId? found = _crew.Find(c => c.Id == id)?.Peer ?? _waiting.Where(w => w.Id == id).Select(w => (PeerId?)w.Peer).FirstOrDefault()
++            ?? _reserved.Where(r => r.Id == id).Select(r => (PeerId?)r.Peer).FirstOrDefault();
++        if (found is not { } peer)
++            return false;
++        bool bot = _bots.Contains(id);
++        // A bot put off is gone, and nothing to bar (it would bar the host's own machine, where the bots are).
++        if (!bot)
++            Bar(peer, World.Names.GetValueOrDefault(id));
++        Messages.WriteKicked(_writer);
++        _transport.Send(peer, _writer.Written, Delivery.ReliableOrdered);
++        Gone(peer, hold: false);
++        foreach (var seat in _reserved.Where(r => r.Id == id).ToList())
++        {
++            _reserved.Remove(seat);
++            Free(seat.Id);
++        }
++        _refused.Add((peer, Tick + (uint)TicksOf(PlayerTuning.Crew.RefuseLingerSeconds)));
++        Kicks++;
++        if (Vote.Target == id)
++            CloseVote();
++        if (bot)
++        {
++            Botness(id, false);
++            BotLeft?.Invoke(id);
++        }
++        return true;
++    }
++
++    void Bar(PeerId peer, string? name)
++    {
++        if (Identity?.Invoke(peer) is { Length: > 0 } who)
++            _barred.Add("id:" + who);
++        else if (name is { Length: > 0 })
++            _barred.Add("name:" + name.ToUpperInvariant());
++    }
++
++    bool Banned(PeerId peer, string name) =>
++        _barred.Count > 0 && (Identity?.Invoke(peer) is { Length: > 0 } who && _barred.Contains("id:" + who)
++            || name.Length > 0 && _barred.Contains("name:" + name.ToUpperInvariant()));
++
++    /// <summary>
++    /// A crewmate's Kick (note 724). The host's own player's puts them off outright. In a public lobby anyone else living and
++    /// playing calls the vote on them, or says yes to the one open on them; one vote at a time, never on the host or yourself.
++    /// </summary>
++    void CallKick(Crew from, byte target)
++    {
++        if (from.Id == HostPlayer)
++        {
++            Kick(target);
++            return;
++        }
++        if (!VoteKicks || _bots.Contains(from.Id) || !from.State.Alive || target == from.Id || target == HostPlayer || target == 0)
++            return;
++        if (!_crew.Any(c => c.Id == target) && !_waiting.Any(w => w.Id == target))
++            return;
++        if (Vote.Open && Vote.Target != target)
++            return;
++        if (!Vote.Open)
++        {
++            _kickYes.Clear();
++            Vote = new KickVote(target, 0, 0, Tick + (uint)TicksOf(PlayerTuning.Crew.Kick.VoteSeconds));
++        }
++        _kickYes.Add(from.Id);
++        CountVote();
++    }
++
++    /// <summary>
++    /// The vote counted (note 724): the living humans aboard but the one voted on are its electorate, and more than
++    /// crew.kick.majority of them saying yes puts them off. It closes at its time, or when they've gone anyway.
++    /// </summary>
++    void CountVote()
++    {
++        if (!Vote.Open)
++            return;
++        byte target = Vote.Target;
++        var electorate = _crew.Where(c => !_bots.Contains(c.Id) && c.State.Alive && c.Id != target).Select(c => c.Id).ToList();
++        int yes = electorate.Count(_kickYes.Contains);
++        int needed = (int)Math.Floor(electorate.Count * PlayerTuning.Crew.Kick.Majority) + 1;
++        if (electorate.Count > 0 && yes >= needed)
++        {
++            CloseVote();
++            Kick(target);
++            return;
++        }
++        if (Tick >= Vote.Until || !_crew.Any(c => c.Id == target) && !_waiting.Any(w => w.Id == target))
++        {
++            CloseVote();
++            return;
++        }
++        var now = Vote with { Yes = yes, Needed = needed };
++        if (now != Vote)
++        {
++            Vote = now;
++            _voteChanged = true;
++        }
++    }
++
++    void CloseVote()
++    {
++        Vote = KickVote.None;
++        _kickYes.Clear();
++        _voteChanged = true;
++    }
++
++    /// <summary>Each tick, before anyone acts: the vote counted, and the vote and the switch sent to everyone when they change.</summary>
++    void Sessions()
++    {
++        CountVote();
++        if (_voteChanged)
++        {
++            _voteChanged = false;
++            Messages.WriteKickVote(_writer, Vote);
++            foreach (var p in AllPeers())
++                _transport.Send(p, _writer.Written, Delivery.ReliableOrdered);
++        }
++        if (_mischiefChanged)
++        {
++            _mischiefChanged = false;
++            Messages.WriteMischief(_writer, World.CrewMischief);
++            foreach (var p in AllPeers())
++                _transport.Send(p, _writer.Written, Delivery.ReliableOrdered);
++        }
++    }
++
++    /// <summary>What a joiner's told as they're welcomed (note 724): the switch as it stands now, and any vote open.</summary>
++    void TellSession(PeerId peer)
++    {
++        Messages.WriteMischief(_writer, World.CrewMischief);
++        _transport.Send(peer, _writer.Written, Delivery.ReliableOrdered);
++        if (Vote.Open)
++        {
++            Messages.WriteKickVote(_writer, Vote);
++            _transport.Send(peer, _writer.Written, Delivery.ReliableOrdered);
++        }
++    }
++}
+diff --git a/src/DarkTerritory.Sim/Net/HostSession.cs b/src/DarkTerritory.Sim/Net/HostSession.cs
+index 092f5fdc..f667696b 100644
+--- a/src/DarkTerritory.Sim/Net/HostSession.cs
++++ b/src/DarkTerritory.Sim/Net/HostSession.cs
+@@ -10,7 +10,7 @@ namespace DarkTerritory.Sim.Net;
+ /// steps the train and every player, and broadcasts a snapshot to each client with the last input
+ /// it applied for them. The host player (when there is one) goes through the same intent path.
+ /// </summary>
+-public sealed class HostSession
++public sealed partial class HostSession
+ {
+     /// <summary>Beyond this many queued inputs a client is too far ahead; drop the oldest to bound latency.</summary>
+     const int MaxQueuedInputs = 8;
+@@ -156,6 +156,7 @@ public sealed class HostSession
+         Expire();
+         HangUp();
+         BoardWaiting();
++        Sessions();
+ 
+         // Note 717: the crew as they stand at the start of the tick, as the snapshot just sent (this tick's number) has them:
+         // whom a shove or a bonk finds, and the crowd. Each crewmate is pushed out from among the crew as the snapshot they
+@@ -463,6 +464,7 @@ public sealed class HostSession
+         Messages.WriteWelcome(_writer, id, Tick, SessionInfo, token);
+         _transport.Send(peer, _writer.Written, Delivery.ReliableOrdered);
+         _namesChanged |= World.Names.Count > 0;
++        TellSession(peer);
+         Admit(id, peer);
+         return id;
+     }
+@@ -574,12 +576,22 @@ public sealed class HostSession
+             // whose place ran out) needs room. The greeting line itself takes no place: a connection that never speaks is
+             // never counted, so it can't fill the crew or shut the lobby.
+             byte? back = g.Token != 0 ? Return(g.Peer, g.Token) : null;
++            // Note 724: someone the crew put off doesn't come back to this run, by any door.
++            if (back is null && Banned(g.Peer, g.Name))
++            {
++                Refuse(g.Peer, RefusalReason.Kicked);
++                continue;
++            }
+             // Note 450: a private run asks a new joiner for its password before it takes a place, so a guess fills nothing.
+             if (back is null && !Admitted(g))
+             {
+                 Refuse(g.Peer, RefusalReason.Password);
+                 continue;
+             }
++            // Note 724 (GDD §33.1): a friend joining a night the bots crew takes a bot's seat where it stands, rather than
++            // waiting for a stop or the Holdouts' queue, or being turned away from a full crew.
++            if (back is null && !g.Bot && WouldWait && BotSeat() is { } seat)
++                back = TakeSeat(seat, g.Peer);
+             if (back is null && Full)
+             {
+                 Refuse(g.Peer);
+@@ -709,6 +721,7 @@ public sealed class HostSession
+         Messages.WriteWelcome(_writer, id, Tick, SessionInfo, token);
+         _transport.Send(peer, _writer.Written, Delivery.ReliableOrdered);
+         _namesChanged = true;
++        TellSession(peer);
+         _ballotsSent.Remove(id);
+         if (World.Commendations.Count > 0)
+         {
+@@ -959,6 +972,12 @@ public sealed class HostSession
+         var c = _crew.Find(x => x.Peer == peer);
+         if (c is null)
+             return;
++        // Note 724: put a crewmate off (the host's own player), or the public lobby's vote on it.
++        if (payload.Length == 2 && payload[0] == (byte)MessageType.Kick)
++        {
++            CallKick(c, payload[1]);
++            return;
++        }
+         // Note 298: trying an outfit on, in the yard.
+         if (payload.Length == 2 && payload[0] == (byte)MessageType.Wear)
+         {
+diff --git a/src/DarkTerritory.Sim/Net/Messages.cs b/src/DarkTerritory.Sim/Net/Messages.cs
+index a3b713e0..ed175951 100644
+--- a/src/DarkTerritory.Sim/Net/Messages.cs
++++ b/src/DarkTerritory.Sim/Net/Messages.cs
+@@ -85,7 +85,10 @@ public static class Protocol
+     //     input frame says the snapshot it was predicted against (a byte back from the message's), for the crowd.
+     //     And voices (note 720): a voice frame's path is two bytes (the speaking tube's its ninth flag) and the tube's far end follows
+     //     it; a lamp signal rides the intent's third byte (bits 2-3), and the crew see it as a record kind of its own.
+-    public const int Version = 59;
++    // 60: sessions (note 724): the crew's save sent to everyone aboard as a night's settled (CrewSave, in chunks); kick and the
++    //     public lobby's vote to put a player off (Kick, KickVote, Kicked; a Refused can say the crew put you off); and the
++    //     lobby's crew mischief switch (Mischief), changed in the yard.
++    public const int Version = 60;
+ }
+ 
+ public enum MessageType : byte
+@@ -144,6 +147,22 @@ public enum MessageType : byte
+     /// rather than going back to its menu.
+     /// </summary>
+     CarryOn = 20,
++    /// <summary>
++    /// Host → everyone aboard, reliable, as the host settles a campaign night into the save (note 724): one chunk of the crew's
++    /// save, its JSON compressed, in order. Each machine keeps it among the crews it's ridden with, and any of them can host it.
++    /// </summary>
++    CrewSave = 21,
++    /// <summary>
++    /// Client → host, reliable (note 724): put this crewmate off. From the host's own player it's done; in a public lobby from
++    /// anyone else it calls the vote, or says yes to the one open on them.
++    /// </summary>
++    Kick = 22,
++    /// <summary>Host → everyone, reliable (note 724): the vote to put someone off as it stands (who, yes, needed, until), or none.</summary>
++    KickVote = 23,
++    /// <summary>Host → the one put off, reliable (note 724): they're off the run; the host hangs up crew.refuseLingerSeconds later.</summary>
++    Kicked = 24,
++    /// <summary>Host → everyone, reliable (note 724): the lobby's crew mischief switch, on a Welcome and whenever the host changes it.</summary>
++    Mischief = 25,
+ }
+ 
+ /// <summary>Why the host turned a joiner away (note 254).</summary>
+@@ -153,6 +172,8 @@ public enum RefusalReason : byte
+     CrewFull = 1,
+     /// <summary>A private run (note 450), and the Hello's password wasn't its own (or there was none).</summary>
+     Password = 2,
++    /// <summary>Put off this run (note 724), by the host or the crew's vote: they can't come back to it.</summary>
++    Kicked = 3,
+ }
+ 
+ /// <summary>A host's refusal as the joiner reads it: why, and the crew against the cap at the time.</summary>
+@@ -163,10 +184,21 @@ public readonly record struct Refusal(RefusalReason Reason, int Crew, int Cap)
+     {
+         RefusalReason.CrewFull => $"CREW FULL ({Crew}/{Cap})",
+         RefusalReason.Password => "WRONG PASSWORD",
++        RefusalReason.Kicked => Messages.PutOff,
+         _ => $"TURNED AWAY ({Reason})",
+     };
+ }
+ 
++/// <summary>
++/// The vote to put a crewmate off (note 724) as the host counts it: on whom, the yes so far and how many it needs, and the
++/// host's tick it closes at. <see cref="None"/> (target 0): no vote open.
++/// </summary>
++public readonly record struct KickVote(byte Target, int Yes, int Needed, uint Until)
++{
++    public static readonly KickVote None = default;
++    public bool Open => Target != 0;
++}
++
+ /// <summary>A joiner's first word (note 253): who, the slot it's coming back to, its outfit, and a private run's key (note 450).</summary>
+ public readonly record struct Hello(string Name, ulong Token, byte Outfit, byte[]? Key, bool Bot = false);
+ 
+@@ -598,6 +630,48 @@ public static class Messages
+         return json.ToArray();
+     }
+ 
++    /// <summary>The crew's save (note 724), as the host's machine writes it (its JSON), in chunks: any size to 255 KB packed.</summary>
++    public static List<byte[]> CrewSaveMessages(byte[] save) => Chunked(MessageType.CrewSave, save);
++
++    /// <summary>The crew's save's bytes once every chunk is in, else null.</summary>
++    public static byte[]? ReadCrewSave(IReadOnlyDictionary<int, byte[]> chunks, int count) => Unchunk(chunks, count);
++
++    /// <summary>What the one put off is told, on the menu (note 724; the director's line).</summary>
++    public const string PutOff = "THE CREW PUT YOU OFF AT THE NEXT STOP";
++
++    public static void WriteKick(NetWriter w, byte target)
++    {
++        w.Reset();
++        w.U8((byte)MessageType.Kick);
++        w.U8(target);
++    }
++
++    public static void WriteKickVote(NetWriter w, KickVote v)
++    {
++        w.Reset();
++        w.U8((byte)MessageType.KickVote);
++        w.U8(v.Target);
++        w.U8((byte)Math.Clamp(v.Yes, 0, 255));
++        w.U8((byte)Math.Clamp(v.Needed, 0, 255));
++        w.U32(v.Until);
++    }
++
++    /// <summary>Reads a KickVote after its type byte.</summary>
++    public static KickVote ReadKickVote(ref NetReader r) => new(r.U8(), r.U8(), r.U8(), r.U32());
++
++    public static void WriteKicked(NetWriter w)
++    {
++        w.Reset();
++        w.U8((byte)MessageType.Kicked);
++    }
++
++    public static void WriteMischief(NetWriter w, bool on)
++    {
++        w.Reset();
++        w.U8((byte)MessageType.Mischief);
++        w.Bool(on);
++    }
++
+     /// <summary>A bookmark (D.12): where its still is taken from. Small, so one message, its JSON.</summary>
+     public static void WriteBookmark(NetWriter w, Run.Bookmark b)
+     {
+diff --git a/src/DarkTerritory.Sim/Player/Horseplay.cs b/src/DarkTerritory.Sim/Player/Horseplay.cs
+index 3f15ef35..15db5dc6 100644
+--- a/src/DarkTerritory.Sim/Player/Horseplay.cs
++++ b/src/DarkTerritory.Sim/Player/Horseplay.cs
+@@ -212,6 +212,8 @@ public static class Horseplay
+ public sealed record HorseplayTuning
+ {
+     public bool Enabled { get; init; } = true;
++    /// <summary>Note 724: a public lobby FEELING COMPETITIVE starts with the crew mischief switch off (player.json <c>horseplay.competitiveOff</c>).</summary>
++    public bool CompetitiveOff { get; init; } = true;
+     public CrowdTuning Crowd { get; init; } = new();
+     public ShoveTuning Shove { get; init; } = new();
+     public CoalTuning Coal { get; init; } = new();
+diff --git a/src/DarkTerritory.Sim/Player/PlayerTuning.cs b/src/DarkTerritory.Sim/Player/PlayerTuning.cs
+index ed2928a2..79052438 100644
+--- a/src/DarkTerritory.Sim/Player/PlayerTuning.cs
++++ b/src/DarkTerritory.Sim/Player/PlayerTuning.cs
+@@ -102,7 +102,20 @@ public sealed record LinkTuning(double TimeoutSeconds = 15, double KeepaliveSeco
+ public sealed record CrewTuning(int Cap = 8, double RefuseLingerSeconds = 3)
+ {
+     public int Places => Math.Max(1, Cap);
++    /// <summary>
++    /// GDD §33.1 (note 724): a human joining a night that bots crew takes a bot's place where it stands (its body, slots,
++    /// health and post) rather than waiting for a stop or the Holdouts' queue, or being turned away from a full crew.
++    /// </summary>
++    public bool JoinTakesBotSeat { get; init; } = true;
++    /// <summary>GDD §33.1 (note 724): putting a player off the run. Docs in player.json <c>crew.kick</c>.</summary>
++    public KickTuning Kick { get; init; } = new();
+ }
++
++/// <summary>
++/// Note 724: a public lobby's vote to put a player off: open for <paramref name="VoteSeconds"/>, carried by more than
++/// <paramref name="Majority"/> of the living humans aboard (the one voted on not counted).
++/// </summary>
++public sealed record KickTuning(double VoteSeconds = 30, double Majority = 0.5);
+ /// <summary>
+ /// How long each emote lasts (note 298), in seconds, unless its player moves first. Field docs live in player.json
+ /// <c>emotes</c>. Presentation only: the host keeps the event this long for the crew to see; nothing in the sim acts on it.
+diff --git a/src/DarkTerritory.Sim/World.Horseplay.cs b/src/DarkTerritory.Sim/World.Horseplay.cs
+index 7e57a581..87f7c61a 100644
+--- a/src/DarkTerritory.Sim/World.Horseplay.cs
++++ b/src/DarkTerritory.Sim/World.Horseplay.cs
+@@ -54,8 +54,18 @@ public sealed partial class World
+     /// <summary>This night's horseplay (player.json <c>horseplay</c>, the sessions' <see cref="Movement"/>).</summary>
+     public HorseplayTuning HorseplayTuning => Movement?.Horseplay ?? NoHorseplay;
+ 
++    /// <summary>
++    /// The lobby's CREW MISCHIEF switch (GDD §23.4; ARCHITECTURE §8 note 724): set on every machine from the night's setup
++    /// (<c>SessionSetup.Mischief</c>), and on a client again whenever the host changes it in the yard. Off, a shove, a bonk
++    /// and coal thrown at the crew land on nobody, as player.json <c>horseplay.enabled: false</c> does; crewmates stay solid.
++    /// </summary>
++    public bool CrewMischief { get; set; } = true;
++
++    /// <summary>Whether horseplay lands on the crew tonight: the content allows it (<c>horseplay.enabled</c>) and the lobby has it on.</summary>
++    public bool MischiefOn => HorseplayTuning.Enabled && CrewMischief;
++
+     /// <summary>Whether <paramref name="by"/>'s mischief lands on the crew: horseplay's on, and they're not a bot.</summary>
+-    bool Mischief(int by) => HorseplayTuning.Enabled && !BotIds.Contains(by) && Mates.Count > 0;
++    bool Mischief(int by) => MischiefOn && !BotIds.Contains(by) && Mates.Count > 0;
+ 
+     /// <summary>Who last shoved <paramref name="player"/> (or bumped them on with a shove), and the train's speed then; null for nobody.</summary>
+     public (int By, double Speed)? ShovedBy(int player) => _shovedBy.TryGetValue(player, out var s) ? s : null;
+diff --git a/tests/DarkTerritory.Game.Tests/SessionsGameTests.cs b/tests/DarkTerritory.Game.Tests/SessionsGameTests.cs
+new file mode 100644
+index 00000000..aff79b59
+--- /dev/null
++++ b/tests/DarkTerritory.Game.Tests/SessionsGameTests.cs
+@@ -0,0 +1,200 @@
++using Ballast;
++using Ballast.Net;
++using DarkTerritory.Game;
++using DarkTerritory.Game.Sound;
++using DarkTerritory.Sim;
++using DarkTerritory.Sim.Campaign;
++using DarkTerritory.Sim.Net;
++using DarkTerritory.Sim.Player;
++using DarkTerritory.Sim.Rail;
++using DarkTerritory.Sim.Run;
++using DarkTerritory.Sim.Train;
++
++namespace DarkTerritory.Game.Tests;
++
++/// <summary>
++/// Sessions on this machine (GDD §33.1, §11, §23.4; ARCHITECTURE §8 note 724): the crew's save kept among the crews ridden
++/// with and hosted from the front end, the roster's mute, and the lobby's CREW MISCHIEF switch.
++/// </summary>
++[Collection("Hud.Keys")]
++public sealed class SessionsGameTests : IDisposable
++{
++    static readonly string Content = DataFile.FindContentRoot();
++    static readonly CampaignTuning C = DataFile.Load<CampaignTuning>(Path.Combine(Content, CampaignTuning.File));
++    static readonly RunTuning R = DataFile.Load<RunTuning>(Path.Combine(Content, RunTuning.File));
++    static readonly PlayerTuning P = DataFile.Load<PlayerTuning>(Path.Combine(Content, PlayerTuning.File));
++    static readonly TrainTuning T = DataFile.Load<TrainTuning>(Path.Combine(Content, TrainTuning.File));
++    readonly string _dir = Path.Combine(Path.GetTempPath(), $"dt-sessions-{Guid.NewGuid():N}");
++
++    SaveSlots Saves(string who) => new(Path.Combine(_dir, who, "saves"), C.SaveSlots);
++    FrontEnd Menu(string who) => new(C, R, Saves(who), Path.Combine(_dir, who, "settings.json"), () => 42);
++
++    public void Dispose()
++    {
++        if (Directory.Exists(_dir))
++            Directory.Delete(_dir, recursive: true);
++    }
++
++    static Launch? Choose(FrontEnd m, string label)
++    {
++        int i = m.Items.ToList().FindIndex(x => !x.Heading && x.Label.StartsWith(label, StringComparison.Ordinal));
++        Assert.True(i >= 0, $"no '{label}' on {m.Screen}: {string.Join(" | ", m.Items.Select(x => x.Label))}");
++        Assert.True(m.Items[i].Enabled, $"'{label}' is greyed on {m.Screen}");
++        while (m.Selected != i)
++            m.Down();
++        return m.Select();
++    }
++
++    /// <summary>The host's slot 2 campaign after its seventh night, as the app settles it.</summary>
++    static CampaignState Settled(int runs = 7, string host = "Dave") =>
++        Campaign.New(C, 2, "Owls", 4242) with { Runs = runs, Scrip = 900, LastHost = host, SettledAt = 1_760_000_000_000 + runs };
++
++    [Fact]
++    public void TheSaveGoesHostToClientAndTheClientHostsFromIt()
++    {
++        // Over the wire as a night settles: the host's machine's bytes to a joiner, kept among the crews it's ridden with.
++        var line = RailLine.Load(Path.Combine(Content, "lines/test-loop.json"));
++        TrainOnLine Train() => new(new TrainDynamics(Consist.Uniform(T, 4, 1)), line, 1200);
++        var net = new LoopbackNetwork();
++        var host = new HostSession(net.CreateHost(), Train(), T, P);
++        var joiner = new ClientSession(net.CreateClient(), Train(), T, P) { Name = "priya" };
++        void Run(int ticks)
++        {
++            for (int i = 0; i < ticks; i++)
++            {
++                net.Advance(SimConstants.TickSeconds);
++                host.Step();
++                joiner.Step(default);
++            }
++        }
++        Run(20);
++        var hosts = Saves("dave");
++        hosts.Save(Settled());
++        host.ShareSave(SaveSlots.Bytes(hosts.Load(2)!));
++        Run(10);
++        var mine = Saves("priya");
++        var kept = mine.Keep(joiner.TakeCrewSave()!);
++        Assert.NotNull(kept);
++        // Under the crew's id, never in one of priya's own slots.
++        Assert.All(mine.List(), x => Assert.Null(x.State));
++        Assert.Equal((0, "Owls", 7, 900.0), (kept!.Slot, kept.Name, kept.Runs, kept.Scrip));
++        Assert.True(File.Exists(mine.CrewPath(kept.CrewId)));
++
++        // Her front end lists it under the slots, and she can host its next night from it.
++        var m = Menu("priya");
++        Choose(m, "CAMPAIGN");
++        Assert.Contains(m.Items, i => i.Heading && i.Label == "CREWS YOU'VE RIDDEN WITH");
++        Assert.Null(Choose(m, "CREW OWLS · NIGHT 8 · LAST HOSTED BY DAVE"));
++        Assert.Equal(Screen.Fortress, m.Screen);
++        Assert.Equal(kept.CrewId, m.Open!.CrewId);
++        Choose(m, "PLAY: ALONE");
++        Assert.Contains(m.Items, i => i.Label.StartsWith("CREW MISCHIEF", StringComparison.Ordinal));
++        var night = Assert.IsType<Launch.CampaignNight>(Choose(m, "TONIGHT"));
++        Assert.Equal((0, kept.CrewId, true), (night.Slot, night.Crew, night.Host));
++        // As the app takes the launch: the crew's copy, and saving it goes back to the crew's file.
++        var hosting = mine.Load(night.Slot, night.Crew)!;
++        Assert.Equal(7, hosting.Runs);
++        mine.Save(hosting with { Runs = 8, LastHost = "Priya" });
++        Assert.Equal(8, mine.LoadCrew(kept.CrewId)!.Runs);
++        Assert.All(mine.List(), x => Assert.Null(x.State));
++        // Neither renamed nor deleted from here: it's the crew's.
++        m.ShowCrew(kept.CrewId);
++        Assert.DoesNotContain(m.Items, i => i.Label.StartsWith("DELETE", StringComparison.Ordinal));
++    }
++
++    [Fact]
++    public void TheCopyWithMoreNightsStaysAndAClosedCrewStaysListedAsEnded()
++    {
++        var mine = Saves("priya");
++        mine.Keep(Settled(7));
++        // An older copy (another crewmate's, from before the last night) doesn't take its place.
++        Assert.Equal(7, mine.Keep(Settled(6, "Sam")).Runs);
++        Assert.Equal("Dave", mine.Crews().Single().LastHost);
++        // A newer one does.
++        Assert.Equal(8, mine.Keep(Settled(8, "Sam")).Runs);
++        // Taken at dawn on another fork: every copy's closed, and it stays listed, ended.
++        var ended = mine.Keep(Settled(6, "Sam") with { Over = true });
++        Assert.True(ended.Over);
++        Assert.Equal(8, ended.Runs);
++        var m = Menu("priya");
++        Choose(m, "CAMPAIGN");
++        Assert.Contains(m.Items, i => i.Label == "CREW OWLS · TAKEN AT DAWN · LAST HOSTED BY SAM");
++        // Bytes that aren't a save are let go.
++        Assert.Null(mine.Keep("not json"u8.ToArray()));
++        // A crew in one of my own slots with as many nights isn't listed twice.
++        var own = Saves("dave");
++        own.Save(Settled(7));
++        own.Keep(Settled(7));
++        var d = Menu("dave");
++        Choose(d, "CAMPAIGN");
++        Assert.DoesNotContain(d.Items, i => i.Heading && i.Label == "CREWS YOU'VE RIDDEN WITH");
++    }
++
++    [Fact]
++    public void AMutedCrewmateIsntHeardOnAnyPath()
++    {
++        // Near, on the radio and down the speaking tube: frames arrive, nothing of them is played.
++        foreach (var (car, z, radio, tube) in new[] { (3, 4.0, false, false), (9, 0.0, true, false), (0, 0.0, false, true) })
++        {
++            var heard = VoiceBench.Run(Content, speakerCar: car, speakerZ: z, radio: radio, tube: tube, seconds: 1);
++            var muted = VoiceBench.Run(Content, speakerCar: car, speakerZ: z, radio: radio, tube: tube, seconds: 1, muted: true);
++            double Loudest(VoiceBenchReport r) => Math.Max(r.NearDb, Math.Max(r.RadioDb, r.TubeDb));
++            Assert.True(Loudest(heard) > -60, $"{Loudest(heard)} dB unmuted");
++            Assert.True(muted.FramesHeard > 0, "no frames came");
++            Assert.Equal(-180, Loudest(muted));
++        }
++    }
++
++    [Fact]
++    public void TheRosterSaysWhosMutedAndNumbersTheCrewForItsKeys()
++    {
++        var world = new World(new TrainOnLine(new TrainDynamics(Consist.Uniform(T, 3, 1)), RailLine.Load(Path.Combine(Content, "lines/test-loop.json")), 900));
++        world.Names[1] = "Dave";
++        world.Names[2] = "Priya";
++        world.Names[3] = "Sam";
++        var lines = NetPlaySession.RosterOf(2, default, [(1, default), (3, default)], world, id => id == 3);
++        Assert.Equal([false, false, true], lines.Select(l => l.Muted));
++        Assert.Equal(["1  DAVE", "   PRIYA", "2  SAM"], Hud.RosterNames(lines, numbered: true));
++        Assert.Equal("MUTE : [1-9]   PUT OFF : [SHIFT] [1-9]", Hud.RosterKeys(host: true, vote: false));
++        Assert.Equal("MUTE : [1-9]", Hud.RosterKeys(host: false, vote: false));
++        Assert.Contains("VOTE TO PUT OFF", Hud.RosterKeys(host: false, vote: true));
++        // The vote's line across the top, and the one voted on told.
++        var vote = new KickVote(3, 1, 2, 900);
++        Assert.Equal("PUT SAM OFF AT THE NEXT STOP? 1 OF 2 · 24 S   YES : [Q] [SHIFT] [2]", Hud.KickVoteLine(vote, "SAM", onYou: false, 23.2, 2));
++        Assert.Equal("THE CREW IS VOTING TO PUT YOU OFF · 1 OF 2 · 24 S", Hud.KickVoteLine(vote, "SAM", onYou: true, 23.2, 0));
++        Assert.Null(Hud.KickVoteLine(KickVote.None, "", false, 0, 0));
++        // It draws, keys and all.
++        var o = new Ballast.Render.Overlay();
++        Hud.Roster(o, 480, 270, lines, null, Hud.RosterKeys(true, false));
++        Hud.KickVoteBanner(o, 480, 270, Hud.KickVoteLine(vote, "SAM", false, 23.2, 2)!);
++    }
++
++    [Fact]
++    public void CrewMischiefStartsByMoodAndTheHostSetsIt()
++    {
++        var h = P.Horseplay;
++        Assert.True(Moods.MischiefByDefault(RunMood.Laughs, isPrivate: false, h));
++        Assert.True(Moods.MischiefByDefault(RunMood.Either, isPrivate: false, h));
++        Assert.False(Moods.MischiefByDefault(RunMood.Competitive, isPrivate: false, h));
++        Assert.True(Moods.MischiefByDefault(RunMood.Competitive, isPrivate: true, h));
++        Assert.True(Moods.MischiefByDefault(RunMood.Competitive, isPrivate: false, h with { CompetitiveOff = false }));
++        // The host screen: on by default, chosen off, and the lobby opened with it off.
++        var m = Menu("nick");
++        Choose(m, "HOST");
++        Assert.Contains("CREW MISCHIEF: ON", m.Items.Select(i => i.Label));
++        Assert.Null(Choose(m, "CREW MISCHIEF"));
++        Assert.Contains("CREW MISCHIEF: OFF", m.Items.Select(i => i.Label));
++        Assert.False(Assert.IsType<Launch.Night>(Choose(m, "OPEN THE LOBBY")).Mischief);
++        // In the yard, the host's night menu has it.
++        m.OpenNight(new NightMenu(Yard: true) { Mischief = true });
++        Assert.Equal(new Launch.SetMischief(false), Choose(m, "CREW MISCHIEF: ON"));
++        m.CloseNight();
++        m.OpenNight(new NightMenu(Hosting: false, Yard: true));
++        Assert.DoesNotContain(m.Items, i => i.Label.StartsWith("CREW MISCHIEF", StringComparison.Ordinal));
++        // Carried in the night's setup to every machine's world.
++        var setup = SessionSetup.Decode(new SessionSetup(Line: "test-loop", Cars: 3, Enemies: false) { Mischief = false }.Encode());
++        Assert.False(setup.Mischief);
++        Assert.False(setup.Build(Content).World.CrewMischief);
++        Assert.True(SessionSetup.Decode(new SessionSetup(Line: "test-loop").Encode()).Mischief);
++    }
++}
+diff --git a/tests/DarkTerritory.Sim.Tests/CrewCapTests.cs b/tests/DarkTerritory.Sim.Tests/CrewCapTests.cs
+index 994e2333..fb654259 100644
+--- a/tests/DarkTerritory.Sim.Tests/CrewCapTests.cs
++++ b/tests/DarkTerritory.Sim.Tests/CrewCapTests.cs
+@@ -86,7 +86,7 @@ public class CrewCapTests
+         Assert.Equal("CREW FULL (8/8)", refusal.ToString());
+         Messages.WriteLeave(w);
+         Assert.Equal([(byte)MessageType.Leave], w.Written.ToArray());
+-        Assert.Equal(59, Protocol.Version);
++        Assert.Equal(60, Protocol.Version);
+         // The GDD's largest crew is the content's cap.
+         Assert.Equal(8, P.Crew.Cap);
+     }
+diff --git a/tests/DarkTerritory.Sim.Tests/RejoinTests.cs b/tests/DarkTerritory.Sim.Tests/RejoinTests.cs
+index 51ccf7f4..3bfeb1ef 100644
+--- a/tests/DarkTerritory.Sim.Tests/RejoinTests.cs
++++ b/tests/DarkTerritory.Sim.Tests/RejoinTests.cs
+@@ -86,7 +86,7 @@ public class RejoinTests
+         r = new NetReader(w.Written);
+         r.U8();
+         Assert.Equal(key, Messages.ReadHello(ref r).Key);
+-        Assert.Equal(59, Protocol.Version);
++        Assert.Equal(60, Protocol.Version);
+     }
+ 
+     [Fact]
+diff --git a/tests/DarkTerritory.Sim.Tests/SessionsTests.cs b/tests/DarkTerritory.Sim.Tests/SessionsTests.cs
+new file mode 100644
+index 00000000..8928c169
+--- /dev/null
++++ b/tests/DarkTerritory.Sim.Tests/SessionsTests.cs
+@@ -0,0 +1,389 @@
++using System.Text.Json;
++using Ballast;
++using Ballast.Net;
++using DarkTerritory.Sim.Bots;
++using DarkTerritory.Sim.Campaign;
++using DarkTerritory.Sim.Enemies;
++using DarkTerritory.Sim.Net;
++using DarkTerritory.Sim.Player;
++using DarkTerritory.Sim.Rail;
++using DarkTerritory.Sim.Run;
++using DarkTerritory.Sim.Train;
++
++namespace DarkTerritory.Sim.Tests;
++
++/// <summary>
++/// Sessions (GDD §33.1, §11, §23.4; ARCHITECTURE §8 note 724; the director, 14 Oct 2026, App. F.6: friend groups break on
++/// uneven attendance, slow joins and strangers in public games): the crew's save sent to everyone aboard, a friend taking a
++/// bot's seat, kick and the public lobby's vote, and the lobby's crew mischief switch.
++/// </summary>
++public class SessionsTests
++{
++    static readonly TrainTuning T = Tuning.Train;
++    static readonly PlayerTuning P = Tuning.Player;
++    static readonly RailLine Line = RailLine.Load(Path.Combine(DataFile.FindContentRoot(), "lines/test-loop.json"));
++
++    static TrainOnLine NewTrain() => new(new TrainDynamics(Consist.Uniform(T, 6, 1)), Line, 1500);
++
++    sealed class Night(PlayerTuning? tuning = null)
++    {
++        public readonly LoopbackNetwork Net = new();
++        public readonly PlayerTuning Tuning = tuning ?? P;
++        public HostSession Host = null!;
++        public readonly List<ClientSession> Clients = [];
++        public readonly BotCrew Bots = new(null);
++
++        public static Night With(PlayerTuning? tuning = null)
++        {
++            var n = new Night(tuning);
++            n.Host = new HostSession(n.Net.CreateHost(), NewTrain(), T, n.Tuning);
++            n.Host.World.EnableBodies();
++            n.Host.BotLeft = n.Bots.Retire;
++            return n;
++        }
++
++        public ClientSession Human(string name)
++        {
++            var c = new ClientSession(Net.CreateClient(), NewTrain(), T, Tuning) { Name = name };
++            Clients.Add(c);
++            return c;
++        }
++
++        public ClientSession Bot(string name)
++        {
++            var c = new ClientSession(Net.CreateClient(), NewTrain(), T, Tuning) { Name = name, Bot = true };
++            Bots.Add(c, new StandBot());
++            return c;
++        }
++
++        public void Run(int ticks, Func<ClientSession, PlayerIntent>? intent = null)
++        {
++            for (int t = 0; t < ticks; t++)
++            {
++                Net.Advance(SimConstants.TickSeconds);
++                Host.Step();
++                foreach (var c in Clients)
++                    c.Step(intent?.Invoke(c) ?? default);
++                Bots.Step();
++            }
++        }
++
++        public PlayerState State(byte id) => Host.Players.First(p => p.Id == id).State;
++    }
++
++    /// <summary>A bot that stands where it's put, so where its seat is doesn't move under the test.</summary>
++    sealed class StandBot : IBot
++    {
++        public string Name => "stand";
++        public PlayerIntent Decide(in PlayerState self, TrainOnLine train, uint tick) => default;
++    }
++
++    // ---- The crew's save travels (GDD §11).
++
++    static byte[] SaveBytes(CampaignState s) => JsonSerializer.SerializeToUtf8Bytes(s, DataFile.Options);
++
++    [Fact]
++    public void TheCrewsSaveGoesToEveryHumanAboardInChunksAndNotToTheBots()
++    {
++        var n = Night.With();
++        var dave = n.Human("dave");
++        var priya = n.Human("priya");
++        var bot = n.Bot("Dunmore");
++        n.Run(30);
++        Assert.Equal(3, n.Host.PlayerCount);
++        // A long campaign: its history alone runs past one chunk, even packed.
++        var rng = new Random(3);
++        var save = new CampaignState
++        {
++            Slot = 2,
++            Name = "Owls",
++            Seed = 99,
++            Runs = 400,
++            LastHost = "Nick",
++            SettledAt = 1_760_000_000_000,
++            History = [.. Enumerable.Range(1, 400).Select(i => new RunLog(i, $"frontier:{rng.Next()}", RunEnd.Delivered, rng.Next(-900, 4000), rng.Next(0, 3), rng.Next()))],
++        };
++        var bytes = SaveBytes(save);
++        Assert.True(Messages.CrewSaveMessages(bytes).Count > 1, "one chunk");
++        n.Host.ShareSave(bytes);
++        n.Run(10);
++        foreach (var human in new[] { dave, priya })
++        {
++            Assert.Equal(1, human.CrewSaves);
++            var got = human.TakeCrewSave();
++            Assert.Equal(bytes, got);
++            Assert.Null(human.TakeCrewSave());
++            var back = JsonSerializer.Deserialize<CampaignState>(got!, DataFile.Options)!;
++            Assert.Equal((save.CrewId, 400, "Nick"), (back.CrewId, back.Runs, back.LastHost));
++        }
++        Assert.Equal(0, bot.CrewSaves);
++        // A second night's settling replaces it, whole.
++        n.Host.ShareSave(SaveBytes(save with { Runs = 401 }));
++        n.Run(10);
++        Assert.Equal(401, JsonSerializer.Deserialize<CampaignState>(dave.TakeCrewSave()!, DataFile.Options)!.Runs);
++    }
++
++    [Fact]
++    public void OfTwoCopiesTheOneWithMoreNightsWinsAndDawnClosesEveryCopy()
++    {
++        var a = new CampaignState { Name = "Owls", Seed = 5, Runs = 6, SettledAt = 100, LastHost = "Dave" };
++        var b = a with { Runs = 7, SettledAt = 50, LastHost = "Priya" };
++        // More nights wins, whichever is held and whichever came in, whatever the clocks said.
++        Assert.Equal("Priya", Campaign.Campaign.Prefer(a, b).LastHost);
++        Assert.Equal("Priya", Campaign.Campaign.Prefer(b, a).LastHost);
++        // As many: the newest settlement; that too, the one held.
++        var c = a with { SettledAt = 200, LastHost = "Sam" };
++        Assert.Equal("Sam", Campaign.Campaign.Prefer(a, c).LastHost);
++        Assert.Equal("Sam", Campaign.Campaign.Prefer(c, a).LastHost);
++        Assert.Equal("Dave", Campaign.Campaign.Prefer(a, a with { LastHost = "Copy" }).LastHost);
++        // A train taken at dawn (note 632) closes every copy: a fork with more nights is over too.
++        var ended = a with { Runs = 7, Over = true };
++        var fork = a with { Runs = 9 };
++        Assert.True(Campaign.Campaign.Prefer(fork, ended).Over);
++        Assert.Equal(9, Campaign.Campaign.Prefer(fork, ended).Runs);
++        Assert.True(Campaign.Campaign.Prefer(ended, fork).Over);
++        // The crew's id is the same on every copy: its own, or for an older save its seed's.
++        Assert.Equal(a.CrewId, b.CrewId);
++        Assert.Equal("0000000000000005", a.CrewId);
++        Assert.Equal("abc", (a with { Crew = "abc" }).CrewId);
++    }
++
++    // ---- A friend takes a bot's seat (GDD §33.1).
++
++    [Fact]
++    public void AFriendJoiningMidNightTakesABotsSeatWithItsBodySlotsHealthAndPost()
++    {
++        var n = Night.With();
++        var host = n.Human("nick");
++        var first = n.Bot("Dunmore");
++        var second = n.Bot("Hale");
++        n.Run(30);
++        byte botId = second.PlayerId!.Value;
++        Assert.True(n.Host.IsBot(botId));
++        // The newest bot, out on car 3's roof with the shovel and the crowbar, short of health.
++        var kit = Kit.With(Kit.With(0, 0, Tool.Shovel), 1, Tool.Crowbar);
++        n.Host.SetPlayerState(botId, PlayerMotor.SpawnOnRoof(n.Host.Train, 3, 1.5, P) with { Health = 61, Kit = kit, HeldSlot = 1 });
++        n.Run(5);
++        var was = n.State(botId);
++        var post = Census.PostOf(was, n.Host.Train, 100);
++        // Between stops now: a joiner would wait for one.
++        n.Host.CanBoard = () => false;
++        var friend = n.Human("priya");
++        n.Run(20);
++        Assert.Equal(1, n.Host.BotSeatsTaken);
++        Assert.Equal(botId, friend.PlayerId);
++        Assert.True(friend.Connected);
++        Assert.Null(friend.WaitingReason);
++        Assert.False(n.Host.IsBot(botId));
++        Assert.Equal("priya", n.Host.World.Names[botId]);
++        // Where the bot stood, with what it had: its body, slots, health and post.
++        var now = n.State(botId);
++        Assert.Equal((was.Parent, was.Surface, was.Health, was.Kit, was.HeldSlot), (now.Parent, now.Surface, now.Health, now.Kit, now.HeldSlot));
++        Assert.True((now.Position - was.Position).Length < 0.05, $"moved {(now.Position - was.Position).Length:0.000} m");
++        Assert.Equal(post, Census.PostOf(now, n.Host.Train, 100));
++        Assert.True((friend.Predicted.Position - now.Position).Length < 0.05);
++        // The bot's gone: one fewer run by this machine, the crew the same size, the other bot left alone.
++        Assert.Single(n.Bots.Bots);
++        Assert.Equal(first, n.Bots.Bots[0].Session);
++        Assert.Equal(3, n.Host.PlayerCount);
++        Assert.True(n.Host.IsBot(first.PlayerId!.Value));
++        // Their own inputs drive it from here.
++        n.Run(20, c => c == friend ? new PlayerIntent { MoveZ = 1 } : default);
++        Assert.True((n.State(botId).Position - now.Position).Length > 0.5);
++        Assert.Equal(0, n.Host.Waiting);
++    }
++
++    [Fact]
++    public void WithNoBotAboardOrTheFlagOffAJoinerWaitsAsBefore()
++    {
++        foreach (bool flag in new[] { true, false })
++        {
++            var n = Night.With(P with { Crew = P.Crew with { JoinTakesBotSeat = flag } });
++            n.Human("nick");
++            if (!flag)
++                n.Bot("Dunmore");
++            n.Run(30);
++            n.Host.CanBoard = () => false;
++            var friend = n.Human("priya");
++            n.Run(20);
++            Assert.Equal(0, n.Host.BotSeatsTaken);
++            Assert.NotNull(friend.WaitingReason);
++            Assert.Equal(1, n.Host.Waiting);
++            Assert.Equal(flag ? 0 : 1, n.Bots.Bots.Count);
++        }
++    }
++
++    [Fact]
++    public void AFullCrewTakesABotsSeatRatherThanTurnAFriendAway()
++    {
++        var n = Night.With(P with { Crew = P.Crew with { Cap = 3 } });
++        n.Human("nick");
++        n.Bot("Dunmore");
++        n.Bot("Hale");
++        n.Run(30);
++        Assert.True(n.Host.Full);
++        var friend = n.Human("priya");
++        n.Run(20);
++        Assert.Null(friend.Refused);
++        Assert.True(friend.Connected);
++        Assert.Equal(1, n.Host.BotSeatsTaken);
++        Assert.Single(n.Bots.Bots);
++        // A bot never takes another bot's seat: a fourth bot is turned away.
++        var extra = n.Bot("Ross");
++        n.Run(20);
++        Assert.Equal(RefusalReason.CrewFull, extra.Refused?.Reason);
++    }
++
++    // ---- Kick and the public lobby's vote (GDD §33.1).
++
++    static (Night N, ClientSession Host, ClientSession A, ClientSession B, ClientSession C) Lobby(bool vote)
++    {
++        var n = Night.With();
++        var h = n.Human("nick");
++        var a = n.Human("dave");
++        var b = n.Human("priya");
++        var c = n.Human("troll");
++        n.Run(30);
++        n.Host.HostPlayer = h.PlayerId!.Value;
++        n.Host.VoteKicks = vote;
++        return (n, h, a, b, c);
++    }
++
++    [Fact]
++    public void APublicLobbysVotePassesByAMajorityAndThePutOffCantComeBack()
++    {
++        var (n, _, a, b, c) = Lobby(vote: true);
++        byte target = c.PlayerId!.Value;
++        a.Kick(target);
++        n.Run(5);
++        // The host, dave and priya are the vote (the troll isn't): two of three carry it.
++        Assert.Equal(new KickVote(target, 1, 2, n.Host.Vote.Until), n.Host.Vote);
++        Assert.All(new[] { a, b, c }, x => Assert.Equal(n.Host.Vote, x.KickVote));
++        Assert.Contains(n.Host.Players, p => p.Id == target);
++        // Saying it twice is one yes.
++        a.Kick(target);
++        n.Run(5);
++        Assert.Equal(1, n.Host.Vote.Yes);
++        b.Kick(target);
++        n.Run(5);
++        Assert.Equal(1, n.Host.Kicks);
++        Assert.DoesNotContain(n.Host.Players, p => p.Id == target);
++        Assert.True(c.Kicked);
++        Assert.False(n.Host.Vote.Open);
++        Assert.False(a.KickVote.Open);
++        Assert.Equal("THE CREW PUT YOU OFF AT THE NEXT STOP", Messages.PutOff);
++        // Hung up on once the word's had time to get there; their place isn't held for them.
++        n.Run((int)(P.Crew.RefuseLingerSeconds * SimConstants.TickRate) + 10);
++        Assert.False(n.Host.IsReserved(target));
++        // Coming back on a new link with their old token, or as a new joiner by the same name: turned away.
++        c.Reconnect(n.Net.CreateClient());
++        var again = n.Human("TROLL");
++        n.Run(20);
++        Assert.Equal(RefusalReason.Kicked, c.Refused?.Reason);
++        Assert.Equal(RefusalReason.Kicked, again.Refused?.Reason);
++        Assert.Equal(3, n.Host.PlayerCount);
++        Assert.Equal(Messages.PutOff, again.Refused.ToString());
++    }
++
++    [Fact]
++    public void AVoteNobodyBacksRunsOutAndTheHostAndOnePlayerCantBeVotedOnAlone()
++    {
++        var (n, h, a, b, c) = Lobby(vote: true);
++        byte target = c.PlayerId!.Value;
++        a.Kick(target);
++        n.Run(5);
++        Assert.True(n.Host.Vote.Open);
++        // One vote at a time: priya's on dave waits.
++        b.Kick(a.PlayerId!.Value);
++        n.Run(5);
++        Assert.Equal(target, n.Host.Vote.Target);
++        n.Run((int)(P.Crew.Kick.VoteSeconds * SimConstants.TickRate) + 5);
++        Assert.False(n.Host.Vote.Open);
++        Assert.Equal(0, n.Host.Kicks);
++        Assert.Contains(n.Host.Players, p => p.Id == target);
++        // Nobody votes on the host.
++        a.Kick(h.PlayerId!.Value);
++        n.Run(5);
++        Assert.False(n.Host.Vote.Open);
++    }
++
++    [Fact]
++    public void InAPrivateRunOnlyTheHostPutsSomeoneOff()
++    {
++        var (n, h, a, _, c) = Lobby(vote: false);
++        byte target = c.PlayerId!.Value;
++        a.Kick(target);
++        n.Run(5);
++        Assert.False(n.Host.Vote.Open);
++        Assert.Contains(n.Host.Players, p => p.Id == target);
++        // The host's own player, outright.
++        h.Kick(target);
++        n.Run(5);
++        Assert.Equal(1, n.Host.Kicks);
++        Assert.True(c.Kicked);
++        Assert.DoesNotContain(n.Host.Players, p => p.Id == target);
++        // The host can't put themselves off.
++        Assert.False(n.Host.Kick(h.PlayerId!.Value));
++    }
++
++    // ---- The crew mischief switch (GDD §23.4).
++
++    static readonly PlayerIntent Shove = new() { Moves = PlayerMoves.Shove };
++
++    [Fact]
++    public void WithCrewMischiefOffAShoveLandsOnNobodyAndTheSwitchReachesEveryMachine()
++    {
++        var n = Night.With();
++        var a = n.Human("dave");
++        var b = n.Human("priya");
++        n.Run(30);
++        Assert.True(a.World.CrewMischief);
++        n.Host.Mischief = false;
++        n.Run(3);
++        Assert.False(n.Host.World.MischiefOn);
++        Assert.All(new[] { a, b }, c => Assert.False(c.World.MischiefOn));
++        byte ia = a.PlayerId!.Value, ib = b.PlayerId!.Value;
++        n.Host.SetPlayerState(ia, PlayerMotor.SpawnOnRoof(n.Host.Train, 2, 0, P) with { Yaw = 0 });
++        n.Host.SetPlayerState(ib, PlayerMotor.SpawnOnRoof(n.Host.Train, 2, -0.7, P));
++        n.Run(10);
++        n.Run(1, c => c == a ? Shove : default);
++        n.Run(5);
++        Assert.Equal(0, n.State(ib).Stagger);
++        Assert.Equal(Surface.Roof, n.State(ib).Surface);
++        Assert.DoesNotContain(n.Host.World.Horseplays, e => e.Target == ib);
++        // A joiner's told the switch as it stands, not as the night's setup had it.
++        var late = n.Human("sam");
++        n.Run(20);
++        Assert.False(late.World.CrewMischief);
++        // On again in the yard: the same shove lands.
++        n.Host.Mischief = true;
++        n.Run(60);
++        n.Host.SetPlayerState(ia, PlayerMotor.SpawnOnRoof(n.Host.Train, 2, 0, P) with { Yaw = 0 });
++        n.Host.SetPlayerState(ib, PlayerMotor.SpawnOnRoof(n.Host.Train, 2, -0.7, P));
++        n.Run(10);
++        n.Run(1, c => c == a ? Shove : default);
++        n.Run(2);
++        Assert.True(a.World.CrewMischief);
++        Assert.Contains(n.Host.World.Horseplays, e => e.Target == ib && e.Kind == KnockKind.Shove);
++    }
++
++    [Fact]
++    public void TheWireCarriesTheSessionsMessages()
++    {
++        var w = new NetWriter();
++        var vote = new KickVote(4, 2, 3, 12345);
++        Messages.WriteKickVote(w, vote);
++        var r = new NetReader(w.Written);
++        Assert.Equal((byte)MessageType.KickVote, r.U8());
++        Assert.Equal(vote, Messages.ReadKickVote(ref r));
++        Messages.WriteKick(w, 7);
++        Assert.Equal([(byte)MessageType.Kick, 7], w.Written.ToArray());
++        Messages.WriteMischief(w, false);
++        Assert.Equal([(byte)MessageType.Mischief, 0], w.Written.ToArray());
++        Messages.WriteRefused(w, new Refusal(RefusalReason.Kicked, 3, 8));
++        r = new NetReader(w.Written);
++        r.U8();
++        Assert.Equal(RefusalReason.Kicked, Messages.ReadRefused(ref r).Reason);
++        Assert.Equal(60, Protocol.Version);
++    }
++}
