@@ -1233,13 +1233,13 @@ static object Screenshot(TrainTuning t, string content, string[] args)
         run ??= new DarkTerritory.Sim.Run.Run(DataFile.Load<DarkTerritory.Sim.Run.RunTuning>(Path.Combine(content, DarkTerritory.Sim.Run.RunTuning.File)), generated);
         run.EnableLoot(lt, line, null);
         if (!Enumerable.Range(0, run.Stops.Count).Any(k => run.CometsAt(k).Count > 0) && lt.Comet is { } comet)
-            run.EnableLoot(lt with { Comet = comet with { Chance = new() { [StopLoot.TierKey(generated.Tier)] = 1 } } }, line, null);
+            run.EnableLoot(lt with { Comet = comet with { Chance = new() { [StopLoot.TierKey(generated.Tier)] = 1 }, NightChance = new() { [StopLoot.TierKey(generated.Tier)] = 1 } } }, line, null);
         int stop = Enumerable.Range(0, run.Stops.Count).First(k => run.CometsAt(k).Count > 0);
         prizes = new();
         run.Stock(prizes, stop);
         // Where it lies along the line (the stop's zone is straight), and the engine's front --comet m past that: the cab
         // coming up on it, the driver leaning out to look.
-        double s = run.Stops[stop].Start + run.Stops[stop].Stop!.Containers[run.CometsAt(stop)[0]].At.S;
+        double s = run.Stops[stop].Start + run.CometsAt(stop)[0].S;
         var by = line.Sample(s);
         s += Double3.Dot(prizes.All.First(DarkTerritory.Sim.Run.Run.IsComet).Pbd.Particles[0].Position - by.Position, by.Tangent);
         at = s + Opt(args, "--comet", -22);

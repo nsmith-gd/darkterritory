@@ -1595,7 +1595,7 @@ public sealed partial class World
             // Note 619: the doors as they were, to say who opened one (only a Use works a door).
             var doors = Authority && intent.Buttons.HasFlag(PlayerButtons.Use) ? Train.Vehicles.Select(v => v.DoorsOpen).ToArray() : null;
             int partings = Train.Partings.Count;
-            CrewActions.Apply(ref s, intent, Train, SimConstants.TickSeconds, Hand);
+            CrewActions.Apply(ref s, intent, Train, SimConstants.TickSeconds, Hand, (kind, vehicle) => Pace(playerId, kind, vehicle));
             // Note 663: whose hand cut it, for the news.
             for (int i = partings; i < Train.Partings.Count; i++)
                 if (Train.Partings[i] is { Cause: Parting.Crew, Who: < 0 } cut)
@@ -1637,8 +1637,16 @@ public sealed partial class World
             if (Authority && c.Fumes is not null)
                 _fumes.Add(shot);
         }
-        if (Combat is { } cr)
-            Guns.Reload(s, intent, Train, cr.Guns, SimConstants.TickSeconds);
+        // The reload (note 752: the gunner in the seat, or a loader beside it while the gunner aims): each pair of hands on it
+        // this tick, counted, so two together work it at combat.json loaderRate whoever's turn comes first. Standing, a hand
+        // meant for something looked at (a locker, a handbrake) is that thing's, not the gun's.
+        if (Combat is { } cr && Guns.Working(s, intent, Train, cr.Guns) is { } worked
+            && (s.Has(PlayerFlags.Seated) || CrewActions.LookedAt(s, Train) is null))
+        {
+            int hands = _gunHands.GetValueOrDefault(worked) + 1;
+            _gunHands[worked] = hands;
+            Guns.Reload(Train, worked, cr.Guns, SimConstants.TickSeconds, hands);
+        }
         // Pushing the gun along its roof rail (T93), worked out alike everywhere so a client predicts it: the motor moves it.
         bool pushing = Combat is { } cp && Guns.Pushing(s, intent, Train, cp.Guns);
         s.Flags = pushing ? s.Flags | PlayerFlags.Pushing : s.Flags & ~PlayerFlags.Pushing;
@@ -1754,6 +1762,23 @@ public sealed partial class World
         return (local - near).Length;
     }
     readonly HashSet<int> _lampWas = new();
+    /// <summary>Note 752: the pairs of hands on each gun's reload this tick, by its vehicle. Looked up, never iterated.</summary>
+    readonly Dictionary<int, int> _gunHands = new();
+    /// <summary>Note 752: who worked which job (a breach, the burst boiler) this tick, and last tick: two at one work it faster.</summary>
+    List<(BreakKind Kind, int Vehicle, int Player)> _jobsNow = [], _jobsThen = [];
+
+    /// <summary>
+    /// Note 752 (GDD §12, one can, two do it faster): how fast <paramref name="player"/> works <paramref name="kind"/> on
+    /// <paramref name="vehicle"/> this tick: train.json repair.pairRate with a crewmate at the same job last tick (so it's
+    /// the same whoever acts first), else 1. Noted as working it now. A predicting client knows only its own hands, so it
+    /// works alone till the host's word comes back (the job's progress only; nobody moves by it).
+    /// </summary>
+    double Pace(int player, BreakKind kind, int vehicle)
+    {
+        _jobsNow.Add((kind, vehicle, player));
+        double pair = Train.Dynamics.Tuning.Repair.PairRate;
+        return pair > 1 && _jobsThen.Any(j => j.Kind == kind && j.Vehicle == vehicle && j.Player != player) ? pair : 1;
+    }
 
     /// <summary>
     /// A tool's swing (App. C.2): the nearest thing in front within reach that can be struck takes a blow. The host decides,
@@ -1842,6 +1867,10 @@ public sealed partial class World
         if (Hosting)
             TellNews();
         Train.Partings.Clear();
+        // Note 752: the guns' hands and the crew's jobs start the tick afresh; last tick's jobs say who's working beside whom.
+        _gunHands.Clear();
+        (_jobsThen, _jobsNow) = (_jobsNow, _jobsThen);
+        _jobsNow.Clear();
         Shots.Clear();
         SwitchThrows.Clear();
         EnemyEvents.Clear();
@@ -1907,6 +1936,10 @@ public sealed partial class World
 
     public void Step(in TrainControls controls)
     {
+        // Note 752: a gun waiting on its reload that no hand worked this tick starts the step again (the host's say; a client
+        // has it from the snapshot, its own hands being all it knows of, and a crewmate's reload is drawn and heard from it).
+        if (Authority && Combat is not null)
+            Guns.Unworked(Train, _gunHands.ContainsKey);
         Controls = controls;
         Train.HeldInYard = SafeYard;
         Train.HomeAt = Run?.TownHome(Train) ?? double.PositiveInfinity;

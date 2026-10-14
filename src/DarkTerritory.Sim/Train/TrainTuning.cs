@@ -103,6 +103,11 @@ public sealed record RepairTuning
     public double DentReach { get; init; } = 1.3;
     public double EngineDentBehind { get; init; } = 2.5;
     public double LampMendRate { get; init; } = 6;
+    /// <summary>
+    /// Note 752 (GDD §12, one can, two do it faster): each of two (or more) crewmates boarding up the same breach, or mending
+    /// the same burst boiler, works it this many times as fast. 1 (or less): each alone, as before.
+    /// </summary>
+    public double PairRate { get; init; } = 1;
 }
 
 /// <summary>

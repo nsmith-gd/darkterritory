@@ -487,18 +487,54 @@ public class HorseplayTests
     [Fact]
     public void TheMarkStaysThroughTheVictimsReturnAndTheRescue()
     {
-        // Back through a Holdout (a new body where she's freed), and stood beside the one who shoved her, rescued: the night's
-        // end alone clears the mark. Even the shover's own death and return doesn't.
+        // Back through a Holdout (a new body where she's freed), and stood beside the one who shoved her, rescued: the mark
+        // stays.
         var n = ShovedToDeath();
         n.Players[2] = PlayerMotor.SpawnOnRoof(n.Train, 2, 1, P);
         n.Run(1);
         Assert.True(n.World.IsMarked(1));
+        Assert.Equal(H.Marked.TargetWeight, n.World.TargetBias(1));
+        Assert.Single(n.World.Marks);
+    }
+
+    [Fact]
+    public void TheShoversDeathEndsTheMarkButNotTheReportsLine()
+    {
+        // Note 754 (the director, 14 Oct 2026: "Shovers mark should reset to normal targeting after they are killed"): Dave
+        // dies (of anything), and back through a Holdout he's weighed like anyone. The news and the report keep the line.
+        var n = ShovedToDeath();
         n.Players[1] = n.Players[1] with { Health = 0, Death = DeathCause.Mauled };
         n.Run(0.5);
+        Assert.False(n.World.IsMarked(1));
         n.Players[1] = PlayerMotor.SpawnOnRoof(n.Train, 2, 2, P);
         n.Run(0.5);
-        Assert.True(n.World.IsMarked(1));
+        Assert.False(n.World.IsMarked(1));
+        Assert.Equal(1, n.World.TargetBias(1));
+        Assert.Equal(15.0, n.World.WeighTarget(1, 15));
+        Assert.False(n.World.MarkedAfoot);
+        Assert.Single(n.World.NewsLog, e => e.Kind == NewsKind.Marked);
         Assert.Single(n.World.Marks);
+        Assert.Contains(IncidentLog.Lines(n.World, 0, 0, _ => false), l => l.Kind == IncidentKind.Marked && l.Text.StartsWith("Marked: Dave"));
+    }
+
+    [Fact]
+    public void WithEndsAtDeathOffTheMarkOutlivesTheShover()
+    {
+        // horseplay.marked.endsAtDeath false: note 717 as built, the night's end alone clears it.
+        var keep = P with { Horseplay = H with { Marked = H.Marked with { EndsAtDeath = false } } };
+        var n = Night(4, 18, p: keep);
+        double edge = n.Train.Frames[2].Shape.HalfWidth - keep.Edge.Lip - 0.05;
+        n.Players[1] = Facing(PlayerMotor.SpawnOnRoof(n.Train, 2, 0, keep, edge - 0.85), -Math.PI / 2);
+        n.Players[2] = PlayerMotor.SpawnOnRoof(n.Train, 2, 0, keep, edge);
+        n.Ticks(1, id => id == 1 ? Shove : default);
+        n.Run(3);
+        Assert.Equal(DeathCause.Shoved, n.Players[2].Death);
+        Assert.True(n.World.IsMarked(1));
+        n.Players[1] = n.Players[1] with { Health = 0, Death = DeathCause.Mauled };
+        n.Run(0.5);
+        n.Players[1] = PlayerMotor.SpawnOnRoof(n.Train, 2, 2, keep);
+        n.Run(0.5);
+        Assert.True(n.World.IsMarked(1));
     }
 
     [Fact]

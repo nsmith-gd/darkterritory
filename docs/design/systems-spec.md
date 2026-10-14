@@ -334,6 +334,7 @@ A breach is a car's shell giving way to the outside (decided 1 Oct): a door forc
 | Car Hugger through the end wall | Every 0.1 of the shell eaten (25 s of feeding at 0.004/s), boarded up or not |
 | Climbers forcing their way in | Into a car with every door and its hatch shut, and unlit, through the roof (the hatch, on a cargo car) |
 | Boarding up | 8 s of Use held inside the car within 1.5 m of the hole; let go and that board starts over |
+| Two boarding up | Each works it 1.8× as fast, 4.4 s; a third adds nothing (train.json `repair.pairRate`; GDD §12 Fluidity, note 752) |
 | Needs the repair kit | No: anyone's hands (train.json `breach.needsKit`, true to need the kit carried) |
 | Inside a breached car | No shelter from the cold (as with a door open, it builds at ¼ rate), no muffling, no shelter from the Choir |
 

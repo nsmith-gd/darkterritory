@@ -71,6 +71,29 @@ public class RepairTests
     }
 
     [Fact]
+    public void TwoWrenchesAtADentMendItTwiceAsFast()
+    {
+        // Note 752 (GDD §12, one can, two do it faster): a dent's worked on the car's shell itself, so a second wrench at it
+        // already adds its own integrityPerSecond; pinned here.
+        var world = World();
+        var train = world.Train;
+        const int car = 2;
+        train.Vehicles[car].Integrity = 0.5;
+        var a = AtTheDent(world, car);
+        var b = AtTheDent(world, car);
+        b.Position = b.Position with { Z = b.Position.Z - 0.3 };
+        var use = new PlayerIntent { Buttons = PlayerButtons.Use };
+        for (int i = 0; i < 2 * SimConstants.TickRate; i++)
+        {
+            world.BeginTick();
+            world.CrewAct(ref a, use, 1);
+            world.CrewAct(ref b, use, 2);
+            world.Step(new TrainControls { Reverser = 1, Brake = 1 });
+        }
+        Assert.Equal(0.5 + 2 * 2 * T.Repair.IntegrityPerSecond, train.Vehicles[car].Integrity, 2);
+    }
+
+    [Fact]
     public void WhatTheCarHuggerAteIsntMended()
     {
         var world = World();
