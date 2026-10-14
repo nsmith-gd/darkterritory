@@ -60,6 +60,59 @@ public sealed partial class World
     /// <summary>Who last shoved <paramref name="player"/> (or bumped them on with a shove), and the train's speed then; null for nobody.</summary>
     public (int By, double Speed)? ShovedBy(int player) => _shovedBy.TryGetValue(player, out var s) ? s : null;
 
+    // The marked (note 717): each shover whose shove killed, whom it killed and how fast the train was going under them.
+    readonly SortedDictionary<int, (int Victim, double Speed)> _marks = new();
+    // The crew lying dead of a shove, already counted (a victim back through a Holdout and shoved to death again counts again).
+    readonly HashSet<int> _shovedDead = new();
+
+    /// <summary>
+    /// Note 717 (the director, 14 Oct 2026: "if a player ever shoves another player and that results in their death all the
+    /// monsters in the game should target more heavily the murderer player so they are heavily likely to die (even if they
+    /// rescue the player from a holdout)"): marked for the rest of the night, whatever comes after.
+    /// </summary>
+    public bool IsMarked(int player) => _marks.ContainsKey(player);
+
+    /// <summary>Tonight's marked: each shover, whom their shove killed, and the train's speed then (m/s).</summary>
+    public IEnumerable<(int Shover, int Victim, double Speed)> Marks => _marks.Select(m => (m.Key, m.Value.Victim, m.Value.Speed));
+
+    /// <summary>How heavily the creatures and the director weigh <paramref name="player"/> as a target: horseplay.marked.targetWeight marked, else 1.</summary>
+    public double TargetBias(int player) => IsMarked(player) ? Math.Max(1, HorseplayTuning.Marked.TargetWeight) : 1;
+
+    /// <summary>
+    /// How near a crewmate counts as to a creature choosing whom to go for (<see cref="Enemies.EnemyContext.Weigh"/>): a marked
+    /// one's <paramref name="distance"/> over the weight, less horseplay.marked.allowanceM.
+    /// </summary>
+    public double WeighTarget(int player, double distance) =>
+        IsMarked(player) ? distance / TargetBias(player) - HorseplayTuning.Marked.AllowanceM : distance;
+
+    /// <summary>Whether a marked crewmate is alive and on foot, off the train (the director builds faster while one is).</summary>
+    public bool MarkedAfoot => _marks.Count > 0 && CrewThisTick.Any(c => c.State.Alive && c.State.Parent == PlayerState.World && IsMarked(c.Id));
+
+    /// <summary>
+    /// Note 717, host, once everyone has moved: a crewmate newly dead of a shove (<see cref="DeathCause.Shoved"/>) marks whoever
+    /// shoved them for the night, the news says so, and the report will.
+    /// </summary>
+    void MarkShovers(IReadOnlyCollection<(int Id, PlayerState State)> crew)
+    {
+        foreach (var (id, s) in crew.OrderBy(c => c.Id))
+        {
+            if (s.Alive)
+            {
+                _shovedDead.Remove(id);
+                continue;
+            }
+            if (s.Death != DeathCause.Shoved || !_shovedDead.Add(id) || !HorseplayTuning.Marked.Enabled)
+                continue;
+            if (ShovedBy(id) is not { } by || by.By < 0 || by.By == id)
+                continue;
+            _marks[by.By] = (id, by.Speed);
+            var e = new Sim.Run.NewsEvent(_nextFx, Tick, Sim.Run.NewsKind.Marked, [id], 0, 0, by.By, by.Speed);
+            _nextFx = _nextFx % 0xFFFFFF + 1;
+            NewsLog.Add(e);
+            News.Add(e);
+        }
+    }
+
     /// <summary>The bonks <paramref name="player"/> has taken tonight, by whom.</summary>
     public IReadOnlyDictionary<int, int> BonksOn(int player) =>
         _bonks.TryGetValue(player, out var by) ? by : (IReadOnlyDictionary<int, int>)new SortedDictionary<int, int>();

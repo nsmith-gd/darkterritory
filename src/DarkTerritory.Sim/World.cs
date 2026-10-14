@@ -256,8 +256,9 @@ public sealed partial class World
     /// <summary>Host: a draw made (note 287), credited on the director's ledger; nothing in the safe yard.</summary>
     void Drew(DrawCause cause, int player, double amount)
     {
+        // Note 717: what a marked crewmate does draws the dark that many times harder.
         if (Authority && !SafeYard && Director is { } d)
-            d.Draws.Add(cause, player, amount);
+            d.Draws.Add(cause, player, amount * TargetBias(player));
     }
 
     /// <summary>
@@ -451,6 +452,9 @@ public sealed partial class World
     /// <summary>Host: after everyone has moved, bodies for anyone who died, then a physics step.</summary>
     public void StepBodies(IReadOnlyCollection<(int Id, PlayerState State)> crew)
     {
+        // Note 717: a shove that killed marks the shover for the night.
+        if (Hosting)
+            MarkShovers(crew);
         if (!Authority)
             return;
         LastCrew = [.. crew];

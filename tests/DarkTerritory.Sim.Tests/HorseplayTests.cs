@@ -65,6 +65,7 @@ public class HorseplayTests
                     PlayerMotor.Step(ref s, intents[id], Train, P, T, Dt, applyLook: false, id, crowd);
                     Players[id] = s;
                 }
+                World.StepBodies([.. ids.Select(id => (id, Players[id]))]);
                 foreach (var h in World.Horseplays)
                     if (!Seen.Any(x => x.Id == h.Id))
                         Seen.Add(h);
@@ -431,6 +432,110 @@ public class HorseplayTests
         n.Players[2] = n.Players[2] with { Position = n.Players[1].Position };
         n.Run(1);
         Assert.True((n.Players[1].Position - n.Players[2].Position).Length >= 2 * H.Crowd.Radius - 0.02);
+    }
+
+    // ---- The mark (the director, 14 Oct 2026: "if a player ever shoves another player and that results in their death all
+    // the monsters in the game should target more heavily the murderer player ... (even if they rescue the player from a
+    // holdout)").
+
+    /// <summary>Dave (1) shoves Priya (2) off car 2's roof at 18 m/s, and she dies of it; Reyes (3) is along the roof.</summary>
+    static Crew ShovedToDeath(bool enemies = false)
+    {
+        var n = Night(4, 18, enemies: enemies);
+        n.World.Names[3] = "Reyes";
+        double edge = n.Train.Frames[2].Shape.HalfWidth - P.Edge.Lip - 0.05;
+        n.Players[1] = Facing(PlayerMotor.SpawnOnRoof(n.Train, 2, 0, P, edge - 0.85), -Math.PI / 2);
+        n.Players[2] = PlayerMotor.SpawnOnRoof(n.Train, 2, 0, P, edge);
+        n.Players[3] = PlayerMotor.SpawnOnRoof(n.Train, 2, -5, P);
+        n.Ticks(1, id => id == 1 ? Shove : default);
+        n.Run(3);
+        Assert.Equal(DeathCause.Shoved, n.Players[2].Death);
+        return n;
+    }
+
+    [Fact]
+    public void AShoveThatKillsMarksTheShover()
+    {
+        var n = ShovedToDeath();
+        Assert.True(n.World.IsMarked(1));
+        Assert.False(n.World.IsMarked(2));
+        Assert.False(n.World.IsMarked(3));
+        Assert.Equal(H.Marked.TargetWeight, n.World.TargetBias(1));
+        Assert.Equal(1, n.World.TargetBias(3));
+        // Told to everyone, and in the report.
+        var news = Assert.Single(n.World.NewsLog, e => e.Kind == NewsKind.Marked);
+        Assert.Equal("MARKED: DAVE (SHOVED PRIYA OFF AT 65 KM/H)", News.Line(n.World, news));
+        Assert.Contains(IncidentLog.Lines(n.World, 0, 0, _ => false), l => l.Kind == IncidentKind.Marked && l.Text == "Marked: Dave (shoved Priya off at 65 km/h).");
+        // Weighed by whoever's choosing: 15 m off and marked counts as nearer than 2 m off and not.
+        Assert.True(n.World.WeighTarget(1, 15) < n.World.WeighTarget(3, 2));
+    }
+
+    [Fact]
+    public void AShoveThatDoesntKillMarksNobody()
+    {
+        foreach (double speed in new[] { 0.0, 10 })
+        {
+            var n = AtTheEdge(speed);
+            n.Ticks(1, id => id == 1 ? Shove : default);
+            n.Run(3);
+            Assert.True(n.Players[2].Alive);
+            Assert.False(n.World.IsMarked(1));
+            Assert.DoesNotContain(n.World.NewsLog, e => e.Kind == NewsKind.Marked);
+        }
+    }
+
+    [Fact]
+    public void TheMarkStaysThroughTheVictimsReturnAndTheRescue()
+    {
+        // Back through a Holdout (a new body where she's freed), and stood beside the one who shoved her, rescued: the night's
+        // end alone clears the mark. Even the shover's own death and return doesn't.
+        var n = ShovedToDeath();
+        n.Players[2] = PlayerMotor.SpawnOnRoof(n.Train, 2, 1, P);
+        n.Run(1);
+        Assert.True(n.World.IsMarked(1));
+        n.Players[1] = n.Players[1] with { Health = 0, Death = DeathCause.Mauled };
+        n.Run(0.5);
+        n.Players[1] = PlayerMotor.SpawnOnRoof(n.Train, 2, 2, P);
+        n.Run(0.5);
+        Assert.True(n.World.IsMarked(1));
+        Assert.Single(n.World.Marks);
+    }
+
+    [Fact]
+    public void MarkedTheCreaturesAndTheDirectorGoForTheShover()
+    {
+        var n = ShovedToDeath(enemies: true);
+        Assert.True(n.World.IsMarked(1));
+        // The director's next threat goes to the marked crewmate's post, whoever has the most slack.
+        n.Run(2);
+        Assert.Equal(1, n.World.Director!.Next?.Player);
+        // A pack of Ribbits (App. A.6: whoever they outnumber on the ground) choosing between Reyes 6 m off and Dave 18 m off,
+        // each alone: they go for Dave.
+        n.Speed = 0;
+        n.Train.Dynamics.Velocity = 0;
+        n.Run(0.2);
+        var frame = n.Train.Frames[2];
+        double hint = n.Train.Dynamics.Distance - frame.Shape.HalfLength;
+        PlayerState Ground(double outward) =>
+            PlayerMotor.SpawnOnGround(frame.ToWorld(new Double3(frame.Shape.HalfWidth + outward, 0, 0)), n.Train.Line, hint, P);
+        n.Players[1] = Ground(4);
+        n.Players[3] = Ground(16);
+        var at = frame.ToWorld(new Double3(frame.Shape.HalfWidth + 22, 0, 0));
+        var a = n.World.AddEnemy(id => Ribbit.At(id, id, at, Tuning.Enemies.Ribbits));
+        n.World.AddEnemy(id => Ribbit.At(id, a.Id, at + new Double3(0, 0, 1.5), Tuning.Enemies.Ribbits));
+        n.Run(0.5);
+        Assert.Equal(1, (int)Math.Round(a.Extra));
+        // Unmarked, the same pack takes the nearer.
+        var plain = Night(4, 0, enemies: true);
+        var pf = plain.Train.Frames[2];
+        double ph = plain.Train.Dynamics.Distance - pf.Shape.HalfLength;
+        plain.Players[1] = PlayerMotor.SpawnOnGround(pf.ToWorld(new Double3(pf.Shape.HalfWidth + 4, 0, 0)), plain.Train.Line, ph, P);
+        plain.Players[3] = PlayerMotor.SpawnOnGround(pf.ToWorld(new Double3(pf.Shape.HalfWidth + 16, 0, 0)), plain.Train.Line, ph, P);
+        var pat = pf.ToWorld(new Double3(pf.Shape.HalfWidth + 22, 0, 0));
+        var b = plain.World.AddEnemy(id => Ribbit.At(id, id, pat, Tuning.Enemies.Ribbits));
+        plain.World.AddEnemy(id => Ribbit.At(id, b.Id, pat + new Double3(0, 0, 1.5), Tuning.Enemies.Ribbits));
+        plain.Run(0.5);
+        Assert.Equal(3, (int)Math.Round(b.Extra));
     }
 
     // ---- Over the wire: prediction still matches the host exactly.
