@@ -252,5 +252,22 @@
     "groundHeight": 1.1,
     "groundWithin": 30,
     "groundCount": 6
+  },
+  // GDD §31 "Speed is felt" (the director's evening playtest, 13 Oct: "It says we're going 27 kilometers an hour ... when I
+  // look out the front, it just feels so agonizingly slow"; note 709). Presentation only, aboard, never in a headset.
+  "speedFeel": {
+    // The view widens by up to "widen" degrees, at "fullAt" m/s, eased by (speed / fullAt) ^ "ease" (under 1: felt early).
+    "widen": 8,
+    "fullAt": 20,
+    "ease": 0.6,
+    // A knock through the floor at each rail joint, "joint" m apart, under each bogie ("bogies" m apart): "jolt" m at full
+    // speed, over "joltWidth" m of travel.
+    "joint": 12.5,
+    "bogies": 8.5,
+    "jolt": 0.012,
+    "joltWidth": 0.35,
+    // And the car's sway on the track: "sway" m side to side at full speed, a swing every "swayWave" m.
+    "sway": 0.01,
+    "swayWave": 34
   }
 }
