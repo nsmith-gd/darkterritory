@@ -1838,7 +1838,7 @@ public sealed partial class GreyboxScene
     {
         var w = WorkLight;
         _groundFinds.Clear();
-        foreach (var b in Bodies)
+        foreach (var b in Bodies ?? [])
         {
             if (b.Stashed || b.Carrier >= 0 || b.Parent != Sim.Player.PlayerState.World
                 || b.Kind is not (Sim.Physics.BodyKind.Loot or Sim.Physics.BodyKind.Crate or Sim.Physics.BodyKind.Cargo or Sim.Physics.BodyKind.Heavy))
