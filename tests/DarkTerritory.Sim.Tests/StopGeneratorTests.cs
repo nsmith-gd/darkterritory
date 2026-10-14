@@ -44,6 +44,27 @@ public class StopGeneratorTests
     }
 
     [Theory]
+    [InlineData(RouteTier.Local)]
+    [InlineData(RouteTier.Frontier)]
+    [InlineData(RouteTier.DeadLines)]
+    [InlineData(RouteTier.DeepTerritory)]
+    public void AGoodShareOfAVillagesHousesHaveSomethingInThem(RouteTier tier)
+    {
+        // Note 593 (the director, 9 Oct: "not every house certainly should have loot in it, but a good chunk of them should
+        // have something here, something there"): most of a village's open houses hold a find or more, some nothing, a few
+        // two or three; a little less deeper in. (Kept finds: the small things lying on the floors, note 738, are besides.)
+        var houses = Enumerable.Range(1, 30).Select(s => StopGenerator.Generate(S, tier, (ulong)s, StopKind.Village, Cx))
+            .SelectMany(l => l.Buildings.Select((b, i) => (b, i))
+                .Where(x => x.b.Zone == StopZone.Village && x.b.Kind == BuildingKind.House && x.b.Open)
+                .Select(x => l.Containers.Count(c => c.Zone == StopZone.Village && c.Building == x.i && c.Kind != ContainerKind.Loose))).ToList();
+        double withFinds = houses.Count(n => n > 0) / (double)houses.Count;
+        Assert.InRange(withFinds, 0.6, 0.97);
+        Assert.Contains(0, houses);
+        Assert.Contains(3, houses);
+        Assert.InRange(houses.Average(), 0.9, 1.6);
+    }
+
+    [Theory]
     [InlineData(StopKind.Yard)]
     [InlineData(StopKind.YardAndVillage)]
     [InlineData(StopKind.Village)]
@@ -156,9 +177,9 @@ public class StopGeneratorTests
     [Fact]
     public void TheLinesDeadTownsAreStopsWithTheirRailwaySide()
     {
-        // frontier:7's Maddox (and every main-line dead town on these nights): a village halt with its station and goods yard.
+        // frontier:36's Carrow Cross (and every main-line dead town on these nights): a village halt with its station and goods yard.
         int towns = 0;
-        foreach (var spec in new[] { "frontier:7", "deepTerritory:2", "deepTerritory:5" })
+        foreach (var spec in new[] { "frontier:36", "deadLines:20", "deepTerritory:5" })
         {
             var route = LineGen.Routes.Generate(Content, spec, 10);
             foreach (var t in route.Plan!.Landmarks.Where(l => l.Type == "town" && l.Edge == "main"))
@@ -293,9 +314,10 @@ public class StopGeneratorTests
     }
 
     [Fact]
-    public void FindsHoldOnlyWhatTheirKindAllowsAndShareTheBudget()
+    public void FindsHoldOnlyWhatTheirKindAllowsAndAreWorthTheirKinds()
     {
-        // P14: the layout places containers; the economy fills them, within the kind's list and the stop's budget.
+        // P14: the layout places containers; the economy fills them, within the kind's list. Note 718: each worth its kind's
+        // worth, always (loot.json worth), never a share of a budget.
         var route = RouteGenerator.Generate(Tuning.Route, RouteTier.DeadLines, 3);
         double perCar = Tuning.Run.Economy.PerCar["deadLines"];
         int stops = 0;
@@ -311,9 +333,9 @@ public class StopGeneratorTests
                 var c = stop.Containers[find.Container];
                 Assert.Contains(find.Item, L.Of(c.Kind).Items);
                 Assert.True(find.Value > 0);
+                Assert.Equal(L.WorthOf(find.Item, perCar), find.Value);
+                Assert.True(L.Worth.ContainsKey(find.Item), $"{find.Item} has no worth of its own");
             }
-            // Rounded to fives, the whole is the budget's range.
-            Assert.InRange(finds.Sum(f => f.Value), perCar * L.VillageBudget[0] - 5 * finds.Count, perCar * L.VillageBudget[1] + 5 * finds.Count);
         }
         Assert.True(stops > 0);
     }
@@ -332,9 +354,9 @@ public class StopGeneratorTests
         Tick(world, 0.5);
         int k = world.Run!.Stops.ToList().IndexOf(halt), hidden = world.Run.HidingSpots.Count(h => h.Stop == k);
         int village = halt.Stop!.Containers.Count(c => c.Zone == StopZone.Village);
-        Assert.Equal(village - hidden, world.Bodies.All.Count(b => b.Kind == BodyKind.Loot));
+        Assert.Equal(village - hidden, world.Bodies.All.Count(b => b.Kind == BodyKind.Loot && !Run.Run.IsComet(b)));
         world.Run.Stock(world.Bodies, k, searched: true);
-        var loot = world.Bodies.All.Where(b => b.Kind == BodyKind.Loot).ToList();
+        var loot = world.Bodies.All.Where(b => b.Kind == BodyKind.Loot && !Run.Run.IsComet(b)).ToList();
         Assert.Equal(village, loot.Count);
         var body = loot[0];
         var find = world.Run!.FindOf(body)!.Value;
@@ -346,7 +368,7 @@ public class StopGeneratorTests
         body.Pbd.Particles[0].Position = new Double3(0, room.Min.Y + 0.3, 0);
         body.Pbd.Particles[0].Previous = body.Pbd.Particles[0].Position;
         Tick(world, L.SettleSeconds + 1);
-        Assert.DoesNotContain(body, world.Bodies.All);
+        Assert.True(body.Banked, "never stowed"); // note 659: still lying where it was put, paid for
         Assert.Equal(find.Value, world.Run.Scavenged, 6);
         Assert.Equal(find, Assert.Single(world.Run.Stowed));
     }

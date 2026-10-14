@@ -256,6 +256,26 @@ public sealed class CinderHound(int id, int pack) : Enemy(id)
     public bool Reaches(TrainOnLine train, in PlayerState s) =>
         Attached >= 0 && Inside(train) ? s.Parent == Attached && PlayerMotor.Indoors(s, train) : !PlayerMotor.Indoors(s, train);
 
+    /// <summary>
+    /// Whether someone's on this hound's ground (note 528, D1 for the director's counter): the cars from <see cref="FrontCar"/>
+    /// back to the rake's end, where it patrols, chases and bites. Out of it is out of its reach: off the train, on a car
+    /// ahead, or in the coupling gap ahead of its front car (on that car's front plate or end ladder), where whoever cuts the
+    /// pack loose stands. Stand ahead of the pack's ground and they can't touch you: cut there. D1's frontier:7 seed 3: a hound
+    /// at its ground's front end held and mauled the driver uncoupling the gap ahead of it.
+    /// </summary>
+    public bool OnGround(TrainOnLine train, in PlayerState s, HoundTuning t)
+    {
+        int front = FrontCar(train, t);
+        var consist = train.Dynamics.Consist;
+        if (front < 0 || s.Parent <= 0 || s.Parent >= train.Frames.Count || consist.IndexOf(s.Parent) is var at && at < 0)
+            return false;
+        int edge = consist.IndexOf(front);
+        if (at != edge)
+            return at > edge;
+        // On the front car: its roof and its inside are the ground; its front end's plate and ladder are the gap ahead.
+        return s.Surface is Surface.Roof || PlayerMotor.Indoors(s, train) || s.Position.Z > -train.Frames[s.Parent].Shape.HalfLength + 0.3;
+    }
+
     /// <summary>In its car (dropped in at an open door, note 472), not on its roof.</summary>
     public bool Inside(TrainOnLine train) => train.Frames[Attached].Shape.Interior is not null && Local.Y < train.Frames[Attached].Shape.RoofHeight - 1;
 
@@ -544,7 +564,7 @@ public sealed class CinderHound(int id, int pack) : Enemy(id)
         foreach (var (player, world) in ctx.LivingCrew())
         {
             double d = (world - at).Length;
-            if (d <= chaseFrom && Reaches(ctx.Train, player.State) && (victim is null || d < victim.Value.Distance))
+            if (d <= chaseFrom && Reaches(ctx.Train, player.State) && OnGround(ctx.Train, player.State, t) && (victim is null || d < victim.Value.Distance))
                 victim = (player.Id, d, world, player.State);
         }
         // Nobody near (12 m, as ever): it eats the car and lights it, and patrols (note 472).
@@ -732,7 +752,7 @@ public sealed class CarHugger(int id) : Enemy(id)
             // FINISH: eaten through, the car drops away with it (and whoever was in it goes with the car).
             int ahead = train.VehicleAhead(Attached);
             if (ahead >= 0)
-                train.Uncouple(ahead);
+                train.Uncouple(ahead, Parting.CarHugger);
             car.Taken = true;
             Enter(ctx, SpinePhase.BreakOff);
             Enter(ctx, SpinePhase.Gone);
@@ -745,7 +765,7 @@ public sealed class CarHugger(int id) : Enemy(id)
         // SWALLOW: in front of its mouth, the rear platform's end.
         var mouth = WorldPosition(train);
         var victim = ctx.LivingCrew().Where(c => (c.World - mouth).Length <= t.MouthReach && !c.Player.State.Has(PlayerFlags.Held))
-            .OrderBy(c => (c.World - mouth).Length).Select(c => (int?)c.Player.Id).FirstOrDefault();
+            .OrderBy(c => ctx.Weigh(c.Player.Id, (c.World - mouth).Length)).Select(c => (int?)c.Player.Id).FirstOrDefault();
         if (victim is { } v)
             Grab(ctx, v, t.SwallowSeconds);
     }

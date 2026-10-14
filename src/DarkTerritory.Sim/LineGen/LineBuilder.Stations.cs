@@ -38,6 +38,13 @@ sealed partial class LineBuilder
         // The departure fortress (§10): template-assembled, a per-town identity.
         string fortressName = Name("fortress", ref rng);
         string identity = rng.Pick(f.Identities);
+        // The town the crew came in to last night (note 591): it's where tonight departs from. Drawn as ever first, so the
+        // rest of the line is the spec's whatever town it leaves from; its first word kept from every other name.
+        if (_p.From is { } from)
+        {
+            _firstWords.Add(from.Name.Split(' ')[0]);
+            (fortressName, identity) = (from.Name, f.Identities.Contains(from.Industry) ? from.Industry : identity);
+        }
         var lights = new List<double[]>();
         for (double s = 60; s < _innerGate; s += 80)
             foreach (int side in new[] { -1, 1 })
@@ -47,7 +54,11 @@ sealed partial class LineBuilder
             foreach (int side in new[] { -1, 1 })
                 lights.Add(Light(s, side * 16, 11, 0.8));
         lights.Add(Light(_gate + f.LastLightM, 6, 6, 0.6)); // the last light
-        _fortress = new PlanFortress(fortressName, identity, R(_departureRoad), R(_innerGate), R(_gate), rng.RangeInclusive(f.ThroatSwitches[0], f.ThroatSwitches[1]), lights);
+        _fortress = new PlanFortress(fortressName, identity, R(_departureRoad), R(_innerGate), R(_gate), rng.RangeInclusive(f.ThroatSwitches[0], f.ThroatSwitches[1]), lights)
+        {
+            TownSeed = _p.From?.Seed,
+            TownBurnt = _p.From?.Burnt ?? 0,
+        };
         _pads.Add(LongPad("fortress", 0, _gate, f.PadM));
         _markers.Add(new PlanMarker("gate_inner", "main", R(_innerGate)));
         _markers.Add(new PlanMarker("gate_outer", "main", R(_gate)));
@@ -65,8 +76,12 @@ sealed partial class LineBuilder
         for (double s = _terminus - tt.WallsResolveM; s < _end; s += 90)
             foreach (int side in new[] { -1, 1 })
                 tlights.Add(Light(s, side * 14, 10, silent ? 0.05 : 1));
-        _terminusPlan = new PlanTerminus(terminusName, silent, _t.Conflicts.SilentGateSafe, R(_terminus), R(_terminus - tt.SkyGlowM), R(_terminus - _t.Budget.HomeStraightM), tlights);
-        _pads.Add(LongPad("terminus", _terminus - tt.WallsResolveM, _end, 70));
+        _terminusPlan = new PlanTerminus(terminusName, silent, _t.Conflicts.SilentGateSafe, R(_terminus), R(_terminus - tt.SkyGlowM), R(_terminus - _t.Budget.HomeStraightM), tlights)
+        {
+            RunEndM = R(_terminus + tt.ArrivalYardM),
+        };
+        // A town's ground as the departure's (note 600); a silent settlement's the old corridor between its walls.
+        _pads.Add(LongPad("terminus", _terminus - tt.WallsResolveM, _end, tt.TownYard && !silent ? f.PadM : 70));
         _markers.Add(new PlanMarker("sky_glow", "main", R(_terminus - tt.SkyGlowM)));
         _markers.Add(new PlanMarker("home_straight", "main", R(_terminus - _t.Budget.HomeStraightM)));
         _markers.Add(new PlanMarker("yard_limit", "main", R(_terminus - tt.YardLimitBoardM)));

@@ -290,36 +290,49 @@ sealed partial class LineBuilder
         // A causeway from D 2 is contaminated marsh: one serves both quotas.
         bool causewayContaminated = D >= Def("causeway").Param("contaminatedFromD");
         if (quotas.Any(q => q.Tags.ContainsKey("marsh_or_water")))
-            must.Add(("water", [Def("causeway").MinD <= D && (contaminated && causewayContaminated || rng.Chance(0.5)) ? "causeway" : "riverCrossing"], _ => true, 900));
+            must.Add(("water", [Def("causeway").MinD <= D && (contaminated && causewayContaminated || rng.Chance(0.5)) ? "causeway" : "riverCrossing"], _ => true, MinLen(["riverCrossing"])));
         if (contaminated && !(causewayContaminated && must.Any(m => m.Chain[0] == "causeway")))
-            must.Add(("contaminated", ["causeway"], _ => true, 900));
+            must.Add(("contaminated", ["causeway"], _ => true, MinLen(["causeway"])));
         // The quotas are placed for themselves: what the spike carries is on top (its pieces may not all fit).
         int tunnels = quotas.Count == 0 ? 0 : quotas.Max(q => q.Tunnels);
         for (int i = 0; i < tunnels && Allowed("tunnel"); i++)
-            must.Add(("tunnel", ["tunnel"], _ => true, 800));
+            must.Add(("tunnel", ["tunnel"], _ => true, MinLen(["tunnel"])));
         int climbLong = quotas.Count == 0 ? 0 : quotas.Max(q => q.Tags.GetValueOrDefault("climb_long"));
         for (int i = 0; i < climbLong; i++)
             must.Add(("climb_long", ["climb"], _ => true, 1500));
         if (quotas.Any(q => q.Tags.ContainsKey("climb")) && climbLong <= 0)
-            must.Add(("climb", ["climb"], _ => true, 800));
+            must.Add(("climb", ["climb"], _ => true, MinLen(["climb"])));
+        // What the validator holds the night to (§15.3's quotas) is handed out first, then the hard bends, then the hazards
+        // and signatures where there's room left (on the 7 km nights of note 554 the stretches between the stops are
+        // short: handed out first, those left the bends nowhere).
+        int validated = must.Count;
         foreach (var _ in _mainWeakBridges)
-            must.Add(("weakTrestle", ["trestle"], _ => true, 700));
+            must.Add(("weakTrestle", ["trestle"], _ => true, MinLen(["trestle"])));
         int momentum = D >= Def("momentumBank").MinD && _l.MomentumGrade > 0 ? rng.Count(_l.MomentumBanks[0], _l.MomentumBanks[1]) - (spikeChain.Any(c => c.Contains("momentumBank")) ? 1 : 0) : 0;
         for (int i = 0; i < momentum; i++)
-            must.Add(("momentumBank", ["momentumBank"], s => s.Zone != "opening", 1600));
+            must.Add(("momentumBank", ["momentumBank"], s => s.Zone != "opening", MinLen(["momentumBank"])));
         int brass = D >= Def("brassField").MinD ? rng.Count(_l.BrassFields[0], _l.BrassFields[1]) : 0;
         for (int i = 0; i < brass; i++)
-            must.Add(("brassField", ["brassField"], _ => true, 700));
+            must.Add(("brassField", ["brassField"], _ => true, MinLen(["brassField"])));
         foreach (var g in sigs)
         {
+            // A signature's weight is the chance a night tries it (setpieces.json): 1, every night (§7.4's "at least once a
+            // run where the tier allows"); less, on a short night where it would take what little room there is.
+            if (g.Weight < 1 && !rng.Chance(g.Weight))
+                continue;
             Func<Stretch, bool> fits = g.AfterFacility ? s => s.AfterFacility
                 : g.Id == "junctionAtTheBottom" ? s => s.BeforeStop
                 : _ => true;
             must.Add((g.Id, g.Chain, s => fits(s) && Depth(g.Chain) <= StackCapAt(s), MinLen(g.Chain)));
         }
 
-        foreach (var m in must)
+        for (int k = 0; k <= must.Count; k++)
         {
+            if (k == validated)
+                AssignBends(stretches);
+            if (k == must.Count)
+                break;
+            var m = must[k];
             var candidates = stretches.Where(s => !s.Spike && m.Fits(s) && s.Length - s.Reserved - (s.Must.Count + 1) * RecoveryLength() >= m.MinLength).ToList();
             if (candidates.Count == 0)
                 candidates = stretches.Where(s => m.Fits(s) && s.Length - s.Reserved >= m.MinLength).ToList();
@@ -339,15 +352,15 @@ sealed partial class LineBuilder
             best.MustIds.Add(m.Name);
             best.Reserved += m.MinLength + RecoveryLength();
         }
-        AssignBends(stretches);
     }
 
     /// <summary>
     /// Note 278: the night's hard bends, bends that derail the train under its top speed, spread along it: one in each
     /// equal share of the line between the threshold and the home straight, in the stretch with room nearest the
-    /// share's middle. After everything else, so they take the room the quotas and signatures leave (the bends are what
-    /// the validator holds the night to; a signature only goes where there's room). Counted on their own stream: how many
-    /// a night has is the tier's, whatever else the script rolled.
+    /// share's middle. After the §15.3 quotas and before the hazards and signatures (the bends and quotas are what the
+    /// validator holds the night to; the rest only goes where there's room: on the 7 km nights of note 554, handed out
+    /// after them the bends had nowhere left). Counted on their own stream: how many a night has is the tier's, whatever
+    /// else the script rolled.
     /// </summary>
     void AssignBends(List<Stretch> stretches)
     {
@@ -455,22 +468,25 @@ sealed partial class LineBuilder
         {
             double room = end - s;
             // Recovery: a connector long enough to outrun what's chasing (§7.1), shorter only when the stretch is.
-            double rec = Math.Min(room, list.Count == 0 && first.Chain is null ? rng.Range(200, 700) : rng.Range(RecoveryLength(), RecoveryLength() * 1.5));
+            double rec = Math.Min(room, list.Count == 0 && first.Chain is null ? rng.Range(0.2, 0.7) * RecoveryLength() : rng.Range(RecoveryLength(), RecoveryLength() * 1.5));
             // What must still go in this stretch keeps its room: recovery shortens (to a floor) before a must is squeezed out.
             double owed = Owed(queue);
             if (queue.Count > 0)
                 rec = Math.Max(Math.Min(rec, room - owed), Math.Min(room, 150));
             bool anyLeft = queue.Count > 0 || budget > 0.4;
-            if (!anyLeft || room < rec + 400 && queue.Count == 0)
+            if (!anyLeft || room < rec + Math.Min(400, RecoveryLength()) && queue.Count == 0)
                 rec = room;
             list.Add(Connector(s, s + rec, st, ref rng));
             s += rec;
-            if (end - s < 300)
+            if (end - s < Math.Min(300, RecoveryLength()))
                 break;
-            // Dead settlements every 4-8 km (§11.3), and one within 2 km of a facility from the Frontier on (§15.3).
+            // Dead settlements every so often (§11.3; setpieces.json everyKm), and one within 2 km of a facility from the
+            // Frontier on (§15.3). Ahead of the stretch's hazards and signatures, but in what a hard bend or the spike's stack
+            // leaves it: on the 7 km nights of note 554 a settlement laid ahead of those took the room they were handed.
             if (s >= _nextSettlement && st.Window is null)
             {
-                if (Settlement(s, end - s, ref rng) is { } town)
+                bool held = st.Spike || queue.Any(q => q.Id == "hardBend");
+                if (Settlement(s, end - s - (held ? Owed(queue) : 0), ref rng) is { } town)
                 {
                     Place([town], list, ref s, ref budget);
                     _nextSettlement = NextSettlement(s, ref rng);
@@ -578,7 +594,7 @@ sealed partial class LineBuilder
     /// <summary>§7.2 Dark Forest / Open Plain over part of a stretch: at least one somewhere on every line (§15.3 Local).</summary>
     void LayRegion(Stretch st, ref Pcg32 rng)
     {
-        if (st.Length < 1200 || (_regions.Count > 0 && !rng.Chance(0.4)))
+        if (st.Length < 1.2 * Math.Min(Def("darkForest").LengthM[0], Def("openPlain").LengthM[0]) || (_regions.Count > 0 && !rng.Chance(0.4)))
             return;
         string biome = BiomeAt((st.S0 + st.S1) / 2);
         double forest = Bias(biome, "darkForest"), open = Bias(biome, "openPlain");
@@ -637,10 +653,11 @@ sealed partial class LineBuilder
         var def = Def("deadSettlement");
         bool town = rng.Chance(def.Param("townChance"));
         double len = town ? rng.Range(def.Range("townM")) : def.Param("haltM");
-        // A town that won't fit is a halt.
-        if (town && len + 200 > room)
+        // A town that won't fit is a halt; either leaves the stretch a recovery after it.
+        double after = Math.Min(200, RecoveryLength());
+        if (town && len + after > room)
             (town, len) = (false, def.Param("haltM"));
-        if (len + 200 > room)
+        if (len + after > room)
             return null;
         var item = Make(def, s, len);
         item.Params["town"] = town ? 1 : 0;

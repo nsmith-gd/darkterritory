@@ -8,6 +8,10 @@ using Fortresses = DarkTerritory.Sim.Run.Fortresses;
 
 namespace DarkTerritory.Game.Art;
 
+/// <summary>A coaling tower as Tower Jaw's left it (note 363): standing (leaning as it's gnawed), fallen across the line
+/// (its wreck the creature's: CreatureArt.TowerWreck), or fallen and its heap cleared off the rails.</summary>
+public enum TowerDown : byte { Standing, Fallen, Cleared }
+
 /// <summary>The line's set pieces as the art pass places them: bridges, tunnels, fortresses, facilities, branches.</summary>
 public sealed partial class WorldArt
 {
@@ -75,8 +79,9 @@ public sealed partial class WorldArt
     /// </summary>
     /// <param name="type">What a generated line's plan built it as (linegen plan §12.3): a girder viaduct or a truss in iron,
     /// a timber trestle, or stone. Unset (a hand-laid line), the masonry viaduct, or the trestle where it's weak.</param>
+    /// <param name="lettered">Its car limit on boards at its ends (a hand-laid line's; a generated line's plan boards its own).</param>
     public void Bridge(MeshBuilder mesh, RailLine line, RouteFeature f, Double3 eye, double from, double to, float depth,
-        Sim.LineGen.StructureType? type = null)
+        Sim.LineGen.StructureType? type = null, bool lettered = true)
     {
         bool weak = f.MaxCars > 0 || type == Sim.LineGen.StructureType.Trestle;
         float step = weak ? StructureKit.Bent : StructureKit.Bay;
@@ -109,24 +114,29 @@ public sealed partial class WorldArt
             mesh.Instances.Add(new MeshInstance(piece, at));
         }
         // Its limit on a board at each end, facing the train coming onto it (GDD §17 "a bridge that takes four cars"):
-        // the speed board's posted limit is the sim's, this is the count it'll carry.
-        if (f.MaxCars > 0)
+        // the speed board's posted limit is the sim's, this is the count it'll carry. Stood and lettered as the plan's boards
+        // are (note 560); a generated line's plan has its own (bridgeLimit), where its land is.
+        if (f.MaxCars > 0 && lettered)
             foreach (var (s, dir) in new[] { (f.Start - 25, 1), (f.End + 25, -1) })
             {
                 if (s < from - 50 || s > to + 50)
                     continue;
-                var t = line.Sample(Math.Clamp(s, 0, line.Length));
-                if ((t.Position - eye).Length > 300)
-                    continue;
-                var fwd = new Vector3((float)t.Tangent.X, 0, (float)t.Tangent.Z) * dir;
-                fwd = Vector3.Normalize(fwd);
-                var right = Vector3.Cross(fwd, Vector3.UnitY);
-                var toward = -fwd;
-                var foot = (t.Position + new Double3(right.X, 0, right.Z) * 3.4).RelativeTo(eye);
-                var board = Piece($"board-weak-{f.MaxCars}", () => SignKit.Board(_look, "restricted", $"{f.MaxCars} CARS", 1.0f, 3.9f));
-                var up = Vector3.UnitY;
-                mesh.Instances.Add(new MeshInstance(board, new Matrix4x4(right.X, right.Y, right.Z, 0, up.X, up.Y, up.Z, 0,
-                    toward.X, toward.Y, toward.Z, 0, foot.X, foot.Y, foot.Z, 1)));
+                var (boards, rules) = HandLaidSignage;
+                // The billboard side as the train coming onto it sees it: for one coming the other way, the line's other side.
+                int side = BillboardSide(rules);
+                var site = HandLaidSite(line, Math.Clamp(s, 0, line.Length), side * dir, "bridgeLimit", $"MAX {f.MaxCars} CARS");
+                if (dir < 0)
+                {
+                    // Turned to the train coming the other way.
+                    var t = line.Sample(Math.Clamp(s, 0, line.Length));
+                    var fwd = new Double3(t.Tangent.X, 0, t.Tangent.Z).Normalized;
+                    var inner = site.Bottom - site.Right * (site.Side * site.Face.Width / 2);
+                    var toward = site.Toward - fwd * (2 * Double3.Dot(site.Toward, fwd));
+                    var right = Double3.Cross(Double3.Up, toward).Normalized;
+                    site = site with { Toward = toward, Right = right, Side = side, Bottom = inner + right * (side * site.Face.Width / 2) };
+                }
+                if ((site.Centre - eye).Length <= rules.DrawM)
+                    Billboard(mesh, site, rules, boards.GetValueOrDefault("bridgeLimit")?.VisibleM ?? 300, eye);
             }
     }
 
@@ -192,7 +202,7 @@ public sealed partial class WorldArt
             return;
         // A walled town's wall goes round it (queue #74, note 335); the gatehouse and the platform are the yard's still.
         if (bounds is not null)
-            TownWall(mesh, line, eye, bounds, from, to, lit);
+            TownWall(mesh, line, eye, bounds, from, to, lit, time);
         else
         {
             foreach (int side in new[] { -1, 1 })
@@ -377,7 +387,17 @@ public sealed partial class WorldArt
     }
 
     /// <summary>A facility's buildings beside a track (the main line or its spur) at <paramref name="mid"/>, and its one working lamp.</summary>
-    public void Facility(MeshBuilder mesh, RailLine line, Double3 eye, FacilityKind? kind, double mid, double side, double push)
+    /// <summary>How far out from the line a coaling tower's near stilts stand (StructureKit.Facility; enemies.json towerJaw
+    /// towerLegOut, the one Tower Jaw gnaws): what it leans over about.</summary>
+    public const float TowerPivotOut = 3.5f;
+
+    /// <param name="lean">A coaling tower gnawed by Tower Jaw (note 363): how far it leans over toward the line (radians),
+    /// about the foot of its stilts on the line's side.</param>
+    /// <param name="down">A coaling tower Tower Jaw's brought down: not standing. <see cref="TowerDown.Fallen"/> it's drawn
+    /// as the creature's wreck (CreatureArt.TowerWreck, across the line); <see cref="TowerDown.Cleared"/> here, its heap
+    /// dragged off the rails.</param>
+    public void Facility(MeshBuilder mesh, RailLine line, Double3 eye, FacilityKind? kind, double mid, double side, double push, float lean = 0,
+        TowerDown down = TowerDown.Standing)
     {
         side = side == 0 ? 1 : side;
         var t = line.Sample(Math.Clamp(mid, 0, line.Length));
@@ -385,7 +405,22 @@ public sealed partial class WorldArt
             return;
         var r = Double3.Cross(t.Tangent, Double3.Up).Normalized;
         var at = t.Position + r * (side * push);
-        mesh.Instances.Add(new MeshInstance(Piece($"facility-{kind}-{side}", () => StructureKit.Facility(_look, kind, (int)side)), Basis(t.Tangent, at, eye, 0)));
+        var basis = Basis(t.Tangent, at, eye, 0);
+        if (kind == FacilityKind.CoalingTower && down != TowerDown.Standing)
+        {
+            // Its wreck's in the frame the tower's drawn in for the right-hand side: turned round for the left.
+            if (down == TowerDown.Cleared)
+                mesh.Instances.Add(new MeshInstance(Piece("coaling-fallen-cleared", () => StructureKit.CoalingTowerFallen(_look, cleared: true)),
+                    side < 0 ? Matrix4x4.CreateRotationY(MathF.PI) * basis : basis));
+            return;
+        }
+        if (kind == FacilityKind.CoalingTower && lean != 0)
+        {
+            // Over toward the line about its near stilts' feet (StructureKit.Facility: 3.5 m out from the line).
+            var pivot = new Vector3((float)side * TowerPivotOut, 0, 0);
+            basis = Matrix4x4.CreateTranslation(-pivot) * Matrix4x4.CreateRotationZ((float)side * lean) * Matrix4x4.CreateTranslation(pivot) * basis;
+        }
+        mesh.Instances.Add(new MeshInstance(Piece($"facility-{kind}-{side}", () => StructureKit.Facility(_look, kind, (int)side)), basis));
         var lamp = (at + r * (side * 4) + Double3.Up * 5.1).RelativeTo(eye);
         mesh.PointLights.Add(new PointLight(lamp, Palette.LampAmber * 1.3f, 12));
         mesh.Billboard(lamp, 1.4f, 0, new Vector4(Palette.LampAmber * 0.6f, 1), -1, FxBlend.Additive);
@@ -400,31 +435,25 @@ public sealed partial class WorldArt
         float flicker = 1)
     {
         var local = branch.Local;
-        const double start = 4, step = 5;
-        var k = new Kit(_look, mesh) { SurfaceOrigin = new Vector3(W(eye.X), W(eye.Y), W(eye.Z)), Baked = 0 };
-        var origin = k.SurfaceOrigin;
-        int ballast = _look.Layer("ballast"), mud = _look.Layer("ground_mud");
-        float tile = ballast >= 0 && _look.Textures[ballast].TileMetres is { } tm ? tm : 1.5f;
-        var tint = ballast >= 0 ? Vector3.One : Palette.Ballast;
-        // Its bed: level with the main line's where they overlap, on a low embankment of its own beyond.
-        float[] lat = [-2.6f, -1.8f, 1.8f, 2.6f];
-        float[] ht = [-0.35f, 0.01f, 0.01f, -0.35f];
-        for (double s = start; s < local.Length; s += step)
+        // Its bed and rails, and its sleepers, never change: cooked once, a piece at a time, and drawn where they are (note
+        // 695: built again every frame they were ~5,000 triangles and 3 ms, a long alternate's sleepers each asked where
+        // they were). The sleepers only near the eye, as before: past ~150 m the fog has them.
+        for (int piece = 0; BranchStart + piece * BranchPieceLength < local.Length; piece++)
         {
-            var a = local.Sample(s);
-            var b = local.Sample(Math.Min(s + step, local.Length));
-            if ((a.Position - eye).Length > drawDistance)
+            double p0 = BranchStart + piece * BranchPieceLength, p1 = Math.Min(local.Length, p0 + BranchPieceLength);
+            double near = double.PositiveInfinity;
+            for (double s = p0; s <= p1; s += (p1 - p0) / 4)
+                near = Math.Min(near, (local.Sample(s).Position - eye).Length);
+            if (near > drawDistance)
                 continue;
-            var ra = Double3.Cross(a.Tangent, Double3.Up).Normalized;
-            var rb = Double3.Cross(b.Tangent, Double3.Up).Normalized;
-            for (int c = 0; c < 3; c++)
+            var (bed, at) = BranchPiece(branch, piece, false, p0, p1);
+            mesh.Instances.Add(new MeshInstance(bed, Matrix4x4.CreateTranslation(at.RelativeTo(eye))));
+            if (near < 150)
             {
-                Vector3 P(TrackSample t, Double3 r, int i) => (t.Position + r * lat[i] + Double3.Up * ht[i]).RelativeTo(eye);
-                var corner = new Corner(tint * (c == 1 ? 1 : 0.8f), c == 1 ? 0 : 0.6f);
-                Quad(mesh, P(a, ra, c), P(a, ra, c + 1), P(b, rb, c + 1), P(b, rb, c), corner, corner, corner, corner, origin, ballast, mud, tile);
+                var (sleepers, from) = BranchPiece(branch, piece, true, p0, p1);
+                mesh.Instances.Add(new MeshInstance(sleepers, Matrix4x4.CreateTranslation(from.RelativeTo(eye))));
             }
         }
-        Rails(k, local, eye, start, local.Length, s => (local.Sample(s).Position - eye).Length < 150, s => (local.Sample(s).Position - eye).Length < drawDistance);
 
         var end = local.Sample(local.Length);
         // An alternate has no end of its own: it runs back into the main line (linegen plan §6.2).
@@ -453,6 +482,56 @@ public sealed partial class WorldArt
         mesh.Billboard(glass, 0.3f, 0, new Vector4(colour * 1.6f, 1), -1, FxBlend.Additive);
         mesh.Billboard(glass, 1.6f, 0, new Vector4(colour * 0.45f, 1), -1, FxBlend.Additive);
         mesh.PointLights.Add(new PointLight(glass, colour * 0.6f, 5));
+    }
+
+    /// <summary>Where a branch's own track starts past its toe, and how long a cooked piece of it is (m).</summary>
+    const double BranchStart = 4, BranchPieceLength = 100;
+
+    /// <summary>A branch's cooked pieces (its bed and rails, or its sleepers), each relative to where it starts; let go with the line.</summary>
+    readonly Dictionary<(int Branch, int Piece, bool Sleepers), (MeshAsset Mesh, Double3 Origin)> _branchPieces = [];
+
+    /// <summary>
+    /// One piece of a branch, [<paramref name="p0"/>, <paramref name="p1"/>] along it: its bed (level with the main line's
+    /// where they overlap, on a low embankment of its own beyond) and rails, or its sleepers; built once.
+    /// </summary>
+    (MeshAsset Mesh, Double3 Origin) BranchPiece(Branch branch, int piece, bool sleepers, double p0, double p1)
+    {
+        if (_branchPieces.TryGetValue((branch.Index, piece, sleepers), out var hit))
+            return hit;
+        var local = branch.Local;
+        var origin = local.Sample(p0).Position;
+        var built = new MeshBuilder();
+        var k = new Kit(_look, built) { SurfaceOrigin = new Vector3(W(origin.X), W(origin.Y), W(origin.Z)), Baked = 0 };
+        if (sleepers)
+            Rails(k, local, origin, p0, p1, _ => true, _ => false);
+        else
+        {
+            const double step = 5;
+            var surface = k.SurfaceOrigin;
+            int ballast = _look.Layer("ballast"), mud = _look.Layer("ground_mud");
+            float tile = ballast >= 0 && _look.Textures[ballast].TileMetres is { } tm ? tm : 1.5f;
+            var tint = ballast >= 0 ? Vector3.One : Palette.Ballast;
+            float[] lat = [-2.6f, -1.8f, 1.8f, 2.6f];
+            float[] ht = [-0.35f, 0.01f, 0.01f, -0.35f];
+            for (double s = p0; s < p1; s += step)
+            {
+                var a = local.Sample(s);
+                var b = local.Sample(Math.Min(s + step, p1));
+                var ra = Double3.Cross(a.Tangent, Double3.Up).Normalized;
+                var rb = Double3.Cross(b.Tangent, Double3.Up).Normalized;
+                for (int c = 0; c < 3; c++)
+                {
+                    Vector3 P(TrackSample t, Double3 r, int i) => (t.Position + r * lat[i] + Double3.Up * ht[i]).RelativeTo(origin);
+                    var corner = new Corner(tint * (c == 1 ? 1 : 0.8f), c == 1 ? 0 : 0.6f);
+                    Quad(built, P(a, ra, c), P(a, ra, c + 1), P(b, rb, c + 1), P(b, rb, c), corner, corner, corner, corner, surface, ballast, mud, tile);
+                }
+            }
+            Rails(k, local, origin, p0, p1, _ => false, _ => true);
+        }
+        FrameCounts.Add("branch pieces built");
+        var made = (MeshAsset.From($"branch-{branch.Index}-{piece}-{(sleepers ? "sleepers" : "bed")}", built), origin);
+        _branchPieces[(branch.Index, piece, sleepers)] = made;
+        return made;
     }
 
     /// <summary>Sleepers (where <paramref name="sleepers"/> says) and rails (where <paramref name="rails"/> says) along a line.</summary>

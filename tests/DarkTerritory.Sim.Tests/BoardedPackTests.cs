@@ -31,9 +31,9 @@ public class BoardedPackTests
         public readonly List<string> Path = [];
         uint _tick;
 
-        public Lone(int cars, double speed)
+        public Lone(int cars, double speed, RailLine? line = null, double front = 2_000)
         {
-            var train = new TrainOnLine(new TrainDynamics(Consist.Uniform(T, cars, 1)), new RailLine(new LineDefinition("t", [new TrackSegment(20_000)])), 2_000, Tuning.Boiler);
+            var train = new TrainOnLine(new TrainDynamics(Consist.Uniform(T, cars, 1)), line ?? new RailLine(new LineDefinition("t", [new TrackSegment(20_000)])), front, Tuning.Boiler);
             train.Dynamics.Velocity = speed;
             World = new World(train, Tuning.Combat);
             World.EnableBodies();
@@ -58,10 +58,11 @@ public class BoardedPackTests
             return pack;
         }
 
-        public void Until(Func<bool> done, double seconds)
+        public void Until(Func<bool> done, double seconds, Action? each = null)
         {
             for (int t = 0; t < seconds * SimConstants.TickRate && !done(); t++)
             {
+                each?.Invoke();
                 World.BeginTick();
                 if (CabControls.CanDrive(Self, Train) && CabControls.Clears(_controls, Train, false))
                     _controls.Brake = 0;
@@ -106,6 +107,39 @@ public class BoardedPackTests
         Assert.True(PlayerMotor.InCab(n.Self, n.Train), $"{n.Self.Surface} on {n.Self.Parent}");
         Assert.True(n.Train.Dynamics.Speed > 3);
         Assert.False(n.Driver.CuttingAlone);
+    }
+
+    [Fact]
+    public void ALoneDriverCuttingOnABridgeGoesBackToTheCabByTheRoofs()
+    {
+        // Note 552 (D1.2's frontier:7 seed 4): the train stood with its cars on Stroud Bridge, the truss over the river. The
+        // driver cut the pack loose and got down beside the train to walk back to the cab, but the deck is no wider than the
+        // cars (2.6 m from the track): it stepped off it, fell 8 m to the river bank, and the train stood there all night.
+        // On the 7 km nights of note 554, frontier:7's truss again.
+        var route = LineGen.Routes.Generate(DataFile.FindContentRoot(), "frontier:7", 8);
+        var line = route.Build();
+        var bridge = route.Plan!.Structures.First(st => st.Edge == "main" && st.Type == LineGen.StructureType.Truss);
+        // Stood with its rear car 25 m onto the deck (the bridge is shorter than the train).
+        double rearCarFront = Consist.Uniform(T, 8, 1).LengthMetres - T.Geometry.CarLength;
+        var n = new Lone(cars: 8, speed: 0, line, front: Math.Max(bridge.S1 + 20, bridge.S0 + 25 + rearCarFront));
+        int rear = n.Train.Dynamics.Consist.Vehicles[^1].Id;
+        Assert.InRange(n.Train.Cars[rear].FrontDistance, bridge.S0, bridge.S1);
+        var pack = n.Pack(n.Train.Dynamics.Consist.Vehicles.Count - 1, 3);
+        double lowest = double.MaxValue;
+        bool back = false;
+        n.Until(() => (back = pack.All(h => h.Gone) && PlayerMotor.InCab(n.Self, n.Train)) && n.Train.Dynamics.Speed > 3, 600, () =>
+        {
+            if (n.Self.Parent == PlayerState.World)
+            {
+                double hint = n.Self.LineHint;
+                var (path, along) = line.Nearest(n.Self.Position, ref hint);
+                lowest = Math.Min(lowest, n.Self.Position.Y - line.Sample(path, along).Position.Y);
+            }
+        });
+        Assert.True(n.Self.Alive, $"died of {n.Self.Death}");
+        Assert.True(lowest > -1.5, $"down {-lowest:0.0} m below the rail; path {string.Join(" ", n.Path.Take(60))}");
+        Assert.True(pack.All(h => h.Gone));
+        Assert.True(back && n.Train.Dynamics.Speed > 3, $"driver {n.Self.Surface} on {n.Self.Parent}; path {string.Join(" ", n.Path.Take(60))}");
     }
 
     [Fact]
@@ -161,5 +195,42 @@ public class BoardedPackTests
         n.Until(() => pack.All(h => h.Gone), 300);
         Assert.True(pack.All(h => h.Gone), $"driver {n.Self.Surface} on {n.Self.Parent}; cutting {n.Driver.CuttingAlone}");
         Assert.True(n.Train.Dynamics.Consist.IndexOf(rear) < 0, "the pack's car is cut loose");
+    }
+
+    [Theory]
+    [InlineData(2)]
+    [InlineData(6)]
+    [InlineData(8)]
+    public void TheDriverCuttingAPackLooseAloneIsOutOfItsReach(int cars)
+    {
+        // Note 528 (D1's frontier:7 seed 3, a crew of four): the driver went alone to uncouple the gap ahead of the pack's ground
+        // (CinderHound.FrontCar) and a hound at the ground's front end held and mauled it there. A hound has only who's on its
+        // ground: the gap ahead of it is out of reach. Cut there, never bitten, and the pack's gone.
+        var n = new Lone(cars, speed: 12);
+        int rear = n.Train.Dynamics.Consist.Vehicles[^1].Id;
+        var pack = n.Pack(n.Train.Dynamics.Consist.Vehicles.Count - 1, 4);
+        int least = P.Health;
+        n.Until(() => { least = Math.Min(least, n.Self.Health); return pack.All(h => h.Gone) && PlayerMotor.InCab(n.Self, n.Train); }, 400);
+        Assert.True(pack.All(h => h.Gone), $"driver {n.Self.Surface} on {n.Self.Parent}; cutting {n.Driver.CuttingAlone}; {string.Join(" ", n.Path)}");
+        Assert.True(n.Self.Alive, $"died of {n.Self.Death}");
+        Assert.Equal(P.Health, least);
+        Assert.True(n.Train.Dynamics.Consist.IndexOf(rear) < 0, "the pack's car is cut loose");
+    }
+
+    [Fact]
+    public void ALoneDriverDoesntGoOutToCutThePackPastAKnottersGap()
+    {
+        // Note 547 (D1.3's frontier:7 seed 3): the last alive, the driver went along the roofs to cut a pack loose, came to a
+        // Knotter's gap on the way (never jumped, note 365), and stood on that roof 20 minutes till it froze. With a knot on the
+        // way it stays at the controls and drives on.
+        var n = new Lone(cars: 6, speed: 12);
+        var consist = n.Train.Dynamics.Consist;
+        consist.Vehicles[2].Knot = 1.0; // the gap behind car 2
+        n.Pack(consist.Vehicles.Count - 1, 3);
+        bool left = false;
+        n.Until(() => { left |= !PlayerMotor.InCab(n.Self, n.Train); return false; }, 150);
+        Assert.False(left, $"went out: {string.Join(" ", n.Path)}");
+        Assert.False(n.Driver.CuttingAlone);
+        Assert.True(n.Train.Dynamics.Speed > 3, $"standing at {n.Train.Dynamics.Speed:0.0} m/s");
     }
 }

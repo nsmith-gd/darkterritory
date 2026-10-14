@@ -8,8 +8,19 @@ public sealed record LootTuning
     public const string File = "tuning/loot.json";
 
     public required YardLootTuning Yard { get; init; }
-    public required double[] VillageBudget { get; init; }
-    public required double OutlierWeight { get; init; }
+    /// <summary>
+    /// What each kind of find is worth, in the tier's value per car (run.json economy.perCar), by item key: always the same
+    /// for a kind (note 718: the director, 14 Oct 2026, "as they play the game more often, they learn what those objects
+    /// are"). Looked up, never iterated. A kind not listed is worth the least a find is (<see cref="LeastWorth"/>).
+    /// </summary>
+    public Dictionary<string, double> Worth { get; init; } = new();
+    /// <summary>
+    /// The village finds' worth by tier key, times <see cref="Worth"/> (note 718: the deep tiers' fewer houses keep worthier
+    /// things); 1 where unlisted. Not the comet fragment's, nor the trophies'. Looked up, never iterated.
+    /// </summary>
+    public Dictionary<string, double> FindsByTier { get; init; } = new();
+    /// <summary>An outlier house's container (level-design P11) draws its find this many times and keeps the worthiest (note 718).</summary>
+    public int OutlierDraws { get; init; } = 1;
     public required double SettleSeconds { get; init; }
     public required double Radius { get; init; }
     /// <summary>By container kind, in loot.json's camelCase (looked up, never iterated).</summary>
@@ -34,6 +45,20 @@ public sealed record LootTuning
     public SearchTuning? Search { get; init; }
     /// <summary>A creature's trophy when it's killed (the Gannet's head, note 340), by the kind's tuning name. Unset, none.</summary>
     public Dictionary<string, TrophyTuning> Trophies { get; init; } = new();
+    /// <summary>Comet fragments at the stops (note 718). Unset, none.</summary>
+    public CometLootTuning? Comet { get; init; }
+    /// <summary>What the clerk's tally says of the night's finds (note 718).</summary>
+    public LootTallyTuning Tally { get; init; } = new();
+
+    /// <summary>The least a find is worth, in scrip: finds are rounded to fives, and none is worth nothing.</summary>
+    public const double LeastWorth = 5;
+
+    /// <summary>
+    /// What a find of <paramref name="item"/> pays at the tier's <paramref name="perCar"/> (note 718): its kind's worth, rounded
+    /// to fives, the same every time.
+    /// </summary>
+    public double WorthOf(string item, double perCar) =>
+        Math.Max(LeastWorth, Math.Round(Worth.GetValueOrDefault(item) * perCar / LeastWorth) * LeastWorth);
 
     public LootKindTuning Of(ContainerKind kind) =>
         Kinds.TryGetValue(char.ToLowerInvariant(kind.ToString()[0]) + kind.ToString()[1..], out var k) ? k : throw new KeyNotFoundException($"loot.json has no kind {kind}");
@@ -87,11 +112,27 @@ public sealed record SearchTuning
 
 public sealed record LootKindTuning
 {
-    public required double Weight { get; init; }
     public required string[] Items { get; init; }
 }
 
-/// <summary>A village find (P12, P14): which container it's in, what it is, and what it pays in scrip.</summary>
+/// <summary>
+/// loot.json <c>comet</c> (note 718; the director, 14 Oct 2026: comet cargo "needs to be at actual stops"): each stop's chance
+/// of a comet fragment or few, by tier key; how many; the find it is (a body of a find's <see cref="LootTuning.Radius"/>).
+/// </summary>
+public sealed record CometLootTuning
+{
+    public string Item { get; init; } = "cometFragment";
+    /// <summary>By tier key (run.json's), looked up, never iterated.</summary>
+    public Dictionary<string, double> Chance { get; init; } = new();
+    public int[] Count { get; init; } = [1, 1];
+}
+
+/// <summary>loot.json <c>tally</c> (note 718): how many kinds of the night's finds the clerk names, and whether the finder's line is read.</summary>
+public sealed record LootTallyTuning(int Best = 3, bool Finder = true);
+
+/// <summary>
+/// A village find (P12, P14): which container it's in, what it is, and what it pays in scrip (its kind's worth: note 718).
+/// </summary>
 public readonly record struct LootFind(int Container, string Item, double Value);
 
 /// <summary>
@@ -100,22 +141,71 @@ public readonly record struct LootFind(int Container, string Item, double Value)
 /// </summary>
 public static class StopLoot
 {
-    /// <param name="perCar">The tier's contract value per delivered car (run.json economy.perCar): the budget's unit.</param>
+    /// <param name="perCar">The tier's contract value per delivered car (run.json economy.perCar): the unit of a find's worth.</param>
     public static IReadOnlyList<LootFind> Village(LootTuning t, StopLayout stop, ulong routeSeed, int feature, double perCar)
     {
         var rng = new Ballast.Pcg32(StopSeed.Of(StopSeed.Of(routeSeed, StopSeed.Loot, (ulong)feature), stop.Seed));
-        var containers = stop.Containers.Where(c => c.Zone == StopZone.Village).ToList();
-        if (containers.Count == 0)
-            return [];
-        double budget = perCar * rng.Range(t.VillageBudget[0], t.VillageBudget[1]);
-        double Weight(StopContainer c) => t.Of(c.Kind).Weight * (c.Outlier ? t.OutlierWeight : 1);
-        double sum = containers.Sum(Weight);
-        return [.. containers.Select(c =>
+        var containers = stop.Containers.Where(c => c.Zone == StopZone.Village && c.Kind != ContainerKind.Loose).ToList();
+        var finds = new List<LootFind>();
+        if (containers.Count > 0)
         {
-            var kind = t.Of(c.Kind);
-            string item = kind.Items[(int)(rng.NextDouble() * kind.Items.Length)];
-            return new LootFind(c.Index, item, Math.Max(5, Math.Round(budget * Weight(c) / sum / 5) * 5));
-        })];
+            // The stream's first draw was the stop's budget, which a find's worth no longer comes from (note 718): kept, so
+            // the finds a seed deals are the ones it always dealt.
+            rng.NextDouble();
+            // An outlier's other draws (P11), on a stream of their own for the same reason.
+            var outlier = new Ballast.Pcg32(StopSeed.Of(StopSeed.Of(routeSeed, StopSeed.Outlier, (ulong)feature), stop.Seed));
+            finds.AddRange(containers.Select(c =>
+            {
+                var kind = t.Of(c.Kind);
+                string item = kind.Items[(int)(rng.NextDouble() * kind.Items.Length)];
+                for (int draw = 1; c.Outlier && draw < t.OutlierDraws; draw++)
+                {
+                    string other = kind.Items[(int)(outlier.NextDouble() * kind.Items.Length)];
+                    if (t.WorthOf(other, perCar) > t.WorthOf(item, perCar))
+                        item = other;
+                }
+                return new LootFind(c.Index, item, t.WorthOf(item, perCar));
+            }));
+        }
+        // The small things lying on the floors (note 738), on a stream of their own so the village's other finds are what
+        // they were: each worth what its kind is (note 718), on top of them.
+        var loose = stop.Containers.Where(c => c.Zone == StopZone.Village && c.Kind == ContainerKind.Loose).ToList();
+        if (loose.Count > 0)
+        {
+            var lr = new Ballast.Pcg32(StopSeed.Of(StopSeed.Of(routeSeed, StopSeed.Loose, (ulong)feature), stop.Seed));
+            var kind = t.Of(ContainerKind.Loose);
+            foreach (var c in loose)
+            {
+                string item = kind.Items[(int)(lr.NextDouble() * kind.Items.Length)];
+                finds.Add(new LootFind(c.Index, item, t.WorthOf(item, perCar)));
+            }
+        }
+        return finds;
+    }
+
+    /// <summary>
+    /// The containers at a stop a comet fragment lies beside (note 718), one per fragment: on some nights' stops (loot.json
+    /// <c>comet</c>'s chance by tier), from the run's seed on a stream of its own, so every machine agrees and nothing else
+    /// a seed deals changes. Only beside a container (not a crane's bay) with somewhere in the open by it to be seen from the
+    /// line (<paramref name="lyingOut"/>; the run's <c>CometAt</c>).
+    /// </summary>
+    public static IReadOnlyList<int> Comets(LootTuning t, StopLayout stop, ulong routeSeed, int feature, RouteTier tier, Func<StopContainer, bool> lyingOut)
+    {
+        if (t.Comet is not { } comet || comet.Chance.GetValueOrDefault(TierKey(tier)) is not (> 0 and var chance))
+            return [];
+        var rng = new Ballast.Pcg32(StopSeed.Of(StopSeed.Of(routeSeed, StopSeed.Comet, (ulong)feature), stop.Seed));
+        if (rng.NextDouble() >= chance)
+            return [];
+        var places = stop.Containers.OrderBy(c => c.Index).Where(c => c.Kind != ContainerKind.CraneBay && lyingOut(c)).Select(c => c.Index).ToList();
+        int n = Math.Min(places.Count, rng.RangeInclusive(comet.Count[0], comet.Count[^1]));
+        var at = new List<int>();
+        for (int i = 0; i < n; i++)
+        {
+            int pick = Math.Min(places.Count - 1, (int)(rng.NextDouble() * places.Count));
+            at.Add(places[pick]);
+            places.RemoveAt(pick);
+        }
+        return at;
     }
 
     /// <summary>
@@ -162,5 +252,8 @@ public static class StopLoot
     public static string TierKey(RouteTier tier) => char.ToLowerInvariant(tier.ToString()[0]) + tier.ToString()[1..];
 }
 
-/// <summary>A creature's trophy (loot.json <c>trophies</c>; note 340): the find it is, and what it pays in the tier's car-loads.</summary>
-public sealed record TrophyTuning(string Item, double PerCar);
+/// <summary>
+/// A creature's trophy (loot.json <c>trophies</c>; note 340): the find it is, what it pays in the tier's car-loads, and the
+/// chance a kill leaves it (note 718: "can sometimes leave trophies"; 1, every time, as the Gannet's head is).
+/// </summary>
+public sealed record TrophyTuning(string Item, double PerCar, double Chance = 1);

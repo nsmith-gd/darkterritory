@@ -192,7 +192,10 @@ public enum SignState : byte { Intact, Fallen, Missing }
 
 /// <param name="Side">+1 right, −1 left of the direction of travel.</param>
 /// <param name="For">The demand or place it tells of.</param>
-public sealed record PlanSign(string Type, string Edge, double S, int Side, string Text, SignState State, bool Required, double? Value = null, string? For = null);
+/// <param name="To">Where along <paramref name="Edge"/> the distance it reads counts to (a facility's or junction's board, "0.5 KM"):
+/// a board stood elsewhere than <paramref name="S"/> says its own distance from there (note 684).</param>
+public sealed record PlanSign(string Type, string Edge, double S, int Side, string Text, SignState State, bool Required, double? Value = null, string? For = null,
+    double? To = null);
 
 /// <summary>A facility slot (§11.1) as handed to the POI generator.</summary>
 public sealed record PlanPoi(string Id, FacilityKind Type, string Name, string Junction, double S, int Side, PlanRange Approach, PlanRange Holding,
@@ -240,8 +243,22 @@ public sealed record PlanRouteCard(string Title, IReadOnlyList<CardLine> Timetab
 public sealed record PlanMarker(string Type, string Edge, double S);
 
 public sealed record PlanFortress(string Name, string Identity, double DepartureRoadM, double InnerGateM, double OuterGateM, int ThroatSwitches,
-    IReadOnlyList<double[]> Lights);
-public sealed record PlanTerminus(string Name, bool Silent, bool GateSafe, double GateM, double SkyGlowFromM, double HomeStraightFromM, IReadOnlyList<double[]> Lights);
+    IReadOnlyList<double[]> Lights)
+{
+    /// <summary>The seed of the town it is, when it's the one arrived at last night (note 591); null, the route's own.</summary>
+    public ulong? TownSeed { get; init; }
+    /// <summary>How many of that town's houses are burnt out (note 608): the creatures the crew brought in on earlier nights.</summary>
+    public int TownBurnt { get; init; }
+}
+public sealed record PlanTerminus(string Name, bool Silent, bool GateSafe, double GateM, double SkyGlowFromM, double HomeStraightFromM, IReadOnlyList<double[]> Lights)
+{
+    /// <summary>
+    /// Where the night's run ends, for its pacing (note 600): the gate and tiers.json's <c>arrivalYardM</c>, where the line
+    /// ended before a town terminus's yard ran on to the departure's length. The director's arc and the crew's reckoning of
+    /// the dawn go by it, so a longer yard isn't a later night. Null in a plan from before.
+    /// </summary>
+    public double? RunEndM { get; init; }
+}
 
 /// <summary>
 /// §8.5 and §9.2's lethal checks and hazards as the sim applies them, and the terrain rules the height field is built
@@ -266,6 +283,8 @@ public sealed record PlanRules(double ADerail, double BrassCuttingSpeed, double 
     public IReadOnlyDictionary<string, double> BiomeRelief { get; init; } = new Dictionary<string, double>();
     /// <summary>Each kind of board as the signage kit builds it (signage.json "boards"), by type.</summary>
     public IReadOnlyDictionary<string, BoardDef> Boards { get; init; } = new Dictionary<string, BoardDef>();
+    /// <summary>How the lettered boards stand back, read and shine in the lamp (signage.json "billboard", note 560).</summary>
+    public BillboardRules Billboard { get; init; } = new();
     /// <summary>What each lineside kit piece stands on (footprints.json; note 389), by piece: each variant's boxes.</summary>
     public IReadOnlyDictionary<string, double[][][]> Footprints { get; init; } = new Dictionary<string, double[][][]>();
 }

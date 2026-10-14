@@ -15,6 +15,7 @@ static class LineGenCommands
         "transect" => Transect(content, args),
         "water" => Water(content, args),
         "lineside" => LinesideReport(content, args),
+        "boards" => BoardsReport(content, args),
         "sky" => Sky(content, args),
         "prints" => Prints(content, args),
         "debug" => LineGenerator.Debug(LineGenContent.Load(content), Parameters(args), (int)Opt(args, "--attempt", 0)).ToList(),
@@ -55,6 +56,72 @@ static class LineGenCommands
                 text.Append(CultureInfo.InvariantCulture, $"b{t.Branch} {t.Along:R} {t.Lateral:R} {t.Yaw:R} {t.Height:R} {t.Variant} {t.Ground:R};");
         return Streams.Hash(text.ToString()).ToString("x16");
     }
+
+    /// <summary>
+    /// `dt linegen boards --route r`: the night's lettered boards as the sim stands them (note 560): each one's words, where
+    /// the plan put it and where it stands (moved back where it couldn't be seen), its face's size and lettering, how high it
+    /// stands, and how much of its approach the driver reads it over, in the lamp and past the land; what standing them and
+    /// clearing their sight lines cost.
+    /// </summary>
+    static object BoardsReport(string content, string[] args)
+    {
+        var route = Routes.Generate(content, Str(args, "--route", "frontier:7"), (int)Opt(args, "--cars", 6));
+        var line = route.Build();
+        var clock = Stopwatch.StartNew();
+        var side = LinesideOf(route, line) ?? throw new InvalidOperationException("a hand-laid line has no generated lineside");
+        var boards = side.PlanBoards;
+        long ms = clock.ElapsedMilliseconds;
+        var rows = boards.OrderBy(b => b.Key.Edge, StringComparer.Ordinal).ThenBy(b => b.Key.S).Select(b => new
+        {
+            b.Key.Type,
+            // What it says where it stands (a distance board's own distance from there, note 684); the plan's words if not that.
+            b.Value.Text,
+            plan = b.Value.Text == b.Key.Text ? null : b.Key.Text,
+            b.Key.Edge,
+            state = b.Key.State.ToString(),
+            s = Math.Round(b.Key.S),
+            along = Math.Round(b.Value.Along),
+            moved = Math.Round(b.Value.Along - b.Key.S),
+            side = b.Value.Side,
+            lines = b.Value.Face.Lines,
+            letterM = Math.Round(b.Value.Face.Pixel * DarkTerritory.Sim.LineGen.BoardLayout.GlyphHeight, 2),
+            widthM = Math.Round(b.Value.Face.Width, 1),
+            heightM = Math.Round(b.Value.Face.Height, 1),
+            overRailM = Math.Round(b.Value.Bottom.Y - EdgeLine(route, line, b.Key.Edge).Sample(Math.Clamp(b.Value.Along, 0, EdgeLine(route, line, b.Key.Edge).Length)).Position.Y, 1),
+            seenM = b.Value.SeenM,
+            approachM = b.Value.ApproachM,
+            // From how many places it's read (150 m in) another board's face stands in front of it (`pt13-signs`): 0.
+            inWay = b.Value.BoardsInWay,
+        }).ToList();
+        var standing = rows.Where(r => r.state == "Intact" && r.Type != "tunnelPlate").ToList();
+        return new
+        {
+            route = route.Name,
+            ms,
+            boards = rows.Count,
+            moved = standing.Count(r => r.moved != 0),
+            seenShare = standing.Count == 0 ? 0 : Math.Round(standing.Sum(r => r.seenM) / Math.Max(1, standing.Sum(r => r.approachM)), 3),
+            under = standing.Where(r => r.seenM < r.approachM * new DarkTerritory.Sim.LineGen.BillboardRules().SeenShare).Select(r => $"{r.Type} {r.Text} at {r.s}: {r.seenM}/{r.approachM} m").ToList(),
+            overlapped = standing.Where(r => r.inWay > 0).Select(r => $"{r.Type} {r.Text} at {r.along}: {r.inWay}").ToList(),
+            rows,
+            // The sim's own boards (sight.json's), as they stand.
+            sim = Lineside.Boards(new SightTuning(), route).Select(b => side.SightBoard(b)).Select(b => new
+            {
+                b.Type,
+                b.Text,
+                s = Math.Round(b.S),
+                moved = Math.Round(b.Along - b.S),
+                b.Side,
+                b.SeenM,
+                b.ApproachM,
+                inWay = b.BoardsInWay,
+            }).ToList(),
+        };
+    }
+
+    /// <summary>An edge's own line: the main line's, or a branch's local one.</summary>
+    static DarkTerritory.Sim.Rail.RailLine EdgeLine(Route route, DarkTerritory.Sim.Rail.RailLine line, string edge) =>
+        edge == "main" ? line : line.Branches[route.Plan!.Edge(edge).Branch].Local;
 
     /// <summary>
     /// `dt linegen lineside --route r`: what the Sim stands beside a generated line (notes 371, 389), by kind and biome, its

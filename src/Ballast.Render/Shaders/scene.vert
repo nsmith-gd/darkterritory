@@ -50,7 +50,8 @@ void main() {
     // The wind in the foliage: a card or bough bends from its root (v 1, its foot) to its tip (v 0), swaying on a
     // phase of its own place so a stand doesn't move in step, harder in the gusts that roll through.
     int li = int(inLayer + 0.5);
-    if (inLayer >= 0.0 && li < 512 && abs(frame.motionOf[li >> 2][li & 3] - 1.0) < 0.5) {
+    float motion = inLayer >= 0.0 && li < 512 ? frame.motionOf[li >> 2][li & 3] : 0.0;
+    if (abs(motion - 1.0) < 0.5) {
         float flex = clamp(1.0 - fract(inUv.y), 0.0, 1.0);
         flex *= flex;
         float t = frame.fogHeight.w;
@@ -58,6 +59,17 @@ void main() {
         float gust = 1.0 + frame.wind.w * (0.5 + 0.5 * sin(t * 0.45 + dot(inSurface, vec3(0.013, 0.0, 0.009)) * 6.0));
         float sway = 0.6 + 0.4 * sin(t * 1.9 + place) + 0.15 * sin(t * 4.7 + place * 2.3);
         p.xyz += frame.wind.xyz * (0.012 * flex * sway * gust);
+    } else if (abs(motion - 3.0) < 0.5) {
+        // A drip: v 1 at its root, 1 - fract(v) a quarter of how far down it hangs (metres), so it sags in proportion,
+        // the tip furthest. It stretches slowly and draws back up on a phase of its own: which drip it is in the whole
+        // part of its u (the layer tiles, so the texture never sees it) and which tree in the tint the tree's drawn in,
+        // the same at every vertex of it, so a drip moves as one. Two sins a vertex, nothing on the CPU, nothing more
+        // drawn (the tar tree's, note 696).
+        float down = clamp(1.0 - fract(inUv.y), 0.0, 1.0);
+        float t = frame.fogHeight.w;
+        float phase = floor(inUv.x) * 2.39996 + dot(inColor, vec3(17.0, 23.0, 29.0));
+        float sag = 0.5 + 0.5 * sin(t * 0.55 + phase) * (0.75 + 0.25 * sin(t * 1.3 + phase * 1.7));
+        p.y -= down * down * 1.2 * sag;
     }
     vPos = p.xyz;
     vNormal = mat3(model) * inNormal;

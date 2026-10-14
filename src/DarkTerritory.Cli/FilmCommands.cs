@@ -329,7 +329,8 @@ static class FilmCommands
     /// <summary>The app's lighting for the frame: the engine's lamp, the night's weather, dawn if it's coming.</summary>
     static FrameLighting Lighting(NetPlaySession session, Look look, IReadOnlyList<CarFrame> frames)
     {
-        var lighting = Views.Lighting(frames[0], look, session.World.Run is { } run ? look.DawnOf(run.DawnIn) : 0);
+        var lighting = Views.Lighting(frames[0], look, session.World.Run is { } run ? look.DawnOf(run.DawnIn) : 0,
+            DawnStir.Sky(session.World), DawnStir.SkyFrom(session.World, frames));
         lighting.Time = session.Tick * SimConstants.TickSeconds;
         if (!session.World.LampShining)
         {

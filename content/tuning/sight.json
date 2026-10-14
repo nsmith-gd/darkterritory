@@ -50,6 +50,10 @@
   "dropClear": 80,
   "dropBoardAhead": 400,
   "catchReach": 1.1,
+  // The mail catch (queue #461, note 727; GDD App. F.6): the hook holds a bag only at this speed or under (m/s, 54 km/h,
+  // posted on the crane's board as 50). Over it, the bag tears off and is lost: the one at the door calls the driver down.
+  // The bot driver's cruise (14) is under it.
+  "catchMaxSpeed": 15,
   "dropWeights": { "mail": 0.45, "coal": 0.2, "ammo": 0.2, "spares": 0.15 },
   "mailScrip": [20, 60],
   "coalUnits": 8,
@@ -82,10 +86,11 @@
     "roofOnly": true,
     // While it's up, the cue sounds again this often (s); spec A.4 rule 4, not so often it's tuned out.
     "repeatSeconds": 4,
-    // Not in the spec: whether a crouch gets you under a tunnel's mouth. The reading kept is that it doesn't ("anyone
-    // standing on a roof", note 71; ARCHITECTURE section 8, note 260). On, a headset rider whose head is down under crouchHead
-    // (m over the feet) is clear; the keyboard's body has no crouch.
-    "crouchClearsMouth": false,
+    // Not in the spec: whether a crouch gets you under a tunnel's mouth. The reading kept was that it doesn't ("anyone
+    // standing on a roof", note 71; ARCHITECTURE section 8, note 260). On since note 664 (D1 for the director: a crouch "fits
+    // the body under low clearance"): crouched on the key (player.json crouch), or a headset rider whose head is down under
+    // crouchHead (m over the feet), is clear.
+    "crouchClearsMouth": true,
     "crouchHead": 1.0,
     // Its sounds (content/audio/sounds).
     "lowClearanceSound": "warn-low-clearance",

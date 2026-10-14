@@ -34,7 +34,8 @@ public readonly record struct KitWhere(KitPlace Place, int Body = -1, int Vehicl
 /// <param name="KitLostBeyond">A cut car on the main line is gone this far (m) from every living crewmate: D.13's Holdout release distance.</param>
 /// <param name="RecoveryFee">The dawn freight's bill for towing a stranded train in, in the tier's per-car values (E.10: 0.25–1.0).</param>
 /// <param name="LostForSeconds">The kit has to be lost this long before it counts, so a hand-off between ticks can't strand a night.</param>
-public sealed record StrandedTuning(double KitLostBeyond = 400, double RecoveryFee = 0.5, double LostForSeconds = 1);
+/// <param name="BrokenDownSeconds">An engine broken down (note 576) stands this long, a wrench aboard, for its dent to be mended (note 660).</param>
+public sealed record StrandedTuning(double KitLostBeyond = 400, double RecoveryFee = 0.5, double LostForSeconds = 1, double BrokenDownSeconds = 120);
 
 /// <summary>
 /// The repair kit, as §23.2 reads it: lost only when the Territory has taken it. A kit lying on the line, or in a reachable

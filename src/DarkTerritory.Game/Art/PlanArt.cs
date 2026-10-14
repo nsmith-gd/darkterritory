@@ -351,6 +351,17 @@ public sealed partial class WorldArt
             var (m, _) = Place(along, offset, yaw, height / 12, 0.15f);
             // Its form and lean (note 395), from a stream of its own off its art seed, so the draws below are as they were.
             var (form, lean) = Form(prop.Seed, p.Biome(along));
+            // The Corruption's trees (note 696): one of its eight kinds, as its biome grows them, modelled near the line and
+            // its cards further out; a little lighter or darker each, leant as any tree is.
+            if (corrupted && CorruptedTreeArt.Pick(prop.Seed, p.Biome(along)) is var (blight, bv)
+                && _props.Get(CorruptedTreeArt.Prop(blight, bv, far: Math.Abs(offset) >= CorruptedTreeArt.ModelledWithinM)) is { } blighted)
+            {
+                var (cm, _) = Place(along, offset, yaw, height / CorruptedTreeArt.BuiltHeight, 0.15f);
+                if (lean.Angle > 0)
+                    cm = Matrix4x4.CreateRotationZ(lean.Angle) * Matrix4x4.CreateRotationY(lean.Toward) * cm;
+                mesh.Append(blighted, cm, new Vector3(0.85f + 0.3f * (float)rng.NextDouble()));
+                continue;
+            }
             MeshAsset piece = dead
                 ? rng.Next(2) == 0 ? Piece($"ghost-{variant}", () => NovaKit.GhostSpruce(_look, variant)) : Piece($"dead-{variant % 2}", () => WorldKit.DeadTree(_look, variant % 2, 10))
                 : Tree(kind, variant, Math.Abs(offset) < NearSpruce, form);
@@ -363,8 +374,9 @@ public sealed partial class WorldArt
                 m = Matrix4x4.CreateRotationZ(lean.Angle) * Matrix4x4.CreateRotationY(lean.Toward) * m;
             // Tamarack goes gold in the fall, before its needles drop (the bog's one colour).
             var tint = kind == "tamarack" && !dead ? new Vector3(1.55f, 1.2f, 0.55f) * (0.85f + 0.3f * (float)rng.NextDouble()) : new Vector3(0.8f + 0.3f * (float)rng.NextDouble());
-            // The corruption's trees (GDD §30): charred black and sweating, the brass breaking out through the bark up
-            // the trunk as well as heaped at the foot.
+            // A corrupted tree whose kind isn't built (tools/models/build.sh corrupted_trees) is drawn as they were before
+            // note 696 (GDD §30): charred black and sweating, the brass breaking out through the bark up the trunk as well as
+            // heaped at the foot.
             if (corrupted)
                 tint = new Vector3(0.32f, 0.24f, 0.2f);
             mesh.Append(piece, m, tint);
@@ -400,12 +412,31 @@ public sealed partial class WorldArt
                         double lateral = sideOf * depth, along = s + rng.NextDouble() * 4;
                         if (Stand(line, along, lateral, cover) < 0.5f || Stand(line, along, lateral + sideOf * 20, cover) < 0.5f || !Free(along, lateral))
                             continue;
-                        var (m, slope) = Place(along, lateral, (float)(rng.NextDouble() - 0.5) * 0.25f, 1, 0.5f);
+                        var (_, slope) = Place(along, lateral, (float)(rng.NextDouble() - 0.5) * 0.25f, 1, 0.5f);
                         if (slope > 0.9f)
                             continue;
                         int tv = rng.Next(5);
                         float th = stunted ? 6 + (float)rng.NextDouble() * 4 : 13 + (float)rng.NextDouble() * 6;
-                        mesh.Append(Piece($"treeline-{tv}-{th:0}", () => NovaKit.Treeline(_look, tv, 26, th)), m, new Vector3(0.8f + 0.25f * (float)rng.NextDouble()));
+                        // A stand of spruce, not a card (note 670; the director, 13 Oct, from the cab: "We got some
+                        // billboarded stuff back there that looks pretty bad"): the one flat wall of painted spires showed
+                        // as a cut-out wherever the line turned past it or you looked back at it. Six crossed-card spruces
+                        // over its 26 m in two staggered ranks, each stood on the ground where it is, keep the mass and
+                        // its serrated top from any side.
+                        float tint = 0.8f + 0.25f * (float)rng.NextDouble();
+                        for (int k = 0; k < 6; k++)
+                        {
+                            double dAlong = -11 + k * 4.4 + (rng.NextDouble() - 0.5) * 2.4, dOut = (k % 2 == 0 ? -2.5 : 2.5) + (rng.NextDouble() - 0.5) * 2;
+                            float tall = th * (0.72f + 0.28f * (float)rng.NextDouble());
+                            int sv = (tv + k * 3) % 8;
+                            var (tm, _) = Place(along + dAlong, lateral + sideOf * dOut, (float)(rng.NextDouble() * Math.Tau), tall / 12, 0.5f);
+                            // As many of the stands' trees the Corruption's as of the woods' (note 696): its cards, which
+                            // cost less than the spruce's.
+                            if (CorruptedTreeArt.Blighted(along + dAlong, lateral + sideOf * dOut, def.CorruptedTrees) is { } blightSeed
+                                && CorruptedTreeArt.Pick(blightSeed, def) is var (bk, bkv) && _props.Get(CorruptedTreeArt.Prop(bk, bkv, far: true)) is { } cards)
+                                mesh.Append(cards, tm, new Vector3(tint));
+                            else
+                                mesh.Append(Piece($"spruce-{sv}", () => NovaKit.Conifer(_look, sv, 12, 0.3f)), tm, new Vector3(tint));
+                        }
                     }
         }
         // The forest floor (note 395): deadfall, stumps and juniper under the stands; juniper and red blueberry on the
@@ -469,6 +500,10 @@ public sealed partial class WorldArt
                     continue;
                 double offset = side * (5.5 + rng.NextDouble() * 6.5), along = s + rng.NextDouble() * 6;
                 if (!Free(along, offset))
+                    continue;
+                // Cut back out of the boards' sight lines (note 560), as the woods are: it grows to a man's height and more.
+                var at = lineside?.World(along, offset);
+                if (at is { } w && lineside!.InBoardsSight(w.X, w.Z, 2.5))
                     continue;
                 int v = rng.Next(4);
                 var (m, slope) = Place(along, offset, (float)rng.NextDouble() * 6.28f, 0.8f + (float)rng.NextDouble() * 0.6f, 0.1f);
@@ -575,7 +610,7 @@ public sealed partial class WorldArt
         if (Scene(route) is not { } p)
             return;
         BranchLand(mesh, p, route, eye, drawDistance);
-        Signs(mesh, p, eye, drawDistance);
+        Signs(mesh, p, route, eye, drawDistance);
         Hazards(mesh, p, eye, drawDistance, time);
         Banks(mesh, p, route, eye, drawDistance);
         Water(mesh, p, eye, drawDistance);
@@ -691,35 +726,34 @@ public sealed partial class WorldArt
 
     // ------------------------------------------------------------------ boards
 
-    void Signs(MeshBuilder mesh, PlanScene p, Double3 eye, float drawDistance)
+    /// <summary>
+    /// The plan's boards where the sim stands them (note 560; <see cref="Sim.Run.LinesideProps.PlanBoards"/>): stood back from the
+    /// line on their posts, as big as their words, their sight lines clear, shining back at the lamp; a fallen one down in
+    /// the brush at its foot. The dead signals beside them.
+    /// </summary>
+    void Signs(MeshBuilder mesh, PlanScene p, Route route, Double3 eye, float drawDistance)
     {
         var rules = p.Plan.Rules;
+        var boards = Sim.Run.LinesideProps.Of(route, p.Line)?.PlanBoards;
+        double reach = Math.Min(drawDistance, rules.Billboard.DrawM);
         foreach (var sign in p.Plan.Signage)
         {
             if (sign.State == SignState.Missing)
                 continue;
-            var line = p.EdgeLine(sign.Edge);
-            var t = line.Sample(Math.Clamp(sign.S, 0, line.Length));
-            if ((t.Position - eye).Length > Math.Min(drawDistance, 300))
-                continue;
-            var right = Double3.Cross(t.Tangent, Double3.Up).Normalized;
             if (sign.Type == "deadSignal")
             {
+                var line = p.EdgeLine(sign.Edge);
+                var t = line.Sample(Math.Clamp(sign.S, 0, line.Length));
+                if ((t.Position - eye).Length > reach)
+                    continue;
+                var right = Double3.Cross(t.Tangent, Double3.Up).Normalized;
                 var foot = t.Position + right * (sign.Side * (rules.SignOffsetM + 0.6)) - Double3.Up * 0.25;
                 mesh.Instances.Add(new MeshInstance(Piece("signal-False", () => WorldKit.Signal(_look, false)), Basis(t.Tangent, foot, eye, MathF.PI)));
                 continue;
             }
-            var board = rules.Boards.GetValueOrDefault(sign.Type);
-            float width = (float)(board?.WidthM ?? 0.8), height = (float)(board?.HeightM ?? 2.2);
-            var piece = Piece($"sign-{sign.Type}-{sign.Text}", () => SignKit.Board(_look, sign.Type, sign.Text, width, height));
-            bool plate = sign.Type == "tunnelPlate";
-            var at = plate ? t.Position : t.Position + right * (sign.Side * rules.SignOffsetM) - Double3.Up * 0.25;
-            // Turned a little toward the track, so the lamp catches it square; a tunnel's plate square on its portal's face, the
-            // far portal's turned round as its portal is (WorldFeatures.Tunnel).
-            var m = Basis(t.Tangent, at, eye, plate ? sign.Side > 0 ? 0 : MathF.PI : -sign.Side * 0.18f);
-            if (sign.State == SignState.Fallen)
-                m = Matrix4x4.CreateRotationZ(sign.Side * 1.35f) * Matrix4x4.CreateTranslation(0, 0.15f, 0) * m;
-            mesh.Instances.Add(new MeshInstance(piece, m));
+            if (boards?.GetValueOrDefault(sign) is not { } site || (site.Centre - eye).Length > reach)
+                continue;
+            Billboard(mesh, site, rules.Billboard, rules.Boards.GetValueOrDefault(sign.Type)?.VisibleM ?? 150, eye, sign.State == SignState.Fallen);
         }
     }
 
@@ -1102,15 +1136,50 @@ public sealed partial class WorldArt
     static readonly double[] ShoreLateral = [-30, 0, 40, 140, 380, 900];
     static readonly double[] ShoreRise = [-2, 1.2, 4, 14, 32, 46];
 
+    /// <summary>How long a cell of the far land is along the line (m): cooked once, drawn by transform (note 479).</summary>
+    const double FarCell = 400;
+    readonly Dictionary<long, (MeshAsset Soup, Double3 Origin)> _farCells = new();
+    PlanScene? _farScene;
+    RailLine? _farLine;
+
+    /// <summary>
+    /// The far land (note 138) from the last <c>drawDistance</c> plus its reach behind to as far ahead: the same hills,
+    /// cooked once a <see cref="FarCell"/> and drawn by transform. Built anew every frame they were some 3,000 points of the
+    /// terrain's, 25 ms of a frame's build on a town night (note 479); they never change.
+    /// </summary>
     void FarLand(MeshBuilder mesh, PlanScene p, RailLine line, Double3 eye, double centre, float drawDistance)
     {
-        var k = new Kit(_look, mesh) { SurfaceOrigin = new Vector3(W(eye.X), W(eye.Y), W(eye.Z)), Baked = 0 };
+        if (!ReferenceEquals(p, _farScene) || !ReferenceEquals(line, _farLine))
+        {
+            _farCells.Clear();
+            (_farScene, _farLine) = (p, line);
+        }
+        const double reach = 900;
+        double from = Math.Max(0, centre - drawDistance - reach), to = Math.Min(line.Length, centre + drawDistance + reach);
+        long first = (long)Math.Floor(from / FarCell), last = (long)Math.Floor(Math.Max(from, to - 1e-6) / FarCell);
+        foreach (var gone in _farCells.Keys.Where(k => k < first - 1 || k > last + 1).ToList())
+            _farCells.Remove(gone);
+        for (long i = first; i <= last; i++)
+        {
+            if (!_farCells.TryGetValue(i, out var cell))
+                _farCells[i] = cell = FarLandCell(p, line, i);
+            if (cell.Soup.Triangles > 0)
+                mesh.Instances.Add(new MeshInstance(cell.Soup, Matrix4x4.CreateTranslation(cell.Origin.RelativeTo(eye))));
+        }
+    }
+
+    /// <summary>One <see cref="FarCell"/> of the far land, relative to its start on the line.</summary>
+    (MeshAsset Soup, Double3 Origin) FarLandCell(PlanScene p, RailLine line, long index)
+    {
+        double a0 = index * FarCell, a1 = Math.Min((index + 1) * FarCell, line.Length);
+        var origin = line.Sample(Math.Clamp(a0, 0, line.Length)).Position;
+        var built = new MeshBuilder();
+        var k = new Kit(_look, built) { SurfaceOrigin = new Vector3(W(origin.X), W(origin.Y), W(origin.Z)), Baked = 0 };
         k.Use(_look?.Layer("ground_forest") >= 0 ? "ground_forest" : "tar", Palette.MuddyOlive, 0.95f, 0.02f, tile: 40);
         k.Tint = new Vector3(0.55f, 0.55f, 0.5f);
         var terrain = p.Terrain;
         double corridor = p.Plan.Rules.Terrain.CorridorM, taper = p.Plan.Rules.Terrain.Shore.TaperM;
-        const double step = FarStep, reach = 900;
-        double from = Math.Max(0, centre - drawDistance - reach), to = Math.Min(line.Length, centre + drawDistance + reach);
+        const double step = FarStep;
         // The shore (not a river: that has its banks in the corridor) on a side at s, if any.
         PlanShore? ShoreAt(double s, int side) => p.Plan.Shores.FirstOrDefault(sh => sh.Kind != ShoreKind.River && sh.Side == side
             && p.EdgeLine(sh.Edge) == line && s >= sh.S0 - taper && s <= sh.S1 + taper);
@@ -1123,11 +1192,11 @@ public sealed partial class WorldArt
             var near = terrain.Nearby(at.X, at.Z, corridor + 40);
             if (near.Any(n => Math.Abs(n.Lateral) < corridor + 30))
                 h = Math.Min(h, terrain.Height(at.X, at.Z) - 2);
-            return new Double3(at.X, h, at.Z).RelativeTo(eye);
+            return new Double3(at.X, h, at.Z).RelativeTo(origin);
         }
-        for (double s = from; s < to; s += step)
+        for (double s = a0; s < a1; s += step)
         {
-            double s1 = Math.Min(s + step, to);
+            double s1 = Math.Min(s + step, a1);
             var a = line.Sample(s);
             var b = line.Sample(s1);
             var ra = Double3.Cross(a.Tangent, Double3.Up).Normalized;
@@ -1159,6 +1228,7 @@ public sealed partial class WorldArt
                 }
             }
         }
+        return (MeshAsset.From($"farland-{index}", built), origin);
     }
 
     // ------------------------------------------------------------------ halts and towns

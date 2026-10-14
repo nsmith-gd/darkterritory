@@ -18,6 +18,13 @@ public enum Key
 }
 
 /// <summary>
+/// How the window takes the screen (note 672): a window; the whole screen as a borderless window at the desktop's own mode
+/// (other windows, the system's notices, can still come over it); or the whole screen exclusively, at the desktop's mode
+/// (a game's own: the system holds its notices back while it's up).
+/// </summary>
+public enum WindowMode { Windowed, Borderless, Fullscreen }
+
+/// <summary>
 /// Keyboard and mouse state for one frame. Look input accumulates between reads so none is lost
 /// when the render rate and the 30 Hz tick disagree.
 /// </summary>
@@ -48,12 +55,33 @@ public sealed class InputState
 
     internal void Type(string text) => _text.Append(text);
 
+    /// <summary>
+    /// Alt+Enter went down since the last <see cref="EndFrame"/> (note 672: a window or the whole screen, anywhere). It's
+    /// the window's, not a press of Enter: a menu doesn't choose on it.
+    /// </summary>
+    public bool AltEnter { get; private set; }
+
     internal void Set(Key k, bool down)
     {
-        if (down && _down.Add(k))
+        if (down && k == Key.Enter && (Down(Key.LeftAlt) || Down(Key.RightAlt)))
+        {
+            if (_down.Add(k))
+                AltEnter = true;
+        }
+        else if (down && _down.Add(k))
             _pressed.Add(k);
         else if (!down)
             _down.Remove(k);
+    }
+
+    /// <summary>
+    /// Takes this frame's presses and typing, so nothing read after it sees them: what a box taking the keyboard over the game
+    /// does (a key held down stays down).
+    /// </summary>
+    public void Swallow()
+    {
+        _pressed.Clear();
+        _text.Clear();
     }
 
     public void EndFrame()
@@ -62,6 +90,7 @@ public sealed class InputState
         _text.Clear();
         MouseDX = MouseDY = Wheel = 0;
         MouseMoved = false;
+        AltEnter = false;
     }
 }
 
@@ -122,17 +151,37 @@ public sealed unsafe class Window : IDisposable
         }
     }
 
-    /// <summary>The whole screen, borderless at the desktop's own mode, or a window (T83).</summary>
-    public bool Fullscreen
+    /// <summary>
+    /// A window, or the whole screen, borderless or exclusive (T83; note 672). Exclusive takes the desktop's own mode on the
+    /// window's display (its resolution and refresh), so nothing on the monitor changes but who has it; the game draws at
+    /// its own resolution inside either way.
+    /// </summary>
+    public WindowMode Mode
     {
-        get => (SDL_GetWindowFlags(_window) & SDL_WindowFlags.SDL_WINDOW_FULLSCREEN) != 0;
+        get
+        {
+            if ((SDL_GetWindowFlags(_window) & SDL_WindowFlags.SDL_WINDOW_FULLSCREEN) == 0)
+                return WindowMode.Windowed;
+            return SDL_GetWindowFullscreenMode(_window) == null ? WindowMode.Borderless : WindowMode.Fullscreen;
+        }
         set
         {
-            if (value != Fullscreen)
+            if (value == Mode)
+                return;
+            if (value == WindowMode.Windowed)
+                SDL_SetWindowFullscreen(_window, false);
+            else
             {
-                SDL_SetWindowFullscreen(_window, value);
-                Resized = true;
+                // A mode for exclusive, none for borderless (SDL3: "fullscreen desktop" is the null mode). Set before going
+                // fullscreen, or while already fullscreen to switch between the two.
+                SDL_DisplayMode* mode = null;
+                if (value == WindowMode.Fullscreen && SDL_GetDisplayForWindow(_window) is var display && display != 0)
+                    mode = SDL_GetDesktopDisplayMode(display);
+                SDL_SetWindowFullscreenMode(_window, mode);
+                SDL_SetWindowFullscreen(_window, true);
             }
+            SDL_SyncWindow(_window);
+            Resized = true;
         }
     }
 

@@ -53,7 +53,11 @@ public sealed partial class LinesideProps
                 var w = t.Position + Double3.Cross(t.Tangent, Double3.Up).Normalized * lateral;
                 if (OnMainsLand(w) || _terrain.WaterAt(w.X, w.Z) is not null || _terrain.Nearby(w.X, w.Z, 12).Any(n => Math.Abs(n.Lateral) < 9))
                     continue;
-                yield return new BranchTree(branch, s, lateral, yaw, 7 + tall * 10, variant, _terrain.Height(w.X, w.Z) - 0.15);
+                var tree = new BranchTree(branch, s, lateral, yaw, 7 + tall * 10, variant, _terrain.Height(w.X, w.Z) - 0.15);
+                // Out of the boards' sight lines (note 560).
+                if (InBoardsSight(w.X, w.Z, Math.Max(tree.Radius, _plan.Rules.Billboard.CrownShare * tree.Height)))
+                    continue;
+                yield return tree;
             }
         }
     }

@@ -3,6 +3,7 @@ using Ballast.Audio;
 using DarkTerritory.Sim;
 using DarkTerritory.Sim.Player;
 using DarkTerritory.Sim.Rail;
+using DarkTerritory.Sim.Run;
 using DarkTerritory.Sim.Train;
 
 namespace DarkTerritory.Game.Sound;
@@ -144,6 +145,8 @@ public sealed partial class GameAudio
         BendWarning(world, train, derailed);
         BoilerAlarms(train, engine, dt, primed);
         TrainDamage(train, engine, rake);
+        CarsFailing(train, dt, primed);
+        Partings(world, train, primed);
         Derailing(world, train, dt, primed);
 
         for (int i = _cuesLater.Count - 1; i >= 0; i--)
@@ -568,12 +571,83 @@ public sealed partial class GameAudio
         }
     }
 
+    /// <summary>
+    /// A car battered and let go, heard coming apart (note 576): its timbers groan as it works, louder as it goes; rivets and
+    /// boards ping and crack off it, more often the further gone; and when it comes apart, the crash of it going off its
+    /// rails and the coupling torn. The audio checklist's own cues (<c>state-car-failing.*</c>) where installed; until then
+    /// the boiler's strain (its groan, ticks and rivets) and the derailment's hit and torn coupling stand in.
+    /// </summary>
+    void CarsFailing(TrainOnLine train, double dt, bool primed)
+    {
+        string Or(string own, string standIn) => HasCue(own) ? own : standIn;
+        foreach (var fc in Failing.Of(train))
+        {
+            if (fc.Vehicle == 0 || fc.Vehicle >= train.Frames.Count)
+                continue;
+            var car = train.Frames[fc.Vehicle];
+            double l = car.Shape.HalfLength;
+            float occlusion = Occlusion(fc.Vehicle);
+            double gone = 1 - Math.Clamp(train.Vehicles[fc.Vehicle].Integrity / Math.Max(1e-6, train.Dynamics.Tuning.Failing.Below), 0, 1);
+            double running = Math.Clamp(Math.Abs(fc.Speed) / 10, 0, 1);
+            Double3 Board() => car.ToWorld(new Double3((_trainRng.Next() * 2 - 1) * 1.3, 0.6 + 1.8 * _trainRng.Next(), (_trainRng.Next() * 2 - 1) * l));
+            string groan = Or("state-car-failing.groan", "state-strain.groan");
+            HoldLevel(groan, fc.Vehicle, car.ToWorld(new Double3(0, 1.2, 0)), occlusion, (0.35 + 0.65 * gone) * (0.4 + 0.6 * running));
+            if (_held.TryGetValue((groan, fc.Vehicle), out var g))
+                g.Params.Set("strain", gone);
+            if (Odds((0.6 + 3 * gone) * running, dt))
+                Cue(Or("state-car-failing.crack", "state-strain.tick"), Board(), occlusion, (float)(0.5 + 0.5 * gone));
+            if (Odds((0.1 + 1.5 * gone * gone) * running, dt))
+                Cue(Or("state-car-failing.rivet", "state-strain.rivet"), Board(), occlusion, (float)(0.6 + 0.4 * gone));
+            if (fc.Spilling && Odds(1.5 * running, dt))
+                Cue(Or("state-car-failing.spill", "state-strain.tick"), car.ToWorld(new Double3(1.4, 0.3, 0)), occlusion, 0.5f);
+        }
+        // Come apart: off its rails, the train parted ahead of it.
+        for (int i = 1; i < train.Vehicles.Count && i < train.Frames.Count; i++)
+            if (Flipped("state-car-failing.apart", i, train.Vehicles[i] is { OffRails: true, Integrity: <= 0 }, primed) > 0)
+            {
+                var car = train.Frames[i];
+                float occlusion = Occlusion(i);
+                if (Cue(Or("state-car-failing.apart", "state-derail.impact"), "ground", car.ToWorld(new Double3(0, 0.5, 0)), occlusion, 1) is null)
+                    Mixer.Play("wreck-crash", car.Origin, 1)?.Also(v => v.Occlusion = occlusion);
+                Cue("state-derail.tear", car.ToWorld(new Double3(0, 1, -car.Shape.HalfLength)), occlusion);
+            }
+    }
+
+    /// <summary>The news's lost cars already heard parting (note 663), by the news's id.</summary>
+    readonly HashSet<int> _partsHeard = [];
+
+    /// <summary>
+    /// Note 663 (the director: "did a coupler break on its own or was that a creature?"): a dropped pin or a Knotter's coupling
+    /// let go is heard where it parted, the coupling torn, as the news line says it. A crewmate's own cut has its hold, a car
+    /// coming apart its crash; the creatures that take cars are heard at it.
+    /// </summary>
+    void Partings(World world, TrainOnLine train, bool primed)
+    {
+        foreach (var e in world.News)
+        {
+            if (e.Kind != NewsKind.CarsLost || !_partsHeard.Add(e.Id) || !primed || (Parting)e.Cause is not (Parting.Pin or Parting.Knotter)
+                || e.Cars.Length == 0 || e.Cars.Any(c => c >= train.Frames.Count))
+                continue;
+            // At the lost cars' end nearest the engine: their front, or their rear where they ran off ahead of it.
+            CarFrame front = train.Frames[e.Cars[0]], rear = train.Frames[e.Cars[^1]];
+            var engine = train.Frames[0].Origin;
+            var (car, at) = (front.Origin - engine).Length <= (rear.Origin - engine).Length
+                ? (e.Cars[0], front.ToWorld(new Double3(0, 1, -front.Shape.HalfLength)))
+                : (e.Cars[^1], rear.ToWorld(new Double3(0, 1, rear.Shape.HalfLength)));
+            Cue("state-derail.tear", at, Occlusion(car));
+        }
+        if (_partsHeard.Count > 64)
+            _partsHeard.RemoveWhere(id => !world.News.Any(e => e.Id == id));
+    }
+
     // ---- Derailment ------------------------------------------------------------------------------------------------------
 
     // A car's velocity jumping by this much in a tick is a hit (as GameAudio's synth crash took it, T117); not again for a beat.
     const double WreckHitJump = 3, WreckHitEvery = 0.5;
     // Off the rails: sliding sideways faster than this (or this share of its speed). Over: its up past 55° from the sky's.
     const double WreckSlip = 0.5, WreckSlipShare = 0.04, WreckOver = 0.5736;
+    // Going up or down faster than this (m/s), a wreck's car is in the air, not sliding on anything (note 579).
+    const double WreckAirborne = 2.5;
     // A coupling torn: the cars it joined this much further apart than when they came off (it's slack, then it's gone).
     const double WreckTear = 1.5;
 
@@ -671,12 +745,14 @@ public sealed partial class GameAudio
                 c.Over = true;
                 Cue("state-derail.tip", b.Centre + b.Up * 0.5, occlusion, (float)Math.Clamp(0.5 + speed / 15, 0.5, 1));
             }
-            // Sliding: on the rails, then through the ballast; held while it goes, louder the faster.
-            if (!wreck.Settled && speed > 0.6)
+            // Sliding: on the rails, then through the ballast; held while it goes, louder the faster. Along the ground: a car
+            // blasted up into the air (note 579) isn't dragging on anything till it comes down.
+            double sliding = new Double3(b.Velocity.X, 0, b.Velocity.Z).Length;
+            if (!wreck.Settled && sliding > 0.6 && Math.Abs(b.Velocity.Y) < WreckAirborne)
             {
                 string slide = c.Off ? "state-derail.grind" : "state-derail.rail-scrape";
                 if (HasCue(slide))
-                    HoldLevel(slide, b.Vehicle, b.ToWorld(new Double3(0, 0.4, 0)), occlusion, Math.Clamp(speed / (c.Off ? 8 : 10), 0.25, 1));
+                    HoldLevel(slide, b.Vehicle, b.ToWorld(new Double3(0, 0.4, 0)), occlusion, Math.Clamp(sliding / (c.Off ? 8 : 10), 0.25, 1));
             }
             // At rest after it's been moving: it settles, creaking.
             c.Moved |= speed > 2;

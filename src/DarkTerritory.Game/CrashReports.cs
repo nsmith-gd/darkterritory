@@ -43,11 +43,17 @@ public sealed class CrashReports
     /// </summary>
     public Func<IEnumerable<ReportField>>? Live { get; set; }
 
-    /// <summary>Tees the console through the report's memory and this launch's log, and writes a report if the process dies of an exception.</summary>
-    public static CrashReports Install(string? directory = null, int keepLogs = 5)
+    /// <summary>A report's been written (a crash, or a player's problem), with its text's path: a developer build bundles them (note 677).</summary>
+    public Action<Report, string>? Saved { get; set; }
+
+    /// <summary>
+    /// Tees the console through the report's memory and this launch's log, and writes a report if the process dies of an
+    /// exception. The log's in <paramref name="logs"/>, or beside the reports' folder.
+    /// </summary>
+    public static CrashReports Install(string? directory = null, int keepLogs = 5, string? logs = null)
     {
         var reports = new CrashReports(directory ?? DefaultDirectory);
-        reports.StartLog(LogsBeside(reports.Directory), keepLogs);
+        reports.StartLog(logs ?? LogsBeside(reports.Directory), keepLogs);
         Console.SetOut(new Tee(Console.Out, reports));
         Console.SetError(new Tee(Console.Error, reports));
         AppDomain.CurrentDomain.UnhandledException += (_, e) =>
@@ -198,6 +204,7 @@ public sealed class CrashReports
             var path = Path.Combine(Directory, r.Id + ".txt");
             File.WriteAllText(path, r.ToText());
             File.WriteAllText(Path.ChangeExtension(path, ".json"), r.ToJson());
+            Saved?.Invoke(r, path);
             return path;
         }
         catch (Exception e) when (e is IOException or UnauthorizedAccessException)

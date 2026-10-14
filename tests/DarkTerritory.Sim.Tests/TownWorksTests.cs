@@ -105,7 +105,7 @@ public class TownWorksTests
     [Fact]
     public void ASmallTownHasNoWorksAndAOneStreetTownOnlyWhatFits()
     {
-        Assert.Null(Plan("frontier:7", 60).Plan.Works);
+        Assert.Null(Plan("frontier:7", 20).Plan.Works);
         // One street a side: its works between the street and the wall, what fits there and nothing more.
         var town = Plan("frontier:2", 270);
         var works = Assert.IsType<TownWorks>(town.Plan.Works);

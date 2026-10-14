@@ -4,6 +4,7 @@
   <ItemGroup>
     <ProjectReference Include="../Ballast.Dev/Ballast.Dev.csproj" />
     <ProjectReference Include="../DarkTerritory.Game/DarkTerritory.Game.csproj" />
+    <ProjectReference Include="../Ballast.Platform/Ballast.Platform.csproj" />
     <AssemblyMetadata Include="DevTools" Value="true" />
   </ItemGroup>
 </Project>

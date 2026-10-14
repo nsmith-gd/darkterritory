@@ -251,6 +251,67 @@ public class PlayerMotorTests
         Assert.Equal(2, rig.Player.Parent);
     }
 
+    /// <summary>The engine's hatch ladder up from the cab floor through its roof (note 704).</summary>
+    static Ladder CabHatch(Rig rig)
+    {
+        var shape = rig.Train.Frames[0].Shape;
+        return shape.Ladders.Single(l => shape.Cab!.Value.ContainsXZ(l.Foot) && PlayerMotor.IsHatchLadder(shape, l));
+    }
+
+    /// <summary>On the cab floor a step short of the hatch ladder, facing it, looking <paramref name="pitchDegrees"/> up.</summary>
+    static Rig AtTheCabHatchLadder(double pitchDegrees)
+    {
+        var rig = OnRoof(3, 0, car: 1);
+        var hatch = CabHatch(rig);
+        rig.Player = PlayerMotor.SpawnInCab(rig.Train, P);
+        rig.Player.Position = hatch.Foot - hatch.Inward * 0.35;
+        rig.Player.Yaw = Math.PI; // facing the engine's +Z, up the rungs
+        rig.Player.Pitch = pitchDegrees * Math.PI / 180;
+        return rig;
+    }
+
+    [Fact]
+    public void WalkingAtTheCabHatchLadderLookingUpClimbsOntoTheCabRoof()
+    {
+        // Note 704 (the director: "this ladder inside the cab should actually go up to the roof"): eyes on the hatch and
+        // walking at the ladder takes it, and it comes out on the cab roof.
+        var rig = AtTheCabHatchLadder(P.Ladder.HatchLookUpDegrees + 10);
+        var hatch = CabHatch(rig);
+        Assert.True(PlayerMotor.LadderInReachOf(rig.Player, rig.Train, P) is { FromTop: false }, "the hatch ladder in reach from its foot");
+        rig.Run(0.2, Move(0, 1));
+        Assert.Equal(Surface.Ladder, rig.Player.Surface);
+        rig.Run(4, Move(0, 1));
+        Assert.Equal(0, rig.Player.Parent);
+        Assert.Equal(Surface.Roof, rig.Player.Surface);
+        Assert.Equal(hatch.Top, rig.Player.Position.Y, 1);
+    }
+
+    [Fact]
+    public void WalkingPastTheCabHatchLadderEyesLevelDoesNotTakeIt()
+    {
+        // In the cab you walk past it all night, working (the reason a hatch ladder indoors wasn't walked onto at all).
+        var rig = AtTheCabHatchLadder(0);
+        rig.Run(1, Move(0, 1));
+        Assert.NotEqual(Surface.Ladder, rig.Player.Surface);
+        Assert.True(PlayerMotor.InCab(rig.Player, rig.Train), $"on {rig.Player.Surface} of {rig.Player.Parent} at {rig.Player.Position}");
+    }
+
+    [Fact]
+    public void TheLadderKeyAtTheCabHatchTakesYouDownIntoTheCab()
+    {
+        // And back the other way, quickly: on the cab roof at the open hatch, the ladder key and down.
+        var rig = AtTheCabHatchLadder(P.Ladder.HatchLookUpDegrees + 10);
+        rig.Run(5, Move(0, 1));
+        Assert.Equal(Surface.Roof, rig.Player.Surface);
+        var hatch = CabHatch(rig);
+        rig.Player.Position = new Double3(hatch.Foot.X, rig.Player.Position.Y, hatch.Foot.Z - 0.3);
+        Assert.True(PlayerMotor.LadderInReachOf(rig.Player, rig.Train, P) is { FromTop: true }, "the hatch in reach from the roof");
+        rig.Run(0.1, new PlayerIntent { Actions = PlayerActions.Ladder });
+        Assert.Equal(Surface.Ladder, rig.Player.Surface);
+        rig.Run(4, Move(0, -1));
+        Assert.True(PlayerMotor.InCab(rig.Player, rig.Train), $"on {rig.Player.Surface} of {rig.Player.Parent} at {rig.Player.Position}");
+    }
+
     [Fact]
     public void WalkingAlongTheRoofPastALaddersTopDoesNotGrabIt()
     {

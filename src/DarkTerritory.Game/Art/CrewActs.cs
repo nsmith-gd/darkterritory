@@ -33,14 +33,46 @@ public static class CrewActs
         var (feet, yaw) = Eyes.World(placed, frames);
         var (emote, emoteSeconds) = act is null ? EmoteOf(id, s, world) : (Emote.None, 0);
         int outfit = world.OutfitOf(id);
+        bool lamp = world.Bodies.CarriedBy(id) is { Kind: BodyKind.Lamp };
+        var (signal, signalSeconds) = lamp ? SignalOf(id, s, world) : (LampSignal.None, 0);
         return new Crewmate(id, feet, yaw, s.Alive, s.Hand, s.OtherHand, Looks: outfit != id ? outfit : null, Act: act, Holding: Sim.Player.Kit.Held(s),
             Reach: act is CrewPose.Drive or CrewPose.Whistle ? AtTheControls(world, frames, feet, yaw, act == CrewPose.Whistle) : null,
-            Lamp: world.Bodies.CarriedBy(id) is { Kind: BodyKind.Lamp }, Survivor: SurvivorOf(id, world),
+            Lamp: lamp, Survivor: SurvivorOf(id, world),
             Stressed: s.Alive && Stressed(world, PlayerMotor.WorldPosition(s, world.Train)), Health: s.Health,
             Phase: act == CrewPose.Reload ? ReloadPhase(s, world) : 0, Death: s.Death,
             Headset: s.Head > 0 ? new HeadsetBody(s.Head, s.Pitch, s.Parent, s.Position, s.Yaw) : null,
             Car: placed.Parent != PlayerState.World && placed.Parent < frames.Count ? placed.Parent : PlayerState.World, Local: placed.Position,
-            Emote: emote, EmoteSeconds: emoteSeconds);
+            Emote: emote, EmoteSeconds: emoteSeconds, Sooted: s.Has(PlayerFlags.Sooted), Signal: signal, SignalSeconds: signalSeconds);
+    }
+
+    /// <summary>How long a shove's arm is out (s): the shover drawn pushing (note 717), from the host's knock.</summary>
+    public const double ShoveSeconds = 0.45;
+
+    /// <summary>Whether <paramref name="id"/> shoved someone in the last <see cref="ShoveSeconds"/> (note 717, World.Horseplays).</summary>
+    public static bool Shoving(int id, World world)
+    {
+        foreach (var h in world.Horseplays)
+            if (h.By == id && h.Kind == KnockKind.Shove && ((double)world.Tick - h.Tick) * SimConstants.TickSeconds is >= 0 and < ShoveSeconds)
+                return true;
+        return false;
+    }
+
+    /// <summary>
+    /// The lamp signal <paramref name="id"/> is giving (note 720): their latest, while it lasts (player.json voices.lampSignals
+    /// seconds), and how far into it they are. Only with the hand lamp in their fist (the caller's to know).
+    /// </summary>
+    public static (LampSignal Kind, double Seconds) SignalOf(int id, in PlayerState s, World world)
+    {
+        if (!s.Alive)
+            return (LampSignal.None, 0);
+        SignalEvent? latest = null;
+        foreach (var e in world.Signals)
+            if (e.By == id && (latest is null || e.Tick > latest.Value.Tick))
+                latest = e;
+        if (latest is not { } at)
+            return (LampSignal.None, 0);
+        double age = ((double)world.Tick - at.Tick) * SimConstants.TickSeconds;
+        return age >= 0 && age < world.VoicesTuning.LampSignals.Seconds ? (at.Kind, age) : (LampSignal.None, 0);
     }
 
     /// <summary>Walking faster than this (m/s) ends an emote, as a step away from it does (note 298).</summary>
@@ -237,6 +269,11 @@ public static class CrewActs
         var train = world.Train;
         if (s.Has(PlayerFlags.Held))
             return HeldBy(id, world);
+        // Knocked by a crewmate (note 717): rocked back, arms out, while the stagger lasts; and the shover's arms out at them.
+        if (s.Stagger > 0)
+            return CrewPose.Stagger;
+        if (Shoving(id, world))
+            return CrewPose.Push;
         // At a Holdout's door while it's breached (App. D.7): smashing its lock, prying its barricade, or picking the lock
         // with the repair kit. (Who's breaching isn't sent; whoever stands at the door is at it.)
         if (Breaching(s, world) is { } breach)
@@ -278,6 +315,10 @@ public static class CrewActs
             return CrewPose.Mend;
         if (s.Has(PlayerFlags.Shovelful))
             return CrewPose.Shovel;
+        // Crouched on the key (note 664): down on crew.py's crouch clip, still or moving (there's no crouched walk yet). A
+        // headset rider's body crouches with their own head (HeadsetBody) instead.
+        if (s.Has(PlayerFlags.Crouched) && s.Head <= 0)
+            return CrewPose.Crouch;
         if (world.Combat is { } combat && Guns.MannedGun(s, train, combat.Guns) is { } manned)
             return train.Vehicles[manned].Gun.ReloadNeeded > 0 ? CrewPose.Reload : CrewPose.Gunner;
         // On the ground at the line's own levers: a switch stand's (spec C.6), a coaling chute's or a spout's (spec D.3).

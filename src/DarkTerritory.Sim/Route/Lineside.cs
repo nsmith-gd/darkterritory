@@ -35,6 +35,7 @@ public sealed record SightTuning
     public double DropClear { get; init; } = 80;
     public double DropBoardAhead { get; init; } = 400;
     public double CatchReach { get; init; } = 1.1;
+    public double CatchMaxSpeed { get; init; } = 15;
     public Dictionary<string, double> DropWeights { get; init; } = new() { ["mail"] = 0.45, ["coal"] = 0.2, ["ammo"] = 0.2, ["spares"] = 0.15 };
     public double[] MailScrip { get; init; } = [20, 60];
     public double CoalUnits { get; init; } = 8;
@@ -134,10 +135,18 @@ public sealed class Lineside
     public IReadOnlyList<Drop> AllDrops => _drops;
     /// <summary>A drop's bag caught (host only: the crane's arm is empty on a client that didn't see it go).</summary>
     public bool Caught(int drop) => _dropped[drop] == 1;
+
+    /// <summary>
+    /// Whether a crane's bag was hooked too fast and tore off the hook (queue #461, note 727): the train went by over
+    /// <see cref="SightTuning.CatchMaxSpeed"/>, so its catch is lost. The host's, as <see cref="Caught"/> is.
+    /// </summary>
+    public bool Torn(int drop) => _dropped[drop] == 3;
     /// <summary>A drop the whole train has gone by (caught or not).</summary>
     public bool Passed(int drop) => _dropped[drop] != 0;
     /// <summary>Bags caught this tick, and cranes the train went by with nobody at a door (the pacing log, the HUD).</summary>
     public List<Drop> CaughtThisTick { get; } = new();
+    /// <summary>The bags hooked this tick at a speed that tore them off (note 727): what's in them is lost.</summary>
+    public List<Drop> TornThisTick { get; } = new();
     public List<Drop> MissedThisTick { get; } = new();
 
     /// <summary>
@@ -155,7 +164,7 @@ public sealed class Lineside
         };
         double total = kinds.Sum(k => k.Weight);
         int id = 0;
-        for (double s = t.DropFrom; s < route.Length - t.TerminusBoard; s += rng.Range(t.DropSpacing[0], t.DropSpacing[1]))
+        for (double s = t.DropFrom; s < route.RunLength - t.TerminusBoard; s += rng.Range(t.DropSpacing[0], t.DropSpacing[1]))
         {
             if (route.Features.Any(f => f.Kind is FeatureKind.Tunnel or FeatureKind.Bridge or FeatureKind.Facility or FeatureKind.Junction
                     && s >= f.Start - t.DropClear && s <= f.End + t.DropClear)
@@ -231,11 +240,11 @@ public sealed class Lineside
         foreach (var tunnel in route.Of(FeatureKind.Tunnel))
             zones.Add((SignKind.LowClearance, tunnel.Start, tunnel.End, 0, false));
         var boards = zones.Select(z => new Sign(0, z.Kind, Math.Max(0, z.Start - t.BoardAhead), z.Start, z.End, z.Limit) { Bridge = z.Bridge })
-            .Concat(drops.Select(d => new Sign(0, SignKind.Drop, Math.Max(0, d.At - t.DropBoardAhead), d.At, d.At) { Drop = d }))
-            .Append(new Sign(0, SignKind.Terminus, Math.Max(0, route.Length - t.TerminusBoard), route.Length, route.Length))
+            .Concat(drops.Select(d => new Sign(0, SignKind.Drop, Math.Max(0, d.At - t.DropBoardAhead), d.At, d.At, t.CatchMaxSpeed) { Drop = d }))
+            .Append(new Sign(0, SignKind.Terminus, Math.Max(0, route.RunLength - t.TerminusBoard), route.RunLength, route.RunLength))
             // And the home signal and the platform's board, close in: the last run in has its moments too.
-            .Append(new Sign(0, SignKind.Terminus, Math.Max(0, route.Length - t.HomeSignal), route.Length, route.Length))
-            .Append(new Sign(0, SignKind.Terminus, Math.Max(0, route.Length - t.PlatformBoard), route.Length, route.Length));
+            .Append(new Sign(0, SignKind.Terminus, Math.Max(0, route.RunLength - t.HomeSignal), route.RunLength, route.RunLength))
+            .Append(new Sign(0, SignKind.Terminus, Math.Max(0, route.RunLength - t.PlatformBoard), route.RunLength, route.RunLength));
         int id = 0;
         foreach (var b in boards.OrderBy(b => b.Start).ThenBy(b => b.Kind))
             yield return b with { Id = id++ };
@@ -351,6 +360,19 @@ public sealed class Lineside
     /// </summary>
     public List<(uint Tick, int Player, int Sign, SignKind Kind)> Commits { get; } = new();
 
+    /// <summary>
+    /// Note 664: a player on a car's roof inside a tunnel's mouth's reach (the low clearance that takes anyone standing up
+    /// there): crouched, they stay down until it's past.
+    /// </summary>
+    public bool UnderLowClearance(in PlayerState s, TrainOnLine train)
+    {
+        if (s.Surface != Surface.Roof || s.Parent < 0 || s.Parent >= train.Frames.Count || train.RakeOf(s.Parent).Path != RailLine.MainPath)
+            return false;
+        // Where along the line they stand, as Hazards has it: a car's −Z is its front.
+        double along = train.Cars[s.Parent].FrontDistance - (s.Position.Z + train.Frames[s.Parent].Shape.HalfLength);
+        return _signs.Any(g => g.Kind == SignKind.LowClearance && along >= g.Start && along <= g.End);
+    }
+
     /// <summary>The engine's on greased rail now (what the drivers feel: they slip).</summary>
     public bool OnGrease(TrainOnLine train) =>
         train.Dynamics.Path == RailLine.MainPath && _route.Features.Any(f => f.Kind == FeatureKind.Grease && f.Contains(train.Dynamics.Distance));
@@ -395,6 +417,7 @@ public sealed class Lineside
                     {
                         // The frames strain (repairs, spec F.1) and the loads shift about.
                         v.Integrity = Math.Max(0, v.Integrity - Tuning.StrainPerSecond * over * dt);
+                        v.Knock = (KnockCause.Bend, rake.Speed);
                         if (v.Kind == VehicleKind.Cargo)
                             v.CargoIntegrity = Math.Max(0, v.CargoIntegrity - Tuning.CargoDamagePerSecond * over * dt);
                     }
@@ -413,9 +436,10 @@ public sealed class Lineside
                         double along = carFront - (s.Position.Z + train.Frames[v.Id].Shape.HalfLength);
                         if (along < sign.Start || along > sign.End)
                             continue;
-                        // Note 260: whether a crouch gets you under the mouth isn't in the spec. Reading kept: it doesn't, unless
-                        // tuned to (a headset rider down under crouchHead; the keyboard's body has no crouch).
-                        if (w.CrouchClearsMouth && s.Head > 0 && s.Head <= w.CrouchHead)
+                        // Note 260: whether a crouch gets you under the mouth isn't in the spec; it doesn't, unless tuned to.
+                        // Note 664 (D1 for the director: a crouch "fits the body under low clearance"): it's tuned to, crouched
+                        // on the key or a headset rider's head down under crouchHead.
+                        if (w.CrouchClearsMouth && (s.Has(PlayerFlags.Crouched) || s.Head > 0 && s.Head <= w.CrouchHead))
                             continue;
                         // App. A.1: no commit without its telegraph, the warning up its whole lead.
                         if (!WarnedInTime(sign.Id))
@@ -451,6 +475,7 @@ public sealed class Lineside
     {
         CaughtThisTick.Clear();
         MissedThisTick.Clear();
+        TornThisTick.Clear();
         var train = world.Train;
         var engine = train.Dynamics;
         if (engine.Path != RailLine.MainPath)
@@ -474,19 +499,39 @@ public sealed class Lineside
                 // The car's middle (its side doors) went by the crane this tick.
                 if (layout is null || moved <= 0 || !(door >= d.At && door - moved < d.At))
                     continue;
-                int? sideDoor = Bots.StopHand.SideDoor(shape, d.Side);
-                bool caught = sideDoor is { } sd && v.DoorOpen(sd) && crew.Any(c => c.State.Alive && c.State.Parent == v.Id
-                    && PlayerMotor.Indoors(c.State, train) && c.Intent.Has(PlayerButtons.Fire)
-                    && d.Side * c.State.Position.X >= shape.HalfWidth - Tuning.CatchReach
-                    && Math.Abs(c.State.Position.Z) <= layout.SideDoorWidth / 2 + 0.3);
+                bool caught = crew.Any(c => c.State.Parent == v.Id && c.Intent.Has(PlayerButtons.Fire) && AtTheDoor(c.State, train, d));
                 if (!caught)
                     continue;
+                // The mail catch (queue #461, note 727; the director, 14 Oct, GDD App. F.6): a bag hooked over the crane's
+                // posted speed tears off the hook and is lost, so the one at the door has to call the driver down for it.
+                if (engine.Speed > Tuning.CatchMaxSpeed)
+                {
+                    _dropped[d.Id] = 3;
+                    TornThisTick.Add(d);
+                    break;
+                }
                 _dropped[d.Id] = 1;
                 CaughtThisTick.Add(d);
                 Reward(world, d);
                 break;
             }
         }
+    }
+
+    /// <summary>
+    /// Where a bag's caught from (and the HUD's prompt to, note 673): inside a car, in the open side door on the crane's side,
+    /// close enough to its edge to reach out.
+    /// </summary>
+    public bool AtTheDoor(in PlayerState s, TrainOnLine train, Drop d)
+    {
+        if (!s.Alive || s.Parent < 0 || s.Parent >= train.Frames.Count || train.Dynamics.Tuning.Geometry.Interior is not { } layout
+            || !PlayerMotor.Indoors(s, train))
+            return false;
+        var shape = train.Frames[s.Parent].Shape;
+        int parent = s.Parent;
+        return Bots.StopHand.SideDoor(shape, d.Side) is { } door && train.Dynamics.Consist.Vehicles.FirstOrDefault(v => v.Id == parent) is { } car
+            && car.DoorOpen(door) && d.Side * s.Position.X >= shape.HalfWidth - Tuning.CatchReach
+            && Math.Abs(s.Position.Z) <= layout.SideDoorWidth / 2 + 0.3;
     }
 
     static void Reward(World world, Drop d)

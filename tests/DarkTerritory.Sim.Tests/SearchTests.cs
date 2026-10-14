@@ -68,7 +68,7 @@ public class SearchTests
             Assert.Null(FindOf(world, h));
         var layout = run.Stops[k].Stop!;
         int shut = layout.Containers.Count(c => c.Zone == StopZone.Village && !run.HidingSpots.Any(h => h.Stop == k && h.Container.Index == c.Index));
-        Assert.Equal(shut, world.Bodies.All.Count(b => b.Kind == BodyKind.Loot));
+        Assert.Equal(shut, world.Bodies.All.Count(b => b.Kind == BodyKind.Loot && !Run.Run.IsComet(b)));
 
         // At it, holding Use not quite long enough, and letting go: nothing, and it starts again.
         var me = At(world, spot.At);

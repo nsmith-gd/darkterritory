@@ -1,5 +1,7 @@
 using DarkTerritory.Sim.Player;
 
+using DarkTerritory.Sim.Train;
+
 namespace DarkTerritory.Sim.Run;
 
 /// <summary>What a record in the failure-attribution log is about (GDD v1.4 App. C.9).</summary>
@@ -8,9 +10,12 @@ namespace DarkTerritory.Sim.Run;
 /// the Fire Flies setting a car alight (<see cref="Fire"/>), Followers nesting (<see cref="Nest"/>), a Grumbler craned
 /// aboard (<see cref="Aboard"/>), a Stoker in the firebox (<see cref="Runaway"/>), the Switchman's points (<see cref="Points"/>),
 /// and any other PUNISH that held nobody (<see cref="Punished"/>). Note 287: the night's first threat and the draw that
-/// brought it (<see cref="Drawn"/>): "Cinder Hounds came first at km 2. Drawn by the whistle: Dave."
+/// brought it (<see cref="Drawn"/>): "Cinder Hounds came first at km 2. Drawn by the whistle: Dave." Note 717: a crewmate
+/// bonked by their friends' tools often enough to be told (<see cref="Bonked"/>): "Bonked 14 times, mostly by Priya." Note 720: a
+/// creature the crew sang off (<see cref="Sang"/>: "Sang the Gaunt off at km 12. Singing: Dave, Dunmore."), and the train stood by a
+/// lamp signal (<see cref="Signalled"/>: "Stopped by a lamp signal at km 9. Signalled by Priya.").
 /// </remarks>
-public enum IncidentKind : byte { Grab, Death, Rescue, Rupture, CarLost, Derailed, Stranded, Voted, Struck, Fire, Nest, Aboard, Runaway, Points, Punished, Drawn, Slain }
+public enum IncidentKind : byte { Grab, Death, Rescue, Rupture, CarLost, Derailed, Stranded, Voted, Struck, Fire, Nest, Aboard, Runaway, Points, Punished, Drawn, Slain, BroughtIn, Bonked, Sang, Signalled, Marked }
 
 /// <summary>
 /// One fact for the incident report (C.9, D.12): what happened, to whom and where, and the <b>contributing action</b>: the
@@ -34,9 +39,12 @@ public sealed record Incident(IncidentKind Kind, double Seconds, int Victim, str
 public sealed class Attribution
 {
     readonly List<Incident> _log = [];
-    readonly Dictionary<int, int> _lampBy = [], _couplerBy = [];
-    // Note 511: the cars a loose coupling's dropped pin parted from the train (note 356), nobody's hand on it.
-    readonly HashSet<int> _parted = [];
+    readonly Dictionary<int, int> _lampBy = [], _couplerBy = [], _doorBy = [];
+    // Note 511: the cars a loose coupling's dropped pin parted from the train (note 356), nobody's hand on it: each to the car
+    // whose pin it was. Note 640: what worked each pin loose, who was driving, and the train's speed then.
+    readonly Dictionary<int, int> _parted = [];
+    readonly Dictionary<int, (LooseCause Cause, int Driver, double Speed)> _loosened = [];
+    readonly HashSet<int> _apart = [];
 
     public IReadOnlyList<Incident> Log => _log;
 
@@ -64,11 +72,37 @@ public sealed class Attribution
     public void Craned(int player) => CraneOperator = player;
     public void HeldKit(int player) => KitHolder = player;
     public void LitLamp(int car, int player) => _lampBy[car] = player;
-    public void PulledCoupler(int vehicle, int player) => _couplerBy[vehicle] = player;
+    public void PulledCoupler(int vehicle, int player)
+    {
+        _couplerBy[vehicle] = player;
+        _parted.Remove(vehicle);
+    }
     public int LampLitBy(int car) => _lampBy.GetValueOrDefault(car, -1);
+    /// <summary>Who last opened a car's door (note 619): a shut car keeps the Fire Flies out (note 286), so the clerk names them.</summary>
+    public void OpenedDoor(int car, int door, int player) => _doorBy[car * 8 + door] = player;
+    public int DoorOpenedBy(int car, int door) => _doorBy.GetValueOrDefault(car * 8 + door, -1);
     public int CouplerPulledBy(int vehicle) => _couplerBy.GetValueOrDefault(vehicle, -1);
-    public void PartedAt(int vehicle) => _parted.Add(vehicle);
-    public bool Parted(int vehicle) => _parted.Contains(vehicle);
+    /// <summary>
+    /// The cars a dropped pin parted from the train, at <paramref name="pin"/>'s coupling: the pin's, not the last hand that
+    /// ever pulled their couplers (note 630: frontier:6 seed 16's report named the pick-up's shunter for a Knotter's split).
+    /// </summary>
+    public void PartedAt(int pin, IEnumerable<int> cut)
+    {
+        foreach (var v in cut)
+        {
+            _parted[v] = pin;
+            _couplerBy.Remove(v);
+        }
+    }
+    public bool Parted(int vehicle) => _parted.ContainsKey(vehicle);
+    /// <summary>Note 640: a pin worked loose (the car ahead of its gap), by what, with whom driving and at what speed.</summary>
+    public void Loosened(int car, LooseCause cause, double speed) => _loosened[car] = (cause, Driver, speed);
+    /// <summary>What worked loose the pin that parted this car from the train, or null.</summary>
+    public (LooseCause Cause, int Driver, double Speed)? LooseOf(int vehicle) =>
+        _parted.TryGetValue(vehicle, out int pin) && _loosened.TryGetValue(pin, out var l) ? l : null;
+    /// <summary>A car that came apart, battered and let go (note 576): what parted the train ahead of it.</summary>
+    public void CameApart(int vehicle) => _apart.Add(vehicle);
+    public bool Apart(int vehicle) => _apart.Contains(vehicle);
 
     public void Add(Incident incident) => _log.Add(incident);
 

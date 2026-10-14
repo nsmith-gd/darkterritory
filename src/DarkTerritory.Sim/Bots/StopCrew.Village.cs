@@ -57,8 +57,10 @@ public sealed partial class StopHand
             // Not with the dawn close, and not more than our share of the hands at once.
             if (run.DawnIn < t.VillageDawnSpare || calls.OutCount(member) >= Math.Max(1, (int)Math.Ceiling(calls.CrateHands * t.VillageShare)))
                 return GiveUpVillage(self, world, p);
+            var kept = Lived(world);
             var next = run.HidingSpots
-                .Where(h => h.Stop == _stopIndex && !run.Searched(h.Stop, h.Container.Index) && !_cantReach.Contains(h.Key) && !calls.SpotClaimed(h.Key, member))
+                .Where(h => h.Stop == _stopIndex && !run.Searched(h.Stop, h.Container.Index) && !_cantReach.Contains(h.Key) && !calls.SpotClaimed(h.Key, member)
+                    && !InLived(world, kept, h.At))
                 .OrderBy(h => (Flat(h.At) - Flat(here)).Length).ThenBy(h => h.Key).FirstOrDefault();
             if (next.Seconds <= 0)
                 return GiveUpVillage(self, world, p);
@@ -111,14 +113,59 @@ public sealed partial class StopHand
         return Follow(self, train, front);
     }
 
+    /// <summary>
+    /// Note 594 (Lethal Company's four shared slots): the finds a hand carries in its slots. With a slot still empty, on the
+    /// ground and another spot worth the walk, the find in hand is put away (a number key for a slot without one) so the hands
+    /// are free to search; otherwise, with none in hand, one comes out of its slot, for the way home and to set down aboard.
+    /// Null when there's nothing to do with them.
+    /// </summary>
+    PlayerIntent? SlotFinds(in PlayerState self, World world, StopPlan p, Physics.Body? inHand)
+    {
+        if (PlayerId is not { } me || world.Run is not { } run)
+            return null;
+        var finds = world.Bodies.Slotted(me).Where(b => b.Kind == Physics.BodyKind.Loot).ToList();
+        if (finds.Count == 0 || inHand is not null && inHand.Pocket < 0)
+            return null;
+        // Still out (the driver waits) till every find's down aboard.
+        calls.Out(member, true);
+        var me0 = self;
+        bool room = Enumerable.Range(0, Kit.Slots).Any(i => Kit.Empty(me0, i));
+        bool more = room && !calls.Leaving && self.Parent == PlayerState.World && _stopIndex >= 0
+            && Worth(world, run, PlayerMotor.WorldPosition(self, world.Train));
+        if (more && inHand is { Kind: Physics.BodyKind.Loot })
+        {
+            Doing = "putting the find away";
+            int free = Enumerable.Range(0, Kit.Slots).First(i => finds.All(f => f.Pocket != i));
+            return new PlayerIntent { Select = (byte)(free + 1) };
+        }
+        if (!more && inHand is null)
+        {
+            Doing = "a find out to carry home";
+            return new PlayerIntent { Select = (byte)(finds[0].Pocket + 1) };
+        }
+        return null;
+    }
+
     /// <summary>Whether there's a spot at this stop still to search, within reach, that nobody's taken and it hasn't failed to reach.</summary>
     bool Worth(World world, Run.Run run, Double3 here)
     {
         var t = Crew(world);
+        var kept = Lived(world);
         return run.DawnIn >= t.VillageDawnSpare && calls.OutCount(member) < Math.Max(1, (int)Math.Ceiling(calls.CrateHands * t.VillageShare))
             && run.HidingSpots.Any(h => h.Stop == _stopIndex && !run.Searched(h.Stop, h.Container.Index) && !_cantReach.Contains(h.Key)
-                && !calls.SpotClaimed(h.Key, member) && (Flat(h.At) - Flat(here)).Length <= t.VillageReach);
+                && !calls.SpotClaimed(h.Key, member) && (Flat(h.At) - Flat(here)).Length <= t.VillageReach && !InLived(world, kept, h.At));
     }
+
+    /// <summary>
+    /// The houses something lives in (the house creatures, notes 583–586): the bots keep out of them, as they keep out of the
+    /// Gaunt's (note 413). They search the rest.
+    /// </summary>
+    static HashSet<int> Lived(World world) =>
+        [.. world.ActiveEnemies.Where(e => !e.Gone && e.Kind is Enemies.EnemyKind.Lodger or Enemies.EnemyKind.Householder or Enemies.EnemyKind.HollowHouse or Enemies.EnemyKind.Hanger)
+            .Select(e => (int)e.Extra2)];
+
+    static bool InLived(World world, HashSet<int> lived, Double3 at) =>
+        lived.Count > 0 && world.Train.Walls is { } walls && walls.HouseAt(at + Double3.Up * 0.3) is var h and >= 0 && lived.Contains(h);
 
     /// <summary>
     /// Back to the train from the houses (<see cref="Carry"/>, with a find in our arms; or called back empty-handed): by a way

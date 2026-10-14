@@ -523,6 +523,139 @@ public static class SquareKit
         return k.Build(standing ? "square-paper-up" : "square-paper-flat");
     }
 
+    /// <summary>
+    /// The notice board with what's posted on it (note 669; the director, 13 Oct: "The notice board is interesting, but I
+    /// think we're going to want to have actual like custom writing for this"): each notice its own sheet, its heading
+    /// large and its words under it in the pixel font's capitals (a printed handbill's), inked, wrapped and sized to fill
+    /// the sheet, each sheet pinned a little off true. Read close to; the HUD reads them out in full (TownTalk).
+    /// </summary>
+    public static MeshAsset Board(Look? look, IReadOnlyList<(string Title, string Text)> papers)
+    {
+        var k = new Kit(look, 2200 + "board".Sum(c => c) % 97);
+        var (hs, _, ht) = Sim.Towns.TownFixtures.Size("board");
+        float x = (float)hs, h = (float)ht;
+        Timber(k);
+        Legs(k, x, h, 0.07f);
+        k.Box(new Vector3(-x, 1.0f, -0.05f), new Vector3(x, h - 0.2f, 0.05f));
+        k.Use("roof_slate", Palette.Charcoal, 0.8f, 0.2f, tile: 1);
+        k.Quad(new Vector3(-x - 0.15f, h, 0.1f), new Vector3(x + 0.15f, h, 0.1f), new Vector3(x + 0.15f, h - 0.2f, -0.35f), new Vector3(-x - 0.15f, h - 0.2f, -0.35f), twoSided: true);
+        int n = papers.Count;
+        if (n == 0)
+            return k.Build("square-board-bare");
+        // The sheets across the board's face, between its posts, a hand's width apart.
+        const float Gap = 0.06f, SheetH = 0.78f;
+        float span = 2 * x - 0.36f, w = MathF.Min(0.52f, (span - Gap * (n - 1)) / n);
+        float left = (n * w + (n - 1) * Gap) / 2 - w / 2;
+        for (int i = 0; i < n; i++)
+        {
+            var (title, text) = papers[i];
+            // A degree or two off true, either way, by its words (the same board every night it's drawn).
+            float tilt = ((title.Sum(c => c) + 7 * i) % 9 - 4) * 0.009f;
+            float cx = left - i * (w + Gap), cy = 1.5f + (i % 2 == 0 ? 0.03f : -0.03f);
+            k.With(Matrix4x4.CreateRotationZ(tilt) * Matrix4x4.CreateTranslation(cx, cy, -0.06f), () => Sheet(k, title, text, w, SheetH, i));
+        }
+        return k.Build($"square-board-{n}");
+    }
+
+    /// <summary>
+    /// One notice on its sheet, facing −Z (as the board's front), centred on its own origin: the heading over its words,
+    /// the lines read from +X to −X (the viewer's left to right, from in front). Each glyph row's run of ink is one quad.
+    /// </summary>
+    static void Sheet(Kit k, string title, string text, float w, float sheetH, int i)
+    {
+        // (Flat paper, untextured: a texture's grain under the pixel letters muddies them.)
+        var paper = (i % 3) switch { 0 => new Vector3(0.86f, 0.82f, 0.7f), 1 => new Vector3(0.8f, 0.78f, 0.7f), _ => new Vector3(0.88f, 0.8f, 0.62f) };
+        k.Use("notice_paper", paper, 0.6f, 0.05f, tile: 1);
+        k.Emissive = 0.18f;
+        k.Panel(Vector3.Zero, -Vector3.UnitZ, Vector3.UnitY, w, sheetH, Vector2.Zero, Vector2.One);
+        k.Emissive = 0;
+        // The tack at its top.
+        k.Use("brass", Palette.TarnishedBrass, 0.3f, 0.7f);
+        k.BoxAt(new Vector3(0, sheetH / 2 - 0.03f, -0.006f), new Vector3(0.008f, 0.008f, 0.004f));
+        var font = BitmapFont.Default;
+        const float Margin = 0.03f;
+        float inner = w - 2 * Margin;
+        string head = title.ToUpperInvariant();
+        float tpx = MathF.Min(0.011f, inner / Math.Max(1, font.Measure(head)));
+        var heads = new List<string> { head };
+        if (tpx < 0.0055f)
+        {
+            heads = Wrap(head, Math.Max(4, (int)(inner / (0.0065f * font.Advance))));
+            tpx = MathF.Min(0.0065f, inner / Math.Max(1, heads.Max(l => font.Measure(l))));
+        }
+        float top = sheetH / 2 - Margin - 0.035f; // under the tack
+        float bodyTop = top - heads.Count * font.LineHeight * tpx - 0.012f, room = bodyTop - (-sheetH / 2 + Margin);
+        // The words as large as fill what's left of the sheet, no larger than a print's.
+        string body = text.ToUpperInvariant();
+        float px = 0.0052f;
+        List<string> lines;
+        while (true)
+        {
+            lines = Wrap(body, Math.Max(8, (int)(inner / (px * font.Advance))));
+            if (lines.Count * font.LineHeight * px <= room || px < 0.0016f)
+                break;
+            px *= 0.93f;
+        }
+        // Ink: the heading black, the words a faded blue-black.
+        k.Use("notice_ink", new Vector3(0.06f, 0.05f, 0.05f), 0.2f, 0.05f, tile: 1);
+        float y = top;
+        foreach (var line in heads)
+        {
+            Ink(k, font, line, font.Measure(line) * tpx / 2, y, tpx);
+            y -= font.LineHeight * tpx;
+        }
+        k.Use("notice_ink", new Vector3(0.1f, 0.11f, 0.16f), 0.2f, 0.05f, tile: 1);
+        y = bodyTop;
+        foreach (var line in lines)
+        {
+            Ink(k, font, line, inner / 2, y, px);
+            y -= font.LineHeight * px;
+        }
+    }
+
+    /// <summary>A line of the font's capitals inked on a sheet facing −Z, starting at <paramref name="x"/> (its left, as read) and running to −X.</summary>
+    static void Ink(Kit k, BitmapFont font, string line, float x, float y, float px)
+    {
+        const float Z = -0.0015f;
+        foreach (char ch in line)
+        {
+            var g = font.Glyph(ch);
+            for (int gy = 0; gy < g.GetLength(0); gy++)
+                for (int gx = 0; gx < g.GetLength(1); gx++)
+                {
+                    if (!g[gy, gx])
+                        continue;
+                    int run = gx;
+                    while (run + 1 < g.GetLength(1) && g[gy, run + 1])
+                        run++;
+                    float x0 = x - gx * px, x1 = x - (run + 1) * px, y0 = y - gy * px;
+                    k.Quad(new Vector3(x0, y0, Z), new Vector3(x1, y0, Z), new Vector3(x1, y0 - px, Z), new Vector3(x0, y0 - px, Z));
+                    gx = run;
+                }
+            x -= font.Advance * px;
+        }
+    }
+
+    /// <summary>Words broken into lines of at most <paramref name="max"/> characters (a longer word on a line of its own).</summary>
+    static List<string> Wrap(string text, int max)
+    {
+        var lines = new List<string>();
+        string current = "";
+        foreach (var word in text.Split(' ', StringSplitOptions.RemoveEmptyEntries))
+        {
+            if (current.Length > 0 && current.Length + 1 + word.Length > max)
+            {
+                lines.Add(current);
+                current = word;
+            }
+            else
+                current = current.Length == 0 ? word : current + " " + word;
+        }
+        if (current.Length > 0)
+            lines.Add(current);
+        return lines;
+    }
+
     static void Timber(Kit k) => k.Use("wood_grey", Palette.DeepBrown, 0.9f, 0, tile: 1);
     static void Iron(Kit k) => k.Use("rust_heavy", Palette.IronGrey, 0.8f, 0.3f);
     static void Paint(Kit k)

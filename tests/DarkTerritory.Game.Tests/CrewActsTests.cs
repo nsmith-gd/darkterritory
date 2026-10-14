@@ -53,6 +53,9 @@ public class CrewActsTests
         Assert.Equal(CrewPose.Climb, CrewActs.Of(s with { Surface = Surface.Ladder }, 1, w));
         Assert.Equal(CrewPose.Push, CrewActs.Of(s with { Flags = PlayerFlags.Pushing }, 1, w));
         Assert.Equal(CrewPose.Lever, CrewActs.Of(s with { Flags = PlayerFlags.Operating }, 1, w));
+        // Note 664: crouched on the key, down; a headset rider's body crouches with their head instead.
+        Assert.Equal(CrewPose.Crouch, CrewActs.Of(s with { Flags = PlayerFlags.Crouched }, 1, w));
+        Assert.Null(CrewActs.Of(s with { Flags = PlayerFlags.Crouched, Head = 1.0 }, 1, w));
         // In the air: going up off a jump, the leap (note 375); over the top, nothing (SceneArt holds the leap); coming down
         // hard, falling.
         Assert.Equal(CrewPose.Jump, CrewActs.Of(s with { Surface = Surface.Air, Velocity = new Double3(0, 3, 0) }, 1, w));

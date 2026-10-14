@@ -168,5 +168,32 @@ public class SteamLiftTests
         Assert.Equal(site.Ore, mirrored.Ore, 3);
         Assert.Equal(site.Wind, mirrored.Wind, 3);
         Assert.Equal(site.LiftChute, mirrored.LiftChute);
+        Assert.True(mirrored.LeverHeld);
+    }
+
+    /// <summary>
+    /// Note 638: the lever held and the vent not yet open, a client sees it held. That's when its bot driver (who runs on a
+    /// client) opens the vent; unsent, it never saw it held and never vented, so nothing wound, and on a bot night no mine head
+    /// loaded a car (deadLines:3 seed 1: 0 car-loads, the lift given up after 240 s; with it sent, 2, in 78 s).
+    /// </summary>
+    [Fact]
+    public void AClientSeesTheLeverHeldBeforeAnythingWinds()
+    {
+        var (stop, _) = AtTheLift();
+        stop.Train.Boiler.Pressure = 90;
+        stop.Step(1, [Hold, default]);
+        var site = stop.Site;
+        Assert.True(site.LeverHeld);
+        Assert.False(site.Winding);
+        var client = new World(new TrainOnLine(new TrainDynamics(Consist.Uniform(Tuning.Train, 6, 0)), stop.Train.Line, 1000, Tuning.Boiler));
+        client.EnableRun(Tuning.Run, stop.World.Run!.Route, 600, authority: false, F);
+        var controls = new TrainControls();
+        WorldRecords.Apply(WorldRecords.Capture(stop.World, controls, []), client, ref controls, []);
+        Assert.True(client.Run!.Sites[site.Index]!.LeverHeld);
+        // And let go, it's seen let go.
+        stop.Step(1, [default, default]);
+        Assert.False(stop.Site.LeverHeld);
+        WorldRecords.Apply(WorldRecords.Capture(stop.World, controls, []), client, ref controls, []);
+        Assert.False(client.Run!.Sites[site.Index]!.LeverHeld);
     }
 }

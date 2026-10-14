@@ -54,7 +54,7 @@ public enum CrewPose
 /// greybox instead. Clips play at 30 fps, stepped (no blending between frames): the era's look (GDD §25). Nothing here
 /// reads a clock or a random number: the pose is a pure function of what's passed in.
 /// </remarks>
-public sealed class CreatureArt
+public sealed partial class CreatureArt
 {
     public const string Folder = "art/models";
     /// <summary>The Drift's mat, drawn from a car's roof: past this half-width (m) it's on the ground, this far down.</summary>
@@ -62,7 +62,8 @@ public sealed class CreatureArt
     /// <summary>The models this draws, by file name (content/art/models/&lt;name&gt;.glb).</summary>
     public static readonly string[] Names = ["crew", "cinder_hound", "sleeper", "clinger", "hollow", "switchman", "soot_child", "dragger", "husk", "weight",
         "track_doll", "car_hugger", "tippy_toesie", "whistler", "ribbit", "choir", "gaunt", "grumbler", "stoker", "follower", "climber", "fire_fly", "passenger",
-        "survivor_prisoner", "survivor_wildlander", "sheep", "moose", "gannet"];
+        "survivor_prisoner", "survivor_wildlander", "sheep", "moose", "gannet", "mourner", "freight_beetle", "tower_jaw", "brakeman", "knotter", "hotbox", "hanger",
+        "picker", "lodger", "householder", "waker"];
 
     /// <summary>
     /// The figure a crewmate plays as (GDD App. D.8): the crew's own, or, freed from a Holdout, its occupant's for the rest
@@ -106,7 +107,9 @@ public sealed class CreatureArt
     /// Who a Tippy Toesie is after (GreyboxScene, for its target: the crewmate whose id is its Extra), camera-relative:
     /// their feet and the way they face. It faces them; on them, it's stood tight behind with a hand over their mouth.
     /// </summary>
-    public readonly record struct Prey(Vector3 Feet, Vector3 Forward)
+    /// <param name="Down">Laid on their back (a Ribbit pack eating them, note 558): <see cref="Forward"/> is then the way
+    /// they're laid, their head behind their feet (<see cref="At"/>'s z), as <see cref="Pins"/> has it.</param>
+    public readonly record struct Prey(Vector3 Feet, Vector3 Forward, bool Down = false)
     {
         public Vector3 Right => Vector3.Normalize(Vector3.Cross(Forward, Vector3.UnitY));
         /// <summary>A point in their frame (x right, y up, z back), camera-relative.</summary>
@@ -128,10 +131,32 @@ public sealed class CreatureArt
     /// <summary>
     /// The clip a Ribbit on the attack plays, <paramref name="near"/> metres from the one its pack is after: its tongue out at
     /// them (COMMIT), then, with them frozen (GRAB), creeping in on them low on the sim's quarter-speed hop, and close to, on
-    /// them, devouring (App. A.6).
+    /// them, devouring (App. A.6). The pack's others ride COMMIT through it (note 558): close to, they're on them too, devouring.
     /// </summary>
     public static string RibbitClip(SpinePhase phase, float near) =>
-        phase is SpinePhase.Grab or SpinePhase.Punish ? near > RibbitDevourReach ? "creep" : "devour" : "tongue";
+        phase is SpinePhase.Grab or SpinePhase.Punish ? near > RibbitDevourReach ? "creep" : "devour"
+        : phase == SpinePhase.Commit && near <= RibbitDevourReach ? "devour" : "tongue";
+
+    /// <summary>
+    /// Whether <paramref name="e"/> is a Ribbit holding its catch and on them, eating (note 558): GRAB or PUNISH, within
+    /// <see cref="RibbitDevourReach"/> across the ground of their feet (<paramref name="feet"/>; it's at <paramref name="at"/>).
+    /// Then they're pulled down onto their back (GreyboxScene's Pins), the pack stoops onto them, there's blood, and their
+    /// own eyes go down with them (Eyes.Devoured).
+    /// </summary>
+    public static bool RibbitEating(Enemy e, Double3 at, Double3 feet) =>
+        e.Kind == EnemyKind.Ribbit && !e.Gone && e.Holding >= 0 && e.Phase is SpinePhase.Grab or SpinePhase.Punish
+        && Math.Sqrt((feet.X - at.X) * (feet.X - at.X) + (feet.Z - at.Z) * (feet.Z - at.Z)) <= RibbitDevourReach;
+
+    /// <summary>
+    /// How far up their body from where the sim has them a Ribbit pack's catch is laid (m, note 558): held_pinned's origin is
+    /// at the hips (the head 0.6 m behind it, the boots 1.3 m in front), so this puts the sim's point at their knees, the
+    /// leader (the hop's 0.8 m off) at their shins and the others either side of their legs and middle.
+    /// </summary>
+    public const double RibbitLaid = 0.7;
+
+    /// <summary>How far a Ribbit eating someone down on their back pitches forward over them from its feet (rad), its
+    /// mouth down to their body instead of at a standing chest (the devour clip's).</summary>
+    const float RibbitStoop = 0.95f;
 
     /// <summary>The toy the Track Doll being drawn has in its hand, or null (GreyboxScene: the one it was given, as it goes).</summary>
     public MeshAsset? DollHolding { get; set; }
@@ -144,7 +169,7 @@ public sealed class CreatureArt
     /// <summary>
     /// How the ones the sim lets go of in sight are seen going (GreyboxScene.Retreating, note 458): off the train or the
     /// ground they stood on, out from the line at <c>Out</c> m/s, facing away, for <c>Seconds</c>; then lost in the dark. What
-    /// flies lifts at <c>Rise</c> m/s instead of falling.
+    /// flies lifts at <c>Rise</c> m/s instead of falling, and what goes down into the ground sinks at −<c>Rise</c>.
     /// Null: one that isn't drawn going this way (killed ones fall, the Choir disperses, the Track Doll flickers, the Car
     /// Hugger rides its car away, a hound on the line runs off; the rest aren't seen go, or have no body to see).
     /// </summary>
@@ -161,6 +186,22 @@ public sealed class CreatureArt
         EnemyKind.Passenger => (3.0, 3.0, 0),      // unmasked, off the back of the train
         EnemyKind.Follower => (4.0, 3.0, 0),
         EnemyKind.CinderHound => (6.0, 3.0, 0),    // one aboard (its car cut, or its kill made): over the side and away
+        // The night things going to ground at dawn (note 642; wakers.md §2: "boarders drop off and run for the trees"), and any
+        // of these let go of otherwise: none of them is drawn just gone. (A Dragger sinks back under the edge as it always
+        // has, and the Fire Flies' swarm goes with its lamp: neither is seen going.)
+        EnemyKind.Brakeman => (3.0, 3.5, 0),       // down off the roof, walking away
+        EnemyKind.Grumbler => (3.0, 3.0, 0),
+        EnemyKind.Moose => (5.0, 4.0, 0),          // trotting off into the trees
+        EnemyKind.FreightBeetle => (2.5, 3.5, 0),
+        EnemyKind.TowerJaw => (2.5, 3.5, 0),
+        EnemyKind.Mourners => (1.5, 5.0, 0),       // walking off, slow
+        // The stops' own (note 645): the Pickers down into the ground where they stand (their descend, head first); the Lodger
+        // slinking off into the dark, and the Householder walking off, stiff; the Hanger drawn up into its roof. (The Hollow
+        // House stays: it's the house itself, note 585.)
+        EnemyKind.Pickers => (0.4, 0.6, -1.2),
+        EnemyKind.Lodger => (2.0, 3.0, 0),
+        EnemyKind.Householder => (1.2, 4.0, 0),
+        EnemyKind.Hanger => (0, 1.2, 0.8),
         _ => null,
     };
 
@@ -381,6 +422,8 @@ public sealed class CreatureArt
         public Pose Pose { get; } = new(model.Skeleton.Count);
         /// <summary>The distance copy (&lt;name&gt;.lod1.glb), its joints renumbered to this model's: posed by this one's palette.</summary>
         public Entry? Lod { get; init; }
+        /// <summary>How far off (m) the distance copy is drawn: an authored one's, or one made at load's (note 479).</summary>
+        public float LodFrom { get; init; }
     }
 
     readonly Dictionary<string, Entry> _models = new();
@@ -390,6 +433,9 @@ public sealed class CreatureArt
     readonly float _texels;
 
     /// <param name="contentRoot">The content folder; by default the one <paramref name="look"/>'s textures came from.</param>
+    DaveKit? _dave;
+    JacobKit? _jacob;
+
     public CreatureArt(Look look, string? contentRoot = null)
     {
         Look = look;
@@ -415,16 +461,38 @@ public sealed class CreatureArt
             if (name.StartsWith("survivor_", StringComparison.Ordinal) && File.Exists(crewClips))
                 model = ModelLoader.WithClips(model, ModelLoader.Load(crewClips), replace: true);
             float wear = WearOf.GetValueOrDefault(name, 0.5f);
+            // Its distance copy: its own, else (the survivors, the crew: a town's people are hundreds of thousands of
+            // triangles, note 479) one clustered from it at load, drawn only where a figure is a few pixels tall.
+            var authored = LoadLod(Path.Combine(ContentRoot, Folder, name + ".lod1.glb"), model);
+            var far = authored ?? (look.Tuning.ClusteredLodMetres > 0 ? ModelLod.Clustered(model, look.Tuning.ClusteredLodCell) : null);
             _models[name] = new Entry(model, [.. model.Materials.Select(m => Resolve(m, wear))])
             {
-                Lod = LoadLod(Path.Combine(ContentRoot, Folder, name + ".lod1.glb"), model) is { } lod
-                    ? new Entry(lod, [.. lod.Materials.Select(m => Resolve(m, wear))]) : null,
+                Lod = far is null ? null : new Entry(far, [.. far.Materials.Select(m => Resolve(m, wear))]),
+                // (The Waker's drawn thirty times his size: his distance copy from thirty times as far, note 679.)
+                LodFrom = (authored is not null ? look.Tuning.CreatureLodMetres : look.Tuning.ClusteredLodMetres) * (name == "waker" ? WakerGait.Scale : 1),
             };
         }
+        Dress(DaveKit.Figure, DaveKit.Clothes);
+        Dress(NickiKit.Figure, NickiKit.Clothes, NickiKit.Shape);
+        Dress(JacobKit.Figure, JacobKit.Clothes, growths: JacobKit.Growths);
     }
 
     public Look Look { get; }
     public string ContentRoot { get; }
+
+    /// <summary>
+    /// The figures met out in the Territory (GDD §3.2), dressed from the survivors' (<see cref="Redress"/>): on its rig and
+    /// clips, with no file of their own. Called once the files are loaded.
+    /// </summary>
+    void Dress(string name, IReadOnlyDictionary<Cloth, Dye> clothes, Func<Vector3, string, Vector3>? shape = null, IReadOnlyList<Growth>? growths = null)
+    {
+        // A figure modelled for them (content/art/models/<name>.glb, the art sessions') is theirs: the dressed one is the fallback.
+        if (_models.ContainsKey(name) || !_models.TryGetValue("survivor_prisoner", out var figure))
+            return;
+        var model = Redress.Of(figure.Model, name, clothes, shape, growths);
+        float wear = WearOf.GetValueOrDefault("survivor_prisoner", 0.5f);
+        _models[name] = new Entry(model, [.. model.Materials.Select(m => Resolve(m, wear))]);
+    }
 
     /// <summary>A model's distance copy (tools/models overbake `lod`), its joints renumbered by name to the full model's so
     /// the full model's pose skins it; null when there's none or a bone of it isn't the full model's.</summary>
@@ -551,7 +619,7 @@ public sealed class CreatureArt
         _skinner.Evaluate(m.Model, c, time, loop, m.Pose);
         posed?.Invoke(m);
         // Far from the eye (the scene is built about it: `at`'s origin is the distance), its distance copy, on this pose.
-        float lod = Look.Tuning.CreatureLodMetres;
+        float lod = m.LodFrom;
         var drawn = m.Lod is { } far && lod > 0 && at.Translation.LengthSquared() > lod * lod ? far : m;
         Emit(mesh, drawn, clip, at, variant, glow, seed, adjust, skin: m.Pose.Skin);
         return true;
@@ -729,7 +797,7 @@ public sealed class CreatureArt
     /// the hands are reached for from where the shoulders have gone.</param>
     public bool Crewmate(MeshBuilder mesh, in Matrix4x4 model, CrewPose pose, double time, int variant,
         Vector3? left = null, Vector3? right = null, Vector3 leftPole = default, Vector3 rightPole = default, MeshAsset? inHand = null,
-        MeshAsset? hanging = null, string figure = "crew", VrBodyPose? body = null, MeshAsset? carried = null)
+        MeshAsset? hanging = null, string figure = "crew", VrBodyPose? body = null, MeshAsset? carried = null, bool sooted = false)
     {
         if (!_models.ContainsKey(figure))
             figure = "crew";
@@ -769,6 +837,9 @@ public sealed class CreatureArt
         Emit(mesh, m, clip, model, variant, 1, variant, Paint);
         if (figure == "crew")
             Marks(mesh, m, model, variant);
+        // A lump of coal in the face (note 717): sooty for the night.
+        if (sooted)
+            Soot(mesh, m, model);
         if (pose == CrewPose.Reload)
             ReloadKit(mesh, m, model, time);
         // Where their mouth is and which way they face, for their breath in the cold (SceneArt.Crewmate).
@@ -835,15 +906,17 @@ public sealed class CreatureArt
     }
 
     /// <summary>
-    /// Appends <paramref name="piece"/>, made in the figure's bind pose (model space), riding <paramref name="bone"/> of the
-    /// figure last drawn as <paramref name="figure"/> at <paramref name="model"/>: a townsperson's mask on their head, their
-    /// bottle on their back (note 353). False when that figure or bone isn't built.
+    /// <paramref name="piece"/>, made in the figure's bind pose (model space), riding <paramref name="bone"/> of the figure
+    /// last drawn as <paramref name="figure"/> at <paramref name="model"/>: a townsperson's mask on their head, their bottle
+    /// on their back (note 353). Drawn where it is, never copied into the frame (note 695: copied, a town's near folk were
+    /// 5,000-7,000 triangles moved on the CPU and uploaded every frame, for a draw each saved). False when that figure or
+    /// bone isn't built.
     /// </summary>
     public bool Wear(MeshBuilder mesh, MeshAsset piece, string bone, in Matrix4x4 model, string figure = "crew")
     {
         if (!_models.TryGetValue(figure, out var m) || m.Model.Skeleton.IndexOf(bone) is var b && b < 0)
             return false;
-        mesh.Append(piece, m.Pose.Skin[b] * model);
+        mesh.Instances.Add(new MeshInstance(piece, m.Pose.Skin[b] * model));
         return true;
     }
 
@@ -1107,6 +1180,54 @@ public sealed class CreatureArt
         int on = kit == 0 ? hip : back;
         if (on >= 0)
             mesh.Append(_marks[1 + kit], m.Pose.World[on] * model);
+    }
+
+    MeshAsset? _soot, _sootChest;
+
+    /// <summary>
+    /// Note 717: coal soot over the face and mask, on the head bone, and down the coat's front where the lump burst, on the
+    /// chest's: black smudges, matte (soot takes no shine). Simple on purpose: a friend sees from across the car who got the coal
+    /// (the coat's pale wool carries it further than the dark mask does).
+    /// </summary>
+    void Soot(MeshBuilder mesh, Entry m, in Matrix4x4 model)
+    {
+        var sk = m.Model.Skeleton;
+        int head = sk.IndexOf("head"), chest = sk.IndexOf("spine_03");
+        _soot ??= BuildSoot(Look, chest: false);
+        _sootChest ??= BuildSoot(Look, chest: true);
+        if (head >= 0)
+            mesh.Append(_soot, m.Pose.World[head] * model);
+        if (chest >= 0)
+            mesh.Append(_sootChest, m.Pose.World[chest] * model);
+    }
+
+    static MeshAsset BuildSoot(Look look, bool chest)
+    {
+        var k = new Kit(look, chest ? 3111 : 3110);
+        k.Use("coal", Palette.SootBlack, 0.95f, 0, tile: 4f);
+        k.Tint = new Vector3(0.06f);
+        // The head bone's frame (crew.py): +Y up the head from the neck, the face towards -Z: across the goggles and the brow,
+        // the mask's cheek and chin. The chest's (spine_03): +X right, +Y up, +Z behind: splashed down the coat's front and
+        // up onto a shoulder. Blobs a finger's breadth proud of the surface, so they read at any angle.
+        (Vector3 At, Vector3 Half)[] smudges = chest
+            ?
+            [
+                (new Vector3(0.02f, 0.12f, -0.17f), new Vector3(0.1f, 0.06f, 0.025f)),
+                (new Vector3(-0.08f, 0.03f, -0.17f), new Vector3(0.05f, 0.08f, 0.025f)),
+                (new Vector3(0.09f, -0.05f, -0.16f), new Vector3(0.04f, 0.05f, 0.025f)),
+                (new Vector3(0.16f, 0.2f, -0.06f), new Vector3(0.05f, 0.03f, 0.06f)),
+            ]
+            :
+            [
+                (new Vector3(0, 0.095f, -0.11f), new Vector3(0.085f, 0.025f, 0.02f)),
+                (new Vector3(-0.045f, 0.05f, -0.125f), new Vector3(0.04f, 0.03f, 0.02f)),
+                (new Vector3(0.05f, 0.03f, -0.12f), new Vector3(0.025f, 0.045f, 0.02f)),
+                (new Vector3(0.01f, -0.07f, -0.145f), new Vector3(0.045f, 0.022f, 0.02f)),
+                (new Vector3(-0.065f, -0.03f, -0.1f), new Vector3(0.02f, 0.035f, 0.018f)),
+            ];
+        foreach (var (at, half) in smudges)
+            k.BevelBox(at - half, at + half, Math.Min(half.X, Math.Min(half.Y, half.Z)) * 0.8f);
+        return k.Build(chest ? "crew-soot-chest" : "crew-soot");
     }
 
     static MeshAsset[] BuildMarks(Look look)
@@ -1474,6 +1595,13 @@ public sealed class CreatureArt
                 Vector3.Normalize(Vector3.TransformNormal(Vector3.UnitY, model)), Vector3.Normalize(Vector3.TransformNormal(Vector3.UnitZ, model)),
                 kind, phase, t, extra, health, _fx, Math.Clamp(extra2 / Math.Max(1e-6, _carFire.SpreadSeconds), 0, 1));
         }
+        // The Mourners, the Freight Beetle and Tower Jaw (notes 362, 363, 366), the Pickers, the Lodger and the Householder
+        // (notes 574, 583, 584) (CreatureArt.Outside.cs).
+        if (Outside(mesh, model, kind, phase, t, extra, extra2) is { } outside)
+            return outside;
+        // The house creatures (notes 585, 586; CreatureArt.Houses.cs).
+        if (Houses(mesh, model, kind, phase, t) is { } houses)
+            return houses;
         float pulse = (float)(0.5 + 0.5 * Math.Sin(t * 9));
         switch (kind)
         {
@@ -2123,6 +2251,28 @@ public sealed class CreatureArt
                     }
                     return drawn;
                 }
+            case EnemyKind.Dave when _models.ContainsKey(DaveKit.Figure):
+                {
+                    // DAVE (note 570): his figure in a hat, waistcoat, glasses and sandals, at his easel (GreyboxScene.Painter
+                    // draws him so in the world, turned to whoever he's warned; here, as he is in this phase).
+                    _dave ??= new DaveKit(Look);
+                    var (hat, vest) = DaveKit.Outfit(extra2 * 1000);
+                    if (!Draw(mesh, DaveKit.Figure, DaveKit.Clip(phase), t, true, model, 2, seed: 47))
+                        return false;
+                    mesh.Append(_dave.Easel(0), model);
+                    _dave.Dress(this, mesh, model, hat, vest);
+                    return true;
+                }
+            case EnemyKind.Jacob when _models.ContainsKey(JacobKit.Figure):
+                {
+                    // JACOB (note 572): his figure in his cap, shades, beard and flannel, rod out, lantern by him (GreyboxScene.Fisherman).
+                    _jacob ??= new JacobKit(Look);
+                    if (!Draw(mesh, JacobKit.Figure, JacobKit.Clip, t, true, model, 0, seed: 53))
+                        return false;
+                    mesh.Append(_jacob.Gear, model);
+                    _jacob.Dress(this, mesh, model);
+                    return true;
+                }
             case EnemyKind.Moose when _models.ContainsKey("moose"):
                 {
                     // THE MOOSE (note 339; tools/blender/moose.py; docs/design/creatures/moose.md §3, §5). Its meter is its
@@ -2169,6 +2319,14 @@ public sealed class CreatureArt
                     }
                     return drawn;
                 }
+            // The train's own (notes 364, 365, 367; CreatureArt.Train): the Brakeman on the roofs, the Knotter across a
+            // coupling, Hotbox in a truck.
+            case EnemyKind.Brakeman when _models.ContainsKey("brakeman"):
+                return Brakeman(mesh, model, phase, t);
+            case EnemyKind.Knotter when _models.ContainsKey("knotter"):
+                return Knotter(mesh, model, phase, t);
+            case EnemyKind.Hotbox when _models.ContainsKey("hotbox"):
+                return Hotbox(mesh, model, phase, t, extra2);
             case EnemyKind.Choir:
                 {
                     // (No model: the Hollow's figure, child-sized and pale, bobbing in the air with a cold light of its own.)
@@ -2287,6 +2445,8 @@ public sealed class CreatureArt
         _dying = dying;
         _mooseSince = modeSeconds;
         _gannetSince = modeSeconds;
+        _outsideSince = modeSeconds;
+        _trainSince = modeSeconds;
         try
         {
             return EnemyIn(mesh, model, e, bite, prey, room, pace);
@@ -2295,9 +2455,11 @@ public sealed class CreatureArt
         {
             _hit = -1;
             _dying = false;
+            ForgetOutside();
             (_mooseMode, _mooseSince) = (null, -1);
             (_gannetMode, _gannetWas, _gannetSince) = (null, null, -1);
             GannetWas = null;
+            ForgetTrainfolk();
         }
     }
 
@@ -2422,6 +2584,11 @@ public sealed class CreatureArt
 
     /// <summary>The Moose's tuning, as the content has it (its tells' thresholds, its speeds).</summary>
     public Sim.Enemies.MooseTuning MooseTuning => _moose ??= DataFile.Load<Sim.Enemies.EnemyTuning>(Path.Combine(ContentRoot, Sim.Enemies.EnemyTuning.File)).Moose;
+
+    Sim.Enemies.WakersTuning? _wakers;
+
+    /// <summary>The Wakers' tuning (note 588): how long one takes to rise, for its stand-in and its effects (note 599).</summary>
+    public Sim.Enemies.WakersTuning WakersTuning => _wakers ??= DataFile.Load<Sim.Enemies.EnemyTuning>(Path.Combine(ContentRoot, Sim.Enemies.EnemyTuning.File)).Wakers;
 
     /// <summary>A Moose's mode as its phase has it, for a draw without the sim's (a test's, the greybox's): grazing, after
     /// someone, squaring up, charging, pinning, going home.</summary>
@@ -2654,8 +2821,12 @@ public sealed class CreatureArt
                     // the half seconds its id puts it on).
                     if (prey is { } p)
                     {
+                        // Down on their back (note 558), it goes for the nearest of their body (the leader at their feet
+                        // their shins, the others either side of them their legs and middle), stooped right over onto
+                        // them, not at the air where a standing chest would be.
                         var (r, _, b) = Basis(model);
-                        var to = p.Feet - model.Translation;
+                        float along = Math.Clamp(Vector3.Dot(model.Translation - p.Feet, -p.Forward), -0.3f, 1.0f);
+                        var to = (p.Down ? p.At(0, 0, along) : p.Feet) - model.Translation;
                         float x = Vector3.Dot(to, r), z = Vector3.Dot(to, b);
                         if (x * x + z * z > 1e-6f)
                         {
@@ -2664,6 +2835,9 @@ public sealed class CreatureArt
                             m.Translation = at;
                         }
                         _prey = p;
+                        float near = new Vector2(p.Feet.X - model.Translation.X, p.Feet.Z - model.Translation.Z).Length();
+                        if (p.Down && RibbitClip(e.Phase, near) == "devour")
+                            m = Matrix4x4.CreateRotationX(-RibbitStoop) * m;
                     }
                     return Enemy(mesh, Matrix4x4.CreateScale(RibbitScale) * m, e.Kind, e.Phase, e.PhaseSeconds + (e.Id & 1) * 0.5, e.Extra, e.Health,
                         aboard: false, extra2: e.Id);
@@ -2726,6 +2900,10 @@ public sealed class CreatureArt
                     _prey = p;
                     break;
                 }
+            case EnemyKind.Brakeman or EnemyKind.Knotter or EnemyKind.Hotbox:
+                // The train's own (CreatureArt.Train): its mode, and where and which way it's drawn.
+                m = Trainfolk(e, model, prey);
+                break;
             case EnemyKind.CarHugger when bite.Any:
                 m = Matrix4x4.CreateTranslation(0, 0, -bite.Advance) * model;
                 _biteGrip = bite.Grip;
@@ -2750,6 +2928,10 @@ public sealed class CreatureArt
                 // Face back down the line at the train, turned in towards the track.
                 m = Matrix4x4.CreateRotationY(MathF.PI - Math.Sign(e.Lateral) * 0.6f) * model;
                 break;
+            case EnemyKind.Mourners or EnemyKind.FreightBeetle or EnemyKind.TowerJaw or EnemyKind.Pickers or EnemyKind.Lodger or EnemyKind.Householder:
+                // What it's doing (the sim's mode) and how fast it's going (CreatureArt.Outside.cs).
+                m = OutsideIn(e, model, pace);
+                break;
             case EnemyKind.CinderHound when e is Sim.Enemies.CinderHound { Attached: >= 0 } hound:
                 // Aboard (note 472): turned the way the sim has it facing in its car (up or down the car, or to a side door),
                 // and doing what it's doing there, E1's clips (#213, note 477).
@@ -2759,7 +2941,7 @@ public sealed class CreatureArt
         }
         _clutch = null;
         bool drawn = Enemy(mesh, m, e.Kind, e.Phase, e.PhaseSeconds, e.Extra, e.Health, aboard: e.Attached >= 0,
-            extra2: e.Kind == EnemyKind.Sleepers ? e.Id : e.Extra2);
+            extra2: e.Kind is EnemyKind.Sleepers or EnemyKind.Mourners or EnemyKind.Pickers ? e.Id : e.Extra2);
         _houndAboard = default;
         if (_clutch is { } clutch && e.Holding >= 0)
             Clutches[e.Holding] = clutch;

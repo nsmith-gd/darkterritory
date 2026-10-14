@@ -59,11 +59,12 @@ public static class Guns
     }
 
     /// <summary>
-    /// Pushing the gun you're at along its rail (T93): Use held at it while you walk, and it isn't waiting on a reload (then
-    /// Use works the reload). The motor moves it with you (<see cref="Slide"/>).
+    /// Pushing the gun you're at along its rail (T93): the push key held at it while you walk (note 664: it was Use, which
+    /// is also sitting in it, the director: "We need a different button for push and walk"), and it isn't waiting on a
+    /// reload. The motor moves it with you (<see cref="Slide"/>).
     /// </summary>
     public static bool Pushing(in PlayerState s, in PlayerIntent intent, TrainOnLine train, GunTuning t) =>
-        intent.Has(PlayerButtons.Use) && (Math.Abs(intent.MoveX) > 0.5 || Math.Abs(intent.MoveZ) > 0.5) && !s.Has(PlayerFlags.Held)
+        intent.Has(PlayerMoves.Push) && (Math.Abs(intent.MoveX) > 0.5 || Math.Abs(intent.MoveZ) > 0.5) && !s.Has(PlayerFlags.Held)
         && !s.Has(PlayerFlags.Seated)
         && MannedGun(s, train, t) is { } g && train.Vehicles[g].Gun.ReloadNeeded <= 0;
 
@@ -139,13 +140,16 @@ public static class Guns
         ref var gun = ref train.Vehicles[gunVehicle!.Value].Gun;
         var mount = Mount(train, gunVehicle.Value)!.Value;
         // The view stays inside what the gun can be laid on: its traverse either side of its facing, its pitch limits.
-        double half = t.TraverseDegrees / 2 * Math.PI / 180, face = FacingYaw(mount);
+        double half = t.Traverse(Facing(mount)) / 2 * Math.PI / 180, face = FacingYaw(mount);
         double off = Math.Clamp(Wrap(s.Yaw - face), -half, half);
         s.Yaw = face + off;
         s.Pitch = Math.Clamp(s.Pitch, t.MinPitchDegrees * Math.PI / 180, t.MaxPitchDegrees * Math.PI / 180);
-        // The gun after it, at its pace.
+        // The gun after it, at its pace: the full circle (note 596) the short way round, past its back.
         double turn = t.TraverseDegreesPerSecond * Math.PI / 180 * dt, lift = t.ElevateDegreesPerSecond * Math.PI / 180 * dt;
-        gun.Traverse += Math.Clamp(off - gun.Traverse, -turn, turn);
+        if (half >= Math.PI - 1e-9)
+            gun.Traverse = Wrap(gun.Traverse + Math.Clamp(Wrap(off - gun.Traverse), -turn, turn));
+        else
+            gun.Traverse += Math.Clamp(off - gun.Traverse, -turn, turn);
         gun.Elevation += Math.Clamp(s.Pitch - gun.Elevation, -lift, lift);
         var seat = SeatAt(mount, gun, t, s.Position.Y);
         s.Position = seat;
@@ -155,6 +159,9 @@ public static class Guns
     /// <summary>Whether a gun's barrel is laid on <paramref name="aim"/> (car frame), within the tuning's tolerance (bots fire on it).</summary>
     public static bool Laid(GunMount mount, in GunState g, Double3 aim, GunTuning t) =>
         DMath.Acos(Math.Clamp(Double3.Dot(BarrelAim(mount, g), aim.Normalized), -1, 1)) * 180 / Math.PI <= t.LaidDegrees;
+
+    /// <summary>Whether a mount faces ahead (the engine's forward gun) or back down the train.</summary>
+    public static GunMountFacing Facing(GunMount mount) => mount.Facing.Z < 0 ? GunMountFacing.Ahead : GunMountFacing.Back;
 
     static double Wrap(double a)
     {
@@ -177,7 +184,7 @@ public static class Guns
             return AimResult.PitchLimit;
         flat = flat.Normalized;
         double bearing = DMath.Acos(Math.Clamp(Double3.Dot(flat, mount.Facing), -1, 1)) * 180 / Math.PI;
-        if (bearing > t.TraverseDegrees / 2)
+        if (bearing > t.Traverse(Facing(mount)) / 2)
             return AimResult.OutOfTraverse;
         // The train's body runs away from the gun opposite its facing; nothing fires along it.
         double alongBody = DMath.Acos(Math.Clamp(Double3.Dot(flat, mount.Facing * -1), -1, 1)) * 180 / Math.PI;
@@ -206,8 +213,12 @@ public static class Guns
         if (CheckAim(mount, aimLocal, t) != AimResult.Ok)
             return null;
 
-        gun.Ammo--;
-        gun.Rack = Math.Max(0, gun.Rack - 1);
+        // Note 689: the guns' shot is endless (combat.json infiniteAmmo); only the reload stands between shots.
+        if (!t.InfiniteAmmo)
+        {
+            gun.Ammo--;
+            gun.Rack = Math.Max(0, gun.Rack - 1);
+        }
         gun.Cooldown = t.TicksPerRound;
         gun.LastShotTick = tick;
         // The cannon's full manual reload before the next (GDD v1.1 App. C.3): powder, ball, ram. The rack run dry (note
@@ -472,7 +483,7 @@ public static class Guns
             var o = frame.ToLocal(origin);
             var d = frame.DirToLocal(dir);
             foreach (var solid in frame.Shape.Solids)
-                if (solid.Part != PartKind.GunMount && solid.Present(train.Vehicles[frame.Index]) && RayBox(o, d, solid.Box) is { } t && t < best)
+                if (solid.Part != PartKind.GunMount && solid.Present(train.Vehicles[frame.Index]) && RayBox(o, d, solid.BoxIn(train.Vehicles[frame.Index])) is { } t && t < best)
                     best = t;
         }
         return best;

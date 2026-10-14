@@ -17,7 +17,8 @@ public class MapMarkerTests
     [Fact]
     public void TheRunMapMarksEachStopWhereTheTrainStandsAtIt()
     {
-        var route = Routes.Generate(Content, "frontier:7", 6);
+        // Yards and a halt (frontier:7's first stop is a coaling tower on the 7 km nights of note 554, which has no layout).
+        var route = Routes.Generate(Content, "frontier:1", 6);
         var line = route.Build();
         double length = line.PathLength(RailLine.MainPath);
         var stops = route.Features.Where(f => f.Kind is FeatureKind.Facility or FeatureKind.Village).ToList();
@@ -49,6 +50,26 @@ public class MapMarkerTests
             // The pencil's at the train's main-line distance over the line's length; the tick at the row's kilometre post.
             double pencil = l.S0 / line.Length, tick = PlanHud.ProfileAt(plan, line, row.Km);
             Assert.True(Math.Abs(pencil - tick) * line.Length <= 60, $"{l.Name}: ticked {(tick - pencil) * line.Length:0} m from the train there");
+        }
+    }
+
+    [Theory]
+    [InlineData("frontier:7")]
+    [InlineData("deepTerritory:2")]
+    [InlineData("deadLines:3")]
+    public void TheMapAndTheCardPrintABendsNumberAndNothingElse(string name)
+    {
+        // Note 671 (the director, 13 Oct: "we just show the number. We don't say or off rails or any text there"): the
+        // board's own painted figure, digits only, and red where it'd have you off.
+        var route = Routes.Generate(Content, name, 6);
+        var line = route.Build();
+        var bends = PostedSpeeds.Of(route.Plan!, line, line.PathLength(RailLine.MainPath));
+        Assert.NotEmpty(bends);
+        foreach (var (_, _, kmh, why) in bends)
+        {
+            string figure = PostedSpeeds.Figure(kmh);
+            Assert.True(figure.All(char.IsAsciiDigit), $"\"{figure}\" for a {why ?? "bend"}");
+            Assert.Equal(why != "BRASS", PostedSpeeds.Derails(why));
         }
     }
 }

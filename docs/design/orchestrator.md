@@ -153,7 +153,7 @@ the final approach. All in a new `content/tuning/upkeep.json`.
 | # | Job | Comes | Tell | Fix | Left alone |
 |---|---|---|---|---|---|
 | U1 | **Hot box** (an axle box running dry) | Every 4 km of running per car, ±50 %; 1.5× above 18 m/s | A squeal, then smoke from the bogie, at the car's end | Grease from the landing above it: hold Use 3 s with the oil can (the lampman's locker) | After 60 s the car drags: −2 m/s top speed. After 120 s the box catches: a car fire (C.5) |
-| U2 | **A coupling working loose** | Every 6 km of rough track (bends, points) per gap | A knocking at the gap, getting faster | The wrench in the gap: hold Use 4 s | After 90 s the pin drops and the rake parts behind it: the cut-car rules (§24). The worst job, the rarest |
+| U2 | **A coupling working loose** | Only from a cause the crew can name (note 640; the director, the inbox, 12 Oct): a run-in (the whole brake held from speed) or a knock (coupling up too hard). Never on its own, never with a pack aboard | A knocking at the gap, getting faster | The wrench in the gap: hold Use 4 s | After 90 s of running (it holds while the train stands or a pack is aboard) the pin drops and the rake parts behind it: the cut-car rules (§24). The worst job, the rarest |
 | U3 | **A lamp guttering** | Each car lamp every 5 km | The light flickers and dims | Trim it: Use 1 s at the lamp | It goes out: the conditions' dark (×1.15 on the pressure), and Fire Flies' pull while it's out |
 | U4 | **Powder to the guns** | When a gun's ready rack is empty | The gun's rack shows empty; the gunner calls | Carry a charge from the stores car (the guard van's magazine) to the gun: a 6-round rack (combat.json `guns.rack`), filled from the night's 24 | The gun can't fire. It turns a gunner's reload into a walker's errand under fire |
 | U5 | **Sanding** (exists: App. A.2 GREASE) | Grades, wet rail | Wheelslip, the beat stutters | Sand from the running boards | The train stalls on the grade (exists) |
@@ -245,7 +245,7 @@ the line (`HoundRunTests`). A bot crew hauls at cruise (14 m/s), and the boards 
 | D4 | Quiet is the train's (seconds or metres since a threat) | Plus slack: idle players press it (§3.2 4) |
 | D5 | Hounds: a pack of 3–5 behind, any round fired near drives all off, can't board above 19 m/s | The director's packs as before; the run (§6.1) is the fast train's: faster than the train, one ball per hound |
 | D6 | Nothing between stops but the director's spends | Upkeep jobs (§5.1) and the run (§5.3), outside the budget |
-| D7 | §15: "scaling by train length, not enemy count multipliers" | Train length still sets the work; who's active sets how many come at once. **For the director: confirm the §15 change** |
+| D7 | §15: "scaling by train length, not enemy count multipliers" | Train length still sets the work; who's active sets how many come at once. **The director, 9 Oct: "Scale by both, higher numbers on both readings should increase threat level"; built: the pressure's rate × the crew and the cars (note 646)** |
 
 ## 8. Questions for the director
 

@@ -30,6 +30,9 @@ public sealed class HostGroup : ITransport, IConnectionInfo
     public double RoundTrip(PeerId peer) =>
         Route(peer) is ({ } t, var p) && t is IConnectionInfo info ? info.RoundTrip(p) : 0;
 
+    public CarrierLink? Via(PeerId peer) =>
+        Route(peer) is ({ } t, var p) && t is IConnectionInfo info ? info.Via(p) : null;
+
     public void Send(PeerId to, ReadOnlySpan<byte> payload, Delivery delivery)
     {
         if (_outward.TryGetValue(to, out var r))

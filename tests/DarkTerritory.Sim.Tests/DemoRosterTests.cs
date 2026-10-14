@@ -238,6 +238,42 @@ public class DemoRosterTests
     }
 
     [Fact]
+    public void APackSpreadsRoundItsCatchAndKeepsApart()
+    {
+        // Note 558 (the director, 9 Oct: "they overlapped each other a lot"): three come in from nearly one spot, each
+        // straight at the catch they'd heap up. They spread as they come, never nearer each other than about their spacing
+        // once apart, and on the catch they're round them, not in one pile on one side.
+        var n = new Night(4, speed: 0);
+        var me = OnGroundBeside(n, 2, 4);
+        n.Crew[1] = me;
+        n.Crew[2] = me with { Position = me.Position + new Double3(0, 0, 30) };
+        var at = PlayerMotor.WorldPosition(me, n.Train);
+        var a = n.World.AddEnemy(id => Ribbit.At(id, id, at + new Double3(14, 0, 0), E.Ribbits));
+        var b = n.World.AddEnemy(id => Ribbit.At(id, a.Id, at + new Double3(14.2, 0, 0.1), E.Ribbits));
+        var c = n.World.AddEnemy(id => Ribbit.At(id, a.Id, at + new Double3(14.1, 0, -0.15), E.Ribbits));
+        Enemy[] pack = [a, b, c];
+        static double Gap(Enemy x, Enemy y) => ((x.Local - y.Local) with { Y = 0 }).Length;
+        double nearest = double.MaxValue;
+        for (int i = 0; i < 60 && a.Phase != SpinePhase.Grab; i++)
+        {
+            n.Run(0.1);
+            if (i >= 15)
+                nearest = Math.Min(nearest, Math.Min(Gap(a, b), Math.Min(Gap(a, c), Gap(b, c))));
+        }
+        Assert.Equal(SpinePhase.Grab, a.Phase);
+        n.Run(3);
+        nearest = Math.Min(nearest, Math.Min(Gap(a, b), Math.Min(Gap(a, c), Gap(b, c))));
+        Assert.True(nearest > E.Ribbits.Spacing * 0.75, $"packmates {nearest:0.00} m apart");
+        // Round them: the bearings from the catch to the three span more than a right angle, and all are close.
+        var target = PlayerMotor.WorldPosition(n.Crew[1], n.Train);
+        var bearings = pack.Select(r => Math.Atan2(r.Local.X - target.X, r.Local.Z - target.Z)).OrderBy(x => x).ToList();
+        double span = bearings[^1] - bearings[0];
+        span = Math.Min(span, 2 * Math.PI - span);
+        Assert.True(span > Math.PI / 2, $"the pack's spread {span * 180 / Math.PI:0} degrees round its catch");
+        Assert.All(pack, r => Assert.True(((r.Local - target) with { Y = 0 }).Length < E.Ribbits.RingOut + 1.2, $"a Ribbit {((r.Local - target) with { Y = 0 }).Length:0.0} m off its catch"));
+    }
+
+    [Fact]
     public void AFriendEvensTheCountAndTheTongueLetsGo()
     {
         var n = new Night(4, speed: 0);
@@ -270,21 +306,89 @@ public class DemoRosterTests
 
     // ---- Solo (T89): with nobody to help, the held can struggle free.
 
-    [Fact]
-    public void AloneAndHeldYouCanStruggleFree()
+    /// <summary>Alone on the ground beside car 2, two Ribbits at you, until one has you.</summary>
+    static (Night N, Enemy Ribbit) HeldByARibbit(ulong seed = 1, EnemyTuning? enemies = null)
     {
-        var n = new Night(4, speed: 0);
+        var n = new Night(4, speed: 0, seed: seed, enemies: enemies);
         var me = OnGroundBeside(n, 2, 4);
         n.Crew[1] = me;
         var at = PlayerMotor.WorldPosition(me, n.Train);
-        var a = n.World.AddEnemy(id => Ribbit.At(id, id, at + new Double3(9, 0, 0), E.Ribbits));
-        n.World.AddEnemy(id => Ribbit.At(id, a.Id, at + new Double3(9, 0, 1.5), E.Ribbits));
+        var t = enemies ?? E;
+        var a = n.World.AddEnemy(id => Ribbit.At(id, id, at + new Double3(9, 0, 0), t.Ribbits));
+        n.World.AddEnemy(id => Ribbit.At(id, a.Id, at + new Double3(9, 0, 1.5), t.Ribbits));
         UntilGrab(n, a, 8);
         Assert.Equal(SpinePhase.Grab, a.Phase);
+        return (n, a);
+    }
+
+    [Fact]
+    public void AloneAndHeldYouCanStruggleFree()
+    {
+        // The struggle's one try, made to come off (soloStruggleChance 1).
+        var (n, a) = HeldByARibbit(enemies: E with { Grab = E.Grab with { SoloStruggleChance = 1 } });
         Assert.True(E.Grab.SoloStruggle < E.Ribbits.DevourSeconds);
         n.Run(E.Grab.SoloStruggle + 0.3, _ => new PlayerIntent { Buttons = PlayerButtons.Use });
         Assert.NotEqual(SpinePhase.Grab, a.Phase);
         Assert.True(n.Crew[1].Alive);
         Assert.False(n.Crew[1].Has(PlayerFlags.Held));
+    }
+
+    [Fact]
+    public void AStruggleThatFailsHoldsOnAndIsntTriedAgain()
+    {
+        // App. C.1 (the director, 13 Oct: "holding e shouldn't always result in escape"; note 681): one try a grab.
+        var (n, a) = HeldByARibbit(enemies: E with { Grab = E.Grab with { SoloStruggleChance = 0 } });
+        n.Run(E.Grab.SoloStruggle + 0.3, _ => new PlayerIntent { Buttons = PlayerButtons.Use });
+        Assert.Equal(SpinePhase.Grab, a.Phase);
+        Assert.True(a.StruggledOff);
+        Assert.True(n.Crew[1].Has(PlayerFlags.Held));
+    }
+
+    [Fact]
+    public void AloneTheStruggleComesOffAboutHalfTheTime()
+    {
+        // A coin flip (enemies.json grab.soloStruggleChance; it was 15%, and the director, 14 Oct: "really should have a
+        // higher rate of success", note 737): over thirty nights' grabs, about half come off, and never all or none.
+        int free = 0;
+        for (ulong seed = 1; seed <= 30; seed++)
+        {
+            var (n, a) = HeldByARibbit(seed);
+            n.Run(E.Grab.SoloStruggle + 0.3, _ => new PlayerIntent { Buttons = PlayerButtons.Use });
+            if (a.Phase != SpinePhase.Grab)
+                free++;
+        }
+        Assert.Equal(0.5, E.Grab.SoloStruggleChance);
+        Assert.InRange(free, 8, 22);
+    }
+
+    [Fact]
+    public void TheStruggleIsShorterThanEveryHold()
+    {
+        // Note 92's rule, kept with the chance (note 681): the try comes before any creature's kill.
+        Assert.True(E.Grab.SoloStruggle < E.Householder.GrabSeconds);
+        Assert.True(E.Grab.SoloStruggle < E.Hanger.GrabSeconds);
+        Assert.True(E.Grab.SoloStruggle < E.Ribbits.DevourSeconds);
+        Assert.True(E.Grab.SoloStruggle < E.SootChildren.DrainSeconds);
+        Assert.True(E.Grab.SoloStruggle < E.TippyToesie.SuffocateSeconds);
+    }
+
+    [Fact]
+    public void StruggledFreeAloneTheWhistlerIsBackInItsGap()
+    {
+        // App. C.1 (the director, 13 Oct: "monsters like the whistler should not disappear entirely if I hold e to escape").
+        var n = new Night(4, speed: 0, enemies: E with { Grab = E.Grab with { SoloStruggleChance = 1 } });
+        var w = n.World.AddEnemy(id => Whistler.InGap(id, n.Train, 2, E.Whistler));
+        n.Run(E.Whistler.WhistleAfterStop + E.Whistler.WhistleSeconds + 1);
+        n.Crew[1] = InGap(n, 2);
+        n.Run(0.5);
+        Assert.Equal(SpinePhase.Grab, w.Phase);
+        n.Run(E.Grab.SoloStruggle + 0.3, _ => new PlayerIntent { Buttons = PlayerButtons.Use });
+        Assert.NotEqual(SpinePhase.Gone, w.Phase);
+        Assert.Equal(2, w.Attached);
+        Assert.False(n.Crew[1].Has(PlayerFlags.Held));
+        // And, still stopped, it whistles again.
+        n.Crew[1] = OnGroundBeside(n, 0, 8);
+        n.Run(E.Whistler.WhistleAfterStop + 0.5);
+        Assert.Equal(SpinePhase.Telegraph, w.Phase);
     }
 }

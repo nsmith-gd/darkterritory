@@ -1,0 +1,746 @@
+using Ballast;
+using DarkTerritory.Sim.Bots;
+using DarkTerritory.Sim.Enemies;
+using DarkTerritory.Sim.Net;
+using DarkTerritory.Sim.Physics;
+using DarkTerritory.Sim.Player;
+using DarkTerritory.Sim.Route;
+using DarkTerritory.Sim.Train;
+
+namespace DarkTerritory.Sim.Tests;
+
+/// <summary>
+/// The crew bots answer the six creatures of 8 Oct (ARCHITECTURE §8 note 367; the director: "have the bots handle the six new
+/// creatures too"), each by the counter-play on its design page: the Mourners scattered off a body, Tower Jaw driven off and
+/// its wreck cleared with the driver stopped short of it, the Brakeman's brakes unwound and the man cornered by two, the
+/// Knotter's gap never walked and the Knotter killed slack at a stand and the cars coupled up, the Freight Beetle driven
+/// off, and a Hotbox stopped for, prised out from the side and its axle freed.
+/// </summary>
+public class BotsAnswerTheSixTests
+{
+    static readonly EnemyTuning E = Tuning.Enemies;
+    static readonly PlayerTuning P = Tuning.Player;
+    /// <summary>The director quiet (its grace never over): only what each test puts there.</summary>
+    static readonly EnemyTuning Quiet = E with { Director = E.Director with { GraceMinSeconds = 1e9, GraceMaxSeconds = 1e9 } };
+
+    static StopHand Hand(int id) => new(StopJob.None, new CrewCalls(), id, P.Cold);
+
+    static Double3 Beside(Night n, int car, double lateral, double along = 0)
+    {
+        var at = n.Train.Frames[car].ToWorld(new Double3(lateral, 0, along));
+        double hint = n.Train.Dynamics.Distance;
+        return at with { Y = PlayerMotor.GroundAt(at, n.Train.Line, ref hint) };
+    }
+
+    static PlayerState Ground(Night n, Double3 at) => PlayerMotor.SpawnOnGround(at, n.Train.Line, n.Train.Dynamics.Distance, P);
+
+    static double Flat(Double3 v) => (v with { Y = 0 }).Length;
+
+    static List<(int Id, PlayerState State)> Others(Night n, int id) => [.. n.Crew.Where(c => c.Key != id).Select(c => (c.Key, c.Value))];
+
+    /// <summary>The night, its bodies stepped too (what's hauled or pushed is their own physics).</summary>
+    static void Run(Night n, double seconds, Func<int, PlayerIntent> intent, Func<bool>? until = null)
+    {
+        for (int i = 0; i < seconds * SimConstants.TickRate && !(until?.Invoke() ?? false); i++)
+        {
+            n.Run(SimConstants.TickSeconds, intent);
+            n.World.StepBodies([.. n.Crew.Select(c => (c.Key, c.Value))]);
+        }
+    }
+
+    /// <summary>
+    /// The driver (id 1, in the cab) at the controls as the host works them from its intent, the rest by
+    /// <paramref name="walkers"/>; the train's speed its own. Stops early once <paramref name="until"/>.
+    /// </summary>
+    static void Drive(Night n, ConductorBot driver, Func<int, PlayerIntent> walkers, double seconds, Func<bool>? until = null)
+    {
+        for (int i = 0; i < seconds * SimConstants.TickRate && !(until?.Invoke() ?? false); i++)
+        {
+            driver.Crewmates = [.. n.Crew.Where(c => c.Key != 1).Select(c => c.Value)];
+            var intent = driver.Decide(n.Crew[1], n.World, n.World.Tick, out _);
+            if (CabControls.Clears(n.Controls, n.Train, CabControls.ReleasesBrake(intent, n.Crew[1], n.Train)))
+                n.Controls.Brake = 0;
+            CabControls.Apply(ref n.Controls, intent, n.Crew[1], n.Train);
+            n.Run(SimConstants.TickSeconds, id => id == 1 ? intent : walkers(id), holdSpeed: false);
+            n.World.StepBodies([.. n.Crew.Select(c => (c.Key, c.Value))]);
+        }
+    }
+
+    [Fact]
+    public void ABotGoesToABodyTheMournersAreDraggingAndClubsThemOffIt()
+    {
+        var n = new Night(4, speed: 0, enemies: Quiet);
+        var at = Beside(n, 2, 8);
+        var body = n.World.Bodies.SpawnRagdoll(n.Train, 3, new PlayerState { Parent = PlayerState.World, Position = at + Double3.Up * 0.3, LineHint = n.Train.Dynamics.Distance });
+        Run(n, E.Mourners.After + 20, _ => default);
+        Assert.Contains(n.World.ActiveEnemies.OfType<Mourner>(), m => body.TakenBy == m.Id);
+        int came = n.World.ActiveEnemies.OfType<Mourner>().Count(m => !m.Gone);
+        // A crewmate on the ballast by the train, 20 m off it: it goes, and clubs them.
+        var from = Beside(n, 3, 3);
+        var bodyAt = Bodies.WorldCentre(body, n.Train);
+        n.Crew[2] = Ground(n, bodyAt + ((from - bodyAt) with { Y = 0 }).Normalized * 20);
+        var hand = Hand(2);
+        Assert.True((Bodies.WorldCentre(body, n.Train) - n.Crew[2].Position).Length < E.CrewBots.MournersWithin);
+        Run(n, 60, id => Heed.Mourners(default, n.Crew[id], n.World, id, hand));
+        Assert.Equal(-1, body.TakenBy);
+        Assert.Equal(0, n.World.MournersTook);
+        Assert.Contains(n.World.Bodies.All, b => b.Id == body.Id);
+        Assert.True(n.World.ActiveEnemies.OfType<Mourner>().Count(m => !m.Gone) < came, "it never killed one");
+        Assert.Equal(P.Health, n.Crew[2].Health);
+        n.AssertFair();
+    }
+
+    /// <summary>
+    /// Note 623: clubbed off it, the body's picked up and carried home, up a car's steps and in, and the Mourners go (B.14: a
+    /// body in a car the engine pulls sends them off). Stood over, they never went: deadLines:3 seeds 1 and 4 stood 430–480 s
+    /// so at the mine head, the lift unwound.
+    /// </summary>
+    [Fact]
+    public void ABotCarriesTheBodyHomeFromTheMournersAndTheyGo()
+    {
+        var n = new Night(4, speed: 0, enemies: Quiet);
+        var at = Beside(n, 2, 8);
+        var body = n.World.Bodies.SpawnRagdoll(n.Train, 3, new PlayerState { Parent = PlayerState.World, Position = at + Double3.Up * 0.3, LineHint = n.Train.Dynamics.Distance });
+        Run(n, E.Mourners.After + 20, _ => default);
+        Assert.Contains(n.World.ActiveEnemies.OfType<Mourner>(), m => body.TakenBy == m.Id);
+        var from = Beside(n, 3, 3);
+        var bodyAt = Bodies.WorldCentre(body, n.Train);
+        n.Crew[2] = Ground(n, bodyAt + ((from - bodyAt) with { Y = 0 }).Normalized * 20);
+        var hand = Hand(2);
+        bool home = false;
+        Run(n, 120, id => Heed.Mourners(default, n.Crew[id], n.World, id, hand),
+            () => home = body.Carrier < 0 && body.Parent > 0 && n.Train.Dynamics.Consist.IndexOf(body.Parent) >= 0);
+        Assert.True(home, $"the body's at {Bodies.WorldCentre(body, n.Train)} (car {body.Parent}, carried by {body.Carrier}); the hand's {hand.Doing}");
+        Assert.Contains(n.World.Bodies.All, b => b.Id == body.Id);
+        Assert.Equal(0, n.World.MournersTook);
+        Run(n, 5, _ => default);
+        Assert.All(n.World.ActiveEnemies.OfType<Mourner>().Where(m => !m.Gone), m => Assert.Equal(MournerMode.Leave, m.Mode));
+        Assert.Equal(P.Health, n.Crew[2].Health);
+        n.AssertFair();
+    }
+
+    /// <summary>
+    /// Note 623 (D1: "a body never costs the night"): with the loading called done (late for the dawn, given up), a body's
+    /// left; one already in the arms is put down where it is, and the hand's away to its own work.
+    /// </summary>
+    [Fact]
+    public void WithTheTrainLeavingTheBodyIsLeft()
+    {
+        var n = new Night(4, speed: 0, enemies: Quiet);
+        var body = n.World.Bodies.SpawnRagdoll(n.Train, 3, new PlayerState { Parent = PlayerState.World, Position = Beside(n, 2, 8) + Double3.Up * 0.3, LineHint = n.Train.Dynamics.Distance });
+        n.World.AddEnemy(id => Mourner.Come(id, 1, body, n.Train, E.Mourners)[0]);
+        n.Crew[2] = Ground(n, Beside(n, 2, 14));
+        var calls = new CrewCalls();
+        var hand = new StopHand(StopJob.None, calls, 2, P.Cold);
+        var job = new PlayerIntent { MoveX = 0.7f };
+        Assert.NotEqual(job, Heed.Mourners(job, n.Crew[2], n.World, 2, hand));
+        calls.Leave(true);
+        Assert.Equal(job, Heed.Mourners(job, n.Crew[2], n.World, 2, hand));
+    }
+
+    /// <summary>
+    /// Note 623: a body in the train's footprint (fallen between two cars, under one, tight against one) is out of reach from
+    /// the ground, and a bot walking at it takes hold of the car's ladders (T90): it's left to the bot's own work, and to the
+    /// Mourners to take out (deadLines:3 seed 4's walkers were up car 4's ladder and down again through the lift).
+    /// </summary>
+    [Fact]
+    public void ABodyInTheTrainsFootprintIsLeftToTheBotsWork()
+    {
+        var n = new Night(4, speed: 0, enemies: Quiet);
+        // Fallen into the gap between cars 2 and 3, on the ballast there (deadLines:3 seed 4's gunner, off car 4's end), and
+        // the Mourners come for it: as it lies, not stepped (the cars' ends shoulder a ragdoll out of a gap).
+        var gap = Beside(n, 2, 0, n.Train.Frames[2].Shape.Bounds.Max.Z + 0.6);
+        var body = n.World.Bodies.SpawnRagdoll(n.Train, 3, new PlayerState { Parent = PlayerState.World, Position = gap + Double3.Up * 0.3, LineHint = n.Train.Dynamics.Distance });
+        n.World.AddEnemy(id => Mourner.Come(id, 1, body, n.Train, E.Mourners)[0]);
+        n.Crew[2] = Ground(n, Beside(n, 2, 6));
+        var job = new PlayerIntent { MoveX = 0.7f };
+        Assert.Equal(job, Heed.Mourners(job, n.Crew[2], n.World, 2, Hand(2)));
+        // The same out on the ballast, 8 m off the car: it's gone for.
+        var open = n.World.Bodies.SpawnRagdoll(n.Train, 4, new PlayerState { Parent = PlayerState.World, Position = Beside(n, 1, 8) + Double3.Up * 0.3, LineHint = n.Train.Dynamics.Distance });
+        n.World.AddEnemy(id => Mourner.Come(id, 1, open, n.Train, E.Mourners)[0]);
+        n.Crew[2] = Ground(n, Beside(n, 1, 14));
+        Assert.NotEqual(job, Heed.Mourners(job, n.Crew[2], n.World, 2, Hand(2)));
+    }
+
+    [Fact]
+    public void ABotOnFootClubsTheFreightBeetleOffItsLoad()
+    {
+        var n = new Night(4, speed: 0, enemies: Quiet);
+        var at = Beside(n, 2, 14);
+        var crate = n.World.Bodies.SpawnCargo(at, n.Train.Dynamics.Distance);
+        var beetle = n.World.AddEnemy(id => FreightBeetle.At(id, at + new Double3(2.5, 0, 0), n.Train.Dynamics.Distance, 0, E.FreightBeetle));
+        n.Crew[2] = Ground(n, Beside(n, 2, 4, 6));
+        bool off = false;
+        Run(n, 30, id => Heed.Beetle(default, n.Crew[id], n.World, id), until: () => off |= beetle.Mode == BeetleMode.Away || beetle.Gone);
+        Assert.True(off, $"the beetle's {beetle.Mode}, {beetle.Health} health");
+        Assert.True(n.Crew[2].Alive);
+        Assert.Equal(P.Health, n.Crew[2].Health);
+    }
+
+    static readonly Route.Route Frontier = RouteGenerator.Generate(Tuning.Route, RouteTier.Frontier, 7);
+    static readonly RouteFeature Tower = Frontier.Of(FeatureKind.Facility).First(f => f.Facility == FacilityKind.CoalingTower);
+
+    /// <summary>frontier:7 with its stops, the engine's front at <paramref name="front"/>, Tower Jaw at the coaling tower.</summary>
+    static (Night N, TowerJaw Jaw) AtTheTower(double front, double speed, double gnawed)
+    {
+        var n = new Night(4, speed, Frontier, enemies: Quiet, front: front);
+        // Standing on its brake (frontier:7 is graded there: off it, the train creeps down the hill).
+        if (speed == 0)
+            n.Controls = new TrainControls { Reverser = 1, Brake = 1 };
+        n.World.EnableRun(Tuning.Run, Frontier, 600, authority: true);
+        int facility = n.World.Run!.Facilities.ToList().IndexOf(Tower);
+        var jaw = n.World.AddEnemy(id => TowerJaw.AtCoalingTower(id, n.World, facility, E.TowerJaw, gnawed));
+        return (n, jaw);
+    }
+
+    /// <summary>A roof walker (no stop part) whose legs are its own, as a crew bot's are.</summary>
+    static RoofWalkerBot Walker(int id, int head = -1)
+    {
+        var w = new RoofWalkerBot(id, P.Cold) { Me = id };
+        w.Head(head);
+        return w;
+    }
+
+    [Fact]
+    public void BotsOnFootDriveTowerJawOffItsPostAndItNeverKillsThem()
+    {
+        var (n, jaw) = AtTheTower(Tower.Start - 40, 0, gnawed: 0.3);
+        var at = jaw.Local;
+        // Two of the crew down by the train, 15 m and 20 m off it: both go and club it.
+        n.Crew[2] = Ground(n, at + new Double3(15, 0, 0));
+        n.Crew[3] = Ground(n, at + new Double3(0, 0, 20));
+        var hands = new Dictionary<int, StopHand> { [2] = Hand(2), [3] = Hand(3) };
+        Assert.All(n.Crew.Values, c => Assert.True(Flat(c.Position - at) <= E.CrewBots.TowerJawWithin));
+        bool away = false;
+        Run(n, 40, id => Heed.TowerJaw(default, n.Crew[id], n.World, id, hands[id]), until: () => away |= jaw.Mode == TowerJawMode.Away);
+        Assert.True(away, $"Tower Jaw's {jaw.Mode}, {jaw.Health} health");
+        Assert.All(n.Crew.Values, c => Assert.True(c.Alive));
+        Assert.True(jaw.Gnawed < 0.5);
+        n.AssertFair();
+    }
+
+    [Fact]
+    public void TheDriverStopsShortOfTowerJawsWreckTheBotsClearItAndTheTrainGoesOn()
+    {
+        var (n, jaw) = AtTheTower(Tower.Start - 700, 12, gnawed: 0.97);
+        n.Run(0.05 * E.TowerJaw.GnawFor(RouteTier.Frontier) + 0.5);
+        Assert.Equal(TowerJawMode.Wreck, jaw.Mode);
+        double along = jaw.Blocks!.Value;
+        var driver = new ConductorBot(null, 0);
+        n.Crew[1] = PlayerMotor.SpawnInCab(n.Train, P);
+        n.Crew[2] = PlayerMotor.SpawnOnRoof(n.Train, 2, 0, P);
+        n.Crew[3] = PlayerMotor.SpawnOnRoof(n.Train, 3, 0, P);
+        var legs = new Dictionary<int, RoofWalkerBot> { [2] = Walker(2), [3] = Walker(3) };
+        var hands = new Dictionary<int, StopHand> { [2] = Hand(2), [3] = Hand(3) };
+        PlayerIntent Walk(int id) =>
+            Heed.TowerJaw(legs[id].Decide(n.Crew[id], n.World, n.World.Tick, out _), n.Crew[id], n.World, id, hands[id]);
+        double nearest = double.MaxValue;
+        Drive(n, driver, Walk, 400, until: () =>
+        {
+            if (!jaw.Gone)
+                nearest = Math.Min(nearest, along - E.TowerJaw.WreckHalf - n.Train.Dynamics.Distance);
+            return n.Train.Dynamics.Distance > along + 50;
+        });
+        Assert.True(jaw.Gone, $"the wreck's {jaw.Cleared:0} crew-seconds cleared; the train {along - n.Train.Dynamics.Distance:0} m short");
+        Assert.Equal(1, n.World.TowersCleared);
+        // Stopped short of it (never run into it: nothing hurt), and on past where it lay once it was cleared, the crew aboard.
+        Assert.InRange(nearest, 1, E.CrewBots.WreckStopShort + E.CrewBots.WreckHoldWithin);
+        Assert.Equal(1, n.Train.Vehicles[0].Integrity);
+        Assert.True(n.Train.Dynamics.Distance > along + 50, $"the train's {along - n.Train.Dynamics.Distance:0} m short ({driver.SixStep}; " + string.Join(", ", n.Crew.Select(c => $"{c.Key}: {c.Value.Parent} {c.Value.Surface} {c.Value.Position.X:0.0},{c.Value.Position.Z:0.0} {legs.GetValueOrDefault(c.Key)?.Job?.Doing}")) + ")");
+        Assert.All(n.Crew.Values, c => Assert.True(c.Alive && c.Parent != PlayerState.World));
+    }
+
+    static Brakeman AtTail(Night n) => n.World.AddEnemy(id =>
+    {
+        var last = n.Train.Cars[^1];
+        return Brakeman.Up(id, n.Train, last.FrontDistance - last.Length + 0.5, 1, E.Brakeman);
+    });
+
+    [Fact]
+    public void ARoofBotUnwindsTheWoundCarsAtTheirWheelsAndNeverWindsTheRakesOn()
+    {
+        var n = new Night(6, speed: 10, enemies: Quiet);
+        n.Train.Vehicles[4].Wound = true;
+        n.Train.Vehicles[5].Wound = true;
+        n.Crew[2] = PlayerMotor.SpawnOnRoof(n.Train, 2, 0, P);
+        Run(n, 60, id => Heed.Brakeman(default, n.Crew[id], n.World, id, Others(n, id), null),
+            until: () => n.Train.Vehicles.All(v => !v.Wound));
+        Assert.All(n.Train.Vehicles, v => Assert.False(v.Wound));
+        // Held a while longer at the last wheel, as a late snapshot would have it: still nothing wound on.
+        Run(n, 5, id => Heed.Brakeman(default, n.Crew[id], n.World, id, Others(n, id), null));
+        Assert.False(n.Train.Dynamics.Handbrake);
+        Assert.All(n.Train.Vehicles, v => Assert.False(v.Wound));
+        Assert.True(n.Crew[2].Alive);
+    }
+
+    [Fact]
+    public void ALoneBotKeepsUnwindingAndNeverChasesHim()
+    {
+        var n = new Night(6, speed: 10, enemies: Quiet);
+        var b = AtTail(n);
+        n.Crew[2] = PlayerMotor.SpawnOnRoof(n.Train, 2, 0, P);
+        int unwound = 0;
+        var was = n.Train.Vehicles.Select(v => v.Wound).ToArray();
+        for (int t = 0; t < 120 * SimConstants.TickRate; t++)
+        {
+            Run(n, SimConstants.TickSeconds, id => Heed.Brakeman(default, n.Crew[id], n.World, id, Others(n, id), null));
+            for (int c = 0; c < was.Length; c++)
+            {
+                unwound += was[c] && !n.Train.Vehicles[c].Wound ? 1 : 0;
+                was[c] = n.Train.Vehicles[c].Wound;
+            }
+            Assert.NotEqual(BrakemanMode.Cornered, b.Mode);
+        }
+        Assert.True(unwound >= 2, $"{unwound} unwound");
+        Assert.False(b.Gone);
+        Assert.False(n.Train.Dynamics.Handbrake);
+    }
+
+    /// <summary>
+    /// Note 601 (frontier:7, 4 bots, seeds 2 and 3): the train held short of the Foundry's points for its cut, the Brakeman
+    /// aboard and hidden. The pincer posted the shunter at the train's tail and back for four minutes, until the driver gave
+    /// the stop up with nothing loaded. At a stop a hand's own work goes on; under way, the pincer has it again.
+    /// </summary>
+    [Fact]
+    public void AtAStopTheBrakemanLeavesTheHandsToTheirWork()
+    {
+        var n = new Night(6, speed: 0, enemies: Quiet);
+        var b = AtTail(n);
+        n.Train.Vehicles[3].Wound = true;
+        n.Crew[2] = PlayerMotor.SpawnOnRoof(n.Train, 2, 0, P);
+        n.Crew[3] = PlayerMotor.SpawnOnRoof(n.Train, 3, 0, P);
+        // Its own work: along the roofs toward the cut, a step at a time.
+        var own = new PlayerIntent { MoveZ = 1, MoveX = 0.4f };
+        for (int t = 0; t < 30 * SimConstants.TickRate; t++)
+        {
+            foreach (int id in new[] { 2, 3 })
+            {
+                var heeded = Heed.Brakeman(own, n.Crew[id], n.World, id, Others(n, id), null, atAStop: true);
+                Assert.Equal(own.MoveZ, heeded.MoveZ);
+                Assert.Equal(own.MoveX, heeded.MoveX);
+                Assert.Equal(own.Buttons, heeded.Buttons);
+            }
+            Run(n, SimConstants.TickSeconds, _ => default);
+        }
+        Assert.False(b.Gone);
+        // A stand that isn't a stop's is his to work, and theirs to stop him at; under way again, the pincer has them.
+        Assert.NotEqual(own.MoveX, Heed.Brakeman(own, n.Crew[2], n.World, 2, Others(n, 2), null).MoveX);
+        n.Train.Dynamics.Velocity = 10;
+        Assert.NotEqual(own.MoveX, Heed.Brakeman(own, n.Crew[2], n.World, 2, Others(n, 2), null, atAStop: true).MoveX);
+    }
+
+    /// <summary>
+    /// Note 602 (frontier:7, 4 bots, seed 5): under way, the gunner stood over the loose gap behind car 5 with the wrench,
+    /// and the pincer took it along the roofs; the pin parted and the cars behind were lost. A hand going to a loose pin is
+    /// left to it; the others are his pincer as ever.
+    /// </summary>
+    [Fact]
+    public void GoingToALoosePinTheBrakemanLeavesTheHandToIt()
+    {
+        var n = new Night(6, speed: 10, enemies: Quiet);
+        AtTail(n);
+        n.Train.Vehicles[3].Wound = true;
+        n.Crew[2] = PlayerMotor.SpawnOnRoof(n.Train, 2, 0, P);
+        n.Crew[3] = PlayerMotor.SpawnOnRoof(n.Train, 3, 0, P);
+        Run(n, 2, _ => default);
+        var own = new PlayerIntent { MoveZ = 1, MoveX = 0.4f };
+        var pinning = Heed.Brakeman(own, n.Crew[2], n.World, 2, Others(n, 2), null, pinning: true);
+        Assert.Equal(own.MoveZ, pinning.MoveZ);
+        Assert.Equal(own.MoveX, pinning.MoveX);
+        Assert.Equal(own.Buttons, pinning.Buttons);
+        Assert.NotEqual(own.MoveX, Heed.Brakeman(own, n.Crew[2], n.World, 2, Others(n, 2), null).MoveX);
+    }
+
+    [Fact]
+    public void TwoRoofBotsCornerTheBrakemanFromBothSidesAndKillHim()
+    {
+        var n = new Night(6, speed: 10, enemies: Quiet);
+        var b = AtTail(n);
+        n.Crew[2] = PlayerMotor.SpawnOnRoof(n.Train, 2, 0, P);
+        n.Crew[3] = PlayerMotor.SpawnOnRoof(n.Train, 4, 0, P);
+        bool cornered = false;
+        Run(n, 300, id => Heed.Brakeman(default, n.Crew[id], n.World, id, Others(n, id), null), until: () =>
+        {
+            cornered |= b.Mode == BrakemanMode.Cornered;
+            return b.Gone;
+        });
+        Assert.True(cornered, $"never cornered: {b.Mode}");
+        Assert.True(b.Gone, $"he's {b.Mode}, {b.Health} health");
+        Assert.Contains(EnemyKind.Brakeman, n.World.Slain);
+        Assert.All(n.Crew.Values, c => Assert.True(c.Alive));
+        Assert.False(n.Train.Dynamics.Handbrake);
+        n.AssertFair();
+    }
+
+    [Fact]
+    public void ARoofWalkerNeverWalksOrJumpsAKnottersGap()
+    {
+        var n = new Night(6, speed: 12, enemies: Quiet);
+        var k = n.World.AddEnemy(id => Knotter.Into(id, n.Train, 3, E.Knotter));
+        n.Run(E.Knotter.CreepSeconds + E.Knotter.ForceSeconds + 0.5);
+        Assert.Equal(KnotterMode.Taut, k.Mode);
+        // One each side of it, walking at it.
+        n.Crew[2] = PlayerMotor.SpawnOnRoof(n.Train, 2, 0, P);
+        n.Crew[3] = PlayerMotor.SpawnOnRoof(n.Train, 5, 0, P);
+        var legs = new Dictionary<int, RoofWalkerBot> { [2] = Walker(2, +1), [3] = Walker(3, -1) };
+        int turnedAt2 = 0, turnedAt4 = 0;
+        for (int t = 0; t < 90 * SimConstants.TickRate; t++)
+        {
+            n.Run(SimConstants.TickSeconds, id => legs[id].Decide(n.Crew[id], n.World, n.World.Tick, out _));
+            // On its own side of the knot (in the air only over a gap it jumped), never on the knot's back nor in its coil.
+            Assert.True(n.Crew[2].Parent is >= 0 and <= 3 || n.Crew[2].Surface == Surface.Air, $"walker 2 on {n.Crew[2].Parent}");
+            Assert.True(n.Crew[3].Parent is >= 4 || n.Crew[3].Surface == Surface.Air, $"walker 3 on {n.Crew[3].Parent}");
+            Assert.All(n.Crew.Values, c => Assert.True(c.Alive && !c.Has(PlayerFlags.Held) && c.Surface is not (Surface.Coupler or Surface.Ground)));
+            turnedAt2 += n.Crew[2].Parent == 3 ? 1 : 0;
+            turnedAt4 += n.Crew[3].Parent == 4 ? 1 : 0;
+        }
+        Assert.True(turnedAt2 > 0 && turnedAt4 > 0, "a walker never came to the knot");
+        Assert.DoesNotContain(n.Events, e => e.Kind == EnemyKind.Knotter && e.To == SpinePhase.Grab);
+    }
+
+    [Fact]
+    public void TheDriverStopsForTheKnotterTheBotsKillItSlackAndTheTrainCouplesUpAndGoesOn()
+    {
+        var n = new Night(6, speed: 12, enemies: Quiet);
+        var k = n.World.AddEnemy(id => Knotter.Into(id, n.Train, 3, E.Knotter));
+        n.Run(E.Knotter.CreepSeconds + E.Knotter.ForceSeconds + 0.5);
+        Assert.Equal(KnotterMode.Taut, k.Mode);
+        int vehicles = n.Train.Dynamics.Consist.Vehicles.Count;
+        var driver = new ConductorBot(null, 0);
+        n.Crew[1] = PlayerMotor.SpawnInCab(n.Train, P);
+        n.Crew[2] = PlayerMotor.SpawnOnRoof(n.Train, 2, 0, P);
+        n.Crew[3] = PlayerMotor.SpawnOnRoof(n.Train, 5, 0, P);
+        var legs = new Dictionary<int, RoofWalkerBot> { [2] = Walker(2), [3] = Walker(3) };
+        var hands = new Dictionary<int, StopHand> { [2] = Hand(2), [3] = Hand(3) };
+        PlayerIntent Walk(int id) =>
+            Heed.Knotter(legs[id].Decide(n.Crew[id], n.World, n.World.Tick, out _), n.Crew[id], n.World, id, hands[id]);
+        bool slack = false, split = false;
+        Drive(n, driver, Walk, 300, until: () =>
+        {
+            slack |= k.Mode == KnotterMode.Slack;
+            split |= n.Train.TrainRakes > 1;
+            return k.Gone && n.Train.TrainRakes == 1 && n.Train.Dynamics.Speed > 4;
+        });
+        Assert.True(slack, "it never went slack");
+        Assert.True(k.Gone, $"the Knotter's {k.Mode}, {k.Health} health");
+        Assert.True(split, "killed, it never left the cars uncoupled");
+        Assert.Equal(1, n.Train.TrainRakes);
+        Assert.Equal(vehicles, n.Train.Dynamics.Consist.Vehicles.Count);
+        Assert.True(n.Train.Dynamics.Speed > 4, $"standing at {n.Train.Dynamics.Speed:0.0} m/s ({driver.SixStep})");
+        Assert.All(n.Train.Vehicles, v => Assert.Equal(0, v.Knot));
+        Assert.All(n.Crew.Values, c => Assert.True(c.Alive && c.Parent != PlayerState.World));
+        n.AssertFair();
+    }
+
+    /// <summary>
+    /// Note 630 (frontier:6, 4 bots, seed 16): killed on a grade their handbrakes didn't hold, the Knotter left seven cars
+    /// that crept back from under its gap while the crew climbed aboard. Once they passed a walking pace's tenth the driver
+    /// took them for gone and ran on without them. Rolling back slower than a lost cut, they're chased and coupled up.
+    /// </summary>
+    [Fact]
+    public void KilledTheKnotterTheDriverChasesTheCarsItLeftRollingBack()
+    {
+        var n = new Night(6, speed: 12, enemies: Quiet);
+        var k = n.World.AddEnemy(id => Knotter.Into(id, n.Train, 3, E.Knotter));
+        n.Run(E.Knotter.CreepSeconds + E.Knotter.ForceSeconds + 0.5);
+        int vehicles = n.Train.Dynamics.Consist.Vehicles.Count;
+        var driver = new ConductorBot(null, 0);
+        n.Crew[1] = PlayerMotor.SpawnInCab(n.Train, P);
+        n.Crew[2] = PlayerMotor.SpawnOnRoof(n.Train, 2, 0, P);
+        n.Crew[3] = PlayerMotor.SpawnOnRoof(n.Train, 5, 0, P);
+        var legs = new Dictionary<int, RoofWalkerBot> { [2] = Walker(2), [3] = Walker(3) };
+        var hands = new Dictionary<int, StopHand> { [2] = Hand(2), [3] = Hand(3) };
+        PlayerIntent Walk(int id) =>
+            Heed.Knotter(legs[id].Decide(n.Crew[id], n.World, n.World.Tick, out _), n.Crew[id], n.World, id, hands[id]);
+        bool rolled = false;
+        Drive(n, driver, Walk, 300, until: () =>
+        {
+            // The grade, as it lets go: its cars' handbrakes off and rolling back at seed 16's pace.
+            if (!rolled && k.Gone && n.Train.Rakes.FirstOrDefault(r => r != n.Train.Dynamics) is { } left)
+                (left.Handbrake, left.Velocity, rolled) = (false, -0.3, true);
+            return rolled && n.Train.TrainRakes == 1 && n.Train.Dynamics.Speed > 4;
+        });
+        Assert.True(rolled, $"the Knotter's {k.Mode}, {k.Health} health");
+        Assert.Equal(1, n.Train.TrainRakes);
+        Assert.Equal(vehicles, n.Train.Dynamics.Consist.Vehicles.Count);
+        Assert.True(n.Train.Dynamics.Speed > 4, $"standing at {n.Train.Dynamics.Speed:0.0} m/s ({driver.SixStep})");
+    }
+
+    /// <summary>
+    /// Note 619 (local:435 from Radley, slot seed 7, hosted as the app hosts it): down car 1's side-door steps at the
+    /// Knotter's stand, a hand landed on their last tread and turned back along the car for the gap behind car 2, up the
+    /// tread onto the steps, and was sent down them again: four ticks round, for 800 s, the door held open and the lamp lit,
+    /// and Fire Flies set cars 1 and 2 alight sixteen times. Off the treads it walks out clear of them first, and on to the gap.
+    /// </summary>
+    [Fact]
+    public void OffASideDoorsStepsAHandWalksOutClearOfThemNotBackUpThem()
+    {
+        var n = new Night(4, speed: 0, enemies: Quiet);
+        var frame = n.Train.Frames[1];
+        // Just off the last tread, on the ballast at its foot (where the walker landed).
+        var tread = frame.Shape.Solids.Where(s => s.Part == PartKind.Steps && s.Box.Max.X < 0).MinBy(s => s.Box.Max.Y).Box;
+        n.Crew[2] = Ground(n, Beside(n, 1, tread.Centre.X, tread.Min.Z - 0.1));
+        var hand = Hand(2);
+        var behind = n.Train.Frames[2];
+        var gap = Beside(n, 2, -(behind.Shape.HalfWidth + 0.6), behind.Shape.HalfLength);
+        bool boarded = false;
+        Run(n, 30, id => hand.Afoot(n.Crew[id], n.World, gap, 0.6) ?? default,
+            until: () => (boarded |= n.Crew[2].Parent != PlayerState.World) || Flat(gap - PlayerMotor.WorldPosition(n.Crew[2], n.Train)) <= 0.6);
+        Assert.False(boarded, $"up car {n.Crew[2].Parent}'s steps again ({hand.Doing})");
+        Assert.True(Flat(gap - PlayerMotor.WorldPosition(n.Crew[2], n.Train)) <= 1, $"{Flat(gap - PlayerMotor.WorldPosition(n.Crew[2], n.Train)):0.0} m short of the gap");
+    }
+
+    /// <summary>
+    /// Note 619 (local:486 from Fort Fenwick, slot seed 9): sent down to the Knotter from a car shut up for the cold, two
+    /// walkers walked into its shut side door for 180 s; and every car the Fire Flies set alight had its lamp lit and a door
+    /// a crewmate went out by left open. Down to the ground from a car shut up, its lamp lit: the door opened, out, and shut
+    /// behind.
+    /// </summary>
+    [Fact]
+    public void OutOfACarShutUpAHandOpensItsDoorAndShutsItBehindOnALitLamp()
+    {
+        var n = new Night(4, speed: 0, enemies: Quiet);
+        var car = n.Train.Vehicles[2];
+        Assert.True(car.LampLit);
+        car.DoorsOpen = 0;
+        int door = StopHand.SideDoor(n.Train.Frames[2].Shape, -1)!.Value;
+        n.Crew[2] = new PlayerState { Parent = 2, Position = new Double3(0, Tuning.Train.Geometry.Interior!.FloorHeight, 0), Surface = Surface.Deck, Health = P.Health };
+        var hand = Hand(2);
+        var frame = n.Train.Frames[2];
+        var gap = Beside(n, 2, -(frame.Shape.HalfWidth + 0.6), frame.Shape.HalfLength);
+        bool opened = false;
+        Run(n, 40, id => hand.Afoot(n.Crew[id], n.World, gap, 0.6) ?? default, until: () =>
+        {
+            opened |= car.DoorOpen(door);
+            return Flat(gap - PlayerMotor.WorldPosition(n.Crew[2], n.Train)) <= 0.6;
+        });
+        Assert.True(opened, $"never opened it ({hand.Doing}, car {n.Crew[2].Parent})");
+        Assert.Equal(PlayerState.World, n.Crew[2].Parent);
+        Assert.True(Flat(gap - PlayerMotor.WorldPosition(n.Crew[2], n.Train)) <= 1, $"{hand.Doing}, short of the gap");
+        Assert.False(car.DoorOpen(door), "the door left open on a lit lamp");
+    }
+
+    /// <summary>
+    /// Note 614 (local:7, 4 bots, seed 5, and five more of the other tiers' 7 km nights): a Whistler watching the Knotter's own
+    /// gap at its stand. Kept off the gap as a pair, the bots stood at its edge three minutes and never clubbed the Knotter,
+    /// the driver waiting on them. Two together, the Whistler takes neither, and they kill the Knotter and the train goes on
+    /// (here 25 s into the stand, and on at 45 s; kept off, 195 s and 217 s).
+    /// </summary>
+    [Fact]
+    public void WithAWhistlerInTheKnottersGapAPairOfBotsStillKillsIt()
+    {
+        var n = new Night(6, speed: 12, enemies: Quiet);
+        var k = n.World.AddEnemy(id => Knotter.Into(id, n.Train, 3, E.Knotter));
+        n.World.AddEnemy(id => Whistler.InGap(id, n.Train, 3, E.Whistler));
+        n.Run(E.Knotter.CreepSeconds + E.Knotter.ForceSeconds + 0.5);
+        Assert.Equal(KnotterMode.Taut, k.Mode);
+        var driver = new ConductorBot(null, 0);
+        n.Crew[1] = PlayerMotor.SpawnInCab(n.Train, P);
+        n.Crew[2] = PlayerMotor.SpawnOnRoof(n.Train, 2, 0, P);
+        n.Crew[3] = PlayerMotor.SpawnOnRoof(n.Train, 2, 2, P);
+        var legs = new Dictionary<int, RoofWalkerBot> { [2] = Walker(2), [3] = Walker(3) };
+        var hands = new Dictionary<int, StopHand> { [2] = Hand(2), [3] = Hand(3) };
+        PlayerIntent Walk(int id) => Heed.Gaps(
+            Heed.Knotter(legs[id].Decide(n.Crew[id], n.World, n.World.Tick, out _), n.Crew[id], n.World, id, hands[id]),
+            n.Crew[id], n.World, id, Others(n, id));
+        // On within a minute and a half: kept off the gap, it was more than three before the Whistler gave up its watch.
+        Drive(n, driver, Walk, 90, until: () => k.Gone && n.Train.TrainRakes == 1 && n.Train.Dynamics.Speed > 4);
+        Assert.True(k.Gone, $"the Knotter's {k.Mode}, {k.Health} health");
+        Assert.Equal(1, n.Train.TrainRakes);
+        Assert.True(n.Train.Dynamics.Speed > 4, $"standing at {n.Train.Dynamics.Speed:0.0} m/s ({driver.SixStep})");
+        Assert.All(n.Crew.Values, c => Assert.True(c.Alive && !c.Has(PlayerFlags.Held)));
+    }
+
+    /// <summary>
+    /// Note 614 (local:7, 4 bots, seed 5): the Knotter killed, the driver waited for everyone down on the ground to be aboard
+    /// before backing onto the cars it left, though the gunner was 100 m off by them and kept from the engine's rake by a bend's
+    /// ledge: six minutes. It waits for those by the gap it closes; anyone further off is picked up as the cars are.
+    /// </summary>
+    [Fact]
+    public void KilledTheKnotterTheDriverBacksOntoTheCarsWithACrewmateDownFarFromTheGap()
+    {
+        var n = new Night(6, speed: 12, enemies: Quiet);
+        var k = n.World.AddEnemy(id => Knotter.Into(id, n.Train, 2, E.Knotter));
+        n.Run(E.Knotter.CreepSeconds + E.Knotter.ForceSeconds + 0.5);
+        var driver = new ConductorBot(null, 0);
+        n.Crew[1] = PlayerMotor.SpawnInCab(n.Train, P);
+        n.Crew[2] = PlayerMotor.SpawnOnRoof(n.Train, 2, 0, P);
+        n.Crew[3] = PlayerMotor.SpawnOnRoof(n.Train, 1, 0, P);
+        var legs = new Dictionary<int, RoofWalkerBot> { [2] = Walker(2), [3] = Walker(3) };
+        var hands = new Dictionary<int, StopHand> { [2] = Hand(2), [3] = Hand(3) };
+        PlayerIntent Walk(int id) => id == 4 ? default
+            : Heed.Knotter(legs[id].Decide(n.Crew[id], n.World, n.World.Tick, out _), n.Crew[id], n.World, id, hands[id]);
+        // Stood for it, a crewmate goes down by the tail, 40 m and more from the knot behind car 2, and stays there.
+        Drive(n, driver, Walk, 60, until: () => n.Train.Dynamics.Speed < 0.05);
+        n.Crew[4] = Ground(n, Beside(n, n.Train.Dynamics.Consist.Vehicles[^1].Id, 3));
+        bool backed = false;
+        Drive(n, driver, Walk, 120, until: () =>
+        {
+            backed |= k.Gone && n.Train.TrainRakes == 1;
+            return backed;
+        });
+        Assert.True(k.Gone, $"the Knotter's {k.Mode}, {k.Health} health");
+        Assert.True(backed, $"killed, never coupled up: {driver.SixStep}, {n.Train.TrainRakes} rakes");
+    }
+
+    /// <summary>
+    /// Note 545 (frontier:7, 4 bots, seed 8): a Knotter in car 2's coupling, a wound car ahead of it and the Brakeman dead.
+    /// Every roof bot was sent for the wound car's wheel across the knot, which the roofs never cross, and stood at the gap's
+    /// edge: at the stand, for 240 s, while the Knotter lay slack and nobody went down for it; then on at speed, all night.
+    /// </summary>
+    [Fact]
+    public void ARoofBotNeverHeadsForAWheelAcrossAKnottersGap()
+    {
+        var n = new Night(6, speed: 12, enemies: Quiet);
+        var k = n.World.AddEnemy(id => Knotter.Into(id, n.Train, 3, E.Knotter));
+        n.Run(E.Knotter.CreepSeconds + E.Knotter.ForceSeconds + 0.5);
+        Assert.Equal(KnotterMode.Taut, k.Mode);
+        n.Train.Vehicles[1].Wound = true;
+        n.Crew[2] = PlayerMotor.SpawnOnRoof(n.Train, 5, 0, P);
+        Run(n, 30, id => Heed.Brakeman(default, n.Crew[id], n.World, id, Others(n, id), null));
+        Assert.Equal(5, n.Crew[2].Parent);
+        Assert.True(n.Train.Vehicles[1].Wound);
+    }
+
+    /// <summary>
+    /// Note 545: the train stood for the Knotter, a wound car beyond it, the roof bots behind it. They go down and kill it
+    /// slack (the stand is for that), not along the roofs for a wheel; the train couples up and goes on.
+    /// </summary>
+    [Fact]
+    public void AtTheKnottersStandTheBotsKillItBeforeAnyWheelBeyondIt()
+    {
+        var n = new Night(6, speed: 12, enemies: Quiet);
+        var k = n.World.AddEnemy(id => Knotter.Into(id, n.Train, 3, E.Knotter));
+        n.Run(E.Knotter.CreepSeconds + E.Knotter.ForceSeconds + 0.5);
+        Assert.Equal(KnotterMode.Taut, k.Mode);
+        n.Train.Vehicles[1].Wound = true;
+        var driver = new ConductorBot(null, 0);
+        n.Crew[1] = PlayerMotor.SpawnInCab(n.Train, P);
+        n.Crew[2] = PlayerMotor.SpawnOnRoof(n.Train, 4, 0, P);
+        n.Crew[3] = PlayerMotor.SpawnOnRoof(n.Train, 5, 0, P);
+        var legs = new Dictionary<int, RoofWalkerBot> { [2] = Walker(2), [3] = Walker(3) };
+        var hands = new Dictionary<int, StopHand> { [2] = Hand(2), [3] = Hand(3) };
+        // In the order a bot's crew heeds them (BotCrew.Think): the Knotter, then the Brakeman.
+        PlayerIntent Walk(int id) => Heed.Brakeman(
+            Heed.Knotter(legs[id].Decide(n.Crew[id], n.World, n.World.Tick, out _), n.Crew[id], n.World, id, hands[id]),
+            n.Crew[id], n.World, id, Others(n, id), null);
+        Drive(n, driver, Walk, 200, until: () => k.Gone && n.Train.TrainRakes == 1 && n.Train.Dynamics.Speed > 4);
+        Assert.True(k.Gone, $"the Knotter's {k.Mode}, {k.Health} health ({driver.SixStep})");
+        Assert.Equal(1, n.Train.TrainRakes);
+        Assert.True(n.Train.Dynamics.Speed > 4, $"standing at {n.Train.Dynamics.Speed:0.0} m/s ({driver.SixStep})");
+        Assert.All(n.Crew.Values, c => Assert.True(c.Alive && c.Parent != PlayerState.World));
+    }
+
+    /// <summary>
+    /// frontier:7 with dawn <paramref name="dawn"/> s in, the engine's front 4 km along, running at 12 m/s on its run; a Knotter
+    /// forced into car 3's coupling (taut), and the driver alone in the cab: nobody to kill it.
+    /// </summary>
+    static (Night N, ConductorBot Driver, Knotter K) KnottedAt(double dawn)
+    {
+        var route = Frontier with { DawnSeconds = dawn };
+        var n = new Night(6, speed: 12, route, enemies: Quiet, front: 4000);
+        n.World.EnableRun(Tuning.Run, route, 600, authority: true);
+        var k = n.World.AddEnemy(id => Knotter.Into(id, n.Train, 3, E.Knotter));
+        n.Run(E.Knotter.CreepSeconds + E.Knotter.ForceSeconds + 0.5);
+        Assert.Equal(KnotterMode.Taut, k.Mode);
+        n.Crew[1] = PlayerMotor.SpawnInCab(n.Train, P);
+        return (n, new ConductorBot(null, 0), k);
+    }
+
+    /// <summary>
+    /// Note 615 (queue #347; frontier:7 seed 13, 4 bots: stood for a Knotter on car 2 from 36 s after the dawn line, every hand
+    /// come forward to the cab, and taken by the Wakers 4.4 km short, 215 s into the stand's 240): from dawn, a stand their run
+    /// up to the train won't allow is given up on, and the driver goes on.
+    /// </summary>
+    [Fact]
+    public void AtDawnTheDriverGoesOnRatherThanStandForAKnotter()
+    {
+        var (n, driver, k) = KnottedAt(dawn: 3);
+        Assert.True(ConductorBot.DawnInHand(n.World, E, E.CrewBots.StandGiveUp, driver.CruiseSpeed) <= 0);
+        double stood = 0;
+        Drive(n, driver, _ => default, 60, until: () =>
+        {
+            stood += n.Train.Dynamics.Speed < 0.05 ? SimConstants.TickSeconds : 0;
+            return false;
+        });
+        Assert.True(n.Train.Dynamics.Speed > 4, $"standing at {n.Train.Dynamics.Speed:0.0} m/s ({driver.SixStep}; the Knotter {k.Mode})");
+        Assert.True(stood < 5, $"stood {stood:0} s");
+    }
+
+    /// <summary>Note 615: the same knot with the night's dawn far off: stood for, the stand note 367 gives the crew to kill it.</summary>
+    [Fact]
+    public void WithDawnFarOffTheDriverStandsForTheKnotter()
+    {
+        var (n, driver, _) = KnottedAt(dawn: 3000);
+        Assert.True(ConductorBot.DawnInHand(n.World, E, E.CrewBots.StandGiveUp, driver.CruiseSpeed) > 0);
+        Drive(n, driver, _ => default, 60);
+        Assert.True(n.Train.Dynamics.Speed < 0.05, $"going at {n.Train.Dynamics.Speed:0.0} m/s");
+        Assert.Equal("for the Knotter", driver.SixStep);
+    }
+
+    [Fact]
+    public void TheDriverStopsForAHotboxABotPrisesItOutFromTheSideAndFreesTheAxle()
+    {
+        var t = E.Hotbox;
+        var n = new Night(6, speed: 14, enemies: Quiet);
+        var h = n.World.AddEnemy(id => Hotbox.In(id, n.Train, 3, rear: true, 1, t));
+        // Hot enough to have seized its axle: the train dragging, the glow seen.
+        h.Extra = t.KnockSeconds + t.GlowSeconds + 1;
+        n.Run(0.5);
+        Assert.Equal(HotboxMode.Seized, h.Mode);
+        Assert.True(n.Train.Vehicles[3].Seized);
+        var driver = new ConductorBot(null, 0);
+        n.Crew[1] = PlayerMotor.SpawnInCab(n.Train, P);
+        n.Crew[2] = PlayerMotor.SpawnOnRoof(n.Train, 5, 0, P);
+        var legs = new Dictionary<int, RoofWalkerBot> { [2] = Walker(2) };
+        var hands = new Dictionary<int, StopHand> { [2] = Hand(2) };
+        PlayerIntent Walk(int id) =>
+            Heed.Hotbox(legs[id].Decide(n.Crew[id], n.World, n.World.Tick, out _), n.Crew[id], n.World, id, hands[id], Others(n, id));
+        bool prised = false, stood = false;
+        Drive(n, driver, Walk, 300, until: () =>
+        {
+            prised |= h.Mode == HotboxMode.Prised;
+            stood |= n.Train.Dynamics.Speed < 0.05;
+            return h.Gone && !n.Train.Vehicles[3].Seized && n.Train.Dynamics.Speed > 4;
+        });
+        Assert.True(stood, "the driver never stopped");
+        Assert.True(prised, $"never prised: {h.Mode}");
+        Assert.True(h.Gone);
+        Assert.False(n.Train.Vehicles[3].Seized);
+        Assert.True(n.Train.Dynamics.Speed > 4, $"standing at {n.Train.Dynamics.Speed:0.0} m/s ({driver.SixStep})");
+        // From the side: out of its bite all along.
+        Assert.Equal(P.Health, n.Crew[2].Health);
+        Assert.True(n.Crew[2].Parent != PlayerState.World);
+    }
+
+    [Fact]
+    public void ABotCrewOverTheNetworkStopsForAHotboxPrisesItAndFreesTheAxle()
+    {
+        // The whole crew as a night runs it (each bot a client, over lossy loopback, reading only what's sent): 30 s in, a
+        // Hotbox has seized car 3's axle. The driver stops, a walker gets down and prises it out, the axle's freed, and on
+        // (stood at 39 s, freed at 68, on at 77, when it was written).
+        var t = E.Hotbox;
+        Hotbox? h = null;
+        double? stood = null, freed = null, on = null;
+        CrewOfTwoTests.Night(CrewOfTwoTests.OpenLine.Spec, 6, 110, null, start: CrewOfTwoTests.OpenLine.Start, bots: 3, each: w =>
+        {
+            if (h is null && w.ElapsedSeconds >= 30)
+            {
+                h = w.AddEnemy(id => Hotbox.In(id, w.Train, 3, rear: true, 1, t));
+                h.Extra = t.KnockSeconds + t.GlowSeconds + 1;
+            }
+            if (h is null)
+                return;
+            if (stood is null && w.Train.Dynamics.Speed < 0.05)
+                stood = w.ElapsedSeconds;
+            if (stood is not null && freed is null && h.Gone && !w.Train.Vehicles[3].Seized)
+                freed = w.ElapsedSeconds;
+            if (freed is not null && on is null && w.Train.Dynamics.Speed > 4)
+                on = w.ElapsedSeconds;
+        });
+        Assert.NotNull(h);
+        Assert.True(stood is not null, "the driver never stopped");
+        Assert.True(freed is not null, $"never freed: the Hotbox {h!.Mode}, car 3 seized {h.Gone}");
+        Assert.True(on is not null, $"freed at {freed:0} s, never on again");
+    }
+}

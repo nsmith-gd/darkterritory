@@ -1,6 +1,6 @@
 # Late Dispatch
 
-An example Dark Territory mod. Dispatch holds the main line ten minutes past dawn: `dawnGraceSeconds` goes from 120 to 720.
+An example Dark Territory mod: the old dawn, held late. In the game, the Wakers rise at dawn and come down the line after the train. This mod leaves them asleep (`wakers.enabled: false`, in `content/tuning/enemies.json`), so dawn is the main line going live again, as it was before them, and dispatch holds it twelve minutes past dawn instead of two (`dawnGraceSeconds` 120 → 720, in `content/tuning/run.json`). A little more time; when it runs out, the night is lost ("Dawn missed").
 
 ## Making your own
 

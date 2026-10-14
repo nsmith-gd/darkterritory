@@ -48,8 +48,10 @@ public class FacilityBuildingArtTests
         // The winch's sleds come in from SledFrom to the track (GDD §18, facilities.json "winch"). Where GreyboxScene sets
         // the buildings' frame (25 m short of the layout down the spur, 4 out, +Z back along it), nothing of them (the
         // tip above all) may stand on that run, on whichever side of the spur they are.
-        var site = SiteOf("deepTerritory:3", FacilityKind.MineHead);
-        Assert.True(site.Spur >= 0);
+        // deepTerritory:11's mine head has a winch (deepTerritory:3's did on its 24 km line): beyond its lift, a mine head's
+        // modules are drawn by chance (facilities.json "kinds").
+        var site = SiteOf("deepTerritory:11", FacilityKind.MineHead);
+        Assert.True(site.Spur >= 0 && site.Has(ModuleKind.Winch));
         var foot = site.Track.Sample(site.Mid - 25);
         var right = Double3.Cross(foot.Tangent, Double3.Up).Normalized;
         var origin = foot.Position + right * (site.Side * 4.0);
@@ -101,7 +103,7 @@ public class FacilityBuildingArtTests
     {
         // GreyboxScene.Chute pours from 8.8 m up, 0.4 off the track on the tower's side, over the spout (Run.ChuteAt); the
         // lever stands 6 m along. The tower's frame is the feature's middle (on the main line, not pushed out).
-        var night = Sim.LineGen.Routes.Generate(Content, "deepTerritory:8", 6);
+        var night = Sim.LineGen.Routes.Generate(Content, "deepTerritory:12", 6);
         var line = night.Build();
         var run = new Run(DataFile.Load<RunTuning>(Path.Combine(Content, RunTuning.File)), night);
         var tower = night.Of(FeatureKind.Facility).First(f => f.Facility == FacilityKind.CoalingTower);
@@ -178,7 +180,7 @@ public class FacilityBuildingArtTests
         Assert.Contains(model.Materials, m => m.Glow >= 1);
         // The yard's tracks, where its cars stand to be fetched (note 187), and its own spur: the shed, its dock and its
         // canopy stand clear of all of them, on the yards of a few nights.
-        foreach (var route in new[] { "frontier:1", "frontier:2", "frontier:4", "frontier:7" })
+        foreach (var route in new[] { "frontier:1", "frontier:2", "frontier:6", "frontier:7" })
         {
             var (run, line, site) = YardOf(route, FacilityKind.Switchyard);
             var (_, world) = FrameOf(site);

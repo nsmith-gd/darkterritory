@@ -361,7 +361,9 @@ public sealed partial class GameAudio
                         if (c.Stride >= stride)
                         {
                             c.Stride = Math.Min(c.Stride - stride, stride * 0.5);
-                            Cue(Running(s.Surface, speed) ? "crew-footsteps.run" : "crew-footsteps.walk", Footing.Under(s, world) ?? "ground", feet, occlusion);
+                            // Note 664: crouched, a quieter step (player.json crouch.footstepGainDb); nothing else listens for them.
+                            float soft = s.Has(PlayerFlags.Crouched) && world.Movement is { } mt ? (float)Math.Pow(10, mt.Crouch.FootstepGainDb / 20) : 1;
+                            Cue(Running(s.Surface, speed) ? "crew-footsteps.run" : "crew-footsteps.walk", Footing.Under(s, world) ?? "ground", feet, occlusion, soft);
                         }
                     }
                     else
@@ -1148,7 +1150,8 @@ public sealed partial class GameAudio
                 }
                 // Laid by its seated gunner (T112): the steam motor and its gear while it turns or lifts, faster the faster it
                 // goes (combat.json's traverse rate is full), and the gear's clunk as it stops.
-                double laid = Math.Abs(g.Traverse - m.Traverse) + Math.Abs(g.Elevation - m.Elevation);
+                // (The short way round: the forward gun turns the full circle past its back, note 596.)
+                double laid = Math.Abs(Math.IEEERemainder(g.Traverse - m.Traverse, 2 * Math.PI)) + Math.Abs(g.Elevation - m.Elevation);
                 if (laid > 1e-5)
                 {
                     m.LastLaid = _time;
@@ -1311,7 +1314,8 @@ public sealed partial class GameAudio
             // The extinguisher at work (App. C.5).
             if (b.Kind == BodyKind.Extinguisher)
             {
-                bool carried = b.Carrier >= 0;
+                // Put away in a slot (note 594), it's on them, not at work.
+                bool carried = b.Carrier >= 0 && !b.Stashed;
                 if (carried && b.Charge < m.Charge - 1e-9)
                     m.LastDrain = _time;
                 var carrier = carried ? CrewStates.FirstOrDefault(x => x.Id == b.Carrier) : default;

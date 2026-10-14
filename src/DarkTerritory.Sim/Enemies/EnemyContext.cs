@@ -28,6 +28,14 @@ public sealed class EnemyContext
     public IEnumerable<(PlayerSnapshot Player, Double3 World)> LivingCrew() =>
         Crew.Where(c => c.Player.State.Alive).Select(c => (c.Player, PlayerMotor.WorldPosition(c.Player.State, Train)));
 
+    /// <summary>
+    /// Note 717 (the director, 14 Oct 2026: a shover whose shove killed is the one "all the monsters in the game should target
+    /// more heavily"): how near <paramref name="player"/> counts as, for whom to go for, at <paramref name="distance"/> (m, or
+    /// whatever the creature ranks by). Everyone at their distance; a marked crewmate at a share of it less an allowance, so a
+    /// creature that can reach them prefers them over someone nearer. The creatures' picks order by it.
+    /// </summary>
+    public double Weigh(int player, double distance) => World.WeighTarget(player, distance);
+
     /// <summary>A hurt that can't kill (it leaves a player on 1): the fairness contract's "the consequence starts now".</summary>
     public void Bite(int playerId, int amount, DeathCause cause) => Damage.Add(new DamageEvent(playerId, amount, cause));
 
@@ -43,9 +51,12 @@ public sealed class EnemyContext
     public void Hold(int playerId) => Held.Add(playerId);
 
     /// <summary>Held players being carried off, and to where in the world (the Whistler at a run, the Passenger to the caboose).</summary>
-    public List<(int Player, Double3 To)> Carries { get; } = new();
+    public List<(int Player, Double3 To, bool Up)> Carries { get; } = new();
 
-    public void Carry(int playerId, Double3 to) => Carries.Add((playerId, to));
+    public void Carry(int playerId, Double3 to) => Carries.Add((playerId, to, false));
+
+    /// <summary>A held player hung up off the ground at <paramref name="to"/> (the Hanger's strand, note 586): in the air, not stood.</summary>
+    public void Lift(int playerId, Double3 to) => Carries.Add((playerId, to, true));
 
     /// <summary>Pulls a player off the train over the side (App. A.4, the Draggers): at speed, that's death.</summary>
     public void Pull(int playerId, Double3 outward) => Damage.Add(new DamageEvent(playerId, 0, DeathCause.Dragged, outward));

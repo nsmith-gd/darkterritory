@@ -165,7 +165,7 @@ The score is a weighted sum: throws ×1, couplings ×0.5, reversals ×1.5, blind
 | Lever | Local | Frontier | Dead lines | Deep territory |
 |---|---|---|---|---|
 | Consist (spec F table) | 3 cars | 8 | 15 | 20 |
-| Empties to fill (half, the departure load) | 2 | 4 | 8 | 10 |
+| Empties to fill (car-loads a stop is stocked for; the train leaves empty, note 575) | 2 | 4 | 8 | 10 |
 | Yard forms | spur 45%, loop 40%, fan 15% | spur 15%, loop 25%, fan 40%, parallel 20% | loop 10%, fan 35%, parallel 35%, split 20% | fan 30%, parallel 35%, split 35% |
 | Sidings | 1–2 | 2–4 | 3–5 | 4–6 |
 | Siding holds | 5–7 cars | 3–5 | 3–5 | 2–4 |
@@ -374,14 +374,13 @@ What stands beside a generated line between the stops, and what of it you walk i
 - **The night's own.** Everything is dealt from the night's seed, the same on every machine. The woods get a stream per 12 m slot, the road per 45 m cell, the shore per 20 m cell, and each biome prop its own stream in its block.
 
 ## L.2 Solid
-- **Out to 40 m from the line** (run.json `walls.linesideReachM`), each tree is a wall at its trunk, each boulder at its lump (one sunk under a step is walked over), and each pole at its foot.
+- **Out to 40 m from the line** (run.json `walls.linesideReachM`), each tree is a wall at its trunk, each boulder at its lump (one sunk under a step is walked over), and each pole at its foot. So is each pine out to 40 m from an alternate's or a dead line's own track (ARCHITECTURE §8 note 432).
 - **Each kit piece stands on its footprint**, measured off its own mesh (content/linegen/footprints.json): a house, barn, shed, car, woodpile, ruin, chimney, lighthouse or length of stone wall as the box round it; a church as its nave and tower; a tank round; a headframe on its four legs and its stay, so the ground between them is open; a road's pole or fence post at its foot. A burying ground and a wharf are walked through.
 - **What meets them:** the crew, what's loose at a stop or running beside the train, the Moose's charge, the Whistler's run, cannon balls and bodies.
 - **Past 40 m** the woods are only seen. The stops' ground is cleared further out than that anyway.
 
 ## L.3 Not yet
 - **What's still only seen:**
-  - the branches' trees;
   - the railway's leavings beside the line (E1's);
   - a burying ground's stones and fence, and a wharf's deck (it wants a floor to walk out on);
   - a hand-laid line's trees.
@@ -399,18 +398,17 @@ A Holdout is the only way back into a run. What goes where:
 
 | Site | Holdouts | Types | Where |
 |---|---|---|---|
-| **Facility yard** | 1, plus a second on a pad 200 m or longer, and at every switchyard | Prison car on a spare siding (commonest at switchyards, wreck yards and military depots); a barricaded signal box, lamp room or water tower; always the lamp room at a mine head | 60–200 m from where the consist stops, clear of the loading |
-| **Village halt** | 1 | The halt's lockup, or a shelter in the village | The lockup is behind the platform, within 40 m of the line. A shelter is within 80 m |
+| **Facility yard** | 1, plus a second on a pad 200 m or longer, and at every switchyard | Prison car on a spare siding (commonest at switchyards, wreck yards and military depots); a barricaded signal box, lamp room or water tower; always the lamp room at a mine head | Beside a track by the consist (the one it stands on first), 3.5–7 m off it, within 100 m of where it stops, 30 m clear of the loading |
+| **Village halt** | 1 | The halt's lockup, or a shelter in the village | The lockup is behind the platform, within 40 m of the line. A shelter is beside the main line, within 100 m of the halt |
 
-A Holdout is *searched for*, not laid out. Candidates are drawn where its type stands (a signal box or water tower by a track, a lockup behind the platform, anything else round the site), and the first one that meets every rule is kept:
+A Holdout is *searched for*, not laid out. Candidates are drawn where its type stands (a lockup behind the platform; anything else beside the track the consist stands on, near where it stops), and the first one that meets every rule is kept:
 
 1. It fits: clear of buildings, track and roads.
-2. It's at D.4's distance from the consist, or from the line.
-3. **It doesn't share the walk to the loading.** It's 30 m clear of every loading container, and at least 45° off the direction of the nearest one, seen from the consist. Rescue competes with loading for people.
-4. **It can be walked to** from the stopped consist, round the buildings (D.14 "recoverability").
-5. **Its lamp is seen from the approach**: the 1 km board at a facility, the whistle board at a halt, past every building.
+2. **It's right beside the line** (the director, the inbox, 12 Oct: "Holdouts should never be on the line but should be essentially right next to the line. Minimum rescue time"; note 650): its near face 3.5–7 m off a track, within 100 m of where the consist stops, and at a facility 30 m clear of every loading container (in the hands' way at the loading face it slowed the loading: note 650). A halt's lockup is within 40 m of the line. The old rule that kept a Holdout off the walk to the loading, so rescue competed with it for people, is gone.
+3. **It can be walked to** from the stopped consist, round the buildings (D.14 "recoverability").
+4. **Its lamp is seen from the approach**: the 1 km board at a facility, the whistle board at a halt, past every building.
 
-The stop's checks verify all five again on the finished layout. A stop where none can be placed is rerolled.
+The stop's checks verify all four again on the finished layout. A stop where none can be placed is rerolled.
 
 ## H.2 Where the outside creatures live
 - **Ribbits' warrens (B.6 "yards and villages"):** on open ground in the yard and in the village, clear of buildings and track, 40 m from the train and 20 m from the main line. There are more at deeper tiers (1 at local, up to 4 in deep territory).
@@ -464,6 +462,5 @@ The artifact's scores illustrate the rules. The sim is calibrated to its own mea
 
 ## I.4 Not yet
 - **Trailing points and loops (a north lead).** The train sim measures every position as a distance along the main line up to the points, then along a branch that leaves facing up-line. A switch facing the other way breaks that model for the train, couplings, bots and loading alike, so it's an engine change of its own.
-- **Bots don't restart a yard's power.** A bot crew at a yard whose power is low or dead never walks to the powerhouse's switchboard (note 509), so its cranes stand idle; its crates are still carried by hand. Dead power is most yards in deep territory.
-- **Bots don't clear a blocked siding.** Their stop crew works a facility's own track and its modules, and a switchyard's standing cars (ARCHITECTURE §8 note 187). They do breach Holdouts (notes 152, 259); once the site's own crates are in, the crate hands fetch the crates lying elsewhere in the yard on foot (note 403), the heavy ones two to a crate (note 440), and then half of them search the village's open houses and bring the finds aboard (note 326); caught out among the houses by the Choir, a hand shuts itself into the nearest one until it's quiet (note 413; a pair's cottages are a home each, note 453), and one loading a car shuts the car up (note 439).
+- **Bots don't clear a blocked siding.** Their stop crew works a facility's own track and its modules, and a switchyard's standing cars (ARCHITECTURE §8 note 187). They do breach Holdouts (notes 152, 259), and with a yard's power dead or low the crane's operator (or the conveyor's shunter) walks to the powerhouse and restarts it first (note 639); once the site's own crates are in, the crate hands fetch the crates lying elsewhere in the yard on foot (note 403), the heavy ones two to a crate (note 440), and then half of them search the village's open houses and bring the finds aboard (note 326); caught out among the houses by the Choir, a hand shuts itself into the nearest one until it's quiet (note 413; a pair's cottages are a home each, note 453), and one loading a car shuts the car up (note 439).
 - **Buildings' interiors are a first slice.** Every stop building is solid now (ARCHITECTURE §8 notes 155, 274, 279, 326): every village house stands open, one floor, the bigger ones in two rooms (an L's wing and a long house's back room, through an inner doorway; a cross its parts together), its doors hanging open until a crewmate shuts them (note 401), ransacked, its finds inside to search (note 326); the barns, outbuildings and a dead town's goods shed open as walk-in shells, a hayloft's or a workbench's find inside to search (note 417); a dead town's station open the same way, nothing in it (note 493); the yard's powerhouse open, its power restarted at the switchboard inside, dark until it runs (note 509); a dead town's derelicts, signal boxes, lamp rooms, water towers, lockups, prison cars and wells shut, a find in one put on its step; the sheds and the hero as their walls with the bay door the art draws, so the crates inside are fetched through it; a Holdout as its walls with its door open where it's breached, its occupant coming back inside and walking out. The art still paints the sheds' and Holdouts' doors on closed boxes: walking in through one shows the inside of nothing (an art row for C1).

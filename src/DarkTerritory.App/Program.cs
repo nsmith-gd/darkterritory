@@ -50,13 +50,27 @@ using CrewActs = DarkTerritory.Game.Art.CrewActs;
 // Voice (networked): open mic with voice activity, or push to talk (the settings, or --push-to-talk) and hold V. Hold T
 //   to talk on the radio. --no-mic to only listen.
 
+// The garbage collector never stops the game for a full collection while it plays, unless memory runs short (note 695:
+// its pauses are stutters; the background collector does the work alongside the frames instead).
+System.Runtime.GCSettings.LatencyMode = System.Runtime.GCLatencyMode.SustainedLowLatency;
+
 // A crash leaves a report (the exception, and the last things the game said) in the user's app data (--crashes dir
 // elsewhere), and the next launch opens on a notice that says where it is (note 411).
 int crashesAt = Array.IndexOf(args, "--crashes");
-var crashes = CrashReports.Install(crashesAt >= 0 && crashesAt + 1 < args.Length ? args[crashesAt + 1] : null);
+string? crashesDir = crashesAt >= 0 && crashesAt + 1 < args.Length ? args[crashesAt + 1] : null;
+string? logsDir = null;
+#if DEVTOOLS
+// A developer build keeps its logs and reports in the game's own folder, where the director finds them (GDD §34.2, note
+// 677); one that can't write there keeps them in the app data, as a player's does.
+if (crashesDir is null && DarkTerritory.Dev.TestReports.GameLogs() is { } gameLogs)
+    (crashesDir, logsDir) = (Path.Combine(gameLogs, "reports"), gameLogs);
+#endif
+var crashes = CrashReports.Install(crashesDir, logs: logsDir);
 #if DEVTOOLS
 // A developer build's tools (note 514): reached only here and under the other DEVTOOLS hooks; a player's build has none of it.
-var dev = DarkTerritory.Dev.DevTools.Start(args);
+var dev = DarkTerritory.Dev.DevTools.Start(args, crashes, logsDir);
+// The creature gym (GDD §34.1, note 676): the night it's on, while it's on.
+DarkTerritory.Dev.Gym.CreatureGym? gym = null;
 #endif
 
 // The system's file browser on a folder (note 411): Explorer, Finder, or whatever xdg-open hands it to; or, given an address
@@ -84,7 +98,15 @@ string Arg(string name, string fallback)
 // Mods (T49) laid over the base content, unless --no-mods plays the base game.
 // A mod manager's profile (Thunderstore, T78) comes in as --mods-dir.
 args = Mods.TakeArgs(args);
+// Content's hot reload (note 687): on in a dev build, and for a mod author launching with --hot-reload; a player's game loads
+// its content once and asks the disk nothing per frame. Set before any content loads: a reloading file takes its watch then.
+HotReload.Enabled = args.Contains("--hot-reload");
+#if DEVTOOLS
+HotReload.Enabled = true;
+#endif
 var content = Mods.Mount(DataFile.FindContentRoot(Environment.CurrentDirectory), enabled: !args.Contains("--no-mods"));
+// The figures out in the Territory and their words (note 570): Dave.
+FigureTalk.Words = FigureWords.Load(content);
 // The art pass's surfaces (T39); --greybox draws flat colour instead.
 var look = args.Contains("--greybox") ? null : Look.Load(content);
 var connectLobby = LaunchArgs.ConnectLobby(args);
@@ -137,6 +159,11 @@ var frontEnd = new FrontEnd(campaignTuning, runTuning, saves, Arg("--settings", 
     Reports = ReportsTuning.Load(content),
     ProblemReport = () => crashes.WriteProblem(),
 };
+#if DEVTOOLS
+// The creature gym (GDD §34.1, note 676), on a developer build's title screen.
+frontEnd.DevEntries = [("CREATURE GYM", "Every creature, one at a time, called when you're ready (developer builds).",
+    new Launch.DevTool(DarkTerritory.Dev.Gym.CreatureGym.ToolName))];
+#endif
 // Note 452: every report says what the game is: its edition and mods, whether Steam's up, and (asked as it's written) the
 // settings, the screen or the night and where it had got to.
 crashes.Context("edition", EditionTuning.Load(content).Name);
@@ -158,6 +185,11 @@ if (frontEnd.Crash is not null)
 // A night named on the command line starts straight away; otherwise it's the front end's choice.
 Launch? LaunchFromArgs()
 {
+#if DEVTOOLS
+    // --gym (note 676): straight into the creature gym.
+    if (args.Contains("--gym"))
+        return new Launch.DevTool(DarkTerritory.Dev.Gym.CreatureGym.ToolName);
+#endif
     int cars = int.Parse(Arg("--cars", "6"));
     int? port = !args.Contains("--host") ? null : int.TryParse(Arg("--host", ""), out var p) ? p : NetPlaySession.DefaultPort;
     string? password = Arg("--password", "") is { Length: > 0 } pw ? pw : null;
@@ -167,7 +199,10 @@ Launch? LaunchFromArgs()
         return new Launch.Join(Arg("--join", "127.0.0.1")) { Password = password };
     var edition = EditionTuning.Load(content);
     if (Arg("--campaign", "") is { Length: > 0 } slot && edition.Campaign)
-        return new Launch.CampaignNight(int.Parse(slot), int.Parse(Arg("--contract", "0")), args.Contains("--resume"), port is not null);
+        return new Launch.CampaignNight(int.Parse(slot), int.Parse(Arg("--contract", "0")), args.Contains("--resume"), port is not null)
+        {
+            Bots = int.TryParse(Arg("--bots", "0"), out var crew) ? crew : 0,
+        };
     string? route = Arg("--route", "") is { Length: > 0 } r ? r : null;
     // The demo's nights are on its own tiers (T79), whatever's asked for.
     if (route is not null && edition.Tiers.Length > 0 && !edition.HasTier(DarkTerritory.Sim.Route.Route.ParseSpec(route).Tier))
@@ -218,7 +253,9 @@ if (Path.Combine(content, "art", "ui", "icon.png") is var iconPath && File.Exist
     var icon = Ballast.Render.ImageFile.Load(iconPath);
     window.SetIcon(icon.Width, icon.Height, icon.Rgba);
 }
-window.Fullscreen = startSettings.Fullscreen && windowSize.Width == 0;
+// Note 672: a window, or the whole screen borderless or exclusive; --window is always a window.
+static WindowMode ModeOf(DisplayMode d) => d switch { DisplayMode.Borderless => WindowMode.Borderless, DisplayMode.Fullscreen => WindowMode.Fullscreen, _ => WindowMode.Windowed };
+window.Mode = windowSize.Width == 0 ? ModeOf(startSettings.Display) : WindowMode.Windowed;
 // --vr: the headset makes the GPU (it has to pick the device and the extensions), and the window mirrors the flat view.
 using var vr = args.Contains("--vr") ? StartVr() : null;
 VrView? StartVr()
@@ -269,11 +306,11 @@ void ApplyDisplay()
         (UiWidth, UiHeight) = now.Canvas;
         renderer.OverlaySize = new Vector2(UiWidth, UiHeight);
     }
-    if (vr is not null || now.Fullscreen == shownSettings.Fullscreen && now.Resolution == shownSettings.Resolution
+    if (vr is not null || now.Display == shownSettings.Display && now.Resolution == shownSettings.Resolution
         && now.RenderScale == shownSettings.RenderScale && now.VSync == shownSettings.VSync)
         return;
-    window.Fullscreen = now.Fullscreen;
-    if (!now.Fullscreen && (now.Resolution != shownSettings.Resolution || now.Fullscreen != shownSettings.Fullscreen))
+    window.Mode = ModeOf(now.Display);
+    if (now.Display == DisplayMode.Windowed && (now.Resolution != shownSettings.Resolution || now.Display != shownSettings.Display))
         window.SetSize(now.WindowSize.Width, now.WindowSize.Height);
     if (now.VSync != swapchain.VSync)
     {
@@ -293,10 +330,24 @@ void ApplyDisplay()
 Console.WriteLine($"GPU: {gpu.DeviceName}, window {w}x{h}, internal {renderer.Width}x{renderer.Height}");
 
 var sound = new GameAudio(content);
+// Note 667: no take decodes where it's played, on the frame or the mixing thread; a first play starts a decode's few
+// milliseconds late instead.
+sound.Bank.Samples.InlineBytes = 0;
 // The menus' sounds (ui-menus): flat, through the same mixer the speaker's fed from in the menus too.
 frontEnd.Cue = sound.Ui;
 using var speaker = args.Contains("--mute") ? null : AudioOut.Open(Audio.SampleRate, out var audioError) is { } s ? s : Warn(audioError);
-var audioBlock = new float[Audio.Block * 2];
+// Note 667 (the director, 13 Oct: "I'm getting audio skips"): the speaker's fed from a thread of its own, not the frame, so
+// a slow frame is late on screen and never a gap in the ears. Disposed before the speaker (declared after it).
+using var pump = speaker is null ? null : new AudioPump(sound.Mixer, () => speaker.QueuedSeconds, block => speaker.Write(block), sound.Mixer.Mix.DeviceLead,
+    sound.Mixer.Mix.DeviceLeadMax);
+int gapsLogged = 0;
+// Since the last slow frame's line: the times the device ran dry (FrameWatch's lines, note 549).
+string Gaps()
+{
+    int now = pump?.Underruns ?? 0, since = now - gapsLogged;
+    gapsLogged = now;
+    return since == 0 ? "" : $"; audio ran dry {since} times";
+}
 var micSamples = new float[4800];
 static AudioIn? NoMic(string? error)
 {
@@ -308,17 +359,12 @@ static AudioOut? Warn(string? error)
     Console.WriteLine($"audio: no output device ({error}); running silent");
     return null;
 }
-// Keep ~60 ms queued at the device; muted in the settings, it gets silence.
-void FeedSpeaker()
+// The settings' volumes and mute to the speaker's thread; muted, it gets silence.
+void SpeakerSettings()
 {
-    while (speaker is not null && speaker.QueuedSeconds < 0.06)
-    {
-        sound.Mixer.Volumes = frontEnd.Settings.Volumes;
-        sound.Mixer.Render(audioBlock);
-        if (frontEnd.Settings.Mute)
-            Array.Clear(audioBlock);
-        speaker.Write(audioBlock);
-    }
+    sound.Mixer.Volumes = frontEnd.Settings.Volumes;
+    if (pump is not null)
+        pump.Mute = frontEnd.Settings.Mute;
 }
 
 var input = window.Input;
@@ -341,6 +387,9 @@ LobbyId? relaunch = null;
 
 void Present(in Camera camera, in FrameLighting lighting)
 {
+    // Alt+Enter (note 672), in the menus and in a night alike; a headset has no window to fill.
+    if (window.Input.AltEnter && vr is null)
+        frontEnd.AltEnter();
     ApplyDisplay();
     if (window.Resized)
     {
@@ -386,7 +435,17 @@ LobbyId? Invited(NetPlaySession? net)
 }
 
 bool menuOpened = false;
+// Note 604: after a delivered campaign night, the town the crew arrived in, behind the front end in place of the stand-in yard.
+TownBackdrop? inTown = null;
 bool QuitNow() => quitAfter > 0 && timer.Elapsed.TotalSeconds >= quitAfter;
+
+// The town the crew's in behind the menus and the loading card (notes 604, 606): built into the mesh, the view and light its.
+void Backdrop(TownBackdrop town)
+{
+    var view = town.Camera;
+    town.Scene(look).Build(mesh, town.Train, view.Position);
+    (menuView, menuLight) = (view, Views.Lighting(town.Train, look));
+}
 
 // The front end over a night scene: the fortress yard with a train standing in it, the camera slowly looking about.
 Launch? Menu()
@@ -408,12 +467,18 @@ Launch? MenuLoop()
 {
     var trainTuning = DataFile.Load<TrainTuning>(Path.Combine(content, TrainTuning.File));
     var line = DarkTerritory.Sim.Rail.RailLine.Load(Path.Combine(content, "lines", "test-loop.json"));
-    var standing = new TrainOnLine(new TrainDynamics(Consist.Uniform(trainTuning, 6, 1)), line, 1200);
-    var view = Views.Get("trackside", standing);
-    var backdrop = new GreyboxScene { Time = 0.37, Look = look };
-    backdrop.Build(mesh, standing, view.Position);
-    var light = Views.Lighting(standing, look);
-    (menuView, menuLight) = (view, light);
+    // The town the crew's in (note 604), from its square, the train home in its yard; else the stand-in yard.
+    if (inTown is { } town)
+        Backdrop(town);
+    else
+    {
+        var standing = new TrainOnLine(new TrainDynamics(Consist.Uniform(trainTuning, 6, 1)), line, 1200);
+        var stand = Views.Get("trackside", standing);
+        new GreyboxScene { Time = 0.37, Look = look }.Build(mesh, standing, stand.Position);
+        (menuView, menuLight) = (stand, Views.Lighting(standing, look));
+    }
+    var view = menuView;
+    var light = menuLight;
     double started = timer.Elapsed.TotalSeconds;
     // In a headset the menus float ahead, over the yard (T36), and the controllers work them.
     var vrMenu = vr is null ? null : new VrPanel(DataFile.Load<VrTuning>(Path.Combine(content, VrTuning.File)).Menu);
@@ -513,7 +578,7 @@ Launch? MenuLoop()
             return new Launch.Quit();
         else
             Mirror();
-        FeedSpeaker();
+        SpeakerSettings();
         input.EndFrame();
         frameCount++;
     }
@@ -533,9 +598,10 @@ Launch? MenuLoop()
 // What a night was, for a report (note 452): "a hosted night, frontier:7, 6 cars, 3 bots".
 static string Doing(Launch chosen) => chosen switch
 {
-    Launch.CampaignNight c => $"a campaign night, slot {c.Slot}, contract {c.Contract}{(c.Resume ? ", resumed" : "")}{(c.Host ? ", hosted" : "")}",
+    Launch.CampaignNight c => $"a campaign night, slot {c.Slot}, contract {c.Contract}{(c.Resume ? ", resumed" : "")}{(c.Host ? ", hosted" : "")}{(c.Bots > 0 ? $", {c.Bots} bots" : "")}",
     Launch.Night n => $"a {(n.Host ? "hosted" : "solo")} night, {n.Route ?? n.RouteFile ?? n.Line}, {n.Cars} cars{(n.Bots > 0 ? $", {n.Bots} bots" : "")}",
     Launch.Join j => $"joined {j.Address}",
+    Launch.DevTool t => $"the {t.Name}",
     Launch.JoinLobby l => $"joined Steam lobby {l.Lobby}",
     _ => chosen.GetType().Name,
 };
@@ -544,6 +610,22 @@ static string Doing(Launch chosen) => chosen switch
 (IPlaySession Session, CampaignState? Campaign) Start(Launch chosen)
 {
     bool enemies = !args.Contains("--no-enemies");
+#if DEVTOOLS
+    // The creature gym (GDD §34.1, note 676): a solo night at its stop, private and on loopback, nothing coming by itself.
+    if (chosen is Launch.DevTool { Name: DarkTerritory.Dev.Gym.CreatureGym.ToolName })
+    {
+        gym = DarkTerritory.Dev.Gym.CreatureGym.Load(content);
+        // --gym-call ribbit,gaunt: those called as the night begins (headless captures, or straight to one).
+        if (Arg("--gym-call", "") is { Length: > 0 } calls)
+            gym.CallAtStart = DarkTerritory.Dev.Live.EnemyNames.ParseAll(calls.Split(','));
+        var gymSetup = gym.Setup() with { MusicBag = musicBags.Load(), FirstChildReal = profile.FirstChildReal };
+        var gymNight = NetPlaySession.HostGame(content, gymSetup, port: null, bots: 0, listed: false);
+        gym.Begin(gymNight.Host!);
+        Console.WriteLine($"the creature gym: {gym.Tuning.Route} at {gym.Stop?.Facility?.ToString() ?? "its stop"}, {gym.Tuning.Cars} cars; F6 picks, F7 calls, F10 clears");
+        return (gymNight, null);
+    }
+    gym = null;
+#endif
     switch (chosen)
     {
         case Launch.JoinLobby lobby when steam is not null:
@@ -560,6 +642,11 @@ static string Doing(Launch chosen) => chosen switch
                 Console.WriteLine($"joining {endpoint}…");
                 return (NetPlaySession.Join(content, endpoint, password: join.Password), null);
             }
+        case Launch.Follow after:
+            {
+                Console.WriteLine($"going on with the crew from {after.Going.Town.Name}: waiting on the host's next night");
+                return (NetPlaySession.Follow(content, after.Going), null);
+            }
         case Launch.CampaignNight night:
             {
                 // Spec E: the host owns the campaign, and picks a slot. The night is the contract picked from the board, with
@@ -571,24 +658,17 @@ static string Doing(Launch chosen) => chosen switch
                 campaign = Campaign.Begin(campaign, contract) with { Checkpoint = resume };
                 saves.Save(campaign);
                 int? port = night.Host ? NetPlaySession.DefaultPort : null;
-                var setup = new SessionSetup(Route: contract.Route, Cars: campaign.Cars, Enemies: enemies)
-                {
-                    Upgrades = campaign.Upgrades,
-                    SpareKits = campaign.SpareKits,
-                    MusicBag = campaign.Music,
-                    Identities = campaign.Identities,
-                    // GDD §9 (note 182): the contract's freight in every loaded car, and the stores bought for the night.
-                    Cargo = contract.Cargo,
-                    Powder = campaign.Stores.Powder,
-                    SpareLamps = campaign.Stores.Lamps,
-                    SpareExtinguishers = campaign.Stores.Extinguishers,
-                    FirstChildReal = profile.FirstChildReal,
-                    LastTown = campaign.LastTown,
-                };
-                Console.WriteLine($"campaign slot {night.Slot} ({campaign.Name}): {campaign.Cars} cars, {campaign.Scrip:0} scrip, tonight {contract.Route} carrying {Cargoes.Name(contract.Cargo)} at {contract.PerCar:0} a car{(resume is not null ? $", resuming after facility {resume.Facility}" : "")}");
+                // Note 591: from the town the crew's in (last night's terminus), if they got to one.
+                // The slot's night (HostedAsApp.Campaign, note 616: the harness's campaign nights are made the same way).
+                var setup = HostedAsApp.Campaign(campaign, contract, enemies) with { FirstChildReal = profile.FirstChildReal };
+                Console.WriteLine($"campaign slot {night.Slot} ({campaign.Name}): {campaign.Cars} cars, {campaign.Scrip:0} scrip, tonight {contract.Route}, about {contract.PerCar:0} a car-load{(resume is not null ? $", resuming after facility {resume.Facility}" : "")}");
                 // Note 450: private, behind the host screen's password (listed with a lock); with none typed, unlisted as before.
                 string? password = frontEnd.Settings.PublicLobby ? null : frontEnd.Settings.LobbyPassword.Trim() is { Length: > 0 } pw ? pw : null;
-                return (NetPlaySession.HostGame(content, setup, port, online: night.Host ? steam : null, resume: resume,
+                // The crew's bots (note 611), kept for the board's next contract: the host going on from the town takes them too.
+                frontEnd.Bots = night.Bots;
+                if (night.Bots > 0)
+                    Console.WriteLine($"a crew of {night.Bots} bot{(night.Bots == 1 ? "" : "s")} aboard");
+                return (NetPlaySession.HostGame(content, setup, port, online: night.Host ? steam : null, resume: resume, bots: night.Bots,
                     listed: frontEnd.Settings.PublicLobby || password is not null, lobbyName: frontEnd.LobbyName, password: password, mood: frontEnd.Settings.Mood), campaign);
             }
         // From the menu always the real night (T110: with no bots too, it's the same game alone); the bare prototype is the
@@ -658,6 +738,24 @@ while (!window.CloseRequested && !QuitNow())
     (playing, doing) = (session, Doing(leaving));
     campaign = Play(session, campaign);
     (playing, doing) = (null, "the menus");
+    bool delivered = session.World.Run?.End == DarkTerritory.Sim.Run.RunEnd.Delivered;
+    // Note 606: a joiner whose host went on to the next night goes after it.
+    var following = session is NetPlaySession { Lost: true, GoingOn: { } going } ? going : null;
+    // Note 604: delivered to a town (note 591's campaign town), the front end stands in it until the next night's picked; a
+    // joiner following its host waits in it.
+    inTown = (leaving is Launch.CampaignNight && campaign?.Town is not null || following is not null) && delivered
+        && session.Route is { } arrivedOn && session.World.Arrival is { } arrival
+        ? new TownBackdrop(arrivedOn, session.Train, session.World.Run, arrival, session.World.Town) : null;
+    // Note 606: the host's going on from the town; its crew's told, and given a moment to hear it before it hangs up.
+    if (leaving is Launch.CampaignNight && delivered && campaign?.Town is { } goingOn && session is NetPlaySession { Host: not null } goingHost)
+    {
+        goingHost.CarryOn(goingOn);
+        for (var told = Stopwatch.StartNew(); told.Elapsed.TotalSeconds < NetPlaySession.CarryOnSeconds;)
+        {
+            window.PumpEvents();
+            Thread.Sleep(15);
+        }
+    }
     // Left: nothing of the night follows into the menus (its bed, its loops, a hold's tick).
     sound.EndNight();
     // What the crew commended you for tonight, on the PROFILE page from now (note 293).
@@ -671,24 +769,36 @@ while (!window.CloseRequested && !QuitNow())
     (session as IDisposable)?.Dispose();
     if (campaign is { Current: not null } unfinished)
         Console.WriteLine($"campaign: the night on {unfinished.Current.Route} isn't settled; its slot carries on from the last facility it left");
+    // An invite accepted (or "Join Game" on a friend) while playing (note 24's relaunch, now in-process: queue #272): this
+    // night's over and disposed, its lobby left, and the friend's lobby is the next launch, through the same loading screen
+    // a JOIN from the menu goes through. Steam stays up: the invite was its.
+    if (relaunch is { } invited)
+    {
+        relaunch = null;
+        launch = new Launch.JoinLobby(invited);
+        fromCommandLine = false;
+        continue;
+    }
+    // Note 606: after the host, to its next night, on the town's card over the town (no menu in between).
+    if (following is not null)
+    {
+        if (inTown is { } waitIn)
+            Backdrop(waitIn);
+        launch = new Launch.Follow(following);
+        continue;
+    }
     // Started from the command line: done when the night is. Otherwise, back to where it was chosen.
-    if (fromCommandLine || relaunch is not null)
+    if (fromCommandLine)
         break;
     if (leaving is Launch.CampaignNight night)
-        frontEnd.ShowFortress(night.Slot, campaign?.History.LastOrDefault() is { } log && campaign.Current is null
+        frontEnd.ShowFortress(night.Slot, campaign is { Over: true } ? $"TAKEN AT DAWN. {Hud.CampaignOver}."
+            : campaign?.History.LastOrDefault() is { } log && campaign.Current is null
             ? $"{log.End}: {(log.Net >= 0 ? "+" : "")}{log.Net:0} scrip" : null);
     else
         frontEnd.NightOver();
 }
 
 Console.WriteLine($"frames {frameCount} ({frameCount / timer.Elapsed.TotalSeconds:0} fps)");
-if (relaunch is { } next)
-{
-    // The simplest way into another game is a fresh start, the same one Steam gives an invite accepted from outside.
-    steam?.Dispose();
-    Console.WriteLine($"leaving for lobby {next}");
-    Process.Start(Environment.ProcessPath!, ["+connect_lobby", next.ToString()]);
-}
 return 0;
 
 // Starts what was chosen off the window's thread, drawing what it's doing meanwhile; null (the menu says why) if it failed.
@@ -698,6 +808,15 @@ return 0;
     // The user's playtest: "You should be able to host a run, not a night."
     string doing = chosen is Launch.Join or Launch.JoinLobby ? "JOINING"
         : chosen is Launch.Night { Host: true } or Launch.CampaignNight { Host: true } ? "BUILDING THE RUN" : "BUILDING THE NIGHT";
+    // Note 604: a campaign night from the town the crew's in is that town's card: its name, the night ahead; a joiner
+    // following its host (note 606) has the same card, the host picking the night meanwhile.
+    bool follow = chosen is Launch.Follow;
+    string? town = chosen switch
+    {
+        Launch.CampaignNight { Resume: false } from => saves.Load(from.Slot)?.Town?.Name,
+        Launch.Follow after => after.Going.Town.Name,
+        _ => null,
+    };
     double began = timer.Elapsed.TotalSeconds;
     while (!task.IsCompleted)
     {
@@ -707,8 +826,14 @@ return 0;
         overlay.Clear();
         string dots = new('.', 1 + (int)((timer.Elapsed.TotalSeconds - began) * 2) % 3);
         // Note 350: with FIRST NIGHTS on, the night's tip under it (a new one each of the player's nights).
-        Onboarding.DrawLoading(overlay, UiWidth, UiHeight, doing + dots, chosen is Launch.Join j ? j.Address.ToUpperInvariant() : "THE LINE, THE LAND, THE CREW",
-            Onboarding.Tip(onboarding, frontEnd.Settings, nightsOver));
+        if (town is not null)
+        {
+            var (heading, under) = TownBackdrop.Card(town, null, follow);
+            Onboarding.DrawLoading(overlay, UiWidth, UiHeight, heading, under + dots, Onboarding.Tip(onboarding, frontEnd.Settings, nightsOver));
+        }
+        else
+            Onboarding.DrawLoading(overlay, UiWidth, UiHeight, doing + dots, chosen is Launch.Join j ? j.Address.ToUpperInvariant() : "THE LINE, THE LAND, THE CREW",
+                Onboarding.Tip(onboarding, frontEnd.Settings, nightsOver));
         // From the command line there's no menu yard behind it (no camera yet): the window's only kept answering.
         if (vr is null && menuView.FovYDegrees > 0)
         {
@@ -720,6 +845,22 @@ return 0;
     }
     if (!task.IsCompleted)
         return null;
+    // Built: the town's card names the night ahead a moment before it opens in the town's yard (note 604).
+    if (town is not null && task.Exception is null && task.Result.Session.Route?.Plan?.Terminus is { } ahead)
+        for (double held = timer.Elapsed.TotalSeconds; timer.Elapsed.TotalSeconds - held < TownBackdrop.CardHoldSeconds && !window.CloseRequested;)
+        {
+            window.PumpEvents();
+            overlay.Clear();
+            var (heading, under) = TownBackdrop.Card(town, ahead.Name);
+            Onboarding.DrawLoading(overlay, UiWidth, UiHeight, heading, under, null);
+            if (vr is null && menuView.FovYDegrees > 0)
+            {
+                renderer.Prepare(mesh, overlay);
+                Present(menuView, menuLight);
+            }
+            input.EndFrame();
+            Thread.Sleep(15);
+        }
     if (task.Exception?.GetBaseException() is { } failed)
     {
         Console.WriteLine($"couldn't start {chosen.Redacted()}: {failed}");
@@ -731,6 +872,8 @@ return 0;
                 failed is IOException or System.Net.Sockets.SocketException ? failed.Message : $"couldn't start: {failed.Message}");
         return null;
     }
+    // The night's begun: the town's in it now, not behind the menus.
+    inTown = null;
     return task.Result;
 }
 
@@ -740,6 +883,7 @@ CampaignState? Play(IPlaySession session, CampaignState? campaign)
     var settings = frontEnd.Settings;
     var proto = session as PrototypeSession;
     var net = session as NetPlaySession;
+    int aboardLogged = -1;
     // The yard's readings go at its voice's pace (note 240): the card typed as it's said.
     if (net is not null && sound.Clerk.Speaks)
         net.RadioPace = sound.Clerk.Seconds;
@@ -760,6 +904,13 @@ CampaignState? Play(IPlaySession session, CampaignState? campaign)
     if (voice is not null)
         voice.MicLevel = (float)settings.MicLevel;
     var clock = new FixedStepClock(SimConstants.TickRate);
+    // Note 549: the night's slow frames, to the launch log; note 691: its hitches and frames, for its performance report.
+    var frameWatch = new FrameWatch();
+#if DEVTOOLS
+    // A note (F8, F9) carries the last minute's frames (GDD §34.3).
+    if (dev.Notes is { } frameNotes)
+        frameNotes.Frames = () => frameWatch.Story(timer.Elapsed.TotalSeconds);
+#endif
     var locomotion = vr is null ? null : new VrLocomotion(settings.Apply(DataFile.Load<VrTuning>(Path.Combine(content, VrTuning.File))));
     var levers = vr is null ? null : new VrLevers();
     // The HUD in the headset (T36), drawn as for the window but without the aiming cross.
@@ -785,11 +936,13 @@ CampaignState? Play(IPlaySession session, CampaignState? campaign)
         Enemies = session.World.ActiveEnemies,
         Hits = session.World.Hits,
         Swings = session.World.Swings,
+        Lumps = session.World.Lumps,
         Outfits = session.World.Outfits,
         Impacts = session.World.Impacts,
         Run = session.World.Run,
         Holdouts = session.World.Holdouts,
         Town = session.World.Town,
+        Arrival = session.World.Arrival,
         Vehicles = session.Train.Vehicles,
         HotBoxTuning = session.Train.HotBoxTuning,
         Gutter = session.Train.Gutter,
@@ -806,10 +959,14 @@ CampaignState? Play(IPlaySession session, CampaignState? campaign)
         },
         Stands = session.World.Switches,
     };
+    // Its parts are the frame's parts in the night's performance report (note 691).
+    scene.Watch = frameWatch;
     double last = timer.Elapsed.TotalSeconds, titleAt = 0;
     // Talking and reading in the fortress town (note 281): on this machine alone. A press the town took isn't sent to the
     // host while the key's still down (nothing in a town changes the night; a lamp at somebody's feet stays where it is).
     var townTalk = new TownTalk();
+    // Dave's words and his card (note 570): on this machine, as a town's are.
+    var figureTalk = new FigureTalk();
     bool useKept = false;
     double pendingYaw = 0, pendingPitch = 0;
     int pendingNotch = 0;
@@ -882,6 +1039,9 @@ CampaignState? Play(IPlaySession session, CampaignState? campaign)
     // The emote wheel (note 298): held on its key, the mouse picks; let go, it's sent on the next tick.
     var wheel = new EmoteWheel();
     var pendingEmote = Emote.None;
+    // The lamp signals (note 720): with a hand lamp in the fist, held on their key, the mouse picks; let go, it's given.
+    var signalWheel = new SignalWheel();
+    var pendingSignal = LampSignal.None;
     Camera camera = default;
     // T121: the derailment first-hand, then replayed from the chase view, then the orbit (DerailSequence).
     var derailSequence = new DerailSequence();
@@ -899,6 +1059,7 @@ CampaignState? Play(IPlaySession session, CampaignState? campaign)
     // (At least one frame, whatever --quit-after says: a slow load can outlast it, and --capture draws the last frame.)
     while (!window.CloseRequested && (frames0++ == 0 || !QuitNow()))
     {
+        frameWatch.Begin();
         window.PumpEvents();
         double now = timer.Elapsed.TotalSeconds;
         double dt = now - last;
@@ -908,6 +1069,15 @@ CampaignState? Play(IPlaySession session, CampaignState? campaign)
         // before, a second Escape left the night at once, a host's for the whole crew. In a headset the window's mirror
         // keeps the old way (VR's on the backburner): Escape frees the mouse, and again leaves.
         inMenu = frontEnd.Night is not null;
+#if DEVTOOLS
+        // The director's notes from inside the night (note 516): F8 types one, F9 held says one. While one's typed, the keys
+        // are the note's (Escape drops it rather than opening the menu).
+        if (vr is null && !inMenu)
+            dev.Notes?.Keys(window, input, session, net?.Host, now);
+        // The creature gym's keys (note 676): F6 picks, F7 calls, F10 clears.
+        if (gym is not null && vr is null && !inMenu && dev.Notes is not { Typing: true } && net?.Host is { } gymKeys)
+            gym.Keys(input, gymKeys, (byte)net.PlayerId, now);
+#endif
         if (vr is not null)
         {
             if (input.Pressed(Key.Escape))
@@ -966,6 +1136,14 @@ CampaignState? Play(IPlaySession session, CampaignState? campaign)
                 window.CaptureOnClick = true;
             }
         }
+#if DEVTOOLS
+        // A note being typed takes the keys from the night, as the menu does (note 516).
+        if (dev.Notes is { Typing: true })
+            inMenu = true;
+#endif
+        // The crew goes on together (note 606): the host's left for the next night; this joiner goes after it.
+        if (net is { Lost: true, GoingOn: not null })
+            break;
         // The night's over: Enter goes back (to the fortress, for a campaign night).
         if (session.World.Run?.Over == true && Pressed(Key.Enter))
         {
@@ -1013,7 +1191,13 @@ CampaignState? Play(IPlaySession session, CampaignState? campaign)
         pendingCarLamp |= Hit(Control.CarLamp);
         // Dead (App. D.10), a bookmark of whom you're watching (D.12): sent on the press, as intent.
         pendingBookmark |= Hit(Control.Bookmark) && !session.Player.Alive;
-        if (Hit(Control.Use) && session.World.Town is { } town && townTalk.Use(town, Hud.TownTarget(session), now))
+        // A word in town is this machine's alone, so the press is kept from the host; but by Nicki, held, it's a glass of her
+        // wine (note 571), which is the host's to pour.
+        if (Hit(Control.Use) && session.World.TownOf(session.Player) is { } town && Hud.TownTarget(session) is var spoken && townTalk.Use(town, spoken, now))
+            useKept = spoken is not { Kind: DarkTerritory.Sim.Towns.TownTargetKind.Person } hosting || !town.Plan.People[hosting.Index].Hosting;
+        // Dave's card is this machine's alone; Jacob's press goes on to the host as well (a word with him mends the train).
+        else if (Hit(Control.Use) && Hud.Prompt(session) is { } atFigure && FigureTalk.Target(session) is { } figure && atFigure == FigureTalk.Prompt(figure)
+            && figureTalk.Use(figure, now) && figure is not DarkTerritory.Sim.Enemies.Jacob)
             useKept = true;
         if (!Held(Control.Use))
             useKept = false;
@@ -1081,7 +1265,11 @@ CampaignState? Play(IPlaySession session, CampaignState? campaign)
         // Held, the emote wheel takes the mouse (note 298); let go, what it was on goes with the next tick.
         if (wheel.Update(Held(Control.Emote) && session.Player.Alive, input.MouseDX, input.MouseDY) is var let && let != Emote.None)
             pendingEmote = let;
-        if (!inMenu && !wheel.Open)
+        bool lampInHand = session.World.Bodies.CarriedBy(session.PlayerId) is { Kind: DarkTerritory.Sim.Physics.BodyKind.Lamp, Stashed: false };
+        if (signalWheel.Update(Held(Control.Signal) && session.Player.Alive && lampInHand && !wheel.Open, input.MouseDX, input.MouseDY) is var given
+            && given != LampSignal.None)
+            pendingSignal = given;
+        if (!inMenu && !wheel.Open && !signalWheel.Open)
         {
             pendingYaw -= input.MouseDX * sensitivity;
             pendingPitch -= input.MouseDY * sensitivity * (settings.InvertMouse ? -1 : 1);
@@ -1093,6 +1281,13 @@ CampaignState? Play(IPlaySession session, CampaignState? campaign)
             pendingYaw = pendingPitch = 0;
         }
 
+        frameWatch.Mark("input");
+        // Note 532: a joiner's clock stretches to a host that's behind; a host's says how much time its frames threw away.
+        if (net is not null)
+        {
+            clock.Stretch = net.Pace;
+            net.ClockDropped(clock.DroppedSeconds);
+        }
         int ticks = clock.Advance(dt);
         for (int i = 0; i < ticks; i++)
         {
@@ -1129,13 +1324,19 @@ CampaignState? Play(IPlaySession session, CampaignState? campaign)
                 // How loud you are (GDD v1.1 App. C.7, C.8): the mic while it sends; with no mic, holding Talk counts as
                 // speaking up, so a player without one can still talk the Gaunt down and answer a roll call.
                 Voice = (byte)Math.Clamp(voiceLevel * 255, 0, 255),
+                // Note 664: crouch and pushing the gun along, each its own key, held (a headset rider crouches for real).
+                Moves = (Held(Control.Crouch) ? PlayerMoves.Crouch : 0) | (Held(Control.Push) ? PlayerMoves.Push : 0)
+                    // Note 717: the shove (the host acts on the press).
+                    | (Held(Control.Shove) ? PlayerMoves.Shove : 0),
                 Select = pendingSelect,
                 // Scrolled up is the previous slot, down the next, as in most games.
                 Cycle = (sbyte)(pendingCycle >= 1 ? -1 : pendingCycle <= -1 ? 1 : 0),
                 Emote = pendingEmote,
+                Signal = pendingSignal,
             };
             pendingSelect = 0;
             pendingEmote = Emote.None;
+            pendingSignal = LampSignal.None;
             if (Math.Abs(pendingCycle) >= 1)
                 pendingCycle -= Math.Sign(pendingCycle);
             if (locomotion is not null)
@@ -1162,8 +1363,19 @@ CampaignState? Play(IPlaySession session, CampaignState? campaign)
             pendingReverser = false;
             pendingYaw = pendingPitch = 0;
             session.Step(intent);
+#if DEVTOOLS
+            // The creature gym (note 676): a death stood up again at the safe ring, after the host's step.
+            if (gym is not null && net?.Host is { } gymHost)
+                gym.Step(gymHost, now);
+#endif
+            // The crew's count on the console as it changes (queue #276: the two-machine test reads it from both ends' logs).
+            if (net?.Link is { Aboard: var aboardNow } && aboardNow != aboardLogged)
+            {
+                aboardLogged = aboardNow;
+                Console.WriteLine($"crew: {aboardNow} aboard");
+            }
             if (campaign is not null && session is NetPlaySession played)
-                campaign = Autosave(saves, campaign, played);
+                campaign = Autosave(saves, campaign, played, content);
             // The ears are where the eyes were last frame; audio follows the sim tick so no shot is missed.
             // Watching a crewmate (App. D.10), you hear what they hear: their shelter, their space.
             var ears = session.Viewpoint;
@@ -1183,6 +1395,7 @@ CampaignState? Play(IPlaySession session, CampaignState? campaign)
             if (voice is not null && net is not null)
                 voice.Update(net.Client, session.Crew(session.InterpolatedFrames(1), 1), SimConstants.TickSeconds);
         }
+        frameWatch.Mark($"sim ({ticks} ticks)");
         if (voice is not null && net is not null)
         {
             voice.TalkHeld = Held(Control.Talk);
@@ -1193,6 +1406,11 @@ CampaignState? Play(IPlaySession session, CampaignState? campaign)
             double loud = 0;
             for (int n; mic is not null && (n = mic.Read(micSamples)) > 0;)
             {
+#if DEVTOOLS
+                // F9 held (note 516): a note for the studio, not the crew: not sent, and not loud to the Choir.
+                if (dev.Notes?.Hears(micSamples.AsSpan(0, n)) == true)
+                    continue;
+#endif
                 voice.Capture(micSamples.AsSpan(0, n), net.Client);
                 double sum = 0;
                 for (int k = 0; k < n; k++)
@@ -1207,7 +1425,7 @@ CampaignState? Play(IPlaySession session, CampaignState? campaign)
         }
         else
             voiceLevel = Held(Control.Talk) ? 0.5 : 0;
-        FeedSpeaker();
+        SpeakerSettings();
 
         var frames = session.InterpolatedFrames(clock.Alpha);
         // Off the rails (T117, T121): first in your own eyes riding it, then the chase view replaying it from a few seconds
@@ -1249,20 +1467,41 @@ CampaignState? Play(IPlaySession session, CampaignState? campaign)
         sound.Film(derailShot.Film, derailShot.Filming);
         bool cinematic = wrecking || outro;
         var outroTuning = wreckTuning.Stranded;
+        var eyes = session.EyeCamera(frames, clock.Alpha, pendingYaw, pendingPitch) with { FovYDegrees = settings.EyeFov };
+        // Held by something (note 580): the shot cuts to you and what has you, and back to your eyes when it lets go. A
+        // headset stays in its own eyes; so does watching a crewmate's.
+        var heldShot = outro || derailShot.Camera is not null || chase || vr is not null || session.Watching >= 0 ? null : HeldShot.For(session, frames, eyes);
+        bool held = heldShot is not null;
         camera = outro ? Views.Stranded(session.Train, outroTuning, session.OutroSeconds)
             : derailShot.Camera is { } sequenceCamera ? sequenceCamera
-            : chase ? Views.Get("chase", session.Train) : session.EyeCamera(frames, clock.Alpha, pendingYaw, pendingPitch) with { FovYDegrees = settings.EyeFov };
+            : chase ? Views.Get("chase", session.Train) : heldShot ?? eyes;
         // E.9: the lamps go out down the train as the camera pulls back, and stay lit (or not) as far as it can see.
         // E.9: the outro opens on the repair kit's locker standing open and empty (note 173).
         scene.KitLockerOpen = outro;
         scene.LampsOut = outro || session.World.Run?.End == DarkTerritory.Sim.Run.RunEnd.Stranded ? Views.StrandedLampsOut(session.Train.Frames.Count, outroTuning, session.OutroSeconds) : 0;
+        // The Wakers' stir felt in the train (note 599): the lanterns swinging and coal off the bunker on each thud.
+        double stirAt = timer.Elapsed.TotalSeconds;
+        var stirWorld = session.World;
+        scene.LampSwayOf = car => DawnStir.LampSway(stirWorld, stirAt, car);
+        scene.StirThud = DawnStir.Thud(stirWorld, stirAt);
         scene.LampRange = outro ? 400 : 60;
         scene.RoofGlow = outro;
         // On the engine with the boiler in the red, it shakes you (T109).
-        if (!chase && !cinematic)
+        // Aboard a moving train, speed is felt (GDD §31, note 709): the view widens with it (not in a headset), and the rail
+        // joints and the car's sway come through, below with the shakes.
+        var speedFeel = scene.Look?.Tuning.SpeedFeel;
+        if (speedFeel is not null && vr is null && !chase && !cinematic && !held && session.Watching < 0)
+            camera = camera with { FovYDegrees = SpeedFeel.Fov(camera.FovYDegrees, session.Train, session.Viewpoint, speedFeel) };
+        if (!chase && !cinematic && !held)
         {
+            if (speedFeel is not null)
+                camera.Position += SpeedFeel.Offset(session.Train, session.Viewpoint, speedFeel) * settings.CameraShake;
             // The settings' CAMERA SHAKE (note 297) scales both, down to none.
             camera.Position += BoilerShake.Offset(session.World, session.Viewpoint, timer.Elapsed.TotalSeconds) * settings.CameraShake;
+            // In or by a Hollow House going (note 585): the ground under it rumbling, the doors slamming, the floor going.
+            camera.Position += HouseShake.Offset(session.World, session.Viewpoint, timer.Elapsed.TotalSeconds) * settings.CameraShake;
+            // The ground's thuds as dawn comes, and as a Waker comes on behind (note 588).
+            camera.Position += DawnStir.Offset(session.World, timer.Elapsed.TotalSeconds) * settings.CameraShake;
             // On a car straining round a bend too fast, it judders you (the overspeed telegraph, App. F.1).
             if (scene.BendStrain is { } judder && session.Viewpoint.Parent is var on and >= 0 && on < judder.Count)
                 camera.Position += BendStrain.Offset(judder[on].Stress, timer.Elapsed.TotalSeconds) * settings.CameraShake;
@@ -1272,11 +1511,19 @@ CampaignState? Play(IPlaySession session, CampaignState? campaign)
         // Behind a crewmate's eyes (App. D.10), their own figure isn't drawn round the camera.
         if (session.Watching >= 0 && !chase)
             scene.Crew = [.. (scene.Crew ?? []).Where(c => c.Id != session.Watching)];
+        // You, for whatever's after you to face and reach for (note 558): not drawn.
+        scene.Self = session.Self(frames, clock.Alpha);
+        // Just come back inside a Holdout, you're seen getting up while the camera's on you (note 529).
+        if (session.CameBackFigure(frames, clock.Alpha) is { } risen && !chase && !cinematic)
+            scene.Crew = [.. scene.Crew ?? [], risen];
+        // Held, you're in the shot (note 580).
+        if (held && HeldShot.Figure(session, frames) is { } you)
+            scene.Crew = [.. scene.Crew ?? [], you];
         // What you carry is drawn at your hands as you see them this frame, not where the last tick left it (T92).
         var carry = session.World.Bodies.Hands;
         var eyeForward = new Double3(-Math.Sin(camera.Yaw), 0, -Math.Cos(camera.Yaw));
         // Off the rails the living ride the wreck to their death (App. E.2 step 1): no hands, nothing carried, in the sequence.
-        scene.HeldHere = chase || cinematic || !session.Player.Alive ? null
+        scene.HeldHere = chase || cinematic || held || !session.Player.Alive ? null
             : (session.PlayerId, camera.Position - Double3.Up * (Eyes.Height - carry.CarryHeight) + eyeForward * carry.CarryForward, camera.Yaw);
         // Your own arms in view (X3), and the swing you've started: a blow lasts the melee's recovery, and held, they follow
         // one another (World.Swing's cadence). A headset draws its own hands; behind a crewmate's eyes, theirs aren't yours.
@@ -1289,18 +1536,23 @@ CampaignState? Play(IPlaySession session, CampaignState? campaign)
         double swing = swingFrom >= 0 && now - swingFrom < swingSeconds ? now - swingFrom : -1;
         if (swing < 0)
             swingFrom = -1;
-        scene.Own = chase || cinematic || vr is not null || !me.Alive || session.Watching >= 0 ? null
+        scene.Own = chase || cinematic || held || vr is not null || !me.Alive || session.Watching >= 0 ? null
             : new OwnView((float)camera.Yaw, (float)camera.Pitch, act, me.Velocity.X * me.Velocity.X + me.Velocity.Z * me.Velocity.Z > 0.16,
                 swing, session.World.OutfitOf(session.PlayerId), Kit.Held(me));
         scene.Time = now;
+        // Dave's card (note 570): closes as you walk off, and opens on what he says to a blow near you.
+        figureTalk.Step(session.World, PlayerMotor.WorldPosition(me, session.Train) + Double3.Up * session.Train.Dynamics.Tuning.Pick.EyeHeight, now);
         // The town's card closes once you've walked off; whoever you're talking to turns to you.
-        if (session.World.Town is { } here)
+        if ((townTalk.In ?? session.World.TownOf(me)) is { } here)
         {
             var eye = PlayerMotor.WorldPosition(me, session.Train) + Double3.Up * session.Train.Dynamics.Tuning.Pick.EyeHeight;
             townTalk.Step(here, eye, now);
             scene.TownFacing = townTalk.Open is { Kind: DarkTerritory.Sim.Towns.TownTargetKind.Person } talking ? (talking.Index, eye) : null;
+            scene.TownFacingIn = here;
         }
-        lighting = Views.Lighting(frames[0], look, session.World.Run is { } dawnRun && look is not null ? look.DawnOf(dawnRun.DawnIn) : 0);
+        // And the Wakers' stir behind the train before dawn (note 599).
+        lighting = Views.Lighting(frames[0], look, session.World.Run is { } dawnRun && look is not null ? look.DawnOf(dawnRun.DawnIn) : 0,
+            DawnStir.Sky(session.World), DawnStir.SkyFrom(session.World, frames));
         lighting.Time = now;
         // Lamps down (T52), or smashed: no beam.
         if (!session.World.LampShining)
@@ -1313,6 +1565,10 @@ CampaignState? Play(IPlaySession session, CampaignState? campaign)
             if (look?.Tuning.Atmosphere.Wind is { } wind)
                 (lighting.Wind, lighting.Gusts) = (wind.Of(r.Weather.Wind), wind.Gusts);
         }
+#if DEVTOOLS
+        // The creature gym's light and air (note 676), lit for filming.
+        gym?.Light(ref lighting);
+#endif
         // The Choir's cold, coming before it (App. A.7): the frame chills as it gathers (Look.Chill, over the weather's frost).
         if (look is not null)
             lighting = look.Chill(lighting, GreyboxScene.ChoirCold(session.World.Choir.Present ? 1 : (float)session.World.Choir.Build));
@@ -1351,13 +1607,18 @@ CampaignState? Play(IPlaySession session, CampaignState? campaign)
         var tightening = new HashSet<int>();
         DarkTerritory.Sim.Train.Couplings.Callouts(session.Train, breaks, session.CrewStates(1).Select(c => c.State), tightening);
         scene.Breaks = breaks;
+        scene.Failings = DarkTerritory.Sim.Train.Failing.Of(session.Train);
         scene.Mending = tightening.Count > 0 ? [.. mending ?? [], .. tightening] : mending;
         scene.BendStrain = session.Route?.Plan is { } strainPlan ? BendStrain.PerCar(session.Train, strainPlan.Rules) : null;
         scene.DriversLocked = scene.Ruptured && session.Train.BoilerTuning is { } rt && session.Train.Dynamics.Speed > rt.RuptureCoastBelow;
         scene.Controls = session.Controls;
         if (!session.World.LampShining)
             lighting.LampRange = 0.01f; // not 0: the shader divides by it
+        // The night's fog as it's drawn: what's past it is cooked off the frame (note 479).
+        scene.Fog = lighting;
+        frameWatch.Mark("audio, hud");
         scene.Build(mesh, session.Train.Line, frames, session.Train.Dynamics.Distance, camera.Position);
+        frameWatch.Mark("scene");
         // GDD v1.4 App. D.12: a bookmark that's due is drawn from its camera now, off screen, with what this machine has of
         // the world (everyone but whoever's eyes it is), and kept small for the run-end screen. Rare, so a stall's fine.
         if (stills.Due(session, frames, now) is { Count: > 0 } due)
@@ -1392,11 +1653,12 @@ CampaignState? Play(IPlaySession session, CampaignState? campaign)
             captions.Clear();
         if (showHud)
         {
-            Hud.Build(overlay, UiWidth, UiHeight, session, stills: stills.Stills, pixels: (float)renderer.Height / UiHeight, talk: townTalk, now: now,
+            Hud.Build(overlay, UiWidth, UiHeight, session, stills: stills.Stills, pixels: (float)renderer.Height / UiHeight, talk: townTalk, figures: figureTalk, now: now,
                 // The first nights' card gives way to a panel opened over it (note 351: it showed through the supplies).
                 firstNight: firstNight && !cardHidden && !Held(Control.Roster) && !showSupplies && cardPage < 0 && !showPlan,
                 captions: frontEnd.Settings.Captions ? captions.Lines() : null);
             wheel.Draw(overlay, UiWidth, UiHeight, Hud.PromptScaleAt((float)renderer.Height / UiHeight));
+            signalWheel.Draw(overlay, UiWidth, UiHeight, Hud.PromptScaleAt((float)renderer.Height / UiHeight));
             // Q held: the crew roster (T69), with who's been heard.
             if (Held(Control.Roster))
                 Hud.Roster(overlay, UiWidth, UiHeight, session.Roster(), voice is null ? null : voice.SinceHeard);
@@ -1425,18 +1687,32 @@ CampaignState? Play(IPlaySession session, CampaignState? campaign)
             frontEnd.Draw(overlay, UiWidth, UiHeight);
         }
 #if DEVTOOLS
+        // A note just begun (note 516): the frame of the moment, as it's about to be shown, before the note's own box is on it.
+        if (vr is null)
+            dev.Notes?.Frame(() => renderer.Render(mesh, camera, lighting, lighting.FogColor, showHud || menuShown ? overlay : null), renderer.Width, renderer.Height);
         dev.Draw(overlay, UiWidth, UiHeight);
+        // F1 hides it with the HUD (for filming).
+        if (gym is not null && !menuShown && showHud)
+        {
+            gym.Draw(overlay, UiWidth, UiHeight, now);
+            // And the pointer to what was called (note 676, part 2), as this machine draws the world.
+            if (vr is null)
+                gym.Pointer(overlay, UiWidth, UiHeight, camera, session.World);
+        }
 #endif
         if (vr is null)
         {
             renderer.Prepare(mesh, showHud || menuShown ? overlay : null);
+            frameWatch.Mark("hud, upload");
+            FrameCounts.Add("meshes uploaded", renderer.Uploaded);
             Present(camera, lighting);
+            frameWatch.Mark("render, present");
         }
         // The body is the flat camera's eye point, turned to where the room faces; the head does the looking.
         VrPanelContent? onPanel = null;
         if (vr is not null && showHud)
         {
-            Hud.Build(vrOverlay, 480, 270, session, crosshair: false, stills: stills.Stills, pixels: 2, talk: townTalk, now: now);
+            Hud.Build(vrOverlay, 480, 270, session, crosshair: false, stills: stills.Stills, pixels: 2, talk: townTalk, figures: figureTalk, now: now);
             if (session.World.Run?.Over == true)
                 vrOverlay.TextCentred(240, 248, campaign is not null ? "A: BACK TO THE FORTRESS" : "A: BACK", new Vector4(1, 0.7f, 0.3f, 1));
             onPanel = new VrPanelContent(vrHud!, vrOverlay, 480, 270);
@@ -1469,7 +1745,29 @@ CampaignState? Play(IPlaySession session, CampaignState? campaign)
         }
         input.EndFrame();
         frameCount++;
+        // Note 667: past the night's first frames (its scene built, its first collections done), a gap grows the speaker's lead.
+        if (pump is not null)
+            pump.Adapt = frameWatch.Frames >= FrameWatch.Window;
+        // Note 549: a frame well over the night's run, written down with what it spent and where the night was; note 691:
+        // every hitch kept for the night's report, with how fast the view was turning.
+        frameWatch.View(camera.Yaw, camera.Pitch);
+        if (frameWatch.End(timer.Elapsed.TotalSeconds, () => $"at {session.Train.Dynamics.Distance / 1000:0.00} km, {session.Train.Dynamics.Speed:0.0} m/s, {session.World.Run?.Phase.ToString() ?? "no run"}, {session.World.ActiveEnemies.Count()} enemies{Gaps()}") is { } slow)
+            Console.WriteLine(slow);
     }
+    if (pump is not null)
+        pump.Adapt = false;
+    Console.WriteLine($"night's frames: {frameWatch.Summary()}" + (pump is null ? "" : $"; audio ran dry {pump.Underruns} times, "
+        + $"its longest block {pump.LongestBlock * 1000:0.0} ms, its longest stall {pump.LongestStall * 1000:0} ms, its lead {pump.Lead * 1000:0} ms"));
+    // Note 691 (GDD §34.3): the night's performance report, in the launch log in every build (a player's REPORT A PROBLEM
+    // carries its last lines), and on the end of a developer build's test reports, where the director sends it from.
+    string performance = frameWatch.Report($"{session.Route?.Name ?? "a night"} · {(session.World.Run?.Over == true ? "to the night's end" : "left during the night")}",
+        pump is null ? null : [$"audio     ran dry {pump.Underruns} times; its longest stall {pump.LongestStall * 1000:0} ms"]);
+    Console.Write(performance);
+#if DEVTOOLS
+    dev.Tests?.Add(DateTime.Now, "the night's performance", performance);
+    if (dev.Notes is { } nightNotes)
+        nightNotes.Frames = null;
+#endif
 
     // Note 350: a night seen to its end is one of the player's nights.
     if (session.World.Run?.Over == true)
@@ -1486,7 +1784,7 @@ CampaignState? Play(IPlaySession session, CampaignState? campaign)
 }
 
 // Spec E: autosave on each departure from a facility, and settle the night into the slot when it's over.
-static CampaignState Autosave(SaveSlots saves, CampaignState campaign, NetPlaySession session)
+static CampaignState Autosave(SaveSlots saves, CampaignState campaign, NetPlaySession session, string content)
 {
     if (campaign.Current is null)
         return campaign;
@@ -1494,7 +1792,12 @@ static CampaignState Autosave(SaveSlots saves, CampaignState campaign, NetPlaySe
     {
         // E.6: the shuffle bag goes into the save with the night (a derail drew from it).
         // Note 281: and the town it left, so the next night's isn't the same custom again.
-        var settled = Campaign.Settle(campaign, report) with { Music = session.MusicBag ?? campaign.Music, LastTown = session.World.Town?.Plan.Culture ?? campaign.LastTown };
+        // Note 632: a train taken at dawn ends the campaign (campaign.json dawnEndsCampaign).
+        var settled = Campaign.Settle(campaign, report, DataFile.Load<CampaignTuning>(Path.Combine(content, CampaignTuning.File))) with { Music = session.MusicBag ?? campaign.Music, LastTown = session.World.Town?.Plan.Culture ?? campaign.LastTown };
+        // Note 591: delivered to a town, the crew's in it, and the next night departs from it.
+        if (session.Route is { } arrived)
+            settled = Campaign.Arrived(settled, report, DarkTerritory.Sim.Towns.TownAt.Terminus(arrived,
+                DarkTerritory.Sim.LineGen.LineGenContent.Cached(content).Config.Tiers.Fortress.Identities));
         saves.Save(settled);
         Console.WriteLine($"campaign: {report.End}, net {report.Net:0} scrip; now {settled.Cars} cars and {settled.Scrip:0} scrip after {settled.Runs} nights");
         return settled;

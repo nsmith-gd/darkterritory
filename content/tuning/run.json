@@ -4,6 +4,10 @@
   "stopBelowSpeed": 0.5,
   // The terminus gates: the train is home once it's stopped with its front this close to the end of line.
   "terminusZone": 400,
+  // A terminus that answers is a town, its yard as long as the departure's (ARCHITECTURE §8 note 600; linegen tiers.json
+  // terminus townYard): the train is home there once it's stopped with the whole of it this far in through the gate, the
+  // town's square beside it as the next night's starts, not a kilometre's crawl at yard speed to the end of line.
+  "homeInsideGateM": 15,
   // GDD §8: at dawn the main line reopens and dispatch can't guarantee it's clear. This long after,
   // traffic is on it: the run is lost.
   "dawnGraceSeconds": 120,
@@ -25,6 +29,15 @@
   // is put down inside one, and a creature that comes into one is driven off (it lets go of whoever it holds, and is gone).
   // A crewmate left behind near the gate can run back inside.
   "forts": { "safe": true, "halfWidthM": 80 },
+  // Monsters brought into town (queue #322, ARCHITECTURE §8 note 589; the director, 9 Oct 2026: "It also encourages players
+  // to plan a little extra time at the end of the run to stop the train, clear the monsters, and then bring it in"). The
+  // gates stay open: a creature still aboard as its car comes in through a town terminus's gate is brought into town. The
+  // town's guards and guns fight it in the yard for fightSeconds before it's driven off (the fort's rule, above), so it's
+  // a fight among the houses while it lasts; delivered, the night pays the town's monster brigade fee (this share of the
+  // tier's economy.feeValue, note 636) for each one, and the report says so, and how many of the town's people each one hurt.
+  // burns (note 608): the houses each one sets alight, the lived-in ones nearest the gate; they burn that night, and the
+  // campaign remembers them against the town, so the next time the crew's there they're burnt out and the town says so.
+  "broughtIn": { "fightSeconds": 8, "fee": 0.5, "hurt": 2, "burns": 1 },
   // The world is solid (the director, 6 Oct 2026; ARCHITECTURE §8 note 279): a stop's buildings stand as walls nobody walks
   // through and a ball stops at. The houses, barns and outbuildings (T114), and now the powerhouse, signal box, lamp room,
   // water tower, lockup, prison car and well: shut, each its footprint, topM over its ground (a well's kerb wellTopM). A
@@ -60,7 +73,10 @@
     // The dawn freight's tow, billed in the tier's per-car values (E.10: 0.5, range 0.25-1.0).
     "recoveryFee": 0.5,
     // Not in the GDD: lost this long first, so a hand-off between ticks can't strand a night.
-    "lostForSeconds": 1
+    "lostForSeconds": 1,
+    // Note 660 (not in the GDD): an engine broken down (note 576) with a wrench aboard stands this long for its dent to be
+    // mended, out along the running board, before the night's stranded; with the last wrench lost, it's stranded at once.
+    "brokenDownSeconds": 120
   },
 
   // GDD v1.4 App. D.12, the run-end screen's bookmarks: a still at every GRAB start and every PUNISH, from the nearest living
@@ -98,15 +114,27 @@
     "overfillDamagePerUnit": 0.0015
   },
 
-  // GDD §17-18: cargo is loaded at facilities, and "every facility is optional. Skipping them is safe and poor."
-  // Cars leave the fortress this full (a fraction of a load each); filling them is the facilities' work. Not in the
-  // spec: F.1's table is the fully loaded train, which is the ceiling.
-  "departureLoad": 0.5,
+  // GDD §1 *The fantasy*, §17-18 (the director, 9 Oct 2026, ARCHITECTURE §8 note 575: "if I skip everything and just drive
+  // the train to town, I get scrip and a payout? the train cars should be totally empty and we are the ones who have to fill
+  // them"): cars leave the fortress this full (a fraction of a load each). Empty: every load the night pays for is one the
+  // crew put aboard at a stop, and a train driven straight home earns nothing and still pays its coal and repairs. F.1's
+  // table is the fully loaded train, the ceiling. (Was 0.5, notes 28 and 36.)
+  "departureLoad": 0,
 
   // Spec F.1: contracts pay on delivered cargo that survives, and nothing else.
   "economy": {
-    "perCar": { "local": 450, "frontier": 700, "deadLines": 1100, "deepTerritory": 1700 },
-    // Running costs, priced so a competent night averages spec F.1's 15% of gross.
+    // Note 636 ("each successful run should help players towards earning and spending to upgrade so they can go further
+    // the next run when the difficulty goes up", the director, the inbox, 12 Oct): a car-load pays so a delivered night
+    // with a competent crew nets about the tier's next car / 1.5 (spec F.1/F.2: 1,100 / 2,650 / 7,800 / 20,000). Priced on
+    // what a night's one stop loads (64 nights, 4 bots: 2.7 / 3.0 / 1.5 / 0.9 car-loads; the harder yards load less).
+    // Was 450 / 700 / 1,100 / 1,700, for full trains.
+    "perCar": { "local": 450, "frontier": 900, "deadLines": 5500, "deepTerritory": 23000 },
+    // Note 636: what the night's fees are priced in, by tier. A death's crew-loss fee (holdouts.json crewLossFee) and a
+    // creature's monster brigade fee (broughtIn.fee) are shares of it: the per-car values these were before the pay was
+    // raised, so a raise in pay isn't a raise in what a death costs. A fee prices a death, not the freight (D1).
+    "feeValue": { "local": 450, "frontier": 700, "deadLines": 1100, "deepTerritory": 1700 },
+    // Running costs, priced so a competent night averaged spec F.1's 15% of gross (before note 636: they're fixed, so
+    // they're a smaller share of the raised pay).
     "coalPerUnit": 2,
     "roundsPerRound": 1,
     "repairPerIntegrity": 150,
