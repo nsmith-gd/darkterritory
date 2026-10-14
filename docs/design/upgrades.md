@@ -343,8 +343,10 @@ gallery is still to come).
 
 **Built (note 715):** the first whimsies: Gerald and the garden gnomes (the Gannet takes one for a walker now and then, and the
 clerk reads it out), the canary (quiet while something's aboard, dead in fumes), the steam calliope (a note a pull; a Moose
-stops for it) and the gramophone (wound with Use; the Gaunt hears it as talk, a Moose stops for it). Next: the hammock, the
-hot tub and the fishing rod; the yard cat, the dog and the tennis-ball launcher; the human cannonball.
+stops for it) and the gramophone (wound with Use; the Gaunt hears it as talk, a Moose stops for it). **Built (note 744):**
+the hammock (warm-ish), the hot tub on the engine's hood (warm while there's steam, and it eats steam) and the fishing rod (a
+fish at the water's edge; grilled on the deck, a better meal than a sausage). Next: the yard cat, the dog and the tennis-ball
+launcher; the human cannonball.
 
 ### 8.3 The human cannonball: consent and feedback
 

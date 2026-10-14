@@ -1,3 +1,4 @@
+using Ballast;
 using DarkTerritory.Sim.Player;
 
 namespace DarkTerritory.Sim.Train;
@@ -19,42 +20,73 @@ public static class Bbq
     public static bool Lit(Vehicle v) => v.Grill > 0;
 
     /// <summary>
-    /// A Muskoka chair (each tick, after the gun's seat): the Seat press at a free chair sits you in it, facing down the line;
-    /// the Seat press again, or Jump (the motor), gets you up. Sat, your feet stay on its seat as the train runs. Someone
-    /// already in it keeps it. <paramref name="others"/> are the rest of the crew as they stand.
+    /// A Muskoka chair (each tick, after the gun's seat), or the hammock or the hot tub (note 744): the Seat press at a free one
+    /// sits you in it, facing its way (a chair down the line); the Seat press again, or Jump (the motor), gets you up. Sat,
+    /// your feet stay in it as the train runs. Someone already in it keeps it. <paramref name="others"/> are the rest of the
+    /// crew as they stand.
     /// </summary>
     public static void Sit(ref PlayerState s, in PlayerIntent intent, TrainOnLine train, IEnumerable<PlayerState> others, HandTuning? hand = null)
     {
         bool lounging = s.Has(PlayerFlags.Lounging);
-        var deck = On(train, s.Parent);
+        var seats = Seats(train, s.Parent);
         if (lounging)
         {
-            if (deck is null || !s.Alive || intent.Has(PlayerActions.Seat))
+            if (seats.Count == 0 || !s.Alive || intent.Has(PlayerActions.Seat))
             {
                 GetUp(ref s);
                 return;
             }
-            // Where they sat: the chair nearest the feet.
+            // Where they sat: the seat nearest the feet.
             var feet = s.Position;
-            var seat = deck.Chairs.MinBy(c => (c - feet).Length);
-            s.Position = seat;
+            s.Position = seats.MinBy(c => (c.At - feet).Length).At;
             s.Velocity = default;
             return;
         }
-        if (deck is null || !s.Alive || !intent.Has(PlayerActions.Seat) || s.Has(PlayerFlags.Held) || s.Has(PlayerFlags.Heavy) || s.Has(PlayerFlags.Seated))
+        if (seats.Count == 0 || !s.Alive || !intent.Has(PlayerActions.Seat) || s.Has(PlayerFlags.Held) || s.Has(PlayerFlags.Heavy) || s.Has(PlayerFlags.Seated))
             return;
-        if (CrewActions.NearestInteractable(s, train, hand) is not ({ Kind: InteractableKind.Chair } chair, var v) || v != s.Parent)
+        if (CrewActions.NearestInteractable(s, train, hand) is not ({ } seat, var v) || v != s.Parent || !IsSeat(seat.Kind))
             return;
-        var at = deck.Chairs[chair.Index];
+        var shape = train.Frames[v].Shape;
+        var (at, yaw) = seat.Kind == InteractableKind.Chair ? (shape.Bbq!.Chairs[seat.Index], 0.0)
+            : (shape.Lounges[seat.Index].At, shape.Lounges[seat.Index].Yaw);
         foreach (var o in others)
             if (o.Parent == s.Parent && o.Has(PlayerFlags.Lounging) && (o.Position - at).Length < 0.3)
                 return;
         s.Flags |= PlayerFlags.Lounging;
         s.Position = at;
         s.Velocity = default;
-        // Down the line (the engine's −Z), the way a Muskoka chair's set: the line ahead coming at you.
-        s.Yaw = 0;
+        // A Muskoka chair's set down the line (the engine's −Z), the line ahead coming at you; the hammock across the car, the
+        // tub's seats facing each other.
+        s.Yaw = yaw;
         s.Pitch = 0;
+    }
+
+    /// <summary>Whether <paramref name="kind"/> is somewhere to sit or lie (a chair, the hammock, the hot tub).</summary>
+    public static bool IsSeat(InteractableKind kind) => kind is InteractableKind.Chair or InteractableKind.Hammock or InteractableKind.HotTub;
+
+    /// <summary>Every seat on <paramref name="vehicle"/>: its chairs (down the line) and its lounges.</summary>
+    public static List<(Double3 At, double Yaw)> Seats(TrainOnLine train, int vehicle)
+    {
+        var seats = new List<(Double3 At, double Yaw)>();
+        if (vehicle < 0 || vehicle >= train.Frames.Count)
+            return seats;
+        var shape = train.Frames[vehicle].Shape;
+        if (shape.Bbq is { } deck)
+            seats.AddRange(deck.Chairs.Select(c => (c, 0.0)));
+        seats.AddRange(shape.Lounges.Select(l => (l.At, l.Yaw)));
+        return seats;
+    }
+
+    /// <summary>The hammock or the hot tub <paramref name="s"/> is in (note 744), or null (a chair, or standing).</summary>
+    public static Lounge? LoungingIn(in PlayerState s, TrainOnLine train)
+    {
+        if (!s.Has(PlayerFlags.Lounging) || s.Parent < 0 || s.Parent >= train.Frames.Count)
+            return null;
+        var feet = s.Position;
+        foreach (var l in train.Frames[s.Parent].Shape.Lounges)
+            if ((l.At - feet).Length < 0.05)
+                return l;
+        return null;
     }
 
     /// <summary>Up out of the chair, where it is.</summary>

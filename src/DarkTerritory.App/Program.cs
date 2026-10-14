@@ -1305,7 +1305,7 @@ CampaignState? Play(IPlaySession session, CampaignState? campaign)
         // A Muskoka chair on the BBQ deck (note 698): Use pressed at one sits you in it (a beer in hand stays there), and pressed
         // again with empty hands gets you up (the gun's seat's press, Bbq.Sit); sat with a beer, Use held drinks it.
         if (Hit(Control.Use) && (session.Player.Has(PlayerFlags.Lounging) ? session.World.Bodies.CarriedBy(session.PlayerId) is null
-            : CrewActions.Nearest(session.Player, session.Train, session.World.Hand) == InteractableKind.Chair))
+            : CrewActions.Nearest(session.Player, session.Train, session.World.Hand) is { } seat && Bbq.IsSeat(seat)))
             pendingSeat = true;
         // The crane's controls (T48): Use pressed at its stand takes them, and pressed again lets them go (the director, 8 Oct:
         // "enter with E and exit with E, it shouldn't be a hold function"), the same press as the gun's seat (Crane.Operates).

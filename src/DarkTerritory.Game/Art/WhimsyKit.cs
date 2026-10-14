@@ -166,6 +166,107 @@ public static class WhimsyKit
         return k.Build($"whimsy-gramophone-{table:0.00}");
     }
 
+    /// <summary>
+    /// The hammock (note 744): a canvas sling <paramref name="span"/> m across from hook to hook at shoulder height, sagging to
+    /// <see cref="CrewActs.HammockPan"/> over the floor in its middle; across X, its foot (the floor under its middle) at (0, 0, 0).
+    /// </summary>
+    public static MeshAsset Hammock(Look? look, float span)
+    {
+        var k = new Kit(look, 1736);
+        float half = span / 2, hook = 1.55f, sag = (float)CrewActs.HammockPan - 0.05f;
+        k.Use("dress_canvas", new Vector3(0.78f, 0.7f, 0.52f), 0.9f, 0);
+        const int n = 12;
+        float Y(float x) => sag + (hook - 0.35f - sag) * (x * x) / ((half - 0.35f) * (half - 0.35f));
+        for (int i = 0; i < n; i++)
+        {
+            float x0 = -half + 0.35f + (span - 0.7f) * i / n, x1 = -half + 0.35f + (span - 0.7f) * (i + 1) / n;
+            float w0 = 0.38f - 0.25f * MathF.Abs(x0) / half, w1 = 0.38f - 0.25f * MathF.Abs(x1) / half;
+            k.Quad(new Vector3(x0, Y(x0), -w0), new Vector3(x1, Y(x1), -w1), new Vector3(x1, Y(x1), w1), new Vector3(x0, Y(x0), w0), twoSided: true);
+        }
+        // The ropes from each end to its hook on the wall, and the spreaders.
+        k.Use("dress_string", new Vector3(0.6f, 0.5f, 0.32f), 0.9f, 0);
+        foreach (int side in new[] { -1, 1 })
+        {
+            var end = new Vector3(side * (half - 0.35f), Y(half - 0.35f), 0);
+            var wall = new Vector3(side * half, hook, 0);
+            foreach (float z in new[] { -0.12f, 0, 0.12f })
+                k.Rod(end with { Z = z }, wall, 0.006f, 3);
+            k.Use("dress_wood", Wood, 0.6f, 0);
+            k.Rod(end with { Z = -0.14f }, end with { Z = 0.14f }, 0.015f);
+            k.Use("dress_brass", Brass * 0.6f, 0.5f, 0.6f);
+            k.Cylinder(wall, wall - new Vector3(side * 0.06f, 0, 0), 0.02f, 6);
+            k.Use("dress_string", new Vector3(0.6f, 0.5f, 0.32f), 0.9f, 0);
+        }
+        return k.Build($"whimsy-hammock-{span:0.00}");
+    }
+
+    /// <summary>
+    /// The hot tub (note 744): a cedar barrel tub <see cref="Sim.Train.CarShape.TubHalf"/> across, banded in iron, its two benches
+    /// inside, the water near its brim, and its pipe down over the side to the boiler. Its foot (the roof under its middle) at (0, 0, 0).
+    /// </summary>
+    public static MeshAsset HotTub(Look? look)
+    {
+        var k = new Kit(look, 1737);
+        float r = (float)Sim.Train.CarShape.TubHalf, h = 0.75f;
+        k.Use("dress_wood", new Vector3(0.55f, 0.32f, 0.18f), 0.6f, 0.15f);
+        // Staves: an outer and an inner wall, the rim between.
+        k.Cylinder(new Vector3(0, 0, 0), new Vector3(0, h, 0), r, 20, caps: false, smooth: false);
+        k.Use("dress_wood", new Vector3(0.42f, 0.24f, 0.13f), 0.6f, 0.1f);
+        k.Lathe(new Vector3(0, 0.02f, 0), [new Vector2(r - 0.05f, h), new Vector2(r - 0.05f, 0)], 20, smooth: false, capTop: false);
+        k.Disc(new Vector3(0, 0.05f, 0), Vector3.UnitY, r - 0.05f, 20);
+        k.Use("dress_wood", new Vector3(0.6f, 0.37f, 0.2f), 0.5f, 0.15f);
+        k.Lathe(new Vector3(0, h, 0), [new Vector2(r - 0.05f, 0), new Vector2(r + 0.005f, 0)], 20, smooth: false, capTop: false);
+        k.Use("dress_paint", Black * 2, 0.5f, 0.6f);
+        foreach (float y in new[] { 0.12f, h - 0.14f })
+            k.Cylinder(new Vector3(0, y, 0), new Vector3(0, y + 0.05f, 0), r + 0.012f, 20, caps: false);
+        // The benches, either side.
+        k.Use("dress_wood", new Vector3(0.5f, 0.3f, 0.16f), 0.6f, 0.1f);
+        foreach (int side in new[] { -1, 1 })
+            k.Box(new Vector3(side < 0 ? -r + 0.05f : r - 0.35f, (float)CrewActs.TubPan - 0.04f, -0.35f), new Vector3(side < 0 ? -r + 0.35f : r - 0.05f, (float)CrewActs.TubPan, 0.35f));
+        // The water.
+        k.Use("dress_water", new Vector3(0.25f, 0.42f, 0.45f), 0.02f, 0.9f);
+        k.Disc(new Vector3(0, h - 0.12f, 0), Vector3.UnitY, r - 0.05f, 20);
+        // The pipe off the boiler, over the side.
+        k.Use("dress_brass", Brass * 0.8f, 0.4f, 0.8f);
+        k.Rod(new Vector3(0, h + 0.05f, r - 0.1f), new Vector3(0, h + 0.05f, r + 0.15f), 0.025f, 6);
+        k.Rod(new Vector3(0, h + 0.05f, r + 0.15f), new Vector3(0, 0.02f, r + 0.15f), 0.025f, 6);
+        return k.Build("whimsy-hot-tub");
+    }
+
+    /// <summary>The fishing rod (note 744): a long cane along −Z from its butt at (0, 0, 0), its reel, and the line off its tip.</summary>
+    public static MeshAsset FishingRod(Look? look)
+    {
+        var k = new Kit(look, 1738);
+        k.Use("dress_wood", new Vector3(0.62f, 0.48f, 0.26f), 0.4f, 0.3f);
+        k.Cylinder(new Vector3(0, 0, 0), new Vector3(0, 0, -2.2f), 0.012f, 6, radiusB: 0.004f);
+        k.Use("dress_cloth", Black * 3, 0.8f, 0);
+        k.Cylinder(new Vector3(0, 0, 0), new Vector3(0, 0, -0.3f), 0.016f, 6);
+        k.Use("dress_brass", Brass, 0.3f, 0.9f);
+        k.Cylinder(new Vector3(-0.03f, -0.03f, -0.22f), new Vector3(0.03f, -0.03f, -0.22f), 0.035f, 10);
+        k.Use("dress_string", new Vector3(0.85f, 0.85f, 0.8f), 0.4f, 0.2f);
+        k.Rod(new Vector3(0, 0, -2.2f), new Vector3(0, -0.6f, -2.25f), 0.002f, 3);
+        return k.Build("whimsy-fishing-rod");
+    }
+
+    /// <summary>A trout (note 744): 0.3 m nose (−Z) to tail, silver and speckled; <paramref name="grilled"/>, browned and barred off the grill.</summary>
+    public static MeshAsset Fish(Look? look, bool grilled)
+    {
+        var k = new Kit(look, grilled ? 1740 : 1739);
+        k.Use("dress_paint", grilled ? new Vector3(0.55f, 0.35f, 0.15f) : new Vector3(0.62f, 0.66f, 0.62f), 0.25f, grilled ? 0.2f : 0.8f);
+        k.With(Matrix4x4.CreateScale(0.45f, 0.75f, 1.6f), () => Ball(k, Vector3.Zero, 0.07f, 10));
+        k.Cylinder(new Vector3(0, 0, 0.1f), new Vector3(0, 0, 0.16f), 0.015f, 6, radiusB: 0.04f);
+        k.Box(new Vector3(-0.004f, -0.045f, 0.155f), new Vector3(0.004f, 0.045f, 0.17f));
+        k.Use("dress_paint", grilled ? Black * 3 : new Vector3(0.75f, 0.4f, 0.45f), 0.4f, 0.3f);
+        if (grilled)
+            foreach (float z in new[] { -0.05f, 0, 0.05f })
+                k.Box(new Vector3(0.031f, -0.02f, z - 0.006f), new Vector3(0.033f, 0.04f, z + 0.006f));
+        else
+            k.Box(new Vector3(0.031f, -0.01f, -0.08f), new Vector3(0.033f, 0.01f, 0.08f));
+        k.Use("dress_paint", Black, 0.3f, 0.5f);
+        Ball(k, new Vector3(0.028f, 0.015f, -0.08f), 0.007f, 5);
+        return k.Build(grilled ? "whimsy-grilled-fish" : "whimsy-fish");
+    }
+
     /// <summary>A white fleck on the record, put where it's got to as it turns (the record playing).</summary>
     public static MeshAsset Label(Look? look)
     {

@@ -246,6 +246,12 @@ public static class Views
             // The Gannet climbing off car 2's roof with Gerald (note 715; dt screenshot --gannet carry), from off the car's side.
             "gannetgerald" => Camera.LookAt(train.Frames[2].ToWorld(new Double3(-9, train.Frames[2].Shape.RoofHeight + 3, 4)),
                 train.Frames[2].ToWorld(new Double3(0.3, train.Frames[2].Shape.RoofHeight + 2.5, -2.5)), 60),
+            // The hammock and the hot tub (note 744; `--upgrades hammock,hotTub --lounge`): across the guard van's back end from
+            // its middle; the tub on the engine's hood from over the cab's roof.
+            "hammock" => Camera.LookAt(train.Frames[^1].ToWorld(new Double3(0.9, Floor(train) + 1.6, train.Frames[^1].Shape.HalfLength - 4.2)),
+                train.Frames[^1].ToWorld(new Double3(-0.2, Floor(train) + 0.6, train.Frames[^1].Shape.HalfLength - 1.0)), 65),
+            "hottub" => Camera.LookAt(engine.ToWorld(new Double3(2.6, engine.Shape.RoofHeight + 2.4, Sim.Train.CarShape.TubZ - 3.6)),
+                engine.ToWorld(new Double3(0, engine.Shape.RoofHeight + 0.6, Sim.Train.CarShape.TubZ)), 55),
             "gerald" => Camera.LookAt(train.Frames[^1].ToWorld(new Double3(3.0, train.Frames[^1].Shape.RoofHeight + 1.6, -train.Frames[^1].Shape.HalfLength + 5.5)),
                 train.Frames[^1].ToWorld(new Double3(0.8, train.Frames[^1].Shape.RoofHeight + 0.9, -train.Frames[^1].Shape.HalfLength + 1.6)), 50),
             "gnomes" => Camera.LookAt(train.Frames[1].ToWorld(new Double3(-2.4, train.Frames[1].Shape.RoofHeight + 1.6, -train.Frames[1].Shape.HalfLength - 1.5)),

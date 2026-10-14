@@ -539,6 +539,7 @@ public sealed partial class World
         var bbq = Train.Dynamics.Tuning.Composition.Bbq;
         Bodies.BeerHeals = bbq.BeerHeals;
         Bodies.SausageHeals = bbq.SausageHeals;
+        Bodies.FishHeals = WhimsyTuning.FishHeals;
         foreach (var v in Train.Vehicles)
             if (v is not null && Bbq.On(Train, v.Id) is not null)
                 (v.Beers, v.Grill) = (bbq.Beers, 0);
@@ -574,6 +575,9 @@ public sealed partial class World
         for (int i = 0; i < kit.Toys; i++)
             Bodies.SpawnCrate(Train, guard.Id, new Ballast.Double3(0.6, floor, room.Max.Z - 1.2 - 0.5 * i), Physics.BodyKind.Toy).Noise =
                 i < kit.ToyNoises.Count ? kit.ToyNoises[i] : Physics.ToyNoise.None;
+        // The fishing rod (note 744), along the van's right side.
+        if (Fitted("fishingRod"))
+            Bodies.SpawnCrate(Train, guard.Id, new Ballast.Double3(0.9, floor, room.Max.Z - 3.6), Physics.BodyKind.FishingRod);
         // The band's instruments (note 700), down the van's middle from its back door: the first thing seen going in.
         for (int i = 0; i < kit.Instruments.Count; i++)
             if (BandTuning is { } band && Array.FindIndex(band.Instruments, x => x.Id == kit.Instruments[i]) is >= 0 and var which)
@@ -1512,9 +1516,12 @@ public sealed partial class World
         // in your hand while you throw it, and a crate lying by it stays down.
         bool lever = Authority && Switches?.InReach(s, Train, Hand) is not null;
         // Sitting down in a Muskoka chair or getting up (note 698): what's in your hands (a beer) stays there.
-        bool sitting = intent.Has(PlayerActions.Seat) && (s.Has(PlayerFlags.Lounging) || CrewActions.Nearest(s, Train, Hand) == InteractableKind.Chair);
+        bool sitting = intent.Has(PlayerActions.Seat) && (s.Has(PlayerFlags.Lounging) || CrewActions.Nearest(s, Train, Hand) is { } seat && Bbq.IsSeat(seat));
+        // The fishing rod's line in the water, and a fish held at the grill (note 744): the hands keep them.
+        bool angling = Angling(s, playerId), grilling = GrillingFish(s, playerId);
         bool handsTookIt = Authority && Bodies.Handle(ref s, intent, playerId, Train, Hand,
-            keep: kit && (breaching || CrewActions.AtTheRupture(s, Train, Hand)) || charging || sitting, lever: lever, fetch: fetch);
+            keep: kit && (breaching || CrewActions.AtTheRupture(s, Train, Hand)) || charging || sitting || angling || grilling, lever: lever, fetch: fetch);
+        Fishing(s, intent, playerId, angling);
         if (charging && gunTuning is not null)
             Charge(s, intent, playerId, gunTuning);
         if (cooler is { } fromCooler && handsTookIt && Bodies.CarriedBy(playerId) is { Kind: Physics.BodyKind.Beer })
@@ -1577,7 +1584,10 @@ public sealed partial class World
             int cooked = Train.Vehicles.Sum(v => v?.Cooked ?? 0);
             CrewActions.Apply(ref s, intent, Train, SimConstants.TickSeconds, Hand);
             // A sausage off the BBQ deck's grill (note 698), into the cook's hands (or at their feet, hands full).
-            if (Authority && Train.Vehicles.Sum(v => v?.Cooked ?? 0) > cooked)
+            // A fish held at it (note 744) is what came off it, grilled.
+            if (Authority && Train.Vehicles.Sum(v => v?.Cooked ?? 0) > cooked && Bodies.CarriedBy(playerId) is { Kind: Physics.BodyKind.Fish } raw)
+                Grilled(raw, s, playerId);
+            else if (Authority && Train.Vehicles.Sum(v => v?.Cooked ?? 0) > cooked)
             {
                 var sausage = Bodies.SpawnItem(PlayerMotor.WorldPosition(s, Train) + Double3.Up * 1.0, s.LineHint, Physics.BodyKind.Sausage);
                 if (Bodies.CarriedBy(playerId) is null)

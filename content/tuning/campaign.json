@@ -277,6 +277,20 @@
     { "id": "gramophone", "name": "The gramophone", "kind": "whimsy", "size": "small", "costShare": 0.08, "effect": { "dress:gramophone": 1 },
       "line": "A wind-up gramophone in the guard van and a stack of jigs and reels. The Gaunt hears it as talk. So does the Choir, a little.",
       "tally": "Gramophone: wound." },
+    // The second whimsies (note 744), train.json composition.whimsy. The hammock across the guard van's rear end: lain in,
+    // the cold comes on slower (hammockCold); lying still is standing still to Tippy Toesie.
+    { "id": "hammock", "name": "The hammock", "kind": "whimsy", "size": "small", "costShare": 0.04, "effect": { "dress:hammock": 1 },
+      "line": "A canvas hammock slung across the guard van's back end. Warm-ish. Lying still is standing still, to some.",
+      "tally": "Hammock: slung." },
+    // The hot tub on the engine's hood, fed off the boiler: warm while there's steam (each bather draws tubSteam of it), and
+    // out on the roof at line speed.
+    { "id": "hotTub", "name": "The hot tub", "kind": "whimsy", "size": "small", "costShare": 0.15, "effect": { "dress:hotTub": 1 },
+      "line": "A cedar tub on the engine's hood, piped off the boiler. Two seats. It eats steam. You are on the roof at 70.",
+      "tally": "Hot tub: steaming." },
+    // The fishing rod in the guard van: at the water's edge, a line in, and a fish; grilled on the BBQ deck, it heals more.
+    { "id": "fishingRod", "name": "The fishing rod", "kind": "whimsy", "size": "small", "costShare": 0.05, "effect": { "dress:fishingRod": 1 },
+      "line": "A rod in the guard van. Stand at the water's edge, hold Use, wait. Grilled on the deck it's better than a sausage.",
+      "tally": "Rod: aboard." },
     // Does nothing at all, and the clerk says so, every night, for good.
     { "id": "commendation", "name": "Framed commendation", "kind": "silly", "size": "small", "costShare": 0.5, "effect": { },
       "line": "\"For Services to the Railway\", signed by a council nobody's met, framed, for the cab. Read into every tally.",

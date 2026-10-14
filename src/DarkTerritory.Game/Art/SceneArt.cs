@@ -830,6 +830,10 @@ public sealed partial class SceneArt(Look look)
             // The BBQ deck's (note 698).
             Sim.Physics.BodyKind.Beer => Piece("prop-beer", () => PropKit.Beer(Look)),
             Sim.Physics.BodyKind.Sausage => Piece("prop-sausage", () => PropKit.Sausage(Look)),
+            // The fishing rod's (note 744).
+            Sim.Physics.BodyKind.FishingRod => Piece("whimsy-fishing-rod", () => WhimsyKit.FishingRod(Look)),
+            Sim.Physics.BodyKind.Fish => Piece("whimsy-fish", () => WhimsyKit.Fish(Look, false)),
+            Sim.Physics.BodyKind.GrilledFish => Piece("whimsy-grilled-fish", () => WhimsyKit.Fish(Look, true)),
             // The band's (note 700).
             Sim.Physics.BodyKind.Instrument when (InstrumentOf?.Invoke(b) ?? "fiddle") is var id => Piece($"prop-band-{id}", () => PropKit.Instrument(Look, id)),
             // The hand lamp: the sourced lantern (tools/models hand_lantern) where it's built.

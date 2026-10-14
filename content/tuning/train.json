@@ -318,8 +318,13 @@
     // gramophone in the guard van, wound with Use: a Gaunt within gramophoneHears m hears it as talk (gaunt.bandCalms), a
     // Moose stops to listen (moose.bandHears), and the Choir hears it as a music box (gramophoneLoudness on its meter). The
     // calliope's notes are the whistle's: a Moose within calliopeHears m of the engine stops for it.
+    // Note 744: the hammock in the guard van brings the cold on at hammockCold of its rate; the hot tub on the engine's hood
+    // keeps whoever's in it warm while the boiler has steam, and each bather draws tubSteam of its pressure a second. The
+    // fishing rod: stood on dry ground, a line in water within fishReach m ahead, a bite comes in fishSeconds (from the first
+    // to the second, by when it's cast), and a fish grilled on the BBQ deck's grill heals fishHeals.
     "whimsy": { "gnomes": 5, "canaryCars": 1, "canaryGasM": 10, "canaryFumesSeconds": 20, "gramophoneHears": 22,
-      "gramophoneLoudness": 0.25, "calliopeHears": 80 }
+      "gramophoneLoudness": 0.25, "calliopeHears": 80, "hammockCold": 0.5, "tubSteam": 0.15, "fishReach": 4, "fishSeconds": [12, 30],
+      "fishHeals": 40 }
   },
   // GDD §19 "medicine: fragile, high value" (note 182). A car of medicine takes the knocks the rest of the train shrugs off:
   // any contact (coupling, a collision, a buffer stop) closing faster than safeContactSpeed spoils it by

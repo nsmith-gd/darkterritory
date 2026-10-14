@@ -1939,6 +1939,12 @@ static object Screenshot(TrainTuning t, string content, string[] args)
         scene.Crew = party;
         scene.Bodies = partyBodies;
     }
+    // --lounge (note 744; with --upgrades hammock,hotTub): someone in the hammock, two in the hot tub.
+    if (args.Contains("--lounge") && Staging.Lounging(train) is var (loungers, loungeBodies))
+    {
+        scene.Crew = [.. scene.Crew ?? [], .. loungers];
+        scene.Bodies = [.. scene.Bodies ?? [], .. loungeBodies];
+    }
     // --band (note 700): the crew on a roof, each playing one of the band's instruments.
     if (args.Contains("--band") && Staging.Band(train, content, (int)Opt(args, "--car", 2)) is var (players, instruments))
     {

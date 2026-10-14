@@ -779,6 +779,9 @@ public static class PlayerMotor
         // (spec F.3 car insulation, note 184: a car with the steam gone cold as well). GDD §22 deep cold (note 183): faster
         // the colder it is where they are (the night's cold, high ground, exposed track).
         double deep = 1 + c.PerColdStep * ColdStep(s, train);
+        // Swinging in the hammock (note 744): warm-ish, the cold coming on slower.
+        if (Bbq.LoungingIn(s, train) is { Kind: LoungeKind.Hammock })
+            deep *= train.Dynamics.Tuning.Composition.Whimsy.HammockCold;
         s.Cold += (Indoors(s, train) ? dt * c.IndoorsRate * train.Dynamics.Tuning.Composition.Insulation : dt) * deep;
         if (s.Cold >= c.DeathSeconds)
         {
@@ -843,6 +846,9 @@ public static class PlayerMotor
     {
         if (BesideStove(s, train) || Bbq.ByTheGrill(s, train))
             return true;
+        // In the hot tub (note 744): warm while the boiler's steam feeds it; gone cold with it.
+        if (Bbq.LoungingIn(s, train) is { Kind: LoungeKind.HotTub })
+            return train.BoilerTuning is null || train.Boiler.Pressure > 0;
         int space = Space(s, train);
         if (space == Outside)
             return false;

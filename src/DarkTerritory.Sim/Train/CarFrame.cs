@@ -106,7 +106,7 @@ public readonly record struct Ladder(Double3 Foot, double Top, Double3 Inward, d
 /// <see cref="Chair"/>, <see cref="Cooler"/> and <see cref="Grill"/> are on the BBQ deck (note 698): a Muskoka chair to sit in
 /// (<see cref="Interactable.Index"/> which), the cooler of beers, the BBQ on its stand.
 /// </remarks>
-public enum InteractableKind : byte { Firebox, Vent, Handbrake, Door, Coal, Sandbox, Hatch, ToolRack, Locker, Points, Whistle, Chair, Cooler, Grill, Gramophone }
+public enum InteractableKind : byte { Firebox, Vent, Handbrake, Door, Coal, Sandbox, Hatch, ToolRack, Locker, Points, Whistle, Chair, Cooler, Grill, Gramophone, Hammock, HotTub }
 
 /// <summary>
 /// A thing a player uses by standing near it and holding Use. <see cref="Index"/> says which door. <see cref="Aim"/> is how
@@ -155,6 +155,15 @@ public readonly record struct LockerBay(int Index, Box Box, string Name)
 /// </summary>
 public sealed record BbqLayout(IReadOnlyList<Double3> Chairs, Double3 Cooler, Double3 Grill, double Front);
 
+/// <summary>A whimsy's place to lie or soak (note 744): the hammock, the hot tub.</summary>
+public enum LoungeKind : byte { Hammock, HotTub }
+
+/// <summary>
+/// Somewhere to lounge that isn't a Muskoka chair (note 744): where a crewmate's set in it (their feet's place in the car's
+/// frame) and the way they face (a player's yaw: −Z at 0).
+/// </summary>
+public readonly record struct Lounge(LoungeKind Kind, Double3 At, double Yaw);
+
 /// <summary>A hinged door: solid while shut. <see cref="Index"/> is its bit in <see cref="Vehicle.DoorsOpen"/>.</summary>
 public readonly record struct Door(Box Box, int Index);
 
@@ -192,6 +201,8 @@ public sealed record CarShape(Box Bounds, IReadOnlyList<Solid> Solids, IReadOnly
     public Box? Stove { get; init; }
     /// <summary>The BBQ deck on the engine's front (note 698), where it's fitted: its chairs, its cooler and its grill.</summary>
     public BbqLayout? Bbq { get; init; }
+    /// <summary>The hammock and the hot tub's seats, where fitted (note 744); a <see cref="InteractableKind.Hammock"/> or <see cref="InteractableKind.HotTub"/>'s Index is one.</summary>
+    public IReadOnlyList<Lounge> Lounges { get; init; } = [];
 
     public double HalfLength => Bounds.Max.Z;
     public double HalfWidth => Bounds.Max.X;
@@ -380,6 +391,41 @@ public sealed record CarShape(Box Bounds, IReadOnlyList<Solid> Solids, IReadOnly
         var interactables = shape.Interactables.Append(new Interactable(InteractableKind.Gramophone, at + new Double3(0.6, 0, 0), 0.8, Aim: Whimsy.Table + 0.15)).ToList();
         return shape with { Solids = solids, Interactables = interactables };
     }
+
+    /// <summary>
+    /// The guard van with the hammock (note 744; docs/design/upgrades.md §7.4, "strung across a car end: lie in it, swinging"):
+    /// slung across the van's rear end inside, its middle a body's width off the floor, lain in across the car.
+    /// </summary>
+    public static CarShape WithHammock(CarShape shape)
+    {
+        if (shape.Interior is not { } room)
+            return shape;
+        var at = new Double3(0, room.Min.Y + 0.1, room.Max.Z - 0.85);
+        var lounges = shape.Lounges.Append(new Lounge(LoungeKind.Hammock, at, Math.PI / 2)).ToList();
+        var interactables = shape.Interactables.Append(new Interactable(InteractableKind.Hammock, at + new Double3(0, 0, -0.75), 0.9, lounges.Count - 1, Aim: 0.7)).ToList();
+        return shape with { Lounges = lounges, Interactables = interactables };
+    }
+
+    /// <summary>
+    /// The engine with the hot tub (note 744; "a tub fed off the boiler ... on the roof at line speed, in the open"): a tub on
+    /// the hood's roof behind the cab, <see cref="TubHalf"/> across, two seats in it facing each other across the train.
+    /// </summary>
+    public static CarShape WithHotTub(CarShape shape)
+    {
+        double roof = shape.RoofHeight, z = TubZ;
+        Double3[] seats = [new(-0.42, roof, z), new(0.42, roof, z)];
+        var lounges = shape.Lounges.ToList();
+        var interactables = shape.Interactables.ToList();
+        foreach (var (seat, yaw) in new[] { (seats[0], -Math.PI / 2), (seats[1], Math.PI / 2) })
+        {
+            lounges.Add(new Lounge(LoungeKind.HotTub, seat, yaw));
+            interactables.Add(new Interactable(InteractableKind.HotTub, seat, 0.9, lounges.Count - 1, Aim: 0.5));
+        }
+        return shape with { Lounges = lounges, Interactables = interactables };
+    }
+
+    /// <summary>Where the hot tub sits on the engine's hood (its middle, m along the engine's frame), and its half-size across and along.</summary>
+    public const double TubZ = 0.8, TubHalf = 0.85;
 
     static CarShape KnottedShape(CarShape shape, GeometryTuning g, double knot)
     {

@@ -27,7 +27,9 @@ namespace DarkTerritory.Sim.Physics;
 public enum BodyKind : byte
 {
     Crate = 1, Lamp = 2, Ragdoll = 3, Cargo = 4, Radio = 5, Heavy = 6, Toy = 7, Loot = 8, Child = 9, Extinguisher = 10, RepairKit = 11, Powder = 12, Tool = 13,
-    Beer = 14, Sausage = 15, Instrument = 16, Caboose = 17
+    Beer = 14, Sausage = 15, Instrument = 16, Caboose = 17,
+    // The fishing rod, a fish caught with it, and the fish grilled (note 744).
+    FishingRod = 18, Fish = 19, GrilledFish = 20,
 }
 
 /// <summary>
@@ -185,6 +187,8 @@ public sealed class Bodies
     /// <summary>The BBQ deck's beer and sausage (note 698): what each gives back used (train.json composition.bbq).</summary>
     public int BeerHeals { get; set; }
     public int SausageHeals { get; set; }
+    /// <summary>What a fish off the grill gives back (note 744: train.json composition.whimsy.fishHeals).</summary>
+    public int FishHeals { get; set; }
     /// <summary>How long Use is held, standing, to use a healing find (loot.json <c>healing.useSeconds</c>).</summary>
     public double HealSeconds { get; set; } = 2;
     /// <summary>A player's full health (player.json <c>health</c>): a find isn't used on a player who's whole.</summary>
@@ -850,11 +854,12 @@ public sealed class Bodies
         bool use, bool usePressed, bool throwPressed)
     {
         // A beer or a sausage (note 698) is had whatever your health: it's a party.
-        bool party = carried is { Kind: BodyKind.Beer or BodyKind.Sausage };
+        bool party = carried is { Kind: BodyKind.Beer or BodyKind.Sausage or BodyKind.GrilledFish };
         // And anywhere on the deck, by its chairs, its cooler or its grill (whatever's nearest a Use would work), and sat down.
         var near = CrewActions.NearestInteractable(s, train, hand)?.Thing.Kind;
         var find = (party || carried is { Kind: BodyKind.Loot } && s.Health < FullHealth && Heals?.Invoke(carried) > 0) && !throwPressed
-            && (near is null || party && near is InteractableKind.Chair or InteractableKind.Cooler or InteractableKind.Grill) ? carried : null;
+            && (near is null || party && near is InteractableKind.Chair or InteractableKind.Cooler or InteractableKind.Grill or InteractableKind.Hammock
+                or InteractableKind.HotTub) ? carried : null;
         bool had = _dosing.TryGetValue(playerId, out var was);
         if (had && (find is null || find.Id != was.Find))
         {
@@ -888,6 +893,7 @@ public sealed class Bodies
             {
                 BodyKind.Beer => BeerHeals,
                 BodyKind.Sausage => SausageHeals,
+                BodyKind.GrilledFish => FishHeals,
                 _ => Heals!(find),
             };
             if (find.Kind == BodyKind.Beer)

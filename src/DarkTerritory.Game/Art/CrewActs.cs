@@ -29,7 +29,7 @@ public static class CrewActs
     public static Crewmate Crewmate(byte id, in PlayerState s, World world, IReadOnlyList<CarFrame> frames, IReadOnlyList<PlayerState>? others = null)
     {
         var act = Of(s, id, world, others);
-        var placed = s.Has(PlayerFlags.Lounging) ? Lounging(s)
+        var placed = s.Has(PlayerFlags.Lounging) ? Lounging(s, world.Train)
             : act is CrewPose.Gunner or CrewPose.Reload && Guns.Mount(world.Train, s.Parent) is { } gun ? Seated(s, gun) : s;
         var (feet, yaw) = Eyes.World(placed, frames);
         var (emote, emoteSeconds) = act is null ? EmoteOf(id, s, world) : (Emote.None, 0);
@@ -171,7 +171,19 @@ public static class CrewActs
     /// <paramref name="s"/> sat in a Muskoka chair (note 698): the seated clip's pan let down to the chair's slung seat
     /// (<see cref="ChairPan"/> over its feet), facing down the line as the chair does.
     /// </summary>
-    public static PlayerState Lounging(in PlayerState s) => s with { Position = s.Position with { Y = s.Position.Y + ChairPan - GunnerPan } };
+    public static PlayerState Lounging(in PlayerState s, TrainOnLine train)
+    {
+        double pan = Bbq.LoungingIn(s, train)?.Kind switch
+        {
+            LoungeKind.Hammock => HammockPan,
+            LoungeKind.HotTub => TubPan,
+            _ => ChairPan,
+        };
+        return s with { Position = s.Position with { Y = s.Position.Y + pan - GunnerPan } };
+    }
+
+    /// <summary>How high the hammock's sag and the hot tub's bench are over the floor or the roof under them (m; note 744).</summary>
+    public const double HammockPan = 0.55, TubPan = 0.25;
 
     /// <summary>How high a Muskoka chair's seat is over the deck under it (m): low and slung, TrainKit.MuskokaChair's.</summary>
     public const double ChairPan = 0.34;

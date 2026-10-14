@@ -109,6 +109,11 @@ public sealed partial class World
         if (!Authority)
             return;
         var t = WhimsyTuning;
+        // The hot tub (note 744) fed off the boiler: each bather draws its steam.
+        if (Train.BoilerTuning is not null)
+            foreach (var (_, bather) in LastCrew)
+                if (bather.Alive && Bbq.LoungingIn(bather, Train) is { Kind: LoungeKind.HotTub })
+                    Train.Boiler.Pressure = Math.Max(0, Train.Boiler.Pressure - t.TubSteam * SimConstants.TickSeconds);
         if (Whimsy.Playing && BandTuning is { } band && Whimsy.Record < band.Scores.Count
             && (Tick - Whimsy.WoundAt) * SimConstants.TickSeconds >= band.Scores[Whimsy.Record].Seconds * 2)
             Whimsy = Whimsy with { Playing = false };
@@ -129,10 +134,76 @@ public sealed partial class World
             Whimsy = Whimsy with { Canary = mood };
     }
 
+    // When each angler's line went in (the tick), while it's in.
+    readonly SortedDictionary<int, uint> _castAt = [];
+
+    /// <summary>
+    /// The fishing rod in hand, stood on dry ground off the train, facing water within <see cref="WhimsyTuning.FishReach"/> m
+    /// (note 744): a line in the water.
+    /// </summary>
+    public bool Angling(in PlayerState s, int playerId)
+    {
+        if (!Fitted("fishingRod") || !s.Alive || s.Parent != PlayerState.World || s.Surface != Surface.Ground
+            || Bodies.CarriedBy(playerId) is not { Kind: Physics.BodyKind.FishingRod })
+            return false;
+        var ahead = new Double3(-Math.Sin(s.Yaw), 0, -Math.Cos(s.Yaw));
+        for (double d = 1; d <= WhimsyTuning.FishReach; d += 0.5)
+        {
+            var p = s.Position + ahead * d;
+            double hint = s.LineHint;
+            if (Sim.Combat.Guns.Water(Train, p) is { } water && water > PlayerMotor.GroundAt(p, Train.Line, ref hint))
+                return true;
+        }
+        return false;
+    }
+
+    /// <summary>A fish in hand at the grill (note 744): held there while it cooks.</summary>
+    bool GrillingFish(in PlayerState s, int playerId) =>
+        Fitted("fishingRod") && Bodies.CarriedBy(playerId) is { Kind: Physics.BodyKind.Fish } && CrewActions.Nearest(s, Train, Hand) == InteractableKind.Grill;
+
+    /// <summary>
+    /// Host: Use held with the line in the water; a bite comes in <see cref="WhimsyTuning.Bite"/> s (by the tick it was cast
+    /// and whose it is), and a fish lands flapping at the angler's feet. The clerk has every one.
+    /// </summary>
+    void Fishing(in PlayerState s, in PlayerIntent intent, int playerId, bool angling)
+    {
+        if (!Authority)
+            return;
+        if (!angling || !intent.Has(PlayerButtons.Use))
+        {
+            _castAt.Remove(playerId);
+            return;
+        }
+        if (!_castAt.TryGetValue(playerId, out uint cast))
+        {
+            _castAt[playerId] = Tick;
+            return;
+        }
+        var bite = WhimsyTuning.Bite;
+        uint h = (cast * 2654435761u) ^ (uint)(playerId * 40503);
+        double wait = bite[0] + (bite[^1] - bite[0]) * (h % 1000) / 1000.0;
+        if ((Tick - cast) * SimConstants.TickSeconds < wait)
+            return;
+        _castAt[playerId] = Tick;
+        var ahead = new Double3(-Math.Sin(s.Yaw), 0, -Math.Cos(s.Yaw));
+        Bodies.SpawnItem(s.Position + ahead * 0.6 + Double3.Up * 0.3, s.LineHint, Physics.BodyKind.Fish);
+        Attribution.Add(Sim.Run.IncidentLog.Event(this, Sim.Run.IncidentKind.Whimsy, "A fish caught", playerId, "Angler: {actor}.", s.Position));
+    }
+
+    /// <summary>The fish in the cook's hands is grilled (note 744): eaten, it heals <see cref="WhimsyTuning.FishHeals"/>.</summary>
+    void Grilled(Physics.Body raw, in PlayerState s, int playerId)
+    {
+        Bodies.Remove(raw);
+        var fish = Bodies.SpawnItem(PlayerMotor.WorldPosition(s, Train) + Double3.Up * 1.0, s.LineHint, Physics.BodyKind.GrilledFish);
+        fish.Carrier = playerId;
+        fish.Claimed = true;
+    }
+
     /// <summary>A new night (Stock): Gerald and the gnomes back, the canary singing, the gramophone stopped.</summary>
     void RestockWhimsy()
     {
         Whimsy = default;
         _atChemicals = 0;
+        _castAt.Clear();
     }
 }

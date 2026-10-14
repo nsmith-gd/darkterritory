@@ -159,7 +159,12 @@ public sealed record CompositionTuning
 
 /// <summary>The whimsies (train.json <c>composition.whimsy</c>; ARCHITECTURE §8 note 715). Field docs live in that file.</summary>
 public sealed record WhimsyTuning(int Gnomes = 5, int CanaryCars = 1, double CanaryGasM = 10, double CanaryFumesSeconds = 20,
-    double GramophoneHears = 22, double GramophoneLoudness = 0.25, double CalliopeHears = 80);
+    double GramophoneHears = 22, double GramophoneLoudness = 0.25, double CalliopeHears = 80, double HammockCold = 0.5, double TubSteam = 0.15,
+    double FishReach = 4, double[]? FishSeconds = null, int FishHeals = 40)
+{
+    /// <summary>How long a line in the water waits for a bite (s), from the first to the second, by the tick it's cast.</summary>
+    public double[] Bite => FishSeconds ?? [12, 30];
+}
 
 /// <summary>The tiny caboose (train.json <c>composition.caboose</c>; ARCHITECTURE §8 note 713). Field docs live in that file.</summary>
 public sealed record CabooseTuning(double Rope = 1.4, double Length = 0.36, double Radius = 0.1, double CouplerHeight = 1.0, double DerailAccel = 0.8,

@@ -893,4 +893,5 @@ written here instead is moved out by `tools/coord/notes.py split`; the Coordinat
 - [713. The tiny caboose collides (U1, queue #445; the director, 14 Oct 2026: "let's absolutely add collision for the little caboose"). Note 701](notes/713.md)
 - [714. The fun batch (U1, queue #446; the director, 14 Oct 2026: "keep going with fun batches and whimsies"; approved in docs/design/upgrades.md…](notes/714.md)
 - [715. The whimsies, first round (U1, queue #447; the director, 14 Oct 2026: "keep going with fun batches and whimsies"; approved in…](notes/715.md)
+- [744. The whimsies, second round (U1, queue #447; the director, 14 Oct 2026: "keep going with fun batches and whimsies"; docs/design/upgrades.md…](notes/744.md)
 <!-- end of the notes index -->

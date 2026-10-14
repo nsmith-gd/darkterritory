@@ -635,6 +635,31 @@ public static partial class Staging
     }
 
     /// <summary>
+    /// The lounges (note 744; `dt screenshot --lounge`, views hammock and hottub): a crewmate swinging in the guard van's hammock,
+    /// and two soaking in the hot tub on the engine's hood, one with a grilled fish.
+    /// </summary>
+    public static (List<Crewmate> Crew, IReadOnlyList<Sim.Physics.Body> Bodies) Lounging(TrainOnLine train)
+    {
+        var bodies = new Sim.Physics.Bodies();
+        var crew = new List<Crewmate>();
+        byte id = 50;
+        for (int car = 0; car < train.Frames.Count; car++)
+        {
+            var frame = train.Frames[car];
+            foreach (var l in frame.Shape.Lounges)
+            {
+                double pan = l.Kind == LoungeKind.Hammock ? Art.CrewActs.HammockPan : Art.CrewActs.TubPan;
+                var local = l.At + new Double3(0, pan - Art.CrewActs.GunnerPan, 0);
+                if (l.Kind == LoungeKind.HotTub && id == 51)
+                    bodies.SpawnCrate(train, car, l.At + new Double3(0.15, 1.0, -0.3), Sim.Physics.BodyKind.GrilledFish).Carrier = id;
+                crew.Add(new Crewmate(id, frame.ToWorld(local), frame.Heading + l.Yaw, true, Act: Art.CrewPose.Gunner, Car: car, Local: local));
+                id++;
+            }
+        }
+        return (crew, bodies.All);
+    }
+
+    /// <summary>
     /// The band (note 700; `dt screenshot --band`, view band): the crew on a car's roof in two rows facing each other across
     /// it, each with one of band.json's instruments in their hands, as a kitchen party's sat round a table.
     /// </summary>

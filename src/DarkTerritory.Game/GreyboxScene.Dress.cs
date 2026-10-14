@@ -224,6 +224,25 @@ public sealed partial class GreyboxScene
                 mesh.Append(art.Piece("whimsy-label", () => Art.WhimsyKit.Label(Look)), Matrix4x4.CreateTranslation(label) * m);
             }
         }
+        // The hammock across the guard van's back end, and the hot tub on the engine's hood, steaming while there's steam (note 744).
+        if (Dressed("hammock") && frame.Shape.Lounges.FirstOrDefault(l => l.Kind == Sim.Train.LoungeKind.Hammock) is { Kind: Sim.Train.LoungeKind.Hammock } hammock
+            && frame.Shape.Interior is { } room)
+        {
+            float span = (float)(room.Max.X - room.Min.X);
+            mesh.Append(art.Piece($"whimsy-hammock-{span:0.00}", () => Art.WhimsyKit.Hammock(Look, span)), Matrix4x4.CreateTranslation(ToF(hammock.At)) * m);
+        }
+        if (Dressed("hotTub") && index == 0)
+        {
+            var tub = new Vector3(0, (float)frame.Shape.RoofHeight, (float)Sim.Train.CarShape.TubZ);
+            mesh.Append(art.Piece("whimsy-hot-tub", () => Art.WhimsyKit.HotTub(Look)), Matrix4x4.CreateTranslation(tub) * m);
+            if (Pressure > 0.05f)
+                for (int i = 0; i < 4; i++)
+                {
+                    float rise = ((float)Time * 0.35f + i * 0.25f) % 1;
+                    var puff = Vector3.Transform(tub + new Vector3(0.3f * MathF.Sin(i * 2.1f + (float)Time * 0.4f), 0.7f + rise * 1.4f, 0.25f * MathF.Cos(i * 1.7f)), m);
+                    mesh.Billboard(puff, 0.5f + rise * 0.9f, i, new Vector4(new Vector3(0.75f, 0.76f, 0.78f) * (0.22f * (1 - rise)), 1), -1, FxBlend.Additive);
+                }
+        }
         if (Dressed("calliope") && index == 0)
             mesh.Append(art.Piece("whimsy-calliope", () => Art.WhimsyKit.Calliope(Look)),
                 Matrix4x4.CreateTranslation(0, (float)frame.Shape.RoofHeight, -2.4f) * m);

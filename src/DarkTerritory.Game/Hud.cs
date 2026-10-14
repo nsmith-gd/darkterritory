@@ -733,6 +733,10 @@ public static partial class Hud
         // The BBQ deck's (note 698).
         BodyKind.Beer => "A BEER",
         BodyKind.Sausage => "A SAUSAGE",
+        // The fishing rod's (note 744).
+        BodyKind.FishingRod => "THE FISHING ROD",
+        BodyKind.Fish => "A FISH",
+        BodyKind.GrilledFish => "A GRILLED FISH",
         // The band's (note 700): band.json's name for it.
         BodyKind.Instrument => world.BandTuning is { } band && b.Instrument < band.Instruments.Length ? band.Instruments[b.Instrument].Name.ToUpperInvariant() : "THE INSTRUMENT",
         _ => "IT",
@@ -2092,7 +2096,18 @@ public static partial class Hud
     static string? PartyPrompt(Body carried) => carried.Kind switch
     {
         BodyKind.Beer => carried.MendTicks > 0 ? "DRINKING" : "DRINK : HOLD [E]",
-        BodyKind.Sausage => carried.MendTicks > 0 ? "EATING" : "EAT : HOLD [E]",
+        BodyKind.Sausage or BodyKind.GrilledFish => carried.MendTicks > 0 ? "EATING" : "EAT : HOLD [E]",
+        _ => null,
+    };
+
+    /// <summary>
+    /// The fishing rod in hand at the water's edge (note 744), or a fish at the grill: what Use held does. Null otherwise.
+    /// </summary>
+    static string? AnglerPrompt(IPlaySession s, Body carried) => carried.Kind switch
+    {
+        BodyKind.FishingRod when s.World.Angling(s.Player, s.PlayerId) => "FISH : HOLD [E]",
+        BodyKind.Fish when CrewActions.Nearest(s.Player, s.Train, s.World.Hand) == InteractableKind.Grill
+            && s.Train.Dynamics.Tuning.Composition.Bbq is var bbq => Hold("GRILL THE FISH", s.Player.ActionProgress / bbq.GrillSeconds),
         _ => null,
     };
 
@@ -2255,7 +2270,7 @@ public static partial class Hud
             && SwitchPrompt(world, p, train, world.Hand) is null && HealPrompt(s, slotted) is null && TakePrompt(world, p, train, s.PlayerId) is { } another)
             return another;
         if (world.Bodies.CarriedBy(s.PlayerId) is { } inHands)
-            return PowderPrompt(s, inHands) ?? SwitchPrompt(world, p, train, world.Hand) ?? HealPrompt(s, inHands) ?? PartyPrompt(inHands) ?? BandPrompt(s, inHands);
+            return PowderPrompt(s, inHands) ?? SwitchPrompt(world, p, train, world.Hand) ?? HealPrompt(s, inHands) ?? PartyPrompt(inHands) ?? AnglerPrompt(s, inHands) ?? BandPrompt(s, inHands);
         // The tiny caboose off the rails within reach (note 713): empty hands put it back.
         if (world.Bodies.CabooseOff(p, train, train.Dynamics.Tuning.Composition.Caboose) is not null)
             return "PUT THE CABOOSE BACK ON THE RAILS : [E]";
@@ -2352,6 +2367,11 @@ public static partial class Hud
             // The BBQ deck (note 698): a chair, the cooler, the grill.
             case InteractableKind.Chair:
                 return "SIT : [E]";
+            // The hammock and the hot tub (note 744).
+            case InteractableKind.Hammock:
+                return "LIE IN THE HAMMOCK : [E]";
+            case InteractableKind.HotTub:
+                return "GET IN THE HOT TUB : [E]";
             case InteractableKind.Cooler:
                 return train.Vehicles[p.Parent].Beers is > 0 and var beers ? $"A BEER : [E]   {beers} LEFT" : "THE COOLER'S EMPTY";
             // The gramophone (note 715).

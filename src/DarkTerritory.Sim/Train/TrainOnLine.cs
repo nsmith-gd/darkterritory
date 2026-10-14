@@ -960,9 +960,13 @@ public sealed class TrainOnLine
         int tenths = hasCarBehind ? (int)Math.Round(knot * 10) : 0;
         // The BBQ deck on the engine's front (note 698), where it's fitted.
         bool bbq = kind == VehicleKind.Engine && Tuning.Composition.BbqDeck;
-        // The gramophone in the last guard van (note 715).
+        // The gramophone and the hammock in the last guard van (notes 715, 744), the hot tub on the engine's hood (note 744).
+        // (A train's dressing doesn't change: one key for whatever extras this kind has.)
         bool gramophone = kind == VehicleKind.Guard && !hasCarBehind && Tuning.Composition.Dressed("gramophone");
-        if (!_shapes.TryGetValue((kind, hasCarBehind, lockers, tenths, bbq || gramophone), out var shape))
+        bool hammock = kind == VehicleKind.Guard && !hasCarBehind && Tuning.Composition.Dressed("hammock");
+        bool tub = kind == VehicleKind.Engine && Tuning.Composition.Dressed("hotTub");
+        bool extras = bbq || gramophone || hammock || tub;
+        if (!_shapes.TryGetValue((kind, hasCarBehind, lockers, tenths, extras), out var shape))
         {
             shape = CarShape.Build(g, kind, hasCarBehind, lockers ? Tuning.Kit.Lockers : null);
             if (tenths > 0)
@@ -971,7 +975,11 @@ public sealed class TrainOnLine
                 shape = CarShape.WithBbqDeck(shape, g, Tuning.Composition.Bbq);
             if (gramophone)
                 shape = CarShape.WithGramophone(shape);
-            _shapes[(kind, hasCarBehind, lockers, tenths, bbq || gramophone)] = shape;
+            if (hammock)
+                shape = CarShape.WithHammock(shape);
+            if (tub)
+                shape = CarShape.WithHotTub(shape);
+            _shapes[(kind, hasCarBehind, lockers, tenths, extras)] = shape;
         }
         return shape;
     }
