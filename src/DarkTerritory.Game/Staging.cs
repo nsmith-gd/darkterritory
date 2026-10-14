@@ -616,6 +616,34 @@ public static partial class Staging
         return (crew, bodies.All);
     }
 
+    /// <summary>
+    /// The band (note 700; `dt screenshot --band`, view band): the crew on a car's roof in two rows facing each other across
+    /// it, each with one of band.json's instruments in their hands, as a kitchen party's sat round a table.
+    /// </summary>
+    public static (List<Crewmate> Crew, IReadOnlyList<Sim.Physics.Body> Bodies) Band(TrainOnLine train, string content, int car = 2)
+    {
+        var player = DataFile.Load<Sim.Player.PlayerTuning>(Path.Combine(content, Sim.Player.PlayerTuning.File));
+        var band = DataFile.Load<Sim.Player.BandTuning>(Path.Combine(content, Sim.Player.BandTuning.File));
+        var bodies = new Sim.Physics.Bodies();
+        var crew = new List<Crewmate>();
+        car = Math.Clamp(car, 1, train.Frames.Count - 1);
+        for (int i = 0; i < band.Instruments.Length; i++)
+        {
+            int side = i % 2 == 0 ? -1 : 1;
+            // Facing across the roof: the left row to the right (+X), the right row to the left.
+            double yaw = side < 0 ? -Math.PI / 2 : Math.PI / 2;
+            var s = Sim.Player.PlayerMotor.SpawnOnRoof(train, car, (i / 2 - 1.5) * 1.5, player, side * 0.55) with { Yaw = yaw };
+            var forward = new Double3(-Math.Sin(yaw), 0, -Math.Cos(yaw));
+            var held = bodies.SpawnCrate(train, car, s.Position + Double3.Up * 1.1 + forward * 0.35, Sim.Physics.BodyKind.Instrument);
+            held.Instrument = (byte)i;
+            held.Carrier = 50 + i;
+            held.Yaw = yaw;
+            crew.Add(new Crewmate((byte)(50 + i), Sim.Player.PlayerMotor.WorldPosition(s, train), Sim.Player.PlayerMotor.WorldYaw(s, train), true,
+                Act: Art.CrewPose.Carry, Car: car, Local: s.Position));
+        }
+        return (crew, bodies.All);
+    }
+
     public static Crewmate Driver(TrainOnLine train, bool whistling)
     {
         var cab = train.Frames[0];

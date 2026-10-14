@@ -1,0 +1,53 @@
+// The band (ARCHITECTURE §8 note 700; docs/design/upgrades.md §8.4; the director, 13 Oct 2026: "We should also add more
+// instruments ... all play together should create some sort of public domain song ... synced up by the first person who
+// starts playing. It will be the song that is selected from a repertoire. And then as people play different instruments or
+// the same instrument, they should sync up to whoever played first. And then that should all stop once the last person
+// stops playing"; and "make sure that they are like Celtic folk style songs, because we want to keep in with the East
+// Coast folk aesthetic").
+{
+  // A carried instrument is played with Use held at least holdSeconds (a tap still puts it down, as any hand-carried thing).
+  // Played, each feeds the crew loudness meter this much in its player's name, as a noisy toy does (combat.json
+  // choir.toys), and draws the night's first threat as a noisy toy (note 287).
+  "holdSeconds": 0.4,
+  "loudness": 0.25,
+  // A tune played out, the band goes into the next of the repertoire after this breath, as a session's set does.
+  "gapSeconds": 1.5,
+  // The instruments the blacksmith sells (campaign.json: one upgrade each, effect "instrument": its index here), each a
+  // part of every tune: the tune (melody), chords and bass (rhythm), or the beat (percussion). "octave": up or down from
+  // the tune as written. Two of one instrument play in unison.
+  "instruments": [
+    { "id": "fiddle",     "name": "the fiddle",          "part": "melody",     "octave": 0 },
+    { "id": "whistle",    "name": "the tin whistle",     "part": "melody",     "octave": 1 },
+    { "id": "accordion",  "name": "the button accordion", "part": "melody",    "octave": 0 },
+    { "id": "banjo",      "name": "the tenor banjo",     "part": "melody",     "octave": 0 },
+    { "id": "guitar",     "name": "the guitar",          "part": "rhythm",     "octave": -1 },
+    { "id": "bodhran",    "name": "the bodhrán",         "part": "percussion", "octave": 0 },
+    { "id": "spoons",     "name": "the spoons",          "part": "percussion", "octave": 0 },
+    { "id": "uglyStick",  "name": "the ugly stick",      "part": "percussion", "octave": 0 }
+  ],
+  // The repertoire, in the order it's played: the first to start playing starts the next tune, and it plays round until the
+  // last player stops. Traditional, public domain, in our own simple transcriptions (abc notation: L:1/8 units, the key
+  // with its mode, "|:" and ":|" repeats); "chords" is a chord a bar, after the repeats are played out. Not the minstrel
+  // songs. The East Coast standards the audio chat should add, transcribed properly: Farewell to Nova Scotia, I's the B'y,
+  // Lukey's Boat, Jack Was Every Inch a Sailor, Mussels in the Corner.
+  "repertoire": [
+    { "title": "Drunken Sailor", "metre": "4/4", "key": "Ddor", "bpm": 112,
+      "melody": "|: A2AA A2AA | A2D2 F2A2 | G2GG G2GG | G2C2 E2G2 | A2AA A2AA | A2B2 c2d2 | c2A2 G2E2 | D4 D4 :| |: A4 A4 | A2D2 F2A2 | G4 G4 | G2C2 E2G2 | A4 A4 | A2B2 c2d2 | c2A2 G2E2 | D4 D4 :|",
+      "chords": "Dm Dm C C Dm Dm C Dm Dm Dm C C Dm Dm C Dm Dm Dm C C Dm Dm C Dm Dm Dm C C Dm Dm C Dm" },
+    { "title": "The Swallowtail Jig", "metre": "6/8", "key": "Edor", "bpm": 116,
+      "melody": "|: GEE BEE | GEG BAG | FDD ADD | dcd AGF | GEE BEE | GEG B2c | dcd AGF | GEE E3 :| |: Bcd e2f | e2f edB | Bcd e2f | edB d3 | Bcd e2f | edB d2B | dcd AGF | GEE E3 :|",
+      "chords": "Em Em D D Em Em D Em Em Em D D Em Em D Em Em Em Em D Em D D Em Em Em Em D Em D D Em" },
+    { "title": "Soldier's Joy", "metre": "4/4", "key": "D", "bpm": 108,
+      "melody": "|: d2AF D2FA | dAFA d2ef | g2fe d2cB | ABAG FAde | d2AF D2FA | dAFA d2ef | g2fe dcBc | d2f2 d4 :| |: fgaf g2fg | afdf a2ag | f2ef d2cB | ABAG FAde | fgaf g2fg | afdf a2ag | f2ef dcBc | d2f2 d4 :|",
+      "chords": "D D G A D D G D D D G A D D G D D G D A D G A D D G D A D G A D" },
+    { "title": "The Irish Washerwoman", "metre": "6/8", "key": "G", "bpm": 120,
+      "melody": "|: DGG GFG | BGB dcB | cAA EAA | cAc edc | BGG FGG | BGB dcB | cBc Adc | BGG G3 :| |: gdd edd | gdd Bdd | gdd edd | gab gfe | dgg fgg | dgg Bdd | cBc Adc | BGG G3 :|",
+      "chords": "G G D D G G D G G G D D G G D G G G G C G G D G G G G C G G D G" },
+    { "title": "Morrison's Jig", "metre": "6/8", "key": "Edor", "bpm": 112,
+      "melody": "|: E3 B3 | EBE AFD | E3 B3 | dcB AFD | E3 B3 | EBE AFD | G3 FGA | dAG FED :| |: Bee fee | aee fee | Bee fee | a2g fed | Bee fee | aee fee | gfe dBA | dAG FED :|",
+      "chords": "Em Em Em D Em Em G D Em Em Em D Em Em G D Em Em Em D Em Em G D Em Em Em D Em Em G D" },
+    { "title": "Auld Lang Syne", "metre": "4/4", "key": "G", "bpm": 76,
+      "melody": "z6 D2 | G3G G2B2 | A3G A2B2 | G3G B2d2 | e6 e2 | d3B B2G2 | A3G A2B2 | G3E E2D2 | G6 e2 | d3B B2G2 | A3G A2e2 | d3B B2d2 | e6 g2 | d3B B2G2 | A3G A2B2 | G3E E2D2 | G8 |",
+      "chords": "G G D G C G D C G G D G C G D C G" }
+  ]
+}

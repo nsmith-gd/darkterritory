@@ -115,7 +115,9 @@ public static class WorldRecords
                 Q(world.Answer.At.X, Pos), Q(world.Answer.At.Y, Pos), Q(world.Answer.At.Z, Pos),
                 // A sign shown a crewmate afoot (note 327): how long it shows, whose, to whom, and where.
                 Q(world.Watcher.Seconds, Fine), (long)world.Watcher.Kind, world.Watcher.Player,
-                Q(world.Watcher.At.X, Pos), Q(world.Watcher.At.Y, Pos), Q(world.Watcher.At.Z, Pos)]));
+                Q(world.Watcher.At.X, Pos), Q(world.Watcher.At.Y, Pos), Q(world.Watcher.At.Z, Pos),
+                // The band (note 700): the tune it's playing (+1; 0 none) and the tick its first bar began.
+                world.Band.Tune + 1, world.Band.StartTick]));
         foreach (var e in world.ActiveEnemies)
             list.Add(new WireRecord(WireRecord.MakeKey(RecordKind.Enemy, e.Id),
             [
@@ -287,6 +289,8 @@ public static class WorldRecords
                 Physics.BodyKind.Extinguisher => Q(body.Charge, Hint),
                 Physics.BodyKind.Ragdoll or Physics.BodyKind.Tool => (long)body.Tools,
                 Physics.BodyKind.Toy => (long)body.Noise,
+                // Which of the band's instruments (note 700).
+                Physics.BodyKind.Instrument => body.Instrument,
                 // Broken, and how far the kit's got mending it (note 201): 0 whole, 1 + ticks broken.
                 Physics.BodyKind.Radio => body.Broken ? 1 + body.MendTicks : 0,
                 // How far its carrier has got using a healing find (note 272), for their HUD.
@@ -416,6 +420,7 @@ public static class WorldRecords
                     world.LampLit = f[4] != 0;
                     world.LampOutSeconds = f.Length > 5 ? D(f[5], Fine) : 0;
                     world.Train.Sand = f.Length > 6 ? D(f[6], Fine) : 0;
+                    world.Band = f.Length > 29 ? new BandState((int)f[28] - 1, (uint)f[29]) : BandState.Silent;
                     break;
                 case RecordKind.Enemy:
                     if (!world.Authority)
@@ -571,7 +576,8 @@ public static class WorldRecords
             Charge = (Physics.BodyKind)f[0] == Physics.BodyKind.Extinguisher ? D(f[8], Hint) : 1,
             Tools = (Physics.BodyKind)f[0] is Physics.BodyKind.Ragdoll or Physics.BodyKind.Tool ? (ulong)f[8] : 0,
             Cargo = (Physics.BodyKind)f[0] is Physics.BodyKind.Extinguisher or Physics.BodyKind.Ragdoll or Physics.BodyKind.Toy or Physics.BodyKind.Radio or Physics.BodyKind.Loot or Physics.BodyKind.Tool
-                ? CargoKind.None : (CargoKind)f[8],
+                or Physics.BodyKind.Instrument ? CargoKind.None : (CargoKind)f[8],
+            Instrument = (Physics.BodyKind)f[0] == Physics.BodyKind.Instrument ? (byte)f[8] : (byte)0,
             Noise = (Physics.BodyKind)f[0] == Physics.BodyKind.Toy ? (Physics.ToyNoise)f[8] : Physics.ToyNoise.None,
             Broken = (Physics.BodyKind)f[0] == Physics.BodyKind.Radio && f[8] != 0,
             MendTicks = (Physics.BodyKind)f[0] == Physics.BodyKind.Radio && f[8] > 1 ? (int)(f[8] - 1) : (Physics.BodyKind)f[0] == Physics.BodyKind.Loot ? (int)f[8] : 0,

@@ -196,6 +196,8 @@ public sealed record SessionSetup(string? Route = null, string Line = "test-loop
             WreckTuning = DataFile.Load<WreckTuning>(Path.Combine(content, WreckTuning.File)),
             DawnEndsCampaign = CampaignNight && DataFile.Load<Sim.Campaign.CampaignTuning>(Path.Combine(content, Sim.Campaign.CampaignTuning.File)).DawnEndsCampaign,
         };
+        // The band's instruments and tunes (note 700), host and clients alike: a client plays the tune the host names.
+        world.EnableBand(DataFile.Load<Sim.Player.BandTuning>(Path.Combine(content, Sim.Player.BandTuning.File)));
         if (route is not null)
         {
             var routeTuning = RouteTuning.Load(content);

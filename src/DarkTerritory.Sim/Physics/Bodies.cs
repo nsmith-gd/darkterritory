@@ -21,11 +21,12 @@ namespace DarkTerritory.Sim.Physics;
 /// locker's shelf (note 649): it's only ever there, its tool in <see cref="Body.Tools"/>; taken, it's back in a slot.
 /// </summary>
 /// <remarks>A beer and a sausage are the BBQ deck's (note 698): a beer from its cooler, a sausage off its grill, each used up
-/// in the hands as a healing find is (<see cref="Bodies.BeerHeals"/>, <see cref="Bodies.SausageHeals"/>).</remarks>
+/// in the hands as a healing find is (<see cref="Bodies.BeerHeals"/>, <see cref="Bodies.SausageHeals"/>). An instrument is the
+/// band's (note 700): which one is <see cref="Body.Instrument"/>, played with Use held.</remarks>
 public enum BodyKind : byte
 {
     Crate = 1, Lamp = 2, Ragdoll = 3, Cargo = 4, Radio = 5, Heavy = 6, Toy = 7, Loot = 8, Child = 9, Extinguisher = 10, RepairKit = 11, Powder = 12, Tool = 13,
-    Beer = 14, Sausage = 15
+    Beer = 14, Sausage = 15, Instrument = 16
 }
 
 /// <summary>
@@ -101,6 +102,8 @@ public sealed class Body
     public int MendTicks { get; set; }
     /// <summary>A toy's noise (App. C.7): <see cref="ToyNoise.None"/> for a quiet one and everything that isn't a toy.</summary>
     public ToyNoise Noise { get; set; }
+    /// <summary>Which of the band's instruments this is (band.json <c>instruments</c>; note 700), when it's one.</summary>
+    public byte Instrument { get; set; }
     /// <summary>
     /// For a ragdoll, the tools its player was carrying when they died (GDD v1.4 App. D.2: the body keeps everything,
     /// the engineering kit included), packed like <see cref="PlayerState.Kit"/>. Whoever lifts the body takes them.
@@ -188,6 +191,14 @@ public sealed class Bodies
     public int TakeDose(int playerId) => _doses.Remove(playerId, out int amount) ? amount : 0;
 
     readonly SortedSet<int> _drunk = [];
+
+    readonly Dictionary<int, int> _playing = new();
+
+    /// <summary>How long Use is held with an instrument before it's played (band.json <c>holdSeconds</c>; a tap puts it down).</summary>
+    public double PlayHold { get; set; } = 0.4;
+
+    /// <summary>Whether this player is playing the instrument in their hands now (note 700): Use held on it long enough.</summary>
+    public bool Playing(int playerId) => _playing.TryGetValue(playerId, out int ticks) && ticks * Dt >= PlayHold - Dt / 2;
 
     /// <summary>Whether this player finished a beer this tick (note 698): the world warms them for it.</summary>
     public bool TakeDrink(int playerId) => _drunk.Remove(playerId);
@@ -408,7 +419,7 @@ public sealed class Bodies
         foreach (var b in _bodies.OrderBy(b => b.Id))
         {
             if (b.Kind is not (BodyKind.Crate or BodyKind.Cargo or BodyKind.Heavy or BodyKind.Loot or BodyKind.Toy or BodyKind.Tool
-                    or BodyKind.Radio or BodyKind.RepairKit or BodyKind.Powder)
+                    or BodyKind.Radio or BodyKind.RepairKit or BodyKind.Powder or BodyKind.Instrument)
                 || b.Carrier >= 0 || b.Locker >= 0 || b.Pocket >= 0 || b.TakenBy >= 0 || !b.Pbd.Asleep || b.Pbd.Particles.Length != 1
                 || b.Parent <= 0 || b.Parent >= train.Frames.Count || train.Frames[b.Parent].Shape.Interior is not { } room)
                 continue;
@@ -678,6 +689,8 @@ public sealed class Bodies
         _doorHeld.Remove(playerId);
         if (Mend(s, intent, playerId, train, hand, carried, use, usePressed, throwPressed))
             return false;
+        if (Play(playerId, train, s, carried, use, usePressed, throwPressed))
+            return false;
         if (Dose(s, intent, playerId, train, hand, carried, use, usePressed, throwPressed))
             return false;
         // Note 594: a find in hand off the train and another hand-sized thing in reach, with a slot free: Use takes it into that
@@ -795,6 +808,33 @@ public sealed class Bodies
             radio.MendTicks = 0;
         }
         return true;
+    }
+
+    /// <summary>
+    /// The band's instrument in hand (note 700): Use held on it plays it, for as long as it's held (walking and all); a tap
+    /// puts it down, as with anything carried. Returns whether it had the hands this tick.
+    /// </summary>
+    bool Play(int playerId, TrainOnLine train, in PlayerState s, Body? carried, bool use, bool usePressed, bool throwPressed)
+    {
+        bool had = _playing.TryGetValue(playerId, out int ticks);
+        if (carried is not { Kind: BodyKind.Instrument } || throwPressed)
+        {
+            _playing.Remove(playerId);
+            return false;
+        }
+        if (usePressed)
+            _playing[playerId] = 1;
+        else if (use && had)
+            _playing[playerId] = ticks + 1;
+        else if (!use && had)
+        {
+            _playing.Remove(playerId);
+            // A tap: it was the hands', putting it down.
+            if (ticks * Dt < PlayHold - Dt / 2)
+                Release(carried, s, train, 0);
+            return true;
+        }
+        return use && _playing.ContainsKey(playerId);
     }
 
     /// <summary>

@@ -113,7 +113,7 @@ public sealed record RakeSave(int[] Vehicles, int Path, double Distance, bool Ha
 /// </summary>
 public sealed record ThingAboard(BodyKind Kind, int Car, Double3 At, double Radius, double Friction, double Bounce, double Yaw = 0, int Locker = -1,
     int Slot = 0, bool Claimed = true, CargoKind Cargo = CargoKind.None, int Owner = -1, int Home = -1, double Charge = 1,
-    ToyNoise Noise = ToyNoise.None, bool Broken = false, ulong Tools = 0, bool Loaded = false);
+    ToyNoise Noise = ToyNoise.None, bool Broken = false, ulong Tools = 0, bool Loaded = false, byte Instrument = 0);
 
 /// <summary>
 /// Spec E "autosave per POI, on successful departure": enough of a night to start it again from the facility the
@@ -478,6 +478,16 @@ public static class Campaign
                     "switchThrower" => Fit(l, c => c with { SwitchThrower = c.SwitchThrower || k > 0 }),
                     // The BBQ deck (note 698): the engine's front, its chairs, cooler and grill.
                     "bbqDeck" => Fit(l, c => c with { BbqDeck = c.BbqDeck || k > 0 }),
+                    // The train's dressing (note 701): drawn on the train; the art reads which.
+                    _ when effect.StartsWith("dress:", StringComparison.Ordinal) && k > 0 =>
+                        Fit(l, c => c.Dressed(effect["dress:".Length..]) ? c : c with { Dress = [.. c.Dress, effect["dress:".Length..]] }),
+                    // The stuffed moose head (note 701): a Moose takes it personally, its temper rising k times as fast as the train passes.
+                    "mooseTemper" when l.Enemies is { } e => l with { Enemies = e with { Moose = e.Moose with { TrainPass = e.Moose.TrainPass * k } } },
+                    // The disco ball (note 701): the Fire Flies come to dance, k times as often at a stop.
+                    "fireFlies" when l.Enemies is { } e => l with { Enemies = e with { FireFlies = e.FireFlies with { StoppedWeight = e.FireFlies.StoppedWeight * k } } },
+                    // The band (note 700): an instrument of band.json's in the guard van, one per upgrade.
+                    _ when effect.StartsWith("instrument:", StringComparison.Ordinal) && k > 0 =>
+                        l with { Train = l.Train with { Kit = l.Train.Kit with { Instruments = [.. l.Train.Kit.Instruments, effect["instrument:".Length..]] } } },
                     // The catalogue's (note 678; docs/design/upgrades.md): tools that keep pace with the tiers, and the silly.
                     "overspeedLead" => l with { Train = l.Train with { Overspeed = l.Train.Overspeed with { LeadSeconds = l.Train.Overspeed.LeadSeconds * k } } },
                     "brakeFade" => l with { Train = l.Train with { BrakeFade = l.Train.BrakeFade with { FadePerSecond = l.Train.BrakeFade.FadePerSecond * k } } },

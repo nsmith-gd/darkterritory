@@ -949,6 +949,8 @@ CampaignState? Play(IPlaySession session, CampaignState? campaign)
         Outfits = session.World.Outfits,
         Impacts = session.World.Impacts,
         Run = session.World.Run,
+        Band = session.World.BandTuning,
+        Words = DataFile.Load<DarkTerritory.Game.DressWords>(Path.Combine(content, DarkTerritory.Game.DressWords.File)),
         Holdouts = session.World.Holdouts,
         Town = session.World.Town,
         Arrival = session.World.Arrival,
@@ -1438,6 +1440,8 @@ CampaignState? Play(IPlaySession session, CampaignState? campaign)
             sound.OwnIntent = intent;
             // The crew's clips' clock, the scene's: the breach's blows land as the lock jumps (note 497).
             sound.SceneClock = now;
+            // The band's clock, the host's (note 700).
+            sound.HostTick = session.HostTick;
             sound.Update(session.World, session.Controls, Listener.At(camera.Position, camera.Yaw), exposed, SimConstants.TickSeconds,
                 PlayerMotor.Space(ears, session.Train));
             // Your own interface sounds (your hold, the night's end, the queue while dead), whoever you're watching.

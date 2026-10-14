@@ -82,7 +82,8 @@ public static class Protocol
     // 58: the news (note 663): cars lost and the engine failing, with what did it, a record kind of its own.
     // 59: the BBQ deck (note 698): the vehicle record carries its grill's charcoal and its cooler's beers (its 32nd and 33rd
     //     fields; the fire cells after them), a beer and a sausage are body kinds of their own, and a crewmate sat in a
-    //     Muskoka chair is a player flag.
+    //     Muskoka chair is a player flag; and the band (note 700): an instrument is a body kind (which, its ninth field), a
+    //     crewmate playing one a player flag, and the world record carries the band's tune and its first tick (fields 29–30).
     public const int Version = 59;
 }
 

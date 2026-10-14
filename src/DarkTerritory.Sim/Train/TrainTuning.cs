@@ -137,6 +137,15 @@ public sealed record CompositionTuning
     public ThrowerTuning Thrower { get; init; } = new();
     /// <summary>The BBQ deck on the engine's front (note 698): its chairs, its cooler and its grill.</summary>
     public bool BbqDeck { get; init; }
+    /// <summary>
+    /// The train's dressing (note 701): the silly and the fun bought from the blacksmith that are only things on the train to
+    /// see (fuzzy dice, flames, the hubcaps, the tiny caboose...), by campaign.json's ids (effect <c>dress:&lt;id&gt;</c>). The
+    /// art draws each; none changes the sim but by its own effect beside it.
+    /// </summary>
+    public IReadOnlyList<string> Dress { get; init; } = [];
+
+    /// <summary>Whether <paramref name="id"/> is fitted (<see cref="Dress"/>).</summary>
+    public bool Dressed(string id) => Dress.Contains(id);
     /// <summary>What's on it, and what each does.</summary>
     public BbqTuning Bbq { get; init; } = new();
 }
@@ -194,6 +203,11 @@ public sealed record KitTuning
     /// still carries (m). Spec F.3's radio range adds to it (note 196).
     /// </summary>
     public double RadioReach { get; init; }
+    /// <summary>
+    /// The band's instruments the blacksmith sold the crew (note 700; band.json <c>instruments</c> ids), in the guard van; the
+    /// campaign sets it (effect <c>instrument:&lt;id&gt;</c>).
+    /// </summary>
+    public IReadOnlyList<string> Instruments { get; init; } = [];
     /// <summary>Toys in the guard van (GDD v1.1 App. C.4): hand loot, what the Track Doll will leave for.</summary>
     public int Toys { get; init; }
     /// <summary>

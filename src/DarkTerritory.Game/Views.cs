@@ -228,6 +228,16 @@ public static class Views
             "bbq" => Camera.LookAt(engine.ToWorld(new Double3(4.6, 3.3, -engineHalf - 7.5)), engine.ToWorld(new Double3(-0.3, 1.8, -engineHalf - 1.4)), 55),
             "bbqparty" => Camera.LookAt(engine.ToWorld(new Double3(2.6, 3.0, -engineHalf - 4.6)), engine.ToWorld(new Double3(-0.4, 1.9, -engineHalf - 1.4)), 62),
             "bbqseat" => Camera.LookAt(engine.ToWorld(new Double3(-0.95, 2.45, -engineHalf - 2.0)), engine.ToWorld(new Double3(-0.6, 2.0, -engineHalf - 40)), 75),
+            // The train's dressing (note 701; `--upgrades fuzzyDice,flames,...`): the back of the guard van from behind, low (the
+            // stickers, the ribbon, the tiny caboose on its string); the engine's side (the flames down the hood, the hubcaps);
+            // inside the guard van, across to the towels' rail with the disco ball turning over the aisle.
+            "dressback" => Camera.LookAt(train.Frames[^1].ToWorld(new Double3(1.3, 2.0, train.Frames[^1].Shape.HalfLength + 5.0)),
+                train.Frames[^1].ToWorld(new Double3(-0.1, 1.6, train.Frames[^1].Shape.HalfLength + 0.8)), 55),
+            "dresside" => Camera.LookAt(engine.ToWorld(new Double3(6.5, 2.0, -2.5)), engine.ToWorld(new Double3(1.5, 1.7, 0.2)), 60),
+            "dressvan" => Camera.LookAt(train.Frames[^1].ToWorld(new Double3(-1.0, 2.3, -2.2)), train.Frames[^1].ToWorld(new Double3(1.3, 2.4, 1.4)), 70),
+            // The band (note 700; `--band`): from over the roof's back end, down between the two rows playing.
+            "band" => Camera.LookAt(train.Frames[Math.Clamp(car, 1, train.Frames.Count - 1)].ToWorld(new Double3(1.6, train.Frames[Math.Clamp(car, 1, train.Frames.Count - 1)].Shape.RoofHeight + 2.4, 4.6)),
+                train.Frames[Math.Clamp(car, 1, train.Frames.Count - 1)].ToWorld(new Double3(-0.2, train.Frames[Math.Clamp(car, 1, train.Frames.Count - 1)].Shape.RoofHeight + 1.0, -0.6)), 60),
             "prow" => Camera.LookAt(engine.ToWorld(new Double3(4.2, 1.9, -engineHalf - 6.5)), engine.ToWorld(new Double3(0, 2.5, -engineHalf + 2.2)), 52),
             // The way in from the train (the director, 7 Oct): on the left running board beside the boiler, a crewmate's eye,
             // looking forward to the cab's doorway.

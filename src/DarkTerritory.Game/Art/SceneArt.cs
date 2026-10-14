@@ -19,6 +19,9 @@ public sealed partial class SceneArt(Look look)
     /// <summary>What a village find is (loot.json's item key), from the run: its model (FindKit). Null, the plain bundle.</summary>
     public Func<Sim.Physics.Body, string?>? FindItem { get; set; }
 
+    /// <summary>Which of the band's instruments a body is (band.json's id, note 700); null, the fiddle.</summary>
+    public Func<Sim.Physics.Body, string?>? InstrumentOf { get; set; }
+
     /// <summary>The line and its lineside.</summary>
     public WorldArt World { get; } = new(look);
 
@@ -785,6 +788,8 @@ public sealed partial class SceneArt(Look look)
             // The BBQ deck's (note 698).
             Sim.Physics.BodyKind.Beer => Piece("prop-beer", () => PropKit.Beer(Look)),
             Sim.Physics.BodyKind.Sausage => Piece("prop-sausage", () => PropKit.Sausage(Look)),
+            // The band's (note 700).
+            Sim.Physics.BodyKind.Instrument when (InstrumentOf?.Invoke(b) ?? "fiddle") is var id => Piece($"prop-band-{id}", () => PropKit.Instrument(Look, id)),
             // The hand lamp: the sourced lantern (tools/models hand_lantern) where it's built.
             _ => PropArt.Of(Look).Get("hand_lantern") ?? Piece("prop-lantern", () => PropKit.Lantern(Look)),
         };

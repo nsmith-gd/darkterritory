@@ -155,6 +155,9 @@ public sealed partial class GreyboxScene
         ? Palette.SignalGreen * (0.5f + 0.8f * scale) : Palette.FurnaceOrange * scale;
     /// <summary>Tonight's run, for facility machinery (the coaling chute pouring).</summary>
     public Sim.Run.Run? Run { get; set; }
+
+    /// <summary>The band's instruments (note 700), so each is drawn as itself.</summary>
+    public Sim.Player.BandTuning? Band { get; set; }
     /// <summary>The route's Holdouts (GDD App. D): each one's lamp burns while somebody waits in it.</summary>
     public Sim.Run.Holdouts? Holdouts { get; set; }
     /// <summary>The departure fortress's town (GDD §3.1; note 281): its square, and its people where the town's folk stand.</summary>
@@ -374,6 +377,7 @@ public sealed partial class GreyboxScene
         Walls = train.Walls ?? Walls;
         Cut = Art.SceneArt.Cuts(train);
         Handrails = train.Dynamics.Tuning.Composition.Handrails;
+        Dress = train.Dynamics.Tuning.Composition.Dress;
         SwitchThrower = train.Dynamics.Tuning.Composition.SwitchThrower;
         Build(mesh, train.Line, frames ?? train.Frames, train.Dynamics.Distance, eye);
     }
@@ -383,6 +387,7 @@ public sealed partial class GreyboxScene
     public void Build(MeshBuilder mesh, RailLine line, IReadOnlyList<CarFrame> frames, double hint, Double3 eye)
     {
         mesh.Clear();
+        Bends(frames);
         _speed = frames.Count == 0 ? 0 : Vector3.Dot(ToF(frames[0].Velocity), ToF(frames[0].Back * -1));
         // The headlamp as the lineside boards' reflective paint sees it (note 560).
         if (Look is not null && frames.Count > 0)
@@ -840,6 +845,8 @@ public sealed partial class GreyboxScene
                 }
                 if (Look is not null)
                     Look.Art.FindItem ??= body => Run?.FindOf(body)?.Item;
+                if (Look is not null)
+                    Look.Art.InstrumentOf ??= body => Band is { } band && body.Instrument < band.Instruments.Length ? band.Instruments[body.Instrument].Id : null;
                 if (Look?.Art.Body(mesh, frames, b, eye, heavyHalf, Time) != true)
                     DrawBody(mesh, frames, b, eye, heavyHalf);
                 if (held)
@@ -4432,6 +4439,7 @@ public sealed partial class GreyboxScene
             if (engine && !LampLit)
                 Look.Art.HeadlampOut(mesh, frame, eye);
             CarWorkings(mesh, frame, eye, Draw);
+            Dressing(mesh, frame, eye);
             if (engine)
             {
                 // The dials: pressure from the boiler, heat from the fire, the water glass (no water model yet: steady),

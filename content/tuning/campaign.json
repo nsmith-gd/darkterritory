@@ -142,7 +142,7 @@
     // The whistle swapped for a clown's bulb horn: a third as loud to the Choir (combat.json choir.whistleLoudness; it still
     // draws the night's first threat as a whistle does, note 287). Its honk is the audio chat's (asked on the PR). Not with
     // the gold one.
-    { "id": "theHonk", "name": "The honk", "kind": "whimsy", "size": "small", "costShare": 0.05, "effect": { "whistle": 0.35 }, "excludes": [ "goldWhistle" ],
+    { "id": "theHonk", "name": "The honk", "kind": "whimsy", "size": "small", "costShare": 0.05, "effect": { "whistle": 0.35 }, "excludes": [ "goldWhistle", "cucarachaHorn" ],
       "line": "A bulb horn off a clown's bicycle where the whistle was. The Territory doesn't take it seriously.",
       "tally": "Horn: comedic." },
     // The BBQ deck (note 698; the director, 13 Oct: "its the BBQ Dads at the end of the world"): train.json composition.bbq.
@@ -151,6 +151,33 @@
     { "id": "bbqDeck", "name": "The BBQ deck", "kind": "whimsy", "size": "major", "costShare": 0.6, "effect": { "bbqDeck": 1 },
       "line": "A deck on a cowcatcher out front: two Muskoka chairs, a cooler of beers and a BBQ on a stand. For the BBQ Dads at the end of the world.",
       "tally": "Deck: barbecue." },
+    // The band (note 700; the director, 13 Oct: "they are like Celtic folk style songs ... the East Coast folk aesthetic"):
+    // band.json's instruments, one each, in the guard van. Carried, Use held plays it, in time with whoever started first;
+    // as loud to the Choir as a noisy toy, so a kitchen party in the dark has its price.
+    { "id": "fiddle", "name": "A fiddle", "kind": "whimsy", "size": "small", "costShare": 0.06, "effect": { "instrument:fiddle": 1 },
+      "line": "Somebody's grandfather's, with a new string. Carry it and hold [E] to play: the rest of the band comes in on you.",
+      "tally": "Fiddle: in tune, mostly." },
+    { "id": "tinWhistle", "name": "A tin whistle", "kind": "whimsy", "size": "small", "costShare": 0.03, "effect": { "instrument:whistle": 1 },
+      "line": "A penny whistle in D, an octave over the fiddle. Hold [E] to play it.",
+      "tally": "Tin whistle: shrill." },
+    { "id": "accordion", "name": "A button accordion", "kind": "whimsy", "size": "small", "costShare": 0.08, "effect": { "instrument:accordion": 1 },
+      "line": "Two rows of buttons and a bellows with one patch. Hold [E] to play; nobody has to dance.",
+      "tally": "Accordion: wheezing." },
+    { "id": "tenorBanjo", "name": "A tenor banjo", "kind": "whimsy", "size": "small", "costShare": 0.06, "effect": { "instrument:banjo": 1 },
+      "line": "Four strings and a skin head, picked fast with the tune. Hold [E] to play.",
+      "tally": "Banjo: plunky." },
+    { "id": "guitar", "name": "A guitar", "kind": "whimsy", "size": "small", "costShare": 0.05, "effect": { "instrument:guitar": 1 },
+      "line": "Boom-chuck under the tune: the bass on the beat, the chords between. Hold [E] to play.",
+      "tally": "Guitar: three chords." },
+    { "id": "bodhran", "name": "A bodhrán", "kind": "whimsy", "size": "small", "costShare": 0.04, "effect": { "instrument:bodhran": 1 },
+      "line": "A goatskin frame drum and its tipper. Hold [E] to keep the beat for the band.",
+      "tally": "Bodhrán: thumping." },
+    { "id": "spoons", "name": "The spoons", "kind": "whimsy", "size": "small", "costShare": 0.01, "effect": { "instrument:spoons": 1 },
+      "line": "Two soup spoons from the canteen, back to back. Hold [E] and clack them on your knee.",
+      "tally": "Spoons: borrowed." },
+    { "id": "uglyStick", "name": "An ugly stick", "kind": "whimsy", "size": "small", "costShare": 0.03, "effect": { "instrument:uglyStick": 1 },
+      "line": "A mop handle, a rubber boot, bottle caps and a tin can. Hold [E] to thump it: the Newfoundland way.",
+      "tally": "Ugly stick: ugly." },
     // Nailed points up over the cab door: the guns foul a little less (with gun cooling too: they multiply).
     { "id": "luckyHorseshoe", "name": "Lucky horseshoe", "kind": "whimsy", "size": "small", "costShare": 0.1, "effect": { "foul": 0.85 },
       "line": "Nailed over the cab door, points up. The guns foul a little less. Nobody can say why.",
@@ -158,9 +185,47 @@
 
     // Silly (note 678): bought because it's silly. The price is the joke, and the clerk reads it out every night.
     // Costs more than a major and is still a whistle: louder, which isn't better (the Choir hears it a quarter further).
-    { "id": "goldWhistle", "name": "Gold-plated whistle", "kind": "silly", "size": "major", "costShare": 2.5, "effect": { "whistle": 1.25 }, "excludes": [ "theHonk" ],
+    { "id": "goldWhistle", "name": "Gold-plated whistle", "kind": "silly", "size": "major", "costShare": 2.5, "effect": { "whistle": 1.25 }, "excludes": [ "theHonk", "cucarachaHorn" ],
       "line": "Costs more than a car. It's a whistle. It's louder, and that isn't better.",
       "tally": "Whistle: gold." },
+    // The rest of the silly (note 701; the director, 13 Oct: approved, "hilarious", "super funny"): things on the train, the
+    // effect "dress:<id>" for the art. Nothing they do but be seen, except the moose head (the Moose takes it personally) and
+    // the horn (it's still the whistle, and the Choir hears it as the whistle).
+    { "id": "fuzzyDice", "name": "Fuzzy dice", "kind": "silly", "size": "small", "costShare": 0.02, "effect": { "dress:fuzzyDice": 1 },
+      "line": "A pair, hung from the cab roof by the front glass. They swing on the bends.",
+      "tally": "Dice: fuzzy." },
+    { "id": "bumperStickers", "name": "Bumper stickers", "kind": "silly", "size": "small", "costShare": 0.03, "effect": { "dress:bumperStickers": 1 },
+      "line": "Three on the guard van's back end, a new three from the blacksmith's drawer every night. All puns.",
+      "tally": "Stickers: three." },
+    { "id": "flames", "name": "Flames", "kind": "silly", "size": "small", "costShare": 0.15, "effect": { "dress:flames": 1 },
+      "line": "Painted down both sides of the boiler. It goes faster. (It doesn't.)",
+      "tally": "Flames: painted." },
+    { "id": "spinnerHubcaps", "name": "Spinner hubcaps", "kind": "silly", "size": "small", "costShare": 0.2, "effect": { "dress:spinnerHubcaps": 1 },
+      "line": "Chrome spinners on the driving wheels. Still spinning at a stand.",
+      "tally": "Hubcaps: spinning." },
+    { "id": "tinyCaboose", "name": "The tiny caboose", "kind": "silly", "size": "small", "costShare": 0.1, "effect": { "dress:tinyCaboose": 1 },
+      "line": "A toy caboose on a string off the back of the guard van. It comes off at every bend and is dragged.",
+      "tally": "Caboose: small." },
+    { "id": "cucarachaHorn", "name": "La Cucaracha horn", "kind": "silly", "size": "small", "costShare": 0.12, "effect": { "dress:cucarachaHorn": 1 },
+      "excludes": [ "theHonk", "goldWhistle" ],
+      "line": "The whistle plays La Cucaracha. Every pull, all of it. The Choir hears it as the whistle.",
+      "tally": "Horn: musical." },
+    { "id": "airFreshener", "name": "Pine-tree air freshener", "kind": "silly", "size": "small", "costShare": 0.005, "effect": { "dress:airFreshener": 1 },
+      "line": "Hung in the cab. The Territory already smells of pine.",
+      "tally": "Air freshener: pine." },
+    { "id": "participationRibbon", "name": "A participation ribbon", "kind": "silly", "size": "small", "costShare": 0.4, "effect": { "dress:participationRibbon": 1 },
+      "line": "From the town, for the guard van's door. It costs a lot. You took part.",
+      "tally": "Ribbon: participation." },
+    { "id": "monogrammedTowels", "name": "Monogrammed towels", "kind": "silly", "size": "small", "costShare": 0.05, "effect": { "dress:monogrammedTowels": 1 },
+      "line": "Good towels on a rail in the guard van, each embroidered. Some of them about you.",
+      "tally": "Towels: monogrammed." },
+    { "id": "mooseHead", "name": "Stuffed moose head", "kind": "silly", "size": "small", "costShare": 0.25, "effect": { "dress:mooseHead": 1, "mooseTemper": 2 },
+      "line": "Mounted on the engine's front, over the lamp. A Moose takes it personally: its temper rises twice as fast as the train goes by.",
+      "tally": "Moose head: mounted." },
+    // The fun one of the batch (the director: "classic").
+    { "id": "discoBall", "name": "The disco ball", "kind": "fun", "size": "small", "costShare": 0.08, "effect": { "dress:discoBall": 1, "fireFlies": 1.5 },
+      "line": "Hung in the guard van, turning, throwing the lamp round the walls. The Fire Flies come to dance: half again as often at a stop.",
+      "tally": "Disco ball: turning." },
     // Does nothing at all, and the clerk says so, every night, for good.
     { "id": "commendation", "name": "Framed commendation", "kind": "silly", "size": "small", "costShare": 0.5, "effect": { },
       "line": "\"For Services to the Railway\", signed by a council nobody's met, framed, for the cab. Read into every tally.",

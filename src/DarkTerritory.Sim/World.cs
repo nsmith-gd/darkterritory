@@ -422,6 +422,22 @@ public sealed class World
                 _enemies.Add(new Sleepers(_nextEnemyId++) { LineDistance = f.Start, Height = 0.2 });
     }
 
+    /// <summary>The band (note 700): its instruments and repertoire; null where it's off (no instruments stocked, no band).</summary>
+    public Player.BandTuning? BandTuning { get; private set; }
+
+    /// <summary>What the band's playing (note 700): the host's, from who's playing; the world record carries it to every client.</summary>
+    public Player.BandState Band = Player.BandState.Silent;
+
+    // The repertoire's next tune: the band plays its tunes in order, round, one per time it starts up.
+    int _nextTune;
+
+    /// <summary>The band (band.json; note 700): which instruments there are, the tunes, and how long Use is held to play.</summary>
+    public void EnableBand(Player.BandTuning tuning)
+    {
+        BandTuning = tuning;
+        Bodies.PlayHold = tuning.HoldSeconds;
+    }
+
     /// <summary>Loose bodies: cargo crates, tools, the dead (GDD §33). Host-simulated, mirrored on clients.</summary>
     public Physics.Bodies Bodies { get; } = new();
 
@@ -442,6 +458,8 @@ public sealed class World
         Train.Lying = Bodies.Lying(Train);
         Recover();
         BreakRadios(crew);
+        // The band (note 700): the first to play starts the next tune on this tick; the last to stop stops it.
+        Band = Player.Band.Step(Band, crew.Count(c => c.State.Alive && c.State.Has(PlayerFlags.Playing)), BandTuning, ref _nextTune, Tick);
     }
 
     readonly Dictionary<int, (int Health, bool Held)> _wasHurt = [];
@@ -548,6 +566,10 @@ public sealed class World
         for (int i = 0; i < kit.Toys; i++)
             Bodies.SpawnCrate(Train, guard.Id, new Ballast.Double3(0.6, floor, room.Max.Z - 1.2 - 0.5 * i), Physics.BodyKind.Toy).Noise =
                 i < kit.ToyNoises.Count ? kit.ToyNoises[i] : Physics.ToyNoise.None;
+        // The band's instruments (note 700), down the van's middle from its back door: the first thing seen going in.
+        for (int i = 0; i < kit.Instruments.Count; i++)
+            if (BandTuning is { } band && Array.FindIndex(band.Instruments, x => x.Id == kit.Instruments[i]) is >= 0 and var which)
+                Bodies.SpawnCrate(Train, guard.Id, new Ballast.Double3(0.1, floor, room.Max.Z - 1.2 - 0.45 * i), Physics.BodyKind.Instrument).Instrument = (byte)which;
     }
 
     /// <summary>
@@ -561,7 +583,8 @@ public sealed class World
         {
             var p = b.Pbd.Particles[0];
             return new Campaign.ThingAboard(b.Kind, b.Parent, p.Position, p.Radius, b.Pbd.Friction, b.Pbd.Bounce, b.Yaw, b.Locker, b.Slot, b.Claimed,
-                b.Cargo, b.Owner, b.Home, b.Charge, b.Noise, b.Broken, b.Tools, b.Banked && b.Kind is Physics.BodyKind.Cargo or Physics.BodyKind.Heavy);
+                b.Cargo, b.Owner, b.Home, b.Charge, b.Noise, b.Broken, b.Tools, b.Banked && b.Kind is Physics.BodyKind.Cargo or Physics.BodyKind.Heavy,
+                b.Instrument);
         })];
 
     /// <summary>
@@ -592,6 +615,7 @@ public sealed class World
             b.Broken = t.Broken;
             // A tool left on a locker's shelf (note 649) is which tool it is.
             b.Tools = t.Tools;
+            b.Instrument = t.Instrument;
             // A crate loaded (note 659): its share's in its car's saved load, so it isn't loaded again.
             b.Banked = t.Loaded;
             // A full shelf (the save's from a train with other lockers) leaves it where it lay: at its shelf, out of the way.
@@ -1515,6 +1539,8 @@ public sealed class World
             bool heavy = Bodies.All.Any(b => b.HeldBy(playerId) && !b.Stashed && b.Kind is Physics.BodyKind.Cargo or Physics.BodyKind.Heavy
                 or Physics.BodyKind.Toy or Physics.BodyKind.Loot or Physics.BodyKind.Child or Physics.BodyKind.Ragdoll);
             s.Flags = heavy ? s.Flags | PlayerFlags.Heavy : s.Flags & ~PlayerFlags.Heavy;
+            // Playing the instrument in your hands (note 700): every machine hears you, in time with the band.
+            s.Flags = Bodies.Playing(playerId) && s.Alive ? s.Flags | PlayerFlags.Playing : s.Flags & ~PlayerFlags.Playing;
             // D.9's solo remainer: the last one alive, with a body, may still climb (slowly).
             bool solo = s.Alive && Bodies.CarriedBy(playerId) is { Kind: Physics.BodyKind.Ragdoll } && LastCrew.Count(c => c.State.Alive && c.Id != playerId) == 0;
             s.Flags = solo ? s.Flags | PlayerFlags.SoloCarry : s.Flags & ~PlayerFlags.SoloCarry;
@@ -2119,6 +2145,14 @@ public sealed class World
                 Add(b.Carrier, t.Toys.Of(b.Noise));
                 Drew(DrawCause.Toy, b.Carrier, (draw?.Weight(DrawCause.Toy) ?? 0) * dt);
             }
+        // The band (note 700): each playing as loud as a noisy toy, and as drawing.
+        if (BandTuning is { } band && _context is { } playing)
+            foreach (var (p, _) in playing.Crew)
+                if (p.State.Alive && p.State.Has(PlayerFlags.Playing))
+                {
+                    Add(p.Id, band.Loudness);
+                    Drew(DrawCause.Toy, p.Id, (draw?.Weight(DrawCause.Toy) ?? 0) * dt);
+                }
         if (WhistleSeconds > 0)
         {
             Add(WhistleBy, t.WhistleLoudness);

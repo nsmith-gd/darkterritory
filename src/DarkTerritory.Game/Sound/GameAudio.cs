@@ -173,6 +173,7 @@ public sealed partial class GameAudio
         Cues(world);
         RoofWarning(world);
         Toys(world, train);
+        Band(world, train, dt);
         Ride(train);
         HearWalls(world);
     }
@@ -407,6 +408,13 @@ public sealed partial class GameAudio
     void Whistle(World world, TrainOnLine train)
     {
         // The cord's own whistle, once it's installed, is the crew's (crew-cab-controls, GameAudio.Crew.cs).
+        if (world.WhistleSeconds <= 0 && train.Dynamics.Tuning.Composition.Dressed("cucarachaHorn"))
+        {
+            // Every pull, all of it: let go, it plays on to its end.
+            if (_whistle is { Finished: true })
+                _whistle = null;
+            return;
+        }
         if (world.WhistleSeconds <= 0 || CordWhistles(world))
         {
             // A held whistle stops with the blowing; a recorded blast (a whole take, start to release) rings out.
@@ -416,6 +424,19 @@ public sealed partial class GameAudio
             return;
         }
         var engine = train.Frames[0];
+        // The La Cucaracha horn (note 701): the whole phrase on each pull, however short, and again if it's still held.
+        if (train.Dynamics.Tuning.Composition.Dressed("cucarachaHorn"))
+        {
+            if (_whistle is { Finished: true })
+                _whistle = null;
+            _whistle ??= Mixer.Play(CucarachaSound, engine.ToWorld(new Double3(0, engine.Shape.RoofHeight + 0.6, -2)))?.Also(v => v.Clip = _cucaracha ??= new AudioClip(BandSynth.Cucaracha(), Audio.SampleRate));
+            if (_whistle is not null)
+            {
+                _whistle.Position = engine.ToWorld(new Double3(0, engine.Shape.RoofHeight + 0.6, -2));
+                _whistle.Occlusion = Occlusion(PlayerMotor.Outside);
+            }
+            return;
+        }
         if (_whistle is { Finished: true })
             _whistle = null;    // a recorded blast that's ended while the cord's still held: another
         // On low steam the whistle can barely speak: a thin, flat wheeze (crew-mishaps). The cord's and the Whistler's alike,
@@ -427,6 +448,21 @@ public sealed partial class GameAudio
         {
             _whistle.Position = engine.ToWorld(new Double3(0, engine.Shape.RoofHeight + 0.6, -2));
             _whistle.Occlusion = Occlusion(PlayerMotor.Outside);
+        }
+    }
+
+    AudioClip? _cucaracha;
+
+    /// <summary>The La Cucaracha horn's sound (note 701): the whistle's tier and reach (a tell: it's still the whistle), its phrase as a clip.</summary>
+    string CucarachaSound
+    {
+        get
+        {
+            const string name = "train-horn-cucaracha";
+            if (Bank.Get(name) is null && Bank.Get("train-whistle") is { } whistle)
+                Bank.Add(name, new SoundDef(whistle.Tier, [new LayerDef(SourceKind.Sample, 1)], MaxInstances: 1, MinDistance: whistle.MinDistance,
+                    MaxDistance: whistle.MaxDistance, Rolloff: whistle.Rolloff, GainDb: whistle.GainDb));
+            return name;
         }
     }
 
@@ -898,6 +934,7 @@ public sealed partial class GameAudio
         _space = PlayerMotor.Outside;
         EndNightCues();
         EndNightAreas();
+        EndNightBand();
     }
 
     /// <summary>Plays a one-shot at a point: crew actions the game knows about (a shovel of coal).</summary>

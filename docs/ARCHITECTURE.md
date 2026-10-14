@@ -875,4 +875,6 @@ written here instead is moved out by `tools/coord/notes.py split`; the Coordinat
 - [695. A top-to-bottom performance audit (A1, queue #427; the director, 13 Oct evening, `docs/playtest/2026-10-13-evening.md` lines 1–3)](notes/695.md)
 - [697. The town blacksmith: the catalogue bought in the town (U1, queue #429; the director, 13 Oct 2026: "Upgrades need to be purchasable in the…](notes/697.md)
 - [698. The BBQ deck (U1, queue #430; the director, 13 Oct 2026: "one of the upgrades needs to be an extended front car cow catcher that has a…](notes/698.md)
+- [700. The band (U1, queue #432; the director, 13 Oct 2026: "We should also add more instruments ... all play together should create some sort of…](notes/700.md)
+- [701. The silly upgrades (U1, queue #433; the director, 13 Oct 2026, approving docs/design/upgrades.md §7.5 and §4: "fuzzy dice, bumper stickers…](notes/701.md)
 <!-- end of the notes index -->

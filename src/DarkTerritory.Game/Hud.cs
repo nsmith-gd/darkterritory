@@ -733,6 +733,8 @@ public static partial class Hud
         // The BBQ deck's (note 698).
         BodyKind.Beer => "A BEER",
         BodyKind.Sausage => "A SAUSAGE",
+        // The band's (note 700): band.json's name for it.
+        BodyKind.Instrument => world.BandTuning is { } band && b.Instrument < band.Instruments.Length ? band.Instruments[b.Instrument].Name.ToUpperInvariant() : "THE INSTRUMENT",
         _ => "IT",
     };
 
@@ -2067,6 +2069,20 @@ public static partial class Hud
         _ => null,
     };
 
+    /// <summary>
+    /// The band's instrument in hand (note 700): Use held plays it; playing, the tune the band's on (the first player's), so
+    /// whoever joins knows what they're in.
+    /// </summary>
+    static string? BandPrompt(IPlaySession s, Body carried)
+    {
+        if (carried.Kind != BodyKind.Instrument)
+            return null;
+        if (!s.Player.Has(PlayerFlags.Playing))
+            return "PLAY : HOLD [E]";
+        return s.World.BandTuning is { } band && s.World.Band.Tune is >= 0 and var tune && tune < band.Repertoire.Length
+            ? $"PLAYING: {band.Repertoire[tune].Title.ToUpperInvariant()}" : "PLAYING";
+    }
+
     public static string? HealPrompt(IPlaySession s, Body carried) =>
         CanHeal(s, carried) && carried.MendTicks > 0 && s.World.Run?.Healing is { } h
             ? $"USING IT ({Math.Min(1, carried.MendTicks * Sim.SimConstants.TickSeconds / h.UseSeconds) * 100:0}%)"
@@ -2212,7 +2228,7 @@ public static partial class Hud
             && SwitchPrompt(world, p, train, world.Hand) is null && HealPrompt(s, slotted) is null && TakePrompt(world, p, train, s.PlayerId) is { } another)
             return another;
         if (world.Bodies.CarriedBy(s.PlayerId) is { } inHands)
-            return PowderPrompt(s, inHands) ?? SwitchPrompt(world, p, train, world.Hand) ?? HealPrompt(s, inHands) ?? PartyPrompt(inHands);
+            return PowderPrompt(s, inHands) ?? SwitchPrompt(world, p, train, world.Hand) ?? HealPrompt(s, inHands) ?? PartyPrompt(inHands) ?? BandPrompt(s, inHands);
         // T112: the gun's seat and its own controls.
         if (world.Combat is { } combat && Guns.MannedGun(p, train, combat.Guns) is { } manned)
         {

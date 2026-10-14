@@ -1796,6 +1796,9 @@ static object Screenshot(TrainTuning t, string content, string[] args)
         VrBody = look is null ? DataFile.Load<VrTuning>(Path.Combine(content, VrTuning.File)).Body : null,
         Route = route,
         Run = run,
+        // The words on the dressing (note 701): the stickers' puns, the towels' monograms, a staged crew's names on them.
+        Words = DataFile.Load<DarkTerritory.Game.DressWords>(Path.Combine(content, DarkTerritory.Game.DressWords.File)),
+        CrewNames = ["Dave", "Nicki", "Jacob"],
         Holdouts = holdouts,
         Town = town,
         Arrival = arrival,
@@ -1906,6 +1909,13 @@ static object Screenshot(TrainTuning t, string content, string[] args)
         scene.Vehicles = train.Vehicles;
         scene.Crew = party;
         scene.Bodies = partyBodies;
+    }
+    // --band (note 700): the crew on a roof, each playing one of the band's instruments.
+    if (args.Contains("--band") && Staging.Band(train, content, (int)Opt(args, "--car", 2)) is var (players, instruments))
+    {
+        scene.Crew = [.. scene.Crew ?? [], .. players];
+        scene.Bodies = [.. scene.Bodies ?? [], .. instruments];
+        scene.Band = DataFile.Load<DarkTerritory.Sim.Player.BandTuning>(Path.Combine(content, DarkTerritory.Sim.Player.BandTuning.File));
     }
     if (cameBack is { } risen)
         scene.Crew = [.. scene.Crew ?? [], risen];
@@ -3287,6 +3297,8 @@ static object HudShot(string content, string[] args)
     {
         Route = session.Route,
         Run = session.World.Run,
+        Band = session.World.BandTuning,
+        Words = DataFile.Load<DarkTerritory.Game.DressWords>(Path.Combine(content, DarkTerritory.Game.DressWords.File)),
         Holdouts = session.World.Holdouts,
         Town = session.World.Town,
         Arrival = session.World.Arrival,

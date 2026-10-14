@@ -273,6 +273,8 @@ public enum PlayerFlags : ushort
     /// up. Not <see cref="Seated"/>, which is a gun's (the census, the Gannet and the bots read that as on the gun).
     /// </summary>
     Lounging = 1024,
+    /// <summary>Playing the band's instrument in their hands (note 700): every machine hears it, on the band's tune.</summary>
+    Playing = 2048,
 }
 
 /// <summary>

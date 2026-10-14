@@ -334,6 +334,9 @@
     "radioBreakPerDamage": 0.006,
     "radioBreakOnGrab": 0.25,
     "radioMendSeconds": 8,
+    // The band's instruments (note 700): band.json ids, each the blacksmith sold the crew (campaign.json, effect
+    // "instrument:<id>"), stocked in the guard van. None until bought.
+    "instruments": [],
     // GDD v1.1 App. C.4 hand loot: toys, for the Track Doll (it steals one and leaves for the run). Note 267 (the director's
     // notes on build 1121: "things that we should definitely find out in the world"): none ride from the fortress now;
     // they're found at the stops (loot.json "toys"). A count here would put that many back in the guard van, quiet past

@@ -331,6 +331,11 @@ don't sell the cold.)
 bell, the velvet seat, the spittoon, the second stack, the bubble machine, the Tannoy, the piano, wind chimes, the
 paddling pool, the mayor's bobblehead, the doorbell, trophy plaques, the neon sign, the extra-long whistle cord.
 
+**Built (note 701):** the silly ones (fuzzy dice, bumper stickers, flames, spinner hubcaps, the tiny caboose, the La
+Cucaracha horn, the air freshener, the participation ribbon, monogrammed towels, the moose head) and the disco ball: each on
+the train where its card says, read in the tally; the horn heard every pull; the moose head and the disco ball priced in the
+night.
+
 ### 8.3 The human cannonball: consent and feedback
 
 Nobody is fired who didn't climb in, and everyone knows what's about to happen.
@@ -353,22 +358,29 @@ first person who starts playing. It will be the song that is selected from a rep
 different instruments or the same instrument, they should sync up to whoever played first. And then that should all stop
 once the last person stops playing."*
 
-- **Instruments**, each bought from the blacksmith (who knows a man), each a carried thing played with Use held: the
-  accordion, a fiddle, a banjo, a harmonica, a washboard, the spoons, a jug, and the BBQ deck's cooler lid as a drum
-  (free). Each plays its part of every song: the tune (accordion, fiddle, harmonica), the chords (banjo, accordion's left
-  hand), the bass (jug), the beat (washboard, spoons, the lid). Two of the same play in unison.
-- **The repertoire** (public domain tunes, our own arrangements, played by the game's own instrument samples; the audio
-  chat's): *The Wabash Cannonball*, *She'll Be Coming 'Round the Mountain*, *Casey Jones*, *Oh My Darling, Clementine*,
-  *Red River Valley*, *Drunken Sailor*, *Shenandoah*, *The Parting Glass*, *Auld Lang Syne*. (Not the minstrel songs:
-  no *Camptown Races*, no *Turkey in the Straw*.)
-- **The sync.** The first to start playing starts the song: the next in the repertoire, its first bar on the host's tick.
-  Anyone who starts after comes in on the next bar of that song, on their instrument's part, wherever they are on the
-  train (in earshot or not: the radio carries it). When the last player stops, the song stops; the next to start begins
-  the next song. It's the host's clock, so every machine hears the same bar.
-- **Dancing is a choice.** Nobody's made to dance. The emote wheel's DANCE (note 298), near a song playing, dances to its
-  beat; anyone can join or not.
-- **The night hears it.** A band is loud: each instrument is a noisy toy to the Choir; a Gaunt in earshot hears it as
-  talk and is calmed (the gramophone's rule); the Moose stops to listen (the calliope's).
+*And (the director, 13 Oct, starting it): "When it comes to the band, which I think is important, make sure that they are
+like Celtic folk style songs, because we want to keep in with the East Coast folk aesthetic here."* Built (note 700).
+
+- **Instruments**, each bought from the blacksmith, each a carried thing played with Use held (a tap still puts it down):
+  a fiddle, a tin whistle, a button accordion, a tenor banjo, a guitar, a bodhrán, the spoons and an ugly stick (the
+  Newfoundland one: a mop handle, a rubber boot, bottle caps and a tin can). A kitchen party's band, not a jug band.
+  Each plays its part of every tune: the tune (fiddle, whistle an octave up, accordion, banjo), the chords and the bass
+  ("boom-chuck", a jig's "boom-chuck-a": the guitar), the beat (the bodhrán's tipper, the spoons' clack, the ugly stick's
+  boot and caps). Two of the same play in unison.
+- **The repertoire** (band.json; traditional, public domain, our own transcriptions in abc, played by the game's own
+  synthesized instruments): *Drunken Sailor*, *The Swallowtail Jig*, *Soldier's Joy*, *The Irish Washerwoman*,
+  *Morrison's Jig*, *Auld Lang Syne*. Reels, jigs, a shanty and the one everyone knows. For the audio chat to transcribe
+  and add (the East Coast's own, public domain): *Farewell to Nova Scotia*, *I's the B'y*, *Lukey's Boat*, *Jack Was
+  Every Inch a Sailor*, *Mussels in the Corner*. Not the minstrel songs.
+- **The sync.** The first to start playing starts a tune: the next in the repertoire, its first bar on the host's tick.
+  Anyone who starts after comes in on the next bar of it, on their instrument's part, heard where they stand. Played out,
+  the next tune follows after a breath, as a session's set does. When the last player stops, it stops; the next to start
+  begins the tune after. It's the host's clock, so every machine hears the same bar.
+- **Dancing is a choice.** Nobody's made to dance. The emote wheel's DANCE (note 298) is anyone's; dancing to the band's
+  beat is still to do.
+- **The night hears it.** A band is loud: each player playing is as loud to the Choir as a noisy toy, and draws the
+  night's first threat as one (band.json `loudness`). The Gaunt hearing it as talk and the Moose stopping to listen
+  wait on the gramophone and the calliope.
 
 ### 8.5 The dining car's bar
 
