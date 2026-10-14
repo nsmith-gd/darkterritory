@@ -2237,8 +2237,12 @@ public static partial class Hud
             return "THE CAR'S BREACHED";
         var near = CrewActions.Nearest(p, train, hand);
         // T94: a ladder in reach, and the key that takes you onto it.
-        if (PlayerMotor.LadderInReach(p, train, s.PlayerTuning))
-            return "CLIMB : [F]";
+        // Note 704: a hatch ladder says where it goes, up through the roof or down inside (the cab's, to the cab).
+        if (PlayerMotor.LadderInReachOf(p, train, s.PlayerTuning) is { } reach)
+            return !PlayerMotor.IsHatchLadder(reach.Frame.Shape, reach.Ladder) ? "CLIMB : [F]"
+                : !reach.FromTop ? "UP TO THE ROOF : [F]"
+                : reach.Frame.Shape.Cab is { } cab && cab.ContainsXZ(reach.Ladder.Foot) ? "DOWN INTO THE CAB : [F]"
+                : "DOWN INSIDE : [F]";
         // T91: the coupling is cut with its own key, held, looking down at it.
         if (p.Surface == Surface.Coupler && near != InteractableKind.Door)
             return p.Hand != default ? "CUT THE COUPLING : GRIP"
