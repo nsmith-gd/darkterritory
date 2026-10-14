@@ -139,6 +139,11 @@ vec4 scarAt(vec3 s, vec2 scar) {
     return vec4(scorch, rust * (1.0 - hole), bare * (1.0 - hole), hole);
 }
 
+// Lambert's cosine, or wrapped round past the terminator by `wrap` (0..1): the figures' softer turn (frame.figure.y).
+float lit(float ndl, float wrap) {
+    return max((ndl + wrap) / (1.0 + wrap), 0.0);
+}
+
 // The surface's normal bent by its normal map (x along +u, y along +v: tools/art's convention). No tangents in the
 // vertex: the frame comes from the screen-space derivatives of position and texture coordinate (Schüler's cotangent
 // frame), so every kit piece, skinned model and terrain cell gets relief without a vertex format change.
@@ -408,8 +413,10 @@ void main() {
         foam = clamp(foam, 0.0, 1.0);
         albedo = mix(albedo, vec3(0.42, 0.44, 0.45), foam);
     }
+    // A person (MaterialLook.Figure: vBlend -1, a figure has no terrain blend): lit as the look's figures are (frame.figure).
+    bool figure = vBlend < -0.5 && !terrain;
     if (vWear > 0.0)
-        albedo = weathered(albedo, vSurface, vWear * (textured ? frame.params.z : 1.0), textured);
+        albedo = weathered(albedo, vSurface, vWear * (textured ? (figure ? frame.figure.z : frame.params.z) : 1.0), textured);
 
     vec4 scar = vec4(0.0);
     if (vScar.x > 0.0 && vEmissive < 0.5) {
@@ -447,7 +454,10 @@ void main() {
     // Indoors the fill is the room's own, low and warm (lamplight off the boards: frame.indoor), and the moon doesn't get in.
     vec3 light = mix(frame.moon.w * mix(GROUND_BOUNCE, SKY_FILL, n.y * 0.5 + 0.5), frame.indoor.rgb, inside);
     float moonLit = night * moonShadowAt(vPos, n);
-    light += frame.moonColour.rgb * frame.moonColour.a * max(dot(n, moonDir), 0.0) * moonLit;
+    // A figure's light wraps round it past the terminator (frame.figure.y): a face, a coat's folds turn from the light
+    // softly, a lit side and a shadow side, where the hard cutoff leaves them one flat tone in the fill.
+    float wrap = figure ? frame.figure.y : 0.0;
+    light += frame.moonColour.rgb * frame.moonColour.a * lit(dot(n, moonDir), wrap) * moonLit;
 
     // Phong exponent from gloss: 4..128, clamped so nothing mirror-polishes (pipeline "Gloss").
     float shininess = textured ? mix(4.0, 128.0, specMap.g * specMap.g) : 40.0;
@@ -481,7 +491,7 @@ void main() {
     if (lampLit > 0.0)
         lampLit *= lampShadowAt(vPos, n);
     vec3 lampC = frame.lampColour.rgb * frame.lampColour.a;
-    light += lampC * lampLit * max(dot(n, l), 0.0);
+    light += lampC * lampLit * lit(dot(n, l), wrap);
     spec += lampC * lampLit * pow(max(dot(n, normalize(l + v)), 0.0), shininess) * 0.75;
     spec += frame.moonColour.rgb * pow(max(dot(n, normalize(moonDir + v)), 0.0), shininess * 0.6) * (0.08 + 0.5 * up) * moonLit;
     // The moon's road on the water: a glitter of it on every facet of the ripples that turns it to the eye.
@@ -500,7 +510,7 @@ void main() {
         vec3 ld = d / max(dist, 1e-4);
         float att = 1.0 - dist / lp.w;
         att *= att;
-        light += lc * att * max(dot(n, ld), 0.0) * 1.6;
+        light += lc * att * lit(dot(n, ld), wrap) * 1.6;
         spec += lc * att * pow(max(dot(n, normalize(ld + v)), 0.0), shininess) * 0.6;
     }
 
@@ -513,7 +523,7 @@ void main() {
             vec3 ld = d / max(dist, 1e-4);
             float att = 1.0 - dist / frame.handPos.w;
             att *= att * handShadowAt(vPos, n);
-            light += frame.handColour.rgb * att * max(dot(n, ld), 0.0) * 1.6;
+            light += frame.handColour.rgb * att * lit(dot(n, ld), wrap) * 1.6;
             spec += frame.handColour.rgb * att * pow(max(dot(n, normalize(ld + v)), 0.0), shininess) * 0.6;
         }
     }
@@ -538,6 +548,15 @@ void main() {
             env = mix(frame.fog.rgb * frame.sky2.z * 1.15, frame.sky.rgb, smoothstep(0.0, 0.5, r.y));
         }
         colour += env * fres * gloss * gloss * smoothstep(0.25, 0.7, gloss) * (1.0 - scar.w) * 1.6;
+    }
+    // A figure's rim: the night's air round its silhouette (the fog's glow, the moon where it's out), so it stands out of
+    // the fog behind it as a lit edge, not a cut-out (frame.figure.x).
+    if (figure && frame.figure.x > 0.0) {
+        // (It lights the cloth, so it's the cloth's colour; only where the surface turns away from the eye, not through it.)
+        float facing = dot(normalize(vNormal), v);
+        float edge = pow(1.0 - clamp(dot(n, v), 0.0, 1.0), 4.0) * smoothstep(-0.05, 0.25, facing);
+        vec3 air = mix(frame.fog.rgb * (1.0 + frame.sky2.z) + frame.moonColour.rgb * frame.moonColour.a * 0.25 * moonLit, frame.indoor.rgb, inside);
+        colour += albedo * air * edge * frame.figure.x * 3.0;
     }
     float emissive = max(vEmissive, specMap.b);
     colour = mix(colour, albedo * 2.0 * vGlow, emissive);

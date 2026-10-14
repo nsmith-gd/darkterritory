@@ -55,6 +55,8 @@ unsafe struct FrameData
     public Vector4 Stir;
     /// <summary>rgb its colour.</summary>
     public Vector4 StirColour;
+    /// <summary>x <see cref="PostSettings.FigureRim"/>, y <see cref="PostSettings.FigureWrap"/>, z <see cref="PostSettings.FigureGrime"/>.</summary>
+    public Vector4 Figure;
 }
 
 [StructLayout(LayoutKind.Sequential)]
@@ -962,6 +964,7 @@ public sealed unsafe class GreyboxRenderer : IDisposable
         f->Probe = new Vector4(HoleSlope, ShowUntextured ? 1 : 0, 0, 0);
         f->Stir = new Vector4(lighting.StirDirection, lighting.Stir);
         f->StirColour = new Vector4(lighting.StirColour, 0);
+        f->Figure = new Vector4(Post.FigureRim, Post.FigureWrap, Post.FigureGrime, 0);
         for (int i = 0; i < LayerTable; i++)
             f->MotionOf[i] = i < _motion.Length ? _motion[i] : 0;
     }

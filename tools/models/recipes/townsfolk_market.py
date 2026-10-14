@@ -27,7 +27,7 @@ DRESS = {
 
 
 def garments(fit):
-    DRESS["town.shawl"] = (tf.plaid("town_plaid", (0.24, 0.025, 0.018), (0.03, 0.035, 0.03), (0.3, 0.24, 0.05), repeat=5.5), 2)
+    DRESS["town.shawl"] = (tf.plaid("town_plaid", (0.11, 0.012, 0.009), (0.018, 0.02, 0.018), (0.14, 0.11, 0.025), repeat=5.5), 2)
     return [tf.headscarf(fit),
             tf.worn([tf.shawl(fit, tf.mat("shawl"), "shawl")], "shawl", None),
             tf.worn([tf.skirt(fit, tf.mat("skirt"), "skirt"), tf.apron(fit, tf.mat("apron"), "apron")], "skirt", None, stiff=0.6)]

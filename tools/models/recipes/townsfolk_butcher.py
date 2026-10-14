@@ -16,12 +16,12 @@ from overbake import bell, smooth01  # noqa: E402,F401
 import cook  # noqa: E402
 
 DRESS = {
-    "crew_atlas.coat": ("wool", 9.0, (2.2, 2.1, 1.9), 0.9, 3),
-    "crew_atlas.sleeve": ("wool", 9.0, (2.2, 2.1, 1.9), 0.9, 3),
+    "crew_atlas.coat": ("wool", 9.0, (2.7, 2.4, 1.85), 0.9, 3),
+    "crew_atlas.sleeve": ("wool", 9.0, (2.7, 2.4, 1.85), 0.9, 3),
     "crew_atlas.trouser": ("wool", 9.0, (0.5, 0.48, 0.45), 0.9, 3),
     "crew_atlas.gloves": ("skin", 5.0, (0.82, 0.66, 0.58), 0.6, 0),
     "crew_atlas.belt": ("leather", 5.0, (0.36, 0.28, 0.22), 0.5, 0),
-    "crew_atlas.scarf": ("wool", 10.0, (2.2, 2.1, 1.9), 0.95, 2),
+    "crew_atlas.scarf": ("wool", 10.0, (2.7, 2.4, 1.85), 0.95, 2),
     "town.knit": ("wool", 14.0, (1.7, 1.7, 1.6), 0.95, 2),
     "town.apron": ("wool", 11.0, (3.0, 2.7, 2.0), 0.9, 2),
     "town.tie": ("wool", 11.0, (2.2, 1.95, 1.45), 0.9, 0),

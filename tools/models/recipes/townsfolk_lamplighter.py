@@ -32,7 +32,7 @@ DRESS = {
 
 def garments(fit):
     return [tf.worn([tf.hooded(fit, tf.mat("hood"), "hood", foot=1.5, brow=1.74, half=1.05, ease=0.045, fullness=0.012, thick=0.014,
-                               top=1.87, cowl=1.38, peak=0.03)], "hood", "neck"),
+                               top=1.87, cowl=1.38, peak=0.03, n=20, levels=9)], "hood", "neck"),
             tf.worn([tf.facepiece(fit, tf.mat("rubber"), brow=1.7, chin=1.51, half=0.95, snout=0.02)], "lampmask", "head"),
             tf.bottles(fit)]
 

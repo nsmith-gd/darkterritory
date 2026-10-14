@@ -78,8 +78,22 @@ class Fit:
         from mathutils.bvhtree import BVHTree
         self.tip, self.head_c, self.make, self.g = tip, head_c, make, g
         dg = bpy.context.evaluated_depsgraph_get()
-        self._body = [BVHTree.FromObject(o, dg) for o in body_objs]
+        self._body = [self._trunk(o, BVHTree) for o in body_objs]
         self._head = [BVHTree.FromObject(o, dg) for o in head_objs]
+
+    @staticmethod
+    def _trunk(o, BVHTree):
+        """The body without its arms: out in the T-pose, a ray at shoulder height would find the hand (a cowl, a shawl
+        flared out to the fingertips)."""
+        bm = bmesh.new()
+        bm.from_mesh(o.data)
+        bm.transform(o.matrix_world)
+        names = [m.name if m else "" for m in o.data.materials]
+        arms = [f for f in bm.faces if f.material_index < len(names) and names[f.material_index].startswith(("crew_atlas.sleeve", "crew_atlas.gloves"))]
+        bmesh.ops.delete(bm, geom=arms, context="FACES")
+        tree = BVHTree.FromBMesh(bm)
+        bm.free()
+        return tree
 
     @staticmethod
     def _cast(trees, origin, direction):

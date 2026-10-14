@@ -83,6 +83,17 @@ public sealed record PostSettings
     public float OcclusionIntensity { get; init; } = 1.4f;
     /// <summary>Beyond this distance (m) the occlusion has faded out: the far field is fog, and noise there reads as dirt.</summary>
     public float OcclusionFar { get; init; } = 60f;
+    /// <summary>
+    /// The people (a figure's materials, <see cref="Ballast.Assets.MaterialLook.Figure"/>): the light wrapped round them this
+    /// far past where it turns away (0: as everything else), so a face and a coat's folds turn from the light softly, a
+    /// shadow side and a lit side, not one flat tone.
+    /// </summary>
+    public float FigureWrap { get; init; }
+    /// <summary>A rim of the night's air (the fog, the moon) round a figure's silhouette, this strong (0: none): it stands
+    /// out of the fog behind it.</summary>
+    public float FigureRim { get; init; }
+    /// <summary>How much of the shader's grime shows over a figure's baked texture (its own dirt's baked into it).</summary>
+    public float FigureGrime { get; init; } = 0.5f;
 }
 
 /// <summary>

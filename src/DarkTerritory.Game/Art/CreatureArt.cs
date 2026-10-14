@@ -466,9 +466,10 @@ public sealed partial class CreatureArt
             // triangles, note 479) one clustered from it at load, drawn only where a figure is a few pixels tall.
             var authored = LoadLod(Path.Combine(ContentRoot, Folder, name + ".lod1.glb"), model);
             var far = authored ?? (look.Tuning.ClusteredLodMetres > 0 ? ModelLod.Clustered(model, look.Tuning.ClusteredLodCell) : null);
-            _models[name] = new Entry(model, [.. model.Materials.Select(m => Resolve(m, wear))])
+            bool person = Person(name);
+            _models[name] = new Entry(model, [.. model.Materials.Select(m => Resolve(m, wear, person))])
             {
-                Lod = far is null ? null : new Entry(far, [.. far.Materials.Select(m => Resolve(m, wear))]),
+                Lod = far is null ? null : new Entry(far, [.. far.Materials.Select(m => Resolve(m, wear, person))]),
                 LodFrom = authored is not null ? look.Tuning.CreatureLodMetres : look.Tuning.ClusteredLodMetres,
             };
         }
@@ -496,9 +497,9 @@ public sealed partial class CreatureArt
         float wear = WearOf.GetValueOrDefault("survivor_prisoner", 0.5f);
         // Its distance copy as the survivors' is made (note 479): a town's lookbook people (note 694) are many.
         var far = Look.Tuning.ClusteredLodMetres > 0 ? ModelLod.Clustered(model, Look.Tuning.ClusteredLodCell) : null;
-        _models[name] = new Entry(model, [.. model.Materials.Select(m => Resolve(m, wear))])
+        _models[name] = new Entry(model, [.. model.Materials.Select(m => Resolve(m, wear, true))])
         {
-            Lod = far is null ? null : new Entry(far, [.. far.Materials.Select(m => Resolve(m, wear))]),
+            Lod = far is null ? null : new Entry(far, [.. far.Materials.Select(m => Resolve(m, wear, true))]),
             LodFrom = Look.Tuning.ClusteredLodMetres,
         };
     }
@@ -589,13 +590,21 @@ public sealed partial class CreatureArt
         }
     }
 
-    MaterialLook Resolve(ModelMaterial m, float wear)
+    MaterialLook Resolve(ModelMaterial m, float wear, bool person = false)
     {
         int layer = string.IsNullOrEmpty(m.Texture) ? -1 : Look.Layer(m.Texture);
         return layer >= 0
-            ? new MaterialLook(layer, m.Tint, m.Emissive, m.Shine, wear)
-            : new MaterialLook(-1, m.BaseColour, Math.Max(m.Emissive, m.Glow), m.Shine, wear);
+            ? new MaterialLook(layer, m.Tint, m.Emissive, m.Shine, wear, person)
+            : new MaterialLook(-1, m.BaseColour, Math.Max(m.Emissive, m.Glow), m.Shine, wear, person);
     }
+
+    /// <summary>
+    /// The people met in the Territory, drawn with the look's figure lighting (look.json post figureWrap, figureRim,
+    /// figureGrime; note 694): the townsfolk, the survivors, and those dressed from them (Dave, Nicki, Jacob, the lookbook's).
+    /// Not the crew (the players' own look) nor the creatures.
+    /// </summary>
+    public static bool Person(string name) =>
+        name.StartsWith("townsfolk_", StringComparison.Ordinal) || name.StartsWith("survivor_", StringComparison.Ordinal);
 
     /// <summary>A basis like GreyboxScene.DrawEnemy's: axes as rows (model +X right, +Y up, +Z back), origin camera-relative.</summary>
     public static Matrix4x4 Basis(Vector3 origin, Vector3 right, Vector3 up, Vector3 back) => new(

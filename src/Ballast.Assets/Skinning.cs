@@ -20,7 +20,9 @@ public sealed class Pose
 /// <param name="Layer">Texture layer, or −1 for flat colour.</param>
 /// <param name="Colour">Multiplies the texture (one), or is the colour when untextured.</param>
 /// <param name="Emissive">0 lit, 1 a light source (see <see cref="Vertex.Emissive"/>).</param>
-public readonly record struct MaterialLook(int Layer, Vector3 Colour, float Emissive, float Shine, float Wear);
+/// <param name="Figure">A person's (the townsfolk, the survivors): drawn with the look's figure lighting (PostSettings'
+/// FigureWrap, FigureRim, FigureGrime), carried in the vertex's terrain blend, which a figure has no use for, as −1.</param>
+public readonly record struct MaterialLook(int Layer, Vector3 Colour, float Emissive, float Shine, float Wear, bool Figure = false);
 
 /// <summary>Per-draw settings for <see cref="Skinner.Emit"/>.</summary>
 /// <param name="Variant">Which variant's parts to draw (hats, scarves).</param>
@@ -163,7 +165,7 @@ public sealed class Skinner
                     Uv = part.Uvs[i],
                     Layer = look.Layer,
                     Layer2 = -1,
-                    Blend = 0,
+                    Blend = look.Figure ? -1 : 0,
                 };
             }
             var idx = part.Indices;
@@ -206,7 +208,7 @@ public sealed class Skinner
                         Uv = part.Uvs[i],
                         Layer = look.Layer,
                         Layer2 = -1,
-                        Blend = 0,
+                        Blend = look.Figure ? -1 : 0,
                     });
                     // Weights under 1 in 10⁴ are dropped, and the rest scaled back up to one (Emit's single-bone shortcut).
                     var w = new Vector4(part.Weights[k], part.Weights[k + 1], part.Weights[k + 2], part.Weights[k + 3]);

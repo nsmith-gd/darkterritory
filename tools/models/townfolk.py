@@ -74,7 +74,10 @@ def sheet(rows, material, name, closed=False, outward=None, thick=0.0, cap=None)
         bm.free()
     if thick > 0:
         mod = o.modifiers.new("thick", "SOLIDIFY")
-        mod.thickness, mod.offset, mod.use_even_offset = thick, -1.0, True
+        # (Not evened: where a cloth folds back on itself, a cowl's edge, an even offset throws a corner metres out. Clamped
+        # to its edges' length for the same reason.)
+        mod.thickness, mod.offset, mod.use_even_offset = thick, -1.0, False
+        mod.thickness_clamp = 1.0
         _apply(o, mod)
     return o
 
@@ -349,7 +352,7 @@ def hooded(fit, material, name, foot=1.5, brow=1.72, half=1.0, ease=0.012, fulln
 def headscarf(fit, what="scarf"):
     """A headscarf over the hair and the ears, from the brow round the face and down the nape, knotted under the chin."""
     m = mat(what)
-    parts = [hooded(fit, m, "headscarf", foot=1.5, brow=1.72, half=0.95, ease=0.012, fullness=0.012, thick=0.004)]
+    parts = [hooded(fit, m, "headscarf", foot=1.5, brow=1.72, half=0.95, ease=0.012, fullness=0.012, thick=0.004, n=20, levels=8)]
     knot = fit.head(1.515, 0.0, 0.03)
     for sx in (-1, 1):
         side = fit.head(1.6, sx * 0.95, 0.014)
@@ -412,7 +415,7 @@ def skirt_radius(fit, top, hem, flare, ease, z, a):
     return hang(fit, top, z, a) + ease + flare * t ** 1.4 + folds
 
 
-def skirt(fit, material, name, top=0.98, hem=0.3, flare=0.11, ease=0.012, n=28, levels=7):
+def skirt(fit, material, name, top=0.98, hem=0.3, flare=0.11, ease=0.012, n=22, levels=6):
     """A skirt from the waist down to `hem`, hung from the hips and flaring, folded; its waistband."""
     rows = []
     for i in range(levels + 1):
@@ -453,7 +456,7 @@ def shawl(fit, material, name):
         cape = side * (0.21 + max(0.0, 1.5 - z) * 0.45)
         return max(fit.radius("body", max(z, 1.1), a) + 0.02, cape) + 0.004 * max(0.0, 1.5 - z) / 0.4
     rows = []
-    levels, n = 8, 21
+    levels, n = 6, 17
     for i in range(levels + 1):
         t = i / levels
         z = 1.51 - (1.51 - 1.08) * t
@@ -701,7 +704,7 @@ def bottles(fit, steel="bottle", brass="brass", strap="strap", hose="rubber"):
     for x in (-0.065, 0.065):
         b = back_of(fit, 0.98, x, 0.07)
         prof = [(0.05, 0.005), (0.06, 0.03), (0.06, 0.4), (0.045, 0.45), (0.016, 0.47)]
-        rows = [[b + Vector((math.cos(TAU * j / 12) * r, math.sin(TAU * j / 12) * r, h)) for j in range(12)] for r, h in prof]
+        rows = [[b + Vector((math.cos(TAU * j / 10) * r, math.sin(TAU * j / 10) * r, h)) for j in range(10)] for r, h in prof]
         parts.append(sheet(rows, mat(steel), "bottle", closed=True, outward=b + Vector((0, 0, 0.25))))
         parts.append(tube(b + Vector((0, 0, 0.47)), b + Vector((0, 0, 0.52)), 0.016, mat(brass), "valve", n=8))
     for sx in (-1, 1):

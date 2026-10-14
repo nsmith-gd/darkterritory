@@ -13,7 +13,7 @@ import numpy as np  # noqa: E402,F401
 import townfolk as tf  # noqa: E402
 from overbake import bell, smooth01  # noqa: E402,F401
 
-GREY = (0.95, 0.95, 0.88)
+GREY = (1.55, 1.48, 1.2)
 
 
 def quilted(p, n):

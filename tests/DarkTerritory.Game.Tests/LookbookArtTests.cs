@@ -52,6 +52,11 @@ public class LookbookArtTests
             Assert.Equal(figure.Skeleton.Names, model.Skeleton.Names);
             // A character's budget (GDD §27: 4-10k triangles).
             Assert.InRange(model.Parts.Where(p => p.Clip is null).Sum(p => p.Triangles), 4000, 10000);
+            // Nothing modelled flies off the figure (a cloth's thickness thrown out where it folds back on itself, as the
+            // lamplighter's cowl once was): in its bind pose, within the T-pose's reach and under two metres.
+            foreach (var part in model.Parts.Where(p => p.Clip is null))
+                foreach (var v in part.Positions)
+                    Assert.True(v.Y < 2.05f && MathF.Sqrt(v.X * v.X + v.Z * v.Z) < 0.95f, $"{c.Modelled} {part.Name}: a vertex at {v}");
             foreach (string clip in (string[])["idle", "walk", "gunner", "crouch_idle", "lantern_walk"])
                 Assert.True(Art.Joints(c.Modelled, clip, 0.5, true).Any(), $"{c.Modelled} can't play {clip}");
         }
