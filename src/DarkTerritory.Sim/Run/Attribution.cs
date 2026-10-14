@@ -10,9 +10,10 @@ namespace DarkTerritory.Sim.Run;
 /// the Fire Flies setting a car alight (<see cref="Fire"/>), Followers nesting (<see cref="Nest"/>), a Grumbler craned
 /// aboard (<see cref="Aboard"/>), a Stoker in the firebox (<see cref="Runaway"/>), the Switchman's points (<see cref="Points"/>),
 /// and any other PUNISH that held nobody (<see cref="Punished"/>). Note 287: the night's first threat and the draw that
-/// brought it (<see cref="Drawn"/>): "Cinder Hounds came first at km 2. Drawn by the whistle: Dave."
+/// brought it (<see cref="Drawn"/>): "Cinder Hounds came first at km 2. Drawn by the whistle: Dave." Note 717: a crewmate
+/// bonked by their friends' tools often enough to be told (<see cref="Bonked"/>): "Bonked 14 times, mostly by Priya."
 /// </remarks>
-public enum IncidentKind : byte { Grab, Death, Rescue, Rupture, CarLost, Derailed, Stranded, Voted, Struck, Fire, Nest, Aboard, Runaway, Points, Punished, Drawn, Slain, BroughtIn }
+public enum IncidentKind : byte { Grab, Death, Rescue, Rupture, CarLost, Derailed, Stranded, Voted, Struck, Fire, Nest, Aboard, Runaway, Points, Punished, Drawn, Slain, BroughtIn, Bonked }
 
 /// <summary>
 /// One fact for the incident report (C.9, D.12): what happened, to whom and where, and the <b>contributing action</b>: the

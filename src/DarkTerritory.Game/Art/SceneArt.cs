@@ -124,7 +124,8 @@ public sealed partial class SceneArt(Look look)
             // (A staged getting up says how far into it they are: dt screenshot --cameback, note 529.)
             CrewPose.GetUp => c.Phase > 0 ? c.Phase : time - since.Time,
             CrewPose.TakeDown or CrewPose.HangUp => time - since.Time,
-            CrewPose.Stagger => time - _staggered.GetValueOrDefault(c.Id, since.Time),
+            // (Note 717: a crewmate's knock is the sim's, from when it began; a staged one says how far into it they are.)
+            CrewPose.Stagger => c.Phase > 0 ? c.Phase : time - Math.Max(_staggered.GetValueOrDefault(c.Id, since.Time), since.Time),
             CrewPose.FireDoor => FireDoorSince >= 0 ? FireDoorSince : time - since.Time,
             // A staged swing (dt screenshot --act swing) says how far into it they are; a played one, from its blow.
             CrewPose.Swing => swung >= 0 ? swung + SwingHitAt : c.Phase,
@@ -171,7 +172,7 @@ public sealed partial class SceneArt(Look look)
         // The repair kit by its handle (note 513): drawn in the fist, not where the sim holds it (Body skips it).
         var kit = pose is CrewPose.Toolbox or CrewPose.ToolboxWalk ? PropArt.Of(Look).Get("repair_kit") : null;
         bool drawn = Creatures.Crewmate(mesh, m, pose, clipTime, c.Variant, left, rightHand, ToF(Arms.Pole(-1)), ToF(Arms.Pole(1)), ToolProp(c.Holding),
-            hanging: lamp, figure: CreatureArt.FigureOf(c.Survivor), body: HeadsetBody(c, pose, time), carried: kit);
+            hanging: lamp, figure: CreatureArt.FigureOf(c.Survivor), body: HeadsetBody(c, pose, time), carried: kit, sooted: c.Sooted);
         if (drawn && kit is not null)
             _kitHands[c.Id] = time;
         else

@@ -142,6 +142,8 @@ public sealed partial class GreyboxScene
     public IReadOnlyList<Sim.Combat.HitConfirm>? Hits { get; set; }
     /// <summary>Crewmates' swings, landed or not (note 197): the world's, for their swing clip.</summary>
     public IReadOnlyList<Sim.Combat.SwingEvent>? Swings { get; set; }
+    /// <summary>Lumps of coal thrown off the shovel, in flight (note 717, World.Lumps): each a tumbling black lump.</summary>
+    public IReadOnlyList<Sim.Player.LumpInFlight>? Lumps { get; set; }
     /// <summary>Everyone's outfit (note 298), for the Passenger wearing one of the crew's faces.</summary>
     public IReadOnlyDictionary<int, byte>? Outfits { get; set; }
     /// <summary>Where cannonballs came down lately (World.Impacts, T121): each one's explosion, by <see cref="Tick"/>.</summary>
@@ -649,6 +651,7 @@ public sealed partial class GreyboxScene
                 ?? (Art.WorldArt.NearBrass(Route, eye) ? Art.Effects.Air.Brass : Art.Effects.AirOf(Art.WorldArt.BiomeAt(Route, centre))));
             Strikes(mesh, Look.Art.Effects, line, hint, frames, eye);
         }
+        Coal(mesh, eye);
         Lap(mesh, "effects");
         mesh.Seed = 0;
         // When the firehole's door last moved, and where it is: whoever's at it then swings it (Art/SceneArt.Crewmate).
@@ -935,6 +938,46 @@ public sealed partial class GreyboxScene
             best = (k, onto + way * 0.03, way, (float)Math.Max(0.15, room));
         }
         return best;
+    }
+
+    /// <summary>
+    /// Note 717: the lumps of coal in flight, each a fist-sized black lump tumbling end over end (by its id and the scene's clock),
+    /// with a glint of anthracite on its faces so it's seen against the night.
+    /// </summary>
+    void Coal(MeshBuilder mesh, Double3 eye)
+    {
+        foreach (var l in Lumps ?? [])
+        {
+            if ((l.Position - eye).Length > DrawDistance)
+                continue;
+            float spin = (float)Time * 9 + l.Id * 1.7f;
+            var q = Quaternion.CreateFromYawPitchRoll(spin * 0.6f, spin, spin * 0.3f);
+            if (Look is not null)
+            {
+                _lump ??= LumpOfCoal(Look);
+                var m = Matrix4x4.CreateFromQuaternion(q);
+                m.Translation = V(l.Position, eye);
+                mesh.Append(_lump, m);
+                continue;
+            }
+            var right = Vector3.Transform(Vector3.UnitX, q);
+            var up = Vector3.Transform(Vector3.UnitY, q);
+            var back = Vector3.Transform(Vector3.UnitZ, q);
+            mesh.Box(V(l.Position, eye), right, up, back, new Vector3(0.05f, 0.04f, 0.045f), new Vector3(0.04f, 0.04f, 0.045f));
+        }
+    }
+
+    MeshAsset? _lump;
+
+    /// <summary>A fist of coal (note 717): a few rough faces of the tender's coal, black with an anthracite glint.</summary>
+    static MeshAsset LumpOfCoal(Look look)
+    {
+        var k = new Art.Kit(look, 3120);
+        k.Use("coal", Palette.SootBlack, 0.4f, 0.5f, tile: 1.2f);
+        k.Tint = new Vector3(0.14f);
+        k.BevelBox(new Vector3(-0.05f, -0.035f, -0.045f), new Vector3(0.05f, 0.04f, 0.045f), 0.02f);
+        k.BevelBox(new Vector3(-0.02f, 0.01f, -0.05f), new Vector3(0.045f, 0.055f, 0.02f), 0.015f);
+        return k.Build("coal-lump");
     }
 
     void Strikes(MeshBuilder mesh, Art.Effects fx, RailLine line, double hint, IReadOnlyList<CarFrame> frames, Double3 eye)

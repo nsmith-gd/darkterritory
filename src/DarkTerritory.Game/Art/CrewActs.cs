@@ -40,7 +40,19 @@ public static class CrewActs
             Phase: act == CrewPose.Reload ? ReloadPhase(s, world) : 0, Death: s.Death,
             Headset: s.Head > 0 ? new HeadsetBody(s.Head, s.Pitch, s.Parent, s.Position, s.Yaw) : null,
             Car: placed.Parent != PlayerState.World && placed.Parent < frames.Count ? placed.Parent : PlayerState.World, Local: placed.Position,
-            Emote: emote, EmoteSeconds: emoteSeconds);
+            Emote: emote, EmoteSeconds: emoteSeconds, Sooted: s.Has(PlayerFlags.Sooted));
+    }
+
+    /// <summary>How long a shove's arm is out (s): the shover drawn pushing (note 717), from the host's knock.</summary>
+    public const double ShoveSeconds = 0.45;
+
+    /// <summary>Whether <paramref name="id"/> shoved someone in the last <see cref="ShoveSeconds"/> (note 717, World.Horseplays).</summary>
+    public static bool Shoving(int id, World world)
+    {
+        foreach (var h in world.Horseplays)
+            if (h.By == id && h.Kind == KnockKind.Shove && ((double)world.Tick - h.Tick) * SimConstants.TickSeconds is >= 0 and < ShoveSeconds)
+                return true;
+        return false;
     }
 
     /// <summary>Walking faster than this (m/s) ends an emote, as a step away from it does (note 298).</summary>
@@ -237,6 +249,11 @@ public static class CrewActs
         var train = world.Train;
         if (s.Has(PlayerFlags.Held))
             return HeldBy(id, world);
+        // Knocked by a crewmate (note 717): rocked back, arms out, while the stagger lasts; and the shover's arms out at them.
+        if (s.Stagger > 0)
+            return CrewPose.Stagger;
+        if (Shoving(id, world))
+            return CrewPose.Push;
         // At a Holdout's door while it's breached (App. D.7): smashing its lock, prying its barricade, or picking the lock
         // with the repair kit. (Who's breaching isn't sent; whoever stands at the door is at it.)
         if (Breaching(s, world) is { } breach)

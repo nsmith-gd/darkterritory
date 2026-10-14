@@ -539,6 +539,25 @@ public static partial class Staging
     /// end, one standing by with a crowbar; and on the last gun car, a gunner sat in the cannon's seat.
     /// </summary>
     /// <summary>
+    /// Horseplay (note 717; dt screenshot --view shove | sooted): <c>shove</c>, one crewmate on car 2's roof shoving another
+    /// over its side, the shover's arms out and the shoved lurching back off their feet past the lip; <c>sooted</c>, a crewmate
+    /// with the coal's soot on their face, staggered by it, the next lump on its way past from the thrower at the far end.
+    /// </summary>
+    public static (List<Crewmate> Crew, List<Sim.Player.LumpInFlight> Lumps) Horseplay(TrainOnLine train, string content, string scene)
+    {
+        _ = content;
+        var frame = train.Frames[Math.Min(2, train.Frames.Count - 1)];
+        double roof = frame.Shape.RoofHeight, edge = frame.Shape.HalfWidth;
+        Crewmate On(byte id, double x, double z, double yaw, Art.CrewPose? act, double up = 0, double phase = 0, bool sooted = false) =>
+            new(id, frame.ToWorld(new Double3(x, roof + up, z)), yaw + frame.Heading, true, Act: act, Phase: phase, Sooted: sooted,
+                Holding: Sim.Player.Tool.Crowbar);
+        if (scene == "sooted")
+            return ([On(21, 0, 0, 0, null, sooted: true), On(22, -0.3, -6.5, Math.PI, Art.CrewPose.Shovel)],
+                [new Sim.Player.LumpInFlight(1, 22, frame.ToWorld(new Double3(0.35, roof + 1.5, -0.75)))]);
+        return ([On(21, edge - 1.15, 0, -Math.PI / 2, Art.CrewPose.Push), On(22, edge - 0.05, 0.1, Math.PI / 2, Art.CrewPose.Stagger, up: 0.12, phase: 0.22)], []);
+    }
+
+    /// <summary>
     /// A row of the crew down car 2's roof, each at one of <paramref name="acts"/> (CrewPose names, dt screenshot --act
     /// smash,pry,...: the roof view looks at them), facing the camera; the smash and pry with a crowbar in hand, the lantern
     /// with the hand lamp hung from the fist; each swing further into its blow, with the shovel, crowbar and wrench in turn.

@@ -1792,6 +1792,8 @@ static object Screenshot(TrainTuning t, string content, string[] args)
     }
     if (look is not null && args.Contains("--reverser"))
         look.Art.ReverserThrown = Opt(args, "--reverser", 0.4);
+    var horseplay = Str(args, "--horseplay", view switch { "shove" => "shove", "sooted" => "sooted", _ => "" }) is { Length: > 0 } horse
+        ? Staging.Horseplay(train, content, horse) : ((List<Crewmate> Crew, List<DarkTerritory.Sim.Player.LumpInFlight> Lumps)?)null;
     var scene = new GreyboxScene
     {
         // --draw m: how far along the line to build it (an aerial view of a stretch wants more than the cab's 400).
@@ -1831,7 +1833,10 @@ static object Screenshot(TrainTuning t, string content, string[] args)
         // --working: the crew at work (X1): carrying, at a hatch and a brake wheel on car 2's roof, sat at the last gun.
         // --act smash,pry,pick,...: a row of the crew down car 2's roof, each at one of those acts (CrewPose names).
         // (--survivor prisoner|wildlander: all of them freed survivors' figures, App. D.8.)
-        Crew = args.Contains("--act") ? Staging.Acts(train, content, Str(args, "--act", "").Split(','),
+        // --horseplay shove|sooted (the views shove and sooted, note 717): a shove over car 2's side; a crewmate's sooted face.
+        Lumps = horseplay is { } hp ? hp.Lumps : null,
+        Crew = horseplay is { } hc ? hc.Crew
+            : args.Contains("--act") ? Staging.Acts(train, content, Str(args, "--act", "").Split(','),
                 Enum.Parse<DarkTerritory.Game.Art.Survivor>(Str(args, "--survivor", "none"), ignoreCase: true))
             // --vr-body: three headset crewmates on car 2's roof, leaning, crouched and mid-step (T82; views crew, crewside).
             // --driver: a crewmate at the engine's controls (note 445), on the whistle cord with --whistle; --reverser s: the
