@@ -3601,8 +3601,8 @@ static object HudShot(string content, string[] args)
             : roofWarning.Length > 0
             ? Staging.RoofWarning(content, generated ?? DarkTerritory.Sim.LineGen.Routes.Generate(content, "deadLines:1", cars), cars, roofWarning)
             : generated is null ? new PrototypeSession(content, Str(args, "--line", "test-loop"), cars) : new PrototypeSession(content, generated, cars, enemies: false);
-        bool staged = roofWarning.Length > 0 || mailCrane is not null || args.Contains("--spur-stop");
-        if (!staged)
+        bool setUp = roofWarning.Length > 0 || mailCrane is not null || args.Contains("--spur-stop");
+        if (!setUp)
             solo.Controls.Throttle = Opt(args, "--throttle", args.Contains("--talk") ? 0 : 0.6);
         // (--news: out of the yard and under way, where cars are lost.)
         if (args.Contains("--news"))
@@ -3611,7 +3611,7 @@ static object HudShot(string content, string[] args)
         if (Str(args, "--hazards", "") is { Length: > 0 } hz)
             DarkTerritory.Sim.Net.HazardConditions.Apply(solo.Train.Line,
                 DataFile.Load<BalanceTuning>(Path.Combine(content, BalanceTuning.File)).Combinations.HazardSets.First(h => h.Name == hz));
-        for (int i = 0; i < (staged ? 1 : Opt(args, "--seconds", 6) * SimConstants.TickRate); i++)
+        for (int i = 0; i < (setUp ? 1 : Opt(args, "--seconds", 6) * SimConstants.TickRate); i++)
             solo.Step(new PlayerIntent { LookPitch = i == 0 ? (float)Opt(args, "--pitch", 0) : 0, LookYaw = i == 0 ? (float)Opt(args, "--yaw", 0) : 0 });
         // --mend [t]: the repair kit in hand and a broken radio on the belt (GDD §23; note 201), t seconds into mending it.
         if (args.Contains("--mend"))
