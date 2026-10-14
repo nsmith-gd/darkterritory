@@ -2669,6 +2669,27 @@ Agents can't tell whether it's funny, but they can tell whether everyone was on 
 
 *Added October 2026. A running log of the director's play-tests and reviews of a build: what was said (the point, not verbatim), tracked against the design. Newest entry first. Each entry gives the date, the build number and what was played, then the notes grouped by area. Each note carries a status: **open**, **in progress** (with its task), **fixed in PR …**, or **design change → §/note** for a note that changed the design. Praise and observations that need no work are marked **keep** or **noted**. When a review decides something about the design, a **Decided** line names the section it changed, and that section carries the date of the decision; engineering detail goes in the numbered notes of `docs/ARCHITECTURE.md`.*
 
+## F.6 2026-10-14 — the friendslop audit, and the director's calls
+
+**Reviewed:** K1's audit of main 0f47f04 against Bartle's eight types and Rational Game Design, and its proposals for
+closing the gap (docs/design/friendslop.md; ARCHITECTURE §8 note 733). The director: "We are chasing the friendslop
+genre ... It's extremely important that friends exceeds our target meaningfully."
+
+**Decided**
+- **The cab is the crew car**, "the captain's quarters, shared by all": about 11 m of the engine's 20, the boiler shorter
+  ("the boiler is just a long tube"). The controls stay as they are, for one player. Behind them the cab map on a table,
+  tracking the train and its route; a gallery of raised benches, "more of a social space"; and a back wall with "some fun,
+  cute gimmicks". *Queue #450, note 716.*
+- **The shove, in full effect, as a trial:** on a car's roof a shove can put you off, and at speed it kills. *Queue #451,
+  note 717.*
+- **Coal thrown** from the shovelling as it is. *Queue #451.*
+- **Not taken:** the toy slipped into a pocket; a price on every find (value is learned by playing); the dead's haunt (the
+  dead never see what the living don't and help them). Sound-only cues in the world instead. *Queue #452, #466.*
+- **Singing does not fight the Choir.** *Queue #454.*
+- **Comet cargo at real stops, extra valuable and exciting to see; trophies sometimes from team kills; very big finds take
+  two.** *Queue #452, #453.*
+- The rest of docs/design/friendslop.md §3 goes ahead (queue #450–#466).
+
 ## F.5 2026-10-13 — the creature gym, Test build 21 (ca0d37e)
 
 **Played:** the director, alone in the creature gym (§34.1) of the developer Test build of ca0d37e, calling the creatures one by one and letting them do their worst. Fifteen notes were sent from inside it (F8), each as a test report.
