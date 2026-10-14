@@ -5102,7 +5102,7 @@
    }
   ],
   "takes": 3,
-  "sha": "c0df6437e6182536"
+  "sha": "fe667f5ac3ba4e2c"
  },
  "crew-horseplay/bump": {
   "cue": "crew-horseplay.bump",
@@ -5117,7 +5117,7 @@
    }
   ],
   "takes": 3,
-  "sha": "d0507bdfaa2dffa9"
+  "sha": "d2e4961baf1b432c"
  },
  "crew-horseplay/coal-hit": {
   "cue": "crew-horseplay.coal-hit",
@@ -5132,7 +5132,7 @@
    }
   ],
   "takes": 3,
-  "sha": "356ba7dfb2863974"
+  "sha": "acd9e55866bc0ee9"
  },
  "crew-horseplay/coal-land/ground": {
   "cue": "crew-horseplay.coal-land",
@@ -5147,7 +5147,7 @@
    }
   ],
   "takes": 3,
-  "sha": "ec9be209099e7069"
+  "sha": "121e28e15998ee09"
  },
  "crew-horseplay/coal-land/roof": {
   "cue": "crew-horseplay.coal-land",
@@ -5162,7 +5162,7 @@
    }
   ],
   "takes": 3,
-  "sha": "cefeb8f226466649"
+  "sha": "6588e3e542fe300f"
  },
  "crew-horseplay/coal-land/wood": {
   "cue": "crew-horseplay.coal-land",
@@ -5177,7 +5177,7 @@
    }
   ],
   "takes": 3,
-  "sha": "e05ef146d6502f22"
+  "sha": "276f0f272cff7709"
  },
  "crew-horseplay/shove": {
   "cue": "crew-horseplay.shove",
@@ -5192,7 +5192,7 @@
    }
   ],
   "takes": 3,
-  "sha": "3d1625a8a2992585"
+  "sha": "47725a76e413d21c"
  },
  "crew-house-door/open": {
   "cue": "crew-house-door.open",

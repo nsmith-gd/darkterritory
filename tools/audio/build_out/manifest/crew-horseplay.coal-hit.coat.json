@@ -23,10 +23,10 @@
  "restricted": false,
  "takes": 3,
  "loop": false,
- "seconds": 0.05,
+ "seconds": 0.23,
  "preview": "previews/crew-horseplay--coal-hit--coat.mp4",
- "previewSeconds": 2.11,
- "sha": "1fef3851a6a1c90c",
- "centroid": 5509,
- "lufs": -16.8
+ "previewSeconds": 2.65,
+ "sha": "6e4513c3d5ed70f3",
+ "centroid": 674,
+ "lufs": -17.6
 }
