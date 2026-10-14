@@ -33,6 +33,7 @@ public class DeadPhaseTests
         public PlayerTuning PlayerTuning => Tuning;
         public int PlayerId => id;
         public int Watching => crew.FirstOrDefault(c => c.State.Alive, (-1, default)).Id;
+        public PlayerState Viewpoint => crew.FirstOrDefault(c => c.Id == Watching, (Id: id, State: me)).State;
         public IReadOnlyList<(int Id, PlayerState State)> CrewStates(double alpha) => [(id, me), .. crew];
         public string Status() => "";
         public void Step(in PlayerIntent intent) { }

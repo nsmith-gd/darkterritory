@@ -137,8 +137,12 @@ public interface IPlaySession
     LinkInfo? Link => null;
     /// <summary>The crew roster (T69), in player-id order: everyone aboard by the figures, a Passenger among them.</summary>
     IReadOnlyList<RosterLine> Roster() => [new RosterLine((byte)PlayerId, "YOU", PrototypeSession.Where(Player, Train), Player.Alive, You: true)];
-    /// <summary>The living crewmate a dead or waiting player is watching (GDD App. D.10), or −1: nobody's left, or you're alive.</summary>
+    /// <summary>The crewmate a dead or waiting player is watching (GDD App. D.10; the living, or a dead one's body, note 743), or −1: nobody's left, or you're alive.</summary>
     int Watching => -1;
+    /// <summary>How a dead player's watching (App. D.10, note 743): the crewmate's eyes, the chase, the wide, over the shoulder.</summary>
+    DeadView DeadView => DeadView.Eyes;
+    /// <summary>On to the dead's next view (the view key, Tab); alone, there's nobody to watch, and nothing to change.</summary>
+    void NextDeadView() { }
     /// <summary>Whose eyes and ears this machine has: the player's own or, watching, the crewmate's (their space, their shelter).</summary>
     PlayerState Viewpoint => Player;
     /// <summary>
