@@ -3356,6 +3356,10 @@ static object HudShot(string content, string[] args)
         }
         session = solo;
     }
+    // --crew-news held|gone (note 750): a crewmate held, or just killed, on the last car's roof, out of voice reach: the line
+    // this player's shown for it, under the news.
+    if (Str(args, "--crew-news", "") is { Length: > 0 } crewNews)
+        session = CrewNewsShot.With(session, gone: crewNews == "gone");
     // --talk person|board|paper|fixture|door [--who i] (note 281): stood in the departure fortress's town in front of one
     // of its people (the i-th) or things, their card open and the line typed out, as Use at the prompt opens it. With
     // --arrival, in the terminus's town (note 603), as the crew would after the night's delivered.

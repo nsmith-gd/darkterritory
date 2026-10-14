@@ -45,6 +45,8 @@ public static partial class Hud
         public long MailTick = long.MinValue / 2;
         public int CaughtDrop = -1;
         public long CaughtTick = long.MinValue / 2;
+        // Note 750: who of the crew is held or gone out of voice reach, as this machine has seen them.
+        public readonly Sim.Run.CrewNews Crew = new();
     }
 
     [ThreadStatic] static Memory? _memory;

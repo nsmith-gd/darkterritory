@@ -45,6 +45,8 @@ public sealed record PlayerTuning(
     /// <summary>The emotes' lengths (GDD §9's yard, "dance"; note 298). Field docs live in player.json <c>emotes</c>.</summary>
     public EmoteTuning Emotes { get; init; } = new();
     public NewsTuning News { get; init; } = new();
+    /// <summary>Note 750: a crewmate held or killed out of voice reach, a line for the living (player.json <c>crewNews</c>).</summary>
+    public Run.CrewNewsTuning CrewNews { get; init; } = new();
 
     /// <summary>
     /// Horseplay among the crew (note 717; the director, 14 Oct 2026): crewmates solid to each other, the shove, coal off the

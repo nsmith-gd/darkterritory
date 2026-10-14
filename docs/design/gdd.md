@@ -948,7 +948,7 @@ Pillar 5 says the night gets worse and funnier. A failure is only funny when fou
 
 | Condition | Means | Where it's built |
 |---|---|---|
-| **Witnessed** | Somebody saw it or heard it happen | GRAB rescue windows (A.1) · the radio broadcast of a GRAB (C.8) · the dead watching (D.10) · auto-bookmarks (D.12) |
+| **Witnessed** | Somebody saw it or heard it happen | GRAB rescue windows (A.1) · the radio broadcast of a GRAB (C.8) · a GRAB or a death out of voice reach on the living's HUD, who and where (open question 2; note 750) · the dead watching (D.10) · auto-bookmarks (D.12) |
 | **Legible** | Everyone understands what happened, instantly | The six-word rule (A.1) · the voice hard-cut on death (D.2) · silhouettes built for callouts (§32) |
 | **Owned** | It traces back to a person's choice | Social test criterion 5 (§20) · the Choir taking the loudest voice (A.7) · failure attribution (C.9) · cause-of-death lines in the incident report (D.12) |
 | **Shrugged at** | The world responds with indifference | The settlement clerk (§9) · crew-loss fees and body refunds (D.9) · the Gaunt choosing a corpse over the medicine (A.6) |
@@ -1366,7 +1366,7 @@ Every night the game plays is timed frame by frame, and what it found is written
 # PART ELEVEN — OPEN QUESTIONS
 
 1. **Does a cannon reload need two players, or is it just slower solo?** A two-person reload makes the gunner a pair: more social, and more expensive.
-2. ~~**Can the conductor see whether everyone is aboard, or is roll call purely verbal?**~~ **Answered in v1.3: verbal.** There is no aboard indicator for the conductor or anyone else. Roll call is a question somebody has to shout, and the engine leaving without someone is this game's version of Lethal Company's ship leaving at midnight (§17, §23.1). D.6 already keeps the queue hidden from the living.
+2. ~~**Can the conductor see whether everyone is aboard, or is roll call purely verbal?**~~ **Answered in v1.3: verbal.** There is no aboard indicator for the conductor or anyone else. Roll call is a question somebody has to shout, and the engine leaving without someone is this game's version of Lethal Company's ship leaving at midnight (§17, §23.1). D.6 already keeps the queue hidden from the living. **An emergency is shown, not a roster** *(the director, 14 Oct 2026, on the social collision audit's R1: "looks good"; note 750)*. Roll call stays verbal: nothing shows who is aboard. But a crewmate held, or killed, out of voice reach (26 m) is a line for the living, under the news: who and where, never what. "PRIYA - CAR 4 ROOF" for as long as she's held; "PRIYA IS GONE - CAR 4" for four seconds when she dies. Within 26 m nothing is shown: you hear it. The dead are shown nothing. What has her, and what to bring, is still hers or her neighbours' to shout (`crewNews`).
 3. **How many cars before the flank is genuinely indefensible** — and is that ceiling the real progression cap?
 4. **Do corrupted humans ever use the radio?** A voice on your own channel that isn't crew is the single most disturbing thing available in this design. Possibly too much.
 5. **Does cold need a meter,** or is it enough that being outside too long simply kills you?
@@ -2276,7 +2276,7 @@ A released player watches the train's lights leave from whoever they are followi
 | **Assignment** | Each Holdout takes the first *eligible* entry (D.5). Skipped entries keep their place. |
 | **Missed rescue** | A released player goes back to the position they held, normally the front. |
 | **Disconnect** | The entry is removed. Rejoining creates a new lobbied entry at the back. |
-| **Visibility** | Dead and lobbied players see the full queue and their position. The living see nothing; roll call stays verbal. |
+| **Visibility** | Dead and lobbied players see the full queue and their position. The living see nothing; roll call stays verbal. An emergency out of voice reach is shown to the living, who and where, never what (open question 2; note 750). |
 
 With halts included, the typical wait is **one site, about 5–8 minutes.** A crew that skips sites makes the wait longer.
 

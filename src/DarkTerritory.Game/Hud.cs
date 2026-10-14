@@ -817,6 +817,16 @@ public static partial class Hud
             : $"A WAKER {Math.Max(0, behind):0} M BEHIND. GET IN";
     }
 
+    /// <summary>
+    /// Note 750: the line this player's shown for a crewmate held or killed beyond voice reach (player.json <c>crewNews</c>),
+    /// or null: none, or they're within it, or this player's dead.
+    /// </summary>
+    public static Sim.Run.CrewNewsLine? CrewLine(IPlaySession s) => CrewLine(s, Observe(s));
+
+    static Sim.Run.CrewNewsLine? CrewLine(IPlaySession s, Memory m) =>
+        m.Crew.Update(s.PlayerTuning.CrewNews, s.Train, s.PlayerId, s.Player, s.Tick, s.CrewStates(1), id => IncidentLog.NameOf(s.World, id),
+            stop: s.World.Run is { Phase: Sim.Run.RunPhase.AtFacility });
+
     /// <summary>The newest news (note 663), or null.</summary>
     static NewsEvent? NewsUp(Sim.World world) => world.News.Count > 0 ? world.News[^1] : null;
 
@@ -845,6 +855,14 @@ public static partial class Hud
                 y += line;
             }
             y += 4;
+        }
+        // Note 750 (GDD open question 2): a crewmate held or killed out of voice reach, under the news: who and where, never
+        // what. A hold for as long as it lasts; a death for a few seconds, fading.
+        if (CrewLine(s, m) is { } crew)
+        {
+            float shown = crew.Dead ? Shown(Since(s, crew.Since), s.PlayerTuning.CrewNews.DeathSeconds) : 1;
+            o.TextCentred(cx, y, crew.Text, (crew.Dead ? Red : Amber) with { W = shown }, 1);
+            y += line + 4;
         }
         if (m.Place is { } place && Shown(Since(s, m.PlaceTick), Tuning.PlaceSeconds) is > 0 and var a)
         {

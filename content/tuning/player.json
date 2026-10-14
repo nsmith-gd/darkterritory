@@ -200,6 +200,12 @@
     "seconds": 5,
     "cutToldAbove": 1.5
   },
+  // Incidents travel the train (GDD open question 2 and App. D.6; ARCHITECTURE §8 note 750; the social collision audit's R1,
+  // the director, 14 Oct 2026: "looks good"). Roll call stays verbal, but an emergency is shown: a crewmate held, or killed,
+  // further than beyondMetres from you (voice's reach, spec A.5's 26 m: nearer, you hear it) is a line under the news, who
+  // and where, never what: "PRIYA - CAR 4 ROOF" for as long as they're held, "PRIYA IS GONE - CAR 4" for deathSeconds.
+  // Each machine works it out for its own player from the snapshots. Never shown to the dead. Off: nothing shown.
+  "crewNews": { "on": true, "beyondMetres": 26, "deathSeconds": 4 },
   // Horseplay (GDD §23.4; ARCHITECTURE §8 note 717). The director, 14 Oct 2026: "The griefer ideas are funny"; "if we're
   // going to allow shoving, then we need shoving to be in full effect, which means if you're standing on top of a car, you
   // can be shoved off of it. And at speed, it kills you"; and the lump of coal "is going to need to be able to work with the
