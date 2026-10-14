@@ -663,7 +663,7 @@ static string Doing(Launch chosen) => chosen switch
                 var setup = HostedAsApp.Campaign(campaign, contract, enemies) with { FirstChildReal = profile.FirstChildReal };
                 Console.WriteLine($"campaign slot {night.Slot} ({campaign.Name}): {campaign.Cars} cars, {campaign.Scrip:0} scrip, tonight {contract.Route}, about {contract.PerCar:0} a car-load{(resume is not null ? $", resuming after facility {resume.Facility}" : "")}");
                 // Note 450: private, behind the host screen's password (listed with a lock); with none typed, unlisted as before.
-                string? password = frontEnd.Settings.PublicLobby ? null : frontEnd.Settings.LobbyPassword.Trim() is { Length: > 0 } pw ? pw : null;
+                string? password = LobbyPassword(frontEnd.Settings);
                 // The crew's bots (note 611), kept for the board's next contract: the host going on from the town takes them too.
                 frontEnd.Bots = night.Bots;
                 if (night.Bots > 0)
@@ -800,6 +800,9 @@ while (!window.CloseRequested && !QuitNow())
 
 Console.WriteLine($"frames {frameCount} ({frameCount / timer.Elapsed.TotalSeconds:0} fps)");
 return 0;
+
+// Note 450: the run's password as the settings have it: a private run's, typed; null, an open run (or none typed yet).
+static string? LobbyPassword(Settings s) => s.PublicLobby ? null : s.LobbyPassword.Trim() is { Length: > 0 } pw ? pw : null;
 
 // Starts what was chosen off the window's thread, drawing what it's doing meanwhile; null (the menu says why) if it failed.
 (IPlaySession Session, CampaignState? Campaign)? Starting(Launch chosen)
@@ -1035,7 +1038,11 @@ CampaignState? Play(IPlaySession session, CampaignState? campaign)
         Invites: net?.Lobby is { Status: Ballast.Online.Lobby.State.Open } && session.Link is not { Full: true },
         JoinAt: session.Link?.JoinAt,
         Over: session.World.Run?.Over == true,
-        Yard: net is { CanWear: true });
+        Yard: net is { CanWear: true },
+        Lobby: net is { Host: not null, Listed: true } ? new HostLobby(net.Mood, net.Locked) : null);
+    // Note 535: the lobby as the settings had it when the night began. The host's in-night rows change the settings; what
+    // differs from this goes to the run (only that: a password given on the command line isn't undone by a new mood).
+    var lobbyWas = (frontEnd.Settings.Mood, Password: LobbyPassword(frontEnd.Settings));
     // The emote wheel (note 298): held on its key, the mouse picks; let go, it's sent on the next tick.
     var wheel = new EmoteWheel();
     var pendingEmote = Emote.None;
@@ -1118,6 +1125,19 @@ CampaignState? Play(IPlaySession session, CampaignState? campaign)
             }
             if (!frontEnd.Settings.Equals(takenUp))
                 TakeUp(frontEnd.Settings);
+            // Note 535: a listed run's host changed its mood or password in the menu (once the typing's done).
+            if (net is { Host: not null, Listed: true } && !frontEnd.WantsText)
+            {
+                var lobbyNow = (frontEnd.Settings.Mood, Password: LobbyPassword(frontEnd.Settings));
+                if (lobbyNow.Mood != lobbyWas.Mood)
+                    net.ChangeMood(lobbyNow.Mood);
+                if (lobbyNow.Password != lobbyWas.Password)
+                {
+                    net.ChangePassword(lobbyNow.Password);
+                    Console.WriteLine($"the run's {(lobbyNow.Password is null ? "open: no password" : "locked with a new password")}");
+                }
+                lobbyWas = lobbyNow;
+            }
             if (chosen is Launch.Invite)
                 net?.ShowInviteDialog();
             if (chosen is Launch.Leave)

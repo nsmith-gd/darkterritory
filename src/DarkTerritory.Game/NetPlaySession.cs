@@ -560,6 +560,8 @@ public sealed class NetPlaySession : IPlaySession, IDisposable
         // they came in on (a LAN or address joiner has none, and needs it).
         if (online is not null && hostTransport is HostGroup group)
             host.Trusted = peer => group.Route(peer) is (OnlineTransport over, var at) && over.TryGetAddress(at, out var user) && online.IsFriend(user);
+        // Note 535: a private run's wrong guesses are counted by where they come from, whatever connection each comes on.
+        host.Origin = peer => OriginOf(hostTransport, peer);
         tap?.Hosted(host, night);
         // The bot crew aboard first, so one of them has the cab. Their clients take the host's plan, not a fresh generation.
         BotCrew? crew = null;
@@ -676,9 +678,38 @@ public sealed class NetPlaySession : IPlaySession, IDisposable
     public string LobbyName { get; private init; } = "";
     string Tier { get; init; } = "";
     /// <summary>A private run, behind its password (note 450).</summary>
-    public bool Locked { get; private init; }
+    public bool Locked { get; private set; }
     /// <summary>Who the run is for (note 450).</summary>
-    public RunMood Mood { get; private init; }
+    public RunMood Mood { get; private set; }
+
+    /// <summary>
+    /// Note 535 (note 450's "not yet"): the host of a listed run says who it's for, now. The platform lobby says it at once,
+    /// the network's beacon from its next call. Nothing for a joiner, or a run that isn't listed.
+    /// </summary>
+    public void ChangeMood(RunMood mood)
+    {
+        if (Host is null || !Listed || mood == Mood)
+            return;
+        Mood = mood;
+        if (Lobby is { IsHost: true } lobby)
+            lobby.SetData(MoodKey, Moods.Word(mood));
+    }
+
+    /// <summary>
+    /// Note 535: the host of a listed run changes its password, now: a new joiner needs the new one (or none, blank: the
+    /// run's open, its lock off the listing). The crew aboard stay, and a dropped one's held place still takes them back; the
+    /// crew going on to the next night are given the new key as they go (<see cref="HostSession.CarryOn"/>). The words go
+    /// nowhere: the host keeps the key, as it was given it hosting.
+    /// </summary>
+    public void ChangePassword(string? password)
+    {
+        if (Host is not { } host || !Listed)
+            return;
+        host.PasswordKey = Messages.PasswordKey(password);
+        Locked = host.PasswordKey is not null;
+        if (Lobby is { IsHost: true } lobby)
+            lobby.SetData(LockedKey, Locked ? "1" : "0");
+    }
 
     static string Invariant(int n) => n.ToString(System.Globalization.CultureInfo.InvariantCulture);
 
@@ -781,6 +812,18 @@ public sealed class NetPlaySession : IPlaySession, IDisposable
         new() { TimeoutSeconds = tuning.Link.TimeoutSeconds, KeepaliveSeconds = tuning.Link.KeepaliveSeconds };
 
     /// <summary>Starts the transport's pump (note 532) when it's the app's (a tuning); a test's transport stays on its ticks.</summary>
+    /// <summary>
+    /// Who's behind a host's link (note 535): the machine's address on the network (not its port: a joiner's game dials
+    /// from a new one each time), or the account on the platform; null when the link's gone or the transport can't say.
+    /// </summary>
+    public static string? OriginOf(ITransport transport, PeerId peer) => transport switch
+    {
+        HostGroup group => group.Route(peer) is ({ } over, var at) ? OriginOf(over, at) : null,
+        UdpTransport udp => udp.TryGetAddress(peer, out var from) ? from is IPEndPoint ip ? ip.Address.ToString() : from.ToString() : null,
+        OnlineTransport platform => platform.TryGetAddress(peer, out var user) ? $"account:{user}" : null,
+        _ => null,
+    };
+
     static T Pumped<T>(T transport, PlayerTuning? tuning) where T : ITransport
     {
         if (tuning is { Link.PumpMilliseconds: > 0 } && transport is DatagramTransport<EndPoint> udp)
@@ -934,7 +977,8 @@ public sealed class NetPlaySession : IPlaySession, IDisposable
     public sealed record Following(Func<ITransport> Dial, byte[]? Key, string? Left, Sim.Towns.TownAt Town);
 
     /// <summary>A joiner told its host is going on (note 606), with a host to dial: whom, and from which town; else null.</summary>
-    public Following? GoingOn => Host is null && Redial is { } dial && Client.CarryingOn is { } town ? new Following(dial, Client.PasswordKey, Setup.Route, town) : null;
+    /// <remarks>The run's key is the one the host said as it went (note 535: it may have changed the password since).</remarks>
+    public Following? GoingOn => Host is null && Redial is { } dial && Client.CarryingOn is { } town ? new Following(dial, Client.CarryKey, Setup.Route, town) : null;
 
     /// <summary>
     /// The crew goes on together (note 606), a joiner's end: dials the host it followed until the host's next night welcomes

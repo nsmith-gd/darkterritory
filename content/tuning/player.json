@@ -179,9 +179,17 @@
   // patch (`{"$patch": true, "crew": {"cap": 12}}`): everyone in a game runs the same content, so they agree on it. The net
   // budget (ARCHITECTURE §6) has headroom to 12; past that is untested. refuseLingerSeconds: how long the host keeps a
   // refused link open for the refusal to get there before it hangs up (the client hangs up itself on reading it).
+  // A private run's wrong password (ARCHITECTURE §8 note 535; note 450's "not yet"): its refusal is held back
+  // guessDelaySeconds, guessGrowth times longer for each wrong guess since from the same place (an address, or a platform
+  // account), up to guessDelayMaxSeconds; a place with no wrong guess for guessForgetSeconds starts again from the first.
+  // One guess from a place is judged at a time, so a mistyped password costs a second and a guesser a few a minute.
   "crew": {
     "cap": 8,
-    "refuseLingerSeconds": 3
+    "refuseLingerSeconds": 3,
+    "guessDelaySeconds": 1,
+    "guessGrowth": 2,
+    "guessDelayMaxSeconds": 30,
+    "guessForgetSeconds": 300
   },
   // Emotes (GDD §9: the yard's a safe space where "the crew wait for friends, hang out, dance"; ARCHITECTURE §8 note 298).
   // Seconds each lasts, unless its player moves first: the host keeps the event this long for the crew to see. cooldown:

@@ -99,7 +99,8 @@ public sealed record LinkTuning(double TimeoutSeconds = 15, double KeepaliveSeco
 /// <summary>
 /// The crew cap (note 254). Field docs live in player.json <c>crew</c>. Never under one: the host's own player always fits.
 /// </summary>
-public sealed record CrewTuning(int Cap = 8, double RefuseLingerSeconds = 3)
+public sealed record CrewTuning(int Cap = 8, double RefuseLingerSeconds = 3, double GuessDelaySeconds = 1, double GuessGrowth = 2,
+    double GuessDelayMaxSeconds = 30, double GuessForgetSeconds = 300)
 {
     public int Places => Math.Max(1, Cap);
 }

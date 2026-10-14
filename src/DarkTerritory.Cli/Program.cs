@@ -3116,10 +3116,21 @@ static (DarkTerritory.Game.FrontEnd Menu, DarkTerritory.Game.Screen Screen) Demo
     if (screen is DarkTerritory.Game.Screen.Fortress or DarkTerritory.Game.Screen.Upgrades or DarkTerritory.Game.Screen.Stores or DarkTerritory.Game.Screen.DeleteCrew)
         menu.ShowFortress((int)Opt(args, "--slot", 1));
     // --menu night|leave (note 292): the in-night menu over a night hosted on the network for --others n (3), or with
-    // --joined, someone else's.
+    // --joined, someone else's. --listed: a listed run's host, with its MOOD and PASSWORD rows (note 535); --locked behind a
+    // password, its mood --mood's; --typing: a new password half typed.
     if (screen is DarkTerritory.Game.Screen.Night or DarkTerritory.Game.Screen.Leave)
-        menu.OpenNight(new(Hosting: !args.Contains("--joined"), Others: (int)Opt(args, "--others", 3), JoinAt: "192.168.1.20:27960"));
+        menu.OpenNight(new(Hosting: !args.Contains("--joined"), Others: (int)Opt(args, "--others", 3), JoinAt: "192.168.1.20:27960",
+            Lobby: args.Contains("--listed") && !args.Contains("--joined")
+                ? new DarkTerritory.Game.HostLobby(DarkTerritory.Game.Moods.Parse(Str(args, "--mood", "")), args.Contains("--locked")) : null));
     menu.Show(screen);
+    if (screen == DarkTerritory.Game.Screen.Night && args.Contains("--typing"))
+    {
+        int field = menu.Items.ToList().FindIndex(i => i.Label.StartsWith("PASSWORD", StringComparison.Ordinal));
+        for (int i = 0; i < field; i++)
+            menu.Down();
+        menu.Select();
+        menu.Type("tind");
+    }
     // --night-over: back at the title after a night, with the edition's word (the demo's end card).
     if (args.Contains("--night-over"))
         menu.NightOver();
