@@ -1452,7 +1452,7 @@ public static partial class Hud
         IncidentKind.Derailed or IncidentKind.Stranded => 0,
         IncidentKind.Death => 1,
         IncidentKind.CarLost or IncidentKind.Fire or IncidentKind.Nest or IncidentKind.Aboard or IncidentKind.Runaway or IncidentKind.Points
-            or IncidentKind.Rupture or IncidentKind.Struck or IncidentKind.BroughtIn => 2,
+            or IncidentKind.Rupture or IncidentKind.Struck or IncidentKind.BroughtIn or IncidentKind.Marked => 2,
         IncidentKind.Rescue or IncidentKind.Slain or IncidentKind.Sang => 3,
         _ => 4,
     };
