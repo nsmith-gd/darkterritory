@@ -1284,8 +1284,13 @@ public sealed partial class SceneArt(Look look)
         return (float)(open ? k : 1 - k);
     }
 
-    /// <summary>How far an open roof hatch's lid is swung over on its hinges (T99): a little past upright.</summary>
-    const float OpenHatch = MathF.PI * 100 / 180;
+    /// <summary>
+    /// How far an open roof hatch's lid is swung over on its hinges: folded right back, near flat on the roof beside the
+    /// opening (note 706; the director: "The roof hatch is actually in the way. I cannot see the loot that I'm loading").
+    /// It was a little past upright (T99), a wall each side of the opening between the crane's cab and what went down it.
+    /// A few degrees short of flat, so it lies on the roof's edge rather than in its face.
+    /// </summary>
+    const float OpenHatch = MathF.PI * 176 / 180;
 
     /// <param name="cutEnds">Which of its couplers have been cut (T91; 1 the front, 2 the rear): drawn with the knuckle swung open
     /// and the hose parted.</param>
@@ -1517,8 +1522,8 @@ public sealed partial class SceneArt(Look look)
                     mesh.Instances.Add(new MeshInstance(Piece($"locker-tag:{w:0.###}x{h:0.###}", () => LockerKit.Tag(Look, w, h)), LockerKit.DoorAt(bay, false) * m, emergency ? 0.06f : 1));
             }
         }
-        // A cargo car's roof hatch (T99): two leaves meeting on the centreline, shut in the opening, or open, each swung up
-        // on its hinges at its side a little past upright, so from the roof or the crane's cab you can see it's open.
+        // A cargo car's roof hatch (T99): two leaves meeting on the centreline, shut in the opening, or open, each folded back
+        // on its hinges at its side onto the roof (note 706), out of the way of what's lowered in.
         if (shape.Hatch is { } hatch)
         {
             var size = new Vector3((float)(hatch.Max.X - hatch.Min.X) / 2, (float)(hatch.Max.Y - hatch.Min.Y), (float)(hatch.Max.Z - hatch.Min.Z));
