@@ -890,4 +890,5 @@ written here instead is moved out by `tools/coord/notes.py split`; the Coordinat
 - [735. The cab shakes and rocks; still slow (A1, queue #469; the director, 14 Oct, `docs/playtest/2026-10-14.md` lines 6, 20)](notes/735.md)
 - [736. The train blocks the crane operator's view of the loot (A1, queue #470; the director, 14 Oct, `docs/playtest/2026-10-14.md` line 10)](notes/736.md)
 - [737. A lone struggle should free you more often (A1, queue #471; the director, 14 Oct, `docs/playtest/2026-10-14.md` line 13)](notes/737.md)
+- [738. Small finds lying on the floors of the abandoned houses (B4, queue #472; `docs/playtest/2026-10-14.md` lines 15 and 21)](notes/738.md)
 <!-- end of the notes index -->
