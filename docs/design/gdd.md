@@ -1965,7 +1965,9 @@ Enforced regardless of budget:
 
 **Grace period.** No threats for the first 20–90 seconds past the gate (design decision, 2026-10): the length is picked per night from the night's seed, shorter on the harder tiers, so a crew can't count the seconds. The tonal transition needs room, and the crew needs to settle into stations. Pressure starts building when the grace ends.
 
-**Facility lull.** ~20 seconds of calm on arrival before facility threats activate. Lets the crew commit to a plan before it falls apart.
+**Facility lull.** ~20 seconds of calm on arrival before facility threats activate. Lets the crew commit to a plan before it falls apart. *Built (14 Oct 2026; note 751):* for the first 20 seconds the train stands at a facility, the director sends nothing of its own; shunting in its yard doesn't start it again. The pressure builds through it. What isn't the director's spend keeps its own rules: the Stoker, the Pickers' own wait, a left-behind's hunts (`director.facilityLullSeconds`).
+
+**Aftermath** *(the director, 14 Oct 2026: "The breathing room is good. Don't necessarily want a lot of it though"; note 751)*. After a crewmate's death, cars lost (the crew are told of it), a grab broken with the one held alive, or someone freed from a Holdout, the director sends nothing of its own for 12 seconds, however pressed. It's short on purpose: long enough to say what just happened, no longer. The pressure builds through it, so whatever was due comes after (`director.aftermath`).
 
 **Post-event cooldown.** After a spawn, a trough of at least 25–45 s (design decision, 2026-10; was 30–60 s). Sustained pressure reads as noise; pressure with troughs reads as rhythm. The spawn's relief of the pressure makes the trough; the cooldown gives way only when the pressure is well past its threshold.
 

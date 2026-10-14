@@ -1117,7 +1117,18 @@
     "incidentWeight": 0.5,
     // ...at full weight with this many hands besides the driver, proportionally less with fewer (a crew of two: a third).
     "incidentFullCrew": 3,
+    // (incidentWeight and incidentFullCrew are v1.1's in-car incidents' and are read by nothing yet: note 751.)
+    // GDD App. B.1 "Facility lull" (note 751): the first facilityLullSeconds the train stands at a facility, the director
+    // sends nothing of its own (calm on arrival; the pressure builds through it). Once a facility: shunting its yard doesn't
+    // start it again. 0: none.
     "facilityLullSeconds": 20,
+    // GDD App. B.1 "Aftermath" (note 751; the director, 14 Oct 2026: "The breathing room is good. Don't necessarily want a
+    // lot of it though"): after one of events the director sends nothing of its own for seconds, pressed or not (the
+    // pressure builds through it). death: a crewmate who was alive is dead; carLost: cars the engine lost that the crew are
+    // told of (note 663's news; a cut at a stand isn't one); rescue: a grab let go with the one held alive and not punished
+    // (a friend's pull or blow, or their own struggle); holdoutFreed: someone broken out of a Holdout. Short on purpose.
+    // on false: none, as before.
+    "aftermath": { "on": true, "seconds": 12, "events": ["death", "carLost", "rescue", "holdoutFreed"] },
     // GDD App. B.1 "Post-event cooldown" (design decision, 2026-10): the least trough after a spawn; the pressure's relief
     // makes the rest of it, and well past the threshold (pressAt) it gives way.
     "cooldownSeconds": [25, 45],

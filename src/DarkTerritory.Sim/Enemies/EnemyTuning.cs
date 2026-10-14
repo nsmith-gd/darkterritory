@@ -794,6 +794,20 @@ public sealed record DirectorTuning(
     public VoteTuning Vote { get; init; } = new();
     /// <summary>What draws the night's first threat, and the dark's answer (enemies.json director.draw; note 287).</summary>
     public DrawTuning Draw { get; init; } = new();
+    /// <summary>A short hold after a crisis (GDD App. B.1 "Aftermath"; note 751): enemies.json director.aftermath.</summary>
+    public AftermathTuning Aftermath { get; init; } = new();
+}
+
+/// <summary>
+/// The aftermath (GDD App. B.1 Pacing rules; note 751; the director, 14 Oct 2026: "The breathing room is good. Don't
+/// necessarily want a lot of it though"): after one of <see cref="Events"/> the director sends nothing of its own for
+/// <see cref="Seconds"/>, pressed or not. Mirror of enemies.json <c>director.aftermath</c>; field docs live there.
+/// </summary>
+public sealed record AftermathTuning
+{
+    public bool On { get; init; } = true;
+    public double Seconds { get; init; } = 12;
+    public string[] Events { get; init; } = ["death", "carLost", "rescue", "holdoutFreed"];
 }
 
 /// <summary>

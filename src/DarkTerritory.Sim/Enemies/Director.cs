@@ -42,6 +42,9 @@ public sealed class Director
     /// <summary>The night's seed, for rolls made outside the director's own dice (a lone struggle's chance, note 681).</summary>
     public ulong Seed => _seed;
     double _cooldown;
+    /// <summary>The facility whose lull was last given (App. B.1 "Facility lull"), and the seconds of it left.</summary>
+    int _lullAt = -1;
+    double _lull;
 
     double _spent;
 
@@ -144,6 +147,7 @@ public sealed class Director
     {
         _cars = world.Train.Dynamics.Consist.CarCount;
         _world = world;
+        Crises(world, active);
         if (world.CrewThisTick.Count > 0)
             Active = world.CrewThisTick.Count(c => c.State.Alive);
         // Counted whenever the orchestrator's on (the harness reads it); census steers only with its own flag (Steering).
@@ -157,6 +161,75 @@ public sealed class Director
         bool counting = elapsed >= Grace && !world.TrainInFort && !home && world.Run?.Phase is null or Run.RunPhase.Underway
             && Math.Abs(world.Train.Dynamics.Velocity) > _t.Orchestrator.DrivingAbove;
         Posts.Count(world, active, _t.Orchestrator, _t.Abandoned.BehindM, counting);
+    }
+
+    /// <summary>Seconds left of the aftermath's hold (note 751): nothing of the director's own comes while it runs.</summary>
+    public double AftermathLeft { get; private set; }
+
+    /// <summary>What began the last aftermath ("death", "carLost", "rescue", "holdoutFreed"), or null before any.</summary>
+    public string? AftermathCause { get; private set; }
+
+    /// <summary>
+    /// A crisis just ended (GDD App. B.1 "Aftermath"; note 751; the director, 14 Oct 2026: "The breathing room is good. Don't
+    /// necessarily want a lot of it though"): for <see cref="AftermathTuning.Seconds"/> the director sends nothing of its own,
+    /// so the crew get a moment to say what just happened. Only the causes <see cref="AftermathTuning.Events"/> names.
+    /// </summary>
+    public void Crisis(string cause)
+    {
+        var a = _t.Aftermath;
+        if (!a.On || a.Seconds <= 0 || !a.Events.Contains(cause))
+            return;
+        AftermathLeft = Math.Max(AftermathLeft, a.Seconds);
+        AftermathCause = cause;
+    }
+
+    // What the director last saw (note 751): who was alive, which threat held whom, and how far it had read the news and the
+    // Holdouts' freed.
+    readonly SortedSet<int> _alive = [];
+    readonly SortedDictionary<int, int> _grips = [];
+    int _newsRead, _freedRead;
+
+    /// <summary>
+    /// The crises of the last second, from the world's own state (note 751; host only, deterministic: players and threats by
+    /// id, the news and the Holdouts in their order): a crewmate dead who was alive; cars the engine lost that the crew were
+    /// told of (note 663's news: a cut at a stand isn't a loss); a grab let go with the one held alive and not punished (a
+    /// friend's pull or blow, or their own struggle); someone freed from a Holdout.
+    /// </summary>
+    void Crises(World world, IReadOnlyList<Enemy> active)
+    {
+        if (world.CrewThisTick.Count > 0)
+        {
+            foreach (var (id, s) in world.CrewThisTick.OrderBy(c => c.Id))
+                if (!s.Alive && _alive.Contains(id))
+                    Crisis("death");
+            _alive.Clear();
+            foreach (var (id, s) in world.CrewThisTick)
+                if (s.Alive)
+                    _alive.Add(id);
+        }
+        _newsRead = Math.Min(_newsRead, world.NewsLog.Count);
+        for (; _newsRead < world.NewsLog.Count; _newsRead++)
+            if (world.NewsLog[_newsRead] is { Kind: Run.NewsKind.CarsLost, Told: true })
+                Crisis("carLost");
+        if (world.Holdouts is { } holdouts)
+        {
+            _freedRead = Math.Min(_freedRead, holdouts.Freed.Count);
+            if (_freedRead < holdouts.Freed.Count)
+                Crisis("holdoutFreed");
+            _freedRead = holdouts.Freed.Count;
+        }
+        foreach (var (enemy, victim) in _grips)
+        {
+            var e = active.FirstOrDefault(x => x.Id == enemy);
+            if (e is { Phase: SpinePhase.Grab } && e.Holding == victim || e is { Phase: SpinePhase.Punish })
+                continue;
+            if (_alive.Contains(victim))
+                Crisis("rescue");
+        }
+        _grips.Clear();
+        foreach (var e in active)
+            if (e is { Phase: SpinePhase.Grab, Holding: >= 0 })
+                _grips[e.Id] = e.Holding;
     }
 
     /// <summary>
@@ -344,6 +417,17 @@ public sealed class Director
     public EnemyKind? Decide(World world, double elapsed, IReadOnlyList<Enemy> active, double noSpawnFinal)
     {
         _cooldown -= 1;
+        // The aftermath (note 751) and the facility lull (App. B.1) run down a second a decision, whatever holds it.
+        bool shaken = AftermathLeft > 0;
+        AftermathLeft = Math.Max(0, AftermathLeft - 1);
+        if (world.Run is { Phase: Run.RunPhase.AtFacility } arrived && arrived.Facility != _lullAt)
+        {
+            // Once a facility (a crew shunting its yard hasn't arrived again), counted from the first second stood at it.
+            _lullAt = arrived.Facility;
+            _lull = _t.FacilityLullSeconds;
+        }
+        bool lull = _lull > 0 && world.Run is { Phase: Run.RunPhase.AtFacility };
+        _lull = Math.Max(0, _lull - 1);
         var train = world.Train;
         double s = train.Dynamics.Distance;
         if (elapsed < Grace)
@@ -374,6 +458,18 @@ public sealed class Director
         // adds slackPerSecond, on top of the pressure's own terms, so a crew with several people idle fills faster.
         if (Steering)
             _pressure = Math.Min(_t.Pressure.Max, _pressure + _t.Orchestrator.SlackPerSecond * Posts.Entries.Count(c => c.Slack >= _t.Orchestrator.SlackPress));
+        // GDD App. B.1 "Aftermath" (note 751): a crisis just ended, nothing of the director's own for a few seconds, however
+        // pressed; the pressure goes on building (the dawn clock doesn't wait either), so whatever's due comes after it. Not
+        // pressed through: at twelve seconds it's short enough not to need to be.
+        if (shaken)
+            return Held("aftermath");
+        // App. B.1 "Facility lull": "~20 seconds of calm on arrival before facility threats activate. Lets the crew commit to
+        // a plan before it falls apart." Read as everything the director would send while the train stands at the facility,
+        // which is what comes at a stop (its residents, the stop's own creatures, the Whistler boarding there): calm on
+        // arrival, as the rule says. What isn't the director's spend keeps its own rules (the Stoker's heat, the Pickers'
+        // own wait, a left-behind's hunts). The pressure builds through it, as through the grace's end.
+        if (lull)
+            return Held("facility lull");
         // The night's first threat is drawn (note 287): it answers what the crew did. A draw past answerAt is answered out loud at
         // once (the World puts the answer where it's heard), and the threat follows leadSeconds on, pressed for; with no draw that
         // big the pressure waits (listening) up to holdUntil, and then the biggest draw standing takes it. A quiet crew buys
