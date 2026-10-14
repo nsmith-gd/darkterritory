@@ -197,6 +197,21 @@ public sealed record CarShape(Box Bounds, IReadOnlyList<Solid> Solids, IReadOnly
     public double RoofHeight => Bounds.Max.Y;
 
     /// <summary>The highest walkable surface over a point in the car's frame (at or below <paramref name="maxY"/>), and what kind it is.</summary>
+    /// <summary>
+    /// The highest footing at (x, z) no higher than <paramref name="maxY"/> as it is on <paramref name="v"/> now: a cargo car's
+    /// heap only as high as what's poured in, and not at all when nothing has been (<see cref="Solid.Present"/>). Note 708: a
+    /// casting set down through a hatch came to rest on the empty car's heap at its full height, in the air.
+    /// </summary>
+    public (double Top, SurfaceKind Kind)? TopAt(double x, double z, Vehicle v, double maxY = double.MaxValue)
+    {
+        (double, SurfaceKind)? best = null;
+        var p = new Double3(x, 0, z);
+        foreach (var solid in Solids)
+            if (solid.Present(v) && solid.BoxIn(v) is var box && box.ContainsXZ(p) && box.Max.Y <= maxY + 1e-6 && (best is null || box.Max.Y > best.Value.Item1))
+                best = (box.Max.Y, solid.Top);
+        return best;
+    }
+
     public (double Top, SurfaceKind Kind)? TopAt(double x, double z, double maxY = double.MaxValue)
     {
         (double, SurfaceKind)? best = null;

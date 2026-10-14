@@ -45,6 +45,22 @@ public class HudTests
     }
 
     [Fact]
+    public void TheCabsHatchLadderSaysItGoesUpToTheRoofAndDownIntoTheCab()
+    {
+        // Note 704 (the director: the cab's ladder "should actually go up to the roof ... and vice versa"): at its foot the
+        // prompt says where it goes, and at the open hatch on the roof, where that goes.
+        var s = new PrototypeSession(Content, "test-loop", 4);
+        var engine = s.Train.Frames[0];
+        var hatch = engine.Shape.Ladders.Single(l => engine.Shape.Cab!.Value.ContainsXZ(l.Foot) && PlayerMotor.IsHatchLadder(engine.Shape, l));
+        s.Player = PlayerMotor.SpawnInCab(s.Train, s.PlayerTuning);
+        s.Player.Position = hatch.Foot - hatch.Inward * 0.3;
+        Assert.Equal("UP TO THE ROOF : [F]", Hud.Prompt(s));
+        s.Player = PlayerMotor.SpawnOnRoof(s.Train, 0, hatch.Foot.Z - 0.3, s.PlayerTuning, hatch.Foot.X);
+        Assert.Equal(hatch.Top, s.Player.Position.Y, 1);
+        Assert.Equal("DOWN INTO THE CAB : [F]", Hud.Prompt(s));
+    }
+
+    [Fact]
     public void ARackRunDryAndThePowderLockerSayWhereThePowderIs()
     {
         // Note 374: the gun's rack empty, the prompt says where its powder is; at the guard van's locker, take a charge; with
@@ -73,7 +89,9 @@ public class HudTests
         // GDD §23: at a fouled gun, clear it by hand.
         var mount = train.Frames[0].Shape.Gun!.Value;
         s.Player = PlayerMotor.SpawnOnRoof(train, 0, mount.Position.Z - mount.Facing.Z * 0.7, s.PlayerTuning);
-        Assert.Equal("SIT : [E]   PUSH : HOLD [O] + WALK", Hud.Prompt(s));
+        Assert.Equal("SIT : [E]   PUSH : HOLD [PUSH] + WALK", Hud.Prompt(s));
+        // Note 703: by the mouse, not on O.
+        Assert.Equal("SIT : [E]   PUSH : HOLD [MIDDLE MOUSE] + WALK", Hud.Bound(Hud.Prompt(s)!));
         train.Vehicles[0].Gun.Jammed = true;
         // Note 344: nothing done yet, no percentage; part done, how far.
         Assert.Equal("CLEAR THE GUN : HOLD [E]", Hud.Prompt(s));
@@ -167,8 +185,8 @@ public class HudTests
         s.Controls.Reverser = 1;
         Assert.DoesNotContain(Hud.Hints(s).Lines, l => l.Contains("REVERSE"));
         s.Train.Dynamics.Velocity = 0;
-        // Note 664: the vent's on N (LeftCtrl's the crouch).
-        Assert.Contains("VENT : HOLD [N]", Hud.Bound(string.Join("   ", lines)));
+        // Note 664: the vent's its own key (LeftCtrl's the crouch); note 703: Caps Lock, by A.
+        Assert.Contains("VENT : HOLD [CAPS LOCK]", Hud.Bound(string.Join("   ", lines)));
         // The corner's head is the speed, for the driver to read against the boards.
         Assert.Equal($"{Math.Abs(s.Train.Dynamics.Speed) * 3.6:0} KM/H", head?.Split("  ")[0]);
         s.Train.Boiler.Vented = true;

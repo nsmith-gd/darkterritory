@@ -1236,9 +1236,10 @@ public static partial class TrainKit
 
     /// <summary>
     /// The hatch the cab's ladder goes up to (note 280's ladder up from the cab floor to the forward gun; the director, 8 Oct:
-    /// "ladder in cab to nowhere"): over the climber at its top, a riveted coaming under the ceiling round the shut lid's
-    /// underside, dogged by two handles and hung on two hinges; and up on the roof, its coaming standing proud and the lid
-    /// on it.
+    /// "ladder in cab to nowhere"). Note 704 (the director's evening playtest: "this ladder inside the cab should actually go
+    /// up to the roof"): it stands open, the way up and down a crew uses all night. Over the climber at its top, a riveted
+    /// coaming under the ceiling round an opening onto the night, hung on two hinges at its back edge; and up on the roof,
+    /// its coaming standing proud round the dark of the cab below, the lid thrown back past upright on those hinges.
     /// </summary>
     static void RoofHatch(Kit k, CarShape shape, float w, float roofLow, float roofTop)
     {
@@ -1254,23 +1255,54 @@ public static partial class TrainKit
                 k.Box(new Vector3(c.X - HalfX - Rim, roofLow - 0.09f, c.Z + s * HalfZ - Rim / 2), new Vector3(c.X + HalfX + Rim, roofLow, c.Z + s * HalfZ + Rim / 2));
                 k.Box(new Vector3(c.X + s * HalfX - Rim / 2, roofLow - 0.09f, c.Z - HalfZ), new Vector3(c.X + s * HalfX + Rim / 2, roofLow, c.Z + HalfZ));
             }
-            // ...and the shut lid's underside up in it, its dogs (a handle each side) and its hinges at the back edge.
-            Plate(k, 0.7f);
-            k.Box(new Vector3(c.X - HalfX, roofLow - 0.03f, c.Z - HalfZ), new Vector3(c.X + HalfX, roofLow - 0.01f, c.Z + HalfZ), top: false);
+            // ...the night through it (no lid in it: it's open)...
+            Night(k);
+            k.Quad(new Vector3(c.X - HalfX, roofLow - 0.02f, c.Z - HalfZ), new Vector3(c.X + HalfX, roofLow - 0.02f, c.Z - HalfZ),
+                new Vector3(c.X + HalfX, roofLow - 0.02f, c.Z + HalfZ), new Vector3(c.X - HalfX, roofLow - 0.02f, c.Z + HalfZ), twoSided: true);
+            k.Emissive = 0;
+            // ...and its hinges at the back edge.
             Rusted(k).Shade(0.6f);
             foreach (int s in new[] { -1, 1 })
-            {
-                k.Rod(new Vector3(c.X + s * 0.16f, roofLow - 0.04f, c.Z - 0.08f), new Vector3(c.X + s * 0.16f, roofLow - 0.04f, c.Z + 0.08f), 0.012f);
                 k.Box(new Vector3(c.X + s * 0.18f - 0.04f, roofLow - 0.06f, c.Z + HalfZ - 0.03f), new Vector3(c.X + s * 0.18f + 0.04f, roofLow - 0.02f, c.Z + HalfZ + 0.02f));
-            }
-            // Outside: the coaming proud of the roof where it stands there, and the lid shut down on it.
+            // Outside: the coaming proud of the roof where it stands there, round the dark down into the cab...
             float t = c.X / (w + 0.12f), y = RoofProfile(t, roofTop, roofLow);
             Plate(k, 1.0f);
-            k.Box(new Vector3(c.X - HalfX - Rim, y - 0.04f, c.Z - HalfZ - Rim), new Vector3(c.X + HalfX + Rim, y + 0.08f, c.Z + HalfZ + Rim));
+            foreach (int s in new[] { -1, 1 })
+            {
+                k.Box(new Vector3(c.X - HalfX - Rim, y - 0.04f, c.Z + s * (HalfZ + Rim / 2) - Rim / 2), new Vector3(c.X + HalfX + Rim, y + 0.08f, c.Z + s * (HalfZ + Rim / 2) + Rim / 2));
+                k.Box(new Vector3(c.X + s * (HalfX + Rim / 2) - Rim / 2, y - 0.04f, c.Z - HalfZ), new Vector3(c.X + s * (HalfX + Rim / 2) + Rim / 2, y + 0.08f, c.Z + HalfZ));
+            }
+            Below(k);
+            k.Quad(new Vector3(c.X - HalfX, y + 0.02f, c.Z + HalfZ), new Vector3(c.X + HalfX, y + 0.02f, c.Z + HalfZ),
+                new Vector3(c.X + HalfX, y + 0.02f, c.Z - HalfZ), new Vector3(c.X - HalfX, y + 0.02f, c.Z - HalfZ), twoSided: true);
+            k.Emissive = 0;
+            // ...and the lid thrown back on its hinges at the back edge, a little past upright so it stays there at speed.
+            const float LidZ = 2 * (HalfZ + Rim) + 0.02f;
+            k.Push(Matrix4x4.CreateRotationX(105 * MathF.PI / 180) * Matrix4x4.CreateTranslation(0, y + 0.09f, c.Z + HalfZ + Rim));
             Rusted(k).Shade(0.7f);
-            k.Box(new Vector3(c.X - HalfX - 0.02f, y + 0.08f, c.Z - HalfZ - 0.02f), new Vector3(c.X + HalfX + 0.02f, y + 0.11f, c.Z + HalfZ + 0.02f));
-            k.Rod(new Vector3(c.X - 0.1f, y + 0.13f, c.Z), new Vector3(c.X + 0.1f, y + 0.13f, c.Z), 0.015f);
+            k.Box(new Vector3(c.X - HalfX - 0.02f, 0, -LidZ), new Vector3(c.X + HalfX + 0.02f, 0.03f, 0));
+            k.Rod(new Vector3(c.X - 0.1f, 0.05f, -LidZ / 2), new Vector3(c.X + 0.1f, 0.05f, -LidZ / 2), 0.015f);
+            k.Pop();
         }
+    }
+
+    /// <summary>
+    /// The night overhead through an open hatch: the sky's cold blue-black, unlit (the firebox's glow doesn't reach the sky),
+    /// so from under it it reads as a way out and not a panel. Draw something else after it with <see cref="Kit.Emissive"/> off.
+    /// </summary>
+    static Kit Night(Kit k)
+    {
+        k.Use("none", new Vector3(0.07f, 0.085f, 0.11f), 0, 0);
+        k.Emissive = 1;
+        return k;
+    }
+
+    /// <summary>The cab below an open hatch, from the roof: near black, the firebox's last warmth in it, unlit like <see cref="Night"/>.</summary>
+    static Kit Below(Kit k)
+    {
+        k.Use("none", new Vector3(0.012f, 0.006f, 0.004f), 0, 0);
+        k.Emissive = 1;
+        return k;
     }
 
     /// <summary>

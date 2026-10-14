@@ -473,6 +473,12 @@ You aren't picking a difficulty level. You're travelling farther from civilizati
 
 Roles emerge from position. You end up on the cannon because you're standing at the cannon.
 
+**The cab's ladder goes up to the roof** *(the director's evening playtest, 13 Oct: "This ladder inside the cab should actually go up to the roof so that I can access the roof quickly and vice versa"; note 704)*. Behind the coal bunker, a ladder runs from the cab floor up through an open hatch onto the cab roof, by the forward gun. It's the quick way between the driver's place and the gun.
+- **Going up:** walk to it looking up, or press the ladder key at its foot. Walking past it while working the cab, eyes level, doesn't take it. A car's hatch ladder inside works the same way ("DOWN INSIDE" from its roof).
+- **Going down:** at the open hatch on the roof, the ladder key takes you down into the cab.
+- **What it says:** at the foot, "UP TO THE ROOF"; at the hatch above, "DOWN INTO THE CAB".
+- **How it looks:** the hatch stands open, its lid up on its hinges, and the night shows through it.
+
 ### Weapons
 
 **Guns and bullets are rare in this world.** Crude cannons and crude gunpowder are not. Each mounted cannon has a full manual reload — powder, ball, ram, fire — so every shot is a timed decision. Everyone else fights with the tools they carry: shovel, wrench, crowbar.
@@ -546,6 +552,12 @@ Not a punishment mechanic — the whole tension of the sequence. The person on t
 | **Military depot** | Gunpowder and shot | Best payout, worst cargo to be carrying when something boards. |
 
 Each stop of a kind has the module it's named for and two to four in all, drawn for the night (spec D.1's module grammar; note 449). One mine head has its lift and a winch, the next its lift, tipple and crates; a switchyard or a slaughterhouse may have a winch; a wreck yard, crates.
+
+**The car's roof hatch keeps out of the crane's way** *(the director's evening playtest, 13 Oct: "The roof hatch is actually in the way. I cannot see the loot that I'm loading because of that roof hatch"; note 706)*. A foundry's castings go down into a cargo car through its roof hatch. Open, its two leaves fold right back, flat onto the roof either side, so nothing stands up between the crane's cab and the opening, or between a crewmate and what's going down. Shut, they meet over it as before.
+
+**The crane operator's view** *(the director's evening playtest, 13 Oct: "Camera angle for lowering things in when you get close does not make a lot of sense ... widen the camera angle a little bit, maybe even go a little more top down"; note 707)*. At the controls, the operator looks from the crane's cab along the gantry, wide enough to see the bridge, the trolley and the car under them. As the hook comes down, the operator leans to the cab's window and the view tips down after it, until with the hook low the operator looks down over what's on it into the car. The ground crew round the stack and the car's side are still out of sight, and still have to call the position (spec D.2).
+
+**A load let go comes down** *(the director's evening playtest, 13 Oct: "It did unhook, but it sort of just stays there in the air, doesn't fall"; note 708)*. A casting unhooked or let go over a car comes down onto what's really under it: the car's floor through an open hatch, the load already in it, or its roof. It never rests on a heap that isn't there (an empty car has none), and the hook lowers it all the way down. Let go of high, it falls and crushes whoever's under it, as before.
 
 **Every facility is optional. Skipping them is safe and pays nothing:** the train leaves the fortress empty, and only what the crew load at the stops and carry out of the villages is paid at the gates (§1 *The fantasy*; the director, 9 Oct 2026, note 575). The payout exists to force bad decisions, not to reward good ones.
 
@@ -1078,6 +1090,11 @@ Lighting is one of the primary style carriers: strong darkness, warm practical l
 
 Lighting should constantly ask: *can I actually tell what I'm looking at?*
 
+**What you came for is lit** *(the director's evening playtest, 13 Oct: "We could use a little bit more lighting around some of the loot. It's sort of just hard to identify what we're even doing"; note 705)*. The dark is for the line and what's out there, not for the job in hand. A crew should see what it's loading and what it's found:
+- **At a gantry:** a work lamp hangs from the crane's trolley, shining down. What's on the hook is lit all the way down into the car, and so is the car's floor under it. Another lamp hangs over the stack of castings still to load.
+- **Crates and finds on the ground:** a low warm light round the nearest few, close enough to see by, small enough that the yard and the village stay dark round them. A find taken up or loaded loses its light.
+- **Never a beacon:** these are a working light's pools, a few metres across. They're kept to the nearest ones and inside the frame's light budget, so a crew still needs its lamps to get there.
+
 | Group | Colours |
 |---|---|
 | **World base** | Charcoal, soot black, deep brown, rust red, dull iron grey, tarnished brass, desaturated blue-grey, muddy olive |
@@ -1115,6 +1132,13 @@ Clear and slightly rough, never hyper-smooth.
 
 **VFX supports readability rather than overwhelming it:** steam venting, sparks, smoke trails, cannon flash and powder smoke, cinders, lantern sway, rail grit, furnace flare, drifting fog, subtle corruption particulate. Mechanical first, supernatural second.
 
+**Speed is felt, not just read off the gauge** *(the director's evening playtest, 13 Oct: "It says we're going 27 kilometers an hour. I think by world standards we are, but when I look out the front, it just feels so agonizingly slow"; note 709)*. The train's speeds are what they are; what changes is how they feel aboard:
+- **The view widens with speed:** a few degrees at a walking pace, up to about eight at the line's full speed, eased so the first gain is the one felt.
+- **The rail joints come through the floor:** a small knock at each rail length, two bogies apiece, so the beat quickens as the train does.
+- **The car sways** gently on the track, more as it goes faster.
+
+All of it is aboard only, never in a headset (the view's widening would make a rider sick), and the settings' CAMERA SHAKE turns the knock and the sway down to none.
+
 ## 32. Art serves the voice channel
 
 **This is the connective tissue between art and every other system in this document.**
@@ -1133,7 +1157,7 @@ Silhouette legibility is not an aesthetic preference here. It is a coordination 
 - **What you look at is said at the crosshair.** The action and its key, in fine print: "PULL CORD : [E]", "SHOVEL COAL : HOLD [E]". A short state only when it stops you, and what stops it ("TRAIN ON THE POINTS", note 665; "NO SHOT"), and a hold's progress.
 - **Prompts never foretell.** Nothing says what an action will do: whether it's loud, what it mends, who hears it, that it needs two, or what happens if you don't. Consequences are learned, as in Lethal Company. The stop's status says what's there and what's under way, not how to work it.
 - **What you hold is said in the corner.** The bottom right, in fine print: the keys for what's in your hands, the cab's controls or the gun, a line each. In the cab, the speed sits over them as a figure, read against the boards. A setting (CONTROL HINTS) hides the keys; the speed and what you're holding stay.
-- **Crouch, held; and the gun pushed on its own key.** *(The director's playtest of 13 Oct, note 664; D1's calls for the keys.)* Crouch is LeftCtrl, held (a toggle with HOLD KEYS on TOGGLE). Crouched, you're lower (the eye 0.55 m down), at half a walk, never running or jumping, your footsteps quieter, and under what standing would hit: a tunnel's mouth doesn't take a crouched roof rider. Let go and you stand once there's room. A headset rider crouches for real. The blow-off's key went to N. Pushing the gun along its rail is O held, walking ("PUSH : HOLD [O]"); E at the gun is its seat. All the numbers are in `player.json crouch`.
+- **Crouch, held; and the gun pushed on its own key.** *(The director's playtest of 13 Oct, note 664; D1's calls for the keys.)* Crouch is LeftCtrl, held (a toggle with HOLD KEYS on TOGGLE). Crouched, you're lower (the eye 0.55 m down), at half a walk, never running or jumping, your footsteps quieter, and under what standing would hit: a tunnel's mouth doesn't take a crouched roof rider. Let go and you stand once there's room. A headset rider crouches for real. The blow-off's key is its own, Caps Lock, held in the cab (by A, under the little finger). Pushing the gun along its rail is the middle mouse button held, walking ("PUSH : HOLD [MIDDLE MOUSE] + WALK"); E at the gun is its seat. *(The evening playtest, 13 Oct, note 703: N and O were "not near the mouse, and not near the left hand".)* Both rebind in Settings. All the numbers are in `player.json crouch`.
 - **The rest comes when it matters, then goes.** A place's name as the train nears it. The cold, as you go into a deeper step. The dawn clock in the night's last stretch. The ping in the lobby with what's being lost and how the host's reached (relayed or direct), and each crewmate's on the host's lobby panel; on the line only when it's bad, a host's naming whichever crewmate's link has gone bad. The noise meter only once the crew's loud.
 - **The world says it first.** The gauges and the run map in the cab, the route card (where the train is is pencilled on it), the supplies view and the roster are things you look at or open. They're not on screen. Every stretch of the line that would derail the train at its top speed has its max speed on the map and the card.
 - **No frames in play.** Text sits on the picture with a shadow. Only the panels you open, and the run's end, are framed.
@@ -1232,6 +1256,21 @@ A developer build keeps its notes and reports where the director can find them, 
 - **The logs there too.** The launches' logs (`latest.log` and the last five), each report's own copy, and the notes' folders are all in the same `logs` folder. A new build unzipped into a new folder starts a new file. To start afresh in the same build, delete the file.
 - **If the game's folder can't be written** (installed under Program Files, say), all of it goes where it always did, the user's app data (`%LOCALAPPDATA%\DarkTerritory`), and the log's first lines say where the test reports are.
 - **A player's build is as it was:** a report is a file of its own in the app data, mailed from the game (note 452).
+
+### 34.3 The performance report *(the director, 13 Oct 2026, playing Test build 22; ARCHITECTURE §8 note 691)*
+
+"I think we're gonna need some performance logging. A way that I can send you ... a build report or a performance report."
+
+Every night the game plays is timed frame by frame, and what it found is written down for the studio to read. The director sends it in the file the notes already go in.
+
+- **The night's report.** When a night ends, or the game is closed during one, a performance report goes on the end of `logs/test-reports.txt` (§34.2) under its own numbered rule. It has:
+  - **The frames:** how many, and the time a frame took at the 50th, 90th, 99th and 99.9th percentiles, and the worst. A histogram shows the share of frames in each band, from 120 fps down to under 4 fps.
+  - **The hitches:** a frame at least twice the median of the last 120 frames and at least 25 ms. The player feels these as a stutter. Note 549's slow frames (100 ms and 4× the median) are the worst of them. The report counts them, and says which part of the frame led each one: input, the sim, the audio and HUD, the scene, the upload, or the render and present.
+  - **The frame's parts:** what each part of a frame costs on average, in time and in memory allocated. That includes the scene's own parts (the track, the cars, a town's houses, its folk). A part that allocates every frame keeps the garbage collector busy, and its pauses are stutters. The night's first frames, its loading, aren't counted.
+  - **The night minute by minute:** each minute's median, its 99th percentile, its hitches and where the night was (km, speed, phase). A stutter coming back into town shows as the minutes it happened in.
+  - **The worst hitches,** a dozen, each with its parts and the garbage collector's work. Each also gives how fast the view was turning, the scenery cooked on the spot that frame, and where the night was.
+- **With every note.** A note typed with F8 or spoken with F9 carries the last minute's frames in the same form, so "it's stuttering here" comes with the frames it means.
+- **In every build.** The night's report also goes in the launch log, so a player's REPORT A PROBLEM carries its last lines. Only a developer build writes `test-reports.txt`.
 
 ---
 

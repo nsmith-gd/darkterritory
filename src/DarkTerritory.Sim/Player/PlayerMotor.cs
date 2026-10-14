@@ -729,14 +729,30 @@ public static class PlayerMotor
         top is { } t && (t.Top >= feet - EdgeStepDown || t.Kind != SurfaceKind.Deck && t.Top >= feet - drop);
 
     /// <summary>Whether the ladder key would take hold of a ladder from here (T94: the HUD says so).</summary>
-    public static bool LadderInReach(in PlayerState s, TrainOnLine train, PlayerTuning p)
+    public static bool LadderInReach(in PlayerState s, TrainOnLine train, PlayerTuning p) => LadderInReachOf(s, train, p) is not null;
+
+    /// <summary>
+    /// Where the ladder key would take you: the ladder, the frame it's on, and whether from its top (note 704: the cab's hatch
+    /// ladder says "up to the roof" at its foot and "down into the cab" at the hatch).
+    /// </summary>
+    public static (CarFrame Frame, Ladder Ladder, bool FromTop)? LadderInReachOf(in PlayerState s, TrainOnLine train, PlayerTuning p)
     {
         if (!s.Alive || s.Surface is Surface.Ladder or Surface.Air || s.Has(PlayerFlags.Heavy) && !s.Has(PlayerFlags.SoloCarry))
-            return false;
+            return null;
         var probe = s;
         TryGrabLadder(ref probe, train, p, byHand: false);
-        return probe.Surface == Surface.Ladder;
+        if (probe.Surface != Surface.Ladder)
+            return null;
+        var frame = train.Frames[probe.Parent];
+        var ladder = HeldLadder(frame.Shape, probe.Position);
+        return (frame, ladder, probe.Position.Y > ladder.Top - 0.5);
     }
+
+    /// <summary>A hatch ladder: one standing on a floor inside (the cab's, a car's), up through the roof.</summary>
+    public static bool IsHatchLadder(CarShape shape, Ladder ladder) => ladder.Foot.Y > 0 && Inside(shape, ladder.Foot + new Double3(0, 0.2, 0));
+
+    static bool Inside(CarShape shape, Double3 local) =>
+        shape.Cab is { } cab && cab.Contains(local) || shape.Interior is { } room && room.Contains(local);
 
     /// <summary>How close to a ladder's foot walking into it takes hold (tighter than Use's reach, so passing one doesn't).</summary>
     const double WalkInReach = 0.45;
@@ -1161,9 +1177,11 @@ public static class PlayerMotor
                     continue;
                 if (walkIn)
                 {
-                    // Not a hatch ladder indoors (the cab's, a car's): in there you walk past them all the time, working.
-                    if (local.Y > ladder.Top - 0.5 || frame.Shape.Cab is { } cab && cab.Contains(ladder.Foot + new Double3(0, 0.2, 0))
-                        || frame.Shape.Interior is { } room && room.Contains(ladder.Foot + new Double3(0, 0.2, 0)))
+                    // A hatch ladder indoors (the cab's, a car's) only looking up it: in there you walk past them all the time,
+                    // working, but walking at one with your eyes on the hatch means up (note 704: the cab's goes to the roof).
+                    if (local.Y > ladder.Top - 0.5)
+                        continue;
+                    if (Inside(frame.Shape, ladder.Foot + new Double3(0, 0.2, 0)) && s.Pitch < p.Ladder.HatchLookUpDegrees * Math.PI / 180)
                         continue;
                     double yaw = WorldYaw(s, train);
                     var facing = frame.DirToLocal(new Double3(-DMath.Sin(yaw), 0, -DMath.Cos(yaw)));

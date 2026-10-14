@@ -565,11 +565,15 @@ public sealed unsafe class GreyboxRenderer : IDisposable
     /// <summary>
     /// How a layer moves, by its name (the frame's per-layer table; Shaders/frame.glsl <c>motionOf</c>): 1 for the
     /// foliage's cards and boughs, which bend in the wind from their root (scene.vert); 2 for water, whose ripples and
-    /// swell run with the wind and its current (scene.frag; ARCHITECTURE §8 note 424); 0 for everything that stands still.
+    /// swell run with the wind and its current (scene.frag; ARCHITECTURE §8 note 424); 3 for drips, which sag slowly
+    /// from their root and draw back up (scene.vert; the tar tree's, note 696); 4 for a living light whose glow breathes
+    /// (scene.frag; the lantern tree's pods, note 696); 0 for everything that stands still.
     /// </summary>
     public static float Motion(string layer) =>
         layer.EndsWith("_card", StringComparison.Ordinal) || layer.EndsWith("_bough", StringComparison.Ordinal) ? 1
         : layer.StartsWith("water_", StringComparison.Ordinal) ? 2
+        : layer.EndsWith("_drip", StringComparison.Ordinal) ? 3
+        : layer.EndsWith("_pod", StringComparison.Ordinal) ? 4
         : 0;
 
     /// <summary>
@@ -702,12 +706,18 @@ public sealed unsafe class GreyboxRenderer : IDisposable
             Upload(CollectionsMarshal.AsSpan(_overlayBoth), OverlayVertex.Stride, ref _overlayVertices, ref _overlayMemory, ref _overlayCapacity);
     }
 
+    /// <summary>The meshes the last <see cref="Prepare(MeshBuilder, Overlay?)"/> put on the GPU for the first time, and their
+    /// bytes (a frame's hitch can be its uploads).</summary>
+    public int Uploaded { get; private set; }
+    public long UploadedBytes { get; private set; }
+
     /// <summary>
     /// Uploads geometry, kit instances and lights (and the overlay, if any) for the next <see cref="Record"/>. Call outside
     /// command recording. A multiview renderer given one overlay shows it to both eyes.
     /// </summary>
     public void Prepare(MeshBuilder mesh, Overlay? overlay = null)
     {
+        (Uploaded, UploadedBytes) = (0, 0);
         Upload(mesh.Vertices, (uint)Vertex.Stride, ref _vertices, ref _vertexMemory, ref _vertexCapacity);
         // Now and then, free the GPU copies of pieces nobody holds any more (the line's cells behind the train). Frames
         // are submitted and waited for, so nothing in flight still uses them.
@@ -731,6 +741,8 @@ public sealed unsafe class GreyboxRenderer : IDisposable
             if (!_meshes.TryGetValue(instance.Asset, out var gpuMesh))
             {
                 var (buffer, memory) = Resident<Vertex>(instance.Asset.Vertices);
+                Uploaded++;
+                UploadedBytes += instance.Asset.Vertices.Length * (long)Vertex.Stride;
                 gpuMesh = new GpuMesh(buffer, memory, instance.Asset.Vertices.Length);
                 if (instance.Asset.Skin is { } skin)
                     (gpuMesh.Skin, gpuMesh.SkinMemory) = Resident<SkinWeights>(skin);

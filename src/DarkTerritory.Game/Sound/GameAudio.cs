@@ -35,6 +35,7 @@ public sealed partial class GameAudio
     public GameAudio(string contentRoot)
     {
         Bank = new SoundBank(Path.Combine(contentRoot, "audio", "sounds"));
+        _audioWatch = HotReload.Enabled ? HotReload.Watch(Path.Combine(contentRoot, "audio")) : null;
         _mix = new HotData<MixDef>(Path.Combine(contentRoot, MixDef.File));
         string walls = Path.Combine(contentRoot, WallsTuning.File);
         _walls = File.Exists(walls) ? new HotData<WallsTuning>(walls) : null;
@@ -133,12 +134,11 @@ public sealed partial class GameAudio
         public double Next;
     }
 
-    // The audio content's hot reload (the sounds, the mix, the spaces, the walls) is looked for once a second, not every
-    // frame: the bank's look lists the sounds' folder and reads every file's time (681 of them), which every frame was some
-    // 60,000 calls to the file system a second, a stall behind any scanner on Windows (note 666).
-    const double ReloadEverySeconds = 1;
-    double _sinceReload = ReloadEverySeconds;
-    bool _reloadNow;
+    // The audio content's hot reload (the sounds, the mix, the spaces, the walls; note 687): off in a player's game, and in a
+    // dev one the sound bank lists its 681 files only when the audio folder's watch says something changed (or on its slow
+    // poll). Listing them every frame was some 60,000 calls to the file system a second (note 666).
+    readonly FileWatch? _audioWatch;
+    HotCheck _audioCheck;
 
     /// <summary>
     /// Call once per sim tick (or per frame with the frame's dt). <paramref name="exposed"/>: the listener is
@@ -149,14 +149,10 @@ public sealed partial class GameAudio
     {
         _space = space;
         _time += dt;
-        _reloadNow = (_sinceReload += dt) >= ReloadEverySeconds;
-        if (_reloadNow)
-        {
-            _sinceReload = 0;
-            if (_mix.Refresh())
-                Mixer.Mix = _mix.Value;
+        if (_mix.Refresh())
+            Mixer.Mix = _mix.Value;
+        if (_audioWatch is not null && _audioCheck.Due(_audioWatch))
             Bank.Refresh();
-        }
         Mixer.Listener = listener;
         MixAround(world, listener);
         var train = world.Train;
@@ -242,8 +238,7 @@ public sealed partial class GameAudio
 
     void HearWalls(World world)
     {
-        if (_reloadNow)
-            _walls?.Refresh();
+        _walls?.Refresh();
         _atADoor.RemoveWhere(v => v.Finished);
         var tuning = _walls?.Value ?? DefaultWalls;
         var ear = Mixer.Listener.Position;

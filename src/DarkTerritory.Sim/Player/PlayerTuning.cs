@@ -106,7 +106,7 @@ public sealed record EmoteTuning(double Dance = 8, double Wave = 2.5, double Poi
 /// rising to death at <paramref name="FallLethalFrom"/>; 0 for no fall knock.</param>
 public sealed record LandingTuning(double RollAbove, int RollDamage, double LethalAbove = 0, int DamageAtLethal = 0, double FallHurtFrom = 0,
     double FallLethalFrom = 0);
-public sealed record LadderTuning(double GrabRange, double GrabMaxRelativeSpeed);
+public sealed record LadderTuning(double GrabRange, double GrabMaxRelativeSpeed, double HatchLookUpDegrees = 25);
 /// <summary>A VR player's reaching hand (T29). Field docs live in player.json.</summary>
 public sealed record HandTuning(double Arm, double Overhead, double Grab);
 

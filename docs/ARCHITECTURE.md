@@ -36,7 +36,7 @@ These are the rules that make the engine usable by an agent without a human in t
 3. **Every system is runnable headless.** Simulation, networking, audio mixing (offline render to buffer) and rendering (offscreen, to PNG) run without a window. In cloud containers rendering uses Mesa lavapipe (software Vulkan).
 4. **The engine can be driven and inspected from outside.** A `dt` CLI covers batch work (`dt train table`, `dt sim …`, `dt screenshot …`, `dt harness …`). A local JSON-RPC control port on the running game lets an agent query entities, set tuning, teleport, spawn, step, and capture frames.
 5. **Fast verification loop.** `dotnet build` + `dotnet test` in seconds. Scenario tests pin the design numbers (see `tests/DarkTerritory.Sim.Tests/SpecTableTests.cs`). Visual changes are verified by golden screenshots the agent looks at.
-6. **Humans tune while it runs.** All numbers live in hot-reloaded data files (`HotData<T>`). The editor's inspector writes back to the same files, so designer tweaks show up as diffs Claude can see.
+6. **Humans tune while it runs.** All numbers live in hot-reloaded data files (`HotData<T>`): in a dev build, or with `--hot-reload`, watched and reread when they change; a player's game loads them once (note 687). The editor's inspector writes back to the same files, so designer tweaks show up as diffs Claude can see.
 7. **One code path.** Bots, the agent harness, and real players all send the same *intent* input to the same host simulation over the same transport interface.
 
 ## 3. Language: C# on .NET 10
@@ -877,4 +877,15 @@ written here instead is moved out by `tools/coord/notes.py split`; the Coordinat
 - [698. The BBQ deck (U1, queue #430; the director, 13 Oct 2026: "one of the upgrades needs to be an extended front car cow catcher that has a…](notes/698.md)
 - [700. The band (U1, queue #432; the director, 13 Oct 2026: "We should also add more instruments ... all play together should create some sort of…](notes/700.md)
 - [701. The silly upgrades (U1, queue #433; the director, 13 Oct 2026, approving docs/design/upgrades.md §7.5 and §4: "fuzzy dice, bumper stickers…](notes/701.md)
+- [696. The Corruption's trees (queue #428, C1; the director, 13 Oct 2026, eight renders: "of all the trees we should have a corruption rate of…](notes/696.md)
+- [699. An animation pass on G1's creatures: creepier movement, telegraphs that read (G1, queue #431; the director, 13 Oct: "Continue an animation…](notes/699.md)
+- [702. The evening playtest's sign lines (B4, queue #434; `docs/playtest/2026-10-13-evening.md` lines 10–12, the director playing the 13 Oct…](notes/702.md)
+- [703. The turret push and the vent off O and N (A1, queue #435; the director, 13 Oct evening, `docs/playtest/2026-10-13-evening.md` lines 8, 9)](notes/703.md)
+- [704. The cab ladder to the roof (A1, queue #436; the director, 13 Oct evening, `docs/playtest/2026-10-13-evening.md` line 13)](notes/704.md)
+- [705. Light round the loot (A1, queue #437; the director, 13 Oct evening, `docs/playtest/2026-10-13-evening.md` line 14)](notes/705.md)
+- [706. The roof hatch out of the way (A1, queue #438; the director, 13 Oct evening, `docs/playtest/2026-10-13-evening.md` line 15)](notes/706.md)
+- [707. The crane's camera (A1, queue #439; the director, 13 Oct evening, `docs/playtest/2026-10-13-evening.md` line 16)](notes/707.md)
+- [708. An unrigged load falls (A1, queue #440; the director, 13 Oct evening, `docs/playtest/2026-10-13-evening.md` line 17)](notes/708.md)
+- [709. Speed feel (A1, queue #441; the director, 13 Oct evening, `docs/playtest/2026-10-13-evening.md` line 20)](notes/709.md)
+- [710. The Wakers take those who ran (G1, queue #442; the director, 14 Oct 2026: "The waker ... eats the train now. It should capture players who…](notes/710.md)
 <!-- end of the notes index -->

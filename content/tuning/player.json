@@ -52,7 +52,10 @@
   "ladder": {
     "grabRange": 0.7,
     // You can only grab a ladder moving past you slower than this: "if you could catch it".
-    "grabMaxRelativeSpeed": 3.5
+    "grabMaxRelativeSpeed": 3.5,
+    // Note 704 (the director's playtest: the cab's ladder "should actually go up to the roof"): walking into a hatch ladder
+    // indoors (the cab's, a car's) takes hold of it only looking up it at least this far; level, you walk past it working.
+    "hatchLookUpDegrees": 25
   },
   // A VR player's reaching hand (T29; the spec has no VR numbers). Reach is tested from the hand instead of the body:
   // a hand is on a grip (a lever, a handle, a ladder, a crate) within grab of it. The host believes a hand no farther

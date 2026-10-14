@@ -173,6 +173,35 @@ public class CraneTests
         Assert.Equal(0, crane.Rigging);
     }
 
+    [Theory]
+    [InlineData(0.3)]
+    [InlineData(2.5)]
+    public void LetGoInAnEmptyCarsOpenHatchItComesDownOnTheFloor(double aboveRoof)
+    {
+        // Note 708 (the director's evening playtest, 13 Oct: "It did unhook, but it sort of just stays there in the air, doesn't
+        // fall"): an empty cargo car's heap isn't there (nothing poured in), but a casting let go in its open hatch came to
+        // rest on it at its full height, 1.3 m over the floor. It comes down on the floor, and the hook lowers it that far.
+        var (stop, crane) = AtTheCrane();
+        var casting = crane.Castings[0];
+        casting.State = CastingState.Hooked;
+        var car = stop.Train.Vehicles.Where(v => v.Kind == VehicleKind.Cargo && stop.Train.Frames[v.Id].Shape.Hatch is not null)
+            .OrderBy(v => Math.Abs(stop.Train.Frames[v.Id].ToLocal(crane.HookAt).Z)).First();
+        Assert.True(car.Bulk <= Solid.HeapFrom, "an empty car");
+        car.DoorsOpen |= (byte)(1 << CarShape.HatchBit);
+        var frame = stop.Train.Frames[car.Id];
+        var hatch = frame.Shape.Hatch!.Value;
+        (crane.Bridge, crane.Trolley, _) = crane.Over(frame.ToWorld(hatch.Centre));
+        double ground = crane.HookAt.Y - crane.Hook;
+        double floor = frame.Shape.Interior!.Value.Min.Y + 0.1;
+        // The hook goes down until the casting's base is just over the floor (it stopped over the heap's top).
+        Assert.Equal(frame.ToWorld(new Double3(0, floor, 0)).Y, ground + crane.Lowest(stop.Train) - C.CastingSize[1] - 0.05, 1);
+        crane.Hook = frame.ToWorld(new Double3(0, frame.Shape.RoofHeight, 0)).Y - ground + aboveRoof + C.CastingSize[1];
+        Assert.NotNull(crane.Release(stop.Train));
+        Assert.Equal(CastingState.Loaded, casting.State);
+        Assert.Equal(car.Id, casting.Car);
+        Assert.Equal(floor, casting.At.Y, 1);
+    }
+
     [Fact]
     public void LetGoOfHighItFallsKillsWhoeverIsUnderAndLiesWhereItLands()
     {

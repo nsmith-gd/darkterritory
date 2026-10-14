@@ -55,7 +55,9 @@ public class BoardSightTests
                 var at = LineOf(route, line, sign.Edge).Sample(site.Along);
                 var inner = site.Bottom - site.Right * (site.Side * site.Face.Width / 2);
                 double lateral = Double3.Dot(inner - at.Position, Double3.Cross(at.Tangent, Double3.Up).Normalized);
-                Assert.InRange(lateral * site.Side, rules.InnerM - 0.5, rules.InnerM + 0.5);
+                // (Or, where it's read on neither side by the line, stood back past what's in the way: note 693.)
+                Assert.True(Math.Abs(lateral * site.Side - rules.InnerM) <= 0.5 || Math.Abs(lateral * site.Side - rules.BackInnerM) <= 0.5,
+                    $"{spec} {sign.Type} {sign.Text}: {lateral * site.Side:0.0} m off the track");
                 Assert.True(Double3.Dot(site.Toward, at.Tangent) < -0.9, $"{spec} {sign.Type} {sign.Text}: faces the train coming");
                 // (A km post low by the line, under the eye line.)
                 if (route.Plan.Rules.Boards[sign.Type].Side == 0)
@@ -261,6 +263,87 @@ public class BoardSightTests
             return false;
         double h = eye.Y + t * (target.Y - eye.Y), rail = a.Y + u * (b.Y - a.Y);
         return h >= rail + r.TrussLowM && h <= rail + r.TrussHighM;
+    }
+
+    [Fact]
+    public void ABoardReadFromNowhereByTheLineStandsBackPastWhatsInTheWay()
+    {
+        // Note 693: frontier:7's MAIL board at 4010 was seen from none of its approach: a dead line alongside keeps posts
+        // 16 m off the billboard side there, and the other side is behind a rock wall's curve and the cab's right pillar.
+        // Stood back past the dead line (billboard.backInnerM), it's read; and no billboard on these nights is read from
+        // nowhere (a km post, fixed by its km, may be: frontier:7's 3.5 in a cutting).
+        var route = Routes.Generate(Content, "frontier:7", 6);
+        var side = LinesideProps.Of(route, route.Build())!;
+        var rules = route.Plan!.Rules;
+        var mail = Route.Lineside.Boards(new Route.SightTuning(), route).Single(b => b.Kind == Route.SignKind.Drop && Math.Abs(b.Board - 4010) < 1);
+        var site = side.SightBoard(mail);
+        Assert.True(site.SeenM >= 0.4 * site.ApproachM, $"MAIL at 4010 read over {site.SeenM} m of {site.ApproachM}");
+        var inner = site.Bottom - site.Right * (site.Side * site.Face.Width / 2);
+        var t = route.Build().Sample(site.Along);
+        Assert.True(Math.Abs(Double3.Dot(inner - t.Position, Double3.Cross(new Double3(t.Tangent.X, 0, t.Tangent.Z).Normalized, Double3.Up).Normalized))
+            >= rules.Billboard.BackInnerM - 0.5, "stood back past the dead line");
+        foreach (var spec in Nights.Append("local:3"))
+        {
+            var r = Routes.Generate(Content, spec, 6);
+            var s = LinesideProps.Of(r, r.Build())!;
+            foreach (var b in Standing(r, s).Where(b => b.ApproachM > 0 && r.Plan!.Rules.Boards.GetValueOrDefault(b.Type) is not { Fixed: true }))
+                Assert.True(b.SeenM > 0, $"{spec}: the {b.Type} {b.Text} at {b.Along:0} is read from nowhere");
+        }
+    }
+
+    [Fact]
+    public void AMailBoardStandsOnItsCranesSideAndIsSmallerThanANamesBoard()
+    {
+        // Note 702, the director's evening playtest: "I have a mail sign here that's pointing in the wrong direction" (a
+        // board on the left saying MAIL > for a crane on the right); "The mail signs are a bit too large". A mail board
+        // stands on its crane's side, its arrow and its place saying the same side, unless it's read from nowhere there
+        // (frontier:7's at 4010, a rock wall on its crane's side: then it's read across the line); its letters smaller
+        // than a name board's, still read from 150 m (ANamesCapitalsAreReadFromWellUpTheLine).
+        var signage = DataFile.Load<SignageFile>(Path.Combine(Content, "linegen", "signage.json"));
+        Assert.True(signage.Boards["mailDrop"].LetterM < signage.Boards["facility"].LetterM);
+        int mails = 0;
+        foreach (var spec in Nights.Append("local:3"))
+        {
+            var route = Routes.Generate(Content, spec, 6);
+            var side = LinesideProps.Of(route, route.Build())!;
+            var drops = Route.Lineside.Boards(new Route.SightTuning(), route).Where(b => b.Kind == Route.SignKind.Drop).ToList();
+            int across = 0;
+            foreach (var sign in drops)
+            {
+                mails++;
+                var site = side.SightBoard(sign);
+                Assert.Equal(sign.Drop!.Side > 0 ? "MAIL >" : "< MAIL", site.Text);
+                if (site.Side != sign.Drop.Side)
+                    across++;
+            }
+            Assert.True(across <= 1, $"{spec}: {across} of {drops.Count} mail boards across the line from their cranes");
+        }
+        Assert.True(mails > 20);
+    }
+
+    [Fact]
+    public void ADistanceBoardDoesntStandBeforeAStopOnTheWayToWhatItCountsTo()
+    {
+        // Note 702, the director's evening playtest: "J1, one kilometer. Okay. That came before the Talbot Foundry stop
+        // though, so that's a bit confusing." No junction's or facility's distance board stands before a stop (a spur's
+        // points, or a facility on the main line) that comes between it and what it counts to: the far board stands far
+        // enough past the stop not to be read from before it (signage.json pastStopM), saying its own distance from there,
+        // or isn't stood (frontier:7's J1: only its near board, past Talbot Foundry's points).
+        foreach (var spec in Nights.Append("local:3"))
+        {
+            var route = Routes.Generate(Content, spec, 6);
+            var line = route.Build();
+            var side = LinesideProps.Of(route, line)!;
+            var stops = route.Plan!.Pois.Select(p => p.SpurEdge is { } spur ? line.Branches[route.Plan.Edge(spur).Branch].Toe : p.S).ToList();
+            foreach (var (sign, site) in side.PlanBoards.Where(b => b.Key is { State: SignState.Intact, To: not null, Edge: "main" }))
+            {
+                foreach (double stop in stops)
+                    Assert.False(site.Along < stop - 1e-6 && stop < sign.To!.Value - 1e-6,
+                        $"{spec}: {site.Text} at {site.Along:0} stands before the stop at {stop:0} on its way to {sign.To:0}");
+            }
+            if (spec == "frontier:7")
+                Assert.Equal(["J1 0.4 KM"], side.PlanBoards.Where(b => b.Key is { State: SignState.Intact, Type: "junction" }).Select(b => b.Value.Text));
+        }
     }
 
     [Fact]

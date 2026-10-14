@@ -50,6 +50,10 @@ using CrewActs = DarkTerritory.Game.Art.CrewActs;
 // Voice (networked): open mic with voice activity, or push to talk (the settings, or --push-to-talk) and hold V. Hold T
 //   to talk on the radio. --no-mic to only listen.
 
+// The garbage collector never stops the game for a full collection while it plays, unless memory runs short (note 695:
+// its pauses are stutters; the background collector does the work alongside the frames instead).
+System.Runtime.GCSettings.LatencyMode = System.Runtime.GCLatencyMode.SustainedLowLatency;
+
 // A crash leaves a report (the exception, and the last things the game said) in the user's app data (--crashes dir
 // elsewhere), and the next launch opens on a notice that says where it is (note 411).
 int crashesAt = Array.IndexOf(args, "--crashes");
@@ -94,6 +98,12 @@ string Arg(string name, string fallback)
 // Mods (T49) laid over the base content, unless --no-mods plays the base game.
 // A mod manager's profile (Thunderstore, T78) comes in as --mods-dir.
 args = Mods.TakeArgs(args);
+// Content's hot reload (note 687): on in a dev build, and for a mod author launching with --hot-reload; a player's game loads
+// its content once and asks the disk nothing per frame. Set before any content loads: a reloading file takes its watch then.
+HotReload.Enabled = args.Contains("--hot-reload");
+#if DEVTOOLS
+HotReload.Enabled = true;
+#endif
 var content = Mods.Mount(DataFile.FindContentRoot(Environment.CurrentDirectory), enabled: !args.Contains("--no-mods"));
 // The figures out in the Territory and their words (note 570): Dave.
 FigureTalk.Words = FigureWords.Load(content);
@@ -919,8 +929,13 @@ CampaignState? Play(IPlaySession session, CampaignState? campaign)
     if (voice is not null)
         voice.MicLevel = (float)settings.MicLevel;
     var clock = new FixedStepClock(SimConstants.TickRate);
-    // Note 549: the night's slow frames, to the launch log.
+    // Note 549: the night's slow frames, to the launch log; note 691: its hitches and frames, for its performance report.
     var frameWatch = new FrameWatch();
+#if DEVTOOLS
+    // A note (F8, F9) carries the last minute's frames (GDD §34.3).
+    if (dev.Notes is { } frameNotes)
+        frameNotes.Frames = () => frameWatch.Story(timer.Elapsed.TotalSeconds);
+#endif
     var locomotion = vr is null ? null : new VrLocomotion(settings.Apply(DataFile.Load<VrTuning>(Path.Combine(content, VrTuning.File))));
     var levers = vr is null ? null : new VrLevers();
     // The HUD in the headset (T36), drawn as for the window but without the aiming cross.
@@ -970,6 +985,8 @@ CampaignState? Play(IPlaySession session, CampaignState? campaign)
         },
         Stands = session.World.Switches,
     };
+    // Its parts are the frame's parts in the night's performance report (note 691).
+    scene.Watch = frameWatch;
     double last = timer.Elapsed.TotalSeconds, titleAt = 0;
     // Talking and reading in the fortress town (note 281): on this machine alone. A press the town took isn't sent to the
     // host while the key's still down (nothing in a town changes the night; a lamp at somebody's feet stays where it is).
@@ -1542,8 +1559,15 @@ CampaignState? Play(IPlaySession session, CampaignState? campaign)
         scene.LampRange = outro ? 400 : 60;
         scene.RoofGlow = outro;
         // On the engine with the boiler in the red, it shakes you (T109).
+        // Aboard a moving train, speed is felt (GDD §31, note 709): the view widens with it (not in a headset), and the rail
+        // joints and the car's sway come through, below with the shakes.
+        var speedFeel = scene.Look?.Tuning.SpeedFeel;
+        if (speedFeel is not null && vr is null && !chase && !cinematic && !held && session.Watching < 0)
+            camera = camera with { FovYDegrees = SpeedFeel.Fov(camera.FovYDegrees, session.Train, session.Viewpoint, speedFeel) };
         if (!chase && !cinematic && !held)
         {
+            if (speedFeel is not null)
+                camera.Position += SpeedFeel.Offset(session.Train, session.Viewpoint, speedFeel) * settings.CameraShake;
             // The settings' CAMERA SHAKE (note 297) scales both, down to none.
             camera.Position += BoilerShake.Offset(session.World, session.Viewpoint, timer.Elapsed.TotalSeconds) * settings.CameraShake;
             // In or by a Hollow House going (note 585): the ground under it rumbling, the doors slamming, the floor going.
@@ -1751,6 +1775,7 @@ CampaignState? Play(IPlaySession session, CampaignState? campaign)
         {
             renderer.Prepare(mesh, showHud || menuShown ? overlay : null);
             frameWatch.Mark("hud, upload");
+            FrameCounts.Add("meshes uploaded", renderer.Uploaded);
             Present(camera, lighting);
             frameWatch.Mark("render, present");
         }
@@ -1794,7 +1819,9 @@ CampaignState? Play(IPlaySession session, CampaignState? campaign)
         // Note 667: past the night's first frames (its scene built, its first collections done), a gap grows the speaker's lead.
         if (pump is not null)
             pump.Adapt = frameWatch.Frames >= FrameWatch.Window;
-        // Note 549: a frame well over the night's run, written down with what it spent and where the night was.
+        // Note 549: a frame well over the night's run, written down with what it spent and where the night was; note 691:
+        // every hitch kept for the night's report, with how fast the view was turning.
+        frameWatch.View(camera.Yaw, camera.Pitch);
         if (frameWatch.End(timer.Elapsed.TotalSeconds, () => $"at {session.Train.Dynamics.Distance / 1000:0.00} km, {session.Train.Dynamics.Speed:0.0} m/s, {session.World.Run?.Phase.ToString() ?? "no run"}, {session.World.ActiveEnemies.Count()} enemies{Gaps()}") is { } slow)
             Console.WriteLine(slow);
     }
@@ -1802,6 +1829,16 @@ CampaignState? Play(IPlaySession session, CampaignState? campaign)
         pump.Adapt = false;
     Console.WriteLine($"night's frames: {frameWatch.Summary()}" + (pump is null ? "" : $"; audio ran dry {pump.Underruns} times, "
         + $"its longest block {pump.LongestBlock * 1000:0.0} ms, its longest stall {pump.LongestStall * 1000:0} ms, its lead {pump.Lead * 1000:0} ms"));
+    // Note 691 (GDD §34.3): the night's performance report, in the launch log in every build (a player's REPORT A PROBLEM
+    // carries its last lines), and on the end of a developer build's test reports, where the director sends it from.
+    string performance = frameWatch.Report($"{session.Route?.Name ?? "a night"} · {(session.World.Run?.Over == true ? "to the night's end" : "left during the night")}",
+        pump is null ? null : [$"audio     ran dry {pump.Underruns} times; its longest stall {pump.LongestStall * 1000:0} ms"]);
+    Console.Write(performance);
+#if DEVTOOLS
+    dev.Tests?.Add(DateTime.Now, "the night's performance", performance);
+    if (dev.Notes is { } nightNotes)
+        nightNotes.Frames = null;
+#endif
 
     // Note 350: a night seen to its end is one of the player's nights.
     if (session.World.Run?.Over == true)
