@@ -256,12 +256,12 @@
       "tally": "Photograph: taken." },
     // The whimsies (note 715; docs/design/upgrades.md §8.2), train.json composition.whimsy. Gerald: a straw dummy in a crew
     // coat sat on the guard van's roof; the Gannet takes him for a walker now and then (enemies.json gannet.decoyPull) and
-    // carries him off, and the clerk reads it out. Not before the Gannet's tiers.
-    { "id": "gerald", "name": "Gerald", "kind": "whimsy", "size": "small", "costShare": 0.1, "fromTier": "frontier", "effect": { "dress:gerald": 1 },
+    // carries him off, and the clerk reads it out. Sold on every tier, as every whimsy is (UpgradeTests): the Gannet comes when it comes.
+    { "id": "gerald", "name": "Gerald", "kind": "whimsy", "size": "small", "costShare": 0.1, "effect": { "dress:gerald": 1 },
       "line": "A straw dummy in a crew coat, bolted to the guard van's roof. The Gannet can't tell him from you. Every crew names him Gerald.",
       "tally": "Gerald: aboard." },
     // Garden gnomes along the roofs: the Gannet dives on one now and then, as on Gerald.
-    { "id": "gardenGnomes", "name": "Garden gnomes", "kind": "whimsy", "size": "small", "costShare": 0.06, "fromTier": "frontier", "effect": { "dress:gardenGnomes": 1 },
+    { "id": "gardenGnomes", "name": "Garden gnomes", "kind": "whimsy", "size": "small", "costShare": 0.06, "effect": { "dress:gardenGnomes": 1 },
       "line": "Five gnomes bolted along the roofs, fishing rods and all. Now and then the Gannet takes one instead of you.",
       "tally": "Gnomes: bolted." },
     // The canary in car one: it sings while all's well, stops while an interior creature's aboard near it, and dies in fumes.
