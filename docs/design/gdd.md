@@ -1875,7 +1875,7 @@ NEVER     with a crew of one; never in a yard or a fort; never inside a car
 
 Enemies are not rolled independently. A **pressure director** spends a budget across the run, which is what allows deliberate contradiction stacking instead of random pile-ups.
 
-**The orchestrator** (*proposed, 7 Oct 2026*; App. F.3): a layer over the director that plans threats against the players currently active, where each is and what each is doing, and the threats and upkeep that fill the run between stops. The outline is [orchestrator.md](orchestrator.md) (ARCHITECTURE §8 note 328). *Built so far (7–8 Oct 2026):* the live crew and its caps (note 336). The census of posts and slack (note 345) reads each crewmate's post (the cab, a gun, the roofs, inside a car, the ground) and the seconds on the run between stops since they last had anything to answer. The director's pick favours what the slackest crewmate's post answers, idle crewmates press it, and no player gets a second threat while the first is on them. A crew of one is as it was. The hound run (note 328) is also built.
+**The orchestrator** (*proposed, 7 Oct 2026*; App. F.3): a layer over the director that plans threats against the players currently active, where each is and what each is doing, and the threats and upkeep that fill the run between stops. The outline is [orchestrator.md](orchestrator.md) (ARCHITECTURE §8 note 328). *Built so far (7–8 Oct 2026):* the live crew and its caps (note 336). The census of posts and slack (note 345) reads each crewmate's post (the cab, a gun, the roofs, inside a car, the ground) and the seconds on the run between stops since they last had anything to answer. The director's pick favours what the slackest crewmate's post answers, idle crewmates press it, and no player gets a second threat while the first is on them. A crew of one is as it was. The hound run (note 328) is also built. *It reads commitment (the director, 14 Oct 2026, of the audit's R5: "good"; note 753):* what each crewmate is committed to (the crane, a carry, a timed job, a reload, a stop's lever or winch, a Holdout's door) as well as where they are, at stops as well as on the run. Among what may come, it favours a threat on or beside a committed crewmate that a free one's post answers within reach (×1.75, `collisionWeight`): the free one chooses between their post and their friend's job. Never one with nobody free in reach; only *which* threat, never when or how many. "Facility loading" in the conflict table is the loading going on, not just the stop, and a pair it has already made tonight weighs half as much to make again.
 
 ### Budget
 
@@ -1958,7 +1958,7 @@ Enforced regardless of budget:
 | Concurrent interior threats | 2 |
 | Concurrent outside threats | 2 |
 | Corrupted humans | **1** active at a time |
-| Total concurrent active | 4 at crew ≤4 · 6 at crew ≥6 · and never more than ceil(0.75 × the crew alive), one a player: 1 at crew 1, 2 at crew 2, 3 at crews 3–4 (*the orchestrator, 7 Oct 2026*; note 336) |
+| Total concurrent active | 4 at crew ≤4 · 6 at crew ≥6 · and never more than ceil(0.75 × the crew alive), one a player: 1 at crew 1, 2 at crew 2, 3 at crews 3–4 (*the orchestrator, 7 Oct 2026*; note 336). From eight cars, two a player and the flat caps grow with it (§15; notes 647, 652): alone on a Frontier train, two at once |
 | Same tell type, overlapping range | **1** — tells must stay distinguishable |
 
 ### Pacing rules

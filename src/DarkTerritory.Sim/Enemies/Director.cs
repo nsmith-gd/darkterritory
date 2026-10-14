@@ -291,7 +291,7 @@ public sealed class Director
 
     /// <summary>
     /// Whether one side of a conflict-table pair is there now (App. B.1): an enemy of that kind about, or a condition:
-    /// "grade" (a climb or fall just ahead), "facilityLoading" (at a facility), "facilityStop" (stopped at one), "choir"
+    /// "grade" (a climb or fall just ahead), "facilityLoading" (at a facility, its loading going on: note 753), "facilityStop" (stopped at one), "choir"
     /// (gathering or here).
     /// </summary>
     bool Present(string side, World world, IReadOnlyList<Enemy> active)
@@ -302,6 +302,8 @@ public sealed class Director
         {
             case "choir":
                 return world.Choir.Build > 0 || world.Choir.Present;
+            case "facilityLoading" when _t.Orchestrator.Commitment:
+                return Loading(world);
             case "facilityLoading" or "facilityStop":
                 return world.Run is { Phase: Run.RunPhase.AtFacility };
             case "grade":
@@ -313,6 +315,15 @@ public sealed class Director
                 return active.Any(e => !e.Gone && Key(e.Kind) == side);
         }
     }
+
+    /// <summary>
+    /// The conflict table's "facility loading" with the census reading commitment (note 753; App. B.1's "the facility needs
+    /// everyone"): stood at a facility with its loading going on, its machinery running or a crewmate on one of its modules
+    /// (at a crane's controls among them). Stood there idle is only a stop ("facilityStop").
+    /// </summary>
+    public static bool Loading(World world) =>
+        world.Run is { Phase: Run.RunPhase.AtFacility } run && (run.Machinery || run.CurrentSite is { } site
+            && world.CrewThisTick.Any(c => c.State.Alive && (c.State.Has(PlayerFlags.Operating) || site.Works(c.Id))));
 
     /// <summary>The conflict-table pair spawning this would make, with what's there now, if any.</summary>
     string? Completes(EnemyKind kind, World world, IReadOnlyList<Enemy> active)
@@ -327,6 +338,18 @@ public sealed class Director
                 return $"{pair[0]}+{pair[1]}";
         }
         return null;
+    }
+
+    /// <summary>
+    /// Note 753 (the audit's R5 6): a conflict pair made tonight weighs ÷pairRepeat for each time it's been made, when it would
+    /// be made again (seed 2 frontier drew whistler+facilityStop three times). Its own weight, beside the variety halving.
+    /// </summary>
+    public List<(EnemyKind Kind, double Weight)> PairRepeats(List<(EnemyKind Kind, double Weight)> options, World world, IReadOnlyList<Enemy> active)
+    {
+        if (_t.Orchestrator.PairRepeat <= 1 || Pairs.Count == 0)
+            return options;
+        return [.. options.Select(o => Completes(o.Kind, world, active) is { } again && Pairs.Count(p => p == again) is > 0 and var made
+            ? (o.Kind, o.Weight / DMath.Pow(_t.Orchestrator.PairRepeat, made)) : o)];
     }
 
     /// <summary>App. B.1: "at least one pair per run on Frontier and above. Two on Deep Territory."</summary>
@@ -584,6 +607,7 @@ public sealed class Director
                 if (Completes(options[i].Kind, world, active) is not null)
                     options[i] = (options[i].Kind, options[i].Weight * _t.PairWeight * (behind ? _t.BehindPairWeight : 1));
         }
+        options = PairRepeats(options, world, active);
         // Variety: a kind sent lately comes on less (the Lamplighters were half of everything in the playtest).
         var recent = Log.TakeLast(_t.VarietyWindow).Select(l => l.Kind).ToList();
         options = [.. options.Select(o => (o.Kind, o.Weight / DMath.Pow(2, recent.Count(k => k == o.Kind))))];
@@ -652,12 +676,38 @@ public sealed class Director
             if (o.PerTarget && entries.Where(c => posts.Contains(c.Post)).ToList() is { Count: > 0 } answering
                 && answering.All(c => c.On >= Math.Max(1, (int)Math.Floor(o.PerPlayerFor(_cars) + 1e-9))))
                 return (op.Kind, 0.0);
+            double w = op.Weight;
             if (next is not null && posts.Contains(next.Post))
-                return (op.Kind, op.Weight * o.SlackWeight);
-            if (!posts.Any(held.Contains) && !o.EmptyPostExempt.Contains(Key(op.Kind)))
-                return (op.Kind, op.Weight * o.EmptyPostWeight);
-            return op;
+                w *= o.SlackWeight;
+            else if (!posts.Any(held.Contains) && !o.EmptyPostExempt.Contains(Key(op.Kind)))
+                w *= o.EmptyPostWeight;
+            return (op.Kind, w * Collision(posts, entries));
         })];
+    }
+
+    /// <summary>
+    /// A collision (note 753; the audit's R5 5, E1): ×<see cref="OrchestratorTuning.CollisionWeight"/> for a kind that would come
+    /// at or near a committed crewmate who has nothing on them yet (their own post answers it, or it comes to a post that
+    /// does within <see cref="OrchestratorTuning.CommittedNearM"/> of them: the census's own reading of whose a threat is) and
+    /// that a free crewmate's post answers within <see cref="OrchestratorTuning.CollisionReachM"/> of them: the free one then
+    /// chooses between their own post and their friend's job. Never with nobody free in reach (that's a pile-on, not a
+    /// collision). Only which kind comes, never when or how many: the caps, the gates and the pacing are the director's as
+    /// before. Free: nothing on them, not committed, not left behind (the census counts only the living).
+    /// </summary>
+    double Collision(List<Post> posts, IReadOnlyList<CensusEntry> entries)
+    {
+        var o = _t.Orchestrator;
+        if (!o.Commitment || o.CollisionWeight == 1)
+            return 1;
+        foreach (var busy in entries.Where(c => c.Committed && c.On == 0 && c.Post != Post.LeftBehind))
+        {
+            bool comes = posts.Contains(busy.Post)
+                || entries.Any(x => x.Player != busy.Player && posts.Contains(x.Post) && (x.At - busy.At).Length <= o.CommittedNearM);
+            if (comes && entries.Any(f => f.Player != busy.Player && f.On == 0 && !f.Committed && f.Post != Post.LeftBehind
+                && posts.Contains(f.Post) && (f.At - busy.At).Length <= o.CollisionReachM))
+                return o.CollisionWeight;
+        }
+        return 1;
     }
 
     /// <summary>
