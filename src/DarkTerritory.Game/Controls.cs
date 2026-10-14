@@ -23,6 +23,8 @@ public enum Control
     Supplies,
     // Note 298 (GDD §9's yard: "dance"): held, the emote wheel; let go, the one the mouse is on.
     Emote,
+    // Note 664 (the director's playtest, 13 Oct): crouch, held; and pushing the gun along, its own key (Use is sitting in it).
+    Crouch, Push,
 }
 
 /// <summary>The default key for each control, by the key's name (Ballast.Platform's <c>Key</c>), and how the menu says it.</summary>
@@ -55,13 +57,21 @@ public static class Controls
         [Control.Uncouple] = "Z",
         [Control.Ladder] = "F",
         [Control.Bookmark] = "P",
-        [Control.Vent] = "LeftCtrl",
+        // Note 664: the genre's crouch key is LeftCtrl, and the vent (cab only, rare) went to its own key: one key doing two
+        // things in two places is what the director flagged for E. Note 703 (the director, 13 Oct evening: "I don't like N
+        // being the button ... it should be a different button that is more accessible than the WASD"): Caps Lock, by A
+        // under the little finger.
+        [Control.Vent] = "CapsLock",
         [Control.Supplies] = "I",
         [Control.Emote] = "J",
+        [Control.Crouch] = "LeftCtrl",
+        // Note 703 (the director: "Push O to walk doesn't make any sense. It's not something that is near the mouse, and
+        // it's not something that's near the left hand"): the middle mouse button, held while walking.
+        [Control.Push] = "MouseMiddle",
     };
 
     /// <summary>Keys nothing can be bound to: the menus' own.</summary>
-    public static readonly IReadOnlySet<string> Reserved = new HashSet<string> { "Escape", "Enter", "Up", "Down", "Left", "Right", "F1", "F2", "F3" };
+    public static readonly IReadOnlySet<string> Reserved = new HashSet<string> { "Escape", "Enter", "Up", "Down", "Left", "Right", "F1", "F2", "F3", "F4" };
 
     public static string Label(Control c) => c switch
     {
@@ -81,6 +91,8 @@ public static class Controls
         Control.Vent => "VENT STEAM (HOLD, IN THE CAB)",
         Control.Supplies => "SUPPLIES ABOARD (TOGGLE)",
         Control.Emote => "EMOTE (HOLD, THE MOUSE PICKS)",
+        Control.Crouch => "CROUCH (HOLD)",
+        Control.Push => "PUSH THE GUN ALONG (HOLD, WALKING)",
         _ => c.ToString().ToUpperInvariant(),
     };
 

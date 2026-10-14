@@ -57,12 +57,34 @@ public readonly record struct GunMount(Double3 Position, Double3 Facing);
 
 public readonly record struct Solid(Box Box, SurfaceKind Top, PartKind Part)
 {
-    /// <summary>There to stand on and bump into on this vehicle now: everything but an open roof hatch's lid (T99).</summary>
-    public bool Present(Vehicle v) => Part != PartKind.Hatch || !v.DoorOpen(CarShape.HatchBit);
+    /// <summary>
+    /// There to stand on and bump into on this vehicle now: everything but an open roof hatch's lid (T99), and a cargo car's
+    /// heap when nothing's been poured in (note 659).
+    /// </summary>
+    public bool Present(Vehicle v) => Part switch
+    {
+        PartKind.Hatch => !v.DoorOpen(CarShape.HatchBit),
+        PartKind.Cargo => v.Bulk > HeapFrom,
+        _ => true,
+    };
+
+    /// <summary>
+    /// Where it is on this vehicle now: a cargo car's heap (note 659: what was poured, tipped or driven in, <see cref="Vehicle.Bulk"/>)
+    /// as high up its load side as the car's that full; everything else where it's built.
+    /// </summary>
+    public Box BoxIn(Vehicle v) => Part != PartKind.Cargo ? Box
+        : new Box(Box.Min, Box.Max with { Y = Box.Min.Y + (Box.Max.Y - Box.Min.Y) * Math.Min(1, v.Bulk) });
+
+    /// <summary>Under this much of a load poured in, there's no heap to speak of (a few shovelfuls).</summary>
+    public const double HeapFrom = 0.02;
 }
 
-/// <summary>A ladder fixed to a face: its foot, how high it goes, and which way is "onto" what it serves.</summary>
-public readonly record struct Ladder(Double3 Foot, double Top, Double3 Inward);
+/// <summary>
+/// A ladder fixed to a face: its foot, how high it goes, and which way is "onto" what it serves. <see cref="Over"/> is how
+/// much further than a step past its top its climber is set down: the engine's cab steps hang off the running board's outer
+/// edge (note 559) and still come up into the cab, across the board.
+/// </summary>
+public readonly record struct Ladder(Double3 Foot, double Top, Double3 Inward, double Over = 0);
 
 /// <summary>
 /// <see cref="Coal"/> is the tender's coal face, where a hand fills the shovel (T29). <see cref="Locker"/> is a crew locker's
@@ -78,9 +100,11 @@ public enum InteractableKind : byte { Firebox, Vent, Handbrake, Door, Coal, Sand
 /// <summary>
 /// A thing a player uses by standing near it and holding Use. <see cref="Index"/> says which door. <see cref="Aim"/> is how
 /// far over <see cref="Position"/> (its footing) the thing itself is, the point a look picks it by (note 264): where two
-/// are in reach, the one looked at is the one worked.
+/// are in reach, the one looked at is the one worked. <see cref="LookDegrees"/>, when not 0: worked only with the view pitched
+/// at least that far (up, or down when negative), and then it's the one looked at (note 675: a roof hatch's lid).
 /// </summary>
-public readonly record struct Interactable(InteractableKind Kind, Double3 Position, double Radius, int Index = 0, double Aim = 1.0);
+public readonly record struct Interactable(InteractableKind Kind, Double3 Position, double Radius, int Index = 0, double Aim = 1.0,
+    double LookDegrees = 0);
 
 /// <summary>
 /// Where the driver's hands go in the engine's cab (T29): the regulator's handle on the backhead, the brake valve's and
@@ -145,6 +169,8 @@ public sealed record CarShape(Box Bounds, IReadOnlyList<Solid> Solids, IReadOnly
     public Box? Hatch { get; init; }
     /// <summary>The hatch's bit in <see cref="Vehicle.DoorsOpen"/>: after the four doors.</summary>
     public const int HatchBit = 4;
+    /// <summary>How steeply a crewmate looks down at the hatch's lid from the roof, or up at it from the floor, to work it (note 675).</summary>
+    public const double HatchLookDegrees = 35;
     /// <summary>A crew car's stove (note 184), standing on its floor: the heat a crew car has of its own.</summary>
     public Box? Stove { get; init; }
 
@@ -154,6 +180,21 @@ public sealed record CarShape(Box Bounds, IReadOnlyList<Solid> Solids, IReadOnly
     public double RoofHeight => Bounds.Max.Y;
 
     /// <summary>The highest walkable surface over a point in the car's frame (at or below <paramref name="maxY"/>), and what kind it is.</summary>
+    /// <summary>
+    /// The highest footing at (x, z) no higher than <paramref name="maxY"/> as it is on <paramref name="v"/> now: a cargo car's
+    /// heap only as high as what's poured in, and not at all when nothing has been (<see cref="Solid.Present"/>). Note 708: a
+    /// casting set down through a hatch came to rest on the empty car's heap at its full height, in the air.
+    /// </summary>
+    public (double Top, SurfaceKind Kind)? TopAt(double x, double z, Vehicle v, double maxY = double.MaxValue)
+    {
+        (double, SurfaceKind)? best = null;
+        var p = new Double3(x, 0, z);
+        foreach (var solid in Solids)
+            if (solid.Present(v) && solid.BoxIn(v) is var box && box.ContainsXZ(p) && box.Max.Y <= maxY + 1e-6 && (best is null || box.Max.Y > best.Value.Item1))
+                best = (box.Max.Y, solid.Top);
+        return best;
+    }
+
     public (double Top, SurfaceKind Kind)? TopAt(double x, double z, double maxY = double.MaxValue)
     {
         (double, SurfaceKind)? best = null;
@@ -256,6 +297,22 @@ public sealed record CarShape(Box Bounds, IReadOnlyList<Solid> Solids, IReadOnly
             SurfaceKind.Coupler, PartKind.Coupler)
         : null;
 
+    /// <summary>
+    /// A car whose coupling behind is a Knotter (note 365): its plate gone, its body across the wider gap instead: a rope's
+    /// width (<see cref="KnotWidth"/>) on the plate's line, from the car's end to the next car's, the same height.
+    /// </summary>
+    public static CarShape Knotted(CarShape shape, GeometryTuning g, double knot)
+    {
+        double l = shape.HalfLength;
+        var solids = shape.Solids.Where(s => s.Part != PartKind.Coupler).ToList();
+        solids.Add(new Solid(new Box(new Double3(g.PlateX - KnotWidth / 2, g.CouplerHeight - 0.1, l), new Double3(g.PlateX + KnotWidth / 2, g.CouplerHeight, l + g.CouplingGap + knot)),
+            SurfaceKind.Coupler, PartKind.Coupler));
+        return shape with { Solids = solids };
+    }
+
+    /// <summary>The Knotter's back, as a foot finds it (note 365).</summary>
+    public const double KnotWidth = 0.4;
+
     static CarShape Car(GeometryTuning g, bool hasCarBehind) =>
         g.Interior is { } i ? Shell(g, i, hasCarBehind, cargo: true) : SolidCar(g, hasCarBehind);
 
@@ -336,7 +393,8 @@ public sealed record CarShape(Box Bounds, IReadOnlyList<Solid> Solids, IReadOnly
                     solids.Add(new(new Box(new Double3(o0, 0, z1 - i.StepDepth), new Double3(o1, floor * (rises - k) / rises, z1)), SurfaceKind.Deck, PartKind.Steps));
                 }
             }
-            // The load stands down the right-hand side, either side of its door.
+            // The load stands down the right-hand side, either side of its door: what's poured in heaps there, as high as the car's
+            // that full (note 659, Solid.BoxIn); what's put in by hand or hook lies where it's put.
             double c0 = w - t - i.CargoDepth, c1 = w - t, top = floor + i.CargoHeight;
             solids.Add(new(new Box(new Double3(c0, floor, -l + 1.2), new Double3(c1, top, -sd - 0.3)), SurfaceKind.Deck, PartKind.Cargo));
             solids.Add(new(new Box(new Double3(c0, floor, sd + 0.3), new Double3(c1, top, l - 1.2)), SurfaceKind.Deck, PartKind.Cargo));
@@ -354,9 +412,19 @@ public sealed record CarShape(Box Bounds, IReadOnlyList<Solid> Solids, IReadOnly
         if (hasCarBehind)
             ladders.Add(new Ladder(new Double3(g.EndLadderX, 0, l + 0.1), h, new Double3(0, 0, -1)));
         interactables.Add(new Interactable(InteractableKind.Handbrake, new Double3(BrakeWheelX(g), h, l - 0.5), 0.8));
-        // The hatch's handle: on the roof at its front edge, left of the gun rail, worked from the roof walk.
+        // The hatch's handle: on the roof at its front edge, left of the gun rail, worked from the roof walk. And its lid (note
+        // 675; the director, 13 Oct: "I should be able to open the roof of a car for loading from inside the car ... opening of
+        // the roofs is very inconsistent"): from anywhere along it or a metre off its ends, looking down at it from the roof, or
+        // up at it from the floor under it. Only looked at, so a crewmate walking the roof or working inside isn't offered it.
         if (hatch is { } hb)
+        {
             interactables.Add(new Interactable(InteractableKind.Hatch, new Double3(-0.6, h, hb.Min.Z - 0.35), 0.8, HatchBit));
+            double reach = (hb.Max.Z - hb.Min.Z) / 2 + 1.0;
+            var middle = (hb.Min.Z + hb.Max.Z) / 2;
+            interactables.Add(new Interactable(InteractableKind.Hatch, new Double3(0, h, middle), reach, HatchBit, Aim: 0, LookDegrees: -HatchLookDegrees));
+            interactables.Add(new Interactable(InteractableKind.Hatch, new Double3(0, floor, middle), reach, HatchBit, Aim: ceiling - floor,
+                LookDegrees: HatchLookDegrees));
+        }
         var interior = new Box(new Double3(-w + t, floor - 0.1, -l + t), new Double3(w - t, ceiling, l - t));
         return new CarShape(new Box(new Double3(-w, 0, -l), new Double3(w, h, l)), solids, ladders, interactables, null, Interior: interior, Doors: doors)
         {
@@ -475,9 +543,10 @@ public sealed record CarShape(Box Bounds, IReadOnlyList<Solid> Solids, IReadOnly
         }
         solids.Add(new(new Box(new Double3(-w - 0.1, roof, cabBack), new Double3(w + 0.1, g.EngineHeight, hoodBack)), SurfaceKind.Roof, PartKind.CabRoof));
         // The running boards (App. A.2 GREASE: "sends someone onto the running boards at speed"): a walkway each side at
-        // deck height, out past the body's side, from partway across the cab's doorway (out of it and back onto it) back
-        // along the boiler to the engine's rear. Its front stops short of the doorway's front, where the cab steps come up.
-        double board = e.RunningBoardWidth, boardFront = doorFront + g.Doorway.Width * 0.6;
+        // deck height, out past the body's side, from ahead of the cab's doorway (the director, 9 Oct 2026, note 559: "the
+        // platform on the outer edge of the train really should extend to be in front of the cab doors and extend a bit
+        // wider") back along the boiler to the engine's rear. Out of the doorway is onto it; the cab steps hang off its edge.
+        double board = e.RunningBoardWidth, boardFront = doorFront - e.RunningBoardAhead;
         foreach (int side in new[] { -1, 1 })
         {
             var (x0, x1) = side < 0 ? (-w - board, -w) : (w, w + board);
@@ -494,9 +563,10 @@ public sealed record CarShape(Box Bounds, IReadOnlyList<Solid> Solids, IReadOnly
         double doorZ = doorFront + g.Doorway.Width / 2;
         var ladders = new List<Ladder>
         {
-            // Cab steps up from the ballast on both sides, at the doorways.
-            new(new Double3(w + 0.15, 0, doorZ), deck, new Double3(-1, 0, 0)),
-            new(new Double3(-w - 0.15, 0, doorZ), deck, new Double3(1, 0, 0)),
+            // Cab steps up from the ballast on both sides, at the doorways: hung off the running board's outer edge (note
+            // 559), and up them is across the board and in at the doorway, as it was when they hung off the cab's side.
+            new(new Double3(w + board + 0.15, 0, doorZ), deck, new Double3(-1, 0, 0), Over: board),
+            new(new Double3(-w - board - 0.15, 0, doorZ), deck, new Double3(1, 0, 0), Over: board),
         };
         // Up the engine's back onto the hood's roof (note 338: level with the cab's, and its gun, from the top of the train;
         // before the hood it went onto the boiler's top, and another ladder up the cab's back wall from there).

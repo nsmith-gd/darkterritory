@@ -6,24 +6,27 @@ namespace DarkTerritory.Sim.Tests;
 
 /// <summary>
 /// T107: the land beside an alternate's climb read a hand's breadth over the engine's cab floor (deepTerritory:1, Grieve
-/// Junction, when the line was 37 km; at one 24 km length, note 270, its first alternate), and the motor, taking the earth for whatever's highest underfoot, set the driver and fireman down on it at
-/// 13 m/s. Riding the train, it's the train underfoot while any of it is.
+/// Junction, when the line was 37 km; at one 24 km length, note 270, its first alternate; on the 7 km nights of note 554,
+/// where alternates are few and short, frontier:31's, under 600 m long), and the motor, taking the earth for whatever's highest underfoot, set the driver
+/// and fireman down on it at 13 m/s. Riding the train, it's the train underfoot while any of it is.
 /// </summary>
 public class CabRideTests
 {
     [Fact]
-    public void StandingInTheCabUpTheGrieveJunctionAlternateTheyStayInTheCab()
+    public void StandingInTheCabUpAJunctionAlternateTheyStayInTheCab()
     {
-        var route = LineGen.Routes.Generate(DataFile.FindContentRoot(), "deepTerritory:1", 10);
+        var route = LineGen.Routes.Generate(DataFile.FindContentRoot(), "frontier:31", 10);
         var line = route.Build();
         int alt = Enumerable.Range(0, line.Branches.Count).First(i => line.Branches[i].Definition.Kind == Rail.BranchKind.Alternate);
         double toe = line.Branches[alt].Toe;
+        // Up it as far as it goes short of its way back onto the main line (1,180 m when it was longer).
+        double up = Math.Min(1180, line.Branches[alt].Definition.Length - 150);
         var train = new TrainOnLine(new TrainDynamics(Consist.Uniform(Tuning.Train, 10, 1)), line, toe - 120);
         var world = new World(train);
         world.SetSwitch(alt, true);
         var cab = PlayerMotor.SpawnInCab(train, Tuning.Player);
         var roof = PlayerMotor.SpawnOnRoof(train, 3, 0, Tuning.Player);
-        while (train.Dynamics.Distance < toe + 1180)
+        while (train.Dynamics.Distance < toe + up)
         {
             train.Dynamics.Velocity = 13;
             world.BeginTick();
@@ -45,8 +48,9 @@ public class CabRideTests
     [Fact]
     public void WhereAnAlternateClimbsBesideMainItsRailIsOnItsOwnFormation()
     {
-        // Every alternate's run in to its rejoin (frontier:3's, at one 24 km length: note 270).
-        var line = LineGen.Routes.Generate(DataFile.FindContentRoot(), "frontier:3", 10).Build();
+        // Every alternate's run in to its rejoin (frontier:3's at one 24 km length, note 270; on the 7 km nights of note 554
+        // an alternate is rarer, and frontier:31 has one).
+        var line = LineGen.Routes.Generate(DataFile.FindContentRoot(), "frontier:31", 10).Build();
         var alts = Enumerable.Range(0, line.Branches.Count).Where(i => line.Branches[i].Kind == Rail.BranchKind.Alternate).ToList();
         Assert.NotEmpty(alts);
         foreach (int alt in alts)

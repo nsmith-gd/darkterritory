@@ -14,7 +14,7 @@ namespace DarkTerritory.Game.Tests;
 /// without a pop, and skins the same way every time. The turntables render each clip at 480×270, lantern-lit in the
 /// night's fog, into out/shots/creatures/ for a person to look at (CLAUDE.md: "look at your visual changes").
 /// </summary>
-public class CreatureArtTests
+public class CreatureArtTests(CreatureArtTests.TurntableRig rig) : IClassFixture<CreatureArtTests.TurntableRig>
 {
     static readonly string Repo = Path.GetDirectoryName(DataFile.FindContentRoot())!;
     // DT_CONTENT lets a turntable run against a content folder with textures not yet checked in.
@@ -65,7 +65,7 @@ public class CreatureArtTests
         // A swarm's (App. A.7): several at once, so light; SK_Human at a child's size, the legs hidden in its strips.
         ["choir"] = new(1000, 3000, 20, 60, ["drift", "swoop", "seize", "besiege"], ["hit"]),
         // A character (App. A.6), SK_Human stretched to near three metres: down on its arms and squatted aboard (note 118).
-        ["gaunt"] = new(3000, 9000, 20, 60, ["sleep", "follow", "listen", "attack", "crawl", "squat", "smash"], ["stir", "hit"]),
+        ["gaunt"] = new(3000, 9000, 20, 60, ["sleep", "follow", "listen", "attack", "crawl", "squat", "smash", "carry", "carry_low"], ["stir", "hit"]),
         // A character's (App. A.8), SK_Human with a jaw and a second pair of arms out of its ribs: down like a spider.
         ["grumbler"] = new(3000, 9000, 30, 60, ["gnaw", "scuttle", "bite", "maul"], ["hit"]),
         // A character's (App. A.5), SK_Human shrunk with a jaw: only ever seen at the firebox door, so light.
@@ -86,6 +86,34 @@ public class CreatureArtTests
         // wing, three sacs that swell, a jaw that gapes, the spear's tip a socket); every clip the brief asks for.
         ["gannet"] = new(8000, 16000, 25, 45, ["soar", "circle", "hang", "dive", "stuck", "climb", "bank", "pin"],
             ["fold", "stab", "tearFree", "swoop", "land", "peckWindup", "peck", "driven", "hit", "death"]),
+        // A character's, light (docs/design/creatures/mourners.md §3: three to six at a body), on its own rig (SK_Mourner:
+        // three two-boned hooked fingers a hand, the veil a bone); every clip the brief asks for.
+        ["mourner"] = new(3000, 7500, 30, 45, ["wait", "creep", "drag", "scatter"], ["startle", "hit", "death"]),
+        // A beast's, between a character and a large monster (freight-beetle.md §3: a handcart's bulk), on its own rig
+        // (SK_Beetle: six four-boned legs, two palps).
+        ["freight_beetle"] = new(6000, 14000, 28, 40, ["idle", "walk", "brace", "push", "turn"], ["startle", "hit", "death"]),
+        // A large monster (GDD §27: 8-16k; tower-jaw.md §3), on its own rig (SK_TowerJaw: a jaw, a three-boned tail).
+        ["tower_jaw"] = new(8000, 16000, 22, 34, ["gnaw", "turn", "threat", "retreat"], ["lunge", "hit", "death"]),
+        // The train's own (the director's brief of 8 Oct 2026; docs/design/creatures/brakeman.md, knotter.md, hotbox.md §3).
+        // The Brakeman a character (GDD §27: 4-10k), SK_Human with the lash's chain and the lamp's bone.
+        ["brakeman"] = new(4000, 10000, 28, 40, ["walk", "wind", "flee", "cornered"], ["jump", "drop", "climb", "lash", "hit", "death"]),
+        // The Knotter 5 m of rope as thick as a thigh: a large monster's (8-16k) lower half; SK_Knotter's segments and claws.
+        ["knotter"] = new(6000, 14000, 40, 60, ["creep", "force", "taut", "coil", "exposed"], ["clamp", "slip", "hit", "death"]),
+        // Hotbox a beast's (2-8k), the size of a dog; SK_Hotbox's plates, belly and sixteen legs.
+        ["hotbox"] = new(2000, 8000, 35, 55, ["clamped", "knock", "glow", "out", "scuttle"], ["unfold", "snap", "prised", "hit", "death"]),
+        // The Hanger (note 586; the director, 9 Oct 2026), a beast's (2-8k): a sac and ten thin legs on its own rig (SK_Hanger: three
+        // bones a leg, the sac breathing by scale, the mouth, two palps); a clip for each of its modes (HangerMode) and its death.
+        ["hanger"] = new(2000, 8000, 30, 45, ["hidden", "haul", "hold", "retreat"], ["grab", "hit", "death"]),
+        // The Pickers (pickers.md §3): a beast's (GDD §27: 2-8k), a group of up to eight at once, so kept light; their own rig
+        // (SK_Picker: three three-boned fingers and a thumb a hand, a jaw, the ears).
+        ["picker"] = new(3000, 7000, 40, 55, ["idle", "scuttle", "carry", "heave", "scatter"], ["grab", "bite", "emerge", "descend", "hit", "death"]),
+        // The house creatures (notes 583, 584): characters (GDD §27: 4-10k), each on its own rig. The Lodger's SK_Lodger: a
+        // jaw that drops open, three three-boned fingers a hand. The Householder's SK_Householder: four three-boned fingers.
+        ["lodger"] = new(5000, 10000, 40, 55, ["hidden", "chase", "break", "return"], ["shriek", "lunge", "hit", "death"]),
+        ["householder"] = new(6000, 10000, 45, 60, ["sit", "watch", "hunt", "grab", "return"], ["rise", "hit", "death"]),
+        // The Waker (note 679): a large monster (GDD §27: 8-16k) drawn sixty metres tall, on its own SK_Waker: a jaw, a mouth
+        // socket, the rope's end, four three-boned fingers a hand.
+        ["waker"] = new(8000, 16000, 50, 60, ["lie", "walk", "run", "lift", "eat", "stand"], ["rise", "grab", "roar"]),
     };
 
     public static TheoryData<string> Models() => [.. CreatureArt.Names];
@@ -116,7 +144,9 @@ public class CreatureArtTests
         // car hugger's at its mouth on the rear platform, its body down to the rail; a Choir ghost flies, its strips hanging
         // below where it is; the Stoker's is the firebox door, its body in the fire behind and below it; a Fire Fly's is its
         // body's middle, its legs under it, for the glass it settles on).
-        if (name is not ("clinger" or "dragger" or "weight" or "car_hugger" or "choir" or "stoker" or "fire_fly"))
+        // (The Knotter's is the gap's middle at the coupler's height, the rope through it; the Hanger's the underside of the beams
+        // it hangs from, all of it below but its feet's hooks.)
+        if (name is not ("clinger" or "dragger" or "weight" or "car_hugger" or "choir" or "stoker" or "fire_fly" or "knotter" or "hanger"))
         {
             Assert.InRange(m.Min.Y, -0.02f, 0.05f);
             Assert.InRange((m.Min.X + m.Max.X) / 2, -0.25f, 0.25f);
@@ -147,6 +177,53 @@ public class CreatureArtTests
         Assert.InRange(Height(moose), 3.2f, 3.5f);
         Assert.InRange(moose.Max.X - moose.Min.X, 3.1f, 3.35f);
         Assert.True(moose.Min.Z < -1.5f, "the moose's head is forward (−Z)");
+        // The Mourners (mourners.md §3): about 1.2 m stood, but never stood: stooped to about a metre; their hands (hooked)
+        // forward of them (−Z).
+        var mourner = Get("mourner");
+        Assert.InRange(Height(mourner), 0.95f, 1.25f);
+        Assert.True(mourner.Min.Z < -0.3f, "the mourner's hands are forward (−Z)");
+        // The Freight Beetle (freight-beetle.md §3): 2.4 m long, 1.4 m to the top of its back; its shovel forward (−Z).
+        var beetle = Get("freight_beetle");
+        Assert.InRange(Height(beetle), 1.3f, 1.55f);
+        Assert.InRange(beetle.Max.Z - beetle.Min.Z, 2.3f, 2.6f);
+        Assert.True(beetle.Min.Z < -1.0f, "the beetle's shovel is forward (−Z)");
+        // Tower Jaw (tower-jaw.md §3): about 1.6 m at the shoulder (its spines over that), its incisors forward (−Z), its
+        // tail out behind.
+        var jaw = Get("tower_jaw");
+        Assert.InRange(Height(jaw), 1.75f, 2.35f);
+        Assert.True(jaw.Min.Z < -1.5f && jaw.Max.Z > 2.0f, "tower jaw's teeth forward (−Z), its tail behind");
+        // The Brakeman (brakeman.md §3): a tall gaunt man stood up in his cap (he stoops in every clip), the wheel on his back.
+        Assert.InRange(Height(Get("brakeman")), 1.85f, 2.0f);
+        // The Knotter (knotter.md §3): 5 m across a forced coupling, claw to claw (CreatureArt lays it along the gap), its
+        // body thick as a thigh; along −Z.
+        var knotter = Get("knotter");
+        Assert.InRange(knotter.Max.Z - knotter.Min.Z, 5.3f, 5.8f);
+        Assert.InRange(Height(knotter), 0.15f, 0.5f);
+        // Hotbox (hotbox.md §3): about 1.1 m long and 0.4 m high under its carapace, its legs splayed out past it fore and aft.
+        var hotbox = Get("hotbox");
+        Assert.InRange(hotbox.Max.Z - hotbox.Min.Z, 1.3f, 1.65f);
+        Assert.InRange(Height(hotbox), 0.3f, 0.5f);
+        // The Hanger (note 586): hung upside down from the beams at its origin, its body and its knees below, its feet's hooks
+        // just up over them; about 2.3 m across its braced legs, a pale sac half a metre deep; its head forward (−Z).
+        var hanger = Get("hanger");
+        Assert.InRange(hanger.Max.Y, 0f, 0.06f);
+        Assert.InRange(hanger.Min.Y, -0.8f, -0.45f);
+        Assert.InRange(hanger.Max.X - hanger.Min.X, 2.0f, 2.6f);
+        Assert.True(hanger.Min.Z < -0.9f, "the hanger's front legs reach forward (−Z)");
+        // The Pickers (pickers.md §3): knee-high, about 0.5 m at the shoulder and 0.9 m long, crouched on all fours at rest; the
+        // head and the long hands forward (−Z).
+        var picker = Get("picker");
+        Assert.InRange(Height(picker), 0.45f, 0.62f);
+        Assert.InRange(picker.Max.Z - picker.Min.Z, 0.75f, 1.0f);
+        Assert.True(picker.Min.Z < -0.4f, "the picker's head and hands are forward (−Z)");
+        // The Lodger (lodger.md): about 2.1 m stood up; the Householder tall and thin, about 1.95 m.
+        Assert.InRange(Height(Get("lodger")), 2.0f, 2.2f);
+        Assert.InRange(Height(Get("householder")), 1.88f, 2.02f);
+        // The Waker (GDD §8 "A titan"): modelled a man about 2.07 m tall, drawn thirty times that, at least three times the
+        // greybox stand-in's 17 m; his head forward (−Z).
+        var waker = Get("waker");
+        Assert.InRange(Height(waker), 2.0f, 2.15f);
+        Assert.True(Height(waker) * WakerGait.Scale >= 3 * 17, "a titan, at least three times the stand-in");
         var sleeper = Get("sleeper");
         Assert.InRange(sleeper.Max.X - sleeper.Min.X, 2.5f, 3.1f);
         Assert.InRange(Height(sleeper), 0.2f, 0.45f);
@@ -218,6 +295,109 @@ public class CreatureArtTests
         Assert.InRange(b, a / 4, a * 6 / 10);
         Assert.Equal(full.Materials.Length, lod.Materials.Length);
         Assert.All(lod.Parts, p => Assert.All(p.Joints, j => Assert.InRange(j, 0, full.Skeleton.Count - 1)));
+    }
+
+    /// <summary>
+    /// The figures with no distance copy of their own (no Blender to bake one) get one clustered at load (note 479): a walled
+    /// town's people and its watch are dozens of them in a frame, some 8,400 triangles each. A fifth of it or less, the same
+    /// materials and bones, the same size; drawn only past look.json's clusteredLodMetres, a few pixels tall.
+    /// </summary>
+    [Theory]
+    [InlineData("survivor_prisoner")]
+    [InlineData("survivor_wildlander")]
+    [InlineData("crew")]
+    public void TheFiguresGetADistanceCopyClusteredFromThem(string name)
+    {
+        var full = Get(name);
+        var lod = Art.LodOf(name);
+        Assert.NotNull(lod);
+        int a = full.Parts.Sum(p => p.Triangles), b = lod.Parts.Sum(p => p.Triangles);
+        Assert.InRange(b, a / 40, a / 5);
+        Assert.Equal(full.Materials.Length, lod.Materials.Length);
+        Assert.Equal(full.Parts.Length, lod.Parts.Length);
+        Assert.All(lod.Parts, p => Assert.All(p.Joints, j => Assert.InRange(j, 0, full.Skeleton.Count - 1)));
+        // The same size: every part that has triangles still spans what it did, give or take a cell.
+        float cell = Art.Look.Tuning.ClusteredLodCell;
+        foreach (var (whole, near) in full.Parts.Zip(lod.Parts).Where(x => x.First.Triangles > 40))
+        {
+            Assert.True(near.Triangles > 0, $"{name}/{whole.Name}: gone");
+            var (lo, hi) = (whole.Positions.Aggregate(Vector3.Min), whole.Positions.Aggregate(Vector3.Max));
+            var used = near.Indices.Select(i => near.Positions[i]).ToList();
+            var (lo2, hi2) = (used.Aggregate(Vector3.Min), used.Aggregate(Vector3.Max));
+            Assert.True(Vector3.Distance(lo, lo2) < cell * 2.5f && Vector3.Distance(hi, hi2) < cell * 2.5f,
+                $"{name}/{whole.Name}: {lo}..{hi} became {lo2}..{hi2}");
+        }
+        Assert.True(Art.Look.Tuning.ClusteredLodMetres >= 30, "drawn nearer than a figure is a few pixels tall");
+    }
+
+    /// <summary>
+    /// The Pickers, the Lodger and the Householder (notes 574, 583, 584): no part of one through another beyond touching in
+    /// any clip (Clearance.Mesh, as the demo's), and a distance copy two fifths or so of it on the same bones (a group of
+    /// Pickers is eight at once).
+    /// </summary>
+    [Theory]
+    [InlineData("picker")]
+    [InlineData("lodger")]
+    [InlineData("householder")]
+    public void TheYardAndHouseCreaturesStayOutOfThemselvesAndHaveADistanceCopy(string name)
+    {
+        var full = Get(name);
+        var through = Clearance.Mesh(full).Where(o => o.Depth > Clearance.Touching).ToList();
+        Assert.True(through.Count == 0, string.Join("; ", through.Select(o => $"{o.Clip} {o.Pair} {o.Depth:0.000} at {o.At:0.00} s")));
+        var lod = Art.LodOf(name);
+        Assert.NotNull(lod);
+        int a = full.Parts.Sum(p => p.Triangles), b = lod.Parts.Sum(p => p.Triangles);
+        Assert.InRange(b, a / 4, a * 6 / 10);
+        Assert.Equal(full.Materials.Length, lod.Materials.Length);
+    }
+
+    /// <summary>
+    /// Every mode the sim gives a Picker, the Lodger and the Householder has a clip of its own (CreatureArt.PickerClip,
+    /// LodgerClip, HouseholderClip), and is drawn from the enemy's own state; a Picker down its drain isn't drawn.
+    /// </summary>
+    [Fact]
+    public void TheYardAndHouseCreaturesDrawEveryModeFromTheSimsState()
+    {
+        var picker = Get("picker");
+        foreach (var mode in Enum.GetValues<PickerMode>())
+            foreach (double t in new[] { 0.0, 0.2, 3.0 })
+                if (CreatureArt.PickerClip(mode, null, t, 2.5f) is { } play)
+                    Assert.Contains(play.Clip, picker.ClipNames);
+        Assert.Null(CreatureArt.PickerClip(PickerMode.Down, PickerMode.Down, 1.0, 0));
+        Assert.Equal("bite", CreatureArt.PickerClip(PickerMode.Scatter, PickerMode.Bite, 0.1, 4)?.Clip);
+        Assert.Equal("grab", CreatureArt.PickerClip(PickerMode.Carry, PickerMode.Scuttle, 0.1, 2)?.Clip);
+        foreach (var mode in Enum.GetValues<LodgerMode>())
+            foreach (double t in new[] { 0.0, 0.7, 3.0 })
+                Assert.Contains(CreatureArt.LodgerClip(mode, t, 3).Clip, Get("lodger").ClipNames);
+        foreach (var mode in Enum.GetValues<HouseholderMode>())
+            Assert.Contains(CreatureArt.HouseholderClip(mode, 0.5).Clip, Get("householder").ClipNames);
+
+        var mesh = new MeshBuilder();
+        var model = Matrix4x4.CreateTranslation(0, 0, -6);
+        int Drawn(Enemy e)
+        {
+            mesh.Clear();
+            Assert.True(Art.Enemy(mesh, model, e, modeSeconds: 0.6));
+            return mesh.Flattened().Length + mesh.Instances.Count;
+        }
+        foreach (var mode in Enum.GetValues<PickerMode>())
+        {
+            var p = new Picker(1);
+            p.Restore(SpinePhase.Telegraph, 0.6, 1, Enemy.Loose, default, 0, 0, (double)mode, -1, 0);
+            Assert.True(mode == PickerMode.Down ? Drawn(p) == 0 : Drawn(p) > 0, $"picker {mode}");
+        }
+        foreach (var mode in Enum.GetValues<LodgerMode>())
+        {
+            var l = new Lodger(2);
+            l.Restore(SpinePhase.Alert, 0.6, 1, Enemy.Loose, default, 0, 0, (double)mode, -1, 0);
+            Assert.True(Drawn(l) > 0, $"lodger {mode}");
+        }
+        foreach (var mode in Enum.GetValues<HouseholderMode>())
+        {
+            var h = new Householder(3);
+            h.Restore(SpinePhase.Alert, 0.6, 1, Enemy.Loose, default, 0, 0, (double)mode, -1, 0);
+            Assert.True(Drawn(h) > 0, $"householder {mode}");
+        }
     }
 
     [Theory]
@@ -301,7 +481,9 @@ public class CreatureArtTests
                     // mound sunk in the low ground by the line, App. A.3 LURK.)
                     bool hidden = kind == EnemyKind.Dragger && phase is not (SpinePhase.Telegraph or SpinePhase.Grab or SpinePhase.Punish)
                         || kind == EnemyKind.Stoker
-                        || kind == EnemyKind.FireFlies && phase == SpinePhase.Dormant;
+                        || kind == EnemyKind.FireFlies && phase == SpinePhase.Dormant
+                        // The Hollow House is its house (GreyboxScene.Houses moves the house's own drawing): nothing of its own.
+                        || kind == EnemyKind.HollowHouse;
                     // A car fire is an effect (Effects.CarFire): smoke and flame billboards, no triangles of its own.
                     if (kind == EnemyKind.CarFire)
                         Assert.True(mesh.AlphaFx.Count + mesh.AdditiveFx.Count > 0, $"{kind} {phase} drew no smoke or flame");
@@ -504,6 +686,17 @@ public class CreatureArtTests
     [InlineData(EnemyKind.Ribbit, "ribbit", false)]
     [InlineData(EnemyKind.Gaunt, "gaunt", false)]
     [InlineData(EnemyKind.Switchman, "switchman", false)]
+    [InlineData(EnemyKind.Gannet, "gannet", true)]
+    // The night things going to ground at dawn (note 642), and any of these let go of otherwise.
+    [InlineData(EnemyKind.Brakeman, "brakeman", true)]
+    [InlineData(EnemyKind.Grumbler, "grumbler", false)]
+    [InlineData(EnemyKind.Moose, "moose", false)]
+    [InlineData(EnemyKind.FreightBeetle, "freight_beetle", false)]
+    [InlineData(EnemyKind.TowerJaw, "tower_jaw", false)]
+    [InlineData(EnemyKind.Mourners, "mourner", false)]
+    // The stops' own walking off (note 645).
+    [InlineData(EnemyKind.Lodger, "lodger", false)]
+    [InlineData(EnemyKind.Householder, "householder", false)]
     public void OneLetGoOfInSightIsSeenGoingOffIntoTheDarkThenIsGone(EnemyKind kind, string asset, bool aboard)
     {
         // GreyboxScene.Retreating (note 458): the sim has one gone the tick it's done with it (a Climber outnumbered, a Whistler
@@ -516,7 +709,8 @@ public class CreatureArtTests
         var f = train.Frames[car];
         var e = Enemy.Blank(kind, 90, kind == EnemyKind.Ribbit ? 60 : 0);
         if (aboard)
-            e.Restore(SpinePhase.Commit, 1, 3, car, new Double3(0.3, f.Shape.RoofHeight, 2), 0, 0, 0, 0, 0);
+            // (A Gannet's height is its mode: down in the planks, stuck, where a blow lands.)
+            e.Restore(SpinePhase.Commit, 1, 3, car, new Double3(0.3, f.Shape.RoofHeight, 2), 0, 0, kind == EnemyKind.Gannet ? (double)GannetMode.Stuck : 0, 0, 0);
         else
         {
             var at = f.ToWorld(new Double3(f.Shape.HalfWidth + 4, 0, 0));
@@ -551,6 +745,48 @@ public class CreatureArtTests
         Assert.True((going - from).Length() > 0.8 * outward, $"{kind}: moved {(going - from).Length():0.0} m from where it was");
         Assert.True(going.Length() > was.Length() + 0.5 * outward, $"{kind}: away from the eye: {was.Length():0.0} → {going.Length():0.0} m");
         Assert.Empty(Drawn(CreatureArt.Retreat(kind)!.Value.Seconds + 0.2));
+    }
+
+    [Theory]
+    [InlineData(EnemyKind.Pickers, "picker", 0.0)]
+    [InlineData(EnemyKind.Hanger, "hanger", 2.3)]
+    public void APickerLetGoOfGoesDownIntoTheGroundAndAHangerUpIntoItsRoof(EnemyKind kind, string asset, double up)
+    {
+        // Note 645: at dawn (note 635) the stops' own are let go of like the rest; a Picker isn't seen walk off but go down,
+        // head first, where it stands, and a Hanger is drawn up into the roof it hangs in. Both are then gone.
+        var tuning = DataFile.Load<Sim.Train.TrainTuning>(Path.Combine(Content, Sim.Train.TrainTuning.File));
+        var line = Sim.Rail.RailLine.Load(Path.Combine(Content, "lines", "test-loop.json"));
+        var train = new Sim.Train.TrainOnLine(new Sim.Train.TrainDynamics(Sim.Train.Consist.Uniform(tuning, 6, 1)), line, 1200);
+        var f = train.Frames[2];
+        var at = f.ToWorld(new Double3(f.Shape.HalfWidth + 6, 0, 0));
+        double hint = train.Cars[2].FrontDistance;
+        at = at with { Y = Sim.Player.PlayerMotor.GroundAt(at, line, ref hint) + up };
+        var e = Enemy.Blank(kind, 92, 0);
+        e.Restore(SpinePhase.Telegraph, 1, 1, Enemy.Loose, at, 0, 0, 0, 0, 7);
+        var eye = f.ToWorld(new Double3(-10, 4, 0));
+        var scene = new GreyboxScene { Look = Look, Time = 0.37, Enemies = [], Tick = Staging.StrikeTick };
+        scene.Retreated(e, (uint)(Staging.StrikeTick + 1), 0);
+        List<Vector3> Drawn(double after)
+        {
+            scene.Tick = Staging.StrikeTick + 1 + (long)Math.Round(after * Sim.SimConstants.TickRate);
+            var mesh = new MeshBuilder();
+            scene.Build(mesh, train, eye);
+            return [.. mesh.Instances.Where(i => i.Asset.Name.Contains(asset, StringComparison.OrdinalIgnoreCase)).Select(i => i.Model.Translation)];
+        }
+        var go = CreatureArt.Retreat(kind)!.Value;
+        // Where it's drawn: its model's place (the middle of them, were it several).
+        static float Height(List<Vector3> drawn)
+        {
+            Assert.NotEmpty(drawn);
+            return drawn.Average(d => d.Y);
+        }
+        var start = Height(Drawn(0.05));
+        var later = Height(Drawn(go.Seconds * 0.6));
+        if (go.Rise < 0)
+            Assert.True(later < start - 0.2f, $"{kind}: down into the ground: {start:0.00} → {later:0.00}");
+        else
+            Assert.True(later > start + 0.2f, $"{kind}: up into its roof: {start:0.00} → {later:0.00}");
+        Assert.Empty(Drawn(go.Seconds + 0.2));
     }
 
     [Theory]
@@ -922,7 +1158,10 @@ public class CreatureArtTests
         }
         Assert.Equal("creep", CreatureArt.RibbitClip(SpinePhase.Grab, Leader("tongue")));
         Assert.Equal("devour", CreatureArt.RibbitClip(SpinePhase.Grab, Leader("devour")));
-        Assert.Equal("tongue", CreatureArt.RibbitClip(SpinePhase.Commit, Leader("devour")));
+        // The pack's others ride COMMIT through the leader's devour (note 558): close to, they're on them too; out of
+        // reach, it's the tongue's strike.
+        Assert.Equal("devour", CreatureArt.RibbitClip(SpinePhase.Commit, Leader("devour")));
+        Assert.Equal("tongue", CreatureArt.RibbitClip(SpinePhase.Commit, Leader("tongue")));
         // Where the sim's hop stops is close enough to be on them.
         Assert.Equal("devour", CreatureArt.RibbitClip(SpinePhase.Grab, 0.8f));
     }
@@ -1080,6 +1319,39 @@ public class CreatureArtTests
     const int W = 480, H = 270;
 
     /// <summary>
+    /// One renderer for every model's turntable, made on the first and let go after the class's last: a GPU context and
+    /// the shaders compiled for each of thirty-odd models cost most of each one's time, and a renderer held past the class
+    /// keeps every texture on the GPU for the rest of the run, which the Linux CI runner hasn't the memory for (note 367).
+    /// A shot is the frame's whole state, so they share it.
+    /// </summary>
+    public sealed class TurntableRig : IDisposable
+    {
+        readonly Lock _lock = new();
+        GpuContext? _gpu;
+        GreyboxRenderer? _renderer;
+
+        public GreyboxRenderer Renderer()
+        {
+            lock (_lock)
+            {
+                if (_renderer is null)
+                {
+                    _gpu = Gpu();
+                    _renderer = new GreyboxRenderer(_gpu, W, H);
+                    Look.Dress(_renderer);
+                }
+                return _renderer;
+            }
+        }
+
+        public void Dispose()
+        {
+            _renderer?.Dispose();
+            _gpu?.Dispose();
+        }
+    }
+
+    /// <summary>
     /// One PNG per clip: three angles on the top row, three moments of the clip on the middle row, and the same thing
     /// walked back through the fog on the bottom (8, 15, 25 m), all lit by a single warm lantern near it.
     /// </summary>
@@ -1088,9 +1360,7 @@ public class CreatureArtTests
     public void Turntable(string name)
     {
         var m = Get(name);
-        using var gpu = Gpu();
-        using var renderer = new GreyboxRenderer(gpu, W, H);
-        Look.Dress(renderer);
+        var renderer = rig.Renderer();
         string dir = Path.Combine(Repo, "out", "shots", "creatures");
         Directory.CreateDirectory(dir);
         var b = Budgets[name];
@@ -1183,5 +1453,66 @@ public class CreatureArtTests
         lighting.LampIntensity = 0;
         lighting.LampPosition = new Double3(0, -100, 0);
         return renderer.Render(mesh, camera, lighting, lighting.FogColor);
+    }
+
+    /// <summary>
+    /// The train's own (notes 364, 365, 367; CreatureArt.Train): every mode of each plays a clip its model has, its one-shot
+    /// clips are the lengths the art times them by, the Brakeman's lash strikes on the sim's beat, the Knotter's body is laid
+    /// along a line as long as the curve it's given (sagging when longer than its gap, coiled round whoever slipped), Hotbox
+    /// knocks once a wheel turn; and none of them puts a part through another (capsules fitted to their own meshes).
+    /// </summary>
+    [Fact]
+    public void TheTrainsOwnPlayTheirClipsAndStayOutOfThemselves()
+    {
+        var bt = Art.BrakemanTuning;
+        var brakeman = Get("brakeman");
+        foreach (var mode in Enum.GetValues<BrakemanMode>())
+            foreach (var was in new BrakemanMode?[] { null, BrakemanMode.Walk })
+                foreach (double s in new[] { 0.1, 0.9, 3.0 })
+                    if (CreatureArt.BrakemanClip(mode, was, s, s, bt).Clip is { Length: > 0 } clip)
+                        Assert.Contains(clip, brakeman.ClipNames);
+        Assert.Equal(CreatureArt.BrakemanClimbSeconds, brakeman.Clip("climb")!.Duration, 2);
+        Assert.Equal(CreatureArt.BrakemanDropSeconds, brakeman.Clip("drop")!.Duration, 2);
+        Assert.Equal(CreatureArt.BrakemanLashSeconds, brakeman.Clip("lash")!.Duration, 2);
+        // The lash's strike on the bite (the telegraph's lashEvery), and hidden he's gone once he's down the side.
+        Assert.Equal(("lash", CreatureArt.BrakemanLashStrike, false), CreatureArt.BrakemanClip(BrakemanMode.Cornered, null, 9, bt.LashEvery, bt));
+        Assert.Equal("", CreatureArt.BrakemanClip(BrakemanMode.Hidden, BrakemanMode.Walk, 5, 5, bt).Clip);
+        Assert.Equal("drop", CreatureArt.BrakemanClip(BrakemanMode.Hidden, BrakemanMode.Flee, 0.4, 0.4, bt).Clip);
+
+        var knotter = Get("knotter");
+        foreach (var mode in Enum.GetValues<KnotterMode>())
+            foreach (double s in new[] { 0.1, 2.0 })
+                Assert.Contains(CreatureArt.KnotterClip(mode, s).Clip, knotter.ClipNames);
+        // Taut it's the gap's own length, straight; coming up under it, a U longer than the gap; coiled, round its catch.
+        static float Length(List<Vector3> c) => c.Zip(c.Skip(1), Vector3.Distance).Sum();
+        var taut = CreatureArt.KnotterCurve(KnotterMode.Taut, 5, CreatureArt.KnotterLength(KnotterMode.Taut, 5), null);
+        Assert.Equal(5 - 2 * CreatureArt.KnotterInset, Length(taut), 2);
+        Assert.All(taut, p => Assert.InRange(p.Y, -0.001f, 0.001f));
+        var creep = CreatureArt.KnotterCurve(KnotterMode.Creep, 1.5f, CreatureArt.KnotterLength(KnotterMode.Creep, 1.5f), null);
+        Assert.Equal(CreatureArt.KnotterCoiled, Length(creep), 1);
+        Assert.True(creep.Min(p => p.Y) < -0.6f, "it hangs down under the coupling");
+        var coil = CreatureArt.KnotterCurve(KnotterMode.Coil, 5, 4.8f, new Vector3(0, 0, 0.8f));
+        Assert.True(Length(coil) > 6, "coiled round them, it's longer than the gap");
+        Assert.True(coil.Any(p => p.Y > 0.6f && MathF.Abs(p.Z - 0.8f) < 0.4f), "it climbs them");
+
+        var ht = Art.HotboxTuning;
+        var hotbox = Get("hotbox");
+        foreach (var mode in Enum.GetValues<HotboxMode>())
+            foreach (double s in new[] { 0.1, 2.5, 6.0 })
+                foreach (float v in new[] { 0f, 12f })
+                    Assert.Contains(CreatureArt.HotboxClip(mode, s, s, v, ht).Clip, hotbox.ClipNames);
+        // Once a wheel turn: a second's knocking at 18 m/s is that many turns of its knock.
+        var (_, knocked, _, _) = CreatureArt.HotboxClip(HotboxMode.Knock, 1.0, 1.0, 18, ht);
+        Assert.Equal(18 / (Math.PI * ht.WheelDiameter) * CreatureArt.HotboxKnockSeconds, knocked, 3);
+        Assert.Equal(CreatureArt.HotboxKnockSeconds, hotbox.Clip("knock")!.Duration, 2);
+        // The belly brighter as it heats: knocking, glowing, seized.
+        float Glow(HotboxMode m) => CreatureArt.HotboxClip(m, 0, 0, 12, ht).Glow;
+        Assert.True(Glow(HotboxMode.Knock) < Glow(HotboxMode.Glow) && Glow(HotboxMode.Glow) < Glow(HotboxMode.Seized));
+
+        foreach (var name in new[] { "brakeman", "knotter", "hotbox" })
+        {
+            var through = Clearance.Mesh(Get(name)).Where(o => o.Depth > Clearance.Touching).ToList();
+            Assert.True(through.Count == 0, $"{name}: " + string.Join("; ", through.Select(o => $"{o.Clip} {o.Pair} {o.Depth:0.000} at {o.At:0.00} s")));
+        }
     }
 }

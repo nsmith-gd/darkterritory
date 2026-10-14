@@ -87,7 +87,7 @@ sealed partial class LineBuilder
         // 270: this copy of them had stayed at +18%); the validator reports the slack against ideal transit. Every line
         // being one length (route.json nightLengthKm), it's the same dawn every night.
         var dawn = _c.Route;
-        _dawn = (_terminus - _gate) / dawn.DawnAverageSpeed * (1 + dawn.DawnSlack);
+        _dawn = (_terminus - _gate) / dawn.DawnAverageSpeed * (1 + dawn.DawnSlack) + _facilities.Count * dawn.DawnPerFacilitySeconds;
         LayAuthority();
         Lap("authority");
         LaySignage();
@@ -214,6 +214,7 @@ sealed partial class LineBuilder
                     b => (IReadOnlyDictionary<string, double>)new SortedDictionary<string, double>(b.Value.Landform, StringComparer.Ordinal)), StringComparer.Ordinal),
                 BiomeRelief = new SortedDictionary<string, double>(_c.Config.Biomes.Biomes.ToDictionary(b => b.Key, b => b.Value.NoiseScale), StringComparer.Ordinal),
                 Boards = new SortedDictionary<string, BoardDef>(_c.Config.Signage.Boards, StringComparer.Ordinal),
+                Billboard = _c.Config.Signage.Billboard,
                 Footprints = new SortedDictionary<string, double[][][]>(_c.Config.Footprints.Pieces, StringComparer.Ordinal),
             },
             Validation = new PlanValidation

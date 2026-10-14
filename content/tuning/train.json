@@ -57,8 +57,14 @@
       "fireboxDepth": 0.7,
       "fireboxHeight": 1.05,
       // The running boards out past the body's sides (App. A.2 GREASE: "sanding from the running boards"), this wide, from
-      // the cab's doorways back along the boiler, and the sandbox on each this far behind the cab, over the drivers.
-      "runningBoardWidth": 0.6,
+      // this far ahead of the cab's doorways back along the boiler, and the sandbox on each this far behind the cab, over
+      // the drivers. Note 559 (the director, 9 Oct: "the platform on the outer edge of the train really should extend to be
+      // in front of the cab doors and extend a bit wider"): 0.6 m wide from partway across the doorway, now 0.85 m from a
+      // metre ahead of it, the cab steps hung off its outer edge. Its edge is 2.35 m off the centreline and the steps 2.5:
+      // inside the truss spans' posts and a bridge deck's edge (2.6, note 552), and over the girder spans' handrails and the
+      // viaducts' parapets, clear above them. Any wider and the steps' foot is off a bridge's deck.
+      "runningBoardWidth": 0.85,
+      "runningBoardAhead": 1.0,
       "sandboxBehind": 2.5
     },
     // Cars are walk-in (GDD §10: "the back door"; §26: warm interior, hostile exterior). The floor is
@@ -187,6 +193,29 @@
     "lampMendRate": 6
   },
 
+  // Damage with consequences, Sea of Thieves style (the director, 9 Oct 2026, ARCHITECTURE §8 note 576: "If players dont fix
+  // the ship in sea of thieves the ship goes down and you lose everything. If players dont fix the train here seemingly
+  // nothing happens"). Not in the spec. A car or the engine battered under `below` of its shell (fire, the line's knocks, a
+  // bend taken too hard, a collision, what boards it) works itself apart as it runs: `workPerSecond` of its shell a second
+  // at `atSpeed` m/s, by the speed (to `mostFactor` times it; nothing standing, the engine only while it pulls). A failing car
+  // spills `spillPerSecond` of a load a second the same way (a full one's empty in about 200 s at line speed). Under
+  // `breakingBelow`, the last warning. At nothing a car comes apart: it's off its rails and the train's parted ahead of it, it
+  // and what's behind it left on the line; the engine breaks down (no power) and, at a stand, the night ends stranded
+  // (GDD §23.2). Failing, the engine's pull falls from all of it to `powerAtBreak` and its brake to `brakeAtBreak` (kept
+  // broken down, to stop on). From `below` to nothing is about 200 s at line speed. The wrench at its dent mends it (repair
+  // `integrityPerSecond`: 0.5 back in 12.5 s).
+  "failing": {
+    "enabled": true,
+    "below": 0.5,
+    "breakingBelow": 0.2,
+    "workPerSecond": 0.0025,
+    "spillPerSecond": 0.005,
+    "atSpeed": 15,
+    "mostFactor": 1.5,
+    "powerAtBreak": 0.35,
+    "brakeAtBreak": 0.4
+  },
+
   "speedBands": {
     "yard": 2.5,
     "jumpOffLethal": 4.0,
@@ -200,6 +229,14 @@
   // Line Plan §12.6 (note 181): a body or a repair kit at rest further than corridorM from the track, or more than dropM below
   // the rails (off a bridge, into a ravine), is put back on the formation's edge, edgeM out, the side it went off.
   "recovery": { "corridorM": 40, "dropM": 15, "edgeM": 3.5 },
+  // A branch's buffer stop run into (note 661; not in the spec: GDD App. A.7's "a hit short of the lead is the buffer stop's
+  // damage alone"). Over safeSpeed (m/s; the yard's 2.5, a crawl up to the stop) the front vehicle takes
+  // (speed - safeSpeed)^2 x damagePerSpeedSquared of its shell, and the cargo couplings.cargoDamageShare of that. It was the
+  // collision's (from 1 m/s, 0.06: 5 m/s took 0.96 of the engine, 5.3 m/s all of it), and the director's run into Voss
+  // Green's broke the engine down at the stop and stranded the night (13 Oct). Now 5 m/s is 0.125 and a dead line's
+  // 25 km/h (overspeed.deadEndDerailAbove) 0.39: a dent the wrench mends, short of failing (failing.below).
+  "bufferStop": { "safeSpeed": 2.5, "damagePerSpeedSquared": 0.02 },
+
   // A bend taken too fast (ARCHITECTURE §8 note 265; build 1121: "we'll want to telegraph using sound design that the train
   // is going under stress and it's getting close to derailment"). Linegen plan §8.5's numbers stand: a bend derails above
   // √(aDerail R) and is boarded at √(aPost R) (linegen/tiers.json "curves"). What's here is how it's told and when it may
@@ -264,8 +301,9 @@
   // Note 267 (the director's notes on build 1121): Use works the thing looked at. Where several are in reach (a row of
   // lockers a hand wide; the firebox, the vent, the tool rack and the whistle cord in the cab), the one within
   // lookDegrees of the view's centre, taken from eyeHeight over the feet, wins; none looked at, the nearest, as before.
-  // The whistle cord is only ever pulled looked at.
-  "pick": { "eyeHeight": 1.6, "lookDegrees": 30 },
+  // The whistle cord is only ever pulled looked at. Crouched (note 664), from crouchedEyeHeight: eyeHeight less player.json's
+  // crouch.eyeDrop.
+  "pick": { "eyeHeight": 1.6, "lookDegrees": 30, "crouchedEyeHeight": 1.05 },
   "kit": {
     "radios": 2,
     // Note 266 (build 1121, solo: "there's no lanterns. The lights are completely off"): the forward lamp a Climber smashed
@@ -308,10 +346,12 @@
       "names": ["1", "2", "3", "4", "5", "6", "7", "8", "9", "10", "11", "12"],
       // The repair kit's locker. Spare kits go on its other shelf, then into the lockers after it.
       "kitLocker": "8",
-      // Shelves in each: the locker's floor, and one at chest height.
-      "slots": 2,
-      // What goes in: hand-sized things. Freight, the train's crates, the heavy, the dead and the living don't.
-      "holds": ["lamp", "radio", "toy", "loot", "extinguisher", "repairKit"],
+      // Shelves in each: the locker's floor, and three more up to a hand under its top, about 0.4 m apart (note 659; the director,
+      // 13 Oct: "we really should be able to put multiple things in lockers": two filled one with tinned food).
+      "slots": 4,
+      // What goes in: hand-sized things, and a tool left to free its slot (note 649). Freight, the train's crates, the heavy,
+      // the dead and the living don't.
+      "holds": ["lamp", "radio", "toy", "loot", "extinguisher", "repairKit", "tool"],
       // Each locker's size (m): along the row, out from the wall, and tall. The row starts this far behind the front end
       // wall (the car's extinguisher board goes in the gap) and stops short of the side door.
       "width": 0.42,

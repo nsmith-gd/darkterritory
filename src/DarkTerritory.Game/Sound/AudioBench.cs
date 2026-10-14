@@ -16,12 +16,21 @@ public sealed record TellLevel(string Sound, double BandLow, double BandHigh, do
 /// <summary>One tell's worst margin over the bed among the listeners who have to hear it.</summary>
 public sealed record TellAudit(string Sound, string WorstListener, double WorstOverBedDb, double WorstOverAllDb);
 
+/// <summary>
+/// How a footstep reads over the train where it's walked (note 667; the director, 13 Oct: "The sound on the floor is still a
+/// little odd"): its attack (the loudest blocks of each step, within 10 dB of its loudest) against everything else in the
+/// same blocks, in one band. The body is the weight and the floor's knock, the crack the heel and the surface's own grain:
+/// a step whose crack is under the bed is a thud with no surface to it.
+/// </summary>
+public sealed record StepLevel(string Sound, string Band, double BandLow, double BandHigh, double StepDb, double OverBedDb);
+
 public sealed record AudioSweep(string Scenario, int Cars, double Speed, IReadOnlyList<TellAudit> Audit, IReadOnlyList<AudioBenchReport> Listeners);
 
 /// <param name="Space">The space the listener heard it in (content/audio/spaces.json).</param>
 /// <param name="MixMsPerSecond">The mixer's CPU time per second of audio rendered, reverb and all (wall clock, so a guide).</param>
 public sealed record AudioBenchReport(string Scenario, int Cars, double Speed, string Listener, double Seconds, double MixDb, int PeakVoices,
-    IReadOnlyList<TellLevel> Tells, IReadOnlyDictionary<string, double> StemsDb, string Space = "outside", double MixMsPerSecond = 0, MusicReport? Music = null);
+    IReadOnlyList<TellLevel> Tells, IReadOnlyDictionary<string, double> StemsDb, string Space = "outside", double MixMsPerSecond = 0, MusicReport? Music = null,
+    IReadOnlyList<StepLevel>? Steps = null);
 
 /// <summary>One second of a bend render: how hard the bend pulls, whether the cab's warning is up, each stress sound's level.</summary>
 /// <param name="Stress">The most the bend pulled in this second (note 265: 0 at its board's speed, 1 at its derailing speed).</param>
@@ -109,7 +118,7 @@ public static class AudioBench
         {
             var heard = listeners.Zip(reports).Where(x => MustHear(sound, x.First, cars))
                 .Select(x => (x.Second.Listener, Level: x.Second.Tells.FirstOrDefault(t => t.Sound == sound))).ToList();
-            if (heard.Count == 0 || heard.All(h => h.Level is null) && scenario == "bed")
+            if (heard.Count == 0 || heard.All(h => h.Level is null) && scenario is "bed" or "feet")
                 continue;
             var worst = heard.MinBy(h => h.Level?.OverBedDb ?? double.NegativeInfinity);
             audit.Add(new TellAudit(sound, worst.Listener, worst.Level?.OverBedDb ?? double.NegativeInfinity, worst.Level?.OverAllDb ?? double.NegativeInfinity));
@@ -118,8 +127,9 @@ public static class AudioBench
     }
 
     /// <param name="scenario">"bed" (train only), "tells" (quiet train, every demo tell), "chaos" (everything at once) or
-    /// "wreck" (the train derails, heard from beside the line), "toys" (the noisy toys carried on the listener's roof).</param>
-    /// <param name="listenerCar">0 = in the cab; otherwise on that car's roof.</param>
+    /// "wreck" (the train derails, heard from beside the line), "toys" (the noisy toys carried on the listener's roof), "feet"
+    /// (the crew walking: <see cref="FeetAt"/>).</param>
+    /// <param name="listenerCar">0 = in the cab; otherwise on that car's roof (in "feet", inside it, or the last beside it).</param>
     /// <param name="space">Hear it all as if in this space (content/audio/spaces.json); null, where the listener is.</param>
     /// <param name="track">"wreck": the music track to play (a manifest id); null, the host's draw from a fresh bag.</param>
     public static (AudioBenchReport Report, float[] Mix) Render(string content, string scenario = "chaos", int cars = 20, double speed = 22,
@@ -157,6 +167,15 @@ public static class AudioBench
                 toy.Carrier = i + 1;
             }
         }
+        // "feet" (note 667): your own steps and a crewmate's a stride behind, walking, on what's under each, over the train.
+        bool feet = scenario == "feet";
+        // The sweep's last listener (cars - 1) stands beside its car on the ground, the train at a stop, where the crew walk
+        // the ballast.
+        int lastCar = Math.Min(cars - 1, train.Frames.Count - 1);
+        if (feet && listenerCar >= lastCar)
+            train.Dynamics.Velocity = speed = 0;
+        double groundHint = train.Dynamics.Distance;
+        Double3? groundAt = null;
         Double3? trackside = null;
         // E.6: the host's draw, from a fresh bag (or the one track asked for), and the dead channel laughing over the replay.
         var wreckTuning = world.WreckTuning;
@@ -225,10 +244,18 @@ public static class AudioBench
                     train.Dynamics.Velocity = speed; // hold the moment still in speed
                 if (chaos)
                     train.Boiler.SafetyValveLifting = true;
-                var player = listenerCar == 0 ? PlayerMotor.SpawnInCab(train, playerTuning) : PlayerMotor.SpawnOnRoof(train, listenerCar, 0, playerTuning);
-                var frame = train.Frames[player.Parent];
-                var ear = trackside ?? frame.ToWorld(player.Position + Double3.Up * 1.65);
-                audio.Update(world, controls, Listener.At(ear, frame.Heading + player.Yaw), exposed: listenerCar != 0 || trackside is not null, SimConstants.TickSeconds);
+                var player = feet ? FeetAt(train, listenerCar, lastCar, playerTuning, ref groundAt, ref groundHint)
+                    : listenerCar == 0 ? PlayerMotor.SpawnInCab(train, playerTuning) : PlayerMotor.SpawnOnRoof(train, listenerCar, 0, playerTuning);
+                var frame = train.Frames[player.Parent == PlayerState.World ? lastCar : player.Parent];
+                var feetAt = player.Parent == PlayerState.World ? player.Position : frame.ToWorld(player.Position);
+                var ear = trackside ?? feetAt + Double3.Up * 1.65;
+                if (feet)
+                    audio.Update(world, controls, Listener.At(ear, frame.Heading + player.Yaw), exposed: player.Parent == PlayerState.World, SimConstants.TickSeconds,
+                        PlayerMotor.Space(player, train));
+                else
+                    audio.Update(world, controls, Listener.At(ear, frame.Heading + player.Yaw), exposed: listenerCar != 0 || trackside is not null, SimConstants.TickSeconds);
+                if (feet)
+                    Walk(audio, train, player, feetAt, simClock);
                 if (single is not null && !started && simClock >= 0.25)
                 {
                     audio.Play(single, ear + frame.Right * 6);
@@ -283,7 +310,28 @@ public static class AudioBench
                 levels.Add(new TellLevel(name, band.Low, band.High, Math.Round(tellDb, 1), Math.Round(overBed, 1), Math.Round(overAll, 1), Math.Round(sounding, 2)));
         }
         var stems = tap.Stems.ToDictionary(kv => kv.Key, kv => Math.Round(Meter.Db(kv.Value.AsSpan(skip)), 1));
-        string where = listenerCar == 0 ? "cab" : $"roof of car {listenerCar}";
+        string where = feet ? listenerCar == 0 ? "cab" : listenerCar == lastCar ? $"ground beside car {listenerCar}" : $"inside car {listenerCar}"
+            : listenerCar == 0 ? "cab" : $"roof of car {listenerCar}";
+        List<StepLevel>? steps = null;
+        if (feet)
+        {
+            steps = [];
+            // Over the bed: every other stem, the room's return with them. Summed, not the total less the steps: the steps
+            // are tier 4, on the tape, whose delay the total has and the stems don't (so the total less a step leaves it).
+            var walked = tap.Stems.Keys.Where(k => k.StartsWith("crew-footsteps.", StringComparison.Ordinal)).Order(StringComparer.Ordinal).ToList();
+            var rest = new float[tap.Total.Length];
+            foreach (var (name, other) in tap.Stems)
+                if (!name.StartsWith("crew-footsteps.", StringComparison.Ordinal) && name != Mixer.TellReverbStem)
+                    for (int i = 0; i < rest.Length; i++)
+                        rest[i] += other[i];
+            foreach (var name in walked)
+            {
+                var stem = tap.Stems[name];
+                foreach (var (band, range) in StepBands)
+                    if (StepContrast(stem.AsSpan(skip), rest.AsSpan(skip), range) is { } c)
+                        steps.Add(new StepLevel(name, band, range.Low, range.High, Math.Round(c.StepDb, 1), Math.Round(c.OverDb, 1)));
+            }
+        }
         MusicReport? music = null;
         if (wreck && audio.Opera.Manifest.ByKey(world.DerailMusic) is { } drawn && tap.Stems.TryGetValue(Opera.Sound, out var score))
         {
@@ -295,7 +343,93 @@ public static class AudioBench
                 Math.Round(derailedAt + voice.To, 2), Math.Round(lowpass, 2), Math.Round(fadedBy, 2));
         }
         return (new AudioBenchReport(scenario, cars, speed, where, seconds, Math.Round(Meter.Db(mix.AsSpan(skip)), 1), peak, levels, stems, audio.Space,
-            Math.Round(mixing / Math.Max(1e-9, blocks * blockSeconds), 2), music), mix);
+            Math.Round(mixing / Math.Max(1e-9, blocks * blockSeconds), 2), music, steps), mix);
+    }
+
+    /// <summary>A footstep's two bands (<see cref="StepLevel"/>): its weight and the floor's knock, and its heel's crack and grain.</summary>
+    public static readonly (string Band, (double Low, double High) Range)[] StepBands = [("body", (150, 1000)), ("crack", (1000, 6000))];
+
+    /// <summary>The walk's stride: a step every so often, yours and then a crewmate's half a stride behind.</summary>
+    const double Stride = 0.55;
+
+    /// <summary>
+    /// Where "feet" stands its listener: in the cab (0) on its boards; inside car n on its floor with the doors shut (an
+    /// engine or a car with no room in it, on its roof); the last listener (<paramref name="last"/>) on the ballast 2.5 m off
+    /// that car's side, the train stopped.
+    /// </summary>
+    public static PlayerState FeetAt(TrainOnLine train, int listenerCar, int last, PlayerTuning tuning, ref Double3? groundAt, ref double hint)
+    {
+        if (listenerCar <= 0)
+            return PlayerMotor.SpawnInCab(train, tuning);
+        if (listenerCar >= last)
+        {
+            var f = train.Frames[last];
+            groundAt ??= f.ToWorld(new Double3(f.Shape.HalfWidth + 2.5, 0, 0));
+            return PlayerMotor.SpawnOnGround(groundAt.Value, train.Line, hint, tuning);
+        }
+        if (train.Frames[listenerCar].Shape.Interior is not { } room)
+            return PlayerMotor.SpawnOnRoof(train, listenerCar, 0, tuning);
+        return new PlayerState { Parent = listenerCar, Position = room.Centre with { Y = room.Min.Y }, Surface = Surface.Deck, Health = tuning.Health };
+    }
+
+    /// <summary>
+    /// One tick of the walk: on the stride, your step at your feet on what's under them (in the cab, its boards, the
+    /// shovelling plate and the gangway's grate two seconds each); half a stride on, a crewmate's: beside you in the cab and
+    /// on the ground, on the roof over you inside a car.
+    /// </summary>
+    static void Walk(GameAudio audio, TrainOnLine train, in PlayerState you, Double3 feet, double now)
+    {
+        bool yours = Crossed(now, 0), theirs = Crossed(now, Stride / 2);
+        if (!yours && !theirs)
+            return;
+        string mat;
+        Double3 at;
+        if (you.Parent == PlayerState.World)
+        {
+            mat = "ballast";
+            at = feet + (theirs ? train.Frames[^1].Back * -2.5 : Double3.Zero);
+        }
+        else if (you.Parent == 0)
+        {
+            mat = ((int)(now / 2) % 3) switch { 0 => "wood", 1 => "plate", _ => "grate" };
+            at = feet + (theirs ? train.Frames[0].Right * 0.8 : Double3.Zero);
+        }
+        else
+        {
+            var frame = train.Frames[you.Parent];
+            mat = theirs ? "roof" : Footing.OnCar(train, you.Parent, you.Position);
+            at = theirs ? frame.ToWorld(you.Position with { Y = frame.Shape.RoofHeight }) : feet;
+        }
+        audio.Play($"crew-footsteps.walk.{mat}", at);
+    }
+
+    static bool Crossed(double now, double offset) =>
+        Math.Floor((now - offset) / Stride) != Math.Floor((now - offset - SimConstants.TickSeconds) / Stride) && now - offset >= 0.6;
+
+    /// <summary>A step's attack over the rest, in a band: the step's loudest blocks (within 10 dB of its loudest) and the rest in them.</summary>
+    static (double StepDb, double OverDb)? StepContrast(ReadOnlySpan<float> step, ReadOnlySpan<float> rest, (double Low, double High) band)
+    {
+        Biquad[] sl = Band(band), sr = Band(band), rl = Band(band), rr = Band(band);
+        int frames = step.Length / 2;
+        var blocks = new List<(double Step, double Others)>();
+        for (int start = 0; start + Audio.Block <= frames; start += Audio.Block)
+        {
+            double se = 0, re = 0;
+            for (int i = start; i < start + Audio.Block; i++)
+            {
+                float a = Filter(sl, step[i * 2]), b = Filter(sr, step[i * 2 + 1]);
+                float c = Filter(rl, rest[i * 2]), d = Filter(rr, rest[i * 2 + 1]);
+                se += 0.5 * (a * a + b * b);
+                re += 0.5 * (c * c + d * d);
+            }
+            blocks.Add((se, re));
+        }
+        double loudest = blocks.Count == 0 ? 0 : blocks.Max(b => b.Step);
+        if (loudest / Audio.Block < 1e-9)
+            return null;
+        var attack = blocks.Where(b => b.Step >= loudest * 0.1).ToList();
+        double stepEnergy = attack.Sum(b => b.Step), restEnergy = Math.Max(attack.Sum(b => b.Others), 1e-20);
+        return (10 * Math.Log10(stepEnergy / (attack.Count * Audio.Block)), 10 * Math.Log10(stepEnergy / restEnergy));
     }
 
     /// <summary>The bend's telegraph (note 265), in the order it builds: the sounds <see cref="RenderBend"/> follows.</summary>
@@ -307,9 +441,10 @@ public static class AudioBench
     /// <paramref name="route"/> that can derail it at the bend's board, then its speed taken up steadily to a tenth over what
     /// derails it and held there till it comes off. The telegraph plays out in its order (the flanges squealing, the frames
     /// creaking faster, the slack's lurch down the train, the scream, the cab's bell), then the derailment. Heard from the cab
-    /// (<paramref name="listenerCar"/> 0) or a roof; each stress sound's level a second at a time.
+    /// (<paramref name="listenerCar"/> 0) or a roof; each stress sound's level a second at a time. deepTerritory:5 by default:
+    /// on the 7 km nights of note 554 deepTerritory:2's first such bend comes on so tight the squeal and the scream start together.
     /// </summary>
-    public static (BendRender Report, float[] Mix) RenderBend(string content, string route = "deepTerritory:2", int cars = 6, int listenerCar = 0,
+    public static (BendRender Report, float[] Mix) RenderBend(string content, string route = "deepTerritory:5", int cars = 6, int listenerCar = 0,
         double seconds = 16, double rampSeconds = 8)
     {
         var session = Staging.BendWarning(content, Sim.LineGen.Routes.Generate(content, route, cars), cars, seconds: 2);

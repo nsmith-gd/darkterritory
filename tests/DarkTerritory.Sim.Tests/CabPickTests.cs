@@ -121,6 +121,24 @@ public class CabPickTests
     }
 
     [Fact]
+    public void HeldAtTheFireboxUseIsTheStrugglesAndNoCoalGoesIn()
+    {
+        // App. C.1 (the director, 13 Oct, App. F.5: "struggle is hold e and when next to the firebox it will also shovel coal
+        // into the firebox, we need input prioritization"; note 681): while something has hold of you, Use takes nothing else.
+        var world = World();
+        var firebox = Thing(world, InteractableKind.Firebox);
+        var s = Looking(world, firebox.Position + new Double3(0, 0, -0.45), firebox);
+        s.Flags |= PlayerFlags.Held;
+        double tender = world.Train.Boiler.Tender;
+        Hold(world, ref s, 2 * Tuning.Boiler.ShovelSeconds + 0.1, new PlayerIntent { Buttons = PlayerButtons.Use });
+        Assert.Equal(tender, world.Train.Boiler.Tender);
+        // Let go, the same hold shovels.
+        s.Flags &= ~PlayerFlags.Held;
+        Hold(world, ref s, 2 * Tuning.Boiler.ShovelSeconds + 0.1, new PlayerIntent { Buttons = PlayerButtons.Use });
+        Assert.True(world.Train.Boiler.Tender < tender);
+    }
+
+    [Fact]
     public void TheWhistlersWhistleHasNoHandOnTheCord()
     {
         // GDD App. A.4: "the whistle sounds with no hand on the cord". It blows in nobody's name, which is how the HUD tells

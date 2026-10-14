@@ -125,7 +125,8 @@ public class HitConfirmTests
     [
         EnemyKind.CinderHound, EnemyKind.Switchman, EnemyKind.SootChildren, EnemyKind.Dragger, EnemyKind.Stoker, EnemyKind.Climber,
         EnemyKind.Gaunt, EnemyKind.Passenger, EnemyKind.Follower, EnemyKind.TrackDoll, EnemyKind.CarHugger, EnemyKind.Whistler,
-        EnemyKind.TippyToesie, EnemyKind.FireFlies, EnemyKind.Ribbit, EnemyKind.Grumbler, EnemyKind.Choir, EnemyKind.Moose, EnemyKind.Gannet,
+        EnemyKind.TippyToesie, EnemyKind.FireFlies, EnemyKind.Ribbit, EnemyKind.Grumbler, EnemyKind.Choir, EnemyKind.Moose, EnemyKind.Gannet, EnemyKind.Mourners, EnemyKind.TowerJaw, EnemyKind.FreightBeetle, EnemyKind.Brakeman, EnemyKind.Hotbox, EnemyKind.Knotter,
+        EnemyKind.Pickers, EnemyKind.Lodger, EnemyKind.Householder, EnemyKind.Hanger,
     ];
 
     static Enemy Make(EnemyKind kind, int id) => kind switch
@@ -149,6 +150,16 @@ public class HitConfirmTests
         EnemyKind.Choir => new ChoirGhost(id),
         EnemyKind.Moose => new Moose(id),
         EnemyKind.Gannet => new Gannet(id),
+        EnemyKind.Mourners => new Mourner(id),
+        EnemyKind.TowerJaw => new TowerJaw(id),
+        EnemyKind.FreightBeetle => new FreightBeetle(id),
+        EnemyKind.Brakeman => new Brakeman(id),
+        EnemyKind.Hotbox => new Hotbox(id),
+        EnemyKind.Knotter => new Knotter(id),
+        EnemyKind.Pickers => new Picker(id),
+        EnemyKind.Lodger => new Lodger(id),
+        EnemyKind.Householder => new Householder(id),
+        EnemyKind.Hanger => new Hanger(id),
         _ => throw new ArgumentException($"{kind} isn't a creature"),
     };
 
@@ -156,9 +167,24 @@ public class HitConfirmTests
     public void TheCreatureListIsTheWholeRosterBarTheHazardsAndFire()
     {
         // A kind added to the roster has to come here too, with a way to be struck.
-        var all = Enum.GetValues<EnemyKind>().Except([EnemyKind.Sleepers, EnemyKind.Drift, EnemyKind.CarFire]);
+        // (Dave and Jacob aren't creatures: DaveTests strikes Dave, notes 570, 572. The Wakers are the day's, nothing a crew
+        // can strike: note 588. The Hollow House is a house, and no blow lands on it, note 585.)
+        var all = Enum.GetValues<EnemyKind>().Except([EnemyKind.Sleepers, EnemyKind.Drift, EnemyKind.CarFire, EnemyKind.Dave, EnemyKind.Jacob, EnemyKind.Waker, EnemyKind.HollowHouse]);
         Assert.Equal(all.OrderBy(k => k), Creatures.OrderBy(k => k));
     }
+
+    /// <summary>
+    /// The height a creature's staged at, for those whose height is their mode: a Gannet <paramref name="gannet"/>, Hotbox half
+    /// out of its truck, the Brakeman cornered (where each can be struck).
+    /// </summary>
+    static double Stance(EnemyKind kind, GannetMode gannet) => kind switch
+    {
+        EnemyKind.Gannet => (double)gannet,
+        EnemyKind.Hotbox => (double)HotboxMode.Unfolded,
+        EnemyKind.Brakeman => (double)BrakemanMode.Cornered,
+        EnemyKind.Knotter => (double)KnotterMode.Slack,
+        _ => 0,
+    };
 
     /// <summary>
     /// A creature where a blow can land on it (App. C.2): on car 2's roof, a pace and a half in front of a crewmate there,
@@ -184,7 +210,7 @@ public class HitConfirmTests
         {
             var made = Make(kind, id);
             // (A Gannet's height is its mode: down in the planks, stuck, where a blow can land.)
-            made.Restore(phase, 0.5, 5, car, s.Position + new Double3(0, 0, -1.5), 0, 0, kind == EnemyKind.Gannet ? (double)GannetMode.Stuck : 0, extra, extra2);
+            made.Restore(phase, 0.5, 5, car, s.Position + new Double3(0, 0, -1.5), 0, 0, Stance(kind, GannetMode.Stuck), extra, extra2);
             return made;
         });
         return (n, e);
@@ -209,6 +235,57 @@ public class HitConfirmTests
         var mirrored = Assert.Single(client.Hits);
         Assert.Equal((hit.Id, hit.Tick, hit.EnemyId, hit.Kind, hit.By, hit.Source, hit.Killed), (mirrored.Id, mirrored.Tick, mirrored.EnemyId, mirrored.Kind, mirrored.By, mirrored.Source, mirrored.Killed));
         Assert.InRange((mirrored.At - hit.At).Length, 0, 1e-3);
+    }
+
+    [Fact]
+    public void AGannetStruckIntoGivingUpIsntConfirmedKilled()
+    {
+        // Note 458 (D1): under giveUpBelow, it leaves for the run (Gannet.Struck): gone, not dead. No kill confirm (its sound,
+        // the HUD's red mark), and the scene has it fly off rather than fall.
+        var (n, e) = Staged(EnemyKind.Gannet);
+        e.Restore(e.Phase, e.PhaseSeconds, E.Gannet.GiveUpBelow + 0.5, e.Attached, e.Local, e.LineDistance, e.Lateral, e.Height, e.Extra, e.Extra2);
+        n.Run(1.0 / SimConstants.TickRate, id => new PlayerIntent { Actions = PlayerActions.Swing });
+        var hit = Assert.Single(n.World.Hits);
+        Assert.True(e.Gone && e.Health > 0, $"gone {e.Gone} at {e.Health}");
+        Assert.False(hit.Killed);
+    }
+
+    [Fact]
+    public void AGannetStruckDeadIsConfirmedKilled()
+    {
+        var (n, e) = Staged(EnemyKind.Gannet);
+        e.Restore(e.Phase, e.PhaseSeconds, 0.5, e.Attached, e.Local, e.LineDistance, e.Lateral, e.Height, e.Extra, e.Extra2);
+        n.Run(1.0 / SimConstants.TickRate, id => new PlayerIntent { Actions = PlayerActions.Swing });
+        Assert.True(Assert.Single(n.World.Hits).Killed);
+    }
+
+    [Fact]
+    public void AWhistlerClubbedOffWhoItCarriesIsntConfirmedKilled()
+    {
+        // Note 458: a friend's blow on the Whistler carrying someone off (App. A.4) drops them, and it runs: gone, not dead.
+        var (n, e) = Staged(EnemyKind.Whistler);
+        n.Crew[2] = PlayerMotor.SpawnOnRoof(n.Train, 2, 2, P);
+        e.Restore(SpinePhase.Grab, 0.5, 5, e.Attached, e.Local, e.LineDistance, e.Lateral, e.Height, e.Extra, e.Extra2, holding: 2);
+        n.Run(1.0 / SimConstants.TickRate, id => id == 1 ? new PlayerIntent { Actions = PlayerActions.Swing } : default);
+        var hit = Assert.Single(n.World.Hits);
+        Assert.True(e.Gone && e.Health > 0, $"gone {e.Gone} at {e.Health}");
+        Assert.False(hit.Killed);
+    }
+
+    [Fact]
+    public void AClimberKnockedOffOnItsLastTryIsGoneButNotDead()
+    {
+        // Note 458: a ball that doesn't kill it knocks it off (Climber.Hit, note 288), and with no gap left to try it's gone for
+        // the night, alive: World.Confirm's Killed is dead only, so no kill confirm for it. (A one-gap train: none left.)
+        var n = new Night(2, speed: 0);
+        int car = n.Train.Dynamics.Consist.Vehicles[^1].Id;
+        Assert.Single(Climber.Gaps(n.Train));
+        var climber = n.World.AddEnemy(id => new Climber(id));
+        climber.Restore(SpinePhase.Commit, 1, 3, car, new Double3(0, n.Train.Frames[car].Shape.RoofHeight, 0), 0, 0, 0, Climber.Gaps(n.Train)[0], 1);
+        Assert.True(climber.Exposed);
+        var ctx = new EnemyContext { Tuning = E, World = n.World };
+        climber.Hit(ctx, 1, 1);
+        Assert.True(climber.Gone && climber.Health > 0, $"gone {climber.Gone} at {climber.Health}");
     }
 
     public static TheoryData<EnemyKind> CreatureKinds() => [.. Creatures];
@@ -271,7 +348,7 @@ public class HitConfirmTests
         {
             var made = Make(kind, id);
             // (A Gannet's height is its mode: in the air, soaring.)
-            made.Restore(phase, 0.5, health, -1, default, n.Train.Dynamics.Distance + 64, 0, kind == EnemyKind.Gannet ? (double)GannetMode.Soar : 0, extra, extra2);
+            made.Restore(phase, 0.5, health, -1, default, n.Train.Dynamics.Distance + 64, 0, Stance(kind, GannetMode.Soar), extra, extra2);
             return made;
         });
     }

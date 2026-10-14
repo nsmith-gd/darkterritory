@@ -1,34 +1,100 @@
 // Lineside boards and posts (plan §9.5, the §18 signage kit). All reflective in the lamp. text: what it reads, with
-// {value} for a number and {name} for a name; heightM up its post, widthM across; visibleM: how far the lamp picks it
-// out (the fog caps it anyway).
+// {value} for a number and {name} for a name; visibleM: how far the lamp picks it out (the fog caps it anyway), and the
+// approach its sight line is kept clear over. Note 560 (the director, 9 Oct: "I cannot read any of the signs with words
+// on the rail, they need to be massive like billboards"): a board is lettered letterM tall (a capital's height, in the
+// HUD's 5x7 pixel font), at most lineChars to a line, and its face is as big as its words want, never under widthM
+// across; its bottom edge stands heightM over the rail (or billboard.overGroundM over the land, if that's higher). A
+// tunnel plate is lettered as big as fits widthM across its portal, its top heightM up. warns: it warns of what's ahead,
+// so it's only ever moved back toward the train (billboard). From the cab (the eye's 75 degrees, at 1280x720) a name's
+// capitals of 2.8 m are made out by 250 m and read from 150 m on; a speed's figures of 3.2 m from 250 m.
 {
   "boards": {
-    "kmPost":        { "text": "{value}",       "heightM": 1.4, "widthM": 0.45, "visibleM": 120, "reflective": true },
-    "minorPost":     { "text": "{value}",       "heightM": 1.0, "widthM": 0.3,  "visibleM": 80,  "reflective": true },
-    "speedBoard":    { "text": "{value}",       "heightM": 2.4, "widthM": 0.8,  "visibleM": 250, "reflective": true },
-    "resumeBoard":   { "text": "{value}",       "heightM": 2.4, "widthM": 0.8,  "visibleM": 250, "reflective": true },
-    "restricted":    { "text": "R",             "heightM": 2.4, "widthM": 0.8,  "visibleM": 250, "reflective": true },
-    "endRestricted": { "text": "END R",         "heightM": 2.4, "widthM": 1.0,  "visibleM": 250, "reflective": true },
-    "gradientPost":  { "text": "{value}",       "heightM": 1.8, "widthM": 1.2,  "visibleM": 150, "reflective": true },
-    "whistle":       { "text": "W",             "heightM": 1.8, "widthM": 0.6,  "visibleM": 200, "reflective": true },
-    "junction":      { "text": "{name} {value}", "heightM": 2.6, "widthM": 1.6, "visibleM": 250, "reflective": true },
-    "facility":      { "text": "{name} {value}", "heightM": 2.6, "widthM": 2.0, "visibleM": 250, "reflective": true },
-    "bridge":        { "text": "{name}",        "heightM": 2.2, "widthM": 1.6,  "visibleM": 200, "reflective": true },
-    "bridgeLimit":   { "text": "MAX {value} CARS", "heightM": 2.4, "widthM": 1.8, "visibleM": 250, "reflective": true },
+    "kmPost":        { "text": "{value}",          "heightM": 0.8,  "widthM": 1.2, "visibleM": 150, "reflective": true, "letterM": 1.4,  "lineChars": 6, "warns": false, "side": 1, "fixed": true, "overGroundM": 0.5, "signSide": false },
+    "minorPost":     { "text": "{value}",          "heightM": 0.8,  "widthM": 0.9, "visibleM": 110, "reflective": true, "letterM": 1.0,  "lineChars": 6, "warns": false, "side": 1, "fixed": true, "overGroundM": 0.5, "signSide": false },
+    "speedBoard":    { "text": "{value}",          "heightM": 3.5,  "widthM": 5,   "visibleM": 300, "reflective": true, "letterM": 3.2,  "lineChars": 4, "warns": true, "side": 0, "fixed": false, "overGroundM": 0, "signSide": false },
+    "resumeBoard":   { "text": "{value}",          "heightM": 3.5,  "widthM": 5,   "visibleM": 300, "reflective": true, "letterM": 3.2,  "lineChars": 4, "warns": false, "side": 0, "fixed": false, "overGroundM": 0, "signSide": false },
+    "restricted":    { "text": "R",                "heightM": 3.5,  "widthM": 5,   "visibleM": 300, "reflective": true, "letterM": 3.2,  "lineChars": 6, "warns": true, "side": 0, "fixed": false, "overGroundM": 0, "signSide": false },
+    "endRestricted": { "text": "END R",            "heightM": 3.5,  "widthM": 5,   "visibleM": 300, "reflective": true, "letterM": 2.8,  "lineChars": 6, "warns": false, "side": 0, "fixed": false, "overGroundM": 0, "signSide": false },
+    "gradientPost":  { "text": "{value}",          "heightM": 3.0,  "widthM": 3,   "visibleM": 200, "reflective": true, "letterM": 1.8,  "lineChars": 7, "warns": false, "side": 0, "fixed": false, "overGroundM": 0, "signSide": false },
+    "whistle":       { "text": "W",                "heightM": 3.5,  "widthM": 4,   "visibleM": 250, "reflective": true, "letterM": 3.2,  "lineChars": 4, "warns": true, "side": 0, "fixed": false, "overGroundM": 0, "signSide": false },
+    "junction":      { "text": "{name} {value}",   "heightM": 3.5,  "widthM": 6,   "visibleM": 300, "reflective": true, "letterM": 2.8,  "lineChars": 8, "warns": false, "side": 0, "fixed": false, "overGroundM": 0, "signSide": false },
+    "facility":      { "text": "{name} {value}",   "heightM": 3.5,  "widthM": 6,   "visibleM": 300, "reflective": true, "letterM": 2.8,  "lineChars": 8, "warns": false, "side": 0, "fixed": false, "overGroundM": 0, "signSide": false },
+    "bridge":        { "text": "{name}",           "heightM": 3.5,  "widthM": 6,   "visibleM": 250, "reflective": true, "letterM": 2.4,  "lineChars": 8, "warns": true, "side": 0, "fixed": false, "overGroundM": 0, "signSide": false },
+    "bridgeLimit":   { "text": "MAX {value} CARS", "heightM": 3.5,  "widthM": 6,   "visibleM": 300, "reflective": true, "letterM": 2.8,  "lineChars": 6, "warns": true, "side": 0, "fixed": false, "overGroundM": 0, "signSide": false },
     // What a speed board that isn't for a bend is for, on its own post just past it (note 265, build 1121: "20" boards on
     // straight track read as speed traps): BRASS for a brass field's cutting speed. A bend's board stands alone, as ever.
-    "limitReason":   { "text": "{name}",        "heightM": 2.4, "widthM": 1.4,  "visibleM": 250, "reflective": true },
-    "lineClosed":    { "text": "LINE CLOSED",   "heightM": 2.6, "widthM": 2.0,  "visibleM": 250, "reflective": true },
-    "yardLimit":     { "text": "YARD LIMIT",    "heightM": 2.4, "widthM": 1.8,  "visibleM": 250, "reflective": true },
-    "stationName":   { "text": "{name}",        "heightM": 2.2, "widthM": 2.4,  "visibleM": 150, "reflective": true },
-    // A tunnel's name over each portal's arch (§13.3; the arch's crown is 7.5 m up, the portal's face 11.5 m): no post.
-    "tunnelPlate":   { "text": "{name}",        "heightM": 10.6, "widthM": 5.0, "visibleM": 150, "reflective": true },
-    "deadSignal":    { "text": "",              "heightM": 5.0, "widthM": 0.5,  "visibleM": 120, "reflective": false }
+    "limitReason":   { "text": "{name}",           "heightM": 3.5,  "widthM": 6,   "visibleM": 300, "reflective": true, "letterM": 2.8,  "lineChars": 8, "warns": true, "side": 0, "fixed": false, "overGroundM": 0, "signSide": false },
+    "lineClosed":    { "text": "LINE CLOSED",      "heightM": 3.5,  "widthM": 6,   "visibleM": 300, "reflective": true, "letterM": 2.8,  "lineChars": 6, "warns": true, "side": 0, "fixed": false, "overGroundM": 0, "signSide": false },
+    "yardLimit":     { "text": "YARD LIMIT",       "heightM": 3.5,  "widthM": 6,   "visibleM": 300, "reflective": true, "letterM": 2.8,  "lineChars": 6, "warns": true, "side": 0, "fixed": false, "overGroundM": 0, "signSide": false },
+    "stationName":   { "text": "{name}",           "heightM": 3.5,  "widthM": 6,   "visibleM": 300, "reflective": true, "letterM": 2.8,  "lineChars": 9, "warns": false, "side": 0, "fixed": false, "overGroundM": 0, "signSide": false },
+    // The sim's own boards (sight.json, Lineside.Boards, drawn by SceneArt.LinesideBoard): the mail crane's (MAIL and an
+    // arrow to its side); and the weak bridge's car count on a hand-laid line (WorldFeatures; a generated line's is the
+    // plan's bridgeLimit).
+    // Note 702 (the director's evening playtest, lines 10 and 12): "I have a mail sign here that's pointing in the wrong
+    // direction"; "The mail signs are a bit too large". A mail board stands on its crane's side (signSide), so the board
+    // and its arrow say the same side, and its letters are 2.3 m, a fifth smaller: still read from 150 m like every name
+    // board's (BoardSightTests), 11 s at 50 km/h with 400 m to the crane.
+    "mailDrop":      { "text": "MAIL",             "heightM": 3.5,  "widthM": 5,   "visibleM": 300, "reflective": true, "letterM": 2.3,  "lineChars": 6, "warns": true, "side": 0, "fixed": false, "overGroundM": 0, "signSide": true },
+    // A tunnel's name over each portal's arch (§13.3; the arch's crown is 7.5 m up, the portal's face 11.5 m and 20 m
+    // across): no post, as big as fits across the portal over the arch, standing up off its coping, its number over its name.
+    "tunnelPlate":   { "text": "{name}",           "heightM": 12.8, "widthM": 19.6, "visibleM": 250, "reflective": true, "letterM": 2.0, "lineChars": 24, "warns": false, "side": 0, "fixed": false, "overGroundM": 0, "signSide": false },
+    "deadSignal":    { "text": "",                 "heightM": 5.0,  "widthM": 0.5, "visibleM": 120, "reflective": false, "letterM": 1, "lineChars": 1, "warns": false, "side": 0, "fixed": false, "overGroundM": 0, "signSide": false }
   },
-  // Kilometre posts every 1 km (always required) and a minor post every 0.5 km (not). Boards this far out on the
+  // How a board stands, is seen and shines (note 560). On side (-1 the left, as the train coming sees it; 0 the plan's
+  // side): across the line from the telegraph poles (4.5 m right, every 50 m), which stood in every right-hand board's
+  // sight line, and where the cab's front glass looks widest (the driver's place is on the right, its corner pillar close
+  // by). Boards within stackM of each other on a side (a limit and what it's for, a resume board and its whistle) hang
+  // one under another on one set of posts, stackGapM apart, the first on top, so none stands in front of another.
+  // Its face's near edge innerM out from the track's centre (over the walk beside the train, out of anyone's reach), its
+  // posts no nearer than postsFromM, its bottom edge at least overGroundM over the land at its foot (over the brush, and
+  // up out of a cutting), turned towardDeg in to face the cab coming, a margin of marginLetters capitals round its words.
+  // Seen from the driver's eye (eyeM over the rail) on
+  // the approach, from its visibleM to readToM short of it, every sightStepM: the land mustn't stand in the way, nor a
+  // stop's buildings, and it must be in the lamp's cone (lampConeDeg, the headlamp's half angle); from seenShare of that
+  // approach at least, or it's moved back toward the train stepBackM at a time, up to maxBackM (a board round a bend or
+  // in a cutting stands where it's seen; one that doesn't warn may go on past instead), never on a stop's, a road's or a
+  // branch's ground, in water, on a bridge or by a tunnel's mouth. The woods (trees, boulders, the kit's pieces; never
+  // the poles) are kept clearOfM off every sight line it's seen along, a tree's crown crownShare of its height across.
+  // Drawn out to drawM. The paler of a board's ground and its letters is reflective paint (emissive), the other plain
+  // paint with plainShare of its shine (a red ground stays red, a dark one dark). It glows darkGlow with the lamp off it
+  // (lamps down, it's nothing in the dark till it's close, as sight.json's darkSignRange has it); in the beam
+  // (glowConeDeg either side of it, fading over the last fifth of its visibleM) litGlow close to and farGlow out at its
+  // visibleM (the fog takes the more of it the further it is), so a board shines back up the line from as far off as
+  // it's read, and for as long.
+  // The director, 13 Oct (`pt13-signs`, the morning build): "I still can't read the signs when I'm driving past them ...
+  // there's no clear enough sight lines to see them. Some signs are overlapping." So the driver's eye is where the cab
+  // view's is, eyeAcrossM right of the line's middle (Views.CabEye), and what the cab's own frame hides from it isn't seen:
+  // cabBlindDeg, pairs of degrees off the heading (+ right) that its posts cover (the right front window's outer pillar,
+  // the middle post; CabSightTests hold them to the cab). And no board's face stands in front of another's from
+  // clearFromM in (where its words are read from) to readToM: a board that would is moved, goes to the other side, or
+  // stands over its neighbour on one set of posts (within stackM they're one board), and a board whose words already
+  // stand within its reading back down the line (a bridge's plate at each end) isn't stood again. A board with its own
+  // side (the km posts, low by the poles) stands there whatever billboard.side is; a fixed one stands where the plan puts
+  // it, never moved (a km post marks its km), and the billboards keep clear of it (postClearM along its side, and its
+  // face out of their sight lines). A board's own overGroundM (0: billboard.overGroundM) is how low it may stand over the
+  // land: a km post low by the line, its top under the driver's eye line, so it's never in front of a billboard's words. Boards hung together are at most
+  // stackMaxM tall, and if together they can't be read (one on a ledge round a hillside) each stands on its own.
+  // Note 686: a through truss's sides stand in a sight line as walls, trussHalfM off the centreline from trussLowM to
+  // trussHighM over the rail (StructureKit.TrussSpan's lattice, which fills in at the glancing angles a board's read at):
+  // a board just past a truss stands where it's read clear of it, not through it. Note 693: where a board's read on neither
+  // side by the line (a dead line alongside keeps posts 16 m off one side, a rock wall's curve hides the other), it stands
+  // back backInnerM from the track, past what's in the way (a billboard, not a post with a side of its own or a fixed one).
+  "billboard": {
+    "side": -1, "stackM": 60, "stackGapM": 0.5, "stackMaxM": 24, "postClearM": 20,
+    "innerM": 4.5, "postsFromM": 6.5, "overGroundM": 2.5, "towardDeg": 10, "marginLetters": 0.3,
+    "eyeM": 3.2, "eyeAcrossM": 1.1, "cabBlindDeg": [8.6, 14.2, -35.3, -32], "clearFromM": 250, "backInnerM": 18, "trussHalfM": 2.7, "trussLowM": -0.55, "trussHighM": 7.0, "readToM": 40, "sightStepM": 15, "seenShare": 0.75, "lampConeDeg": 18, "stepBackM": 15, "maxBackM": 150,
+    "clearOfM": 1, "crownShare": 0.2, "drawM": 400,
+    "emissive": 0.9, "plainShare": 0.3, "darkGlow": 0.06, "litGlow": 0.8, "farGlow": 2.0, "glowConeDeg": 24
+  },
+  // Kilometre posts every 1 km (always required) and a minor post every 0.5 km (not). Dead signals this far out on the
   // driver's side. Non-required signage survives by the tier's rate; what doesn't is fallen or missing by these weights.
   // A repeat board this far before the first; whistle boards this far before tunnels and dead settlements; a gradient
   // post where a climb comes within this share of g_main.
+  // Note 702 (the evening playtest, line 11: "J1, one kilometer ... came before the Talbot Foundry stop though, so that's a
+  // bit confusing"): a junction's or facility's far board with a stop between it and what it counts to stands pastStopM
+  // past the stop (a board's reach in the lamp, so it isn't read from before the stop), saying its own distance from
+  // there, or isn't stood if that's not short of the near board.
+  "pastStopM": 300,
   "kmPostEveryM": 1000,
   "minorPostEveryM": 500,
   "sideOffsetM": 3.2,

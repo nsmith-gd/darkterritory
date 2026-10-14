@@ -262,7 +262,7 @@ sealed partial class LineBuilder
         e.Prims = [.. items.SelectMany(i => i.Prims)];
         _edges[e.Id] = e;
         // Note 278: nor across the main line, which separation lets it within 2 km of the junction they share.
-        return Separated(e, _edges.Values.Where(o => o != e && _traces.ContainsKey(o.Id))) ?? CrossesMain(e);
+        return Separated(e, _edges.Values.Where(o => o != e && _traces.ContainsKey(o.Id))) ?? CrossesMain(e) ?? ThroughAStop(e);
     }
 
     /// <summary>A facility's spur (§11.1, GDD §17): route.json's turnout kit off the level departure, and alongside to the buffer stop.</summary>

@@ -3,38 +3,64 @@ using DarkTerritory.Sim.Player;
 
 namespace DarkTerritory.Sim.Train;
 
-/// <summary>U2, a coupling working loose (note 356): a gap's pin worked loose by the running, on bends most.</summary>
+/// <summary>
+/// U2, a coupling working loose (note 356), from a cause the crew can see and name (note 640; the director, the inbox, 12 Oct:
+/// "There should always be a clear identifiable cause of a decouple").
+/// </summary>
 public sealed record LooseTuning
 {
     public bool Enabled { get; init; } = true;
-    public double EveryMetres { get; init; } = 6000;
-    public double Jitter { get; init; } = 0.5;
-    public double RoughRadius { get; init; } = 800;
-    public double RoughFactor { get; init; } = 3;
-    public double FirstAfterMetres { get; init; } = 4000;
+    /// <summary>A run-in: the engine's rake slowing at this share of its whole brake or more (an emergency application).</summary>
+    public double RunInShare { get; init; } = 0.8;
+    /// <summary>m/s: a run-in from under this is no harder than a stop.</summary>
+    public double RunInAbove { get; init; } = 5;
+    /// <summary>
+    /// s the brake's held so hard for a run-in (the slack has to close up): a tap of the whole brake to hold a speed doesn't
+    /// (note 640: the bot driver's cruise taps it, a tick or two at a time, and every tap was counted a run-in).
+    /// </summary>
+    public double RunInSeconds { get; init; } = 1.5;
+    /// <summary>
+    /// m/s: rakes meeting faster than this knock the pin at the coupling they met at loose (coupling up too hard): over the
+    /// stop driver's crawl onto a cut (up to about 1, note 630), under the couplers' <c>coupleMaxSpeed</c>.
+    /// </summary>
+    public double KnockAbove { get; init; } = 1.2;
+    /// <summary>A pin holds while the train stands (the director, the inbox, 9 Oct) and while a hound pack is aboard (12 Oct).</summary>
+    public bool Holds { get; init; } = true;
     public double PartAfter { get; init; } = 90;
     public double TightenSeconds { get; init; } = 4;
     public double Reach { get; init; } = 2.2;
 }
 
+/// <summary>What worked a pin loose (note 640): the clerk names it.</summary>
+public enum LooseCause : byte { None, RunIn, Knock }
+
 /// <summary>
-/// A coupling working loose (orchestrator.md §5.1 U2, note 356). Every so many metres of the train's running, the metres
-/// counting more on a bend (rough track), the pin in one of its gaps works loose: it knocks, faster as it goes
+/// A coupling working loose (orchestrator.md §5.1 U2, notes 356 and 640). A pin works loose only from something the crew can
+/// see and name: a run-in (the driver's emergency brake at speed: the cars behind run in on the engine, and one gap's pin
+/// jumps) or a knock (rakes meeting harder than <see cref="LooseTuning.KnockAbove"/>, the pin at the coupling they met at).
+/// Never while a hound pack is aboard (the director, the inbox, 12 Oct). It knocks, faster as it goes
 /// (<see cref="Vehicle.Loose"/> on the car ahead of the gap, the seconds it's been at it), and it's called out as every break
 /// is. The wrench in the gap, Use held <see cref="LooseTuning.TightenSeconds"/>, tightens it (<see cref="CrewActions"/>,
-/// predicted like any of the hands' work). Left <see cref="LooseTuning.PartAfter"/> seconds, the pin drops and the rake
-/// parts behind it (§24's cut-car rules: what's behind rolls free). Never the engine's own coupling: that would be the
-/// whole train. The worst job, so the rarest. All on the host; the clients are sent it.
+/// predicted like any of the hands' work). Left <see cref="LooseTuning.PartAfter"/> seconds of running, the pin drops and the
+/// rake parts behind it (§24's cut-car rules: what's behind rolls free); it holds while the train stands or a pack is aboard.
+/// Never the engine's own coupling: that would be the whole train. All on the host; the clients are sent it.
 /// </summary>
 public sealed class Couplings(LooseTuning tuning, ulong seed)
 {
     readonly Pcg32 _rng = new(seed, 0xC0091);
-    double _toGo = -1;
+    /// <summary>The engine's rake's speed over the last <see cref="LooseTuning.RunInSeconds"/>, a tick at a time (a ring).</summary>
+    double[]? _speeds;
+    int _tick;
+    bool _runningIn;
 
     public LooseTuning Tuning => tuning;
     /// <summary>How many worked loose, and how many parted, so far tonight (host; for the tests).</summary>
     public int Came { get; private set; }
     public int Parted { get; private set; }
+    /// <summary>The pin worked loose this tick, what did it and the train's speed then (host; the clerk's), or null.</summary>
+    public (int Car, LooseCause Cause, double Speed)? Loosened { get; private set; }
+    /// <summary>The first car of the rake a dropped pin parted from the train this tick (host), or −1.</summary>
+    public int PartedFrom { get; private set; } = -1;
 
     /// <summary>Where the coupling behind a car is (that car's frame): the middle of the gap, at the coupler's height.</summary>
     public static Double3 Pin(CarShape shape, TrainTuning t) =>
@@ -50,18 +76,17 @@ public sealed class Couplings(LooseTuning tuning, ulong seed)
         return at >= 0 && at + 1 < rake.Consist.Vehicles.Count;
     }
 
-    /// <summary>Host, after the train's step: the loose pins work on (one left too long drops); the running looses another.</summary>
+    /// <summary>Host, after the train's step: the loose pins work on (one left too long drops); a run-in or a knock looses another.</summary>
     /// <param name="open">How many may be loose at once (one per active player).</param>
     /// <param name="quiet">The yard or a fort: none comes loose.</param>
+    /// <param name="packAboard">A hound pack aboard: none comes loose, and a loose one holds.</param>
     /// <returns>The car whose coupling parted behind it this tick, or −1.</returns>
-    public int Step(TrainOnLine train, int open, bool quiet)
+    public int Step(TrainOnLine train, int open, bool quiet, bool packAboard = false)
     {
-        if (_toGo < 0)
-            _toGo = tuning.FirstAfterMetres + Draw();
+        (Loosened, PartedFrom) = (null, -1);
         var engine = train.RakeOf(0);
         double speed = Math.Abs(engine.Velocity);
-        bool rough = Math.Abs(train.Line.Sample(engine.Path, engine.Distance).Curvature) * tuning.RoughRadius >= 1;
-        _toGo = Math.Max(0, _toGo - speed * SimConstants.TickSeconds * (rough ? tuning.RoughFactor : 1));
+        bool holding = tuning.Holds && (packAboard || speed < 0.05);
         int parted = -1, loose = 0;
         var tight = new List<int>();
         for (int i = 0; i < train.Vehicles.Count && i < train.Frames.Count; i++)
@@ -69,12 +94,13 @@ public sealed class Couplings(LooseTuning tuning, ulong seed)
             var v = train.Vehicles[i];
             if (v.Loose > 0 && !Runs(train, i))
                 v.Loose = 0;
-            if (v.Loose > 0 && (v.Loose += SimConstants.TickSeconds) >= tuning.PartAfter)
+            if (v.Loose > 0 && !holding && (v.Loose += SimConstants.TickSeconds) >= tuning.PartAfter)
             {
                 v.Loose = 0;
-                if (parted < 0 && train.Uncouple(i))
+                int behind = train.VehicleBehind(i);
+                if (parted < 0 && train.Uncouple(i, Parting.Pin))
                 {
-                    parted = i;
+                    (parted, PartedFrom) = (i, behind);
                     Parted++;
                 }
             }
@@ -83,15 +109,40 @@ public sealed class Couplings(LooseTuning tuning, ulong seed)
             else if (Runs(train, i))
                 tight.Add(i);
         }
-        if (_toGo > 0 || quiet || loose >= open || tight.Count == 0)
+
+        // A run-in: the engine's rake slowing at an emergency's rate over RunInSeconds, from speed (once each time it's braked so).
+        _speeds ??= new double[Math.Max(1, (int)Math.Round(tuning.RunInSeconds * SimConstants.TickRate))];
+        int slot = _tick++ % _speeds.Length;
+        double before = _tick > _speeds.Length ? _speeds[slot] : double.NaN;
+        _speeds[slot] = speed;
+        double rated = engine.MaxBrakeForce * engine.BrakeEfficiency / Math.Max(1, engine.Consist.MassTonnes);
+        bool runIn = before >= tuning.RunInAbove && (before - speed) / tuning.RunInSeconds >= tuning.RunInShare * rated;
+        bool runInNow = runIn && !_runningIn;
+        _runningIn = runIn;
+
+        // A knock: rakes meeting too hard, the pin at the coupling they met at if it's the engine's rake's and can work.
+        int knocked = -1;
+        double knockSpeed = 0;
+        foreach (var c in train.ContactsThisTick)
+            if (c.ClosingSpeed > tuning.KnockAbove && c.Front >= 0 && c.Front < train.Vehicles.Count && train.Vehicles[c.Front].Loose <= 0
+                && Runs(train, c.Front) && c.ClosingSpeed > knockSpeed)
+                (knocked, knockSpeed) = (c.Front, c.ClosingSpeed);
+
+        if (quiet || packAboard || loose >= open || tight.Count == 0)
             return parted;
-        train.Vehicles[tight[(int)(_rng.NextDouble() * tight.Count) % tight.Count]].Loose = SimConstants.TickSeconds;
-        _toGo = Draw();
-        Came++;
+        if (knocked >= 0)
+            Loose(train, knocked, LooseCause.Knock, knockSpeed);
+        else if (runInNow)
+            Loose(train, tight[(int)(_rng.NextDouble() * tight.Count) % tight.Count], LooseCause.RunIn, before);
         return parted;
     }
 
-    double Draw() => tuning.EveryMetres * (1 + tuning.Jitter * (2 * _rng.NextDouble() - 1));
+    void Loose(TrainOnLine train, int car, LooseCause cause, double speed)
+    {
+        train.Vehicles[car].Loose = SimConstants.TickSeconds;
+        Loosened = (car, cause, speed);
+        Came++;
+    }
 
     /// <summary>
     /// The loose coupling this player can tighten now, if any (the car ahead of its gap): alive, off the roofs and out of the

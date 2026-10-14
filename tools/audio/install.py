@@ -259,10 +259,11 @@ FIRST_CHOICE = {"place-town.fire": "drum", "place-town.murmur": "masks",  # note
                 "cs-draggers.drop": "slam"}
 
 
-# A first choice for one surface of a cue (note 419): the car roof's tin rebuilt, the old boots kept beside it. The plank
-# floor's rebuild is a candidate only: the director likes the car's boards as they are (build 1121, App. F.1: "on wood and
-# grates they're good").
-SURFACE_CHOICE = {f"crew-footsteps.{cue}.roof": "tin" for cue in ("walk", "run", "jump", "land", "scuff")}
+# A first choice for one surface of a cue (note 419): the car roof's tin rebuilt, the old boots kept beside it. Note 667: the
+# car's plank floor (and the cab's) rebuilt too, now the director hears it "still a little odd" (13 Oct): the old boots on
+# the boards were a thud centred near 300 Hz, their heel 13 dB under their body (`dt audio render --scenario feet`).
+SURFACE_CHOICE = {f"crew-footsteps.{cue}.{mat}": key for cue in ("walk", "run", "jump", "land", "scuff")
+                  for mat, key in (("roof", "tin"), ("wood", "planks"))}
 
 
 def pick(cands, mat, line_level, cue_name=None):
@@ -587,7 +588,11 @@ def main():
     store = sys.argv[sys.argv.index("--from") + 1]
     args = [a for a in args if a != store]
     dry = "--dry" in sys.argv
-    if not args and not dry:
+    # --surface wood[,roof]: only those surfaces of the lines' cues (note 667: one floor reinstalled, the rest untouched).
+    surface_arg = sys.argv[sys.argv.index("--surface") + 1] if "--surface" in sys.argv else None
+    surfaces = set(surface_arg.split(",")) if surface_arg else None
+    args = [a for a in args if a != surface_arg]
+    if not args and not dry and surfaces is None:
         # A full install starts clean: what the checklist no longer picks leaves the game. The clerk's word bank isn't a
         # checklist pick (clerk.py builds it), so it stays.
         for entry in os.listdir(SAMPLES) if os.path.isdir(SAMPLES) else []:
@@ -623,6 +628,8 @@ def main():
             # gives each prisoner a different voice for the run (D.7).
             groups = [(k.get("key"), [k]) for k in cands if k.get("verdict") != "redo"] if line in SETS_LINES else None
             for mat in (cue["mats"] or [None]) if groups is None else [g for g, _ in groups]:
+                if surfaces is not None and mat not in surfaces:
+                    continue
                 if groups is not None:
                     chosen, why = dict(groups)[mat], "set"
                 else:

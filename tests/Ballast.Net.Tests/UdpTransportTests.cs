@@ -102,6 +102,31 @@ public class UdpTransportTests
     }
 
     [Fact]
+    public void AWholeProcessStandingStillDropsNobody()
+    {
+        // The host and its bots in one process, none of them polled while a night's scene loads (the director, 9 Oct: a night
+        // with bots began with them all dropped). Longer than the timeout, but nobody was listening: both links live on.
+        var (host, client) = Pair(Fast with { TimeoutSeconds = 0.3 }, Fast with { TimeoutSeconds = 0.3 });
+        using var _ = host.T;
+        using var __ = client.T;
+        Thread.Sleep(800);
+        // The bots step before the host on the first frame (NetPlaySession.Step), so a client hears the stand first. Polled for
+        // half the timeout by the clock, not a count of sleeps: on Windows twenty 5 ms sleeps are twenty 15.6 ms timer ticks,
+        // 0.31 s, past the 0.3 s timeout, and the next keepalive isn't due till a second after the last (main's Windows job
+        // failed here on every PR).
+        var after = Stopwatch.StartNew();
+        while (after.Elapsed.TotalSeconds < 0.15)
+        {
+            client.Poll();
+            host.Poll();
+            Thread.Sleep(1);
+        }
+        Assert.DoesNotContain(host.Events, e => e.Kind == TransportEventKind.Disconnected);
+        Assert.DoesNotContain(client.Events, e => e.Kind == TransportEventKind.Disconnected);
+        Assert.True(client.T.IsConnected);
+    }
+
+    [Fact]
     public void ConnectingToNobodyGivesUp()
     {
         int port;
@@ -144,10 +169,47 @@ public class UdpTransportTests
         // At least 0.3 s of keepalives, and on until the smoothed round trip has settled (up to 3 s): a loopback ping is
         // well under a millisecond, but on a CI box whose cores the other test assemblies hold at startup the first few
         // can take tens, and the estimate carries them for a while.
-        bool Settled() => client.T.RoundTrip(PeerId.Host) < 0.05 && host.T.RoundTrip(client.T.LocalId) < 0.05;
+        // What's asserted is that the trip was measured at all (an unmeasured link reads the 100 ms it starts with), not how
+        // fast a busy runner's loopback is: a Windows runner with the other assemblies starting read 63 ms (#644's CI).
+        const double measured = 0.09;
+        bool Settled() => client.T.RoundTrip(PeerId.Host) < measured && host.T.RoundTrip(client.T.LocalId) < measured;
         Until(() => clock.Elapsed.TotalSeconds > 0.3 && (Settled() || clock.Elapsed.TotalSeconds > 3), sleep: false, host, client);
-        Assert.InRange(client.T.RoundTrip(PeerId.Host), 0, 0.05);
-        Assert.InRange(host.T.RoundTrip(client.T.LocalId), 0, 0.05);
+        Assert.InRange(client.T.RoundTrip(PeerId.Host), 0, measured);
+        Assert.InRange(host.T.RoundTrip(client.T.LocalId), 0, measured);
+    }
+
+    [Fact]
+    public void APumpedLinkOutlivesAFrozenFrameLoopAndMeasuresItsOwnPing()
+    {
+        // Note 532: the app's transports are kept by a thread of their own, so a frame loop that stands still longer than the
+        // timeout (a village loading, the film compiling) neither drops its peers nor is dropped by them, and the round trip is
+        // the link's, not the frames'.
+        var quick = Fast with { TimeoutSeconds = 0.3, KeepaliveSeconds = 0.02 };
+        var (host, client) = Pair(quick, quick);
+        using var _ = host.T;
+        using var __ = client.T;
+        host.T.StartPump(2);
+        client.T.StartPump(2);
+        Assert.True(host.T.Pumped && client.T.Pumped);
+        // Nobody polls for three timeouts: the pumps ping and answer throughout.
+        Thread.Sleep(900);
+        host.Poll();
+        client.Poll();
+        Assert.DoesNotContain(host.Events, e => e.Kind == TransportEventKind.Disconnected);
+        Assert.DoesNotContain(client.Events, e => e.Kind == TransportEventKind.Disconnected);
+        Assert.True(client.T.IsConnected);
+        // The pings went on while the loop stood still: a measured, loopback-sized round trip, not a 900 ms one.
+        Assert.InRange(client.T.RoundTrip(PeerId.Host), 0, 0.1);
+        // And the link still carries: a reliable message across, both ways, read on the next polls.
+        var peer = host.Events.Single(e => e.Kind == TransportEventKind.Connected).Peer;
+        client.T.Send(PeerId.Host, [7], Delivery.ReliableOrdered);
+        host.T.Send(peer, [8], Delivery.ReliableOrdered);
+        Until(() => host.Data.Any(d => d.Payload![0] == 7) && client.Data.Any(d => d.Payload![0] == 8), host, client);
+        // A peer that really stops (its pump too) is still dropped in the usual time.
+        client.T.Dispose();
+        var clock = Stopwatch.StartNew();
+        Until(() => host.Events.Any(e => e.Kind == TransportEventKind.Disconnected), host);
+        Assert.True(clock.Elapsed.TotalSeconds < 2);
     }
 
     [Fact]

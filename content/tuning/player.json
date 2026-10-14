@@ -9,8 +9,14 @@
   // GDD v1.4 App. D.9 "solo remainer" (note 181): the last of the crew alive can climb a ladder carrying a body, at this
   // (a quarter of ladderClimb); anyone else carrying a body, a toy, a find or the child can't climb at all (C.4).
   "soloBodyClimb": 0.4,
-  // Pushing a gun along its roof rail (T93): the gun goes where you go, no faster than this.
+  // Pushing a gun along its roof rail (T93): the gun goes where you go, no faster than this. Note 664: on its own key, O.
   "pushGun": 1.2,
+  // Note 664 (the director's playtest, 13 Oct: "we should have a crouch function"; D1's calls for it): held down (LeftCtrl),
+  // the body's this tall (m; height's 1.8 standing), so it goes under what standing would hit, and a tunnel's mouth on a roof
+  // (sight.json crouchClearsMouth); the eye's eyeDrop lower (the view, and what's looked at: train.json pick); the walk at
+  // speedScale of a walk's pace, never a run, no jump; footsteps footstepGainDb quieter. Let go, they stand once there's the
+  // headroom. A headset rider has no key: their head under headsetBelow (m over the feet) is a crouch.
+  "crouch": { "height": 1.2, "eyeDrop": 0.55, "speedScale": 0.5, "footstepGainDb": -8, "headsetBelow": 1.2 },
   "jumpGap": 2.2,
   // How high a standing jump lifts your feet. Playtest (T90): the 0.48 m that a flat 2.2 m gap jump at roof run needs was
   // too weak to feel like a jump at all, and it went to 0.8 m. The director, 8 Oct 2026 (note 473): "our base jump is too
@@ -34,12 +40,22 @@
     "rollAbove": 1.5,
     "rollDamage": 10,
     "lethalAbove": 16.5,
-    "damageAtLethal": 80
+    "damageAtLethal": 80,
+    // Note 573 (the director, 9 Oct: off Stroud Bridge's deck, 8 m over the river, and lived): spec B.3 has no fall table, so
+    // a fall hurts by its height (the speed it comes down at): from fallHurtFrom, rollDamage rising to death at fallLethalFrom
+    // (7.5, so the bridge's 8 m is death however the tick falls).
+    // From fallHurtFrom down it's the speed table alone: a car's roof is 4 m over the ballast and a jump's apex 1.2 more, so
+    // the leap off the train stays B.3's; a 1.5 m step off a landing is nothing.
+    "fallHurtFrom": 5.5,
+    "fallLethalFrom": 7.5
   },
   "ladder": {
     "grabRange": 0.7,
     // You can only grab a ladder moving past you slower than this: "if you could catch it".
-    "grabMaxRelativeSpeed": 3.5
+    "grabMaxRelativeSpeed": 3.5,
+    // Note 704 (the director's playtest: the cab's ladder "should actually go up to the roof"): walking into a hatch ladder
+    // indoors (the cab's, a car's) takes hold of it only looking up it at least this far; level, you walk past it working.
+    "hatchLookUpDegrees": 25
   },
   // A VR player's reaching hand (T29; the spec has no VR numbers). Reach is tested from the hand instead of the body:
   // a hand is on a grip (a lever, a handle, a ladder, a crate) within grab of it. The host believes a hand no farther
@@ -112,7 +128,40 @@
     "reclaimBody": true,
     "greetSeconds": 1,
     "retries": 5,
-    "retrySeconds": 3
+    "retrySeconds": 3,
+    // The crew goes on together (ARCHITECTURE §8 note 606): told the host's going on from a delivered campaign night's town,
+    // a joiner waits on its card and dials the host again, retrySeconds apart, for up to followSeconds while the host picks
+    // the next night at its board; past that it's back to its menu.
+    "followSeconds": 600
+  },
+  // The links in play (ARCHITECTURE §8 note 532). timeoutSeconds: silence from the other end for this long and the link's
+  // gone (a joiner then redials, rejoin above; it was the transport's own 8 s, note 18, which a wifi blip could reach).
+  // keepaliveSeconds: a ping at least this often, which is also how the round trip's measured. pumpMilliseconds: the app's
+  // transports are kept by a thread of their own between the frames, waking at least this often, so a stalled frame loop
+  // (a village loading, the film compiling) neither drops its links nor is dropped. A client paces itself to its host: the
+  // host says in each snapshot how many of the client's inputs it's holding beyond the one it applied; over paceQueued
+  // for paceSeconds and the client's clock stretches by paceSlow (its ticks take 5 % longer) until the host has caught up
+  // (one or none held), so a host that's behind slows the night for everyone instead of throwing inputs away. A host whose
+  // own frames can't hold the tick rate (its clock threw time away) is told YOUR MACHINE IS HOLDING THE CREW BACK, for
+  // heldBackSeconds after the last time it did.
+  "link": {
+    "timeoutSeconds": 15,
+    "keepaliveSeconds": 1,
+    "pumpMilliseconds": 4,
+    "paceQueued": 4,
+    "paceSlow": 0.05,
+    "paceSeconds": 1,
+    "heldBackSeconds": 5,
+    // Note 549: each client tells the host what share of its snapshots it isn't getting; one losing thinLossPct or more for
+    // thinSeconds is sent every other snapshot (fewer, whole), held for thinHoldSeconds and let go once the loss has been under
+    // half that for all of it (thinning cures the loss it's for, so without the hold it would come and go). The share counts a
+    // snapshot that came stale as lost (a jittery link reads a few percent), so the threshold sits well above that. When strainCrew or more of the
+    // crew report that much at once for strainSeconds, it's the host's own upload that can't carry them, and the host is told.
+    "thinLossPct": 12,
+    "thinSeconds": 2,
+    "thinHoldSeconds": 20,
+    "strainCrew": 2,
+    "strainSeconds": 5
   },
   // The crew cap (GDD §1 "Players: 2–8", §15's largest crew; ARCHITECTURE §8 note 254). The host turns a joiner away once
   // the crew, living and dead, those waiting to board at a stop and the places held for the dropped (rejoin above) come to
@@ -133,5 +182,13 @@
     "wave": 2.5,
     "point": 2.5,
     "cooldown": 0.5
+  },
+  // The news (ARCHITECTURE §8 note 663; the director: "did a coupler break on its own or was that a creature?"): cars the
+  // engine loses and its failing or breaking down, told to everyone as it happens, with what did it, on one line for
+  // `seconds`. A crewmate's own cut is told only with the train running faster than `cutToldAbove` (m/s): cars set out at a
+  // stand aren't news. The report reads the same events.
+  "news": {
+    "seconds": 5,
+    "cutToldAbove": 1.5
   }
 }

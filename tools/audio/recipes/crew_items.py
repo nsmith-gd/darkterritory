@@ -412,7 +412,15 @@ def carry():
                 settling a moment later, a creak of the slats. The floor answers: {FLOOR_HOW[mat]}.""",
                 sources=CRATE_KNOCK + ck.FLOOR_SOURCES[mat], takes=3, mat=mat, lufs=-19)
         def crate_set(rng, k, m=mat):
-            return ck.place([(0, crate(rng, k, 0.5), -2), (0, ck.floor(rng, m, k, 2.0, 0.6), 0)])
+            parts = [(0, crate(rng, k, 0.5), -2), (0, ck.floor(rng, m, k, 2.0, 0.6), 0)]
+            if m == "concrete":
+                # Queue #240 (note 503): a take came out a thump with no concrete in it (centred at 114 Hz). The crate's
+                # corner bites the concrete and drags a hand's breadth, grit crunching under it, and its slats knock.
+                L_ = rng.uniform(0.08, 0.12)
+                drag = ck.friction(rng, L_, 220, 1500, 6500, 0.7, env([(0, 0), (0.01, 1), (L_, 0)], L_))
+                parts += [(0.01, drag, -8), (0.005, ck.grains(rng, 10, 0.08, 1800, 6000, q=(4, 10)), -10),
+                          (0.03, crate(rng, k + 1, 0.9), -9)]
+            return ck.place(parts)
 
         @recipe(L, "crate-land", "crate", f"A crate thrown and landing on the {FLOOR[mat]}",
                 f"""Thrown: the crate landing hard on a corner and then flat (two knocks 40-70 ms apart), its load slamming
@@ -626,7 +634,24 @@ def limbs(rng, take, mat, force):
         parts += [(t, limb, -8 - 3 * i), (t, ck.floor(rng, mat, take + i + 1, 0.7, 0.25), -12 - 3 * i)]
         t += rng.uniform(0.07, 0.16) / force
     parts.append((0.05, ck.cloth(rng, take + 2, 0.4), -10))
+    if mat == "grate":
+        parts += grating(rng, take, force)
     return ck.place(parts)
+
+
+GRATE_PLATE = K("impactPlate_heavy")
+
+
+def grating(rng, take, force):
+    """Queue #245 (note 508): the train's steel grating under a body's weight. The floor's own knock is soft for flesh
+    (`hard` 0.15), and on the grating that left only the body: its takes centred at 212-255 Hz, beside the wood and the
+    ground. The grating crashes and buzzes under the weight, its thin plate ringing on and its bars chattering, longer
+    and louder the harder the body comes down (as #240's impact, note 503)."""
+    crash = ck.choke(ck.norm(ck.align(dsp.vari(ck.get(GRATE_PLATE[take % 5]), -3 - force))), 0.06 + 0.05 * force, 0.1)
+    thin = ck.choke(ck.norm(hp(ck.align(dsp.vari(ck.get(ck.THIN_PLATE[(take + 2) % 5]), -2)), 300)), 0.1 + 0.06 * force, 0.14)
+    buzz = ck.norm(ck.grains(rng, int(25 + 25 * force), 0.1 + 0.07 * force, 1200, 5500, q=(14, 30), length=(0.004, 0.012),
+                             shape=0.35))
+    return [(0, crash, -6 + 2 * force), (0.004, thin, -5 + 2 * force), (0.008, buzz, -10 + 2 * force)]
 
 
 # ---- Lamps ---------------------------------------------------------------------------------------------------------------

@@ -10,10 +10,12 @@
     <Project Path="src/Ballast.Voice/Ballast.Voice.csproj" />
     <Project Path="src/Ballast.Online/Ballast.Online.csproj" />
     <Project Path="src/Ballast.Xr/Ballast.Xr.csproj" />
+    <Project Path="src/Ballast.Dev/Ballast.Dev.csproj" />
     <Project Path="src/DarkTerritory.Sim/DarkTerritory.Sim.csproj" />
     <Project Path="src/DarkTerritory.Game/DarkTerritory.Game.csproj" />
     <Project Path="src/DarkTerritory.Editor/DarkTerritory.Editor.csproj" />
     <Project Path="src/DarkTerritory.App/DarkTerritory.App.csproj" />
+    <Project Path="src/DarkTerritory.Dev/DarkTerritory.Dev.csproj" />
     <Project Path="src/DarkTerritory.Cli/DarkTerritory.Cli.csproj" />
   </Folder>
   <Folder Name="/tests/">
@@ -25,5 +27,6 @@
     <Project Path="tests/Ballast.Voice.Tests/Ballast.Voice.Tests.csproj" />
     <Project Path="tests/DarkTerritory.Game.Tests/DarkTerritory.Game.Tests.csproj" />
     <Project Path="tests/DarkTerritory.Editor.Tests/DarkTerritory.Editor.Tests.csproj" />
+    <Project Path="tests/DarkTerritory.Dev.Tests/DarkTerritory.Dev.Tests.csproj" />
   </Folder>
 </Solution>

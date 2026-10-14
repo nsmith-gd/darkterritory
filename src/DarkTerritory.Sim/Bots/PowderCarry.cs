@@ -1,5 +1,6 @@
 using Ballast;
 using DarkTerritory.Sim.Combat;
+using DarkTerritory.Sim.Enemies;
 using DarkTerritory.Sim.Player;
 using DarkTerritory.Sim.Train;
 
@@ -134,6 +135,10 @@ public sealed class PowderRun(GunTuning guns)
     /// <summary>Where the run's got to, or null (for tests and the harness's trace).</summary>
     public string? Step { get; private set; }
 
+    /// <summary>A fire on <paramref name="car"/> with any cell of it burning (its replicated heat, so a client's bot sees it too).</summary>
+    public static bool Alight(World world, int car) =>
+        world.ActiveEnemies.Any(e => e is CarFire { Gone: false } f && f.Attached == car && f.Heat.Any(h => h > 0));
+
     /// <summary>Along the roofs: the legs walk it, the way <c>head</c> was given.</summary>
     public bool Along { get; private set; }
 
@@ -168,6 +173,19 @@ public sealed class PowderRun(GunTuning guns)
         if (hatch is not { } ladder)
             return null;
         bool inside = self.Parent == lockerCar && PlayerMotor.Indoors(self, train);
+        // Note 495: not into the guard van for a charge while it's alight (it burns whoever's by a burning cell, note 263).
+        // On #221's hot run (frontier:7 seed 2) the guard gunner and a walker, both hurt, went down its hatch for powder with
+        // car 10 burning and burned there. Caught in it: back up the hatch, and the gun waits.
+        if (!carrying && Alight(world, lockerCar))
+        {
+            Step = "van alight";
+            if (self.Surface == Surface.Ladder && self.Parent == lockerCar)
+                return new PlayerIntent { MoveZ = 1 };
+            if (!inside)
+                return null;
+            var (step, there) = WarmUp.Steer(self, ladder.Foot - ladder.Inward * 0.3, DMath.Atan2(-ladder.Inward.X, -ladder.Inward.Z) + Math.PI);
+            return there ? new PlayerIntent { Actions = PlayerActions.Ladder } : step;
+        }
         if (carrying)
         {
             if (Guns.Mount(train, gunCar) is not { } mount)

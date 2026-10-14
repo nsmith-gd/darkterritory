@@ -15,7 +15,29 @@ public enum EnemyKind : byte
     // The Moose (GDD §21, the director's decisions of 7 Oct 2026; note 339).
     Moose = 31,
     // The Gannet (GDD §21, the director's decisions of 7 Oct 2026; note 340).
-    Gannet = 32
+    Gannet = 32,
+    // The Mourners (GDD §21, the director's brief of 8 Oct 2026; note 362).
+    Mourners = 33,
+    // Tower Jaw (GDD §21, the director's brief of 8 Oct 2026; note 363).
+    TowerJaw = 34,
+    // The Brakeman (GDD §21, the director's brief of 8 Oct 2026; note 364).
+    Brakeman = 35,
+    // The Knotter (GDD §21, the director's brief of 8 Oct 2026; note 365).
+    Knotter = 36,
+    // The Freight Beetle (GDD §21, the director's brief of 8 Oct 2026; note 366).
+    FreightBeetle = 37,
+    // Hotbox (GDD §21, the director's brief of 8 Oct 2026; note 367).
+    Hotbox = 38,
+    // Dave, the wandering painter (GDD §3.2, the director, 8 Oct 2026; note 570): not a creature, and nobody's quarry.
+    Dave = 39,
+    // Jacob, the fisherman (GDD §3.2, the director, 8 Oct 2026; note 572): rarer still, and he mends the train.
+    Jacob = 40,
+    // The Wakers, what gets up at dawn (GDD §8, the director, 9 Oct 2026; note 588): not the night's, and nobody's quarry.
+    Waker = 41,
+    // The Pickers (GDD §21, the director's pick to prototype, 9 Oct 2026; note 592).
+    Pickers = 42,
+    // The house creatures (GDD §21, the director, 9 Oct 2026; notes 583–586).
+    Lodger = 43, Householder = 44, HollowHouse = 45, Hanger = 46
 }
 
 /// <summary>
@@ -59,6 +81,8 @@ public abstract class Enemy
     public virtual bool Hazard => false;
     /// <summary>The want it attacks (App. B.1), for the director's budget shares.</summary>
     public virtual Want Want => Want.Kill;
+    /// <summary>What the clerk calls it in the incident report ("the Gaunt"; Dave is just Dave).</summary>
+    public virtual string Called => "the " + Run.IncidentLog.Spoken(Kind.ToString());
 
     public SpinePhase Phase { get; private set; } = SpinePhase.Dormant;
     public double PhaseSeconds { get; private set; }
@@ -207,6 +231,20 @@ public abstract class Enemy
         EnemyKind.Grumbler => new Grumbler(id),
         EnemyKind.Moose => new Moose(id),
         EnemyKind.Gannet => new Gannet(id),
+        EnemyKind.Mourners => new Mourner(id),
+        EnemyKind.TowerJaw => new TowerJaw(id),
+        EnemyKind.FreightBeetle => new FreightBeetle(id),
+        EnemyKind.Brakeman => new Brakeman(id),
+        EnemyKind.Hotbox => new Hotbox(id),
+        EnemyKind.Knotter => new Knotter(id),
+        EnemyKind.Dave => new Dave(id),
+        EnemyKind.Jacob => new Jacob(id),
+        EnemyKind.Waker => new Waker(id),
+        EnemyKind.Pickers => new Picker(id),
+        EnemyKind.Lodger => new Lodger(id),
+        EnemyKind.Householder => new Householder(id),
+        EnemyKind.HollowHouse => new HollowHouse(id),
+        EnemyKind.Hanger => new Hanger(id),
         _ => new ChoirGhost(id),
     };
 
@@ -285,12 +323,14 @@ public abstract class Enemy
         Holding = victim;
         GrabWindow = window;
         _struggle = 0;
+        _struggled = false;
+        _grabbedAt = ctx.World.Tick;
         Enter(ctx, SpinePhase.Grab);
         ctx.Hold(victim);
         // App. A.9: every GRAB start writes an attribution record (and, with D.12's bookmarks, a still).
         if (ctx.World.Run is not null && ctx.Crew.FirstOrDefault(c => c.Player.Id == victim) is { Player.State: var held })
         {
-            string what = $"Grabbed by the {Run.IncidentLog.Spoken(Kind.ToString())}";
+            string what = $"Grabbed by {Called}";
             ctx.World.Attribution.Add(Run.IncidentLog.Grab(ctx.World, victim, held, what));
             ctx.World.Bookmarks.Grab(ctx.World, victim, what, CrewOf(ctx));
         }
@@ -298,18 +338,32 @@ public abstract class Enemy
     }
 
     double _struggle;
+    bool _struggled;
+    uint _grabbedAt;
 
     static IEnumerable<(int Id, PlayerState State)> CrewOf(EnemyContext ctx) => ctx.Crew.Select(c => ((int)c.Player.Id, c.Player.State));
 
-    /// <summary>The held player's own struggle, counted by the world at a crew of one (the solo rule): Use presses.</summary>
+    /// <summary>
+    /// The held player's own struggle, counted by the world at a crew of one (the solo rule): Use held. One try a grab, and a
+    /// chance at best (App. C.1; the director, 13 Oct: "holding e shouldn't always result in escape it should at best give me
+    /// a 15% chance of escape"; note 681): rolled on the night's seed, this creature and the tick it took hold, so the host
+    /// rolls it the same however the night is replayed.
+    /// </summary>
     internal void Struggle(EnemyContext ctx, double amount)
     {
-        if (Phase != SpinePhase.Grab)
+        if (Phase != SpinePhase.Grab || _struggled)
             return;
         _struggle += amount;
-        if (_struggle >= ctx.Tuning.Grab.SoloStruggle)
+        if (_struggle < ctx.Tuning.Grab.SoloStruggle)
+            return;
+        _struggled = true;
+        var dice = new Pcg32((ctx.World.Director?.Seed ?? 0) ^ (ulong)Id * 0x9E3779B97F4A7C15UL, 0x5357_0000UL + _grabbedAt);
+        if (dice.NextDouble() < ctx.Tuning.Grab.SoloStruggleChance)
             Rescued(ctx, Holding);
     }
+
+    /// <summary>A grab's one struggle has been tried and failed: it holds on.</summary>
+    public bool StruggledOff => Phase == SpinePhase.Grab && _struggled;
 
     /// <summary>The grab broken by a friend (or, alone, the victim): it lets go and breaks off (App. A.1). Enemies may do more.</summary>
     protected virtual void Rescued(EnemyContext ctx, int by)
@@ -343,7 +397,7 @@ public abstract class Enemy
     {
         var at = WorldPosition(ctx.Train);
         var (actor, action) = Run.IncidentLog.Nearest(ctx.World, at, CrewOf(ctx));
-        return Run.IncidentLog.Event(ctx.World, Run.IncidentKind.Punished, $"Punished by the {Run.IncidentLog.Spoken(Kind.ToString())}", actor, action, at);
+        return Run.IncidentLog.Event(ctx.World, Run.IncidentKind.Punished, $"Punished by {Called}", actor, action, at);
     }
 
     /// <summary>The rescue window ran out (App. A.1 PUNISH): what it does to its victim. The default is death.</summary>
@@ -441,7 +495,7 @@ public abstract class Enemy
         uint ticks = (uint)Math.Round(ctx.Tuning.CoordinatedKill.WindowSeconds * SimConstants.TickRate);
         var gang = _blows.Where(h => ctx.Tick - h.Tick <= ticks).Select(h => h.By).Distinct().ToList();
         string names = string.Join(", ", gang.Select(id => Run.IncidentLog.NameOf(ctx.World, id)));
-        ctx.World.Attribution.Add(Run.IncidentLog.Event(ctx.World, Run.IncidentKind.Slain, $"Killed the {Run.IncidentLog.Spoken(Kind.ToString())} together",
+        ctx.World.Attribution.Add(Run.IncidentLog.Event(ctx.World, Run.IncidentKind.Slain, $"Killed {Called} together",
             gang.Count > 0 ? gang[0] : -1, gang.Count > 0 ? $"By {names}." : "", WorldPosition(ctx.Train)));
     }
 

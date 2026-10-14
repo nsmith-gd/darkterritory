@@ -69,8 +69,8 @@ public class TunnelArtTests
     }
 
     [Theory]
-    [InlineData("deadLines:3")]
-    [InlineData("deepTerritory:2")]
+    [InlineData("deadLines:12")]
+    [InlineData("deepTerritory:21")]
     public void AboveAPortalsFaceTheGroundClosesOntoTheHill(string spec)
     {
         // From up in front of each portal, either side of the line (where `dt holes` stood its high camera), every sight
@@ -113,8 +113,9 @@ public class TunnelArtTests
     {
         // Out from the middle of the bore, either side, at and either side of every joint between its 10 m lengths: the
         // lining's wall. Laid each on its own tangent, a length's end stood off the curve by its sag, and a wedge opened at
-        // the joint on the outer wall: deepTerritory:2's Holt Brook tunnel showed the sky through every one.
-        var route = Sim.LineGen.Routes.Generate(Content, "deepTerritory:2", 6);
+        // the joint on the outer wall: deepTerritory:2's Holt Brook tunnel showed the sky through every one (on its 24 km line;
+        // on the 7 km nights of note 554, deepTerritory:84's).
+        var route = Sim.LineGen.Routes.Generate(Content, "deepTerritory:84", 6);
         var line = route.Build();
         var art = new WorldArt(Look);
         var f = route.Features.Where(f => f.Kind == FeatureKind.Tunnel).MaxBy(f => f.End - f.Start)!;

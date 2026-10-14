@@ -22,7 +22,8 @@ public sealed partial class WorldArt
     /// "concrete". In a walled town, its streets and lanes (<see cref="TownWay"/>). <paramref name="hint"/> is a main-line
     /// distance near the point (a player's line hint), refined as <see cref="RailLine.Nearest"/> refines it.
     /// </summary>
-    public static string GroundTexture(RailLine line, Route? route, Double3 world, ref double hint, Sim.Towns.Town? town = null)
+    /// <param name="arrival">The terminus's town (note 600), its ways read in its own frame, turned round.</param>
+    public static string GroundTexture(RailLine line, Route? route, Double3 world, ref double hint, Sim.Towns.Town? town = null, Sim.Towns.Town? arrival = null)
     {
         var (path, along) = line.Nearest(world, ref hint);
         double s = hint;
@@ -38,6 +39,8 @@ public sealed partial class WorldArt
             return built;
         if (TownWay(town, s, lateralMain) is { } way)
             return way;
+        if (arrival is { Turn: { } turn } && TownWay(arrival, turn - s, -lateralMain) is { } there)
+            return there;
         // A bridge's deck (Bridge: a timber trestle where it's weak, a masonry viaduct's ballasted top where it's sound); down
         // off it, the gorge's floor.
         if (Gorge(route, s) > 0.5f && a < 3.7f)
@@ -81,8 +84,11 @@ public sealed partial class WorldArt
         foreach (var st in b.Streets)
             if (s >= st.S0 && s <= st.S1 && Math.Abs(lateral - st.D) <= st.Width / 2)
                 return "ballast";
+        // A lane (crooked, note 353): within its half-width of its middle there, square to it, off the line's bed.
         foreach (var lane in b.Lanes)
-            if (Math.Abs(s - lane.S) <= lane.Width / 2 && LaneMids(lane, TownChunk).Any(mid => Math.Abs(lateral - mid) <= TownChunk / 2))
+            if (lateral >= lane.D0 && lateral <= lane.D1 && Math.Abs(lateral) >= LaneBed
+                && (lane.At(lateral + 1) - lane.At(lateral - 1)) / 2 is var slope
+                && Math.Abs(s - lane.At(lateral)) <= lane.Width / 2 * Math.Sqrt(1 + slope * slope))
                 return "ground_mud";
         return null;
     }

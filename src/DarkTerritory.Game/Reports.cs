@@ -169,7 +169,7 @@ public static class ReportFields
 {
     /// <summary>The settings a bug most often hangs on, in one line.</summary>
     public static string Settings(Settings s) => string.Join(", ",
-        $"{s.Resolution} {(s.Fullscreen ? "fullscreen" : "windowed")}", $"render scale {s.RenderScale * 100:0}%", $"vsync {(s.VSync ? "on" : "off")}",
+        $"{s.Resolution} {s.Display.ToString().ToLowerInvariant()}", $"render scale {s.RenderScale * 100:0}%", $"vsync {(s.VSync ? "on" : "off")}",
         $"fov {s.EyeFov:0}", $"text size {s.TextScale * 100:0}%", $"colours {s.Colours.ToString().ToLowerInvariant()}",
         $"captions {(s.Captions ? "on" : "off")}", $"text backing {(s.TextBacking ? "on" : "off")}", $"hold keys {(s.ToggleHolds ? "toggle" : "hold")}",
         $"hud {(s.Hud ? "on" : "off")}", $"voice {(s.PushToTalk ? "push to talk" : "open mic")}", $"keys rebound {s.Keys.Count}");
@@ -186,7 +186,13 @@ public static class ReportFields
             $"player {s.PlayerId} {(s.Player.Alive ? "alive" : $"dead ({s.Player.Death})")}",
         };
         if (s.Link is { } link)
-            parts.Add($"{link.Role.ToLowerInvariant()}, {link.Aboard} aboard{(link.PingMs is { } ping ? $", ping {ping:0} ms" : "")}{(link.Lost ? ", link lost" : "")}");
+            parts.Add($"{link.Role.ToLowerInvariant()}, {link.Aboard} aboard{(link.PingMs is { } ping ? $", ping {ping:0} ms" : "")}"
+                + $"{(link.Loss is { } loss ? $", {loss:P1} lost" : "")}{(link.Via is { } via ? $", {Via(via)}" : "")}{(link.Lost ? ", link lost" : "")}"
+                + string.Concat(link.Crew.Select(c => $"; crew {c.Id} ping {c.PingMs:0} ms{(c.Loss is { } l ? $", {l:P1} lost" : "")}{(c.Via is { } v ? $", {Via(v)}" : "")}")));
         return string.Join(", ", parts);
     }
+
+    /// <summary>A route as a developer reads it (note 534): the network's own ping and quality where it has them.</summary>
+    static string Via(Ballast.Net.CarrierLink v) =>
+        (v.Relayed ? $"via {v.Network} relay" : "direct") + (v.PingMs is { } ms ? $" ({v.Network} ping {ms} ms" + (v.Quality is { } q ? $", quality {q:0.00})" : ")") : "");
 }

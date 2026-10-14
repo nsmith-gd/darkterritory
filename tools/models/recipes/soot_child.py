@@ -36,7 +36,7 @@ DRESS = {
     "flesh.soot_child_lips": (lambda: make.flat("soot_child_lips", (0.16, 0.1, 0.1), rough=0.45), 2),
     "flesh.soot_child_teeth": (lambda: make.flat("soot_child_teeth", (0.36, 0.32, 0.22), rough=0.4), 0),
     "flesh.soot_child_eye": (lambda: make.flat("soot_child_eye_white", (0.5, 0.47, 0.42), rough=0.1), 2),
-    "flesh.soot_child": (lambda: make.flat("soot_child_skin", (0.24, 0.215, 0.195), rough=0.55), 2),
+    "flesh.soot_child": (lambda: make.flat("soot_child_skin", (0.17, 0.152, 0.138), rough=0.6), 2),
     "wool.soot_child_shirt": (lambda: make.flat("soot_child_shirt", (0.085, 0.08, 0.072), rough=0.95), 2),
     "rope.soot_child_string": (lambda: make.flat("soot_child_string", (0.05, 0.036, 0.022), rough=0.9), 0),
     "tar.soot_child_hair": (lambda: make.flat("soot_child_hair", (0.008, 0.007, 0.006), rough=0.5), 1),
@@ -60,7 +60,8 @@ def ridged(p, seed, scale):
 
 
 def skin(p, n):
-    return 0.00012 * cook.noise_np(p, 1901, 200.0) + fine(p, 0.00004, 2500, 1902)
+    # Thin and dry (note 546): the pores, and fine creases where it's drawn over the bones.
+    return 0.0002 * cook.noise_np(p, 1901, 200.0) - 0.00025 * smooth01(0.9, 0.98, 1 - np.abs(cook.noise_np(p, 1916, 110.0))) + fine(p, 0.00005, 2500, 1902)
 
 
 def cloth(p, n):
@@ -87,8 +88,8 @@ highs = {name: overbake.high_of(parts[name], dress, SHAPE) for name in BAKED}
 print("[dt] soot_child highs", {k: sum(len(h.data.polygons) for h in v) for k, v in highs.items()})
 
 # Where tools/blender/soot_child.py has the head and eyes at rest (its HC, HR, EYE_U, EYE_W).
-HC = np.array([0.0, 0.012, 1.075], np.float32)
-HR = np.array([0.079, 0.086, 0.09], np.float32)
+HC = np.array(tuple(g["HC"]), np.float32)
+HR = np.array(tuple(g["HR"]), np.float32)
 
 
 def marks(p, kind):
@@ -134,7 +135,7 @@ def paint(base, colour, k):
     return base * (1 - k) + np.array(colour, np.float32) * k
 
 
-base = paint(base, (0.08, 0.075, 0.07), mk[..., 2] * 0.35)     # grime
+base = paint(base, (0.06, 0.055, 0.05), mk[..., 2] * 0.6)      # grime (note 546: it was clean as wax)
 base = paint(base, (0.012, 0.011, 0.01), mk[..., 0] * 0.85)    # soot, run down it
 base = paint(base, (0.035, 0.03, 0.025), mk[..., 1] * 0.55)    # the shirt's stains
 atlas.finish(base, kit, arm, made=make.provenance("soot_child", "the Soot Child, modelled over tools/blender/soot_child.py"))

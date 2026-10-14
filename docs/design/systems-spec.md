@@ -195,6 +195,8 @@ The bands fall out of the 4:1 ratio, and they define what's possible at each spe
 | **Yard** | 2.5 m/s | **Below player run speed.** You can chase the train down and board it. This is what makes the decoupled-engine loading sequence work. |
 | **Jump-off survivable** | <16.5 m/s | A knock on landing: 10 just above 1.5 m/s, rising to 80 at the lethal edge (T90 playtest) |
 | **Jump-off lethal** | >16.5 m/s (3× run) | Death. Was 4.0 m/s, which made every step off a moving train fatal. Being *pulled* off (Draggers) still kills above 4.0 m/s |
+| **Fall** | ≥5.5 m down | A knock by the height fallen: 10 at 5.5 m, rising to death at **7.5 m** (off a bridge's deck, 8 m to the river bank). Under 5.5 m (a car's roof and a jump's apex over the ballast) it's the speed rows alone; the worse of the two knocks counts (note 573) |
+| **Off the ground** | — | Off open ground's own footing (over a dip, down a bank) a crewmate's own run is no knock: only what's over the run speed counts (note 573) |
 | **Slow** | 6 m/s | Roof work comfortable |
 | **Working** | 10–14 m/s | Standard transit |
 | **Cruise** | 14 m/s | Target efficiency |
@@ -286,7 +288,7 @@ At three cars, the boiler is a periodic chore someone fits around other work. **
 |---|---|
 | Fire rate | 3/s |
 | Effective range | 220m (T121: the forward gun covers the Track Doll from the 200 m it shows in the lamp; cab forward since note 276, nothing of the engine masks the rail: the driver sees it from 8 m past the plough) |
-| Traverse | 200° |
+| Traverse | 200°; **the engine's forward gun 360°** (the director's in-game notes, 9 Oct 2026; note 596): it turns the full circle, the short way round past its back, and the dead zone and the train's own body still keep it from firing back down the train |
 | **Dead zone** | **20° each side along the train's own body** |
 | Ammunition | 200 rounds/gun, resupply at POI |
 | Choir aggro | +1.5 per round fired, decay 45s |
@@ -301,25 +303,27 @@ At three cars, the boiler is a periodic chore someone fits around other work. **
 
 | Parameter | Value |
 |---|---|
-| Route length | **24 km, every tier** (was 18–40 km by tier; the director's decision of 6 Oct 2026) |
-| Transit at cruise | 28.6 min (was 21–48) |
+| Route length | **7 km, every tier** (the director's decision of 9 Oct 2026, note 554: shorter nights, an average run of about 17 min; was 24 km from 6 Oct, and 18–40 km by tier before that) |
+| Transit at cruise | 8.3 min (was 28.6) |
 | POIs per run | 3 (a stop is time: more of them would make a deeper night longer) |
-| Time per POI | 4–8 min |
-| **Total run** | **28–45 min** |
-| Dawn timer | Route length ÷ 11 m/s average, +40% slack: **51 min, every night** (the slack was +18%: after the 100-night playtest a stop, the posted boards and the in-car trouble didn't fit, and missing dawn was the commonest failure) |
+| Time per POI | about 2 min for a crew that works it well |
+| **Total run** | **about 17 min on average** (the director's marker, not a limit: three stops made in good time) |
+| Dawn timer | Route length ÷ 11 m/s average, +40% slack (14.9 min), + 3 min for each facility on the night (`dawnPerFacilitySeconds`, 180): **23.9 min, every night** ("Dawn in 24 minutes"; the slack was +18%: after the 100-night playtest a stop, the posted boards and the in-car trouble didn't fit, and missing dawn was the commonest failure) |
 
-The dawn budget assumes an 11 m/s average, below the 14 m/s cruise. **The slack is what you spend on stopping** — every POI, every repair, every revival eats it.
+The dawn budget assumes an 11 m/s average, below the 14 m/s cruise. **The slack is what you spend on stopping** — every POI, every repair, every revival eats it — and each facility adds its own three minutes on top (note 554: at 7 km the transit's slack alone, 4.2 min, left no time for a stop). A crew that makes all three stops in good time is home with minutes to spare; a slow one isn't.
 
-**One night length** (the director, 6 Oct 2026): "The time a run takes should always be the same. Difficulty scales not by time but by monsters and density of challenges." The total run's floor is the transit at cruise with no stop made (28.6 min, the table's 28); its ceiling is a crew that works a few stops. A tier no longer adds kilometres; it packs more into the same 24:
+**At dawn the Wakers get up** (GDD §8; docs/design/creatures/wakers.md; note 588; enemies.json `wakers`), in place of v1's two minutes' grace and a failed night. A train still out has them behind it: 1 on the Local and Frontier tiers, 2 on the Dead Lines, 3 in the Deep Territory. The first rises 1.2 km behind the last car. After 8 s it runs 6 m/s, building to 26 m/s over 45 s (the engine's flat out is 22). A train standing at dawn is caught in about 75 s; one at cruise is caught from about 2.5 km out, so a crew that close races it in. They stop 300 m short of the terminus's gate. The one that reaches the last car drags the train to a stand (3 × the engine's pull) and lifts a car every 2.5 s from the rear. From 6 s in it eats one every 4 s, whoever's in it with it, and anyone off the train goes 8 s in. The engine eaten, the night is lost: "taken at dawn" (`RunEnd.DawnMissed`).
+
+**One night length** (the director, 6 Oct 2026): "The time a run takes should always be the same. Difficulty scales not by time but by monsters and density of challenges." On 9 Oct 2026 the one length became 7 km ("Sessions are feeling very long ... the average run has 3 full stops it can make", then "let me increase the time of a run up to 17 minutes ... that time is just an average run marker"; and after playing it, "yes make the shorter night final"). The total run's floor is the transit at cruise with no stop made (8.3 min); its ceiling is the dawn. A tier no longer adds kilometres; it packs more into the same 7:
 
 | Tier | Facilities | Junctions | Washouts, weak bridges, brass | Terrain budget per km | Terrain laid per night (measured) | Director's base budget per km |
 |---|---|---|---|---|---|---|
-| Local | 3 | 2–3 | 0 | 0.6 | 6.8 | 3.8 |
-| Frontier | 3 | 3–5 | 0–1 each, 1 brass | 1.0 | 9.3 | 6.3 |
-| Dead lines | 3 | 4–6 | 1 each, 2 brass | 1.5 | 14 | 9.6 |
-| Deep territory | 3 | 4–7 | 1–2 each, 2–3 brass | 2.1–2.6 | 17 | 13.8 |
+| Local | 3 | 0–1 | 0 | 0.6 | 3.3 | 12.9 |
+| Frontier | 3 | 1–2 | 0–1 each | 1.0 | 4.4 | 21.4 |
+| Dead lines | 3 | 1–2 | 0–1 each | 1.5 | 5.9 | 32.9 |
+| Deep territory | 3 | 1–2 | 1 washout, 0–1 weak bridge and brass | 2.1–2.6 | 6.3 | 47.1 |
 
-Counts are each tier's start, rising with a route's severity toward the next tier's (`content/linegen/tiers.json`); terrain laid is `dt linegen sweep`'s mean terrain cost at 10 cars; the director's budget is App. B.1's per night (`enemies.json` `baseBudget`: 90 / 150 / 230 / 330) over the one length, × the train and crew multipliers. The deeper tiers' counts were set for 29–40 km lines; on 24 km the space-hungry ones (facilities, junctions with their level pads, alternates, dead lines, brass fields, momentum banks) were cut until the line generator fits every tier's quotas again (Dead lines' long climbs: one, was two), so what still rises steeply is what the land and the director put on each kilometre. Quiet stretches are counted in kilometres of line, with time as the backstop for a stopped train (GDD App. F.1): the director's quiet pressure ramps over 1.26 km run since a threat was engaged (the old 90 s at cruise), or over 120 s if that's sooner (`enemies.json` `quietRampMetres`, `quietBackstopSeconds`; ARCHITECTURE §8 note 270).
+Counts are each tier's start, rising with a route's severity toward the next tier's (`content/linegen/tiers.json`); terrain laid is `dt linegen sweep`'s mean terrain cost at 10 cars; the director's budget is App. B.1's per night (`enemies.json` `baseBudget`: 90 / 150 / 230 / 330) over the one length, × the train and crew multipliers. The counts were set for 24 km lines (and the deeper tiers' for 29–40 km before that); on 7 km they are a 24 km night's per kilometre where that's a whole number (note 554: the facility slots from 1.25 km past the gate, 1.1 km apart and 1.7 km before the end; one or two hard bends; at most one alternate, dead line, washout, weak bridge, momentum bank and brass field; the tag quotas, the tunnel quota and the dead settlement by a facility dropped). The three stops take about half of a 7 km line, so the set pieces, their recoveries and the threshold, home straight and spike window are cut to fit what's left (content/linegen, note 554): the land laid per kilometre is near a 24 km night's again, rising with the tier (above, `dt linegen sweep --cars 10 --seeds 20`, 11 Oct 2026; it was 2.2 / 3.2 / 2.8 / 2.8 with the 24 km lengths, which left the 7 km lines flat). Quiet stretches are counted in kilometres of line, with time as the backstop for a stopped train (GDD App. F.1): the director's quiet pressure ramps over 1.26 km run since a threat was engaged (the old 90 s at cruise), or over 120 s if that's sooner (`enemies.json` `quietRampMetres`, `quietBackstopSeconds`; ARCHITECTURE §8 note 270).
 
 ## B.9 Breaches
 
@@ -367,17 +371,17 @@ A car fire burns on cells (decided 6 Oct, GDD App. F.1; ARCHITECTURE note 267). 
 
 | Parameter | Value |
 |---|---|
-| Cell size | 1.5 m (`cellSize`): 72 cells in a cargo car |
+| Cell size | 3.5 m (`cellSize`): 16 cells in a cargo car, 4 along, the floor, the roof and each wall one across (the director, the inbox, 12 Oct: "make it 15"; it was 1.5 m, 72 cells; note 634) |
 | A cell's growth | `growPerSecond` 0.006 + `growWithSize` 0.02 × its heat; the floor's cells × the cargo's growth (powder 1.6, chemicals 1.3, coal and timber 1.4) |
 | Catching | A cell at 0.5 or more heats each cell sharing an edge at 0.04 × its heat a second, ×2 upward (fire climbs) |
 | Burning out | A cell burns 0.01 × its heat of its fuel a second, charring as it goes; burnt out, it dies down at 0.05/s. Embers below 0.05 go out unless a neighbour is heating them |
-| Extinguisher | 3.5 m from the eye along the look; the cell hit cools 0.35/s, the cells round it 40% of that, and it stays wet (won't catch) for 3 s; 15 s of charge |
+| Extinguisher | 3.5 m from the eye along the look; the stretch of the car where it's aimed, its floor, walls and roof there, cools 1/s a cell (`sprayWorksAcross`, `sprayPerSecond`; the director, 13 Oct: "one grid ahead of me ... hold. And it should dissipate within five seconds"; 12 Oct: "extinguish far more of the fire"), the cells round it 40% of that, and it stays wet (won't catch) for 3 s; 15 s of charge |
 | Alight | When any cell reaches 0.35 (the commit, after the smoke) |
 | The car's fire | The mean of its cells: the explosion (powder car at 0.6), the cargo and car damage, the sound |
 | Jumping the coupling | A cell against an end wall at 0.8 for 15 s (chemicals ×2, coal and timber ×2 as fast), into the next car's near end |
 | Burns | Within 1.6 m of a burning cell's patch (feet to 1.8 m up), its heat × the falloff; the roof at half |
-| Left alone (goods) | Alight at 25 s, the roof caught by about 55 s, half the car by 70 s, the next car by 85 s; burnt out by about 6 min |
-| One extinguisher | Puts out a fire found in its first 40 s; not one left a minute (about 60% of the car alight) |
+| Left alone (goods) | At 1.5 m cells: alight at 25 s, the roof caught by about 55 s, half the car by 70 s, the next car by 85 s; burnt out by about 6 min. Not yet measured again at 3.5 m (note 634) |
+| One extinguisher | Puts out a car at full blaze in about 8.6 s, nearly three-quarters of its charge left, the one spraying it unburned (the director, 12 Oct: "from full blaze within 20 seconds"; `FireCellsTests`) |
 
 ---
 
@@ -425,6 +429,76 @@ A car fire burns on cells (decided 6 Oct, GDD App. F.1; ARCHITECTURE note 267). 
 | Trophy | its head: **1.5** of the tier's car-loads (loot.json `trophies`) |
 | Spawn weight by tier | 1 · 1.5 · 2 · 2.5 (Local to Deep Territory) |
 
+## B.14 The Mourners
+
+*The director's brief, 2026-10-08* (GDD §21, App. A.6, B.6; `mourners` in `content/tuning/enemies.json`; ARCHITECTURE §8 note 362). `SpecTableTests.TheMournersMatchB14` pins this table.
+
+| Parameter | Value |
+|---|---|
+| **Come** | **15 s** after a body's left lying off the train; **3 · 4 · 5 · 6** of them by tier, 40 m off it, away from the line |
+| Shy | a crewmate within **6 m** starts one back to 12 m; back in 4 s |
+| **Take** | nobody within 6 m of the body: two take it and drag it straight off the line at **1.6 m/s** |
+| Drop | a crewmate within **3 m** of the body, or a blow on any of them; the rest scatter **6 s** |
+| Health | **1** blow each |
+| **Gone** | hauled **120 m** from the track: the body, its refund and its kit |
+
+## B.15 Tower Jaw
+
+*The director's brief, 2026-10-08* (GDD §21, App. A.6, B.6; `towerJaw` in `content/tuning/enemies.json`; ARCHITECTURE §8 note 363). `SpecTableTests.TowerJawMatchesB15` pins this table.
+
+| Parameter | Value |
+|---|---|
+| **Gnaws through** | **150 · 120 · 100 · 90 s** by tier; already 20% through when the train comes |
+| Threat, bite | a crewmate within **10 m**: it rears (1.5 s); within **3 m** a bite of **35** (never a kill) |
+| **Driven off** | **4 blows in 15 s**: away 120 s, its gnawing kept; **12** blows kill it |
+| **Down** | crushes within 3.5 m (**45**); the coaling tower's chute empty; its wreck closes the line ±3 m of the spout |
+| **Cleared** | **30** crew-seconds of Use held within 4 m |
+
+## B.16 The Brakeman
+
+*The director's brief, 2026-10-08* (GDD §21, App. A.8, B.8; `brakeman` in `content/tuning/enemies.json`; ARCHITECTURE §8 note 364). `SpecTableTests.TheBrakemanMatchesB16` pins this table.
+
+| Parameter | Value |
+|---|---|
+| **Comes** | never with fewer than **2** alive; a train of 4 cars or more over 3 m/s |
+| Works | **2.5 m/s** along the roofs, **4 s** a wheel; a wound car's handbrake drags (train.json `handbrakeDecel` of its mass) |
+| **Runs** | from a crewmate on the roofs within **12 m**, at **5 m/s** (a roof run is 3.5); lost **20 m** clear: hides **30–60 s** |
+| **Cornered** | crewmates within **10 m** on both sides: blows land (**4**); he lashes the nearer every 2.5 s for **30** |
+| Spawn weight by tier | 1 · 1.5 · 2 · 2.5; × cars ÷ 6; ×2 with a 2% climb within 1 km |
+
+## B.17 The Knotter
+
+*The director's brief, 2026-10-08* (GDD §21, App. A.7, B.7; `knotter` in `content/tuning/enemies.json`; ARCHITECTURE §8 note 365). `SpecTableTests.TheKnotterMatchesB17` pins this table.
+
+| Parameter | Value |
+|---|---|
+| **Comes** | a train of 3 or more at **8 m/s** or more; **4 s** of creaking before it clamps |
+| **The gap** | forced to **5 m** over 6 s (a roof jump carries about 2.8) |
+| **Slip** | **45%** a second on its back over 2 m/s; its coil **1.5 s** for a friend to pull them up |
+| Health | **8** blows, only at a stand |
+
+## B.18 The Freight Beetle
+
+*The director's brief, 2026-10-08* (GDD §21, App. A.6, B.6; `freightBeetle` in `content/tuning/enemies.json`; ARCHITECTURE §8 note 366). `SpecTableTests.TheFreightBeetleMatchesB18` pins this table.
+
+| Parameter | Value |
+|---|---|
+| **Notices** | a player within **25 m** |
+| **Pushes** | directly away from the nearest player at **1.2 m/s** (a heavy crate 0.8), turning **90°/s** |
+| Startled | a player within 1.5 m of its head: 2 s |
+| Health | **6** blows; **3 in 10 s** drive it off its load for 30 s |
+
+## B.19 Hotbox
+
+*The director's brief, 2026-10-08* (GDD §21, App. A.7, B.7; `hotbox` in `content/tuning/enemies.json`; ARCHITECTURE §8 note 367). `SpecTableTests.HotboxMatchesB19` pins this table.
+
+| Parameter | Value |
+|---|---|
+| **Boards** | the train at **10 m/s** or more |
+| Heat | **90 s** knocking, then **90 s** glowing, at 18 m/s (in proportion to the speed) |
+| **Seized** | the train held to **7 m/s** while the car's in it; repaired with a wrench, **10 s** |
+| **Exposed** | at a stand for **2 s**: **6** blows kill it, or a crowbar or wrench held **4 s** prises it out; it bites **30** every 3 s |
+
 # PART C — DEATH AND REVIVAL
 
 > **Superseded by GDD v1.2 Appendix D (Death, Holdouts and Return).** The Vigil is cut. A dead player returns only through a Holdout at a halt, village or yard; bodies are loot (D.9). This part is kept for the record.
@@ -459,7 +533,7 @@ Revival is possible, expensive, and genuinely capable of ending a run.
 
 - Engine off. No movement.
 - Lights drop to emergency only.
-- Turret traverse dead (no boiler pressure).
+- ~~Turret traverse dead (no boiler pressure).~~ The guns are their own, firing and reloading whatever the boiler's pressure, with endless shot (the director, 13 Oct 2026, note 689; combat.json `minPressure` 0, `infiniteAmmo`). The vent's noise is still theirs to answer.
 - **The vent is deafening.** Choir aggro spikes to maximum instantly, and every noise-triggered spawn weight doubles for the duration.
 - Dawn clock keeps running.
 
@@ -554,27 +628,32 @@ Currency: **scrip**.
 
 ## F.1 Income
 
-Contracts pay on **delivered cargo that survives**. Nothing else.
+Contracts pay on **delivered cargo that survives**. Nothing else. A contract is the route and its tier (note 637: "Just a route", the director, the inbox, 12 Oct); the cargo is whatever the night's stops load, each car paid at this table's value by its freight's rate (run.json `economy.cargoRates`).
 
 | Tier | Value per delivered car |
 |---|---|
 | Local | 450 |
-| Frontier | 700 |
-| Dead lines | 1,100 |
-| Deep territory | 1,700 |
+| Frontier | 900 |
+| Dead lines | 5,500 |
+| Deep territory | 23,000 |
 
-**Running costs** — coal, ammunition, repairs — average **15% of gross.**
-**Expected loss** — roughly one car's cargo per run at competent play.
+*Note 636 (the director, the inbox, 12 Oct: "each successful run should help players towards earning and spending to upgrade so they can go further the next run when the difficulty goes up").* The train leaves empty (note 575) and a night earns what its one stop loads, and the harder yards load less: 2.7 car-loads on Local, 3.0 on Frontier, 1.5 on Dead lines, 0.9 in Deep territory (64 nights of four bots). So each tier's car-load is priced for a delivered night to net about **the tier's next car ÷ 1.5** (F.2): about 1,100 on Local, 2,650 on Frontier, 7,800 on Dead lines and 20,000 in Deep territory. (Was 450 / 700 / 1,100 / 1,700 a car, priced for full trains.)
+
+**Running costs** — coal, ammunition, repairs — are fixed sums, not a share: they came to 15% of gross at the old pay, and with the deaths' fees and less the mail they come to about **5% of gross** now.
+**Fees don't follow the pay.** A death's crew-loss fee and a creature's monster brigade fee are halves of the tier's **fee value** (450 / 700 / 1,100 / 1,700, run.json `economy.feeValue`), so a raise in the pay isn't a raise in what a death costs (GDD App. D).
+**Expected loss** is already out of the car-loads above: they're what came home.
 
 ### Net income by consist
 
-| Consist | Tier | Loaded | Gross | Net |
+| Consist | Tier | Car-loads home | Gross | Net |
 |---|---|---|---|---|
-| 3 | Local | 2 | 900 | **765** |
-| 6 | Frontier | 5 | 3,500 | **2,975** |
-| 10 | Frontier | 9 | 6,300 | **5,355** |
-| 15 | Dead lines | 14 | 15,400 | **13,090** |
-| 20 | Deep | 19 | 32,300 | **27,455** |
+| 3 | Local | 2 | 900 | **855** |
+| 6 | Frontier | 3.0 | 2,690 | **2,556** |
+| 10 | Frontier | 3.0 | 2,690 | **2,556** |
+| 15 | Dead lines | 1.5 | 8,305 | **7,890** |
+| 20 | Deep | 0.9 | 20,470 | **19,447** |
+
+A longer train doesn't earn more on the same tier: it carries home what the stop loads. It earns more by going further (F.4).
 
 ## F.2 Car costs
 
@@ -612,10 +691,12 @@ Armoured car conversion · second guard car (a **third gun**, but it costs a car
 
 | Phase | Consist | Tier | Runs |
 |---|---|---|---|
-| Early | 3–6 | Local | 1–8 |
-| Establishing | 6–10 | Frontier | 9–20 |
-| Committed | 10–15 | Dead lines | 21–38 |
-| Behemoth | 15–20 | Deep territory | 39–60 |
+| Early | 3–6 | Local | 1–9 |
+| Establishing | 6–10 | Frontier | 9–21 |
+| Committed | 10–15 | Dead lines | 21–40 |
+| Behemoth | 15–20 | Deep territory | 40–56 |
+
+*Note 636: `dt campaign sim`'s standard crew on F.1's nets (campaign.json `standardCrew`) reaches 6 cars on run 9, 10 on 21, 15 on 40 and 20 on 56.*
 
 **Roughly 55–60 successful runs to reach 20 cars**, which at 35 minutes average is around 33 hours of successful play — considerably more with failures. That's a healthy campaign length for the genre and leaves room for post-launch route and enemy additions without inflating the ceiling.
 

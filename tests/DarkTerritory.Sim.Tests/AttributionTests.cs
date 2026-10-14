@@ -92,6 +92,39 @@ public class AttributionTests
     }
 
     [Fact]
+    public void FreezingOnTheTrainsRoofIsntLeftBehind()
+    {
+        // Note 547 (D1.3's #671: "Froze, left behind on the roof of car 3 ... 8 m from the train", nine times in nine nights):
+        // a crewmate who freezes on the train's own roof froze on the train, and the nearest crewmate is named, as for any
+        // death aboard. Left behind, the distance is to the train's nearest end, not a car's middle.
+        var n = new Night();
+        int driver = n.Add(PlayerMotor.SpawnInCab(n.Train, P));
+        int cold = n.Add(PlayerMotor.SpawnOnRoof(n.Train, 3, n.Train.Frames[3].Shape.HalfLength - 0.5, P));
+        n.World.Attribution.Drove(driver);
+        n.Kill(cold, DeathCause.Cold);
+        n.Step();
+        var d = n.DeathOf(cold);
+        Assert.Equal("Froze on the train", d.What);
+        Assert.Contains("on the roof of car 3", d.Where);
+        Assert.StartsWith("Nearest crew: {actor},", d.Action);
+    }
+
+    [Fact]
+    public void FreezingJustBesideTheTrainIsLeftBehindByTheGapNotTheCarsMiddle()
+    {
+        var n = new Night();
+        int driver = n.Add(PlayerMotor.SpawnInCab(n.Train, P));
+        double back = n.Train.Dynamics.RearDistance - 3;
+        int left = n.Add(PlayerMotor.SpawnOnGround(n.Train.Line.Sample(back).Position, n.Train.Line, back, P));
+        n.World.Attribution.Drove(driver);
+        n.Kill(left, DeathCause.Cold);
+        n.Step();
+        var d = n.DeathOf(left);
+        Assert.Equal("Froze, left behind", d.What);
+        Assert.Matches(@"^Throttle: \{actor\}\. [0-4] m from the train\.$", d.Action);
+    }
+
+    [Fact]
     public void ADeathByFireNamesWhoLitThatCarsLamp()
     {
         var n = new Night();

@@ -76,6 +76,44 @@ public class CabSightTests
     }
 
     [Fact]
+    public void TheLinesideBoardsKnowWhereATrusssSidesStand()
+    {
+        // Note 686: the sim keeps a board's sight lines off a through truss's sides (signage.json billboard.trussHalfM,
+        // trussLowM, trussHighM), so those are the truss's as the art builds it (StructureKit.TrussSpan).
+        var r = DataFile.Load<DarkTerritory.Sim.LineGen.SignageFile>(Path.Combine(Content, "linegen", "signage.json")).Billboard;
+        Assert.Equal(StructureKit.TrussHalf, r.TrussHalfM, 3);
+        Assert.Equal(StructureKit.TrussLow, r.TrussLowM, 3);
+        Assert.Equal(StructureKit.TrussHigh, r.TrussHighM, 3);
+    }
+
+    [Fact]
+    public void TheLinesideBoardsKnowWhatTheCabsFrameHidesFromTheDriver()
+    {
+        // `pt13-signs` (the director, 13 Oct: "there's no clear enough sight lines to see them"): the sim stands the line's
+        // boards where the driver sees them past the cab's own frame (signage.json billboard.eyeAcrossM, cabBlindDeg), so
+        // those are the cab's: the eye where the cab view's is, the right front window's outer pillar (from the window's
+        // edge to the first side slit) and the middle post, in degrees off straight ahead, + to the right.
+        var signage = DataFile.Load<DarkTerritory.Sim.LineGen.SignageFile>(Path.Combine(Content, "linegen", "signage.json"));
+        var r = signage.Billboard;
+        var eye = Views.CabEye(Engine);
+        Assert.InRange(r.EyeAcrossM, eye.X - 0.05, eye.X + 0.05);
+        double ahead = eye.Z - CabFront;
+        static double Deg(double right, double forward) => Math.Atan2(right, forward) * 180 / Math.PI;
+        var right = TrainKit.FrontWindow(Engine, 1);
+        var slit = TrainKit.CabPanes(Engine).Where(p => p.In.X < 0).MinBy(p => Math.Min(p.Corner.Z, p.Corner.Z + p.U.Z));
+        double slitFront = Math.Min(slit.Corner.Z, slit.Corner.Z + slit.U.Z);
+        (double From, double To) pillar = (Deg(right.X1 - eye.X, ahead), Deg(slit.Corner.X - eye.X, eye.Z - slitFront));
+        (double From, double To) post = (Deg(TrainKit.FrontWindow(Engine, -1).X1 - eye.X, ahead), Deg(right.X0 - eye.X, ahead));
+        void Holds((double From, double To) band, int i, string what)
+        {
+            Assert.True(Math.Abs(r.CabBlindDeg[i] - band.From) <= 1.5 && Math.Abs(r.CabBlindDeg[i + 1] - band.To) <= 1.5,
+                $"the {what} hides {band.From:0.0} to {band.To:0.0} degrees; cabBlindDeg says {r.CabBlindDeg[i]} to {r.CabBlindDeg[i + 1]}");
+        }
+        Holds(pillar, 0, "right front pillar");
+        Holds(post, 2, "middle post");
+    }
+
+    [Fact]
     public void TheDriversPlaceIsAtTheFrontOfTheTrain()
     {
         // Cab forward (note 276): nothing of the engine ahead of the cab but the pilot under its nose.

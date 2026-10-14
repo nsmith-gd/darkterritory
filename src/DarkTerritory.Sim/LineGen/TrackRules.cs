@@ -83,6 +83,7 @@ public static class TrackRules
                 double damage = r.BrassDamagePerSpeedSquared * (v - r.BrassCuttingSpeed) * (v - r.BrassCuttingSpeed) * dt;
                 var engine = rake.Consist.Vehicles[0];
                 engine.Integrity = Math.Max(0, engine.Integrity - damage);
+                engine.Knock = (KnockCause.Brass, v);
             }
         }
         return null;

@@ -43,6 +43,8 @@ public sealed class ClientSession
 
     /// <summary>The name this player goes by, sent to the host once welcomed (the roster, the report).</summary>
     public string Name { get; set; } = "";
+    /// <summary>A bot's session (note 574): its Hello says so, and it never takes the cab's controls off someone playing.</summary>
+    public bool Bot { get; init; }
 
     /// <summary>The outfit this player comes in (note 298), sent with the name; <see cref="Messages.NoOutfit"/> for their id's.</summary>
     public byte Outfit { get; set; } = Messages.NoOutfit;
@@ -70,6 +72,7 @@ public sealed class ClientSession
         World = world;
         // How long the host keeps an emote is how long it's drawn (note 298).
         world.EmoteTuning = playerTuning.Emotes;
+        world.NewsTuning = playerTuning.News;
         // Clients mirror enemies; only the host simulates them.
         _transport = transport;
 
@@ -89,6 +92,7 @@ public sealed class ClientSession
         {
             _playerTuning = value;
             World.Hand = value.Hand;
+            World.Movement = value;
             World.Bodies.FullHealth = value.Health; // a healing find is used only short of it (note 272)
         }
     }
@@ -129,6 +133,12 @@ public sealed class ClientSession
 
     public string SessionInfo { get; private set; } = "";
     /// <summary>Set while welcomed but not yet aboard (spec E: drop-in at POIs), with the host's reason.</summary>
+    /// <summary>
+    /// The town the host said the crew's going on from (note 606), once it's leaving a delivered campaign night; null till then.
+    /// When the link goes after it, it's the host gone to pick the next night, not the night lost.
+    /// </summary>
+    public Towns.TownAt? CarryingOn { get; private set; }
+
     public string? WaitingReason { get; private set; }
     public bool Waiting => WaitingReason is not null && !Connected;
     public bool Connected => PlayerId is not null && _haveState;
@@ -188,7 +198,7 @@ public sealed class ClientSession
         if (_helloSent)
             return;
         _helloSent = true;
-        Messages.WriteHello(_writer, Name, Token, Outfit, PasswordKey);
+        Messages.WriteHello(_writer, Name, Token, Outfit, PasswordKey, Bot);
         _transport.Send(PeerId.Host, _writer.Written, Delivery.ReliableOrdered);
     }
     /// <summary>A private run's password as its key (note 450), said in every Hello; null for an open run.</summary>
@@ -200,10 +210,54 @@ public sealed class ClientSession
     public TrainControls Controls;
 
     /// <summary>Distance between what we predicted for an input and what the host computed for it.</summary>
+    /// <summary>
+    /// Note 532: how many of this client's inputs the host was holding beyond the one it applied, as of the newest snapshot.
+    /// One or two is a link's jitter; more and more means the host can't keep up (or this clock runs fast), and the host
+    /// will throw the oldest away.
+    /// </summary>
+    public int HostQueued { get; private set; }
+    /// <summary>Note 549: the host is sending this client every other snapshot, its downlink being thin.</summary>
+    public bool Thinned { get; private set; }
+    int _sinceSnapshot;
+    /// <summary>
+    /// Note 549: the downlink loss this client tells the host of itself, in percent: its counted share, or all of it when
+    /// nothing has come for a second (a starved link has no gaps to count: the counter only sees what arrives).
+    /// </summary>
+    public int ReportedLossPct => _sinceSnapshot > SimConstants.TickRate ? 100 : (int)Math.Clamp(Math.Round((SnapshotLoss.Settled ?? 0) * 100), 0, 100);
+
+    /// <summary>
+    /// Note 532: how much longer this client's ticks should take, as a multiple of the tick: 1, or 1 + link.paceSlow while
+    /// the host has been holding more than link.paceQueued of its inputs for link.paceSeconds, until the host's caught up.
+    /// The app stretches its clock by it; the sim never reads it, so prediction is untouched.
+    /// </summary>
+    public double Pace { get; private set; } = 1;
+    int _queuedTicks;
+
+    void StepPace()
+    {
+        var t = PlayerTuning.Link;
+        if (!Connected)
+        {
+            Pace = 1;
+            _queuedTicks = 0;
+            return;
+        }
+        _queuedTicks = HostQueued > t.PaceQueued ? _queuedTicks + 1 : 0;
+        if (_queuedTicks * SimConstants.TickSeconds >= t.PaceSeconds)
+            Pace = 1 + t.PaceSlow;
+        else if (HostQueued <= 1)
+            Pace = 1;
+    }
+
     public double LastCorrection { get; private set; }
     public double MaxCorrection { get; private set; }
     public int Corrections { get; private set; }
     public int SnapshotsReceived { get; private set; }
+    /// <summary>
+    /// The host's snapshots, one a tick, getting through (netcode-audit.md gap 3): the ones lost on the way, and the stale
+    /// ones that came after a newer one. For the HUD's link line; set its window from hud.json <c>lossWindowSeconds</c>.
+    /// </summary>
+    public LinkLoss SnapshotLoss { get; set; } = new(10 * SimConstants.TickRate);
 
     /// <summary>Clears the correction statistics (after a deliberate host-side teleport, for example).</summary>
     public void ResetStats()
@@ -218,7 +272,9 @@ public sealed class ClientSession
         // Gone for good (Leave): a transport polled after hanging up would dial the host again as someone new.
         if (Left)
             return;
+        _sinceSnapshot++;
         Receive();
+        StepPace();
         if (!Connected)
             return;
 
@@ -235,9 +291,17 @@ public sealed class ClientSession
         World.BeginTick();
         // The host clears the brake every tick and re-applies whoever is holding it. If we're the one in
         // the cab it's almost certainly us, so do the same; otherwise assume whoever was braking still is.
-        if (CabControls.CanDrive(Predicted, Train) && CabControls.Clears(Controls, Train, CabControls.ReleasesBrake(intent, Predicted, Train)))
+        // Note 574: who holds the controls, as the host has it. Working them, we take them if nobody holds them, or (playing)
+        // off a bot; held by someone else, our hand on them doesn't count.
+        int me = PlayerId ?? 0;
+        if (CabControls.CanDrive(Predicted, Train) && CabControls.Works(intent) && World.ControlsHolder != me
+            && (World.ControlsHolder < 0 || !Bot && World.ControlsHolderBot))
+            World.HoldControls(me, Bot);
+        bool atControls = World.ControlsHolder < 0 || World.ControlsHolder == me;
+        if (atControls && CabControls.CanDrive(Predicted, Train) && CabControls.Clears(Controls, Train, CabControls.ReleasesBrake(intent, Predicted, Train)))
             Controls.Brake = 0;
-        CabControls.Apply(ref Controls, intent, Predicted, Train);
+        if (atControls)
+            CabControls.Apply(ref Controls, intent, Predicted, Train);
         World.CrewAct(ref Predicted, intent, PlayerId ?? 0);
         World.Step(Controls);
         if (!World.Wrecked(Predicted))
@@ -262,7 +326,7 @@ public sealed class ClientSession
             uint seq = _sequence - (uint)(n - 1 - i);
             _redundant[i] = new InputFrame(seq, _history[seq % HistoryLength].Intent);
         }
-        Messages.WriteInput(_writer, _redundant.AsSpan(0, n), _newestSnapshotTick);
+        Messages.WriteInput(_writer, _redundant.AsSpan(0, n), _newestSnapshotTick, (byte)ReportedLossPct);
         _transport.Send(PeerId.Host, _writer.Written, Delivery.Unreliable);
     }
 
@@ -306,6 +370,9 @@ public sealed class ClientSession
                     break;
                 case MessageType.Wait:
                     WaitingReason = r.Str();
+                    break;
+                case MessageType.CarryOn:
+                    CarryingOn = Messages.ReadCarryOn(ref r);
                     break;
                 case MessageType.Refused:
                     // Note 254: turned away (a full crew). Kept to show; the host hangs up on this link in a moment.
@@ -366,8 +433,10 @@ public sealed class ClientSession
                     }
                 case MessageType.Snapshot:
                     uint tick = r.U32(), acked = r.U32(), baseTick = r.U32();
+                    byte queued = r.U8(), flags = r.U8();
                     if (tick <= _newestSnapshotTick || _decoded.ContainsKey(tick))
                         continue;
+                    HostQueued = queued;
                     var baseline = baseTick == 0 ? null : _decoded.GetValueOrDefault(baseTick);
                     if (baseTick != 0 && baseline is null)
                         continue; // we no longer have what it's relative to; the next one will be
@@ -375,6 +444,12 @@ public sealed class ClientSession
                     try { records = WorldRecords.ReadDelta(ref r, baseline); }
                     catch (Exception ex) when (ex is EndOfStreamException or InvalidDataException) { continue; }
                     SnapshotsReceived++;
+                    _sinceSnapshot = 0;
+                    SnapshotLoss.Heard(tick);
+                    // Note 549: sent every other snapshot, the tick between isn't lost; count it heard, or the HUD reads 50 % lost.
+                    if ((flags & Messages.SnapshotThinned) != 0)
+                        SnapshotLoss.Heard(tick + 1);
+                    Thinned = (flags & Messages.SnapshotThinned) != 0;
                     _decoded[tick] = records;
                     if (_decoded.Count > DecodedHistory)
                         foreach (var old in _decoded.Keys.Where(k => k + DecodedHistory < tick).ToList())

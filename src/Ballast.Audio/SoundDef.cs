@@ -56,8 +56,18 @@ public sealed class ParamSet
 {
     readonly Dictionary<string, double> _values = new();
 
-    public double Get(string name) => _values.GetValueOrDefault(name);
-    public void Set(string name, double value) => _values[name] = value;
+    // Set by the game, read by the device's thread as it renders (note 667): a dictionary mustn't be read mid-write.
+    public double Get(string name)
+    {
+        lock (_values)
+            return _values.GetValueOrDefault(name);
+    }
+
+    public void Set(string name, double value)
+    {
+        lock (_values)
+            _values[name] = value;
+    }
 }
 
 public enum SourceKind : byte
@@ -157,7 +167,12 @@ public sealed record MixDef(DuckRule[] Ducking, double DuckAttack, double DuckRe
     // Null is the plain equal-power pan with a small rear cut.
     HeadDef? Head = null,
     // Spec A.6's tape on the tiers it names: wow, flutter and saturation. Null, none.
-    TapeDef? Tape = null)
+    TapeDef? Tape = null,
+    // Seconds kept queued at the device (note 667, AudioPump): every sound's latency, and the longest the mixing thread
+    // can be held off (by a collection that stops every thread) before the player hears a gap. Read at startup.
+    double DeviceLead = 0.06,
+    // The most the lead grows to on a machine where the device still runs dry (AudioPump.Adapt).
+    double DeviceLeadMax = 0.15)
 {
     public const string File = "audio/mix.json";
 

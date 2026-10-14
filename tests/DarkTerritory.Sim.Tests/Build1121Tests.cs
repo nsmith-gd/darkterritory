@@ -13,7 +13,7 @@ namespace DarkTerritory.Sim.Tests;
 public class Build1121Tests
 {
     static readonly PlayerTuning P = Tuning.Player;
-    static readonly EnemyTuning E = Tuning.Enemies;
+    static readonly EnemyTuning E = EveryKind.Enemies;
 
     /// <summary>In the cab, a step behind the firebox door and facing it.</summary>
     static PlayerState AtTheFirebox(TrainOnLine train)
@@ -25,7 +25,7 @@ public class Build1121Tests
 
     static Night Standing(double pressure)
     {
-        var n = new Night(4, speed: 0, boiler: true);
+        var n = new Night(4, speed: 0, boiler: true, enemies: E);
         n.Train.Boiler.Pressure = pressure;
         n.Controls = new TrainControls { Reverser = 1, Brake = 1 };
         return n;
@@ -121,7 +121,27 @@ public class Build1121Tests
         Assert.Equal(P.Health, n.Crew[1].Health);
         Assert.InRange(n.Train.Boiler.Firebox, 0, fire * (1 - E.Stoker.HoseFireCost) + 0.2);
         Assert.False(n.Train.Boiler.SafetyValveJammed);
-        Assert.True(ext.Charge < 1);
+        // With the cab's own hose (note 648) the extinguisher's charge isn't what does it.
+        if (!E.Stoker.CabHose)
+            Assert.True(ext.Charge < 1);
+    }
+
+    [Fact]
+    public void TheCabsOwnHoseKillsItWithNothingFetched()
+    {
+        // Note 648 (the director, the inbox, 12 Oct, "b"): a hose fitting on the footplate. Fire held at the door, empty-handed.
+        Assert.True(E.Stoker.CabHose);
+        var n = Standing(70);
+        n.Train.Boiler.Firebox = 5;
+        var stoker = n.World.AddEnemy(id => Stoker.InFirebox(id, n.Train, false, E.Stoker));
+        n.Run(E.Stoker.SootSeconds + 0.1, holdSpeed: false);
+        n.Crew[1] = AtTheFirebox(n.Train);
+        Assert.Null(n.World.Bodies.CarriedBy(1));
+        double fire = n.Train.Boiler.Firebox;
+        n.Run(E.Stoker.HoseSeconds + 0.5, _ => new PlayerIntent { Buttons = PlayerButtons.Fire }, holdSpeed: false);
+        Assert.True(stoker.Gone);
+        Assert.Equal(P.Health, n.Crew[1].Health);
+        Assert.InRange(n.Train.Boiler.Firebox, 0, fire * (1 - E.Stoker.HoseFireCost) + 0.2);
     }
 
     /// <summary>A standing engine whose fire's kept where it's put (topped up each second), with someone or nobody in the cab.</summary>

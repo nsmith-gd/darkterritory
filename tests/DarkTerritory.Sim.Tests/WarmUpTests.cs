@@ -190,6 +190,52 @@ public class WarmUpTests
         Assert.Single(train.Rakes);
     }
 
+    /// <summary>
+    /// Note 633 (the director, the inbox, 12 Oct: a lit car shut up keeps the Climbers out): warm, out of a lit car by its end
+    /// door onto the plate, and the door shut behind it before it climbs. Left open, it was how note 629's packs got into the
+    /// empty cars at the first stop. A dark car's left as it was: shut up dark, they'd force the roof.
+    /// </summary>
+    [Theory]
+    [InlineData(true)]
+    [InlineData(false)]
+    public void OutOfALitCarAWalkerShutsTheDoorBehindIt(bool lit)
+    {
+        var line = RailLine.Load(Path.Combine(DataFile.FindContentRoot(), "lines/test-loop.json"));
+        var train = new TrainOnLine(new TrainDynamics(Consist.Uniform(T, 4, 1)), line, 1500);
+        var world = new World(train);
+        const int car = 2;
+        train.Vehicles[car].LampLit = lit;
+        var bot = new RoofWalkerBot(3, P.Cold) { Me = 1, Crew = [] };
+        var self = new PlayerState
+        {
+            Parent = car,
+            Position = new Double3(T.Geometry.Interior!.DoorX, T.Geometry.Interior.FloorHeight, -1),
+            Surface = Surface.Deck,
+            Health = P.Health,
+            Cold = 0,
+            LineHint = train.Cars[car].FrontDistance,
+        };
+        bool wentOut = false;
+        double? up = null;
+        for (uint tick = 0; tick < SimConstants.TickRate * 40 && up is null; tick++)
+        {
+            world.BeginTick();
+            var intent = bot.Decide(self, world, tick, out _);
+            world.CrewAct(ref self, intent, 1);
+            world.Step(new TrainControls { Brake = 1, Reverser = 1 });
+            PlayerMotor.Step(ref self, intent, train, P, T, SimConstants.TickSeconds, applyLook: false);
+            wentOut |= train.Vehicles[car].DoorsOpen != 0;
+            if (self.Surface == Surface.Roof)
+                up = tick / (double)SimConstants.TickRate;
+        }
+        Assert.True(wentOut, "it never opened a door");
+        Assert.True(up < 30, $"never up: {self.Surface} on {self.Parent} at {self.Position}, {bot.WarmUpStep}");
+        if (lit)
+            Assert.Equal(0, train.Vehicles[car].DoorsOpen);
+        else
+            Assert.NotEqual(0, train.Vehicles[car].DoorsOpen);
+    }
+
     [Fact]
     public void TwoHandsOnADoorInOneTickMoveItOnce()
     {

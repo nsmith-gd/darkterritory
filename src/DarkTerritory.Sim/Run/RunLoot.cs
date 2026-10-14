@@ -21,6 +21,15 @@ public sealed partial class Run
     bool[] _stocked = [];
     readonly Dictionary<int, double> _lootSettling = new();
     readonly List<LootFind> _stowed = [];
+    /// <summary>
+    /// Note 659 (the director, 13 Oct: "I tried clicking to let go of a piece of loot before it was in the car and it just
+    /// disappeared"): the finds banked (in <see cref="Scavenged"/> and <see cref="Stowed"/>) and still lying aboard, by body:
+    /// their owner and what they're worth. A find lying still in a car is banked but stays there, to be seen and picked up again;
+    /// it used to be taken out of the world. Picked up, carried off or put in a locker, it's unbanked.
+    /// </summary>
+    readonly Dictionary<int, (int Owner, LootFind Find)> _banked = new();
+    /// <summary>A resumed night's banked finds' owners (<see cref="RunTakings.Banked"/>): their bodies bank without paying again.</summary>
+    readonly List<int> _alreadyBanked = [];
 
     /// <summary>Scrip for the finds stowed aboard so far (paid with the cargo on delivery).</summary>
     public double Scavenged { get; private set; }
@@ -127,6 +136,22 @@ public sealed partial class Run
     /// <summary>The healing tuning (loot.json), or null when no find heals.</summary>
     public HealingTuning? Healing => _loot?.Healing;
 
+    /// <summary>
+    /// Note 649 (the director's `D1.5-loot-slots`: "a find in a crew locker stays there, on its shelf, and pays at the gates
+    /// with the rest, like Lethal Company's ship. A locker lost with its car is lost"): what the finds on the lockers' shelves
+    /// of <paramref name="attached"/> cars are worth.
+    /// </summary>
+    public double LockerFinds(World world, IReadOnlySet<int> attached) =>
+        world.Bodies.All.Where(b => b.Kind == Physics.BodyKind.Loot && b.Stowed && attached.Contains(b.Parent)).Sum(b => FindOf(b)?.Value ?? 0);
+
+    void Unbank(int body)
+    {
+        if (!_banked.Remove(body, out var banked))
+            return;
+        Scavenged -= banked.Find.Value;
+        _stowed.Remove(banked.Find);
+    }
+
     void StepLoot(World world, double dt)
     {
         if (_loot is not { } t || _lootLine is not { } line)
@@ -137,25 +162,46 @@ public sealed partial class Run
             if (!_stocked[k] && Due(_stopLoot[k].Feature, train, engine, t.StockAhead))
                 Stock(world.Bodies, line, t, k);
 
-        // A find put down inside a car, and lying still there, is stowed. (Only a stop's finds: other hand loot, the salvage
-        // the Gaunt and the Followers go for, stays a body.)
+        // A find put down inside a car, and lying still there, is stowed: banked, and left lying where it is (note 659). (Only a
+        // stop's finds: other hand loot, the salvage the Gaunt and the Followers go for, stays a body.) One on a crew locker's
+        // shelf stays there, and pays at the gates if its car's still on the train (note 649: LockerFinds).
+        var present = new HashSet<int>();
         foreach (var b in world.Bodies.All.Where(b => b.Kind == Physics.BodyKind.Loot).ToList())
         {
             if (FindOf(b) is not { } find)
                 continue;
-            bool aboard = b.Carrier < 0 && b.Parent > 0 && b.Parent < train.Vehicles.Count
+            present.Add(b.Id);
+            bool aboard = !b.Stowed && b.Carrier < 0 && b.TakenBy < 0 && b.Parent > 0 && b.Parent < train.Vehicles.Count
                 && train.Frames[b.Parent].Shape.Interior is { } room && room.Contains(b.Pbd.Particles[0].Position);
+            if (_banked.ContainsKey(b.Id))
+            {
+                if (!aboard)
+                {
+                    Unbank(b.Id);
+                    b.Banked = false;
+                }
+                continue;
+            }
+            if (b.Stowed)
+                continue;
             double still = aboard ? _lootSettling.GetValueOrDefault(b.Id) + dt : 0;
             if (still < t.SettleSeconds)
             {
                 _lootSettling[b.Id] = still;
                 continue;
             }
+            _lootSettling.Remove(b.Id);
+            _banked[b.Id] = (b.Owner, find);
+            b.Banked = true;
+            // Put back where it lay by a resumed night (note 500): banked already, in the takings.
+            if (_alreadyBanked.Remove(b.Owner))
+                continue;
             Scavenged += find.Value;
             _stowed.Add(find);
-            world.Bodies.Remove(b);
-            _lootSettling.Remove(b.Id);
         }
+        // Gone from the world (carried off and away, a car taken with it): not aboard any more.
+        foreach (int id in _banked.Keys.Where(id => !present.Contains(id)).ToList())
+            Unbank(id);
     }
 
     /// <summary>

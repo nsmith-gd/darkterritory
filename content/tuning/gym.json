@@ -1,0 +1,83 @@
+// The creature gym (GDD §34.1, ARCHITECTURE §8 note 676): where the director meets each creature on purpose, one at a time.
+// Developer builds only: a player's build can't open it, and nothing on a real night reads this file.
+{
+  // The night it's on: a line, the train's length, and the stop it stands at (the first on the line with a yard and a
+  // village, so the yard's sheds, switches and lamps and the village's houses are all a walk from the train).
+  "route": "frontier:7",
+  "cars": 6,
+  "stop": "yardAndVillage",
+  // The engine stands this far short of the stop's first points, the yard's throat (the director, 13 Oct 2026, GDD App.
+  // F.5: "Switchman cannot be tested that far away"): points ahead to call the Switchman to, the village round them. 0
+  // stands the train's middle beside the village instead (so it does when the village is too far from the throat).
+  "pointsAhead": 60,
+  // Nothing called comes nearer you than this (metres), whatever its own rule would do: past every creature's reach, so
+  // it never sets itself off as it arrives. A creature whose own reach is longer keeps that.
+  "minDistance": 45,
+  // And nothing farther than this (the director, 13 Oct 2026: "nothing should spawn more than 200m off"): what its rule
+  // would put farther off is brought in (the Track Doll, the Cinder Hounds, the Wakers on the line; a pack on the ground),
+  // and what stands where its rule finds it (the points, a crane or tower, a house) is taken only from those within it.
+  "maxDistance": 200,
+  // Seconds from the killing blow to standing up again: long enough to see and hear it done.
+  "respawnSeconds": 4,
+  // The safe spot: a ring on the ground beside the engine, this far out from the track's centre on the side away from
+  // the stop's village, kept as a fort keeps its ground (GDD §9): nothing comes into it.
+  "safeRing": { "out": 9, "radius": 5 },
+  // Lamps set down lit about the stop, for the look (each a hand lamp, as on a real night: it can be picked up). Along the
+  // train from its rear to its front, out from the track on alternate sides.
+  "lamps": { "count": 8, "out": [6, 14] },
+  // The gym's own light and air, over the look's (look.json "atmosphere"), lit for filming rather than balanced for play:
+  // the fog heavy and low, the moon low and cold, the lamps warmer against it.
+  "look": {
+    "fogHeightFalloff": 0.11,
+    "fogFloor": 0.3,
+    "fogCurve": 1.7,
+    "fogColour": [0.07, 0.085, 0.105],
+    "moonDirection": [-0.7, 0.16, -0.45],
+    "moonColour": [0.46, 0.56, 0.82],
+    "moonStrength": 0.85,
+    "ambient": 0.06,
+    "lampColour": [1.0, 0.66, 0.34],
+    "lampIntensity": 3.8
+  },
+  // The weather's fog, thicker than the line's own by this much.
+  "fogScale": 1.6,
+  // What the panel says of each creature (GDD §21, App. A): where it comes from in the gym, and what answers it.
+  "notes": {
+    "sleepers": { "from": "Debris on the line ahead (a hazard, off on real nights)", "answer": "Brake before it: over 40 km/h it derails the train" },
+    "cinderHound": { "from": "A pack running up close behind the train, onto the rear car; they go for whoever's out on the train", "answer": "Run fast, or a round from the guns sends them off; aboard, beat them off" },
+    "switchman": { "from": "At the yard's points just ahead of the engine, at the lever", "answer": "It throws them as you come: go and throw them back" },
+    "sootChildren": { "from": "A child calling out of the dark beyond the stop", "answer": "A real child or soot: go and see, and don't stand within reach" },
+    "dragger": { "from": "Under the roof edge of the car nearest you, on your side, unseen (the panel names it)", "answer": "Keep off that roof's edge; at speed it pulls you over" },
+    "stoker": { "from": "Boarding at the tender, for the firebox", "answer": "Drive it off on the way in; in the firebox, cool it out; never open the door on it" },
+    "climber": { "from": "Pacing a coupling gap", "answer": "Hold the gap, or run the train over 50 km/h: they mount below it" },
+    "gaunt": { "from": "Asleep in its roost: the farthest building", "answer": "Talk: it moves when it's not watched and the crew are silent" },
+    "carFire": { "from": "A car alight, the farthest from you", "answer": "The extinguisher on each burning cell; two together beat it" },
+    "passenger": { "from": "In the rearmost car with a room", "answer": "Never be alone on the cars: it takes the lone one" },
+    "follower": { "from": "On the back of whoever steps off at the stop", "answer": "Only the others see it: they have to tell you" },
+    "drift": { "from": "The marsh's ground, under the cars", "answer": "Stand still and it loses you" },
+    "trackDoll": { "from": "On the rail ahead (be moving when you call her: a standing train answers her)", "answer": "Stop for her or not; left alone aboard she gets worse, up to the brake" },
+    "carHugger": { "from": "Under the line ahead, at a bridge or marsh", "answer": "It clamps the last car: pull a friend out of its mouth" },
+    "whistler": { "from": "In a coupling gap", "answer": "Go about in pairs: it takes whoever passes the gap alone" },
+    "tippyToesie": { "from": "Hidden until you stand still and alone a few seconds, then behind you", "answer": "Keep moving, keep together, and turn round" },
+    "fireFlies": { "from": "On a lit car's lamp, its door open", "answer": "Put the lamp out, or get the train moving" },
+    "ribbit": { "from": "Out of the stop's warren, a pack", "answer": "Stay in a group bigger than the pack, or get aboard" },
+    "grumbler": { "from": "Gnawing the castings by the crane (in the yard: walk towards it first)", "answer": "Leave it be; hit it and it hunts whoever did" },
+    "choir": { "from": "Drawn by the noise: it gathers over the train", "answer": "Go quiet, and get behind a shut door" },
+    "moose": { "from": "Grazing out from the train", "answer": "Keep back and keep quiet; it charges a crowd" },
+    "gannet": { "from": "Over the middle car; in the gym it stays over the standing train", "answer": "Off the roofs; below 43 km/h it goes (on a real night)" },
+    "mourners": { "from": "Come for a body left lying", "answer": "Stand by the body: they never touch the living" },
+    "towerJaw": { "from": "Gnawing a crane's or tower's leg (in the yard: walk towards it first)", "answer": "Get it off the leg before it falls; within 10 m it turns on you" },
+    "brakeman": { "from": "At the far end of the train, winding brakes", "answer": "Go up the roofs at it: within 12 m it runs; cornered, it lashes" },
+    "knotter": { "from": "In a coupling, forcing the gap", "answer": "Keep off its back while the train moves: you slip" },
+    "freightBeetle": { "from": "Beside freight on the ground", "answer": "It pushes the loads away from you: never attacks" },
+    "hotbox": { "from": "In a car's axle box", "answer": "Don't stand by the truck when the train stops" },
+    "dave": { "from": "At his easel, painting", "answer": "He's harmless, unless you hit him five times" },
+    "jacob": { "from": "Fishing at the water's edge", "answer": "Hold Use by him: he mends the train, once" },
+    "waker": { "from": "Rising far behind the train, at dawn", "answer": "Run: nothing else answers it" },
+    "pickers": { "from": "Up out of the drains, for loose crates", "answer": "Guard the crates: they run off with them" },
+    "lodger": { "from": "In the darkest corner of a house", "answer": "Don't go in; or go in and don't linger" },
+    "householder": { "from": "In its chair in its house", "answer": "Don't carry its things out unpaid" },
+    "hollowHouse": { "from": "The house itself", "answer": "Don't stay in it: it shuts and sinks" },
+    "hanger": { "from": "Strands across the house's floor", "answer": "Step over the strands, or stay out" }
+  }
+}

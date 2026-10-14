@@ -45,6 +45,22 @@ public class HudTests
     }
 
     [Fact]
+    public void TheCabsHatchLadderSaysItGoesUpToTheRoofAndDownIntoTheCab()
+    {
+        // Note 704 (the director: the cab's ladder "should actually go up to the roof ... and vice versa"): at its foot the
+        // prompt says where it goes, and at the open hatch on the roof, where that goes.
+        var s = new PrototypeSession(Content, "test-loop", 4);
+        var engine = s.Train.Frames[0];
+        var hatch = engine.Shape.Ladders.Single(l => engine.Shape.Cab!.Value.ContainsXZ(l.Foot) && PlayerMotor.IsHatchLadder(engine.Shape, l));
+        s.Player = PlayerMotor.SpawnInCab(s.Train, s.PlayerTuning);
+        s.Player.Position = hatch.Foot - hatch.Inward * 0.3;
+        Assert.Equal("UP TO THE ROOF : [F]", Hud.Prompt(s));
+        s.Player = PlayerMotor.SpawnOnRoof(s.Train, 0, hatch.Foot.Z - 0.3, s.PlayerTuning, hatch.Foot.X);
+        Assert.Equal(hatch.Top, s.Player.Position.Y, 1);
+        Assert.Equal("DOWN INTO THE CAB : [F]", Hud.Prompt(s));
+    }
+
+    [Fact]
     public void ARackRunDryAndThePowderLockerSayWhereThePowderIs()
     {
         // Note 374: the gun's rack empty, the prompt says where its powder is; at the guard van's locker, take a charge; with
@@ -73,7 +89,9 @@ public class HudTests
         // GDD §23: at a fouled gun, clear it by hand.
         var mount = train.Frames[0].Shape.Gun!.Value;
         s.Player = PlayerMotor.SpawnOnRoof(train, 0, mount.Position.Z - mount.Facing.Z * 0.7, s.PlayerTuning);
-        Assert.Equal("SIT : [E]   PUSH ALONG : [E] + WALK", Hud.Prompt(s));
+        Assert.Equal("SIT : [E]   PUSH : HOLD [PUSH] + WALK", Hud.Prompt(s));
+        // Note 703: by the mouse, not on O.
+        Assert.Equal("SIT : [E]   PUSH : HOLD [MIDDLE MOUSE] + WALK", Hud.Bound(Hud.Prompt(s)!));
         train.Vehicles[0].Gun.Jammed = true;
         // Note 344: nothing done yet, no percentage; part done, how far.
         Assert.Equal("CLEAR THE GUN : HOLD [E]", Hud.Prompt(s));
@@ -117,7 +135,9 @@ public class HudTests
         // At the controls looking at nothing (note 285): nothing at the crosshair; driving them is the corner's.
         s.Player = PlayerMotor.SpawnInCab(train, s.PlayerTuning);
         Assert.Null(Hud.Prompt(s));
-        Assert.Equal(s.Train.BoilerTuning?.SteamDrive == true ? "RELEASE BRAKE : [R]" : "REGULATOR UP : [R]", Hud.Hints(s).Lines[0]);
+        // Stood, the reverser first (note 664), then the controls.
+        Assert.Equal("THROW INTO REVERSE : [X]", Hud.Hints(s).Lines[0]);
+        Assert.Equal(s.Train.BoilerTuning?.SteamDrive == true ? "RELEASE BRAKE : [R]" : "REGULATOR UP : [R]", Hud.Hints(s).Lines[1]);
         s.Player = s.Player with { Health = 0, Death = DeathCause.Cold };
         Assert.Null(Hud.Prompt(s));
         Assert.Null(Hud.Hints(s).Head);
@@ -154,12 +174,19 @@ public class HudTests
         s.Player = PlayerMotor.SpawnInCab(s.Train, s.PlayerTuning);
         var (head, lines) = Hud.Hints(s);
         Assert.Contains("VENT : HOLD [VENT]", lines);
-        // Forward goes without saying; the reverser's said only when it's back.
-        Assert.DoesNotContain(lines, l => l.Contains("REVERSE"));
+        // Note 664 (the director, 13 Oct: the reverser "readily identifiable"): stopped, it's the first thing said, which way
+        // it throws. On the move forward goes without saying, and the reverser's said only when it's back.
+        Assert.True(s.Train.Dynamics.Speed < DarkTerritory.Sim.Net.CabControls.ReverserBelow);
+        Assert.Equal("THROW INTO REVERSE : [X]", lines[0]);
         s.Controls.Reverser = -1;
+        Assert.Equal("THROW INTO FORWARD : [X]", Hud.Hints(s).Lines[0]);
+        s.Train.Dynamics.Velocity = 5;
         Assert.Contains("IN REVERSE : [X]", Hud.Hints(s).Lines);
         s.Controls.Reverser = 1;
-        Assert.Contains("[LEFT CTRL]", Hud.Bound(string.Join("   ", lines)));
+        Assert.DoesNotContain(Hud.Hints(s).Lines, l => l.Contains("REVERSE"));
+        s.Train.Dynamics.Velocity = 0;
+        // Note 664: the vent's its own key (LeftCtrl's the crouch); note 703: Caps Lock, by A.
+        Assert.Contains("VENT : HOLD [CAPS LOCK]", Hud.Bound(string.Join("   ", lines)));
         // The corner's head is the speed, for the driver to read against the boards.
         Assert.Equal($"{Math.Abs(s.Train.Dynamics.Speed) * 3.6:0} KM/H", head?.Split("  ")[0]);
         s.Train.Boiler.Vented = true;
@@ -286,6 +313,8 @@ public class HudTests
         s.Player = s.Player with { Kit = s.PlayerTuning.StartingKit, HeldSlot = 1 };
         AssertShort(Hud.Prompt(s));
         Assert.All(Hud.Hints(s).Lines, AssertShort);
+        // Note 649: and the corner says it can be left there.
+        Assert.Contains("STOW : [RMB]", Hud.Hints(s).Lines);
     }
 
     [Fact]
@@ -347,6 +376,27 @@ public class HudTests
             s.Step(new PlayerIntent { Buttons = PlayerButtons.Use });
         Assert.True(s.Train.Diverging(0));
         Assert.Equal("THROW TO THE MAIN LINE : HOLD [E]", Hud.Prompt(s));
+    }
+
+    [Fact]
+    public void WithTheTrainOnThePointsThePromptSaysSo()
+    {
+        // Note 665 (the director, 13 Oct: "it says points held ... it's not clear what it's indicating. We should just tell the
+        // player at that point something is on the track"): what's on them, said.
+        var route = Enumerable.Range(1, 20).Select(seed => DarkTerritory.Sim.Route.RouteGenerator.Generate(
+            DarkTerritory.Sim.Route.RouteTuning.Load(Content),
+            DarkTerritory.Sim.Route.RouteTier.Frontier, (ulong)seed)).First(r => r.Branches.Count > 0);
+        var s = new PrototypeSession(Content, route, 4, enemies: false);
+        var stands = s.World.Switches!;
+        var line = s.Train.Line;
+        var lever = stands.LeverAt(line, 0);
+        var toe = line.Sample(line.Branches[0].Toe);
+        var right = Double3.Cross(toe.Tangent, Double3.Up).Normalized;
+        s.Player = PlayerMotor.SpawnOnGround(lever - Double3.Up * 0.9 + right * (line.Branches[0].Side * 0.8), line, line.Branches[0].Toe, s.PlayerTuning);
+        s.Train.Dynamics.Distance = line.Branches[0].Toe + 10;
+        s.Train.RefreshFrames();
+        Assert.True(s.Train.PointsOccupied(0, stands.Tuning.PointsLength));
+        Assert.Equal("TRAIN ON THE POINTS", Hud.Prompt(s));
     }
 
     [Fact]
@@ -461,7 +511,15 @@ public class HudTests
         s.Player = At(site.ConveyorStarter - Double3.Up * 0.9);
         Assert.Equal("START THE BELT : HOLD [E]", Hud.Prompt(s));
         site.Mirror(site.State with { Start = c.StartSeconds / 2 });
-        Assert.Equal("STARTING THE BELT (50%)", Hud.Prompt(s));
+        Assert.Equal("STARTING THE BELT : KEEP HOLDING [E] (50%)", Hud.Prompt(s));
+        // Note 582 (the director, 9 Oct: "I started the belt hold and it wasnt clear what was happening"): started, the drive
+        // house says what it's doing, not nothing. No car under the head yet: it runs and carries nothing.
+        site.Mirror(site.State with { Start = 0, Running = true });
+        Assert.Null(s.World.Run.CarUnderHead(s.Train, site));
+        Assert.Equal("THE BELT'S RUNNING   NO CAR UNDER ITS HEAD", Hud.Prompt(s));
+        site.Mirror(site.State with { Grain = 0 });
+        Assert.Equal("THE BELT'S RUNNING   NO GRAIN LEFT", Hud.Prompt(s));
+        site.Mirror(site.State with { Grain = c.Grain, Running = false });
         // Running and jammed halfway along its low run: beside the jam, clearing it.
         site.Mirror(site.State with { Start = 0, Running = true, Jam = 0.5 });
         var toTrack = ((site.ConveyorKnee - site.ConveyorTail) with { Y = 0 }).Normalized;
@@ -532,7 +590,8 @@ public class HudTests
     {
         // Note 289: on the line generator's nights (the ones the game plays) every branch that wasn't a spur was "the dead
         // line", so the crew choosing the route card's high line at its junction was told it was throwing the train away.
-        var route = DarkTerritory.Sim.LineGen.Routes.Generate(Content, "frontier:7", 4);
+        // (frontier:7's; the 7 km nights of note 554 seldom have an alternate, and frontier:31 has one.)
+        var route = DarkTerritory.Sim.LineGen.Routes.Generate(Content, "frontier:31", 4);
         var s = new PrototypeSession(Content, route, 4, enemies: false);
         var line = s.Train.Line;
         var alt = line.Branches.First(b => b.Kind == DarkTerritory.Sim.Rail.BranchKind.Alternate);
@@ -868,5 +927,37 @@ public class HudTests
         var toy = s.World.Bodies.SpawnItem(spot.At, hint, DarkTerritory.Sim.Physics.BodyKind.Toy);
         toy.Carrier = ((IPlaySession)s).PlayerId;
         Assert.DoesNotContain("SEARCH", Hud.Prompt(s) ?? "");
+    }
+
+    /// <summary>Note 576: a battered car or engine let go is said where it's felt, and how far gone.</summary>
+    [Fact]
+    public void FailingIsSaidWhereItsFelt()
+    {
+        var tuning = DataFile.Load<TrainTuning>(Path.Combine(Content, TrainTuning.File));
+        var boiler = DataFile.Load<BoilerTuning>(Path.Combine(Content, BoilerTuning.File));
+        var player = DataFile.Load<PlayerTuning>(Path.Combine(Content, PlayerTuning.File));
+        var line = new Sim.Rail.RailLine(new Sim.Rail.LineDefinition("t", [new Sim.Rail.TrackSegment(20_000)]));
+        var train = new TrainOnLine(new TrainDynamics(Consist.Uniform(tuning, 5, 1)), line, 2_000, boiler);
+        var cab = PlayerMotor.SpawnInCab(train, player);
+        var inCar = new PlayerState { Parent = 2, Health = player.Health };
+        // Sound: nothing said.
+        Assert.Empty(Hud.FailingLines(train, inCar));
+        Assert.Empty(Hud.FailingLines(train, cab));
+        // Car 2 under the line: in it, it's coming apart and its freight's going; in the cab, which car.
+        train.Vehicles[2].Integrity = 0.4;
+        Assert.Equal(["THE CAR'S COMING APART   THE FREIGHT'S SPILLING"], Hud.FailingLines(train, inCar).Select(l => l.Text));
+        Assert.Equal(["CAR 2 COMING APART"], Hud.FailingLines(train, cab).Select(l => l.Text));
+        // Nearly gone: breaking up, and the cab hears the worst.
+        train.Vehicles[3].Integrity = 0.1;
+        Assert.Equal((FailStage.Breaking, "CAR 3 BREAKING UP"), Hud.FailingLines(train, cab).Select(l => (l.Stage, l.Text)).Single());
+        // The engine, from on it.
+        train.Vehicles[0].Integrity = 0.3;
+        Assert.Contains("THE ENGINE'S FAILING", Hud.FailingLines(train, cab).Select(l => l.Text));
+        train.Vehicles[0].Integrity = 0;
+        Assert.Contains((FailStage.Broken, "THE ENGINE'S BROKEN DOWN"), Hud.FailingLines(train, cab).Select(l => (l.Stage, l.Text)));
+        // And the rules off, nothing.
+        var off = new TrainOnLine(new TrainDynamics(Consist.Uniform(tuning with { Failing = new FailingTuning() }, 5, 1)), line, 2_000, boiler);
+        off.Vehicles[2].Integrity = 0.1;
+        Assert.Empty(Hud.FailingLines(off, inCar));
     }
 }

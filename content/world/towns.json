@@ -50,6 +50,9 @@
   "welcome": ["Welcome to {town}. {law} That's all we ask.", "{town}. {law} Say it back. ... Good.",
     "{law} That's {town}'s way. The next town'll laugh at you for it. Let them.", "You're in {town} now. {law} Do it while you're here."],
 
+  // Each town's custom: its law, its hall and centrepiece, what its people say, its notes (the first is the custom's own
+  // order on the board, the rest left lying about), and its board: notices only that town would pin up, in its own voice
+  // (note 669; the director, 13 Oct: "we're going to want to have actual like custom writing for this"), two a night.
   "cultures": [
     {
       "id": "hush", "creature": "choir",
@@ -71,6 +74,12 @@
         { "title": "No singing", "text": "By order of the council: no singing, whistling or humming within the walls of {town}. This includes hymns. This includes lullabies. Especially lullabies." },
         { "title": "Order of service", "text": "A printed order of service, the hymn numbers crossed out. In pencil underneath: they were on the third verse." },
         { "title": "Found in a coat", "text": "It went right past the vestry. The vestry door was shut." }
+      ],
+      "board": [
+        { "title": "Burial Thursday", "text": "Burial of Angus Chisholm, Thursday, first light, St. Columba's yard. There will be no hymn. Mr. Aucoin will read the words, slowly. Those who knew the tune may think it. Thinking is permitted." },
+        { "title": "Night sitters", "text": "Sitting up with the sleepers this week: Beatons Monday, Chisholms Tuesday, MacLeans the rest. Bring a clean cloth. Warm your hands first. She wakes if they're cold." },
+        { "title": "Lost", "text": "Lost: one tuning fork, brass, in a felt bag. Belonged to the late Mr. Gillis, choirmaster. If found, do not strike it to see. Bring it to the vestry and lay it down soft." },
+        { "title": "Correction", "text": "The notice of the 4th said the MacNeil boy was heard singing at the wharf. He was crying. The council regrets the error. The fine is returned to his mother." }
       ]
     },
     {
@@ -92,6 +101,12 @@
       "notes": [
         { "title": "Bench rules", "text": "Two to a bench. One on a bench will be moved on by the warden, for their own sake." },
         { "title": "Lost: one half", "text": "Answers to Edna. Last seen at the pump, standing. If you see her standing, don't come at her from behind. Say her name first." }
+      ],
+      "board": [
+        { "title": "Partner wanted", "text": "Widower, sixty, clean, light sleeper, does not snore. Seeks somebody to share a bed with, no nonsense meant. Will take the side by the wall. Apply to Hector MacNeil at the cooper's." },
+        { "title": "Pump hours", "text": "Pump hours from Monday: Gillis and Beaton pairs at six, Chisholms at seven, the Mission Hall rows after. Whoever is last in the queue, call out that you're last, and keep your feet going." },
+        { "title": "To Margaret", "text": "Margaret. I let go of your hand at the bake oven for a minute. One minute. I have not let go of anything since. I'm at the post every evening. Your Joe." },
+        { "title": "Found", "text": "Found at the waiting post: one short cord, cut clean through, the knot still tied. No ring. Whoever it belongs to, the warden would like a word." }
       ]
     },
     {
@@ -113,6 +128,12 @@
       "notes": [
         { "title": "The count", "text": "All persons within the walls will answer by name at the supper bell. Nodding is not answering." },
         { "title": "From the night mail's log", "text": "Left {other} with nine. Counted ten at the water stop. Counted nine at the bridge. Nobody got off." }
+      ],
+      "board": [
+        { "title": "Supper roll", "text": "Calling the names at supper this week: Mrs. Aucoin. She has the loudest voice and knows everybody's. Any name she misses is to be called again by someone who isn't her." },
+        { "title": "Correction", "text": "Friday's notice said Danny Corkum was home from the mill. Danny Corkum is not home from the mill. The family asks that nobody bring him round to the house again." },
+        { "title": "Will trade", "text": "Will trade a good wool coat, a kettle and two weeks' bread for a photograph of my husband. Any photograph. I want to be sure what he looked like before. Mrs. Chisholm, Water Street." },
+        { "title": "Meeting Thursday", "text": "Meeting Thursday at the Counting House to settle the matter of the Beaton twins. Both will attend. Both will be asked the same questions. Please do not help them." }
       ]
     },
     {
@@ -134,6 +155,12 @@
       "notes": [
         { "title": "Lamp orders", "text": "No lamp to burn in an empty room or a window. The warden will put out any light found on its own, and the household fined." },
         { "title": "Said at the gate", "text": "Little lights don't come to the dark. They don't come to a train under way. Remember the first. The second's no comfort." }
+      ],
+      "board": [
+        { "title": "Shutters fitted", "text": "Tin shutters cut and fitted to any lantern, any size. Soldering extra. Blackout cloth mended. Candles not accepted as payment. Knock twice at the Lamp Room door and wait." },
+        { "title": "Lost in the dark", "text": "Lost: one walking stick, ash, brass ferrule. Between the well and the Lamp Room, about sixty-two steps from the well. Feel along the left-hand wall. Reward. Ask for Ewan Beaton, by voice." },
+        { "title": "The east end", "text": "The east end will not be rebuilt this year. Salvage by day, with a permit. Nothing to be brought back that has glass in it. The council thanks the Aucoins for their patience." },
+        { "title": "To whoever fined us", "text": "To whoever fined the Gillises: it was the stove door, not a lamp. The baby was cold. We had it shut again by morning. We'd like the money back. A neighbour." }
       ]
     },
     {
@@ -155,6 +182,12 @@
       "notes": [
         { "title": "Readers wanted", "text": "The horn needs readers for the small hours. Any voice will do. Bring something long. Do not bring hymns." },
         { "title": "Scrawled", "text": "It was fine as long as Pell kept talking. Pell stopped to cough." }
+      ],
+      "board": [
+        { "title": "Sitting with the sick", "text": "Sitting with the sick this week: Mrs. Gillis nights, the MacNeil girls afternoons. Mr. Chisholm has lost his voice and is excused. Somebody please sit with Mr. Chisholm." },
+        { "title": "Books wanted", "text": "Wanted: books. Any books, long ones. The Reading Room has read the almanac {n} times and the seed catalogue twice. Will pay in flour or tea. Nothing that ends quick." },
+        { "title": "Found by the mill", "text": "Found on the mill road: one notebook, half full, close writing. A grocery list, a recipe for oatcakes, the same joke over and over. It stops in the middle of a word. Ask at the Reading Room." },
+        { "title": "Correction", "text": "The horn read Alec Beaton among the dead on Tuesday night. Alec Beaton is alive and at the forge. The reader was tired. Alec asks for an apology on the horn. A long one." }
       ]
     },
     {
@@ -176,6 +209,12 @@
       "notes": [
         { "title": "At the gate", "text": "All persons stop at the line and show their eyes. All persons. The gate warden has a mother too." },
         { "title": "Pinned to a door", "text": "She called me by my name. I never told her my name." }
+      ],
+      "board": [
+        { "title": "Found", "text": "Found outside the gate at dusk: one child's boot, left foot, still warm. Not ours. Nobody's missing. The boot is at the Glass House if anybody would like to come and look at it." },
+        { "title": "Glass wanted", "text": "Wanted: mirror glass, any size, unbroken. The Glass House glass is wearing through. The council pays a week's coal the square foot. Silvering by Mr. Aucoin, who asks people to stop breathing on it." },
+        { "title": "Service Sunday", "text": "Service for the Moshers, Sunday, at the Glass House. All three of them. Children to sit at the front, where everybody can see them. Tea and biscuits after." },
+        { "title": "To my Sadie", "text": "Sadie, if you're out there, I won't answer when you call. Not because I don't want to. Your mam is at the line every night. Come and stand where she can see you." }
       ]
     },
     {
@@ -197,6 +236,12 @@
       "notes": [
         { "title": "Given this month", "text": "One tin drum. One rag rabbit (Annie's). One music box, wound. One spinning top. One china cup (refused, returned)." },
         { "title": "Driver's card", "text": "Found in the cab of the Truro freight, in the driver's hand: Doll on the line. Doll in the van. Doll in the" }
+      ],
+      "board": [
+        { "title": "Wanted", "text": "Wanted: anything that winds. Clocks, music boxes, a gramophone if somebody has one hid. The shelf has been bare a fortnight and the Gillises heard tapping at the signal box. Ask at the old school." },
+        { "title": "To Annie MacNeil", "text": "Annie, I'm the one who put your rabbit on the shelf. Your mam asked me to. I want you to know I set it facing the line, so it could see where it was going. Mr. Beaton, signalman." },
+        { "title": "Correction", "text": "The toy collection is Saturday, not Sunday. Sunday is the burying for Ernie Gillis. Toys Saturday, flowers Sunday. Please do not mix them up again." },
+        { "title": "Whittling", "text": "Whittling, Tuesday nights at the old school. Mr. Chisholm will show you a horse, a dog and a little cart that rolls. Bring your own knife. It all goes to the shelf, so make it nice." }
       ]
     },
     {
@@ -218,6 +263,12 @@
       "notes": [
         { "title": "Tonight's rule", "text": "Rule 9. A whistle not blown by" },
         { "title": "In the margin", "text": "They take you somewhere first. Somebody could come for you, if they were quick about it." }
+      ],
+      "board": [
+        { "title": "Reader wanted", "text": "Mrs. Beaton has read the rule at supper for eleven years and asks to be let off. Her eyes. Volunteers to the Rule Hall. Must read slow. Must be able to stop where the page stops." },
+        { "title": "Correction", "text": "Last week's notice said the rule is read at breakfast, dinner and supper. It is read at every meal. That includes the cup of tea at three. Mrs. Gillis, you know what you did." },
+        { "title": "Found", "text": "Found by the water tank: a tin whistle on a string, child's size. It has gone in the stove. Whoever it belonged to, nobody is cross. We only want to know who gave it you." },
+        { "title": "Did anyone see Harry", "text": "Did anyone see Harry MacNeil after the Tuesday? Not hear. We all heard. See. His mother has stopped asking, so we are asking for her. Come to the Rule Hall. There's tea." }
       ]
     },
     {
@@ -239,6 +290,12 @@
       "notes": [
         { "title": "Fire orders", "text": "All fires to be banked at dark. No fire above the red mark. Any fire found above the mark will be put out by the warden." },
         { "title": "Lost", "text": "Water hose, brass nozzle, from the Furnace Hall. Whoever has it: it's the only thing that worked." }
+      ],
+      "board": [
+        { "title": "Chilblains", "text": "Mrs. Aucoin will be in the Furnace Hall Thursday with goose grease for chilblains. Bring your own jar. Bring your own goose, if anyone still has one. Nobody still has one." },
+        { "title": "An apology", "text": "To the warden and the street. I lit the kettle above the mark on Sunday. It was for the baby. It won't happen again. The kettle has been handed in. Annie MacNeil." },
+        { "title": "For trade", "text": "One good stove, cast iron, nickel trim, oven door shuts tight. Will trade for four pairs of wool socks. Stove has been cold since the fall and is not to be lit. Hector Gillis's widow." },
+        { "title": "From the warden", "text": "The red mark on the hall brazier has been painted fresh. It is lower than it was. It was always meant to be lower. Anyone who remembers it higher is remembering wrong." }
       ]
     },
     {
@@ -260,6 +317,12 @@
       "notes": [
         { "title": "Road orders", "text": "Walk the crown. Carts the crown. Children the crown. Anyone found at the edges after dark will be fined, if found." },
         { "title": "To the roofers", "text": "Ridge only. Ridge only. RIDGE ONLY." }
+      ],
+      "board": [
+        { "title": "Lost", "text": "One cart, red, two wheels, off the edge of the mill road on Tuesday. Driver safe. Horse safe. Cart went a good way further than carts go. Nobody is to fetch it." },
+        { "title": "Wanted: iron", "text": "Wanted: pipe, rail, any iron that will take a bolt. The handrail up Chapel Hill is forty feet short and Mr. Beaton is tired of going up it on his knees. Pay in flour." },
+        { "title": "Wedding Saturday", "text": "Chisholm and Aucoin, Saturday, the Road House. The procession comes down the line single file, so it will take most of the afternoon. Wave from the line, please. Not from the gutters." },
+        { "title": "Correction", "text": "Last notice said the ditches would be cleared by volunteers before winter. There were no volunteers. The ditches will not be cleared. Whatever is down there can keep them." }
       ]
     },
     {
@@ -281,6 +344,12 @@
       "notes": [
         { "title": "At the gate", "text": "All persons coming in will be brushed down the back by the gate warden. All persons going out will brush each other." },
         { "title": "Nailed up", "text": "Rode in on Halloway: one. Rode in on Gillis: one. Rode in on the gate warden: nobody checked." }
+      ],
+      "board": [
+        { "title": "Brushing pairs", "text": "Mill shift pairs: Beaton with MacNeil, Gillis with Aucoin, Chisholm with the new girl. Partners change Fridays. If your partner brushes soft, say so. If they won't look, say so to the council." },
+        { "title": "Coats wanted", "text": "Wool coats wanted, any size, any state. Ours are through at the shoulders. Mrs. Gillis will turn them for you, but a coat only turns so many times, and so does Mrs. Gillis." },
+        { "title": "To whoever walked behind", "text": "To whoever walked home from the mill behind Augusta Beaton that night and saw, and said nothing. You know who you are. She was my girl. I'll brush your back any time. Hard." },
+        { "title": "Pantry closed", "text": "The council pantry is shut until it has been emptied, aired and limed. Anyone who took a sack out since Monday, bring it back unopened. Leave it in the lane, not on the step." }
       ]
     },
     {
@@ -302,6 +371,12 @@
       "notes": [
         { "title": "Wall walk", "text": "Fours only. A three will be sent back. A two will not be let out." },
         { "title": "Lost", "text": "One boot, left, from a three that went out on the {other} road. No need to return it." }
+      ],
+      "board": [
+        { "title": "Fourth wanted", "text": "Fourth wanted for the peat run, Tuesdays. Three of us so far: Beaton, Gillis, young Aucoin. Must be steady and must turn up. Last fourth didn't turn up. We waited at the gate all night." },
+        { "title": "Choir practice cancelled", "text": "Choir practice cancelled. We are down to seven, and the choirmaster won't have three of us walking home on our own. Unless somebody can sing alto and walk Mrs. Chisholm to Back Street." },
+        { "title": "To the children", "text": "Whoever is out by the reeds after dark croaking back at the frogs: stop it. It isn't funny. Your mothers can't always tell which one is you, and neither can anything else." },
+        { "title": "Congratulations", "text": "Congratulations to Peggy and Dan MacNeil on the twins. That makes them four. The council has given them the end hook in the Four House, the empty one. It was time." }
       ]
     },
     {
@@ -323,6 +398,12 @@
       "notes": [
         { "title": "Loading orders", "text": "Nothing of value in the last car. The last car is for empties, ballast and bad apples." },
         { "title": "From the clerk", "text": "The clerk does not pay out on last cars. Read your contract." }
+      ],
+      "board": [
+        { "title": "Paint wanted", "text": "White paint wanted, any amount, for the van in the Car Shed. There are names still to go up and no wall left to put them on. Mr. Aucoin says he'll start on the roof." },
+        { "title": "Free", "text": "Brakeman's coat, lantern, flags and brake club. My brother's. He won't be wanting them back. They're on the porch. Don't knock for them, just take them. Mary Chisholm." },
+        { "title": "Marshalling, {other} freight", "text": "Tonight's order: engine, tender, flour, coal, mail, the council's furniture, empties. The council wishes it known that it did not choose that order and will be looking into who did." },
+        { "title": "Brakemen's union", "text": "The brakemen's union meets Sunday after chapel in the Car Shed. Bring your own chair. There are {n} of us now, so the small room will do. Dues are waived for widows." }
       ]
     },
     {
@@ -344,6 +425,12 @@
       "notes": [
         { "title": "Gun drill", "text": "Back gun loaded before the throat. Back gun crewed past the last light. No exceptions for weather, tiredness or cards." },
         { "title": "Lost", "text": "One dog. Brown. Not ours. Not a dog." }
+      ],
+      "board": [
+        { "title": "Back gun roster", "text": "Monday, Gillis. Tuesday, Beaton. Wednesday, the MacNeil boys, both of them, together. Thursday to Sunday, old Chisholm, who asked for it. He has his reasons. Leave him be." },
+        { "title": "Polish wanted", "text": "Wanted: metal polish, rags, a soft brush. The brass on the old gun is done every night and we are out. Mrs. Beaton has been giving it her good tablecloth. That cannot go on." },
+        { "title": "Correction", "text": "The council did not ask for the hour gun to be fired quieter. The council asked for it to be fired at the hour, not ten past. The Pictou men were always on time." },
+        { "title": "For sale", "text": "Six laying hens and a nanny goat, cheap, crate thrown in. Nobody on Water Street is keeping animals this winter. Collect by daylight. They will not be going on the night freight." }
       ]
     }
   ],
@@ -721,6 +808,11 @@
 
   // A knock at one of the square's doors: the custom's own building, the clerk's office, the stores. One a door.
   "doors": {
+    "council": ["Nobody answers. Through the glass, a long table, a chair at its end pulled out, papers squared at every place but that one.",
+      "A clerk's voice through the slot: the council sits Thursdays, write it down and put it through. The slot has been taped over from inside."],
+    "quiet": ["Something moves inside, then stops. Whoever it is doesn't come to the door. On the step, the bowl is full.",
+      "Nobody answers. The bar is new; the brackets are old. Chalked small on the door, at a child's height: COME OUT WHEN YOU'RE YOU.",
+      "Silence, and then a knock back from inside, the same knock as yours, exactly."],
     "hall": ["No answer. Somebody inside says, very quietly: not tonight.", "Barred from inside. Through the door, somebody is reading names aloud.",
       "A slot opens at eye height, looks at you a long while, and shuts."],
     "office": ["Locked. A card in the glass: FREIGHT PAID AT THE FAR GATE. FEES PAYABLE REGARDLESS.", "Nobody in. Ledgers floor to ceiling, and one chair."],
@@ -793,7 +885,38 @@
     "mural": [
       { "title": "a painted sunrise", "text": "A sunrise across the wall, ten metres of it: a yellow sun, a blue sea, a white house on a hill. In chalk underneath, in a child's hand: THIS IS WHAT IT LOOKS LIKE." },
       { "title": "a painted window", "text": "A window painted on the stone, its shutters open on a field and a summer sky. Real curtains hang either side of it, tied back." },
-      { "title": "the day", "text": "A sky painted the length of the wall, morning at one end and evening at the other, so the children can walk the day. The evening end's been painted over darker, more than once." }
+      { "title": "the day", "text": "A sky painted the length of the wall, morning at one end and evening at the other, so the children can walk the day. The evening end's been painted over darker, more than once." },
+      // Dave's (note 570): nobody in any town painted them, and every one is signed the same, small, in red.
+      { "title": "the valley in June (signed D.)", "text": "A valley in June the width of the wall: a gold sky, blue hills, a river down through the green. It was there one morning after a train went through, the paint still wet. In the corner, small: a red D." },
+      { "title": "the sea at noon (signed D.)", "text": "The sea at noon, a lighthouse on its headland, gulls. Nobody here will say who painted it. Somebody keeps it washed. In the corner, small: a red D." }
+    ]
+  },
+
+  // A walled town's works by its trade (queue #90, note 353; the industries' keys, then "any"): the pieces in the order
+  // they stand along the line, what each is called and what looking at it tells you. "after": stands that far along the
+  // line from the piece before it (the winding house from its headframe: the ropes run between them).
+  "works": {
+    "coal": [
+      { "kind": "tip", "title": "the tip", "text": "Shale from under the town, heaped against the wall's inside. It's taller every year. The children are told not to climb it. There are paths to the top anyway, and a shirt tied to a stick up there like a flag." },
+      { "kind": "headframe", "title": "{town} Pit", "text": "They sank their own shaft in the second winter, inside the wall, so nobody would have to go out to the seam. The cage is down. The bell beside the shaft is tied off so it can't ring." },
+      { "kind": "coal", "title": "the town's coal", "text": "Coal from under the houses, heaped for the ranges and the train. In some kitchens you can hear the picks under the floor at night. There's no night shift.", "after": 11, "across": -6.5 },
+      { "kind": "winding", "title": "the winding house", "text": "The engine that turns the drum, warm through the bricks. A chalk tally by the door: the shifts gone down and the shifts come up. The columns are the same length. Somebody has gone over them twice to be sure.", "after": 21.9 }
+    ],
+    "farm": [
+      { "kind": "glasshouse", "title": "a glasshouse", "text": "Beans and kale under lamps, the glass whitewashed so the light doesn't get out. A rota on the door: who turns the lamps, who waters, who sits with them overnight. Nobody leaves the plants alone in the dark." },
+      { "kind": "glasshouse", "title": "a glasshouse", "text": "Potatoes in sacks of soil under a low lamp, the warmest place in the town. Somebody has left a chair and a blanket in the corner, and a book open face down." },
+      { "kind": "glasshouse", "title": "the seed house", "text": "Shelves of seed in tins, each labelled with the year and the bed. The oldest tins are labelled in a hand nobody here writes. Those they don't open." },
+      { "kind": "elevator", "title": "the elevator", "text": "The town's grain, kept against the year the train doesn't come. The gallery light is on all night. Somebody sits up there and listens to the grain settle." },
+      { "kind": "cellar", "title": "the root cellar", "text": "A turf mound with a door in it, padlocked. Inside, by the smell, turnips. A notice on the door: COUNTED. Under it, in another hand: COUNTED AGAIN." }
+    ],
+    "foundry": [
+      { "kind": "casting", "title": "the casting shed", "text": "The cupola's lit and the windows are orange all night. They cast what the town needs: pans, hinges, firebars, the bell. They never let the fire go out. The last time it went out, the bell they cast didn't ring true, and they hung it anyway. The stack is the tallest thing inside the wall; the children say it's how the town breathes out." },
+      { "kind": "slag", "title": "the slag", "text": "Slag tipped out still glowing, crusted over in black glass. In the cold it ticks, like something settling." },
+      { "kind": "pigs", "title": "pig iron", "text": "Pig iron stacked like loaves, each stamped with the town's mark and a number. The numbers go back years. A few are missing, and their gaps are left in the stack." }
+    ],
+    "any": [
+      { "kind": "warehouse", "title": "the warehouse", "text": "Where what the train brings is kept and what it takes is counted out. Chalked on the door, what came last: salt, lamp oil, nails, and one crate unmarked. NOT OPENED." },
+      { "kind": "watertower", "title": "the water tower", "text": "The town's water, from the well under the square, pumped up by hand at every bell. A waterline is painted round the tank, and under it, in white: ENOUGH." }
     ]
   },
 
@@ -811,5 +934,26 @@
     "Children here draw the sun with a handle on it.",
     "I keep a jar of sea water on the sill. It's gone green. I don't open it.",
     "The quiet house had somebody in it last week. The bowl on the step was empty every morning. Then it wasn't."
-  ]
+  ],
+
+  // A town that's had a creature ridden in through its gate on a train (ARCHITECTURE §8 note 608; note 589): it was fought
+  // in the yard and the houses nearest it burnt. The next time a crew is in the town, it remembers. houses: one of those
+  // houses, looked at ({family}: whose it was); gate and guard: the first thing the gatekeeper (after the law) and a guard say.
+  "broughtIn": {
+    "houses": [
+      "The {family} house. Burnt the night a train came in with something on it. The door's still on its hinges, and nothing else.",
+      "Burnt out, the {family}s'. Still warm when you put a hand to the step. Chalked on the step: AT THE HALL.",
+      "The {family} house, to the sills. The yard's guns did that as much as the thing did. Nobody says so."
+    ],
+    "gate": [
+      "You're the crew that brought it in. Don't look at the houses on your way through. We know where they are.",
+      "Last time you came in with something hanging off a car. Check your cars before the gate. We'll be checking them.",
+      "{town} remembers your train. So do the families by the yard, what's left of them."
+    ],
+    "guard": [
+      "I was on the yard the night you brought it in. I'd not shot at anything inside the walls before. I'd not wanted to.",
+      "We fought it between the houses. Between the houses. You understand me.",
+      "Next time you bring one in, we shut the gate with you outside it. The council's voted."
+    ]
+  }
 }

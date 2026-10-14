@@ -55,12 +55,13 @@ public sealed partial class GameAudio
     {
         public EnemyKind Kind;
         public SpinePhase Phase;
-        public double PhaseSeconds, Health, Extra, Extra2, GrabWindow, LineDistance, Height;
+        public double PhaseSeconds, Health, Extra, Extra2, GrabWindow, LineDistance, Lateral, Height;
         public int Id, Attached, Holding, Space;
         public Double3 Local, At;
         // Kept across ticks (not last tick's record): distance toward the next step, the next irregular call, when it last
-        // moved and was last hit, and whether its car's breaking away has been heard.
-        public double Stride, Next, MovedAt = double.NegativeInfinity, HitAt = double.NegativeInfinity, ModeAt;
+        // moved, was last hit and last healed, and whether its car's breaking away has been heard.
+        public double Stride, Next, MovedAt = double.NegativeInfinity, HitAt = double.NegativeInfinity, ModeAt,
+            HealAt = double.NegativeInfinity;
         public bool CutAway, Passing;
         // A one-shot that goes where it goes (the Gannet's dive whistle, down its line).
         public SoundInstance? Moving;
@@ -75,6 +76,7 @@ public sealed partial class GameAudio
             Extra2 = e.Extra2;
             GrabWindow = e.GrabWindow;
             LineDistance = e.LineDistance;
+            Lateral = e.Lateral;
             Height = e.Height;
             Attached = e.Attached;
             Holding = e.Holding;
@@ -270,8 +272,12 @@ public sealed partial class GameAudio
     /// brake) in beats of three seconds (TrackDoll.Tamper; note 268); those moves only reach the train through World.Step's
     /// own copy of the controls, never the replicated ones, so the crew's lever hooks can't hear them: they're heard here, as
     /// the crew's own levers. Restless at stage 2 (her last stage coming), she rattles the brake handle on the beat she'd
-    /// take it, without moving it. Come at, it vanishes to another car; cornered and clubbed, its porcelain cracks.
+    /// take it, without moving it, with her own rattle (note 499). Restless at any stage, now and then her own restlessness.
+    /// Come at, it vanishes to another car; cornered and clubbed, its porcelain cracks.
     /// </summary>
+    // Restless (note 499): her own first 1-2 s after she becomes so, then every 4-8 s while she is (30 s, warnSeconds).
+    const double DollRestlessFirst = 1, DollRestlessEvery = 4;
+
     void DollSounds(World world, TrackDoll e, Creature was, Double3 at, float occ, bool struck)
     {
         var train = world.Train;
@@ -286,9 +292,25 @@ public sealed partial class GameAudio
             if (Math.Abs(now.Throttle - before.Throttle) > 0.01)
                 Tamper("regulator-notch", levers is { } l ? train.Frames[0].ToWorld(l.RegulatorAt(now.Throttle)) : at);
             bool rattle = e.Stage == 2 && e.Restless && DollBeat(e.PhaseSeconds) == 2 && (!wasTampering || DollBeat(was.PhaseSeconds) != 2);
-            if (Math.Abs(now.Brake - before.Brake) > 0.01 || rattle)
-                Tamper("brake-handle", levers is { } k ? train.Frames[0].ToWorld(k.BrakeAt(now.Brake)) : at);
+            var brake = levers is { } k ? train.Frames[0].ToWorld(k.BrakeAt(now.Brake)) : at;
+            // Her own rattle of it (note 499), a small hand shaking the handle; until she has one, the crew's lever.
+            if (rattle && Cue("cs-track-doll.rattle", brake, Occlusion(0)) is null || Math.Abs(now.Brake - before.Brake) > 0.01)
+                Tamper("brake-handle", brake);
         }
+        // Restless, her next stage coming (note 268's telegraph; note 499): now and then her own, between the giggles (which
+        // come twice as often, GameAudio.Tells): her heels drumming, a hum through her teeth, her head turning.
+        if (e.Restless)
+        {
+            if (was.Next <= 0)
+                was.Next = _time + DollRestlessFirst * (1 + _creatureRng.Next());
+            else if (_time >= was.Next)
+            {
+                Cue("cs-track-doll.restless", at, occ);
+                was.Next = _time + DollRestlessEvery * (1 + _creatureRng.Next());
+            }
+        }
+        else
+            was.Next = 0;
         // Gone from where it stood to another car (or to the cab's controls): approached, or bored of the car.
         if (was.Phase == SpinePhase.Punish && e.Phase == SpinePhase.Punish && (e.Attached != was.Attached || (e.Local - was.Local).Length > 0.75))
             Cue("cs-track-doll.vanish", was.At, Occlusion(was.Space));
@@ -396,8 +418,8 @@ public sealed partial class GameAudio
                 was.Stride = to - Math.Floor(to);
             }
         }
-        if (e.Attached >= 0 && was.Attached >= 0 && e.Attached < train.Frames.Count && was.Attached < train.Frames.Count)
-            HoundAboard(train, e, was, at, dt);
+        if (e is CinderHound h && e.Attached >= 0 && was.Attached >= 0 && e.Attached < train.Frames.Count && was.Attached < train.Frames.Count)
+            HoundAboard(train, h, was, at, dt);
         if (e.Attached >= 0 && was.Attached < 0)
         {
             // LEAP onto the rear car (CinderHound.Board), and it lands on the roof a moment later.
@@ -416,9 +438,10 @@ public sealed partial class GameAudio
             Later(struck ? 0.5 : 0, () => Cue("cs-hounds.snarl", snarl, occ));
             was.Next = _time + 2.5 + 3.5 * _creatureRng.Next();
         }
-        else if (e.Attached >= 0 && e.Phase == SpinePhase.Commit && _time >= was.Next)
+        else if (e.Attached >= 0 && e.Phase == SpinePhase.Commit && _time >= was.Next && e is CinderHound { Aboard: HoundMode.Still or HoundMode.Patrol })
         {
-            // The pack fight: a snarl now and then, never on a beat.
+            // The pack fight (and its patrol, note 472): a snarl now and then, never on a beat; not in the middle of a move
+            // or its sniffing (note 489), which have their own breath.
             Cue("cs-hounds.snarl", at, occ);
             was.Next = _time + 2.5 + 3.5 * _creatureRng.Next();
         }
@@ -429,33 +452,92 @@ public sealed partial class GameAudio
 
     /// <summary>
     /// A hound aboard on its feet (note 478; D1's #208: patrolling the roofs, jumping the gaps it can make, in and out of
-    /// cars whose doors stand open): its paws on what it's on as it moves (the roof's tin, or a car's boards inside), at
-    /// its walk's stride; over a coupling gap to the next car, or down in at a door and back up, the leap and its landing.
-    /// Heard from inside the car it's on or over as the Climbers' steps are (that car's own space, clear in there).
+    /// cars whose doors stand open): its paws on what it's on as it walks (the roof's tin, or a car's boards inside), at
+    /// its walk's stride. Its moves are heard off its replicated mode (note 489, <see cref="CinderHound.Aboard"/>): over a
+    /// gap, the spring off the roof and its paws landing on the next one's; down in at a door, the spring off the roof's
+    /// edge and its landing on the boards; out again, its climb up the car's side; stopped to sniff, its sniffing. Heard
+    /// from inside the car it's on or over as the Climbers' steps are (that car's own space, clear in there).
     /// </summary>
-    void HoundAboard(TrainOnLine train, Enemy e, Creature was, Double3 at, double dt)
+    void HoundAboard(TrainOnLine train, CinderHound h, Creature was, Double3 at, double dt)
     {
-        bool inside = Inside(train, e.Attached, e.Local), wasInside = Inside(train, was.Attached, was.Local);
-        string on = inside ? "wood" : "roof";
-        float occ = Occlusion(e.Attached);
-        if (e.Attached != was.Attached || inside != wasInside)
+        var mode = h.Aboard;
+        float occ = Occlusion(h.Attached);
+        if (mode != CinderHound.Decode(was.Lateral).Mode)
         {
-            Cue("cs-hounds.leap", at, occ);
-            var land = at;
-            Later(0.28, () => Cue("cs-hounds.paw", on, land, occ));
-            Later(0.36, () => Cue("cs-hounds.paw", on, land, occ));
+            HoundMove(h, mode);
             was.Stride = 0;
-            return;
         }
-        double run = (e.Local - was.Local).Length, speed = run / dt;
+        if (mode == HoundMode.Sniff)
+            HoldLevel("cs-hounds.sniff", h.Id, at + Double3.Up * HoundNose, occ, 1);
+        // Only walking is stepped: in the air, at a door and sniffing its moves are their own sounds; over to another car
+        // other than by a leap is the record catching up, not a step.
+        if (mode is HoundMode.Leap or HoundMode.Drop or HoundMode.Climb or HoundMode.Sniff || h.Attached != was.Attached)
+            return;
+        double run = (h.Local - was.Local).Length, speed = run / dt;
         if (speed < HoundAboardMoving || run > HoundAboardJump)
             return;
+        string on = Inside(train, h.Attached, h.Local) ? "wood" : "roof";
         // A walk's stride is shorter than a gallop's (a metre at a prowl), the paws at the same fractions of it.
         double stride = Math.Clamp(speed * 0.3, 0.7, 6), from = was.Stride, to = from + run / stride;
         foreach (double paw in PawFalls)
             for (double k = Math.Floor(from - paw) + 1; k + paw <= to; k++)
                 Cue("cs-hounds.paw", on, at, occ, (float)(0.7 + 0.25 * _creatureRng.Next()));
         was.Stride = to - Math.Floor(to);
+    }
+
+    // Note 489: where in its moves a hound's sounds fall, from when it began each. Its leap's are the sim's (it's carried
+    // across between leapFrom and leapTo of leapSeconds, enemies.json cinderHounds.patrol; E1's clip drives off and lands
+    // with it). The drop's are E1's clip's (cinder_hound.py drop, 30 fps: off the roof's edge at frame 13, on the sill at
+    // 28), and where: the record has it on the floor from the start, the clip up on the roof over the door (DROP_UP).
+    const double HoundDropSpring = 13 / 30.0, HoundDropLand = 28 / 30.0, HoundDropUp = 2.9;
+    // How late a move's sound can still come (the record arrives in snapshots; joining mid-move, it's missed), the forefeet
+    // to the hind feet landing, and its nose's height sniffing.
+    const double HoundMoveLate = 0.25, HoundHindAfter = 0.09, HoundNose = 0.3;
+
+    /// <summary>A hound aboard begun on <paramref name="mode"/> (note 489): its move's sounds, each when it comes.</summary>
+    void HoundMove(CinderHound h, HoundMode mode)
+    {
+        var p = _creatureWorld?.Enemies?.CinderHounds.Patrol ?? new HoundPatrolTuning();
+        double into = h.ModeSeconds;
+        switch (mode)
+        {
+            case HoundMode.Leap:
+                HoundAfter(h.Id, p.LeapFrom * p.LeapSeconds - into, c => Cue("cs-hounds.spring", c.At, Occlusion(c.Attached)));
+                HoundLands(h.Id, p.LeapTo * p.LeapSeconds - into, "roof");
+                break;
+            case HoundMode.Drop:
+                HoundAfter(h.Id, HoundDropSpring - into, c => Cue("cs-hounds.spring", c.At + Double3.Up * HoundDropUp, Occlusion(c.Attached)));
+                HoundLands(h.Id, HoundDropLand - into, "wood");
+                break;
+            case HoundMode.Climb:
+                // The whole climb is the one sound, from the trot to the sill to its weight onto the roof (E1's clip).
+                HoundAfter(h.Id, -into, c => Cue("cs-hounds.climb", c.At + Double3.Up * HoundDropUp * 0.5, Occlusion(c.Attached)));
+                break;
+        }
+    }
+
+    /// <summary>Its forefeet, then its hind feet a beat behind, landing on <paramref name="on"/>.</summary>
+    void HoundLands(int id, double after, string on)
+    {
+        HoundAfter(id, after, c => Cue("cs-hounds.paw", on, c.At, Occlusion(c.Attached), 0.85f));
+        HoundAfter(id, after + 0.025, c => Cue("cs-hounds.paw", on, c.At, Occlusion(c.Attached), 0.8f));
+        HoundAfter(id, after + HoundHindAfter, c => Cue("cs-hounds.paw", on, c.At, Occlusion(c.Attached), 1f));
+        HoundAfter(id, after + HoundHindAfter + 0.02, c => Cue("cs-hounds.paw", on, c.At, Occlusion(c.Attached), 0.95f));
+    }
+
+    /// <summary>
+    /// <paramref name="play"/> on hound <paramref name="id"/> <paramref name="after"/> s from now, where it is then (its last
+    /// record): now if it's a little late, not at all if it's long past or the hound's gone.
+    /// </summary>
+    void HoundAfter(int id, double after, Action<Creature> play)
+    {
+        if (after < -HoundMoveLate)
+            return;
+        Later(Math.Max(0, after), () =>
+        {
+            if (_creatures.TryGetValue(id, out var c) && c.Attached >= 0 && _creatureWorld is { } w && c.Attached < w.Train.Frames.Count)
+                play(c);
+        });
     }
 
     /// <summary>Whether a point on a car (its frame) is inside it: within the room its walls and roof shut in.</summary>
@@ -568,12 +650,26 @@ public sealed partial class GameAudio
             Hold(drag, e.Id, at, occ);
     }
 
+    // A Grumbler's still heard healing this long after its health last rose (a snapshot's gap and more, as E1's knit is
+    // seen: GreyboxScene.HealingFor), from this high over its feet (down on all fours).
+    const double GrumblerHealing = 0.35, GrumblerMiddle = 0.45;
+
     /// <summary>
     /// The Grumbler (App. A.8): scuttling about the crane it gnaws on (now and then) and after whoever hit it (as it runs);
-    /// going feral; eating the cargo of a car it was craned aboard in.
+    /// going feral; eating the cargo of a car it was craned aboard in; healing a lone crewmate's blow.
     /// </summary>
     void GrumblerSounds(Grumbler e, Creature was, Double3 at, float occ)
     {
+        // Healing (App. A.8 "heals if only one player has hit it"; note 494, E1's #224 shows it): held while its health
+        // climbs (replicated, so every machine hears it), louder the further down it is, as the knit is drawn. A gang's
+        // blows, which it doesn't heal, are never heard healing.
+        if (e.Health > was.Health + 1e-4)
+            was.HealAt = _time;
+        if (_time - was.HealAt < GrumblerHealing)
+        {
+            double full = _creatureWorld?.Enemies?.Grumbler.Health ?? new GrumblerTuning().Health;
+            HoldLevel("cs-grumbler.heal", e.Id, at + Double3.Up * GrumblerMiddle, occ, Math.Clamp(0.35 + 1.3 * (1 - e.Health / full), 0, 1));
+        }
         if (e.Phase == SpinePhase.Commit && e.Attached == was.Attached)
         {
             was.Stride += (e.Local - was.Local).Length;

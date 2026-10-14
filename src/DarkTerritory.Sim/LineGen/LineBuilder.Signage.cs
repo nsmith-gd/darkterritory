@@ -30,14 +30,30 @@ sealed partial class LineBuilder
             double fallen = sg.StateWeights.GetValueOrDefault("fallen", 0.5), missing = sg.StateWeights.GetValueOrDefault("missing", 0.5);
             return r.Chance(fallen / (fallen + missing)) ? SignState.Fallen : SignState.Missing;
         }
-        void Sign(string type, string edge, double s, string text, bool required, double? value, string? of, ref Pcg32 r, int onSide = 0)
+        void Sign(string type, string edge, double s, string text, bool required, double? value, string? of, ref Pcg32 r, int onSide = 0, double? to = null)
         {
             // A branch's board before its own points stands on the main line coming up to them.
             if (s < 0 && edge != "main")
                 (edge, s) = ("main", _edges[edge].Toe + s);
             if (s < 0)
                 return;
-            _signs.Add(new PlanSign(type, edge, R(s), onSide == 0 ? side : onSide, text, State(required, ref r), required, value, of));
+            _signs.Add(new PlanSign(type, edge, R(s), onSide == 0 ? side : onSide, text, State(required, ref r), required, value, of, to is { } t ? R(t) : null));
+        }
+
+        // A junction's or facility's far board with another stop between it and what it counts to stands pastStopM past that
+        // stop, or isn't stood if that's not short of the near board (note 702, the evening playtest: "J1, one kilometer ...
+        // That came before the Talbot Foundry stop though, so that's a bit confusing"). Its words are its distance from there.
+        double? PastStops(double at, double to, double near)
+        {
+            double past = at;
+            foreach (var f in _facilities)
+            {
+                // (Where the train stops for it: a spur's points, where it leaves the main line; else the facility itself.)
+                double stop = f.SpurEdge is { } spur && _edges.TryGetValue(spur, out var e) ? e.Toe : f.S;
+                if (stop > at + 1 && stop < to - 1)
+                    past = Math.Max(past, stop + sg.PastStopM);
+            }
+            return past == at || past <= near - sg.PastStopM ? past : null;
         }
 
         // Kilometre posts every 1 km, always required: the reference for all paperwork. Minor posts at the half.
@@ -130,11 +146,18 @@ sealed partial class LineBuilder
                 case DemandType.FacilityStop:
                     {
                         var slot = _facilities.First(f => Math.Abs((f.OnSpur ? f.S - 10 : f.S) - d.SReq) < 1);
-                        // 2 km and 1 km out, and the far one farther if a heavy train needs more warning than that.
+                        // boardFarM and boardNearM out (1 km and 500 m), and the far one farther if a heavy train needs more
+                        // warning than that.
                         foreach (double before in new[] { _c.Config.Facilities.Slots.BoardFarM, _c.Config.Facilities.Slots.BoardNearM })
                         {
                             double at = before == _c.Config.Facilities.Slots.BoardFarM ? Math.Min(slot.S - before, board) : slot.S - before;
-                            Sign("facility", "main", at, $"{slot.Name} {(slot.S - at) / 1000:0.0} KM", true, Math.Round((slot.S - at) / 1000, 1), d.Id, ref rng);
+                            if (before == _c.Config.Facilities.Slots.BoardFarM)
+                            {
+                                if (PastStops(at, slot.S, slot.S - _c.Config.Facilities.Slots.BoardNearM) is not { } far)
+                                    continue;
+                                at = far;
+                            }
+                            Sign("facility", "main", at, $"{slot.Name} {(slot.S - at) / 1000:0.0} KM", true, Math.Round((slot.S - at) / 1000, 1), d.Id, ref rng, to: slot.S);
                         }
                         break;
                     }
@@ -144,7 +167,13 @@ sealed partial class LineBuilder
                         foreach (double before in new[] { _t.Junctions.BoardFarM, _t.Junctions.BoardNearM })
                         {
                             double at = before == _t.Junctions.BoardFarM ? Math.Min(d.SReq - before, board) : d.SReq - before;
-                            Sign("junction", "main", at, $"J{node.Number} {(d.SReq - at) / 1000:0.0} KM", true, Math.Round((d.SReq - at) / 1000, 1), d.Id, ref rng);
+                            if (before == _t.Junctions.BoardFarM)
+                            {
+                                if (PastStops(at, d.SReq, d.SReq - _t.Junctions.BoardNearM) is not { } far)
+                                    continue;
+                                at = far;
+                            }
+                            Sign("junction", "main", at, $"J{node.Number} {(d.SReq - at) / 1000:0.0} KM", true, Math.Round((d.SReq - at) / 1000, 1), d.Id, ref rng, to: d.SReq);
                         }
                         break;
                     }
@@ -163,14 +192,15 @@ sealed partial class LineBuilder
             }
         }
 
-        // Gradient posts: at the foot of any climb near g_main, at the top of any descent where fade matters.
+        // Gradient posts: at the foot of any climb near g_main, at the top of any descent where fade matters. With its percent
+        // (note 665: "UP 1.9" coming up to a bend, the director read it as the bend's figure).
         foreach (var e in Routable())
             foreach (var p in e.Items.SelectMany(i => i.All()).Where(i => i.Grades is not null))
                 foreach (var (f0, _, g) in p.Grades!)
                 {
                     double s = p.S0 + f0 * p.Length;
                     if (g >= sg.GradientPostMinShare * _l.MainGrade || -g >= sg.GradientPostMinShare * _l.DescentGrade)
-                        Sign("gradientPost", e.Id, s - 20, $"{(g > 0 ? "UP" : "DOWN")} {Math.Abs(g):0.0}", true, g, p.Id, ref rng);
+                        Sign("gradientPost", e.Id, s - 20, $"{(g > 0 ? "UP" : "DOWN")} {Math.Abs(g):0.0}%", true, g, p.Id, ref rng);
                 }
         // Whistle boards before tunnels and dead settlements; tunnel and bridge plates; station name boards; dead signals.
         foreach (var st in _structures)

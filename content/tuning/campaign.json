@@ -14,18 +14,10 @@
     { "tier": "deadLines", "fromCars": 11 },
     { "tier": "deepTerritory", "fromCars": 16 }
   ],
-  // GDD §9 departure: "choose freight contracts". This many on the board each night: the consist's own tier,
-  // and one from the tier below for a crew that wants a safer, poorer night.
+  // GDD §9 departure: "choose a route". This many on the board each night: the consist's own tier, and one from the tier
+  // below for a crew that wants a safer, poorer night. A contract is just a route (note 637; the director, the inbox, 12
+  // Oct): what the cars carry home is whatever its stops load.
   "contractsOffered": 3,
-  // GDD §9 "choose freight contracts", §19, App. B.9 (ARCHITECTURE §8 note 182): each ordinary contract names the freight the
-  // train leaves the fortress carrying (every loaded car), drawn from this list by the night and its place on the board, and
-  // pays a car by it (run.json economy.cargoRates). The facilities still load their own on top. "heavy" is §19's machine
-  // parts and "ammunition" its gunpowder and shot. With "comet", the board also carries a comet contract at the consist's
-  // tier: B.9's high-risk contract, the best freight payout, with every spawn weight x1.4 and the Passenger a tier sooner.
-  "contracts": {
-    "cargo": ["goods", "heavy", "food", "livestock", "timber", "coal", "medicine", "chemicals", "ammunition"],
-    "comet": true
-  },
   // GDD §9 departure: "stock coal, powder and shot, lamps, repair supplies and tools" (note 182). The fortress issues the
   // standard load and bills what the night uses (run.json economy: coal, rounds, repairs); these are bought beyond it, for the
   // coming night only. Powder: a crate is `each` rounds more for every gun. Lamps and extinguishers: spares in the guard van.
@@ -38,6 +30,10 @@
   // GDD §9 "add or remove railcars": a car taken off the consist brings back this share of what that car cost (spec F.2),
   // and a consist keeps the starting three at least. A shorter train works a lower tier when it drops below one (F.4).
   "sellCar": { "share": 0.5, "fewest": 3 },
+  // The director, the inbox, 12 Oct (note 632): "c, The campaign ends", roguelike. A train taken at dawn (the Wakers, GDD
+  // §8) ends the campaign: the save is closed, the company has no more trains for that crew, and the slot's next start is a
+  // new crew from a fortress. Off, the night is settled like any other lost one and the crew goes on (as before note 632).
+  "dawnEndsCampaign": true,
   // Spec E: 3 save slots per host.
   "saveSlots": 3,
   // Spec F.3. Cost is a share of what the next car costs now. "effect" multiplies tuning: tender (tender capacity),
@@ -98,8 +94,10 @@
   // stores sell none. A save's spares are kept in its file but no longer stowed.
   // The yardstick for `dt campaign sim`: a crew that buys a car as soon as it can also afford upgrades worth
   // smallShare of it (F.3 "one or two small upgrades per car purchase"), a major worth majorShare every majorEvery
-  // cars, loses lossFraction of its cargo on an average night (F.1 "expected loss"), and pays F.1's 15% running
-  // costs. It reaches 20 cars in 56 successful runs, F.4's "roughly 55-60" (6 cars by run 12, 10 by 23, 15 by 39;
-  // F.4 has the early phase quicker, 6 by 8, which would need a crew that buys almost nothing but cars at first).
-  "standardCrew": { "smallShare": 0.3, "majorShare": 1.8, "majorEvery": 2, "lossFraction": 0.25, "runningCosts": 0.15 }
+  // cars. A night brings home `loads` car-loads on its tier (note 636: measured, 64 nights of 4 bots, the train leaving
+  // empty and loading at its one stop, losses already out of it, so lossFraction 0), and coal, ammunition, repairs and
+  // fees less the mail come to runningCosts of its gross. It reaches 20 cars in 56 successful runs, F.4's "roughly
+  // 55-60" (6 cars by run 9, 10 by 21, 15 by 40).
+  "standardCrew": { "smallShare": 0.3, "majorShare": 1.8, "majorEvery": 2, "lossFraction": 0, "runningCosts": 0.05,
+    "loads": { "local": 2.66, "frontier": 2.99, "deadLines": 1.51, "deepTerritory": 0.89 } }
 }

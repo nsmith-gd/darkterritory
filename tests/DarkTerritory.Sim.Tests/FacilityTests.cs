@@ -156,7 +156,7 @@ public class FacilityTests
         stop.Step(2, []);
         Assert.All(cargo, b => Assert.Equal(PlayerState.World, b.Parent));
 
-        // Put one down inside the first cargo car: once it lies still there, it's loaded, and gone.
+        // Put one down inside the first cargo car: once it lies still there, it's loaded, and it stays there (note 659).
         var car = stop.Train.Vehicles.First(v => v.Kind == VehicleKind.Cargo);
         var room = stop.Train.Frames[car.Id].Shape.Interior!.Value;
         var crate = cargo[0];
@@ -165,7 +165,20 @@ public class FacilityTests
         crate.Pbd.Particles[0].Previous = crate.Pbd.Particles[0].Position;
         stop.Step(F.Crates.SettleSeconds + 1, []);
         Assert.Equal(F.Crates.LoadPerCrate, car.Load, 6);
-        Assert.DoesNotContain(crate, stop.World.Bodies.All);
+        Assert.Contains(crate, stop.World.Bodies.All);
+        Assert.True(crate.Banked);
+        Assert.Equal(car.Id, crate.Parent);
+        stop.Step(2, []);
+        Assert.Equal(F.Crates.LoadPerCrate, car.Load, 6); // loaded once, not again each tick it lies there
+
+        // Taken out of the car again (thrown out, carried off), it's unloaded: a crate on the ground, and the car's room back.
+        crate.Parent = PlayerState.World;
+        var outside = stop.Train.Frames[car.Id].ToWorld(new Double3(room.Max.X + 3, 0, 0));
+        crate.Pbd.Particles[0].Position = outside + new Double3(0, 0.5, 0);
+        crate.Pbd.Particles[0].Previous = crate.Pbd.Particles[0].Position;
+        stop.Step(0.5, []);
+        Assert.Equal(0, car.Load, 6);
+        Assert.False(crate.Banked);
     }
 
     [Fact]

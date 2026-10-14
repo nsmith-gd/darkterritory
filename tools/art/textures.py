@@ -35,7 +35,8 @@ from texgen.sources import Sources  # noqa: E402
 # Importing a material module registers its textures (order = index.json order).
 from texgen import mat_metal, mat_wood, mat_ground, mat_masonry, mat_foliage, mat_cloth  # noqa: E402,F401
 from texgen import mat_corruption, mat_emissive, mat_paper, mat_sky, mat_fx  # noqa: E402,F401
-from texgen import mat_maritime, mat_finds  # noqa: E402,F401
+from texgen import mat_maritime, mat_finds, mat_flags  # noqa: E402,F401
+from texgen import mat_blight  # noqa: E402,F401  (last: the blighted trees' hangings, note 696)
 
 ROOT = HERE.parents[1]
 OUT = ROOT / "content" / "art" / "textures"

@@ -879,6 +879,26 @@
     ]
   },
   {
+    "name": "brakeman_0",
+    "diffuse": "models/brakeman_0.png",
+    "spec": "models/brakeman_0_s.png",
+    "normal": "models/brakeman_0_n.png",
+    "size": 1024,
+    "tileMetres": null,
+    "tiling": false,
+    "family": "creature",
+    "alphaTest": false,
+    "sources": [
+      {
+        "generator": "tools/models/recipes/brakeman.py",
+        "what": "the Brakeman, modelled in tools/blender/brakeman.py, his colour painted here",
+        "author": "Dark Territory",
+        "license": "CC0-1.0",
+        "attribution": "Dark Territory (modelled in tools/models from the texture library)"
+      }
+    ]
+  },
+  {
     "name": "cab_backhead_0",
     "diffuse": "models/cab_backhead_0.png",
     "spec": "models/cab_backhead_0_s.png",
@@ -4191,6 +4211,446 @@
     ]
   },
   {
+    "name": "ctree_barnacle_far_0",
+    "diffuse": "models/ctree_barnacle_far_0.png",
+    "spec": "models/ctree_barnacle_far_0_s.png",
+    "normal": "models/ctree_barnacle_far_0_n.png",
+    "size": 512,
+    "tileMetres": null,
+    "tiling": false,
+    "family": "model",
+    "alphaTest": true,
+    "sources": [
+      {
+        "generator": "tools/models/recipes/corrupted_trees.py",
+        "what": "the barnacle trees, each from two sides: their distance copies' cards",
+        "author": "Dark Territory",
+        "license": "CC0-1.0",
+        "attribution": "Dark Territory (modelled in tools/models from the texture library)"
+      },
+      {
+        "repo": "https://github.com/amazingsammed/mini_textures",
+        "commit": "b080ca4df63813b3b764a8f31b3f418e3d6b6a2a",
+        "path": "mini_texture/textures/Marble012_diffuse.jpg",
+        "license": "CC0-1.0",
+        "attribution": "ambientCG (CC0-1.0), via the library's flesh"
+      },
+      {
+        "repo": "https://github.com/amazingsammed/mini_textures",
+        "commit": "b080ca4df63813b3b764a8f31b3f418e3d6b6a2a",
+        "path": "mini_texture/textures/Marble012_displacement.jpg",
+        "license": "CC0-1.0",
+        "attribution": "ambientCG (CC0-1.0), via the library's flesh"
+      },
+      {
+        "repo": "https://github.com/amazingsammed/mini_textures",
+        "commit": "b080ca4df63813b3b764a8f31b3f418e3d6b6a2a",
+        "path": "mini_texture/textures/Ground111_displacement.jpg",
+        "license": "CC0-1.0",
+        "attribution": "ambientCG (CC0-1.0), via the library's fungal_crust"
+      },
+      {
+        "repo": "https://github.com/amazingsammed/mini_textures",
+        "commit": "b080ca4df63813b3b764a8f31b3f418e3d6b6a2a",
+        "path": "mini_texture/textures/Rock064_diffuse.jpg",
+        "license": "CC0-1.0",
+        "attribution": "ambientCG (CC0-1.0), via the library's mineral_growth"
+      },
+      {
+        "repo": "https://github.com/amazingsammed/mini_textures",
+        "commit": "b080ca4df63813b3b764a8f31b3f418e3d6b6a2a",
+        "path": "mini_texture/textures/Rock064_displacement.jpg",
+        "license": "CC0-1.0",
+        "attribution": "ambientCG (CC0-1.0), via the library's pine_bark"
+      },
+      {
+        "repo": "https://github.com/amazingsammed/mini_textures",
+        "commit": "b080ca4df63813b3b764a8f31b3f418e3d6b6a2a",
+        "path": "mini_texture/textures/Asphalt033_displacement.jpg",
+        "license": "CC0-1.0",
+        "attribution": "ambientCG (CC0-1.0), via the library's tar"
+      },
+      {
+        "repo": "https://github.com/amazingsammed/mini_textures",
+        "commit": "b080ca4df63813b3b764a8f31b3f418e3d6b6a2a",
+        "path": "mini_texture/textures/Wood095_diffuse.jpg",
+        "license": "CC0-1.0",
+        "attribution": "ambientCG (CC0-1.0), via the library's wood_grey"
+      },
+      {
+        "repo": "https://github.com/amazingsammed/mini_textures",
+        "commit": "b080ca4df63813b3b764a8f31b3f418e3d6b6a2a",
+        "path": "mini_texture/textures/Wood095_displacement.jpg",
+        "license": "CC0-1.0",
+        "attribution": "ambientCG (CC0-1.0), via the library's wood_grey"
+      }
+    ]
+  },
+  {
+    "name": "ctree_crystal_far_0",
+    "diffuse": "models/ctree_crystal_far_0.png",
+    "spec": "models/ctree_crystal_far_0_s.png",
+    "normal": "models/ctree_crystal_far_0_n.png",
+    "size": 512,
+    "tileMetres": null,
+    "tiling": false,
+    "family": "model",
+    "alphaTest": true,
+    "sources": [
+      {
+        "generator": "tools/models/recipes/corrupted_trees.py",
+        "what": "the crystal trees, each from two sides: their distance copies' cards",
+        "author": "Dark Territory",
+        "license": "CC0-1.0",
+        "attribution": "Dark Territory (modelled in tools/models from the texture library)"
+      },
+      {
+        "repo": "https://github.com/amazingsammed/mini_textures",
+        "commit": "b080ca4df63813b3b764a8f31b3f418e3d6b6a2a",
+        "path": "mini_texture/textures/Marble012_diffuse.jpg",
+        "license": "CC0-1.0",
+        "attribution": "ambientCG (CC0-1.0), via the library's flesh"
+      },
+      {
+        "repo": "https://github.com/amazingsammed/mini_textures",
+        "commit": "b080ca4df63813b3b764a8f31b3f418e3d6b6a2a",
+        "path": "mini_texture/textures/Marble012_displacement.jpg",
+        "license": "CC0-1.0",
+        "attribution": "ambientCG (CC0-1.0), via the library's flesh"
+      },
+      {
+        "repo": "https://github.com/amazingsammed/mini_textures",
+        "commit": "b080ca4df63813b3b764a8f31b3f418e3d6b6a2a",
+        "path": "mini_texture/textures/Asphalt033_displacement.jpg",
+        "license": "CC0-1.0",
+        "attribution": "ambientCG (CC0-1.0), via the library's tar"
+      },
+      {
+        "repo": "https://github.com/amazingsammed/mini_textures",
+        "commit": "b080ca4df63813b3b764a8f31b3f418e3d6b6a2a",
+        "path": "mini_texture/textures/Wood095_diffuse.jpg",
+        "license": "CC0-1.0",
+        "attribution": "ambientCG (CC0-1.0), via the library's wood_grey"
+      },
+      {
+        "repo": "https://github.com/amazingsammed/mini_textures",
+        "commit": "b080ca4df63813b3b764a8f31b3f418e3d6b6a2a",
+        "path": "mini_texture/textures/Wood095_displacement.jpg",
+        "license": "CC0-1.0",
+        "attribution": "ambientCG (CC0-1.0), via the library's wood_grey"
+      }
+    ]
+  },
+  {
+    "name": "ctree_iron_far_0",
+    "diffuse": "models/ctree_iron_far_0.png",
+    "spec": "models/ctree_iron_far_0_s.png",
+    "normal": "models/ctree_iron_far_0_n.png",
+    "size": 512,
+    "tileMetres": null,
+    "tiling": false,
+    "family": "model",
+    "alphaTest": true,
+    "sources": [
+      {
+        "generator": "tools/models/recipes/corrupted_trees.py",
+        "what": "the iron trees, each from two sides: their distance copies' cards",
+        "author": "Dark Territory",
+        "license": "CC0-1.0",
+        "attribution": "Dark Territory (modelled in tools/models from the texture library)"
+      },
+      {
+        "repo": "https://github.com/amazingsammed/mini_textures",
+        "commit": "b080ca4df63813b3b764a8f31b3f418e3d6b6a2a",
+        "path": "mini_texture/textures/Marble012_diffuse.jpg",
+        "license": "CC0-1.0",
+        "attribution": "ambientCG (CC0-1.0), via the library's flesh"
+      },
+      {
+        "repo": "https://github.com/amazingsammed/mini_textures",
+        "commit": "b080ca4df63813b3b764a8f31b3f418e3d6b6a2a",
+        "path": "mini_texture/textures/Marble012_displacement.jpg",
+        "license": "CC0-1.0",
+        "attribution": "ambientCG (CC0-1.0), via the library's flesh"
+      },
+      {
+        "repo": "https://github.com/amazingsammed/mini_textures",
+        "commit": "b080ca4df63813b3b764a8f31b3f418e3d6b6a2a",
+        "path": "mini_texture/textures/Metal063_diffuse.jpg",
+        "license": "CC0-1.0",
+        "attribution": "ambientCG (CC0-1.0), via the library's iron_plate"
+      },
+      {
+        "repo": "https://github.com/amazingsammed/mini_textures",
+        "commit": "b080ca4df63813b3b764a8f31b3f418e3d6b6a2a",
+        "path": "mini_texture/textures/Metal063_roughness.jpg",
+        "license": "CC0-1.0",
+        "attribution": "ambientCG (CC0-1.0), via the library's iron_plate"
+      },
+      {
+        "repo": "https://github.com/amazingsammed/mini_textures",
+        "commit": "b080ca4df63813b3b764a8f31b3f418e3d6b6a2a",
+        "path": "mini_texture/textures/Metal063_displacement.jpg",
+        "license": "CC0-1.0",
+        "attribution": "ambientCG (CC0-1.0), via the library's iron_plate"
+      },
+      {
+        "repo": "https://github.com/amazingsammed/mini_textures",
+        "commit": "b080ca4df63813b3b764a8f31b3f418e3d6b6a2a",
+        "path": "mini_texture/textures/Rock064_displacement.jpg",
+        "license": "CC0-1.0",
+        "attribution": "ambientCG (CC0-1.0), via the library's pine_bark"
+      },
+      {
+        "repo": "https://github.com/amazingsammed/mini_textures",
+        "commit": "b080ca4df63813b3b764a8f31b3f418e3d6b6a2a",
+        "path": "mini_texture/textures/metal_rust_diffuse.jpg",
+        "license": "CC0-1.0",
+        "attribution": "Mini Texture (CC0-1.0), via the library's rust_heavy"
+      },
+      {
+        "repo": "https://github.com/amazingsammed/mini_textures",
+        "commit": "b080ca4df63813b3b764a8f31b3f418e3d6b6a2a",
+        "path": "mini_texture/textures/Ground111_diffuse.jpg",
+        "license": "CC0-1.0",
+        "attribution": "ambientCG (CC0-1.0), via the library's rust_heavy"
+      },
+      {
+        "repo": "https://github.com/amazingsammed/mini_textures",
+        "commit": "b080ca4df63813b3b764a8f31b3f418e3d6b6a2a",
+        "path": "mini_texture/textures/Ground111_displacement.jpg",
+        "license": "CC0-1.0",
+        "attribution": "ambientCG (CC0-1.0), via the library's rust_heavy"
+      },
+      {
+        "repo": "https://github.com/amazingsammed/mini_textures",
+        "commit": "b080ca4df63813b3b764a8f31b3f418e3d6b6a2a",
+        "path": "mini_texture/textures/Asphalt033_displacement.jpg",
+        "license": "CC0-1.0",
+        "attribution": "ambientCG (CC0-1.0), via the library's tar"
+      }
+    ]
+  },
+  {
+    "name": "ctree_lantern_far_0",
+    "diffuse": "models/ctree_lantern_far_0.png",
+    "spec": "models/ctree_lantern_far_0_s.png",
+    "normal": "models/ctree_lantern_far_0_n.png",
+    "size": 512,
+    "tileMetres": null,
+    "tiling": false,
+    "family": "model",
+    "alphaTest": true,
+    "sources": [
+      {
+        "generator": "tools/models/recipes/corrupted_trees.py",
+        "what": "the lantern trees, each from two sides: their distance copies' cards",
+        "author": "Dark Territory",
+        "license": "CC0-1.0",
+        "attribution": "Dark Territory (modelled in tools/models from the texture library)"
+      },
+      {
+        "repo": "https://github.com/amazingsammed/mini_textures",
+        "commit": "b080ca4df63813b3b764a8f31b3f418e3d6b6a2a",
+        "path": "mini_texture/textures/Ground111_displacement.jpg",
+        "license": "CC0-1.0",
+        "attribution": "ambientCG (CC0-1.0), via the library's fungal_crust"
+      },
+      {
+        "repo": "https://github.com/amazingsammed/mini_textures",
+        "commit": "b080ca4df63813b3b764a8f31b3f418e3d6b6a2a",
+        "path": "mini_texture/textures/Rock064_displacement.jpg",
+        "license": "CC0-1.0",
+        "attribution": "ambientCG (CC0-1.0), via the library's pine_bark"
+      },
+      {
+        "repo": "https://github.com/amazingsammed/mini_textures",
+        "commit": "b080ca4df63813b3b764a8f31b3f418e3d6b6a2a",
+        "path": "mini_texture/textures/Marble012_diffuse.jpg",
+        "license": "CC0-1.0",
+        "attribution": "ambientCG (CC0-1.0), via the library's sac"
+      },
+      {
+        "repo": "https://github.com/amazingsammed/mini_textures",
+        "commit": "b080ca4df63813b3b764a8f31b3f418e3d6b6a2a",
+        "path": "mini_texture/textures/Asphalt033_displacement.jpg",
+        "license": "CC0-1.0",
+        "attribution": "ambientCG (CC0-1.0), via the library's tar"
+      }
+    ]
+  },
+  {
+    "name": "ctree_lattice_far_0",
+    "diffuse": "models/ctree_lattice_far_0.png",
+    "spec": "models/ctree_lattice_far_0_s.png",
+    "normal": "models/ctree_lattice_far_0_n.png",
+    "size": 512,
+    "tileMetres": null,
+    "tiling": false,
+    "family": "model",
+    "alphaTest": true,
+    "sources": [
+      {
+        "generator": "tools/models/recipes/corrupted_trees.py",
+        "what": "the lattice trees, each from two sides: their distance copies' cards",
+        "author": "Dark Territory",
+        "license": "CC0-1.0",
+        "attribution": "Dark Territory (modelled in tools/models from the texture library)"
+      },
+      {
+        "repo": "https://github.com/amazingsammed/mini_textures",
+        "commit": "b080ca4df63813b3b764a8f31b3f418e3d6b6a2a",
+        "path": "mini_texture/textures/Marble012_diffuse.jpg",
+        "license": "CC0-1.0",
+        "attribution": "ambientCG (CC0-1.0), via the library's flesh"
+      },
+      {
+        "repo": "https://github.com/amazingsammed/mini_textures",
+        "commit": "b080ca4df63813b3b764a8f31b3f418e3d6b6a2a",
+        "path": "mini_texture/textures/Marble012_displacement.jpg",
+        "license": "CC0-1.0",
+        "attribution": "ambientCG (CC0-1.0), via the library's flesh"
+      },
+      {
+        "repo": "https://github.com/amazingsammed/mini_textures",
+        "commit": "b080ca4df63813b3b764a8f31b3f418e3d6b6a2a",
+        "path": "mini_texture/textures/Rock064_displacement.jpg",
+        "license": "CC0-1.0",
+        "attribution": "ambientCG (CC0-1.0), via the library's pine_bark"
+      }
+    ]
+  },
+  {
+    "name": "ctree_tar_far_0",
+    "diffuse": "models/ctree_tar_far_0.png",
+    "spec": "models/ctree_tar_far_0_s.png",
+    "normal": "models/ctree_tar_far_0_n.png",
+    "size": 512,
+    "tileMetres": null,
+    "tiling": false,
+    "family": "model",
+    "alphaTest": true,
+    "sources": [
+      {
+        "generator": "tools/models/recipes/corrupted_trees.py",
+        "what": "the tar trees, each from two sides: their distance copies' cards",
+        "author": "Dark Territory",
+        "license": "CC0-1.0",
+        "attribution": "Dark Territory (modelled in tools/models from the texture library)"
+      },
+      {
+        "repo": "https://github.com/amazingsammed/mini_textures",
+        "commit": "b080ca4df63813b3b764a8f31b3f418e3d6b6a2a",
+        "path": "mini_texture/textures/Rock064_displacement.jpg",
+        "license": "CC0-1.0",
+        "attribution": "ambientCG (CC0-1.0), via the library's pine_bark"
+      },
+      {
+        "repo": "https://github.com/amazingsammed/mini_textures",
+        "commit": "b080ca4df63813b3b764a8f31b3f418e3d6b6a2a",
+        "path": "mini_texture/textures/Asphalt033_displacement.jpg",
+        "license": "CC0-1.0",
+        "attribution": "ambientCG (CC0-1.0), via the library's tar"
+      }
+    ]
+  },
+  {
+    "name": "ctree_thorn_far_0",
+    "diffuse": "models/ctree_thorn_far_0.png",
+    "spec": "models/ctree_thorn_far_0_s.png",
+    "normal": "models/ctree_thorn_far_0_n.png",
+    "size": 512,
+    "tileMetres": null,
+    "tiling": false,
+    "family": "model",
+    "alphaTest": true,
+    "sources": [
+      {
+        "generator": "tools/models/recipes/corrupted_trees.py",
+        "what": "the thorn trees, each from two sides: their distance copies' cards",
+        "author": "Dark Territory",
+        "license": "CC0-1.0",
+        "attribution": "Dark Territory (modelled in tools/models from the texture library)"
+      },
+      {
+        "repo": "https://github.com/amazingsammed/mini_textures",
+        "commit": "b080ca4df63813b3b764a8f31b3f418e3d6b6a2a",
+        "path": "mini_texture/textures/Marble012_diffuse.jpg",
+        "license": "CC0-1.0",
+        "attribution": "ambientCG (CC0-1.0), via the library's flesh"
+      },
+      {
+        "repo": "https://github.com/amazingsammed/mini_textures",
+        "commit": "b080ca4df63813b3b764a8f31b3f418e3d6b6a2a",
+        "path": "mini_texture/textures/Marble012_displacement.jpg",
+        "license": "CC0-1.0",
+        "attribution": "ambientCG (CC0-1.0), via the library's flesh"
+      },
+      {
+        "repo": "https://github.com/amazingsammed/mini_textures",
+        "commit": "b080ca4df63813b3b764a8f31b3f418e3d6b6a2a",
+        "path": "mini_texture/textures/Rock064_displacement.jpg",
+        "license": "CC0-1.0",
+        "attribution": "ambientCG (CC0-1.0), via the library's pine_bark"
+      }
+    ]
+  },
+  {
+    "name": "ctree_webbed_far_0",
+    "diffuse": "models/ctree_webbed_far_0.png",
+    "spec": "models/ctree_webbed_far_0_s.png",
+    "normal": "models/ctree_webbed_far_0_n.png",
+    "size": 512,
+    "tileMetres": null,
+    "tiling": false,
+    "family": "model",
+    "alphaTest": true,
+    "sources": [
+      {
+        "generator": "tools/models/recipes/corrupted_trees.py",
+        "what": "the webbed trees, each from two sides: their distance copies' cards",
+        "author": "Dark Territory",
+        "license": "CC0-1.0",
+        "attribution": "Dark Territory (modelled in tools/models from the texture library)"
+      },
+      {
+        "repo": "https://github.com/amazingsammed/mini_textures",
+        "commit": "b080ca4df63813b3b764a8f31b3f418e3d6b6a2a",
+        "path": "mini_texture/textures/Marble012_diffuse.jpg",
+        "license": "CC0-1.0",
+        "attribution": "ambientCG (CC0-1.0), via the library's flesh"
+      },
+      {
+        "repo": "https://github.com/amazingsammed/mini_textures",
+        "commit": "b080ca4df63813b3b764a8f31b3f418e3d6b6a2a",
+        "path": "mini_texture/textures/Marble012_displacement.jpg",
+        "license": "CC0-1.0",
+        "attribution": "ambientCG (CC0-1.0), via the library's flesh"
+      },
+      {
+        "repo": "https://github.com/amazingsammed/mini_textures",
+        "commit": "b080ca4df63813b3b764a8f31b3f418e3d6b6a2a",
+        "path": "mini_texture/textures/Asphalt033_displacement.jpg",
+        "license": "CC0-1.0",
+        "attribution": "ambientCG (CC0-1.0), via the library's tar"
+      },
+      {
+        "repo": "https://github.com/amazingsammed/mini_textures",
+        "commit": "b080ca4df63813b3b764a8f31b3f418e3d6b6a2a",
+        "path": "mini_texture/textures/Wood095_diffuse.jpg",
+        "license": "CC0-1.0",
+        "attribution": "ambientCG (CC0-1.0), via the library's wood_grey"
+      },
+      {
+        "repo": "https://github.com/amazingsammed/mini_textures",
+        "commit": "b080ca4df63813b3b764a8f31b3f418e3d6b6a2a",
+        "path": "mini_texture/textures/Wood095_displacement.jpg",
+        "license": "CC0-1.0",
+        "attribution": "ambientCG (CC0-1.0), via the library's wood_grey"
+      }
+    ]
+  },
+  {
     "name": "cylinder_l_0",
     "diffuse": "models/cylinder_l_0.png",
     "spec": "models/cylinder_l_0_s.png",
@@ -5918,6 +6378,26 @@
     ]
   },
   {
+    "name": "freight_beetle_0",
+    "diffuse": "models/freight_beetle_0.png",
+    "spec": "models/freight_beetle_0_s.png",
+    "normal": "models/freight_beetle_0_n.png",
+    "size": 1024,
+    "tileMetres": null,
+    "tiling": false,
+    "family": "creature",
+    "alphaTest": false,
+    "sources": [
+      {
+        "generator": "tools/models/recipes/freight_beetle.py",
+        "what": "the Freight Beetle, modelled in tools/blender/freight_beetle.py, its colour painted here",
+        "author": "Dark Territory",
+        "license": "CC0-1.0",
+        "attribution": "Dark Territory (modelled in tools/models from the texture library)"
+      }
+    ]
+  },
+  {
     "name": "freight_carboys_0",
     "diffuse": "models/freight_carboys_0.png",
     "spec": "models/freight_carboys_0_s.png",
@@ -7206,6 +7686,26 @@
     ]
   },
   {
+    "name": "hanger_0",
+    "diffuse": "models/hanger_0.png",
+    "spec": "models/hanger_0_s.png",
+    "normal": "models/hanger_0_n.png",
+    "size": 1024,
+    "tileMetres": null,
+    "tiling": false,
+    "family": "creature",
+    "alphaTest": false,
+    "sources": [
+      {
+        "generator": "tools/models/recipes/hanger.py",
+        "what": "the Hanger, modelled in tools/blender/hanger.py, its colour painted here",
+        "author": "Dark Territory",
+        "license": "CC0-1.0",
+        "attribution": "Dark Territory (modelled in tools/models from the texture library)"
+      }
+    ]
+  },
+  {
     "name": "headframe_0",
     "diffuse": "models/headframe_0.png",
     "spec": "models/headframe_0_s.png",
@@ -7709,6 +8209,26 @@
         "path": "mini_texture/textures/fabric_canvas_diffuse.jpg",
         "license": "CC0-1.0",
         "attribution": "Mini Texture (CC0-1.0), via the library's wool"
+      }
+    ]
+  },
+  {
+    "name": "hotbox_0",
+    "diffuse": "models/hotbox_0.png",
+    "spec": "models/hotbox_0_s.png",
+    "normal": "models/hotbox_0_n.png",
+    "size": 1024,
+    "tileMetres": null,
+    "tiling": false,
+    "family": "creature",
+    "alphaTest": false,
+    "sources": [
+      {
+        "generator": "tools/models/recipes/hotbox.py",
+        "what": "Hotbox, modelled in tools/blender/hotbox.py, its colour painted here",
+        "author": "Dark Territory",
+        "license": "CC0-1.0",
+        "attribution": "Dark Territory (modelled in tools/models from the texture library)"
       }
     ]
   },
@@ -8269,6 +8789,26 @@
     ]
   },
   {
+    "name": "householder_0",
+    "diffuse": "models/householder_0.png",
+    "spec": "models/householder_0_s.png",
+    "normal": "models/householder_0_n.png",
+    "size": 1024,
+    "tileMetres": null,
+    "tiling": false,
+    "family": "creature",
+    "alphaTest": false,
+    "sources": [
+      {
+        "generator": "tools/models/recipes/householder.py",
+        "what": "the Householder, modelled in tools/blender/householder.py, its colour painted here",
+        "author": "Dark Territory",
+        "license": "CC0-1.0",
+        "attribution": "Dark Territory (modelled in tools/models from the texture library)"
+      }
+    ]
+  },
+  {
     "name": "husk_0",
     "diffuse": "models/husk_0.png",
     "spec": "models/husk_0_s.png",
@@ -8343,6 +8883,26 @@
         "path": "mini_texture/textures/leather_brown_diffuse.jpg",
         "license": "CC0-1.0",
         "attribution": "Mini Texture (CC0-1.0), via the library's leather"
+      }
+    ]
+  },
+  {
+    "name": "knotter_0",
+    "diffuse": "models/knotter_0.png",
+    "spec": "models/knotter_0_s.png",
+    "normal": "models/knotter_0_n.png",
+    "size": 1024,
+    "tileMetres": null,
+    "tiling": false,
+    "family": "creature",
+    "alphaTest": false,
+    "sources": [
+      {
+        "generator": "tools/models/recipes/knotter.py",
+        "what": "the Knotter, modelled in tools/blender/knotter.py, its colour painted here",
+        "author": "Dark Territory",
+        "license": "CC0-1.0",
+        "attribution": "Dark Territory (modelled in tools/models from the texture library)"
       }
     ]
   },
@@ -8944,6 +9504,26 @@
     ]
   },
   {
+    "name": "lodger_0",
+    "diffuse": "models/lodger_0.png",
+    "spec": "models/lodger_0_s.png",
+    "normal": "models/lodger_0_n.png",
+    "size": 1024,
+    "tileMetres": null,
+    "tiling": false,
+    "family": "creature",
+    "alphaTest": false,
+    "sources": [
+      {
+        "generator": "tools/models/recipes/lodger.py",
+        "what": "the Lodger, modelled in tools/blender/lodger.py, its colour painted here",
+        "author": "Dark Territory",
+        "license": "CC0-1.0",
+        "attribution": "Dark Territory (modelled in tools/models from the texture library)"
+      }
+    ]
+  },
+  {
     "name": "loose_truck_0",
     "diffuse": "models/loose_truck_0.png",
     "spec": "models/loose_truck_0_s.png",
@@ -9521,6 +10101,26 @@
     ]
   },
   {
+    "name": "mourner_0",
+    "diffuse": "models/mourner_0.png",
+    "spec": "models/mourner_0_s.png",
+    "normal": "models/mourner_0_n.png",
+    "size": 1024,
+    "tileMetres": null,
+    "tiling": false,
+    "family": "creature",
+    "alphaTest": false,
+    "sources": [
+      {
+        "generator": "tools/models/recipes/mourner.py",
+        "what": "the Mourners, modelled in tools/blender/mourner.py, their colour painted here",
+        "author": "Dark Territory",
+        "license": "CC0-1.0",
+        "attribution": "Dark Territory (modelled in tools/models from the texture library)"
+      }
+    ]
+  },
+  {
     "name": "nissen_hut_0",
     "diffuse": "models/nissen_hut_0.png",
     "spec": "models/nissen_hut_0_s.png",
@@ -9889,6 +10489,26 @@
       {
         "generator": "tools/models/recipes/passenger.py",
         "what": "the Passenger, modelled over tools/blender/passenger.py",
+        "author": "Dark Territory",
+        "license": "CC0-1.0",
+        "attribution": "Dark Territory (modelled in tools/models from the texture library)"
+      }
+    ]
+  },
+  {
+    "name": "picker_0",
+    "diffuse": "models/picker_0.png",
+    "spec": "models/picker_0_s.png",
+    "normal": "models/picker_0_n.png",
+    "size": 1024,
+    "tileMetres": null,
+    "tiling": false,
+    "family": "creature",
+    "alphaTest": false,
+    "sources": [
+      {
+        "generator": "tools/models/recipes/picker.py",
+        "what": "the Pickers, modelled in tools/blender/picker.py, their colour painted here",
         "author": "Dark Territory",
         "license": "CC0-1.0",
         "attribution": "Dark Territory (modelled in tools/models from the texture library)"
@@ -13378,6 +13998,26 @@
     ]
   },
   {
+    "name": "tower_jaw_0",
+    "diffuse": "models/tower_jaw_0.png",
+    "spec": "models/tower_jaw_0_s.png",
+    "normal": "models/tower_jaw_0_n.png",
+    "size": 1024,
+    "tileMetres": null,
+    "tiling": false,
+    "family": "creature",
+    "alphaTest": false,
+    "sources": [
+      {
+        "generator": "tools/models/recipes/tower_jaw.py",
+        "what": "Tower Jaw, modelled in tools/blender/tower_jaw.py, its colour painted here",
+        "author": "Dark Territory",
+        "license": "CC0-1.0",
+        "attribution": "Dark Territory (modelled in tools/models from the texture library)"
+      }
+    ]
+  },
+  {
     "name": "toy_bear_0",
     "diffuse": "models/toy_bear_0.png",
     "spec": "models/toy_bear_0_s.png",
@@ -15086,6 +15726,26 @@
         "license": "CC-BY-4.0",
         "attribution": "Interior Scene by Allay Design (sketchfab.com/Alister.Dsouza), CC BY 4.0",
         "files": null
+      }
+    ]
+  },
+  {
+    "name": "waker_0",
+    "diffuse": "models/waker_0.png",
+    "spec": "models/waker_0_s.png",
+    "normal": "models/waker_0_n.png",
+    "size": 2048,
+    "tileMetres": null,
+    "tiling": false,
+    "family": "creature",
+    "alphaTest": false,
+    "sources": [
+      {
+        "generator": "tools/models/recipes/waker.py",
+        "what": "the Waker (the Peat Man), modelled in tools/blender/waker.py, its colour painted here",
+        "author": "Dark Territory",
+        "license": "CC0-1.0",
+        "attribution": "Dark Territory (modelled in tools/models from the texture library)"
       }
     ]
   },

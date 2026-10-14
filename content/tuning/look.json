@@ -19,6 +19,11 @@
   // (tuning/perf.json maxFrameTriangles; ARCHITECTURE §8 note 262). Inside it, as close as a creature gets to anyone, the
   // whole model.
   "creatureLodMetres": 14,
+  // A figure with no distance copy of its own (the survivors, the crew: some 8,400 triangles each, and a walled town's
+  // people and its watch are dozens of them) gets one made at load, its vertices clustered this far apart (m), never across
+  // bones; drawn past this far (m), where a figure is a few pixels tall (ARCHITECTURE §8 note 479).
+  "clusteredLodMetres": 40,
+  "clusteredLodCell": 0.1,
   // The bottoms of things are this much darker: the baked shadow, and the soot and wet that collect low.
   "baked": 0.35,
   // Each crewmate's flying cap and scarf are dyed their own colour (by player id, in turn), so eight masked heads can still
@@ -139,7 +144,11 @@
       "sunStrength": 0.9,
       "ambient": 0.3,
       // The glow low on the sky on the sun's side as it comes up, under the grey (the sun never clears the fog).
-      "horizonGlow": [0.28, 0.16, 0.11]
+      "horizonGlow": [0.28, 0.16, 0.11],
+      // The Wakers' stir (note 599; wakers.md §2: "the horizon behind the train goes from black to a bruise to a thin cold
+      // line"): over enemies.json wakers.stirSeconds before dawn, low on the sky behind the train, from a wide dim bruise
+      // to a thin grey line, up to strength (the sky shader adds it).
+      "stir": { "bruise": [0.16, 0.08, 0.14], "line": [0.50, 0.55, 0.62], "strength": 1.3 }
     },
     // The cold (the night's route weather cold, 0..1; GDD §26 "survival time outside is short"): a rime of frost comes on
     // the metal, the roofs and the glass from frostFrom and is full by frostFull; breath shows as vapour from breathFrom.
@@ -172,6 +181,18 @@
       "full": 16,
       "from": [-0.7, 0, -0.4],
       "gusts": 0.7
+    },
+    // A town's flag in that wind (queue #405, note 674): its cloth (m); the wind (m/s) it starts lifting in and flies flat
+    // by; how far its fly hangs down in none (rad); how far it snakes side to side, calm to full (rad, at the fly); how
+    // fast the ripple runs out along it, calm to full (rad/s); how far it billows up and down in its own plane, flying (rad,
+    // at the fly); how many waves are on it at once.
+    "flag": {
+      "length": 1.8, "height": 1.2,
+      "liftFrom": 1.5, "liftFull": 10,
+      "droop": 1.9,
+      "ripple": 0.22, "rippleFull": 0.6, "flutter": 0.22,
+      "pace": 2.2, "paceFull": 10,
+      "waves": 1.6
     }
   },
   // The water (ARCHITECTURE §8 note 424): how each kind of it moves. Its current (m/s: a river's down its valley, the
@@ -210,5 +231,45 @@
     "advance": 1.4,
     "sideLead": 1.0,
     "platform": 0.08
+  },
+  // GDD §28 "What you came for is lit" (the director's evening playtest, 13 Oct: "We could use a little bit more lighting
+  // around some of the loot. It's sort of just hard to identify what we're even doing"; note 705). Warm lamp-amber pools a
+  // few metres across, kept to the nearest (the renderer keeps the 32 nearest lights of all).
+  "workLight": {
+    // A gantry's work lamp, hung on the cable "hookAbove" m over the hook: what's on the hook is lit all the way down into
+    // the car, and the car's floor under it.
+    "hookIntensity": 2.2,
+    "hookRange": 6.5,
+    "hookAbove": 1.4,
+    // Over the castings still stacked to load, "stackHeight" m up over the middle of the stack.
+    "stackIntensity": 1.6,
+    "stackRange": 7,
+    "stackHeight": 3.2,
+    // Round a crate or a find lying on the ground (not carried, not aboard): the nearest "groundCount" within
+    // "groundWithin" m of the eye, each a low light "groundHeight" m over it.
+    "groundIntensity": 1.1,
+    "groundRange": 3.5,
+    "groundHeight": 1.1,
+    "groundWithin": 30,
+    "groundCount": 6
+  },
+  // GDD §31 "Speed is felt" (the director's evening playtest, 13 Oct: "It says we're going 27 kilometers an hour ... when I
+  // look out the front, it just feels so agonizingly slow"; note 709). Presentation only, aboard, never in a headset.
+  "speedFeel": {
+    // The view widens by up to "widen" degrees, at "fullAt" m/s, eased by (speed / fullAt) ^ "ease" (under 1: felt early).
+    // Note 735 (the director, 14 Oct: "It still feels a bit slow"): 8 to 12.
+    "widen": 12,
+    "fullAt": 20,
+    "ease": 0.6,
+    // A knock through the floor at each rail joint, "joint" m apart, under each bogie ("bogies" m apart): "jolt" m at full
+    // speed, over "joltWidth" m of travel; and the car's sway, "sway" m side to side every "swayWave" m. Note 735 (the
+    // director, 14 Oct: "it seems like the cab is shaking. I don't like that ... the train feels like it's sort of rocking"):
+    // both off. A shaking view reads as the camera, not the train (GDD §31).
+    "joint": 12.5,
+    "bogies": 8.5,
+    "jolt": 0,
+    "joltWidth": 0.35,
+    "sway": 0,
+    "swayWave": 34
   }
 }

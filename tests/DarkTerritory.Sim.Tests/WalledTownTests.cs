@@ -42,8 +42,41 @@ public class WalledTownTests
         Assert.InRange(Math.Max(b.Left, b.Right), 60, Towns.Tuning.Walled.First + Towns.Tuning.Walled.MaxStreets * Towns.Tuning.Walled.Every);
         // Its households all housed (more to a house only where there aren't houses enough).
         Assert.True(big.Plan.Houses.Count(h => h.Kind is HouseKind.Lived or HouseKind.Open) >= 3000 / 6);
-        var (_, small) = Night("frontier:7", 40);
+        var (_, small) = Night("frontier:7", 20);
         Assert.Null(small.Plan.Bounds);
+    }
+
+    /// <summary>
+    /// A town of more houses than a hamlet's isn't a row down the track (note 668; the director, 13 Oct, of frontier:7's
+    /// departure town, 97 people: "a long row of houses. It doesn't feel like a town"): it keeps houses.lineRow on the
+    /// line's own street, the nearest its square, and the rest stand either side of streets of its own, facing across them.
+    /// </summary>
+    [Theory]
+    [InlineData("frontier:7", 97)]
+    [InlineData("frontier:7", 50)]
+    [InlineData("local:1", 140)]
+    public void ATownOfMoreThanAHamletHasStreetsOfItsOwnNotOneRowDownTheTrack(string spec, int people)
+    {
+        var (_, town) = Night(spec, people);
+        var plan = town.Plan;
+        var b = Assert.IsType<TownBounds>(plan.Bounds);
+        var st = Towns.Tuning.Houses;
+        double firstRow = Towns.Tuning.Walled.First / 2;
+        var onTheLine = plan.Houses.Where(h => Math.Abs(h.D) < firstRow).ToList();
+        Assert.True(onTheLine.Count <= st.LineRow, $"{onTheLine.Count} houses on the line's own street");
+        // The rest face across a street of their own (a house's Side is the way its back lies from its front): on each
+        // side of the line, its street's near row and far row are both built on.
+        var off = plan.Houses.Where(h => Math.Abs(h.D) >= firstRow).ToList();
+        Assert.True(off.Count >= plan.Houses.Count - st.LineRow);
+        foreach (var street in b.Streets.Where(s => off.Any(h => Math.Sign(h.D) == Math.Sign(s.D))))
+        {
+            var mine = off.Where(h => Math.Sign(h.D) == Math.Sign(street.D)).ToList();
+            Assert.Contains(mine, h => Math.Abs(h.D) < Math.Abs(street.At(h.S)) && h.Side == -Math.Sign(street.D));
+            Assert.Contains(mine, h => Math.Abs(h.D) > Math.Abs(street.At(h.S)) && h.Side == Math.Sign(street.D));
+        }
+        // And they're the square's neighbours, not strung out to the gate: the town grows from its heart.
+        double heart = (plan.Square.S0 + plan.Square.S1) / 2;
+        Assert.True(plan.Houses.Average(h => Math.Abs(h.S - heart)) < 160, "the houses aren't round the square");
     }
 
     [Theory]
@@ -77,8 +110,9 @@ public class WalledTownTests
                 double near = Math.Min(Math.Min(st.At(x.S0), st.At(x.S1)), st.At((x.S0 + x.S1) / 2)), far = Math.Max(Math.Max(st.At(x.S0), st.At(x.S1)), st.At((x.S0 + x.S1) / 2));
                 Assert.False(x.D1 > near - st.Width / 2 && x.D0 < far + st.Width / 2 && x.S1 > st.S0 && x.S0 < st.S1, $"house {x.Id} in the street at {st.D:0}");
             }
+            // Where the lane is across the house's depth (it runs crooked: note 353).
             foreach (var lane in b?.Lanes ?? [])
-                Assert.False(x.S1 > lane.S - lane.Width / 2 && x.S0 < lane.S + lane.Width / 2, $"house {x.Id} in the lane at {lane.S:0}");
+                Assert.False(lane.Span(x.D0, x.D1) is var (lo, hi) && x.S1 > lo && x.S0 < hi, $"house {x.Id} in the lane at {lane.S:0}");
             Assert.False(Math.Sign(x.D0) == sq.Side && x.S1 > sq.S0 && x.S0 < sq.S1 && Math.Min(Math.Abs(x.D0), Math.Abs(x.D1)) < Math.Abs(sq.WallD),
                 $"house {x.Id} in the square");
         }
@@ -130,21 +164,59 @@ public class WalledTownTests
         var b = town.Plan.Bounds!;
         var lane = b.Lanes[b.Lanes.Count / 2];
         var train = world.Train;
-        // From beside the line, down the lane's middle at a run, out past the last street, for a minute (at a walk, the
-        // 180 m out to the wall is a minute and a quarter).
+        // From beside the line, down the lane's middle at a run (it turns at each street: note 353), out past the last
+        // street, for a minute (at a walk, the 180 m out to the wall is a minute and a quarter).
         var from = town.World(lane.S, 4.5);
         var s = PlayerMotor.SpawnOnGround(from, train.Line, lane.S, P);
-        var dir = town.Direction(lane.S, 0, 1);
-        s.Yaw = Math.Atan2(-dir.X, -dir.Z);
-        double furthest = 0;
+        double furthest = 0, along = lane.S;
         for (int i = 0; i < 60 * SimConstants.TickRate; i++)
         {
+            // Where they are across the line, and so where the lane's middle is a few steps on.
+            train.Line.Nearest(s.Position, ref along);
+            double d = Double3.Dot(s.Position - town.World(along, 0), town.Direction(along, 0, 1));
+            var aim = town.World(lane.At(d + 6), d + 6) - s.Position;
+            s.Yaw = Math.Atan2(-aim.X, -aim.Z);
             PlayerMotor.Step(ref s, new PlayerIntent { MoveZ = 1, Buttons = PlayerButtons.Run }, train, P, Tuning.Train, SimConstants.TickSeconds);
-            furthest = Math.Max(furthest, Double3.Dot(s.Position - town.World(lane.S, 0), dir));
+            furthest = Math.Max(furthest, d);
         }
         double outer = b.Streets.Max(st => st.D);
         Assert.True(furthest > outer, $"got {furthest:0.0} m out down the lane; the outermost street is {outer:0.0} m out");
         Assert.True(furthest < b.Right, $"walked {furthest:0.0} m out, through the wall at {b.Right:0.0}");
+    }
+
+    [Theory]
+    [InlineData("frontier:7", 3000)]
+    [InlineData("local:3", 1200)]
+    public void ALaneRunsCrookedButNeverIntoTheSquareTheGreenOrTheNextLane(string spec, int people)
+    {
+        // Note 353 (the director, 8 Oct: "Towns dont feel like they have a natural layout to them"): a lane turns where
+        // it meets each street, so the crossings don't line up down the town.
+        var (_, town) = Night(spec, people);
+        var plan = town.Plan;
+        var b = plan.Bounds!;
+        var wt = Towns.Tuning.Walled;
+        Assert.All(b.Lanes, lane => Assert.Contains(lane.Kinks!, k => Math.Abs(k.S - lane.S) >= wt.LaneJog[0] - 1e-6));
+        // No two lanes meet, anywhere across the town.
+        var lanes = b.Lanes.OrderBy(l => l.S).ToList();
+        for (int i = 1; i < lanes.Count; i++)
+            for (double d = -b.Left; d <= b.Right; d += 1)
+                Assert.True(lanes[i].At(d) - lanes[i - 1].At(d) > 2 * wt.LaneWidth, $"lanes at {lanes[i - 1].S:0} and {lanes[i].S:0} meet {d:0} m out");
+        // Nor runs into the square (its buildings back onto where its far wall was) or across the green.
+        var sq = plan.Square;
+        double reach = plan.Green is { } g ? g.Far : Math.Abs(sq.WallD);
+        foreach (var lane in b.Lanes)
+        {
+            var (lo, hi) = lane.Span(0, sq.Side * reach);
+            Assert.False(hi > sq.S0 && lo < sq.S1, $"the lane at {lane.S:0} runs into the square ({lo:0}..{hi:0} along the line)");
+        }
+        // The yards beside it are fenced along it (a board fence down the lot's side), a lane between fences.
+        Assert.Contains(plan.Houses, h => h.Yard.Any(y => y.Kind == YardKind.Boards && y.V1 - y.V0 > y.U1 - y.U0));
+        // And it's still open down its middle from the line to the outermost street: nothing solid on it.
+        double outer = b.Streets.Max(st => Math.Abs(st.D));
+        foreach (var lane in b.Lanes)
+            foreach (int sd in new[] { -1, 1 })
+                for (double d = 6; d < outer; d += 2)
+                    Assert.True(town.Free(town.World(lane.At(sd * d), sd * d)), $"something solid in the lane at {lane.S:0}, {sd * d:0} m out");
     }
 
     [Fact]
@@ -166,5 +238,70 @@ public class WalledTownTests
         Assert.Contains(walls, w => Flat(back, w.Centre) < 5 && w.HalfLength > b.Left);
         // And no corridor wall down the yard any more.
         Assert.DoesNotContain(walls, w => w.HalfWidth == Fortresses.WallHalf && Flat(town.World(b.Gate - 205, 14.8), w.Centre) < 6);
+    }
+
+    /// <summary>
+    /// Nothing ruled straight (note 490; the board's "houses turned a few degrees off true" and "a crescent of houses round
+    /// the green"): most shut houses on the streets stand a few degrees off true, their walls turned with them and their
+    /// yards still square; the row across the green's far street turns to the green; nothing turned stands in another
+    /// house, its yard or a street.
+    /// </summary>
+    [Fact]
+    public void HousesStandOffTrueAndTheRowAcrossTheGreenTurnsToIt()
+    {
+        var (_, town) = Night("frontier:7", 2600);
+        var plan = town.Plan;
+        var wt = Towns.Tuning.Walled;
+        var b = Assert.IsType<TownBounds>(plan.Bounds);
+        var green = Assert.IsType<TownGreen>(plan.Green);
+        double first = b.Streets.Min(st => Math.Abs(st.D));
+        // (The line's own row stands its street's "out" from the line, the first street's near row well past it.)
+        bool LineRow(TownHouse h) => Math.Abs(Math.Abs(h.D) - Towns.Tuning.Houses.Out) < 3;
+        var onStreets = plan.Houses.Where(h => h.Layout is null && !LineRow(h)).ToList();
+        var turned = onStreets.Where(h => h.Turn != 0).ToList();
+        Assert.True(turned.Count > onStreets.Count / 3, $"{turned.Count} of {onStreets.Count} shut houses on the streets stand off true");
+        // An open house (its rooms are its walls) and the line's own row stand square.
+        Assert.All(plan.Houses.Where(h => h.Layout is not null || LineRow(h)), h => Assert.Equal(0, h.Turn));
+        // The row across the green's far street: turned toward its middle, the further along the more.
+        double gs = (green.S0 + green.S1) / 2;
+        var crescent = plan.Houses.Where(h => Math.Sign(h.D) == green.Side && Math.Abs(h.D) > green.Far + wt.Width && Math.Abs(h.D) < green.Far + 2 * wt.Every / 3
+            && h.S > green.S0 && h.S < green.S1 && Math.Abs(h.S - gs) > 8 && h.Layout is null).ToList();
+        Assert.True(crescent.Count >= 3, $"{crescent.Count} houses face the green across its far street");
+        foreach (var h in crescent)
+        {
+            var (fs, _) = h.BodyFacing(0, -1);
+            Assert.True(Math.Sign(fs) == Math.Sign(gs - h.S), $"house {h.Id} at {h.S - gs:0} m along turns away from the green ({h.Turn * 180 / Math.PI:0.0}°)");
+        }
+        Assert.Contains(crescent, h => Math.Abs(h.Turn) * 180 / Math.PI > wt.Turn[1] + 1);
+        Assert.All(plan.Houses, h => Assert.True(Math.Abs(h.Turn) * 180 / Math.PI <= Math.Max(wt.Turn[1], wt.Crescent) + 1e-9, $"house {h.Id} turned {h.Turn * 180 / Math.PI:0.0}°"));
+
+        // Its walls turned with it: just inside each corner of its body is a wall of its own, and nothing of anyone else's.
+        static bool Inside(Wall w, Double3 p, double pad = 0)
+        {
+            var l = w.ToLocal(p);
+            return Math.Abs(l.X) <= w.HalfLength + pad && Math.Abs(l.Z) <= w.HalfWidth + pad && l.Y >= w.Bottom && l.Y <= w.Top;
+        }
+        var walls = town.Walls;
+        foreach (var h in turned)
+            foreach (var (u, v) in new[] { (-h.Width / 2 + 0.25, 0.25), (h.Width / 2 - 0.25, 0.25), (-h.Width / 2 + 0.25, h.Depth - 0.25), (h.Width / 2 - 0.25, h.Depth - 0.25) })
+            {
+                var (s, d) = h.Body(u, v);
+                var p = town.World(s, d, 1.0);
+                // Walled, and only by its own walls (nobody else's house or yard stands where it's turned to).
+                var mine = town.World(h.S, h.D);
+                var holding = walls.Where(w => Inside(w, p)).ToList();
+                Assert.True(holding.Count > 0, $"house {h.Id}'s corner at ({u:0.0}, {v:0.0}) isn't walled");
+                Assert.All(holding, w => Assert.True(((w.Centre - mine) with { Y = 0 }).Length < (h.Width + h.Depth) / 2 + 1,
+                    $"house {h.Id}'s corner at ({u:0.0}, {v:0.0}) stands in something {((w.Centre - mine) with { Y = 0 }).Length:0.0} m off"));
+                // Off every street.
+                Assert.DoesNotContain(b.Streets, st => s > st.S0 && s < st.S1 && Math.Abs(d - st.At(s)) < st.Width / 2);
+            }
+        // Its yard square to its lot, and clear of its turned body.
+        foreach (var h in turned.Where(h => h.Yard.Count > 0))
+        {
+            var ext = h.Extent();
+            Assert.All(h.Yard.Where(y => y.Solid && Math.Abs(y.V1 - y.V0) < 3), y => Assert.True(Math.Min(y.V0, y.V1) > ext.V1 || Math.Max(y.V0, y.V1) < ext.V0
+                || Math.Max(y.U0, y.U1) < ext.U0 || Math.Min(y.U0, y.U1) > ext.U1, $"house {h.Id}'s {y.Kind} stands in its turned body"));
+        }
     }
 }

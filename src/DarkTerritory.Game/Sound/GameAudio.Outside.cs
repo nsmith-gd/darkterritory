@@ -1,5 +1,6 @@
 using Ballast;
 using Ballast.Audio;
+using DarkTerritory.Game.Art;
 using DarkTerritory.Sim;
 using DarkTerritory.Sim.Enemies;
 using DarkTerritory.Sim.LineGen;
@@ -24,9 +25,19 @@ public sealed partial class GameAudio
     /// <summary>The radio (voice chat), for its clicks, squelch and static; none in a game without the network.</summary>
     public VoiceChat? Voice { get; set; }
 
+    /// <summary>
+    /// The scene's clock (<c>GreyboxScene.Time</c>) when the app draws one. The crew's clips play on it, and the sounds that
+    /// land on their beats are timed by it (the breach's blows and heaves, note 497). Unset, this one's own clock.
+    /// </summary>
+    public double? SceneClock { get; set; }
+
     readonly Pcg32Ish _outsideRng = new(20261003);
     readonly Dictionary<int, double> _sleepersSeen = new();
-    readonly Dictionary<int, double> _smashAt = new();
+    // Each Holdout being breached: the clip's beat it was last heard on, how many of its barricade's boards were off, and
+    // when its progress last moved (the record comes in snapshots).
+    readonly Dictionary<int, long> _breachBeat = new();
+    readonly Dictionary<int, int> _boardsOff = new();
+    readonly Dictionary<int, double> _breachMoved = new();
     // The Holdouts whose lock was last being worked open with the wrench (Free clears Quiet the tick it gives).
     readonly HashSet<int> _pickedQuiet = new();
     readonly Dictionary<int, double> _craneMoved = new();
@@ -61,7 +72,9 @@ public sealed partial class GameAudio
     partial void EndNightOutside()
     {
         _sleepersSeen.Clear();
-        _smashAt.Clear();
+        _breachBeat.Clear();
+        _boardsOff.Clear();
+        _breachMoved.Clear();
         _pickedQuiet.Clear();
         _startledUntil.Clear();
         _livestockAccel = double.NaN;
@@ -824,24 +837,26 @@ public sealed partial class GameAudio
         foreach (var h in holdouts.All)
         {
             bool shelter = h.Layout.Kind == HoldoutKind.Shelter;
-            bool breaking = h.State == HoldoutState.Breaching && Moved("place-breach.progress", h.Index, h.Progress) > 0;
+            if (h.State == HoldoutState.Breaching && Moved("place-breach.progress", h.Index, h.Progress) > 0)
+                _breachMoved[h.Index] = _time;
+            bool breaking = h.State == HoldoutState.Breaching && _time - _breachMoved.GetValueOrDefault(h.Index, double.NegativeInfinity) < BreachStill;
             // A lock opened with the wrench is quiet (D.7, Holdout.Quiet; note 301's slice 2): worked open, never smashed.
             if (h.Quiet)
                 _pickedQuiet.Add(h.Index);
             else if (h.State == HoldoutState.Breaching)
                 _pickedQuiet.Remove(h.Index);
             bool quiet = _pickedQuiet.Contains(h.Index) && !shelter;
-            if (breaking && shelter)
-                HoldLevel("place-breach.pry", h.Index, h.Door, outside, 1);
             if (breaking && quiet)
                 HoldLevel("place-breach.pick", h.Index, h.Door, outside, 1);
-            if (breaking && !shelter && !quiet && _time >= _smashAt.GetValueOrDefault(h.Index))
+            if (breaking && !quiet)
+                BreachBeats(h, holdouts.Tuning, shelter, outside);
+            else
             {
-                Cue("place-breach.smash", h.Door, outside, (float)(0.8 + 0.2 * OutsideOdds()));
-                _smashAt[h.Index] = _time + 0.45 + 0.25 * OutsideOdds();
+                _breachBeat.Remove(h.Index);
+                _boardsOff.Remove(h.Index);
             }
             if (Flipped("place-breach.freed", h.Index, h.State == HoldoutState.Freed, primed) > 0)
-                Cue(shelter ? "place-breach.pry-give" : quiet ? "place-breach.pick-give" : "place-breach.smash", h.Door, outside);
+                Cue(shelter ? "place-breach.pry-give" : quiet ? "place-breach.pick-give" : "place-breach.smash-give", h.Door, outside);
 
             if (Moved("voice-callout.calls", h.Index, h.Calls) <= 0 || !primed)
                 continue;
@@ -867,5 +882,29 @@ public sealed partial class GameAudio
                     CueLater(b * (0.28 + 0.06 * (b % 2)), "voice-callout.bang", inside, 0.35f, b == 0 ? 1 : 0.85f);
             }
         }
+    }
+
+    // How long after a breach's progress last moved it's still being worked (a snapshot's gap and more).
+    const double BreachStill = 0.25;
+
+    /// <summary>
+    /// A lock smashed or a barricade pried, on the crew's clips' beats (note 497; C1's #200, note 464, which draws the lock
+    /// jumping at each blow and the board being worked flexing out at each heave, on the scene's clock): each blow of the
+    /// smash, each heave of the pry, and each of the barricade's boards torn off as it goes (a fifth of the breach each, the
+    /// last at the barricade giving way).
+    /// </summary>
+    void BreachBeats(Holdout h, HoldoutTuning tuning, bool shelter, float outside)
+    {
+        double clock = SceneClock ?? _time;
+        long beat = shelter ? (long)Math.Floor(clock / WorldArt.PryCycle) : (long)Math.Floor((clock - WorldArt.SmashBlow) / WorldArt.SmashCycle);
+        if (_breachBeat.TryGetValue(h.Index, out long was) && beat != was)
+            Cue(shelter ? "place-breach.pry" : "place-breach.smash", h.Door, outside, (float)(0.85 + 0.15 * OutsideOdds()));
+        _breachBeat[h.Index] = beat;
+        if (!shelter)
+            return;
+        int off = WorldArt.BoardsOff(Math.Clamp(h.Progress / Math.Max(1e-6, h.Breach(tuning).Seconds), 0, 1));
+        if (_boardsOff.TryGetValue(h.Index, out int had) && off > had)
+            Cue("place-breach.board", h.Door, outside);
+        _boardsOff[h.Index] = off;
     }
 }

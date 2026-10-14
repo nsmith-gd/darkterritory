@@ -1,0 +1,70 @@
+# Note 667: building the game's sounds needs the CC0 packs (tools/audio/fetch.py), which sit in the project's Google Drive,
+# and the cloud sessions' proxy refuses Drive. An agent commits a request (tools/audio/build_request.json, with the
+# checklist's items for its lines; tools/audio/ci_build.py says what's in it) on its branch, and this fetches the packs,
+# builds and installs the lines it names, and pushes what was installed back to that branch, as the music intake does
+# for Commons. The built takes and previews are kept as the run's artifact, to listen to.
+#
+# Starts on a push to an agent's branch that changes the request. Its own push only touches content/audio, which the
+# paths filter leaves out (and a GITHUB_TOKEN push starts no workflow anyway), so it doesn't loop. Never on pull requests.
+name: Audio build
+on:
+  push:
+    branches: ['claude/**']
+    paths: [tools/audio/build_request.json]
+permissions:
+  contents: write
+concurrency:
+  group: audio-build-${{ github.ref }}
+  cancel-in-progress: false
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    timeout-minutes: 90
+    # The request taken out of the branch (the build's back) is a change to it too: nothing to do then.
+    if: ${{ !github.event.deleted }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.ref }}
+      - name: Is there a request
+        id: request
+        run: if [ -f tools/audio/build_request.json ]; then echo "present=1" >> "$GITHUB_OUTPUT"; cat tools/audio/build_request.json; fi
+      - name: ffmpeg (with libopus)
+        if: steps.request.outputs.present
+        run: sudo apt-get update -qq && sudo apt-get install -y -qq ffmpeg && ffmpeg -hide_banner -encoders | grep -q libopus
+      - uses: actions/setup-python@v5
+        if: steps.request.outputs.present
+        with:
+          python-version: '3.11'
+      - name: The audio tools' packages
+        if: steps.request.outputs.present
+        run: pip install -q numpy scipy soundfile matplotlib
+      - name: The CC0 packs from Drive
+        if: steps.request.outputs.present
+        run: python3 tools/audio/fetch.py packs
+      - name: Build and install
+        if: steps.request.outputs.present
+        run: python3 tools/audio/ci_build.py tools/audio/build_request.json
+      - name: Push what was installed
+        if: steps.request.outputs.present
+        run: |
+          git status --short content/audio
+          git add content/audio
+          if git diff --cached --quiet; then echo "Nothing new installed."; exit 0; fi
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git commit -m "Audio build: $(python3 -c "import json; r = json.load(open('tools/audio/build_request.json')); print(', '.join(r.get('install') or r.get('build') or []), '-', r.get('why', ''))")"
+          # The agent may have pushed meanwhile: this commit only touches content/audio, so it goes on top of theirs.
+          git pull --rebase origin "${GITHUB_REF_NAME}"
+          git push origin "HEAD:${GITHUB_REF_NAME}"
+      - name: The built takes and previews
+        if: always() && steps.request.outputs.present
+        uses: actions/upload-artifact@v4
+        with:
+          name: audio-build
+          path: |
+            out/audio/takes/
+            out/audio/previews/
+            out/audio/manifest/
+          if-no-files-found: ignore
+          retention-days: 14

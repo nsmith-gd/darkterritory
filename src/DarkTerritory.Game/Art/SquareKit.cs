@@ -23,8 +23,10 @@ public static class SquareKit
     {
         var k = new Kit(look, 2100 + kind.Length + style.Length * 7);
         bool hall = kind == "hall";
-        string form = hall ? (style is "church" or "school" or "shed" ? style : "hall") : kind;
-        float h = form switch { "church" => 5.4f, "hall" => 6.2f, "shed" => 5.2f, "school" => 4.2f, _ => 4.0f };
+        string form = hall ? (style is "church" or "school" or "shed" ? style : "hall") : style == "council" ? "council" : kind;
+        if (form == "quiet")
+            return Quiet(look, w, d);
+        float h = form switch { "church" => 5.4f, "hall" => 6.2f, "shed" => 5.2f, "school" => 4.2f, "council" => 6.0f, _ => 4.0f };
         // The walls: clapboard in the form's paint, or a shed's upright boards.
         var paint = form switch
         {
@@ -32,6 +34,7 @@ public static class SquareKit
             "school" => new Vector3(0.46f, 0.16f, 0.12f),
             "shed" => new Vector3(0.36f, 0.30f, 0.26f),
             "hall" => new Vector3(0.36f, 0.42f, 0.46f),
+            "council" => new Vector3(0.72f, 0.70f, 0.64f),
             _ => new Vector3(0.62f, 0.50f, 0.26f),
         };
         bool clap = form != "shed";
@@ -71,6 +74,25 @@ public static class SquareKit
             Steeple(k, d, h, ridge, paint);
         if (form == "school")
             Belfry(k, ridge, paint);
+        // The council house: a cupola on the ridge with the town's clock in it, a portico over the door (note 353).
+        if (form == "council")
+        {
+            Belfry(k, ridge, paint);
+            k.Use("paper_form", Palette.BoardEnamel, 0.5f, 0.2f, tile: 1);
+            k.Emissive = 0.3f;
+            k.Disc(new Vector3(0, ridge + 0.05f, -0.62f), -Vector3.UnitZ, 0.42f, 16);
+            k.Emissive = 0;
+            k.Use("paint_black", Palette.SootBlack, 0.6f, 0.1f);
+            k.Box(new Vector3(-0.02f, ridge + 0.05f, -0.64f), new Vector3(0.02f, ridge + 0.36f, -0.63f));
+            k.Box(new Vector3(-0.02f, ridge + 0.03f, -0.64f), new Vector3(0.24f, ridge + 0.07f, -0.63f));
+            Walls(k, paint, true);
+            foreach (float x in new[] { -1.3f, 1.3f })
+                k.Cylinder(new Vector3(x, -0.1f, -d / 2 - 1.6f), new Vector3(x, 3.3f, -d / 2 - 1.6f), 0.16f, 10);
+            k.Box(new Vector3(-1.7f, 3.3f, -d / 2 - 1.9f), new Vector3(1.7f, 3.6f, -d / 2));
+            k.Tri(new Vector3(1.7f, 3.6f, -d / 2 - 1.9f), new Vector3(-1.7f, 3.6f, -d / 2 - 1.9f), new Vector3(0, 4.4f, -d / 2 - 1.9f), new(1, 0), new(0, 0), new(0.5f, -0.4f));
+            k.Use("stone_block", Palette.Ballast, 0.7f, 0.1f, tile: 1);
+            k.Box(new Vector3(-1.8f, -0.4f, -d / 2 - 2.1f), new Vector3(1.8f, 0.15f, -d / 2));
+        }
         // The door, and windows either side of it, a lamp burning behind most: a church's tall and pointed, a shed's
         // small and high either side of its big doors.
         bool bay = form is "hall" or "shed";
@@ -80,7 +102,7 @@ public static class SquareKit
         k.Use("window_lit", Palette.LampAmber, 0.1f, 0.3f, tile: 1);
         k.Emissive = form == "church" ? 0.6f : 1;
         float clear = form switch { "church" => 2.2f, "shed" => 2.4f, "hall" => 1.6f, _ => 1.0f };
-        int storeys = form == "hall" ? 2 : 1;
+        int storeys = form is "hall" or "council" ? 2 : 1;
         for (int s = 0; s < storeys; s++)
             for (float x = -w / 2 + 1.4f; x < w / 2 - 1.0f; x += 2.2f)
             {
@@ -181,6 +203,58 @@ public static class SquareKit
         var r = at + new Vector3(hw, hh, 0);
         var point = at + new Vector3(0, hh + 0.55f, 0);
         k.Tri(r, l, point, new(1, 0), new(0, 0), new(0.5f, -0.3f));
+    }
+
+    /// <summary>
+    /// The quiet house (note 353): small, windowless, whitewashed, its door barred on the outside, a slate by it that says
+    /// QUIET, a bowl and a folded blanket on the step. No lamp: nobody wants to see in.
+    /// </summary>
+    static MeshAsset Quiet(Look? look, float w, float d)
+    {
+        var k = new Kit(look, 2177);
+        const float h = 3.2f;
+        Walls(k, new Vector3(0.70f, 0.70f, 0.68f), true);
+        k.Box(new Vector3(-w / 2, -0.4f, -d / 2), new Vector3(w / 2, h, d / 2), Kit.Faces.Sides);
+        foreach (float x in new[] { -w / 2, w / 2 })
+        {
+            var a = new Vector3(x, h, -d / 2);
+            var b = new Vector3(x, h, d / 2);
+            var c = new Vector3(x, h + d * 0.35f, 0);
+            if (x < 0)
+                k.Tri(a, c, b, new(a.Z, -a.Y), new(c.Z, -c.Y), new(b.Z, -b.Y));
+            else
+                k.Tri(b, c, a, new(-b.Z, -b.Y), new(-c.Z, -c.Y), new(-a.Z, -a.Y));
+        }
+        k.Use("roof_slate", Palette.Charcoal, 0.9f, 0.15f, tile: 1.5f);
+        var top = new Vector3(0, h + d * 0.35f + 0.05f, 0);
+        foreach (float z in new[] { -d / 2 - 0.3f, d / 2 + 0.3f })
+        {
+            var eave = new Vector3(0, h - 0.25f, z);
+            if (z < 0)
+                k.Quad(top with { X = -w / 2 - 0.3f }, top with { X = w / 2 + 0.3f }, eave with { X = w / 2 + 0.3f }, eave with { X = -w / 2 - 0.3f }, twoSided: true);
+            else
+                k.Quad(top with { X = w / 2 + 0.3f }, top with { X = -w / 2 - 0.3f }, eave with { X = -w / 2 - 0.3f }, eave with { X = w / 2 + 0.3f }, twoSided: true);
+        }
+        // The door, shut, an iron bar across it in its brackets, outside.
+        k.Use("wood_grey", Palette.DeepBrown, 0.9f, 0, tile: 1);
+        k.Box(new Vector3(-0.5f, -0.1f, -d / 2 - 0.06f), new Vector3(0.5f, 2.0f, -d / 2 - 0.01f));
+        k.Use("rust_heavy", Palette.IronGrey, 0.8f, 0.4f);
+        k.Box(new Vector3(-0.75f, 1.05f, -d / 2 - 0.16f), new Vector3(0.75f, 1.15f, -d / 2 - 0.08f));
+        foreach (float x in new[] { -0.68f, 0.68f })
+            k.Box(new Vector3(x - 0.05f, 0.98f, -d / 2 - 0.18f), new Vector3(x + 0.05f, 1.22f, -d / 2 - 0.01f));
+        // The slate on the wall beside it: QUIET, chalked.
+        k.Use("roof_slate", Palette.Charcoal, 0.6f, 0.2f, tile: 1);
+        k.Box(new Vector3(0.75f, 1.3f, -d / 2 - 0.04f), new Vector3(1.35f, 1.7f, -d / 2 - 0.01f));
+        k.Use("paper_form", Palette.BoardEnamel, 0.7f, 0, tile: 1);
+        k.Box(new Vector3(0.82f, 1.47f, -d / 2 - 0.05f), new Vector3(1.28f, 1.53f, -d / 2 - 0.045f));
+        // The step, the bowl on it, a blanket folded beside.
+        k.Use("stone_block", Palette.Ballast, 0.7f, 0.1f, tile: 1);
+        k.Box(new Vector3(-0.8f, -0.4f, -d / 2 - 0.6f), new Vector3(0.8f, 0.12f, -d / 2));
+        k.Use("iron_plate", Palette.IronGrey, 0.6f, 0.4f, tile: 1);
+        k.Lathe(new Vector3(-0.45f, 0.12f, -d / 2 - 0.3f), [new(0.06f, 0), new(0.11f, 0.06f), new(0.12f, 0.07f)], 10, capTop: false);
+        k.Use("wool", Palette.MuddyOlive, 0.8f, 0, tile: 1);
+        k.Box(new Vector3(0.1f, 0.12f, -d / 2 - 0.5f), new Vector3(0.6f, 0.24f, -d / 2 - 0.12f));
+        return k.Build($"square-quiet-{w:0}x{d:0}");
     }
 
     /// <summary>Where a building's door lamp hangs (local), for its light.</summary>
@@ -447,6 +521,139 @@ public static class SquareKit
             k.Panel(new Vector3(0, 0.005f, 0), Vector3.UnitY, -Vector3.UnitZ, 0.24f, 0.32f, Vector2.Zero, Vector2.One);
         k.Emissive = 0;
         return k.Build(standing ? "square-paper-up" : "square-paper-flat");
+    }
+
+    /// <summary>
+    /// The notice board with what's posted on it (note 669; the director, 13 Oct: "The notice board is interesting, but I
+    /// think we're going to want to have actual like custom writing for this"): each notice its own sheet, its heading
+    /// large and its words under it in the pixel font's capitals (a printed handbill's), inked, wrapped and sized to fill
+    /// the sheet, each sheet pinned a little off true. Read close to; the HUD reads them out in full (TownTalk).
+    /// </summary>
+    public static MeshAsset Board(Look? look, IReadOnlyList<(string Title, string Text)> papers)
+    {
+        var k = new Kit(look, 2200 + "board".Sum(c => c) % 97);
+        var (hs, _, ht) = Sim.Towns.TownFixtures.Size("board");
+        float x = (float)hs, h = (float)ht;
+        Timber(k);
+        Legs(k, x, h, 0.07f);
+        k.Box(new Vector3(-x, 1.0f, -0.05f), new Vector3(x, h - 0.2f, 0.05f));
+        k.Use("roof_slate", Palette.Charcoal, 0.8f, 0.2f, tile: 1);
+        k.Quad(new Vector3(-x - 0.15f, h, 0.1f), new Vector3(x + 0.15f, h, 0.1f), new Vector3(x + 0.15f, h - 0.2f, -0.35f), new Vector3(-x - 0.15f, h - 0.2f, -0.35f), twoSided: true);
+        int n = papers.Count;
+        if (n == 0)
+            return k.Build("square-board-bare");
+        // The sheets across the board's face, between its posts, a hand's width apart.
+        const float Gap = 0.06f, SheetH = 0.78f;
+        float span = 2 * x - 0.36f, w = MathF.Min(0.52f, (span - Gap * (n - 1)) / n);
+        float left = (n * w + (n - 1) * Gap) / 2 - w / 2;
+        for (int i = 0; i < n; i++)
+        {
+            var (title, text) = papers[i];
+            // A degree or two off true, either way, by its words (the same board every night it's drawn).
+            float tilt = ((title.Sum(c => c) + 7 * i) % 9 - 4) * 0.009f;
+            float cx = left - i * (w + Gap), cy = 1.5f + (i % 2 == 0 ? 0.03f : -0.03f);
+            k.With(Matrix4x4.CreateRotationZ(tilt) * Matrix4x4.CreateTranslation(cx, cy, -0.06f), () => Sheet(k, title, text, w, SheetH, i));
+        }
+        return k.Build($"square-board-{n}");
+    }
+
+    /// <summary>
+    /// One notice on its sheet, facing −Z (as the board's front), centred on its own origin: the heading over its words,
+    /// the lines read from +X to −X (the viewer's left to right, from in front). Each glyph row's run of ink is one quad.
+    /// </summary>
+    static void Sheet(Kit k, string title, string text, float w, float sheetH, int i)
+    {
+        // (Flat paper, untextured: a texture's grain under the pixel letters muddies them.)
+        var paper = (i % 3) switch { 0 => new Vector3(0.86f, 0.82f, 0.7f), 1 => new Vector3(0.8f, 0.78f, 0.7f), _ => new Vector3(0.88f, 0.8f, 0.62f) };
+        k.Use("notice_paper", paper, 0.6f, 0.05f, tile: 1);
+        k.Emissive = 0.18f;
+        k.Panel(Vector3.Zero, -Vector3.UnitZ, Vector3.UnitY, w, sheetH, Vector2.Zero, Vector2.One);
+        k.Emissive = 0;
+        // The tack at its top.
+        k.Use("brass", Palette.TarnishedBrass, 0.3f, 0.7f);
+        k.BoxAt(new Vector3(0, sheetH / 2 - 0.03f, -0.006f), new Vector3(0.008f, 0.008f, 0.004f));
+        var font = BitmapFont.Default;
+        const float Margin = 0.03f;
+        float inner = w - 2 * Margin;
+        string head = title.ToUpperInvariant();
+        float tpx = MathF.Min(0.011f, inner / Math.Max(1, font.Measure(head)));
+        var heads = new List<string> { head };
+        if (tpx < 0.0055f)
+        {
+            heads = Wrap(head, Math.Max(4, (int)(inner / (0.0065f * font.Advance))));
+            tpx = MathF.Min(0.0065f, inner / Math.Max(1, heads.Max(l => font.Measure(l))));
+        }
+        float top = sheetH / 2 - Margin - 0.035f; // under the tack
+        float bodyTop = top - heads.Count * font.LineHeight * tpx - 0.012f, room = bodyTop - (-sheetH / 2 + Margin);
+        // The words as large as fill what's left of the sheet, no larger than a print's.
+        string body = text.ToUpperInvariant();
+        float px = 0.0052f;
+        List<string> lines;
+        while (true)
+        {
+            lines = Wrap(body, Math.Max(8, (int)(inner / (px * font.Advance))));
+            if (lines.Count * font.LineHeight * px <= room || px < 0.0016f)
+                break;
+            px *= 0.93f;
+        }
+        // Ink: the heading black, the words a faded blue-black.
+        k.Use("notice_ink", new Vector3(0.06f, 0.05f, 0.05f), 0.2f, 0.05f, tile: 1);
+        float y = top;
+        foreach (var line in heads)
+        {
+            Ink(k, font, line, font.Measure(line) * tpx / 2, y, tpx);
+            y -= font.LineHeight * tpx;
+        }
+        k.Use("notice_ink", new Vector3(0.1f, 0.11f, 0.16f), 0.2f, 0.05f, tile: 1);
+        y = bodyTop;
+        foreach (var line in lines)
+        {
+            Ink(k, font, line, inner / 2, y, px);
+            y -= font.LineHeight * px;
+        }
+    }
+
+    /// <summary>A line of the font's capitals inked on a sheet facing −Z, starting at <paramref name="x"/> (its left, as read) and running to −X.</summary>
+    static void Ink(Kit k, BitmapFont font, string line, float x, float y, float px)
+    {
+        const float Z = -0.0015f;
+        foreach (char ch in line)
+        {
+            var g = font.Glyph(ch);
+            for (int gy = 0; gy < g.GetLength(0); gy++)
+                for (int gx = 0; gx < g.GetLength(1); gx++)
+                {
+                    if (!g[gy, gx])
+                        continue;
+                    int run = gx;
+                    while (run + 1 < g.GetLength(1) && g[gy, run + 1])
+                        run++;
+                    float x0 = x - gx * px, x1 = x - (run + 1) * px, y0 = y - gy * px;
+                    k.Quad(new Vector3(x0, y0, Z), new Vector3(x1, y0, Z), new Vector3(x1, y0 - px, Z), new Vector3(x0, y0 - px, Z));
+                    gx = run;
+                }
+            x -= font.Advance * px;
+        }
+    }
+
+    /// <summary>Words broken into lines of at most <paramref name="max"/> characters (a longer word on a line of its own).</summary>
+    static List<string> Wrap(string text, int max)
+    {
+        var lines = new List<string>();
+        string current = "";
+        foreach (var word in text.Split(' ', StringSplitOptions.RemoveEmptyEntries))
+        {
+            if (current.Length > 0 && current.Length + 1 + word.Length > max)
+            {
+                lines.Add(current);
+                current = word;
+            }
+            else
+                current = current.Length == 0 ? word : current + " " + word;
+        }
+        if (current.Length > 0)
+            lines.Add(current);
+        return lines;
     }
 
     static void Timber(Kit k) => k.Use("wood_grey", Palette.DeepBrown, 0.9f, 0, tile: 1);

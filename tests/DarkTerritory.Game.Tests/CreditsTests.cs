@@ -94,7 +94,8 @@ public sealed partial class CreditsTests
         // tools/package.sh puts content/credits/THIRD-PARTY-NOTICES.txt at the top of the build. Regenerated from the
         // provenance, it's the same, or a model, pack or library came or went without it: `dt credits --write`.
         string written = File.ReadAllText(Path.Combine(Content, Credits.NoticesFile)).Replace("\r\n", "\n");
-        Assert.True(Credits.Notices(Content) == written, $"{Credits.NoticesFile} is stale: run `dt credits --write`");
+        string now = Credits.Notices(Content);
+        Assert.True(now == written, $"{Credits.NoticesFile} is stale: run `dt credits --write`. {FirstDifference(written, now)}");
         // Every owed line is in it, and the texts the code's licences ask to be carried.
         foreach (var line in Sections.SelectMany(s => s.Lines))
             Assert.Contains(line.Title, written);
@@ -145,5 +146,19 @@ public sealed partial class CreditsTests
             if (Directory.Exists(dir))
                 Directory.Delete(dir, recursive: true);
         }
+    }
+
+    /// <summary>Where two texts first part, line by line: what a stale file says, and what it'd say regenerated.</summary>
+    static string FirstDifference(string written, string now)
+    {
+        var a = written.Split('\n');
+        var b = now.Split('\n');
+        for (int i = 0; i < Math.Max(a.Length, b.Length); i++)
+        {
+            string x = i < a.Length ? a[i] : "(end)", y = i < b.Length ? b[i] : "(end)";
+            if (x != y)
+                return $"Line {i + 1}: the file has \"{x}\", regenerated it's \"{y}\" ({a.Length} lines against {b.Length}).";
+        }
+        return "";
     }
 }

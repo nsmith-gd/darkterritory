@@ -10,7 +10,7 @@ namespace DarkTerritory.Sim.Tests;
 /// <summary>The Draggers (T46, App. A.4, B.4): reaching up from beneath a car's edge. Rule: stay off the edges.</summary>
 public class DraggerTests
 {
-    static readonly DraggerTuning D = Tuning.Enemies.Draggers;
+    static readonly DraggerTuning D = EveryKind.Enemies.Draggers;
     static readonly RailLine Line = new(new LineDefinition("t", [new TrackSegment(80_000)]));
     const int Car = 2;
 
@@ -26,7 +26,7 @@ public class DraggerTests
             Speed = speed;
             var train = new TrainOnLine(new TrainDynamics(Consist.Uniform(Tuning.Train, 5, 1)), Line, 2_000);
             World = new World(train, Tuning.Combat);
-            var quiet = Tuning.Enemies with { Director = Tuning.Enemies.Director with { GraceMinSeconds = 1e9, GraceMaxSeconds = 1e9 } };
+            var quiet = EveryKind.Enemies with { Director = EveryKind.Enemies.Director with { GraceMinSeconds = 1e9, GraceMaxSeconds = 1e9 } };
             World.EnableEnemies(quiet, route: null, 1, crew: 2, authority: true);
         }
 
@@ -94,7 +94,7 @@ public class DraggerTests
         Assert.Equal(SpinePhase.Telegraph, dragger.Phase);
         Assert.InRange(dragger.Local.Z, 0, D.ReachAlong + 0.05);
         Assert.Equal(id, dragger.Target);
-        night.Run(Tuning.Enemies.MinReactionSeconds - 0.3);
+        night.Run(EveryKind.Enemies.MinReactionSeconds - 0.3);
         Assert.Equal(Surface.Roof, night.Crew[0].Surface);
         // Grabbed (GDD v1.1 App. A.4): hanging off the side for a few seconds, and with nobody to haul them up, dragged under.
         night.Run(0.5);
@@ -132,7 +132,7 @@ public class DraggerTests
         var dragger = night.Under(side: 1);
         night.OnRoof(NearTheEdge(night));
         night.OnRoof(0, z: 1.0);
-        night.Run(Tuning.Enemies.MinReactionSeconds + 0.3);
+        night.Run(EveryKind.Enemies.MinReactionSeconds + 0.3);
         Assert.Equal(SpinePhase.Grab, dragger.Phase);
         // Hanging there: the window is open.
         night.Run(2);
@@ -154,7 +154,7 @@ public class DraggerTests
         night.Under(side: 1);
         night.OnRoof(NearTheEdge(night));
         night.OnRoof(0, z: 1.0);
-        night.Run(Tuning.Enemies.MinReactionSeconds + 0.3 + D.HangSeconds + 0.3);
+        night.Run(EveryKind.Enemies.MinReactionSeconds + 0.3 + D.HangSeconds + 0.3);
         Assert.Equal(DeathCause.Dragged, night.Crew[0].Death);
         Assert.True(night.Crew[1].Alive);
     }
@@ -196,8 +196,8 @@ public class DraggerTests
         var train = new TrainOnLine(new TrainDynamics(Consist.Uniform(Tuning.Train, 5, 1)), Line, 2_000);
         var world = new World(train, Tuning.Combat);
         // Only Draggers on offer: a director allowed to spend on nothing else.
-        var d = Tuning.Enemies.Director;
-        var t = Tuning.Enemies with
+        var d = EveryKind.Enemies.Director;
+        var t = EveryKind.Enemies with
         {
             Director = d with { GraceMinSeconds = 0, GraceMaxSeconds = 0, Pressure = Tuning.Eager, Draw = Tuning.Unheld, CooldownSeconds = [1, 1], Costs = d.Costs.ToDictionary(c => c.Key, c => c.Key == "draggers" ? c.Value : 1e9) },
         };
@@ -231,7 +231,7 @@ public class DraggerTests
         int id = night.OnRoof(NearTheEdge(night));
         night.Run(0.5);
         var client = new World(new TrainOnLine(new TrainDynamics(Consist.Uniform(Tuning.Train, 5, 1)), Line, 2_000), Tuning.Combat);
-        client.EnableEnemies(Tuning.Enemies, route: null, 1, crew: 2, authority: false);
+        client.EnableEnemies(EveryKind.Enemies, route: null, 1, crew: 2, authority: false);
         var controls = new TrainControls();
         WorldRecords.Apply(WorldRecords.Capture(night.World, controls, []), client, ref controls, []);
         var seen = Assert.IsType<Dragger>(Assert.Single(client.ActiveEnemies));
@@ -266,7 +266,7 @@ public class DraggerTests
         }
         Assert.True(scraping >= 0 && dropped > scraping, $"scraping at {scraping}, dropped at {dropped}");
         // The tell: the scrape on the steel from about tellSeconds before the engine's under it, never under the reaction window.
-        Assert.True(dropped - scraping >= Tuning.Enemies.MinReactionSeconds, $"{dropped - scraping:0.00} s of scraping");
+        Assert.True(dropped - scraping >= EveryKind.Enemies.MinReactionSeconds, $"{dropped - scraping:0.00} s of scraping");
         Assert.Equal(Car, dragger.Attached);
         Assert.Equal(SpinePhase.Grab, dragger.Phase);
         Assert.Equal(id, dragger.Target);
@@ -321,9 +321,9 @@ public class DraggerTests
         var content = DataFile.FindContentRoot();
         var route = LineGen.Routes.Generate(content, "frontier:7", 10);
         var truss = route.Plan!.Structures.First(st => st.Type == LineGen.StructureType.Truss && st.Edge == "main");
-        var e = Tuning.Enemies with
+        var e = EveryKind.Enemies with
         {
-            Director = HoundRunTests.Quiet.Director with { Run = HoundRunTests.Quiet.Director.Run with { On = false } },
+            Director = HoundRunTests.Quiet.Director with { Run = HoundRunTests.Quiet.Director.Run with { On = false }, NightChance = [] },
             Draggers = D with { Drop = D.Drop with { Chance = 1 } },
         };
         var n = new global::DarkTerritory.Sim.Tests.Night(4, 21, route, enemies: e);

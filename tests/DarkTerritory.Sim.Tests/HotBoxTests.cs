@@ -114,7 +114,8 @@ public class HotBoxTests
         // A crew of three out on the line (the driver, the gunner, one walker), and car 4's box comes on 20 s in: the walker
         // goes along the roofs to it, down the end ladder into the gap behind car 4, and greases it before it drags.
         double? cameAt = null, greasedAt = null;
-        var report = CrewOfTwoTests.Night("frontier:7", 6, 90, null, start: 2500, bots: 3,
+        // Out on open line (CrewOfTwoTests.OpenLine).
+        var report = CrewOfTwoTests.Night(CrewOfTwoTests.OpenLine.Spec, 6, 90, null, start: CrewOfTwoTests.OpenLine.Start, bots: 3,
             upkeep: new UpkeepTuning { HotBox = H with { FirstAfterMetres = 1e9 }, Lamp = new() { Enabled = false } },
             each: w =>
             {

@@ -50,7 +50,8 @@ public sealed class PrototypeSession : IPlaySession
         // The departure fortress's town (note 281): the customs of the creatures this edition fields.
         if (Sim.Towns.TownContent.Load(contentRoot) is { } towns)
             World.EnableTown(towns, route, route.GateOr(routeTuning.YardLength),
-                DataFile.Load<EnemyTuning>(Path.Combine(contentRoot, EnemyTuning.File)).Director.Roster);
+                DataFile.Load<EnemyTuning>(Path.Combine(contentRoot, EnemyTuning.File)).Director.Roster,
+                arrival: Sim.Towns.TownAt.Terminus(route, Sim.LineGen.LineGenContent.Cached(contentRoot).Config.Tiers.Fortress.Identities));
     }
 
     PrototypeSession(string contentRoot, RailLine line, Route? route, int cars, double start)
@@ -104,12 +105,20 @@ public sealed class PrototypeSession : IPlaySession
         World.Step(Controls);
         World.ApplyDamage(id => id == 1 ? Player : null, (_, s) => Player = s, [1]);
         foreach (var e in World.EnemyEvents)
+        {
+            // The Mourners come and take in a group (note 362): their lead speaks for them all.
+            if (e.Kind == EnemyKind.Mourners && World.ActiveEnemies.OfType<Sim.Enemies.Mourner>().FirstOrDefault(m => m.Id == e.EnemyId) is { } one
+                && (int)one.Extra2 != one.Id)
+                continue;
             if (Cue(e, e.Kind == EnemyKind.Gannet ? World.ActiveEnemies.OfType<Sim.Enemies.Gannet>().FirstOrDefault(g => g.Id == e.EnemyId)?.Mode : null) is { } cue)
                 _cues.Add((ElapsedSeconds, cue));
+        }
         foreach (var sign in World.Lineside?.ReadThisTick ?? [])
             _cues.Add((ElapsedSeconds, Board(sign)));
         foreach (var drop in World.Lineside?.CaughtThisTick ?? [])
             _cues.Add((ElapsedSeconds, Caught(drop)));
+        foreach (var _ in World.Lineside?.TornThisTick ?? [])
+            _cues.Add((ElapsedSeconds, "the bag tore off the hook: too fast for the crane"));
         // Grease's telegraph (App. A.2): "lamp reflection off the slicked rail; a sharp chemical smell in the cab".
         if (World.Lineside?.GreaseAhead(Train, World.LampShining) is { } grease && grease != _greaseCued)
         {
@@ -133,6 +142,7 @@ public sealed class PrototypeSession : IPlaySession
         if (_playerTuning.Refresh(e => LastReloadError = e.Message))
             LastReloadError = null;
         World.Hand = _playerTuning.Value.Hand;
+        World.Movement = _playerTuning.Value;
         World.Bodies.FullHealth = _playerTuning.Value.Health; // a healing find is used only short of it (note 272)
         if (_combatTuning.Refresh(e => LastReloadError = e.Message))
         {
@@ -192,12 +202,14 @@ public sealed class PrototypeSession : IPlaySession
         _lean.Apply(_renderFrames, Train, Route?.Plan?.Rules, (Tick + alpha) * SimConstants.TickSeconds);
         // And a car in the mine head's tipple rolled over toward its bin, or off its rails (note 423): drawn only.
         TippleTilt.Apply(_renderFrames, Train, World.Run);
+        // And the cars a Waker has at dawn, lifted from the rear with whoever's in them (note 588): drawn only.
+        WakerLift.Apply(_renderFrames, Train, World);
         return _renderFrames;
     }
 
     /// <summary>First-person eye, interpolated in the player's own frame so riding a car at speed is smooth.</summary>
     public Camera EyeCamera(IReadOnlyList<CarFrame> frames, double alpha, double pendingYaw, double pendingPitch) =>
-        Eyes.Operator(Player, World) ?? Eyes.From(Player, _previousPlayer, frames, alpha, pendingYaw, pendingPitch);
+        Eyes.Operator(Player, World) ?? Eyes.From(Player, _previousPlayer, frames, alpha, pendingYaw, pendingPitch, World.Movement?.Crouch.EyeDrop ?? 0);
 
     public string Status()
     {
@@ -225,7 +237,7 @@ public sealed class PrototypeSession : IPlaySession
     public static string Board(Sign sign) => sign.Kind switch
     {
         SignKind.SpeedLimit => $"board: {sign.LimitKmh} km/h ahead",
-        SignKind.Drop => $"board: a mail crane ahead on the {(sign.Drop!.Side > 0 ? "right" : "left")}: open that side door and hook it (left mouse)",
+        SignKind.Drop => $"board: a mail crane ahead on the {(sign.Drop!.Side > 0 ? "right" : "left")}: open that side door and hook it (left mouse), under {sign.LimitKmh} km/h",
         SignKind.Terminus => "board: the terminus ahead",
         _ => "board: low clearance ahead, off the roofs",
     };
@@ -328,6 +340,26 @@ public sealed class PrototypeSession : IPlaySession
         (EnemyKind.Gannet, SpinePhase.Telegraph) => "it's folded: break your stride!",
         (EnemyKind.Gannet, SpinePhase.Grab) => "it's got someone under its foot: three blows drive it off",
         (EnemyKind.Gannet, SpinePhase.BreakOff) => "it climbs away",
+        // The Mourners (note 362; docs/design/creatures/mourners.md §5): their coming (the keening, pale shapes by the body)
+        // is the rule's moment; taking the body, its last.
+        (EnemyKind.Mourners, SpinePhase.Telegraph) => "a keening out past the body: pale shapes. Stand over your dead, or carry them home",
+        (EnemyKind.Mourners, SpinePhase.Commit) => "they've got the body: get to it before they drag it off into the dark",
+        // The Freight Beetle (note 366; freight-beetle.md §5): braced behind the freight, then shoving it.
+        (EnemyKind.FreightBeetle, SpinePhase.Telegraph) => "a beetle's braced behind the freight: it pushes away from whoever's nearest",
+        // Tower Jaw (note 363; tower-jaw.md §5): the chiselling, its threat, driven off, the tower down.
+        (EnemyKind.TowerJaw, SpinePhase.Alert) => "chiselling at the coaling tower: something's gnawing its legs",
+        (EnemyKind.TowerJaw, SpinePhase.Telegraph) => "it rears and slaps its tail: four blows drive it off",
+        (EnemyKind.TowerJaw, SpinePhase.BreakOff) => "it lopes off: it'll be back for the tower",
+        (EnemyKind.TowerJaw, SpinePhase.Punish) => "the tower's down across the line: clear it by hand (Use)",
+        // The train's own (notes 364, 365, 367; docs/design/creatures/brakeman.md, knotter.md, hotbox.md §5): the Brakeman runs
+        // from one and turns on two; the Knotter's creak is its tell, its gap the split; Hotbox comes out only at a stand.
+        (EnemyKind.Brakeman, SpinePhase.Alert) => "the brakeman's running from you: get someone at the other end",
+        (EnemyKind.Brakeman, SpinePhase.Telegraph) => "he's cornered, the chain's up: hit him now, from both sides",
+        (EnemyKind.Knotter, SpinePhase.Alert) => "something's creaking at a coupling: cut it now or it's in",
+        (EnemyKind.Knotter, SpinePhase.Telegraph) => "a living rope's holding the cars apart: don't walk it, stop the train",
+        (EnemyKind.Knotter, SpinePhase.Grab) => "it's coiled round someone: pull them up, hit it!",
+        (EnemyKind.Hotbox, SpinePhase.Telegraph) => "it's come out of the truck onto the ballast: kill it or prise it out",
+        (EnemyKind.Hotbox, SpinePhase.BreakOff) => "prised out: it scuttles off into the dark",
         (EnemyKind.CarFire, SpinePhase.Telegraph) => "smoke and a crackle from a car: get the extinguisher (Fire)",
         (EnemyKind.CarFire, SpinePhase.Punish) => "a car's alight: it'll take the next one",
         (EnemyKind.CarFire, SpinePhase.BreakOff) => "the fire's out",
@@ -467,10 +499,10 @@ public sealed class PrototypeSession : IPlaySession
         if (run?.Report is { } r)
             return r.End == RunEnd.Delivered
                 ? $" | DELIVERED {r.CarsDelivered} cars ({r.CargoDelivered:0.0} loads), {r.CarsLost} lost | gross {r.Gross:0} − coal {r.CoalCost:0} − ammo {r.AmmoCost:0} − repairs {r.RepairCost:0} = {r.Net:0} scrip | crew home {r.CrewHome}"
-                : $" | RUN LOST: {r.End switch { RunEnd.Derailed => "derailed", RunEnd.CrewLost => "the whole crew is dead", _ => "still out when the line went live" }} | {r.DistanceKm:0.0} km in {r.Seconds / 60:0} min";
+                : $" | RUN LOST: {r.End switch { RunEnd.Derailed => "derailed", RunEnd.CrewLost => "the whole crew is dead", _ when world.Enemies?.Wakers.Enabled == true => "taken at dawn", _ => "still out when the line went live" }} | {r.DistanceKm:0.0} km in {r.Seconds / 60:0} min";
         double dawn = run?.DawnIn ?? route.DawnSeconds;
         string clock = run?.Phase == RunPhase.Yard ? "in the yard: gates ahead"
-            : dawn > 0 ? $"dawn {(int)dawn / 60:00}:{(int)dawn % 60:00}" : "DAWN — the line is live, get in";
+            : dawn > 0 ? $"dawn {(int)dawn / 60:00}:{(int)dawn % 60:00}" : Hud.DawnLine(world, train);
         string stop = run?.FacilityFeature is { } f
             ? $" | STOPPED AT {f.Facility.ToString()!.ToUpperInvariant()}" + (f.Facility == FacilityKind.CoalingTower
                 ? run.ChuteOpen ? $" — chute POURING ({run.ChuteLeft(run.Facility):0} left)" : run.ChuteLeft(run.Facility) > 0 ? " — a chute lever on the ground" : " — chute empty"

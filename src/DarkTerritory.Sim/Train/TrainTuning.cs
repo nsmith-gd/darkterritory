@@ -19,6 +19,8 @@ public sealed record TrainTuning
     public BreachTuning Breach { get; init; } = new();
     /// <summary>The wrench is the repair tool, Sea of Thieves style (train.json <c>repair</c>; queue #39, note 301).</summary>
     public RepairTuning Repair { get; init; } = new();
+    /// <summary>A battered car or engine let go goes on to cost the night (train.json <c>failing</c>; note 576).</summary>
+    public FailingTuning Failing { get; init; } = new();
     /// <summary>Line Plan §12.6, never an unrecoverable body or kit (train.json <c>recovery</c>; note 181).</summary>
     public RecoveryTuning Recovery { get; init; } = new();
     /// <summary>What the consist's made of past engine, cargo and guard van, and what its fittings do (train.json <c>composition</c>; note 184).</summary>
@@ -29,6 +31,8 @@ public sealed record TrainTuning
     public PickTuning Pick { get; init; } = new();
     /// <summary>A bend taken too fast: its warning, its stress, and the lead it must give (train.json <c>overspeed</c>; note 265).</summary>
     public OverspeedTuning Overspeed { get; init; } = new();
+    /// <summary>What running into a branch's buffer stop does (train.json <c>bufferStop</c>; note 661).</summary>
+    public BufferStopTuning BufferStop { get; init; } = new();
 
     public const string File = "tuning/train.json";
 }
@@ -39,7 +43,11 @@ public sealed record TrainTuning
 /// </summary>
 /// <param name="EyeHeight">The eye over the feet (m), where the look is taken from.</param>
 /// <param name="LookDegrees">A thing in reach within this of the view's centre is looked at; the nearest to it wins.</param>
-public sealed record PickTuning(double EyeHeight = 1.6, double LookDegrees = 30);
+public sealed record PickTuning(double EyeHeight = 1.6, double LookDegrees = 30)
+{
+    /// <summary>Note 664: the eye of a crouched player (player.json crouch.eyeDrop under <see cref="EyeHeight"/>).</summary>
+    public double CrouchedEyeHeight { get; init; } = 1.05;
+}
 /// <summary>A bend taken too fast (note 265). Field docs live in train.json <c>overspeed</c>.</summary>
 public sealed record OverspeedTuning
 {
@@ -288,7 +296,9 @@ public sealed record EngineLayout(double DeckHeight, double BoilerHalfWidth, dou
     /// <summary>The bunker's top over the cab floor.</summary>
     public double BunkerHeight { get; init; } = 1.0;
     /// <summary>The running boards: how far out past the body's sides they stand (App. A.2 GREASE: "sanding from the running boards").</summary>
-    public double RunningBoardWidth { get; init; } = 0.6;
+    public double RunningBoardWidth { get; init; } = 0.85;
+    /// <summary>How far ahead of the cab's doorways the running boards run on (note 559: "in front of the cab doors").</summary>
+    public double RunningBoardAhead { get; init; } = 1.0;
     /// <summary>The sandboxes on the running boards: this far behind the cab, over the drivers.</summary>
     public double SandboxBehind { get; init; } = 2.5;
 }
@@ -311,5 +321,8 @@ public sealed record SpeedBandTuning(double Yard, double JumpOffLethal, double S
 /// </summary>
 /// <summary>train.json <c>fragile</c>: how coupling and brake shocks spoil a car of medicine (GDD §19). Field docs live in that file.</summary>
 public sealed record FragileTuning(double SafeContactSpeed = 0.3, double ShockShare = 3, double BrakeShockDecel = 1.2, double BrakeShockPerSecond = 0.02);
+
+/// <summary>train.json <c>bufferStop</c> (note 661): a buffer stop's knock. Field docs live in that file.</summary>
+public sealed record BufferStopTuning(double SafeSpeed = 2.5, double DamagePerSpeedSquared = 0.02);
 
 public sealed record RecoveryTuning(double CorridorM = 40, double DropM = 15, double EdgeM = 3.5);

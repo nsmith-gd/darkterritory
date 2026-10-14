@@ -29,6 +29,17 @@ static class TownCommands
             plan.Former,
             plan.Character,
             houses = plan.Houses.GroupBy(h => h.Kind).ToDictionary(g => g.Key.ToString(), g => g.Count()),
+            // Nothing ruled straight (note 490): how many stand off true and how far, and the row across the green's far
+            // street, turned to it (along the line from the green's middle, degrees).
+            turned = new
+            {
+                houses = plan.Houses.Count(h => h.Turn != 0),
+                meanDegrees = plan.Houses.Where(h => h.Turn != 0).Select(h => Math.Abs(h.Turn) * 180 / Math.PI).DefaultIfEmpty().Average() is var m ? Math.Round(m, 1) : 0,
+                crescent = plan.Green is { } g && plan.Bounds is not null
+                    ? plan.Houses.Where(h => Math.Sign(h.D) == g.Side && Math.Abs(h.D) > g.Far + 6 && Math.Abs(h.D) < g.Far + 20 && h.S > g.S0 - 8 && h.S < g.S1 + 8)
+                        .OrderBy(h => h.S).Select(h => new { along = Math.Round(h.S - (g.S0 + g.S1) / 2), degrees = Math.Round(h.Turn * 180 / Math.PI, 1) }).ToList()
+                    : null,
+            },
             // A walled town (queue #74, note 335): its wall's reach either side, its streets' middles and lanes' places.
             walled = plan.Bounds is { } b ? new
             {
@@ -37,6 +48,14 @@ static class TownCommands
                 rear = Math.Round(b.Rear, 1),
                 streets = b.Streets.Select(x => Math.Round(x.D, 1)).Order(),
                 lanes = b.Lanes.Select(x => Math.Round(x.S - gate, 1)),
+            } : null,
+            // Its works (note 353): its trade, where they stand, and each piece along the line from their start.
+            works = plan.Works is { } wk ? new
+            {
+                wk.Trade,
+                along = new[] { Math.Round(wk.S0 - gate, 1), Math.Round(wk.S1 - gate, 1) },
+                across = new[] { Math.Round(wk.Side * wk.Near, 1), Math.Round(wk.Side * wk.Far, 1) },
+                pieces = plan.Fixtures.Where(f => wk.Holds(f.S, f.D)).Select(f => $"{f.Kind} at {f.S - wk.S0:0.0} ({f.Name})"),
             } : null,
             open = plan.Houses.Where(h => h.Kind == HouseKind.Open).Select(h => new
             {

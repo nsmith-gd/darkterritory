@@ -269,6 +269,8 @@ public static class CrewActs
                 BodyKind.Extinguisher => CrewPose.Extinguish,
                 // The repair kit at work on a burst boiler (T109): down at the firebox mending it.
                 BodyKind.RepairKit when s.ActionProgress > 0 && CrewActions.AtTheRupture(s, train) => CrewPose.Mend,
+                // Otherwise the kit by its handle at the side, a toolbox (note 513), not held out in front like a crate.
+                BodyKind.RepairKit => CrewPose.Toolbox,
                 _ => CrewPose.Carry,
             };
         // The wrench at work on a break (note 301): down at it, mending.
@@ -276,6 +278,10 @@ public static class CrewActs
             return CrewPose.Mend;
         if (s.Has(PlayerFlags.Shovelful))
             return CrewPose.Shovel;
+        // Crouched on the key (note 664): down on crew.py's crouch clip, still or moving (there's no crouched walk yet). A
+        // headset rider's body crouches with their own head (HeadsetBody) instead.
+        if (s.Has(PlayerFlags.Crouched) && s.Head <= 0)
+            return CrewPose.Crouch;
         if (world.Combat is { } combat && Guns.MannedGun(s, train, combat.Guns) is { } manned)
             return train.Vehicles[manned].Gun.ReloadNeeded > 0 ? CrewPose.Reload : CrewPose.Gunner;
         // On the ground at the line's own levers: a switch stand's (spec C.6), a coaling chute's or a spout's (spec D.3).

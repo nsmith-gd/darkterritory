@@ -42,23 +42,26 @@ public sealed record TrackLayoutTuning
 public sealed record DerelictTuning(int[] Cars);
 /// <summary>A dead town's railway side (linegen plan §11.3; note 302). Field docs in stops.json.</summary>
 public sealed record DeadTownTuning(StationTuning Station, GoodsYardTuning Goods);
-public sealed record StationTuning(double[] Size, double Gap, double[] FromLane);
+public sealed record StationTuning(double[] Size, double Gap, double[] FromLane, bool Open = false);
 public sealed record GoodsYardTuning(double[] Beyond, double[] Length, double Margin, double Reach, int[] Cars, double[] Car, double CarGap, double[] Shed, double Find);
 
 /// <summary>A yard's powerhouse at its throat (level-design P6, D.2). Field docs in stops.json.</summary>
-public sealed record PowerhouseTuning(double[] Size, double[] Throat, double[] Offset);
+public sealed record PowerhouseTuning(double[] Size, double[] Throat, double[] Offset, bool Open = false);
 
 /// <summary>Where Holdouts go (GDD App. D.4, D.13). Field docs in stops.json.</summary>
 public sealed record HoldoutPlacementTuning
 {
-    public required double[] FacilityDistance { get; init; }
+    /// <summary>m from the track's centreline to a Holdout's near face (note 650): beside the line, never fouling it.</summary>
+    public required double[] Beside { get; init; }
+    /// <summary>m either side of where the consist stops, along its track, that a Holdout stands (note 650).</summary>
+    public required double Along { get; init; }
+    /// <summary>m a facility's Holdout stands clear of every loading container (note 650: beside the loading face, it stood in
+    /// the hands' way and frontier:6's switchyard loading ran 90 → 270 s).</summary>
+    public required double LoadingClear { get; init; }
     public required double SecondPadScale { get; init; }
     public required double HaltDistance { get; init; }
-    public required double VillageDistance { get; init; }
     public required double VillageLockup { get; init; }
     public required HoldoutApproach Approach { get; init; }
-    public required double LoadingClear { get; init; }
-    public required double LoadingAngle { get; init; }
     public required double PrisonCar { get; init; }
     public required double Preferred { get; init; }
     public required string[] Prefers { get; init; }
@@ -66,7 +69,6 @@ public sealed record HoldoutPlacementTuning
     /// <summary>[length, width] by <see cref="BuildingKind"/> in stops.json's camelCase (looked up, never iterated).</summary>
     public required Dictionary<string, double[]> Sizes { get; init; }
     public required double Siding { get; init; }
-    public required double[] ByTrack { get; init; }
     public required double[] LockupBehind { get; init; }
     public required int Candidates { get; init; }
     public required double WalkCell { get; init; }
@@ -122,6 +124,10 @@ public sealed record VillageTuning
     public required int[] Outliers { get; init; }
     public required double OutlierFindBonus { get; init; }
     public required double SecondFindChance { get; init; }
+    /// <summary>Note 593: a house with two finds has a third at this chance. Unset, never.</summary>
+    public double ThirdFindChance { get; init; }
+    /// <summary>Note 738: small things lying on the floors of the open houses. Unset, none.</summary>
+    public LooseFindTuning? Loose { get; init; }
     public required int[] Outbuildings { get; init; }
     public required double WellChance { get; init; }
     public required double SetbackExtra { get; init; }
@@ -299,3 +305,9 @@ sealed class ChoiceConverter : JsonConverter<Choice>
         writer.WriteEndArray();
     }
 }
+
+/// <summary>
+/// stops.json <c>village.loose</c> (note 738): each plain open house has small things lying on its floor at
+/// <see cref="Chance"/>, <see cref="Count"/> of them; every village with an open house has one at least.
+/// </summary>
+public sealed record LooseFindTuning(double Chance, int[] Count);

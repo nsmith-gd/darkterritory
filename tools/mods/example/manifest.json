@@ -1,7 +1,7 @@
 {
   "name": "LateDispatch",
-  "version_number": "1.0.0",
+  "version_number": "1.1.0",
   "website_url": "",
-  "description": "An example Dark Territory mod: dispatch holds the main line ten minutes past dawn. Copy this folder to start your own.",
+  "description": "An example Dark Territory mod: the old dawn, held late. Nothing rises at dawn; dispatch holds the main line twelve minutes past it. Copy this folder to start your own.",
   "dependencies": []
 }

@@ -54,7 +54,19 @@ public abstract record Launch
     /// A campaign night (spec E, F): the slot, and the contract off its board; or, with <paramref name="Resume"/>, the
     /// night already under way, from its last autosave.
     /// </summary>
-    public sealed record CampaignNight(int Slot, int Contract, bool Resume, bool Host) : Launch;
+    public sealed record CampaignNight(int Slot, int Contract, bool Resume, bool Host) : Launch
+    {
+        /// <summary>
+        /// The crew's bots (note 611; T89): the fortress board's CREW, or <c>--bots</c>. The host going on to the next night
+        /// from the town (note 606) keeps them: the board's next contract carries the same.
+        /// </summary>
+        public int Bots { get; init; }
+    }
+    /// <summary>
+    /// The crew goes on together (note 606): a joiner whose host left a delivered campaign night to go on to the next, waiting
+    /// on the town's card and dialling the same host until that night's up.
+    /// </summary>
+    public sealed record Follow(NetPlaySession.Following Going) : Launch;
     public sealed record Quit : Launch;
     /// <summary>The in-night menu's INVITE (note 292): the platform's invite dialog, over the night.</summary>
     public sealed record Invite : Launch;
@@ -67,6 +79,11 @@ public abstract record Launch
     /// browser at <paramref name="Url"/>. The menu stays up.
     /// </summary>
     public sealed record Wishlist(uint App, string Url) : Launch;
+    /// <summary>
+    /// A developer tool's own night (a developer build's, note 514), by name: the creature gym (GDD §34.1, note 676). Only a
+    /// developer build offers one (<see cref="FrontEnd.DevEntries"/>), and only its hooks start it.
+    /// </summary>
+    public sealed record DevTool(string Name) : Launch;
     /// <summary>
     /// A report to the studio (note 452): the player's mail program on <paramref name="MailTo"/> (a mailto: link with the
     /// subject and a summary filled in), and <paramref name="Folder"/> in the file browser beside it, to attach the report.
@@ -131,6 +148,16 @@ public sealed class FrontEnd
     /// </summary>
     int _bots = 0;
     public const int MaxBots = 7;
+
+    /// <summary>
+    /// The crew's bots, as the CREW choice has them (note 611): a campaign night launched with some (<c>--campaign n --bots n</c>)
+    /// sets it, so the board's next contract, after a delivered night, takes the same crew on.
+    /// </summary>
+    public int Bots
+    {
+        get => _bots;
+        set => _bots = Math.Clamp(value, 0, MaxBots);
+    }
     bool _host;
 
     /// <param name="newSeed">Where a new campaign's seed comes from (tests pin it).</param>
@@ -181,6 +208,11 @@ public sealed class FrontEnd
     /// </summary>
     public IReadOnlyList<InstalledMod> InstalledMods { get; set; } = [];
     public IReadOnlyList<string> ModProblems { get; set; } = [];
+    /// <summary>
+    /// A developer build's own lines on the title screen (note 514), above QUIT: the creature gym's (GDD §34.1, note 676). A
+    /// player's build sets none.
+    /// </summary>
+    public IReadOnlyList<(string Label, string Hint, Launch Launch)> DevEntries { get; set; } = [];
     /// <summary>Started with <c>--no-mods</c>: the mods are listed, and the base game is what's playing.</summary>
     public bool ModsOff { get; set; }
     /// <summary>
@@ -907,6 +939,9 @@ public sealed class FrontEnd
             Cue?.Invoke(UiCue.Move);
     }
 
+    /// <summary>Alt+Enter (note 672): a window to the whole screen or back, kept like any other setting.</summary>
+    public void AltEnter() => Change(Settings.AltEnter());
+
     void Change(Settings settings)
     {
         Settings = settings;
@@ -920,9 +955,13 @@ public sealed class FrontEnd
                 null, by => _tier = (_tier + by + _tiers.Length) % _tiers.Length),
             new(new($"SEED: {_seed}", "The same seed is the same line for everyone."), null, by => _seed = by > 0 ? _seed + 1 : Math.Max(1UL, _seed - 1)),
             new(new($"CARS: {_cars}"), null, by => _cars = Math.Clamp(_cars + by, 3, MaxCars)),
-            new(new(_bots == 0 ? "CREW: JUST YOU" : $"CREW: YOU AND {_bots} BOT{(_bots == 1 ? "" : "S")}",
-                "Bots drive, stoke, man the rear gun and lend a hand. None, and it's all yours to do."), null, by => _bots = Math.Clamp(_bots + by, 0, MaxBots)),
+            CrewEntry(),
     ];
+
+    /// <summary>Who goes out with you (T89): bots, or none. The quick night's and the campaign's (note 611).</summary>
+    Entry CrewEntry() =>
+        new(new(_bots == 0 ? "CREW: JUST YOU" : $"CREW: YOU AND {_bots} BOT{(_bots == 1 ? "" : "S")}",
+            "Bots drive, stoke, man the rear gun and lend a hand. None, and it's all yours to do."), null, by => _bots = Math.Clamp(_bots + by, 0, MaxBots));
 
     /// <param name="Back">A BACK item: choosing it sounds as backing out.</param>
     /// <param name="Field">A text field: choosing it starts typing into it (note 264).</param>
@@ -947,6 +986,7 @@ public sealed class FrontEnd
             new(new("PROFILE", "What your crews have commended you for."), () => { Show(Screen.Profile); return null; }),
             .. InstalledMods.Count + ModProblems.Count > 0 ? [new Entry(new("MODS", ModsLine()), Go(Screen.Mods))] : (Entry[])[],
             new(new("CREDITS", "Whose work is in the game: the opera, the models, the sounds, the code."), () => { Show(Screen.Credits); return null; }),
+            .. DevEntries.Select(d => new Entry(new(d.Label, d.Hint), () => d.Launch)),
             new(new("QUIT"), () => new Launch.Quit()),
         ],
         Screen.Slots => [.. _saves.List().Select(x => SlotEntry(x.Slot, x.State)), BackTo(Screen.Title)],
@@ -1051,7 +1091,10 @@ public sealed class FrontEnd
             new(new($"CONTROL HINTS: {(Settings.ControlHints ? "ON" : "OFF")}", "The keys in the corner for what you're holding or driving."),
                 Toggle(s => s with { ControlHints = !s.ControlHints }), _ => Change(Settings with { ControlHints = !Settings.ControlHints })),
             // T83: the display.
-            new(new($"DISPLAY: {(Settings.Fullscreen ? "FULLSCREEN" : "WINDOWED")}"), Toggle(s => s with { Fullscreen = !s.Fullscreen }), _ => Change(Settings with { Fullscreen = !Settings.Fullscreen })),
+            // Note 672: WINDOWED, BORDERLESS or FULLSCREEN (exclusive); Alt+Enter anywhere, a window or the whole screen.
+            new(new($"DISPLAY: {Settings.Display.ToString().ToUpperInvariant()}", "Left and right to change. Alt+Enter in the game as well."),
+                Toggle(s => s with { Display = Settings.Cycle(Enum.GetValues<DisplayMode>(), s.Display, 1) }),
+                by => Change(Settings with { Display = Settings.Cycle(Enum.GetValues<DisplayMode>(), Settings.Display, by) })),
             new(new($"RESOLUTION: {Settings.Resolution}", "Left and right to change."), Toggle(s => s with { Resolution = Settings.Cycle(Settings.Resolutions, s.Resolution, 1) }),
                 by => Change(Settings with { Resolution = Settings.Cycle(Settings.Resolutions, Settings.Resolution, by) })),
             new(new($"RENDER SCALE: {Settings.RenderScale * 100:0}%", "Draws the scene smaller and scales it up: faster, softer."), Toggle(s => s with { RenderScale = Settings.Cycle(Settings.RenderScales, s.RenderScale, 1) }),
@@ -1209,6 +1252,13 @@ public sealed class FrontEnd
                 return null;
             });
         string underway = s.Current is null ? "" : ", a night under way";
+        // Note 632 (the director, the inbox, 12 Oct: "the campaign ends"): a crew whose train was taken at dawn is done.
+        if (s.Over)
+            return new(new($"SLOT {slot}: {CrewName(s).ToUpperInvariant()}, TAKEN AT DAWN", $"{s.Runs} nights. The company has no more trains for them."), () =>
+            {
+                ShowFortress(slot);
+                return null;
+            });
         return new(new($"SLOT {slot}: {CrewName(s).ToUpperInvariant()}", $"{s.Cars} cars, {s.Scrip:0} scrip, {s.Runs} nights{underway}"), () =>
         {
             ShowFortress(slot);
@@ -1220,13 +1270,15 @@ public sealed class FrontEnd
     {
         if (Open is not { } s)
             return [BackTo(Screen.Slots)];
+        if (s.Over)
+            return OverEntries(s);
         var list = new List<Entry>();
         if (s.Current is { } tonight)
         {
             // Spec E: a night that was under way picks up from its last autosave (or starts again, if it had none).
             string from = s.Checkpoint is null ? "from the yard" : "from the last facility it left";
             list.Add(new(new($"CARRY ON: {Name(tonight.Tier)} {tonight.Seed}", $"The night that was under way, {from}."),
-                () => new Launch.CampaignNight(s.Slot, -1, Resume: true, _host)));
+                () => new Launch.CampaignNight(s.Slot, -1, Resume: true, _host) { Bots = _bots }));
         }
         else
         {
@@ -1235,12 +1287,14 @@ public sealed class FrontEnd
             {
                 var c = offers[i];
                 int contract = i;
-                // GDD §9 "choose freight contracts" (note 182): each names the freight the train leaves with, and pays a car by it.
-                string cargo = Cargoes.Name(c.Cargo).ToUpperInvariant();
-                list.Add(new(new($"TONIGHT: {Name(c.Tier)} {c.Seed}, {cargo}, {c.PerCar:0} A CAR", $"{Carrying(c.Cargo)} Up to {c.PerCar * s.Cars:0} on {s.Cars} cars."),
-                    () => new Launch.CampaignNight(s.Slot, contract, Resume: false, _host)));
+                // GDD §9 "choose a route" (note 637: a contract is just a route): the train leaves empty, and its cars are paid
+                // by what its stops load, about the tier's car-load each.
+                list.Add(new(new($"TONIGHT: {Name(c.Tier)} {c.Seed}, ABOUT {c.PerCar:0} A CAR-LOAD", $"Whatever its stops load. Up to about {c.PerCar * s.Cars:0} on {s.Cars} cars."),
+                    () => new Launch.CampaignNight(s.Slot, contract, Resume: false, _host) { Bots = _bots }));
             }
         }
+        // The crew's bots (note 611): who goes out with you tonight, and on to the next night from the town after it.
+        list.Add(CrewEntry());
         double carCost = Campaign.NextCarCost(_campaign, s);
         bool full = s.Cars >= _campaign.MaxCars;
         list.Add(new(new(full ? "BUY A CAR: THE CONSIST IS FULL" : $"BUY A CAR: {carCost:0} SCRIP", full ? null : $"Car {s.Cars + 1}. More cars carry more, and burn more, and need more hands.",
@@ -1277,6 +1331,27 @@ public sealed class FrontEnd
         return list;
     }
 
+    /// <summary>
+    /// A slot whose campaign is over (note 632; the director, the inbox, 12 Oct: a train taken at dawn ends it): what the crew
+    /// came to, and in place of the board, a new crew from the fortress in the same slot.
+    /// </summary>
+    List<Entry> OverEntries(CampaignState s)
+    {
+        var last = s.History.LastOrDefault();
+        return
+        [
+            new(new(Hud.CampaignOver, $"{CrewName(s)}'s train was taken at dawn{(last is null ? "" : $" on {last.Route}")}, after {s.Runs} nights.", Heading: true)),
+            new(new("A NEW CREW", "Start again from a fortress: three cars on local work, and no scrip. This crew's save is gone."), () =>
+            {
+                var fresh = Campaign.New(_campaign, s.Slot, DefaultCrewName(s.Slot), _newSeed());
+                _saves.Save(fresh);
+                ShowFortress(s.Slot, "A new crew has signed on.");
+                return null;
+            }),
+            BackTo(Screen.Slots),
+        ];
+    }
+
     List<Entry> UpgradeEntries()
     {
         if (Open is not { } s)
@@ -1294,21 +1369,6 @@ public sealed class FrontEnd
         list.Add(BackTo(Screen.Fortress));
         return list;
     }
-
-    /// <summary>What a contract's freight does to the night (GDD §19, App. B.9), said on the board.</summary>
-    static string Carrying(CargoKind cargo) => cargo switch
-    {
-        CargoKind.Comet => "Comet material: best pay; everything wants it.",
-        CargoKind.Ammunition => "Powder and shot: a fire in its car can blow.",
-        CargoKind.Chemicals => "Chemicals: fires spread; no cannon beside it.",
-        CargoKind.Medicine => "Medicine: rough couplings and brakes spoil it.",
-        CargoKind.Coal => "Coal: it burns, and fire runs down the train.",
-        CargoKind.Timber => "Timber: it burns, and fire runs down the train.",
-        CargoKind.Livestock => "Livestock: loud all night; hounds smell it.",
-        CargoKind.Food => "Food: the scavengers come for it.",
-        CargoKind.Heavy => "Machine parts: heavy, inert, safe.",
-        _ => "Goods.",
-    };
 
     static string StoresLine(Stores st) => st.Any
         ? $"Bought for tonight: {st.Powder} powder, {st.Lamps} lamps, {st.Extinguishers} extinguishers."
@@ -1500,7 +1560,7 @@ public sealed class FrontEnd
             Screen.DeleteCrew when Open is { } s => $"DELETE {CrewName(s).ToUpperInvariant()}?",
             Screen.Crashed => "DARK TERRITORY STOPPED LAST TIME",
             Screen.Fortress or Screen.Upgrades or Screen.Stores when Open is { } s =>
-                $"{CrewName(s).ToUpperInvariant()}: {s.Cars} CARS, {s.Scrip:0} SCRIP, NIGHT {s.Runs + 1}, {Name(Campaign.TierFor(_campaign, s.Cars))}",
+                $"{CrewName(s).ToUpperInvariant()}{(s.Town is { } town ? $" IN {town.Name.ToUpperInvariant()}" : "")}: {s.Cars} CARS, {s.Scrip:0} SCRIP, NIGHT {s.Runs + 1}, {Name(Campaign.TierFor(_campaign, s.Cars))}",
             Screen.Upgrades => "UPGRADES",
             Screen.QuickNight => "QUICK NIGHT",
             Screen.Join => "JOIN",

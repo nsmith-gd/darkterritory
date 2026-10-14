@@ -46,10 +46,12 @@ public sealed class Sleepers(int id) : Enemy(id)
         {
             Enter(ctx, SpinePhase.Punish);
             front.Integrity = Math.Max(0, front.Integrity - t.HeavyDamage);
+            front.Knock = (KnockCause.Sleepers, speed);
         }
         else
         {
             front.Integrity = Math.Max(0, front.Integrity - t.MinorDamage);
+            front.Knock = (KnockCause.Sleepers, speed);
         }
         Enter(ctx, SpinePhase.Gone);
     }
