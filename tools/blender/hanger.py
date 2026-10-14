@@ -252,70 +252,133 @@ BRACED = pose(breathe(0), palps(0))
 FOLDED = pose({"root@loc": (0, 0, 0.08), "abdomen": (8, 0, 0), "head": (6, 0, 0)}, breathe(-0.04), palps(0.8),
               legs_all(lift=40, knee=128, curl=-162, swing=0))
 
-# Hidden (4 s, loop): folded and still, the sac slowly breathing; once, a leg twitches (snapped, held, put back).
+# Hidden (6.3 s, loop): folded and still, the sac breathing slowly, unevenly (in, held, out with a catch). Now and then one
+# leg comes unhooked, slowly, hangs feeling the air, its tip testing, and is set back, slowly, then gripped in two frames;
+# later another, quicker; the palps flick once. Never two at once, never the same beat twice.
+def folded(br=0.0, palp=0.8, adjust=()):
+    p = pose(FOLDED, breathe(-0.04 + br), palps(palp))
+    for s, k, u, test, sw in adjust:
+        # u 0 hooked, 1 off the beams and hanging a little; `test` the tip's feeling about; `sw` where it's put back.
+        p.update(leg(s, k, lift=40 - 40 * u, knee=128 - 38 * u, curl=-162 + 22 * test * u, swing=sw))
+    return p
+
+
 hidden = Clip("hidden")
-for f, br, tw in ((0, 0.0, 0), (30, 0.035, 0), (48, 0.02, 1), (52, 0.02, 1), (60, 0.0, 0), (90, 0.035, 0)):
-    p = pose(FOLDED, breathe(-0.04 + br))
-    if tw:
-        p.update(leg("r", 1, lift=26, knee=100, curl=-140, swing=8))
-    hidden.key(f, p, "CONSTANT" if f in (48, 52) else "BEZIER")
-hidden.close(120)
+hidden.key(0, folded(), "BEZIER")
+hidden.key(34, folded(0.035), "BEZIER")                                        # in
+hidden.key(40, folded(0.036, adjust=[("r", 1, 0.0, 0, 0)]), "BEZIER")
+hidden.key(50, folded(0.03, adjust=[("r", 1, 1.0, 0, 4)]), "BEZIER")          # a leg unhooked, slowly
+hidden.key(54, folded(0.03, adjust=[("r", 1, 1.0, 1, 4)]), "BEZIER")          # feeling the air
+hidden.key(57, folded(0.03, adjust=[("r", 1, 1.0, -0.4, 6)]), "BEZIER")
+hidden.key(61, folded(0.03, adjust=[("r", 1, 1.0, 0.6, 8)]), "BEZIER")
+hidden.key(72, folded(0.025, adjust=[("r", 1, 0.25, 0, 10)]), "LINEAR")       # set back, slowly
+hidden.key(74, folded(0.02, adjust=[("r", 1, 0.0, -0.3, 10)]), "BEZIER")      # gripped, in two frames
+hidden.key(90, folded(0.02, adjust=[("r", 1, 0.0, 0, 10)]), "CONSTANT")       # out: a catch
+hidden.key(93, folded(0.015, adjust=[("r", 1, 0.0, 0, 10)]), "BEZIER")
+hidden.key(108, folded(0.0, adjust=[("r", 1, 0.0, 0, 10)]), "LINEAR")
+hidden.key(110, folded(0.0, palp=1.8, adjust=[("r", 1, 0.0, 0, 10)]), "LINEAR")  # the palps flick
+hidden.key(113, folded(0.0, palp=0.8, adjust=[("r", 1, 0.0, 0, 10)]), "BEZIER")
+hidden.key(130, folded(0.02, adjust=[("r", 1, 0.0, 0, 10), ("l", 3, 0, 0, 0)]), "LINEAR")
+hidden.key(133, folded(0.02, adjust=[("r", 1, 0.0, 0, 10), ("l", 3, 0.5, -0.6, -6)]), "LINEAR")  # another, quick
+hidden.key(140, folded(0.02, adjust=[("r", 1, 0.0, 0, 10), ("l", 3, 0.5, -0.6, -6)]), "BEZIER")
+hidden.key(146, folded(0.025, adjust=[("r", 1, 0.0, 0, 10), ("l", 3, 0.0, 0, -8)]), "BEZIER")
+hidden.key(176, folded(0.01, adjust=[("r", 1, 0.0, 0, 4), ("l", 3, 0.0, 0, -3)]), "BEZIER")
+hidden.close(190)
 
 # The front pair's reach down to the strand under the mouth, and their pull up past it (haul, grab, hold).
 REACH_DOWN = pose(leg("r", 0, lift=-38, knee=-30, curl=-10, swing=-28), leg("l", 0, lift=-38, knee=-30, curl=-10, swing=-28))
 PULL_UP = pose(leg("r", 0, lift=22, knee=52, curl=30, swing=-34), leg("l", 0, lift=22, knee=52, curl=30, swing=-34))
 
-# Grab (0.5 s): the strand snaps taut. A jerk up against the beams, every leg clenching on them, the sac squeezed, the
-# front legs snatching down at the line; then braced to take the weight.
+# Grab (0.5 s: CreatureArt.HangerGrabSeconds): the strand snaps taut. From folded tight, in two frames every leg flung down
+# and out onto the beams, the body jerked up against them, the sac squeezed, the front legs snatching down at the line;
+# then it sags to take the weight, the legs settling one after another.
 grab = Clip("grab", loop=False)
-grab.key(0, BRACED, "CONSTANT")
+grab.key(0, folded(), "LINEAR")
 grab.key(2, pose(BRACED, {"root@loc": (0, 0, 0.07), "head": (-14, 0, 0), "abdomen": (10, 0, 0)}, breathe(-0.1), palps(1.5),
                  legs_all(lift=14, knee=20, curl=16), REACH_DOWN), "LINEAR")
-grab.key(6, pose(BRACED, {"root@loc": (0, 0, -0.03), "head": (10, 0, 0), "abdomen": (-6, 0, 0)}, breathe(0.05), palps(-0.5),
+grab.key(4, pose(BRACED, {"root@loc": (0, 0, 0.06), "head": (-12, 0, 0), "abdomen": (8, 0, 0)}, breathe(-0.1), palps(1.4),
+                 legs_all(lift=12, knee=18, curl=14), REACH_DOWN), "LINEAR")
+grab.key(7, pose(BRACED, {"root@loc": (0, 0, -0.04), "head": (12, 0, 0), "abdomen": (-8, 0, 0)}, breathe(0.06), palps(-0.5),
                  legs_all(lift=-6, knee=-8, curl=-6), REACH_DOWN), "BEZIER")
+grab.key(11, pose(BRACED, {"root@loc": (0, 0, 0.005), "head": (2, 0, 0), "abdomen": (2, 0, 0)}, breathe(0.0), REACH_DOWN,
+                  legs_all(lift=-3, knee=-4, curl=-3, only=(3, 4))), "BEZIER")
 grab.key(15, pose(BRACED, {"root@loc": (0, 0, 0.0), "head": (4, 0, 0)}, breathe(0.0), REACH_DOWN), "BEZIER")
 
 
-def haul_pose(t):
-    """Hand over hand at t (0..1 of a pull): one front leg pulls up as the other reaches down, the second pair helping;
-    the body rocks with each pull and the sac heaves."""
+def _track(table, f):
+    """A value at frame f from [(frame, value, ease)]: eased (smoothstep) or straight between keys."""
+    for (f0, v0, e), (f1, v1, _) in zip(table, table[1:]):
+        if f0 <= f <= f1:
+            t = (f - f0) / max(1, f1 - f0)
+            if e:
+                t = t * t * (3 - 2 * t)
+            return v0 + (v1 - v0) * t
+    return table[-1][1]
+
+
+# Each front leg's reach (1: down at the line, 0: pulled up past the mouth): pulls fast, reaches slow, the two never even;
+# the right pulls in four frames, the left in five; a pause; the right twice.
+HAUL_R = [(0, 1, 0), (4, 0, 1), (14, 0.2, 1), (23, 1, 1), (26, 1, 0), (29, 0, 1), (38, 0.4, 1), (50, 1, 1)]
+HAUL_L = [(0, 0, 1), (6, 0.3, 1), (13, 1, 1), (15, 1, 0), (20, 0, 1), (31, 0.4, 1), (37, 1, 1), (40, 1, 0), (43, 0, 1), (50, 0, 1)]
+
+
+def haul_at(f):
     out = pose(BRACED)
-    for s, ph in (("r", 0.0), ("l", 0.5)):
-        u = (t + ph) % 1.0
-        # Reaching down (k 1) and pulling up (k 0) in turn.
-        k = 0.5 + 0.5 * math.cos(u * 2 * math.pi)
+    tug = 0.0
+    for s, table in (("r", HAUL_R), ("l", HAUL_L)):
+        k = _track(table, f)
         out.update(leg(s, 0, lift=-38 + 60 * (1 - k), knee=-30 + 82 * (1 - k), curl=-10 + 40 * (1 - k), swing=-28 - 6 * (1 - k)))
         out.update(leg(s, 1, lift=-14 + 20 * (1 - k), knee=-6 + 22 * (1 - k), curl=6 * (1 - k), swing=-14))
-    rock = math.sin(t * 4 * math.pi)
-    out.update({"root@loc": (0.0, 0.0, 0.015 * rock), "head": (8 * rock, 0, 0), "abdomen": (-4 * rock, 0, 0)})
-    out.update(breathe(0.03 * rock))
-    out.update(palps(0.6 * rock))
-    out.update({"mouth@scale": (1 + 0.15 * rock, 1 + 0.15 * rock, 1 + 0.15 * rock)})
+        # (How hard it's pulling now: the drop in k over the last frames.)
+        tug += max(0.0, _track(table, f - 2) - k) if f >= 2 else 0.0
+    tug = min(1.0, tug)
+    out.update({"root@loc": (0.0, 0.0, 0.03 * tug - 0.01), "head": (-10 * tug + 3, 0, 4 * (_track(HAUL_R, f) - _track(HAUL_L, f))),
+                "abdomen": (6 * tug, 0, 0)})
+    out.update(breathe(0.05 * tug - 0.01))
+    out.update(palps(1.2 * tug))
+    out.update({"mouth@scale": (1 + 0.25 * tug, 1 + 0.25 * tug, 1 + 0.25 * tug)})
     return out
 
 
-# Haul (1.2 s, loop): pulling the line up hand over hand into the mouth, rocking with each pull.
+# Haul (1.67 s, loop): pulling the line up into the mouth hand over hand, unevenly: each pull a jerk (the body yanked up
+# against the beams, the mouth working), each reach slow.
 haul = Clip("haul")
-for f in range(0, 36, 6):
-    haul.key(f, haul_pose(f / 36), "BEZIER")
-haul.close(36)
+for f in range(0, 50, 2):
+    haul.key(f, haul_at(f), "LINEAR")
+haul.close(50)
 
-# Hold (2 s, loop): someone's weight on the line. Braced hard, the legs spread and set, the front pair clutching the
-# line under the mouth; the whole of it swaying with the weight, the sac pulsing quick.
+# Hold (2.3 s, loop): someone's weight on the line. Braced hard, the legs spread and set, the front pair clutching the
+# line under the mouth; swaying with the weight, jolted when they kick (a two-frame drop), the sac pulsing quick and
+# uneven; one leg shifting its grip.
 HOLDING = pose(BRACED, legs_all(lift=-8, knee=-10, curl=-8, only=(1, 2, 3, 4)),
                leg("r", 0, lift=-20, knee=10, curl=10, swing=-32), leg("l", 0, lift=-20, knee=10, curl=10, swing=-32))
-hold = Clip("hold")
-for f, sw, br in ((0, 0, 0), (15, 1, 0.05), (30, 0, -0.02), (45, -1, 0.05)):
-    hold.key(f, pose(HOLDING, breathe(br), palps(sw), {"thorax": (0, 3 * sw, 0), "head": (5 * abs(sw), 0, 4 * sw),
-                                                     "abdomen": (0, -3 * sw, 0), "root@loc": (0.01 * sw, 0, 0)}), "BEZIER")
-hold.close(60)
 
-# Hit (0.4 s): it recoils up into the beams, twisting, every leg flung out off them, then back on.
+
+def holding(sw=0.0, br=0.0, drop=0.0, shift=0.0):
+    p = pose(HOLDING, breathe(br), palps(sw + drop), {"thorax": (0, 3 * sw, 0), "head": (5 * abs(sw) + 10 * drop, 0, 4 * sw),
+                                                       "abdomen": (0, -3 * sw, 0), "root@loc": (0.01 * sw, 0, -0.04 * drop)})
+    if shift:
+        p.update(leg("l", 2, lift=-8 + 22 * shift, knee=-10 + 16 * shift, curl=-8 + 20 * shift, swing=4 * shift))
+    return p
+
+
+hold = Clip("hold")
+for f, a, ip in ((0, holding(), "BEZIER"), (13, holding(1, 0.05), "BEZIER"), (20, holding(0.4, -0.02), "LINEAR"),
+                 (22, holding(0.3, 0.06, drop=1), "BEZIER"), (30, holding(-0.2, 0.0), "BEZIER"), (37, holding(-1, 0.05), "BEZIER"),
+                 (44, holding(-0.6, -0.02, shift=1), "BEZIER"), (50, holding(-0.3, 0.04, shift=0.2), "BEZIER"), (56, holding(0, 0.0), "BEZIER")):
+    hold.key(f, a, ip)
+hold.close(70)
+
+# Hit (0.4 s: CreatureArt.HangerHitSeconds): it recoils up into the beams, twisting, every leg flung out off them, held
+# two frames; then back on, the legs finding the beams one side after the other.
 hit = Clip("hit", loop=False)
 hit.key(0, BRACED, "CONSTANT")
 hit.key(2, pose(BRACED, {"root@loc": (0.02, 0, 0.07), "thorax": (0, 8, 14), "head": (-20, 0, 18), "abdomen": (12, 0, -10)},
                 breathe(-0.12), palps(2), legs_all(lift=18, knee=-18, curl=-20, swing=6)), "CONSTANT")
-hit.key(8, pose(BRACED, {"root@loc": (0, 0, 0.02), "thorax": (0, -3, -4)}, legs_all(lift=4, knee=4)), "LINEAR")
+hit.key(4, pose(BRACED, {"root@loc": (0.02, 0, 0.06), "thorax": (0, 7, 12), "head": (-16, 0, 16), "abdomen": (10, 0, -8)},
+                breathe(-0.1), palps(1.6), legs_all(lift=16, knee=-16, curl=-18, swing=5)), "LINEAR")
+hit.key(8, pose(BRACED, {"root@loc": (0, 0, 0.02), "thorax": (0, -3, -4)}, legs_all(lift=4, knee=4),
+                {k: v for s in "l" for k, v in legs_all(lift=12, knee=-10, curl=-12).items() if f"_{s}" in k}), "LINEAR")
 hit.key(12, BRACED, "CONSTANT")
 
 
@@ -337,27 +400,47 @@ def scuttle(t):
     return out
 
 
-# Retreat (0.6 s, loop): scuttling back into the dark along the beams, too fast for its size.
+# Retreat (1 s, loop): scuttling back into the dark along the beams in bursts, too fast for its size: a stride and a
+# half in eleven frames, stopped dead, flat to the beams, the head snapping round; on again.
 retreat = Clip("retreat")
-for f in range(0, 18, 3):
-    retreat.key(f, scuttle(f / 18), "LINEAR")
-retreat.close(18)
+for f in range(0, 12, 2):
+    retreat.key(f, scuttle(f / 8), "LINEAR")
+retreat.key(12, scuttle(1.5), "LINEAR")
+retreat.key(15, pose(scuttle(1.5), {"head": (-6, 0, -14)}), "LINEAR")         # stopped dead, the head round
+retreat.key(19, pose(scuttle(1.5), {"head": (-6, 0, -14)}), "LINEAR")
+for f in range(20, 30, 2):
+    retreat.key(f, scuttle(1.5 + (f - 20) / 20), "LINEAR")
+retreat.close(30)
 
-# Death (1.5 s): every leg curls in over the body (a spider's death), the sac sagging, and it lets go of the beams and
-# drops, turning over.
-CURLED = pose(legs_all(lift=-50, knee=95, curl=70), breathe(-0.08), palps(2))
+# Death (1.5 s): a jerk, every leg flung; then every leg curls in over the body (a spider's death), one side a beat after
+# the other, the sac sagging, and it lets go of the beams and drops, turning over; a last leg twitches.
+CURLED = pose(legs_all(lift=-40, knee=78, curl=24), breathe(-0.08), palps(2))
 death = Clip("death", loop=False)
 death.key(0, BRACED, "CONSTANT")
-death.key(4, pose(BRACED, {"root@loc": (0, 0, 0.04), "head": (-16, 0, 0)}, legs_all(lift=12, knee=-10, curl=-20), breathe(-0.1)), "LINEAR")
+death.key(3, pose(BRACED, {"root@loc": (0, 0, 0.04), "head": (-16, 0, 0)}, legs_all(lift=12, knee=-10, curl=-20), breathe(-0.1)), "LINEAR")
+death.key(9, pose(BRACED, {"root@loc": (0, 0, 0.0), "head": (-6, 0, 0)}, legs_all(lift=12, knee=-10, curl=-20),
+                  {k: v for k, v in legs_all(lift=-40, knee=78, curl=24).items() if "_r" in k}, breathe(-0.1)), "BEZIER")
 death.key(16, pose(CURLED, {"root@loc": (0, 0.04, -0.25), "root": (20, 0, 10), "head": (14, 0, 0)}), "BEZIER")
 death.key(30, pose(CURLED, {"root@loc": (0, 0.1, -0.85), "root": (60, 0, 24), "head": (20, 0, 0)}), "LINEAR")
-death.key(45, pose(CURLED, {"root@loc": (0, 0.12, -0.95), "root": (70, 0, 26), "head": (20, 0, 0)}, legs_all(lift=-55, knee=100, curl=80)), "BEZIER")
+death.key(38, pose(CURLED, {"root@loc": (0, 0.12, -0.95), "root": (70, 0, 26), "head": (20, 0, 0)}, legs_all(lift=-44, knee=84, curl=30)), "LINEAR")
+death.key(40, pose(CURLED, {"root@loc": (0, 0.12, -0.95), "root": (70, 0, 26), "head": (20, 0, 0)}, legs_all(lift=-44, knee=84, curl=30),
+                   leg("l", 2, lift=-30, knee=60, curl=40)), "LINEAR")
+death.key(45, pose(CURLED, {"root@loc": (0, 0.12, -0.95), "root": (70, 0, 26), "head": (20, 0, 0)}, legs_all(lift=-44, knee=84, curl=30)), "BEZIER")
+
+CLIPS = [hidden, grab, haul, hold, hit, retreat, death]
+
+if os.environ.get("DT_POSES"):
+    for clip in CLIPS:
+        for frame, pz, _ in clip.keys:
+            P = rig.pose_points(sk, pz, [("head", "tail"), ("leg_r0_03", "tail"), ("leg_l0_03", "tail"), ("leg_r2_03", "tail")])
+            print(f"{clip.name:8s} {frame:3d} " + " ".join(f"({p.x:+.2f},{p.y:+.2f},{p.z:+.2f})" for p in P))
+    sys.exit(0)
 
 # One skin, the forebody and the sac (rig.fuse, settled on the flesh's field, then QuadriFlow); the legs over it. A
 # beast's budget (CreatureArtTests: 2-8k).
 kit.fuse("body", ["body"], voxel=0.005, faces=SKIN_FACES, lose=0.03, settle=flesh.settle)
 kit.build()
-rig.bake(sk, [hidden, grab, haul, hold, hit, retreat, death])
+rig.bake(sk, CLIPS)
 print("[dt] hanger", {p.name: p.tris() for p in kit.parts}, "bones", len(sk.bones))
 out = rig.args()[0] if rig.args() else "hanger.glb"
 rig.export(out, kit)

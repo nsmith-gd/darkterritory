@@ -433,6 +433,10 @@ public sealed partial class CreatureArt
     /// <summary>The most the Householder's head turns from its shoulders (radians), and tips up or down at you.</summary>
     const float HouseholderTurn = 1.3f, HouseholderTip = 0.4f;
 
+    /// <summary>The step its head follows you in (radians, about 6°): it turns in small ticks, never smoothly (GDD §31: still,
+    /// then too fast).</summary>
+    const float HouseholderTick = 0.1f;
+
     /// <summary>
     /// A posed figure's head and neck turned (<paramref name="look"/> of the way) to the eye (the scene's built about it: the
     /// origin), as far as <see cref="HouseholderTurn"/>, and tipped up or down at it.
@@ -451,6 +455,7 @@ public sealed partial class CreatureArt
         // (The model faces −Z: CreateRotationY(a) takes that to (−sin a, 0, −cos a).)
         float yaw = Math.Clamp(MathF.Atan2(-to.X, -to.Z), -HouseholderTurn, HouseholderTurn) * look;
         float tip = Math.Clamp(MathF.Atan2(to.Y, flat), -HouseholderTip, HouseholderTip) * look;
+        (yaw, tip) = (MathF.Round(yaw / HouseholderTick) * HouseholderTick, MathF.Round(tip / HouseholderTick) * HouseholderTick);
         Bend(m, "neck", Matrix4x4.CreateRotationY(yaw * 0.35f));
         Bend(m, "head", Matrix4x4.CreateRotationY(yaw * 0.65f));
         var right = Vector3.Transform(Vector3.UnitX, Matrix4x4.CreateRotationY(yaw));

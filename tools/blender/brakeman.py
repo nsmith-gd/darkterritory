@@ -38,7 +38,7 @@ import sys
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 import trainflesh as fl  # noqa: E402
 import rig  # noqa: E402
-from rig import Bone, Clip, Mat, Vector, hexc, mirror, noise3, over, swap  # noqa: E402
+from rig import Bone, Clip, Mat, Quaternion, Vector, hexc, mirror, noise3, over, swap  # noqa: E402
 
 rig.reset()
 
@@ -643,25 +643,56 @@ def ground(pose, up=0.0):
     return p
 
 
-# Walk (0.8 s, loop): quick, short-stepped, stooped, the arms swinging long and loose, the chain swinging and its end
-# dragging; the head held still, looking ahead (two 1 m steps at the sim's 2.5 m/s).
+def qblend(a, b, t):
+    """Per-joint mix of two poses whose chain and lamp joints are quaternions (rig.hang's)."""
+    out = {}
+    for k in set(a) | set(b):
+        va, vb = a.get(k, (0, 0, 0)), b.get(k, (0, 0, 0))
+        if isinstance(va, Quaternion) or isinstance(vb, Quaternion):
+            qa = va if isinstance(va, Quaternion) else rig.rot(*va)
+            qb = vb if isinstance(vb, Quaternion) else rig.rot(*vb)
+            out[k] = qa.slerp(qb, t)
+        else:
+            out[k] = tuple(x + (y - x) * t for x, y in zip(va, vb))
+    return out
+
+
+def looking(pose, look):
+    """His head turned back over his left shoulder (`look` 1), the neck taking a third of it, cocked."""
+    return over(pose, neck=(pose["neck"][0], 0, 24 * look), head=(pose["head"][0], 8 * look, 46 * look))
+
+
+# Walk (1.6 s, loop, two of his strides: two 1 m steps a stride at the sim's 2.5 m/s): quick, short-stepped, stooped, the
+# arms swinging long and loose, the chain swinging and its end dragging; the head held still, looking ahead; on the
+# second stride it snaps round over his shoulder, back along the roofs toward the crew, held, and slowly ahead again.
 W_CONTACT = over(STOOP, pelvis__loc=(0, 0, -0.03), pelvis=(-8, 0, -6), spine_02=(-14, 0, 4), spine_03=(-12, 0, 4),
                  thigh_r=(40, 0, -4), calf_r=(-14, 0, 0), foot_r=(6, 0, -6),
                  thigh_l=(-14, 0, 4), calf_l=(-30, 0, 0), foot_l=(-14, 0, 6),
                  upperarm_r=(2, 42, 0), upperarm_l=(38, -52, 0), lowerarm_l=(0, 0, -30))
 W_PASS = over(STOOP, pelvis__loc=(0, 0, 0.01), thigh_r=(14, 0, -4), calf_r=(-24, 0, 0), foot_r=(4, 0, -6),
               thigh_l=(38, 0, 4), calf_l=(-80, 0, 0), foot_l=(16, 0, 6))
-walk = Clip("walk")
-for f, p, swing in ((0, W_CONTACT, -1), (6, W_PASS, 0)):
-    walk.key(f, hang_chain(p, (-14, 0, 0), swing * 12))
-for f, p, swing in ((12, W_CONTACT, 1), (18, W_PASS, 0)):
-    q = swap(p) | {"neck": p["neck"], "head": p["head"], "pelvis": (p["pelvis"][0], 0, -p["pelvis"][2])}
-    walk.key(f, hang_chain(q, (-14, 0, 0), swing * 12))
-walk.close(24)
 
-# Wind (1.2 s, loop): bent right over a car's brake wheel in front of him (its rim 0.47 m up, 0.48 m ahead), both clawed
-# hands on it, wrenching it round hand over hand: a half-turn a beat, the shoulders throwing into it, a jerk at each
-# ratchet's catch. (CreatureArt stands him here, facing the wheel.)
+
+def swapped(p):
+    return swap(p) | {"neck": p["neck"], "head": p["head"], "pelvis": (p["pelvis"][0], 0, -p["pelvis"][2])}
+
+
+walk = Clip("walk")
+for o, looks in ((0, (0, 0, 0, 0)), (24, (0, 1, 1, 0.35))):
+    walk.key(o + 0, hang_chain(looking(W_CONTACT, looks[0]), (-14, 0, 0), -12))
+    if o:
+        # (The look back: snapped round in two frames, mid-step.)
+        walk.key(o + 2, hang_chain(qblend(W_CONTACT, W_PASS, 0.33), (-14, 0, 0), -8), "LINEAR")
+        walk.key(o + 4, hang_chain(looking(qblend(W_CONTACT, W_PASS, 0.67), 1), (-14, 0, 0), -4))
+    walk.key(o + 6, hang_chain(looking(W_PASS, looks[1]), (-14, 0, 0), 0))
+    walk.key(o + 12, hang_chain(looking(swapped(W_CONTACT), looks[2]), (-14, 0, 0), 12))
+    walk.key(o + 18, hang_chain(looking(swapped(W_PASS), looks[3]), (-14, 0, 0), 0))
+walk.close(48)
+
+# Wind (1.2 s, loop: a ratchet's click a beat, 4 s a car): bent right over a car's brake wheel in front of him (its rim
+# 0.47 m up, 0.48 m ahead), both clawed hands on it: set, the shoulders drawn back against the turn (a held beat), then
+# wrenched round in four frames, a jerk past it as the ratchet catches, held; they let go and come back for the next.
+# (CreatureArt stands him here, facing the wheel.)
 WHEEL_AT = Vector((0, 0.5, 0.47))
 WHEEL_R = 0.26
 BENT = mirror({
@@ -670,15 +701,15 @@ BENT = mirror({
 })
 BENT = ground(over(BENT, pelvis__loc=(0, -0.12, 0)))
 wind = Clip("wind")
-# (A beat: both hands push the rim round a quarter-turn, the ratchet catches, they let go and come back for the next.)
-for f, a, lift in ((0, 0.0, 0.0), (12, 0.45, 0.0), (15, 0.45, 0.06), (21, 0.0, 0.06)):
+for f, a, lift, ip in ((0, 0.0, 0.0, "BEZIER"), (5, -0.06, 0.0, "LINEAR"), (9, 0.45, 0.0, "LINEAR"), (11, 0.5, 0.0, "CONSTANT"),
+                       (14, 0.45, 0.06, "BEZIER"), (21, 0.0, 0.06, "BEZIER")):
     ang = math.pi * a
-    q = over(BENT, spine_02=(-14, 0, 10 * a), spine_03=(-8 + 4 * a, 0, 8 * a))
+    q = over(BENT, spine_02=(-14, 0, 10 * a), spine_03=(-8 + 4 * a, 0, 8 * a), head=(14 - 10 * max(0.0, a - 0.45) * 20, 0, 0))
     for s, off in (("r", -0.5), ("l", math.pi + 0.5)):
         t = ang + off
         grip = WHEEL_AT + Vector((math.cos(t) * WHEEL_R, -math.sin(t) * WHEEL_R, 0.03 + lift))
         q = arm_to(q, s, grip, curl=1.0 - lift * 8)
-    wind.key(f, hang_chain(q, (10, 0, 0)), "LINEAR" if f in (12, 15) else "BEZIER")
+    wind.key(f, hang_chain(q, (10, 0, 0)), ip)
 wind.close(24)
 
 # Flee (0.56 s, loop): low and fast, bent nearly double, long strides, the arms pumping, the chain flying out behind
@@ -745,30 +776,75 @@ climb.key(36, hang_chain(at(over(CROUCH, pelvis=(-50, 0, 0), upperarm_r=(70, 40,
 climb.key(48, hang_chain(at(CROUCH, 0, -0.1, 0.0)), "BEZIER")
 climb.key(60, STOOP, "BEZIER")
 
-# Cornered (1.6 s, loop): backing, crouched low, the right arm up with the chain swinging round over his head, the left
-# hand clawing out in front, the head turning between the two of them, wheezing.
+# Cornered (2 s, loop, on the sim's beat: CreatureArt plays it by the lash's phase; the telegraph): backing, crouched
+# low, the right arm up over his head with the chain whirling round from it (faster and faster toward the lash), the left
+# hand clawing out in front, wheezing in gasps; the head snapping between the two of them, then locked on the one in
+# front, and the body dead still under the whirling chain: the lash comes from there (CreatureArt's lash at 2 s).
 GUARD = over(CROUCH, pelvis__loc=(0, 0, -0.16), pelvis=(-20, 0, 0), spine_02=(-6, 0, 0), spine_03=(-2, 0, 0), neck=(20, 0, 0),
              thigh_r=(56, 0, -10), calf_r=(-80, 0, 0), thigh_l=(40, 0, 10), calf_l=(-70, 0, 0),
              upperarm_r=(70, 10, 0), lowerarm_r=(0, 0, 70), hand_r=(0, -10, 0), upperarm_l=(50, -40, 0), lowerarm_l=(0, 0, -40),
              fingers_l=(0, -30, 0))
-cornered = Clip("cornered")
-for f, (turn, lift, sw) in enumerate(((0, 0, 0), (-30, 0.02, 1), (0, 0, 2), (30, 0.02, 3))):
-    q = over(GUARD, neck=(20, 0, turn * 0.5), head=(10, 0, turn * 0.7), pelvis__loc=(0, -0.05 * (f % 2), -0.16 + lift),
-             spine_03=(-2 + 3 * math.sin(f * 1.6), 0, 0))
-    cornered.key(f * 12, hang_chain(q, (0, 0, 0), swing=40 * math.sin(sw * math.pi / 2)), "BEZIER")
-cornered.close(48)
+TELL = over(GUARD, upperarm_r=(14, -68, 0), lowerarm_r=(0, 0, 14), hand_r=(0, -6, 0), clavicle_r=(10, -8, 6), spine_03=(2, 0, 0),
+            neck=(24, 0, 0), head=(10, 0, 0))
+CORNER_LEN = 60
+# (How far from plumb the whirled chain flies out: about level, over his head.)
+WHIRL = 84
 
-# Lash (0.8 s, once): the chain wound back over his shoulder and whipped down and across at a face in front of him; the
-# strike at 0.5 s.
+
+def whirl(f):
+    """Where the whirling chain is round at frame f of the beat: five turns in the 2 s, faster toward the end."""
+    return 2 * math.pi * 5 * (f / CORNER_LEN) ** 1.35
+
+
+def telling(f, look=0.0, gasp=0.0, back=0.0):
+    q = over(TELL, neck=(24, 0, 0.4 * look), head=(10 + 4 * gasp, 0, 0.6 * look), spine_03=(2 + 5 * gasp, 0, 0),
+             spine_02=(-6 + 2 * gasp, 0, 0), pelvis__loc=(0, -0.04 * back, -0.16 + 0.01 * gasp))
+    return whirl_chain(hang_chain(q), whirl(f))
+
+
+def whirl_chain(pose, th):
+    """The lash whirled round over his head like a rope, flung out about level from the raised fist, each link trailing
+    the one before it round the circle (`th` where its first link points: 0 ahead of him, then round to his right)."""
+    p = dict(pose)
+    for k in range(4):
+        n = f"chain_{k + 1:02d}"
+        t = th - 0.22 * k
+        a = math.radians(WHIRL + 3 * k)
+        d = Vector((math.sin(t) * math.sin(a), math.cos(t) * math.sin(a), -math.cos(a)))
+        q = Vector((0, 0, -1)).rotation_difference(d)
+        p[n] = rig.world_rotation(sk, p, sk[n].parent).inverted() @ q
+    return p
+
+
+def _at(table, f):
+    for (f0, v0), (f1, v1) in zip(table, table[1:]):
+        if f0 <= f <= f1:
+            return v0 + (v1 - v0) * (f - f0) / max(1, f1 - f0)
+    return table[-1][1]
+
+
+C_LOOK = [(0, 0), (10, 0), (12, -38), (21, -38), (23, 36), (33, 36), (35, 0), (60, 0)]
+C_GASP = [(0, 0), (5, 0), (7, 1), (13, 0.2), (19, 0.2), (21, 1), (27, 0.1), (36, 0.1), (38, 0.8), (44, 0), (60, 0)]
+C_BACK = [(0, 0), (6, 0), (10, 1), (26, 1), (30, 0.4), (40, 0.4), (44, 0), (60, 0)]
+cornered = Clip("cornered")
+for f in range(0, CORNER_LEN, 2):
+    cornered.key(f, telling(f, _at(C_LOOK, f), _at(C_GASP, f), _at(C_BACK, f)), "LINEAR")
+cornered.close(CORNER_LEN)
+
+# Lash (0.8 s, once; the strike at 0.5 s, CreatureArt.BrakemanLashStrike): from the whirl, the chain wound back over his
+# shoulder, coiled there a held beat; whipped down and across at the face in front of him in two frames; the follow-
+# through, and back up into the whirl.
 WIND_UP = over(GUARD, spine_02=(-4, 0, 30), spine_03=(4, 0, 20), upperarm_r=(30, -20, 40), lowerarm_r=(0, 0, 90), neck=(20, 0, -20))
+COILED = over(WIND_UP, spine_02=(-2, 0, 36), spine_03=(6, 0, 24), upperarm_r=(26, -24, 46), neck=(22, 0, -24))
 STRIKE = over(GUARD, pelvis__loc=(0, 0.2, -0.12), spine_02=(-16, 0, -30), spine_03=(-12, 0, -20), upperarm_r=(100, 50, -30),
               lowerarm_r=(0, 0, 10), neck=(24, 0, 10))
 lash = Clip("lash", loop=False)
-lash.key(0, hang_chain(GUARD), "BEZIER")
+lash.key(0, telling(0), "BEZIER")
 lash.key(9, hang_chain(WIND_UP, (-90, 0, -60)), "LINEAR")
+lash.key(13, hang_chain(COILED, (-100, 0, -66)), "LINEAR")
 lash.key(15, hang_chain(STRIKE, (40, 0, 80)), "CONSTANT")
 lash.key(19, hang_chain(STRIKE, (70, 0, 50)), "LINEAR")
-lash.key(24, hang_chain(GUARD), "BEZIER")
+lash.key(24, telling(0), "BEZIER")
 
 hit = Clip("hit", loop=False)
 hit.key(0, STOOP, "CONSTANT")
@@ -786,6 +862,15 @@ death.key(26, hang_chain(at(over(STOOP, upperarm_r=(50, 30, 0), upperarm_l=(0, -
 death.key(42, hang_chain(at(over(STOOP, upperarm_r=(50, 30, 0), upperarm_l=(0, -10, 0)), 1.9, -0.25, -2.4, tip=120, turn=15)), "LINEAR")
 
 CLIPS = [walk, wind, flee, jump, drop, climb, cornered, lash, hit, death]
+
+if os.environ.get("DT_POSES"):
+    # A quick look at the clips' keys without building the mesh: where the hands, the head and the chain's end are.
+    want = [("lowerarm_r", "tail"), ("lowerarm_l", "tail"), ("head", "tail"), ("chain_04", "tail")]
+    for clip in CLIPS:
+        for frame, pz, _ in clip.keys:
+            P = rig.pose_points(sk, pz, want)
+            print(f"{clip.name:8s} {frame:3d} " + " ".join(f"{n[0][:7]}=({p.x:+.2f},{p.y:+.2f},{p.z:+.2f})" for n, p in zip(want, P)))
+    sys.exit(0)
 
 # One skin from the cap to the soles (trainflesh.fuse, settled on the field, then QuadriFlow); the rest over it.
 kit.build()

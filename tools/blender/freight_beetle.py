@@ -318,6 +318,13 @@ for f, k, look, br in ((0, 0, 0, 0), (12, 1, 0, 1), (18, -1, 0, 1), (30, 0.5, 6,
                        (78, 0.3, 0, 0)):
     idle.key(f, pose(SETTLED, palps(k), {"head": (-2, 0, look), "abdomen": (-1.5 * br, 0, 0), "thorax": (0.6 * br, 0, 0)}),
              "CONSTANT" if f in (18, 50) else "BEZIER")
+# Once a loop, out of time with the feelers: the legs ripple, each lifting a hair and setting down again in turn from the
+# back to the front, the right side then the left, a frame or two apart; then all six freeze.
+for i, (s, n) in enumerate((("r", "hind"), ("r", "mid"), ("r", "fore"), ("l", "hind"), ("l", "mid"), ("l", "fore"))):
+    idle.key(54 + 2 * i, pose(SETTLED, palps(1), {"head": (-2, 0, -4), "abdomen": (0, 0, 0), "thorax": (0, 0, 0)},
+                              leg(s, n, swing=5, lift=6, knee=10)), "LINEAR")
+idle.key(66 - 1, pose(SETTLED, palps(1), {"head": (-2, 0, -4)}), "LINEAR")
+idle.keys.sort(key=lambda k: k[0])
 idle.close(90)
 
 
@@ -349,26 +356,81 @@ for f in range(0, 36, 6):
              "LINEAR")
 walk.close(36)
 
-# Brace (1 s, loop): down behind the load, the head and the shovel lowered to it, the forelimbs set wide and forward,
-# the hind legs dug in; a shiver through it.
+# Brace (1 s, loop; the tell): down behind the load, the head and the shovel lowered to it, the forelimbs set wide and
+# forward, the hind legs dug in. Dead still; then each leg in turn lifts a hair and grips again, a ripple from the back
+# to the front down one side and then the other; then all six freeze, and the head jerks down a notch onto the load.
 BRACED = pose({"root@loc": (0, 0, -0.1), "thorax": (-7, 0, 0), "head": (-10, 0, 0), "abdomen": (5, 0, 0)},
               leg("r", "fore", swing=12, lift=-8, knee=-6), leg("l", "fore", swing=12, lift=-8, knee=-6),
               leg("r", "mid", swing=-6, lift=-10, knee=10), leg("l", "mid", swing=-6, lift=-10, knee=10),
               leg("r", "hind", swing=-14, lift=-12, knee=14), leg("l", "hind", swing=-14, lift=-12, knee=14), palps(-0.6))
+BRACE_LEGS = {(s, n): (sw, lf, kn) for s in "rl" for n, sw, lf, kn in (("fore", 12, -8, -6), ("mid", -6, -10, 10), ("hind", -14, -12, 14))}
+RIPPLE = [("r", "hind"), ("r", "mid"), ("r", "fore"), ("l", "hind"), ("l", "mid"), ("l", "fore")]
+
+
+def regrip(lifted, k=1.0):
+    """The braced legs, those in `lifted` lifted a hair off their grip (k: how far)."""
+    out = {}
+    for s, n in lifted:
+        sw, lf, kn = BRACE_LEGS[(s, n)]
+        out.update(leg(s, n, swing=sw + 3 * k, lift=lf + 9 * k, knee=kn + 6 * k))
+    return out
+
+
 brace = Clip("brace")
-for f, k in ((0, 0), (8, 1), (10, -1), (14, 1), (22, 0)):
-    brace.key(f, pose(BRACED, {"thorax": (-7 - 0.6 * k, 0, 0.5 * k), "root@loc": (0, -0.008 * k, -0.1)}), "CONSTANT" if f in (8, 10, 14) else "BEZIER")
+brace.key(0, BRACED, "BEZIER")
+brace.key(7, BRACED, "LINEAR")
+for i, sn in enumerate(RIPPLE):
+    f = 8 + 2 * i
+    brace.key(f, pose(BRACED, regrip([sn]), {"thorax": (-7, 0, 0.6 * (1 if sn[0] == "r" else -1))}), "LINEAR")
+brace.key(20, BRACED, "CONSTANT")
+brace.key(23, pose(BRACED, {"head": (-14, 0, 0), "thorax": (-8, 0, 0), "root@loc": (0, -0.006, -0.1)}, palps(-0.9)), "BEZIER")
+brace.key(27, pose(BRACED, {"head": (-12, 0, 0)}, palps(-0.7)), "BEZIER")
 brace.close(30)
 
-# Push (1.4 s, loop): heaving behind the load, the shovel in it, every leg driving it on in a slow heavy tripod, the body
-# low and lunging forward each stride.
+# Push (1.4 s, loop): heaving behind the load, braced and low. The legs step up one at a time in a ripple (a wave from
+# the back to the front, the right side then the left), each set down feeling for its grip; then all six freeze, planted,
+# a beat; and the whole body heaves forward over them (the legs driven back under it, the shovel shoving, the abdomen
+# swinging after), and settles. The sim slides it on at its push speed; the heave is where the weight goes in.
 push = Clip("push")
-for f in range(0, 42, 7):
-    ph = f / 42
-    heave = math.sin(ph * 12.57)
-    push.key(f, pose(BRACED, tripod(ph, stride=30, lift=12, low=6, push=True), palps(-0.8),
-                     {"thorax": (-7 + 2 * heave, 0, 0), "head": (-10 - 2 * heave, 0, 0), "root@loc": (0, 0.03 * heave, -0.1)}), "BEZIER")
-push.close(42)
+PUSH_FRAMES = 42
+# How fast the planted feet drive back at each frame: barely while the others step, not at all in the freeze, hard in the
+# heave.
+DRIVE = [0.4 if f < 24 else 0.0 if f < 29 else 4.0 if f < 34 else 0.5 for f in range(PUSH_FRAMES)]
+CLOCK = [0.0]
+for d in DRIVE:
+    CLOCK.append(CLOCK[-1] + d)
+
+
+def push_leg(i, f, s, n, stride=26.0):
+    """Leg `i` of the ripple at frame `f`: its step (6 frames, lifted and reached forward) at 4*i, else planted and driven
+    back by the clock."""
+    sw0, lf0, kn0 = BRACE_LEGS[(s, n)]
+    t0 = 4 * i
+    if t0 <= f <= t0 + 6:
+        q = (f - t0) / 6
+        q = q * q * (3 - 2 * q)
+        sw = -stride / 2 + stride * q
+        lf = 34 * math.sin(math.pi * min(1.0, (f - t0) / 5.0))
+    else:
+        start = CLOCK[t0 + 6]
+        span = CLOCK[-1] - (CLOCK[t0 + 6] - CLOCK[t0])
+        g = (CLOCK[f] - start) % CLOCK[-1] if f >= t0 + 6 else (CLOCK[f] + CLOCK[-1] - start)
+        sw = stride / 2 - stride * min(1.0, g / span)
+        lf = 0.0
+    return leg(s, n, swing=sw0 + sw, lift=lf0 + lf - 4, knee=kn0 + lf * 0.6 + 2)
+
+
+for f in range(0, PUSH_FRAMES, 2):
+    p = pose(BRACED, palps(-0.8 + (0.3 if f in (10, 18) else 0)))
+    for i, (s, n) in enumerate(RIPPLE):
+        p.update(push_leg(i, f, s, n))
+    heave = math.sin(math.pi * (f - 29) / 9) if 29 <= f <= 38 else 0.0
+    gather = math.sin(math.pi * (f - 22) / 7) if 22 <= f <= 29 else 0.0
+    p.update({"thorax": (-7 + 5 * gather - 8 * heave, 0, 0), "head": (-10 - 3 * gather - 10 * heave, 0, 0),
+              "abdomen": (5 + 5 * gather - 6 * heave, 0, 0),
+              "root@loc": (0, -0.05 * gather + 0.12 * heave, -0.1 - 0.03 * gather - 0.03 * heave)})
+    push.key(f, p, "CONSTANT" if f == 28 else "BEZIER")
+push.close(PUSH_FRAMES)
 
 # Turn (1 s, loop): stepping round on the spot, the legs of each side going opposite ways.
 turn = Clip("turn")
