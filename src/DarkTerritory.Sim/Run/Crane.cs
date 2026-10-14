@@ -136,10 +136,12 @@ public sealed class Crane
         bool clears = local.X - hx >= hatch.Min.X && local.X + hx <= hatch.Max.X && local.Z - hz >= hatch.Min.Z && local.Z + hz <= hatch.Max.Z;
         if (!clears)
             return (false, 0);
-        // What it comes down on: the highest thing under its footprint below the roof, a casting already in included.
+        // What it comes down on: the highest thing under its footprint below the roof as the car is now (an empty car's heap
+        // isn't there, note 708), a casting already in included.
         double floor = 0;
+        var vehicle = train.Vehicles[car];
         foreach (var (x, z) in new[] { (0.0, 0.0), (-hx, -hz), (hx, -hz), (-hx, hz), (hx, hz) })
-            floor = Math.Max(floor, shape.TopAt(local.X + x, local.Z + z, hatch.Min.Y - 0.01)?.Top ?? 0);
+            floor = Math.Max(floor, shape.TopAt(local.X + x, local.Z + z, vehicle, hatch.Min.Y - 0.01)?.Top ?? 0);
         foreach (var c in Castings)
             if (c.State == CastingState.Loaded && c.Car == car && c.At.Y < hatch.Min.Y
                 && Math.Abs(c.At.X - local.X) < 2 * hx && Math.Abs(c.At.Z - local.Z) < 2 * hz)
