@@ -551,6 +551,8 @@ Not a punishment mechanic — the whole tension of the sequence. The person on t
 
 Each stop of a kind has the module it's named for and two to four in all, drawn for the night (spec D.1's module grammar; note 449). One mine head has its lift and a winch, the next its lift, tipple and crates; a switchyard or a slaughterhouse may have a winch; a wreck yard, crates.
 
+**The car's roof hatch keeps out of the crane's way** *(the director's evening playtest, 13 Oct: "The roof hatch is actually in the way. I cannot see the loot that I'm loading because of that roof hatch"; note 706)*. A foundry's castings go down into a cargo car through its roof hatch. Open, its two leaves fold right back, flat onto the roof either side, so nothing stands up between the crane's cab and the opening, or between a crewmate and what's going down. Shut, they meet over it as before.
+
 **Every facility is optional. Skipping them is safe and pays nothing:** the train leaves the fortress empty, and only what the crew load at the stops and carry out of the villages is paid at the gates (§1 *The fantasy*; the director, 9 Oct 2026, note 575). The payout exists to force bad decisions, not to reward good ones.
 
 ## 19. Cargo
