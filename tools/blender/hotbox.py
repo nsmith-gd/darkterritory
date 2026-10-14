@@ -330,9 +330,26 @@ def belly(k):
     return {"abd_1@scale": (s, 1.0, s), "abd_2@scale": (s * 1.04, 1.0, s * 1.04), "abd_3@scale": (s, 1.0, s)}
 
 
+def legs_rippled(fold=0.0, splay=0.0, at=-9.0, width=1.5, amp=22.0):
+    """legs_pose's fold and splay, with a ripple running round the belly: the legs in order down the right side and back
+    up the left (0..15), each lifting and reaching out as the ripple at `at` passes it (`width` legs of it at a time)."""
+    p = {}
+    order = [("r", k) for k in range(1, LEGS + 1)] + [("l", k) for k in range(LEGS, 0, -1)]
+    for i, (side, k) in enumerate(order):
+        bump = max(0.0, 1 - abs(at - i) / width)
+        bump = bump * bump * (3 - 2 * bump)
+        lift = amp * bump
+        p.update(leg_q(side, k, -40 * fold + 10 * splay + 0.5 * lift, 40 * fold - 15 * splay - 0.9 * lift, 8 * bump))
+    return p
+
+
+# Clamped (2 s, loop): folded into the truck, plates shut; only the abdomen's pulse, in no steady beat (a long swell, two
+# quick ones); once a loop the folded legs ripple round it, each easing off the truck a hair in turn, and all freeze.
 clamped = Clip("clamped")
-for f, k in ((0, 0.0), (24, 0.5), (48, 0.0)):
-    clamped.key(f, rolled({**legs_pose(fold=1.0), **SHUT, **belly(k)}, **IN_TRUCK), "BEZIER")
+for f, k, at, interp in ((0, 0.0, -9, "BEZIER"), (20, 0.5, -9, "BEZIER"), (28, 0.1, -9, "BEZIER"), (31, 0.4, -9, "LINEAR"),
+                         (34, 0.4, 0, "LINEAR"), (36, 0.3, 3, "LINEAR"), (38, 0.3, 6, "LINEAR"), (40, 0.25, 9, "LINEAR"),
+                         (42, 0.2, 12, "LINEAR"), (44, 0.2, 15, "LINEAR"), (46, 0.2, 20, "CONSTANT"), (54, 0.1, 20, "BEZIER")):
+    clamped.key(f, rolled({**legs_rippled(fold=1.0, at=at, amp=16), **SHUT, **belly(k)}, **IN_TRUCK), interp)
 clamped.close(60)
 
 knock = Clip("knock")
@@ -342,10 +359,27 @@ for f, hammer in ((0, 0.0), (5, 1.0), (7, -0.3), (15, 0.0)):
     knock.key(f, rolled(p, **IN_TRUCK), "LINEAR" if f in (5, 7) else "BEZIER")
 knock.close(15)
 
+# Glow (1.2 s, loop; seized, the same faster): the seize's tell. The plates lift off the belly one after another from the
+# front shield back (a ripple you can see from the lineside: the dome opening up, the glow under it), held up venting
+# while the belly swells hard; then they slam shut together, and the folded legs twitch round it in a ripple and freeze.
 glow = Clip("glow")
-for f, k in ((0, 0.6), (8, 1.0), (16, 0.7), (22, 1.0), (30, 0.6)):
-    lift = {"shield": (-6 * k, 0, 0), **{f"plate_{j}": (-8 * k, 0, 0) for j in range(1, 5)}}
-    glow.key(f, rolled({**legs_pose(fold=1.0, wave=None), **lift, **belly(0.6 + 0.6 * k)}, **IN_TRUCK), "BEZIER")
+
+
+def vent(lifted, k):
+    """The shield and plates 1..4: the first `lifted` of them (a float: the next one part way) up `k` (1: wide open)."""
+    out = {}
+    for j, name in enumerate(["shield", "plate_1", "plate_2", "plate_3", "plate_4"]):
+        u = max(0.0, min(1.0, lifted - j))
+        out[name] = (-(22 if j else 16) * k * u, 0, 0)
+    return out
+
+
+for f, lifted, k, sw, at, interp in ((0, 0.0, 1.0, 0.5, -9, "BEZIER"), (3, 1.0, 1.0, 0.6, -9, "LINEAR"), (5, 2.0, 1.0, 0.7, -9, "LINEAR"),
+                                     (7, 3.0, 1.0, 0.8, -9, "LINEAR"), (9, 4.0, 1.0, 0.9, -9, "LINEAR"), (11, 5.0, 1.0, 1.0, -9, "BEZIER"),
+                                     (19, 5.0, 1.1, 1.25, -9, "LINEAR"), (21, 5.0, 0.0, 0.9, -9, "CONSTANT"),
+                                     (23, 5.0, 0.0, 0.8, 2, "LINEAR"), (26, 5.0, 0.0, 0.7, 8, "LINEAR"), (29, 5.0, 0.0, 0.6, 14, "LINEAR"),
+                                     (31, 5.0, 0.0, 0.5, 20, "BEZIER")):
+    glow.key(f, rolled({**legs_rippled(fold=1.0, at=at, amp=18), **vent(lifted, k), **belly(sw)}, **IN_TRUCK), interp)
 glow.close(36)
 
 # Half out of its truck: its back half still in there, the front down on the ballast (0.62 m under the axle box) and onto
@@ -358,18 +392,27 @@ unfold.key(20, rolled({**legs_pose(splay=1.0), **belly(0.8)}, roll=6, pitch=-24,
 unfold.key(30, rolled({**legs_pose(splay=0.8), **belly(0.7), "head": (14, 0, 0)}, roll=4, pitch=-20, **OUT), "BEZIER")
 
 out = Clip("out")
-for f, (k, chew) in enumerate(((0.6, 0), (0.9, 1), (0.7, 0), (1.0, 1))):
-    p = {**legs_pose(splay=0.8 + 0.1 * chew, wave=None), **belly(k), "head": (14 + 4 * chew, 0, 0),
-         "mandible_r": (0, 0, 18 * chew), "mandible_l": (0, 0, -18 * chew),
-         "shield": (-3 * chew, 0, 0)}
-    out.key(f * 12, rolled(p, roll=4, pitch=-20, **OUT), "BEZIER")
+# Out (1.6 s, loop): there on the ballast, braced; the legs ripple round the belly, each lifting and setting down again in
+# turn, then all freeze; the mandibles working in jerks, out of time with them; the shield lifting a crack.
+for f, k, chew, at, interp in ((0, 0.6, 0, -9, "BEZIER"), (8, 0.8, 1, -9, "CONSTANT"), (11, 0.8, 0, -9, "LINEAR"),
+                               (13, 0.8, 0, 0, "LINEAR"), (15, 0.8, 0, 3, "LINEAR"), (17, 0.85, 0, 6, "LINEAR"),
+                               (19, 0.85, 1, 9, "LINEAR"), (21, 0.9, 1, 12, "LINEAR"), (23, 0.9, 0, 15, "LINEAR"),
+                               (25, 0.9, 0, 20, "CONSTANT"), (36, 1.0, 1, 20, "CONSTANT"), (38, 1.0, 0, 20, "BEZIER")):
+    p = {**legs_rippled(splay=0.85, at=at, amp=26), **belly(k), "head": (14 + 4 * chew, 0, 0),
+         "mandible_r": (0, 0, 18 * chew), "mandible_l": (0, 0, -18 * chew), "shield": (-3 * chew, 0, 0)}
+    out.key(f, rolled(p, roll=4, pitch=-20, **OUT), interp)
 out.close(48)
 
+# Snap (0.667 s, once; the strike at 0.3 s, CreatureArt.HotboxSnapStrike): drawn back, the head up under the lifted
+# shield and the mandibles spread; held there dead still two frames; the lunge (2 frames) along the line it was aimed,
+# snapped shut; held out; back.
 snap = Clip("snap", loop=False)
 base = {**legs_pose(splay=0.8), **belly(0.8)}
+DRAWN = rolled({**base, "head": (-12, 0, 0), "mandible_r": (0, 0, 42), "mandible_l": (0, 0, -42), "shield": (10, 0, 0)}, roll=4, pitch=-14,
+               x=0.14, y=-0.07, z=-0.6)
 snap.key(0, rolled({**base, "head": (14, 0, 0)}, roll=4, pitch=-20, **OUT), "BEZIER")
-snap.key(6, rolled({**base, "head": (-10, 0, 0), "mandible_r": (0, 0, 40), "mandible_l": (0, 0, -40), "shield": (8, 0, 0)}, roll=4, pitch=-14,
-                   x=0.14, y=-0.05, z=-0.6), "LINEAR")
+snap.key(5, DRAWN, "LINEAR")
+snap.key(7, DRAWN, "LINEAR")
 snap.key(9, rolled({**base, "head": (24, 0, 0), "mandible_r": (0, 0, -16), "mandible_l": (0, 0, 16), "shield": (-6, 0, 0)}, roll=4, pitch=-26,
                    x=0.14, y=0.25, z=-0.64), "CONSTANT")
 snap.key(14, rolled({**base, "head": (20, 0, 0), "mandible_r": (0, 0, -16), "mandible_l": (0, 0, 16)}, roll=4, pitch=-24, x=0.14, y=0.22, z=-0.63),

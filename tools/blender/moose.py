@@ -908,49 +908,110 @@ STAND = {"root@loc": (0, 0, 0)}
 GRAZE = over(STAND, root__loc=(0, 0, -0.04), spine_01=(-1, 0, 0), spine_02=(-3, 0, 0), chest=(-5, 0, 0), neck_01=(-30, 0, 0),
              neck_02=(-25, 0, 0), head=(26, 0, 0), tail_01=(4, 0, 0))
 GRAZE.update(mirror({"upperarm_r": (10, -5, 0), "lowerarm_r": (-6, 0, 0), "hand_r": (-4, 0, 0), "thigh_r": (-4, 0, 0)}))
+def beats(clip, base, seq, swing=None):
+    """Keys `clip` from a list of beats (frame, {joint: value} changed at it, interp): each beat keeps what the ones before
+    it set, so a joint moves only where a beat names it, and the head, the neck and the shoulders can each be given their
+    own frames (the head leads; the rest follows a few frames late). `swing(frame) -> degrees` swings the bell."""
+    state = {}
+    for f, changes, interp_ in seq:
+        state.update(changes)
+        p = dict(base)
+        p.update(state)
+        clip.key(f, bell_hangs(p, swing(f) if swing else 0.0), interp_)
+    return clip
+
+
+def ridge_swell(k):
+    """The sac ridge swollen by k (1: at rest)."""
+    return {"ridge_01@scale": (k, 1, k), "ridge_02@scale": (k, 1, k), "ridge_03@scale": (k, 1, k)}
+
+
 graze = Clip("graze")
-# 4 s: chewing, the ears never still, the sacs slowly pulsing, the weight shifting from foot to foot.
-for f in range(0, 120, 6):
-    k = f / 120
-    chew = 1 if (f // 6) % 2 else 0
-    er = 20 * math.sin(2 * math.pi * k * 3) if (f // 24) % 2 == 0 else -12
-    el = -16 * math.sin(2 * math.pi * k * 2 + 1) if (f // 30) % 2 == 1 else 10
-    pulse = 1.0 + 0.06 * math.sin(2 * math.pi * k * 2)
-    sway = math.sin(2 * math.pi * k)
-    p = over(GRAZE, jaw=(-4 * chew, 0, 2 * chew), head=(26 + 2 * sway, 0, 4 * sway),
-             neck_01=(-30, 0, 2 * sway), neck_02=(-25, 0, 3 * sway), spine_02=(-3, 0, -1.5 * sway), spine_01=(-1, 0, 1.0 * sway),
-             ear_r=(0, 0, er), ear_l=(0, 0, -el),
-             ridge_01__scale=(pulse, 1, pulse), ridge_02__scale=(2 - pulse, 1, 2 - pulse), ridge_03__scale=(pulse, 1, pulse),
-             tail_01=(4 + (12 if f in (48, 54) else 0), 0, 0))
-    graze.key(f, bell_hangs(p, 2 * sway), "CONSTANT" if f % 24 == 0 else "BEZIER")
+# 4 s: the uneasy browse (§29, "unnerving in stillness"). It chews in no rhythm, the ears flicking out of time; then the
+# chewing stops dead, one ear snaps forward and the other after it, and the head jerks up off the shrubs and round (as if
+# at a voice: the head first, the neck after it, the shoulders last), the head cocked over too far; it holds there, dead
+# still but for an ear, a long beat; then lets the head down again, slowly, the neck after it, and chews. Beats of unequal
+# length, so the loop never reads as one.
+UP_LOOK = {"head": (2, 9, -22)}
+NECK_UP = {"neck_01": (-16, 0, -6), "neck_02": (-12, 0, -9)}
+beats(graze, GRAZE, [
+    (0, {"jaw": (-4, 0, 2), "ear_r": (0, 0, 10), "ear_l": (0, 0, -4), "head": (26, 0, 0), **ridge_swell(1.0)}, "BEZIER"),
+    (4, {"jaw": (0, 0, 0)}, "BEZIER"),
+    (8, {"jaw": (-5, 0, 2), "head": (27, 0, 1)}, "BEZIER"),
+    (11, {"jaw": (0, 0, 0), "ear_l": (0, 0, -4)}, "CONSTANT"),
+    (12, {"ear_l": (0, -8, -34)}, "BEZIER"),                       # a flick back, out of time
+    (17, {"jaw": (-4, 0, -1)}, "BEZIER"),
+    (20, {"jaw": (0, 0, 0), "ear_l": (0, 0, -4)}, "BEZIER"),
+    (26, {"jaw": (-5, 0, 2), "head": (26, 0, -1)}, "BEZIER"),
+    (29, {"jaw": (-1, 0, 0)}, "CONSTANT"),                         # the chewing stops dead
+    (36, {"ear_r": (8, -10, 48)}, "CONSTANT"),                     # one ear snaps forward...
+    (40, {"ear_l": (8, 10, -44)}, "LINEAR"),                       # ...the other after it
+    (44, {}, "LINEAR"),
+    (47, UP_LOOK, "BEZIER"),                                        # the head jerks up and round (3 frames)
+    (50, {"neck_01": (-24, 0, -3), "neck_02": (-18, 0, -5)}, "BEZIER"),
+    (55, {**NECK_UP, "head": (4, 11, -20), "spine_02": (-2, 0, -2), "chest": (-4, 0, -3), "tail_01": (-6, 0, 0)}, "BEZIER"),
+    (60, {"head": (3, 10, -21), **ridge_swell(1.12)}, "BEZIER"),                        # settled; dead still from here
+    (70, {"ear_r": (8, -10, 48)}, "CONSTANT"),
+    (71, {"ear_r": (4, -10, 22)}, "CONSTANT"),                      # an ear twitch, one frame
+    (74, {"ear_r": (8, -10, 48)}, "BEZIER"),
+    (84, {}, "BEZIER"),
+    (94, {"head": (22, 2, -6), "ear_r": (0, 0, 14), "ear_l": (0, 0, -8)}, "BEZIER"),   # down again, the head first
+    (104, {"neck_01": (-30, 0, 0), "neck_02": (-25, 0, 0), "head": (26, 0, 0), "spine_02": (-3, 0, 0), "chest": (-5, 0, 0),
+           "tail_01": (4, 0, 0), "jaw": (-4, 0, 1), **ridge_swell(1.0)}, "BEZIER"),
+    (108, {"jaw": (0, 0, 0)}, "BEZIER"),
+    (113, {"jaw": (-5, 0, -2), "ear_r": (0, 0, 10)}, "BEZIER"),
+    (116, {"jaw": (0, 0, 0)}, "BEZIER"),
+], swing=lambda f: 3 if 47 <= f <= 55 else -2 if 56 <= f <= 64 else 0)
 graze.close(120)
 
-# Listening (aggro 20+): head up, the chewing stopped, the ears forward and turning; dead still otherwise.
+# Listening (aggro 20+): head up, the chewing stopped, the ears forward; dead still, and then the head snaps round and
+# cocks over (the neck catching up after it), holds on whoever's loudest, and creeps back. An ear flicks out of time.
 LISTEN = over(STAND, spine_02=(1, 0, 0), chest=(2, 0, 0), neck_01=(6, 0, 0), neck_02=(4, 0, 0), head=(4, 0, 0))
 LISTEN.update(EARS_FORWARD)
 listen = Clip("listen")
-for f, (er, el, hz) in zip((0, 14, 30, 44, 60), ((48, 48, 0), (30, 62, 4), (62, 36, -3), (44, 52, 2), (48, 48, 0))):
-    p = over(LISTEN, ear_r=(8, -10, er), ear_l=(8, 10, -el), head=(4, 0, hz), neck_02=(4, 0, hz * 0.5))
-    listen.key(f, bell_hangs(p), "CONSTANT" if f in (14, 44) else "BEZIER")
+beats(listen, LISTEN, [
+    (0, {}, "BEZIER"),
+    (9, {"ear_l": (8, 10, -48)}, "CONSTANT"),
+    (10, {"ear_l": (4, 14, -20)}, "CONSTANT"),                      # a flick, one frame
+    (12, {"ear_l": (8, 10, -48)}, "LINEAR"),
+    (17, {}, "LINEAR"),
+    (19, {"head": (6, -12, 16), "ear_r": (8, -10, 62)}, "BEZIER"),  # the head snaps round and cocks (2 frames)
+    (25, {"neck_02": (5, 0, 7), "neck_01": (6, 0, 3)}, "BEZIER"),
+    (29, {"chest": (2, 0, 3), "head": (6, -13, 15)}, "BEZIER"),
+    (31, {"ear_l": (8, 10, -30)}, "CONSTANT"),
+    (40, {"ear_l": (8, 10, -48), **ridge_swell(1.08)}, "BEZIER"),
+    (49, {"head": (4, -2, 2), "ear_r": (8, -10, 48)}, "BEZIER"),    # creeping back, the head first
+    (55, {"neck_02": (4, 0, 0), "neck_01": (6, 0, 0), "chest": (2, 0, 0), **ridge_swell(1.0)}, "BEZIER"),
+])
 listen.close(60)
 
-# Warning (aggro 50+): the head comes down and the rack swings toward you, the ears pinned flat, the ridge of sacs stood
-# up; a cough-grunt (the jaw), a hoof dragged back through the ground.
+# Warning (aggro 50+): the head comes down and the rack swings toward you, cocked, the ears pinned flat, the ridge of sacs
+# stood up; a cough-grunt that jolts the whole forehand; a forehoof lifted slowly, as if feeling the ground, and raked
+# back hard through it; a held glare; another grunt, the head jerked.
 WARN = over(STAND, root__loc=(0, 0, -0.03), spine_01=(-1, 0, 0), spine_02=(-2, 0, 0), chest=(-4, 0, 0), neck_01=(-6, 0, 0),
             neck_02=(-10, 0, 0), head=(-12, 0, 0), tail_01=(-14, 0, 0))
 WARN.update(EARS_FLAT)
 WARN.update(RIDGE_UP)
 warn = Clip("warn")
-warn.key(0, bell_hangs(WARN))
-warn.key(10, bell_hangs(over(WARN, jaw=(-9, 0, 0), head=(-8, 0, 0), chest=(-2, 0, 0))), "CONSTANT")
-warn.key(14, bell_hangs(WARN), "CONSTANT")
-# The drag: the right forehoof lifted forward and raked back, the shoulder working over it.
-warn.key(24, bell_hangs(over(WARN, upperarm_r=(24, 0, 0), lowerarm_r=(30, 0, 0), hand_r=(-30, 0, 0), scapula_r=(4, 0, 0), spine_02=(-2, 0, 3))))
-warn.key(32, bell_hangs(over(WARN, upperarm_r=(-14, 0, 0), lowerarm_r=(4, 0, 0), hand_r=(-6, 0, 0), head=(-16, 0, 6), scapula_r=(-3, 0, 0),
-                             spine_02=(-2, 0, -2))), "LINEAR")
-warn.key(40, bell_hangs(WARN))
-warn.key(52, bell_hangs(over(WARN, jaw=(-9, 0, 0), head=(-8, 0, -4))), "CONSTANT")
-warn.key(56, bell_hangs(WARN), "CONSTANT")
+beats(warn, WARN, [
+    (0, {}, "BEZIER"),
+    (6, {"head": (-18, -7, 8)}, "BEZIER"),                           # the rack swung toward them, cocked (the head first)
+    (10, {"neck_02": (-12, 0, 4), "neck_01": (-7, 0, 2)}, "LINEAR"),
+    (12, {"jaw": (-10, 0, 0), "head": (-14, -7, 8), "chest": (-2, 0, 1), "ridge_02@scale": (1.5, 1.0, 1.75)}, "CONSTANT"),   # the grunt
+    (15, {"jaw": (-2, 0, 0), "head": (-18, -7, 8), "chest": (-4, 0, 1), "ridge_02@scale": (1.35, 1.0, 1.6)}, "BEZIER"),
+    # The forehoof: lifted slowly, testing, and raked back through the ground in three frames.
+    (18, {}, "BEZIER"),
+    (27, {"upperarm_r": (22, 0, 0), "lowerarm_r": (34, 0, 0), "hand_r": (-34, 0, 0), "scapula_r": (4, 0, 0), "spine_02": (-2, 0, 2)}, "BEZIER"),
+    (30, {}, "LINEAR"),
+    (33, {"upperarm_r": (-14, 0, 0), "lowerarm_r": (4, 0, 0), "hand_r": (-6, 0, 0), "scapula_r": (-3, 0, 0), "head": (-20, -8, 10),
+          "spine_02": (-2, 0, -2)}, "BEZIER"),
+    (40, {"upperarm_r": (-6, 0, 0), "lowerarm_r": (6, 0, 0), "hand_r": (-2, 0, 0), "scapula_r": (0, 0, 0), "spine_02": (-2, 0, 0)}, "BEZIER"),
+    (51, {}, "LINEAR"),                                              # the glare
+    (53, {"jaw": (-11, 0, 0), "head": (-11, -3, 1), "chest": (-2, 0, -1)}, "CONSTANT"),   # the second grunt, the head jerked
+    (56, {"jaw": (-1, 0, 0), "head": (-14, -2, 2), "chest": (-4, 0, 0)}, "BEZIER"),
+    (62, {"neck_02": (-10, 0, 0), "neck_01": (-6, 0, 0), "head": (-12, 0, 0), "upperarm_r": (0, 0, 0), "lowerarm_r": (0, 0, 0),
+          "hand_r": (0, 0, 0), "jaw": (0, 0, 0)}, "BEZIER"),
+])
 warn.close(66)
 
 # Walk (2.5 m/s, a stride every second): a four-beat walk, the long legs swinging slow, the shoulders rolling over them,
@@ -1002,13 +1063,16 @@ walk = gait("walk", 30, WALK_BODY, walk_legs, ears=lambda t: mirror({"ear_r": (0
 STRUT_BODY = over(STAND, neck_01=(4, 0, 0), neck_02=(2, 0, 0), head=(4, 0, 0))
 strut = gait("strut", 36, STRUT_BODY, walk_legs, stride=0.85, nod=1.5, sway=5,
              extra=lambda t, p: {"neck_02": (2, 0, 9 * math.sin(2 * math.pi * t)), "head": (4, 0, 6 * math.sin(2 * math.pi * t - 0.5))})
-# Search (2.4 s, slow): walking where it lost them, the head sweeping low side to side, the ears swivelling, snorting.
+# Search (2.4 s, slow): walking where it lost them, the head low, stopping dead on one side, snapping across to the other
+# (the head first, the neck a beat behind), holding, snapping back; the ears swivelling out of time with it; a snort.
 SEARCH_BODY = over(STAND, neck_01=(-12, 0, 0), neck_02=(-10, 0, 0), head=(-6, 0, 0), tail_01=(-8, 0, 0))
+SWEEP = [(0, 0), (0.1, 0), (0.15, 22), (0.42, 20), (0.47, -18), (0.6, -17), (0.64, -4), (0.84, -6), (0.9, 0), (1, 0)]
 search = gait("search", 72, SEARCH_BODY, walk_legs, stride=0.7, nod=2, sway=2,
-              ears=lambda t: {"ear_r": (6, -6, 50 * math.sin(2 * math.pi * t * 2)), "ear_l": (6, 6, -50 * math.sin(2 * math.pi * t * 2 + 1.4))},
-              extra=lambda t, p: {"neck_01": (-12, 0, 16 * math.sin(2 * math.pi * t)), "neck_02": (-10, 0, 14 * math.sin(2 * math.pi * t)),
-                                  "head": (-6 + 3 * math.sin(4 * math.pi * t), 0, 10 * math.sin(2 * math.pi * t)),
-                                  "jaw": (-5 if math.sin(6 * math.pi * t) > 0.7 else 0, 0, 0)})
+              ears=lambda t: {"ear_r": (6, -6, curve([(0, 40), (0.3, 40), (0.34, -10), (0.7, -10), (0.74, 40), (1, 40)], t)),
+                              "ear_l": (6, 6, -curve([(0, -10), (0.2, -10), (0.25, 44), (0.55, 44), (0.6, -10), (1, -10)], t))},
+              extra=lambda t, p: {"neck_01": (-12, 0, 0.5 * curve(SWEEP, t - 0.05)), "neck_02": (-10, 0, 0.6 * curve(SWEEP, t - 0.03)),
+                                  "head": (-6 + 3 * math.sin(4 * math.pi * t), -0.3 * curve(SWEEP, t), 0.5 * curve(SWEEP, t)),
+                                  "jaw": (-6 if 0.7 < t < 0.76 else 0, 0, 0)})
 
 # Trot (4.5 m/s, a stride every two thirds of a second): diagonal pairs, the head out level, the ears back.
 TROT_FRONT = {"scapula": [(0, 8), (0.45, -8), (0.6, -4), (0.8, 6), (1, 8)],
@@ -1035,15 +1099,40 @@ LEVEL.update(mirror({"upperarm_r": (-6, 0, 0), "lowerarm_r": (6, 0, 0), "hand_r"
 STAMP_R = over(LEVEL, upperarm_r=(26, 0, 0), lowerarm_r=(40, 0, 0), hand_r=(-44, 0, 0), head=(-30, 0, 0), scapula_r=(5, 0, 0), chest=(-7, 0, 2))
 STAMP_L = over(LEVEL, upperarm_l=(26, 0, 0), lowerarm_l=(40, 0, 0), hand_l=(-44, 0, 0), head=(-30, 0, 0), scapula_l=(5, 0, 0), chest=(-7, 0, -2))
 square = Clip("squareUp", loop=False)
-square.key(0, bell_hangs(WARN))
-square.key(12, bell_hangs(LEVEL))
-square.key(22, bell_hangs(STAMP_R), "BEZIER")
-square.key(26, bell_hangs(LEVEL), "LINEAR")
-square.key(44, bell_hangs(STAMP_L), "BEZIER")
-square.key(48, bell_hangs(LEVEL), "LINEAR")
-square.key(56, bell_hangs(over(LEVEL, jaw=(-10, 0, 0))), "CONSTANT")
-square.key(60, bell_hangs(LEVEL), "CONSTANT")
-square.key(75, bell_hangs(over(LEVEL, root__loc=(0, -0.04, -0.1))))
+# The head leads: it drops and squares to them first, the rack swung level; the neck comes down after it, then the
+# shoulders and the hips settle, the hind legs set back. A forehoof is lifted slowly, testing, and slammed down; then the
+# other. A grunt. Then the weight rocks back onto the haunches (the hump up, the rack lower still, everything aimed down
+# the line it will run) and it freezes there, dead still, to the end: the heading the sim locks. The charge comes out of
+# that crouch the way it points.
+GATHER = over(LEVEL, root__loc=(0, -0.14, -0.12), pelvis=(-7, 0, 0), spine_01=(-3, 0, 0), chest=(-9, 0, 0), neck_01=(-19, 0, 0),
+              head=(-31, 0, 0), jaw=(-5, 0, 0), tail_01=(-28, 0, 0))
+GATHER.update(mirror({"upperarm_r": (-16, 0, 0), "lowerarm_r": (10, 0, 0), "hand_r": (-2, 0, 0), "thigh_r": (24, 0, 0), "calf_r": (-36, 0, 0),
+                      "foot_r": (20, 0, 0)}))
+GATHER.update({k: (v[0] * 1.08, v[1], v[2] * 1.08) for k, v in RIDGE_UP.items() if k.endswith("@scale")})
+LIFT_R = {"upperarm_r": (20, 0, 0), "lowerarm_r": (34, 0, 0), "hand_r": (-38, 0, 0), "scapula_r": (4, 0, 0), "chest": (-6, 0, 2)}
+DOWN_R = {"upperarm_r": (-6, 0, 0), "lowerarm_r": (6, 0, 0), "hand_r": (-2, 0, 0), "scapula_r": (0, 0, 0), "chest": (-6, 0, 0)}
+LIFT_L = {"upperarm_l": (22, 0, 0), "lowerarm_l": (36, 0, 0), "hand_l": (-40, 0, 0), "scapula_l": (4, 0, 0), "chest": (-6, 0, -2)}
+DOWN_L = {"upperarm_l": (-6, 0, 0), "lowerarm_l": (6, 0, 0), "hand_l": (-2, 0, 0), "scapula_l": (0, 0, 0), "chest": (-6, 0, 0)}
+LEVEL_CHAIN = {k: LEVEL.get(k, (0, 0, 0)) for k in ("neck_01", "neck_02")}
+LEVEL_BODY = {k: LEVEL[k] for k in LEVEL if k not in ("head", "neck_01", "neck_02")}
+beats(square, WARN, [
+    (0, {}, "BEZIER"),
+    (5, {"head": (-28, 0, 0), "jaw": (-3, 0, 0)}, "BEZIER"),                 # the head squares to them first
+    (10, LEVEL_CHAIN, "BEZIER"),                                              # the neck after it
+    (16, LEVEL_BODY, "BEZIER"),                                               # then the shoulders and the hips
+    (19, {"head": (-26, 0, 0)}, "BEZIER"),
+    (27, LIFT_R, "LINEAR"),                                                   # a forehoof lifted slowly, testing
+    (29, {**DOWN_R, "head": (-29, 0, 0), "ridge_02@scale": (1.5, 1.0, 1.8)}, "CONSTANT"),   # slammed down (2 frames)
+    (31, {"head": (-26, 0, 0), "ridge_02@scale": (1.35, 1.0, 1.6)}, "BEZIER"),
+    (36, {}, "BEZIER"),
+    (42, LIFT_L, "LINEAR"),
+    (44, {**DOWN_L, "head": (-29, 0, 0), "ridge_02@scale": (1.5, 1.0, 1.8)}, "CONSTANT"),
+    (46, {"head": (-26, 0, 0), "ridge_02@scale": (1.35, 1.0, 1.6)}, "BEZIER"),
+    (49, {"jaw": (-12, 0, 0), "chest": (-4, 0, 0)}, "CONSTANT"),              # the grunt
+    (52, {"jaw": (-3, 0, 0), "chest": (-6, 0, 0)}, "BEZIER"),
+    (60, GATHER, "CONSTANT"),                                                 # rocked back onto the haunches: frozen
+    (75, GATHER, "CONSTANT"),
+])
 
 # Charge (11 m/s): a flat-out rotary gallop, 16 frames a stride. The hind pair lands (left, right), drives, and the body
 # extends over the fore pair (right, left) reaching out ahead; then the gathered flight, every leg folded under it, the back
@@ -1117,17 +1206,33 @@ for f, (w, back, interp_) in enumerate(((0, 0.0, "CONSTANT"), (14, 0.04, "CONSTA
                                     jaw=(-11 - abs(w) * 0.6, 0, 0)), w), interp_)
 snag.close(36)
 
-# Ram (3 s, loop: one ram every 3 s, enemies.json moose ramEvery): backs a step, drops the rack, drives it into the car's
-# side (the boom), shoves, grinds it along the plates, draws back.
+# Ram (3 s, loop: one ram every 3 s, enemies.json moose ramEvery). Backs a step, the head dropping first; drops the rack level at the plates and holds there, dead still, a beat (the
+# tell); drives it in (3 frames: the boom), recoils off the plates a hand's width, leans in again and grinds the rack
+# along them, left, right, left, in jerks; then draws off, slowly, the head the last thing to come up.
 ram = Clip("ram")
-ram.key(0, bell_hangs(LEVEL))
-ram.key(18, bell_hangs(over(LEVEL, root__loc=(0, -0.3, -0.06), head=(-28, 0, 0), neck_01=(-10, 0, 0), spine_01=(3, 0, 0), pelvis=(-4, 0, 0))))
-ram.key(26, bell_hangs(over(LEVEL, root__loc=(0, 0.35, -0.12), head=(-32, 0, 0), neck_01=(-20, 0, 0), chest=(-10, 0, 0), spine_02=(-5, 0, 0),
-                            thigh_r=(-20, 0, 0), thigh_l=(-24, 0, 0), calf_r=(10, 0, 0), calf_l=(14, 0, 0)), -20), "LINEAR")
-ram.key(28, bell_hangs(over(LEVEL, root__loc=(0, 0.28, -0.12), head=(-30, 0, 0), neck_01=(-18, 0, 0), chest=(-8, 0, 0)), 6), "CONSTANT")
-ram.key(40, bell_hangs(over(LEVEL, root__loc=(0, 0.3, -0.12), head=(-30, 3, 3), neck_01=(-18, 0, 8), jaw=(-9, 0, 0), spine_02=(-3, 0, -3)), 10))
-ram.key(52, bell_hangs(over(LEVEL, root__loc=(0, 0.3, -0.12), head=(-30, -3, -3), neck_01=(-18, 0, -8), spine_02=(-3, 0, 3)), -10))
-ram.key(66, bell_hangs(over(LEVEL, root__loc=(0, 0.0, -0.08))))
+RAM_BACK = {"root@loc": (0, -0.3, -0.06), "pelvis": (-4, 0, 0), "spine_01": (3, 0, 0), "thigh_r": (14, 0, 0), "thigh_l": (12, 0, 0),
+            "calf_r": (-22, 0, 0), "calf_l": (-20, 0, 0)}
+RAM_IN = {"root@loc": (0, 0.35, -0.12), "head": (-32, 0, 0), "neck_01": (-20, 0, 0), "chest": (-10, 0, 0), "spine_02": (-5, 0, 0),
+          "pelvis": (-6, 0, 0), "spine_01": (0, 0, 0), "thigh_r": (-20, 0, 0), "thigh_l": (-24, 0, 0), "calf_r": (10, 0, 0), "calf_l": (14, 0, 0)}
+beats(ram, LEVEL, [
+    (0, {}, "BEZIER"),
+    (6, {"head": (-30, 0, 0)}, "BEZIER"),
+    (14, RAM_BACK, "BEZIER"),
+    (20, {"head": (-34, 0, 0), "neck_01": (-20, 0, 0), "jaw": (-5, 0, 0)}, "BEZIER"),
+    (27, {}, "LINEAR"),                                              # held: the tell
+    (30, RAM_IN, "CONSTANT"),                                        # the boom
+    (32, {"root@loc": (0, 0.27, -0.11), "head": (-26, 0, 0), "neck_01": (-16, 0, 0), "chest": (-8, 0, 0)}, "BEZIER"),
+    (38, {"root@loc": (0, 0.3, -0.12), "head": (-30, 0, 0), "neck_01": (-18, 0, 0)}, "BEZIER"),
+    (44, {"head": (-30, 4, 4), "neck_01": (-18, 0, 9), "jaw": (-10, 0, 0), "spine_02": (-3, 0, -3)}, "CONSTANT"),
+    (47, {"head": (-30, -4, -5), "neck_01": (-18, 0, -8), "spine_02": (-3, 0, 3)}, "BEZIER"),
+    (53, {}, "CONSTANT"),
+    (56, {"head": (-31, 3, 5), "neck_01": (-18, 0, 7), "jaw": (-6, 0, 0), "spine_02": (-3, 0, -2)}, "BEZIER"),
+    (64, {}, "BEZIER"),
+    (72, {"root@loc": (0, 0.12, -0.1), "chest": (-7, 0, 0), "spine_02": (-3, 0, 0), "pelvis": (-2, 0, 0), "thigh_r": (0, 0, 0),
+          "thigh_l": (0, 0, 0), "calf_r": (0, 0, 0), "calf_l": (0, 0, 0), "neck_01": (-18, 0, 2)}, "BEZIER"),
+    (82, {"root@loc": (0, 0.0, -0.08), "neck_01": (-16, 0, 0), "jaw": (-3, 0, 0)}, "BEZIER"),
+    (86, {"head": (-26, 0, 0)}, "BEZIER"),
+], swing=lambda f: -20 if f == 30 else 8 if f in (32, 44) else -8 if f == 47 else 0)
 ram.close(90)
 
 # Pin (1.2 s, loop; GRAB): someone under the rack, ground into the peat: the head right down, the palms either side of
@@ -1146,9 +1251,23 @@ for sx, s in ((1, "r"), (-1, "l")):
     PIN = rig.reach(sk, PIN, f"thigh_{s}", f"calf_{s}", (sx * 0.28, -1.2, 0.72), elbow_axis=0, bend=-1)
     PIN[f"foot_{s}"] = rig.hang(sk, PIN, f"foot_{s}", -14)
 pin = Clip("pin")
-for f, (w, push) in enumerate(((0, 0.0), (10, 0.04), (0, 0.06), (-10, 0.03))):
-    pin.key(f * 9, bell_hangs(over(PIN, root__loc=(0, -0.55 + push, -0.45 - push * 0.5), head=(45, w * 0.6, w * 0.6), neck_02=(-8, 0, w * 0.4),
-                                   spine_02=(-2, 0, -w * 0.2), jaw=(-6 - 6 * (f % 2), 0, 0))))
+
+
+def pin_at(w, push, jaw):
+    return {"root@loc": (0, -0.55 + push, -0.45 - push * 0.5), "head": (45, w * 0.6, w * 0.6), "neck_02": (-8, 0, w * 0.4),
+            "spine_02": (-2, 0, -w * 0.2), "jaw": (-6 - jaw, 0, 0)}
+
+
+# Grinding in no rhythm: a slow shove, a twist one way in two frames, a hold, the other way, a hard shove, a hold.
+beats(pin, PIN, [
+    (0, pin_at(0, 0.0, 0), "BEZIER"),
+    (7, pin_at(4, 0.05, 4), "LINEAR"),
+    (9, pin_at(12, 0.05, 8), "BEZIER"),
+    (16, pin_at(11, 0.04, 6), "CONSTANT"),
+    (19, pin_at(-10, 0.02, 10), "BEZIER"),
+    (25, pin_at(-8, 0.07, 4), "BEZIER"),
+    (31, pin_at(-2, 0.03, 2), "BEZIER"),
+])
 pin.close(36)
 
 # A train going by (2 s, loop): head up and tossing, bellowing after it, a forehoof thrashing the verge.

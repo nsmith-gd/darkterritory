@@ -357,39 +357,75 @@ def legs(pose, r, l, knee=0.5, foot_r=(0, 0, 0), foot_l=(0, 0, 0)):
     return p
 
 
-# Hidden (3 s, loop): folded into a corner: squatted right down on its heels, the knees up by its ears, its long arms
-# folded over them and the hands hanging, the head down between the knees; breathing, slow and deep, the ribs heaving
-# and the shoulders lifting with it; now and then the head twitching.
-def folded(breath=0.0, twitch=0.0):
+# Hidden (7.6 s, loop): folded into a corner: squatted right down on its heels, the knees up by its ears, its long arms
+# folded over them and the hands hanging, the head down between the knees. Still, but for the breath (GDD §31: still, then
+# too fast): a long slow breath in, held, the right shoulder creeping up; out, with a catch in it; a twitch of the head
+# out of time; the right hand's fingers curling one after another; then the head lifting slowly toward a sound, cocked
+# over too far, the shoulders following late, held, listening, with a tick nearer; and sinking back, the head last. Every
+# beat its own length, so it never reads as a cycle.
+def fingers_r(a=26.0, b=26.0, c=26.0):
+    """The right hand's three fingers each curled its own amount (a ripple: one after another)."""
+    out = {}
+    for f, k in zip(FINGERS, (a, b, c)):
+        out[f"finger_{f}_r_01"] = (-k * 0.9, 0, 0)
+        out[f"finger_{f}_r_02"] = (-k, 0, 0)
+        out[f"finger_{f}_r_03"] = (-k * 0.8, 0, 0)
+    return out
+
+
+FOLDED_ARM = {}
+
+
+def folded(breath=0.0, twitch=0.0, look=0.0, turn=0.0, tilt=0.0, chest=0.0, shrug=0.0, ripple=(0, 0, 0)):
     p = with_(STAND, {"root@loc": (0, -0.12, -0.83), "pelvis": (-26, 0, 0), "spine_01": (-16 - 3 * breath, 0, 0),
-                      "spine_02": (-14 + 4 * breath, 0, 0), "spine_03": (-10 + 3 * breath, 0, 0), "neck": (-26, 0, 0),
-                      "head": (-22, 0, 0), "jaw": (-4 - 3 * breath, 0, 0), "clavicle_r": (0, -4 * breath, 0), **curl(26, 14)})
+                      "spine_02": (-14 + 4 * breath + 3 * chest, 0, 0), "spine_03": (-10 + 3 * breath + 6 * chest, 0, 0),
+                      "neck": (-26, 0, 0), "head": (-22, 0, 0), "jaw": (-4 - 3 * breath - 4 * look, 0, 0),
+                      "clavicle_r": (0, -4 * breath - 7 * shrug, 0), **curl(26, 14)})
     p = plant(p, "r", (0.19, 0.06, 0.09), (0.22, 0.3, 1.3), high=0.56)
-    p = reach_arm(p, "r", (0.21, 0.5, 0.32), (0.55, 0.2, 0.75))
+    # (The arm's reach over the knee solved once, at rest, and kept: solved again for every breath it could flip.)
+    if not FOLDED_ARM:
+        q = reach_arm(p, "r", (0.21, 0.5, 0.32), (0.55, 0.2, 0.75))
+        FOLDED_ARM.update({k: q[k] for k in ("upperarm_r", "lowerarm_r")})
+    p.update(FOLDED_ARM)
     p = mirrored(p)
-    p["neck"] = (-26, 0, twitch * 12)
-    p["head"] = (-22 + twitch * 8, 0, twitch * 18)
+    # (Asymmetric: the left shoulder barely moves with the breath.)
+    p["clavicle_l"] = (0, 1.5 * breath, 0)
+    # The head leads: lifted and turned toward the sound, the neck taking only a share of it.
+    p["neck"] = (-26 + 32 * look, 0, twitch * 12 + 0.35 * turn)
+    p["head"] = (-22 + 36 * look + twitch * 8, tilt, twitch * 18 + 0.65 * turn)
+    p.update(fingers_r(*(26 + r for r in ripple)))
     return p
 
 
 hidden = Clip("hidden")
-for f, br, tw in ((0, 0, 0), (24, 1, 0), (44, 0.2, 0), (46, 0.2, 1), (58, 0.2, 1), (60, 0.0, 0), (72, 0, 0)):
-    hidden.key(f, folded(br, tw), "CONSTANT" if f in (46, 60) else "BEZIER")
-hidden.close(90)
+hidden.key(0, folded(), "BEZIER")
+hidden.key(36, folded(1.0), "BEZIER")                                          # in, slow
+hidden.key(44, folded(1.0, shrug=0.5), "BEZIER")                               # held, the shoulder creeping up
+hidden.key(56, folded(0.5, shrug=0.3), "CONSTANT")                             # out: a catch in it
+hidden.key(59, folded(0.45, shrug=0.3), "BEZIER")
+hidden.key(76, folded(0.0), "LINEAR")
+hidden.key(80, folded(0.0), "LINEAR")
+hidden.key(82, folded(0.0, twitch=1), "CONSTANT")                              # a twitch, out of time
+hidden.key(92, folded(0.0, twitch=0.8), "LINEAR")
+hidden.key(94, folded(0.0), "BEZIER")
+for f, rip in ((100, (-22, 0, 0)), (104, (-22, -20, 0)), (108, (8, -20, -24)), (114, (8, 10, -24)), (120, (0, 10, 6)), (126, (0, 0, 0))):
+    hidden.key(f, folded(0.3 * (f - 94) / 32, ripple=rip), "BEZIER")           # the fingers, one after another
+hidden.key(132, folded(0.35), "BEZIER")
+hidden.key(144, folded(0.4, look=0.6, turn=14, tilt=6), "BEZIER")              # the head lifting toward a sound
+hidden.key(154, folded(0.45, look=1.0, turn=26, tilt=20, chest=0.3), "BEZIER")
+hidden.key(160, folded(0.45, look=1.0, turn=28, tilt=24, chest=0.7), "LINEAR")  # the shoulders after it, late
+hidden.key(168, folded(0.45, look=1.0, turn=28, tilt=24, chest=0.7), "LINEAR")  # listening, dead still
+hidden.key(170, folded(0.45, look=1.05, turn=36, tilt=28, chest=0.7), "LINEAR")  # a tick nearer
+hidden.key(182, folded(0.4, look=1.05, turn=36, tilt=28, chest=0.7), "BEZIER")
+hidden.key(196, folded(0.25, look=0.75, turn=26, tilt=18, chest=0.15), "BEZIER")  # sinking: the shoulders first
+hidden.key(212, folded(0.1, look=0.1, turn=4, tilt=3), "BEZIER")             # the head last
+hidden.close(228)
 
 
-# Shriek (1 s, held: enemies.json lodger shriekSeconds): up out of its crouch all at once, rearing to its full height, the
-# arms flung out wide, its face to you and the jaw dropped right open, unhinged, the whole of it shaking with the scream.
-def reared(shake=0.0, open_=1.0):
-    p = with_(STAND, {
-        "root@loc": (0, -0.06, 0.0), "pelvis": (6, 0, 0), "spine_01": (6, 0, shake * 2), "spine_02": (8, 0, -shake * 2),
-        "spine_03": (-4, 0, shake * 3), "neck": (-6, 0, -shake * 4), "head": (6, 0, shake * 5), "jaw": (-56 * open_ - 3 * shake, 0, 0),
-        "jaw@loc": (0, 0.01 * open_, -0.035 * open_),
-        "clavicle_r": (0, -14, 0), "upperarm_r": (20, -78 - 4 * shake, 0), "lowerarm_r": (30, 0, 0), "hand_r": (10, 0, 0),
-        "thigh_r": (6, 0, 4), "calf_r": (-10, 0, 0), "foot_r": (4, 0, 0), **curl(-24, -10)})
-    return mirrored(p)
-
-
+# Shriek (1.5 s, the sim's telegraph: enemies.json lodger shriekSeconds): its head snaps up onto you first and stares; then
+# it unfolds in jerks, a hold and a lurch, a hold and a lurch, to its full height, the arms flung out wide, the jaw dropping
+# open, unhinged; the whole of it shaking with the scream, the head cocking over too far; and at the end dead still, the
+# head thrust out at you and the body tipped toward you: the way the lunge goes.
 def crouched(arms=24, pelvis=-34, at=-0.05):
     p = with_(STAND, {"root@loc": (0, at, -0.42), "pelvis": (pelvis, 0, 0), "spine_01": (-8, 0, 0), "spine_02": (-6, 0, 0),
                       "neck": (-10, 0, 0), "head": (-14, 0, 0), "upperarm_r": (arms, -10, 0), "lowerarm_r": (20, 0, 0), **curl(30, 16)})
@@ -397,96 +433,200 @@ def crouched(arms=24, pelvis=-34, at=-0.05):
 
 
 CROUCHED = crouched()
+
+
+def coil(lift=0.0):
+    """Crouched low, the head hung; `lift` it up and onto them (the head level with the body still bent)."""
+    return with_(CROUCHED, {"neck": (-30 + 50 * lift, 0, 0), "head": (-28 + 56 * lift, 0, 0), "jaw": (-4 - 12 * lift, 0, 0)})
+
+
+def reared(shake=0.0, open_=1.0, tilt=0.0, lean=0.0, spread=1.0, other=0.0):
+    p = with_(STAND, {
+        "root@loc": (0, -0.06 + 0.06 * lean, -0.02 * lean), "pelvis": (6 - 8 * lean, 0, 0), "spine_01": (6 - 6 * lean, 0, shake * 4),
+        "spine_02": (8 - 8 * lean, 0, -shake * 4), "spine_03": (-4 - 6 * lean, 0, shake * 5), "neck": (-6 + 14 * lean, other * 4, -shake * 7),
+        "head": (6 + 10 * lean, tilt + other * 6, shake * 9), "jaw": (-56 * open_ - 6 * shake, 0, 0), "jaw@loc": (0, 0.01 * open_, -0.035 * open_),
+        "clavicle_r": (0, -14 * spread, 0), "upperarm_r": (20 + 30 * lean, -78 * spread - 8 * shake, 0), "lowerarm_r": (30 + 10 * lean, 0, 0),
+        "hand_r": (10 + 22 * shake, 0, 0), "thigh_r": (6, 0, 4), "calf_r": (-10, 0, 0), "foot_r": (4, 0, 0), **curl(-24, -10)})
+    p = mirrored(p)
+    # (Never the same both sides: the left arm shakes to its own beat.)
+    p["upperarm_l"] = (20 + 30 * lean + 6 * other, 78 * spread + 8 * other, 0)
+    p["hand_l"] = (10 - 22 * other, 0, 0)
+    return p
+
+
+STARE = reared(0, 1.0, tilt=10, lean=0.6, spread=0.8)
 shriek = Clip("shriek", loop=False)
-shriek.key(0, CROUCHED, "LINEAR")
-shriek.key(5, rig.blend(CROUCHED, reared(0, 0.5), 0.6), "LINEAR")
-for f, sh in ((9, 1), (12, -1), (15, 1), (18, -1), (21, 1), (24, -1), (27, 0.5)):
-    shriek.key(f, reared(sh), "LINEAR")
-shriek.key(30, reared(0, 0.9), "BEZIER")
+# From where it hid (there's no crossfade between clips): folded in its corner, it jerks up into the coil in two frames.
+shriek.key(0, folded(), "LINEAR")
+shriek.key(2, coil(0), "LINEAR")
+shriek.key(4, coil(1), "LINEAR")                                               # the head first, snapped onto them
+shriek.key(9, coil(1), "LINEAR")                                               # and stares
+shriek.key(11, rig.blend(coil(1), reared(0, 0.3, spread=0), 0.35), "LINEAR")  # a lurch up
+shriek.key(13, rig.blend(coil(1), reared(0, 0.35, spread=0), 0.38), "LINEAR")  # caught
+shriek.key(15, rig.blend(coil(1), reared(0, 0.65, spread=0.35), 0.72), "LINEAR")
+shriek.key(16, rig.blend(coil(1), reared(0, 0.7, spread=0.4), 0.74), "LINEAR")
+shriek.key(18, reared(0.6, 1.0, spread=1.1), "LINEAR")                        # full height, the arms flung
+for k, f in enumerate(range(20, 38, 2)):
+    sgn = 1 if k % 2 == 0 else -1
+    sh = sgn * (0.55 + 0.45 * h01(5831, k))
+    ot = -sgn * (0.4 + 0.6 * h01(5832, k))
+    shriek.key(f, reared(sh, 1.0 + 0.03 * k / 8, tilt=22 * k / 8, other=ot), "LINEAR")
+shriek.key(38, reared(0.3, 1.03, tilt=24), "LINEAR")
+shriek.key(40, STARE, "LINEAR")                                                # dead still, tipped at them
+shriek.key(45, STARE, "BEZIER")
 
-# Lunge (0.6 s): from the shriek: down and out: it drops and springs, laid out flat in the air, the long arms out in
-# front, the hands open; it lands crouched, low.
+# Lunge (0.6 s: CreatureArt.LodgerLungeSeconds): from the shriek's stare, the head drives on first; it drops, the arms
+# swept back, and springs, laid out flat in the air, the long arms reaching out at where you were, the hands open; it lands
+# crouched and low, the head and the arms settling after it (where it's open to a blow, a beat).
 lunge = Clip("lunge", loop=False)
-lunge.key(0, reared(0, 0.9), "LINEAR")
-lunge.key(3, with_(crouched(-20), {"jaw": (-36, 0, 0)}), "LINEAR")
-lunge.key(7, mirrored(with_(STAND, {"root@loc": (0, 0.06, -0.12), "pelvis": (-80, 0, 0), "spine_01": (-4, 0, 0), "neck": (30, 0, 0),
-                                    "head": (24, 0, 0), "jaw": (-46, 0, 0), "upperarm_r": (165, -18, 0), "lowerarm_r": (6, 0, 0),
-                                    "thigh_r": (8, 0, 0), "calf_r": (-30, 0, 0), **curl(-30, -20)})), "LINEAR")
-lunge.key(12, with_(crouched(70, -50, 0.08), {"neck": (16, 0, 0), "head": (10, 0, 0),
-                                   "jaw": (-30, 0, 0)}), "BEZIER")
-lunge.key(18, with_(crouched(50, -44, 0.08), {"jaw": (-14, 0, 0)}), "BEZIER")
+lunge.key(0, STARE, "LINEAR")
+lunge.key(2, with_(STARE, {"neck": (6, 0, 0), "head": (16, 0, 0), "upperarm_r": (36, -50, 0), "upperarm_l": (36, 50, 0)}), "LINEAR")
+lunge.key(4, with_(crouched(-24), {"neck": (22, 0, 0), "head": (26, 0, 0), "jaw": (-40, 0, 0)}), "LINEAR")
+FLIGHT = mirrored(with_(STAND, {"root@loc": (0, 0.06, -0.12), "pelvis": (-80, 0, 0), "spine_01": (-4, 0, 0), "neck": (30, 0, 0),
+                                "head": (24, 0, 0), "jaw": (-50, 0, 0), "upperarm_r": (165, -18, 0), "lowerarm_r": (6, 0, 0),
+                                "thigh_r": (8, 0, 0), "calf_r": (-30, 0, 0), **curl(-30, -20)}))
+lunge.key(6, with_(rig.blend(crouched(-24), FLIGHT, 0.45), mirrored({"upperarm_r": (84, -16, 0), "lowerarm_r": (14, 0, 0)}),
+                  {"neck": (26, 0, 0), "head": (24, 0, 0), "jaw": (-46, 0, 0)}), "LINEAR")            # (the arms swung on, forward)
+lunge.key(8, FLIGHT, "LINEAR")
+lunge.key(10, with_(FLIGHT, {"upperarm_r": (172, -10, 0), "upperarm_l": (172, 10, 0), "jaw": (-58, 0, 0), "thigh_r": (-4, 0, 0),
+                             "thigh_l": (-4, 0, 0), "calf_r": (-44, 0, 0), "calf_l": (-44, 0, 0), **curl(-34, -24)}), "LINEAR")
+lunge.key(12, with_(crouched(70, -50, 0.08), {"neck": (16, 0, 0), "head": (10, 0, 0), "jaw": (-30, 0, 0)}), "LINEAR")
+lunge.key(14, with_(crouched(78, -56, 0.07), {"neck": (2, 0, 0), "head": (-2, 0, 0), "jaw": (-34, 0, 0), **curl(46, 24)}), "BEZIER")
+lunge.key(18, with_(crouched(50, -44, 0.08), {"neck": (12, 0, 0), "head": (14, 0, 0), "jaw": (-14, 0, 0)}), "BEZIER")
 
 
-# Chase (0.4 s, loop: enemies.json lodger chase, 5 m/s, a metre a stride): a fast loping run, low, pitched forward from
-# the hips, the long arms swinging and reaching, the head out in front, the jaw hanging a little open.
-def lope(k, lift):
+# Chase (0.8 s, loop, two strides: enemies.json lodger chase, 5 m/s, a metre a stride): a fast loping run, low, pitched
+# forward from the hips, the long arms swinging and reaching (the right further, its fingers splayed), the head held out in
+# front and steady on you while everything under it pumps; the jaw working; once in the two strides the head cocks over.
+def lope(k, lift, cock=0.0, jaw=0.0):
     p = with_(STAND, {"root@loc": (0, 0, -0.2 + 0.05 * lift), "pelvis": (-40, 0, -4 * k), "spine_01": (-6, 0, 0),
-                      "spine_02": (-4, 0, 6 * k), "spine_03": (4, 0, 0), "neck": (24, 0, 0), "head": (14, 0, 0), "jaw": (-16, 0, 0),
-                      "upperarm_r": (30 - 55 * k, -6, 0), "upperarm_l": (30 + 55 * k, 6, 0),
-                      "lowerarm_r": (20 + 25 * max(0, k), 0, 0), "lowerarm_l": (20 + 25 * max(0, -k), 0, 0), **curl(20, 10)})
+                      "spine_02": (-4, 0, 6 * k), "spine_03": (4, 0, 0), "neck": (24 - 3 * lift, 0, -1 * k),
+                      "head": (14 - 3 * lift, 14 * cock, -1 * k), "jaw": (-16 - 12 * jaw, 0, 0),
+                      "upperarm_r": (34 - 62 * k, -6, 0), "upperarm_l": (28 + 48 * k, 6, 0),
+                      "lowerarm_r": (20 + 30 * max(0, k), 0, 0), "lowerarm_l": (24 + 22 * max(0, -k), 0, 0), **curl(20, 10)})
+    # (The right hand opens as it reaches, the left stays hooked.)
+    if k < 0:
+        p.update(fingers_r(*([20 + 30 * k] * 3)))
     return p
 
 
 chase = Clip("chase")
-chase.key(0, legs(lope(1, 0), (0.12, 0.5, 0.09), (0.12, -0.5, 0.4), foot_l=(-25, 0, 0)), "LINEAR")
-chase.key(3, legs(lope(0, 1), (0.12, -0.05, 0.09), (0.12, 0.25, 0.45)), "LINEAR")
-chase.key(6, legs(lope(-1, 0), (0.12, -0.5, 0.4), (0.12, 0.5, 0.09), foot_r=(-25, 0, 0)), "LINEAR")
-chase.key(9, legs(lope(0, 1), (0.12, 0.25, 0.45), (0.12, -0.05, 0.09)), "LINEAR")
-chase.close(12)
+for half, (ck, jw) in enumerate(((0.0, (0.0, 1.0)), (1.0, (0.6, 0.2)))):
+    o = 12 * half
+    chase.key(o + 0, legs(lope(1, 0, jaw=jw[0]), (0.12, 0.5, 0.09), (0.12, -0.5, 0.4), foot_l=(-25, 0, 0)), "LINEAR")
+    chase.key(o + 3, legs(lope(0, 1, cock=ck, jaw=jw[1]), (0.12, -0.05, 0.09), (0.12, 0.25, 0.45)), "LINEAR")
+    chase.key(o + 6, legs(lope(-1, 0, cock=ck * 0.8, jaw=jw[0]), (0.12, -0.5, 0.4), (0.12, 0.5, 0.09), foot_r=(-25, 0, 0)), "LINEAR")
+    chase.key(o + 9, legs(lope(0, 1, jaw=jw[1]), (0.12, 0.25, 0.45), (0.12, -0.05, 0.09)), "LINEAR")
+chase.close(24)
 
-# Break (1 s, loop): at a shut door: reared back, both arms up over its head, then flung down and forward against it
-# with all its length, the shoulder after them; again.
+# Break (2 s, loop: enemies.json lodger breakSeconds, a door's worth): at a shut door: reared back, both arms up over its
+# head, held a beat, then flung down and against it with all its length in two frames, the head snapping after; up again,
+# and this time its shoulder, turned and driven in; a stillness, the head cocked, listening at the door; again.
 brk = Clip("break")
 UP = mirrored(legs(with_(STAND, {"root@loc": (0, -0.12, -0.03), "pelvis": (8, 0, 0), "spine_02": (8, 0, 0), "spine_03": (6, 0, 0),
                                  "neck": (6, 0, 0), "jaw": (-24, 0, 0), "upperarm_r": (170, -16, 0), "lowerarm_r": (30, 0, 0),
                                  **curl(40, 20)}), (0.13, 0.15, 0.09), (0.13, 0.15, 0.09)))
+UP2 = mirrored(legs(with_(STAND, {"root@loc": (0, -0.16, -0.05), "pelvis": (12, 0, 0), "spine_02": (12, 0, 0), "spine_03": (10, 0, 0),
+                                  "neck": (2, 0, 0), "head": (-4, 0, 0), "jaw": (-34, 0, 0), "upperarm_r": (176, -10, 0), "lowerarm_r": (40, 0, 0),
+                                  **curl(54, 26)}), (0.13, 0.15, 0.09), (0.13, 0.15, 0.09)))
 SLAM = legs(with_(STAND, {"root@loc": (0, 0.14, -0.14), "pelvis": (-26, 0, 10), "spine_01": (-10, 0, 0), "spine_02": (-8, 0, 6),
                           "neck": (10, 0, 0), "head": (6, 0, 0), "jaw": (-36, 0, 0), "upperarm_r": (90, -8, 0), "upperarm_l": (100, 8, 0),
                           "lowerarm_r": (6, 0, 0), "lowerarm_l": (6, 0, 0), **curl(60, 30)}), (0.13, 0.45, 0.09), (0.13, -0.2, 0.09))
+SLAM_ON = with_(SLAM, {"spine_02": (-12, 0, 8), "neck": (-4, 0, 6), "head": (-10, 0, 10), "jaw": (-44, 0, 0)})
+MID = legs(with_(STAND, {"root@loc": (0, 0.04, -0.08), "pelvis": (-14, 0, 4), "spine_02": (-4, 0, 2), "neck": (4, 0, 0), "head": (4, 0, 0),
+                         "jaw": (-20, 0, 0), "upperarm_r": (30, -8, 0), "upperarm_l": (24, 8, 0), "lowerarm_r": (24, 0, 0),
+                         "lowerarm_l": (30, 0, 0), **curl(40, 20)}), (0.13, 0.3, 0.09), (0.13, -0.1, 0.09))
+TURN = legs(with_(STAND, {"root@loc": (0, -0.06, -0.12), "pelvis": (-10, 0, 26), "spine_01": (-4, 0, 8), "spine_02": (-4, -8, 8),
+                          "neck": (6, 0, -22), "head": (4, 0, -24), "jaw": (-26, 0, 0), "upperarm_r": (10, -20, 0), "upperarm_l": (40, 20, 0),
+                          "lowerarm_r": (50, 0, 0), "lowerarm_l": (40, 0, 0), **curl(50, 24)}), (0.13, 0.2, 0.09), (0.13, -0.15, 0.09), knee=0.7)
+BARGE = legs(with_(STAND, {"root@loc": (0, 0.14, -0.1), "pelvis": (-20, 0, -14), "spine_01": (-6, 0, -6), "spine_02": (-6, -10, -8),
+                           "neck": (10, 0, 14), "head": (6, 0, 12), "jaw": (-38, 0, 0), "upperarm_r": (60, -36, 0), "upperarm_l": (30, 12, 0),
+                           "lowerarm_r": (70, 0, 0), "lowerarm_l": (40, 0, 0), **curl(60, 30)}), (0.13, 0.42, 0.09), (0.13, -0.24, 0.09))
 brk.key(0, UP, "BEZIER")
-brk.key(10, UP, "LINEAR")
-brk.key(14, SLAM, "CONSTANT")
-brk.key(20, with_(SLAM, {"jaw": (-30, 0, 0)}), "BEZIER")
-brk.close(30)
+brk.key(8, UP2, "LINEAR")                                                      # wound up
+brk.key(11, UP2, "LINEAR")                                                     # held
+brk.key(13, SLAM, "LINEAR")                                                    # flung in two frames
+brk.key(15, SLAM_ON, "BEZIER")                                                 # the head after it
+brk.key(21, with_(SLAM, {"jaw": (-30, 0, 0)}), "BEZIER")
+brk.key(28, MID, "BEZIER")
+brk.key(34, TURN, "LINEAR")                                                    # the shoulder turned
+brk.key(37, TURN, "LINEAR")
+brk.key(39, BARGE, "BEZIER")                                                   # driven in
+brk.key(45, with_(BARGE, {"head": (2, 0, 6)}), "BEZIER")
+brk.key(48, with_(MID, {"neck": (6, 12, 6), "head": (6, 22, 10)}), "CONSTANT")  # listening at the door
+brk.key(53, with_(MID, {"neck": (6, 14, 8), "head": (6, 30, 14)}), "BEZIER")
+brk.close(60)
 
 
-# Return (0.93 s, loop: enemies.json lodger walk, 1.6 m/s): a slow walk back to its room, stooped, the arms hanging and
-# swinging long, the head low and turning.
-def stroll(k, rise):
-    return with_(STAND, {"root@loc": (0, 0, -0.07 + 0.05 * rise), "pelvis": (-10, 0, 3 * k), "spine_02": (-6, 0, 4 * k),
-                         "spine_03": (-6, 0, 0), "neck": (-10, 0, 0), "head": (-8, 0, 10 * k),
-                         "upperarm_r": (4 - 14 * k, -4, 0), "upperarm_l": (4 + 14 * k, 4, 0)})
+# Return (1.87 s, loop, two of its strides: enemies.json lodger walk, 1.6 m/s): a slow walk back to its room, wrong-footed:
+# the right leg stepping high, the left dragging its toes and the hip hitching up over it; stooped, the arms hanging long and
+# swinging late (the forearms trail); the head low, turning slowly one way, then snapping round over its shoulder behind
+# it, held, and slowly back.
+def stroll(k, rise, look=0.0, hitch=0.0):
+    return with_(STAND, {"root@loc": (0, 0, -0.07 + 0.05 * rise), "pelvis": (-10, 5 * hitch, 3 * k), "spine_02": (-6, -4 * hitch, 4 * k),
+                         "spine_03": (-6, 0, 0), "neck": (-10, 0, 0.35 * look), "head": (-8, 4 * hitch, 4 * k + 0.65 * look),
+                         "upperarm_r": (4 - 14 * k, -4, 0), "upperarm_l": (4 + 14 * k, 4, 0),
+                         "lowerarm_r": (12 + 10 * k, 0, 0), "lowerarm_l": (12 - 10 * k, 0, 0)})
+
+
+def r_a(look):
+    return legs(stroll(1, 0, look), (0.12, 0.36, 0.09), (0.12, -0.36, 0.11))
+
+
+def r_b(look):
+    return legs(stroll(0, 1, look, hitch=1), (0.12, 0.0, 0.09), (0.12, 0.05, 0.13), foot_l=(-34, 0, 0))
+
+
+def r_c(look):
+    return legs(stroll(-1, 0, look), (0.12, -0.36, 0.11), (0.12, 0.36, 0.09))
+
+
+def r_d(look):
+    return legs(stroll(0, 1.3, look, hitch=-0.4), (0.12, 0.05, 0.26), (0.12, 0.0, 0.09))
 
 
 ret = Clip("return")
-ret.key(0, legs(stroll(1, 0), (0.12, 0.36, 0.09), (0.12, -0.36, 0.11)), "BEZIER")
-ret.key(7, legs(stroll(0, 1), (0.12, 0.0, 0.09), (0.12, 0.05, 0.22)), "BEZIER")
-ret.key(14, legs(stroll(-1, 0), (0.12, -0.36, 0.11), (0.12, 0.36, 0.09)), "BEZIER")
-ret.key(21, legs(stroll(0, 1), (0.12, 0.05, 0.22), (0.12, 0.0, 0.09)), "BEZIER")
-ret.close(28)
+for f, pose in ((0, r_a(-8)), (7, r_b(-14)), (14, r_c(-18)), (21, r_d(-16)), (28, r_a(-12))):
+    ret.key(f, pose, "BEZIER")
+# (The look back over its shoulder: snapped round in two frames, not eased; held; slowly back.)
+ret.key(33, legs(stroll(0.3, 0.7, -12, hitch=0.7), (0.12, 0.1, 0.09), (0.12, -0.07, 0.125)), "LINEAR")
+for f, pose in ((35, r_b(70)), (42, r_c(64)), (49, r_d(10))):
+    ret.key(f, pose, "BEZIER")
+ret.close(56)
 
+# Hit: the head whipped round past where a neck should let it, held two frames; the body back after it, the head last.
 hit = Clip("hit", loop=False)
 hit.key(0, STAND, "CONSTANT")
-hit.key(2, mirrored(with_(STAND, {"pelvis": (8, 0, 10), "spine_02": (10, 0, 14), "neck": (10, 0, 16), "head": (16, 0, 24), "jaw": (-40, 0, 0),
+hit.key(2, mirrored(with_(STAND, {"pelvis": (8, 0, 10), "spine_02": (10, 0, 14), "neck": (10, 0, 22), "head": (16, 8, 40), "jaw": (-40, 0, 0),
                                   "upperarm_r": (40, -30, 0), "root@loc": (0, -0.08, 0.0), **curl(-20, -10)})), "CONSTANT")
-hit.key(8, with_(STAND, {"pelvis": (2, 0, -4), "head": (4, 0, -6)}), "LINEAR")
+hit.key(5, mirrored(with_(STAND, {"pelvis": (4, 0, 2), "spine_02": (4, 0, 4), "neck": (6, 0, 12), "head": (8, 4, 24), "jaw": (-30, 0, 0),
+                                  "upperarm_r": (24, -16, 0), "root@loc": (0, -0.04, 0.0), **curl(10, 4)})), "BEZIER")
+hit.key(10, with_(STAND, {"pelvis": (2, 0, -4), "head": (4, 0, -6)}), "BEZIER")
 hit.key(12, STAND, "CONSTANT")
 
-# Death (1.2 s): its legs go and it folds down where it stood onto its knees, then over onto its side, all its length in
-# a heap, the jaw hanging.
+# Death (1.2 s): struck still a beat, a jerk; its legs go and it folds down where it stood onto its knees, the head lolling
+# after, then over onto its side, all its length in a heap, the jaw hanging; the fingers twitch once, and it's still.
 death = Clip("death", loop=False)
 death.key(0, STAND, "CONSTANT")
-death.key(4, mirrored(with_(STAND, {"pelvis": (10, 0, 6), "spine_02": (10, 0, 8), "head": (24, 0, 14), "jaw": (-40, 0, 0),
-                                    "upperarm_r": (30, -30, 0), "root@loc": (0, -0.05, -0.04)})), "LINEAR")
-death.key(14, mirrored(legs(with_(STAND, {"root@loc": (0, 0.0, -0.58), "pelvis": (-20, 0, 0), "spine_01": (-10, 0, 0), "neck": (-20, 0, 0),
-                                          "head": (-10, 0, 0), "jaw": (-36, 0, 0), "upperarm_r": (20, -10, 0), **curl(40, 20)}),
-                            (0.14, -0.45, 0.12), (0.14, -0.45, 0.12), knee=0.8, foot_r=(0, 0, 180), foot_l=(0, 0, 180))), "LINEAR")
+JERK = mirrored(with_(STAND, {"pelvis": (10, 0, 6), "spine_02": (10, 0, 8), "head": (24, 0, 14), "jaw": (-40, 0, 0),
+                              "upperarm_r": (30, -30, 0), "root@loc": (0, -0.05, -0.04)}))
+death.key(2, JERK, "CONSTANT")
+death.key(6, JERK, "LINEAR")
+KNEES = mirrored(legs(with_(STAND, {"root@loc": (0, 0.0, -0.58), "pelvis": (-20, 0, 0), "spine_01": (-10, 0, 0), "neck": (-20, 0, 0),
+                                    "head": (-10, 0, 0), "jaw": (-36, 0, 0), "upperarm_r": (20, -10, 0), **curl(40, 20)}),
+                      (0.14, -0.45, 0.12), (0.14, -0.45, 0.12), knee=0.8, foot_r=(0, 0, 180), foot_l=(0, 0, 180)))
+death.key(14, KNEES, "LINEAR")
+death.key(17, with_(KNEES, {"neck": (-30, 0, 8), "head": (-24, 0, 14)}), "BEZIER")
 LYING = with_(STAND, {"root@loc": (0, -0.1, -0.98), "pelvis": (-84, 0, 6), "spine_01": (-2, 0, 0), "spine_02": (2, 0, 0),
                       "neck": (10, 0, 30), "head": (10, 0, 40), "jaw": (-38, 0, 0), "thigh_r": (-6, 0, -6), "thigh_l": (-10, 0, 10),
                       "calf_r": (-20, 0, 0), "calf_l": (-60, 0, 0), "upperarm_r": (150, -10, 0), "upperarm_l": (-10, 10, 0),
                       "lowerarm_r": (50, 0, 0), "lowerarm_l": (0, 0, 0), **curl(60, 30)})
-death.key(24, LYING, "BEZIER")
-death.key(36, with_(LYING, {"jaw": (-42, 0, 0), "head": (-8, 0, 24), **curl(70, 30)}), "BEZIER")
+LAID = with_(LYING, {"jaw": (-42, 0, 0), "head": (-8, 0, 24)})
+death.key(25, LYING, "BEZIER")
+death.key(29, with_(LAID, curl(70, 30)), "LINEAR")
+death.key(31, with_(LAID, curl(30, 10)), "CONSTANT")                           # a twitch
+death.key(33, with_(LAID, curl(70, 30)), "BEZIER")
+death.key(36, with_(LAID, {"jaw": (-44, 0, 0), **curl(74, 30)}), "BEZIER")
 
 CLIPS = [hidden, shriek, lunge, chase, brk, ret, hit, death]
 

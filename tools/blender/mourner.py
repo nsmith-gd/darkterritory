@@ -263,46 +263,96 @@ def with_(*poses):
 
 STOOP = with_({"pelvis": (0, 0, 0), "veil": (0, 0, 0)}, curl(22, 14))
 
-# Wait (2 s, loop): hunched, rocking on its heels, the head turning in jerks (held, then snapped round: GDD §31).
-wait = Clip("wait")
-for f, rock, look, tilt in ((0, 0, 0, 0), (10, 1, 0, 0), (14, 1, 28, 6), (24, -1, 28, 6), (28, -1, -22, -4), (40, 1, -22, -4),
-                            (44, 1, 4, 8), (52, -1, 4, 8)):
-    wait.key(f, with_(STOOP, {
-        "pelvis": (2 * rock, 0, 0), "spine_01": (2 * rock, 0, 0), "spine_02": (-1.5 * rock, 0, 0),
-        "head": (-4 + tilt, 0, look), "neck": (0, 0, look * 0.25), "veil": (-3 * rock, 0, -look * 0.15),
-        "upperarm_r": (3 * rock, 0, 0), "upperarm_l": (3 * rock, 0, 0), "root@loc": (0, -0.01 * rock, 0)}),
-        "CONSTANT" if f in (14, 28, 44) else "BEZIER")
-wait.close(60)
 
-# Creep (1.2 s, loop): the slow bent walk in, stooped forward over its knees, the arms hanging low and swinging, the
-# fingers trailing; each step set down carefully. (The sim's creep is 1.4 m/s: a stride of ~0.84 m a second, two steps.)
+def _at(table, f):
+    """A value at frame f from [(frame, value)], eased between keys."""
+    for (f0, v0), (f1, v1) in zip(table, table[1:]):
+        if f0 <= f <= f1:
+            t = (f - f0) / max(1, f1 - f0)
+            return v0 + (v1 - v0) * t * t * (3 - 2 * t)
+    return table[-1][1]
+
+
+# Wait (3.7 s, loop): hunched, grief-heavy, the head hung low; rocking slowly on its heels and swaying side to side, the
+# two never in step (each its own uneven beat; CreatureArt starts each of a group at its own time, so the ring sways out
+# of step); the right hand's long fingers wringing slowly; the head turning in jerks (held, then snapped round: GDD §31).
+W_ROCK = [(0, 0), (22, 1), (30, 0.8), (52, -1), (70, 0.2), (84, 1), (100, -0.6), (110, 0)]
+W_SWAY = [(0, 0), (34, 1), (48, 0.9), (80, -1), (110, 0)]
+W_WRING = [(0, 0), (40, 1), (58, 0.3), (74, 0.9), (110, 0)]
+# (The head: from each frame, (look, tilt), held till the next, then snapped round in two frames.)
+W_LOOK = [(0, 0, 0), (16, 30, 8), (40, -24, -6), (64, 6, 12), (92, 0, 0)]
+
+
+def mourning(f):
+    rock, sway, wring = _at(W_ROCK, f), _at(W_SWAY, f), _at(W_WRING, f)
+    look, tilt = next((lk, tl) for fr, lk, tl in reversed(W_LOOK) if fr <= f)
+    p = with_(STOOP, {
+        "pelvis": (3 * rock, 5 * sway, 0), "spine_01": (3 * rock, 3 * sway, 0), "spine_02": (-2 * rock, -3 * sway, 0),
+        "neck": (-6, -2 * sway, look * 0.25), "head": (-10 + tilt, -4 * sway, look), "veil": (-4 * rock, 0, -look * 0.15),
+        "clavicle_r": (0, 4, 0), "clavicle_l": (0, -4, 0),
+        "upperarm_r": (3 * rock, 0, 2 * sway), "upperarm_l": (3 * rock, 0, 2 * sway),
+        # (The legs stood where they are: the sway is the body over them.)
+        "thigh_r": (-3 * rock, -5 * sway, 0), "thigh_l": (-3 * rock, -5 * sway, 0)})
+    for i, fn in enumerate(FINGERS):
+        k = 22 + 18 * _at(W_WRING, f - 4 * i)
+        p[f"finger_{fn}_r_01"] = (-k * (0.8 + 0.1 * i), 0, 0)
+        p[f"finger_{fn}_r_02"] = (-k * 1.2, 0, 0)
+    return p
+
+
+wait = Clip("wait")
+for f in range(0, 110, 2):
+    wait.key(f, mourning(f), "LINEAR")
+wait.close(110)
+
+# Creep (2.4 s, loop, two strides): the slow bent walk in, stooped forward over its knees, the arms hanging low and
+# swinging, the fingers trailing; each step set down carefully; on the second stride the head jerks aside, held, back.
+# (The sim's creep is 1.4 m/s: a stride of ~0.84 m a second, two steps.)
 creep = Clip("creep")
 BENT = with_(STOOP, {"pelvis": (-16, 0, 0), "spine_01": (-8, 0, 0), "spine_02": (-4, 0, 0), "neck": (10, 0, 0), "head": (12, 0, 0),
                      "upperarm_r": (8, 0, 0), "upperarm_l": (8, 0, 0), "lowerarm_r": (6, 0, 0), "lowerarm_l": (6, 0, 0)})
-for f, k in ((0, 1), (9, 0), (18, -1), (27, 0)):
-    step = {"thigh_r": (24 * k + 6, 0, 0), "thigh_l": (-24 * k + 6, 0, 0),
-            "calf_r": (-30 - 18 * max(0, -k), 0, 0), "calf_l": (-30 - 18 * max(0, k), 0, 0),
-            "foot_r": (6 * k, 0, 0), "foot_l": (-6 * k, 0, 0),
-            "upperarm_r": (8 - 14 * k, 0, 0), "upperarm_l": (8 + 14 * k, 0, 0),
-            "spine_02": (-4, 0, 4 * k), "head": (12, 0, -5 * k),
-            "root@loc": (0, 0, -0.03 - 0.02 * abs(k))}
-    creep.key(f, with_(BENT, step), "BEZIER")
-creep.close(36)
+for o, looks in ((0, (0, 0, 0, 0)), (36, (0, 34, 30, 0))):
+    for f, k, look in zip((0, 9, 18, 27), (1, 0, -1, 0), looks):
+        step = {"thigh_r": (24 * k + 6, 0, 0), "thigh_l": (-24 * k + 6, 0, 0),
+                "calf_r": (-30 - 18 * max(0, -k), 0, 0), "calf_l": (-30 - 18 * max(0, k), 0, 0),
+                "foot_r": (6 * k, 0, 0), "foot_l": (-6 * k, 0, 0),
+                "upperarm_r": (8 - 14 * k, 0, 0), "upperarm_l": (8 + 14 * k, 0, 0),
+                # (The forearms trail the swing.)
+                "lowerarm_r": (6 + 8 * k, 0, 0), "lowerarm_l": (6 - 8 * k, 0, 0),
+                "spine_02": (-4, 0, 4 * k), "head": (12, 0, -5 * k + look), "neck": (10, 0, look * 0.3),
+                "root@loc": (0, 0, -0.03 - 0.02 * abs(k))}
+        creep.key(o + f, with_(BENT, step), "BEZIER")
+    if o:
+        # (The jerk aside: two frames, from the stride's first step.)
+        creep.key(o + 7, with_(BENT, {"thigh_r": (6 + 24 * 0.2, 0, 0), "thigh_l": (6 - 24 * 0.2, 0, 0), "calf_r": (-30, 0, 0),
+                                      "calf_l": (-30 - 18 * 0.2, 0, 0), "foot_r": (1.2, 0, 0), "foot_l": (-1.2, 0, 0),
+                                      "upperarm_r": (8 - 14 * 0.2, 0, 0), "upperarm_l": (8 + 14 * 0.2, 0, 0),
+                                      "lowerarm_r": (7.6, 0, 0), "lowerarm_l": (4.4, 0, 0),
+                                      "spine_02": (-4, 0, 0.8), "head": (12, 0, -1), "neck": (10, 0, 0), "root@loc": (0, 0, -0.034)}), "LINEAR")
+creep.keys.sort(key=lambda k: k[0])
+creep.close(72)
 
-# Startle (0.6 s): a jump straight back, the arms flung up over the head and the veil swung, then crouched further off.
+# Startle (0.6 s: CreatureArt.MournerStartleSeconds; their warning: back off or they scatter): in two frames it flinches
+# up and squares on whoever came too near, the veil lifting, the long fingers splayed, frozen there a beat; then the
+# jump straight back, the arms flung up over the head (the shape you see from the dark), and down crouched further off.
 startle = Clip("startle", loop=False)
 startle.key(0, STOOP, "LINEAR")
-startle.key(3, with_(STOOP, {"root@loc": (0, -0.16, 0.14), "pelvis": (12, 0, 0), "spine_01": (10, 0, 0), "spine_02": (8, 0, 0),
+FLINCH = with_(STOOP, {"root@loc": (0, -0.02, 0.03), "pelvis": (6, 0, 0), "spine_01": (4, 0, 0), "spine_02": (6, 0, 0), "neck": (-4, 0, 0),
+                       "head": (4, 0, 0), "veil": (16, 0, 0), "clavicle_r": (0, -10, 0), "clavicle_l": (0, 10, 0),
+                       "upperarm_r": (30, -10, 0), "upperarm_l": (30, 10, 0), "lowerarm_r": (30, 0, 0), "lowerarm_l": (30, 0, 0),
+                       **curl(-14, -10)})
+startle.key(2, FLINCH, "LINEAR")
+startle.key(5, with_(FLINCH, {"head": (6, 0, 0)}), "LINEAR")
+startle.key(8, with_(STOOP, {"root@loc": (0, -0.18, 0.14), "pelvis": (12, 0, 0), "spine_01": (10, 0, 0), "spine_02": (8, 0, 0),
                              "neck": (-10, 0, 0), "head": (-14, 0, 0), "veil": (24, 0, 0),
                              "clavicle_r": (0, 0, 0), "upperarm_r": (110, -30, 0), "upperarm_l": (110, 30, 0),
                              "lowerarm_r": (40, 0, 0), "lowerarm_l": (40, 0, 0), "thigh_r": (20, 0, 0), "thigh_l": (14, 0, 0),
                              "calf_r": (-10, 0, 0), "calf_l": (-6, 0, 0), **curl(-10, -10)}), "LINEAR")
-startle.key(8, with_(STOOP, {"root@loc": (0, -0.32, -0.04), "pelvis": (-6, 0, 0), "spine_01": (4, 0, 0), "head": (6, 0, 0),
-                             "upperarm_r": (70, -20, 0), "upperarm_l": (70, 20, 0), "lowerarm_r": (50, 0, 0), "lowerarm_l": (50, 0, 0),
-                             "thigh_r": (34, 0, 0), "thigh_l": (30, 0, 0), "calf_r": (-46, 0, 0), "calf_l": (-42, 0, 0),
-                             "foot_r": (14, 0, 0), "foot_l": (12, 0, 0), **curl(30, 20)}), "BEZIER")
+startle.key(12, with_(STOOP, {"root@loc": (0, -0.32, -0.04), "pelvis": (-6, 0, 0), "spine_01": (4, 0, 0), "head": (6, 0, 0),
+                              "upperarm_r": (70, -20, 0), "upperarm_l": (70, 20, 0), "lowerarm_r": (50, 0, 0), "lowerarm_l": (50, 0, 0),
+                              "thigh_r": (34, 0, 0), "thigh_l": (30, 0, 0), "calf_r": (-46, 0, 0), "calf_l": (-42, 0, 0),
+                              "foot_r": (14, 0, 0), "foot_l": (12, 0, 0), **curl(30, 20)}), "BEZIER")
 startle.key(18, with_(STOOP, {"root@loc": (0, -0.34, 0), "upperarm_r": (20, 0, 0), "upperarm_l": (20, 0, 0), **curl(20, 10)}), "BEZIER")
-
 
 # Drag (1.6 s, loop): both hands hooked in the body's clothes at the sim's hold (in front of it, low), leant right back,
 # heels dug in, hauling in tugs: lean, heave back (a lurch), a shuffle back with the feet, lean again.
@@ -369,9 +419,20 @@ death.key(30, with_(STOOP, {"pelvis": (86, 0, 8), "spine_01": (8, 0, 0), "spine_
 
 # One skin from the feet to the brow (rig.fuse, settled on the flesh's field, then QuadriFlow): toward a character's
 # budget, light enough for six in a ring (CreatureArtTests: 3-7k).
+CLIPS = [wait, creep, startle, drag, scatter, hit, death]
+
+if os.environ.get("DT_POSES"):
+    # A quick look at the clips' keys without building the mesh: where the hands and the head are.
+    want = [("hand_r", "tail"), ("hand_l", "tail"), ("head", "tail")]
+    for clip in CLIPS:
+        for frame, pz, _ in clip.keys:
+            P = rig.pose_points(sk, pz, want)
+            print(f"{clip.name:8s} {frame:3d} " + " ".join(f"{n[0][:7]}=({p.x:+.2f},{p.y:+.2f},{p.z:+.2f})" for n, p in zip(want, P)))
+    sys.exit(0)
+
 kit.fuse("body", ["body"], voxel=0.0035, faces=SKIN_FACES, lose=0.03, settle=flesh.settle)
 kit.build()
-rig.bake(sk, [wait, creep, startle, drag, scatter, hit, death])
+rig.bake(sk, CLIPS)
 print("[dt] mourner", {p.name: p.tris() for p in kit.parts}, "bones", len(sk.bones))
 out = rig.args()[0] if rig.args() else "mourner.glb"
 rig.export(out, kit)
