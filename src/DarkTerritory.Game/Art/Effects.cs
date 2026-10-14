@@ -14,7 +14,7 @@ namespace DarkTerritory.Game.Art;
 public sealed partial class Effects(Look look)
 {
     readonly int _smoke = look.Layer("fx_smoke"), _steam = look.Layer("fx_steam"), _spark = look.Layer("fx_spark"), _fog = look.Layer("fx_fog"),
-        _flame = look.Layer("fx_flame"), _flash = look.Layer("fx_flash");
+        _flame = look.Layer("fx_flame"), _flash = look.Layer("fx_flash"), _char = look.Layer("fx_char");
 
     /// <summary>Whether the look has the flipbooks the art pass draws its fire with (the greybox draws boxes without).</summary>
     public bool HasFlames => _flame >= 0 && _smoke >= 0;

@@ -285,3 +285,60 @@ def fx_frost(ctx):
     d = lerp(hexc("#9AA8B4"), hexc("#E6EEF4"), saturate(fronds * 1.2 + rime * 0.2))
     return ctx.out(d, np.zeros_like(a), np.zeros_like(a), alpha=posterise(a, 16), tiling=True, factor=2,
                    procedural="branching fern fronds over sugary rime, wrapped", grain=0.02, chroma_block=1)
+
+
+@texture("fx_char", "fx", tile=None)
+def fx_char(ctx):
+    """What a fire leaves on a car's boards (App. F.1 "burnt cells char the textures"; note 267; note 763, the director,
+    13 Oct: "There's a weird brown circle leftover where fires are"), 4x4 variants that Effects.Char lays along the
+    boards' grain (u). The wood is burnt to alligatored char, its blocks longer along the grain than across and split by
+    black checks. The heart is ragged where it burnt longest and stepped board by board, each board burnt as far as its
+    own grain carried it. Round it the wood is browned and sooted, thinning out into the boards. Alpha is how much of the
+    wood it takes. The colour is soot's, near black, so laid over the boards it only ever darkens them, and the wood's own
+    brown shows through where it's thin."""
+    rng = ctx.rng("char")
+    grid, C = 4, 256
+    xs, ys = noise.grid(C, C)
+    u = xs / C - 0.5
+    v = ys / C - 0.5
+    block_lo, block_hi = hexc("#0A0908"), hexc("#16130F")
+    crack, burnt, soot = hexc("#030303"), hexc("#1C130D"), hexc("#2B1B0E")
+    frames = []
+    for _ in range(grid * grid):
+        # The boards: bands across the grain, each burnt its own way further or shorter.
+        widths = rng.uniform(0.07, 0.14, 24)
+        edges = np.cumsum(widths) - 0.5 - rng.uniform(0, 0.1)
+        board = np.searchsorted(edges, v)
+        reach = rng.uniform(-1, 1, len(edges) + 1).astype(np.float32)[board]
+        # The patch: a ragged oval, its rag running along the grain.
+        rag = noise.fbm(rng, (C, C), 26, octaves=4, stretch=(3.0, 0.45))
+        d = np.sqrt((u / 0.45) ** 2 + (v / 0.40) ** 2)
+        f = 1 - d + 0.12 * rag + 0.08 * reach
+        heart = smoothstep(0.30, 0.40, f)
+        burn = smoothstep(0.12, 0.24, f)
+        halo = smoothstep(-0.04, 0.13, f)
+        # Alligatored: fine blocks (a few centimetres laid on a car's cell) longer along the grain, checked across it and
+        # split along it; at a pace off they're a crackle in the black, not stones.
+        f1, f2, idx = noise.voronoi(rng, (C, C), 1600, aspect=(0.38, 1.0), jitter=0.8)
+        checks = 1 - smoothstep(0.2, 1.3, f2 - f1)
+        lump = noise.cell_values(rng, idx)
+        fine = noise.fbm01(rng, (C, C), 2.5, octaves=2)
+        sooty = noise.fbm01(rng, (C, C), 14, octaves=3, stretch=(2.0, 0.6))
+        a_heart = np.minimum(1.0, 0.9 + 0.05 * lump + 0.1 * checks)
+        a_burn = 0.5 + 0.22 * fine + 0.2 * checks * smoothstep(0.18, 0.3, f)
+        a_halo = (0.08 + 0.3 * sooty) * (0.7 + 0.3 * fine)
+        a = halo * a_halo
+        a = lerp(a, a_burn, burn)
+        a = lerp(a, a_heart, heart)
+        a = a * smoothstep(0.5, 0.43, np.maximum(np.abs(u), np.abs(v)))
+        c = lerp(soot, burnt, burn)
+        c = lerp(c, lerp(block_lo, block_hi, lump * (1 - checks)), heart)
+        c = lerp(c, crack, checks * heart)
+        frames.append((c, a))
+
+    def colour(c, a):
+        return c, posterise(a, 16), np.zeros_like(a)
+    D, A, E = sheet(frames, grid, C, colour)
+    return ctx.out(D, np.zeros_like(A), np.zeros_like(A), alpha=A, tiling=False, factor=2, frames=[grid, grid],
+                   procedural="ragged oval stepped by boards, anisotropic voronoi checks, sooted halo, posterised alpha",
+                   grain=0.02, chroma_block=1)
