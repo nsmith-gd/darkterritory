@@ -54,8 +54,9 @@ def shove_palms(rng, k):
     weight = [0.5, 0.65, 0.8][k]
     thud = hit_of(SOFT[(k + 2) % 5], 0, 0.25)
     oof = breath(rng, rng.uniform(0.2, 0.28), False)
-    return ck.place([(0, palms(rng, k), 0), (0.006, thud, -10 + 4 * weight), (0.03, oof, -11),
-                     (0.13 + 0.03 * k, stumble(rng), -15)])
+    y = ck.place([(0, palms(rng, k), 0), (0.006, thud, -10 + 4 * weight), (0.03, oof, -11),
+                  (0.13 + 0.03 * k, stumble(rng), -15)])
+    return hp(y, 90, 4)    # the cloth takes' handling rumble out, the body's weight kept
 
 
 @recipe(L, "bump", "shoulder", "A shoulder knocked in passing: a coat's thump and a grunt",
@@ -66,7 +67,7 @@ def shove_palms(rng, k):
 def bump_shoulder(rng, k):
     thud = hit_of(SOFT[k % 5], 0, 0.2)
     grunt = breath(rng, rng.uniform(0.12, 0.17), False)
-    return ck.place([(0, palms(rng, k + 3, 1), 0), (0.004, thud, -12), (0.02, grunt, -14)])
+    return hp(ck.place([(0, palms(rng, k + 3, 1), 0), (0.004, thud, -12), (0.02, grunt, -14)]), 90, 4)
 
 
 @recipe(L, "bonk", "clang", "A tool's swing landing on a friend's head: the tool's clang and the head's hollow bonk",
@@ -101,8 +102,11 @@ def coal_hit_coat(rng, k):
     # soft thud put half of it under 90 Hz, a squish).
     thud = hp(hit_of(SOFT[(k + 1) % 5], 0, 0.15), 160)
     pieces = brittle(rng, 9 + 3 * k, 0.18)
-    return ck.place([(0, palms(rng, k + 1, 1), 0), (0, knock_of_coal(rng, k), -3), (0.002, thud, -12),
-                     (0.01, soot(rng), -14), (0.04, pieces, -7)])
+    y = ck.place([(0, palms(rng, k + 1, 1), 0), (0, knock_of_coal(rng, k), -3), (0.002, thud, -12),
+                  (0.01, soot(rng), -14), (0.04, pieces, -7)])
+    # A lump off a coat has nothing under 150 Hz: one of the packs' cloth takes carries handling rumble (the second build
+    # had 63% of a take there).
+    return hp(y, 150, 4)
 
 
 def landing(rng, k, on):
