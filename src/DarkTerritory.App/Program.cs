@@ -1475,8 +1475,15 @@ CampaignState? Play(IPlaySession session, CampaignState? campaign)
         scene.LampRange = outro ? 400 : 60;
         scene.RoofGlow = outro;
         // On the engine with the boiler in the red, it shakes you (T109).
+        // Aboard a moving train, speed is felt (GDD §31, note 709): the view widens with it (not in a headset), and the rail
+        // joints and the car's sway come through, below with the shakes.
+        var speedFeel = scene.Look?.Tuning.SpeedFeel;
+        if (speedFeel is not null && vr is null && !chase && !cinematic && !held && session.Watching < 0)
+            camera = camera with { FovYDegrees = SpeedFeel.Fov(camera.FovYDegrees, session.Train, session.Viewpoint, speedFeel) };
         if (!chase && !cinematic && !held)
         {
+            if (speedFeel is not null)
+                camera.Position += SpeedFeel.Offset(session.Train, session.Viewpoint, speedFeel) * settings.CameraShake;
             // The settings' CAMERA SHAKE (note 297) scales both, down to none.
             camera.Position += BoilerShake.Offset(session.World, session.Viewpoint, timer.Elapsed.TotalSeconds) * settings.CameraShake;
             // In or by a Hollow House going (note 585): the ground under it rumbling, the doors slamming, the floor going.

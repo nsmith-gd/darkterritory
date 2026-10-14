@@ -300,6 +300,21 @@ public sealed record LookTuning
     public WaterTuning Water { get; init; } = new();
     public DamageTuning Damage { get; init; } = new();
     public BiteTuning Bite { get; init; } = new();
+    public SpeedFeelTuning SpeedFeel { get; init; } = new();
+}
+
+/// <summary>GDD §31 "Speed is felt" (note 709). Mirror of look.json <c>speedFeel</c>, where each field is documented.</summary>
+public sealed record SpeedFeelTuning
+{
+    public double Widen { get; init; }
+    public double FullAt { get; init; } = 20;
+    public double Ease { get; init; } = 1;
+    public double Joint { get; init; } = 12.5;
+    public double Bogies { get; init; } = 8.5;
+    public double Jolt { get; init; }
+    public double JoltWidth { get; init; } = 0.35;
+    public double Sway { get; init; }
+    public double SwayWave { get; init; } = 34;
 }
 
 /// <summary>One entry of content/art/textures/index.json (written by tools/art/textures.py).</summary>

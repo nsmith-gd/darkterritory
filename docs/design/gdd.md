@@ -1113,6 +1113,13 @@ Clear and slightly rough, never hyper-smooth.
 
 **VFX supports readability rather than overwhelming it:** steam venting, sparks, smoke trails, cannon flash and powder smoke, cinders, lantern sway, rail grit, furnace flare, drifting fog, subtle corruption particulate. Mechanical first, supernatural second.
 
+**Speed is felt, not just read off the gauge** *(the director's evening playtest, 13 Oct: "It says we're going 27 kilometers an hour. I think by world standards we are, but when I look out the front, it just feels so agonizingly slow"; note 709)*. The train's speeds are what they are; what changes is how they feel aboard:
+- **The view widens with speed:** a few degrees at a walking pace, up to about eight at the line's full speed, eased so the first gain is the one felt.
+- **The rail joints come through the floor:** a small knock at each rail length, two bogies apiece, so the beat quickens as the train does.
+- **The car sways** gently on the track, more as it goes faster.
+
+All of it is aboard only, never in a headset (the view's widening would make a rider sick), and the settings' CAMERA SHAKE turns the knock and the sway down to none.
+
 ## 32. Art serves the voice channel
 
 **This is the connective tissue between art and every other system in this document.**
