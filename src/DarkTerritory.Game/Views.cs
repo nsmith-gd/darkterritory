@@ -234,6 +234,11 @@ public static class Views
             "cabboard" => CabBoardCamera(train),
             // The run map on the cab's front wall, square on and close enough to read its figures (note 671).
             "cabmap" => MapCamera(engine),
+            // (Not one of Names.) The climber's eye going up the cab's hatch ladder (note 734), at the roof: up through the
+            // opening, not through the roof (the director, 14 Oct: "it looks like we're actually going through").
+            "cabclimb" => CabHatch(engine) is { } climb
+                ? Camera.LookAt(engine.ToWorld(new Double3(climb.Foot.X, climb.Top - 0.1, climb.Foot.Z)), engine.ToWorld(new Double3(climb.Foot.X, climb.Top + 0.6, climb.Foot.Z + 1.5)), 75)
+                : CabCamera(engine),
             // (Not one of Names.) The cab's hatch from its roof (note 704; the director: "this ladder inside the cab should
             // actually go up to the roof"): standing open, its lid thrown back, the way down into the cab.
             "cabhatchroof" => CabHatch(engine) is { } hatch
