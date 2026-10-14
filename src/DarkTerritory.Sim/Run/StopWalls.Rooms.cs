@@ -296,6 +296,8 @@ public sealed partial class StopWalls
         {
             ContainerKind.Cupboard => index % 2 == 0 ? 0.3 : 0.7,
             ContainerKind.Cabinet => index % 2 == 0 ? 0.7 : 0.3,
+            // (A small thing lying on the floor, in the corner at the run's end: note 738.)
+            ContainerKind.Loose => index % 2 == 0 ? 0.1 : 0.9,
             _ => 0.5,
         };
         double along = Math.Clamp(r.A + r.Length * f, r.A + t + half + 0.1, r.B - t - half - 0.1);
@@ -308,6 +310,7 @@ public sealed partial class StopWalls
             ContainerKind.Cupboard => t + CupboardDepth,
             ContainerKind.Cabinet => t + CabinetDepth,
             ContainerKind.Cellar => t + 1.3,
+            ContainerKind.Loose => t + 0.45,
             _ => t + 1.7,
         };
         double find = kind is ContainerKind.Cupboard or ContainerKind.Cabinet ? t + FindOut : depth;

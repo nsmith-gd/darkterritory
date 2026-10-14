@@ -211,6 +211,34 @@ public static partial class StopGenerator
         return new VillagePlan(side, offset, form, entry, houses.Count, outliers.Count);
     }
 
+    /// <summary>
+    /// Small things lying on the floors of the open houses (note 738; the director, 14 Oct: "I don't actually ever find
+    /// loot like on the floor or anything. It's not really rewarding me for being attentive"): a candle, a tin, a twist of
+    /// treats, in a corner a look round the room finds, taken at once (no search). Each house at village.loose's chance,
+    /// one or more; a village with an open house has one at least.
+    /// </summary>
+    static void PlaceLoose(StopDraft g, Dice R, StopTuning t)
+    {
+        if (t.Village.Loose is not { Chance: > 0 } loose)
+            return;
+        var open = new List<int>();
+        for (int i = 0; i < g.Buildings.Count; i++)
+            if (g.Buildings[i] is { Kind: BuildingKind.House, Zone: StopZone.Village, Open: true })
+                open.Add(i);
+        int before = g.Containers.Count;
+        foreach (int hi in open)
+        {
+            bool lying = R.Chance(loose.Chance);
+            int count = R.Int(loose.Count);
+            if (!lying)
+                continue;
+            for (int q = 0; q < count; q++)
+                g.Contain(ContainerKind.Loose, StopZone.Village, g.Buildings[hi].Centre, Band(g.Buildings[hi].D), 0, hi);
+        }
+        if (g.Containers.Count == before && open.Count > 0)
+            g.Contain(ContainerKind.Loose, StopZone.Village, g.Buildings[open[0]].Centre, Band(g.Buildings[open[0]].D), 0, open[0]);
+    }
+
     /// <summary>P2's bands: crates close in, pocketable out past 40 m.</summary>
     static int Band(double d) => Math.Abs(d) > 40 ? 2 : 1;
 
