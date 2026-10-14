@@ -205,15 +205,31 @@ public static class Eyes
     public const double Seated = 1.56;
 
     /// <summary>
-    /// Up in the crane's cab while at its controls (T48): looking along the gantry at the bridge and trolley, not down at the
-    /// hook. Spec D.2: "the crane operator cannot see the ground crew", who have to call the position.
+    /// Up in the crane's cab while at its controls (T48): looking along the gantry at the bridge and trolley. Spec D.2: "the
+    /// crane operator cannot see the ground crew", who have to call the position. Note 707 (the director: "widen the camera
+    /// angle a little bit, maybe even go a little more top down"): wider, and as the hook comes down the eye leans out and
+    /// the look tips down after it, so lowering into a car the operator sees the load go in (GDD §18).
     /// </summary>
     public static Camera? Operator(in PlayerState s, Sim.World world)
     {
         if (!s.Has(PlayerFlags.Operating) || world.Run?.CurrentSite?.CraneNear(Sim.Player.PlayerMotor.WorldPosition(s, world.Train)) is not { } crane)
             return null;
-        var trolley = crane.HookAt with { Y = crane.BridgeEnd(0).Y - 0.6 };
-        return Camera.LookAt(crane.Cab + Double3.Up * 0.3, trolley, 55);
+        return Operator(crane);
+    }
+
+    /// <summary>The operator's view of <paramref name="crane"/> where its hook is now (note 707).</summary>
+    public static Camera Operator(Sim.Run.Crane crane)
+    {
+        var view = crane.Tuning.View;
+        double top = crane.BridgeEnd(0).Y - 0.6;
+        var trolley = crane.HookAt with { Y = top };
+        double lowered = view.LowerFrom > 0 ? Math.Clamp((top - crane.HookAt.Y) / view.LowerFrom, 0, 1) : 0;
+        var look = Double3.Lerp(trolley, crane.HookAt, view.Down * lowered);
+        var eye = crane.Cab + Double3.Up * 0.3;
+        var toward = (look - eye) with { Y = 0 };
+        if (toward.Length > 1e-3)
+            eye += toward.Normalized * (view.Lean * lowered);
+        return Camera.LookAt(eye, look, (float)view.Fov);
     }
 
     /// <param name="crouchDrop">

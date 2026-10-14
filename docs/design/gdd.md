@@ -553,6 +553,8 @@ Each stop of a kind has the module it's named for and two to four in all, drawn 
 
 **The car's roof hatch keeps out of the crane's way** *(the director's evening playtest, 13 Oct: "The roof hatch is actually in the way. I cannot see the loot that I'm loading because of that roof hatch"; note 706)*. A foundry's castings go down into a cargo car through its roof hatch. Open, its two leaves fold right back, flat onto the roof either side, so nothing stands up between the crane's cab and the opening, or between a crewmate and what's going down. Shut, they meet over it as before.
 
+**The crane operator's view** *(the director's evening playtest, 13 Oct: "Camera angle for lowering things in when you get close does not make a lot of sense ... widen the camera angle a little bit, maybe even go a little more top down"; note 707)*. At the controls, the operator looks from the crane's cab along the gantry, wide enough to see the bridge, the trolley and the car under them. As the hook comes down, the operator leans to the cab's window and the view tips down after it, until with the hook low the operator looks down over what's on it into the car. The ground crew round the stack and the car's side are still out of sight, and still have to call the position (spec D.2).
+
 **Every facility is optional. Skipping them is safe and pays nothing:** the train leaves the fortress empty, and only what the crew load at the stops and carry out of the villages is paid at the gates (§1 *The fantasy*; the director, 9 Oct 2026, note 575). The payout exists to force bad decisions, not to reward good ones.
 
 ## 19. Cargo

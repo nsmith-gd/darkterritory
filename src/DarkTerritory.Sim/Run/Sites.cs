@@ -163,6 +163,17 @@ public sealed record CraneTuning
     public double GuideAbove { get; init; }
     /// <summary>... at this speed (m/s); 0: never.</summary>
     public double GuideSpeed { get; init; }
+    /// <summary>Note 707: the operator's view from the cab (presentation only; the sim never reads it).</summary>
+    public CraneViewTuning View { get; init; } = new();
+}
+
+/// <summary>The crane operator's view (GDD §18, note 707). Field docs in facilities.json <c>crane.view</c>.</summary>
+public sealed record CraneViewTuning
+{
+    public double Fov { get; init; } = 55;
+    public double LowerFrom { get; init; } = 4;
+    public double Down { get; init; }
+    public double Lean { get; init; }
 }
 
 /// <summary>Who works a facility stop (note 261; spec D.2's "Crew" column). Field docs in facilities.json.</summary>
