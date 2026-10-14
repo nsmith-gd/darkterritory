@@ -20,10 +20,10 @@
  "restricted": false,
  "takes": 3,
  "loop": false,
- "seconds": 0.2,
+ "seconds": 0.21,
  "preview": "previews/crew-horseplay--bump--shoulder.mp4",
- "previewSeconds": 2.55,
- "sha": "bc1ee192e941fe1c",
- "centroid": 557,
- "lufs": -19.0
+ "previewSeconds": 2.57,
+ "sha": "f02b42052dfbbd03",
+ "centroid": 789,
+ "lufs": -19.1
 }

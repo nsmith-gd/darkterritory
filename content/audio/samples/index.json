@@ -5117,7 +5117,7 @@
    }
   ],
   "takes": 3,
-  "sha": "d2e4961baf1b432c"
+  "sha": "28acd0a80314583e"
  },
  "crew-horseplay/coal-hit": {
   "cue": "crew-horseplay.coal-hit",
@@ -5132,7 +5132,7 @@
    }
   ],
   "takes": 3,
-  "sha": "acd9e55866bc0ee9"
+  "sha": "ecd4013271612dc8"
  },
  "crew-horseplay/coal-land/ground": {
   "cue": "crew-horseplay.coal-land",
@@ -5192,7 +5192,7 @@
    }
   ],
   "takes": 3,
-  "sha": "47725a76e413d21c"
+  "sha": "e89076b6300bc224"
  },
  "crew-house-door/open": {
   "cue": "crew-house-door.open",
