@@ -2019,11 +2019,12 @@ public static partial class Hud
     /// <summary>
     /// Each control by the label of its default key ([E] is Use, [Y] the regulator closing, [K] the car lamp), built from
     /// <see cref="Controls.Defaults"/> so a control added there is bound here too; and the HUD's short names for the keys
-    /// whose own label is long: the mouse buttons and the vent's left Ctrl.
+    /// whose own label is long or whose key moved: the mouse buttons, the vent and the gun's push.
     /// </summary>
     static readonly IReadOnlyDictionary<string, Control> ByDefault = new Dictionary<string, Control>(
         Controls.Defaults.Select(d => KeyValuePair.Create(Controls.KeyLabel(d.Value), d.Key))
-            .Concat([KeyValuePair.Create("LMB", Control.Fire), KeyValuePair.Create("RMB", Control.Throw), KeyValuePair.Create("VENT", Control.Vent)]));
+            .Concat([KeyValuePair.Create("LMB", Control.Fire), KeyValuePair.Create("RMB", Control.Throw), KeyValuePair.Create("VENT", Control.Vent),
+            KeyValuePair.Create("PUSH", Control.Push)]));
 
     /// <summary>[WASD], the four walking keys as the player has them: one keycap where each is a letter (ZQSD), else one each.</summary>
     static string Walk()
@@ -2215,7 +2216,7 @@ public static partial class Hud
                 : train.BoilerTuning is not null && train.Boiler.Pressure < combat.Guns.MinPressure ? "NO STEAM"
                 : seated ? null
                 // Note 664: pushing it along is its own key (Use's sitting in it; the director: "a different button").
-                : "SIT : [E]   PUSH : HOLD [O] + WALK";
+                : "SIT : [E]   PUSH : HOLD [PUSH] + WALK";
         }
         // A headset player's prompts follow their reaching hand (T29), as the sim's reach does.
         var hand = world.Hand;
