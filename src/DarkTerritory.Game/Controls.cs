@@ -57,13 +57,17 @@ public static class Controls
         [Control.Uncouple] = "Z",
         [Control.Ladder] = "F",
         [Control.Bookmark] = "P",
-        // Note 664: the genre's crouch key is LeftCtrl, and the vent (cab only, rare) went to N: one key doing two things in
-        // two places is what the director flagged for E.
-        [Control.Vent] = "N",
+        // Note 664: the genre's crouch key is LeftCtrl, and the vent (cab only, rare) went to its own key: one key doing two
+        // things in two places is what the director flagged for E. Note 703 (the director, 13 Oct evening: "I don't like N
+        // being the button ... it should be a different button that is more accessible than the WASD"): Caps Lock, by A
+        // under the little finger.
+        [Control.Vent] = "CapsLock",
         [Control.Supplies] = "I",
         [Control.Emote] = "J",
         [Control.Crouch] = "LeftCtrl",
-        [Control.Push] = "O",
+        // Note 703 (the director: "Push O to walk doesn't make any sense. It's not something that is near the mouse, and
+        // it's not something that's near the left hand"): the middle mouse button, held while walking.
+        [Control.Push] = "MouseMiddle",
     };
 
     /// <summary>Keys nothing can be bound to: the menus' own.</summary>
