@@ -21,7 +21,7 @@ layout(set = 0, binding = 0) uniform Frame {
     vec4 heroOf[128];  // per layer (4 a vec4; GreyboxRenderer.LayerTable): its slot in the hero arrays, or -1
     vec4 dawn;         // xyz = the glow low on the dawn's horizon, w = how far it's up
     vec4 wind;         // xyz = the wind (m/s, world axes), w = gustiness 0..1
-    vec4 motionOf[128]; // per layer (4 a vec4): 1 bends in the wind (foliage cards and boughs), 2 water (note 424), else 0
+    vec4 motionOf[128]; // per layer (4 a vec4): 1 bends in the wind (foliage cards and boughs), 2 water (note 424), 3 drips, 4 breathing light (note 696), else 0
     mat4 viewProj1;    // the right eye's, when one pass draws both (multiview: view.glsl)
     mat4 invViewProj1;
     vec4 handPos;      // the shadowed hand lamp (MeshBuilder.ShadowLight): xyz camera-relative, w = range (0: none)

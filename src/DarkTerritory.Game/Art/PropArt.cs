@@ -80,14 +80,17 @@ public sealed class PropArt
         return made;
     }
 
-    /// <summary>A material's layer when the look has it (a prop's own, <c>&lt;prop&gt;_&lt;i&gt;</c>); its flat colour when not.</summary>
+    /// <summary>
+    /// A material's layer when the look has it (a prop's own, <c>&lt;prop&gt;_&lt;i&gt;</c>, or one of the library's under its
+    /// <c>dt_tint</c>: the corrupted trees' parts, note 696); its flat colour when not.
+    /// </summary>
     MaterialLook Resolve(ModelMaterial m)
     {
         int layer = string.IsNullOrEmpty(m.Texture) ? -1 : Look.Layer(m.Texture);
         // The sourced textures carry their own grime and relief: the shader's weathering only breaks them up a little.
         const float Wear = 0.25f;
         return layer >= 0
-            ? new MaterialLook(layer, Vector3.One, m.Emissive, m.Shine, Wear)
+            ? new MaterialLook(layer, m.Tint, m.Emissive, m.Shine, Wear)
             : new MaterialLook(-1, m.BaseColour, Math.Max(m.Emissive, m.Glow), m.Shine, Wear);
     }
 }
