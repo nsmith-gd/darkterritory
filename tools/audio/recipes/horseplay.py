@@ -14,7 +14,7 @@ import dsp
 from dsp import samples, hp, env, mix
 from recipes import crew_kit as ck
 from recipes.crew_kit import recipe
-from recipes.crew_items import hit_of, flesh, tool_ring, CLOTH, SOFT, LEATHER, PLATE_L, METAL_L, METAL_M, METAL_H, PLATE_M, WOOD_L
+from recipes.crew_items import hit_of, flesh, tool_ring, CLOTH, SOFT, LEATHER, PLATE_L, METAL_L, METAL_M, METAL_H, PLATE_M, WOOD_L, TIN
 from recipes.crew_body import breath
 from recipes.crew_feet import STONES
 from recipes.mishaps_body import bonk_core, burst, roof_thump
@@ -78,25 +78,41 @@ def bump_shoulder(rng, k):
 def bonk_clang(rng, k):
     f0 = [430, 470, 400][k] * rng.uniform(0.97, 1.03)
     head = bonk_core(rng, k, f0, [6.0, 5.0, 6.5][k], [0.12, 0.1, 0.13][k])
-    ring = ck.norm(tool_ring(rng, TOOLS[k], k, damp=0.45))
-    return ck.place([(0, ring, -4), (0.002, head, 0)])
+    # The clang level with the bonk: the first build had the head's modes swamp the tool (90% of it under 490 Hz).
+    ring = ck.norm(hp(tool_ring(rng, TOOLS[k], k, damp=0.45), 600))
+    return ck.place([(0, ring, 0), (0.002, head, -2)])
 
 
 @recipe(L, "coal-hit", "coat", "A lump of coal off a friend: a hard thud on a coat, soot puffing, the lump breaking",
-        """A fist of coal thrown hard into a crewmate: a blunt thud on a heavy coat (a short slap of cloth and a soft
-        weight, nothing fleshy), a puff of soot off the coat, and the lump breaking as it drops off them, its pieces
-        clinking bright and glassy on the way down. Three throws.""",
+        """A fist of coal thrown hard into a crewmate: the lump's own hard knock (a real stone hit, its low end taken out)
+        and the coat's slap, only a touch of the body's weight under them (nothing fleshy, no boom), a puff of soot off
+        the coat, and the lump breaking as it drops off them, its pieces clinking bright and glassy on the way down.""",
         sources=CLOTH + SOFT + STONES, takes=3, lufs=-20)
+def knock_of_coal(rng, take):
+    """The lump itself striking: a hard little rock knock (the packs' stones cut to one hit), no weight under it."""
+    stones = ck.get(STONES[take % 3])
+    h = ck.hits(stones, floor_db=-14, gap=0.03)
+    a = h[int(rng.integers(len(h)))][0] if h else 0
+    return ck.norm(hp(ck.cut(stones, a, a + samples(0.06), 0.001, 0.03), 400))
+
+
 def coal_hit_coat(rng, k):
-    thud = hit_of(SOFT[(k + 1) % 5], 0, 0.22)
-    pieces = brittle(rng, 8 + 3 * k, 0.18)
-    return ck.place([(0, palms(rng, k + 1, 1), -3), (0, thud, -4), (0.01, soot(rng), -14), (0.05, pieces, -12)])
+    # The coat's slap and the lump's own knock carry it; the body's weight is only a touch under them (the first build's
+    # soft thud put half of it under 90 Hz, a squish).
+    thud = hp(hit_of(SOFT[(k + 1) % 5], 0, 0.15), 160)
+    pieces = brittle(rng, 9 + 3 * k, 0.18)
+    return ck.place([(0, palms(rng, k + 1, 1), 0), (0, knock_of_coal(rng, k), -3), (0.002, thud, -12),
+                     (0.01, soot(rng), -14), (0.04, pieces, -7)])
 
 
 def landing(rng, k, on):
     """A lump coming down on `on` and breaking: the knock it makes there, then its pieces skittering."""
     if on == "roof":
-        knock = roof_thump(rng, k, 0.3)
+        # A fist of coal on the tin, not a body: the sheet's bright knock and its tinny ring, a little of the hollow under
+        # it (roof_thump's boom was half of the first build, a person landing).
+        tin = ck.norm(ck.choke(ck.align(dsp.vari(ck.get(TIN[k % 5]), rng.uniform(-1, 1))), 0.01, 0.06))
+        sheet = ck.norm(hp(ck.choke(ck.align(ck.get(PLATE_L[(k + 2) % 5])), 0.01, 0.04), 400))
+        knock = mix(tin, sheet * 0.6, hp(roof_thump(rng, k, 0.3), 150) * 0.25)
     elif on == "wood":
         board = hit_of(WOOD_L[k % 5], 0, 0.2)
         knock = mix(board, ck.hollow(rng, [105, 170, 260], 0.1, q=4) * 0.25)
@@ -110,9 +126,10 @@ def landing(rng, k, on):
 
 
 @recipe(L, "coal-land", "tin", "A thrown lump of coal landing on a car roof's tin and breaking",
-        """The lump hitting the roof tin (the panel's hollow boom and its damped sheet crash, small: it's a fist of
-        coal, not a body), then breaking, its pieces clinking and skittering across the tin.""",
-        sources=PLATE_L + STONES, takes=3, lufs=-20, mat="roof")
+        """The lump hitting the roof tin: the tin's bright knock and short ring (the packs' tin and a light plate), only a
+        touch of the panel's hollow under it (a fist of coal, not a body), then breaking, its pieces clinking and
+        skittering across the tin.""",
+        sources=TIN + PLATE_L + STONES, takes=3, lufs=-20, mat="roof")
 def coal_land_tin(rng, k):
     return landing(rng, k, "roof")
 
