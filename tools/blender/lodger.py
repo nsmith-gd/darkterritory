@@ -456,7 +456,8 @@ def reared(shake=0.0, open_=1.0, tilt=0.0, lean=0.0, spread=1.0, other=0.0):
 
 STARE = reared(0, 1.0, tilt=10, lean=0.6, spread=0.8)
 shriek = Clip("shriek", loop=False)
-shriek.key(0, coil(0), "CONSTANT")
+# From where it hid (there's no crossfade between clips): folded in its corner, it jerks up into the coil in two frames.
+shriek.key(0, folded(), "LINEAR")
 shriek.key(2, coil(0), "LINEAR")
 shriek.key(4, coil(1), "LINEAR")                                               # the head first, snapped onto them
 shriek.key(9, coil(1), "LINEAR")                                               # and stares
