@@ -1,0 +1,20 @@
+// The Freight Beetle: pushing: A crate pushed: its scrape on gravel or boards in time with heavy strides, a chitinous creak (Outdoor ground (ballast, dirt, yard)). Written by tools/audio/install.py from the audio checklist (first); edit the cue, not this.
+{
+ "tier": 3,
+ "loop": true,
+ "maxInstances": 8,
+ "minDistance": 2,
+ "maxDistance": 80,
+ "rolloff": 1.0,
+ "gainDb": 6,
+ "flat": false,
+ "layers": [
+  {
+   "source": "sample",
+   "sample": "cs-freight-beetle/push/ground",
+   "gain": 1,
+   "pitchJitter": 0,
+   "gainJitter": 0
+  }
+ ]
+}

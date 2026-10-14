@@ -908,4 +908,6 @@ written here instead is moved out by `tools/coord/notes.py split`; the Coordinat
 - [754. The shover's mark ends at the shover's death (S1, queue #484; the director, 14 Oct)](notes/754.md)
 - [755. A comet fragment most nights, in sight off the line (S1, queue #485; the audit's R6)](notes/755.md)
 - [756. Grabbed with nobody near: the struggle in a crew (S1, queue #486; the audit's R3)](notes/756.md)
+- [767. The house creatures heard (AU1, queue #497; G1's #316-#319, notes 583-586; their design docs' §4)](notes/767.md)
+- [768. Horseplay heard (AU1, queue #498; K1's #451, note 717)](notes/768.md)
 <!-- end of the notes index -->
