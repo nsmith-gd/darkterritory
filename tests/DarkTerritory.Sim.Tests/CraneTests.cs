@@ -37,6 +37,30 @@ public class CraneTests
         new() { MoveX = x, MoveZ = z, Buttons = also };
 
     [Fact]
+    public void TheCabLooksAtTheStackWithNoCarBetween()
+    {
+        // Note 736 (the director, 14 Oct: "my train is blocking the view of the loot ... I'm doing a bit of guesswork here"):
+        // the cab rides the bridge on the stack's side, so wherever the bridge is, every car on the track stands beyond the
+        // castings from it, never between, and it travels with the bridge.
+        var (stop, crane) = AtTheCrane();
+        var train = stop.World.Train;
+        Assert.Contains(train.Frames, f => ((f.Origin - crane.HookAt) with { Y = 0 }).Length < C.Length + 20);
+        foreach (double along in new[] { -1.0, 0, 1 })
+        {
+            stop.Step(2, [Drive(z: (float)along)]);
+            foreach (var casting in crane.Castings)
+                foreach (var frame in train.Frames.Where(f => ((f.Origin - crane.HookAt) with { Y = 0 }).Length < C.Length + 20))
+                {
+                    double cab = frame.ToLocal(crane.Cab).X, stack = frame.ToLocal(casting.At).X;
+                    Assert.True(Math.Sign(cab) == Math.Sign(stack) && Math.Abs(cab) > Math.Abs(stack) && Math.Abs(stack) > frame.Shape.HalfWidth,
+                        $"car {frame.Index}: the cab at {cab:0.0} m across, the casting at {stack:0.0} m");
+                }
+            double fromBridgeEnd = ((crane.Cab - crane.BridgeEnd(1)) with { Y = 0 }).Length;
+            Assert.Equal(C.CabOut, fromBridgeEnd, 3);
+        }
+    }
+
+    [Fact]
     public void TheOperatorDrivesItFromTheControlsAndStaysPut()
     {
         // The director, 8 Oct: "Cranes should also enter with E and exit with E, it shouldn't be a hold function".
