@@ -29,8 +29,12 @@ public class MailHudTests
         Assert.Equal("HOOK THE BAG : HOLD [LMB]", Hud.Prompt(s));
 
         // Held as the car goes by: caught, and paid (or the tender, the guns, a car).
+        // Held under the crane's posted speed (note 727): over it, the bag tears.
         for (int i = 0; i < 20 * Sim.SimConstants.TickRate && !s.World.Lineside!.Passed(drop.Id); i++)
+        {
+            s.Train.Dynamics.Velocity = Math.Min(s.Train.Dynamics.Velocity, 12);
             s.Step(new PlayerIntent { Buttons = PlayerButtons.Fire });
+        }
         Assert.True(s.World.Lineside!.Caught(drop.Id), "the bag wasn't caught from the open door");
         Assert.True(Hud.MailAhead(s) is not { } next || next.Drop.Id != drop.Id, "the crane's still said once it's gone by");
         Assert.False(string.IsNullOrEmpty(Hud.CaughtLine(drop)));
