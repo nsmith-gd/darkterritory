@@ -1,6 +1,16 @@
-{"build": ["crew-horseplay"],
- "install": ["crew-horseplay"],
+{
+ "build": [
+  "crew-horseplay"
+ ],
+ "install": [
+  "crew-horseplay"
+ ],
  "store": "tools/audio/build_store/items",
- "fresh": ["crew-horseplay"],
- "publish": ["crew-horseplay"],
- "why": "queue #498, note 768: horseplay heard"}
+ "fresh": [
+  "crew-horseplay"
+ ],
+ "publish": [
+  "crew-horseplay"
+ ],
+ "why": "queue #498, note 768: horseplay heard (coal and bonk rebalanced)"
+}
