@@ -474,8 +474,9 @@ public sealed partial class WorldArt
                     continue;
                 double ms = ps + es * run / 2, md = pd + ed * run / 2, lo = low(ms, md), hi = high(ms, md);
                 mesh.Instances.Add(new MeshInstance(wall, Matrix4x4.CreateScale(1, 1, (float)(run / bay)) * Basis(start.Tangent, P(ps, pd) + Double3.Up * hi, eye, yaw)));
+                // (A wall over a drop past a storey stands on the crag's rock, its stone plinth only the last of it: note 692.)
                 if (hi - lo > 0.3)
-                    mesh.Instances.Add(new MeshInstance(Piece("wall-plinth", () => WallPlinth(_look)),
+                    mesh.Instances.Add(new MeshInstance(Piece(hi - lo > WallOnRock ? "wall-crag" : "wall-plinth", () => WallPlinth(_look, hi - lo > WallOnRock)),
                         Matrix4x4.CreateScale(1, (float)(hi - lo + 0.6), (float)run) * Basis(start.Tangent, P(ps, pd) + Double3.Up * (lo - 0.5), eye, yaw)));
             }
         }
@@ -553,15 +554,21 @@ public sealed partial class WorldArt
         }
     }
 
-    /// <summary>A unit of a wall's stone plinth (note 692): the wall's thickness across, a metre up, a metre along (−Z), scaled to its bay.</summary>
-    static MeshAsset WallPlinth(Look? look)
+    /// <summary>
+    /// A unit of a wall's stone plinth (note 692): the wall's thickness across, a metre up, a metre along (−Z), scaled to its
+    /// bay. Over a crag (<paramref name="rock"/>), the rock it's built on, a little wider than the wall, battered out.
+    /// </summary>
+    static MeshAsset WallPlinth(Look? look, bool rock = false)
     {
-        var k = new Kit(look, 9401);
-        k.Use("stone_block", Palette.IronGrey, 0.85f, 0.05f, tile: 2.5f);
-        float half = (float)Sim.Run.Fortresses.WallHalf + 0.25f;
+        var k = new Kit(look, rock ? 9403 : 9401);
+        k.Use(rock ? "rock_cliff" : "stone_block", rock ? Palette.DeepBrown : Palette.IronGrey, 0.85f, 0.05f, tile: rock ? 5f : 2.5f);
+        float half = (float)Sim.Run.Fortresses.WallHalf + (rock ? 0.9f : 0.25f);
         k.Box(new Vector3(-half, 0, -1), new Vector3(half, 1, 0), Kit.Faces.Sides);
-        return k.Build("wall-plinth");
+        return k.Build(rock ? "wall-crag" : "wall-plinth");
     }
+
+    /// <summary>A wall over a drop taller than this (m) stands on rock (note 692).</summary>
+    const double WallOnRock = 4;
 
     /// <summary>A tower's plinth (note 692): its footprint, a metre up.</summary>
     static MeshAsset TowerPlinth(Look? look)

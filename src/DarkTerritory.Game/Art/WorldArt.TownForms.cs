@@ -21,6 +21,9 @@ public sealed partial class WorldArt
     /// <summary>How far round its shaped ground a town draws its own (m), so the land's coarser mesh never meets a terrace's foot.</summary>
     const double FormApron = 6;
 
+    /// <summary>A drop taller than this (m) is drawn as rock, not a retaining wall's masonry (note 692): a crag, not a tier.</summary>
+    const double RockFace = 6;
+
     /// <summary>
     /// Whether the land's own mesh leaves a point (world) to a town (<see cref="Departure"/> or <see cref="Arrival"/>): it's
     /// where the town draws its own ground.
@@ -310,7 +313,10 @@ public sealed partial class WorldArt
                     k.Box(V(s1, level - 0.3, d0), V(s0, level, d1), Kit.Faces.PosY | sides);
                     if (level - 0.3 > floor && sides != Kit.Faces.None)
                     {
-                        k.Use(face, Palette.DeepBrown, 0.8f, 0.05f, tile: 3);
+                        // A drop past a storey's height is the hill's own rock, cut back (the director's renders: towns on their
+                        // crags); a tier's step is built, the masonry of a retaining wall.
+                        double drop = level - new[] { g.Level(s0 - 1.5, (d0 + d1) / 2), g.Level(s1 + 1.5, (d0 + d1) / 2), g.Level((s0 + s1) / 2, d0 - 1.5), g.Level((s0 + s1) / 2, d1 + 1.5) }.Min();
+                        k.Use(drop > RockFace ? "rock_cliff" : face, Palette.DeepBrown, 0.8f, 0.05f, tile: drop > RockFace ? 6 : 3);
                         k.Box(lo, V(s0, level - 0.3, d1), sides);
                     }
                     break;

@@ -511,6 +511,14 @@ meaning"), turned into ground plans the walled town's houses and people stand on
   retaining walls, the lanes stair streets no steeper than 0.45; a stair is drawn as treads.
 - **The wall stands on its ground.** Each bay from the lower side to its height over the higher, on a plinth: a town on a
   rise looks down its wall, a town in a pit ditch is ringed by one. It's a fortress first.
+- **A warren, not a grid** (the director, 14 Oct, of a first pass of straight streets and detached cottages: "They don't
+  look like the references"). Streets wander together like contours, the rows back to back between them, houses shoulder
+  to shoulder with no yards; every lot built, the lost's houses boarded or burnt among the lived. No flat ground left
+  bare inside the wall but the square, its green, the works and the water.
+- **Both halves walled.** The yard has a wall each side in front of the first row's backs, open at every stair lane; the
+  outer wall has a turret every 45 m between its gun towers. A drop past a storey is rock, a wall over one stands on it.
+- **Weathered Maritime.** The fortress towns' houses are the province's shapes gone grim: tall, weathered shingle, the
+  old colours dulled, sooted and salt-bleached.
 - **Open houses stand square to the line, on dry ground, nearest the square.** Their rooms are their walls.
 - **Reuse the kit.** A form's landmarks are the game's existing pieces (the lighthouse, the chapel, a wall's tower, the pit's
   headframe, a fish shed, a glasshouse); its ground is one mesh a town; nothing in it needs walking into but the open houses.

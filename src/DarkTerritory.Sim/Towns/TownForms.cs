@@ -105,6 +105,8 @@ public static class TownForms
     {
         // Not design numbers: room a house's lot keeps off the next lot, its way and the wall (m).
         const double LotPad = 0.6, WallPad = 7, LineClear = 9.5, Cell = 1, BackPad = 0.35;
+        /// <summary>The room a warren's band keeps over its two rows' depth (m): its streets' wander apart, a back alley.</summary>
+        const double BandSlack = 1.2;
         /// <summary>A stair street's rise over its run: a steep street's steps (a 24° flight), walked up a stride at a time.</summary>
         const double StairSlope = 0.45;
         readonly TownTuning _t;
@@ -358,6 +360,13 @@ public static class TownForms
             }
         }
 
+        /// <summary>A stair up to a hill's crown (note 692): from the ground its foot is on to <paramref name="to"/> at its second point, level after.</summary>
+        void Climb(IReadOnlyList<(double U, double D)> pts, double to, double width = 4)
+        {
+            double from = GroundAt(_gate + pts[0].U, pts[0].D).Level;
+            Way(pts, width, levels: [from, .. pts.Skip(1).Select(_ => to)]);
+        }
+
         /// <summary>A street beside the line (u0 to u1 from the exit gate, d across), as the walled town's are, and taken.</summary>
         void Street(double d, double u0, double u1, double width)
         {
@@ -602,8 +611,10 @@ public static class TownForms
             List<double> Offs, List<(double A, double B)> Phase, string Stream)
         {
             /// <summary>Street k's middle at u (out from the line).</summary>
+            /// <remarks>The streets wander together, as contours do (each its own amount, <c>Phase[k].B</c>), so a band between
+            /// two keeps room for its two rows.</remarks>
             public double Street(int k, double u, double wander) =>
-                Offs[k] + wander * (0.6 * DMath.Sin(u / 37 + Phase[k].A) + 0.4 * DMath.Sin(u / 17 + Phase[k].B));
+                Offs[k] + wander * Phase[k].B * (0.6 * DMath.Sin(u / 37 + Phase[0].A) + 0.4 * DMath.Sin(u / 17 + Phase[0].A * 1.7));
 
             /// <summary>The back line behind street k at u: halfway to the next street, the yard's wall before the first.</summary>
             public double Back(int k, double u, double wander) =>
@@ -616,11 +627,11 @@ public static class TownForms
         Warren Tiers(int side, double u0, double u1, double far, double rise, string stream)
         {
             var rng = _rngFor("form.warren." + stream);
-            double w = _f.StreetWidth, depth = _f.LotDepth, pitch = w + 2 * (_f.Setback + depth);
+            double w = _f.StreetWidth, depth = _f.LotDepth, pitch = w + 2 * (_f.Setback + depth) + BandSlack;
             var offs = new List<double>();
-            for (double c = _f.Near + _f.Setback + depth + w / 2; c <= far - w / 2; c += pitch)
+            for (double c = _f.Near + _f.Setback + depth + w / 2 + BandSlack / 2; c <= far - w / 2; c += pitch)
                 offs.Add(c);
-            var phase = offs.Select(_ => (rng.Range(0, Math.PI * 2), rng.Range(0, Math.PI * 2))).ToList();
+            var phase = offs.Select(_ => (rng.Range(0, Math.PI * 2), rng.Range(0.8, 1.2))).ToList();
             var wr = new Warren(side, u0, u1, _f.Near, far, rise, pitch, offs, phase, stream);
             if (rise > 0)
             {
@@ -784,7 +795,7 @@ public static class TownForms
         /// </summary>
         void Fill(double u, double d, double ru, double rd, double level)
         {
-            double w = _f.StreetWidth, pitch = w + 2 * (_f.Setback + _f.LotDepth);
+            double w = _f.StreetWidth, pitch = w + 2 * (_f.Setback + _f.LotDepth) + BandSlack;
             for (double dd = d - rd + pitch / 2; dd <= d + rd - pitch / 2 + 1e-6; dd += pitch)
             {
                 var run = new List<(double U, double D)>();
@@ -862,11 +873,12 @@ public static class TownForms
             District(DistrictKind.Terrace, "head", Blob(-L * 0.5, -wl + 5, 70, 32, 0.12, 18, "head"), head);
             Landmark("lighthouse", -L * 0.5, -wl - 10, 0, 1);
             Landmark("chapel", -L * 0.5 + 40, -wl + 14, 0, 1);
-            Way([(-L * 0.5 - 75, -wl + 36), (-L * 0.5 - 40, -wl + 14), (-L * 0.5 + 10, -wl + 8)], 4, levels: [top, head, head]);
+            Climb([(-L * 0.5 - 75, -wl + 36), (-L * 0.5 - 40, -wl + 14), (-L * 0.5 + 10, -wl + 8)], head);
             Rows(lanes);
             Fill(-L * 0.5, -wl + 5, 70, 32, head);
-            // A row of net lofts and stores along the wharf's back, fronting it.
-            Lots(-L + 100, quay - 2, -L * 0.55 - 4, quay - 2, 0, 2, 7);
+            // The wharf's side of the yard packed too (the director: "pack and wall both halves much harder"): net lofts and
+            // stores in rows between the yard's wall and the quay, round the fish stores.
+            Rows(Tiers(1, -L + 96, -40, quay + 8, 0, "wharfside"));
         }
 
         /// <summary>
@@ -994,7 +1006,8 @@ public static class TownForms
             Green(34, 54);
             Works(-L * 0.62, -40, 14, 70, 1, "coal");
             Rows(Tiers(1, -L + 20, -20, wr + 20, 0, "workers"));
-            Rows(Tiers(-1, -L + 20, -L * 0.62 - 10, 66, 0, "rows"));
+            // The rows round the pit on the square's side, up to the wall (they keep to the rim's level: the benches are the pit's).
+            Rows(Tiers(-1, -L + 20, -10, wl + 20, 0, "rows"));
             // The founders' row on the rim's far side, between the pit and the wall.
             if (pd - rim - 4 > -wl + 14)
                 District(DistrictKind.Quarter, "founders", Rect(pu - 50, pu + 50, -wl + 8, pd - rim - 4));
@@ -1037,17 +1050,19 @@ public static class TownForms
             Works(-L * 0.3, -30, 12, 24, 1, "tidewater");
             var climb = Tiers(-1, -L + 20, -10, wl * 0.72, _f.Rise, "climb");
             double top = climb.Level(climb.Offs.Count - 1);
-            District(DistrictKind.Terrace, "chapel", Blob(-L * 0.72, -wl * 0.74, 62, 34, 0.08, 18, "chapel"), _f.TerraceLevel);
-            District(DistrictKind.Terrace, "high", Blob(-L * 0.35, -wl * 0.8, 58, 30, 0.08, 18, "high"), _f.TerraceLevel * 1.6);
+            // The hills over the top tier whatever it reached, the high ward over the chapel's.
+            double chapel = Math.Max(_f.TerraceLevel, top + _f.Rise * 1.5), high = Math.Max(_f.TerraceLevel * 1.6, chapel + _f.Rise * 2);
+            District(DistrictKind.Terrace, "chapel", Blob(-L * 0.72, -wl * 0.74, 62, 34, 0.08, 18, "chapel"), chapel);
+            District(DistrictKind.Terrace, "high", Blob(-L * 0.35, -wl * 0.8, 58, 30, 0.08, 18, "high"), high);
             // Between the stair lanes that climb to the hills' feet, not on one.
             Landmark("chapel", -L * 0.72 - 30, -wl * 0.74 - 6, 0, 1);
             Landmark("watchtower", -L * 0.35, -wl * 0.8 - 12, 0, 1);
-            Way([(-L * 0.72 + 64, -wl * 0.56), (-L * 0.72 + 34, -wl * 0.64), (-L * 0.72 + 12, -wl * 0.68)], 4, levels: [top, _f.TerraceLevel, _f.TerraceLevel]);
-            Way([(-L * 0.35 + 64, -wl * 0.56), (-L * 0.35 + 30, -wl * 0.7), (-L * 0.35 + 10, -wl * 0.74)], 4, levels: [top, _f.TerraceLevel * 1.6, _f.TerraceLevel * 1.6]);
+            Climb([(-L * 0.72 + 64, -wl * 0.56), (-L * 0.72 + 34, -wl * 0.64), (-L * 0.72 + 12, -wl * 0.68)], chapel);
+            Climb([(-L * 0.35 + 64, -wl * 0.56), (-L * 0.35 + 30, -wl * 0.7), (-L * 0.35 + 10, -wl * 0.74)], high);
             Landmark("crane", -60, 22, 0, 1);
             Rows(climb);
-            Fill(-L * 0.72, -wl * 0.74, 62, 34, _f.TerraceLevel);
-            Fill(-L * 0.35, -wl * 0.8, 58, 30, _f.TerraceLevel * 1.6);
+            Fill(-L * 0.72, -wl * 0.74, 62, 34, chapel);
+            Fill(-L * 0.35, -wl * 0.8, 58, 30, high);
         }
 
         void DrownedLots(List<(double U, double D)> water)
