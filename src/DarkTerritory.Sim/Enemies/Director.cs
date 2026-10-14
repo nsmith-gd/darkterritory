@@ -143,6 +143,7 @@ public sealed class Director
     public void Count(World world, double elapsed, IReadOnlyList<Enemy> active, double noSpawnFinal)
     {
         _cars = world.Train.Dynamics.Consist.CarCount;
+        _world = world;
         if (world.CrewThisTick.Count > 0)
             Active = world.CrewThisTick.Count(c => c.State.Alive);
         // Counted whenever the orchestrator's on (the harness reads it); census steers only with its own flag (Steering).
@@ -513,9 +514,17 @@ public sealed class Director
     }
 
     /// <summary>The crewmate the census would send the next threat to (note 345): the free one with the most slack, past minSlack.</summary>
-    public CensusEntry? Next => Steering
-        ? Posts.Entries.Where(c => c.On == 0 && c.Post != Post.LeftBehind && c.Slack >= _t.Orchestrator.MinSlack).OrderByDescending(c => c.Slack).ThenBy(c => c.Player).FirstOrDefault()
-        : null;
+    /// <remarks>
+    /// Note 717: a crewmate marked for a shove that killed (<see cref="World.IsMarked"/>) is the next threat's first choice while
+    /// they're about (not left behind, which has its own hunts): their slack needn't be past minSlack, nor are they spared for
+    /// having a threat on them already; among the marked, the most slack.
+    /// </remarks>
+    public CensusEntry? Next => !Steering ? null
+        : Posts.Entries.Where(c => _world?.IsMarked(c.Player) == true && c.Post != Post.LeftBehind).OrderByDescending(c => c.Slack).ThenBy(c => c.Player).FirstOrDefault()
+        ?? Posts.Entries.Where(c => c.On == 0 && c.Post != Post.LeftBehind && c.Slack >= _t.Orchestrator.MinSlack).OrderByDescending(c => c.Slack).ThenBy(c => c.Player).FirstOrDefault();
+
+    /// <summary>The world the director last counted (note 717: who's marked).</summary>
+    World? _world;
 
     /// <summary>
     /// Who's next (note 345; orchestrator.md §3.2 2, 3): a kind answered at the post of the free crewmate with the most slack
@@ -608,6 +617,9 @@ public sealed class Director
         double busy = 1 / (1 + p.Busy * engaged * Math.Max(0, 1 - p.BusyFade * Math.Clamp(progress, 0, 1)));
         // Note 327 (App. F.3): the crew off the train, on foot, draw it on: the share of the living afoot (Watch, this second).
         double afoot = _t.Afoot.On ? _t.Afoot.PerSecond * AfootShare : 0;
+        // Note 717: and a crewmate marked for a shove that killed, on foot (player.json horseplay.marked.pressurePerSecond).
+        if (world.MarkedAfoot)
+            afoot += world.HorseplayTuning.Marked.PressurePerSecond;
         // By the crew in the night (who joined it, alive or not: the relief valve has the dead) and the cars the engine
         // pulls (note 646).
         double scale = p.Scale(Math.Max(1, Crew), world.Train.Dynamics.Consist.CarCount);

@@ -121,10 +121,10 @@ public sealed class Ribbit(int id, int pack) : Enemy(id)
         {
             if (!CrewSense.OnGround(p.State) || CrewSense.Group(ctx, p.Id, t.GroupRadius).Count >= size)
                 continue;
-            double d = ((w - centre) with { Y = 0 }).Length;
-            if (d <= t.GiveUpBeyond && d < best)
+            double d = ((w - centre) with { Y = 0 }).Length, weighed = ctx.Weigh(p.Id, d);
+            if (d <= t.GiveUpBeyond && weighed < best)
             {
-                best = d;
+                best = weighed;
                 pick = p.Id;
             }
         }
@@ -552,7 +552,7 @@ public sealed class Gaunt(int id) : Enemy(id)
     {
         var at = WorldPosition(ctx.Train);
         var near = ctx.LivingCrew().Where(c => (c.World - at).Length <= t.Reach && !c.Player.State.Has(PlayerFlags.Held))
-            .OrderBy(c => (c.World - at).Length).Select(c => ((int)c.Player.Id, c.Player.State.Health)).FirstOrDefault();
+            .OrderBy(c => ctx.Weigh(c.Player.Id, (c.World - at).Length)).Select(c => ((int)c.Player.Id, c.Player.State.Health)).FirstOrDefault();
         _hit += SimConstants.TickSeconds;
         if (near == default || _hit < t.HitEvery)
             return;

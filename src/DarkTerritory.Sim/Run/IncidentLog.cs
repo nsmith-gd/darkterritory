@@ -373,6 +373,11 @@ public static class IncidentLog
             else
                 lines.Add(new ReportLine(i.Kind, who, $"{i.What} {i.Where}. {action}".Trim()) { Seconds = i.Seconds, Victim = i.Victim });
         }
+        // Note 717: the marked, a shove of theirs having killed: "Marked: Dave (shoved Priya off at 58 km/h)."
+        foreach (var (shover, victim, speed) in world.Marks)
+            lines.Add(new ReportLine(IncidentKind.Marked, NameOf(world, shover),
+                $"Marked: {NameOf(world, shover)} (shoved {NameOf(world, victim)} off{(speed >= 1 ? $" at {Kmh(speed)}" : "")}).")
+            { Victim = victim });
         // Note 717: the bonks, for anyone who took horseplay.bonk.reportFrom or more: how many, and whose tool most of them were.
         int from = world.HorseplayTuning.Bonk.ReportFrom;
         foreach (var (victim, by) in world.Bonks)

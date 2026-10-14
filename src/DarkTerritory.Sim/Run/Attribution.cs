@@ -13,7 +13,7 @@ namespace DarkTerritory.Sim.Run;
 /// brought it (<see cref="Drawn"/>): "Cinder Hounds came first at km 2. Drawn by the whistle: Dave." Note 717: a crewmate
 /// bonked by their friends' tools often enough to be told (<see cref="Bonked"/>): "Bonked 14 times, mostly by Priya."
 /// </remarks>
-public enum IncidentKind : byte { Grab, Death, Rescue, Rupture, CarLost, Derailed, Stranded, Voted, Struck, Fire, Nest, Aboard, Runaway, Points, Punished, Drawn, Slain, BroughtIn, Bonked }
+public enum IncidentKind : byte { Grab, Death, Rescue, Rupture, CarLost, Derailed, Stranded, Voted, Struck, Fire, Nest, Aboard, Runaway, Points, Punished, Drawn, Slain, BroughtIn, Bonked, Marked }
 
 /// <summary>
 /// One fact for the incident report (C.9, D.12): what happened, to whom and where, and the <b>contributing action</b>: the

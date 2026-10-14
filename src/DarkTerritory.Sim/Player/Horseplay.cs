@@ -216,6 +216,16 @@ public sealed record HorseplayTuning
     public ShoveTuning Shove { get; init; } = new();
     public CoalTuning Coal { get; init; } = new();
     public BonkTuning Bonk { get; init; } = new();
+    public MarkedTuning Marked { get; init; } = new();
+}
+
+/// <summary>A shover whose shove killed, marked for the night (note 717). Docs in player.json <c>horseplay.marked</c>.</summary>
+public sealed record MarkedTuning
+{
+    public bool Enabled { get; init; } = true;
+    public double TargetWeight { get; init; } = 6;
+    public double AllowanceM { get; init; } = 20;
+    public double PressurePerSecond { get; init; } = 0.1;
 }
 
 /// <summary>Crewmates solid to each other (note 717). Docs in player.json <c>horseplay.crowd</c>.</summary>

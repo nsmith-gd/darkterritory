@@ -1020,7 +1020,7 @@ public static partial class Hud
         // Note 576: a battered shell let go is working itself apart, said where it's felt: in the car, on the engine, and to
         // the cab for any car of the train (the driver feels it through the couplings).
         // The news under the dawn clock says the engine's stage (note 663), so the engine's own line here waits it out.
-        bool engineNews = NewsUp(world) is { Kind: not NewsKind.CarsLost };
+        bool engineNews = NewsUp(world) is { Kind: NewsKind.EngineFailing or NewsKind.EngineBroken };
         if (p.Alive)
             foreach (var (text, worst) in FailingLines(world.Train, p))
             {

@@ -71,7 +71,7 @@ public sealed class Passenger(int id) : Enemy(id)
                 if (PhaseSeconds < t.StalkSeconds)
                     return;
                 var mark = ctx.LivingCrew().Where(c => c.Player.State.Parent > 0 && !c.Player.State.Has(PlayerFlags.Held) && CrewSense.Alone(ctx, c.Player.Id, t.AloneRadius))
-                    .OrderBy(c => Math.Abs(train.Dynamics.Consist.IndexOf(c.Player.State.Parent) - train.Dynamics.Consist.IndexOf(Attached)))
+                    .OrderBy(c => ctx.Weigh(c.Player.Id, Math.Abs(train.Dynamics.Consist.IndexOf(c.Player.State.Parent) - train.Dynamics.Consist.IndexOf(Attached))))
                     .Select(c => (int?)c.Player.Id).FirstOrDefault();
                 if (mark is not { } who)
                     return;
