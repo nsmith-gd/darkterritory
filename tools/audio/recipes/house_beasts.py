@@ -463,7 +463,7 @@ def bang_model(rng):
     a wooden contact), the jamb post struck with it (a bar's modes), the hard edge of the meeting, driven a little."""
     b = Bus(0.8)
     leaf = W.body(rng, rng.uniform(105, 125), W.PLATE, decay=0.07, damp=2.5, contact=0.0012, tilt=0.6, count=12)
-    b.at(0, unit(leaf), -2)
+    b.at(0, unit(leaf), -8)            # under the planks: at -2 its 105-125 Hz fundamental was half the slam, a squish
     b.at(0, struck(rng, [f * rng.uniform(0.95, 1.05) for f in LEDGED], 7, 0.15, 0.0012), -3)
     f1 = rng.uniform(220, 270)
     b.at(0.001, struck(rng, [f1 * r for r in W.BAR[:4]], 10, 0.12, 0.001), -3)
@@ -519,6 +519,8 @@ def slam(rng, k, real):
     dust = grit(rng, D, env([(0, 0), (0.03, 150), (D, 0)], D)) if real else sift(rng, D, env([(0, 0), (0.03, 150), (D, 0)], D))
     parts.append((t0 + 0.05, dust, -20))
     y = dry(ck.place(parts))
+    if not real:                        # the modelled bang and the frame's boom: up to 62% under 150 Hz, a squish of a slam
+        y = hp(y, 110, 4)
     return finish(hold(y, SLAM), SLAM_LUFS, PEAK)
 
 
@@ -715,7 +717,7 @@ def collapse_crash(rng, k):
     b.at(t1 + 0.3, grit(rng, L - t1 - 0.3, env([(0, 80), (L - t1 - 0.3, 5)], L - t1 - 0.3)), -16)
     b.at(L - 0.75, mix(unit(beam_rec(rng, 0.35, k)) * dsp.fit(env([(0, 0), (0.1, 1), (0.35, 0)], 0.35), samples(0.35)) * 0.5,
                        ck.choke(hit_rec(rng, WOOD_M, -4, 0.3), 0.05, 0.06)), -11)
-    y = air(b.x, rng, 0.1, 0.5)
+    y = hp(air(b.x, rng, 0.1, 0.5), 80, 2)  # the dropped thunder's whump put 55-58% under 150 Hz: weight, not a squelch
     y = dsp.fade(dsp.fit(y, samples(L)), 0.0, 0.3)
     return finish(hold(y, FALL), FALL_LUFS, -1.0)
 

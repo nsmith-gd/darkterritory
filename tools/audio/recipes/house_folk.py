@@ -439,6 +439,12 @@ def lunge(rng, k, foot):
     return dry(ck.place(parts))
 
 
+def unsquished(x, f=120):
+    """A footfall's weight without its boom: the first build had 75-83% of the Householder's tread and the Lodger's
+    bare feet under 150 Hz, a boom a step that reads as a squish (crew_feet.tup: the director, 8 Oct, "squishy")."""
+    return hp(x, f, 4)
+
+
 @recipe("cs-lodger", "lunge", "soles",
         "The lunge: bare feet thumping off the boards and landing hard, skin slapping wood",
         """Bare feet on a house's boards from real hits: each foot the skin's flat slap (a real book slapped down flat,
@@ -448,7 +454,7 @@ def lunge(rng, k, foot):
         chattering after.""",
         sources=SLAPS + SOFT + PLANK, takes=3, lufs=-19)
 def lunge_soles(rng, k):
-    return lunge(rng, k, lambda i, w: bare_foot(rng, k + i, w))
+    return unsquished(lunge(rng, k, lambda i, w: bare_foot(rng, k + i, w)))
 
 
 @recipe("cs-lodger", "lunge", "pads",
@@ -458,7 +464,7 @@ def lunge_soles(rng, k):
         slapped down mid-flight on most takes, both landing hard half a second later, a loose board chattering.""",
         takes=3, lufs=-19)
 def lunge_pads(rng, k):
-    return lunge(rng, k, lambda i, w: pad_foot(rng, w))
+    return unsquished(lunge(rng, k, lambda i, w: pad_foot(rng, w)))
 
 
 BREAK_AT = 1.85     # the door gives at the end of the sim's 2 s break; the blows before it
@@ -547,7 +553,7 @@ def break_splits(rng, k):
     keeper = ck.bounce(rng, ck.norm(ck.tick(rng, rng.uniform(2400, 3000), q=20, length=0.04)), n=3, first=0.12)
     parts += [(at, blow_model(rng, 1.3, 1.0), 0), (at + 0.01, tear(rng, 0.5), -2), (at + 0.04, keeper, -12),
               (at + 0.25, blow_model(rng, 0.7, 0.0), -6)]
-    return dry(ck.place(parts))
+    return unsquished(dry(ck.place(parts)))     # the leaf's 118 Hz boom had half to 60% of the blows under 150 Hz
 
 
 # ---- The Householder: its house (200 Hz-5 kHz) ----------------------------------------------------------------------------
@@ -854,7 +860,7 @@ def tread_model(rng, take):
         real crack's grain, dropped). Four takes the same weight and distance, for an even tread that never hurries.""",
         sources=STEPS + SLAPS + LEATHER + CRACKS, takes=4, lufs=-21, preview=lambda t, r: ck.gait(t, r, 0.5, 12, sway=0.003))
 def step_shoes(rng, k):
-    return tread(rng, k)
+    return unsquished(tread(rng, k), 170)   # at 120 the dropped book's slap still had half its energy under 150 Hz
 
 
 @recipe("cs-householder", "step", "stiff",
@@ -864,7 +870,7 @@ def step_shoes(rng, k):
         on every other step a knee's dry click. Four takes, even, for a tread that never hurries.""",
         takes=4, lufs=-21, preview=lambda t, r: ck.gait(t, r, 0.5, 12, sway=0.003))
 def step_stiff(rng, k):
-    return tread_model(rng, k)
+    return unsquished(tread_model(rng, k))
 
 
 BREATH_HL = 8.0     # four even breaths
