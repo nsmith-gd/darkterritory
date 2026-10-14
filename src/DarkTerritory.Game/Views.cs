@@ -173,6 +173,18 @@ public static class Views
             // over their feet: what the hand lamp's light falls on and the shadows it throws (note 436).
             "lampshadow" => Camera.LookAt(target.ToWorld(new Double3(2.2, roof + 2.3, -2.2)), target.ToWorld(new Double3(-0.2, roof + 0.3, -5.6)), 60),
             "cab" => CabCamera(engine),
+            // (Not one of Names.) Across the cab at the speaking tube's mouthpiece on its left wall (note 720), and in the guard
+            // van at its other end, the front right corner.
+            "tube" => TubeCamera(train, 0),
+            "tubevan" => TubeCamera(train, 1),
+            // (Not one of Names.) Close on the whistle codes' card by the cord (note 720), as the driver turns to read it.
+            "whistlecard" => Art.SceneArt.WhistleCardAt(engine.Shape) is { } card
+                ? Camera.LookAt(engine.ToWorld(card + new Double3(-0.62, -0.06, 0.05)), engine.ToWorld(card + new Double3(0, -0.1, 0)), 45)
+                : CabCamera(engine),
+            // (Not one of Names.) At the lineside off car 1, at the staged crew's lamp signals (dt screenshot --signal stop,go,back;
+            // note 720), the train behind them.
+            "lampsignal" => Camera.LookAt(Staging.Lineside(train, Staging.SignalAhead, Staging.SignalCamera) + Double3.Up * 1.55,
+                Staging.Lineside(train, Staging.SignalAhead, Staging.SignalOut) + Double3.Up * 1.25, 55),
             // Crouched where the fireman shovels, at the firebox door (what's seen when it's open: the staged Stoker).
             "firebox" => FireboxCamera(engine),
             // The work at the cab's front (note 280): from behind where one person runs it all, forward at the coal on the left,
@@ -529,6 +541,18 @@ public static class Views
         var f = train.Frames[v];
         double floor = train.Dynamics.Tuning.Geometry.Interior?.FloorHeight ?? 1.1;
         return Camera.LookAt(f.ToWorld(new Double3(-0.55, floor + 1.6, 5.2)), f.ToWorld(new Double3(0.5, floor + 0.9, 1.5)), 70);
+    }
+
+    /// <summary>The speaking tube's end <paramref name="end"/> (note 720), from a couple of metres into the room, a little along.</summary>
+    static Camera TubeCamera(TrainOnLine train, int end)
+    {
+        var ends = Sim.Train.SpeakingTube.Ends(train);
+        if (end >= ends.Count)
+            return CabCamera(train.Frames[0]);
+        var e = ends[end];
+        var f = train.Frames[e.Car];
+        var into = e.Facing * 0.8;
+        return Camera.LookAt(f.ToWorld(e.Mouth + into + new Double3(0, 0.2, 1.0)), f.ToWorld(e.Mouth + new Double3(0, -0.1, 0)), 55);
     }
 
     static Camera StoresCamera(TrainOnLine train)

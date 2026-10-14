@@ -1,0 +1,5 @@
+// The speaking tube's enamel tags (GDD §12, App. C.8; ARCHITECTURE §8 note 720): one over each mouthpiece's horn, by its end's
+// number (SpeakingTube.Ends: the cab's, then the guard van's), saying where it goes. An end past the list has none.
+{
+  "tags": ["TO THE VAN", "TO THE CAB"]
+}

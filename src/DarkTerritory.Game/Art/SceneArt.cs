@@ -167,6 +167,9 @@ public sealed partial class SceneArt(Look look)
             if (r != Arms.Hanging(1))
                 rightHand = ToF(r);
         }
+        // A lamp signal (note 720): the lamp hand swung across, raised and lowered, or round in a circle, out in front.
+        if (c.Lamp && c.Signal != Sim.Player.LampSignal.None && c.Alive)
+            rightHand = LampSignalHand(c.Signal, c.SignalSeconds);
         var lamp = c.Lamp ? PropArt.Of(Look).Get("hand_lantern") : null;
         // The repair kit by its handle (note 513): drawn in the fist, not where the sim holds it (Body skips it).
         var kit = pose is CrewPose.Toolbox or CrewPose.ToolboxWalk ? PropArt.Of(Look).Get("repair_kit") : null;
@@ -191,6 +194,8 @@ public sealed partial class SceneArt(Look look)
             var flame = Creatures.LastHanging;
             float flicker = Flicker(time, c.Id);
             mesh.Billboard(flame, 0.7f * flicker, 0, new Vector4(Palette.LampAmber * 0.55f * flicker, 1), -1, FxBlend.Additive);
+            if (c.Signal != Sim.Player.LampSignal.None && c.Alive)
+                SignalTrail(mesh, m, flame, c.Signal, c.SignalSeconds);
             _lampHands[c.Id] = (eye + new Double3(flame.X, flame.Y, flame.Z), time);
         }
         else

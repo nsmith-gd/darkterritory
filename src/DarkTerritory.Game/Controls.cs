@@ -25,6 +25,8 @@ public enum Control
     Emote,
     // Note 664 (the director's playtest, 13 Oct): crouch, held; and pushing the gun along, its own key (Use is sitting in it).
     Crouch, Push,
+    // Note 720 (GDD §12): with a hand lamp in the fist, held, the lamp signals' wheel; let go, the one the mouse is on.
+    Signal,
 }
 
 /// <summary>The default key for each control, by the key's name (Ballast.Platform's <c>Key</c>), and how the menu says it.</summary>
@@ -68,6 +70,8 @@ public static class Controls
         // Note 703 (the director: "Push O to walk doesn't make any sense. It's not something that is near the mouse, and
         // it's not something that's near the left hand"): the middle mouse button, held while walking.
         [Control.Push] = "MouseMiddle",
+        // Note 720: beside the emote wheel's J, by the lamp-carrying hand's other keys (the car lamp's K).
+        [Control.Signal] = "U",
     };
 
     /// <summary>Keys nothing can be bound to: the menus' own.</summary>
@@ -93,6 +97,7 @@ public static class Controls
         Control.Emote => "EMOTE (HOLD, THE MOUSE PICKS)",
         Control.Crouch => "CROUCH (HOLD)",
         Control.Push => "PUSH THE GUN ALONG (HOLD, WALKING)",
+        Control.Signal => "LAMP SIGNAL (HOLD, THE MOUSE PICKS)",
         _ => c.ToString().ToUpperInvariant(),
     };
 

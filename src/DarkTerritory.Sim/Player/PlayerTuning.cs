@@ -46,6 +46,12 @@ public sealed record PlayerTuning(
     public EmoteTuning Emotes { get; init; } = new();
     public NewsTuning News { get; init; } = new();
 
+    /// <summary>
+    /// Voices as tools (the friendslop audit's Friends goal; the director, 14 Oct 2026; note 720): the speaking tube, singing
+    /// together, and lamp signals. Field docs live in player.json <c>voices</c>.
+    /// </summary>
+    public VoicesTuning Voices { get; init; } = new();
+
     public string BotName(int i) => i < BotNames.Count ? BotNames[i] : $"Crew {i + 1}";
 
     /// <summary>
@@ -119,3 +125,46 @@ public sealed record CrouchTuning
     public double FootstepGainDb { get; init; } = -8;
     public double HeadsetBelow { get; init; } = 1.2;
 }
+
+/// <summary>Note 720: the speaking tube, singing together and lamp signals. Mirror of player.json <c>voices</c>.</summary>
+public sealed record VoicesTuning
+{
+    public TubeTuning Tube { get; init; } = new();
+    public SingingTuning Singing { get; init; } = new();
+    public LampSignalTuning LampSignals { get; init; } = new();
+}
+
+/// <summary>The speaking tube from the cab to the guard van (note 720). Field docs live in player.json <c>voices.tube</c>.</summary>
+public sealed record TubeTuning
+{
+    public double MouthReach { get; init; } = 1.0;
+    public double HeardWithin { get; init; } = 10;
+}
+
+/// <summary>
+/// Singing together (GDD §14; note 720; the director, 14 Oct 2026: "Singing does not fight the choir"). Field docs live in
+/// player.json <c>voices.singing</c>.
+/// </summary>
+public sealed record SingingTuning
+{
+    public double WindowSeconds { get; init; } = 4;
+    public double Earshot { get; init; } = 12;
+    public int Floor { get; init; } = 40;
+    public int Swing { get; init; } = 12;
+    public double InTime { get; init; } = 0.6;
+    public bool FeedsChoir { get; init; }
+    public double CalmsLivestock { get; init; } = 0.6;
+}
+
+/// <summary>Lamp signals (GDD §12; note 720). Field docs live in player.json <c>voices.lampSignals</c>.</summary>
+public sealed record LampSignalTuning
+{
+    public double Seconds { get; init; } = 3;
+    public double Cooldown { get; init; } = 0.5;
+    public double SeenWithin { get; init; } = 60;
+    public double StandSeconds { get; init; } = 90;
+    public double BackMetres { get; init; } = 40;
+    public double BackSpeed { get; init; } = 1.5;
+    public double StoppedWithin { get; init; } = 40;
+}
+

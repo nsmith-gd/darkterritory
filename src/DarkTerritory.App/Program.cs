@@ -1038,6 +1038,9 @@ CampaignState? Play(IPlaySession session, CampaignState? campaign)
     // The emote wheel (note 298): held on its key, the mouse picks; let go, it's sent on the next tick.
     var wheel = new EmoteWheel();
     var pendingEmote = Emote.None;
+    // The lamp signals (note 720): with a hand lamp in the fist, held on their key, the mouse picks; let go, it's given.
+    var signalWheel = new SignalWheel();
+    var pendingSignal = LampSignal.None;
     Camera camera = default;
     // T121: the derailment first-hand, then replayed from the chase view, then the orbit (DerailSequence).
     var derailSequence = new DerailSequence();
@@ -1261,7 +1264,11 @@ CampaignState? Play(IPlaySession session, CampaignState? campaign)
         // Held, the emote wheel takes the mouse (note 298); let go, what it was on goes with the next tick.
         if (wheel.Update(Held(Control.Emote) && session.Player.Alive, input.MouseDX, input.MouseDY) is var let && let != Emote.None)
             pendingEmote = let;
-        if (!inMenu && !wheel.Open)
+        bool lampInHand = session.World.Bodies.CarriedBy(session.PlayerId) is { Kind: DarkTerritory.Sim.Physics.BodyKind.Lamp, Stashed: false };
+        if (signalWheel.Update(Held(Control.Signal) && session.Player.Alive && lampInHand && !wheel.Open, input.MouseDX, input.MouseDY) is var given
+            && given != LampSignal.None)
+            pendingSignal = given;
+        if (!inMenu && !wheel.Open && !signalWheel.Open)
         {
             pendingYaw -= input.MouseDX * sensitivity;
             pendingPitch -= input.MouseDY * sensitivity * (settings.InvertMouse ? -1 : 1);
@@ -1322,9 +1329,11 @@ CampaignState? Play(IPlaySession session, CampaignState? campaign)
                 // Scrolled up is the previous slot, down the next, as in most games.
                 Cycle = (sbyte)(pendingCycle >= 1 ? -1 : pendingCycle <= -1 ? 1 : 0),
                 Emote = pendingEmote,
+                Signal = pendingSignal,
             };
             pendingSelect = 0;
             pendingEmote = Emote.None;
+            pendingSignal = LampSignal.None;
             if (Math.Abs(pendingCycle) >= 1)
                 pendingCycle -= Math.Sign(pendingCycle);
             if (locomotion is not null)
@@ -1646,6 +1655,7 @@ CampaignState? Play(IPlaySession session, CampaignState? campaign)
                 firstNight: firstNight && !cardHidden && !Held(Control.Roster) && !showSupplies && cardPage < 0 && !showPlan,
                 captions: frontEnd.Settings.Captions ? captions.Lines() : null);
             wheel.Draw(overlay, UiWidth, UiHeight, Hud.PromptScaleAt((float)renderer.Height / UiHeight));
+            signalWheel.Draw(overlay, UiWidth, UiHeight, Hud.PromptScaleAt((float)renderer.Height / UiHeight));
             // Q held: the crew roster (T69), with who's been heard.
             if (Held(Control.Roster))
                 Hud.Roster(overlay, UiWidth, UiHeight, session.Roster(), voice is null ? null : voice.SinceHeard);
