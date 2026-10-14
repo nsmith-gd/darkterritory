@@ -899,6 +899,8 @@ public static partial class Hud
 
     /// <summary>The space the top left keeps from the top centre's widest line (note 764), canvas pixels. Not a design number.</summary>
     const float TopGap = 10;
+    /// <summary>The narrowest the top left's column beside the top centre goes (note 764): any less, a line starts under it.</summary>
+    const float TopColumn = 96;
 
     static TopBand TopCentre(Overlay o, int width, IPlaySession s, Memory m, int line)
     {
@@ -2684,24 +2686,25 @@ public static partial class Hud
             // A stop's long list, a line to each thing it's waiting on.
             .SelectMany(t => t.Split("; ", StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries))
             .ToList();
-        TopLeft(o, [.. parts.Select(t => (t.ToUpperInvariant(), t.StartsWith("STOPPED", StringComparison.Ordinal) ? Amber : Dim))], band, width);
+        TopLeft(o, [.. parts.Select(t => (t.ToUpperInvariant(), t.StartsWith("STOPPED", StringComparison.Ordinal) ? Amber : Dim))], band, width, Fine);
     }
 
     /// <summary>
     /// The top left's fine print (note 764): from the corner down, beside the top centre's <paramref name="band"/> kept to the
-    /// left of it (wrapped between words; a line with no room for a word there starts under the band), under it the frame's
-    /// width less the corners. Returns where the last line ended.
+    /// left of it (wrapped between words; where that leaves too narrow a column, <see cref="TopColumn"/>, or no room for a
+    /// word, the line starts under the band), under it the frame's width less the corners. <paramref name="k"/>: the fine
+    /// print's scale. Returns where the last line ended.
     /// </summary>
-    public static float TopLeft(Overlay o, IReadOnlyList<(string Text, Vector4 Ink)> lines, TopBand band, int width)
+    public static float TopLeft(Overlay o, IReadOnlyList<(string Text, Vector4 Ink)> lines, TopBand band, int width, float k)
     {
-        float k = Fine, x = 6, y = 6;
+        float x = 6, y = 6;
         int line = o.Font.LineHeight;
         float beside = width / 2f - band.Half - TopGap - x, under = width - 2 * x;
         foreach (var (text, ink) in lines)
         {
             bool inBand = band.Half > 0 && y < band.Bottom;
-            // No room beside the centre for this line's longest word: it goes under the band.
-            if (inBand && text.Split(' ').Max(w => o.Measure(w, k)) > beside)
+            // No room beside the centre for a column, or for this line's longest word: it goes under the band.
+            if (inBand && (beside < TopColumn || text.Split(' ').Max(w => o.Measure(w, k)) > beside))
             {
                 y = Math.Max(y, band.Bottom + 2);
                 inBand = false;
