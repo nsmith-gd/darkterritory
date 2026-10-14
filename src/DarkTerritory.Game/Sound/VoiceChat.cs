@@ -18,6 +18,10 @@ namespace DarkTerritory.Game.Sound;
 /// the frames are replayed, so they'd be stale to that crewmate's own decoder. It plays from where the thing is, at one
 /// loudness however far (voice-mimic.json): the tell.
 /// </para>
+/// <para>
+/// The speaking tube (note 720; App. C.8): what's said into one mouthpiece comes on the speaker's tube stream, from the far
+/// end's horn (the host says which end), tinny and close (voice-tube.json), beside their voice in the air.
+/// </para>
 /// </summary>
 public sealed class VoiceChat
 {
@@ -57,8 +61,10 @@ public sealed class VoiceChat
         public readonly byte Id = id;
         public readonly VoiceDecoder Decoder = new();
         public readonly JitterBuffer<VoiceFrame> Order = new();
-        public readonly StreamBuffer Near = new(), Radio = new(), Dead = new(), Mimic = new();
-        public SoundInstance? NearVoice, RadioVoice, DeadVoice, MimicVoice;
+        public readonly StreamBuffer Near = new(), Radio = new(), Dead = new(), Mimic = new(), Tube = new();
+        public SoundInstance? NearVoice, RadioVoice, DeadVoice, MimicVoice, TubeVoice;
+        /// <summary>The speaking tube's end their voice last came out of (note 720), for where its horn is.</summary>
+        public int TubeEnd;
         public double RadioKeyed;
         /// <summary>Their radio as of last update: keyed (the click and the static), and when it last broke up.</summary>
         public bool Keyed;
@@ -171,6 +177,7 @@ public sealed class VoiceChat
                 _mimics.Remove(source);
             }
         }
+        var tubeEnds = Sim.Train.SpeakingTube.Ends(client.Train);
         foreach (var s in _speakers.Values)
         {
             s.NearVoice ??= Stream("voice", s.Near);
@@ -178,6 +185,10 @@ public sealed class VoiceChat
             s.NearVoice?.Params.Set("tunnel", inTunnel ? 1 : 0);
             s.RadioVoice ??= Stream("voice-radio", s.Radio);
             s.DeadVoice ??= Stream("voice-dead", s.Dead);
+            // The speaking tube (note 720): from the far end's horn, wherever the train has it now.
+            s.TubeVoice ??= Stream("voice-tube", s.Tube);
+            if (s.TubeVoice is not null && Sim.Train.SpeakingTube.Horn(client.Train, tubeEnds, s.TubeEnd) is { } horn)
+                s.TubeVoice.Position = horn;
             if (s.LiveMic is { } holdout && s.NearVoice is not null)
                 s.NearVoice.Position = holdout + Double3.Up * 1.4;
             else
@@ -195,6 +206,7 @@ public sealed class VoiceChat
             s.NearVoice?.Stop();
             s.RadioVoice?.Stop();
             s.DeadVoice?.Stop();
+            s.TubeVoice?.Stop();
             s.Static?.Stop();
             _speakers.Remove(id);
         }
@@ -237,6 +249,7 @@ public sealed class VoiceChat
         // Whatever of theirs is still waiting in the jitter buffer goes too (Decode strips it of air and radio).
         s.Near.Clear();
         s.Radio.Clear();
+        s.Tube.Clear();
         s.RadioKeyed = 0;
         // And the voice in the air itself, filters and all, so not even the tunnel filters' ring outlives the word (note 183);
         // a fresh one starts next update for the Live Mic or the freed.
@@ -247,11 +260,16 @@ public sealed class VoiceChat
     /// <summary>The cut's tests: whether this speaker's air and radio voices hold anything now.</summary>
     public (int Near, int Radio) Buffered(byte speaker) => _speakers.TryGetValue(speaker, out var s) ? (s.Near.Buffered, s.Radio.Buffered) : (0, 0);
 
+    /// <summary>Note 720: where a speaker's voice through the speaking tube is played from (its far horn), or null.</summary>
+    public Double3? TubeAt(byte speaker) => _speakers.TryGetValue(speaker, out var s) ? s.TubeVoice?.Position : null;
+
     static void Decode(Speaker s, VoiceFrame f)
     {
         // Frames from before the death, arriving late, are cut with the rest: only the dead channel plays on.
         if (s.Cut)
-            f = f with { Path = f.Path & ~(s.LiveMic is null ? VoicePath.Proximity | VoicePath.Radio : VoicePath.Radio) };
+            f = f with { Path = f.Path & ~(s.LiveMic is null ? VoicePath.Proximity | VoicePath.Radio | VoicePath.Tube : VoicePath.Radio | VoicePath.Tube) };
+        if (f.Path.HasFlag(VoicePath.Tube))
+            s.TubeEnd = f.Tube;
         if (f.Path.HasFlag(VoicePath.Radio))
             s.RadioKeyed = 0.15;
         if (s.NearVoice is not null)
@@ -277,6 +295,8 @@ public sealed class VoiceChat
                 s.Radio.Write(pcm);
             if (f.Path.HasFlag(VoicePath.Dead))
                 s.Dead.Write(pcm);
+            if (f.Path.HasFlag(VoicePath.Tube))
+                s.Tube.Write(pcm);
         });
     }
 

@@ -765,7 +765,7 @@ public sealed class CarHugger(int id) : Enemy(id)
         // SWALLOW: in front of its mouth, the rear platform's end.
         var mouth = WorldPosition(train);
         var victim = ctx.LivingCrew().Where(c => (c.World - mouth).Length <= t.MouthReach && !c.Player.State.Has(PlayerFlags.Held))
-            .OrderBy(c => (c.World - mouth).Length).Select(c => (int?)c.Player.Id).FirstOrDefault();
+            .OrderBy(c => ctx.Weigh(c.Player.Id, (c.World - mouth).Length)).Select(c => (int?)c.Player.Id).FirstOrDefault();
         if (victim is { } v)
             Grab(ctx, v, t.SwallowSeconds);
     }

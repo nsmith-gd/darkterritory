@@ -345,9 +345,10 @@ public class DemoRosterTests
     }
 
     [Fact]
-    public void AloneTheStruggleComesOffAboutOneTimeInSeven()
+    public void AloneTheStruggleComesOffAboutHalfTheTime()
     {
-        // At best a 15% chance (enemies.json grab.soloStruggleChance): over thirty nights' grabs, a handful come off.
+        // A coin flip (enemies.json grab.soloStruggleChance; it was 15%, and the director, 14 Oct: "really should have a
+        // higher rate of success", note 737): over thirty nights' grabs, about half come off, and never all or none.
         int free = 0;
         for (ulong seed = 1; seed <= 30; seed++)
         {
@@ -356,8 +357,8 @@ public class DemoRosterTests
             if (a.Phase != SpinePhase.Grab)
                 free++;
         }
-        Assert.Equal(0.15, E.Grab.SoloStruggleChance);
-        Assert.InRange(free, 1, 10);
+        Assert.Equal(0.5, E.Grab.SoloStruggleChance);
+        Assert.InRange(free, 8, 22);
     }
 
     [Fact]

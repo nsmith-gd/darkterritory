@@ -497,6 +497,37 @@ public abstract class Enemy
         string names = string.Join(", ", gang.Select(id => Run.IncidentLog.NameOf(ctx.World, id)));
         ctx.World.Attribution.Add(Run.IncidentLog.Event(ctx.World, Run.IncidentKind.Slain, $"Killed {Called} together",
             gang.Count > 0 ? gang[0] : -1, gang.Count > 0 ? $"By {names}." : "", WorldPosition(ctx.Train)));
+        // Note 718 (the director, 14 Oct 2026: team-killable creatures "can sometimes leave trophies").
+        LeaveTrophy(ctx);
+    }
+
+    /// <summary>
+    /// Killed by the crew: now and then (loot.json <c>trophies</c>' chance for its kind, from the run's seed and its id) a piece
+    /// of it is left where it fell, a find (<see cref="Run.Run.TrophyOwner"/>) that pays when it's stowed aboard (note 340's
+    /// Gannet's head, every time; note 718's the rest, sometimes). On a car, on what it stood on there (its roof, or the
+    /// floor); off the train, on the ground under it. Host only, as the spine is.
+    /// </summary>
+    protected void LeaveTrophy(EnemyContext ctx)
+    {
+        if (ctx.World.Run?.TrophyFor(Kind, Id) is null)
+            return;
+        var train = ctx.Train;
+        Physics.Body body;
+        if (Attached >= 0 && Attached < train.Frames.Count)
+        {
+            var shape = train.Frames[Attached].Shape;
+            double x = Math.Clamp(Local.X, -shape.HalfWidth + 0.3, shape.HalfWidth - 0.3), z = Math.Clamp(Local.Z, -shape.HalfLength + 0.5, shape.HalfLength - 0.5);
+            double top = shape.TopAt(x, z, train.Vehicles[Attached], Local.Y + 0.3)?.Top ?? shape.RoofHeight;
+            body = ctx.World.Bodies.SpawnCrate(train, Attached, new Double3(x, top, z), Physics.BodyKind.Loot);
+        }
+        else
+        {
+            var at = WorldPosition(train);
+            double hint = Attached == Loose ? train.Dynamics.Distance : LineDistance;
+            body = ctx.World.Bodies.SpawnLoot(at with { Y = PlayerMotor.GroundAt(at, train.Line, ref hint) }, hint, 0, 0.15);
+        }
+        body.Owner = Run.Run.TrophyOwner(Kind);
+        body.Claimed = false;
     }
 
     /// <summary>Moves the spine. Commit is only reachable from a telegraph at least the reaction window long.</summary>

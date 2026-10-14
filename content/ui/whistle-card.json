@@ -1,0 +1,13 @@
+// The whistle codes (GDD §12; the director's calls of 14 Oct 2026, friendslop.md queue #454; ARCHITECTURE §8 note 720): an
+// enamel card hung by the whistle cord in the cab, the old railway codes in the line's own words, one a line. Only a card:
+// the cord blows as long as it's held, and what a code means is the crew's to keep (the bots don't answer them).
+{
+  "title": "WHISTLE CODES",
+  "codes": [
+    "ONE LONG - STOPPING",
+    "TWO LONG - GOING",
+    "THREE SHORT - BACKING",
+    "FOUR SHORT - HELP",
+    "TWO SHORT - HEARD YOU"
+  ]
+}

@@ -21,6 +21,10 @@ public sealed class HostSession
         /// <summary>Whose link it is: a player who comes back on a new connection (note 253) moves to it.</summary>
         public PeerId Peer = peer;
         public readonly SortedDictionary<uint, PlayerIntent> Pending = new();
+        /// <summary>Note 717: the snapshot each pending input was predicted against (the crowd it was pushed from), by sequence.</summary>
+        public readonly Dictionary<uint, uint> PendingSeen = new();
+        /// <summary>The snapshot this tick's input was predicted against (0: none; the crowd as it stands).</summary>
+        public uint Seen;
         public uint LastApplied;
         /// <summary>Newest snapshot this client says it has decoded: the baseline for its next delta.</summary>
         public uint AckedSnapshot;
@@ -153,12 +157,21 @@ public sealed class HostSession
         HangUp();
         BoardWaiting();
 
+        // Note 717: the crew as they stand at the start of the tick, as the snapshot just sent (this tick's number) has them:
+        // whom a shove or a bonk finds, and the crowd. Each crewmate is pushed out from among the crew as the snapshot they
+        // predicted that input against had them (lag compensation, as for a shot), so a client's prediction agrees on any link.
+        World.Mates = [.. _crew.Select(c => ((int)c.Id, c.State))];
+        var crowd = Horseplay.Crowd(World.Mates);
+        _crowds[Tick] = crowd;
+        _crowds.Remove(Tick - CrowdHistory);
         foreach (var c in _crew)
         {
             c.ThisTick = NextIntent(c);
             // Off the rails, the living are the wreck's till its hit kills them (App. E.2 step 1): only the skip vote counts.
             if (World.Wrecked(c.State))
                 c.ThisTick = World.WreckedIntent(c.ThisTick);
+            // Staggered by a crewmate (note 717): look and talk, nothing else, the cab's controls included.
+            c.ThisTick = Horseplay.Staggered(c.State, c.ThisTick);
         }
 
         World.BeginTick();
@@ -200,7 +213,8 @@ public sealed class HostSession
         CutTheDead();
         foreach (var c in _crew)
             if (!World.Wrecked(c.State))
-                PlayerMotor.Step(ref c.State, c.ThisTick, Train, PlayerTuning, TrainTuning, SimConstants.TickSeconds, applyLook: false);
+                PlayerMotor.Step(ref c.State, c.ThisTick, Train, PlayerTuning, TrainTuning, SimConstants.TickSeconds, applyLook: false, c.Id,
+                    c.Seen > 0 ? _crowds.GetValueOrDefault(c.Seen, crowd) : crowd);
         World.StepBodies([.. _crew.Select(c => ((int)c.Id, c.State))]);
         if (World.Holdouts is { } holdouts)
             holdouts.StartingKit = PlayerTuning.StartingKit;
@@ -228,6 +242,10 @@ public sealed class HostSession
     /// interpolation window (100 ms) spans two of them. And when link.strainCrew or more of the crew report that much loss at
     /// once for link.strainSeconds, the one thing they share is this host's upload: <see cref="UploadStrained"/>.
     /// </summary>
+    /// <summary>Note 717: the crowd at the start of each recent tick, by the snapshot's number (what a client predicted against).</summary>
+    readonly Dictionary<uint, List<Shoulder>> _crowds = new();
+    const uint CrowdHistory = 64;
+
     void StepLinks()
     {
         var t = PlayerTuning.Link;
@@ -275,12 +293,16 @@ public sealed class HostSession
     PlayerIntent NextIntent(Crew c)
     {
         while (c.Pending.Count > MaxQueuedInputs)
+        {
+            c.PendingSeen.Remove(c.Pending.Keys.First());
             c.Pending.Remove(c.Pending.Keys.First());
+        }
         if (c.Pending.Count > 0)
         {
             // Take the oldest input we have. A gap means those inputs were lost; skip past them.
             var (seq, intent) = c.Pending.First();
             c.Pending.Remove(seq);
+            c.Seen = c.PendingSeen.Remove(seq, out uint seen) ? seen : 0;
             c.LastApplied = seq;
             c.LastIntent = intent;
             return intent;
@@ -575,10 +597,17 @@ public sealed class HostSession
 
     void Botness(int id, bool bot)
     {
+        // The world knows too (note 717): a bot never shoves, bonks a crewmate or hits one with coal.
         if (bot)
+        {
             _bots.Add(id);
+            World.BotIds.Add(id);
+        }
         else
+        {
             _bots.Remove(id);
+            World.BotIds.Remove(id);
+        }
     }
 
     /// <summary>
@@ -646,6 +675,7 @@ public sealed class HostSession
             var old = live.Peer;
             live.Peer = peer;
             live.Pending.Clear();
+            live.PendingSeen.Clear();
             live.Sent.Clear();
             live.AckedSnapshot = 0;
             if (old != peer)
@@ -953,8 +983,8 @@ public sealed class HostSession
             if (_frames.Count > 0)
                 c.InputLoss.Heard(_frames[^1].Sequence);
             foreach (var f in _frames)
-                if (f.Sequence > c.LastApplied)
-                    c.Pending.TryAdd(f.Sequence, Sanitise(f.Intent));
+                if (f.Sequence > c.LastApplied && c.Pending.TryAdd(f.Sequence, Sanitise(f.Intent)))
+                    c.PendingSeen[f.Sequence] = f.Seen;
         }
         catch (Exception e) when (e is EndOfStreamException or InvalidDataException)
         {
@@ -1030,6 +1060,9 @@ public sealed class HostSession
         // the proximity layer by the living near it (8 m clear, 26 m cutoff), and on the dead channel as ever. It's never said
         // aloud in the world: nothing listening for talk (the meter, the Gaunt, the Soot Children) hears it.
         var liveMic = speaker.State.Alive ? null : World.Holdouts?.LiveMicOf(speaker.Id);
+        // Note 720 (App. C.8): said into the speaking tube's mouthpiece, it comes out of the far end's horn as well, heard near it.
+        var tubeTuning = PlayerTuning.Voices.Tube;
+        var tube = SpeakingTube.Heard(speaker.State, Train, tubeTuning);
         foreach (var listener in _crew)
         {
             if (listener == speaker)
@@ -1040,6 +1073,8 @@ public sealed class HostSession
             var path = VoiceRouting.Route(speaker.State, ears.State, radio, Train, tunnel, World.Bodies.HasRadio(ears.Id), underground);
             if (liveMic is not null && VoiceRouting.HearsLiveMic(listener.State, liveMic.Inside, Train))
                 path |= VoicePath.Proximity;
+            if (tube is { } t && VoiceRouting.HearsTube(ears.State, t.At, Train, tubeTuning))
+                path |= VoicePath.Tube;
             if (path == VoicePath.None)
                 continue;
             // What's holding the speaker changes how they sound (App. C.8): muffled under a hand, fading as they're drained.
@@ -1048,7 +1083,7 @@ public sealed class HostSession
                 path |= VoicePath.Muffled;
             if (gain < 1)
                 path |= VoicePath.Fading;
-            Messages.WriteVoiceDown(_voiceWriter, speaker.Id, seq, path, opus, gain: gain);
+            Messages.WriteVoiceDown(_voiceWriter, speaker.Id, seq, path, opus, gain: gain, tube: tube?.End ?? 0);
             _transport.Send(listener.Peer, _voiceWriter.Written, Delivery.Unreliable);
             VoiceFramesForwarded++;
         }
