@@ -462,10 +462,40 @@ public sealed partial class World
         foreach (var (id, s, body) in Bodies.OnDeaths(Train, crew))
             if (Run is not null && !_countedAhead.Remove(id))
                 Attribution.Add(Sim.Run.IncidentLog.Death(this, id, s, body, crew));
+        IssueRadios(crew);
         Bodies.Step(Train, Train.Dynamics.Tuning, id => crew.FirstOrDefault(c => c.Id == id) is { State: var s } pair && pair.Id == id ? s : null);
         Train.Lying = Bodies.Lying(Train);
         Recover();
         BreakRadios(crew);
+    }
+
+    /// <summary>
+    /// Note 749 (GDD §12; the director, 14 Oct 2026: "make the radios part of the default kit"; "Radio is part of uniform and
+    /// doesnt take inventory space"): with train.json <c>kit.radioEach</c>, every living crewmate wears a radio: one put on
+    /// the belt of anyone alive without one (the night's first tick, a joiner, one back from a Holdout, a bot), and the dead's
+    /// taken off them, so they come back with a working set. In crew order, so the bodies' ids are the same on every run.
+    /// From the tick the train's stocked.
+    /// </summary>
+    void IssueRadios(IReadOnlyCollection<(int Id, PlayerState State)> crew)
+    {
+        // Once the train's stocked (Stock, Restock): a world that never was keeps the radio a button everyone has.
+        if (!Train.Dynamics.Tuning.Kit.RadioEach || !Bodies.RadiosCarried)
+            return;
+        foreach (var (id, s) in crew)
+        {
+            var worn = Bodies.All.FirstOrDefault(b => b.Kind == Physics.BodyKind.Radio && b.Carrier == id);
+            if (!s.Alive)
+            {
+                if (worn is not null)
+                    Bodies.Remove(worn);
+                continue;
+            }
+            if (worn is not null)
+                continue;
+            var radio = Bodies.SpawnItem(PlayerMotor.WorldPosition(s, Train) + Ballast.Double3.Up * 1.0, s.LineHint, Physics.BodyKind.Radio);
+            radio.Carrier = id;
+            radio.Claimed = true;
+        }
     }
 
     readonly Dictionary<int, (int Health, bool Held)> _wasHurt = [];
@@ -536,7 +566,11 @@ public sealed partial class World
         // The radios (T41, train.json kit): one on the cab floor against its back wall right of the middle, out of the reach
         // of a crewmate arriving in the cab and of all the work at its front (note 280), and against the plate over the
         // boiler's end, clear of the corridor in beside it (note 338); the rest in the guard van.
-        int radios = Train.Dynamics.Tuning.Kit.Radios;
+        // Note 749: with a radio each (kit.radioEach) they're the crew's uniform, put on each crewmate (StepBodies), and none
+        // lies loose.
+        int radios = Train.Dynamics.Tuning.Kit.RadioEach ? 0 : Train.Dynamics.Tuning.Kit.Radios;
+        if (Train.Dynamics.Tuning.Kit.RadioEach)
+            Bodies.RadiosCarried = true;
         if (radios > 0 && Train.Frames[0].Shape.Cab is { } cab)
         {
             Bodies.RadiosCarried = true;
@@ -573,8 +607,9 @@ public sealed partial class World
     /// are all back), nor anything a creature's carrying off.
     /// </summary>
     public Campaign.ThingAboard[] Aboard() =>
+        // Not a uniform's radio (note 749): it's the crewmate's, and a resumed night's crew are given theirs again.
         [.. Bodies.All.Where(b => b.Kind != Physics.BodyKind.Ragdoll && b.TakenBy < 0 && b.Parent >= 0 && b.Parent < Train.Vehicles.Count
-            && b.Pbd.Particles.Length == 1).Select(b =>
+            && b.Pbd.Particles.Length == 1 && !(b.Kind == Physics.BodyKind.Radio && b.Carrier >= 0 && Train.Dynamics.Tuning.Kit.RadioEach)).Select(b =>
         {
             var p = b.Pbd.Particles[0];
             return new Campaign.ThingAboard(b.Kind, b.Parent, p.Position, p.Radius, b.Pbd.Friction, b.Pbd.Bounce, b.Yaw, b.Locker, b.Slot, b.Claimed,
@@ -590,7 +625,7 @@ public sealed partial class World
     public void Restock(IEnumerable<Campaign.ThingAboard> things)
     {
         var kit = Train.Dynamics.Tuning.Kit;
-        if (kit.Radios > 0 && Train.Frames[0].Shape.Cab is not null)
+        if (kit.RadioEach || kit.Radios > 0 && Train.Frames[0].Shape.Cab is not null)
             Bodies.RadiosCarried = true;
         if (RepairKitCar(Train) is not null && !Repairs.ByWrench(Train) && kit.RepairKits + kit.SpareKits > 0)
             KitStocked = true;

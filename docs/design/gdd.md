@@ -467,6 +467,8 @@ You aren't picking a difficulty level. You're travelling farther from civilizati
 
 **The crew lockers.** Along car one's left wall, ahead of its side door, stands a row of twelve tall iron lockers, numbered 1 to 12 on their enamel plates (no role names: the director, 7 Oct 2026). Hold Use at one to open or shut its door; tap Use to put what's in your hands on a shelf, or take the top thing off one. Each has two shelves and takes anything hand-sized: a lamp, a radio, a toy, a find, an extinguisher, the kit. What's in a locker stays put through any stop or curve, and a shut locker keeps it from the Gaunt. A locker in a car the Territory takes is lost with the car. The kit starts in **locker 8**.
 
+**Every crewmate wears a radio** *(the director, 14 Oct 2026, on the social collision audit: "make the radios part of the default kit ... Hold down right click to use the radio since communication is so important"; "Radio is part of uniform and doesnt take inventory space, swap input conflict there so right click is radio call. Throw is so rarely used"; note 749)*. It's part of the uniform: on the belt from the start of the night, a joiner's and one back from a Holdout's too, and it never comes off. It takes no slot, isn't put down, stowed or handed over, and a broken one is mended on the belt. Hold the right mouse button to talk on it; Throw moved to [T], the radio's old key. The dead's goes with them, and they come back with a working one. No loose sets ride in the cab or the guard van (`kit.radioEach`; off, the train carries its two loose sets as before).
+
 **Spare kits.** The fortress sells spare engineering kits, and kits also turn up rarely as loot at stops (E.12, question 4). A spare starts the night on locker 8's other shelf, then in the lockers after it. A spare lost in the night is gone; a kit found at a stop and brought home is kept.
 
 **The kit stays on the body** (Appendix D.2). When the engineer dies, nobody goes looking for the engineering kit. They go looking for the engineer, and the dead player watches them do it.
@@ -867,7 +869,7 @@ Nothing there is a mystery. It's still a disaster.
 | Boiler ruptures | The engine seizes and the train slows hard, then coasts. Someone fetches the engineering kit and holds it at the firebox for 25s, then the fire is built back up from cold. Lose the kit and you're stranded (§23.2) |
 | Fire dies | Coasting on grade and momentum, brakes only |
 | Lights fail | Navigate through darkness on shouted landmarks |
-| Radio breaks | Shouting down the length of a moving train |
+| Radio breaks | Shouting down the length of a moving train. A hard knock breaks one; a grab never does (note 749). Mended on the belt |
 | Cannon fouls | Someone clears it by hand, under fire |
 | Car catches fire | Grab the extinguishers or abandon it |
 | A car battered and left (§23.3) | It works itself apart as it runs and its freight spills out of it; mend it with the wrench, or it comes off its rails and takes everything behind it |
@@ -946,7 +948,7 @@ Pillar 5 says the night gets worse and funnier. A failure is only funny when fou
 
 | Condition | Means | Where it's built |
 |---|---|---|
-| **Witnessed** | Somebody saw it or heard it happen | GRAB rescue windows (A.1) · the radio broadcast of a GRAB (C.8) · the dead watching (D.10) · auto-bookmarks (D.12) |
+| **Witnessed** | Somebody saw it or heard it happen | GRAB rescue windows (A.1) · the radio broadcast of a GRAB (C.8) · a GRAB or a death out of voice reach on the living's HUD, who and where (open question 2; note 750) · the dead watching (D.10) · auto-bookmarks (D.12) |
 | **Legible** | Everyone understands what happened, instantly | The six-word rule (A.1) · the voice hard-cut on death (D.2) · silhouettes built for callouts (§32) |
 | **Owned** | It traces back to a person's choice | Social test criterion 5 (§20) · the Choir taking the loudest voice (A.7) · failure attribution (C.9) · cause-of-death lines in the incident report (D.12) |
 | **Shrugged at** | The world responds with indifference | The settlement clerk (§9) · crew-loss fees and body refunds (D.9) · the Gaunt choosing a corpse over the medicine (A.6) |
@@ -1364,7 +1366,7 @@ Every night the game plays is timed frame by frame, and what it found is written
 # PART ELEVEN — OPEN QUESTIONS
 
 1. **Does a cannon reload need two players, or is it just slower solo?** A two-person reload makes the gunner a pair: more social, and more expensive.
-2. ~~**Can the conductor see whether everyone is aboard, or is roll call purely verbal?**~~ **Answered in v1.3: verbal.** There is no aboard indicator for the conductor or anyone else. Roll call is a question somebody has to shout, and the engine leaving without someone is this game's version of Lethal Company's ship leaving at midnight (§17, §23.1). D.6 already keeps the queue hidden from the living.
+2. ~~**Can the conductor see whether everyone is aboard, or is roll call purely verbal?**~~ **Answered in v1.3: verbal.** There is no aboard indicator for the conductor or anyone else. Roll call is a question somebody has to shout, and the engine leaving without someone is this game's version of Lethal Company's ship leaving at midnight (§17, §23.1). D.6 already keeps the queue hidden from the living. **An emergency is shown, not a roster** *(the director, 14 Oct 2026, on the social collision audit's R1: "looks good"; note 750)*. Roll call stays verbal: nothing shows who is aboard. But a crewmate held, or killed, out of voice reach (26 m) is a line for the living, under the news: who and where, never what. "PRIYA - CAR 4 ROOF" for as long as she's held; "PRIYA IS GONE - CAR 4" for four seconds when she dies. Within 26 m nothing is shown: you hear it. The dead are shown nothing. What has her, and what to bring, is still hers or her neighbours' to shout (`crewNews`).
 3. **How many cars before the flank is genuinely indefensible** — and is that ceiling the real progression cap?
 4. **Do corrupted humans ever use the radio?** A voice on your own channel that isn't crew is the single most disturbing thing available in this design. Possibly too much.
 5. **Does cold need a meter,** or is it enough that being outside too long simply kills you?
@@ -2145,7 +2147,8 @@ The roster depends on nine systems. Each is shared by several enemies, so each i
 7. **The crew loudness meter.** Combined loudness from voices, cannons, the whistle and machinery, measured over a few seconds so single shouts don't count. It drives the Choir and is fed by livestock and noisy loot. **The meter keeps a per-player share**: each player's voice, the cannon they fired, the whistle they pulled and anything noisy they carry. Machinery, livestock and a whistle blown by the Whistler belong to nobody. The Choir uses the shares from its BUILD phase to pick who it takes first (A.7). **A crew singing together feeds none of it** *(the director, 14 Oct 2026; note 720)*: two or more within earshot whose voices rise and fall in time over four seconds are singing, and their voices are left out of the meter while they do (§14). Livestock aboard while the crew sings make a lower floor.
 8. **Voice effects on the server.** Tippy Toesie muffles its victim; Soot Child victims fade as they're drained; the Gaunt listens for silence; the Passenger never speaks. All live in the existing voice layer. Two more, added in v1.3:
    - **Death hard-cut.** At PUNISH, or any instant death, the victim's proximity voice and radio stop on the tick, mid-word, with no fade. The same tick routes their mic to the dead channel (D.10).
-   - **Radio broadcast of a GRAB.** A grabbed player holding a radio keys it open for the whole GRAB, so everyone else on radio hears it with no way to tell which car it's coming from. It closes at BREAK OFF or with the hard-cut. Radio dies in tunnels and mine spurs as usual, so a GRAB there is heard only by whoever is close.
+   - **Radio broadcast of a GRAB.** A grabbed player holding a radio (since note 749, every crewmate, §12) keys it open for the whole GRAB, so everyone else on radio hears it with no way to tell which car it's coming from. It closes at BREAK OFF or with the hard-cut. Radio dies in tunnels and mine spurs as usual, so a GRAB there is heard only by whoever is close. **A grab never breaks the victim's set** (`radioBreakOnGrab` 0, was 0.25; note 749): the broadcast is the point.
+   - **A hand over the mouth** *(the director, 14 Oct 2026: "A grab should allow players to still use the radio but their voice should be muffle filtered as if the grab is covering their mouth partially"; note 749)*. While a crewmate is held, their voice, in the air and on the radio, is muffled, never cut: 6 dB down and low-passed at 1.4 kHz. Each listener's client does it from the held flag it already has. Tippy Toesie's own muffle and a Soot Child's fade keep their sound instead.
    - **The speaking tube** *(the director, 14 Oct 2026; note 720)*. Said within a metre of the tube's mouthpiece in the cab or the guard van, a voice also comes out of the other end's horn: tinny, narrower than the radio (600 Hz to 2 kHz, ringing at the pipe's own note), clean of static, and heard only within 10 m of the horn. It needs no radio and works in tunnels. The host routes it like the other paths, so a later upgrade can add tubes between neighbouring cars.
 9. **Failure attribution.** A server-side log written at every GRAB start, PUNISH, instant death, car loss, boiler rupture, stranding and derailment. Each record holds what happened, who it happened to, and the **contributing action**: the most recent crew input the rules of that failure name, and who made it. It feeds the incident report (D.12) and never touches money, progression or the director. It records facts, not fault, and it has no demerits.
 
@@ -2277,7 +2280,7 @@ A released player watches the train's lights leave from whoever they are followi
 | **Assignment** | Each Holdout takes the first *eligible* entry (D.5). Skipped entries keep their place. |
 | **Missed rescue** | A released player goes back to the position they held, normally the front. |
 | **Disconnect** | The entry is removed. Rejoining creates a new lobbied entry at the back. |
-| **Visibility** | Dead and lobbied players see the full queue and their position. The living see nothing; roll call stays verbal. |
+| **Visibility** | Dead and lobbied players see the full queue and their position. The living see nothing; roll call stays verbal. An emergency out of voice reach is shown to the living, who and where, never what (open question 2; note 750). |
 
 With halts included, the typical wait is **one site, about 5–8 minutes.** A crew that skips sites makes the wait longer.
 

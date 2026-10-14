@@ -200,6 +200,12 @@
     "seconds": 5,
     "cutToldAbove": 1.5
   },
+  // Incidents travel the train (GDD open question 2 and App. D.6; ARCHITECTURE §8 note 750; the social collision audit's R1,
+  // the director, 14 Oct 2026: "looks good"). Roll call stays verbal, but an emergency is shown: a crewmate held, or killed,
+  // further than beyondMetres from you (voice's reach, spec A.5's 26 m: nearer, you hear it) is a line under the news, who
+  // and where, never what: "PRIYA - CAR 4 ROOF" for as long as they're held, "PRIYA IS GONE - CAR 4" for deathSeconds.
+  // Each machine works it out for its own player from the snapshots. Never shown to the dead. Off: nothing shown.
+  "crewNews": { "on": true, "beyondMetres": 26, "deathSeconds": 4 },
   // Horseplay (GDD §23.4; ARCHITECTURE §8 note 717). The director, 14 Oct 2026: "The griefer ideas are funny"; "if we're
   // going to allow shoving, then we need shoving to be in full effect, which means if you're standing on top of a car, you
   // can be shoved off of it. And at speed, it kills you"; and the lump of coal "is going to need to be able to work with the
@@ -273,6 +279,13 @@
     // seenWithin (m) of the cab or the van's rear: STOP, it brakes to a stand and stands up to standSeconds (or till GO);
     // GO, it releases and goes on; BACK UP, at a stand it sets back backMetres at backSpeed (m/s) and stands. A STOP shown
     // to a moving train that stands within stoppedWithin (s) is named in the incident report.
-    "lampSignals": { "seconds": 3, "cooldown": 0.5, "seenWithin": 60, "standSeconds": 90, "backMetres": 40, "backSpeed": 1.5, "stoppedWithin": 40 }
+    "lampSignals": { "seconds": 3, "cooldown": 0.5, "seenWithin": 60, "standSeconds": 90, "backMetres": 40, "backSpeed": 1.5, "stoppedWithin": 40 },
+    // A hand over the mouth (GDD App. C.8; note 749; the director, 14 Oct 2026: "A grab should allow players to still use the
+    // radio but their voice should be muffle filtered as if the grab is covering their mouth partially"). While a crewmate is
+    // held, each listener's client plays their voice in the air and on the radio muffled, not cut: gainDb quieter, and
+    // through the sounds' own low-pass on their "covered" parameter (voice.json and voice-radio.json, 1.4 kHz). A creature
+    // that does its own thing to the voice keeps it, alone: Tippy Toesie's hand (muffled) and a Soot Child's draining
+    // (fading). Off: a held voice as it was.
+    "covered": { "on": true, "gainDb": -6 }
   }
 }

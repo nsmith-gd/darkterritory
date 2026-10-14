@@ -113,7 +113,7 @@ public class DeadPhaseTests
             Assert.Contains("CALL OUT : [G]", lines);
             Assert.Contains("LET SOMEONE ELSE GO FIRST : [Q]", lines);
             Assert.Contains("LIVE MIC OFF : [C]", lines);
-            Assert.DoesNotContain(lines, l => l.Contains("[E]") || l.Contains("[RMB]") || l.Contains("[SPACE]"));
+            Assert.DoesNotContain(lines, l => l.Contains("[E]") || l.Contains("[T]") || l.Contains("[SPACE]"));
         }
         finally
         {
@@ -128,7 +128,8 @@ public class DeadPhaseTests
     [MemberData(nameof(SizesAndScreens))]
     public void TheCardFitsTheFrameAtEveryTextSize(double size, int screen)
     {
-        // Everything on offer at once, in the default keys (Throw reads [RIGHT MOUSE]): each row inside the canvas, for every
+        // Everything on offer at once, Throw on the right mouse button (the longest key it can read; note 749 moved its default to
+        // T): each row inside the canvas, for every
         // way to have died (F1 on #417: MAULED and PECKED ran off a 540p window at 150%).
         var world = Night();
         world.Names[3] = "Bartholomew";
@@ -141,7 +142,7 @@ public class DeadPhaseTests
         var was = Hud.Keys;
         try
         {
-            Hud.Keys = new Settings { TextSize = size };
+            Hud.Keys = new Settings { TextSize = size, Keys = new() { ["Throw"] = "MouseRight", ["Radio"] = "T" } };
             var (w, hgt) = Hud.Keys.Canvas;
             float k = Hud.PromptScaleAt((float)screen / hgt);
             var o = new Overlay();

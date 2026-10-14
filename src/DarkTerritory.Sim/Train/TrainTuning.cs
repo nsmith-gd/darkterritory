@@ -159,7 +159,14 @@ public sealed record HandrailTuning(double DraggerGrab = 0.6, double DraggerHang
 /// <summary>The train's kit from the fortress (train.json <c>kit</c>).</summary>
 public sealed record KitTuning
 {
+    /// <summary>The loose radio sets the train leaves with (T41): one in the cab, the rest in the guard van. None with <see cref="RadioEach"/>.</summary>
     public int Radios { get; init; }
+    /// <summary>
+    /// Note 749 (GDD §12; the director, 14 Oct 2026: "make the radios part of the default kit"; "Radio is part of uniform and
+    /// doesnt take inventory space"): every living crewmate wears a radio from the start of the night, a joiner and one back
+    /// from a Holdout too, and it never comes off the belt. Off, the train carries <see cref="Radios"/> loose sets as before.
+    /// </summary>
+    public bool RadioEach { get; init; }
     /// <summary>Note 266: the forward lamp a Climber smashed comes back lit once its glass is in (train.json kit).</summary>
     public bool RelightSmashedLamp { get; init; } = true;
     /// <summary>GDD §23 "radio breaks" (note 183): the chance a radio on your belt smashes, per point of damage you take.</summary>
