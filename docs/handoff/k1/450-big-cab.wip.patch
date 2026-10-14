@@ -1,0 +1,2178 @@
+diff --git a/CLAUDE.md b/CLAUDE.md
+index dac52f85..b9c87783 100644
+--- a/CLAUDE.md
++++ b/CLAUDE.md
+@@ -54,7 +54,7 @@ dotnet run --project src/DarkTerritory.Cli -- holes --route deadLines:3 [--every
+ XDG_RUNTIME_DIR=/tmp xvfb-run -a dotnet run --project src/DarkTerritory.App -- --route frontier:7 --throttle 1 --quit-after 30 --capture out/shots/app.png   # real window path, headless (--route skips the front end)
+ dotnet run --project src/DarkTerritory.Cli -- gym [--only ribbit,gaunt] [--seconds 6]   # the creature gym (dev builds; GDD §34.1, note 676): every creature called, how far off, a death and the safe ring; shots -> out/gym. In the app: --gym [--gym-call moose]
+ ```
+-**Look at your visual changes.** After touching rendering or scene code, render the relevant `dt screenshot` views and read the PNGs before calling it done. Views: trackside, roof, cab, fireman, chase, ahead, gap, hatch (and, off the perf list, crew, crewside, inside, door, gapside, pack, choir, gaunt, gauntface, grumbler, firebox, follower, flies, passenger, soot, sootside, switchman, cannon, cannonside, fire, coaling, stores, locker, kit, cut, pen, trail, nest, mount, board, carry, swallow, packside, cutoff, rupture, flanges, poses, run, hotbox, moose, moosecharge, moosepin, gannet, gannetfold, gannetstuck, gannetpin, lane, laneside, patrol, glass, gauntcarry, mourners, beetle, towerjaw, towerjawfall, brakeman, brakemancorner, knotter, knotterslip, hotboxbug, hotboxout, cabboard, hanger, hangergrab, hollowhouse, hollowcollapse, householderhouse, pickers, pickerscarry, lodger, lodgershriek, householder, wakerpick).
++**Look at your visual changes.** After touching rendering or scene code, render the relevant `dt screenshot` views and read the PNGs before calling it done. Views: trackside, roof, cab, fireman, chase, ahead, gap, hatch (and, off the perf list, crew, crewside, inside, door, gapside, pack, choir, gaunt, gauntface, grumbler, firebox, follower, flies, passenger, soot, sootside, switchman, cannon, cannonside, fire, coaling, stores, locker, kit, cut, pen, trail, nest, mount, board, carry, swallow, packside, cutoff, rupture, flanges, poses, run, hotbox, moose, moosecharge, moosepin, gannet, gannetfold, gannetstuck, gannetpin, lane, laneside, patrol, glass, gauntcarry, mourners, beetle, towerjaw, towerjawfall, brakeman, brakemancorner, knotter, knotterslip, hotboxbug, hotboxout, cabboard, hanger, hangergrab, hollowhouse, hollowcollapse, householderhouse, pickers, pickerscarry, lodger, lodgershriek, householder, wakerpick, cabhall, gallery, backwall, engineside).
+ Cloud sessions: `.claude/hooks/session-start.sh` installs the .NET 10 SDK from Ubuntu apt (the Microsoft download host is blocked by the proxy) and Mesa lavapipe (software Vulkan) for rendering without a GPU.
+ 
+ ## Layout
+diff --git a/content/tuning/train.json b/content/tuning/train.json
+index 8cab4837..a6417f0f 100644
+--- a/content/tuning/train.json
++++ b/content/tuning/train.json
+@@ -45,7 +45,10 @@
+       // the whole cab being operable by one person"): everything at its front, facing forward. Across it under the windows,
+       // left to right: the coal bunker in the front left corner, the firebox against the front wall beside it, the
+       // driver's console under the right-hand window. One person stood behind them reaches all three without turning round.
+-      "cabLength": 5.0,
++      // Note 716 (the director, 14 Oct 2026: "big cab, 11 meters, smaller boiler ... the cab itself becomes the crew car"):
++      // 11 m of the engine's 20 (was 5), the boiler about 8 behind it (was about 14). Its front 2.5 m, the footplate, is as it
++      // was; behind it crewCar's chart table, gallery and back wall.
++      "cabLength": 11.0,
+       // The coal bunker: in the front left corner, back along the left wall this long, this deep in from the wall and this
+       // high over the floor.
+       "bunkerLength": 1.8,
+@@ -65,7 +68,46 @@
+       // viaducts' parapets, clear above them. Any wider and the steps' foot is off a bridge's deck.
+       "runningBoardWidth": 0.85,
+       "runningBoardAhead": 1.0,
+-      "sandboxBehind": 2.5
++      "sandboxBehind": 2.5,
++      // The cab as the crew car (note 716; the director, 14 Oct 2026: "the place where players hang out together ... where
++      // coordinated driving happens ... the captain's quarters, shared by all"). Every place is metres behind the cab's front.
++      "crewCar": {
++        // The footplate, the work at the front exactly as note 280 has it (bunker, firebox, console, levers, cord): nothing of
++        // the crew car's stands in its first footplateLength.
++        "footplateLength": 2.5,
++        // The chart table behind it, in the middle (the director: "I'm okay with moving the cab map behind the controls. On a
++        // table and as long as it's tracking where the train still is and giving our route"): from tableFrom, this long,
++        // this wide and this high (standing height). Either side of it a way 0.95 m wide down the cab. Its front clear by a
++        // body's breadth of the floor a crewmate's put on behind the bunker (PlayerMotor.CabFloorZ, 2.5 m back).
++        "tableFrom": 2.9,
++        "tableLength": 1.75,
++        "tableWidth": 0.9,
++        "tableHeight": 1.0,
++        // The gallery ("the gallery and the raised benches, this is a good spot"): a floor galleryRise up from galleryFrom to
++        // galleryTo, a tread galleryStep deep at its front and its back, half way up (player.json stepUp walks it, with
++        // arms full; deeper than a body's radius, so the foot's on it before the riser behind it is in the way), so whoever
++        // stands there sees the line out of the front windows over the heads at the footplate. The cab's sides stand
++        // galleryWaist over its floor the whole way from the front pillar to the doorways (a waist, not a sill to jump out
++        // over; and no corner where the gallery starts), under the footplate's slits as ever.
++        "galleryFrom": 5.1,
++        "galleryTo": 8.4,
++        "galleryRise": 0.45,
++        "galleryStep": 0.45,
++        "galleryWaist": 1.1,
++        // The benches on it, facing forward down the middle of the cab (the chart table's line, so a bench sees over it), one
++        // a row, from each benchRows (m behind the cab's front), benchWidth across, benchDepth deep, its seat benchHeight up.
++        // The ways either side of the table run on past them to the back wall's doors.
++        "benchRows": [5.9, 7.3],
++        "benchWidth": 1.0,
++        "benchDepth": 0.45,
++        "benchHeight": 0.45,
++        // The back wall's kettle on the warm backhead sings from kettleFrom under boiler.json's redline, full at it: the
++        // cab's own sign the gauge is climbing. The cuckoo clock's bird comes out every cuckooEvery seconds over the last
++        // enemies.json wakers.stirSeconds before dawn, for cuckooOutSeconds each time.
++        "kettleFrom": 10,
++        "cuckooEvery": 60,
++        "cuckooOutSeconds": 3
++      }
+     },
+     // Cars are walk-in (GDD §10: "the back door"; §26: warm interior, hostile exterior). The floor is
+     // level with the coupler plate, so you step from the gap through the end door. The roof slab keeps
+diff --git a/docs/design/gdd.md b/docs/design/gdd.md
+index 3ac32290..f23447d5 100644
+--- a/docs/design/gdd.md
++++ b/docs/design/gdd.md
+@@ -410,10 +410,16 @@ Eventually the crew sees lights. Then walls. Then cannon towers. The gates open
+ 
+ | Section | Contains |
+ |---|---|
+-| **Engine car** | Conductor, boiler, forward cannon. Heat, light, the throttle. |
++| **Engine car** | The big cab, the crew car (the footplate's controls and fire, the chart table, the gallery, the warm back wall), a short boiler behind it, the forward cannon on the cab roof. Heat, light, the throttle. |
+ | **Cargo cars** | The middle. Growing. Unarmed. |
+ | **Guard car** | Rear cannon, tool storage, the back door. |
+ 
++**The cab is the crew car** *(the director, 14 Oct 2026: "the cab itself becomes the crew car. It becomes the place where players hang out together. It becomes the place where coordinated driving happens. It becomes, in essence, the captain's quarters, shared by all"; ARCHITECTURE §8 note 716)*. The boiler doesn't have to be a real one's length ("The boiler is just a long tube ... it can still feel that way without having an accurate long boiler"), so the cab takes 11 m of the engine's 20 and the boiler the 8 behind it. Front to back:
++- **The footplate** (its first 2.5 m), exactly as it was: the coal bunker front left, the firebox beside it, the driver's console under the right window, the levers, the whistle cord, the vent, the tool rack. One person stood there still reaches the coal, the fire and the controls without turning round ("we are going to have this game playable by a single player").
++- **The chart table**, standing height, in the middle behind the footplate: the run map lies on it under a hooded lamp, the train's place on it moving, the bends with their speeds and the stops marked, as on the plate it used to hang on. Along its front edge, a small lamp for each crewmate: lit while they're aboard, dark when they're down on the ground or dead, so whoever has the table sees who's missing. There's room to walk by it on either side.
++- **The gallery**, a raised floor a step up (0.45 m, a tread half way), its benches down the middle facing forward, long windows down its sides. From up there everyone sees the line out of the front windows over the heads at the controls: "Everybody wants to be where they can see the tracks, because making people feel comfortable is seeing where they're going."
++- **The back wall**, the boiler's end, warm with it: the doors out to the running boards on either side, the ways along the boiler, and its gimmicks: a kettle on the warming shelf that starts to sing as the boiler nears its redline; a cuckoo clock whose bird comes out once a minute over the last three minutes before dawn; a rail of empty frames for the crew's photos; a trophy shelf; a hook for each crewmate, their cap on it while they're off the train; and a shelf kept for the gramophone.
++
+ Early crews run **engine plus one or two cars.** Experienced crews run **engine, armour, cannons, utility cars and many freight cars.**
+ 
+ The train should increasingly feel like home. Players learn where cannons are mounted, where powder and shot are stored, where the engineering kit is kept, where emergency lamps are kept, where coal is stored, where tools and fire extinguishers hang.
+@@ -471,6 +477,8 @@ You aren't picking a difficulty level. You're travelling farther from civilizati
+ 
+ Roles emerge from position. You end up on the cannon because you're standing at the cannon.
+ 
++**The cab is where the crew drives the train together** *(the director, 14 Oct 2026; note 716)*. Five jobs, every one optional: the **driver** at the controls, the **fireman** at the coal and the fire beside them, the **navigator** at the chart table calling the bends and the stops and counting the lamps, the **lookout** up on the gallery watching the line over everyone's heads, and the **gunner** up the ladder at the forward cannon. A crew of five can split them; a crew of one does all of them from the footplate, as before.
++
+ **The cab's ladder goes up to the roof** *(the director's evening playtest, 13 Oct: "This ladder inside the cab should actually go up to the roof so that I can access the roof quickly and vice versa"; note 704)*. Behind the coal bunker, a ladder runs from the cab floor up through an open hatch onto the cab roof, by the forward gun. It's the quick way between the driver's place and the gun.
+ - **Going up:** walk to it looking up, or press the ladder key at its foot. Walking past it while working the cab, eyes level, doesn't take it. A car's hatch ladder inside works the same way ("DOWN INSIDE" from its roof).
+ - **Going down:** at the open hatch on the roof, the ladder key takes you down into the cab.
+diff --git a/docs/notes/716.md b/docs/notes/716.md
+new file mode 100644
+index 00000000..302f4ff2
+--- /dev/null
++++ b/docs/notes/716.md
+@@ -0,0 +1,40 @@
++716. **The big cab, the crew car (K1, queue #450; the director, 14 Oct 2026, `docs/design/friendslop.md`).**
++"Because this is a game, the boiler doesn't have to be accurate in size. We can have a small boiler and make the cab a lot larger so that the cab itself becomes the crew car. It becomes the place where players hang out together. It becomes the place where coordinated driving happens. It becomes, in essence, the captain's quarters, shared by all." "Everybody wants to be where they can see the tracks, because making people feel comfortable is seeing where they're going." Approving the spec: "big cab, 11 meters, smaller boiler. I still want to keep a bunch of the controls the way that we have it set up because we are going to have this game playable by a single player ... the chart table is good. I'm okay with moving the cab map behind the controls. On a table and as long as it's tracking where the train still is and giving our route. In terms of the gallery and the raised benches, this is a good spot ... And the back wall should definitely have some fun, cute gimmicks back there as well."
++
++   - **What it was:** the engine 20 m with a 5 m cab (note 280's work all at its front) and the boiler about 14 m under the armoured hood (note 338). The run map hung on the plate over the front windows.
++   - **Now** (train.json `geometry.engine.cabLength` 11; `geometry.engine.crewCar`; `EnginePlan`, `CarShape.Engine`, `CrewCar`):
++     - **The cab is 11 m** of the engine's 20; the boiler and the hood the 7.9 m behind it. The engine's length and width are unchanged.
++     - **The footplate** (`crewCar.footplateLength` 2.5) is exactly the 5 m cab's: bunker, firebox, console, levers, whistle cord, vent, tool rack, points lever, the hatch ladder to the gun (note 704's ladder and hatch untouched), the gun. `CrewCarTests` builds both cabs and holds every one of them to the millimetre. The vent stood a third of the way back to the doorway; it's pinned where it was (`CarShape.VentAlong`). The coaling spout pours where it did.
++     - **The chart table** (`tableFrom` 2.9, `tableLength` 1.75, `tableWidth` 0.9, `tableHeight` 1.0, part `ChartTable`): in the middle behind the footplate, clear of the floor a crewmate is put on (`PlayerMotor.CabFloorZ`). The run map is laid flat on it (`TrainKit.MapToCab`: the sheet as it was cooked, turned onto the table, the night running back to front the way the train goes, read from the driver's side), the train's place moving on it, the bends' figures, the stops. A green-shaded lamp hangs over it, high enough to keep out of the gallery's view.
++     - **One lamp per crewmate** along the table's front end (`TrainKit.CrewLamp`, `CrewCar.Aboard`): lit while they're alive and in any of the train's vehicles, dark on the ground or dead. Read from replicated state (each crewmate's `Parent`), so every machine shows the same.
++     - **The gallery** (`galleryFrom` 5.1 to `galleryTo` 8.4, `galleryRise` 0.45, part `Gallery`): a raised floor wall to wall with a tread half way up at each end (`galleryStep` 0.45 deep: deeper than a body's radius, or the riser behind it stops the foot first). Two benches down its middle facing forward (`benchRows` 5.9 and 7.3, `benchWidth` 1.0, `benchDepth` 0.45, `benchHeight` 0.45, part `Bench`). The ways down the cab either side of the table and the benches are 0.95 m wide (`EnginePlan.Lane`).
++     - **The sides' waist** stands `galleryWaist` (1.1) over the gallery's floor the whole way from the front pillar to the doorways (deck + 1.55, was 1.1), so nobody steps out over a knee-high sill up there and a walker along the side meets no corner. It's under the footplate's slits, so nothing changes from the controls. Long windows along the gallery (`TrainKit.SideWindows`: the slits along the footplate and the table, three tall bays along the gallery, plate behind them to the doorway).
++     - **The back wall**, the plate over the boiler's end, drawn warm with a low orange light: atmosphere only, nothing tied to the cold (the director's playtest of 14 Oct, line 14, would drop the cold). On it:
++       - a **kettle** on the warming shelf that steams as the boiler nears its redline (`CrewCar.KettleSong`: from `kettleFrom` 10 under boiler.json's redline, full at it; `Effects.KettleSteam`);
++       - a **cuckoo clock** whose bird comes out once a minute over the last `wakers.stirSeconds` (180) before dawn (`CrewCar.Cuckoo`, `cuckooEvery` 60, `cuckooOutSeconds` 3);
++       - a **photo rail** of six empty frames (queue #455 pins the crew's photos in them);
++       - an empty **trophy shelf** on the left wall;
++       - a **hook per crewmate** on the right wall, their cap hung on it in their colour (look.json `crewColours`) while they're off the train or dead;
++       - the warming shelf's right half **kept clear for U1's gramophone** (`TrainKit.GramophoneShelf`, #967).
++     - **The doorways** moved back with the back wall; the running boards, the cab steps and the corridors along the boiler are where they always meet them. The forward gun stays at the cab roof's front; its rail now runs the long cab roof.
++     - **The running gear** under the shorter boiler (`TrainKit.Drivers`: the last pair just ahead of the trailing truck) and a pair of small wheels under the cab (`TrainKit.CabTruck`).
++     - **What comes into the cab** (a Climber over the roof, the Lamplighter at the brake, the staged doll) comes down on the footplate (`CarShape.FootplateMiddle`), where the 5 m cab's middle was.
++     - **The bots** go round the table and the benches by the ways (`EnginePlan.CabWay`, `WarmUp.SteerCab` in their own walks; `Heed.CabFurniture` for any other walk), and get down from the cab at its doorway at a walk (`StopCrew.GetDown`: the stroll is only for the step off).
++     - **Down the treads is a step** (`PlayerMotor.UpdateSupport`): in the engine's cab, a floor up to `player.json stepUp` below the feet catches them, as one that high above does. Before, every step down was a drop: off a tread a crewmate was in the air in the world's frame for a few ticks, out of the cab (its space the outside, a lone driver's sanding called off). Only inside the cab box; everywhere else steps down are as they were.
++     - **Sitting on the benches** isn't built: they're geometry to stand by. Queue #456's emotes (sitting on a roof edge) is where a sit belongs.
++   - **Views:** `cabhall` (from the back wall forward over the gallery and the table), `gallery` (stood at the gallery's front), `backwall` (with `--kettle s` and `--cuckoo c`), `engineside` (square off the engine's side); `dt screenshot --cabcrew` stages a crew in the cab and two off the train. `cab`, `fireman` and `cabmap` (now over the table) still frame the footplate and the map.
++   - **Checked:**
++     - `CrewCarTests` (Sim): the cab 11 m and the boiler the rest; the footplate as the 5 m cab's; the table, the gallery, its treads (each under a step) and benches, and the ways' widths; a walk from the footplate up onto the gallery, across it, down to the back wall and out of its doors either side; down the treads in the cab the whole way; the gallery's waist; a bot round the furniture to the back wall and back (`SteerCab`); `CabWay` straight when clear; the lamps; the kettle; the cuckoo's three calls.
++     - `CrewCarArtTests` (Game): the map flat on the table, turned not mirrored; the lamps along its front end clear of the map; the gimmicks on the back wall behind the gallery, the gramophone's place clear; the kettle steams only singing, more as it nears the redline.
++     - `CabGlassTests`: the panes are 14 now (2 front, the slit's 3 and the gallery's 3 a side). `CabSightTests`: the map is no longer held in view from the driver's place over the windows; it's on the table behind them, within four steps.
++     - The bot-night tests that walk in and out of the cab (`HoldoutTests`, `SandTests`, `WrenchTests`, `FiremanTests`, `CrewOfTwoTests`, `GateClearTests`) pass with the bots' ways round (`SteerCab`, `GetDown` at a walk; the gallery's treads deeper than a body's radius, or the riser stopped a foot before it was on the tread).
++     - `CarFireTests`' Fire Flies night: its seeds are nights as dealt, and the cab's walks reshuffle them. Of seeds 1 to 8, 1, 2, 5, 6 and 7 pass; on 3, 4 and 8 every hand was 30 m off at the winch and the crane when the swarm came to car 1, and it caught. Seed 3 is seed 2 now. Not checked against main's build (that wants a second checkout); K1 may want to run 3, 4 and 8 on main to be sure it's the reshuffle and not the cab.
++     - Screenshots looked at: `cab`, `fireman`, `cabmap`, `cabhall`, `gallery`, `backwall`, `engineside`, `engine`, `cabhatch`.
++   - **Left for later:**
++     - Sounds (AU1): the kettle's song (`crew-cab-kettle.sing`, a thin rising whistle at low level) and the cuckoo's call (`crew-cab-clock.cuckoo`). Both are worked out from replicated state (`CrewCar.KettleSong`, `CrewCar.Cuckoo`); no sim event is needed.
++     - Art polish: the benches and the back wall are kit greybox; the caps on the hooks are boxes.
++     - Sitting on the benches (with #456).
++
++**Handoff** (14 Oct, K1)
++- Done: built on the worktree branch; K1 integrates it.
++- Next: AU1's two sounds; #455's photos on the rail; U1's gramophone on its shelf (#967).
+diff --git a/src/DarkTerritory.App/Program.cs b/src/DarkTerritory.App/Program.cs
+index 8a050be2..aeda8d33 100644
+--- a/src/DarkTerritory.App/Program.cs
++++ b/src/DarkTerritory.App/Program.cs
+@@ -1584,6 +1584,11 @@ CampaignState? Play(IPlaySession session, CampaignState? campaign)
+         scene.Tick = session.HostTick;
+         scene.Pressure = (float)(session.Train.BoilerTuning is { } pt ? session.Train.Boiler.Pressure / pt.PressureMax : 0.78);
+         scene.Tender = (float)(session.Train.BoilerTuning is { TenderCapacity: > 0 } tt ? Math.Clamp(session.Train.Boiler.Tender / tt.TenderCapacity, 0, 1) : 0.72);
++        // The crew car's back wall (note 716): the kettle singing as the gauge nears the redline, the cuckoo before dawn.
++        var crewCar = session.Train.Dynamics.Tuning.Geometry.Engine.CrewCar;
++        scene.KettleSong = session.Train.BoilerTuning is { } kt ? DarkTerritory.Sim.Train.CrewCar.KettleSong(session.Train.Boiler.Pressure, kt, crewCar) : 0;
++        scene.Cuckoo = session.World.Run is { } cuckooRun && session.World.Enemies?.Wakers is { } cuckooDawn
++            ? DarkTerritory.Sim.Train.CrewCar.Cuckoo(cuckooRun.DawnIn, cuckooDawn.StirSeconds, crewCar) : null;
+         scene.LampLit = session.World.LampShining && scene.LampsOut < session.Train.Frames.Count;
+         scene.Venting = session.Train.Boiler.Vented;
+         scene.SafetyValve = session.Train.Boiler.SafetyValveLifting;
+diff --git a/src/DarkTerritory.Cli/Program.cs b/src/DarkTerritory.Cli/Program.cs
+index 58759e10..4a0b0e5f 100644
+--- a/src/DarkTerritory.Cli/Program.cs
++++ b/src/DarkTerritory.Cli/Program.cs
+@@ -1837,6 +1837,8 @@ static object Screenshot(TrainTuning t, string content, string[] args)
+             // --driver: a crewmate at the engine's controls (note 445), on the whistle cord with --whistle; --reverser s: the
+             // reverser thrown s seconds ago (SceneArt.ReverserThrown), the brake hand on it.
+             : args.Contains("--driver") ? [Staging.Driver(train, args.Contains("--whistle"))]
++            // --cabcrew: the crew in the big cab (note 716), and two off the train (its chart table's lamps, its hooks' caps).
++            : args.Contains("--cabcrew") ? Staging.CabCrew(train)
+             : args.Contains("--vr-body") ? Staging.Headsets(train, content)
+             : args.Contains("--working") ? Staging.Working(train, content)
+             : args.Contains("--crew") ? [.. Staging.Crew(train, content), .. args.Contains("--ribbits") || args.Contains("--gaunt") || args.Contains("--grumbler") || args.Contains("--follower") || args.Contains("--soot") ? [Staging.Lone(train)] : Array.Empty<Crewmate>()]
+@@ -1871,6 +1873,10 @@ static object Screenshot(TrainTuning t, string content, string[] args)
+         StokerLowFor = args.Contains("--perched") ? Opt(args, "--perched", 10) : -1,
+         // --whistle: a crewmate on the cord (the cord hauled down, the whistle's steam).
+         CordPulled = args.Contains("--whistle"),
++        // --kettle s: the back wall's kettle singing that hard (0..1, note 716); --cuckoo c: the clock's bird c of the way
++        // through its call (0..1).
++        KettleSong = Opt(args, "--kettle", 0),
++        Cuckoo = args.Contains("--cuckoo") ? Opt(args, "--cuckoo", 0.5) : null,
+         // --unseen: the livestock not looking round at the eye and the crew (note 455), for the before.
+         Onlook = !args.Contains("--unseen"),
+         // --coal u: that much on the fire, as the HUD's FIRE reads it (T121: the firebox's look follows it, out only at 0).
+diff --git a/src/DarkTerritory.Game/Art/Effects.CrewCar.cs b/src/DarkTerritory.Game/Art/Effects.CrewCar.cs
+new file mode 100644
+index 00000000..9ac6e6bb
+--- /dev/null
++++ b/src/DarkTerritory.Game/Art/Effects.CrewCar.cs
+@@ -0,0 +1,28 @@
++using System.Numerics;
++using Ballast.Render;
++
++namespace DarkTerritory.Game.Art;
++
++public sealed partial class Effects
++{
++    /// <summary>
++    /// The back wall's kettle singing (note 716, <see cref="Sim.Train.CrewCar.KettleSong"/>): a thin jet off its spout, more
++    /// and quicker as the boiler nears its redline (<paramref name="song"/> 0..1), curling up and away in the cab's still air.
++    /// <paramref name="spout"/> the spout's tip, <paramref name="up"/> the cab's up, <paramref name="out_"/> the way it points.
++    /// </summary>
++    public void KettleSteam(MeshBuilder mesh, Vector3 spout, Vector3 up, Vector3 out_, float song, double t)
++    {
++        if (_steam < 0 || song <= 0)
++            return;
++        int puffs = 3 + (int)(song * 9);
++        for (int k = 0; k < puffs; k++)
++        {
++            float h = Hash(k * 3.17f + 0.5f), period = 0.9f + h * 0.5f - song * 0.3f;
++            float age = (float)((t * (1 + song) + h * 7) % period), s = age / period;
++            var p = spout + out_ * (age * (0.25f + 0.35f * song)) + up * (age * age * 0.9f)
++                + new Vector3(MathF.Sin(age * 3.1f + h * 6), 0, MathF.Cos(age * 2.3f + h * 4)) * (0.04f * s);
++            float a = (0.25f + 0.35f * song) * (1 - s);
++            mesh.Billboard(p, 0.03f + s * 0.22f, h * 6.28f, new Vector4(0.7f, 0.71f, 0.74f, a), _steam, FxBlend.Alpha, (int)(s * 15.99f), 4);
++        }
++    }
++}
+diff --git a/src/DarkTerritory.Game/Art/SceneArt.cs b/src/DarkTerritory.Game/Art/SceneArt.cs
+index 07df0ab0..c9c24d43 100644
+--- a/src/DarkTerritory.Game/Art/SceneArt.cs
++++ b/src/DarkTerritory.Game/Art/SceneArt.cs
+@@ -1344,6 +1344,17 @@ public sealed partial class SceneArt(Look look)
+             if ((frame.Origin - eye).Length < 60 && lamps > 0.5f)
+                 foreach (var lamp in TrainKit.CorridorLamps(shape))
+                     mesh.PointLights.Add(new PointLight(Vector3.Transform(lamp, m), new Vector3(1.0f, 0.62f, 0.32f) * 0.55f, 4.5f));
++            // The crew car (note 716): the chart table's lamp under its shade, down on the map and the heads round it; and the
++            // back wall warm off the boiler's end, a low glow on the gallery's backs. Close to, inside, only.
++            if ((frame.Origin - eye).Length < 30 && TrainKit.ChartTable(shape) is not null && shape.Cab is { } crewCab)
++            {
++                mesh.PointLights.Add(new PointLight(Vector3.Transform(TrainKit.ChartLamp(shape) - new Vector3(0, 0.12f, 0), m), new Vector3(1.0f, 0.82f, 0.55f) * 0.6f * lamps, 3.6f));
++                if (TrainKit.GalleryLamp(shape) is { } galleryLamp)
++                    mesh.PointLights.Add(new PointLight(Vector3.Transform(galleryLamp - new Vector3(0, 0.2f, 0), m), new Vector3(1.0f, 0.74f, 0.45f) * 0.5f * lamps, 4.2f));
++                if (crewCab.Max.Z - crewCab.Min.Z > 8)
++                    mesh.PointLights.Add(new PointLight(Vector3.Transform(new Vector3(0, (float)crewCab.Min.Y + 1.5f, (float)crewCab.Max.Z - 0.9f), m),
++                        new Vector3(1.0f, 0.5f, 0.22f) * 0.75f, 3.6f));
++            }
+         }
+         // Its couplers, each end's shut or cut (TrainKit.CouplerEnds): the knuckle open on a car that's been let go. Where
+         // the knuckle's its own piece (car_gear's coupler_jaw, note 402) it swings open on its pin as the end's cut, over
+diff --git a/src/DarkTerritory.Game/Art/TrainKit.CrewCar.cs b/src/DarkTerritory.Game/Art/TrainKit.CrewCar.cs
+new file mode 100644
+index 00000000..a99755e2
+--- /dev/null
++++ b/src/DarkTerritory.Game/Art/TrainKit.CrewCar.cs
+@@ -0,0 +1,350 @@
++using System.Numerics;
++using DarkTerritory.Sim.Train;
++
++namespace DarkTerritory.Game.Art;
++
++/// <summary>
++/// The big cab as the crew car (ARCHITECTURE §8 note 716; the director, 14 Oct 2026: "the cab itself becomes the crew car
++/// ... the captain's quarters, shared by all"): behind the footplate, the chart table with the run map on it under its lamp;
++/// the gallery, a step up, its benches facing forward down the middle so the line's seen over the heads at the controls,
++/// long windows down its sides; and the back wall, the boiler's end, warm, with the kettle on its shelf, the cuckoo clock,
++/// the rail for the crew's photos, the trophy shelf, a hook for each crewmate's cap, and the shelf kept for the gramophone.
++/// All of it over the sim's own solids (<see cref="PartKind.ChartTable"/>, <see cref="PartKind.Gallery"/>,
++/// <see cref="PartKind.Bench"/>); what moves (the map's train, the lamps, the bird, the caps, the kettle's steam) is the
++/// scene's, at the places given here.
++/// </summary>
++public static partial class TrainKit
++{
++    /// <summary>The chart table (note 716), its top the map's; null on an engine without one.</summary>
++    public static Box? ChartTable(CarShape shape) =>
++        shape.Solids.Where(s => s.Part == PartKind.ChartTable).Select(s => (Box?)s.Box).FirstOrDefault();
++
++    /// <summary>The gallery's raised floor (note 716): the tallest of its solids; null without one.</summary>
++    public static Box? GalleryFloor(CarShape shape) =>
++        shape.Solids.Where(s => s.Part == PartKind.Gallery).OrderByDescending(s => s.Box.Max.Y).Select(s => (Box?)s.Box).FirstOrDefault();
++
++    /// <summary>The back wall's face into the cab (frame Z): the plate over the boiler's end.</summary>
++    static float BackFace(CarShape shape) => (float)shape.Cab!.Value.Max.Z - 0.15f;
++
++    /// <summary>How far in from the table's edge the map's sheet lies (m), and the crew lamps' rail along its front end.</summary>
++    const float MapInset = 0.05f, LampRail = 0.1f;
++
++    /// <summary>
++    /// The plate's frame to the chart table's top (note 716): the map's sheet is laid out as it was on the plate over the
++    /// windows (x along the night, y up the sheet, z out of it), and laid flat on the table, the night running from the
++    /// back of the table to the front, the way the train goes, read from the driver's side of it (+X): the sheet's top
++    /// edge away across the table. Identity on an engine with no table (the plate stays where it was).
++    /// </summary>
++    public static Matrix4x4 MapToCab(CarShape shape)
++    {
++        if (ChartTable(shape) is not { } t)
++            return Matrix4x4.Identity;
++        var (corner, _, _) = MapPlate(shape);
++        // (1,0,0) along the sheet to −Z; (0,1,0) up the sheet to −X, away across the table; (0,0,1) out of it, up.
++        var turn = new Matrix4x4(0, 0, -1, 0, -1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 1);
++        return Matrix4x4.CreateTranslation(-corner) * turn
++            * Matrix4x4.CreateTranslation((float)t.Max.X - MapInset, (float)t.Max.Y + 0.004f, (float)t.Max.Z - MapInset);
++    }
++
++    /// <summary>
++    /// The chart table's lamp for crewmate <paramref name="index"/> of <paramref name="count"/> (note 716: lit, aboard; dark,
++    /// off the train or dead), in the engine's frame: in a row across the rail at the table's front end, the footplate's.
++    /// </summary>
++    public static Vector3 CrewLamp(CarShape shape, int index, int count)
++    {
++        var t = ChartTable(shape) ?? default;
++        float x0 = (float)t.Min.X + 0.08f, x1 = (float)t.Max.X - 0.08f;
++        float x = count <= 1 ? (x0 + x1) / 2 : x0 + (x1 - x0) * index / (count - 1);
++        return new Vector3(x, (float)t.Max.Y + 0.05f, (float)t.Min.Z + LampRail / 2);
++    }
++
++    /// <summary>The kettle on the back wall's shelf (note 716): its spout's tip, where it steams as the gauge climbs.</summary>
++    public static Vector3 KettleSpout(CarShape shape) => KettleAt(shape) + new Vector3(0.13f, 0.17f, -0.05f);
++
++    /// <summary>The kettle's foot on the warming shelf, left of the backhead's middle.</summary>
++    static Vector3 KettleAt(CarShape shape) => new(-0.34f, (float)shape.Cab!.Value.Min.Y + 0.1f + ShelfHeight + 0.03f, BackFace(shape) - 0.16f);
++
++    /// <summary>How high over the cab floor the back wall's warming shelf is (m): waist height, the kettle at hand.</summary>
++    const float ShelfHeight = 1.05f;
++
++    /// <summary>
++    /// The shelf kept clear for U1's gramophone (PR #967's catalogue; the director: "the back wall should definitely have
++    /// some fun, cute gimmicks"): the right half of the warming shelf, its middle, in the engine's frame. Nothing stands on
++    /// it here; the gramophone's piece goes at this point, facing forward (−Z) into the cab.
++    /// </summary>
++    public static Vector3 GramophoneShelf(CarShape shape) => new(0.34f, (float)shape.Cab!.Value.Min.Y + 0.1f + ShelfHeight + 0.03f, BackFace(shape) - 0.16f);
++
++    /// <summary>The cuckoo clock's little door (note 716), on the backhead high in the middle, facing forward into the cab.</summary>
++    public static Vector3 CuckooDoor(CarShape shape) => new(0, (float)shape.Cab!.Value.Min.Y + 0.1f + 2.27f, BackFace(shape) - 0.13f);
++
++    /// <summary>
++    /// The peg crewmate <paramref name="index"/>'s cap hangs from (note 716), on the back of the cab's right side by the
++    /// doorway, facing in; up to eight in a row, more doubled up under them.
++    /// </summary>
++    public static Vector3 CapHook(CarShape shape, int index)
++    {
++        var cab = shape.Cab!.Value;
++        float deck = (float)cab.Min.Y + 0.1f, z0 = HooksFrom(shape), along = (float)Math.Min(0.14, (DoorFront(shape, deck, (float)cab.Max.Z) - 0.1f - z0) / 7);
++        int row = index / 8, i = index % 8;
++        return new Vector3((float)cab.Max.X - 0.04f, deck + 1.72f - row * 0.32f, z0 + i * along);
++    }
++
++    /// <summary>Where the hooks' row starts along the right side (frame Z): just behind the gallery's back tread.</summary>
++    static float HooksFrom(CarShape shape) =>
++        (float)shape.Solids.Where(s => s.Part == PartKind.Gallery).Select(s => s.Box.Max.Z).DefaultIfEmpty(shape.Cab!.Value.Max.Z - 2.2).Max() + 0.08f;
++
++    /// <summary>
++    /// The crew car inside (note 716): the table and its lamp, the gallery and its benches, the back wall and what's on it.
++    /// Nothing on an engine without the crew car's solids.
++    /// </summary>
++    static void CrewCarInside(Kit k, CarShape shape, float w, float deck, float bw, float roofLow)
++    {
++        if (ChartTable(shape) is { } table)
++            ChartTableArt(k, shape, F(table.Min), F(table.Max), roofLow);
++        if (GalleryFloor(shape) is not null)
++            GalleryArt(k, shape, w, deck);
++        if (shape.Cab is { } cab && cab.Max.Z - cab.Min.Z > 8)
++            BackWall(k, shape, w, deck, bw, roofLow);
++    }
++
++    /// <summary>
++    /// The chart table (note 716): a heavy board on iron legs, its edge bound in brass so a chart doesn't slide off it on a
++    /// bend, rolled charts on the shelf under it; at its front end the rail the crew's lamps stand on; and over it a lamp
++    /// on a chain under a green shade, so the map's read and the cab round it stays dark.
++    /// </summary>
++    static void ChartTableArt(Kit k, CarShape shape, Vector3 min, Vector3 max, float roofLow)
++    {
++        float deck = min.Y, top = max.Y;
++        k.Use("wood_floor", Palette.DeepBrown * 1.1f, 0.7f, 0.15f, tile: 1.2f);
++        k.Box(new Vector3(min.X - 0.03f, top - 0.06f, min.Z - 0.03f), new Vector3(max.X + 0.03f, top, max.Z + 0.03f));
++        k.Use("brass", Palette.TarnishedBrass, 0.5f, 0.7f);
++        foreach (int side in new[] { -1, 1 })
++        {
++            float x = side < 0 ? min.X - 0.03f : max.X + 0.03f;
++            k.Rod(new Vector3(x, top + 0.012f, min.Z - 0.03f), new Vector3(x, top + 0.012f, max.Z + 0.03f), 0.012f);
++            float z = side < 0 ? min.Z - 0.03f : max.Z + 0.03f;
++            k.Rod(new Vector3(min.X - 0.03f, top + 0.012f, z), new Vector3(max.X + 0.03f, top + 0.012f, z), 0.012f);
++        }
++        // The lamps' rail across its front end: a brass strip the lamps' sockets are in.
++        k.Box(new Vector3(min.X + 0.02f, top, min.Z + 0.01f), new Vector3(max.X - 0.02f, top + 0.02f, min.Z + LampRail - 0.01f));
++        k.Use("iron_plate", Palette.IronGrey * 0.7f, 0.8f, 0.4f);
++        foreach (float x in new[] { min.X + 0.06f, max.X - 0.06f })
++            foreach (float z in new[] { min.Z + 0.08f, max.Z - 0.08f })
++                k.Cylinder(new Vector3(x, deck, z), new Vector3(x, top - 0.06f, z), 0.035f, 6);
++        // The shelf under it, and the charts rolled on it.
++        k.Use("wood_floor", Palette.DeepBrown * 0.8f, 0.8f, 0.1f);
++        k.Box(new Vector3(min.X + 0.04f, deck + 0.22f, min.Z + 0.1f), new Vector3(max.X - 0.04f, deck + 0.25f, max.Z - 0.1f));
++        k.Use("paper_form", new Vector3(0.62f, 0.56f, 0.44f), 0.6f, 0.05f, tile: 0.5f);
++        for (int i = 0; i < 5; i++)
++        {
++            float x = min.X + 0.12f + i * 0.15f, r = 0.035f + 0.008f * (i % 2);
++            k.Cylinder(new Vector3(x, deck + 0.25f + r, min.Z + 0.25f + 0.1f * (i % 3)), new Vector3(x, deck + 0.25f + r, max.Z - 0.3f - 0.1f * (i % 2)), r, 8);
++        }
++        // The lamp over it, hung from the roof on a chain: a green enamel shade, its bulb lit (SceneArt puts its light there).
++        var lamp = ChartLamp(shape);
++        k.Use("rust_heavy", Palette.SootBlack, 0.8f, 0.3f);
++        k.Rod(new Vector3(lamp.X, roofLow - 0.02f, lamp.Z), lamp + new Vector3(0, 0.16f, 0), 0.008f);
++        k.Use("paint_olive", Palette.SignalGreen * 0.45f, 0.4f, 0.5f);
++        k.Lathe(lamp + new Vector3(0, -0.02f, 0), [new(0.19f, 0), new(0.15f, 0.07f), new(0.06f, 0.14f), new(0.025f, 0.16f)], 12, smooth: true, capTop: true);
++        k.Use("lamp_lens", Palette.LampAmber, 0, 0, tile: 0.2f);
++        k.Emissive = 1;
++        k.Disc(lamp + new Vector3(0, 0.0f, 0), -Vector3.UnitY, 0.07f, 8);
++        k.Emissive = 0;
++    }
++
++    /// <summary>
++    /// The gallery's lamp (note 716), in the engine's frame: a caged bulkhead lamp under the roof over the gallery's middle,
++    /// behind the eye of whoever's up there, so it lights the benches and leaves the windows dark to see out of.
++    /// </summary>
++    public static Vector3? GalleryLamp(CarShape shape)
++    {
++        if (GalleryFloor(shape) is not { } g || shape.Solids.Where(s => s.Part == PartKind.CabRoof).Select(s => (Box?)s.Box).FirstOrDefault() is not { } roof)
++            return null;
++        return new Vector3(0, (float)roof.Min.Y - 0.14f, (float)(g.Min.Z + g.Max.Z) / 2 + 0.6f);
++    }
++
++    /// <summary>Where the chart table's lamp hangs (note 716), in the engine's frame: over the table's middle, a reach above it.</summary>
++    public static Vector3 ChartLamp(CarShape shape)
++    {
++        var t = ChartTable(shape) ?? default;
++        // (Up near the roof: hung lower, its shade was across the view from the gallery to the front windows.)
++        return new Vector3(0, (float)t.Max.Y + 1.42f, (float)t.Centre.Z);
++    }
++
++    /// <summary>
++    /// The gallery (note 716): its floor boarded like the cab's, plated at its front face and its treads' with a brass
++    /// nosing on each edge (found by a boot in the dark); the benches down its middle, plank seats and slatted backs on iron
++    /// ends, facing forward over the chart table at the front windows.
++    /// </summary>
++    static void GalleryArt(Kit k, CarShape shape, float w, float deck)
++    {
++        if (GalleryLamp(shape) is { } lamp)
++        {
++            k.Use("paint_black", Palette.SootBlack, 0.7f, 0.3f);
++            k.Box(lamp + new Vector3(-0.1f, 0.0f, -0.1f), lamp + new Vector3(0.1f, 0.14f, 0.1f));
++            k.Use("lamp_lens", Palette.LampAmber, 0, 0, tile: 0.2f);
++            k.Emissive = 1;
++            k.Disc(lamp - new Vector3(0, 0.005f, 0), -Vector3.UnitY, 0.08f, 8);
++            k.Emissive = 0;
++            k.Use("rust_heavy", Palette.SootBlack, 0.8f, 0.3f);
++            foreach (float a in new[] { -0.06f, 0.06f })
++            {
++                k.Rod(lamp + new Vector3(a, 0, -0.09f), lamp + new Vector3(a, -0.08f, 0), 0.006f);
++                k.Rod(lamp + new Vector3(a, -0.08f, 0), lamp + new Vector3(a, 0, 0.09f), 0.006f);
++            }
++        }
++        foreach (var s in shape.Solids.Where(s => s.Part == PartKind.Gallery))
++        {
++            var (min, max) = (F(s.Box.Min), F(s.Box.Max));
++            k.Use("wood_floor", Palette.DeepBrown, 0.9f, 0);
++            k.Box(new Vector3(min.X, max.Y - 0.005f, min.Z), new Vector3(max.X, max.Y + 0.005f, max.Z), Kit.Faces.PosY);
++            k.Use("iron_plate", Palette.IronGrey * 0.8f, 0.9f, 0.35f);
++            k.Box(new Vector3(min.X, deck - 0.02f, min.Z), new Vector3(max.X, max.Y - 0.005f, max.Z), Kit.Faces.NegZ | Kit.Faces.PosZ);
++            k.Use("brass", Palette.TarnishedBrass, 0.6f, 0.6f);
++            foreach (float z in new[] { min.Z, max.Z })
++                k.Box(new Vector3(min.X, max.Y - 0.02f, z - 0.02f), new Vector3(max.X, max.Y + 0.008f, z + 0.02f), Kit.Faces.All & ~Kit.Faces.NegY);
++        }
++        foreach (var s in shape.Solids.Where(s => s.Part == PartKind.Bench))
++        {
++            var (min, max) = (F(s.Box.Min), F(s.Box.Max));
++            float seat = max.Y;
++            // The iron ends, the seat's planks, and the back's slats up off its back edge, leaning back a little.
++            k.Use("iron_plate", Palette.SootBlack, 0.8f, 0.4f);
++            foreach (float x in new[] { min.X + 0.03f, max.X - 0.03f })
++            {
++                k.Box(new Vector3(x - 0.025f, min.Y, min.Z + 0.04f), new Vector3(x + 0.025f, seat - 0.04f, max.Z - 0.02f));
++                k.Rod(new Vector3(x, seat - 0.04f, max.Z - 0.04f), new Vector3(x, seat + 0.5f, max.Z + 0.04f), 0.022f);
++            }
++            k.Use("wood_floor", Palette.DeepBrown * 1.25f, 0.6f, 0.2f, tile: 0.8f);
++            for (int i = 0; i < 3; i++)
++            {
++                float z0 = min.Z + (max.Z - min.Z) * i / 3 + 0.01f, z1 = min.Z + (max.Z - min.Z) * (i + 1) / 3 - 0.01f;
++                k.Box(new Vector3(min.X, seat - 0.04f, z0), new Vector3(max.X, seat, z1));
++            }
++            for (int i = 0; i < 3; i++)
++            {
++                float y = seat + 0.14f + i * 0.13f, z = max.Z - 0.02f + 0.08f * (y - seat) / 0.5f;
++                k.Box(new Vector3(min.X, y, z - 0.015f), new Vector3(max.X, y + 0.09f, z + 0.015f));
++            }
++        }
++    }
++
++    /// <summary>
++    /// The back wall (note 716): the plate over the boiler's end warm with it, its rivets and the feed's pipe across it, a
++    /// warming shelf at waist height with the kettle on its left half (its right half kept for the gramophone,
++    /// <see cref="GramophoneShelf"/>); over them the cuckoo clock, a carved house with its weights on chains; along the top
++    /// of the wall, over both ways out down the boiler, the photo rail's empty frames (queue #455 pins the crew's photos in
++    /// them); and on the side walls at the back, the trophy shelf on the left and the crew's hooks on the right.
++    /// </summary>
++    static void BackWall(Kit k, CarShape shape, float w, float deck, float bw, float roofLow)
++    {
++        float face = BackFace(shape);
++        // The plate over the boiler's end, warmed: rust gone to a dull bronze with the heat, riveted in rows.
++        k.Use("iron_smokebox", new Vector3(0.36f, 0.22f, 0.14f), 0.7f, 0.4f, tile: 0.9f);
++        k.Box(new Vector3(-bw, deck, face - 0.02f), new Vector3(bw, roofLow, face), Kit.Faces.NegZ);
++        k.Use("rust_heavy", Palette.RustRed * 0.8f, 0.8f, 0.3f);
++        for (int row = 0; row < 5; row++)
++            for (int i = 0; i < 7; i++)
++            {
++                float x = -bw + 0.08f + (2 * bw - 0.16f) * i / 6, y = deck + 0.2f + row * 0.6f;
++                if (y < roofLow - 0.05f)
++                    k.BoxAt(new Vector3(x, y, face - 0.025f), new Vector3(0.018f, 0.018f, 0.008f));
++            }
++        k.Use("copper_pipe", Palette.TarnishedBrass, 0.7f, 0.5f);
++        k.Cylinder(new Vector3(-bw + 0.05f, deck + 0.55f, face - 0.06f), new Vector3(bw - 0.05f, deck + 0.55f, face - 0.06f), 0.03f, 8);
++        foreach (float x in new[] { -bw + 0.12f, bw - 0.12f })
++            k.Cylinder(new Vector3(x, deck + 0.55f, face - 0.06f), new Vector3(x, deck + 0.05f, face - 0.06f), 0.03f, 8);
++
++        // The warming shelf across the plate, on two brackets.
++        float shelf = deck + ShelfHeight;
++        k.Use("wood_floor", Palette.DeepBrown * 1.1f, 0.7f, 0.15f);
++        k.Box(new Vector3(-bw + 0.04f, shelf - 0.04f, face - 0.3f), new Vector3(bw - 0.04f, shelf, face - 0.02f));
++        k.Use("iron_plate", Palette.SootBlack, 0.8f, 0.4f);
++        foreach (float x in new[] { -bw + 0.15f, bw - 0.15f })
++            k.Quad(new Vector3(x, shelf - 0.04f, face - 0.02f), new Vector3(x, shelf - 0.04f, face - 0.26f), new Vector3(x, shelf - 0.3f, face - 0.02f), new Vector3(x, shelf - 0.3f, face - 0.02f), twoSided: true);
++        // The gramophone's half: a brass plate on the shelf's edge, its place (U1's catalogue fills it).
++        k.Use("brass", Palette.TarnishedBrass, 0.5f, 0.7f);
++        var gram = GramophoneShelf(shape);
++        k.Box(new Vector3(gram.X - 0.1f, shelf - 0.035f, face - 0.305f), new Vector3(gram.X + 0.1f, shelf - 0.005f, face - 0.3f), Kit.Faces.NegZ);
++
++        // The kettle: a squat tin kettle, sooted on its bottom, its spout to the right and its bail handle over the lid.
++        var kettle = KettleAt(shape);
++        k.Use("iron_plate", new Vector3(0.42f, 0.4f, 0.37f), 0.6f, 0.6f);
++        k.Lathe(kettle, [new(0.1f, 0), new(0.13f, 0.04f), new(0.13f, 0.11f), new(0.09f, 0.17f), new(0.04f, 0.19f), new(0.025f, 0.21f), new(0, 0.215f)], 12, smooth: true);
++        k.Cylinder(kettle + new Vector3(0.09f, 0.06f, 0), KettleSpout(shape), 0.018f, 6, radiusB: 0.01f);
++        k.Use("rust_heavy", Palette.SootBlack, 0.8f, 0.3f);
++        k.Rod(kettle + new Vector3(-0.08f, 0.17f, 0), kettle + new Vector3(0, 0.29f, 0), 0.008f);
++        k.Rod(kettle + new Vector3(0, 0.29f, 0), kettle + new Vector3(0.08f, 0.17f, 0), 0.008f);
++        k.Cylinder(kettle + new Vector3(0, 0.001f, 0), kettle + new Vector3(0, 0.02f, 0), 0.105f, 12);
++
++        // The cuckoo clock: a little carved house, its roof pitched and its eaves out, the dial under the bird's door, and its
++        // two weights hung on chains down the plate.
++        var door = CuckooDoor(shape);
++        float cz = face - 0.1f;
++        k.Use("wood_crate", new Vector3(0.3f, 0.18f, 0.1f), 0.7f, 0.15f, tile: 0.5f);
++        k.Box(new Vector3(-0.17f, door.Y - 0.36f, cz - 0.04f), new Vector3(0.17f, door.Y + 0.1f, face - 0.01f));
++        k.Use("wood_crate", new Vector3(0.22f, 0.12f, 0.07f), 0.7f, 0.15f, tile: 0.5f);
++        foreach (int side in new[] { -1, 1 })
++            k.Quad(new Vector3(0, door.Y + 0.27f, cz - 0.07f), new Vector3(0, door.Y + 0.27f, face - 0.01f),
++                new Vector3(side * 0.23f, door.Y + 0.05f, face - 0.01f), new Vector3(side * 0.23f, door.Y + 0.05f, cz - 0.07f), twoSided: true);
++        k.Use("none", new Vector3(0.03f, 0.02f, 0.015f), 0, 0);
++        k.Box(new Vector3(-0.045f, door.Y - 0.05f, cz - 0.045f), new Vector3(0.045f, door.Y + 0.05f, cz - 0.04f), Kit.Faces.NegZ);
++        k.Use("gauge_face", Palette.BoardEnamel, 0.2f, 0.3f, tile: 1);
++        k.Disc(new Vector3(0, door.Y - 0.2f, cz - 0.045f), -Vector3.UnitZ, 0.1f, 14);
++        k.Use("rust_heavy", Palette.SootBlack, 0.6f, 0.4f);
++        k.Rod(new Vector3(0, door.Y - 0.2f, cz - 0.05f), new Vector3(0, door.Y - 0.13f, cz - 0.05f), 0.006f);
++        k.Rod(new Vector3(0, door.Y - 0.2f, cz - 0.05f), new Vector3(0.05f, door.Y - 0.2f, cz - 0.05f), 0.005f);
++        k.Use("brass", Palette.TarnishedBrass, 0.4f, 0.8f);
++        foreach (float x in new[] { -0.07f, 0.07f })
++        {
++            float bottom = door.Y - 0.36f - 0.45f - (x > 0 ? 0.12f : 0);
++            k.Rod(new Vector3(x, door.Y - 0.36f, cz + 0.01f), new Vector3(x, bottom + 0.14f, cz + 0.01f), 0.004f);
++            k.Lathe(new Vector3(x, bottom, cz + 0.01f), [new(0.025f, 0), new(0.03f, 0.03f), new(0.03f, 0.11f), new(0.012f, 0.14f)], 8);
++        }
++
++        // The photo rail: a moulded rail along the top of the back wall, over both ways out, its frames hung empty.
++        float railY = deck + k.DoorHeight() + 0.12f;
++        k.Use("wood_floor", Palette.DeepBrown * 1.2f, 0.7f, 0.15f);
++        k.Box(new Vector3(-w + 0.1f, railY + 0.32f, face - 0.04f), new Vector3(w - 0.1f, railY + 0.36f, face));
++        for (int i = 0; i < 6; i++)
++        {
++            float side = i < 3 ? -1 : 1, j = i % 3;
++            float x = side * (bw + 0.1f + j * 0.19f) + (side > 0 ? 0 : -0.15f) + 0.075f;
++            if (MathF.Abs(x) > w - 0.18f)
++                continue;
++            var c = new Vector3(x, railY + 0.17f, face - 0.025f);
++            k.Use("wood_crate", new Vector3(0.18f, 0.11f, 0.06f), 0.6f, 0.2f, tile: 0.4f);
++            k.Box(c - new Vector3(0.075f, 0.1f, 0.012f), c + new Vector3(0.075f, 0.1f, 0.012f), Kit.Faces.All & ~Kit.Faces.PosZ);
++            k.Use("paper_form", new Vector3(0.16f, 0.15f, 0.13f), 0.6f, 0.05f, tile: 0.3f);
++            k.Box(c - new Vector3(0.055f, 0.075f, 0.016f), c + new Vector3(0.055f, 0.075f, -0.012f), Kit.Faces.NegZ);
++            k.Use("brass", Palette.TarnishedBrass, 0.5f, 0.6f);
++            k.Rod(c + new Vector3(-0.04f, 0.1f, 0), new Vector3(c.X, railY + 0.32f, face - 0.03f), 0.003f);
++            k.Rod(c + new Vector3(0.04f, 0.1f, 0), new Vector3(c.X, railY + 0.32f, face - 0.03f), 0.003f);
++        }
++
++        var cab = shape.Cab!.Value;
++        float doorFront = DoorFront(shape, deck, (float)cab.Max.Z), z0 = HooksFrom(shape);
++        // The trophy shelf on the left wall at the back: a stout plank on iron knees, a brass plate on its edge, bare.
++        float sx = (float)cab.Min.X;
++        k.Use("wood_floor", Palette.DeepBrown * 1.15f, 0.7f, 0.15f);
++        k.Box(new Vector3(sx, deck + 1.58f, z0), new Vector3(sx + 0.3f, deck + 1.63f, doorFront - 0.1f));
++        k.Use("iron_plate", Palette.SootBlack, 0.8f, 0.4f);
++        foreach (float z in new[] { z0 + 0.15f, doorFront - 0.25f })
++            k.Quad(new Vector3(sx, deck + 1.58f, z), new Vector3(sx + 0.26f, deck + 1.58f, z), new Vector3(sx, deck + 1.32f, z), new Vector3(sx, deck + 1.32f, z), twoSided: true);
++        k.Use("brass", Palette.TarnishedBrass, 0.5f, 0.7f);
++        k.Box(new Vector3(sx + 0.3f, deck + 1.585f, (z0 + doorFront) / 2 - 0.12f), new Vector3(sx + 0.305f, deck + 1.625f, (z0 + doorFront) / 2 + 0.12f), Kit.Faces.PosX);
++
++        // The hooks on the right wall at the back: a board, and a peg for each crewmate's cap (the scene hangs the caps).
++        float hx = (float)cab.Max.X;
++        k.Use("wood_floor", Palette.DeepBrown * 1.2f, 0.7f, 0.15f);
++        var first = CapHook(shape, 0);
++        var last = CapHook(shape, 7);
++        k.Box(new Vector3(hx - 0.02f, first.Y - 0.06f, first.Z - 0.08f), new Vector3(hx, first.Y + 0.06f, last.Z + 0.08f), Kit.Faces.NegX);
++        k.Use("brass", Palette.TarnishedBrass, 0.5f, 0.7f);
++        for (int i = 0; i < 8; i++)
++        {
++            var peg = CapHook(shape, i);
++            k.Rod(new Vector3(hx - 0.02f, peg.Y, peg.Z), new Vector3(hx - 0.09f, peg.Y + 0.03f, peg.Z), 0.008f);
++        }
++    }
++}
+diff --git a/src/DarkTerritory.Game/Art/TrainKit.cs b/src/DarkTerritory.Game/Art/TrainKit.cs
+index acfa4b0c..778244de 100644
+--- a/src/DarkTerritory.Game/Art/TrainKit.cs
++++ b/src/DarkTerritory.Game/Art/TrainKit.cs
+@@ -14,7 +14,7 @@ namespace DarkTerritory.Game.Art;
+ /// Everything here is a cooked <see cref="MeshAsset"/> in the car's frame. What moves (doors, levers, the gun's facing,
+ /// the firebox's glow) is drawn per frame by <see cref="SceneArt"/>.
+ /// </remarks>
+-public static class TrainKit
++public static partial class TrainKit
+ {
+     /// <summary>Half the track gauge: where the wheels' treads run (GreyboxScene draws the rails there).</summary>
+     public const float HalfGauge = 0.72f;
+@@ -229,13 +229,27 @@ public static class TrainKit
+     public const float DriverRadius = 0.7f;
+ 
+     /// <summary>
+-    /// The four pairs of drivers (note 276): under the boiler, from just behind the cab, so its weight's over them and the
+-    /// cab rides on the pilot truck ahead.
++    /// The four pairs of drivers (note 276): under the boiler, so its weight's over them, and the cab rides on its trucks
++    /// ahead. Note 716: the boiler's the engine's back 8 m now, the big cab the rest; the last pair stands just ahead of the
++    /// trailing truck under the smokebox and the first under the cab's back wall, wherever the cab ends.
+     /// </summary>
+     public static float[] Drivers(CarShape shape)
+     {
+-        float b = (float)shape.Cab!.Value.Max.Z;
+-        return [b + 1.4f, b + 3.0f, b + 4.6f, b + 6.2f];
++        float last = (float)shape.HalfLength - 3.7f;
++        return [last - 4.8f, last - 3.2f, last - 1.6f, last];
++    }
++
++    /// <summary>
++    /// The trucks under the big cab (note 716), frame Z: a pair of small wheels at each, as the pilot's, carrying the cab's
++    /// length between the pilot and the drivers. None under a cab short enough for the pilot truck to carry.
++    /// </summary>
++    public static float[] CabTruck(CarShape shape)
++    {
++        var cab = shape.Cab!.Value;
++        if (cab.Max.Z - cab.Min.Z < 8)
++            return [];
++        float mid = (float)(cab.Min.Z + Drivers(shape)[0] - 2.8f) / 2;
++        return [mid - 0.75f, mid + 0.75f];
+     }
+ 
+     /// <summary>A side's crank angle at rest (rad): the pins a quarter turn apart side to side, so it never stops on a dead centre.</summary>
+@@ -317,6 +331,22 @@ public static class TrainKit
+                 k.Cylinder(new Vector3(-HalfGauge + 0.05f, 0.4f, z), new Vector3(HalfGauge - 0.05f, 0.4f, z), 0.06f, 8);
+             }
+         }
++        // The trucks under the big cab (note 716), as the pilot's, a frame over each pair.
++        var under = CabTruck(shape);
++        foreach (float z in under)
++        {
++            bool modelled = true;
++            foreach (int side in new[] { -1, 1 })
++                modelled &= Prop(k, "pilot_wheel", (side > 0 ? Matrix4x4.Identity : Matrix4x4.CreateRotationY(MathF.PI)) * Kit.At(side * HalfGauge, 0.4f, z));
++            if (!modelled)
++                Axle(k, z, 0.4f, 8);
++        }
++        if (under.Length == 2)
++        {
++            k.Use("wheel_iron", Palette.SootBlack, 0.8f, 0.3f);
++            foreach (int side in new[] { -1, 1 })
++                k.Box(new Vector3(side * (HalfGauge + 0.12f) - 0.04f, 0.28f, under[0] - 0.45f), new Vector3(side * (HalfGauge + 0.12f) + 0.04f, 0.58f, under[1] + 0.45f));
++        }
+         // The trailing truck's second axle, and the truck's frame over both.
+         Axle(k, l - 2.5f, 0.45f, 0);
+         k.Use("wheel_iron", Palette.SootBlack, 0.8f, 0.3f);
+@@ -1106,7 +1136,7 @@ public static class TrainKit
+     /// corners leaning in with the cab's tumblehome, and over each side's windows a shutter of plate propped out on its
+     /// hinge.
+     /// </summary>
+-    static void CabShell(Kit k, float w, float deck, float cabFront, float cabBack, float doorFront, float roofLow, float bw)
++    static void CabShell(Kit k, CarShape shape, float w, float deck, float cabFront, float cabBack, float doorFront, float roofLow, float bw)
+     {
+         float waist = deck + 1.1f;
+         foreach (int side in new[] { -1, 1 })
+@@ -1136,27 +1166,32 @@ public static class TrainKit
+             foreach (float z in new[] { hinge0.Z + 0.2f, hinge1.Z - 0.2f })
+                 k.Rod(new Vector3(side * (w + 0.02f), h0 - 0.3f, z), new Vector3(hinge0.X + lip.X * 0.8f, h0 + lip.Y * 0.8f, z), 0.012f);
+             // Over the windows, armour: plate under and over each, so the side reads as an armoured cab with slits, not an
+-            // open frame (the sim's side is open over its waist wall; nothing walks through a slit's height anyway).
++            // open frame (the sim's side is open over its waist wall; nothing walks through a slit's height anyway). Note 716:
++            // along the gallery, the long windows at the eye of whoever stands up there; behind it, to the doorway, plate.
+             Plate(k, 1.2f);
+             float x0 = MathF.Min(side * (w - 0.06f), side * (w + 0.02f)), x1 = MathF.Max(side * (w - 0.06f), side * (w + 0.02f));
+-            k.Box(new Vector3(x0, waist + 0.05f, cabFront + 0.15f), new Vector3(x1, SlitBottom + deck, doorFront - 0.02f));
++            float xs = side * (w + 0.02f), xi = side * (w - 0.06f);
++            Vector3 P(float x, float y, float z) => new(x, y, z);
++            float Eave(float z) => roofLow - EaveAt(z, cabFront, cabBack) + 0.02f;
++            var zones = SideWindows(shape).ToList();
++            foreach (var (za, zb, y0, y1, _) in zones)
+             {
++                k.Box(new Vector3(x0, waist + 0.05f, za), new Vector3(x1, y0, zb));
+                 // Up to the eave, which falls towards the back.
+-                float xs = side * (w + 0.02f), xi = side * (w - 0.06f), y0 = SlitTop + deck;
+-                Vector3 P(float x, float y, float z) => new(x, y, z);
+-                float ef = roofLow - EaveAt(cabFront + 0.15f, cabFront, cabBack) + 0.02f, eb = roofLow - EaveAt(doorFront, cabFront, cabBack) + 0.02f;
+-                k.Quad(P(xs, ef, cabFront + 0.15f), P(xs, eb, doorFront - 0.02f), P(xs, y0, doorFront - 0.02f), P(xs, y0, cabFront + 0.15f), twoSided: true);
+-                k.Quad(P(xi, ef, cabFront + 0.15f), P(xi, eb, doorFront - 0.02f), P(xi, y0, doorFront - 0.02f), P(xi, y0, cabFront + 0.15f), twoSided: true);
+-                k.Quad(P(xs, y0, cabFront + 0.15f), P(xs, y0, doorFront - 0.02f), P(xi, y0, doorFront - 0.02f), P(xi, y0, cabFront + 0.15f), twoSided: true);
++                k.Quad(P(xs, Eave(za), za), P(xs, Eave(zb), zb), P(xs, y1, zb), P(xs, y1, za), twoSided: true);
++                k.Quad(P(xi, Eave(za), za), P(xi, Eave(zb), zb), P(xi, y1, zb), P(xi, y1, za), twoSided: true);
++                k.Quad(P(xs, y1, za), P(xs, y1, zb), P(xi, y1, zb), P(xi, y1, za), twoSided: true);
++            }
++            float closed = zones[^1].Z1;
++            if (closed < doorFront - 0.05f)
++            {
++                k.Quad(P(xs, Eave(closed), closed), P(xs, Eave(doorFront - 0.02f), doorFront - 0.02f), P(xs, waist + 0.05f, doorFront - 0.02f), P(xs, waist + 0.05f, closed), twoSided: true);
++                k.Quad(P(xi, Eave(closed), closed), P(xi, Eave(doorFront - 0.02f), doorFront - 0.02f), P(xi, waist + 0.05f, doorFront - 0.02f), P(xi, waist + 0.05f, closed), twoSided: true);
+             }
+             // Rivet straps up the plate at each post.
+             k.Use("rust_heavy", Palette.RustRed, 0.9f, 0.2f);
+-            float span = doorFront - (cabFront + 0.15f);
+-            for (int i = 1; i <= 2; i++)
+-            {
+-                float z = cabFront + 0.15f + span * i / 3;
++            foreach (float z in WindowPosts(shape))
+                 k.Box(new Vector3(x0 - 0.015f, waist + 0.05f, z - 0.06f), new Vector3(x1 + 0.015f, roofLow - EaveAt(z, cabFront, cabBack), z + 0.06f));
+-            }
+         }
+         // The windscreen's frame, raked forward from the sill up into the brow, the way a ship's bridge leans out over its
+         // bow: the middle post over the windows' divide and one at each corner outside them (the driver's view is between).
+@@ -1362,24 +1397,20 @@ public static class TrainKit
+         foreach (var solid in shape.Solids.Where(s => s.Part == PartKind.CabWall))
+         {
+             var b = solid.Box;
+-            bool front = b.Max.Z <= cabFront + 0.2, waistWall = b.Max.Y <= waist + 0.05 && b.Max.X - b.Min.X < 0.2;
++            bool front = b.Max.Z <= cabFront + 0.2, waistWall = b.Max.Y <= waist + 0.5 && b.Max.X - b.Min.X < 0.2; // (a waist over the gallery's floor, note 716)
+             var faces = front ? Kit.Faces.PosZ | Kit.Faces.PosY | Kit.Faces.PosX | Kit.Faces.NegX
+                 : waistWall ? (b.Min.X < 0 ? Kit.Faces.PosX : Kit.Faces.NegX) | Kit.Faces.PosY : Kit.Faces.All;
+             Plate(k);
+             k.Box(F(b.Min), F(b.Max), faces);
+         }
+-        CabShell(k, w, deck, cabFront, cabBack, doorFront, roofLow, bw);
++        CabShell(k, shape, w, deck, cabFront, cabBack, doorFront, roofLow, bw);
+         foreach (int side in new[] { -1, 1 })
+         {
+             float xo = side * w;
+-            // The side windows (note 276): two posts between the front pillar and the doorway, so the side reads as a cab's
++            // The side windows (note 276): posts between the front pillar and the doorway, so the side reads as a cab's
+             // glazed side and not an open shed; nothing to walk into (the waist under them is the wall).
+-            float span = doorFront - (cabFront + 0.15f);
+-            for (int i = 1; i <= 2; i++)
+-            {
+-                float z = cabFront + 0.15f + span * i / 3;
++            foreach (float z in WindowPosts(shape))
+                 k.Box(new Vector3(MathF.Min(xo, xo - side * 0.09f), waist + 0.05f, z - 0.045f), new Vector3(MathF.Max(xo, xo - side * 0.09f), roofLow - EaveAt(z, cabFront, cabBack), z + 0.045f));
+-            }
+             // Grab irons at the doorway, and the step irons down to the ballast: hung off the running board's outer edge
+             // under the doorway, where the sim's cab steps are (note 559; off the cab's side when the board stopped short of
+             // the doorway), with a grab iron up from the board's edge either side of them for the hand going up.
+@@ -1449,6 +1480,8 @@ public static class TrainKit
+         k.Use("wood_floor", Palette.DeepBrown, 0.9f, 0);
+         k.Box(new Vector3(-w + 0.1f, deck - 0.02f, cabFront), new Vector3(w - 0.1f, deck + 0.005f, cabBack), Kit.Faces.PosY);
+         k.With(BackheadFrame(shape), () => Backhead(k, shape, deck));
++        // Behind the footplate, the crew car (note 716).
++        CrewCarInside(k, shape, w, deck, bw, roofLow);
+     }
+ 
+     /// <summary>
+@@ -1594,20 +1627,65 @@ public static class TrainKit
+             var win = FrontWindow(shape, side);
+             yield return new Pane(new Vector3(win.X0, win.Y0, z), new Vector3(win.X1 - win.X0, 0, 0), new Vector3(0, win.Y1 - win.Y0, 0), Vector3.UnitZ);
+         }
+-        var doorFront = shape.Solids.Where(s => s.Part == PartKind.CabWall && s.Box.Min.Y > deck + 1.5).Select(s => (float)s.Box.Min.Z)
+-            .DefaultIfEmpty((float)cab.Max.Z - 1.05f).Min();
+-        float z0 = cabFront + 0.15f, span = doorFront - 0.02f - z0;
+         foreach (int side in new[] { -1, 1 })
+-            for (int bay = 0; bay < 3; bay++)
+-            {
+-                // Between the posts' straps (0.06 m either side of each post).
+-                float a = z0 + span * bay / 3 + (bay > 0 ? 0.06f : 0), b = z0 + span * (bay + 1) / 3 - (bay < 2 ? 0.06f : 0);
+-                float x = side * (w - 0.02f);
+-                yield return new Pane(new Vector3(x, deck + SlitBottom, side > 0 ? b : a), new Vector3(0, 0, side > 0 ? a - b : b - a),
+-                    new Vector3(0, SlitTop - SlitBottom, 0), new Vector3(-side, 0, 0));
+-            }
++            foreach (var (z0, z1, y0, y1, bays) in SideWindows(shape))
++                for (int bay = 0; bay < bays; bay++)
++                {
++                    // Between the posts' straps (0.06 m either side of each post; none at the front pillar).
++                    float span = z1 - z0;
++                    float a = z0 + span * bay / bays + (bay > 0 || z0 > cabFront + 0.2f ? 0.06f : 0), b = z0 + span * (bay + 1) / bays - 0.06f;
++                    float x = side * (w - 0.02f);
++                    yield return new Pane(new Vector3(x, y0, side > 0 ? b : a), new Vector3(0, 0, side > 0 ? a - b : b - a),
++                        new Vector3(0, y1 - y0, 0), new Vector3(-side, 0, 0));
++                }
++    }
++
++    /// <summary>
++    /// The cab's side windows (notes 276, 485, 716), front to back along each side: the slits along the footplate and the
++    /// chart table, from the front pillar to the gallery's front tread; then, along the gallery, the long windows from its
++    /// waist up to under the eave, at the eye of whoever stands up there; behind them the side's plate to the doorway (the
++    /// back wall's hooks and shelf are on it). Each zone's along-span, its glass's foot and head, and how many bays its posts
++    /// make. An engine without the gallery has its slits from the pillar to the doorway, as it always had.
++    /// </summary>
++    static IEnumerable<(float Z0, float Z1, float Y0, float Y1, int Bays)> SideWindows(CarShape shape)
++    {
++        var cab = shape.Cab!.Value;
++        float deck = (float)cab.Min.Y + 0.1f, front = (float)cab.Min.Z + 0.15f;
++        float doorFront = DoorFront(shape, deck, (float)cab.Max.Z);
++        var gallery = shape.Solids.Where(s => s.Part == PartKind.Gallery).Select(s => s.Box).ToList();
++        if (gallery.Count == 0)
++        {
++            yield return (front, doorFront - 0.02f, deck + SlitBottom, deck + SlitTop, 3);
++            yield break;
++        }
++        float g0 = (float)gallery.Min(b => b.Min.Z), g1 = MathF.Min((float)gallery.Max(b => b.Max.Z), doorFront - 0.02f);
++        // The side's waist (the sim's wall, a waist over the gallery's floor) is the long windows' sill.
++        float sill = shape.Solids.Where(s => s.Part == PartKind.CabWall && Math.Abs(s.Box.Min.Y - deck) < 0.01 && s.Box.Max.X - s.Box.Min.X < 0.2 && s.Box.Max.Y < deck + 2
++                && s.Box.Max.Z <= doorFront + 0.01 && s.Box.Max.Z - s.Box.Min.Z > 1)
++            .Select(s => (float)s.Box.Max.Y).DefaultIfEmpty(deck + 1.55f).Max();
++        yield return (front, g0, deck + SlitBottom, deck + SlitTop, 3);
++        yield return (g0, g1, sill + 0.03f, deck + GalleryWindowTop, 3);
+     }
+ 
++    /// <summary>The posts down each side (frame Z): between each zone's bays and at the zones' ends, as <see cref="SideWindows"/> lays them.</summary>
++    static IEnumerable<float> WindowPosts(CarShape shape)
++    {
++        var zones = SideWindows(shape).ToList();
++        var cab = shape.Cab!.Value;
++        float doorFront = DoorFront(shape, (float)cab.Min.Y + 0.1f, (float)cab.Max.Z);
++        for (int i = 0; i < zones.Count; i++)
++        {
++            var (z0, z1, _, _, bays) = zones[i];
++            for (int bay = 1; bay < bays; bay++)
++                yield return z0 + (z1 - z0) * bay / bays;
++            if (i + 1 < zones.Count || z1 < doorFront - 0.1f)
++                yield return z1;
++        }
++    }
++
++    /// <summary>The top of the gallery's long windows over the cab floor (m, note 716): under the eave as it falls towards the back.</summary>
++    const float GalleryWindowTop = 2.3f;
++
+     /// <summary>How tall the run map's plate over the front windows is (m).</summary>
+     const float MapHeight = 0.32f;
+ 
+@@ -1649,9 +1727,15 @@ public static class TrainKit
+         return (float)roof.Min.Y - 0.02f - CabChamfer * (1 - back);
+     }
+ 
+-    /// <summary>The run map's chart on the plate over the front windows (T101), in the engine's frame: its lower left corner and size.</summary>
++    /// <summary>
++    /// The run map's chart on the plate over the front windows (T101), in the engine's frame: its lower left corner and size.
++    /// Note 716: on the chart table, where there's one: the sheet's size on the table's top, laid out in the plate's own frame
++    /// from its corner at the origin, and laid on the table by <see cref="MapToCab"/>.
++    /// </summary>
+     public static (Vector3 Corner, float Width, float Height) MapPlate(CarShape shape)
+     {
++        if (ChartTable(shape) is { } t)
++            return (Vector3.Zero, (float)(t.Max.Z - t.Min.Z) - MapInset - LampRail - 0.02f, (float)(t.Max.X - t.Min.X) - 2 * MapInset);
+         var roof = shape.Solids.First(s => s.Part == PartKind.CabRoof).Box;
+         // (Over the left-hand window and the post, clear of the driver's row of gauges; under the ceiling as it comes down.)
+         const float half = 0.5f;
+diff --git a/src/DarkTerritory.Game/GreyboxScene.cs b/src/DarkTerritory.Game/GreyboxScene.cs
+index a8694dc9..ac601ee5 100644
+--- a/src/DarkTerritory.Game/GreyboxScene.cs
++++ b/src/DarkTerritory.Game/GreyboxScene.cs
+@@ -4686,14 +4686,18 @@ public sealed partial class GreyboxScene
+             _mapSheetOf = (line, Route, frame.Shape);
+             FrameCounts.Add("cab maps built");
+         }
+-        mesh.Instances.Add(new MeshInstance(_mapSheet, Art.SceneArt.FrameMatrix(frame, eye)));
++        // Note 716: laid on the chart table, where the engine has one (the sheet's frame to the table's top).
++        var onCab = Art.TrainKit.MapToCab(frame.Shape);
++        mesh.Instances.Add(new MeshInstance(_mapSheet, onCab * Art.SceneArt.FrameMatrix(frame, eye)));
+         var style = mesh.Style;
+         mesh.Style = null;
+         mesh.Emissive = 1;
+         // The engine where it is: its distance is along its own path, which on a spur or an alternate isn't the main line's.
+         var at = frame.Origin;
+         float pulse = 0.7f + 0.3f * MathF.Sin((float)Time * 4);
+-        draw(Box.FromCentre(On(at.X, at.Z, 0.014), new Double3(0.013, 0.013, 0.003)), Palette.SignalRed * pulse);
++        var dot = Vector3.Transform(ToF(On(at.X, at.Z, 0.014)), onCab);
++        var size = Vector3.Abs(Vector3.TransformNormal(new Vector3(0.013f, 0.013f, 0.003f), onCab));
++        draw(Box.FromCentre(new Double3(dot.X, dot.Y, dot.Z), new Double3(size.X, size.Y, size.Z)), Palette.SignalRed * pulse);
+         mesh.Emissive = 0;
+         mesh.Style = style;
+ 
+@@ -4884,6 +4888,73 @@ public sealed partial class GreyboxScene
+         }
+     }
+ 
++    /// <summary>
++    /// How hard the back wall's kettle is singing (note 716, <see cref="Sim.Train.CrewCar.KettleSong"/>), 0 to 1: steam off
++    /// its spout as the boiler nears its redline.
++    /// </summary>
++    public double KettleSong { get; set; }
++
++    /// <summary>The cuckoo clock's bird (note 716, <see cref="Sim.Train.CrewCar.Cuckoo"/>): how far through its call, or null while it's in.</summary>
++    public double? Cuckoo { get; set; }
++
++    /// <summary>
++    /// What moves in the crew car (note 716): the chart table's lamp for each crewmate (lit while they're aboard, dark off
++    /// the train or dead: <see cref="Sim.Train.CrewCar.Aboard"/>), in the crew's order by id; each one not aboard's cap on
++    /// their hook at the back, in their own colour; the cuckoo out of its door; the kettle's steam.
++    /// </summary>
++    void CrewCarFittings(MeshBuilder mesh, CarFrame frame, Double3 eye, Action<Box, Vector3> draw)
++    {
++        var shape = frame.Shape;
++        if (Art.TrainKit.ChartTable(shape) is null)
++            return;
++        int vehicles = Vehicles?.Count ?? int.MaxValue;
++        // Flat colour, as the map's ink is: no surface treatment.
++        var style = mesh.Style;
++        mesh.Style = null;
++        var crew = (Crew ?? []).Concat(Self is { } me ? [me] : []).Where(c => c.Id < 200).OrderBy(c => c.Id).ToList();
++        for (int i = 0; i < crew.Count; i++)
++        {
++            var c = crew[i];
++            bool aboard = Sim.Train.CrewCar.Aboard(c.Alive, c.Car, vehicles);
++            var lamp = Art.TrainKit.CrewLamp(shape, i, crew.Count);
++            var at = new Double3(lamp.X, lamp.Y, lamp.Z);
++            draw(Box.FromCentre(at - new Double3(0, 0.035, 0), new Double3(0.022, 0.015, 0.022)), Palette.TarnishedBrass * 0.7f);
++            mesh.Emissive = aboard ? 1 : 0;
++            draw(Box.FromCentre(at, new Double3(0.017, 0.022, 0.017)), aboard ? Palette.LampAmber : new Vector3(0.05f, 0.045f, 0.04f));
++            mesh.Emissive = 0;
++            // Off the train, their cap's on their hook.
++            if (!aboard && i < 16)
++            {
++                var hook = Art.TrainKit.CapHook(shape, i);
++                // A flat cap on the peg, its crown against the wall and its peak down: the crewmate's colour, dulled as cloth is.
++                var colour = new Vector3(0.05f) + (Look?.Tuning.CrewColour(c.Variant) ?? Palette.BlueGrey) * 0.05f;
++                var crown = new Double3(hook.X - 0.06, hook.Y - 0.04, hook.Z);
++                draw(Box.FromCentre(crown, new Double3(0.03, 0.055, 0.075)), colour);
++                draw(Box.FromCentre(crown + new Double3(-0.015, 0.045, 0), new Double3(0.035, 0.02, 0.07)), colour * 0.85f);
++                draw(Box.FromCentre(crown + new Double3(-0.04, -0.06, 0), new Double3(0.04, 0.008, 0.065)), colour * 0.6f);
++            }
++        }
++        // The cuckoo: out of its door and back, its beak open at the top of it.
++        if (Cuckoo is { } call && shape.Cab is { } cab && cab.Max.Z - cab.Min.Z > 8)
++        {
++            var door = Art.TrainKit.CuckooDoor(shape);
++            double pop = Math.Sin(Math.PI * Math.Clamp(call, 0, 1));
++            var bird = new Double3(0, door.Y, door.Z - 0.02 - 0.14 * pop);
++            draw(Box.FromCentre(bird, new Double3(0.04, 0.036, 0.06)), new Vector3(0.36f, 0.24f, 0.13f));
++            draw(Box.FromCentre(bird + new Double3(0, 0.04, -0.04), new Double3(0.03, 0.03, 0.03)), new Vector3(0.42f, 0.3f, 0.17f));
++            draw(Box.FromCentre(bird + new Double3(0, 0.04 + 0.008 * pop, -0.08), new Double3(0.008, 0.005, 0.018)), Palette.HazardYellow * 0.8f);
++            draw(Box.FromCentre(bird + new Double3(0, 0.03, 0.055), new Double3(0.016, 0.012, 0.026)), new Vector3(0.2f, 0.12f, 0.06f));
++        }
++        // The kettle's steam, as it sings.
++        if (KettleSong > 0 && Look?.Art.Effects is { } fx)
++        {
++            var m = Art.SceneArt.FrameMatrix(frame, eye);
++            fx.KettleSteam(mesh, Vector3.Transform(Art.TrainKit.KettleSpout(shape), m), Vector3.TransformNormal(Vector3.UnitY, m),
++                Vector3.TransformNormal(new Vector3(0.6f, 0, -0.8f), m), (float)KettleSong, Time);
++        }
++        mesh.Style = style;
++    }
++
+     void CarWorkings(MeshBuilder mesh, CarFrame frame, Double3 eye, Action<Box, Vector3> draw)
+     {
+         var shape = frame.Shape;
+@@ -4891,7 +4962,10 @@ public sealed partial class GreyboxScene
+         {
+             // Only read from the footplate: from farther off it's a pale square, and not worth its dots in the frame budget.
+             if ((frame.Origin - eye).Length < 16)
++            {
+                 CabMap(mesh, frame, eye, draw);
++                CrewCarFittings(mesh, frame, eye, draw);
++            }
+             mesh.Emissive = 1;
+             // The fire, through the firehole: the back of the firebox dull with its light, and the bed of coals along the
+             // bottom bright (the firehole's sides frame it, Art/TrainKit).
+diff --git a/src/DarkTerritory.Game/Staging.cs b/src/DarkTerritory.Game/Staging.cs
+index ff7f0093..82c316c0 100644
+--- a/src/DarkTerritory.Game/Staging.cs
++++ b/src/DarkTerritory.Game/Staging.cs
+@@ -591,6 +591,38 @@ public static partial class Staging
+             Reach: Art.CrewActs.AtTheControls(controls, train.Frames, feet, cab.Heading, whistling), Car: 0, Local: local);
+     }
+ 
++    /// <summary>
++    /// The crew in the big cab (note 716; dt screenshot --cabcrew): the driver at the controls, the fireman behind the fire,
++    /// the navigator at the chart table's driver's side, two up on the gallery and one at the back wall; and two more off
++    /// it, one down on the ballast and one dead, so the table's lamps show who's missing and the hooks their caps.
++    /// </summary>
++    public static List<Crewmate> CabCrew(TrainOnLine train)
++    {
++        var engine = train.Frames[0];
++        var shape = engine.Shape;
++        var cab = shape.Cab!.Value;
++        double deck = cab.Min.Y + 0.1;
++        Crewmate At(byte id, double x, double y, double z, double turn, Art.CrewPose? act = null)
++        {
++            var local = new Double3(x, y, z);
++            return new Crewmate(id, engine.ToWorld(local), engine.Heading + turn, true, Act: act, Car: 0, Local: local);
++        }
++        var fire = shape.Interactables.First(i => i.Kind == InteractableKind.Firebox).Position;
++        var crew = new List<Crewmate> { Driver(train, false), At(31, fire.X, deck, fire.Z + 0.35, 0) };
++        if (Art.TrainKit.ChartTable(shape) is { } table)
++            crew.Add(At(32, table.Max.X + 0.42, deck, table.Centre.Z + 0.2, -Math.PI / 2 + 0.25));
++        if (Art.TrainKit.GalleryFloor(shape) is { } gallery)
++        {
++            crew.Add(At(33, -0.95, gallery.Max.Y, gallery.Min.Z + 0.35, 0.1));
++            crew.Add(At(34, 0.95, gallery.Max.Y, gallery.Min.Z + 1.6, -0.15));
++            crew.Add(At(35, -0.95, gallery.Max.Y, gallery.Min.Z + 2.4, -0.2));
++        }
++        // Off the train: one down on the ballast by the engine, one dead.
++        crew.Add(new Crewmate(36, engine.ToWorld(new Double3(-shape.HalfWidth - 3, 0, 4)), engine.Heading, true));
++        crew.Add(new Crewmate(37, engine.ToWorld(new Double3(-shape.HalfWidth - 4, 0, 7)), engine.Heading, false, Death: Sim.Player.DeathCause.Mauled));
++        return crew;
++    }
++
+     public static List<Crewmate> Working(TrainOnLine train, string content)
+     {
+         var player = DataFile.Load<Sim.Player.PlayerTuning>(Path.Combine(content, Sim.Player.PlayerTuning.File));
+@@ -1771,7 +1803,7 @@ public static partial class Staging
+         threats.Add(doll);
+         // Haunting the cab at the controls (A.2 TAMPER), where it's heard giggling: left alone to her last stage (note 268).
+         var haunting = new TrackDoll(26);
+-        haunting.Restore(SpinePhase.Punish, 3, 1, 0, train.Frames[0].Shape.Cab!.Value.Centre + new Double3(0.4, -1.35, 0.3), 0, 0, 0, 0, 3);
++        haunting.Restore(SpinePhase.Punish, 3, 1, 0, train.Frames[0].Shape.FootplateMiddle + new Double3(0.4, -1.35, 0.3), 0, 0, 0, 0, 3);
+         threats.Add(haunting);
+         // On the ground by the first cargo car, gnawing a crate it's come off (A.8).
+         var grumbler = new Grumbler(27);
+diff --git a/src/DarkTerritory.Game/Views.cs b/src/DarkTerritory.Game/Views.cs
+index e7bf6a07..6ea1d17d 100644
+--- a/src/DarkTerritory.Game/Views.cs
++++ b/src/DarkTerritory.Game/Views.cs
+@@ -232,8 +232,21 @@ public static class Views
+             // (Not one of Names.) Up off the engine's left side behind the cab, down onto the running board where it runs on in
+             // front of the cab's doorway (the director, 9 Oct: "the platform ... should extend to be in front of the cab doors").
+             "cabboard" => CabBoardCamera(train),
+-            // The run map on the cab's front wall, square on and close enough to read its figures (note 671).
++            // The run map, square on and close enough to read its figures (note 671); on the chart table, from over its driver's
++            // side (note 716).
+             "cabmap" => MapCamera(engine),
++            // (Not one of Names.) The big cab, the crew car (note 716): from the back wall, a crewmate's eye, forward over the
++            // gallery's benches and the chart table to the footplate and the front windows; dt screenshot --cabcrew for its crew.
++            "cabhall" => CabHallCamera(engine),
++            // Stood at the front of the gallery, a step up, forward over the chart table and the heads at the footplate, out of
++            // the front windows down the line (the director: "Everybody wants to be where they can see the tracks").
++            "gallery" => GalleryCamera(engine),
++            // At the back wall (--kettle s, --cuckoo c): the kettle on its shelf, the cuckoo clock, the photo rail, the trophy
++            // shelf and the crew's hooks, from the gallery's back tread.
++            "backwall" => BackWallCamera(engine),
++            // Square off the engine's left side, the whole of it: the short boiler still a steam engine's (smokebox, stack,
++            // domes), the long cab with its gallery windows.
++            "engineside" => Camera.LookAt(engine.ToWorld(new Double3(-17, 2.6, 0.5)), engine.ToWorld(new Double3(0, 2.4, 0.5)), 62),
+             // (Not one of Names.) The cab's hatch from its roof (note 704; the director: "this ladder inside the cab should
+             // actually go up to the roof"): standing open, its lid thrown back, the way down into the cab.
+             "cabhatchroof" => CabHatch(engine) is { } hatch
+@@ -409,8 +422,41 @@ public static class Views
+     static Camera MapCamera(CarFrame engine)
+     {
+         var (corner, w, h) = Art.TrainKit.MapPlate(engine.Shape);
+-        var centre = new Double3(corner.X + w / 2, corner.Y + h / 2, corner.Z);
+-        return Camera.LookAt(engine.ToWorld(centre + new Double3(0, -0.05, 0.85)), engine.ToWorld(centre), 70);
++        var onCab = Art.TrainKit.MapToCab(engine.Shape);
++        var plate = new Vector3(corner.X + w / 2, corner.Y + h / 2, corner.Z);
++        var centre = D(Vector3.Transform(plate, onCab));
++        // Out of the sheet (on the table, up) and down off its bottom edge (on the table, the driver's side).
++        var outOf = D(Vector3.TransformNormal(Vector3.UnitZ, onCab));
++        var down = D(Vector3.TransformNormal(-Vector3.UnitY, onCab));
++        double back = Art.TrainKit.ChartTable(engine.Shape) is null ? 0.85 : 0.75;
++        return Camera.LookAt(engine.ToWorld(centre + outOf * back + down * (Art.TrainKit.ChartTable(engine.Shape) is null ? 0.06 : 0.45)), engine.ToWorld(centre), 70);
++    }
++
++    /// <summary>The cab's eye height over a floor (m): a crewmate's.</summary>
++    const double Eye = 1.7;
++
++    static Camera CabHallCamera(CarFrame engine)
++    {
++        var cab = engine.Shape.Cab!.Value;
++        double deck = cab.Min.Y + 0.1;
++        return Camera.LookAt(engine.ToWorld(new Double3(0.55, deck + Eye + 0.05, cab.Max.Z - 0.45)), engine.ToWorld(new Double3(0, deck + 1.35, cab.Min.Z + 0.6)), 72);
++    }
++
++    static Camera GalleryCamera(CarFrame engine)
++    {
++        var cab = engine.Shape.Cab!.Value;
++        double deck = cab.Min.Y + 0.1;
++        var floor = Art.TrainKit.GalleryFloor(engine.Shape);
++        double top = floor?.Max.Y ?? deck, z = floor is { } f ? f.Min.Z + 0.55 : cab.Max.Z - 1;
++        return Camera.LookAt(engine.ToWorld(new Double3(0.25, top + Eye, z)), engine.ToWorld(new Double3(0, deck + 1.2, cab.Min.Z - 30)), 75);
++    }
++
++    static Camera BackWallCamera(CarFrame engine)
++    {
++        var cab = engine.Shape.Cab!.Value;
++        double deck = cab.Min.Y + 0.1;
++        double z = Art.TrainKit.GalleryFloor(engine.Shape)?.Max.Z ?? cab.Max.Z - 2.5;
++        return Camera.LookAt(engine.ToWorld(new Double3(-0.35, deck + Eye + 0.1, z - 0.2)), engine.ToWorld(new Double3(0.1, deck + 1.55, cab.Max.Z - 0.15)), 80);
+     }
+ 
+     static Camera CabBoardCamera(TrainOnLine train)
+diff --git a/src/DarkTerritory.Sim/Bots/BotCrew.cs b/src/DarkTerritory.Sim/Bots/BotCrew.cs
+index d7c8bddd..1a7c7a43 100644
+--- a/src/DarkTerritory.Sim/Bots/BotCrew.cs
++++ b/src/DarkTerritory.Sim/Bots/BotCrew.cs
+@@ -165,6 +165,8 @@ public sealed class BotCrew(CrewCalls? calls) : IDisposable
+         intent = Heed.Heal(intent, session.Predicted, session.World, me);
+         // Note 659: round what's lying in a car, last, whatever it was going there for.
+         intent = Heed.Lying(intent, session.Predicted, session.World, session.PlayerTuning);
++        // Note 716: and round the big cab's chart table and benches, down the ways either side of them.
++        intent = Heed.CabFurniture(intent, session.Predicted, session.World, session.PlayerTuning);
+         return Vote(intent, session, me);
+     }
+ 
+diff --git a/src/DarkTerritory.Sim/Bots/Bots.cs b/src/DarkTerritory.Sim/Bots/Bots.cs
+index baf2d16a..9fc8b7fd 100644
+--- a/src/DarkTerritory.Sim/Bots/Bots.cs
++++ b/src/DarkTerritory.Sim/Bots/Bots.cs
+@@ -385,7 +385,7 @@ public sealed class GunnerBot(GunTuning guns, ChoirTuning? choir = null, int see
+             foreach (var l in shape.Ladders)
+                 if (cab.Contains(l.Foot + new Double3(0, 0.2, 0)))
+                 {
+-                    var (step, there) = WarmUp.Steer(self, l.Foot with { Y = self.Position.Y }, self.Yaw);
++                    var (step, there) = WarmUp.SteerCab(self, train, l.Foot with { Y = self.Position.Y }, self.Yaw);
+                     return there ? new PlayerIntent { Actions = PlayerActions.Ladder } : step;
+                 }
+             return null;
+@@ -1867,8 +1867,8 @@ public sealed class RoofWalkerBot(int seed, ColdTuning? cold = null, StopHand? j
+         {
+             // Over to the corridor's mouth first, inside the cab; then down it.
+             if (Math.Abs(at.X - corridor) > 0.25 && at.Z < plan.CabBack - 0.2)
+-                return WarmUp.Steer(self, new Double3(corridor, at.Y, plan.CabBack - 0.6), Math.PI).Step;
+-            return WarmUp.Steer(self, new Double3(corridor, at.Y, hoodBack + 0.8), Math.PI).Step;
++                return WarmUp.SteerCab(self, train, new Double3(corridor, at.Y, plan.CabBack - 0.6), Math.PI).Step;
++            return WarmUp.SteerCab(self, train, new Double3(corridor, at.Y, hoodBack + 0.8), Math.PI).Step;
+         }
+         // Behind the smokebox: out along the footplate (T90's, beside the coupler plate), then sideways down onto the plate.
+         double onFootplate = plan.Half + g.CouplingGap * 0.3;
+@@ -2720,7 +2720,7 @@ public sealed partial class ConductorBot(CrewCalls? calls = null, int member = 0
+         if (!minded && !_firedToLeave && train.BoilerTuning is { } bt && train.Boiler.Tender >= 1 && train.Boiler.FireFraction(bt) < fire)
+         {
+             var firebox = train.Frames[0].Shape.Interactables.First(i => i.Kind == InteractableKind.Firebox).Position;
+-            var (step, there) = WarmUp.Steer(self, FiringSpot(firebox, 1), FacingFire);
++            var (step, there) = WarmUp.SteerCab(self, train, FiringSpot(firebox, 1), FacingFire);
+             var firing = there && CrewActions.Nearest(self, train) == InteractableKind.Firebox ? new PlayerIntent { Buttons = PlayerButtons.Use } : step;
+             return firing with { Buttons = firing.Buttons | PlayerButtons.Brake, ThrottleNotch = -4 };
+         }
+@@ -2732,7 +2732,7 @@ public sealed partial class ConductorBot(CrewCalls? calls = null, int member = 0
+         // so it pulls no harder against it than a standing engine's fire keeps it.
+         if (!minded && train.BoilerTuning is { SteamDrive: true } && train.Boiler.Pressure > LeavingPressure)
+         {
+-            var (step, there) = WarmUp.Steer(self, VentWay(train)[0], 0);
++            var (step, there) = WarmUp.SteerCab(self, train, VentWay(train)[0], 0);
+             var venting = there && CrewActions.Nearest(self, train) == InteractableKind.Vent ? new PlayerIntent { Buttons = PlayerButtons.Use } : step;
+             return venting with { Buttons = venting.Buttons | PlayerButtons.Brake, ThrottleNotch = -4 };
+         }
+@@ -3117,7 +3117,7 @@ public sealed partial class ConductorBot(CrewCalls? calls = null, int member = 0
+             };
+         var cab = train.Frames[0].Shape.Cab!.Value;
+         var corner = side > 0 ? new Double3(cab.Max.X - 0.4, 0, cab.Min.Z + 0.9) : new Double3(cab.Min.X + 0.45, 0, cab.Max.Z - 0.45);
+-        var (step, _) = WarmUp.Steer(self, corner, 0);
++        var (step, _) = WarmUp.SteerCab(self, train, corner, 0);
+         return intent with { MoveX = step.MoveX, MoveZ = step.MoveZ, LookYaw = step.LookYaw };
+     }
+ 
+@@ -3200,7 +3200,7 @@ public sealed partial class ConductorBot(CrewCalls? calls = null, int member = 0
+             return null;
+         }
+         int at = _sandLeg < way.Length ? _sandLeg : 2 * way.Length - 1 - _sandLeg;
+-        var (step, there) = WarmUp.Steer(self, way[at], 0);
++        var (step, there) = WarmUp.SteerCab(self, train, way[at], 0);
+         // With steam driving (T97) nobody's holding the train back while the driver's out on the board, and sanded drivers
+         // pull it up to whatever speed its steam makes: out with the brake held, so it's standing on it till the driver's back.
+         // Note 233: but alone, that's a train on the climb that only ever stops: the brake bites on the sand it's laid, it
+@@ -3277,7 +3277,7 @@ public sealed partial class ConductorBot(CrewCalls? calls = null, int member = 0
+             return null;
+         }
+         int at = _ventLeg < way.Length ? _ventLeg : 2 * way.Length - 1 - _ventLeg;
+-        var (step, there) = WarmUp.Steer(self, way[at], 0);
++        var (step, there) = WarmUp.SteerCab(self, train, way[at], 0);
+         if (!there)
+             return step;
+         if (_ventLeg == way.Length - 1)
+@@ -3495,7 +3495,7 @@ public sealed partial class ConductorBot(CrewCalls? calls = null, int member = 0
+             if (!Repairs.WrenchInHand(self))
+                 return null;
+             var fire = train.Frames[0].Shape.Interactables.First(i => i.Kind == InteractableKind.Firebox).Position;
+-            var (step, there) = WarmUp.Steer(self, FiringSpot(fire, Fireman ? -1 : 1), FacingFire);
++            var (step, there) = WarmUp.SteerCab(self, train, FiringSpot(fire, Fireman ? -1 : 1), FacingFire);
+             return there ? new PlayerIntent { Buttons = PlayerButtons.Use } : step;
+         }
+         var vehicles = train.Dynamics.Consist.Vehicles;
+@@ -3525,7 +3525,7 @@ public sealed partial class ConductorBot(CrewCalls? calls = null, int member = 0
+         // is the vent's, and a harness night's driver held it open from there with the wrench, the lamp never mended and the
+         // boiler drained to nothing.
+         if (!Repairs.AtLamp(self, train) || CrewActions.Nearest(self, train) is not (InteractableKind.Coal or InteractableKind.Firebox or null))
+-            return WarmUp.Steer(self, new Double3(0, 0, PlayerMotor.CabFloorZ(train.Frames[0].Shape)), 0).Step;
++            return WarmUp.SteerCab(self, train, new Double3(0, 0, PlayerMotor.CabFloorZ(train.Frames[0].Shape)), 0).Step;
+         if (Repairs.WrenchKey(self) is var key and > 0)
+             return new PlayerIntent { Select = key };
+         return Repairs.WrenchInHand(self) ? new PlayerIntent { Buttons = PlayerButtons.Use } : null;
+@@ -3541,7 +3541,7 @@ public sealed partial class ConductorBot(CrewCalls? calls = null, int member = 0
+         // On its way in from the bunker (note 263) it's in the open: at the fire, club it there.
+         if (stoker.Boarding)
+         {
+-            var (step, there) = WarmUp.Steer(self, FiringSpot(firebox, Fireman ? -1 : 1), FacingFire);
++            var (step, there) = WarmUp.SteerCab(self, train, FiringSpot(firebox, Fireman ? -1 : 1), FacingFire);
+             var club = there ? new PlayerIntent { Actions = PlayerActions.Swing } : step;
+             club.Buttons |= PlayerButtons.Brake;
+             club.ThrottleNotch = -4;
+@@ -3551,7 +3551,7 @@ public sealed partial class ConductorBot(CrewCalls? calls = null, int member = 0
+         // the director, the inbox, 12 Oct: "b") at the door and the hose on it, the brake held; else vent and starve it out.
+         if (world.Enemies is { Stoker.CabHose: true })
+         {
+-            var (step, there) = WarmUp.Steer(self, FiringSpot(firebox, Fireman ? -1 : 1), FacingFire);
++            var (step, there) = WarmUp.SteerCab(self, train, FiringSpot(firebox, Fireman ? -1 : 1), FacingFire);
+             var hose = there ? new PlayerIntent { Buttons = PlayerButtons.Fire } : step;
+             hose.Buttons |= PlayerButtons.Brake;
+             hose.ThrottleNotch = -4;
+@@ -3588,7 +3588,7 @@ public sealed partial class ConductorBot(CrewCalls? calls = null, int member = 0
+             // left wall. Walking straight at the firebox from where it stood, the fireman fetched up at the vent, which was
+             // then the nearest thing to hand, and never shovelled: deadLines:3's fire went out with the tender full.
+             var firebox = train.Frames[0].Shape.Interactables.First(i => i.Kind == InteractableKind.Firebox).Position;
+-            var (step, there) = WarmUp.Steer(self, FiringSpot(firebox, Fireman ? -1 : 1), FacingFire);
++            var (step, there) = WarmUp.SteerCab(self, train, FiringSpot(firebox, Fireman ? -1 : 1), FacingFire);
+             // Not while still walking in: Use and forward is a climb (T90), and note 280's hatch ladder stands behind the
+             // bunker, on the way to the fire from the back of the cab.
+             if (CrewActions.Nearest(self, train) == InteractableKind.Firebox && (there || step.MoveZ <= 0.5))
+@@ -3691,7 +3691,7 @@ public static class KitRun
+         {
+             if (self.Parent == 0 && PlayerMotor.InCab(self, train))
+             {
+-                var (step, there) = WarmUp.Steer(self, firing, ConductorBot.FacingFire);
++                var (step, there) = WarmUp.SteerCab(self, train, firing, ConductorBot.FacingFire);
+                 return there ? new PlayerIntent { Buttons = PlayerButtons.Use } : step;
+             }
+             if (self.Parent == car)
+@@ -3700,7 +3700,7 @@ public static class KitRun
+                 double front = -train.Frames[car].Shape.HalfLength;
+                 var door = new Double3(g.PlateX, 0, front + 0.5);
+                 if (self.Position.Z > door.Z + 0.15)
+-                    return WarmUp.Steer(self, door, 0).Step;
++                    return WarmUp.SteerCab(self, train, door, 0).Step;
+                 if (!train.Vehicles[car].DoorOpen(0))
+                     return new PlayerIntent { Buttons = PlayerButtons.Use }; // drops it to open the door; picked up again after
+                 return WarmUp.Steer(self, Into(train, 0, route[^1], car), 0).Step;
+@@ -3708,8 +3708,8 @@ public static class KitRun
+             // Back along the route to the cab: the next point nearer the front than here.
+             for (int i = route.Length - 1; i >= 0; i--)
+                 if (route[i].Z < self.Position.Z - RouteStep)
+-                    return WarmUp.Steer(self, route[i], 0).Step;
+-            return WarmUp.Steer(self, firing, ConductorBot.FacingFire).Step;
++                    return WarmUp.SteerCab(self, train, route[i], 0).Step;
++            return WarmUp.SteerCab(self, train, firing, ConductorBot.FacingFire).Step;
+         }
+         if (kit!.Parent == self.Parent)
+             return Take(self, train, kit, tick);
+@@ -3765,13 +3765,13 @@ public static class KitRun
+         bool inCab = PlayerMotor.InCab(self, train);
+         // (Lined up with the route's first point only short of it: past it, the way turns off to the doorway.)
+         if (inCab && self.Position.Z < route[0].Z - RouteStep && Math.Abs(self.Position.X - route[0].X) > 0.2)
+-            return WarmUp.Steer(self, route[0], Math.PI).Step;
++            return WarmUp.SteerCab(self, train, route[0], Math.PI).Step;
+         foreach (var p in route)
+             if (p.Z > self.Position.Z + RouteStep)
+-                return WarmUp.Steer(self, p, Math.PI).Step;
++                return WarmUp.SteerCab(self, train, p, Math.PI).Step;
+         if (!train.Vehicles[car].DoorOpen(0))
+         {
+-            var (step, there) = WarmUp.Steer(self, route[^1], Math.PI);
++            var (step, there) = WarmUp.SteerCab(self, train, route[^1], Math.PI);
+             return there ? new PlayerIntent { Buttons = PlayerButtons.Use } : step;
+         }
+         double carFront = -train.Frames[car].Shape.HalfLength;
+@@ -4485,6 +4485,22 @@ public sealed class WarmUp(ColdTuning cold, double goInAt = 0.6)
+         }, false);
+     }
+ 
++    /// <summary>
++    /// <see cref="Steer"/>, in the engine's cab round the crew car's chart table and benches (note 716): to the target by the
++    /// ways down the cab either side of them (<see cref="EnginePlan.CabWay"/>), there only once at the target itself.
++    /// </summary>
++    public static (PlayerIntent Step, bool There) SteerCab(in PlayerState self, TrainOnLine train, Double3 target, double yaw)
++    {
++        if (PlayerMotor.InCab(self, train))
++        {
++            var way = EnginePlan.Of(train.Dynamics.Tuning.Geometry).CabWay(self.Position, target);
++            // (At a way's point already, on to the target: the last leg's no more than a shoulder past the furniture's corner.)
++            if (Flat(way - target).Length > 0.01 && Flat(way - self.Position).Length > 0.2)
++                return (Steer(self, way, yaw).Step, false);
++        }
++        return Steer(self, target, yaw);
++    }
++
+     static Double3 Flat(Double3 v) => new(v.X, 0, v.Z);
+     static float Turn(in PlayerState self, double yaw) => (float)Math.Clamp(Wrap(yaw - self.Yaw), -0.5, 0.5);
+     static bool Aligned(in PlayerState self, double yaw) => Math.Abs(Wrap(yaw - self.Yaw)) < 0.1;
+diff --git a/src/DarkTerritory.Sim/Bots/Heed.CrewCar.cs b/src/DarkTerritory.Sim/Bots/Heed.CrewCar.cs
+new file mode 100644
+index 00000000..e10e0ca4
+--- /dev/null
++++ b/src/DarkTerritory.Sim/Bots/Heed.CrewCar.cs
+@@ -0,0 +1,44 @@
++using Ballast;
++using DarkTerritory.Sim.Player;
++using DarkTerritory.Sim.Train;
++
++namespace DarkTerritory.Sim.Bots;
++
++public static partial class Heed
++{
++    /// <summary>
++    /// Note 716: the big cab's chart table and the gallery's benches stand down its middle, and the ways down the cab are
++    /// either side of them (<see cref="EnginePlan.Lane"/>). A bot walking the cab, front to back or back to front, into one of
++    /// them goes out into the way on the side it's on and on along it, whatever it was going there for (its own walks use
++    /// <see cref="WarmUp.SteerCab"/>; this is for every other one, a rescue or a crewmate to heal). The treads up to the
++    /// gallery are walked up, as anyone does.
++    /// </summary>
++    public static PlayerIntent CabFurniture(PlayerIntent intent, in PlayerState self, World world, PlayerTuning p)
++    {
++        var train = world.Train;
++        if (intent.MoveX == 0 && intent.MoveZ == 0 || !PlayerMotor.InCab(self, train))
++            return intent;
++        double fx = -DMath.Sin(self.Yaw), fz = -DMath.Cos(self.Yaw), rx = DMath.Cos(self.Yaw), rz = -DMath.Sin(self.Yaw);
++        double wx = intent.MoveZ * fx + intent.MoveX * rx, wz = intent.MoveZ * fz + intent.MoveX * rz;
++        double len = Math.Sqrt(wx * wx + wz * wz);
++        if (len < 1e-6 || Math.Abs(wz) < 0.3 * len)
++            return intent;
++        wz = Math.Sign(wz);
++        var at = self.Position;
++        var plan = EnginePlan.Of(train.Dynamics.Tuning.Geometry);
++        double r = p.Radius + LyingMargin;
++        Box? block = null;
++        foreach (var f in plan.Furniture)
++            if (f.Max.Y - at.Y > p.StepUp && f.Min.Y < at.Y + p.Height && Ahead(at, 0, wz, f, r) is { } along && along > 0 && along <= LyingLookAhead)
++                block = f;
++        if (block is not { } b)
++            return intent;
++        double lane = at.X >= (b.Min.X + b.Max.X) / 2 ? plan.Lane : -plan.Lane;
++        double ax = Math.Clamp((lane - at.X) * 3, -1, 1), az = Math.Abs(lane - at.X) < 0.1 ? wz : 0;
++        return intent with
++        {
++            MoveZ = (float)Math.Clamp(ax * fx + az * fz, -1, 1),
++            MoveX = (float)Math.Clamp(ax * rx + az * rz, -1, 1),
++        };
++    }
++}
+diff --git a/src/DarkTerritory.Sim/Bots/StopCrew.cs b/src/DarkTerritory.Sim/Bots/StopCrew.cs
+index d5d2ecad..6f2080a6 100644
+--- a/src/DarkTerritory.Sim/Bots/StopCrew.cs
++++ b/src/DarkTerritory.Sim/Bots/StopCrew.cs
+@@ -3872,11 +3872,14 @@ public sealed partial class StopHand(StopJob job, CrewCalls calls, int member, C
+         {
+             Doing = "out of the cab";
+             double door = CabDoorZ(train);
+-            // The coal bunker stands along the left wall at the cab's front (note 280): on that side, back down the floor
+-            // clear of it to the doorway's height first, then out.
+-            var bunker = EnginePlan.Of(train.Dynamics.Tuning.Geometry).Bunker;
+-            if (side < 0 && PlayerMotor.InCab(self, train) && Math.Abs(self.Position.Z - door) > 0.25)
+-                return Edge(self, new Double3(bunker.Max.X + 0.4, self.Position.Y, door), facing);
++            // Back down the cab to abreast of the doorway first, at a walk (the stroll's for the step off), by the way down that
++            // side: note 716's big cab has its doorways at its back, 10 m behind the controls, past the chart table and up over
++            // the gallery (and the coal bunker along the left wall at the front, note 280, is passed clear of it).
++            if (PlayerMotor.InCab(self, train) && Math.Abs(self.Position.Z - door) > 0.25)
++            {
++                var lane = new Double3(side * EnginePlan.Of(train.Dynamics.Tuning.Geometry).Lane, self.Position.Y, door);
++                return WarmUp.SteerCab(self, train, lane, facing).Step;
++            }
+             // Out across the running board in front of the doorway (note 559) and off its edge, the last of it at a shuffle so
+             // the drop's straight down: on a bridge the deck's no wider than 2.6 m from the track (note 552), the board's edge
+             // is 2.35, and stepped off at a stroll a hand landed 2.75 out, walked back along the train out there, and went
+diff --git a/src/DarkTerritory.Sim/Enemies/Flank.cs b/src/DarkTerritory.Sim/Enemies/Flank.cs
+index 6fa9ae4a..0302c660 100644
+--- a/src/DarkTerritory.Sim/Enemies/Flank.cs
++++ b/src/DarkTerritory.Sim/Enemies/Flank.cs
+@@ -710,7 +710,7 @@ public sealed class Climber(int id) : Enemy(id)
+         {
+             // The engine: down into the cab.
+             Attached = 0;
+-            Local = train.Frames[0].Shape.Cab!.Value.Centre;
++            Local = train.Frames[0].Shape.FootplateMiddle; // (onto the footplate: note 716)
+             Extra = -1;
+             // Coming over the tender into the cab, it smashes the forward lamp for a while (§23 "lights fail", note 183).
+             ctx.World.SmashLamp(t.LampOutSeconds);
+diff --git a/src/DarkTerritory.Sim/Enemies/Forward.cs b/src/DarkTerritory.Sim/Enemies/Forward.cs
+index 98c43202..2773ffac 100644
+--- a/src/DarkTerritory.Sim/Enemies/Forward.cs
++++ b/src/DarkTerritory.Sim/Enemies/Forward.cs
+@@ -238,7 +238,7 @@ public sealed class TrackDoll(int id) : Enemy(id)
+         if (cabEmpty && _level >= 2 && train.Frames[0].Shape.Cab is { } cab)
+         {
+             Attached = 0;
+-            Local = cab.Centre with { Y = cab.Min.Y };
++            Local = train.Frames[0].Shape.FootplateMiddle with { Y = cab.Min.Y }; // (at the controls: note 716)
+             Extra = 0;
+             Extra2 = _level;
+             return;
+diff --git a/src/DarkTerritory.Sim/Player/PlayerMotor.cs b/src/DarkTerritory.Sim/Player/PlayerMotor.cs
+index 5dd51bbe..ae3a33cf 100644
+--- a/src/DarkTerritory.Sim/Player/PlayerMotor.cs
++++ b/src/DarkTerritory.Sim/Player/PlayerMotor.cs
+@@ -1038,13 +1038,17 @@ public static class PlayerMotor
+                 continue;
+             var local = frame.ToLocal(world);
+             var vehicle = train.Vehicles[frame.Index];
++            // Note 716: walking the engine's cab, down the gallery's treads is a step down, not a drop: the floor's taken a step
++            // below the feet. Off the treads into the air, a crewmate was out of the cab for a few ticks (no longer InCab, its
++            // space the outside) with the train under them.
++            double down = wasGrounded && s.Parent == frame.Index && frame.Shape.Cab is { } cabRoom && cabRoom.Contains(local) ? p.StepUp : snap;
+             foreach (var solid in frame.Shape.Solids)
+             {
+                 if (!solid.Present(vehicle))
+                     continue;
+                 var box = solid.BoxIn(vehicle);
+                 double top = box.Max.Y;
+-                if (!box.ContainsXZ(local) || local.Y > top + snap || local.Y < top - below)
++                if (!box.ContainsXZ(local) || local.Y > top + down || local.Y < top - below)
+                     continue;
+                 double worldTop = frame.ToWorld(local with { Y = top }).Y;
+                 if (worldTop <= bestTop)
+diff --git a/src/DarkTerritory.Sim/Train/CarFrame.cs b/src/DarkTerritory.Sim/Train/CarFrame.cs
+index 46fcf1cf..ecf9425a 100644
+--- a/src/DarkTerritory.Sim/Train/CarFrame.cs
++++ b/src/DarkTerritory.Sim/Train/CarFrame.cs
+@@ -46,7 +46,8 @@ public enum SurfaceKind : byte { Roof, Deck, Coupler }
+ /// <summary>What a solid is, so presentation can draw and colour it. Collision ignores this, but for an open roof hatch (T99).</summary>
+ /// <summary><see cref="CrewLocker"/> is one of the kit car's row of crew lockers (ARCHITECTURE §8 note 173); <see cref="Locker"/> the guard van's tool locker.</summary>
+ /// <summary><see cref="Stove"/> and <see cref="Bunk"/> are a crew car's (note 184): its stove, and the berths down its right side.</summary>
+-public enum PartKind : byte { Body, Chassis, Boiler, Stack, CabWall, CabRoof, Tender, Coupler, GunMount, Wall, Cargo, Locker, Steps, RunningBoard, Hatch, CrewLocker, Stove, Bunk, Firebox }
++/// <summary><see cref="ChartTable"/>, <see cref="Gallery"/> (its raised floor and treads) and <see cref="Bench"/> are the big cab's, the crew car's (note 716).</summary>
++public enum PartKind : byte { Body, Chassis, Boiler, Stack, CabWall, CabRoof, Tender, Coupler, GunMount, Wall, Cargo, Locker, Steps, RunningBoard, Hatch, CrewLocker, Stove, Bunk, Firebox, ChartTable, Gallery, Bench }
+ 
+ /// <summary>Where a gun is bolted on, and which way it faces in the car's frame (−Z forward, +Z back).</summary>
+ /// <summary>
+@@ -174,6 +175,16 @@ public sealed record CarShape(Box Bounds, IReadOnlyList<Solid> Solids, IReadOnly
+     /// <summary>A crew car's stove (note 184), standing on its floor: the heat a crew car has of its own.</summary>
+     public Box? Stove { get; init; }
+ 
++    /// <summary>
++    /// The middle of the engine's footplate, the work at the cab's front (note 716): where the 5 m cab's middle was, and what
++    /// comes into the cab comes down onto (a Climber over the roof, the Lamplighter at the brake). The crew car behind it is
++    /// the crew's. On anything but the engine, the origin.
++    /// </summary>
++    public Double3 FootplateMiddle => Cab is { } c ? c.Centre with { Z = Math.Min(c.Centre.Z, c.Min.Z + FootplateHalf) } : default;
++
++    /// <summary>Half the footplate's length (m): half the cab it was before note 716.</summary>
++    public const double FootplateHalf = 2.5;
++
+     public double HalfLength => Bounds.Max.Z;
+     public double HalfWidth => Bounds.Max.X;
+     /// <summary>Height of the highest walkable roof.</summary>
+@@ -507,6 +518,10 @@ public sealed record CarShape(Box Bounds, IReadOnlyList<Solid> Solids, IReadOnly
+             new(plan.Bunker, SurfaceKind.Deck, PartKind.Tender),
+             new(plan.Firebox, SurfaceKind.Deck, PartKind.Firebox),
+         };
++        // The cab's sides a waist over the gallery's floor (note 716: a sill at the gallery's knees would be one to fall out
++        // over), the whole way from the front pillar to the doorway, so a walker along them meets no corner where the
++        // gallery starts; under the footplate's slits, as they always were, so nothing's seen differently from the controls.
++        double waist = plan.Gallery.Max.Z > plan.Gallery.Min.Z ? Math.Max(deck + 1.1, plan.Gallery.Max.Y + e.CrewCar.GalleryWaist) : deck + 1.1;
+         // The cab's front: waist-high under its windows, the driver's console behind it; pillars at its corners hold the
+         // roof, and the windows between them are the driver's view of the line.
+         solids.Add(new(new Box(new Double3(-w, deck, cabFront), new Double3(w, deck + 1.1, cabFront + 0.15)), SurfaceKind.Deck, PartKind.CabWall));
+@@ -516,7 +531,7 @@ public sealed record CarShape(Box Bounds, IReadOnlyList<Solid> Solids, IReadOnly
+             var (x0, x1) = (Math.Min(inner, outer), Math.Max(inner, outer));
+             // Sides waist-high with a doorway at the back of each; corner pillars; the standard lintel over each doorway
+             // (train.json doorway: the cab roof is higher, but a door is a door, note 110).
+-            solids.Add(new(new Box(new Double3(x0, deck, cabFront), new Double3(x1, deck + 1.1, doorFront)), SurfaceKind.Deck, PartKind.CabWall));
++            solids.Add(new(new Box(new Double3(x0, deck, cabFront), new Double3(x1, waist, doorFront)), SurfaceKind.Deck, PartKind.CabWall));
+             solids.Add(new(new Box(new Double3(x0, deck, cabFront), new Double3(x1, roof, cabFront + 0.15)), SurfaceKind.Deck, PartKind.CabWall));
+             solids.Add(new(new Box(new Double3(x0, deck, cabBack - 0.15), new Double3(x1, roof, cabBack)), SurfaceKind.Deck, PartKind.CabWall));
+             solids.Add(new(new Box(new Double3(x0, deck + g.Doorway.Height, doorFront), new Double3(x1, roof, cabBack - 0.15)), SurfaceKind.Deck, PartKind.CabWall));
+@@ -528,6 +543,20 @@ public sealed record CarShape(Box Bounds, IReadOnlyList<Solid> Solids, IReadOnly
+         }
+         // ... and across it (note 280: the firebox is at the front now; the boiler's end is plated over).
+         solids.Add(new(new Box(new Double3(-e.BoilerHalfWidth, deck, cabBack - 0.15), new Double3(e.BoilerHalfWidth, roof, cabBack)), SurfaceKind.Deck, PartKind.CabWall));
++        // The crew car (note 716; the director, 14 Oct 2026: "the cab itself becomes the crew car ... the captain's quarters,
++        // shared by all"), behind the footplate: the chart table in the middle, the cab map on it; then the gallery, its floor
++        // raised wall to wall with a tread up at each end, the benches down its middle facing forward; the ways down the cab
++        // either side of them all to the back wall, its doors and the corridors along the boiler.
++        solids.Add(new(plan.ChartTable, SurfaceKind.Deck, PartKind.ChartTable));
++        if (plan.Gallery.Max.Z > plan.Gallery.Min.Z)
++        {
++            solids.Add(new(plan.Gallery, SurfaceKind.Deck, PartKind.Gallery));
++            foreach (var tread in new[] { plan.FrontTread, plan.BackTread })
++                if (tread.Max.Z > tread.Min.Z)
++                    solids.Add(new(tread, SurfaceKind.Deck, PartKind.Gallery));
++            foreach (var bench in plan.Benches)
++                solids.Add(new(bench, SurfaceKind.Deck, PartKind.Bench));
++        }
+         // The hood (note 338; the director's silhouette, 7 Oct 2026: "This is a bulky survival train not a dainty city tram"):
+         // armour the engine's whole length behind the cab, its sides flush with the cab's and a roof at the cab roof's
+         // height, walked on as one with it. The walkway either side of the boiler runs inside it, a corridor from the deck
+@@ -586,7 +615,9 @@ public sealed record CarShape(Box Bounds, IReadOnlyList<Solid> Solids, IReadOnly
+             // The blow-off cock (T97: venting slows the train). T109 playtest: in the cab, so one player works it all from
+             // the footplate; note 280, on the right side wall a step behind the console, its pipe up the side window's post
+             // and out of the line's view (the front windows stay clear).
+-            new(InteractableKind.Vent, new Double3(w - 0.25, deck, cabFront + 0.15 + (doorFront - cabFront - 0.15) / 3), 0.6, Aim: 1.15),
++            // (Where it stood in the 5 m cab, a third of the way back along its side to the doorway: note 716 keeps the footplate
++            // as it was, whatever's behind it.)
++            new(InteractableKind.Vent, new Double3(w - 0.25, deck, cabFront + 0.15 + VentAlong), 0.6, Aim: 1.15),
+             // The tool rack on the right side, the driver's (T109): the wrench, a tool to swing.
+             new(InteractableKind.ToolRack, new Double3(w - 0.3, deck, cabFront + 2.4), 0.6, Aim: 1.2),
+             // The powered switch thrower's lever (spec F.3, note 196), on the driver's side behind the tool rack: clear of the
+@@ -618,6 +649,9 @@ public sealed record CarShape(Box Bounds, IReadOnlyList<Solid> Solids, IReadOnly
+         return new CarShape(bounds, solids, ladders, interactables, cab, new GunMount(mount + new Double3(0, 0.9, 0), new Double3(0, 0, -1)), Levers: levers);
+     }
+ 
++    /// <summary>The vent's handle behind the cab's front wall (m): a step behind the console (note 280), where it's always been.</summary>
++    const double VentAlong = 3.8 / 3;
++
+     /// <summary>How far short of the engine's rear end the boiler's smokebox stops: the rear deck, stepped onto from car 1.</summary>
+     public const double BoilerToEnd = 0.5;
+ 
+@@ -632,12 +666,28 @@ public sealed record CarShape(Box Bounds, IReadOnlyList<Solid> Solids, IReadOnly
+ }
+ 
+ /// <summary>
+-/// The cab-forward engine's plan (ARCHITECTURE §8 notes 276, 280) in its frame, from train.json: where the cab's front
+-/// windows and back wall are, where its doorways start, the coal bunker and the firebox at its front, and the stack. The
+-/// sim, the bots and the art all read it here.
++/// The cab-forward engine's plan (ARCHITECTURE §8 notes 276, 280, 716) in its frame, from train.json: where the cab's front
++/// windows and back wall are, where its doorways start, the coal bunker and the firebox at its front, and the stack; and the
++/// crew car behind the footplate (note 716): the chart table, the gallery's raised floor and its benches. The sim, the bots
++/// and the art all read it here.
+ /// </summary>
+ public readonly record struct EnginePlan(double Half, double CabFront, double CabBack, double DoorFront, Box Bunker, double StackZ, Box Firebox)
+ {
++    /// <summary>The chart table (note 716): in the middle of the cab behind the footplate, its top the map's.</summary>
++    public Box ChartTable { get; init; }
++    /// <summary>The gallery's raised floor (note 716), wall to wall, its top the floor stood on.</summary>
++    public Box Gallery { get; init; }
++    /// <summary>The treads half way up to the gallery, at its front and its back, wall to wall.</summary>
++    public Box FrontTread { get; init; }
++    public Box BackTread { get; init; }
++    /// <summary>The benches on the gallery, facing forward, front row first.</summary>
++    public IReadOnlyList<Box> Benches { get; init; } = [];
++    /// <summary>
++    /// The ways down the cab either side of the chart table and the benches (m off the centreline): a walker going between the
++    /// footplate and the back wall keeps to one (<see cref="CabWay"/>).
++    /// </summary>
++    public double Lane { get; init; }
++
+     public static EnginePlan Of(GeometryTuning g)
+     {
+         var e = g.Engine;
+@@ -653,9 +703,101 @@ public readonly record struct EnginePlan(double Half, double CabFront, double Ca
+         var firebox = new Box(new Double3(fx, e.DeckHeight, wall), new Double3(fx + e.FireboxWidth, e.DeckHeight + e.FireboxHeight, wall + e.FireboxDepth));
+         // The stack over the smokebox, near the boiler's rear end.
+         double stackZ = l - CarShape.BoilerToEnd - 1.25;
+-        return new(l, cabFront, cabBack, doorFront, bunker, stackZ, firebox);
++        // Note 716: behind the footplate, down the middle, the chart table and then the gallery's benches; the gallery's floor
++        // and its treads wall to wall. (A shorter cab than the crew car wants has as much of it as fits: none, at the old 5 m,
++        // but the table; the treads and the floor clipped to the cab.)
++        var c = e.CrewCar;
++        double inner = w - 0.1, deck = e.DeckHeight, back = cabBack - 0.15;
++        double z(double behind) => Math.Min(cabFront + behind, back);
++        var table = new Box(new Double3(-c.TableWidth / 2, deck, z(c.TableFrom)), new Double3(c.TableWidth / 2, deck + c.TableHeight, z(c.TableFrom + c.TableLength)));
++        double rise = deck + c.GalleryRise;
++        var gallery = new Box(new Double3(-inner, deck, z(c.GalleryFrom)), new Double3(inner, rise, z(c.GalleryTo)));
++        var frontTread = new Box(new Double3(-inner, deck, z(c.GalleryFrom - c.GalleryStep)), new Double3(inner, deck + c.GalleryRise / 2, z(c.GalleryFrom)));
++        var backTread = new Box(new Double3(-inner, deck, z(c.GalleryTo)), new Double3(inner, deck + c.GalleryRise / 2, z(c.GalleryTo + c.GalleryStep)));
++        var benches = c.BenchRows.Where(r => cabFront + r + c.BenchDepth <= gallery.Max.Z)
++            .Select(r => new Box(new Double3(-c.BenchWidth / 2, rise, cabFront + r), new Double3(c.BenchWidth / 2, rise + c.BenchHeight, cabFront + r + c.BenchDepth))).ToList();
++        // Half way between the furniture's edge and the cab's side.
++        double lane = (Math.Max(c.TableWidth, c.BenchWidth) / 2 + inner) / 2;
++        return new(l, cabFront, cabBack, doorFront, bunker, stackZ, firebox)
++        {
++            ChartTable = table,
++            Gallery = gallery,
++            FrontTread = frontTread,
++            BackTread = backTread,
++            Benches = benches,
++            Lane = lane,
++        };
+     }
+ 
+     /// <summary>How far behind the engine's front the coal bunker's middle is: where a coaling spout pours (spec D.4).</summary>
+     public double CoalFromFront => Half + Bunker.Centre.Z;
++
++    /// <summary>
++    /// The crew car's furniture a walker goes round (note 716): the chart table and the benches, in the engine's frame. Not the
++    /// gallery's floor and treads: those are walked up.
++    /// </summary>
++    public IEnumerable<Box> Furniture => Benches.Prepend(ChartTable).Where(b => b.Max.Z > b.Min.Z);
++
++    /// <summary>
++    /// The next place to make for in the cab from <paramref name="from"/> on the way to <paramref name="to"/> (note 716; both in
++    /// the engine's frame): <paramref name="to"/> itself when nothing of the crew car's furniture stands between, else into
++    /// the way down the cab on <paramref name="to"/>'s side of it (or <paramref name="from"/>'s, going to the middle), short of
++    /// the furniture, and along it. A body <paramref name="radius"/> round is kept clear.
++    /// </summary>
++    public Double3 CabWay(Double3 from, Double3 to, double radius = 0.35)
++    {
++        if (!Furniture.Any(f => Crosses(from, to, f, radius)))
++            return to;
++        double toSide = Math.Abs(to.X) > 0.2 ? Math.Sign(to.X) : Math.Abs(from.X) > 0.05 ? Math.Sign(from.X) : -1;
++        // Its own legs, across into a way and along it, need only miss the furniture itself by a little: a walker already
++        // close by a face slides along it (PlayerMotor's push out) as it goes.
++        double skim = Math.Max(0.05, radius - 0.2);
++        foreach (double side in new[] { toSide, -toSide })
++        {
++            double lane = side * Lane;
++            // Out in the way already: along it to abreast of where it's going, then across.
++            if (Math.Abs(from.X - lane) < 0.15)
++            {
++                var along = to with { X = lane };
++                if (!Furniture.Any(f => Crosses(from, along, f, skim)))
++                    return along;
++                continue;
++            }
++            // Across into it where that's clear: abreast of where it is, or (short of the furniture) just short of it, so a
++            // walker from the footplate doesn't cut the bunker's corner (note 280's, along the left wall) getting there.
++            double front = Furniture.Min(f => f.Min.Z), rear = Furniture.Max(f => f.Max.Z);
++            double clear = radius + 0.05;
++            double ez = from.Z < front - clear ? Math.Max(from.Z, front - clear) : from.Z > rear + clear ? Math.Min(from.Z, rear + clear) : from.Z;
++            var into = new Double3(lane, from.Y, ez);
++            if (!Furniture.Any(f => Crosses(from, into, f, skim)))
++                return into;
++        }
++        // Hemmed in (abreast of the furniture with it between it and both ways: never, the ways being either side): on as it was.
++        return to;
++    }
++
++    /// <summary>Whether the way from <paramref name="a"/> to <paramref name="b"/> (flat) passes within <paramref name="r"/> of the box.</summary>
++    static bool Crosses(Double3 a, Double3 b, Box box, double r)
++    {
++        double x0 = box.Min.X - r, x1 = box.Max.X + r, z0 = box.Min.Z - r, z1 = box.Max.Z + r;
++        // Slab test on the flat segment.
++        double t0 = 0, t1 = 1, dx = b.X - a.X, dz = b.Z - a.Z;
++        foreach (var (p, d, lo, hi) in new[] { (a.X, dx, x0, x1), (a.Z, dz, z0, z1) })
++        {
++            if (Math.Abs(d) < 1e-9)
++            {
++                if (p < lo || p > hi)
++                    return false;
++                continue;
++            }
++            double u = (lo - p) / d, v = (hi - p) / d;
++            if (u > v)
++                (u, v) = (v, u);
++            t0 = Math.Max(t0, u);
++            t1 = Math.Min(t1, v);
++            if (t0 > t1)
++                return false;
++        }
++        return true;
++    }
+ }
+diff --git a/src/DarkTerritory.Sim/Train/CrewCar.cs b/src/DarkTerritory.Sim/Train/CrewCar.cs
+new file mode 100644
+index 00000000..ea32822e
+--- /dev/null
++++ b/src/DarkTerritory.Sim/Train/CrewCar.cs
+@@ -0,0 +1,49 @@
++namespace DarkTerritory.Sim.Train;
++
++/// <summary>
++/// The big cab as the crew car (ARCHITECTURE §8 note 716; the director, 14 Oct 2026: "the cab itself becomes the crew car.
++/// It becomes the place where players hang out together. It becomes the place where coordinated driving happens"): what its
++/// fittings show, worked out from state every machine already has (the crew's replicated places, the boiler's pressure, the
++/// night's clock). Nothing here changes the sim; presentation draws and sounds it, and the tests pin it.
++/// </summary>
++public static class CrewCar
++{
++    /// <summary>
++    /// The chart table's lamp for a crewmate (note 716: "the navigator sees who's missing"): lit while they're alive and on the
++    /// train (standing in any vehicle's frame, the engine's or a car's), dark when they're down on the ground or dead.
++    /// <paramref name="parent"/> is their replicated <see cref="Player.PlayerState.Parent"/>; <paramref name="vehicles"/> how
++    /// many vehicles the train has.
++    /// </summary>
++    public static bool Aboard(bool alive, int parent, int vehicles) => alive && parent >= 0 && parent < vehicles;
++
++    /// <summary>
++    /// How hard the kettle on the back wall's warm backhead is singing (note 716), 0 to 1: silent below
++    /// <see cref="CrewCarLayout.KettleFrom"/> under the redline, rising to full at it and over. The cab's own sign the gauge
++    /// is climbing, heard by the crew on the gallery with their backs to the dials.
++    /// </summary>
++    public static double KettleSong(double pressure, BoilerTuning boiler, CrewCarLayout layout)
++    {
++        if (layout.KettleFrom <= 0)
++            return pressure >= boiler.Redline ? 1 : 0;
++        return Math.Clamp((pressure - (boiler.Redline - layout.KettleFrom)) / layout.KettleFrom, 0, 1);
++    }
++
++    /// <summary>
++    /// The cuckoo clock's bird (note 716): out over the last <paramref name="stirSeconds"/> before dawn (enemies.json
++    /// wakers.stirSeconds, when the stir starts), on each <see cref="CrewCarLayout.CuckooEvery"/> seconds before it, for
++    /// <see cref="CrewCarLayout.CuckooOutSeconds"/>. Null while it's in; else how far through its call it is (0 to 1). Three
++    /// calls in the last three minutes: dawn is coming, and the Wakers with it.
++    /// </summary>
++    public static double? Cuckoo(double dawnIn, double stirSeconds, CrewCarLayout layout)
++    {
++        double every = layout.CuckooEvery, out_ = layout.CuckooOutSeconds;
++        if (every <= 0 || out_ <= 0 || dawnIn <= 0 || dawnIn > stirSeconds + 1e-9)
++            return null;
++        // The call on the minute at or after this moment (counting down): out from it for out_ seconds.
++        double toCall = dawnIn - Math.Floor(dawnIn / every) * every;
++        double since = toCall == 0 ? 0 : every - toCall;
++        if (dawnIn + since > stirSeconds + 1e-9 || since >= out_)
++            return null;
++        return since / out_;
++    }
++}
+diff --git a/src/DarkTerritory.Sim/Train/TrainTuning.cs b/src/DarkTerritory.Sim/Train/TrainTuning.cs
+index fc8ccc57..501d308b 100644
+--- a/src/DarkTerritory.Sim/Train/TrainTuning.cs
++++ b/src/DarkTerritory.Sim/Train/TrainTuning.cs
+@@ -301,6 +301,33 @@ public sealed record EngineLayout(double DeckHeight, double BoilerHalfWidth, dou
+     public double RunningBoardAhead { get; init; } = 1.0;
+     /// <summary>The sandboxes on the running boards: this far behind the cab, over the drivers.</summary>
+     public double SandboxBehind { get; init; } = 2.5;
++    /// <summary>The big cab behind the footplate (ARCHITECTURE §8 note 716): the chart table, the gallery, the back wall.</summary>
++    public CrewCarLayout CrewCar { get; init; } = new();
++}
++
++/// <summary>
++/// The cab as the crew car (ARCHITECTURE §8 note 716; the director, 14 Oct 2026: "the cab itself becomes the crew car"),
++/// train.json <c>geometry.engine.crewCar</c>. Every place is how far behind the cab's front (m). Field docs live in that file.
++/// </summary>
++public sealed record CrewCarLayout
++{
++    public double FootplateLength { get; init; } = 2.5;
++    public double TableFrom { get; init; } = 2.9;
++    public double TableLength { get; init; } = 1.75;
++    public double TableWidth { get; init; } = 0.9;
++    public double TableHeight { get; init; } = 1.0;
++    public double GalleryFrom { get; init; } = 5.1;
++    public double GalleryTo { get; init; } = 8.4;
++    public double GalleryRise { get; init; } = 0.45;
++    public double GalleryStep { get; init; } = 0.45;
++    public double GalleryWaist { get; init; } = 1.1;
++    public IReadOnlyList<double> BenchRows { get; init; } = [5.9, 7.3];
++    public double BenchWidth { get; init; } = 1.0;
++    public double BenchDepth { get; init; } = 0.45;
++    public double BenchHeight { get; init; } = 0.45;
++    public double KettleFrom { get; init; } = 10;
++    public double CuckooEvery { get; init; } = 60;
++    public double CuckooOutSeconds { get; init; } = 3;
+ }
+ public sealed record MassTuning(double EngineTonnes, double EmptyCarTonnes, double LoadedCarTonnes);
+ public sealed record PerformanceRow(int Cars, double Accel, double Brake);
+diff --git a/tests/DarkTerritory.Game.Tests/CabGlassTests.cs b/tests/DarkTerritory.Game.Tests/CabGlassTests.cs
+index 2c283608..8e1ae164 100644
+--- a/tests/DarkTerritory.Game.Tests/CabGlassTests.cs
++++ b/tests/DarkTerritory.Game.Tests/CabGlassTests.cs
+@@ -45,8 +45,10 @@ public class CabGlassTests
+         var shape = Engine().Shape;
+         var cab = shape.Cab!.Value;
+         var panes = TrainKit.CabPanes(shape).ToList();
+-        // Two front windows and each side's slit in three bays.
+-        Assert.Equal(8, panes.Count);
++        // Two front windows, and down each side the slit along the footplate and the chart table in three bays and the
++        // gallery's long windows in three more (note 716: the big cab; it was the slit alone, 8 panes).
++        Assert.Equal(14, panes.Count);
++        Assert.Equal(6, panes.Count(p => p.In.X > 0));
+         foreach (var pane in panes)
+         {
+             Assert.True(pane.U.Length() > 0.15f && pane.V.Length() > 0.15f, $"a pane {pane.U.Length():0.00} by {pane.V.Length():0.00} m");
+diff --git a/tests/DarkTerritory.Game.Tests/CabSightTests.cs b/tests/DarkTerritory.Game.Tests/CabSightTests.cs
+index 48e185f4..23a54614 100644
+--- a/tests/DarkTerritory.Game.Tests/CabSightTests.cs
++++ b/tests/DarkTerritory.Game.Tests/CabSightTests.cs
+@@ -150,8 +150,11 @@ public class CabSightTests
+             var c = TrainKit.DriverGauge(Engine, i);
+             InView(new Double3(c.X, c.Y, c.Z), i == 3 ? "speed gauge" : $"gauge {i}");
+         }
+-        var map = TrainKit.MapPlate(Engine);
+-        InView(new Double3(map.Corner.X + map.Width / 2, map.Corner.Y + map.Height / 2, map.Corner.Z), "map");
++        // Note 716 (the director, 14 Oct 2026: "I'm okay with moving the cab map behind the controls. On a table"): the map's
++        // on the chart table behind the driver now, a turn and a couple of steps away, not over the windows.
++        var onTable = System.Numerics.Vector3.Transform(new System.Numerics.Vector3(TrainKit.MapPlate(Engine).Width / 2, TrainKit.MapPlate(Engine).Height / 2, 0), TrainKit.MapToCab(Engine));
++        var mapAt = new Double3(onTable.X, onTable.Y, onTable.Z);
++        Assert.True(mapAt.Z > eye.Z && ((mapAt - eye) with { Y = 0 }).Length < 4, $"the map's at {mapAt}, the driver at {eye}");
+         InView(Engine.Levers!.Value.Brake, "brake");
+         // And big enough to read from there: a dial's face over six degrees across.
+         var g = TrainKit.DriverGauge(Engine, 3);
+@@ -166,9 +169,7 @@ public class CabSightTests
+             var c = TrainKit.DriverGauge(Engine, i);
+             Assert.True(c.Y + TrainKit.DriverGaugeRadius + 0.02f < TrainKit.CeilingAt(Engine, c.Z), $"gauge {i} is up in the ceiling");
+             Assert.True(c.Y - TrainKit.DriverGaugeRadius > TrainKit.FrontWindow(Engine, 1).Y1, $"gauge {i} is down over the window");
+-            Assert.True(c.X - TrainKit.DriverGaugeRadius > map.Corner.X + map.Width, $"gauge {i} is over the map");
+         }
+-        Assert.True(map.Corner.Y + map.Height < TrainKit.CeilingAt(Engine, map.Corner.Z), "the map is up in the ceiling");
+     }
+ 
+     [Fact]
+diff --git a/tests/DarkTerritory.Game.Tests/CrewCarArtTests.cs b/tests/DarkTerritory.Game.Tests/CrewCarArtTests.cs
+new file mode 100644
+index 00000000..f0798c55
+--- /dev/null
++++ b/tests/DarkTerritory.Game.Tests/CrewCarArtTests.cs
+@@ -0,0 +1,99 @@
++using System.Numerics;
++using Ballast;
++using Ballast.Render;
++using DarkTerritory.Game.Art;
++using DarkTerritory.Sim.Rail;
++using DarkTerritory.Sim.Train;
++
++namespace DarkTerritory.Game.Tests;
++
++/// <summary>
++/// The big cab as the crew car, drawn (ARCHITECTURE §8 note 716): the run map laid flat on the chart table, the crew's lamps
++/// along its front end, the back wall's gimmicks on the back wall, and the kettle steaming only as it sings.
++/// </summary>
++public class CrewCarArtTests
++{
++    static readonly string Content = DataFile.FindContentRoot();
++
++    static CarFrame Engine()
++    {
++        var t = DataFile.Load<TrainTuning>(Path.Combine(Content, TrainTuning.File));
++        var line = RailLine.Load(Path.Combine(Content, "lines", "test-loop.json"));
++        return new TrainOnLine(new TrainDynamics(Consist.Uniform(t, 3, 1)), line, 1200).Frames[0];
++    }
++
++    [Fact]
++    public void TheMapLiesFlatOnTheChartTableReadFromTheDriversSide()
++    {
++        var shape = Engine().Shape;
++        var table = TrainKit.ChartTable(shape)!.Value;
++        var (corner, w, h) = TrainKit.MapPlate(shape);
++        var onCab = TrainKit.MapToCab(shape);
++        foreach (var p in new[] { corner, corner + new Vector3(w, 0, 0), corner + new Vector3(0, h, 0), corner + new Vector3(w, h, 0) })
++        {
++            var at = Vector3.Transform(p, onCab);
++            Assert.InRange(at.X, (float)table.Min.X, (float)table.Max.X);
++            Assert.InRange(at.Z, (float)table.Min.Z, (float)table.Max.Z);
++            Assert.InRange(at.Y, (float)table.Max.Y, (float)table.Max.Y + 0.02f);
++        }
++        // Face up; the night runs from the back of the table to its front, the way the train goes; its top edge across the
++        // table from the driver's side (+X), the turn a turn and never a mirror.
++        Assert.True(Vector3.TransformNormal(Vector3.UnitZ, onCab).Y > 0.99f);
++        Assert.True(Vector3.TransformNormal(Vector3.UnitX, onCab).Z < -0.99f);
++        Assert.True(Vector3.TransformNormal(Vector3.UnitY, onCab).X < -0.99f);
++        Assert.True(onCab.GetDeterminant() > 0);
++    }
++
++    [Fact]
++    public void TheCrewsLampsStandAlongTheTablesFrontEndClearOfTheMap()
++    {
++        var shape = Engine().Shape;
++        var table = TrainKit.ChartTable(shape)!.Value;
++        var (corner, w, h) = TrainKit.MapPlate(shape);
++        var onCab = TrainKit.MapToCab(shape);
++        float mapFront = new[] { Vector3.Transform(corner + new Vector3(w, 0, 0), onCab).Z, Vector3.Transform(corner + new Vector3(w, h, 0), onCab).Z }.Min();
++        foreach (int count in new[] { 1, 4, 8 })
++        {
++            var lamps = Enumerable.Range(0, count).Select(i => TrainKit.CrewLamp(shape, i, count)).ToList();
++            Assert.All(lamps, l =>
++            {
++                Assert.InRange(l.X, (float)table.Min.X, (float)table.Max.X);
++                Assert.InRange(l.Z, (float)table.Min.Z, mapFront);
++                Assert.True(l.Y > table.Max.Y);
++            });
++            Assert.Equal(count, lamps.Select(l => l.X).Distinct().Count());
++        }
++    }
++
++    [Fact]
++    public void TheBackWallsGimmicksAreOnTheBackWall()
++    {
++        var shape = Engine().Shape;
++        var cab = shape.Cab!.Value;
++        var points = new[] { TrainKit.KettleSpout(shape), TrainKit.CuckooDoor(shape), TrainKit.GramophoneShelf(shape) }
++            .Concat(Enumerable.Range(0, 8).Select(i => TrainKit.CapHook(shape, i)));
++        foreach (var p in points)
++        {
++            Assert.True(cab.Contains(new Double3(p.X, p.Y, p.Z)), $"{p} is out of the cab");
++            // Behind the gallery: on the back wall's own floor.
++            Assert.True(p.Z > TrainKit.GalleryFloor(shape)!.Value.Max.Z, $"{p} is up on the gallery");
++        }
++        // The gramophone's place is clear: the kettle's on the shelf's other half.
++        Assert.True(Vector3.Distance(TrainKit.KettleSpout(shape), TrainKit.GramophoneShelf(shape)) > 0.4f);
++    }
++
++    [Fact]
++    public void TheKettleSteamsOnlyWhileItSings()
++    {
++        var look = Look.Load(Content);
++        var mesh = new MeshBuilder();
++        look.Art.Effects.KettleSteam(mesh, Vector3.Zero, Vector3.UnitY, -Vector3.UnitZ, 0, 1.0);
++        Assert.Empty(mesh.AlphaFx);
++        look.Art.Effects.KettleSteam(mesh, Vector3.Zero, Vector3.UnitY, -Vector3.UnitZ, 0.3f, 1.0);
++        int some = mesh.AlphaFx.Count;
++        Assert.True(some > 0);
++        mesh = new MeshBuilder();
++        look.Art.Effects.KettleSteam(mesh, Vector3.Zero, Vector3.UnitY, -Vector3.UnitZ, 1, 1.0);
++        Assert.True(mesh.AlphaFx.Count > some, "no more steam at the redline than near it");
++    }
++}
+diff --git a/tests/DarkTerritory.Sim.Tests/CarFireTests.cs b/tests/DarkTerritory.Sim.Tests/CarFireTests.cs
+index 9e487724..cdd14259 100644
+--- a/tests/DarkTerritory.Sim.Tests/CarFireTests.cs
++++ b/tests/DarkTerritory.Sim.Tests/CarFireTests.cs
+@@ -534,7 +534,7 @@ public class CarFireTests
+     }
+ 
+     [Theory]
+-    [InlineData(3)]
++    [InlineData(2)]
+     [InlineData(5)]
+     public void AtAStopTheNearestHandPutsTheFireFliesLampOutWhateverItsPart(int seed)
+     {
+@@ -550,7 +550,9 @@ public class CarFireTests
+         // on. On the 7 km nights of note 554 frontier:7 is another line (its first stop a foundry again): seeds 3 and 5 had
+         // the Fire Flies come to a car at a stop. With the bots shutting the doors behind them (note 633) no seed of 1 to 16
+         // has them come at all, so the swarm is put on: ten seconds into the first stand, on the first lit car in the engine's
+-        // rake, its door left open, as the director would have dealt it.
++        // rake, its door left open, as the director would have dealt it. Note 716's big cab reshuffled the nights (the crew's
++        // walks in and out of the cab are other lengths): seed 3 is seed 2 now, its hands all at the winch and the crane
++        // 30 m off when the swarm came to car 1.
+         EnemyKind[] six = [EnemyKind.Mourners, EnemyKind.TowerJaw, EnemyKind.Brakeman, EnemyKind.Knotter, EnemyKind.FreightBeetle, EnemyKind.Hotbox,
+             // And the yard's and the houses' (notes 583–586, 592): a stop's own, they change what the bots do there.
+             EnemyKind.Pickers, EnemyKind.Lodger, EnemyKind.Householder, EnemyKind.HollowHouse, EnemyKind.Hanger];
+diff --git a/tests/DarkTerritory.Sim.Tests/CrewCarTests.cs b/tests/DarkTerritory.Sim.Tests/CrewCarTests.cs
+new file mode 100644
+index 00000000..37895f4e
+--- /dev/null
++++ b/tests/DarkTerritory.Sim.Tests/CrewCarTests.cs
+@@ -0,0 +1,264 @@
++using Ballast;
++using DarkTerritory.Sim.Bots;
++using DarkTerritory.Sim.Player;
++using DarkTerritory.Sim.Rail;
++using DarkTerritory.Sim.Train;
++
++namespace DarkTerritory.Sim.Tests;
++
++/// <summary>
++/// The big cab, the crew car (ARCHITECTURE §8 note 716; the director, 14 Oct 2026: "big cab, 11 meters, smaller boiler. I
++/// still want to keep a bunch of the controls the way that we have it set up because we are going to have this game
++/// playable by a single player"): the cab 11 m with the footplate at its front exactly as the 5 m cab had it, then the chart
++/// table, the gallery a step up, and the back wall with its doors and its gimmicks.
++/// </summary>
++public class CrewCarTests
++{
++    static TrainOnLine Train() =>
++        new(new TrainDynamics(Consist.Uniform(Tuning.Train, 3, 1)), new RailLine(new LineDefinition("t", [new TrackSegment(2000)])), 500);
++
++    [Fact]
++    public void TheCabIsElevenMetresOfTheTwentyAndTheBoilerTheRest()
++    {
++        var g = Tuning.Train.Geometry;
++        var plan = EnginePlan.Of(g);
++        Assert.Equal(20, g.EngineLength);
++        Assert.Equal(11, plan.CabBack - plan.CabFront, 6);
++        var shape = CarShape.Build(g, VehicleKind.Engine, hasCarBehind: true);
++        var boiler = shape.Solids.Single(s => s.Part == PartKind.Boiler).Box;
++        Assert.InRange(boiler.Max.Z - boiler.Min.Z, 7.5, 8.5);
++        Assert.Equal(plan.CabBack, boiler.Min.Z, 6);
++    }
++
++    [Fact]
++    public void TheFootplateIsWhereItWasInTheFiveMetreCab()
++    {
++        // Everything one person drives the train from (note 280): the coal, the fire, the controls, the cord, the vent, the
++        // rack, the points lever, the ladder up to the gun and the gun: where it was behind the cab's front, to the millimetre.
++        var g = Tuning.Train.Geometry;
++        var old = g with { Engine = g.Engine with { CabLength = 5 } };
++        var big = CarShape.Build(g, VehicleKind.Engine, hasCarBehind: true);
++        var was = CarShape.Build(old, VehicleKind.Engine, hasCarBehind: true);
++        double front = big.Cab!.Value.Min.Z, wasFront = was.Cab!.Value.Min.Z;
++        Assert.Equal(wasFront, front, 6);
++        foreach (var part in new[] { PartKind.Tender, PartKind.Firebox })
++        {
++            var a = big.Solids.Single(s => s.Part == part).Box;
++            var b = was.Solids.Single(s => s.Part == part).Box;
++            Assert.Equal(b, a);
++        }
++        foreach (var kind in new[] { InteractableKind.Firebox, InteractableKind.Coal, InteractableKind.Vent, InteractableKind.ToolRack, InteractableKind.Points, InteractableKind.Whistle })
++            Assert.Equal(was.Interactables.Single(i => i.Kind == kind), big.Interactables.Single(i => i.Kind == kind));
++        Assert.Equal(was.Levers, big.Levers);
++        Assert.Equal(was.Gun, big.Gun);
++        Assert.Equal(was.Ladders.Single(l => l.Foot.Y > 0.2), big.Ladders.Single(l => l.Foot.Y > 0.2));
++        Assert.Equal(PlayerMotor.CabFloorZ(was), PlayerMotor.CabFloorZ(big), 6);
++        // And nothing of the crew car stands in it.
++        var plan = EnginePlan.Of(g);
++        Assert.All(plan.Furniture.Append(plan.FrontTread), f => Assert.True(f.Min.Z >= front + g.Engine.CrewCar.FootplateLength, $"{f} is on the footplate"));
++        // The coal still pours where it did (the bunker hasn't moved).
++        Assert.Equal(EnginePlan.Of(old).CoalFromFront, plan.CoalFromFront, 6);
++    }
++
++    [Fact]
++    public void TheChartTableTheGalleryAndItsBenchesStandBehindTheFootplate()
++    {
++        var g = Tuning.Train.Geometry;
++        var plan = EnginePlan.Of(g);
++        var shape = CarShape.Build(g, VehicleKind.Engine, hasCarBehind: true);
++        double deck = g.Engine.DeckHeight;
++        Assert.Contains(shape.Solids, s => s.Part == PartKind.ChartTable && s.Box == plan.ChartTable);
++        Assert.Equal(deck + g.Engine.CrewCar.TableHeight, plan.ChartTable.Max.Y, 6);
++        Assert.Equal(deck + g.Engine.CrewCar.GalleryRise, plan.Gallery.Max.Y, 6);
++        // Each tread no more than a step (player.json stepUp), and the gallery wall to wall.
++        Assert.True(plan.FrontTread.Max.Y - deck <= Tuning.Player.StepUp && plan.Gallery.Max.Y - plan.FrontTread.Max.Y <= Tuning.Player.StepUp);
++        Assert.Equal(shape.Cab!.Value.Min.X, plan.Gallery.Min.X, 6);
++        Assert.Equal(2, plan.Benches.Count);
++        Assert.All(plan.Benches, b => Assert.True(b.Min.Y == plan.Gallery.Max.Y && b.Max.Z <= plan.Gallery.Max.Z));
++        // The ways either side of the furniture are a body's breadth and more.
++        foreach (var f in plan.Furniture)
++        {
++            Assert.True(shape.Cab!.Value.Max.X - f.Max.X >= 2 * Tuning.Player.Radius + 0.2);
++            Assert.True(f.Min.X - shape.Cab!.Value.Min.X >= 2 * Tuning.Player.Radius + 0.2);
++        }
++        // Behind the gallery, the back wall's floor at the cab's, the doorways in it.
++        Assert.True(plan.BackTread.Max.Z <= plan.DoorFront - 0.5, "the doorways open onto the cab floor behind the gallery");
++    }
++
++    [Theory]
++    [InlineData(-1)]
++    [InlineData(1)]
++    public void FromTheFootplateYouWalkUpOntoTheGalleryDownToTheBackWallAndOutOfItsDoor(int side)
++    {
++        var train = Train();
++        var g = Tuning.Train.Geometry;
++        var plan = EnginePlan.Of(g);
++        var shape = train.Frames[0].Shape;
++        var s = PlayerMotor.SpawnInCab(train, Tuning.Player, side * 0.3);
++        double lane = side * plan.Lane, deck = g.Engine.DeckHeight;
++        // Out into the way past the chart table, up onto the gallery.
++        Walk(ref s, train, new Double3(lane, 0, plan.ChartTable.Min.Z - 0.35), 2);
++        Walk(ref s, train, new Double3(lane, 0, (plan.Gallery.Min.Z + plan.Gallery.Max.Z) / 2), 4);
++        Assert.Equal(plan.Gallery.Max.Y, s.Position.Y, 3);
++        Assert.True(PlayerMotor.InCab(s, train));
++        // In front of the benches to the middle, and back into the way.
++        Walk(ref s, train, new Double3(0, 0, plan.Benches[0].Min.Z - 0.4), 2);
++        Assert.Equal(plan.Gallery.Max.Y, s.Position.Y, 3);
++        Walk(ref s, train, new Double3(lane, 0, plan.Benches[0].Min.Z - 0.4), 2);
++        // Down off its back to the back wall's floor, and out of its door onto the running board.
++        double door = plan.DoorFront + g.Doorway.Width / 2, board = side * (shape.HalfWidth + g.Engine.RunningBoardWidth / 2);
++        Walk(ref s, train, new Double3(lane, 0, door), 3);
++        Assert.Equal(deck, s.Position.Y, 3);
++        Walk(ref s, train, new Double3(board, 0, door), 2);
++        Assert.False(PlayerMotor.InCab(s, train));
++        Assert.Equal(Surface.Deck, s.Surface);
++        Assert.True(Math.Abs(s.Position.X - board) < 0.2, $"at {s.Position}");
++    }
++
++    [Theory]
++    [InlineData(-1)]
++    [InlineData(1)]
++    public void DownTheGallerysTreadsYouStepNotFallAndStayInTheCab(int side)
++    {
++        // Off the treads into the air for a few ticks was out of the cab (Surface.Air, the world's frame): its space the
++        // outside, a bot's sanding called off. Down a tread is a step down, as up one is a step up.
++        var train = Train();
++        var plan = EnginePlan.Of(Tuning.Train.Geometry);
++        var s = PlayerMotor.SpawnInCab(train, Tuning.Player, side * 0.3);
++        double lane = side * plan.Lane;
++        Walk(ref s, train, new Double3(lane, 0, plan.ChartTable.Min.Z - 0.35), 2);
++        foreach (var to in new[] { new Double3(lane, 0, plan.CabBack - 1), new Double3(lane, 0, plan.ChartTable.Max.Z + 0.2) })
++            for (int i = 0; i < 5 * SimConstants.TickRate; i++)
++            {
++                PlayerMotor.Step(ref s, Toward(s, to), train, Tuning.Player, Tuning.Train, SimConstants.TickSeconds, applyLook: false);
++                Assert.True(PlayerMotor.InCab(s, train) && s.Surface == Surface.Deck, $"out of the cab at {s.Position} ({s.Surface})");
++            }
++    }
++
++    [Fact]
++    public void OnTheGalleryTheWaistIsAWaist()
++    {
++        // Up a step, its sides stand as high over its floor as the footplate's over the cab's: nobody steps out over a sill.
++        var g = Tuning.Train.Geometry;
++        var plan = EnginePlan.Of(g);
++        var shape = CarShape.Build(g, VehicleKind.Engine, hasCarBehind: true);
++        double z = (plan.Gallery.Min.Z + plan.Gallery.Max.Z) / 2;
++        foreach (int side in new[] { -1, 1 })
++        {
++            double top = shape.Solids.Where(s => s.Part == PartKind.CabWall && s.Box.ContainsXZ(new Double3(side * (shape.HalfWidth - 0.05), 0, z)) && s.Box.Max.Y < deck(g) + 2)
++                .Max(s => s.Box.Max.Y);
++            Assert.Equal(plan.Gallery.Max.Y + g.Engine.CrewCar.GalleryWaist, top, 6);
++        }
++        static double deck(GeometryTuning g) => g.Engine.DeckHeight;
++    }
++
++    [Theory]
++    [InlineData(-1)]
++    [InlineData(1)]
++    public void ABotGoesRoundTheTableAndTheBenchesToTheBackWall(int side)
++    {
++        // The bots walk the cab by its ways (WarmUp.SteerCab): from the fire to the corridor's mouth at the back, and back.
++        var train = Train();
++        var g = Tuning.Train.Geometry;
++        var plan = EnginePlan.Of(g);
++        var s = PlayerMotor.SpawnInCab(train, Tuning.Player, 0);
++        double corridor = side * (g.Engine.BoilerHalfWidth + (g.RoofWidth / 2 - 0.1 - g.Engine.BoilerHalfWidth) / 2);
++        var back = new Double3(corridor, 0, plan.CabBack - 0.6);
++        Assert.True(Steer(ref s, train, back, 12), $"stuck at {s.Position} on the way back");
++        var front = new Double3(0, 0, PlayerMotor.CabFloorZ(train.Frames[0].Shape));
++        Assert.True(Steer(ref s, train, front, 12), $"stuck at {s.Position} on the way forward");
++        Assert.Equal(g.Engine.DeckHeight, s.Position.Y, 3);
++    }
++
++    [Fact]
++    public void TheWayRoundIsStraightWhenNothingsInTheWay()
++    {
++        var plan = EnginePlan.Of(Tuning.Train.Geometry);
++        var a = new Double3(plan.Lane, 0, plan.CabFront + 1);
++        var b = new Double3(plan.Lane, 0, plan.CabBack - 1);
++        Assert.Equal(b, plan.CabWay(a, b));
++        // Through the table, it's out into a way first.
++        var mid = new Double3(0, 0, plan.CabFront + 2.5);
++        var way = plan.CabWay(mid, new Double3(0, 0, plan.CabBack - 1));
++        Assert.Equal(plan.Lane, Math.Abs(way.X), 6);
++    }
++
++    [Fact]
++    public void TheChartTablesLampsShowWhosAboard()
++    {
++        // Lit standing in any of the train's vehicles, alive; dark on the ground, or dead.
++        Assert.True(CrewCar.Aboard(true, 0, 7));
++        Assert.True(CrewCar.Aboard(true, 6, 7));
++        Assert.False(CrewCar.Aboard(true, PlayerState.World, 7));
++        Assert.False(CrewCar.Aboard(false, 2, 7));
++        Assert.False(CrewCar.Aboard(true, 7, 7));
++    }
++
++    [Fact]
++    public void TheKettleSingsAsTheBoilerNearsItsRedline()
++    {
++        var b = Tuning.Boiler;
++        var c = Tuning.Train.Geometry.Engine.CrewCar;
++        Assert.Equal(0, CrewCar.KettleSong(b.WorkingBandMin, b, c));
++        Assert.Equal(0, CrewCar.KettleSong(b.Redline - c.KettleFrom, b, c));
++        Assert.InRange(CrewCar.KettleSong(b.Redline - c.KettleFrom / 2, b, c), 0.45, 0.55);
++        Assert.Equal(1, CrewCar.KettleSong(b.Redline, b, c));
++        Assert.Equal(1, CrewCar.KettleSong(b.PressureMax, b, c));
++        // Working the train in its band (60 to 90) it's quiet most of the way.
++        Assert.True(CrewCar.KettleSong(b.WorkingBandMax, b, c) < 0.6);
++    }
++
++    [Fact]
++    public void TheCuckooCallsOnTheMinuteOverTheLastMinutesBeforeDawn()
++    {
++        var c = Tuning.Train.Geometry.Engine.CrewCar;
++        double stir = Tuning.Enemies.Wakers.StirSeconds;
++        Assert.Null(CrewCar.Cuckoo(stir + 30, stir, c));
++        Assert.Null(CrewCar.Cuckoo(stir + 1, stir, c));
++        int calls = 0;
++        // Second by second down to dawn: out at each minute for its seconds, three times in three minutes.
++        bool wasOut = false;
++        for (double t = stir + 5; t > 0; t -= 0.25)
++        {
++            bool isOut = CrewCar.Cuckoo(t, stir, c) is not null;
++            if (isOut && !wasOut)
++                calls++;
++            wasOut = isOut;
++        }
++        Assert.Equal((int)(stir / c.CuckooEvery), calls);
++        Assert.Equal(0, CrewCar.Cuckoo(stir, stir, c));
++        Assert.Equal(0, CrewCar.Cuckoo(c.CuckooEvery, stir, c));
++        Assert.InRange(CrewCar.Cuckoo(c.CuckooEvery - c.CuckooOutSeconds / 2, stir, c)!.Value, 0.45, 0.55);
++        Assert.Null(CrewCar.Cuckoo(c.CuckooEvery - c.CuckooOutSeconds - 0.1, stir, c));
++        Assert.Null(CrewCar.Cuckoo(0, stir, c));
++    }
++
++    static void Walk(ref PlayerState s, TrainOnLine train, Double3 to, double seconds)
++    {
++        for (int i = 0; i < seconds * SimConstants.TickRate; i++)
++            PlayerMotor.Step(ref s, Toward(s, to), train, Tuning.Player, Tuning.Train, SimConstants.TickSeconds, applyLook: false);
++    }
++
++    static bool Steer(ref PlayerState s, TrainOnLine train, Double3 to, double seconds)
++    {
++        for (int i = 0; i < seconds * SimConstants.TickRate; i++)
++        {
++            var (step, there) = WarmUp.SteerCab(s, train, to, s.Yaw);
++            if (there)
++                return true;
++            PlayerMotor.Step(ref s, step, train, Tuning.Player, Tuning.Train, SimConstants.TickSeconds);
++        }
++        return false;
++    }
++
++    static PlayerIntent Toward(in PlayerState s, Double3 to)
++    {
++        var d = (to - s.Position) with { Y = 0 };
++        double len = d.Length;
++        if (len < 0.05)
++            return default;
++        double y = s.Yaw;
++        double z = (d.X * -Math.Sin(y) + d.Z * -Math.Cos(y)) / len, x = (d.X * Math.Cos(y) + d.Z * -Math.Sin(y)) / len;
++        return new PlayerIntent { MoveX = (float)x, MoveZ = (float)z };
++    }
++}
