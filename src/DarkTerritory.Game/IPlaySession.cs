@@ -31,7 +31,8 @@ namespace DarkTerritory.Game;
 public readonly record struct Crewmate(byte Id, Double3 Feet, double Yaw, bool Alive, Double3 Hand = default, Double3 Other = default, int? Looks = null,
     CrewPose? Act = null, Tool Holding = Tool.None, (Double3 A, Double3 B)? Reach = null, bool Lamp = false, Survivor Survivor = Survivor.None,
     bool Stressed = false, int Health = 0, double Phase = 0, DeathCause Death = DeathCause.None, int Car = PlayerState.World,
-    Double3 Local = default, HeadsetBody? Headset = null, Sim.Player.Emote Emote = Sim.Player.Emote.None, double EmoteSeconds = 0)
+    Double3 Local = default, HeadsetBody? Headset = null, Sim.Player.Emote Emote = Sim.Player.Emote.None, double EmoteSeconds = 0,
+    bool Sooted = false)
 {
     public int Variant => Looks ?? Id;
 }

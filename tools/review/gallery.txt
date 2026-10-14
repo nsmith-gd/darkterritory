@@ -42,3 +42,5 @@
 --route deadLines:1 --junction 4 --diverge --through --view chase --out out/shots/lg-alternate.png
 --route frontier:7 --at 330 --cam 250,7,2.2 --target 330,5,2.5 --fov 65 --out out/shots/station.png
 --integrity 0.3,1,0.8,0.55,0.3,0.1 --cam 1126,-5.5,2.4 --target 1116,0,2.0 --fov 55 --out out/shots/damage.png
+--view shove --out out/shots/shove.png
+--view sooted --out out/shots/sooted.png

@@ -936,6 +936,7 @@ CampaignState? Play(IPlaySession session, CampaignState? campaign)
         Enemies = session.World.ActiveEnemies,
         Hits = session.World.Hits,
         Swings = session.World.Swings,
+        Lumps = session.World.Lumps,
         Outfits = session.World.Outfits,
         Impacts = session.World.Impacts,
         Run = session.World.Run,
@@ -1317,7 +1318,9 @@ CampaignState? Play(IPlaySession session, CampaignState? campaign)
                 // speaking up, so a player without one can still talk the Gaunt down and answer a roll call.
                 Voice = (byte)Math.Clamp(voiceLevel * 255, 0, 255),
                 // Note 664: crouch and pushing the gun along, each its own key, held (a headset rider crouches for real).
-                Moves = (Held(Control.Crouch) ? PlayerMoves.Crouch : 0) | (Held(Control.Push) ? PlayerMoves.Push : 0),
+                Moves = (Held(Control.Crouch) ? PlayerMoves.Crouch : 0) | (Held(Control.Push) ? PlayerMoves.Push : 0)
+                    // Note 717: the shove (the host acts on the press).
+                    | (Held(Control.Shove) ? PlayerMoves.Shove : 0),
                 Select = pendingSelect,
                 // Scrolled up is the previous slot, down the next, as in most games.
                 Cycle = (sbyte)(pendingCycle >= 1 ? -1 : pendingCycle <= -1 ? 1 : 0),

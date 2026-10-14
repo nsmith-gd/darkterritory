@@ -25,6 +25,8 @@ public enum Control
     Emote,
     // Note 664 (the director's playtest, 13 Oct): crouch, held; and pushing the gun along, its own key (Use is sitting in it).
     Crouch, Push,
+    // Note 717 (horseplay; the director, 14 Oct 2026: "For shoving, we can try adding it in"): shove the crewmate you look at.
+    Shove,
 }
 
 /// <summary>The default key for each control, by the key's name (Ballast.Platform's <c>Key</c>), and how the menu says it.</summary>
@@ -68,6 +70,9 @@ public static class Controls
         // Note 703 (the director: "Push O to walk doesn't make any sense. It's not something that is near the mouse, and
         // it's not something that's near the left hand"): the middle mouse button, held while walking.
         [Control.Push] = "MouseMiddle",
+        // Note 717: the shove, under the left thumb beside the jump (every key near the left hand being taken, note 703, and
+        // the director wanting keys by the hands, not across the keyboard).
+        [Control.Shove] = "LeftAlt",
     };
 
     /// <summary>Keys nothing can be bound to: the menus' own.</summary>
@@ -93,6 +98,7 @@ public static class Controls
         Control.Emote => "EMOTE (HOLD, THE MOUSE PICKS)",
         Control.Crouch => "CROUCH (HOLD)",
         Control.Push => "PUSH THE GUN ALONG (HOLD, WALKING)",
+        Control.Shove => "SHOVE A CREWMATE",
         _ => c.ToString().ToUpperInvariant(),
     };
 

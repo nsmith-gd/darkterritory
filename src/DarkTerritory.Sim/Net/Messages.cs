@@ -80,7 +80,10 @@ public static class Protocol
     //     after it), so every client walks into the same things.
     // 57: a third byte of buttons on every intent, after the voice level (note 664: crouch, and pushing the gun on its own key).
     // 58: the news (note 663): cars lost and the engine failing, with what did it, a record kind of its own.
-    public const int Version = 58;
+    // 59: horseplay (note 717): the player record carries its stagger (its 27th field), the shove rides the third byte of
+    //     buttons, a death and a flag or two of its own, and the knocks and the lumps of coal in flight are record kinds; each
+    //     input frame says the snapshot it was predicted against (a byte back from the message's), for the crowd.
+    public const int Version = 59;
 }
 
 public enum MessageType : byte
@@ -165,7 +168,11 @@ public readonly record struct Refusal(RefusalReason Reason, int Crew, int Cap)
 /// <summary>A joiner's first word (note 253): who, the slot it's coming back to, its outfit, and a private run's key (note 450).</summary>
 public readonly record struct Hello(string Name, ulong Token, byte Outfit, byte[]? Key, bool Bot = false);
 
-public readonly record struct InputFrame(uint Sequence, PlayerIntent Intent);
+/// <param name="Seen">
+/// Note 717: the newest snapshot the client had when it first predicted this input (0: none), the crowd it was pushed out from
+/// among; the host pushes it out from among the crew as that snapshot had them, so prediction agrees on any link.
+/// </param>
+public readonly record struct InputFrame(uint Sequence, PlayerIntent Intent, uint Seen = 0);
 
 public readonly record struct PlayerSnapshot(byte Id, PlayerState State);
 
@@ -189,6 +196,8 @@ public static class Messages
         foreach (var f in frames)
         {
             w.U32(f.Sequence);
+            // Note 717: the snapshot it was predicted against, as a step back from this message's (255: none, or too far back).
+            w.U8(f.Seen == 0 || f.Seen > lastSnapshotTick || lastSnapshotTick - f.Seen >= 255 ? (byte)255 : (byte)(lastSnapshotTick - f.Seen));
             WriteIntent(w, f.Intent);
         }
     }
@@ -201,7 +210,11 @@ public static class Messages
         lossPct = r.U8();
         int n = r.U8();
         for (int i = 0; i < n; i++)
-            into.Add(new InputFrame(r.U32(), ReadIntent(ref r)));
+        {
+            uint seq = r.U32();
+            byte back = r.U8();
+            into.Add(new InputFrame(seq, ReadIntent(ref r), back == 255 ? 0 : lastSnapshotTick - back));
+        }
     }
 
     static void WriteIntent(NetWriter w, in PlayerIntent i)

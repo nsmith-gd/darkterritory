@@ -14,7 +14,7 @@ namespace DarkTerritory.Sim;
 /// authority; a client steps the same code for its own predicted player (GDD §33: shared simulation)
 /// and only mirrors enemies from snapshots.
 /// </summary>
-public sealed class World
+public sealed partial class World
 {
     readonly List<Enemy> _enemies = new();
     readonly Dictionary<uint, List<HitTarget>> _targetHistory = new();
@@ -1430,6 +1430,10 @@ public sealed class World
         PlayerMotor.Look(ref s, intent);
         PlayerMotor.TakeHand(ref s, intent, Hand);
         Crouching(ref s, intent);
+        // Horseplay (note 717): coal off the shovel before the hands see Throw; the shove, the host's, where they now look.
+        CoalAct(ref s, ref intent, playerId);
+        if (Hosting)
+            ShoveAct(s, intent, playerId);
         // The lamp switch in the cab (T52, "lamps down"): a predicting client sets it too, so the lamp goes out at once.
         if (intent.Lamp != LampSwitch.None && Net.CabControls.CanDrive(s, Train))
         {
@@ -1695,6 +1699,9 @@ public sealed class World
                 best = e;
             }
         }
+        // Note 717: a crewmate nearer in the swing than any creature takes it instead: a bonk, no damage.
+        if (Bonk(s, playerId, eye, facing, t, best is null ? double.MaxValue : bestD))
+            return;
         // By the tool in hand (App. C.2; note 275): the shovel the best club, the crowbar a blow, the wrench less, and
         // empty-handed (a slot picked with nothing in it) a fraction of one (T108).
         if (best is null)
@@ -1738,6 +1745,7 @@ public sealed class World
             Impacts.RemoveAll(i => Tick - i.Tick > keep.ImpactKeepSeconds * SimConstants.TickRate);
             News.RemoveAll(e => Tick - e.Tick > NewsTuning.Seconds * SimConstants.TickRate);
         }
+        BeginHorseplay((Combat?.Hits ?? new HitTuning()).KeepSeconds);
         if (Hosting)
             TellNews();
         Train.Partings.Clear();
@@ -2627,6 +2635,8 @@ public sealed class World
             }
             set(d.PlayerId, s);
         }
+        // Horseplay (note 717): the lumps in flight land, and this tick's shoves, bumps, coal and bonks are put on whom they found.
+        StepHorseplay(get, set);
         // Held this tick (App. A.1 GRAB): their feet are the thing's; carried off, they go where it goes.
         if (Authority)
             foreach (int id in crew)

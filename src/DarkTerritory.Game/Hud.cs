@@ -1944,6 +1944,8 @@ public static partial class Hud
         // Dave's last words to them (note 570): the director's own.
         DeathCause.Dave => "YOU SHOULD BE NICER IN A DARK WORLD.",
         DeathCause.Fell => "FELL. IT WAS FURTHER DOWN THAN IT LOOKED",
+        // Note 717: a friend's shove, and the landing did the rest.
+        DeathCause.Shoved => "SHOVED OFF. SOME FRIEND",
         DeathCause.None => "",
         _ => cause.ToString().ToUpperInvariant(),
     };
@@ -2263,7 +2265,9 @@ public static partial class Hud
             case InteractableKind.Firebox when PlayerMotor.InCab(p, train) && !CrewActions.HasShovel(p, train):
                 return Kit.Has(p.Kit, Tool.Shovel) || train.Boiler.ShovelOut ? "THE SHOVEL IS OUT" : "HANDS FULL";
             case InteractableKind.Firebox when PlayerMotor.InCab(p, train):
-                return p.Hand != default && !p.Has(PlayerFlags.Shovelful) ? "SHOVEL EMPTY" : "SHOVEL COAL : HOLD [E]";
+                // Note 717: the coal on the shovel can be thrown instead (horseplay), said while it's there.
+                return p.Hand != default && !p.Has(PlayerFlags.Shovelful) ? "SHOVEL EMPTY"
+                    : p.Has(PlayerFlags.Shovelful) && p.Hand == default ? "SHOVEL COAL : HOLD [E]   THROW IT : [RMB]" : "SHOVEL COAL : HOLD [E]";
             // Only a reaching hand finds the coal face (T29).
             case InteractableKind.Coal when PlayerMotor.InCab(p, train):
                 return p.Has(PlayerFlags.Shovelful) ? "SHOVEL FULL" : "TAKE COAL : GRIP";
@@ -2451,6 +2455,12 @@ public static partial class Hud
             if (here.Clamped >= 0)
                 return "A CAR'S CLAMPED IN THE TIPPLE : DON'T MOVE";
         }
+        // Note 717 (horseplay): a crewmate in front within reach, nothing else to do there: the shove's key. With the coal on
+        // the shovel, turned from the fire, it's the throw's.
+        if (p.Has(PlayerFlags.Shovelful) && p.Hand == default)
+            return "THROW THE COAL : [RMB]";
+        if (world.HorseplayTuning.Enabled && Horseplay.ShoveTarget(p, s.PlayerId, s.CrewStates(1), train, s.PlayerTuning) is not null)
+            return "SHOVE : [LEFT ALT]";
         return null;
     }
 

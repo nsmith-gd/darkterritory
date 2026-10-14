@@ -28,7 +28,7 @@ public sealed class ClientSession
     readonly List<TransportEvent> _events = new();
     readonly List<PlayerSnapshot> _players = new();
     readonly NetWriter _writer = new();
-    readonly (uint Seq, PlayerIntent Intent, PlayerState After)[] _history = new (uint, PlayerIntent, PlayerState)[HistoryLength];
+    readonly (uint Seq, PlayerIntent Intent, PlayerState After, uint Seen)[] _history = new (uint, PlayerIntent, PlayerState, uint)[HistoryLength];
     readonly InputFrame[] _redundant = new InputFrame[Messages.InputRedundancy];
     readonly List<(uint Tick, PlayerSnapshot[] Players)> _snapshots = new();
 
@@ -187,6 +187,7 @@ public sealed class ClientSession
         _helloSent = false;
         _decoded.Clear();
         _snapshots.Clear();
+        _crowds.Clear();
         Reconnects++;
     }
 
@@ -279,15 +280,16 @@ public sealed class ClientSession
             return;
 
         _sequence++;
-        Predict(intent);
-        _history[_sequence % HistoryLength] = (_sequence, intent, Predicted);
+        Predict(intent, _newestSnapshotTick);
+        _history[_sequence % HistoryLength] = (_sequence, intent, Predicted, _newestSnapshotTick);
         SendInputs();
     }
 
-    void Predict(in PlayerIntent given)
+    void Predict(in PlayerIntent given, uint seen)
     {
-        // Off the rails, the wreck has you till its hit kills you (App. E.2 step 1), as the host has it.
-        var intent = World.Wrecked(Predicted) ? World.WreckedIntent(given) : given;
+        // Off the rails, the wreck has you till its hit kills you (App. E.2 step 1), as the host has it; staggered (note 717),
+        // you look and talk and nothing else.
+        var intent = Horseplay.Staggered(Predicted, World.Wrecked(Predicted) ? World.WreckedIntent(given) : given);
         World.BeginTick();
         // The host clears the brake every tick and re-applies whoever is holding it. If we're the one in
         // the cab it's almost certainly us, so do the same; otherwise assume whoever was braking still is.
@@ -305,7 +307,7 @@ public sealed class ClientSession
         World.CrewAct(ref Predicted, intent, PlayerId ?? 0);
         World.Step(Controls);
         if (!World.Wrecked(Predicted))
-            PlayerMotor.Step(ref Predicted, intent, Train, PlayerTuning, TrainTuning, SimConstants.TickSeconds, applyLook: false);
+            PlayerMotor.Step(ref Predicted, intent, Train, PlayerTuning, TrainTuning, SimConstants.TickSeconds, applyLook: false, PlayerId ?? 0, CrowdAt(seen));
         // The host snaps its world to the replication grid every tick; do the same so we match it exactly. The hand
         // isn't replicated (the next intent brings it), but this machine's HUD reads it between ticks, so it stays.
         _quantise.Clear();
@@ -315,6 +317,27 @@ public sealed class ClientSession
     }
 
     readonly List<PlayerSnapshot> _quantise = new();
+    /// <summary>
+    /// Note 717: the crew as each recent snapshot had them, by its tick: an input's crowd is the one it was first predicted
+    /// against (sent with it), which the host pushes it out from among too, so the two agree whatever the link.
+    /// </summary>
+    readonly Dictionary<uint, List<Shoulder>> _crowds = new();
+
+    List<Shoulder>? CrowdAt(uint tick)
+    {
+        if (_crowds.TryGetValue(tick, out var crowd))
+            return crowd;
+        foreach (var (t, players) in _snapshots)
+            if (t == tick)
+            {
+                _crowds[tick] = crowd = Horseplay.Crowd(players.Select(p => ((int)p.Id, p.State)));
+                if (_crowds.Count > SnapshotBuffer)
+                    foreach (var old in _crowds.Keys.Where(k => k + SnapshotBuffer < tick).ToList())
+                        _crowds.Remove(old);
+                return crowd;
+            }
+        return null;
+    }
     readonly Dictionary<uint, List<WireRecord>> _decoded = new();
     const int DecodedHistory = 64;
 
@@ -324,7 +347,7 @@ public sealed class ClientSession
         for (int i = 0; i < n; i++)
         {
             uint seq = _sequence - (uint)(n - 1 - i);
-            _redundant[i] = new InputFrame(seq, _history[seq % HistoryLength].Intent);
+            _redundant[i] = new InputFrame(seq, _history[seq % HistoryLength].Intent, _history[seq % HistoryLength].Seen);
         }
         Messages.WriteInput(_writer, _redundant.AsSpan(0, n), _newestSnapshotTick, (byte)ReportedLossPct);
         _transport.Send(PeerId.Host, _writer.Written, Delivery.Unreliable);
@@ -515,7 +538,7 @@ public sealed class ClientSession
             ref var h = ref _history[seq % HistoryLength];
             if (h.Seq != seq)
                 continue;
-            Predict(h.Intent);
+            Predict(h.Intent, h.Seen);
             h.After = Predicted;
         }
     }
