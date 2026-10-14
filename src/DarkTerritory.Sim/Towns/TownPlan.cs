@@ -52,6 +52,12 @@ public sealed record TownPlan(
 
     /// <summary>What laying a town type's lots did (note 692; `dt town map`): stairs laid, lots left unbuilt and why.</summary>
     public string Laid { get; init; } = "";
+
+    /// <summary>
+    /// The yard's walls in a town type's warren (note 692): runs in the rail frame (along, across to along, across) behind
+    /// each side's first row, open where a way goes through (Run.Fortresses.WardHalf, WardHeight).
+    /// </summary>
+    public IReadOnlyList<(double S0, double D0, double S1, double D1)> Wards { get; init; } = [];
 }
 
 /// <summary>

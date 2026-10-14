@@ -483,6 +483,9 @@ public sealed class Town
         foreach (var h in Plan.Houses)
             foreach (var w in HouseWalls(h))
                 yield return w;
+        // A town type's yard walls (note 692): each half its own ward over the yard.
+        foreach (var (s0, d0, s1, _) in Plan.Wards)
+            yield return Box((s0 + s1) / 2, d0, (s1 - s0) / 2, Run.Fortresses.WardHalf, Run.Fortresses.WardHeight);
         // A town type's ground (note 692): its terraces' retaining walls, the rails along its deep water's edges.
         foreach (var (s0, d0, s1, d1, bottom, top) in Ground.Edges())
         {

@@ -38,6 +38,12 @@ public sealed record HouseDesign(bool GableFront, double Storeys, HouseRoof Roof
     /// <summary>The enclosed porch's half-width along the front and its depth out from it (m).</summary>
     public const double VestibuleHalf = 1.1, VestibuleDepth = 1.7;
 
+    /// <summary>
+    /// How sooted and salt-bleached it's gone (0..1; its town's character's, note 692: a fortress town's houses haven't
+    /// seen paint in years). The art greys and darkens its colours by it.
+    /// </summary>
+    public double Grime { get; init; }
+
     /// <summary>How far the eaves stand off the ground, by storeys (m): the wall's height under the roof.</summary>
     public double Eaves => Storeys switch { <= 1 => 2.9, <= 1.5 => 3.6, <= 2 => 5.6, _ => 6.2 };
 }
@@ -55,6 +61,8 @@ public sealed record HouseLooks
     public HouseColour[] Accents { get; init; } = [];
     public HouseCharacter[] Characters { get; init; } = [];
     public Dictionary<string, string[]> ByTrade { get; init; } = [];
+    /// <summary>Which characters a town type's towns are drawn from (note 692), before its trade's.</summary>
+    public Dictionary<string, string[]> ByForm { get; init; } = [];
 
     /// <summary>The content's house looks, or the plain defaults where there's no houses.json (an old content folder, a mod).</summary>
     public static HouseLooks Load(string content)
@@ -93,6 +101,9 @@ public sealed record HouseCharacter
     public double Own { get; init; }
     /// <summary>A company town's: one design, its paint and wear each house's own.</summary>
     public bool Uniform { get; init; }
+    /// <summary>How sooted and bleached its houses have gone (0..1, <see cref="HouseDesign.Grime"/>), and how far either way one house's differs.</summary>
+    public double Grime { get; init; }
+    public double GrimeSpread { get; init; }
     /// <summary>What its yards hold (note 335).</summary>
     public YardOdds Yard { get; init; } = new();
     /// <summary>What its people breathe through (note 353): each of <see cref="TownGear.Kinds"/>' weight against the rest.</summary>
@@ -150,11 +161,12 @@ public sealed record YardOdds
 public static class HouseDesigner
 {
     /// <summary>The town's character: from those its trade leans to (houses.json <c>byTrade</c>), else any.</summary>
-    public static HouseCharacter Character(HouseLooks looks, string trade, ref Pcg32 rng)
+    public static HouseCharacter Character(HouseLooks looks, string trade, ref Pcg32 rng, string form = "")
     {
         if (looks.Characters.Length == 0)
             return new HouseCharacter { Id = "mixed" };
-        var ids = looks.ByTrade.TryGetValue(trade, out var t) && t.Length > 0 ? t
+        var ids = form.Length > 0 && looks.ByForm.TryGetValue(form, out var f) && f.Length > 0 ? f
+            : looks.ByTrade.TryGetValue(trade, out var t) && t.Length > 0 ? t
             : looks.ByTrade.TryGetValue("", out var any) && any.Length > 0 ? any : [.. looks.Characters.Select(c => c.Id)];
         string id = ids[(int)(rng.NextDouble() * ids.Length)];
         return looks.Characters.FirstOrDefault(c => c.Id == id) ?? looks.Characters[0];

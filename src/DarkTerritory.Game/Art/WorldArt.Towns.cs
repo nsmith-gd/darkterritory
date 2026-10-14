@@ -479,6 +479,7 @@ public sealed partial class WorldArt
                         Matrix4x4.CreateScale(1, (float)(hi - lo + 0.6), (float)run) * Basis(start.Tangent, P(ps, pd) + Double3.Up * (lo - 0.5), eye, yaw)));
             }
         }
+        Turrets(mesh, eye, town, start, low, high, lit);
         // The gatehouse at the way in from the last night (note 692), facing out of the town as the way out's does.
         if (Near(town.Rear, 0))
             mesh.Instances.Add(new MeshInstance(Piece("gatehouse", () => StructureKit.Gatehouse(_look)), Basis(start.Tangent, P(town.Rear, 0), eye, MathF.PI)));
@@ -520,6 +521,35 @@ public sealed partial class WorldArt
                 mesh.PointLights.Add(new PointLight(lamp, Palette.LampAmber * 1.4f, 16));
                 mesh.Billboard(lamp, 2.2f, 0, new Vector4(Palette.LampAmber * 0.6f, 1), -1, FxBlend.Additive);
             }
+        }
+    }
+
+    /// <summary>
+    /// A town type's turrets between its gun towers (note 692, Fortresses.Turrets): the tower's piece on its ground, no gun,
+    /// every other one's lamp lit near you.
+    /// </summary>
+    void Turrets(MeshBuilder mesh, Double3 eye, TownBounds town, TrackSample start, Func<double, double, double> low, Func<double, double, double> high, bool lit)
+    {
+        var tangent = new Double3(start.Tangent.X, 0, start.Tangent.Z).Normalized;
+        var right = Double3.Cross(tangent, Double3.Up).Normalized;
+        Double3 P(double s, double d) => start.Position + tangent * s + right * d;
+        int i = 0;
+        foreach (var (s, d) in Sim.Run.Fortresses.Turrets(town))
+        {
+            i++;
+            int side = d < 0 ? -1 : 1;
+            if ((P(s, d) - eye).Length > 460)
+                continue;
+            double tlo = low(s, d), thi = high(s, d);
+            mesh.Instances.Add(new MeshInstance(Piece($"tower-{side}", () => StructureKit.Tower(_look, side)), Basis(start.Tangent, P(s, d) + Double3.Up * thi, eye, 0)));
+            if (thi - tlo > 0.3)
+                mesh.Instances.Add(new MeshInstance(Piece("tower-plinth", () => TowerPlinth(_look)),
+                    Matrix4x4.CreateScale(1, (float)(thi - tlo + 0.6), 1) * Basis(start.Tangent, P(s, d) + Double3.Up * (tlo - 0.5), eye, 0)));
+            if (!lit || i % 2 == 0 || (P(s, d) - eye).Length > 220)
+                continue;
+            var lamp = (P(s, d) - right * (side * 2.2) + Double3.Up * (14.1 + thi)).RelativeTo(eye);
+            mesh.PointLights.Add(new PointLight(lamp, Palette.LampAmber * 1.4f, 16));
+            mesh.Billboard(lamp, 2.2f, 0, new Vector4(Palette.LampAmber * 0.6f, 1), -1, FxBlend.Additive);
         }
     }
 

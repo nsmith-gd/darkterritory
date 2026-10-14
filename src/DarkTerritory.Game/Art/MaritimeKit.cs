@@ -64,9 +64,14 @@ public static class MaritimeKit
         var body = d.Shingle && !d.Painted ? Of(looks.Stains, d.Paint, "#B4B0A6") : Of(looks.Paints, d.Paint, "#D8D6CE");
         // Nobody's painted a house nobody lives in since: it's gone grey and pale under the salt.
         float fade = kind switch { HouseKind.Lived or HouseKind.Open => 0, HouseKind.Empty => 0.55f, _ => 0.4f };
-        Vector3 Faded(Vector3 c) => Vector3.Lerp(c, Vector3.One * (0.3f * c.X + 0.55f * c.Y + 0.15f * c.Z), fade) * (1 - 0.25f * fade);
-        return new Coat(d.Shingle, Faded(body), Faded(Of(looks.Trims, d.Trim, "#ECEAE2")), Faded(Of(looks.Doors, d.Door, "#A82A22")),
-            d.Shutters >= 0 ? Faded(Of(looks.Doors, d.Shutters, "#1F3A6A")) : null, Of(looks.Roofs, d.RoofColour, "#3C3C40"),
+        // A fortress town's (note 692) have gone grey under soot and salt whoever lives in them: greyer and darker by their
+        // grime, the trim most (white paint goes first), the roof a little.
+        float grime = (float)d.Grime;
+        Vector3 Grey(Vector3 c, float by) => Vector3.Lerp(c, Vector3.One * (0.3f * c.X + 0.55f * c.Y + 0.15f * c.Z), by);
+        Vector3 Faded(Vector3 c) => Grey(Grey(c, fade) * (1 - 0.25f * fade), 0.55f * grime) * (1 - 0.4f * grime);
+        Vector3 Trimmed(Vector3 c) => Faded(c) * (1 - 0.25f * grime);
+        return new Coat(d.Shingle, Faded(body), Trimmed(Of(looks.Trims, d.Trim, "#ECEAE2")), Faded(Of(looks.Doors, d.Door, "#A82A22")),
+            d.Shutters >= 0 ? Faded(Of(looks.Doors, d.Shutters, "#1F3A6A")) : null, Grey(Of(looks.Roofs, d.RoofColour, "#3C3C40"), 0.4f * grime) * (1 - 0.2f * grime),
             Faded(Of(looks.Accents, d.Accent, "#D0705E")));
     }
 

@@ -90,6 +90,15 @@ public sealed record FormShape
     public double Rise { get; init; }
     /// <summary>How far its landforms past the wall swell up and down (m, either way; note 692).</summary>
     public double Roll { get; init; }
+    /// <summary>
+    /// Its warren (note 692; the director, 14 Oct: "they don't look like the references"): its streets' width, how far
+    /// they wander either way off straight (m), how far out from the line its first row backs onto the yard's wall, and
+    /// whether its houses stand shoulder to shoulder, each as wide as its lot.
+    /// </summary>
+    public double StreetWidth { get; init; } = 4.5;
+    public double Wander { get; init; } = 3;
+    public double Near { get; init; } = 16.2;
+    public bool Packed { get; init; }
 }
 
 /// <summary>A town type's words (world/towns.json <c>forms</c>, note 692): its name ("a harbour town") and the names its

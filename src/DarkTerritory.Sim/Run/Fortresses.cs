@@ -50,6 +50,13 @@ public static class Fortresses
     public const double WallWalk = 8.0;
     /// <summary>A gun tower every 120 m of wall, its half-width over the plinth, and its height to the parapet's top.</summary>
     public const double TowerEvery = 120, TowerHalf = 2.7, TowerHeight = 14.4;
+    /// <summary>
+    /// A town type's turrets between its gun towers (note 692; the director's renders: a tower every few dozen metres), as
+    /// far apart as this at most and no nearer a tower than <see cref="TurretClear"/>: the tower's piece, no gun on it.
+    /// </summary>
+    public const double TurretEvery = 45, TurretClear = 18;
+    /// <summary>The yard's walls in a town type's warren (note 692; TownPlan.Wards): half-thick and high (the art's StructureKit.Wall at 0.7).</summary>
+    public const double WardHalf = 0.6, WardHeight = 6.2;
     /// <summary>The gatehouse's two towers, from the line out (each side), their half-depth along it, height; the arch between them over the line.</summary>
     public const double GateInner = 3.5, GateOuter = 8.5, GateHalf = 3.5, GateHeight = 14.9, ArchBottom = 7.8, ArchTop = 13;
     /// <summary>How far apart the houses inside the walls stand along the line, and how far out from it.</summary>
@@ -226,7 +233,7 @@ public static class Fortresses
                 yield return new Wall(P(ms, md), axis, (x1 - x) / 2 + 0.05, WallHalf, y + low(ms, md) - 3, y + high(ms, md) + WallHeight);
             }
         }
-        foreach (var (s, d) in Towers(town))
+        foreach (var (s, d) in Towers(town).Concat(Turrets(town)))
             yield return Tower(s, d);
         // The gatehouse at the way in from the last night (note 692; the way out's is the fort's own, Solids): its two
         // towers either side of the line and the arch over it, as the way out's.
@@ -299,6 +306,30 @@ public static class Fortresses
             int n = (int)Math.Floor(len / TowerEvery + 0.5);
             for (int k = 1; k < n; k++)
                 yield return (a.S + (b.S - a.S) * k / n, a.D + (b.D - a.D) * k / n);
+        }
+    }
+
+    /// <summary>
+    /// A town type's turrets (rail frame; note 692): along each run of its wall between its towers, every
+    /// <see cref="TurretEvery"/> at most, none nearer a tower or a gatehouse than <see cref="TurretClear"/>. The street town has none.
+    /// </summary>
+    public static IEnumerable<(double S, double D)> Turrets(Towns.TownBounds town)
+    {
+        if (town.Outline is not { Count: > 2 })
+            yield break;
+        var towers = Towers(town).ToList();
+        foreach (var (a, b) in Runs(town))
+        {
+            double len = Math.Sqrt((b.S - a.S) * (b.S - a.S) + (b.D - a.D) * (b.D - a.D));
+            int n = (int)Math.Ceiling(len / TurretEvery);
+            for (int k = 1; k < n; k++)
+            {
+                var p = (S: a.S + (b.S - a.S) * k / n, D: a.D + (b.D - a.D) * k / n);
+                bool clear = towers.All(t => (t.S - p.S) * (t.S - p.S) + (t.D - p.D) * (t.D - p.D) >= TurretClear * TurretClear)
+                    && Math.Abs(p.D) > GateOuter + TurretClear * 0.5;
+                if (clear)
+                    yield return p;
+            }
         }
     }
 

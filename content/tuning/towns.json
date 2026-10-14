@@ -143,11 +143,11 @@
       "foundry": { "tidewater": 2, "harbour": 1, "quarry": 1, "": 1 }
     },
     "shapes": {
-      "harbour":    { "length": 560, "left": 150, "right": 175, "lot": [12, 16], "lotDepth": 8,  "setback": 2.0, "waterLevel": -2.4, "terraceLevel": 16, "rise": 4, "margin": 190, "roll": 5 },
+      "harbour":    { "length": 560, "left": 150, "right": 175, "lot": [6.5, 9.5], "lotDepth": 7,  "setback": 0.6, "waterLevel": -2.4, "terraceLevel": 16, "rise": 4, "margin": 190, "roll": 5, "packed": true },
       "dykeland":   { "length": 540, "left": 160, "right": 160, "lot": [12, 16], "lotDepth": 9,  "setback": 1.5, "waterLevel": -0.35, "waterDepth": 0.4, "terraceLevel": 0, "margin": 110 },
-      "quarry":     { "length": 600, "left": 190, "right": 120, "lot": [12, 15], "lotDepth": 8,  "setback": 2.0, "waterLevel": -2.0, "terraceLevel": 5, "benches": 3, "margin": 110, "roll": 3 },
-      "tidewater":  { "length": 560, "left": 160, "right": 180, "lot": [12, 16], "lotDepth": 8,  "setback": 2.0, "waterLevel": -1.4, "terraceLevel": 14, "rise": 4, "margin": 170, "roll": 6 },
-      "glasshouse": { "length": 520, "left": 170, "right": 170, "lot": [12, 16], "lotDepth": 8,  "setback": 2.0, "waterLevel": -1.8, "terraceLevel": 0, "margin": 170, "roll": 6 }
+      "quarry":     { "length": 600, "left": 190, "right": 120, "lot": [6.5, 9.5], "lotDepth": 7,  "setback": 0.6, "waterLevel": -2.0, "terraceLevel": 5, "benches": 3, "margin": 110, "roll": 3, "packed": true },
+      "tidewater":  { "length": 560, "left": 160, "right": 180, "lot": [6.5, 9.5], "lotDepth": 7,  "setback": 0.6, "waterLevel": -1.4, "terraceLevel": 14, "rise": 4, "margin": 170, "roll": 6, "packed": true },
+      "glasshouse": { "length": 520, "left": 170, "right": 170, "lot": [6.5, 9.5], "lotDepth": 7,  "setback": 0.6, "waterLevel": -1.8, "terraceLevel": 0, "margin": 170, "roll": 6, "packed": true }
     }
   }
 }

@@ -39,6 +39,8 @@ public static partial class TownGenerator
     const double PlatformD = 7.0, PlatformTop = 0.25;
     /// <summary>The quiet house: how far inside the gate, and how far out from the line on the far side (m).</summary>
     const double QuietIn = 15, QuietOut = 21;
+    /// <summary>How far past the way in's gatehouse a town type's murals are painted on its back wall (m; note 692).</summary>
+    const double MuralByGate = 6;
 
     /// <summary>The roles any townsperson without a place may have ("hand": works at what the town makes).</summary>
     static readonly string[] Folk = ["widow", "driver", "cook", "guard", "hand"];
@@ -271,8 +273,12 @@ public static partial class TownGenerator
             var drng = Rng("civic.dave");
             if (murals.Count > 0 && drng.Chance(t.DaveMural) && all.Where(daves).ToList() is { Count: > 0 } his)
                 murals[drng.Chance(0.5) ? 0 : murals.Count - 1] = drng.Pick(his);
-            for (int i = 0; i < murals.Count && i < walls.Streets.Count; i++)
-                Fix("mural", murals[i].Title, murals[i].Text, walls.Rear + Run.Fortresses.WallHalf + 0.05, walls.Streets[i].At(walls.Rear), 1, 0);
+            // (A town type's warren has none of the street town's streets, note 692: the back wall either side of the way in's
+            // gatehouse, where everybody coming in from the last night sees it.)
+            var at = walls.Streets.Count > 0 ? walls.Streets.Select(x => x.At(walls.Rear)).ToList()
+                : [side * (Run.Fortresses.GateOuter + MuralByGate), -side * (Run.Fortresses.GateOuter + MuralByGate)];
+            for (int i = 0; i < murals.Count && i < at.Count; i++)
+                Fix("mural", murals[i].Title, murals[i].Text, walls.Rear + Run.Fortresses.WallHalf + 0.05, at[i], 1, 0);
         }
 
         // The people. Those with a place: the jobs a town this size has, round the centrepiece, the households at home, out
@@ -525,6 +531,7 @@ public static partial class TownGenerator
             Laid = form is null ? "" : $"stairs {form.Stairs}, cut off {form.CutOff}, on ways {form.OnWays}, on landmarks {form.OnLandmarks}, off their ground {form.OffGround}",
             Margin = form?.Margin ?? 0,
             Ways = form?.Ways ?? [],
+            Wards = form?.Wards ?? [],
         };
         return Remember(plan, site.Burnt, w, Rng("remember"));
     }

@@ -91,6 +91,26 @@ public sealed partial class WorldArt
                         mesh.Instances.Add(new MeshInstance(land, frame, Shadowless: (mid - eye).Length > 160));
                 }
         }
+        // The yard's walls (note 692; Sim TownPlan.Wards): the wall's piece at 0.7, a bay at a time, merlons to the yard.
+        if (plan.Wards.Count > 0)
+        {
+            var along = new Double3(o.Tangent.X, 0, o.Tangent.Z).Normalized;
+            const double bay = Sim.Run.Fortresses.WallBay;
+            float squat = (float)(Sim.Run.Fortresses.WardHeight / Sim.Run.Fortresses.WallHeight), thin = (float)(Sim.Run.Fortresses.WardHalf / Sim.Run.Fortresses.WallHalf);
+            foreach (var (s0, d0, s1, _) in plan.Wards)
+            {
+                int outside = d0 < 0 ? 1 : -1;
+                var wall = Piece($"wall-{outside}", () => StructureKit.Wall(_look, outside));
+                for (double x = s0; x < s1 - 0.05; x += bay)
+                {
+                    double run = Math.Min(bay, s1 - x);
+                    var at = town.World(x, d0);
+                    if ((at - eye).Length > 360)
+                        continue;
+                    mesh.Instances.Add(new MeshInstance(wall, Matrix4x4.CreateScale(thin, squat, (float)(run / bay)) * Basis(o.Tangent, at, eye, 0)));
+                }
+            }
+        }
         // The water: a sheet over the basins' rectangles, a little under the deck's planks, rippling as a lake's does.
         int layer = _look?.Layer("water_dark") ?? -1;
         if (layer >= 0)

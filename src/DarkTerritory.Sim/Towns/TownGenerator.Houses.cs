@@ -326,7 +326,8 @@ public static partial class TownGenerator
             sizes[^2] += sizes[^1];
             sizes.RemoveAt(sizes.Count - 1);
         }
-        int lostHouses = Math.Clamp(lostWanted, 0, Math.Max(0, lots.Count - sizes.Count));
+        // A warren (note 692) stands full: every lot its people don't live in is one of the lost's, boarded, burnt or empty.
+        int lostHouses = form is { Packed: true } ? Math.Max(0, lots.Count - sizes.Count) : Math.Clamp(lostWanted, 0, Math.Max(0, lots.Count - sizes.Count));
         int open = Math.Min(sizes.Count, Math.Clamp((int)Math.Round(population / Math.Max(1, t.Explorable.Per)), t.Explorable.Min, t.Explorable.Max));
 
         var looks = rngFor("houses");
@@ -337,7 +338,9 @@ public static partial class TownGenerator
         // The town's character (houses.json), and the stream its houses' designs come from: a fishing cove's shingled
         // gable-fronts, an old town's painted bumps, a company town's one house over and over in its own paints.
         var drng = rngFor("houses.design");
-        var character = HouseDesigner.Character(content.Looks, site.Industry, ref drng);
+        var character = HouseDesigner.Character(content.Looks, site.Industry, ref drng, form?.Form ?? "");
+        // How sooted each is (note 692), on a stream of its own so the designs are as they were.
+        var grng = rngFor("houses.grime");
         homes.Character = character.Id;
         homes.Gear = character.Gear;
         HouseDesign? model = null;
@@ -376,12 +379,23 @@ public static partial class TownGenerator
             // house (whose wing may come this way).
             width = Math.Min(width, frontage - 2);
             double room = (frontage - width) / 2 - 0.6;
+            // A warren's row (note 692): shoulder to shoulder, each as wide as its lot, no room for a wing beside it.
+            if (row < 0 && form!.Packed && !form.Lots[i].Drowned)
+            {
+                (width, room) = (frontage - 0.15, 0);
+                // An open house stands square (its rooms are the rail frame's), so it's narrower by as far as its lot's turn
+                // swings its turned neighbours' corners in.
+                if (i < Math.Min(sizes.Count, open))
+                    width -= 2 * depth * Math.Abs(Math.Sin(form.Lots[i].Turn)) + 0.3;
+            }
             var layout = kind == HouseKind.Open ? HouseLayout.For(width, depth, looks.Chance(0.5) ? 1 : -1) : null;
             var design = model is not null && character.Uniform
                 ? HouseDesigner.Copy(content.Looks, character, model, layout?.DoorU, ref drng)
                 : HouseDesigner.Draw(content.Looks, character, gable, width, depth, room, layout is not null, layout?.DoorU, ref drng);
             if (character.Uniform)
                 model ??= design;
+            if (character.Grime > 0)
+                design = design with { Grime = Math.Clamp(character.Grime + grng.Range(-character.GrimeSpread, character.GrimeSpread), 0, 1) };
             var fl = row < 0 ? form!.Lots[i] : null;
             var house = new TownHouse(i, s, d0, sd, width, depth, kind, design, family, text, layout)
             { Party = i == partyAt && layout is not null, Level = fl?.Level ?? 0, Turn = layout is null ? fl?.Turn ?? 0 : 0 };
