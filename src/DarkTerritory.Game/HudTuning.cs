@@ -20,6 +20,8 @@ public sealed record HudTuning
     /// anyone in a car, and the open door on its side says the hook.
     /// </summary>
     public double MailLeadSeconds { get; init; } = 12;
+    /// <summary>Note 740: how long after a horn at a stand (s) the cab keeps the roll of who's called "Aboard!".</summary>
+    public double AboardRollSeconds { get; init; } = 90;
     /// <summary>How long a deeper step of the cold is said (s).</summary>
     public double ColdSeconds { get; init; } = 5;
     /// <summary>How long before dawn (s) its clock comes up.</summary>

@@ -19,6 +19,10 @@
   // says the hook (hold fire as the car goes by). A bag caught says what was in it.
   "mailLeadSeconds": 12,
 
+  // Note 740 (GDD §17): after a horn at a stand, the cab keeps the roll of who's called "Aboard!" this long (s), and says
+  // ALL ABOARD once every living crewmate has. Nobody is counted who hasn't called.
+  "aboardRollSeconds": 90,
+
   // Going out into a deeper step of the cold (GDD §22, note 201): its line, for this long (s). Getting chilled says how
   // long you've got for as long as it lasts.
   "coldSeconds": 5,

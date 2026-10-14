@@ -80,7 +80,9 @@ public static class Protocol
     //     after it), so every client walks into the same things.
     // 57: a third byte of buttons on every intent, after the voice level (note 664: crouch, and pushing the gun on its own key).
     // 58: the news (note 663): cars lost and the engine failing, with what did it, a record kind of its own.
-    public const int Version = 58;
+    // 59: an emote past the hotbar byte's two bits (note 740: "Aboard!"): both wheel-step bits set say the emote, and the
+    //     step, follow in a byte of their own.
+    public const int Version = 59;
 }
 
 public enum MessageType : byte
@@ -225,7 +227,18 @@ public static class Messages
         // A hotbar choice (T108), only on the tick it's made: the slot in the low nibble, the wheel's step in the high; an
         // emote (note 298) in the top two bits, on the tick it's picked.
         if (tool)
-            w.U8((byte)((i.Select & 0x0F) | (i.Cycle > 0 ? 0x10 : i.Cycle < 0 ? 0x20 : 0) | ((byte)i.Emote & 3) << 6));
+        {
+            byte step = (byte)(i.Cycle > 0 ? 0x10 : i.Cycle < 0 ? 0x20 : 0);
+            // Note 740: an emote past the two bits ("Aboard!") is said by both step bits (never both a step), and it and the
+            // step follow in a byte of their own.
+            if ((byte)i.Emote > 3)
+            {
+                w.U8((byte)((i.Select & 0x0F) | 0x30));
+                w.U8((byte)((byte)i.Emote & 0x3F | step << 2));
+            }
+            else
+                w.U8((byte)((i.Select & 0x0F) | step | ((byte)i.Emote & 3) << 6));
+        }
         // A reaching hand (T29) in centimetres, only when there is one: keyboards and bots send nothing more.
         if (i.Has(PlayerButtons.Hand))
         {
@@ -270,8 +283,17 @@ public static class Messages
         {
             byte t = r.U8();
             i.Select = (byte)(t & 0x0F);
-            i.Cycle = (sbyte)((t & 0x10) != 0 ? 1 : (t & 0x20) != 0 ? -1 : 0);
-            i.Emote = (Emote)(t >> 6);
+            if ((t & 0x30) == 0x30)
+            {
+                byte e = r.U8();
+                i.Emote = (Emote)(e & 0x3F);
+                i.Cycle = (sbyte)((e & 0x40) != 0 ? 1 : (e & 0x80) != 0 ? -1 : 0);
+            }
+            else
+            {
+                i.Cycle = (sbyte)((t & 0x10) != 0 ? 1 : (t & 0x20) != 0 ? -1 : 0);
+                i.Emote = (Emote)(t >> 6);
+            }
             i.Actions &= ~PlayerActions.Tool;
         }
         if (i.Has(PlayerButtons.Hand))
