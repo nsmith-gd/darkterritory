@@ -757,4 +757,216 @@ public class CreatureSoundTests
         Assert.All(new[] { EnemyKind.Ribbit, EnemyKind.SootChildren, EnemyKind.Whistler, EnemyKind.Grumbler }, k => Assert.NotNull(installed.Get(GameAudio.SignCue(k))));
         Assert.All(new[] { EnemyKind.Gaunt, EnemyKind.Follower }, k => Assert.Null(installed.Get(GameAudio.SignCue(k))));
     }
+
+    // ---- G1's six (queue #125, note 388) ---------------------------------------------------------------------------------
+
+    [Fact]
+    public void TheMournersKeenAsAGroupClickWhenStartledAndAreHeardDraggingTheBody()
+    {
+        // Note 362: one keening a group while it gathers, where those not hauling are; startled, each one's clicks a moment
+        // apart; the two hauling hold the one drag between them, the body's.
+        using var scene = new Scene(1, "tell-mourners.keening~", "tell-mourners.clicks", "cs-mourners-drag.drag~");
+        var at = scene.Train.Frames[1].ToWorld(new Double3(30, 0, 0));
+        Mourner M(int id, MournerMode mode, double x = 0) =>
+            Record(new Mourner(id), SpinePhase.Telegraph, 1, 1, Enemy.Loose, at + new Double3(x, 0, 0), height: (double)mode, extra: 5, extra2: 20);
+        var heard = new List<string>();
+        for (int i = 0; i < 2 * SimConstants.TickRate; i++)
+            heard.AddRange(scene.Tick(M(20, MournerMode.Wait), M(21, MournerMode.Wait, 2), M(22, MournerMode.Wait, 4)));
+        Assert.Equal(["tell-mourners.keening"], heard);
+        // One of them started back from someone come close: its clicks, within the moment.
+        heard.Clear();
+        for (int i = 0; i < SimConstants.TickRate / 2; i++)
+            heard.AddRange(scene.Tick(M(20, MournerMode.Wait), M(21, MournerMode.Startle, 2), M(22, MournerMode.Wait, 4)));
+        Assert.Equal(["tell-mourners.clicks"], heard);
+        // Two haul the body off: one drag between them; the third still keening.
+        heard.Clear();
+        for (int i = 0; i < SimConstants.TickRate; i++)
+            heard.AddRange(scene.Tick(M(20, MournerMode.Drag), M(21, MournerMode.Drag, 1), M(22, MournerMode.Wait, 4)));
+        Assert.Equal(["cs-mourners-drag.drag"], heard);
+        Assert.Equal(1, scene.Audio.Mixer.Voices.Count(v => v.Name == "cs-mourners-drag.drag" && !v.Stopped));
+        Assert.True(scene.Playing("tell-mourners.keening"));
+        // All of them off into the dark with it: nothing held.
+        for (int i = 0; i < 2; i++)
+            scene.Tick(M(20, MournerMode.Leave), M(21, MournerMode.Leave, 1), M(22, MournerMode.Leave, 4));
+        Assert.False(scene.Playing("tell-mourners.keening") || scene.Playing("cs-mourners-drag.drag"));
+    }
+
+    [Fact]
+    public void TowerJawGnawsTheTowerCreaksFromHalfwayGroansItsLastSecondsAndCracksAndFalls()
+    {
+        // Note 363: the chiselling while it gnaws; the creak only from half gnawed; the groan in its last 5 s; come near, its
+        // tail slapped and its lunge; gnawed through, the crack at the leg and the crash where it falls.
+        using var scene = new Scene(1, "tell-tower-jaw.gnaw~", "tell-tower-jaw.creak", "tell-tower-jaw.groan~", "tell-tower-jaw.crack",
+            "cs-tower-jaw.tail-slap", "cs-tower-jaw.lunge", "cs-tower-jaw.fall");
+        var t = DataFile.Load<EnemyTuning>(Path.Combine(Content, EnemyTuning.File)).TowerJaw;
+        var leg = scene.Train.Frames[1].ToWorld(new Double3(12, 0, 0));
+        TowerJaw J(TowerJawMode mode, double gnawed, Double3? at = null) =>
+            Record(new TowerJaw(30), SpinePhase.Alert, 1, t.Health, Enemy.Loose, at ?? leg, height: (double)mode, extra: gnawed);
+        var heard = new List<string>();
+        for (int i = 0; i < 10 * SimConstants.TickRate; i++)
+            heard.AddRange(scene.Tick(J(TowerJawMode.Gnaw, 0.3)));
+        Assert.Equal(["tell-tower-jaw.gnaw"], heard);
+        heard.Clear();
+        for (int i = 0; i < 10 * SimConstants.TickRate; i++)
+            heard.AddRange(scene.Tick(J(TowerJawMode.Gnaw, t.LeanFrom + 0.1)));
+        Assert.Contains("tell-tower-jaw.creak", heard);
+        Assert.False(scene.Playing("tell-tower-jaw.groan"));
+        // Its last seconds (on the frontier, through in its gnawSeconds): the groan.
+        scene.Tick(J(TowerJawMode.Gnaw, 1 - (t.GroanSeconds - 1) / t.GnawFor(DarkTerritory.Sim.Route.RouteTier.Frontier)));
+        Assert.True(scene.Playing("tell-tower-jaw.groan"));
+        // Come near: its tail slapped at once and again, then the lunge.
+        heard.Clear();
+        for (int i = 0; i < 2 * SimConstants.TickRate; i++)
+            heard.AddRange(scene.Tick(J(TowerJawMode.Threat, 0.9)));
+        Assert.Equal(2, heard.Count(h => h == "cs-tower-jaw.tail-slap"));
+        Assert.Contains("cs-tower-jaw.lunge", scene.Tick(J(TowerJawMode.Lunge, 0.9)));
+        scene.Tick(J(TowerJawMode.Gnaw, 0.99));
+        // Through: the crack now (at the leg), the crash a moment after (where it falls, the record's from that tick).
+        var falls = leg + new Double3(0, 0, -8);
+        heard.Clear();
+        heard.AddRange(scene.Tick(J(TowerJawMode.Wreck, 0.99, falls)));
+        Assert.Equal(["tell-tower-jaw.crack"], heard);
+        for (int i = 0; i < SimConstants.TickRate; i++)
+            heard.AddRange(scene.Tick(J(TowerJawMode.Wreck, 0.99, falls)));
+        Assert.Equal(["tell-tower-jaw.crack", "cs-tower-jaw.fall"], heard);
+        Assert.False(scene.Playing("tell-tower-jaw.gnaw"));
+    }
+
+    [Fact]
+    public void TheBrakemanLimpsAlongTheRoofsWindsTheBrakeAndCorneredLashesHisChain()
+    {
+        // Note 364 (and the routine's ask): his steps limp only if the good leg's takes and the bad leg's alternate on a
+        // long-short beat, the bad one fired early by its toe's drag so its plant lands on the beat.
+        using var scene = new Scene(1, "tell-brakeman.step.good", "tell-brakeman.step.bad", "tell-brakeman.chain~", "tell-brakeman.ratchet",
+            "cs-brakeman.chain-up", "cs-brakeman.wheeze~", "cs-brakeman.lash", "tell-brakeman.squeal~");
+        var roof = new Double3(0, scene.Train.Frames[2].Shape.RoofHeight, 0);
+        Brakeman B(BrakemanMode mode, double seconds = 1, SpinePhase phase = SpinePhase.Dormant) =>
+            Record(new Brakeman(40), phase, seconds, 4, 2, roof, height: (double)mode, extra: 20, extra2: 1);
+        var steps = new List<(int Tick, string Leg)>();
+        for (int i = 0; i < 5 * SimConstants.TickRate; i++)
+            foreach (var h in scene.Tick(B(BrakemanMode.Walk)))
+                if (h.StartsWith("tell-brakeman.step.", StringComparison.Ordinal))
+                    steps.Add((i, h["tell-brakeman.step.".Length..]));
+        Assert.True(scene.Playing("tell-brakeman.chain"));
+        Assert.True(steps.Count >= 6, string.Join(" ", steps));
+        for (int i = 0; i < steps.Count; i++)
+            Assert.Equal(i % 2 == 0 ? "good" : "bad", steps[i].Leg);
+        // A long stance on the good leg, a quick one on the bad: fired good to bad, the long beat less the drag's lead.
+        double Seconds(int a, int b) => (steps[b].Tick - steps[a].Tick) / (double)SimConstants.TickRate;
+        for (int i = 0; i + 2 < steps.Count; i += 2)
+        {
+            Assert.InRange(Seconds(i, i + 1), 0.74 - 0.2 - 0.05, 0.74 - 0.2 + 0.05);
+            Assert.True(Math.Abs(Seconds(i, i + 2) - 1.2) < 0.05, string.Join(" ", steps));
+        }
+        // At a brake wheel: its pawl ratcheting, run after run.
+        var heard = new List<string>();
+        for (int i = 0; i < 4 * SimConstants.TickRate; i++)
+            heard.AddRange(scene.Tick(B(BrakemanMode.Wind)));
+        Assert.InRange(heard.Count(h => h == "tell-brakeman.ratchet"), 3, 5);
+        Assert.False(scene.Playing("tell-brakeman.chain"));
+        // Cornered: the chain gathered up, his wheeze, and a lash each time it lands (its phase's clock starts again).
+        heard.Clear();
+        heard.AddRange(scene.Tick(B(BrakemanMode.Cornered, 0, SpinePhase.Telegraph)));
+        Assert.Contains("cs-brakeman.chain-up", heard);
+        Assert.True(scene.Playing("cs-brakeman.wheeze"));
+        heard.Clear();
+        heard.AddRange(scene.Tick(B(BrakemanMode.Cornered, 2.5, SpinePhase.Telegraph)));
+        heard.AddRange(scene.Tick(B(BrakemanMode.Cornered, 0, SpinePhase.Telegraph)));
+        Assert.Equal(["cs-brakeman.lash"], heard);
+    }
+
+    [Fact]
+    public void AWoundBrakeSquealsAndASeizedAxleGrindsOnlyWithTheWheelsTurning()
+    {
+        // The cars' own, after whoever did it (the Brakeman's wound handbrake, Hotbox's seized axle): with the wheels
+        // turning, steady; at a stand, nothing.
+        using var scene = new Scene(1, "tell-brakeman.squeal~", "tell-hotbox.grind~");
+        scene.Train.Vehicles[2].Wound = true;
+        scene.Train.Vehicles[3].Seized = true;
+        scene.Tick();
+        Assert.False(scene.Playing("tell-brakeman.squeal") || scene.Playing("tell-hotbox.grind"));
+        scene.Train.Dynamics.Velocity = 8;
+        scene.Tick();
+        Assert.True(scene.Playing("tell-brakeman.squeal") && scene.Playing("tell-hotbox.grind"));
+        scene.Train.Vehicles[2].Wound = false;
+        scene.Train.Dynamics.Velocity = 8;
+        scene.Tick();
+        Assert.False(scene.Playing("tell-brakeman.squeal"));
+        Assert.True(scene.Playing("tell-hotbox.grind"));
+    }
+
+    [Fact]
+    public void TheKnotterCreaksCreepingInStretchesTheCarsApartAndItsHawserCreaksTakingUp()
+    {
+        // Note 365: the creep held for its 4 s, the stretch once as it forces the cars apart, and taut its hawser creaking
+        // as it takes up from slack, and as it coils round whoever slipped.
+        using var scene = new Scene(1, "tell-knotter.creep~", "tell-knotter.stretch", "tell-knotter.hawser");
+        var gap = new Double3(0, 1, scene.Train.Cars[2].Length / 2 + 1);
+        Knotter K(KnotterMode mode) => Record(new Knotter(50), SpinePhase.Alert, 1, 8, 2, gap, height: (double)mode);
+        var heard = new List<string>();
+        for (int i = 0; i < 2 * SimConstants.TickRate; i++)
+            heard.AddRange(scene.Tick(K(KnotterMode.Creep)));
+        Assert.Equal(["tell-knotter.creep"], heard);
+        heard.Clear();
+        for (int i = 0; i < 2 * SimConstants.TickRate; i++)
+            heard.AddRange(scene.Tick(K(KnotterMode.Force)));
+        Assert.Equal(["tell-knotter.stretch"], heard);
+        Assert.False(scene.Playing("tell-knotter.creep"));
+        heard.Clear();
+        for (int i = 0; i < SimConstants.TickRate; i++)
+            heard.AddRange(scene.Tick(K(KnotterMode.Taut)));
+        heard.AddRange(scene.Tick(K(KnotterMode.Slack)));
+        Assert.Empty(heard);
+        heard.AddRange(scene.Tick(K(KnotterMode.Taut)));
+        heard.AddRange(scene.Tick(K(KnotterMode.Coil)));
+        Assert.Equal(["tell-knotter.hawser", "tell-knotter.hawser"], heard);
+    }
+
+    [Fact]
+    public void TheFreightBeetleIsHeardShovingItsCrateOnWhatsUnderItAndStartled()
+    {
+        // Note 366: the crate's push held while it pushes, its surface's take; startled at its head, its plates and hiss.
+        using var scene = new Scene(1, "cs-freight-beetle.push.ground~", "cs-freight-beetle.startle");
+        var at = scene.Train.Frames[1].ToWorld(new Double3(15, 0, 0));
+        FreightBeetle F(BeetleMode mode) => Record(new FreightBeetle(60), SpinePhase.Dormant, 1, 6, Enemy.Loose, at, height: (double)mode, extra: 3);
+        var heard = new List<string>();
+        for (int i = 0; i < SimConstants.TickRate; i++)
+            heard.AddRange(scene.Tick(F(BeetleMode.Walk)));
+        Assert.Empty(heard);
+        for (int i = 0; i < SimConstants.TickRate; i++)
+            heard.AddRange(scene.Tick(F(BeetleMode.Push)));
+        Assert.Equal(["cs-freight-beetle.push.ground"], heard);
+        heard.Clear();
+        for (int i = 0; i < SimConstants.TickRate; i++)
+            heard.AddRange(scene.Tick(F(BeetleMode.Startle)));
+        Assert.Equal(["cs-freight-beetle.startle"], heard);
+        Assert.False(scene.Playing("cs-freight-beetle.push.ground"));
+    }
+
+    [Fact]
+    public void HotboxKnocksOnceAWheelTurnFasterTheFasterYouRunAndSizzlesGlowing()
+    {
+        // Note 367: a knock a turn of its wheel (Hotbox.KnocksPerSecond), none at a stand; glowing, the sizzle under it.
+        using var scene = new Scene(1, "tell-hotbox.knock", "tell-hotbox.sizzle~");
+        var t = DataFile.Load<EnemyTuning>(Path.Combine(Content, EnemyTuning.File)).Hotbox;
+        var truck = new Double3(0.7, 0.5, 4);
+        Hotbox H(HotboxMode mode) => Record(new Hotbox(70), SpinePhase.Dormant, 1, 6, 2, truck, height: (double)mode, extra: 10, lateral: 1);
+        int Knocks(double speed, HotboxMode mode = HotboxMode.Knock)
+        {
+            int n = 0;
+            for (int i = 0; i < 4 * SimConstants.TickRate; i++)
+            {
+                scene.Train.Dynamics.Velocity = speed;
+                n += scene.Tick(H(mode)).Count(h => h == "tell-hotbox.knock");
+            }
+            return n;
+        }
+        Assert.Equal(0, Knocks(0));
+        int slow = Knocks(5), fast = Knocks(15);
+        Assert.InRange(slow, (int)(4 * Hotbox.KnocksPerSecond(t, 5)) - 1, (int)(4 * Hotbox.KnocksPerSecond(t, 5)) + 1);
+        Assert.InRange(fast, (int)(4 * Hotbox.KnocksPerSecond(t, 15)) - 1, (int)(4 * Hotbox.KnocksPerSecond(t, 15)) + 1);
+        Assert.False(scene.Playing("tell-hotbox.sizzle"));
+        Assert.True(Knocks(10, HotboxMode.Glow) > 0);
+        Assert.True(scene.Playing("tell-hotbox.sizzle"));
+    }
 }
