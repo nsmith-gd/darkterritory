@@ -41,8 +41,9 @@ Given on the audit in S1's chat; #999 and #1001 merged the same evening. The wor
   use the radio since communication is so important"** (#479). **"A grab should allow players to still use the radio but
   their voice should be muffle filtered as if the grab is covering their mouth partially."** The news line: #480.
 - **R2, breathing room:** "good. Don't necessarily want a lot of it though" (#481: short).
-- **R3, cliffs into cascades:** asked what it means; explained (the bend throw, the struggle in a crew), waiting on the
-  director.
+- **R3, cliffs into cascades:** explained; **the struggle in a crew approved** ("Approved for Grabbed", #486). The bend
+  throw: the director asked what happens to a crewmate the driver leaves behind (the left-behind rules, note 273); not yet
+  decided.
 - **R4, one can, two do it faster:** "absolutely the right direction" (#482).
 - **R5, the census reads commitment:** "good" (#483).
 - **R6, the comet after #999:** "good" (#485).
