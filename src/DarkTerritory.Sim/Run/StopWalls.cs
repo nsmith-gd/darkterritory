@@ -131,6 +131,9 @@ public sealed partial class StopWalls
     /// </summary>
     public const double DoorWidth = 1.2, WallThickness = 0.2;
 
+    /// <summary>Where a small thing lies on a house's floor (note 738), as shares of the room's half sizes out from its middle (along the front, across it).</summary>
+    static readonly (double F, double S)[] LooseCorners = [(-0.85, 0.85), (-0.85, -0.85), (0.8, 0.85), (0.8, -0.85), (-0.2, 0.9), (-0.2, -0.9)];
+
     /// <summary>How far in from a wall's inner face a find lies, at the foot of the cupboard or cabinet against it (m).</summary>
     public const double FindOut = 0.65;
 
@@ -184,6 +187,8 @@ public sealed partial class StopWalls
             ContainerKind.Cabinet => (-ef * 0.3, es * sign),
             ContainerKind.Cellar => (-ef * 0.4, -es * 0.45 * sign),
             ContainerKind.UnderFloor => (ef * 0.15, es * 0.35 * sign),
+            // (Lying in a corner, the back ones first, then the front's either side of the door: note 738.)
+            ContainerKind.Loose => LooseCorners[index % LooseCorners.Length] is var (cf, cs) ? (ef * cf, es * cs) : default,
             _ => (0.0, 0.0),
         };
         // Along the front's outward direction f, across it s (a quarter turn from it).
