@@ -146,7 +146,7 @@ public sealed partial class World
         if (!Fitted("fishingRod") || !s.Alive || s.Parent != PlayerState.World || s.Surface != Surface.Ground
             || Bodies.CarriedBy(playerId) is not { Kind: Physics.BodyKind.FishingRod })
             return false;
-        var ahead = new Double3(-Math.Sin(s.Yaw), 0, -Math.Cos(s.Yaw));
+        var ahead = new Double3(-DMath.Sin(s.Yaw), 0, -DMath.Cos(s.Yaw));
         for (double d = 1; d <= WhimsyTuning.FishReach; d += 0.5)
         {
             var p = s.Position + ahead * d;
@@ -185,7 +185,7 @@ public sealed partial class World
         if ((Tick - cast) * SimConstants.TickSeconds < wait)
             return;
         _castAt[playerId] = Tick;
-        var ahead = new Double3(-Math.Sin(s.Yaw), 0, -Math.Cos(s.Yaw));
+        var ahead = new Double3(-DMath.Sin(s.Yaw), 0, -DMath.Cos(s.Yaw));
         Bodies.SpawnItem(s.Position + ahead * 0.6 + Double3.Up * 0.3, s.LineHint, Physics.BodyKind.Fish);
         Attribution.Add(Sim.Run.IncidentLog.Event(this, Sim.Run.IncidentKind.Whimsy, "A fish caught", playerId, "Angler: {actor}.", s.Position));
     }
