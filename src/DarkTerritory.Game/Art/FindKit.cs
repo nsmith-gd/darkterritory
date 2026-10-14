@@ -87,6 +87,51 @@ public static class FindKit
     }
 
     /// <summary>
+    /// The comet's light (GDD §19's "attracts everything; should look like it"), the green of a comet-loaded car's seams
+    /// (<see cref="SceneArt"/>): a fragment's shards glow it, and its light is it.
+    /// </summary>
+    public static readonly Vector3 CometGlow = new(0.35f, 0.95f, 0.45f);
+
+    /// <summary>Whether a find is one that glows (note 718: a comet fragment), for its light.</summary>
+    public static bool Glows(string item) => item == "cometFragment";
+
+    /// <summary>
+    /// A lump of rock (note 718): an icosahedron's twelve corners pushed in and out by a repeatable hash, its underside
+    /// flattened to sit, every facet flat. <paramref name="squash"/> its height to its width.
+    /// </summary>
+    static Vector3[] Lump(Kit k, Vector3 centre, float radius, float squash, int seed)
+    {
+        float g = (1 + MathF.Sqrt(5)) / 2;
+        Vector3[] p =
+        [
+            new(-1, g, 0), new(1, g, 0), new(-1, -g, 0), new(1, -g, 0), new(0, -1, g), new(0, 1, g),
+            new(0, -1, -g), new(0, 1, -g), new(g, 0, -1), new(g, 0, 1), new(-g, 0, -1), new(-g, 0, 1),
+        ];
+        for (int i = 0; i < p.Length; i++)
+        {
+            float h = MathF.Abs(MathF.Sin((i + 1) * 12.9898f + seed * 78.233f) * 43758.547f) % 1;
+            var v = Vector3.Normalize(p[i]) * radius * (0.72f + 0.5f * h);
+            p[i] = centre + new Vector3(v.X, MathF.Max(v.Y * squash, -radius * 0.35f), v.Z);
+        }
+        int[] f = [0, 11, 5, 0, 5, 1, 0, 1, 7, 0, 7, 10, 0, 10, 11, 1, 5, 9, 5, 11, 4, 11, 10, 2, 10, 7, 6, 7, 1, 8,
+            3, 9, 4, 3, 4, 2, 3, 2, 6, 3, 6, 8, 3, 8, 9, 4, 9, 5, 2, 4, 11, 6, 2, 10, 8, 6, 7, 9, 8, 1];
+        for (int i = 0; i < f.Length; i += 3)
+            k.Tri(p[f[i]], p[f[i + 2]], p[f[i + 1]]);
+        return p;
+    }
+
+    /// <summary>A shard (a thin four-sided spike) from <paramref name="a"/> out to <paramref name="b"/>.</summary>
+    static void Shard(Kit k, Vector3 a, Vector3 b, float half)
+    {
+        var along = Vector3.Normalize(b - a);
+        var side = Vector3.Normalize(Vector3.Cross(along, MathF.Abs(along.Y) > 0.9f ? Vector3.UnitX : Vector3.UnitY)) * half;
+        var up = Vector3.Cross(side, along);
+        Vector3[] ring = [a + side, a + up, a - side, a - up];
+        for (int i = 0; i < 4; i++)
+            k.Tri(ring[i], ring[(i + 1) % 4], b);
+    }
+
+    /// <summary>
     /// The model for a find of <paramref name="item"/> (loot.json's item key), centred on its body (a ball of
     /// <paramref name="radius"/>: the model sits from −radius up).
     /// </summary>
@@ -229,6 +274,130 @@ public static class FindKit
                     k.BoxAt(o + new Vector3(0.08f + i * 0.065f, 0.03f - i * 0.002f, 0.03f), new Vector3(0.01f, 0.014f, 0.006f));
                 // The pale ringed eye in its black skin.
                 k.Cylinder(o + new Vector3(-0.08f, 0.13f, 0.1f), o + new Vector3(-0.08f, 0.13f, 0.115f), 0.03f, 10);
+                break;
+            case "cometFragment":
+                // A lump of the comet (note 718; GDD §19): black slag, glassy, split by green crystal that glows, shards of it
+                // standing out of the cracks. Bigger than a find, and lit, so a crew sees it from the line.
+                k.Use("slag", new Vector3(0.12f, 0.12f, 0.13f), 0.2f, 0.7f, tile: 0.4f);
+                var rock = Lump(k, o + new Vector3(0, 0.1f, 0), 0.15f, 0.75f, 7);
+                k.Use("quartz", CometGlow, 0, 0.9f, tile: 0.3f);
+                k.Tint = CometGlow;
+                k.Emissive = 1;
+                Lump(k, o + new Vector3(0.03f, 0.12f, -0.02f), 0.1f, 0.8f, 3);
+                foreach (int i in (int[])[1, 5, 8, 9, 11])
+                {
+                    var from = o + new Vector3(0, 0.1f, 0) + (rock[i] - o - new Vector3(0, 0.1f, 0)) * 0.6f;
+                    Shard(k, from, from + Vector3.Normalize(rock[i] - o - new Vector3(0, 0.05f, 0)) * 0.11f, 0.018f);
+                }
+                k.Emissive = 0;
+                break;
+            case "grumblerJaw":
+                // The Grumbler's jaw (note 718): a crate-gnawer's lower jaw, grey bone in a U, its teeth worn flat and splintered.
+                k.Use("plaster_ruin", new Vector3(0.74f, 0.71f, 0.64f), 0.3f, 0.3f, tile: 0.5f);
+                for (int side = -1; side <= 1; side += 2)
+                    k.Cylinder(o + new Vector3(side * 0.07f, 0.03f, -0.1f), o + new Vector3(side * 0.04f, 0.035f, 0.09f), 0.028f, 6, radiusB: 0.022f);
+                k.Cylinder(o + new Vector3(-0.045f, 0.035f, 0.09f), o + new Vector3(0.045f, 0.035f, 0.09f), 0.024f, 6);
+                k.Use("rust_heavy", new Vector3(0.42f, 0.36f, 0.24f), 0.5f, 0.2f, tile: 0.5f);
+                for (int i = 0; i < 6; i++)
+                {
+                    float z = -0.06f + i * 0.028f, x = 0.068f - i * 0.004f;
+                    k.BoxAt(o + new Vector3(x, 0.065f, z), new Vector3(0.009f, 0.014f, 0.009f));
+                    k.BoxAt(o + new Vector3(-x, 0.065f, z), new Vector3(0.009f, 0.014f, 0.009f));
+                }
+                break;
+            case "gauntHand":
+                // The Gaunt's hand (note 718): long, grey and spindly, the fingers half again a man's, curled where it fell.
+                k.Use("skin", new Vector3(0.55f, 0.55f, 0.52f), 0.3f, 0.2f, tile: 0.4f);
+                k.Cylinder(o + new Vector3(-0.2f, 0.03f, 0), o + new Vector3(-0.05f, 0.03f, 0), 0.025f, 6, radiusB: 0.035f);
+                k.BoxAt(o + new Vector3(0, 0.03f, 0), new Vector3(0.05f, 0.016f, 0.045f));
+                for (int i = 0; i < 4; i++)
+                {
+                    float z = -0.036f + i * 0.024f, curl = 0.02f + i * 0.006f;
+                    var knuckle = o + new Vector3(0.05f, 0.03f, z);
+                    var mid = knuckle + new Vector3(0.11f, 0.004f, z * 0.3f);
+                    k.Cylinder(knuckle, mid, 0.009f, 5);
+                    k.Cylinder(mid, mid + new Vector3(0.08f, curl, 0), 0.008f, 5, radiusB: 0.004f);
+                }
+                k.Cylinder(o + new Vector3(0.0f, 0.03f, 0.045f), o + new Vector3(0.08f, 0.03f, 0.11f), 0.009f, 5, radiusB: 0.005f);
+                break;
+            case "climberClaw":
+                // A Climber's claw (note 718): a hooked black talon as long as a hand on its knuckle of grey hide.
+                k.Use("skin", new Vector3(0.45f, 0.43f, 0.4f), 0.4f, 0.2f, tile: 0.4f);
+                k.Cylinder(o + new Vector3(-0.08f, 0.03f, 0), o + new Vector3(0, 0.03f, 0), 0.03f, 6, radiusB: 0.026f);
+                k.Use("paint_black", new Vector3(0.06f, 0.06f, 0.06f), 0.1f, 0.6f, tile: 0.5f);
+                k.Cylinder(o + new Vector3(0, 0.03f, 0), o + new Vector3(0.09f, 0.05f, 0), 0.02f, 6, radiusB: 0.014f);
+                k.Cylinder(o + new Vector3(0.09f, 0.05f, 0), o + new Vector3(0.15f, 0.03f, 0), 0.014f, 6, radiusB: 0.006f);
+                k.Cylinder(o + new Vector3(0.15f, 0.03f, 0), o + new Vector3(0.17f, 0.0f, 0), 0.006f, 4, radiusB: 0.002f);
+                break;
+            case "passengerCap":
+                // The Passenger's cap (note 718): a lost railway's crew cap, the cloth rotted black, its peak cracked, its
+                // brass badge still bright.
+                k.Use("coat_oilskin", new Vector3(0.1f, 0.1f, 0.12f), 0.6f, 0.2f, tile: 0.4f);
+                k.Cylinder(o, o + new Vector3(0, 0.07f, 0), 0.085f, 12, radiusB: 0.095f);
+                k.Use("paint_black", new Vector3(0.05f, 0.05f, 0.05f), 0.3f, 0.5f, tile: 0.4f);
+                k.Quad(o + new Vector3(-0.08f, 0.012f, 0.06f), o + new Vector3(0.08f, 0.012f, 0.06f), o + new Vector3(0.06f, 0.004f, 0.15f), o + new Vector3(-0.06f, 0.004f, 0.15f), twoSided: true);
+                Wear(k, new Vector3(0.85f, 0.8f, 0.68f), 0.35f);
+                Lid(k, o + new Vector3(0, 0.045f, 0.087f), Vector3.UnitZ, 0.02f, "brass", 8);
+                break;
+            case "brakemanWheel":
+                // The Brakeman's wheel (note 718): the rusted brake wheel his arm had grown into, a length of chain still on it.
+                k.Use("wheel_iron", new Vector3(0.3f, 0.22f, 0.16f), 0.7f, 0.3f, tile: 0.4f);
+                for (int i = 0; i < 10; i++)
+                {
+                    float a0 = i * MathF.Tau / 10, a1 = (i + 1) * MathF.Tau / 10;
+                    k.Cylinder(o + new Vector3(MathF.Cos(a0) * 0.15f, 0.015f, MathF.Sin(a0) * 0.15f),
+                        o + new Vector3(MathF.Cos(a1) * 0.15f, 0.015f, MathF.Sin(a1) * 0.15f), 0.014f, 5);
+                }
+                for (int i = 0; i < 4; i++)
+                {
+                    float a = i * MathF.Tau / 4 + 0.4f;
+                    k.Cylinder(o + new Vector3(0, 0.015f, 0), o + new Vector3(MathF.Cos(a) * 0.15f, 0.015f, MathF.Sin(a) * 0.15f), 0.01f, 4);
+                }
+                k.Cylinder(o, o + new Vector3(0, 0.04f, 0), 0.03f, 8);
+                k.Use("rust_heavy", new Vector3(0.36f, 0.24f, 0.14f), 0.7f, 0.3f, tile: 0.3f);
+                for (int i = 0; i < 4; i++)
+                    k.BoxAt(o + new Vector3(0.17f + i * 0.04f, 0.01f, 0.02f * (i % 2)), new Vector3(0.022f, 0.008f, 0.012f));
+                break;
+            case "knotterClaw":
+                // A Knotter's claw (note 718): the hook off one end of its rope of pale flesh, a stub of that still on it.
+                k.Use("flesh", new Vector3(0.78f, 0.66f, 0.6f), 0.3f, 0.4f, tile: 0.4f);
+                k.Cylinder(o + new Vector3(-0.16f, 0.035f, 0), o + new Vector3(-0.02f, 0.035f, 0), 0.035f, 7, radiusB: 0.03f);
+                k.Use("paint_black", new Vector3(0.08f, 0.07f, 0.07f), 0.2f, 0.5f, tile: 0.4f);
+                for (int side = -1; side <= 1; side += 2)
+                {
+                    k.Cylinder(o + new Vector3(-0.02f, 0.035f, side * 0.015f), o + new Vector3(0.07f, 0.04f, side * 0.04f), 0.014f, 5, radiusB: 0.009f);
+                    k.Cylinder(o + new Vector3(0.07f, 0.04f, side * 0.04f), o + new Vector3(0.1f, 0.02f, side * 0.01f), 0.009f, 5, radiusB: 0.003f);
+                }
+                break;
+            case "hotboxPlate":
+                // A Hotbox plate (note 718): one of the black plates off its back, curved, scorched blue at its edge.
+                k.Use("iron_plate", new Vector3(0.1f, 0.1f, 0.11f), 0.4f, 0.6f, tile: 0.4f);
+                for (int i = 0; i < 4; i++)
+                {
+                    float x0 = -0.12f + i * 0.06f, x1 = x0 + 0.06f;
+                    float y0 = 0.05f - MathF.Pow(x0 / 0.12f, 2) * 0.04f, y1 = 0.05f - MathF.Pow(x1 / 0.12f, 2) * 0.04f;
+                    k.Quad(o + new Vector3(x0, y0, -0.08f), o + new Vector3(x1, y1, -0.08f), o + new Vector3(x1, y1, 0.08f), o + new Vector3(x0, y0, 0.08f), twoSided: true);
+                }
+                k.Use("rust_heavy", new Vector3(0.3f, 0.32f, 0.42f), 0.5f, 0.5f, tile: 0.3f);
+                k.BoxAt(o + new Vector3(0, 0.054f, 0.08f), new Vector3(0.12f, 0.006f, 0.006f));
+                break;
+            case "beetleShovel":
+                // The Beetle's shovel (note 718): the Freight Beetle's head plate, broad and spade-edged, scored by crates.
+                k.Use("iron_plate", new Vector3(0.22f, 0.18f, 0.12f), 0.6f, 0.4f, tile: 0.4f);
+                k.Quad(o + new Vector3(-0.17f, 0.02f, 0.12f), o + new Vector3(0.17f, 0.02f, 0.12f), o + new Vector3(0.12f, 0.08f, -0.1f), o + new Vector3(-0.12f, 0.08f, -0.1f), twoSided: true);
+                k.Quad(o + new Vector3(-0.12f, 0.08f, -0.1f), o + new Vector3(0.12f, 0.08f, -0.1f), o + new Vector3(0.1f, 0.0f, -0.12f), o + new Vector3(-0.1f, 0.0f, -0.12f), twoSided: true);
+                k.Use("paint_black", new Vector3(0.07f, 0.06f, 0.05f), 0.4f, 0.3f, tile: 0.4f);
+                for (int side = -1; side <= 1; side += 2)
+                    k.Cylinder(o + new Vector3(side * 0.06f, 0.07f, -0.05f), o + new Vector3(side * 0.07f, 0.11f, 0.0f), 0.012f, 5, radiusB: 0.004f);
+                break;
+            case "towerJawTooth":
+                // Tower Jaw's tooth (note 718): one of its iron-dark incisors, long and chisel-ended, the root still splintered.
+                k.Use("rust_heavy", new Vector3(0.25f, 0.2f, 0.16f), 0.4f, 0.5f, tile: 0.4f);
+                k.Cylinder(o + new Vector3(-0.14f, 0.035f, 0), o + new Vector3(0.12f, 0.03f, 0), 0.03f, 6, radiusB: 0.022f);
+                k.Quad(o + new Vector3(0.12f, 0.055f, -0.02f), o + new Vector3(0.12f, 0.055f, 0.02f), o + new Vector3(0.17f, 0.012f, 0.02f), o + new Vector3(0.17f, 0.012f, -0.02f), twoSided: true);
+                k.Use("wood_grey", new Vector3(0.5f, 0.46f, 0.4f), 0.6f, 0.1f, tile: 0.3f);
+                for (int i = 0; i < 3; i++)
+                    k.Cylinder(o + new Vector3(-0.14f, 0.035f, 0), o + new Vector3(-0.19f - i * 0.01f, 0.04f + i * 0.01f, -0.02f + i * 0.02f), 0.006f, 4);
                 break;
             default:
                 // Anything else: a clean bundle in sacking, stencilled.

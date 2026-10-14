@@ -314,9 +314,10 @@ public class StopGeneratorTests
     }
 
     [Fact]
-    public void FindsHoldOnlyWhatTheirKindAllowsAndShareTheBudget()
+    public void FindsHoldOnlyWhatTheirKindAllowsAndAreWorthTheirKinds()
     {
-        // P14: the layout places containers; the economy fills them, within the kind's list and the stop's budget.
+        // P14: the layout places containers; the economy fills them, within the kind's list. Note 718: each worth its kind's
+        // worth, always (loot.json worth), never a share of a budget.
         var route = RouteGenerator.Generate(Tuning.Route, RouteTier.DeadLines, 3);
         double perCar = Tuning.Run.Economy.PerCar["deadLines"];
         int stops = 0;
@@ -332,9 +333,9 @@ public class StopGeneratorTests
                 var c = stop.Containers[find.Container];
                 Assert.Contains(find.Item, L.Of(c.Kind).Items);
                 Assert.True(find.Value > 0);
+                Assert.Equal(L.WorthOf(find.Item, perCar), find.Value);
+                Assert.True(L.Worth.ContainsKey(find.Item), $"{find.Item} has no worth of its own");
             }
-            // Rounded to fives, the whole is the budget's range.
-            Assert.InRange(finds.Sum(f => f.Value), perCar * L.VillageBudget[0] - 5 * finds.Count, perCar * L.VillageBudget[1] + 5 * finds.Count);
         }
         Assert.True(stops > 0);
     }
@@ -353,9 +354,9 @@ public class StopGeneratorTests
         Tick(world, 0.5);
         int k = world.Run!.Stops.ToList().IndexOf(halt), hidden = world.Run.HidingSpots.Count(h => h.Stop == k);
         int village = halt.Stop!.Containers.Count(c => c.Zone == StopZone.Village);
-        Assert.Equal(village - hidden, world.Bodies.All.Count(b => b.Kind == BodyKind.Loot));
+        Assert.Equal(village - hidden, world.Bodies.All.Count(b => b.Kind == BodyKind.Loot && !Run.Run.IsComet(b)));
         world.Run.Stock(world.Bodies, k, searched: true);
-        var loot = world.Bodies.All.Where(b => b.Kind == BodyKind.Loot).ToList();
+        var loot = world.Bodies.All.Where(b => b.Kind == BodyKind.Loot && !Run.Run.IsComet(b)).ToList();
         Assert.Equal(village, loot.Count);
         var body = loot[0];
         var find = world.Run!.FindOf(body)!.Value;

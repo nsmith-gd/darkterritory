@@ -1045,7 +1045,7 @@ static object Screenshot(TrainTuning t, string content, string[] args)
     // stages it gnawing, the tower leaning over the line; towerjawfall, the tower down across it.
     string towerJawMode = Str(args, "--towerjaw", view switch { "towerjaw" => "lean", "towerjawfall" => "wreck", _ => "" });
     // --route tier:seed generates the night in memory; --coaling stops the train at its coaling tower, chute pouring.
-    Route? generated = Str(args, "--route", towerJawMode.Length > 0 ? "frontier:3" : Staging.IsHouseView(view) ? "frontier:7" : "") is { Length: > 0 } spec
+    Route? generated = Str(args, "--route", towerJawMode.Length > 0 ? "frontier:3" : Staging.IsHouseView(view) || view is "comet" or "trophies" ? "frontier:7" : "") is { Length: > 0 } spec
         ? DarkTerritory.Sim.LineGen.Routes.Generate(content, spec, cars)
         : null;
     var line = generated?.Build() ?? RailLine.Load(Path.Combine(content, "lines", lineName + ".json"));
@@ -1222,6 +1222,26 @@ static object Screenshot(TrainTuning t, string content, string[] args)
                 arrival.Clock = Opt(args, "--clock", 0);
         }
     }
+    // --comet m (note 718; the comet view): the night's first stop with a comet fragment (every stop given the chance of one
+    // if none has), its loot out, the engine's front m past the fragment (−22: short of it): what the driver sees coming in.
+    DarkTerritory.Sim.Physics.Bodies? prizes = null;
+    if ((view == "comet" || args.Contains("--comet")) && generated is not null)
+    {
+        var lt = DataFile.Load<LootTuning>(Path.Combine(content, LootTuning.File));
+        run ??= new DarkTerritory.Sim.Run.Run(DataFile.Load<DarkTerritory.Sim.Run.RunTuning>(Path.Combine(content, DarkTerritory.Sim.Run.RunTuning.File)), generated);
+        run.EnableLoot(lt, line, null);
+        if (!Enumerable.Range(0, run.Stops.Count).Any(k => run.CometsAt(k).Count > 0) && lt.Comet is { } comet)
+            run.EnableLoot(lt with { Comet = comet with { Chance = new() { [StopLoot.TierKey(generated.Tier)] = 1 } } }, line, null);
+        int stop = Enumerable.Range(0, run.Stops.Count).First(k => run.CometsAt(k).Count > 0);
+        prizes = new();
+        run.Stock(prizes, stop);
+        // Where it lies along the line (the stop's zone is straight), and the engine's front --comet m past that: the cab
+        // coming up on it, the driver leaning out to look.
+        double s = run.Stops[stop].Start + run.Stops[stop].Stop!.Containers[run.CometsAt(stop)[0]].At.S;
+        var by = line.Sample(s);
+        s += Double3.Dot(prizes.All.First(DarkTerritory.Sim.Run.Run.IsComet).Pbd.Particles[0].Position - by.Position, by.Tangent);
+        at = s + Opt(args, "--comet", -22);
+    }
     var train = new TrainOnLine(new TrainDynamics(consist), line, at);
     if (site is { Spur: >= 0 })
     {
@@ -1328,6 +1348,18 @@ static object Screenshot(TrainTuning t, string content, string[] args)
     var outro = DataFile.Load<WreckTuning>(Path.Combine(content, WreckTuning.File)).Stranded;
     var camera = strandedAt >= 0 && !args.Contains("--view") ? Views.Stranded(train, outro, strandedAt)
         : train.Wreck is { } shown && !args.Contains("--view") ? Views.Wreck(shown, shown.RealSeconds) : Views.Get(view, train, (int)Opt(args, "--car", 2));
+    // The comet view (note 718): the driver leaning out of the cab on the side the fragment lies, looking up the line at it.
+    if (view == "comet" && prizes?.All.FirstOrDefault(DarkTerritory.Sim.Run.Run.IsComet) is { } fragment)
+    {
+        var cab = train.Frames[0];
+        var there = fragment.Pbd.Particles[0].Position;
+        int side = cab.ToLocal(there).X > 0 ? 1 : -1;
+        var eye = cab.ToWorld(Views.CabEye(cab.Shape, side) with { X = side * (cab.Shape.HalfWidth + 0.3) });
+        camera = Camera.LookAt(eye, there + Double3.Up * 1.5, 50);
+        // --close: stood over it, 3.5 m off on the line's side, to see the lump itself.
+        if (args.Contains("--close"))
+            camera = Camera.LookAt(there + ((eye - there) with { Y = 0 }).Normalized * 3.5 + Double3.Up * 1.6, there, 55);
+    }
     if (town is not null && !args.Contains("--view"))
         camera = Staging.TownCamera(town, args.Contains("--arrival") ? Str(args, "--where", "square") : Str(args, "--town", "square"));
     if (arrival is not null && !args.Contains("--view"))
@@ -1790,6 +1822,19 @@ static object Screenshot(TrainTuning t, string content, string[] args)
         foreach (int k in run.HidingSpots.Select(h => h.Stop).Distinct())
             run.Stock(searched, k, searched: true);
     }
+    // The trophies view (note 718): every creature's trophy (loot.json trophies) laid out on the ground off the line's left,
+    // ahead of the engine, where a crewmate stood beside it looks down at them.
+    if (view == "trophies" && generated is not null)
+    {
+        var lt = DataFile.Load<LootTuning>(Path.Combine(content, LootTuning.File));
+        run ??= new DarkTerritory.Sim.Run.Run(DataFile.Load<DarkTerritory.Sim.Run.RunTuning>(Path.Combine(content, DarkTerritory.Sim.Run.RunTuning.File)), generated);
+        if (run.Stops.Count == 0)
+            run.EnableLoot(lt, line, null);
+        prizes ??= new();
+        var kinds = Enum.GetValues<DarkTerritory.Sim.Enemies.EnemyKind>().Where(k => lt.Trophies.ContainsKey(DarkTerritory.Sim.Enemies.Director.Key(k))).ToList();
+        for (int i = 0; i < kinds.Count; i++)
+            prizes.SpawnLoot(Staging.Lineside(train, 5 + i % 5 * 1.1, -3.6 - i / 5 * 1.0), train.Dynamics.Distance, DarkTerritory.Sim.Run.Run.TrophyOwner(kinds[i]), lt.Radius);
+    }
     if (look is not null && args.Contains("--reverser"))
         look.Art.ReverserThrown = Opt(args, "--reverser", 0.4);
     var scene = new GreyboxScene
@@ -2083,6 +2128,8 @@ static object Screenshot(TrainTuning t, string content, string[] args)
     }
     if (searched is not null)
         scene.Bodies = [.. scene.Bodies ?? [], .. searched.All];
+    if (prizes is not null)
+        scene.Bodies = [.. scene.Bodies ?? [], .. prizes.All];
     // The village houses' doors (note 401), hanging open; --doors-shut: every one shut.
     if (generated is not null)
     {
