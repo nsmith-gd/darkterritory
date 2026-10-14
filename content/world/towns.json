@@ -498,6 +498,7 @@
         "lower": ["the Low Marsh", "Bas-Marais", "the Reeds"],
         "landing": ["the Landing", "the Boat Landing", "Ferry Steps"] },
       "landmarks": {
+        "dory": { "title": "a punt at the landing", "text": "Flat-bottomed, tarred, a pole along its thwarts. They pole between the walks in the dark rather than cross the open boards. The punt doesn't creak. The boards do." },
         "chapel": { "title": "the chapel on the hummock", "text": "Built on the only ground that never floods. The graves are in the walls, not under the floor: the marsh gives back what you put in it. Names on every stone, and a mark for the tide that night." },
         "watchtower": { "title": "the marsh watch", "text": "A tower on stilts over the reeds, a man in it all night with a lamp and a bell. He doesn't watch the land. He watches the water, for the place where the reeds lie down the wrong way." } } },
     "quarry": { "name": "a quarry town",
@@ -516,6 +517,7 @@
         "chapel": ["Chapel Hill", "the High Ground", "Sanctuary"],
         "high": ["the High Ward", "Upper Town", "the Ramparts"] },
       "landmarks": {
+        "dory": { "title": "a dory at the jetty", "text": "Tied fore and aft, bailed dry, the oars shipped and a lantern in the bow. Whoever lives at the end of the walk keeps it ready. When the tide comes up through the planks you don't wait for the causeway." },
         "chapel": { "title": "the chapel on the hill", "text": "Built when the tide first came in and didn't all go out. A line is cut in the doorpost for each year's highest water. They're getting closer to the step. The bell rings at the turn of every tide, so the drowned ward knows." },
         "watchtower": { "title": "the tide watch", "text": "A tower over the high ward with a board on it, chalked: TIDE IN, TIDE OUT, and a third column nobody explains, with a tally in it." },
         "crane": { "title": "the salvage crane", "text": "What the wharves bring up from the drowned ward goes on the hook and into the yard to be counted. Furniture, mostly. A pram. A door with its own number still on it, from a street that's under the water now." } } },

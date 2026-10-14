@@ -3,9 +3,11 @@ namespace DarkTerritory.Sim.Towns;
 /// <summary>
 /// What a piece of a town's ground is (queue #424, note 692): a quarter of it (houses, a market, the works), water inside
 /// the wall (a harbour's basin, a fen's channels, a drowned ward), a deck of planks on piles over it, a terrace or bench
-/// stepped up or down from the yard's level, a growing plot, or the rail yard.
+/// stepped up or down from the yard's level, a growing plot, or the rail yard; or a stage, a deck built to bear houses
+/// (the director, 14 Oct: "a bunch of the houses are sort of on these like standing water platforms"; a fen town "built
+/// onto the water ... all stilted"), drawn and walked as a deck, its lots built on.
 /// </summary>
-public enum DistrictKind : byte { Quarter, Water, Deck, Terrace, Plots, Yard }
+public enum DistrictKind : byte { Quarter, Water, Deck, Terrace, Plots, Yard, Stage }
 
 /// <summary>
 /// One piece of a town's ground plan (note 692): its kind, its id (towns.json <c>forms</c>' district ids), the name the town

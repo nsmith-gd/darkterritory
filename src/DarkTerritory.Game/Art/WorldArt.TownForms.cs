@@ -21,6 +21,23 @@ public sealed partial class WorldArt
     /// <summary>How far round its shaped ground a town draws its own (m), so the land's coarser mesh never meets a terrace's foot.</summary>
     const double FormApron = 6;
 
+    /// <summary>A deck's piles (note 692): its corners and along its edges every <see cref="PileEvery"/> m.</summary>
+    static IEnumerable<(double S, double D)> Piles(double s0, double s1, double d0, double d1)
+    {
+        int ns = Math.Max(1, (int)Math.Round((s1 - s0) / PileEvery)), nd = Math.Max(1, (int)Math.Round((d1 - d0) / PileEvery));
+        for (int i = 0; i <= ns; i++)
+            foreach (double d in nd > 0 ? new[] { d0, d1 } : [d0])
+                yield return (s0 + (s1 - s0) * i / ns, d);
+        for (int j = 1; j < nd; j++)
+            foreach (double s in new[] { s0, s1 })
+                yield return (s, d0 + (d1 - d0) * j / nd);
+    }
+
+    const double PileEvery = 3.5;
+
+    /// <summary>The grid a fen's reeds and dead trees are scattered on (m), each a hash of its cell (the same every frame).</summary>
+    const double MarshCell = 5;
+
     /// <summary>A drop taller than this (m) is drawn as rock, not a retaining wall's masonry (note 692): a crag, not a tier.</summary>
     const double RockFace = 6;
 
@@ -129,12 +146,43 @@ public sealed partial class WorldArt
                 sheet.Quad(W3(s0, d0, level), W3(s1, d0, level), W3(s1, d1, level), W3(s0, d1, level), 0, 0, 0, 0);
             }
         }
+        // A fen's reeds and drowned trees in its open water (note 692; the director, 14 Oct: "built on a swampy marsh"), a
+        // drowned ward's few dead trees: wherever the water's open (no deck over it, none beside), near enough to see.
+        if (plan.Form is "dykeland" or "tidewater")
+        {
+            var g = town.Ground;
+            bool fen = plan.Form == "dykeland";
+            bool Open(double s, double d) => g.Water(s, d) is { } w && g.Level(s, d) < w - 0.05;
+            for (double s = Math.Floor(g.S0 / MarshCell) * MarshCell; s < g.S0 + g.Ns; s += MarshCell)
+                for (double d = Math.Floor(g.D0 / MarshCell) * MarshCell; d < g.D0 + g.Nd; d += MarshCell)
+                {
+                    uint h = (uint)((int)Math.Round(s) * 73856093 ^ (int)Math.Round(d) * 19349663);
+                    h = (h ^ (h >> 13)) * 0x5bd1e995u;
+                    float roll = (h >> 8) / 16777216f;
+                    bool tree = roll < (fen ? 0.012f : 0.004f), reed = fen && roll > 0.74f;
+                    if (!tree && !reed)
+                        continue;
+                    // Jittered off the grid, clear of any deck by a few metres.
+                    double js = s + ((h & 0xF) / 15.0 - 0.5) * MarshCell, jd = d + (((h >> 4) & 0xF) / 15.0 - 0.5) * MarshCell;
+                    if (!Open(js, jd) || !Open(js + 3, jd) || !Open(js - 3, jd) || !Open(js, jd + 3) || !Open(js, jd - 3))
+                        continue;
+                    var at = town.World(js, jd);
+                    if ((at - eye).Length > (tree ? 420 : 240))
+                        continue;
+                    int v = (int)(h >> 24) % 3;
+                    var piece = tree ? Piece($"marsh-tree-{v}", () => WorldKit.DeadTree(_look, v, 7 + v * 2.5f)) : Piece($"marsh-reeds-{v}", () => SettingKit.Reeds(_look, v));
+                    mesh.Instances.Add(new MeshInstance(piece, Basis(o.Tangent, at, eye, (h >> 16) % 628 / 100f), Shadowless: !tree));
+                }
+        }
         // The landmarks: the kit's pieces where the form put them.
         foreach (var f in plan.Fixtures)
         {
             if (f.House >= 0 || !Landmark(f.Kind) || plan.Works is { } wk && wk.Holds(f.S, f.D, 1))
                 continue;
             var at = town.World(f.S, f.D);
+            // A boat rides on the water, not its bed (note 692).
+            if (f.Kind == "dory" && town.Ground.Water(f.S, f.D) is { } surface)
+                at += Double3.Up * (surface - town.Ground.Level(f.S, f.D));
             if ((at - eye).Length > 460)
                 continue;
             var m = Place(line, eye, at, f.S, f.FaceS, f.FaceD);
@@ -152,6 +200,7 @@ public sealed partial class WorldArt
                 "watchtower" => (Piece("tower-1", () => StructureKit.Tower(_look, 1)), 1.1f),
                 "crane" => (Piece("form-crane", () => SettingKit.Headframe(_look)), 0.55f),
                 "boatshed" => (Piece("form-boatshed", () => NovaKit.FishShed(_look, 1)), 1.6f),
+                "dory" when ((int)Math.Abs(f.S * 7 + f.D * 13) % 3) is var v => (Piece($"dory-afloat-{v}", () => MaritimeKit.Afloat(_look, v)), 1f),
                 _ => (Piece($"works-{(f.Kind == "seedhouse" ? "glasshouse" : f.Kind)}", () => WorksKit.Piece(_look, f.Kind == "seedhouse" ? "glasshouse" : f.Kind)), 1f),
             };
             mesh.Instances.Add(new MeshInstance(piece, Matrix4x4.CreateScale(scale) * m));
@@ -238,7 +287,7 @@ public sealed partial class WorldArt
     }
 
     /// <summary>The landmarks a town type stands (TownForms' kinds) that the square and the works don't draw.</summary>
-    static bool Landmark(string kind) => kind is "lighthouse" or "beacon" or "chapel" or "watchtower" or "lift" or "crane" or "boatshed" or "seedhouse" or "glasshouse";
+    static bool Landmark(string kind) => kind is "lighthouse" or "beacon" or "chapel" or "watchtower" or "lift" or "crane" or "boatshed" or "seedhouse" or "glasshouse" or "dory";
 
     /// <summary>
     /// A town type's ground as one piece, in its frame from the line's start (−Z along the line, +X across to its right):
@@ -298,7 +347,9 @@ public sealed partial class WorldArt
                     k.Use("wood_grey", Palette.DeepBrown, 0.8f, 0.05f, tile: 2);
                     k.Box(V(s1, level - 0.25, d0), V(s0, level, d1), true, true);
                     k.Use("wood_sleeper", Palette.DeepBrown, 0.9f, 0.05f, tile: 2);
-                    foreach (var (ps, pd) in new[] { (s0 + 0.3, d0 + 0.3), (s1 - 0.3, d1 - 0.3) })
+                    // Its piles round its edges, every few metres (a stage of houses stands on them, note 692; what's
+                    // under its middle can't be seen).
+                    foreach (var (ps, pd) in Piles(s0 + 0.3, s1 - 0.3, d0 + 0.3, d1 - 0.3))
                         k.Box(V(ps + 0.15, g.Bed(ps, pd) - 0.5, pd - 0.15), V(ps - 0.15, level - 0.25, pd + 0.15), false, false);
                     break;
                 case 2:
@@ -419,6 +470,13 @@ public sealed partial class WorldArt
                     double la = g.Level(as_, ad), lb = g.Level(bs, bd);
                     if (Math.Abs(la - lb) <= Sim.Towns.TownGround.Stride)
                         continue;
+                    // A deck's edge over the marsh (a fen's stages, note 692): its timber rail, not a terrace's stone.
+                    if (g.Deck(as_, ad) || g.Deck(bs, bd))
+                    {
+                        k.Use("wood_grey", Palette.DeepBrown, 0.85f, 0.05f, tile: 2);
+                        Run(a0, a1, Math.Max(la, lb), 1.0, 0.06, true);
+                        continue;
+                    }
                     // A step past a stride: the stone parapet on the higher side.
                     k.Use(face, Palette.DeepBrown, 0.8f, 0.05f, tile: 3);
                     Run(a0, a1, Math.Max(la, lb) - 0.3, 1.2, 0.22, false);

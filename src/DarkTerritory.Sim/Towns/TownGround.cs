@@ -96,7 +96,7 @@ public sealed class TownGround
                         continue;
                     if (!d.Holds(s, dd))
                     {
-                        if (f <= 0 || d.Kind is DistrictKind.Water or DistrictKind.Deck)
+                        if (f <= 0 || d.Kind is DistrictKind.Water or DistrictKind.Deck or DistrictKind.Stage)
                             continue;
                         double away = d.Distance(s, dd);
                         if (away >= f)
@@ -112,7 +112,7 @@ public sealed class TownGround
                             _bed[k] = _level[k] = (float)(d.Level - d.Depth);
                             _kind[k] = 2;
                             break;
-                        case DistrictKind.Deck:
+                        case DistrictKind.Deck or DistrictKind.Stage:
                             // Over whatever's under it: the water and its bed stay, the deck is what's stood on.
                             _level[k] = (float)d.Level;
                             if (_kind[k] != 2)

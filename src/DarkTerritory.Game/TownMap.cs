@@ -111,8 +111,8 @@ public static class TownMap
         foreach (var d in plan.Districts.Where(d => d.Kind is DistrictKind.Plots or DistrictKind.Yard))
             Poly(d.Outline, d.Kind == DistrictKind.Plots ? Plot : Hard);
         if (relief.Flat)
-            foreach (var d in plan.Districts.OrderBy(d => d.Kind switch { DistrictKind.Water => 0, DistrictKind.Deck => 2, _ => 1 }))
-                Poly(d.Outline, d.Kind switch { DistrictKind.Water => Water, DistrictKind.Deck => Deck, _ => Shade(Ground, d.Level) });
+            foreach (var d in plan.Districts.OrderBy(d => d.Kind switch { DistrictKind.Water => 0, DistrictKind.Deck or DistrictKind.Stage => 2, _ => 1 }))
+                Poly(d.Outline, d.Kind switch { DistrictKind.Water => Water, DistrictKind.Deck or DistrictKind.Stage => Deck, _ => Shade(Ground, d.Level) });
         // The walls the ground needs (retaining walls, rails at deep water), thin and pale.
         foreach (var (es0, ed0, es1, ed1, _, _) in relief.Edges())
             Seg(es0, ed0, es1, ed1, (190, 182, 160), 0.5);

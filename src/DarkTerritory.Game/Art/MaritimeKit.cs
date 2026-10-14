@@ -1490,6 +1490,40 @@ public static class MaritimeKit
         }
     }
 
+    /// <summary>
+    /// A dory afloat (note 692; the director, 14 Oct: a house out on the water needs "a dock and a boat, something that
+    /// shows how the NPC would get to and from that spot"): open, its bow to −Z, the waterline at 0, two thwarts and its
+    /// oars shipped across them, in the yard dories' paints.
+    /// </summary>
+    public static MeshAsset Afloat(Look? look, int variant)
+    {
+        var k = new Kit(look, 9500 + variant);
+        var paint = variant switch { 0 => new Vector3(0.62f, 0.52f, 0.32f), 1 => new Vector3(0.12f, 0.24f, 0.17f), _ => new Vector3(0.42f, 0.1f, 0.08f) };
+        const float half = 0.72f, body = 1.3f, tip = 2.6f, low = -0.22f, top = 0.5f, plank = 0.05f;
+        k.Use("wood_floor", Palette.DeepBrown, 0.8f, 0.1f, tile: 0.8f);
+        k.Tint = paint * 2.2f;
+        foreach (float x in new[] { -half, half - plank })
+            k.Box(new Vector3(x, low, -body), new Vector3(x + plank, top, body), Kit.Faces.Sides | Kit.Faces.PosY);
+        // Its sides drawn in to the stem and the transom's point, both faces (you see in over the gunwale).
+        foreach (float end in new[] { -1f, 1f })
+            foreach (float side in new[] { -1f, 1f })
+            {
+                var a0 = new Vector3(side * half, low, end * body);
+                var a1 = new Vector3(side * half, top, end * body);
+                var t0 = new Vector3(0, low + 0.08f, end * tip);
+                var t1 = new Vector3(0, top + 0.12f, end * tip);
+                k.Quad(a1, t1, t0, a0, twoSided: true);
+            }
+        // The bottom boards, the thwarts and the oars, grey and bare.
+        k.Use("wood_grey", Palette.DeepBrown, 0.9f, 0, tile: 1);
+        k.Box(new Vector3(-half + plank, low, -body), new Vector3(half - plank, low + 0.1f, body), Kit.Faces.PosY);
+        foreach (float z in new[] { -0.55f, 0.6f })
+            k.Box(new Vector3(-half + plank, 0.22f, z - 0.12f), new Vector3(half - plank, 0.28f, z + 0.12f), Kit.Faces.PosY | Kit.Faces.Sides);
+        foreach (float x in new[] { -0.25f, 0.25f })
+            k.Box(new Vector3(x - 0.04f, 0.29f, -1.9f), new Vector3(x + 0.04f, 0.34f, 1.4f), Kit.Faces.PosY | Kit.Faces.Sides);
+        return k.Build($"dory-afloat-{variant}");
+    }
+
     /// <summary>A dory turned over on its blocks: the hull's flat bottom up, its sides drawn in to the bow and stern.</summary>
     static void Dory(Kit k, float x0, float x1, float z0, float z1, float ht, int variant)
     {

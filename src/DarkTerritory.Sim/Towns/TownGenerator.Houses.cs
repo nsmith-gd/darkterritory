@@ -310,10 +310,10 @@ public static partial class TownGenerator
         int dry = lots.Count;
         if (form is not null)
         {
-            dry = form.Lots.Count(l => !l.Drowned);
+            dry = form.Lots.Count;
             int want = Math.Min(Math.Clamp((int)Math.Round(population / Math.Max(1, t.Explorable.Per)), t.Explorable.Min, t.Explorable.Max), dry);
             var order = Enumerable.Range(0, form.Lots.Count).ToList();
-            var squareLots = order.Where(i => form.Lots[i].Turn == 0 && !form.Lots[i].Drowned).Take(want).ToList();
+            var squareLots = order.Where(i => form.Lots[i].Turn == 0).Take(want).ToList();
             order = [.. squareLots, .. order.Except(squareLots)];
             var formLots = order.Select(i => form.Lots[i]).ToList();
             form.Lots.Clear();
@@ -380,7 +380,7 @@ public static partial class TownGenerator
             width = Math.Min(width, frontage - 2);
             double room = (frontage - width) / 2 - 0.6;
             // A warren's row (note 692): shoulder to shoulder, each as wide as its lot, no room for a wing beside it.
-            if (row < 0 && form!.Packed && !form.Lots[i].Drowned)
+            if (row < 0 && form!.Packed)
             {
                 (width, room) = (frontage - 0.15, 0);
                 // An open house stands square (its rooms are the rail frame's), so it's narrower by as far as its lot's turn

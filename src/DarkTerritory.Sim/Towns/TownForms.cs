@@ -24,11 +24,7 @@ public static class TownForms
     /// <see cref="TownHouse.Side"/>), its frontage, how far it's turned (<see cref="TownHouse.Turn"/>: its front faces its way),
     /// the yard's street edge and back line (signed D, for a lot square to the line; null for none), and its ground's level.
     /// </summary>
-    public sealed record Lot(double S, double D, int Side, double Frontage, double Turn, double? Edge, double? Back, double Level)
-    {
-        /// <summary>A lost house standing in the water (a tidewater town's drowned ward): only ever one of the lost.</summary>
-        public bool Drowned { get; init; }
-    }
+    public sealed record Lot(double S, double D, int Side, double Frontage, double Turn, double? Edge, double? Back, double Level);
 
     /// <summary>A form's ground plan, as <see cref="Make"/> lays it.</summary>
     public sealed class Layout
@@ -107,6 +103,14 @@ public static class TownForms
         const double LotPad = 0.6, WallPad = 7, LineClear = 9.5, Cell = 1, BackPad = 0.35;
         /// <summary>The room a warren's band keeps over its two rows' depth (m): its streets' wander apart, a back alley.</summary>
         const double BandSlack = 1.2;
+        /// <summary>A boardwalk's width, a stage's lip past its houses' backs, and a jetty's length out over the water (m).</summary>
+        const double BoardwalkWidth = 2.5, StageLip = 0.6, JettyLength = 10;
+        /// <summary>How far apart a drowned ward's boardwalks are (m: two stages' depth and a channel), and their planks' height over the yard (a step up from a causeway).</summary>
+        const double BoroughEvery = 36, StageLevel = 0.6;
+        /// <summary>A borough's clusters of houses along its walk, and the open water between them (m, from-to).</summary>
+        static readonly double[] BoroughCluster = [16, 34], BoroughGap = [14, 30];
+        /// <summary>A fen town's (note 692): its walks built up most of their length, a gap of reeds now and then.</summary>
+        static readonly double[] FenCluster = [26, 52], FenGap = [6, 16];
         /// <summary>A stair street's rise over its run: a steep street's steps (a 24° flight), walked up a stride at a time.</summary>
         const double StairSlope = 0.45;
         readonly TownTuning _t;
@@ -303,7 +307,7 @@ public static class TownForms
                     (kind, level) = (x.Kind, x.Level);
                     continue;
                 }
-                if (x.Falloff <= 0 || x.Kind is DistrictKind.Water or DistrictKind.Deck)
+                if (x.Falloff <= 0 || x.Kind is DistrictKind.Water or DistrictKind.Deck or DistrictKind.Stage)
                     continue;
                 double away = x.Distance(s, d);
                 if (away < x.Falloff)
@@ -731,13 +735,15 @@ public static class TownForms
         /// Lots either side of a street that bends (its points as u, d), fronting it all along, shoulder to shoulder where the
         /// form packs them (its lot pad then a hand's breadth): each as it comes along the street, turned to it there.
         /// </summary>
-        void LotsAlong(IReadOnlyList<(double U, double D)> pts, double wayWidth, double level, double depth = 0)
+        void LotsAlong(IReadOnlyList<(double U, double D)> pts, double wayWidth, double level, double depth = 0, int sides = 3)
         {
             if (depth <= 0)
                 depth = _f.LotDepth;
             double pad = _f.Packed ? 0.15 : LotPad, off = wayWidth / 2 + _f.Setback + depth / 2;
             foreach (int sigma in new[] { 1, -1 })
             {
+                if ((sides & (sigma > 0 ? 1 : 2)) == 0)
+                    continue;
                 // The line the lots' middles stand on, out from the street's on this side: spaced along it, not the street's,
                 // so a bend's inside row doesn't crowd (left of the way's direction is (−td, ts)).
                 var line = new List<(double U, double D)>();
@@ -786,6 +792,82 @@ public static class TownForms
                     var (side, turn) = Facing(-ns, -nd);
                     _l.Lots.Add(new Lot(Math.Round(cs, 3), Math.Round(cd, 3), side, front, turn, null, null, lv));
                 }
+            }
+        }
+
+        /// <summary>A line's (u, d) stretch from <paramref name="from"/> to <paramref name="to"/> along it (m).</summary>
+        static List<(double U, double D)> Slice(IReadOnlyList<(double U, double D)> pts, double from, double to)
+        {
+            var piece = new List<(double U, double D)>();
+            double at = 0;
+            for (int i = 1; i < pts.Count; i++)
+            {
+                var (a, b) = (pts[i - 1], pts[i]);
+                double len = Math.Sqrt((b.U - a.U) * (b.U - a.U) + (b.D - a.D) * (b.D - a.D));
+                (double U, double D) At(double x) => (a.U + (b.U - a.U) * (x - at) / Math.Max(1e-9, len), a.D + (b.D - a.D) * (x - at) / Math.Max(1e-9, len));
+                double x0 = Math.Max(from, at), x1 = Math.Min(to, at + len);
+                if (x1 > x0)
+                {
+                    if (piece.Count == 0)
+                        piece.Add(At(x0));
+                    piece.Add(At(x1));
+                }
+                at += len;
+            }
+            return piece;
+        }
+
+        /// <summary>A line (u, d) moved <paramref name="by"/> to its left (as you walk it from its first point; right if negative).</summary>
+        static List<(double U, double D)> Offset(IReadOnlyList<(double U, double D)> pts, double by)
+        {
+            var line = new List<(double U, double D)>();
+            for (int i = 0; i < pts.Count; i++)
+            {
+                var (a, b) = (pts[Math.Max(0, i - 1)], pts[Math.Min(pts.Count - 1, i + 1)]);
+                double tl = Math.Max(1e-9, Math.Sqrt((b.U - a.U) * (b.U - a.U) + (b.D - a.D) * (b.D - a.D)));
+                line.Add((pts[i].U - (b.D - a.D) / tl * by, pts[i].D + (b.U - a.U) / tl * by));
+            }
+            return line;
+        }
+
+        /// <summary>
+        /// A boardwalk over the water (note 692; the director, 14 Oct: the drowned town's houses "on these like standing water
+        /// platforms ... connected to ladders, ... roads, ... seawalls ... not just these isolated things on their own"; the fen
+        /// town "sitting on this like stilts above the water"): planks on piles along its points at <paramref name="level"/>,
+        /// and a stage built out either side of it (<paramref name="sides"/> as <see cref="LotsAlong"/>'s) bearing a row of
+        /// houses fronting it. Where it ends in open water (<paramref name="jetty"/>: 1 its first end, 2 its last), a jetty
+        /// on and a boat tied at its foot, how they come and go when the tide's in the streets.
+        /// </summary>
+        void Boardwalk(IReadOnlyList<(double U, double D)> pts, double level, int jetty = 0, int sides = 3, double width = BoardwalkWidth,
+            IReadOnlyList<(double From, double To, int Sides)>? stages = null)
+        {
+            double reach = width / 2 + _f.Setback + _f.LotDepth + StageLip;
+            Way(pts, width, deck: true, level: level);
+            // Its stages: all along it, or where it's told (from, to along it, which sides), open water between.
+            foreach (var (from, to, these) in stages ?? [(0, double.MaxValue, sides)])
+            {
+                var piece = Slice(pts, from, to);
+                if (piece.Count < 2)
+                    continue;
+                foreach (int sigma in new[] { 1, -1 })
+                    if ((these & (sigma > 0 ? 1 : 2)) != 0)
+                    {
+                        var near = Offset(piece, sigma * width / 2);
+                        var far = Offset(piece, sigma * reach);
+                        District(DistrictKind.Stage, "stage", [.. near, .. Enumerable.Reverse(far)], level, named: false);
+                    }
+                LotsAlong(piece, width, level, sides: these);
+            }
+            foreach (int end in new[] { 1, 2 })
+            {
+                if ((jetty & end) == 0)
+                    continue;
+                var (e, f) = end == 1 ? (pts[0], pts[1]) : (pts[^1], pts[^2]);
+                double el = Math.Max(1e-9, Math.Sqrt((e.U - f.U) * (e.U - f.U) + (e.D - f.D) * (e.D - f.D)));
+                double tu = (e.U - f.U) / el, td = (e.D - f.D) / el;
+                Way([e, (e.U + tu * JettyLength, e.D + td * JettyLength)], width * 0.8, deck: true, level: level);
+                // The boat alongside the jetty's end, its bow out the way the jetty points.
+                Landmark("dory", e.U + tu * (JettyLength - 2) - td * (width / 2 + 1.2), e.D + td * (JettyLength - 2) + tu * (width / 2 + 1.2), tu, td, pad: 0.3);
             }
         }
 
@@ -882,9 +964,12 @@ public static class TownForms
         }
 
         /// <summary>
-        /// A dykeland town on the marsh (the director's "Fenfolk"; the Tantramar, Grand-Pré's aboiteaux): a palisade round
-        /// salt marsh, the railway on its dyke through the middle, the houses on their hummocks along the boardwalks, the
-        /// market hummock by the square, the chapel on the high hummock, the boat landing on the far side.
+        /// A dykeland town built out over its marsh (the director's "Fenfolk", 14 Oct: "a dock town that's sitting on this like
+        /// stilts above the water ... built onto the water, and ... the houses in the town are all stilted ... walking these
+        /// sort of wooden pathways ... they built it on a swampy marsh"; the Tantramar, Grand-Pré's aboiteaux): a palisade
+        /// round salt marsh, the railway on its dyke through the middle, a web of boardwalks wandering out from the dyke
+        /// between the reeds and joined across, every house on a stage along them; the market mound by the square and the
+        /// chapel's, the only ground that never floods, ringed by stages; the watch on its own stage, the boat landing.
         /// </summary>
         public void Dykeland()
         {
@@ -894,67 +979,106 @@ public static class TownForms
             double m = _f.Margin;
             Sea(Rect(-L - m - 40, m + 40, -wl - m - 60, wr + m + 60), -0.6, 0.6);
             Approach(5);
-            // The marsh everywhere inside, then the dyke the line runs on and the hummocks out of it.
+            // The marsh everywhere inside, then the dyke the line runs on and the two mounds out of it.
             District(DistrictKind.Water, "marsh", _l.Outline.Select(x => (x.S - _gate, x.D)), _f.WaterLevel);
             District(DistrictKind.Quarter, "dyke", Rect(-L, 0, -16, 16), named: false);
-            // The old dyke road behind the square, along the line, its houses on hummocks either side.
-            District(DistrictKind.Quarter, "road", Rect(-L + 20, -20, -38, -26), named: false);
             District(DistrictKind.Quarter, "market", Blob(-62, -50, 56, 30, 0.06, 16, "market"));
             Green(36, 58);
-            District(DistrictKind.Quarter, "upper", Blob(-L * 0.72, -wl * 0.6, 55, 38, 0.1, 18, "upper"));
-            Landmark("chapel", -L * 0.72, -wl * 0.6 - 12, 0, 1);
-            District(DistrictKind.Quarter, "lower", Blob(-L * 0.42, wr * 0.55, 48, 34, 0.1, 18, "lower"));
-            District(DistrictKind.Quarter, "tower", Blob(-L * 0.18, wr * 0.72, 16, 16, 0.05, 10, "tower"), named: false);
-            Landmark("watchtower", -L * 0.18, wr * 0.72, 0, -1);
+            District(DistrictKind.Quarter, "upper", Blob(-L * 0.72, -wl * 0.6, 30, 22, 0.1, 18, "upper"));
+            Landmark("chapel", -L * 0.72, -wl * 0.6 - 4, 0, 1);
             District(DistrictKind.Quarter, "hay", Rect(-L + 26, -L + 114, 16, 44), named: false);
             Works(-L + 30, -L + 110, 18, 40, 1, "dykeland");
-            // The boardwalks: spines out from the dyke at each side, and walks between the hummocks.
-            var spines = new List<(double U, int Side, double Reach)>();
+            // The watch on its own stage out in the reeds, a walk out to it.
+            District(DistrictKind.Stage, "tower", Blob(-L * 0.18, wr * 0.72, 9, 9, 0.05, 10, "tower"), StageLevel, named: false);
+            Landmark("watchtower", -L * 0.18, wr * 0.72, 0, -1);
+            // The web: spines wandering out from the dyke (or the mounds' edges), joined across where they come near.
             var brng = _rngFor("form.walks");
-            for (double u = -L + 70; u < -20; u += brng.Range(70, 95))
+            var spines = new List<(int Side, List<(double U, double D)> Pts)>();
+            for (double u = -L + 52; u < -20; u += brng.Range(42, 58))
                 foreach (int side in new[] { -1, 1 })
-                    spines.Add((Math.Round(u + brng.Range(-12, 12), 1), side, (side < 0 ? wl : wr) - 25));
-            foreach (var (u, side, reach) in spines)
-                if (!(side < 0 && u > -130))
-                    Way([(u, side * 16), (u, side * reach)], 3, deck: true, level: 0.6);
-            // Cross walks joining the spines' far halves, a dog-leg between each pair.
+                {
+                    double from = side < 0 && u > -126 ? 84 : 16, reach = (side < 0 ? wl : wr) - 22;
+                    if (side > 0 && u > -L + 18 && u < -L + 122)
+                        from = 46;
+                    var pts = new List<(double U, double D)> { (u, side * from) };
+                    double wander = 0;
+                    for (int k = 1; k <= 4; k++)
+                    {
+                        wander += brng.Range(-9, 9);
+                        pts.Add((u + wander, side * (from + (reach - from) * k / 4)));
+                    }
+                    spines.Add((side, pts));
+                }
+            foreach (var (side, pts) in spines)
+                Boardwalk(pts, StageLevel, jetty: 2, stages: Clusters(Length(pts), brng, FenCluster, FenGap));
+            // Across: between each spine and the next on its side, a walk at a couple of places out along them.
             foreach (int side in new[] { -1, 1 })
             {
-                var mine = spines.Where(x => x.Side == side && !(side < 0 && x.U > -130)).OrderBy(x => x.U).ToList();
+                var mine = spines.Where(x => x.Side == side).OrderBy(x => x.Pts[0].U).ToList();
                 for (int i = 1; i < mine.Count; i++)
-                {
-                    double da = side * brng.Range(45, 70), db = side * brng.Range(85, (side < 0 ? wl : wr) - 30);
-                    double mid = (mine[i - 1].U + mine[i].U) / 2;
-                    Way([(mine[i - 1].U, da), (mid, da), (mid, db), (mine[i].U, db)], 3, deck: true, level: 0.6);
-                }
+                    foreach (double at in new[] { brng.Range(0.3, 0.45), brng.Range(0.65, 0.85) })
+                    {
+                        double d = side * (Math.Abs(mine[i].Pts[0].D) + (Math.Abs(mine[i].Pts[^1].D) - Math.Abs(mine[i].Pts[0].D)) * at);
+                        if (Math.Abs(d) < Math.Abs(mine[i - 1].Pts[0].D) + 6)
+                            continue;
+                        double ua = UAt(mine[i - 1].Pts, d) + BoardwalkWidth, ub = UAt(mine[i].Pts, d) - BoardwalkWidth;
+                        if (ub - ua < 26)
+                            continue;
+                        double mid = (ua + ub) / 2 + brng.Range(-6, 6), dk = d + side * brng.Range(-5, 5);
+                        var pts = new List<(double U, double D)> { (ua, d), (mid, dk), (ub, d) };
+                        Boardwalk(pts, StageLevel, stages: Clusters(Length(pts), brng, FenCluster, FenGap));
+                    }
             }
-            // The boat landing on the far side, its jetty out from the walk.
-            District(DistrictKind.Deck, "landing", Rect(-L * 0.62, -L * 0.62 + 50, wr - 40, wr - 26), 0.6);
-            // The houses: on their hummocks along every walk (a lot in the marsh is raised to stand on), and round the hummocks.
-            foreach (var wy in _l.Ways.Where(x => x.Deck).ToList())
-                for (int i = 1; i < wy.Points.Count; i++)
-                    StiltLots(wy.Points[i - 1], wy.Points[i], wy.Width);
-            Street(-32, -L + 20, -20, 6);
-            StiltLots(P(-L + 20, -32), P(-20, -32), 6);
+            // Round the mounds: a boardwalk round each at its foot, a stage of houses outside it fronting the mound, open where
+            // it would cross the dyke, the square or its green.
+            foreach (var (u, d, ru, rd) in new[] { (-62.0, -50.0, 62.0, 35.0), (-L * 0.72, -wl * 0.6, 35.0, 27.0) })
+            {
+                var run = new List<(double U, double D)>();
+                void Flush()
+                {
+                    if (run.Count >= 3)
+                        Boardwalk([.. run], StageLevel, sides: 2);
+                    run.Clear();
+                }
+                foreach (var (pu, pd) in Circle(u, d, ru, rd, 40).Append((u + ru, d)))
+                    if (Math.Abs(pd) > 24 && Open(_gate + pu, pd) && InWall(_gate + pu, pd) && EdgeDistance(_gate + pu, pd) >= WallPad)
+                        run.Add((pu, pd));
+                    else
+                        Flush();
+                Flush();
+            }
+            // The boat landing on the far side, its punts.
+            District(DistrictKind.Deck, "landing", Rect(-L * 0.62, -L * 0.62 + 50, wr - 40, wr - 26), StageLevel);
+            Landmark("dory", -L * 0.62 + 20, wr - 22, 1, 0, pad: 0.3);
         }
 
-        /// <summary>Lots along a boardwalk over the marsh, each raised on its own hummock (a pad of ground round its house).</summary>
-        void StiltLots((double S, double D) a, (double S, double D) b, double width)
+        /// <summary>A line's length (m).</summary>
+        static double Length(IReadOnlyList<(double U, double D)> pts) =>
+            Enumerable.Range(1, pts.Count - 1).Sum(i => Math.Sqrt((pts[i].U - pts[i - 1].U) * (pts[i].U - pts[i - 1].U) + (pts[i].D - pts[i - 1].D) * (pts[i].D - pts[i - 1].D)));
+
+        /// <summary>Where a line running out from the line (its d growing in size) is along it at <paramref name="d"/> out.</summary>
+        static double UAt(IReadOnlyList<(double U, double D)> pts, double d)
         {
-            int before = _l.Lots.Count;
-            // Lay them as on dry ground, ignoring the water, then raise a hummock under each.
-            var water = _l.Districts.Where(x => x.Kind == DistrictKind.Water).ToList();
-            foreach (var x in water)
-                _l.Districts.Remove(x);
-            Lots(a.S - _gate, a.D, b.S - _gate, b.D, width, 3, _f.LotDepth * 0.85);
-            for (int i = 0; i < water.Count; i++)
-                _l.Districts.Insert(i, water[i]);
-            for (int i = before; i < _l.Lots.Count; i++)
+            for (int i = 1; i < pts.Count; i++)
             {
-                var lot = _l.Lots[i];
-                double r = lot.Frontage / 2 + 1.2;
-                _l.Districts.Add(new TownDistrict(DistrictKind.Quarter, "hummock", "", [.. Circle(lot.S, lot.D, r, r, 10)]));
+                var (a, b) = (pts[i - 1], pts[i]);
+                if ((d - a.D) * (d - b.D) <= 0 && Math.Abs(b.D - a.D) > 1e-9)
+                    return a.U + (b.U - a.U) * (d - a.D) / (b.D - a.D);
             }
+            return Math.Abs(d - pts[0].D) < Math.Abs(d - pts[^1].D) ? pts[0].U : pts[^1].U;
+        }
+
+        /// <summary>A walk's stages in clusters along it (from, to, which sides), the water between them (note 692).</summary>
+        static List<(double, double, int)> Clusters(double len, Pcg32 rng, double[] cluster, double[] gap)
+        {
+            var stages = new List<(double, double, int)>();
+            for (double x = rng.Range(4, 10); x < len - 12;)
+            {
+                double run = rng.Range(cluster[0], cluster[1]);
+                stages.Add((x, Math.Min(len - 4, x + run), rng.Chance(0.55) ? 3 : rng.Chance(0.5) ? 1 : 2));
+                x += run + rng.Range(gap[0], gap[1]);
+            }
+            return stages;
         }
 
         /// <summary>
@@ -1033,17 +1157,20 @@ public static class TownForms
             District(DistrictKind.Water, "drowned", water, _f.WaterLevel);
             // The causeways out across the flood to the wharf islands, and the wharves' decks.
             var crng = _rngFor("form.causeways");
+            var causeways = new List<(double U, double Far)>();
             for (int i = 0; i < 3; i++)
             {
                 double u = -L * (0.25 + 0.25 * i) + crng.Range(-15, 15), far = wr * crng.Range(0.6, 0.8);
+                causeways.Add((u, far));
                 District(DistrictKind.Quarter, "causeway", Rect(u - 4, u + 4, 20, far), named: false);
                 Way([(u, 20), (u, far)], 5);
                 District(DistrictKind.Quarter, i == 1 ? "wharves" : "wharf", Blob(u, far + 10, 24, 14, 0.1, 12, "wharf" + i), named: i == 1);
                 District(DistrictKind.Deck, "staging", Rect(u + 18, u + 24, far, far + 26), 0.8, named: false);
                 Lots(u - 20, far + 12, u + 20, far + 12, 3, 3, 0, false);
             }
-            // The drowned houses: the lost, standing in the water where their street was.
-            DrownedLots(water);
+            // The boroughs built up out of the flood (the director, 14 Oct): rows of boardwalks across it from causeway to
+            // causeway, a stage of houses either side of each; those out past the last causeway end in a jetty and a boat.
+            Boroughs(water, causeways);
             // Above the line: the square's green, the blocks climbing tier on tier toward the hills (note 692), then the
             // chapel hill and the high ward over the top tier, a stair up to each from it, houses round their crowns.
             Green(34, 56);
@@ -1065,21 +1192,46 @@ public static class TownForms
             Fill(-L * 0.35, -wl * 0.8, 58, 30, high);
         }
 
-        void DrownedLots(List<(double U, double D)> water)
+        /// <summary>
+        /// The drowned ward's boroughs (note 692): between each pair of causeways (and past the outermost, to the flood's
+        /// edge), a boardwalk every <see cref="BoroughEvery"/> out from the shore, kinked where the old street did, joined to
+        /// the causeway at each end it reaches (a step down to its stone), a jetty and a boat where it ends in the water.
+        /// </summary>
+        void Boroughs(List<(double U, double D)> water, List<(double U, double Far)> causeways)
         {
+            var rng = _rngFor("form.boroughs");
             var area = new TownDistrict(DistrictKind.Water, "", "", [.. water.Select(x => P(x.U, x.D))]);
-            var drng = _rngFor("form.drowned");
-            double u0 = water.Min(x => x.U) + 10, u1 = water.Max(x => x.U) - 10;
-            for (double d = 40; d < water.Max(x => x.D) - 10; d += 26)
-                for (double u = u0; u < u1; u += drng.Range(12, 18))
+            bool Wet(double u, double d) => area.Holds(_gate + u, d) && InWall(_gate + u, d) && EdgeDistance(_gate + u, d) >= WallPad;
+            var stops = causeways.OrderBy(c => c.U).ToList();
+            double u0 = water.Min(x => x.U), u1 = water.Max(x => x.U);
+            var spans = new List<(double A, double? FarA, double B, double? FarB)>();
+            spans.Add((u0, null, stops[0].U, stops[0].Far));
+            for (int i = 1; i < stops.Count; i++)
+                spans.Add((stops[i - 1].U, stops[i - 1].Far, stops[i].U, stops[i].Far));
+            spans.Add((stops[^1].U, stops[^1].Far, u1, null));
+            for (double d = water.Min(x => x.D) + 14; ; d += BoroughEvery)
+            {
+                foreach (var (a, farA, b, farB) in spans)
                 {
-                    var (cs, cd) = P(u, d + drng.Range(-2, 2));
-                    if (!area.Holds(cs, cd) || drng.Chance(0.35) || !Box(cs, cd, 1, 0, 5, 4, false))
+                    // From the causeway's side where it reaches this far out, else from where the water starts.
+                    bool fromA = farA is { } fa && fa > d + 3, toB = farB is { } fb && fb > d + 3;
+                    double a0 = fromA ? a + 4 : a, b0 = toB ? b - 4 : b;
+                    while (a0 < b0 && !fromA && !Wet(a0 + 4, d))
+                        a0 += 2;
+                    while (b0 > a0 && !toB && !Wet(b0 - 4, d))
+                        b0 -= 2;
+                    if (b0 - a0 < 28)
                         continue;
-                    Box(cs, cd, 1, 0, 5.5, 4.5, true);
-                    _l.Lots.Add(new Lot(Math.Round(cs, 3), Math.Round(cd, 3), drng.Chance(0.5) ? 1 : -1, 12, drng.Range(-0.3, 0.3), null, null, _f.WaterLevel - _f.WaterDepth)
-                    { Drowned = true });
+                    double mid = (a0 + b0) / 2 + rng.Range(-8, 8), dk = d + rng.Range(-3, 3);
+                    var pts = new List<(double U, double D)> { (a0, d), (mid, dk), (b0, d) };
+                    if (!Wet(mid, dk))
+                        continue;
+                    // Its houses in clusters along it, a stage on one side or both, the flood between them.
+                    Boardwalk(pts, StageLevel, jetty: (fromA ? 0 : 1) | (toB ? 0 : 2), stages: Clusters(Length(pts), rng, BoroughCluster, BoroughGap));
                 }
+                if (d > water.Max(x => x.D))
+                    break;
+            }
         }
 
         /// <summary>
@@ -1141,7 +1293,7 @@ public static class TownForms
             foreach (int side in new[] { -1, 1 })
             {
                 double d = side * (_f.Near - half - 0.15);
-                var behind = _l.Lots.Where(x => !x.Drowned && Math.Sign(x.D) == side && Math.Abs(x.D) < _f.Near + _f.LotDepth + 1).ToList();
+                var behind = _l.Lots.Where(x => Math.Sign(x.D) == side && Math.Abs(x.D) < _f.Near + _f.LotDepth + 1).ToList();
                 var through = _l.Ways.Where(w => w.Points.Any(p => Math.Sign(p.D) == side || Math.Abs(p.D) < 1)).ToList();
                 bool Stands(double s) =>
                     InWall(s, d) && EdgeDistance(s, d) >= 3
@@ -1178,7 +1330,7 @@ public static class TownForms
         /// paths for the player"): the town's ground walked from the platform, steps no taller than a stride, no water too
         /// deep to wade. Where a house's front isn't reached, a stair is laid up the least step between the ground it's on
         /// and the ground that is, nearest it; once the stairs run out (<see cref="StairRounds"/>), a house still cut off isn't
-        /// built. Drowned houses stand in the water and aren't walked to.
+        /// built.
         /// </summary>
         void Walkable()
         {
@@ -1187,7 +1339,7 @@ public static class TownForms
             {
                 var ground = TownGround.Build(_l.Bounds(_gate), _l.Districts, _l.Ways, 0);
                 var walk = ground.Walk(start.S, start.D);
-                var cut = _l.Lots.Where(x => !x.Drowned && Front(x) is var (fs, fd) && !walk(fs, fd)).ToList();
+                var cut = _l.Lots.Where(x => Front(x) is var (fs, fd) && !walk(fs, fd)).ToList();
                 if (cut.Count == 0)
                     return;
                 if (round == StairRounds)
@@ -1243,9 +1395,8 @@ public static class TownForms
                 && Math.Abs(x.S - m.S) < hs + x.Frontage / 2 && Math.Abs(x.D - m.D) < hd + _f.LotDepth / 2);
             _l.OnWays = _l.Lots.Count(OnAWay);
             _l.OnLandmarks = _l.Lots.Count(x => !OnAWay(x) && OnALandmark(x));
-            var kept = _l.Lots.Where(x => !OnAWay(x) && !OnALandmark(x) && GroundAt(x.S, x.D) is var (kind, level) && (x.Drowned
-                ? kind == DistrictKind.Water && Math.Abs(level - _f.WaterLevel) < 1e-6
-                : kind is not (DistrictKind.Water or DistrictKind.Deck or DistrictKind.Plots or DistrictKind.Yard) && Math.Abs(level - x.Level) < 1e-6)).ToList();
+            var kept = _l.Lots.Where(x => !OnAWay(x) && !OnALandmark(x) && GroundAt(x.S, x.D) is var (kind, level)
+                && kind is not (DistrictKind.Water or DistrictKind.Deck or DistrictKind.Plots or DistrictKind.Yard) && Math.Abs(level - x.Level) < 1e-6).ToList();
             _l.OffGround = _l.Lots.Count - _l.OnWays - _l.OnLandmarks - kept.Count;
             _l.Lots.Clear();
             _l.Lots.AddRange(kept);
@@ -1253,7 +1404,7 @@ public static class TownForms
             // Nearest the square first: the town grows out from its heart (note 335). Lots that can hold an open house
             // (square to the line, on dry ground) are kept first among equals.
             double hs = (_sq.S0 + _sq.S1) / 2, hd = _sq.Side * 15;
-            var sorted = _l.Lots.OrderBy(x => x.Drowned ? 1 : 0).ThenBy(x => (x.S - hs) * (x.S - hs) + (x.D - hd) * (x.D - hd)).ToList();
+            var sorted = _l.Lots.OrderBy(x => (x.S - hs) * (x.S - hs) + (x.D - hd) * (x.D - hd)).ToList();
             _l.Lots.Clear();
             _l.Lots.AddRange(sorted);
             if (_f.Packed)

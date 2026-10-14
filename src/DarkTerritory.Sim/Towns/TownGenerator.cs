@@ -729,6 +729,8 @@ public static class TownFixtures
         "watchtower" => (2.7, 2.7, 16),
         "lift" => (3.0, 3.0, 30),
         "crane" => (2.0, 2.0, 14),
+        // A dory tied at a jetty's foot (note 692): its beam across, its length along its bow's way.
+        "dory" => (0.8, 2.6, 0.9),
         "seedhouse" => (6.0, 4.0, 6.0),
         // In the houses (their furniture is the layout's): only the cradle stands on its own feet.
         "cradle" => (0.45, 0.3, 0.7),
