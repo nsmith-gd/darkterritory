@@ -14,7 +14,7 @@ namespace DarkTerritory.Sim;
 /// authority; a client steps the same code for its own predicted player (GDD §33: shared simulation)
 /// and only mirrors enemies from snapshots.
 /// </summary>
-public sealed class World
+public sealed partial class World
 {
     readonly List<Enemy> _enemies = new();
     readonly Dictionary<uint, List<HitTarget>> _targetHistory = new();
@@ -265,6 +265,7 @@ public sealed class World
     /// <summary>The whistle blows this long (the cord pulled by <paramref name="by"/>, or the Whistler at it).</summary>
     public void Whistled(double seconds, int by = -1)
     {
+        CalliopePull(by);
         WhistleSeconds = Math.Max(WhistleSeconds, seconds);
         WhistleBy = by;
     }
@@ -530,6 +531,7 @@ public sealed class World
     public void Stock()
     {
         MountExtinguishers();
+        RestockWhimsy();
         // The tiny caboose (note 713), on its string behind the last car.
         if (Train.Dynamics.Tuning.Composition.Dressed("tinyCaboose"))
             Bodies.SpawnCaboose(Train, Train.Dynamics.Tuning.Composition.Caboose);
@@ -1520,6 +1522,8 @@ public sealed class World
         // The tiny caboose off the rails (note 713): empty hands and Use within reach of it put it back on them.
         if (Authority && !handsTookIt && intent.Has(PlayerButtons.Use) && Bodies.CarriedBy(playerId) is null)
             Bodies.Rerail(s, Train, Train.Dynamics.Tuning.Composition.Caboose);
+        // The gramophone (note 715): a Use press at it, whatever's in your hands, winds it or lifts the needle off.
+        WindGramophone(s, intent, playerId);
         if (handsTookIt && Bodies.CarriedBy(playerId) is { Kind: Physics.BodyKind.Ragdoll } lifted)
             Physics.Bodies.TakeTools(ref s, lifted);
         // Searching an open house's hiding spot (note 326), empty-handed, with a Use the hands didn't take.
@@ -1711,6 +1715,7 @@ public sealed class World
             cars.Add(shot.GunVehicle);
         if (cars.Count == 0)
             return;
+        CanaryGassed(cars);
         Attribution.Gassed(gunner);
         var victims = new SortedSet<int>();
         foreach (var (id, st, _) in _actors)
@@ -1976,6 +1981,7 @@ public sealed class World
         if (Authority && TrackPlan is { } plan)
             LineGen.TrackRules.Step(this, plan, SimConstants.TickSeconds);
         WhistleSeconds = Math.Max(0, WhistleSeconds - SimConstants.TickSeconds);
+        StepWhimsy();
         if (Authority && Answer.Showing)
             Answer = Answer with { Seconds = Math.Max(0, Answer.Seconds - SimConstants.TickSeconds) };
         if (Authority && Watcher.Showing)
@@ -2167,6 +2173,9 @@ public sealed class World
                     Add(p.Id, band.Loudness);
                     Drew(DrawCause.Toy, p.Id, (draw?.Weight(DrawCause.Toy) ?? 0) * dt);
                 }
+        // The gramophone (note 715): a music box to the Choir, nobody's.
+        if (GramophonePlaying)
+            Add(-1, WhimsyTuning.GramophoneLoudness);
         if (WhistleSeconds > 0)
         {
             Add(WhistleBy, t.WhistleLoudness);

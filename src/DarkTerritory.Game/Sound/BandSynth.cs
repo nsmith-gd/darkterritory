@@ -83,6 +83,77 @@ public static class BandSynth
         return o;
     }
 
+    /// <summary>
+    /// The steam calliope's tune (note 715): "Pop Goes the Weasel" (traditional, public domain), a note a pull of the cord, round
+    /// and round. MIDI pitches, the pipes' octave.
+    /// </summary>
+    public static readonly int[] CalliopeTune =
+    [
+        79, 84, 84, 86, 86, 88, 91, 88, 84, 79, 84, 84, 86, 86, 88, 84,
+        79, 84, 84, 86, 86, 88, 91, 88, 84, 81, 86, 89, 88, 84,
+    ];
+
+    /// <summary>
+    /// A steam calliope's pipe (note 715): a whistle voiced on steam, bright and breathy and a little out, its vibrato the
+    /// steam's waver, held <paramref name="seconds"/> and cut off sharp at the valve.
+    /// </summary>
+    public static float[] Calliope(int pitch, double seconds)
+    {
+        var noise = new Noise((uint)(pitch * 7919));
+        double hz = Hz(pitch), release = 0.08;
+        var o = new float[Samples(seconds + release)];
+        Harmonics(o, hz, k => k == 1 ? 1.0 : k == 2 ? 0.55 : k == 3 ? 0.3 : 0.12 / k, t => 1.003 + 0.004 * Math.Sin(2 * Math.PI * 6.3 * t),
+            t => Held(t, seconds, 0.03, release));
+        var steam = new Biquad();
+        steam.Set(FilterType.BandPass, hz * 2, 2);
+        for (int i = 0; i < o.Length; i++)
+            o[i] += steam.Process(noise.Next()) * 0.22f * (float)Held((double)i / Rate, seconds, 0.01, release);
+        Filter(o, (FilterType.HighPass, 300, 0.7, 0), (FilterType.Peak, 2200, 1.0, 3));
+        Normalise(o, 0.7f);
+        return o;
+    }
+
+    /// <summary>
+    /// A canary's song (note 715): a run of quick rolling trills and chips up high, each phrase its own by <paramref name="seed"/>
+    /// (synthesised: no recording of one came through the intake).
+    /// </summary>
+    public static float[] Canary(int seed)
+    {
+        var noise = new Noise((uint)(seed * 104729 + 1));
+        var o = new float[Samples(2.6)];
+        double at = 0.05;
+        while (at < 2.3)
+        {
+            // A trill: one chirp repeated 6 to 14 times, falling or rising within it.
+            int reps = 6 + (int)(Math.Abs(noise.Next()) * 9);
+            double base_ = 2600 + Math.Abs(noise.Next()) * 2600, sweep = (noise.Next()) * 1400, len = 0.03 + Math.Abs(noise.Next()) * 0.04;
+            for (int r = 0; r < reps && at < 2.4; r++)
+            {
+                int from = (int)(at * Rate), n = Samples(len);
+                double phase = 0;
+                for (int i = 0; i < n && from + i < o.Length; i++)
+                {
+                    double t = (double)i / n;
+                    phase += 2 * Math.PI * (base_ + sweep * t) / Rate;
+                    o[from + i] += (float)(Math.Sin(phase) * Math.Sin(Math.PI * t) * 0.6);
+                }
+                at += len + 0.012;
+            }
+            at += 0.05 + Math.Abs(noise.Next()) * 0.12;
+        }
+        Normalise(o, 0.5f);
+        return o;
+    }
+
+    static void Normalise(float[] o, float to)
+    {
+        float peak = 1e-6f;
+        foreach (float x in o)
+            peak = Math.Max(peak, Math.Abs(x));
+        for (int i = 0; i < o.Length; i++)
+            o[i] *= to / peak;
+    }
+
     static double Hz(int midi) => 440 * Math.Pow(2, (midi - 69) / 12.0);
 
     static int Samples(double seconds) => Math.Max(1, (int)(seconds * Rate));

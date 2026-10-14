@@ -390,6 +390,7 @@ public sealed partial class GreyboxScene
         Cut = Art.SceneArt.Cuts(train);
         Handrails = train.Dynamics.Tuning.Composition.Handrails;
         Dress = train.Dynamics.Tuning.Composition.Dress;
+        WhimsyTuning = train.Dynamics.Tuning.Composition.Whimsy;
         Livery = train.Dynamics.Tuning.Composition.Livery;
         CabooseTuning = train.Dynamics.Tuning.Composition.Caboose;
         SwitchThrower = train.Dynamics.Tuning.Composition.SwitchThrower;
@@ -780,6 +781,7 @@ public sealed partial class GreyboxScene
                     double modeSeconds = e is Sim.Enemies.Moose moose ? MooseSince(moose) : -1;
                     if (e is Sim.Enemies.Gannet gannet)
                     {
+                        Carrying(mesh, gannet, frames, eye);
                         var (since, before) = GannetSince(gannet);
                         modeSeconds = since;
                         if (Look?.Art.Creatures is { } flock)

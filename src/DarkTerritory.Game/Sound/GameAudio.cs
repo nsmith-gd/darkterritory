@@ -172,6 +172,7 @@ public sealed partial class GameAudio
         RoofWarning(world);
         Toys(world, train);
         Band(world, train, dt);
+        Whimsies(world, train);
         Ride(train);
         HearWalls(world);
     }
@@ -404,6 +405,9 @@ public sealed partial class GameAudio
     /// <summary>The train's whistle, from the engine's dome, for as long as it blows (the cord, or the Whistler at it).</summary>
     void Whistle(World world, TrainOnLine train)
     {
+        // The steam calliope (note 715): its notes are the whistle.
+        if (Calliope(world, train))
+            return;
         // The cord's own whistle, once it's installed, is the crew's (crew-cab-controls, GameAudio.Crew.cs).
         if (world.WhistleSeconds <= 0 && train.Dynamics.Tuning.Composition.Dressed("cucarachaHorn"))
         {

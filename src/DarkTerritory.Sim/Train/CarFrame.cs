@@ -50,7 +50,9 @@ public enum SurfaceKind : byte { Roof, Deck, Coupler }
 public enum PartKind : byte
 {
     Body, Chassis, Boiler, Stack, CabWall, CabRoof, Tender, Coupler, GunMount, Wall, Cargo, Locker, Steps, RunningBoard, Hatch, CrewLocker, Stove, Bunk, Firebox,
-    BbqDeck, Rail, Cooler, Grill
+    BbqDeck, Rail, Cooler, Grill,
+    /// <summary>A piece of furniture the art draws as itself (the gramophone's table, note 715): solid, never drawn as a box.</summary>
+    Furniture
 }
 
 /// <summary>Where a gun is bolted on, and which way it faces in the car's frame (−Z forward, +Z back).</summary>
@@ -104,7 +106,7 @@ public readonly record struct Ladder(Double3 Foot, double Top, Double3 Inward, d
 /// <see cref="Chair"/>, <see cref="Cooler"/> and <see cref="Grill"/> are on the BBQ deck (note 698): a Muskoka chair to sit in
 /// (<see cref="Interactable.Index"/> which), the cooler of beers, the BBQ on its stand.
 /// </remarks>
-public enum InteractableKind : byte { Firebox, Vent, Handbrake, Door, Coal, Sandbox, Hatch, ToolRack, Locker, Points, Whistle, Chair, Cooler, Grill }
+public enum InteractableKind : byte { Firebox, Vent, Handbrake, Door, Coal, Sandbox, Hatch, ToolRack, Locker, Points, Whistle, Chair, Cooler, Grill, Gramophone }
 
 /// <summary>
 /// A thing a player uses by standing near it and holding Use. <see cref="Index"/> says which door. <see cref="Aim"/> is how
@@ -362,6 +364,21 @@ public sealed record CarShape(Box Bounds, IReadOnlyList<Solid> Solids, IReadOnly
         interactables.Add(new(InteractableKind.Cooler, cooler + new Double3(0, 0, 0.55), 0.7, Aim: 0.45));
         interactables.Add(new(InteractableKind.Grill, grill + new Double3(0, 0, 0.6), 0.75, Aim: 1.0));
         return shape with { Solids = solids, Interactables = interactables, Bbq = new BbqLayout(chairs, cooler, grill, front) };
+    }
+
+    /// <summary>
+    /// The guard van with the gramophone (note 715): its little table against the left wall (<see cref="Whimsy.Gramophone"/>),
+    /// solid, and wound from the aisle beside it.
+    /// </summary>
+    public static CarShape WithGramophone(CarShape shape)
+    {
+        if (shape.Interior is null)
+            return shape;
+        var at = Whimsy.Gramophone(shape);
+        var solids = shape.Solids.Append(new Solid(Box.FromCentre(at + new Double3(0, Whimsy.Table / 2, 0), new Double3(0.22, Whimsy.Table / 2, 0.22)),
+            SurfaceKind.Deck, PartKind.Furniture)).ToList();
+        var interactables = shape.Interactables.Append(new Interactable(InteractableKind.Gramophone, at + new Double3(0.6, 0, 0), 0.8, Aim: Whimsy.Table + 0.15)).ToList();
+        return shape with { Solids = solids, Interactables = interactables };
     }
 
     static CarShape KnottedShape(CarShape shape, GeometryTuning g, double knot)

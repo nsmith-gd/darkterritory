@@ -2354,6 +2354,9 @@ public static partial class Hud
                 return "SIT : [E]";
             case InteractableKind.Cooler:
                 return train.Vehicles[p.Parent].Beers is > 0 and var beers ? $"A BEER : [E]   {beers} LEFT" : "THE COOLER'S EMPTY";
+            // The gramophone (note 715).
+            case InteractableKind.Gramophone:
+                return world.Whimsy.Playing ? "LIFT THE NEEDLE : [E]" : "WIND THE GRAMOPHONE : [E]";
             case InteractableKind.Grill when train.Dynamics.Tuning.Composition.Bbq is var bbq:
                 return Bbq.Lit(train.Vehicles[p.Parent]) ? Hold("GRILL A SAUSAGE", p.ActionProgress / bbq.GrillSeconds)
                     : Hold("LIGHT THE GRILL", p.ActionProgress / bbq.LightSeconds);

@@ -1309,7 +1309,7 @@ static object Screenshot(TrainTuning t, string content, string[] args)
     // --gannet soar|circle|hang|fold|dive|stuck|tearfree|climb|bank|swoop|pin|windup|peck: the staged Gannet (note 340;
     // Staging.Gannet) over the second car's roof, after crewmate 4 walking it; the train running at --speed (20 m/s: it only
     // rides a fast train), its smoke laid back. The gannet views stage it soaring, diving, stuck and pinning unless told.
-    string gannetMode = Str(args, "--gannet", view switch { "gannet" => "soar", "gannetfold" => "dive", "gannetstuck" => "stuck", "gannetpin" => "pin", _ => "" });
+    string gannetMode = Str(args, "--gannet", view switch { "gannet" => "soar", "gannetfold" => "dive", "gannetstuck" => "stuck", "gannetpin" => "pin", "gannetgerald" => "carry", _ => "" });
     if (gannetMode.Length > 0 && !args.Contains("--ruptured") && !args.Contains("--wreck"))
     {
         train.Dynamics.Velocity = Opt(args, "--speed", 20);
@@ -1825,6 +1825,9 @@ static object Screenshot(TrainTuning t, string content, string[] args)
         CrewNames = ["Dave", "Nicki", "Jacob"],
         // --engine-name (note 714): the nameplate's.
         EngineName = Str(args, "--engine-name", "") is { Length: > 0 } engineName ? engineName : null,
+        // --whimsy taken:3,canary:dead,playing (note 715): which of Gerald (bit 0) and the gnomes the Gannet's had, the canary's
+        // mood, the gramophone going.
+        WhimsyNow = Staging.Whimsy(Str(args, "--whimsy", "")) is var whimsyStaged ? () => whimsyStaged : null,
         Holdouts = holdouts,
         Town = town,
         Arrival = arrival,
@@ -4093,3 +4096,4 @@ sealed record SpectatedNight(NetPlaySession Host, NetPlaySession Watcher) : IDis
         Host.Dispose();
     }
 }
+

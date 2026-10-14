@@ -1114,6 +1114,7 @@ public sealed record GannetTuning
     public double PerRoofWeight { get; init; } = 1;
     public Dictionary<string, double> TierWeights { get; init; } = new() { ["local"] = 1, ["frontier"] = 1.5, ["deadLines"] = 2, ["deepTerritory"] = 2.5 };
     public Dictionary<string, double> BiomeWeights { get; init; } = new();
+    public double DecoyPull { get; init; } = 0.25;
 }
 
 /// <summary>The Mourners (GDD §21, App. A.6, B.6; ARCHITECTURE §8 note 362). Field docs live in enemies.json.</summary>

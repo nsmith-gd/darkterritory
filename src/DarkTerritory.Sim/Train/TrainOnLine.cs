@@ -960,14 +960,18 @@ public sealed class TrainOnLine
         int tenths = hasCarBehind ? (int)Math.Round(knot * 10) : 0;
         // The BBQ deck on the engine's front (note 698), where it's fitted.
         bool bbq = kind == VehicleKind.Engine && Tuning.Composition.BbqDeck;
-        if (!_shapes.TryGetValue((kind, hasCarBehind, lockers, tenths, bbq), out var shape))
+        // The gramophone in the last guard van (note 715).
+        bool gramophone = kind == VehicleKind.Guard && !hasCarBehind && Tuning.Composition.Dressed("gramophone");
+        if (!_shapes.TryGetValue((kind, hasCarBehind, lockers, tenths, bbq || gramophone), out var shape))
         {
             shape = CarShape.Build(g, kind, hasCarBehind, lockers ? Tuning.Kit.Lockers : null);
             if (tenths > 0)
                 shape = CarShape.Knotted(shape, g, tenths / 10.0);
             if (bbq)
                 shape = CarShape.WithBbqDeck(shape, g, Tuning.Composition.Bbq);
-            _shapes[(kind, hasCarBehind, lockers, tenths, bbq)] = shape;
+            if (gramophone)
+                shape = CarShape.WithGramophone(shape);
+            _shapes[(kind, hasCarBehind, lockers, tenths, bbq || gramophone)] = shape;
         }
         return shape;
     }

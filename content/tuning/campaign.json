@@ -142,7 +142,7 @@
     // The whistle swapped for a clown's bulb horn: a third as loud to the Choir (combat.json choir.whistleLoudness; it still
     // draws the night's first threat as a whistle does, note 287). Its honk is the audio chat's (asked on the PR). Not with
     // the gold one.
-    { "id": "theHonk", "name": "The honk", "kind": "whimsy", "size": "small", "costShare": 0.05, "effect": { "whistle": 0.35 }, "excludes": [ "goldWhistle", "cucarachaHorn" ],
+    { "id": "theHonk", "name": "The honk", "kind": "whimsy", "size": "small", "costShare": 0.05, "effect": { "whistle": 0.35 }, "excludes": [ "goldWhistle", "cucarachaHorn", "calliope" ],
       "line": "A bulb horn off a clown's bicycle where the whistle was. The Territory doesn't take it seriously.",
       "tally": "Horn: comedic." },
     // The BBQ deck (note 698; the director, 13 Oct: "its the BBQ Dads at the end of the world"): train.json composition.bbq.
@@ -185,7 +185,7 @@
 
     // Silly (note 678): bought because it's silly. The price is the joke, and the clerk reads it out every night.
     // Costs more than a major and is still a whistle: louder, which isn't better (the Choir hears it a quarter further).
-    { "id": "goldWhistle", "name": "Gold-plated whistle", "kind": "silly", "size": "major", "costShare": 2.5, "effect": { "whistle": 1.25 }, "excludes": [ "theHonk", "cucarachaHorn" ],
+    { "id": "goldWhistle", "name": "Gold-plated whistle", "kind": "silly", "size": "major", "costShare": 2.5, "effect": { "whistle": 1.25 }, "excludes": [ "theHonk", "cucarachaHorn", "calliope" ],
       "line": "Costs more than a car. It's a whistle. It's louder, and that isn't better.",
       "tally": "Whistle: gold." },
     // The rest of the silly (note 701; the director, 13 Oct: approved, "hilarious", "super funny"): things on the train, the
@@ -207,7 +207,7 @@
       "line": "A toy caboose on a string off the back of the guard van. It comes off at every bend and is dragged.",
       "tally": "Caboose: small." },
     { "id": "cucarachaHorn", "name": "La Cucaracha horn", "kind": "silly", "size": "small", "costShare": 0.12, "effect": { "dress:cucarachaHorn": 1 },
-      "excludes": [ "theHonk", "goldWhistle" ],
+      "excludes": [ "theHonk", "goldWhistle", "calliope" ],
       "line": "The whistle plays La Cucaracha. Every pull, all of it. The Choir hears it as the whistle.",
       "tally": "Horn: musical." },
     { "id": "airFreshener", "name": "Pine-tree air freshener", "kind": "silly", "size": "small", "costShare": 0.005, "effect": { "dress:airFreshener": 1 },
@@ -254,6 +254,29 @@
     { "id": "yardPhotographer", "name": "The yard photographer", "kind": "fun", "size": "small", "costShare": 0.03, "effect": { "dress:yardPhotographer": 1 },
       "line": "A fellow with a tripod who takes the crew's picture as she leaves the yard, every night. Kept in your bookmarks folder.",
       "tally": "Photograph: taken." },
+    // The whimsies (note 715; docs/design/upgrades.md §8.2), train.json composition.whimsy. Gerald: a straw dummy in a crew
+    // coat sat on the guard van's roof; the Gannet takes him for a walker now and then (enemies.json gannet.decoyPull) and
+    // carries him off, and the clerk reads it out. Not before the Gannet's tiers.
+    { "id": "gerald", "name": "Gerald", "kind": "whimsy", "size": "small", "costShare": 0.1, "fromTier": "frontier", "effect": { "dress:gerald": 1 },
+      "line": "A straw dummy in a crew coat, bolted to the guard van's roof. The Gannet can't tell him from you. Every crew names him Gerald.",
+      "tally": "Gerald: aboard." },
+    // Garden gnomes along the roofs: the Gannet dives on one now and then, as on Gerald.
+    { "id": "gardenGnomes", "name": "Garden gnomes", "kind": "whimsy", "size": "small", "costShare": 0.06, "fromTier": "frontier", "effect": { "dress:gardenGnomes": 1 },
+      "line": "Five gnomes bolted along the roofs, fishing rods and all. Now and then the Gannet takes one instead of you.",
+      "tally": "Gnomes: bolted." },
+    // The canary in car one: it sings while all's well, stops while an interior creature's aboard near it, and dies in fumes.
+    { "id": "canary", "name": "The canary", "kind": "whimsy", "size": "small", "costShare": 0.08, "effect": { "dress:canary": 1 },
+      "line": "A canary in a brass cage in car one. It sings while all's well and stops when something's aboard. Keep it out of the fumes.",
+      "tally": "Canary: singing." },
+    // The steam calliope: the whistle's each pull the next note of a tune; louder to the Choir, and a Moose stops to listen.
+    { "id": "calliope", "name": "Steam calliope", "kind": "whimsy", "size": "small", "costShare": 0.1, "effect": { "whistle": 1.6, "dress:calliope": 1 },
+      "excludes": [ "theHonk", "goldWhistle", "cucarachaHorn" ],
+      "line": "Brass pipes on the boiler where the whistle was: each pull of the cord the tune's next note. Louder. A Moose stops to listen.",
+      "tally": "Whistle: a calliope." },
+    // The gramophone in the guard van, wound with Use: the Gaunt hears it as talk, a Moose stops for it, the Choir hears a music box.
+    { "id": "gramophone", "name": "The gramophone", "kind": "whimsy", "size": "small", "costShare": 0.08, "effect": { "dress:gramophone": 1 },
+      "line": "A wind-up gramophone in the guard van and a stack of jigs and reels. The Gaunt hears it as talk. So does the Choir, a little.",
+      "tally": "Gramophone: wound." },
     // Does nothing at all, and the clerk says so, every night, for good.
     { "id": "commendation", "name": "Framed commendation", "kind": "silly", "size": "small", "costShare": 0.5, "effect": { },
       "line": "\"For Services to the Railway\", signed by a council nobody's met, framed, for the cab. Read into every tally.",

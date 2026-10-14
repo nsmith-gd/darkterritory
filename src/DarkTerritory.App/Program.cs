@@ -967,6 +967,8 @@ CampaignState? Play(IPlaySession session, CampaignState? campaign)
         Impacts = session.World.Impacts,
         Run = session.World.Run,
         Band = session.World.BandTuning,
+        // The whimsies (note 715): Gerald and the gnomes, the canary, the gramophone, as the host has them.
+        WhimsyNow = () => session.World.Whimsy,
         // The engine's name on its plates (note 714), the host's campaign's.
         EngineName = (session as NetPlaySession)?.Setup.EngineName,
         Words = DataFile.Load<DarkTerritory.Game.DressWords>(Path.Combine(content, DarkTerritory.Game.DressWords.File)),

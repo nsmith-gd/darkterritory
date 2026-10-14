@@ -84,7 +84,8 @@ public static class Protocol
     //     fields; the fire cells after them), a beer and a sausage are body kinds of their own, and a crewmate sat in a
     //     Muskoka chair is a player flag; and the band (note 700): an instrument is a body kind (which, its ninth field), a
     //     crewmate playing one a player flag, and the world record carries the band's tune and its first tick (fields 29–30);
-    //     the tiny caboose a body kind (note 713), and an emote's third bit the moves byte's top bit (note 714).
+    //     the tiny caboose a body kind (note 713), and an emote's third bit the moves byte's top bit (note 714); the
+    //     whimsies' state on the world record (note 715).
     public const int Version = 59;
 }
 

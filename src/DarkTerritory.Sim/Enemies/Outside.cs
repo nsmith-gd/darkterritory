@@ -348,7 +348,9 @@ public sealed class Gaunt(int id) : Enemy(id)
         var train = ctx.Train;
         var at = WorldPosition(train);
         int who = Waker ?? -1;
-        // The band's playing is talk to it too, whoever's playing (note 711).
+        // The band's playing is talk to it too, whoever's playing (note 711); and the gramophone, within its own reach (note 715).
+        if (t.BandCalms && ctx.World.GramophonePlaying && ctx.World.Playing().FirstOrDefault() is var (record, hears) && (record - at).Length <= hears)
+            return true;
         return ctx.Crew.Any(c => c.Player.State.Alive
             && (c.Intent.Voice >= t.TalkingAbove && (t.AnyVoiceCounts || c.Player.Id == who) || t.BandCalms && c.Player.State.Has(PlayerFlags.Playing))
             && (PlayerMotor.WorldPosition(c.Player.State, train) - at).Length <= t.ListenRadius);

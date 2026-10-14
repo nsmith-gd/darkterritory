@@ -341,6 +341,11 @@ engine nameplate (named at the fortress), the hat rack (HAT in the yard), more e
 the yard photographer (his picture as she comes out of the gate, on the HUD and in the night's folder; the end card's
 gallery is still to come).
 
+**Built (note 715):** the first whimsies: Gerald and the garden gnomes (the Gannet takes one for a walker now and then, and the
+clerk reads it out), the canary (quiet while something's aboard, dead in fumes), the steam calliope (a note a pull; a Moose
+stops for it) and the gramophone (wound with Use; the Gaunt hears it as talk, a Moose stops for it). Next: the hammock, the
+hot tub and the fishing rod; the yard cat, the dog and the tennis-ball launcher; the human cannonball.
+
 ### 8.3 The human cannonball: consent and feedback
 
 Nobody is fired who didn't climb in, and everyone knows what's about to happen.

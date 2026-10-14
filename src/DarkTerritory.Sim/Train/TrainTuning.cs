@@ -153,7 +153,13 @@ public sealed record CompositionTuning
     public BbqTuning Bbq { get; init; } = new();
     /// <summary>The tiny caboose's string and size (note 713).</summary>
     public CabooseTuning Caboose { get; init; } = new();
+    /// <summary>The whimsies' numbers (note 715): Gerald, the gnomes, the canary, the gramophone, the calliope.</summary>
+    public WhimsyTuning Whimsy { get; init; } = new();
 }
+
+/// <summary>The whimsies (train.json <c>composition.whimsy</c>; ARCHITECTURE §8 note 715). Field docs live in that file.</summary>
+public sealed record WhimsyTuning(int Gnomes = 5, int CanaryCars = 1, double CanaryGasM = 10, double CanaryFumesSeconds = 20,
+    double GramophoneHears = 22, double GramophoneLoudness = 0.25, double CalliopeHears = 80);
 
 /// <summary>The tiny caboose (train.json <c>composition.caboose</c>; ARCHITECTURE §8 note 713). Field docs live in that file.</summary>
 public sealed record CabooseTuning(double Rope = 1.4, double Length = 0.36, double Radius = 0.1, double CouplerHeight = 1.0, double DerailAccel = 0.8,

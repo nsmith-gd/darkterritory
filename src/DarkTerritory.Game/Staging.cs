@@ -8,6 +8,24 @@ namespace DarkTerritory.Game;
 /// <summary>Set pieces for looking at and listening to things headless (screenshots, audio renders, tests).</summary>
 public static partial class Staging
 {
+    /// <summary>dt screenshot --whimsy (note 715): "taken:3,canary:silent|dead,playing" as the whimsies' state.</summary>
+    public static Sim.Train.WhimsyState Whimsy(string spec)
+    {
+        var w = default(Sim.Train.WhimsyState);
+        foreach (var part in spec.Split(',', StringSplitOptions.RemoveEmptyEntries))
+        {
+            var kv = part.Split(':');
+            w = kv[0] switch
+            {
+                "taken" => w with { Taken = int.Parse(kv[1], System.Globalization.CultureInfo.InvariantCulture) },
+                "canary" => w with { Canary = Enum.Parse<Sim.Train.CanaryMood>(kv[1], ignoreCase: true) },
+                "playing" => w with { Playing = true },
+                _ => throw new ArgumentException($"--whimsy: unknown '{part}'"),
+            };
+        }
+        return w;
+    }
+
     /// <summary>
     /// Where to stand to talk to, read or look at a town's <paramref name="what"/> (person, board, paper, fixture, door; the
     /// <paramref name="which"/>-th of them), and the point to look at (`dt screenshot --hud --talk`): in front of it, as close
@@ -1355,18 +1373,20 @@ public static partial class Staging
             "stuck" => (SpinePhase.Commit, GannetMode.Stuck, 1.1),
             "tearfree" => (SpinePhase.Commit, GannetMode.Stuck, t.StuckSeconds - 0.42),
             "climb" => (SpinePhase.Dormant, GannetMode.Climb, 0.9),
+            // Climbing away with Gerald in its beak (note 715).
+            "carry" => (SpinePhase.Dormant, GannetMode.Climb, 0.9),
             "bank" => (SpinePhase.Telegraph, GannetMode.Bank, 0.9),
             "swoop" => (SpinePhase.Telegraph, GannetMode.Bank, t.BankSeconds - 0.4),
             "pin" => (SpinePhase.Grab, GannetMode.Pin, 1.75),
             "windup" => (SpinePhase.Grab, GannetMode.Pin, t.PeckEvery * 2 - 0.35),
             "peck" => (SpinePhase.Grab, GannetMode.Pin, t.PeckEvery * 2 + 0.02),
-            _ => throw new ArgumentException($"--gannet {mode}: soar, circle, hang, fold, dive, stuck, tearfree, climb, bank, swoop, pin, windup or peck"),
+            _ => throw new ArgumentException($"--gannet {mode}: soar, circle, hang, fold, dive, stuck, tearfree, climb, carry, bank, swoop, pin, windup or peck"),
         };
-        var (car, at, yaw) = GannetAt(train, mode);
+        var (car, at, yaw) = GannetAt(train, mode == "carry" ? "climb" : mode);
         var gannet = new Sim.Enemies.Gannet(GannetId);
         bool marked = doing is GannetMode.Bank or GannetMode.Pin;
         gannet.Restore(phase, seconds, t.Health, car, at, train.Dynamics.Distance, yaw, (double)doing,
-            doing is GannetMode.Hang or GannetMode.Fold || marked ? LoneId : -1, marked ? LoneId : -1,
+            mode == "carry" ? -2 : doing is GannetMode.Hang or GannetMode.Fold || marked ? LoneId : -1, marked ? LoneId : -1,
             holding: phase == SpinePhase.Grab ? LoneId : -1, grabWindow: t.Pecks * t.PeckEvery);
         threats.Add(gannet);
         return threats;

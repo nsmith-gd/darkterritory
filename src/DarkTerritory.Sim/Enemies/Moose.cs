@@ -440,6 +440,13 @@ public sealed class Moose(int id) : Enemy(id)
             if (d <= best)
                 (best, nearest) = (d, at);
         }
+        // The gramophone and the calliope (note 715): heard from as far as each carries.
+        foreach (var (at, hears) in ctx.World.Playing())
+        {
+            double d = Flat(at - Local);
+            if (d <= hears && (nearest is null || d < best))
+                (best, nearest) = (d, at);
+        }
         return nearest;
     }
 

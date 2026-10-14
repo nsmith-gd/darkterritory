@@ -117,7 +117,10 @@ public static class WorldRecords
                 Q(world.Watcher.Seconds, Fine), (long)world.Watcher.Kind, world.Watcher.Player,
                 Q(world.Watcher.At.X, Pos), Q(world.Watcher.At.Y, Pos), Q(world.Watcher.At.Z, Pos),
                 // The band (note 700): the tune it's playing (+1; 0 none) and the tick its first bar began.
-                world.Band.Tune + 1, world.Band.StartTick]));
+                world.Band.Tune + 1, world.Band.StartTick,
+                // The whimsies (note 715): Gerald and the gnomes taken, the canary, the calliope's note, the gramophone.
+                world.Whimsy.Taken, (long)world.Whimsy.Canary, world.Whimsy.CalliopeNote, world.Whimsy.Playing ? 1 : 0, world.Whimsy.Record,
+                world.Whimsy.WoundAt]));
         foreach (var e in world.ActiveEnemies)
             list.Add(new WireRecord(WireRecord.MakeKey(RecordKind.Enemy, e.Id),
             [
@@ -423,6 +426,9 @@ public static class WorldRecords
                     world.LampOutSeconds = f.Length > 5 ? D(f[5], Fine) : 0;
                     world.Train.Sand = f.Length > 6 ? D(f[6], Fine) : 0;
                     world.Band = f.Length > 29 ? new BandState((int)f[28] - 1, (uint)f[29]) : BandState.Silent;
+                    world.Whimsy = f.Length > 35
+                        ? new WhimsyState((int)f[30], (CanaryMood)f[31], (int)f[32], f[33] != 0, (int)f[34], (uint)f[35])
+                        : default;
                     break;
                 case RecordKind.Enemy:
                     if (!world.Authority)

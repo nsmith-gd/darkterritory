@@ -240,6 +240,21 @@ public static class Views
             // The yard photographer (note 714) and his picture: framed from where he stands past the gate, which only the
             // night knows (dt screenshot puts them there, YardPhotographer.Stand and .Lens); from here, off the engine's front.
             "photographer" or "yardphoto" => Camera.LookAt(engine.ToWorld(new Double3(5, 1.6, -engineHalf - 14)), engine.ToWorld(new Double3(0, 2.4, -engineHalf + 6)), 52),
+            // The whimsies (note 715; `--upgrades gerald,gardenGnomes,canary,gramophone,calliope`): Gerald on the guard van's
+            // roof from behind it; the gnomes down car 1's roof; the canary's cage in car 1; the gramophone in the guard van;
+            // the calliope's pipes on the boiler.
+            // The Gannet climbing off car 2's roof with Gerald (note 715; dt screenshot --gannet carry), from off the car's side.
+            "gannetgerald" => Camera.LookAt(train.Frames[2].ToWorld(new Double3(-9, train.Frames[2].Shape.RoofHeight + 3, 4)),
+                train.Frames[2].ToWorld(new Double3(0.3, train.Frames[2].Shape.RoofHeight + 2.5, -2.5)), 60),
+            "gerald" => Camera.LookAt(train.Frames[^1].ToWorld(new Double3(3.0, train.Frames[^1].Shape.RoofHeight + 1.6, -train.Frames[^1].Shape.HalfLength + 5.5)),
+                train.Frames[^1].ToWorld(new Double3(0.8, train.Frames[^1].Shape.RoofHeight + 0.9, -train.Frames[^1].Shape.HalfLength + 1.6)), 50),
+            "gnomes" => Camera.LookAt(train.Frames[1].ToWorld(new Double3(-2.4, train.Frames[1].Shape.RoofHeight + 1.6, -train.Frames[1].Shape.HalfLength - 1.5)),
+                train.Frames[1].ToWorld(new Double3(0, train.Frames[1].Shape.RoofHeight + 0.2, 1.5)), 60),
+            "canary" => Camera.LookAt(train.Frames[Sim.Train.Whimsy.CanaryCar(train)].ToWorld(Sim.Train.Whimsy.Cage(train) + new Double3(1.1, -0.35, 0.9)),
+                train.Frames[Sim.Train.Whimsy.CanaryCar(train)].ToWorld(Sim.Train.Whimsy.Cage(train) + new Double3(0, -0.3, 0)), 55),
+            "gramophone" => Camera.LookAt(train.Frames[^1].ToWorld(Sim.Train.Whimsy.Gramophone(train.Frames[^1].Shape) + new Double3(1.7, 1.55, 1.3)),
+                train.Frames[^1].ToWorld(Sim.Train.Whimsy.Gramophone(train.Frames[^1].Shape) + new Double3(0.1, 0.95, 0)), 60),
+            "calliope" => Camera.LookAt(engine.ToWorld(new Double3(2.6, engine.Shape.RoofHeight + 1.4, -4.6)), engine.ToWorld(new Double3(0, engine.Shape.RoofHeight + 0.4, -2)), 50),
             "dresside" => Camera.LookAt(engine.ToWorld(new Double3(6.5, 2.0, -2.5)), engine.ToWorld(new Double3(1.5, 1.7, 0.2)), 60),
             "dressvan" => Camera.LookAt(train.Frames[^1].ToWorld(new Double3(-1.0, 2.3, -2.2)), train.Frames[^1].ToWorld(new Double3(1.3, 2.4, 1.4)), 70),
             // The band (note 700; `--band`): from over the roof's back end, down between the two rows playing.

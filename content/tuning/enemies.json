@@ -380,7 +380,10 @@
     "health": 12, "giveUpBelow": 4, "markReach": 200, "minCars": 2, "perRoofWeight": 1,
     "tierWeights": { "local": 1, "frontier": 1.5, "deadLines": 2, "deepTerritory": 2.5 },
     "biomeWeights": { "coast": 3, "dykeland": 3, "plains": 1.5, "marsh": 1.5, "contaminatedMarsh": 1.5, "blackForest": 0.3,
-      "forestEdge": 0.5, "mountain": 1, "deadTown": 1.5 }
+      "forestEdge": 0.5, "mountain": 1, "deadTown": 1.5 },
+    // Gerald and the garden gnomes (note 715; train.json composition.whimsy): of its passes with one aboard, this share it
+    // dives on one of them instead (hangs over it, folds, and carries it off), whoever's walking.
+    "decoyPull": 0.25
   },
 
   // THE MOURNERS · absence · outside (GDD §21, App. A.6, B.6; the director's brief of 8 Oct 2026; ARCHITECTURE §8 note 362;
